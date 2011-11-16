@@ -1,6 +1,7 @@
 #include <linux/kernel.h>
 #include <linux/of_pci.h>
 #include <linux/of_irq.h>
+#include <linux/export.h>
 #include <asm/prom.h>
 
 /**

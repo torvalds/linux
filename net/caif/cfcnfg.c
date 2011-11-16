@@ -78,10 +78,8 @@ struct cfcnfg *cfcnfg_create(void)
 
 	/* Initiate this layer */
 	this = kzalloc(sizeof(struct cfcnfg), GFP_ATOMIC);
-	if (!this) {
-		pr_warn("Out of memory\n");
+	if (!this)
 		return NULL;
-	}
 	this->mux = cfmuxl_create();
 	if (!this->mux)
 		goto out_of_mem;
@@ -108,8 +106,6 @@ struct cfcnfg *cfcnfg_create(void)
 
 	return this;
 out_of_mem:
-	pr_warn("Out of memory\n");
-
 	synchronize_rcu();
 
 	kfree(this->mux);
@@ -448,10 +444,8 @@ cfcnfg_linkup_rsp(struct cflayer *layer, u8 channel_id, enum cfctrl_srv serv,
 				"- unknown channel type\n");
 		goto unlock;
 	}
-	if (!servicel) {
-		pr_warn("Out of memory\n");
+	if (!servicel)
 		goto unlock;
-	}
 	layer_set_dn(servicel, cnfg->mux);
 	cfmuxl_set_uplayer(cnfg->mux, servicel, channel_id);
 	layer_set_up(servicel, adapt_layer);
@@ -473,7 +467,7 @@ cfcnfg_add_phy_layer(struct cfcnfg *cnfg, enum cfcnfg_phy_type phy_type,
 {
 	struct cflayer *frml;
 	struct cflayer *phy_driver = NULL;
-	struct cfcnfg_phyinfo *phyinfo;
+	struct cfcnfg_phyinfo *phyinfo = NULL;
 	int i;
 	u8 phyid;
 
@@ -488,25 +482,25 @@ cfcnfg_add_phy_layer(struct cfcnfg *cnfg, enum cfcnfg_phy_type phy_type,
 			goto got_phyid;
 	}
 	pr_warn("Too many CAIF Link Layers (max 6)\n");
-	goto out;
+	goto out_err;
 
 got_phyid:
 	phyinfo = kzalloc(sizeof(struct cfcnfg_phyinfo), GFP_ATOMIC);
+	if (!phyinfo)
+		goto out_err;
 
 	switch (phy_type) {
 	case CFPHYTYPE_FRAG:
 		phy_driver =
 		    cfserl_create(CFPHYTYPE_FRAG, phyid, stx);
-		if (!phy_driver) {
-			pr_warn("Out of memory\n");
-			goto out;
-		}
+		if (!phy_driver)
+			goto out_err;
 		break;
 	case CFPHYTYPE_CAIF:
 		phy_driver = NULL;
 		break;
 	default:
-		goto out;
+		goto out_err;
 	}
 	phy_layer->id = phyid;
 	phyinfo->pref = pref;
@@ -520,11 +514,8 @@ got_phyid:
 
 	frml = cffrml_create(phyid, fcs);
 
-	if (!frml) {
-		pr_warn("Out of memory\n");
-		kfree(phyinfo);
-		goto out;
-	}
+	if (!frml)
+		goto out_err;
 	phyinfo->frm_layer = frml;
 	layer_set_up(frml, cnfg->mux);
 
@@ -540,7 +531,12 @@ got_phyid:
 	}
 
 	list_add_rcu(&phyinfo->node, &cnfg->phys);
-out:
+	mutex_unlock(&cnfg->lock);
+	return;
+
+out_err:
+	kfree(phy_driver);
+	kfree(phyinfo);
 	mutex_unlock(&cnfg->lock);
 }
 EXPORT_SYMBOL(cfcnfg_add_phy_layer);

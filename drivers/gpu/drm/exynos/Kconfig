@@ -1,0 +1,20 @@
+config DRM_EXYNOS
+	tristate "DRM Support for Samsung SoC EXYNOS Series"
+	depends on DRM && PLAT_SAMSUNG
+	default	n
+	select DRM_KMS_HELPER
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select VT_HW_CONSOLE_BINDING if FRAMEBUFFER_CONSOLE
+	help
+	  Choose this option if you have a Samsung SoC EXYNOS chipset.
+	  If M is selected the module will be called exynosdrm.
+
+config DRM_EXYNOS_FIMD
+	tristate "Exynos DRM FIMD"
+	depends on DRM_EXYNOS
+	default n
+	help
+	  Choose this option if you want to use Exynos FIMD for DRM.
+	  If M is selected, the module will be called exynos_drm_fimd

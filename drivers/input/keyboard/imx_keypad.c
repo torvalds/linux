@@ -510,7 +510,7 @@ static int __devinit imx_keypad_probe(struct platform_device *pdev)
 	/* Ensure that the keypad will stay dormant until opened */
 	imx_keypad_inhibit(keypad);
 
-	error = request_irq(irq, imx_keypad_irq_handler, IRQF_DISABLED,
+	error = request_irq(irq, imx_keypad_irq_handler, 0,
 			    pdev->name, keypad);
 	if (error) {
 		dev_err(&pdev->dev, "failed to request IRQ\n");
@@ -567,10 +567,54 @@ static int __devexit imx_keypad_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int imx_kbd_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct imx_keypad *kbd = platform_get_drvdata(pdev);
+	struct input_dev *input_dev = kbd->input_dev;
+
+	/* imx kbd can wake up system even clock is disabled */
+	mutex_lock(&input_dev->mutex);
+
+	if (input_dev->users)
+		clk_disable(kbd->clk);
+
+	mutex_unlock(&input_dev->mutex);
+
+	if (device_may_wakeup(&pdev->dev))
+		enable_irq_wake(kbd->irq);
+
+	return 0;
+}
+
+static int imx_kbd_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct imx_keypad *kbd = platform_get_drvdata(pdev);
+	struct input_dev *input_dev = kbd->input_dev;
+
+	if (device_may_wakeup(&pdev->dev))
+		disable_irq_wake(kbd->irq);
+
+	mutex_lock(&input_dev->mutex);
+
+	if (input_dev->users)
+		clk_enable(kbd->clk);
+
+	mutex_unlock(&input_dev->mutex);
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(imx_kbd_pm_ops, imx_kbd_suspend, imx_kbd_resume);
+
 static struct platform_driver imx_keypad_driver = {
 	.driver		= {
 		.name	= "imx-keypad",
 		.owner	= THIS_MODULE,
+		.pm	= &imx_kbd_pm_ops,
 	},
 	.probe		= imx_keypad_probe,
 	.remove		= __devexit_p(imx_keypad_remove),

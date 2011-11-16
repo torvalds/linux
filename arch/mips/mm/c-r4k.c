@@ -722,6 +722,39 @@ static void r4k_flush_icache_all(void)
 		r4k_blast_icache();
 }
 
+struct flush_kernel_vmap_range_args {
+	unsigned long	vaddr;
+	int		size;
+};
+
+static inline void local_r4k_flush_kernel_vmap_range(void *args)
+{
+	struct flush_kernel_vmap_range_args *vmra = args;
+	unsigned long vaddr = vmra->vaddr;
+	int size = vmra->size;
+
+	/*
+	 * Aliases only affect the primary caches so don't bother with
+	 * S-caches or T-caches.
+	 */
+	if (cpu_has_safe_index_cacheops && size >= dcache_size)
+		r4k_blast_dcache();
+	else {
+		R4600_HIT_CACHEOP_WAR_IMPL;
+		blast_dcache_range(vaddr, vaddr + size);
+	}
+}
+
+static void r4k_flush_kernel_vmap_range(unsigned long vaddr, int size)
+{
+	struct flush_kernel_vmap_range_args args;
+
+	args.vaddr = (unsigned long) vaddr;
+	args.size = size;
+
+	r4k_on_each_cpu(local_r4k_flush_kernel_vmap_range, &args);
+}
+
 static inline void rm7k_erratum31(void)
 {
 	const unsigned long ic_lsize = 32;
@@ -1402,6 +1435,8 @@ void __cpuinit r4k_cache_init(void)
 	flush_cache_mm		= r4k_flush_cache_mm;
 	flush_cache_page	= r4k_flush_cache_page;
 	flush_cache_range	= r4k_flush_cache_range;
+
+	__flush_kernel_vmap_range = r4k_flush_kernel_vmap_range;
 
 	flush_cache_sigtramp	= r4k_flush_cache_sigtramp;
 	flush_icache_all	= r4k_flush_icache_all;

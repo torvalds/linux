@@ -229,7 +229,7 @@ static void i8259A_shutdown(void)
 	 */
 	if (i8259A_auto_eoi >= 0) {
 		outb(0xff, PIC_MASTER_IMR);	/* mask all of 8259A-1 */
-		outb(0xff, PIC_SLAVE_IMR);	/* mask all of 8259A-1 */
+		outb(0xff, PIC_SLAVE_IMR);	/* mask all of 8259A-2 */
 	}
 }
 
@@ -295,6 +295,7 @@ static void init_8259A(int auto_eoi)
 static struct irqaction irq2 = {
 	.handler = no_action,
 	.name = "cascade",
+	.flags = IRQF_NO_THREAD,
 };
 
 static struct resource pic1_io_resource = {

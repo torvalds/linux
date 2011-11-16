@@ -57,7 +57,7 @@ static int lm25066_read_word_data(struct i2c_client *client, int page, int reg)
 	int ret;
 
 	if (page > 1)
-		return -EINVAL;
+		return -ENXIO;
 
 	/* Map READ_VAUX into READ_VOUT register on page 1 */
 	if (page == 1) {
@@ -85,7 +85,7 @@ static int lm25066_read_word_data(struct i2c_client *client, int page, int reg)
 			break;
 		default:
 			/* No other valid registers on page 1 */
-			ret = -EINVAL;
+			ret = -ENXIO;
 			break;
 		}
 		goto done;
@@ -138,7 +138,7 @@ static int lm25066_write_word_data(struct i2c_client *client, int page, int reg,
 	int ret;
 
 	if (page > 1)
-		return -EINVAL;
+		return -ENXIO;
 
 	switch (reg) {
 	case PMBUS_IIN_OC_WARN_LIMIT:
@@ -159,6 +159,17 @@ static int lm25066_write_word_data(struct i2c_client *client, int page, int reg,
 		break;
 	}
 	return ret;
+}
+
+static int lm25066_write_byte(struct i2c_client *client, int page, u8 value)
+{
+	if (page > 1)
+		return -ENXIO;
+
+	if (page <= 0)
+		return pmbus_write_byte(client, page, value);
+
+	return 0;
 }
 
 static int lm25066_probe(struct i2c_client *client,
@@ -204,6 +215,7 @@ static int lm25066_probe(struct i2c_client *client,
 
 	info->read_word_data = lm25066_read_word_data;
 	info->write_word_data = lm25066_write_word_data;
+	info->write_byte = lm25066_write_byte;
 
 	switch (id->driver_data) {
 	case lm25066:
@@ -297,11 +309,10 @@ static int lm25066_remove(struct i2c_client *client)
 {
 	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
 	const struct lm25066_data *data = to_lm25066_data(info);
-	int ret;
 
-	ret = pmbus_do_remove(client);
+	pmbus_do_remove(client);
 	kfree(data);
-	return ret;
+	return 0;
 }
 
 static const struct i2c_device_id lm25066_id[] = {

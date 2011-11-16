@@ -1,7 +1,7 @@
 /*
  *	dscore.c
  *
- * Copyright (c) 2004 Evgeniy Polyakov <johnpol@2ka.mipt.ru>
+ * Copyright (c) 2004 Evgeniy Polyakov <zbr@ioremap.net>
  *
  *
  * This program is free software; you can redistribute it and/or modify
@@ -1024,5 +1024,5 @@ module_init(ds_init);
 module_exit(ds_fini);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Evgeniy Polyakov <johnpol@2ka.mipt.ru>");
+MODULE_AUTHOR("Evgeniy Polyakov <zbr@ioremap.net>");
 MODULE_DESCRIPTION("DS2490 USB <-> W1 bus master driver (DS9490*)");

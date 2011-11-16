@@ -1,7 +1,7 @@
 #
 # Direct Digital Synthesis drivers
 #
-comment "Direct Digital Synthesis"
+menu "Direct Digital Synthesis"
 
 config AD5930
 	tristate "Analog Devices ad5930/5932 driver"
@@ -57,3 +57,5 @@ config AD9951
 	help
 	  Say yes here to build support for Analog Devices DDS chip
 	  ad9951, provides direct access via sysfs.
+
+endmenu

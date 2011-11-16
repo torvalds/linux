@@ -148,7 +148,7 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 		ret = -1L;
 
 	if (unlikely(current->audit_context))
-		audit_syscall_entry(EM_XILINX_MICROBLAZE, regs->r12,
+		audit_syscall_entry(EM_MICROBLAZE, regs->r12,
 				    regs->r5, regs->r6,
 				    regs->r7, regs->r8);
 

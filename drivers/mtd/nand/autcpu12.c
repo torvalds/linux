@@ -172,9 +172,9 @@ static int __init autcpu12_init(void)
 
 	/* Enable the following for a flash based bad block table */
 	/*
-	   this->options = NAND_USE_FLASH_BBT;
+	   this->bbt_options = NAND_BBT_USE_FLASH;
 	 */
-	this->options = NAND_USE_FLASH_BBT;
+	this->bbt_options = NAND_BBT_USE_FLASH;
 
 	/* Scan to find existence of the device */
 	if (nand_scan(autcpu12_mtd, 1)) {

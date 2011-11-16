@@ -95,11 +95,12 @@ static unsigned int blk_flush_policy(unsigned int fflags, struct request *rq)
 {
 	unsigned int policy = 0;
 
+	if (blk_rq_sectors(rq))
+		policy |= REQ_FSEQ_DATA;
+
 	if (fflags & REQ_FLUSH) {
 		if (rq->cmd_flags & REQ_FLUSH)
 			policy |= REQ_FSEQ_PREFLUSH;
-		if (blk_rq_sectors(rq))
-			policy |= REQ_FSEQ_DATA;
 		if (!(fflags & REQ_FUA) && (rq->cmd_flags & REQ_FUA))
 			policy |= REQ_FSEQ_POSTFLUSH;
 	}
@@ -122,7 +123,7 @@ static void blk_flush_restore_request(struct request *rq)
 
 	/* make @rq a normal request */
 	rq->cmd_flags &= ~REQ_FLUSH_SEQ;
-	rq->end_io = NULL;
+	rq->end_io = rq->flush.saved_end_io;
 }
 
 /**
@@ -300,9 +301,6 @@ void blk_insert_flush(struct request *rq)
 	unsigned int fflags = q->flush_flags;	/* may change, cache */
 	unsigned int policy = blk_flush_policy(fflags, rq);
 
-	BUG_ON(rq->end_io);
-	BUG_ON(!rq->bio || rq->bio != rq->biotail);
-
 	/*
 	 * @policy now records what operations need to be done.  Adjust
 	 * REQ_FLUSH and FUA for the driver.
@@ -310,6 +308,19 @@ void blk_insert_flush(struct request *rq)
 	rq->cmd_flags &= ~REQ_FLUSH;
 	if (!(fflags & REQ_FUA))
 		rq->cmd_flags &= ~REQ_FUA;
+
+	/*
+	 * An empty flush handed down from a stacking driver may
+	 * translate into nothing if the underlying device does not
+	 * advertise a write-back cache.  In this case, simply
+	 * complete the request.
+	 */
+	if (!policy) {
+		__blk_end_bidi_request(rq, 0, 0, 0);
+		return;
+	}
+
+	BUG_ON(rq->bio != rq->biotail); /*assumes zero or single bio rq */
 
 	/*
 	 * If there's data but flush is not necessary, the request can be
@@ -329,6 +340,7 @@ void blk_insert_flush(struct request *rq)
 	memset(&rq->flush, 0, sizeof(rq->flush));
 	INIT_LIST_HEAD(&rq->flush.list);
 	rq->cmd_flags |= REQ_FLUSH_SEQ;
+	rq->flush.saved_end_io = rq->end_io; /* Usually NULL */
 	rq->end_io = flush_data_end_io;
 
 	blk_flush_complete_seq(rq, REQ_FSEQ_ACTIONS & ~policy, 0);

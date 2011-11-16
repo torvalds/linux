@@ -217,7 +217,7 @@ xfs_efi_item_committing(
 /*
  * This is the ops vector shared by all efi log items.
  */
-static struct xfs_item_ops xfs_efi_item_ops = {
+static const struct xfs_item_ops xfs_efi_item_ops = {
 	.iop_size	= xfs_efi_item_size,
 	.iop_format	= xfs_efi_item_format,
 	.iop_pin	= xfs_efi_item_pin,
@@ -477,7 +477,7 @@ xfs_efd_item_committing(
 /*
  * This is the ops vector shared by all efd log items.
  */
-static struct xfs_item_ops xfs_efd_item_ops = {
+static const struct xfs_item_ops xfs_efd_item_ops = {
 	.iop_size	= xfs_efd_item_size,
 	.iop_format	= xfs_efd_item_format,
 	.iop_pin	= xfs_efd_item_pin,

@@ -55,7 +55,7 @@ int nf_log_register(u_int8_t pf, struct nf_logger *logger)
 		llog = rcu_dereference_protected(nf_loggers[pf],
 						 lockdep_is_held(&nf_log_mutex));
 		if (llog == NULL)
-			rcu_assign_pointer(nf_loggers[pf], logger);
+			RCU_INIT_POINTER(nf_loggers[pf], logger);
 	}
 
 	mutex_unlock(&nf_log_mutex);
@@ -74,7 +74,7 @@ void nf_log_unregister(struct nf_logger *logger)
 		c_logger = rcu_dereference_protected(nf_loggers[i],
 						     lockdep_is_held(&nf_log_mutex));
 		if (c_logger == logger)
-			rcu_assign_pointer(nf_loggers[i], NULL);
+			RCU_INIT_POINTER(nf_loggers[i], NULL);
 		list_del(&logger->list[i]);
 	}
 	mutex_unlock(&nf_log_mutex);
@@ -92,7 +92,7 @@ int nf_log_bind_pf(u_int8_t pf, const struct nf_logger *logger)
 		mutex_unlock(&nf_log_mutex);
 		return -ENOENT;
 	}
-	rcu_assign_pointer(nf_loggers[pf], logger);
+	RCU_INIT_POINTER(nf_loggers[pf], logger);
 	mutex_unlock(&nf_log_mutex);
 	return 0;
 }
@@ -103,7 +103,7 @@ void nf_log_unbind_pf(u_int8_t pf)
 	if (pf >= ARRAY_SIZE(nf_loggers))
 		return;
 	mutex_lock(&nf_log_mutex);
-	rcu_assign_pointer(nf_loggers[pf], NULL);
+	RCU_INIT_POINTER(nf_loggers[pf], NULL);
 	mutex_unlock(&nf_log_mutex);
 }
 EXPORT_SYMBOL(nf_log_unbind_pf);
@@ -250,7 +250,7 @@ static int nf_log_proc_dostring(ctl_table *table, int write,
 			mutex_unlock(&nf_log_mutex);
 			return -ENOENT;
 		}
-		rcu_assign_pointer(nf_loggers[tindex], logger);
+		RCU_INIT_POINTER(nf_loggers[tindex], logger);
 		mutex_unlock(&nf_log_mutex);
 	} else {
 		mutex_lock(&nf_log_mutex);

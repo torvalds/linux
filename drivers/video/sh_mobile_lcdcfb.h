@@ -18,6 +18,13 @@ struct sh_mobile_lcdc_priv;
 struct fb_info;
 struct backlight_device;
 
+/*
+ * struct sh_mobile_lcdc_chan - LCDC display channel
+ *
+ * @base_addr_y: Frame buffer viewport base address (luma component)
+ * @base_addr_c: Frame buffer viewport base address (chroma component)
+ * @pitch: Frame buffer line pitch
+ */
 struct sh_mobile_lcdc_chan {
 	struct sh_mobile_lcdc_priv *lcdc;
 	unsigned long *reg_offs;
@@ -25,7 +32,6 @@ struct sh_mobile_lcdc_chan {
 	unsigned long enabled; /* ME and SE in LDCNT2R */
 	struct sh_mobile_lcdc_chan_cfg cfg;
 	u32 pseudo_palette[PALETTE_NR];
-	unsigned long saved_ch_regs[NR_CH_REGS];
 	struct fb_info *info;
 	struct backlight_device *bl;
 	dma_addr_t dma_handle;
@@ -40,6 +46,10 @@ struct sh_mobile_lcdc_chan {
 	int blank_status;
 	struct mutex open_lock;		/* protects the use counter */
 	int meram_enabled;
+
+	unsigned long base_addr_y;
+	unsigned long base_addr_c;
+	unsigned int pitch;
 };
 
 #endif

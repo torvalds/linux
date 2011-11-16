@@ -22,7 +22,6 @@
  *  Naturally it's not a 1:1 relation, but there are similarities.
  */
 #include <linux/kernel_stat.h>
-#include <linux/module.h>
 #include <linux/signal.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
@@ -35,8 +34,8 @@
 #include <linux/list.h>
 #include <linux/kallsyms.h>
 #include <linux/proc_fs.h>
-#include <linux/ftrace.h>
 
+#include <asm/exception.h>
 #include <asm/system.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
@@ -58,9 +57,6 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 #endif
 #ifdef CONFIG_SMP
 	show_ipi_list(p, prec);
-#endif
-#ifdef CONFIG_LOCAL_TIMERS
-	show_local_irqs(p, prec);
 #endif
 	seq_printf(p, "%*s: %10lu\n", prec, "Err", irq_err_count);
 	return 0;

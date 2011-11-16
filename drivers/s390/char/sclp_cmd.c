@@ -61,8 +61,8 @@ static int __init sclp_cmd_sync_early(sclp_cmdw_t cmd, void *sccb)
 	rc = sclp_service_call(cmd, sccb);
 	if (rc)
 		goto out;
-	__load_psw_mask(PSW_BASE_BITS | PSW_MASK_EXT |
-			PSW_MASK_WAIT | PSW_DEFAULT_KEY);
+	__load_psw_mask(PSW_DEFAULT_KEY | PSW_MASK_BASE | PSW_MASK_EA |
+			PSW_MASK_BA | PSW_MASK_EXT | PSW_MASK_WAIT);
 	local_irq_disable();
 out:
 	/* Contents of the sccb might have changed. */
@@ -383,8 +383,10 @@ static int sclp_attach_storage(u8 id)
 	switch (sccb->header.response_code) {
 	case 0x0020:
 		set_bit(id, sclp_storage_ids);
-		for (i = 0; i < sccb->assigned; i++)
-			sclp_unassign_storage(sccb->entries[i] >> 16);
+		for (i = 0; i < sccb->assigned; i++) {
+			if (sccb->entries[i])
+				sclp_unassign_storage(sccb->entries[i] >> 16);
+		}
 		break;
 	default:
 		rc = -EIO;

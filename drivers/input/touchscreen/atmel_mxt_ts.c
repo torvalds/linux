@@ -244,6 +244,7 @@ struct mxt_finger {
 	int x;
 	int y;
 	int area;
+	int pressure;
 };
 
 /* Each client has this additional data */
@@ -536,6 +537,8 @@ static void mxt_input_report(struct mxt_data *data, int single_id)
 					finger[id].x);
 			input_report_abs(input_dev, ABS_MT_POSITION_Y,
 					finger[id].y);
+			input_report_abs(input_dev, ABS_MT_PRESSURE,
+					finger[id].pressure);
 		} else {
 			finger[id].status = 0;
 		}
@@ -546,6 +549,8 @@ static void mxt_input_report(struct mxt_data *data, int single_id)
 	if (status != MXT_RELEASE) {
 		input_report_abs(input_dev, ABS_X, finger[single_id].x);
 		input_report_abs(input_dev, ABS_Y, finger[single_id].y);
+		input_report_abs(input_dev,
+				 ABS_PRESSURE, finger[single_id].pressure);
 	}
 
 	input_sync(input_dev);
@@ -560,6 +565,7 @@ static void mxt_input_touchevent(struct mxt_data *data,
 	int x;
 	int y;
 	int area;
+	int pressure;
 
 	/* Check the touch is present on the screen */
 	if (!(status & MXT_DETECT)) {
@@ -584,6 +590,7 @@ static void mxt_input_touchevent(struct mxt_data *data,
 		y = y >> 2;
 
 	area = message->message[4];
+	pressure = message->message[5];
 
 	dev_dbg(dev, "[%d] %s x: %d, y: %d, area: %d\n", id,
 		status & MXT_MOVE ? "moved" : "pressed",
@@ -594,6 +601,7 @@ static void mxt_input_touchevent(struct mxt_data *data,
 	finger[id].x = x;
 	finger[id].y = y;
 	finger[id].area = area;
+	finger[id].pressure = pressure;
 
 	mxt_input_report(data, id);
 }
@@ -902,12 +910,17 @@ static ssize_t mxt_object_show(struct device *dev,
 	for (i = 0; i < data->info.object_num; i++) {
 		object = data->object_table + i;
 
-		count += sprintf(buf + count,
-				"Object Table Element %d(Type %d)\n",
+		count += snprintf(buf + count, PAGE_SIZE - count,
+				"Object[%d] (Type %d)\n",
 				i + 1, object->type);
+		if (count >= PAGE_SIZE)
+			return PAGE_SIZE - 1;
 
 		if (!mxt_object_readable(object->type)) {
-			count += sprintf(buf + count, "\n");
+			count += snprintf(buf + count, PAGE_SIZE - count,
+					"\n");
+			if (count >= PAGE_SIZE)
+				return PAGE_SIZE - 1;
 			continue;
 		}
 
@@ -917,11 +930,15 @@ static ssize_t mxt_object_show(struct device *dev,
 			if (error)
 				return error;
 
-			count += sprintf(buf + count,
-					"  Byte %d: 0x%x (%d)\n", j, val, val);
+			count += snprintf(buf + count, PAGE_SIZE - count,
+					"\t[%2d]: %02x (%d)\n", j, val, val);
+			if (count >= PAGE_SIZE)
+				return PAGE_SIZE - 1;
 		}
 
-		count += sprintf(buf + count, "\n");
+		count += snprintf(buf + count, PAGE_SIZE - count, "\n");
+		if (count >= PAGE_SIZE)
+			return PAGE_SIZE - 1;
 	}
 
 	return count;
@@ -1116,6 +1133,8 @@ static int __devinit mxt_probe(struct i2c_client *client,
 			     0, data->max_x, 0, 0);
 	input_set_abs_params(input_dev, ABS_Y,
 			     0, data->max_y, 0, 0);
+	input_set_abs_params(input_dev, ABS_PRESSURE,
+			     0, 255, 0, 0);
 
 	/* For multi touch */
 	input_mt_init_slots(input_dev, MXT_MAX_FINGER);
@@ -1125,6 +1144,8 @@ static int __devinit mxt_probe(struct i2c_client *client,
 			     0, data->max_x, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_POSITION_Y,
 			     0, data->max_y, 0, 0);
+	input_set_abs_params(input_dev, ABS_MT_PRESSURE,
+			     0, 255, 0, 0);
 
 	input_set_drvdata(input_dev, data);
 	i2c_set_clientdata(client, data);

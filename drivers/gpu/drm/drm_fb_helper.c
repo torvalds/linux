@@ -31,6 +31,7 @@
 #include <linux/sysrq.h>
 #include <linux/slab.h>
 #include <linux/fb.h>
+#include <linux/module.h>
 #include "drmP.h"
 #include "drm_crtc.h"
 #include "drm_fb_helper.h"
@@ -256,7 +257,6 @@ int drm_fb_helper_panic(struct notifier_block *n, unsigned long ununsed,
 {
 	printk(KERN_ERR "panic occurred, switching back to text console\n");
 	return drm_fb_helper_force_kernel_mode();
-	return 0;
 }
 EXPORT_SYMBOL(drm_fb_helper_panic);
 

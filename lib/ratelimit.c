@@ -39,7 +39,7 @@ int ___ratelimit(struct ratelimit_state *rs, const char *func)
 	 * in addition to the one that will be printed by
 	 * the entity that is holding the lock already:
 	 */
-	if (!spin_trylock_irqsave(&rs->lock, flags))
+	if (!raw_spin_trylock_irqsave(&rs->lock, flags))
 		return 0;
 
 	if (!rs->begin)
@@ -60,7 +60,7 @@ int ___ratelimit(struct ratelimit_state *rs, const char *func)
 		rs->missed++;
 		ret = 0;
 	}
-	spin_unlock_irqrestore(&rs->lock, flags);
+	raw_spin_unlock_irqrestore(&rs->lock, flags);
 
 	return ret;
 }

@@ -1057,7 +1057,7 @@ static int hvcs_enable_device(struct hvcs_struct *hvcsd, uint32_t unit_address,
 	 * the conn was registered and now.
 	 */
 	if (!(rc = request_irq(irq, &hvcs_handle_interrupt,
-				IRQF_DISABLED, "ibmhvcs", hvcsd))) {
+				0, "ibmhvcs", hvcsd))) {
 		/*
 		 * It is possible the vty-server was removed after the irq was
 		 * requested but before we have time to enable interrupts.
@@ -1237,7 +1237,7 @@ static void hvcs_close(struct tty_struct *tty, struct file *filp)
 		irq = hvcsd->vdev->irq;
 		spin_unlock_irqrestore(&hvcsd->lock, flags);
 
-		tty_wait_until_sent(tty, HVCS_CLOSE_WAIT);
+		tty_wait_until_sent_from_close(tty, HVCS_CLOSE_WAIT);
 
 		/*
 		 * This line is important because it tells hvcs_open that this
@@ -1532,7 +1532,7 @@ static int __devinit hvcs_initialize(void)
 		goto register_fail;
 	}
 
-	hvcs_pi_buff = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	hvcs_pi_buff = (unsigned long *) __get_free_page(GFP_KERNEL);
 	if (!hvcs_pi_buff) {
 		rc = -ENOMEM;
 		goto buff_alloc_fail;
@@ -1548,7 +1548,7 @@ static int __devinit hvcs_initialize(void)
 	return 0;
 
 kthread_fail:
-	kfree(hvcs_pi_buff);
+	free_page((unsigned long)hvcs_pi_buff);
 buff_alloc_fail:
 	tty_unregister_driver(hvcs_tty_driver);
 register_fail:
@@ -1597,7 +1597,7 @@ static void __exit hvcs_module_exit(void)
 	kthread_stop(hvcs_task);
 
 	spin_lock(&hvcs_pi_lock);
-	kfree(hvcs_pi_buff);
+	free_page((unsigned long)hvcs_pi_buff);
 	hvcs_pi_buff = NULL;
 	spin_unlock(&hvcs_pi_lock);
 

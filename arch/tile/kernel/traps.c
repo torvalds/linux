@@ -19,13 +19,12 @@
 #include <linux/reboot.h>
 #include <linux/uaccess.h>
 #include <linux/ptrace.h>
-#include <asm/opcode-tile.h>
-#include <asm/opcode_constants.h>
 #include <asm/stack.h>
 #include <asm/traps.h>
 
 #include <arch/interrupts.h>
 #include <arch/spr_def.h>
+#include <arch/opcode.h>
 
 void __init trap_init(void)
 {
@@ -135,7 +134,7 @@ static int special_ill(bundle_bits bundle, int *sigp, int *codep)
 	if (get_UnaryOpcodeExtension_X1(bundle) != ILL_UNARY_OPCODE_X1)
 		return 0;
 #else
-	if (bundle & TILE_BUNDLE_Y_ENCODING_MASK)
+	if (bundle & TILEPRO_BUNDLE_Y_ENCODING_MASK)
 		return 0;
 	if (get_Opcode_X1(bundle) != SHUN_0_OPCODE_X1)
 		return 0;

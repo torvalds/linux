@@ -960,8 +960,8 @@ static void __init tosa_init(void)
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
-static void __init fixup_tosa(struct machine_desc *desc,
-		struct tag *tags, char **cmdline, struct meminfo *mi)
+static void __init fixup_tosa(struct tag *tags, char **cmdline,
+			      struct meminfo *mi)
 {
 	sharpsl_save_param();
 	mi->nr_banks=1;

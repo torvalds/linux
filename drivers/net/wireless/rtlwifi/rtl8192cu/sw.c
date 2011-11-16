@@ -42,6 +42,7 @@
 #include "led.h"
 #include "hw.h"
 #include <linux/vmalloc.h>
+#include <linux/module.h>
 
 MODULE_AUTHOR("Georgia		<georgia@realtek.com>");
 MODULE_AUTHOR("Ziv Huang	<ziv_huang@realtek.com>");
@@ -60,6 +61,7 @@ static int rtl92cu_init_sw_vars(struct ieee80211_hw *hw)
 	rtlpriv->dm.dm_flag = 0;
 	rtlpriv->dm.disable_framebursting = 0;
 	rtlpriv->dm.thermalvalue = 0;
+	rtlpriv->dbg.global_debuglevel = rtlpriv->cfg->mod_params->debug;
 	rtlpriv->rtlhal.pfirmware = vmalloc(0x4000);
 	if (!rtlpriv->rtlhal.pfirmware) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
@@ -149,7 +151,13 @@ static struct rtl_hal_ops rtl8192cu_hal_ops = {
 
 static struct rtl_mod_params rtl92cu_mod_params = {
 	.sw_crypto = 0,
+	.debug = DBG_EMERG,
 };
+
+module_param_named(swenc, rtl92cu_mod_params.sw_crypto, bool, 0444);
+module_param_named(debug, rtl92cu_mod_params.debug, int, 0444);
+MODULE_PARM_DESC(swenc, "Set to 1 for software crypto (default 0)\n");
+MODULE_PARM_DESC(debug, "Set debug level (0-5) (default 0)");
 
 static struct rtl_hal_usbint_cfg rtl92cu_interface_cfg = {
 	/* rx */
@@ -241,20 +249,20 @@ static struct rtl_hal_cfg rtl92cu_hal_cfg = {
 	.maps[RTL_IMR_ROK] = IMR_ROK,
 	.maps[RTL_IBSS_INT_MASKS] = (IMR_BCNINT | IMR_TBDOK | IMR_TBDER),
 
-	.maps[RTL_RC_CCK_RATE1M] = DESC92C_RATE1M,
-	.maps[RTL_RC_CCK_RATE2M] = DESC92C_RATE2M,
-	.maps[RTL_RC_CCK_RATE5_5M] = DESC92C_RATE5_5M,
-	.maps[RTL_RC_CCK_RATE11M] = DESC92C_RATE11M,
-	.maps[RTL_RC_OFDM_RATE6M] = DESC92C_RATE6M,
-	.maps[RTL_RC_OFDM_RATE9M] = DESC92C_RATE9M,
-	.maps[RTL_RC_OFDM_RATE12M] = DESC92C_RATE12M,
-	.maps[RTL_RC_OFDM_RATE18M] = DESC92C_RATE18M,
-	.maps[RTL_RC_OFDM_RATE24M] = DESC92C_RATE24M,
-	.maps[RTL_RC_OFDM_RATE36M] = DESC92C_RATE36M,
-	.maps[RTL_RC_OFDM_RATE48M] = DESC92C_RATE48M,
-	.maps[RTL_RC_OFDM_RATE54M] = DESC92C_RATE54M,
-	.maps[RTL_RC_HT_RATEMCS7] = DESC92C_RATEMCS7,
-	.maps[RTL_RC_HT_RATEMCS15] = DESC92C_RATEMCS15,
+	.maps[RTL_RC_CCK_RATE1M] = DESC92_RATE1M,
+	.maps[RTL_RC_CCK_RATE2M] = DESC92_RATE2M,
+	.maps[RTL_RC_CCK_RATE5_5M] = DESC92_RATE5_5M,
+	.maps[RTL_RC_CCK_RATE11M] = DESC92_RATE11M,
+	.maps[RTL_RC_OFDM_RATE6M] = DESC92_RATE6M,
+	.maps[RTL_RC_OFDM_RATE9M] = DESC92_RATE9M,
+	.maps[RTL_RC_OFDM_RATE12M] = DESC92_RATE12M,
+	.maps[RTL_RC_OFDM_RATE18M] = DESC92_RATE18M,
+	.maps[RTL_RC_OFDM_RATE24M] = DESC92_RATE24M,
+	.maps[RTL_RC_OFDM_RATE36M] = DESC92_RATE36M,
+	.maps[RTL_RC_OFDM_RATE48M] = DESC92_RATE48M,
+	.maps[RTL_RC_OFDM_RATE54M] = DESC92_RATE54M,
+	.maps[RTL_RC_HT_RATEMCS7] = DESC92_RATEMCS7,
+	.maps[RTL_RC_HT_RATEMCS15] = DESC92_RATEMCS15,
 };
 
 #define USB_VENDER_ID_REALTEK		0x0bda
@@ -281,6 +289,8 @@ static struct usb_device_id rtl8192c_usb_ids[] = {
 	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0x817d, rtl92cu_hal_cfg)},
 	/* 8188CE-VAU USB minCard (b/g mode only) */
 	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0x817e, rtl92cu_hal_cfg)},
+	/* 8188RU in Alfa AWUS036NHR */
+	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0x817f, rtl92cu_hal_cfg)},
 	/* 8188 Combo for BC4 */
 	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0x8754, rtl92cu_hal_cfg)},
 
@@ -303,20 +313,23 @@ static struct usb_device_id rtl8192c_usb_ids[] = {
 	{RTL_USB_DEVICE(0x0eb0, 0x9071, rtl92cu_hal_cfg)}, /*NO Brand - Etop*/
 	/* HP - Lite-On ,8188CUS Slim Combo */
 	{RTL_USB_DEVICE(0x103c, 0x1629, rtl92cu_hal_cfg)},
+	{RTL_USB_DEVICE(0x13d3, 0x3357, rtl92cu_hal_cfg)}, /* AzureWave */
 	{RTL_USB_DEVICE(0x2001, 0x3308, rtl92cu_hal_cfg)}, /*D-Link - Alpha*/
 	{RTL_USB_DEVICE(0x2019, 0xab2a, rtl92cu_hal_cfg)}, /*Planex - Abocom*/
 	{RTL_USB_DEVICE(0x2019, 0xed17, rtl92cu_hal_cfg)}, /*PCI - Edimax*/
 	{RTL_USB_DEVICE(0x20f4, 0x648b, rtl92cu_hal_cfg)}, /*TRENDnet - Cameo*/
 	{RTL_USB_DEVICE(0x7392, 0x7811, rtl92cu_hal_cfg)}, /*Edimax - Edimax*/
-	{RTL_USB_DEVICE(0x3358, 0x13d3, rtl92cu_hal_cfg)}, /*Azwave 8188CE-VAU*/
+	{RTL_USB_DEVICE(0x13d3, 0x3358, rtl92cu_hal_cfg)}, /*Azwave 8188CE-VAU*/
 	/* Russian customer -Azwave (8188CE-VAU  b/g mode only) */
-	{RTL_USB_DEVICE(0x3359, 0x13d3, rtl92cu_hal_cfg)},
+	{RTL_USB_DEVICE(0x13d3, 0x3359, rtl92cu_hal_cfg)},
+	{RTL_USB_DEVICE(0x4855, 0x0090, rtl92cu_hal_cfg)}, /* Feixun */
+	{RTL_USB_DEVICE(0x4855, 0x0091, rtl92cu_hal_cfg)}, /* NetweeN-Feixun */
+	{RTL_USB_DEVICE(0x9846, 0x9041, rtl92cu_hal_cfg)}, /* Netgear Cameo */
 
 	/****** 8192CU ********/
 	{RTL_USB_DEVICE(0x0586, 0x341f, rtl92cu_hal_cfg)}, /*Zyxel -Abocom*/
 	{RTL_USB_DEVICE(0x07aa, 0x0056, rtl92cu_hal_cfg)}, /*ATKK-Gemtek*/
 	{RTL_USB_DEVICE(0x07b8, 0x8178, rtl92cu_hal_cfg)}, /*Funai -Abocom*/
-	{RTL_USB_DEVICE(0x07b8, 0x8178, rtl92cu_hal_cfg)}, /*Abocom -Abocom*/
 	{RTL_USB_DEVICE(0x2001, 0x3307, rtl92cu_hal_cfg)}, /*D-Link-Cameo*/
 	{RTL_USB_DEVICE(0x2001, 0x3309, rtl92cu_hal_cfg)}, /*D-Link-Alpha*/
 	{RTL_USB_DEVICE(0x2001, 0x330a, rtl92cu_hal_cfg)}, /*D-Link-Alpha*/

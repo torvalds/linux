@@ -22,6 +22,7 @@
 #include <linux/string.h>
 #include <linux/vmalloc.h>
 #include <linux/netdevice.h>
+#include <asm/io.h>
 #include <asm/uaccess.h>
 #include "ft1000.h"
 
@@ -47,8 +48,8 @@
 	} \
 	len += snprintf(page+len, PAGE_SIZE - len, "%d\n", var[i])
 
-int ft1000ReadProc(char *page, char **start, off_t off,
-		   int count, int *eof, void *data)
+static int ft1000ReadProc(char *page, char **start, off_t off,
+			  int count, int *eof, void *data)
 {
 	struct net_device *dev;
 	int len;

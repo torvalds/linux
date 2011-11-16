@@ -23,7 +23,8 @@
  *
  * configfs Copyright (C) 2005 Oracle.  All rights reserved.
  *
- * Please see Documentation/filesystems/configfs.txt for more information.
+ * Please see Documentation/filesystems/configfs/configfs.txt for more
+ * information.
  */
 
 #undef DEBUG

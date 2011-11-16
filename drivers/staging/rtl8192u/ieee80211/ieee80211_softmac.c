@@ -31,14 +31,14 @@ u8 rsn_authen_cipher_suite[16][4] = {
 	{0x00,0x0F,0xAC,0x05}, //WEP-104
 };
 
-short ieee80211_is_54g(struct ieee80211_network net)
+short ieee80211_is_54g(const struct ieee80211_network *net)
 {
-	return ((net.rates_ex_len > 0) || (net.rates_len > 4));
+	return (net->rates_ex_len > 0) || (net->rates_len > 4);
 }
 
-short ieee80211_is_shortslot(struct ieee80211_network net)
+short ieee80211_is_shortslot(const struct ieee80211_network *net)
 {
-	return (net.capability & WLAN_CAPABILITY_SHORT_SLOT);
+	return net->capability & WLAN_CAPABILITY_SHORT_SLOT;
 }
 
 /* returns the total length needed for pleacing the RATE MFIE
@@ -718,7 +718,7 @@ static struct sk_buff* ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 	else
 		atim_len = 0;
 
-	if(ieee80211_is_54g(ieee->current_network))
+	if(ieee80211_is_54g(&ieee->current_network))
 		erp_len = 3;
 	else
 		erp_len = 0;
@@ -1333,7 +1333,7 @@ void ieee80211_associate_complete_wq(struct work_struct *work)
 {
 	struct ieee80211_device *ieee = container_of(work, struct ieee80211_device, associate_complete_wq);
 	printk(KERN_INFO "Associated successfully\n");
-	if(ieee80211_is_54g(ieee->current_network) &&
+	if(ieee80211_is_54g(&ieee->current_network) &&
 		(ieee->modulation & IEEE80211_OFDM_MODULATION)){
 
 		ieee->rate = 108;
@@ -1489,7 +1489,7 @@ inline void ieee80211_softmac_new_net(struct ieee80211_device *ieee, struct ieee
 					ieee->state = IEEE80211_ASSOCIATING;
 					queue_work(ieee->wq, &ieee->associate_procedure_wq);
 				}else{
-					if(ieee80211_is_54g(ieee->current_network) &&
+					if(ieee80211_is_54g(&ieee->current_network) &&
 						(ieee->modulation & IEEE80211_OFDM_MODULATION)){
 						ieee->rate = 108;
 						ieee->SetWirelessMode(ieee->dev, IEEE_G);

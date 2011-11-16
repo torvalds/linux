@@ -134,8 +134,8 @@ static struct resource ard_smsc911x_resources[] = {
 		.flags = IORESOURCE_MEM,
 	},
 	{
-		.start =  gpio_to_irq(ARD_ETHERNET_INT_B),
-		.end =  gpio_to_irq(ARD_ETHERNET_INT_B),
+		.start =  IMX_GPIO_TO_IRQ(ARD_ETHERNET_INT_B),
+		.end =  IMX_GPIO_TO_IRQ(ARD_ETHERNET_INT_B),
 		.flags = IORESOURCE_IRQ,
 	},
 };
@@ -171,9 +171,6 @@ static struct imxi2c_platform_data mx53_ard_i2c3_data = {
 
 static void __init mx53_ard_io_init(void)
 {
-	mxc_iomux_v3_setup_multiple_pads(mx53_ard_pads,
-				ARRAY_SIZE(mx53_ard_pads));
-
 	gpio_request(ARD_ETHERNET_INT_B, "eth-int-b");
 	gpio_direction_input(ARD_ETHERNET_INT_B);
 
@@ -216,6 +213,13 @@ static int weim_cs_config(void)
 	return 0;
 }
 
+void __init imx53_ard_common_init(void)
+{
+	mxc_iomux_v3_setup_multiple_pads(mx53_ard_pads,
+					 ARRAY_SIZE(mx53_ard_pads));
+	weim_cs_config();
+}
+
 static struct platform_device *devices[] __initdata = {
 	&ard_smsc_lan9220_device,
 };
@@ -225,8 +229,8 @@ static void __init mx53_ard_board_init(void)
 	imx53_soc_init();
 	imx53_add_imx_uart(0, NULL);
 
+	imx53_ard_common_init();
 	mx53_ard_io_init();
-	weim_cs_config();
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	imx53_add_sdhci_esdhc_imx(0, &mx53_ard_sd1_data);
@@ -234,6 +238,7 @@ static void __init mx53_ard_board_init(void)
 	imx53_add_imx_i2c(1, &mx53_ard_i2c2_data);
 	imx53_add_imx_i2c(2, &mx53_ard_i2c3_data);
 	imx_add_gpio_keys(&ard_button_data);
+	imx53_add_ahci_imx();
 }
 
 static void __init mx53_ard_timer_init(void)
@@ -249,6 +254,7 @@ MACHINE_START(MX53_ARD, "Freescale MX53 ARD Board")
 	.map_io = mx53_map_io,
 	.init_early = imx53_init_early,
 	.init_irq = mx53_init_irq,
+	.handle_irq = imx53_handle_irq,
 	.timer = &mx53_ard_timer,
 	.init_machine = mx53_ard_board_init,
 MACHINE_END

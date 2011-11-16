@@ -7,6 +7,8 @@
  * Released under the GPL v2. (and only v2, not any later version)
  */
 
+#include <byteswap.h>
+#include "asm/bug.h"
 #include "evsel.h"
 #include "evlist.h"
 #include "util.h"
@@ -14,6 +16,7 @@
 #include "thread_map.h"
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
+#define GROUP_FD(group_fd, cpu) (*(int *)xyarray__entry(group_fd, cpu, 0))
 
 int __perf_evsel__sample_size(u64 sample_type)
 {
@@ -37,6 +40,7 @@ void perf_evsel__init(struct perf_evsel *evsel,
 	evsel->idx	   = idx;
 	evsel->attr	   = *attr;
 	INIT_LIST_HEAD(&evsel->node);
+	hists__init(&evsel->hists);
 }
 
 struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx)
@@ -201,15 +205,16 @@ int __perf_evsel__read(struct perf_evsel *evsel,
 }
 
 static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
-			      struct thread_map *threads, bool group)
+			      struct thread_map *threads, bool group,
+			      struct xyarray *group_fds)
 {
 	int cpu, thread;
 	unsigned long flags = 0;
-	int pid = -1;
+	int pid = -1, err;
 
 	if (evsel->fd == NULL &&
 	    perf_evsel__alloc_fd(evsel, cpus->nr, threads->nr) < 0)
-		return -1;
+		return -ENOMEM;
 
 	if (evsel->cgrp) {
 		flags = PERF_FLAG_PID_CGROUP;
@@ -217,7 +222,7 @@ static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
 	}
 
 	for (cpu = 0; cpu < cpus->nr; cpu++) {
-		int group_fd = -1;
+		int group_fd = group_fds ? GROUP_FD(group_fds, cpu) : -1;
 
 		for (thread = 0; thread < threads->nr; thread++) {
 
@@ -228,8 +233,10 @@ static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
 								     pid,
 								     cpus->map[cpu],
 								     group_fd, flags);
-			if (FD(evsel, cpu, thread) < 0)
+			if (FD(evsel, cpu, thread) < 0) {
+				err = -errno;
 				goto out_close;
+			}
 
 			if (group && group_fd == -1)
 				group_fd = FD(evsel, cpu, thread);
@@ -246,7 +253,17 @@ out_close:
 		}
 		thread = threads->nr;
 	} while (--cpu >= 0);
-	return -1;
+	return err;
+}
+
+void perf_evsel__close(struct perf_evsel *evsel, int ncpus, int nthreads)
+{
+	if (evsel->fd == NULL)
+		return;
+
+	perf_evsel__close_fd(evsel, ncpus, nthreads);
+	perf_evsel__free_fd(evsel);
+	evsel->fd = NULL;
 }
 
 static struct {
@@ -266,7 +283,8 @@ static struct {
 };
 
 int perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
-		     struct thread_map *threads, bool group)
+		     struct thread_map *threads, bool group,
+		     struct xyarray *group_fd)
 {
 	if (cpus == NULL) {
 		/* Work around old compiler warnings about strict aliasing */
@@ -276,19 +294,23 @@ int perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
 	if (threads == NULL)
 		threads = &empty_thread_map.map;
 
-	return __perf_evsel__open(evsel, cpus, threads, group);
+	return __perf_evsel__open(evsel, cpus, threads, group, group_fd);
 }
 
 int perf_evsel__open_per_cpu(struct perf_evsel *evsel,
-			     struct cpu_map *cpus, bool group)
+			     struct cpu_map *cpus, bool group,
+			     struct xyarray *group_fd)
 {
-	return __perf_evsel__open(evsel, cpus, &empty_thread_map.map, group);
+	return __perf_evsel__open(evsel, cpus, &empty_thread_map.map, group,
+				  group_fd);
 }
 
 int perf_evsel__open_per_thread(struct perf_evsel *evsel,
-				struct thread_map *threads, bool group)
+				struct thread_map *threads, bool group,
+				struct xyarray *group_fd)
 {
-	return __perf_evsel__open(evsel, &empty_cpu_map.map, threads, group);
+	return __perf_evsel__open(evsel, &empty_cpu_map.map, threads, group,
+				  group_fd);
 }
 
 static int perf_event__parse_id_sample(const union perf_event *event, u64 type,
@@ -342,9 +364,19 @@ static bool sample_overlap(const union perf_event *event,
 
 int perf_event__parse_sample(const union perf_event *event, u64 type,
 			     int sample_size, bool sample_id_all,
-			     struct perf_sample *data)
+			     struct perf_sample *data, bool swapped)
 {
 	const u64 *array;
+
+	/*
+	 * used for cross-endian analysis. See git commit 65014ab3
+	 * for why this goofiness is needed.
+	 */
+	union {
+		u64 val64;
+		u32 val32[2];
+	} u;
+
 
 	data->cpu = data->pid = data->tid = -1;
 	data->stream_id = data->id = data->time = -1ULL;
@@ -366,9 +398,16 @@ int perf_event__parse_sample(const union perf_event *event, u64 type,
 	}
 
 	if (type & PERF_SAMPLE_TID) {
-		u32 *p = (u32 *)array;
-		data->pid = p[0];
-		data->tid = p[1];
+		u.val64 = *array;
+		if (swapped) {
+			/* undo swap of u64, then swap on individual u32s */
+			u.val64 = bswap_64(u.val64);
+			u.val32[0] = bswap_32(u.val32[0]);
+			u.val32[1] = bswap_32(u.val32[1]);
+		}
+
+		data->pid = u.val32[0];
+		data->tid = u.val32[1];
 		array++;
 	}
 
@@ -395,8 +434,15 @@ int perf_event__parse_sample(const union perf_event *event, u64 type,
 	}
 
 	if (type & PERF_SAMPLE_CPU) {
-		u32 *p = (u32 *)array;
-		data->cpu = *p;
+
+		u.val64 = *array;
+		if (swapped) {
+			/* undo swap of u64, then swap on individual u32s */
+			u.val64 = bswap_64(u.val64);
+			u.val32[0] = bswap_32(u.val32[0]);
+		}
+
+		data->cpu = u.val32[0];
 		array++;
 	}
 
@@ -423,18 +469,27 @@ int perf_event__parse_sample(const union perf_event *event, u64 type,
 	}
 
 	if (type & PERF_SAMPLE_RAW) {
-		u32 *p = (u32 *)array;
+		const u64 *pdata;
+
+		u.val64 = *array;
+		if (WARN_ONCE(swapped,
+			      "Endianness of raw data not corrected!\n")) {
+			/* undo swap of u64, then swap on individual u32s */
+			u.val64 = bswap_64(u.val64);
+			u.val32[0] = bswap_32(u.val32[0]);
+			u.val32[1] = bswap_32(u.val32[1]);
+		}
 
 		if (sample_overlap(event, array, sizeof(u32)))
 			return -EFAULT;
 
-		data->raw_size = *p;
-		p++;
+		data->raw_size = u.val32[0];
+		pdata = (void *) array + sizeof(u32);
 
-		if (sample_overlap(event, p, data->raw_size))
+		if (sample_overlap(event, pdata, data->raw_size))
 			return -EFAULT;
 
-		data->raw_data = p;
+		data->raw_data = (void *) pdata;
 	}
 
 	return 0;

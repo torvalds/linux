@@ -33,6 +33,8 @@
 #include <linux/mutex.h>
 #include <linux/miscdevice.h>
 #include <linux/pti.h>
+#include <linux/slab.h>
+#include <linux/uaccess.h>
 
 #define DRIVERNAME		"pti"
 #define PCINAME			"pciPTI"
@@ -163,6 +165,11 @@ static void pti_write_to_aperture(struct pti_masterchannel *mc,
 static void pti_control_frame_built_and_sent(struct pti_masterchannel *mc,
 					     const char *thread_name)
 {
+	/*
+	 * Since we access the comm member in current's task_struct, we only
+	 * need to be as large as what 'comm' in that structure is.
+	 */
+	char comm[TASK_COMM_LEN];
 	struct pti_masterchannel mccontrol = {.master = CONTROL_ID,
 					      .channel = 0};
 	const char *thread_name_p;
@@ -170,13 +177,6 @@ static void pti_control_frame_built_and_sent(struct pti_masterchannel *mc,
 	u8 control_frame[CONTROL_FRAME_LEN];
 
 	if (!thread_name) {
-		/*
-		 * Since we access the comm member in current's task_struct,
-		 * we only need to be as large as what 'comm' in that
-		 * structure is.
-		 */
-		char comm[TASK_COMM_LEN];
-
 		if (!in_interrupt())
 			get_task_comm(comm, current);
 		else

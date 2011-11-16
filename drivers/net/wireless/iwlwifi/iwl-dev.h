@@ -32,16 +32,15 @@
 #define __iwl_dev_h__
 
 #include <linux/interrupt.h>
-#include <linux/pci.h> /* for struct pci_device_id */
 #include <linux/kernel.h>
 #include <linux/wait.h>
 #include <linux/leds.h>
+#include <linux/slab.h>
 #include <net/ieee80211_radiotap.h>
 
 #include "iwl-eeprom.h"
 #include "iwl-csr.h"
 #include "iwl-prph.h"
-#include "iwl-fh.h"
 #include "iwl-debug.h"
 #include "iwl-agn-hw.h"
 #include "iwl-led.h"
@@ -50,8 +49,7 @@
 #include "iwl-agn-tt.h"
 #include "iwl-bus.h"
 #include "iwl-trans.h"
-
-#define DRV_NAME        "iwlagn"
+#include "iwl-shared.h"
 
 struct iwl_tx_queue;
 
@@ -90,109 +88,6 @@ struct iwl_tx_queue;
 #define	DEFAULT_SHORT_RETRY_LIMIT 7U
 #define	DEFAULT_LONG_RETRY_LIMIT  4U
 
-struct iwl_rx_mem_buffer {
-	dma_addr_t page_dma;
-	struct page *page;
-	struct list_head list;
-};
-
-#define rxb_addr(r) page_address(r->page)
-
-/* defined below */
-struct iwl_device_cmd;
-
-struct iwl_cmd_meta {
-	/* only for SYNC commands, iff the reply skb is wanted */
-	struct iwl_host_cmd *source;
-	/*
-	 * only for ASYNC commands
-	 * (which is somewhat stupid -- look at iwl-sta.c for instance
-	 * which duplicates a bunch of code because the callback isn't
-	 * invoked for SYNC commands, if it were and its result passed
-	 * through it would be simpler...)
-	 */
-	void (*callback)(struct iwl_priv *priv,
-			 struct iwl_device_cmd *cmd,
-			 struct iwl_rx_packet *pkt);
-
-	u32 flags;
-
-	DEFINE_DMA_UNMAP_ADDR(mapping);
-	DEFINE_DMA_UNMAP_LEN(len);
-};
-
-/*
- * Generic queue structure
- *
- * Contains common data for Rx and Tx queues.
- *
- * Note the difference between n_bd and n_window: the hardware
- * always assumes 256 descriptors, so n_bd is always 256 (unless
- * there might be HW changes in the future). For the normal TX
- * queues, n_window, which is the size of the software queue data
- * is also 256; however, for the command queue, n_window is only
- * 32 since we don't need so many commands pending. Since the HW
- * still uses 256 BDs for DMA though, n_bd stays 256. As a result,
- * the software buffers (in the variables @meta, @txb in struct
- * iwl_tx_queue) only have 32 entries, while the HW buffers (@tfds
- * in the same struct) have 256.
- * This means that we end up with the following:
- *  HW entries: | 0 | ... | N * 32 | ... | N * 32 + 31 | ... | 255 |
- *  SW entries:           | 0      | ... | 31          |
- * where N is a number between 0 and 7. This means that the SW
- * data is a window overlayed over the HW queue.
- */
-struct iwl_queue {
-	int n_bd;              /* number of BDs in this queue */
-	int write_ptr;       /* 1-st empty entry (index) host_w*/
-	int read_ptr;         /* last used entry (index) host_r*/
-	/* use for monitoring and recovering the stuck queue */
-	dma_addr_t dma_addr;   /* physical addr for BD's */
-	int n_window;	       /* safe queue window */
-	u32 id;
-	int low_mark;	       /* low watermark, resume queue if free
-				* space more than this */
-	int high_mark;         /* high watermark, stop queue if free
-				* space less than this */
-};
-
-/* One for each TFD */
-struct iwl_tx_info {
-	struct sk_buff *skb;
-	struct iwl_rxon_context *ctx;
-};
-
-/**
- * struct iwl_tx_queue - Tx Queue for DMA
- * @q: generic Rx/Tx queue descriptor
- * @bd: base of circular buffer of TFDs
- * @cmd: array of command/TX buffer pointers
- * @meta: array of meta data for each command/tx buffer
- * @dma_addr_cmd: physical address of cmd/tx buffer array
- * @txb: array of per-TFD driver data
- * @time_stamp: time (in jiffies) of last read_ptr change
- * @need_update: indicates need to update read/write index
- * @sched_retry: indicates queue is high-throughput aggregation (HT AGG) enabled
- *
- * A Tx queue consists of circular buffer of BDs (a.k.a. TFDs, transmit frame
- * descriptors) and required locking structures.
- */
-#define TFD_TX_CMD_SLOTS 256
-#define TFD_CMD_SLOTS 32
-
-struct iwl_tx_queue {
-	struct iwl_queue q;
-	struct iwl_tfd *tfds;
-	struct iwl_device_cmd **cmd;
-	struct iwl_cmd_meta *meta;
-	struct iwl_tx_info *txb;
-	unsigned long time_stamp;
-	u8 need_update;
-	u8 sched_retry;
-	u8 active;
-	u8 swq_id;
-};
-
 #define IWL_NUM_SCAN_RATES         (2)
 
 /*
@@ -222,20 +117,16 @@ struct iwl_channel_info {
 	u8 ht40_extension_channel; /* HT_IE_EXT_CHANNEL_* */
 };
 
-#define IWL_TX_FIFO_BK		0	/* shared */
-#define IWL_TX_FIFO_BE		1
-#define IWL_TX_FIFO_VI		2	/* shared */
-#define IWL_TX_FIFO_VO		3
-#define IWL_TX_FIFO_BK_IPAN	IWL_TX_FIFO_BK
-#define IWL_TX_FIFO_BE_IPAN	4
-#define IWL_TX_FIFO_VI_IPAN	IWL_TX_FIFO_VI
-#define IWL_TX_FIFO_VO_IPAN	5
-#define IWL_TX_FIFO_UNUSED	-1
-
-/* Minimum number of queues. MAX_NUM is defined in hw specific files.
- * Set the minimum to accommodate the 4 standard TX queues, 1 command
- * queue, 2 (unused) HCCA queues, and 4 HT queues (one for each AC) */
-#define IWL_MIN_NUM_QUEUES	10
+/*
+ * Minimum number of queues. MAX_NUM is defined in hw specific files.
+ * Set the minimum to accommodate
+ *  - 4 standard TX queues
+ *  - the command queue
+ *  - 4 PAN TX queues
+ *  - the PAN multicast queue, and
+ *  - the AUX (TX during scan dwell) queue.
+ */
+#define IWL_MIN_NUM_QUEUES	11
 
 /*
  * Command queue depends on iPAN support.
@@ -243,160 +134,19 @@ struct iwl_channel_info {
 #define IWL_DEFAULT_CMD_QUEUE_NUM	4
 #define IWL_IPAN_CMD_QUEUE_NUM		9
 
-/*
- * This queue number is required for proper operation
- * because the ucode will stop/start the scheduler as
- * required.
- */
-#define IWL_IPAN_MCAST_QUEUE		8
-
 #define IEEE80211_DATA_LEN              2304
 #define IEEE80211_4ADDR_LEN             30
 #define IEEE80211_HLEN                  (IEEE80211_4ADDR_LEN)
 #define IEEE80211_FRAME_LEN             (IEEE80211_DATA_LEN + IEEE80211_HLEN)
 
-
-#define SEQ_TO_SN(seq) (((seq) & IEEE80211_SCTL_SEQ) >> 4)
-#define SN_TO_SEQ(ssn) (((ssn) << 4) & IEEE80211_SCTL_SEQ)
-#define MAX_SN ((IEEE80211_SCTL_SEQ) >> 4)
-
-enum {
-	CMD_SYNC = 0,
-	CMD_ASYNC = BIT(0),
-	CMD_WANT_SKB = BIT(1),
-	CMD_ON_DEMAND = BIT(2),
-};
-
-#define DEF_CMD_PAYLOAD_SIZE 320
-
-/**
- * struct iwl_device_cmd
- *
- * For allocation of the command and tx queues, this establishes the overall
- * size of the largest command we send to uCode, except for commands that
- * aren't fully copied and use other TFD space.
- */
-struct iwl_device_cmd {
-	struct iwl_cmd_header hdr;	/* uCode API */
-	union {
-		u32 flags;
-		u8 val8;
-		u16 val16;
-		u32 val32;
-		struct iwl_tx_cmd tx;
-		struct iwl6000_channel_switch_cmd chswitch;
-		u8 payload[DEF_CMD_PAYLOAD_SIZE];
-	} __packed cmd;
-} __packed;
-
-#define TFD_MAX_PAYLOAD_SIZE (sizeof(struct iwl_device_cmd))
-
-#define IWL_MAX_CMD_TFDS	2
-
-enum iwl_hcmd_dataflag {
-	IWL_HCMD_DFL_NOCOPY	= BIT(0),
-};
-
-/**
- * struct iwl_host_cmd - Host command to the uCode
- * @data: array of chunks that composes the data of the host command
- * @reply_page: pointer to the page that holds the response to the host command
- * @callback:
- * @flags: can be CMD_* note CMD_WANT_SKB is incompatible withe CMD_ASYNC
- * @len: array of the lenths of the chunks in data
- * @dataflags:
- * @id: id of the host command
- */
-struct iwl_host_cmd {
-	const void *data[IWL_MAX_CMD_TFDS];
-	unsigned long reply_page;
-	void (*callback)(struct iwl_priv *priv,
-			 struct iwl_device_cmd *cmd,
-			 struct iwl_rx_packet *pkt);
-	u32 flags;
-	u16 len[IWL_MAX_CMD_TFDS];
-	u8 dataflags[IWL_MAX_CMD_TFDS];
-	u8 id;
-};
-
 #define SUP_RATE_11A_MAX_NUM_CHANNELS  8
 #define SUP_RATE_11B_MAX_NUM_CHANNELS  4
 #define SUP_RATE_11G_MAX_NUM_CHANNELS  12
 
-/**
- * struct iwl_rx_queue - Rx queue
- * @bd: driver's pointer to buffer of receive buffer descriptors (rbd)
- * @bd_dma: bus address of buffer of receive buffer descriptors (rbd)
- * @read: Shared index to newest available Rx buffer
- * @write: Shared index to oldest written Rx packet
- * @free_count: Number of pre-allocated buffers in rx_free
- * @rx_free: list of free SKBs for use
- * @rx_used: List of Rx buffers with no SKB
- * @need_update: flag to indicate we need to update read/write index
- * @rb_stts: driver's pointer to receive buffer status
- * @rb_stts_dma: bus address of receive buffer status
- *
- * NOTE:  rx_free and rx_used are used as a FIFO for iwl_rx_mem_buffers
- */
-struct iwl_rx_queue {
-	__le32 *bd;
-	dma_addr_t bd_dma;
-	struct iwl_rx_mem_buffer pool[RX_QUEUE_SIZE + RX_FREE_BUFFERS];
-	struct iwl_rx_mem_buffer *queue[RX_QUEUE_SIZE];
-	u32 read;
-	u32 write;
-	u32 free_count;
-	u32 write_actual;
-	struct list_head rx_free;
-	struct list_head rx_used;
-	int need_update;
-	struct iwl_rb_status *rb_stts;
-	dma_addr_t rb_stts_dma;
-	spinlock_t lock;
-};
-
 #define IWL_SUPPORTED_RATES_IE_LEN         8
-
-#define MAX_TID_COUNT        9
 
 #define IWL_INVALID_RATE     0xFF
 #define IWL_INVALID_VALUE    -1
-
-/**
- * struct iwl_ht_agg -- aggregation status while waiting for block-ack
- * @txq_id: Tx queue used for Tx attempt
- * @frame_count: # frames attempted by Tx command
- * @wait_for_ba: Expect block-ack before next Tx reply
- * @start_idx: Index of 1st Transmit Frame Descriptor (TFD) in Tx window
- * @bitmap0: Low order bitmap, one bit for each frame pending ACK in Tx window
- * @bitmap1: High order, one bit for each frame pending ACK in Tx window
- * @rate_n_flags: Rate at which Tx was attempted
- *
- * If REPLY_TX indicates that aggregation was attempted, driver must wait
- * for block ack (REPLY_COMPRESSED_BA).  This struct stores tx reply info
- * until block ack arrives.
- */
-struct iwl_ht_agg {
-	u16 txq_id;
-	u16 frame_count;
-	u16 wait_for_ba;
-	u16 start_idx;
-	u64 bitmap;
-	u32 rate_n_flags;
-#define IWL_AGG_OFF 0
-#define IWL_AGG_ON 1
-#define IWL_EMPTYING_HW_QUEUE_ADDBA 2
-#define IWL_EMPTYING_HW_QUEUE_DELBA 3
-	u8 state;
-	u8 tx_fifo;
-};
-
-
-struct iwl_tid_data {
-	u16 seq_number; /* agn only */
-	u16 tfds_in_queue;
-	struct iwl_ht_agg agg;
-};
 
 union iwl_ht_rate_supp {
 	u16 rates;
@@ -448,14 +198,8 @@ struct iwl_qos_info {
  */
 struct iwl_station_entry {
 	struct iwl_addsta_cmd sta;
-	struct iwl_tid_data tid[MAX_TID_COUNT];
 	u8 used, ctxid;
 	struct iwl_link_quality_cmd *lq;
-};
-
-struct iwl_station_priv_common {
-	struct iwl_rxon_context *ctx;
-	u8 sta_id;
 };
 
 /*
@@ -466,12 +210,13 @@ struct iwl_station_priv_common {
  * space.
  */
 struct iwl_station_priv {
-	struct iwl_station_priv_common common;
+	struct iwl_rxon_context *ctx;
 	struct iwl_lq_sta lq_sta;
 	atomic_t pending_frames;
 	bool client;
 	bool asleep;
 	u8 max_agg_bufsize;
+	u8 sta_id;
 };
 
 /**
@@ -564,11 +309,13 @@ enum iwl_ucode_tlv_type {
  * @IWL_UCODE_TLV_FLAGS_NEWSCAN: new uCode scan behaviour on hidden SSID,
  *	treats good CRC threshold as a boolean
  * @IWL_UCODE_TLV_FLAGS_MFP: This uCode image supports MFP (802.11w).
+ * @IWL_UCODE_TLV_FLAGS_P2P: This uCode image supports P2P.
  */
 enum iwl_ucode_tlv_flag {
 	IWL_UCODE_TLV_FLAGS_PAN		= BIT(0),
 	IWL_UCODE_TLV_FLAGS_NEWSCAN	= BIT(1),
 	IWL_UCODE_TLV_FLAGS_MFP		= BIT(2),
+	IWL_UCODE_TLV_FLAGS_P2P		= BIT(3),
 };
 
 struct iwl_ucode_tlv {
@@ -634,54 +381,6 @@ struct iwl_sensitivity_ranges {
 #define CELSIUS_TO_KELVIN(x) ((x)+273)
 
 
-/**
- * struct iwl_hw_params
- * @max_txq_num: Max # Tx queues supported
- * @scd_bc_tbls_size: size of scheduler byte count tables
- * @tfd_size: TFD size
- * @tx/rx_chains_num: Number of TX/RX chains
- * @valid_tx/rx_ant: usable antennas
- * @max_rxq_size: Max # Rx frames in Rx queue (must be power-of-2)
- * @max_rxq_log: Log-base-2 of max_rxq_size
- * @rx_page_order: Rx buffer page order
- * @rx_wrt_ptr_reg: FH{39}_RSCSR_CHNL0_WPTR
- * @max_stations:
- * @ht40_channel: is 40MHz width possible in band 2.4
- * BIT(IEEE80211_BAND_5GHZ) BIT(IEEE80211_BAND_5GHZ)
- * @sw_crypto: 0 for hw, 1 for sw
- * @max_xxx_size: for ucode uses
- * @ct_kill_threshold: temperature threshold
- * @beacon_time_tsf_bits: number of valid tsf bits for beacon time
- * @calib_init_cfg: setup initial calibrations for the hw
- * @calib_rt_cfg: setup runtime calibrations for the hw
- * @struct iwl_sensitivity_ranges: range of sensitivity values
- */
-struct iwl_hw_params {
-	u8 max_txq_num;
-	u16 scd_bc_tbls_size;
-	u32 tfd_size;
-	u8  tx_chains_num;
-	u8  rx_chains_num;
-	u8  valid_tx_ant;
-	u8  valid_rx_ant;
-	u16 max_rxq_size;
-	u16 max_rxq_log;
-	u32 rx_page_order;
-	u8  max_stations;
-	u8  ht40_channel;
-	u8  max_beacon_itrvl;	/* in 1024 ms */
-	u32 max_inst_size;
-	u32 max_data_size;
-	u32 ct_kill_threshold; /* value in hw-dependent units */
-	u32 ct_kill_exit_threshold; /* value in hw-dependent units */
-				    /* for 1000, 6000 series and up */
-	u16 beacon_time_tsf_bits;
-	u32 calib_init_cfg;
-	u32 calib_rt_cfg;
-	const struct iwl_sensitivity_ranges *sens;
-};
-
-
 /******************************************************************************
  *
  * Functions implemented in core module which are forward declared here
@@ -697,34 +396,11 @@ struct iwl_hw_params {
  ****************************************************************************/
 extern void iwl_update_chain_flags(struct iwl_priv *priv);
 extern const u8 iwl_bcast_addr[ETH_ALEN];
-extern int iwl_queue_space(const struct iwl_queue *q);
-static inline int iwl_queue_used(const struct iwl_queue *q, int i)
-{
-	return q->write_ptr >= q->read_ptr ?
-		(i >= q->read_ptr && i < q->write_ptr) :
-		!(i < q->read_ptr && i >= q->write_ptr);
-}
-
-
-static inline u8 get_cmd_index(struct iwl_queue *q, u32 index)
-{
-	return index & (q->n_window - 1);
-}
-
-
-struct iwl_dma_ptr {
-	dma_addr_t dma;
-	void *addr;
-	size_t size;
-};
 
 #define IWL_OPERATION_MODE_AUTO     0
 #define IWL_OPERATION_MODE_HT_ONLY  1
 #define IWL_OPERATION_MODE_MIXED    2
 #define IWL_OPERATION_MODE_20MHZ    3
-
-#define IWL_TX_CRC_SIZE 4
-#define IWL_TX_DELIMITER_SIZE 4
 
 #define TX_POWER_IWL_ILLEGAL_VOLTAGE -10000
 
@@ -849,9 +525,6 @@ struct iwl_chain_noise_data {
 #define	EEPROM_SEM_TIMEOUT 10		/* milliseconds */
 #define EEPROM_SEM_RETRY_LIMIT 1000	/* number of attempts (not time) */
 
-#define IWL_TRAFFIC_ENTRIES	(256)
-#define IWL_TRAFFIC_ENTRY_SIZE  (64)
-
 enum {
 	MEASUREMENT_READY = (1 << 0),
 	MEASUREMENT_ACTIVE = (1 << 1),
@@ -882,22 +555,6 @@ enum iwl_access_mode {
 enum iwl_pa_type {
 	IWL_PA_SYSTEM = 0,
 	IWL_PA_INTERNAL = 1,
-};
-
-/* interrupt statistics */
-struct isr_statistics {
-	u32 hw;
-	u32 sw;
-	u32 err_code;
-	u32 sch;
-	u32 alive;
-	u32 rfkill;
-	u32 ctkill;
-	u32 wakeup;
-	u32 rx;
-	u32 rx_handlers[REPLY_MAX];
-	u32 tx;
-	u32 unhandled;
 };
 
 /* reply_tx_statistics (for _agn devices) */
@@ -1009,21 +666,6 @@ struct iwl_event_log {
 };
 
 /*
- * host interrupt timeout value
- * used with setting interrupt coalescing timer
- * the CSR_INT_COALESCING is an 8 bit register in 32-usec unit
- *
- * default interrupt coalescing timer is 64 x 32 = 2048 usecs
- * default interrupt coalescing calibration timer is 16 x 32 = 512 usecs
- */
-#define IWL_HOST_INT_TIMEOUT_MAX	(0xFF)
-#define IWL_HOST_INT_TIMEOUT_DEF	(0x40)
-#define IWL_HOST_INT_TIMEOUT_MIN	(0x0)
-#define IWL_HOST_INT_CALIB_TIMEOUT_MAX	(0xFF)
-#define IWL_HOST_INT_CALIB_TIMEOUT_DEF	(0x10)
-#define IWL_HOST_INT_CALIB_TIMEOUT_MIN	(0x0)
-
-/*
  * This is the threshold value of plcp error rate per 100mSecs.  It is
  * used to set and check for the validity of plcp_delta.
  */
@@ -1101,19 +743,8 @@ struct iwl_notification_wait {
 	bool triggered, aborted;
 };
 
-enum iwl_rxon_context_id {
-	IWL_RXON_CTX_BSS,
-	IWL_RXON_CTX_PAN,
-
-	NUM_IWL_RXON_CTX
-};
-
 struct iwl_rxon_context {
 	struct ieee80211_vif *vif;
-
-	const u8 *ac_to_fifo;
-	const u8 *ac_to_queue;
-	u8 mcast_queue;
 
 	/*
 	 * We could use the vif to indicate active, but we
@@ -1162,13 +793,16 @@ struct iwl_rxon_context {
 		u8 extension_chan_offset;
 	} ht;
 
+	u8 bssid[ETH_ALEN];
+	bool preauth_bssid;
+
 	bool last_tx_rejected;
 };
 
 enum iwl_scan_type {
 	IWL_SCAN_NORMAL,
 	IWL_SCAN_RADIO_RESET,
-	IWL_SCAN_OFFCH_TX,
+	IWL_SCAN_ROC,
 };
 
 enum iwlagn_ucode_type {
@@ -1190,24 +824,26 @@ struct iwl_testmode_trace {
 };
 #endif
 
-/* uCode ownership */
-#define IWL_OWNERSHIP_DRIVER	0
-#define IWL_OWNERSHIP_TM	1
-
 struct iwl_priv {
+
+	/*data shared among all the driver's layers */
+	struct iwl_shared _shrd;
+	struct iwl_shared *shrd;
 
 	/* ieee device used by generic ieee processing code */
 	struct ieee80211_hw *hw;
 	struct ieee80211_channel *ieee_channels;
 	struct ieee80211_rate *ieee_rates;
+	struct kmem_cache *tx_cmd_pool;
 	struct iwl_cfg *cfg;
 
 	enum ieee80211_band band;
 
 	void (*pre_rx_handler)(struct iwl_priv *priv,
 			       struct iwl_rx_mem_buffer *rxb);
-	void (*rx_handlers[REPLY_MAX])(struct iwl_priv *priv,
-				       struct iwl_rx_mem_buffer *rxb);
+	int (*rx_handlers[REPLY_MAX])(struct iwl_priv *priv,
+				       struct iwl_rx_mem_buffer *rxb,
+				       struct iwl_device_cmd *cmd);
 
 	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
 
@@ -1225,6 +861,9 @@ struct iwl_priv {
 	/* jiffies when last recovery from statistics was performed */
 	unsigned long rx_statistics_jiffies;
 
+	/*counters */
+	u32 rx_handlers_stats[REPLY_MAX];
+
 	/* force reset */
 	struct iwl_force_reset force_reset[IWL_MAX_FORCE_RESET];
 
@@ -1238,7 +877,7 @@ struct iwl_priv {
 	u8 channel_count;	/* # of channels */
 
 	/* thermal calibration */
-	s32 temperature;	/* degrees Kelvin */
+	s32 temperature;	/* Celsius */
 	s32 last_temperature;
 
 	/* init calibration results */
@@ -1255,21 +894,6 @@ struct iwl_priv {
 	u8 scan_tx_ant[IEEE80211_NUM_BANDS];
 	u8 mgmt_tx_ant;
 
-	/* spinlock */
-	spinlock_t lock;	/* protect general shared data */
-	spinlock_t hcmd_lock;	/* protect hcmd */
-	spinlock_t reg_lock;	/* protect hw register access */
-	struct mutex mutex;
-
-	struct iwl_bus *bus;	/* bus specific data */
-	struct iwl_trans trans;
-
-	/* microcode/device supports multiple contexts */
-	u8 valid_contexts;
-
-	/* command queue number */
-	u8 cmd_queue;
-
 	/* max number of station keys */
 	u8 sta_key_max_num;
 
@@ -1282,9 +906,6 @@ struct iwl_priv {
 	int fw_index;			/* firmware we're trying to load */
 	u32 ucode_ver;			/* version of ucode, copy of
 					   iwl_ucode.ver */
-
-	/* uCode owner: default: IWL_OWNERSHIP_DRIVER */
-	u8 ucode_owner;
 
 	struct fw_img ucode_rt;
 	struct fw_img ucode_init;
@@ -1317,51 +938,24 @@ struct iwl_priv {
 	/* Rate scaling data */
 	u8 retry_rate;
 
-	wait_queue_head_t wait_command_queue;
-
 	int activity_timer_active;
-
-	/* Rx and Tx DMA processing queues */
-	struct iwl_rx_queue rxq;
-	struct iwl_tx_queue *txq;
-	unsigned long txq_ctx_active_msk;
-	struct iwl_dma_ptr  kw;	/* keep warm address */
-	struct iwl_dma_ptr  scd_bc_tbls;
-
-	u32 scd_base_addr;	/* scheduler sram base address */
-
-	unsigned long status;
 
 	/* counts mgmt, ctl, and data packets */
 	struct traffic_stats tx_stats;
 	struct traffic_stats rx_stats;
 
-	/* counts interrupts */
-	struct isr_statistics isr_stats;
-
 	struct iwl_power_mgr power_data;
 	struct iwl_tt_mgmt thermal_throttle;
 
 	/* station table variables */
-
-	/* Note: if lock and sta_lock are needed, lock must be acquired first */
-	spinlock_t sta_lock;
 	int num_stations;
 	struct iwl_station_entry stations[IWLAGN_STATION_COUNT];
 	unsigned long ucode_key_table;
 
-	/* queue refcounts */
-#define IWL_MAX_HW_QUEUES	32
-	unsigned long queue_stopped[BITS_TO_LONGS(IWL_MAX_HW_QUEUES)];
-	/* for each AC */
-	atomic_t queue_stop_count[4];
+	u8 mac80211_registered;
 
 	/* Indication if ieee80211_ops->open has been called */
 	u8 is_open;
-
-	u8 mac80211_registered;
-
-	bool wowlan;
 
 	/* eeprom -- this is in the card's little endian byte order */
 	u8 *eeprom;
@@ -1398,14 +992,6 @@ struct iwl_priv {
 	} accum_stats, delta_stats, max_delta_stats;
 #endif
 
-	/* INT ICT Table */
-	__le32 *ict_tbl;
-	void *ict_tbl_vir;
-	dma_addr_t ict_tbl_dma;
-	dma_addr_t aligned_ict_tbl_dma;
-	int ict_index;
-	u32 inta;
-	bool use_ict;
 	/*
 	 * reporting the number of tids has AGG on. 0 means
 	 * no AGGREGATION
@@ -1438,14 +1024,10 @@ struct iwl_priv {
 
 	/* remain-on-channel offload support */
 	struct ieee80211_channel *hw_roc_channel;
-	struct delayed_work hw_roc_work;
+	struct delayed_work hw_roc_disable_work;
 	enum nl80211_channel_type hw_roc_chantype;
 	int hw_roc_duration;
-	bool hw_roc_setup;
-
-	struct sk_buff *offchan_tx_skb;
-	int offchan_tx_timeout;
-	struct ieee80211_channel *offchan_tx_chan;
+	bool hw_roc_setup, hw_roc_start_notified;
 
 	/* bt coex */
 	u8 bt_enable_flag;
@@ -1466,15 +1048,8 @@ struct iwl_priv {
 	struct iwl_rxon_context *cur_rssi_ctx;
 	bool bt_is_sco;
 
-	struct iwl_hw_params hw_params;
-
-	u32 inta_mask;
-
-	struct workqueue_struct *workqueue;
-
 	struct work_struct restart;
 	struct work_struct scan_completed;
-	struct work_struct rx_replenish;
 	struct work_struct abort_scan;
 
 	struct work_struct beacon_update;
@@ -1490,8 +1065,6 @@ struct iwl_priv {
 	struct work_struct bt_full_concurrency;
 	struct work_struct bt_runtime_config;
 
-	struct tasklet_struct irq_tasklet;
-
 	struct delayed_work scan_check;
 
 	/* TX Power */
@@ -1500,12 +1073,6 @@ struct iwl_priv {
 	s8 tx_power_lmt_in_half_dbm; /* max tx power in half-dBm format */
 	s8 tx_power_next;
 
-
-#ifdef CONFIG_IWLWIFI_DEBUG
-	/* debugging info */
-	u32 debug_level; /* per device debugging will override global
-			    iwl_debug_level if set */
-#endif /* CONFIG_IWLWIFI_DEBUG */
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	/* debugfs */
 	u16 tx_traffic_idx;
@@ -1543,47 +1110,7 @@ struct iwl_priv {
 	bool have_rekey_data;
 }; /*iwl_priv */
 
-static inline void iwl_txq_ctx_activate(struct iwl_priv *priv, int txq_id)
-{
-	set_bit(txq_id, &priv->txq_ctx_active_msk);
-}
-
-static inline void iwl_txq_ctx_deactivate(struct iwl_priv *priv, int txq_id)
-{
-	clear_bit(txq_id, &priv->txq_ctx_active_msk);
-}
-
-#ifdef CONFIG_IWLWIFI_DEBUG
-/*
- * iwl_get_debug_level: Return active debug level for device
- *
- * Using sysfs it is possible to set per device debug level. This debug
- * level will be used if set, otherwise the global debug level which can be
- * set via module parameter is used.
- */
-static inline u32 iwl_get_debug_level(struct iwl_priv *priv)
-{
-	if (priv->debug_level)
-		return priv->debug_level;
-	else
-		return iwl_debug_level;
-}
-#else
-static inline u32 iwl_get_debug_level(struct iwl_priv *priv)
-{
-	return iwl_debug_level;
-}
-#endif
-
-
-static inline struct ieee80211_hdr *iwl_tx_queue_get_hdr(struct iwl_priv *priv,
-							 int txq_id, int idx)
-{
-	if (priv->txq[txq_id].txb[idx].skb)
-		return (struct ieee80211_hdr *)priv->txq[txq_id].
-				txb[idx].skb->data;
-	return NULL;
-}
+extern struct iwl_mod_params iwlagn_mod_params;
 
 static inline struct iwl_rxon_context *
 iwl_rxon_ctx_from_vif(struct ieee80211_vif *vif)
@@ -1596,7 +1123,7 @@ iwl_rxon_ctx_from_vif(struct ieee80211_vif *vif)
 #define for_each_context(priv, ctx)				\
 	for (ctx = &priv->contexts[IWL_RXON_CTX_BSS];		\
 	     ctx < &priv->contexts[NUM_IWL_RXON_CTX]; ctx++)	\
-		if (priv->valid_contexts & BIT(ctx->ctxid))
+		if (priv->shrd->valid_contexts & BIT(ctx->ctxid))
 
 static inline int iwl_is_associated_ctx(struct iwl_rxon_context *ctx)
 {
@@ -1650,13 +1177,4 @@ static inline int is_channel_ibss(const struct iwl_channel_info *ch)
 	return ((ch->flags & EEPROM_CHANNEL_IBSS)) ? 1 : 0;
 }
 
-static inline void __iwl_free_pages(struct iwl_priv *priv, struct page *page)
-{
-	__free_pages(page, priv->hw_params.rx_page_order);
-}
-
-static inline void iwl_free_pages(struct iwl_priv *priv, unsigned long page)
-{
-	free_pages(page, priv->hw_params.rx_page_order);
-}
 #endif				/* __iwl_dev_h__ */

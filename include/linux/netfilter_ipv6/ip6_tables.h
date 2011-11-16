@@ -81,14 +81,14 @@ struct ip6t_ip6 {
 	 *   MH do not match any packets.
 	 * - You also need to set IP6T_FLAGS_PROTO to "flags" to check protocol.
 	 */
-	u_int16_t proto;
+	__u16 proto;
 	/* TOS to match iff flags & IP6T_F_TOS */
-	u_int8_t tos;
+	__u8 tos;
 
 	/* Flags word */
-	u_int8_t flags;
+	__u8 flags;
 	/* Inverse flags */
-	u_int8_t invflags;
+	__u8 invflags;
 };
 
 /* Values for "flag" field in struct ip6t_ip6 (general ip6 structure). */
@@ -118,9 +118,9 @@ struct ip6t_entry {
 	unsigned int nfcache;
 
 	/* Size of ipt_entry + matches */
-	u_int16_t target_offset;
+	__u16 target_offset;
 	/* Size of ipt_entry + matches + target */
-	u_int16_t next_offset;
+	__u16 next_offset;
 
 	/* Back pointer */
 	unsigned int comefrom;
@@ -186,9 +186,9 @@ struct ip6t_error {
 
 /* ICMP matching stuff */
 struct ip6t_icmp {
-	u_int8_t type;				/* type to match */
-	u_int8_t code[2];			/* range of code */
-	u_int8_t invflags;			/* Inverse flags */
+	__u8 type;				/* type to match */
+	__u8 code[2];				/* range of code */
+	__u8 invflags;				/* Inverse flags */
 };
 
 /* Values for "inv" field for struct ipt_icmp. */
@@ -298,8 +298,8 @@ extern int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
 struct compat_ip6t_entry {
 	struct ip6t_ip6 ipv6;
 	compat_uint_t nfcache;
-	u_int16_t target_offset;
-	u_int16_t next_offset;
+	__u16 target_offset;
+	__u16 next_offset;
 	compat_uint_t comefrom;
 	struct compat_xt_counters counters;
 	unsigned char elems[0];

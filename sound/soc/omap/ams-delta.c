@@ -25,6 +25,7 @@
 #include <linux/gpio.h>
 #include <linux/spinlock.h>
 #include <linux/tty.h>
+#include <linux/module.h>
 
 #include <sound/soc.h>
 #include <sound/jack.h>
@@ -514,7 +515,7 @@ static int ams_delta_cx20442_init(struct snd_soc_pcm_runtime *rtd)
 	}
 
 	/* Set codec bias level */
-	ams_delta_set_bias_level(card, SND_SOC_BIAS_STANDBY);
+	ams_delta_set_bias_level(card, dapm, SND_SOC_BIAS_STANDBY);
 
 	/* Add hook switch - can be used to control the codec from userspace
 	 * even if line discipline fails */
@@ -569,7 +570,6 @@ static int ams_delta_cx20442_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_disable_pin(dapm, "Speaker");
 	snd_soc_dapm_disable_pin(dapm, "AGCIN");
 	snd_soc_dapm_disable_pin(dapm, "AGCOUT");
-	snd_soc_dapm_sync(dapm);
 
 	/* Add virtual switch */
 	ret = snd_soc_add_controls(codec, ams_delta_audio_controls,
@@ -649,7 +649,9 @@ static void __exit ams_delta_module_exit(void)
 			ams_delta_hook_switch_gpios);
 
 	/* Keep modem power on */
-	ams_delta_set_bias_level(&ams_delta_audio_card, SND_SOC_BIAS_STANDBY);
+	ams_delta_set_bias_level(&ams_delta_audio_card,
+				 &ams_delta_audio_card.rtd[0].codec->dapm,
+				 SND_SOC_BIAS_STANDBY);
 
 	platform_device_unregister(cx20442_platform_device);
 	platform_device_unregister(ams_delta_audio_platform_device);

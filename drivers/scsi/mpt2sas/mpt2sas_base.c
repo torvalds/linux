@@ -42,7 +42,6 @@
  * USA.
  */
 
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/errno.h>
@@ -82,6 +81,15 @@ static int missing_delay[2] = {-1, -1};
 module_param_array(missing_delay, int, NULL, 0);
 MODULE_PARM_DESC(missing_delay, " device missing delay , io missing delay");
 
+static int mpt2sas_fwfault_debug;
+MODULE_PARM_DESC(mpt2sas_fwfault_debug, " enable detection of firmware fault "
+	"and halt firmware - (default=0)");
+
+static int disable_discovery = -1;
+module_param(disable_discovery, int, 0);
+MODULE_PARM_DESC(disable_discovery, " disable discovery ");
+
+
 /* diag_buffer_enable is bitwise
  * bit 0 set = TRACE
  * bit 1 set = SNAPSHOT
@@ -93,14 +101,6 @@ static int diag_buffer_enable;
 module_param(diag_buffer_enable, int, 0);
 MODULE_PARM_DESC(diag_buffer_enable, " post diag buffers "
     "(TRACE=1/SNAPSHOT=2/EXTENDED=4/default=0)");
-
-static int mpt2sas_fwfault_debug;
-MODULE_PARM_DESC(mpt2sas_fwfault_debug, " enable detection of firmware fault "
-    "and halt firmware - (default=0)");
-
-static int disable_discovery = -1;
-module_param(disable_discovery, int, 0);
-MODULE_PARM_DESC(disable_discovery, " disable discovery ");
 
 /**
  * _scsih_set_fwfault_debug - global setting of ioc->fwfault_debug.
@@ -692,6 +692,7 @@ mpt2sas_base_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 		memcpy(ioc->base_cmds.reply, mpi_reply, mpi_reply->MsgLength*4);
 	}
 	ioc->base_cmds.status &= ~MPT2_CMD_PENDING;
+
 	complete(&ioc->base_cmds.done);
 	return 1;
 }
@@ -834,25 +835,31 @@ union reply_descriptor {
 static irqreturn_t
 _base_interrupt(int irq, void *bus_id)
 {
+	struct adapter_reply_queue *reply_q = bus_id;
 	union reply_descriptor rd;
 	u32 completed_cmds;
 	u8 request_desript_type;
 	u16 smid;
 	u8 cb_idx;
 	u32 reply;
-	u8 msix_index;
-	struct MPT2SAS_ADAPTER *ioc = bus_id;
+	u8 msix_index = reply_q->msix_index;
+	struct MPT2SAS_ADAPTER *ioc = reply_q->ioc;
 	Mpi2ReplyDescriptorsUnion_t *rpf;
 	u8 rc;
 
 	if (ioc->mask_interrupts)
 		return IRQ_NONE;
 
-	rpf = &ioc->reply_post_free[ioc->reply_post_host_index];
+	if (!atomic_add_unless(&reply_q->busy, 1, 1))
+		return IRQ_NONE;
+
+	rpf = &reply_q->reply_post_free[reply_q->reply_post_host_index];
 	request_desript_type = rpf->Default.ReplyFlags
 	     & MPI2_RPY_DESCRIPT_FLAGS_TYPE_MASK;
-	if (request_desript_type == MPI2_RPY_DESCRIPT_FLAGS_UNUSED)
+	if (request_desript_type == MPI2_RPY_DESCRIPT_FLAGS_UNUSED) {
+		atomic_dec(&reply_q->busy);
 		return IRQ_NONE;
+	}
 
 	completed_cmds = 0;
 	cb_idx = 0xFF;
@@ -861,9 +868,7 @@ _base_interrupt(int irq, void *bus_id)
 		if (rd.u.low == UINT_MAX || rd.u.high == UINT_MAX)
 			goto out;
 		reply = 0;
-		cb_idx = 0xFF;
 		smid = le16_to_cpu(rpf->Default.DescriptorTypeDependent1);
-		msix_index = rpf->Default.MSIxIndex;
 		if (request_desript_type ==
 		    MPI2_RPY_DESCRIPT_FLAGS_ADDRESS_REPLY) {
 			reply = le32_to_cpu
@@ -907,29 +912,83 @@ _base_interrupt(int irq, void *bus_id)
  next:
 
 		rpf->Words = cpu_to_le64(ULLONG_MAX);
-		ioc->reply_post_host_index = (ioc->reply_post_host_index ==
+		reply_q->reply_post_host_index =
+		    (reply_q->reply_post_host_index ==
 		    (ioc->reply_post_queue_depth - 1)) ? 0 :
-		    ioc->reply_post_host_index + 1;
+		    reply_q->reply_post_host_index + 1;
 		request_desript_type =
-		    ioc->reply_post_free[ioc->reply_post_host_index].Default.
-		    ReplyFlags & MPI2_RPY_DESCRIPT_FLAGS_TYPE_MASK;
+		    reply_q->reply_post_free[reply_q->reply_post_host_index].
+		    Default.ReplyFlags & MPI2_RPY_DESCRIPT_FLAGS_TYPE_MASK;
 		completed_cmds++;
 		if (request_desript_type == MPI2_RPY_DESCRIPT_FLAGS_UNUSED)
 			goto out;
-		if (!ioc->reply_post_host_index)
-			rpf = ioc->reply_post_free;
+		if (!reply_q->reply_post_host_index)
+			rpf = reply_q->reply_post_free;
 		else
 			rpf++;
 	} while (1);
 
  out:
 
-	if (!completed_cmds)
+	if (!completed_cmds) {
+		atomic_dec(&reply_q->busy);
 		return IRQ_NONE;
-
+	}
 	wmb();
-	writel(ioc->reply_post_host_index, &ioc->chip->ReplyPostHostIndex);
+	if (ioc->is_warpdrive) {
+		writel(reply_q->reply_post_host_index,
+		ioc->reply_post_host_index[msix_index]);
+		atomic_dec(&reply_q->busy);
+		return IRQ_HANDLED;
+	}
+	writel(reply_q->reply_post_host_index | (msix_index <<
+	    MPI2_RPHI_MSIX_INDEX_SHIFT), &ioc->chip->ReplyPostHostIndex);
+	atomic_dec(&reply_q->busy);
 	return IRQ_HANDLED;
+}
+
+/**
+ * _base_is_controller_msix_enabled - is controller support muli-reply queues
+ * @ioc: per adapter object
+ *
+ */
+static inline int
+_base_is_controller_msix_enabled(struct MPT2SAS_ADAPTER *ioc)
+{
+	return (ioc->facts.IOCCapabilities &
+	    MPI2_IOCFACTS_CAPABILITY_MSI_X_INDEX) && ioc->msix_enable;
+}
+
+/**
+ * mpt2sas_base_flush_reply_queues - flushing the MSIX reply queues
+ * @ioc: per adapter object
+ * Context: ISR conext
+ *
+ * Called when a Task Management request has completed. We want
+ * to flush the other reply queues so all the outstanding IO has been
+ * completed back to OS before we process the TM completetion.
+ *
+ * Return nothing.
+ */
+void
+mpt2sas_base_flush_reply_queues(struct MPT2SAS_ADAPTER *ioc)
+{
+	struct adapter_reply_queue *reply_q;
+
+	/* If MSIX capability is turned off
+	 * then multi-queues are not enabled
+	 */
+	if (!_base_is_controller_msix_enabled(ioc))
+		return;
+
+	list_for_each_entry(reply_q, &ioc->reply_queue_list, list) {
+		if (ioc->shost_recovery)
+			return;
+		/* TMs are on msix_index == 0 */
+		if (reply_q->msix_index == 0)
+			continue;
+		_base_interrupt(reply_q->vector, (void *)reply_q);
+	}
 }
 
 /**
@@ -1082,41 +1141,6 @@ _base_config_dma_addressing(struct MPT2SAS_ADAPTER *ioc, struct pci_dev *pdev)
 }
 
 /**
- * _base_save_msix_table - backup msix vector table
- * @ioc: per adapter object
- *
- * This address an errata where diag reset clears out the table
- */
-static void
-_base_save_msix_table(struct MPT2SAS_ADAPTER *ioc)
-{
-	int i;
-
-	if (!ioc->msix_enable || ioc->msix_table_backup == NULL)
-		return;
-
-	for (i = 0; i < ioc->msix_vector_count; i++)
-		ioc->msix_table_backup[i] = ioc->msix_table[i];
-}
-
-/**
- * _base_restore_msix_table - this restores the msix vector table
- * @ioc: per adapter object
- *
- */
-static void
-_base_restore_msix_table(struct MPT2SAS_ADAPTER *ioc)
-{
-	int i;
-
-	if (!ioc->msix_enable || ioc->msix_table_backup == NULL)
-		return;
-
-	for (i = 0; i < ioc->msix_vector_count; i++)
-		ioc->msix_table[i] = ioc->msix_table_backup[i];
-}
-
-/**
  * _base_check_enable_msix - checks MSIX capabable.
  * @ioc: per adapter object
  *
@@ -1128,7 +1152,7 @@ _base_check_enable_msix(struct MPT2SAS_ADAPTER *ioc)
 {
 	int base;
 	u16 message_control;
-	u32 msix_table_offset;
+
 
 	base = pci_find_capability(ioc->pdev, PCI_CAP_ID_MSIX);
 	if (!base) {
@@ -1138,18 +1162,150 @@ _base_check_enable_msix(struct MPT2SAS_ADAPTER *ioc)
 	}
 
 	/* get msix vector count */
-	pci_read_config_word(ioc->pdev, base + 2, &message_control);
-	ioc->msix_vector_count = (message_control & 0x3FF) + 1;
-
-	/* get msix table  */
-	pci_read_config_dword(ioc->pdev, base + 4, &msix_table_offset);
-	msix_table_offset &= 0xFFFFFFF8;
-	ioc->msix_table = (u32 *)((void *)ioc->chip + msix_table_offset);
-
+	/* NUMA_IO not supported for older controllers */
+	if (ioc->pdev->device == MPI2_MFGPAGE_DEVID_SAS2004 ||
+	    ioc->pdev->device == MPI2_MFGPAGE_DEVID_SAS2008 ||
+	    ioc->pdev->device == MPI2_MFGPAGE_DEVID_SAS2108_1 ||
+	    ioc->pdev->device == MPI2_MFGPAGE_DEVID_SAS2108_2 ||
+	    ioc->pdev->device == MPI2_MFGPAGE_DEVID_SAS2108_3 ||
+	    ioc->pdev->device == MPI2_MFGPAGE_DEVID_SAS2116_1 ||
+	    ioc->pdev->device == MPI2_MFGPAGE_DEVID_SAS2116_2)
+		ioc->msix_vector_count = 1;
+	else {
+		pci_read_config_word(ioc->pdev, base + 2, &message_control);
+		ioc->msix_vector_count = (message_control & 0x3FF) + 1;
+	}
 	dinitprintk(ioc, printk(MPT2SAS_INFO_FMT "msix is supported, "
-	    "vector_count(%d), table_offset(0x%08x), table(%p)\n", ioc->name,
-	    ioc->msix_vector_count, msix_table_offset, ioc->msix_table));
+	    "vector_count(%d)\n", ioc->name, ioc->msix_vector_count));
+
 	return 0;
+}
+
+/**
+ * _base_free_irq - free irq
+ * @ioc: per adapter object
+ *
+ * Freeing respective reply_queue from the list.
+ */
+static void
+_base_free_irq(struct MPT2SAS_ADAPTER *ioc)
+{
+	struct adapter_reply_queue *reply_q, *next;
+
+	if (list_empty(&ioc->reply_queue_list))
+		return;
+
+	list_for_each_entry_safe(reply_q, next, &ioc->reply_queue_list, list) {
+		list_del(&reply_q->list);
+		synchronize_irq(reply_q->vector);
+		free_irq(reply_q->vector, reply_q);
+		kfree(reply_q);
+	}
+}
+
+/**
+ * _base_request_irq - request irq
+ * @ioc: per adapter object
+ * @index: msix index into vector table
+ * @vector: irq vector
+ *
+ * Inserting respective reply_queue into the list.
+ */
+static int
+_base_request_irq(struct MPT2SAS_ADAPTER *ioc, u8 index, u32 vector)
+{
+	struct adapter_reply_queue *reply_q;
+	int r;
+
+	reply_q =  kzalloc(sizeof(struct adapter_reply_queue), GFP_KERNEL);
+	if (!reply_q) {
+		printk(MPT2SAS_ERR_FMT "unable to allocate memory %d!\n",
+		    ioc->name, (int)sizeof(struct adapter_reply_queue));
+		return -ENOMEM;
+	}
+	reply_q->ioc = ioc;
+	reply_q->msix_index = index;
+	reply_q->vector = vector;
+	atomic_set(&reply_q->busy, 0);
+	if (ioc->msix_enable)
+		snprintf(reply_q->name, MPT_NAME_LENGTH, "%s%d-msix%d",
+		    MPT2SAS_DRIVER_NAME, ioc->id, index);
+	else
+		snprintf(reply_q->name, MPT_NAME_LENGTH, "%s%d",
+		    MPT2SAS_DRIVER_NAME, ioc->id);
+	r = request_irq(vector, _base_interrupt, IRQF_SHARED, reply_q->name,
+	    reply_q);
+	if (r) {
+		printk(MPT2SAS_ERR_FMT "unable to allocate interrupt %d!\n",
+		    reply_q->name, vector);
+		kfree(reply_q);
+		return -EBUSY;
+	}
+
+	INIT_LIST_HEAD(&reply_q->list);
+	list_add_tail(&reply_q->list, &ioc->reply_queue_list);
+	return 0;
+}
+
+/**
+ * _base_assign_reply_queues - assigning msix index for each cpu
+ * @ioc: per adapter object
+ *
+ * The enduser would need to set the affinity via /proc/irq/#/smp_affinity
+ *
+ * It would nice if we could call irq_set_affinity, however it is not
+ * an exported symbol
+ */
+static void
+_base_assign_reply_queues(struct MPT2SAS_ADAPTER *ioc)
+{
+	struct adapter_reply_queue *reply_q;
+	int cpu_id;
+	int cpu_grouping, loop, grouping, grouping_mod;
+
+	if (!_base_is_controller_msix_enabled(ioc))
+		return;
+
+	memset(ioc->cpu_msix_table, 0, ioc->cpu_msix_table_sz);
+	/* when there are more cpus than available msix vectors,
+	 * then group cpus togeather on same irq
+	 */
+	if (ioc->cpu_count > ioc->msix_vector_count) {
+		grouping = ioc->cpu_count / ioc->msix_vector_count;
+		grouping_mod = ioc->cpu_count % ioc->msix_vector_count;
+		if (grouping < 2 || (grouping == 2 && !grouping_mod))
+			cpu_grouping = 2;
+		else if (grouping < 4 || (grouping == 4 && !grouping_mod))
+			cpu_grouping = 4;
+		else if (grouping < 8 || (grouping == 8 && !grouping_mod))
+			cpu_grouping = 8;
+		else
+			cpu_grouping = 16;
+	} else
+		cpu_grouping = 0;
+
+	loop = 0;
+	reply_q = list_entry(ioc->reply_queue_list.next,
+	     struct adapter_reply_queue, list);
+	for_each_online_cpu(cpu_id) {
+		if (!cpu_grouping) {
+			ioc->cpu_msix_table[cpu_id] = reply_q->msix_index;
+			reply_q = list_entry(reply_q->list.next,
+			    struct adapter_reply_queue, list);
+		} else {
+			if (loop < cpu_grouping) {
+				ioc->cpu_msix_table[cpu_id] =
+					reply_q->msix_index;
+				loop++;
+			} else {
+				reply_q = list_entry(reply_q->list.next,
+				    struct adapter_reply_queue, list);
+				ioc->cpu_msix_table[cpu_id] =
+					reply_q->msix_index;
+				loop = 1;
+			}
+		}
+	}
 }
 
 /**
@@ -1162,8 +1318,6 @@ _base_disable_msix(struct MPT2SAS_ADAPTER *ioc)
 {
 	if (ioc->msix_enable) {
 		pci_disable_msix(ioc->pdev);
-		kfree(ioc->msix_table_backup);
-		ioc->msix_table_backup = NULL;
 		ioc->msix_enable = 0;
 	}
 }
@@ -1176,9 +1330,12 @@ _base_disable_msix(struct MPT2SAS_ADAPTER *ioc)
 static int
 _base_enable_msix(struct MPT2SAS_ADAPTER *ioc)
 {
-	struct msix_entry entries;
+	struct msix_entry *entries, *a;
 	int r;
+	int i;
 	u8 try_msix = 0;
+
+	INIT_LIST_HEAD(&ioc->reply_queue_list);
 
 	if (msix_disable == -1 || msix_disable == 0)
 		try_msix = 1;
@@ -1189,51 +1346,48 @@ _base_enable_msix(struct MPT2SAS_ADAPTER *ioc)
 	if (_base_check_enable_msix(ioc) != 0)
 		goto try_ioapic;
 
-	ioc->msix_table_backup = kcalloc(ioc->msix_vector_count,
-	    sizeof(u32), GFP_KERNEL);
-	if (!ioc->msix_table_backup) {
-		dfailprintk(ioc, printk(MPT2SAS_INFO_FMT "allocation for "
-		    "msix_table_backup failed!!!\n", ioc->name));
+	ioc->reply_queue_count = min_t(u8, ioc->cpu_count,
+	    ioc->msix_vector_count);
+
+	entries = kcalloc(ioc->reply_queue_count, sizeof(struct msix_entry),
+	    GFP_KERNEL);
+	if (!entries) {
+		dfailprintk(ioc, printk(MPT2SAS_INFO_FMT "kcalloc "
+		    "failed @ at %s:%d/%s() !!!\n", ioc->name, __FILE__,
+		    __LINE__, __func__));
 		goto try_ioapic;
 	}
 
-	memset(&entries, 0, sizeof(struct msix_entry));
-	r = pci_enable_msix(ioc->pdev, &entries, 1);
+	for (i = 0, a = entries; i < ioc->reply_queue_count; i++, a++)
+		a->entry = i;
+
+	r = pci_enable_msix(ioc->pdev, entries, ioc->reply_queue_count);
 	if (r) {
 		dfailprintk(ioc, printk(MPT2SAS_INFO_FMT "pci_enable_msix "
 		    "failed (r=%d) !!!\n", ioc->name, r));
+		kfree(entries);
 		goto try_ioapic;
 	}
 
-	r = request_irq(entries.vector, _base_interrupt, IRQF_SHARED,
-	    ioc->name, ioc);
-	if (r) {
-		dfailprintk(ioc, printk(MPT2SAS_INFO_FMT "unable to allocate "
-		    "interrupt %d !!!\n", ioc->name, entries.vector));
-		pci_disable_msix(ioc->pdev);
-		goto try_ioapic;
-	}
-
-	ioc->pci_irq = entries.vector;
 	ioc->msix_enable = 1;
+	for (i = 0, a = entries; i < ioc->reply_queue_count; i++, a++) {
+		r = _base_request_irq(ioc, i, a->vector);
+		if (r) {
+			_base_free_irq(ioc);
+			_base_disable_msix(ioc);
+			kfree(entries);
+			goto try_ioapic;
+		}
+	}
+
+	kfree(entries);
 	return 0;
 
 /* failback to io_apic interrupt routing */
  try_ioapic:
 
-	r = request_irq(ioc->pdev->irq, _base_interrupt, IRQF_SHARED,
-	    ioc->name, ioc);
-	if (r) {
-		printk(MPT2SAS_ERR_FMT "unable to allocate interrupt %d!\n",
-		    ioc->name, ioc->pdev->irq);
-		r = -EBUSY;
-		goto out_fail;
-	}
+	r = _base_request_irq(ioc, 0, ioc->pdev->irq);
 
-	ioc->pci_irq = ioc->pdev->irq;
-	return 0;
-
- out_fail:
 	return r;
 }
 
@@ -1252,6 +1406,7 @@ mpt2sas_base_map_resources(struct MPT2SAS_ADAPTER *ioc)
 	int i, r = 0;
 	u64 pio_chip = 0;
 	u64 chip_phys = 0;
+	struct adapter_reply_queue *reply_q;
 
 	dinitprintk(ioc, printk(MPT2SAS_INFO_FMT "%s\n",
 	    ioc->name, __func__));
@@ -1314,9 +1469,11 @@ mpt2sas_base_map_resources(struct MPT2SAS_ADAPTER *ioc)
 	if (r)
 		goto out_fail;
 
-	printk(MPT2SAS_INFO_FMT "%s: IRQ %d\n",
-	    ioc->name,  ((ioc->msix_enable) ? "PCI-MSI-X enabled" :
-	    "IO-APIC enabled"), ioc->pci_irq);
+	list_for_each_entry(reply_q, &ioc->reply_queue_list, list)
+		printk(MPT2SAS_INFO_FMT "%s: IRQ %d\n",
+		    reply_q->name,  ((ioc->msix_enable) ? "PCI-MSI-X enabled" :
+		    "IO-APIC enabled"), reply_q->vector);
+
 	printk(MPT2SAS_INFO_FMT "iomem(0x%016llx), mapped(0x%p), size(%d)\n",
 	    ioc->name, (unsigned long long)chip_phys, ioc->chip, memap_sz);
 	printk(MPT2SAS_INFO_FMT "ioport(0x%016llx), size(%d)\n",
@@ -1331,7 +1488,6 @@ mpt2sas_base_map_resources(struct MPT2SAS_ADAPTER *ioc)
 	if (ioc->chip_phys)
 		iounmap(ioc->chip);
 	ioc->chip_phys = 0;
-	ioc->pci_irq = -1;
 	pci_release_selected_regions(ioc->pdev, ioc->bars);
 	pci_disable_pcie_error_reporting(pdev);
 	pci_disable_device(pdev);
@@ -1578,6 +1734,12 @@ static inline void _base_writeq(__u64 b, volatile void __iomem *addr,
 }
 #endif
 
+static inline u8
+_base_get_msix_index(struct MPT2SAS_ADAPTER *ioc)
+{
+	return ioc->cpu_msix_table[smp_processor_id()];
+}
+
 /**
  * mpt2sas_base_put_smid_scsi_io - send SCSI_IO request to firmware
  * @ioc: per adapter object
@@ -1594,7 +1756,7 @@ mpt2sas_base_put_smid_scsi_io(struct MPT2SAS_ADAPTER *ioc, u16 smid, u16 handle)
 
 
 	descriptor.SCSIIO.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_SCSI_IO;
-	descriptor.SCSIIO.MSIxIndex = 0; /* TODO */
+	descriptor.SCSIIO.MSIxIndex =  _base_get_msix_index(ioc);
 	descriptor.SCSIIO.SMID = cpu_to_le16(smid);
 	descriptor.SCSIIO.DevHandle = cpu_to_le16(handle);
 	descriptor.SCSIIO.LMID = 0;
@@ -1618,7 +1780,7 @@ mpt2sas_base_put_smid_hi_priority(struct MPT2SAS_ADAPTER *ioc, u16 smid)
 
 	descriptor.HighPriority.RequestFlags =
 	    MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY;
-	descriptor.HighPriority.MSIxIndex = 0; /* TODO */
+	descriptor.HighPriority.MSIxIndex =  0;
 	descriptor.HighPriority.SMID = cpu_to_le16(smid);
 	descriptor.HighPriority.LMID = 0;
 	descriptor.HighPriority.Reserved1 = 0;
@@ -1640,7 +1802,7 @@ mpt2sas_base_put_smid_default(struct MPT2SAS_ADAPTER *ioc, u16 smid)
 	u64 *request = (u64 *)&descriptor;
 
 	descriptor.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
-	descriptor.Default.MSIxIndex = 0; /* TODO */
+	descriptor.Default.MSIxIndex =  _base_get_msix_index(ioc);
 	descriptor.Default.SMID = cpu_to_le16(smid);
 	descriptor.Default.LMID = 0;
 	descriptor.Default.DescriptorTypeDependent = 0;
@@ -1665,7 +1827,7 @@ mpt2sas_base_put_smid_target_assist(struct MPT2SAS_ADAPTER *ioc, u16 smid,
 
 	descriptor.SCSITarget.RequestFlags =
 	    MPI2_REQ_DESCRIPT_FLAGS_SCSI_TARGET;
-	descriptor.SCSITarget.MSIxIndex = 0; /* TODO */
+	descriptor.SCSITarget.MSIxIndex =  _base_get_msix_index(ioc);
 	descriptor.SCSITarget.SMID = cpu_to_le16(smid);
 	descriptor.SCSITarget.LMID = 0;
 	descriptor.SCSITarget.IoIndex = cpu_to_le16(io_index);
@@ -2172,7 +2334,7 @@ _base_allocate_memory_pools(struct MPT2SAS_ADAPTER *ioc,  int sleep_flag)
 	u16 max_sge_elements;
 	u16 num_of_reply_frames;
 	u16 chains_needed_per_io;
-	u32 sz, total_sz;
+	u32 sz, total_sz, reply_post_free_sz;
 	u32 retry_sz;
 	u16 max_request_credit;
 	int i;
@@ -2499,7 +2661,12 @@ chain_done:
 	total_sz += sz;
 
 	/* reply post queue, 16 byte align */
-	sz = ioc->reply_post_queue_depth * sizeof(Mpi2DefaultReplyDescriptor_t);
+	reply_post_free_sz = ioc->reply_post_queue_depth *
+	    sizeof(Mpi2DefaultReplyDescriptor_t);
+	if (_base_is_controller_msix_enabled(ioc))
+		sz = reply_post_free_sz * ioc->reply_queue_count;
+	else
+		sz = reply_post_free_sz;
 	ioc->reply_post_free_dma_pool = pci_pool_create("reply_post_free pool",
 	    ioc->pdev, sz, 16, 0);
 	if (!ioc->reply_post_free_dma_pool) {
@@ -3187,6 +3354,7 @@ _base_get_ioc_facts(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 	facts->MaxChainDepth = mpi_reply.MaxChainDepth;
 	facts->WhoInit = mpi_reply.WhoInit;
 	facts->NumberOfPorts = mpi_reply.NumberOfPorts;
+	facts->MaxMSIxVectors = mpi_reply.MaxMSIxVectors;
 	facts->RequestCredit = le16_to_cpu(mpi_reply.RequestCredit);
 	facts->MaxReplyDescriptorPostQueueDepth =
 	    le16_to_cpu(mpi_reply.MaxReplyDescriptorPostQueueDepth);
@@ -3244,7 +3412,8 @@ _base_send_ioc_init(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 	mpi_request.MsgVersion = cpu_to_le16(MPI2_VERSION);
 	mpi_request.HeaderVersion = cpu_to_le16(MPI2_HEADER_VERSION);
 
-
+	if (_base_is_controller_msix_enabled(ioc))
+		mpi_request.HostMSIxVectors = ioc->reply_queue_count;
 	mpi_request.SystemRequestFrameSize = cpu_to_le16(ioc->request_sz/4);
 	mpi_request.ReplyDescriptorPostQueueDepth =
 	    cpu_to_le16(ioc->reply_post_queue_depth);
@@ -3303,6 +3472,58 @@ _base_send_ioc_init(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 }
 
 /**
+ * mpt2sas_port_enable_done - command completion routine for port enable
+ * @ioc: per adapter object
+ * @smid: system request message index
+ * @msix_index: MSIX table index supplied by the OS
+ * @reply: reply message frame(lower 32bit addr)
+ *
+ * Return 1 meaning mf should be freed from _base_interrupt
+ *        0 means the mf is freed from this function.
+ */
+u8
+mpt2sas_port_enable_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
+	u32 reply)
+{
+	MPI2DefaultReply_t *mpi_reply;
+	u16 ioc_status;
+
+	mpi_reply = mpt2sas_base_get_reply_virt_addr(ioc, reply);
+	if (mpi_reply && mpi_reply->Function == MPI2_FUNCTION_EVENT_ACK)
+		return 1;
+
+	if (ioc->port_enable_cmds.status == MPT2_CMD_NOT_USED)
+		return 1;
+
+	ioc->port_enable_cmds.status |= MPT2_CMD_COMPLETE;
+	if (mpi_reply) {
+		ioc->port_enable_cmds.status |= MPT2_CMD_REPLY_VALID;
+		memcpy(ioc->port_enable_cmds.reply, mpi_reply,
+		    mpi_reply->MsgLength*4);
+	}
+	ioc->port_enable_cmds.status &= ~MPT2_CMD_PENDING;
+
+	ioc_status = le16_to_cpu(mpi_reply->IOCStatus) & MPI2_IOCSTATUS_MASK;
+
+	if (ioc_status != MPI2_IOCSTATUS_SUCCESS)
+		ioc->port_enable_failed = 1;
+
+	if (ioc->is_driver_loading) {
+		if (ioc_status == MPI2_IOCSTATUS_SUCCESS) {
+			mpt2sas_port_enable_complete(ioc);
+			return 1;
+		} else {
+			ioc->start_scan_failed = ioc_status;
+			ioc->start_scan = 0;
+			return 1;
+		}
+	}
+	complete(&ioc->port_enable_cmds.done);
+	return 1;
+}
+
+
+/**
  * _base_send_port_enable - send port_enable(discovery stuff) to firmware
  * @ioc: per adapter object
  * @sleep_flag: CAN_SLEEP or NO_SLEEP
@@ -3313,65 +3534,149 @@ static int
 _base_send_port_enable(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 {
 	Mpi2PortEnableRequest_t *mpi_request;
-	u32 ioc_state;
+	Mpi2PortEnableReply_t *mpi_reply;
 	unsigned long timeleft;
 	int r = 0;
 	u16 smid;
+	u16 ioc_status;
 
 	printk(MPT2SAS_INFO_FMT "sending port enable !!\n", ioc->name);
 
-	if (ioc->base_cmds.status & MPT2_CMD_PENDING) {
+	if (ioc->port_enable_cmds.status & MPT2_CMD_PENDING) {
 		printk(MPT2SAS_ERR_FMT "%s: internal command already in use\n",
 		    ioc->name, __func__);
 		return -EAGAIN;
 	}
 
-	smid = mpt2sas_base_get_smid(ioc, ioc->base_cb_idx);
+	smid = mpt2sas_base_get_smid(ioc, ioc->port_enable_cb_idx);
 	if (!smid) {
 		printk(MPT2SAS_ERR_FMT "%s: failed obtaining a smid\n",
 		    ioc->name, __func__);
 		return -EAGAIN;
 	}
 
-	ioc->base_cmds.status = MPT2_CMD_PENDING;
+	ioc->port_enable_cmds.status = MPT2_CMD_PENDING;
 	mpi_request = mpt2sas_base_get_msg_frame(ioc, smid);
-	ioc->base_cmds.smid = smid;
+	ioc->port_enable_cmds.smid = smid;
 	memset(mpi_request, 0, sizeof(Mpi2PortEnableRequest_t));
 	mpi_request->Function = MPI2_FUNCTION_PORT_ENABLE;
-	mpi_request->VF_ID = 0; /* TODO */
-	mpi_request->VP_ID = 0;
 
+	init_completion(&ioc->port_enable_cmds.done);
 	mpt2sas_base_put_smid_default(ioc, smid);
-	init_completion(&ioc->base_cmds.done);
-	timeleft = wait_for_completion_timeout(&ioc->base_cmds.done,
+	timeleft = wait_for_completion_timeout(&ioc->port_enable_cmds.done,
 	    300*HZ);
-	if (!(ioc->base_cmds.status & MPT2_CMD_COMPLETE)) {
+	if (!(ioc->port_enable_cmds.status & MPT2_CMD_COMPLETE)) {
 		printk(MPT2SAS_ERR_FMT "%s: timeout\n",
 		    ioc->name, __func__);
 		_debug_dump_mf(mpi_request,
 		    sizeof(Mpi2PortEnableRequest_t)/4);
-		if (ioc->base_cmds.status & MPT2_CMD_RESET)
+		if (ioc->port_enable_cmds.status & MPT2_CMD_RESET)
 			r = -EFAULT;
 		else
 			r = -ETIME;
 		goto out;
-	} else
-		dinitprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: complete\n",
-		    ioc->name, __func__));
+	}
+	mpi_reply = ioc->port_enable_cmds.reply;
 
-	ioc_state = _base_wait_on_iocstate(ioc, MPI2_IOC_STATE_OPERATIONAL,
-	    60, sleep_flag);
-	if (ioc_state) {
-		printk(MPT2SAS_ERR_FMT "%s: failed going to operational state "
-		    " (ioc_state=0x%x)\n", ioc->name, __func__, ioc_state);
+	ioc_status = le16_to_cpu(mpi_reply->IOCStatus) & MPI2_IOCSTATUS_MASK;
+	if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
+		printk(MPT2SAS_ERR_FMT "%s: failed with (ioc_status=0x%08x)\n",
+		    ioc->name, __func__, ioc_status);
 		r = -EFAULT;
+		goto out;
 	}
  out:
-	ioc->base_cmds.status = MPT2_CMD_NOT_USED;
-	printk(MPT2SAS_INFO_FMT "port enable: %s\n",
-	    ioc->name, ((r == 0) ? "SUCCESS" : "FAILED"));
+	ioc->port_enable_cmds.status = MPT2_CMD_NOT_USED;
+	printk(MPT2SAS_INFO_FMT "port enable: %s\n", ioc->name, ((r == 0) ?
+	    "SUCCESS" : "FAILED"));
 	return r;
 }
+
+/**
+ * mpt2sas_port_enable - initiate firmware discovery (don't wait for reply)
+ * @ioc: per adapter object
+ *
+ * Returns 0 for success, non-zero for failure.
+ */
+int
+mpt2sas_port_enable(struct MPT2SAS_ADAPTER *ioc)
+{
+	Mpi2PortEnableRequest_t *mpi_request;
+	u16 smid;
+
+	printk(MPT2SAS_INFO_FMT "sending port enable !!\n", ioc->name);
+
+	if (ioc->port_enable_cmds.status & MPT2_CMD_PENDING) {
+		printk(MPT2SAS_ERR_FMT "%s: internal command already in use\n",
+		    ioc->name, __func__);
+		return -EAGAIN;
+	}
+
+	smid = mpt2sas_base_get_smid(ioc, ioc->port_enable_cb_idx);
+	if (!smid) {
+		printk(MPT2SAS_ERR_FMT "%s: failed obtaining a smid\n",
+		    ioc->name, __func__);
+		return -EAGAIN;
+	}
+
+	ioc->port_enable_cmds.status = MPT2_CMD_PENDING;
+	mpi_request = mpt2sas_base_get_msg_frame(ioc, smid);
+	ioc->port_enable_cmds.smid = smid;
+	memset(mpi_request, 0, sizeof(Mpi2PortEnableRequest_t));
+	mpi_request->Function = MPI2_FUNCTION_PORT_ENABLE;
+
+	mpt2sas_base_put_smid_default(ioc, smid);
+	return 0;
+}
+
+/**
+ * _base_determine_wait_on_discovery - desposition
+ * @ioc: per adapter object
+ *
+ * Decide whether to wait on discovery to complete. Used to either
+ * locate boot device, or report volumes ahead of physical devices.
+ *
+ * Returns 1 for wait, 0 for don't wait
+ */
+static int
+_base_determine_wait_on_discovery(struct MPT2SAS_ADAPTER *ioc)
+{
+	/* We wait for discovery to complete if IR firmware is loaded.
+	 * The sas topology events arrive before PD events, so we need time to
+	 * turn on the bit in ioc->pd_handles to indicate PD
+	 * Also, it maybe required to report Volumes ahead of physical
+	 * devices when MPI2_IOCPAGE8_IRFLAGS_LOW_VOLUME_MAPPING is set.
+	 */
+	if (ioc->ir_firmware)
+		return 1;
+
+	/* if no Bios, then we don't need to wait */
+	if (!ioc->bios_pg3.BiosVersion)
+		return 0;
+
+	/* Bios is present, then we drop down here.
+	 *
+	 * If there any entries in the Bios Page 2, then we wait
+	 * for discovery to complete.
+	 */
+
+	/* Current Boot Device */
+	if ((ioc->bios_pg2.CurrentBootDeviceForm &
+	    MPI2_BIOSPAGE2_FORM_MASK) ==
+	    MPI2_BIOSPAGE2_FORM_NO_DEVICE_SPECIFIED &&
+	/* Request Boot Device */
+	   (ioc->bios_pg2.ReqBootDeviceForm &
+	    MPI2_BIOSPAGE2_FORM_MASK) ==
+	    MPI2_BIOSPAGE2_FORM_NO_DEVICE_SPECIFIED &&
+	/* Alternate Request Boot Device */
+	   (ioc->bios_pg2.ReqAltBootDeviceForm &
+	    MPI2_BIOSPAGE2_FORM_MASK) ==
+	    MPI2_BIOSPAGE2_FORM_NO_DEVICE_SPECIFIED)
+		return 0;
+
+	return 1;
+}
+
 
 /**
  * _base_unmask_events - turn on notification for this event
@@ -3513,9 +3818,6 @@ _base_diag_reset(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 	u32 hcb_size;
 
 	printk(MPT2SAS_INFO_FMT "sending diag reset !!\n", ioc->name);
-
-	_base_save_msix_table(ioc);
-
 	drsprintk(ioc, printk(MPT2SAS_INFO_FMT "clear interrupts\n",
 	    ioc->name));
 
@@ -3611,7 +3913,6 @@ _base_diag_reset(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 		goto out;
 	}
 
-	_base_restore_msix_table(ioc);
 	printk(MPT2SAS_INFO_FMT "diag reset: SUCCESS\n", ioc->name);
 	return 0;
 
@@ -3692,6 +3993,9 @@ _base_make_ioc_operational(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 	u16 smid;
 	struct _tr_list *delayed_tr, *delayed_tr_next;
 	u8 hide_flag;
+	struct adapter_reply_queue *reply_q;
+	long reply_post_free;
+	u32 reply_post_free_sz;
 
 	dinitprintk(ioc, printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
 	    __func__));
@@ -3757,21 +4061,46 @@ _base_make_ioc_operational(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 	    ioc->reply_sz)
 		ioc->reply_free[i] = cpu_to_le32(reply_address);
 
+	/* initialize reply queues */
+	_base_assign_reply_queues(ioc);
+
 	/* initialize Reply Post Free Queue */
-	for (i = 0; i < ioc->reply_post_queue_depth; i++)
-		ioc->reply_post_free[i].Words = cpu_to_le64(ULLONG_MAX);
+	reply_post_free = (long)ioc->reply_post_free;
+	reply_post_free_sz = ioc->reply_post_queue_depth *
+	    sizeof(Mpi2DefaultReplyDescriptor_t);
+	list_for_each_entry(reply_q, &ioc->reply_queue_list, list) {
+		reply_q->reply_post_host_index = 0;
+		reply_q->reply_post_free = (Mpi2ReplyDescriptorsUnion_t *)
+		    reply_post_free;
+		for (i = 0; i < ioc->reply_post_queue_depth; i++)
+			reply_q->reply_post_free[i].Words =
+							cpu_to_le64(ULLONG_MAX);
+		if (!_base_is_controller_msix_enabled(ioc))
+			goto skip_init_reply_post_free_queue;
+		reply_post_free += reply_post_free_sz;
+	}
+ skip_init_reply_post_free_queue:
 
 	r = _base_send_ioc_init(ioc, sleep_flag);
 	if (r)
 		return r;
 
-	/* initialize the index's */
+	/* initialize reply free host index */
 	ioc->reply_free_host_index = ioc->reply_free_queue_depth - 1;
-	ioc->reply_post_host_index = 0;
 	writel(ioc->reply_free_host_index, &ioc->chip->ReplyFreeHostIndex);
-	writel(0, &ioc->chip->ReplyPostHostIndex);
+
+	/* initialize reply post host index */
+	list_for_each_entry(reply_q, &ioc->reply_queue_list, list) {
+		writel(reply_q->msix_index << MPI2_RPHI_MSIX_INDEX_SHIFT,
+		    &ioc->chip->ReplyPostHostIndex);
+		if (!_base_is_controller_msix_enabled(ioc))
+			goto skip_init_reply_post_host_index;
+	}
+
+ skip_init_reply_post_host_index:
 
 	_base_unmask_interrupts(ioc);
+
 	r = _base_event_notification(ioc, sleep_flag);
 	if (r)
 		return r;
@@ -3779,20 +4108,24 @@ _base_make_ioc_operational(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 	if (sleep_flag == CAN_SLEEP)
 		_base_static_config_pages(ioc);
 
-	if (ioc->wait_for_port_enable_to_complete && ioc->is_warpdrive) {
+
+	if (ioc->is_driver_loading) {
+
+
+
+		ioc->wait_for_discovery_to_complete =
+		    _base_determine_wait_on_discovery(ioc);
+		return r; /* scan_start and scan_finished support */
+	}
+
+
+	if (ioc->wait_for_discovery_to_complete && ioc->is_warpdrive) {
 		if (ioc->manu_pg10.OEMIdentifier  == 0x80) {
 			hide_flag = (u8) (ioc->manu_pg10.OEMSpecificFlags0 &
 			    MFG_PAGE10_HIDE_SSDS_MASK);
 			if (hide_flag != MFG_PAGE10_HIDE_SSDS_MASK)
 				ioc->mfg_pg10_hide_flag = hide_flag;
 		}
-	}
-
-	if (ioc->wait_for_port_enable_to_complete) {
-		if (diag_buffer_enable != 0)
-			mpt2sas_enable_diag_buffer(ioc, diag_buffer_enable);
-		if (disable_discovery > 0)
-			return r;
 	}
 
 	r = _base_send_port_enable(ioc, sleep_flag);
@@ -3820,14 +4153,10 @@ mpt2sas_base_free_resources(struct MPT2SAS_ADAPTER *ioc)
 	ioc->shost_recovery = 1;
 	_base_make_ioc_ready(ioc, CAN_SLEEP, SOFT_RESET);
 	ioc->shost_recovery = 0;
-	if (ioc->pci_irq) {
-		synchronize_irq(pdev->irq);
-		free_irq(ioc->pci_irq, ioc);
-	}
+	_base_free_irq(ioc);
 	_base_disable_msix(ioc);
 	if (ioc->chip_phys)
 		iounmap(ioc->chip);
-	ioc->pci_irq = -1;
 	ioc->chip_phys = 0;
 	pci_release_selected_regions(ioc->pdev, ioc->bars);
 	pci_disable_pcie_error_reporting(pdev);
@@ -3845,13 +4174,49 @@ int
 mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 {
 	int r, i;
+	int cpu_id, last_cpu_id = 0;
 
 	dinitprintk(ioc, printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
 	    __func__));
 
+	/* setup cpu_msix_table */
+	ioc->cpu_count = num_online_cpus();
+	for_each_online_cpu(cpu_id)
+		last_cpu_id = cpu_id;
+	ioc->cpu_msix_table_sz = last_cpu_id + 1;
+	ioc->cpu_msix_table = kzalloc(ioc->cpu_msix_table_sz, GFP_KERNEL);
+	ioc->reply_queue_count = 1;
+	if (!ioc->cpu_msix_table) {
+		dfailprintk(ioc, printk(MPT2SAS_INFO_FMT "allocation for "
+		    "cpu_msix_table failed!!!\n", ioc->name));
+		r = -ENOMEM;
+		goto out_free_resources;
+	}
+
+	if (ioc->is_warpdrive) {
+		ioc->reply_post_host_index = kcalloc(ioc->cpu_msix_table_sz,
+		    sizeof(resource_size_t *), GFP_KERNEL);
+		if (!ioc->reply_post_host_index) {
+			dfailprintk(ioc, printk(MPT2SAS_INFO_FMT "allocation "
+				"for cpu_msix_table failed!!!\n", ioc->name));
+			r = -ENOMEM;
+			goto out_free_resources;
+		}
+	}
+
 	r = mpt2sas_base_map_resources(ioc);
 	if (r)
 		return r;
+
+	if (ioc->is_warpdrive) {
+		ioc->reply_post_host_index[0] =
+		    (resource_size_t *)&ioc->chip->ReplyPostHostIndex;
+
+		for (i = 1; i < ioc->cpu_msix_table_sz; i++)
+			ioc->reply_post_host_index[i] = (resource_size_t *)
+			((u8 *)&ioc->chip->Doorbell + (0x4000 + ((i - 1)
+			* 4)));
+	}
 
 	pci_set_drvdata(ioc->pdev, ioc->shost);
 	r = _base_get_ioc_facts(ioc, CAN_SLEEP);
@@ -3899,6 +4264,10 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 	ioc->base_cmds.reply = kzalloc(ioc->reply_sz, GFP_KERNEL);
 	ioc->base_cmds.status = MPT2_CMD_NOT_USED;
 
+	/* port_enable command bits */
+	ioc->port_enable_cmds.reply = kzalloc(ioc->reply_sz, GFP_KERNEL);
+	ioc->port_enable_cmds.status = MPT2_CMD_NOT_USED;
+
 	/* transport internal command bits */
 	ioc->transport_cmds.reply = kzalloc(ioc->reply_sz, GFP_KERNEL);
 	ioc->transport_cmds.status = MPT2_CMD_NOT_USED;
@@ -3940,8 +4309,6 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 		goto out_free_resources;
 	}
 
-	init_completion(&ioc->shost_recovery_done);
-
 	for (i = 0; i < MPI2_EVENT_NOTIFY_EVENTMASK_WORDS; i++)
 		ioc->event_masks[i] = -1;
 
@@ -3964,7 +4331,6 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 		_base_update_missing_delay(ioc, missing_delay[0],
 		    missing_delay[1]);
 
-	mpt2sas_base_start_watchdog(ioc);
 	return 0;
 
  out_free_resources:
@@ -3973,12 +4339,16 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 	mpt2sas_base_free_resources(ioc);
 	_base_release_memory_pools(ioc);
 	pci_set_drvdata(ioc->pdev, NULL);
+	kfree(ioc->cpu_msix_table);
+	if (ioc->is_warpdrive)
+		kfree(ioc->reply_post_host_index);
 	kfree(ioc->pd_handles);
 	kfree(ioc->tm_cmds.reply);
 	kfree(ioc->transport_cmds.reply);
 	kfree(ioc->scsih_cmds.reply);
 	kfree(ioc->config_cmds.reply);
 	kfree(ioc->base_cmds.reply);
+	kfree(ioc->port_enable_cmds.reply);
 	kfree(ioc->ctl_cmds.reply);
 	kfree(ioc->ctl_cmds.sense);
 	kfree(ioc->pfacts);
@@ -4010,11 +4380,15 @@ mpt2sas_base_detach(struct MPT2SAS_ADAPTER *ioc)
 	mpt2sas_base_free_resources(ioc);
 	_base_release_memory_pools(ioc);
 	pci_set_drvdata(ioc->pdev, NULL);
+	kfree(ioc->cpu_msix_table);
+	if (ioc->is_warpdrive)
+		kfree(ioc->reply_post_host_index);
 	kfree(ioc->pd_handles);
 	kfree(ioc->pfacts);
 	kfree(ioc->ctl_cmds.reply);
 	kfree(ioc->ctl_cmds.sense);
 	kfree(ioc->base_cmds.reply);
+	kfree(ioc->port_enable_cmds.reply);
 	kfree(ioc->tm_cmds.reply);
 	kfree(ioc->transport_cmds.reply);
 	kfree(ioc->scsih_cmds.reply);
@@ -4055,6 +4429,20 @@ _base_reset_handler(struct MPT2SAS_ADAPTER *ioc, int reset_phase)
 			ioc->base_cmds.status |= MPT2_CMD_RESET;
 			mpt2sas_base_free_smid(ioc, ioc->base_cmds.smid);
 			complete(&ioc->base_cmds.done);
+		}
+		if (ioc->port_enable_cmds.status & MPT2_CMD_PENDING) {
+			ioc->port_enable_failed = 1;
+			ioc->port_enable_cmds.status |= MPT2_CMD_RESET;
+			mpt2sas_base_free_smid(ioc, ioc->port_enable_cmds.smid);
+			if (ioc->is_driver_loading) {
+				ioc->start_scan_failed =
+				    MPI2_IOCSTATUS_INTERNAL_ERROR;
+				ioc->start_scan = 0;
+				ioc->port_enable_cmds.status =
+						MPT2_CMD_NOT_USED;
+			} else
+				complete(&ioc->port_enable_cmds.done);
+
 		}
 		if (ioc->config_cmds.status & MPT2_CMD_PENDING) {
 			ioc->config_cmds.status |= MPT2_CMD_RESET;
@@ -4121,7 +4509,6 @@ mpt2sas_base_hard_reset_handler(struct MPT2SAS_ADAPTER *ioc, int sleep_flag,
 {
 	int r;
 	unsigned long flags;
-	u8 pe_complete = ioc->wait_for_port_enable_to_complete;
 
 	dtmprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: enter\n", ioc->name,
 	    __func__));
@@ -4168,7 +4555,8 @@ mpt2sas_base_hard_reset_handler(struct MPT2SAS_ADAPTER *ioc, int sleep_flag,
 	/* If this hard reset is called while port enable is active, then
 	 * there is no reason to call make_ioc_operational
 	 */
-	if (pe_complete) {
+	if (ioc->is_driver_loading && ioc->port_enable_failed) {
+		ioc->remove_host = 1;
 		r = -EFAULT;
 		goto out;
 	}
@@ -4182,7 +4570,6 @@ mpt2sas_base_hard_reset_handler(struct MPT2SAS_ADAPTER *ioc, int sleep_flag,
 	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
 	ioc->ioc_reset_in_progress_status = r;
 	ioc->shost_recovery = 0;
-	complete(&ioc->shost_recovery_done);
 	spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
 	mutex_unlock(&ioc->reset_in_progress_mutex);
 

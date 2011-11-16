@@ -400,7 +400,8 @@ static int fsa9480_irq_init(struct fsa9480_usbsw *usbsw)
 			return ret;
 		}
 
-		device_init_wakeup(&client->dev, pdata->wakeup);
+		if (pdata)
+			device_init_wakeup(&client->dev, pdata->wakeup);
 	}
 
 	return 0;
@@ -455,7 +456,7 @@ static int __devinit fsa9480_probe(struct i2c_client *client,
 
 fail2:
 	if (client->irq)
-		free_irq(client->irq, NULL);
+		free_irq(client->irq, usbsw);
 fail1:
 	i2c_set_clientdata(client, NULL);
 	kfree(usbsw);
@@ -466,7 +467,7 @@ static int __devexit fsa9480_remove(struct i2c_client *client)
 {
 	struct fsa9480_usbsw *usbsw = i2c_get_clientdata(client);
 	if (client->irq)
-		free_irq(client->irq, NULL);
+		free_irq(client->irq, usbsw);
 	i2c_set_clientdata(client, NULL);
 
 	sysfs_remove_group(&client->dev.kobj, &fsa9480_group);

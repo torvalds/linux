@@ -1256,13 +1256,14 @@ static int __init ds_init(void)
 {
 	unsigned long hv_ret, major, minor;
 
-	hv_ret = sun4v_get_version(HV_GRP_REBOOT_DATA, &major, &minor);
-	if (hv_ret == HV_EOK) {
-		pr_info("SUN4V: Reboot data supported (maj=%lu,min=%lu).\n",
-			major, minor);
-		reboot_data_supported = 1;
+	if (tlb_type == hypervisor) {
+		hv_ret = sun4v_get_version(HV_GRP_REBOOT_DATA, &major, &minor);
+		if (hv_ret == HV_EOK) {
+			pr_info("SUN4V: Reboot data supported (maj=%lu,min=%lu).\n",
+				major, minor);
+			reboot_data_supported = 1;
+		}
 	}
-
 	kthread_run(ds_thread, NULL, "kldomd");
 
 	return vio_register_driver(&ds_driver);

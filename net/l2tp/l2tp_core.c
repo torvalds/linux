@@ -397,6 +397,7 @@ static void l2tp_recv_dequeue(struct l2tp_session *session)
 	 * expect to send up next, dequeue it and any other
 	 * in-sequence packets behind it.
 	 */
+start:
 	spin_lock_bh(&session->reorder_q.lock);
 	skb_queue_walk_safe(&session->reorder_q, skb, tmp) {
 		if (time_after(jiffies, L2TP_SKB_CB(skb)->expires)) {
@@ -433,7 +434,7 @@ static void l2tp_recv_dequeue(struct l2tp_session *session)
 		 */
 		spin_unlock_bh(&session->reorder_q.lock);
 		l2tp_recv_dequeue_skb(session, skb);
-		spin_lock_bh(&session->reorder_q.lock);
+		goto start;
 	}
 
 out:
@@ -1045,8 +1046,10 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 	headroom = NET_SKB_PAD + sizeof(struct iphdr) +
 		uhlen + hdr_len;
 	old_headroom = skb_headroom(skb);
-	if (skb_cow_head(skb, headroom))
+	if (skb_cow_head(skb, headroom)) {
+		dev_kfree_skb(skb);
 		goto abort;
+	}
 
 	new_headroom = skb_headroom(skb);
 	skb_orphan(skb);

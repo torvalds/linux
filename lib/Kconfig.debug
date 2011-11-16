@@ -117,31 +117,31 @@ config DEBUG_SECTION_MISMATCH
 	help
 	  The section mismatch analysis checks if there are illegal
 	  references from one section to another section.
-	  Linux will during link or during runtime drop some sections
-	  and any use of code/data previously in these sections will
+	  During linktime or runtime, some sections are dropped;
+	  any use of code/data previously in these sections would
 	  most likely result in an oops.
-	  In the code functions and variables are annotated with
-	  __init, __devinit etc. (see full list in include/linux/init.h)
+	  In the code, functions and variables are annotated with
+	  __init, __devinit, etc. (see the full list in include/linux/init.h),
 	  which results in the code/data being placed in specific sections.
-	  The section mismatch analysis is always done after a full
-	  kernel build but enabling this option will in addition
-	  do the following:
-	  - Add the option -fno-inline-functions-called-once to gcc
-	    When inlining a function annotated __init in a non-init
-	    function we would lose the section information and thus
+	  The section mismatch analysis is always performed after a full
+	  kernel build, and enabling this option causes the following
+	  additional steps to occur:
+	  - Add the option -fno-inline-functions-called-once to gcc commands.
+	    When inlining a function annotated with __init in a non-init
+	    function, we would lose the section information and thus
 	    the analysis would not catch the illegal reference.
-	    This option tells gcc to inline less but will also
-	    result in a larger kernel.
-	  - Run the section mismatch analysis for each module/built-in.o
-	    When we run the section mismatch analysis on vmlinux.o we
+	    This option tells gcc to inline less (but it does result in
+	    a larger kernel).
+	  - Run the section mismatch analysis for each module/built-in.o file.
+	    When we run the section mismatch analysis on vmlinux.o, we
 	    lose valueble information about where the mismatch was
 	    introduced.
 	    Running the analysis for each module/built-in.o file
-	    will tell where the mismatch happens much closer to the
-	    source. The drawback is that we will report the same
-	    mismatch at least twice.
-	  - Enable verbose reporting from modpost to help solving
-	    the section mismatches reported.
+	    tells where the mismatch happens much closer to the
+	    source. The drawback is that the same mismatch is
+	    reported at least twice.
+	  - Enable verbose reporting from modpost in order to help resolve
+	    the section mismatches that are reported.
 
 config DEBUG_KERNEL
 	bool "Kernel debugging"
@@ -248,8 +248,9 @@ config DEFAULT_HUNG_TASK_TIMEOUT
 	  to determine when a task has become non-responsive and should
 	  be considered hung.
 
-	  It can be adjusted at runtime via the kernel.hung_task_timeout
-	  sysctl or by writing a value to /proc/sys/kernel/hung_task_timeout.
+	  It can be adjusted at runtime via the kernel.hung_task_timeout_secs
+	  sysctl or by writing a value to
+	  /proc/sys/kernel/hung_task_timeout_secs.
 
 	  A timeout of 0 disables the check.  The default is two minutes.
 	  Keeping the default should be fine in most cases.
@@ -835,7 +836,7 @@ config DEBUG_CREDENTIALS
 
 #
 # Select this config option from the architecture Kconfig, if it
-# it is preferred to always offer frame pointers as a config
+# is preferred to always offer frame pointers as a config
 # option on the architecture (regardless of KERNEL_DEBUG):
 #
 config ARCH_WANT_FRAME_POINTERS
@@ -1070,6 +1071,17 @@ config FAIL_IO_TIMEOUT
 	  Only works with drivers that use the generic timeout handling,
 	  for others it wont do anything.
 
+config FAIL_MMC_REQUEST
+	bool "Fault-injection capability for MMC IO"
+	select DEBUG_FS
+	depends on FAULT_INJECTION && MMC
+	help
+	  Provide fault-injection capability for MMC IO.
+	  This will make the mmc core return data errors. This is
+	  useful to test the error handling in the mmc block device
+	  and to test how the mmc host driver handles retries from
+	  the block device.
+
 config FAULT_INJECTION_DEBUG_FS
 	bool "Debugfs entries for fault-injection capabilities"
 	depends on FAULT_INJECTION && SYSFS && DEBUG_FS
@@ -1081,7 +1093,7 @@ config FAULT_INJECTION_STACKTRACE_FILTER
 	depends on FAULT_INJECTION_DEBUG_FS && STACKTRACE_SUPPORT
 	depends on !X86_64
 	select STACKTRACE
-	select FRAME_POINTER if !PPC && !S390 && !MICROBLAZE
+	select FRAME_POINTER if !PPC && !S390 && !MICROBLAZE && !ARM_UNWIND
 	help
 	  Provide stacktrace filter for fault-injection capabilities
 
@@ -1091,7 +1103,7 @@ config LATENCYTOP
 	depends on DEBUG_KERNEL
 	depends on STACKTRACE_SUPPORT
 	depends on PROC_FS
-	select FRAME_POINTER if !MIPS && !PPC && !S390 && !MICROBLAZE
+	select FRAME_POINTER if !MIPS && !PPC && !S390 && !MICROBLAZE && !ARM_UNWIND
 	select KALLSYMS
 	select KALLSYMS_ALL
 	select STACKTRACE

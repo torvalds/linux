@@ -35,6 +35,7 @@
 #include <linux/spinlock.h>
 #include <linux/kthread.h>
 #include <linux/in.h>
+#include <linux/export.h>
 #include <net/sock.h>
 #include <net/tcp.h>
 #include <scsi/scsi.h>
@@ -472,9 +473,9 @@ void core_clear_lun_from_tpg(struct se_lun *lun, struct se_portal_group *tpg)
 	struct se_dev_entry *deve;
 	u32 i;
 
-	spin_lock_bh(&tpg->acl_node_lock);
+	spin_lock_irq(&tpg->acl_node_lock);
 	list_for_each_entry(nacl, &tpg->acl_node_list, acl_list) {
-		spin_unlock_bh(&tpg->acl_node_lock);
+		spin_unlock_irq(&tpg->acl_node_lock);
 
 		spin_lock_irq(&nacl->device_list_lock);
 		for (i = 0; i < TRANSPORT_MAX_LUNS_PER_TPG; i++) {
@@ -491,9 +492,9 @@ void core_clear_lun_from_tpg(struct se_lun *lun, struct se_portal_group *tpg)
 		}
 		spin_unlock_irq(&nacl->device_list_lock);
 
-		spin_lock_bh(&tpg->acl_node_lock);
+		spin_lock_irq(&tpg->acl_node_lock);
 	}
-	spin_unlock_bh(&tpg->acl_node_lock);
+	spin_unlock_irq(&tpg->acl_node_lock);
 }
 
 static struct se_port *core_alloc_port(struct se_device *dev)
@@ -651,22 +652,14 @@ void core_dev_unexport(
 	lun->lun_se_dev = NULL;
 }
 
-int transport_core_report_lun_response(struct se_cmd *se_cmd)
+int target_report_luns(struct se_task *se_task)
 {
+	struct se_cmd *se_cmd = se_task->task_se_cmd;
 	struct se_dev_entry *deve;
 	struct se_lun *se_lun;
 	struct se_session *se_sess = se_cmd->se_sess;
-	struct se_task *se_task;
 	unsigned char *buf;
 	u32 cdb_offset = 0, lun_count = 0, offset = 8, i;
-
-	list_for_each_entry(se_task, &se_cmd->t_task_list, t_list)
-		break;
-
-	if (!se_task) {
-		pr_err("Unable to locate struct se_task for struct se_cmd\n");
-		return PYX_TRANSPORT_LU_COMM_FAILURE;
-	}
 
 	buf = transport_kmap_first_data_page(se_cmd);
 
@@ -713,6 +706,8 @@ done:
 	buf[2] = ((lun_count >> 8) & 0xff);
 	buf[3] = (lun_count & 0xff);
 
+	se_task->task_scsi_status = GOOD;
+	transport_complete_task(se_task, 1);
 	return PYX_TRANSPORT_SENT_TO_TRANSPORT;
 }
 
@@ -839,6 +834,24 @@ int se_dev_check_shutdown(struct se_device *dev)
 	return ret;
 }
 
+u32 se_dev_align_max_sectors(u32 max_sectors, u32 block_size)
+{
+	u32 tmp, aligned_max_sectors;
+	/*
+	 * Limit max_sectors to a PAGE_SIZE aligned value for modern
+	 * transport_allocate_data_tasks() operation.
+	 */
+	tmp = rounddown((max_sectors * block_size), PAGE_SIZE);
+	aligned_max_sectors = (tmp / block_size);
+	if (max_sectors != aligned_max_sectors) {
+		printk(KERN_INFO "Rounding down aligned max_sectors from %u"
+				" to %u\n", max_sectors, aligned_max_sectors);
+		return aligned_max_sectors;
+	}
+
+	return max_sectors;
+}
+
 void se_dev_set_default_attribs(
 	struct se_device *dev,
 	struct se_dev_limits *dev_limits)
@@ -878,6 +891,11 @@ void se_dev_set_default_attribs(
 	 * max_sectors is based on subsystem plugin dependent requirements.
 	 */
 	dev->se_sub_dev->se_dev_attrib.hw_max_sectors = limits->max_hw_sectors;
+	/*
+	 * Align max_sectors down to PAGE_SIZE to follow transport_allocate_data_tasks()
+	 */
+	limits->max_sectors = se_dev_align_max_sectors(limits->max_sectors,
+						limits->logical_block_size);
 	dev->se_sub_dev->se_dev_attrib.max_sectors = limits->max_sectors;
 	/*
 	 * Set optimal_sectors from max_sectors, which can be lowered via
@@ -889,21 +907,6 @@ void se_dev_set_default_attribs(
 	 */
 	dev->se_sub_dev->se_dev_attrib.hw_queue_depth = dev_limits->hw_queue_depth;
 	dev->se_sub_dev->se_dev_attrib.queue_depth = dev_limits->queue_depth;
-}
-
-int se_dev_set_task_timeout(struct se_device *dev, u32 task_timeout)
-{
-	if (task_timeout > DA_TASK_TIMEOUT_MAX) {
-		pr_err("dev[%p]: Passed task_timeout: %u larger then"
-			" DA_TASK_TIMEOUT_MAX\n", dev, task_timeout);
-		return -EINVAL;
-	} else {
-		dev->se_sub_dev->se_dev_attrib.task_timeout = task_timeout;
-		pr_debug("dev[%p]: Set SE Device task_timeout: %u\n",
-			dev, task_timeout);
-	}
-
-	return 0;
 }
 
 int se_dev_set_max_unmap_lba_count(
@@ -949,36 +952,24 @@ int se_dev_set_unmap_granularity_alignment(
 
 int se_dev_set_emulate_dpo(struct se_device *dev, int flag)
 {
-	if ((flag != 0) && (flag != 1)) {
+	if (flag != 0 && flag != 1) {
 		pr_err("Illegal value %d\n", flag);
 		return -EINVAL;
 	}
-	if (dev->transport->dpo_emulated == NULL) {
-		pr_err("dev->transport->dpo_emulated is NULL\n");
-		return -EINVAL;
-	}
-	if (dev->transport->dpo_emulated(dev) == 0) {
-		pr_err("dev->transport->dpo_emulated not supported\n");
-		return -EINVAL;
-	}
-	dev->se_sub_dev->se_dev_attrib.emulate_dpo = flag;
-	pr_debug("dev[%p]: SE Device Page Out (DPO) Emulation"
-			" bit: %d\n", dev, dev->se_sub_dev->se_dev_attrib.emulate_dpo);
-	return 0;
+
+	pr_err("dpo_emulated not supported\n");
+	return -EINVAL;
 }
 
 int se_dev_set_emulate_fua_write(struct se_device *dev, int flag)
 {
-	if ((flag != 0) && (flag != 1)) {
+	if (flag != 0 && flag != 1) {
 		pr_err("Illegal value %d\n", flag);
 		return -EINVAL;
 	}
-	if (dev->transport->fua_write_emulated == NULL) {
-		pr_err("dev->transport->fua_write_emulated is NULL\n");
-		return -EINVAL;
-	}
-	if (dev->transport->fua_write_emulated(dev) == 0) {
-		pr_err("dev->transport->fua_write_emulated not supported\n");
+
+	if (dev->transport->fua_write_emulated == 0) {
+		pr_err("fua_write_emulated not supported\n");
 		return -EINVAL;
 	}
 	dev->se_sub_dev->se_dev_attrib.emulate_fua_write = flag;
@@ -989,36 +980,23 @@ int se_dev_set_emulate_fua_write(struct se_device *dev, int flag)
 
 int se_dev_set_emulate_fua_read(struct se_device *dev, int flag)
 {
-	if ((flag != 0) && (flag != 1)) {
+	if (flag != 0 && flag != 1) {
 		pr_err("Illegal value %d\n", flag);
 		return -EINVAL;
 	}
-	if (dev->transport->fua_read_emulated == NULL) {
-		pr_err("dev->transport->fua_read_emulated is NULL\n");
-		return -EINVAL;
-	}
-	if (dev->transport->fua_read_emulated(dev) == 0) {
-		pr_err("dev->transport->fua_read_emulated not supported\n");
-		return -EINVAL;
-	}
-	dev->se_sub_dev->se_dev_attrib.emulate_fua_read = flag;
-	pr_debug("dev[%p]: SE Device Forced Unit Access READs: %d\n",
-			dev, dev->se_sub_dev->se_dev_attrib.emulate_fua_read);
-	return 0;
+
+	pr_err("ua read emulated not supported\n");
+	return -EINVAL;
 }
 
 int se_dev_set_emulate_write_cache(struct se_device *dev, int flag)
 {
-	if ((flag != 0) && (flag != 1)) {
+	if (flag != 0 && flag != 1) {
 		pr_err("Illegal value %d\n", flag);
 		return -EINVAL;
 	}
-	if (dev->transport->write_cache_emulated == NULL) {
-		pr_err("dev->transport->write_cache_emulated is NULL\n");
-		return -EINVAL;
-	}
-	if (dev->transport->write_cache_emulated(dev) == 0) {
-		pr_err("dev->transport->write_cache_emulated not supported\n");
+	if (dev->transport->write_cache_emulated == 0) {
+		pr_err("write_cache_emulated not supported\n");
 		return -EINVAL;
 	}
 	dev->se_sub_dev->se_dev_attrib.emulate_write_cache = flag;
@@ -1242,6 +1220,11 @@ int se_dev_set_max_sectors(struct se_device *dev, u32 max_sectors)
 			return -EINVAL;
 		}
 	}
+	/*
+	 * Align max_sectors down to PAGE_SIZE to follow transport_allocate_data_tasks()
+	 */
+	max_sectors = se_dev_align_max_sectors(max_sectors,
+				dev->se_sub_dev->se_dev_attrib.block_size);
 
 	dev->se_sub_dev->se_dev_attrib.max_sectors = max_sectors;
 	pr_debug("dev[%p]: SE Device max_sectors changed to %u\n",
@@ -1344,15 +1327,17 @@ struct se_lun *core_dev_add_lun(
 	 */
 	if (tpg->se_tpg_tfo->tpg_check_demo_mode(tpg)) {
 		struct se_node_acl *acl;
-		spin_lock_bh(&tpg->acl_node_lock);
+		spin_lock_irq(&tpg->acl_node_lock);
 		list_for_each_entry(acl, &tpg->acl_node_list, acl_list) {
-			if (acl->dynamic_node_acl) {
-				spin_unlock_bh(&tpg->acl_node_lock);
+			if (acl->dynamic_node_acl &&
+			    (!tpg->se_tpg_tfo->tpg_check_demo_mode_login_only ||
+			     !tpg->se_tpg_tfo->tpg_check_demo_mode_login_only(tpg))) {
+				spin_unlock_irq(&tpg->acl_node_lock);
 				core_tpg_add_node_to_devs(acl, tpg);
-				spin_lock_bh(&tpg->acl_node_lock);
+				spin_lock_irq(&tpg->acl_node_lock);
 			}
 		}
-		spin_unlock_bh(&tpg->acl_node_lock);
+		spin_unlock_irq(&tpg->acl_node_lock);
 	}
 
 	return lun_p;

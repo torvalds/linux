@@ -65,6 +65,16 @@ config BLK_DEV_BSG
 
 	  If unsure, say Y.
 
+config BLK_DEV_BSGLIB
+	bool "Block layer SG support v4 helper lib"
+	default n
+	select BLK_DEV_BSG
+	help
+	  Subsystems will normally enable this if needed. Users will not
+	  normally need to manually enable this.
+
+	  If unsure, say N.
+
 config BLK_DEV_INTEGRITY
 	bool "Block layer data integrity support"
 	---help---

@@ -27,6 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/semaphore.h>
 #include <linux/iscsi_boot_sysfs.h>
+#include <linux/module.h>
 
 #include <scsi/libiscsi.h>
 #include <scsi/scsi_transport_iscsi.h>
@@ -822,33 +823,47 @@ static int beiscsi_init_irqs(struct beiscsi_hba *phba)
 	struct hwi_controller *phwi_ctrlr;
 	struct hwi_context_memory *phwi_context;
 	int ret, msix_vec, i, j;
-	char desc[32];
 
 	phwi_ctrlr = phba->phwi_ctrlr;
 	phwi_context = phwi_ctrlr->phwi_ctxt;
 
 	if (phba->msix_enabled) {
 		for (i = 0; i < phba->num_cpus; i++) {
-			sprintf(desc, "beiscsi_msix_%04x", i);
+			phba->msi_name[i] = kzalloc(BEISCSI_MSI_NAME,
+						    GFP_KERNEL);
+			if (!phba->msi_name[i]) {
+				ret = -ENOMEM;
+				goto free_msix_irqs;
+			}
+
+			sprintf(phba->msi_name[i], "beiscsi_%02x_%02x",
+				phba->shost->host_no, i);
 			msix_vec = phba->msix_entries[i].vector;
-			ret = request_irq(msix_vec, be_isr_msix, 0, desc,
+			ret = request_irq(msix_vec, be_isr_msix, 0,
+					  phba->msi_name[i],
 					  &phwi_context->be_eq[i]);
 			if (ret) {
 				shost_printk(KERN_ERR, phba->shost,
 					     "beiscsi_init_irqs-Failed to"
 					     "register msix for i = %d\n", i);
-				if (!i)
-					return ret;
+				kfree(phba->msi_name[i]);
 				goto free_msix_irqs;
 			}
 		}
+		phba->msi_name[i] = kzalloc(BEISCSI_MSI_NAME, GFP_KERNEL);
+		if (!phba->msi_name[i]) {
+			ret = -ENOMEM;
+			goto free_msix_irqs;
+		}
+		sprintf(phba->msi_name[i], "beiscsi_mcc_%02x",
+			phba->shost->host_no);
 		msix_vec = phba->msix_entries[i].vector;
-		ret = request_irq(msix_vec, be_isr_mcc, 0, "beiscsi_msix_mcc",
+		ret = request_irq(msix_vec, be_isr_mcc, 0, phba->msi_name[i],
 				  &phwi_context->be_eq[i]);
 		if (ret) {
 			shost_printk(KERN_ERR, phba->shost, "beiscsi_init_irqs-"
 				     "Failed to register beiscsi_msix_mcc\n");
-			i++;
+			kfree(phba->msi_name[i]);
 			goto free_msix_irqs;
 		}
 
@@ -863,8 +878,11 @@ static int beiscsi_init_irqs(struct beiscsi_hba *phba)
 	}
 	return 0;
 free_msix_irqs:
-	for (j = i - 1; j == 0; j++)
+	for (j = i - 1; j >= 0; j--) {
+		kfree(phba->msi_name[j]);
+		msix_vec = phba->msix_entries[j].vector;
 		free_irq(msix_vec, &phwi_context->be_eq[j]);
+	}
 	return ret;
 }
 
@@ -1106,7 +1124,12 @@ be_complete_io(struct beiscsi_conn *beiscsi_conn,
 						& SOL_STS_MASK) >> 8);
 	flags = ((psol->dw[offsetof(struct amap_sol_cqe, i_flags) / 32]
 					& SOL_FLAGS_MASK) >> 24) | 0x80;
+	if (!task->sc) {
+		if (io_task->scsi_cmnd)
+			scsi_dma_unmap(io_task->scsi_cmnd);
 
+		return;
+	}
 	task->sc->result = (DID_OK << 16) | status;
 	if (rsp != ISCSI_STATUS_CMD_COMPLETED) {
 		task->sc->result = DID_ERROR << 16;
@@ -4027,11 +4050,11 @@ static int beiscsi_mtask(struct iscsi_task *task)
 				      TGT_DM_CMD);
 			AMAP_SET_BITS(struct amap_iscsi_wrb, cmdsn_itt,
 				      pwrb, 0);
-			AMAP_SET_BITS(struct amap_iscsi_wrb, dmsg, pwrb, 0);
+			AMAP_SET_BITS(struct amap_iscsi_wrb, dmsg, pwrb, 1);
 		} else {
 			AMAP_SET_BITS(struct amap_iscsi_wrb, type, pwrb,
 				      INI_RD_CMD);
-			AMAP_SET_BITS(struct amap_iscsi_wrb, dmsg, pwrb, 1);
+			AMAP_SET_BITS(struct amap_iscsi_wrb, dmsg, pwrb, 0);
 		}
 		hwi_write_buffer(pwrb, task);
 		break;
@@ -4102,21 +4125,14 @@ static int beiscsi_task_xmit(struct iscsi_task *task)
 	return beiscsi_iotask(task, sg, num_sg, xferlen, writedir);
 }
 
-static void beiscsi_remove(struct pci_dev *pcidev)
+static void beiscsi_quiesce(struct beiscsi_hba *phba)
 {
-	struct beiscsi_hba *phba = NULL;
 	struct hwi_controller *phwi_ctrlr;
 	struct hwi_context_memory *phwi_context;
 	struct be_eq_obj *pbe_eq;
 	unsigned int i, msix_vec;
 	u8 *real_offset = 0;
 	u32 value = 0;
-
-	phba = (struct beiscsi_hba *)pci_get_drvdata(pcidev);
-	if (!phba) {
-		dev_err(&pcidev->dev, "beiscsi_remove called with no phba\n");
-		return;
-	}
 
 	phwi_ctrlr = phba->phwi_ctrlr;
 	phwi_context = phwi_ctrlr->phwi_ctxt;
@@ -4125,6 +4141,7 @@ static void beiscsi_remove(struct pci_dev *pcidev)
 		for (i = 0; i <= phba->num_cpus; i++) {
 			msix_vec = phba->msix_entries[i].vector;
 			free_irq(msix_vec, &phwi_context->be_eq[i]);
+			kfree(phba->msi_name[i]);
 		}
 	} else
 		if (phba->pcidev->irq)
@@ -4152,10 +4169,40 @@ static void beiscsi_remove(struct pci_dev *pcidev)
 			    phba->ctrl.mbox_mem_alloced.size,
 			    phba->ctrl.mbox_mem_alloced.va,
 			    phba->ctrl.mbox_mem_alloced.dma);
+}
+
+static void beiscsi_remove(struct pci_dev *pcidev)
+{
+
+	struct beiscsi_hba *phba = NULL;
+
+	phba = pci_get_drvdata(pcidev);
+	if (!phba) {
+		dev_err(&pcidev->dev, "beiscsi_remove called with no phba\n");
+		return;
+	}
+
+	beiscsi_quiesce(phba);
 	iscsi_boot_destroy_kset(phba->boot_kset);
 	iscsi_host_remove(phba->shost);
 	pci_dev_put(phba->pcidev);
 	iscsi_host_free(phba->shost);
+	pci_disable_device(pcidev);
+}
+
+static void beiscsi_shutdown(struct pci_dev *pcidev)
+{
+
+	struct beiscsi_hba *phba = NULL;
+
+	phba = (struct beiscsi_hba *)pci_get_drvdata(pcidev);
+	if (!phba) {
+		dev_err(&pcidev->dev, "beiscsi_shutdown called with no phba\n");
+		return;
+	}
+
+	beiscsi_quiesce(phba);
+	pci_disable_device(pcidev);
 }
 
 static void beiscsi_msix_enable(struct beiscsi_hba *phba)
@@ -4235,7 +4282,7 @@ static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
 			gcrashmode++;
 			shost_printk(KERN_ERR, phba->shost,
 				"Loading Driver in crashdump mode\n");
-			ret = beiscsi_pci_soft_reset(phba);
+			ret = beiscsi_cmd_reset_function(phba);
 			if (ret) {
 				shost_printk(KERN_ERR, phba->shost,
 					"Reset Failed. Aborting Crashdump\n");
@@ -4364,37 +4411,12 @@ struct iscsi_transport beiscsi_iscsi_transport = {
 	.name = DRV_NAME,
 	.caps = CAP_RECOVERY_L0 | CAP_HDRDGST | CAP_TEXT_NEGO |
 		CAP_MULTI_R2T | CAP_DATADGST | CAP_DATA_PATH_OFFLOAD,
-	.param_mask = ISCSI_MAX_RECV_DLENGTH |
-		ISCSI_MAX_XMIT_DLENGTH |
-		ISCSI_HDRDGST_EN |
-		ISCSI_DATADGST_EN |
-		ISCSI_INITIAL_R2T_EN |
-		ISCSI_MAX_R2T |
-		ISCSI_IMM_DATA_EN |
-		ISCSI_FIRST_BURST |
-		ISCSI_MAX_BURST |
-		ISCSI_PDU_INORDER_EN |
-		ISCSI_DATASEQ_INORDER_EN |
-		ISCSI_ERL |
-		ISCSI_CONN_PORT |
-		ISCSI_CONN_ADDRESS |
-		ISCSI_EXP_STATSN |
-		ISCSI_PERSISTENT_PORT |
-		ISCSI_PERSISTENT_ADDRESS |
-		ISCSI_TARGET_NAME | ISCSI_TPGT |
-		ISCSI_USERNAME | ISCSI_PASSWORD |
-		ISCSI_USERNAME_IN | ISCSI_PASSWORD_IN |
-		ISCSI_FAST_ABORT | ISCSI_ABORT_TMO |
-		ISCSI_LU_RESET_TMO |
-		ISCSI_PING_TMO | ISCSI_RECV_TMO |
-		ISCSI_IFACE_NAME | ISCSI_INITIATOR_NAME,
-	.host_param_mask = ISCSI_HOST_HWADDRESS | ISCSI_HOST_IPADDRESS |
-				ISCSI_HOST_INITIATOR_NAME,
 	.create_session = beiscsi_session_create,
 	.destroy_session = beiscsi_session_destroy,
 	.create_conn = beiscsi_conn_create,
 	.bind_conn = beiscsi_conn_bind,
 	.destroy_conn = iscsi_conn_teardown,
+	.attr_is_visible = be2iscsi_attr_is_visible,
 	.set_param = beiscsi_set_param,
 	.get_conn_param = iscsi_conn_get_param,
 	.get_session_param = iscsi_session_get_param,
@@ -4418,6 +4440,7 @@ static struct pci_driver beiscsi_pci_driver = {
 	.name = DRV_NAME,
 	.probe = beiscsi_dev_probe,
 	.remove = beiscsi_remove,
+	.shutdown = beiscsi_shutdown,
 	.id_table = beiscsi_pci_id_table
 };
 

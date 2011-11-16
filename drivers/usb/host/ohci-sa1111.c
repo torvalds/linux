@@ -143,7 +143,7 @@ int usb_hcd_sa1111_probe (const struct hc_driver *driver,
 	sa1111_start_hc(dev);
 	ohci_hcd_init(hcd_to_ohci(hcd));
 
-	retval = usb_add_hcd(hcd, dev->irq[1], IRQF_DISABLED);
+	retval = usb_add_hcd(hcd, dev->irq[1], 0);
 	if (retval == 0)
 		return retval;
 

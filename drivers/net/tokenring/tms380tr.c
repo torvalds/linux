@@ -2289,7 +2289,7 @@ const struct net_device_ops tms380tr_netdev_ops = {
 	.ndo_start_xmit		= tms380tr_send_packet,
 	.ndo_tx_timeout		= tms380tr_timeout,
 	.ndo_get_stats		= tms380tr_get_stats,
-	.ndo_set_multicast_list = tms380tr_set_multicast_list,
+	.ndo_set_rx_mode	= tms380tr_set_multicast_list,
 	.ndo_set_mac_address	= tms380tr_set_mac_address,
 };
 EXPORT_SYMBOL(tms380tr_netdev_ops);

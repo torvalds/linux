@@ -13,7 +13,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#include <linux/gpio.h>
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/major.h>
@@ -34,7 +34,6 @@
 #include <asm/setup.h>
 #include <asm/page.h>
 #include <mach/hardware.h>
-#include <asm/gpio.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -436,23 +435,13 @@ static void __init h3_init(void)
 	h3_mmc_init();
 }
 
-static void __init h3_init_irq(void)
-{
-	omap1_init_common_hw();
-	omap1_init_irq();
-}
-
-static void __init h3_map_io(void)
-{
-	omap1_map_common_io();
-}
-
 MACHINE_START(OMAP_H3, "TI OMAP1710 H3 board")
 	/* Maintainer: Texas Instruments, Inc. */
-	.boot_params	= 0x10000100,
-	.map_io		= h3_map_io,
+	.atag_offset	= 0x100,
+	.map_io		= omap16xx_map_io,
+	.init_early     = omap1_init_early,
 	.reserve	= omap_reserve,
-	.init_irq	= h3_init_irq,
+	.init_irq	= omap1_init_irq,
 	.init_machine	= h3_init,
 	.timer		= &omap1_timer,
 MACHINE_END

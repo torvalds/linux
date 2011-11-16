@@ -11,6 +11,7 @@
  */
 
 #include <media/rc-map.h>
+#include <linux/module.h>
 
 /* for the Technotrend 1500 bundled remotes (grey and black): */
 

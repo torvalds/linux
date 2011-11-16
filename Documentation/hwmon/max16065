@@ -62,6 +62,13 @@ can be safely used to identify the chip. You will have to instantiate
 the devices explicitly. Please see Documentation/i2c/instantiating-devices for
 details.
 
+WARNING: Do not access chip registers using the i2cdump command, and do not use
+any of the i2ctools commands on a command register (0xa5 to 0xac). The chips
+supported by this driver interpret any access to a command register (including
+read commands) as request to execute the command in question. This may result in
+power loss, board resets, and/or Flash corruption. Worst case, your board may
+turn into a brick.
+
 
 Sysfs entries
 -------------

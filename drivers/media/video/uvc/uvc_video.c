@@ -790,8 +790,12 @@ static void uvc_free_urb_buffers(struct uvc_streaming *stream)
 
 	for (i = 0; i < UVC_URBS; ++i) {
 		if (stream->urb_buffer[i]) {
+#ifndef CONFIG_DMA_NONCOHERENT
 			usb_free_coherent(stream->dev->udev, stream->urb_size,
 				stream->urb_buffer[i], stream->urb_dma[i]);
+#else
+			kfree(stream->urb_buffer[i]);
+#endif
 			stream->urb_buffer[i] = NULL;
 		}
 	}
@@ -831,9 +835,14 @@ static int uvc_alloc_urb_buffers(struct uvc_streaming *stream,
 	for (; npackets > 1; npackets /= 2) {
 		for (i = 0; i < UVC_URBS; ++i) {
 			stream->urb_size = psize * npackets;
+#ifndef CONFIG_DMA_NONCOHERENT
 			stream->urb_buffer[i] = usb_alloc_coherent(
 				stream->dev->udev, stream->urb_size,
 				gfp_flags | __GFP_NOWARN, &stream->urb_dma[i]);
+#else
+			stream->urb_buffer[i] =
+			    kmalloc(stream->urb_size, gfp_flags | __GFP_NOWARN);
+#endif
 			if (!stream->urb_buffer[i]) {
 				uvc_free_urb_buffers(stream);
 				break;
@@ -908,10 +917,14 @@ static int uvc_init_video_isoc(struct uvc_streaming *stream,
 		urb->context = stream;
 		urb->pipe = usb_rcvisocpipe(stream->dev->udev,
 				ep->desc.bEndpointAddress);
+#ifndef CONFIG_DMA_NONCOHERENT
 		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
+		urb->transfer_dma = stream->urb_dma[i];
+#else
+		urb->transfer_flags = URB_ISO_ASAP;
+#endif
 		urb->interval = ep->desc.bInterval;
 		urb->transfer_buffer = stream->urb_buffer[i];
-		urb->transfer_dma = stream->urb_dma[i];
 		urb->complete = uvc_video_complete;
 		urb->number_of_packets = npackets;
 		urb->transfer_buffer_length = size;
@@ -969,8 +982,10 @@ static int uvc_init_video_bulk(struct uvc_streaming *stream,
 		usb_fill_bulk_urb(urb, stream->dev->udev, pipe,
 			stream->urb_buffer[i], size, uvc_video_complete,
 			stream);
+#ifndef CONFIG_DMA_NONCOHERENT
 		urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
 		urb->transfer_dma = stream->urb_dma[i];
+#endif
 
 		stream->urb[i] = urb;
 	}
@@ -1104,9 +1119,17 @@ int uvc_video_suspend(struct uvc_streaming *stream)
  * buffers, making sure userspace applications are notified of the problem
  * instead of waiting forever.
  */
-int uvc_video_resume(struct uvc_streaming *stream)
+int uvc_video_resume(struct uvc_streaming *stream, int reset)
 {
 	int ret;
+
+	/* If the bus has been reset on resume, set the alternate setting to 0.
+	 * This should be the default value, but some devices crash or otherwise
+	 * misbehave if they don't receive a SET_INTERFACE request before any
+	 * other video control request.
+	 */
+	if (reset)
+		usb_set_interface(stream->dev->udev, stream->intfnum, 0);
 
 	stream->frozen = 0;
 

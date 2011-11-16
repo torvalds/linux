@@ -238,6 +238,18 @@ ad_select
 
 	This option was added in bonding version 3.4.0.
 
+all_slaves_active
+
+	Specifies that duplicate frames (received on inactive ports) should be
+	dropped (0) or delivered (1).
+
+	Normally, bonding will drop duplicate frames (received on inactive
+	ports), which is desirable for most users. But there are some times
+	it is nice to allow duplicate frames to be delivered.
+
+	The default value is 0 (drop duplicate frames received on inactive
+	ports).
+
 arp_interval
 
 	Specifies the ARP link monitoring frequency in milliseconds.
@@ -432,6 +444,23 @@ miimon
 	The use_carrier option, below, affects how the link state is
 	determined.  See the High Availability section for additional
 	information.  The default value is 0.
+
+min_links
+
+	Specifies the minimum number of links that must be active before
+	asserting carrier. It is similar to the Cisco EtherChannel min-links
+	feature. This allows setting the minimum number of member ports that
+	must be up (link-up state) before marking the bond device as up
+	(carrier on). This is useful for situations where higher level services
+	such as clustering want to ensure a minimum number of low bandwidth
+	links are active before switchover. This option only affect 802.3ad
+	mode.
+
+	The default value is 0. This will cause carrier to be asserted (for
+	802.3ad mode) whenever there is an active aggregator, regardless of the
+	number of available links in that aggregator. Note that, because an
+	aggregator cannot be active without at least one available link,
+	setting this option to 0 or to 1 has the exact same effect.
 
 mode
 

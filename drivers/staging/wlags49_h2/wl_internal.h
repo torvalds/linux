@@ -74,15 +74,8 @@
 #include <pcmcia/ds.h>
 #endif  // BUS_PCMCIA
 
-#ifdef HAS_WIRELESS_EXTENSIONS
 #include <linux/wireless.h>
-#if WIRELESS_EXT > 13
 #include <net/iw_handler.h>
-#endif // WIRELESS_EXT > 13
-#define USE_DBM
-#define RETURN_CURRENT_NETWORKNAME
-#define USE_FREQUENCY
-#endif // HAS_WIRELESS_EXTENSIONS/
 
 #include <linux/list.h>
 
@@ -890,7 +883,7 @@ struct wl_private
 	int                         is_registered;
 	int                         is_handling_int;
 	int                         firmware_present;
-	char                        sysfsCreated;
+	bool                        sysfsCreated;
 	CFG_DRV_INFO_STRCT          driverInfo;
 	CFG_IDENTITY_STRCT          driverIdentity;
 	CFG_FW_IDENTITY_STRCT       StationIdentity;
@@ -987,6 +980,12 @@ struct wl_private
 #ifdef USE_WDS
 	WVLAN_WDS_IF                wds_port[NUM_WDS_PORTS];
 #endif // USE_WDS
+
+	/* Track whether the card is using WEP encryption or WPA
+	 * so we know what to disable next time through.
+	 *  IW_ENCODE_ALG_NONE, IW_ENCODE_ALG_WEP, IW_ENCODE_ALG_TKIP
+	 */
+	int wext_enc;
 }; // wl_private
 
 #define wl_priv(dev) ((struct wl_private *) netdev_priv(dev))

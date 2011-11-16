@@ -68,11 +68,11 @@ void vb2_put_vma(struct vm_area_struct *vma)
 	if (!vma)
 		return;
 
-	if (vma->vm_file)
-		fput(vma->vm_file);
-
 	if (vma->vm_ops && vma->vm_ops->close)
 		vma->vm_ops->close(vma);
+
+	if (vma->vm_file)
+		fput(vma->vm_file);
 
 	kfree(vma);
 }

@@ -72,11 +72,14 @@ struct symbol_conf {
 			use_modules,
 			sort_by_name,
 			show_nr_samples,
+			show_total_period,
 			use_callchain,
 			exclude_other,
 			show_cpu_utilization,
 			initialized,
-			kptr_restrict;
+			kptr_restrict,
+			annotate_asm_raw,
+			annotate_src;
 	const char	*vmlinux_name,
 			*kallsyms_name,
 			*source_prefix,
@@ -155,7 +158,6 @@ struct dso {
 };
 
 struct dso *dso__new(const char *name);
-struct dso *dso__new_kernel(const char *name);
 void dso__delete(struct dso *dso);
 
 int dso__name_len(const struct dso *dso);

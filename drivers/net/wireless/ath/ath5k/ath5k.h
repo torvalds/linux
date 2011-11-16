@@ -131,13 +131,6 @@
 #define AR5K_REG_DISABLE_BITS(ah, _reg, _flags)			\
 	ath5k_hw_reg_write(ah, ath5k_hw_reg_read(ah, _reg) & ~(_flags), _reg)
 
-/* Access to PHY registers */
-#define AR5K_PHY_READ(ah, _reg)					\
-	ath5k_hw_reg_read(ah, (ah)->ah_phy + ((_reg) << 2))
-
-#define AR5K_PHY_WRITE(ah, _reg, _val)					\
-	ath5k_hw_reg_write(ah, _val, (ah)->ah_phy + ((_reg) << 2))
-
 /* Access QCU registers per queue */
 #define AR5K_REG_READ_Q(ah, _reg, _queue)				\
 	(ath5k_hw_reg_read(ah, _reg) & (1 << _queue))			\
@@ -166,7 +159,6 @@
 #define AR5K_TUNE_DMA_BEACON_RESP		2
 #define AR5K_TUNE_SW_BEACON_RESP		10
 #define AR5K_TUNE_ADDITIONAL_SWBA_BACKOFF	0
-#define AR5K_TUNE_RADAR_ALERT			false
 #define AR5K_TUNE_MIN_TX_FIFO_THRES		1
 #define AR5K_TUNE_MAX_TX_FIFO_THRES	((IEEE80211_MAX_FRAME_LEN / 64) + 1)
 #define AR5K_TUNE_REGISTER_TIMEOUT		20000
@@ -295,17 +287,6 @@ enum ath5k_radio {
  * Common silicon revision/version values
  */
 
-enum ath5k_srev_type {
-	AR5K_VERSION_MAC,
-	AR5K_VERSION_RAD,
-};
-
-struct ath5k_srev_name {
-	const char		*sr_name;
-	enum ath5k_srev_type	sr_type;
-	u_int			sr_val;
-};
-
 #define AR5K_SREV_UNKNOWN	0xffff
 
 #define AR5K_SREV_AR5210	0x00 /* Crete */
@@ -424,7 +405,6 @@ enum ath5k_driver_mode {
 	AR5K_MODE_11A		=	0,
 	AR5K_MODE_11B		=	1,
 	AR5K_MODE_11G		=	2,
-	AR5K_MODE_XR		=	0,
 	AR5K_MODE_MAX		=	3
 };
 
@@ -694,33 +674,6 @@ struct ath5k_gain {
 #define AR5K_SLOT_TIME_20	880
 #define AR5K_SLOT_TIME_MAX	0xffff
 
-/* channel_flags */
-#define	CHANNEL_CW_INT	0x0008	/* Contention Window interference detected */
-#define	CHANNEL_CCK	0x0020	/* CCK channel */
-#define	CHANNEL_OFDM	0x0040	/* OFDM channel */
-#define	CHANNEL_2GHZ	0x0080	/* 2GHz channel. */
-#define	CHANNEL_5GHZ	0x0100	/* 5GHz channel */
-#define	CHANNEL_PASSIVE	0x0200	/* Only passive scan allowed */
-#define	CHANNEL_DYN	0x0400	/* Dynamic CCK-OFDM channel (for g operation) */
-#define	CHANNEL_XR	0x0800	/* XR channel */
-
-#define	CHANNEL_A	(CHANNEL_5GHZ | CHANNEL_OFDM)
-#define	CHANNEL_B	(CHANNEL_2GHZ | CHANNEL_CCK)
-#define	CHANNEL_G	(CHANNEL_2GHZ | CHANNEL_OFDM)
-#define	CHANNEL_X	(CHANNEL_5GHZ | CHANNEL_OFDM | CHANNEL_XR)
-
-#define	CHANNEL_ALL	(CHANNEL_OFDM | CHANNEL_CCK | \
-			 CHANNEL_2GHZ | CHANNEL_5GHZ)
-
-#define CHANNEL_MODES		CHANNEL_ALL
-
-/*
- * Used internally for ath5k_hw_reset_tx_queue().
- * Also see struct struct ieee80211_channel.
- */
-#define IS_CHAN_XR(_c)	((_c->hw_value & CHANNEL_XR) != 0)
-#define IS_CHAN_B(_c)	((_c->hw_value & CHANNEL_B) != 0)
-
 /*
  * The following structure is used to map 2GHz channels to
  * 5GHz Atheros channels.
@@ -977,7 +930,7 @@ enum ath5k_power_mode {
 struct ath5k_capabilities {
 	/*
 	 * Supported PHY modes
-	 * (ie. CHANNEL_A, CHANNEL_B, ...)
+	 * (ie. AR5K_MODE_11A, AR5K_MODE_11B, ...)
 	 */
 	DECLARE_BITMAP(cap_mode, AR5K_MODE_MAX);
 
@@ -1011,16 +964,6 @@ struct ath5k_capabilities {
 struct ath5k_nfcal_hist {
 	s16 index;				/* current index into nfval */
 	s16 nfval[ATH5K_NF_CAL_HIST_MAX];	/* last few noise floors */
-};
-
-/**
- * struct avg_val - Helper structure for average calculation
- * @avg: contains the actual average value
- * @avg_weight: is used internally during calculation to prevent rounding errors
- */
-struct ath5k_avg_val {
-	int avg;
-	int avg_weight;
 };
 
 #define ATH5K_LED_MAX_NAME_LEN 31
@@ -1148,7 +1091,6 @@ struct ath5k_hw {
 	bool			rx_pending;	/* rx tasklet pending */
 	bool			tx_pending;	/* tx tasklet pending */
 
-	u8			lladdr[ETH_ALEN];
 	u8			bssidmask[ETH_ALEN];
 
 	unsigned int		led_pin,	/* GPIO pin for driving LED */
@@ -1156,7 +1098,6 @@ struct ath5k_hw {
 
 	struct work_struct	reset_work;	/* deferred chip reset */
 
-	unsigned int		rxbufsize;	/* rx size based on mtu */
 	struct list_head	rxbuf;		/* receive buffer */
 	spinlock_t		rxbuflock;
 	u32			*rxlink;	/* link ptr in last RX desc */
@@ -1208,10 +1149,8 @@ struct ath5k_hw {
 
 	enum ath5k_version	ah_version;
 	enum ath5k_radio	ah_radio;
-	u32			ah_phy;
 	u32			ah_mac_srev;
 	u16			ah_mac_version;
-	u16			ah_mac_revision;
 	u16			ah_phy_revision;
 	u16			ah_radio_5ghz_revision;
 	u16			ah_radio_2ghz_revision;
@@ -1279,12 +1218,6 @@ struct ath5k_hw {
 		bool		txp_setup;
 	} ah_txpower;
 
-	struct {
-		bool		r_enabled;
-		int		r_last_alert;
-		struct ieee80211_channel r_last_channel;
-	} ah_radar;
-
 	struct ath5k_nfcal_hist ah_nfcal_hist;
 
 	/* average beacon RSSI in our BSS (used by ANI) */
@@ -1327,36 +1260,13 @@ struct ath_bus_ops {
 extern const struct ieee80211_ops ath5k_hw_ops;
 
 /* Initialization and detach functions */
-int ath5k_init_softc(struct ath5k_hw *ah, const struct ath_bus_ops *bus_ops);
-void ath5k_deinit_softc(struct ath5k_hw *ah);
 int ath5k_hw_init(struct ath5k_hw *ah);
 void ath5k_hw_deinit(struct ath5k_hw *ah);
 
 int ath5k_sysfs_register(struct ath5k_hw *ah);
 void ath5k_sysfs_unregister(struct ath5k_hw *ah);
 
-/* base.c */
-struct ath5k_buf;
-struct ath5k_txq;
-
-void ath5k_set_beacon_filter(struct ieee80211_hw *hw, bool enable);
-bool ath5k_any_vif_assoc(struct ath5k_hw *ah);
-void ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
-		    struct ath5k_txq *txq);
-int ath5k_start(struct ieee80211_hw *hw);
-void ath5k_stop(struct ieee80211_hw *hw);
-void ath5k_mode_setup(struct ath5k_hw *ah, struct ieee80211_vif *vif);
-void ath5k_update_bssid_mask_and_opmode(struct ath5k_hw *ah,
-					struct ieee80211_vif *vif);
-int ath5k_chan_set(struct ath5k_hw *ah, struct ieee80211_channel *chan);
-void ath5k_beacon_update_timers(struct ath5k_hw *ah, u64 bc_tsf);
-int ath5k_beacon_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
-void ath5k_beacon_config(struct ath5k_hw *ah);
-void ath5k_txbuf_free_skb(struct ath5k_hw *ah, struct ath5k_buf *bf);
-void ath5k_rxbuf_free_skb(struct ath5k_hw *ah, struct ath5k_buf *bf);
-
 /*Chip id helper functions */
-const char *ath5k_chip_name(enum ath5k_srev_type type, u_int16_t val);
 int ath5k_hw_read_srev(struct ath5k_hw *ah);
 
 /* LED functions */
@@ -1367,7 +1277,7 @@ void ath5k_unregister_leds(struct ath5k_hw *ah);
 
 
 /* Reset Functions */
-int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial);
+int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, struct ieee80211_channel *channel);
 int ath5k_hw_on_hold(struct ath5k_hw *ah);
 int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	   struct ieee80211_channel *channel, bool fast, bool skip_pcu);
@@ -1487,13 +1397,13 @@ int ath5k_hw_write_initvals(struct ath5k_hw *ah, u8 mode, bool change_channel);
 
 /* PHY functions */
 /* Misc PHY functions */
-u16 ath5k_hw_radio_revision(struct ath5k_hw *ah, unsigned int chan);
+u16 ath5k_hw_radio_revision(struct ath5k_hw *ah, enum ieee80211_band band);
 int ath5k_hw_phy_disable(struct ath5k_hw *ah);
 /* Gain_F optimization */
 enum ath5k_rfgain ath5k_hw_gainf_calibrate(struct ath5k_hw *ah);
 int ath5k_hw_rfgain_opt_init(struct ath5k_hw *ah);
 /* PHY/RF channel functions */
-bool ath5k_channel_ok(struct ath5k_hw *ah, u16 freq, unsigned int flags);
+bool ath5k_channel_ok(struct ath5k_hw *ah, struct ieee80211_channel *channel);
 /* PHY calibration */
 void ath5k_hw_init_nfcal_hist(struct ath5k_hw *ah);
 int ath5k_hw_phy_calibrate(struct ath5k_hw *ah,

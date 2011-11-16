@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include "hda_codec.h"
 #include "hda_local.h"
@@ -375,7 +376,7 @@ static int is_ext_mic(struct hda_codec *codec, unsigned int idx)
 static hda_nid_t get_adc(struct hda_codec *codec, hda_nid_t pin,
 			 unsigned int *idxp)
 {
-	int i;
+	int i, idx;
 	hda_nid_t nid;
 
 	nid = codec->start_nid;
@@ -384,9 +385,11 @@ static hda_nid_t get_adc(struct hda_codec *codec, hda_nid_t pin,
 		type = get_wcaps_type(get_wcaps(codec, nid));
 		if (type != AC_WID_AUD_IN)
 			continue;
-		*idxp = snd_hda_get_conn_index(codec, nid, pin, false);
-		if (*idxp >= 0)
+		idx = snd_hda_get_conn_index(codec, nid, pin, false);
+		if (idx >= 0) {
+			*idxp = idx;
 			return nid;
+		}
 	}
 	return 0;
 }
@@ -533,7 +536,7 @@ static int add_volume(struct hda_codec *codec, const char *name,
 		      int index, unsigned int pval, int dir,
 		      struct snd_kcontrol **kctlp)
 {
-	char tmp[32];
+	char tmp[44];
 	struct snd_kcontrol_new knew =
 		HDA_CODEC_VOLUME_IDX(tmp, index, 0, 0, HDA_OUTPUT);
 	knew.private_value = pval;

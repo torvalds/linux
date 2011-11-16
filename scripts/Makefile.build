@@ -46,7 +46,7 @@ include $(kbuild-file)
 # If the save-* variables changed error out
 ifeq ($(KBUILD_NOPEDANTIC),)
         ifneq ("$(save-cflags)","$(CFLAGS)")
-                $(error CFLAGS was changed in "$(kbuild-file)". Fix it to use EXTRA_CFLAGS)
+                $(error CFLAGS was changed in "$(kbuild-file)". Fix it to use ccflags-y)
         endif
 endif
 

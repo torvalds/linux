@@ -13,6 +13,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
+#include <linux/export.h>
 #include <linux/list.h>
 #include <linux/proc_fs.h>
 
@@ -591,8 +592,8 @@ EXPORT_SYMBOL(dev_mc_del_global);
  *	addresses that have no users left. The source device must be
  *	locked by netif_tx_lock_bh.
  *
- *	This function is intended to be called from the dev->set_multicast_list
- *	or dev->set_rx_mode function of layered software devices.
+ *	This function is intended to be called from the ndo_set_rx_mode
+ *	function of layered software devices.
  */
 int dev_mc_sync(struct net_device *to, struct net_device *from)
 {

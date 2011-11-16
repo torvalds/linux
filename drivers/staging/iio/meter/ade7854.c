@@ -8,7 +8,6 @@
 
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
@@ -16,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/list.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
@@ -582,7 +582,7 @@ error_unreg_dev:
 	iio_device_unregister(indio_dev);
 error_free_dev:
 	iio_free_device(indio_dev);
-error_ret:
+
 	return ret;
 }
 EXPORT_SYMBOL(ade7854_probe);
@@ -590,6 +590,7 @@ EXPORT_SYMBOL(ade7854_probe);
 int ade7854_remove(struct iio_dev *indio_dev)
 {
 	iio_device_unregister(indio_dev);
+	iio_free_device(indio_dev);
 
 	return 0;
 }

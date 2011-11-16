@@ -306,8 +306,10 @@ static int __init raumfeld_audio_init(void)
 				     &snd_soc_raumfeld_connector);
 
 	ret = platform_device_add(raumfeld_audio_device);
-	if (ret < 0)
+	if (ret < 0) {
+		platform_device_put(raumfeld_audio_device);
 		return ret;
+	}
 
 	raumfeld_enable_audio(true);
 	return 0;

@@ -139,30 +139,14 @@ static void proc_cpuidle_cpu_output(unsigned int cpu)
 	}
 }
 
-/* --freq / -f */
-
-void idle_info_help(void)
-{
-	printf(_ ("Usage: cpupower idleinfo [options]\n"));
-	printf(_ ("Options:\n"));
-	printf(_ ("  -s, --silent         Only show general C-state information\n"));
-	printf(_ ("  -o, --proc           Prints out information like provided by the /proc/acpi/processor/*/power\n"
-	       "                       interface in older kernels\n"));
-	printf(_ ("  -h, --help           Prints out this screen\n"));
-
-	printf("\n");
-}
-
 static struct option info_opts[] = {
 	{ .name = "silent",	.has_arg = no_argument,	.flag = NULL,	.val = 's'},
 	{ .name = "proc",	.has_arg = no_argument,	.flag = NULL,	.val = 'o'},
-	{ .name = "help",	.has_arg = no_argument,	.flag = NULL,	.val = 'h'},
 	{ },
 };
 
 static inline void cpuidle_exit(int fail)
 {
-	idle_info_help();
 	exit(EXIT_FAILURE);
 }
 
@@ -174,16 +158,12 @@ int cmd_idle_info(int argc, char **argv)
 	unsigned int cpu = 0;
 
 	do {
-		ret = getopt_long(argc, argv, "hos", info_opts, NULL);
+		ret = getopt_long(argc, argv, "os", info_opts, NULL);
 		if (ret == -1)
 			break;
 		switch (ret) {
 		case '?':
 			output_param = '?';
-			cont = 0;
-			break;
-		case 'h':
-			output_param = 'h';
 			cont = 0;
 			break;
 		case 's':
@@ -211,8 +191,6 @@ int cmd_idle_info(int argc, char **argv)
 	case '?':
 		printf(_("invalid or unknown argument\n"));
 		cpuidle_exit(EXIT_FAILURE);
-	case 'h':
-		cpuidle_exit(EXIT_SUCCESS);
 	}
 
 	/* Default is: show output of CPU 0 only */

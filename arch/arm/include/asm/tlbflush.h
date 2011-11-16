@@ -471,7 +471,7 @@ static inline void local_flush_tlb_kernel_page(unsigned long kaddr)
  *	these operations.  This is typically used when we are removing
  *	PMD entries.
  */
-static inline void flush_pmd_entry(pmd_t *pmd)
+static inline void flush_pmd_entry(void *pmd)
 {
 	const unsigned int __tlb_flag = __cpu_tlb_flags;
 
@@ -487,7 +487,7 @@ static inline void flush_pmd_entry(pmd_t *pmd)
 		dsb();
 }
 
-static inline void clean_pmd_entry(pmd_t *pmd)
+static inline void clean_pmd_entry(void *pmd)
 {
 	const unsigned int __tlb_flag = __cpu_tlb_flags;
 

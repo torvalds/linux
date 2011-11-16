@@ -468,7 +468,7 @@ static struct i2c_board_info __initdata mx31ads_i2c1_devices[] = {
 #endif
 };
 
-static void mxc_init_i2c(void)
+static void __init mxc_init_i2c(void)
 {
 	i2c_register_board_info(1, mx31ads_i2c1_devices,
 				ARRAY_SIZE(mx31ads_i2c1_devices));
@@ -486,7 +486,7 @@ static unsigned int ssi_pins[] = {
 	MX31_PIN_STXD5__STXD5,
 };
 
-static void mxc_init_audio(void)
+static void __init mxc_init_audio(void)
 {
 	imx31_add_imx_ssi(0, NULL);
 	mxc_iomux_setup_multiple_pins(ssi_pins, ARRAY_SIZE(ssi_pins), "ssi");
@@ -535,10 +535,11 @@ static struct sys_timer mx31ads_timer = {
 
 MACHINE_START(MX31ADS, "Freescale MX31ADS")
 	/* Maintainer: Freescale Semiconductor, Inc. */
-	.boot_params = MX3x_PHYS_OFFSET + 0x100,
+	.atag_offset = 0x100,
 	.map_io = mx31ads_map_io,
 	.init_early = imx31_init_early,
 	.init_irq = mx31ads_init_irq,
+	.handle_irq = imx31_handle_irq,
 	.timer = &mx31ads_timer,
 	.init_machine = mx31ads_init,
 MACHINE_END

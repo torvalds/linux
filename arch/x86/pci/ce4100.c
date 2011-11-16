@@ -304,7 +304,7 @@ static int ce4100_conf_write(unsigned int seg, unsigned int bus,
 	return pci_direct_conf1.write(seg, bus, devfn, reg, len, value);
 }
 
-struct pci_raw_ops ce4100_pci_conf = {
+static const struct pci_raw_ops ce4100_pci_conf = {
 	.read =	ce4100_conf_read,
 	.write = ce4100_conf_write,
 };

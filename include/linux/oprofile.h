@@ -166,7 +166,7 @@ ssize_t oprofilefs_ulong_to_user(unsigned long val, char __user * buf, size_t co
 int oprofilefs_ulong_from_user(unsigned long * val, char const __user * buf, size_t count);
 
 /** lock for read/write safety */
-extern spinlock_t oprofilefs_lock;
+extern raw_spinlock_t oprofilefs_lock;
 
 /**
  * Add the contents of a circular buffer to the event buffer.

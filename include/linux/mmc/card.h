@@ -50,8 +50,12 @@ struct mmc_ext_csd {
 	u8			rel_sectors;
 	u8			rel_param;
 	u8			part_config;
+	u8			cache_ctrl;
+	u8			rst_n_function;
 	unsigned int		part_time;		/* Units: ms */
 	unsigned int		sa_timeout;		/* Units: 100ns */
+	unsigned int		generic_cmd6_time;	/* Units: 10ms */
+	unsigned int            power_off_longtime;     /* Units: ms */
 	unsigned int		hs_max_dtr;
 	unsigned int		sectors;
 	unsigned int		card_type;
@@ -63,11 +67,15 @@ struct mmc_ext_csd {
 	bool			enhanced_area_en;	/* enable bit */
 	unsigned long long	enhanced_area_offset;	/* Units: Byte */
 	unsigned int		enhanced_area_size;	/* Units: KB */
-	unsigned int		boot_size;		/* in bytes */
+	unsigned int		cache_size;		/* Units: KB */
+	bool			hpi_en;			/* HPI enablebit */
+	bool			hpi;			/* HPI support bit */
+	unsigned int		hpi_cmd;		/* cmd used as HPI */
 	u8			raw_partition_support;	/* 160 */
 	u8			raw_erased_mem_count;	/* 181 */
 	u8			raw_ext_csd_structure;	/* 194 */
 	u8			raw_card_type;		/* 196 */
+	u8			out_of_int_time;	/* 198 */
 	u8			raw_s_a_timeout;		/* 217 */
 	u8			raw_hc_erase_gap_size;	/* 221 */
 	u8			raw_erase_timeout_mult;	/* 223 */
@@ -77,6 +85,9 @@ struct mmc_ext_csd {
 	u8			raw_sec_feature_support;/* 231 */
 	u8			raw_trim_mult;		/* 232 */
 	u8			raw_sectors[4];		/* 212 - 4 bytes */
+
+	unsigned int            feature_support;
+#define MMC_DISCARD_FEATURE	BIT(0)                  /* CMD38 feature */
 };
 
 struct sd_scr {
@@ -157,6 +168,24 @@ struct sdio_func_tuple;
 
 #define SDIO_MAX_FUNCS		7
 
+/* The number of MMC physical partitions.  These consist of:
+ * boot partitions (2), general purpose partitions (4) in MMC v4.4.
+ */
+#define MMC_NUM_BOOT_PARTITION	2
+#define MMC_NUM_GP_PARTITION	4
+#define MMC_NUM_PHY_PARTITION	6
+#define MAX_MMC_PART_NAME_LEN	20
+
+/*
+ * MMC Physical partitions
+ */
+struct mmc_part {
+	unsigned int	size;	/* partition size (in bytes) */
+	unsigned int	part_cfg;	/* partition type */
+	char	name[MAX_MMC_PART_NAME_LEN];
+	bool	force_ro;	/* to make boot parts RO by default */
+};
+
 /*
  * MMC device
  */
@@ -188,6 +217,13 @@ struct mmc_card {
 #define MMC_QUIRK_DISABLE_CD	(1<<5)		/* disconnect CD/DAT[3] resistor */
 #define MMC_QUIRK_INAND_CMD38	(1<<6)		/* iNAND devices have broken CMD38 */
 #define MMC_QUIRK_BLK_NO_CMD23	(1<<7)		/* Avoid CMD23 for regular multiblock */
+#define MMC_QUIRK_BROKEN_BYTE_MODE_512 (1<<8)	/* Avoid sending 512 bytes in */
+						/* byte mode */
+	unsigned int    poweroff_notify_state;	/* eMMC4.5 notify feature */
+#define MMC_NO_POWER_NOTIFICATION	0
+#define MMC_POWERED_ON			1
+#define MMC_POWEROFF_SHORT		2
+#define MMC_POWEROFF_LONG		3
 
 	unsigned int		erase_size;	/* erase size in sectors */
  	unsigned int		erase_shift;	/* if erase unit is power 2 */
@@ -216,7 +252,22 @@ struct mmc_card {
 	unsigned int		sd_bus_speed;	/* Bus Speed Mode set for the card */
 
 	struct dentry		*debugfs_root;
+	struct mmc_part	part[MMC_NUM_PHY_PARTITION]; /* physical partitions */
+	unsigned int    nr_parts;
 };
+
+/*
+ * This function fill contents in mmc_part.
+ */
+static inline void mmc_part_add(struct mmc_card *card, unsigned int size,
+			unsigned int part_cfg, char *name, int idx, bool ro)
+{
+	card->part[card->nr_parts].size = size;
+	card->part[card->nr_parts].part_cfg = part_cfg;
+	sprintf(card->part[card->nr_parts].name, name, idx);
+	card->part[card->nr_parts].force_ro = ro;
+	card->nr_parts++;
+}
 
 /*
  *  The world is not perfect and supplies us with broken mmc/sdio devices.
@@ -375,6 +426,11 @@ static inline int mmc_card_disable_cd(const struct mmc_card *c)
 static inline int mmc_card_nonstd_func_interface(const struct mmc_card *c)
 {
 	return c->quirks & MMC_QUIRK_NONSTD_FUNC_IF;
+}
+
+static inline int mmc_card_broken_byte_mode_512(const struct mmc_card *c)
+{
+	return c->quirks & MMC_QUIRK_BROKEN_BYTE_MODE_512;
 }
 
 #define mmc_card_name(c)	((c)->cid.prod_name)
