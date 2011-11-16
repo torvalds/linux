@@ -118,7 +118,7 @@ void ath9k_ps_restore(struct ath_softc *sc)
 	if (--sc->ps_usecount != 0)
 		goto unlock;
 
-	if (sc->ps_idle)
+	if (sc->ps_idle && (sc->ps_flags & PS_WAIT_FOR_TX_ACK))
 		mode = ATH9K_PM_FULL_SLEEP;
 	else if (sc->ps_enabled &&
 		 !(sc->ps_flags & (PS_WAIT_FOR_BEACON |
@@ -332,7 +332,8 @@ static int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan,
 		hchan = ah->curchan;
 	}
 
-	if (fastcc && !ath9k_hw_check_alive(ah))
+	if (fastcc && (ah->chip_fullsleep ||
+	    !ath9k_hw_check_alive(ah)))
 		fastcc = false;
 
 	if (!ath_prepare_reset(sc, retry_tx, flush))
@@ -1182,6 +1183,13 @@ static void ath9k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 			hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PM);
 		}
 	}
+
+	/*
+	 * Cannot tx while the hardware is in full sleep, it first needs a full
+	 * chip reset to recover from that
+	 */
+	if (unlikely(sc->sc_ah->power_mode == ATH9K_PM_FULL_SLEEP))
+		goto exit;
 
 	if (unlikely(sc->sc_ah->power_mode != ATH9K_PM_AWAKE)) {
 		/*
