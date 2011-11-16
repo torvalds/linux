@@ -1623,6 +1623,11 @@ static inline int _alloc_event(struct pl330_thread *thrd)
 	return -1;
 }
 
+static bool _chan_ns(const struct pl330_info *pi, int i)
+{
+	return pi->pcfg.irq_ns & (1 << i);
+}
+
 /* Upon success, returns IdentityToken for the
  * allocated channel, NULL otherwise.
  */
@@ -1647,7 +1652,8 @@ void *pl330_request_channel(const struct pl330_info *pi)
 
 	for (i = 0; i < chans; i++) {
 		thrd = &pl330->channels[i];
-		if (thrd->free) {
+		if ((thrd->free) && (!_manager_ns(thrd) ||
+					_chan_ns(pi, i))) {
 			thrd->ev = _alloc_event(thrd);
 			if (thrd->ev >= 0) {
 				thrd->free = false;
