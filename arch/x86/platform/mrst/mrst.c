@@ -802,8 +802,7 @@ static void __init sfi_handle_ipc_dev(struct sfi_device_table_entry *entry)
 	if (mrst_has_msic())
 		return;
 
-	/* ID as IRQ is a hack that will go away */
-	pdev = platform_device_alloc(entry->name, entry->irq);
+	pdev = platform_device_alloc(entry->name, 0);
 	if (pdev == NULL) {
 		pr_err("out of memory for SFI platform device '%s'.\n",
 			entry->name);
