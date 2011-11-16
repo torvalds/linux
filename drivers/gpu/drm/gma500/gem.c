@@ -274,13 +274,13 @@ int psb_gem_create_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_psb_gem_create *args = data;
 	int ret;
-	if (args->flags & PSB_GEM_CREATE_STOLEN) {
+	if (args->flags & GMA_GEM_CREATE_STOLEN) {
 		ret = psb_gem_create_stolen(file, dev, args->size,
 							&args->handle);
 		if (ret == 0)
 			return 0;
 		/* Fall throguh */
-		args->flags &= ~PSB_GEM_CREATE_STOLEN;
+		args->flags &= ~GMA_GEM_CREATE_STOLEN;
 	}
 	return psb_gem_create(file, dev, args->size, &args->handle);
 }

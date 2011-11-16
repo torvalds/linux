@@ -63,7 +63,7 @@ struct drm_psb_gem_create {
 	__u64 size;
 	__u32 handle;
 	__u32 flags;
-#define PSB_GEM_CREATE_STOLEN		1	/* Stolen memory can be used */
+#define GMA_GEM_CREATE_STOLEN		1	/* Stolen memory can be used */
 };
 
 struct drm_psb_gem_mmap {
@@ -79,15 +79,15 @@ struct drm_psb_gem_mmap {
 
 /* Controlling the kernel modesetting buffers */
 
-#define DRM_PSB_GEM_CREATE	0x00		/* Create a GEM object */
-#define DRM_PSB_GEM_MMAP	0x01		/* Map GEM memory */
-#define DRM_PSB_STOLEN_MEMORY	0x02		/* Report stolen memory */
-#define DRM_PSB_2D_OP		0x03		/* Will be merged later */
-#define DRM_PSB_GAMMA		0x04		/* Set gamma table */
-#define DRM_PSB_ADB		0x05		/* Get backlight */
-#define DRM_PSB_DPST_BL		0x06		/* Set backlight */
-#define DRM_PSB_GET_PIPE_FROM_CRTC_ID 0x1	/* CRTC to physical pipe# */
-#define DRM_PSB_MODE_OPERATION	0x07		/* Mode validation/DC set */
+#define DRM_GMA_GEM_CREATE	0x00		/* Create a GEM object */
+#define DRM_GMA_GEM_MMAP	0x01		/* Map GEM memory */
+#define DRM_GMA_STOLEN_MEMORY	0x02		/* Report stolen memory */
+#define DRM_GMA_2D_OP		0x03		/* Will be merged later */
+#define DRM_GMA_GAMMA		0x04		/* Set gamma table */
+#define DRM_GMA_ADB		0x05		/* Get backlight */
+#define DRM_GMA_DPST_BL		0x06		/* Set backlight */
+#define DRM_GMA_GET_PIPE_FROM_CRTC_ID 0x1	/* CRTC to physical pipe# */
+#define DRM_GMA_MODE_OPERATION	0x07		/* Mode validation/DC set */
 #define 	PSB_MODE_OPERATION_MODE_VALID	0x01
 
 
