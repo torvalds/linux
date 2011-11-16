@@ -646,6 +646,19 @@ int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 	return r;
 }
 
+static void dss_apply_ovl_enable(struct omap_overlay *ovl, bool enable)
+{
+	struct ovl_priv_data *op;
+
+	op = get_ovl_priv(ovl);
+
+	if (op->enabled == enable)
+		return;
+
+	op->enabled = enable;
+	op->extra_info_dirty = true;
+}
+
 static void dss_ovl_setup_fifo(struct omap_overlay *ovl)
 {
 	struct ovl_priv_data *op = get_ovl_priv(ovl);
@@ -999,8 +1012,7 @@ int dss_ovl_enable(struct omap_overlay *ovl)
 
 	spin_lock_irqsave(&data_lock, flags);
 
-	op->enabled = true;
-	op->extra_info_dirty = true;
+	dss_apply_ovl_enable(ovl, true);
 
 	dss_ovl_setup_fifo(ovl);
 
@@ -1031,8 +1043,7 @@ int dss_ovl_disable(struct omap_overlay *ovl)
 
 	spin_lock_irqsave(&data_lock, flags);
 
-	op->enabled = false;
-	op->extra_info_dirty = true;
+	dss_apply_ovl_enable(ovl, false);
 
 	dss_write_regs();
 
