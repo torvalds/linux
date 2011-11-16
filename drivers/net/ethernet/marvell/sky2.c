@@ -50,7 +50,7 @@
 #include "sky2.h"
 
 #define DRV_NAME		"sky2"
-#define DRV_VERSION		"1.29"
+#define DRV_VERSION		"1.30"
 
 /*
  * The Yukon II chipset takes 64 bit command blocks (called list elements)
