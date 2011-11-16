@@ -65,7 +65,10 @@ struct hdmi_spec_per_pin {
 	hda_nid_t pin_nid;
 	int num_mux_nids;
 	hda_nid_t mux_nids[HDA_MAX_CONNECTIONS];
+
+	struct hda_codec *codec;
 	struct hdmi_eld sink_eld;
+	struct delayed_work work;
 };
 
 struct hdmi_spec {
@@ -745,8 +748,7 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec, int pin_idx,
  * Unsolicited events
  */
 
-static void hdmi_present_sense(struct hda_codec *codec, hda_nid_t pin_nid,
-			       struct hdmi_eld *eld);
+static void hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, bool retry);
 
 static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
 {
@@ -766,7 +768,7 @@ static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
 		return;
 	eld = &spec->pins[pin_idx].sink_eld;
 
-	hdmi_present_sense(codec, pin_nid, eld);
+	hdmi_present_sense(&spec->pins[pin_idx], true);
 
 	/*
 	 * HDMI sink's ELD info cannot always be retrieved for now, e.g.
@@ -968,9 +970,11 @@ static int hdmi_read_pin_conn(struct hda_codec *codec, int pin_idx)
 	return 0;
 }
 
-static void hdmi_present_sense(struct hda_codec *codec, hda_nid_t pin_nid,
-			       struct hdmi_eld *eld)
+static void hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, bool retry)
 {
+	struct hda_codec *codec = per_pin->codec;
+	struct hdmi_eld *eld = &per_pin->sink_eld;
+	hda_nid_t pin_nid = per_pin->pin_nid;
 	/*
 	 * Always execute a GetPinSense verb here, even when called from
 	 * hdmi_intrinsic_event; for some NVIDIA HW, the unsolicited
@@ -992,11 +996,25 @@ static void hdmi_present_sense(struct hda_codec *codec, hda_nid_t pin_nid,
 		"HDMI status: Codec=%d Pin=%d Presence_Detect=%d ELD_Valid=%d\n",
 		codec->addr, pin_nid, eld->monitor_present, eld_valid);
 
-	if (eld_valid)
+	if (eld_valid) {
 		if (!snd_hdmi_get_eld(eld, codec, pin_nid))
 			snd_hdmi_show_eld(eld);
+		else if (retry) {
+			queue_delayed_work(codec->bus->workq,
+					   &per_pin->work,
+					   msecs_to_jiffies(300));
+		}
+	}
 
 	snd_hda_input_jack_report(codec, pin_nid);
+}
+
+static void hdmi_repoll_eld(struct work_struct *work)
+{
+	struct hdmi_spec_per_pin *per_pin =
+	container_of(to_delayed_work(work), struct hdmi_spec_per_pin, work);
+
+	hdmi_present_sense(per_pin, false);
 }
 
 static int hdmi_add_pin(struct hda_codec *codec, hda_nid_t pin_nid)
@@ -1227,7 +1245,7 @@ static int generic_hdmi_build_jack(struct hda_codec *codec, int pin_idx)
 	if (err < 0)
 		return err;
 
-	hdmi_present_sense(codec, per_pin->pin_nid, &per_pin->sink_eld);
+	hdmi_present_sense(per_pin, false);
 	return 0;
 }
 
@@ -1278,6 +1296,8 @@ static int generic_hdmi_init(struct hda_codec *codec)
 				    AC_VERB_SET_UNSOLICITED_ENABLE,
 				    AC_USRSP_EN | pin_nid);
 
+		per_pin->codec = codec;
+		INIT_DELAYED_WORK(&per_pin->work, hdmi_repoll_eld);
 		snd_hda_eld_proc_new(codec, eld, pin_idx);
 	}
 	return 0;
@@ -1292,10 +1312,12 @@ static void generic_hdmi_free(struct hda_codec *codec)
 		struct hdmi_spec_per_pin *per_pin = &spec->pins[pin_idx];
 		struct hdmi_eld *eld = &per_pin->sink_eld;
 
+		cancel_delayed_work(&per_pin->work);
 		snd_hda_eld_proc_free(codec, eld);
 	}
 	snd_hda_input_jack_free(codec);
 
+	flush_workqueue(codec->bus->workq);
 	kfree(spec);
 }
 
