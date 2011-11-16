@@ -25,6 +25,8 @@
 
 *******************************************************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/init.h>
@@ -1746,10 +1748,9 @@ void igbvf_update_stats(struct igbvf_adapter *adapter)
 
 static void igbvf_print_link_info(struct igbvf_adapter *adapter)
 {
-	dev_info(&adapter->pdev->dev, "Link is Up %d Mbps %s\n",
-	         adapter->link_speed,
-	         ((adapter->link_duplex == FULL_DUPLEX) ?
-	          "Full Duplex" : "Half Duplex"));
+	dev_info(&adapter->pdev->dev, "Link is Up %d Mbps %s Duplex\n",
+		 adapter->link_speed,
+		 adapter->link_duplex == FULL_DUPLEX ? "Full" : "Half");
 }
 
 static bool igbvf_has_link(struct igbvf_adapter *adapter)
@@ -2843,9 +2844,8 @@ static struct pci_driver igbvf_driver = {
 static int __init igbvf_init_module(void)
 {
 	int ret;
-	printk(KERN_INFO "%s - version %s\n",
-	       igbvf_driver_string, igbvf_driver_version);
-	printk(KERN_INFO "%s\n", igbvf_copyright);
+	pr_info("%s - version %s\n", igbvf_driver_string, igbvf_driver_version);
+	pr_info("%s\n", igbvf_copyright);
 
 	ret = pci_register_driver(&igbvf_driver);
 

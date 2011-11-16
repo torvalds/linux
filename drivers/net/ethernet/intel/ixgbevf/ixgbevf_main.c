@@ -29,6 +29,9 @@
 /******************************************************************************
  Copyright (c)2006 - 2007 Myricom, Inc. for some LRO specific code
 ******************************************************************************/
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/module.h>
@@ -1437,7 +1440,7 @@ static int ixgbevf_write_uc_addr_list(struct net_device *netdev)
 	int count = 0;
 
 	if ((netdev_uc_count(netdev)) > 10) {
-		printk(KERN_ERR "Too many unicast filters - No Space\n");
+		pr_err("Too many unicast filters - No Space\n");
 		return -ENOSPC;
 	}
 
@@ -2135,7 +2138,7 @@ static int ixgbevf_init_interrupt_scheme(struct ixgbevf_adapter *adapter)
 
 	err = ixgbevf_alloc_queues(adapter);
 	if (err) {
-		printk(KERN_ERR "Unable to allocate memory for queues\n");
+		pr_err("Unable to allocate memory for queues\n");
 		goto err_alloc_queues;
 	}
 
@@ -2189,7 +2192,7 @@ static int __devinit ixgbevf_sw_init(struct ixgbevf_adapter *adapter)
 	} else {
 		err = hw->mac.ops.init_hw(hw);
 		if (err) {
-			printk(KERN_ERR "init_shared_code failed: %d\n", err);
+			pr_err("init_shared_code failed: %d\n", err);
 			goto out;
 		}
 	}
@@ -2630,8 +2633,8 @@ static int ixgbevf_open(struct net_device *netdev)
 		 * the vf can't start. */
 		if (hw->adapter_stopped) {
 			err = IXGBE_ERR_MBX;
-			printk(KERN_ERR "Unable to start - perhaps the PF"
-			       " Driver isn't up yet\n");
+			pr_err("Unable to start - perhaps the PF Driver isn't "
+			       "up yet\n");
 			goto err_setup_reset;
 		}
 	}
@@ -2842,10 +2845,8 @@ static bool ixgbevf_tx_csum(struct ixgbevf_adapter *adapter,
 				break;
 			default:
 				if (unlikely(net_ratelimit())) {
-					printk(KERN_WARNING
-					       "partial checksum but "
-					       "proto=%x!\n",
-					       skb->protocol);
+					pr_warn("partial checksum but "
+						"proto=%x!\n", skb->protocol);
 				}
 				break;
 			}
@@ -3415,7 +3416,7 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 	memcpy(netdev->perm_addr, adapter->hw.mac.addr, netdev->addr_len);
 
 	if (!is_valid_ether_addr(netdev->dev_addr)) {
-		printk(KERN_ERR "invalid MAC address\n");
+		pr_err("invalid MAC address\n");
 		err = -EIO;
 		goto err_sw_init;
 	}
@@ -3536,10 +3537,10 @@ static struct pci_driver ixgbevf_driver = {
 static int __init ixgbevf_init_module(void)
 {
 	int ret;
-	printk(KERN_INFO "ixgbevf: %s - version %s\n", ixgbevf_driver_string,
-	       ixgbevf_driver_version);
+	pr_info("%s - version %s\n", ixgbevf_driver_string,
+		ixgbevf_driver_version);
 
-	printk(KERN_INFO "%s\n", ixgbevf_copyright);
+	pr_info("%s\n", ixgbevf_copyright);
 
 	ret = pci_register_driver(&ixgbevf_driver);
 	return ret;
