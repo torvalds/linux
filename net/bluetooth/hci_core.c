@@ -1452,7 +1452,7 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	sprintf(hdev->name, "hci%d", id);
 	hdev->id = id;
-	list_add(&hdev->list, head);
+	list_add_tail(&hdev->list, head);
 
 	atomic_set(&hdev->refcnt, 1);
 	spin_lock_init(&hdev->lock);
