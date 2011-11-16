@@ -92,7 +92,7 @@ struct team {
 	struct net_device *dev; /* associated netdevice */
 	struct team_pcpu_stats __percpu *pcpu_stats;
 
-	spinlock_t lock; /* used for overall locking, e.g. port lists write */
+	struct mutex lock; /* used for overall locking, e.g. port lists write */
 
 	/*
 	 * port lists with port count
