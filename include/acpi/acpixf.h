@@ -376,6 +376,11 @@ acpi_status
 acpi_resource_to_address64(struct acpi_resource *resource,
 			   struct acpi_resource_address64 *out);
 
+acpi_status
+acpi_buffer_to_resource(u8 *aml_buffer,
+			u16 aml_buffer_length,
+			struct acpi_resource **resource_ptr);
+
 /*
  * Hardware (ACPI device) interfaces
  */
