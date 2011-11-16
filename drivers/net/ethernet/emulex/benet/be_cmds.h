@@ -1167,6 +1167,8 @@ struct lancer_cmd_resp_write_object {
 #define LANCER_READ_FILE_EOF_MASK		0x80000000
 
 #define LANCER_FW_DUMP_FILE			"/dbg/dump.bin"
+#define LANCER_VPD_PF_FILE			"/vpd/ntr_pf.vpd"
+#define LANCER_VPD_VF_FILE			"/vpd/ntr_vf.vpd"
 
 struct lancer_cmd_req_read_object {
 	struct be_cmd_req_hdr hdr;

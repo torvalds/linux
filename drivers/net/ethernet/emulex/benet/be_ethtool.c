@@ -727,7 +727,17 @@ be_do_flash(struct net_device *netdev, struct ethtool_flash *efl)
 static int
 be_get_eeprom_len(struct net_device *netdev)
 {
-	return BE_READ_SEEPROM_LEN;
+	struct be_adapter *adapter = netdev_priv(netdev);
+	if (lancer_chip(adapter)) {
+		if (be_physfn(adapter))
+			return lancer_cmd_get_file_len(adapter,
+					LANCER_VPD_PF_FILE);
+		else
+			return lancer_cmd_get_file_len(adapter,
+					LANCER_VPD_VF_FILE);
+	} else {
+		return BE_READ_SEEPROM_LEN;
+	}
 }
 
 static int
@@ -741,6 +751,15 @@ be_read_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
 
 	if (!eeprom->len)
 		return -EINVAL;
+
+	if (lancer_chip(adapter)) {
+		if (be_physfn(adapter))
+			return lancer_cmd_read_file(adapter, LANCER_VPD_PF_FILE,
+					eeprom->len, data);
+		else
+			return lancer_cmd_read_file(adapter, LANCER_VPD_VF_FILE,
+					eeprom->len, data);
+	}
 
 	eeprom->magic = BE_VENDOR_ID | (adapter->pdev->device<<16);
 
