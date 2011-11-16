@@ -321,12 +321,10 @@ static int stmmac_init_phy(struct net_device *dev)
 	}
 
 	/* Stop Advertising 1000BASE Capability if interface is not GMII */
-	if ((interface) && ((interface == PHY_INTERFACE_MODE_MII) ||
-	    (interface == PHY_INTERFACE_MODE_RMII))) {
-		phydev->supported &= (PHY_BASIC_FEATURES | SUPPORTED_Pause |
-				      SUPPORTED_Asym_Pause);
-		phydev->advertising = phydev->supported;
-	}
+	if ((interface == PHY_INTERFACE_MODE_MII) ||
+	    (interface == PHY_INTERFACE_MODE_RMII))
+		phydev->advertising &= ~(SUPPORTED_1000baseT_Half |
+					 SUPPORTED_1000baseT_Full);
 
 	/*
 	 * Broken HW is sometimes missing the pull-up resistor on the
