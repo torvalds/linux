@@ -1,17 +1,17 @@
 /*
-********************************************************************************************************
-*                          SUN4I----HDMI AUDIO
-*                   (c) Copyright 2002-2004, All winners Co,Ld.
-*                          All Right Reserved
-*
-* FileName: sun4i-i2s.c   author:chenpailin  date:2011-07-19
-* Description:
-* Others:
-* History:
-*   <author>      <time>      <version>   <desc>
-*   chenpailin   2011-07-19     1.0      modify this module
-********************************************************************************************************
-*/
+ * sound\soc\sun4i\i2s\sun4i-i2s.c
+ * (C) Copyright 2007-2011
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * chenpailin <chenpailin@allwinnertech.com>
+ *
+ * some simple description for this code
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ */
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -77,12 +77,9 @@ void sun4i_snd_txctrl_i2s(struct snd_pcm_substream *substream, int on)
 
 	reg_val = readl(sun4i_iis.regs + SUN4I_TXCHMAP);
 	reg_val = 0;
-	if(substream->runtime->channels == 1)
-	{
+	if(substream->runtime->channels == 1) {
 		reg_val = 0x76543200;
-	}
-	else
-	{
+	} else {
 		reg_val = 0x76543210;
 	}
 	writel(reg_val, sun4i_iis.regs + SUN4I_TXCHMAP);
@@ -92,8 +89,7 @@ void sun4i_snd_txctrl_i2s(struct snd_pcm_substream *substream, int on)
 	reg_val &= ~SUN4I_IISCTL_SDO2EN;
 	reg_val &= ~SUN4I_IISCTL_SDO1EN;
 	reg_val &= ~SUN4I_IISCTL_SDO0EN;
-	switch(substream->runtime->channels)
-	{
+	switch(substream->runtime->channels) {
 		case 1:
 		case 2:
 			reg_val |= SUN4I_IISCTL_SDO0EN; break;
@@ -119,7 +115,7 @@ void sun4i_snd_txctrl_i2s(struct snd_pcm_substream *substream, int on)
 	//clear TX counter
 	writel(0, sun4i_iis.regs + SUN4I_IISTXCNT);
 
-	if(on){
+	if (on) {
 		/* IIS TX ENABLE */
 		reg_val = readl(sun4i_iis.regs + SUN4I_IISCTL);
 		reg_val |= SUN4I_IISCTL_TXEN;
@@ -135,7 +131,7 @@ void sun4i_snd_txctrl_i2s(struct snd_pcm_substream *substream, int on)
 		reg_val |= SUN4I_IISCTL_GEN;
 		writel(reg_val, sun4i_iis.regs + SUN4I_IISCTL);
 
-	}else{
+	} else {
 		/* IIS TX DISABLE */
 		reg_val = readl(sun4i_iis.regs + SUN4I_IISCTL);
 		reg_val &= ~SUN4I_IISCTL_TXEN;
@@ -151,7 +147,6 @@ void sun4i_snd_txctrl_i2s(struct snd_pcm_substream *substream, int on)
 		reg_val &= ~SUN4I_IISCTL_GEN;
 		writel(reg_val, sun4i_iis.regs + SUN4I_IISCTL);
 	}
-
 }
 
 void sun4i_snd_rxctrl_i2s(int on)
@@ -166,7 +161,7 @@ void sun4i_snd_rxctrl_i2s(int on)
 	//clear RX counter
 	writel(0, sun4i_iis.regs + SUN4I_IISRXCNT);
 
-	if(on){
+	if (on) {
 		/* IIS RX ENABLE */
 		reg_val = readl(sun4i_iis.regs + SUN4I_IISCTL);
 		reg_val |= SUN4I_IISCTL_RXEN;
@@ -182,7 +177,7 @@ void sun4i_snd_rxctrl_i2s(int on)
 		reg_val |= SUN4I_IISCTL_GEN;
 		writel(reg_val, sun4i_iis.regs + SUN4I_IISCTL);
 
-	}else{
+	} else {
 		/* IIS RX DISABLE */
 		reg_val = readl(sun4i_iis.regs + SUN4I_IISCTL);
 		reg_val &= ~SUN4I_IISCTL_RXEN;
@@ -198,7 +193,6 @@ void sun4i_snd_rxctrl_i2s(int on)
 		reg_val &= ~SUN4I_IISCTL_GEN;
 		writel(reg_val, sun4i_iis.regs + SUN4I_IISCTL);
 	}
-
 }
 
 static inline int sun4i_snd_is_clkmaster(void)
@@ -397,7 +391,6 @@ static int sun4i_i2s_set_sysclk(struct snd_soc_dai *cpu_dai, int clk_id,
 static int sun4i_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai, int div_id, int div)
 {
 	u32 reg;
-//	printk("[IIS]Entered %s\n", __func__);
 	switch (div_id) {
 		case SUN4I_DIV_MCLK:
 			if(div <= 8)
@@ -669,7 +662,7 @@ static int __init sun4i_i2s_init(void)
  	if (i2s_used) {
 		i2s_handle = gpio_request_ex("i2s_para", NULL);
 
-		if((platform_device_register(&sun4i_i2s_device))<0)
+		if((err = platform_device_register(&sun4i_i2s_device)) < 0)
 			return err;
 
 		if ((err = platform_driver_register(&sun4i_i2s_driver)) < 0)

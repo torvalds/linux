@@ -1,17 +1,17 @@
 /*
-********************************************************************************************************
-*                          SUN4I----HDMI AUDIO
-*                   (c) Copyright 2002-2004, All winners Co,Ld.
-*                          All Right Reserved
-*
-* FileName: sun4i-sndi2s.c   author:chenpailin  date:2011-07-19
-* Description:
-* Others:
-* History:
-*   <author>      <time>      <version>   <desc>
-*   chenpailin   2011-07-19     1.0      modify this module
-********************************************************************************************************
-*/
+ * sound\soc\sun4i\i2s\sun4i_sndi2s.c
+ * (C) Copyright 2007-2011
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * chenpailin <chenpailin@allwinnertech.com>
+ *
+ * some simple description for this code
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ */
 
 #include <linux/module.h>
 #include <linux/clk.h>
@@ -28,7 +28,6 @@
 #include "sun4i-i2sdma.h"
 
 #include "sndi2s.h"
-
 
 static int i2s_used = 0;
 static struct clk *xtal;
@@ -49,15 +48,14 @@ static int sun4i_sndi2s_startup(struct snd_pcm_substream *substream)
 	#ifdef ENFORCE_RATES
 		struct snd_pcm_runtime *runtime = substream->runtime;;
 	#endif
-	mutex_lock(&clk_lock);
-	mutex_unlock(&clk_lock);
+
 	if (!ret) {
 	#ifdef ENFORCE_RATES
 		ret = snd_pcm_hw_constraint_list(runtime, 0,
 						 SNDRV_PCM_HW_PARAM_RATE,
 						 &hw_constraints_rates);
 		if (ret < 0)
-
+			return ret;
 	#endif
 	}
 	return ret;
@@ -171,14 +169,12 @@ static s32 get_clock_divder(u32 sample_rate, u32 sample_width, u32 * mclk_div, u
 {
 	u32 i, j, ret = -EINVAL;
 
-	for(i=0; i< 100; i++)
-	{
-		 if((MCLK_INF[i].samp_rate == sample_rate) && ((MCLK_INF[i].mult_fs == 256) || (MCLK_INF[i].mult_fs == 128)))
-		 {
-			  for(j=0; j<ARRAY_SIZE(BCLK_INF); j++)
-			  {
-					if((BCLK_INF[j].bitpersamp == sample_width) && (BCLK_INF[j].mult_fs == MCLK_INF[i].mult_fs))
-					{
+	for(i=0; i< 100; i++) {
+		 if((MCLK_INF[i].samp_rate == sample_rate) &&
+		 	((MCLK_INF[i].mult_fs == 256) || (MCLK_INF[i].mult_fs == 128))) {
+			  for(j=0; j<ARRAY_SIZE(BCLK_INF); j++) {
+					if((BCLK_INF[j].bitpersamp == sample_width) &&
+						(BCLK_INF[j].mult_fs == MCLK_INF[i].mult_fs)) {
 						 //set mclk and bclk division
 						 *mclk_div = MCLK_INF[i].clk_div;
 						 *mpll = MCLK_INF[i].mpll;
@@ -271,7 +267,7 @@ static int __init sun4i_sndi2s_init(void)
 	int ret2;
 
 	ret2 = script_parser_fetch("i2s_para","i2s_used", &i2s_used, sizeof(int));
-	if (ret2){
+	if (ret2) {
         printk("[I2S]sun4i_sndi2s_init fetch i2s using configuration failed\n");
     }
 
@@ -281,11 +277,9 @@ static int __init sun4i_sndi2s_init(void)
 			return -ENOMEM;
 		platform_set_drvdata(sun4i_sndi2s_device, &snd_soc_sun4i_sndi2s);
 		ret = platform_device_add(sun4i_sndi2s_device);
-		printk("\n\n%s,%d\n", __func__, __LINE__);
-		if(ret){
-			printk("%s,%d\n", __func__, __LINE__);
+		if (ret) {
 			platform_device_put(sun4i_sndi2s_device);
-			}
+		}
 	}else{
 		printk("[I2S]sun4i_sndi2s cannot find any using configuration for controllers, return directly!\n");
         return 0;
@@ -298,7 +292,7 @@ static void __exit sun4i_sndi2s_exit(void)
 	if(i2s_used) {
 		i2s_used = 0;
 		platform_device_unregister(sun4i_sndi2s_device);
-}
+	}
 }
 
 module_init(sun4i_sndi2s_init);

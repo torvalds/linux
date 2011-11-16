@@ -1,17 +1,18 @@
 /*
-********************************************************************************************************
-*                          SUN4I----HDMI AUDIO
-*                   (c) Copyright 2002-2004, All winners Co,Ld.
-*                          All Right Reserved
-*
-* FileName: sndi2s.c   author:chenpailin  date:2011-07-19
-* Description:
-* Others:
-* History:
-*   <author>      <time>      <version>   <desc>
-*   chenpailin   2011-07-19     1.0      modify this module
-********************************************************************************************************
-*/
+ * sound\soc\sun4i\i2s\sndi2s.c
+ * (C) Copyright 2007-2011
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * chenpailin <chenpailin@allwinnertech.com>
+ *
+ * some simple description for this code
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ */
+
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -136,8 +137,8 @@ static int sndi2s_soc_remove(struct snd_soc_codec *codec)
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_sndi2s = {
-	.probe =        sndi2s_soc_probe,
-	.remove =       sndi2s_soc_remove,
+	.probe 	=	sndi2s_soc_probe,
+	.remove =   sndi2s_soc_remove,
 };
 
 static int __devinit sndi2s_codec_probe(struct platform_device *pdev)
@@ -176,7 +177,7 @@ static int __init sndi2s_codec_init(void)
     }
 
 	if (i2s_used) {
-		if((platform_device_register(&sndi2s_codec_device))<0)
+		if((err = platform_device_register(&sndi2s_codec_device)) < 0)
 			return err;
 
 		if ((err = platform_driver_register(&sndi2s_codec_driver)) < 0)
