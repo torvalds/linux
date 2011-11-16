@@ -1339,9 +1339,18 @@ void ejtag_exception_handler(struct pt_regs *regs)
 
 /*
  * NMI exception handler.
+ * No lock; only written during early bootup by CPU 0.
  */
+static RAW_NOTIFIER_HEAD(nmi_chain);
+
+int register_nmi_notifier(struct notifier_block *nb)
+{
+	return raw_notifier_chain_register(&nmi_chain, nb);
+}
+
 NORET_TYPE void ATTRIB_NORET nmi_exception_handler(struct pt_regs *regs)
 {
+	raw_notifier_call_chain(&nmi_chain, 0, regs);
 	bust_spinlocks(1);
 	printk("NMI taken!!!!\n");
 	die("NMI", regs);
