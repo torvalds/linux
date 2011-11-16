@@ -398,7 +398,6 @@ struct iscsi_cmd {
 	u32			pdu_send_order;
 	/* Current struct iscsi_pdu in struct iscsi_cmd->pdu_list */
 	u32			pdu_start;
-	u32			residual_count;
 	/* Next struct iscsi_seq to send in struct iscsi_cmd->seq_list */
 	u32			seq_send_order;
 	/* Number of struct iscsi_seq in struct iscsi_cmd->seq_list */
