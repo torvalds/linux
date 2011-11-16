@@ -87,7 +87,8 @@ do {									\
 	: "=r" (tmp));							\
 } while (0)
 
-#elif defined(CONFIG_CPU_MIPSR1) && !defined(CONFIG_MIPS_ALCHEMY)
+#elif (defined(CONFIG_CPU_MIPSR1) && !defined(CONFIG_MIPS_ALCHEMY)) || \
+	defined(CONFIG_CPU_BMIPS)
 
 /*
  * These are slightly complicated by the fact that we guarantee R1 kernels to

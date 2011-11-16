@@ -74,7 +74,9 @@ search_module_dbetables(unsigned long addr)
 }
 #endif
 
-#ifdef CONFIG_CPU_MIPS32_R1
+#ifdef CONFIG_CPU_BMIPS
+#define MODULE_PROC_FAMILY "BMIPS "
+#elif defined CONFIG_CPU_MIPS32_R1
 #define MODULE_PROC_FAMILY "MIPS32_R1 "
 #elif defined CONFIG_CPU_MIPS32_R2
 #define MODULE_PROC_FAMILY "MIPS32_R2 "
