@@ -3411,6 +3411,18 @@ int transport_generic_map_mem_to_cmd(
 
 	if ((cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB) ||
 	    (cmd->se_cmd_flags & SCF_SCSI_CONTROL_SG_IO_CDB)) {
+		/*
+		 * Reject SCSI data overflow with map_mem_to_cmd() as incoming
+		 * scatterlists already have been set to follow what the fabric
+		 * passes for the original expected data transfer length.
+		 */
+		if (cmd->se_cmd_flags & SCF_OVERFLOW_BIT) {
+			pr_warn("Rejecting SCSI DATA overflow for fabric using"
+				" SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC\n");
+			cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
+			cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
+			return -EINVAL;
+		}
 
 		cmd->t_data_sg = sgl;
 		cmd->t_data_nents = sgl_count;
