@@ -1587,6 +1587,30 @@ static int user_pairing_resp(struct sock *sk, u16 index, bdaddr_t *bdaddr,
 		goto done;
 	}
 
+	/*
+	 * Check for an existing ACL link, if present pair via
+	 * HCI commands.
+	 *
+	 * If no ACL link is present, check for an LE link and if
+	 * present, pair via the SMP engine.
+	 *
+	 * If neither ACL nor LE links are present, fail with error.
+	 */
+	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, bdaddr);
+	if (!conn) {
+		conn = hci_conn_hash_lookup_ba(hdev, LE_LINK, bdaddr);
+		if (!conn) {
+			err = cmd_status(sk, index, mgmt_op,
+						MGMT_STATUS_NOT_CONNECTED);
+			goto done;
+		}
+
+		/* Continue with pairing via SMP */
+
+		err = cmd_status(sk, index, mgmt_op, MGMT_STATUS_SUCCESS);
+		goto done;
+	}
+
 	cmd = mgmt_pending_add(sk, mgmt_op, hdev, bdaddr, sizeof(*bdaddr));
 	if (!cmd) {
 		err = -ENOMEM;
