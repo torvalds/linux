@@ -1127,10 +1127,8 @@ static int lirc_serial_resume(struct platform_device *dev)
 {
 	unsigned long flags;
 
-	if (hardware_init_port() < 0) {
-		lirc_serial_exit();
+	if (hardware_init_port() < 0)
 		return -EINVAL;
-	}
 
 	spin_lock_irqsave(&hardware[type].lock, flags);
 	/* Enable Interrupt */
