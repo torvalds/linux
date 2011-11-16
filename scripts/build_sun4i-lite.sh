@@ -62,8 +62,8 @@ build_kernel()
 	fi
 
 	build_standby
+	make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} -j8 uImage
 
-	make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} -j8
 	update_kern_ver
 
 	if [ -d output ]; then
