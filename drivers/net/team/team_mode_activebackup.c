@@ -83,7 +83,7 @@ static int ab_active_port_set(struct team *team, void *arg)
 	return -ENOENT;
 }
 
-static struct team_option ab_options[] = {
+static const struct team_option ab_options[] = {
 	{
 		.name = "activeport",
 		.type = TEAM_OPTION_TYPE_U32,
@@ -94,8 +94,7 @@ static struct team_option ab_options[] = {
 
 int ab_init(struct team *team)
 {
-	team_options_register(team, ab_options, ARRAY_SIZE(ab_options));
-	return 0;
+	return team_options_register(team, ab_options, ARRAY_SIZE(ab_options));
 }
 
 void ab_exit(struct team *team)

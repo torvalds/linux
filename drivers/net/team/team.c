@@ -80,30 +80,78 @@ EXPORT_SYMBOL(team_port_set_team_mac);
  * Options handling
  *******************/
 
-void team_options_register(struct team *team, struct team_option *option,
-			   size_t option_count)
+struct team_option *__team_find_option(struct team *team, const char *opt_name)
+{
+	struct team_option *option;
+
+	list_for_each_entry(option, &team->option_list, list) {
+		if (strcmp(option->name, opt_name) == 0)
+			return option;
+	}
+	return NULL;
+}
+
+int team_options_register(struct team *team,
+			  const struct team_option *option,
+			  size_t option_count)
 {
 	int i;
+	struct team_option *dst_opts[option_count];
+	int err;
 
-	for (i = 0; i < option_count; i++, option++)
-		list_add_tail(&option->list, &team->option_list);
+	memset(dst_opts, 0, sizeof(dst_opts));
+	for (i = 0; i < option_count; i++, option++) {
+		struct team_option *dst_opt;
+
+		if (__team_find_option(team, option->name)) {
+			err = -EEXIST;
+			goto rollback;
+		}
+		dst_opt = kmalloc(sizeof(*option), GFP_KERNEL);
+		if (!dst_opt) {
+			err = -ENOMEM;
+			goto rollback;
+		}
+		memcpy(dst_opt, option, sizeof(*option));
+		dst_opts[i] = dst_opt;
+	}
+
+	for (i = 0; i < option_count; i++)
+		list_add_tail(&dst_opts[i]->list, &team->option_list);
+
+	return 0;
+
+rollback:
+	for (i = 0; i < option_count; i++)
+		kfree(dst_opts[i]);
+
+	return err;
 }
+
 EXPORT_SYMBOL(team_options_register);
 
 static void __team_options_change_check(struct team *team,
 					struct team_option *changed_option);
 
 static void __team_options_unregister(struct team *team,
-				      struct team_option *option,
+				      const struct team_option *option,
 				      size_t option_count)
 {
 	int i;
 
-	for (i = 0; i < option_count; i++, option++)
-		list_del(&option->list);
+	for (i = 0; i < option_count; i++, option++) {
+		struct team_option *del_opt;
+
+		del_opt = __team_find_option(team, option->name);
+		if (del_opt) {
+			list_del(&del_opt->list);
+			kfree(del_opt);
+		}
+	}
 }
 
-void team_options_unregister(struct team *team, struct team_option *option,
+void team_options_unregister(struct team *team,
+			     const struct team_option *option,
 			     size_t option_count)
 {
 	__team_options_unregister(team, option, option_count);
@@ -632,7 +680,7 @@ static int team_mode_option_set(struct team *team, void *arg)
 	return team_change_mode(team, *str);
 }
 
-static struct team_option team_options[] = {
+static const struct team_option team_options[] = {
 	{
 		.name = "mode",
 		.type = TEAM_OPTION_TYPE_STRING,
@@ -645,6 +693,7 @@ static int team_init(struct net_device *dev)
 {
 	struct team *team = netdev_priv(dev);
 	int i;
+	int err;
 
 	team->dev = dev;
 	mutex_init(&team->lock);
@@ -660,10 +709,17 @@ static int team_init(struct net_device *dev)
 	team_adjust_ops(team);
 
 	INIT_LIST_HEAD(&team->option_list);
-	team_options_register(team, team_options, ARRAY_SIZE(team_options));
+	err = team_options_register(team, team_options, ARRAY_SIZE(team_options));
+	if (err)
+		goto err_options_register;
 	netif_carrier_off(dev);
 
 	return 0;
+
+err_options_register:
+	free_percpu(team->pcpu_stats);
+
+	return err;
 }
 
 static void team_uninit(struct net_device *dev)

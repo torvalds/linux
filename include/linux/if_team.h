@@ -140,11 +140,11 @@ static inline struct team_port *team_get_port_by_index_rcu(struct team *team,
 }
 
 extern int team_port_set_team_mac(struct team_port *port);
-extern void team_options_register(struct team *team,
-				  struct team_option *option,
-				  size_t option_count);
+extern int team_options_register(struct team *team,
+				 const struct team_option *option,
+				 size_t option_count);
 extern void team_options_unregister(struct team *team,
-				    struct team_option *option,
+				    const struct team_option *option,
 				    size_t option_count);
 extern int team_mode_register(struct team_mode *mode);
 extern int team_mode_unregister(struct team_mode *mode);
