@@ -17,86 +17,65 @@
 #include <asm/irq.h>
 #include <asm/delay.h>
 
-#define RTC_ADDR_SIZE		        0x3ff
+#define SUNXI_LOSC_CTRL_REG               	(0x100)
 
-#define RTC_BASE_ADDR_START        (0x01C20C00)
-#define RTC_BASE_ADDR_END          (RTC_BASE_ADDR_START + RTC_ADDR_SIZE)
+#define SUNXI_RTC_DATE_REG                	(0x104)
+#define SUNXI_RTC_TIME_REG                	(0x108)
 
+#define SUNXI_RTC_ALARM_DD_HH_MM_SS_REG   	(0x10C)
 
-#define AW1623_TIMER_IRQ_EN_REG                        (0x00)
-#define AW1623_LOSC_CTRL_REG                           (0x100)
+#define SUNXI_ALARM_EN_REG                	(0x114)
+#define SUNXI_ALARM_INT_CTRL_REG          	(0x118)
+#define SUNXI_ALARM_INT_STATUS_REG        	(0x11C)
 
-#define AW1623_RTC_DATE_REG                            (0x104)
-#define AW1623_RTC_TIME_REG                            (0x108)
-
-#define AW1623_RTC_ALARM_DD_HH_MM_SS_REG               (0x10C)
-#define AW1623_RTC_WEEK_HH_MM_SS_REG                   (0x110)
-
-#define AW1623_ALARM_EN_REG                            (0x114)
-#define AW1623_ALARM_INT_CTRL_REG                      (0x118)
-#define AW1623_ALARM_INT_STATUS_REG                    (0x11C)
-
-/*interrupt control*/
-/*rtc week interrupt control*/
-#define RTC_ALARM_MONDAY_INT_EN 			 			0x00000001
-#define RTC_ALARM_TUESDAY_INT_EN 			 			0x00000002
-#define RTC_ALARM_WEDNESDAY_INT_EN 			 			0x00000004
-#define RTC_ALARM_THURSDAY_INT_EN 			 			0x00000008
-#define RTC_ALARM_FRIDAY_INT_EN 			 			0x00000010
-#define RTC_ALARM_SATURDAY_INT_EN 			 			0x00000020
-#define RTC_ALARM_SUNDAY_INT_EN 			 			0x00000040
-
-#define RTC_ENABLE_WK_IRQ            					0x00000002
-#define RTC_DISABLE_WK_IRQ          	 				0xfffffffd
+/*interrupt control
+*rtc week interrupt control
+*/
+#define RTC_ENABLE_WK_IRQ            		0x00000002
 
 /*rtc count interrupt control*/
-#define RTC_ALARM_COUNT_INT_EN 			 				0x00000100
+#define RTC_ALARM_COUNT_INT_EN 				0x00000100
 
-#define RTC_ENABLE_CNT_IRQ        						0x00000001
-#define RTC_DISABLE_CNT_IRQ       						0xfffffffe
+#define RTC_ENABLE_CNT_IRQ        			0x00000001
 
 /*Crystal Control*/
-#define REG_LOSCCTRL_MAGIC		    					0x16aa0000
-#define REG_CLK32K_AUTO_SWT_EN  						(0x00004000)
-#define RTC_SOURCE_INTERNAL         					0x00000000
-#define RTC_SOURCE_EXTERNAL         					0x00000001
-#define ALM_DDHHMMSS_ACCESS         					0x00000200
-#define RTC_HHMMSS_ACCESS           					0x00000100
-#define RTC_YYMMDD_ACCESS           					0x00000080
-#define EXT_LOSC_GSM                          			(0x00000008)
+#define REG_LOSCCTRL_MAGIC		    		0x16aa0000
+#define REG_CLK32K_AUTO_SWT_EN  			(0x00004000)
+#define RTC_SOURCE_EXTERNAL         		0x00000001
+#define RTC_HHMMSS_ACCESS           		0x00000100
+#define RTC_YYMMDD_ACCESS           		0x00000080
+#define EXT_LOSC_GSM                    	(0x00000008)
 
 /*Date Value*/
-#define DATE_GET_DAY_VALUE(x)       					((x) &0x0000001f)
-#define DATE_GET_MON_VALUE(x)       					(((x)&0x00000f00) >> 8 )
-#define DATE_GET_YEAR_VALUE(x)      					(((x)&0x003f0000) >> 16)
+#define DATE_GET_DAY_VALUE(x)       		((x) &0x0000001f)
+#define DATE_GET_MON_VALUE(x)       		(((x)&0x00000f00) >> 8 )
+#define DATE_GET_YEAR_VALUE(x)      		(((x)&0x003f0000) >> 16)
 
-#define DATE_SET_DAY_VALUE(x)       					DATE_GET_DAY_VALUE(x)
-#define DATE_SET_MON_VALUE(x)       					(((x)&0x0000000f) << 8 )
-#define DATE_SET_YEAR_VALUE(x)      					(((x)&0x0000003f) << 16)
-#define LEAP_SET_VALUE(x)           					(((x)&0x00000001) << 22)
+#define DATE_SET_DAY_VALUE(x)       		DATE_GET_DAY_VALUE(x)
+#define DATE_SET_MON_VALUE(x)       		(((x)&0x0000000f) << 8 )
+#define DATE_SET_YEAR_VALUE(x)      		(((x)&0x0000003f) << 16)
+#define LEAP_SET_VALUE(x)           		(((x)&0x00000001) << 22)
 
 /*Time Value*/
-#define TIME_GET_SEC_VALUE(x)       					((x) &0x0000003f)
-#define TIME_GET_MIN_VALUE(x)       					(((x)&0x00003f00) >> 8 )
-#define TIME_GET_HOUR_VALUE(x)      					(((x)&0x001f0000) >> 16)
-#define TIME_GET_WEEK_VALUE(x)							(((x)&0xf0000000) >> 29)
+#define TIME_GET_SEC_VALUE(x)       		((x) &0x0000003f)
+#define TIME_GET_MIN_VALUE(x)       		(((x)&0x00003f00) >> 8 )
+#define TIME_GET_HOUR_VALUE(x)      		(((x)&0x001f0000) >> 16)
 
-#define TIME_SET_SEC_VALUE(x)       					TIME_GET_SEC_VALUE(x)
-#define TIME_SET_MIN_VALUE(x)       					(((x)&0x0000003f) << 8 )
-#define TIME_SET_HOUR_VALUE(x)      					(((x)&0x0000001f) << 16)
-#define TIME_SET_WEEK_VALUE(x)							(((x)&0xf0000000) << 29)
+#define TIME_SET_SEC_VALUE(x)       		TIME_GET_SEC_VALUE(x)
+#define TIME_SET_MIN_VALUE(x)       		(((x)&0x0000003f) << 8 )
+#define TIME_SET_HOUR_VALUE(x)      		(((x)&0x0000001f) << 16)
 
 /*ALARM Value*/
-#define ALARM_GET_SEC_VALUE(x)      					((x) &0x0000003f)
-#define ALARM_GET_MIN_VALUE(x)      					(((x)&0x00003f00) >> 8 )
-#define ALARM_GET_HOUR_VALUE(x)     					(((x)&0x001f0000) >> 16)
-#define ALARM_GET_DAY_VALUE(x)      					(((x)&0xffe00000) >> 21)
-#define ALARM_SET_SEC_VALUE(x)      					((x) &0x0000003f)
-#define ALARM_SET_MIN_VALUE(x)      					(((x)&0x0000003f) << 8 )
-#define ALARM_SET_HOUR_VALUE(x)     					(((x)&0x0000001f) << 16)
-#define ALARM_SET_DAY_VALUE(x)      					(((x)&0x00000ffe) << 21)
+#define ALARM_GET_SEC_VALUE(x)      		((x) &0x0000003f)
+#define ALARM_GET_MIN_VALUE(x)      		(((x)&0x00003f00) >> 8 )
+#define ALARM_GET_HOUR_VALUE(x)     		(((x)&0x001f0000) >> 16)
 
-#define PWM_CTRL_REG_BASE         						(0xf1c20c00+0x200)
+#define ALARM_SET_SEC_VALUE(x)      		((x) &0x0000003f)
+#define ALARM_SET_MIN_VALUE(x)      		(((x)&0x0000003f) << 8 )
+#define ALARM_SET_HOUR_VALUE(x)     		(((x)&0x0000001f) << 16)
+#define ALARM_SET_DAY_VALUE(x)      		(((x)&0x00000ffe) << 21)
+
+#define PWM_CTRL_REG_BASE         			(0xf1c20c00+0x200)
 
 //#define RTC_ALARM_DEBUG
 /*
@@ -111,31 +90,31 @@
 /* record rtc device handle for platform to restore system time */
 struct rtc_device   *sw_rtc_dev = NULL;
 
-/*说明 f23最大变化为63年的时间
+/*说明 sunxi最大变化为63年的时间
 该驱动支持（2010～2073）年的时间*/
 
-static void __iomem *f23_rtc_base;
+static void __iomem *sunxi_rtc_base;
 
-static int f23_rtc_alarmno = NO_IRQ;
+static int sunxi_rtc_alarmno = NO_IRQ;
 static int losc_err_flag   = 0;
 
 /* IRQ Handlers, irq no. is shared with timer2 */
-static irqreturn_t f23_rtc_alarmirq(int irq, void *id)
+static irqreturn_t sunxi_rtc_alarmirq(int irq, void *id)
 {
 	struct rtc_device *rdev = id;
 	u32 val;
 
 #ifdef RTC_ALARM_DEBUG
-	_dev_info(&(rdev->dev), "f23_rtc_alarmirq\n");
+	_dev_info(&(rdev->dev), "sunxi_rtc_alarmirq\n");
 #endif
 
-    //judge the int is whether ours
-    val = readl(f23_rtc_base + AW1623_ALARM_INT_STATUS_REG)&(RTC_ENABLE_WK_IRQ | RTC_ENABLE_CNT_IRQ);
+    /*judge the int is whether ours*/
+    val = readl(sunxi_rtc_base + SUNXI_ALARM_INT_STATUS_REG)&(RTC_ENABLE_WK_IRQ | RTC_ENABLE_CNT_IRQ);
     if (val) {
-		// Clear pending count alarm
-		val = readl(f23_rtc_base + AW1623_ALARM_INT_STATUS_REG);//0x11c
+		/*Clear pending count alarm*/
+		val = readl(sunxi_rtc_base + SUNXI_ALARM_INT_STATUS_REG);//0x11c
 		val |= (RTC_ENABLE_CNT_IRQ);	//0x00000001
-		writel(val, f23_rtc_base + AW1623_ALARM_INT_STATUS_REG);
+		writel(val, sunxi_rtc_base + SUNXI_ALARM_INT_STATUS_REG);
 
 		rtc_update_irq(rdev, 1, RTC_AF | RTC_IRQF);
 		return IRQ_HANDLED;
@@ -145,7 +124,7 @@ static irqreturn_t f23_rtc_alarmirq(int irq, void *id)
 }
 
 /* Update control registers,asynchronous interrupt enable*/
-static void f23_rtc_setaie(int to)
+static void sunxi_rtc_setaie(int to)
 {
 	u32 alarm_irq_val;
 
@@ -153,35 +132,33 @@ static void f23_rtc_setaie(int to)
 	printk("%s: aie=%d\n", __func__, to);
 #endif
 
-	alarm_irq_val = readl(f23_rtc_base + AW1623_ALARM_EN_REG);
+	alarm_irq_val = readl(sunxi_rtc_base + SUNXI_ALARM_EN_REG);
 	switch(to){
 		case 1:
 		alarm_irq_val |= RTC_ALARM_COUNT_INT_EN;		//0x00000100
-	    writel(alarm_irq_val, f23_rtc_base + AW1623_ALARM_EN_REG);//0x114
+	    writel(alarm_irq_val, sunxi_rtc_base + SUNXI_ALARM_EN_REG);//0x114
 		break;
 		case 0:
 		default:
 		alarm_irq_val = 0x00000000;
-	    writel(alarm_irq_val, f23_rtc_base + AW1623_ALARM_EN_REG);//0x114
+	    writel(alarm_irq_val, sunxi_rtc_base + SUNXI_ALARM_EN_REG);//0x114
 		break;
 	}
 }
 
 /* Time read/write */
-static int f23_rtc_gettime(struct device *dev, struct rtc_time *rtc_tm)
+static int sunxi_rtc_gettime(struct device *dev, struct rtc_time *rtc_tm)
 {
 	unsigned int have_retried = 0;
-	void __iomem *base = f23_rtc_base;
+	void __iomem *base = sunxi_rtc_base;
 	unsigned int date_tmp = 0;
 	unsigned int time_tmp = 0;
 
-    //only for alarm losc err occur.
+    /*only for alarm losc err occur.*/
     if(losc_err_flag) {
 		rtc_tm->tm_sec  = 0;
 		rtc_tm->tm_min  = 0;
 		rtc_tm->tm_hour = 0;
-//		rtc_tm->tm_wday = 0;
-
 
 		rtc_tm->tm_mday = 0;
 		rtc_tm->tm_mon  = 0;
@@ -190,10 +167,10 @@ static int f23_rtc_gettime(struct device *dev, struct rtc_time *rtc_tm)
     }
 
 retry_get_time:
-	_dev_info(dev,"f23_rtc_gettime\n");
-    //first to get the date, then time, because the sec turn to 0 will effect the date;
-	date_tmp = readl(base + AW1623_RTC_DATE_REG);
-	time_tmp = readl(base + AW1623_RTC_TIME_REG);
+	_dev_info(dev,"sunxi_rtc_gettime\n");
+    /*first to get the date, then time, because the sec turn to 0 will effect the date;*/
+	date_tmp = readl(base + SUNXI_RTC_DATE_REG);
+	time_tmp = readl(base + SUNXI_RTC_TIME_REG);
 
 	rtc_tm->tm_sec  = TIME_GET_SEC_VALUE(time_tmp);
 	rtc_tm->tm_min  = TIME_GET_MIN_VALUE(time_tmp);
@@ -213,7 +190,7 @@ retry_get_time:
 	}
 
 	rtc_tm->tm_year += 110;
-	rtc_tm->tm_mon      -= 1;
+	rtc_tm->tm_mon  -= 1;
 	_dev_info(dev,"read time %d-%d-%d %d:%d:%d\n",
 	       rtc_tm->tm_year + 1900, rtc_tm->tm_mon + 1, rtc_tm->tm_mday,
 	       rtc_tm->tm_hour, rtc_tm->tm_min, rtc_tm->tm_sec);
@@ -221,9 +198,9 @@ retry_get_time:
 	return 0;
 }
 
-static int f23_rtc_settime(struct device *dev, struct rtc_time *tm)
+static int sunxi_rtc_settime(struct device *dev, struct rtc_time *tm)
 {
-	void __iomem *base = f23_rtc_base;
+	void __iomem *base = sunxi_rtc_base;
 	unsigned int date_tmp = 0;
 	unsigned int time_tmp = 0;
 	unsigned int crystal_data = 0;
@@ -245,22 +222,22 @@ static int f23_rtc_settime(struct device *dev, struct rtc_time *tm)
 		return -EINVAL;
 	}
 
-	crystal_data = readl(base + AW1623_LOSC_CTRL_REG);
+	crystal_data = readl(base + SUNXI_LOSC_CTRL_REG);
 
 	/*Any bit of [9:7] is set, The time and date
 	* register can`t be written, we re-try the entried read
 	*/
 	{
-	    //check at most 3 times.
+	    /*check at most 3 times.*/
 	    int times = 3;
 	    while((crystal_data & 0x380) && (times--)){
 	    	printk(KERN_INFO"[RTC]canot change rtc now!\n");
 	    	msleep(500);
-	    	crystal_data = readl(base + AW1623_LOSC_CTRL_REG);
+	    	crystal_data = readl(base + SUNXI_LOSC_CTRL_REG);
 	    }
 	}
 
-	/*f23 ONLY SYPPORTS 63 YEARS,hardware base time:1900*/
+	/*sunxi ONLY SYPPORTS 63 YEARS,hardware base time:1900*/
 	tm->tm_year -= 110;
 	tm->tm_mon  += 1;
 
@@ -356,9 +333,9 @@ static int f23_rtc_settime(struct device *dev, struct rtc_time *tm)
 	printk("[rtc-pwm] 1 pwm_ctrl_reg_backup = %x pwm_ch0_period_backup = %x", pwm_ctrl_reg_backup, pwm_ch0_period_backup);
 #endif
 
-	writel(time_tmp,  base + AW1623_RTC_TIME_REG);
+	writel(time_tmp,  base + SUNXI_RTC_TIME_REG);
 	timeout = 0xffff;
-	while((readl(base + AW1623_LOSC_CTRL_REG)&(RTC_HHMMSS_ACCESS))&&(--timeout))
+	while((readl(base + SUNXI_LOSC_CTRL_REG)&(RTC_HHMMSS_ACCESS))&&(--timeout))
 	if (timeout == 0) {
         dev_err(dev, "fail to set rtc time.\n");
 
@@ -379,11 +356,10 @@ static int f23_rtc_settime(struct device *dev, struct rtc_time *tm)
 		date_tmp |= LEAP_SET_VALUE(1);
 	}
 
-	writel(date_tmp, base + AW1623_RTC_DATE_REG);
+	writel(date_tmp, base + SUNXI_RTC_DATE_REG);
 	timeout = 0xffff;
-	while((readl(base + AW1623_LOSC_CTRL_REG)&(RTC_YYMMDD_ACCESS))&&(--timeout))
-	if(timeout == 0)
-    {
+	while((readl(base + SUNXI_LOSC_CTRL_REG)&(RTC_YYMMDD_ACCESS))&&(--timeout))
+	if (timeout == 0) {
         dev_err(dev, "fail to set rtc date.\n");
 
 #ifdef BACKUP_PWM
@@ -407,22 +383,22 @@ static int f23_rtc_settime(struct device *dev, struct rtc_time *tm)
 	    printk("[rtc-pwm] 6 pwm_ctrl_reg_backup = %x pwm_ch0_period_backup = %x", pwm_ctrl_reg_backup, pwm_ch0_period_backup);
 #endif
 
-    //wait about 70us to make sure the the time is really written into target.
+    /*wait about 70us to make sure the the time is really written into target.*/
     udelay(70);
 
 	return 0;
 }
 
-static int f23_rtc_getalarm(struct device *dev, struct rtc_wkalrm *alrm)
+static int sunxi_rtc_getalarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
 	struct rtc_time *alm_tm = &alrm->time;
-	void __iomem *base = f23_rtc_base;
+	void __iomem *base = sunxi_rtc_base;
 	unsigned int alarm_en;
 	unsigned int alarm_tmp = 0;
 	unsigned int date_tmp = 0;
 
-    alarm_tmp = readl(base + AW1623_RTC_ALARM_DD_HH_MM_SS_REG);
-	date_tmp = readl(base + AW1623_RTC_DATE_REG);
+    alarm_tmp = readl(base + SUNXI_RTC_ALARM_DD_HH_MM_SS_REG);
+	date_tmp = readl(base + SUNXI_RTC_DATE_REG);
 
     alm_tm->tm_sec  = ALARM_GET_SEC_VALUE(alarm_tmp);
     alm_tm->tm_min  = ALARM_GET_MIN_VALUE(alarm_tmp);
@@ -435,17 +411,17 @@ static int f23_rtc_getalarm(struct device *dev, struct rtc_wkalrm *alrm)
     alm_tm->tm_year += 110;
     alm_tm->tm_mon  -= 1;
 
-    alarm_en = readl(base + AW1623_ALARM_INT_CTRL_REG);
+    alarm_en = readl(base + SUNXI_ALARM_INT_CTRL_REG);
     if(alarm_en&&RTC_ALARM_COUNT_INT_EN)
     	alrm->enabled = 1;
 
 	return 0;
 }
 
-static int f23_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
+static int sunxi_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
     struct rtc_time *tm = &alrm->time;
-    void __iomem *base = f23_rtc_base;
+    void __iomem *base = sunxi_rtc_base;
     unsigned int alarm_tmp = 0;
     unsigned int alarm_en;
     int ret = 0;
@@ -466,7 +442,7 @@ static int f23_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
    	printk("*****************************\n\n");
 #endif
 
-    ret = f23_rtc_gettime(dev, &tm_now);
+    ret = sunxi_rtc_gettime(dev, &tm_now);
 
 #ifdef RTC_ALARM_DEBUG
     printk("line:%d,%s the current time: year:%d, month:%d, day:%d. hour:%d.minute:%d.second:%d\n",\
@@ -499,32 +475,32 @@ static int f23_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 #endif
 
 	/*clear the alarm counter enable bit*/
-    f23_rtc_setaie(0);
+    sunxi_rtc_setaie(0);
 
     /*clear the alarm count value!!!*/
-    writel(0x00000000, base + AW1623_RTC_ALARM_DD_HH_MM_SS_REG);
+    writel(0x00000000, base + SUNXI_RTC_ALARM_DD_HH_MM_SS_REG);
     __udelay(100);
 
     /*rewrite the alarm count value!!!*/
     alarm_tmp = ALARM_SET_SEC_VALUE(time_gap_second) | ALARM_SET_MIN_VALUE(time_gap_minute)
     	| ALARM_SET_HOUR_VALUE(time_gap_hour) | ALARM_SET_DAY_VALUE(time_gap_day);
-    writel(alarm_tmp, base + AW1623_RTC_ALARM_DD_HH_MM_SS_REG);//0x10c
+    writel(alarm_tmp, base + SUNXI_RTC_ALARM_DD_HH_MM_SS_REG);//0x10c
 
     /*clear the count enable alarm irq bit*/
-    writel(0x00000000, base + AW1623_ALARM_INT_CTRL_REG);
-	alarm_en = readl(base + AW1623_ALARM_INT_CTRL_REG);//0x118
+    writel(0x00000000, base + SUNXI_ALARM_INT_CTRL_REG);
+	alarm_en = readl(base + SUNXI_ALARM_INT_CTRL_REG);//0x118
 
 	/*enable the counter alarm irq*/
-	alarm_en = readl(base + AW1623_ALARM_INT_CTRL_REG);//0x118
+	alarm_en = readl(base + SUNXI_ALARM_INT_CTRL_REG);//0x118
 	alarm_en |= RTC_ENABLE_CNT_IRQ;
-    writel(alarm_en, base + AW1623_ALARM_INT_CTRL_REG);//enable the counter irq!!!
+    writel(alarm_en, base + SUNXI_ALARM_INT_CTRL_REG);//enable the counter irq!!!
 
 	if(alrm->enabled != 1){
 		printk("warning:the rtc counter interrupt isnot enable!!!,%s,%d\n", __func__, __LINE__);
 	}
 
 	/*decided whether we should start the counter to down count*/
-	f23_rtc_setaie(alrm->enabled);
+	sunxi_rtc_setaie(alrm->enabled);
 
 #ifdef RTC_ALARM_DEBUG
 	printk("------------------------------------------\n\n");
@@ -538,39 +514,39 @@ static int f23_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	return 0;
 }
 
-static int f23_rtc_open(struct device *dev)
+static int sunxi_rtc_open(struct device *dev)
 {
-	printk ("f23_rtc_open \n");
+	printk ("sunxi_rtc_open \n");
 	return 0;
 }
 
-static void f23_rtc_release(struct device *dev)
+static void sunxi_rtc_release(struct device *dev)
 {
 
 }
 
-static const struct rtc_class_ops f23_rtcops = {
-	.open				= f23_rtc_open,
-	.release			= f23_rtc_release,
-	.read_time			= f23_rtc_gettime,
-	.set_time			= f23_rtc_settime,
-	.read_alarm			= f23_rtc_getalarm,
-	.set_alarm			= f23_rtc_setalarm,
+static const struct rtc_class_ops sunxi_rtcops = {
+	.open				= sunxi_rtc_open,
+	.release			= sunxi_rtc_release,
+	.read_time			= sunxi_rtc_gettime,
+	.set_time			= sunxi_rtc_settime,
+	.read_alarm			= sunxi_rtc_getalarm,
+	.set_alarm			= sunxi_rtc_setalarm,
 };
 
-static int __devexit f23_rtc_remove(struct platform_device *pdev)
+static int __devexit sunxi_rtc_remove(struct platform_device *pdev)
 {
 	struct rtc_device *rtc = platform_get_drvdata(pdev);
-    free_irq(f23_rtc_alarmno, rtc);
+    free_irq(sunxi_rtc_alarmno, rtc);
     rtc_device_unregister(rtc);
 	platform_set_drvdata(pdev, NULL);
 
-	f23_rtc_setaie(0);
+	sunxi_rtc_setaie(0);
 
 	return 0;
 }
 
-static int __devinit f23_rtc_probe(struct platform_device *pdev)
+static int __devinit sunxi_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
 	int ret;
@@ -581,31 +557,33 @@ static int __devinit f23_rtc_probe(struct platform_device *pdev)
 	unsigned int pwm_ch0_period_backup = 0;
 #endif
 
-	f23_rtc_base = (void __iomem *)(SW_VA_TIMERC_IO_BASE);
-	f23_rtc_alarmno = SW_INT_IRQNO_ALARM;
+	sunxi_rtc_base = (void __iomem *)(SW_VA_TIMERC_IO_BASE);
+	sunxi_rtc_alarmno = SW_INT_IRQNO_ALARM;
 
 	/* select RTC clock source
-	* on fpga board, internal 32k clk src is the default, and can not be changed
+	*  on fpga board, internal 32k clk src is the default, and can not be changed
+	*
+	*  RTC CLOCK SOURCE internal 32K HZ
 	*/
-	//RTC CLOCK SOURCE internal 32K HZ
 #ifdef BACKUP_PWM
 	pwm_ctrl_reg_backup = readl(PWM_CTRL_REG_BASE + 0);
 	pwm_ch0_period_backup = readl(PWM_CTRL_REG_BASE + 4);
 	printk("[rtc-pwm] 1 pwm_ctrl_reg_backup = %x pwm_ch0_period_backup = %x", pwm_ctrl_reg_backup, pwm_ch0_period_backup);
 #endif
 
-	//upate by kevin, 2011-9-7 18:23
-	//step1: set keyfiled,选择外部晶振
-	tmp_data = readl(f23_rtc_base + AW1623_LOSC_CTRL_REG);
-	tmp_data &= (~REG_CLK32K_AUTO_SWT_EN);            //disable auto switch,bit-14
+	/*	upate by kevin, 2011-9-7 18:23
+	*	step1: set keyfiled,选择外部晶振
+	*/
+	tmp_data = readl(sunxi_rtc_base + SUNXI_LOSC_CTRL_REG);
+	tmp_data &= (~REG_CLK32K_AUTO_SWT_EN);            		//disable auto switch,bit-14
 	tmp_data |= (RTC_SOURCE_EXTERNAL | REG_LOSCCTRL_MAGIC); //external     32768hz osc
-	tmp_data |= (EXT_LOSC_GSM);                                                                 //external 32768hz osc gsm
-	writel(tmp_data, f23_rtc_base + AW1623_LOSC_CTRL_REG);
+	tmp_data |= (EXT_LOSC_GSM);                             //external 32768hz osc gsm
+	writel(tmp_data, sunxi_rtc_base + SUNXI_LOSC_CTRL_REG);
 	__udelay(100);
-	_dev_info(&(pdev->dev),"f23_rtc_probe tmp_data = %d\n", tmp_data);
+	_dev_info(&(pdev->dev),"sunxi_rtc_probe tmp_data = %d\n", tmp_data);
 
-	//step2: check set result，查询是否设置成功
-	tmp_data = readl(f23_rtc_base + AW1623_LOSC_CTRL_REG);
+	/*step2: check set result，查询是否设置成功*/
+	tmp_data = readl(sunxi_rtc_base + SUNXI_LOSC_CTRL_REG);
 	if(!(tmp_data & RTC_SOURCE_EXTERNAL)){
 		printk("[RTC] ERR: Set LOSC to external failed!!!\n");
 		printk("[RTC] WARNING: Rtc time will be wrong!!\n");
@@ -623,16 +601,16 @@ static int __devinit f23_rtc_probe(struct platform_device *pdev)
 	device_init_wakeup(&pdev->dev, 1);
 
 	/* register RTC and exit */
-	rtc = rtc_device_register("rtc", &pdev->dev, &f23_rtcops, THIS_MODULE);
+	rtc = rtc_device_register("rtc", &pdev->dev, &sunxi_rtcops, THIS_MODULE);
 	if (IS_ERR(rtc)) {
 		dev_err(&pdev->dev, "cannot attach rtc\n");
 		ret = PTR_ERR(rtc);
 		goto err_out;
 	}
-	ret = request_irq(f23_rtc_alarmno, f23_rtc_alarmirq,
-			  IRQF_DISABLED,  "f23-rtc alarm", rtc);
+	ret = request_irq(sunxi_rtc_alarmno, sunxi_rtc_alarmirq,
+			  IRQF_DISABLED,  "sunxi-rtc alarm", rtc);
 	if (ret) {
-		dev_err(&pdev->dev, "IRQ%d error %d\n", f23_rtc_alarmno, ret);
+		dev_err(&pdev->dev, "IRQ%d error %d\n", sunxi_rtc_alarmno, ret);
 		rtc_device_unregister(rtc);
 		return ret;
 	}
@@ -647,17 +625,18 @@ static int __devinit f23_rtc_probe(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-/* RTC Power management control */
-//rtc do not to suspend, need to keep timing.
-#define f23_rtc_suspend NULL
-#define f23_rtc_resume  NULL
+/* RTC Power management control
+*  rtc do not to suspend, need to keep timing.
+*/
+#define sunxi_rtc_suspend NULL
+#define sunxi_rtc_resume  NULL
 #else
-#define f23_rtc_suspend NULL
-#define f23_rtc_resume  NULL
+#define sunxi_rtc_suspend NULL
+#define sunxi_rtc_resume  NULL
 #endif
 
-//share the irq no. with timer2
-static struct resource f23_rtc_resource[] = {
+/*share the irq no. with timer2*/
+static struct resource sunxi_rtc_resource[] = {
 	[0] = {
 		.start = SW_INT_IRQNO_ALARM,
 		.end   = SW_INT_IRQNO_ALARM,
@@ -665,41 +644,41 @@ static struct resource f23_rtc_resource[] = {
 	},
 };
 
-struct platform_device f23_device_rtc = {
-	.name		    = "sun4i-rtc",
+struct platform_device sunxi_device_rtc = {
+	.name		    = "sunxi-rtc",
 	.id		        = -1,
-	.num_resources	= ARRAY_SIZE(f23_rtc_resource),
-	.resource	    = f23_rtc_resource,
+	.num_resources	= ARRAY_SIZE(sunxi_rtc_resource),
+	.resource	    = sunxi_rtc_resource,
 };
 
 
-static struct platform_driver f23_rtc_driver = {
-	.probe		= f23_rtc_probe,
-	.remove		= __devexit_p(f23_rtc_remove),
-	.suspend	= f23_rtc_suspend,
-	.resume		= f23_rtc_resume,
+static struct platform_driver sunxi_rtc_driver = {
+	.probe		= sunxi_rtc_probe,
+	.remove		= __devexit_p(sunxi_rtc_remove),
+	.suspend	= sunxi_rtc_suspend,
+	.resume		= sunxi_rtc_resume,
 	.driver		= {
-		.name	= "sun4i-rtc",
+		.name	= "sunxi-rtc",
 		.owner	= THIS_MODULE,
 	},
 };
 
-static int __init f23_rtc_init(void)
+static int __init sunxi_rtc_init(void)
 {
-	platform_device_register(&f23_device_rtc);
-	printk("sun4i RTC version 0.1 \n");
-	return platform_driver_register(&f23_rtc_driver);
+	platform_device_register(&sunxi_device_rtc);
+	printk("sunxi RTC version 0.1 \n");
+	return platform_driver_register(&sunxi_rtc_driver);
 }
 
-static void __exit f23_rtc_exit(void)
+static void __exit sunxi_rtc_exit(void)
 {
-	platform_driver_unregister(&f23_rtc_driver);
+	platform_driver_unregister(&sunxi_rtc_driver);
 }
 
-module_init(f23_rtc_init);
-module_exit(f23_rtc_exit);
+module_init(sunxi_rtc_init);
+module_exit(sunxi_rtc_exit);
 
-MODULE_DESCRIPTION("Sochip sun4i RTC Driver");
+MODULE_DESCRIPTION("Sochip sunxi RTC Driver");
 MODULE_AUTHOR("ben");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:sun4i-rtc");
+MODULE_ALIAS("platform:sunxi-rtc");
