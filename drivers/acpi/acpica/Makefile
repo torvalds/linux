@@ -36,7 +36,7 @@ acpi-y += psargs.o    psparse.o  psloop.o pstree.o   pswalk.o  \
 	 psopcode.o  psscope.o  psutils.o  psxface.o
 
 acpi-y += rsaddr.o rscreate.o rsinfo.o rsio.o rslist.o rsmisc.o rsxface.o \
-	 rscalc.o  rsirq.o  rsmemory.o  rsutils.o
+	 rscalc.o  rsirq.o  rsmemory.o  rsutils.o rsserial.o
 
 acpi-$(ACPI_FUTURE_USAGE) += rsdump.o
 

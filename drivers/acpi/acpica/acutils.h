@@ -45,6 +45,7 @@
 #define _ACUTILS_H
 
 extern const u8 acpi_gbl_resource_aml_sizes[];
+extern const u8 acpi_gbl_resource_aml_serial_bus_sizes[];
 
 /* Strings used by the disassembler and debugger resource dump routines */
 

@@ -66,9 +66,10 @@ ACPI_MODULE_NAME("rscreate")
  *              of device resources.
  *
  ******************************************************************************/
+
 acpi_status
 acpi_rs_create_resource_list(union acpi_operand_object *aml_buffer,
-			     struct acpi_buffer *output_buffer)
+			     struct acpi_buffer * output_buffer)
 {
 
 	acpi_status status;

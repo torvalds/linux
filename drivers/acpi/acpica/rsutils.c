@@ -144,6 +144,9 @@ acpi_rs_move_data(void *destination, void *source, u16 item_count, u8 move_type)
 			 * since there are no alignment or endian issues
 			 */
 		case ACPI_RSC_MOVE8:
+		case ACPI_RSC_MOVE_GPIO_RES:
+		case ACPI_RSC_MOVE_SERIAL_VEN:
+		case ACPI_RSC_MOVE_SERIAL_RES:
 			ACPI_MEMCPY(destination, source, item_count);
 			return;
 
@@ -153,6 +156,7 @@ acpi_rs_move_data(void *destination, void *source, u16 item_count, u8 move_type)
 			 * misaligned memory transfers
 			 */
 		case ACPI_RSC_MOVE16:
+		case ACPI_RSC_MOVE_GPIO_PIN:
 			ACPI_MOVE_16_TO_16(&ACPI_CAST_PTR(u16, destination)[i],
 					   &ACPI_CAST_PTR(u16, source)[i]);
 			break;
