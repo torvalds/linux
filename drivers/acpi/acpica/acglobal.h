@@ -140,7 +140,18 @@ u32 acpi_gbl_trace_flags;
 acpi_name acpi_gbl_trace_method_name;
 u8 acpi_gbl_system_awake_and_running;
 
+/*
+ * ACPI 5.0 introduces the concept of a "reduced hardware platform", meaning
+ * that the ACPI hardware is no longer required. A flag in the FADT indicates
+ * a reduced HW machine, and that flag is duplicated here for convenience.
+ */
+u8 acpi_gbl_reduced_hardware;
+
 #endif
+
+/* Do not disassemble buffers to resource descriptors */
+
+ACPI_EXTERN u8 ACPI_INIT_GLOBAL(acpi_gbl_no_resource_disassembly, FALSE);
 
 /*****************************************************************************
  *
@@ -207,7 +218,7 @@ ACPI_EXTERN struct acpi_rw_lock acpi_gbl_namespace_rw_lock;
 
 /*****************************************************************************
  *
- * Mutual exlusion within ACPICA subsystem
+ * Mutual exclusion within ACPICA subsystem
  *
  ****************************************************************************/
 

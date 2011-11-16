@@ -253,8 +253,13 @@ void acpi_tb_parse_fadt(u32 table_index)
 	acpi_tb_install_table((acpi_physical_address) acpi_gbl_FADT.Xdsdt,
 			      ACPI_SIG_DSDT, ACPI_TABLE_INDEX_DSDT);
 
-	acpi_tb_install_table((acpi_physical_address) acpi_gbl_FADT.Xfacs,
-			      ACPI_SIG_FACS, ACPI_TABLE_INDEX_FACS);
+	/* If Hardware Reduced flag is set, there is no FACS */
+
+	if (!acpi_gbl_reduced_hardware) {
+		acpi_tb_install_table((acpi_physical_address) acpi_gbl_FADT.
+				      Xfacs, ACPI_SIG_FACS,
+				      ACPI_TABLE_INDEX_FACS);
+	}
 }
 
 /*******************************************************************************
@@ -296,6 +301,13 @@ void acpi_tb_create_local_fadt(struct acpi_table_header *table, u32 length)
 
 	ACPI_MEMCPY(&acpi_gbl_FADT, table,
 		    ACPI_MIN(length, sizeof(struct acpi_table_fadt)));
+
+	/* Take a copy of the Hardware Reduced flag */
+
+	acpi_gbl_reduced_hardware = FALSE;
+	if (acpi_gbl_FADT.flags & ACPI_FADT_HW_REDUCED) {
+		acpi_gbl_reduced_hardware = TRUE;
+	}
 
 	/* Convert the local copy of the FADT to the common internal format */
 
@@ -500,6 +512,12 @@ static void acpi_tb_validate_fadt(void)
 			      ACPI_FORMAT_UINT64(acpi_gbl_FADT.Xdsdt)));
 
 		acpi_gbl_FADT.Xdsdt = (u64) acpi_gbl_FADT.dsdt;
+	}
+
+	/* If Hardware Reduced flag is set, we are all done */
+
+	if (acpi_gbl_reduced_hardware) {
+		return;
 	}
 
 	/* Examine all of the 64-bit extended address fields (X fields) */
