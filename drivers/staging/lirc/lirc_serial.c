@@ -836,7 +836,7 @@ static int hardware_init_port(void)
 	return 0;
 }
 
-static int init_port(void)
+static int __devinit lirc_serial_probe(struct platform_device *dev)
 {
 	int i, nlow, nhigh, result;
 
@@ -910,6 +910,18 @@ static int init_port(void)
 		       "%s receiver\n", sense ? "low" : "high");
 
 	dprintk("Interrupt %d, port %04x obtained\n", irq, io);
+	return 0;
+}
+
+static int __devexit lirc_serial_remove(struct platform_device *dev)
+{
+	free_irq(irq, (void *)&hardware);
+
+	if (iommap != 0)
+		release_mem_region(iommap, 8 << ioshift);
+	else
+		release_region(io, 8);
+
 	return 0;
 }
 
@@ -1076,16 +1088,6 @@ static struct lirc_driver driver = {
 
 static struct platform_device *lirc_serial_dev;
 
-static int __devinit lirc_serial_probe(struct platform_device *dev)
-{
-	return 0;
-}
-
-static int __devexit lirc_serial_remove(struct platform_device *dev)
-{
-	return 0;
-}
-
 static int lirc_serial_suspend(struct platform_device *dev,
 			       pm_message_t state)
 {
@@ -1188,10 +1190,6 @@ static int __init lirc_serial_init_module(void)
 {
 	int result;
 
-	result = lirc_serial_init();
-	if (result)
-		return result;
-
 	switch (type) {
 	case LIRC_HOMEBREW:
 	case LIRC_IRDEO:
@@ -1211,8 +1209,7 @@ static int __init lirc_serial_init_module(void)
 		break;
 #endif
 	default:
-		result = -EINVAL;
-		goto exit_serial_exit;
+		return -EINVAL;
 	}
 	if (!softcarrier) {
 		switch (type) {
@@ -1228,37 +1225,26 @@ static int __init lirc_serial_init_module(void)
 		}
 	}
 
-	result = init_port();
-	if (result < 0)
-		goto exit_serial_exit;
+	result = lirc_serial_init();
+	if (result)
+		return result;
+
 	driver.features = hardware[type].features;
 	driver.dev = &lirc_serial_dev->dev;
 	driver.minor = lirc_register_driver(&driver);
 	if (driver.minor < 0) {
 		printk(KERN_ERR  LIRC_DRIVER_NAME
 		       ": register_chrdev failed!\n");
-		result = -EIO;
-		goto exit_release;
+		lirc_serial_exit();
+		return -EIO;
 	}
 	return 0;
-exit_release:
-	release_region(io, 8);
-exit_serial_exit:
-	lirc_serial_exit();
-	return result;
 }
 
 static void __exit lirc_serial_exit_module(void)
 {
-	lirc_serial_exit();
-
-	free_irq(irq, (void *)&hardware);
-
-	if (iommap != 0)
-		release_mem_region(iommap, 8 << ioshift);
-	else
-		release_region(io, 8);
 	lirc_unregister_driver(driver.minor);
+	lirc_serial_exit();
 	dprintk("cleaned up module\n");
 }
 
