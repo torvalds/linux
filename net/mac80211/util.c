@@ -95,13 +95,13 @@ u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
 
 void ieee80211_tx_set_protected(struct ieee80211_tx_data *tx)
 {
-	struct sk_buff *skb = tx->skb;
+	struct sk_buff *skb;
 	struct ieee80211_hdr *hdr;
 
-	do {
+	skb_queue_walk(&tx->skbs, skb) {
 		hdr = (struct ieee80211_hdr *) skb->data;
 		hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
-	} while ((skb = skb->next));
+	}
 }
 
 int ieee80211_frame_duration(struct ieee80211_local *local, size_t len,
