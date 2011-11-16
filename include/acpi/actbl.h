@@ -349,6 +349,7 @@ struct acpi_table_desc {
 
 #include <acpi/actbl1.h>
 #include <acpi/actbl2.h>
+#include <acpi/actbl3.h>
 
 /*
  * Sizes of the various flavors of FADT. We need to look closely
