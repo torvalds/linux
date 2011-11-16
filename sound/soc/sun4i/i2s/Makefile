@@ -1,0 +1,5 @@
+obj-$(CONFIG_SND_SUN4I_SOC_I2S_INTERFACE) += sun4i-i2s.o
+obj-$(CONFIG_SND_SUN4I_SOC_I2S_INTERFACE) += sun4i-i2sdma.o
+obj-$(CONFIG_SND_SUN4I_SOC_I2S_INTERFACE) += sndi2s.o
+obj-$(CONFIG_SND_SUN4I_SOC_I2S_INTERFACE) += sun4i-sndi2s.o
+ 
