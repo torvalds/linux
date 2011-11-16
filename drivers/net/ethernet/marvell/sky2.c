@@ -68,7 +68,7 @@
 #define MAX_SKB_TX_LE	(2 + (sizeof(dma_addr_t)/sizeof(u32))*(MAX_SKB_FRAGS+1))
 #define TX_MIN_PENDING		(MAX_SKB_TX_LE+1)
 #define TX_MAX_PENDING		1024
-#define TX_DEF_PENDING		127
+#define TX_DEF_PENDING		63
 
 #define TX_WATCHDOG		(5 * HZ)
 #define NAPI_WEIGHT		64
