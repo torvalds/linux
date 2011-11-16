@@ -74,6 +74,12 @@ union acpi_parse_object *acpi_ps_get_arg(union acpi_parse_object *op, u32 argn)
 
 	ACPI_FUNCTION_ENTRY();
 
+/*
+	if (Op->Common.aml_opcode == AML_INT_CONNECTION_OP)
+	{
+		return (Op->Common.Value.Arg);
+	}
+*/
 	/* Get the info structure for this opcode */
 
 	op_info = acpi_ps_get_opcode_info(op->common.aml_opcode);

@@ -189,6 +189,14 @@
 #define AML_LNOTEQUAL_OP            (u16) 0x9293
 
 /*
+ * Opcodes for "Field" operators
+ */
+#define AML_FIELD_OFFSET_OP         (u8) 0x00
+#define AML_FIELD_ACCESS_OP         (u8) 0x01
+#define AML_FIELD_CONNECTION_OP     (u8) 0x02	/* ACPI 5.0 */
+#define AML_FIELD_EXT_ACCESS_OP     (u8) 0x03	/* ACPI 5.0 */
+
+/*
  * Internal opcodes
  * Use only "Unknown" AML opcodes, don't attempt to use
  * any valid ACPI ASCII values (A-Z, 0-9, '-')
@@ -202,6 +210,8 @@
 #define AML_INT_METHODCALL_OP       (u16) 0x0035
 #define AML_INT_RETURN_VALUE_OP     (u16) 0x0036
 #define AML_INT_EVAL_SUBTREE_OP     (u16) 0x0037
+#define AML_INT_CONNECTION_OP       (u16) 0x0038
+#define AML_INT_EXTACCESSFIELD_OP   (u16) 0x0039
 
 #define ARG_NONE                    0x0
 

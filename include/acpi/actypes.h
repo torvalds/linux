@@ -957,6 +957,14 @@ acpi_status(*acpi_adr_space_handler) (u32 function,
 
 #define ACPI_DEFAULT_HANDLER            NULL
 
+/* Special Context data for generic_serial_bus/general_purpose_io (ACPI 5.0) */
+
+struct acpi_connection_info {
+	u8 *connection;
+	u16 length;
+	u8 access_length;
+};
+
 typedef
 acpi_status(*acpi_adr_space_setup) (acpi_handle region_handle,
 				    u32 function,

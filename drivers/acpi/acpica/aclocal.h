@@ -53,7 +53,7 @@ typedef u32 acpi_mutex_handle;
 
 /* Total number of aml opcodes defined */
 
-#define AML_NUM_OPCODES                 0x7F
+#define AML_NUM_OPCODES                 0x81
 
 /* Forward declarations */
 
@@ -249,12 +249,16 @@ struct acpi_create_field_info {
 	struct acpi_namespace_node *field_node;
 	struct acpi_namespace_node *register_node;
 	struct acpi_namespace_node *data_register_node;
+	struct acpi_namespace_node *connection_node;
+	u8 *resource_buffer;
 	u32 bank_value;
 	u32 field_bit_position;
 	u32 field_bit_length;
+	u16 resource_length;
 	u8 field_flags;
 	u8 attribute;
 	u8 field_type;
+	u8 access_length;
 };
 
 typedef

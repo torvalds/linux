@@ -254,6 +254,7 @@ ACPI_OBJECT_COMMON_HEADER ACPI_COMMON_NOTIFY_INFO};
 	u32                             base_byte_offset;   /* Byte offset within containing object */\
 	u32                             value;              /* Value to store into the Bank or Index register */\
 	u8                              start_field_bit_offset;/* Bit offset within first field datum (0-63) */\
+	u8                              access_length;	/* For serial regions/fields */
 
 
 struct acpi_object_field_common {	/* COMMON FIELD (for BUFFER, REGION, BANK, and INDEX fields) */
@@ -261,7 +262,9 @@ struct acpi_object_field_common {	/* COMMON FIELD (for BUFFER, REGION, BANK, and
 };
 
 struct acpi_object_region_field {
-	ACPI_OBJECT_COMMON_HEADER ACPI_COMMON_FIELD_INFO union acpi_operand_object *region_obj;	/* Containing op_region object */
+	ACPI_OBJECT_COMMON_HEADER ACPI_COMMON_FIELD_INFO u16 resource_length;
+	union acpi_operand_object *region_obj;	/* Containing op_region object */
+	u8 *resource_buffer;	/* resource_template for serial regions/fields */
 };
 
 struct acpi_object_bank_field {

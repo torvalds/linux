@@ -283,11 +283,12 @@ acpi_ex_access_region(union acpi_operand_object *obj_desc,
 
 	/* Invoke the appropriate address_space/op_region handler */
 
-	status =
-	    acpi_ev_address_space_dispatch(rgn_desc, function, region_offset,
-					   ACPI_MUL_8(obj_desc->common_field.
-						      access_byte_width),
-					   value);
+	status = acpi_ev_address_space_dispatch(rgn_desc, obj_desc,
+						function, region_offset,
+						ACPI_MUL_8(obj_desc->
+							   common_field.
+							   access_byte_width),
+						value);
 
 	if (ACPI_FAILURE(status)) {
 		if (status == AE_NOT_IMPLEMENTED) {
