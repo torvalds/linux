@@ -51,6 +51,10 @@
 
 unsigned long nlm_common_ebase = 0x0;
 
+/* default to uniprocessor */
+uint32_t nlm_coremask = 1, nlm_cpumask  = 1;
+int  nlm_threads_per_core = 1;
+
 static void nlm_linux_exit(void)
 {
 	nlm_write_sys_reg(nlm_sys_base, SYS_CHIP_RESET, 1);

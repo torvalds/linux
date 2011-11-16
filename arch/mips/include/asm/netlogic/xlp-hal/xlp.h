@@ -35,17 +35,14 @@
 #ifndef _NLM_HAL_XLP_H
 #define _NLM_HAL_XLP_H
 
-#define	RESET_VEC_PHYS		0x1fc00000
-#define	RESET_DATA_PHYS		(RESET_VEC_PHYS + (1<<10))
-#define	BOOT_THREAD_MODE	0
-
 #define PIC_UART_0_IRQ           17
 #define PIC_UART_1_IRQ           18
 
 #ifndef __ASSEMBLY__
 
 /* SMP support functions */
-void nlm_boot_core0_siblings(void);
+void xlp_boot_core0_siblings(void);
+void xlp_wakeup_secondary_cpus(void);
 
 void xlp_mmu_init(void);
 void nlm_hal_init(void);

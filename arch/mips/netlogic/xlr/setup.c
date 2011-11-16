@@ -52,8 +52,13 @@
 
 uint64_t nlm_io_base = DEFAULT_NETLOGIC_IO_BASE;
 uint64_t nlm_pic_base;
-unsigned long nlm_common_ebase = 0x0;
 struct psb_info nlm_prom_info;
+
+unsigned long nlm_common_ebase = 0x0;
+
+/* default to uniprocessor */
+uint32_t nlm_coremask = 1, nlm_cpumask  = 1;
+int  nlm_threads_per_core = 1;
 
 static void __init nlm_early_serial_setup(void)
 {

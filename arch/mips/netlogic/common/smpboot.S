@@ -42,6 +42,8 @@
 #include <asm/asmmacro.h>
 #include <asm/addrspace.h>
 
+#include <asm/netlogic/common.h>
+
 #include <asm/netlogic/xlp-hal/iomap.h>
 #include <asm/netlogic/xlp-hal/xlp.h>
 #include <asm/netlogic/xlp-hal/sys.h>
@@ -67,11 +69,37 @@
 	mtcr    t1, t0
 .endm
 
+/*
+ * The cores can come start when they are woken up. This is also the NMI
+ * entry, so check that first.
+ *
+ * The data corresponding to reset is stored at RESET_DATA_PHYS location,
+ * this will have the thread mask (used when core is woken up) and the
+ * current NMI handler in case we reached here for an NMI.
+ *
+ * When a core or thread is newly woken up, it loops in a 'wait'. When
+ * the CPU really needs waking up, we send an NMI to it, with the NMI
+ * handler set to prom_boot_secondary_cpus
+ */
+
 	.set	noreorder
+	.set	noat
 	.set	arch=xlr	/* for mfcr/mtcr, XLR is sufficient */
 
-	__CPUINIT
-EXPORT(nlm_reset_entry)
+FEXPORT(nlm_reset_entry)
+	dmtc0	k0, $22, 6
+	dmtc0	k1, $22, 7
+	mfc0    k0, CP0_STATUS
+	li      k1, 0x80000
+	and     k1, k0, k1
+	beqz    k1, 1f         /* go to real reset entry */
+	nop
+	li	k1, CKSEG1ADDR(RESET_DATA_PHYS)   /* NMI */
+	ld	k0, BOOT_NMI_HANDLER(k1)
+	jr	k0
+	nop
+
+1:	/* Entry point on core wakeup */
 	mfc0	t0, CP0_EBASE, 1
 	mfc0	t1, CP0_EBASE, 1
 	srl	t1, 5
@@ -128,7 +156,7 @@ EXPORT(nlm_boot_siblings)
 	ehb
 #endif
 
-2:	beqz	v0, 3f
+2:	beqz	v0, 4f
 	nop
 
 	/* setup status reg */
@@ -140,17 +168,22 @@ EXPORT(nlm_boot_siblings)
 	ori	t1, ST0_KX
 #endif
 	mtc0	t1, CP0_STATUS
-
-	/* SETUP TLBs for a mapped kernel here */
-	PTR_LA	t0, prom_pre_boot_secondary_cpus
-	jalr	t0
+	/* mark CPU ready */
+	PTR_LA	t1, nlm_cpu_ready
+	sll	v1, v0, 2
+	PTR_ADDU t1, v1
+	li	t2, 1
+	sw	t2, 0(t1)
+	/* Wait until NMI hits */
+3:	wait
+	j	3b
 	nop
 
 	/*
 	 * For the boot CPU, we have to restore registers and
 	 * return
 	 */
-3:	dmfc0	t0, $4, 2       /* restore SP from UserLocal */
+4:	dmfc0	t0, $4, 2       /* restore SP from UserLocal */
 	li	t1, 0xfadebeef
 	dmtc0	t1, $4, 2       /* restore SP from UserLocal */
 	PTR_SUBU sp, t0, PT_SIZE
@@ -159,7 +192,7 @@ EXPORT(nlm_boot_siblings)
 	nop
 EXPORT(nlm_reset_entry_end)
 
-EXPORT(nlm_boot_core0_siblings)	/* "Master" (n0c0t0) cpu starts from here */
+FEXPORT(xlp_boot_core0_siblings)	/* "Master" cpu starts from here */
 	__config_lsu
 	dmtc0   sp, $4, 2		/* SP saved in UserLocal */
 	SAVE_ALL
@@ -173,34 +206,11 @@ EXPORT(nlm_boot_core0_siblings)	/* "Master" (n0c0t0) cpu starts from here */
 	/* call it */
 	jr	t2
 	nop
-	__FINIT
+	/* not reached */
 
 	__CPUINIT
-NESTED(prom_pre_boot_secondary_cpus, 16, sp)
-	.set	mips64
-	mfc0	a0, CP0_EBASE, 1	/* read ebase */
-	andi	a0, 0x3ff		/* a0 has the processor_id() */
-	sll	t0, a0, 2		/* offset in cpu array */
-
-	PTR_LA	t1, nlm_cpu_ready	/* mark CPU ready */
-	PTR_ADDU t1, t0
-	li	t2, 1
-	sw	t2, 0(t1)
-
-	PTR_LA	t1, nlm_cpu_unblock
-	PTR_ADDU t1, t0
-1:	lw	t2, 0(t1)		/* wait till unblocked */
-	bnez	t2, 2f
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	j	1b
-	nop
-
-2:	PTR_LA	t1, nlm_next_sp
+NESTED(nlm_boot_secondary_cpus, 16, sp)
+	PTR_LA	t1, nlm_next_sp
 	PTR_L	sp, 0(t1)
 	PTR_LA	t1, nlm_next_gp
 	PTR_L	gp, 0(t1)
@@ -213,5 +223,50 @@ NESTED(prom_pre_boot_secondary_cpus, 16, sp)
 	PTR_LA	t0, smp_bootstrap
 	jr	t0
 	nop
-END(prom_pre_boot_secondary_cpus)
+END(nlm_boot_secondary_cpus)
+	__FINIT
+
+/*
+ * In case of RMIboot bootloader which is used on XLR boards, the CPUs
+ * be already woken up and waiting in bootloader code.
+ * This will get them out of the bootloader code and into linux. Needed
+ *  because the bootloader area will be taken and initialized by linux.
+ */
+	__CPUINIT
+NESTED(nlm_rmiboot_preboot, 16, sp)
+	mfc0	t0, $15, 1	# read ebase
+	andi	t0, 0x1f	# t0 has the processor_id()
+	andi	t2, t0, 0x3	# thread no
+	sll	t0, 2		# offset in cpu array
+
+	PTR_LA	t1, nlm_cpu_ready # mark CPU ready
+	PTR_ADDU t1, t0
+	li	t3, 1
+	sw	t3, 0(t1)
+
+	bnez	t2, 1f		# skip thread programming
+	nop			# for non zero hw threads
+
+	/*
+	 * MMU setup only for first thread in core
+	 */
+	li	t0, 0x400
+	mfcr	t1, t0
+	li	t2, 6 		# XLR thread mode mask
+	nor	t3, t2, zero
+	and	t2, t1, t2	# t2 - current thread mode
+	li	v0, CKSEG1ADDR(RESET_DATA_PHYS)
+	lw	v1, BOOT_THREAD_MODE(v0) # v1 - new thread mode
+	sll	v1, 1
+	beq	v1, t2, 1f 	# same as request value
+	nop			# nothing to do */
+
+	and	t2, t1, t3	# mask out old thread mode
+	or	t1, t2, v1	# put in new value
+	mtcr	t1, t0		# update core control
+
+1:	wait
+	j	1b
+	nop
+END(nlm_rmiboot_preboot)
 	__FINIT

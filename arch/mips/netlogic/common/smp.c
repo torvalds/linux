@@ -47,10 +47,12 @@
 
 #if defined(CONFIG_CPU_XLP)
 #include <asm/netlogic/xlp-hal/iomap.h>
+#include <asm/netlogic/xlp-hal/xlp.h>
 #include <asm/netlogic/xlp-hal/pic.h>
 #elif defined(CONFIG_CPU_XLR)
 #include <asm/netlogic/xlr/iomap.h>
 #include <asm/netlogic/xlr/pic.h>
+#include <asm/netlogic/xlr/xlr.h>
 #else
 #error "Unknown CPU"
 #endif
@@ -125,10 +127,10 @@ void nlm_cpus_done(void)
  * Boot all other cpus in the system, initialize them, and bring them into
  * the boot function
  */
-int nlm_cpu_unblock[NR_CPUS];
 int nlm_cpu_ready[NR_CPUS];
 unsigned long nlm_next_gp;
 unsigned long nlm_next_sp;
+
 cpumask_t phys_cpu_present_map;
 
 void nlm_boot_secondary(int logical_cpu, struct task_struct *idle)
@@ -142,7 +144,7 @@ void nlm_boot_secondary(int logical_cpu, struct task_struct *idle)
 
 	/* barrier */
 	__sync();
-	nlm_cpu_unblock[cpu] = 1;
+	nlm_pic_send_ipi(nlm_pic_base, cpu, 1, 1);
 }
 
 void __init nlm_smp_setup(void)
@@ -178,10 +180,79 @@ void __init nlm_smp_setup(void)
 		(unsigned long)cpu_possible_map.bits[0]);
 
 	pr_info("Detected %i Slave CPU(s)\n", num_cpus);
+	nlm_set_nmi_handler(nlm_boot_secondary_cpus);
 }
 
 void nlm_prepare_cpus(unsigned int max_cpus)
 {
+}
+
+static int nlm_parse_cpumask(u32 cpu_mask)
+{
+	uint32_t core0_thr_mask, core_thr_mask;
+	int threadmode, i;
+
+	core0_thr_mask = cpu_mask & 0xf;
+	switch (core0_thr_mask) {
+	case 1:
+		nlm_threads_per_core = 1;
+		threadmode = 0;
+		break;
+	case 3:
+		nlm_threads_per_core = 2;
+		threadmode = 2;
+		break;
+	case 0xf:
+		nlm_threads_per_core = 4;
+		threadmode = 3;
+		break;
+	default:
+		goto unsupp;
+	}
+
+	/* Verify other cores CPU masks */
+	nlm_coremask = 1;
+	nlm_cpumask = core0_thr_mask;
+	for (i = 1; i < 8; i++) {
+		core_thr_mask = (cpu_mask >> (i * 4)) & 0xf;
+		if (core_thr_mask) {
+			if (core_thr_mask != core0_thr_mask)
+				goto unsupp;
+			nlm_coremask |= 1 << i;
+			nlm_cpumask |= core0_thr_mask << (4 * i);
+		}
+	}
+	return threadmode;
+
+unsupp:
+	panic("Unsupported CPU mask %x\n", cpu_mask);
+	return 0;
+}
+
+int __cpuinit nlm_wakeup_secondary_cpus(u32 wakeup_mask)
+{
+	unsigned long reset_vec;
+	char *reset_data;
+	int threadmode;
+
+	/* Update reset entry point with CPU init code */
+	reset_vec = CKSEG1ADDR(RESET_VEC_PHYS);
+	memcpy((void *)reset_vec, (void *)nlm_reset_entry,
+			(nlm_reset_entry_end - nlm_reset_entry));
+
+	/* verify the mask and setup core config variables */
+	threadmode = nlm_parse_cpumask(wakeup_mask);
+
+	/* Setup CPU init parameters */
+	reset_data = (char *)CKSEG1ADDR(RESET_DATA_PHYS);
+	*(int *)(reset_data + BOOT_THREAD_MODE) = threadmode;
+
+#ifdef CONFIG_CPU_XLP
+	xlp_wakeup_secondary_cpus();
+#else
+	xlr_wakeup_secondary_cpus();
+#endif
+	return 0;
 }
 
 struct plat_smp_ops nlm_smp_ops = {

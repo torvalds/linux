@@ -40,6 +40,8 @@ struct uart_port;
 unsigned int nlm_xlr_uart_in(struct uart_port *, int);
 void nlm_xlr_uart_out(struct uart_port *, int, int);
 
+/* SMP helpers */
+void xlr_wakeup_secondary_cpus(void);
 
 /* XLS B silicon "Rook" */
 static inline unsigned int nlm_chip_is_xls_b(void)

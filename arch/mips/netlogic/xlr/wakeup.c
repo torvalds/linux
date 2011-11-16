@@ -48,21 +48,18 @@
 #include <asm/netlogic/xlr/iomap.h>
 #include <asm/netlogic/xlr/pic.h>
 
-unsigned long secondary_entry_point;
-
-int __cpuinit nlm_wakeup_secondary_cpus(u32 wakeup_mask)
+int __cpuinit xlr_wakeup_secondary_cpus(void)
 {
 	unsigned int i, boot_cpu;
-	void *reset_vec;
 
-	secondary_entry_point = (unsigned long)prom_pre_boot_secondary_cpus;
-	reset_vec = (void *)CKSEG1ADDR(0x1fc00000);
-	memcpy(reset_vec, (void *)nlm_reset_entry,
-			(nlm_reset_entry_end - nlm_reset_entry));
+	/*
+	 *  In case of RMI boot, hit with NMI to get the cores
+	 *  from bootloader to linux code.
+	 */
 	boot_cpu = hard_smp_processor_id();
-
+	nlm_set_nmi_handler(nlm_rmiboot_preboot);
 	for (i = 0; i < NR_CPUS; i++) {
-		if (i == boot_cpu || (wakeup_mask & (1u << i)) == 0)
+		if (i == boot_cpu || (nlm_cpumask & (1u << i)) == 0)
 			continue;
 		nlm_pic_send_ipi(nlm_pic_base, i, 1, 1); /* send NMI */
 	}

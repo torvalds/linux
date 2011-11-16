@@ -51,18 +51,20 @@
 #include <asm/netlogic/xlp-hal/xlp.h>
 #include <asm/netlogic/xlp-hal/sys.h>
 
-unsigned long secondary_entry;
-uint32_t nlm_coremask;
-unsigned int nlm_threads_per_core;
-unsigned int nlm_threadmode;
-
-static void nlm_enable_secondary_cores(unsigned int cores_bitmap)
+static void xlp_enable_secondary_cores(void)
 {
-	uint32_t core, value, coremask;
+	uint32_t core, value, coremask, syscoremask;
+	int count;
+
+	/* read cores in reset from SYS block */
+	syscoremask = nlm_read_sys_reg(nlm_sys_base, SYS_CPU_RESET);
+
+	/* update user specified */
+	nlm_coremask = nlm_coremask & (syscoremask | 1);
 
 	for (core = 1; core < 8; core++) {
 		coremask = 1 << core;
-		if ((cores_bitmap & coremask) == 0)
+		if ((nlm_coremask & coremask) == 0)
 			continue;
 
 		/* Enable CPU clock */
@@ -76,74 +78,25 @@ static void nlm_enable_secondary_cores(unsigned int cores_bitmap)
 		nlm_write_sys_reg(nlm_sys_base, SYS_CPU_RESET, value);
 
 		/* Poll for CPU to mark itself coherent */
+		count = 100000;
 		do {
 			value = nlm_read_sys_reg(nlm_sys_base,
 			    SYS_CPU_NONCOHERENT_MODE);
-		} while ((value & coremask) != 0);
+		} while ((value & coremask) != 0 && count-- > 0);
+
+		if (count == 0)
+			pr_err("Failed to enable core %d\n", core);
 	}
 }
 
-
-static void nlm_parse_cpumask(u32 cpu_mask)
+void xlp_wakeup_secondary_cpus(void)
 {
-	uint32_t core0_thr_mask, core_thr_mask;
-	int i;
+	/*
+	 * In case of u-boot, the secondaries are in reset
+	 * first wakeup core 0 threads
+	 */
+	xlp_boot_core0_siblings();
 
-	core0_thr_mask = cpu_mask & 0xf;
-	switch (core0_thr_mask) {
-	case 1:
-		nlm_threads_per_core = 1;
-		nlm_threadmode = 0;
-		break;
-	case 3:
-		nlm_threads_per_core = 2;
-		nlm_threadmode = 2;
-		break;
-	case 0xf:
-		nlm_threads_per_core = 4;
-		nlm_threadmode = 3;
-		break;
-	default:
-		goto unsupp;
-	}
-
-	/* Verify other cores CPU masks */
-	nlm_coremask = 1;
-	for (i = 1; i < 8; i++) {
-		core_thr_mask = (cpu_mask >> (i * 4)) & 0xf;
-		if (core_thr_mask) {
-			if (core_thr_mask != core0_thr_mask)
-				goto unsupp;
-			nlm_coremask |= 1 << i;
-		}
-	}
-	return;
-
-unsupp:
-	panic("Unsupported CPU mask %x\n", cpu_mask);
-}
-
-int __cpuinit nlm_wakeup_secondary_cpus(u32 wakeup_mask)
-{
-	unsigned long reset_vec;
-	unsigned int *reset_data;
-
-	/* Update reset entry point with CPU init code */
-	reset_vec = CKSEG1ADDR(RESET_VEC_PHYS);
-	memcpy((void *)reset_vec, (void *)nlm_reset_entry,
-			(nlm_reset_entry_end - nlm_reset_entry));
-
-	/* verify the mask and setup core config variables */
-	nlm_parse_cpumask(wakeup_mask);
-
-	/* Setup CPU init parameters */
-	reset_data = (unsigned int *)CKSEG1ADDR(RESET_DATA_PHYS);
-	reset_data[BOOT_THREAD_MODE] = nlm_threadmode;
-
-	/* first wakeup core 0 siblings */
-	nlm_boot_core0_siblings();
-
-	/* enable the reset of the cores */
-	nlm_enable_secondary_cores(nlm_coremask);
-	return 0;
+	/* now get other cores out of reset */
+	xlp_enable_secondary_cores();
 }
