@@ -510,9 +510,6 @@ static int m5mols_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	struct m5mols_info *info = to_m5mols(sd);
 	struct v4l2_mbus_framefmt *format;
 
-	if (fmt->pad != 0)
-		return -EINVAL;
-
 	format = __find_format(info, fh, fmt->which, info->res_type);
 	if (!format)
 		return -EINVAL;
@@ -531,9 +528,6 @@ static int m5mols_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	u32 resolution = 0;
 	int ret;
 
-	if (fmt->pad != 0)
-		return -EINVAL;
-
 	ret = __find_resolution(sd, format, &type, &resolution);
 	if (ret < 0)
 		return ret;
@@ -542,13 +536,14 @@ static int m5mols_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	if (!sfmt)
 		return 0;
 
-	*sfmt		= m5mols_default_ffmt[type];
-	sfmt->width	= format->width;
-	sfmt->height	= format->height;
+
+	format->code = m5mols_default_ffmt[type].code;
+	format->colorspace = V4L2_COLORSPACE_JPEG;
+	format->field = V4L2_FIELD_NONE;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
+		*sfmt = *format;
 		info->resolution = resolution;
-		info->code = format->code;
 		info->res_type = type;
 	}
 
@@ -625,13 +620,14 @@ static int m5mols_start_monitor(struct m5mols_info *info)
 static int m5mols_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct m5mols_info *info = to_m5mols(sd);
+	u32 code = info->ffmt[info->res_type].code;
 
 	if (enable) {
 		int ret = -EINVAL;
 
-		if (is_code(info->code, M5MOLS_RESTYPE_MONITOR))
+		if (is_code(code, M5MOLS_RESTYPE_MONITOR))
 			ret = m5mols_start_monitor(info);
-		if (is_code(info->code, M5MOLS_RESTYPE_CAPTURE))
+		if (is_code(code, M5MOLS_RESTYPE_CAPTURE))
 			ret = m5mols_start_capture(info);
 
 		return ret;

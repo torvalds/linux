@@ -162,7 +162,6 @@ struct m5mols_version {
  * @pad: media pad
  * @ffmt: current fmt according to resolution type
  * @res_type: current resolution type
- * @code: current code
  * @irq_waitq: waitqueue for the capture
  * @work_irq: workqueue for the IRQ
  * @flags: state variable for the interrupt handler
@@ -192,7 +191,6 @@ struct m5mols_info {
 	struct media_pad pad;
 	struct v4l2_mbus_framefmt ffmt[M5MOLS_RESTYPE_MAX];
 	int res_type;
-	enum v4l2_mbus_pixelcode code;
 	wait_queue_head_t irq_waitq;
 	struct work_struct work_irq;
 	unsigned long flags;
