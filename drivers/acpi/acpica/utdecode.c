@@ -171,7 +171,9 @@ const char *acpi_gbl_region_types[ACPI_NUM_PREDEFINED_REGIONS] = {
 	"SMBus",
 	"SystemCMOS",
 	"PCIBARTarget",
-	"IPMI"
+	"IPMI",
+	"GeneralPurposeIo",
+	"GenericSerialBus"
 };
 
 char *acpi_ut_get_region_name(u8 space_id)
