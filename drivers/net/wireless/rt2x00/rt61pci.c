@@ -2337,7 +2337,7 @@ static irqreturn_t rt61pci_interrupt(int irq, void *dev_instance)
 	rt2x00pci_register_write(rt2x00dev, INT_SOURCE_CSR, reg);
 
 	if (!reg && !reg_mcu)
-		return IRQ_NONE;
+		return IRQ_HANDLED;
 
 	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		return IRQ_HANDLED;
