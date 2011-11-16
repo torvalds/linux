@@ -75,33 +75,33 @@ pa_dev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg){
 	return 0;
 }
 
-static int snd_sw_pa_suspend(struct platform_device *pdev,pm_message_t state)
+static int snd_sun4i_pa_suspend(struct platform_device *pdev,pm_message_t state)
 {
 	return 0;
 }
 
-static int snd_sw_pa_resume(struct platform_device *pdev)
+static int snd_sun4i_pa_resume(struct platform_device *pdev)
 {
 	return 0;
 }
 
 static struct file_operations pa_dev_fops = {
-    .owner =    THIS_MODULE,
+    .owner 			= THIS_MODULE,
     .unlocked_ioctl = pa_dev_ioctl,
     .open           = pa_dev_open,
     .release        = pa_dev_release,
 };
 
 /*data relating*/
-static struct platform_device sw_device_pa = {
+static struct platform_device sun4i_device_pa = {
 	.name = "sun4i-pa",
 };
 
 /*method relating*/
-static struct platform_driver sw_pa_driver = {
+static struct platform_driver sun4i_pa_driver = {
 #ifdef CONFIG_PM
-	.suspend	= snd_sw_pa_suspend,
-	.resume		= snd_sw_pa_resume,
+	.suspend	= snd_sun4i_pa_suspend,
+	.resume		= snd_sun4i_pa_resume,
 #endif
 	.driver		= {
 		.name	= "sun4i-pa",
@@ -110,23 +110,21 @@ static struct platform_driver sw_pa_driver = {
 
 static int __init pa_dev_init(void)
 {
-//    int status = 0;
     int err = 0;
 	printk("[pa_drv] start!!!\n");
 
-	if((platform_device_register(&sw_device_pa))<0)
+	if((platform_device_register(&sun4i_device_pa))<0)
 		return err;
 
-	if ((err = platform_driver_register(&sw_pa_driver)) < 0)
+	if ((err = platform_driver_register(&sun4i_pa_driver)) < 0)
 		return err;
-
 
     alloc_chrdev_region(&dev_num, 0, 1, "pa_chrdev");
     pa_dev = cdev_alloc();
     cdev_init(pa_dev, &pa_dev_fops);
     pa_dev->owner = THIS_MODULE;
     err = cdev_add(pa_dev, dev_num, 1);
-    if (err){
+    if (err) {
     	printk(KERN_NOTICE"Error %d adding pa_dev!\n", err);
         return -1;
     }
@@ -142,7 +140,7 @@ static void __exit pa_dev_exit(void)
 {
     device_destroy(pa_dev_class,  dev_num);
     class_destroy(pa_dev_class);
-    platform_driver_unregister(&sw_pa_driver);
+    platform_driver_unregister(&sun4i_pa_driver);
 }
 module_exit(pa_dev_exit);
 

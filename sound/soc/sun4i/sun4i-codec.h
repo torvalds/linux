@@ -1,25 +1,24 @@
 
-#ifndef _SW_CODEC_H
-#define _SW_CODEC_H
-
+#ifndef _SUN4I_CODEC_H
+#define _SUN4I_CODEC_H
 
 //Codec Register
 #define CODEC_BASSADDRESS         (0x01c22c00)
-#define SW_DAC_DPC                (0x00)
-#define SW_DAC_FIFOC              (0x04)
-#define SW_DAC_FIFOS              (0x08)
-#define SW_DAC_TXDATA             (0x0c)
-#define SW_DAC_ACTL               (0x10)
-#define SW_DAC_TUNE               (0x14)
-#define SW_DAC_DEBUG              (0x18)
-#define SW_ADC_FIFOC              (0x1c)
-#define SW_ADC_FIFOS              (0x20)
-#define SW_ADC_RXDATA             (0x24)
-#define SW_ADC_ACTL               (0x28)
-#define SW_ADC_DEBUG              (0x2c)
-#define SW_DAC_TXCNT              (0x30)
-#define SW_ADC_RXCNT              (0x34)
-#define SW_CODEC_REGS_NUM         (13)
+#define SUN4I_DAC_DPC                (0x00)
+#define SUN4I_DAC_FIFOC              (0x04)
+#define SUN4I_DAC_FIFOS              (0x08)
+#define SUN4I_DAC_TXDATA             (0x0c)
+#define SUN4I_DAC_ACTL               (0x10)
+#define SUN4I_DAC_TUNE               (0x14)
+#define SUN4I_DAC_DEBUG              (0x18)
+#define SUN4I_ADC_FIFOC              (0x1c)
+#define SUN4I_ADC_FIFOS              (0x20)
+#define SUN4I_ADC_RXDATA             (0x24)
+#define SUN4I_ADC_ACTL               (0x28)
+#define SUN4I_ADC_DEBUG              (0x2c)
+#define SUN4I_DAC_TXCNT              (0x30)
+#define SUN4I_ADC_RXCNT              (0x34)
+#define SUN4I_CODEC_REGS_NUM         (13)
 
 #define DAIFMT_16BITS             (16)
 #define DAIFMT_20BITS             (20)
@@ -70,29 +69,23 @@
 #define  PA_ENABLE                (4)
 #define  HP_DIRECT                (3)
 
-
 enum m1_codec_config {
 	CMD_MIC_SEL =0,
 	CMD_ADC_SEL,
 };
-
 
 void  __iomem *baseaddr;
 
 #define AUDIO_RATE_DEFAULT	44100
 #define ST_RUNNING		(1<<0)
 #define ST_OPENED		(1<<1)
-//struct sw_dma_client
-//{
-//	char *name;
-//};
-struct sw_pcm_dma_params {
+
+struct sun4i_pcm_dma_params {
 	struct sw_dma_client *client;	/* stream identifier */
 	unsigned int channel;				/* Channel ID */
 	dma_addr_t dma_addr;
 	int dma_size;			/* Size of the DMA transfer */
 };
-
 
 #define codec_rdreg(reg)	    readl((baseaddr+(reg)))
 #define codec_wrreg(reg,val)  writel((val),(baseaddr+(reg)))
@@ -104,8 +97,6 @@ struct sw_pcm_dma_params {
 		((unsigned long)&(struct codec_mixer_control)\
 		{.reg	=	xreg,	.shift	=	xshift,	.rshift	=	xshift,	.max	=	xmax,\
    	.invert	=	xinvert})
-
-
 
 #define CODEC_SINGLE(xname,	reg,	shift,	max,	invert)\
 {	.iface	= SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,\

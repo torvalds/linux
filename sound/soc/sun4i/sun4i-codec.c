@@ -54,29 +54,29 @@ typedef struct codec_board_info {
 } codec_board_info_t;
 
 /* ID for this card */
-static struct sw_dma_client sw_codec_dma_client_play = {
+static struct sw_dma_client sun4i_codec_dma_client_play = {
 	.name		= "CODEC PCM Stereo PLAY"
 };
 
-static struct sw_dma_client sw_codec_dma_client_capture = {
+static struct sw_dma_client sun4i_codec_dma_client_capture = {
 	.name		= "CODEC PCM Stereo CAPTURE"
 };
 
-static struct sw_pcm_dma_params sw_codec_pcm_stereo_play = {
-	.client		= &sw_codec_dma_client_play,
+static struct sun4i_pcm_dma_params sun4i_codec_pcm_stereo_play = {
+	.client		= &sun4i_codec_dma_client_play,
 	.channel	= DMACH_NADDA_PLAY,
-	.dma_addr	= CODEC_BASSADDRESS + SW_DAC_TXDATA,//发送数据地址
+	.dma_addr	= CODEC_BASSADDRESS + SUN4I_DAC_TXDATA,//发送数据地址
 	.dma_size	= 4,
 };
 
-static struct sw_pcm_dma_params sw_codec_pcm_stereo_capture = {
-	.client		= &sw_codec_dma_client_capture,
+static struct sun4i_pcm_dma_params sun4i_codec_pcm_stereo_capture = {
+	.client		= &sun4i_codec_dma_client_capture,
 	.channel	= DMACH_NADDA_CAPTURE,  //only support half full
-	.dma_addr	= CODEC_BASSADDRESS + SW_ADC_RXDATA,//接收数据地址
+	.dma_addr	= CODEC_BASSADDRESS + SUN4I_ADC_RXDATA,//接收数据地址
 	.dma_size	= 4,
 };
 
-struct sw_playback_runtime_data {
+struct sun4i_playback_runtime_data {
 	spinlock_t lock;
 	int state;
 	unsigned int dma_loaded;
@@ -85,10 +85,10 @@ struct sw_playback_runtime_data {
 	dma_addr_t   dma_start;
 	dma_addr_t   dma_pos;
 	dma_addr_t	 dma_end;
-	struct sw_pcm_dma_params	*params;
+	struct sun4i_pcm_dma_params	*params;
 };
 
-struct sw_capture_runtime_data {
+struct sun4i_capture_runtime_data {
 	spinlock_t lock;
 	int state;
 	unsigned int dma_loaded;
@@ -97,11 +97,11 @@ struct sw_capture_runtime_data {
 	dma_addr_t   dma_start;
 	dma_addr_t   dma_pos;
 	dma_addr_t	 dma_end;
-	struct sw_pcm_dma_params	*params;
+	struct sun4i_pcm_dma_params	*params;
 };
 
 /*播放设备硬件定义*/
-static struct snd_pcm_hardware sw_pcm_playback_hardware =
+static struct snd_pcm_hardware sun4i_pcm_playback_hardware =
 {
 	.info			= (SNDRV_PCM_INFO_INTERLEAVED |
 				   SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -125,7 +125,7 @@ static struct snd_pcm_hardware sw_pcm_playback_hardware =
 };
 
 /*录音设备硬件定义*/
-static struct snd_pcm_hardware sw_pcm_capture_hardware =
+static struct snd_pcm_hardware sun4i_pcm_capture_hardware =
 {
 	.info			= (SNDRV_PCM_INFO_INTERLEAVED |
 				   SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -148,7 +148,7 @@ static struct snd_pcm_hardware sw_pcm_capture_hardware =
 	.fifo_size	     	= 32,//fifo字节数
 };
 
-struct sw_codec{
+struct sun4i_codec{
 	long samplerate;
 	struct snd_card *card;
 	struct snd_pcm *pcm;
@@ -297,7 +297,7 @@ int snd_codec_put_volsw(struct	snd_kcontrol	*kcontrol,
 		val_mask |= mask <<rshift;
 		val |= val2 <<rshift;
 	}
-	pr_debug("Val = %d\n",val);
+
 	return codec_wrreg_bits(reg,val_mask,val);
 }
 
@@ -326,87 +326,80 @@ static  int codec_init(void)
 	int device_lr_change = 0;
 	enum sw_ic_ver  codec_chip_ver = sw_get_ic_ver();
 	//enable dac digital
-	codec_wr_control(SW_DAC_DPC, 0x1, DAC_EN, 0x1);
-	//codec version seting
-	//codec_wr_control(SW_DAC_DPC ,  0x1, DAC_VERSION, 0x1);
-	codec_wr_control(SW_DAC_FIFOC ,  0x1,28, 0x1);
+	codec_wr_control(SUN4I_DAC_DPC, 0x1, DAC_EN, 0x1);
+
+	codec_wr_control(SUN4I_DAC_FIFOC ,  0x1,28, 0x1);
 	//set digital volume to maximum
 	if(codec_chip_ver == MAGIC_VER_A){
-		codec_wr_control(SW_DAC_DPC, 0x6, DIGITAL_VOL, 0x0);
+		codec_wr_control(SUN4I_DAC_DPC, 0x6, DIGITAL_VOL, 0x0);
 	}
 	//pa mute
-	codec_wr_control(SW_DAC_ACTL, 0x1, PA_MUTE, 0x0);
+	codec_wr_control(SUN4I_DAC_ACTL, 0x1, PA_MUTE, 0x0);
 	//enable PA
-	codec_wr_control(SW_ADC_ACTL, 0x1, PA_ENABLE, 0x1);
-	codec_wr_control(SW_DAC_FIFOC, 0x3, DRA_LEVEL,0x3);
-	//enable headphone direct
-//	codec_wr_control(SW_ADC_ACTL, 0x1, HP_DIRECT, 0x1);
+	codec_wr_control(SUN4I_ADC_ACTL, 0x1, PA_ENABLE, 0x1);
+	codec_wr_control(SUN4I_DAC_FIFOC, 0x3, DRA_LEVEL,0x3);
 	//set volume
 	if(codec_chip_ver == MAGIC_VER_A){
-		codec_wr_control(SW_DAC_ACTL, 0x6, VOLUME, 0x01);
+		codec_wr_control(SUN4I_DAC_ACTL, 0x6, VOLUME, 0x01);
 	}else if(codec_chip_ver == MAGIC_VER_B){
-		codec_wr_control(SW_DAC_ACTL, 0x6, VOLUME, 0x3b);
+		codec_wr_control(SUN4I_DAC_ACTL, 0x6, VOLUME, 0x3b);
 	}else{
 		printk("[audio codec] chip version is unknown!\n");
 		return -1;
 	}
 	if(SCRIPT_AUDIO_OK != script_parser_fetch("audio_para", "audio_lr_change", &device_lr_change, sizeof(device_lr_change)/sizeof(int))){
-		pr_err("audiocodec_adap_awxx_init: script_parser_fetch err. \n");
+		printk("audiocodec_adap_awxx_init: script_parser_fetch err. \n");
 	    return -1;
 	}
-	pr_debug("device_lr_change == %d. \n", device_lr_change);
+
 	if(device_lr_change)
-		codec_wr_control(SW_DAC_DEBUG ,  0x1, DAC_CHANNEL, 0x1);
+		codec_wr_control(SUN4I_DAC_DEBUG ,  0x1, DAC_CHANNEL, 0x1);
 	return 0;
 }
 
 static int codec_play_open(struct snd_pcm_substream *substream)
 {
-	codec_wr_control(SW_DAC_DPC ,  0x1, DAC_EN, 0x1);
+	codec_wr_control(SUN4I_DAC_DPC ,  0x1, DAC_EN, 0x1);
 	mdelay(100);
-	codec_wr_control(SW_DAC_FIFOC ,0x1, DAC_FIFO_FLUSH, 0x1);
+	codec_wr_control(SUN4I_DAC_FIFOC ,0x1, DAC_FIFO_FLUSH, 0x1);
 	//set TX FIFO send drq level
-	codec_wr_control(SW_DAC_FIFOC ,0x4, TX_TRI_LEVEL, 0xf);
+	codec_wr_control(SUN4I_DAC_FIFOC ,0x4, TX_TRI_LEVEL, 0xf);
 	if(substream->runtime->rate > 32000){
-		codec_wr_control(SW_DAC_FIFOC ,  0x1,28, 0x0);
+		codec_wr_control(SUN4I_DAC_FIFOC ,  0x1,28, 0x0);
 	}else{
-		codec_wr_control(SW_DAC_FIFOC ,  0x1,28, 0x1);
+		codec_wr_control(SUN4I_DAC_FIFOC ,  0x1,28, 0x1);
 	}
 	//set TX FIFO MODE
-	codec_wr_control(SW_DAC_FIFOC ,0x1, TX_FIFO_MODE, 0x1);
+	codec_wr_control(SUN4I_DAC_FIFOC ,0x1, TX_FIFO_MODE, 0x1);
 	//send last sample when dac fifo under run
-	codec_wr_control(SW_DAC_FIFOC ,0x1, LAST_SE, 0x0);
+	codec_wr_control(SUN4I_DAC_FIFOC ,0x1, LAST_SE, 0x0);
 	//enable dac analog
-	codec_wr_control(SW_DAC_ACTL, 0x1, 	DACAEN_L, 0x1);
-	codec_wr_control(SW_DAC_ACTL, 0x1, 	DACAEN_R, 0x1);
+	codec_wr_control(SUN4I_DAC_ACTL, 0x1, 	DACAEN_L, 0x1);
+	codec_wr_control(SUN4I_DAC_ACTL, 0x1, 	DACAEN_R, 0x1);
 	//enable dac to pa
-	codec_wr_control(SW_DAC_ACTL, 0x1, 	DACPAS, 0x1);
+	codec_wr_control(SUN4I_DAC_ACTL, 0x1, 	DACPAS, 0x1);
 	return 0;
 }
 
 static int codec_capture_open(void)
 {
 	 //enable mic1 pa
-	 codec_wr_control(SW_ADC_ACTL, 0x1, MIC1_EN, 0x1);
+	 codec_wr_control(SUN4I_ADC_ACTL, 0x1, MIC1_EN, 0x1);
 	 //mic1 gain 32dB
-	 codec_wr_control(SW_ADC_ACTL, 0x3,25,0x1);
-	 //enable mic2 pa
-	 //codec_wr_control(SW_ADC_ACTL, 0x1, MIC2_EN, 0x1);
+	 codec_wr_control(SUN4I_ADC_ACTL, 0x3,25,0x1);
 	  //enable VMIC
-	 codec_wr_control(SW_ADC_ACTL, 0x1, VMIC_EN, 0x1);
-	 //select mic souce
-	 pr_debug("ADC SELECT \n");
-	 //codec_wr_control(SW_ADC_ACTL, 0x7, ADC_SELECT, 0x4);//2011-6-17 11:41:12 hx del
+	 codec_wr_control(SUN4I_ADC_ACTL, 0x1, VMIC_EN, 0x1);
+
 	 //enable adc digital
-	 codec_wr_control(SW_ADC_FIFOC, 0x1,ADC_DIG_EN, 0x1);
+	 codec_wr_control(SUN4I_ADC_FIFOC, 0x1,ADC_DIG_EN, 0x1);
 	 //set RX FIFO mode
-	 codec_wr_control(SW_ADC_FIFOC, 0x1, RX_FIFO_MODE, 0x1);
+	 codec_wr_control(SUN4I_ADC_FIFOC, 0x1, RX_FIFO_MODE, 0x1);
 	 //flush RX FIFO
-	 codec_wr_control(SW_ADC_FIFOC, 0x1, ADC_FIFO_FLUSH, 0x1);
+	 codec_wr_control(SUN4I_ADC_FIFOC, 0x1, ADC_FIFO_FLUSH, 0x1);
 	 //set RX FIFO rec drq level
-	 codec_wr_control(SW_ADC_FIFOC, 0xf, RX_TRI_LEVEL, 0x7);
+	 codec_wr_control(SUN4I_ADC_FIFOC, 0xf, RX_TRI_LEVEL, 0x7);
 	 //enable adc1 analog
-	 codec_wr_control(SW_ADC_ACTL, 0x3,  ADC_EN, 0x3);
+	 codec_wr_control(SUN4I_ADC_ACTL, 0x3,  ADC_EN, 0x3);
 	 mdelay(100);
 	 return 0;
 }
@@ -415,9 +408,9 @@ static int codec_play_start(void)
 {
 	gpio_write_one_pin_value(gpio_pa_shutdown, 1, "audio_pa_ctrl");
 	//flush TX FIFO
-	codec_wr_control(SW_DAC_FIFOC ,0x1, DAC_FIFO_FLUSH, 0x1);
+	codec_wr_control(SUN4I_DAC_FIFOC ,0x1, DAC_FIFO_FLUSH, 0x1);
 	//enable dac drq
-	codec_wr_control(SW_DAC_FIFOC ,0x1, DAC_DRQ, 0x1);
+	codec_wr_control(SUN4I_DAC_FIFOC ,0x1, DAC_DRQ, 0x1);
 	return 0;
 }
 
@@ -425,14 +418,14 @@ static int codec_play_stop(void)
 {
 	//pa mute
 	gpio_write_one_pin_value(gpio_pa_shutdown, 0, "audio_pa_ctrl");
-	codec_wr_control(SW_DAC_ACTL, 0x1, PA_MUTE, 0x0);
+	codec_wr_control(SUN4I_DAC_ACTL, 0x1, PA_MUTE, 0x0);
 	mdelay(5);
 	//disable dac drq
-	codec_wr_control(SW_DAC_FIFOC ,0x1, DAC_DRQ, 0x0);
+	codec_wr_control(SUN4I_DAC_FIFOC ,0x1, DAC_DRQ, 0x0);
 	//pa mute
-	codec_wr_control(SW_DAC_ACTL, 0x1, PA_MUTE, 0x0);
-	codec_wr_control(SW_DAC_ACTL, 0x1, 	DACAEN_L, 0x0);
-	codec_wr_control(SW_DAC_ACTL, 0x1, 	DACAEN_R, 0x0);
+	codec_wr_control(SUN4I_DAC_ACTL, 0x1, PA_MUTE, 0x0);
+	codec_wr_control(SUN4I_DAC_ACTL, 0x1, 	DACAEN_L, 0x0);
+	codec_wr_control(SUN4I_DAC_ACTL, 0x1, 	DACAEN_R, 0x0);
 	return 0;
 }
 
@@ -440,31 +433,27 @@ static int codec_capture_start(void)
 {
 	//enable adc drq
 	gpio_write_one_pin_value(gpio_pa_shutdown, 1, "audio_pa_ctrl");
-	codec_wr_control(SW_ADC_FIFOC ,0x1, ADC_DRQ, 0x1);
+	codec_wr_control(SUN4I_ADC_FIFOC ,0x1, ADC_DRQ, 0x1);
 	return 0;
 }
 
 static int codec_capture_stop(void)
 {
 	//disable adc drq
-	codec_wr_control(SW_ADC_FIFOC ,0x1, ADC_DRQ, 0x0);
+	codec_wr_control(SUN4I_ADC_FIFOC ,0x1, ADC_DRQ, 0x0);
 	//enable mic1 pa
-	codec_wr_control(SW_ADC_ACTL, 0x1, MIC1_EN, 0x0);
-	//enable mic2 pa
-	//codec_wr_control(SW_ADC_ACTL, 0x1, MIC2_EN, 0x1);
+	codec_wr_control(SUN4I_ADC_ACTL, 0x1, MIC1_EN, 0x0);
+
 	//enable VMIC
-	codec_wr_control(SW_ADC_ACTL, 0x1, VMIC_EN, 0x0);
-	//select mic souce
-	pr_debug("ADC SELECT \n");
-	//codec_wr_control(SW_ADC_ACTL, 0x7, ADC_SELECT, 0x2);
+	codec_wr_control(SUN4I_ADC_ACTL, 0x1, VMIC_EN, 0x0);
 	//enable adc digital
-	codec_wr_control(SW_ADC_FIFOC, 0x1,ADC_DIG_EN, 0x0);
+	codec_wr_control(SUN4I_ADC_FIFOC, 0x1,ADC_DIG_EN, 0x0);
 	//set RX FIFO mode
-	codec_wr_control(SW_ADC_FIFOC, 0x1, RX_FIFO_MODE, 0x0);
+	codec_wr_control(SUN4I_ADC_FIFOC, 0x1, RX_FIFO_MODE, 0x0);
 	//flush RX FIFO
-	codec_wr_control(SW_ADC_FIFOC, 0x1, ADC_FIFO_FLUSH, 0x0);
+	codec_wr_control(SUN4I_ADC_FIFOC, 0x1, ADC_FIFO_FLUSH, 0x0);
 	//enable adc1 analog
-	codec_wr_control(SW_ADC_ACTL, 0x3,  ADC_EN, 0x0);
+	codec_wr_control(SUN4I_ADC_ACTL, 0x3,  ADC_EN, 0x0);
 	return 0;
 }
 
@@ -478,42 +467,42 @@ static int codec_dev_free(struct snd_device *device)
 */
 static const struct snd_kcontrol_new codec_snd_controls_b[] = {
 	//FOR B VERSION
-	CODEC_SINGLE("Master Playback Volume", SW_DAC_ACTL,0,0x3f,0),
-	CODEC_SINGLE("Playback Switch", SW_DAC_ACTL,6,1,0),//全局输出开关
-	CODEC_SINGLE("Capture Volume",SW_ADC_ACTL,20,7,0),//录音音量
-	CODEC_SINGLE("Fm Volume",SW_DAC_ACTL,23,7,0),//Fm 音量
-	CODEC_SINGLE("Line Volume",SW_DAC_ACTL,26,1,0),//Line音量
-	CODEC_SINGLE("MicL Volume",SW_ADC_ACTL,25,3,0),//mic左音量
-	CODEC_SINGLE("MicR Volume",SW_ADC_ACTL,23,3,0),//mic右音量
-	CODEC_SINGLE("FmL Switch",SW_DAC_ACTL,17,1,0),//Fm左开关
-	CODEC_SINGLE("FmR Switch",SW_DAC_ACTL,16,1,0),//Fm右开关
-	CODEC_SINGLE("LineL Switch",SW_DAC_ACTL,19,1,0),//Line左开关
-	CODEC_SINGLE("LineR Switch",SW_DAC_ACTL,18,1,0),//Line右开关
-	CODEC_SINGLE("Ldac Left Mixer",SW_DAC_ACTL,15,1,0),
-	CODEC_SINGLE("Rdac Right Mixer",SW_DAC_ACTL,14,1,0),
-	CODEC_SINGLE("Ldac Right Mixer",SW_DAC_ACTL,13,1,0),
-	CODEC_SINGLE("Mic Input Mux",SW_DAC_ACTL,9,15,0),//from bit 9 to bit 12.Mic（麦克风）输入静音
-	CODEC_SINGLE("ADC Input Mux",SW_ADC_ACTL,17,7,0),//ADC输入静音
+	CODEC_SINGLE("Master Playback Volume", SUN4I_DAC_ACTL,0,0x3f,0),
+	CODEC_SINGLE("Playback Switch", SUN4I_DAC_ACTL,6,1,0),//全局输出开关
+	CODEC_SINGLE("Capture Volume",SUN4I_ADC_ACTL,20,7,0),//录音音量
+	CODEC_SINGLE("Fm Volume",SUN4I_DAC_ACTL,23,7,0),//Fm 音量
+	CODEC_SINGLE("Line Volume",SUN4I_DAC_ACTL,26,1,0),//Line音量
+	CODEC_SINGLE("MicL Volume",SUN4I_ADC_ACTL,25,3,0),//mic左音量
+	CODEC_SINGLE("MicR Volume",SUN4I_ADC_ACTL,23,3,0),//mic右音量
+	CODEC_SINGLE("FmL Switch",SUN4I_DAC_ACTL,17,1,0),//Fm左开关
+	CODEC_SINGLE("FmR Switch",SUN4I_DAC_ACTL,16,1,0),//Fm右开关
+	CODEC_SINGLE("LineL Switch",SUN4I_DAC_ACTL,19,1,0),//Line左开关
+	CODEC_SINGLE("LineR Switch",SUN4I_DAC_ACTL,18,1,0),//Line右开关
+	CODEC_SINGLE("Ldac Left Mixer",SUN4I_DAC_ACTL,15,1,0),
+	CODEC_SINGLE("Rdac Right Mixer",SUN4I_DAC_ACTL,14,1,0),
+	CODEC_SINGLE("Ldac Right Mixer",SUN4I_DAC_ACTL,13,1,0),
+	CODEC_SINGLE("Mic Input Mux",SUN4I_DAC_ACTL,9,15,0),//from bit 9 to bit 12.Mic（麦克风）输入静音
+	CODEC_SINGLE("ADC Input Mux",SUN4I_ADC_ACTL,17,7,0),//ADC输入静音
 };
 
 static const struct snd_kcontrol_new codec_snd_controls_a[] = {
 	//For A VERSION
-	CODEC_SINGLE("Master Playback Volume", SW_DAC_DPC,12,0x3f,0),//62 steps, 3e + 1 = 3f 主音量控制
-	CODEC_SINGLE("Playback Switch", SW_DAC_ACTL,6,1,0),//全局输出开关
-	CODEC_SINGLE("Capture Volume",SW_ADC_ACTL,20,7,0),//录音音量
-	CODEC_SINGLE("Fm Volume",SW_DAC_ACTL,23,7,0),//Fm 音量
-	CODEC_SINGLE("Line Volume",SW_DAC_ACTL,26,1,0),//Line音量
-	CODEC_SINGLE("MicL Volume",SW_ADC_ACTL,25,3,0),//mic左音量
-	CODEC_SINGLE("MicR Volume",SW_ADC_ACTL,23,3,0),//mic右音量
-	CODEC_SINGLE("FmL Switch",SW_DAC_ACTL,17,1,0),//Fm左开关
-	CODEC_SINGLE("FmR Switch",SW_DAC_ACTL,16,1,0),//Fm右开关
-	CODEC_SINGLE("LineL Switch",SW_DAC_ACTL,19,1,0),//Line左开关
-	CODEC_SINGLE("LineR Switch",SW_DAC_ACTL,18,1,0),//Line右开关
-	CODEC_SINGLE("Ldac Left Mixer",SW_DAC_ACTL,15,1,0),
-	CODEC_SINGLE("Rdac Right Mixer",SW_DAC_ACTL,14,1,0),
-	CODEC_SINGLE("Ldac Right Mixer",SW_DAC_ACTL,13,1,0),
-	CODEC_SINGLE("Mic Input Mux",SW_DAC_ACTL,9,15,0),//from bit 9 to bit 12.Mic（麦克风）输入静音
-	CODEC_SINGLE("ADC Input Mux",SW_ADC_ACTL,17,7,0),//ADC输入静音
+	CODEC_SINGLE("Master Playback Volume", SUN4I_DAC_DPC,12,0x3f,0),//62 steps, 3e + 1 = 3f 主音量控制
+	CODEC_SINGLE("Playback Switch", SUN4I_DAC_ACTL,6,1,0),//全局输出开关
+	CODEC_SINGLE("Capture Volume",SUN4I_ADC_ACTL,20,7,0),//录音音量
+	CODEC_SINGLE("Fm Volume",SUN4I_DAC_ACTL,23,7,0),//Fm 音量
+	CODEC_SINGLE("Line Volume",SUN4I_DAC_ACTL,26,1,0),//Line音量
+	CODEC_SINGLE("MicL Volume",SUN4I_ADC_ACTL,25,3,0),//mic左音量
+	CODEC_SINGLE("MicR Volume",SUN4I_ADC_ACTL,23,3,0),//mic右音量
+	CODEC_SINGLE("FmL Switch",SUN4I_DAC_ACTL,17,1,0),//Fm左开关
+	CODEC_SINGLE("FmR Switch",SUN4I_DAC_ACTL,16,1,0),//Fm右开关
+	CODEC_SINGLE("LineL Switch",SUN4I_DAC_ACTL,19,1,0),//Line左开关
+	CODEC_SINGLE("LineR Switch",SUN4I_DAC_ACTL,18,1,0),//Line右开关
+	CODEC_SINGLE("Ldac Left Mixer",SUN4I_DAC_ACTL,15,1,0),
+	CODEC_SINGLE("Rdac Right Mixer",SUN4I_DAC_ACTL,14,1,0),
+	CODEC_SINGLE("Ldac Right Mixer",SUN4I_DAC_ACTL,13,1,0),
+	CODEC_SINGLE("Mic Input Mux",SUN4I_DAC_ACTL,9,15,0),//from bit 9 to bit 12.Mic（麦克风）输入静音
+	CODEC_SINGLE("ADC Input Mux",SUN4I_ADC_ACTL,17,7,0),//ADC输入静音
 };
 
 int __init snd_chip_codec_mixer_new(struct snd_card *card)
@@ -568,11 +557,11 @@ int __init snd_chip_codec_mixer_new(struct snd_card *card)
 	return 0;
 }
 
-static void sw_pcm_enqueue(struct snd_pcm_substream *substream)
+static void sun4i_pcm_enqueue(struct snd_pcm_substream *substream)
 {
 	int play_ret = 0, capture_ret = 0;
-	struct sw_playback_runtime_data *play_prtd = NULL;
-	struct sw_capture_runtime_data *capture_prtd = NULL;
+	struct sun4i_playback_runtime_data *play_prtd = NULL;
+	struct sun4i_capture_runtime_data *capture_prtd = NULL;
 	dma_addr_t play_pos = 0, capture_pos = 0;
 	unsigned long play_len = 0, capture_len = 0;
 	unsigned int play_limit = 0, capture_limit = 0;
@@ -619,11 +608,11 @@ static void sw_pcm_enqueue(struct snd_pcm_substream *substream)
 	}
 }
 
-static void sw_audio_capture_buffdone(struct sw_dma_chan *channel,
+static void sun4i_audio_capture_buffdone(struct sw_dma_chan *channel,
 		                                  void *dev_id, int size,
 		                                  enum sw_dma_buffresult result)
 {
-	struct sw_capture_runtime_data *capture_prtd;
+	struct sun4i_capture_runtime_data *capture_prtd;
 	struct snd_pcm_substream *substream = dev_id;
 
 	if (result == SW_RES_ABORT || result == SW_RES_ERR)
@@ -637,16 +626,16 @@ static void sw_audio_capture_buffdone(struct sw_dma_chan *channel,
 	spin_lock(&capture_prtd->lock);
 	{
 		capture_prtd->dma_loaded--;
-		sw_pcm_enqueue(substream);
+		sun4i_pcm_enqueue(substream);
 	}
 	spin_unlock(&capture_prtd->lock);
 }
 
-static void sw_audio_play_buffdone(struct sw_dma_chan *channel,
+static void sun4i_audio_play_buffdone(struct sw_dma_chan *channel,
 		                                  void *dev_id, int size,
 		                                  enum sw_dma_buffresult result)
 {
-	struct sw_playback_runtime_data *play_prtd;
+	struct sun4i_playback_runtime_data *play_prtd;
 	struct snd_pcm_substream *substream = dev_id;
 
 	if (result == SW_RES_ABORT || result == SW_RES_ERR)
@@ -660,16 +649,16 @@ static void sw_audio_play_buffdone(struct sw_dma_chan *channel,
 	spin_lock(&play_prtd->lock);
 	{
 		play_prtd->dma_loaded--;
-		sw_pcm_enqueue(substream);
+		sun4i_pcm_enqueue(substream);
 	}
 	spin_unlock(&play_prtd->lock);
 }
 
-static snd_pcm_uframes_t snd_sw_codec_pointer(struct snd_pcm_substream *substream)
+static snd_pcm_uframes_t snd_sun4i_codec_pointer(struct snd_pcm_substream *substream)
 {
 	unsigned long play_res = 0, capture_res = 0;
-	struct sw_playback_runtime_data *play_prtd = NULL;
-	struct sw_capture_runtime_data *capture_prtd = NULL;
+	struct sun4i_playback_runtime_data *play_prtd = NULL;
+	struct sun4i_capture_runtime_data *capture_prtd = NULL;
     if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
     	play_prtd = substream->runtime->private_data;
    		spin_lock(&play_prtd->lock);
@@ -695,12 +684,12 @@ static snd_pcm_uframes_t snd_sw_codec_pointer(struct snd_pcm_substream *substrea
     }
 }
 
-static int sw_codec_pcm_hw_params(struct snd_pcm_substream *substream, struct snd_pcm_hw_params *params)
+static int sun4i_codec_pcm_hw_params(struct snd_pcm_substream *substream, struct snd_pcm_hw_params *params)
 {
     int play_ret = 0, capture_ret = 0;
     struct snd_pcm_runtime *play_runtime = NULL, *capture_runtime = NULL;
-    struct sw_playback_runtime_data *play_prtd = NULL;
-    struct sw_capture_runtime_data *capture_prtd = NULL;
+    struct sun4i_playback_runtime_data *play_prtd = NULL;
+    struct sun4i_capture_runtime_data *capture_prtd = NULL;
     unsigned long play_totbytes = 0, capture_totbytes = 0;
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
 	  	play_runtime = substream->runtime;
@@ -708,13 +697,13 @@ static int sw_codec_pcm_hw_params(struct snd_pcm_substream *substream, struct sn
 		play_totbytes = params_buffer_bytes(params);
 		snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
 		if(play_prtd->params == NULL){
-			play_prtd->params = &sw_codec_pcm_stereo_play;
+			play_prtd->params = &sun4i_codec_pcm_stereo_play;
 			play_ret = sw_dma_request(play_prtd->params->channel, play_prtd->params->client, NULL);
 			if(play_ret < 0){
 				printk(KERN_ERR "failed to get dma channel. ret == %d\n", play_ret);
 				return play_ret;
 			}
-			sw_dma_set_buffdone_fn(play_prtd->params->channel, sw_audio_play_buffdone);
+			sw_dma_set_buffdone_fn(play_prtd->params->channel, sun4i_audio_play_buffdone);
 			snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 			play_runtime->dma_bytes = play_totbytes;
    			spin_lock_irq(&play_prtd->lock);
@@ -735,14 +724,14 @@ static int sw_codec_pcm_hw_params(struct snd_pcm_substream *substream, struct sn
 		capture_totbytes = params_buffer_bytes(params);
 		snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
 		if(capture_prtd->params == NULL){
-			capture_prtd->params = &sw_codec_pcm_stereo_capture;
+			capture_prtd->params = &sun4i_codec_pcm_stereo_capture;
 			capture_ret = sw_dma_request(capture_prtd->params->channel, capture_prtd->params->client, NULL);
 
 			if(capture_ret < 0){
 				printk(KERN_ERR "failed to get dma channel. capture_ret == %d\n", capture_ret);
 				return capture_ret;
 			}
-			sw_dma_set_buffdone_fn(capture_prtd->params->channel, sw_audio_capture_buffdone);
+			sw_dma_set_buffdone_fn(capture_prtd->params->channel, sun4i_audio_capture_buffdone);
 			snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 			capture_runtime->dma_bytes = capture_totbytes;
 			spin_lock_irq(&capture_prtd->lock);
@@ -763,10 +752,10 @@ static int sw_codec_pcm_hw_params(struct snd_pcm_substream *substream, struct sn
 	return 0;
 }
 
-static int snd_sw_codec_hw_free(struct snd_pcm_substream *substream)
+static int snd_sun4i_codec_hw_free(struct snd_pcm_substream *substream)
 {
-	struct sw_playback_runtime_data *play_prtd = NULL;
-	struct sw_capture_runtime_data *capture_prtd = NULL;
+	struct sun4i_playback_runtime_data *play_prtd = NULL;
+	struct sun4i_capture_runtime_data *capture_prtd = NULL;
    	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
  		play_prtd = substream->runtime->private_data;
  		/* TODO - do we need to ensure DMA flushed */
@@ -791,129 +780,129 @@ static int snd_sw_codec_hw_free(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int snd_sw_codec_prepare(struct	snd_pcm_substream	*substream)
+static int snd_sun4i_codec_prepare(struct	snd_pcm_substream	*substream)
 {
 	struct dma_hw_conf *codec_play_dma_conf = NULL, *codec_capture_dma_conf = NULL;
 	int play_ret = 0, capture_ret = 0;
 	unsigned int reg_val;
-	struct sw_playback_runtime_data *play_prtd = NULL;
-	struct sw_capture_runtime_data *capture_prtd = NULL;
+	struct sun4i_playback_runtime_data *play_prtd = NULL;
+	struct sun4i_capture_runtime_data *capture_prtd = NULL;
 	if(substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
 		switch(substream->runtime->rate){
 			case 44100:
 				clk_set_rate(codec_pll2clk, 22579200);
 				clk_set_rate(codec_moduleclk, 22579200);
-				reg_val = readl(baseaddr + SW_DAC_FIFOC);
+				reg_val = readl(baseaddr + SUN4I_DAC_FIFOC);
 				reg_val &=~(7<<29);
 				reg_val |=(0<<29);
-				writel(reg_val, baseaddr + SW_DAC_FIFOC);
+				writel(reg_val, baseaddr + SUN4I_DAC_FIFOC);
 
 				break;
 			case 22050:
 				clk_set_rate(codec_pll2clk, 22579200);
 				clk_set_rate(codec_moduleclk, 22579200);
-				reg_val = readl(baseaddr + SW_DAC_FIFOC);
+				reg_val = readl(baseaddr + SUN4I_DAC_FIFOC);
 				reg_val &=~(7<<29);
 				reg_val |=(2<<29);
-				writel(reg_val, baseaddr + SW_DAC_FIFOC);
+				writel(reg_val, baseaddr + SUN4I_DAC_FIFOC);
 				break;
 			case 11025:
 				clk_set_rate(codec_pll2clk, 22579200);
 				clk_set_rate(codec_moduleclk, 22579200);
-				reg_val = readl(baseaddr + SW_DAC_FIFOC);
+				reg_val = readl(baseaddr + SUN4I_DAC_FIFOC);
 				reg_val &=~(7<<29);
 				reg_val |=(4<<29);
-				writel(reg_val, baseaddr + SW_DAC_FIFOC);
+				writel(reg_val, baseaddr + SUN4I_DAC_FIFOC);
 				break;
 			case 48000:
 				clk_set_rate(codec_pll2clk, 24576000);
 				clk_set_rate(codec_moduleclk, 24576000);
-				reg_val = readl(baseaddr + SW_DAC_FIFOC);
+				reg_val = readl(baseaddr + SUN4I_DAC_FIFOC);
 				reg_val &=~(7<<29);
 				reg_val |=(0<<29);
-				writel(reg_val, baseaddr + SW_DAC_FIFOC);
+				writel(reg_val, baseaddr + SUN4I_DAC_FIFOC);
 				break;
 			case 96000:
 				clk_set_rate(codec_pll2clk, 24576000);
 				clk_set_rate(codec_moduleclk, 24576000);
-				reg_val = readl(baseaddr + SW_DAC_FIFOC);
+				reg_val = readl(baseaddr + SUN4I_DAC_FIFOC);
 				reg_val &=~(7<<29);
 				reg_val |=(7<<29);
-				writel(reg_val, baseaddr + SW_DAC_FIFOC);
+				writel(reg_val, baseaddr + SUN4I_DAC_FIFOC);
 				break;
 			case 192000:
 				clk_set_rate(codec_pll2clk, 24576000);
 				clk_set_rate(codec_moduleclk, 24576000);
-				reg_val = readl(baseaddr + SW_DAC_FIFOC);
+				reg_val = readl(baseaddr + SUN4I_DAC_FIFOC);
 				reg_val &=~(7<<29);
 				reg_val |=(6<<29);
-				writel(reg_val, baseaddr + SW_DAC_FIFOC);
+				writel(reg_val, baseaddr + SUN4I_DAC_FIFOC);
 				break;
 			case 32000:
 				clk_set_rate(codec_pll2clk, 24576000);
 				clk_set_rate(codec_moduleclk, 24576000);
-				reg_val = readl(baseaddr + SW_DAC_FIFOC);
+				reg_val = readl(baseaddr + SUN4I_DAC_FIFOC);
 				reg_val &=~(7<<29);
 				reg_val |=(1<<29);
-				writel(reg_val, baseaddr + SW_DAC_FIFOC);
+				writel(reg_val, baseaddr + SUN4I_DAC_FIFOC);
 				break;
 			case 24000:
 				clk_set_rate(codec_pll2clk, 24576000);
 				clk_set_rate(codec_moduleclk, 24576000);
-				reg_val = readl(baseaddr + SW_DAC_FIFOC);
+				reg_val = readl(baseaddr + SUN4I_DAC_FIFOC);
 				reg_val &=~(7<<29);
 				reg_val |=(2<<29);
-				writel(reg_val, baseaddr + SW_DAC_FIFOC);
+				writel(reg_val, baseaddr + SUN4I_DAC_FIFOC);
 				break;
 			case 16000:
 				clk_set_rate(codec_pll2clk, 24576000);
 				clk_set_rate(codec_moduleclk, 24576000);
-				reg_val = readl(baseaddr + SW_DAC_FIFOC);
+				reg_val = readl(baseaddr + SUN4I_DAC_FIFOC);
 				reg_val &=~(7<<29);
 				reg_val |=(3<<29);
-				writel(reg_val, baseaddr + SW_DAC_FIFOC);
+				writel(reg_val, baseaddr + SUN4I_DAC_FIFOC);
 				break;
 			case 12000:
 				clk_set_rate(codec_pll2clk, 24576000);
 				clk_set_rate(codec_moduleclk, 24576000);
-				reg_val = readl(baseaddr + SW_DAC_FIFOC);
+				reg_val = readl(baseaddr + SUN4I_DAC_FIFOC);
 				reg_val &=~(7<<29);
 				reg_val |=(4<<29);
-				writel(reg_val, baseaddr + SW_DAC_FIFOC);
+				writel(reg_val, baseaddr + SUN4I_DAC_FIFOC);
 				break;
 			case 8000:
 				clk_set_rate(codec_pll2clk, 24576000);
 				clk_set_rate(codec_moduleclk, 24576000);
-				reg_val = readl(baseaddr + SW_DAC_FIFOC);
+				reg_val = readl(baseaddr + SUN4I_DAC_FIFOC);
 				reg_val &=~(7<<29);
 				reg_val |=(5<<29);
-				writel(reg_val, baseaddr + SW_DAC_FIFOC);
+				writel(reg_val, baseaddr + SUN4I_DAC_FIFOC);
 				break;
 			default:
 				clk_set_rate(codec_pll2clk, 24576000);
 				clk_set_rate(codec_moduleclk, 24576000);
-				reg_val = readl(baseaddr + SW_DAC_FIFOC);
+				reg_val = readl(baseaddr + SUN4I_DAC_FIFOC);
 				reg_val &=~(7<<29);
 				reg_val |=(0<<29);
-				writel(reg_val, baseaddr + SW_DAC_FIFOC);
+				writel(reg_val, baseaddr + SUN4I_DAC_FIFOC);
 				break;
 		}
 
 		switch(substream->runtime->channels){
 			case 1:
-				reg_val = readl(baseaddr + SW_DAC_FIFOC);
+				reg_val = readl(baseaddr + SUN4I_DAC_FIFOC);
 				reg_val |=(1<<6);
-				writel(reg_val, baseaddr + SW_DAC_FIFOC);
+				writel(reg_val, baseaddr + SUN4I_DAC_FIFOC);
 				break;
 			case 2:
-				reg_val = readl(baseaddr + SW_DAC_FIFOC);
+				reg_val = readl(baseaddr + SUN4I_DAC_FIFOC);
 				reg_val &=~(1<<6);
-				writel(reg_val, baseaddr + SW_DAC_FIFOC);
+				writel(reg_val, baseaddr + SUN4I_DAC_FIFOC);
 				break;
 			default:
-				reg_val = readl(baseaddr + SW_DAC_FIFOC);
+				reg_val = readl(baseaddr + SUN4I_DAC_FIFOC);
 				reg_val &=~(1<<6);
-				writel(reg_val, baseaddr + SW_DAC_FIFOC);
+				writel(reg_val, baseaddr + SUN4I_DAC_FIFOC);
 				break;
 		}
 	}else{
@@ -921,101 +910,101 @@ static int snd_sw_codec_prepare(struct	snd_pcm_substream	*substream)
 			case 44100:
 				clk_set_rate(codec_pll2clk, 22579200);
 				clk_set_rate(codec_moduleclk, 22579200);
-				reg_val = readl(baseaddr + SW_ADC_FIFOC);
+				reg_val = readl(baseaddr + SUN4I_ADC_FIFOC);
 				reg_val &=~(7<<29);
 				reg_val |=(0<<29);
-				writel(reg_val, baseaddr + SW_ADC_FIFOC);
+				writel(reg_val, baseaddr + SUN4I_ADC_FIFOC);
 
 				break;
 			case 22050:
 				clk_set_rate(codec_pll2clk, 22579200);
 				clk_set_rate(codec_moduleclk, 22579200);
-				reg_val = readl(baseaddr + SW_ADC_FIFOC);
+				reg_val = readl(baseaddr + SUN4I_ADC_FIFOC);
 				reg_val &=~(7<<29);
 				reg_val |=(2<<29);
-				writel(reg_val, baseaddr + SW_ADC_FIFOC);
+				writel(reg_val, baseaddr + SUN4I_ADC_FIFOC);
 				break;
 			case 11025:
 				clk_set_rate(codec_pll2clk, 22579200);
 				clk_set_rate(codec_moduleclk, 22579200);
-				reg_val = readl(baseaddr + SW_ADC_FIFOC);
+				reg_val = readl(baseaddr + SUN4I_ADC_FIFOC);
 				reg_val &=~(7<<29);
 				reg_val |=(4<<29);
-				writel(reg_val, baseaddr + SW_ADC_FIFOC);
+				writel(reg_val, baseaddr + SUN4I_ADC_FIFOC);
 				break;
 			case 48000:
 				clk_set_rate(codec_pll2clk, 24576000);
 				clk_set_rate(codec_moduleclk, 24576000);
-				reg_val = readl(baseaddr + SW_ADC_FIFOC);
+				reg_val = readl(baseaddr + SUN4I_ADC_FIFOC);
 				reg_val &=~(7<<29);
 				reg_val |=(0<<29);
-				writel(reg_val, baseaddr + SW_ADC_FIFOC);
+				writel(reg_val, baseaddr + SUN4I_ADC_FIFOC);
 				break;
 			case 32000:
 				clk_set_rate(codec_pll2clk, 24576000);
 				clk_set_rate(codec_moduleclk, 24576000);
-				reg_val = readl(baseaddr + SW_ADC_FIFOC);
+				reg_val = readl(baseaddr + SUN4I_ADC_FIFOC);
 				reg_val &=~(7<<29);
 				reg_val |=(1<<29);
-				writel(reg_val, baseaddr + SW_ADC_FIFOC);
+				writel(reg_val, baseaddr + SUN4I_ADC_FIFOC);
 				break;
 			case 24000:
 				clk_set_rate(codec_pll2clk, 24576000);
 				clk_set_rate(codec_moduleclk, 24576000);
-				reg_val = readl(baseaddr + SW_ADC_FIFOC);
+				reg_val = readl(baseaddr + SUN4I_ADC_FIFOC);
 				reg_val &=~(7<<29);
 				reg_val |=(2<<29);
-				writel(reg_val, baseaddr + SW_ADC_FIFOC);
+				writel(reg_val, baseaddr + SUN4I_ADC_FIFOC);
 				break;
 			case 16000:
 				clk_set_rate(codec_pll2clk, 24576000);
 				clk_set_rate(codec_moduleclk, 24576000);
-				reg_val = readl(baseaddr + SW_ADC_FIFOC);
+				reg_val = readl(baseaddr + SUN4I_ADC_FIFOC);
 				reg_val &=~(7<<29);
 				reg_val |=(3<<29);
-				writel(reg_val, baseaddr + SW_ADC_FIFOC);
+				writel(reg_val, baseaddr + SUN4I_ADC_FIFOC);
 				break;
 			case 12000:
 				clk_set_rate(codec_pll2clk, 24576000);
 				clk_set_rate(codec_moduleclk, 24576000);
-				reg_val = readl(baseaddr + SW_ADC_FIFOC);
+				reg_val = readl(baseaddr + SUN4I_ADC_FIFOC);
 				reg_val &=~(7<<29);
 				reg_val |=(4<<29);
-				writel(reg_val, baseaddr + SW_ADC_FIFOC);
+				writel(reg_val, baseaddr + SUN4I_ADC_FIFOC);
 				break;
 			case 8000:
 				clk_set_rate(codec_pll2clk, 24576000);
 				clk_set_rate(codec_moduleclk, 24576000);
-				reg_val = readl(baseaddr + SW_ADC_FIFOC);
+				reg_val = readl(baseaddr + SUN4I_ADC_FIFOC);
 				reg_val &=~(7<<29);
 				reg_val |=(5<<29);
-				writel(reg_val, baseaddr + SW_ADC_FIFOC);
+				writel(reg_val, baseaddr + SUN4I_ADC_FIFOC);
 				break;
 			default:
 				clk_set_rate(codec_pll2clk, 24576000);
 				clk_set_rate(codec_moduleclk, 24576000);
-				reg_val = readl(baseaddr + SW_ADC_FIFOC);
+				reg_val = readl(baseaddr + SUN4I_ADC_FIFOC);
 				reg_val &=~(7<<29);
 				reg_val |=(0<<29);
-				writel(reg_val, baseaddr + SW_ADC_FIFOC);
+				writel(reg_val, baseaddr + SUN4I_ADC_FIFOC);
 				break;
 		}
 
 		switch(substream->runtime->channels){
 			case 1:
-				reg_val = readl(baseaddr + SW_ADC_FIFOC);
+				reg_val = readl(baseaddr + SUN4I_ADC_FIFOC);
 				reg_val |=(1<<7);
-				writel(reg_val, baseaddr + SW_ADC_FIFOC);
+				writel(reg_val, baseaddr + SUN4I_ADC_FIFOC);
 			break;
 			case 2:
-				reg_val = readl(baseaddr + SW_ADC_FIFOC);
+				reg_val = readl(baseaddr + SUN4I_ADC_FIFOC);
 				reg_val &=~(1<<7);
-				writel(reg_val, baseaddr + SW_ADC_FIFOC);
+				writel(reg_val, baseaddr + SUN4I_ADC_FIFOC);
 			break;
 			default:
-				reg_val = readl(baseaddr + SW_ADC_FIFOC);
+				reg_val = readl(baseaddr + SUN4I_ADC_FIFOC);
 				reg_val &=~(1<<7);
-				writel(reg_val, baseaddr + SW_ADC_FIFOC);
+				writel(reg_val, baseaddr + SUN4I_ADC_FIFOC);
 			break;
 		}
 	}
@@ -1048,7 +1037,7 @@ static int snd_sw_codec_prepare(struct	snd_pcm_substream	*substream)
 		play_prtd->dma_loaded = 0;
 		play_prtd->dma_pos = play_prtd->dma_start;
 		/* enqueue dma buffers */
-		sw_pcm_enqueue(substream);
+		sun4i_pcm_enqueue(substream);
 		return play_ret;
 	}else {
 		codec_capture_dma_conf = kmalloc(sizeof(struct dma_hw_conf), GFP_KERNEL);
@@ -1081,16 +1070,16 @@ static int snd_sw_codec_prepare(struct	snd_pcm_substream	*substream)
 		capture_prtd->dma_pos = capture_prtd->dma_start;
 
 		/* enqueue dma buffers */
-		sw_pcm_enqueue(substream);
+		sun4i_pcm_enqueue(substream);
 		return capture_ret;
 	}
 }
 
-static int snd_sw_codec_trigger(struct snd_pcm_substream *substream, int cmd)
+static int snd_sun4i_codec_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	int play_ret = 0, capture_ret = 0;
-	struct sw_playback_runtime_data *play_prtd = NULL;
-	struct sw_capture_runtime_data *capture_prtd = NULL;
+	struct sun4i_playback_runtime_data *play_prtd = NULL;
+	struct sun4i_capture_runtime_data *capture_prtd = NULL;
 	if(substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
 		play_prtd = substream->runtime->private_data;
 		spin_lock(&play_prtd->lock);
@@ -1108,7 +1097,7 @@ static int snd_sw_codec_trigger(struct snd_pcm_substream *substream, int cmd)
 					mdelay(7);
 				}
 				//pa unmute
-				codec_wr_control(SW_DAC_ACTL, 0x1, PA_MUTE, 0x1);
+				codec_wr_control(SUN4I_DAC_ACTL, 0x1, PA_MUTE, 0x1);
 				break;
 			case SNDRV_PCM_TRIGGER_SUSPEND:
 				codec_play_stop();
@@ -1139,7 +1128,7 @@ static int snd_sw_codec_trigger(struct snd_pcm_substream *substream, int cmd)
 			capture_prtd->state |= ST_RUNNING;
 			codec_capture_start();
 			mdelay(1);
-			codec_wr_control(SW_ADC_FIFOC, 0x1, ADC_FIFO_FLUSH, 0x1);
+			codec_wr_control(SUN4I_ADC_FIFOC, 0x1, ADC_FIFO_FLUSH, 0x1);
 			sw_dma_ctrl(capture_prtd->params->channel, SW_DMAOP_START);
 			break;
 		case SNDRV_PCM_TRIGGER_SUSPEND:
@@ -1164,14 +1153,14 @@ static int snd_sw_codec_trigger(struct snd_pcm_substream *substream, int cmd)
 	return 0;
 }
 
-static int snd_swcard_capture_open(struct snd_pcm_substream *substream)
+static int snd_sun4icard_capture_open(struct snd_pcm_substream *substream)
 {
 	/*获得PCM运行时信息指针*/
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
-	struct sw_capture_runtime_data *capture_prtd;
+	struct sun4i_capture_runtime_data *capture_prtd;
 
-	capture_prtd = kzalloc(sizeof(struct sw_capture_runtime_data), GFP_KERNEL);
+	capture_prtd = kzalloc(sizeof(struct sun4i_capture_runtime_data), GFP_KERNEL);
 	if (capture_prtd == NULL)
 		return -ENOMEM;
 
@@ -1179,7 +1168,7 @@ static int snd_swcard_capture_open(struct snd_pcm_substream *substream)
 
 	runtime->private_data = capture_prtd;
 
-	runtime->hw = sw_pcm_capture_hardware;
+	runtime->hw = sun4i_pcm_capture_hardware;
 
 	/* ensure that buffer size is a multiple of period size */
 	if ((err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS)) < 0)
@@ -1190,21 +1179,21 @@ static int snd_swcard_capture_open(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int snd_swcard_capture_close(struct snd_pcm_substream *substream)
+static int snd_sun4icard_capture_close(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	kfree(runtime->private_data);
 	return 0;
 }
 
-static int snd_swcard_playback_open(struct snd_pcm_substream *substream)
+static int snd_sun4icard_playback_open(struct snd_pcm_substream *substream)
 {
 	/*获得PCM运行时信息指针*/
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
-	struct sw_playback_runtime_data *play_prtd;
+	struct sun4i_playback_runtime_data *play_prtd;
 
-	play_prtd = kzalloc(sizeof(struct sw_playback_runtime_data), GFP_KERNEL);
+	play_prtd = kzalloc(sizeof(struct sun4i_playback_runtime_data), GFP_KERNEL);
 	if (play_prtd == NULL)
 		return -ENOMEM;
 
@@ -1212,7 +1201,7 @@ static int snd_swcard_playback_open(struct snd_pcm_substream *substream)
 
 	runtime->private_data = play_prtd;
 
-	runtime->hw = sw_pcm_playback_hardware;
+	runtime->hw = sun4i_pcm_playback_hardware;
 
 	/* ensure that buffer size is a multiple of period size */
 	if ((err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS)) < 0)
@@ -1223,41 +1212,41 @@ static int snd_swcard_playback_open(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int snd_swcard_playback_close(struct snd_pcm_substream *substream)
+static int snd_sun4icard_playback_close(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	kfree(runtime->private_data);
 	return 0;
 }
 
-static struct snd_pcm_ops sw_pcm_playback_ops = {
-	.open			= snd_swcard_playback_open,//打开
-	.close			= snd_swcard_playback_close,//关闭
+static struct snd_pcm_ops sun4i_pcm_playback_ops = {
+	.open			= snd_sun4icard_playback_open,//打开
+	.close			= snd_sun4icard_playback_close,//关闭
 	.ioctl			= snd_pcm_lib_ioctl,//I/O控制
-	.hw_params	    = sw_codec_pcm_hw_params,//硬件参数
-	.hw_free	    = snd_sw_codec_hw_free,//资源释放
-	.prepare		= snd_sw_codec_prepare,//准备
-	.trigger		= snd_sw_codec_trigger,//在pcm被开始、停止或暂停时调用
-	.pointer		= snd_sw_codec_pointer,//当前缓冲区的硬件位置
+	.hw_params	    = sun4i_codec_pcm_hw_params,//硬件参数
+	.hw_free	    = snd_sun4i_codec_hw_free,//资源释放
+	.prepare		= snd_sun4i_codec_prepare,//准备
+	.trigger		= snd_sun4i_codec_trigger,//在pcm被开始、停止或暂停时调用
+	.pointer		= snd_sun4i_codec_pointer,//当前缓冲区的硬件位置
 };
 
-static struct snd_pcm_ops sw_pcm_capture_ops = {
-	.open			= snd_swcard_capture_open,//打开
-	.close			= snd_swcard_capture_close,//关闭
+static struct snd_pcm_ops sun4i_pcm_capture_ops = {
+	.open			= snd_sun4icard_capture_open,//打开
+	.close			= snd_sun4icard_capture_close,//关闭
 	.ioctl			= snd_pcm_lib_ioctl,//I/O控制
-	.hw_params	    = sw_codec_pcm_hw_params,//硬件参数
-	.hw_free	    = snd_sw_codec_hw_free,//资源释放
-	.prepare		= snd_sw_codec_prepare,//准备
-	.trigger		= snd_sw_codec_trigger,//在pcm被开始、停止或暂停时调用
-	.pointer		= snd_sw_codec_pointer,//当前缓冲区的硬件位置
+	.hw_params	    = sun4i_codec_pcm_hw_params,//硬件参数
+	.hw_free	    = snd_sun4i_codec_hw_free,//资源释放
+	.prepare		= snd_sun4i_codec_prepare,//准备
+	.trigger		= snd_sun4i_codec_trigger,//在pcm被开始、停止或暂停时调用
+	.pointer		= snd_sun4i_codec_pointer,//当前缓冲区的硬件位置
 };
 
-static int __init snd_card_sw_codec_pcm(struct sw_codec *sw_codec, int device)
+static int __init snd_card_sun4i_codec_pcm(struct sun4i_codec *sun4i_codec, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
 	/*创建PCM实例*/
-	if ((err = snd_pcm_new(sw_codec->card, "M1 PCM", device, 1, 1, &pcm)) < 0){
+	if ((err = snd_pcm_new(sun4i_codec->card, "M1 PCM", device, 1, 1, &pcm)) < 0){
 		printk("error,the func is: %s,the line is:%d\n", __func__, __LINE__);
 		return err;
 	}
@@ -1275,9 +1264,9 @@ static int __init snd_card_sw_codec_pcm(struct sw_codec *sw_codec, int device)
 	*	设置PCM操作，第1个参数是snd_pcm的指针，第2 个参数是SNDRV_PCM_STREAM_PLAYBACK
 	*	或SNDRV_ PCM_STREAM_CAPTURE，而第3 个参数是PCM 操作结构体snd_pcm_ops
 	*/
-	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &sw_pcm_playback_ops);
-	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &sw_pcm_capture_ops);
-	pcm->private_data = sw_codec;//置pcm->private_data为芯片特定数据
+	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &sun4i_pcm_playback_ops);
+	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &sun4i_pcm_capture_ops);
+	pcm->private_data = sun4i_codec;//置pcm->private_data为芯片特定数据
 	pcm->info_flags = 0;
 	strcpy(pcm->name, "sun4i PCM");
 	/* setup DMA controller */
@@ -1285,7 +1274,7 @@ static int __init snd_card_sw_codec_pcm(struct sw_codec *sw_codec, int device)
 	return 0;
 }
 
-void snd_sw_codec_free(struct snd_card *card)
+void snd_sun4i_codec_free(struct snd_card *card)
 {
 
 }
@@ -1293,44 +1282,31 @@ void snd_sw_codec_free(struct snd_card *card)
 static void codec_resume_events(struct work_struct *work)
 {
 	printk("%s,%d\n",__func__,__LINE__);
-	codec_wr_control(SW_DAC_DPC ,  0x1, DAC_EN, 0x1);
+	codec_wr_control(SUN4I_DAC_DPC ,  0x1, DAC_EN, 0x1);
 	msleep(20);
 	//enable PA
-	codec_wr_control(SW_ADC_ACTL, 0x1, PA_ENABLE, 0x1);
+	codec_wr_control(SUN4I_ADC_ACTL, 0x1, PA_ENABLE, 0x1);
 	msleep(550);
     //enable dac analog
-	codec_wr_control(SW_DAC_ACTL, 0x1, 	DACAEN_L, 0x1);
-	codec_wr_control(SW_DAC_ACTL, 0x1, 	DACAEN_R, 0x1);
-	//mdelay(20);
-	//codec_wr_control(SW_ADC_ACTL, 0x1, HP_DIRECT, 0x1);
+	codec_wr_control(SUN4I_DAC_ACTL, 0x1, 	DACAEN_L, 0x1);
+	codec_wr_control(SUN4I_DAC_ACTL, 0x1, 	DACAEN_R, 0x1);
 
-	//enable dac to pa
-	 //mdelay(20);
-	codec_wr_control(SW_DAC_ACTL, 0x1, 	DACPAS, 0x1);
-	//mdelay(30);
-		//pa unmute
-//	codec_wr_control(SW_DAC_ACTL, 0x1, PA_MUTE, 0x1);
+	codec_wr_control(SUN4I_DAC_ACTL, 0x1, 	DACPAS, 0x1);
     msleep(50);
 	printk("====pa turn on===\n");
 	gpio_write_one_pin_value(gpio_pa_shutdown, 1, "audio_pa_ctrl");
-	/*for clk test*/
-	//printk("[codec resume reg]\n");
-	//printk("codec_module CLK:0xf1c20140 is:%x\n", *(volatile int *)0xf1c20140);
-	//printk("codec_pll2 CLK:0xf1c20008 is:%x\n", *(volatile int *)0xf1c20008);
-	//printk("codec_apb CLK:0xf1c20068 is:%x\n", *(volatile int *)0xf1c20068);
-	//printk("[codec resume reg]\n");
 }
 
-static int __init sw_codec_probe(struct platform_device *pdev)
+static int __init sun4i_codec_probe(struct platform_device *pdev)
 {
 	int err;
 	int ret;
 	struct snd_card *card;
-	struct sw_codec *chip;
+	struct sun4i_codec *chip;
 	struct codec_board_info  *db;
     printk("enter sun4i Audio codec!!!\n");
 	/* register the soundcard */
-	ret = snd_card_create(0, "sun4i-codec", THIS_MODULE, sizeof(struct sw_codec),
+	ret = snd_card_create(0, "sun4i-codec", THIS_MODULE, sizeof(struct sun4i_codec),
 			      &card);
 	if (ret != 0) {
 		return -ENOMEM;
@@ -1338,7 +1314,7 @@ static int __init sw_codec_probe(struct platform_device *pdev)
 	/*从private_data中取出分配的内存大小*/
 	chip = card->private_data;
 	/*声卡芯片的专用数据*/
-	card->private_free = snd_sw_codec_free;//card私有数据释放
+	card->private_free = snd_sun4i_codec_free;//card私有数据释放
 	chip->card = card;
 	chip->samplerate = AUDIO_RATE_DEFAULT;
 
@@ -1352,7 +1328,7 @@ static int __init sw_codec_probe(struct platform_device *pdev)
 	/*
 	*	PCM,录音放音相关，注册PCM接口
 	*/
-	if ((err = snd_card_sw_codec_pcm(chip, 0)) < 0)
+	if ((err = snd_card_sun4i_codec_pcm(chip, 0)) < 0)
 	    goto nodev;
 
 	strcpy(card->driver, "sun4i-CODEC");
@@ -1410,8 +1386,6 @@ static int __init sw_codec_probe(struct platform_device *pdev)
 	 }
 	 baseaddr = ioremap(db->codec_base_res->start, 0x40);
 
-	 pr_debug("baseaddr = %p\n",baseaddr);
-
 	 if (baseaddr == NULL) {
 		 ret = -EINVAL;
 		 dev_err(db->dev,"failed to ioremap codec address reg\n");
@@ -1448,23 +1422,23 @@ static int __init sw_codec_probe(struct platform_device *pdev)
  *	disable 耳机，disable dac->pa，最后disable DAC
  * 	顺序不可调，否则刚关闭声卡的时候可能出现噪音
  */
-static int snd_sw_codec_suspend(struct platform_device *pdev,pm_message_t state)
+static int snd_sun4i_codec_suspend(struct platform_device *pdev,pm_message_t state)
 {
 	printk("[audio codec]:suspend start5000\n");
 	gpio_write_one_pin_value(gpio_pa_shutdown, 0, "audio_pa_ctrl");
 	mdelay(50);
-	codec_wr_control(SW_ADC_ACTL, 0x1, PA_ENABLE, 0x0);
+	codec_wr_control(SUN4I_ADC_ACTL, 0x1, PA_ENABLE, 0x0);
 	mdelay(100);
 	//pa mute
-	codec_wr_control(SW_DAC_ACTL, 0x1, PA_MUTE, 0x0);
+	codec_wr_control(SUN4I_DAC_ACTL, 0x1, PA_MUTE, 0x0);
 	mdelay(500);
     //disable dac analog
-	codec_wr_control(SW_DAC_ACTL, 0x1, 	DACAEN_L, 0x0);
-	codec_wr_control(SW_DAC_ACTL, 0x1, 	DACAEN_R, 0x0);
+	codec_wr_control(SUN4I_DAC_ACTL, 0x1, 	DACAEN_L, 0x0);
+	codec_wr_control(SUN4I_DAC_ACTL, 0x1, 	DACAEN_R, 0x0);
 
 	//disable dac to pa
-	codec_wr_control(SW_DAC_ACTL, 0x1, 	DACPAS, 0x0);
-	codec_wr_control(SW_DAC_DPC ,  0x1, DAC_EN, 0x0);
+	codec_wr_control(SUN4I_DAC_ACTL, 0x1, 	DACPAS, 0x0);
+	codec_wr_control(SUN4I_DAC_DPC ,  0x1, DAC_EN, 0x0);
 
 	clk_disable(codec_moduleclk);
 	printk("[audio codec]:suspend end\n");
@@ -1477,7 +1451,7 @@ static int snd_sw_codec_suspend(struct platform_device *pdev,pm_message_t state)
  * 	enable 耳机，enable dac to pa
  *	顺序不可调，否则刚打开声卡的时候可能出现噪音
  */
-static int snd_sw_codec_resume(struct platform_device *pdev)
+static int snd_sun4i_codec_resume(struct platform_device *pdev)
 {
 	printk("[audio codec]:resume start\n");
 	if (-1 == clk_enable(codec_moduleclk)){
@@ -1489,7 +1463,7 @@ static int snd_sw_codec_resume(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit sw_codec_remove(struct platform_device *devptr)
+static int __devexit sun4i_codec_remove(struct platform_device *devptr)
 {
 	clk_disable(codec_moduleclk);
 	//释放codec_pll2clk时钟句柄
@@ -1502,27 +1476,27 @@ static int __devexit sw_codec_remove(struct platform_device *devptr)
 	return 0;
 }
 
-static void sw_codec_shutdown(struct platform_device *devptr)
+static void sun4i_codec_shutdown(struct platform_device *devptr)
 {
 	gpio_write_one_pin_value(gpio_pa_shutdown, 0, "audio_pa_ctrl");
 	mdelay(50);
-	codec_wr_control(SW_ADC_ACTL, 0x1, PA_ENABLE, 0x0);
+	codec_wr_control(SUN4I_ADC_ACTL, 0x1, PA_ENABLE, 0x0);
 	mdelay(100);
 	//pa mute
-	codec_wr_control(SW_DAC_ACTL, 0x1, PA_MUTE, 0x0);
+	codec_wr_control(SUN4I_DAC_ACTL, 0x1, PA_MUTE, 0x0);
 	mdelay(500);
     //disable dac analog
-	codec_wr_control(SW_DAC_ACTL, 0x1, 	DACAEN_L, 0x0);
-	codec_wr_control(SW_DAC_ACTL, 0x1, 	DACAEN_R, 0x0);
+	codec_wr_control(SUN4I_DAC_ACTL, 0x1, 	DACAEN_L, 0x0);
+	codec_wr_control(SUN4I_DAC_ACTL, 0x1, 	DACAEN_R, 0x0);
 
 	//disable dac to pa
-	codec_wr_control(SW_DAC_ACTL, 0x1, 	DACPAS, 0x0);
-	codec_wr_control(SW_DAC_DPC ,  0x1, DAC_EN, 0x0);
+	codec_wr_control(SUN4I_DAC_ACTL, 0x1, 	DACPAS, 0x0);
+	codec_wr_control(SUN4I_DAC_DPC ,  0x1, DAC_EN, 0x0);
 
 	clk_disable(codec_moduleclk);
 }
 
-static struct resource sw_codec_resource[] = {
+static struct resource sun4i_codec_resource[] = {
 	[0] = {
     	.start = CODEC_BASSADDRESS,
         .end   = CODEC_BASSADDRESS + 0x40,
@@ -1531,46 +1505,46 @@ static struct resource sw_codec_resource[] = {
 };
 
 /*data relating*/
-static struct platform_device sw_device_codec = {
+static struct platform_device sun4i_device_codec = {
 	.name = "sun4i-codec",
 	.id = -1,
-	.num_resources = ARRAY_SIZE(sw_codec_resource),
-	.resource = sw_codec_resource,
+	.num_resources = ARRAY_SIZE(sun4i_codec_resource),
+	.resource = sun4i_codec_resource,
 };
 
 /*method relating*/
-static struct platform_driver sw_codec_driver = {
-	.probe		= sw_codec_probe,
-	.remove		= sw_codec_remove,
-	.shutdown   = sw_codec_shutdown,
+static struct platform_driver sun4i_codec_driver = {
+	.probe		= sun4i_codec_probe,
+	.remove		= sun4i_codec_remove,
+	.shutdown   = sun4i_codec_shutdown,
 #ifdef CONFIG_PM
-	.suspend	= snd_sw_codec_suspend,
-	.resume		= snd_sw_codec_resume,
+	.suspend	= snd_sun4i_codec_suspend,
+	.resume		= snd_sun4i_codec_resume,
 #endif
 	.driver		= {
 		.name	= "sun4i-codec",
 	},
 };
 
-static int __init sw_codec_init(void)
+static int __init sun4i_codec_init(void)
 {
 	int err = 0;
-	if((platform_device_register(&sw_device_codec))<0)
+	if((platform_device_register(&sun4i_device_codec))<0)
 		return err;
 
-	if ((err = platform_driver_register(&sw_codec_driver)) < 0)
+	if ((err = platform_driver_register(&sun4i_codec_driver)) < 0)
 		return err;
 
 	return 0;
 }
 
-static void __exit sw_codec_exit(void)
+static void __exit sun4i_codec_exit(void)
 {
-	platform_driver_unregister(&sw_codec_driver);
+	platform_driver_unregister(&sun4i_codec_driver);
 }
 
-module_init(sw_codec_init);
-module_exit(sw_codec_exit);
+module_init(sun4i_codec_init);
+module_exit(sun4i_codec_exit);
 
 MODULE_DESCRIPTION("sun4i CODEC ALSA codec driver");
 MODULE_AUTHOR("software");
