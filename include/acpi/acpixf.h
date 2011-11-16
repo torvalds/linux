@@ -277,12 +277,23 @@ acpi_status acpi_install_exception_handler(acpi_exception_handler handler);
 acpi_status acpi_install_interface_handler(acpi_interface_handler handler);
 
 /*
- * Event interfaces
+ * Global Lock interfaces
  */
 acpi_status acpi_acquire_global_lock(u16 timeout, u32 * handle);
 
 acpi_status acpi_release_global_lock(u32 handle);
 
+/*
+ * Interfaces to AML mutex objects
+ */
+acpi_status
+acpi_acquire_mutex(acpi_handle handle, acpi_string pathname, u16 timeout);
+
+acpi_status acpi_release_mutex(acpi_handle handle, acpi_string pathname);
+
+/*
+ * Fixed Event interfaces
+ */
 acpi_status acpi_enable_event(u32 event, u32 flags);
 
 acpi_status acpi_disable_event(u32 event, u32 flags);
@@ -292,7 +303,7 @@ acpi_status acpi_clear_event(u32 event);
 acpi_status acpi_get_event_status(u32 event, acpi_event_status * event_status);
 
 /*
- * GPE Interfaces
+ * General Purpose Event (GPE) Interfaces
  */
 acpi_status acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number);
 
