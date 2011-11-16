@@ -548,15 +548,16 @@ static void tty_ldisc_flush_works(struct tty_struct *tty)
 /**
  *	tty_ldisc_wait_idle	-	wait for the ldisc to become idle
  *	@tty: tty to wait for
+ *	@timeout: for how long to wait at most
  *
  *	Wait for the line discipline to become idle. The discipline must
  *	have been halted for this to guarantee it remains idle.
  */
-static int tty_ldisc_wait_idle(struct tty_struct *tty)
+static int tty_ldisc_wait_idle(struct tty_struct *tty, long timeout)
 {
-	int ret;
+	long ret;
 	ret = wait_event_timeout(tty_ldisc_idle,
-			atomic_read(&tty->ldisc->users) == 1, 5 * HZ);
+			atomic_read(&tty->ldisc->users) == 1, timeout);
 	if (ret < 0)
 		return ret;
 	return ret > 0 ? 0 : -EBUSY;
@@ -666,7 +667,7 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 
 	tty_ldisc_flush_works(tty);
 
-	retval = tty_ldisc_wait_idle(tty);
+	retval = tty_ldisc_wait_idle(tty, 5 * HZ);
 
 	tty_lock();
 	mutex_lock(&tty->ldisc_mutex);
@@ -763,7 +764,7 @@ static int tty_ldisc_reinit(struct tty_struct *tty, int ldisc)
 	if (IS_ERR(ld))
 		return -1;
 
-	WARN_ON_ONCE(tty_ldisc_wait_idle(tty));
+	WARN_ON_ONCE(tty_ldisc_wait_idle(tty, 5 * HZ));
 
 	tty_ldisc_close(tty, tty->ldisc);
 	tty_ldisc_put(tty->ldisc);
