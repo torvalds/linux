@@ -104,7 +104,11 @@ put_device:
 static ssize_t manager_default_color_show(struct omap_overlay_manager *mgr,
 					  char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%#x\n", mgr->info.default_color);
+	struct omap_overlay_manager_info info;
+
+	mgr->get_manager_info(mgr, &info);
+
+	return snprintf(buf, PAGE_SIZE, "%#x\n", info.default_color);
 }
 
 static ssize_t manager_default_color_store(struct omap_overlay_manager *mgr,
@@ -142,8 +146,11 @@ static ssize_t manager_trans_key_type_show(struct omap_overlay_manager *mgr,
 					   char *buf)
 {
 	enum omap_dss_trans_key_type key_type;
+	struct omap_overlay_manager_info info;
 
-	key_type = mgr->info.trans_key_type;
+	mgr->get_manager_info(mgr, &info);
+
+	key_type = info.trans_key_type;
 	BUG_ON(key_type >= ARRAY_SIZE(trans_key_type_str));
 
 	return snprintf(buf, PAGE_SIZE, "%s\n", trans_key_type_str[key_type]);
@@ -183,7 +190,11 @@ static ssize_t manager_trans_key_type_store(struct omap_overlay_manager *mgr,
 static ssize_t manager_trans_key_value_show(struct omap_overlay_manager *mgr,
 					    char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%#x\n", mgr->info.trans_key);
+	struct omap_overlay_manager_info info;
+
+	mgr->get_manager_info(mgr, &info);
+
+	return snprintf(buf, PAGE_SIZE, "%#x\n", info.trans_key);
 }
 
 static ssize_t manager_trans_key_value_store(struct omap_overlay_manager *mgr,
@@ -215,7 +226,11 @@ static ssize_t manager_trans_key_value_store(struct omap_overlay_manager *mgr,
 static ssize_t manager_trans_key_enabled_show(struct omap_overlay_manager *mgr,
 					      char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", mgr->info.trans_enabled);
+	struct omap_overlay_manager_info info;
+
+	mgr->get_manager_info(mgr, &info);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", info.trans_enabled);
 }
 
 static ssize_t manager_trans_key_enabled_store(struct omap_overlay_manager *mgr,
@@ -247,10 +262,14 @@ static ssize_t manager_trans_key_enabled_store(struct omap_overlay_manager *mgr,
 static ssize_t manager_alpha_blending_enabled_show(
 		struct omap_overlay_manager *mgr, char *buf)
 {
+	struct omap_overlay_manager_info info;
+
+	mgr->get_manager_info(mgr, &info);
+
 	WARN_ON(!dss_has_feature(FEAT_ALPHA_FIXED_ZORDER));
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
-		mgr->info.partial_alpha_enabled);
+		info.partial_alpha_enabled);
 }
 
 static ssize_t manager_alpha_blending_enabled_store(
@@ -285,7 +304,11 @@ static ssize_t manager_alpha_blending_enabled_store(
 static ssize_t manager_cpr_enable_show(struct omap_overlay_manager *mgr,
 		char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", mgr->info.cpr_enable);
+	struct omap_overlay_manager_info info;
+
+	mgr->get_manager_info(mgr, &info);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", info.cpr_enable);
 }
 
 static ssize_t manager_cpr_enable_store(struct omap_overlay_manager *mgr,

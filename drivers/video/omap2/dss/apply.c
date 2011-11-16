@@ -78,6 +78,10 @@ struct ovl_priv_data {
 };
 
 struct mgr_priv_data {
+
+	bool user_info_dirty;
+	struct omap_overlay_manager_info user_info;
+
 	/* If true, cache changed, but not written to shadow registers. Set
 	 * in apply(), cleared when registers written. */
 	bool dirty;
@@ -592,15 +596,15 @@ static void omap_dss_mgr_apply_mgr(struct omap_overlay_manager *mgr)
 
 	if (mgr->device_changed) {
 		mgr->device_changed = false;
-		mgr->info_dirty  = true;
+		mp->user_info_dirty  = true;
 	}
 
-	if (!mgr->info_dirty)
+	if (!mp->user_info_dirty)
 		return;
 
-	mgr->info_dirty = false;
+	mp->user_info_dirty = false;
 	mp->dirty = true;
-	mp->info = mgr->info;
+	mp->info = mp->user_info;
 }
 
 static void omap_dss_mgr_apply_ovl_fifos(struct omap_overlay *ovl)
@@ -720,12 +724,13 @@ void dss_mgr_disable(struct omap_overlay_manager *mgr)
 int dss_mgr_set_info(struct omap_overlay_manager *mgr,
 		struct omap_overlay_manager_info *info)
 {
+	struct mgr_priv_data *mp = get_mgr_priv(mgr);
 	unsigned long flags;
 
 	spin_lock_irqsave(&data_lock, flags);
 
-	mgr->info = *info;
-	mgr->info_dirty = true;
+	mp->user_info = *info;
+	mp->user_info_dirty = true;
 
 	spin_unlock_irqrestore(&data_lock, flags);
 
@@ -735,11 +740,12 @@ int dss_mgr_set_info(struct omap_overlay_manager *mgr,
 void dss_mgr_get_info(struct omap_overlay_manager *mgr,
 		struct omap_overlay_manager_info *info)
 {
+	struct mgr_priv_data *mp = get_mgr_priv(mgr);
 	unsigned long flags;
 
 	spin_lock_irqsave(&data_lock, flags);
 
-	*info = mgr->info;
+	*info = mp->user_info;
 
 	spin_unlock_irqrestore(&data_lock, flags);
 }

@@ -430,11 +430,8 @@ struct omap_overlay_manager {
 
 	/* dynamic fields */
 	struct omap_dss_device *device;
-	struct omap_overlay_manager_info info;
 
 	bool device_changed;
-	/* if true, info has been changed but not applied() yet */
-	bool info_dirty;
 
 	int (*set_device)(struct omap_overlay_manager *mgr,
 		struct omap_dss_device *dssdev);
