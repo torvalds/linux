@@ -38,7 +38,7 @@
 #define EVO_DMA_NR 9
 
 #define EVO_MASTER  (0x00)
-#define EVO_SYNC(c) (0x01 + (c))
+#define EVO_FLIP(c) (0x01 + (c))
 #define EVO_OVLY(c) (0x05 + (c))
 #define EVO_OIMM(c) (0x09 + (c))
 #define EVO_CURS(c) (0x0d + (c))
@@ -240,13 +240,13 @@ evo_sync(struct drm_device *dev, int ch)
 }
 
 /******************************************************************************
- * Sync channel (aka. page flipping)
+ * Page flipping channel
  *****************************************************************************/
 struct nouveau_bo *
 nvd0_display_crtc_sema(struct drm_device *dev, int crtc)
 {
 	struct nvd0_display *disp = nvd0_display(dev);
-	struct evo *evo = &disp->evo[EVO_SYNC(crtc)];
+	struct evo *evo = &disp->evo[EVO_FLIP(crtc)];
 	return evo->sem.bo;
 }
 
@@ -255,7 +255,7 @@ nvd0_display_flip_stop(struct drm_crtc *crtc)
 {
 	struct nvd0_display *disp = nvd0_display(crtc->dev);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	struct evo *evo = &disp->evo[EVO_SYNC(nv_crtc->index)];
+	struct evo *evo = &disp->evo[EVO_FLIP(nv_crtc->index)];
 	u32 *push;
 
 	push = evo_wait(crtc->dev, evo->idx, 8);
@@ -279,7 +279,7 @@ nvd0_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	struct nouveau_framebuffer *nv_fb = nouveau_framebuffer(fb);
 	struct nvd0_display *disp = nvd0_display(crtc->dev);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	struct evo *evo = &disp->evo[EVO_SYNC(nv_crtc->index)];
+	struct evo *evo = &disp->evo[EVO_FLIP(nv_crtc->index)];
 	u64 offset;
 	u32 *push;
 	int ret;
@@ -1652,12 +1652,12 @@ nvd0_display_fini(struct drm_device *dev)
 {
 	int i;
 
-	/* fini cursors + overlays + syncs */
+	/* fini cursors + overlays + flips */
 	for (i = 1; i >= 0; i--) {
 		evo_fini_pio(dev, EVO_CURS(i));
 		evo_fini_pio(dev, EVO_OIMM(i));
 		evo_fini_dma(dev, EVO_OVLY(i));
-		evo_fini_dma(dev, EVO_SYNC(i));
+		evo_fini_dma(dev, EVO_FLIP(i));
 	}
 
 	/* fini master */
@@ -1712,9 +1712,9 @@ nvd0_display_init(struct drm_device *dev)
 	if (ret)
 		goto error;
 
-	/* init syncs + overlays + cursors */
+	/* init flips + overlays + cursors */
 	for (i = 0; i < dev->mode_config.num_crtc; i++) {
-		if ((ret = evo_init_dma(dev, EVO_SYNC(i))) ||
+		if ((ret = evo_init_dma(dev, EVO_FLIP(i))) ||
 		    (ret = evo_init_dma(dev, EVO_OVLY(i))) ||
 		    (ret = evo_init_pio(dev, EVO_OIMM(i))) ||
 		    (ret = evo_init_pio(dev, EVO_CURS(i))))
