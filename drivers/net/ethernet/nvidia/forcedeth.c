@@ -609,7 +609,7 @@ struct nv_ethtool_str {
 };
 
 static const struct nv_ethtool_str nv_estats_str[] = {
-	{ "tx_bytes" },
+	{ "tx_bytes" }, /* includes Ethernet FCS CRC */
 	{ "tx_zero_rexmt" },
 	{ "tx_one_rexmt" },
 	{ "tx_many_rexmt" },
@@ -637,7 +637,7 @@ static const struct nv_ethtool_str nv_estats_str[] = {
 	/* version 2 stats */
 	{ "tx_deferral" },
 	{ "tx_packets" },
-	{ "rx_bytes" },
+	{ "rx_bytes" }, /* includes Ethernet FCS CRC */
 	{ "tx_pause" },
 	{ "rx_pause" },
 	{ "rx_drop_frame" },
@@ -649,7 +649,7 @@ static const struct nv_ethtool_str nv_estats_str[] = {
 };
 
 struct nv_ethtool_stats {
-	u64 tx_bytes;
+	u64 tx_bytes; /* should be ifconfig->tx_bytes + 4*tx_packets */
 	u64 tx_zero_rexmt;
 	u64 tx_one_rexmt;
 	u64 tx_many_rexmt;
@@ -670,14 +670,14 @@ struct nv_ethtool_stats {
 	u64 rx_unicast;
 	u64 rx_multicast;
 	u64 rx_broadcast;
-	u64 rx_packets;
+	u64 rx_packets; /* should be ifconfig->rx_packets */
 	u64 rx_errors_total;
 	u64 tx_errors_total;
 
 	/* version 2 stats */
 	u64 tx_deferral;
-	u64 tx_packets;
-	u64 rx_bytes;
+	u64 tx_packets; /* should be ifconfig->tx_packets */
+	u64 rx_bytes;   /* should be ifconfig->rx_bytes + 4*rx_packets */
 	u64 tx_pause;
 	u64 rx_pause;
 	u64 rx_drop_frame;
@@ -1706,10 +1706,17 @@ static struct net_device_stats *nv_get_stats(struct net_device *dev)
 	if (np->driver_data & (DEV_HAS_STATISTICS_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_STATISTICS_V3)) {
 		nv_get_hw_stats(dev);
 
+		/*
+		 * Note: because HW stats are not always available and
+		 * for consistency reasons, the following ifconfig
+		 * stats are managed by software: rx_bytes, tx_bytes,
+		 * rx_packets and tx_packets. The related hardware
+		 * stats reported by ethtool should be equivalent to
+		 * these ifconfig stats, with 4 additional bytes per
+		 * packet (Ethernet FCS CRC).
+		 */
+
 		/* copy to net_device stats */
-		dev->stats.tx_packets = np->estats.tx_packets;
-		dev->stats.rx_bytes = np->estats.rx_bytes;
-		dev->stats.tx_bytes = np->estats.tx_bytes;
 		dev->stats.tx_fifo_errors = np->estats.tx_fifo_errors;
 		dev->stats.tx_carrier_errors = np->estats.tx_carrier_errors;
 		dev->stats.rx_crc_errors = np->estats.rx_crc_errors;
@@ -2380,6 +2387,9 @@ static int nv_tx_done(struct net_device *dev, int limit)
 				if (flags & NV_TX_ERROR) {
 					if ((flags & NV_TX_RETRYERROR) && !(flags & NV_TX_RETRYCOUNT_MASK))
 						nv_legacybackoff_reseed(dev);
+				} else {
+					dev->stats.tx_packets++;
+					dev->stats.tx_bytes += np->get_tx_ctx->skb->len;
 				}
 				dev_kfree_skb_any(np->get_tx_ctx->skb);
 				np->get_tx_ctx->skb = NULL;
@@ -2390,6 +2400,9 @@ static int nv_tx_done(struct net_device *dev, int limit)
 				if (flags & NV_TX2_ERROR) {
 					if ((flags & NV_TX2_RETRYERROR) && !(flags & NV_TX2_RETRYCOUNT_MASK))
 						nv_legacybackoff_reseed(dev);
+				} else {
+					dev->stats.tx_packets++;
+					dev->stats.tx_bytes += np->get_tx_ctx->skb->len;
 				}
 				dev_kfree_skb_any(np->get_tx_ctx->skb);
 				np->get_tx_ctx->skb = NULL;
@@ -2429,6 +2442,9 @@ static int nv_tx_done_optimized(struct net_device *dev, int limit)
 					else
 						nv_legacybackoff_reseed(dev);
 				}
+			} else {
+				dev->stats.tx_packets++;
+				dev->stats.tx_bytes += np->get_tx_ctx->skb->len;
 			}
 
 			dev_kfree_skb_any(np->get_tx_ctx->skb);
@@ -2678,6 +2694,7 @@ static int nv_rx_process(struct net_device *dev, int limit)
 		skb->protocol = eth_type_trans(skb, dev);
 		napi_gro_receive(&np->napi, skb);
 		dev->stats.rx_packets++;
+		dev->stats.rx_bytes += len;
 next_pkt:
 		if (unlikely(np->get_rx.orig++ == np->last_rx.orig))
 			np->get_rx.orig = np->first_rx.orig;
@@ -2761,6 +2778,7 @@ static int nv_rx_process_optimized(struct net_device *dev, int limit)
 			}
 			napi_gro_receive(&np->napi, skb);
 			dev->stats.rx_packets++;
+			dev->stats.rx_bytes += len;
 		} else {
 			dev_kfree_skb(skb);
 		}
