@@ -108,7 +108,14 @@ void nlm_early_init_secondary(int cpu)
  */
 static void __cpuinit nlm_init_secondary(void)
 {
+	current_cpu_data.core = hard_smp_processor_id() / 4;
 	nlm_smp_irq_init();
+}
+
+void nlm_prepare_cpus(unsigned int max_cpus)
+{
+	/* declare we are SMT capable */
+	smp_num_siblings = nlm_threads_per_core;
 }
 
 void nlm_smp_finish(void)
@@ -181,10 +188,6 @@ void __init nlm_smp_setup(void)
 
 	pr_info("Detected %i Slave CPU(s)\n", num_cpus);
 	nlm_set_nmi_handler(nlm_boot_secondary_cpus);
-}
-
-void nlm_prepare_cpus(unsigned int max_cpus)
-{
 }
 
 static int nlm_parse_cpumask(u32 cpu_mask)
