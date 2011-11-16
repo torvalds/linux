@@ -1,12 +1,3 @@
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/ioctl.h>
-#include <linux/fs.h>
-#include <linux/device.h>
-#include <linux/err.h>
-#include <linux/list.h>
-#include <linux/errno.h>
-#include <linux/mutex.h>
 /*
  * drivers\media\audio\sun4i_dev_ace.c
  * (C) Copyright 2007-2011
@@ -21,6 +12,16 @@
  * the License, or (at your option) any later version.
  *
  */
+#include <linux/init.h>
+#include <linux/module.h>
+#include <linux/ioctl.h>
+#include <linux/fs.h>
+#include <linux/device.h>
+#include <linux/err.h>
+#include <linux/list.h>
+#include <linux/errno.h>
+#include <linux/mutex.h>
+
 #include <linux/slab.h>
 #include <linux/preempt.h>
 #include <linux/cdev.h>

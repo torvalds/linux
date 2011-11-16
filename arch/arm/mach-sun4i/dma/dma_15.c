@@ -1,22 +1,17 @@
 /*
-**************************************************************************************************************
-*											         eLDK
-*						            the Easy Portable/Player Develop Kits
-*									           desktop system
-*
-*						        	 (c) Copyright 2009-2012, ,HUANGXIN China
-*											 All Rights Reserved
-*
-* File    	: dma_15.h
-* By      	: HUANGXIN
-* Func		:
-* Version	: v1.0
-* ============================================================================================================
-* 2011-5-9 10:36:54  HUANGXIN create this file, implements the fundemental interface;
-* 2011-10-28         benn port to kernel-3.0
-*                    1) FIXME: to add sw_dmac_suspend/sw_dmac_resume implementation
-**************************************************************************************************************
-*/
+ * arch\arm\mach-sun4i\dma\dma_15.c
+ * (C) Copyright 2007-2011
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * huangxin <huangxin@allwinnertech.com>
+ *
+ * some simple description for this code
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ */
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sysdev.h>

@@ -1,24 +1,17 @@
 /*
-**************************************************************************************************************
-*											         eLDK
-*						            the Easy Portable/Player Develop Kits
-*									           desktop system
-*
-*						        	 (c) Copyright 2009-2012, ,HUANGXIN China
-*											 All Rights Reserved
-*
-* File    	: dma.c
-* By      	: HUANGXIN
-* Func		:
-* Version	: v1.0
-* ============================================================================================================
-* 2011-5-9 10:37:48  HUANGXIN create this file, implements the fundemental interface;
-* 2011-10-28         benn port this to kernel-3.0
-*                    1) suspend/resume was moved to dma_15.c
-*                    2) use platform_device to replace sysdev
-*                    3) make dma_regs.h to private
-**************************************************************************************************************
-*/
+ * arch\arm\mach-sun4i\dma\dma.c
+ * (C) Copyright 2007-2011
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * huangxin <huangxin@allwinnertech.com>
+ *
+ * some simple description for this code
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ */
 //#define DEBUG
 
 #include <linux/module.h>

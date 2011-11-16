@@ -1,20 +1,17 @@
 /*
-**************************************************************************************************************
-*											         eLDK
-*						            the Easy Portable/Player Develop Kits
-*									           desktop system
-*
-*						        	 (c) Copyright 2009-2012, ,HUANGXIN China
-*											 All Rights Reserved
-*
-* File    	: dma.h
-* By      	: HUANGXIN
-* Func		:
-* Version	: v1.0
-* ============================================================================================================
-* 2011-5-9 10:37:24  HUANGXIN create this file, implements the fundemental interface;
-**************************************************************************************************************
-*/
+ * arch\arm\mach-sun4i\include\mach\dma.h
+ * (C) Copyright 2007-2011
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * huangxin <huangxin@allwinnertech.com>
+ *
+ * some simple description for this code
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ */
 #ifndef __ASM_ARCH_DMA_H
 #define __ASM_ARCH_DMA_H __FILE__
 
