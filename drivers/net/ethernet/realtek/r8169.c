@@ -69,9 +69,6 @@
    The RTL chips use a 64 element hash table based on the Ethernet CRC. */
 static const int multicast_filter_limit = 32;
 
-/* MAC address length */
-#define MAC_ADDR_LEN	6
-
 #define MAX_READ_REQUEST_SHIFT	12
 #define TX_DMA_BURST	6	/* Maximum PCI burst, '6' is 1024 */
 #define SafeMtu		0x1c20	/* ... actually life sucks beyond ~7k */
@@ -4101,7 +4098,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	spin_lock_init(&tp->lock);
 
 	/* Get MAC address */
-	for (i = 0; i < MAC_ADDR_LEN; i++)
+	for (i = 0; i < ETH_ALEN; i++)
 		dev->dev_addr[i] = RTL_R8(MAC0 + i);
 	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 

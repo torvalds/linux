@@ -74,9 +74,6 @@ struct ethtool_rx_list {
  * will be the next highest multiple of 512 bytes. */
 #define INCREMENTAL_BUFFER_SIZE 512
 
-
-#define MAC_ADDR_LEN 6
-
 #define PHY_INIT_TIMEOUT 100000
 #define GFAR_PHY_CHANGE_TIME 2
 
