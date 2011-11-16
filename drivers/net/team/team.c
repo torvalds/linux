@@ -1043,8 +1043,7 @@ err_msg_put:
 
 /*
  * Netlink cmd functions should be locked by following two functions.
- * To ensure team_uninit would not be called in between, hold rcu_read_lock
- * all the time.
+ * Since dev gets held here, that ensures dev won't disappear in between.
  */
 static struct team *team_nl_team_get(struct genl_info *info)
 {
@@ -1057,10 +1056,10 @@ static struct team *team_nl_team_get(struct genl_info *info)
 		return NULL;
 
 	ifindex = nla_get_u32(info->attrs[TEAM_ATTR_TEAM_IFINDEX]);
-	rcu_read_lock();
-	dev = dev_get_by_index_rcu(net, ifindex);
+	dev = dev_get_by_index(net, ifindex);
 	if (!dev || dev->netdev_ops != &team_netdev_ops) {
-		rcu_read_unlock();
+		if (dev)
+			dev_put(dev);
 		return NULL;
 	}
 
@@ -1072,7 +1071,7 @@ static struct team *team_nl_team_get(struct genl_info *info)
 static void team_nl_team_put(struct team *team)
 {
 	spin_unlock(&team->lock);
-	rcu_read_unlock();
+	dev_put(team->dev);
 }
 
 static int team_nl_send_generic(struct genl_info *info, struct team *team,
