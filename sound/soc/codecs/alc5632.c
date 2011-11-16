@@ -939,6 +939,7 @@ static struct snd_soc_dai_driver alc5632_dai = {
 	.symmetric_rates = 1,
 };
 
+#ifdef CONFIG_PM
 static int alc5632_suspend(struct snd_soc_codec *codec, pm_message_t mesg)
 {
 	alc5632_set_bias_level(codec, SND_SOC_BIAS_OFF);
@@ -961,6 +962,10 @@ static int alc5632_resume(struct snd_soc_codec *codec)
 	alc5632_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	return 0;
 }
+#else
+#define	alc5632_suspend	NULL
+#define	alc5632_resume	NULL
+#endif
 
 static int alc5632_probe(struct snd_soc_codec *codec)
 {
