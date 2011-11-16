@@ -91,6 +91,7 @@ int (*board_be_handler)(struct pt_regs *regs, int is_fixup);
 void (*board_nmi_handler_setup)(void);
 void (*board_ejtag_handler_setup)(void);
 void (*board_bind_eic_interrupt)(int irq, int regset);
+void (*board_ebase_setup)(void);
 
 
 static void show_raw_backtrace(unsigned long reg29)
@@ -1691,6 +1692,8 @@ void __init trap_init(void)
 			ebase += (read_c0_ebase() & 0x3ffff000);
 	}
 
+	if (board_ebase_setup)
+		board_ebase_setup();
 	per_cpu_trap_init();
 
 	/*

@@ -24,6 +24,7 @@ extern int (*board_be_handler)(struct pt_regs *regs, int is_fixup);
 extern void (*board_nmi_handler_setup)(void);
 extern void (*board_ejtag_handler_setup)(void);
 extern void (*board_bind_eic_interrupt)(int irq, int regset);
+extern void (*board_ebase_setup)(void);
 
 extern int register_nmi_notifier(struct notifier_block *nb);
 
