@@ -1,20 +1,17 @@
 /*
-**************************************************************************************************************
-*											         eLDK
-*						            the Easy Portable/Player Develop Kits
-*									           desktop system
-*
-*						        	 (c) Copyright 2009-2012, ,HUANGXIN China
-*											 All Rights Reserved
-*
-* File    	: sun4i_ace_i.h
-* By      	: HUANGXIN
-* Func		:
-* Version	: v1.0
-* ============================================================================================================
-* 2011-6-2 16:09:33  HUANGXIN create this file, implements the fundemental interface;
-**************************************************************************************************************
-*/
+ * drivers\media\audio\sun4i_ace_i.h
+ * (C) Copyright 2007-2011
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * huangxin <huangxin@allwinnertech.com>
+ *
+ * some simple description for this code
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ */
 #ifndef _SUN4I_ACE_I_H_
 #define	_SUN4I_ACE_I_H_
 
@@ -28,7 +25,6 @@
 #define sys_put_wvalue(n,c) (*((volatile __u32 *)(n))  = (c))   /* word output */
 
 #define ACE_REGS_pBASE    	(0x01c1a000)
-//extern __u32 ACE_REGS_BASE;
 
 extern void *       ace_hsram;
 
@@ -39,7 +35,6 @@ extern void *       ace_hsram;
 /*AE register offset*/
 #define AE_INT_EN_REG_OFF             (0x100+0x08)
 #define AE_STATUS_REG_OFF             (0x100+0x24)
-
 
 /*ACE register address*/
 #define ACE_MODE_SELECTOR     	(ace_hsram + ACE_MODE_SELECTOR_OFF)
@@ -76,13 +71,11 @@ typedef struct __ACE_MODULE_USE_STAT{
 #define CLK_OFF 0
 #define CLK_ON  1
 
-
 #define ACE_FAIL    -1
 #define ACE_OK       0
 
 #define CLK_CMD_SCLKCHG_REQ  2
 #define CLK_CMD_SCLKCHG_DONE 3
-
 
 #define CSP_CCM_MOD_CLK_ACE  "ace"
 #define CSP_CCM_MOD_CLK_AHB_ACE "ahb_ace"
@@ -97,7 +90,5 @@ typedef struct __ACE_MODULE_USE_STAT{
 #define esCLK_MclkRegCb(a, b)   NULL
 #define esCLK_MclkUnregCb(a, b) NULL
 #define esCLK_MclkReset(a, b)   clk_reset(a, b)
-
-
 
 #endif	/* _ACE_I_H_ */

@@ -7,6 +7,20 @@
 #include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/mutex.h>
+/*
+ * drivers\media\audio\sun4i_dev_ace.c
+ * (C) Copyright 2007-2011
+ * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * huangxin <huangxin@allwinnertech.com>
+ *
+ * some simple description for this code
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ */
 #include <linux/slab.h>
 #include <linux/preempt.h>
 #include <linux/cdev.h>
@@ -36,11 +50,10 @@ static int ref_count = 0;
 static DECLARE_WAIT_QUEUE_HEAD(wait_ae);
 __u32 ae_interrupt_sta = 0, ae_interrupt_value = 0;
 void *       ccmu_hsram;
-//ae、ace、ce共享中断号
+/*ae、ace、ce共享中断号*/
 #define ACE_IRQ_NO (60)
 
-//extern int clk_reset(struct clk *clk, int reset);
-
+//#define ACE_DEBUG
 static int ace_dev_open(struct inode *inode, struct file *filp){
     int status = 0;
     return status;
@@ -60,7 +73,7 @@ static irqreturn_t ace_interrupt(int irq, void *dev)
 {
 	volatile int ae_out_mode_reg = 0;
 
-	//status 0x24
+	/*status 0x24*/
 	ae_out_mode_reg = readReg(AE_STATUS_REG);
 	ae_interrupt_value = ae_out_mode_reg;
 	if(ae_out_mode_reg & 0x04){
@@ -71,15 +84,14 @@ static irqreturn_t ace_interrupt(int irq, void *dev)
 	writeReg(AE_STATUS_REG,ae_out_mode_reg);
 	ae_interrupt_sta = 1;
 
-	ae_out_mode_reg = readReg(AE_STATUS_REG);//没用  测试是否可以del
+	ae_out_mode_reg = readReg(AE_STATUS_REG);
 	wake_up_interruptible(&wait_ae);
 
     return IRQ_HANDLED;
 }
 
-static long
-ace_dev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg){
-
+static long ace_dev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
 	int 				ret_val = 0;
 	unsigned long       test_arg;
 	__ace_req_e 		mpara;
@@ -181,23 +193,23 @@ ace_dev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg){
 		default:
 			break;
 	}
-
 	return ret_val;
 }
 
 void acedev_vma_open(struct vm_area_struct *vma)
 {
+
 }
 
 void acedev_vma_close(struct vm_area_struct *vma)
 {
+
 }
 
 static struct vm_operations_struct acedev_remap_vm_ops = {
     .open = acedev_vma_open,
     .close = acedev_vma_close,
 };
-
 
 static int acedev_mmap(struct file *filp, struct vm_area_struct *vma)
 {
@@ -209,8 +221,7 @@ static int acedev_mmap(struct file *filp, struct vm_area_struct *vma)
     /* Select uncached access. */
     vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
     if (io_remap_pfn_range(vma, vma->vm_start, temp_pfn,
-                    vma->vm_end - vma->vm_start, vma->vm_page_prot))
-    {
+                    vma->vm_end - vma->vm_start, vma->vm_page_prot)) {
         return -EAGAIN;
     }
     vma->vm_ops = &acedev_remap_vm_ops;
@@ -236,12 +247,14 @@ static int snd_sw_ace_suspend(struct platform_device *pdev,pm_message_t state)
 	clk_put(ace_pll5_pclk);
 
 	/*for clk test*/
-	pr_debug("[ace_suspend reg]\n");
-	pr_debug("ace_module CLK:0xf1c20148 is:%x\n", *(volatile int *)0xf1c20148);
-	pr_debug("ace_pll5_p CLK:0xf1c20020 is:%x\n", *(volatile int *)0xf1c20020);
-	pr_debug("dram_ace CLK:0xf1c20100 is:%x\n", *(volatile int *)0xf1c20100);
-	pr_debug("ahb_ace CLK:0xf1c20060 is:%x\n", *(volatile int *)0xf1c20060);
-	pr_debug("[ace_suspend reg]\n");
+#ifdef ACE_DEBUG
+	printk("[ace_suspend reg]\n");
+	printk("ace_module CLK:0xf1c20148 is:%x\n", *(volatile int *)0xf1c20148);
+	printk("ace_pll5_p CLK:0xf1c20020 is:%x\n", *(volatile int *)0xf1c20020);
+	printk("dram_ace CLK:0xf1c20100 is:%x\n", *(volatile int *)0xf1c20100);
+	printk("ahb_ace CLK:0xf1c20060 is:%x\n", *(volatile int *)0xf1c20060);
+	printk("[ace_suspend reg]\n");
+#endif
 	return 0;
 }
 
@@ -327,31 +340,30 @@ static int __init ace_dev_init(void)
     int status = 0;
     int err = 0;
 	int ret = 0;
-	pr_debug("[ace_drv] start!!!\n");
+	printk("[ace_drv] start!!!\n");
 	ret = request_irq(ACE_IRQ_NO, ace_interrupt, 0, "ace_dev", NULL);
 	if (ret < 0) {
 	   printk("request ace irq err\n");
 	   return -EINVAL;
 	}
+
 	if((platform_device_register(&sw_device_ace))<0)
 		return err;
-
 	if ((err = platform_driver_register(&sw_ace_driver)) < 0)
 		return err;
-
 
     alloc_chrdev_region(&dev_num, 0, 1, "ace_chrdev");
     ace_dev = cdev_alloc();
     cdev_init(ace_dev, &ace_dev_fops);
     ace_dev->owner = THIS_MODULE;
     err = cdev_add(ace_dev, dev_num, 1);
-    if (err){
+    if (err) {
     	printk(KERN_NOTICE"Error %d adding ace_dev!\n", err);
         return -1;
     }
+
     ace_dev_class = class_create(THIS_MODULE, "ace_cls");
-    device_create(ace_dev_class, NULL,
-                  dev_num, NULL, "ace_dev");
+    device_create(ace_dev_class, NULL, dev_num, NULL, "ace_dev");
     ACE_Init();
     printk("[ace_drv] init end!!!\n");
     return status;
@@ -362,14 +374,12 @@ static void __exit ace_dev_exit(void)
 {
 	free_irq(ACE_IRQ_NO, NULL);
 	ACE_Exit();
-
     device_destroy(ace_dev_class,  dev_num);
     class_destroy(ace_dev_class);
-    	platform_driver_unregister(&sw_ace_driver);
+    platform_driver_unregister(&sw_ace_driver);
 }
 module_exit(ace_dev_exit);
 
 MODULE_AUTHOR("young");
 MODULE_DESCRIPTION("User mode encrypt device interface");
 MODULE_LICENSE("GPL");
-
