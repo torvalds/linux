@@ -246,4 +246,6 @@
 #define ALC5632_VENDOR_ID1			0x7C
 #define ALC5632_VENDOR_ID2			0x7E
 
+#define ALC5632_MAX_REGISTER        0x7E
+
 #endif
