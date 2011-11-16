@@ -1582,7 +1582,7 @@ static int
 mv643xx_eth_set_features(struct net_device *dev, netdev_features_t features)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
-	int rx_csum = !!(features & NETIF_F_RXCSUM);
+	bool rx_csum = features & NETIF_F_RXCSUM;
 
 	wrlp(mp, PORT_CONFIG, rx_csum ? 0x02000000 : 0x00000000);
 
