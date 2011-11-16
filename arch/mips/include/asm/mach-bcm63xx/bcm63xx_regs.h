@@ -437,6 +437,7 @@
 #define GPIO_CTL_LO_REG			0x4
 #define GPIO_DATA_HI_REG		0x8
 #define GPIO_DATA_LO_REG		0xC
+#define GPIO_DATA_LO_REG_6345		0x8
 
 /* GPIO mux registers and constants */
 #define GPIO_MODE_REG			0x18
