@@ -170,8 +170,10 @@ static unsigned int detect_memory_size(void)
 	unsigned int cols = 0, rows = 0, is_32bits = 0, banks = 0;
 	u32 val;
 
-	if (BCMCPU_IS_6345())
-		return (8 * 1024 * 1024);
+	if (BCMCPU_IS_6345()) {
+		val = bcm_sdram_readl(SDRAM_MBASE_REG);
+		return (val * 8 * 1024 * 1024);
+	}
 
 	if (BCMCPU_IS_6338() || BCMCPU_IS_6348()) {
 		val = bcm_sdram_readl(SDRAM_CFG_REG);
