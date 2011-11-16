@@ -268,8 +268,10 @@ static int __devexit kxsd9_remove(struct spi_device *spi)
 }
 
 static const struct spi_device_id kxsd9_id[] = {
-	{"kxsd9", 0}
+	{"kxsd9", 0},
+	{ },
 };
+MODULE_DEVICE_TABLE(spi, kxsd9_id);
 
 static struct spi_driver kxsd9_driver = {
 	.driver = {

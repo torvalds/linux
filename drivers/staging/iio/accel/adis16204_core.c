@@ -593,3 +593,4 @@ module_exit(adis16204_exit);
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("ADIS16204 High-g Digital Impact Sensor and Recorder");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("spi:adis16204");

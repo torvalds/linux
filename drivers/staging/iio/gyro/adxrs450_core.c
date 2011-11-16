@@ -397,3 +397,4 @@ module_exit(adxrs450_exit);
 MODULE_AUTHOR("Cliff Cai <cliff.cai@xxxxxxxxxx>");
 MODULE_DESCRIPTION("Analog Devices ADXRS450 Gyroscope SPI driver");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("spi:adxrs450");

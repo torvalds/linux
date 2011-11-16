@@ -821,3 +821,4 @@ module_exit(lis3l02dq_exit);
 MODULE_AUTHOR("Jonathan Cameron <jic23@cam.ac.uk>");
 MODULE_DESCRIPTION("ST LIS3L02DQ Accelerometer SPI driver");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("spi:lis3l02dq");

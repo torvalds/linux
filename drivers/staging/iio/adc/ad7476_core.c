@@ -237,6 +237,7 @@ static const struct spi_device_id ad7476_id[] = {
 	{"ad7495", ID_AD7495},
 	{}
 };
+MODULE_DEVICE_TABLE(spi, ad7476_id);
 
 static struct spi_driver ad7476_driver = {
 	.driver = {
@@ -264,4 +265,3 @@ module_exit(ad7476_exit);
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("Analog Devices AD7475/6/7/8(A) AD7466/7/8 ADC");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("spi:ad7476");

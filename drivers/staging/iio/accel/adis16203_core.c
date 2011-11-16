@@ -519,3 +519,4 @@ module_exit(adis16203_exit);
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices ADIS16203 Programmable Digital Vibration Sensor driver");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("spi:adis16203");

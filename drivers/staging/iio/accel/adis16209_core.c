@@ -568,3 +568,4 @@ module_exit(adis16209_exit);
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices ADIS16209 Digital Vibration Sensor driver");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("spi:adis16209");

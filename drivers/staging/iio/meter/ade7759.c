@@ -537,3 +537,4 @@ module_exit(ade7759_exit);
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices ADE7759 Active Energy Metering IC Driver");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("spi:ad7759");

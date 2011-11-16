@@ -944,7 +944,6 @@ static __exit void ad799x_exit(void)
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("Analog Devices AD799x ADC");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("i2c:ad799x");
 
 module_init(ad799x_init);
 module_exit(ad799x_exit);

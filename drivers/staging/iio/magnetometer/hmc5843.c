@@ -605,6 +605,7 @@ static const struct i2c_device_id hmc5843_id[] = {
 	{ "hmc5843", 0 },
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c, hmc5843_id);
 
 static struct i2c_driver hmc5843_driver = {
 	.driver = {

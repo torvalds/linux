@@ -435,6 +435,7 @@ static const struct spi_device_id ad5446_id[] = {
 	{"ad5660-1250", ID_AD5660_1250},
 	{}
 };
+MODULE_DEVICE_TABLE(spi, ad5446_id);
 
 static struct spi_driver ad5446_driver = {
 	.driver = {
@@ -462,4 +463,3 @@ module_exit(ad5446_exit);
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("Analog Devices AD5444/AD5446 DAC");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("spi:ad5446");
