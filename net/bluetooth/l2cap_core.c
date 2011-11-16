@@ -154,12 +154,9 @@ static struct l2cap_chan *__l2cap_global_chan_by_addr(__le16 psm, bdaddr_t *src)
 
 	list_for_each_entry(c, &chan_list, global_l) {
 		if (c->sport == psm && !bacmp(&bt_sk(c->sk)->src, src))
-			goto found;
+			return c;
 	}
-
-	c = NULL;
-found:
-	return c;
+	return NULL;
 }
 
 int l2cap_add_psm(struct l2cap_chan *chan, bdaddr_t *src, __le16 psm)
