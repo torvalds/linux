@@ -616,6 +616,11 @@ static struct mmc_host_ops sunximmc_ops = {
     .enable_sdio_irq = sunximmc_enable_sdio_irq
 };
 
+static int mmc_pm_get_mod_type(void)
+{
+    return 0;
+}
+
 static int __devinit sunximmc_probe(struct platform_device *pdev)
 {
     struct sunxi_mmc_host *smc_host = NULL;
@@ -790,7 +795,6 @@ static int __devexit sunximmc_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int sunximmc_suspend(struct device *dev)
 {
-#if 0
     struct platform_device *pdev = to_platform_device(dev);
     struct mmc_host *mmc = platform_get_drvdata(pdev);
     int ret = 0;
@@ -823,13 +827,10 @@ static int sunximmc_suspend(struct device *dev)
 
     SMC_DBG("smc %d suspend\n", pdev->id);
     return ret;
-#endif
-	return 0;
 }
 
 static int sunximmc_resume(struct device *dev)
 {
-#if 0
     struct platform_device *pdev = to_platform_device(dev);
     struct mmc_host *mmc = platform_get_drvdata(pdev);
     int ret = 0;
@@ -864,8 +865,6 @@ static int sunximmc_resume(struct device *dev)
 
     SMC_DBG("smc %d resume\n", pdev->id);
     return ret;
-#endif
-	return 0;
 }
 
 static const struct dev_pm_ops sunximmc_pm = {
