@@ -19,6 +19,7 @@
 #include "util/color.h"
 #include <linux/list.h>
 #include "util/cache.h"
+#include "util/evsel.h"
 #include <linux/rbtree.h>
 #include "util/symbol.h"
 #include "util/callchain.h"
@@ -488,12 +489,12 @@ static void sched_switch(int cpu, u64 timestamp, struct trace_entry *te)
 
 static int process_sample_event(union perf_event *event __used,
 				struct perf_sample *sample,
-				struct perf_evsel *evsel __used,
-				struct perf_session *session)
+				struct perf_evsel *evsel,
+				struct perf_session *session __used)
 {
 	struct trace_entry *te;
 
-	if (session->sample_type & PERF_SAMPLE_TIME) {
+	if (evsel->attr.sample_type & PERF_SAMPLE_TIME) {
 		if (!first_time || first_time > sample->time)
 			first_time = sample->time;
 		if (last_time < sample->time)
@@ -501,7 +502,7 @@ static int process_sample_event(union perf_event *event __used,
 	}
 
 	te = (void *)sample->raw_data;
-	if (session->sample_type & PERF_SAMPLE_RAW && sample->raw_size > 0) {
+	if ((evsel->attr.sample_type & PERF_SAMPLE_RAW) && sample->raw_size > 0) {
 		char *event_str;
 #ifdef SUPPORT_OLD_POWER_EVENTS
 		struct power_entry_old *peo;

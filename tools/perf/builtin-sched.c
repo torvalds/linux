@@ -3,6 +3,7 @@
 
 #include "util/util.h"
 #include "util/cache.h"
+#include "util/evsel.h"
 #include "util/symbol.h"
 #include "util/thread.h"
 #include "util/header.h"
@@ -1603,12 +1604,12 @@ static void process_raw_event(union perf_event *raw_event __used,
 
 static int process_sample_event(union perf_event *event,
 				struct perf_sample *sample,
-				struct perf_evsel *evsel __used,
+				struct perf_evsel *evsel,
 				struct perf_session *session)
 {
 	struct thread *thread;
 
-	if (!(session->sample_type & PERF_SAMPLE_RAW))
+	if (!(evsel->attr.sample_type & PERF_SAMPLE_RAW))
 		return 0;
 
 	thread = perf_session__findnew(session, sample->pid);
