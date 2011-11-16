@@ -2858,7 +2858,7 @@ static void tcp_try_keep_open(struct sock *sk)
 	struct tcp_sock *tp = tcp_sk(sk);
 	int state = TCP_CA_Open;
 
-	if (tcp_left_out(tp) || tcp_any_retrans_done(sk) || tp->undo_marker)
+	if (tcp_left_out(tp) || tcp_any_retrans_done(sk))
 		state = TCP_CA_Disorder;
 
 	if (inet_csk(sk)->icsk_ca_state != state) {
@@ -3066,17 +3066,6 @@ static void tcp_fastretrans_alert(struct sock *sk, int pkts_acked,
 			}
 			break;
 
-		case TCP_CA_Disorder:
-			tcp_try_undo_dsack(sk);
-			if (!tp->undo_marker ||
-			    /* For SACK case do not Open to allow to undo
-			     * catching for all duplicate ACKs. */
-			    tcp_is_reno(tp) || tp->snd_una != tp->high_seq) {
-				tp->undo_marker = 0;
-				tcp_set_ca_state(sk, TCP_CA_Open);
-			}
-			break;
-
 		case TCP_CA_Recovery:
 			if (tcp_is_reno(tp))
 				tcp_reset_reno_sack(tp);
@@ -3117,7 +3106,7 @@ static void tcp_fastretrans_alert(struct sock *sk, int pkts_acked,
 				tcp_add_reno_sack(sk);
 		}
 
-		if (icsk->icsk_ca_state == TCP_CA_Disorder)
+		if (icsk->icsk_ca_state <= TCP_CA_Disorder)
 			tcp_try_undo_dsack(sk);
 
 		if (!tcp_time_to_recover(sk)) {
