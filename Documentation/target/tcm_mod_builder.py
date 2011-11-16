@@ -230,14 +230,9 @@ def tcm_mod_build_configfs(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 	buf += "#include <linux/ctype.h>\n"
 	buf += "#include <asm/unaligned.h>\n\n"
 	buf += "#include <target/target_core_base.h>\n"
-	buf += "#include <target/target_core_transport.h>\n"
-	buf += "#include <target/target_core_fabric_ops.h>\n"
+	buf += "#include <target/target_core_fabric.h>\n"
 	buf += "#include <target/target_core_fabric_configfs.h>\n"
-	buf += "#include <target/target_core_fabric_lib.h>\n"
-	buf += "#include <target/target_core_device.h>\n"
-	buf += "#include <target/target_core_tpg.h>\n"
 	buf += "#include <target/target_core_configfs.h>\n"
-	buf += "#include <target/target_core_base.h>\n"
 	buf += "#include <target/configfs_macros.h>\n\n"
 	buf += "#include \"" + fabric_mod_name + "_base.h\"\n"
 	buf += "#include \"" + fabric_mod_name + "_fabric.h\"\n\n"
@@ -514,7 +509,7 @@ def tcm_mod_build_configfs(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 
 def tcm_mod_scan_fabric_ops(tcm_dir):
 
-	fabric_ops_api = tcm_dir + "include/target/target_core_fabric_ops.h"
+	fabric_ops_api = tcm_dir + "include/target/target_core_fabric.h"
 
 	print "Using tcm_mod_scan_fabric_ops: " + fabric_ops_api
 	process_fo = 0;
@@ -579,11 +574,7 @@ def tcm_mod_dump_fabric_ops(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 	buf += "#include <scsi/scsi_cmnd.h>\n"
 	buf += "#include <scsi/libfc.h>\n\n"
 	buf += "#include <target/target_core_base.h>\n"
-	buf += "#include <target/target_core_transport.h>\n"
-	buf += "#include <target/target_core_fabric_ops.h>\n"
-	buf += "#include <target/target_core_fabric_lib.h>\n"
-	buf += "#include <target/target_core_device.h>\n"
-	buf += "#include <target/target_core_tpg.h>\n"
+	buf += "#include <target/target_core_fabric.h>\n"
 	buf += "#include <target/target_core_configfs.h>\n\n"
 	buf += "#include \"" + fabric_mod_name + "_base.h\"\n"
 	buf += "#include \"" + fabric_mod_name + "_fabric.h\"\n\n"

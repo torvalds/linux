@@ -22,9 +22,7 @@
 #include <scsi/scsi_tcq.h>
 #include <scsi/iscsi_proto.h>
 #include <target/target_core_base.h>
-#include <target/target_core_transport.h>
-#include <target/target_core_tmr.h>
-#include <target/target_core_fabric_ops.h>
+#include <target/target_core_fabric.h>
 #include <target/target_core_configfs.h>
 
 #include "iscsi_target_core.h"

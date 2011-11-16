@@ -10,6 +10,7 @@
 #include <net/tcp.h>
 
 #define TARGET_CORE_MOD_VERSION		"v4.1.0-rc1-ml"
+#define TARGET_CORE_VERSION		TARGET_CORE_MOD_VERSION
 
 /* Maximum Number of LUNs per Target Portal Group */
 /* Don't raise above 511 or REPORT_LUNS needs to handle >1 page */
@@ -52,6 +53,72 @@
 #define INQUIRY_VPD_SERIAL_LEN			254
 /* Used by transport_get_inquiry_vpd_device_ident() */
 #define INQUIRY_VPD_DEVICE_IDENTIFIER_LEN	254
+
+/* Attempts before moving from SHORT to LONG */
+#define PYX_TRANSPORT_WINDOW_CLOSED_THRESHOLD	3
+#define PYX_TRANSPORT_WINDOW_CLOSED_WAIT_SHORT	3  /* In milliseconds */
+#define PYX_TRANSPORT_WINDOW_CLOSED_WAIT_LONG	10 /* In milliseconds */
+
+#define PYX_TRANSPORT_STATUS_INTERVAL		5 /* In seconds */
+
+/*
+ * struct se_subsystem_dev->su_dev_flags
+*/
+#define SDF_FIRMWARE_VPD_UNIT_SERIAL		0x00000001
+#define SDF_EMULATED_VPD_UNIT_SERIAL		0x00000002
+#define SDF_USING_UDEV_PATH			0x00000004
+#define SDF_USING_ALIAS				0x00000008
+
+/*
+ * struct se_device->dev_flags
+ */
+#define DF_READ_ONLY				0x00000001
+#define DF_SPC2_RESERVATIONS			0x00000002
+#define DF_SPC2_RESERVATIONS_WITH_ISID		0x00000004
+
+/* struct se_dev_attrib sanity values */
+/* Default max_unmap_lba_count */
+#define DA_MAX_UNMAP_LBA_COUNT			0
+/* Default max_unmap_block_desc_count */
+#define DA_MAX_UNMAP_BLOCK_DESC_COUNT		0
+/* Default unmap_granularity */
+#define DA_UNMAP_GRANULARITY_DEFAULT		0
+/* Default unmap_granularity_alignment */
+#define DA_UNMAP_GRANULARITY_ALIGNMENT_DEFAULT	0
+/* Emulation for Direct Page Out */
+#define DA_EMULATE_DPO				0
+/* Emulation for Forced Unit Access WRITEs */
+#define DA_EMULATE_FUA_WRITE			1
+/* Emulation for Forced Unit Access READs */
+#define DA_EMULATE_FUA_READ			0
+/* Emulation for WriteCache and SYNCHRONIZE_CACHE */
+#define DA_EMULATE_WRITE_CACHE			0
+/* Emulation for UNIT ATTENTION Interlock Control */
+#define DA_EMULATE_UA_INTLLCK_CTRL		0
+/* Emulation for TASK_ABORTED status (TAS) by default */
+#define DA_EMULATE_TAS				1
+/* Emulation for Thin Provisioning UNMAP using block/blk-lib.c:blkdev_issue_discard() */
+#define DA_EMULATE_TPU				0
+/*
+ * Emulation for Thin Provisioning WRITE_SAME w/ UNMAP=1 bit using
+ * block/blk-lib.c:blkdev_issue_discard()
+ */
+#define DA_EMULATE_TPWS				0
+/* No Emulation for PSCSI by default */
+#define DA_EMULATE_RESERVATIONS			0
+/* No Emulation for PSCSI by default */
+#define DA_EMULATE_ALUA				0
+/* Enforce SCSI Initiator Port TransportID with 'ISID' for PR */
+#define DA_ENFORCE_PR_ISIDS			1
+#define DA_STATUS_MAX_SECTORS_MIN		16
+#define DA_STATUS_MAX_SECTORS_MAX		8192
+/* By default don't report non-rotating (solid state) medium */
+#define DA_IS_NONROT				0
+/* Queue Algorithm Modifier default for restricted reordering in control mode page */
+#define DA_EMULATE_REST_REORD			0
+
+#define SE_MODE_PAGE_BUF			512
+
 
 /* struct se_hba->hba_flags */
 enum hba_flags_table {
@@ -156,6 +223,30 @@ enum tcm_sense_reason_table {
 	TCM_CHECK_CONDITION_UNIT_ATTENTION	= 0x0e,
 	TCM_CHECK_CONDITION_NOT_READY		= 0x0f,
 	TCM_RESERVATION_CONFLICT		= 0x10,
+};
+
+/* fabric independent task management function values */
+enum tcm_tmreq_table {
+	TMR_ABORT_TASK		= 1,
+	TMR_ABORT_TASK_SET	= 2,
+	TMR_CLEAR_ACA		= 3,
+	TMR_CLEAR_TASK_SET	= 4,
+	TMR_LUN_RESET		= 5,
+	TMR_TARGET_WARM_RESET	= 6,
+	TMR_TARGET_COLD_RESET	= 7,
+	TMR_FABRIC_TMR		= 255,
+};
+
+/* fabric independent task management response values */
+enum tcm_tmrsp_table {
+	TMR_FUNCTION_COMPLETE		= 0,
+	TMR_TASK_DOES_NOT_EXIST		= 1,
+	TMR_LUN_DOES_NOT_EXIST		= 2,
+	TMR_TASK_STILL_ALLEGIANT	= 3,
+	TMR_TASK_FAILOVER_NOT_SUPPORTED	= 4,
+	TMR_TASK_MGMT_FUNCTION_NOT_SUPPORTED	= 5,
+	TMR_FUNCTION_AUTHORIZATION_FAILED = 6,
+	TMR_FUNCTION_REJECTED		= 255,
 };
 
 struct se_obj {
