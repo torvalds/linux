@@ -711,8 +711,9 @@ static int cs_capture_source_info(struct snd_kcontrol *kcontrol,
 	if (uinfo->value.enumerated.item >= spec->num_inputs)
 		uinfo->value.enumerated.item = spec->num_inputs - 1;
 	idx = spec->input_idx[uinfo->value.enumerated.item];
-	strcpy(uinfo->value.enumerated.name,
-	       snd_hda_get_pin_label(codec, cfg->inputs[idx].pin, NULL));
+	snd_hda_get_pin_label(codec, cfg->inputs[idx].pin, cfg,
+			      uinfo->value.enumerated.name,
+			      sizeof(uinfo->value.enumerated.name), NULL);
 	return 0;
 }
 

@@ -5066,61 +5066,136 @@ const char *hda_get_autocfg_input_label(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_HDA(hda_get_autocfg_input_label);
 
+/* get a unique suffix or an index number */
+static const char *check_output_sfx(hda_nid_t nid, const hda_nid_t *pins,
+				    int num_pins, int *indexp)
+{
+	static const char * const channel_sfx[] = {
+		" Front", " Surrount", " CLFE", " Side"
+	};
+	int i;
+
+	for (i = 0; i < num_pins; i++) {
+		if (pins[i] == nid) {
+			if (num_pins == 1)
+				return "";
+			if (num_pins > ARRAY_SIZE(channel_sfx)) {
+				if (indexp)
+					*indexp = i;
+				return "";
+			}
+			return channel_sfx[i];
+		}
+	}
+	return NULL;
+}
+
+static int fill_audio_out_name(struct hda_codec *codec, hda_nid_t nid,
+			       const struct auto_pin_cfg *cfg,
+			       const char *name, char *label, int maxlen,
+			       int *indexp)
+{
+	unsigned int def_conf = snd_hda_codec_get_pincfg(codec, nid);
+	int attr = snd_hda_get_input_pin_attr(def_conf);
+	const char *pfx = "", *sfx = "";
+
+	/* handle as a speaker if it's a fixed line-out */
+	if (!strcmp(name, "Line-Out") && attr == INPUT_PIN_ATTR_INT)
+		name = "Speaker";
+	/* check the location */
+	switch (attr) {
+	case INPUT_PIN_ATTR_DOCK:
+		pfx = "Dock ";
+		break;
+	case INPUT_PIN_ATTR_FRONT:
+		pfx = "Front ";
+		break;
+	}
+	if (cfg) {
+		/* try to give a unique suffix if needed */
+		sfx = check_output_sfx(nid, cfg->line_out_pins, cfg->line_outs,
+				       indexp);
+		if (!sfx)
+			sfx = check_output_sfx(nid, cfg->hp_pins, cfg->hp_outs,
+					       indexp);
+		if (!sfx)
+			sfx = check_output_sfx(nid, cfg->speaker_pins, cfg->speaker_outs,
+					       indexp);
+		if (!sfx)
+			sfx = "";
+	}
+	snprintf(label, maxlen, "%s%s%s", pfx, name, sfx);
+	return 1;
+}
+
 /**
  * snd_hda_get_pin_label - Get a label for the given I/O pin
  *
  * Get a label for the given pin.  This function works for both input and
  * output pins.  When @cfg is given as non-NULL, the function tries to get
  * an optimized label using hda_get_autocfg_input_label().
+ *
+ * This function tries to give a unique label string for the pin as much as
+ * possible.  For example, when the multiple line-outs are present, it adds
+ * the channel suffix like "Front", "Surround", etc (only when @cfg is given).
+ * If no unique name with a suffix is available and @indexp is non-NULL, the
+ * index number is stored in the pointer.
  */
-const char *snd_hda_get_pin_label(struct hda_codec *codec, hda_nid_t nid,
-				  const struct auto_pin_cfg *cfg)
+int snd_hda_get_pin_label(struct hda_codec *codec, hda_nid_t nid,
+			  const struct auto_pin_cfg *cfg,
+			  char *label, int maxlen, int *indexp)
 {
 	unsigned int def_conf = snd_hda_codec_get_pincfg(codec, nid);
-	int attr;
+	const char *name = NULL;
 	int i;
 
+	if (indexp)
+		*indexp = 0;
 	if (get_defcfg_connect(def_conf) == AC_JACK_PORT_NONE)
-		return NULL;
+		return 0;
 
-	attr = snd_hda_get_input_pin_attr(def_conf);
 	switch (get_defcfg_device(def_conf)) {
 	case AC_JACK_LINE_OUT:
-		switch (attr) {
-		case INPUT_PIN_ATTR_INT:
-			return "Speaker";
-		case INPUT_PIN_ATTR_DOCK:
-			return "Dock Line-Out";
-		case INPUT_PIN_ATTR_FRONT:
-			return "Front Line-Out";
-		default:
-			return "Line-Out";
-		}
+		return fill_audio_out_name(codec, nid, cfg, "Line-Out",
+					   label, maxlen, indexp);
 	case AC_JACK_SPEAKER:
-		return "Speaker";
+		return fill_audio_out_name(codec, nid, cfg, "Speaker",
+					   label, maxlen, indexp);
 	case AC_JACK_HP_OUT:
-		switch (attr) {
-		case INPUT_PIN_ATTR_DOCK:
-			return "Dock Headphone";
-		case INPUT_PIN_ATTR_FRONT:
-			return "Front Headphone";
-		default:
-			return "Headphone";
-		}
+		return fill_audio_out_name(codec, nid, cfg, "Headphone",
+					   label, maxlen, indexp);
 	case AC_JACK_SPDIF_OUT:
 	case AC_JACK_DIG_OTHER_OUT:
 		if (get_defcfg_location(def_conf) == AC_JACK_LOC_HDMI)
-			return "HDMI";
+			name = "HDMI";
 		else
-			return "SPDIF";
+			name = "SPDIF";
+		if (cfg && indexp) {
+			for (i = 0; i < cfg->dig_outs; i++)
+				if (cfg->dig_out_pins[i] == nid) {
+					*indexp = i;
+					break;
+				}
+		}
+		break;
+	default:
+		if (cfg) {
+			for (i = 0; i < cfg->num_inputs; i++) {
+				if (cfg->inputs[i].pin != nid)
+					continue;
+				name = hda_get_autocfg_input_label(codec, cfg, i);
+				if (name)
+					break;
+			}
+		}
+		if (!name)
+			name = hda_get_input_pin_label(codec, nid, true);
+		break;
 	}
-
-	if (cfg) {
-		for (i = 0; i < cfg->num_inputs; i++)
-			if (cfg->inputs[i].pin == nid)
-				return hda_get_autocfg_input_label(codec, cfg, i);
-	}
-	return hda_get_input_pin_label(codec, nid, true);
+	if (!name)
+		return 0;
+	strlcpy(label, name, maxlen);
+	return 1;
 }
 EXPORT_SYMBOL_HDA(snd_hda_get_pin_label);
 

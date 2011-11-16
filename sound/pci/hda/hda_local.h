@@ -397,8 +397,9 @@ struct auto_pin_cfg;
 const char *hda_get_autocfg_input_label(struct hda_codec *codec,
 					const struct auto_pin_cfg *cfg,
 					int input);
-const char *snd_hda_get_pin_label(struct hda_codec *codec, hda_nid_t nid,
-				  const struct auto_pin_cfg *cfg);
+int snd_hda_get_pin_label(struct hda_codec *codec, hda_nid_t nid,
+			  const struct auto_pin_cfg *cfg,
+			  char *label, int maxlen, int *indexp);
 int snd_hda_add_imux_item(struct hda_input_mux *imux, const char *label,
 			  int index, int *type_index_ret);
 
