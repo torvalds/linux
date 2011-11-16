@@ -76,6 +76,20 @@ struct sfi_rtc_table_entry sfi_mrtc_array[SFI_MRTC_MAX];
 EXPORT_SYMBOL_GPL(sfi_mrtc_array);
 int sfi_mrtc_num;
 
+static void mrst_power_off(void)
+{
+	if (__mrst_cpu_chip == MRST_CPU_CHIP_LINCROFT)
+		intel_scu_ipc_simple_command(IPCMSG_COLD_RESET, 1);
+}
+
+static void mrst_reboot(void)
+{
+	if (__mrst_cpu_chip == MRST_CPU_CHIP_LINCROFT)
+		intel_scu_ipc_simple_command(IPCMSG_COLD_RESET, 0);
+	else
+		intel_scu_ipc_simple_command(IPCMSG_COLD_BOOT, 0);
+}
+
 /* parse all the mtimer info to a static mtimer array */
 static int __init sfi_parse_mtmr(struct sfi_table_header *table)
 {
@@ -263,17 +277,6 @@ static void __cpuinit mrst_arch_setup(void)
 static int mrst_i8042_detect(void)
 {
 	return 0;
-}
-
-/* Reboot and power off are handled by the SCU on a MID device */
-static void mrst_power_off(void)
-{
-	intel_scu_ipc_simple_command(0xf1, 1);
-}
-
-static void mrst_reboot(void)
-{
-	intel_scu_ipc_simple_command(0xf1, 0);
 }
 
 /*
