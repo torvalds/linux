@@ -324,8 +324,6 @@ struct drm_psb_private {
 	 * Sizes info
 	 */
 
-	struct drm_psb_sizes_arg sizes;
-
 	u32 fuse_reg_value;
 	u32 video_device_fuse;
 
