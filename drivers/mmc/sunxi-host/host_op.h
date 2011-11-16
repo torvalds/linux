@@ -34,6 +34,7 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/core.h>
+#include <linux/mmc/card.h>
 
 #include <asm/cacheflush.h>
 #include <mach/dma.h>
