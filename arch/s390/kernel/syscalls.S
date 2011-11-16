@@ -348,3 +348,5 @@ SYSCALL(sys_open_by_handle_at,sys_open_by_handle_at,compat_sys_open_by_handle_at
 SYSCALL(sys_clock_adjtime,sys_clock_adjtime,compat_sys_clock_adjtime_wrapper)
 SYSCALL(sys_syncfs,sys_syncfs,sys_syncfs_wrapper)
 SYSCALL(sys_setns,sys_setns,sys_setns_wrapper)
+SYSCALL(sys_process_vm_readv,sys_process_vm_readv,compat_sys_process_vm_readv_wrapper) /* 340 */
+SYSCALL(sys_process_vm_writev,sys_process_vm_writev,compat_sys_process_vm_writev_wrapper)
