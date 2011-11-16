@@ -178,40 +178,35 @@ static int sun4i_pcm_hw_free(struct snd_pcm_substream *substream)
 static int sun4i_pcm_prepare(struct snd_pcm_substream *substream)
 {
 	struct sun4i_runtime_data *prtd = substream->runtime->private_data;
-	struct dma_hw_conf *spdif_dma_conf;
+	struct dma_hw_conf spdif_dma_conf;
 	int ret = 0;
 
-	spdif_dma_conf = kmalloc(sizeof(struct dma_hw_conf), GFP_KERNEL);
-	if (!spdif_dma_conf) {
-	   ret =  - ENOMEM;
-	   return ret;
-	}
 	if (!prtd->params)
 		return 0;
 
-   	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		spdif_dma_conf->drqsrc_type  = DRQ_TYPE_SDRAM;
-		spdif_dma_conf->drqdst_type  = DRQ_TYPE_SPDIF;
-		spdif_dma_conf->xfer_type    = DMAXFER_D_BHALF_S_BHALF;
-		spdif_dma_conf->address_type = DMAADDRT_D_FIX_S_INC;
-		spdif_dma_conf->dir          = SW_DMA_WDEV;
-		spdif_dma_conf->reload       = 0;
-		spdif_dma_conf->hf_irq       = SW_DMA_IRQ_FULL;
-		spdif_dma_conf->from         = prtd->dma_start;
-		spdif_dma_conf->to           = prtd->params->dma_addr;
-		ret = sw_dma_config(prtd->params->channel,spdif_dma_conf);
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
+		spdif_dma_conf.drqsrc_type  = DRQ_TYPE_SDRAM;
+		spdif_dma_conf.drqdst_type  = DRQ_TYPE_SPDIF;
+		spdif_dma_conf.xfer_type    = DMAXFER_D_BHALF_S_BHALF;
+		spdif_dma_conf.address_type = DMAADDRT_D_FIX_S_INC;
+		spdif_dma_conf.dir          = SW_DMA_WDEV;
+		spdif_dma_conf.reload       = 0;
+		spdif_dma_conf.hf_irq       = SW_DMA_IRQ_FULL;
+		spdif_dma_conf.from         = prtd->dma_start;
+		spdif_dma_conf.to           = prtd->params->dma_addr;
+		ret = sw_dma_config(prtd->params->channel, &spdif_dma_conf);
 	} else {
-		spdif_dma_conf->drqsrc_type  = DRQ_TYPE_SDRAM;
-		spdif_dma_conf->drqdst_type  = DRQ_TYPE_SPDIF;
-		spdif_dma_conf->xfer_type    = DMAXFER_D_BWORD_S_BWORD;
-		spdif_dma_conf->address_type = DMAADDRT_D_INC_S_FIX;
-		spdif_dma_conf->dir          = SW_DMA_RDEV;
-		spdif_dma_conf->reload       = 1;
-		spdif_dma_conf->hf_irq       = SW_DMA_IRQ_FULL|SW_DMA_IRQ_HALF;
-		spdif_dma_conf->from         = prtd->params->dma_addr;
-		spdif_dma_conf->to           = prtd->dma_start;
-		sw_dma_config(prtd->params->channel,spdif_dma_conf);
-   	}
+		spdif_dma_conf.drqsrc_type  = DRQ_TYPE_SDRAM;
+		spdif_dma_conf.drqdst_type  = DRQ_TYPE_SPDIF;
+		spdif_dma_conf.xfer_type    = DMAXFER_D_BWORD_S_BWORD;
+		spdif_dma_conf.address_type = DMAADDRT_D_INC_S_FIX;
+		spdif_dma_conf.dir          = SW_DMA_RDEV;
+		spdif_dma_conf.reload       = 1;
+		spdif_dma_conf.hf_irq       = SW_DMA_IRQ_FULL|SW_DMA_IRQ_HALF;
+		spdif_dma_conf.from         = prtd->params->dma_addr;
+		spdif_dma_conf.to           = prtd->dma_start;
+		sw_dma_config(prtd->params->channel,&spdif_dma_conf);
+	}
 	/* flush the DMA channel */
 	sw_dma_ctrl(prtd->params->channel, SW_DMAOP_FLUSH);
 	prtd->dma_loaded = 0;

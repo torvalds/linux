@@ -178,28 +178,23 @@ static int sun4i_pcm_hw_free(struct snd_pcm_substream *substream)
 static int sun4i_pcm_prepare(struct snd_pcm_substream *substream)
 {
 	struct sun4i_runtime_data *prtd = substream->runtime->private_data;
-	struct dma_hw_conf *codec_dma_conf;
+	struct dma_hw_conf codec_dma_conf;
 	int ret = 0;
 
-	codec_dma_conf = kmalloc(sizeof(struct dma_hw_conf), GFP_KERNEL);
-	if (!codec_dma_conf) {
-	   ret =  - ENOMEM;
-	   return ret;
-	}
 	if (!prtd->params)
 		return 0;
 
-   if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		codec_dma_conf->drqsrc_type  = DRQ_TYPE_SDRAM;
-		codec_dma_conf->drqdst_type  = DRQ_TYPE_IIS;
-		codec_dma_conf->xfer_type    = DMAXFER_D_BHALF_S_BHALF;
-		codec_dma_conf->address_type = DMAADDRT_D_FIX_S_INC;
-		codec_dma_conf->dir          = SW_DMA_WDEV;
-		codec_dma_conf->reload       = 0;
-		codec_dma_conf->hf_irq       = SW_DMA_IRQ_FULL;
-		codec_dma_conf->from         = prtd->dma_start;
-		codec_dma_conf->to           = prtd->params->dma_addr;
-		ret = sw_dma_config(prtd->params->channel,codec_dma_conf);
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
+		codec_dma_conf.drqsrc_type  = DRQ_TYPE_SDRAM;
+		codec_dma_conf.drqdst_type  = DRQ_TYPE_IIS;
+		codec_dma_conf.xfer_type    = DMAXFER_D_BHALF_S_BHALF;
+		codec_dma_conf.address_type = DMAADDRT_D_FIX_S_INC;
+		codec_dma_conf.dir          = SW_DMA_WDEV;
+		codec_dma_conf.reload       = 0;
+		codec_dma_conf.hf_irq       = SW_DMA_IRQ_FULL;
+		codec_dma_conf.from         = prtd->dma_start;
+		codec_dma_conf.to           = prtd->params->dma_addr;
+		ret = sw_dma_config(prtd->params->channel, &codec_dma_conf);
 	}
 
 	/* flush the DMA channel */

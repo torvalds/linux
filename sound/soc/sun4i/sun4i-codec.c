@@ -782,7 +782,8 @@ static int snd_sun4i_codec_hw_free(struct snd_pcm_substream *substream)
 
 static int snd_sun4i_codec_prepare(struct	snd_pcm_substream	*substream)
 {
-	struct dma_hw_conf *codec_play_dma_conf = NULL, *codec_capture_dma_conf = NULL;
+	struct dma_hw_conf codec_play_dma_conf;
+	struct dma_hw_conf codec_capture_dma_conf;
 	int play_ret = 0, capture_ret = 0;
 	unsigned int reg_val;
 	struct sun4i_playback_runtime_data *play_prtd = NULL;
@@ -1009,12 +1010,6 @@ static int snd_sun4i_codec_prepare(struct	snd_pcm_substream	*substream)
 		}
 	}
    if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
-		codec_play_dma_conf = kmalloc(sizeof(struct dma_hw_conf), GFP_KERNEL);
-		if (!codec_play_dma_conf){
-		   play_ret =  - ENOMEM;
-		   printk("Can't audio malloc dma play configure memory\n");
-		   return play_ret;
-		}
    	 	play_prtd = substream->runtime->private_data;
    	 	/* return if this is a bufferless transfer e.g.
 	  	* codec <--> BT codec or GSM modem -- lg FIXME */
@@ -1022,16 +1017,16 @@ static int snd_sun4i_codec_prepare(struct	snd_pcm_substream	*substream)
 		return 0;
    	 	//open the dac channel register
 		codec_play_open(substream);
-	  	codec_play_dma_conf->drqsrc_type  = D_DRQSRC_SDRAM;
-		codec_play_dma_conf->drqdst_type  = DRQ_TYPE_AUDIO;
-		codec_play_dma_conf->xfer_type    = DMAXFER_D_BHALF_S_BHALF;
-		codec_play_dma_conf->address_type = DMAADDRT_D_FIX_S_INC;
-		codec_play_dma_conf->dir          = SW_DMA_WDEV;
-		codec_play_dma_conf->reload       = 0;
-		codec_play_dma_conf->hf_irq       = SW_DMA_IRQ_FULL;
-		codec_play_dma_conf->from         = play_prtd->dma_start;
-		codec_play_dma_conf->to           = play_prtd->params->dma_addr;
-	  	play_ret = sw_dma_config(play_prtd->params->channel, codec_play_dma_conf);
+	  	codec_play_dma_conf.drqsrc_type  = D_DRQSRC_SDRAM;
+		codec_play_dma_conf.drqdst_type  = DRQ_TYPE_AUDIO;
+		codec_play_dma_conf.xfer_type    = DMAXFER_D_BHALF_S_BHALF;
+		codec_play_dma_conf.address_type = DMAADDRT_D_FIX_S_INC;
+		codec_play_dma_conf.dir          = SW_DMA_WDEV;
+		codec_play_dma_conf.reload       = 0;
+		codec_play_dma_conf.hf_irq       = SW_DMA_IRQ_FULL;
+		codec_play_dma_conf.from         = play_prtd->dma_start;
+		codec_play_dma_conf.to           = play_prtd->params->dma_addr;
+	  	play_ret = sw_dma_config(play_prtd->params->channel, &codec_play_dma_conf);
 	  	/* flush the DMA channel */
 		sw_dma_ctrl(play_prtd->params->channel, SW_DMAOP_FLUSH);
 		play_prtd->dma_loaded = 0;
@@ -1040,12 +1035,6 @@ static int snd_sun4i_codec_prepare(struct	snd_pcm_substream	*substream)
 		sun4i_pcm_enqueue(substream);
 		return play_ret;
 	}else {
-		codec_capture_dma_conf = kmalloc(sizeof(struct dma_hw_conf), GFP_KERNEL);
-		if (!codec_capture_dma_conf){
-		   capture_ret =  - ENOMEM;
-		   printk("Can't audio malloc dma capture configure memory\n");
-		   return capture_ret;
-		}
 		capture_prtd = substream->runtime->private_data;
    	 	/* return if this is a bufferless transfer e.g.
 	  	 * codec <--> BT codec or GSM modem -- lg FIXME */
@@ -1054,16 +1043,16 @@ static int snd_sun4i_codec_prepare(struct	snd_pcm_substream	*substream)
 	   	//open the adc channel register
 	   	codec_capture_open();
 	   	//set the dma
-	   	codec_capture_dma_conf->drqsrc_type  = DRQ_TYPE_AUDIO;
-		codec_capture_dma_conf->drqdst_type  = D_DRQSRC_SDRAM;
-		codec_capture_dma_conf->xfer_type    = DMAXFER_D_BHALF_S_BHALF;
-		codec_capture_dma_conf->address_type = DMAADDRT_D_INC_S_FIX;
-		codec_capture_dma_conf->dir          = SW_DMA_RDEV;
-		codec_capture_dma_conf->reload       = 0;
-		codec_capture_dma_conf->hf_irq       = SW_DMA_IRQ_FULL;
-		codec_capture_dma_conf->from         = capture_prtd->params->dma_addr;
-		codec_capture_dma_conf->to           = capture_prtd->dma_start;
-	  	capture_ret = sw_dma_config(capture_prtd->params->channel, codec_capture_dma_conf);
+	   	codec_capture_dma_conf.drqsrc_type  = DRQ_TYPE_AUDIO;
+		codec_capture_dma_conf.drqdst_type  = D_DRQSRC_SDRAM;
+		codec_capture_dma_conf.xfer_type    = DMAXFER_D_BHALF_S_BHALF;
+		codec_capture_dma_conf.address_type = DMAADDRT_D_INC_S_FIX;
+		codec_capture_dma_conf.dir          = SW_DMA_RDEV;
+		codec_capture_dma_conf.reload       = 0;
+		codec_capture_dma_conf.hf_irq       = SW_DMA_IRQ_FULL;
+		codec_capture_dma_conf.from         = capture_prtd->params->dma_addr;
+		codec_capture_dma_conf.to           = capture_prtd->dma_start;
+	  	capture_ret = sw_dma_config(capture_prtd->params->channel, &codec_capture_dma_conf);
 	  	/* flush the DMA channel */
 		sw_dma_ctrl(capture_prtd->params->channel, SW_DMAOP_FLUSH);
 		capture_prtd->dma_loaded = 0;
