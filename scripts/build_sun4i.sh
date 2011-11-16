@@ -56,7 +56,7 @@ build_kernel()
 		cp arch/arm/configs/sun4i_defconfig .config
 	fi
 
-	make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} -j8
+	make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} -j8 uImage zImage
 	update_kern_ver
 
 	if [ -d output ]; then
