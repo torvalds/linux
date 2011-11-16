@@ -394,8 +394,11 @@ static int pinctrl_gpioranges_show(struct seq_file *s, void *what)
 	/* Loop over the ranges */
 	mutex_lock(&pctldev->gpio_ranges_lock);
 	list_for_each_entry(range, &pctldev->gpio_ranges, node) {
-		seq_printf(s, "%u: %s [%u - %u]\n", range->id, range->name,
-			   range->base, (range->base + range->npins - 1));
+		seq_printf(s, "%u: %s GPIOS [%u - %u] PINS [%u - %u]\n",
+			   range->id, range->name,
+			   range->base, (range->base + range->npins - 1),
+			   range->pin_base,
+			   (range->pin_base + range->npins - 1));
 	}
 	mutex_unlock(&pctldev->gpio_ranges_lock);
 
