@@ -1,19 +1,11 @@
 #include <linux/types.h>
-#include <linux/major.h>
 #include <linux/errno.h>
-#include <linux/signal.h>
-#include <linux/fcntl.h>
+#include <linux/kmod.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
-#include <linux/tty_flip.h>
-#include <linux/devpts_fs.h>
 #include <linux/file.h>
-#include <linux/console.h>
-#include <linux/timer.h>
-#include <linux/ctype.h>
-#include <linux/kd.h>
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/slab.h>
@@ -24,18 +16,8 @@
 #include <linux/device.h>
 #include <linux/wait.h>
 #include <linux/bitops.h>
-#include <linux/delay.h>
 #include <linux/seq_file.h>
-
 #include <linux/uaccess.h>
-#include <asm/system.h>
-
-#include <linux/kbd_kern.h>
-#include <linux/vt_kern.h>
-#include <linux/selection.h>
-
-#include <linux/kmod.h>
-#include <linux/nsproxy.h>
 
 /*
  *	This guards the refcounted line discipline lists. The lock
