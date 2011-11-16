@@ -757,7 +757,6 @@ static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
 	int pd = !!(res & AC_UNSOL_RES_PD);
 	int eldv = !!(res & AC_UNSOL_RES_ELDV);
 	int pin_idx;
-	struct hdmi_eld *eld;
 
 	printk(KERN_INFO
 		"HDMI hot plug event: Codec=%d Pin=%d Presence_Detect=%d ELD_Valid=%d\n",
@@ -766,17 +765,8 @@ static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
 	pin_idx = pin_nid_to_pin_index(spec, pin_nid);
 	if (pin_idx < 0)
 		return;
-	eld = &spec->pins[pin_idx].sink_eld;
 
 	hdmi_present_sense(&spec->pins[pin_idx], true);
-
-	/*
-	 * HDMI sink's ELD info cannot always be retrieved for now, e.g.
-	 * in console or for audio devices. Assume the highest speakers
-	 * configuration, to _not_ prohibit multi-channel audio playback.
-	 */
-	if (!eld->spk_alloc)
-		eld->spk_alloc = 0xffff;
 }
 
 static void hdmi_non_intrinsic_event(struct hda_codec *codec, unsigned int res)
