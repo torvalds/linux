@@ -805,8 +805,29 @@ static u32 stmmac_get_synopsys_id(struct stmmac_priv *priv)
 	return 0;
 }
 
-/* New GMAC chips support a new register to indicate the
- * presence of the optional feature/functions.
+/**
+ * stmmac_selec_desc_mode
+ * @dev : device pointer
+ * Description: select the Enhanced/Alternate or Normal descriptors */
+static void stmmac_selec_desc_mode(struct stmmac_priv *priv)
+{
+	if (priv->plat->enh_desc) {
+		pr_info(" Enhanced/Alternate descriptors\n");
+		priv->hw->desc = &enh_desc_ops;
+	} else {
+		pr_info(" Normal descriptors\n");
+		priv->hw->desc = &ndesc_ops;
+	}
+}
+
+/**
+ * stmmac_get_hw_features
+ * @priv : private device pointer
+ * Description:
+ *  new GMAC chip generations have a new register to indicate the
+ *  presence of the optional feature/functions.
+ *  This can be also used to override the value passed through the
+ *  platform and necessary for old MAC10/100 and GMAC chips.
  */
 static int stmmac_get_hw_features(struct stmmac_priv *priv)
 {
@@ -827,7 +848,7 @@ static int stmmac_get_hw_features(struct stmmac_priv *priv)
 			(hw_cap & DMA_HW_FEAT_RWKSEL) >> 9;
 		priv->dma_cap.pmt_magic_frame =
 			(hw_cap & DMA_HW_FEAT_MGKSEL) >> 10;
-		/*MMC*/
+		/* MMC */
 		priv->dma_cap.rmon = (hw_cap & DMA_HW_FEAT_MMCSEL) >> 11;
 		/* IEEE 1588-2002*/
 		priv->dma_cap.time_stamp =
@@ -855,8 +876,7 @@ static int stmmac_get_hw_features(struct stmmac_priv *priv)
 		priv->dma_cap.enh_desc =
 			(hw_cap & DMA_HW_FEAT_ENHDESSEL) >> 24;
 
-	} else
-		pr_debug("\tNo HW DMA feature register supported");
+	}
 
 	return hw_cap;
 }
@@ -911,6 +931,44 @@ static int stmmac_open(struct net_device *dev)
 		goto open_error;
 	}
 
+	stmmac_get_synopsys_id(priv);
+
+	priv->hw_cap_support = stmmac_get_hw_features(priv);
+
+	if (priv->hw_cap_support) {
+		pr_info(" Support DMA HW capability register");
+
+		/* We can override some gmac/dma configuration fields: e.g.
+		 * enh_desc, tx_coe (e.g. that are passed through the
+		 * platform) with the values from the HW capability
+		 * register (if supported).
+		 */
+		priv->plat->enh_desc = priv->dma_cap.enh_desc;
+		priv->plat->tx_coe = priv->dma_cap.tx_coe;
+		priv->plat->pmt = priv->dma_cap.pmt_remote_wake_up;
+
+		/* By default disable wol on magic frame if not supported */
+		if (!priv->dma_cap.pmt_magic_frame)
+			priv->wolopts &= ~WAKE_MAGIC;
+
+	} else
+		pr_info(" No HW DMA feature register supported");
+
+	/* Select the enhnaced/normal descriptor structures */
+	stmmac_selec_desc_mode(priv);
+
+	/* PMT module is not integrated in all the MAC devices. */
+	if (priv->plat->pmt) {
+		pr_info(" Remote wake-up capable\n");
+		device_set_wakeup_capable(priv->device, 1);
+	}
+
+	priv->rx_coe = priv->hw->mac->rx_coe(priv->ioaddr);
+	if (priv->rx_coe)
+		pr_info(" Checksum Offload Engine supported\n");
+	if (priv->plat->tx_coe)
+		pr_info(" Checksum insertion supported\n");
+
 	/* Create and initialize the TX/RX descriptors chains. */
 	priv->dma_tx_size = STMMAC_ALIGN(dma_txsize);
 	priv->dma_rx_size = STMMAC_ALIGN(dma_rxsize);
@@ -933,15 +991,6 @@ static int stmmac_open(struct net_device *dev)
 	/* Initialize the MAC Core */
 	priv->hw->mac->core_init(priv->ioaddr);
 
-	stmmac_get_synopsys_id(priv);
-
-	stmmac_get_hw_features(priv);
-
-	priv->rx_coe = priv->hw->mac->rx_coe(priv->ioaddr);
-	if (priv->rx_coe)
-		pr_info("stmmac: Rx Checksum Offload Engine supported\n");
-	if (priv->plat->tx_coe)
-		pr_info("\tTX Checksum insertion supported\n");
 	netdev_update_features(dev);
 
 	/* Request the IRQ lines */
@@ -1556,7 +1605,7 @@ static int stmmac_sysfs_dma_cap_read(struct seq_file *seq, void *v)
 	struct net_device *dev = seq->private;
 	struct stmmac_priv *priv = netdev_priv(dev);
 
-	if (!stmmac_get_hw_features(priv)) {
+	if (!priv->hw_cap_support) {
 		seq_printf(seq, "DMA HW features not supported\n");
 		return 0;
 	}
@@ -1764,12 +1813,6 @@ static int stmmac_mac_device_setup(struct net_device *dev)
 	if (!device)
 		return -ENOMEM;
 
-	if (priv->plat->enh_desc) {
-		device->desc = &enh_desc_ops;
-		pr_info("\tEnhanced descriptor structure\n");
-	} else
-		device->desc = &ndesc_ops;
-
 	priv->hw = device;
 	priv->hw->ring = &ring_mode_ops;
 
@@ -1843,11 +1886,6 @@ static int stmmac_dvr_probe(struct platform_device *pdev)
 
 	priv->ioaddr = addr;
 
-	/* PMT module is not integrated in all the MAC devices. */
-	if (plat_dat->pmt) {
-		pr_info("\tPMT module supported\n");
-		device_set_wakeup_capable(&pdev->dev, 1);
-	}
 	/*
 	 * On some platforms e.g. SPEAr the wake up irq differs from the mac irq
 	 * The external wake up irq can be passed through the platform code
@@ -1859,7 +1897,6 @@ static int stmmac_dvr_probe(struct platform_device *pdev)
 	priv->wol_irq = platform_get_irq_byname(pdev, "eth_wake_irq");
 	if (priv->wol_irq == -ENXIO)
 		priv->wol_irq = ndev->irq;
-
 
 	platform_set_drvdata(pdev, ndev);
 
@@ -1873,7 +1910,7 @@ static int stmmac_dvr_probe(struct platform_device *pdev)
 			goto out_free_ndev;
 	}
 
-	/* MAC HW revice detection */
+	/* MAC HW device detection */
 	ret = stmmac_mac_device_setup(ndev);
 	if (ret < 0)
 		goto out_plat_exit;
