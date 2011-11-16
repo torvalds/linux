@@ -21,7 +21,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm.h>
-#include "psb_drm.h"
+#include "gma_drm.h"
 #include "psb_drv.h"
 #include "framebuffer.h"
 #include "psb_reg.h"
