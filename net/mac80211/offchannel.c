@@ -211,8 +211,6 @@ static void ieee80211_hw_roc_start(struct work_struct *work)
 		return;
 	}
 
-	ieee80211_recalc_idle(local);
-
 	if (local->hw_roc_skb) {
 		sdata = IEEE80211_DEV_TO_SUB_IF(local->hw_roc_dev);
 		ieee80211_tx_skb(sdata, local->hw_roc_skb);
@@ -225,6 +223,8 @@ static void ieee80211_hw_roc_start(struct work_struct *work)
 					  local->hw_roc_duration,
 					  GFP_KERNEL);
 	}
+
+	ieee80211_recalc_idle(local);
 
 	mutex_unlock(&local->mtx);
 }
