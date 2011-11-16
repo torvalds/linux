@@ -2600,7 +2600,8 @@ static int be_setup(struct be_adapter *adapter)
 	en_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST |
 			BE_IF_FLAGS_MULTICAST | BE_IF_FLAGS_PASS_L3L4_ERRORS;
 	cap_flags = en_flags | BE_IF_FLAGS_MCAST_PROMISCUOUS |
-			BE_IF_FLAGS_PROMISCUOUS;
+			BE_IF_FLAGS_VLAN_PROMISCUOUS | BE_IF_FLAGS_PROMISCUOUS;
+
 	if (adapter->function_caps & BE_FUNCTION_CAPS_RSS) {
 		cap_flags |= BE_IF_FLAGS_RSS;
 		en_flags |= BE_IF_FLAGS_RSS;
