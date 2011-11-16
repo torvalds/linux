@@ -37,6 +37,7 @@
 #include <linux/kfifo.h>
 #include <linux/version.h>
 #include <linux/input.h>
+#include <linux/input/mt.h>
 #include <linux/irq.h>
 #include <linux/async.h>
 #include <mach/board.h>
@@ -61,7 +62,7 @@ static int global_minor = 0;
 #define EETI_I2C_RATE   (200*1000)
 #define MAX_I2C_LEN		10
 #define FIFO_SIZE		PAGE_SIZE
-#define MAX_SUPPORT_POINT	5
+#define MAX_SUPPORT_POINT	2
 #define REPORTID_MOUSE		0x01
 #define REPORTID_VENDOR		0x03
 #define REPORTID_MTOUCH		0x04
@@ -372,16 +373,20 @@ static void ProcessReport(unsigned char *buf, int buflen)
 		{
 			if(PointBuf[i].Status >= 0)
 			{
-				input_report_abs(input_dev, ABS_MT_TRACKING_ID, i);			
+				input_mt_slot(input_dev, i);
+				input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, true);
 				input_report_abs(input_dev, ABS_MT_TOUCH_MAJOR, PointBuf[i].Status);
-				input_report_abs(input_dev, ABS_MT_WIDTH_MAJOR, 0);
+				input_report_abs(input_dev, ABS_MT_PRESSURE, 100);
 				input_report_abs(input_dev, ABS_MT_POSITION_X, PointBuf[i].X);
 				input_report_abs(input_dev, ABS_MT_POSITION_Y, PointBuf[i].Y);
 
-				input_mt_sync(input_dev);
-
 				if(PointBuf[i].Status == 0)
 					PointBuf[i].Status--;
+			}
+			else
+			{
+				input_mt_slot(input_dev, i);
+				input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, false);
 			}
 		}
 		input_sync(input_dev);
@@ -408,14 +413,15 @@ static struct input_dev * allocate_Input_Dev(void)
 	pInputDev->id.bustype = BUS_I2C;
 	pInputDev->id.vendor = 0x0EEF;
 	pInputDev->id.product = 0x0020;
-	
-	set_bit(EV_ABS, pInputDev->evbit);
 
+	__set_bit(INPUT_PROP_DIRECT, pInputDev->propbit);
+	__set_bit(EV_ABS, pInputDev->evbit);
+
+	input_mt_init_slots(pInputDev, MAX_SUPPORT_POINT);
 	input_set_abs_params(pInputDev, ABS_MT_POSITION_X, 0, CONFIG_EETI_EGALAX_MAX_X, 0, 0);
 	input_set_abs_params(pInputDev, ABS_MT_POSITION_Y, 0, CONFIG_EETI_EGALAX_MAX_Y, 0, 0);
 	input_set_abs_params(pInputDev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
-	input_set_abs_params(pInputDev, ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
-	input_set_abs_params(pInputDev, ABS_MT_TRACKING_ID, 0, 10, 0, 0);
+	input_set_abs_params(pInputDev, ABS_MT_PRESSURE, 0, 255, 0, 0);
 
 	ret = input_register_device(pInputDev);
 	if(ret) 
@@ -490,23 +496,25 @@ static void egalax_i2c_wq(struct work_struct *work)
 
 #ifndef _NON_INPUT_DEV
 	if (gpio_get_value(gpio) && egalax_i2c->work_state > 0 && !egalax_i2c->skip_packet) {
-		int i, reported = 0;
+		int i;
 		for(i = 0; i < MAX_SUPPORT_POINT; i++) {
 			if (PointBuf[i].Status > 0) {
 				TS_DEBUG("point %d still down\n", i);
-				input_report_abs(input_dev, ABS_MT_TRACKING_ID, i);
+				input_mt_slot(input_dev, i);
+				input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, true);
 				input_report_abs(input_dev, ABS_MT_TOUCH_MAJOR, 0);
-				input_report_abs(input_dev, ABS_MT_WIDTH_MAJOR, 0);
+				input_report_abs(input_dev, ABS_MT_PRESSURE, 100);
 				input_report_abs(input_dev, ABS_MT_POSITION_X, PointBuf[i].X);
 				input_report_abs(input_dev, ABS_MT_POSITION_Y, PointBuf[i].Y);
-
-				input_mt_sync(input_dev);
 				PointBuf[i].Status = 0;
-				reported = 1;
+			}
+			else
+			{
+				input_mt_slot(input_dev, i);
+				input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, false);
 			}
 		}
-		if (reported)
-			input_sync(input_dev);
+		input_sync(input_dev);
 	}
 #endif
 
