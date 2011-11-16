@@ -1352,9 +1352,6 @@ static int ath6kl_cfg80211_change_iface(struct wiphy *wiphy,
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: type %u\n", __func__, type);
 
-	if (!ath6kl_cfg80211_ready(vif))
-		return -EIO;
-
 	switch (type) {
 	case NL80211_IFTYPE_STATION:
 		vif->next_mode = INFRA_NETWORK;
