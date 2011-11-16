@@ -48,6 +48,11 @@ Invalid Options:
 "
 }
 
+build_standby()
+{
+	make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} KDIR=${LICHEE_KDIR} \
+		-C ${LICHEE_KDIR}/arch/arm/mach-sun4i/pm/standby all
+}
 
 build_kernel()
 {
@@ -55,6 +60,8 @@ build_kernel()
 		echo -e "\n\t\tUsing default config... ...!\n"
 		cp arch/arm/configs/sun4i_defconfig .config
 	fi
+
+	build_standby
 
 	make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} -j8
 	update_kern_ver
