@@ -1211,8 +1211,8 @@ static inline u32 _prepare_ccr(const struct pl330_reqcfg *rqc)
 	ccr |= (rqc->brst_size << CC_SRCBRSTSIZE_SHFT);
 	ccr |= (rqc->brst_size << CC_DSTBRSTSIZE_SHFT);
 
-	ccr |= (rqc->dcctl << CC_SRCCCTRL_SHFT);
-	ccr |= (rqc->scctl << CC_DSTCCTRL_SHFT);
+	ccr |= (rqc->scctl << CC_SRCCCTRL_SHFT);
+	ccr |= (rqc->dcctl << CC_DSTCCTRL_SHFT);
 
 	ccr |= (rqc->swap << CC_SWAP_SHFT);
 
