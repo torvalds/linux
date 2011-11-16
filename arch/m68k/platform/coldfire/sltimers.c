@@ -98,16 +98,19 @@ static struct irqaction mcfslt_timer_irq = {
 static cycle_t mcfslt_read_clk(struct clocksource *cs)
 {
 	unsigned long flags;
-	u32 cycles;
-	u16 scnt;
+	u32 cycles, scnt;
 
 	local_irq_save(flags);
 	scnt = __raw_readl(TA(MCFSLT_SCNT));
 	cycles = mcfslt_cnt;
+	if (__raw_readl(TA(MCFSLT_SSR)) & MCFSLT_SSR_TE) {
+		cycles += mcfslt_cycles_per_jiffy;
+		scnt = __raw_readl(TA(MCFSLT_SCNT));
+	}
 	local_irq_restore(flags);
 
 	/* subtract because slice timers count down */
-	return cycles - scnt;
+	return cycles + ((mcfslt_cycles_per_jiffy - 1) - scnt);
 }
 
 static struct clocksource mcfslt_clk = {
