@@ -87,13 +87,14 @@ static int ethtool_get_features(struct net_device *dev, void __user *useraddr)
 	int i;
 
 	/* in case feature bits run out again */
-	BUILD_BUG_ON(ETHTOOL_DEV_FEATURE_WORDS*sizeof(u32) > sizeof(netdev_features_t));
+	BUILD_BUG_ON(ETHTOOL_DEV_FEATURE_WORDS * sizeof(u32) > sizeof(netdev_features_t));
 
 	for (i = 0; i < ETHTOOL_DEV_FEATURE_WORDS; ++i) {
-		features[i].available = (u32)(dev->hw_features >> (32*i));
-		features[i].requested = (u32)(dev->wanted_features >> (32*i));
-		features[i].active = (u32)(dev->features >> (32*i));
-		features[i].never_changed = (u32)(NETIF_F_NEVER_CHANGE >> (32*i));
+		features[i].available = (u32)(dev->hw_features >> (32 * i));
+		features[i].requested = (u32)(dev->wanted_features >> (32 * i));
+		features[i].active = (u32)(dev->features >> (32 * i));
+		features[i].never_changed =
+			(u32)(NETIF_F_NEVER_CHANGE >> (32 * i));
 	}
 
 	sizeaddr = useraddr + offsetof(struct ethtool_gfeatures, size);
@@ -130,8 +131,8 @@ static int ethtool_set_features(struct net_device *dev, void __user *useraddr)
 		return -EFAULT;
 
 	for (i = 0; i < ETHTOOL_DEV_FEATURE_WORDS; ++i) {
-		valid |= (netdev_features_t)features[i].valid << (32*i);
-		wanted |= (netdev_features_t)features[i].requested << (32*i);
+		valid |= (netdev_features_t)features[i].valid << (32 * i);
+		wanted |= (netdev_features_t)features[i].requested << (32 * i);
 	}
 
 	if (valid & ~NETIF_F_ETHTOOL_BITS)
