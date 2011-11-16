@@ -791,18 +791,6 @@ void __init board_prom_init(void)
 	}
 
 	bcm_gpio_writel(val, GPIO_MODE_REG);
-
-	/* Generate MAC address for WLAN and
-	 * register our SPROM */
-#ifdef CONFIG_SSB_PCIHOST
-	if (!board_get_mac_address(bcm63xx_sprom.il0mac)) {
-		memcpy(bcm63xx_sprom.et0mac, bcm63xx_sprom.il0mac, ETH_ALEN);
-		memcpy(bcm63xx_sprom.et1mac, bcm63xx_sprom.il0mac, ETH_ALEN);
-		if (ssb_arch_register_fallback_sprom(
-				&bcm63xx_get_fallback_sprom) < 0)
-			printk(KERN_ERR PFX "failed to register fallback SPROM\n");
-	}
-#endif
 }
 
 /*
@@ -885,6 +873,19 @@ int __init board_register_devices(void)
 
 	if (board.has_dsp)
 		bcm63xx_dsp_register(&board.dsp);
+
+	/* Generate MAC address for WLAN and register our SPROM,
+	 * do this after registering enet devices
+	 */
+#ifdef CONFIG_SSB_PCIHOST
+	if (!board_get_mac_address(bcm63xx_sprom.il0mac)) {
+		memcpy(bcm63xx_sprom.et0mac, bcm63xx_sprom.il0mac, ETH_ALEN);
+		memcpy(bcm63xx_sprom.et1mac, bcm63xx_sprom.il0mac, ETH_ALEN);
+		if (ssb_arch_register_fallback_sprom(
+				&bcm63xx_get_fallback_sprom) < 0)
+			pr_err(PFX "failed to register fallback SPROM\n");
+	}
+#endif
 
 	/* read base address of boot chip select (0) */
 	val = bcm_mpi_readl(MPI_CSBASE_REG(0));
