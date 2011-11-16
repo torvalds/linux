@@ -724,6 +724,9 @@ void dss_mgr_enable(struct omap_overlay_manager *mgr)
 
 	mutex_lock(&apply_lock);
 
+	if (mp->enabled)
+		goto out;
+
 	spin_lock_irqsave(&data_lock, flags);
 
 	mp->enabled = true;
@@ -740,6 +743,7 @@ void dss_mgr_enable(struct omap_overlay_manager *mgr)
 	if (!mgr_manual_update(mgr))
 		dispc_mgr_enable(mgr->id, true);
 
+out:
 	mutex_unlock(&apply_lock);
 }
 
@@ -749,6 +753,9 @@ void dss_mgr_disable(struct omap_overlay_manager *mgr)
 	unsigned long flags;
 
 	mutex_lock(&apply_lock);
+
+	if (!mp->enabled)
+		goto out;
 
 	if (!mgr_manual_update(mgr))
 		dispc_mgr_enable(mgr->id, false);
@@ -760,6 +767,7 @@ void dss_mgr_disable(struct omap_overlay_manager *mgr)
 
 	spin_unlock_irqrestore(&data_lock, flags);
 
+out:
 	mutex_unlock(&apply_lock);
 }
 
@@ -1005,6 +1013,11 @@ int dss_ovl_enable(struct omap_overlay *ovl)
 
 	mutex_lock(&apply_lock);
 
+	if (op->enabled) {
+		r = 0;
+		goto err;
+	}
+
 	if (ovl->manager == NULL || ovl->manager->device == NULL) {
 		r = -EINVAL;
 		goto err;
@@ -1035,6 +1048,11 @@ int dss_ovl_disable(struct omap_overlay *ovl)
 	int r;
 
 	mutex_lock(&apply_lock);
+
+	if (!op->enabled) {
+		r = 0;
+		goto err;
+	}
 
 	if (ovl->manager == NULL || ovl->manager->device == NULL) {
 		r = -EINVAL;
