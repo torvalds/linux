@@ -83,7 +83,7 @@ struct regmap_config {
 	bool (*precious_reg)(struct device *dev, unsigned int reg);
 
 	unsigned int max_register;
-	struct reg_default *reg_defaults;
+	const struct reg_default *reg_defaults;
 	unsigned int num_reg_defaults;
 	enum regcache_type cache_type;
 	const void *reg_defaults_raw;

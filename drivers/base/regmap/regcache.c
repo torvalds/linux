@@ -108,7 +108,6 @@ int regcache_init(struct regmap *map, const struct regmap_config *config)
 		return -EINVAL;
 	}
 
-	map->reg_defaults = config->reg_defaults;
 	map->num_reg_defaults = config->num_reg_defaults;
 	map->num_reg_defaults_raw = config->num_reg_defaults_raw;
 	map->reg_defaults_raw = config->reg_defaults_raw;
@@ -127,10 +126,10 @@ int regcache_init(struct regmap *map, const struct regmap_config *config)
 	 * won't vanish from under us.  We'll need to make
 	 * a copy of it.
 	 */
-	if (map->reg_defaults) {
+	if (config->reg_defaults) {
 		if (!map->num_reg_defaults)
 			return -EINVAL;
-		tmp_buf = kmemdup(map->reg_defaults, map->num_reg_defaults *
+		tmp_buf = kmemdup(config->reg_defaults, map->num_reg_defaults *
 				  sizeof(struct reg_default), GFP_KERNEL);
 		if (!tmp_buf)
 			return -ENOMEM;
