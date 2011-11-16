@@ -32,29 +32,23 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <linux/types.h>
-#include <linux/serial_reg.h>
+#ifndef _NLM_HAL_XLP_H
+#define _NLM_HAL_XLP_H
 
-#include <asm/mipsregs.h>
-#include <asm/netlogic/haldefs.h>
+#define	RESET_VEC_PHYS		0x1fc00000
+#define	RESET_DATA_PHYS		(RESET_VEC_PHYS + (1<<10))
+#define	BOOT_THREAD_MODE	0
 
-#if defined(CONFIG_CPU_XLP)
-#include <asm/netlogic/xlp-hal/iomap.h>
-#include <asm/netlogic/xlp-hal/uart.h>
-#elif defined(CONFIG_CPU_XLR)
-#include <asm/netlogic/xlr/iomap.h>
-#endif
+#define PIC_UART_0_IRQ           17
+#define PIC_UART_1_IRQ           18
 
-void prom_putchar(char c)
-{
-	uint64_t uartbase;
+#ifndef __ASSEMBLY__
 
-#if defined(CONFIG_CPU_XLP)
-	uartbase = nlm_get_uart_regbase(0, 0);
-#elif defined(CONFIG_CPU_XLR)
-	uartbase = nlm_mmio_base(NETLOGIC_IO_UART_0_OFFSET);
-#endif
-	while (nlm_read_reg(uartbase, UART_LSR) == 0)
-		;
-	nlm_write_reg(uartbase, UART_TX, c);
-}
+/* SMP support functions */
+void nlm_boot_core0_siblings(void);
+
+void xlp_mmu_init(void);
+void nlm_hal_init(void);
+
+#endif /* !__ASSEMBLY__ */
+#endif /* _ASM_NLM_XLP_H */

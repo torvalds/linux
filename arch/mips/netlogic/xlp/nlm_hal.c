@@ -33,28 +33,73 @@
  */
 
 #include <linux/types.h>
-#include <linux/serial_reg.h>
+#include <linux/kernel.h>
+#include <linux/mm.h>
+#include <linux/delay.h>
 
 #include <asm/mipsregs.h>
+#include <asm/time.h>
+
 #include <asm/netlogic/haldefs.h>
-
-#if defined(CONFIG_CPU_XLP)
 #include <asm/netlogic/xlp-hal/iomap.h>
-#include <asm/netlogic/xlp-hal/uart.h>
-#elif defined(CONFIG_CPU_XLR)
-#include <asm/netlogic/xlr/iomap.h>
-#endif
+#include <asm/netlogic/xlp-hal/xlp.h>
+#include <asm/netlogic/xlp-hal/pic.h>
+#include <asm/netlogic/xlp-hal/sys.h>
 
-void prom_putchar(char c)
+/* These addresses are computed by the nlm_hal_init() */
+uint64_t nlm_io_base;
+uint64_t nlm_sys_base;
+uint64_t nlm_pic_base;
+
+/* Main initialization */
+void nlm_hal_init(void)
 {
-	uint64_t uartbase;
+	nlm_io_base = CKSEG1ADDR(XLP_DEFAULT_IO_BASE);
+	nlm_sys_base = nlm_get_sys_regbase(0);	/* node 0 */
+	nlm_pic_base = nlm_get_pic_regbase(0);	/* node 0 */
+}
 
-#if defined(CONFIG_CPU_XLP)
-	uartbase = nlm_get_uart_regbase(0, 0);
-#elif defined(CONFIG_CPU_XLR)
-	uartbase = nlm_mmio_base(NETLOGIC_IO_UART_0_OFFSET);
-#endif
-	while (nlm_read_reg(uartbase, UART_LSR) == 0)
-		;
-	nlm_write_reg(uartbase, UART_TX, c);
+int nlm_irq_to_irt(int irq)
+{
+	if (!PIC_IRQ_IS_IRT(irq))
+		return -1;
+
+	switch (irq) {
+	case PIC_UART_0_IRQ:
+		return PIC_IRT_UART_0_INDEX;
+	case PIC_UART_1_IRQ:
+		return PIC_IRT_UART_1_INDEX;
+	default:
+		return -1;
+	}
+}
+
+int nlm_irt_to_irq(int irt)
+{
+	switch (irt) {
+	case PIC_IRT_UART_0_INDEX:
+		return PIC_UART_0_IRQ;
+	case PIC_IRT_UART_1_INDEX:
+		return PIC_UART_1_IRQ;
+	default:
+		return -1;
+	}
+}
+
+unsigned int nlm_get_cpu_frequency(void)
+{
+	unsigned int pll_divf, pll_divr, dfs_div, denom;
+	unsigned int val;
+	uint64_t num;
+
+	val = nlm_read_sys_reg(nlm_sys_base, SYS_POWER_ON_RESET_CFG);
+	pll_divf = (val >> 10) & 0x7f;
+	pll_divr = (val >> 8)  & 0x3;
+	dfs_div  = (val >> 17) & 0x3;
+
+	num = pll_divf + 1;
+	denom = 3 * (pll_divr + 1) * (1 << (dfs_div + 1));
+	num = num * 800000000ULL;
+	do_div(num, denom);
+	return (unsigned int)num;
 }

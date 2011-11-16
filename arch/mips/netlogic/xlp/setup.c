@@ -32,29 +32,70 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <linux/types.h>
-#include <linux/serial_reg.h>
+#include <linux/kernel.h>
+#include <linux/serial_8250.h>
+#include <linux/pm.h>
 
-#include <asm/mipsregs.h>
+#include <asm/reboot.h>
+#include <asm/time.h>
+#include <asm/bootinfo.h>
+
+#include <linux/of_fdt.h>
+
 #include <asm/netlogic/haldefs.h>
+#include <asm/netlogic/common.h>
 
-#if defined(CONFIG_CPU_XLP)
 #include <asm/netlogic/xlp-hal/iomap.h>
-#include <asm/netlogic/xlp-hal/uart.h>
-#elif defined(CONFIG_CPU_XLR)
-#include <asm/netlogic/xlr/iomap.h>
-#endif
+#include <asm/netlogic/xlp-hal/xlp.h>
+#include <asm/netlogic/xlp-hal/sys.h>
 
-void prom_putchar(char c)
+unsigned long nlm_common_ebase = 0x0;
+
+static void nlm_linux_exit(void)
 {
-	uint64_t uartbase;
+	nlm_write_sys_reg(nlm_sys_base, SYS_CHIP_RESET, 1);
+	for ( ; ; )
+		cpu_wait();
+}
 
-#if defined(CONFIG_CPU_XLP)
-	uartbase = nlm_get_uart_regbase(0, 0);
-#elif defined(CONFIG_CPU_XLR)
-	uartbase = nlm_mmio_base(NETLOGIC_IO_UART_0_OFFSET);
+void __init plat_mem_setup(void)
+{
+	panic_timeout	= 5;
+	_machine_restart = (void (*)(char *))nlm_linux_exit;
+	_machine_halt	= nlm_linux_exit;
+	pm_power_off	= nlm_linux_exit;
+}
+
+const char *get_system_type(void)
+{
+	return "Netlogic XLP Series";
+}
+
+void __init prom_free_prom_memory(void)
+{
+	/* Nothing yet */
+}
+
+void xlp_mmu_init(void)
+{
+	write_c0_config6(read_c0_config6() | 0x24);
+	current_cpu_data.tlbsize = ((read_c0_config6() >> 16) & 0xffff) + 1;
+	write_c0_config7(PM_DEFAULT_MASK >>
+		(13 + (ffz(PM_DEFAULT_MASK >> 13) / 2)));
+}
+
+void __init prom_init(void)
+{
+	void *fdtp;
+
+	fdtp = (void *)(long)fw_arg0;
+	xlp_mmu_init();
+	nlm_hal_init();
+	early_init_devtree(fdtp);
+
+	nlm_common_ebase = read_c0_ebase() & (~((1 << 12) - 1));
+#ifdef CONFIG_SMP
+	nlm_wakeup_secondary_cpus(0xffffffff);
+	register_smp_ops(&nlm_smp_ops);
 #endif
-	while (nlm_read_reg(uartbase, UART_LSR) == 0)
-		;
-	nlm_write_reg(uartbase, UART_TX, c);
 }

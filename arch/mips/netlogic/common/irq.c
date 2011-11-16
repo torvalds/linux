@@ -53,8 +53,16 @@
 #include <asm/netlogic/haldefs.h>
 #include <asm/netlogic/common.h>
 
+#if defined(CONFIG_CPU_XLP)
+#include <asm/netlogic/xlp-hal/iomap.h>
+#include <asm/netlogic/xlp-hal/xlp.h>
+#include <asm/netlogic/xlp-hal/pic.h>
+#elif defined(CONFIG_CPU_XLR)
 #include <asm/netlogic/xlr/iomap.h>
 #include <asm/netlogic/xlr/pic.h>
+#else
+#error "Unknown CPU"
+#endif
 /*
  * These are the routines that handle all the low level interrupt stuff.
  * Actions handled here are: initialization of the interrupt map, requesting of

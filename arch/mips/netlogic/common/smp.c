@@ -45,8 +45,15 @@
 #include <asm/netlogic/haldefs.h>
 #include <asm/netlogic/common.h>
 
+#if defined(CONFIG_CPU_XLP)
+#include <asm/netlogic/xlp-hal/iomap.h>
+#include <asm/netlogic/xlp-hal/pic.h>
+#elif defined(CONFIG_CPU_XLR)
 #include <asm/netlogic/xlr/iomap.h>
 #include <asm/netlogic/xlr/pic.h>
+#else
+#error "Unknown CPU"
+#endif
 
 void nlm_send_ipi_single(int logical_cpu, unsigned int action)
 {
@@ -70,15 +77,15 @@ void nlm_send_ipi_mask(const struct cpumask *mask, unsigned int action)
 /* IRQ_IPI_SMP_FUNCTION Handler */
 void nlm_smp_function_ipi_handler(unsigned int irq, struct irq_desc *desc)
 {
-	smp_call_function_interrupt();
 	write_c0_eirr(1ull << irq);
+	smp_call_function_interrupt();
 }
 
 /* IRQ_IPI_SMP_RESCHEDULE  handler */
 void nlm_smp_resched_ipi_handler(unsigned int irq, struct irq_desc *desc)
 {
-	scheduler_ipi();
 	write_c0_eirr(1ull << irq);
+	scheduler_ipi();
 }
 
 /*
@@ -86,9 +93,10 @@ void nlm_smp_resched_ipi_handler(unsigned int irq, struct irq_desc *desc)
  */
 void nlm_early_init_secondary(int cpu)
 {
+	change_c0_config(CONF_CM_CMASK, 0x3);
 	write_c0_ebase((uint32_t)nlm_common_ebase);
-#ifdef NLM_XLP
-	if (cpu % 4 == 0)
+#ifdef CONFIG_CPU_XLP
+	if (hard_smp_processor_id() % 4 == 0)
 		xlp_mmu_init();
 #endif
 }

@@ -32,29 +32,52 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <linux/types.h>
-#include <linux/serial_reg.h>
+#ifndef __NLM_HAL_CPUCONTROL_H__
+#define __NLM_HAL_CPUCONTROL_H__
 
-#include <asm/mipsregs.h>
-#include <asm/netlogic/haldefs.h>
+#define CPU_BLOCKID_IFU		0
+#define CPU_BLOCKID_ICU		1
+#define CPU_BLOCKID_IEU		2
+#define CPU_BLOCKID_LSU		3
+#define CPU_BLOCKID_MMU		4
+#define CPU_BLOCKID_PRF		5
+#define CPU_BLOCKID_SCH		7
+#define CPU_BLOCKID_SCU		8
+#define CPU_BLOCKID_FPU		9
+#define CPU_BLOCKID_MAP		10
 
-#if defined(CONFIG_CPU_XLP)
-#include <asm/netlogic/xlp-hal/iomap.h>
-#include <asm/netlogic/xlp-hal/uart.h>
-#elif defined(CONFIG_CPU_XLR)
-#include <asm/netlogic/xlr/iomap.h>
-#endif
+#define LSU_DEFEATURE		0x304
+#define LSU_CERRLOG_REGID	0x09
+#define SCHED_DEFEATURE		0x700
 
-void prom_putchar(char c)
-{
-	uint64_t uartbase;
+/* Offsets of interest from the 'MAP' Block */
+#define MAP_THREADMODE			0x00
+#define MAP_EXT_EBASE_ENABLE		0x04
+#define MAP_CCDI_CONFIG			0x08
+#define MAP_THRD0_CCDI_STATUS		0x0c
+#define MAP_THRD1_CCDI_STATUS		0x10
+#define MAP_THRD2_CCDI_STATUS		0x14
+#define MAP_THRD3_CCDI_STATUS		0x18
+#define MAP_THRD0_DEBUG_MODE		0x1c
+#define MAP_THRD1_DEBUG_MODE		0x20
+#define MAP_THRD2_DEBUG_MODE		0x24
+#define MAP_THRD3_DEBUG_MODE		0x28
+#define MAP_MISC_STATE			0x60
+#define MAP_DEBUG_READ_CTL		0x64
+#define MAP_DEBUG_READ_REG0		0x68
+#define MAP_DEBUG_READ_REG1		0x6c
 
-#if defined(CONFIG_CPU_XLP)
-	uartbase = nlm_get_uart_regbase(0, 0);
-#elif defined(CONFIG_CPU_XLR)
-	uartbase = nlm_mmio_base(NETLOGIC_IO_UART_0_OFFSET);
-#endif
-	while (nlm_read_reg(uartbase, UART_LSR) == 0)
-		;
-	nlm_write_reg(uartbase, UART_TX, c);
-}
+#define MMU_SETUP		0x400
+#define MMU_LFSRSEED		0x401
+#define MMU_HPW_NUM_PAGE_LVL	0x410
+#define MMU_PGWKR_PGDBASE	0x411
+#define MMU_PGWKR_PGDSHFT	0x412
+#define MMU_PGWKR_PGDMASK	0x413
+#define MMU_PGWKR_PUDSHFT	0x414
+#define MMU_PGWKR_PUDMASK	0x415
+#define MMU_PGWKR_PMDSHFT	0x416
+#define MMU_PGWKR_PMDMASK	0x417
+#define MMU_PGWKR_PTESHFT	0x418
+#define MMU_PGWKR_PTEMASK	0x419
+
+#endif /* __NLM_CPUCONTROL_H__ */

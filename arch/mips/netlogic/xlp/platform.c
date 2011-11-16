@@ -32,29 +32,77 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <linux/types.h>
+#include <linux/dma-mapping.h>
+#include <linux/kernel.h>
+#include <linux/delay.h>
+#include <linux/init.h>
+#include <linux/platform_device.h>
+#include <linux/serial.h>
+#include <linux/serial_8250.h>
+#include <linux/pci.h>
 #include <linux/serial_reg.h>
+#include <linux/spinlock.h>
 
-#include <asm/mipsregs.h>
+#include <asm/time.h>
+#include <asm/addrspace.h>
 #include <asm/netlogic/haldefs.h>
-
-#if defined(CONFIG_CPU_XLP)
 #include <asm/netlogic/xlp-hal/iomap.h>
+#include <asm/netlogic/xlp-hal/xlp.h>
+#include <asm/netlogic/xlp-hal/pic.h>
 #include <asm/netlogic/xlp-hal/uart.h>
-#elif defined(CONFIG_CPU_XLR)
-#include <asm/netlogic/xlr/iomap.h>
-#endif
 
-void prom_putchar(char c)
+static unsigned int nlm_xlp_uart_in(struct uart_port *p, int offset)
 {
-	uint64_t uartbase;
-
-#if defined(CONFIG_CPU_XLP)
-	uartbase = nlm_get_uart_regbase(0, 0);
-#elif defined(CONFIG_CPU_XLR)
-	uartbase = nlm_mmio_base(NETLOGIC_IO_UART_0_OFFSET);
-#endif
-	while (nlm_read_reg(uartbase, UART_LSR) == 0)
-		;
-	nlm_write_reg(uartbase, UART_TX, c);
+	 return nlm_read_reg(p->iobase, offset);
 }
+
+static void nlm_xlp_uart_out(struct uart_port *p, int offset, int value)
+{
+	nlm_write_reg(p->iobase, offset, value);
+}
+
+#define PORT(_irq)					\
+	{						\
+		.irq		= _irq,			\
+		.regshift	= 2,			\
+		.iotype		= UPIO_MEM32,		\
+		.flags		= (UPF_SKIP_TEST|UPF_FIXED_TYPE|\
+					UPF_BOOT_AUTOCONF),	\
+		.uartclk	= XLP_IO_CLK,		\
+		.type		= PORT_16550A,		\
+		.serial_in	= nlm_xlp_uart_in,	\
+		.serial_out	= nlm_xlp_uart_out,	\
+	}
+
+static struct plat_serial8250_port xlp_uart_data[] = {
+	PORT(PIC_UART_0_IRQ),
+	PORT(PIC_UART_1_IRQ),
+	{},
+};
+
+static struct platform_device uart_device = {
+	.name		= "serial8250",
+	.id		= PLAT8250_DEV_PLATFORM,
+	.dev = {
+		.platform_data = xlp_uart_data,
+	},
+};
+
+static int __init nlm_platform_uart_init(void)
+{
+	unsigned long mmio;
+
+	mmio = (unsigned long)nlm_get_uart_regbase(0, 0);
+	xlp_uart_data[0].iobase = mmio;
+	xlp_uart_data[0].membase = (void __iomem *)mmio;
+	xlp_uart_data[0].mapbase = mmio;
+
+	mmio = (unsigned long)nlm_get_uart_regbase(0, 1);
+	xlp_uart_data[1].iobase = mmio;
+	xlp_uart_data[1].membase = (void __iomem *)mmio;
+	xlp_uart_data[1].mapbase = mmio;
+
+	return platform_device_register(&uart_device);
+}
+
+arch_initcall(nlm_platform_uart_init);

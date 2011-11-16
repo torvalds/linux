@@ -40,6 +40,9 @@
  * and will provide a way to read 32/64 bit memory mapped registers in
  * all ABIs
  */
+#if !defined(CONFIG_64BIT) && defined(CONFIG_CPU_XLP)
+#error "o32 compile not supported on XLP yet"
+#endif
 /*
  * For o32 compilation, we have to disable interrupts and enable KX bit to
  * access 64 bit addresses or data.
@@ -133,10 +136,28 @@ nlm_write_reg64_xkphys(uint64_t base, uint32_t reg, uint64_t val)
 /* Location where IO base is mapped */
 extern uint64_t nlm_io_base;
 
+#if defined(CONFIG_CPU_XLP)
+static inline uint64_t
+nlm_pcicfg_base(uint32_t devoffset)
+{
+	return nlm_io_base + devoffset;
+}
+
+static inline uint64_t
+nlm_xkphys_map_pcibar0(uint64_t pcibase)
+{
+	uint64_t paddr;
+
+	paddr = nlm_read_reg(pcibase, 0x4) & ~0xfu;
+	return (uint64_t)0x9000000000000000 | paddr;
+}
+#elif defined(CONFIG_CPU_XLR)
+
 static inline uint64_t
 nlm_mmio_base(uint32_t devoffset)
 {
 	return nlm_io_base + devoffset;
 }
+#endif
 
 #endif
