@@ -384,8 +384,6 @@ struct omap_overlay {
 	/* dynamic fields */
 	struct omap_overlay_manager *manager;
 
-	bool manager_changed;
-
 	int (*enable)(struct omap_overlay *ovl);
 	int (*disable)(struct omap_overlay *ovl);
 	bool (*is_enabled)(struct omap_overlay *ovl);

@@ -69,8 +69,6 @@ struct ovl_priv_data {
 
 	struct omap_overlay_info info;
 
-	enum omap_channel channel;
-
 	u32 fifo_low;
 	u32 fifo_high;
 
@@ -78,7 +76,7 @@ struct ovl_priv_data {
 	bool shadow_extra_info_dirty;
 
 	bool enabled;
-
+	enum omap_channel channel;
 };
 
 struct mgr_priv_data {
@@ -384,8 +382,6 @@ static void dss_ovl_write_regs(struct omap_overlay *ovl)
 
 	ilace = ovl->manager->device->type == OMAP_DISPLAY_TYPE_VENC;
 
-	dispc_ovl_set_channel_out(ovl->id, op->channel);
-
 	r = dispc_ovl_setup(ovl->id, oi, ilace, replication);
 	if (r) {
 		/*
@@ -423,6 +419,7 @@ static void dss_ovl_write_regs_extra(struct omap_overlay *ovl)
 	 * disabled */
 
 	dispc_ovl_enable(ovl->id, op->enabled);
+	dispc_ovl_set_channel_out(ovl->id, op->channel);
 
 	mp = get_mgr_priv(ovl->manager);
 
@@ -608,19 +605,12 @@ static void omap_dss_mgr_apply_ovl(struct omap_overlay *ovl)
 
 	op = get_ovl_priv(ovl);
 
-	if (ovl->manager_changed) {
-		ovl->manager_changed = false;
-		op->user_info_dirty  = true;
-	}
-
 	if (!op->user_info_dirty)
 		return;
 
 	op->user_info_dirty = false;
 	op->dirty = true;
 	op->info = op->user_info;
-
-	op->channel = ovl->manager->id;
 }
 
 static void omap_dss_mgr_apply_mgr(struct omap_overlay_manager *mgr)
@@ -910,9 +900,11 @@ int dss_ovl_set_manager(struct omap_overlay *ovl,
 		goto err;
 	}
 
+	op->channel = mgr->id;
+	op->extra_info_dirty = true;
+
 	ovl->manager = mgr;
 	list_add_tail(&ovl->list, &mgr->overlays);
-	ovl->manager_changed = true;
 
 	spin_unlock_irqrestore(&data_lock, flags);
 
@@ -960,9 +952,10 @@ int dss_ovl_unset_manager(struct omap_overlay *ovl)
 		goto err;
 	}
 
+	op->channel = -1;
+
 	ovl->manager = NULL;
 	list_del(&ovl->list);
-	ovl->manager_changed = true;
 
 	spin_unlock_irqrestore(&data_lock, flags);
 
