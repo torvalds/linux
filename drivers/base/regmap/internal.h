@@ -106,7 +106,7 @@ static inline void regmap_debugfs_exit(struct regmap *map) { }
 #endif
 
 /* regcache core declarations */
-int regcache_init(struct regmap *map);
+int regcache_init(struct regmap *map, const struct regmap_config *config);
 void regcache_exit(struct regmap *map);
 int regcache_read(struct regmap *map,
 		       unsigned int reg, unsigned int *value);
