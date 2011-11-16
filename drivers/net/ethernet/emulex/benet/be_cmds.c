@@ -916,10 +916,14 @@ int be_cmd_txq_create(struct be_adapter *adapter,
 	void *ctxt;
 	int status;
 
-	if (mutex_lock_interruptible(&adapter->mbox_lock))
-		return -1;
+	spin_lock_bh(&adapter->mcc_lock);
 
-	wrb = wrb_from_mbox(adapter);
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+
 	req = embedded_payload(wrb);
 	ctxt = &req->context;
 
@@ -945,14 +949,15 @@ int be_cmd_txq_create(struct be_adapter *adapter,
 
 	be_cmd_page_addrs_prepare(req->pages, ARRAY_SIZE(req->pages), q_mem);
 
-	status = be_mbox_notify_wait(adapter);
+	status = be_mcc_notify_wait(adapter);
 	if (!status) {
 		struct be_cmd_resp_eth_tx_create *resp = embedded_payload(wrb);
 		txq->id = le16_to_cpu(resp->cid);
 		txq->created = true;
 	}
 
-	mutex_unlock(&adapter->mbox_lock);
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
 
 	return status;
 }

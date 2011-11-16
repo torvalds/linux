@@ -1689,9 +1689,6 @@ static int be_tx_queues_create(struct be_adapter *adapter)
 		if (be_queue_alloc(adapter, q, TX_Q_LEN,
 			sizeof(struct be_eth_wrb)))
 			goto err;
-
-		if (be_cmd_txq_create(adapter, q, cq))
-			goto err;
 	}
 	return 0;
 
@@ -2572,8 +2569,9 @@ static int be_setup(struct be_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 	u32 cap_flags, en_flags;
 	u32 tx_fc, rx_fc;
-	int status;
+	int status, i;
 	u8 mac[ETH_ALEN];
+	struct be_tx_obj *txo;
 
 	be_setup_init(adapter);
 
@@ -2612,6 +2610,12 @@ static int be_setup(struct be_adapter *adapter)
 			&adapter->pmac_id, 0);
 	if (status != 0)
 		goto err;
+
+	 for_all_tx_queues(adapter, txo, i) {
+		status = be_cmd_txq_create(adapter, &txo->q, &txo->cq);
+		if (status)
+			goto err;
+	}
 
 	/* For BEx, the VF's permanent mac queried from card is incorrect.
 	 * Query the mac configued by the PF using if_handle
