@@ -73,6 +73,7 @@ config PINCTRL_U300
 	bool "U300 pin controller driver"
 	depends on ARCH_U300
 	select PINMUX
+	select GENERIC_PINCONF
 
 config PINCTRL_COH901
 	bool "ST-Ericsson U300 COH 901 335/571 GPIO"

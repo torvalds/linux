@@ -23,7 +23,9 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/pinctrl/pinconf-generic.h>
 #include <mach/gpio-u300.h>
+#include "pinctrl-coh901.h"
 
 /*
  * Register definitions for COH 901 335 variant
@@ -418,8 +420,68 @@ static int u300_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	return retirq;
 }
 
-static int u300_gpio_config(struct gpio_chip *chip, unsigned offset,
-			    enum pin_config_param param, unsigned long data)
+/* Returning -EINVAL means "supported but not available" */
+int u300_gpio_config_get(struct gpio_chip *chip,
+			 unsigned offset,
+			 unsigned long *config)
+{
+	struct u300_gpio *gpio = to_u300_gpio(chip);
+	enum pin_config_param param = (enum pin_config_param) *config;
+	bool biasmode;
+	u32 drmode;
+
+	/* One bit per pin, clamp to bool range */
+	biasmode = !!(readl(U300_PIN_REG(offset, per)) & U300_PIN_BIT(offset));
+
+	/* Mask out the two bits for this pin and shift to bits 0,1 */
+	drmode = readl(U300_PIN_REG(offset, pcr));
+	drmode &= (U300_GPIO_PXPCR_PIN_MODE_MASK << ((offset & 0x07) << 1));
+	drmode >>= ((offset & 0x07) << 1);
+
+	switch(param) {
+	case PIN_CONFIG_BIAS_HIGH_IMPEDANCE:
+		*config = 0;
+		if (biasmode)
+			return 0;
+		else
+			return -EINVAL;
+		break;
+	case PIN_CONFIG_BIAS_PULL_UP:
+		*config = 0;
+		if (!biasmode)
+			return 0;
+		else
+			return -EINVAL;
+		break;
+	case PIN_CONFIG_DRIVE_PUSH_PULL:
+		*config = 0;
+		if (drmode == U300_GPIO_PXPCR_PIN_MODE_OUTPUT_PUSH_PULL)
+			return 0;
+		else
+			return -EINVAL;
+		break;
+	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
+		*config = 0;
+		if (drmode == U300_GPIO_PXPCR_PIN_MODE_OUTPUT_OPEN_DRAIN)
+			return 0;
+		else
+			return -EINVAL;
+		break;
+	case PIN_CONFIG_DRIVE_OPEN_SOURCE:
+		*config = 0;
+		if (drmode == U300_GPIO_PXPCR_PIN_MODE_OUTPUT_OPEN_SOURCE)
+			return 0;
+		else
+			return -EINVAL;
+		break;
+	default:
+		break;
+	}
+	return -ENOTSUPP;
+}
+
+int u300_gpio_config_set(struct gpio_chip *chip, unsigned offset,
+			 enum pin_config_param param)
 {
 	struct u300_gpio *gpio = to_u300_gpio(chip);
 	unsigned long flags;
@@ -620,13 +682,12 @@ static void __init u300_gpio_init_pin(struct u300_gpio *gpio,
 		u300_gpio_direction_output(&gpio->chip, offset, conf->outval);
 
 		/* Deactivate bias mode for output */
-		u300_gpio_config(&gpio->chip, offset,
-				 PIN_CONFIG_BIAS_HIGH_IMPEDANCE,
-				 0);
+		u300_gpio_config_set(&gpio->chip, offset,
+				     PIN_CONFIG_BIAS_HIGH_IMPEDANCE);
 
 		/* Set drive mode for output */
-		u300_gpio_config(&gpio->chip, offset,
-				 PIN_CONFIG_DRIVE_PUSH_PULL, 0);
+		u300_gpio_config_set(&gpio->chip, offset,
+				     PIN_CONFIG_DRIVE_PUSH_PULL);
 
 		dev_dbg(gpio->dev, "set up pin %d as output, value: %d\n",
 			offset, conf->outval);
@@ -637,7 +698,7 @@ static void __init u300_gpio_init_pin(struct u300_gpio *gpio,
 		u300_gpio_set(&gpio->chip, offset, 0);
 
 		/* Set bias mode for input */
-		u300_gpio_config(&gpio->chip, offset, conf->bias_mode, 0);
+		u300_gpio_config_set(&gpio->chip, offset, conf->bias_mode);
 
 		dev_dbg(gpio->dev, "set up pin %d as input, bias: %04x\n",
 			offset, conf->bias_mode);
