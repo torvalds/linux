@@ -358,3 +358,8 @@ struct mgmt_ev_device_blocked {
 struct mgmt_ev_device_unblocked {
 	bdaddr_t bdaddr;
 } __packed;
+
+#define MGMT_EV_USER_PASSKEY_REQUEST	0x0017
+struct mgmt_ev_user_passkey_request {
+	bdaddr_t bdaddr;
+} __packed;
