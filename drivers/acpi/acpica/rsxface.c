@@ -526,8 +526,9 @@ acpi_rs_match_vendor_resource(struct acpi_resource *resource, void *context)
  *
  * PARAMETERS:  device_handle   - Handle to the device object for the
  *                                device we are querying
- *              Name            - Method name of the resources we want
- *                                (METHOD_NAME__CRS or METHOD_NAME__PRS)
+ *              Name            - Method name of the resources we want.
+ *                                (METHOD_NAME__CRS, METHOD_NAME__PRS, or
+ *                                METHOD_NAME__AEI)
  *              user_function   - Called for each resource
  *              Context         - Passed to user_function
  *
@@ -554,11 +555,12 @@ acpi_walk_resources(acpi_handle device_handle,
 
 	if (!device_handle || !user_function || !name ||
 	    (!ACPI_COMPARE_NAME(name, METHOD_NAME__CRS) &&
-	     !ACPI_COMPARE_NAME(name, METHOD_NAME__PRS))) {
+	     !ACPI_COMPARE_NAME(name, METHOD_NAME__PRS) &&
+	     !ACPI_COMPARE_NAME(name, METHOD_NAME__AEI))) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	/* Get the _CRS or _PRS resource list */
+	/* Get the _CRS/_PRS/_AEI resource list */
 
 	buffer.length = ACPI_ALLOCATE_LOCAL_BUFFER;
 	status = acpi_rs_get_method_data(device_handle, name, &buffer);
