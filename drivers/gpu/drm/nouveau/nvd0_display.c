@@ -43,12 +43,17 @@
 #define EVO_OIMM(c) (0x09 + (c))
 #define EVO_CURS(c) (0x0d + (c))
 
+/* offsets in shared sync bo of various structures */
+#define EVO_SYNC(c, o) ((c) * 0x0100 + (o))
+#define EVO_MAST_NTFY     EVO_SYNC(  0, 0x00)
+#define EVO_FLIP_SEM0(c)  EVO_SYNC((c), 0x00)
+#define EVO_FLIP_SEM1(c)  EVO_SYNC((c), 0x10)
+
 struct evo {
 	int idx;
 	dma_addr_t handle;
 	u32 *ptr;
 	struct {
-		struct nouveau_bo *bo;
 		u32 offset;
 		u16 value;
 	} sem;
@@ -56,6 +61,7 @@ struct evo {
 
 struct nvd0_display {
 	struct nouveau_gpuobj *mem;
+	struct nouveau_bo *sync;
 	struct evo evo[9];
 
 	struct tasklet_struct tasklet;
@@ -212,27 +218,23 @@ evo_fini_pio(struct drm_device *dev, int ch)
 static bool
 evo_sync_wait(void *data)
 {
-	return nouveau_bo_rd32(data, 0) != 0x00000000;
+	return nouveau_bo_rd32(data, EVO_MAST_NTFY) != 0x00000000;
 }
 
 static int
 evo_sync(struct drm_device *dev, int ch)
 {
 	struct nvd0_display *disp = nvd0_display(dev);
-	struct evo *evo = &disp->evo[ch];
-	u32 *push;
-
-	nouveau_bo_wr32(evo->sem.bo, 0, 0x00000000);
-
-	push = evo_wait(dev, ch, 8);
+	u32 *push = evo_wait(dev, ch, 8);
 	if (push) {
+		nouveau_bo_wr32(disp->sync, EVO_MAST_NTFY, 0x00000000);
 		evo_mthd(push, 0x0084, 1);
-		evo_data(push, 0x80000000);
+		evo_data(push, 0x80000000 | EVO_MAST_NTFY);
 		evo_mthd(push, 0x0080, 2);
 		evo_data(push, 0x00000000);
 		evo_data(push, 0x00000000);
 		evo_kick(push, dev, ch);
-		if (nv_wait_cb(dev, evo_sync_wait, evo->sem.bo))
+		if (nv_wait_cb(dev, evo_sync_wait, disp->sync))
 			return 0;
 	}
 
@@ -245,9 +247,7 @@ evo_sync(struct drm_device *dev, int ch)
 struct nouveau_bo *
 nvd0_display_crtc_sema(struct drm_device *dev, int crtc)
 {
-	struct nvd0_display *disp = nvd0_display(dev);
-	struct evo *evo = &disp->evo[EVO_FLIP(crtc)];
-	return evo->sem.bo;
+	return nvd0_display(dev)->sync;
 }
 
 void
@@ -313,7 +313,7 @@ nvd0_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		OUT_RING  (chan, 0x1001);
 		FIRE_RING (chan);
 	} else {
-		nouveau_bo_wr32(evo->sem.bo, evo->sem.offset / 4,
+		nouveau_bo_wr32(disp->sync, evo->sem.offset / 4,
 				0xf00d0000 | evo->sem.value);
 		evo_sync(crtc->dev, EVO_MASTER);
 	}
@@ -1752,12 +1752,12 @@ nvd0_display_destroy(struct drm_device *dev)
 
 	for (i = 0; i < EVO_DMA_NR; i++) {
 		struct evo *evo = &disp->evo[i];
-		nouveau_bo_unmap(evo->sem.bo);
-		nouveau_bo_ref(NULL, &evo->sem.bo);
 		pci_free_consistent(pdev, PAGE_SIZE, evo->ptr, evo->handle);
 	}
 
 	nouveau_gpuobj_ref(NULL, &disp->mem);
+	nouveau_bo_unmap(disp->sync);
+	nouveau_bo_ref(NULL, &disp->sync);
 	nouveau_irq_unregister(dev, 26);
 
 	dev_priv->engine.display.priv = NULL;
@@ -1829,6 +1829,20 @@ nvd0_display_create(struct drm_device *dev)
 	tasklet_init(&disp->tasklet, nvd0_display_bh, (unsigned long)dev);
 	nouveau_irq_register(dev, 26, nvd0_display_intr);
 
+	/* small shared memory area we use for notifiers and semaphores */
+	ret = nouveau_bo_new(dev, 4096, 0x1000, TTM_PL_FLAG_VRAM,
+			     0, 0x0000, &disp->sync);
+	if (!ret) {
+		ret = nouveau_bo_pin(disp->sync, TTM_PL_FLAG_VRAM);
+		if (!ret)
+			ret = nouveau_bo_map(disp->sync);
+		if (ret)
+			nouveau_bo_ref(NULL, &disp->sync);
+	}
+
+	if (ret)
+		goto out;
+
 	/* hash table and dma objects for the memory areas we care about */
 	ret = nouveau_gpuobj_new(dev, NULL, 0x4000, 0x10000,
 				 NVOBJ_FLAG_ZERO_ALLOC, &disp->mem);
@@ -1838,30 +1852,17 @@ nvd0_display_create(struct drm_device *dev)
 	/* create evo dma channels */
 	for (i = 0; i < EVO_DMA_NR; i++) {
 		struct evo *evo = &disp->evo[i];
+		u64 offset = disp->sync->bo.offset;
 		u32 dmao = 0x1000 + (i * 0x100);
 		u32 hash = 0x0000 + (i * 0x040);
-		u64 offset;
 
 		evo->idx = i;
+		evo->sem.offset = EVO_SYNC(evo->idx, 0x00);
 		evo->ptr = pci_alloc_consistent(pdev, PAGE_SIZE, &evo->handle);
 		if (!evo->ptr) {
 			ret = -ENOMEM;
 			goto out;
 		}
-
-		ret = nouveau_bo_new(dev, 4096, 0x1000, TTM_PL_FLAG_VRAM,
-				     0, 0x0000, &evo->sem.bo);
-		if (!ret) {
-			ret = nouveau_bo_pin(evo->sem.bo, TTM_PL_FLAG_VRAM);
-			if (!ret)
-				ret = nouveau_bo_map(evo->sem.bo);
-			if (ret)
-				nouveau_bo_ref(NULL, &evo->sem.bo);
-			offset = evo->sem.bo->bo.offset;
-		}
-
-		if (ret)
-			goto out;
 
 		nv_wo32(disp->mem, dmao + 0x00, 0x00000049);
 		nv_wo32(disp->mem, dmao + 0x04, (offset + 0x0000) >> 8);
