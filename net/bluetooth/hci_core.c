@@ -1337,14 +1337,12 @@ int hci_blacklist_del(struct hci_dev *hdev, bdaddr_t *bdaddr)
 {
 	struct bdaddr_list *entry;
 
-	if (bacmp(bdaddr, BDADDR_ANY) == 0) {
+	if (bacmp(bdaddr, BDADDR_ANY) == 0)
 		return hci_blacklist_clear(hdev);
-	}
 
 	entry = hci_blacklist_lookup(hdev, bdaddr);
-	if (!entry) {
+	if (!entry)
 		return -ENOENT;
-	}
 
 	list_del(&entry->list);
 	kfree(entry);
