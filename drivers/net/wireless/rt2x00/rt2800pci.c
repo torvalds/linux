@@ -880,8 +880,13 @@ static irqreturn_t rt2800pci_interrupt(int irq, void *dev_instance)
 	rt2x00pci_register_read(rt2x00dev, INT_SOURCE_CSR, &reg);
 	rt2x00pci_register_write(rt2x00dev, INT_SOURCE_CSR, reg);
 
+	/*
+	 * Some devices can generate interrupts with empty CSR register, we
+	 * "handle" such irq's to prevent interrupt controller treat them as
+	 * spurious interrupts and disable irq line.
+	 */
 	if (!reg)
-		return IRQ_NONE;
+		return IRQ_HANDLED;
 
 	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		return IRQ_HANDLED;
