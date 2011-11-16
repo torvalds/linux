@@ -875,11 +875,14 @@ static int __devinit lirc_serial_probe(struct platform_device *dev)
 		       ": or compile the serial port driver as module and\n");
 		printk(KERN_WARNING LIRC_DRIVER_NAME
 		       ": make sure this module is loaded first\n");
-		return -EBUSY;
+		result = -EBUSY;
+		goto exit_free_irq;
 	}
 
-	if (hardware_init_port() < 0)
-		return -EINVAL;
+	if (hardware_init_port() < 0) {
+		result = -EINVAL;
+		goto exit_release_region;
+	}
 
 	/* Initialize pulse/space widths */
 	init_timing_params(duty_cycle, freq);
@@ -911,6 +914,16 @@ static int __devinit lirc_serial_probe(struct platform_device *dev)
 
 	dprintk("Interrupt %d, port %04x obtained\n", irq, io);
 	return 0;
+
+exit_release_region:
+	if (iommap != 0)
+		release_mem_region(iommap, 8 << ioshift);
+	else
+		release_region(io, 8);
+exit_free_irq:
+	free_irq(irq, (void *)&hardware);
+
+	return result;
 }
 
 static int __devexit lirc_serial_remove(struct platform_device *dev)
