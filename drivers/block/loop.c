@@ -372,7 +372,8 @@ do_lo_receive(struct loop_device *lo,
 
 	if (retval < 0)
 		return retval;
-
+	if (retval != bvec->bv_len)
+		return -EIO;
 	return 0;
 }
 
