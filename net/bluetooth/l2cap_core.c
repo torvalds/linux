@@ -3562,14 +3562,10 @@ static int l2cap_add_to_srej_queue(struct l2cap_chan *chan, struct sk_buff *skb,
 	bt_cb(skb)->sar = sar;
 
 	next_skb = skb_peek(&chan->srej_q);
-	if (!next_skb) {
-		__skb_queue_tail(&chan->srej_q, skb);
-		return 0;
-	}
 
 	tx_seq_offset = __seq_offset(chan, tx_seq, chan->buffer_seq);
 
-	do {
+	while (next_skb) {
 		if (bt_cb(next_skb)->tx_seq == tx_seq)
 			return -EINVAL;
 
@@ -3582,9 +3578,10 @@ static int l2cap_add_to_srej_queue(struct l2cap_chan *chan, struct sk_buff *skb,
 		}
 
 		if (skb_queue_is_last(&chan->srej_q, next_skb))
-			break;
-
-	} while ((next_skb = skb_queue_next(&chan->srej_q, next_skb)));
+			next_skb = NULL;
+		else
+			next_skb = skb_queue_next(&chan->srej_q, next_skb);
+	}
 
 	__skb_queue_tail(&chan->srej_q, skb);
 
