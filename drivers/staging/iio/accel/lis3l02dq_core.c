@@ -804,18 +804,7 @@ static struct spi_driver lis3l02dq_driver = {
 	.probe = lis3l02dq_probe,
 	.remove = __devexit_p(lis3l02dq_remove),
 };
-
-static __init int lis3l02dq_init(void)
-{
-	return spi_register_driver(&lis3l02dq_driver);
-}
-module_init(lis3l02dq_init);
-
-static __exit void lis3l02dq_exit(void)
-{
-	spi_unregister_driver(&lis3l02dq_driver);
-}
-module_exit(lis3l02dq_exit);
+module_spi_driver(lis3l02dq_driver);
 
 MODULE_AUTHOR("Jonathan Cameron <jic23@cam.ac.uk>");
 MODULE_DESCRIPTION("ST LIS3L02DQ Accelerometer SPI driver");

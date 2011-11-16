@@ -445,18 +445,7 @@ static struct spi_driver ad5064_driver = {
 	.remove = __devexit_p(ad5064_remove),
 	.id_table = ad5064_id,
 };
-
-static __init int ad5064_spi_init(void)
-{
-	return spi_register_driver(&ad5064_driver);
-}
-module_init(ad5064_spi_init);
-
-static __exit void ad5064_spi_exit(void)
-{
-	spi_unregister_driver(&ad5064_driver);
-}
-module_exit(ad5064_spi_exit);
+module_spi_driver(ad5064_driver);
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_DESCRIPTION("Analog Devices AD5064/64-1/44/24 DAC");
