@@ -1133,7 +1133,7 @@ pause:
 					  pages_dirtied,
 					  pause,
 					  start_time);
-		__set_current_state(TASK_UNINTERRUPTIBLE);
+		__set_current_state(TASK_KILLABLE);
 		io_schedule_timeout(pause);
 
 		dirty_thresh = hard_dirty_limit(dirty_thresh);
@@ -1144,6 +1144,9 @@ pause:
 		 * (b) the pause time limit makes the dirtiers more responsive.
 		 */
 		if (nr_dirty < dirty_thresh)
+			break;
+
+		if (fatal_signal_pending(current))
 			break;
 	}
 
