@@ -2011,12 +2011,13 @@ static int stmmac_suspend(struct device *dev)
 	if (!ndev || !netif_running(ndev))
 		return 0;
 
+	if (priv->phydev)
+		phy_stop(priv->phydev);
+
 	spin_lock(&priv->lock);
 
 	netif_device_detach(ndev);
 	netif_stop_queue(ndev);
-	if (priv->phydev)
-		phy_stop(priv->phydev);
 
 #ifdef CONFIG_STMMAC_TIMER
 	priv->tm->timer_stop();
@@ -2074,12 +2075,13 @@ static int stmmac_resume(struct device *dev)
 #endif
 	napi_enable(&priv->napi);
 
-	if (priv->phydev)
-		phy_start(priv->phydev);
-
 	netif_start_queue(ndev);
 
 	spin_unlock(&priv->lock);
+
+	if (priv->phydev)
+		phy_start(priv->phydev);
+
 	return 0;
 }
 
