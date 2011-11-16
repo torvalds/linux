@@ -69,14 +69,12 @@ struct ovl_priv_data {
 
 	struct omap_overlay_info info;
 
-	u32 fifo_low;
-	u32 fifo_high;
-
 	bool extra_info_dirty;
 	bool shadow_extra_info_dirty;
 
 	bool enabled;
 	enum omap_channel channel;
+	u32 fifo_low, fifo_high;
 };
 
 struct mgr_priv_data {
@@ -396,8 +394,6 @@ static void dss_ovl_write_regs(struct omap_overlay *ovl)
 		return;
 	}
 
-	dispc_ovl_set_fifo_threshold(ovl->id, op->fifo_low, op->fifo_high);
-
 	mp = get_mgr_priv(ovl->manager);
 
 	op->dirty = false;
@@ -420,6 +416,7 @@ static void dss_ovl_write_regs_extra(struct omap_overlay *ovl)
 
 	dispc_ovl_enable(ovl->id, op->enabled);
 	dispc_ovl_set_channel_out(ovl->id, op->channel);
+	dispc_ovl_set_fifo_threshold(ovl->id, op->fifo_low, op->fifo_high);
 
 	mp = get_mgr_priv(ovl->manager);
 
@@ -632,42 +629,6 @@ static void omap_dss_mgr_apply_mgr(struct omap_overlay_manager *mgr)
 	mp->info = mp->user_info;
 }
 
-static void omap_dss_mgr_apply_ovl_fifos(struct omap_overlay *ovl)
-{
-	struct ovl_priv_data *op;
-	struct omap_dss_device *dssdev;
-	u32 size, burst_size;
-
-	op = get_ovl_priv(ovl);
-
-	dssdev = ovl->manager->device;
-
-	size = dispc_ovl_get_fifo_size(ovl->id);
-
-	burst_size = dispc_ovl_get_burst_size(ovl->id);
-
-	switch (dssdev->type) {
-	case OMAP_DISPLAY_TYPE_DPI:
-	case OMAP_DISPLAY_TYPE_DBI:
-	case OMAP_DISPLAY_TYPE_SDI:
-	case OMAP_DISPLAY_TYPE_VENC:
-	case OMAP_DISPLAY_TYPE_HDMI:
-		default_get_overlay_fifo_thresholds(ovl->id, size,
-				burst_size, &op->fifo_low,
-				&op->fifo_high);
-		break;
-#ifdef CONFIG_OMAP2_DSS_DSI
-	case OMAP_DISPLAY_TYPE_DSI:
-		dsi_get_overlay_fifo_thresholds(ovl->id, size,
-				burst_size, &op->fifo_low,
-				&op->fifo_high);
-		break;
-#endif
-	default:
-		BUG();
-	}
-}
-
 int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 {
 	int r;
@@ -689,10 +650,6 @@ int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 	/* Configure manager */
 	omap_dss_mgr_apply_mgr(mgr);
 
-	/* Configure overlay fifos */
-	list_for_each_entry(ovl, &mgr->overlays, list)
-		omap_dss_mgr_apply_ovl_fifos(ovl);
-
 	dss_write_regs();
 
 	spin_unlock_irqrestore(&data_lock, flags);
@@ -700,6 +657,64 @@ int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 	dispc_runtime_put();
 
 	return r;
+}
+
+static void dss_ovl_setup_fifo(struct omap_overlay *ovl)
+{
+	struct ovl_priv_data *op = get_ovl_priv(ovl);
+	struct omap_dss_device *dssdev;
+	u32 size, burst_size;
+	u32 fifo_low, fifo_high;
+
+	dssdev = ovl->manager->device;
+
+	size = dispc_ovl_get_fifo_size(ovl->id);
+
+	burst_size = dispc_ovl_get_burst_size(ovl->id);
+
+	switch (dssdev->type) {
+	case OMAP_DISPLAY_TYPE_DPI:
+	case OMAP_DISPLAY_TYPE_DBI:
+	case OMAP_DISPLAY_TYPE_SDI:
+	case OMAP_DISPLAY_TYPE_VENC:
+	case OMAP_DISPLAY_TYPE_HDMI:
+		default_get_overlay_fifo_thresholds(ovl->id, size,
+				burst_size, &fifo_low, &fifo_high);
+		break;
+#ifdef CONFIG_OMAP2_DSS_DSI
+	case OMAP_DISPLAY_TYPE_DSI:
+		dsi_get_overlay_fifo_thresholds(ovl->id, size,
+				burst_size, &fifo_low, &fifo_high);
+		break;
+#endif
+	default:
+		BUG();
+	}
+
+	op->fifo_low = fifo_low;
+	op->fifo_high = fifo_high;
+	op->extra_info_dirty = true;
+}
+
+static void dss_mgr_setup_fifos(struct omap_overlay_manager *mgr)
+{
+	struct omap_overlay *ovl;
+	struct ovl_priv_data *op;
+	struct mgr_priv_data *mp;
+
+	mp = get_mgr_priv(mgr);
+
+	if (!mp->enabled)
+		return;
+
+	list_for_each_entry(ovl, &mgr->overlays, list) {
+		op = get_ovl_priv(ovl);
+
+		if (!op->enabled)
+			continue;
+
+		dss_ovl_setup_fifo(ovl);
+	}
 }
 
 void dss_mgr_enable(struct omap_overlay_manager *mgr)
@@ -712,6 +727,8 @@ void dss_mgr_enable(struct omap_overlay_manager *mgr)
 	spin_lock_irqsave(&data_lock, flags);
 
 	mp->enabled = true;
+
+	dss_mgr_setup_fifos(mgr);
 
 	dss_write_regs();
 
@@ -999,6 +1016,8 @@ int dss_ovl_enable(struct omap_overlay *ovl)
 
 	op->enabled = true;
 	op->extra_info_dirty = true;
+
+	dss_ovl_setup_fifo(ovl);
 
 	dss_write_regs();
 
