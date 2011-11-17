@@ -828,7 +828,8 @@ config IPC_NS
 config USER_NS
 	bool "User namespace (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
-	default y
+	select UIDGID_STRICT_TYPE_CHECKS
+	default n
 	help
 	  This allows containers, i.e. vservers, to use user namespaces
 	  to provide different user info for different servers.
@@ -851,6 +852,15 @@ config NET_NS
 	  of the network stack.
 
 endif # NAMESPACES
+
+config UIDGID_STRICT_TYPE_CHECKS
+	bool "Require conversions between uid/gids and their internal representation"
+	default n
+	help
+	 While the nececessary conversions are being added to all subsystems this option allows
+	 the code to continue to build for unconverted subsystems.
+
+	 Say Y here if you want the strict type checking enabled
 
 config SCHED_AUTOGROUP
 	bool "Automatic process group scheduling"

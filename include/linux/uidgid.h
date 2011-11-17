@@ -17,7 +17,7 @@
 struct user_namespace;
 extern struct user_namespace init_user_ns;
 
-#if defined(NOTYET)
+#ifdef CONFIG_UIDGID_STRICT_TYPE_CHECKS
 
 typedef struct {
 	uid_t val;
