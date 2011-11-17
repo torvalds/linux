@@ -1367,16 +1367,6 @@ static int hid_suspend(struct usb_interface *intf, pm_message_t message)
 			return -EIO;
 	}
 
-	if (!ignoreled && PMSG_IS_AUTO(message)) {
-		spin_lock_irq(&usbhid->lock);
-		if (test_bit(HID_LED_ON, &usbhid->iofl)) {
-			spin_unlock_irq(&usbhid->lock);
-			usbhid_mark_busy(usbhid);
-			return -EBUSY;
-		}
-		spin_unlock_irq(&usbhid->lock);
-	}
-
 	hid_cancel_delayed_stuff(usbhid);
 	hid_cease_io(usbhid);
 
