@@ -986,12 +986,11 @@ static struct nfs4_client *alloc_client(struct xdr_netobj name)
 	clp = kzalloc(sizeof(struct nfs4_client), GFP_KERNEL);
 	if (clp == NULL)
 		return NULL;
-	clp->cl_name.data = kmalloc(name.len, GFP_KERNEL);
+	clp->cl_name.data = kmemdup(name.data, name.len, GFP_KERNEL);
 	if (clp->cl_name.data == NULL) {
 		kfree(clp);
 		return NULL;
 	}
-	memcpy(clp->cl_name.data, name.data, name.len);
 	clp->cl_name.len = name.len;
 	return clp;
 }
