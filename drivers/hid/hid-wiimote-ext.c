@@ -33,10 +33,48 @@ enum wiiext_type {
 	WIIEXT_NUNCHUCK,	/* Nintendo nunchuck controller */
 };
 
+/* diable all extensions */
+static void ext_disable(struct wiimote_ext *ext)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&ext->wdata->state.lock, flags);
+	ext->motionp = false;
+	ext->ext_type = WIIEXT_NONE;
+	spin_unlock_irqrestore(&ext->wdata->state.lock, flags);
+}
+
+static bool motionp_read(struct wiimote_ext *ext)
+{
+	return false;
+}
+
+static __u8 ext_read(struct wiimote_ext *ext)
+{
+	return WIIEXT_NONE;
+}
+
+static void ext_enable(struct wiimote_ext *ext, bool motionp, __u8 ext_type)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&ext->wdata->state.lock, flags);
+	ext->motionp = motionp;
+	ext->ext_type = ext_type;
+	spin_unlock_irqrestore(&ext->wdata->state.lock, flags);
+}
+
 static void wiiext_worker(struct work_struct *work)
 {
 	struct wiimote_ext *ext = container_of(work, struct wiimote_ext,
 									worker);
+	bool motionp;
+	__u8 ext_type;
+
+	ext_disable(ext);
+	motionp = motionp_read(ext);
+	ext_type = ext_read(ext);
+	ext_enable(ext, motionp, ext_type);
 }
 
 /* schedule work only once, otherwise mark for reschedule */
