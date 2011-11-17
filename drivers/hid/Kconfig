@@ -643,6 +643,12 @@ config HID_ZYDACRON
 	---help---
 	Support for Zydacron remote control.
 
+config HYPERV_MOUSE
+	tristate "Microsoft Hyper-V mouse driver"
+	depends on HYPERV
+	---help---
+	Select this option to enable the Hyper-V mouse driver.
+
 endmenu
 
 endif # HID_SUPPORT
