@@ -320,14 +320,8 @@ static void wiiproto_req_wmem(struct wiimote_data *wdata, bool eeprom,
 	wiimote_queue(wdata, cmd, sizeof(cmd));
 }
 
-#define wiiproto_req_rreg(wdata, os, sz) \
-				wiiproto_req_rmem((wdata), false, (os), (sz))
-
-#define wiiproto_req_reeprom(wdata, os, sz) \
-				wiiproto_req_rmem((wdata), true, (os), (sz))
-
-static void wiiproto_req_rmem(struct wiimote_data *wdata, bool eeprom,
-						__u32 offset, __u16 size)
+void wiiproto_req_rmem(struct wiimote_data *wdata, bool eeprom, __u32 offset,
+								__u16 size)
 {
 	__u8 cmd[7];
 
