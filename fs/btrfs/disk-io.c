@@ -1894,8 +1894,8 @@ int open_ctree(struct super_block *sb,
 	struct btrfs_key location;
 	struct buffer_head *bh;
 	struct btrfs_super_block *disk_super;
-	struct btrfs_root *tree_root = btrfs_sb(sb);
-	struct btrfs_fs_info *fs_info = tree_root->fs_info;
+	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
+	struct btrfs_root *tree_root = fs_info->tree_root;
 	struct btrfs_root *extent_root;
 	struct btrfs_root *csum_root;
 	struct btrfs_root *chunk_root;

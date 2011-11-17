@@ -147,7 +147,7 @@ void __btrfs_std_error(struct btrfs_fs_info *fs_info, const char *function,
 
 static void btrfs_put_super(struct super_block *sb)
 {
-	(void)close_ctree(btrfs_sb(sb));
+	(void)close_ctree(btrfs_sb(sb)->tree_root);
 	/* FIXME: need to fix VFS to return error? */
 	/* AV: return it _where_?  ->put_super() can be triggered by any number
 	 * of async events, up to and including delivery of SIGKILL to the
@@ -500,7 +500,8 @@ out:
 static struct dentry *get_default_root(struct super_block *sb,
 				       u64 subvol_objectid)
 {
-	struct btrfs_root *root = sb->s_fs_info;
+	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
+	struct btrfs_root *root = fs_info->tree_root;
 	struct btrfs_root *new_root;
 	struct btrfs_dir_item *di;
 	struct btrfs_path *path;
@@ -530,7 +531,7 @@ static struct dentry *get_default_root(struct super_block *sb,
 	 * will mount by default if we haven't been given a specific subvolume
 	 * to mount.
 	 */
-	dir_id = btrfs_super_root_dir(root->fs_info->super_copy);
+	dir_id = btrfs_super_root_dir(fs_info->super_copy);
 	di = btrfs_lookup_dir_item(NULL, root, path, dir_id, "default", 7, 0);
 	if (IS_ERR(di)) {
 		btrfs_free_path(path);
@@ -544,7 +545,7 @@ static struct dentry *get_default_root(struct super_block *sb,
 		 */
 		btrfs_free_path(path);
 		dir_id = BTRFS_FIRST_FREE_OBJECTID;
-		new_root = root->fs_info->fs_root;
+		new_root = fs_info->fs_root;
 		goto setup_root;
 	}
 
@@ -552,7 +553,7 @@ static struct dentry *get_default_root(struct super_block *sb,
 	btrfs_free_path(path);
 
 find_root:
-	new_root = btrfs_read_fs_root_no_name(root->fs_info, &location);
+	new_root = btrfs_read_fs_root_no_name(fs_info, &location);
 	if (IS_ERR(new_root))
 		return ERR_CAST(new_root);
 
@@ -588,8 +589,7 @@ static int btrfs_fill_super(struct super_block *sb,
 {
 	struct inode *inode;
 	struct dentry *root_dentry;
-	struct btrfs_root *tree_root = sb->s_fs_info;
-	struct btrfs_fs_info *fs_info = tree_root->fs_info;
+	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
 	struct btrfs_key key;
 	int err;
 
@@ -634,20 +634,21 @@ static int btrfs_fill_super(struct super_block *sb,
 	return 0;
 
 fail_close:
-	close_ctree(tree_root);
+	close_ctree(fs_info->tree_root);
 	return err;
 }
 
 int btrfs_sync_fs(struct super_block *sb, int wait)
 {
 	struct btrfs_trans_handle *trans;
-	struct btrfs_root *root = btrfs_sb(sb);
+	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
+	struct btrfs_root *root = fs_info->tree_root;
 	int ret;
 
 	trace_btrfs_sync_fs(wait);
 
 	if (!wait) {
-		filemap_flush(root->fs_info->btree_inode->i_mapping);
+		filemap_flush(fs_info->btree_inode->i_mapping);
 		return 0;
 	}
 
@@ -663,8 +664,8 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 
 static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 {
-	struct btrfs_root *root = btrfs_sb(dentry->d_sb);
-	struct btrfs_fs_info *info = root->fs_info;
+	struct btrfs_fs_info *info = btrfs_sb(dentry->d_sb);
+	struct btrfs_root *root = info->tree_root;
 	char *compress_type;
 
 	if (btrfs_test_opt(root, DEGRADED))
@@ -727,10 +728,10 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 
 static int btrfs_test_super(struct super_block *s, void *data)
 {
-	struct btrfs_root *test_root = data;
-	struct btrfs_root *root = btrfs_sb(s);
+	struct btrfs_fs_info *p = data;
+	struct btrfs_fs_info *fs_info = btrfs_sb(s);
 
-	return root->fs_info->fs_devices == test_root->fs_info->fs_devices;
+	return fs_info->fs_devices == p->fs_devices;
 }
 
 static int btrfs_set_super(struct super_block *s, void *data)
@@ -922,8 +923,7 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	}
 
 	bdev = fs_devices->latest_bdev;
-	s = sget(fs_type, btrfs_test_super, btrfs_set_super,
-		 fs_info->tree_root);
+	s = sget(fs_type, btrfs_test_super, btrfs_set_super, fs_info);
 	if (IS_ERR(s)) {
 		error = PTR_ERR(s);
 		goto error_close_devices;
@@ -939,7 +939,7 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 
 		s->s_flags = flags | MS_NOSEC;
 		strlcpy(s->s_id, bdevname(bdev, b), sizeof(s->s_id));
-		btrfs_sb(s)->fs_info->bdev_holder = fs_type;
+		btrfs_sb(s)->bdev_holder = fs_type;
 		error = btrfs_fill_super(s, fs_devices, data,
 					 flags & MS_SILENT ? 1 : 0);
 	}
@@ -959,7 +959,8 @@ error_fs_info:
 
 static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 {
-	struct btrfs_root *root = btrfs_sb(sb);
+	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
+	struct btrfs_root *root = fs_info->tree_root;
 	int ret;
 
 	ret = btrfs_parse_options(root, data);
@@ -975,13 +976,13 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 		ret =  btrfs_commit_super(root);
 		WARN_ON(ret);
 	} else {
-		if (root->fs_info->fs_devices->rw_devices == 0)
+		if (fs_info->fs_devices->rw_devices == 0)
 			return -EACCES;
 
-		if (btrfs_super_log_root(root->fs_info->super_copy) != 0)
+		if (btrfs_super_log_root(fs_info->super_copy) != 0)
 			return -EINVAL;
 
-		ret = btrfs_cleanup_fs_roots(root->fs_info);
+		ret = btrfs_cleanup_fs_roots(fs_info);
 		WARN_ON(ret);
 
 		/* recover relocation */
@@ -1150,18 +1151,18 @@ static int btrfs_calc_avail_data_space(struct btrfs_root *root, u64 *free_bytes)
 
 static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-	struct btrfs_root *root = btrfs_sb(dentry->d_sb);
-	struct btrfs_super_block *disk_super = root->fs_info->super_copy;
-	struct list_head *head = &root->fs_info->space_info;
+	struct btrfs_fs_info *fs_info = btrfs_sb(dentry->d_sb);
+	struct btrfs_super_block *disk_super = fs_info->super_copy;
+	struct list_head *head = &fs_info->space_info;
 	struct btrfs_space_info *found;
 	u64 total_used = 0;
 	u64 total_free_data = 0;
 	int bits = dentry->d_sb->s_blocksize_bits;
-	__be32 *fsid = (__be32 *)root->fs_info->fsid;
+	__be32 *fsid = (__be32 *)fs_info->fsid;
 	int ret;
 
 	/* holding chunk_muext to avoid allocating new chunks */
-	mutex_lock(&root->fs_info->chunk_mutex);
+	mutex_lock(&fs_info->chunk_mutex);
 	rcu_read_lock();
 	list_for_each_entry_rcu(found, head, list) {
 		if (found->flags & BTRFS_BLOCK_GROUP_DATA) {
@@ -1180,14 +1181,14 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bsize = dentry->d_sb->s_blocksize;
 	buf->f_type = BTRFS_SUPER_MAGIC;
 	buf->f_bavail = total_free_data;
-	ret = btrfs_calc_avail_data_space(root, &total_free_data);
+	ret = btrfs_calc_avail_data_space(fs_info->tree_root, &total_free_data);
 	if (ret) {
-		mutex_unlock(&root->fs_info->chunk_mutex);
+		mutex_unlock(&fs_info->chunk_mutex);
 		return ret;
 	}
 	buf->f_bavail += total_free_data;
 	buf->f_bavail = buf->f_bavail >> bits;
-	mutex_unlock(&root->fs_info->chunk_mutex);
+	mutex_unlock(&fs_info->chunk_mutex);
 
 	/* We treat it as constant endianness (it doesn't matter _which_)
 	   because we want the fsid to come out the same whether mounted
@@ -1203,7 +1204,7 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 static void btrfs_kill_super(struct super_block *sb)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(sb)->fs_info;
+	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
 	kill_anon_super(sb);
 	free_fs_info(fs_info);
 }
@@ -1246,17 +1247,17 @@ static long btrfs_control_ioctl(struct file *file, unsigned int cmd,
 
 static int btrfs_freeze(struct super_block *sb)
 {
-	struct btrfs_root *root = btrfs_sb(sb);
-	mutex_lock(&root->fs_info->transaction_kthread_mutex);
-	mutex_lock(&root->fs_info->cleaner_mutex);
+	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
+	mutex_lock(&fs_info->transaction_kthread_mutex);
+	mutex_lock(&fs_info->cleaner_mutex);
 	return 0;
 }
 
 static int btrfs_unfreeze(struct super_block *sb)
 {
-	struct btrfs_root *root = btrfs_sb(sb);
-	mutex_unlock(&root->fs_info->cleaner_mutex);
-	mutex_unlock(&root->fs_info->transaction_kthread_mutex);
+	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
+	mutex_unlock(&fs_info->cleaner_mutex);
+	mutex_unlock(&fs_info->transaction_kthread_mutex);
 	return 0;
 }
 
