@@ -410,6 +410,26 @@ config ARCH_EBSA110
 	  Ethernet interface, two PCMCIA sockets, two serial ports and a
 	  parallel port.
 
+config ARCH_EFM32
+	bool "Energy Micro efm32"
+	depends on !MMU
+	select ARCH_REQUIRE_GPIOLIB
+	select ARM_NVIC
+	# CLKSRC_MMIO is wrong here, but needed until a proper fix is merged,
+	# i.e. CLKSRC_EFM32 selecting CLKSRC_MMIO
+	select CLKSRC_MMIO
+	select CLKSRC_OF
+	select COMMON_CLK
+	select CPU_V7M
+	select GENERIC_CLOCKEVENTS
+	select NO_DMA
+	select NO_IOPORT
+	select SPARSE_IRQ
+	select USE_OF
+	help
+	  Support for Energy Micro's (now Silicon Labs) efm32 Giant Gecko
+	  processors.
+
 config ARCH_EP93XX
 	bool "EP93xx-based"
 	select ARCH_HAS_HOLES_MEMORYMODEL
@@ -1799,7 +1819,7 @@ config FORCE_MAX_ZONEORDER
 	int "Maximum zone order" if ARCH_SHMOBILE
 	range 11 64 if ARCH_SHMOBILE
 	default "12" if SOC_AM33XX
-	default "9" if SA1111
+	default "9" if SA1111 || ARCH_EFM32
 	default "11"
 	help
 	  The kernel memory allocator divides physically contiguous memory
