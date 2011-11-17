@@ -888,4 +888,22 @@ config SCx200_ACB
 	  This support is also available as a module.  If so, the module
 	  will be called scx200_acb.
 
+config SUN4I_IIC
+	tristate "SUN4I I2C bus driver"
+	depends on ARM_AMBA && ARCH_SUN4I
+	help
+	  "SUN4I i2c bus driver"
+	  
+config SUN4I_IIC_PRINT_TRANSFER_INFO
+	tristate "SUN4I_IIC_PRINT_TRANSFER_INFO"
+	depends on SUN4I_IIC
+	help
+	  "SUN4I i2c bus driver"
+
+config SUN4I_IIC_PRINT_TRANSFER_INFO_WITH_BUS_NUM
+	depends on SUN4I_IIC_PRINT_TRANSFER_INFO
+	int "bus num id(accepatable input:0,1,2)"  
+    ---help---                                  
+    default 2 
+      
 endmenu

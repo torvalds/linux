@@ -605,6 +605,7 @@ config ARCH_TEGRA
 config ARCH_SUN4I
 	bool "AllWinner SUN4I Platform"
 	select CPU_V7
+    select ARM_AMBA
 	select HAVE_CLK
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
