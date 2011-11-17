@@ -11,6 +11,7 @@
 #include <linux/user_namespace.h>
 #include <linux/highuid.h>
 #include <linux/cred.h>
+#include <linux/securebits.h>
 
 static struct kmem_cache *user_ns_cachep __read_mostly;
 
@@ -52,6 +53,14 @@ int create_user_ns(struct cred *new)
 	new->gid = new->egid = new->sgid = new->fsgid = 0;
 	put_group_info(new->group_info);
 	new->group_info = get_group_info(&init_groups);
+	/* Start with the same capabilities as init but useless for doing
+	 * anything as the capabilities are bound to the new user namespace.
+	 */
+	new->securebits = SECUREBITS_DEFAULT;
+	new->cap_inheritable = CAP_EMPTY_SET;
+	new->cap_permitted = CAP_FULL_SET;
+	new->cap_effective = CAP_FULL_SET;
+	new->cap_bset = CAP_FULL_SET;
 #ifdef CONFIG_KEYS
 	key_put(new->request_key_auth);
 	new->request_key_auth = NULL;
