@@ -168,7 +168,7 @@ static int __init consistent_init(void)
 	pte_t *pte;
 	int i = 0;
 	unsigned long base = consistent_base;
-	unsigned long num_ptes = (CONSISTENT_END - base) >> PGDIR_SHIFT;
+	unsigned long num_ptes = (CONSISTENT_END - base) >> PMD_SHIFT;
 
 	consistent_pte = kmalloc(num_ptes * sizeof(pte_t), GFP_KERNEL);
 	if (!consistent_pte) {
