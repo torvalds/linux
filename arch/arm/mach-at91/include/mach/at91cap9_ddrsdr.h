@@ -16,7 +16,7 @@
 #define AT91CAP9_DDRSDR_H
 
 #define AT91_DDRSDRC_MR		0x00	/* Mode Register */
-#define		AT91_DDRSDRC_MODE	(0xf << 0)		/* Command Mode */
+#define		AT91_DDRSDRC_MODE	(0x7 << 0)		/* Command Mode */
 #define			AT91_DDRSDRC_MODE_NORMAL		0
 #define			AT91_DDRSDRC_MODE_NOP		1
 #define			AT91_DDRSDRC_MODE_PRECHARGE	2
@@ -42,6 +42,7 @@
 #define			AT91_DDRSDRC_NR_11	(0 << 2)
 #define			AT91_DDRSDRC_NR_12	(1 << 2)
 #define			AT91_DDRSDRC_NR_13	(2 << 2)
+#define			AT91_DDRSDRC_NR_14	(3 << 2)
 #define		AT91_DDRSDRC_CAS	(7 << 4)		/* CAS Latency */
 #define			AT91_DDRSDRC_CAS_2	(2 << 4)
 #define			AT91_DDRSDRC_CAS_3	(3 << 4)
@@ -86,6 +87,9 @@
 #define			AT91_DDRSDRC_MD_LOW_POWER_SDR	1
 #define			AT91_DDRSDRC_MD_DDR		2
 #define			AT91_DDRSDRC_MD_LOW_POWER_DDR	3
+#define		AT91_DDRSDRC_DBW	(1 << 4)		/* Data Bus Width */
+#define			AT91_DDRSDRC_DBW_32BITS		(0 <<  4)
+#define			AT91_DDRSDRC_DBW_16BITS		(1 <<  4)
 
 #define AT91_DDRSDRC_DLLR	0x20	/* DLL Information Register */
 #define		AT91_DDRSDRC_MDINC	(1 << 0)		/* Master Delay increment */
