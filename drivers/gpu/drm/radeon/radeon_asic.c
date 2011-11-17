@@ -966,17 +966,17 @@ static struct radeon_asic cayman_asic = {
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &evergreen_ring_ib_execute,
-			.emit_fence = &r600_fence_ring_emit,
+			.emit_fence = &cayman_fence_ring_emit,
 			.emit_semaphore = &r600_semaphore_ring_emit,
 		},
 		[CAYMAN_RING_TYPE_CP1_INDEX] = {
 			.ib_execute = &r600_ring_ib_execute,
-			.emit_fence = &r600_fence_ring_emit,
+			.emit_fence = &cayman_fence_ring_emit,
 			.emit_semaphore = &r600_semaphore_ring_emit,
 		},
 		[CAYMAN_RING_TYPE_CP2_INDEX] = {
 			.ib_execute = &r600_ring_ib_execute,
-			.emit_fence = &r600_fence_ring_emit,
+			.emit_fence = &cayman_fence_ring_emit,
 			.emit_semaphore = &r600_semaphore_ring_emit,
 		}
 	},
