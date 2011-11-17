@@ -4088,6 +4088,16 @@ static int sky2_set_coalesce(struct net_device *dev,
 	return 0;
 }
 
+/*
+ * Hardware is limited to min of 128 and max of 2048 for ring size
+ * and  rounded up to next power of two
+ * to avoid division in modulus calclation
+ */
+static unsigned long roundup_ring_size(unsigned long pending)
+{
+	return max(128ul, roundup_pow_of_two(pending+1));
+}
+
 static void sky2_get_ringparam(struct net_device *dev,
 			       struct ethtool_ringparam *ering)
 {
@@ -4115,7 +4125,7 @@ static int sky2_set_ringparam(struct net_device *dev,
 
 	sky2->rx_pending = ering->rx_pending;
 	sky2->tx_pending = ering->tx_pending;
-	sky2->tx_ring_size = roundup_pow_of_two(sky2->tx_pending+1);
+	sky2->tx_ring_size = roundup_ring_size(sky2->tx_pending);
 
 	return sky2_reattach(dev);
 }
@@ -4709,7 +4719,7 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 	spin_lock_init(&sky2->phy_lock);
 
 	sky2->tx_pending = TX_DEF_PENDING;
-	sky2->tx_ring_size = roundup_pow_of_two(TX_DEF_PENDING+1);
+	sky2->tx_ring_size = roundup_ring_size(TX_DEF_PENDING);
 	sky2->rx_pending = RX_DEF_PENDING;
 
 	hw->dev[port] = dev;
