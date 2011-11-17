@@ -8,7 +8,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/writeback.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/backing-dev.h>
 #include <linux/wait.h>
 #include <linux/rwsem.h>
