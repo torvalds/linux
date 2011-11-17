@@ -120,6 +120,7 @@ int stmpe_remove(struct stmpe *stmpe);
 
 #define STMPE811_REG_CHIP_ID		0x00
 #define STMPE811_REG_SYS_CTRL2		0x04
+#define STMPE811_REG_SPI_CFG		0x08
 #define STMPE811_REG_INT_CTRL		0x09
 #define STMPE811_REG_INT_EN		0x0A
 #define STMPE811_REG_INT_STA		0x0B

@@ -258,7 +258,7 @@ config TWL6040_CORE
 
 config MFD_STMPE
 	bool "Support STMicroelectronics STMPE"
-	depends on I2C=y && GENERIC_HARDIRQS
+	depends on (I2C=y || SPI_MASTER=y) && GENERIC_HARDIRQS
 	select MFD_CORE
 	help
 	  Support for the STMPE family of I/O Expanders from
@@ -288,6 +288,12 @@ config STMPE_I2C
 	default y
 	help
 	  This is used to enable I2C interface of STMPE
+
+config STMPE_SPI
+	bool "STMPE SPI Inteface"
+	depends on SPI_MASTER
+	help
+	  This is used to enable SPI interface of STMPE
 endmenu
 
 config MFD_TC3589X
