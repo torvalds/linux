@@ -147,14 +147,13 @@ void __btrfs_std_error(struct btrfs_fs_info *fs_info, const char *function,
 
 static void btrfs_put_super(struct super_block *sb)
 {
-	struct btrfs_root *root = btrfs_sb(sb);
-	int ret;
-
-	ret = close_ctree(root);
-	free_fs_info(root->fs_info);
-	sb->s_fs_info = NULL;
-
-	(void)ret; /* FIXME: need to fix VFS to return error? */
+	(void)close_ctree(btrfs_sb(sb));
+	/* FIXME: need to fix VFS to return error? */
+	/* AV: return it _where_?  ->put_super() can be triggered by any number
+	 * of async events, up to and including delivery of SIGKILL to the
+	 * last process that kept it busy.  Or segfault in the aforementioned
+	 * process...  Whom would you report that to?
+	 */
 }
 
 enum {
@@ -1223,11 +1222,21 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
+static void btrfs_kill_super(struct super_block *sb)
+{
+	struct btrfs_fs_info *fs_info = NULL;
+	if (sb->s_root)
+		fs_info = btrfs_sb(sb)->fs_info;
+	kill_anon_super(sb);
+	if (fs_info)
+		free_fs_info(fs_info);
+}
+
 static struct file_system_type btrfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "btrfs",
 	.mount		= btrfs_mount,
-	.kill_sb	= kill_anon_super,
+	.kill_sb	= btrfs_kill_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
 
