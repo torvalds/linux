@@ -86,8 +86,6 @@ int btrfs_init_log_root_tree(struct btrfs_trans_handle *trans,
 int btrfs_add_log_tree(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root);
 
-struct btrfs_root *btrfs_alloc_root(struct btrfs_fs_info *fs_info);
-
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 void btrfs_init_lockdep(void);
 void btrfs_set_buffer_lockdep_class(u64 objectid,
