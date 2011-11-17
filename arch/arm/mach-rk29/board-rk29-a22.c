@@ -23,7 +23,7 @@
 #include <linux/spi/spi.h>
 #include <linux/mmc/host.h>
 #include <linux/android_pmem.h>
-#include <linux/usb/android_composite.h>
+//#include <linux/usb/android_composite.h>
 #include <linux/mpu.h>
 #include <linux/mpu3050.h>
 
@@ -1603,6 +1603,7 @@ struct platform_device rk29_device_gps = {
  * wm8994  codec
  * author: qjb@rock-chips.com
  *****************************************************************************************/
+#if defined (CONFIG_SND_SOC_WM8994)
 struct wm8994_pdata wm8994_platdata = {	
 	.BB_input_diff = 0,
 	.BB_class = NO_PCM_BB,
@@ -1625,7 +1626,7 @@ struct wm8994_pdata wm8994_platdata = {
 	.recorder_vol = 30,
 		
 };
-
+#endif
 
 #ifdef CONFIG_RK_HEADSET_DET
 
@@ -2533,7 +2534,7 @@ int __init rk29sdk_init_wifi_mem(void)
 {
         int i;
         int j;
-
+#if 0
         for (i = 0 ; i < WLAN_SKB_BUF_NUM ; i++) {
                 wlan_static_skb[i] = dev_alloc_skb(
                                 ((i < (WLAN_SKB_BUF_NUM / 2)) ? 4096 : 8192));
@@ -2562,7 +2563,7 @@ int __init rk29sdk_init_wifi_mem(void)
         pr_err("Failed to skb_alloc for WLAN\n");
         for (j = 0 ; j < i ; j++)
                 dev_kfree_skb(wlan_static_skb[j]);
-
+#endif
         return -ENOMEM;
 }
 
@@ -3191,8 +3192,8 @@ static int rk29xx_virtual_keys_init(void)
 
 static void __init rk29_gic_init_irq(void)
 {
-	gic_dist_init(0, (void __iomem *)RK29_GICPERI_BASE, 32);
-	gic_cpu_init(0, (void __iomem *)RK29_GICCPU_BASE);
+	//gic_dist_init(0, (void __iomem *)RK29_GICPERI_BASE, 32);
+	//gic_cpu_init(0, (void __iomem *)RK29_GICCPU_BASE);
 }
 
 static void __init machine_rk29_init_irq(void)
@@ -3237,7 +3238,7 @@ static void __init machine_rk29_board_init(void)
 	pm_power_off = rk29_pm_power_off;
 	//arm_pm_restart = rk29_pm_power_restart;
 
-	mass_storage_pdata.nluns = 1;//change number of LUNS
+	//mass_storage_pdata.nluns = 1;//change number of LUNS
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 #ifdef CONFIG_I2C0_RK29
@@ -3270,6 +3271,7 @@ static void __init machine_rk29_board_init(void)
 static void __init machine_rk29_fixup(struct machine_desc *desc, struct tag *tags,
 					char **cmdline, struct meminfo *mi)
 {
+#if 0
 	mi->nr_banks = 1;
 	mi->bank[0].start = RK29_SDRAM_PHYS;
 	mi->bank[0].node = PHYS_TO_NID(RK29_SDRAM_PHYS);
@@ -3278,6 +3280,7 @@ static void __init machine_rk29_fixup(struct machine_desc *desc, struct tag *tag
 	mi->nr_banks = 2;
 	mi->bank[1].start = RK29_SDRAM_PHYS + SZ_512M;
 	mi->bank[1].size = SDRAM_SIZE - SZ_512M;
+#endif
 #endif
 }
 
@@ -3293,8 +3296,8 @@ static void __init machine_rk29_mapio(void)
 
 MACHINE_START(RK29, "RK29board")
 	/* UART for LL DEBUG */
-	.phys_io	= RK29_UART1_PHYS & 0xfff00000,
-	.io_pg_offst	= ((RK29_UART1_BASE) >> 18) & 0xfffc,
+	//.phys_io	= RK29_UART1_PHYS & 0xfff00000,
+	//.io_pg_offst	= ((RK29_UART1_BASE) >> 18) & 0xfffc,
 	.boot_params	= RK29_SDRAM_PHYS + 0x88000,
 	.fixup		= machine_rk29_fixup,
 	.map_io		= machine_rk29_mapio,
