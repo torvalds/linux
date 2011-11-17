@@ -27,17 +27,10 @@
  */
 static void __init mpc830x_rdb_setup_arch(void)
 {
-#ifdef CONFIG_PCI
-	struct device_node *np;
-#endif
-
 	if (ppc_md.progress)
 		ppc_md.progress("mpc830x_rdb_setup_arch()", 0);
 
-#ifdef CONFIG_PCI
-	for_each_compatible_node(np, "pci", "fsl,mpc8308-pcie")
-		mpc83xx_add_bridge(np);
-#endif
+	mpc83xx_setup_pci();
 	mpc831x_usb_cfg();
 }
 
