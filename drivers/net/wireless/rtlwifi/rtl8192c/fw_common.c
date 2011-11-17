@@ -108,6 +108,7 @@ static void _rtl92c_fw_block_write(struct ieee80211_hw *hw,
 	u8 *bufferPtr = (u8 *) buffer;
 	u32 *pu4BytePtr = (u32 *) buffer;
 	u32 i, offset, blockCount, remainSize;
+	u32 data;
 
 	if (rtlpriv->io.writeN_sync) {
 		rtl_block_fw_writeN(hw, buffer, size);
@@ -115,20 +116,22 @@ static void _rtl92c_fw_block_write(struct ieee80211_hw *hw,
 	}
 	blockCount = size / blockSize;
 	remainSize = size % blockSize;
+	if (remainSize) {
+		/* the last word is < 4 bytes - pad it with zeros */
+		for (i = 0; i < 4 - remainSize; i++)
+			*(bufferPtr + size + i) = 0;
+		blockCount++;
+	}
 
 	for (i = 0; i < blockCount; i++) {
 		offset = i * blockSize;
+		/* for big-endian platforms, the firmware data need to be byte
+		 * swapped as it was read as a byte string and will be written
+		 * as 32-bit dwords and byte swapped when written
+		 */
+		data = le32_to_cpu(*(__le32 *)(pu4BytePtr + i));
 		rtl_write_dword(rtlpriv, (FW_8192C_START_ADDRESS + offset),
-				*(pu4BytePtr + i));
-	}
-
-	if (remainSize) {
-		offset = blockCount * blockSize;
-		bufferPtr += offset;
-		for (i = 0; i < remainSize; i++) {
-			rtl_write_byte(rtlpriv, (FW_8192C_START_ADDRESS +
-						 offset + i), *(bufferPtr + i));
-		}
+				data);
 	}
 }
 
@@ -269,8 +272,9 @@ int rtl92c_download_fw(struct ieee80211_hw *hw)
 	if (IS_FW_HEADER_EXIST(pfwheader)) {
 		RT_TRACE(rtlpriv, COMP_FW, DBG_DMESG,
 			 ("Firmware Version(%d), Signature(%#x),Size(%d)\n",
-			  pfwheader->version, pfwheader->signature,
-			  (uint)sizeof(struct rtl92c_firmware_header)));
+			 le16_to_cpu(pfwheader->version),
+			 le16_to_cpu(pfwheader->signature),
+			 (uint)sizeof(struct rtl92c_firmware_header)));
 
 		pfwdata = pfwdata + sizeof(struct rtl92c_firmware_header);
 		fwsize = fwsize - sizeof(struct rtl92c_firmware_header);

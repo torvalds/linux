@@ -82,6 +82,7 @@ static int _usbctrl_vendorreq_async_write(struct usb_device *udev, u8 request,
 	dr->wValue = cpu_to_le16(value);
 	dr->wIndex = cpu_to_le16(index);
 	dr->wLength = cpu_to_le16(len);
+	/* data are already in little-endian order */
 	memcpy(buf, pdata, len);
 	usb_fill_control_urb(urb, udev, pipe,
 			     (unsigned char *)dr, buf, len,
@@ -101,6 +102,7 @@ static int _usbctrl_vendorreq_sync_read(struct usb_device *udev, u8 request,
 	int status;
 	u8 reqtype;
 	int vendorreq_times = 0;
+	static int count;
 
 	pipe = usb_rcvctrlpipe(udev, 0); /* read_in */
 	reqtype =  REALTEK_USB_VENQT_READ;
@@ -117,9 +119,9 @@ static int _usbctrl_vendorreq_sync_read(struct usb_device *udev, u8 request,
 			break;
 		}
 	}
-	if (status < 0)
+	if (status < 0 && count++ < 4)
 		pr_err("reg 0x%x, usbctrl_vendorreq TimeOut! status:0x%x value=0x%x\n",
-		       value, status, *(u32 *)pdata);
+		       value, status, le32_to_cpu(*(u32 *)pdata));
 	return status;
 }
 
@@ -139,7 +141,7 @@ static u32 _usb_read_sync(struct usb_device *udev, u32 addr, u16 len)
 
 	wvalue = (u16)addr;
 	_usbctrl_vendorreq_sync_read(udev, request, wvalue, index, data, len);
-	ret = *data;
+	ret = le32_to_cpu(*data);
 	kfree(data);
 	return ret;
 }
@@ -171,12 +173,12 @@ static void _usb_write_async(struct usb_device *udev, u32 addr, u32 val,
 	u8 request;
 	u16 wvalue;
 	u16 index;
-	u32 data;
+	__le32 data;
 
 	request = REALTEK_USB_VENQT_CMD_REQ;
 	index = REALTEK_USB_VENQT_CMD_IDX; /* n/a */
 	wvalue = (u16)(addr&0x0000ffff);
-	data = val;
+	data = cpu_to_le32(val);
 	_usbctrl_vendorreq_async_write(udev, request, wvalue, index, &data,
 				       len);
 }
