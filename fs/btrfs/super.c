@@ -604,12 +604,12 @@ static int btrfs_fill_super(struct super_block *sb,
 	sb->s_flags |= MS_POSIXACL;
 #endif
 
-	tree_root = open_ctree(sb, fs_devices, (char *)data);
-
-	if (IS_ERR(tree_root)) {
+	err = open_ctree(sb, fs_devices, (char *)data);
+	if (err) {
 		printk("btrfs: open_ctree failed\n");
-		return PTR_ERR(tree_root);
+		return err;
 	}
+	tree_root = sb->s_fs_info;
 	fs_info = tree_root->fs_info;
 	sb->s_fs_info = tree_root;
 
