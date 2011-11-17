@@ -1053,47 +1053,13 @@ static __devinit int alc5632_i2c_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
 	struct alc5632_priv *alc5632;
-	int ret, vid1, vid2;
-
-	vid1 = i2c_smbus_read_word_data(client, ALC5632_VENDOR_ID1);
-	if (vid1 < 0) {
-		dev_err(&client->dev, "failed to read I2C\n");
-		return -EIO;
-	} else {
-		dev_info(&client->dev, "got vid1: %x\n", vid1);
-	}
-	vid1 = ((vid1 & 0xff) << 8) | (vid1 >> 8);
-
-	vid2 = i2c_smbus_read_word_data(client, ALC5632_VENDOR_ID2);
-	if (vid2 < 0) {
-		dev_err(&client->dev, "failed to read I2C\n");
-		return -EIO;
-	} else {
-		dev_info(&client->dev, "got vid2: %x\n", vid2);
-	}
-	vid2 = (vid2 & 0xff);
-
-	if ((vid1 != 0x10ec) || (vid2 != id->driver_data)) {
-		dev_err(&client->dev, "unknown or wrong codec\n");
-		dev_err(&client->dev, "Expected %x:%lx, got %x:%x\n",
-				0x10ec, id->driver_data,
-				vid1, vid2);
-		return -ENODEV;
-	}
+	int ret, ret1, ret2;
+	unsigned int vid1, vid2;
 
 	alc5632 = devm_kzalloc(&client->dev,
 			 sizeof(struct alc5632_priv), GFP_KERNEL);
 	if (alc5632 == NULL)
 		return -ENOMEM;
-
-	alc5632->id = vid2;
-	switch (alc5632->id) {
-	case 0x5c:
-		alc5632_dai.name = "alc5632-hifi";
-		break;
-	default:
-		return -EINVAL;
-	}
 
 	i2c_set_clientdata(client, alc5632);
 
@@ -1104,6 +1070,24 @@ static __devinit int alc5632_i2c_probe(struct i2c_client *client,
 		return ret;
 	}
 
+	ret1 = regmap_read(alc5632->regmap, ALC5632_VENDOR_ID1, &vid1);
+	ret2 = regmap_read(alc5632->regmap, ALC5632_VENDOR_ID2, &vid2);
+	if (ret1 != 0 || ret2 != 0) {
+		dev_err(&client->dev,
+		"Failed to read chip ID: ret1=%d, ret2=%d\n", ret1, ret2);
+		regmap_exit(alc5632->regmap);
+		return -EIO;
+	}
+
+	vid2 >>= 8;
+
+	if ((vid1 != 0x10EC) || (vid2 != id->driver_data)) {
+		dev_err(&client->dev,
+		"Device is not a ALC5632: VID1=0x%x, VID2=0x%x\n", vid1, vid2);
+		regmap_exit(alc5632->regmap);
+		return -EINVAL;
+	}
+
 	ret = alc5632_reset(alc5632->regmap);
 	if (ret < 0) {
 		dev_err(&client->dev, "Failed to issue reset\n");
@@ -1111,7 +1095,16 @@ static __devinit int alc5632_i2c_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	ret =  snd_soc_register_codec(&client->dev,
+	alc5632->id = vid2;
+	switch (alc5632->id) {
+	case 0x5c:
+		alc5632_dai.name = "alc5632-hifi";
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ret = snd_soc_register_codec(&client->dev,
 		&soc_codec_device_alc5632, &alc5632_dai, 1);
 
 	if (ret < 0) {
