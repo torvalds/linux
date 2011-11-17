@@ -33,6 +33,8 @@
 #define PCI_VENDOR_ID_ETRON		0x1b6f
 #define PCI_DEVICE_ID_ASROCK_P67	0x7023
 
+#define PCI_DEVICE_ID_NEC_uPD720200	0x0194
+
 static const char hcd_name[] = "xhci_hcd";
 
 /* called after powerup, by probe or system-pm "wakeup" */
@@ -74,8 +76,11 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 				pdev->revision);
 	}
 
-	if (pdev->vendor == PCI_VENDOR_ID_NEC)
+	if (pdev->vendor == PCI_VENDOR_ID_NEC) {
 		xhci->quirks |= XHCI_NEC_HOST;
+		if (pdev->device == PCI_DEVICE_ID_NEC_uPD720200)
+			xhci->quirks |= XHCI_RESET_ON_RESUME;
+	}
 
 	if (pdev->vendor == PCI_VENDOR_ID_AMD && xhci->hci_version == 0x96)
 		xhci->quirks |= XHCI_AMD_0x96_HOST;
