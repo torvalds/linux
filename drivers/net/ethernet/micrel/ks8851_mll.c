@@ -1500,8 +1500,7 @@ static int ks_hw_init(struct ks_net *ks)
 	ks->all_mcast = 0;
 	ks->mcast_lst_size = 0;
 
-	ks->frame_head_info = (struct type_frame_head *) \
-		kmalloc(MHEADER_SIZE, GFP_KERNEL);
+	ks->frame_head_info = kmalloc(MHEADER_SIZE, GFP_KERNEL);
 	if (!ks->frame_head_info) {
 		pr_err("Error: Fail to allocate frame memory\n");
 		return false;
