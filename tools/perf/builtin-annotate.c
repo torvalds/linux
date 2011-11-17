@@ -30,18 +30,17 @@
 
 #include <linux/bitmap.h>
 
-static char		const *input_name = "perf.data";
-
-static bool		force, use_tui, use_stdio;
-
-static bool		full_paths;
-
-static bool		print_line;
-
-static const char *sym_hist_filter;
-
-static const char	*cpu_list;
-static DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
+static struct perf_annotate {
+	char const *input_name;
+	bool	   force, use_tui, use_stdio;
+	bool	   full_paths;
+	bool	   print_line;
+	const char *sym_hist_filter;
+	const char *cpu_list;
+	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
+} annotate = {
+	.input_name = "perf.data",
+}, *ann = &annotate;
 
 static int perf_evsel__add_sample(struct perf_evsel *evsel,
 				  struct perf_sample *sample,
@@ -50,8 +49,9 @@ static int perf_evsel__add_sample(struct perf_evsel *evsel,
 	struct hist_entry *he;
 	int ret;
 
-	if (sym_hist_filter != NULL &&
-	    (al->sym == NULL || strcmp(sym_hist_filter, al->sym->name) != 0)) {
+	if (ann->sym_hist_filter != NULL &&
+	    (al->sym == NULL ||
+	     strcmp(ann->sym_hist_filter, al->sym->name) != 0)) {
 		/* We're only interested in a symbol named sym_hist_filter */
 		if (al->sym != NULL) {
 			rb_erase(&al->sym->rb_node,
@@ -93,7 +93,7 @@ static int process_sample_event(union perf_event *event,
 		return -1;
 	}
 
-	if (cpu_list && !test_bit(sample->cpu, cpu_bitmap))
+	if (ann->cpu_list && !test_bit(sample->cpu, ann->cpu_bitmap))
 		return 0;
 
 	if (!al.filtered && perf_evsel__add_sample(evsel, sample, &al)) {
@@ -108,7 +108,7 @@ static int process_sample_event(union perf_event *event,
 static int hist_entry__tty_annotate(struct hist_entry *he, int evidx)
 {
 	return symbol__tty_annotate(he->ms.sym, he->ms.map, evidx,
-				    print_line, full_paths, 0, 0);
+				    ann->print_line, ann->full_paths, 0, 0);
 }
 
 static void hists__find_annotations(struct hists *self, int evidx)
@@ -178,12 +178,14 @@ static int __cmd_annotate(void)
 	struct perf_evsel *pos;
 	u64 total_nr_samples;
 
-	session = perf_session__new(input_name, O_RDONLY, force, false, &event_ops);
+	session = perf_session__new(ann->input_name, O_RDONLY,
+				    ann->force, false, &event_ops);
 	if (session == NULL)
 		return -ENOMEM;
 
-	if (cpu_list) {
-		ret = perf_session__cpu_bitmap(session, cpu_list, cpu_bitmap);
+	if (ann->cpu_list) {
+		ret = perf_session__cpu_bitmap(session, ann->cpu_list,
+					       ann->cpu_bitmap);
 		if (ret)
 			goto out_delete;
 	}
@@ -217,7 +219,7 @@ static int __cmd_annotate(void)
 	}
 
 	if (total_nr_samples == 0) {
-		ui__warning("The %s file has no samples!\n", input_name);
+		ui__warning("The %s file has no samples!\n", ann->input_name);
 		goto out_delete;
 	}
 out_delete:
@@ -242,28 +244,28 @@ static const char * const annotate_usage[] = {
 };
 
 static const struct option options[] = {
-	OPT_STRING('i', "input", &input_name, "file",
+	OPT_STRING('i', "input", &annotate.input_name, "file",
 		    "input file name"),
 	OPT_STRING('d', "dsos", &symbol_conf.dso_list_str, "dso[,dso...]",
 		   "only consider symbols in these dsos"),
-	OPT_STRING('s', "symbol", &sym_hist_filter, "symbol",
+	OPT_STRING('s', "symbol", &annotate.sym_hist_filter, "symbol",
 		    "symbol to annotate"),
-	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
+	OPT_BOOLEAN('f', "force", &annotate.force, "don't complain, do it"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
-	OPT_BOOLEAN(0, "tui", &use_tui, "Use the TUI interface"),
-	OPT_BOOLEAN(0, "stdio", &use_stdio, "Use the stdio interface"),
+	OPT_BOOLEAN(0, "tui", &annotate.use_tui, "Use the TUI interface"),
+	OPT_BOOLEAN(0, "stdio", &annotate.use_stdio, "Use the stdio interface"),
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
 	OPT_BOOLEAN('m', "modules", &symbol_conf.use_modules,
 		    "load module symbols - WARNING: use only with -k and LIVE kernel"),
-	OPT_BOOLEAN('l', "print-line", &print_line,
+	OPT_BOOLEAN('l', "print-line", &annotate.print_line,
 		    "print matching source lines (may be slow)"),
-	OPT_BOOLEAN('P', "full-paths", &full_paths,
+	OPT_BOOLEAN('P', "full-paths", &annotate.full_paths,
 		    "Don't shorten the displayed pathnames"),
-	OPT_STRING('c', "cpu", &cpu_list, "cpu", "list of cpus to profile"),
+	OPT_STRING('c', "cpu", &annotate.cpu_list, "cpu", "list of cpus to profile"),
 	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
 		   "Look for files with symbols relative to this directory"),
 	OPT_BOOLEAN(0, "source", &symbol_conf.annotate_src,
@@ -279,9 +281,9 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __used)
 {
 	argc = parse_options(argc, argv, options, annotate_usage, 0);
 
-	if (use_stdio)
+	if (annotate.use_stdio)
 		use_browser = 0;
-	else if (use_tui)
+	else if (annotate.use_tui)
 		use_browser = 1;
 
 	setup_browser(true);
@@ -302,7 +304,7 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __used)
 		if (argc > 1)
 			usage_with_options(annotate_usage, options);
 
-		sym_hist_filter = argv[0];
+		annotate.sym_hist_filter = argv[0];
 	}
 
 	if (field_sep && *field_sep == '.') {
