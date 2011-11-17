@@ -934,7 +934,8 @@ static int erst_close_pstore(struct pstore_info *psi);
 static ssize_t erst_reader(u64 *id, enum pstore_type_id *type,
 			   struct timespec *time, char **buf,
 			   struct pstore_info *psi);
-static int erst_writer(enum pstore_type_id type, u64 *id, unsigned int part,
+static int erst_writer(enum pstore_type_id type, enum kmsg_dump_reason reason,
+		       u64 *id, unsigned int part,
 		       size_t size, struct pstore_info *psi);
 static int erst_clearer(enum pstore_type_id type, u64 id,
 			struct pstore_info *psi);
@@ -1053,7 +1054,8 @@ out:
 	return (rc < 0) ? rc : (len - sizeof(*rcd));
 }
 
-static int erst_writer(enum pstore_type_id type, u64 *id, unsigned int part,
+static int erst_writer(enum pstore_type_id type, enum kmsg_dump_reason reason,
+		       u64 *id, unsigned int part,
 		       size_t size, struct pstore_info *psi)
 {
 	struct cper_pstore_record *rcd = (struct cper_pstore_record *)
