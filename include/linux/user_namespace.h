@@ -12,6 +12,7 @@
 struct user_namespace {
 	struct kref		kref;
 	struct hlist_head	uidhash_table[UIDHASH_SZ];
+	struct user_namespace	*parent;
 	struct user_struct	*creator;
 	struct work_struct	destroyer;
 };
