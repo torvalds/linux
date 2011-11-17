@@ -1574,7 +1574,6 @@ static bool ieee80211_assoc_success(struct ieee80211_work *wk,
 
 	set_sta_flag(sta, WLAN_STA_AUTH);
 	set_sta_flag(sta, WLAN_STA_ASSOC);
-	set_sta_flag(sta, WLAN_STA_ASSOC_AP);
 	if (!(ifmgd->flags & IEEE80211_STA_CONTROL_PORT))
 		set_sta_flag(sta, WLAN_STA_AUTHORIZED);
 
