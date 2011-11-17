@@ -139,6 +139,7 @@ struct kvm_vcpu_stat {
 	u32 instruction_stfl;
 	u32 instruction_tprot;
 	u32 instruction_sigp_sense;
+	u32 instruction_sigp_sense_running;
 	u32 instruction_sigp_external_call;
 	u32 instruction_sigp_emergency;
 	u32 instruction_sigp_stop;

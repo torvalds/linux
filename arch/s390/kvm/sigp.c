@@ -31,9 +31,11 @@
 #define SIGP_SET_PREFIX        0x0d
 #define SIGP_STORE_STATUS_ADDR 0x0e
 #define SIGP_SET_ARCH          0x12
+#define SIGP_SENSE_RUNNING     0x15
 
 /* cpu status bits */
 #define SIGP_STAT_EQUIPMENT_CHECK   0x80000000UL
+#define SIGP_STAT_NOT_RUNNING	    0x00000400UL
 #define SIGP_STAT_INCORRECT_STATE   0x00000200UL
 #define SIGP_STAT_INVALID_PARAMETER 0x00000100UL
 #define SIGP_STAT_EXT_CALL_PENDING  0x00000080UL
@@ -275,6 +277,38 @@ out_fi:
 	return rc;
 }
 
+static int __sigp_sense_running(struct kvm_vcpu *vcpu, u16 cpu_addr,
+				unsigned long *reg)
+{
+	int rc;
+	struct kvm_s390_float_interrupt *fi = &vcpu->kvm->arch.float_int;
+
+	if (cpu_addr >= KVM_MAX_VCPUS)
+		return 3; /* not operational */
+
+	spin_lock(&fi->lock);
+	if (fi->local_int[cpu_addr] == NULL)
+		rc = 3; /* not operational */
+	else {
+		if (atomic_read(fi->local_int[cpu_addr]->cpuflags)
+		    & CPUSTAT_RUNNING) {
+			/* running */
+			rc = 1;
+		} else {
+			/* not running */
+			*reg &= 0xffffffff00000000UL;
+			*reg |= SIGP_STAT_NOT_RUNNING;
+			rc = 0;
+		}
+	}
+	spin_unlock(&fi->lock);
+
+	VCPU_EVENT(vcpu, 4, "sensed running status of cpu %x rc %x", cpu_addr,
+		   rc);
+
+	return rc;
+}
+
 int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 {
 	int r1 = (vcpu->arch.sie_block->ipa & 0x00f0) >> 4;
@@ -330,6 +364,11 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 		vcpu->stat.instruction_sigp_prefix++;
 		rc = __sigp_set_prefix(vcpu, cpu_addr, parameter,
 				       &vcpu->arch.guest_gprs[r1]);
+		break;
+	case SIGP_SENSE_RUNNING:
+		vcpu->stat.instruction_sigp_sense_running++;
+		rc = __sigp_sense_running(vcpu, cpu_addr,
+					  &vcpu->arch.guest_gprs[r1]);
 		break;
 	case SIGP_RESTART:
 		vcpu->stat.instruction_sigp_restart++;

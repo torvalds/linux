@@ -65,6 +65,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "instruction_stfl", VCPU_STAT(instruction_stfl) },
 	{ "instruction_tprot", VCPU_STAT(instruction_tprot) },
 	{ "instruction_sigp_sense", VCPU_STAT(instruction_sigp_sense) },
+	{ "instruction_sigp_sense_running", VCPU_STAT(instruction_sigp_sense_running) },
 	{ "instruction_sigp_external_call", VCPU_STAT(instruction_sigp_external_call) },
 	{ "instruction_sigp_emergency", VCPU_STAT(instruction_sigp_emergency) },
 	{ "instruction_sigp_stop", VCPU_STAT(instruction_sigp_stop) },
