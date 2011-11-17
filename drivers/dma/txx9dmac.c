@@ -845,7 +845,7 @@ txx9dmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 
 static struct dma_async_tx_descriptor *
 txx9dmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
-		unsigned int sg_len, enum dma_data_direction direction,
+		unsigned int sg_len, enum dma_transfer_direction direction,
 		unsigned long flags)
 {
 	struct txx9dmac_chan *dc = to_txx9dmac_chan(chan);
@@ -860,9 +860,9 @@ txx9dmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 
 	BUG_ON(!ds || !ds->reg_width);
 	if (ds->tx_reg)
-		BUG_ON(direction != DMA_TO_DEVICE);
+		BUG_ON(direction != DMA_MEM_TO_DEV);
 	else
-		BUG_ON(direction != DMA_FROM_DEVICE);
+		BUG_ON(direction != DMA_DEV_TO_MEM);
 	if (unlikely(!sg_len))
 		return NULL;
 
@@ -882,7 +882,7 @@ txx9dmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		mem = sg_dma_address(sg);
 
 		if (__is_dmac64(ddev)) {
-			if (direction == DMA_TO_DEVICE) {
+			if (direction == DMA_MEM_TO_DEV) {
 				desc->hwdesc.SAR = mem;
 				desc->hwdesc.DAR = ds->tx_reg;
 			} else {
@@ -891,7 +891,7 @@ txx9dmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			}
 			desc->hwdesc.CNTR = sg_dma_len(sg);
 		} else {
-			if (direction == DMA_TO_DEVICE) {
+			if (direction == DMA_MEM_TO_DEV) {
 				desc->hwdesc32.SAR = mem;
 				desc->hwdesc32.DAR = ds->tx_reg;
 			} else {
@@ -900,7 +900,7 @@ txx9dmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			}
 			desc->hwdesc32.CNTR = sg_dma_len(sg);
 		}
-		if (direction == DMA_TO_DEVICE) {
+		if (direction == DMA_MEM_TO_DEV) {
 			sai = ds->reg_width;
 			dai = 0;
 		} else {

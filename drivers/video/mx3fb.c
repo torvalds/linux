@@ -334,7 +334,7 @@ static void sdc_enable_channel(struct mx3fb_info *mx3_fbi)
 	/* This enables the channel */
 	if (mx3_fbi->cookie < 0) {
 		mx3_fbi->txd = dma_chan->device->device_prep_slave_sg(dma_chan,
-		      &mx3_fbi->sg[0], 1, DMA_TO_DEVICE, DMA_PREP_INTERRUPT);
+		      &mx3_fbi->sg[0], 1, DMA_MEM_TO_DEV, DMA_PREP_INTERRUPT);
 		if (!mx3_fbi->txd) {
 			dev_err(mx3fb->dev, "Cannot allocate descriptor on %d\n",
 				dma_chan->chan_id);
@@ -1117,7 +1117,7 @@ static int mx3fb_pan_display(struct fb_var_screeninfo *var,
 		async_tx_ack(mx3_fbi->txd);
 
 	txd = dma_chan->device->device_prep_slave_sg(dma_chan, sg +
-		mx3_fbi->cur_ipu_buf, 1, DMA_TO_DEVICE, DMA_PREP_INTERRUPT);
+		mx3_fbi->cur_ipu_buf, 1, DMA_MEM_TO_DEV, DMA_PREP_INTERRUPT);
 	if (!txd) {
 		dev_err(fbi->device,
 			"Error preparing a DMA transaction descriptor.\n");

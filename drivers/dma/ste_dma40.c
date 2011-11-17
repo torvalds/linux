@@ -217,7 +217,7 @@ struct d40_chan {
 	struct d40_log_lli_full		*lcpa;
 	/* Runtime reconfiguration */
 	dma_addr_t			runtime_addr;
-	enum dma_data_direction		runtime_direction;
+	enum dma_transfer_direction	runtime_direction;
 };
 
 /**
@@ -1855,7 +1855,7 @@ err:
 }
 
 static dma_addr_t
-d40_get_dev_addr(struct d40_chan *chan, enum dma_data_direction direction)
+d40_get_dev_addr(struct d40_chan *chan, enum dma_transfer_direction direction)
 {
 	struct stedma40_platform_data *plat = chan->base->plat_data;
 	struct stedma40_chan_cfg *cfg = &chan->dma_cfg;
@@ -1864,9 +1864,9 @@ d40_get_dev_addr(struct d40_chan *chan, enum dma_data_direction direction)
 	if (chan->runtime_addr)
 		return chan->runtime_addr;
 
-	if (direction == DMA_FROM_DEVICE)
+	if (direction == DMA_DEV_TO_MEM)
 		addr = plat->dev_rx[cfg->src_dev_type];
-	else if (direction == DMA_TO_DEVICE)
+	else if (direction == DMA_MEM_TO_DEV)
 		addr = plat->dev_tx[cfg->dst_dev_type];
 
 	return addr;
@@ -1875,7 +1875,7 @@ d40_get_dev_addr(struct d40_chan *chan, enum dma_data_direction direction)
 static struct dma_async_tx_descriptor *
 d40_prep_sg(struct dma_chan *dchan, struct scatterlist *sg_src,
 	    struct scatterlist *sg_dst, unsigned int sg_len,
-	    enum dma_data_direction direction, unsigned long dma_flags)
+	    enum dma_transfer_direction direction, unsigned long dma_flags)
 {
 	struct d40_chan *chan = container_of(dchan, struct d40_chan, chan);
 	dma_addr_t src_dev_addr = 0;
@@ -1902,9 +1902,9 @@ d40_prep_sg(struct dma_chan *dchan, struct scatterlist *sg_src,
 	if (direction != DMA_NONE) {
 		dma_addr_t dev_addr = d40_get_dev_addr(chan, direction);
 
-		if (direction == DMA_FROM_DEVICE)
+		if (direction == DMA_DEV_TO_MEM)
 			src_dev_addr = dev_addr;
-		else if (direction == DMA_TO_DEVICE)
+		else if (direction == DMA_MEM_TO_DEV)
 			dst_dev_addr = dev_addr;
 	}
 
@@ -2108,10 +2108,10 @@ d40_prep_memcpy_sg(struct dma_chan *chan,
 static struct dma_async_tx_descriptor *d40_prep_slave_sg(struct dma_chan *chan,
 							 struct scatterlist *sgl,
 							 unsigned int sg_len,
-							 enum dma_data_direction direction,
+							 enum dma_transfer_direction direction,
 							 unsigned long dma_flags)
 {
-	if (direction != DMA_FROM_DEVICE && direction != DMA_TO_DEVICE)
+	if (direction != DMA_DEV_TO_MEM && direction != DMA_MEM_TO_DEV)
 		return NULL;
 
 	return d40_prep_sg(chan, sgl, sgl, sg_len, direction, dma_flags);
@@ -2120,7 +2120,7 @@ static struct dma_async_tx_descriptor *d40_prep_slave_sg(struct dma_chan *chan,
 static struct dma_async_tx_descriptor *
 dma40_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t dma_addr,
 		     size_t buf_len, size_t period_len,
-		     enum dma_data_direction direction)
+		     enum dma_transfer_direction direction)
 {
 	unsigned int periods = buf_len / period_len;
 	struct dma_async_tx_descriptor *txd;
@@ -2269,7 +2269,7 @@ static int d40_set_runtime_config(struct dma_chan *chan,
 	dst_addr_width = config->dst_addr_width;
 	dst_maxburst = config->dst_maxburst;
 
-	if (config->direction == DMA_FROM_DEVICE) {
+	if (config->direction == DMA_DEV_TO_MEM) {
 		dma_addr_t dev_addr_rx =
 			d40c->base->plat_data->dev_rx[cfg->src_dev_type];
 
@@ -2292,7 +2292,7 @@ static int d40_set_runtime_config(struct dma_chan *chan,
 		if (dst_maxburst == 0)
 			dst_maxburst = src_maxburst;
 
-	} else if (config->direction == DMA_TO_DEVICE) {
+	} else if (config->direction == DMA_MEM_TO_DEV) {
 		dma_addr_t dev_addr_tx =
 			d40c->base->plat_data->dev_tx[cfg->dst_dev_type];
 
@@ -2357,7 +2357,7 @@ static int d40_set_runtime_config(struct dma_chan *chan,
 		"configured channel %s for %s, data width %d/%d, "
 		"maxburst %d/%d elements, LE, no flow control\n",
 		dma_chan_name(chan),
-		(config->direction == DMA_FROM_DEVICE) ? "RX" : "TX",
+		(config->direction == DMA_DEV_TO_MEM) ? "RX" : "TX",
 		src_addr_width, dst_addr_width,
 		src_maxburst, dst_maxburst);
 

@@ -187,7 +187,7 @@ static inline struct
 dma_async_tx_descriptor *stedma40_slave_mem(struct dma_chan *chan,
 					    dma_addr_t addr,
 					    unsigned int size,
-					    enum dma_data_direction direction,
+					    enum dma_transfer_direction direction,
 					    unsigned long flags)
 {
 	struct scatterlist sg;
@@ -209,7 +209,7 @@ static inline struct
 dma_async_tx_descriptor *stedma40_slave_mem(struct dma_chan *chan,
 					    dma_addr_t addr,
 					    unsigned int size,
-					    enum dma_data_direction direction,
+					    enum dma_transfer_direction direction,
 					    unsigned long flags)
 {
 	return NULL;

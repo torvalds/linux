@@ -882,9 +882,9 @@ static int prep_phy_channel(struct pl08x_dma_chan *plchan,
 		ch->signal = ret;
 
 		/* Assign the flow control signal to this channel */
-		if (txd->direction == DMA_TO_DEVICE)
+		if (txd->direction == DMA_MEM_TO_DEV)
 			txd->ccfg |= ch->signal << PL080_CONFIG_DST_SEL_SHIFT;
-		else if (txd->direction == DMA_FROM_DEVICE)
+		else if (txd->direction == DMA_DEV_TO_MEM)
 			txd->ccfg |= ch->signal << PL080_CONFIG_SRC_SEL_SHIFT;
 	}
 
@@ -1102,10 +1102,10 @@ static int dma_set_runtime_config(struct dma_chan *chan,
 
 	/* Transfer direction */
 	plchan->runtime_direction = config->direction;
-	if (config->direction == DMA_TO_DEVICE) {
+	if (config->direction == DMA_MEM_TO_DEV) {
 		addr_width = config->dst_addr_width;
 		maxburst = config->dst_maxburst;
-	} else if (config->direction == DMA_FROM_DEVICE) {
+	} else if (config->direction == DMA_DEV_TO_MEM) {
 		addr_width = config->src_addr_width;
 		maxburst = config->src_maxburst;
 	} else {
@@ -1136,7 +1136,7 @@ static int dma_set_runtime_config(struct dma_chan *chan,
 	cctl |= burst << PL080_CONTROL_SB_SIZE_SHIFT;
 	cctl |= burst << PL080_CONTROL_DB_SIZE_SHIFT;
 
-	if (plchan->runtime_direction == DMA_FROM_DEVICE) {
+	if (plchan->runtime_direction == DMA_DEV_TO_MEM) {
 		plchan->src_addr = config->src_addr;
 		plchan->src_cctl = pl08x_cctl(cctl) | PL080_CONTROL_DST_INCR |
 			pl08x_select_bus(plchan->cd->periph_buses,
@@ -1152,7 +1152,7 @@ static int dma_set_runtime_config(struct dma_chan *chan,
 		"configured channel %s (%s) for %s, data width %d, "
 		"maxburst %d words, LE, CCTL=0x%08x\n",
 		dma_chan_name(chan), plchan->name,
-		(config->direction == DMA_FROM_DEVICE) ? "RX" : "TX",
+		(config->direction == DMA_DEV_TO_MEM) ? "RX" : "TX",
 		addr_width,
 		maxburst,
 		cctl);
@@ -1322,7 +1322,7 @@ static struct dma_async_tx_descriptor *pl08x_prep_dma_memcpy(
 
 static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 		struct dma_chan *chan, struct scatterlist *sgl,
-		unsigned int sg_len, enum dma_data_direction direction,
+		unsigned int sg_len, enum dma_transfer_direction direction,
 		unsigned long flags)
 {
 	struct pl08x_dma_chan *plchan = to_pl08x_chan(chan);
@@ -1354,10 +1354,10 @@ static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 	 */
 	txd->direction = direction;
 
-	if (direction == DMA_TO_DEVICE) {
+	if (direction == DMA_MEM_TO_DEV) {
 		txd->cctl = plchan->dst_cctl;
 		slave_addr = plchan->dst_addr;
-	} else if (direction == DMA_FROM_DEVICE) {
+	} else if (direction == DMA_DEV_TO_MEM) {
 		txd->cctl = plchan->src_cctl;
 		slave_addr = plchan->src_addr;
 	} else {
@@ -1368,10 +1368,10 @@ static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 	}
 
 	if (plchan->cd->device_fc)
-		tmp = (direction == DMA_TO_DEVICE) ? PL080_FLOW_MEM2PER_PER :
+		tmp = (direction == DMA_MEM_TO_DEV) ? PL080_FLOW_MEM2PER_PER :
 			PL080_FLOW_PER2MEM_PER;
 	else
-		tmp = (direction == DMA_TO_DEVICE) ? PL080_FLOW_MEM2PER :
+		tmp = (direction == DMA_MEM_TO_DEV) ? PL080_FLOW_MEM2PER :
 			PL080_FLOW_PER2MEM;
 
 	txd->ccfg |= tmp << PL080_CONFIG_FLOW_CONTROL_SHIFT;
@@ -1387,7 +1387,7 @@ static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 		list_add_tail(&dsg->node, &txd->dsg_list);
 
 		dsg->len = sg_dma_len(sg);
-		if (direction == DMA_TO_DEVICE) {
+		if (direction == DMA_MEM_TO_DEV) {
 			dsg->src_addr = sg_phys(sg);
 			dsg->dst_addr = slave_addr;
 		} else {

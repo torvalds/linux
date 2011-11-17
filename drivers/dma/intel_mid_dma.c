@@ -395,10 +395,10 @@ static int midc_lli_fill_sg(struct intel_mid_dma_chan *midc,
 							midc->dma->block_size);
 		/*Populate SAR and DAR values*/
 		sg_phy_addr = sg_phys(sg);
-		if (desc->dirn ==  DMA_TO_DEVICE) {
+		if (desc->dirn ==  DMA_MEM_TO_DEV) {
 			lli_bloc_desc->sar  = sg_phy_addr;
 			lli_bloc_desc->dar  = mids->dma_slave.dst_addr;
-		} else if (desc->dirn ==  DMA_FROM_DEVICE) {
+		} else if (desc->dirn ==  DMA_DEV_TO_MEM) {
 			lli_bloc_desc->sar  = mids->dma_slave.src_addr;
 			lli_bloc_desc->dar  = sg_phy_addr;
 		}
@@ -632,13 +632,13 @@ static struct dma_async_tx_descriptor *intel_mid_dma_prep_memcpy(
 		if (midc->dma->pimr_mask) {
 			cfg_hi.cfgx.protctl = 0x0; /*default value*/
 			cfg_hi.cfgx.fifo_mode = 1;
-			if (mids->dma_slave.direction == DMA_TO_DEVICE) {
+			if (mids->dma_slave.direction == DMA_MEM_TO_DEV) {
 				cfg_hi.cfgx.src_per = 0;
 				if (mids->device_instance == 0)
 					cfg_hi.cfgx.dst_per = 3;
 				if (mids->device_instance == 1)
 					cfg_hi.cfgx.dst_per = 1;
-			} else if (mids->dma_slave.direction == DMA_FROM_DEVICE) {
+			} else if (mids->dma_slave.direction == DMA_DEV_TO_MEM) {
 				if (mids->device_instance == 0)
 					cfg_hi.cfgx.src_per = 2;
 				if (mids->device_instance == 1)
@@ -682,11 +682,11 @@ static struct dma_async_tx_descriptor *intel_mid_dma_prep_memcpy(
 		ctl_lo.ctlx.sinc = 0;
 		ctl_lo.ctlx.dinc = 0;
 	} else {
-		if (mids->dma_slave.direction == DMA_TO_DEVICE) {
+		if (mids->dma_slave.direction == DMA_MEM_TO_DEV) {
 			ctl_lo.ctlx.sinc = 0;
 			ctl_lo.ctlx.dinc = 2;
 			ctl_lo.ctlx.tt_fc = 1;
-		} else if (mids->dma_slave.direction == DMA_FROM_DEVICE) {
+		} else if (mids->dma_slave.direction == DMA_DEV_TO_MEM) {
 			ctl_lo.ctlx.sinc = 2;
 			ctl_lo.ctlx.dinc = 0;
 			ctl_lo.ctlx.tt_fc = 2;
@@ -732,7 +732,7 @@ err_desc_get:
  */
 static struct dma_async_tx_descriptor *intel_mid_dma_prep_slave_sg(
 			struct dma_chan *chan, struct scatterlist *sgl,
-			unsigned int sg_len, enum dma_data_direction direction,
+			unsigned int sg_len, enum dma_transfer_direction direction,
 			unsigned long flags)
 {
 	struct intel_mid_dma_chan *midc = NULL;

@@ -30,7 +30,7 @@ struct sh_desc {
 	struct sh_dmae_regs hw;
 	struct list_head node;
 	struct dma_async_tx_descriptor async_tx;
-	enum dma_data_direction direction;
+	enum dma_transfer_direction direction;
 	dma_cookie_t cookie;
 	size_t partial;
 	int chunks;
