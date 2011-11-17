@@ -57,8 +57,8 @@ static int __sigp_sense(struct kvm_vcpu *vcpu, u16 cpu_addr,
 	spin_lock(&fi->lock);
 	if (fi->local_int[cpu_addr] == NULL)
 		rc = 3; /* not operational */
-	else if (atomic_read(fi->local_int[cpu_addr]->cpuflags)
-		 & CPUSTAT_RUNNING) {
+	else if (!(atomic_read(fi->local_int[cpu_addr]->cpuflags)
+		  & CPUSTAT_STOPPED)) {
 		*reg &= 0xffffffff00000000UL;
 		rc = 1; /* status stored */
 	} else {
@@ -251,7 +251,7 @@ static int __sigp_set_prefix(struct kvm_vcpu *vcpu, u16 cpu_addr, u32 address,
 
 	spin_lock_bh(&li->lock);
 	/* cpu must be in stopped state */
-	if (atomic_read(li->cpuflags) & CPUSTAT_RUNNING) {
+	if (!(atomic_read(li->cpuflags) & CPUSTAT_STOPPED)) {
 		rc = 1; /* incorrect state */
 		*reg &= SIGP_STAT_INCORRECT_STATE;
 		kfree(inti);
