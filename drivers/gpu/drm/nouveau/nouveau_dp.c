@@ -578,7 +578,7 @@ nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate)
 
 	dp.dcb = nv_encoder->dcb;
 	dp.crtc = nv_crtc->index;
-	dp.auxch = auxch->rd;
+	dp.auxch = auxch->drive;
 	dp.or = nv_encoder->or;
 	dp.link = !(nv_encoder->dcb->sorconf.link & 1);
 	dp.dpcd = nv_encoder->dp.dpcd;
@@ -653,7 +653,7 @@ nouveau_dp_detect(struct drm_encoder *encoder)
 	if (!auxch)
 		return false;
 
-	ret = auxch_tx(dev, auxch->rd, 9, DP_DPCD_REV, dpcd, 8);
+	ret = auxch_tx(dev, auxch->drive, 9, DP_DPCD_REV, dpcd, 8);
 	if (ret)
 		return false;
 
@@ -681,7 +681,7 @@ int
 nouveau_dp_auxch(struct nouveau_i2c_chan *auxch, int cmd, int addr,
 		 uint8_t *data, int data_nr)
 {
-	return auxch_tx(auxch->dev, auxch->rd, cmd, addr, data, data_nr);
+	return auxch_tx(auxch->dev, auxch->drive, cmd, addr, data, data_nr);
 }
 
 static int

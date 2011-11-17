@@ -30,132 +30,83 @@
 #include "nouveau_hw.h"
 
 static void
-nv04_i2c_setscl(void *data, int state)
+i2c_drive_scl(void *data, int state)
 {
-	struct nouveau_i2c_chan *i2c = data;
-	struct drm_device *dev = i2c->dev;
-	uint8_t val;
-
-	val = (NVReadVgaCrtc(dev, 0, i2c->wr) & 0xd0) | (state ? 0x20 : 0);
-	NVWriteVgaCrtc(dev, 0, i2c->wr, val | 0x01);
+	struct nouveau_i2c_chan *port = data;
+	if (port->type == 0) {
+		u8 val = NVReadVgaCrtc(port->dev, 0, port->drive);
+		if (state) val |= 0x20;
+		else	   val &= 0xdf;
+		NVWriteVgaCrtc(port->dev, 0, port->drive, val | 0x01);
+	} else
+	if (port->type == 4) {
+		nv_mask(port->dev, port->drive, 0x2f, state ? 0x21 : 0x01);
+	} else
+	if (port->type == 5) {
+		if (state) port->state |= 0x01;
+		else	   port->state &= 0xfe;
+		nv_wr32(port->dev, port->drive, 4 | port->state);
+	}
 }
 
 static void
-nv04_i2c_setsda(void *data, int state)
+i2c_drive_sda(void *data, int state)
 {
-	struct nouveau_i2c_chan *i2c = data;
-	struct drm_device *dev = i2c->dev;
-	uint8_t val;
-
-	val = (NVReadVgaCrtc(dev, 0, i2c->wr) & 0xe0) | (state ? 0x10 : 0);
-	NVWriteVgaCrtc(dev, 0, i2c->wr, val | 0x01);
+	struct nouveau_i2c_chan *port = data;
+	if (port->type == 0) {
+		u8 val = NVReadVgaCrtc(port->dev, 0, port->drive);
+		if (state) val |= 0x10;
+		else	   val &= 0xef;
+		NVWriteVgaCrtc(port->dev, 0, port->drive, val | 0x01);
+	} else
+	if (port->type == 4) {
+		nv_mask(port->dev, port->drive, 0x1f, state ? 0x11 : 0x01);
+	} else
+	if (port->type == 5) {
+		if (state) port->state |= 0x02;
+		else	   port->state &= 0xfd;
+		nv_wr32(port->dev, port->drive, 4 | port->state);
+	}
 }
 
 static int
-nv04_i2c_getscl(void *data)
+i2c_sense_scl(void *data)
 {
-	struct nouveau_i2c_chan *i2c = data;
-	struct drm_device *dev = i2c->dev;
-
-	return !!(NVReadVgaCrtc(dev, 0, i2c->rd) & 4);
+	struct nouveau_i2c_chan *port = data;
+	struct drm_nouveau_private *dev_priv = port->dev->dev_private;
+	if (port->type == 0) {
+		return !!(NVReadVgaCrtc(port->dev, 0, port->sense) & 0x04);
+	} else
+	if (port->type == 4) {
+		return !!(nv_rd32(port->dev, port->sense) & 0x00040000);
+	} else
+	if (port->type == 5) {
+		if (dev_priv->card_type < NV_D0)
+			return !!(nv_rd32(port->dev, port->sense) & 0x01);
+		else
+			return !!(nv_rd32(port->dev, port->sense) & 0x10);
+	}
+	return 0;
 }
 
 static int
-nv04_i2c_getsda(void *data)
+i2c_sense_sda(void *data)
 {
-	struct nouveau_i2c_chan *i2c = data;
-	struct drm_device *dev = i2c->dev;
-
-	return !!(NVReadVgaCrtc(dev, 0, i2c->rd) & 8);
-}
-
-static void
-nv4e_i2c_setscl(void *data, int state)
-{
-	struct nouveau_i2c_chan *i2c = data;
-	struct drm_device *dev = i2c->dev;
-	uint8_t val;
-
-	val = (nv_rd32(dev, i2c->wr) & 0xd0) | (state ? 0x20 : 0);
-	nv_wr32(dev, i2c->wr, val | 0x01);
-}
-
-static void
-nv4e_i2c_setsda(void *data, int state)
-{
-	struct nouveau_i2c_chan *i2c = data;
-	struct drm_device *dev = i2c->dev;
-	uint8_t val;
-
-	val = (nv_rd32(dev, i2c->wr) & 0xe0) | (state ? 0x10 : 0);
-	nv_wr32(dev, i2c->wr, val | 0x01);
-}
-
-static int
-nv4e_i2c_getscl(void *data)
-{
-	struct nouveau_i2c_chan *i2c = data;
-	struct drm_device *dev = i2c->dev;
-
-	return !!((nv_rd32(dev, i2c->rd) >> 16) & 4);
-}
-
-static int
-nv4e_i2c_getsda(void *data)
-{
-	struct nouveau_i2c_chan *i2c = data;
-	struct drm_device *dev = i2c->dev;
-
-	return !!((nv_rd32(dev, i2c->rd) >> 16) & 8);
-}
-
-static int
-nv50_i2c_getscl(void *data)
-{
-	struct nouveau_i2c_chan *i2c = data;
-	struct drm_device *dev = i2c->dev;
-
-	return !!(nv_rd32(dev, i2c->rd) & 1);
-}
-
-static int
-nv50_i2c_getsda(void *data)
-{
-	struct nouveau_i2c_chan *i2c = data;
-	struct drm_device *dev = i2c->dev;
-
-	return !!(nv_rd32(dev, i2c->rd) & 2);
-}
-
-static void
-nv50_i2c_setscl(void *data, int state)
-{
-	struct nouveau_i2c_chan *i2c = data;
-
-	nv_wr32(i2c->dev, i2c->wr, 4 | (i2c->data ? 2 : 0) | (state ? 1 : 0));
-}
-
-static void
-nv50_i2c_setsda(void *data, int state)
-{
-	struct nouveau_i2c_chan *i2c = data;
-
-	nv_mask(i2c->dev, i2c->wr, 0x00000006, 4 | (state ? 2 : 0));
-	i2c->data = state;
-}
-
-static int
-nvd0_i2c_getscl(void *data)
-{
-	struct nouveau_i2c_chan *i2c = data;
-	return !!(nv_rd32(i2c->dev, i2c->rd) & 0x10);
-}
-
-static int
-nvd0_i2c_getsda(void *data)
-{
-	struct nouveau_i2c_chan *i2c = data;
-	return !!(nv_rd32(i2c->dev, i2c->rd) & 0x20);
+	struct nouveau_i2c_chan *port = data;
+	struct drm_nouveau_private *dev_priv = port->dev->dev_private;
+	if (port->type == 0) {
+		return !!(NVReadVgaCrtc(port->dev, 0, port->sense) & 0x08);
+	} else
+	if (port->type == 4) {
+		return !!(nv_rd32(port->dev, port->sense) & 0x00080000);
+	} else
+	if (port->type == 5) {
+		if (dev_priv->card_type < NV_D0)
+			return !!(nv_rd32(port->dev, port->sense) & 0x02);
+		else
+			return !!(nv_rd32(port->dev, port->sense) & 0x20);
+	}
+	return 0;
 }
 
 static const uint32_t nv50_i2c_port[] = {
@@ -258,51 +209,37 @@ nouveau_i2c_init(struct drm_device *dev)
 
 		switch (port->type) {
 		case 0: /* NV04:NV50 */
-			port->wr = entry[0];
-			port->rd = entry[1];
-			port->bit.setsda = nv04_i2c_setsda;
-			port->bit.setscl = nv04_i2c_setscl;
-			port->bit.getsda = nv04_i2c_getsda;
-			port->bit.getscl = nv04_i2c_getscl;
+			port->drive = entry[0];
+			port->sense = entry[1];
 			break;
 		case 4: /* NV4E */
-			port->wr = 0x600800 + entry[1];
-			port->rd = port->wr;
-			port->bit.setsda = nv4e_i2c_setsda;
-			port->bit.setscl = nv4e_i2c_setscl;
-			port->bit.getsda = nv4e_i2c_getsda;
-			port->bit.getscl = nv4e_i2c_getscl;
+			port->drive = 0x600800 + entry[1];
+			port->sense = port->drive;
 			break;
 		case 5: /* NV50- */
-			port->wr = entry[0] & 0x0f;
+			port->drive = entry[0] & 0x0f;
 			if (dev_priv->card_type < NV_D0) {
-				if (port->wr >= ARRAY_SIZE(nv50_i2c_port))
+				if (port->drive >= ARRAY_SIZE(nv50_i2c_port))
 					break;
-				port->wr = nv50_i2c_port[port->wr];
-				port->rd = port->wr;
-				port->bit.getsda = nv50_i2c_getsda;
-				port->bit.getscl = nv50_i2c_getscl;
+				port->drive = nv50_i2c_port[port->drive];
+				port->sense = port->drive;
 			} else {
-				port->wr = 0x00d014 + (port->wr * 0x20);
-				port->rd = port->wr;
-				port->bit.getsda = nvd0_i2c_getsda;
-				port->bit.getscl = nvd0_i2c_getscl;
+				port->drive = 0x00d014 + (port->drive * 0x20);
+				port->sense = port->drive;
 			}
-			port->bit.setsda = nv50_i2c_setsda;
-			port->bit.setscl = nv50_i2c_setscl;
 			break;
 		case 6: /* NV50- DP AUX */
-			port->wr = entry[0];
-			port->rd = port->wr;
+			port->drive = entry[0];
+			port->sense = port->drive;
 			port->adapter.algo = &nouveau_dp_i2c_algo;
 			break;
 		default:
 			break;
 		}
 
-		if (!port->adapter.algo && !port->wr) {
+		if (!port->adapter.algo && !port->drive) {
 			NV_ERROR(dev, "I2C%d: type %d index %x/%x unknown\n",
-				 i, port->type, port->wr, port->rd);
+				 i, port->type, port->drive, port->sense);
 			kfree(port);
 			continue;
 		}
@@ -321,6 +258,15 @@ nouveau_i2c_init(struct drm_device *dev)
 			port->bit.udelay = 40;
 			port->bit.timeout = usecs_to_jiffies(5000);
 			port->bit.data = port;
+			port->bit.setsda = i2c_drive_sda;
+			port->bit.setscl = i2c_drive_scl;
+			port->bit.getsda = i2c_sense_sda;
+			port->bit.getscl = i2c_sense_scl;
+
+			i2c_drive_scl(port, 0);
+			i2c_drive_sda(port, 1);
+			i2c_drive_scl(port, 1);
+
 			ret = i2c_bit_add_bus(&port->adapter);
 		} else {
 			port->adapter.algo = &nouveau_dp_i2c_algo;
@@ -381,7 +327,7 @@ nouveau_i2c_find(struct drm_device *dev, u8 index)
 	if (dev_priv->card_type >= NV_50 && (port->dcb & 0x00000100)) {
 		u32 reg = 0x00e500, val;
 		if (port->type == 6) {
-			reg += port->rd * 0x50;
+			reg += port->drive * 0x50;
 			val  = 0x2002;
 		} else {
 			reg += ((port->dcb & 0x1e00) >> 9) * 0x50;

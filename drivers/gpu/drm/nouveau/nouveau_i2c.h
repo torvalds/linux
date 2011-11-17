@@ -39,9 +39,9 @@ struct nouveau_i2c_chan {
 	u8  index;
 	u8  type;
 	u32 dcb;
-	unsigned rd;
-	unsigned wr;
-	unsigned data;
+	u32 drive;
+	u32 sense;
+	u32 state;
 };
 
 int  nouveau_i2c_init(struct drm_device *);
