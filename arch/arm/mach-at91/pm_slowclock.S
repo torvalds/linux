@@ -18,9 +18,8 @@
 
 #if defined(CONFIG_ARCH_AT91RM9200)
 #include <mach/at91rm9200_mc.h>
-#elif defined(CONFIG_ARCH_AT91CAP9)
-#include <mach/at91cap9_ddrsdr.h>
-#elif defined(CONFIG_ARCH_AT91SAM9G45)
+#elif defined(CONFIG_ARCH_AT91CAP9) \
+	|| defined(CONFIG_ARCH_AT91SAM9G45)
 #include <mach/at91sam9_ddrsdr.h>
 #else
 #include <mach/at91sam9_sdramc.h>
