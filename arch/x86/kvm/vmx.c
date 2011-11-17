@@ -1747,7 +1747,6 @@ static void setup_msrs(struct vcpu_vmx *vmx)
 	int save_nmsrs, index;
 	unsigned long *msr_bitmap;
 
-	vmx_load_host_state(vmx);
 	save_nmsrs = 0;
 #ifdef CONFIG_X86_64
 	if (is_long_mode(&vmx->vcpu)) {
@@ -2142,12 +2141,10 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
 			return 1;
 		/* Otherwise falls through */
 	default:
-		vmx_load_host_state(to_vmx(vcpu));
 		if (vmx_get_vmx_msr(vcpu, msr_index, pdata))
 			return 0;
 		msr = find_msr_entry(to_vmx(vcpu), msr_index);
 		if (msr) {
-			vmx_load_host_state(to_vmx(vcpu));
 			data = msr->data;
 			break;
 		}
@@ -2171,7 +2168,6 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 
 	switch (msr_index) {
 	case MSR_EFER:
-		vmx_load_host_state(vmx);
 		ret = kvm_set_msr_common(vcpu, msr_index, data);
 		break;
 #ifdef CONFIG_X86_64
@@ -2220,7 +2216,6 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 			break;
 		msr = find_msr_entry(vmx, msr_index);
 		if (msr) {
-			vmx_load_host_state(vmx);
 			msr->data = data;
 			break;
 		}
