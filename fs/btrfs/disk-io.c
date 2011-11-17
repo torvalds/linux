@@ -1142,7 +1142,6 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	root->orphan_item_inserted = 0;
 	root->orphan_cleanup_state = 0;
 
-	root->fs_info = fs_info;
 	root->objectid = objectid;
 	root->last_trans = 0;
 	root->highest_objectid = 0;
@@ -1193,6 +1192,7 @@ static int find_and_setup_root(struct btrfs_root *tree_root,
 	u32 blocksize;
 	u64 generation;
 
+	root->fs_info = fs_info;
 	__setup_root(tree_root->nodesize, tree_root->leafsize,
 		     tree_root->sectorsize, tree_root->stripesize,
 		     root, fs_info, objectid);
@@ -1227,6 +1227,7 @@ static struct btrfs_root *alloc_log_tree(struct btrfs_trans_handle *trans,
 	if (!root)
 		return ERR_PTR(-ENOMEM);
 
+	root->fs_info = fs_info;
 	__setup_root(tree_root->nodesize, tree_root->leafsize,
 		     tree_root->sectorsize, tree_root->stripesize,
 		     root, fs_info, BTRFS_TREE_LOG_OBJECTID);
@@ -1330,6 +1331,7 @@ struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_root *tree_root,
 		goto out;
 	}
 
+	root->fs_info = fs_info;
 	__setup_root(tree_root->nodesize, tree_root->leafsize,
 		     tree_root->sectorsize, tree_root->stripesize,
 		     root, fs_info, location->objectid);
@@ -2055,6 +2057,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	init_waitqueue_head(&fs_info->transaction_blocked_wait);
 	init_waitqueue_head(&fs_info->async_submit_wait);
 
+	tree_root->fs_info = fs_info;
 	__setup_root(4096, 4096, 4096, 4096, tree_root,
 		     fs_info, BTRFS_ROOT_TREE_OBJECTID);
 
@@ -2247,6 +2250,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 				     btrfs_super_chunk_root_level(disk_super));
 	generation = btrfs_super_chunk_root_generation(disk_super);
 
+	chunk_root->fs_info = fs_info;
 	__setup_root(nodesize, leafsize, sectorsize, stripesize,
 		     chunk_root, fs_info, BTRFS_CHUNK_TREE_OBJECTID);
 
@@ -2373,6 +2377,7 @@ retry_root_backup:
 			goto fail_trans_kthread;
 		}
 
+		log_tree_root->fs_info = fs_info;
 		__setup_root(nodesize, leafsize, sectorsize, stripesize,
 			     log_tree_root, fs_info, BTRFS_TREE_LOG_OBJECTID);
 
