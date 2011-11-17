@@ -614,13 +614,12 @@ int iscsit_add_reject(
 	hdr	= (struct iscsi_reject *) cmd->pdu;
 	hdr->reason = reason;
 
-	cmd->buf_ptr = kzalloc(ISCSI_HDR_LEN, GFP_KERNEL);
+	cmd->buf_ptr = kmemdup(buf, ISCSI_HDR_LEN, GFP_KERNEL);
 	if (!cmd->buf_ptr) {
 		pr_err("Unable to allocate memory for cmd->buf_ptr\n");
 		iscsit_release_cmd(cmd);
 		return -1;
 	}
-	memcpy(cmd->buf_ptr, buf, ISCSI_HDR_LEN);
 
 	spin_lock_bh(&conn->cmd_lock);
 	list_add_tail(&cmd->i_list, &conn->conn_cmd_list);
@@ -661,13 +660,12 @@ int iscsit_add_reject_from_cmd(
 	hdr	= (struct iscsi_reject *) cmd->pdu;
 	hdr->reason = reason;
 
-	cmd->buf_ptr = kzalloc(ISCSI_HDR_LEN, GFP_KERNEL);
+	cmd->buf_ptr = kmemdup(buf, ISCSI_HDR_LEN, GFP_KERNEL);
 	if (!cmd->buf_ptr) {
 		pr_err("Unable to allocate memory for cmd->buf_ptr\n");
 		iscsit_release_cmd(cmd);
 		return -1;
 	}
-	memcpy(cmd->buf_ptr, buf, ISCSI_HDR_LEN);
 
 	if (add_to_conn) {
 		spin_lock_bh(&conn->cmd_lock);
