@@ -535,6 +535,27 @@ config SERIAL_S5PV210
 	help
 	  Serial port support for Samsung's S5P Family of SoC's
 
+config SERIAL_SIRFSOC
+        tristate "SiRF SoC Platform Serial port support"
+        depends on ARM && ARCH_PRIMA2
+        select SERIAL_CORE
+        help
+          Support for the on-chip UART on the CSR SiRFprimaII series,
+          providing /dev/ttySiRF0, 1 and 2 (note, some machines may not
+          provide all of these ports, depending on how the serial port
+          pins are configured).
+
+config SERIAL_SIRFSOC_CONSOLE
+        bool "Support for console on SiRF SoC serial port"
+        depends on SERIAL_SIRFSOC=y
+        select SERIAL_CORE_CONSOLE
+        help
+          Even if you say Y here, the currently visible virtual console
+          (/dev/tty0) will still be used as the system console by default, but
+          you can alter that using a kernel command line option such as
+          "console=ttySiRFx". (Try "man bootparam" or see the documentation of
+          your boot loader about how to pass options to the kernel at
+          boot time.)
 
 config SERIAL_MAX3100
 	tristate "MAX3100 support"
