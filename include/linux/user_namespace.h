@@ -6,12 +6,8 @@
 #include <linux/sched.h>
 #include <linux/err.h>
 
-#define UIDHASH_BITS	(CONFIG_BASE_SMALL ? 3 : 7)
-#define UIDHASH_SZ	(1 << UIDHASH_BITS)
-
 struct user_namespace {
 	struct kref		kref;
-	struct hlist_head	uidhash_table[UIDHASH_SZ];
 	struct user_namespace	*parent;
 	struct user_struct	*creator;
 	struct work_struct	destroyer;
