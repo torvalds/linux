@@ -1192,7 +1192,6 @@ static int find_and_setup_root(struct btrfs_root *tree_root,
 	u32 blocksize;
 	u64 generation;
 
-	root->fs_info = fs_info;
 	__setup_root(tree_root->nodesize, tree_root->leafsize,
 		     tree_root->sectorsize, tree_root->stripesize,
 		     root, fs_info, objectid);
@@ -1322,6 +1321,7 @@ struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_root *tree_root,
 	if (!root)
 		return ERR_PTR(-ENOMEM);
 	if (location->offset == (u64)-1) {
+		root->fs_info = fs_info;
 		ret = find_and_setup_root(tree_root, fs_info,
 					  location->objectid, root);
 		if (ret) {
@@ -2300,18 +2300,21 @@ retry_root_backup:
 	btrfs_set_root_node(&tree_root->root_item, tree_root->node);
 	tree_root->commit_root = btrfs_root_node(tree_root);
 
+	extent_root->fs_info = fs_info;
 	ret = find_and_setup_root(tree_root, fs_info,
 				  BTRFS_EXTENT_TREE_OBJECTID, extent_root);
 	if (ret)
 		goto recovery_tree_root;
 	extent_root->track_dirty = 1;
 
+	dev_root->fs_info = fs_info;
 	ret = find_and_setup_root(tree_root, fs_info,
 				  BTRFS_DEV_TREE_OBJECTID, dev_root);
 	if (ret)
 		goto recovery_tree_root;
 	dev_root->track_dirty = 1;
 
+	csum_root->fs_info = fs_info;
 	ret = find_and_setup_root(tree_root, fs_info,
 				  BTRFS_CSUM_TREE_OBJECTID, csum_root);
 	if (ret)
