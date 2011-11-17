@@ -21,6 +21,7 @@ enum stmpe_block {
 
 enum stmpe_partnum {
 	STMPE610,
+	STMPE801,
 	STMPE811,
 	STMPE1601,
 	STMPE2401,

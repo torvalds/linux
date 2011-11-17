@@ -241,12 +241,14 @@ int stmpe_set_altfunc(struct stmpe *stmpe, u32 pins, enum stmpe_block block)
 	u8 regaddr = stmpe->regs[STMPE_IDX_GPAFR_U_MSB];
 	int af_bits = variant->af_bits;
 	int numregs = DIV_ROUND_UP(stmpe->num_gpios * af_bits, 8);
-	int afperreg = 8 / af_bits;
 	int mask = (1 << af_bits) - 1;
 	u8 regs[numregs];
-	int af;
-	int ret;
+	int af, afperreg, ret;
 
+	if (!variant->get_altfunc)
+		return 0;
+
+	afperreg = 8 / af_bits;
 	mutex_lock(&stmpe->lock);
 
 	ret = __stmpe_enable(stmpe, STMPE_BLOCK_GPIO);
@@ -318,6 +320,50 @@ static struct mfd_cell stmpe_keypad_cell = {
 	.name		= "stmpe-keypad",
 	.resources	= stmpe_keypad_resources,
 	.num_resources	= ARRAY_SIZE(stmpe_keypad_resources),
+};
+
+/*
+ * STMPE801
+ */
+static const u8 stmpe801_regs[] = {
+	[STMPE_IDX_CHIP_ID]	= STMPE801_REG_CHIP_ID,
+	[STMPE_IDX_ICR_LSB]	= STMPE801_REG_SYS_CTRL,
+	[STMPE_IDX_GPMR_LSB]	= STMPE801_REG_GPIO_MP_STA,
+	[STMPE_IDX_GPSR_LSB]	= STMPE801_REG_GPIO_SET_PIN,
+	[STMPE_IDX_GPCR_LSB]	= STMPE801_REG_GPIO_SET_PIN,
+	[STMPE_IDX_GPDR_LSB]	= STMPE801_REG_GPIO_DIR,
+	[STMPE_IDX_IEGPIOR_LSB] = STMPE801_REG_GPIO_INT_EN,
+	[STMPE_IDX_ISGPIOR_MSB] = STMPE801_REG_GPIO_INT_STA,
+
+};
+
+static struct stmpe_variant_block stmpe801_blocks[] = {
+	{
+		.cell	= &stmpe_gpio_cell,
+		.irq	= 0,
+		.block	= STMPE_BLOCK_GPIO,
+	},
+};
+
+static int stmpe801_enable(struct stmpe *stmpe, unsigned int blocks,
+			   bool enable)
+{
+	if (blocks & STMPE_BLOCK_GPIO)
+		return 0;
+	else
+		return -EINVAL;
+}
+
+static struct stmpe_variant_info stmpe801 = {
+	.name		= "stmpe801",
+	.id_val		= STMPE801_ID,
+	.id_mask	= 0xffff,
+	.num_gpios	= 8,
+	.regs		= stmpe801_regs,
+	.blocks		= stmpe801_blocks,
+	.num_blocks	= ARRAY_SIZE(stmpe801_blocks),
+	.num_irqs	= STMPE801_NR_INTERNAL_IRQS,
+	.enable		= stmpe801_enable,
 };
 
 /*
@@ -667,6 +713,7 @@ static struct stmpe_variant_info stmpe2403 = {
 
 static struct stmpe_variant_info *stmpe_variant_info[] = {
 	[STMPE610]	= &stmpe610,
+	[STMPE801]	= &stmpe801,
 	[STMPE811]	= &stmpe811,
 	[STMPE1601]	= &stmpe1601,
 	[STMPE2401]	= &stmpe2401,
@@ -682,6 +729,11 @@ static irqreturn_t stmpe_irq(int irq, void *data)
 	u8 isr[num];
 	int ret;
 	int i;
+
+	if (variant->id_val == STMPE801_ID) {
+		handle_nested_irq(stmpe->irq_base);
+		return IRQ_HANDLED;
+	}
 
 	ret = stmpe_block_read(stmpe, israddr, num, isr);
 	if (ret < 0)
@@ -769,14 +821,17 @@ static struct irq_chip stmpe_irq_chip = {
 
 static int __devinit stmpe_irq_init(struct stmpe *stmpe)
 {
+	struct irq_chip *chip = NULL;
 	int num_irqs = stmpe->variant->num_irqs;
 	int base = stmpe->irq_base;
 	int irq;
 
+	if (stmpe->variant->id_val != STMPE801_ID)
+		chip = &stmpe_irq_chip;
+
 	for (irq = base; irq < base + num_irqs; irq++) {
 		irq_set_chip_data(irq, stmpe);
-		irq_set_chip_and_handler(irq, &stmpe_irq_chip,
-					 handle_edge_irq);
+		irq_set_chip_and_handler(irq, chip, handle_edge_irq);
 		irq_set_nested_thread(irq, 1);
 #ifdef CONFIG_ARM
 		set_irq_flags(irq, IRQF_VALID);
@@ -808,7 +863,7 @@ static int __devinit stmpe_chip_init(struct stmpe *stmpe)
 	unsigned int irq_trigger = stmpe->pdata->irq_trigger;
 	int autosleep_timeout = stmpe->pdata->autosleep_timeout;
 	struct stmpe_variant_info *variant = stmpe->variant;
-	u8 icr = STMPE_ICR_LSB_GIM;
+	u8 icr;
 	unsigned int id;
 	u8 data[2];
 	int ret;
@@ -831,16 +886,32 @@ static int __devinit stmpe_chip_init(struct stmpe *stmpe)
 	if (ret)
 		return ret;
 
-	if (irq_trigger == IRQF_TRIGGER_FALLING ||
-	    irq_trigger == IRQF_TRIGGER_RISING)
-		icr |= STMPE_ICR_LSB_EDGE;
+	if (id == STMPE801_ID)
+		icr = STMPE801_REG_SYS_CTRL_INT_EN;
+	else
+		icr = STMPE_ICR_LSB_GIM;
+
+	/* STMPE801 doesn't support Edge interrupts */
+	if (id != STMPE801_ID) {
+		if (irq_trigger == IRQF_TRIGGER_FALLING ||
+				irq_trigger == IRQF_TRIGGER_RISING)
+			icr |= STMPE_ICR_LSB_EDGE;
+	}
 
 	if (irq_trigger == IRQF_TRIGGER_RISING ||
-	    irq_trigger == IRQF_TRIGGER_HIGH)
-		icr |= STMPE_ICR_LSB_HIGH;
+			irq_trigger == IRQF_TRIGGER_HIGH) {
+		if (id == STMPE801_ID)
+			icr |= STMPE801_REG_SYS_CTRL_INT_HI;
+		else
+			icr |= STMPE_ICR_LSB_HIGH;
+	}
 
-	if (stmpe->pdata->irq_invert_polarity)
-		icr ^= STMPE_ICR_LSB_HIGH;
+	if (stmpe->pdata->irq_invert_polarity) {
+		if (id == STMPE801_ID)
+			icr ^= STMPE801_REG_SYS_CTRL_INT_HI;
+		else
+			icr ^= STMPE_ICR_LSB_HIGH;
+	}
 
 	if (stmpe->pdata->autosleep) {
 		ret = stmpe_autosleep(stmpe, autosleep_timeout);

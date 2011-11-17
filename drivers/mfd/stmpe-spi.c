@@ -110,6 +110,7 @@ static int __devexit stmpe_spi_remove(struct spi_device *spi)
 
 static const struct spi_device_id stmpe_spi_id[] = {
 	{ "stmpe610", STMPE610 },
+	{ "stmpe801", STMPE801 },
 	{ "stmpe811", STMPE811 },
 	{ "stmpe1601", STMPE1601 },
 	{ "stmpe2401", STMPE2401 },

@@ -72,6 +72,7 @@ static int __devexit stmpe_i2c_remove(struct i2c_client *i2c)
 
 static const struct i2c_device_id stmpe_i2c_id[] = {
 	{ "stmpe610", STMPE610 },
+	{ "stmpe801", STMPE801 },
 	{ "stmpe811", STMPE811 },
 	{ "stmpe1601", STMPE1601 },
 	{ "stmpe2401", STMPE2401 },
