@@ -22,7 +22,6 @@ struct proc_mounts {
 
 struct fs_struct;
 
-extern struct mnt_namespace *create_mnt_ns(struct vfsmount *mnt);
 extern struct mnt_namespace *copy_mnt_ns(unsigned long, struct mnt_namespace *,
 		struct fs_struct *);
 extern void put_mnt_ns(struct mnt_namespace *ns);

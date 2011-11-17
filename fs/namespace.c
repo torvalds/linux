@@ -2444,7 +2444,7 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
  * create_mnt_ns - creates a private namespace and adds a root filesystem
  * @mnt: pointer to the new root filesystem mountpoint
  */
-struct mnt_namespace *create_mnt_ns(struct vfsmount *mnt)
+static struct mnt_namespace *create_mnt_ns(struct vfsmount *mnt)
 {
 	struct mnt_namespace *new_ns;
 
@@ -2459,7 +2459,6 @@ struct mnt_namespace *create_mnt_ns(struct vfsmount *mnt)
 	}
 	return new_ns;
 }
-EXPORT_SYMBOL(create_mnt_ns);
 
 struct dentry *mount_subtree(struct vfsmount *mnt, const char *name)
 {
@@ -2734,7 +2733,6 @@ void put_mnt_ns(struct mnt_namespace *ns)
 	release_mounts(&umount_list);
 	kfree(ns);
 }
-EXPORT_SYMBOL(put_mnt_ns);
 
 struct vfsmount *kern_mount_data(struct file_system_type *type, void *data)
 {
