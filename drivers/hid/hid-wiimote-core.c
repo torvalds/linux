@@ -201,6 +201,7 @@ static void wiiproto_req_leds(struct wiimote_data *wdata, int leds)
 static __u8 select_drm(struct wiimote_data *wdata)
 {
 	__u8 ir = wdata->state.flags & WIIPROTO_FLAGS_IR;
+	bool ext = wiiext_active(wdata);
 
 	if (ir == WIIPROTO_FLAG_IR_BASIC) {
 		if (wdata->state.flags & WIIPROTO_FLAG_ACCEL)
@@ -212,10 +213,17 @@ static __u8 select_drm(struct wiimote_data *wdata)
 	} else if (ir == WIIPROTO_FLAG_IR_FULL) {
 		return WIIPROTO_REQ_DRM_SKAI1;
 	} else {
-		if (wdata->state.flags & WIIPROTO_FLAG_ACCEL)
-			return WIIPROTO_REQ_DRM_KA;
-		else
-			return WIIPROTO_REQ_DRM_K;
+		if (wdata->state.flags & WIIPROTO_FLAG_ACCEL) {
+			if (ext)
+				return WIIPROTO_REQ_DRM_KAE;
+			else
+				return WIIPROTO_REQ_DRM_KA;
+		} else {
+			if (ext)
+				return WIIPROTO_REQ_DRM_KE;
+			else
+				return WIIPROTO_REQ_DRM_K;
+		}
 	}
 }
 
@@ -795,6 +803,8 @@ static void handler_status(struct wiimote_data *wdata, const __u8 *payload)
 	/* on status reports the drm is reset so we need to resend the drm */
 	wiiproto_req_drm(wdata, WIIPROTO_REQ_NULL);
 
+	wiiext_event(wdata, payload[2] & 0x02);
+
 	if (wiimote_cmd_pending(wdata, WIIPROTO_REQ_SREQ, 0)) {
 		wdata->state.cmd_battery = payload[5];
 		wiimote_cmd_complete(wdata);
@@ -1145,6 +1155,7 @@ err:
 
 static void wiimote_destroy(struct wiimote_data *wdata)
 {
+	wiiext_deinit(wdata);
 	wiimote_leds_destroy(wdata);
 
 	power_supply_unregister(&wdata->battery);
@@ -1213,6 +1224,10 @@ static int wiimote_hid_probe(struct hid_device *hdev,
 	}
 
 	ret = wiimote_leds_create(wdata);
+	if (ret)
+		goto err_free;
+
+	ret = wiiext_init(wdata);
 	if (ret)
 		goto err_free;
 

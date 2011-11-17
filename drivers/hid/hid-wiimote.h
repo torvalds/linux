@@ -73,6 +73,7 @@ struct wiimote_data {
 	struct input_dev *accel;
 	struct input_dev *ir;
 	struct power_supply battery;
+	struct wiimote_ext *ext;
 
 	spinlock_t qlock;
 	__u8 head;
@@ -117,6 +118,22 @@ extern int wiimote_cmd_write(struct wiimote_data *wdata, __u32 offset,
 						const __u8 *wmem, __u8 size);
 extern ssize_t wiimote_cmd_read(struct wiimote_data *wdata, __u32 offset,
 							__u8 *rmem, __u8 size);
+
+#ifdef CONFIG_HID_WIIMOTE_EXT
+
+extern int wiiext_init(struct wiimote_data *wdata);
+extern void wiiext_deinit(struct wiimote_data *wdata);
+extern void wiiext_event(struct wiimote_data *wdata, bool plugged);
+extern bool wiiext_active(struct wiimote_data *wdata);
+
+#else
+
+static inline int wiiext_init(void *u) { return 0; }
+static inline void wiiext_deinit(void *u) { }
+static inline void wiiext_event(void *u, bool p) { }
+static inline bool wiiext_active(void *u) { return false; }
+
+#endif
 
 /* requires the state.lock spinlock to be held */
 static inline bool wiimote_cmd_pending(struct wiimote_data *wdata, int cmd,

@@ -26,6 +26,9 @@ ifdef CONFIG_LOGIWHEELS_FF
 endif
 
 hid-wiimote-y		:= hid-wiimote-core.o
+ifdef CONFIG_HID_WIIMOTE_EXT
+	hid-wiimote-y	+= hid-wiimote-ext.o
+endif
 
 obj-$(CONFIG_HID_A4TECH)	+= hid-a4tech.o
 obj-$(CONFIG_HID_ACRUX)		+= hid-axff.o
