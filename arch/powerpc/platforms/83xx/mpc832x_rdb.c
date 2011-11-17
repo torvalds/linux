@@ -193,17 +193,14 @@ machine_device_initcall(mpc832x_rdb, mpc832x_spi_init);
  */
 static void __init mpc832x_rdb_setup_arch(void)
 {
-#if defined(CONFIG_PCI) || defined(CONFIG_QUICC_ENGINE)
+#if defined(CONFIG_QUICC_ENGINE)
 	struct device_node *np;
 #endif
 
 	if (ppc_md.progress)
 		ppc_md.progress("mpc832x_rdb_setup_arch()", 0);
 
-#ifdef CONFIG_PCI
-	for_each_compatible_node(np, "pci", "fsl,mpc8349-pci")
-		mpc83xx_add_bridge(np);
-#endif
+	mpc83xx_setup_pci();
 
 #ifdef CONFIG_QUICC_ENGINE
 	qe_reset();

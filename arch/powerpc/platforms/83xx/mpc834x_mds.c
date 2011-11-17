@@ -77,17 +77,10 @@ static int mpc834xemds_usb_cfg(void)
  */
 static void __init mpc834x_mds_setup_arch(void)
 {
-#ifdef CONFIG_PCI
-	struct device_node *np;
-#endif
-
 	if (ppc_md.progress)
 		ppc_md.progress("mpc834x_mds_setup_arch()", 0);
 
-#ifdef CONFIG_PCI
-	for_each_compatible_node(np, "pci", "fsl,mpc8349-pci")
-		mpc83xx_add_bridge(np);
-#endif
+	mpc83xx_setup_pci();
 
 	mpc834xemds_usb_cfg();
 }

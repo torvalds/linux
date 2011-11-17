@@ -72,10 +72,7 @@ static void __init mpc832x_sys_setup_arch(void)
 		of_node_put(np);
 	}
 
-#ifdef CONFIG_PCI
-	for_each_compatible_node(np, "pci", "fsl,mpc8349-pci")
-		mpc83xx_add_bridge(np);
-#endif
+	mpc83xx_setup_pci();
 
 #ifdef CONFIG_QUICC_ENGINE
 	qe_reset();
