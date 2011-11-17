@@ -185,8 +185,8 @@ static void standby(void)
     dcdc3 = standby_get_voltage(POWER_VOL_DCDC3);
 
     /* adjust voltage */
-    standby_set_voltage(POWER_VOL_DCDC2, STANDBY_DCDC2_VOL);
     standby_set_voltage(POWER_VOL_DCDC3, STANDBY_DCDC3_VOL);
+    standby_set_voltage(POWER_VOL_DCDC2, STANDBY_DCDC2_VOL);
 
     /* set clock division cpu:axi:ahb:apb = 2:2:2:1 */
     standby_clk_getdiv(&clk_div);

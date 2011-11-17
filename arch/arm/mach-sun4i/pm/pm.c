@@ -183,7 +183,7 @@ static int aw_pm_enter(suspend_state_t state)
 
     /*FIXME: cannot wakeup */
     /* goto sram and run */
-    //standby(&standby_info);
+    standby(&standby_info);
 
     return 0;
 }
