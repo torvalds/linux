@@ -630,6 +630,7 @@ static int btrfs_fill_super(struct super_block *sb,
 
 	save_mount_options(sb, data);
 	cleancache_init_fs(sb);
+	sb->s_flags |= MS_ACTIVE;
 	return 0;
 
 fail_close:
@@ -929,14 +930,10 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	}
 
 	if (s->s_root) {
-		if ((flags ^ s->s_flags) & MS_RDONLY) {
-			deactivate_locked_super(s);
-			error = -EBUSY;
-			goto error_close_devices;
-		}
-
 		btrfs_close_devices(fs_devices);
 		free_fs_info(fs_info);
+		if ((flags ^ s->s_flags) & MS_RDONLY)
+			error = -EBUSY;
 	} else {
 		char b[BDEVNAME_SIZE];
 
@@ -945,19 +942,11 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 		btrfs_sb(s)->fs_info->bdev_holder = fs_type;
 		error = btrfs_fill_super(s, fs_devices, data,
 					 flags & MS_SILENT ? 1 : 0);
-		if (error) {
-			deactivate_locked_super(s);
-			return ERR_PTR(error);
-		}
-
-		s->s_flags |= MS_ACTIVE;
 	}
 
-	root = get_default_root(s, subvol_objectid);
-	if (IS_ERR(root)) {
+	root = !error ? get_default_root(s, subvol_objectid) : ERR_PTR(error);
+	if (IS_ERR(root))
 		deactivate_locked_super(s);
-		return root;
-	}
 
 	return root;
 
