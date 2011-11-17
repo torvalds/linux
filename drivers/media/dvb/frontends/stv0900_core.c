@@ -985,7 +985,16 @@ static int stb0900_get_property(struct dvb_frontend *fe,
 				struct dtv_property *tvp)
 {
 	dprintk("%s(..)\n", __func__);
-
+	switch (tvp->cmd) {
+	case DTV_ENUM_DELSYS:
+		tvp->u.buffer.data[0] = SYS_DSS;
+		tvp->u.buffer.data[1] = SYS_DVBS;
+		tvp->u.buffer.data[2] = SYS_DVBS2;
+		tvp->u.buffer.len = 3;
+		break;
+	default:
+		break;
+	}
 	return 0;
 }
 
