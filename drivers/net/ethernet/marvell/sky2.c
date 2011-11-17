@@ -1723,6 +1723,8 @@ static int sky2_setup_irq(struct sky2_hw *hw, const char *name)
 	if (err)
 		dev_err(&pdev->dev, "cannot assign irq %d\n", pdev->irq);
 	else {
+		hw->flags |= SKY2_HW_IRQ_SETUP;
+
 		napi_enable(&hw->napi);
 		sky2_write32(hw, B0_IMSK, Y2_IS_BASE);
 		sky2_read32(hw, B0_IMSK);
@@ -2120,6 +2122,7 @@ static int sky2_close(struct net_device *dev)
 
 		napi_disable(&hw->napi);
 		free_irq(hw->pdev->irq, hw);
+		hw->flags &= ~SKY2_HW_IRQ_SETUP;
 	} else {
 		u32 imask;
 
@@ -3423,12 +3426,13 @@ static void sky2_all_down(struct sky2_hw *hw)
 {
 	int i;
 
-	sky2_read32(hw, B0_IMSK);
-	sky2_write32(hw, B0_IMSK, 0);
+	if (hw->flags & SKY2_HW_IRQ_SETUP) {
+		sky2_read32(hw, B0_IMSK);
+		sky2_write32(hw, B0_IMSK, 0);
 
-	if (hw->ports > 1 || netif_running(hw->dev[0]))
 		synchronize_irq(hw->pdev->irq);
-	napi_disable(&hw->napi);
+		napi_disable(&hw->napi);
+	}
 
 	for (i = 0; i < hw->ports; i++) {
 		struct net_device *dev = hw->dev[i];
@@ -3445,7 +3449,7 @@ static void sky2_all_down(struct sky2_hw *hw)
 
 static void sky2_all_up(struct sky2_hw *hw)
 {
-	u32 imask = 0;
+	u32 imask = Y2_IS_BASE;
 	int i;
 
 	for (i = 0; i < hw->ports; i++) {
@@ -3461,8 +3465,7 @@ static void sky2_all_up(struct sky2_hw *hw)
 		netif_wake_queue(dev);
 	}
 
-	if (imask || hw->ports > 1) {
-		imask |= Y2_IS_BASE;
+	if (hw->flags & SKY2_HW_IRQ_SETUP) {
 		sky2_write32(hw, B0_IMSK, imask);
 		sky2_read32(hw, B0_IMSK);
 		sky2_read32(hw, B0_Y2_SP_LISR);
