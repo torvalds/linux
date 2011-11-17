@@ -7585,16 +7585,18 @@ int intel_framebuffer_init(struct drm_device *dev,
 		return -EINVAL;
 
 	switch (mode_cmd->pixel_format) {
-	case DRM_FOURCC_RGB332:
-	case DRM_FOURCC_RGB565:
-	case DRM_FOURCC_RGB24:
-	case DRM_INTEL_RGB30:
+	case DRM_FORMAT_RGB332:
+	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_ARGB2101010:
 		/* RGB formats are common across chipsets */
 		break;
-	case DRM_FOURCC_YUYV:
-	case DRM_FOURCC_UYVY:
-	case DRM_FOURCC_YVYU:
-	case DRM_FOURCC_VYUY:
+	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_UYVY:
+	case DRM_FORMAT_YVYU:
+	case DRM_FORMAT_VYUY:
 		break;
 	default:
 		DRM_ERROR("unsupported pixel format\n");
