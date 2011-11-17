@@ -62,7 +62,7 @@ build_kernel()
 	fi
 
 	build_standby
-	make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} -j8 uImage
+	make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} -j8 uImage modules
 
 	update_kern_ver
 
