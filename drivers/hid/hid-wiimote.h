@@ -52,6 +52,7 @@ struct wiimote_state {
 	spinlock_t lock;
 	__u8 flags;
 	__u8 accel_split[2];
+	__u8 drm;
 
 	/* synchronous cmd requests */
 	struct mutex sync;
@@ -109,6 +110,7 @@ enum wiiproto_reqs {
 	WIIPROTO_REQ_DRM_E = 0x3d,
 	WIIPROTO_REQ_DRM_SKAI1 = 0x3e,
 	WIIPROTO_REQ_DRM_SKAI2 = 0x3f,
+	WIIPROTO_REQ_MAX
 };
 
 #define dev_to_wii(pdev) hid_get_drvdata(container_of(pdev, struct hid_device, \

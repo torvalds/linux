@@ -238,6 +238,7 @@ void wiiproto_req_drm(struct wiimote_data *wdata, __u8 drm)
 	cmd[1] = 0;
 	cmd[2] = drm;
 
+	wdata->state.drm = drm;
 	wiiproto_keep_rumble(wdata, &cmd[1]);
 	wiimote_queue(wdata, cmd, sizeof(cmd));
 }
@@ -1141,6 +1142,7 @@ static struct wiimote_data *wiimote_create(struct hid_device *hdev)
 	spin_lock_init(&wdata->state.lock);
 	init_completion(&wdata->state.ready);
 	mutex_init(&wdata->state.sync);
+	wdata->state.drm = WIIPROTO_REQ_DRM_K;
 
 	return wdata;
 
