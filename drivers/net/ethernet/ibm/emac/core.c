@@ -2924,6 +2924,9 @@ static int __devexit emac_remove(struct platform_device *ofdev)
 	if (emac_has_feature(dev, EMAC_FTR_HAS_ZMII))
 		zmii_detach(dev->zmii_dev, dev->zmii_port);
 
+	busy_phy_map &= ~(1 << dev->phy.address);
+	DBG(dev, "busy_phy_map now %#x" NL, busy_phy_map);
+
 	mal_unregister_commac(dev->mal, &dev->commac);
 	emac_put_deps(dev);
 
