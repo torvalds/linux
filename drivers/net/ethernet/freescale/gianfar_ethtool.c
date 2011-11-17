@@ -1410,10 +1410,9 @@ static int gfar_optimize_filer_masks(struct filer_table *tab)
 
 	/* We need a copy of the filer table because
 	 * we want to change its order */
-	temp_table = kmalloc(sizeof(*temp_table), GFP_KERNEL);
+	temp_table = kmemdup(tab, sizeof(*temp_table), GFP_KERNEL);
 	if (temp_table == NULL)
 		return -ENOMEM;
-	memcpy(temp_table, tab, sizeof(*temp_table));
 
 	mask_table = kcalloc(MAX_FILER_CACHE_IDX / 2 + 1,
 			sizeof(struct gfar_mask_entry), GFP_KERNEL);
