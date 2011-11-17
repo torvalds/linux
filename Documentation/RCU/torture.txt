@@ -61,6 +61,14 @@ nreaders	This is the number of RCU reading threads supported.
 		To properly exercise RCU implementations with preemptible
 		read-side critical sections.
 
+onoff_interval
+		The number of seconds between each attempt to execute a
+		randomly selected CPU-hotplug operation.  Defaults to
+		zero, which disables CPU hotplugging.  In HOTPLUG_CPU=n
+		kernels, rcutorture will silently refuse to do any
+		CPU-hotplug operations regardless of what value is
+		specified for onoff_interval.
+
 shuffle_interval
 		The number of seconds to keep the test threads affinitied
 		to a particular subset of the CPUs, defaults to 3 seconds.
