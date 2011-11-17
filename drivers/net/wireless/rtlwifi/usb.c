@@ -33,6 +33,7 @@
 #include "usb.h"
 #include "base.h"
 #include "ps.h"
+#include "rtl8192c/fw_common.h"
 
 #define	REALTEK_USB_VENQT_READ			0xC0
 #define	REALTEK_USB_VENQT_WRITE			0x40
@@ -40,6 +41,7 @@
 #define	REALTEK_USB_VENQT_CMD_IDX		0x00
 
 #define REALTEK_USB_VENQT_MAX_BUF_SIZE		254
+#define MAX_USBCTRL_VENDORREQ_TIMES		10
 
 static void usbctrl_async_callback(struct urb *urb)
 {
@@ -99,13 +101,23 @@ static int _usbctrl_vendorreq_sync_read(struct usb_device *udev, u8 request,
 	unsigned int pipe;
 	int status;
 	u8 reqtype;
+	int vendorreq_times = 0;
 
 	pipe = usb_rcvctrlpipe(udev, 0); /* read_in */
 	reqtype =  REALTEK_USB_VENQT_READ;
 
-	status = usb_control_msg(udev, pipe, request, reqtype, value, index,
-				 pdata, len, 0); /* max. timeout */
-
+	while (++vendorreq_times <= MAX_USBCTRL_VENDORREQ_TIMES) {
+		status = usb_control_msg(udev, pipe, request, reqtype, value,
+					 index, pdata, len, 0); /*max. timeout*/
+		if (status < 0) {
+			/* firmware download is checksumed, don't retry */
+			if ((value >= FW_8192C_START_ADDRESS &&
+			    value <= FW_8192C_END_ADDRESS))
+				break;
+		} else {
+			break;
+		}
+	}
 	if (status < 0)
 		pr_err("reg 0x%x, usbctrl_vendorreq TimeOut! status:0x%x value=0x%x\n",
 		       value, status, *(u32 *)pdata);
