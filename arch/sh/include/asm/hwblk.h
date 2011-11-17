@@ -44,7 +44,9 @@ struct hwblk_info {
 	int nr_hwblks;
 };
 
-#if !defined(CONFIG_CPU_SUBTYPE_SH7724) && !defined(CONFIG_CPU_SUBTYPE_SH7722)
+#if !defined(CONFIG_CPU_SUBTYPE_SH7722) && \
+    !defined(CONFIG_CPU_SUBTYPE_SH7723) && \
+    !defined(CONFIG_CPU_SUBTYPE_SH7724)
 /* Should be defined by processor-specific code */
 int arch_hwblk_init(void);
 int arch_hwblk_sleep_mode(void);
