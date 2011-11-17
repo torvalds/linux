@@ -1096,22 +1096,30 @@ static void drbd_flush(struct drbd_tconn *tconn)
 	int vnr;
 
 	if (tconn->write_ordering >= WO_bdev_flush) {
+		rcu_read_lock();
 		idr_for_each_entry(&tconn->volumes, mdev, vnr) {
-			if (get_ldev(mdev)) {
-				rv = blkdev_issue_flush(mdev->ldev->backing_bdev, GFP_KERNEL,
-							NULL);
-				put_ldev(mdev);
+			if (!get_ldev(mdev))
+				continue;
+			kref_get(&mdev->kref);
+			rcu_read_unlock();
 
-				if (rv) {
-					dev_info(DEV, "local disk flush failed with status %d\n", rv);
-					/* would rather check on EOPNOTSUPP, but that is not reliable.
-					 * don't try again for ANY return value != 0
-					 * if (rv == -EOPNOTSUPP) */
-					drbd_bump_write_ordering(tconn, WO_drain_io);
-					break;
-				}
+			rv = blkdev_issue_flush(mdev->ldev->backing_bdev,
+					GFP_NOIO, NULL);
+			if (rv) {
+				dev_info(DEV, "local disk flush failed with status %d\n", rv);
+				/* would rather check on EOPNOTSUPP, but that is not reliable.
+				 * don't try again for ANY return value != 0
+				 * if (rv == -EOPNOTSUPP) */
+				drbd_bump_write_ordering(tconn, WO_drain_io);
 			}
+			put_ldev(mdev);
+			kref_put(&mdev->kref, &drbd_minor_destroy);
+
+			rcu_read_lock();
+			if (rv)
+				break;
 		}
+		rcu_read_unlock();
 	}
 }
 
