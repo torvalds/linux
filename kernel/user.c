@@ -58,7 +58,7 @@ struct user_struct root_user = {
 	.files		= ATOMIC_INIT(0),
 	.sigpending	= ATOMIC_INIT(0),
 	.locked_shm     = 0,
-	.user_ns	= &init_user_ns,
+	._user_ns	= &init_user_ns,
 };
 
 /*
@@ -72,7 +72,7 @@ static void uid_hash_insert(struct user_struct *up, struct hlist_head *hashent)
 static void uid_hash_remove(struct user_struct *up)
 {
 	hlist_del_init(&up->uidhash_node);
-	put_user_ns(up->user_ns);
+	put_user_ns(up->_user_ns); /* It is safe to free the uid hash table now */
 }
 
 static struct user_struct *uid_hash_find(uid_t uid, struct hlist_head *hashent)
@@ -153,7 +153,7 @@ struct user_struct *alloc_uid(struct user_namespace *ns, uid_t uid)
 		new->uid = uid;
 		atomic_set(&new->__count, 1);
 
-		new->user_ns = get_user_ns(ns);
+		new->_user_ns = get_user_ns(ns);
 
 		/*
 		 * Before adding this, check whether we raced

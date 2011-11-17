@@ -729,7 +729,7 @@ struct user_struct {
 	/* Hash table maintenance information */
 	struct hlist_node uidhash_node;
 	uid_t uid;
-	struct user_namespace *user_ns;
+	struct user_namespace *_user_ns; /* Don't use will be removed soon */
 
 #ifdef CONFIG_PERF_EVENTS
 	atomic_long_t locked_vm;
