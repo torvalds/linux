@@ -40,7 +40,6 @@
 #define REALTEK_USB_VENQT_CMD_REQ		0x05
 #define	REALTEK_USB_VENQT_CMD_IDX		0x00
 
-#define REALTEK_USB_VENQT_MAX_BUF_SIZE		254
 #define MAX_USBCTRL_VENDORREQ_TIMES		10
 
 static void usbctrl_async_callback(struct urb *urb)
@@ -203,6 +202,30 @@ static void _usb_write32_async(struct rtl_priv *rtlpriv, u32 addr, u32 val)
 	_usb_write_async(to_usb_device(dev), addr, val, 4);
 }
 
+static void _usb_writeN_sync(struct rtl_priv *rtlpriv, u32 addr, void *data,
+			     u16 len)
+{
+	struct device *dev = rtlpriv->io.dev;
+	struct usb_device *udev = to_usb_device(dev);
+	u8 request = REALTEK_USB_VENQT_CMD_REQ;
+	u8 reqtype =  REALTEK_USB_VENQT_WRITE;
+	u16 wvalue;
+	u16 index = REALTEK_USB_VENQT_CMD_IDX;
+	int pipe = usb_sndctrlpipe(udev, 0); /* write_out */
+	u8 *buffer;
+	dma_addr_t dma_addr;
+
+	wvalue = (u16)(addr&0x0000ffff);
+	buffer = usb_alloc_coherent(udev, (size_t)len, GFP_ATOMIC, &dma_addr);
+	if (!buffer)
+		return;
+	memcpy(buffer, data, len);
+	usb_control_msg(udev, pipe, request, reqtype, wvalue,
+			index, buffer, len, 50);
+
+	usb_free_coherent(udev, (size_t)len, buffer, dma_addr);
+}
+
 static void _rtl_usb_io_handler_init(struct device *dev,
 				     struct ieee80211_hw *hw)
 {
@@ -216,6 +239,7 @@ static void _rtl_usb_io_handler_init(struct device *dev,
 	rtlpriv->io.read8_sync		= _usb_read8_sync;
 	rtlpriv->io.read16_sync		= _usb_read16_sync;
 	rtlpriv->io.read32_sync		= _usb_read32_sync;
+	rtlpriv->io.writeN_sync		= _usb_writeN_sync;
 }
 
 static void _rtl_usb_io_handler_release(struct ieee80211_hw *hw)

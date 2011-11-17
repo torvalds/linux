@@ -72,6 +72,34 @@ static void _rtl92c_enable_fw_download(struct ieee80211_hw *hw, bool enable)
 	}
 }
 
+static void rtl_block_fw_writeN(struct ieee80211_hw *hw, const u8 *buffer,
+				u32 size)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	u32 blockSize = REALTEK_USB_VENQT_MAX_BUF_SIZE - 20;
+	u8 *bufferPtr = (u8 *) buffer;
+	u32 i, offset, blockCount, remainSize;
+
+	blockCount = size / blockSize;
+	remainSize = size % blockSize;
+
+	for (i = 0; i < blockCount; i++) {
+		offset = i * blockSize;
+		rtlpriv->io.writeN_sync(rtlpriv,
+					(FW_8192C_START_ADDRESS + offset),
+					(void *)(bufferPtr + offset),
+					blockSize);
+	}
+
+	if (remainSize) {
+		offset = blockCount * blockSize;
+		rtlpriv->io.writeN_sync(rtlpriv,
+					(FW_8192C_START_ADDRESS + offset),
+					(void *)(bufferPtr + offset),
+					remainSize);
+	}
+}
+
 static void _rtl92c_fw_block_write(struct ieee80211_hw *hw,
 				   const u8 *buffer, u32 size)
 {
@@ -81,6 +109,10 @@ static void _rtl92c_fw_block_write(struct ieee80211_hw *hw,
 	u32 *pu4BytePtr = (u32 *) buffer;
 	u32 i, offset, blockCount, remainSize;
 
+	if (rtlpriv->io.writeN_sync) {
+		rtl_block_fw_writeN(hw, buffer, size);
+		return;
+	}
 	blockCount = size / blockSize;
 	remainSize = size % blockSize;
 
