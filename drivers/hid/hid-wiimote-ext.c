@@ -204,6 +204,35 @@ bool wiiext_active(struct wiimote_data *wdata)
 	return wdata->ext->motionp || wdata->ext->ext_type;
 }
 
+static void handler_motionp(struct wiimote_ext *ext, const __u8 *payload)
+{
+}
+
+static void handler_nunchuck(struct wiimote_ext *ext, const __u8 *payload)
+{
+}
+
+static void handler_classic(struct wiimote_ext *ext, const __u8 *payload)
+{
+}
+
+/* call this with state.lock spinlock held */
+void wiiext_handle(struct wiimote_data *wdata, const __u8 *payload)
+{
+	struct wiimote_ext *ext = wdata->ext;
+
+	if (!ext)
+		return;
+
+	if (ext->motionp && (payload[5] & 0x02)) {
+		handler_motionp(ext, payload);
+	} else if (ext->ext_type == WIIEXT_NUNCHUCK) {
+		handler_nunchuck(ext, payload);
+	} else if (ext->ext_type == WIIEXT_CLASSIC) {
+		handler_classic(ext, payload);
+	}
+}
+
 static ssize_t wiiext_show(struct device *dev, struct device_attribute *attr,
 								char *buf)
 {
