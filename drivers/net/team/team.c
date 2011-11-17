@@ -96,10 +96,13 @@ int team_options_register(struct team *team,
 			  size_t option_count)
 {
 	int i;
-	struct team_option *dst_opts[option_count];
+	struct team_option **dst_opts;
 	int err;
 
-	memset(dst_opts, 0, sizeof(dst_opts));
+	dst_opts = kzalloc(sizeof(struct team_option *) * option_count,
+			   GFP_KERNEL);
+	if (!dst_opts)
+		return -ENOMEM;
 	for (i = 0; i < option_count; i++, option++) {
 		struct team_option *dst_opt;
 
@@ -119,12 +122,14 @@ int team_options_register(struct team *team,
 	for (i = 0; i < option_count; i++)
 		list_add_tail(&dst_opts[i]->list, &team->option_list);
 
+	kfree(dst_opts);
 	return 0;
 
 rollback:
 	for (i = 0; i < option_count; i++)
 		kfree(dst_opts[i]);
 
+	kfree(dst_opts);
 	return err;
 }
 
