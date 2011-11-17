@@ -747,22 +747,18 @@ int cx25821_vidupstream_init_ch2(struct cx25821_dev *dev, int channel_select,
 
 	if (dev->input_filename_ch2) {
 		str_length = strlen(dev->input_filename_ch2);
-		dev->_filename_ch2 = kmalloc(str_length + 1, GFP_KERNEL);
+		dev->_filename_ch2 = kmemdup(dev->input_filename_ch2,
+					     str_length + 1, GFP_KERNEL);
 
 		if (!dev->_filename_ch2)
 			goto error;
-
-		memcpy(dev->_filename_ch2, dev->input_filename_ch2,
-		       str_length + 1);
 	} else {
 		str_length = strlen(dev->_defaultname_ch2);
-		dev->_filename_ch2 = kmalloc(str_length + 1, GFP_KERNEL);
+		dev->_filename_ch2 = kmemdup(dev->_defaultname_ch2,
+					     str_length + 1, GFP_KERNEL);
 
 		if (!dev->_filename_ch2)
 			goto error;
-
-		memcpy(dev->_filename_ch2, dev->_defaultname_ch2,
-		       str_length + 1);
 	}
 
 	/* Default if filename is empty string */

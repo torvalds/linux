@@ -733,25 +733,22 @@ int cx25821_audio_upstream_init(struct cx25821_dev *dev, int channel_select)
 
 	if (dev->input_audiofilename) {
 		str_length = strlen(dev->input_audiofilename);
-		dev->_audiofilename = kmalloc(str_length + 1, GFP_KERNEL);
+		dev->_audiofilename = kmemdup(dev->input_audiofilename,
+					      str_length + 1, GFP_KERNEL);
 
 		if (!dev->_audiofilename)
 			goto error;
-
-		memcpy(dev->_audiofilename, dev->input_audiofilename,
-		       str_length + 1);
 
 		/* Default if filename is empty string */
 		if (strcmp(dev->input_audiofilename, "") == 0)
 			dev->_audiofilename = "/root/audioGOOD.wav";
 	} else {
 		str_length = strlen(_defaultAudioName);
-		dev->_audiofilename = kmalloc(str_length + 1, GFP_KERNEL);
+		dev->_audiofilename = kmemdup(_defaultAudioName,
+					      str_length + 1, GFP_KERNEL);
 
 		if (!dev->_audiofilename)
 			goto error;
-
-		memcpy(dev->_audiofilename, _defaultAudioName, str_length + 1);
 	}
 
 	retval = cx25821_sram_channel_setup_upstream_audio(dev, sram_ch,
