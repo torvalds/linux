@@ -62,6 +62,8 @@ struct wiimote_state {
 	/* results of synchronous requests */
 	__u8 cmd_battery;
 	__u8 cmd_err;
+	__u8 *cmd_read_buf;
+	__u8 cmd_read_size;
 };
 
 struct wiimote_data {
@@ -113,6 +115,8 @@ enum wiiproto_reqs {
 extern void wiiproto_req_drm(struct wiimote_data *wdata, __u8 drm);
 extern int wiimote_cmd_write(struct wiimote_data *wdata, __u32 offset,
 						const __u8 *wmem, __u8 size);
+extern ssize_t wiimote_cmd_read(struct wiimote_data *wdata, __u32 offset,
+							__u8 *rmem, __u8 size);
 
 /* requires the state.lock spinlock to be held */
 static inline bool wiimote_cmd_pending(struct wiimote_data *wdata, int cmd,

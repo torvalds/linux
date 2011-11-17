@@ -312,6 +312,37 @@ static void wiiproto_req_wmem(struct wiimote_data *wdata, bool eeprom,
 	wiimote_queue(wdata, cmd, sizeof(cmd));
 }
 
+#define wiiproto_req_rreg(wdata, os, sz) \
+				wiiproto_req_rmem((wdata), false, (os), (sz))
+
+#define wiiproto_req_reeprom(wdata, os, sz) \
+				wiiproto_req_rmem((wdata), true, (os), (sz))
+
+static void wiiproto_req_rmem(struct wiimote_data *wdata, bool eeprom,
+						__u32 offset, __u16 size)
+{
+	__u8 cmd[7];
+
+	if (size == 0) {
+		hid_warn(wdata->hdev, "Invalid length %d rmem request\n", size);
+		return;
+	}
+
+	cmd[0] = WIIPROTO_REQ_RMEM;
+	cmd[1] = 0;
+	cmd[2] = (offset >> 16) & 0xff;
+	cmd[3] = (offset >> 8) & 0xff;
+	cmd[4] = offset & 0xff;
+	cmd[5] = (size >> 8) & 0xff;
+	cmd[6] = size & 0xff;
+
+	if (!eeprom)
+		cmd[1] |= 0x04;
+
+	wiiproto_keep_rumble(wdata, &cmd[1]);
+	wiimote_queue(wdata, cmd, sizeof(cmd));
+}
+
 /* requries the cmd-mutex to be held */
 int wiimote_cmd_write(struct wiimote_data *wdata, __u32 offset,
 						const __u8 *wmem, __u8 size)
@@ -327,6 +358,36 @@ int wiimote_cmd_write(struct wiimote_data *wdata, __u32 offset,
 	ret = wiimote_cmd_wait(wdata);
 	if (!ret && wdata->state.cmd_err)
 		ret = -EIO;
+
+	return ret;
+}
+
+/* requries the cmd-mutex to be held */
+ssize_t wiimote_cmd_read(struct wiimote_data *wdata, __u32 offset, __u8 *rmem,
+								__u8 size)
+{
+	unsigned long flags;
+	ssize_t ret;
+
+	spin_lock_irqsave(&wdata->state.lock, flags);
+	wdata->state.cmd_read_size = size;
+	wdata->state.cmd_read_buf = rmem;
+	wiimote_cmd_set(wdata, WIIPROTO_REQ_RMEM, offset & 0xffff);
+	wiiproto_req_rreg(wdata, offset, size);
+	spin_unlock_irqrestore(&wdata->state.lock, flags);
+
+	ret = wiimote_cmd_wait(wdata);
+
+	spin_lock_irqsave(&wdata->state.lock, flags);
+	wdata->state.cmd_read_buf = NULL;
+	spin_unlock_irqrestore(&wdata->state.lock, flags);
+
+	if (!ret) {
+		if (wdata->state.cmd_read_size == 0)
+			ret = -EIO;
+		else
+			ret = wdata->state.cmd_read_size;
+	}
 
 	return ret;
 }
@@ -742,7 +803,23 @@ static void handler_status(struct wiimote_data *wdata, const __u8 *payload)
 
 static void handler_data(struct wiimote_data *wdata, const __u8 *payload)
 {
+	__u16 offset = payload[3] << 8 | payload[4];
+	__u8 size = (payload[2] >> 4) + 1;
+	__u8 err = payload[2] & 0x0f;
+
 	handler_keys(wdata, payload);
+
+	if (wiimote_cmd_pending(wdata, WIIPROTO_REQ_RMEM, offset)) {
+		if (err)
+			size = 0;
+		else if (size > wdata->state.cmd_read_size)
+			size = wdata->state.cmd_read_size;
+
+		wdata->state.cmd_read_size = size;
+		if (wdata->state.cmd_read_buf)
+			memcpy(wdata->state.cmd_read_buf, &payload[5], size);
+		wiimote_cmd_complete(wdata);
+	}
 }
 
 static void handler_return(struct wiimote_data *wdata, const __u8 *payload)
