@@ -210,7 +210,7 @@ void octeon_prepare_cpus(unsigned int max_cpus)
 	if (request_irq(OCTEON_IRQ_MBOX0, mailbox_interrupt,
 			IRQF_PERCPU | IRQF_NO_THREAD, "SMP-IPI",
 			mailbox_interrupt)) {
-		panic("Cannot request_irq(OCTEON_IRQ_MBOX0)\n");
+		panic("Cannot request_irq(OCTEON_IRQ_MBOX0)");
 	}
 }
 

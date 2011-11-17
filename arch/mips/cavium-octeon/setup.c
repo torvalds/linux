@@ -767,11 +767,11 @@ void prom_free_prom_memory(void)
 			: "=r" (insn) : : "$31", "memory");
 
 		if ((insn >> 26) != 0x33)
-			panic("No PREF instruction at Core-14449 probe point.\n");
+			panic("No PREF instruction at Core-14449 probe point.");
 
 		if (((insn >> 16) & 0x1f) != 28)
 			panic("Core-14449 WAR not in place (%04x).\n"
-			      "Please build kernel with proper options (CONFIG_CAVIUM_CN63XXP1).\n", insn);
+			      "Please build kernel with proper options (CONFIG_CAVIUM_CN63XXP1).", insn);
 	}
 #ifdef CONFIG_CAVIUM_DECODE_RSL
 	cvmx_interrupt_rsl_enable();
@@ -779,7 +779,7 @@ void prom_free_prom_memory(void)
 	/* Add an interrupt handler for general failures. */
 	if (request_irq(OCTEON_IRQ_RML, octeon_rlm_interrupt, IRQF_SHARED,
 			"RML/RSL", octeon_rlm_interrupt)) {
-		panic("Unable to request_irq(OCTEON_IRQ_RML)\n");
+		panic("Unable to request_irq(OCTEON_IRQ_RML)");
 	}
 #endif
 }

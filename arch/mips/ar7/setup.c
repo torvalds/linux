@@ -96,7 +96,7 @@ void __init plat_mem_setup(void)
 
 	io_base = (unsigned long)ioremap(AR7_REGS_BASE, 0x10000);
 	if (!io_base)
-		panic("Can't remap IO base!\n");
+		panic("Can't remap IO base!");
 	set_io_port_base(io_base);
 
 	prom_meminit();

@@ -289,7 +289,7 @@ static void __init bcm47xx_register_ssb(void)
 	err = ssb_bus_ssbbus_register(&(bcm47xx_bus.ssb), SSB_ENUM_BASE,
 				      bcm47xx_get_invariants);
 	if (err)
-		panic("Failed to initialize SSB bus (err %d)\n", err);
+		panic("Failed to initialize SSB bus (err %d)", err);
 
 	mcore = &bcm47xx_bus.ssb.mipscore;
 	if (nvram_getenv("kernel_args", buf, sizeof(buf)) >= 0) {
@@ -314,7 +314,7 @@ static void __init bcm47xx_register_bcma(void)
 
 	err = bcma_host_soc_register(&bcm47xx_bus.bcma);
 	if (err)
-		panic("Failed to initialize BCMA bus (err %d)\n", err);
+		panic("Failed to initialize BCMA bus (err %d)", err);
 }
 #endif
 
