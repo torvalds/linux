@@ -84,3 +84,9 @@ GTAGS
 *.orig
 *~
 \#*#
+
+# build generated files
+modules/example/Module.symvers
+modules/mali/DX910-SW-99002-r2p1-05rel1/src/devicedrv/mali/Module.symvers
+modules/mali/DX910-SW-99002-r2p1-05rel1/src/devicedrv/ump/Module.symvers
+output/
