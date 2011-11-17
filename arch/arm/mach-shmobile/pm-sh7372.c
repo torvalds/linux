@@ -232,11 +232,23 @@ struct sh7372_pm_domain sh7372_a3sp = {
 	.no_debug = true,
 };
 
+static void sh7372_a3sp_init(void)
+{
+	/* serial consoles make use of SCIF hardware located in A3SP,
+	 * keep such power domain on if "no_console_suspend" is set.
+	 */
+	sh7372_a3sp.stay_on = !console_suspend_enabled;
+}
+
 struct sh7372_pm_domain sh7372_a3sg = {
 	.bit_shift = 13,
 };
 
-#endif /* CONFIG_PM */
+#else /* !CONFIG_PM */
+
+static inline void sh7372_a3sp_init(void) {}
+
+#endif /* !CONFIG_PM */
 
 #if defined(CONFIG_SUSPEND) || defined(CONFIG_CPU_IDLE)
 static int sh7372_do_idle_core_standby(unsigned long unused)
@@ -474,10 +486,7 @@ void __init sh7372_pm_init(void)
 	/* do not convert A3SM, A3SP, A3SG, A4R power down into A4S */
 	__raw_writel(0, PDNSEL);
 
-	/* serial consoles make use of SCIF hardware located in A3SP,
-	 * keep such power domain on if "no_console_suspend" is set.
-	 */
-	sh7372_a3sp.stay_on = !console_suspend_enabled;
+	sh7372_a3sp_init();
 
 	sh7372_suspend_init();
 	sh7372_cpuidle_init();
