@@ -1756,19 +1756,19 @@ nv_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *storage)
 
 	/* software stats */
 	do {
-		syncp_start = u64_stats_fetch_begin(&np->swstats_rx_syncp);
+		syncp_start = u64_stats_fetch_begin_bh(&np->swstats_rx_syncp);
 		storage->rx_packets       = np->stat_rx_packets;
 		storage->rx_bytes         = np->stat_rx_bytes;
 		storage->rx_dropped       = np->stat_rx_dropped;
 		storage->rx_missed_errors = np->stat_rx_missed_errors;
-	} while (u64_stats_fetch_retry(&np->swstats_rx_syncp, syncp_start));
+	} while (u64_stats_fetch_retry_bh(&np->swstats_rx_syncp, syncp_start));
 
 	do {
-		syncp_start = u64_stats_fetch_begin(&np->swstats_tx_syncp);
+		syncp_start = u64_stats_fetch_begin_bh(&np->swstats_tx_syncp);
 		storage->tx_packets = np->stat_tx_packets;
 		storage->tx_bytes   = np->stat_tx_bytes;
 		storage->tx_dropped = np->stat_tx_dropped;
-	} while (u64_stats_fetch_retry(&np->swstats_tx_syncp, syncp_start));
+	} while (u64_stats_fetch_retry_bh(&np->swstats_tx_syncp, syncp_start));
 
 	/* If the nic supports hw counters then retrieve latest values */
 	if (np->driver_data & DEV_HAS_STATISTICS_V123) {
