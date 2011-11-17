@@ -515,3 +515,11 @@ out:
 	mutex_unlock(&kvm->slots_lock);
 	return r;
 }
+
+void kvmppc_decrementer_func(unsigned long data)
+{
+	struct kvm_vcpu *vcpu = (struct kvm_vcpu *)data;
+
+	kvmppc_core_queue_dec(vcpu);
+	kvm_vcpu_kick(vcpu);
+}

@@ -39,7 +39,8 @@
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *v)
 {
 	return !(v->arch.shared->msr & MSR_WE) ||
-	       !!(v->arch.pending_exceptions);
+	       !!(v->arch.pending_exceptions) ||
+	       v->requests;
 }
 
 int kvmppc_kvm_pv(struct kvm_vcpu *vcpu)
@@ -311,18 +312,6 @@ int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 	return kvmppc_core_pending_dec(vcpu);
 }
 
-static void kvmppc_decrementer_func(unsigned long data)
-{
-	struct kvm_vcpu *vcpu = (struct kvm_vcpu *)data;
-
-	kvmppc_core_queue_dec(vcpu);
-
-	if (waitqueue_active(vcpu->arch.wqp)) {
-		wake_up_interruptible(vcpu->arch.wqp);
-		vcpu->stat.halt_wakeup++;
-	}
-}
-
 /*
  * low level hrtimer wake routine. Because this runs in hardirq context
  * we schedule a tasklet to do the real work.
@@ -567,6 +556,16 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	return r;
 }
 
+void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
+{
+	if (waitqueue_active(&vcpu->wq)) {
+		wake_up_interruptible(vcpu->arch.wqp);
+		vcpu->stat.halt_wakeup++;
+	} else if (vcpu->cpu != -1) {
+		smp_send_reschedule(vcpu->cpu);
+	}
+}
+
 int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu, struct kvm_interrupt *irq)
 {
 	if (irq->irq == KVM_INTERRUPT_UNSET) {
@@ -575,13 +574,7 @@ int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu, struct kvm_interrupt *irq)
 	}
 
 	kvmppc_core_queue_external(vcpu, irq);
-
-	if (waitqueue_active(vcpu->arch.wqp)) {
-		wake_up_interruptible(vcpu->arch.wqp);
-		vcpu->stat.halt_wakeup++;
-	} else if (vcpu->cpu != -1) {
-		smp_send_reschedule(vcpu->cpu);
-	}
+	kvm_vcpu_kick(vcpu);
 
 	return 0;
 }

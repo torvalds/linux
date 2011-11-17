@@ -252,9 +252,11 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 		allowed = vcpu->arch.shared->msr & MSR_ME;
 		msr_mask = 0;
 		break;
-	case BOOKE_IRQPRIO_EXTERNAL:
 	case BOOKE_IRQPRIO_DECREMENTER:
 	case BOOKE_IRQPRIO_FIT:
+		keep_irq = true;
+		/* fall through */
+	case BOOKE_IRQPRIO_EXTERNAL:
 		allowed = vcpu->arch.shared->msr & MSR_EE;
 		allowed = allowed && !crit;
 		msr_mask = MSR_CE|MSR_ME|MSR_DE;
@@ -282,10 +284,25 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 	return allowed;
 }
 
+static void update_timer_ints(struct kvm_vcpu *vcpu)
+{
+	if ((vcpu->arch.tcr & TCR_DIE) && (vcpu->arch.tsr & TSR_DIS))
+		kvmppc_core_queue_dec(vcpu);
+	else
+		kvmppc_core_dequeue_dec(vcpu);
+}
+
 static void kvmppc_core_check_exceptions(struct kvm_vcpu *vcpu)
 {
 	unsigned long *pending = &vcpu->arch.pending_exceptions;
 	unsigned int priority;
+
+	if (vcpu->requests) {
+		if (kvm_check_request(KVM_REQ_PENDING_TIMER, vcpu)) {
+			smp_mb();
+			update_timer_ints(vcpu);
+		}
+	}
 
 	priority = __ffs(*pending);
 	while (priority <= BOOKE_IRQPRIO_MAX) {
@@ -749,25 +766,16 @@ static int set_sregs_base(struct kvm_vcpu *vcpu,
 	vcpu->arch.shared->esr = sregs->u.e.esr;
 	vcpu->arch.shared->dar = sregs->u.e.dear;
 	vcpu->arch.vrsave = sregs->u.e.vrsave;
-	vcpu->arch.tcr = sregs->u.e.tcr;
+	kvmppc_set_tcr(vcpu, sregs->u.e.tcr);
 
-	if (sregs->u.e.update_special & KVM_SREGS_E_UPDATE_DEC)
+	if (sregs->u.e.update_special & KVM_SREGS_E_UPDATE_DEC) {
 		vcpu->arch.dec = sregs->u.e.dec;
-
-	kvmppc_emulate_dec(vcpu);
+		kvmppc_emulate_dec(vcpu);
+	}
 
 	if (sregs->u.e.update_special & KVM_SREGS_E_UPDATE_TSR) {
-		/*
-		 * FIXME: existing KVM timer handling is incomplete.
-		 * TSR cannot be read by the guest, and its value in
-		 * vcpu->arch is always zero.  For now, just handle
-		 * the case where the caller is trying to inject a
-		 * decrementer interrupt.
-		 */
-
-		if ((sregs->u.e.tsr & TSR_DIS) &&
-		    (vcpu->arch.tcr & TCR_DIE))
-			kvmppc_core_queue_dec(vcpu);
+		vcpu->arch.tsr = sregs->u.e.tsr;
+		update_timer_ints(vcpu);
 	}
 
 	return 0;
@@ -921,6 +929,33 @@ int kvmppc_core_init_vm(struct kvm *kvm)
 
 void kvmppc_core_destroy_vm(struct kvm *kvm)
 {
+}
+
+void kvmppc_set_tcr(struct kvm_vcpu *vcpu, u32 new_tcr)
+{
+	vcpu->arch.tcr = new_tcr;
+	update_timer_ints(vcpu);
+}
+
+void kvmppc_set_tsr_bits(struct kvm_vcpu *vcpu, u32 tsr_bits)
+{
+	set_bits(tsr_bits, &vcpu->arch.tsr);
+	smp_wmb();
+	kvm_make_request(KVM_REQ_PENDING_TIMER, vcpu);
+	kvm_vcpu_kick(vcpu);
+}
+
+void kvmppc_clr_tsr_bits(struct kvm_vcpu *vcpu, u32 tsr_bits)
+{
+	clear_bits(tsr_bits, &vcpu->arch.tsr);
+	update_timer_ints(vcpu);
+}
+
+void kvmppc_decrementer_func(unsigned long data)
+{
+	struct kvm_vcpu *vcpu = (struct kvm_vcpu *)data;
+
+	kvmppc_set_tsr_bits(vcpu, TSR_DIS);
 }
 
 int __init kvmppc_booke_init(void)

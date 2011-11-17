@@ -330,7 +330,7 @@ struct kvm_vcpu_arch {
 	u32 tbl;
 	u32 tbu;
 	u32 tcr;
-	u32 tsr;
+	ulong tsr; /* we need to perform set/clr_bits() which requires ulong */
 	u32 ivor[64];
 	ulong ivpr;
 	u32 pvr;
