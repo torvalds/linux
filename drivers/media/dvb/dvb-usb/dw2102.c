@@ -1859,12 +1859,11 @@ static struct dvb_usb_device_properties su3000_properties = {
 static int dw2102_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
-	p1100 = kzalloc(sizeof(struct dvb_usb_device_properties), GFP_KERNEL);
+	p1100 = kmemdup(&s6x0_properties,
+			sizeof(struct dvb_usb_device_properties), GFP_KERNEL);
 	if (!p1100)
 		return -ENOMEM;
 	/* copy default structure */
-	memcpy(p1100, &s6x0_properties,
-			sizeof(struct dvb_usb_device_properties));
 	/* fill only different fields */
 	p1100->firmware = "dvb-usb-p1100.fw";
 	p1100->devices[0] = d1100;
@@ -1872,13 +1871,12 @@ static int dw2102_probe(struct usb_interface *intf,
 	p1100->rc.legacy.rc_map_size = ARRAY_SIZE(rc_map_tbs_table);
 	p1100->adapter->fe[0].frontend_attach = stv0288_frontend_attach;
 
-	s660 = kzalloc(sizeof(struct dvb_usb_device_properties), GFP_KERNEL);
+	s660 = kmemdup(&s6x0_properties,
+		       sizeof(struct dvb_usb_device_properties), GFP_KERNEL);
 	if (!s660) {
 		kfree(p1100);
 		return -ENOMEM;
 	}
-	memcpy(s660, &s6x0_properties,
-			sizeof(struct dvb_usb_device_properties));
 	s660->firmware = "dvb-usb-s660.fw";
 	s660->num_device_descs = 3;
 	s660->devices[0] = d660;
@@ -1886,14 +1884,13 @@ static int dw2102_probe(struct usb_interface *intf,
 	s660->devices[2] = d480_2;
 	s660->adapter->fe[0].frontend_attach = ds3000_frontend_attach;
 
-	p7500 = kzalloc(sizeof(struct dvb_usb_device_properties), GFP_KERNEL);
+	p7500 = kmemdup(&s6x0_properties,
+			sizeof(struct dvb_usb_device_properties), GFP_KERNEL);
 	if (!p7500) {
 		kfree(p1100);
 		kfree(s660);
 		return -ENOMEM;
 	}
-	memcpy(p7500, &s6x0_properties,
-			sizeof(struct dvb_usb_device_properties));
 	p7500->firmware = "dvb-usb-p7500.fw";
 	p7500->devices[0] = d7500;
 	p7500->rc.legacy.rc_map_table = rc_map_tbs_table;
