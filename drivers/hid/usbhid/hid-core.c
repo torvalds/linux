@@ -602,6 +602,30 @@ void usbhid_submit_report(struct hid_device *hid, struct hid_report *report, uns
 }
 EXPORT_SYMBOL_GPL(usbhid_submit_report);
 
+/* Workqueue routine to send requests to change LEDs */
+static void hid_led(struct work_struct *work)
+{
+	struct usbhid_device *usbhid =
+		container_of(work, struct usbhid_device, led_work);
+	struct hid_device *hid = usbhid->hid;
+	struct hid_field *field;
+	unsigned long flags;
+
+	field = hidinput_get_led_field(hid);
+	if (!field) {
+		hid_warn(hid, "LED event field not found\n");
+		return;
+	}
+
+	spin_lock_irqsave(&usbhid->lock, flags);
+	if (!test_bit(HID_DISCONNECTED, &usbhid->iofl)) {
+		usbhid->ledcount = hidinput_count_leds(hid);
+		hid_dbg(usbhid->hid, "New ledcount = %u\n", usbhid->ledcount);
+		__usbhid_submit_report(hid, field->report, USB_DIR_OUT);
+	}
+	spin_unlock_irqrestore(&usbhid->lock, flags);
+}
+
 static int usb_hidinput_input_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
 {
 	struct hid_device *hid = input_get_drvdata(dev);
@@ -621,17 +645,15 @@ static int usb_hidinput_input_event(struct input_dev *dev, unsigned int type, un
 		return -1;
 	}
 
+	spin_lock_irqsave(&usbhid->lock, flags);
 	hid_set_field(field, offset, value);
-	if (value) {
-		spin_lock_irqsave(&usbhid->lock, flags);
-		usbhid->ledcount++;
-		spin_unlock_irqrestore(&usbhid->lock, flags);
-	} else {
-		spin_lock_irqsave(&usbhid->lock, flags);
-		usbhid->ledcount--;
-		spin_unlock_irqrestore(&usbhid->lock, flags);
-	}
-	usbhid_submit_report(hid, field->report, USB_DIR_OUT);
+	spin_unlock_irqrestore(&usbhid->lock, flags);
+
+	/*
+	 * Defer performing requested LED action.
+	 * This is more likely gather all LED changes into a single URB.
+	 */
+	schedule_work(&usbhid->led_work);
 
 	return 0;
 }
@@ -1126,7 +1148,7 @@ static void usbhid_stop(struct hid_device *hid)
 		return;
 
 	clear_bit(HID_STARTED, &usbhid->iofl);
-	spin_lock_irq(&usbhid->lock);	/* Sync with error handler */
+	spin_lock_irq(&usbhid->lock);	/* Sync with error and led handlers */
 	set_bit(HID_DISCONNECTED, &usbhid->iofl);
 	spin_unlock_irq(&usbhid->lock);
 	usb_kill_urb(usbhid->urbin);
@@ -1260,6 +1282,8 @@ static int usbhid_probe(struct usb_interface *intf, const struct usb_device_id *
 	setup_timer(&usbhid->io_retry, hid_retry_timeout, (unsigned long) hid);
 	spin_lock_init(&usbhid->lock);
 
+	INIT_WORK(&usbhid->led_work, hid_led);
+
 	ret = hid_add_device(hid);
 	if (ret) {
 		if (ret != -ENODEV)
@@ -1292,6 +1316,7 @@ static void hid_cancel_delayed_stuff(struct usbhid_device *usbhid)
 {
 	del_timer_sync(&usbhid->io_retry);
 	cancel_work_sync(&usbhid->reset_work);
+	cancel_work_sync(&usbhid->led_work);
 }
 
 static void hid_cease_io(struct usbhid_device *usbhid)
