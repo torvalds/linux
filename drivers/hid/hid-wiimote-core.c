@@ -1175,6 +1175,8 @@ static int wiimote_hid_probe(struct hid_device *hdev,
 	struct wiimote_data *wdata;
 	int ret;
 
+	hdev->quirks |= HID_QUIRK_NO_INIT_REPORTS;
+
 	wdata = wiimote_create(hdev);
 	if (!wdata) {
 		hid_err(hdev, "Can't alloc device\n");
