@@ -187,7 +187,7 @@ static void _about_to_complete_local_write(struct drbd_conf *mdev,
 	 */
 	if (mdev->state.conn >= C_CONNECTED &&
 	    (s & RQ_NET_SENT) != 0 &&
-	    req->epoch == mdev->tconn->newest_tle->br_number)
+	    req->epoch == atomic_read(&mdev->tconn->current_tle_nr))
 		queue_barrier(mdev);
 }
 
@@ -518,7 +518,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		 * just after it grabs the req_lock */
 		D_ASSERT(test_bit(CREATE_BARRIER, &mdev->tconn->flags) == 0);
 
-		req->epoch = mdev->tconn->newest_tle->br_number;
+		req->epoch = atomic_read(&mdev->tconn->current_tle_nr);
 
 		/* increment size of current epoch */
 		mdev->tconn->newest_tle->n_writes++;

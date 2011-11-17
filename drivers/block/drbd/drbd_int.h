@@ -864,6 +864,7 @@ struct drbd_tconn {			/* is a resource from the config file */
 	spinlock_t epoch_lock;
 	unsigned int epochs;
 	enum write_ordering_e write_ordering;
+	atomic_t current_tle_nr;	/* transfer log epoch number */
 
 	unsigned long last_reconnect_jif;
 	struct drbd_thread receiver;
