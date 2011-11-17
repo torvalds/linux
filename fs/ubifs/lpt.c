@@ -1986,12 +1986,11 @@ again:
 
 				if (path[h].in_tree)
 					continue;
-				nnode = kmalloc(sz, GFP_NOFS);
+				nnode = kmemdup(&path[h].nnode, sz, GFP_NOFS);
 				if (!nnode) {
 					err = -ENOMEM;
 					goto out;
 				}
-				memcpy(nnode, &path[h].nnode, sz);
 				parent = nnode->parent;
 				parent->nbranch[nnode->iip].nnode = nnode;
 				path[h].ptr.nnode = nnode;
@@ -2004,12 +2003,11 @@ again:
 				const size_t sz = sizeof(struct ubifs_pnode);
 				struct ubifs_nnode *parent;
 
-				pnode = kmalloc(sz, GFP_NOFS);
+				pnode = kmemdup(&path[h].pnode, sz, GFP_NOFS);
 				if (!pnode) {
 					err = -ENOMEM;
 					goto out;
 				}
-				memcpy(pnode, &path[h].pnode, sz);
 				parent = pnode->parent;
 				parent->nbranch[pnode->iip].pnode = pnode;
 				path[h].ptr.pnode = pnode;

@@ -344,12 +344,11 @@ static int lnc_add(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 		return err;
 	}
 
-	lnc_node = kmalloc(zbr->len, GFP_NOFS);
+	lnc_node = kmemdup(node, zbr->len, GFP_NOFS);
 	if (!lnc_node)
 		/* We don't have to have the cache, so no error */
 		return 0;
 
-	memcpy(lnc_node, node, zbr->len);
 	zbr->leaf = lnc_node;
 	return 0;
 }
