@@ -7061,15 +7061,28 @@ static void igb_init_dmac(struct igb_adapter *adapter, u32 pba)
 			wr32(E1000_DMCTXTH, 0);
 
 			/*
-			 * DMA Coalescing high water mark needs to be higher
-			 * than the RX threshold. set hwm to PBA -  2 * max
-			 * frame size
+			 * DMA Coalescing high water mark needs to be greater
+			 * than the Rx threshold. Set hwm to PBA - max frame
+			 * size in 16B units, capping it at PBA - 6KB.
 			 */
-			hwm = pba - (2 * adapter->max_frame_size);
+			hwm = 64 * pba - adapter->max_frame_size / 16;
+			if (hwm < 64 * (pba - 6))
+				hwm = 64 * (pba - 6);
+			reg = rd32(E1000_FCRTC);
+			reg &= ~E1000_FCRTC_RTH_COAL_MASK;
+			reg |= ((hwm << E1000_FCRTC_RTH_COAL_SHIFT)
+				& E1000_FCRTC_RTH_COAL_MASK);
+			wr32(E1000_FCRTC, reg);
+
+			/*
+			 * Set the DMA Coalescing Rx threshold to PBA - 2 * max
+			 * frame size, capping it at PBA - 10KB.
+			 */
+			dmac_thr = pba - adapter->max_frame_size / 512;
+			if (dmac_thr < pba - 10)
+				dmac_thr = pba - 10;
 			reg = rd32(E1000_DMACR);
 			reg &= ~E1000_DMACR_DMACTHR_MASK;
-			dmac_thr = pba - 4;
-
 			reg |= ((dmac_thr << E1000_DMACR_DMACTHR_SHIFT)
 				& E1000_DMACR_DMACTHR_MASK);
 
@@ -7085,7 +7098,6 @@ static void igb_init_dmac(struct igb_adapter *adapter, u32 pba)
 			 * coalescing(smart fifb)-UTRESH=0
 			 */
 			wr32(E1000_DMCRTRH, 0);
-			wr32(E1000_FCRTC, hwm);
 
 			reg = (IGB_DMCTLX_DCFLUSH_DIS | 0x4);
 
