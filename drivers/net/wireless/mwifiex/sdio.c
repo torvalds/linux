@@ -256,10 +256,13 @@ static int mwifiex_sdio_resume(struct device *dev)
 
 /* Device ID for SD8787 */
 #define SDIO_DEVICE_ID_MARVELL_8787   (0x9119)
+/* Device ID for SD8797 */
+#define SDIO_DEVICE_ID_MARVELL_8797   (0x9129)
 
 /* WLAN IDs */
 static const struct sdio_device_id mwifiex_ids[] = {
 	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8787)},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8797)},
 	{},
 };
 
@@ -1573,7 +1576,16 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 	sdio_set_drvdata(func, card);
 
 	adapter->dev = &func->dev;
-	strcpy(adapter->fw_name, SD8787_DEFAULT_FW_NAME);
+
+	switch (func->device) {
+	case SDIO_DEVICE_ID_MARVELL_8797:
+		strcpy(adapter->fw_name, SD8797_DEFAULT_FW_NAME);
+		break;
+	case SDIO_DEVICE_ID_MARVELL_8787:
+	default:
+		strcpy(adapter->fw_name, SD8787_DEFAULT_FW_NAME);
+		break;
+	}
 
 	return 0;
 
@@ -1774,4 +1786,5 @@ MODULE_AUTHOR("Marvell International Ltd.");
 MODULE_DESCRIPTION("Marvell WiFi-Ex SDIO Driver version " SDIO_VERSION);
 MODULE_VERSION(SDIO_VERSION);
 MODULE_LICENSE("GPL v2");
-MODULE_FIRMWARE("mrvl/sd8787_uapsta.bin");
+MODULE_FIRMWARE(SD8787_DEFAULT_FW_NAME);
+MODULE_FIRMWARE(SD8797_DEFAULT_FW_NAME);
