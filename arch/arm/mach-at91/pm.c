@@ -34,7 +34,6 @@
 /*
  * Show the reason for the previous system reset.
  */
-#if defined(AT91_RSTC)
 
 #include <mach/at91_rstc.h>
 #include <mach/at91_shdwc.h>
@@ -58,10 +57,10 @@ static void __init show_reset_status(void)
 	char *reason, *r2 = reset;
 	u32 reset_type, wake_type;
 
-	if (!at91_shdwc_base)
+	if (!at91_shdwc_base || !at91_rstc_base)
 		return;
 
-	reset_type = at91_sys_read(AT91_RSTC_SR) & AT91_RSTC_RSTTYP;
+	reset_type = at91_rstc_read(AT91_RSTC_SR) & AT91_RSTC_RSTTYP;
 	wake_type = at91_shdwc_read(AT91_SHDW_SR);
 
 	switch (reset_type) {
@@ -102,10 +101,6 @@ static void __init show_reset_status(void)
 	}
 	pr_info("AT91: Starting after %s %s\n", reason, r2);
 }
-#else
-static void __init show_reset_status(void) {}
-#endif
-
 
 static int at91_pm_valid_state(suspend_state_t state)
 {

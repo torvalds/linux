@@ -284,6 +284,15 @@ void __init at91_ioremap_shdwc(u32 base_addr)
 	pm_power_off = at91sam9_poweroff;
 }
 
+void __iomem *at91_rstc_base;
+
+void __init at91_ioremap_rstc(u32 base_addr)
+{
+	at91_rstc_base = ioremap(base_addr, 16);
+	if (!at91_rstc_base)
+		panic("Impossible to ioremap at91_rstc_base\n");
+}
+
 void __init at91_initialize(unsigned long main_clock)
 {
 	at91_boot_soc.ioremap_registers();
