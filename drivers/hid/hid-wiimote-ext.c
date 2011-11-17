@@ -25,6 +25,7 @@ struct wiimote_ext {
 	atomic_t opened;
 	atomic_t mp_opened;
 	bool plugged;
+	bool mp_plugged;
 	bool motionp;
 	__u8 ext_type;
 };
@@ -182,6 +183,10 @@ void wiiext_event(struct wiimote_data *wdata, bool plugged)
 		return;
 
 	wdata->ext->plugged = plugged;
+
+	if (!plugged)
+		wdata->ext->mp_plugged = false;
+
 	/*
 	 * We need to call wiiext_schedule(wdata->ext) here, however, the
 	 * extension initialization logic is not fully understood and so
@@ -206,6 +211,63 @@ bool wiiext_active(struct wiimote_data *wdata)
 
 static void handler_motionp(struct wiimote_ext *ext, const __u8 *payload)
 {
+	__s32 x, y, z;
+	bool plugged;
+
+	/*        |   8    7    6    5    4    3 |  2  |  1  |
+	 *   -----+------------------------------+-----+-----+
+	 *    1   |               Yaw Speed <7:0>            |
+	 *    2   |              Roll Speed <7:0>            |
+	 *    3   |             Pitch Speed <7:0>            |
+	 *   -----+------------------------------+-----+-----+
+	 *    4   |       Yaw Speed <13:8>       | Yaw |Pitch|
+	 *   -----+------------------------------+-----+-----+
+	 *    5   |      Roll Speed <13:8>       |Roll | Ext |
+	 *   -----+------------------------------+-----+-----+
+	 *    6   |     Pitch Speed <13:8>       |  1  |  0  |
+	 *   -----+------------------------------+-----+-----+
+	 * The single bits Yaw, Roll, Pitch in the lower right corner specify
+	 * whether the wiimote is rotating fast (0) or slow (1). Speed for slow
+	 * roation is 440 deg/s and for fast rotation 2000 deg/s. To get a
+	 * linear scale we multiply by 2000/440 = ~4.5454 which is 18 for fast
+	 * and 9 for slow.
+	 * If the wiimote is not rotating the sensor reports 2^13 = 8192.
+	 * Ext specifies whether an extension is connected to the motionp.
+	 */
+
+	x = payload[0];
+	y = payload[1];
+	z = payload[2];
+
+	x |= (((__u16)payload[3]) << 6) & 0xff00;
+	y |= (((__u16)payload[4]) << 6) & 0xff00;
+	z |= (((__u16)payload[5]) << 6) & 0xff00;
+
+	x -= 8192;
+	y -= 8192;
+	z -= 8192;
+
+	if (!(payload[3] & 0x02))
+		x *= 18;
+	else
+		x *= 9;
+	if (!(payload[4] & 0x02))
+		y *= 18;
+	else
+		y *= 9;
+	if (!(payload[3] & 0x01))
+		z *= 18;
+	else
+		z *= 9;
+
+	input_report_abs(ext->mp_input, ABS_RX, x);
+	input_report_abs(ext->mp_input, ABS_RY, y);
+	input_report_abs(ext->mp_input, ABS_RZ, z);
+	input_sync(ext->mp_input);
+
+	plugged = payload[5] & 0x01;
+	if (plugged != ext->mp_plugged)
+		ext->mp_plugged = plugged;
 }
 
 static void handler_nunchuck(struct wiimote_ext *ext, const __u8 *payload)
@@ -367,6 +429,14 @@ int wiiext_init(struct wiimote_data *wdata)
 	ext->mp_input->id.product = wdata->hdev->product;
 	ext->mp_input->id.version = wdata->hdev->version;
 	ext->mp_input->name = WIIMOTE_NAME " Motion+";
+
+	set_bit(EV_ABS, ext->mp_input->evbit);
+	set_bit(ABS_RX, ext->mp_input->absbit);
+	set_bit(ABS_RY, ext->mp_input->absbit);
+	set_bit(ABS_RZ, ext->mp_input->absbit);
+	input_set_abs_params(ext->mp_input, ABS_RX, -160000, 160000, 4, 8);
+	input_set_abs_params(ext->mp_input, ABS_RY, -160000, 160000, 4, 8);
+	input_set_abs_params(ext->mp_input, ABS_RZ, -160000, 160000, 4, 8);
 
 	ret = input_register_device(ext->mp_input);
 	if (ret) {
