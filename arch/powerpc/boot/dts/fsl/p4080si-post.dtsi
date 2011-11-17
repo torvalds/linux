@@ -121,17 +121,24 @@
 };
 
 &rio {
+	compatible = "fsl,srio";
+	interrupts = <16 2 1 11>;
 	#address-cells = <2>;
 	#size-cells = <2>;
-	compatible = "fsl,rapidio-delta";
-	interrupts = <
-		16 2 1 11 /* err_irq */
-		56 2 0 0  /* bell_outb_irq */
-		57 2 0 0  /* bell_inb_irq */
-		60 2 0 0  /* msg1_tx_irq */
-		61 2 0 0  /* msg1_rx_irq */
-		62 2 0 0  /* msg2_tx_irq */
-		63 2 0 0>; /* msg2_rx_irq */
+	fsl,srio-rmu-handle = <&rmu>;
+	ranges;
+
+	port1 {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		cell-index = <1>;
+	};
+
+	port2 {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		cell-index = <2>;
+	};
 };
 
 &dcsr {
@@ -280,6 +287,7 @@
 			16 2 1 30>;
 	};
 
+/include/ "qoriq-rmu-0.dtsi"
 /include/ "qoriq-mpic.dtsi"
 
 	guts: global-utilities@e0000 {

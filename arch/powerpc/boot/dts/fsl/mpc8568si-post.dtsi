@@ -82,18 +82,19 @@
 };
 
 &rio {
+	compatible = "fsl,srio";
+	interrupts = <48 2 0 0>;
 	#address-cells = <2>;
 	#size-cells = <2>;
-	compatible = "fsl,mpc8568-rapidio", "fsl,rapidio-delta";
-	interrupts = <48 2 0 0 /* error     */
-		      49 2 0 0 /* bell_outb */
-		      50 2 0 0 /* bell_inb  */
-		      53 2 0 0 /* msg1_tx   */
-		      54 2 0 0 /* msg1_rx   */
-		      55 2 0 0 /* msg2_tx   */
-		      56 2 0 0 /* msg2_rx   */>;
-	sleep = <&pmc 0x00080000   /* controller */
-		 &pmc 0x00040000>; /* message unit */
+	fsl,srio-rmu-handle = <&rmu>;
+	sleep = <&pmc 0x00080000>;
+	ranges;
+
+	port1 {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		cell-index = <1>;
+	};
 };
 
 &soc {
@@ -178,6 +179,10 @@
 	};
 
 /include/ "pq3-mpic.dtsi"
+/include/ "pq3-rmu-0.dtsi"
+	rmu@d3000 {
+		sleep = <&pmc 0x00040000>;
+	};
 
 	global-utilities@e0000 {
 		#address-cells = <1>;
