@@ -224,7 +224,6 @@ static int ohci_sm501_suspend(struct platform_device *pdev, pm_message_t msg)
 	ohci->next_statechange = jiffies;
 
 	sm501_unit_power(dev->parent, SM501_GATE_USB_HOST, 0);
-	ohci_to_hcd(ohci)->state = HC_STATE_SUSPENDED;
 	return 0;
 }
 

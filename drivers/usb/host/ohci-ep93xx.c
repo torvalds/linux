@@ -179,8 +179,6 @@ static int ohci_hcd_ep93xx_drv_suspend(struct platform_device *pdev, pm_message_
 	ohci->next_statechange = jiffies;
 
 	ep93xx_stop_hc(&pdev->dev);
-	hcd->state = HC_STATE_SUSPENDED;
-
 	return 0;
 }
 
