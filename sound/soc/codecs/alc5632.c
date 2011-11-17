@@ -104,6 +104,8 @@ static bool alc5632_volatile_register(struct device *dev,
 	case ALC5632_OVER_CURR_STATUS:
 	case ALC5632_HID_CTRL_DATA:
 	case ALC5632_EQ_CTRL:
+	case ALC5632_VENDOR_ID1:
+	case ALC5632_VENDOR_ID2:
 		return true;
 
 	default:
