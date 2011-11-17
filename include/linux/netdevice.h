@@ -214,6 +214,11 @@ enum {
 #include <linux/cache.h>
 #include <linux/skbuff.h>
 
+#ifdef CONFIG_RPS
+#include <linux/jump_label.h>
+extern struct jump_label_key rps_needed;
+#endif
+
 struct neighbour;
 struct neigh_parms;
 struct sk_buff;
