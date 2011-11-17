@@ -8,6 +8,14 @@
 #ifndef __STMPE_H
 #define __STMPE_H
 
+#include <linux/device.h>
+#include <linux/mfd/core.h>
+#include <linux/mfd/stmpe.h>
+#include <linux/printk.h>
+#include <linux/types.h>
+
+extern const struct dev_pm_ops stmpe_dev_pm_ops;
+
 #ifdef STMPE_DUMP_BYTES
 static inline void stmpe_dump_bytes(const char *str, const void *buf,
 				    size_t len)
@@ -66,6 +74,31 @@ struct stmpe_variant_info {
 	int (*get_altfunc)(struct stmpe *stmpe, enum stmpe_block block);
 	int (*enable_autosleep)(struct stmpe *stmpe, int autosleep_timeout);
 };
+
+/**
+ * struct stmpe_client_info - i2c or spi specific routines/info
+ * @data: client specific data
+ * @read_byte: read single byte
+ * @write_byte: write single byte
+ * @read_block: read block or multiple bytes
+ * @write_block: write block or multiple bytes
+ * @init: client init routine, called during probe
+ */
+struct stmpe_client_info {
+	void *data;
+	int irq;
+	void *client;
+	struct device *dev;
+	int (*read_byte)(struct stmpe *stmpe, u8 reg);
+	int (*write_byte)(struct stmpe *stmpe, u8 reg, u8 val);
+	int (*read_block)(struct stmpe *stmpe, u8 reg, u8 len, u8 *values);
+	int (*write_block)(struct stmpe *stmpe, u8 reg, u8 len,
+			const u8 *values);
+	void (*init)(struct stmpe *stmpe);
+};
+
+int stmpe_probe(struct stmpe_client_info *ci, int partnum);
+int stmpe_remove(struct stmpe *stmpe);
 
 #define STMPE_ICR_LSB_HIGH	(1 << 2)
 #define STMPE_ICR_LSB_EDGE	(1 << 1)

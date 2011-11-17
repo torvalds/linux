@@ -50,13 +50,15 @@ enum {
 
 
 struct stmpe_variant_info;
+struct stmpe_client_info;
 
 /**
  * struct stmpe - STMPE MFD structure
  * @lock: lock protecting I/O operations
  * @irq_lock: IRQ bus lock
  * @dev: device, mostly for dev_dbg()
- * @i2c: i2c client
+ * @client: client - i2c or spi
+ * @ci: client specific information
  * @partnum: part number
  * @variant: the detected STMPE model number
  * @regs: list of addresses of registers which are at different addresses on
@@ -72,7 +74,8 @@ struct stmpe {
 	struct mutex lock;
 	struct mutex irq_lock;
 	struct device *dev;
-	struct i2c_client *i2c;
+	void *client;
+	struct stmpe_client_info *ci;
 	enum stmpe_partnum partnum;
 	struct stmpe_variant_info *variant;
 	const u8 *regs;

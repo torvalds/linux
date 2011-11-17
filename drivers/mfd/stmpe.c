@@ -1,4 +1,6 @@
 /*
+ * ST Microelectronics MFD: stmpe's driver
+ *
  * Copyright (C) ST-Ericsson SA 2010
  *
  * License Terms: GNU General Public License, version 2
@@ -7,13 +9,11 @@
 
 #include <linux/gpio.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/pm.h>
 #include <linux/slab.h>
-#include <linux/i2c.h>
 #include <linux/mfd/core.h>
-#include <linux/mfd/stmpe.h>
 #include "stmpe.h"
 
 static int __stmpe_enable(struct stmpe *stmpe, unsigned int blocks)
@@ -30,10 +30,9 @@ static int __stmpe_reg_read(struct stmpe *stmpe, u8 reg)
 {
 	int ret;
 
-	ret = i2c_smbus_read_byte_data(stmpe->i2c, reg);
+	ret = stmpe->ci->read_byte(stmpe, reg);
 	if (ret < 0)
-		dev_err(stmpe->dev, "failed to read reg %#x: %d\n",
-			reg, ret);
+		dev_err(stmpe->dev, "failed to read reg %#x: %d\n", reg, ret);
 
 	dev_vdbg(stmpe->dev, "rd: reg %#x => data %#x\n", reg, ret);
 
@@ -46,10 +45,9 @@ static int __stmpe_reg_write(struct stmpe *stmpe, u8 reg, u8 val)
 
 	dev_vdbg(stmpe->dev, "wr: reg %#x <= %#x\n", reg, val);
 
-	ret = i2c_smbus_write_byte_data(stmpe->i2c, reg, val);
+	ret = stmpe->ci->write_byte(stmpe, reg, val);
 	if (ret < 0)
-		dev_err(stmpe->dev, "failed to write reg %#x: %d\n",
-			reg, ret);
+		dev_err(stmpe->dev, "failed to write reg %#x: %d\n", reg, ret);
 
 	return ret;
 }
@@ -73,10 +71,9 @@ static int __stmpe_block_read(struct stmpe *stmpe, u8 reg, u8 length,
 {
 	int ret;
 
-	ret = i2c_smbus_read_i2c_block_data(stmpe->i2c, reg, length, values);
+	ret = stmpe->ci->read_block(stmpe, reg, length, values);
 	if (ret < 0)
-		dev_err(stmpe->dev, "failed to read regs %#x: %d\n",
-			reg, ret);
+		dev_err(stmpe->dev, "failed to read regs %#x: %d\n", reg, ret);
 
 	dev_vdbg(stmpe->dev, "rd: reg %#x (%d) => ret %#x\n", reg, length, ret);
 	stmpe_dump_bytes("stmpe rd: ", values, length);
@@ -92,11 +89,9 @@ static int __stmpe_block_write(struct stmpe *stmpe, u8 reg, u8 length,
 	dev_vdbg(stmpe->dev, "wr: regs %#x (%d)\n", reg, length);
 	stmpe_dump_bytes("stmpe wr: ", values, length);
 
-	ret = i2c_smbus_write_i2c_block_data(stmpe->i2c, reg, length,
-					     values);
+	ret = stmpe->ci->write_block(stmpe, reg, length, values);
 	if (ret < 0)
-		dev_err(stmpe->dev, "failed to write regs %#x: %d\n",
-			reg, ret);
+		dev_err(stmpe->dev, "failed to write regs %#x: %d\n", reg, ret);
 
 	return ret;
 }
@@ -874,34 +869,10 @@ static int __devinit stmpe_devices_init(struct stmpe *stmpe)
 	return ret;
 }
 
-#ifdef CONFIG_PM
-static int stmpe_suspend(struct device *dev)
+/* Called from client specific probe routines */
+int stmpe_probe(struct stmpe_client_info *ci, int partnum)
 {
-	struct i2c_client *i2c = to_i2c_client(dev);
-	struct stmpe *stmpe = i2c_get_clientdata(i2c);
-
-	if (device_may_wakeup(&i2c->dev))
-		enable_irq_wake(stmpe->irq);
-
-	return 0;
-}
-
-static int stmpe_resume(struct device *dev)
-{
-	struct i2c_client *i2c = to_i2c_client(dev);
-	struct stmpe *stmpe = i2c_get_clientdata(i2c);
-
-	if (device_may_wakeup(&i2c->dev))
-		disable_irq_wake(stmpe->irq);
-
-	return 0;
-}
-#endif
-
-static int __devinit stmpe_probe(struct i2c_client *i2c,
-				 const struct i2c_device_id *id)
-{
-	struct stmpe_platform_data *pdata = i2c->dev.platform_data;
+	struct stmpe_platform_data *pdata = dev_get_platdata(ci->dev);
 	struct stmpe *stmpe;
 	int ret;
 
@@ -915,18 +886,19 @@ static int __devinit stmpe_probe(struct i2c_client *i2c,
 	mutex_init(&stmpe->irq_lock);
 	mutex_init(&stmpe->lock);
 
-	stmpe->dev = &i2c->dev;
-	stmpe->i2c = i2c;
-
+	stmpe->dev = ci->dev;
+	stmpe->client = ci->client;
 	stmpe->pdata = pdata;
 	stmpe->irq_base = pdata->irq_base;
-
-	stmpe->partnum = id->driver_data;
-	stmpe->variant = stmpe_variant_info[stmpe->partnum];
+	stmpe->ci = ci;
+	stmpe->partnum = partnum;
+	stmpe->variant = stmpe_variant_info[partnum];
 	stmpe->regs = stmpe->variant->regs;
 	stmpe->num_gpios = stmpe->variant->num_gpios;
+	dev_set_drvdata(stmpe->dev, stmpe);
 
-	i2c_set_clientdata(i2c, stmpe);
+	if (ci->init)
+		ci->init(stmpe);
 
 	if (pdata->irq_over_gpio) {
 		ret = gpio_request_one(pdata->irq_gpio, GPIOF_DIR_IN, "stmpe");
@@ -938,7 +910,7 @@ static int __devinit stmpe_probe(struct i2c_client *i2c,
 
 		stmpe->irq = gpio_to_irq(pdata->irq_gpio);
 	} else {
-		stmpe->irq = i2c->irq;
+		stmpe->irq = ci->irq;
 	}
 
 	ret = stmpe_chip_init(stmpe);
@@ -950,8 +922,7 @@ static int __devinit stmpe_probe(struct i2c_client *i2c,
 		goto free_gpio;
 
 	ret = request_threaded_irq(stmpe->irq, NULL, stmpe_irq,
-				   pdata->irq_trigger | IRQF_ONESHOT,
-				   "stmpe", stmpe);
+			pdata->irq_trigger | IRQF_ONESHOT, "stmpe", stmpe);
 	if (ret) {
 		dev_err(stmpe->dev, "failed to request IRQ: %d\n", ret);
 		goto out_removeirq;
@@ -978,10 +949,8 @@ out_free:
 	return ret;
 }
 
-static int __devexit stmpe_remove(struct i2c_client *client)
+int stmpe_remove(struct stmpe *stmpe)
 {
-	struct stmpe *stmpe = i2c_get_clientdata(client);
-
 	mfd_remove_devices(stmpe->dev);
 
 	free_irq(stmpe->irq, stmpe);
@@ -995,45 +964,29 @@ static int __devexit stmpe_remove(struct i2c_client *client)
 	return 0;
 }
 
-static const struct i2c_device_id stmpe_id[] = {
-	{ "stmpe811", STMPE811 },
-	{ "stmpe1601", STMPE1601 },
-	{ "stmpe2401", STMPE2401 },
-	{ "stmpe2403", STMPE2403 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, stmpe_id);
-
 #ifdef CONFIG_PM
-static const struct dev_pm_ops stmpe_dev_pm_ops = {
+static int stmpe_suspend(struct device *dev)
+{
+	struct stmpe *stmpe = dev_get_drvdata(dev);
+
+	if (device_may_wakeup(dev))
+		enable_irq_wake(stmpe->irq);
+
+	return 0;
+}
+
+static int stmpe_resume(struct device *dev)
+{
+	struct stmpe *stmpe = dev_get_drvdata(dev);
+
+	if (device_may_wakeup(dev))
+		disable_irq_wake(stmpe->irq);
+
+	return 0;
+}
+
+const struct dev_pm_ops stmpe_dev_pm_ops = {
 	.suspend	= stmpe_suspend,
 	.resume		= stmpe_resume,
 };
 #endif
-
-static struct i2c_driver stmpe_driver = {
-	.driver.name	= "stmpe",
-	.driver.owner	= THIS_MODULE,
-#ifdef CONFIG_PM
-	.driver.pm	= &stmpe_dev_pm_ops,
-#endif
-	.probe		= stmpe_probe,
-	.remove		= __devexit_p(stmpe_remove),
-	.id_table	= stmpe_id,
-};
-
-static int __init stmpe_init(void)
-{
-	return i2c_add_driver(&stmpe_driver);
-}
-subsys_initcall(stmpe_init);
-
-static void __exit stmpe_exit(void)
-{
-	i2c_del_driver(&stmpe_driver);
-}
-module_exit(stmpe_exit);
-
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("STMPE MFD core driver");
-MODULE_AUTHOR("Rabin Vincent <rabin.vincent@stericsson.com>");
