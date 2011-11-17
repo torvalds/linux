@@ -904,6 +904,10 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 		NLA_PUT_U32(msg, i, NL80211_CMD_REGISTER_BEACONS);
 	}
 
+#ifdef CONFIG_NL80211_TESTMODE
+	CMD(testmode_cmd, TESTMODE);
+#endif
+
 #undef CMD
 
 	if (dev->ops->connect || dev->ops->auth) {
