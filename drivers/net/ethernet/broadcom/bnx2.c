@@ -2054,8 +2054,8 @@ __acquires(&bp->phy_lock)
 
 	if (bp->autoneg & AUTONEG_SPEED) {
 		u32 adv_reg, adv1000_reg;
-		u32 new_adv_reg = 0;
-		u32 new_adv1000_reg = 0;
+		u32 new_adv = 0;
+		u32 new_adv1000 = 0;
 
 		bnx2_read_phy(bp, bp->mii_adv, &adv_reg);
 		adv_reg &= (PHY_ALL_10_100_SPEED | ADVERTISE_PAUSE_CAP |
@@ -2064,18 +2064,18 @@ __acquires(&bp->phy_lock)
 		bnx2_read_phy(bp, MII_CTRL1000, &adv1000_reg);
 		adv1000_reg &= PHY_ALL_1000_SPEED;
 
-		new_adv_reg = ethtool_adv_to_mii_100bt(bp->advertising);
-		new_adv_reg |= ADVERTISE_CSMA;
-		new_adv_reg |= bnx2_phy_get_pause_adv(bp);
+		new_adv = ethtool_adv_to_mii_adv_t(bp->advertising);
+		new_adv |= ADVERTISE_CSMA;
+		new_adv |= bnx2_phy_get_pause_adv(bp);
 
-		new_adv1000_reg |= ethtool_adv_to_mii_1000T(bp->advertising);
+		new_adv1000 |= ethtool_adv_to_mii_ctrl1000_t(bp->advertising);
 
-		if ((adv1000_reg != new_adv1000_reg) ||
-			(adv_reg != new_adv_reg) ||
+		if ((adv1000_reg != new_adv1000) ||
+			(adv_reg != new_adv) ||
 			((bmcr & BMCR_ANENABLE) == 0)) {
 
-			bnx2_write_phy(bp, bp->mii_adv, new_adv_reg);
-			bnx2_write_phy(bp, MII_CTRL1000, new_adv1000_reg);
+			bnx2_write_phy(bp, bp->mii_adv, new_adv);
+			bnx2_write_phy(bp, MII_CTRL1000, new_adv1000);
 			bnx2_write_phy(bp, bp->mii_bmcr, BMCR_ANRESTART |
 				BMCR_ANENABLE);
 		}

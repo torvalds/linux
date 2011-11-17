@@ -241,14 +241,14 @@ static inline unsigned int mii_duplex (unsigned int duplex_lock,
 }
 
 /**
- * ethtool_adv_to_mii_100bt
+ * ethtool_adv_to_mii_adv_t
  * @ethadv: the ethtool advertisement settings
  *
  * A small helper function that translates ethtool advertisement
  * settings to phy autonegotiation advertisements for the
  * MII_ADVERTISE register.
  */
-static inline u32 ethtool_adv_to_mii_100bt(u32 ethadv)
+static inline u32 ethtool_adv_to_mii_adv_t(u32 ethadv)
 {
 	u32 result = 0;
 
@@ -269,13 +269,13 @@ static inline u32 ethtool_adv_to_mii_100bt(u32 ethadv)
 }
 
 /**
- * mii_adv_to_ethtool_100bt
+ * mii_adv_to_ethtool_adv_t
  * @adv: value of the MII_ADVERTISE register
  *
  * A small helper function that translates MII_ADVERTISE bits
  * to ethtool advertisement settings.
  */
-static inline u32 mii_adv_to_ethtool_100bt(u32 adv)
+static inline u32 mii_adv_to_ethtool_adv_t(u32 adv)
 {
 	u32 result = 0;
 
@@ -296,14 +296,14 @@ static inline u32 mii_adv_to_ethtool_100bt(u32 adv)
 }
 
 /**
- * ethtool_adv_to_mii_1000T
+ * ethtool_adv_to_mii_ctrl1000_t
  * @ethadv: the ethtool advertisement settings
  *
  * A small helper function that translates ethtool advertisement
  * settings to phy autonegotiation advertisements for the
  * MII_CTRL1000 register when in 1000T mode.
  */
-static inline u32 ethtool_adv_to_mii_1000T(u32 ethadv)
+static inline u32 ethtool_adv_to_mii_ctrl1000_t(u32 ethadv)
 {
 	u32 result = 0;
 
@@ -316,14 +316,14 @@ static inline u32 ethtool_adv_to_mii_1000T(u32 ethadv)
 }
 
 /**
- * mii_adv_to_ethtool_1000T
+ * mii_ctrl1000_to_ethtool_adv_t
  * @adv: value of the MII_CTRL1000 register
  *
  * A small helper function that translates MII_CTRL1000
  * bits, when in 1000Base-T mode, to ethtool
  * advertisement settings.
  */
-static inline u32 mii_adv_to_ethtool_1000T(u32 adv)
+static inline u32 mii_ctrl1000_to_ethtool_adv_t(u32 adv)
 {
 	u32 result = 0;
 
@@ -335,17 +335,33 @@ static inline u32 mii_adv_to_ethtool_1000T(u32 adv)
 	return result;
 }
 
-#define mii_lpa_to_ethtool_100bt(lpa)	mii_adv_to_ethtool_100bt(lpa)
+/**
+ * mii_lpa_to_ethtool_lpa_t
+ * @adv: value of the MII_LPA register
+ *
+ * A small helper function that translates MII_LPA
+ * bits, when in 1000Base-T mode, to ethtool
+ * LP advertisement settings.
+ */
+static inline u32 mii_lpa_to_ethtool_lpa_t(u32 lpa)
+{
+	u32 result = 0;
+
+	if (lpa & LPA_LPACK)
+		result |= ADVERTISED_Autoneg;
+
+	return result | mii_adv_to_ethtool_adv_t(lpa);
+}
 
 /**
- * mii_lpa_to_ethtool_1000T
+ * mii_stat1000_to_ethtool_lpa_t
  * @adv: value of the MII_STAT1000 register
  *
  * A small helper function that translates MII_STAT1000
  * bits, when in 1000Base-T mode, to ethtool
  * advertisement settings.
  */
-static inline u32 mii_lpa_to_ethtool_1000T(u32 lpa)
+static inline u32 mii_stat1000_to_ethtool_lpa_t(u32 lpa)
 {
 	u32 result = 0;
 
@@ -358,14 +374,14 @@ static inline u32 mii_lpa_to_ethtool_1000T(u32 lpa)
 }
 
 /**
- * ethtool_adv_to_mii_1000X
+ * ethtool_adv_to_mii_adv_x
  * @ethadv: the ethtool advertisement settings
  *
  * A small helper function that translates ethtool advertisement
  * settings to phy autonegotiation advertisements for the
  * MII_CTRL1000 register when in 1000Base-X mode.
  */
-static inline u32 ethtool_adv_to_mii_1000X(u32 ethadv)
+static inline u32 ethtool_adv_to_mii_adv_x(u32 ethadv)
 {
 	u32 result = 0;
 
@@ -382,14 +398,14 @@ static inline u32 ethtool_adv_to_mii_1000X(u32 ethadv)
 }
 
 /**
- * mii_adv_to_ethtool_1000X
+ * mii_adv_to_ethtool_adv_x
  * @adv: value of the MII_CTRL1000 register
  *
  * A small helper function that translates MII_CTRL1000
  * bits, when in 1000Base-X mode, to ethtool
  * advertisement settings.
  */
-static inline u32 mii_adv_to_ethtool_1000X(u32 adv)
+static inline u32 mii_adv_to_ethtool_adv_x(u32 adv)
 {
 	u32 result = 0;
 
@@ -403,6 +419,24 @@ static inline u32 mii_adv_to_ethtool_1000X(u32 adv)
 		result |= ADVERTISED_Asym_Pause;
 
 	return result;
+}
+
+/**
+ * mii_lpa_to_ethtool_lpa_x
+ * @adv: value of the MII_LPA register
+ *
+ * A small helper function that translates MII_LPA
+ * bits, when in 1000Base-X mode, to ethtool
+ * LP advertisement settings.
+ */
+static inline u32 mii_lpa_to_ethtool_lpa_x(u32 lpa)
+{
+	u32 result = 0;
+
+	if (lpa & LPA_LPACK)
+		result |= ADVERTISED_Autoneg;
+
+	return result | mii_adv_to_ethtool_adv_x(lpa);
 }
 
 /**

@@ -35,14 +35,11 @@
 
 static u32 mii_get_an(struct mii_if_info *mii, u16 addr)
 {
-	u32 result = 0;
 	int advert;
 
 	advert = mii->mdio_read(mii->dev, mii->phy_id, addr);
-	if (advert & LPA_LPACK)
-		result |= ADVERTISED_Autoneg;
 
-	return result | mii_adv_to_ethtool_100bt(advert);
+	return mii_lpa_to_ethtool_lpa_t(advert);
 }
 
 /**
@@ -93,12 +90,13 @@ int mii_ethtool_gset(struct mii_if_info *mii, struct ethtool_cmd *ecmd)
 
 		ecmd->advertising |= mii_get_an(mii, MII_ADVERTISE);
 		if (mii->supports_gmii)
-			ecmd->advertising |= mii_adv_to_ethtool_1000T(ctrl1000);
+			ecmd->advertising |=
+					mii_ctrl1000_to_ethtool_adv_t(ctrl1000);
 
 		if (bmsr & BMSR_ANEGCOMPLETE) {
 			ecmd->lp_advertising = mii_get_an(mii, MII_LPA);
 			ecmd->lp_advertising |=
-					     mii_lpa_to_ethtool_1000T(stat1000);
+					mii_stat1000_to_ethtool_lpa_t(stat1000);
 		} else {
 			ecmd->lp_advertising = 0;
 		}
@@ -186,10 +184,11 @@ int mii_ethtool_sset(struct mii_if_info *mii, struct ethtool_cmd *ecmd)
 			advert2 = mii->mdio_read(dev, mii->phy_id, MII_CTRL1000);
 			tmp2 = advert2 & ~(ADVERTISE_1000HALF | ADVERTISE_1000FULL);
 		}
-		tmp |= ethtool_adv_to_mii_100bt(ecmd->advertising);
+		tmp |= ethtool_adv_to_mii_adv_t(ecmd->advertising);
 
 		if (mii->supports_gmii)
-			tmp2 |= ethtool_adv_to_mii_1000T(ecmd->advertising);
+			tmp2 |=
+			      ethtool_adv_to_mii_ctrl1000_t(ecmd->advertising);
 		if (advert != tmp) {
 			mii->mdio_write(dev, mii->phy_id, MII_ADVERTISE, tmp);
 			mii->advertising = tmp;

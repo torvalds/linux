@@ -1151,8 +1151,8 @@ static int link_status_mii(struct niu *np, int *link_up_p)
 		supported |= SUPPORTED_1000baseT_Full;
 	lp->supported = supported;
 
-	advertising = mii_adv_to_ethtool_100bt(advert);
-	advertising |= mii_adv_to_ethtool_1000T(ctrl1000);
+	advertising = mii_adv_to_ethtool_adv_t(advert);
+	advertising |= mii_ctrl1000_to_ethtool_adv_t(ctrl1000);
 
 	if (bmcr & BMCR_ANENABLE) {
 		int neg, neg1000;

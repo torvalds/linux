@@ -3594,7 +3594,7 @@ static int tg3_phy_autoneg_cfg(struct tg3 *tp, u32 advertise, u32 flowctrl)
 	u32 val, new_adv;
 
 	new_adv = ADVERTISE_CSMA;
-	new_adv |= ethtool_adv_to_mii_100bt(advertise);
+	new_adv |= ethtool_adv_to_mii_adv_t(advertise);
 	new_adv |= tg3_advert_flowctrl_1000T(flowctrl);
 
 	err = tg3_writephy(tp, MII_ADVERTISE, new_adv);
@@ -3604,7 +3604,7 @@ static int tg3_phy_autoneg_cfg(struct tg3 *tp, u32 advertise, u32 flowctrl)
 	if (tp->phy_flags & TG3_PHYFLG_10_100_ONLY)
 		goto done;
 
-	new_adv = ethtool_adv_to_mii_1000T(advertise);
+	new_adv = ethtool_adv_to_mii_ctrl1000_t(advertise);
 
 	if (tp->pci_chip_rev_id == CHIPREV_ID_5701_A0 ||
 	    tp->pci_chip_rev_id == CHIPREV_ID_5701_B0)
@@ -3778,7 +3778,7 @@ static int tg3_copper_is_advertising_all(struct tg3 *tp, u32 mask)
 {
 	u32 adv_reg, all_mask = 0;
 
-	all_mask = ethtool_adv_to_mii_100bt(mask);
+	all_mask = ethtool_adv_to_mii_adv_t(mask);
 
 	if (tg3_readphy(tp, MII_ADVERTISE, &adv_reg))
 		return 0;
@@ -3789,7 +3789,7 @@ static int tg3_copper_is_advertising_all(struct tg3 *tp, u32 mask)
 	if (!(tp->phy_flags & TG3_PHYFLG_10_100_ONLY)) {
 		u32 tg3_ctrl;
 
-		all_mask = ethtool_adv_to_mii_1000T(mask);
+		all_mask = ethtool_adv_to_mii_ctrl1000_t(mask);
 
 		if (tg3_readphy(tp, MII_CTRL1000, &tg3_ctrl))
 			return 0;
@@ -4889,7 +4889,7 @@ static int tg3_setup_fiber_mii_phy(struct tg3 *tp, int force_reset)
 				 ADVERTISE_SLCT);
 
 		newadv |= tg3_advert_flowctrl_1000X(tp->link_config.flowctrl);
-		newadv |= ethtool_adv_to_mii_1000X(tp->link_config.advertising);
+		newadv |= ethtool_adv_to_mii_adv_x(tp->link_config.advertising);
 
 		if ((newadv != adv) || !(bmcr & BMCR_ANENABLE)) {
 			tg3_writephy(tp, MII_ADVERTISE, newadv);

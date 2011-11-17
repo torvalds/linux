@@ -565,7 +565,7 @@ static int genphy_config_advert(struct phy_device *phydev)
 
 	adv &= ~(ADVERTISE_ALL | ADVERTISE_100BASE4 | ADVERTISE_PAUSE_CAP |
 		 ADVERTISE_PAUSE_ASYM);
-	adv |= ethtool_adv_to_mii_100bt(advertise);
+	adv |= ethtool_adv_to_mii_adv_t(advertise);
 
 	if (adv != oldadv) {
 		err = phy_write(phydev, MII_ADVERTISE, adv);
@@ -584,7 +584,7 @@ static int genphy_config_advert(struct phy_device *phydev)
 			return adv;
 
 		adv &= ~(ADVERTISE_1000FULL | ADVERTISE_1000HALF);
-		adv |= ethtool_adv_to_mii_1000T(advertise);
+		adv |= ethtool_adv_to_mii_ctrl1000_t(advertise);
 
 		if (adv != oldadv) {
 			err = phy_write(phydev, MII_CTRL1000, adv);
