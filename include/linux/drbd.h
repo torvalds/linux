@@ -108,6 +108,12 @@ enum drbd_read_balancing {
 	RB_ROUND_ROBIN,
 	RB_LEAST_PENDING,
 	RB_CONGESTED_REMOTE,
+	RB_32K_STRIPING,
+	RB_64K_STRIPING,
+	RB_128K_STRIPING,
+	RB_256K_STRIPING,
+	RB_512K_STRIPING,
+	RB_1M_STRIPING,
 };
 
 /* KEEP the order, do not delete or insert. Only append. */
