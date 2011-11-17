@@ -62,10 +62,10 @@ void cpu_idle(void)
 
 	set_thread_flag(TIF_POLLING_NRFLAG);
 	while (1) {
-		if (idle_uses_rcu)
-			tick_nohz_idle_enter();
-		else
-			tick_nohz_idle_enter_norcu();
+		tick_nohz_idle_enter();
+		if (!idle_uses_rcu)
+			rcu_idle_enter();
+
 		while (!need_resched() && !cpu_should_die()) {
 			ppc64_runlatch_off();
 
@@ -102,10 +102,9 @@ void cpu_idle(void)
 
 		HMT_medium();
 		ppc64_runlatch_on();
-		if (idle_uses_rcu)
-			tick_nohz_idle_exit();
-		else
-			tick_nohz_idle_exit_norcu();
+		if (!idle_uses_rcu)
+			rcu_idle_exit();
+		tick_nohz_idle_exit();
 		preempt_enable_no_resched();
 		if (cpu_should_die())
 			cpu_die();

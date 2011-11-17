@@ -454,20 +454,19 @@ out:
  * When the next event is more than a tick into the future, stop the idle tick
  * Called when we start the idle loop.
  *
- * If no use of RCU is made in the idle loop between
- * tick_nohz_idle_enter() and tick_nohz_idle_exit() calls, then
- * tick_nohz_idle_enter_norcu() should be called instead and the arch
- * doesn't need to call rcu_idle_enter() and rcu_idle_exit() explicitly.
- *
- * Otherwise the arch is responsible of calling:
+ * The arch is responsible of calling:
  *
  * - rcu_idle_enter() after its last use of RCU before the CPU is put
  *  to sleep.
  * - rcu_idle_exit() before the first use of RCU after the CPU is woken up.
  */
-void __tick_nohz_idle_enter(void)
+void tick_nohz_idle_enter(void)
 {
 	struct tick_sched *ts;
+
+	WARN_ON_ONCE(irqs_disabled());
+
+	local_irq_disable();
 
 	ts = &__get_cpu_var(tick_cpu_sched);
 	/*
@@ -477,6 +476,8 @@ void __tick_nohz_idle_enter(void)
 	 */
 	ts->inidle = 1;
 	tick_nohz_stop_sched_tick(ts);
+
+	local_irq_enable();
 }
 
 /**
