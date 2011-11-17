@@ -9,6 +9,7 @@ obj-		:=
 
 obj-$(CONFIG_AT91_PMC_UNIT)	+= clock.o
 obj-$(CONFIG_AT91_SAM9_ALT_RESET) += at91sam9_alt_reset.o
+obj-$(CONFIG_AT91_SAM9G45_RESET) += at91sam9g45_reset.o
 
 # CPU-specific support
 obj-$(CONFIG_ARCH_AT91RM9200)	+= at91rm9200.o at91rm9200_time.o at91rm9200_devices.o

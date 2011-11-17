@@ -18,7 +18,6 @@
 #include <asm/mach/map.h>
 #include <mach/at91sam9g45.h>
 #include <mach/at91_pmc.h>
-#include <mach/at91_rstc.h>
 #include <mach/cpu.h>
 
 #include "soc.h"
@@ -317,11 +316,6 @@ static struct at91_gpio_bank at91sam9g45_gpio[] __initdata = {
 		.regbase	= AT91SAM9G45_BASE_PIOE,
 	}
 };
-
-static void at91sam9g45_restart(char mode, const char *cmd)
-{
-	at91_sys_write(AT91_RSTC_CR, AT91_RSTC_KEY | AT91_RSTC_PROCRST | AT91_RSTC_PERRST);
-}
 
 /* --------------------------------------------------------------------
  *  AT91SAM9G45 processor initialization

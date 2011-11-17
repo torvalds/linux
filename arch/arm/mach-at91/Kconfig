@@ -21,6 +21,9 @@ config HAVE_AT91_USART5
 config AT91_SAM9_ALT_RESET
 	bool
 
+config AT91_SAM9G45_RESET
+	bool
+
 menu "Atmel AT91 System-on-Chip"
 
 choice
@@ -97,6 +100,7 @@ config ARCH_AT91SAM9G45
 	select HAVE_FB_ATMEL
 	select HAVE_NET_MACB
 	select HAVE_AT91_DBGU1
+	select AT91_SAM9G45_RESET
 
 config ARCH_AT91CAP9
 	bool "AT91CAP9"
@@ -105,6 +109,7 @@ config ARCH_AT91CAP9
 	select HAVE_FB_ATMEL
 	select HAVE_NET_MACB
 	select HAVE_AT91_DBGU1
+	select AT91_SAM9G45_RESET
 
 config ARCH_AT91X40
 	bool "AT91x40"
