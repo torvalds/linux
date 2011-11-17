@@ -48,6 +48,8 @@
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
 
+#include "mpc85xx.h"
+
 static int sbc_rev;
 
 static void __init sbc8548_pic_init(void)
@@ -149,21 +151,7 @@ static void sbc8548_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "PLL setting\t: 0x%x\n", ((phid1 >> 24) & 0x3f));
 }
 
-static struct of_device_id __initdata of_bus_ids[] = {
-	{ .name = "soc", },
-	{ .type = "soc", },
-	{ .compatible = "simple-bus", },
-	{ .compatible = "gianfar", },
-	{},
-};
-
-static int __init declare_of_platform_devices(void)
-{
-	of_platform_bus_probe(NULL, of_bus_ids, NULL);
-
-	return 0;
-}
-machine_device_initcall(sbc8548, declare_of_platform_devices);
+machine_device_initcall(sbc8548, mpc85xx_common_publish_devices);
 
 /*
  * Called very early, device-tree isn't unflattened

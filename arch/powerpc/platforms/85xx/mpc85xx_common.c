@@ -11,6 +11,22 @@
 
 #include "mpc85xx.h"
 
+static struct of_device_id __initdata mpc85xx_common_ids[] = {
+	{ .type = "soc", },
+	{ .compatible = "soc", },
+	{ .compatible = "simple-bus", },
+	{ .name = "cpm", },
+	{ .name = "localbus", },
+	{ .compatible = "gianfar", },
+	{ .compatible = "fsl,qe", },
+	{ .compatible = "fsl,cpm2", },
+	{},
+};
+
+int __init mpc85xx_common_publish_devices(void)
+{
+	return of_platform_bus_probe(NULL, mpc85xx_common_ids, NULL);
+}
 #ifdef CONFIG_CPM2
 static void cpm2_cascade(unsigned int irq, struct irq_desc *desc)
 {
