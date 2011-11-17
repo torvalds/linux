@@ -22,8 +22,6 @@
 #include "hid-ids.h"
 #include "hid-wiimote.h"
 
-#define WIIMOTE_VERSION "0.2"
-
 enum wiiproto_keys {
 	WIIPROTO_KEY_LEFT,
 	WIIPROTO_KEY_RIGHT,
@@ -1314,4 +1312,3 @@ module_exit(wiimote_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Herrmann <dh.herrmann@gmail.com>");
 MODULE_DESCRIPTION(WIIMOTE_NAME " Device Driver");
-MODULE_VERSION(WIIMOTE_VERSION);
