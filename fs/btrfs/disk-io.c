@@ -1215,6 +1215,14 @@ static int find_and_setup_root(struct btrfs_root *tree_root,
 	return 0;
 }
 
+struct btrfs_root *btrfs_alloc_root(struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_root *root = kzalloc(sizeof(*root), GFP_NOFS);
+	if (root)
+		root->fs_info = fs_info;
+	return root;
+}
+
 static struct btrfs_root *alloc_log_tree(struct btrfs_trans_handle *trans,
 					 struct btrfs_fs_info *fs_info)
 {
@@ -1222,11 +1230,10 @@ static struct btrfs_root *alloc_log_tree(struct btrfs_trans_handle *trans,
 	struct btrfs_root *tree_root = fs_info->tree_root;
 	struct extent_buffer *leaf;
 
-	root = kzalloc(sizeof(*root), GFP_NOFS);
+	root = btrfs_alloc_root(fs_info);
 	if (!root)
 		return ERR_PTR(-ENOMEM);
 
-	root->fs_info = fs_info;
 	__setup_root(tree_root->nodesize, tree_root->leafsize,
 		     tree_root->sectorsize, tree_root->stripesize,
 		     root, fs_info, BTRFS_TREE_LOG_OBJECTID);
@@ -1317,10 +1324,9 @@ struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_root *tree_root,
 	u32 blocksize;
 	int ret = 0;
 
-	root = kzalloc(sizeof(*root), GFP_NOFS);
+	root = btrfs_alloc_root(fs_info);
 	if (!root)
 		return ERR_PTR(-ENOMEM);
-	root->fs_info = fs_info;
 	if (location->offset == (u64)-1) {
 		ret = find_and_setup_root(tree_root, fs_info,
 					  location->objectid, root);
@@ -1900,23 +1906,15 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	int num_backups_tried = 0;
 	int backup_index = 0;
 
-	extent_root = fs_info->extent_root =
-		kzalloc(sizeof(struct btrfs_root), GFP_NOFS);
-	csum_root = fs_info->csum_root =
-		kzalloc(sizeof(struct btrfs_root), GFP_NOFS);
-	chunk_root = fs_info->chunk_root =
-		kzalloc(sizeof(struct btrfs_root), GFP_NOFS);
-	dev_root = fs_info->dev_root =
-		kzalloc(sizeof(struct btrfs_root), GFP_NOFS);
+	extent_root = fs_info->extent_root = btrfs_alloc_root(fs_info);
+	csum_root = fs_info->csum_root = btrfs_alloc_root(fs_info);
+	chunk_root = fs_info->chunk_root = btrfs_alloc_root(fs_info);
+	dev_root = fs_info->dev_root = btrfs_alloc_root(fs_info);
 
 	if (!extent_root || !csum_root || !chunk_root || !dev_root) {
 		err = -ENOMEM;
 		goto fail;
 	}
-	chunk_root->fs_info = fs_info;
-	extent_root->fs_info = fs_info;
-	dev_root->fs_info = fs_info;
-	csum_root->fs_info = fs_info;
 
 	ret = init_srcu_struct(&fs_info->subvol_srcu);
 	if (ret) {
@@ -2372,13 +2370,12 @@ retry_root_backup:
 		     btrfs_level_size(tree_root,
 				      btrfs_super_log_root_level(disk_super));
 
-		log_tree_root = kzalloc(sizeof(struct btrfs_root), GFP_NOFS);
+		log_tree_root = btrfs_alloc_root(fs_info);
 		if (!log_tree_root) {
 			err = -ENOMEM;
 			goto fail_trans_kthread;
 		}
 
-		log_tree_root->fs_info = fs_info;
 		__setup_root(nodesize, leafsize, sectorsize, stripesize,
 			     log_tree_root, fs_info, BTRFS_TREE_LOG_OBJECTID);
 
