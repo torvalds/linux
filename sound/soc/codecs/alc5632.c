@@ -36,7 +36,6 @@
  * ALC5632 register cache
  */
 static struct reg_default  alc5632_reg_defaults[] = {
-	{   0, 0x59B4 },	/* R0   - Reset */
 	{   2, 0x8080 },	/* R2   - Speaker Output Volume */
 	{   4, 0x8080 },	/* R4   - Headphone Output Volume */
 	{   6, 0x8080 },	/* R6   - AUXOUT Volume */
@@ -52,7 +51,6 @@ static struct reg_default  alc5632_reg_defaults[] = {
 	{  34, 0x0000 },	/* R34  - Microphone Control */
 	{  36, 0x00C0 },    /* R36  - Codec Digital MIC/Digital Boost
 						   Control */
-	{  38, 0xEF00 },	/* R38  - Power Down Control/Status */
 	{  46, 0x0000 },	/* R46  - Stereo DAC/Voice DAC/Stereo ADC
 						   Function Select */
 	{  52, 0x8000 },	/* R52  - Main Serial Data Port Control
@@ -70,9 +68,7 @@ static struct reg_default  alc5632_reg_defaults[] = {
 	{  78, 0xBE3E },	/* R78  - GPIO Pin Polarity */
 	{  80, 0x0000 },	/* R80  - GPIO Pin Sticky */
 	{  82, 0x0000 },	/* R82  - GPIO Pin Wake Up */
-	{  84, 0x803A },	/* R84  - GPIO Pin Status */
 	{  86, 0x0000 },	/* R86  - Pin Sharing */
-	{  88, 0x0000 },	/* R88  - Over-Temp/Current Status */
 	{  90, 0x0009 },	/* R90  - Soft Volume Control Setting */
 	{  92, 0x0000 },	/* R92  - GPIO_Output Pin Control */
 	{  94, 0x3000 },	/* R94  - MISC Control */
@@ -82,9 +78,6 @@ static struct reg_default  alc5632_reg_defaults[] = {
 	{ 104, 0x0553 },	/* R104 - Pseudo Stereo and Spatial Effect
 						   Block Control */
 	{ 106, 0x0000 },	/* R106 - Private Register Address */
-	{ 108, 0x0000 },	/* R108 - Private Register Data */
-	{ 110, 0x0000 },	/* R110 - EQ Control and Status/ADC
-							HPF Control */
 };
 
 /* codec private data */
