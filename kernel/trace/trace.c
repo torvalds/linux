@@ -338,7 +338,8 @@ static DECLARE_WAIT_QUEUE_HEAD(trace_wait);
 /* trace_flags holds trace_options default values */
 unsigned long trace_flags = TRACE_ITER_PRINT_PARENT | TRACE_ITER_PRINTK |
 	TRACE_ITER_ANNOTATE | TRACE_ITER_CONTEXT_INFO | TRACE_ITER_SLEEP_TIME |
-	TRACE_ITER_GRAPH_TIME | TRACE_ITER_RECORD_CMD | TRACE_ITER_OVERWRITE;
+	TRACE_ITER_GRAPH_TIME | TRACE_ITER_RECORD_CMD | TRACE_ITER_OVERWRITE |
+	TRACE_ITER_IRQ_INFO;
 
 static int trace_stop_count;
 static DEFINE_RAW_SPINLOCK(tracing_start_lock);
@@ -426,6 +427,7 @@ static const char *trace_options[] = {
 	"record-cmd",
 	"overwrite",
 	"disable_on_free",
+	"irq-info",
 	NULL
 };
 
@@ -1857,10 +1859,20 @@ static void print_lat_help_header(struct seq_file *m)
 
 static void print_func_help_header(struct seq_file *m)
 {
-	seq_puts(m, "#           TASK-PID    CPU#    TIMESTAMP  FUNCTION\n");
+	seq_puts(m, "#           TASK-PID   CPU#      TIMESTAMP  FUNCTION\n");
 	seq_puts(m, "#              | |       |          |         |\n");
 }
 
+static void print_func_help_header_irq(struct seq_file *m)
+{
+	seq_puts(m, "#                              _-----=> irqs-off\n");
+	seq_puts(m, "#                             / _----=> need-resched\n");
+	seq_puts(m, "#                            | / _---=> hardirq/softirq\n");
+	seq_puts(m, "#                            || / _--=> preempt-depth\n");
+	seq_puts(m, "#                            ||| /     delay\n");
+	seq_puts(m, "#           TASK-PID   CPU#  ||||    TIMESTAMP  FUNCTION\n");
+	seq_puts(m, "#              | |       |   ||||       |         |\n");
+}
 
 void
 print_trace_header(struct seq_file *m, struct trace_iterator *iter)
@@ -2170,8 +2182,12 @@ void trace_default_header(struct seq_file *m)
 		if (!(trace_flags & TRACE_ITER_VERBOSE))
 			print_lat_help_header(m);
 	} else {
-		if (!(trace_flags & TRACE_ITER_VERBOSE))
-			print_func_help_header(m);
+		if (!(trace_flags & TRACE_ITER_VERBOSE)) {
+			if (trace_flags & TRACE_ITER_IRQ_INFO)
+				print_func_help_header_irq(m);
+			else
+				print_func_help_header(m);
+		}
 	}
 }
 
