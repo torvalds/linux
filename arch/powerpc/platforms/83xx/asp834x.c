@@ -36,20 +36,7 @@ static void __init asp834x_setup_arch(void)
 	mpc834x_usb_cfg();
 }
 
-static struct __initdata of_device_id asp8347_ids[] = {
-	{ .type = "soc", },
-	{ .compatible = "soc", },
-	{ .compatible = "simple-bus", },
-	{ .compatible = "gianfar", },
-	{},
-};
-
-static int __init asp8347_declare_of_platform_devices(void)
-{
-	of_platform_bus_probe(NULL, asp8347_ids, NULL);
-	return 0;
-}
-machine_device_initcall(asp834x, asp8347_declare_of_platform_devices);
+machine_device_initcall(asp834x, mpc83xx_declare_of_platform_devices);
 
 /*
  * Called very early, MMU is off, device-tree isn't unflattened

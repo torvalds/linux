@@ -92,20 +92,7 @@ static void __init mpc834x_mds_setup_arch(void)
 	mpc834xemds_usb_cfg();
 }
 
-static struct of_device_id mpc834x_ids[] = {
-	{ .type = "soc", },
-	{ .compatible = "soc", },
-	{ .compatible = "simple-bus", },
-	{ .compatible = "gianfar", },
-	{},
-};
-
-static int __init mpc834x_declare_of_platform_devices(void)
-{
-	of_platform_bus_probe(NULL, mpc834x_ids, NULL);
-	return 0;
-}
-machine_device_initcall(mpc834x_mds, mpc834x_declare_of_platform_devices);
+machine_device_initcall(mpc834x_mds, mpc83xx_declare_of_platform_devices);
 
 /*
  * Called very early, MMU is off, device-tree isn't unflattened

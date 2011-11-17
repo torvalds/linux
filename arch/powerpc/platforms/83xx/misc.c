@@ -111,3 +111,20 @@ void __init mpc83xx_ipic_and_qe_init_IRQ(void)
 	mpc83xx_qe_init_IRQ();
 }
 #endif /* CONFIG_QUICC_ENGINE */
+
+static struct of_device_id __initdata of_bus_ids[] = {
+	{ .type = "soc", },
+	{ .compatible = "soc", },
+	{ .compatible = "simple-bus" },
+	{ .compatible = "gianfar" },
+	{ .compatible = "gpio-leds", },
+	{ .type = "qe", },
+	{ .compatible = "fsl,qe", },
+	{},
+};
+
+int __init mpc83xx_declare_of_platform_devices(void)
+{
+	of_platform_bus_probe(NULL, of_bus_ids, NULL);
+	return 0;
+}

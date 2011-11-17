@@ -122,23 +122,7 @@ static void __init mpc83xx_km_setup_arch(void)
 #endif				/* CONFIG_QUICC_ENGINE */
 }
 
-static struct of_device_id kmpbec83xx_ids[] = {
-	{ .type = "soc", },
-	{ .compatible = "soc", },
-	{ .compatible = "simple-bus", },
-	{ .type = "qe", },
-	{ .compatible = "fsl,qe", },
-	{},
-};
-
-static int __init kmeter_declare_of_platform_devices(void)
-{
-	/* Publish the QE devices */
-	of_platform_bus_probe(NULL, kmpbec83xx_ids, NULL);
-
-	return 0;
-}
-machine_device_initcall(mpc83xx_km, kmeter_declare_of_platform_devices);
+machine_device_initcall(mpc83xx_km, mpc83xx_declare_of_platform_devices);
 
 /* list of the supported boards */
 static char *board[] __initdata = {

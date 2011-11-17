@@ -101,23 +101,7 @@ static void __init mpc832x_sys_setup_arch(void)
 #endif				/* CONFIG_QUICC_ENGINE */
 }
 
-static struct of_device_id mpc832x_ids[] = {
-	{ .type = "soc", },
-	{ .compatible = "soc", },
-	{ .compatible = "simple-bus", },
-	{ .type = "qe", },
-	{ .compatible = "fsl,qe", },
-	{},
-};
-
-static int __init mpc832x_declare_of_platform_devices(void)
-{
-	/* Publish the QE devices */
-	of_platform_bus_probe(NULL, mpc832x_ids, NULL);
-
-	return 0;
-}
-machine_device_initcall(mpc832x_mds, mpc832x_declare_of_platform_devices);
+machine_device_initcall(mpc832x_mds, mpc83xx_declare_of_platform_devices);
 
 /*
  * Called very early, MMU is off, device-tree isn't unflattened

@@ -27,16 +27,7 @@
 
 #include "mpc83xx.h"
 
-static struct of_device_id __initdata mpc836x_rdk_ids[] = {
-	{ .compatible = "simple-bus", },
-	{},
-};
-
-static int __init mpc836x_rdk_declare_of_platform_devices(void)
-{
-	return of_platform_bus_probe(NULL, mpc836x_rdk_ids, NULL);
-}
-machine_device_initcall(mpc836x_rdk, mpc836x_rdk_declare_of_platform_devices);
+machine_device_initcall(mpc836x_rdk, mpc83xx_declare_of_platform_devices);
 
 static void __init mpc836x_rdk_setup_arch(void)
 {

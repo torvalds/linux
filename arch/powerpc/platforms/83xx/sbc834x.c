@@ -62,20 +62,7 @@ static void __init sbc834x_setup_arch(void)
 
 }
 
-static struct __initdata of_device_id sbc834x_ids[] = {
-	{ .type = "soc", },
-	{ .compatible = "soc", },
-	{ .compatible = "simple-bus", },
-	{ .compatible = "gianfar", },
-	{},
-};
-
-static int __init sbc834x_declare_of_platform_devices(void)
-{
-	of_platform_bus_probe(NULL, sbc834x_ids, NULL);
-	return 0;
-}
-machine_device_initcall(sbc834x, sbc834x_declare_of_platform_devices);
+machine_device_initcall(sbc834x, mpc83xx_declare_of_platform_devices);
 
 /*
  * Called very early, MMU is off, device-tree isn't unflattened

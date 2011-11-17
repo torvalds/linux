@@ -41,13 +41,12 @@
 
 static struct of_device_id __initdata mpc834x_itx_ids[] = {
 	{ .compatible = "fsl,pq2pro-localbus", },
-	{ .compatible = "simple-bus", },
-	{ .compatible = "gianfar", },
 	{},
 };
 
 static int __init mpc834x_itx_declare_of_platform_devices(void)
 {
+	mpc83xx_declare_of_platform_devices();
 	return of_platform_bus_probe(NULL, mpc834x_itx_ids, NULL);
 }
 machine_device_initcall(mpc834x_itx, mpc834x_itx_declare_of_platform_devices);

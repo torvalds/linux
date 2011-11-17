@@ -144,23 +144,7 @@ static void __init mpc836x_mds_setup_arch(void)
 #endif				/* CONFIG_QUICC_ENGINE */
 }
 
-static struct of_device_id mpc836x_ids[] = {
-	{ .type = "soc", },
-	{ .compatible = "soc", },
-	{ .compatible = "simple-bus", },
-	{ .type = "qe", },
-	{ .compatible = "fsl,qe", },
-	{},
-};
-
-static int __init mpc836x_declare_of_platform_devices(void)
-{
-	/* Publish the QE devices */
-	of_platform_bus_probe(NULL, mpc836x_ids, NULL);
-
-	return 0;
-}
-machine_device_initcall(mpc836x_mds, mpc836x_declare_of_platform_devices);
+machine_device_initcall(mpc836x_mds, mpc83xx_declare_of_platform_devices);
 
 #ifdef CONFIG_QE_USB
 static int __init mpc836x_usb_cfg(void)

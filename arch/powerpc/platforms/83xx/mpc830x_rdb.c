@@ -56,18 +56,7 @@ static int __init mpc830x_rdb_probe(void)
 	return of_flat_dt_match(of_get_flat_dt_root(), board);
 }
 
-static struct of_device_id __initdata of_bus_ids[] = {
-	{ .compatible = "simple-bus" },
-	{ .compatible = "gianfar" },
-	{},
-};
-
-static int __init declare_of_platform_devices(void)
-{
-	of_platform_bus_probe(NULL, of_bus_ids, NULL);
-	return 0;
-}
-machine_device_initcall(mpc830x_rdb, declare_of_platform_devices);
+machine_device_initcall(mpc830x_rdb, mpc83xx_declare_of_platform_devices);
 
 define_machine(mpc830x_rdb) {
 	.name			= "MPC830x RDB",
