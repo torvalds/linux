@@ -321,7 +321,7 @@ static struct mfd_cell stmpe_keypad_cell = {
 };
 
 /*
- * Touchscreen (STMPE811)
+ * Touchscreen (STMPE811 or STMPE610)
  */
 
 static struct resource stmpe_ts_resources[] = {
@@ -346,7 +346,7 @@ static struct mfd_cell stmpe_ts_cell = {
 };
 
 /*
- * STMPE811
+ * STMPE811 or STMPE610
  */
 
 static const u8 stmpe811_regs[] = {
@@ -408,6 +408,21 @@ static struct stmpe_variant_info stmpe811 = {
 	.id_val		= 0x0811,
 	.id_mask	= 0xffff,
 	.num_gpios	= 8,
+	.af_bits	= 1,
+	.regs		= stmpe811_regs,
+	.blocks		= stmpe811_blocks,
+	.num_blocks	= ARRAY_SIZE(stmpe811_blocks),
+	.num_irqs	= STMPE811_NR_INTERNAL_IRQS,
+	.enable		= stmpe811_enable,
+	.get_altfunc	= stmpe811_get_altfunc,
+};
+
+/* Similar to 811, except number of gpios */
+static struct stmpe_variant_info stmpe610 = {
+	.name		= "stmpe610",
+	.id_val		= 0x0811,
+	.id_mask	= 0xffff,
+	.num_gpios	= 6,
 	.af_bits	= 1,
 	.regs		= stmpe811_regs,
 	.blocks		= stmpe811_blocks,
@@ -651,6 +666,7 @@ static struct stmpe_variant_info stmpe2403 = {
 };
 
 static struct stmpe_variant_info *stmpe_variant_info[] = {
+	[STMPE610]	= &stmpe610,
 	[STMPE811]	= &stmpe811,
 	[STMPE1601]	= &stmpe1601,
 	[STMPE2401]	= &stmpe2401,
