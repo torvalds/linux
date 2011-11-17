@@ -15,3 +15,4 @@ obj-$(CONFIG_GENERIC_GPIO)	+= pfc.o
 # special casing can go away.
 #
 obj-$(CONFIG_SUPERH)$(CONFIG_ARCH_SHMOBILE)	+= pm_runtime.o
+obj-$(CONFIG_CPU_SUBTYPE_SH7724)		+= pm_runtime.o

@@ -5,4 +5,6 @@
 # Power Management & Sleep mode
 obj-$(CONFIG_PM)	+= pm.o sleep.o
 obj-$(CONFIG_CPU_IDLE)	+= cpuidle.o
+ifneq ($(CONFIG_CPU_SUBTYPE_SH7724),y)
 obj-$(CONFIG_PM_RUNTIME)	+= pm_runtime.o
+endif
