@@ -634,7 +634,6 @@ static int btrfs_fill_super(struct super_block *sb,
 
 fail_close:
 	close_ctree(tree_root);
-	free_fs_info(fs_info);
 	return err;
 }
 
@@ -947,6 +946,7 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 		error = btrfs_fill_super(s, fs_devices, data,
 					 flags & MS_SILENT ? 1 : 0);
 		if (error) {
+			free_fs_info(fs_info);
 			deactivate_locked_super(s);
 			return ERR_PTR(error);
 		}
