@@ -150,11 +150,10 @@ struct sn_irq_info *sn_retarget_vector(struct sn_irq_info *sn_irq_info,
 	 * PROM does not support SAL_INTR_REDIRECT, or it failed.
 	 * Revert to old method.
 	 */
-	new_irq_info = kmalloc(sizeof(struct sn_irq_info), GFP_ATOMIC);
+	new_irq_info = kmemdup(sn_irq_info, sizeof(struct sn_irq_info),
+			       GFP_ATOMIC);
 	if (new_irq_info == NULL)
 		return NULL;
-
-	memcpy(new_irq_info, sn_irq_info, sizeof(struct sn_irq_info));
 
 	/* Free the old PROM new_irq_info structure */
 	sn_intr_free(local_nasid, local_widget, new_irq_info);
