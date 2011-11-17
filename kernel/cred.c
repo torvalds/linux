@@ -148,6 +148,7 @@ static void put_cred_rcu(struct rcu_head *rcu)
 	if (cred->group_info)
 		put_group_info(cred->group_info);
 	free_uid(cred->user);
+	put_user_ns(cred->user_ns);
 	kmem_cache_free(cred_jar, cred);
 }
 
@@ -303,6 +304,7 @@ struct cred *prepare_creds(void)
 	set_cred_subscribers(new, 0);
 	get_group_info(new->group_info);
 	get_uid(new->user);
+	get_user_ns(new->user_ns);
 
 #ifdef CONFIG_KEYS
 	key_get(new->thread_keyring);
@@ -411,11 +413,6 @@ int copy_creds(struct task_struct *p, unsigned long clone_flags)
 		if (ret < 0)
 			goto error_put;
 	}
-
-	/* cache user_ns in cred.  Doesn't need a refcount because it will
-	 * stay pinned by cred->user
-	 */
-	new->user_ns = new->user->user_ns;
 
 #ifdef CONFIG_KEYS
 	/* new threads get their own thread keyrings if their parent already
@@ -676,6 +673,7 @@ struct cred *prepare_kernel_cred(struct task_struct *daemon)
 	atomic_set(&new->usage, 1);
 	set_cred_subscribers(new, 0);
 	get_uid(new->user);
+	get_user_ns(new->user_ns);
 	get_group_info(new->group_info);
 
 #ifdef CONFIG_KEYS

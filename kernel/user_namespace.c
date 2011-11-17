@@ -24,7 +24,7 @@ static struct kmem_cache *user_ns_cachep __read_mostly;
  */
 int create_user_ns(struct cred *new)
 {
-	struct user_namespace *ns;
+	struct user_namespace *ns, *parent_ns = new->user_ns;
 	struct user_struct *root_user;
 	int n;
 
@@ -57,8 +57,10 @@ int create_user_ns(struct cred *new)
 #endif
 	/* tgcred will be cleared in our caller bc CLONE_THREAD won't be set */
 
-	/* root_user holds a reference to ns, our reference can be dropped */
-	put_user_ns(ns);
+	/* Leave the reference to our user_ns with the new cred */
+	new->user_ns = ns;
+
+	put_user_ns(parent_ns);
 
 	return 0;
 }
