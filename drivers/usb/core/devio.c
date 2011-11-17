@@ -110,15 +110,33 @@ enum snoop_when {
 #define USB_DEVICE_DEV		MKDEV(USB_DEVICE_MAJOR, 0)
 
 /* Limit on the total amount of memory we can allocate for transfers */
-#define MAX_USBFS_MEMORY_USAGE	16777216	/* 16 MB */
+static unsigned usbfs_memory_mb = 16;
+module_param(usbfs_memory_mb, uint, 0644);
+MODULE_PARM_DESC(usbfs_memory_mb,
+		"maximum MB allowed for usbfs buffers (0 = no limit)");
+
+/* Hard limit, necessary to avoid aithmetic overflow */
+#define USBFS_XFER_MAX		(UINT_MAX / 2 - 1000000)
 
 static atomic_t usbfs_memory_usage;	/* Total memory currently allocated */
 
 /* Check whether it's okay to allocate more memory for a transfer */
 static int usbfs_increase_memory_usage(unsigned amount)
 {
+	unsigned lim;
+
+	/*
+	 * Convert usbfs_memory_mb to bytes, avoiding overflows.
+	 * 0 means use the hard limit (effectively unlimited).
+	 */
+	lim = ACCESS_ONCE(usbfs_memory_mb);
+	if (lim == 0 || lim > (USBFS_XFER_MAX >> 20))
+		lim = USBFS_XFER_MAX;
+	else
+		lim <<= 20;
+
 	atomic_add(amount, &usbfs_memory_usage);
-	if (atomic_read(&usbfs_memory_usage) <= MAX_USBFS_MEMORY_USAGE)
+	if (atomic_read(&usbfs_memory_usage) <= lim)
 		return 0;
 	atomic_sub(amount, &usbfs_memory_usage);
 	return -ENOMEM;
@@ -907,7 +925,7 @@ static int proc_bulk(struct dev_state *ps, void __user *arg)
 	if (!usb_maxpacket(dev, pipe, !(bulk.ep & USB_DIR_IN)))
 		return -EINVAL;
 	len1 = bulk.len;
-	if (len1 > MAX_USBFS_MEMORY_USAGE)
+	if (len1 >= USBFS_XFER_MAX)
 		return -EINVAL;
 	ret = usbfs_increase_memory_usage(len1 + sizeof(struct urb));
 	if (ret)
@@ -1227,7 +1245,7 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 		return -EINVAL;
 	}
 
-	if (uurb->buffer_length > MAX_USBFS_MEMORY_USAGE) {
+	if (uurb->buffer_length >= USBFS_XFER_MAX) {
 		ret = -EINVAL;
 		goto error;
 	}
