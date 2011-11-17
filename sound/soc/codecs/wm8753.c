@@ -189,6 +189,9 @@ static int wm8753_set_dai(struct snd_kcontrol *kcontrol,
 	struct wm8753_priv *wm8753 = snd_soc_codec_get_drvdata(codec);
 	u16 ioctl;
 
+	if (wm8753->dai_func == ucontrol->value.integer.value[0])
+		return 0;
+
 	if (codec->active)
 		return -EBUSY;
 
