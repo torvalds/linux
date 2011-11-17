@@ -104,19 +104,15 @@ int team_options_register(struct team *team,
 	if (!dst_opts)
 		return -ENOMEM;
 	for (i = 0; i < option_count; i++, option++) {
-		struct team_option *dst_opt;
-
 		if (__team_find_option(team, option->name)) {
 			err = -EEXIST;
 			goto rollback;
 		}
-		dst_opt = kmalloc(sizeof(*option), GFP_KERNEL);
-		if (!dst_opt) {
+		dst_opts[i] = kmemdup(option, sizeof(*option), GFP_KERNEL);
+		if (!dst_opts[i]) {
 			err = -ENOMEM;
 			goto rollback;
 		}
-		memcpy(dst_opt, option, sizeof(*option));
-		dst_opts[i] = dst_opt;
 	}
 
 	for (i = 0; i < option_count; i++)
