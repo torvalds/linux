@@ -188,11 +188,22 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 		if (!is_valid_ether_addr(sdata->u.wds.remote_addr))
 			return -ENOLINK;
 		break;
-	case NL80211_IFTYPE_AP_VLAN:
+	case NL80211_IFTYPE_AP_VLAN: {
+		struct ieee80211_sub_if_data *master;
+
 		if (!sdata->bss)
 			return -ENOLINK;
+
 		list_add(&sdata->u.vlan.list, &sdata->bss->vlans);
+
+		master = container_of(sdata->bss,
+				      struct ieee80211_sub_if_data, u.ap);
+		sdata->control_port_protocol =
+			master->control_port_protocol;
+		sdata->control_port_no_encrypt =
+			master->control_port_no_encrypt;
 		break;
+		}
 	case NL80211_IFTYPE_AP:
 		sdata->bss = &sdata->u.ap;
 		break;
@@ -265,7 +276,7 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 		break;
 	default:
 		if (coming_up) {
-			res = drv_add_interface(local, &sdata->vif);
+			res = drv_add_interface(local, sdata);
 			if (res)
 				goto err_stop;
 		}
@@ -282,10 +293,18 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 		changed |= ieee80211_reset_erp_info(sdata);
 		ieee80211_bss_info_change_notify(sdata, changed);
 
-		if (sdata->vif.type == NL80211_IFTYPE_STATION)
+		if (sdata->vif.type == NL80211_IFTYPE_STATION ||
+		    sdata->vif.type == NL80211_IFTYPE_ADHOC)
 			netif_carrier_off(dev);
 		else
 			netif_carrier_on(dev);
+
+		/*
+		 * set default queue parameters so drivers don't
+		 * need to initialise the hardware if the hardware
+		 * doesn't start up with sane defaults
+		 */
+		ieee80211_set_wmm_default(sdata);
 	}
 
 	set_bit(SDATA_STATE_RUNNING, &sdata->state);
@@ -329,15 +348,8 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 	if (coming_up)
 		local->open_count++;
 
-	if (hw_reconf_flags) {
+	if (hw_reconf_flags)
 		ieee80211_hw_config(local, hw_reconf_flags);
-		/*
-		 * set default queue parameters so drivers don't
-		 * need to initialise the hardware if the hardware
-		 * doesn't start up with sane defaults
-		 */
-		ieee80211_set_wmm_default(sdata);
-	}
 
 	ieee80211_recalc_ps(local, -1);
 
@@ -345,7 +357,7 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 
 	return 0;
  err_del_interface:
-	drv_remove_interface(local, &sdata->vif);
+	drv_remove_interface(local, sdata);
  err_stop:
 	if (!local->open_count)
 		drv_stop(local);
@@ -450,15 +462,19 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		struct ieee80211_sub_if_data *vlan, *tmpsdata;
 		struct beacon_data *old_beacon =
 			rtnl_dereference(sdata->u.ap.beacon);
+		struct sk_buff *old_probe_resp =
+			rtnl_dereference(sdata->u.ap.probe_resp);
 
 		/* sdata_running will return false, so this will disable */
 		ieee80211_bss_info_change_notify(sdata,
 						 BSS_CHANGED_BEACON_ENABLED);
 
-		/* remove beacon */
+		/* remove beacon and probe response */
 		RCU_INIT_POINTER(sdata->u.ap.beacon, NULL);
+		RCU_INIT_POINTER(sdata->u.ap.probe_resp, NULL);
 		synchronize_rcu();
 		kfree(old_beacon);
+		kfree(old_probe_resp);
 
 		/* down all dependent devices, that is VLANs */
 		list_for_each_entry_safe(vlan, tmpsdata, &sdata->u.ap.vlans,
@@ -520,7 +536,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		ieee80211_free_keys(sdata);
 
 		if (going_down)
-			drv_remove_interface(local, &sdata->vif);
+			drv_remove_interface(local, sdata);
 	}
 
 	sdata->bss = NULL;

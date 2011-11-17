@@ -1469,7 +1469,7 @@ mwifiex_update_curr_bss_params(struct mwifiex_private *priv, u8 *bssid,
 			       s32 rssi, const u8 *ie_buf, size_t ie_len,
 			       u16 beacon_period, u16 cap_info_bitmap, u8 band)
 {
-	struct mwifiex_bssdescriptor *bss_desc = NULL;
+	struct mwifiex_bssdescriptor *bss_desc;
 	int ret;
 	unsigned long flags;
 	u8 *beacon_ie;
@@ -1484,6 +1484,7 @@ mwifiex_update_curr_bss_params(struct mwifiex_private *priv, u8 *bssid,
 
 	beacon_ie = kmemdup(ie_buf, ie_len, GFP_KERNEL);
 	if (!beacon_ie) {
+		kfree(bss_desc);
 		dev_err(priv->adapter->dev, " failed to alloc beacon_ie\n");
 		return -ENOMEM;
 	}
@@ -1532,11 +1533,6 @@ done:
 	kfree(bss_desc);
 	kfree(beacon_ie);
 	return 0;
-}
-
-static void mwifiex_free_bss_priv(struct cfg80211_bss *bss)
-{
-	kfree(bss->priv);
 }
 
 /*
@@ -1764,7 +1760,7 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 					      cap_info_bitmap, beacon_period,
 					      ie_buf, ie_len, rssi, GFP_KERNEL);
 				*(u8 *)bss->priv = band;
-				bss->free_priv = mwifiex_free_bss_priv;
+				cfg80211_put_bss(bss);
 
 				if (priv->media_connected && !memcmp(bssid,
 					priv->curr_bss_params.bss_descriptor

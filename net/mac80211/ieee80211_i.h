@@ -24,6 +24,7 @@
 #include <linux/spinlock.h>
 #include <linux/etherdevice.h>
 #include <linux/leds.h>
+#include <linux/idr.h>
 #include <net/ieee80211_radiotap.h>
 #include <net/cfg80211.h>
 #include <net/mac80211.h>
@@ -184,12 +185,15 @@ enum ieee80211_packet_rx_flags {
  * enum ieee80211_rx_flags - RX data flags
  *
  * @IEEE80211_RX_CMNTR: received on cooked monitor already
+ * @IEEE80211_RX_BEACON_REPORTED: This frame was already reported
+ *	to cfg80211_report_obss_beacon().
  *
  * These flags are used across handling multiple interfaces
  * for a single frame.
  */
 enum ieee80211_rx_flags {
 	IEEE80211_RX_CMNTR		= BIT(0),
+	IEEE80211_RX_BEACON_REPORTED	= BIT(1),
 };
 
 struct ieee80211_rx_data {
@@ -228,6 +232,7 @@ struct beacon_data {
 
 struct ieee80211_if_ap {
 	struct beacon_data __rcu *beacon;
+	struct sk_buff __rcu *probe_resp;
 
 	struct list_head vlans;
 
@@ -543,6 +548,7 @@ struct ieee80211_if_mesh {
  *	associated stations and deliver multicast frames both
  *	back to wireless media and to the local net stack.
  * @IEEE80211_SDATA_DISCONNECT_RESUME: Disconnect after resume.
+ * @IEEE80211_SDATA_IN_DRIVER: indicates interface was added to driver
  */
 enum ieee80211_sub_if_data_flags {
 	IEEE80211_SDATA_ALLMULTI		= BIT(0),
@@ -550,6 +556,7 @@ enum ieee80211_sub_if_data_flags {
 	IEEE80211_SDATA_OPERATING_GMODE		= BIT(2),
 	IEEE80211_SDATA_DONT_BRIDGE_PACKETS	= BIT(3),
 	IEEE80211_SDATA_DISCONNECT_RESUME	= BIT(4),
+	IEEE80211_SDATA_IN_DRIVER		= BIT(5),
 };
 
 /**
@@ -722,17 +729,16 @@ enum {
  *	operating channel
  * @SCAN_SET_CHANNEL: Set the next channel to be scanned
  * @SCAN_SEND_PROBE: Send probe requests and wait for probe responses
- * @SCAN_LEAVE_OPER_CHANNEL: Leave the operating channel, notify the AP
- *	about us leaving the channel and stop all associated STA interfaces
- * @SCAN_ENTER_OPER_CHANNEL: Enter the operating channel again, notify the
- *	AP about us being back and restart all associated STA interfaces
+ * @SCAN_SUSPEND: Suspend the scan and go back to operating channel to
+ *	send out data
+ * @SCAN_RESUME: Resume the scan and scan the next channel
  */
 enum mac80211_scan_state {
 	SCAN_DECISION,
 	SCAN_SET_CHANNEL,
 	SCAN_SEND_PROBE,
-	SCAN_LEAVE_OPER_CHANNEL,
-	SCAN_ENTER_OPER_CHANNEL,
+	SCAN_SUSPEND,
+	SCAN_RESUME,
 };
 
 struct ieee80211_local {
@@ -1011,6 +1017,9 @@ struct ieee80211_local {
 	unsigned int hw_roc_duration;
 	u32 hw_roc_cookie;
 	bool hw_roc_for_tx;
+
+	struct idr ack_status_frames;
+	spinlock_t ack_status_lock;
 
 	/* dummy netdev for use w/ NAPI */
 	struct net_device napi_dev;
@@ -1334,6 +1343,12 @@ void ieee80211_recalc_smps(struct ieee80211_local *local);
 size_t ieee80211_ie_split(const u8 *ies, size_t ielen,
 			  const u8 *ids, int n_ids, size_t offset);
 size_t ieee80211_ie_split_vendor(const u8 *ies, size_t ielen, size_t offset);
+u8 *ieee80211_ie_build_ht_cap(u8 *pos, struct ieee80211_supported_band *sband,
+			      u16 cap);
+u8 *ieee80211_ie_build_ht_info(u8 *pos,
+				struct ieee80211_sta_ht_cap *ht_cap,
+				struct ieee80211_channel *channel,
+				enum nl80211_channel_type channel_type);
 
 /* internal work items */
 void ieee80211_work_init(struct ieee80211_local *local);
@@ -1362,6 +1377,8 @@ ieee80211_get_channel_mode(struct ieee80211_local *local,
 bool ieee80211_set_channel_type(struct ieee80211_local *local,
 				struct ieee80211_sub_if_data *sdata,
 				enum nl80211_channel_type chantype);
+enum nl80211_channel_type
+ieee80211_ht_info_to_channel_type(struct ieee80211_ht_info *ht_info);
 
 #ifdef CONFIG_MAC80211_NOINLINE
 #define debug_noinline noinline

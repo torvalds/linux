@@ -199,12 +199,14 @@ static void ar9003_hw_spur_mitigate_mrc_cck(struct ath_hw *ah,
 			synth_freq = chan->channel;
 		}
 	} else {
-		range = 10;
+		range = AR_SREV_9462(ah) ? 5 : 10;
 		max_spur_cnts = 4;
 		synth_freq = chan->channel;
 	}
 
 	for (i = 0; i < max_spur_cnts; i++) {
+		if (AR_SREV_9462(ah) && (i == 0 || i == 3))
+			continue;
 		negative = 0;
 		if (AR_SREV_9485(ah) || AR_SREV_9340(ah) || AR_SREV_9330(ah))
 			cur_bb_spur = FBIN2FREQ(spur_fbin_ptr[i],

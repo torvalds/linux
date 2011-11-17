@@ -83,7 +83,7 @@ u16 ieee80211_select_queue(struct ieee80211_sub_if_data *sdata,
 		break;
 #ifdef CONFIG_MAC80211_MESH
 	case NL80211_IFTYPE_MESH_POINT:
-		ra = skb->data;
+		qos = true;
 		break;
 #endif
 	case NL80211_IFTYPE_STATION:
@@ -143,11 +143,15 @@ void ieee80211_set_qos_hdr(struct ieee80211_sub_if_data *sdata,
 	/* Fill in the QoS header if there is one. */
 	if (ieee80211_is_data_qos(hdr->frame_control)) {
 		u8 *p = ieee80211_get_qos_ctl(hdr);
-		u8 ack_policy = 0, tid;
+		u8 ack_policy, tid;
 
 		tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
 
-		if (unlikely(sdata->local->wifi_wme_noack_test))
+		/* preserve EOSP bit */
+		ack_policy = *p & IEEE80211_QOS_CTL_EOSP;
+
+		if (unlikely(sdata->local->wifi_wme_noack_test) ||
+		    is_multicast_ether_addr(hdr->addr1))
 			ack_policy |= IEEE80211_QOS_CTL_ACK_POLICY_NOACK;
 		/* qos header is 2 bytes */
 		*p++ = ack_policy | tid;

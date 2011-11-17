@@ -189,8 +189,8 @@ static void ath_btcoex_period_timer(unsigned long data)
 	bool is_btscan;
 
 	ath9k_ps_wakeup(sc);
-	ath_detect_bt_priority(sc);
-
+	if (!(ah->caps.hw_caps & ATH9K_HW_CAP_MCI))
+		ath_detect_bt_priority(sc);
 	is_btscan = sc->sc_flags & SC_OP_BT_SCAN;
 
 	spin_lock_bh(&btcoex->btcoex_lock);
@@ -212,8 +212,9 @@ static void ath_btcoex_period_timer(unsigned long data)
 	}
 
 	ath9k_ps_restore(sc);
+	timer_period = btcoex->btcoex_period / 1000;
 	mod_timer(&btcoex->period_timer, jiffies +
-				  msecs_to_jiffies(ATH_BTCOEX_DEF_BT_PERIOD));
+				  msecs_to_jiffies(timer_period));
 }
 
 /*

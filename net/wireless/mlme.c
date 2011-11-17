@@ -879,6 +879,9 @@ void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlpid)
 	}
 
 	spin_unlock_bh(&wdev->mgmt_registrations_lock);
+
+	if (nlpid == wdev->ap_unexpected_nlpid)
+		wdev->ap_unexpected_nlpid = 0;
 }
 
 void cfg80211_mlme_purge_registrations(struct wireless_dev *wdev)
@@ -901,7 +904,7 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 			  enum nl80211_channel_type channel_type,
 			  bool channel_type_valid, unsigned int wait,
 			  const u8 *buf, size_t len, bool no_cck,
-			  u64 *cookie)
+			  bool dont_wait_for_ack, u64 *cookie)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	const struct ieee80211_mgmt *mgmt;
@@ -992,7 +995,8 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 	/* Transmit the Action frame as requested by user space */
 	return rdev->ops->mgmt_tx(&rdev->wiphy, dev, chan, offchan,
 				  channel_type, channel_type_valid,
-				  wait, buf, len, no_cck, cookie);
+				  wait, buf, len, no_cck, dont_wait_for_ack,
+				  cookie);
 }
 
 bool cfg80211_rx_mgmt(struct net_device *dev, int freq, const u8 *buf,
@@ -1107,3 +1111,30 @@ void cfg80211_pmksa_candidate_notify(struct net_device *dev, int index,
 	nl80211_pmksa_candidate_notify(rdev, dev, index, bssid, preauth, gfp);
 }
 EXPORT_SYMBOL(cfg80211_pmksa_candidate_notify);
+
+bool cfg80211_rx_spurious_frame(struct net_device *dev,
+				const u8 *addr, gfp_t gfp)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+
+	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_AP &&
+		    wdev->iftype != NL80211_IFTYPE_P2P_GO))
+		return false;
+
+	return nl80211_unexpected_frame(dev, addr, gfp);
+}
+EXPORT_SYMBOL(cfg80211_rx_spurious_frame);
+
+bool cfg80211_rx_unexpected_4addr_frame(struct net_device *dev,
+					const u8 *addr, gfp_t gfp)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+
+	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_AP &&
+		    wdev->iftype != NL80211_IFTYPE_P2P_GO &&
+		    wdev->iftype != NL80211_IFTYPE_AP_VLAN))
+		return false;
+
+	return nl80211_unexpected_4addr_frame(dev, addr, gfp);
+}
+EXPORT_SYMBOL(cfg80211_rx_unexpected_4addr_frame);

@@ -80,6 +80,7 @@ struct brcms_info {
 	struct brcms_firmware fw;
 	struct wiphy *wiphy;
 	struct brcms_ucode ucode;
+	bool mute_tx;
 };
 
 /* misc callbacks */
@@ -104,5 +105,6 @@ extern bool brcms_del_timer(struct brcms_timer *timer);
 extern void brcms_msleep(struct brcms_info *wl, uint ms);
 extern void brcms_dpc(unsigned long data);
 extern void brcms_timer(struct brcms_timer *t);
+extern void brcms_fatal_error(struct brcms_info *wl);
 
 #endif				/* _BRCM_MAC80211_IF_H_ */

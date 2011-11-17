@@ -386,7 +386,6 @@ static int mwifiex_pcie_create_txbd_ring(struct mwifiex_adapter *adapter)
 	card->txbd_ring_vbase = kzalloc(card->txbd_ring_size, GFP_KERNEL);
 	if (!card->txbd_ring_vbase) {
 		dev_err(adapter->dev, "Unable to allocate buffer for txbd ring.\n");
-		kfree(card->txbd_ring_vbase);
 		return -1;
 	}
 	card->txbd_ring_pbase = virt_to_phys(card->txbd_ring_vbase);
@@ -1229,9 +1228,12 @@ static int mwifiex_pcie_event_complete(struct mwifiex_adapter *adapter,
 	if (!skb)
 		return 0;
 
-	if (rdptr >= MWIFIEX_MAX_EVT_BD)
+	if (rdptr >= MWIFIEX_MAX_EVT_BD) {
 		dev_err(adapter->dev, "event_complete: Invalid rdptr 0x%x\n",
 					rdptr);
+		ret = -EINVAL;
+		goto done;
+	}
 
 	/* Read the event ring write pointer set by firmware */
 	if (mwifiex_read_reg(adapter, REG_EVTBD_WRPTR, &wrptr)) {
@@ -1672,9 +1674,8 @@ static int mwifiex_pcie_host_to_card(struct mwifiex_adapter *adapter, u8 type,
 				     struct sk_buff *skb,
 				     struct mwifiex_tx_param *tx_param)
 {
-	if (!adapter || !skb) {
-		dev_err(adapter->dev, "Invalid parameter in %s <%p, %p>\n",
-				__func__, adapter, skb);
+	if (!skb) {
+		dev_err(adapter->dev, "Passed NULL skb to %s\n", __func__);
 		return -1;
 	}
 

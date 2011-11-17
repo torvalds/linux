@@ -44,8 +44,6 @@
 /* transmit buffer max headroom for protocol headers */
 #define TXOFF (D11_TXH_LEN + D11_PHY_HDR_LEN)
 
-#define AC_COUNT		4
-
 /* Macros for doing definition and get/set of bitfields
  * Usage example, e.g. a three-bit field (bits 4-6):
  *    #define <NAME>_M	BITFIELD_MASK(3)
@@ -427,11 +425,6 @@ struct brcms_txq_info {
  * bandinit_pending: track band init in auto band.
  * radio_monitor: radio timer is running.
  * going_down: down path intermediate variable.
- * mpc: enable minimum power consumption.
- * mpc_dlycnt: # of watchdog cnt before turn disable radio.
- * mpc_offcnt: # of watchdog cnt that radio is disabled.
- * mpc_delay_off: delay radio disable by # of watchdog cnt.
- * prev_non_delay_mpc: prev state brcms_c_is_non_delay_mpc.
  * wdtimer: timer for watchdog routine.
  * radio_timer: timer for hw radio button monitor routine.
  * monitor: monitor (MPDU sniffing) mode.
@@ -441,7 +434,7 @@ struct brcms_txq_info {
  * bcn_li_dtim: beacon listen interval in # dtims.
  * WDarmed: watchdog timer is armed.
  * WDlast: last time wlc_watchdog() was called.
- * edcf_txop[AC_COUNT]: current txop for each ac.
+ * edcf_txop[IEEE80211_NUM_ACS]: current txop for each ac.
  * wme_retries: per-AC retry limits.
  * tx_prec_map: Precedence map based on HW FIFO space.
  * fifo2prec_map[NFIFO]: pointer to fifo2_prec map based on WME.
@@ -522,12 +515,6 @@ struct brcms_c_info {
 	bool radio_monitor;
 	bool going_down;
 
-	bool mpc;
-	u8 mpc_dlycnt;
-	u8 mpc_offcnt;
-	u8 mpc_delay_off;
-	u8 prev_non_delay_mpc;
-
 	struct brcms_timer *wdtimer;
 	struct brcms_timer *radio_timer;
 
@@ -546,9 +533,9 @@ struct brcms_c_info {
 	u32 WDlast;
 
 	/* WME */
-	u16 edcf_txop[AC_COUNT];
+	u16 edcf_txop[IEEE80211_NUM_ACS];
 
-	u16 wme_retries[AC_COUNT];
+	u16 wme_retries[IEEE80211_NUM_ACS];
 	u16 tx_prec_map;
 	u16 fifo2prec_map[NFIFO];
 

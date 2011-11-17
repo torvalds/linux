@@ -131,6 +131,14 @@ static struct ieee80211_rate ipw2200_rates[] = {
 #define ipw2200_bg_rates	(ipw2200_rates + 0)
 #define ipw2200_num_bg_rates	12
 
+/* Ugly macro to convert literal channel numbers into their mhz equivalents
+ * There are certianly some conditions that will break this (like feeding it '30')
+ * but they shouldn't arise since nothing talks on channel 30. */
+#define ieee80211chan2mhz(x) \
+	(((x) <= 14) ? \
+	(((x) == 14) ? 2484 : ((x) * 5) + 2407) : \
+	((x) + 1000) * 5)
+
 #ifdef CONFIG_IPW2200_QOS
 static int qos_enable = 0;
 static int qos_burst_enable = 0;

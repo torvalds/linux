@@ -126,7 +126,10 @@ static inline int nci_request(struct nci_dev *ndev,
 
 static void nci_reset_req(struct nci_dev *ndev, unsigned long opt)
 {
-	nci_send_cmd(ndev, NCI_OP_CORE_RESET_CMD, 0, NULL);
+	struct nci_core_reset_cmd cmd;
+
+	cmd.reset_type = NCI_RESET_TYPE_RESET_CONFIG;
+	nci_send_cmd(ndev, NCI_OP_CORE_RESET_CMD, 1, &cmd);
 }
 
 static void nci_init_req(struct nci_dev *ndev, unsigned long opt)
@@ -136,16 +139,10 @@ static void nci_init_req(struct nci_dev *ndev, unsigned long opt)
 
 static void nci_init_complete_req(struct nci_dev *ndev, unsigned long opt)
 {
-	struct nci_core_conn_create_cmd conn_cmd;
 	struct nci_rf_disc_map_cmd cmd;
 	struct disc_map_config *cfg = cmd.mapping_configs;
 	__u8 *num = &cmd.num_mapping_configs;
 	int i;
-
-	/* create static rf connection */
-	conn_cmd.target_handle = 0;
-	conn_cmd.num_target_specific_params = 0;
-	nci_send_cmd(ndev, NCI_OP_CORE_CONN_CREATE_CMD, 2, &conn_cmd);
 
 	/* set rf mapping configurations */
 	*num = 0;
@@ -470,7 +467,7 @@ static int nci_data_exchange(struct nfc_dev *nfc_dev, __u32 target_idx,
 	ndev->data_exchange_cb = cb;
 	ndev->data_exchange_cb_context = cb_context;
 
-	rc = nci_send_data(ndev, ndev->conn_id, skb);
+	rc = nci_send_data(ndev, NCI_STATIC_RF_CONN_ID, skb);
 	if (rc)
 		clear_bit(NCI_DATA_EXCHANGE, &ndev->flags);
 
@@ -726,7 +723,10 @@ static void nci_tx_work(struct work_struct *work)
 		if (!skb)
 			return;
 
-		atomic_dec(&ndev->credits_cnt);
+		/* Check if data flow control is used */
+		if (atomic_read(&ndev->credits_cnt) !=
+				NCI_DATA_FLOW_CONTROL_NOT_USED)
+			atomic_dec(&ndev->credits_cnt);
 
 		nfc_dbg("NCI TX: MT=data, PBF=%d, conn_id=%d, plen=%d",
 				nci_pbf(skb->data),

@@ -70,10 +70,25 @@ do {                                            			\
 			       DUMP_PREFIX_OFFSET, 16, 1, p, len, 1);	\
 } while (0)
 
+#define IWL_DEBUG_QUIET_RFKILL(p, fmt, args...)			\
+do {									\
+	if (!iwl_is_rfkill(p->shrd))				\
+		dev_printk(KERN_ERR, bus(p)->dev, "%c %s " fmt,	\
+		(in_interrupt() ? 'I' : 'U'), __func__ , ##args);	\
+	else if	(iwl_get_debug_level(p->shrd) & IWL_DL_RADIO)	\
+		dev_printk(KERN_ERR, bus(p)->dev, "(RFKILL) %c %s " fmt, \
+		(in_interrupt() ? 'I' : 'U'), __func__ , ##args);	\
+} while (0)
+
 #else
 #define IWL_DEBUG(m, level, fmt, args...)
 #define IWL_DEBUG_LIMIT(m, level, fmt, args...)
 #define iwl_print_hex_dump(m, level, p, len)
+#define IWL_DEBUG_QUIET_RFKILL(p, fmt, args...)	\
+do {							\
+	if (!iwl_is_rfkill(p->shrd))			\
+		IWL_ERR(p, fmt, ##args);		\
+} while (0)
 #endif				/* CONFIG_IWLWIFI_DEBUG */
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
@@ -151,7 +166,7 @@ static inline void iwl_dbgfs_unregister(struct iwl_priv *priv)
 #define IWL_DL_11H		(1 << 28)
 #define IWL_DL_STATS		(1 << 29)
 #define IWL_DL_TX_REPLY		(1 << 30)
-#define IWL_DL_QOS		(1 << 31)
+#define IWL_DL_TX_QUEUES	(1 << 31)
 
 #define IWL_DEBUG_INFO(p, f, a...)	IWL_DEBUG(p, IWL_DL_INFO, f, ## a)
 #define IWL_DEBUG_MAC80211(p, f, a...)	IWL_DEBUG(p, IWL_DL_MAC80211, f, ## a)
@@ -188,7 +203,7 @@ static inline void iwl_dbgfs_unregister(struct iwl_priv *priv)
 #define IWL_DEBUG_TX_REPLY(p, f, a...)	IWL_DEBUG(p, IWL_DL_TX_REPLY, f, ## a)
 #define IWL_DEBUG_TX_REPLY_LIMIT(p, f, a...) \
 		IWL_DEBUG_LIMIT(p, IWL_DL_TX_REPLY, f, ## a)
-#define IWL_DEBUG_QOS(p, f, a...)	IWL_DEBUG(p, IWL_DL_QOS, f, ## a)
+#define IWL_DEBUG_TX_QUEUES(p, f, a...)	IWL_DEBUG(p, IWL_DL_TX_QUEUES, f, ## a)
 #define IWL_DEBUG_RADIO(p, f, a...)	IWL_DEBUG(p, IWL_DL_RADIO, f, ## a)
 #define IWL_DEBUG_POWER(p, f, a...)	IWL_DEBUG(p, IWL_DL_POWER, f, ## a)
 #define IWL_DEBUG_11H(p, f, a...)	IWL_DEBUG(p, IWL_DL_11H, f, ## a)

@@ -87,7 +87,7 @@
 #define TOE_TX_CSUM_OL		0x00000001
 #define TOE_RX_CSUM_OL		0x00000002
 
-#define	BRCMF_BSS_INFO_VERSION	108 /* current ver of brcmf_bss_info struct */
+#define	BRCMF_BSS_INFO_VERSION	108 /* curr ver of brcmf_bss_info_le struct */
 
 /* size of brcmf_scan_params not including variable length array */
 #define BRCMF_SCAN_PARAMS_FIXED_SIZE 64
@@ -122,8 +122,6 @@
 
 /* For supporting multiple interfaces */
 #define BRCMF_MAX_IFS	16
-#define BRCMF_DEL_IF	-0xe
-#define BRCMF_BAD_IF	-0xf
 
 #define DOT11_BSSTYPE_ANY			2
 #define DOT11_MAX_DEFAULT_KEYS	4
@@ -365,7 +363,7 @@ struct brcmf_pkt_filter_enable_le {
  * Applications MUST CHECK ie_offset field and length field to access IEs and
  * next bss_info structure in a vector (in struct brcmf_scan_results)
  */
-struct brcmf_bss_info {
+struct brcmf_bss_info_le {
 	__le32 version;		/* version field */
 	__le32 length;		/* byte length of data in this record,
 				 * starting at version and including IEs
@@ -466,14 +464,13 @@ struct brcmf_scan_results {
 	u32 buflen;
 	u32 version;
 	u32 count;
-	struct brcmf_bss_info bss_info[1];
+	struct brcmf_bss_info_le bss_info_le[];
 };
 
 struct brcmf_scan_results_le {
 	__le32 buflen;
 	__le32 version;
 	__le32 count;
-	struct brcmf_bss_info bss_info[1];
 };
 
 /* used for association with a specific BSSID and chanspec list */
@@ -493,10 +490,6 @@ struct brcmf_join_params {
 	struct brcmf_assoc_params_le params_le;
 };
 
-/* size of brcmf_scan_results not including variable length array */
-#define BRCMF_SCAN_RESULTS_FIXED_SIZE \
-	(sizeof(struct brcmf_scan_results) - sizeof(struct brcmf_bss_info))
-
 /* incremental scan results struct */
 struct brcmf_iscan_results {
 	union {
@@ -511,7 +504,7 @@ struct brcmf_iscan_results {
 
 /* size of brcmf_iscan_results not including variable length array */
 #define BRCMF_ISCAN_RESULTS_FIXED_SIZE \
-	(BRCMF_SCAN_RESULTS_FIXED_SIZE + \
+	(sizeof(struct brcmf_scan_results) + \
 	 offsetof(struct brcmf_iscan_results, results))
 
 struct brcmf_wsec_key {
@@ -734,8 +727,7 @@ extern int brcmf_c_host_event(struct brcmf_info *drvr_priv, int *idx,
 extern void brcmf_c_init(void);
 
 extern int brcmf_add_if(struct brcmf_info *drvr_priv, int ifidx,
-			struct net_device *ndev, char *name, u8 *mac_addr,
-			u32 flags, u8 bssidx);
+			char *name, u8 *mac_addr);
 extern void brcmf_del_if(struct brcmf_info *drvr_priv, int ifidx);
 
 /* Send packet to dongle via data channel */

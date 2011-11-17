@@ -14,7 +14,6 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include <linux/slab.h>
-#include <linux/skbuff.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
 
@@ -22,6 +21,7 @@
 #include <aiutils.h>
 #include "types.h"
 #include "dma.h"
+#include "soc.h"
 
 /*
  * DMA hardware requires each descriptor ring to be 8kB aligned, and fit within
@@ -358,13 +358,14 @@ static uint nrxdactive(struct dma_info *di, uint h, uint t)
 
 static uint _dma_ctrlflags(struct dma_info *di, uint mask, uint flags)
 {
-	uint dmactrlflags = di->dma.dmactrlflags;
+	uint dmactrlflags;
 
 	if (di == NULL) {
-		DMA_ERROR(("%s: _dma_ctrlflags: NULL dma handle\n", di->name));
+		DMA_ERROR(("_dma_ctrlflags: NULL dma handle\n"));
 		return 0;
 	}
 
+	dmactrlflags = di->dma.dmactrlflags;
 	dmactrlflags &= ~mask;
 	dmactrlflags |= flags;
 
@@ -900,7 +901,7 @@ static struct sk_buff *_dma_getnextrxp(struct dma_info *di, bool forceall)
 
 /*
  * !! rx entry routine
- * returns a pointer to the next frame received, or NULL if there are no more
+ * returns the number packages in the next frame, or 0 if there are no more
  *   if DMA_CTRL_RXMULTI is defined, DMA scattering(multiple buffers) is
  *   supported with pkts chain
  *   otherwise, it's treated as giant pkt and will be tossed.
@@ -908,38 +909,40 @@ static struct sk_buff *_dma_getnextrxp(struct dma_info *di, bool forceall)
  *   buffer data. After it reaches the max size of buffer, the data continues
  *   in next DMA descriptor buffer WITHOUT DMA header
  */
-struct sk_buff *dma_rx(struct dma_pub *pub)
+int dma_rx(struct dma_pub *pub, struct sk_buff_head *skb_list)
 {
 	struct dma_info *di = (struct dma_info *)pub;
-	struct sk_buff *p, *head, *tail;
+	struct sk_buff_head dma_frames;
+	struct sk_buff *p, *next;
 	uint len;
 	uint pkt_len;
 	int resid = 0;
+	int pktcnt = 1;
 
+	skb_queue_head_init(&dma_frames);
  next_frame:
-	head = _dma_getnextrxp(di, false);
-	if (head == NULL)
-		return NULL;
+	p = _dma_getnextrxp(di, false);
+	if (p == NULL)
+		return 0;
 
-	len = le16_to_cpu(*(__le16 *) (head->data));
+	len = le16_to_cpu(*(__le16 *) (p->data));
 	DMA_TRACE(("%s: dma_rx len %d\n", di->name, len));
-	dma_spin_for_len(len, head);
+	dma_spin_for_len(len, p);
 
 	/* set actual length */
 	pkt_len = min((di->rxoffset + len), di->rxbufsize);
-	__skb_trim(head, pkt_len);
+	__skb_trim(p, pkt_len);
+	skb_queue_tail(&dma_frames, p);
 	resid = len - (di->rxbufsize - di->rxoffset);
 
 	/* check for single or multi-buffer rx */
 	if (resid > 0) {
-		tail = head;
 		while ((resid > 0) && (p = _dma_getnextrxp(di, false))) {
-			tail->next = p;
 			pkt_len = min_t(uint, resid, di->rxbufsize);
 			__skb_trim(p, pkt_len);
-
-			tail = p;
+			skb_queue_tail(&dma_frames, p);
 			resid -= di->rxbufsize;
+			pktcnt++;
 		}
 
 #ifdef BCMDBG
@@ -958,13 +961,18 @@ struct sk_buff *dma_rx(struct dma_pub *pub)
 		if ((di->dma.dmactrlflags & DMA_CTRL_RXMULTI) == 0) {
 			DMA_ERROR(("%s: dma_rx: bad frame length (%d)\n",
 				   di->name, len));
-			brcmu_pkt_buf_free_skb(head);
+			skb_queue_walk_safe(&dma_frames, p, next) {
+				skb_unlink(p, &dma_frames);
+				brcmu_pkt_buf_free_skb(p);
+			}
 			di->dma.rxgiants++;
+			pktcnt = 1;
 			goto next_frame;
 		}
 	}
 
-	return head;
+	skb_queue_splice_tail(&dma_frames, skb_list);
+	return pktcnt;
 }
 
 static bool dma64_rxidle(struct dma_info *di)

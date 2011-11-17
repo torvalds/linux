@@ -1231,7 +1231,7 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 			txq->need_update = 1;
 			iwl_txq_update_write_ptr(trans, txq);
 		} else {
-			iwl_stop_queue(trans, txq);
+			iwl_stop_queue(trans, txq, "Queue is full");
 		}
 	}
 	return 0;
@@ -1283,20 +1283,21 @@ static int iwlagn_txq_check_empty(struct iwl_trans *trans,
 		/* aggregated HW queue */
 		if ((txq_id  == tid_data->agg.txq_id) &&
 		    (q->read_ptr == q->write_ptr)) {
-			IWL_DEBUG_HT(trans,
+			IWL_DEBUG_TX_QUEUES(trans,
 				"HW queue empty: continue DELBA flow\n");
 			iwl_trans_pcie_txq_agg_disable(trans, txq_id);
 			tid_data->agg.state = IWL_AGG_OFF;
 			iwl_stop_tx_ba_trans_ready(priv(trans),
 						   NUM_IWL_RXON_CTX,
 						   sta_id, tid);
-			iwl_wake_queue(trans, &trans_pcie->txq[txq_id]);
+			iwl_wake_queue(trans, &trans_pcie->txq[txq_id],
+				       "DELBA flow complete");
 		}
 		break;
 	case IWL_EMPTYING_HW_QUEUE_ADDBA:
 		/* We are reclaiming the last packet of the queue */
 		if (tid_data->tfds_in_queue == 0) {
-			IWL_DEBUG_HT(trans,
+			IWL_DEBUG_TX_QUEUES(trans,
 				"HW queue empty: continue ADDBA flow\n");
 			tid_data->agg.state = IWL_AGG_ON;
 			iwl_start_tx_ba_trans_ready(priv(trans),
@@ -1354,7 +1355,7 @@ static void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int sta_id, int tid,
 				ssn , tfd_num, txq_id, txq->swq_id);
 		freed = iwl_tx_queue_reclaim(trans, txq_id, tfd_num, skbs);
 		if (iwl_queue_space(&txq->q) > txq->q.low_mark && cond)
-			iwl_wake_queue(trans, txq);
+			iwl_wake_queue(trans, txq, "Packets reclaimed");
 	}
 
 	iwl_free_tfds_in_queue(trans, sta_id, tid, freed);
@@ -1418,7 +1419,8 @@ static int iwl_trans_pcie_resume(struct iwl_trans *trans)
 #endif /* CONFIG_PM_SLEEP */
 
 static void iwl_trans_pcie_wake_any_queue(struct iwl_trans *trans,
-					  enum iwl_rxon_context_id ctx)
+					  enum iwl_rxon_context_id ctx,
+					  const char *msg)
 {
 	u8 ac, txq_id;
 	struct iwl_trans_pcie *trans_pcie =
@@ -1426,11 +1428,11 @@ static void iwl_trans_pcie_wake_any_queue(struct iwl_trans *trans,
 
 	for (ac = 0; ac < AC_NUM; ac++) {
 		txq_id = trans_pcie->ac_to_queue[ctx][ac];
-		IWL_DEBUG_INFO(trans, "Queue Status: Q[%d] %s\n",
+		IWL_DEBUG_TX_QUEUES(trans, "Queue Status: Q[%d] %s\n",
 			ac,
 			(atomic_read(&trans_pcie->queue_stop_count[ac]) > 0)
 			      ? "stopped" : "awake");
-		iwl_wake_queue(trans, &trans_pcie->txq[txq_id]);
+		iwl_wake_queue(trans, &trans_pcie->txq[txq_id], msg);
 	}
 }
 
@@ -1453,11 +1455,12 @@ static struct iwl_trans *iwl_trans_pcie_alloc(struct iwl_shared *shrd)
 	return iwl_trans;
 }
 
-static void iwl_trans_pcie_stop_queue(struct iwl_trans *trans, int txq_id)
+static void iwl_trans_pcie_stop_queue(struct iwl_trans *trans, int txq_id,
+				      const char *msg)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	iwl_stop_queue(trans, &trans_pcie->txq[txq_id]);
+	iwl_stop_queue(trans, &trans_pcie->txq[txq_id], msg);
 }
 
 #define IWL_FLUSH_WAIT_MS	2000

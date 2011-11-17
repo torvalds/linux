@@ -171,7 +171,8 @@ struct iwl_trans_ops {
 	void (*tx_start)(struct iwl_trans *trans);
 
 	void (*wake_any_queue)(struct iwl_trans *trans,
-			       enum iwl_rxon_context_id ctx);
+			       enum iwl_rxon_context_id ctx,
+			       const char *msg);
 
 	int (*send_cmd)(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 
@@ -196,7 +197,7 @@ struct iwl_trans_ops {
 
 	void (*free)(struct iwl_trans *trans);
 
-	void (*stop_queue)(struct iwl_trans *trans, int q);
+	void (*stop_queue)(struct iwl_trans *trans, int q, const char *msg);
 
 	int (*dbgfs_register)(struct iwl_trans *trans, struct dentry* dir);
 	int (*check_stuck_queue)(struct iwl_trans *trans, int q);
@@ -207,16 +208,47 @@ struct iwl_trans_ops {
 #endif
 };
 
+/* one for each uCode image (inst/data, boot/init/runtime) */
+struct fw_desc {
+	dma_addr_t p_addr;	/* hardware address */
+	void *v_addr;		/* software address */
+	u32 len;		/* size in bytes */
+};
+
+struct fw_img {
+	struct fw_desc code;	/* firmware code image */
+	struct fw_desc data;	/* firmware data image */
+};
+
+enum iwl_ucode_type {
+	IWL_UCODE_NONE,
+	IWL_UCODE_REGULAR,
+	IWL_UCODE_INIT,
+	IWL_UCODE_WOWLAN,
+};
+
 /**
  * struct iwl_trans - transport common data
  * @ops - pointer to iwl_trans_ops
  * @shrd - pointer to iwl_shared which holds shared data from the upper layer
  * @hcmd_lock: protects HCMD
+ * @ucode_write_complete: indicates that the ucode has been copied.
+ * @ucode_rt: run time ucode image
+ * @ucode_init: init ucode image
+ * @ucode_wowlan: wake on wireless ucode image (optional)
  */
 struct iwl_trans {
 	const struct iwl_trans_ops *ops;
 	struct iwl_shared *shrd;
 	spinlock_t hcmd_lock;
+
+	u8 ucode_write_complete;	/* the image write is complete */
+	struct fw_img ucode_rt;
+	struct fw_img ucode_init;
+	struct fw_img ucode_wowlan;
+
+	/* eeprom related variables */
+	int    nvm_device_type;
 
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
@@ -249,9 +281,10 @@ static inline void iwl_trans_tx_start(struct iwl_trans *trans)
 }
 
 static inline void iwl_trans_wake_any_queue(struct iwl_trans *trans,
-					    enum iwl_rxon_context_id ctx)
+					    enum iwl_rxon_context_id ctx,
+					    const char *msg)
 {
-	trans->ops->wake_any_queue(trans, ctx);
+	trans->ops->wake_any_queue(trans, ctx, msg);
 }
 
 
@@ -311,9 +344,10 @@ static inline void iwl_trans_free(struct iwl_trans *trans)
 	trans->ops->free(trans);
 }
 
-static inline void iwl_trans_stop_queue(struct iwl_trans *trans, int q)
+static inline void iwl_trans_stop_queue(struct iwl_trans *trans, int q,
+					const char *msg)
 {
-	trans->ops->stop_queue(trans, q);
+	trans->ops->stop_queue(trans, q, msg);
 }
 
 static inline int iwl_trans_wait_tx_queue_empty(struct iwl_trans *trans)
@@ -347,5 +381,9 @@ static inline int iwl_trans_resume(struct iwl_trans *trans)
 * Transport layers implementations
 ******************************************************/
 extern const struct iwl_trans_ops trans_ops_pcie;
+
+int iwl_alloc_fw_desc(struct iwl_bus *bus, struct fw_desc *desc,
+		      const void *data, size_t len);
+void iwl_dealloc_ucode(struct iwl_trans *trans);
 
 #endif /* __iwl_trans_h__ */

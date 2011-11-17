@@ -230,17 +230,6 @@ struct iwl_vif_priv {
 	u8 ibss_bssid_sta_id;
 };
 
-/* one for each uCode image (inst/data, boot/init/runtime) */
-struct fw_desc {
-	void *v_addr;		/* access by driver */
-	dma_addr_t p_addr;	/* access by card's busmaster DMA */
-	u32 len;		/* bytes */
-};
-
-struct fw_img {
-	struct fw_desc code, data;
-};
-
 /* v1/v2 uCode file layout */
 struct iwl_ucode_header {
 	__le32 ver;	/* major/minor/API/serial */
@@ -805,13 +794,6 @@ enum iwl_scan_type {
 	IWL_SCAN_ROC,
 };
 
-enum iwlagn_ucode_type {
-	IWL_UCODE_NONE,
-	IWL_UCODE_REGULAR,
-	IWL_UCODE_INIT,
-	IWL_UCODE_WOWLAN,
-};
-
 #ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
 struct iwl_testmode_trace {
 	u32 buff_size;
@@ -823,6 +805,12 @@ struct iwl_testmode_trace {
 	bool trace_enabled;
 };
 #endif
+
+struct iwl_wipan_noa_data {
+	struct rcu_head rcu_head;
+	u32 length;
+	u8 data[];
+};
 
 struct iwl_priv {
 
@@ -883,6 +871,8 @@ struct iwl_priv {
 	/* init calibration results */
 	struct iwl_calib_result calib_results[IWL_CALIB_MAX];
 
+	struct iwl_wipan_noa_data __rcu *noa_data;
+
 	/* Scan related variables */
 	unsigned long scan_start;
 	unsigned long scan_start_tsf;
@@ -907,12 +897,7 @@ struct iwl_priv {
 	u32 ucode_ver;			/* version of ucode, copy of
 					   iwl_ucode.ver */
 
-	struct fw_img ucode_rt;
-	struct fw_img ucode_init;
-	struct fw_img ucode_wowlan;
-
-	enum iwlagn_ucode_type ucode_type;
-	u8 ucode_write_complete;	/* the image write is complete */
+	enum iwl_ucode_type ucode_type;
 	char firmware_name[25];
 
 	struct iwl_rxon_context contexts[NUM_IWL_RXON_CTX];
@@ -959,7 +944,6 @@ struct iwl_priv {
 
 	/* eeprom -- this is in the card's little endian byte order */
 	u8 *eeprom;
-	int    nvm_device_type;
 	struct iwl_eeprom_calib_info *calib_info;
 
 	enum nl80211_iftype iw_mode;

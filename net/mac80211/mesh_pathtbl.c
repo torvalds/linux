@@ -213,7 +213,6 @@ void mesh_path_assign_nexthop(struct mesh_path *mpath, struct sta_info *sta)
 	struct ieee80211_hdr *hdr;
 	struct sk_buff_head tmpq;
 	unsigned long flags;
-	struct ieee80211_sub_if_data *sdata = mpath->sdata;
 
 	rcu_assign_pointer(mpath->next_hop, sta);
 
@@ -224,8 +223,6 @@ void mesh_path_assign_nexthop(struct mesh_path *mpath, struct sta_info *sta)
 	while ((skb = __skb_dequeue(&mpath->frame_queue)) != NULL) {
 		hdr = (struct ieee80211_hdr *) skb->data;
 		memcpy(hdr->addr1, sta->sta.addr, ETH_ALEN);
-		skb_set_queue_mapping(skb, ieee80211_select_queue(sdata, skb));
-		ieee80211_set_qos_hdr(sdata, skb);
 		__skb_queue_tail(&tmpq, skb);
 	}
 

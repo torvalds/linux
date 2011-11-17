@@ -1685,8 +1685,10 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	int nh_pos, h_pos;
 	struct sta_info *sta = NULL;
 	bool wme_sta = false, authorized = false, tdls_auth = false;
-	struct sk_buff *tmp_skb;
 	bool tdls_direct = false;
+	bool multicast;
+	u32 info_flags = 0;
+	u16 info_id = 0;
 
 	if (unlikely(skb->len < ETH_HLEN)) {
 		ret = NETDEV_TX_OK;
@@ -1873,7 +1875,8 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	 * if it is a multicast address (which can only happen
 	 * in AP mode)
 	 */
-	if (!is_multicast_ether_addr(hdr.addr1)) {
+	multicast = is_multicast_ether_addr(hdr.addr1);
+	if (!multicast) {
 		rcu_read_lock();
 		sta = sta_info_get(sdata, hdr.addr1);
 		if (sta) {
@@ -1914,11 +1917,54 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		goto fail;
 	}
 
+	if (unlikely(!multicast && skb->sk &&
+		     skb_shinfo(skb)->tx_flags & SKBTX_WIFI_STATUS)) {
+		struct sk_buff *orig_skb = skb;
+
+		skb = skb_clone(skb, GFP_ATOMIC);
+		if (skb) {
+			unsigned long flags;
+			int id, r;
+
+			spin_lock_irqsave(&local->ack_status_lock, flags);
+			r = idr_get_new_above(&local->ack_status_frames,
+					      orig_skb, 1, &id);
+			if (r == -EAGAIN) {
+				idr_pre_get(&local->ack_status_frames,
+					    GFP_ATOMIC);
+				r = idr_get_new_above(&local->ack_status_frames,
+						      orig_skb, 1, &id);
+			}
+			if (WARN_ON(!id) || id > 0xffff) {
+				idr_remove(&local->ack_status_frames, id);
+				r = -ERANGE;
+			}
+			spin_unlock_irqrestore(&local->ack_status_lock, flags);
+
+			if (!r) {
+				info_id = id;
+				info_flags |= IEEE80211_TX_CTL_REQ_TX_STATUS;
+			} else if (skb_shared(skb)) {
+				kfree_skb(orig_skb);
+			} else {
+				kfree_skb(skb);
+				skb = orig_skb;
+			}
+		} else {
+			/* couldn't clone -- lose tx status ... */
+			skb = orig_skb;
+		}
+	}
+
 	/*
 	 * If the skb is shared we need to obtain our own copy.
 	 */
 	if (skb_shared(skb)) {
-		tmp_skb = skb;
+		struct sk_buff *tmp_skb = skb;
+
+		/* can't happen -- skb is a clone if info_id != 0 */
+		WARN_ON(info_id);
+
 		skb = skb_clone(skb, GFP_ATOMIC);
 		kfree_skb(tmp_skb);
 
@@ -2019,6 +2065,10 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	memset(info, 0, sizeof(*info));
 
 	dev->trans_start = jiffies;
+
+	info->flags = info_flags;
+	info->ack_frame_id = info_id;
+
 	ieee80211_xmit(sdata, skb);
 
 	return NETDEV_TX_OK;
@@ -2279,22 +2329,31 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 	} else if (ieee80211_vif_is_mesh(&sdata->vif)) {
 		struct ieee80211_mgmt *mgmt;
 		u8 *pos;
+		int hdr_len = offsetof(struct ieee80211_mgmt, u.beacon) +
+			      sizeof(mgmt->u.beacon);
 
 #ifdef CONFIG_MAC80211_MESH
 		if (!sdata->u.mesh.mesh_id_len)
 			goto out;
 #endif
 
-		/* headroom, head length, tail length and maximum TIM length */
-		skb = dev_alloc_skb(local->tx_headroom + 400 +
-				sdata->u.mesh.ie_len);
+		skb = dev_alloc_skb(local->tx_headroom +
+				    hdr_len +
+				    2 + /* NULL SSID */
+				    2 + 8 + /* supported rates */
+				    2 + 3 + /* DS params */
+				    2 + (IEEE80211_MAX_SUPP_RATES - 8) +
+				    2 + sizeof(struct ieee80211_ht_cap) +
+				    2 + sizeof(struct ieee80211_ht_info) +
+				    2 + sdata->u.mesh.mesh_id_len +
+				    2 + sizeof(struct ieee80211_meshconf_ie) +
+				    sdata->u.mesh.ie_len);
 		if (!skb)
 			goto out;
 
 		skb_reserve(skb, local->hw.extra_tx_headroom);
-		mgmt = (struct ieee80211_mgmt *)
-			skb_put(skb, 24 + sizeof(mgmt->u.beacon));
-		memset(mgmt, 0, 24 + sizeof(mgmt->u.beacon));
+		mgmt = (struct ieee80211_mgmt *) skb_put(skb, hdr_len);
+		memset(mgmt, 0, hdr_len);
 		mgmt->frame_control =
 		    cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_BEACON);
 		memset(mgmt->da, 0xff, ETH_ALEN);
@@ -2313,6 +2372,8 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 		    mesh_add_ds_params_ie(skb, sdata) ||
 		    ieee80211_add_ext_srates_ie(&sdata->vif, skb) ||
 		    mesh_add_rsn_ie(skb, sdata) ||
+		    mesh_add_ht_cap_ie(skb, sdata) ||
+		    mesh_add_ht_info_ie(skb, sdata) ||
 		    mesh_add_meshid_ie(skb, sdata) ||
 		    mesh_add_meshconf_ie(skb, sdata) ||
 		    mesh_add_vendor_ies(skb, sdata)) {
@@ -2354,6 +2415,37 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 	return skb;
 }
 EXPORT_SYMBOL(ieee80211_beacon_get_tim);
+
+struct sk_buff *ieee80211_proberesp_get(struct ieee80211_hw *hw,
+					struct ieee80211_vif *vif)
+{
+	struct ieee80211_if_ap *ap = NULL;
+	struct sk_buff *presp = NULL, *skb = NULL;
+	struct ieee80211_hdr *hdr;
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+
+	if (sdata->vif.type != NL80211_IFTYPE_AP)
+		return NULL;
+
+	rcu_read_lock();
+
+	ap = &sdata->u.ap;
+	presp = rcu_dereference(ap->probe_resp);
+	if (!presp)
+		goto out;
+
+	skb = skb_copy(presp, GFP_ATOMIC);
+	if (!skb)
+		goto out;
+
+	hdr = (struct ieee80211_hdr *) skb->data;
+	memset(hdr->addr1, 0, sizeof(hdr->addr1));
+
+out:
+	rcu_read_unlock();
+	return skb;
+}
+EXPORT_SYMBOL(ieee80211_proberesp_get);
 
 struct sk_buff *ieee80211_pspoll_get(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif)

@@ -103,7 +103,6 @@ static void ieee80211_add_ht_ie(struct sk_buff *skb, const u8 *ht_info_ie,
 	u8 *pos;
 	u32 flags = channel->flags;
 	u16 cap = sband->ht_cap.cap;
-	__le16 tmp;
 
 	if (!sband->ht_cap.ht_supported)
 		return;
@@ -154,34 +153,8 @@ static void ieee80211_add_ht_ie(struct sk_buff *skb, const u8 *ht_info_ie,
 	}
 
 	/* reserve and fill IE */
-
 	pos = skb_put(skb, sizeof(struct ieee80211_ht_cap) + 2);
-	*pos++ = WLAN_EID_HT_CAPABILITY;
-	*pos++ = sizeof(struct ieee80211_ht_cap);
-	memset(pos, 0, sizeof(struct ieee80211_ht_cap));
-
-	/* capability flags */
-	tmp = cpu_to_le16(cap);
-	memcpy(pos, &tmp, sizeof(u16));
-	pos += sizeof(u16);
-
-	/* AMPDU parameters */
-	*pos++ = sband->ht_cap.ampdu_factor |
-		 (sband->ht_cap.ampdu_density <<
-			IEEE80211_HT_AMPDU_PARM_DENSITY_SHIFT);
-
-	/* MCS set */
-	memcpy(pos, &sband->ht_cap.mcs, sizeof(sband->ht_cap.mcs));
-	pos += sizeof(sband->ht_cap.mcs);
-
-	/* extended capabilities */
-	pos += sizeof(__le16);
-
-	/* BF capabilities */
-	pos += sizeof(__le32);
-
-	/* antenna selection */
-	pos += sizeof(u8);
+	ieee80211_ie_build_ht_cap(pos, sband, cap);
 }
 
 static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
@@ -969,10 +942,9 @@ static void ieee80211_work_work(struct work_struct *work)
 		}
 
 		if (!started && !local->tmp_channel) {
-			bool on_oper_chan;
-			bool tmp_chan_changed = false;
-			bool on_oper_chan2;
+			bool on_oper_chan, on_oper_chan2;
 			enum nl80211_channel_type wk_ct;
+
 			on_oper_chan = ieee80211_cfg_on_oper_channel(local);
 
 			/* Work with existing channel type if possible. */
@@ -980,11 +952,6 @@ static void ieee80211_work_work(struct work_struct *work)
 			if (wk->chan == local->hw.conf.channel)
 				wk_ct = ieee80211_calc_ct(wk->chan_type,
 						local->hw.conf.channel_type);
-
-			if (local->tmp_channel)
-				if ((local->tmp_channel != wk->chan) ||
-				    (local->tmp_channel_type != wk_ct))
-					tmp_chan_changed = true;
 
 			local->tmp_channel = wk->chan;
 			local->tmp_channel_type = wk_ct;
@@ -1008,12 +975,7 @@ static void ieee80211_work_work(struct work_struct *work)
 								    true,
 								    false);
 				}
-			} else if (tmp_chan_changed)
-				/* Still off-channel, but on some other
-				 * channel, so update hardware.
-				 * PS should already be off-channel.
-				 */
-				ieee80211_hw_config(local, 0);
+			}
 
 			started = true;
 			wk->timeout = jiffies;

@@ -237,10 +237,6 @@ struct iwl_cfg {
  *   L i b                 *
  ***************************/
 
-int iwlagn_mac_conf_tx(struct ieee80211_hw *hw,
-		    struct ieee80211_vif *vif, u16 queue,
-		    const struct ieee80211_tx_queue_params *params);
-int iwlagn_mac_tx_last_beacon(struct ieee80211_hw *hw);
 void iwl_set_rxon_hwcrypto(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 			   int hw_decrypt);
 int iwl_check_rxon_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
@@ -260,13 +256,6 @@ bool iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
 void iwl_connection_init_rx_config(struct iwl_priv *priv,
 				   struct iwl_rxon_context *ctx);
 void iwl_set_rate(struct iwl_priv *priv);
-int iwlagn_mac_add_interface(struct ieee80211_hw *hw,
-			  struct ieee80211_vif *vif);
-void iwlagn_mac_remove_interface(struct ieee80211_hw *hw,
-			      struct ieee80211_vif *vif);
-int iwlagn_mac_change_interface(struct ieee80211_hw *hw,
-			     struct ieee80211_vif *vif,
-			     enum nl80211_iftype newtype, bool newp2p);
 int iwl_cmd_echo_test(struct iwl_priv *priv);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 int iwl_alloc_traffic_mem(struct iwl_priv *priv);
@@ -323,9 +312,6 @@ void iwl_init_scan_params(struct iwl_priv *priv);
 int iwl_scan_cancel(struct iwl_priv *priv);
 void iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms);
 void iwl_force_scan_end(struct iwl_priv *priv);
-int iwlagn_mac_hw_scan(struct ieee80211_hw *hw,
-		    struct ieee80211_vif *vif,
-		    struct cfg80211_scan_request *req);
 void iwl_internal_short_hw_scan(struct iwl_priv *priv);
 int iwl_force_reset(struct iwl_priv *priv, int mode, bool external);
 u16 iwl_fill_probe_req(struct iwl_priv *priv, struct ieee80211_mgmt *frame,

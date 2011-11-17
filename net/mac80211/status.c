@@ -517,27 +517,54 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	}
 
 	if (info->flags & IEEE80211_TX_INTFL_NL80211_FRAME_TX) {
-		struct ieee80211_work *wk;
 		u64 cookie = (unsigned long)skb;
 
-		rcu_read_lock();
-		list_for_each_entry_rcu(wk, &local->work_list, list) {
-			if (wk->type != IEEE80211_WORK_OFFCHANNEL_TX)
-				continue;
-			if (wk->offchan_tx.frame != skb)
-				continue;
-			wk->offchan_tx.status = true;
-			break;
-		}
-		rcu_read_unlock();
-		if (local->hw_roc_skb_for_status == skb) {
-			cookie = local->hw_roc_cookie ^ 2;
-			local->hw_roc_skb_for_status = NULL;
-		}
+		if (ieee80211_is_nullfunc(hdr->frame_control) ||
+		    ieee80211_is_qos_nullfunc(hdr->frame_control)) {
+			bool acked = info->flags & IEEE80211_TX_STAT_ACK;
+			cfg80211_probe_status(skb->dev, hdr->addr1,
+					      cookie, acked, GFP_ATOMIC);
+		} else {
+			struct ieee80211_work *wk;
 
-		cfg80211_mgmt_tx_status(
-			skb->dev, cookie, skb->data, skb->len,
-			!!(info->flags & IEEE80211_TX_STAT_ACK), GFP_ATOMIC);
+			rcu_read_lock();
+			list_for_each_entry_rcu(wk, &local->work_list, list) {
+				if (wk->type != IEEE80211_WORK_OFFCHANNEL_TX)
+					continue;
+				if (wk->offchan_tx.frame != skb)
+					continue;
+				wk->offchan_tx.status = true;
+				break;
+			}
+			rcu_read_unlock();
+			if (local->hw_roc_skb_for_status == skb) {
+				cookie = local->hw_roc_cookie ^ 2;
+				local->hw_roc_skb_for_status = NULL;
+			}
+
+			cfg80211_mgmt_tx_status(
+				skb->dev, cookie, skb->data, skb->len,
+				!!(info->flags & IEEE80211_TX_STAT_ACK),
+				GFP_ATOMIC);
+		}
+	}
+
+	if (unlikely(info->ack_frame_id)) {
+		struct sk_buff *ack_skb;
+		unsigned long flags;
+
+		spin_lock_irqsave(&local->ack_status_lock, flags);
+		ack_skb = idr_find(&local->ack_status_frames,
+				   info->ack_frame_id);
+		if (ack_skb)
+			idr_remove(&local->ack_status_frames,
+				   info->ack_frame_id);
+		spin_unlock_irqrestore(&local->ack_status_lock, flags);
+
+		/* consumes ack_skb */
+		if (ack_skb)
+			skb_complete_wifi_ack(ack_skb,
+				info->flags & IEEE80211_TX_STAT_ACK);
 	}
 
 	/* this was a transmitted frame, but now we want to reuse it */
@@ -610,3 +637,29 @@ void ieee80211_report_low_ack(struct ieee80211_sta *pubsta, u32 num_packets)
 				    num_packets, GFP_ATOMIC);
 }
 EXPORT_SYMBOL(ieee80211_report_low_ack);
+
+void ieee80211_free_txskb(struct ieee80211_hw *hw, struct sk_buff *skb)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+
+	if (unlikely(info->ack_frame_id)) {
+		struct sk_buff *ack_skb;
+		unsigned long flags;
+
+		spin_lock_irqsave(&local->ack_status_lock, flags);
+		ack_skb = idr_find(&local->ack_status_frames,
+				   info->ack_frame_id);
+		if (ack_skb)
+			idr_remove(&local->ack_status_frames,
+				   info->ack_frame_id);
+		spin_unlock_irqrestore(&local->ack_status_lock, flags);
+
+		/* consumes ack_skb */
+		if (ack_skb)
+			dev_kfree_skb_any(ack_skb);
+	}
+
+	dev_kfree_skb_any(skb);
+}
+EXPORT_SYMBOL(ieee80211_free_txskb);

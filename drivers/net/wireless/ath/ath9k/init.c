@@ -424,6 +424,8 @@ static int ath9k_init_btcoex(struct ath_softc *sc)
 		txq = sc->tx.txq_map[WME_AC_BE];
 		ath9k_hw_init_btcoex_hw(sc->sc_ah, txq->axq_qnum);
 		sc->btcoex.bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
+		sc->btcoex.duty_cycle = ATH_BTCOEX_DEF_DUTY_CYCLE;
+		INIT_LIST_HEAD(&sc->btcoex.mci.info);
 		break;
 	default:
 		WARN_ON(1);
@@ -695,6 +697,7 @@ void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 		hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
 	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
+	hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS;
 
 	hw->queues = 4;
 	hw->max_rates = 4;

@@ -77,8 +77,9 @@
 #define	DMEMS_CORE_ID		0x835	/* SDR/DDR1 memory controller core */
 #define	DEF_SHIM_COMP		0x837	/* SHIM component in ubus/6362 */
 #define OOB_ROUTER_CORE_ID	0x367	/* OOB router core ID */
-/* Default component, in ai chips it maps all unused address ranges */
-#define	DEF_AI_COMP		0xfff
+#define	DEF_AI_COMP		0xfff	/* Default component, in ai chips it
+					 * maps all unused address ranges
+					 */
 
 /* Common core control flags */
 #define	SICF_BIST_EN		0x8000
@@ -86,5 +87,12 @@
 #define	SICF_CORE_BITS		0x3ffc
 #define	SICF_FGC		0x0002
 #define	SICF_CLOCK_EN		0x0001
+
+/* Common core status flags */
+#define	SISF_BIST_DONE		0x8000
+#define	SISF_BIST_ERROR		0x4000
+#define	SISF_GATED_CLK		0x2000
+#define	SISF_DMA64		0x1000
+#define	SISF_CORE_BITS		0x0fff
 
 #endif				/* _BRCM_SOC_H */

@@ -113,20 +113,20 @@ static int mesh_path_sel_frame_tx(enum mpath_frame_type action, u8 flags,
 		struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
-	struct sk_buff *skb = dev_alloc_skb(local->hw.extra_tx_headroom + 400);
+	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
-	u8 *pos;
-	int ie_len;
+	u8 *pos, ie_len;
+	int hdr_len = offsetof(struct ieee80211_mgmt, u.action.u.mesh_action) +
+		      sizeof(mgmt->u.action.u.mesh_action);
 
+	skb = dev_alloc_skb(local->hw.extra_tx_headroom +
+			    hdr_len +
+			    2 + 37); /* max HWMP IE */
 	if (!skb)
 		return -1;
 	skb_reserve(skb, local->hw.extra_tx_headroom);
-	/* 25 is the size of the common mgmt part (24) plus the size of the
-	 * common action part (1)
-	 */
-	mgmt = (struct ieee80211_mgmt *)
-		skb_put(skb, 25 + sizeof(mgmt->u.action.u.mesh_action));
-	memset(mgmt, 0, 25 + sizeof(mgmt->u.action.u.mesh_action));
+	mgmt = (struct ieee80211_mgmt *) skb_put(skb, hdr_len);
+	memset(mgmt, 0, hdr_len);
 	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					  IEEE80211_STYPE_ACTION);
 
@@ -240,20 +240,20 @@ int mesh_path_error_tx(u8 ttl, u8 *target, __le32 target_sn,
 		       struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
-	struct sk_buff *skb = dev_alloc_skb(local->hw.extra_tx_headroom + 400);
+	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
-	u8 *pos;
-	int ie_len;
+	u8 *pos, ie_len;
+	int hdr_len = offsetof(struct ieee80211_mgmt, u.action.u.mesh_action) +
+		      sizeof(mgmt->u.action.u.mesh_action);
 
+	skb = dev_alloc_skb(local->hw.extra_tx_headroom +
+			    hdr_len +
+			    2 + 15 /* PERR IE */);
 	if (!skb)
 		return -1;
 	skb_reserve(skb, local->tx_headroom + local->hw.extra_tx_headroom);
-	/* 25 is the size of the common mgmt part (24) plus the size of the
-	 * common action part (1)
-	 */
-	mgmt = (struct ieee80211_mgmt *)
-		skb_put(skb, 25 + sizeof(mgmt->u.action.u.mesh_action));
-	memset(mgmt, 0, 25 + sizeof(mgmt->u.action.u.mesh_action));
+	mgmt = (struct ieee80211_mgmt *) skb_put(skb, hdr_len);
+	memset(mgmt, 0, hdr_len);
 	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					  IEEE80211_STYPE_ACTION);
 
@@ -867,8 +867,18 @@ static void mesh_queue_preq(struct mesh_path *mpath, u8 flags)
 		return;
 	}
 
+	spin_lock_bh(&mpath->state_lock);
+	if (mpath->flags & MESH_PATH_REQ_QUEUED) {
+		spin_unlock_bh(&mpath->state_lock);
+		spin_unlock_bh(&ifmsh->mesh_preq_queue_lock);
+		return;
+	}
+
 	memcpy(preq_node->dst, mpath->dst, ETH_ALEN);
 	preq_node->flags = flags;
+
+	mpath->flags |= MESH_PATH_REQ_QUEUED;
+	spin_unlock_bh(&mpath->state_lock);
 
 	list_add_tail(&preq_node->list, &ifmsh->preq_queue.list);
 	++ifmsh->preq_queue_len;
@@ -921,6 +931,7 @@ void mesh_path_start_discovery(struct ieee80211_sub_if_data *sdata)
 		goto enddiscovery;
 
 	spin_lock_bh(&mpath->state_lock);
+	mpath->flags &= ~MESH_PATH_REQ_QUEUED;
 	if (preq_node->flags & PREQ_Q_F_START) {
 		if (mpath->flags & MESH_PATH_RESOLVING) {
 			spin_unlock_bh(&mpath->state_lock);
@@ -1028,11 +1039,11 @@ int mesh_nexthop_lookup(struct sk_buff *skb,
 			mesh_queue_preq(mpath, PREQ_Q_F_START);
 		}
 
-		if (skb_queue_len(&mpath->frame_queue) >=
-				MESH_FRAME_QUEUE_LEN)
+		if (skb_queue_len(&mpath->frame_queue) >= MESH_FRAME_QUEUE_LEN)
 			skb_to_free = skb_dequeue(&mpath->frame_queue);
 
 		info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
+		ieee80211_set_qos_hdr(sdata, skb);
 		skb_queue_tail(&mpath->frame_queue, skb);
 		if (skb_to_free)
 			mesh_path_discard_frame(skb_to_free, sdata);
@@ -1061,6 +1072,7 @@ void mesh_path_timer(unsigned long data)
 	} else if (mpath->discovery_retries < max_preq_retries(sdata)) {
 		++mpath->discovery_retries;
 		mpath->discovery_timeout *= 2;
+		mpath->flags &= ~MESH_PATH_REQ_QUEUED;
 		spin_unlock_bh(&mpath->state_lock);
 		mesh_queue_preq(mpath, 0);
 	} else {

@@ -203,6 +203,7 @@ enum ath9k_hw_caps {
 	ATH9K_HW_CAP_5GHZ			= BIT(14),
 	ATH9K_HW_CAP_APM			= BIT(15),
 	ATH9K_HW_CAP_RTT			= BIT(16),
+	ATH9K_HW_CAP_MCI			= BIT(17),
 };
 
 struct ath9k_hw_capabilities {
@@ -417,6 +418,16 @@ enum ath9k_rx_qtype {
 	ATH9K_RX_QUEUE_HP,
 	ATH9K_RX_QUEUE_LP,
 	ATH9K_RX_QUEUE_MAX,
+};
+
+enum ath_mci_gpm_coex_profile_type {
+	MCI_GPM_COEX_PROFILE_UNKNOWN,
+	MCI_GPM_COEX_PROFILE_RFCOMM,
+	MCI_GPM_COEX_PROFILE_A2DP,
+	MCI_GPM_COEX_PROFILE_HID,
+	MCI_GPM_COEX_PROFILE_BNEP,
+	MCI_GPM_COEX_PROFILE_VOICE,
+	MCI_GPM_COEX_PROFILE_MAX
 };
 
 struct ath9k_beacon_state {

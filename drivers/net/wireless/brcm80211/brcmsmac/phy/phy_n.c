@@ -29,6 +29,7 @@
 #include "phy_radio.h"
 #include "phyreg_n.h"
 #include "phytbl_n.h"
+#include "soc.h"
 
 #define READ_RADIO_REG2(pi, radio_type, jspace, core, reg_name)	\
 	read_radio_reg(pi, radio_type##_##jspace##_##reg_name |	\
@@ -14417,12 +14418,6 @@ static void wlc_phy_txpwr_srom_read_ppr_nphy(struct brcms_phy *pi)
 		switch (band_num) {
 		case 0:
 
-			pi->nphy_txpid2g[PHY_CORE_0] =
-				(u8) wlapi_getintvar(shim,
-						     BRCMS_SROM_TXPID2GA0);
-			pi->nphy_txpid2g[PHY_CORE_1] =
-				(u8) wlapi_getintvar(shim,
-						     BRCMS_SROM_TXPID2GA1);
 			pi->nphy_pwrctrl_info[PHY_CORE_0].max_pwr_2g =
 				(s8) wlapi_getintvar(shim,
 						     BRCMS_SROM_MAXP2GA0);
@@ -14486,12 +14481,6 @@ static void wlc_phy_txpwr_srom_read_ppr_nphy(struct brcms_phy *pi)
 			break;
 		case 1:
 
-			pi->nphy_txpid5g[PHY_CORE_0] =
-				(u8) wlapi_getintvar(shim,
-						     BRCMS_SROM_TXPID5GA0);
-			pi->nphy_txpid5g[PHY_CORE_1] =
-				(u8) wlapi_getintvar(shim,
-						     BRCMS_SROM_TXPID5GA1);
 			pi->nphy_pwrctrl_info[PHY_CORE_0].max_pwr_5gm =
 				(s8) wlapi_getintvar(shim, BRCMS_SROM_MAXP5GA0);
 			pi->nphy_pwrctrl_info[PHY_CORE_1].max_pwr_5gm =
@@ -14551,12 +14540,6 @@ static void wlc_phy_txpwr_srom_read_ppr_nphy(struct brcms_phy *pi)
 			break;
 		case 2:
 
-			pi->nphy_txpid5gl[0] =
-				(u8) wlapi_getintvar(shim,
-						     BRCMS_SROM_TXPID5GLA0);
-			pi->nphy_txpid5gl[1] =
-				(u8) wlapi_getintvar(shim,
-						     BRCMS_SROM_TXPID5GLA1);
 			pi->nphy_pwrctrl_info[0].max_pwr_5gl =
 				(s8) wlapi_getintvar(shim,
 						     BRCMS_SROM_MAXP5GLA0);
@@ -14615,12 +14598,6 @@ static void wlc_phy_txpwr_srom_read_ppr_nphy(struct brcms_phy *pi)
 			break;
 		case 3:
 
-			pi->nphy_txpid5gh[0] =
-				(u8) wlapi_getintvar(shim,
-						     BRCMS_SROM_TXPID5GHA0);
-			pi->nphy_txpid5gh[1] =
-				(u8) wlapi_getintvar(shim,
-						     BRCMS_SROM_TXPID5GHA1);
 			pi->nphy_pwrctrl_info[0].max_pwr_5gh =
 				(s8) wlapi_getintvar(shim,
 						     BRCMS_SROM_MAXP5GHA0);
@@ -27994,20 +27971,11 @@ void wlc_phy_txpwr_fixpower_nphy(struct brcms_phy *pi)
 		chan_freq_range = wlc_phy_get_chan_freq_range_nphy(pi, 0);
 		switch (chan_freq_range) {
 		case WL_CHAN_FREQ_RANGE_2G:
-			txpi[0] = pi->nphy_txpid2g[0];
-			txpi[1] = pi->nphy_txpid2g[1];
-			break;
 		case WL_CHAN_FREQ_RANGE_5GL:
-			txpi[0] = pi->nphy_txpid5gl[0];
-			txpi[1] = pi->nphy_txpid5gl[1];
-			break;
 		case WL_CHAN_FREQ_RANGE_5GM:
-			txpi[0] = pi->nphy_txpid5g[0];
-			txpi[1] = pi->nphy_txpid5g[1];
-			break;
 		case WL_CHAN_FREQ_RANGE_5GH:
-			txpi[0] = pi->nphy_txpid5gh[0];
-			txpi[1] = pi->nphy_txpid5gh[1];
+			txpi[0] = 0;
+			txpi[1] = 0;
 			break;
 		default:
 			txpi[0] = txpi[1] = 91;

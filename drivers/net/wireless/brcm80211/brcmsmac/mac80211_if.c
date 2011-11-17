@@ -216,8 +216,7 @@ static const struct ieee80211_supported_band brcms_band_2GHz_nphy_template = {
 	.ht_cap = {
 		   /* from include/linux/ieee80211.h */
 		   .cap = IEEE80211_HT_CAP_GRN_FLD |
-		   IEEE80211_HT_CAP_SGI_20 |
-		   IEEE80211_HT_CAP_SGI_40 | IEEE80211_HT_CAP_40MHZ_INTOLERANT,
+			  IEEE80211_HT_CAP_SGI_20 | IEEE80211_HT_CAP_SGI_40,
 		   .ht_supported = true,
 		   .ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K,
 		   .ampdu_density = AMPDU_DEF_MPDU_DENSITY,
@@ -238,8 +237,7 @@ static const struct ieee80211_supported_band brcms_band_5GHz_nphy_template = {
 			BRCMS_LEGACY_5G_RATE_OFFSET,
 	.ht_cap = {
 		   .cap = IEEE80211_HT_CAP_GRN_FLD | IEEE80211_HT_CAP_SGI_20 |
-			  IEEE80211_HT_CAP_SGI_40 |
-			  IEEE80211_HT_CAP_40MHZ_INTOLERANT, /* No 40 mhz yet */
+			  IEEE80211_HT_CAP_SGI_40,
 		   .ht_supported = true,
 		   .ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K,
 		   .ampdu_density = AMPDU_DEF_MPDU_DENSITY,
@@ -287,6 +285,7 @@ static int brcms_ops_start(struct ieee80211_hw *hw)
 {
 	struct brcms_info *wl = hw->priv;
 	bool blocked;
+	int err;
 
 	ieee80211_wake_queues(hw);
 	spin_lock_bh(&wl->lock);
@@ -295,33 +294,10 @@ static int brcms_ops_start(struct ieee80211_hw *hw)
 	if (!blocked)
 		wiphy_rfkill_stop_polling(wl->pub->ieee_hw->wiphy);
 
-	return 0;
-}
-
-static void brcms_ops_stop(struct ieee80211_hw *hw)
-{
-	ieee80211_stop_queues(hw);
-}
-
-static int
-brcms_ops_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
-{
-	struct brcms_info *wl;
-	int err;
-
-	/* Just STA for now */
-	if (vif->type != NL80211_IFTYPE_AP &&
-	    vif->type != NL80211_IFTYPE_MESH_POINT &&
-	    vif->type != NL80211_IFTYPE_STATION &&
-	    vif->type != NL80211_IFTYPE_WDS &&
-	    vif->type != NL80211_IFTYPE_ADHOC) {
-		wiphy_err(hw->wiphy, "%s: Attempt to add type %d, only"
-			  " STA for now\n", __func__, vif->type);
-		return -EOPNOTSUPP;
-	}
-
-	wl = hw->priv;
 	spin_lock_bh(&wl->lock);
+	/* avoid acknowledging frames before a non-monitor device is added */
+	wl->mute_tx = true;
+
 	if (!wl->pub->up)
 		err = brcms_up(wl);
 	else
@@ -331,21 +307,56 @@ brcms_ops_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	if (err != 0)
 		wiphy_err(hw->wiphy, "%s: brcms_up() returned %d\n", __func__,
 			  err);
-
 	return err;
 }
 
-static void
-brcms_ops_remove_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+static void brcms_ops_stop(struct ieee80211_hw *hw)
 {
-	struct brcms_info *wl;
+	struct brcms_info *wl = hw->priv;
+	int status;
 
-	wl = hw->priv;
+	ieee80211_stop_queues(hw);
+
+	if (wl->wlc == NULL)
+		return;
+
+	spin_lock_bh(&wl->lock);
+	status = brcms_c_chipmatch(wl->wlc->hw->vendorid,
+				   wl->wlc->hw->deviceid);
+	spin_unlock_bh(&wl->lock);
+	if (!status) {
+		wiphy_err(wl->wiphy,
+			  "wl: brcms_ops_stop: chipmatch failed\n");
+		return;
+	}
 
 	/* put driver in down state */
 	spin_lock_bh(&wl->lock);
 	brcms_down(wl);
 	spin_unlock_bh(&wl->lock);
+}
+
+static int
+brcms_ops_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+{
+	struct brcms_info *wl = hw->priv;
+
+	/* Just STA for now */
+	if (vif->type != NL80211_IFTYPE_STATION) {
+		wiphy_err(hw->wiphy, "%s: Attempt to add type %d, only"
+			  " STA for now\n", __func__, vif->type);
+		return -EOPNOTSUPP;
+	}
+
+	wl->mute_tx = false;
+	brcms_c_mute(wl->wlc, false);
+
+	return 0;
+}
+
+static void
+brcms_ops_remove_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+{
 }
 
 static int brcms_ops_config(struct ieee80211_hw *hw, u32 changed)
@@ -609,13 +620,6 @@ brcms_ops_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	wl->pub->global_ampdu->scb = scb;
 	wl->pub->global_ampdu->max_pdu = 16;
 
-	sta->ht_cap.ht_supported = true;
-	sta->ht_cap.ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
-	sta->ht_cap.ampdu_density = AMPDU_DEF_MPDU_DENSITY;
-	sta->ht_cap.cap = IEEE80211_HT_CAP_GRN_FLD |
-	    IEEE80211_HT_CAP_SGI_20 |
-	    IEEE80211_HT_CAP_SGI_40 | IEEE80211_HT_CAP_40MHZ_INTOLERANT;
-
 	/*
 	 * minstrel_ht initiates addBA on our behalf by calling
 	 * ieee80211_start_tx_ba_session()
@@ -877,37 +881,18 @@ static void brcms_free(struct brcms_info *wl)
 }
 
 /*
-* called from both kernel as from this kernel module.
+* called from both kernel as from this kernel module (error flow on attach)
 * precondition: perimeter lock is not acquired.
 */
 static void brcms_remove(struct pci_dev *pdev)
 {
-	struct brcms_info *wl;
-	struct ieee80211_hw *hw;
-	int status;
+	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
+	struct brcms_info *wl = hw->priv;
 
-	hw = pci_get_drvdata(pdev);
-	wl = hw->priv;
-	if (!wl) {
-		pr_err("wl: brcms_remove: pci_get_drvdata failed\n");
-		return;
-	}
-
-	spin_lock_bh(&wl->lock);
-	status = brcms_c_chipmatch(pdev->vendor, pdev->device);
-	spin_unlock_bh(&wl->lock);
-	if (!status) {
-		wiphy_err(wl->wiphy, "wl: brcms_remove: chipmatch "
-				     "failed\n");
-		return;
-	}
 	if (wl->wlc) {
 		wiphy_rfkill_set_hw_state(wl->pub->ieee_hw->wiphy, false);
 		wiphy_rfkill_stop_polling(wl->pub->ieee_hw->wiphy);
 		ieee80211_unregister_hw(hw);
-		spin_lock_bh(&wl->lock);
-		brcms_down(wl);
-		spin_unlock_bh(&wl->lock);
 	}
 	pci_disable_device(pdev);
 
@@ -1080,9 +1065,6 @@ static struct brcms_info *brcms_attach(u16 vendor, u16 device,
 	wl->pub = brcms_c_pub(wl->wlc);
 
 	wl->pub->ieee_hw = hw;
-
-	/* disable mpc */
-	brcms_c_set_radio_mpc(wl->wlc, false);
 
 	/* register our interrupt handler */
 	if (request_irq(irq, brcms_isr, IRQF_SHARED, KBUILD_MODNAME, wl)) {
@@ -1319,8 +1301,7 @@ void brcms_init(struct brcms_info *wl)
 {
 	BCMMSG(wl->pub->ieee_hw->wiphy, "wl%d\n", wl->pub->unit);
 	brcms_reset(wl);
-
-	brcms_c_init(wl->wlc);
+	brcms_c_init(wl->wlc, wl->mute_tx);
 }
 
 /*
@@ -1335,6 +1316,14 @@ uint brcms_reset(struct brcms_info *wl)
 	wl->resched = 0;
 
 	return 0;
+}
+
+void brcms_fatal_error(struct brcms_info *wl)
+{
+	wiphy_err(wl->wlc->wiphy, "wl%d: fatal error, reinitializing\n",
+		  wl->wlc->pub->unit);
+	brcms_reset(wl);
+	ieee80211_restart_hw(wl->pub->ieee_hw);
 }
 
 /*

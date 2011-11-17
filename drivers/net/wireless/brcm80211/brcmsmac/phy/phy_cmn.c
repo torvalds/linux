@@ -112,7 +112,7 @@ static const struct chan_info_basic chan_info_all[] = {
 	{216, 50800}
 };
 
-const u8 ofdm_rate_lookup[] = {
+static const u8 ofdm_rate_lookup[] = {
 
 	BRCM_RATE_48M,
 	BRCM_RATE_24M,
@@ -190,15 +190,7 @@ u16 read_radio_reg(struct brcms_phy *pi, u16 addr)
 		data = R_REG(&pi->regs->radioregdata);
 	} else {
 		W_REG_FLUSH(&pi->regs->phy4waddr, addr);
-
-#ifdef __ARM_ARCH_4T__
-		__asm__(" .align 4 ");
-		__asm__(" nop ");
 		data = R_REG(&pi->regs->phy4wdatalo);
-#else
-		data = R_REG(&pi->regs->phy4wdatalo);
-#endif
-
 	}
 	pi->phy_wreg = 0;
 

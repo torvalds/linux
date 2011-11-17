@@ -352,15 +352,6 @@ brcmf_cfg80211_connect_info *cfg_to_conn(struct brcmf_cfg80211_priv *cfg)
 	return &cfg->conn_info;
 }
 
-static inline struct brcmf_bss_info *next_bss(struct brcmf_scan_results *list,
-					   struct brcmf_bss_info *bss)
-{
-	return bss = bss ?
-		(struct brcmf_bss_info *)((unsigned long)bss +
-				       le32_to_cpu(bss->length)) :
-		list->bss_info;
-}
-
 extern struct brcmf_cfg80211_dev *brcmf_cfg80211_attach(struct net_device *ndev,
 							struct device *busdev,
 							void *data);

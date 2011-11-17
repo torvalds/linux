@@ -181,7 +181,8 @@ static void smp_send_cmd(struct l2cap_conn *conn, u8 code, u16 len, void *data)
 	if (!skb)
 		return;
 
-	hci_send_acl(conn->hcon, skb, 0);
+	skb->priority = HCI_PRIO_MAX;
+	hci_send_acl(conn->hchan, skb, 0);
 
 	mod_timer(&conn->security_timer, jiffies +
 					msecs_to_jiffies(SMP_TIMEOUT));

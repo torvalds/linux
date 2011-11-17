@@ -414,6 +414,7 @@ struct ndis_80211_pmkid {
 #define RNDIS_WLAN_ALG_TKIP	(1<<1)
 #define RNDIS_WLAN_ALG_CCMP	(1<<2)
 
+#define RNDIS_WLAN_NUM_KEYS		4
 #define RNDIS_WLAN_KEY_MGMT_NONE	0
 #define RNDIS_WLAN_KEY_MGMT_802_1X	(1<<0)
 #define RNDIS_WLAN_KEY_MGMT_PSK		(1<<1)
@@ -516,7 +517,7 @@ struct rndis_wlan_private {
 
 	/* encryption stuff */
 	int  encr_tx_key_index;
-	struct rndis_wlan_encr_key encr_keys[4];
+	struct rndis_wlan_encr_key encr_keys[RNDIS_WLAN_NUM_KEYS];
 	int  wpa_version;
 
 	u8 command_buffer[COMMAND_BUFFER_SIZE];
@@ -1535,6 +1536,9 @@ static int remove_key(struct usbnet *usbdev, int index, const u8 *bssid)
 	bool is_wpa;
 	int ret;
 
+	if (index >= RNDIS_WLAN_NUM_KEYS)
+		return -ENOENT;
+
 	if (priv->encr_keys[index].len == 0)
 		return 0;
 
@@ -1972,11 +1976,12 @@ static int rndis_scan(struct wiphy *wiphy, struct net_device *dev,
 	return ret;
 }
 
-static struct cfg80211_bss *rndis_bss_info_update(struct usbnet *usbdev,
-					struct ndis_80211_bssid_ex *bssid)
+static bool rndis_bss_info_update(struct usbnet *usbdev,
+				  struct ndis_80211_bssid_ex *bssid)
 {
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
 	struct ieee80211_channel *channel;
+	struct cfg80211_bss *bss;
 	s32 signal;
 	u64 timestamp;
 	u16 capability;
@@ -2015,9 +2020,12 @@ static struct cfg80211_bss *rndis_bss_info_update(struct usbnet *usbdev,
 	capability = le16_to_cpu(fixed->capabilities);
 	beacon_interval = le16_to_cpu(fixed->beacon_interval);
 
-	return cfg80211_inform_bss(priv->wdev.wiphy, channel, bssid->mac,
+	bss = cfg80211_inform_bss(priv->wdev.wiphy, channel, bssid->mac,
 		timestamp, capability, beacon_interval, ie, ie_len, signal,
 		GFP_KERNEL);
+	cfg80211_put_bss(bss);
+
+	return (bss != NULL);
 }
 
 static struct ndis_80211_bssid_ex *next_bssid_list_item(
@@ -2451,6 +2459,9 @@ static int rndis_set_default_key(struct wiphy *wiphy, struct net_device *netdev,
 
 	netdev_dbg(usbdev->net, "%s(%i)\n", __func__, key_index);
 
+	if (key_index >= RNDIS_WLAN_NUM_KEYS)
+		return -ENOENT;
+
 	priv->encr_tx_key_index = key_index;
 
 	if (is_wpa_key(priv, key_index))
@@ -2641,6 +2652,7 @@ static void rndis_wlan_craft_connected_bss(struct usbnet *usbdev, u8 *bssid,
 	struct ieee80211_channel *channel;
 	struct ndis_80211_conf config;
 	struct ndis_80211_ssid ssid;
+	struct cfg80211_bss *bss;
 	s32 signal;
 	u64 timestamp;
 	u16 capability;
@@ -2714,9 +2726,10 @@ static void rndis_wlan_craft_connected_bss(struct usbnet *usbdev, u8 *bssid,
 		bssid, (u32)timestamp, capability, beacon_interval, ie_len,
 		ssid.essid, signal);
 
-	cfg80211_inform_bss(priv->wdev.wiphy, channel, bssid,
+	bss = cfg80211_inform_bss(priv->wdev.wiphy, channel, bssid,
 		timestamp, capability, beacon_interval, ie_buf, ie_len,
 		signal, GFP_KERNEL);
+	cfg80211_put_bss(bss);
 }
 
 /*

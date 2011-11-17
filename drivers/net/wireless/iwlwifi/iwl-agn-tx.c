@@ -283,6 +283,19 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		IWL_DEBUG_TX(priv, "Sending REASSOC frame\n");
 #endif
 
+	if (unlikely(ieee80211_is_probe_resp(fc))) {
+		struct iwl_wipan_noa_data *noa_data =
+			rcu_dereference(priv->noa_data);
+
+		if (noa_data &&
+		    pskb_expand_head(skb, 0, noa_data->length,
+				     GFP_ATOMIC) == 0) {
+			memcpy(skb_put(skb, noa_data->length),
+			       noa_data->data, noa_data->length);
+			hdr = (struct ieee80211_hdr *)skb->data;
+		}
+	}
+
 	hdr_len = ieee80211_hdrlen(fc);
 
 	/* For management frames use broadcast id to do not break aggregation */
@@ -800,7 +813,8 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
 			    iwl_is_associated_ctx(ctx) && ctx->vif &&
 			    ctx->vif->type == NL80211_IFTYPE_STATION) {
 				ctx->last_tx_rejected = true;
-				iwl_trans_stop_queue(trans(priv), txq_id);
+				iwl_trans_stop_queue(trans(priv), txq_id,
+					"Tx on passive channel");
 
 				IWL_DEBUG_TX_REPLY(priv,
 					   "TXQ %d status %s (0x%08x) "

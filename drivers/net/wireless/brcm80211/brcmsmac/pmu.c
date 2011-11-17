@@ -23,6 +23,7 @@
 #include "pub.h"
 #include "aiutils.h"
 #include "pmu.h"
+#include "soc.h"
 
 /*
  * external LPO crystal frequency
