@@ -1784,9 +1784,8 @@ static int fimc_runtime_resume(struct device *dev)
 	/* Resume the capture or mem-to-mem device */
 	if (fimc_capture_busy(fimc))
 		return fimc_capture_resume(fimc);
-	else if (fimc_m2m_pending(fimc))
-		return fimc_m2m_resume(fimc);
-	return 0;
+
+	return fimc_m2m_resume(fimc);
 }
 
 static int fimc_runtime_suspend(struct device *dev)
