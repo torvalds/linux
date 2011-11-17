@@ -1605,6 +1605,21 @@ static enum dvbfe_algo stb0899_frontend_algo(struct dvb_frontend *fe)
 	return DVBFE_ALGO_CUSTOM;
 }
 
+static int stb0899_get_property(struct dvb_frontend *fe, struct dtv_property *p)
+{
+	switch (p->cmd) {
+	case DTV_ENUM_DELSYS:
+		p->u.buffer.data[0] = SYS_DSS;
+		p->u.buffer.data[1] = SYS_DVBS;
+		p->u.buffer.data[2] = SYS_DVBS2;
+		p->u.buffer.len = 3;
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
 static struct dvb_frontend_ops stb0899_ops = {
 
 	.info = {
@@ -1647,6 +1662,8 @@ static struct dvb_frontend_ops stb0899_ops = {
 	.diseqc_send_master_cmd		= stb0899_send_diseqc_msg,
 	.diseqc_recv_slave_reply	= stb0899_recv_slave_reply,
 	.diseqc_send_burst		= stb0899_send_diseqc_burst,
+
+	.get_property			= stb0899_get_property,
 };
 
 struct dvb_frontend *stb0899_attach(struct stb0899_config *config, struct i2c_adapter *i2c)
