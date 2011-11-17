@@ -733,20 +733,15 @@ static int btrfs_test_super(struct super_block *s, void *data)
 	struct btrfs_root *test_root = data;
 	struct btrfs_root *root = btrfs_sb(s);
 
-	/*
-	 * If this super block is going away, return false as it
-	 * can't match as an existing super block.
-	 */
-	if (!atomic_read(&s->s_active))
-		return 0;
 	return root->fs_info->fs_devices == test_root->fs_info->fs_devices;
 }
 
 static int btrfs_set_super(struct super_block *s, void *data)
 {
-	s->s_fs_info = data;
-
-	return set_anon_super(s, data);
+	int err = set_anon_super(s, data);
+	if (!err)
+		s->s_fs_info = data;
+	return err;
 }
 
 /*
