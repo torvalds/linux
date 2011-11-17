@@ -542,6 +542,9 @@ struct radeon_ring {
 	uint32_t		ptr_mask;
 	struct mutex		mutex;
 	bool			ready;
+	u32			ptr_reg_shift;
+	u32			ptr_reg_mask;
+	u32			nop;
 };
 
 /*
@@ -612,7 +615,8 @@ void radeon_ring_unlock_commit(struct radeon_device *rdev, struct radeon_ring *c
 void radeon_ring_unlock_undo(struct radeon_device *rdev, struct radeon_ring *cp);
 int radeon_ring_test(struct radeon_device *rdev, struct radeon_ring *cp);
 int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *cp, unsigned ring_size,
-		     unsigned rptr_offs, unsigned rptr_reg, unsigned wptr_reg);
+		     unsigned rptr_offs, unsigned rptr_reg, unsigned wptr_reg,
+		     u32 ptr_reg_shift, u32 ptr_reg_mask, u32 nop);
 void radeon_ring_fini(struct radeon_device *rdev, struct radeon_ring *cp);
 
 

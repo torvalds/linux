@@ -1412,7 +1412,8 @@ static int cayman_startup(struct radeon_device *rdev)
 	evergreen_irq_set(rdev);
 
 	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP_RPTR_OFFSET,
-			     CP_RB0_RPTR, CP_RB0_WPTR);
+			     CP_RB0_RPTR, CP_RB0_WPTR,
+			     0, 0xfffff, RADEON_CP_PACKET2);
 	if (r)
 		return r;
 	r = cayman_cp_load_microcode(rdev);

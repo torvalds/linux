@@ -305,10 +305,13 @@ int radeon_ring_index(struct radeon_device *rdev, struct radeon_ring *ring)
 
 void radeon_ring_free_size(struct radeon_device *rdev, struct radeon_ring *ring)
 {
+	u32 rptr;
+
 	if (rdev->wb.enabled)
-		ring->rptr = le32_to_cpu(rdev->wb.wb[ring->rptr_offs/4]);
+		rptr = le32_to_cpu(rdev->wb.wb[ring->rptr_offs/4]);
 	else
-		ring->rptr = RREG32(ring->rptr_reg);
+		rptr = RREG32(ring->rptr_reg);
+	ring->rptr = (rptr & ring->ptr_reg_mask) >> ring->ptr_reg_shift;
 	/* This works because ring_size is a power of 2 */
 	ring->ring_free_dw = (ring->rptr + (ring->ring_size / 4));
 	ring->ring_free_dw -= ring->wptr;
@@ -362,10 +365,10 @@ void radeon_ring_commit(struct radeon_device *rdev, struct radeon_ring *ring)
 	count_dw_pad = (ring->align_mask + 1) -
 		       (ring->wptr & ring->align_mask);
 	for (i = 0; i < count_dw_pad; i++) {
-		radeon_ring_write(ring, 2 << 30);
+		radeon_ring_write(ring, ring->nop);
 	}
 	DRM_MEMORYBARRIER();
-	WREG32(ring->wptr_reg, ring->wptr);
+	WREG32(ring->wptr_reg, (ring->wptr << ring->ptr_reg_shift) & ring->ptr_reg_mask);
 	(void)RREG32(ring->wptr_reg);
 }
 
@@ -382,7 +385,8 @@ void radeon_ring_unlock_undo(struct radeon_device *rdev, struct radeon_ring *rin
 }
 
 int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsigned ring_size,
-		     unsigned rptr_offs, unsigned rptr_reg, unsigned wptr_reg)
+		     unsigned rptr_offs, unsigned rptr_reg, unsigned wptr_reg,
+		     u32 ptr_reg_shift, u32 ptr_reg_mask, u32 nop)
 {
 	int r;
 
@@ -390,6 +394,9 @@ int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsig
 	ring->rptr_offs = rptr_offs;
 	ring->rptr_reg = rptr_reg;
 	ring->wptr_reg = wptr_reg;
+	ring->ptr_reg_shift = ptr_reg_shift;
+	ring->ptr_reg_mask = ptr_reg_mask;
+	ring->nop = nop;
 	/* Allocate ring buffer */
 	if (ring->ring_obj == NULL) {
 		r = radeon_bo_create(rdev, ring->ring_size, PAGE_SIZE, true,
