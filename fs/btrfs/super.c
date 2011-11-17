@@ -588,8 +588,8 @@ static int btrfs_fill_super(struct super_block *sb,
 {
 	struct inode *inode;
 	struct dentry *root_dentry;
-	struct btrfs_root *tree_root;
-	struct btrfs_fs_info *fs_info;
+	struct btrfs_root *tree_root = sb->s_fs_info;
+	struct btrfs_fs_info *fs_info = tree_root->fs_info;
 	struct btrfs_key key;
 	int err;
 
@@ -609,9 +609,6 @@ static int btrfs_fill_super(struct super_block *sb,
 		printk("btrfs: open_ctree failed\n");
 		return err;
 	}
-	tree_root = sb->s_fs_info;
-	fs_info = tree_root->fs_info;
-	sb->s_fs_info = tree_root;
 
 	key.objectid = BTRFS_FIRST_FREE_OBJECTID;
 	key.type = BTRFS_INODE_ITEM_KEY;
