@@ -1684,8 +1684,11 @@ static bool dma_ops_domain(struct protection_domain *domain)
 
 static void set_dte_entry(u16 devid, struct protection_domain *domain, bool ats)
 {
-	u64 pte_root = virt_to_phys(domain->pt_root);
+	u64 pte_root = 0;
 	u64 flags = 0;
+
+	if (domain->mode != PAGE_MODE_NONE)
+		pte_root = virt_to_phys(domain->pt_root);
 
 	pte_root |= (domain->mode & DEV_ENTRY_MODE_MASK)
 		    << DEV_ENTRY_MODE_SHIFT;
@@ -2782,7 +2785,8 @@ static void amd_iommu_domain_destroy(struct iommu_domain *dom)
 
 	BUG_ON(domain->dev_cnt != 0);
 
-	free_pagetable(domain);
+	if (domain->mode != PAGE_MODE_NONE)
+		free_pagetable(domain);
 
 	protection_domain_free(domain);
 
@@ -2846,6 +2850,9 @@ static int amd_iommu_map(struct iommu_domain *dom, unsigned long iova,
 	int prot = 0;
 	int ret;
 
+	if (domain->mode == PAGE_MODE_NONE)
+		return -EINVAL;
+
 	if (iommu_prot & IOMMU_READ)
 		prot |= IOMMU_PROT_IR;
 	if (iommu_prot & IOMMU_WRITE)
@@ -2863,6 +2870,9 @@ static int amd_iommu_unmap(struct iommu_domain *dom, unsigned long iova,
 {
 	struct protection_domain *domain = dom->priv;
 	unsigned long page_size, unmap_size;
+
+	if (domain->mode == PAGE_MODE_NONE)
+		return -EINVAL;
 
 	page_size  = 0x1000UL << gfp_order;
 
@@ -2882,6 +2892,9 @@ static phys_addr_t amd_iommu_iova_to_phys(struct iommu_domain *dom,
 	unsigned long offset_mask;
 	phys_addr_t paddr;
 	u64 *pte, __pte;
+
+	if (domain->mode == PAGE_MODE_NONE)
+		return iova;
 
 	pte = fetch_pte(domain, iova);
 
@@ -2976,3 +2989,24 @@ int amd_iommu_unregister_ppr_notifier(struct notifier_block *nb)
 	return atomic_notifier_chain_unregister(&ppr_notifier, nb);
 }
 EXPORT_SYMBOL(amd_iommu_unregister_ppr_notifier);
+
+void amd_iommu_domain_direct_map(struct iommu_domain *dom)
+{
+	struct protection_domain *domain = dom->priv;
+	unsigned long flags;
+
+	spin_lock_irqsave(&domain->lock, flags);
+
+	/* Update data structure */
+	domain->mode    = PAGE_MODE_NONE;
+	domain->updated = true;
+
+	/* Make changes visible to IOMMUs */
+	update_domain(domain);
+
+	/* Page-table is not visible to IOMMU anymore, so free it */
+	free_pagetable(domain);
+
+	spin_unlock_irqrestore(&domain->lock, flags);
+}
+EXPORT_SYMBOL(amd_iommu_domain_direct_map);
