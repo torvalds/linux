@@ -113,10 +113,9 @@ static int _send_control_msg(struct pwc_device *pdev,
 	void *kbuf = NULL;
 
 	if (buflen) {
-		kbuf = kmalloc(buflen, GFP_KERNEL); /* not allowed on stack */
+		kbuf = kmemdup(buf, buflen, GFP_KERNEL); /* not allowed on stack */
 		if (kbuf == NULL)
 			return -ENOMEM;
-		memcpy(kbuf, buf, buflen);
 	}
 
 	rc = usb_control_msg(pdev->udev, usb_sndctrlpipe(pdev->udev, 0),
