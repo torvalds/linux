@@ -1320,8 +1320,8 @@ struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_root *tree_root,
 	root = kzalloc(sizeof(*root), GFP_NOFS);
 	if (!root)
 		return ERR_PTR(-ENOMEM);
+	root->fs_info = fs_info;
 	if (location->offset == (u64)-1) {
-		root->fs_info = fs_info;
 		ret = find_and_setup_root(tree_root, fs_info,
 					  location->objectid, root);
 		if (ret) {
@@ -1331,7 +1331,6 @@ struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_root *tree_root,
 		goto out;
 	}
 
-	root->fs_info = fs_info;
 	__setup_root(tree_root->nodesize, tree_root->leafsize,
 		     tree_root->sectorsize, tree_root->stripesize,
 		     root, fs_info, location->objectid);
@@ -1914,6 +1913,10 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 		err = -ENOMEM;
 		goto fail;
 	}
+	chunk_root->fs_info = fs_info;
+	extent_root->fs_info = fs_info;
+	dev_root->fs_info = fs_info;
+	csum_root->fs_info = fs_info;
 
 	ret = init_srcu_struct(&fs_info->subvol_srcu);
 	if (ret) {
@@ -2057,7 +2060,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	init_waitqueue_head(&fs_info->transaction_blocked_wait);
 	init_waitqueue_head(&fs_info->async_submit_wait);
 
-	tree_root->fs_info = fs_info;
 	__setup_root(4096, 4096, 4096, 4096, tree_root,
 		     fs_info, BTRFS_ROOT_TREE_OBJECTID);
 
@@ -2250,7 +2252,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 				     btrfs_super_chunk_root_level(disk_super));
 	generation = btrfs_super_chunk_root_generation(disk_super);
 
-	chunk_root->fs_info = fs_info;
 	__setup_root(nodesize, leafsize, sectorsize, stripesize,
 		     chunk_root, fs_info, BTRFS_CHUNK_TREE_OBJECTID);
 
@@ -2300,21 +2301,18 @@ retry_root_backup:
 	btrfs_set_root_node(&tree_root->root_item, tree_root->node);
 	tree_root->commit_root = btrfs_root_node(tree_root);
 
-	extent_root->fs_info = fs_info;
 	ret = find_and_setup_root(tree_root, fs_info,
 				  BTRFS_EXTENT_TREE_OBJECTID, extent_root);
 	if (ret)
 		goto recovery_tree_root;
 	extent_root->track_dirty = 1;
 
-	dev_root->fs_info = fs_info;
 	ret = find_and_setup_root(tree_root, fs_info,
 				  BTRFS_DEV_TREE_OBJECTID, dev_root);
 	if (ret)
 		goto recovery_tree_root;
 	dev_root->track_dirty = 1;
 
-	csum_root->fs_info = fs_info;
 	ret = find_and_setup_root(tree_root, fs_info,
 				  BTRFS_CSUM_TREE_OBJECTID, csum_root);
 	if (ret)
