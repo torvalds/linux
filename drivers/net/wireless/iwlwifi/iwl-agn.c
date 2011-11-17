@@ -1575,6 +1575,8 @@ static int iwl_init_drv(struct iwl_priv *priv)
 
 	mutex_init(&priv->shrd->mutex);
 
+	INIT_LIST_HEAD(&priv->calib_results);
+
 	priv->ieee_channels = NULL;
 	priv->ieee_rates = NULL;
 	priv->band = IEEE80211_BAND_2GHZ;

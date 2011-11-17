@@ -442,26 +442,12 @@ enum iwlagn_chain_noise_state {
 };
 
 
-/*
- * enum iwl_calib
- * defines the order in which results of initial calibrations
- * should be sent to the runtime uCode
- */
-enum iwl_calib {
-	IWL_CALIB_XTAL,
-	IWL_CALIB_DC,
-	IWL_CALIB_LO,
-	IWL_CALIB_TX_IQ,
-	IWL_CALIB_TX_IQ_PERD,
-	IWL_CALIB_BASE_BAND,
-	IWL_CALIB_TEMP_OFFSET,
-	IWL_CALIB_MAX
-};
-
 /* Opaque calibration results */
 struct iwl_calib_result {
-	void *buf;
-	size_t buf_len;
+	struct list_head list;
+	size_t cmd_len;
+	struct iwl_calib_hdr hdr;
+	/* data follows */
 };
 
 /* Sensitivity calib data */
@@ -869,7 +855,7 @@ struct iwl_priv {
 	s32 last_temperature;
 
 	/* init calibration results */
-	struct iwl_calib_result calib_results[IWL_CALIB_MAX];
+	struct list_head calib_results;
 
 	struct iwl_wipan_noa_data __rcu *noa_data;
 
