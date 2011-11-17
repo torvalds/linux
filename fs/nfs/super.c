@@ -2787,11 +2787,15 @@ static struct dentry *nfs_follow_remote_path(struct vfsmount *root_mnt,
 		const char *export_path)
 {
 	struct dentry *dentry;
-	int ret = nfs_referral_loop_protect();
+	int err;
 
-	if (ret) {
+	if (IS_ERR(root_mnt))
+		return ERR_CAST(root_mnt);
+
+	err = nfs_referral_loop_protect();
+	if (err) {
 		mntput(root_mnt);
-		return ERR_PTR(ret);
+		return ERR_PTR(err);
 	}
 
 	dentry = mount_subtree(root_mnt, export_path);
@@ -2815,9 +2819,7 @@ static struct dentry *nfs4_try_mount(int flags, const char *dev_name,
 			data->nfs_server.hostname);
 	data->nfs_server.export_path = export_path;
 
-	res = ERR_CAST(root_mnt);
-	if (!IS_ERR(root_mnt))
-		res = nfs_follow_remote_path(root_mnt, export_path);
+	res = nfs_follow_remote_path(root_mnt, export_path);
 
 	dfprintk(MOUNT, "<-- nfs4_try_mount() = %ld%s\n",
 			IS_ERR(res) ? PTR_ERR(res) : 0,
@@ -3078,9 +3080,7 @@ static struct dentry *nfs4_referral_mount(struct file_system_type *fs_type,
 			flags, data, data->hostname);
 	data->mnt_path = export_path;
 
-	res = ERR_CAST(root_mnt);
-	if (!IS_ERR(root_mnt))
-		res = nfs_follow_remote_path(root_mnt, export_path);
+	res = nfs_follow_remote_path(root_mnt, export_path);
 	dprintk("<-- nfs4_referral_mount() = %ld%s\n",
 			IS_ERR(res) ? PTR_ERR(res) : 0,
 			IS_ERR(res) ? " [error]" : "");
