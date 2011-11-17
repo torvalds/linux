@@ -2982,7 +2982,7 @@ int close_ctree(struct btrfs_root *root)
 		   (atomic_read(&fs_info->defrag_running) == 0));
 
 	/* clear out the rbtree of defraggable inodes */
-	btrfs_run_defrag_inodes(root->fs_info);
+	btrfs_run_defrag_inodes(fs_info);
 
 	/*
 	 * Here come 2 situations when btrfs is broken to flip readonly:
@@ -3011,8 +3011,8 @@ int close_ctree(struct btrfs_root *root)
 
 	btrfs_put_block_group_cache(fs_info);
 
-	kthread_stop(root->fs_info->transaction_kthread);
-	kthread_stop(root->fs_info->cleaner_kthread);
+	kthread_stop(fs_info->transaction_kthread);
+	kthread_stop(fs_info->cleaner_kthread);
 
 	fs_info->closing = 2;
 	smp_mb();
@@ -3030,14 +3030,14 @@ int close_ctree(struct btrfs_root *root)
 	free_extent_buffer(fs_info->extent_root->commit_root);
 	free_extent_buffer(fs_info->tree_root->node);
 	free_extent_buffer(fs_info->tree_root->commit_root);
-	free_extent_buffer(root->fs_info->chunk_root->node);
-	free_extent_buffer(root->fs_info->chunk_root->commit_root);
-	free_extent_buffer(root->fs_info->dev_root->node);
-	free_extent_buffer(root->fs_info->dev_root->commit_root);
-	free_extent_buffer(root->fs_info->csum_root->node);
-	free_extent_buffer(root->fs_info->csum_root->commit_root);
+	free_extent_buffer(fs_info->chunk_root->node);
+	free_extent_buffer(fs_info->chunk_root->commit_root);
+	free_extent_buffer(fs_info->dev_root->node);
+	free_extent_buffer(fs_info->dev_root->commit_root);
+	free_extent_buffer(fs_info->csum_root->node);
+	free_extent_buffer(fs_info->csum_root->commit_root);
 
-	btrfs_free_block_groups(root->fs_info);
+	btrfs_free_block_groups(fs_info);
 
 	del_fs_roots(fs_info);
 
