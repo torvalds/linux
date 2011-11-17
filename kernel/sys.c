@@ -133,11 +133,11 @@ static bool set_one_prio_perm(struct task_struct *p)
 {
 	const struct cred *cred = current_cred(), *pcred = __task_cred(p);
 
-	if (pcred->user->user_ns == cred->user->user_ns &&
+	if (pcred->user_ns == cred->user_ns &&
 	    (pcred->uid  == cred->euid ||
 	     pcred->euid == cred->euid))
 		return true;
-	if (ns_capable(pcred->user->user_ns, CAP_SYS_NICE))
+	if (ns_capable(pcred->user_ns, CAP_SYS_NICE))
 		return true;
 	return false;
 }
@@ -1498,7 +1498,7 @@ static int check_prlimit_permission(struct task_struct *task)
 		return 0;
 
 	tcred = __task_cred(task);
-	if (cred->user->user_ns == tcred->user->user_ns &&
+	if (cred->user_ns == tcred->user_ns &&
 	    (cred->uid == tcred->euid &&
 	     cred->uid == tcred->suid &&
 	     cred->uid == tcred->uid  &&
@@ -1506,7 +1506,7 @@ static int check_prlimit_permission(struct task_struct *task)
 	     cred->gid == tcred->sgid &&
 	     cred->gid == tcred->gid))
 		return 0;
-	if (ns_capable(tcred->user->user_ns, CAP_SYS_RESOURCE))
+	if (ns_capable(tcred->user_ns, CAP_SYS_RESOURCE))
 		return 0;
 
 	return -EPERM;

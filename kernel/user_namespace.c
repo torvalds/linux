@@ -90,7 +90,7 @@ uid_t user_ns_map_uid(struct user_namespace *to, const struct cred *cred, uid_t 
 {
 	struct user_namespace *tmp;
 
-	if (likely(to == cred->user->user_ns))
+	if (likely(to == cred->user_ns))
 		return uid;
 
 
@@ -112,7 +112,7 @@ gid_t user_ns_map_gid(struct user_namespace *to, const struct cred *cred, gid_t 
 {
 	struct user_namespace *tmp;
 
-	if (likely(to == cred->user->user_ns))
+	if (likely(to == cred->user_ns))
 		return gid;
 
 	/* Is cred->user the creator of the target user_ns
