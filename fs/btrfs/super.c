@@ -946,7 +946,6 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 		error = btrfs_fill_super(s, fs_devices, data,
 					 flags & MS_SILENT ? 1 : 0);
 		if (error) {
-			free_fs_info(fs_info);
 			deactivate_locked_super(s);
 			return ERR_PTR(error);
 		}
@@ -1215,12 +1214,9 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 static void btrfs_kill_super(struct super_block *sb)
 {
-	struct btrfs_fs_info *fs_info = NULL;
-	if (sb->s_root)
-		fs_info = btrfs_sb(sb)->fs_info;
+	struct btrfs_fs_info *fs_info = btrfs_sb(sb)->fs_info;
 	kill_anon_super(sb);
-	if (fs_info)
-		free_fs_info(fs_info);
+	free_fs_info(fs_info);
 }
 
 static struct file_system_type btrfs_fs_type = {
