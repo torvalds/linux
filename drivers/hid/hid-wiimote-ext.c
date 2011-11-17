@@ -199,11 +199,47 @@ bool wiiext_active(struct wiimote_data *wdata)
 	return wdata->ext->motionp || wdata->ext->ext_type;
 }
 
+static ssize_t wiiext_show(struct device *dev, struct device_attribute *attr,
+								char *buf)
+{
+	struct wiimote_data *wdata = dev_to_wii(dev);
+	__u8 type = WIIEXT_NONE;
+	bool motionp = false;
+	unsigned long flags;
+
+	spin_lock_irqsave(&wdata->state.lock, flags);
+	if (wdata->ext) {
+		motionp = wdata->ext->motionp;
+		type = wdata->ext->ext_type;
+	}
+	spin_unlock_irqrestore(&wdata->state.lock, flags);
+
+	if (type == WIIEXT_NUNCHUCK) {
+		if (motionp)
+			return sprintf(buf, "motionp+nunchuck\n");
+		else
+			return sprintf(buf, "nunchuck\n");
+	} else if (type == WIIEXT_CLASSIC) {
+		if (motionp)
+			return sprintf(buf, "motionp+classic\n");
+		else
+			return sprintf(buf, "classic\n");
+	} else {
+		if (motionp)
+			return sprintf(buf, "motionp\n");
+		else
+			return sprintf(buf, "none\n");
+	}
+}
+
+static DEVICE_ATTR(extension, S_IRUGO, wiiext_show, NULL);
+
 /* Initializes the extension driver of a wiimote */
 int wiiext_init(struct wiimote_data *wdata)
 {
 	struct wiimote_ext *ext;
 	unsigned long flags;
+	int ret;
 
 	ext = kzalloc(sizeof(*ext), GFP_KERNEL);
 	if (!ext)
@@ -212,11 +248,19 @@ int wiiext_init(struct wiimote_data *wdata)
 	ext->wdata = wdata;
 	INIT_WORK(&ext->worker, wiiext_worker);
 
+	ret = device_create_file(&wdata->hdev->dev, &dev_attr_extension);
+	if (ret)
+		goto err;
+
 	spin_lock_irqsave(&wdata->state.lock, flags);
 	wdata->ext = ext;
 	spin_unlock_irqrestore(&wdata->state.lock, flags);
 
 	return 0;
+
+err:
+	kfree(ext);
+	return ret;
 }
 
 /* Deinitializes the extension driver of a wiimote */
@@ -239,6 +283,8 @@ void wiiext_deinit(struct wiimote_data *wdata)
 	spin_lock_irqsave(&wdata->state.lock, flags);
 	wdata->ext = NULL;
 	spin_unlock_irqrestore(&wdata->state.lock, flags);
+
+	device_remove_file(&wdata->hdev->dev, &dev_attr_extension);
 
 	cancel_work_sync(&ext->worker);
 	kfree(ext);
