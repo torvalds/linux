@@ -74,6 +74,7 @@ struct wiimote_data {
 	struct input_dev *ir;
 	struct power_supply battery;
 	struct wiimote_ext *ext;
+	struct wiimote_debug *debug;
 
 	spinlock_t qlock;
 	__u8 head;
@@ -134,6 +135,18 @@ static inline void wiiext_deinit(void *u) { }
 static inline void wiiext_event(void *u, bool p) { }
 static inline bool wiiext_active(void *u) { return false; }
 static inline void wiiext_handle(void *u, const __u8 *p) { }
+
+#endif
+
+#ifdef CONFIG_DEBUG_FS
+
+extern int wiidebug_init(struct wiimote_data *wdata);
+extern void wiidebug_deinit(struct wiimote_data *wdata);
+
+#else
+
+static inline int wiidebug_init(void *u) { return 0; }
+static inline void wiidebug_deinit(void *u) { }
 
 #endif
 

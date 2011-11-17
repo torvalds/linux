@@ -1161,6 +1161,7 @@ err:
 
 static void wiimote_destroy(struct wiimote_data *wdata)
 {
+	wiidebug_deinit(wdata);
 	wiiext_deinit(wdata);
 	wiimote_leds_destroy(wdata);
 
@@ -1234,6 +1235,10 @@ static int wiimote_hid_probe(struct hid_device *hdev,
 		goto err_free;
 
 	ret = wiiext_init(wdata);
+	if (ret)
+		goto err_free;
+
+	ret = wiidebug_init(wdata);
 	if (ret)
 		goto err_free;
 
