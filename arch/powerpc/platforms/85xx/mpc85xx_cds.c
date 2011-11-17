@@ -46,6 +46,8 @@
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
 
+#include "mpc85xx.h"
+
 /* CADMUS info */
 /* xxx - galak, move into device tree */
 #define CADMUS_BASE (0xf8004000)

@@ -27,6 +27,8 @@
 #include <sysdev/fsl_pci.h>
 #include <asm/fsl_guts.h>
 
+#include "mpc85xx.h"
+
 #if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
 
 /*

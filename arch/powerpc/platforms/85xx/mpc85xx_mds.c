@@ -52,6 +52,8 @@
 #include <asm/mpic.h>
 #include <asm/swiotlb.h>
 
+#include "mpc85xx.h"
+
 #undef DEBUG
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)

@@ -32,6 +32,8 @@
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
 
+#include "mpc85xx.h"
+
 void __init mpc8536_ds_pic_init(void)
 {
 	struct mpic *mpic;
