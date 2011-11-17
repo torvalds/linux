@@ -34,7 +34,9 @@ config AMD_IOMMU
 	bool "AMD IOMMU support"
 	select SWIOTLB
 	select PCI_MSI
-	select PCI_IOV
+	select PCI_ATS
+	select PCI_PRI
+	select PCI_PASID
 	select IOMMU_API
 	depends on X86_64 && PCI && ACPI
 	---help---

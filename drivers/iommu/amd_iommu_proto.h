@@ -39,6 +39,7 @@ extern bool amd_iommu_v2_supported(void);
 extern int amd_iommu_register_ppr_notifier(struct notifier_block *nb);
 extern int amd_iommu_unregister_ppr_notifier(struct notifier_block *nb);
 extern void amd_iommu_domain_direct_map(struct iommu_domain *dom);
+extern int amd_iommu_domain_enable_v2(struct iommu_domain *dom, int pasids);
 
 #ifndef CONFIG_AMD_IOMMU_STATS
 

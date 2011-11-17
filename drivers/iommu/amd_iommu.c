@@ -63,6 +63,7 @@ static struct protection_domain *pt_domain;
 static struct iommu_ops amd_iommu_ops;
 
 static ATOMIC_NOTIFIER_HEAD(ppr_notifier);
+int amd_iommu_max_glx_val = -1;
 
 /*
  * general struct to manage commands send to an IOMMU
@@ -1598,6 +1599,11 @@ static void free_pagetable(struct protection_domain *domain)
 	domain->pt_root = NULL;
 }
 
+static void free_gcr3_table(struct protection_domain *domain)
+{
+	free_page((unsigned long)domain->gcr3_tbl);
+}
+
 /*
  * Free a domain, only used if something went wrong in the
  * allocation path and we need to free an already allocated page table
@@ -1698,6 +1704,32 @@ static void set_dte_entry(u16 devid, struct protection_domain *domain, bool ats)
 
 	if (ats)
 		flags |= DTE_FLAG_IOTLB;
+
+	if (domain->flags & PD_IOMMUV2_MASK) {
+		u64 gcr3 = __pa(domain->gcr3_tbl);
+		u64 glx  = domain->glx;
+		u64 tmp;
+
+		pte_root |= DTE_FLAG_GV;
+		pte_root |= (glx & DTE_GLX_MASK) << DTE_GLX_SHIFT;
+
+		/* First mask out possible old values for GCR3 table */
+		tmp = DTE_GCR3_VAL_B(~0ULL) << DTE_GCR3_SHIFT_B;
+		flags    &= ~tmp;
+
+		tmp = DTE_GCR3_VAL_C(~0ULL) << DTE_GCR3_SHIFT_C;
+		flags    &= ~tmp;
+
+		/* Encode GCR3 table into DTE */
+		tmp = DTE_GCR3_VAL_A(gcr3) << DTE_GCR3_SHIFT_A;
+		pte_root |= tmp;
+
+		tmp = DTE_GCR3_VAL_B(gcr3) << DTE_GCR3_SHIFT_B;
+		flags    |= tmp;
+
+		tmp = DTE_GCR3_VAL_C(gcr3) << DTE_GCR3_SHIFT_C;
+		flags    |= tmp;
+	}
 
 	flags &= ~(0xffffUL);
 	flags |= domain->id;
@@ -1803,6 +1835,46 @@ out_unlock:
 	return ret;
 }
 
+
+static void pdev_iommuv2_disable(struct pci_dev *pdev)
+{
+	pci_disable_ats(pdev);
+	pci_disable_pri(pdev);
+	pci_disable_pasid(pdev);
+}
+
+static int pdev_iommuv2_enable(struct pci_dev *pdev)
+{
+	int ret;
+
+	/* Only allow access to user-accessible pages */
+	ret = pci_enable_pasid(pdev, 0);
+	if (ret)
+		goto out_err;
+
+	/* First reset the PRI state of the device */
+	ret = pci_reset_pri(pdev);
+	if (ret)
+		goto out_err;
+
+	/* FIXME: Hardcode number of outstanding requests for now */
+	ret = pci_enable_pri(pdev, 32);
+	if (ret)
+		goto out_err;
+
+	ret = pci_enable_ats(pdev, PAGE_SHIFT);
+	if (ret)
+		goto out_err;
+
+	return 0;
+
+out_err:
+	pci_disable_pri(pdev);
+	pci_disable_pasid(pdev);
+
+	return ret;
+}
+
 /*
  * If a device is not yet associated with a domain, this function does
  * assigns it visible for the hardware
@@ -1817,7 +1889,17 @@ static int attach_device(struct device *dev,
 
 	dev_data = get_dev_data(dev);
 
-	if (amd_iommu_iotlb_sup && pci_enable_ats(pdev, PAGE_SHIFT) == 0) {
+	if (domain->flags & PD_IOMMUV2_MASK) {
+		if (!dev_data->iommu_v2 || !dev_data->passthrough)
+			return -EINVAL;
+
+		if (pdev_iommuv2_enable(pdev) != 0)
+			return -EINVAL;
+
+		dev_data->ats.enabled = true;
+		dev_data->ats.qdep    = pci_ats_queue_depth(pdev);
+	} else if (amd_iommu_iotlb_sup &&
+		   pci_enable_ats(pdev, PAGE_SHIFT) == 0) {
 		dev_data->ats.enabled = true;
 		dev_data->ats.qdep    = pci_ats_queue_depth(pdev);
 	}
@@ -1877,20 +1959,24 @@ static void __detach_device(struct iommu_dev_data *dev_data)
  */
 static void detach_device(struct device *dev)
 {
+	struct protection_domain *domain;
 	struct iommu_dev_data *dev_data;
 	unsigned long flags;
 
 	dev_data = get_dev_data(dev);
+	domain   = dev_data->domain;
 
 	/* lock device table */
 	write_lock_irqsave(&amd_iommu_devtable_lock, flags);
 	__detach_device(dev_data);
 	write_unlock_irqrestore(&amd_iommu_devtable_lock, flags);
 
-	if (dev_data->ats.enabled) {
+	if (domain->flags & PD_IOMMUV2_MASK)
+		pdev_iommuv2_disable(to_pci_dev(dev));
+	else if (dev_data->ats.enabled)
 		pci_disable_ats(to_pci_dev(dev));
-		dev_data->ats.enabled = false;
-	}
+
+	dev_data->ats.enabled = false;
 }
 
 /*
@@ -2788,6 +2874,9 @@ static void amd_iommu_domain_destroy(struct iommu_domain *dom)
 	if (domain->mode != PAGE_MODE_NONE)
 		free_pagetable(domain);
 
+	if (domain->flags & PD_IOMMUV2_MASK)
+		free_gcr3_table(domain);
+
 	protection_domain_free(domain);
 
 	dom->priv = NULL;
@@ -3010,3 +3099,50 @@ void amd_iommu_domain_direct_map(struct iommu_domain *dom)
 	spin_unlock_irqrestore(&domain->lock, flags);
 }
 EXPORT_SYMBOL(amd_iommu_domain_direct_map);
+
+int amd_iommu_domain_enable_v2(struct iommu_domain *dom, int pasids)
+{
+	struct protection_domain *domain = dom->priv;
+	unsigned long flags;
+	int levels, ret;
+
+	if (pasids <= 0 || pasids > (PASID_MASK + 1))
+		return -EINVAL;
+
+	/* Number of GCR3 table levels required */
+	for (levels = 0; (pasids - 1) & ~0x1ff; pasids >>= 9)
+		levels += 1;
+
+	if (levels > amd_iommu_max_glx_val)
+		return -EINVAL;
+
+	spin_lock_irqsave(&domain->lock, flags);
+
+	/*
+	 * Save us all sanity checks whether devices already in the
+	 * domain support IOMMUv2. Just force that the domain has no
+	 * devices attached when it is switched into IOMMUv2 mode.
+	 */
+	ret = -EBUSY;
+	if (domain->dev_cnt > 0 || domain->flags & PD_IOMMUV2_MASK)
+		goto out;
+
+	ret = -ENOMEM;
+	domain->gcr3_tbl = (void *)get_zeroed_page(GFP_ATOMIC);
+	if (domain->gcr3_tbl == NULL)
+		goto out;
+
+	domain->glx      = levels;
+	domain->flags   |= PD_IOMMUV2_MASK;
+	domain->updated  = true;
+
+	update_domain(domain);
+
+	ret = 0;
+
+out:
+	spin_unlock_irqrestore(&domain->lock, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL(amd_iommu_domain_enable_v2);

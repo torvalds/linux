@@ -755,6 +755,7 @@ static void __init init_iommu_from_pci(struct amd_iommu *iommu)
 	iommu->features = ((u64)high << 32) | low;
 
 	if (iommu_feature(iommu, FEATURE_GT)) {
+		int glxval;
 		u32 pasids;
 		u64 shift;
 
@@ -763,6 +764,14 @@ static void __init init_iommu_from_pci(struct amd_iommu *iommu)
 		pasids  = (1 << shift);
 
 		amd_iommu_max_pasids = min(amd_iommu_max_pasids, pasids);
+
+		glxval   = iommu->features & FEATURE_GLXVAL_MASK;
+		glxval >>= FEATURE_GLXVAL_SHIFT;
+
+		if (amd_iommu_max_glx_val == -1)
+			amd_iommu_max_glx_val = glxval;
+		else
+			amd_iommu_max_glx_val = min(amd_iommu_max_glx_val, glxval);
 	}
 
 	if (iommu_feature(iommu, FEATURE_GT) &&

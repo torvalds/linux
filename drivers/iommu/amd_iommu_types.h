@@ -93,6 +93,11 @@
 #define FEATURE_PASID_SHIFT	32
 #define FEATURE_PASID_MASK	(0x1fULL << FEATURE_PASID_SHIFT)
 
+#define FEATURE_GLXVAL_SHIFT	14
+#define FEATURE_GLXVAL_MASK	(0x03ULL << FEATURE_GLXVAL_SHIFT)
+
+#define PASID_MASK		0x000fffff
+
 /* MMIO status bits */
 #define MMIO_STATUS_COM_WAIT_INT_MASK	(1 << 2)
 #define MMIO_STATUS_PPR_INT_MASK	(1 << 6)
@@ -257,6 +262,22 @@
 #define IOMMU_PTE_IW (1ULL << 62)
 
 #define DTE_FLAG_IOTLB	(0x01UL << 32)
+#define DTE_FLAG_GV	(0x01ULL << 55)
+#define DTE_GLX_SHIFT	(56)
+#define DTE_GLX_MASK	(3)
+
+#define DTE_GCR3_VAL_A(x)	(((x) >> 12) & 0x00007ULL)
+#define DTE_GCR3_VAL_B(x)	(((x) >> 15) & 0x0ffffULL)
+#define DTE_GCR3_VAL_C(x)	(((x) >> 31) & 0xfffffULL)
+
+#define DTE_GCR3_INDEX_A	0
+#define DTE_GCR3_INDEX_B	1
+#define DTE_GCR3_INDEX_C	1
+
+#define DTE_GCR3_SHIFT_A	58
+#define DTE_GCR3_SHIFT_B	16
+#define DTE_GCR3_SHIFT_C	43
+
 
 #define IOMMU_PAGE_MASK (((1ULL << 52) - 1) & ~0xfffULL)
 #define IOMMU_PTE_PRESENT(pte) ((pte) & IOMMU_PTE_P)
@@ -283,6 +304,7 @@
 					      domain for an IOMMU */
 #define PD_PASSTHROUGH_MASK	(1UL << 2) /* domain has no page
 					      translation */
+#define PD_IOMMUV2_MASK		(1UL << 3) /* domain has gcr3 table */
 
 extern bool amd_iommu_dump;
 #define DUMP_printk(format, arg...)					\
@@ -344,6 +366,8 @@ struct protection_domain {
 	u16 id;			/* the domain id written to the device table */
 	int mode;		/* paging mode (0-6 levels) */
 	u64 *pt_root;		/* page table root pointer */
+	int glx;		/* Number of levels for GCR3 table */
+	u64 *gcr3_tbl;		/* Guest CR3 table */
 	unsigned long flags;	/* flags to find out type of domain */
 	bool updated;		/* complete domain flush required */
 	unsigned dev_cnt;	/* devices assigned to this domain */
@@ -610,6 +634,9 @@ extern u32 amd_iommu_max_pasids;
 extern bool amd_iommu_v2_present;
 
 extern bool amd_iommu_force_isolation;
+
+/* Max levels of glxval supported */
+extern int amd_iommu_max_glx_val;
 
 /* takes bus and device/function and returns the device id
  * FIXME: should that be in generic PCI code? */
