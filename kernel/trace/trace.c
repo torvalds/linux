@@ -1845,6 +1845,33 @@ static void s_stop(struct seq_file *m, void *p)
 	trace_event_read_unlock();
 }
 
+static void
+get_total_entries(struct trace_array *tr, unsigned long *total, unsigned long *entries)
+{
+	unsigned long count;
+	int cpu;
+
+	*total = 0;
+	*entries = 0;
+
+	for_each_tracing_cpu(cpu) {
+		count = ring_buffer_entries_cpu(tr->buffer, cpu);
+		/*
+		 * If this buffer has skipped entries, then we hold all
+		 * entries for the trace and we need to ignore the
+		 * ones before the time stamp.
+		 */
+		if (tr->data[cpu]->skipped_entries) {
+			count -= tr->data[cpu]->skipped_entries;
+			/* total is the same as the entries */
+			*total += count;
+		} else
+			*total += count +
+				ring_buffer_overrun_cpu(tr->buffer, cpu);
+		*entries += count;
+	}
+}
+
 static void print_lat_help_header(struct seq_file *m)
 {
 	seq_puts(m, "#                  _------=> CPU#            \n");
@@ -1857,14 +1884,27 @@ static void print_lat_help_header(struct seq_file *m)
 	seq_puts(m, "#     \\   /      |||||  \\    |   /           \n");
 }
 
-static void print_func_help_header(struct seq_file *m)
+static void print_event_info(struct trace_array *tr, struct seq_file *m)
 {
+	unsigned long total;
+	unsigned long entries;
+
+	get_total_entries(tr, &total, &entries);
+	seq_printf(m, "# entries-in-buffer/entries-written: %lu/%lu   #P:%d\n",
+		   entries, total, num_online_cpus());
+	seq_puts(m, "#\n");
+}
+
+static void print_func_help_header(struct trace_array *tr, struct seq_file *m)
+{
+	print_event_info(tr, m);
 	seq_puts(m, "#           TASK-PID   CPU#      TIMESTAMP  FUNCTION\n");
 	seq_puts(m, "#              | |       |          |         |\n");
 }
 
-static void print_func_help_header_irq(struct seq_file *m)
+static void print_func_help_header_irq(struct trace_array *tr, struct seq_file *m)
 {
+	print_event_info(tr, m);
 	seq_puts(m, "#                              _-----=> irqs-off\n");
 	seq_puts(m, "#                             / _----=> need-resched\n");
 	seq_puts(m, "#                            | / _---=> hardirq/softirq\n");
@@ -1881,32 +1921,14 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
 	struct trace_array *tr = iter->tr;
 	struct trace_array_cpu *data = tr->data[tr->cpu];
 	struct tracer *type = current_trace;
-	unsigned long entries = 0;
-	unsigned long total = 0;
-	unsigned long count;
+	unsigned long entries;
+	unsigned long total;
 	const char *name = "preemption";
-	int cpu;
 
 	if (type)
 		name = type->name;
 
-
-	for_each_tracing_cpu(cpu) {
-		count = ring_buffer_entries_cpu(tr->buffer, cpu);
-		/*
-		 * If this buffer has skipped entries, then we hold all
-		 * entries for the trace and we need to ignore the
-		 * ones before the time stamp.
-		 */
-		if (tr->data[cpu]->skipped_entries) {
-			count -= tr->data[cpu]->skipped_entries;
-			/* total is the same as the entries */
-			total += count;
-		} else
-			total += count +
-				ring_buffer_overrun_cpu(tr->buffer, cpu);
-		entries += count;
-	}
+	get_total_entries(tr, &total, &entries);
 
 	seq_printf(m, "# %s latency trace v1.1.5 on %s\n",
 		   name, UTS_RELEASE);
@@ -2184,9 +2206,9 @@ void trace_default_header(struct seq_file *m)
 	} else {
 		if (!(trace_flags & TRACE_ITER_VERBOSE)) {
 			if (trace_flags & TRACE_ITER_IRQ_INFO)
-				print_func_help_header_irq(m);
+				print_func_help_header_irq(iter->tr, m);
 			else
-				print_func_help_header(m);
+				print_func_help_header(iter->tr, m);
 		}
 	}
 }
