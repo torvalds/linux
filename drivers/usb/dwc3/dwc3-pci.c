@@ -171,14 +171,4 @@ MODULE_AUTHOR("Felipe Balbi <balbi@ti.com>");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("DesignWare USB3 PCI Glue Layer");
 
-static int __devinit dwc3_pci_init(void)
-{
-	return pci_register_driver(&dwc3_pci_driver);
-}
-module_init(dwc3_pci_init);
-
-static void __exit dwc3_pci_exit(void)
-{
-	pci_unregister_driver(&dwc3_pci_driver);
-}
-module_exit(dwc3_pci_exit);
+module_pci_driver(dwc3_pci_driver);
