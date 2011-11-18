@@ -384,6 +384,17 @@ struct omap_overlay {
 	/* dynamic fields */
 	struct omap_overlay_manager *manager;
 
+	/*
+	 * The following functions do not block:
+	 *
+	 * is_enabled
+	 * set_overlay_info
+	 * get_overlay_info
+	 *
+	 * The rest of the functions may block and cannot be called from
+	 * interrupt context
+	 */
+
 	int (*enable)(struct omap_overlay *ovl);
 	int (*disable)(struct omap_overlay *ovl);
 	bool (*is_enabled)(struct omap_overlay *ovl);
@@ -425,6 +436,17 @@ struct omap_overlay_manager {
 
 	/* dynamic fields */
 	struct omap_dss_device *device;
+
+	/*
+	 * The following functions do not block:
+	 *
+	 * set_manager_info
+	 * get_manager_info
+	 * apply
+	 *
+	 * The rest of the functions may block and cannot be called from
+	 * interrupt context
+	 */
 
 	int (*set_device)(struct omap_overlay_manager *mgr,
 		struct omap_dss_device *dssdev);
