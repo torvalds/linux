@@ -5642,6 +5642,11 @@ qla24xx_update_fcport_fcp_prio(scsi_qla_host_t *vha, fc_port_t *fcport)
 	if (priority < 0)
 		return QLA_FUNCTION_FAILED;
 
+	if (IS_QLA82XX(vha->hw)) {
+		fcport->fcp_prio = priority & 0xf;
+		return QLA_SUCCESS;
+	}
+
 	ret = qla24xx_set_fcp_prio(vha, fcport->loop_id, priority, mb);
 	if (ret == QLA_SUCCESS) {
 		if (fcport->fcp_prio != priority)
@@ -5650,7 +5655,7 @@ qla24xx_update_fcport_fcp_prio(scsi_qla_host_t *vha, fc_port_t *fcport)
 			    "port_id=%02x%02x%02x.\n", priority,
 			    fcport->loop_id, fcport->d_id.b.domain,
 			    fcport->d_id.b.area, fcport->d_id.b.al_pa);
-		fcport->fcp_prio = priority;
+		fcport->fcp_prio = priority & 0xf;
 	} else
 		ql_dbg(ql_dbg_user, vha, 0x704f,
 		    "Unable to update FCP_CMND priority - ret=0x%x for "

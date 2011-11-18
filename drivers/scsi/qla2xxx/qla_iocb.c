@@ -2432,6 +2432,11 @@ sufficient_dsds:
 			}
 		}
 
+		/* Populate the FCP_PRIO. */
+		if (ha->flags.fcp_prio_enabled)
+			ctx->fcp_cmnd->task_attribute |=
+			    sp->fcport->fcp_prio << 3;
+
 		memcpy(ctx->fcp_cmnd->cdb, cmd->cmnd, cmd->cmd_len);
 
 		fcp_dl = (uint32_t *)(ctx->fcp_cmnd->cdb + 16 +
@@ -2500,6 +2505,10 @@ sufficient_dsds:
 				break;
 			}
 		}
+
+		/* Populate the FCP_PRIO. */
+		if (ha->flags.fcp_prio_enabled)
+			cmd_pkt->task |= sp->fcport->fcp_prio << 3;
 
 		/* Load SCSI command packet. */
 		memcpy(cmd_pkt->fcp_cdb, cmd->cmnd, cmd->cmd_len);
