@@ -815,10 +815,10 @@ nouveau_bo_move_ntfy(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem)
 	struct nouveau_vma *vma;
 
 	list_for_each_entry(vma, &nvbo->vma_list, head) {
-		if (new_mem->mem_type == TTM_PL_VRAM) {
+		if (new_mem && new_mem->mem_type == TTM_PL_VRAM) {
 			nouveau_vm_map(vma, new_mem->mm_node);
 		} else
-		if (new_mem->mem_type == TTM_PL_TT &&
+		if (new_mem && new_mem->mem_type == TTM_PL_TT &&
 		    nvbo->page_shift == vma->vm->spg_shift) {
 			nouveau_vm_map_sg(vma, 0, new_mem->
 					  num_pages << PAGE_SHIFT,
