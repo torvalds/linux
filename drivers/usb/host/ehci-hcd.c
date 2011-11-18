@@ -1324,7 +1324,7 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ehci_pxa168_driver
 #endif
 
-#ifdef CONFIG_NLM_XLR
+#ifdef CONFIG_CPU_XLR
 #include "ehci-xls.c"
 #define PLATFORM_DRIVER		ehci_xls_driver
 #endif
