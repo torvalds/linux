@@ -19,9 +19,9 @@
 #include <asm/mach-ath79/ar71xx_regs.h>
 #include "dev-ar913x-wmac.h"
 
-static struct ath9k_platform_data ar913x_wmac_data;
+static struct ath9k_platform_data ath79_wmac_data;
 
-static struct resource ar913x_wmac_resources[] = {
+static struct resource ath79_wmac_resources[] = {
 	{
 		.start	= AR913X_WMAC_BASE,
 		.end	= AR913X_WMAC_BASE + AR913X_WMAC_SIZE - 1,
@@ -33,21 +33,21 @@ static struct resource ar913x_wmac_resources[] = {
 	},
 };
 
-static struct platform_device ar913x_wmac_device = {
+static struct platform_device ath79_wmac_device = {
 	.name		= "ath9k",
 	.id		= -1,
-	.resource	= ar913x_wmac_resources,
-	.num_resources	= ARRAY_SIZE(ar913x_wmac_resources),
+	.resource	= ath79_wmac_resources,
+	.num_resources	= ARRAY_SIZE(ath79_wmac_resources),
 	.dev = {
-		.platform_data = &ar913x_wmac_data,
+		.platform_data = &ath79_wmac_data,
 	},
 };
 
-void __init ath79_register_ar913x_wmac(u8 *cal_data)
+void __init ath79_register_wmac(u8 *cal_data)
 {
 	if (cal_data)
-		memcpy(ar913x_wmac_data.eeprom_data, cal_data,
-		       sizeof(ar913x_wmac_data.eeprom_data));
+		memcpy(ath79_wmac_data.eeprom_data, cal_data,
+		       sizeof(ath79_wmac_data.eeprom_data));
 
 	/* reset the WMAC */
 	ath79_device_reset_set(AR913X_RESET_AMBA2WMAC);
@@ -56,5 +56,5 @@ void __init ath79_register_ar913x_wmac(u8 *cal_data)
 	ath79_device_reset_clear(AR913X_RESET_AMBA2WMAC);
 	mdelay(10);
 
-	platform_device_register(&ar913x_wmac_device);
+	platform_device_register(&ath79_wmac_device);
 }
