@@ -499,11 +499,16 @@ struct sched_state {
 	unsigned long used[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
 };
 
+/* Total max is X86_PMC_IDX_MAX, but we are O(n!) limited */
+#define	SCHED_STATES_MAX	2
+
 struct perf_sched {
 	int			max_weight;
 	int			max_events;
 	struct event_constraint	**constraints;
 	struct sched_state	state;
+	int			saved_states;
+	struct sched_state	saved[SCHED_STATES_MAX];
 };
 
 /*
@@ -529,11 +534,34 @@ static void perf_sched_init(struct perf_sched *sched, struct event_constraint **
 	sched->state.unassigned	= num;
 }
 
+static void perf_sched_save_state(struct perf_sched *sched)
+{
+	if (WARN_ON_ONCE(sched->saved_states >= SCHED_STATES_MAX))
+		return;
+
+	sched->saved[sched->saved_states] = sched->state;
+	sched->saved_states++;
+}
+
+static bool perf_sched_restore_state(struct perf_sched *sched)
+{
+	if (!sched->saved_states)
+		return false;
+
+	sched->saved_states--;
+	sched->state = sched->saved[sched->saved_states];
+
+	/* continue with next counter: */
+	clear_bit(sched->state.counter++, sched->state.used);
+
+	return true;
+}
+
 /*
  * Select a counter for the current event to schedule. Return true on
  * success.
  */
-static bool perf_sched_find_counter(struct perf_sched *sched)
+static bool __perf_sched_find_counter(struct perf_sched *sched)
 {
 	struct event_constraint *c;
 	int idx;
@@ -556,6 +584,19 @@ static bool perf_sched_find_counter(struct perf_sched *sched)
 
 	if (idx >= X86_PMC_IDX_MAX)
 		return false;
+
+	if (c->overlap)
+		perf_sched_save_state(sched);
+
+	return true;
+}
+
+static bool perf_sched_find_counter(struct perf_sched *sched)
+{
+	while (!__perf_sched_find_counter(sched)) {
+		if (!perf_sched_restore_state(sched))
+			return false;
+	}
 
 	return true;
 }
@@ -1250,7 +1291,7 @@ static int __init init_hw_perf_events(void)
 
 	unconstrained = (struct event_constraint)
 		__EVENT_CONSTRAINT(0, (1ULL << x86_pmu.num_counters) - 1,
-				   0, x86_pmu.num_counters);
+				   0, x86_pmu.num_counters, 0);
 
 	if (x86_pmu.event_constraints) {
 		for_each_event_constraint(c, x86_pmu.event_constraints) {
