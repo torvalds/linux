@@ -201,12 +201,12 @@ MODULE_PARM_DESC(ql2xmdcapmask,
 		"Set the Minidump driver capture mask level. "
 		"Default is 0x7F - Can be set to 0x3, 0x7, 0xF, 0x1F, 0x7F.");
 
-int ql2xmdenable;
+int ql2xmdenable = 1;
 module_param(ql2xmdenable, int, S_IRUGO);
 MODULE_PARM_DESC(ql2xmdenable,
 		"Enable/disable MiniDump. "
-		"0 (Default) - MiniDump disabled. "
-		"1 - MiniDump enabled.");
+		"0 - MiniDump disabled. "
+		"1 (Default) - MiniDump enabled.");
 
 /*
  * SCSI host template entry points
