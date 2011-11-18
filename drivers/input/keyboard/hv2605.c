@@ -132,6 +132,9 @@ static int tkey_fetch_sysconfig_para(void)
 		printk("%s: after: tkey_twi_addr is 0x%x, dirty_addr_buf: 0x%hx. dirty_addr_buf[1]: 0x%hx \n", \
 		__func__, twi_addr, u_i2c_addr.dirty_addr_buf[0], u_i2c_addr.dirty_addr_buf[1]);
 		
+	}else{
+		pr_err("%s: tkey_unused. \n",  __func__);
+		ret = -1;
 	}
 
 	return 0;
