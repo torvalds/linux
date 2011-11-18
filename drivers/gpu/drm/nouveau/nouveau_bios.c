@@ -4304,18 +4304,6 @@ int nouveau_bios_parse_lvds_table(struct drm_device *dev, int pxclk, bool *dl, b
 		break;
 	}
 
-	/* Dell Latitude D620 reports a too-high value for the dual-link
-	 * transition freq, causing us to program the panel incorrectly.
-	 *
-	 * It doesn't appear the VBIOS actually uses its transition freq
-	 * (90000kHz), instead it uses the "Number of LVDS channels" field
-	 * out of the panel ID structure (http://www.spwg.org/).
-	 *
-	 * For the moment, a quirk will do :)
-	 */
-	if (nv_match_device(dev, 0x01d7, 0x1028, 0x01c2))
-		bios->fp.duallink_transition_clk = 80000;
-
 	/* set dual_link flag for EDID case */
 	if (pxclk && (chip_version < 0x25 || chip_version > 0x28))
 		bios->fp.dual_link = (pxclk >= bios->fp.duallink_transition_clk);
