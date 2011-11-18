@@ -1927,10 +1927,11 @@ S:	Maintained
 F:	drivers/connector/
 
 CONTROL GROUPS (CGROUPS)
-M:	Paul Menage <paul@paulmenage.org>
+M:	Tejun Heo <tj@kernel.org>
 M:	Li Zefan <lizf@cn.fujitsu.com>
 L:	containers@lists.linux-foundation.org
 L:	cgroups@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tj/cgroup.git
 S:	Maintained
 F:	include/linux/cgroup*
 F:	kernel/cgroup*
