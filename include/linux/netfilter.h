@@ -162,6 +162,24 @@ extern struct ctl_path nf_net_ipv4_netfilter_sysctl_path[];
 
 extern struct list_head nf_hooks[NFPROTO_NUMPROTO][NF_MAX_HOOKS];
 
+#if defined(CONFIG_JUMP_LABEL)
+#include <linux/jump_label.h>
+extern struct jump_label_key nf_hooks_needed[NFPROTO_NUMPROTO][NF_MAX_HOOKS];
+static inline bool nf_hooks_active(u_int8_t pf, unsigned int hook)
+{
+	if (__builtin_constant_p(pf) &&
+	    __builtin_constant_p(hook))
+		return static_branch(&nf_hooks_needed[pf][hook]);
+
+	return !list_empty(&nf_hooks[pf][hook]);
+}
+#else
+static inline bool nf_hooks_active(u_int8_t pf, unsigned int hook)
+{
+	return !list_empty(&nf_hooks[pf][hook]);
+}
+#endif
+
 int nf_hook_slow(u_int8_t pf, unsigned int hook, struct sk_buff *skb,
 		 struct net_device *indev, struct net_device *outdev,
 		 int (*okfn)(struct sk_buff *), int thresh);
@@ -179,11 +197,9 @@ static inline int nf_hook_thresh(u_int8_t pf, unsigned int hook,
 				 struct net_device *outdev,
 				 int (*okfn)(struct sk_buff *), int thresh)
 {
-#ifndef CONFIG_NETFILTER_DEBUG
-	if (list_empty(&nf_hooks[pf][hook]))
-		return 1;
-#endif
-	return nf_hook_slow(pf, hook, skb, indev, outdev, okfn, thresh);
+	if (nf_hooks_active(pf, hook))
+		return nf_hook_slow(pf, hook, skb, indev, outdev, okfn, thresh);
+	return 1;
 }
 
 static inline int nf_hook(u_int8_t pf, unsigned int hook, struct sk_buff *skb,
