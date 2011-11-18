@@ -39,6 +39,7 @@
 #include <linux/earlysuspend.h>
 #include <linux/gpio.h>
 #include <mach/board.h>
+#include <linux/slab.h>
 
 /* Debug */
 #if 1

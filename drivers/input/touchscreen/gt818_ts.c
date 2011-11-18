@@ -834,6 +834,6 @@ late_initcall(goodix_ts_init);
 module_exit(goodix_ts_exit);
 
 MODULE_DESCRIPTION("Goodix Touchscreen Driver");
-MODULE_AUTHOR("hhb@rock-chips.com")
+MODULE_AUTHOR("hhb@rock-chips.com");
 MODULE_LICENSE("GPL");
 

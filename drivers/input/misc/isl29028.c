@@ -27,6 +27,7 @@
 #include <linux/circ_buf.h>
 #include <linux/interrupt.h>
 #include "isl29028.h"
+#include <linux/slab.h>
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>

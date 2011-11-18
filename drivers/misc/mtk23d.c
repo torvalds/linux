@@ -23,6 +23,7 @@
 #include <linux/mtk23d.h>
 #include <linux/wakelock.h>
 #include "../mtd/rknand/api_flash.h"
+#include <linux/slab.h>
 
 MODULE_LICENSE("GPL");
 
@@ -405,7 +406,7 @@ static struct file_operations mtk23d_fops = {
 	.owner = THIS_MODULE,
 	.open = mtk23d_open,
 	.release = mtk23d_release,
-	.ioctl = mtk23d_ioctl
+	.unlocked_ioctl = mtk23d_ioctl
 };
 
 static struct miscdevice mtk23d_misc = {
@@ -492,7 +493,7 @@ static int mtk23d_probe(struct platform_device *pdev)
 #endif	
 
 	INIT_WORK(&mt6223d_data->work, bpwakeup_work_func_work);
-	init_MUTEX(&pdata->power_sem);
+	sema_init(&pdata->power_sem,1);
   	power_on = 1;
 	result = misc_register(&mtk23d_misc);
 	if(result)
