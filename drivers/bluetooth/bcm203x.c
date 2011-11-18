@@ -281,26 +281,7 @@ static struct usb_driver bcm203x_driver = {
 	.id_table	= bcm203x_table,
 };
 
-static int __init bcm203x_init(void)
-{
-	int err;
-
-	BT_INFO("Broadcom Blutonium firmware driver ver %s", VERSION);
-
-	err = usb_register(&bcm203x_driver);
-	if (err < 0)
-		BT_ERR("Failed to register USB driver");
-
-	return err;
-}
-
-static void __exit bcm203x_exit(void)
-{
-	usb_deregister(&bcm203x_driver);
-}
-
-module_init(bcm203x_init);
-module_exit(bcm203x_exit);
+module_usb_driver(bcm203x_driver);
 
 MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("Broadcom Blutonium firmware driver ver " VERSION);
