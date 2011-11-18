@@ -85,6 +85,7 @@ obj-$(CONFIG_SOC_CAMERA_OV9740)		+= ov9740.o
 obj-$(CONFIG_SOC_CAMERA_RJ54N1)		+= rj54n1cb0c.o
 obj-$(CONFIG_SOC_CAMERA_TW9910)		+= tw9910.o
 
+obj-$(CONFIG_VIDEO_CSI_SUN4I)					+= sun4i_csi/device/
 # And now the v4l2 drivers:
 
 obj-$(CONFIG_VIDEO_BT848) += bt8xx/
@@ -187,6 +188,8 @@ obj-$(CONFIG_ARCH_OMAP)	+= omap/
 ifdef CONFIG_VIDEO_SUN4I_CEDAR
   obj-$(CONFIG_VIDEO_SUN4I_CEDAR) += sun4i/
 endif
+obj-$(CONFIG_CSI0_SUN4I) += sun4i_csi/csi0/
+obj-$(CONFIG_CSI1_SUN4I) += sun4i_csi/csi1/
 EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core
 EXTRA_CFLAGS += -Idrivers/media/dvb/frontends
 EXTRA_CFLAGS += -Idrivers/media/common/tuners

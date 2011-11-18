@@ -1066,3 +1066,11 @@ config VIDEO_SUN4I_CEDAR
 if VIDEO_SUN4I_CEDAR
 source "drivers/media/video/sun4i/Kconfig"
 endif
+menuconfig VIDEO_CSI_SUN4I
+	bool "CSI Driver Config for sun4i"
+	default m
+	depends on VIDEO_DEV && VIDEO_V4L2
+
+if VIDEO_CSI_SUN4I
+source "drivers/media/video/sun4i_csi/Kconfig"	   	  
+endif
