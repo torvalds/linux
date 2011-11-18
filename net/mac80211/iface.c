@@ -866,6 +866,8 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 	sdata->control_port_protocol = cpu_to_be16(ETH_P_PAE);
 	sdata->control_port_no_encrypt = false;
 
+	sdata->noack_map = 0;
+
 	/* only monitor differs */
 	sdata->dev->type = ARPHRD_ETHER;
 

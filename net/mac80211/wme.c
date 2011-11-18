@@ -139,6 +139,7 @@ void ieee80211_set_qos_hdr(struct ieee80211_sub_if_data *sdata,
 			   struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (void *)skb->data;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
 	/* Fill in the QoS header if there is one. */
 	if (ieee80211_is_data_qos(hdr->frame_control)) {
@@ -150,8 +151,12 @@ void ieee80211_set_qos_hdr(struct ieee80211_sub_if_data *sdata,
 		/* preserve EOSP bit */
 		ack_policy = *p & IEEE80211_QOS_CTL_EOSP;
 
-		if (is_multicast_ether_addr(hdr->addr1))
+		if (is_multicast_ether_addr(hdr->addr1) ||
+		    sdata->noack_map & BIT(tid)) {
 			ack_policy |= IEEE80211_QOS_CTL_ACK_POLICY_NOACK;
+			info->flags |= IEEE80211_TX_CTL_NO_ACK;
+		}
+
 		/* qos header is 2 bytes */
 		*p++ = ack_policy | tid;
 		*p = ieee80211_vif_is_mesh(&sdata->vif) ?
