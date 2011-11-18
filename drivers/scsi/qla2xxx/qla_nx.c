@@ -4075,7 +4075,10 @@ qla82xx_chip_reset_cleanup(scsi_qla_host_t *vha)
 				ha->flags.isp82xx_fw_hung = 1;
 				if (ha->flags.mbox_busy) {
 					ha->flags.mbox_int = 1;
-					complete(&ha->mbx_intr_comp);
+					if (test_bit(MBX_INTR_WAIT,
+					    &ha->mbx_cmd_flags)) {
+						complete(&ha->mbx_intr_comp);
+					}
 				}
 				break;
 			}

@@ -4014,7 +4014,10 @@ qla2xxx_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 				ql_dbg(ql_dbg_aer, vha, 0x9001,
 				    "Due to pci channel io frozen, doing premature "
 				    "completion of mbx command.\n");
-				complete(&ha->mbx_intr_comp);
+				if (test_bit(MBX_INTR_WAIT,
+				    &ha->mbx_cmd_flags)) {
+					complete(&ha->mbx_intr_comp);
+				}
 			}
 		}
 		qla2x00_free_irqs(vha);
