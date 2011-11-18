@@ -13,7 +13,7 @@
 #include "dev-leds-gpio.h"
 #include "dev-spi.h"
 #include "dev-usb.h"
-#include "dev-ar913x-wmac.h"
+#include "dev-wmac.h"
 
 #define AP121_GPIO_LED_WLAN		0
 #define AP121_GPIO_LED_USB		1

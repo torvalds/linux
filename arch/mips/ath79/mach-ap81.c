@@ -10,7 +10,7 @@
  */
 
 #include "machtypes.h"
-#include "dev-ar913x-wmac.h"
+#include "dev-wmac.h"
 #include "dev-gpio-buttons.h"
 #include "dev-leds-gpio.h"
 #include "dev-spi.h"
