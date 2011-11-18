@@ -805,6 +805,13 @@ static int usbhsg_start(struct usbhs_priv *priv)
 
 static int usbhsg_stop(struct usbhs_priv *priv)
 {
+	struct usbhsg_gpriv *gpriv = usbhsg_priv_to_gpriv(priv);
+
+	/* cable disconnect */
+	if (gpriv->driver &&
+	    gpriv->driver->disconnect)
+		gpriv->driver->disconnect(&gpriv->gadget);
+
 	return usbhsg_try_stop(priv, USBHSG_STATUS_STARTED);
 }
 
