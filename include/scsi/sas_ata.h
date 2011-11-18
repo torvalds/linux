@@ -32,7 +32,8 @@
 
 static inline int dev_is_sata(struct domain_device *dev)
 {
-	return (dev->rphy->identify.target_port_protocols & SAS_PROTOCOL_SATA);
+	return dev->dev_type == SATA_DEV || dev->dev_type == SATA_PM ||
+	       dev->dev_type == SATA_PM_PORT;
 }
 
 int sas_ata_init_host_and_port(struct domain_device *found_dev,
