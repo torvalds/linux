@@ -1928,22 +1928,7 @@ static struct usb_driver dw2102_driver = {
 	.id_table = dw2102_table,
 };
 
-static int __init dw2102_module_init(void)
-{
-	int ret =  usb_register(&dw2102_driver);
-	if (ret)
-		err("usb_register failed. Error number %d", ret);
-
-	return ret;
-}
-
-static void __exit dw2102_module_exit(void)
-{
-	usb_deregister(&dw2102_driver);
-}
-
-module_init(dw2102_module_init);
-module_exit(dw2102_module_exit);
+module_usb_driver(dw2102_driver);
 
 MODULE_AUTHOR("Igor M. Liplianin (c) liplianin@me.by");
 MODULE_DESCRIPTION("Driver for DVBWorld DVB-S 2101, 2102, DVB-S2 2104,"

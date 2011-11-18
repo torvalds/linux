@@ -3325,26 +3325,4 @@ static struct usb_driver em28xx_usb_driver = {
 	.id_table = em28xx_id_table,
 };
 
-static int __init em28xx_module_init(void)
-{
-	int result;
-
-	/* register this driver with the USB subsystem */
-	result = usb_register(&em28xx_usb_driver);
-	if (result)
-		em28xx_err(DRIVER_NAME
-			   " usb_register failed. Error number %d.\n", result);
-
-	printk(KERN_INFO DRIVER_NAME " driver loaded\n");
-
-	return result;
-}
-
-static void __exit em28xx_module_exit(void)
-{
-	/* deregister this driver with the USB subsystem */
-	usb_deregister(&em28xx_usb_driver);
-}
-
-module_init(em28xx_module_init);
-module_exit(em28xx_module_exit);
+module_usb_driver(em28xx_usb_driver);

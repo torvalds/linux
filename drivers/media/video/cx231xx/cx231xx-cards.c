@@ -1385,26 +1385,4 @@ static struct usb_driver cx231xx_usb_driver = {
 	.id_table = cx231xx_id_table,
 };
 
-static int __init cx231xx_module_init(void)
-{
-	int result;
-
-	printk(KERN_INFO DRIVER_NAME " v4l2 driver loaded.\n");
-
-	/* register this driver with the USB subsystem */
-	result = usb_register(&cx231xx_usb_driver);
-	if (result)
-		cx231xx_err(DRIVER_NAME
-			    " usb_register failed. Error number %d.\n", result);
-
-	return result;
-}
-
-static void __exit cx231xx_module_exit(void)
-{
-	/* deregister this driver with the USB subsystem */
-	usb_deregister(&cx231xx_usb_driver);
-}
-
-module_init(cx231xx_module_init);
-module_exit(cx231xx_module_exit);
+module_usb_driver(cx231xx_usb_driver);

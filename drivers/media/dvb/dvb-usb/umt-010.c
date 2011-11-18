@@ -143,26 +143,7 @@ static struct usb_driver umt_driver = {
 	.id_table	= umt_table,
 };
 
-/* module stuff */
-static int __init umt_module_init(void)
-{
-	int result;
-	if ((result = usb_register(&umt_driver))) {
-		err("usb_register failed. Error number %d",result);
-		return result;
-	}
-
-	return 0;
-}
-
-static void __exit umt_module_exit(void)
-{
-	/* deregister this driver from the USB subsystem */
-	usb_deregister(&umt_driver);
-}
-
-module_init (umt_module_init);
-module_exit (umt_module_exit);
+module_usb_driver(umt_driver);
 
 MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@desy.de>");
 MODULE_DESCRIPTION("Driver for HanfTek UMT 010 USB2.0 DVB-T device");

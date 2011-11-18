@@ -1371,31 +1371,7 @@ static struct usb_driver tm6000_usb_driver = {
 		.id_table = tm6000_id_table,
 };
 
-static int __init tm6000_module_init(void)
-{
-	int result;
-
-	printk(KERN_INFO "tm6000" " v4l2 driver version %d.%d.%d loaded\n",
-	       (TM6000_VERSION  >> 16) & 0xff,
-	       (TM6000_VERSION  >> 8) & 0xff, TM6000_VERSION  & 0xff);
-
-	/* register this driver with the USB subsystem */
-	result = usb_register(&tm6000_usb_driver);
-	if (result)
-		printk(KERN_ERR "tm6000"
-			   " usb_register failed. Error number %d.\n", result);
-
-	return result;
-}
-
-static void __exit tm6000_module_exit(void)
-{
-	/* deregister at USB subsystem */
-	usb_deregister(&tm6000_usb_driver);
-}
-
-module_init(tm6000_module_init);
-module_exit(tm6000_module_exit);
+module_usb_driver(tm6000_usb_driver);
 
 MODULE_DESCRIPTION("Trident TVMaster TM5600/TM6000/TM6010 USB2 adapter");
 MODULE_AUTHOR("Mauro Carvalho Chehab");

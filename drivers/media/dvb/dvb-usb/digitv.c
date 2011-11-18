@@ -346,26 +346,7 @@ static struct usb_driver digitv_driver = {
 	.id_table	= digitv_table,
 };
 
-/* module stuff */
-static int __init digitv_module_init(void)
-{
-	int result;
-	if ((result = usb_register(&digitv_driver))) {
-		err("usb_register failed. Error number %d",result);
-		return result;
-	}
-
-	return 0;
-}
-
-static void __exit digitv_module_exit(void)
-{
-	/* deregister this driver from the USB subsystem */
-	usb_deregister(&digitv_driver);
-}
-
-module_init (digitv_module_init);
-module_exit (digitv_module_exit);
+module_usb_driver(digitv_driver);
 
 MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@desy.de>");
 MODULE_DESCRIPTION("Driver for Nebula Electronics uDigiTV DVB-T USB2.0");

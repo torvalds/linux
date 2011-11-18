@@ -452,26 +452,7 @@ static struct usb_driver hdpvr_usb_driver = {
 	.id_table =	hdpvr_table,
 };
 
-static int __init hdpvr_init(void)
-{
-	int result;
-
-	/* register this driver with the USB subsystem */
-	result = usb_register(&hdpvr_usb_driver);
-	if (result)
-		err("usb_register failed. Error number %d", result);
-
-	return result;
-}
-
-static void __exit hdpvr_exit(void)
-{
-	/* deregister this driver with the USB subsystem */
-	usb_deregister(&hdpvr_usb_driver);
-}
-
-module_init(hdpvr_init);
-module_exit(hdpvr_exit);
+module_usb_driver(hdpvr_usb_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.2.1");

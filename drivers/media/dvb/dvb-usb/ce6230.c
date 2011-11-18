@@ -317,27 +317,7 @@ static struct usb_driver ce6230_driver = {
 	.id_table   = ce6230_table,
 };
 
-/* module stuff */
-static int __init ce6230_module_init(void)
-{
-	int ret;
-	deb_info("%s:\n", __func__);
-	ret = usb_register(&ce6230_driver);
-	if (ret)
-		err("usb_register failed with error:%d", ret);
-
-	return ret;
-}
-
-static void __exit ce6230_module_exit(void)
-{
-	deb_info("%s:\n", __func__);
-	/* deregister this driver from the USB subsystem */
-	usb_deregister(&ce6230_driver);
-}
-
-module_init(ce6230_module_init);
-module_exit(ce6230_module_exit);
+module_usb_driver(ce6230_driver);
 
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
 MODULE_DESCRIPTION("Driver for Intel CE6230 DVB-T USB2.0");

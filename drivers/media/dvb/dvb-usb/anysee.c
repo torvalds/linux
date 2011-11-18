@@ -1091,26 +1091,7 @@ static struct usb_driver anysee_driver = {
 	.id_table   = anysee_table,
 };
 
-/* module stuff */
-static int __init anysee_module_init(void)
-{
-	int ret;
-
-	ret = usb_register(&anysee_driver);
-	if (ret)
-		err("%s: usb_register failed. Error number %d", __func__, ret);
-
-	return ret;
-}
-
-static void __exit anysee_module_exit(void)
-{
-	/* deregister this driver from the USB subsystem */
-	usb_deregister(&anysee_driver);
-}
-
-module_init(anysee_module_init);
-module_exit(anysee_module_exit);
+module_usb_driver(anysee_driver);
 
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
 MODULE_DESCRIPTION("Driver Anysee E30 DVB-C & DVB-T USB2.0");

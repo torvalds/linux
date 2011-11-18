@@ -209,26 +209,7 @@ static struct usb_driver gl861_driver = {
 	.id_table	= gl861_table,
 };
 
-/* module stuff */
-static int __init gl861_module_init(void)
-{
-	int ret;
-
-	ret = usb_register(&gl861_driver);
-	if (ret)
-		err("usb_register failed. Error number %d", ret);
-
-	return ret;
-}
-
-static void __exit gl861_module_exit(void)
-{
-	/* deregister this driver from the USB subsystem */
-	usb_deregister(&gl861_driver);
-}
-
-module_init(gl861_module_init);
-module_exit(gl861_module_exit);
+module_usb_driver(gl861_driver);
 
 MODULE_AUTHOR("Carl Lundqvist <comabug@gmail.com>");
 MODULE_DESCRIPTION("Driver MSI Mega Sky 580 DVB-T USB2.0 / GL861");

@@ -624,21 +624,7 @@ static int usb_dsbr100_probe(struct usb_interface *intf,
 	return 0;
 }
 
-static int __init dsbr100_init(void)
-{
-	int retval = usb_register(&usb_dsbr100_driver);
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-	       DRIVER_DESC "\n");
-	return retval;
-}
-
-static void __exit dsbr100_exit(void)
-{
-	usb_deregister(&usb_dsbr100_driver);
-}
-
-module_init (dsbr100_init);
-module_exit (dsbr100_exit);
+module_usb_driver(usb_dsbr100_driver);
 
 MODULE_AUTHOR( DRIVER_AUTHOR );
 MODULE_DESCRIPTION( DRIVER_DESC );

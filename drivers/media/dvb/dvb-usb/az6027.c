@@ -1174,28 +1174,7 @@ static struct usb_driver az6027_usb_driver = {
 	.id_table 	= az6027_usb_table,
 };
 
-/* module stuff */
-static int __init az6027_usb_module_init(void)
-{
-	int result;
-
-	result = usb_register(&az6027_usb_driver);
-	if (result) {
-		err("usb_register failed. (%d)", result);
-		return result;
-	}
-
-	return 0;
-}
-
-static void __exit az6027_usb_module_exit(void)
-{
-	/* deregister this driver from the USB subsystem */
-	usb_deregister(&az6027_usb_driver);
-}
-
-module_init(az6027_usb_module_init);
-module_exit(az6027_usb_module_exit);
+module_usb_driver(az6027_usb_driver);
 
 MODULE_AUTHOR("Adams Xu <Adams.xu@azwave.com.cn>");
 MODULE_DESCRIPTION("Driver for AZUREWAVE DVB-S/S2 USB2.0 (AZ6027)");

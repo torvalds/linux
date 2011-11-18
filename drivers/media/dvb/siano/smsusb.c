@@ -557,26 +557,7 @@ static struct usb_driver smsusb_driver = {
 	.resume			= smsusb_resume,
 };
 
-static int __init smsusb_module_init(void)
-{
-	int rc = usb_register(&smsusb_driver);
-	if (rc)
-		sms_err("usb_register failed. Error number %d", rc);
-
-	sms_debug("");
-
-	return rc;
-}
-
-static void __exit smsusb_module_exit(void)
-{
-	/* Regular USB Cleanup */
-	usb_deregister(&smsusb_driver);
-	sms_info("end");
-}
-
-module_init(smsusb_module_init);
-module_exit(smsusb_module_exit);
+module_usb_driver(smsusb_driver);
 
 MODULE_DESCRIPTION("Driver for the Siano SMS1xxx USB dongle");
 MODULE_AUTHOR("Siano Mobile Silicon, INC. (uris@siano-ms.com)");

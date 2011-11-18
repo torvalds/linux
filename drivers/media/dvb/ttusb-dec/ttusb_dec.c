@@ -1756,26 +1756,7 @@ static struct usb_driver ttusb_dec_driver = {
 	.id_table	= ttusb_dec_table,
 };
 
-static int __init ttusb_dec_init(void)
-{
-	int result;
-
-	if ((result = usb_register(&ttusb_dec_driver)) < 0) {
-		printk("%s: initialisation failed: error %d.\n", __func__,
-		       result);
-		return result;
-	}
-
-	return 0;
-}
-
-static void __exit ttusb_dec_exit(void)
-{
-	usb_deregister(&ttusb_dec_driver);
-}
-
-module_init(ttusb_dec_init);
-module_exit(ttusb_dec_exit);
+module_usb_driver(ttusb_dec_driver);
 
 MODULE_AUTHOR("Alex Woods <linux-dvb@giblets.org>");
 MODULE_DESCRIPTION(DRIVER_NAME);
