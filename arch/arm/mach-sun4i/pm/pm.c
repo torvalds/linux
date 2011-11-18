@@ -54,11 +54,6 @@ static struct aw_pm_info standby_info = {
         .dev_addr = 10,
     },
 };
-static struct cdev *pmu_cdev=NULL;
-static struct device *pmu_device=NULL;
-static dev_t  pmu_dev;
-static struct class *pm_class;
-
 
 
 /*
@@ -291,79 +286,6 @@ static struct platform_suspend_ops aw_pm_ops = {
 
 /*
 *********************************************************************************************************
-*                           aw_set_pmu
-*
-*Description: set parameters for pmu device.
-*
-*Arguments  : arg   pm information from user;
-*
-*Return     : result,
-*
-*Notes      : pmu is a virtual char device for user access.
-*
-*********************************************************************************************************
-*/
-static int aw_set_pmu(struct aw_pm_info *arg)
-{
-    struct aw_pm_info   tmp_arg;
-
-    copy_from_user((void *)&tmp_arg, (void *)arg, sizeof(struct aw_pm_info));
-
-    /* check if parameter is valid */
-    if((tmp_arg.pmu_arg.twi_port < 0) || (tmp_arg.pmu_arg.twi_port > 2))
-    {
-        printk("pmu paraeter invlalid(standby_para.twi_port:%d\n)!\n", arg->pmu_arg.twi_port);
-        return -1;
-    }
-
-    memcpy((void *)&standby_info, (void *)arg, sizeof(struct aw_pm_info));
-
-    return 0;
-}
-
-
-/*
-*********************************************************************************************************
-*                           aw_pmu_ioctl
-*
-*Description: function for user control pmu virtual device.
-*
-*Arguments  : pfile pmu device handle;
-*             cmd   command for pmu device operation;
-*             arg   arguments for pmu device operation;
-*
-*Return     : result;
-*
-*Notes      :
-*
-*********************************************************************************************************
-*/
-static long aw_pmu_ioctl(struct file *pfile, unsigned int cmd, unsigned long arg)
-{
-    int ret = -EINVAL;
-
-    PM_DBG("aw_pmu_ioctl\n");
-
-    switch(cmd){
-    case AW_PMU_SET:
-        ret = aw_set_pmu((struct aw_pm_info *)arg);
-        break;
-    default:
-        break;
-    }
-
-    return ret;
-}
-
-
-static struct file_operations pmudev_fops= {
-    .owner  = THIS_MODULE,
-    .unlocked_ioctl = aw_pmu_ioctl,
-};
-
-
-/*
-*********************************************************************************************************
 *                           aw_pm_init
 *
 *Description: initial pm sub-system for platform;
@@ -378,45 +300,10 @@ static struct file_operations pmudev_fops= {
 */
 static int __init aw_pm_init(void)
 {
-    int     result;
-
     PM_DBG("aw_pm_init!\n");
-
-    pmu_dev = MKDEV(AW_PMU_MAJOR,0);
-    result = register_chrdev_region(pmu_dev,PMU_MAX_DEVS,"aw_pmu");
-    if(result){
-        printk(KERN_ERR "alloc_chrdev_region() failed for pmu\n");
-        return -EIO;
-    }
-
-    pmu_cdev = kzalloc(sizeof(struct cdev),GFP_KERNEL);
-    if(!pmu_cdev){
-        printk(KERN_ERR "malloc memory  fails for pmu device\n");
-        unregister_chrdev_region(pmu_dev,PMU_MAX_DEVS);
-        return -ENOMEM;
-    }
-
-    cdev_init(pmu_cdev, &pmudev_fops);
-    if(cdev_add(pmu_cdev, pmu_dev, 1))
-        goto out_err;
-
-    pm_class = class_create(THIS_MODULE, "pm_class");
-    if (IS_ERR(pm_class)){
-        printk(KERN_ERR"create class error\n");
-        return -EPERM;
-    }
-
-    pmu_device = device_create(pm_class, NULL, pmu_dev, NULL, "pm");
-
     suspend_set_ops(&aw_pm_ops);
 
     return 0;
-
-out_err:
-    printk(KERN_ERR "register failed  for pmu device\n");
-    kfree(pmu_cdev);
-    unregister_chrdev_region(pmu_dev, PMU_MAX_DEVS);
-    return -ENODEV;
 }
 
 
@@ -437,17 +324,6 @@ out_err:
 static void __exit aw_pm_exit(void)
 {
     PM_DBG("aw_pm_exit!\n");
-
-    device_destroy(pm_class, pmu_dev);
-    class_destroy(pm_class);
-
-    if(pmu_cdev)
-    {
-        cdev_del(pmu_cdev);
-        kfree(pmu_cdev);
-    }
-    unregister_chrdev_region(pmu_dev,PMU_MAX_DEVS);
-
     suspend_set_ops(NULL);
 }
 
