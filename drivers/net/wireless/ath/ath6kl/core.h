@@ -404,7 +404,7 @@ enum ath6kl_hif_type {
  * Driver's maximum limit, note that some firmwares support only one vif
  * and the runtime (current) limit must be checked from ar->vif_max.
  */
-#define ATH6KL_VIF_MAX	1
+#define ATH6KL_VIF_MAX	3
 
 /* vif flags info */
 enum ath6kl_vif_state {

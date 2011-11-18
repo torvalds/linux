@@ -414,11 +414,7 @@ static int ath6kl_target_config_wlan_params(struct ath6kl *ar, int idx)
 			status = -EIO;
 		}
 
-	/*
-	 * FIXME: Make sure p2p configurations are not applied to
-	 * non-p2p capable interfaces when multivif support is enabled.
-	 */
-	if (ar->p2p) {
+	if (ar->p2p && (ar->vif_max == 1 || idx)) {
 		ret = ath6kl_wmi_info_req_cmd(ar->wmi, idx,
 					      P2P_FLAG_CAPABILITIES_REQ |
 					      P2P_FLAG_MACADDR_REQ |
@@ -431,11 +427,7 @@ static int ath6kl_target_config_wlan_params(struct ath6kl *ar, int idx)
 		}
 	}
 
-	/*
-	 * FIXME: Make sure p2p configurations are not applied to
-	 * non-p2p capable interfaces when multivif support is enabled.
-	 */
-	if (ar->p2p) {
+	if (ar->p2p && (ar->vif_max == 1 || idx)) {
 		/* Enable Probe Request reporting for P2P */
 		ret = ath6kl_wmi_probe_report_req_cmd(ar->wmi, idx, true);
 		if (ret) {
@@ -481,11 +473,7 @@ int ath6kl_configure_target(struct ath6kl *ar)
 		fw_submode |= HI_OPTION_FW_SUBMODE_P2PDEV <<
 			      (i * HI_OPTION_FW_SUBMODE_BITS);
 
-	/*
-	 * FIXME: This needs to be removed once the multivif
-	 * support is enabled.
-	 */
-	if (ar->p2p)
+	if (ar->p2p && ar->vif_max == 1)
 		fw_submode = HI_OPTION_FW_SUBMODE_P2PDEV;
 
 	param = HTC_PROTOCOL_VERSION;
