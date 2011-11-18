@@ -189,7 +189,9 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev)
 					    prev_bssid,
 					    params->ssid, params->ssid_len,
 					    params->ie, params->ie_len,
-					    false, &params->crypto);
+					    false, &params->crypto,
+					    params->flags, &params->ht_capa,
+					    &params->ht_capa_mask);
 		if (err)
 			__cfg80211_mlme_deauth(rdev, wdev->netdev, params->bssid,
 					       NULL, 0,
@@ -772,6 +774,9 @@ int __cfg80211_connect(struct cfg80211_registered_device *rdev,
 		kfree(wdev->connect_keys);
 		wdev->connect_keys = NULL;
 	}
+
+	cfg80211_oper_and_ht_capa(&connect->ht_capa_mask,
+				  rdev->wiphy.ht_capa_mod_mask);
 
 	if (connkeys && connkeys->def >= 0) {
 		int idx;

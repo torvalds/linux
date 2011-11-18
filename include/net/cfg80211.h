@@ -1044,6 +1044,15 @@ struct cfg80211_auth_request {
 };
 
 /**
+ * enum cfg80211_assoc_req_flags - Over-ride default behaviour in association.
+ *
+ * @ASSOC_REQ_DISABLE_HT:  Disable HT (802.11n)
+ */
+enum cfg80211_assoc_req_flags {
+	ASSOC_REQ_DISABLE_HT		= BIT(0),
+};
+
+/**
  * struct cfg80211_assoc_request - (Re)Association request data
  *
  * This structure provides information needed to complete IEEE 802.11
@@ -1054,6 +1063,10 @@ struct cfg80211_auth_request {
  * @use_mfp: Use management frame protection (IEEE 802.11w) in this association
  * @crypto: crypto settings
  * @prev_bssid: previous BSSID, if not %NULL use reassociate frame
+ * @flags:  See &enum cfg80211_assoc_req_flags
+ * @ht_capa:  HT Capabilities over-rides.  Values set in ht_capa_mask
+ *   will be used in ht_capa.  Un-supported values will be ignored.
+ * @ht_capa_mask:  The bits of ht_capa which are to be used.
  */
 struct cfg80211_assoc_request {
 	struct cfg80211_bss *bss;
@@ -1061,6 +1074,9 @@ struct cfg80211_assoc_request {
 	size_t ie_len;
 	struct cfg80211_crypto_settings crypto;
 	bool use_mfp;
+	u32 flags;
+	struct ieee80211_ht_cap ht_capa;
+	struct ieee80211_ht_cap ht_capa_mask;
 };
 
 /**
@@ -1159,6 +1175,10 @@ struct cfg80211_ibss_params {
  * @key_len: length of WEP key for shared key authentication
  * @key_idx: index of WEP key for shared key authentication
  * @key: WEP key for shared key authentication
+ * @flags:  See &enum cfg80211_assoc_req_flags
+ * @ht_capa:  HT Capabilities over-rides.  Values set in ht_capa_mask
+ *   will be used in ht_capa.  Un-supported values will be ignored.
+ * @ht_capa_mask:  The bits of ht_capa which are to be used.
  */
 struct cfg80211_connect_params {
 	struct ieee80211_channel *channel;
@@ -1172,6 +1192,9 @@ struct cfg80211_connect_params {
 	struct cfg80211_crypto_settings crypto;
 	const u8 *key;
 	u8 key_len, key_idx;
+	u32 flags;
+	struct ieee80211_ht_cap ht_capa;
+	struct ieee80211_ht_cap ht_capa_mask;
 };
 
 /**
@@ -1938,6 +1961,8 @@ struct wiphy_wowlan_support {
  * @wowlan: WoWLAN support information
  *
  * @ap_sme_capa: AP SME capabilities, flags from &enum nl80211_ap_sme_features.
+ * @ht_capa_mod_mask:  Specify what ht_cap values can be over-ridden.
+ *	If null, then none can be over-ridden.
  */
 struct wiphy {
 	/* assign these fields before you register the wiphy */
@@ -2026,6 +2051,8 @@ struct wiphy {
 
 	/* dir in debugfs: ieee80211/<wiphyname> */
 	struct dentry *debugfsdir;
+
+	const struct ieee80211_ht_cap *ht_capa_mod_mask;
 
 #ifdef CONFIG_NET_NS
 	/* the network namespace this phy lives in currently */
