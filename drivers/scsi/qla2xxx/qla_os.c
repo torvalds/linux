@@ -202,7 +202,7 @@ int ql2xmdcapmask = 0x1F;
 module_param(ql2xmdcapmask, int, S_IRUGO);
 MODULE_PARM_DESC(ql2xmdcapmask,
 		"Set the Minidump driver capture mask level. "
-		"Default is 0x7F - Can be set to 0x3, 0x7, 0xF, 0x1F, 0x7F.");
+		"Default is 0x1F - Can be set to 0x3, 0x7, 0xF, 0x1F, 0x7F.");
 
 int ql2xmdenable = 1;
 module_param(ql2xmdenable, int, S_IRUGO);
