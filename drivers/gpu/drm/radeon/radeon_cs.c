@@ -43,6 +43,7 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		return 0;
 	}
 	chunk = &p->chunks[p->chunk_relocs_idx];
+	p->dma_reloc_idx = 0;
 	/* FIXME: we assume that each relocs use 4 dwords */
 	p->nrelocs = chunk->length_dw / 4;
 	p->relocs_ptr = kcalloc(p->nrelocs, sizeof(void *), GFP_KERNEL);
