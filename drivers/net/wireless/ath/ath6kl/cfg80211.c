@@ -21,10 +21,8 @@
 #include "testmode.h"
 
 static unsigned int ath6kl_p2p;
-static unsigned int multi_norm_if_support;
 
 module_param(ath6kl_p2p, uint, 0644);
-module_param(multi_norm_if_support, uint, 0644);
 
 #define RATETAB_ENT(_rate, _rateid, _flags) {   \
 	.bitrate    = (_rate),                  \
@@ -2452,14 +2450,13 @@ struct ath6kl *ath6kl_core_alloc(struct device *dev)
 	}
 
 	ar = wiphy_priv(wiphy);
-	if (!multi_norm_if_support)
-		ar->p2p = !!ath6kl_p2p;
+	ar->p2p = !!ath6kl_p2p;
 	ar->wiphy = wiphy;
 	ar->dev = dev;
 
 	ar->vif_max = 1;
 
-	if (multi_norm_if_support)
+	if (!ar->p2p)
 		ar->max_norm_iface = 2;
 	else
 		ar->max_norm_iface = 1;
