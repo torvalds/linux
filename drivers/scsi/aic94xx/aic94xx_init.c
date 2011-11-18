@@ -68,7 +68,6 @@ static struct scsi_host_template aic94xx_sht = {
 	.queuecommand		= sas_queuecommand,
 	.target_alloc		= sas_target_alloc,
 	.slave_configure	= sas_slave_configure,
-	.slave_destroy		= sas_slave_destroy,
 	.scan_finished		= asd_scan_finished,
 	.scan_start		= asd_scan_start,
 	.change_queue_depth	= sas_change_queue_depth,

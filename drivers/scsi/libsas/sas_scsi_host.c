@@ -797,14 +797,6 @@ int sas_slave_configure(struct scsi_device *scsi_dev)
 	return 0;
 }
 
-void sas_slave_destroy(struct scsi_device *scsi_dev)
-{
-	struct domain_device *dev = sdev_to_domain_dev(scsi_dev);
-
-	if (dev_is_sata(dev))
-		sas_to_ata_dev(dev)->class = ATA_DEV_NONE;
-}
-
 int sas_change_queue_depth(struct scsi_device *sdev, int depth, int reason)
 {
 	struct domain_device *dev = sdev_to_domain_dev(sdev);
@@ -1108,7 +1100,6 @@ EXPORT_SYMBOL_GPL(sas_request_addr);
 EXPORT_SYMBOL_GPL(sas_queuecommand);
 EXPORT_SYMBOL_GPL(sas_target_alloc);
 EXPORT_SYMBOL_GPL(sas_slave_configure);
-EXPORT_SYMBOL_GPL(sas_slave_destroy);
 EXPORT_SYMBOL_GPL(sas_change_queue_depth);
 EXPORT_SYMBOL_GPL(sas_change_queue_type);
 EXPORT_SYMBOL_GPL(sas_bios_param);
