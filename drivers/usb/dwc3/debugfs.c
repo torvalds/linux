@@ -377,7 +377,6 @@ static const struct debugfs_reg32 dwc3_regs[] = {
 static int dwc3_regdump_show(struct seq_file *s, void *unused)
 {
 	struct dwc3		*dwc = s->private;
-	int			i;
 
 	seq_printf(s, "DesignWare USB3 Core Register Dump\n");
 	debugfs_print_regs32(s, dwc3_regs, ARRAY_SIZE(dwc3_regs),
