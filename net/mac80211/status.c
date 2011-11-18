@@ -259,7 +259,7 @@ static void ieee80211_add_tx_radiotap_header(struct ieee80211_supported_band
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_radiotap_header *rthdr;
 	unsigned char *pos;
-	__le16 txflags;
+	u16 txflags;
 
 	rthdr = (struct ieee80211_radiotap_header *) skb_push(skb, rtap_len);
 
@@ -289,13 +289,13 @@ static void ieee80211_add_tx_radiotap_header(struct ieee80211_supported_band
 	txflags = 0;
 	if (!(info->flags & IEEE80211_TX_STAT_ACK) &&
 	    !is_multicast_ether_addr(hdr->addr1))
-		txflags |= cpu_to_le16(IEEE80211_RADIOTAP_F_TX_FAIL);
+		txflags |= IEEE80211_RADIOTAP_F_TX_FAIL;
 
 	if ((info->status.rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS) ||
 	    (info->status.rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT))
-		txflags |= cpu_to_le16(IEEE80211_RADIOTAP_F_TX_CTS);
+		txflags |= IEEE80211_RADIOTAP_F_TX_CTS;
 	else if (info->status.rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS)
-		txflags |= cpu_to_le16(IEEE80211_RADIOTAP_F_TX_RTS);
+		txflags |= IEEE80211_RADIOTAP_F_TX_RTS;
 
 	put_unaligned_le16(txflags, pos);
 	pos += 2;
