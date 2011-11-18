@@ -375,17 +375,7 @@ static struct usb_driver kalmia_driver = {
 	.resume = usbnet_resume
 };
 
-static int __init kalmia_init(void)
-{
-	return usb_register(&kalmia_driver);
-}
-module_init( kalmia_init);
-
-static void __exit kalmia_exit(void)
-{
-	usb_deregister(&kalmia_driver);
-}
-module_exit( kalmia_exit);
+module_usb_driver(kalmia_driver);
 
 MODULE_AUTHOR("Marius Bjoernstad Kotsbak <marius@kotsbak.com>");
 MODULE_DESCRIPTION("Samsung Kalmia USB network driver");

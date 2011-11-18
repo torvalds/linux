@@ -1759,32 +1759,7 @@ static struct usb_driver orinoco_driver = {
 static char version[] __initdata = DRIVER_NAME " " DRIVER_VERSION
 	" (Manuel Estrada Sainz)";
 
-static int __init ezusb_module_init(void)
-{
-	int err;
-
-	printk(KERN_DEBUG "%s\n", version);
-
-	/* register this driver with the USB subsystem */
-	err = usb_register(&orinoco_driver);
-	if (err < 0) {
-		printk(KERN_ERR PFX "usb_register failed, error %d\n",
-		       err);
-		return err;
-	}
-
-	return 0;
-}
-
-static void __exit ezusb_module_exit(void)
-{
-	/* deregister this driver with the USB subsystem */
-	usb_deregister(&orinoco_driver);
-}
-
-
-module_init(ezusb_module_init);
-module_exit(ezusb_module_exit);
+module_usb_driver(orinoco_driver);
 
 MODULE_AUTHOR("Manuel Estrada Sainz");
 MODULE_DESCRIPTION("Driver for Orinoco wireless LAN cards using EZUSB bridge");

@@ -238,17 +238,7 @@ static struct usb_driver int51x1_driver = {
 	.resume     = usbnet_resume,
 };
 
-static int __init int51x1_init(void)
-{
-	return usb_register(&int51x1_driver);
-}
-module_init(int51x1_init);
-
-static void __exit int51x1_exit(void)
-{
-	usb_deregister(&int51x1_driver);
-}
-module_exit(int51x1_exit);
+module_usb_driver(int51x1_driver);
 
 MODULE_AUTHOR("Peter Holik");
 MODULE_DESCRIPTION("Intellon usb powerline adapter");

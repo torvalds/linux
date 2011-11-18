@@ -901,26 +901,7 @@ static struct usb_driver irda_driver = {
 #endif
 };
 
-/*
- * Module insertion
- */
-static int __init ks959_init(void)
-{
-	return usb_register(&irda_driver);
-}
-
-module_init(ks959_init);
-
-/*
- * Module removal
- */
-static void __exit ks959_cleanup(void)
-{
-	/* Deregister the driver and remove all pending instances */
-	usb_deregister(&irda_driver);
-}
-
-module_exit(ks959_cleanup);
+module_usb_driver(irda_driver);
 
 MODULE_AUTHOR("Alex Villacís Lasso <a_villacis@palosanto.com>");
 MODULE_DESCRIPTION("IrDA-USB Dongle Driver for KingSun KS-959");

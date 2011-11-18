@@ -329,17 +329,7 @@ static struct usb_driver cx82310_driver = {
 	.resume		= usbnet_resume,
 };
 
-static int __init cx82310_init(void)
-{
-	return usb_register(&cx82310_driver);
-}
-module_init(cx82310_init);
-
-static void __exit cx82310_exit(void)
-{
-	usb_deregister(&cx82310_driver);
-}
-module_exit(cx82310_exit);
+module_usb_driver(cx82310_driver);
 
 MODULE_AUTHOR("Ondrej Zary");
 MODULE_DESCRIPTION("Conexant CX82310-based ADSL router USB ethernet driver");
