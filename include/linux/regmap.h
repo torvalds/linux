@@ -23,7 +23,6 @@ struct spi_device;
 /* An enum of all the supported cache types */
 enum regcache_type {
 	REGCACHE_NONE,
-	REGCACHE_INDEXED,
 	REGCACHE_RBTREE,
 	REGCACHE_COMPRESSED
 };

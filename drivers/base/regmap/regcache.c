@@ -19,7 +19,6 @@
 #include "internal.h"
 
 static const struct regcache_ops *cache_types[] = {
-	&regcache_indexed_ops,
 	&regcache_rbtree_ops,
 	&regcache_lzo_ops,
 };
@@ -419,23 +418,4 @@ int regcache_lookup_reg(struct regmap *map, unsigned int reg)
 		return r - map->reg_defaults;
 	else
 		return -ENOENT;
-}
-
-int regcache_insert_reg(struct regmap *map, unsigned int reg,
-			unsigned int val)
-{
-	void *tmp;
-
-	tmp = krealloc(map->reg_defaults,
-		       (map->num_reg_defaults + 1) * sizeof(struct reg_default),
-		       GFP_KERNEL);
-	if (!tmp)
-		return -ENOMEM;
-	map->reg_defaults = tmp;
-	map->num_reg_defaults++;
-	map->reg_defaults[map->num_reg_defaults - 1].reg = reg;
-	map->reg_defaults[map->num_reg_defaults - 1].def = val;
-	sort(map->reg_defaults, map->num_reg_defaults,
-	     sizeof(struct reg_default), regcache_default_cmp, NULL);
-	return 0;
 }
