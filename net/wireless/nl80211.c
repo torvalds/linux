@@ -882,7 +882,8 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	CMD(set_pmksa, SET_PMKSA);
 	CMD(del_pmksa, DEL_PMKSA);
 	CMD(flush_pmksa, FLUSH_PMKSA);
-	CMD(remain_on_channel, REMAIN_ON_CHANNEL);
+	if (dev->wiphy.flags & WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL)
+		CMD(remain_on_channel, REMAIN_ON_CHANNEL);
 	CMD(set_bitrate_mask, SET_TX_BITRATE_MASK);
 	CMD(mgmt_tx, FRAME);
 	CMD(mgmt_tx_cancel_wait, FRAME_WAIT_CANCEL);
@@ -922,11 +923,12 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 
 	nla_nest_end(msg, nl_cmds);
 
-	if (dev->ops->remain_on_channel)
+	if (dev->ops->remain_on_channel &&
+	    dev->wiphy.flags & WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL)
 		NLA_PUT_U32(msg, NL80211_ATTR_MAX_REMAIN_ON_CHANNEL_DURATION,
 			    dev->wiphy.max_remain_on_channel_duration);
 
-	if (dev->ops->mgmt_tx_cancel_wait)
+	if (dev->wiphy.flags & WIPHY_FLAG_OFFCHAN_TX)
 		NLA_PUT_FLAG(msg, NL80211_ATTR_OFFCHANNEL_TX_OK);
 
 	if (mgmt_stypes) {
@@ -5127,7 +5129,8 @@ static int nl80211_remain_on_channel(struct sk_buff *skb,
 	    duration > rdev->wiphy.max_remain_on_channel_duration)
 		return -EINVAL;
 
-	if (!rdev->ops->remain_on_channel)
+	if (!rdev->ops->remain_on_channel ||
+	    !(rdev->wiphy.flags & WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL))
 		return -EOPNOTSUPP;
 
 	if (info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE]) {
@@ -5340,7 +5343,7 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 		return -EOPNOTSUPP;
 
 	if (info->attrs[NL80211_ATTR_DURATION]) {
-		if (!rdev->ops->mgmt_tx_cancel_wait)
+		if (!(rdev->wiphy.flags & WIPHY_FLAG_OFFCHAN_TX))
 			return -EINVAL;
 		wait = nla_get_u32(info->attrs[NL80211_ATTR_DURATION]);
 	}
@@ -5357,6 +5360,9 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	offchan = info->attrs[NL80211_ATTR_OFFCHANNEL_TX_OK];
+
+	if (offchan && !(rdev->wiphy.flags & WIPHY_FLAG_OFFCHAN_TX))
+		return -EINVAL;
 
 	no_cck = nla_get_flag(info->attrs[NL80211_ATTR_TX_NO_CCK_RATE]);
 
