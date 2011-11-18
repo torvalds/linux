@@ -162,6 +162,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 				HINT_MBX_INT_PENDING) {
 				spin_unlock_irqrestore(&ha->hardware_lock,
 					flags);
+				ha->flags.mbox_busy = 0;
 				ql_dbg(ql_dbg_mbx, base_vha, 0x1010,
 				    "Pending mailbox timeout, exiting.\n");
 				rval = QLA_FUNCTION_TIMEOUT;
@@ -187,6 +188,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 				HINT_MBX_INT_PENDING) {
 				spin_unlock_irqrestore(&ha->hardware_lock,
 					flags);
+				ha->flags.mbox_busy = 0;
 				ql_dbg(ql_dbg_mbx, base_vha, 0x1012,
 				    "Pending mailbox timeout, exiting.\n");
 				rval = QLA_FUNCTION_TIMEOUT;

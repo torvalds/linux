@@ -3823,6 +3823,7 @@ void qla82xx_clear_pending_mbx(scsi_qla_host_t *vha)
 
 	if (ha->flags.mbox_busy) {
 		ha->flags.mbox_int = 1;
+		ha->flags.mbox_busy = 0;
 		ql_log(ql_log_warn, vha, 0x6010,
 		    "Doing premature completion of mbx command.\n");
 		if (test_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags))
