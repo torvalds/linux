@@ -4009,16 +4009,8 @@ qla2xxx_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 		/* For ISP82XX complete any pending mailbox cmd */
 		if (IS_QLA82XX(ha)) {
 			ha->flags.isp82xx_fw_hung = 1;
-			if (ha->flags.mbox_busy) {
-				ha->flags.mbox_int = 1;
-				ql_dbg(ql_dbg_aer, vha, 0x9001,
-				    "Due to pci channel io frozen, doing premature "
-				    "completion of mbx command.\n");
-				if (test_bit(MBX_INTR_WAIT,
-				    &ha->mbx_cmd_flags)) {
-					complete(&ha->mbx_intr_comp);
-				}
-			}
+			ql_dbg(ql_dbg_aer, vha, 0x9001, "Pci channel io frozen\n");
+			qla82xx_clear_pending_mbx(vha);
 		}
 		qla2x00_free_irqs(vha);
 		pci_disable_device(pdev);
