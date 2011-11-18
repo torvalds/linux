@@ -107,7 +107,7 @@ qla2x00_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		break;
 	}
-	return -EINVAL;
+	return count;
 }
 
 static struct bin_attribute sysfs_fw_dump_attr = {
@@ -387,7 +387,7 @@ qla2x00_sysfs_write_optrom_ctl(struct file *filp, struct kobject *kobj,
 		break;
 	case 3:
 		if (ha->optrom_state != QLA_SWRITING)
-			return -ENOMEM;
+			return -EINVAL;
 
 		if (qla2x00_wait_for_hba_online(vha) != QLA_SUCCESS) {
 			ql_log(ql_log_warn, vha, 0x7068,
