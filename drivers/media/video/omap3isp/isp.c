@@ -739,6 +739,17 @@ static int isp_pipeline_enable(struct isp_pipeline *pipe,
 	unsigned long flags;
 	int ret;
 
+	/* If the preview engine crashed it might not respond to read/write
+	 * operations on the L4 bus. This would result in a bus fault and a
+	 * kernel oops. Refuse to start streaming in that case. This check must
+	 * be performed before the loop below to avoid starting entities if the
+	 * pipeline won't start anyway (those entities would then likely fail to
+	 * stop, making the problem worse).
+	 */
+	if ((pipe->entities & isp->crashed) &
+	    (1U << isp->isp_prev.subdev.entity.id))
+		return -EIO;
+
 	spin_lock_irqsave(&pipe->lock, flags);
 	pipe->state &= ~(ISP_PIPELINE_IDLE_INPUT | ISP_PIPELINE_IDLE_OUTPUT);
 	spin_unlock_irqrestore(&pipe->lock, flags);
@@ -879,12 +890,14 @@ static int isp_pipeline_disable(struct isp_pipeline *pipe)
 
 		if (ret) {
 			dev_info(isp->dev, "Unable to stop %s\n", subdev->name);
+			/* If the entity failed to stopped, assume it has
+			 * crashed. Mark it as such, the ISP will be reset when
+			 * applications will release it.
+			 */
+			isp->crashed |= 1U << subdev->entity.id;
 			failure = -ETIMEDOUT;
 		}
 	}
-
-	if (failure < 0)
-		isp->needs_reset = true;
 
 	return failure;
 }
@@ -1069,6 +1082,7 @@ static int isp_reset(struct isp_device *isp)
 		udelay(1);
 	}
 
+	isp->crashed = 0;
 	return 0;
 }
 
@@ -1496,10 +1510,11 @@ void omap3isp_put(struct isp_device *isp)
 	if (--isp->ref_count == 0) {
 		isp_disable_interrupts(isp);
 		isp_save_ctx(isp);
-		if (isp->needs_reset) {
+		/* Reset the ISP if an entity has failed to stop. This is the
+		 * only way to recover from such conditions.
+		 */
+		if (isp->crashed)
 			isp_reset(isp);
-			isp->needs_reset = false;
-		}
 		isp_disable_clocks(isp);
 	}
 	mutex_unlock(&isp->isp_mutex);

@@ -88,6 +88,7 @@ enum isp_pipeline_state {
 /*
  * struct isp_pipeline - An ISP hardware pipeline
  * @error: A hardware error occurred during capture
+ * @entities: Bitmask of entities in the pipeline (indexed by entity ID)
  */
 struct isp_pipeline {
 	struct media_pipeline pipe;
@@ -96,6 +97,7 @@ struct isp_pipeline {
 	enum isp_pipeline_stream_state stream_state;
 	struct isp_video *input;
 	struct isp_video *output;
+	u32 entities;
 	unsigned long l3_ick;
 	unsigned int max_rate;
 	atomic_t frame_number;

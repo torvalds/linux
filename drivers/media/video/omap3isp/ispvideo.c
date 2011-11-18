@@ -292,6 +292,7 @@ static int isp_video_validate_pipeline(struct isp_pipeline *pipe)
 	int ret;
 
 	pipe->max_rate = pipe->l3_ick;
+	pipe->entities = 0;
 
 	subdev = isp_video_remote_subdev(pipe->output, NULL);
 	if (subdev == NULL)
@@ -299,6 +300,9 @@ static int isp_video_validate_pipeline(struct isp_pipeline *pipe)
 
 	while (1) {
 		unsigned int shifter_link;
+
+		pipe->entities |= 1U << subdev->entity.id;
+
 		/* Retrieve the sink format */
 		pad = &subdev->entity.pads[0];
 		if (!(pad->flags & MEDIA_PAD_FL_SINK))
