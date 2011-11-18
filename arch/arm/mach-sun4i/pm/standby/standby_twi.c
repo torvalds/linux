@@ -17,7 +17,7 @@
 */
 #include "standby_i.h"
 
-#define TWI_CHECK_TIMEOUT       (0xff)
+#define TWI_CHECK_TIMEOUT       (0x2ff)
 
 static __twic_reg_t*   TWI_REG_BASE[3] = {
     (__twic_reg_t*)SW_VA_TWI0_IO_BASE,
