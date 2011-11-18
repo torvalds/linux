@@ -657,10 +657,11 @@ static struct domain_device *sas_ex_discover_end_dev(
 	if (phy->attached_sata_host || phy->attached_sata_ps)
 		return NULL;
 
-	child = kzalloc(sizeof(*child), GFP_KERNEL);
+	child = sas_alloc_device();
 	if (!child)
 		return NULL;
 
+	kref_get(&parent->kref);
 	child->parent = parent;
 	child->port   = parent->port;
 	child->iproto = phy->attached_iproto;
@@ -762,7 +763,7 @@ static struct domain_device *sas_ex_discover_end_dev(
 	sas_port_delete(phy->port);
  out_err:
 	phy->port = NULL;
-	kfree(child);
+	sas_put_device(child);
 	return NULL;
 }
 
@@ -809,7 +810,7 @@ static struct domain_device *sas_ex_discover_expander(
 			    phy->attached_phy_id);
 		return NULL;
 	}
-	child = kzalloc(sizeof(*child), GFP_KERNEL);
+	child = sas_alloc_device();
 	if (!child)
 		return NULL;
 
@@ -835,6 +836,7 @@ static struct domain_device *sas_ex_discover_expander(
 	child->rphy = rphy;
 	edev = rphy_to_expander_device(rphy);
 	child->dev_type = phy->attached_dev_type;
+	kref_get(&parent->kref);
 	child->parent = parent;
 	child->port = port;
 	child->iproto = phy->attached_iproto;
@@ -858,7 +860,7 @@ static struct domain_device *sas_ex_discover_expander(
 		spin_lock_irq(&parent->port->dev_list_lock);
 		list_del(&child->dev_list_node);
 		spin_unlock_irq(&parent->port->dev_list_lock);
-		kfree(child);
+		sas_put_device(child);
 		return NULL;
 	}
 	list_add_tail(&child->siblings, &parent->ex_dev.children);

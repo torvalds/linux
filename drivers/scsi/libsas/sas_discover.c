@@ -36,8 +36,6 @@
 
 void sas_init_dev(struct domain_device *dev)
 {
-        INIT_LIST_HEAD(&dev->siblings);
-        INIT_LIST_HEAD(&dev->dev_list_node);
         switch (dev->dev_type) {
         case SAS_END_DEV:
                 break;
@@ -73,14 +71,14 @@ static int sas_get_port_device(struct asd_sas_port *port)
 	struct sas_rphy *rphy;
 	struct domain_device *dev;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = sas_alloc_device();
 	if (!dev)
 		return -ENOMEM;
 
 	spin_lock_irqsave(&port->phy_list_lock, flags);
 	if (list_empty(&port->phy_list)) {
 		spin_unlock_irqrestore(&port->phy_list_lock, flags);
-		kfree(dev);
+		sas_put_device(dev);
 		return -ENODEV;
 	}
 	phy = container_of(port->phy_list.next, struct asd_sas_phy, port_phy_el);
@@ -130,7 +128,7 @@ static int sas_get_port_device(struct asd_sas_port *port)
 	}
 
 	if (!rphy) {
-		kfree(dev);
+		sas_put_device(dev);
 		return -ENODEV;
 	}
 	rphy->identify.phy_identifier = phy->phy->identify.phy_identifier;
@@ -173,6 +171,7 @@ int sas_notify_lldd_dev_found(struct domain_device *dev)
 			       dev_name(sas_ha->dev),
 			       SAS_ADDR(dev->sas_addr), res);
 		}
+		kref_get(&dev->kref);
 	}
 	return res;
 }
@@ -184,8 +183,10 @@ void sas_notify_lldd_dev_gone(struct domain_device *dev)
 	struct Scsi_Host *shost = sas_ha->core.shost;
 	struct sas_internal *i = to_sas_internal(shost->transportt);
 
-	if (i->dft->lldd_dev_gone)
+	if (i->dft->lldd_dev_gone) {
 		i->dft->lldd_dev_gone(dev);
+		sas_put_device(dev);
+	}
 }
 
 /* ---------- Common/dispatchers ---------- */
@@ -219,6 +220,20 @@ out_err2:
 
 /* ---------- Device registration and unregistration ---------- */
 
+void sas_free_device(struct kref *kref)
+{
+	struct domain_device *dev = container_of(kref, typeof(*dev), kref);
+
+	if (dev->parent)
+		sas_put_device(dev->parent);
+
+	/* remove the phys and ports, everything else should be gone */
+	if (dev->dev_type == EDGE_DEV || dev->dev_type == FANOUT_DEV)
+		kfree(dev->ex_dev.ex_phy);
+
+	kfree(dev);
+}
+
 static void sas_unregister_common_dev(struct asd_sas_port *port, struct domain_device *dev)
 {
 	sas_notify_lldd_dev_gone(dev);
@@ -230,6 +245,8 @@ static void sas_unregister_common_dev(struct asd_sas_port *port, struct domain_d
 	spin_lock_irq(&port->dev_list_lock);
 	list_del_init(&dev->dev_list_node);
 	spin_unlock_irq(&port->dev_list_lock);
+
+	sas_put_device(dev);
 }
 
 void sas_unregister_dev(struct asd_sas_port *port, struct domain_device *dev)
@@ -238,11 +255,6 @@ void sas_unregister_dev(struct asd_sas_port *port, struct domain_device *dev)
 		sas_remove_children(&dev->rphy->dev);
 		sas_rphy_delete(dev->rphy);
 		dev->rphy = NULL;
-	}
-	if (dev->dev_type == EDGE_DEV || dev->dev_type == FANOUT_DEV) {
-		/* remove the phys and ports, everything else should be gone */
-		kfree(dev->ex_dev.ex_phy);
-		dev->ex_dev.ex_phy = NULL;
 	}
 	sas_unregister_common_dev(port, dev);
 }
@@ -322,7 +334,7 @@ static void sas_discover_domain(struct work_struct *work)
 		list_del_init(&dev->dev_list_node);
 		spin_unlock_irq(&port->dev_list_lock);
 
-		kfree(dev); /* not kobject_register-ed yet */
+		sas_put_device(dev);
 		port->port_dev = NULL;
 	}
 

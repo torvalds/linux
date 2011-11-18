@@ -76,6 +76,8 @@ struct domain_device *sas_find_dev_by_rphy(struct sas_rphy *rphy);
 
 void sas_hae_reset(struct work_struct *work);
 
+void sas_free_device(struct kref *kref);
+
 #ifdef CONFIG_SCSI_SAS_HOST_SMP
 extern int sas_smp_host_handler(struct Scsi_Host *shost, struct request *req,
 				struct request *rsp);
@@ -159,6 +161,23 @@ static inline void sas_add_parent_port(struct domain_device *dev, int phy_id)
 		sas_port_mark_backlink(ex->parent_port);
 	}
 	sas_port_add_phy(ex->parent_port, ex_phy->phy);
+}
+
+static inline struct domain_device *sas_alloc_device(void)
+{
+	struct domain_device *dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+
+	if (dev) {
+		INIT_LIST_HEAD(&dev->siblings);
+		INIT_LIST_HEAD(&dev->dev_list_node);
+		kref_init(&dev->kref);
+	}
+	return dev;
+}
+
+static inline void sas_put_device(struct domain_device *dev)
+{
+	kref_put(&dev->kref, sas_free_device);
 }
 
 #endif /* _SAS_INTERNAL_H_ */

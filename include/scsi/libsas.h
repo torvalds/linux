@@ -206,6 +206,7 @@ struct domain_device {
 
         void *lldd_dev;
 	int gone;
+	struct kref kref;
 };
 
 struct sas_discovery_event {
