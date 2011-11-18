@@ -241,10 +241,10 @@ nv50_display_init(struct drm_device *dev)
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct nouveau_connector *conn = nouveau_connector(connector);
 
-		if (conn->dcb->gpio_tag == 0xff)
+		if (conn->hpd == DCB_GPIO_UNUSED)
 			continue;
 
-		pgpio->irq_enable(dev, conn->dcb->gpio_tag, true);
+		pgpio->irq_enable(dev, conn->hpd, true);
 	}
 
 	ret = nv50_evo_init(dev);
@@ -581,7 +581,7 @@ nv50_display_script_select(struct drm_device *dev, struct dcb_entry *dcb,
 		} else {
 			/* determine number of lvds links */
 			if (nv_connector && nv_connector->edid &&
-			    nv_connector->dcb->type == DCB_CONNECTOR_LVDS_SPWG) {
+			    nv_connector->type == DCB_CONNECTOR_LVDS_SPWG) {
 				/* http://www.spwg.org */
 				if (((u8 *)nv_connector->edid)[121] == 2)
 					script |= 0x0100;

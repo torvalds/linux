@@ -56,8 +56,10 @@ enum nouveau_dithering_depth {
 
 struct nouveau_connector {
 	struct drm_connector base;
-
-	struct dcb_connector_table_entry *dcb;
+	enum dcb_connector_type type;
+	u8 index;
+	u8 *dcb;
+	u8 hpd;
 
 	int dithering_mode;
 	int dithering_depth;

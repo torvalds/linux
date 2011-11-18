@@ -58,6 +58,7 @@ enum dcb_gpio_tag {
 	DCB_GPIO_TVDAC1 = 0x2d,
 	DCB_GPIO_PWM_FAN = 0x9,
 	DCB_GPIO_FAN_SENSE = 0x3d,
+	DCB_GPIO_UNUSED = 0xff
 };
 
 struct dcb_gpio_entry {
@@ -87,20 +88,6 @@ enum dcb_connector_type {
 	DCB_CONNECTOR_HDMI_0 = 0x60,
 	DCB_CONNECTOR_HDMI_1 = 0x61,
 	DCB_CONNECTOR_NONE = 0xff
-};
-
-struct dcb_connector_table_entry {
-	uint8_t index;
-	uint32_t entry;
-	enum dcb_connector_type type;
-	uint8_t index2;
-	uint8_t gpio_tag;
-	void *drm;
-};
-
-struct dcb_connector_table {
-	int entries;
-	struct dcb_connector_table_entry entry[DCB_MAX_NUM_CONNECTOR_ENTRIES];
 };
 
 enum dcb_type {
@@ -161,8 +148,6 @@ struct dcb_table {
 
 	uint16_t gpio_table_ptr;
 	struct dcb_gpio_table gpio;
-	uint16_t connector_table_ptr;
-	struct dcb_connector_table connector;
 };
 
 enum nouveau_or {
@@ -333,5 +318,7 @@ void *dcb_table(struct drm_device *);
 u8 *dcb_outp(struct drm_device *, u8 idx);
 int dcb_outp_foreach(struct drm_device *, void *data,
 		     int (*)(struct drm_device *, void *, int idx, u8 *outp));
+u8 *dcb_conntab(struct drm_device *);
+u8 *dcb_conn(struct drm_device *, u8 idx);
 
 #endif

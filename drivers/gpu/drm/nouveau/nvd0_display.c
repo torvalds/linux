@@ -1285,7 +1285,7 @@ nvd0_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 			if (bios->fp.if_is_24bit)
 				or_config |= 0x0200;
 		} else {
-			if (nv_connector->dcb->type == DCB_CONNECTOR_LVDS_SPWG) {
+			if (nv_connector->type == DCB_CONNECTOR_LVDS_SPWG) {
 				if (((u8 *)nv_connector->edid)[121] == 2)
 					or_config |= 0x0100;
 			} else

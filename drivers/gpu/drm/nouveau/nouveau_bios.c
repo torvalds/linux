@@ -1100,13 +1100,9 @@ init_dp_condition(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 
 	switch (cond) {
 	case 0:
-	{
-		struct dcb_connector_table_entry *ent =
-			&bios->dcb.connector.entry[dcb->connector];
-
-		if (ent->type != DCB_CONNECTOR_eDP)
+		entry = dcb_conn(dev, dcb->connector);
+		if (!entry || entry[0] != DCB_CONNECTOR_eDP)
 			iexec->execute = false;
-	}
 		break;
 	case 1:
 	case 2:
@@ -5782,164 +5778,6 @@ no_table:
 	}
 }
 
-struct dcb_connector_table_entry *
-nouveau_bios_connector_entry(struct drm_device *dev, int index)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->vbios;
-	struct dcb_connector_table_entry *cte;
-
-	if (index >= bios->dcb.connector.entries)
-		return NULL;
-
-	cte = &bios->dcb.connector.entry[index];
-	if (cte->type == 0xff)
-		return NULL;
-
-	return cte;
-}
-
-static enum dcb_connector_type
-divine_connector_type(struct nvbios *bios, int index)
-{
-	struct dcb_table *dcb = &bios->dcb;
-	unsigned encoders = 0, type = DCB_CONNECTOR_NONE;
-	int i;
-
-	for (i = 0; i < dcb->entries; i++) {
-		if (dcb->entry[i].connector == index)
-			encoders |= (1 << dcb->entry[i].type);
-	}
-
-	if (encoders & (1 << OUTPUT_DP)) {
-		if (encoders & (1 << OUTPUT_TMDS))
-			type = DCB_CONNECTOR_DP;
-		else
-			type = DCB_CONNECTOR_eDP;
-	} else
-	if (encoders & (1 << OUTPUT_TMDS)) {
-		if (encoders & (1 << OUTPUT_ANALOG))
-			type = DCB_CONNECTOR_DVI_I;
-		else
-			type = DCB_CONNECTOR_DVI_D;
-	} else
-	if (encoders & (1 << OUTPUT_ANALOG)) {
-		type = DCB_CONNECTOR_VGA;
-	} else
-	if (encoders & (1 << OUTPUT_LVDS)) {
-		type = DCB_CONNECTOR_LVDS;
-	} else
-	if (encoders & (1 << OUTPUT_TV)) {
-		type = DCB_CONNECTOR_TV_0;
-	}
-
-	return type;
-}
-
-static void
-apply_dcb_connector_quirks(struct nvbios *bios, int idx)
-{
-	struct dcb_connector_table_entry *cte = &bios->dcb.connector.entry[idx];
-	struct drm_device *dev = bios->dev;
-
-	/* Gigabyte NX85T */
-	if (nv_match_device(dev, 0x0421, 0x1458, 0x344c)) {
-		if (cte->type == DCB_CONNECTOR_HDMI_1)
-			cte->type = DCB_CONNECTOR_DVI_I;
-	}
-
-	/* Gigabyte GV-NX86T512H */
-	if (nv_match_device(dev, 0x0402, 0x1458, 0x3455)) {
-		if (cte->type == DCB_CONNECTOR_HDMI_1)
-			cte->type = DCB_CONNECTOR_DVI_I;
-	}
-}
-
-static const u8 hpd_gpio[16] = {
-	0xff, 0x07, 0x08, 0xff, 0xff, 0x51, 0x52, 0xff,
-	0xff, 0xff, 0xff, 0xff, 0xff, 0x5e, 0x5f, 0x60,
-};
-
-static void
-parse_dcb_connector_table(struct nvbios *bios)
-{
-	struct drm_device *dev = bios->dev;
-	struct dcb_connector_table *ct = &bios->dcb.connector;
-	struct dcb_connector_table_entry *cte;
-	uint8_t *conntab = &bios->data[bios->dcb.connector_table_ptr];
-	uint8_t *entry;
-	int i;
-
-	if (!bios->dcb.connector_table_ptr) {
-		NV_DEBUG_KMS(dev, "No DCB connector table present\n");
-		return;
-	}
-
-	NV_INFO(dev, "DCB connector table: VHER 0x%02x %d %d %d\n",
-		conntab[0], conntab[1], conntab[2], conntab[3]);
-	if ((conntab[0] != 0x30 && conntab[0] != 0x40) ||
-	    (conntab[3] != 2 && conntab[3] != 4)) {
-		NV_ERROR(dev, "  Unknown!  Please report.\n");
-		return;
-	}
-
-	ct->entries = conntab[2];
-
-	entry = conntab + conntab[1];
-	cte = &ct->entry[0];
-	for (i = 0; i < conntab[2]; i++, entry += conntab[3], cte++) {
-		cte->index = i;
-		if (conntab[3] == 2)
-			cte->entry = ROM16(entry[0]);
-		else
-			cte->entry = ROM32(entry[0]);
-
-		cte->type  = (cte->entry & 0x000000ff) >> 0;
-		cte->index2 = (cte->entry & 0x00000f00) >> 8;
-
-		cte->gpio_tag = ffs((cte->entry & 0x07033000) >> 12);
-		cte->gpio_tag = hpd_gpio[cte->gpio_tag];
-
-		if (cte->type == 0xff)
-			continue;
-
-		apply_dcb_connector_quirks(bios, i);
-
-		NV_INFO(dev, "  %d: 0x%08x: type 0x%02x idx %d tag 0x%02x\n",
-			i, cte->entry, cte->type, cte->index, cte->gpio_tag);
-
-		/* check for known types, fallback to guessing the type
-		 * from attached encoders if we hit an unknown.
-		 */
-		switch (cte->type) {
-		case DCB_CONNECTOR_VGA:
-		case DCB_CONNECTOR_TV_0:
-		case DCB_CONNECTOR_TV_1:
-		case DCB_CONNECTOR_TV_3:
-		case DCB_CONNECTOR_DVI_I:
-		case DCB_CONNECTOR_DVI_D:
-		case DCB_CONNECTOR_LVDS:
-		case DCB_CONNECTOR_LVDS_SPWG:
-		case DCB_CONNECTOR_DP:
-		case DCB_CONNECTOR_eDP:
-		case DCB_CONNECTOR_HDMI_0:
-		case DCB_CONNECTOR_HDMI_1:
-			break;
-		default:
-			cte->type = divine_connector_type(bios, cte->index);
-			NV_WARN(dev, "unknown type, using 0x%02x\n", cte->type);
-			break;
-		}
-
-		if (nouveau_override_conntype) {
-			int type = divine_connector_type(bios, cte->index);
-			if (type != cte->type)
-				NV_WARN(dev, " -> type 0x%02x\n", cte->type);
-		}
-
-	}
-}
-
 void *
 dcb_table(struct drm_device *dev)
 {
@@ -6043,6 +5881,27 @@ dcb_outp_foreach(struct drm_device *dev, void *data,
 	return 0;
 }
 
+u8 *
+dcb_conntab(struct drm_device *dev)
+{
+	u8 *dcb = dcb_table(dev);
+	if (dcb && dcb[0] >= 0x30 && dcb[1] >= 0x16) {
+		u8 *conntab = ROMPTR(dev, dcb[0x14]);
+		if (conntab && conntab[0] >= 0x30 && conntab[0] <= 0x40)
+			return conntab;
+	}
+	return NULL;
+}
+
+u8 *
+dcb_conn(struct drm_device *dev, u8 idx)
+{
+	u8 *conntab = dcb_conntab(dev);
+	if (conntab && idx < conntab[2])
+		return conntab + conntab[1] + (idx * conntab[3]);
+	return NULL;
+}
+
 static struct dcb_entry *new_dcb_entry(struct dcb_table *dcb)
 {
 	struct dcb_entry *entry = &dcb->entry[dcb->entries];
@@ -6073,8 +5932,7 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 	entry->type = conn & 0xf;
 	entry->i2c_index = (conn >> 4) & 0xf;
 	entry->heads = (conn >> 8) & 0xf;
-	if (dcb->version >= 0x40)
-		entry->connector = (conn >> 12) & 0xf;
+	entry->connector = (conn >> 12) & 0xf;
 	entry->bus = (conn >> 16) & 0xf;
 	entry->location = (conn >> 20) & 0x3;
 	entry->or = (conn >> 24) & 0xf;
@@ -6433,7 +6291,7 @@ parse_dcb_entry(struct drm_device *dev, void *data, int idx, u8 *outp)
 	if (apply_dcb_encoder_quirks(dev, idx, &conn, &conf)) {
 		struct dcb_entry *entry = new_dcb_entry(dcb);
 
-		NV_TRACEWARN(dev, "DCB entry %02d: %08x %08x\n", idx, conn, conf);
+		NV_TRACEWARN(dev, "DCB outp %02d: %08x %08x\n", idx, conn, conf);
 
 		if (dcb->version >= 0x20)
 			ret = parse_dcb20_entry(dev, dcb, conn, conf, entry);
@@ -6441,16 +6299,67 @@ parse_dcb_entry(struct drm_device *dev, void *data, int idx, u8 *outp)
 			ret = parse_dcb15_entry(dev, dcb, conn, conf, entry);
 		if (!ret)
 			return 1; /* stop parsing */
+
+		/* Ignore the I2C index for on-chip TV-out, as there
+		 * are cards with bogus values (nv31m in bug 23212),
+		 * and it's otherwise useless.
+		 */
+		if (entry->type == OUTPUT_TV &&
+		    entry->location == DCB_LOC_ON_CHIP)
+			entry->i2c_index = 0x0f;
 	}
 
 	return 0;
+}
+
+static void
+dcb_fake_connectors(struct nvbios *bios)
+{
+	struct dcb_table *dcbt = &bios->dcb;
+	u8 map[16] = { };
+	int i, idx = 0;
+
+	/* heuristic: if we ever get a non-zero connector field, assume
+	 * that all the indices are valid and we don't need fake them.
+	 */
+	for (i = 0; i < dcbt->entries; i++) {
+		if (dcbt->entry[i].connector)
+			return;
+	}
+
+	/* no useful connector info available, we need to make it up
+	 * ourselves.  the rule here is: anything on the same i2c bus
+	 * is considered to be on the same connector.  any output
+	 * without an associated i2c bus is assigned its own unique
+	 * connector index.
+	 */
+	for (i = 0; i < dcbt->entries; i++) {
+		u8 i2c = dcbt->entry[i].i2c_index;
+		if (i2c == 0x0f) {
+			dcbt->entry[i].connector = idx++;
+		} else {
+			if (!map[i2c])
+				map[i2c] = ++idx;
+			dcbt->entry[i].connector = map[i2c] - 1;
+		}
+	}
+
+	/* if we created more than one connector, destroy the connector
+	 * table - just in case it has random, rather than stub, entries.
+	 */
+	if (i > 1) {
+		u8 *conntab = dcb_conntab(bios->dev);
+		if (conntab)
+			conntab[0] = 0x00;
+	}
 }
 
 static int
 parse_dcb_table(struct drm_device *dev, struct nvbios *bios)
 {
 	struct dcb_table *dcb = &bios->dcb;
-	u8 *dcbt;
+	u8 *dcbt, *conn;
+	int idx;
 
 	dcbt = dcb_table(dev);
 	if (!dcbt) {
@@ -6466,10 +6375,8 @@ parse_dcb_table(struct drm_device *dev, struct nvbios *bios)
 	NV_TRACE(dev, "DCB version %d.%d\n", dcbt[0] >> 4, dcbt[0] & 0xf);
 
 	dcb->version = dcbt[0];
-	if (dcb->version >= 0x30) {
+	if (dcb->version >= 0x30)
 		dcb->gpio_table_ptr = ROM16(dcbt[10]);
-		dcb->connector_table_ptr = ROM16(dcbt[20]);
-	}
 
 	dcb_outp_foreach(dev, NULL, parse_dcb_entry);
 
@@ -6483,61 +6390,21 @@ parse_dcb_table(struct drm_device *dev, struct nvbios *bios)
 	if (!dcb->entries)
 		return -ENXIO;
 
-	parse_dcb_gpio_table(bios);
-	parse_dcb_connector_table(bios);
-	return 0;
-}
-
-static void
-fixup_legacy_connector(struct nvbios *bios)
-{
-	struct dcb_table *dcb = &bios->dcb;
-	int i, i2c, i2c_conn[DCB_MAX_NUM_I2C_ENTRIES] = { };
-
-	/*
-	 * DCB 3.0 also has the table in most cases, but there are some cards
-	 * where the table is filled with stub entries, and the DCB entriy
-	 * indices are all 0.  We don't need the connector indices on pre-G80
-	 * chips (yet?) so limit the use to DCB 4.0 and above.
-	 */
-	if (dcb->version >= 0x40)
-		return;
-
-	dcb->connector.entries = 0;
-
-	/*
-	 * No known connector info before v3.0, so make it up.  the rule here
-	 * is: anything on the same i2c bus is considered to be on the same
-	 * connector.  any output without an associated i2c bus is assigned
-	 * its own unique connector index.
-	 */
-	for (i = 0; i < dcb->entries; i++) {
-		/*
-		 * Ignore the I2C index for on-chip TV-out, as there
-		 * are cards with bogus values (nv31m in bug 23212),
-		 * and it's otherwise useless.
-		 */
-		if (dcb->entry[i].type == OUTPUT_TV &&
-		    dcb->entry[i].location == DCB_LOC_ON_CHIP)
-			dcb->entry[i].i2c_index = 0xf;
-		i2c = dcb->entry[i].i2c_index;
-
-		if (i2c_conn[i2c]) {
-			dcb->entry[i].connector = i2c_conn[i2c] - 1;
-			continue;
+	/* dump connector table entries to log, if any exist */
+	idx = -1;
+	while ((conn = dcb_conn(dev, ++idx))) {
+		if (conn[0] != 0xff) {
+			NV_TRACE(dev, "DCB conn %02d: ", idx);
+			if (dcb_conntab(dev)[3] < 4)
+				printk("%04x\n", ROM16(conn[0]));
+			else
+				printk("%08x\n", ROM32(conn[0]));
 		}
-
-		dcb->entry[i].connector = dcb->connector.entries++;
-		if (i2c != 0xf)
-			i2c_conn[i2c] = dcb->connector.entries;
 	}
+	dcb_fake_connectors(bios);
 
-	/* Fake the connector table as well as just connector indices */
-	for (i = 0; i < dcb->connector.entries; i++) {
-		dcb->connector.entry[i].index = i;
-		dcb->connector.entry[i].type = divine_connector_type(bios, i);
-		dcb->connector.entry[i].gpio_tag = 0xff;
-	}
+	parse_dcb_gpio_table(bios);
+	return 0;
 }
 
 static int load_nv17_hwsq_ucode_entry(struct drm_device *dev, struct nvbios *bios, uint16_t hwsq_offset, int entry)
@@ -6799,8 +6666,6 @@ nouveau_bios_init(struct drm_device *dev)
 	ret = parse_dcb_table(dev, bios);
 	if (ret)
 		return ret;
-
-	fixup_legacy_connector(bios);
 
 	if (!bios->major_version)	/* we don't run version 0 bios */
 		return 0;

@@ -112,7 +112,7 @@ nouveau_connector_destroy(struct drm_connector *connector)
 
 	pgpio = &dev_priv->engine.gpio;
 	if (pgpio->irq_unregister) {
-		pgpio->irq_unregister(dev, nv_connector->dcb->gpio_tag,
+		pgpio->irq_unregister(dev, nv_connector->hpd,
 				      nouveau_connector_hotplug, connector);
 	}
 
@@ -218,7 +218,7 @@ nouveau_connector_set_encoder(struct drm_connector *connector,
 			connector->interlace_allowed = true;
 	}
 
-	if (nv_connector->dcb->type == DCB_CONNECTOR_DVI_I) {
+	if (nv_connector->type == DCB_CONNECTOR_DVI_I) {
 		drm_connector_property_set_value(connector,
 			dev->mode_config.dvi_i_subconnector_property,
 			nv_encoder->dcb->type == OUTPUT_TMDS ?
@@ -401,7 +401,7 @@ nouveau_connector_force(struct drm_connector *connector)
 	struct nouveau_encoder *nv_encoder;
 	int type;
 
-	if (nv_connector->dcb->type == DCB_CONNECTOR_DVI_I) {
+	if (nv_connector->type == DCB_CONNECTOR_DVI_I) {
 		if (connector->force == DRM_FORCE_ON_DIGITAL)
 			type = OUTPUT_TMDS;
 		else
@@ -675,7 +675,7 @@ nouveau_connector_detect_depth(struct drm_connector *connector)
 	 * know which if_is_24bit flag to check...
 	 */
 	if (nv_connector->edid &&
-	    nv_connector->dcb->type == DCB_CONNECTOR_LVDS_SPWG)
+	    nv_connector->type == DCB_CONNECTOR_LVDS_SPWG)
 		duallink = ((u8 *)nv_connector->edid)[121] == 2;
 	else
 		duallink = mode->clock >= bios->fp.duallink_transition_clk;
@@ -738,9 +738,9 @@ nouveau_connector_get_modes(struct drm_connector *connector)
 	if (nv_encoder->dcb->type == OUTPUT_TV)
 		ret = get_slave_funcs(encoder)->get_modes(encoder, connector);
 
-	if (nv_connector->dcb->type == DCB_CONNECTOR_LVDS ||
-	    nv_connector->dcb->type == DCB_CONNECTOR_LVDS_SPWG ||
-	    nv_connector->dcb->type == DCB_CONNECTOR_eDP)
+	if (nv_connector->type == DCB_CONNECTOR_LVDS ||
+	    nv_connector->type == DCB_CONNECTOR_LVDS_SPWG ||
+	    nv_connector->type == DCB_CONNECTOR_eDP)
 		ret += nouveau_connector_scaler_modes_add(connector);
 
 	return ret;
@@ -857,6 +857,29 @@ nouveau_connector_funcs_lvds = {
 	.force = nouveau_connector_force
 };
 
+static int
+drm_conntype_from_dcb(enum dcb_connector_type dcb)
+{
+	switch (dcb) {
+	case DCB_CONNECTOR_VGA      : return DRM_MODE_CONNECTOR_VGA;
+	case DCB_CONNECTOR_TV_0     :
+	case DCB_CONNECTOR_TV_1     :
+	case DCB_CONNECTOR_TV_3     : return DRM_MODE_CONNECTOR_TV;
+	case DCB_CONNECTOR_DVI_I    : return DRM_MODE_CONNECTOR_DVII;
+	case DCB_CONNECTOR_DVI_D    : return DRM_MODE_CONNECTOR_DVID;
+	case DCB_CONNECTOR_LVDS     :
+	case DCB_CONNECTOR_LVDS_SPWG: return DRM_MODE_CONNECTOR_LVDS;
+	case DCB_CONNECTOR_DP       : return DRM_MODE_CONNECTOR_DisplayPort;
+	case DCB_CONNECTOR_eDP      : return DRM_MODE_CONNECTOR_eDP;
+	case DCB_CONNECTOR_HDMI_0   :
+	case DCB_CONNECTOR_HDMI_1   : return DRM_MODE_CONNECTOR_HDMIA;
+	default:
+		break;
+	}
+
+	return DRM_MODE_CONNECTOR_Unknown;
+}
+
 struct drm_connector *
 nouveau_connector_create(struct drm_device *dev, int index)
 {
@@ -865,59 +888,114 @@ nouveau_connector_create(struct drm_device *dev, int index)
 	struct nouveau_display_engine *disp = &dev_priv->engine.display;
 	struct nouveau_gpio_engine *pgpio = &dev_priv->engine.gpio;
 	struct nouveau_connector *nv_connector = NULL;
-	struct dcb_connector_table_entry *dcb = NULL;
 	struct drm_connector *connector;
 	int type, ret = 0;
+	bool dummy;
 
 	NV_DEBUG_KMS(dev, "\n");
 
-	if (index >= dev_priv->vbios.dcb.connector.entries)
-		return ERR_PTR(-EINVAL);
-
-	dcb = &dev_priv->vbios.dcb.connector.entry[index];
-	if (dcb->drm)
-		return dcb->drm;
-
-	switch (dcb->type) {
-	case DCB_CONNECTOR_VGA:
-		type = DRM_MODE_CONNECTOR_VGA;
-		break;
-	case DCB_CONNECTOR_TV_0:
-	case DCB_CONNECTOR_TV_1:
-	case DCB_CONNECTOR_TV_3:
-		type = DRM_MODE_CONNECTOR_TV;
-		break;
-	case DCB_CONNECTOR_DVI_I:
-		type = DRM_MODE_CONNECTOR_DVII;
-		break;
-	case DCB_CONNECTOR_DVI_D:
-		type = DRM_MODE_CONNECTOR_DVID;
-		break;
-	case DCB_CONNECTOR_HDMI_0:
-	case DCB_CONNECTOR_HDMI_1:
-		type = DRM_MODE_CONNECTOR_HDMIA;
-		break;
-	case DCB_CONNECTOR_LVDS:
-	case DCB_CONNECTOR_LVDS_SPWG:
-		type = DRM_MODE_CONNECTOR_LVDS;
-		funcs = &nouveau_connector_funcs_lvds;
-		break;
-	case DCB_CONNECTOR_DP:
-		type = DRM_MODE_CONNECTOR_DisplayPort;
-		break;
-	case DCB_CONNECTOR_eDP:
-		type = DRM_MODE_CONNECTOR_eDP;
-		break;
-	default:
-		NV_ERROR(dev, "unknown connector type: 0x%02x!!\n", dcb->type);
-		return ERR_PTR(-EINVAL);
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		nv_connector = nouveau_connector(connector);
+		if (nv_connector->index == index)
+			return connector;
 	}
 
 	nv_connector = kzalloc(sizeof(*nv_connector), GFP_KERNEL);
 	if (!nv_connector)
 		return ERR_PTR(-ENOMEM);
-	nv_connector->dcb = dcb;
+
 	connector = &nv_connector->base;
+	nv_connector->index = index;
+
+	/* attempt to parse vbios connector type and hotplug gpio */
+	nv_connector->dcb = dcb_conn(dev, index);
+	if (nv_connector->dcb) {
+		static const u8 hpd[16] = {
+			0xff, 0x07, 0x08, 0xff, 0xff, 0x51, 0x52, 0xff,
+			0xff, 0xff, 0xff, 0xff, 0xff, 0x5e, 0x5f, 0x60,
+		};
+
+		u32 entry = ROM16(nv_connector->dcb[0]);
+		if (dcb_conntab(dev)[3] >= 4)
+			entry |= (u32)ROM16(nv_connector->dcb[2]) << 16;
+
+		nv_connector->hpd = ffs((entry & 0x07033000) >> 12);
+		nv_connector->hpd = hpd[nv_connector->hpd];
+
+		nv_connector->type = nv_connector->dcb[0];
+		if (drm_conntype_from_dcb(nv_connector->type) ==
+					  DRM_MODE_CONNECTOR_Unknown) {
+			NV_WARN(dev, "unknown connector type %02x\n",
+				nv_connector->type);
+			nv_connector->type = DCB_CONNECTOR_NONE;
+		}
+
+		/* Gigabyte NX85T */
+		if (nv_match_device(dev, 0x0421, 0x1458, 0x344c)) {
+			if (nv_connector->type == DCB_CONNECTOR_HDMI_1)
+				nv_connector->type = DCB_CONNECTOR_DVI_I;
+		}
+
+		/* Gigabyte GV-NX86T512H */
+		if (nv_match_device(dev, 0x0402, 0x1458, 0x3455)) {
+			if (nv_connector->type == DCB_CONNECTOR_HDMI_1)
+				nv_connector->type = DCB_CONNECTOR_DVI_I;
+		}
+	} else {
+		nv_connector->type = DCB_CONNECTOR_NONE;
+		nv_connector->hpd = DCB_GPIO_UNUSED;
+	}
+
+	/* no vbios data, or an unknown dcb connector type - attempt to
+	 * figure out something suitable ourselves
+	 */
+	if (nv_connector->type == DCB_CONNECTOR_NONE) {
+		struct drm_nouveau_private *dev_priv = dev->dev_private;
+		struct dcb_table *dcbt = &dev_priv->vbios.dcb;
+		u32 encoders = 0;
+		int i;
+
+		for (i = 0; i < dcbt->entries; i++) {
+			if (dcbt->entry[i].connector == nv_connector->index)
+				encoders |= (1 << dcbt->entry[i].type);
+		}
+
+		if (encoders & (1 << OUTPUT_DP)) {
+			if (encoders & (1 << OUTPUT_TMDS))
+				nv_connector->type = DCB_CONNECTOR_DP;
+			else
+				nv_connector->type = DCB_CONNECTOR_eDP;
+		} else
+		if (encoders & (1 << OUTPUT_TMDS)) {
+			if (encoders & (1 << OUTPUT_ANALOG))
+				nv_connector->type = DCB_CONNECTOR_DVI_I;
+			else
+				nv_connector->type = DCB_CONNECTOR_DVI_D;
+		} else
+		if (encoders & (1 << OUTPUT_ANALOG)) {
+			nv_connector->type = DCB_CONNECTOR_VGA;
+		} else
+		if (encoders & (1 << OUTPUT_LVDS)) {
+			nv_connector->type = DCB_CONNECTOR_LVDS;
+		} else
+		if (encoders & (1 << OUTPUT_TV)) {
+			nv_connector->type = DCB_CONNECTOR_TV_0;
+		}
+	}
+
+	type = drm_conntype_from_dcb(nv_connector->type);
+	if (type == DRM_MODE_CONNECTOR_LVDS) {
+		ret = nouveau_bios_parse_lvds_table(dev, 0, &dummy, &dummy);
+		if (ret) {
+			NV_ERROR(dev, "Error parsing LVDS table, disabling\n");
+			kfree(nv_connector);
+			return ERR_PTR(ret);
+		}
+
+		funcs = &nouveau_connector_funcs_lvds;
+	} else {
+		funcs = &nouveau_connector_funcs;
+	}
 
 	/* defaults, will get overridden in detect() */
 	connector->interlace_allowed = false;
@@ -926,29 +1004,17 @@ nouveau_connector_create(struct drm_device *dev, int index)
 	drm_connector_init(dev, connector, funcs, type);
 	drm_connector_helper_add(connector, &nouveau_connector_helper_funcs);
 
-	/* parse lvds table now, we depend on bios->fp.* values later */
-	if (connector->connector_type == DRM_MODE_CONNECTOR_LVDS) {
-		bool dummy, is_24bit = false;
-
-		ret = nouveau_bios_parse_lvds_table(dev, 0, &dummy, &is_24bit);
-		if (ret) {
-			NV_ERROR(dev, "Error parsing LVDS table, disabling "
-				 "LVDS\n");
-			goto fail;
-		}
-	}
-
 	/* Init DVI-I specific properties */
-	if (dcb->type == DCB_CONNECTOR_DVI_I)
+	if (nv_connector->type == DCB_CONNECTOR_DVI_I)
 		drm_connector_attach_property(connector, dev->mode_config.dvi_i_subconnector_property, 0);
 
 	/* Add overscan compensation options to digital outputs */
 	if (disp->underscan_property &&
-	    (dcb->type == DCB_CONNECTOR_DVI_D ||
-	     dcb->type == DCB_CONNECTOR_DVI_I ||
-	     dcb->type == DCB_CONNECTOR_HDMI_0 ||
-	     dcb->type == DCB_CONNECTOR_HDMI_1 ||
-	     dcb->type == DCB_CONNECTOR_DP)) {
+	    (nv_connector->type == DCB_CONNECTOR_DVI_D ||
+	     nv_connector->type == DCB_CONNECTOR_DVI_I ||
+	     nv_connector->type == DCB_CONNECTOR_HDMI_0 ||
+	     nv_connector->type == DCB_CONNECTOR_HDMI_1 ||
+	     nv_connector->type == DCB_CONNECTOR_DP)) {
 		drm_connector_attach_property(connector,
 					      disp->underscan_property,
 					      UNDERSCAN_OFF);
@@ -960,7 +1026,7 @@ nouveau_connector_create(struct drm_device *dev, int index)
 					      0);
 	}
 
-	switch (dcb->type) {
+	switch (nv_connector->type) {
 	case DCB_CONNECTOR_VGA:
 		if (dev_priv->card_type >= NV_50) {
 			drm_connector_attach_property(connector,
@@ -994,8 +1060,8 @@ nouveau_connector_create(struct drm_device *dev, int index)
 		break;
 	}
 
-	if (nv_connector->dcb->gpio_tag != 0xff && pgpio->irq_register) {
-		pgpio->irq_register(dev, nv_connector->dcb->gpio_tag,
+	if (nv_connector->hpd != DCB_GPIO_UNUSED && pgpio->irq_register) {
+		pgpio->irq_register(dev, nv_connector->hpd,
 				    nouveau_connector_hotplug, connector);
 
 		connector->polled = DRM_CONNECTOR_POLL_HPD;
@@ -1004,15 +1070,7 @@ nouveau_connector_create(struct drm_device *dev, int index)
 	}
 
 	drm_sysfs_connector_add(connector);
-
-	dcb->drm = connector;
-	return dcb->drm;
-
-fail:
-	drm_connector_cleanup(connector);
-	kfree(connector);
-	return ERR_PTR(ret);
-
+	return connector;
 }
 
 static void
