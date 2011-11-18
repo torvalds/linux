@@ -47,20 +47,21 @@ do {									\
 } while (0)
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-#define IWL_DEBUG(m, level, fmt, args...)				\
+#define IWL_DEBUG(m, level, fmt, ...)					\
 do {									\
 	if (iwl_get_debug_level((m)->shrd) & (level))			\
-		dev_printk(KERN_ERR, bus(m)->dev,			\
-			 "%c %s " fmt, in_interrupt() ? 'I' : 'U',	\
-			__func__ , ## args);				\
+		dev_err(bus(m)->dev, "%c %s " fmt,			\
+			in_interrupt() ? 'I' : 'U', __func__,		\
+			##__VA_ARGS__);					\
 } while (0)
 
-#define IWL_DEBUG_LIMIT(m, level, fmt, args...)				\
+#define IWL_DEBUG_LIMIT(m, level, fmt, ...)				\
 do {									\
-	if (iwl_get_debug_level((m)->shrd) & (level) && net_ratelimit())\
-		dev_printk(KERN_ERR, bus(m)->dev,			\
-			"%c %s " fmt, in_interrupt() ? 'I' : 'U',	\
-			 __func__ , ## args);				\
+	if (iwl_get_debug_level((m)->shrd) & (level) &&			\
+	    net_ratelimit())						\
+		dev_err(bus(m)->dev, "%c %s " fmt,			\
+			in_interrupt() ? 'I' : 'U', __func__,		\
+			##__VA_ARGS__);					\
 } while (0)
 
 #define iwl_print_hex_dump(m, level, p, len)				\
@@ -70,14 +71,18 @@ do {                                            			\
 			       DUMP_PREFIX_OFFSET, 16, 1, p, len, 1);	\
 } while (0)
 
-#define IWL_DEBUG_QUIET_RFKILL(p, fmt, args...)			\
+#define IWL_DEBUG_QUIET_RFKILL(p, fmt, ...)				\
 do {									\
-	if (!iwl_is_rfkill(p->shrd))				\
-		dev_printk(KERN_ERR, bus(p)->dev, "%c %s " fmt,	\
-		(in_interrupt() ? 'I' : 'U'), __func__ , ##args);	\
-	else if	(iwl_get_debug_level(p->shrd) & IWL_DL_RADIO)	\
-		dev_printk(KERN_ERR, bus(p)->dev, "(RFKILL) %c %s " fmt, \
-		(in_interrupt() ? 'I' : 'U'), __func__ , ##args);	\
+	if (!iwl_is_rfkill(p->shrd))					\
+		dev_err(bus(p)->dev, "%s%c %s " fmt,			\
+			"",						\
+			in_interrupt() ? 'I' : 'U', __func__,		\
+			##__VA_ARGS__);					\
+	else if	(iwl_get_debug_level(p->shrd) & IWL_DL_RADIO)		\
+		dev_err(bus(p)->dev, "%s%c %s " fmt,			\
+			"(RFKILL) ",					\
+			in_interrupt() ? 'I' : 'U', __func__,		\
+			##__VA_ARGS__);					\
 } while (0)
 
 #else
