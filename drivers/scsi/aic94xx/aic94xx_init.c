@@ -1009,6 +1009,8 @@ static struct sas_domain_function_template aic94xx_transport_functions = {
 	.lldd_clear_nexus_ha	= asd_clear_nexus_ha,
 
 	.lldd_control_phy	= asd_control_phy,
+
+	.lldd_ata_set_dmamode	= asd_set_dmamode,
 };
 
 static const struct pci_device_id aic94xx_pci_table[] __devinitdata = {

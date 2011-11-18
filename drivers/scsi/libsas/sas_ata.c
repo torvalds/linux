@@ -367,6 +367,17 @@ static void sas_ata_post_internal(struct ata_queued_cmd *qc)
 	}
 }
 
+
+static void sas_ata_set_dmamode(struct ata_port *ap, struct ata_device *ata_dev)
+{
+	struct domain_device *dev = ap->private_data;
+	struct sas_internal *i =
+		to_sas_internal(dev->port->ha->core.shost->transportt);
+
+	if (i->dft->lldd_ata_set_dmamode)
+		i->dft->lldd_ata_set_dmamode(dev);
+}
+
 static struct ata_port_operations sas_sata_ops = {
 	.prereset		= ata_std_prereset,
 	.softreset		= sas_ata_soft_reset,
@@ -380,6 +391,7 @@ static struct ata_port_operations sas_sata_ops = {
 	.qc_fill_rtf		= sas_ata_qc_fill_rtf,
 	.port_start		= ata_sas_port_start,
 	.port_stop		= ata_sas_port_stop,
+	.set_dmamode		= sas_ata_set_dmamode,
 };
 
 static struct ata_port_info sata_port_info = {
@@ -442,163 +454,6 @@ void sas_ata_task_abort(struct sas_task *task)
 	complete(waiting);
 }
 
-static void sas_task_timedout(unsigned long _task)
-{
-	struct sas_task *task = (void *) _task;
-	unsigned long flags;
-
-	spin_lock_irqsave(&task->task_state_lock, flags);
-	if (!(task->task_state_flags & SAS_TASK_STATE_DONE))
-		task->task_state_flags |= SAS_TASK_STATE_ABORTED;
-	spin_unlock_irqrestore(&task->task_state_lock, flags);
-
-	complete(&task->completion);
-}
-
-static void sas_disc_task_done(struct sas_task *task)
-{
-	if (!del_timer(&task->timer))
-		return;
-	complete(&task->completion);
-}
-
-#define SAS_DEV_TIMEOUT 10
-
-/**
- * sas_execute_task -- Basic task processing for discovery
- * @task: the task to be executed
- * @buffer: pointer to buffer to do I/O
- * @size: size of @buffer
- * @dma_dir: DMA direction.  DMA_xxx
- */
-static int sas_execute_task(struct sas_task *task, void *buffer, int size,
-			    enum dma_data_direction dma_dir)
-{
-	int res = 0;
-	struct scatterlist *scatter = NULL;
-	struct task_status_struct *ts = &task->task_status;
-	int num_scatter = 0;
-	int retries = 0;
-	struct sas_internal *i =
-		to_sas_internal(task->dev->port->ha->core.shost->transportt);
-
-	if (dma_dir != DMA_NONE) {
-		scatter = kzalloc(sizeof(*scatter), GFP_KERNEL);
-		if (!scatter)
-			goto out;
-
-		sg_init_one(scatter, buffer, size);
-		num_scatter = 1;
-	}
-
-	task->task_proto = task->dev->tproto;
-	task->scatter = scatter;
-	task->num_scatter = num_scatter;
-	task->total_xfer_len = size;
-	task->data_dir = dma_dir;
-	task->task_done = sas_disc_task_done;
-	if (dma_dir != DMA_NONE &&
-	    sas_protocol_ata(task->task_proto)) {
-		task->num_scatter = dma_map_sg(task->dev->port->ha->dev,
-					       task->scatter,
-					       task->num_scatter,
-					       task->data_dir);
-	}
-
-	for (retries = 0; retries < 5; retries++) {
-		task->task_state_flags = SAS_TASK_STATE_PENDING;
-		init_completion(&task->completion);
-
-		task->timer.data = (unsigned long) task;
-		task->timer.function = sas_task_timedout;
-		task->timer.expires = jiffies + SAS_DEV_TIMEOUT*HZ;
-		add_timer(&task->timer);
-
-		res = i->dft->lldd_execute_task(task, 1, GFP_KERNEL);
-		if (res) {
-			del_timer(&task->timer);
-			SAS_DPRINTK("executing SAS discovery task failed:%d\n",
-				    res);
-			goto ex_err;
-		}
-		wait_for_completion(&task->completion);
-		res = -ECOMM;
-		if (task->task_state_flags & SAS_TASK_STATE_ABORTED) {
-			int res2;
-			SAS_DPRINTK("task aborted, flags:0x%x\n",
-				    task->task_state_flags);
-			res2 = i->dft->lldd_abort_task(task);
-			SAS_DPRINTK("came back from abort task\n");
-			if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
-				if (res2 == TMF_RESP_FUNC_COMPLETE)
-					continue; /* Retry the task */
-				else
-					goto ex_err;
-			}
-		}
-		if (task->task_status.stat == SAM_STAT_BUSY ||
-			   task->task_status.stat == SAM_STAT_TASK_SET_FULL ||
-			   task->task_status.stat == SAS_QUEUE_FULL) {
-			SAS_DPRINTK("task: q busy, sleeping...\n");
-			schedule_timeout_interruptible(HZ);
-		} else if (task->task_status.stat == SAM_STAT_CHECK_CONDITION) {
-			struct scsi_sense_hdr shdr;
-
-			if (!scsi_normalize_sense(ts->buf, ts->buf_valid_size,
-						  &shdr)) {
-				SAS_DPRINTK("couldn't normalize sense\n");
-				continue;
-			}
-			if ((shdr.sense_key == 6 && shdr.asc == 0x29) ||
-			    (shdr.sense_key == 2 && shdr.asc == 4 &&
-			     shdr.ascq == 1)) {
-				SAS_DPRINTK("device %016llx LUN: %016llx "
-					    "powering up or not ready yet, "
-					    "sleeping...\n",
-					    SAS_ADDR(task->dev->sas_addr),
-					    SAS_ADDR(task->ssp_task.LUN));
-
-				schedule_timeout_interruptible(5*HZ);
-			} else if (shdr.sense_key == 1) {
-				res = 0;
-				break;
-			} else if (shdr.sense_key == 5) {
-				break;
-			} else {
-				SAS_DPRINTK("dev %016llx LUN: %016llx "
-					    "sense key:0x%x ASC:0x%x ASCQ:0x%x"
-					    "\n",
-					    SAS_ADDR(task->dev->sas_addr),
-					    SAS_ADDR(task->ssp_task.LUN),
-					    shdr.sense_key,
-					    shdr.asc, shdr.ascq);
-			}
-		} else if (task->task_status.resp != SAS_TASK_COMPLETE ||
-			   task->task_status.stat != SAM_STAT_GOOD) {
-			SAS_DPRINTK("task finished with resp:0x%x, "
-				    "stat:0x%x\n",
-				    task->task_status.resp,
-				    task->task_status.stat);
-			goto ex_err;
-		} else {
-			res = 0;
-			break;
-		}
-	}
-ex_err:
-	if (dma_dir != DMA_NONE) {
-		if (sas_protocol_ata(task->task_proto))
-			dma_unmap_sg(task->dev->port->ha->dev,
-				     task->scatter, task->num_scatter,
-				     task->data_dir);
-		kfree(scatter);
-	}
-out:
-	return res;
-}
-
-/* ---------- SATA ---------- */
-
 static void sas_get_ata_command_set(struct domain_device *dev)
 {
 	struct dev_to_host_fis *fis =
@@ -642,122 +497,6 @@ static void sas_get_ata_command_set(struct domain_device *dev)
 		dev->sata_dev.command_set = ATAPI_COMMAND_SET;
 }
 
-/**
- * sas_issue_ata_cmd -- Basic SATA command processing for discovery
- * @dev: the device to send the command to
- * @command: the command register
- * @features: the features register
- * @buffer: pointer to buffer to do I/O
- * @size: size of @buffer
- * @dma_dir: DMA direction.  DMA_xxx
- */
-static int sas_issue_ata_cmd(struct domain_device *dev, u8 command,
-			     u8 features, void *buffer, int size,
-			     enum dma_data_direction dma_dir)
-{
-	int res = 0;
-	struct sas_task *task;
-	struct dev_to_host_fis *d2h_fis = (struct dev_to_host_fis *)
-		&dev->frame_rcvd[0];
-
-	res = -ENOMEM;
-	task = sas_alloc_task(GFP_KERNEL);
-	if (!task)
-		goto out;
-
-	task->dev = dev;
-
-	task->ata_task.fis.fis_type = 0x27;
-	task->ata_task.fis.command = command;
-	task->ata_task.fis.features = features;
-	task->ata_task.fis.device = d2h_fis->device;
-	task->ata_task.retry_count = 1;
-
-	res = sas_execute_task(task, buffer, size, dma_dir);
-
-	sas_free_task(task);
-out:
-	return res;
-}
-
-#define ATA_IDENTIFY_DEV         0xEC
-#define ATA_IDENTIFY_PACKET_DEV  0xA1
-#define ATA_SET_FEATURES         0xEF
-#define ATA_FEATURE_PUP_STBY_SPIN_UP 0x07
-
-/**
- * sas_discover_sata_dev -- discover a STP/SATA device (SATA_DEV)
- * @dev: STP/SATA device of interest (ATA/ATAPI)
- *
- * The LLDD has already been notified of this device, so that we can
- * send FISes to it.  Here we try to get IDENTIFY DEVICE or IDENTIFY
- * PACKET DEVICE, if ATAPI device, so that the LLDD can fine-tune its
- * performance for this device.
- */
-static int sas_discover_sata_dev(struct domain_device *dev)
-{
-	int     res;
-	__le16  *identify_x;
-	u8      command;
-
-	identify_x = kzalloc(512, GFP_KERNEL);
-	if (!identify_x)
-		return -ENOMEM;
-
-	if (dev->sata_dev.command_set == ATA_COMMAND_SET) {
-		dev->sata_dev.identify_device = identify_x;
-		command = ATA_IDENTIFY_DEV;
-	} else {
-		dev->sata_dev.identify_packet_device = identify_x;
-		command = ATA_IDENTIFY_PACKET_DEV;
-	}
-
-	res = sas_issue_ata_cmd(dev, command, 0, identify_x, 512,
-				DMA_FROM_DEVICE);
-	if (res)
-		goto out_err;
-
-	/* lives on the media? */
-	if (le16_to_cpu(identify_x[0]) & 4) {
-		/* incomplete response */
-		SAS_DPRINTK("sending SET FEATURE/PUP_STBY_SPIN_UP to "
-			    "dev %llx\n", SAS_ADDR(dev->sas_addr));
-		if (!(identify_x[83] & cpu_to_le16(1<<6)))
-			goto cont1;
-		res = sas_issue_ata_cmd(dev, ATA_SET_FEATURES,
-					ATA_FEATURE_PUP_STBY_SPIN_UP,
-					NULL, 0, DMA_NONE);
-		if (res)
-			goto cont1;
-
-		schedule_timeout_interruptible(5*HZ); /* More time? */
-		res = sas_issue_ata_cmd(dev, command, 0, identify_x, 512,
-					DMA_FROM_DEVICE);
-		if (res)
-			goto out_err;
-	}
-cont1:
-	/* XXX Hint: register this SATA device with SATL.
-	   When this returns, dev->sata_dev->lu is alive and
-	   present.
-	sas_satl_register_dev(dev);
-	*/
-
-	sas_fill_in_rphy(dev, dev->rphy);
-
-	return 0;
-out_err:
-	dev->sata_dev.identify_packet_device = NULL;
-	dev->sata_dev.identify_device = NULL;
-	kfree(identify_x);
-	return res;
-}
-
-static int sas_discover_sata_pm(struct domain_device *dev)
-{
-	return -ENODEV;
-}
-
 void sas_probe_sata(struct work_struct *work)
 {
 	struct domain_device *dev, *n;
@@ -791,49 +530,26 @@ void sas_probe_sata(struct work_struct *work)
  * sas_discover_sata -- discover an STP/SATA domain device
  * @dev: pointer to struct domain_device of interest
  *
- * First we notify the LLDD of this device, so we can send frames to
- * it.  Then depending on the type of device we call the appropriate
- * discover functions.  Once device discover is done, we notify the
- * LLDD so that it can fine-tune its parameters for the device, by
- * removing it and then adding it.  That is, the second time around,
- * the driver would have certain fields, that it is looking at, set.
- * Finally we initialize the kobj so that the device can be added to
- * the system at registration time.  Devices directly attached to a HA
- * port, have no parents.  All other devices do, and should have their
- * "parent" pointer set appropriately before calling this function.
+ * Devices directly attached to a HA port, have no parents.  All other
+ * devices do, and should have their "parent" pointer set appropriately
+ * before calling this function.
  */
 int sas_discover_sata(struct domain_device *dev)
 {
 	int res;
 
+	if (dev->dev_type == SATA_PM)
+		return -ENODEV;
+
 	sas_get_ata_command_set(dev);
-
-	res = sas_notify_lldd_dev_found(dev);
-	if (res)
-		return res;
-
-	switch (dev->dev_type) {
-	case SATA_DEV:
-		res = sas_discover_sata_dev(dev);
-		break;
-	case SATA_PM:
-		res = sas_discover_sata_pm(dev);
-		break;
-	default:
-		break;
-	}
-	sas_notify_lldd_dev_gone(dev);
-
-	if (res)
-		return res;
+	sas_fill_in_rphy(dev, dev->rphy);
 
 	res = sas_notify_lldd_dev_found(dev);
 	if (res)
 		return res;
 
 	sas_discover_event(dev->port, DISCE_PROBE);
-
-	return res;
+	return 0;
 }
 
 void sas_ata_strategy_handler(struct Scsi_Host *shost)

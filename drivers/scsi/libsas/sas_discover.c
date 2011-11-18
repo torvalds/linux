@@ -237,11 +237,6 @@ void sas_free_device(struct kref *kref)
 	if (dev->dev_type == EDGE_DEV || dev->dev_type == FANOUT_DEV)
 		kfree(dev->ex_dev.ex_phy);
 
-	if (dev_is_sata(dev)) {
-		kfree(dev->sata_dev.identify_device);
-		kfree(dev->sata_dev.identify_packet_device);
-	}
-
 	kfree(dev);
 }
 
