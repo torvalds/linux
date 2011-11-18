@@ -921,11 +921,9 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 			   ba_resp->sta_id);
 	IWL_DEBUG_TX_REPLY(priv, "TID = %d, SeqCtl = %d, bitmap = 0x%llx, "
 			   "scd_flow = %d, scd_ssn = %d\n",
-			   ba_resp->tid,
-			   ba_resp->seq_ctl,
+			   ba_resp->tid, ba_resp->seq_ctl,
 			   (unsigned long long)le64_to_cpu(ba_resp->bitmap),
-			   ba_resp->scd_flow,
-			   ba_resp->scd_ssn);
+			   scd_flow, ba_resp_scd_ssn);
 
 	/* Mark that the expected block-ack response arrived */
 	agg->wait_for_ba = false;
