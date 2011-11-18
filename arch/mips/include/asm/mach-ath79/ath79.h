@@ -32,6 +32,7 @@ enum ath79_soc_type {
 };
 
 extern enum ath79_soc_type ath79_soc;
+extern unsigned int ath79_soc_rev;
 
 static inline int soc_is_ar71xx(void)
 {
