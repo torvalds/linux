@@ -369,7 +369,7 @@ qla25xx_copy_fce(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
 
 	memcpy(iter_reg, ha->fce, ntohl(fcec->size));
 
-	return iter_reg;
+	return (char *)iter_reg + ntohl(fcec->size);
 }
 
 static inline void *
