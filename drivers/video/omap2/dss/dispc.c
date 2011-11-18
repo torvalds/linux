@@ -452,6 +452,20 @@ u32 dispc_mgr_get_vsync_irq(enum omap_channel channel)
 	}
 }
 
+u32 dispc_mgr_get_framedone_irq(enum omap_channel channel)
+{
+	switch (channel) {
+	case OMAP_DSS_CHANNEL_LCD:
+		return DISPC_IRQ_FRAMEDONE;
+	case OMAP_DSS_CHANNEL_LCD2:
+		return DISPC_IRQ_FRAMEDONE2;
+	case OMAP_DSS_CHANNEL_DIGIT:
+		return 0;
+	default:
+		BUG();
+	}
+}
+
 bool dispc_mgr_go_busy(enum omap_channel channel)
 {
 	int bit;
