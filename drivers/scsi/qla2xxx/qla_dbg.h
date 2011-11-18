@@ -245,14 +245,14 @@ struct qla2xxx_fw_dump {
 extern int ql_errlev;
 
 void
-ql_dbg(uint32_t, scsi_qla_host_t *vha, int32_t, char *, ...);
+ql_dbg(uint32_t, scsi_qla_host_t *vha, int32_t, const char *fmt, ...);
 void
-ql_dbg_pci(uint32_t, struct pci_dev *pdev, int32_t, char *, ...);
+ql_dbg_pci(uint32_t, struct pci_dev *pdev, int32_t, const char *fmt, ...);
 
 void
-ql_log(uint32_t, scsi_qla_host_t *vha, int32_t, char *, ...);
+ql_log(uint32_t, scsi_qla_host_t *vha, int32_t, const char *fmt, ...);
 void
-ql_log_pci(uint32_t, struct pci_dev *pdev, int32_t, char *, ...);
+ql_log_pci(uint32_t, struct pci_dev *pdev, int32_t, const char *fmt, ...);
 
 /* Debug Levels */
 /* The 0x40000000 is the max value any debug level can have
@@ -275,5 +275,3 @@ ql_log_pci(uint32_t, struct pci_dev *pdev, int32_t, char *, ...);
 #define ql_dbg_misc	0x00010000 /* For dumping everything that is not
 				    * not covered by upper categories
 				    */
-
-#define QL_DBG_BUF_LEN	512

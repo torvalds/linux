@@ -1664,34 +1664,31 @@ qla81xx_fw_dump_failed:
  * msg:   The message to be displayed.
  */
 void
-ql_dbg(uint32_t level, scsi_qla_host_t *vha, int32_t id, char *msg, ...) {
+ql_dbg(uint32_t level, scsi_qla_host_t *vha, int32_t id, const char *fmt, ...)
+{
+	va_list va;
+	struct va_format vaf;
 
-	char pbuf[QL_DBG_BUF_LEN];
-	va_list ap;
-	uint32_t len;
-	struct pci_dev *pdev = NULL;
+	if ((level & ql2xextended_error_logging) != level)
+		return;
 
-	memset(pbuf, 0, QL_DBG_BUF_LEN);
+	va_start(va, fmt);
 
-	va_start(ap, msg);
+	vaf.fmt = fmt;
+	vaf.va = &va;
 
-	if ((level & ql2xextended_error_logging) == level) {
-		if (vha != NULL) {
-			pdev = vha->hw->pdev;
-			/* <module-name> <pci-name> <msg-id>:<host> Message */
-			sprintf(pbuf, "%s [%s]-%04x:%ld: ", QL_MSGHDR,
-			    dev_name(&(pdev->dev)), id + ql_dbg_offset,
-			    vha->host_no);
-		} else
-			sprintf(pbuf, "%s [%s]-%04x: : ", QL_MSGHDR,
-			    "0000:00:00.0", id + ql_dbg_offset);
-
-		len = strlen(pbuf);
-		vsprintf(pbuf+len, msg, ap);
-		pr_warning("%s", pbuf);
+	if (vha != NULL) {
+		const struct pci_dev *pdev = vha->hw->pdev;
+		/* <module-name> <pci-name> <msg-id>:<host> Message */
+		pr_warn("%s [%s]-%04x:%ld: %pV",
+			QL_MSGHDR, dev_name(&(pdev->dev)), id + ql_dbg_offset,
+			vha->host_no, &vaf);
+	} else {
+		pr_warn("%s [%s]-%04x: : %pV",
+			QL_MSGHDR, "0000:00:00.0", id + ql_dbg_offset, &vaf);
 	}
 
-	va_end(ap);
+	va_end(va);
 
 }
 
@@ -1710,31 +1707,27 @@ ql_dbg(uint32_t level, scsi_qla_host_t *vha, int32_t id, char *msg, ...) {
  * msg:   The message to be displayed.
  */
 void
-ql_dbg_pci(uint32_t level, struct pci_dev *pdev, int32_t id, char *msg, ...) {
-
-	char pbuf[QL_DBG_BUF_LEN];
-	va_list ap;
-	uint32_t len;
+ql_dbg_pci(uint32_t level, struct pci_dev *pdev, int32_t id,
+	   const char *fmt, ...)
+{
+	va_list va;
+	struct va_format vaf;
 
 	if (pdev == NULL)
 		return;
+	if ((level & ql2xextended_error_logging) != level)
+		return;
 
-	memset(pbuf, 0, QL_DBG_BUF_LEN);
+	va_start(va, fmt);
 
-	va_start(ap, msg);
+	vaf.fmt = fmt;
+	vaf.va = &va;
 
-	if ((level & ql2xextended_error_logging) == level) {
-		/* <module-name> <dev-name>:<msg-id> Message */
-		sprintf(pbuf, "%s [%s]-%04x: : ", QL_MSGHDR,
-		    dev_name(&(pdev->dev)), id + ql_dbg_offset);
+	/* <module-name> <dev-name>:<msg-id> Message */
+	pr_warn("%s [%s]-%04x: : %pV",
+		QL_MSGHDR, dev_name(&(pdev->dev)), id + ql_dbg_offset, &vaf);
 
-		len = strlen(pbuf);
-		vsprintf(pbuf+len, msg, ap);
-		pr_warning("%s", pbuf);
-	}
-
-	va_end(ap);
-
+	va_end(va);
 }
 
 /*
@@ -1751,47 +1744,47 @@ ql_dbg_pci(uint32_t level, struct pci_dev *pdev, int32_t id, char *msg, ...) {
  * msg:   The message to be displayed.
  */
 void
-ql_log(uint32_t level, scsi_qla_host_t *vha, int32_t id, char *msg, ...) {
+ql_log(uint32_t level, scsi_qla_host_t *vha, int32_t id, const char *fmt, ...)
+{
+	va_list va;
+	struct va_format vaf;
+	char pbuf[128];
 
-	char pbuf[QL_DBG_BUF_LEN];
-	va_list ap;
-	uint32_t len;
-	struct pci_dev *pdev = NULL;
+	if (level > ql_errlev)
+		return;
 
-	memset(pbuf, 0, QL_DBG_BUF_LEN);
+	if (vha != NULL) {
+		const struct pci_dev *pdev = vha->hw->pdev;
+		/* <module-name> <msg-id>:<host> Message */
+		snprintf(pbuf, sizeof(pbuf), "%s [%s]-%04x:%ld: ",
+			QL_MSGHDR, dev_name(&(pdev->dev)), id, vha->host_no);
+	} else {
+		snprintf(pbuf, sizeof(pbuf), "%s [%s]-%04x: : ",
+			QL_MSGHDR, "0000:00:00.0", id);
+	}
+	pbuf[sizeof(pbuf) - 1] = 0;
 
-	va_start(ap, msg);
+	va_start(va, fmt);
 
-	if (level <= ql_errlev) {
-		if (vha != NULL) {
-			pdev = vha->hw->pdev;
-			/* <module-name> <msg-id>:<host> Message */
-			sprintf(pbuf, "%s [%s]-%04x:%ld: ", QL_MSGHDR,
-			    dev_name(&(pdev->dev)), id, vha->host_no);
-		} else
-			sprintf(pbuf, "%s [%s]-%04x: : ", QL_MSGHDR,
-			    "0000:00:00.0", id);
+	vaf.fmt = fmt;
+	vaf.va = &va;
 
-		len = strlen(pbuf);
-			vsprintf(pbuf+len, msg, ap);
-
-		switch (level) {
-		case 0: /* FATAL LOG */
-			pr_crit("%s", pbuf);
-			break;
-		case 1:
-			pr_err("%s", pbuf);
-			break;
-		case 2:
-			pr_warn("%s", pbuf);
-			break;
-		default:
-			pr_info("%s", pbuf);
-			break;
-		}
+	switch (level) {
+	case 0: /* FATAL LOG */
+		pr_crit("%s%pV", pbuf, &vaf);
+		break;
+	case 1:
+		pr_err("%s%pV", pbuf, &vaf);
+		break;
+	case 2:
+		pr_warn("%s%pV", pbuf, &vaf);
+		break;
+	default:
+		pr_info("%s%pV", pbuf, &vaf);
+		break;
 	}
 
-	va_end(ap);
+	va_end(va);
 }
 
 /*
@@ -1809,43 +1802,44 @@ ql_log(uint32_t level, scsi_qla_host_t *vha, int32_t id, char *msg, ...) {
  * msg:   The message to be displayed.
  */
 void
-ql_log_pci(uint32_t level, struct pci_dev *pdev, int32_t id, char *msg, ...) {
-
-	char pbuf[QL_DBG_BUF_LEN];
-	va_list ap;
-	uint32_t len;
+ql_log_pci(uint32_t level, struct pci_dev *pdev, int32_t id,
+	   const char *fmt, ...)
+{
+	va_list va;
+	struct va_format vaf;
+	char pbuf[128];
 
 	if (pdev == NULL)
 		return;
+	if (level > ql_errlev)
+		return;
 
-	memset(pbuf, 0, QL_DBG_BUF_LEN);
+	/* <module-name> <dev-name>:<msg-id> Message */
+	snprintf(pbuf, sizeof(pbuf), "%s [%s]-%04x: : ",
+		 QL_MSGHDR, dev_name(&(pdev->dev)), id);
+	pbuf[sizeof(pbuf) - 1] = 0;
 
-	va_start(ap, msg);
+	va_start(va, fmt);
 
-	if (level <= ql_errlev) {
-		/* <module-name> <dev-name>:<msg-id> Message */
-		sprintf(pbuf, "%s [%s]-%04x: : ", QL_MSGHDR,
-		    dev_name(&(pdev->dev)), id);
+	vaf.fmt = fmt;
+	vaf.va = &va;
 
-		len = strlen(pbuf);
-		vsprintf(pbuf+len, msg, ap);
-		switch (level) {
-		case 0: /* FATAL LOG */
-			pr_crit("%s", pbuf);
-			break;
-		case 1:
-			pr_err("%s", pbuf);
-			break;
-		case 2:
-			pr_warn("%s", pbuf);
-			break;
-		default:
-			pr_info("%s", pbuf);
-			break;
-		}
+	switch (level) {
+	case 0: /* FATAL LOG */
+		pr_crit("%s%pV", pbuf, &vaf);
+		break;
+	case 1:
+		pr_err("%s%pV", pbuf, &vaf);
+		break;
+	case 2:
+		pr_warn("%s%pV", pbuf, &vaf);
+		break;
+	default:
+		pr_info("%s%pV", pbuf, &vaf);
+		break;
 	}
 
-	va_end(ap);
+	va_end(va);
 }
 
 void
@@ -1888,7 +1882,7 @@ ql_dump_buffer(uint32_t level, scsi_qla_host_t *vha, int32_t id,
 		ql_dbg(level, vha, id, "----------------------------------"
 		    "----------------------------\n");
 
-		ql_dbg(level, vha, id, "");
+		ql_dbg(level, vha, id, " ");
 		for (cnt = 0; cnt < size;) {
 			c = *b++;
 			printk("%02x", (uint32_t) c);
