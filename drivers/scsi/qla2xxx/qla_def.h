@@ -2244,6 +2244,7 @@ struct isp_operations {
 	int (*get_flash_version) (struct scsi_qla_host *, void *);
 	int (*start_scsi) (srb_t *);
 	int (*abort_isp) (struct scsi_qla_host *);
+	int (*iospace_config)(struct qla_hw_data*);
 };
 
 /* MSI-X Support *************************************************************/

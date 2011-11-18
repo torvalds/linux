@@ -1484,6 +1484,118 @@ qla24xx_disable_intrs(struct qla_hw_data *ha)
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 }
 
+static int
+qla2x00_iospace_config(struct qla_hw_data *ha)
+{
+	resource_size_t pio;
+	uint16_t msix;
+	int cpus;
+
+	if (IS_QLA82XX(ha))
+		return qla82xx_iospace_config(ha);
+
+	if (pci_request_selected_regions(ha->pdev, ha->bars,
+	    QLA2XXX_DRIVER_NAME)) {
+		ql_log_pci(ql_log_fatal, ha->pdev, 0x0011,
+		    "Failed to reserve PIO/MMIO regions (%s), aborting.\n",
+		    pci_name(ha->pdev));
+		goto iospace_error_exit;
+	}
+	if (!(ha->bars & 1))
+		goto skip_pio;
+
+	/* We only need PIO for Flash operations on ISP2312 v2 chips. */
+	pio = pci_resource_start(ha->pdev, 0);
+	if (pci_resource_flags(ha->pdev, 0) & IORESOURCE_IO) {
+		if (pci_resource_len(ha->pdev, 0) < MIN_IOBASE_LEN) {
+			ql_log_pci(ql_log_warn, ha->pdev, 0x0012,
+			    "Invalid pci I/O region size (%s).\n",
+			    pci_name(ha->pdev));
+			pio = 0;
+		}
+	} else {
+		ql_log_pci(ql_log_warn, ha->pdev, 0x0013,
+		    "Region #0 no a PIO resource (%s).\n",
+		    pci_name(ha->pdev));
+		pio = 0;
+	}
+	ha->pio_address = pio;
+	ql_dbg_pci(ql_dbg_init, ha->pdev, 0x0014,
+	    "PIO address=%llu.\n",
+	    (unsigned long long)ha->pio_address);
+
+skip_pio:
+	/* Use MMIO operations for all accesses. */
+	if (!(pci_resource_flags(ha->pdev, 1) & IORESOURCE_MEM)) {
+		ql_log_pci(ql_log_fatal, ha->pdev, 0x0015,
+		    "Region #1 not an MMIO resource (%s), aborting.\n",
+		    pci_name(ha->pdev));
+		goto iospace_error_exit;
+	}
+	if (pci_resource_len(ha->pdev, 1) < MIN_IOBASE_LEN) {
+		ql_log_pci(ql_log_fatal, ha->pdev, 0x0016,
+		    "Invalid PCI mem region size (%s), aborting.\n",
+		    pci_name(ha->pdev));
+		goto iospace_error_exit;
+	}
+
+	ha->iobase = ioremap(pci_resource_start(ha->pdev, 1), MIN_IOBASE_LEN);
+	if (!ha->iobase) {
+		ql_log_pci(ql_log_fatal, ha->pdev, 0x0017,
+		    "Cannot remap MMIO (%s), aborting.\n",
+		    pci_name(ha->pdev));
+		goto iospace_error_exit;
+	}
+
+	/* Determine queue resources */
+	ha->max_req_queues = ha->max_rsp_queues = 1;
+	if ((ql2xmaxqueues <= 1 && !ql2xmultique_tag) ||
+		(ql2xmaxqueues > 1 && ql2xmultique_tag) ||
+		(!IS_QLA25XX(ha) && !IS_QLA81XX(ha)))
+		goto mqiobase_exit;
+
+	ha->mqiobase = ioremap(pci_resource_start(ha->pdev, 3),
+			pci_resource_len(ha->pdev, 3));
+	if (ha->mqiobase) {
+		ql_dbg_pci(ql_dbg_init, ha->pdev, 0x0018,
+		    "MQIO Base=%p.\n", ha->mqiobase);
+		/* Read MSIX vector size of the board */
+		pci_read_config_word(ha->pdev, QLA_PCI_MSIX_CONTROL, &msix);
+		ha->msix_count = msix;
+		/* Max queues are bounded by available msix vectors */
+		/* queue 0 uses two msix vectors */
+		if (ql2xmultique_tag) {
+			cpus = num_online_cpus();
+			ha->max_rsp_queues = (ha->msix_count - 1 > cpus) ?
+				(cpus + 1) : (ha->msix_count - 1);
+			ha->max_req_queues = 2;
+		} else if (ql2xmaxqueues > 1) {
+			ha->max_req_queues = ql2xmaxqueues > QLA_MQ_SIZE ?
+			    QLA_MQ_SIZE : ql2xmaxqueues;
+			ql_dbg_pci(ql_dbg_multiq, ha->pdev, 0xc008,
+			    "QoS mode set, max no of request queues:%d.\n",
+			    ha->max_req_queues);
+			ql_dbg_pci(ql_dbg_init, ha->pdev, 0x0019,
+			    "QoS mode set, max no of request queues:%d.\n",
+			    ha->max_req_queues);
+		}
+		ql_log_pci(ql_log_info, ha->pdev, 0x001a,
+		    "MSI-X vector count: %d.\n", msix);
+	} else
+		ql_log_pci(ql_log_info, ha->pdev, 0x001b,
+		    "BAR 3 not enabled.\n");
+
+mqiobase_exit:
+	ha->msix_count = ha->max_rsp_queues + 1;
+	ql_dbg_pci(ql_dbg_init, ha->pdev, 0x001c,
+	    "MSIX Count:%d.\n", ha->msix_count);
+	return (0);
+
+iospace_error_exit:
+	return (-ENOMEM);
+}
+
+
 static struct isp_operations qla2100_isp_ops = {
 	.pci_config		= qla2100_pci_config,
 	.reset_chip		= qla2x00_reset_chip,
@@ -1518,6 +1630,7 @@ static struct isp_operations qla2100_isp_ops = {
 	.get_flash_version	= qla2x00_get_flash_version,
 	.start_scsi		= qla2x00_start_scsi,
 	.abort_isp		= qla2x00_abort_isp,
+	.iospace_config     	= qla2x00_iospace_config,
 };
 
 static struct isp_operations qla2300_isp_ops = {
@@ -1554,6 +1667,7 @@ static struct isp_operations qla2300_isp_ops = {
 	.get_flash_version	= qla2x00_get_flash_version,
 	.start_scsi		= qla2x00_start_scsi,
 	.abort_isp		= qla2x00_abort_isp,
+	.iospace_config     	= qla2x00_iospace_config,
 };
 
 static struct isp_operations qla24xx_isp_ops = {
@@ -1590,6 +1704,7 @@ static struct isp_operations qla24xx_isp_ops = {
 	.get_flash_version	= qla24xx_get_flash_version,
 	.start_scsi		= qla24xx_start_scsi,
 	.abort_isp		= qla2x00_abort_isp,
+	.iospace_config     	= qla2x00_iospace_config,
 };
 
 static struct isp_operations qla25xx_isp_ops = {
@@ -1626,6 +1741,7 @@ static struct isp_operations qla25xx_isp_ops = {
 	.get_flash_version	= qla24xx_get_flash_version,
 	.start_scsi		= qla24xx_dif_start_scsi,
 	.abort_isp		= qla2x00_abort_isp,
+	.iospace_config     	= qla2x00_iospace_config,
 };
 
 static struct isp_operations qla81xx_isp_ops = {
@@ -1662,6 +1778,7 @@ static struct isp_operations qla81xx_isp_ops = {
 	.get_flash_version	= qla24xx_get_flash_version,
 	.start_scsi		= qla24xx_dif_start_scsi,
 	.abort_isp		= qla2x00_abort_isp,
+	.iospace_config     	= qla2x00_iospace_config,
 };
 
 static struct isp_operations qla82xx_isp_ops = {
@@ -1698,6 +1815,7 @@ static struct isp_operations qla82xx_isp_ops = {
 	.get_flash_version	= qla24xx_get_flash_version,
 	.start_scsi             = qla82xx_start_scsi,
 	.abort_isp		= qla82xx_abort_isp,
+	.iospace_config     	= qla82xx_iospace_config,
 };
 
 static inline void
@@ -1811,117 +1929,6 @@ qla2x00_set_isp_flags(struct qla_hw_data *ha)
 	    ha->device_type, ha->flags.port0, ha->fw_srisc_address);
 }
 
-static int
-qla2x00_iospace_config(struct qla_hw_data *ha)
-{
-	resource_size_t pio;
-	uint16_t msix;
-	int cpus;
-
-	if (IS_QLA82XX(ha))
-		return qla82xx_iospace_config(ha);
-
-	if (pci_request_selected_regions(ha->pdev, ha->bars,
-	    QLA2XXX_DRIVER_NAME)) {
-		ql_log_pci(ql_log_fatal, ha->pdev, 0x0011,
-		    "Failed to reserve PIO/MMIO regions (%s), aborting.\n",
-		    pci_name(ha->pdev));
-		goto iospace_error_exit;
-	}
-	if (!(ha->bars & 1))
-		goto skip_pio;
-
-	/* We only need PIO for Flash operations on ISP2312 v2 chips. */
-	pio = pci_resource_start(ha->pdev, 0);
-	if (pci_resource_flags(ha->pdev, 0) & IORESOURCE_IO) {
-		if (pci_resource_len(ha->pdev, 0) < MIN_IOBASE_LEN) {
-			ql_log_pci(ql_log_warn, ha->pdev, 0x0012,
-			    "Invalid pci I/O region size (%s).\n",
-			    pci_name(ha->pdev));
-			pio = 0;
-		}
-	} else {
-		ql_log_pci(ql_log_warn, ha->pdev, 0x0013,
-		    "Region #0 no a PIO resource (%s).\n",
-		    pci_name(ha->pdev));
-		pio = 0;
-	}
-	ha->pio_address = pio;
-	ql_dbg_pci(ql_dbg_init, ha->pdev, 0x0014,
-	    "PIO address=%llu.\n",
-	    (unsigned long long)ha->pio_address);
-
-skip_pio:
-	/* Use MMIO operations for all accesses. */
-	if (!(pci_resource_flags(ha->pdev, 1) & IORESOURCE_MEM)) {
-		ql_log_pci(ql_log_fatal, ha->pdev, 0x0015,
-		    "Region #1 not an MMIO resource (%s), aborting.\n",
-		    pci_name(ha->pdev));
-		goto iospace_error_exit;
-	}
-	if (pci_resource_len(ha->pdev, 1) < MIN_IOBASE_LEN) {
-		ql_log_pci(ql_log_fatal, ha->pdev, 0x0016,
-		    "Invalid PCI mem region size (%s), aborting.\n",
-		    pci_name(ha->pdev));
-		goto iospace_error_exit;
-	}
-
-	ha->iobase = ioremap(pci_resource_start(ha->pdev, 1), MIN_IOBASE_LEN);
-	if (!ha->iobase) {
-		ql_log_pci(ql_log_fatal, ha->pdev, 0x0017,
-		    "Cannot remap MMIO (%s), aborting.\n",
-		    pci_name(ha->pdev));
-		goto iospace_error_exit;
-	}
-
-	/* Determine queue resources */
-	ha->max_req_queues = ha->max_rsp_queues = 1;
-	if ((ql2xmaxqueues <= 1 && !ql2xmultique_tag) ||
-		(ql2xmaxqueues > 1 && ql2xmultique_tag) ||
-		(!IS_QLA25XX(ha) && !IS_QLA81XX(ha)))
-		goto mqiobase_exit;
-
-	ha->mqiobase = ioremap(pci_resource_start(ha->pdev, 3),
-			pci_resource_len(ha->pdev, 3));
-	if (ha->mqiobase) {
-		ql_dbg_pci(ql_dbg_init, ha->pdev, 0x0018,
-		    "MQIO Base=%p.\n", ha->mqiobase);
-		/* Read MSIX vector size of the board */
-		pci_read_config_word(ha->pdev, QLA_PCI_MSIX_CONTROL, &msix);
-		ha->msix_count = msix;
-		/* Max queues are bounded by available msix vectors */
-		/* queue 0 uses two msix vectors */
-		if (ql2xmultique_tag) {
-			cpus = num_online_cpus();
-			ha->max_rsp_queues = (ha->msix_count - 1 > cpus) ?
-				(cpus + 1) : (ha->msix_count - 1);
-			ha->max_req_queues = 2;
-		} else if (ql2xmaxqueues > 1) {
-			ha->max_req_queues = ql2xmaxqueues > QLA_MQ_SIZE ?
-			    QLA_MQ_SIZE : ql2xmaxqueues;
-			ql_dbg_pci(ql_dbg_multiq, ha->pdev, 0xc008,
-			    "QoS mode set, max no of request queues:%d.\n",
-			    ha->max_req_queues);
-			ql_dbg_pci(ql_dbg_init, ha->pdev, 0x0019,
-			    "QoS mode set, max no of request queues:%d.\n",
-			    ha->max_req_queues);
-		}
-		ql_log_pci(ql_log_info, ha->pdev, 0x001a,
-		    "MSI-X vector count: %d.\n", msix);
-	} else
-		ql_log_pci(ql_log_info, ha->pdev, 0x001b,
-		    "BAR 3 not enabled.\n");
-
-mqiobase_exit:
-	ha->msix_count = ha->max_rsp_queues + 1;
-	ql_dbg_pci(ql_dbg_init, ha->pdev, 0x001c,
-	    "MSIX Count:%d.\n", ha->msix_count);
-	return (0);
-
-iospace_error_exit:
-	return (-ENOMEM);
-}
-
 static void
 qla2xxx_scan_start(struct Scsi_Host *shost)
 {
@@ -2019,19 +2026,6 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if ( IS_QLA24XX(ha) || IS_QLA25XX(ha) || IS_QLA81XX(ha)) {
 		pdev->needs_freset = 1;
 	}
-
-	/* Configure PCI I/O space */
-	ret = qla2x00_iospace_config(ha);
-	if (ret)
-		goto probe_hw_failed;
-
-	ql_log_pci(ql_log_info, pdev, 0x001d,
-	    "Found an ISP%04X irq %d iobase 0x%p.\n",
-	    pdev->device, pdev->irq, ha->iobase);
-	ha->prev_topology = 0;
-	ha->init_cb_size = sizeof(init_cb_t);
-	ha->link_data_rate = PORT_SPEED_UNKNOWN;
-	ha->optrom_size = OPTROM_SIZE_2300;
 
 	/* Assign ISP specific operations. */
 	max_id = MAX_TARGETS_2200;
@@ -2140,6 +2134,20 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	    "flash_data_off=%d, nvram_conf_off=%d, nvram_data_off=%d.\n",
 	    ha->isp_ops, ha->flash_conf_off, ha->flash_data_off,
 	    ha->nvram_conf_off, ha->nvram_data_off);
+
+	/* Configure PCI I/O space */
+	ret = ha->isp_ops->iospace_config(ha);
+	if (ret)
+		goto probe_hw_failed;
+
+	ql_log_pci(ql_log_info, pdev, 0x001d,
+	    "Found an ISP%04X irq %d iobase 0x%p.\n",
+	    pdev->device, pdev->irq, ha->iobase);
+	ha->prev_topology = 0;
+	ha->init_cb_size = sizeof(init_cb_t);
+	ha->link_data_rate = PORT_SPEED_UNKNOWN;
+	ha->optrom_size = OPTROM_SIZE_2300;
+
 	mutex_init(&ha->vport_lock);
 	init_completion(&ha->mbx_cmd_comp);
 	complete(&ha->mbx_cmd_comp);
