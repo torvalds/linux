@@ -15,5 +15,4 @@ int platform_resource_setup_memory(struct platform_device *pdev,
 void plat_early_device_setup(void);
 
 struct pdev_archdata {
-	int hwblk_id;
 };
