@@ -3655,10 +3655,10 @@ qla82xx_check_md_needed(scsi_qla_host_t *vha)
 				qla82xx_md_free(vha);
 				/* ALlocate MiniDump resources */
 				qla82xx_md_prep(vha);
-			} else
-				ql_log(ql_log_info, vha, 0xb02e,
-				    "Firmware dump available to retrieve\n");
-		}
+			}
+		} else
+			ql_log(ql_log_info, vha, 0xb02e,
+			    "Firmware dump available to retrieve\n");
 	}
 	return rval;
 }
