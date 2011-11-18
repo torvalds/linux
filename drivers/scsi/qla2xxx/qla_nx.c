@@ -369,7 +369,7 @@ qla82xx_pci_set_crbwindow_2M(struct qla_hw_data *ha, ulong *off)
 		ql_dbg(ql_dbg_p3p, vha, 0xb000,
 		    "%s: Written crbwin (0x%x) "
 		    "!= Read crbwin (0x%x), off=0x%lx.\n",
-		    ha->crb_win, win_read, *off);
+		    __func__, ha->crb_win, win_read, *off);
 	}
 	*off = (*off & MASK(16)) + CRB_INDIRECT_2M + ha->nx_pcibase;
 }
@@ -409,7 +409,7 @@ qla82xx_pci_set_crbwindow(struct qla_hw_data *ha, u64 off)
 	}
 	/* strange address given */
 	ql_dbg(ql_dbg_p3p, vha, 0xb001,
-	    "%x: Warning: unm_nic_pci_set_crbwindow "
+	    "%s: Warning: unm_nic_pci_set_crbwindow "
 	    "called with an unknown address(%llx).\n",
 	    QLA2XXX_DRIVER_NAME, off);
 	return off;
@@ -1711,12 +1711,12 @@ qla82xx_iospace_config(struct qla_hw_data *ha)
 	ql_dbg_pci(ql_dbg_multiq, ha->pdev, 0xc006,
 	    "nx_pci_base=%p iobase=%p "
 	    "max_req_queues=%d msix_count=%d.\n",
-	    ha->nx_pcibase, ha->iobase,
+	    (void *)ha->nx_pcibase, ha->iobase,
 	    ha->max_req_queues, ha->msix_count);
 	ql_dbg_pci(ql_dbg_init, ha->pdev, 0x0010,
 	    "nx_pci_base=%p iobase=%p "
 	    "max_req_queues=%d msix_count=%d.\n",
-	    ha->nx_pcibase, ha->iobase,
+	    (void *)ha->nx_pcibase, ha->iobase,
 	    ha->max_req_queues, ha->msix_count);
 	return 0;
 
@@ -1744,7 +1744,7 @@ qla82xx_pci_config(scsi_qla_host_t *vha)
 	ret = pci_set_mwi(ha->pdev);
 	ha->chip_revision = ha->pdev->revision;
 	ql_dbg(ql_dbg_init, vha, 0x0043,
-	    "Chip revision:%ld.\n",
+	    "Chip revision:%d.\n",
 	    ha->chip_revision);
 	return 0;
 }
@@ -3661,8 +3661,7 @@ qla82xx_check_md_needed(scsi_qla_host_t *vha)
 				qla82xx_md_prep(vha);
 			} else
 				ql_log(ql_log_info, vha, 0xb02e,
-				    "Firmware dump available to retrieve\n",
-				    vha->host_no);
+				    "Firmware dump available to retrieve\n");
 		}
 	}
 	return rval;
@@ -4067,7 +4066,7 @@ int qla2x00_wait_for_fcoe_ctx_reset(scsi_qla_host_t *vha)
 		}
 	}
 	ql_dbg(ql_dbg_p3p, vha, 0xb027,
-	    "%s status=%d.\n", status);
+	       "%s: status=%d.\n", __func__, status);
 
 	return status;
 }

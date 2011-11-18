@@ -1017,7 +1017,7 @@ __qla2xxx_eh_generic_reset(char *name, enum nexus_wait_type type,
 eh_reset_failed:
 	ql_log(ql_log_info, vha, 0x800f,
 	    "%s RESET FAILED: %s for id %d lun %d cmd=%p.\n", name,
-	    reset_errors[err], cmd->device->id, cmd->device->lun);
+	    reset_errors[err], cmd->device->id, cmd->device->lun, cmd);
 	return FAILED;
 }
 
@@ -1819,7 +1819,7 @@ qla2x00_set_isp_flags(struct qla_hw_data *ha)
 	else
 		ha->flags.port0 = 0;
 	ql_dbg_pci(ql_dbg_init, ha->pdev, 0x000b,
-	    "device_type=0x%x port=%d fw_srisc_address=%p.\n",
+	    "device_type=0x%x port=%d fw_srisc_address=0x%x.\n",
 	    ha->device_type, ha->flags.port0, ha->fw_srisc_address);
 }
 
@@ -1860,8 +1860,8 @@ qla2x00_iospace_config(struct qla_hw_data *ha)
 	}
 	ha->pio_address = pio;
 	ql_dbg_pci(ql_dbg_init, ha->pdev, 0x0014,
-	    "PIO address=%p.\n",
-	    ha->pio_address);
+	    "PIO address=%llu.\n",
+	    (unsigned long long)ha->pio_address);
 
 skip_pio:
 	/* Use MMIO operations for all accesses. */
@@ -2227,7 +2227,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ql_dbg(ql_dbg_init, base_vha, 0x0033,
 	    "max_id=%d this_id=%d "
 	    "cmd_per_len=%d unique_id=%d max_cmd_len=%d max_channel=%d "
-	    "max_lun=%d transportt=%p, vendor_id=%d.\n", host->max_id,
+	    "max_lun=%d transportt=%p, vendor_id=%llu.\n", host->max_id,
 	    host->this_id, host->cmd_per_lun, host->unique_id,
 	    host->max_cmd_len, host->max_channel, host->max_lun,
 	    host->transportt, sht->vendor_id);
@@ -2833,7 +2833,7 @@ qla2x00_mem_alloc(struct qla_hw_data *ha, uint16_t req_len, uint16_t rsp_len,
 		if (!ha->sns_cmd)
 			goto fail_dma_pool;
 		ql_dbg_pci(ql_dbg_init, ha->pdev, 0x0026,
-		    "sns_cmd.\n", ha->sns_cmd);
+		    "sns_cmd: %p.\n", ha->sns_cmd);
 	} else {
 	/* Get consistent memory allocated for MS IOCB */
 		ha->ms_iocb = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL,

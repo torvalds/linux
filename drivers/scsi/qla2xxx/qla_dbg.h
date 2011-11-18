@@ -244,14 +244,14 @@ struct qla2xxx_fw_dump {
 
 extern int ql_errlev;
 
-void
+void __attribute__((format (printf, 4, 5)))
 ql_dbg(uint32_t, scsi_qla_host_t *vha, int32_t, const char *fmt, ...);
-void
+void __attribute__((format (printf, 4, 5)))
 ql_dbg_pci(uint32_t, struct pci_dev *pdev, int32_t, const char *fmt, ...);
 
-void
+void __attribute__((format (printf, 4, 5)))
 ql_log(uint32_t, scsi_qla_host_t *vha, int32_t, const char *fmt, ...);
-void
+void __attribute__((format (printf, 4, 5)))
 ql_log_pci(uint32_t, struct pci_dev *pdev, int32_t, const char *fmt, ...);
 
 /* Debug Levels */

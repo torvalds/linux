@@ -4188,7 +4188,8 @@ qla2x00_abort_isp(scsi_qla_host_t *vha)
 		spin_unlock_irqrestore(&ha->vport_slock, flags);
 
 	} else {
-		ql_log(ql_log_warn, vha, 0x8023, "%s **** FAILED ****.\n");
+		ql_log(ql_log_warn, vha, 0x8023, "%s **** FAILED ****.\n",
+		       __func__);
 	}
 
 	return(status);

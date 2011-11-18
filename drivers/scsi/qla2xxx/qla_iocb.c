@@ -1004,7 +1004,7 @@ qla24xx_walk_and_build_sglist(struct qla_hw_data *ha, srb_t *sp, uint32_t *dsd,
 		sle_dma = sg_dma_address(sg);
 		ql_dbg(ql_dbg_io, vha, 0x300a,
 		    "sg entry %d - addr=0x%x 0x%x, " "len=%d for cmd=%p.\n",
-		    cur_dsd, i, LSD(sle_dma), MSD(sle_dma), sg_dma_len(sg),
+		    i, LSD(sle_dma), MSD(sle_dma), sg_dma_len(sg),
 		    sp->cmd);
 		*cur_dsd++ = cpu_to_le32(LSD(sle_dma));
 		*cur_dsd++ = cpu_to_le32(MSD(sle_dma));

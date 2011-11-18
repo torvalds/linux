@@ -298,7 +298,7 @@ qla81xx_idc_event(scsi_qla_host_t *vha, uint16_t aen, uint16_t descr)
 		return;
 
 	ql_dbg(ql_dbg_async, vha, 0x5022,
-	    "Inter-Driver Commucation %s -- ACK timeout=%d.\n",
+	    "%lu Inter-Driver Communication %s -- ACK timeout=%d.\n",
 	    vha->host_no, event[aen & 0xff], timeout);
 
 	rval = qla2x00_post_idc_ack_work(vha, mb);
