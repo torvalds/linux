@@ -303,7 +303,15 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 			if (!test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags) &&
 			    !test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags) &&
 			    !test_bit(ISP_ABORT_RETRY, &vha->dpc_flags)) {
-
+				if (IS_QLA82XX(ha)) {
+					ql_dbg(ql_dbg_mbx, vha, 0x112a,
+					    "disabling pause transmit on port "
+					    "0 & 1.\n");
+					qla82xx_wr_32(ha,
+					    QLA82XX_CRB_NIU + 0x98,
+					    CRB_NIU_XG_PAUSE_CTL_P0|
+					    CRB_NIU_XG_PAUSE_CTL_P1);
+				}
 				ql_log(ql_log_info, base_vha, 0x101c,
 				    "Mailbox cmd timeout occured. "
 				    "Scheduling ISP abort eeh_busy=0x%x.\n",
@@ -319,7 +327,15 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 			if (!test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags) &&
 			    !test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags) &&
 			    !test_bit(ISP_ABORT_RETRY, &vha->dpc_flags)) {
-
+				if (IS_QLA82XX(ha)) {
+					ql_dbg(ql_dbg_mbx, vha, 0x112b,
+					    "disabling pause transmit on port "
+					    "0 & 1.\n");
+					qla82xx_wr_32(ha,
+					    QLA82XX_CRB_NIU + 0x98,
+					    CRB_NIU_XG_PAUSE_CTL_P0|
+					    CRB_NIU_XG_PAUSE_CTL_P1);
+				}
 				ql_log(ql_log_info, base_vha, 0x101e,
 				    "Mailbox cmd timeout occured. "
 				    "Scheduling ISP abort.\n");

@@ -12,7 +12,7 @@
  * |             Level            |   Last Value Used  |     Holes	|
  * ----------------------------------------------------------------------
  * | Module Init and Probe        |       0x0116       |  		|
- * | Mailbox commands             |       0x1129       |		|
+ * | Mailbox commands             |       0x112b       |		|
  * | Device Discovery             |       0x2083       |		|
  * | Queue Command and IO tracing |       0x302e       |     0x3008     |
  * | DPC Thread                   |       0x401c       |		|
