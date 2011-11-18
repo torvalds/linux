@@ -2637,7 +2637,7 @@ static void rdev_init_debugfs(struct regulator_dev *rdev)
  */
 struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 	struct device *dev, const struct regulator_init_data *init_data,
-	void *driver_data)
+	void *driver_data, struct device_node *of_node)
 {
 	static atomic_t regulator_no = ATOMIC_INIT(0);
 	struct regulator_dev *rdev;
@@ -2696,6 +2696,7 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 
 	/* register with sysfs */
 	rdev->dev.class = &regulator_class;
+	rdev->dev.of_node = of_node;
 	rdev->dev.parent = dev;
 	dev_set_name(&rdev->dev, "regulator.%d",
 		     atomic_inc_return(&regulator_no) - 1);

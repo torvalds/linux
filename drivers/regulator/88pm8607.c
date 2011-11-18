@@ -427,7 +427,7 @@ static int __devinit pm8607_regulator_probe(struct platform_device *pdev)
 
 	/* replace driver_data with info */
 	info->regulator = regulator_register(&info->desc, &pdev->dev,
-					     pdata, info);
+					     pdata, info, NULL);
 	if (IS_ERR(info->regulator)) {
 		dev_err(&pdev->dev, "failed to register regulator %s\n",
 			info->desc.name);

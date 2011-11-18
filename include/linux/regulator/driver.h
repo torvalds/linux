@@ -212,7 +212,7 @@ struct regulator_dev {
 
 struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 	struct device *dev, const struct regulator_init_data *init_data,
-	void *driver_data);
+	void *driver_data, struct device_node *of_node);
 void regulator_unregister(struct regulator_dev *rdev);
 
 int regulator_notifier_call_chain(struct regulator_dev *rdev,

@@ -963,7 +963,7 @@ static __devinit int tps65910_probe(struct platform_device *pdev)
 		pmic->desc[i].owner = THIS_MODULE;
 
 		rdev = regulator_register(&pmic->desc[i],
-				tps65910->dev, reg_data, pmic);
+				tps65910->dev, reg_data, pmic, NULL);
 		if (IS_ERR(rdev)) {
 			dev_err(tps65910->dev,
 				"failed to register %s regulator\n",

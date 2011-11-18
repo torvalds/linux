@@ -496,7 +496,7 @@ static int __devinit tps_65023_probe(struct i2c_client *client,
 
 		/* Register the regulators */
 		rdev = regulator_register(&tps->desc[i], &client->dev,
-					  init_data, tps);
+					  init_data, tps, NULL);
 		if (IS_ERR(rdev)) {
 			dev_err(&client->dev, "failed to register %s\n",
 				id->name);

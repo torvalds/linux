@@ -347,7 +347,7 @@ static int __devinit max8649_regulator_probe(struct i2c_client *client,
 	}
 
 	info->regulator = regulator_register(&dcdc_desc, &client->dev,
-					     pdata->regulator, info);
+					     pdata->regulator, info, NULL);
 	if (IS_ERR(info->regulator)) {
 		dev_err(info->dev, "failed to register regulator %s\n",
 			dcdc_desc.name);

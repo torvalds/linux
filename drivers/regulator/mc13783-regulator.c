@@ -357,7 +357,7 @@ static int __devinit mc13783_regulator_probe(struct platform_device *pdev)
 		init_data = &pdata->regulators[i];
 		priv->regulators[i] = regulator_register(
 				&mc13783_regulators[init_data->id].desc,
-				&pdev->dev, init_data->init_data, priv);
+				&pdev->dev, init_data->init_data, priv, NULL);
 
 		if (IS_ERR(priv->regulators[i])) {
 			dev_err(&pdev->dev, "failed to register regulator %s\n",
