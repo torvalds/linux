@@ -583,18 +583,19 @@ int regmap_update_bits(struct regmap *map, unsigned int reg,
 		       unsigned int mask, unsigned int val)
 {
 	int ret;
-	unsigned int tmp;
+	unsigned int tmp, orig;
 
 	mutex_lock(&map->lock);
 
-	ret = _regmap_read(map, reg, &tmp);
+	ret = _regmap_read(map, reg, &orig);
 	if (ret != 0)
 		goto out;
 
-	tmp &= ~mask;
+	tmp = orig & ~mask;
 	tmp |= val & mask;
 
-	ret = _regmap_write(map, reg, tmp);
+	if (tmp != orig)
+		ret = _regmap_write(map, reg, tmp);
 
 out:
 	mutex_unlock(&map->lock);
