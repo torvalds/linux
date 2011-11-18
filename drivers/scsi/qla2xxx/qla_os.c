@@ -423,6 +423,7 @@ fail2:
 	qla25xx_delete_queues(vha);
 	destroy_workqueue(ha->wq);
 	ha->wq = NULL;
+	vha->req = ha->req_q_map[0];
 fail:
 	ha->mqenable = 0;
 	kfree(ha->req_q_map);
