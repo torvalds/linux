@@ -837,18 +837,7 @@ static struct usb_driver hwahc_driver = {
 	.id_table =	hwahc_id_table,
 };
 
-static int __init hwahc_driver_init(void)
-{
-	return usb_register(&hwahc_driver);
-}
-module_init(hwahc_driver_init);
-
-static void __exit hwahc_driver_exit(void)
-{
-	usb_deregister(&hwahc_driver);
-}
-module_exit(hwahc_driver_exit);
-
+module_usb_driver(hwahc_driver);
 
 MODULE_AUTHOR("Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>");
 MODULE_DESCRIPTION("Host Wired Adapter USB Host Control Driver");

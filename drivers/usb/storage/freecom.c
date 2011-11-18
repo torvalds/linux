@@ -555,15 +555,4 @@ static struct usb_driver freecom_driver = {
 	.soft_unbind =	1,
 };
 
-static int __init freecom_init(void)
-{
-	return usb_register(&freecom_driver);
-}
-
-static void __exit freecom_exit(void)
-{
-	usb_deregister(&freecom_driver);
-}
-
-module_init(freecom_init);
-module_exit(freecom_exit);
+module_usb_driver(freecom_driver);

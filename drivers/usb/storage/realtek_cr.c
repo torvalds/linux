@@ -1104,15 +1104,4 @@ static struct usb_driver realtek_cr_driver = {
 	.supports_autosuspend = 1,
 };
 
-static int __init realtek_cr_init(void)
-{
-	return usb_register(&realtek_cr_driver);
-}
-
-static void __exit realtek_cr_exit(void)
-{
-	usb_deregister(&realtek_cr_driver);
-}
-
-module_init(realtek_cr_init);
-module_exit(realtek_cr_exit);
+module_usb_driver(realtek_cr_driver);

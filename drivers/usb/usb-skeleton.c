@@ -688,25 +688,6 @@ static struct usb_driver skel_driver = {
 	.supports_autosuspend = 1,
 };
 
-static int __init usb_skel_init(void)
-{
-	int result;
-
-	/* register this driver with the USB subsystem */
-	result = usb_register(&skel_driver);
-	if (result)
-		err("usb_register failed. Error number %d", result);
-
-	return result;
-}
-
-static void __exit usb_skel_exit(void)
-{
-	/* deregister this driver with the USB subsystem */
-	usb_deregister(&skel_driver);
-}
-
-module_init(usb_skel_init);
-module_exit(usb_skel_exit);
+module_usb_driver(skel_driver);
 
 MODULE_LICENSE("GPL");

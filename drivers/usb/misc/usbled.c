@@ -231,23 +231,7 @@ static struct usb_driver led_driver = {
 	.id_table =	id_table,
 };
 
-static int __init usb_led_init(void)
-{
-	int retval = 0;
-
-	retval = usb_register(&led_driver);
-	if (retval)
-		err("usb_register failed. Error number %d", retval);
-	return retval;
-}
-
-static void __exit usb_led_exit(void)
-{
-	usb_deregister(&led_driver);
-}
-
-module_init(usb_led_init);
-module_exit(usb_led_exit);
+module_usb_driver(led_driver);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

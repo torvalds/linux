@@ -276,18 +276,7 @@ static struct usb_driver emi26_driver = {
 	.id_table	= id_table,
 };
 
-static int __init emi26_init (void)
-{
-	return usb_register(&emi26_driver);
-}
-
-static void __exit emi26_exit (void)
-{
-	usb_deregister (&emi26_driver);
-}
-
-module_init(emi26_init);
-module_exit(emi26_exit);
+module_usb_driver(emi26_driver);
 
 MODULE_AUTHOR("Tapio Laxström");
 MODULE_DESCRIPTION("Emagic EMI 2|6 firmware loader.");

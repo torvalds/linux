@@ -314,15 +314,4 @@ static struct usb_driver onetouch_driver = {
 	.soft_unbind =	1,
 };
 
-static int __init onetouch_init(void)
-{
-	return usb_register(&onetouch_driver);
-}
-
-static void __exit onetouch_exit(void)
-{
-	usb_deregister(&onetouch_driver);
-}
-
-module_init(onetouch_init);
-module_exit(onetouch_exit);
+module_usb_driver(onetouch_driver);

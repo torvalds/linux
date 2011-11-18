@@ -232,15 +232,4 @@ static struct usb_driver karma_driver = {
 	.soft_unbind =	1,
 };
 
-static int __init karma_init(void)
-{
-	return usb_register(&karma_driver);
-}
-
-static void __exit karma_exit(void)
-{
-	usb_deregister(&karma_driver);
-}
-
-module_init(karma_init);
-module_exit(karma_exit);
+module_usb_driver(karma_driver);

@@ -821,30 +821,5 @@ static struct usb_driver ld_usb_driver = {
 	.id_table =	ld_usb_table,
 };
 
-/**
- *	ld_usb_init
- */
-static int __init ld_usb_init(void)
-{
-	int retval;
-
-	/* register this driver with the USB subsystem */
-	retval = usb_register(&ld_usb_driver);
-	if (retval)
-		err("usb_register failed for the %s driver. Error number %d\n", __FILE__, retval);
-
-	return retval;
-}
-
-/**
- *	ld_usb_exit
- */
-static void __exit ld_usb_exit(void)
-{
-	/* deregister this driver with the USB subsystem */
-	usb_deregister(&ld_usb_driver);
-}
-
-module_init(ld_usb_init);
-module_exit(ld_usb_exit);
+module_usb_driver(ld_usb_driver);
 
