@@ -11,15 +11,16 @@
  * ----------------------------------------------------------------------
  * |             Level            |   Last Value Used  |     Holes	|
  * ----------------------------------------------------------------------
- * | Module Init and Probe        |       0x0116       |  		|
+ * | Module Init and Probe        |       0x0116       | 0xfa           |
  * | Mailbox commands             |       0x112b       |		|
- * | Device Discovery             |       0x2083       |		|
- * | Queue Command and IO tracing |       0x302e       |     0x3008     |
+ * | Device Discovery             |       0x2084       |		|
+ * | Queue Command and IO tracing |       0x302f       | 0x3008         |
  * | DPC Thread                   |       0x401c       |		|
- * | Async Events                 |       0x5059       |		|
- * | Timer Routines               |       0x6010       | 0x600e,0x600f  |
- * | User Space Interactions      |       0x709d       |		|
- * | Task Management              |       0x8041       | 0x800b         |
+ * | Async Events                 |       0x5057       | 0x5052		|
+ * | Timer Routines               |       0x6011       | 0x600e,0x600f  |
+ * | User Space Interactions      |       0x709e       |		|
+ * | Task Management              |       0x803c       | 0x8025-0x8026  |
+ * |                              |                    | 0x800b,0x8039  |
  * | AER/EEH                      |       0x900f       |		|
  * | Virtual Port                 |       0xa007       |		|
  * | ISP82XX Specific             |       0xb052       |    		|
@@ -1650,6 +1651,15 @@ qla81xx_fw_dump_failed:
 /****************************************************************************/
 /*                         Driver Debug Functions.                          */
 /****************************************************************************/
+
+static inline int
+ql_mask_match(uint32_t level)
+{
+	if (ql2xextended_error_logging == 1)
+		ql2xextended_error_logging = QL_DBG_DEFAULT1_MASK;
+	return (level & ql2xextended_error_logging) == level;
+}
+
 /*
  * This function is for formatting and logging debug information.
  * It is to be used when vha is available. It formats the message
@@ -1669,7 +1679,7 @@ ql_dbg(uint32_t level, scsi_qla_host_t *vha, int32_t id, const char *fmt, ...)
 	va_list va;
 	struct va_format vaf;
 
-	if ((level & ql2xextended_error_logging) != level)
+	if (!ql_mask_match(level))
 		return;
 
 	va_start(va, fmt);
@@ -1715,7 +1725,7 @@ ql_dbg_pci(uint32_t level, struct pci_dev *pdev, int32_t id,
 
 	if (pdev == NULL)
 		return;
-	if ((level & ql2xextended_error_logging) != level)
+	if (!ql_mask_match(level))
 		return;
 
 	va_start(va, fmt);
@@ -1852,20 +1862,20 @@ ql_dump_regs(uint32_t level, scsi_qla_host_t *vha, int32_t id)
 	struct device_reg_82xx __iomem *reg82 = &ha->iobase->isp82;
 	uint16_t __iomem *mbx_reg;
 
-	if ((level & ql2xextended_error_logging) == level) {
+	if (!ql_mask_match(level))
+		return;
 
-		if (IS_QLA82XX(ha))
-			mbx_reg = &reg82->mailbox_in[0];
-		else if (IS_FWI2_CAPABLE(ha))
-			mbx_reg = &reg24->mailbox0;
-		else
-			mbx_reg = MAILBOX_REG(ha, reg, 0);
+	if (IS_QLA82XX(ha))
+		mbx_reg = &reg82->mailbox_in[0];
+	else if (IS_FWI2_CAPABLE(ha))
+		mbx_reg = &reg24->mailbox0;
+	else
+		mbx_reg = MAILBOX_REG(ha, reg, 0);
 
-		ql_dbg(level, vha, id, "Mailbox registers:\n");
-		for (i = 0; i < 6; i++)
-			ql_dbg(level, vha, id,
-			    "mbox[%d] 0x%04x\n", i, RD_REG_WORD(mbx_reg++));
-	}
+	ql_dbg(level, vha, id, "Mailbox registers:\n");
+	for (i = 0; i < 6; i++)
+		ql_dbg(level, vha, id,
+		    "mbox[%d] 0x%04x\n", i, RD_REG_WORD(mbx_reg++));
 }
 
 
@@ -1875,24 +1885,25 @@ ql_dump_buffer(uint32_t level, scsi_qla_host_t *vha, int32_t id,
 {
 	uint32_t cnt;
 	uint8_t c;
-	if ((level & ql2xextended_error_logging) == level) {
 
-		ql_dbg(level, vha, id, " 0   1   2   3   4   5   6   7   8   "
-		    "9  Ah  Bh  Ch  Dh  Eh  Fh\n");
-		ql_dbg(level, vha, id, "----------------------------------"
-		    "----------------------------\n");
+	if (!ql_mask_match(level))
+		return;
 
-		ql_dbg(level, vha, id, " ");
-		for (cnt = 0; cnt < size;) {
-			c = *b++;
-			printk("%02x", (uint32_t) c);
-			cnt++;
-			if (!(cnt % 16))
-				printk("\n");
-			else
-				printk("  ");
-		}
-		if (cnt % 16)
-			ql_dbg(level, vha, id, "\n");
+	ql_dbg(level, vha, id, " 0   1   2   3   4   5   6   7   8   "
+	    "9  Ah  Bh  Ch  Dh  Eh  Fh\n");
+	ql_dbg(level, vha, id, "----------------------------------"
+	    "----------------------------\n");
+
+	ql_dbg(level, vha, id, " ");
+	for (cnt = 0; cnt < size;) {
+		c = *b++;
+		printk("%02x", (uint32_t) c);
+		cnt++;
+		if (!(cnt % 16))
+			printk("\n");
+		else
+			printk("  ");
 	}
+	if (cnt % 16)
+		ql_dbg(level, vha, id, "\n");
 }

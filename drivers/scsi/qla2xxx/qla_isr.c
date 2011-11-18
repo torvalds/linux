@@ -262,13 +262,8 @@ qla2x00_mbx_completion(scsi_qla_host_t *vha, uint16_t mb0)
 		wptr++;
 	}
 
-	if (ha->mcp) {
-		ql_dbg(ql_dbg_async, vha, 0x5000,
-		    "Got mbx completion. cmd=%x.\n", ha->mcp->mb[0]);
-	} else {
-		ql_dbg(ql_dbg_async, vha, 0x5001,
-		    "MBX pointer ERROR.\n");
-	}
+	if (!ha->mcp)
+		ql_dbg(ql_dbg_async, vha, 0x5001, "MBX pointer ERROR.\n");
 }
 
 static void
@@ -453,7 +448,7 @@ skip_rio:
 		break;
 
 	case MBA_LIP_OCCURRED:		/* Loop Initialization Procedure */
-		ql_log(ql_log_info, vha, 0x5009,
+		ql_dbg(ql_dbg_async, vha, 0x5009,
 		    "LIP occurred (%x).\n", mb[1]);
 
 		if (atomic_read(&vha->loop_state) != LOOP_DOWN) {
@@ -487,7 +482,7 @@ skip_rio:
 			ha->link_data_rate = mb[1];
 		}
 
-		ql_log(ql_log_info, vha, 0x500a,
+		ql_dbg(ql_dbg_async, vha, 0x500a,
 		    "LOOP UP detected (%s Gbps).\n", link_speed);
 
 		vha->flags.management_server_logged_in = 0;
@@ -497,7 +492,7 @@ skip_rio:
 	case MBA_LOOP_DOWN:		/* Loop Down Event */
 		mbx = IS_QLA81XX(ha) ? RD_REG_WORD(&reg24->mailbox4) : 0;
 		mbx = IS_QLA82XX(ha) ? RD_REG_WORD(&reg82->mailbox_out[4]) : mbx;
-		ql_log(ql_log_info, vha, 0x500b,
+		ql_dbg(ql_dbg_async, vha, 0x500b,
 		    "LOOP DOWN detected (%x %x %x %x).\n",
 		    mb[1], mb[2], mb[3], mbx);
 
@@ -519,7 +514,7 @@ skip_rio:
 		break;
 
 	case MBA_LIP_RESET:		/* LIP reset occurred */
-		ql_log(ql_log_info, vha, 0x500c,
+		ql_dbg(ql_dbg_async, vha, 0x500c,
 		    "LIP reset occurred (%x).\n", mb[1]);
 
 		if (atomic_read(&vha->loop_state) != LOOP_DOWN) {
@@ -587,7 +582,7 @@ skip_rio:
 		if (IS_QLA2100(ha))
 			break;
 
-		ql_log(ql_log_info, vha, 0x500f,
+		ql_dbg(ql_dbg_async, vha, 0x500f,
 		    "Configuration change detected: value=%x.\n", mb[1]);
 
 		if (atomic_read(&vha->loop_state) != LOOP_DOWN) {
@@ -920,15 +915,15 @@ qla2x00_mbx_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	    QLA_LOGIO_LOGIN_RETRIED : 0;
 	if (mbx->entry_status) {
 		ql_dbg(ql_dbg_async, vha, 0x5043,
-		    "Async-%s error entry - portid=%02x%02x%02x "
+		    "Async-%s error entry - hdl=%x portid=%02x%02x%02x "
 		    "entry-status=%x status=%x state-flag=%x "
-		    "status-flags=%x.\n",
-		    type, fcport->d_id.b.domain, fcport->d_id.b.area,
+		    "status-flags=%x.\n", type, sp->handle,
+		    fcport->d_id.b.domain, fcport->d_id.b.area,
 		    fcport->d_id.b.al_pa, mbx->entry_status,
 		    le16_to_cpu(mbx->status), le16_to_cpu(mbx->state_flags),
 		    le16_to_cpu(mbx->status_flags));
 
-		ql_dump_buffer(ql_dbg_async + ql_dbg_buffer, vha, 0x5057,
+		ql_dump_buffer(ql_dbg_async + ql_dbg_buffer, vha, 0x5029,
 		    (uint8_t *)mbx, sizeof(*mbx));
 
 		goto logio_done;
@@ -940,9 +935,10 @@ qla2x00_mbx_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 		status = 0;
 	if (!status && le16_to_cpu(mbx->mb0) == MBS_COMMAND_COMPLETE) {
 		ql_dbg(ql_dbg_async, vha, 0x5045,
-		    "Async-%s complete - portid=%02x%02x%02x mbx1=%x.\n",
-		    type, fcport->d_id.b.domain, fcport->d_id.b.area,
-		    fcport->d_id.b.al_pa, le16_to_cpu(mbx->mb1));
+		    "Async-%s complete - hdl=%x portid=%02x%02x%02x mbx1=%x.\n",
+		    type, sp->handle, fcport->d_id.b.domain,
+		    fcport->d_id.b.area, fcport->d_id.b.al_pa,
+		    le16_to_cpu(mbx->mb1));
 
 		data[0] = MBS_COMMAND_COMPLETE;
 		if (ctx->type == SRB_LOGIN_CMD) {
@@ -968,11 +964,10 @@ qla2x00_mbx_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	}
 
 	ql_log(ql_log_warn, vha, 0x5046,
-	    "Async-%s failed - portid=%02x%02x%02x status=%x "
-	    "mb0=%x mb1=%x mb2=%x mb6=%x mb7=%x.\n",
-	    type, fcport->d_id.b.domain,
-	    fcport->d_id.b.area, fcport->d_id.b.al_pa, status,
-	    le16_to_cpu(mbx->mb0), le16_to_cpu(mbx->mb1),
+	    "Async-%s failed - hdl=%x portid=%02x%02x%02x status=%x "
+	    "mb0=%x mb1=%x mb2=%x mb6=%x mb7=%x.\n", type, sp->handle,
+	    fcport->d_id.b.domain, fcport->d_id.b.area, fcport->d_id.b.al_pa,
+	    status, le16_to_cpu(mbx->mb0), le16_to_cpu(mbx->mb1),
 	    le16_to_cpu(mbx->mb2), le16_to_cpu(mbx->mb6),
 	    le16_to_cpu(mbx->mb7));
 
@@ -1036,7 +1031,7 @@ qla2x00_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 			bsg_job->reply->result = DID_ERROR << 16;
 			bsg_job->reply->reply_payload_rcv_len = 0;
 		}
-		ql_dump_buffer(ql_dbg_async + ql_dbg_buffer, vha, 0x5058,
+		ql_dump_buffer(ql_dbg_async + ql_dbg_buffer, vha, 0x5035,
 		    (uint8_t *)pkt, sizeof(*pkt));
 	} else {
 		bsg_job->reply->result =  DID_OK << 16;
@@ -1111,9 +1106,9 @@ qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 				le16_to_cpu(((struct els_sts_entry_24xx*)pkt)->total_byte_count);
 
 			ql_log(ql_log_info, vha, 0x503f,
-			    "ELS-CT pass-through-%s error comp_status-status=0x%x "
+			    "ELS-CT pass-through-%s error hdl=%x comp_status-status=0x%x "
 			    "error subcode 1=0x%x error subcode 2=0x%x total_byte = 0x%x.\n",
-			    type, comp_status, fw_status[1], fw_status[2],
+			    type, sp->handle, comp_status, fw_status[1], fw_status[2],
 			    le16_to_cpu(((struct els_sts_entry_24xx *)
 				pkt)->total_byte_count));
 			fw_sts_ptr = ((uint8_t*)bsg_job->req->sense) + sizeof(struct fc_bsg_reply);
@@ -1121,9 +1116,9 @@ qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 		}
 		else {
 			ql_log(ql_log_info, vha, 0x5040,
-			    "ELS-CT pass-through-%s error comp_status-status=0x%x "
+			    "ELS-CT pass-through-%s error hdl=%x comp_status-status=0x%x "
 			    "error subcode 1=0x%x error subcode 2=0x%x.\n",
-			    type, comp_status,
+			    type, sp->handle, comp_status,
 			    le16_to_cpu(((struct els_sts_entry_24xx *)
 				pkt)->error_subcode_1),
 			    le16_to_cpu(((struct els_sts_entry_24xx *)
@@ -1184,11 +1179,12 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 		QLA_LOGIO_LOGIN_RETRIED : 0;
 	if (logio->entry_status) {
 		ql_log(ql_log_warn, vha, 0x5034,
-		    "Async-%s error entry - "
+		    "Async-%s error entry - hdl=%x"
 		    "portid=%02x%02x%02x entry-status=%x.\n",
-		    type, fcport->d_id.b.domain, fcport->d_id.b.area,
-		    fcport->d_id.b.al_pa, logio->entry_status);
-		ql_dump_buffer(ql_dbg_async + ql_dbg_buffer, vha, 0x5059,
+		    type, sp->handle, fcport->d_id.b.domain,
+		    fcport->d_id.b.area, fcport->d_id.b.al_pa,
+		    logio->entry_status);
+		ql_dump_buffer(ql_dbg_async + ql_dbg_buffer, vha, 0x504d,
 		    (uint8_t *)logio, sizeof(*logio));
 
 		goto logio_done;
@@ -1196,10 +1192,9 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 
 	if (le16_to_cpu(logio->comp_status) == CS_COMPLETE) {
 		ql_dbg(ql_dbg_async, vha, 0x5036,
-		    "Async-%s complete - portid=%02x%02x%02x "
-		    "iop0=%x.\n",
-		    type, fcport->d_id.b.domain, fcport->d_id.b.area,
-		    fcport->d_id.b.al_pa,
+		    "Async-%s complete - hdl=%x portid=%02x%02x%02x "
+		    "iop0=%x.\n", type, sp->handle, fcport->d_id.b.domain,
+		    fcport->d_id.b.area, fcport->d_id.b.al_pa,
 		    le32_to_cpu(logio->io_parameter[0]));
 
 		data[0] = MBS_COMMAND_COMPLETE;
@@ -1238,9 +1233,8 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 	}
 
 	ql_dbg(ql_dbg_async, vha, 0x5037,
-	    "Async-%s failed - portid=%02x%02x%02x comp=%x "
-	    "iop0=%x iop1=%x.\n",
-	    type, fcport->d_id.b.domain,
+	    "Async-%s failed - hdl=%x portid=%02x%02x%02x comp=%x "
+	    "iop0=%x iop1=%x.\n", type, sp->handle, fcport->d_id.b.domain,
 	    fcport->d_id.b.area, fcport->d_id.b.al_pa,
 	    le16_to_cpu(logio->comp_status),
 	    le32_to_cpu(logio->io_parameter[0]),
@@ -1274,25 +1268,25 @@ qla24xx_tm_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 
 	if (sts->entry_status) {
 		ql_log(ql_log_warn, vha, 0x5038,
-		    "Async-%s error - entry-status(%x).\n",
-		    type, sts->entry_status);
+		    "Async-%s error - hdl=%x entry-status(%x).\n",
+		    type, sp->handle, sts->entry_status);
 	} else if (sts->comp_status != __constant_cpu_to_le16(CS_COMPLETE)) {
 		ql_log(ql_log_warn, vha, 0x5039,
-		    "Async-%s error - completion status(%x).\n",
-		    type, sts->comp_status);
+		    "Async-%s error - hdl=%x completion status(%x).\n",
+		    type, sp->handle, sts->comp_status);
 	} else if (!(le16_to_cpu(sts->scsi_status) &
 	    SS_RESPONSE_INFO_LEN_VALID)) {
 		ql_log(ql_log_warn, vha, 0x503a,
-		    "Async-%s error - no response info(%x).\n",
-		    type, sts->scsi_status);
+		    "Async-%s error - hdl=%x no response info(%x).\n",
+		    type, sp->handle, sts->scsi_status);
 	} else if (le32_to_cpu(sts->rsp_data_len) < 4) {
 		ql_log(ql_log_warn, vha, 0x503b,
-		    "Async-%s error - not enough response(%d).\n",
-		    type, sts->rsp_data_len);
+		    "Async-%s error - hdl=%x not enough response(%d).\n",
+		    type, sp->handle, sts->rsp_data_len);
 	} else if (sts->data[3]) {
 		ql_log(ql_log_warn, vha, 0x503c,
-		    "Async-%s error - response(%x).\n",
-		    type, sts->data[3]);
+		    "Async-%s error - hdl=%x response(%x).\n",
+		    type, sp->handle, sts->data[3]);
 	} else {
 		error = 0;
 	}
@@ -1337,9 +1331,6 @@ qla2x00_process_response_queue(struct rsp_que *rsp)
 		}
 
 		if (pkt->entry_status != 0) {
-			ql_log(ql_log_warn, vha, 0x5035,
-			    "Process error entry.\n");
-
 			qla2x00_error_entry(vha, rsp, pkt);
 			((response_t *)pkt)->signature = RESPONSE_PROCESSED;
 			wmb();
@@ -1391,7 +1382,6 @@ qla2x00_process_response_queue(struct rsp_que *rsp)
 }
 
 static inline void
-
 qla2x00_handle_sense(srb_t *sp, uint8_t *sense_data, uint32_t par_sense_len,
     uint32_t sense_len, struct rsp_que *rsp)
 {
@@ -1413,13 +1403,14 @@ qla2x00_handle_sense(srb_t *sp, uint8_t *sense_data, uint32_t par_sense_len,
 	if (sp->request_sense_length != 0)
 		rsp->status_srb = sp;
 
-	ql_dbg(ql_dbg_io, vha, 0x301c,
-	    "Check condition Sense data, scsi(%ld:%d:%d:%d) cmd=%p.\n",
-	    sp->fcport->vha->host_no, cp->device->channel, cp->device->id,
-	    cp->device->lun, cp);
-	if (sense_len)
+	if (sense_len) {
+		ql_dbg(ql_dbg_io + ql_dbg_buffer, vha, 0x301c,
+		    "Check condition Sense data, nexus%ld:%d:%d cmd=%p.\n",
+		    sp->fcport->vha->host_no, cp->device->id, cp->device->lun,
+		    cp);
 		ql_dump_buffer(ql_dbg_io + ql_dbg_buffer, vha, 0x302b,
 		    cp->sense_buffer, sense_len);
+	}
 }
 
 struct scsi_dif_tuple {
@@ -1506,7 +1497,7 @@ qla2x00_handle_dif_error(srb_t *sp, struct sts_entry_24xx *sts24)
 			}
 
 			if (k != blocks_done) {
-				qla_printk(KERN_WARNING, sp->fcport->vha->hw,
+				ql_log(ql_log_warn, vha, 0x302f,
 				    "unexpected tag values tag:lba=%x:%llx)\n",
 				    e_ref_tag, (unsigned long long)lba_s);
 				return 1;
@@ -1611,7 +1602,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		sp = NULL;
 
 	if (sp == NULL) {
-		ql_log(ql_log_warn, vha, 0x3017,
+		ql_dbg(ql_dbg_io, vha, 0x3017,
 		    "Invalid status handle (0x%x).\n", sts->handle);
 
 		if (IS_QLA82XX(ha))
@@ -1623,7 +1614,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 	}
 	cp = sp->cmd;
 	if (cp == NULL) {
-		ql_log(ql_log_warn, vha, 0x3018,
+		ql_dbg(ql_dbg_io, vha, 0x3018,
 		    "Command already returned (0x%x/%p).\n",
 		    sts->handle, sp);
 
@@ -1670,7 +1661,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 			par_sense_len -= rsp_info_len;
 		}
 		if (rsp_info_len > 3 && rsp_info[3]) {
-			ql_log(ql_log_warn, vha, 0x3019,
+			ql_dbg(ql_dbg_io, vha, 0x3019,
 			    "FCP I/O protocol failure (0x%x/0x%x).\n",
 			    rsp_info_len, rsp_info[3]);
 
@@ -1701,7 +1692,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 			if (!lscsi_status &&
 			    ((unsigned)(scsi_bufflen(cp) - resid) <
 			     cp->underflow)) {
-				ql_log(ql_log_warn, vha, 0x301a,
+				ql_dbg(ql_dbg_io, vha, 0x301a,
 				    "Mid-layer underflow "
 				    "detected (0x%x of 0x%x bytes).\n",
 				    resid, scsi_bufflen(cp));
@@ -1713,7 +1704,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		cp->result = DID_OK << 16 | lscsi_status;
 
 		if (lscsi_status == SAM_STAT_TASK_SET_FULL) {
-			ql_log(ql_log_warn, vha, 0x301b,
+			ql_dbg(ql_dbg_io, vha, 0x301b,
 			    "QUEUE FULL detected.\n");
 			break;
 		}
@@ -1735,7 +1726,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		scsi_set_resid(cp, resid);
 		if (scsi_status & SS_RESIDUAL_UNDER) {
 			if (IS_FWI2_CAPABLE(ha) && fw_resid_len != resid_len) {
-				ql_log(ql_log_warn, vha, 0x301d,
+				ql_dbg(ql_dbg_io, vha, 0x301d,
 				    "Dropped frame(s) detected "
 				    "(0x%x of 0x%x bytes).\n",
 				    resid, scsi_bufflen(cp));
@@ -1747,7 +1738,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 			if (!lscsi_status &&
 			    ((unsigned)(scsi_bufflen(cp) - resid) <
 			    cp->underflow)) {
-				ql_log(ql_log_warn, vha, 0x301e,
+				ql_dbg(ql_dbg_io, vha, 0x301e,
 				    "Mid-layer underflow "
 				    "detected (0x%x of 0x%x bytes).\n",
 				    resid, scsi_bufflen(cp));
@@ -1756,7 +1747,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 				break;
 			}
 		} else {
-			ql_log(ql_log_warn, vha, 0x301f,
+			ql_dbg(ql_dbg_io, vha, 0x301f,
 			    "Dropped frame(s) detected (0x%x "
 			    "of 0x%x bytes).\n", resid, scsi_bufflen(cp));
 
@@ -1774,7 +1765,7 @@ check_scsi_status:
 		 */
 		if (lscsi_status != 0) {
 			if (lscsi_status == SAM_STAT_TASK_SET_FULL) {
-				ql_log(ql_log_warn, vha, 0x3020,
+				ql_dbg(ql_dbg_io, vha, 0x3020,
 				    "QUEUE FULL detected.\n");
 				logit = 1;
 				break;
@@ -1838,10 +1829,15 @@ out:
 	if (logit)
 		ql_dbg(ql_dbg_io, vha, 0x3022,
 		    "FCP command status: 0x%x-0x%x (0x%x) "
-		    "oxid=0x%x cdb=%02x%02x%02x len=0x%x "
+		    "nexus=%ld:%d:%d portid=%02x%02x%02x oxid=0x%x "
+		    "cdb=%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x len=0x%x "
 		    "rsp_info=0x%x resid=0x%x fw_resid=0x%x.\n",
-		    comp_status, scsi_status, cp->result, ox_id, cp->cmnd[0],
-		    cp->cmnd[1], cp->cmnd[2], scsi_bufflen(cp), rsp_info_len,
+		    comp_status, scsi_status, cp->result, vha->host_no,
+		    cp->device->id, cp->device->lun, fcport->d_id.b.domain,
+		    fcport->d_id.b.area, fcport->d_id.b.al_pa, ox_id,
+		    cp->cmnd[0], cp->cmnd[1], cp->cmnd[2], cp->cmnd[3],
+		    cp->cmnd[4], cp->cmnd[5], cp->cmnd[6], cp->cmnd[7],
+		    cp->cmnd[8], cp->cmnd[9], scsi_bufflen(cp), rsp_info_len,
 		    resid_len, fw_resid_len);
 
 	if (rsp->status_srb == NULL)
@@ -1991,13 +1987,8 @@ qla24xx_mbx_completion(scsi_qla_host_t *vha, uint16_t mb0)
 		wptr++;
 	}
 
-	if (ha->mcp) {
-		ql_dbg(ql_dbg_async, vha, 0x504d,
-		    "Got mailbox completion. cmd=%x.\n", ha->mcp->mb[0]);
-	} else {
-		ql_dbg(ql_dbg_async, vha, 0x504e,
-		    "MBX pointer ERROR.\n");
-	}
+	if (!ha->mcp)
+		ql_dbg(ql_dbg_async, vha, 0x504e, "MBX pointer ERRROR.\n");
 }
 
 /**
@@ -2025,9 +2016,6 @@ void qla24xx_process_response_queue(struct scsi_qla_host *vha,
 		}
 
 		if (pkt->entry_status != 0) {
-			ql_dbg(ql_dbg_async, vha, 0x5029,
-			    "Process error entry.\n");
-
 			qla2x00_error_entry(vha, rsp, (sts_entry_t *) pkt);
 			((response_t *)pkt)->signature = RESPONSE_PROCESSED;
 			wmb();

@@ -1971,8 +1971,8 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
 			    "Queue delete failed.\n");
 	}
 
-	scsi_host_put(vha->host);
 	ql_log(ql_log_info, vha, 0x7088, "VP[%d] deleted.\n", id);
+	scsi_host_put(vha->host);
 	return 0;
 }
 

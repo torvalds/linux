@@ -2023,13 +2023,9 @@ qla82xx_mbx_completion(scsi_qla_host_t *vha, uint16_t mb0)
 		wptr++;
 	}
 
-	if (ha->mcp) {
-		ql_dbg(ql_dbg_async, vha, 0x5052,
-		    "Got mailbox completion. cmd=%x.\n", ha->mcp->mb[0]);
-	} else {
+	if (!ha->mcp)
 		ql_dbg(ql_dbg_async, vha, 0x5053,
 		    "MBX pointer ERROR.\n");
-	}
 }
 
 /*

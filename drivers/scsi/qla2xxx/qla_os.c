@@ -83,6 +83,9 @@ MODULE_PARM_DESC(ql2xextended_error_logging,
 		"\t\t0x00080000 - P3P Specific.  0x00040000 - Virtual Port.\n"
 		"\t\t0x00020000 - Buffer Dump.   0x00010000 - Misc.\n"
 		"\t\t0x7fffffff - For enabling all logs, can be too many logs.\n"
+		"\t\t0x1e400000 - Preferred value for capturing essential "
+		"debug information (equivalent to old "
+		"ql2xextended_error_logging=1).\n"
 		"\t\tDo LOGICAL OR of the value to enable more than one level");
 
 int ql2xshiftctondsd = 6;
@@ -847,14 +850,10 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	int wait = 0;
 	struct qla_hw_data *ha = vha->hw;
 
-	ql_dbg(ql_dbg_taskm, vha, 0x8000,
-	    "Entered %s for cmd=%p.\n", __func__, cmd);
 	if (!CMD_SP(cmd))
 		return SUCCESS;
 
 	ret = fc_block_scsi_eh(cmd);
-	ql_dbg(ql_dbg_taskm, vha, 0x8001,
-	    "Return value of fc_block_scsi_eh=%d.\n", ret);
 	if (ret != 0)
 		return ret;
 	ret = SUCCESS;
@@ -870,7 +869,8 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	}
 
 	ql_dbg(ql_dbg_taskm, vha, 0x8002,
-	    "Aborting sp=%p cmd=%p from RISC ", sp, cmd);
+	    "Aborting from RISC nexus=%ld:%d:%d sp=%p cmd=%p\n",
+	    vha->host_no, id, lun, sp, cmd);
 
 	/* Get a reference to the sp and drop the lock.*/
 	sp_get(sp);
@@ -878,10 +878,10 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	if (ha->isp_ops->abort_command(sp)) {
 		ql_dbg(ql_dbg_taskm, vha, 0x8003,
-		    "Abort command mbx failed for cmd=%p.\n", cmd);
+		    "Abort command mbx failed cmd=%p.\n", cmd);
 	} else {
 		ql_dbg(ql_dbg_taskm, vha, 0x8004,
-		    "Abort command mbx success.\n");
+		    "Abort command mbx success cmd=%p.\n", cmd);
 		wait = 1;
 	}
 
@@ -897,13 +897,14 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	if (wait) {
 		if (qla2x00_eh_wait_on_command(cmd) != QLA_SUCCESS) {
 			ql_log(ql_log_warn, vha, 0x8006,
-			    "Abort handler timed out for cmd=%p.\n", cmd);
+			    "Abort handler timed out cmd=%p.\n", cmd);
 			ret = FAILED;
 		}
 	}
 
 	ql_log(ql_log_info, vha, 0x801c,
-	    "Abort command issued --  %d %x.\n", wait, ret);
+	    "Abort command issued nexus=%ld:%d:%d --  %d %x.\n",
+	    vha->host_no, id, lun, wait, ret);
 
 	return ret;
 }
@@ -972,19 +973,15 @@ __qla2xxx_eh_generic_reset(char *name, enum nexus_wait_type type,
 	int err;
 
 	if (!fcport) {
-		ql_log(ql_log_warn, vha, 0x8007,
-		    "fcport is NULL.\n");
 		return FAILED;
 	}
 
 	err = fc_block_scsi_eh(cmd);
-	ql_dbg(ql_dbg_taskm, vha, 0x8008,
-	    "fc_block_scsi_eh ret=%d.\n", err);
 	if (err != 0)
 		return err;
 
 	ql_log(ql_log_info, vha, 0x8009,
-	    "%s RESET ISSUED for id %d lun %d cmd=%p.\n", name,
+	    "%s RESET ISSUED nexus=%ld:%d:%d cmd=%p.\n", name, vha->host_no,
 	    cmd->device->id, cmd->device->lun, cmd);
 
 	err = 0;
@@ -1009,15 +1006,16 @@ __qla2xxx_eh_generic_reset(char *name, enum nexus_wait_type type,
 	}
 
 	ql_log(ql_log_info, vha, 0x800e,
-	    "%s RESET SUCCEEDED for id %d lun %d cmd=%p.\n", name,
-	    cmd->device->id, cmd->device->lun, cmd);
+	    "%s RESET SUCCEEDED nexus:%ld:%d:%d cmd=%p.\n", name,
+	    vha->host_no, cmd->device->id, cmd->device->lun, cmd);
 
 	return SUCCESS;
 
 eh_reset_failed:
 	ql_log(ql_log_info, vha, 0x800f,
-	    "%s RESET FAILED: %s for id %d lun %d cmd=%p.\n", name,
-	    reset_errors[err], cmd->device->id, cmd->device->lun, cmd);
+	    "%s RESET FAILED: %s nexus=%ld:%d:%d cmd=%p.\n", name,
+	    reset_errors[err], vha->host_no, cmd->device->id, cmd->device->lun,
+	    cmd);
 	return FAILED;
 }
 
@@ -1068,20 +1066,16 @@ qla2xxx_eh_bus_reset(struct scsi_cmnd *cmd)
 	lun = cmd->device->lun;
 
 	if (!fcport) {
-		ql_log(ql_log_warn, vha, 0x8010,
-		    "fcport is NULL.\n");
 		return ret;
 	}
 
 	ret = fc_block_scsi_eh(cmd);
-	ql_dbg(ql_dbg_taskm, vha, 0x8011,
-	    "fc_block_scsi_eh ret=%d.\n", ret);
 	if (ret != 0)
 		return ret;
 	ret = FAILED;
 
 	ql_log(ql_log_info, vha, 0x8012,
-	    "BUS RESET ISSUED for id %d lun %d.\n", id, lun);
+	    "BUS RESET ISSUED nexus=%ld:%d%d.\n", vha->host_no, id, lun);
 
 	if (qla2x00_wait_for_hba_online(vha) != QLA_SUCCESS) {
 		ql_log(ql_log_fatal, vha, 0x8013,
@@ -1105,7 +1099,8 @@ qla2xxx_eh_bus_reset(struct scsi_cmnd *cmd)
 
 eh_bus_reset_done:
 	ql_log(ql_log_warn, vha, 0x802b,
-	    "BUS RESET %s.\n", (ret == FAILED) ? "FAILED" : "SUCCEDED");
+	    "BUS RESET %s nexus=%ld:%d:%d.\n",
+	    (ret == FAILED) ? "FAILED" : "SUCCEDED", vha->host_no, id, lun);
 
 	return ret;
 }
@@ -1139,20 +1134,16 @@ qla2xxx_eh_host_reset(struct scsi_cmnd *cmd)
 	lun = cmd->device->lun;
 
 	if (!fcport) {
-		ql_log(ql_log_warn, vha, 0x8016,
-		    "fcport is NULL.\n");
 		return ret;
 	}
 
 	ret = fc_block_scsi_eh(cmd);
-	ql_dbg(ql_dbg_taskm, vha, 0x8017,
-	    "fc_block_scsi_eh ret=%d.\n", ret);
 	if (ret != 0)
 		return ret;
 	ret = FAILED;
 
 	ql_log(ql_log_info, vha, 0x8018,
-	    "ADAPTER RESET ISSUED for id %d lun %d.\n", id, lun);
+	    "ADAPTER RESET ISSUED nexus=%ld:%d:%d.\n", vha->host_no, id, lun);
 
 	if (qla2x00_wait_for_reset_ready(vha) != QLA_SUCCESS)
 		goto eh_host_reset_lock;
@@ -1193,8 +1184,9 @@ qla2xxx_eh_host_reset(struct scsi_cmnd *cmd)
 		ret = SUCCESS;
 
 eh_host_reset_lock:
-	qla_printk(KERN_INFO, ha, "%s: reset %s.\n", __func__,
-	    (ret == FAILED) ? "failed" : "succeeded");
+	ql_log(ql_log_info, vha, 0x8017,
+	    "ADAPTER RESET %s nexus=%ld:%d:%d.\n",
+	    (ret == FAILED) ? "FAILED" : "SUCCEEDED", vha->host_no, id, lun);
 
 	return ret;
 }
@@ -1344,10 +1336,8 @@ static void qla2x00_handle_queue_full(struct scsi_device *sdev, int qdepth)
 		return;
 
 	ql_dbg(ql_dbg_io, fcport->vha, 0x3029,
-	    "Queue depth adjusted-down "
-	    "to %d for scsi(%ld:%d:%d:%d).\n",
-	    sdev->queue_depth, fcport->vha->host_no,
-	    sdev->channel, sdev->id, sdev->lun);
+	    "Queue depth adjusted-down to %d for nexus=%ld:%d:%d.\n",
+	    sdev->queue_depth, fcport->vha->host_no, sdev->id, sdev->lun);
 }
 
 static void qla2x00_adjust_sdev_qdepth_up(struct scsi_device *sdev, int qdepth)
@@ -1369,10 +1359,8 @@ static void qla2x00_adjust_sdev_qdepth_up(struct scsi_device *sdev, int qdepth)
 		scsi_adjust_queue_depth(sdev, MSG_SIMPLE_TAG, qdepth);
 
 	ql_dbg(ql_dbg_io, vha, 0x302a,
-	    "Queue depth adjusted-up to %d for "
-	    "scsi(%ld:%d:%d:%d).\n",
-	    sdev->queue_depth, fcport->vha->host_no,
-	    sdev->channel, sdev->id, sdev->lun);
+	    "Queue depth adjusted-up to %d for nexus=%ld:%d:%d.\n",
+	    sdev->queue_depth, fcport->vha->host_no, sdev->id, sdev->lun);
 }
 
 static int
@@ -2382,9 +2370,6 @@ skip_dpc:
 
 	qla2x00_dfs_setup(base_vha);
 
-	ql_log(ql_log_info, base_vha, 0x00fa,
-	    "QLogic Fibre Channed HBA Driver: %s.\n",
-	    qla2x00_version_str);
 	ql_log(ql_log_info, base_vha, 0x00fb,
 	    "QLogic %s - %s.\n",
 	    ha->model_number, ha->model_desc ? ha->model_desc : "");

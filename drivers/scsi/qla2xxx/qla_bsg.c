@@ -1653,7 +1653,7 @@ qla24xx_bsg_request(struct fc_bsg_job *bsg_job)
 	}
 
 	ql_dbg(ql_dbg_user, vha, 0x7000,
-	    "Entered %s msgcode=%d.\n", __func__, bsg_job->request->msgcode);
+	    "Entered %s msgcode=0x%x.\n", __func__, bsg_job->request->msgcode);
 
 	switch (bsg_job->request->msgcode) {
 	case FC_BSG_RPT_ELS:

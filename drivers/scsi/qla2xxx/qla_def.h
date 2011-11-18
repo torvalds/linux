@@ -2978,10 +2978,6 @@ typedef struct scsi_qla_host {
 	atomic_dec(&__vha->vref_count);			     \
 } while (0)
 
-
-#define qla_printk(level, ha, format, arg...) \
-	dev_printk(level , &((ha)->pdev->dev) , format , ## arg)
-
 /*
  * qla2x00 local function return status codes
  */
