@@ -610,6 +610,8 @@ config ARCH_SUN4I
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
 	select GENERIC_CLOCKEVENTS
+	select ARCH_HAS_CPUFREQ
+	select ARM_L1_CACHE_SHIFT_6
 	help
 	  This enables support for Allwinner Technology Co., Ltd A1x SoC based systems
 

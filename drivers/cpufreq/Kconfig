@@ -109,6 +109,15 @@ config CPU_FREQ_DEFAULT_GOV_INTERACTIVE
 	  loading your cpufreq low-level hardware driver, using the
 	  'interactive' governor for latency-sensitive workloads.
 
+config CPU_FREQ_DEFAULT_GOV_FANTASY
+	bool "fantasy"
+	select CPU_FREQ_GOV_FANTASY
+	help
+	  Use the CPUFreq governor 'fantasy' as default. This allows
+	  you to get a full dynamic cpu frequency capable system by simply
+	  loading your cpufreq low-level hardware driver, using the
+	  'fantasy' governor for latency-sensitive workloads.
+
 endchoice
 
 config CPU_FREQ_GOV_PERFORMANCE
@@ -203,6 +212,40 @@ config CPU_FREQ_GOV_CONSERVATIVE
 	  module will be called cpufreq_conservative.
 
 	  For details, take a look at linux/Documentation/cpu-freq.
+
+	  If in doubt, say N.
+
+config CPU_FREQ_GOV_FANTASY
+	tristate "'fantasy' cpufreq policy governor"
+	select CPU_FREQ_TABLE
+	help
+	  'fantasy' - This driver adds a dynamic cpufreq policy governor.
+	  The governor does a periodic polling and
+	  changes frequency based on the CPU utilization.
+	  The support for this governor depends on CPU capability to
+	  do fast frequency switching (i.e, very low latency frequency
+	  transitions).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cpufreq_fantasy.
+
+	  For details, take a look at linux/Documentation/cpu-freq.
+
+	  If in doubt, say N.
+
+config CPU_FREQ_USR_EVNT_NOTIFY
+	bool "CPU frequency user event notify"
+	help
+	  This will allow input sub-system notify cpu-freq that some user event has happend,
+	  need up cpu frequency to response it.
+
+	  If in doubt, say N.
+
+config CPU_FREQ_DVFS
+	bool "CPU work voltage change with frequency"
+	depends on AW_AXP
+	help
+	  This will allow cpu work voltage dynamic changed when the frequency is changed.
 
 	  If in doubt, say N.
 
