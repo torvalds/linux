@@ -148,9 +148,14 @@ static int sas_get_port_device(struct asd_sas_port *port)
 	port->disc.max_level = 0;
 
 	dev->rphy = rphy;
-	spin_lock_irq(&port->dev_list_lock);
-	list_add_tail(&dev->dev_list_node, &port->dev_list);
-	spin_unlock_irq(&port->dev_list_lock);
+
+	if (dev_is_sata(dev))
+		list_add_tail(&dev->disco_list_node, &port->disco_list);
+	else {
+		spin_lock_irq(&port->dev_list_lock);
+		list_add_tail(&dev->dev_list_node, &port->dev_list);
+		spin_unlock_irq(&port->dev_list_lock);
+	}
 
 	return 0;
 }
@@ -255,14 +260,43 @@ static void sas_unregister_common_dev(struct asd_sas_port *port, struct domain_d
 	sas_put_device(dev);
 }
 
-void sas_unregister_dev(struct asd_sas_port *port, struct domain_device *dev)
+static void sas_destruct_devices(struct work_struct *work)
 {
-	if (dev->rphy) {
+	struct domain_device *dev, *n;
+	struct sas_discovery_event *ev =
+		container_of(work, struct sas_discovery_event, work);
+	struct asd_sas_port *port = ev->port;
+
+	clear_bit(DISCE_DESTRUCT, &port->disc.pending);
+
+	list_for_each_entry_safe(dev, n, &port->destroy_list, disco_list_node) {
+		list_del_init(&dev->disco_list_node);
+
 		sas_remove_children(&dev->rphy->dev);
 		sas_rphy_delete(dev->rphy);
 		dev->rphy = NULL;
+		sas_unregister_common_dev(port, dev);
+
+		sas_put_device(dev);
 	}
-	sas_unregister_common_dev(port, dev);
+}
+
+void sas_unregister_dev(struct asd_sas_port *port, struct domain_device *dev)
+{
+	if (!test_bit(SAS_DEV_DESTROY, &dev->state) &&
+	    !list_empty(&dev->disco_list_node)) {
+		/* this rphy never saw sas_rphy_add */
+		list_del_init(&dev->disco_list_node);
+		sas_rphy_free(dev->rphy);
+		dev->rphy = NULL;
+		sas_unregister_common_dev(port, dev);
+	}
+
+	if (dev->rphy && !test_and_set_bit(SAS_DEV_DESTROY, &dev->state)) {
+		sas_rphy_unlink(dev->rphy);
+		list_move_tail(&dev->disco_list_node, &port->destroy_list);
+		sas_discover_event(dev->port, DISCE_DESTRUCT);
+	}
 }
 
 void sas_unregister_domain_devices(struct asd_sas_port *port)
@@ -270,6 +304,8 @@ void sas_unregister_domain_devices(struct asd_sas_port *port)
 	struct domain_device *dev, *n;
 
 	list_for_each_entry_safe_reverse(dev, n, &port->dev_list, dev_list_node)
+		sas_unregister_dev(port, dev);
+	list_for_each_entry_safe(dev, n, &port->disco_list, disco_list_node)
 		sas_unregister_dev(port, dev);
 
 	port->port->rphy = NULL;
@@ -335,6 +371,7 @@ static void sas_discover_domain(struct work_struct *work)
 		sas_rphy_free(dev->rphy);
 		dev->rphy = NULL;
 
+		list_del_init(&dev->disco_list_node);
 		spin_lock_irq(&port->dev_list_lock);
 		list_del_init(&dev->dev_list_node);
 		spin_unlock_irq(&port->dev_list_lock);
@@ -353,16 +390,28 @@ static void sas_revalidate_domain(struct work_struct *work)
 	struct sas_discovery_event *ev =
 		container_of(work, struct sas_discovery_event, work);
 	struct asd_sas_port *port = ev->port;
+	struct sas_ha_struct *ha = port->ha;
+
+	/* prevent revalidation from finding sata links in recovery */
+	mutex_lock(&ha->disco_mutex);
+	if (test_bit(SAS_HA_ATA_EH_ACTIVE, &ha->state)) {
+		SAS_DPRINTK("REVALIDATION DEFERRED on port %d, pid:%d\n",
+			    port->id, task_pid_nr(current));
+		goto out;
+	}
 
 	clear_bit(DISCE_REVALIDATE_DOMAIN, &port->disc.pending);
 
 	SAS_DPRINTK("REVALIDATING DOMAIN on port %d, pid:%d\n", port->id,
 		    task_pid_nr(current));
+
 	if (port->port_dev)
 		res = sas_ex_revalidate_domain(port->port_dev);
 
 	SAS_DPRINTK("done REVALIDATING DOMAIN on port %d, pid:%d, res 0x%x\n",
 		    port->id, task_pid_nr(current), res);
+ out:
+	mutex_unlock(&ha->disco_mutex);
 }
 
 /* ---------- Events ---------- */
@@ -414,6 +463,8 @@ void sas_init_disc(struct sas_discovery *disc, struct asd_sas_port *port)
 	static const work_func_t sas_event_fns[DISC_NUM_EVENTS] = {
 		[DISCE_DISCOVER_DOMAIN] = sas_discover_domain,
 		[DISCE_REVALIDATE_DOMAIN] = sas_revalidate_domain,
+		[DISCE_PROBE] = sas_probe_sata,
+		[DISCE_DESTRUCT] = sas_destruct_devices,
 	};
 
 	disc->pending = 0;

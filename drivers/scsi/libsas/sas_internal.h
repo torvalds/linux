@@ -56,6 +56,8 @@ enum blk_eh_timer_return sas_scsi_timed_out(struct scsi_cmnd *);
 int  sas_init_queue(struct sas_ha_struct *sas_ha);
 int  sas_init_events(struct sas_ha_struct *sas_ha);
 void sas_shutdown_queue(struct sas_ha_struct *sas_ha);
+void sas_disable_revalidation(struct sas_ha_struct *ha);
+void sas_enable_revalidation(struct sas_ha_struct *ha);
 
 void sas_deform_port(struct asd_sas_phy *phy, int gone);
 
@@ -138,6 +140,7 @@ static inline struct domain_device *sas_alloc_device(void)
 	if (dev) {
 		INIT_LIST_HEAD(&dev->siblings);
 		INIT_LIST_HEAD(&dev->dev_list_node);
+		INIT_LIST_HEAD(&dev->disco_list_node);
 		kref_init(&dev->kref);
 	}
 	return dev;

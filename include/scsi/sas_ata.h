@@ -45,6 +45,7 @@ int sas_ata_timed_out(struct scsi_cmnd *cmd, struct sas_task *task,
 		      enum blk_eh_timer_return *rtn);
 int sas_ata_eh(struct Scsi_Host *shost, struct list_head *work_q,
 	       struct list_head *done_q);
+void sas_probe_sata(struct work_struct *work);
 
 #else
 
@@ -76,6 +77,10 @@ static inline int sas_ata_eh(struct Scsi_Host *shost, struct list_head *work_q,
 			     struct list_head *done_q)
 {
 	return 0;
+}
+
+static inline void sas_probe_sata(struct work_struct *work)
+{
 }
 
 #endif

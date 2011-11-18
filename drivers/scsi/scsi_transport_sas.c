@@ -1603,6 +1603,20 @@ sas_rphy_delete(struct sas_rphy *rphy)
 EXPORT_SYMBOL(sas_rphy_delete);
 
 /**
+ * sas_rphy_unlink  -  unlink SAS remote PHY
+ * @rphy:	SAS remote phy to unlink from its parent port
+ *
+ * Removes port reference to an rphy
+ */
+void sas_rphy_unlink(struct sas_rphy *rphy)
+{
+	struct sas_port *parent = dev_to_sas_port(rphy->dev.parent);
+
+	parent->rphy = NULL;
+}
+EXPORT_SYMBOL(sas_rphy_unlink);
+
+/**
  * sas_rphy_remove  -  remove SAS remote PHY
  * @rphy:	SAS remote phy to remove
  *
@@ -1612,7 +1626,6 @@ void
 sas_rphy_remove(struct sas_rphy *rphy)
 {
 	struct device *dev = &rphy->dev;
-	struct sas_port *parent = dev_to_sas_port(dev->parent);
 
 	switch (rphy->identify.device_type) {
 	case SAS_END_DEVICE:
@@ -1626,10 +1639,9 @@ sas_rphy_remove(struct sas_rphy *rphy)
 		break;
 	}
 
+	sas_rphy_unlink(rphy);
 	transport_remove_device(dev);
 	device_del(dev);
-
-	parent->rphy = NULL;
 }
 EXPORT_SYMBOL(sas_rphy_remove);
 

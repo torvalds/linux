@@ -81,6 +81,32 @@ int sas_drain_work(struct sas_ha_struct *ha)
 }
 EXPORT_SYMBOL_GPL(sas_drain_work);
 
+void sas_disable_revalidation(struct sas_ha_struct *ha)
+{
+	mutex_lock(&ha->disco_mutex);
+	set_bit(SAS_HA_ATA_EH_ACTIVE, &ha->state);
+	mutex_unlock(&ha->disco_mutex);
+}
+
+void sas_enable_revalidation(struct sas_ha_struct *ha)
+{
+	int i;
+
+	mutex_lock(&ha->disco_mutex);
+	clear_bit(SAS_HA_ATA_EH_ACTIVE, &ha->state);
+	for (i = 0; i < ha->num_phys; i++) {
+		struct asd_sas_port *port = ha->sas_port[i];
+		const int ev = DISCE_REVALIDATE_DOMAIN;
+		struct sas_discovery *d = &port->disc;
+
+		if (!test_and_clear_bit(ev, &d->pending))
+			continue;
+
+		sas_queue_event(ev, &d->pending, &d->disc_work[ev].work, ha);
+	}
+	mutex_unlock(&ha->disco_mutex);
+}
+
 static void notify_ha_event(struct sas_ha_struct *sas_ha, enum ha_event event)
 {
 	BUG_ON(event >= HA_NUM_EVENTS);

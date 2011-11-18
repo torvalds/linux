@@ -758,6 +758,35 @@ static int sas_discover_sata_pm(struct domain_device *dev)
 	return -ENODEV;
 }
 
+void sas_probe_sata(struct work_struct *work)
+{
+	struct domain_device *dev, *n;
+	struct sas_discovery_event *ev =
+		container_of(work, struct sas_discovery_event, work);
+	struct asd_sas_port *port = ev->port;
+
+	clear_bit(DISCE_PROBE, &port->disc.pending);
+
+	list_for_each_entry_safe(dev, n, &port->disco_list, disco_list_node) {
+		int err;
+
+		spin_lock_irq(&port->dev_list_lock);
+		list_add_tail(&dev->dev_list_node, &port->dev_list);
+		spin_unlock_irq(&port->dev_list_lock);
+
+		err = sas_rphy_add(dev->rphy);
+
+		if (err) {
+			SAS_DPRINTK("%s: for %s device %16llx returned %d\n",
+				    __func__, dev->parent ? "exp-attached" :
+							    "direct-attached",
+				    SAS_ADDR(dev->sas_addr), err);
+			sas_unregister_dev(port, dev);
+		} else
+			list_del_init(&dev->disco_list_node);
+	}
+}
+
 /**
  * sas_discover_sata -- discover an STP/SATA domain device
  * @dev: pointer to struct domain_device of interest
@@ -794,10 +823,15 @@ int sas_discover_sata(struct domain_device *dev)
 		break;
 	}
 	sas_notify_lldd_dev_gone(dev);
-	if (!res) {
-		sas_notify_lldd_dev_found(dev);
-		res = sas_rphy_add(dev->rphy);
-	}
+
+	if (res)
+		return res;
+
+	res = sas_notify_lldd_dev_found(dev);
+	if (res)
+		return res;
+
+	sas_discover_event(dev->port, DISCE_PROBE);
 
 	return res;
 }
@@ -805,6 +839,17 @@ int sas_discover_sata(struct domain_device *dev)
 void sas_ata_strategy_handler(struct Scsi_Host *shost)
 {
 	struct scsi_device *sdev;
+	struct sas_ha_struct *sas_ha = SHOST_TO_SAS_HA(shost);
+
+	/* it's ok to defer revalidation events during ata eh, these
+	 * disks are in one of three states:
+	 * 1/ present for initial domain discovery, and these
+	 *    resets will cause bcn flutters
+	 * 2/ hot removed, we'll discover that after eh fails
+	 * 3/ hot added after initial discovery, lost the race, and need
+	 *    to catch the next train.
+	 */
+	sas_disable_revalidation(sas_ha);
 
 	shost_for_each_device(sdev, shost) {
 		struct domain_device *ddev = sdev_to_domain_dev(sdev);
@@ -816,6 +861,8 @@ void sas_ata_strategy_handler(struct Scsi_Host *shost)
 		ata_port_printk(ap, KERN_DEBUG, "sas eh calling libata port error handler");
 		ata_scsi_port_error_handler(shost, ap);
 	}
+
+	sas_enable_revalidation(sas_ha);
 }
 
 int sas_ata_timed_out(struct scsi_cmnd *cmd, struct sas_task *task,

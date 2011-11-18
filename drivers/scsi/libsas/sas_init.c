@@ -104,6 +104,7 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 {
 	int error = 0;
 
+	mutex_init(&sas_ha->disco_mutex);
 	spin_lock_init(&sas_ha->phy_port_lock);
 	sas_hash_addr(sas_ha->hashed_sas_addr, sas_ha->sas_addr);
 
@@ -168,6 +169,7 @@ int sas_unregister_ha(struct sas_ha_struct *sas_ha)
 	sas_drain_work(sas_ha);
 
 	sas_unregister_ports(sas_ha);
+	sas_drain_work(sas_ha);
 
 	if (sas_ha->lldd_max_execute_num > 1) {
 		sas_shutdown_queue(sas_ha);
