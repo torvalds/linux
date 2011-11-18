@@ -489,6 +489,7 @@ __qla2x00_marker(struct scsi_qla_host *vha, struct req_que *req,
 	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
 
 	mrk24 = NULL;
+	req = ha->req_q_map[0];
 	mrk = (mrk_entry_t *)qla2x00_alloc_iocbs(vha, 0);
 	if (mrk == NULL) {
 		ql_log(ql_log_warn, base_vha, 0x3026,
