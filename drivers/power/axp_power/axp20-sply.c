@@ -1731,6 +1731,8 @@ static int axp_battery_probe(struct platform_device *pdev)
   axp_clr_bits(charger->master,0xBA,0x80);
   axp_clr_bits(charger->master,AXP20_CAP,0x80);
 
+  axp_set_bits(charger->master,0x8F,0x88);
+
   charger->interval = msecs_to_jiffies(10 * 1000);
   INIT_DELAYED_WORK(&charger->work, axp_charging_monitor);
   schedule_delayed_work(&charger->work, charger->interval);
