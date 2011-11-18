@@ -3690,16 +3690,6 @@ qla2x00_sp_free_dma(srb_t *sp)
 		sp->flags &= ~SRB_CRC_CTX_DMA_VALID;
 	}
 
-	CMD_SP(cmd) = NULL;
-}
-
-static void
-qla2x00_sp_final_compl(struct qla_hw_data *ha, srb_t *sp)
-{
-	struct scsi_cmnd *cmd = sp->cmd;
-
-	qla2x00_sp_free_dma(sp);
-
 	if (sp->flags & SRB_FCP_CMND_DMA_VALID) {
 		struct ct6_dsd *ctx = sp->ctx;
 		dma_pool_free(ha->fcp_cmnd_dma_pool, ctx->fcp_cmnd,
@@ -3711,6 +3701,15 @@ qla2x00_sp_final_compl(struct qla_hw_data *ha, srb_t *sp)
 		sp->ctx = NULL;
 	}
 
+	CMD_SP(cmd) = NULL;
+}
+
+static void
+qla2x00_sp_final_compl(struct qla_hw_data *ha, srb_t *sp)
+{
+	struct scsi_cmnd *cmd = sp->cmd;
+
+	qla2x00_sp_free_dma(sp);
 	mempool_free(sp, ha->srb_mempool);
 	cmd->scsi_done(cmd);
 }
