@@ -23,8 +23,7 @@ static struct ath9k_platform_data ath79_wmac_data;
 
 static struct resource ath79_wmac_resources[] = {
 	{
-		.start	= AR913X_WMAC_BASE,
-		.end	= AR913X_WMAC_BASE + AR913X_WMAC_SIZE - 1,
+		/* .start and .end fields are filled dynamically */
 		.flags	= IORESOURCE_MEM,
 	}, {
 		.start	= ATH79_CPU_IRQ_IP2,
@@ -43,18 +42,29 @@ static struct platform_device ath79_wmac_device = {
 	},
 };
 
-void __init ath79_register_wmac(u8 *cal_data)
+static void __init ar913x_wmac_setup(void)
 {
-	if (cal_data)
-		memcpy(ath79_wmac_data.eeprom_data, cal_data,
-		       sizeof(ath79_wmac_data.eeprom_data));
-
 	/* reset the WMAC */
 	ath79_device_reset_set(AR913X_RESET_AMBA2WMAC);
 	mdelay(10);
 
 	ath79_device_reset_clear(AR913X_RESET_AMBA2WMAC);
 	mdelay(10);
+
+	ath79_wmac_resources[0].start = AR913X_WMAC_BASE;
+	ath79_wmac_resources[0].end = AR913X_WMAC_BASE + AR913X_WMAC_SIZE - 1;
+}
+
+void __init ath79_register_wmac(u8 *cal_data)
+{
+	if (soc_is_ar913x())
+		ar913x_wmac_setup();
+	else
+		BUG();
+
+	if (cal_data)
+		memcpy(ath79_wmac_data.eeprom_data, cal_data,
+		       sizeof(ath79_wmac_data.eeprom_data));
 
 	platform_device_register(&ath79_wmac_device);
 }
