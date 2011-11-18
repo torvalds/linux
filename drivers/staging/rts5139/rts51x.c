@@ -934,34 +934,4 @@ struct usb_driver rts51x_driver = {
 	.soft_unbind = 1,
 };
 
-static int __init rts51x_init(void)
-{
-	int retval;
-
-	printk(KERN_INFO "Initializing %s USB card reader driver...\n",
-	       RTS51X_NAME);
-
-	/* register the driver, return usb_register return code if error */
-	retval = usb_register(&rts51x_driver);
-	if (retval == 0) {
-		printk(KERN_INFO
-		       "Realtek %s USB card reader support registered.\n",
-		       RTS51X_NAME);
-	}
-	return retval;
-}
-
-static void __exit rts51x_exit(void)
-{
-	RTS51X_DEBUGP("rts51x_exit() called\n");
-
-	/* Deregister the driver
-	 * This will cause disconnect() to be called for each
-	 * attached unit
-	 */
-	RTS51X_DEBUGP("-- calling usb_deregister()\n");
-	usb_deregister(&rts51x_driver);
-}
-
-module_init(rts51x_init);
-module_exit(rts51x_exit);
+module_usb_driver(rts51x_driver);

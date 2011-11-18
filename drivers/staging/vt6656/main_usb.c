@@ -2103,16 +2103,4 @@ static struct usb_driver vt6656_driver = {
 #endif /* CONFIG_PM */
 };
 
-static int __init vt6656_init_module(void)
-{
-    printk(KERN_NOTICE DEVICE_FULL_DRV_NAM " " DEVICE_VERSION);
-    return usb_register(&vt6656_driver);
-}
-
-static void __exit vt6656_cleanup_module(void)
-{
-	usb_deregister(&vt6656_driver);
-}
-
-module_init(vt6656_init_module);
-module_exit(vt6656_cleanup_module);
+module_usb_driver(vt6656_driver);

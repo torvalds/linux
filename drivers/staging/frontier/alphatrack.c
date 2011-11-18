@@ -867,30 +867,4 @@ static struct usb_driver usb_alphatrack_driver = {
 	.id_table = usb_alphatrack_table,
 };
 
-/**
- *	usb_alphatrack_init
- */
-static int __init usb_alphatrack_init(void)
-{
-	int retval;
-
-	/* register this driver with the USB subsystem */
-	retval = usb_register(&usb_alphatrack_driver);
-	if (retval)
-		err("usb_register failed for the " __FILE__
-		    " driver. Error number %d\n", retval);
-
-	return retval;
-}
-
-/**
- *	usb_alphatrack_exit
- */
-static void __exit usb_alphatrack_exit(void)
-{
-	/* deregister this driver with the USB subsystem */
-	usb_deregister(&usb_alphatrack_driver);
-}
-
-module_init(usb_alphatrack_init);
-module_exit(usb_alphatrack_exit);
+module_usb_driver(usb_alphatrack_driver);

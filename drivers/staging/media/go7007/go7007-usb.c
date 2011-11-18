@@ -1272,17 +1272,4 @@ static struct usb_driver go7007_usb_driver = {
 	.id_table	= go7007_usb_id_table,
 };
 
-static int __init go7007_usb_init(void)
-{
-	return usb_register(&go7007_usb_driver);
-}
-
-static void __exit go7007_usb_cleanup(void)
-{
-	usb_deregister(&go7007_usb_driver);
-}
-
-module_init(go7007_usb_init);
-module_exit(go7007_usb_cleanup);
-
-MODULE_LICENSE("GPL v2");
+module_usb_driver(go7007_usb_driver);
