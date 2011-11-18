@@ -22,6 +22,8 @@
 #include <linux/hrtimer.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
+#include <linux/input/mt.h>
+
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
@@ -45,6 +47,8 @@
 
 #define PEN_DOWN 1
 #define PEN_RELEASE 0
+#define MAX_SUPPORT_POINT 2
+#define fjp_debug 1
 
 //#define fjp_debug
 /*******************************************************	
@@ -266,6 +270,9 @@ static int  goodix_read_version(struct goodix_ts_data *ts, char **version)
 	else 
 		return 1;	
 }
+unsigned int last_x = 0;
+unsigned int last_y = 0;
+
 
 /*******************************************************
 Description:
@@ -277,7 +284,7 @@ Parameter:
 return:
 	Executive outcomes.0---succeed.
 *******************************************************/
-static void goodix_ts_work_func(struct work_struct *work)
+static void goodix_ts_work_func(struct work_struct *pwork)
 {	
 	int ret=-1;
 	int tmp = 0;
@@ -291,14 +298,14 @@ static void goodix_ts_work_func(struct work_struct *work)
 	unsigned int input_x = 0;
 	unsigned int input_y = 0;
 	unsigned int input_w = 0;
-	unsigned char index = 0;
+	unsigned int index = 0;
 	unsigned char touch_num = 0;
-       uint8_t current_num =0;
-  uint8_t chksum_err = 0;
+  	uint8_t chksum_err = 0;
+	
 
 
-	unsigned int i;
-	struct goodix_ts_data *ts = container_of(work, struct goodix_ts_data, work);
+	
+	struct goodix_ts_data *ts = container_of(pwork, struct goodix_ts_data, work);
 
 	//printk("enter the goodix_ts_timer_func!\n");
 //	if(g_enter_isp)return;
@@ -447,19 +454,26 @@ read_one_more_time:
 			position = 4 - READ_COOR_ADDR + 5*index;
 			input_x = (unsigned int) (point_data[position]<<8) + (unsigned int)( point_data[position+1]);
 			input_y = (unsigned int)(point_data[position+2]<<8) + (unsigned int) (point_data[position+3]);
-			input_w =(unsigned int) (point_data[position+4]);		
+			input_w =(unsigned int) (point_data[position+4]);	
+			#ifdef fjp_debug
+			printk("input_x = %d,input_y = %d,input_w=%d, index = %d,touch number:%d\n", (input_x), input_y, input_w,index,touch_num);//add by fjp 2010-9-28
+			#endif
+			last_x = input_x;
+			last_y = input_y;
+			if((input_x > ts->abs_x_max)||(input_y > ts->abs_y_max))
+				continue;
 
-			if((input_x > ts->abs_x_max)||(input_y > ts->abs_y_max))continue;
-			
-			input_report_abs(ts->input_dev, ABS_MT_POSITION_X, (input_x));
+			input_mt_slot(ts->input_dev, 0);
+			input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, true);
+			input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 1);
+			//input_report_abs(ts->input_dev, ABS_MT_PRESSURE, 100);
+			input_report_abs(ts->input_dev, ABS_MT_POSITION_X, input_x);
 			input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, input_y);			
-			input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, input_w);
-			input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, input_w);
-			input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID, track_id[index]);
-			input_mt_sync(ts->input_dev);
-		#ifdef fjp_debug
-		printk("input_x = %d,input_y = %d,input_w=%d, index = %d\n", (input_x), input_y, input_w,track_id[index]);//add by fjp 2010-9-28
-		#endif
+			
+			//input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, input_w);
+			//input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID, track_id[index]);
+			//input_mt_sync(ts->input_dev);
+		
 		
 		}
 		 ts->pendown =PEN_DOWN;
@@ -509,14 +523,29 @@ XFER_ERROR:
       {
            if((ts->pendown))
            {
+		   	#if 0
                input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
                input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0);
                input_mt_sync(ts->input_dev);
                input_sync(ts->input_dev);
-               ts->pendown =PEN_RELEASE;
                #ifdef fjp_debug
                printk("touch finish finsih\n");//add by fjp 2010-9-28
                #endif  
+			 #else
+			 	input_mt_slot(ts->input_dev, 0);
+			 	input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, true);
+			 	input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
+				//input_report_abs(ts->input_dev, ABS_MT_PRESSURE, 100);
+				input_report_abs(ts->input_dev, ABS_MT_POSITION_X, last_x);
+				input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, last_y);
+				input_mt_slot(ts->input_dev, 0);
+				input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, false);
+				input_sync(ts->input_dev);
+				ts->pendown =PEN_RELEASE;
+				#ifdef fjp_debug
+               		printk("touch up>>x:%d>>y:%d\n",last_x,last_y);//add by fjp 2010-9-28
+               	#endif  
+			 #endif
            }
            if(ts->use_irq)
                enable_irq(ts->client->irq);
@@ -539,7 +568,8 @@ return:
 static enum hrtimer_restart goodix_ts_timer_func(struct hrtimer *timer)
 {
 	struct goodix_ts_data *ts = container_of(timer, struct goodix_ts_data, timer);
-	queue_work(goodix_wq, &ts->work);
+	//queue_work(goodix_wq, &ts->work);
+	queue_delayed_work(goodix_wq,&ts->work,0);
 	hrtimer_start(&ts->timer, ktime_set(0, (POLL_TIME+6)*1000000), HRTIMER_MODE_REL);
 	return HRTIMER_NORESTART;
 }
@@ -860,11 +890,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	struct goodix_ts_data *ts;
 	char *version_info = NULL;
 	char test_data = 1;
-	const char irq_table[4] = {IRQ_TYPE_EDGE_RISING,
-							   IRQ_TYPE_LEVEL_LOW,
-							   IRQ_TYPE_EDGE_FALLING,
-							   IRQ_TYPE_LEVEL_HIGH};
-
+	
 	struct goodix_platform_data *pdata = pdata = client->dev.platform_data;
 	dev_dbg(&client->dev,"Install touch driver.\n");
 
@@ -929,9 +955,12 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	}
 
 #endif
-	ts->input_dev->evbit[0] = BIT_MASK(EV_SYN) | BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS) ;
-	ts->input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
-	ts->input_dev->absbit[0] = BIT(ABS_X) | BIT(ABS_Y) | BIT(ABS_PRESSURE); 						// absolute coor (x,y)
+	__set_bit(INPUT_PROP_DIRECT, ts->input_dev->propbit);
+	__set_bit(EV_ABS, ts->input_dev->evbit);
+
+	//ts->input_dev->evbit[0] = BIT_MASK(EV_SYN) | BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS) ;
+	//ts->input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
+	//ts->input_dev->absbit[0] = BIT(ABS_X) | BIT(ABS_Y) | BIT(ABS_PRESSURE); 						// absolute coor (x,y)
 #if 0
 #ifdef HAVE_TOUCH_KEY
 	for(retry = 0; retry < MAX_KEY_NUM; retry++)
@@ -941,16 +970,18 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 #endif
 #endif
 
-	input_set_abs_params(ts->input_dev, ABS_X, 0, ts->abs_x_max, 0, 0);
-	input_set_abs_params(ts->input_dev, ABS_Y, 0, ts->abs_y_max, 0, 0);
-	input_set_abs_params(ts->input_dev, ABS_PRESSURE, 0, 255, 0, 0);
+	//input_set_abs_params(ts->input_dev, ABS_X, 0, ts->abs_x_max, 0, 0);
+	//input_set_abs_params(ts->input_dev, ABS_Y, 0, ts->abs_y_max, 0, 0);
+	//input_set_abs_params(ts->input_dev, ABS_PRESSURE, 0, 255, 0, 0);
 
 #ifdef GOODIX_MULTI_TOUCH
-	input_set_abs_params(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
+	input_mt_init_slots(ts->input_dev, MAX_SUPPORT_POINT);
+	//input_set_abs_params(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X, 0, ts->abs_x_max, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y, 0, ts->abs_y_max, 0, 0);
-	input_set_abs_params(ts->input_dev, ABS_MT_TRACKING_ID, 0, ts->max_touch_num, 0, 0);
+	//input_set_abs_params(ts->input_dev, ABS_MT_TRACKING_ID, 0, ts->max_touch_num, 0, 0);
+	//input_set_abs_params(ts->input_dev, ABS_MT_PRESSURE, 0, 255, 0, 0);
 #endif	
 
 	sprintf(ts->phys, "input/ts");

@@ -12,7 +12,7 @@ static struct rk29_keys_button key_button[] = {
 	{
 		.desc	= "menu",
 		.code	= EV_MENU,
-		.gpio	= RK29_PIN6_PA0,
+		.gpio	= RK29_PIN6_PA4,
 		.active_low = PRESS_LEV_LOW,
 	},
 	{
@@ -34,15 +34,9 @@ static struct rk29_keys_button key_button[] = {
 		.active_low = PRESS_LEV_LOW,
 	},
 	{
-		.desc	= "search",
-		.code	= KEY_SEARCH,
-		.gpio	= RK29_PIN6_PA4,
-		.active_low = PRESS_LEV_LOW,
-	},
-	{
 		.desc	= "esc",
 		.code	= KEY_BACK,
-		.gpio	= RK29_PIN6_PA5,
+		.gpio	= RK29_PIN6_PA0,
 		.active_low = PRESS_LEV_LOW,
 	},
 	{

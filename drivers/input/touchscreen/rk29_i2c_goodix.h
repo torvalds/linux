@@ -88,7 +88,7 @@ static const char *goodix_ts_name = "Goodix Capacitive TouchScreen";
 static struct workqueue_struct *goodix_wq;
 struct i2c_client * i2c_connect_client = NULL; 
 static struct proc_dir_entry *goodix_proc_entry;
-static struct kobject *goodix_debug_kobj;
+//static struct kobject *goodix_debug_kobj;
 	
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void goodix_ts_early_suspend(struct early_suspend *h);
