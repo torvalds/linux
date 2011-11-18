@@ -3275,7 +3275,6 @@ qla82xx_device_state_handler(scsi_qla_host_t *vha)
 
 		switch (dev_state) {
 		case QLA82XX_DEV_READY:
-			qla82xx_check_md_needed(vha);
 			ha->flags.isp82xx_reset_owner = 0;
 			goto exit;
 		case QLA82XX_DEV_COLD:
