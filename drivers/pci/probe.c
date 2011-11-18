@@ -1534,7 +1534,7 @@ struct pci_bus * pci_create_bus(struct device *parent,
 		return NULL;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev){
+	if (!dev) {
 		kfree(b);
 		return NULL;
 	}
