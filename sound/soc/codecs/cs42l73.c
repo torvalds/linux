@@ -979,7 +979,7 @@ static int cs42l73_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct cs42l73_private *priv = snd_soc_codec_get_drvdata(codec);
 	u8 id = codec_dai->id;
-	u8 inv, format;
+	unsigned int inv, format;
 	u8 spc, mmcc;
 
 	spc = snd_soc_read(codec, CS42L73_SPC(id));
