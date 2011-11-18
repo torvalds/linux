@@ -242,28 +242,35 @@ static void
 qla2x00_mbx_completion(scsi_qla_host_t *vha, uint16_t mb0)
 {
 	uint16_t	cnt;
+	uint32_t	mboxes;
 	uint16_t __iomem *wptr;
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 
+	/* Read all mbox registers? */
+	mboxes = (1 << ha->mbx_count) - 1;
+	if (!ha->mcp)
+		ql_dbg(ql_dbg_async, vha, 0x5001, "MBX pointer ERRROR.\n");
+	else
+		mboxes = ha->mcp->in_mb;
+
 	/* Load return mailbox registers. */
 	ha->flags.mbox_int = 1;
 	ha->mailbox_out[0] = mb0;
+	mboxes >>= 1;
 	wptr = (uint16_t __iomem *)MAILBOX_REG(ha, reg, 1);
 
 	for (cnt = 1; cnt < ha->mbx_count; cnt++) {
 		if (IS_QLA2200(ha) && cnt == 8)
 			wptr = (uint16_t __iomem *)MAILBOX_REG(ha, reg, 8);
-		if (cnt == 4 || cnt == 5)
+		if ((cnt == 4 || cnt == 5) && (mboxes & BIT_0))
 			ha->mailbox_out[cnt] = qla2x00_debounce_register(wptr);
-		else
+		else if (mboxes & BIT_0)
 			ha->mailbox_out[cnt] = RD_REG_WORD(wptr);
 
 		wptr++;
+		mboxes >>= 1;
 	}
-
-	if (!ha->mcp)
-		ql_dbg(ql_dbg_async, vha, 0x5001, "MBX pointer ERROR.\n");
 }
 
 static void
@@ -2004,22 +2011,31 @@ static void
 qla24xx_mbx_completion(scsi_qla_host_t *vha, uint16_t mb0)
 {
 	uint16_t	cnt;
+	uint32_t	mboxes;
 	uint16_t __iomem *wptr;
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 
+	/* Read all mbox registers? */
+	mboxes = (1 << ha->mbx_count) - 1;
+	if (!ha->mcp)
+		ql_dbg(ql_dbg_async, vha, 0x504e, "MBX pointer ERRROR.\n");
+	else
+		mboxes = ha->mcp->in_mb;
+
 	/* Load return mailbox registers. */
 	ha->flags.mbox_int = 1;
 	ha->mailbox_out[0] = mb0;
+	mboxes >>= 1;
 	wptr = (uint16_t __iomem *)&reg->mailbox1;
 
 	for (cnt = 1; cnt < ha->mbx_count; cnt++) {
-		ha->mailbox_out[cnt] = RD_REG_WORD(wptr);
+		if (mboxes & BIT_0)
+			ha->mailbox_out[cnt] = RD_REG_WORD(wptr);
+
+		mboxes >>= 1;
 		wptr++;
 	}
-
-	if (!ha->mcp)
-		ql_dbg(ql_dbg_async, vha, 0x504e, "MBX pointer ERRROR.\n");
 }
 
 /**
