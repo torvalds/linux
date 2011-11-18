@@ -1173,16 +1173,8 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 	if (is_multicast_ether_addr(hdr->addr1)) {
 		tx->flags &= ~IEEE80211_TX_UNICAST;
 		info->flags |= IEEE80211_TX_CTL_NO_ACK;
-	} else {
+	} else
 		tx->flags |= IEEE80211_TX_UNICAST;
-		if (unlikely(local->wifi_wme_noack_test))
-			info->flags |= IEEE80211_TX_CTL_NO_ACK;
-		/*
-		 * Flags are initialized to 0. Hence, no need to
-		 * explicitly unset IEEE80211_TX_CTL_NO_ACK since
-		 * it might already be set for injected frames.
-		 */
-	}
 
 	if (!(info->flags & IEEE80211_TX_CTL_DONTFRAG)) {
 		if (!(tx->flags & IEEE80211_TX_UNICAST) ||
