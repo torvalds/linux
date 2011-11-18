@@ -2485,26 +2485,34 @@ static int nl80211_get_station(struct sk_buff *skb, struct genl_info *info)
 /*
  * Get vlan interface making sure it is running and on the right wiphy.
  */
-static int get_vlan(struct genl_info *info,
-		    struct cfg80211_registered_device *rdev,
-		    struct net_device **vlan)
+static struct net_device *get_vlan(struct genl_info *info,
+				   struct cfg80211_registered_device *rdev)
 {
 	struct nlattr *vlanattr = info->attrs[NL80211_ATTR_STA_VLAN];
-	*vlan = NULL;
+	struct net_device *v;
+	int ret;
 
-	if (vlanattr) {
-		*vlan = dev_get_by_index(genl_info_net(info),
-					 nla_get_u32(vlanattr));
-		if (!*vlan)
-			return -ENODEV;
-		if (!(*vlan)->ieee80211_ptr)
-			return -EINVAL;
-		if ((*vlan)->ieee80211_ptr->wiphy != &rdev->wiphy)
-			return -EINVAL;
-		if (!netif_running(*vlan))
-			return -ENETDOWN;
+	if (!vlanattr)
+		return NULL;
+
+	v = dev_get_by_index(genl_info_net(info), nla_get_u32(vlanattr));
+	if (!v)
+		return ERR_PTR(-ENODEV);
+
+	if (!v->ieee80211_ptr || v->ieee80211_ptr->wiphy != &rdev->wiphy) {
+		ret = -EINVAL;
+		goto error;
 	}
-	return 0;
+
+	if (!netif_running(v)) {
+		ret = -ENETDOWN;
+		goto error;
+	}
+
+	return v;
+ error:
+	dev_put(v);
+	return ERR_PTR(ret);
 }
 
 static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
@@ -2554,9 +2562,9 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 		params.plink_state =
 		    nla_get_u8(info->attrs[NL80211_ATTR_STA_PLINK_STATE]);
 
-	err = get_vlan(info, rdev, &params.vlan);
-	if (err)
-		goto out;
+	params.vlan = get_vlan(info, rdev);
+	if (IS_ERR(params.vlan))
+		return PTR_ERR(params.vlan);
 
 	/* validate settings */
 	err = 0;
@@ -2724,9 +2732,9 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 	      (rdev->wiphy.flags & WIPHY_FLAG_TDLS_EXTERNAL_SETUP)))
 		return -EINVAL;
 
-	err = get_vlan(info, rdev, &params.vlan);
-	if (err)
-		goto out;
+	params.vlan = get_vlan(info, rdev);
+	if (IS_ERR(params.vlan))
+		return PTR_ERR(params.vlan);
 
 	/* validate settings */
 	err = 0;
