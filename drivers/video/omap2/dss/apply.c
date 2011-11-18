@@ -92,6 +92,9 @@ struct mgr_priv_data {
 	 * Never true for manual update displays */
 	bool busy;
 
+	/* If true, dispc output is enabled */
+	bool updating;
+
 	/* If true, a display is enabled using this manager */
 	bool enabled;
 };
@@ -151,28 +154,31 @@ static bool need_isr(void)
 		if (!mp->enabled)
 			continue;
 
-		if (mgr_manual_update(mgr))
-			continue;
-
-		/* to catch GO bit going down */
-		if (mp->busy)
-			return true;
-
-		/* to write new values to registers */
-		if (mp->dirty)
-			return true;
-
-		list_for_each_entry(ovl, &mgr->overlays, list) {
-			struct ovl_priv_data *op;
-
-			op = get_ovl_priv(ovl);
-
-			if (!op->enabled)
-				continue;
+		if (mgr_manual_update(mgr)) {
+			/* to catch FRAMEDONE */
+			if (mp->updating)
+				return true;
+		} else {
+			/* to catch GO bit going down */
+			if (mp->busy)
+				return true;
 
 			/* to write new values to registers */
-			if (op->dirty || op->extra_info_dirty)
+			if (mp->dirty)
 				return true;
+
+			list_for_each_entry(ovl, &mgr->overlays, list) {
+				struct ovl_priv_data *op;
+
+				op = get_ovl_priv(ovl);
+
+				if (!op->enabled)
+					continue;
+
+				/* to write new values to registers */
+				if (op->dirty || op->extra_info_dirty)
+					return true;
+			}
 		}
 	}
 
@@ -325,6 +331,7 @@ static void dss_ovl_write_regs(struct omap_overlay *ovl)
 	struct ovl_priv_data *op = get_ovl_priv(ovl);
 	struct omap_overlay_info *oi;
 	bool ilace, replication;
+	struct mgr_priv_data *mp;
 	int r;
 
 	DSSDBGF("%d", ovl->id);
@@ -356,13 +363,17 @@ static void dss_ovl_write_regs(struct omap_overlay *ovl)
 
 	dispc_ovl_set_fifo_threshold(ovl->id, op->fifo_low, op->fifo_high);
 
+	mp = get_mgr_priv(ovl->manager);
+
 	op->dirty = false;
-	op->shadow_dirty = true;
+	if (mp->updating)
+		op->shadow_dirty = true;
 }
 
 static void dss_ovl_write_regs_extra(struct omap_overlay *ovl)
 {
 	struct ovl_priv_data *op = get_ovl_priv(ovl);
+	struct mgr_priv_data *mp;
 
 	DSSDBGF("%d", ovl->id);
 
@@ -374,8 +385,11 @@ static void dss_ovl_write_regs_extra(struct omap_overlay *ovl)
 
 	dispc_ovl_enable(ovl->id, op->enabled);
 
+	mp = get_mgr_priv(ovl->manager);
+
 	op->extra_info_dirty = false;
-	op->shadow_extra_info_dirty = true;
+	if (mp->updating)
+		op->shadow_extra_info_dirty = true;
 }
 
 static void dss_mgr_write_regs(struct omap_overlay_manager *mgr)
@@ -400,7 +414,8 @@ static void dss_mgr_write_regs(struct omap_overlay_manager *mgr)
 		dispc_mgr_setup(mgr->id, &mp->info);
 
 		mp->dirty = false;
-		mp->shadow_dirty = true;
+		if (mp->updating)
+			mp->shadow_dirty = true;
 	}
 }
 
@@ -435,21 +450,18 @@ static void dss_write_regs(void)
 void dss_mgr_start_update(struct omap_overlay_manager *mgr)
 {
 	struct mgr_priv_data *mp = get_mgr_priv(mgr);
-	struct ovl_priv_data *op;
-	struct omap_overlay *ovl;
 	unsigned long flags;
 
 	spin_lock_irqsave(&data_lock, flags);
 
+	WARN_ON(mp->updating);
+
 	dss_mgr_write_regs(mgr);
 
-	list_for_each_entry(ovl, &mgr->overlays, list) {
-		op = get_ovl_priv(ovl);
-		op->shadow_dirty = false;
-		op->shadow_extra_info_dirty = false;
-	}
+	mp->updating = true;
 
-	mp->shadow_dirty = false;
+	if (!dss_data.irq_enabled && need_isr())
+		dss_register_vsync_isr();
 
 	dispc_mgr_enable(mgr->id, true);
 
@@ -468,6 +480,9 @@ static void dss_register_vsync_isr(void)
 	for (i = 0; i < num_mgrs; ++i)
 		mask |= dispc_mgr_get_vsync_irq(i);
 
+	for (i = 0; i < num_mgrs; ++i)
+		mask |= dispc_mgr_get_framedone_irq(i);
+
 	r = omap_dispc_register_isr(dss_apply_irq_handler, NULL, mask);
 	WARN_ON(r);
 
@@ -483,6 +498,9 @@ static void dss_unregister_vsync_isr(void)
 	mask = 0;
 	for (i = 0; i < num_mgrs; ++i)
 		mask |= dispc_mgr_get_vsync_irq(i);
+
+	for (i = 0; i < num_mgrs; ++i)
+		mask |= dispc_mgr_get_framedone_irq(i);
 
 	r = omap_dispc_unregister_isr(dss_apply_irq_handler, NULL, mask);
 	WARN_ON(r);
@@ -507,6 +525,7 @@ static void dss_apply_irq_handler(void *data, u32 mask)
 		mp = get_mgr_priv(mgr);
 
 		mp->busy = dispc_mgr_go_busy(i);
+		mp->updating = dispc_mgr_is_enabled(i);
 	}
 
 	for (i = 0; i < num_ovls; ++i) {
@@ -663,6 +682,9 @@ void dss_mgr_enable(struct omap_overlay_manager *mgr)
 
 	dss_write_regs();
 
+	if (!mgr_manual_update(mgr))
+		mp->updating = true;
+
 	spin_unlock_irqrestore(&data_lock, flags);
 
 	if (!mgr_manual_update(mgr))
@@ -683,6 +705,7 @@ void dss_mgr_disable(struct omap_overlay_manager *mgr)
 
 	spin_lock_irqsave(&data_lock, flags);
 
+	mp->updating = false;
 	mp->enabled = false;
 
 	spin_unlock_irqrestore(&data_lock, flags);
