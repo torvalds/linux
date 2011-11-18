@@ -103,6 +103,7 @@ my $in_patchcheck = 0;
 my $run_test;
 my $redirect;
 my $buildlog;
+my $testlog;
 my $dmesg;
 my $monitor_fp;
 my $monitor_pid;
@@ -1021,17 +1022,19 @@ sub fail {
 	    mkpath($faildir) or
 		die "can't create $faildir";
 	}
-	if (-f "$output_config") {
-	    cp "$output_config", "$faildir/config" or
-		die "failed to copy .config";
-	}
-	if (-f $buildlog) {
-	    cp $buildlog, "$faildir/buildlog" or
-		die "failed to move $buildlog";
-	}
-	if (-f $dmesg) {
-	    cp $dmesg, "$faildir/dmesg" or
-		die "failed to move $dmesg";
+
+	my %files = (
+		"config" => $output_config,
+		"buildlog" => $buildlog,
+		"dmesg" => $dmesg,
+		"testlog" => $testlog,
+	);
+
+	while (my ($name, $source) = each(%files)) {
+		if (-f "$source") {
+			cp "$source", "$faildir/$name" or
+				die "failed to copy $source";
+		}
 	}
 
 	doprint "*** Saved info to $faildir ***\n";
@@ -1669,7 +1672,10 @@ sub child_run_test {
     $poweroff_on_error = 0;
     $die_on_failure = 1;
 
+    $redirect = "$testlog";
     run_command $run_test or $failed = 1;
+    undef $redirect;
+
     exit $failed;
 }
 
@@ -3169,6 +3175,7 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     $target = "$ssh_user\@$machine";
 
     $buildlog = "$tmpdir/buildlog-$machine";
+    $testlog = "$tmpdir/testlog-$machine";
     $dmesg = "$tmpdir/dmesg-$machine";
     $make = "$makecmd O=$outputdir";
     $output_config = "$outputdir/.config";
@@ -3205,6 +3212,7 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 
     unlink $dmesg;
     unlink $buildlog;
+    unlink $testlog;
 
     if (defined($addconfig)) {
 	my $min = $minconfig;
