@@ -152,8 +152,8 @@ int tkey_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
 
-	pr_info("ft5x: Detected chip %s at adapter %d, address 0x%02x\n",
-		 HV_NAME, i2c_adapter_id(adapter), client->addr);
+	pr_info("%s: Detected chip %s at adapter %d, address 0x%02x\n",
+		 __func__, HV_NAME, i2c_adapter_id(adapter), client->addr);
 
 	strlcpy(info->type, HV_NAME, I2C_NAME_SIZE);
 	return 0;
@@ -217,12 +217,17 @@ static int hv_i2c_txdata(char *txdata, int length)
 
 static int hv_init(void)
 {
-	u8 buf[12] = {0x88,0x05,0x40,0x40,0x40,0x40,0x40,0xf8,0x00,0x05,0x00,0x42};
+	//low power work mode
+	//u8 buf[12] = {0x88,0x05,0x40,0x40,0x40,0x40,0x40,0xf8,0x00,0x05,0x00,0x42};
 	//u8 buf[12] =   {0x88,0x05,0x90,0x90,0x90,0x90,0x90,0xf8,0x00,0x40,0x00,0x0d};
 	//u8 buf[12] = {0x88,0x05,0x40,0x40,0x40,0x40,0xff,0xf8,0x00,0x00,0x00,0xfc};
+	//full speed work mode
+	u8 buf[12] = {0x88,0x00,0x40,0x40,0x40,0x40,0x40,0xf8,0x00,0x05,0x00,0x3d};
 	int ret = -1;
 	struct hv_keypad_data *data = i2c_get_clientdata(this_client);
 	struct key_event *event = &data->event;
+	
+	printk("===%s===.\n",  __func__);
 	event->key_status = 2;
 	event->key_last = 0;
 	ret = hv_i2c_txdata(buf, 12);
