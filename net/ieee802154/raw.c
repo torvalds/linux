@@ -108,6 +108,7 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	struct net_device *dev;
 	unsigned mtu;
 	struct sk_buff *skb;
+	int hlen, tlen;
 	int err;
 
 	if (msg->msg_flags & MSG_OOB) {
@@ -137,12 +138,14 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		goto out_dev;
 	}
 
-	skb = sock_alloc_send_skb(sk, LL_ALLOCATED_SPACE(dev) + size,
+	hlen = LL_RESERVED_SPACE(dev);
+	tlen = dev->needed_tailroom;
+	skb = sock_alloc_send_skb(sk, hlen + tlen + size,
 			msg->msg_flags & MSG_DONTWAIT, &err);
 	if (!skb)
 		goto out_dev;
 
-	skb_reserve(skb, LL_RESERVED_SPACE(dev));
+	skb_reserve(skb, hlen);
 
 	skb_reset_mac_header(skb);
 	skb_reset_network_header(skb);
