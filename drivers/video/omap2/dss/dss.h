@@ -182,7 +182,7 @@ void default_get_overlay_fifo_thresholds(enum omap_plane plane,
 int dss_init_overlay_managers(struct platform_device *pdev);
 void dss_uninit_overlay_managers(struct platform_device *pdev);
 int dss_mgr_wait_for_go_ovl(struct omap_overlay *ovl);
-void dss_start_update(struct omap_dss_device *dssdev);
+void dss_mgr_start_update(struct omap_overlay_manager *mgr);
 
 /* overlay */
 void dss_init_overlays(struct platform_device *pdev);

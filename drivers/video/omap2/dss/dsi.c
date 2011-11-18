@@ -4097,7 +4097,7 @@ static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
 		msecs_to_jiffies(250));
 	BUG_ON(r == 0);
 
-	dss_start_update(dssdev);
+	dss_mgr_start_update(dssdev->manager);
 
 	if (dsi->te_enabled) {
 		/* disable LP_RX_TO, so that we can receive TE.  Time to wait

@@ -896,16 +896,13 @@ static int configure_dispc(void)
 	return r;
 }
 
-void dss_start_update(struct omap_dss_device *dssdev)
+void dss_mgr_start_update(struct omap_overlay_manager *mgr)
 {
 	struct manager_cache_data *mc;
 	struct overlay_cache_data *oc;
 	const int num_ovls = dss_feat_get_num_ovls();
 	const int num_mgrs = dss_feat_get_num_mgrs();
-	struct omap_overlay_manager *mgr;
 	int i;
-
-	mgr = dssdev->manager;
 
 	mc = &dss_cache.manager_cache[mgr->id];
 
@@ -929,7 +926,7 @@ void dss_start_update(struct omap_dss_device *dssdev)
 		mc->shadow_dirty = false;
 	}
 
-	dssdev->manager->enable(dssdev->manager);
+	mgr->enable(mgr);
 }
 
 static void dss_apply_irq_handler(void *data, u32 mask)
