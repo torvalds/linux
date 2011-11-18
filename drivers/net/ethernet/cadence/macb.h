@@ -532,6 +532,8 @@ struct macb {
 	unsigned int 		link;
 	unsigned int 		speed;
 	unsigned int 		duplex;
+
+	phy_interface_t		phy_interface;
 };
 
 static inline bool macb_is_gem(struct macb *bp)
