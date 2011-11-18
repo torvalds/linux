@@ -23,6 +23,7 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/pl061.h>
 #include <linux/slab.h>
+#include <linux/pm.h>
 
 #define GPIODIR 0x400
 #define GPIOIS  0x404
@@ -34,6 +35,17 @@
 #define GPIOIC  0x41C
 
 #define PL061_GPIO_NR	8
+
+#ifdef CONFIG_PM
+struct pl061_context_save_regs {
+	u8 gpio_data;
+	u8 gpio_dir;
+	u8 gpio_is;
+	u8 gpio_ibe;
+	u8 gpio_iev;
+	u8 gpio_ie;
+};
+#endif
 
 struct pl061_gpio {
 	/* We use a list of pl061_gpio structs for each trigger IRQ in the main
@@ -54,6 +66,10 @@ struct pl061_gpio {
 	void __iomem		*base;
 	unsigned		irq_base;
 	struct gpio_chip	gc;
+
+#ifdef CONFIG_PM
+	struct pl061_context_save_regs csave_regs;
+#endif
 };
 
 static int pl061_direction_input(struct gpio_chip *gc, unsigned offset)
@@ -330,6 +346,8 @@ static int pl061_probe(struct amba_device *dev, const struct amba_id *id)
 		irq_set_chip_data(i + chip->irq_base, chip);
 	}
 
+	amba_set_drvdata(dev, chip);
+
 	return 0;
 
 iounmap:
@@ -342,6 +360,53 @@ free_mem:
 	return ret;
 }
 
+#ifdef CONFIG_PM
+static int pl061_suspend(struct device *dev)
+{
+	struct pl061_gpio *chip = dev_get_drvdata(dev);
+	int offset;
+
+	chip->csave_regs.gpio_data = 0;
+	chip->csave_regs.gpio_dir = readb(chip->base + GPIODIR);
+	chip->csave_regs.gpio_is = readb(chip->base + GPIOIS);
+	chip->csave_regs.gpio_ibe = readb(chip->base + GPIOIBE);
+	chip->csave_regs.gpio_iev = readb(chip->base + GPIOIEV);
+	chip->csave_regs.gpio_ie = readb(chip->base + GPIOIE);
+
+	for (offset = 0; offset < PL061_GPIO_NR; offset++) {
+		if (chip->csave_regs.gpio_dir & (1 << offset))
+			chip->csave_regs.gpio_data |=
+				pl061_get_value(&chip->gc, offset) << offset;
+	}
+
+	return 0;
+}
+
+static int pl061_resume(struct device *dev)
+{
+	struct pl061_gpio *chip = dev_get_drvdata(dev);
+	int offset;
+
+	for (offset = 0; offset < PL061_GPIO_NR; offset++) {
+		if (chip->csave_regs.gpio_dir & (1 << offset))
+			pl061_direction_output(&chip->gc, offset,
+					chip->csave_regs.gpio_data &
+					(1 << offset));
+		else
+			pl061_direction_input(&chip->gc, offset);
+	}
+
+	writeb(chip->csave_regs.gpio_is, chip->base + GPIOIS);
+	writeb(chip->csave_regs.gpio_ibe, chip->base + GPIOIBE);
+	writeb(chip->csave_regs.gpio_iev, chip->base + GPIOIEV);
+	writeb(chip->csave_regs.gpio_ie, chip->base + GPIOIE);
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(pl061_dev_pm_ops, pl061_suspend, pl061_resume);
+#endif
+
 static struct amba_id pl061_ids[] = {
 	{
 		.id	= 0x00041061,
@@ -353,6 +418,9 @@ static struct amba_id pl061_ids[] = {
 static struct amba_driver pl061_gpio_driver = {
 	.drv = {
 		.name	= "pl061_gpio",
+#ifdef CONFIG_PM
+		.pm	= &pl061_dev_pm_ops,
+#endif
 	},
 	.id_table	= pl061_ids,
 	.probe		= pl061_probe,
