@@ -425,6 +425,9 @@ static int lp8727_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	struct lp8727_chg *pchg;
 	int ret;
 
+	if (!i2c_check_functionality(cl->adapter, I2C_FUNC_SMBUS_I2C_BLOCK))
+		return -EIO;
+
 	pchg = kzalloc(sizeof(*pchg), GFP_KERNEL);
 	if (!pchg)
 		return -ENOMEM;
