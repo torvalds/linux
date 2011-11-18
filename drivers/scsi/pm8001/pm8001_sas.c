@@ -364,7 +364,7 @@ static int pm8001_task_exec(struct sas_task *task, const int num,
 	struct pm8001_ccb_info *ccb;
 	u32 tag = 0xdeadbeef, rc, n_elem = 0;
 	u32 n = num;
-	unsigned long flags = 0, flags_libsas = 0;
+	unsigned long flags = 0;
 
 	if (!dev->port) {
 		struct task_status_struct *tsm = &t->task_status;
@@ -388,11 +388,7 @@ static int pm8001_task_exec(struct sas_task *task, const int num,
 				ts->stat = SAS_PHY_DOWN;
 
 				spin_unlock_irqrestore(&pm8001_ha->lock, flags);
-				spin_unlock_irqrestore(dev->sata_dev.ap->lock,
-						flags_libsas);
 				t->task_done(t);
-				spin_lock_irqsave(dev->sata_dev.ap->lock,
-					flags_libsas);
 				spin_lock_irqsave(&pm8001_ha->lock, flags);
 				if (n > 1)
 					t = list_entry(t->list.next,

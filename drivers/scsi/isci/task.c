@@ -96,8 +96,7 @@ static void isci_task_refuse(struct isci_host *ihost, struct sas_task *task,
 			__func__, task, response, status);
 
 		task->lldd_task = NULL;
-
-		isci_execpath_callback(ihost, task, task->task_done);
+		task->task_done(task);
 		break;
 
 	case isci_perform_aborted_io_completion:
@@ -117,8 +116,7 @@ static void isci_task_refuse(struct isci_host *ihost, struct sas_task *task,
 			"%s: Error - task = %p, response=%d, "
 			"status=%d\n",
 			__func__, task, response, status);
-
-		isci_execpath_callback(ihost, task, sas_task_abort);
+		sas_task_abort(task);
 		break;
 
 	default:

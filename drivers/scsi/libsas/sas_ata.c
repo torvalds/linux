@@ -166,23 +166,30 @@ qc_already_gone:
 
 static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 {
-	int res;
+	unsigned long flags;
 	struct sas_task *task;
-	struct domain_device *dev = qc->ap->private_data;
+	struct scatterlist *sg;
+	int ret = AC_ERR_SYSTEM;
+	unsigned int si, xfer = 0;
+	struct ata_port *ap = qc->ap;
+	struct domain_device *dev = ap->private_data;
 	struct sas_ha_struct *sas_ha = dev->port->ha;
 	struct Scsi_Host *host = sas_ha->core.shost;
 	struct sas_internal *i = to_sas_internal(host->transportt);
-	struct scatterlist *sg;
-	unsigned int xfer = 0;
-	unsigned int si;
+
+	/* TODO: audit callers to ensure they are ready for qc_issue to
+	 * unconditionally re-enable interrupts
+	 */
+	local_irq_save(flags);
+	spin_unlock(ap->lock);
 
 	/* If the device fell off, no sense in issuing commands */
 	if (dev->gone)
-		return AC_ERR_SYSTEM;
+		goto out;
 
 	task = sas_alloc_task(GFP_ATOMIC);
 	if (!task)
-		return AC_ERR_SYSTEM;
+		goto out;
 	task->dev = dev;
 	task->task_proto = SAS_PROTOCOL_STP;
 	task->task_done = sas_ata_task_done;
@@ -227,21 +234,24 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		ASSIGN_SAS_TASK(qc->scsicmd, task);
 
 	if (sas_ha->lldd_max_execute_num < 2)
-		res = i->dft->lldd_execute_task(task, 1, GFP_ATOMIC);
+		ret = i->dft->lldd_execute_task(task, 1, GFP_ATOMIC);
 	else
-		res = sas_queue_up(task);
+		ret = sas_queue_up(task);
 
 	/* Examine */
-	if (res) {
-		SAS_DPRINTK("lldd_execute_task returned: %d\n", res);
+	if (ret) {
+		SAS_DPRINTK("lldd_execute_task returned: %d\n", ret);
 
 		if (qc->scsicmd)
 			ASSIGN_SAS_TASK(qc->scsicmd, NULL);
 		sas_free_task(task);
-		return AC_ERR_SYSTEM;
+		ret = AC_ERR_SYSTEM;
 	}
 
-	return 0;
+ out:
+	spin_lock(ap->lock);
+	local_irq_restore(flags);
+	return ret;
 }
 
 static bool sas_ata_qc_fill_rtf(struct ata_queued_cmd *qc)
