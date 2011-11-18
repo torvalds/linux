@@ -204,6 +204,7 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 	[NL80211_ATTR_HT_CAPABILITY_MASK] = {
 		.len = NL80211_HT_CAPABILITY_LEN
 	},
+	[NL80211_ATTR_NOACK_MAP] = { .type = NLA_U16 },
 };
 
 /* policy for the key attributes */
@@ -904,6 +905,7 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	if (dev->wiphy.flags & WIPHY_FLAG_SUPPORTS_SCHED_SCAN)
 		CMD(sched_scan_start, START_SCHED_SCAN);
 	CMD(probe_client, PROBE_CLIENT);
+	CMD(set_noack_map, SET_NOACK_MAP);
 	if (dev->wiphy.flags & WIPHY_FLAG_REPORTS_OBSS) {
 		i++;
 		NLA_PUT_U32(msg, i, NL80211_CMD_REGISTER_BEACONS);
@@ -1757,6 +1759,23 @@ static int nl80211_del_interface(struct sk_buff *skb, struct genl_info *info)
 		return -EOPNOTSUPP;
 
 	return rdev->ops->del_virtual_intf(&rdev->wiphy, dev);
+}
+
+static int nl80211_set_noack_map(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+	struct net_device *dev = info->user_ptr[1];
+	u16 noack_map;
+
+	if (!info->attrs[NL80211_ATTR_NOACK_MAP])
+		return -EINVAL;
+
+	if (!rdev->ops->set_noack_map)
+		return -EOPNOTSUPP;
+
+	noack_map = nla_get_u16(info->attrs[NL80211_ATTR_NOACK_MAP]);
+
+	return rdev->ops->set_noack_map(&rdev->wiphy, dev, noack_map);
 }
 
 struct get_key_cookie {
@@ -6604,6 +6623,15 @@ static struct genl_ops nl80211_ops[] = {
 		.internal_flags = NL80211_FLAG_NEED_WIPHY |
 				  NL80211_FLAG_NEED_RTNL,
 	},
+	{
+		.cmd = NL80211_CMD_SET_NOACK_MAP,
+		.doit = nl80211_set_noack_map,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+				  NL80211_FLAG_NEED_RTNL,
+	},
+
 };
 
 static struct genl_multicast_group nl80211_mlme_mcgrp = {
