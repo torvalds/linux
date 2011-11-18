@@ -90,7 +90,7 @@ struct dentry *debugfs_create_regset32(const char *name, mode_t mode,
 				     struct dentry *parent,
 				     struct debugfs_regset32 *regset);
 
-int debugfs_print_regs32(struct seq_file *s, struct debugfs_reg32 *regs,
+int debugfs_print_regs32(struct seq_file *s, const struct debugfs_reg32 *regs,
 			 int nregs, void __iomem *base, char *prefix);
 
 bool debugfs_initialized(void);

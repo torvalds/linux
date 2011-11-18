@@ -548,7 +548,7 @@ EXPORT_SYMBOL_GPL(debugfs_create_blob);
  * because some peripherals have several blocks of identical registers,
  * for example configuration of dma channels
  */
-int debugfs_print_regs32(struct seq_file *s, struct debugfs_reg32 *regs,
+int debugfs_print_regs32(struct seq_file *s, const struct debugfs_reg32 *regs,
 			   int nregs, void __iomem *base, char *prefix)
 {
 	int i, ret = 0;
