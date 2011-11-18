@@ -215,7 +215,6 @@ struct sas_discovery_event {
 };
 
 struct sas_discovery {
-	spinlock_t disc_event_lock;
 	struct sas_discovery_event disc_work[DISC_NUM_EVENTS];
 	unsigned long    pending;
 	u8     fanout_sas_addr[8];
@@ -272,7 +271,6 @@ struct asd_sas_event {
  */
 struct asd_sas_phy {
 /* private: */
-	/* protected by ha->event_lock */
 	struct asd_sas_event   port_events[PORT_NUM_EVENTS];
 	struct asd_sas_event   phy_events[PHY_NUM_EVENTS];
 
@@ -337,7 +335,6 @@ enum sas_ha_state {
 
 struct sas_ha_struct {
 /* private: */
-	spinlock_t       event_lock;
 	struct sas_ha_event ha_events[HA_NUM_EVENTS];
 	unsigned long	 pending;
 

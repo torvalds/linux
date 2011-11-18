@@ -295,8 +295,7 @@ static void sas_discover_domain(struct work_struct *work)
 		container_of(work, struct sas_discovery_event, work);
 	struct asd_sas_port *port = ev->port;
 
-	sas_begin_event(DISCE_DISCOVER_DOMAIN, &port->disc.disc_event_lock,
-			&port->disc.pending);
+	clear_bit(DISCE_DISCOVER_DOMAIN, &port->disc.pending);
 
 	if (port->port_dev)
 		return;
@@ -355,8 +354,7 @@ static void sas_revalidate_domain(struct work_struct *work)
 		container_of(work, struct sas_discovery_event, work);
 	struct asd_sas_port *port = ev->port;
 
-	sas_begin_event(DISCE_REVALIDATE_DOMAIN, &port->disc.disc_event_lock,
-			&port->disc.pending);
+	clear_bit(DISCE_REVALIDATE_DOMAIN, &port->disc.pending);
 
 	SAS_DPRINTK("REVALIDATING DOMAIN on port %d, pid:%d\n", port->id,
 		    task_pid_nr(current));
@@ -379,8 +377,7 @@ int sas_discover_event(struct asd_sas_port *port, enum discover_event ev)
 
 	BUG_ON(ev >= DISC_NUM_EVENTS);
 
-	sas_queue_event(ev, &disc->disc_event_lock, &disc->pending,
-			&disc->disc_work[ev].work, port->ha);
+	sas_queue_event(ev, &disc->pending, &disc->disc_work[ev].work, port->ha);
 
 	return 0;
 }
@@ -400,7 +397,6 @@ void sas_init_disc(struct sas_discovery *disc, struct asd_sas_port *port)
 		[DISCE_REVALIDATE_DOMAIN] = sas_revalidate_domain,
 	};
 
-	spin_lock_init(&disc->disc_event_lock);
 	disc->pending = 0;
 	for (i = 0; i < DISC_NUM_EVENTS; i++) {
 		INIT_WORK(&disc->disc_work[i].work, sas_event_fns[i]);

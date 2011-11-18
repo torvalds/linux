@@ -92,36 +92,18 @@ static inline int sas_smp_host_handler(struct Scsi_Host *shost,
 }
 #endif
 
-static inline void sas_queue_event(int event, spinlock_t *lock,
-				   unsigned long *pending,
+static inline void sas_queue_event(int event, unsigned long *pending,
 				   struct work_struct *work,
 				   struct sas_ha_struct *sas_ha)
 {
-	unsigned long flags;
+	if (!test_and_set_bit(event, pending)) {
+		unsigned long flags;
 
-	spin_lock_irqsave(lock, flags);
-	if (test_bit(event, pending)) {
-		spin_unlock_irqrestore(lock, flags);
-		return;
+		spin_lock_irqsave(&sas_ha->state_lock, flags);
+		if (sas_ha->state != SAS_HA_UNREGISTERED)
+			scsi_queue_work(sas_ha->core.shost, work);
+		spin_unlock_irqrestore(&sas_ha->state_lock, flags);
 	}
-	__set_bit(event, pending);
-	spin_unlock_irqrestore(lock, flags);
-
-	spin_lock_irqsave(&sas_ha->state_lock, flags);
-	if (sas_ha->state != SAS_HA_UNREGISTERED) {
-		scsi_queue_work(sas_ha->core.shost, work);
-	}
-	spin_unlock_irqrestore(&sas_ha->state_lock, flags);
-}
-
-static inline void sas_begin_event(int event, spinlock_t *lock,
-				   unsigned long *pending)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(lock, flags);
-	__clear_bit(event, pending);
-	spin_unlock_irqrestore(lock, flags);
 }
 
 static inline void sas_fill_in_rphy(struct domain_device *dev,

@@ -213,8 +213,7 @@ void sas_porte_bytes_dmaed(struct work_struct *work)
 		container_of(work, struct asd_sas_event, work);
 	struct asd_sas_phy *phy = ev->phy;
 
-	sas_begin_event(PORTE_BYTES_DMAED, &phy->ha->event_lock,
-			&phy->port_events_pending);
+	clear_bit(PORTE_BYTES_DMAED, &phy->port_events_pending);
 
 	sas_form_port(phy);
 }
@@ -227,8 +226,7 @@ void sas_porte_broadcast_rcvd(struct work_struct *work)
 	unsigned long flags;
 	u32 prim;
 
-	sas_begin_event(PORTE_BROADCAST_RCVD, &phy->ha->event_lock,
-			&phy->port_events_pending);
+	clear_bit(PORTE_BROADCAST_RCVD, &phy->port_events_pending);
 
 	spin_lock_irqsave(&phy->sas_prim_lock, flags);
 	prim = phy->sas_prim;
@@ -244,8 +242,7 @@ void sas_porte_link_reset_err(struct work_struct *work)
 		container_of(work, struct asd_sas_event, work);
 	struct asd_sas_phy *phy = ev->phy;
 
-	sas_begin_event(PORTE_LINK_RESET_ERR, &phy->ha->event_lock,
-			&phy->port_events_pending);
+	clear_bit(PORTE_LINK_RESET_ERR, &phy->port_events_pending);
 
 	sas_deform_port(phy, 1);
 }
@@ -256,8 +253,7 @@ void sas_porte_timer_event(struct work_struct *work)
 		container_of(work, struct asd_sas_event, work);
 	struct asd_sas_phy *phy = ev->phy;
 
-	sas_begin_event(PORTE_TIMER_EVENT, &phy->ha->event_lock,
-			&phy->port_events_pending);
+	clear_bit(PORTE_TIMER_EVENT, &phy->port_events_pending);
 
 	sas_deform_port(phy, 1);
 }
@@ -268,8 +264,7 @@ void sas_porte_hard_reset(struct work_struct *work)
 		container_of(work, struct asd_sas_event, work);
 	struct asd_sas_phy *phy = ev->phy;
 
-	sas_begin_event(PORTE_HARD_RESET, &phy->ha->event_lock,
-			&phy->port_events_pending);
+	clear_bit(PORTE_HARD_RESET, &phy->port_events_pending);
 
 	sas_deform_port(phy, 1);
 }
