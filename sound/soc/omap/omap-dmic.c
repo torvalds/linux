@@ -32,6 +32,7 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
+#include <linux/of_device.h>
 #include <plat/dma.h>
 
 #include <sound/core.h>
@@ -528,10 +529,17 @@ static int __devexit asoc_dmic_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id omap_dmic_of_match[] = {
+	{ .compatible = "ti,omap4-dmic", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, omap_dmic_of_match);
+
 static struct platform_driver asoc_dmic_driver = {
 	.driver = {
 		.name = "omap-dmic",
 		.owner = THIS_MODULE,
+		.of_match_table = omap_dmic_of_match,
 	},
 	.probe = asoc_dmic_probe,
 	.remove = __devexit_p(asoc_dmic_remove),
