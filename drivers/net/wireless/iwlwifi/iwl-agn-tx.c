@@ -790,6 +790,7 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
 		iwl_rx_reply_tx_agg(priv, tx_resp);
 
 	if (tx_resp->frame_count == 1) {
+		IWL_DEBUG_TX_REPLY(priv, "Q %d, ssn %d", txq_id, ssn);
 		__skb_queue_head_init(&skbs);
 		/*we can free until ssn % q.n_bd not inclusive */
 		iwl_trans_reclaim(trans(priv), sta_id, tid, txq_id,

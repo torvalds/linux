@@ -1350,9 +1350,9 @@ static void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int sta_id, int tid,
 	}
 
 	if (txq->q.read_ptr != tfd_num) {
-		IWL_DEBUG_TX_REPLY(trans, "Retry scheduler reclaim "
-				"scd_ssn=%d idx=%d txq=%d swq=%d\n",
-				ssn , tfd_num, txq_id, txq->swq_id);
+		IWL_DEBUG_TX_REPLY(trans, "[Q %d | AC %d] %d -> %d (%d)\n",
+				txq_id, iwl_get_queue_ac(txq), txq->q.read_ptr,
+				tfd_num, ssn);
 		freed = iwl_tx_queue_reclaim(trans, txq_id, tfd_num, skbs);
 		if (iwl_queue_space(&txq->q) > txq->q.low_mark && cond)
 			iwl_wake_queue(trans, txq, "Packets reclaimed");
