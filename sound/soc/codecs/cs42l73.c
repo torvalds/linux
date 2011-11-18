@@ -1028,13 +1028,13 @@ static int cs42l73_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		switch (format) {
 		case SND_SOC_DAIFMT_DSP_B:
 			if (inv == SND_SOC_DAIFMT_IB_IF)
-				spc |= (PCM_MODE0 << 4);
+				spc |= PCM_MODE0;
 			if (inv == SND_SOC_DAIFMT_IB_NF)
-				spc |= (PCM_MODE1 << 4);
+				spc |= PCM_MODE1;
 		break;
 		case SND_SOC_DAIFMT_DSP_A:
 			if (inv == SND_SOC_DAIFMT_IB_IF)
-				spc |= (PCM_MODE1 << 4);
+				spc |= PCM_MODE1;
 			break;
 		default:
 			return -EINVAL;

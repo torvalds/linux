@@ -162,16 +162,16 @@
 
 /* CS42L73_ASPC, CS42L73_XSPC, CS42L73_VSPC */
 #define	SP_3ST			(1 << 7)
-#define SPDIF_I2S		0
+#define SPDIF_I2S		(0 << 6)
 #define SPDIF_PCM		(1 << 6)
-#define PCM_MODE0		0
-#define PCM_MODE1		1
-#define PCM_MODE2		2
-#define PCM_BO_MSBLSB		0
-#define PCM_BO_LSBMSB		1
-#define MCK_SCLK_64FS		0
-#define MCK_SCLK_MCLK		2
-#define MCK_SCLK_PREMCLK	3
+#define PCM_MODE0		(0 << 4)
+#define PCM_MODE1		(1 << 4)
+#define PCM_MODE2		(2 << 4)
+#define PCM_MODE_MASK		(3 << 4)
+#define PCM_BIT_ORDER		(1 << 3)
+#define MCK_SCLK_64FS		(0 << 0)
+#define MCK_SCLK_MCLK		(2 << 0)
+#define MCK_SCLK_PREMCLK	(3 << 0)
 
 /* CS42L73_xSPMMCC */
 #define MS_MASTER		(1 << 7)
