@@ -1010,23 +1010,4 @@ static int ati_remote2_post_reset(struct usb_interface *interface)
 	return r;
 }
 
-static int __init ati_remote2_init(void)
-{
-	int r;
-
-	r = usb_register(&ati_remote2_driver);
-	if (r)
-		printk(KERN_ERR "ati_remote2: usb_register() = %d\n", r);
-	else
-		printk(KERN_INFO "ati_remote2: " DRIVER_DESC " " DRIVER_VERSION "\n");
-
-	return r;
-}
-
-static void __exit ati_remote2_exit(void)
-{
-	usb_deregister(&ati_remote2_driver);
-}
-
-module_init(ati_remote2_init);
-module_exit(ati_remote2_exit);
+module_usb_driver(ati_remote2_driver);

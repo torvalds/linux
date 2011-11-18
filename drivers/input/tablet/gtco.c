@@ -1022,33 +1022,7 @@ static struct usb_driver gtco_driverinfo_table = {
 	.disconnect	= gtco_disconnect,
 };
 
-/*
- *  Register this module with the USB subsystem
- */
-static int __init gtco_init(void)
-{
-	int error;
-
-	error = usb_register(&gtco_driverinfo_table);
-	if (error) {
-		err("usb_register() failed rc=0x%x", error);
-		return error;
-	}
-
-	printk("GTCO usb driver version: %s", GTCO_VERSION);
-	return 0;
-}
-
-/*
- *   Deregister this module with the USB subsystem
- */
-static void __exit gtco_exit(void)
-{
-	usb_deregister(&gtco_driverinfo_table);
-}
-
-module_init(gtco_init);
-module_exit(gtco_exit);
+module_usb_driver(gtco_driverinfo_table);
 
 MODULE_DESCRIPTION("GTCO digitizer USB driver");
 MODULE_LICENSE("GPL");

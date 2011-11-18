@@ -938,15 +938,4 @@ static struct usb_driver atp_driver = {
 	.id_table	= atp_table,
 };
 
-static int __init atp_init(void)
-{
-	return usb_register(&atp_driver);
-}
-
-static void __exit atp_exit(void)
-{
-	usb_deregister(&atp_driver);
-}
-
-module_init(atp_init);
-module_exit(atp_exit);
+module_usb_driver(atp_driver);
