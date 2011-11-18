@@ -272,39 +272,84 @@ static bool sas_ata_qc_fill_rtf(struct ata_queued_cmd *qc)
 	return true;
 }
 
-static int sas_ata_hard_reset(struct ata_link *link, unsigned int *class,
-			       unsigned long deadline)
+static struct sas_internal *dev_to_sas_internal(struct domain_device *dev)
+{
+	return to_sas_internal(dev->port->ha->core.shost->transportt);
+}
+
+static int smp_ata_check_ready(struct ata_link *link)
+{
+	int res;
+	u8 addr[8];
+	struct ata_port *ap = link->ap;
+	struct domain_device *dev = ap->private_data;
+	struct domain_device *ex_dev = dev->parent;
+	struct sas_phy *phy = sas_find_local_phy(dev);
+
+	res = sas_get_phy_attached_sas_addr(ex_dev, phy->number, addr);
+	/* break the wait early if the expander is unreachable,
+	 * otherwise keep polling
+	 */
+	if (res == -ECOMM)
+		return res;
+	if (res != SMP_RESP_FUNC_ACC || SAS_ADDR(addr) == 0)
+		return 0;
+	else
+		return 1;
+}
+
+static int local_ata_check_ready(struct ata_link *link)
 {
 	struct ata_port *ap = link->ap;
 	struct domain_device *dev = ap->private_data;
-	struct sas_internal *i =
-		to_sas_internal(dev->port->ha->core.shost->transportt);
-	int res = TMF_RESP_FUNC_FAILED;
-	int ret = 0;
+	struct sas_internal *i = dev_to_sas_internal(dev);
 
-	if (i->dft->lldd_I_T_nexus_reset)
-		res = i->dft->lldd_I_T_nexus_reset(dev);
-
-	if (res != TMF_RESP_FUNC_COMPLETE) {
-		SAS_DPRINTK("%s: Unable to reset I T nexus?\n", __func__);
-		ret = -EAGAIN;
+	if (i->dft->lldd_ata_check_ready)
+		return i->dft->lldd_ata_check_ready(dev);
+	else {
+		/* lldd's that don't implement 'ready' checking get the
+		 * old default behavior of not coordinating reset
+		 * recovery with libata
+		 */
+		return 1;
 	}
+}
 
+static int sas_ata_hard_reset(struct ata_link *link, unsigned int *class,
+			      unsigned long deadline)
+{
+	int ret = 0, res;
+	struct ata_port *ap = link->ap;
+	int (*check_ready)(struct ata_link *link);
+	struct domain_device *dev = ap->private_data;
+	struct sas_phy *phy = sas_find_local_phy(dev);
+	struct sas_internal *i = dev_to_sas_internal(dev);
+
+	res = i->dft->lldd_I_T_nexus_reset(dev);
+
+	if (res != TMF_RESP_FUNC_COMPLETE)
+		SAS_DPRINTK("%s: Unable to reset ata device?\n", __func__);
+
+	if (scsi_is_sas_phy_local(phy))
+		check_ready = local_ata_check_ready;
+	else
+		check_ready = smp_ata_check_ready;
+
+	ret = ata_wait_after_reset(link, deadline, check_ready);
+	if (ret && ret != -EAGAIN)
+		ata_link_err(link, "COMRESET failed (errno=%d)\n", ret);
+
+	/* XXX: if the class changes during the reset the upper layer
+	 * should be informed, if the device has gone away we assume
+	 * libsas will eventually delete it
+	 */
 	switch (dev->sata_dev.command_set) {
-		case ATA_COMMAND_SET:
-			SAS_DPRINTK("%s: Found ATA device.\n", __func__);
-			*class = ATA_DEV_ATA;
-			break;
-		case ATAPI_COMMAND_SET:
-			SAS_DPRINTK("%s: Found ATAPI device.\n", __func__);
-			*class = ATA_DEV_ATAPI;
-			break;
-		default:
-			SAS_DPRINTK("%s: Unknown SATA command set: %d.\n",
-				    __func__,
-				    dev->sata_dev.command_set);
-			*class = ATA_DEV_UNKNOWN;
-			break;
+	case ATA_COMMAND_SET:
+		*class = ATA_DEV_ATA;
+		break;
+	case ATAPI_COMMAND_SET:
+		*class = ATA_DEV_ATAPI;
+		break;
 	}
 
 	ap->cbl = ATA_CBL_SATA;
@@ -316,8 +361,7 @@ static int sas_ata_soft_reset(struct ata_link *link, unsigned int *class,
 {
 	struct ata_port *ap = link->ap;
 	struct domain_device *dev = ap->private_data;
-	struct sas_internal *i =
-		to_sas_internal(dev->port->ha->core.shost->transportt);
+	struct sas_internal *i = dev_to_sas_internal(dev);
 	int res = TMF_RESP_FUNC_FAILED;
 	int ret = 0;
 
@@ -355,8 +399,7 @@ static int sas_ata_soft_reset(struct ata_link *link, unsigned int *class,
  */
 static void sas_ata_internal_abort(struct sas_task *task)
 {
-	struct sas_internal *si =
-		to_sas_internal(task->dev->port->ha->core.shost->transportt);
+	struct sas_internal *si = dev_to_sas_internal(task->dev);
 	unsigned long flags;
 	int res;
 
@@ -425,8 +468,7 @@ static void sas_ata_post_internal(struct ata_queued_cmd *qc)
 static void sas_ata_set_dmamode(struct ata_port *ap, struct ata_device *ata_dev)
 {
 	struct domain_device *dev = ap->private_data;
-	struct sas_internal *i =
-		to_sas_internal(dev->port->ha->core.shost->transportt);
+	struct sas_internal *i = dev_to_sas_internal(dev);
 
 	if (i->dft->lldd_ata_set_dmamode)
 		i->dft->lldd_ata_set_dmamode(dev);

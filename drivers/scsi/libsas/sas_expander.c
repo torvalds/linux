@@ -125,7 +125,11 @@ static int smp_execute_task(struct domain_device *dev, void *req, int req_size,
 		    task->task_status.stat == SAS_DATA_OVERRUN) {
 			res = -EMSGSIZE;
 			break;
-		} else {
+		}
+		if (task->task_status.resp == SAS_TASK_UNDELIVERED &&
+		    task->task_status.stat == SAS_DEVICE_UNKNOWN)
+			break;
+		else {
 			SAS_DPRINTK("%s: task to dev %016llx response: 0x%x "
 				    "status 0x%x\n", __func__,
 				    SAS_ADDR(dev->sas_addr),
@@ -1648,8 +1652,8 @@ static int sas_get_phy_change_count(struct domain_device *dev,
 	return res;
 }
 
-static int sas_get_phy_attached_sas_addr(struct domain_device *dev,
-					 int phy_id, u8 *attached_sas_addr)
+int sas_get_phy_attached_sas_addr(struct domain_device *dev, int phy_id,
+				  u8 *attached_sas_addr)
 {
 	int res;
 	struct smp_resp *disc_resp;
