@@ -2662,9 +2662,13 @@ struct tg3_hw_stats {
 /* 'mapping' is superfluous as the chip does not write into
  * the tx/rx post rings so we could just fetch it from there.
  * But the cache behavior is better how we are doing it now.
+ *
+ * This driver uses new build_skb() API :
+ * RX ring buffer contains pointer to kmalloc() data only,
+ * skb are built only after Hardware filled the frame.
  */
 struct ring_info {
-	struct sk_buff			*skb;
+	u8				*data;
 	DEFINE_DMA_UNMAP_ADDR(mapping);
 };
 
