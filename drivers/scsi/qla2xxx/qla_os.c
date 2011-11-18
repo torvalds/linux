@@ -3445,27 +3445,21 @@ qla2x00_do_dpc(void *data)
 		schedule();
 		__set_current_state(TASK_RUNNING);
 
-		ql_dbg(ql_dbg_dpc, base_vha, 0x4001,
-		    "DPC handler waking up.\n");
-		ql_dbg(ql_dbg_dpc, base_vha, 0x4002,
-		    "dpc_flags=0x%lx.\n", base_vha->dpc_flags);
-
-		/* Initialization not yet finished. Don't do anything yet. */
-		if (!base_vha->flags.init_done)
-			continue;
+		if (!base_vha->flags.init_done || ha->flags.mbox_busy)
+			goto end_loop;
 
 		if (ha->flags.eeh_busy) {
 			ql_dbg(ql_dbg_dpc, base_vha, 0x4003,
 			    "eeh_busy=%d.\n", ha->flags.eeh_busy);
-			continue;
+			goto end_loop;
 		}
 
 		ha->dpc_active = 1;
 
-		if (ha->flags.mbox_busy) {
-			ha->dpc_active = 0;
-			continue;
-		}
+		ql_dbg(ql_dbg_dpc, base_vha, 0x4001,
+		    "DPC handler waking up.\n");
+		ql_dbg(ql_dbg_dpc, base_vha, 0x4002,
+		    "dpc_flags=0x%lx.\n", base_vha->dpc_flags);
 
 		qla2x00_do_work(base_vha);
 
@@ -3607,6 +3601,7 @@ qla2x00_do_dpc(void *data)
 		qla2x00_do_dpc_all_vps(base_vha);
 
 		ha->dpc_active = 0;
+end_loop:
 		set_current_state(TASK_INTERRUPTIBLE);
 	} /* End of while(1) */
 	__set_current_state(TASK_RUNNING);
