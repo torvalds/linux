@@ -667,7 +667,7 @@ int r100_irq_set(struct radeon_device *rdev)
 		WREG32(R_000040_GEN_INT_CNTL, 0);
 		return -EINVAL;
 	}
-	if (rdev->irq.sw_int) {
+	if (rdev->irq.sw_int[RADEON_RING_TYPE_GFX_INDEX]) {
 		tmp |= RADEON_SW_INT_ENABLE;
 	}
 	if (rdev->irq.gui_idle) {

@@ -230,18 +230,18 @@ retry:
 	seq = rdev->fence_drv[fence->ring].last_seq;
 	trace_radeon_fence_wait_begin(rdev->ddev, seq);
 	if (intr) {
-		radeon_irq_kms_sw_irq_get(rdev);
+		radeon_irq_kms_sw_irq_get(rdev, fence->ring);
 		r = wait_event_interruptible_timeout(rdev->fence_drv[fence->ring].queue,
 				radeon_fence_signaled(fence), timeout);
-		radeon_irq_kms_sw_irq_put(rdev);
+		radeon_irq_kms_sw_irq_put(rdev, fence->ring);
 		if (unlikely(r < 0)) {
 			return r;
 		}
 	} else {
-		radeon_irq_kms_sw_irq_get(rdev);
+		radeon_irq_kms_sw_irq_get(rdev, fence->ring);
 		r = wait_event_timeout(rdev->fence_drv[fence->ring].queue,
 			 radeon_fence_signaled(fence), timeout);
-		radeon_irq_kms_sw_irq_put(rdev);
+		radeon_irq_kms_sw_irq_put(rdev, fence->ring);
 	}
 	trace_radeon_fence_wait_end(rdev->ddev, seq);
 	if (unlikely(!radeon_fence_signaled(fence))) {

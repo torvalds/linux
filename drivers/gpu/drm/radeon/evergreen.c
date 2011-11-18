@@ -40,6 +40,8 @@
 static void evergreen_gpu_init(struct radeon_device *rdev);
 void evergreen_fini(struct radeon_device *rdev);
 void evergreen_pcie_gen2_enable(struct radeon_device *rdev);
+extern void cayman_cp_int_cntl_setup(struct radeon_device *rdev,
+				     int ring, u32 cp_int_cntl);
 
 void evergreen_fix_pci_max_read_req_size(struct radeon_device *rdev)
 {
@@ -2474,7 +2476,13 @@ void evergreen_disable_interrupt_state(struct radeon_device *rdev)
 {
 	u32 tmp;
 
-	WREG32(CP_INT_CNTL, CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE);
+	if (rdev->family >= CHIP_CAYMAN) {
+		cayman_cp_int_cntl_setup(rdev, 0,
+					 CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE);
+		cayman_cp_int_cntl_setup(rdev, 1, 0);
+		cayman_cp_int_cntl_setup(rdev, 2, 0);
+	} else
+		WREG32(CP_INT_CNTL, CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE);
 	WREG32(GRBM_INT_CNTL, 0);
 	WREG32(INT_MASK + EVERGREEN_CRTC0_REGISTER_OFFSET, 0);
 	WREG32(INT_MASK + EVERGREEN_CRTC1_REGISTER_OFFSET, 0);
@@ -2519,6 +2527,7 @@ void evergreen_disable_interrupt_state(struct radeon_device *rdev)
 int evergreen_irq_set(struct radeon_device *rdev)
 {
 	u32 cp_int_cntl = CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE;
+	u32 cp_int_cntl1 = 0, cp_int_cntl2 = 0;
 	u32 crtc1 = 0, crtc2 = 0, crtc3 = 0, crtc4 = 0, crtc5 = 0, crtc6 = 0;
 	u32 hpd1, hpd2, hpd3, hpd4, hpd5, hpd6;
 	u32 grbm_int_cntl = 0;
@@ -2543,11 +2552,28 @@ int evergreen_irq_set(struct radeon_device *rdev)
 	hpd5 = RREG32(DC_HPD5_INT_CONTROL) & ~DC_HPDx_INT_EN;
 	hpd6 = RREG32(DC_HPD6_INT_CONTROL) & ~DC_HPDx_INT_EN;
 
-	if (rdev->irq.sw_int) {
-		DRM_DEBUG("evergreen_irq_set: sw int\n");
-		cp_int_cntl |= RB_INT_ENABLE;
-		cp_int_cntl |= TIME_STAMP_INT_ENABLE;
+	if (rdev->family >= CHIP_CAYMAN) {
+		/* enable CP interrupts on all rings */
+		if (rdev->irq.sw_int[RADEON_RING_TYPE_GFX_INDEX]) {
+			DRM_DEBUG("evergreen_irq_set: sw int gfx\n");
+			cp_int_cntl |= TIME_STAMP_INT_ENABLE;
+		}
+		if (rdev->irq.sw_int[CAYMAN_RING_TYPE_CP1_INDEX]) {
+			DRM_DEBUG("evergreen_irq_set: sw int cp1\n");
+			cp_int_cntl1 |= TIME_STAMP_INT_ENABLE;
+		}
+		if (rdev->irq.sw_int[CAYMAN_RING_TYPE_CP2_INDEX]) {
+			DRM_DEBUG("evergreen_irq_set: sw int cp2\n");
+			cp_int_cntl2 |= TIME_STAMP_INT_ENABLE;
+		}
+	} else {
+		if (rdev->irq.sw_int[RADEON_RING_TYPE_GFX_INDEX]) {
+			DRM_DEBUG("evergreen_irq_set: sw int gfx\n");
+			cp_int_cntl |= RB_INT_ENABLE;
+			cp_int_cntl |= TIME_STAMP_INT_ENABLE;
+		}
 	}
+
 	if (rdev->irq.crtc_vblank_int[0] ||
 	    rdev->irq.pflip[0]) {
 		DRM_DEBUG("evergreen_irq_set: vblank 0\n");
@@ -2607,7 +2633,12 @@ int evergreen_irq_set(struct radeon_device *rdev)
 		grbm_int_cntl |= GUI_IDLE_INT_ENABLE;
 	}
 
-	WREG32(CP_INT_CNTL, cp_int_cntl);
+	if (rdev->family >= CHIP_CAYMAN) {
+		cayman_cp_int_cntl_setup(rdev, 0, cp_int_cntl);
+		cayman_cp_int_cntl_setup(rdev, 1, cp_int_cntl1);
+		cayman_cp_int_cntl_setup(rdev, 2, cp_int_cntl2);
+	} else
+		WREG32(CP_INT_CNTL, cp_int_cntl);
 	WREG32(GRBM_INT_CNTL, grbm_int_cntl);
 
 	WREG32(INT_MASK + EVERGREEN_CRTC0_REGISTER_OFFSET, crtc1);
@@ -3026,7 +3057,20 @@ restart_ih:
 			break;
 		case 181: /* CP EOP event */
 			DRM_DEBUG("IH: CP EOP\n");
-			radeon_fence_process(rdev, RADEON_RING_TYPE_GFX_INDEX);
+			if (rdev->family >= CHIP_CAYMAN) {
+				switch (src_data) {
+				case 0:
+					radeon_fence_process(rdev, RADEON_RING_TYPE_GFX_INDEX);
+					break;
+				case 1:
+					radeon_fence_process(rdev, CAYMAN_RING_TYPE_CP1_INDEX);
+					break;
+				case 2:
+					radeon_fence_process(rdev, CAYMAN_RING_TYPE_CP2_INDEX);
+					break;
+				}
+			} else
+				radeon_fence_process(rdev, RADEON_RING_TYPE_GFX_INDEX);
 			break;
 		case 233: /* GUI IDLE */
 			DRM_DEBUG("IH: GUI idle\n");

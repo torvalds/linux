@@ -107,6 +107,17 @@ extern int radeon_msi;
 #define RADEONFB_CONN_LIMIT		4
 #define RADEON_BIOS_NUM_SCRATCH		8
 
+/* max number of rings */
+#define RADEON_NUM_RINGS 3
+
+/* internal ring indices */
+/* r1xx+ has gfx CP ring */
+#define RADEON_RING_TYPE_GFX_INDEX  0
+
+/* cayman has 2 compute CP rings */
+#define CAYMAN_RING_TYPE_CP1_INDEX 1
+#define CAYMAN_RING_TYPE_CP2_INDEX 2
+
 /*
  * Errata workarounds.
  */
@@ -464,7 +475,7 @@ union radeon_irq_stat_regs {
 
 struct radeon_irq {
 	bool		installed;
-	bool		sw_int;
+	bool		sw_int[RADEON_NUM_RINGS];
 	bool		crtc_vblank_int[RADEON_MAX_CRTCS];
 	bool		pflip[RADEON_MAX_CRTCS];
 	wait_queue_head_t	vblank_queue;
@@ -474,7 +485,7 @@ struct radeon_irq {
 	wait_queue_head_t	idle_queue;
 	bool		hdmi[RADEON_MAX_HDMI_BLOCKS];
 	spinlock_t sw_lock;
-	int sw_refcount;
+	int sw_refcount[RADEON_NUM_RINGS];
 	union radeon_irq_stat_regs stat_regs;
 	spinlock_t pflip_lock[RADEON_MAX_CRTCS];
 	int pflip_refcount[RADEON_MAX_CRTCS];
@@ -482,25 +493,14 @@ struct radeon_irq {
 
 int radeon_irq_kms_init(struct radeon_device *rdev);
 void radeon_irq_kms_fini(struct radeon_device *rdev);
-void radeon_irq_kms_sw_irq_get(struct radeon_device *rdev);
-void radeon_irq_kms_sw_irq_put(struct radeon_device *rdev);
+void radeon_irq_kms_sw_irq_get(struct radeon_device *rdev, int ring);
+void radeon_irq_kms_sw_irq_put(struct radeon_device *rdev, int ring);
 void radeon_irq_kms_pflip_irq_get(struct radeon_device *rdev, int crtc);
 void radeon_irq_kms_pflip_irq_put(struct radeon_device *rdev, int crtc);
 
 /*
  * CP & rings.
  */
-
-/* max number of rings */
-#define RADEON_NUM_RINGS 3
-
-/* internal ring indices */
-/* r1xx+ has gfx CP ring */
-#define RADEON_RING_TYPE_GFX_INDEX  0
-
-/* cayman has 2 compute CP rings */
-#define CAYMAN_RING_TYPE_CP1_INDEX 1
-#define CAYMAN_RING_TYPE_CP2_INDEX 2
 
 struct radeon_ib {
 	struct list_head	list;

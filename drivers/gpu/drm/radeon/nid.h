@@ -42,6 +42,9 @@
 #define CAYMAN_MAX_TCC_MASK          0xFF
 
 #define DMIF_ADDR_CONFIG  				0xBD4
+#define	SRBM_GFX_CNTL				        0x0E44
+#define		RINGID(x)					(((x) & 0x3) << 0)
+#define		VMID(x)						(((x) & 0x7) << 0)
 #define	SRBM_STATUS				        0x0E50
 
 #define VM_CONTEXT0_REQUEST_RESPONSE			0x1470
@@ -394,6 +397,12 @@
 #define	CP_RB0_RPTR_ADDR				0xC10C
 #define	CP_RB0_RPTR_ADDR_HI				0xC110
 #define	CP_RB0_WPTR					0xC114
+
+#define CP_INT_CNTL                                     0xC124
+#       define CNTX_BUSY_INT_ENABLE                     (1 << 19)
+#       define CNTX_EMPTY_INT_ENABLE                    (1 << 20)
+#       define TIME_STAMP_INT_ENABLE                    (1 << 26)
+
 #define	CP_RB1_BASE					0xC180
 #define	CP_RB1_CNTL					0xC184
 #define	CP_RB1_RPTR_ADDR				0xC188
