@@ -2456,12 +2456,6 @@ struct ath6kl *ath6kl_core_alloc(struct device *dev)
 
 	ar->vif_max = 1;
 
-	if (!ar->p2p)
-		ar->max_norm_iface = 2;
-	else
-		ar->max_norm_iface = 1;
-
-	/* FIXME: Remove this once the multivif support is enabled */
 	ar->max_norm_iface = 1;
 
 	spin_lock_init(&ar->lock);

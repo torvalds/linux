@@ -971,6 +971,9 @@ static int ath6kl_fetch_fw_api2(struct ath6kl *ar)
 			ar->vif_max = min_t(unsigned int, le32_to_cpup(val),
 					    ATH6KL_VIF_MAX);
 
+			if (ar->vif_max > 1 && !ar->p2p)
+				ar->max_norm_iface = 2;
+
 			ath6kl_dbg(ATH6KL_DBG_BOOT,
 				   "found vif max ie %d\n", ar->vif_max);
 			break;
