@@ -79,8 +79,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		mcp->mb[0] = MBS_LINK_DOWN_ERROR;
 		ql_log(ql_log_warn, base_vha, 0x1004,
 		    "FW hung = %d.\n", ha->flags.isp82xx_fw_hung);
-		rval = QLA_FUNCTION_FAILED;
-		goto premature_exit;
+		return QLA_FUNCTION_TIMEOUT;
 	}
 
 	/*
