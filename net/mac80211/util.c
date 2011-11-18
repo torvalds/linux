@@ -979,7 +979,8 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 	}
 
 	if (sband->ht_cap.ht_supported)
-		pos = ieee80211_ie_build_ht_cap(pos, sband, sband->ht_cap.cap);
+		pos = ieee80211_ie_build_ht_cap(pos, &sband->ht_cap,
+						sband->ht_cap.cap);
 
 	/*
 	 * If adding more here, adjust code in main.c
@@ -1518,7 +1519,7 @@ void ieee80211_disable_rssi_reports(struct ieee80211_vif *vif)
 }
 EXPORT_SYMBOL(ieee80211_disable_rssi_reports);
 
-u8 *ieee80211_ie_build_ht_cap(u8 *pos, struct ieee80211_supported_band *sband,
+u8 *ieee80211_ie_build_ht_cap(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 			      u16 cap)
 {
 	__le16 tmp;
@@ -1533,13 +1534,13 @@ u8 *ieee80211_ie_build_ht_cap(u8 *pos, struct ieee80211_supported_band *sband,
 	pos += sizeof(u16);
 
 	/* AMPDU parameters */
-	*pos++ = sband->ht_cap.ampdu_factor |
-		 (sband->ht_cap.ampdu_density <<
+	*pos++ = ht_cap->ampdu_factor |
+		 (ht_cap->ampdu_density <<
 			IEEE80211_HT_AMPDU_PARM_DENSITY_SHIFT);
 
 	/* MCS set */
-	memcpy(pos, &sband->ht_cap.mcs, sizeof(sband->ht_cap.mcs));
-	pos += sizeof(sband->ht_cap.mcs);
+	memcpy(pos, &ht_cap->mcs, sizeof(ht_cap->mcs));
+	pos += sizeof(ht_cap->mcs);
 
 	/* extended capabilities */
 	pos += sizeof(__le16);

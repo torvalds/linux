@@ -101,7 +101,8 @@ static struct sta_info *mesh_plink_alloc(struct ieee80211_sub_if_data *sdata,
 	set_sta_flag(sta, WLAN_STA_WME);
 	sta->sta.supp_rates[local->hw.conf.channel->band] = rates;
 	if (elems->ht_cap_elem)
-		ieee80211_ht_cap_ie_to_sta_ht_cap(sband, elems->ht_cap_elem,
+		ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
+						  elems->ht_cap_elem,
 						  &sta->sta.ht_cap);
 	rate_control_rate_init(sta);
 
