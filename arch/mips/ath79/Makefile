@@ -28,3 +28,4 @@ obj-$(CONFIG_ATH79_DEV_USB)		+= dev-usb.o
 obj-$(CONFIG_ATH79_MACH_AP121)		+= mach-ap121.o
 obj-$(CONFIG_ATH79_MACH_AP81)		+= mach-ap81.o
 obj-$(CONFIG_ATH79_MACH_PB44)		+= mach-pb44.o
+obj-$(CONFIG_ATH79_MACH_UBNT_XM)	+= mach-ubnt-xm.o
