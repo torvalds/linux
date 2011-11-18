@@ -3887,9 +3887,9 @@ int btrfs_block_rsv_check(struct btrfs_root *root,
 	return ret;
 }
 
-int btrfs_block_rsv_refill(struct btrfs_root *root,
-			  struct btrfs_block_rsv *block_rsv,
-			  u64 min_reserved)
+static inline int __btrfs_block_rsv_refill(struct btrfs_root *root,
+					   struct btrfs_block_rsv *block_rsv,
+					   u64 min_reserved, int flush)
 {
 	u64 num_bytes = 0;
 	int ret = -ENOSPC;
@@ -3908,13 +3908,27 @@ int btrfs_block_rsv_refill(struct btrfs_root *root,
 	if (!ret)
 		return 0;
 
-	ret = reserve_metadata_bytes(root, block_rsv, num_bytes, 1);
+	ret = reserve_metadata_bytes(root, block_rsv, num_bytes, flush);
 	if (!ret) {
 		block_rsv_add_bytes(block_rsv, num_bytes, 0);
 		return 0;
 	}
 
 	return ret;
+}
+
+int btrfs_block_rsv_refill(struct btrfs_root *root,
+			   struct btrfs_block_rsv *block_rsv,
+			   u64 min_reserved)
+{
+	return __btrfs_block_rsv_refill(root, block_rsv, min_reserved, 1);
+}
+
+int btrfs_block_rsv_refill_noflush(struct btrfs_root *root,
+				   struct btrfs_block_rsv *block_rsv,
+				   u64 min_reserved)
+{
+	return __btrfs_block_rsv_refill(root, block_rsv, min_reserved, 0);
 }
 
 int btrfs_block_rsv_migrate(struct btrfs_block_rsv *src_rsv,

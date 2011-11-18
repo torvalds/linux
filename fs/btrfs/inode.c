@@ -3490,7 +3490,7 @@ void btrfs_evict_inode(struct inode *inode)
 	 * doing the truncate.
 	 */
 	while (1) {
-		ret = btrfs_block_rsv_refill(root, rsv, min_size);
+		ret = btrfs_block_rsv_refill_noflush(root, rsv, min_size);
 
 		/*
 		 * Try and steal from the global reserve since we will
