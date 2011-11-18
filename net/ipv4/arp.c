@@ -592,16 +592,18 @@ struct sk_buff *arp_create(int type, int ptype, __be32 dest_ip,
 	struct sk_buff *skb;
 	struct arphdr *arp;
 	unsigned char *arp_ptr;
+	int hlen = LL_RESERVED_SPACE(dev);
+	int tlen = dev->needed_tailroom;
 
 	/*
 	 *	Allocate a buffer
 	 */
 
-	skb = alloc_skb(arp_hdr_len(dev) + LL_ALLOCATED_SPACE(dev), GFP_ATOMIC);
+	skb = alloc_skb(arp_hdr_len(dev) + hlen + tlen, GFP_ATOMIC);
 	if (skb == NULL)
 		return NULL;
 
-	skb_reserve(skb, LL_RESERVED_SPACE(dev));
+	skb_reserve(skb, hlen);
 	skb_reset_network_header(skb);
 	arp = (struct arphdr *) skb_put(skb, arp_hdr_len(dev));
 	skb->dev = dev;
