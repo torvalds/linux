@@ -1,7 +1,7 @@
 /*
- *  Atheros AR913X SoC built-in WMAC device support
+ *  Atheros AR913X/AR933X SoC built-in WMAC device support
  *
- *  Copyright (C) 2008-2010 Gabor Juhos <juhosg@openwrt.org>
+ *  Copyright (C) 2008-2011 Gabor Juhos <juhosg@openwrt.org>
  *  Copyright (C) 2008 Imre Kaloz <kaloz@openwrt.org>
  *
  *  This program is free software; you can redistribute it and/or modify it
