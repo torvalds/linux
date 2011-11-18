@@ -1102,6 +1102,7 @@ static int sdma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 			sdmac->watermark_level = dmaengine_cfg->dst_maxburst;
 			sdmac->word_size = dmaengine_cfg->dst_addr_width;
 		}
+		sdmac->direction = dmaengine_cfg->direction;
 		return sdma_config_channel(sdmac);
 	default:
 		return -ENOSYS;
