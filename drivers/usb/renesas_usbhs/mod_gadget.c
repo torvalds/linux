@@ -776,6 +776,7 @@ static int usbhsg_gadget_stop(struct usb_gadget *gadget,
 		return -EINVAL;
 
 	usbhsg_try_stop(priv, USBHSG_STATUS_REGISTERD);
+	gpriv->gadget.dev.driver = NULL;
 	gpriv->driver = NULL;
 
 	return 0;
