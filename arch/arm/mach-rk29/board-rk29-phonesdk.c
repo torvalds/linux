@@ -160,6 +160,8 @@
 #define WLAN_SECTION_SIZE_3     (PREALLOC_WLAN_BUF_NUM * 1024)
 
 #define WLAN_SKB_BUF_NUM        16
+#define UNLOCK_SECURITY_KEY     ~(0x1<<5)
+#define LOCK_SECURITY_KEY       0x00
 
 static struct sk_buff *wlan_static_skb[WLAN_SKB_BUF_NUM];
 
@@ -712,9 +714,14 @@ int wm831x_pre_init(struct wm831x *parm)
 	wm831x_reg_write(parm, WM831X_POWER_STATE, (ret&0xfff8) | 0x04);	
 	
 	//BATT_FET_ENA = 1
-	wm831x_set_bits(parm, WM831X_RESET_CONTROL,0x1000,0x1000);
-	ret = wm831x_reg_read(parm, WM831X_RESET_CONTROL) & 0xffff;
-	printk("%s:WM831X_RESET_CONTROL=0x%x\n",__FUNCTION__,ret);
+	wm831x_reg_write(parm,WM831X_SECURITY_KEY,0x9716); // unlock security key
+  wm831x_set_bits(parm, WM831X_RESET_CONTROL,0x1000,0x1000);
+  ret = wm831x_reg_read(parm, WM831X_RESET_CONTROL) & 0xffff&UNLOCK_SECURITY_KEY;// enternal reset active in sleep
+  printk("%s:WM831X_RESET_CONTROL=0x%x\n",__FUNCTION__,ret);
+  wm831x_reg_write(parm, WM831X_RESET_CONTROL, ret);
+        
+        
+  wm831x_reg_write(parm,WM831X_SECURITY_KEY,LOCK_SECURITY_KEY); // lock securit
 	
 #if 0
 	wm831x_set_bits(parm, WM831X_LDO_ENABLE, (1 << 3), 0);
