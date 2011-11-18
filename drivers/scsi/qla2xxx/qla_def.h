@@ -271,6 +271,7 @@ struct srb_iocb {
 struct srb_ctx {
 	uint16_t type;
 	char *name;
+	int iocbs;
 	union {
 		struct srb_iocb *iocb_cmd;
 		struct fc_bsg_job *bsg_job;

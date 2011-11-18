@@ -111,6 +111,7 @@ qla2x00_get_ctx_sp(scsi_qla_host_t *vha, fc_port_t *fcport, size_t size,
 	memset(sp, 0, sizeof(*sp));
 	sp->fcport = fcport;
 	sp->ctx = ctx;
+	ctx->iocbs = 1;
 	ctx->u.iocb_cmd = iocb;
 	iocb->free = qla2x00_ctx_sp_free;
 

@@ -31,6 +31,7 @@ qla2x00_get_ctx_bsg_sp(scsi_qla_host_t *vha, fc_port_t *fcport, size_t size)
 	memset(sp, 0, sizeof(*sp));
 	sp->fcport = fcport;
 	sp->ctx = ctx;
+	ctx->iocbs = 1;
 done:
 	return sp;
 }
@@ -389,6 +390,20 @@ done:
 	return rval;
 }
 
+inline uint16_t
+qla24xx_calc_ct_iocbs(uint16_t dsds)
+{
+	uint16_t iocbs;
+
+	iocbs = 1;
+	if (dsds > 2) {
+		iocbs += (dsds - 2) / 5;
+		if ((dsds - 2) % 5)
+			iocbs++;
+	}
+	return iocbs;
+}
+
 static int
 qla2x00_process_ct(struct fc_bsg_job *bsg_job)
 {
@@ -489,6 +504,7 @@ qla2x00_process_ct(struct fc_bsg_job *bsg_job)
 	ct = sp->ctx;
 	ct->type = SRB_CT_CMD;
 	ct->name = "bsg_ct";
+	ct->iocbs = qla24xx_calc_ct_iocbs(req_sg_cnt + rsp_sg_cnt);
 	ct->u.bsg_job = bsg_job;
 
 	ql_dbg(ql_dbg_user, vha, 0x7016,

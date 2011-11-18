@@ -1818,6 +1818,7 @@ qla2x00_alloc_iocbs(scsi_qla_host_t *vha, srb_t *sp)
 	uint32_t index, handle;
 	request_t *pkt;
 	uint16_t cnt, req_cnt;
+	struct srb_ctx *ctx;
 
 	pkt = NULL;
 	req_cnt = 1;
@@ -1845,6 +1846,12 @@ qla2x00_alloc_iocbs(scsi_qla_host_t *vha, srb_t *sp)
 	req->current_outstanding_cmd = handle;
 	req->outstanding_cmds[handle] = sp;
 	sp->handle = handle;
+
+	/* Adjust entry-counts as needed. */
+	if (sp->ctx) {
+		ctx = sp->ctx;
+		req_cnt = ctx->iocbs;
+	}
 
 skip_cmd_array:
 	/* Check for room on request queue. */
@@ -2622,8 +2629,8 @@ qla2x00_start_sp(srb_t *sp)
 		break;
 	case SRB_CT_CMD:
 		IS_FWI2_CAPABLE(ha) ?
-		qla24xx_ct_iocb(sp, pkt) :
-		qla2x00_ct_iocb(sp, pkt);
+		    qla24xx_ct_iocb(sp, pkt) :
+		    qla2x00_ct_iocb(sp, pkt);
 		break;
 	case SRB_ADISC_CMD:
 		IS_FWI2_CAPABLE(ha) ?
