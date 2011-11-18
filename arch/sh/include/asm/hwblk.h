@@ -49,7 +49,6 @@ struct hwblk_info {
     !defined(CONFIG_CPU_SUBTYPE_SH7724)
 /* Should be defined by processor-specific code */
 int arch_hwblk_init(void);
-int arch_hwblk_sleep_mode(void);
 
 int hwblk_register(struct hwblk_info *info);
 int hwblk_init(void);

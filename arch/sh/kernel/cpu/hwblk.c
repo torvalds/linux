@@ -106,11 +106,6 @@ int __init __weak arch_hwblk_init(void)
 	return 0;
 }
 
-int __weak arch_hwblk_sleep_mode(void)
-{
-	return SUSP_SH_SLEEP;
-}
-
 int __init hwblk_init(void)
 {
 	return arch_hwblk_init();
