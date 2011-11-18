@@ -303,4 +303,5 @@ void isci_port_init(
 
 int isci_port_perform_hard_reset(struct isci_host *ihost, struct isci_port *iport,
 				 struct isci_phy *iphy);
+int isci_ata_check_ready(struct domain_device *dev);
 #endif /* !defined(_ISCI_PORT_H_) */

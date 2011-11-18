@@ -193,6 +193,9 @@ static struct sas_domain_function_template isci_transport_ops  = {
 	.lldd_lu_reset		= isci_task_lu_reset,
 	.lldd_query_task	= isci_task_query_task,
 
+	/* ata recovery called from ata-eh */
+	.lldd_ata_check_ready	= isci_ata_check_ready,
+
 	/* Port and Adapter management */
 	.lldd_clear_nexus_port	= isci_task_clear_nexus_port,
 	.lldd_clear_nexus_ha	= isci_task_clear_nexus_ha,
