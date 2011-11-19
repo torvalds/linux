@@ -751,7 +751,7 @@ static int usbhsg_gadget_start(struct usb_gadget *gadget,
 
 	if (!driver		||
 	    !driver->setup	||
-	    driver->speed < USB_SPEED_FULL)
+	    driver->max_speed < USB_SPEED_FULL)
 		return -EINVAL;
 
 	/* first hook up the driver ... */

@@ -1459,7 +1459,7 @@ static int net2272_start(struct usb_gadget *_gadget,
 	unsigned i;
 
 	if (!driver || !driver->unbind || !driver->setup ||
-	    driver->speed != USB_SPEED_HIGH)
+	    driver->max_speed != USB_SPEED_HIGH)
 		return -EINVAL;
 
 	dev = container_of(_gadget, struct net2272, gadget);

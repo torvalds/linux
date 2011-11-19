@@ -1633,7 +1633,7 @@ static int at91_start(struct usb_gadget_driver *driver,
 	unsigned long	flags;
 
 	if (!driver
-			|| driver->speed < USB_SPEED_FULL
+			|| driver->max_speed < USB_SPEED_FULL
 			|| !bind
 			|| !driver->setup) {
 		DBG("bad parameter.\n");
