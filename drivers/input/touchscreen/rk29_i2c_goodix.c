@@ -491,10 +491,9 @@ static int rk_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	struct rk_ts_data *ts = i2c_get_clientdata(client);
 
        
-	if (ts->use_irq)
-		disable_irq(client->irq);
-	else
-		hrtimer_cancel(&ts->timer);
+	
+	disable_irq(ts->irq);
+	
 #if 1
 	if (ts->power) {
 		ret = ts->power(ts, 0);
@@ -517,11 +516,8 @@ static int rk_ts_resume(struct i2c_client *client)
 			printk(KERN_ERR "goodix_ts_resume power on failed\n");
 	}
 #endif
-	if (ts->use_irq)
-		enable_irq(client->irq);
-	else
-		hrtimer_start(&ts->timer, ktime_set(1, 0), HRTIMER_MODE_REL);
-	//gpio_set_value(RK29_PIN6_PC3,GPIO_HIGH);
+	
+	enable_irq(client->irq);
 
 	return 0;
 }
@@ -565,8 +561,6 @@ static int goodix_ts_power(struct rk_ts_data * ts, int on)
 		return -EINVAL;
 	}
 	
-	if(ts != NULL && !ts->use_irq)
-		return -2;
 	
 	if(on == 0)		//suspend
 	{ 
@@ -589,7 +583,7 @@ static int goodix_ts_power(struct rk_ts_data * ts, int on)
 		printk(KERN_INFO"Int resume\n");
 		gpio_set_value(RK29_PIN6_PC3,GPIO_LOW);	
 		msleep(20);
-	       gpio_set_value(RK29_PIN6_PC3,GPIO_HIGH);
+	    gpio_set_value(RK29_PIN6_PC3,GPIO_HIGH);
 		ret = 0;
 	}	 
 	return ret;
