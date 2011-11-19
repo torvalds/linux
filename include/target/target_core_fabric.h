@@ -118,6 +118,8 @@ void	transport_init_se_cmd(struct se_cmd *, struct target_core_fabric_ops *,
 		struct se_session *, u32, int, int, unsigned char *);
 int	transport_lookup_cmd_lun(struct se_cmd *, u32);
 int	transport_generic_allocate_tasks(struct se_cmd *, unsigned char *);
+int	target_submit_cmd(struct se_cmd *, struct se_session *, unsigned char *,
+		unsigned char *, u32, u32, int, int, int);
 int	transport_handle_cdb_direct(struct se_cmd *);
 int	transport_generic_handle_cdb_map(struct se_cmd *);
 int	transport_generic_handle_data(struct se_cmd *);
@@ -134,7 +136,7 @@ bool	transport_wait_for_tasks(struct se_cmd *);
 int	transport_check_aborted_status(struct se_cmd *, int);
 int	transport_send_check_condition_and_sense(struct se_cmd *, u8, int);
 
-void	target_get_sess_cmd(struct se_session *, struct se_cmd *);
+void	target_get_sess_cmd(struct se_session *, struct se_cmd *, bool);
 int	target_put_sess_cmd(struct se_session *, struct se_cmd *);
 void	target_splice_sess_cmd_list(struct se_session *);
 void	target_wait_for_sess_cmds(struct se_session *, int);

@@ -1642,6 +1642,80 @@ int transport_handle_cdb_direct(
 }
 EXPORT_SYMBOL(transport_handle_cdb_direct);
 
+/**
+ * target_submit_cmd - lookup unpacked lun and submit uninitialized se_cmd
+ *
+ * @se_cmd: command descriptor to submit
+ * @se_sess: associated se_sess for endpoint
+ * @cdb: pointer to SCSI CDB
+ * @sense: pointer to SCSI sense buffer
+ * @unpacked_lun: unpacked LUN to reference for struct se_lun
+ * @data_length: fabric expected data transfer length
+ * @task_addr: SAM task attribute
+ * @data_dir: DMA data direction
+ * @flags: flags for command submission from target_sc_flags_tables
+ *
+ * This may only be called from process context, and also currently
+ * assumes internal allocation of fabric payload buffer by target-core.
+ **/
+int target_submit_cmd(struct se_cmd *se_cmd, struct se_session *se_sess,
+		unsigned char *cdb, unsigned char *sense, u32 unpacked_lun,
+		u32 data_length, int task_attr, int data_dir, int flags)
+{
+	struct se_portal_group *se_tpg;
+	int rc;
+
+	se_tpg = se_sess->se_tpg;
+	BUG_ON(!se_tpg);
+	BUG_ON(se_cmd->se_tfo || se_cmd->se_sess);
+	BUG_ON(in_interrupt());
+	/*
+	 * Initialize se_cmd for target operation.  From this point
+	 * exceptions are handled by sending exception status via
+	 * target_core_fabric_ops->queue_status() callback
+	 */
+	transport_init_se_cmd(se_cmd, se_tpg->se_tpg_tfo, se_sess,
+				data_length, data_dir, task_attr, sense);
+	/*
+	 * Obtain struct se_cmd->cmd_kref reference and add new cmd to
+	 * se_sess->sess_cmd_list.  A second kref_get here is necessary
+	 * for fabrics using TARGET_SCF_ACK_KREF that expect a second
+	 * kref_put() to happen during fabric packet acknowledgement.
+	 */
+	target_get_sess_cmd(se_sess, se_cmd, (flags & TARGET_SCF_ACK_KREF));
+	/*
+	 * Signal bidirectional data payloads to target-core
+	 */
+	if (flags & TARGET_SCF_BIDI_OP)
+		se_cmd->se_cmd_flags |= SCF_BIDI;
+	/*
+	 * Locate se_lun pointer and attach it to struct se_cmd
+	 */
+	if (transport_lookup_cmd_lun(se_cmd, unpacked_lun) < 0)
+		goto out_check_cond;
+	/*
+	 * Sanitize CDBs via transport_generic_cmd_sequencer() and
+	 * allocate the necessary tasks to complete the received CDB+data
+	 */
+	rc = transport_generic_allocate_tasks(se_cmd, cdb);
+	if (rc != 0)
+		goto out_check_cond;
+	/*
+	 * Dispatch se_cmd descriptor to se_lun->lun_se_dev backend
+	 * for immediate execution of READs, otherwise wait for
+	 * transport_generic_handle_data() to be called for WRITEs
+	 * when fabric has filled the incoming buffer.
+	 */
+	transport_handle_cdb_direct(se_cmd);
+	return 0;
+
+out_check_cond:
+	transport_send_check_condition_and_sense(se_cmd,
+				se_cmd->scsi_sense_reason, 0);
+	return 0;
+}
+EXPORT_SYMBOL(target_submit_cmd);
+
 /*
  * Used by fabric module frontends defining a TFO->new_cmd_map() caller
  * to  queue up a newly setup se_cmd w/ TRANSPORT_NEW_CMD_MAP in order to
@@ -3910,13 +3984,21 @@ EXPORT_SYMBOL(transport_generic_free_cmd);
 /* target_get_sess_cmd - Add command to active ->sess_cmd_list
  * @se_sess:	session to reference
  * @se_cmd:	command descriptor to add
+ * @ack_kref:	Signal that fabric will perform an ack target_put_sess_cmd()
  */
-void target_get_sess_cmd(struct se_session *se_sess, struct se_cmd *se_cmd)
+void target_get_sess_cmd(struct se_session *se_sess, struct se_cmd *se_cmd,
+			bool ack_kref)
 {
 	unsigned long flags;
 
 	kref_init(&se_cmd->cmd_kref);
-	kref_get(&se_cmd->cmd_kref);
+	/*
+	 * Add a second kref if the fabric caller is expecting to handle
+	 * fabric acknowledgement that requires two target_put_sess_cmd()
+	 * invocations before se_cmd descriptor release.
+	 */
+	if (ack_kref == true)
+		kref_get(&se_cmd->cmd_kref);
 
 	spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
 	list_add_tail(&se_cmd->se_cmd_list, &se_sess->sess_cmd_list);
