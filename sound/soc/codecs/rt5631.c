@@ -30,16 +30,16 @@
 #include "rt5631.h"
 #include <linux/timer.h>
 
-#if 1
+#if 0
 #define DBG(x...)	printk(x)
 #else
 #define DBG(x...)
 #endif
 #define RT5631_VERSION "0.01 alsa 1.0.24"
 
-#define RT5631_ALC_DAC_FUNC_ENA 0	//ALC functio for DAC
+#define RT5631_ALC_DAC_FUNC_ENA 1	//ALC functio for DAC
 #define RT5631_ALC_ADC_FUNC_ENA 1	//ALC function for ADC
-#define RT5631_SPK_TIMER	1	//if enable this, MUST enable RT5631_EQ_FUNC_ENA first!
+#define RT5631_SPK_TIMER	0	//if enable this, MUST enable RT5631_EQ_FUNC_ENA first!
 
 struct rt5631_priv {
 	int codec_version;
@@ -58,6 +58,7 @@ static bool last_is_spk = false;	// need modify.
 static struct snd_soc_codec *rt5631_codec;
 static const u16 rt5631_reg[0x80];
 static int timesofbclk = 32;
+bool isPlaybackon = false, isCaptureon = false;
 
 module_param(timesofbclk, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 MODULE_PARM_DESC(timeofbclk, "relationship between bclk and fs");
@@ -149,7 +150,7 @@ struct rt5631_init_reg {
 #define DEF_VOL					0xc0
 #endif
 #ifndef DEF_VOL_SPK
-#define DEF_VOL_SPK				0xc4
+#define DEF_VOL_SPK				0xc0
 #endif
 
 /*
@@ -1013,7 +1014,7 @@ static int config_common_power(struct snd_soc_codec *codec, bool pmu)
 		if (rt5631->pll_used_flag)
 			rt5631_write_mask(codec, RT5631_PWR_MANAG_ADD2,
 						PWR_PLL, PWR_PLL);
-	} else {
+	} else if (isPlaybackon == false && isCaptureon == false){
 		rt5631_write_mask(codec, RT5631_PWR_MANAG_ADD1, 0,
 			PWR_MAIN_I2S_EN | PWR_DAC_REF |
 			PWR_DAC_L_TO_MIXER | PWR_DAC_R_TO_MIXER);
@@ -1034,6 +1035,7 @@ static int adc_event(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMD:
 		if (pmu) {
+			isPlaybackon = false;
 			config_common_power(codec, false);
 			pmu = false;
 		}
@@ -1041,6 +1043,7 @@ static int adc_event(struct snd_soc_dapm_widget *w,
 
 	case SND_SOC_DAPM_PRE_PMU:
 		if (!pmu) {
+			isPlaybackon = true;
 			config_common_power(codec, true);
 			pmu = true;
 		}
@@ -1062,6 +1065,7 @@ static int dac_event(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMD:
 		if (pmu) {
+			isCaptureon = false;
 			config_common_power(codec, false);
 			pmu = false;
 		}
@@ -1069,6 +1073,7 @@ static int dac_event(struct snd_soc_dapm_widget *w,
 
 	case SND_SOC_DAPM_PRE_PMU:
 		if (!pmu) {
+			isCaptureon = true;
 			config_common_power(codec, true);
 			pmu = true;
 		}
@@ -1929,7 +1934,6 @@ static int rt5631_probe(struct snd_soc_codec *codec)
 	struct rt5631_priv *rt5631 = snd_soc_codec_get_drvdata(codec);
 	unsigned int val;
 	int ret;
-printk("rt5631_probe\n");
 	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_I2C);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
