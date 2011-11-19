@@ -262,6 +262,24 @@
 
 /* ============================== add by rockchip ===================================*/
 /*
+    dkm : GPU_FW_VERSION
+    
+    GPU固件版本(最大19个字符串)
+*/
+#define GPU_FW_VERSION                      "2.2.2"
+
+
+/*
+    dkm : BUILD_FOR_1_28
+    
+    出1.28版本补丁用
+    0: 默认编译
+    1: 编译1.28可用的driver
+*/
+#define BUILD_FOR_1_28                      0                  
+
+
+/*
     dkm : gcdENABLE_AUTO_FREQ
     0: 关闭自动调频
     1: 根据GPU负荷自动调节GPU的CORE频率
@@ -329,6 +347,18 @@
         m  - The maximum number of cache unit
 */
 #define gcdkUSE_MAPED_NONPAGE_CACHE         20
+
+
+/*
+    dkm : USE_DMA_COHERENT
+
+    use dma_alloc_* to alloc no page memory
+    USE_DMA_COHERENT : 
+        0  - no use  
+        1  - use
+*/
+#define USE_DMA_COHERENT                    1
+
 
 #endif /* __gc_hal_options_h_ */
 
