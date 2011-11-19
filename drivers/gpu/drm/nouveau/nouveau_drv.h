@@ -232,6 +232,7 @@ struct nouveau_channel {
 	/* mapping of the regs controlling the fifo */
 	void __iomem *user;
 	uint32_t user_get;
+	uint32_t user_get_hi;
 	uint32_t user_put;
 
 	/* Fencing */
@@ -249,7 +250,7 @@ struct nouveau_channel {
 	struct nouveau_gpuobj *pushbuf;
 	struct nouveau_bo     *pushbuf_bo;
 	struct nouveau_vma     pushbuf_vma;
-	uint32_t               pushbuf_base;
+	uint64_t               pushbuf_base;
 
 	/* Notifier memory */
 	struct nouveau_bo *notifier_bo;
