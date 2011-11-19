@@ -296,47 +296,47 @@ static int das800_probe(struct comedi_device *dev)
 	switch (id_bits) {
 	case 0x0:
 		if (board == das800) {
-			printk(" Board model: DAS-800\n");
+			dev_dbg(dev->hw_dev, "Board model: DAS-800\n");
 			return board;
 		}
 		if (board == ciodas800) {
-			printk(" Board model: CIO-DAS800\n");
+			dev_dbg(dev->hw_dev, "Board model: CIO-DAS800\n");
 			return board;
 		}
-		printk(" Board model (probed): DAS-800\n");
+		dev_dbg(dev->hw_dev, "Board model (probed): DAS-800\n");
 		return das800;
 		break;
 	case 0x2:
 		if (board == das801) {
-			printk(" Board model: DAS-801\n");
+			dev_dbg(dev->hw_dev, "Board model: DAS-801\n");
 			return board;
 		}
 		if (board == ciodas801) {
-			printk(" Board model: CIO-DAS801\n");
+			dev_dbg(dev->hw_dev, "Board model: CIO-DAS801\n");
 			return board;
 		}
-		printk(" Board model (probed): DAS-801\n");
+		dev_dbg(dev->hw_dev, "Board model (probed): DAS-801\n");
 		return das801;
 		break;
 	case 0x3:
 		if (board == das802) {
-			printk(" Board model: DAS-802\n");
+			dev_dbg(dev->hw_dev, "Board model: DAS-802\n");
 			return board;
 		}
 		if (board == ciodas802) {
-			printk(" Board model: CIO-DAS802\n");
+			dev_dbg(dev->hw_dev, "Board model: CIO-DAS802\n");
 			return board;
 		}
 		if (board == ciodas80216) {
-			printk(" Board model: CIO-DAS802/16\n");
+			dev_dbg(dev->hw_dev, "Board model: CIO-DAS802/16\n");
 			return board;
 		}
-		printk(" Board model (probed): DAS-802\n");
+		dev_dbg(dev->hw_dev, "Board model (probed): DAS-802\n");
 		return das802;
 		break;
 	default:
-		printk(" Board model: probe returned 0x%x (unknown)\n",
-		       id_bits);
+		dev_dbg(dev->hw_dev, "Board model: probe returned 0x%x (unknown)\n",
+			id_bits);
 		return board;
 		break;
 	}
