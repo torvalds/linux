@@ -852,13 +852,15 @@ static int dbg_protection_show(struct seq_file *s, void *p)
 {
 	struct docg3 *docg3 = (struct docg3 *)s->private;
 	int pos = 0;
-	int protect = doc_register_readb(docg3, DOC_PROTECTION);
-	int dps0 = doc_register_readb(docg3, DOC_DPS0_STATUS);
-	int dps0_low = doc_register_readb(docg3, DOC_DPS0_ADDRLOW);
-	int dps0_high = doc_register_readb(docg3, DOC_DPS0_ADDRHIGH);
-	int dps1 = doc_register_readb(docg3, DOC_DPS1_STATUS);
-	int dps1_low = doc_register_readb(docg3, DOC_DPS1_ADDRLOW);
-	int dps1_high = doc_register_readb(docg3, DOC_DPS1_ADDRHIGH);
+	int protect, dps0, dps0_low, dps0_high, dps1, dps1_low, dps1_high;
+
+	protect = doc_register_readb(docg3, DOC_PROTECTION);
+	dps0 = doc_register_readb(docg3, DOC_DPS0_STATUS);
+	dps0_low = doc_register_readw(docg3, DOC_DPS0_ADDRLOW);
+	dps0_high = doc_register_readw(docg3, DOC_DPS0_ADDRHIGH);
+	dps1 = doc_register_readb(docg3, DOC_DPS1_STATUS);
+	dps1_low = doc_register_readw(docg3, DOC_DPS1_ADDRLOW);
+	dps1_high = doc_register_readw(docg3, DOC_DPS1_ADDRHIGH);
 
 	pos += seq_printf(s, "Protection = 0x%02x (",
 			 protect);
