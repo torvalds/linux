@@ -913,6 +913,7 @@ extern int	journal_set_revoke(journal_t *, unsigned int, tid_t);
 extern int	journal_test_revoke(journal_t *, unsigned int, tid_t);
 extern void	journal_clear_revoke(journal_t *);
 extern void	journal_switch_revoke_table(journal_t *journal);
+extern void	journal_clear_buffer_revoked_flags(journal_t *journal);
 
 /*
  * The log thread user interface:

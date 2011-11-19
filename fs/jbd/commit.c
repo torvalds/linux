@@ -392,6 +392,12 @@ void journal_commit_transaction(journal_t *journal)
 	jbd_debug (3, "JBD: commit phase 1\n");
 
 	/*
+	 * Clear revoked flag to reflect there is no revoked buffers
+	 * in the next transaction which is going to be started.
+	 */
+	journal_clear_buffer_revoked_flags(journal);
+
+	/*
 	 * Switch to a new revoke table.
 	 */
 	journal_switch_revoke_table(journal);
