@@ -948,7 +948,6 @@ struct kxtf9_platform_data kxtf9_pdata = {
 /*MMA8452 gsensor*/
 #if defined (CONFIG_GS_MMA8452)
 #define MMA8452_INT_PIN   RK29_PIN0_PA3
-
 static int mma8452_init_platform_hw(void)
 {
 
@@ -964,7 +963,8 @@ static int mma8452_init_platform_hw(void)
 
 static struct mma8452_platform_data mma8452_info = {
   .model= 8452,
-  .swap_xy = 1,
+  .swap_xyz= 1,
+  .orientation ={-1,0,0,0,1,0,0,0,-1},
   .init_platform_hw= mma8452_init_platform_hw,
 
 };
