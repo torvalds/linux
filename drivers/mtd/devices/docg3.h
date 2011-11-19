@@ -130,6 +130,8 @@
 #define DOC_SEQ_SET_PLANE1		0x0e
 #define DOC_SEQ_SET_PLANE2		0x10
 #define DOC_SEQ_PAGE_SETUP		0x1d
+#define DOC_SEQ_ERASE			0x27
+#define DOC_SEQ_PLANES_STATUS		0x31
 
 /*
  * Flash commands
@@ -144,7 +146,10 @@
 #define DOC_CMD_PROG_BLOCK_ADDR		0x60
 #define DOC_CMD_PROG_CYCLE1		0x80
 #define DOC_CMD_PROG_CYCLE2		0x10
+#define DOC_CMD_PROG_CYCLE3		0x11
 #define DOC_CMD_ERASECYCLE2		0xd0
+#define DOC_CMD_READ_STATUS		0x70
+#define DOC_CMD_PLANES_STATUS		0x71
 
 #define DOC_CMD_RELIABLE_MODE		0x22
 #define DOC_CMD_FAST_MODE		0xa2
@@ -186,7 +191,7 @@
  */
 #define DOC_ECCCONF1_BCH_SYNDROM_ERR	0x80
 #define DOC_ECCCONF1_UNKOWN1		0x40
-#define DOC_ECCCONF1_UNKOWN2		0x20
+#define DOC_ECCCONF1_PAGE_IS_WRITTEN	0x20
 #define DOC_ECCCONF1_UNKOWN3		0x10
 #define DOC_ECCCONF1_HAMMING_BITS_MASK	0x0f
 
@@ -223,6 +228,13 @@
 #define DOC_READADDR_INC		0x8000
 #define DOC_READADDR_ONE_BYTE		0x4000
 #define DOC_READADDR_ADDR_MASK		0x1fff
+
+/*
+ * Status of erase and write operation
+ */
+#define DOC_PLANES_STATUS_FAIL		0x01
+#define DOC_PLANES_STATUS_PLANE0_KO	0x02
+#define DOC_PLANES_STATUS_PLANE1_KO	0x04
 
 /**
  * struct docg3 - DiskOnChip driver private data
