@@ -1347,6 +1347,32 @@ static int set_channel(struct usbnet *usbdev, int channel)
 	return ret;
 }
 
+static struct ieee80211_channel *get_current_channel(struct usbnet *usbdev,
+						     u16 *beacon_interval)
+{
+	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
+	struct ieee80211_channel *channel;
+	struct ndis_80211_conf config;
+	int len, ret;
+
+	/* Get channel and beacon interval */
+	len = sizeof(config);
+	ret = rndis_query_oid(usbdev, OID_802_11_CONFIGURATION, &config, &len);
+	netdev_dbg(usbdev->net, "%s(): OID_802_11_CONFIGURATION -> %d\n",
+				__func__, ret);
+	if (ret < 0)
+		return NULL;
+
+	channel = ieee80211_get_channel(priv->wdev.wiphy,
+				KHZ_TO_MHZ(le32_to_cpu(config.ds_config)));
+	if (!channel)
+		return NULL;
+
+	if (beacon_interval)
+		*beacon_interval = le16_to_cpu(config.beacon_period);
+	return channel;
+}
+
 /* index must be 0 - N, as per NDIS  */
 static int add_wep_key(struct usbnet *usbdev, const u8 *key, int key_len,
 								int index)
@@ -2650,13 +2676,12 @@ static void rndis_wlan_craft_connected_bss(struct usbnet *usbdev, u8 *bssid,
 {
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
 	struct ieee80211_channel *channel;
-	struct ndis_80211_conf config;
 	struct ndis_80211_ssid ssid;
 	struct cfg80211_bss *bss;
 	s32 signal;
 	u64 timestamp;
 	u16 capability;
-	u16 beacon_interval;
+	u16 beacon_interval = 0;
 	__le32 rssi;
 	u8 ie_buf[34];
 	int len, ret, ie_len;
@@ -2681,22 +2706,10 @@ static void rndis_wlan_craft_connected_bss(struct usbnet *usbdev, u8 *bssid,
 	}
 
 	/* Get channel and beacon interval */
-	len = sizeof(config);
-	ret = rndis_query_oid(usbdev, OID_802_11_CONFIGURATION, &config, &len);
-	netdev_dbg(usbdev->net, "%s(): OID_802_11_CONFIGURATION -> %d\n",
-				__func__, ret);
-	if (ret >= 0) {
-		beacon_interval = le16_to_cpu(config.beacon_period);
-		channel = ieee80211_get_channel(priv->wdev.wiphy,
-				KHZ_TO_MHZ(le32_to_cpu(config.ds_config)));
-		if (!channel) {
-			netdev_warn(usbdev->net, "%s(): could not get channel."
-						 "\n", __func__);
-			return;
-		}
-	} else {
-		netdev_warn(usbdev->net, "%s(): could not get configuration.\n",
-					 __func__);
+	channel = get_current_channel(usbdev, &beacon_interval);
+	if (!channel) {
+		netdev_warn(usbdev->net, "%s(): could not get channel.\n",
+					__func__);
 		return;
 	}
 
