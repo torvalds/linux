@@ -248,7 +248,7 @@ static struct file_operations rk29_gps_fops = {
 	.owner   = THIS_MODULE,
 	.open    = rk29_gps_open,
 	.read    = rk29_gps_read,
-	.ioctl   = rk29_gps_ioctl,
+	.unlocked_ioctl   = rk29_gps_ioctl,
 	.release = rk29_gps_release,
 };
 
@@ -272,8 +272,8 @@ static int rk29_gps_probe(struct platform_device *pdev)
 		return ret;
 	}
 	
-	init_MUTEX(&pdata->power_sem);
-	pdata->wq = create_freezeable_workqueue("rk29_gps");
+	sema_init(&pdata->power_sem,1);
+	pdata->wq = create_freezable_workqueue("rk29_gps");
 	INIT_WORK(&pdata->work, rk29_gps_delay_power_downup);
 	pdata->power_flag = 0;
 

@@ -40,6 +40,7 @@
 #include <linux/string.h>
 #include <linux/completion.h>
 #include <asm/uaccess.h>
+#include <linux/input/mt.h>
 
 #include "gt818_ts.h"
 
@@ -75,6 +76,9 @@ static void goodix_ts_late_resume(struct early_suspend *h);
 									 };
 	#define MAX_KEY_NUM	 (sizeof(gt818_key_array)/sizeof(gt818_key_array[0]))
 #endif
+
+unsigned int last_x[MAX_FINGER_NUM + 1]= {0};
+unsigned int last_y[MAX_FINGER_NUM + 1]= {0};
 
 
 /*Function as i2c_master_send */
@@ -303,19 +307,23 @@ static void goodix_ts_work_func(struct work_struct *work)
 
 	for(position = 1; position < MAX_FINGER_NUM + 1; position++)
 	{
-		//printk("%s:positon:%d\n", __func__, position);
 		if((finger_current[position] == 0) && (finger_last[position] != 0))
 		{
-			input_report_abs(ts->input_dev, ABS_MT_POSITION_X, 0);
-			input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, 0);
-			input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
-			input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0);
-			input_mt_sync(ts->input_dev);
+			//printk("<<<<<<<<<<<<<<<<<<<%s:positon:%d (%d,%d)\n", __func__, position,last_x,last_y);
+			//printk("<<<%d , %d ",finger_current[position],finger_last[position]);
+			//input_mt_slot(ts->input_dev, position);
+			//input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, true);
+			//input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
+			//input_report_abs(ts->input_dev, ABS_MT_POSITION_X, last_x[position]);
+			//input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, last_y[position]);
+			//input_report_abs(ts->input_dev, ABS_MT_PRESSURE, 100);
+			//input_mt_sync(ts->input_dev);
+			input_mt_slot(ts->input_dev, position);
+			input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, false);
 			syn_flag = 1;
 		}
 		else if(finger_current[position])
 		{
-
 			x = (*(coor_point+3*(position-1)))*SCREEN_MAX_WIDTH/(TOUCH_MAX_WIDTH);
 			y = (*(coor_point+3*(position-1)+1))*SCREEN_MAX_HEIGHT/(TOUCH_MAX_HEIGHT);
 			pressure = (*(coor_point+3*(position-1)+2));
@@ -326,14 +334,23 @@ static void goodix_ts_work_func(struct work_struct *work)
 			if(y < SCREEN_MAX_HEIGHT){
 			//	y = SCREEN_MAX_HEIGHT-y;
 			}
-			input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID, position - 1);
+
+			//printk(">>>>>>>>>>>>>>>>>%s:positon:%d (%d,%d)\n", __func__, position,x,y);
+			input_mt_slot(ts->input_dev, position);
+			input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, true);
 			input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 1);
+			input_report_abs(ts->input_dev, ABS_MT_PRESSURE, pressure);
 			input_report_abs(ts->input_dev, ABS_MT_POSITION_X, x);
 			input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, y);
-			input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, pressure);
-			input_mt_sync(ts->input_dev);
+
+			last_x[position] = x;
+			last_y[position] = y;
+			//input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, pressure);
+			//input_mt_sync(ts->input_dev);
 			syn_flag = 1;
 		}
+
+		input_sync(ts->input_dev);
 	}
 
 
@@ -488,7 +505,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	struct gt818_ts_data *ts;
 
 	struct gt818_platform_data *pdata;
-	dev_dbg(&client->dev,"Install touch driver.\n");
+	dev_info(&client->dev,"Install touch driver.\n");
 	printk("gt818: Install touch driver.\n");
 	//Check I2C function
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) 
@@ -576,10 +593,10 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 		goto err_input_dev_alloc_failed;
 	}
 
-	ts->input_dev->evbit[0] = BIT_MASK(EV_SYN) | BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS) ;
-	ts->input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
-	ts->input_dev->absbit[0] = BIT_MASK(ABS_MT_POSITION_X) | BIT_MASK(ABS_MT_POSITION_Y) |
-			BIT_MASK(ABS_MT_TOUCH_MAJOR) | BIT_MASK(ABS_MT_WIDTH_MAJOR);  // for android
+	//ts->input_dev->evbit[0] = BIT_MASK(EV_SYN) | BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS) ;
+	//ts->input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
+	//ts->input_dev->absbit[0] = BIT_MASK(ABS_MT_POSITION_X) | BIT_MASK(ABS_MT_POSITION_Y) |
+	//		BIT_MASK(ABS_MT_TOUCH_MAJOR) | BIT_MASK(ABS_MT_WIDTH_MAJOR);  // for android
 
 
 #ifdef HAVE_TOUCH_KEY
@@ -600,13 +617,16 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	ts->input_dev->id.product = 0xBEEF;
 	ts->input_dev->id.version = 10427;	//screen firmware version
 
+	__set_bit(INPUT_PROP_DIRECT, ts->input_dev->propbit);
+	__set_bit(EV_ABS, ts->input_dev->evbit);
 #ifdef GOODIX_MULTI_TOUCH
-
-	input_set_abs_params(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
+	input_mt_init_slots(ts->input_dev, MAX_FINGER_NUM);
+	//input_set_abs_params(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X, 0, SCREEN_MAX_WIDTH, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y, 0, SCREEN_MAX_HEIGHT, 0, 0);
-	input_set_abs_params(ts->input_dev, ABS_MT_TRACKING_ID, 0, MAX_FINGER_NUM, 0, 0);
+	//input_set_abs_params(ts->input_dev, ABS_MT_TRACKING_ID, 0, MAX_FINGER_NUM, 0, 0);
+	input_set_abs_params(ts->input_dev, ABS_MT_PRESSURE, 0, 255, 0, 0);
 #else
 	input_set_abs_params(ts->input_dev, ABS_X, 0, SCREEN_MAX_HEIGHT, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_Y, 0, SCREEN_MAX_WIDTH, 0, 0);
@@ -619,7 +639,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 		goto err_input_register_device_failed;
 	}
 	ts->bad_data = 0;
-//	finger_list.length = 0;
+//	16finger_list.length = 0;
 
 	client->irq = gpio_to_irq(pdata->gpio_pendown);		//If not defined in client
 	if (client->irq)
@@ -834,6 +854,6 @@ late_initcall(goodix_ts_init);
 module_exit(goodix_ts_exit);
 
 MODULE_DESCRIPTION("Goodix Touchscreen Driver");
-MODULE_AUTHOR("hhb@rock-chips.com")
+MODULE_AUTHOR("hhb@rock-chips.com");
 MODULE_LICENSE("GPL");
 
