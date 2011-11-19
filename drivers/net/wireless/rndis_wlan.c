@@ -244,6 +244,10 @@ enum ndis_80211_power_mode {
 	NDIS_80211_POWER_MODE_FAST_PSP,
 };
 
+enum ndis_80211_pmkid_cand_list_flag_bits {
+	NDIS_80211_PMKID_CAND_PREAUTH = cpu_to_le32(1 << 0)
+};
+
 struct ndis_80211_auth_request {
 	__le32 length;
 	u8 bssid[6];
@@ -3022,25 +3026,13 @@ static void rndis_wlan_pmkid_cand_list_indication(struct usbnet *usbdev,
 	for (i = 0; i < le32_to_cpu(cand_list->num_candidates); i++) {
 		struct ndis_80211_pmkid_candidate *cand =
 						&cand_list->candidate_list[i];
+		bool preauth = !!(cand->flags & NDIS_80211_PMKID_CAND_PREAUTH);
 
-		netdev_dbg(usbdev->net, "cand[%i]: flags: 0x%08x, bssid: %pM\n",
-			   i, le32_to_cpu(cand->flags), cand->bssid);
+		netdev_dbg(usbdev->net, "cand[%i]: flags: 0x%08x, preauth: %d, bssid: %pM\n",
+			   i, le32_to_cpu(cand->flags), preauth, cand->bssid);
 
-#if 0
-		struct iw_pmkid_cand pcand;
-		union iwreq_data wrqu;
-
-		memset(&pcand, 0, sizeof(pcand));
-		if (le32_to_cpu(cand->flags) & 0x01)
-			pcand.flags |= IW_PMKID_CAND_PREAUTH;
-		pcand.index = i;
-		memcpy(pcand.bssid.sa_data, cand->bssid, ETH_ALEN);
-
-		memset(&wrqu, 0, sizeof(wrqu));
-		wrqu.data.length = sizeof(pcand);
-		wireless_send_event(usbdev->net, IWEVPMKIDCAND, &wrqu,
-								(u8 *)&pcand);
-#endif
+		cfg80211_pmksa_candidate_notify(usbdev->net, i, cand->bssid,
+						preauth, GFP_ATOMIC);
 	}
 }
 
