@@ -2440,7 +2440,7 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 	const struct efx_nic_type *type = (const struct efx_nic_type *) entry->driver_data;
 	struct net_device *net_dev;
 	struct efx_nic *efx;
-	int i, rc;
+	int rc;
 
 	/* Allocate and initialise a struct net_device and struct efx_nic */
 	net_dev = alloc_etherdev_mqs(sizeof(*efx), EFX_MAX_CORE_TX_QUEUES,
@@ -2473,39 +2473,22 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 	if (rc)
 		goto fail2;
 
-	/* No serialisation is required with the reset path because
-	 * we're in STATE_INIT. */
-	for (i = 0; i < 5; i++) {
-		rc = efx_pci_probe_main(efx);
+	rc = efx_pci_probe_main(efx);
 
-		/* Serialise against efx_reset(). No more resets will be
-		 * scheduled since efx_stop_all() has been called, and we
-		 * have not and never have been registered with either
-		 * the rtnetlink or driverlink layers. */
-		cancel_work_sync(&efx->reset_work);
+	/* Serialise against efx_reset(). No more resets will be
+	 * scheduled since efx_stop_all() has been called, and we have
+	 * not and never have been registered.
+	 */
+	cancel_work_sync(&efx->reset_work);
 
-		if (rc == 0) {
-			if (efx->reset_pending) {
-				/* If there was a scheduled reset during
-				 * probe, the NIC is probably hosed anyway */
-				efx_pci_remove_main(efx);
-				rc = -EIO;
-			} else {
-				break;
-			}
-		}
+	if (rc)
+		goto fail3;
 
-		/* Retry if a recoverably reset event has been scheduled */
-		if (efx->reset_pending &
-		    ~(1 << RESET_TYPE_INVISIBLE | 1 << RESET_TYPE_ALL) ||
-		    !efx->reset_pending)
-			goto fail3;
-
-		efx->reset_pending = 0;
-	}
-
-	if (rc) {
-		netif_err(efx, probe, efx->net_dev, "Could not reset NIC\n");
+	/* If there was a scheduled reset during probe, the NIC is
+	 * probably hosed anyway.
+	 */
+	if (efx->reset_pending) {
+		rc = -EIO;
 		goto fail4;
 	}
 
@@ -2515,7 +2498,7 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 
 	rc = efx_register_netdev(efx);
 	if (rc)
-		goto fail5;
+		goto fail4;
 
 	netif_dbg(efx, probe, efx->net_dev, "initialisation successful\n");
 
@@ -2524,9 +2507,8 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 	rtnl_unlock();
 	return 0;
 
- fail5:
-	efx_pci_remove_main(efx);
  fail4:
+	efx_pci_remove_main(efx);
  fail3:
 	efx_fini_io(efx);
  fail2:
