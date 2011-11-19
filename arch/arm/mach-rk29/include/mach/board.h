@@ -276,6 +276,7 @@ struct ft5406_platform_data {
 struct goodix_platform_data {
 	int model ;
 	int rest_pin;
+	int irq_pin ;
     int     (*get_pendown_state)(void);
     int     (*init_platform_hw)(void);
     int     (*platform_sleep)(void);

@@ -26,15 +26,11 @@
 //*************************TouchScreen Work Part*****************************
 
 #define GOODIX_I2C_NAME "Goodix-TS"
-#define GOODIX_1024X768
-#ifdef  GOODIX_1024X768
-#define TOUCH_MAX_HEIGHT 	1024			
-#define TOUCH_MAX_WIDTH	768
-#else
-//define resolution of the touchscreen
-#define TOUCH_MAX_HEIGHT 	1280			
-#define TOUCH_MAX_WIDTH	800
-#endif
+#define GOODIX_1024X768	 1
+
+#define TS_MAX_X 	1024			
+#define TS_MAX_Y		768
+
 #if 1
 #define INT_PORT		RK29_PIN0_PA2	    						
 #ifdef INT_PORT
@@ -63,6 +59,41 @@
 
 //#define swap(x, y) do { typeof(x) z = x; x = y; y = z; } while (0)
 
+struct rk_touch_info
+{
+	u32 status;   // 1:down,0:up
+	u32 x ;
+	u32 y ;
+} ;
+struct rk_ts_data{
+	uint16_t addr;
+	uint8_t bad_data;
+	struct i2c_client *client;
+	struct input_dev *input_dev;
+	int use_reset;					//use RESET flag
+	int use_irq;					//use EINT flag
+	int irq;
+	int irq_pin;
+	int read_mode;					//read moudle mode,20110221 by andrew
+	struct hrtimer timer;
+	struct workqueue_struct *ts_wq;
+	struct delayed_work  ts_work;
+	char phys[32];
+	int retry;
+	struct early_suspend early_suspend;
+	int (*power)(struct rk_ts_data * ts, int on);
+	int (*ts_init)(struct rk_ts_data*ts);
+	int (*input_parms_init)(struct rk_ts_data *ts);
+	void (*get_touch_info)(struct rk_ts_data *ts,char *point_num,struct rk_touch_info *info_buf);  //get touch data info
+	uint16_t abs_x_max;
+	uint16_t abs_y_max;
+	uint8_t max_touch_num;
+	uint8_t int_trigger_type;
+	bool		pendown;
+};
+
+
+
 struct goodix_ts_data {
 	uint16_t addr;
 	uint8_t bad_data;
@@ -84,7 +115,7 @@ struct goodix_ts_data {
 	bool		pendown;
 };
 
-static const char *goodix_ts_name = "Goodix Capacitive TouchScreen";
+static const char *rk_ts_name = "Goodix Capacitive TouchScreen";
 static struct workqueue_struct *goodix_wq;
 struct i2c_client * i2c_connect_client = NULL; 
 static struct proc_dir_entry *goodix_proc_entry;

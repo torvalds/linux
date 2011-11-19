@@ -743,6 +743,7 @@ int goodix_init_platform_hw(void)
 
 struct goodix_platform_data goodix_info = {
 	  .model= 8105,
+	  .irq_pin = RK29_PIN0_PA2,
 	  .rest_pin  = TOUCH_RESET_PIN,
 	  .init_platform_hw = goodix_init_platform_hw,
 };
