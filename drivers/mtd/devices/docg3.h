@@ -118,6 +118,8 @@
 #define DOC_BCH_SYNDROM(idx)		(0x1048 + (idx << 0))
 
 #define DOC_PROTECTION			0x1056
+#define DOC_DPS0_KEY			0x105c
+#define DOC_DPS1_KEY			0x105e
 #define DOC_DPS0_ADDRLOW		0x1060
 #define DOC_DPS0_ADDRHIGH		0x1062
 #define DOC_DPS1_ADDRLOW		0x1064
@@ -251,6 +253,17 @@
 #define DOC_PLANES_STATUS_FAIL		0x01
 #define DOC_PLANES_STATUS_PLANE0_KO	0x02
 #define DOC_PLANES_STATUS_PLANE1_KO	0x04
+
+/*
+ * DPS key management
+ *
+ * Each floor of docg3 has 2 protection areas: DPS0 and DPS1. These areas span
+ * across block boundaries, and define whether these blocks can be read or
+ * written.
+ * The definition is dynamically stored in page 0 of blocks (2,3) for DPS0, and
+ * page 0 of blocks (4,5) for DPS1.
+ */
+#define DOC_LAYOUT_DPS_KEY_LENGTH	8
 
 /**
  * struct docg3 - DiskOnChip driver private data
