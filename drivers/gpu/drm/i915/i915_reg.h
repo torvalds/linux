@@ -3449,6 +3449,10 @@
 
 #define  FORCEWAKE				0xA18C
 #define  FORCEWAKE_ACK				0x130090
+#define  FORCEWAKE_MT				0xa188 /* multi-threaded */
+#define  FORCEWAKE_MT_ACK			0x130040
+#define  ECOBUS					0xa180
+#define    FORCEWAKE_MT_ENABLE			(1<<5)
 
 #define  GT_FIFO_FREE_ENTRIES			0x120008
 #define    GT_FIFO_NUM_RESERVED_ENTRIES		20
