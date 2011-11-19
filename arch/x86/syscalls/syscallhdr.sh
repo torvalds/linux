@@ -15,7 +15,11 @@ grep -E "^[0-9A-Fa-fXx]+[[:space:]]+${my_abis}" "$in" | sort -n | (
     echo ""
 
     while read nr abi name entry ; do
-	echo "#define __NR_${prefix}${name}" $((nr+offset))
+	if [ -z "$offset" ]; then
+	    echo "#define __NR_${prefix}${name} $nr"
+	else
+	    echo "#define __NR_${prefix}${name} ($offset + $nr)"
+        fi
     done
 
     echo ""
