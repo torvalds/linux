@@ -2312,7 +2312,7 @@ static int __devinit mv_udc_probe(struct platform_device *dev)
 	udc->gadget.ep0 = &udc->eps[0].ep;	/* gadget ep0 */
 	INIT_LIST_HEAD(&udc->gadget.ep_list);	/* ep_list */
 	udc->gadget.speed = USB_SPEED_UNKNOWN;	/* speed */
-	udc->gadget.is_dualspeed = 1;		/* support dual speed */
+	udc->gadget.max_speed = USB_SPEED_HIGH;	/* support dual speed */
 
 	/* the "gadget" abstracts/virtualizes the controller */
 	dev_set_name(&udc->gadget.dev, "gadget");

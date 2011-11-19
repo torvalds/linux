@@ -2941,7 +2941,7 @@ static int pch_udc_probe(struct pci_dev *pdev,
 	dev->gadget.dev.dma_mask = pdev->dev.dma_mask;
 	dev->gadget.dev.release = gadget_release;
 	dev->gadget.name = KBUILD_MODNAME;
-	dev->gadget.is_dualspeed = 1;
+	dev->gadget.max_speed = USB_SPEED_HIGH;
 
 	retval = device_register(&dev->gadget.dev);
 	if (retval)

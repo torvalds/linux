@@ -977,7 +977,7 @@ static int dummy_udc_probe (struct platform_device *pdev)
 
 	dum->gadget.name = gadget_name;
 	dum->gadget.ops = &dummy_ops;
-	dum->gadget.is_dualspeed = 1;
+	dum->gadget.max_speed = USB_SPEED_SUPER;
 
 	dev_set_name(&dum->gadget.dev, "gadget");
 	dum->gadget.dev.parent = &pdev->dev;

@@ -1463,7 +1463,7 @@ static int __init fusb300_probe(struct platform_device *pdev)
 
 	dev_set_name(&fusb300->gadget.dev, "gadget");
 
-	fusb300->gadget.is_dualspeed = 1;
+	fusb300->gadget.max_speed = USB_SPEED_HIGH;
 	fusb300->gadget.dev.parent = &pdev->dev;
 	fusb300->gadget.dev.dma_mask = pdev->dev.dma_mask;
 	fusb300->gadget.dev.release = pdev->dev.release;

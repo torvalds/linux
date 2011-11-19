@@ -2235,7 +2235,7 @@ net2272_probe_init(struct device *dev, unsigned int irq)
 	ret->irq = irq;
 	ret->dev = dev;
 	ret->gadget.ops = &net2272_ops;
-	ret->gadget.is_dualspeed = 1;
+	ret->gadget.max_speed = USB_SPEED_HIGH;
 
 	/* the "gadget" abstracts/virtualizes the controller */
 	dev_set_name(&ret->gadget.dev, "gadget");

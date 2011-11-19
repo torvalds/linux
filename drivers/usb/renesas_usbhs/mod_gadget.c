@@ -862,7 +862,7 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 	gpriv->gadget.dev.parent	= dev;
 	gpriv->gadget.name		= "renesas_usbhs_udc";
 	gpriv->gadget.ops		= &usbhsg_gadget_ops;
-	gpriv->gadget.is_dualspeed	= 1;
+	gpriv->gadget.max_speed		= USB_SPEED_HIGH;
 	ret = device_register(&gpriv->gadget.dev);
 	if (ret < 0)
 		goto err_add_udc;

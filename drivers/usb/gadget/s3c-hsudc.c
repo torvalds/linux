@@ -1310,7 +1310,7 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 	device_initialize(&hsudc->gadget.dev);
 	dev_set_name(&hsudc->gadget.dev, "gadget");
 
-	hsudc->gadget.is_dualspeed = 1;
+	hsudc->gadget.max_speed = USB_SPEED_HIGH;
 	hsudc->gadget.ops = &s3c_hsudc_gadget_ops;
 	hsudc->gadget.name = dev_name(dev);
 	hsudc->gadget.dev.parent = dev;
