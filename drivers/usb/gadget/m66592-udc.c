@@ -1472,7 +1472,7 @@ static int m66592_start(struct usb_gadget_driver *driver,
 	int retval;
 
 	if (!driver
-			|| driver->speed != USB_SPEED_HIGH
+			|| driver->speed < USB_SPEED_HIGH
 			|| !bind
 			|| !driver->setup)
 		return -EINVAL;
