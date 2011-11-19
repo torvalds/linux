@@ -243,6 +243,11 @@
  * @device_id: number of the cascaded DoCG3 device (0, 1, 2 or 3)
  * @if_cfg: if true, reads are on 16bits, else reads are on 8bits
  * @bbt: bad block table cache
+ * @oob_write_ofs: offset of the MTD where this OOB should belong (ie. in next
+ *                 page_write)
+ * @oob_autoecc: if 1, use only bytes 0-7, 15, and fill the others with HW ECC
+ *               if 0, use all the 16 bytes.
+ * @oob_write_buf: prepared OOB for next page_write
  * @debugfs_root: debugfs root node
  */
 struct docg3 {
@@ -252,6 +257,9 @@ struct docg3 {
 	unsigned int if_cfg:1;
 	int max_block;
 	u8 *bbt;
+	loff_t oob_write_ofs;
+	int oob_autoecc;
+	u8 oob_write_buf[DOC_LAYOUT_OOB_SIZE];
 	struct dentry *debugfs_root;
 };
 
