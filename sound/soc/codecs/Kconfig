@@ -75,7 +75,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM8804 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8900 if I2C
 	select SND_SOC_alc5621 if I2C
-	select SND_SOC_alc5631 if I2C
+	select SND_SOC_RT5631 if I2C
 	select SND_SOC_RT5625 if I2C
 	select SND_SOC_WM8903 if I2C
 	select SND_SOC_WM8904 if I2C
@@ -315,7 +315,7 @@ config SND_SOC_WM8900
 config SND_SOC_alc5621
 	tristate
 
-config SND_SOC_alc5631
+config SND_SOC_RT5631
 	tristate
 
 config SND_SOC_RT5625
