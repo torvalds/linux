@@ -127,6 +127,7 @@
 
 #define DOC_ASICMODECONFIRM		0x1072
 #define DOC_CHIPID_INV			0x1074
+#define DOC_POWERMODE			0x107c
 
 /*
  * Flash sequences
@@ -237,6 +238,11 @@
 #define DOC_READADDR_INC		0x8000
 #define DOC_READADDR_ONE_BYTE		0x4000
 #define DOC_READADDR_ADDR_MASK		0x1fff
+
+/*
+ * Flash register : DOC_POWERMODE
+ */
+#define DOC_POWERDOWN_READY		0x80
 
 /*
  * Status of erase and write operation
