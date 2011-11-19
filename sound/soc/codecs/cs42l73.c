@@ -1270,10 +1270,6 @@ static int cs42l73_suspend(struct snd_soc_codec *codec, pm_message_t state)
 
 static int cs42l73_resume(struct snd_soc_codec *codec)
 {
-
-	struct cs42l73_private *cs42l73 = snd_soc_codec_get_drvdata(codec);
-	regcache_sync(cs42l73->regmap);
-
 	cs42l73_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	return 0;
 }
