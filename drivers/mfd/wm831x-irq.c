@@ -407,7 +407,7 @@ static int wm831x_irq_set_type(struct irq_data *data, unsigned int type)
 	struct wm831x *wm831x = irq_data_get_irq_chip_data(data);
 	int val, irq = 0;
 
-	irq = irq - wm831x->irq_base;
+	irq = data->irq - wm831x->irq_base;
 	if (irq < WM831X_IRQ_GPIO_1 || irq > WM831X_IRQ_GPIO_12) {
 		/* Ignore internal-only IRQs */
 		if (irq >= 0 && irq < WM831X_NUM_IRQS)

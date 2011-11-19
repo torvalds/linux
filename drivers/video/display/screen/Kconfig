@@ -3,6 +3,8 @@ choice
 	prompt  "LCD Panel Select"
 config LCD_NULL
 	bool "NULL"
+config LCD_LG_LP097X02
+	bool "RGB LCD_LG_LP097X02 1024X768"
 config LCD_TD043MGEA1
 	bool "RGB TD043MGEA1"
 config LCD_HX8357

@@ -270,7 +270,7 @@ static int wm831x_backlight_probe(struct platform_device *pdev)
 
 	props.max_brightness = max_isel;
 	bl = backlight_device_register("wm831x", &pdev->dev, data,
-				       &wm831x_backlight_ops,&props);
+				       &wm831x_backlight_ops,NULL);
 	if (IS_ERR(bl)) {
 		dev_err(&pdev->dev, "failed to register backlight\n");
 		kfree(data);

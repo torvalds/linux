@@ -5,6 +5,7 @@ obj-$(CONFIG_LCD_TD043MGEA1) += lcd_td043mgea1.o
 obj-$(CONFIG_LCD_HSD070IDW1) += lcd_hsd800x480.o
 obj-$(CONFIG_LCD_HL070VM4AU) += lcd_hl070vm4.o
 obj-$(CONFIG_LCD_BYD8688FTGF) += lcd_byd1024x600.o
+obj-$(CONFIG_LCD_LG_LP097X02)+=	lcd_LG_LP097X02.o
 obj-$(CONFIG_LCD_TJ048NC01CA) 		+= lcd_tj048nc01ca.o
 
 obj-$(CONFIG_LCD_A060SE02) += lcd_a060se02.o
