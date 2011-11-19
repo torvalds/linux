@@ -135,7 +135,8 @@
  */
 #define DOC_SEQ_RESET			0x00
 #define DOC_SEQ_PAGE_SIZE_532		0x03
-#define DOC_SEQ_SET_MODE		0x09
+#define DOC_SEQ_SET_FASTMODE		0x05
+#define DOC_SEQ_SET_RELIABLEMODE	0x09
 #define DOC_SEQ_READ			0x12
 #define DOC_SEQ_SET_PLANE1		0x0e
 #define DOC_SEQ_SET_PLANE2		0x10
@@ -257,6 +258,11 @@
  * @base: mapped IO space
  * @device_id: number of the cascaded DoCG3 device (0, 1, 2 or 3)
  * @if_cfg: if true, reads are on 16bits, else reads are on 8bits
+
+ * @reliable: if 0, docg3 in normal mode, if 1 docg3 in fast mode, if 2 in
+ *            reliable mode
+ *            Fast mode implies more errors than normal mode.
+ *            Reliable mode implies that page 2*n and 2*n+1 are clones.
  * @bbt: bad block table cache
  * @oob_write_ofs: offset of the MTD where this OOB should belong (ie. in next
  *                 page_write)
@@ -270,6 +276,7 @@ struct docg3 {
 	void __iomem *base;
 	unsigned int device_id:4;
 	unsigned int if_cfg:1;
+	unsigned int reliable:2;
 	int max_block;
 	u8 *bbt;
 	loff_t oob_write_ofs;

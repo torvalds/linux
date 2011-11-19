@@ -61,6 +61,11 @@
  *
  */
 
+static unsigned int reliable_mode = 0;
+module_param(reliable_mode, uint, 0);
+MODULE_PARM_DESC(reliable_mode, "Set the docg3 mode (0=normal MLC, 1=fast, "
+		 "2=reliable) : MLC normal operations are in normal mode");
+
 /**
  * struct docg3_oobinfo - DiskOnChip G3 OOB layout
  * @eccbytes: 8 bytes are used (1 for Hamming ECC, 7 for BCH ECC)
@@ -291,19 +296,41 @@ static void doc_write_data_area(struct docg3 *docg3, const void *buf, int len)
 }
 
 /**
- * doc_set_data_mode - Sets the flash to reliable data mode
+ * doc_set_data_mode - Sets the flash to normal or reliable data mode
  * @docg3: the device
  *
  * The reliable data mode is a bit slower than the fast mode, but less errors
  * occur.  Entering the reliable mode cannot be done without entering the fast
  * mode first.
+ *
+ * In reliable mode, pages 2*n and 2*n+1 are clones. Writing to page 0 of blocks
+ * (4,5) make the hardware write also to page 1 of blocks blocks(4,5). Reading
+ * from page 0 of blocks (4,5) or from page 1 of blocks (4,5) gives the same
+ * result, which is a logical and between bytes from page 0 and page 1 (which is
+ * consistent with the fact that writing to a page is _clearing_ bits of that
+ * page).
  */
 static void doc_set_reliable_mode(struct docg3 *docg3)
 {
-	doc_dbg("doc_set_reliable_mode()\n");
-	doc_flash_sequence(docg3, DOC_SEQ_SET_MODE);
-	doc_flash_command(docg3, DOC_CMD_FAST_MODE);
-	doc_flash_command(docg3, DOC_CMD_RELIABLE_MODE);
+	static char *strmode[] = { "normal", "fast", "reliable", "invalid" };
+
+	doc_dbg("doc_set_reliable_mode(%s)\n", strmode[docg3->reliable]);
+	switch (docg3->reliable) {
+	case 0:
+		break;
+	case 1:
+		doc_flash_sequence(docg3, DOC_SEQ_SET_FASTMODE);
+		doc_flash_command(docg3, DOC_CMD_FAST_MODE);
+		break;
+	case 2:
+		doc_flash_sequence(docg3, DOC_SEQ_SET_RELIABLEMODE);
+		doc_flash_command(docg3, DOC_CMD_FAST_MODE);
+		doc_flash_command(docg3, DOC_CMD_RELIABLE_MODE);
+		break;
+	default:
+		doc_err("doc_set_reliable_mode(): invalid mode\n");
+		break;
+	}
 	doc_delay(docg3, 2);
 }
 
@@ -778,18 +805,29 @@ static void doc_read_page_finish(struct docg3 *docg3)
  * @block1: second plane block index calculated
  * @page: page calculated
  * @ofs: offset in page
+ * @reliable: 0 if docg3 in normal mode, 1 if docg3 in fast mode, 2 if docg3 in
+ * reliable mode.
+ *
+ * The calculation is based on the reliable/normal mode. In normal mode, the 64
+ * pages of a block are available. In reliable mode, as pages 2*n and 2*n+1 are
+ * clones, only 32 pages per block are available.
  */
 static void calc_block_sector(loff_t from, int *block0, int *block1, int *page,
-			      int *ofs)
+			      int *ofs, int reliable)
 {
-	uint sector;
+	uint sector, pages_biblock;
+
+	pages_biblock = DOC_LAYOUT_PAGES_PER_BLOCK * DOC_LAYOUT_NBPLANES;
+	if (reliable == 1 || reliable == 2)
+		pages_biblock /= 2;
 
 	sector = from / DOC_LAYOUT_PAGE_SIZE;
-	*block0 = sector / (DOC_LAYOUT_PAGES_PER_BLOCK * DOC_LAYOUT_NBPLANES)
-		* DOC_LAYOUT_NBPLANES;
+	*block0 = sector / pages_biblock * DOC_LAYOUT_NBPLANES;
 	*block1 = *block0 + 1;
-	*page = sector % (DOC_LAYOUT_PAGES_PER_BLOCK * DOC_LAYOUT_NBPLANES);
+	*page = sector % pages_biblock;
 	*page /= DOC_LAYOUT_NBPLANES;
+	if (reliable == 1 || reliable == 2)
+		*page *= 2;
 	if (sector % 2)
 		*ofs = DOC_LAYOUT_PAGE_OOB_SIZE;
 	else
@@ -836,7 +874,8 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 		return -EINVAL;
 
 	ret = -EINVAL;
-	calc_block_sector(from + len, &block0, &block1, &page, &ofs);
+	calc_block_sector(from + len, &block0, &block1, &page, &ofs,
+			  docg3->reliable);
 	if (block1 > docg3->max_block)
 		goto err;
 
@@ -844,7 +883,8 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 	ops->retlen = 0;
 	ret = 0;
 	while (!ret && (len > 0 || ooblen > 0)) {
-		calc_block_sector(from, &block0, &block1, &page, &ofs);
+		calc_block_sector(from, &block0, &block1, &page, &ofs,
+			docg3->reliable);
 		nbdata = min_t(size_t, len, (size_t)DOC_LAYOUT_PAGE_SIZE);
 		nboob = min_t(size_t, ooblen, (size_t)DOC_LAYOUT_OOB_SIZE);
 		ret = doc_read_page_prepare(docg3, block0, block1, page, ofs);
@@ -983,7 +1023,8 @@ static int doc_block_isbad(struct mtd_info *mtd, loff_t from)
 	struct docg3 *docg3 = mtd->priv;
 	int block0, block1, page, ofs, is_good;
 
-	calc_block_sector(from, &block0, &block1, &page, &ofs);
+	calc_block_sector(from, &block0, &block1, &page, &ofs,
+		docg3->reliable);
 	doc_dbg("doc_block_isbad(from=%lld) => block=(%d,%d), page=%d, ofs=%d\n",
 		from, block0, block1, page, ofs);
 
@@ -1015,7 +1056,7 @@ static int doc_get_erase_count(struct docg3 *docg3, loff_t from)
 	doc_dbg("doc_get_erase_count(from=%lld, buf=%p)\n", from, buf);
 	if (from % DOC_LAYOUT_PAGE_SIZE)
 		return -EINVAL;
-	calc_block_sector(from, &block0, &block1, &page, &ofs);
+	calc_block_sector(from, &block0, &block1, &page, &ofs, docg3->reliable);
 	if (block1 > docg3->max_block)
 		return -EINVAL;
 
@@ -1156,14 +1197,15 @@ static int doc_erase(struct mtd_info *mtd, struct erase_info *info)
 	doc_set_device_id(docg3, docg3->device_id);
 
 	info->state = MTD_ERASE_PENDING;
-	calc_block_sector(info->addr + info->len,
-			  &block0, &block1, &page, &ofs);
+	calc_block_sector(info->addr + info->len, &block0, &block1, &page,
+			  &ofs, docg3->reliable);
 	ret = -EINVAL;
 	if (block1 > docg3->max_block || page || ofs)
 		goto reset_err;
 
 	ret = 0;
-	calc_block_sector(info->addr, &block0, &block1, &page, &ofs);
+	calc_block_sector(info->addr, &block0, &block1, &page, &ofs,
+			  docg3->reliable);
 	doc_set_reliable_mode(docg3);
 	for (len = info->len; !ret && len > 0; len -= mtd->erasesize) {
 		info->state = MTD_ERASING;
@@ -1209,7 +1251,7 @@ static int doc_write_page(struct docg3 *docg3, loff_t to, const u_char *buf,
 	u8 syn[DOC_ECC_BCH_SIZE], hamming;
 
 	doc_dbg("doc_write_page(to=%lld)\n", to);
-	calc_block_sector(to, &block0, &block1, &page, &ofs);
+	calc_block_sector(to, &block0, &block1, &page, &ofs, docg3->reliable);
 
 	doc_set_device_id(docg3, docg3->device_id);
 	ret = doc_reset_seq(docg3);
@@ -1396,7 +1438,8 @@ static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
 		return -EINVAL;
 
 	ret = -EINVAL;
-	calc_block_sector(ofs + len, &block0, &block1, &page, &pofs);
+	calc_block_sector(ofs + len, &block0, &block1, &page, &pofs,
+			  docg3->reliable);
 	if (block1 > docg3->max_block)
 		goto err;
 
@@ -1638,6 +1681,7 @@ static void __init doc_set_driver_info(int chip_id, struct mtd_info *mtd)
 
 	cfg = doc_register_readb(docg3, DOC_CONFIGURATION);
 	docg3->if_cfg = (cfg & DOC_CONF_IF_CFG ? 1 : 0);
+	docg3->reliable = reliable_mode;
 
 	switch (chip_id) {
 	case DOC_CHIPID_G3:
@@ -1649,7 +1693,11 @@ static void __init doc_set_driver_info(int chip_id, struct mtd_info *mtd)
 	mtd->type = MTD_NANDFLASH;
 	mtd->flags = MTD_CAP_NANDFLASH;
 	mtd->size = (docg3->max_block + 1) * DOC_LAYOUT_BLOCK_SIZE;
+	if (docg3->reliable == 2)
+		mtd->size /= 2;
 	mtd->erasesize = DOC_LAYOUT_BLOCK_SIZE * DOC_LAYOUT_NBPLANES;
+	if (docg3->reliable == 2)
+		mtd->erasesize /= 2;
 	mtd->writesize = DOC_LAYOUT_PAGE_SIZE;
 	mtd->oobsize = DOC_LAYOUT_OOB_SIZE;
 	mtd->owner = THIS_MODULE;
