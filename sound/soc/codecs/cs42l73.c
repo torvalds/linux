@@ -1383,7 +1383,7 @@ static __devinit int cs42l73_i2c_probe(struct i2c_client *i2c_client,
 	}
 
 	dev_info(&i2c_client->dev,
-		 "Cirrus Logic CS42L73, Revision: %02X\n", ret & 0xFF);
+		 "Cirrus Logic CS42L73, Revision: %02X\n", reg & 0xFF);
 
 	regcache_cache_only(cs42l73->regmap, true);
 
