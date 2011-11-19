@@ -345,9 +345,15 @@ static void mma8452_report_value(struct i2c_client *client, struct mma8452_axis 
     //struct mma8452_axis *axis = (struct mma8452_axis *)rbuf;
 
 	/* Report acceleration sensor information */
+	#ifdef CONFIG_MACH_RK29_K97
+	input_report_abs(mma8452->input_dev, ABS_X, axis->y);
+    input_report_abs(mma8452->input_dev, ABS_Y, axis->x);
+    input_report_abs(mma8452->input_dev, ABS_Z, -axis->z);
+	#else
     input_report_abs(mma8452->input_dev, ABS_X, axis->x);
     input_report_abs(mma8452->input_dev, ABS_Y, axis->y);
     input_report_abs(mma8452->input_dev, ABS_Z, axis->z);
+	#endif
     input_sync(mma8452->input_dev);
     mmaprintkd("Gsensor x==%d  y==%d z==%d\n",axis->x,axis->y,axis->z);
 }
