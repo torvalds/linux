@@ -402,8 +402,6 @@ struct ndis_80211_pmkid {
 /*
  *  private data
  */
-#define NET_TYPE_11FB	0
-
 #define CAP_MODE_80211A		1
 #define CAP_MODE_80211B		2
 #define CAP_MODE_80211G		4
