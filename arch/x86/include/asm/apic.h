@@ -49,6 +49,7 @@ extern unsigned int apic_verbosity;
 extern int local_apic_timer_c2_ok;
 
 extern int disable_apic;
+extern unsigned int lapic_timer_frequency;
 
 #ifdef CONFIG_SMP
 extern void __inquire_remote_apic(int apicid);

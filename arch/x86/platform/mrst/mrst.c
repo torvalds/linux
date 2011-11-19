@@ -187,11 +187,34 @@ int __init sfi_parse_mrtc(struct sfi_table_header *table)
 static unsigned long __init mrst_calibrate_tsc(void)
 {
 	unsigned long flags, fast_calibrate;
+	if (__mrst_cpu_chip == MRST_CPU_CHIP_PENWELL) {
+		u32 lo, hi, ratio, fsb;
 
-	local_irq_save(flags);
-	fast_calibrate = apbt_quick_calibrate();
-	local_irq_restore(flags);
-
+		rdmsr(MSR_IA32_PERF_STATUS, lo, hi);
+		pr_debug("IA32 perf status is 0x%x, 0x%0x\n", lo, hi);
+		ratio = (hi >> 8) & 0x1f;
+		pr_debug("ratio is %d\n", ratio);
+		if (!ratio) {
+			pr_err("read a zero ratio, should be incorrect!\n");
+			pr_err("force tsc ratio to 16 ...\n");
+			ratio = 16;
+		}
+		rdmsr(MSR_FSB_FREQ, lo, hi);
+		if ((lo & 0x7) == 0x7)
+			fsb = PENWELL_FSB_FREQ_83SKU;
+		else
+			fsb = PENWELL_FSB_FREQ_100SKU;
+		fast_calibrate = ratio * fsb;
+		pr_debug("read penwell tsc %lu khz\n", fast_calibrate);
+		lapic_timer_frequency = fsb * 1000 / HZ;
+		/* mark tsc clocksource as reliable */
+		set_cpu_cap(&boot_cpu_data, X86_FEATURE_TSC_RELIABLE);
+	} else {
+		local_irq_save(flags);
+		fast_calibrate = apbt_quick_calibrate();
+		local_irq_restore(flags);
+	}
+	
 	if (fast_calibrate)
 		return fast_calibrate;
 
@@ -254,6 +277,17 @@ static void mrst_reboot(void)
 }
 
 /*
+ * Moorestown does not have external NMI source nor port 0x61 to report
+ * NMI status. The possible NMI sources are from pmu as a result of NMI
+ * watchdog or lock debug. Reading io port 0x61 results in 0xff which
+ * misled NMI handler.
+ */
+static unsigned char mrst_get_nmi_reason(void)
+{
+	return 0;
+}
+
+/*
  * Moorestown specific x86_init function overrides and early setup
  * calls.
  */
@@ -274,6 +308,8 @@ void __init x86_mrst_early_setup(void)
 	x86_platform.calibrate_tsc = mrst_calibrate_tsc;
 	x86_platform.i8042_detect = mrst_i8042_detect;
 	x86_init.timers.wallclock_init = mrst_rtc_init;
+	x86_platform.get_nmi_reason = mrst_get_nmi_reason;
+
 	x86_init.pci.init = pci_mrst_init;
 	x86_init.pci.fixup_irqs = x86_init_noop;
 
