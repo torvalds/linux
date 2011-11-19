@@ -38,6 +38,7 @@
 #include <media/videobuf-dvb.h>
 #endif
 #include "tuner-xc2028.h"
+#include "xc5000.h"
 #include "em28xx-reg.h"
 
 /* Boards supported by driver */
@@ -121,6 +122,7 @@
 #define EM28174_BOARD_PCTV_290E                   78
 #define EM2884_BOARD_TERRATEC_H5		  79
 #define EM28174_BOARD_PCTV_460E                   80
+#define EM2884_BOARD_HAUPPAUGE_WINTV_HVR_930C	  81
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4

@@ -26,6 +26,8 @@ struct drxk_config {
 	bool	antenna_dvbt;
 	u16	antenna_gpio;
 
+	int    chunk_size;
+
 	const char *microcode_name;
 };
 

@@ -336,6 +336,24 @@ static struct em28xx_reg_seq pctv_460e[] = {
 	{             -1,   -1,   -1,  -1},
 };
 
+static struct em28xx_reg_seq hauppauge_930c_gpio[] = {
+// xc5000 reset
+	{EM2874_R80_GPIO,	0x6f,	0xff,	10},
+	{EM2874_R80_GPIO,	0x4f,	0xff,	10},
+	{EM2874_R80_GPIO,	0x6f,	0xff,	10},
+	{EM2874_R80_GPIO,	0x4f,	0xff,	10},
+	{ -1,			-1,	-1,	-1},
+};
+
+#if 0
+static struct em28xx_reg_seq hauppauge_930c_digital[] = {
+	{EM2874_R80_GPIO,	0xf6,	0xff,	10},
+	{EM2874_R80_GPIO,	0xe6,	0xff,	100},
+	{EM2874_R80_GPIO,	0xa6,	0xff,	10},
+	{ -1,			-1,	-1,	-1},
+};
+#endif
+
 /*
  *  Board definitions
  */
@@ -888,6 +906,19 @@ struct em28xx_board em28xx_boards[] = {
 		.dvb_gpio     = terratec_h5_digital, /* FIXME: probably wrong */
 		.tuner_gpio   = terratec_h5_gpio,
 #endif
+		.i2c_speed    = EM2874_I2C_SECONDARY_BUS_SELECT |
+				EM28XX_I2C_CLK_WAIT_ENABLE |
+				EM28XX_I2C_FREQ_400_KHZ,
+	},
+	[EM2884_BOARD_HAUPPAUGE_WINTV_HVR_930C] = {
+		.name         = "Hauppauge WinTV HVR 930C",
+		.has_dvb      = 1,
+//#if 0
+//		.tuner_type   = TUNER_XC5000,
+//		.tuner_addr   = 0x41,
+//		.dvb_gpio     = hauppauge_930c_digital, /* FIXME: probably wrong */
+		.tuner_gpio   = hauppauge_930c_gpio,
+//#endif
 		.i2c_speed    = EM2874_I2C_SECONDARY_BUS_SELECT |
 				EM28XX_I2C_CLK_WAIT_ENABLE |
 				EM28XX_I2C_FREQ_400_KHZ,
@@ -1975,6 +2006,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM28174_BOARD_PCTV_290E },
 	{ USB_DEVICE(0x2013, 0x024c),
 			.driver_info = EM28174_BOARD_PCTV_460E },
+	{ USB_DEVICE(0x2040, 0x1605),
+			.driver_info = EM2884_BOARD_HAUPPAUGE_WINTV_HVR_930C },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, em28xx_id_table);
@@ -2028,10 +2061,10 @@ int em28xx_tuner_callback(void *ptr, int component, int command, int arg)
 	int rc = 0;
 	struct em28xx *dev = ptr;
 
-	if (dev->tuner_type != TUNER_XC2028)
+	if (dev->tuner_type != TUNER_XC2028 && dev->tuner_type != TUNER_XC5000)
 		return 0;
 
-	if (command != XC2028_TUNER_RESET)
+	if (command != XC2028_TUNER_RESET && command != XC5000_TUNER_RESET)
 		return 0;
 
 	rc = em28xx_gpio_set(dev, dev->board.tuner_gpio);

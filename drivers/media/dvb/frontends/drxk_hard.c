@@ -681,7 +681,8 @@ static int init_state(struct drxk_state *state)
 	state->m_hasOOB = false;
 	state->m_hasAudio = false;
 
-	state->m_ChunkSize = 124;
+	if (!state->m_ChunkSize)
+	    state->m_ChunkSize = 124;
 
 	state->m_oscClockFreq = 0;
 	state->m_smartAntInverted = false;
@@ -6430,6 +6431,7 @@ struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 	state->no_i2c_bridge = config->no_i2c_bridge;
 	state->antenna_gpio = config->antenna_gpio;
 	state->antenna_dvbt = config->antenna_dvbt;
+	state->m_ChunkSize = config->chunk_size;
 
 	/* NOTE: as more UIO bits will be used, add them to the mask */
 	state->UIO_mask = config->antenna_gpio;
