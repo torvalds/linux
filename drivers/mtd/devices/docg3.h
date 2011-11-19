@@ -80,6 +80,7 @@
 
 #define DOC_CHIPID_G3			0x200
 #define DOC_ERASE_MARK			0xaa
+#define DOC_MAX_NBFLOORS		4
 /*
  * Flash registers
  */
