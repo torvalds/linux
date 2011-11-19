@@ -1734,7 +1734,7 @@ static struct rk29camera_platform_ioctl_cb  sensor_ioctl_cb = {
 #define PWM_MUX_MODE      GPIO1L_PWM0
 #define PWM_MUX_MODE_GPIO GPIO1L_GPIO1B5
 #define PWM_GPIO RK29_PIN1_PB5
-#define PWM_EFFECT_VALUE  1
+#define PWM_EFFECT_VALUE  0
 
 #define LCD_DISP_ON_PIN
 
