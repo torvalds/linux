@@ -297,6 +297,26 @@ static struct panel_config generic_dpi_panels[] = {
 
 		.name			= "apollon",
 	},
+	/* FocalTech ETM070003DH6 */
+	{
+		{
+			.x_res		= 800,
+			.y_res		= 480,
+
+			.pixel_clock	= 28000,
+
+			.hsw		= 48,
+			.hfp		= 40,
+			.hbp		= 40,
+
+			.vsw		= 3,
+			.vfp		= 13,
+			.vbp		= 29,
+		},
+		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
+					  OMAP_DSS_LCD_IHS,
+		.name			= "focaltech_etm070003dh6",
+	},
 };
 
 struct panel_drv_data {
