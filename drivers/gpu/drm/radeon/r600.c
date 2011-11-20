@@ -2313,8 +2313,7 @@ void r600_fence_ring_emit(struct radeon_device *rdev,
 	struct radeon_ring *ring = &rdev->ring[fence->ring];
 
 	if (rdev->wb.use_event) {
-		u64 addr = rdev->wb.gpu_addr + R600_WB_EVENT_OFFSET +
-			(u64)(rdev->fence_drv[fence->ring].scratch_reg - rdev->scratch.reg_base);
+		u64 addr = rdev->fence_drv[fence->ring].gpu_addr;
 		/* flush read cache over gart */
 		radeon_ring_write(ring, PACKET3(PACKET3_SURFACE_SYNC, 3));
 		radeon_ring_write(ring, PACKET3_TC_ACTION_ENA |
@@ -2459,6 +2458,12 @@ int r600_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
+	r = radeon_fence_driver_start_ring(rdev, RADEON_RING_TYPE_GFX_INDEX);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing CP fences (%d).\n", r);
+		return r;
+	}
+
 	/* Enable IRQ */
 	r = r600_irq_init(rdev);
 	if (r) {
@@ -2589,7 +2594,7 @@ int r600_init(struct radeon_device *rdev)
 	/* Initialize clocks */
 	radeon_get_clock_info(rdev->ddev);
 	/* Fence driver */
-	r = radeon_fence_driver_init(rdev, 1);
+	r = radeon_fence_driver_init(rdev);
 	if (r)
 		return r;
 	if (rdev->flags & RADEON_IS_AGP) {

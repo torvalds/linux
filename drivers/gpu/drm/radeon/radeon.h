@@ -192,6 +192,8 @@ extern int sumo_get_temp(struct radeon_device *rdev);
  */
 struct radeon_fence_driver {
 	uint32_t			scratch_reg;
+	uint64_t			gpu_addr;
+	volatile uint32_t		*cpu_addr;
 	atomic_t			seq;
 	uint32_t			last_seq;
 	unsigned long			last_jiffies;
@@ -215,7 +217,8 @@ struct radeon_fence {
 	int				ring;
 };
 
-int radeon_fence_driver_init(struct radeon_device *rdev, int num_rings);
+int radeon_fence_driver_start_ring(struct radeon_device *rdev, int ring);
+int radeon_fence_driver_init(struct radeon_device *rdev);
 void radeon_fence_driver_fini(struct radeon_device *rdev);
 int radeon_fence_create(struct radeon_device *rdev, struct radeon_fence **fence, int ring);
 int radeon_fence_emit(struct radeon_device *rdev, struct radeon_fence *fence);
