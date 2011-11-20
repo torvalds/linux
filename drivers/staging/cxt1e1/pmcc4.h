@@ -42,18 +42,7 @@
  *-----------------------------------------------------------------------------
  */
 
-
-#if defined(__FreeBSD__) || defined(__NetBSD__)
-#include <sys/types.h>
-#else
-#ifndef __KERNEL__
-#include <sys/types.h>
-#else
 #include <linux/types.h>
-#endif
-#endif
-
-
 
 typedef int status_t;
 

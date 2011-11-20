@@ -85,11 +85,6 @@ char        OSSIid_pmcc4_drvc[] =
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#if defined (__FreeBSD__) || defined (__NetBSD__)
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/errno.h>
-#else
 #include <linux/types.h>
 #include "pmcc4_sysdep.h"
 #include <linux/errno.h>
@@ -98,7 +93,6 @@ char        OSSIid_pmcc4_drvc[] =
 #include <linux/timer.h>        /* include for timer */
 #include <linux/hdlc.h>
 #include <asm/io.h>
-#endif
 
 #include "sbecom_inline_linux.h"
 #include "libsbew.h"

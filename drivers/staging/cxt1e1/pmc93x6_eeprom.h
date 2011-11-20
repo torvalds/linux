@@ -38,11 +38,7 @@
  *-----------------------------------------------------------------------------
  */
 
-#if defined (__FreeBSD__) || defined (__NetBSD__)
-#include <sys/types.h>
-#else
 #include <linux/types.h>
-#endif
 
 #ifdef __KERNEL__
 

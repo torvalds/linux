@@ -60,14 +60,7 @@
  *-----------------------------------------------------------------------------
  */
 
-#ifndef __KERNEL__
-#include <sys/types.h>
-#endif
-#ifdef SunOS
-#include <sys/ioccom.h>
-#else
 #include <linux/ioctl.h>
-#endif
 
 #ifdef __cplusplus
 extern      "C"

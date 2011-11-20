@@ -38,12 +38,7 @@
  *-----------------------------------------------------------------------------
  */
 
-#if defined(__FreeBSD__) || defined (__NetBSD__)
-#include <sys/types.h>
-#else
 #include <linux/types.h>
-#endif
-
 
 #define VINT32  volatile u_int32_t
 

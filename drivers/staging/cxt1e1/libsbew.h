@@ -42,10 +42,6 @@
  *-----------------------------------------------------------------------------
  */
 
-#ifndef __KERNEL__
-#include <sys/types.h>
-#endif
-
 #ifdef __cplusplus
 extern      "C"
 {
