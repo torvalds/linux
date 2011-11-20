@@ -1210,6 +1210,7 @@ x86_pmu_notifier(struct notifier_block *self, unsigned long action, void *hcpu)
 		break;
 
 	case CPU_STARTING:
+		set_in_cr4(X86_CR4_PCE);
 		if (x86_pmu.cpu_starting)
 			x86_pmu.cpu_starting(cpu);
 		break;
@@ -1542,6 +1543,18 @@ static int x86_pmu_event_init(struct perf_event *event)
 	return err;
 }
 
+static int x86_pmu_event_idx(struct perf_event *event)
+{
+	int idx = event->hw.idx;
+
+	if (x86_pmu.num_counters_fixed && idx >= X86_PMC_IDX_FIXED) {
+		idx -= X86_PMC_IDX_FIXED;
+		idx |= 1 << 30;
+	}
+
+	return idx + 1;
+}
+
 static struct pmu pmu = {
 	.pmu_enable	= x86_pmu_enable,
 	.pmu_disable	= x86_pmu_disable,
@@ -1557,6 +1570,8 @@ static struct pmu pmu = {
 	.start_txn	= x86_pmu_start_txn,
 	.cancel_txn	= x86_pmu_cancel_txn,
 	.commit_txn	= x86_pmu_commit_txn,
+
+	.event_idx	= x86_pmu_event_idx,
 };
 
 /*
