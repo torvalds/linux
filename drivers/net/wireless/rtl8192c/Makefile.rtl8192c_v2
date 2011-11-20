@@ -1,3 +1,7 @@
+#
+# Makefile for RTL8188/8192 USB WiFi
+#
+
 EXTRA_CFLAGS += -O1 
 #EXTRA_CFLAGS += -O3
 EXTRA_CFLAGS += -Wall 
@@ -30,9 +34,9 @@ CONFIG_MP_INCLUDED = n
 CONFIG_POWER_SAVING			=	n
 CONFIG_USB_AUTOSUSPEND			=	n
 CONFIG_HW_PWRP_DETECTION		=	n
-CONFIG_WIFI_TEST						=	n
-CONFIG_BT_COEXISTENCE				= n
-CONFIG_RTL8192CU_REDEFINE_1X1 =n
+CONFIG_WIFI_TEST			=	n
+CONFIG_BT_COEXISTENCE			= 	n
+CONFIG_RTL8192CU_REDEFINE_1X1 		=	n
 
 CONFIG_PLATFORM_ARM_RK2918	=	y
 
@@ -54,25 +58,9 @@ CHIP_FILES := hal/$(RTL871X)/$(RTL871X)_sreset.o
 CHIP_FILES += $(FW_FILES)
 endif
 
-ifeq ($(CONFIG_SDIO_HCI), y)
-
-HCI_NAME = sdio
-
-_OS_INTFS_FILES :=	os_dep/osdep_service.o \
-			os_dep/linux/os_intfs.o \
-			os_dep/linux/sdio_intf.o \
-			os_dep/linux/ioctl_linux.o \
-			os_dep/linux/xmit_linux.o \
-			os_dep/linux/mlme_linux.o \
-			os_dep/linux/recv_linux.o
-
-_HAL_INTFS_FILES := hal/$(RTL871X)/hal_init.o \
-		    hal/$(RTL871X)/sdio_halinit.o \
-		    hal/$(RTL871X)/sdio_ops.o \
-		    hal/$(RTL871X)/sdio_ops_linux.o    	
-
-endif
-
+os_dep/linux/ioctl_linux.o: os_dep/linux/ioctl_linux.uu
+	@echo "UUDE    os_dep/linux/ioctl_linux.uu"
+	@uudecode os_dep/linux/ioctl_linux.uu -o os_dep/linux/ioctl_linux.o
 
 ifeq ($(CONFIG_USB_HCI), y)
 
@@ -83,54 +71,23 @@ _OS_INTFS_FILES :=	os_dep/osdep_service.o \
 			os_dep/linux/$(HCI_NAME)_intf.o \
 			os_dep/linux/ioctl_linux.o \
 			os_dep/linux/xmit_linux.o \
+			os_dep/linux/ioctl_linux.o \
 			os_dep/linux/mlme_linux.o \
-			os_dep/linux/recv_linux.o
+			os_dep/linux/recv_linux.o 
 
 _HAL_INTFS_FILES :=	hal/hal_init.o \
-                        hal/$(RTL871X)/$(RTL871X)_hal_init.o \
+            hal/$(RTL871X)/$(RTL871X)_hal_init.o \
 			hal/$(RTL871X)/$(RTL871X)_phycfg.o \
 			hal/$(RTL871X)/$(RTL871X)_rf6052.o \
 			hal/$(RTL871X)/$(RTL871X)_dm.o \
 			hal/$(RTL871X)/$(RTL871X)_rxdesc.o \
 			hal/$(RTL871X)/$(RTL871X)_cmd.o \
-			hal/$(RTL871X)/$(RTL871X)_mp.o \
 			hal/$(RTL871X)/usb/usb_ops_linux.o \
 			hal/$(RTL871X)/usb/usb_halinit.o \
 			hal/$(RTL871X)/usb/rtl$(MODULE_NAME)_led.o \
 			hal/$(RTL871X)/usb/rtl$(MODULE_NAME)_xmit.o \
 			hal/$(RTL871X)/usb/rtl$(MODULE_NAME)_recv.o
 			
-_HAL_INTFS_FILES += $(CHIP_FILES)
-
-endif
-
-
-ifeq ($(CONFIG_PCI_HCI), y)
- 
-HCI_NAME = pci
-
-_OS_INTFS_FILES :=	os_dep/osdep_service.o \
-			os_dep/linux/os_intfs.o \
-			os_dep/linux/$(HCI_NAME)_intf.o \
-			os_dep/linux/ioctl_linux.o \
-			os_dep/linux/xmit_linux.o \
-			os_dep/linux/mlme_linux.o \
-			os_dep/linux/recv_linux.o
-
-_HAL_INTFS_FILES :=	hal/hal_init.o \
-                        hal/$(RTL871X)/$(RTL871X)_hal_init.o \
-			hal/$(RTL871X)/$(RTL871X)_phycfg.o \
-			hal/$(RTL871X)/$(RTL871X)_rf6052.o \
-			hal/$(RTL871X)/$(RTL871X)_dm.o \
-			hal/$(RTL871X)/$(RTL871X)_rxdesc.o \
-			hal/$(RTL871X)/$(RTL871X)_cmd.o \
-			hal/$(RTL871X)/$(RTL871X)_mp.o \
-			hal/$(RTL871X)/pci/pci_ops_linux.o \
-			hal/$(RTL871X)/pci/pci_halinit.o \
-			hal/$(RTL871X)/pci/rtl$(MODULE_NAME)_led.o \
-			hal/$(RTL871X)/pci/rtl$(MODULE_NAME)_xmit.o \
-			hal/$(RTL871X)/pci/rtl$(MODULE_NAME)_recv.o
-
 _HAL_INTFS_FILES += $(CHIP_FILES)
 
 endif
@@ -207,6 +164,9 @@ rtl$(MODULE_NAME)-y += $(_HAL_INTFS_FILES)
 
 rtl$(MODULE_NAME)-y += $(_OS_INTFS_FILES)
 
+core/rtw_ioctl_set.o: core/rtw_ioctl_set.uu
+	@echo "UUDE    core/rtw_ioctl_set.uu"
+	@uudecode core/rtw_ioctl_set.uu -o core/rtw_ioctl_set.o
 
 rtl$(MODULE_NAME)-$(CONFIG_MP_INCLUDED) += core/rtw_mp.o \
 					core/rtw_mp_ioctl.o \

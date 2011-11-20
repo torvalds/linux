@@ -78,6 +78,7 @@ int wifi_deactivate_usb(void)
 	msleep(1000);
 #endif
 	
+    printk("do wifi_turn_off_card\n");
 	wifi_turn_off_card();
 	msleep(100);
 

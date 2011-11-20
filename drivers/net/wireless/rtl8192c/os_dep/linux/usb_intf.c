@@ -1451,10 +1451,13 @@ static void rtw_drv_halt(void)
 	RT_TRACE(_module_hci_intfs_c_,_drv_err_,("+rtw_drv_halt\n"));
 	DBG_8192C("+rtw_drv_halt\n");
 
+    printk("rtw_suspend_lock_uninit\n");
 	rtw_suspend_lock_uninit();
 
 	drvpriv.drv_registered = _FALSE;
+    printk("--- usb_deregister ---\n");
 	usb_deregister(&drvpriv.rtw_usb_drv);
+    printk("--- end usb_deregister ---\n");
 	DBG_8192C("-rtw_drv_halt\n");
 }
 
@@ -1476,7 +1479,9 @@ int mv88w8686_if_sdio_init_module(void)
 
 void  mv88w8686_if_sdio_exit_module(void)
 {
+    printk("do rtw_drv_halt\n");
         rtw_drv_halt();
+    printk("do wifi_deactivate_usb\n");
         wifi_deactivate_usb();
 }
 
