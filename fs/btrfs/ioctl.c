@@ -1216,12 +1216,12 @@ static noinline int btrfs_ioctl_resize(struct btrfs_root *root,
 		*devstr = '\0';
 		devstr = vol_args->name;
 		devid = simple_strtoull(devstr, &end, 10);
-		printk(KERN_INFO "resizing devid %llu\n",
+		printk(KERN_INFO "btrfs: resizing devid %llu\n",
 		       (unsigned long long)devid);
 	}
 	device = btrfs_find_device(root, devid, NULL, NULL);
 	if (!device) {
-		printk(KERN_INFO "resizer unable to find device %llu\n",
+		printk(KERN_INFO "btrfs: resizer unable to find device %llu\n",
 		       (unsigned long long)devid);
 		ret = -EINVAL;
 		goto out_unlock;
@@ -1267,7 +1267,7 @@ static noinline int btrfs_ioctl_resize(struct btrfs_root *root,
 	do_div(new_size, root->sectorsize);
 	new_size *= root->sectorsize;
 
-	printk(KERN_INFO "new size for %s is %llu\n",
+	printk(KERN_INFO "btrfs: new size for %s is %llu\n",
 		device->name, (unsigned long long)new_size);
 
 	if (new_size > old_size) {
