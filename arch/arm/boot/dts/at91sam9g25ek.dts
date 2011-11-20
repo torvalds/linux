@@ -33,5 +33,13 @@
 				status = "okay";
 			};
 		};
+
+		usb0: ohci@00600000 {
+			status = "okay";
+			num-ports = <2>;
+			atmel,vbus-gpio = <&pioD 19 0
+					   &pioD 20 0
+					  >;
+		};
 	};
 };

@@ -131,7 +131,7 @@ static struct clk dma1_clk = {
 	.type		= CLK_TYPE_PERIPHERAL,
 };
 static struct clk uhphs_clk = {
-	.name		= "uhphs_clk",
+	.name		= "uhphs",
 	.pmc_mask	= 1 << AT91SAM9X5_ID_UHPHS,
 	.type		= CLK_TYPE_PERIPHERAL,
 };
@@ -230,6 +230,8 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	/* additional fake clock for macb_hclk */
 	CLKDEV_CON_DEV_ID("hclk", "f802c000.ethernet", &macb0_clk),
 	CLKDEV_CON_DEV_ID("hclk", "f8030000.ethernet", &macb1_clk),
+	CLKDEV_CON_DEV_ID("hclk", "600000.ohci", &uhphs_clk),
+	CLKDEV_CON_DEV_ID("ohci_clk", "600000.ohci", &uhphs_clk),
 };
 
 /*
