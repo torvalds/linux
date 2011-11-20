@@ -2453,9 +2453,21 @@ setup_cluster_bitmap(struct btrfs_block_group_cache *block_group,
 	struct btrfs_free_space *entry;
 	struct rb_node *node;
 	int ret = -ENOSPC;
+	u64 bitmap_offset = offset_to_bitmap(ctl, offset);
 
 	if (ctl->total_bitmaps == 0)
 		return -ENOSPC;
+
+	/*
+	 * The bitmap that covers offset won't be in the list unless offset
+	 * is just its start offset.
+	 */
+	entry = list_first_entry(bitmaps, struct btrfs_free_space, list);
+	if (entry->offset != bitmap_offset) {
+		entry = tree_search_offset(ctl, bitmap_offset, 1, 0);
+		if (entry && list_empty(&entry->list))
+			list_add(&entry->list, bitmaps);
+	}
 
 	/*
 	 * First check our cached list of bitmaps and see if there is an entry
