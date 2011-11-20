@@ -89,6 +89,27 @@ extern void genl_unlock(void);
 extern int lockdep_genl_is_held(void);
 #endif
 
+/**
+ * rcu_dereference_genl - rcu_dereference with debug checking
+ * @p: The pointer to read, prior to dereferencing
+ *
+ * Do an rcu_dereference(p), but check caller either holds rcu_read_lock()
+ * or genl mutex. Note : Please prefer genl_dereference() or rcu_dereference()
+ */
+#define rcu_dereference_genl(p)					\
+	rcu_dereference_check(p, lockdep_genl_is_held())
+
+/**
+ * genl_dereference - fetch RCU pointer when updates are prevented by genl mutex
+ * @p: The pointer to read, prior to dereferencing
+ *
+ * Return the value of the specified RCU-protected pointer, but omit
+ * both the smp_read_barrier_depends() and the ACCESS_ONCE(), because
+ * caller holds genl mutex.
+ */
+#define genl_dereference(p)					\
+	rcu_dereference_protected(p, lockdep_genl_is_held())
+
 #endif /* __KERNEL__ */
 
 #endif	/* __LINUX_GENERIC_NETLINK_H */
