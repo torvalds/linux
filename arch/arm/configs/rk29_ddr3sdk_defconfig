@@ -620,8 +620,8 @@ CONFIG_BT_L2CAP=y
 CONFIG_BT_SCO=y
 CONFIG_BT_RFCOMM=y
 CONFIG_BT_RFCOMM_TTY=y
-# CONFIG_BT_BNEP is not set
-# CONFIG_BT_HIDP is not set
+CONFIG_BT_BNEP=y
+CONFIG_BT_HIDP=y
 
 #
 # Bluetooth device drivers
