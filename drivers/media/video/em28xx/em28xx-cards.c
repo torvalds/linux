@@ -922,6 +922,7 @@ struct em28xx_board em28xx_boards[] = {
 #else
 		.tuner_type   = TUNER_ABSENT,
 #endif
+		.ir_codes     = RC_MAP_HAUPPAUGE,
 		.i2c_speed    = EM2874_I2C_SECONDARY_BUS_SELECT |
 				EM28XX_I2C_CLK_WAIT_ENABLE |
 				EM28XX_I2C_FREQ_400_KHZ,
