@@ -615,6 +615,7 @@ struct pmu {
 	struct list_head		entry;
 
 	struct device			*dev;
+	const struct attribute_group	**attr_groups;
 	char				*name;
 	int				type;
 

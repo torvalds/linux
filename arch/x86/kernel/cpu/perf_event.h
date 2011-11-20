@@ -307,6 +307,14 @@ struct x86_pmu {
 	struct x86_pmu_quirk *quirks;
 	int		perfctr_second_write;
 
+	/*
+	 * sysfs attrs
+	 */
+	int		attr_rdpmc;
+
+	/*
+	 * CPU Hotplug hooks
+	 */
 	int		(*cpu_prepare)(int cpu);
 	void		(*cpu_starting)(int cpu);
 	void		(*cpu_dying)(int cpu);
