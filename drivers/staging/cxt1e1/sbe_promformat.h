@@ -85,12 +85,6 @@
  *
  */
 
-#ifdef __cplusplus
-extern      "C"
-{
-#endif
-
-
 #define STRUCT_OFFSET(type, symbol)  ((long)&(((type *)0)->symbol))
 
 /*------------------------------------------------------------------------
@@ -149,9 +143,5 @@ extern      "C"
         FLD_TYPE1   fldType1;
         FLD_TYPE2   fldType2;
     }           PROMFORMAT;
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif                          /*** _INC_SBE_PROMFORMAT_H_ ***/

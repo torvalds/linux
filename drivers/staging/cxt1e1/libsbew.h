@@ -42,11 +42,6 @@
  *-----------------------------------------------------------------------------
  */
 
-#ifdef __cplusplus
-extern      "C"
-{
-#endif
-
 /********************************/
 /**  set driver logging level  **/
 /********************************/
@@ -568,10 +563,6 @@ struct sbecom_port_param
 #ifdef NOT_YET_COMMON
     extern int  wancfg_get_tsioc (wcfg_t *, struct wanc1t3_ts_hdr *, struct wanc1t3_ts_param *);
     extern int  wancfg_set_tsioc (wcfg_t *, struct wanc1t3_ts_param *);
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
 #endif                          /*** _INC_LIBSBEW_H_ ***/

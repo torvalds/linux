@@ -49,12 +49,6 @@ typedef int status_t;
 #define SBE_DRVR_FAIL     0
 #define SBE_DRVR_SUCCESS  1
 
-#ifdef __cplusplus
-extern      "C"
-{
-#endif
-
-
 /********************/
 /* PMCC4 memory Map */
 /********************/
@@ -93,10 +87,6 @@ extern      "C"
 
 #define sbeE1errSMF    0x02
 #define sbeE1CRC       0x01
-
-#ifdef __cplusplus
-}
-#endif
 
 #ifdef __KERNEL__
 

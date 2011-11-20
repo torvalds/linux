@@ -45,11 +45,6 @@
 #define VINT8   volatile u_int8_t
 #define VINT32  volatile u_int32_t
 
-#ifdef __cplusplus
-extern      "C"
-{
-#endif
-
 #include "pmcc4_defs.h"
 
 
@@ -443,10 +438,6 @@ extern      "C"
 
 /*  This must be defined on an entire channel group (Port) basis */
 #define SUERM_THRESHOLD     0x1f
-
-#ifdef __cplusplus
-}
-#endif
 
 #undef VINT32
 #undef VINT8

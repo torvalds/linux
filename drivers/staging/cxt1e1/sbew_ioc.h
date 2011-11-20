@@ -62,11 +62,6 @@
 
 #include <linux/ioctl.h>
 
-#ifdef __cplusplus
-extern      "C"
-{
-#endif
-
 #define SBE_LOCKFILE   "/tmp/.sbewan.LCK"
 
 #define SBE_IOC_COOKIE     0x19780926
@@ -120,10 +115,5 @@ extern      "C"
  */
 
 #define SBE_IOC_MAXVEC    1
-
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif                          /*** _INC_SBEWIOC_H_ ***/

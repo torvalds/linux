@@ -37,12 +37,6 @@
 
 #include <linux/types.h>
 
-#ifdef __cplusplus
-extern      "C"
-{
-#endif
-
-
 /********************************/
 /* iSPLD control chip registers */
 /********************************/
@@ -107,9 +101,5 @@ extern      "C"
 #define PMCC4_CPLD_INTR_CMT_2   0x02
 #define PMCC4_CPLD_INTR_CMT_3   0x04
 #define PMCC4_CPLD_INTR_CMT_4   0x08
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif                          /* _INC_PMCC4_CPLD_H_ */
