@@ -1321,35 +1321,30 @@ static int snd_es1938_put_double(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static unsigned int db_scale_master[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(db_scale_master,
 	0, 54, TLV_DB_SCALE_ITEM(-3600, 50, 1),
 	54, 63, TLV_DB_SCALE_ITEM(-900, 100, 0),
-};
+);
 
-static unsigned int db_scale_audio1[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(db_scale_audio1,
 	0, 8, TLV_DB_SCALE_ITEM(-3300, 300, 1),
 	8, 15, TLV_DB_SCALE_ITEM(-900, 150, 0),
-};
+);
 
-static unsigned int db_scale_audio2[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(db_scale_audio2,
 	0, 8, TLV_DB_SCALE_ITEM(-3450, 300, 1),
 	8, 15, TLV_DB_SCALE_ITEM(-1050, 150, 0),
-};
+);
 
-static unsigned int db_scale_mic[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(db_scale_mic,
 	0, 8, TLV_DB_SCALE_ITEM(-2400, 300, 1),
 	8, 15, TLV_DB_SCALE_ITEM(0, 150, 0),
-};
+);
 
-static unsigned int db_scale_line[] = {
-	TLV_DB_RANGE_HEAD(2),
+static const DECLARE_TLV_DB_RANGE(db_scale_line,
 	0, 8, TLV_DB_SCALE_ITEM(-3150, 300, 1),
 	8, 15, TLV_DB_SCALE_ITEM(-750, 150, 0),
-};
+);
 
 static const DECLARE_TLV_DB_SCALE(db_scale_capture, 0, 150, 0);
 
