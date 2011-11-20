@@ -682,7 +682,7 @@ static int init_state(struct drxk_state *state)
 	state->m_hasAudio = false;
 
 	if (!state->m_ChunkSize)
-	    state->m_ChunkSize = 124;
+		state->m_ChunkSize = 124;
 
 	state->m_oscClockFreq = 0;
 	state->m_smartAntInverted = false;

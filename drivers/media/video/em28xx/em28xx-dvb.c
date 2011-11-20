@@ -347,42 +347,27 @@ static void hauppauge_hvr930c_init(struct em28xx *dev)
 	int i;
 
 	struct em28xx_reg_seq hauppauge_hvr930c_init[] = {
-		{EM2874_R80_GPIO,	0xff,	0xff,	101},  //11111111
-//		{0xd            ,	0xff,	0xff,	101},  //11111111
-		{EM2874_R80_GPIO,	0xfb,	0xff,	50},   //11111011  init bit 3
-		{EM2874_R80_GPIO,	0xff,	0xff,	184},  //11111111
+		{EM2874_R80_GPIO,	0xff,	0xff,	0x65},
+		{EM2874_R80_GPIO,	0xfb,	0xff,	0x32},
+		{EM2874_R80_GPIO,	0xff,	0xff,	0xb8},
 		{ -1,                   -1,     -1,     -1},
 	};
 	struct em28xx_reg_seq hauppauge_hvr930c_end[] = {
-		{EM2874_R80_GPIO,	0xef,	0xff,	1},    //11101111
-		{EM2874_R80_GPIO,	0xaf,	0xff,	101},  //10101111  init bit 7
-		{EM2874_R80_GPIO,	0xef,	0xff,	118},   //11101111
+		{EM2874_R80_GPIO,	0xef,	0xff,	0x01},
+		{EM2874_R80_GPIO,	0xaf,	0xff,	0x65},
+		{EM2874_R80_GPIO,	0xef,	0xff,	0x76},
+		{EM2874_R80_GPIO,	0xef,	0xff,	0x01},
+		{EM2874_R80_GPIO,	0xcf,	0xff,	0x0b},
+		{EM2874_R80_GPIO,	0xef,	0xff,	0x40},
 
+		{EM2874_R80_GPIO,	0xcf,	0xff,	0x65},
+		{EM2874_R80_GPIO,	0xef,	0xff,	0x65},
+		{EM2874_R80_GPIO,	0xcf,	0xff,	0x0b},
+		{EM2874_R80_GPIO,	0xef,	0xff,	0x65},
 
-//per il tuner?
-		{EM2874_R80_GPIO,	0xef,	0xff,	1},  //11101111
-		{EM2874_R80_GPIO,	0xcf,	0xff,	11},    //11001111  init bit 6
-		{EM2874_R80_GPIO,	0xef,	0xff,	64},  //11101111
-
-		{EM2874_R80_GPIO,	0xcf,	0xff,	101},  //11001111  init bit 6
-		{EM2874_R80_GPIO,	0xef,	0xff,	101},  //11101111
-		{EM2874_R80_GPIO,	0xcf,	0xff,	11},  //11001111  init bit 6
-		{EM2874_R80_GPIO,	0xef,	0xff,	101},  //11101111
-
-//		{EM2874_R80_GPIO,	0x6f,	0xff,	10},    //01101111
-//		{EM2874_R80_GPIO,	0x6d,	0xff,	100},  //01101101  init bit 2
 		{ -1,                   -1,     -1,     -1},
 	};
 
-	struct em28xx_reg_seq hauppauge_hvr930c_end2[] = {
-//		{EM2874_R80_GPIO,	0x6f,	0xff,	124},  //01101111
-//		{EM2874_R80_GPIO,	0x4f,	0xff,	11},   //01001111  init bit 6
-//		{EM2874_R80_GPIO,	0x6f,	0xff,	1},    //01101111
-//		{EM2874_R80_GPIO,	0x4f,	0xff,	10},   //01001111  init bit 6
-//		{EM2874_R80_GPIO,	0x6f,	0xff,	100},  //01101111
-//		{0xd            ,	0x42,	0xff,	101},  //11111111
-		{ -1,                   -1,     -1,     -1},
-	};
 	struct {
 		unsigned char r[4];
 		int len;
@@ -419,8 +404,6 @@ static void hauppauge_hvr930c_init(struct em28xx *dev)
 	em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, 0x44);
 	msleep(30);
 
-	em28xx_gpio_set(dev, hauppauge_hvr930c_end2);
-	msleep(10);
 	em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, 0x45);
 	msleep(10);
 
@@ -885,7 +868,9 @@ static int em28xx_dvb_init(struct em28xx *dev)
 
 		dvb->dont_attach_fe1 = 1;
 
-		dvb->fe[0] = dvb_attach(drxk_attach, &hauppauge_930c_drxk, &dev->i2c_adap, &dvb->fe[1]);
+		dvb->fe[0] = dvb_attach(drxk_attach,
+					&hauppauge_930c_drxk, &dev->i2c_adap,
+					&dvb->fe[1]);
 		if (!dvb->fe[0]) {
 			result = -EINVAL;
 			goto out_free;
@@ -901,12 +886,12 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		struct xc5000_config cfg;
 		memset(&cfg, 0, sizeof(cfg));
 		cfg.i2c_address  = 0x61;
-		//cfg.if_khz = 4570; //FIXME
-		cfg.if_khz = 4000; //FIXME (should be ok) read from i2c traffic
+		cfg.if_khz = 4000;
 
 		if (dvb->fe[0]->ops.i2c_gate_ctrl)
 			dvb->fe[0]->ops.i2c_gate_ctrl(dvb->fe[0], 1);
-		if (!dvb_attach(xc5000_attach, dvb->fe[0], &dev->i2c_adap, &cfg)) {
+		if (!dvb_attach(xc5000_attach, dvb->fe[0], &dev->i2c_adap,
+				&cfg)) {
 			result = -EINVAL;
 			goto out_free;
 		}
@@ -978,7 +963,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 	/* define general-purpose callback pointer */
 	dvb->fe[0]->callback = em28xx_tuner_callback;
 	if (dvb->fe[1])
-	    dvb->fe[1]->callback = em28xx_tuner_callback;
+		dvb->fe[1]->callback = em28xx_tuner_callback;
 
 	/* register everything */
 	result = em28xx_register_dvb(dvb, THIS_MODULE, dev, &dev->udev->dev);

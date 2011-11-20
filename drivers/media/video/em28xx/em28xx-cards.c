@@ -337,9 +337,8 @@ static struct em28xx_reg_seq pctv_460e[] = {
 };
 
 static struct em28xx_reg_seq hauppauge_930c_gpio[] = {
-// xc5000 reset
 	{EM2874_R80_GPIO,	0x6f,	0xff,	10},
-	{EM2874_R80_GPIO,	0x4f,	0xff,	10},
+	{EM2874_R80_GPIO,	0x4f,	0xff,	10}, /* xc5000 reset */
 	{EM2874_R80_GPIO,	0x6f,	0xff,	10},
 	{EM2874_R80_GPIO,	0x4f,	0xff,	10},
 	{ -1,			-1,	-1,	-1},
@@ -905,6 +904,8 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_addr   = 0x41,
 		.dvb_gpio     = terratec_h5_digital, /* FIXME: probably wrong */
 		.tuner_gpio   = terratec_h5_gpio,
+#else
+		.tuner_type   = TUNER_ABSENT,
 #endif
 		.i2c_speed    = EM2874_I2C_SECONDARY_BUS_SELECT |
 				EM28XX_I2C_CLK_WAIT_ENABLE |
@@ -913,12 +914,14 @@ struct em28xx_board em28xx_boards[] = {
 	[EM2884_BOARD_HAUPPAUGE_WINTV_HVR_930C] = {
 		.name         = "Hauppauge WinTV HVR 930C",
 		.has_dvb      = 1,
-//#if 0
-//		.tuner_type   = TUNER_XC5000,
-//		.tuner_addr   = 0x41,
-//		.dvb_gpio     = hauppauge_930c_digital, /* FIXME: probably wrong */
+#if 0 /* FIXME: Add analog support */
+		.tuner_type   = TUNER_XC5000,
+		.tuner_addr   = 0x41,
+		.dvb_gpio     = hauppauge_930c_digital,
 		.tuner_gpio   = hauppauge_930c_gpio,
-//#endif
+#else
+		.tuner_type   = TUNER_ABSENT,
+#endif
 		.i2c_speed    = EM2874_I2C_SECONDARY_BUS_SELECT |
 				EM28XX_I2C_CLK_WAIT_ENABLE |
 				EM28XX_I2C_FREQ_400_KHZ,
