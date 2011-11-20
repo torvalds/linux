@@ -44,6 +44,16 @@ choice
 	    A library for Broadcom BCM4329 SDIO WLAN/BT combo devices.
 	    So far, the following modules have been verified:
 	      (1) Samsung    SWL-B23
+	      
+	config BCM4319
+	  depends on WLAN_80211 && MMC
+	  select WIRELESS_EXT
+	  select WEXT_PRIV
+	  select IEEE80211
+	  select FW_LOADER
+	  bool "Broadcom BCM4319 WiFi SDIO"
+	  ---help---
+	    A library for Broadcom BCM4319 SDIO WLAN devices. 
 
 	config MV8686
 	  depends on WLAN_80211 && MMC
@@ -59,11 +69,8 @@ choice
 	      (3) USI        WM-G-MR-09
 	      (4) Murata     SP-8HEP-P
 
-source "drivers/net/wireless/bcm4319/Kconfig"
 source "drivers/net/wireless/rtl8192c/Kconfig"
 endchoice
-
-#source "drivers/net/wireless/bcm4329/Kconfig"
 
 endif
 

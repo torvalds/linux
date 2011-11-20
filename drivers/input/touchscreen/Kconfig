@@ -115,6 +115,13 @@ config TOUCHSCREEN_ILI2102_IIC
 	  code includes that in its table of IIC devices.
 
 	  If unsure, say N (but it's safe to say "Y").
+config TOUCHSCREEN_GT8XX
+        tristate "Goodix touch screen gt8xx support for rk29"
+        help
+          Say Y here if you have a touchscreen interface using the
+          goodix gt8xx  , and your board-specific initialization
+          code includes that in its table of IIC devices.
+	  If unsure, say N (but it's safe to say "Y").
 
 config RK28_I2C_TS_NTP070
 	tristate "NTP070 based touchscreens: NTP070 Interface"

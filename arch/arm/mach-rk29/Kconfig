@@ -23,6 +23,12 @@ config MACH_RK29WINACCORD
         help
 	  Support for the ROCKCHIP Board For Rk29 Winaccord.
 
+config MACH_RK29_K97
+        depends on ARCH_RK29
+        bool "ROCKCHIP Board Rk29 For K97"
+        help
+          Support for the ROCKCHIP Board For Rk29 K97.
+
 config MACH_RK29FIH
 	depends on ARCH_RK29
 	bool "ROCKCHIP Board Rk29 For FIH"

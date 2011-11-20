@@ -3165,8 +3165,8 @@ wl_get_iscan_results(struct wl_iscan_ctrl *iscan, uint32 *status, struct wl_scan
 	results->buflen = dtoh32(results->buflen);
 	results->version = dtoh32(results->version);
 	results->count = dtoh32(results->count);
-	//WL_DBG(("results->count = %d\n", results->count));
-	//WL_DBG(("results->buflen = %d\n", results->buflen));
+	WL_DBG(("results->count = %d\n", results->count));
+	WL_DBG(("results->buflen = %d\n", results->buflen));
 	*status = dtoh32(list_buf->status);
 	*bss_list = results;
 

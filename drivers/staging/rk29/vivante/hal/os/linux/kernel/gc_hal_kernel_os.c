@@ -30,7 +30,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <asm/atomic.h>
-#ifdef NO_DMA_COHERENT
+#if USE_DMA_COHERENT
 #include <linux/dma-mapping.h>
 #endif /* NO_DMA_COHERENT */
 
@@ -38,7 +38,6 @@
 #include <linux/delay.h>
 #include <mach/pmu.h>
 #include <mach/cru.h>
-#define IOREMAP_IN_NOPAGE           0
 
 #if !USE_NEW_LINUX_SIGNAL
 #define USER_SIGNAL_TABLE_LEN_INIT  64
@@ -146,7 +145,12 @@ struct _gckOS
     gcsMapedNonPagedCache *     cacheTail;
 
     gctINT                      pageNum;
-    struct page *               pageCache[100];
+    #if USE_DMA_COHERENT
+        gctSTRING               addr[100];
+        dma_addr_t              dmaHandle[100];
+    #else
+        struct page *           pageCache[100];
+    #endif
 #endif
 };
 
@@ -532,9 +536,17 @@ gckOS_Construct(
 
 #if gcdkUSE_MAPED_NONPAGE_CACHE
     for(os->pageNum=0; os->pageNum<50; os->pageNum++) {
+    #if USE_DMA_COHERENT
+        os->addr[os->pageNum] = 
+        #if (2==gcdENABLE_MEM_CACHE)
+            dma_alloc_writecombine(NULL, 5 * PAGE_SIZE, &os->dmaHandle[os->pageNum], GFP_ATOMIC);
+        #else
+            dma_alloc_coherent(NULL, 5 * PAGE_SIZE, &os->dmaHandle[os->pageNum], GFP_ATOMIC);
+        #endif
+    #else
         os->pageCache[os->pageNum] = alloc_pages(GFP_KERNEL | GFP_DMA, get_order(5 * PAGE_SIZE));
+    #endif
     }
-    //printk("os->pageNum = %d\n", os->pageNum);
 #endif
 
     /* Return pointer to the gckOS object. */
@@ -614,9 +626,11 @@ gckOS_Destroy(
     _FreeAllMapedNonPagedCache(Os, 0);
 
     for(i=0; i<Os->pageNum; i++) {
-        if(Os->pageCache[i]) {
-            free_pages((unsigned long)page_address(Os->pageCache[i]), get_order(5 * PAGE_SIZE));
-        }
+    #if USE_DMA_COHERENT
+        if(Os->addr[i])    dma_free_coherent(gcvNULL, 5 * PAGE_SIZE, Os->addr[i], Os->dmaHandle[i]);
+    #else
+        if(Os->pageCache[i])    free_pages((unsigned long)page_address(Os->pageCache[i]), get_order(5 * PAGE_SIZE));
+    #endif
     }
 #endif
 
@@ -1071,8 +1085,12 @@ gckOS_MapMemory(
             return gcvSTATUS_OUT_OF_RESOURCES;
         }
 
-#ifndef NO_DMA_COHERENT
+#if USE_DMA_COHERENT
+    #if (2==gcdENABLE_MEM_CACHE)
+        if (dma_mmap_writecombine(NULL,
+    #else
         if (dma_mmap_coherent(NULL,
+    #endif
                     mdlMap->vma,
                     mdl->addr,
                     mdl->dmaHandle,
@@ -1447,11 +1465,9 @@ gckOS_AllocateNonPagedMemory(
     gctINT          numPages;
     PLINUX_MDL      mdl;
     PLINUX_MDL_MAP  mdlMap = 0;
-#if IOREMAP_IN_NOPAGE
     gctSTRING       addr;
-#endif
 
-#ifdef NO_DMA_COHERENT
+#if !USE_DMA_COHERENT
     struct page *   page;
     long            size, order;
     gctPOINTER      vaddr, reserved_vaddr;
@@ -1507,11 +1523,34 @@ gckOS_AllocateNonPagedMemory(
 
     MEMORY_LOCK(Os);
 
-#ifndef NO_DMA_COHERENT
-    addr = dma_alloc_coherent(NULL,
-                mdl->numPages * PAGE_SIZE,
-                &mdl->dmaHandle,
-                GFP_ATOMIC);
+#if USE_DMA_COHERENT
+    #if gcdkUSE_MAPED_NONPAGE_CACHE
+        if(5==mdl->numPages && Os->pageNum>0 && Os->addr[Os->pageNum-1]) {
+            Os->pageNum--;
+            addr = Os->addr[Os->pageNum];
+            mdl->dmaHandle = Os->dmaHandle[Os->pageNum];
+            Os->addr[Os->pageNum] = gcvNULL;
+            Os->dmaHandle[Os->pageNum] = 0;
+        } else {
+        #if (2==gcdENABLE_MEM_CACHE)
+            addr = dma_alloc_writecombine(NULL,
+        #else
+            addr = dma_alloc_coherent(NULL,
+        #endif
+                        mdl->numPages * PAGE_SIZE,
+                        &mdl->dmaHandle,
+                        GFP_ATOMIC);
+        }
+    #else
+        #if (2==gcdENABLE_MEM_CACHE)
+            addr = dma_alloc_writecombine(NULL,
+        #else
+            addr = dma_alloc_coherent(NULL,
+        #endif
+                        mdl->numPages * PAGE_SIZE,
+                        &mdl->dmaHandle,
+                        GFP_ATOMIC);
+    #endif
 #else
     size    = mdl->numPages * PAGE_SIZE;
     order   = get_order(size);
@@ -1556,14 +1595,13 @@ gckOS_AllocateNonPagedMemory(
         reserved_size  -= PAGE_SIZE;
     }
 
-#if IOREMAP_IN_NOPAGE
-    // dkm: gcdENABLE_MEM_CACHE
-    #if (1==gcdENABLE_MEM_CACHE)
-        addr            = ioremap_cached(virt_to_phys(vaddr), size);
-    #else
-        addr            = ioremap_nocache(virt_to_phys(vaddr), size);
-    #endif
+// dkm: gcdENABLE_MEM_CACHE
+#if (1==gcdENABLE_MEM_CACHE)
+    addr            = ioremap_cached(virt_to_phys(vaddr), size);
+#else
+    addr            = ioremap_nocache(virt_to_phys(vaddr), size);
 #endif
+
 
     mdl->dmaHandle  = virt_to_phys(vaddr);
     mdl->kaddr      = vaddr;
@@ -1574,7 +1612,6 @@ gckOS_AllocateNonPagedMemory(
 
 #endif
 
-#if IOREMAP_IN_NOPAGE
     if (addr == gcvNULL)
     {
         gcmkTRACE_ZONE(gcvLEVEL_INFO,
@@ -1588,7 +1625,6 @@ gckOS_AllocateNonPagedMemory(
 
         return gcvSTATUS_OUT_OF_MEMORY;
     }
-#endif
 
     if ((Os->baseAddress & 0x80000000) != (mdl->dmaHandle & 0x80000000))
     {
@@ -1596,11 +1632,7 @@ gckOS_AllocateNonPagedMemory(
                        | (Os->baseAddress & 0x80000000);
     }
 
-#if IOREMAP_IN_NOPAGE
     mdl->addr = addr;
-#else
-    mdl->addr = vaddr;
-#endif
 
     /*
      * We will not do any mapping from here.
@@ -1671,8 +1703,12 @@ gckOS_AllocateNonPagedMemory(
             return gcvSTATUS_OUT_OF_RESOURCES;
         }
 
-#ifndef NO_DMA_COHERENT
+#if USE_DMA_COHERENT
+    #if (2==gcdENABLE_MEM_CACHE)
+        if (dma_mmap_writecombine(NULL,
+    #else
         if (dma_mmap_coherent(NULL,
+    #endif
                 mdlMap->vma,
                 mdl->addr,
                 mdl->dmaHandle,
@@ -1836,7 +1872,7 @@ gceSTATUS gckOS_FreeNonPagedMemoryRealy(
     // dkm: add
     struct mm_struct *      mm;
 
-#ifdef NO_DMA_COHERENT
+#if !USE_DMA_COHERENT
     unsigned                size;
     gctPOINTER              vaddr;
 #endif /* NO_DMA_COHERENT */
@@ -1856,11 +1892,24 @@ gceSTATUS gckOS_FreeNonPagedMemoryRealy(
 
     if(MemLock)     MEMORY_LOCK(Os);
 
-#ifndef NO_DMA_COHERENT
-    dma_free_coherent(gcvNULL,
-                    mdl->numPages * PAGE_SIZE,
-                    mdl->addr,
-                    mdl->dmaHandle);
+#if USE_DMA_COHERENT
+    #if gcdkUSE_MAPED_NONPAGE_CACHE
+        if(5==mdl->numPages && Os->pageNum<100 && !Os->addr[Os->pageNum]) {
+            Os->addr[Os->pageNum] = mdl->addr;
+            Os->dmaHandle[Os->pageNum] = mdl->dmaHandle;
+            Os->pageNum ++;
+        } else {
+            dma_free_coherent(gcvNULL,
+                            mdl->numPages * PAGE_SIZE,
+                            mdl->addr,
+                            mdl->dmaHandle);
+        }
+    #else
+        dma_free_coherent(gcvNULL,
+                        mdl->numPages * PAGE_SIZE,
+                        mdl->addr,
+                        mdl->dmaHandle);
+    #endif
 #else
     size    = mdl->numPages * PAGE_SIZE;
     vaddr   = mdl->kaddr;
@@ -1885,9 +1934,7 @@ gceSTATUS gckOS_FreeNonPagedMemoryRealy(
     free_pages((unsigned long)mdl->kaddr, get_order(mdl->numPages * PAGE_SIZE));
 #endif
 
-#if IOREMAP_IN_NOPAGE
     iounmap(mdl->addr);
-#endif
 #endif /* NO_DMA_COHERENT */
 
     mdlMap = mdl->maps;

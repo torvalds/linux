@@ -1,42 +1,24 @@
+# bcm4319
+DHDCFLAGS = -DLINUX -DBCMDRIVER -DBCMDONGLEHOST -DDHDTHREAD -DBCMWPA2         \
+	-DUNRELEASEDCHIP -Dlinux -DDHD_SDALIGN=64 -DMAX_HDR_READ=64           \
+	-DDHD_FIRSTREAD=64 -DDHD_GPL -DDHD_SCHED -DBDC -DTOE -DDHD_BCMEVENTS  \
+	-DSHOW_EVENTS -DBCMSDIO -DDHD_GPL -DBCMLXSDMMC -DBCMPLATFORM_BUS      \
+	-Wall -Wstrict-prototypes -Werror -DCUSTOMER_HW2      \
+	-DDHD_USE_STATIC_BUF -DDHD_DEBUG_TRAP -DSOFTAP -DSDIO_ISR_THREAD      \
+	-DEMBEDDED_PLATFORM -DARP_OFFLOAD_SUPPORT -DPKT_FILTER_SUPPORT        \
+	-DGET_CUSTOM_MAC_ENABLE -DSET_RANDOM_MAC_SOFTAP -DCSCAN   \
+        -DKEEP_ALIVE -DCONFIG_US_NON_DFS_CHANNELS_ONLY   \
+	-Idrivers/net/wireless/bcm4319 -Idrivers/net/wireless/bcm4319/include
 
-RKWLCFGDIR = ../wifi_power
-BROADCOM_SRC_DIR = drivers/net/wireless/bcm4319
+#options defines dependent on platform board and applicantion requirements: 
+#-DOOB_INTR_ONLY -DMMC_SDIO_ABORT -DHW_OOB
 
-EXTRA_CFLAGS += -I$(src) -I$(src)/include -I$(src)/$(RKWLCFGDIR)/
-EXTRA_CFLAGS += -DLINUX -DSRCBASE=\"$(BROADCOM_SRC_DIR)\" -DBCMDRIVER -DBCMDONGLEHOST -DDHDTHREAD\
-                -DBCMWPA2 -DBCMWAPI_WPI
-EXTRA_CFLAGS += -DUNRELEASEDCHIP -DOEM_ANDROID -DEMBEDDED_PLATFORM -DARP_OFFLOAD_SUPPORT -DPKT_FILTER_SUPPORT 
-EXTRA_CFLAGS += -DBCMSDIO -DDHD_GPL -DBCMLXSDMMC -DBCMPLATFORM_BUS
-EXTRA_CFLAGS += -DSDIO_ISR_THREAD
-EXTRA_CFLAGS += -DBDC -DTOE -DDHD_BCMEVENTS -DDHD_SCHED -DCSCAN
-#EXTRA_CFLAGS += -DSHOW_EVENTS -DDHD_DEBUG -DSDTEST 
-#EXTRA_CFLAGS += -DBCMSDH_MODULE
-#EXTRA_CFLAGS += -DCONFIG_WIFI_CONTROL_FUNC
+DHDOFILES = dhd_linux.o linux_osl.o bcmutils.o dhd_common.o dhd_custom_gpio.o \
+	wl_iw.o siutils.o sbutils.o aiutils.o hndpmu.o bcmwifi.o dhd_sdio.o   \
+	dhd_linux_sched.o dhd_cdc.o bcmsdh_sdmmc.o bcmsdh.o bcmsdh_linux.o    \
+	bcmsdh_sdmmc_linux.o
 
-
-bcmsdio-objs := bcmsdh.o bcmsdh_linux.o bcmsdh_sdmmc.o \
-                bcmsdh_sdmmc_linux.o
-
-dhd-objs := dhd_common.o  dhd_linux.o dhd_linux_sched.o dhd_sdio.o \
-            dhd_custom_gpio.o dhd_cdc.o
-
-shared-objs := aiutils.o bcmutils.o bcmwifi.o hndpmu.o \
-               linux_osl.o  sbutils.o siutils.o
-
-wl-objs := wl_iw.o
-
-bcm4319-objs := $(bcmsdio-objs) $(dhd-objs) $(shared-objs) $(wl-objs) $(RKWLCFGDIR)/wifi_power_ops.o
-
-obj-$(CONFIG_BCM4319) += bcm4319.o $(RKWLCFGDIR)/wifi_power.o
-
-default:
-	$(MAKE) -C $(KERNELDIR) SUBDIRS=$(PWD) modules
-clean:
-	rm -rvf *.o *.ko *.mod.c *.o.cmd *.tmp_versions *.mod.o *.cmd modules.order Module.symvers .tmp_versions rkpub
-	find . -name '*.o' -exec rm -f {} \;
-	find . -name '.*.cmd' -exec rm -f {} \;
-.PHONY: clean
-
-
-
-                 
+obj-$(CONFIG_BCM4319) += bcm4319.o
+bcm4319-objs += $(DHDOFILES)
+EXTRA_CFLAGS = $(DHDCFLAGS)
+EXTRA_LDFLAGS += --strip-debug
