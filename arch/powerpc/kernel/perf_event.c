@@ -1187,6 +1187,11 @@ static int power_pmu_event_init(struct perf_event *event)
 	return err;
 }
 
+static int power_pmu_event_idx(struct perf_event *event)
+{
+	return event->hw.idx;
+}
+
 struct pmu power_pmu = {
 	.pmu_enable	= power_pmu_enable,
 	.pmu_disable	= power_pmu_disable,
@@ -1199,6 +1204,7 @@ struct pmu power_pmu = {
 	.start_txn	= power_pmu_start_txn,
 	.cancel_txn	= power_pmu_cancel_txn,
 	.commit_txn	= power_pmu_commit_txn,
+	.event_idx	= power_pmu_event_idx,
 };
 
 /*
