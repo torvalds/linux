@@ -5477,7 +5477,7 @@ static irqreturn_t wl12xx_hardirq(int irq, void *cookie)
 	return IRQ_WAKE_THREAD;
 }
 
-static int __devinit wl12xx_probe(struct platform_device *pdev)
+int __devinit wlcore_probe(struct platform_device *pdev)
 {
 	struct wl12xx_platform_data *pdata = pdev->dev.platform_data;
 	struct ieee80211_hw *hw;
@@ -5572,8 +5572,9 @@ out_free_hw:
 out:
 	return ret;
 }
+EXPORT_SYMBOL_GPL(wlcore_probe);
 
-static int __devexit wl12xx_remove(struct platform_device *pdev)
+int __devexit wlcore_remove(struct platform_device *pdev)
 {
 	struct wl1271 *wl = platform_get_drvdata(pdev);
 
@@ -5587,34 +5588,7 @@ static int __devexit wl12xx_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct platform_device_id wl12xx_id_table[] __devinitconst = {
-	{ "wl12xx", 0 },
-	{  } /* Terminating Entry */
-};
-MODULE_DEVICE_TABLE(platform, wl12xx_id_table);
-
-static struct platform_driver wl12xx_driver = {
-	.probe		= wl12xx_probe,
-	.remove		= __devexit_p(wl12xx_remove),
-	.id_table	= wl12xx_id_table,
-	.driver = {
-		.name	= "wl12xx_driver",
-		.owner	= THIS_MODULE,
-	}
-};
-
-static int __init wl12xx_init(void)
-{
-	return platform_driver_register(&wl12xx_driver);
-}
-module_init(wl12xx_init);
-
-static void __exit wl12xx_exit(void)
-{
-	platform_driver_unregister(&wl12xx_driver);
-}
-module_exit(wl12xx_exit);
+EXPORT_SYMBOL_GPL(wlcore_remove);
 
 u32 wl12xx_debug_level = DEBUG_NONE;
 EXPORT_SYMBOL_GPL(wl12xx_debug_level);
