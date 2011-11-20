@@ -1,7 +1,3 @@
-/*
- * $Id: libsbew.h,v 2.1 2005/10/27 18:54:19 rickd PMCC4_3_1B $
- */
-
 #ifndef _INC_LIBSBEW_H_
 #define _INC_LIBSBEW_H_
 
@@ -24,21 +20,6 @@
  *
  * For further information, contact via email: support@sbei.com
  * SBE, Inc.  San Ramon, California  U.S.A.
- *-----------------------------------------------------------------------------
- * RCS info:
- * RCS revision: $Revision: 2.1 $
- * Last changed on $Date: 2005/10/27 18:54:19 $
- * Changed by $Author: rickd $
- *-----------------------------------------------------------------------------
- * $Log: libsbew.h,v $
- * Revision 2.1  2005/10/27 18:54:19  rickd
- * Add E1PLAIN support.
- *
- * Revision 2.0  2005/09/28 00:10:08  rickd
- * Customized for PMCC4 comet-per-port design.
- *
- * Revision 1.15  2005/03/29 00:51:31  rickd
- * File imported from C1T3 port, Revision 1.15
  *-----------------------------------------------------------------------------
  */
 

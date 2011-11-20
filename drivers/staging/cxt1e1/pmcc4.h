@@ -1,7 +1,3 @@
-/*
- * $Id: pmcc4.h,v 1.4 2005/11/01 19:24:48 rickd PMCC4_3_1B $
- */
-
 #ifndef _INC_PMCC4_H_
 #define _INC_PMCC4_H_
 
@@ -22,23 +18,6 @@
  *
  * For further information, contact via email: support@sbei.com
  * SBE, Inc.  San Ramon, California  U.S.A.
- *-----------------------------------------------------------------------------
- * RCS info:
- * RCS revision: $Revision: 1.4 $
- * Last changed on $Date: 2005/11/01 19:24:48 $
- * Changed by $Author: rickd $
- *-----------------------------------------------------------------------------
- * $Log: pmcc4.h,v $
- * Revision 1.4  2005/11/01 19:24:48  rickd
- * Remove de-implement function prototypes.  Several <int> to
- * <status_t> changes for consistent usage of same.
- *
- * Revision 1.3  2005/09/28 00:10:08  rickd
- * Add GNU license info. Use config params from libsbew.h
- *
- * Revision 1.2  2005/04/28 23:43:03  rickd
- * Add RCS tracking heading.
- *
  *-----------------------------------------------------------------------------
  */
 

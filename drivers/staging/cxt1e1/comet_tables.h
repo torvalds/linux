@@ -1,7 +1,3 @@
-/*
- * $Id: comet_tables.h,v 1.5 2006/01/02 22:37:31 rickd PMCC4_3_1B $
- */
-
 #ifndef _INC_COMET_TBLS_H_
 #define _INC_COMET_TBLS_H_
 
@@ -22,26 +18,6 @@
  *
  * For further information, contact via email: support@sbei.com
  * SBE, Inc.  San Ramon, California  U.S.A.
- *-----------------------------------------------------------------------------
- * RCS info:
- * RCS revision: $Revision: 1.5 $
- * Last changed on $Date: 2006/01/02 22:37:31 $
- * Changed by $Author: rickd $
- *-----------------------------------------------------------------------------
- * $Log: comet_tables.h,v $
- * Revision 1.5  2006/01/02 22:37:31  rickd
- * Double indexed arrays need sizings to avoid CC errors under
- * gcc 4.0.0
- *
- * Revision 1.4  2005/10/17 23:55:28  rickd
- * The 75 Ohm transmit waveform is not supported on PMCC4.
- *
- * Revision 1.3  2005/09/28 00:10:08  rickd
- * Add GNU License info. Structures moved to -C- file.
- *
- * Revision 1.2  2005/04/28 23:43:04  rickd
- * Add RCS tracking heading.
- *
  *-----------------------------------------------------------------------------
  */
 
