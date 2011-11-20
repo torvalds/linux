@@ -272,7 +272,7 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 root, void *ctx)
 			swarn->logical, swarn->dev->name,
 			(unsigned long long)swarn->sector, root, inum, offset,
 			min(isize - offset, (u64)PAGE_SIZE), nlink,
-			(char *)ipath->fspath->val[i]);
+			(char *)(unsigned long)ipath->fspath->val[i]);
 
 	free_ipath(ipath);
 	return 0;

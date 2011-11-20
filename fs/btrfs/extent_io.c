@@ -2286,7 +2286,7 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 		}
 		if (!uptodate) {
 			u64 failed_mirror;
-			failed_mirror = (u64)bio->bi_bdev;
+			failed_mirror = (unsigned long)bio->bi_bdev;
 			if (tree->ops && tree->ops->readpage_io_failed_hook)
 				ret = tree->ops->readpage_io_failed_hook(
 						bio, page, start, end,
