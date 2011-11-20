@@ -76,6 +76,10 @@
 
 /* dB range container */
 /* Each item is: <min> <max> <TLV> */
+#define TLV_DB_RANGE_ITEM(...) \
+	TLV_ITEM(SNDRV_CTL_TLVT_DB_RANGE, __VA_ARGS__)
+#define DECLARE_TLV_DB_RANGE(name, ...) \
+	unsigned int name[] = { TLV_DB_RANGE_ITEM(__VA_ARGS__) }
 /* The below assumes that each item TLV is 4 words like DB_SCALE or LINEAR */
 #define TLV_DB_RANGE_HEAD(num)			\
 	SNDRV_CTL_TLVT_DB_RANGE, 6 * (num) * sizeof(unsigned int)
