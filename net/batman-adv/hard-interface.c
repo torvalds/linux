@@ -590,17 +590,17 @@ static int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 
 	batman_ogm_packet = (struct batman_ogm_packet *)skb->data;
 
-	if (batman_ogm_packet->version != COMPAT_VERSION) {
+	if (batman_ogm_packet->header.version != COMPAT_VERSION) {
 		bat_dbg(DBG_BATMAN, bat_priv,
 			"Drop packet: incompatible batman version (%i)\n",
-			batman_ogm_packet->version);
+			batman_ogm_packet->header.version);
 		goto err_free;
 	}
 
 	/* all receive handlers return whether they received or reused
 	 * the supplied skb. if not, we have to free the skb. */
 
-	switch (batman_ogm_packet->packet_type) {
+	switch (batman_ogm_packet->header.packet_type) {
 		/* batman originator packet */
 	case BAT_OGM:
 		ret = recv_bat_ogm_packet(skb, hard_iface);

@@ -1135,11 +1135,11 @@ static int send_tt_request(struct bat_priv *bat_priv,
 	tt_request = (struct tt_query_packet *)skb_put(skb,
 				sizeof(struct tt_query_packet));
 
-	tt_request->packet_type = BAT_TT_QUERY;
-	tt_request->version = COMPAT_VERSION;
+	tt_request->header.packet_type = BAT_TT_QUERY;
+	tt_request->header.version = COMPAT_VERSION;
 	memcpy(tt_request->src, primary_if->net_dev->dev_addr, ETH_ALEN);
 	memcpy(tt_request->dst, dst_orig_node->orig, ETH_ALEN);
-	tt_request->ttl = TTL;
+	tt_request->header.ttl = TTL;
 	tt_request->ttvn = ttvn;
 	tt_request->tt_data = tt_crc;
 	tt_request->flags = TT_REQUEST;
@@ -1265,9 +1265,9 @@ static bool send_other_tt_response(struct bat_priv *bat_priv,
 		tt_response = (struct tt_query_packet *)skb->data;
 	}
 
-	tt_response->packet_type = BAT_TT_QUERY;
-	tt_response->version = COMPAT_VERSION;
-	tt_response->ttl = TTL;
+	tt_response->header.packet_type = BAT_TT_QUERY;
+	tt_response->header.version = COMPAT_VERSION;
+	tt_response->header.ttl = TTL;
 	memcpy(tt_response->src, req_dst_orig_node->orig, ETH_ALEN);
 	memcpy(tt_response->dst, tt_request->src, ETH_ALEN);
 	tt_response->flags = TT_RESPONSE;
@@ -1382,9 +1382,9 @@ static bool send_my_tt_response(struct bat_priv *bat_priv,
 		tt_response = (struct tt_query_packet *)skb->data;
 	}
 
-	tt_response->packet_type = BAT_TT_QUERY;
-	tt_response->version = COMPAT_VERSION;
-	tt_response->ttl = TTL;
+	tt_response->header.packet_type = BAT_TT_QUERY;
+	tt_response->header.version = COMPAT_VERSION;
+	tt_response->header.ttl = TTL;
 	memcpy(tt_response->src, primary_if->net_dev->dev_addr, ETH_ALEN);
 	memcpy(tt_response->dst, tt_request->src, ETH_ALEN);
 	tt_response->flags = TT_RESPONSE;
@@ -1671,9 +1671,9 @@ void send_roam_adv(struct bat_priv *bat_priv, uint8_t *client,
 	roam_adv_packet = (struct roam_adv_packet *)skb_put(skb,
 					sizeof(struct roam_adv_packet));
 
-	roam_adv_packet->packet_type = BAT_ROAM_ADV;
-	roam_adv_packet->version = COMPAT_VERSION;
-	roam_adv_packet->ttl = TTL;
+	roam_adv_packet->header.packet_type = BAT_ROAM_ADV;
+	roam_adv_packet->header.version = COMPAT_VERSION;
+	roam_adv_packet->header.ttl = TTL;
 	primary_if = primary_if_get_selected(bat_priv);
 	if (!primary_if)
 		goto out;

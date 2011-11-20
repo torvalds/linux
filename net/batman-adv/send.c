@@ -234,7 +234,7 @@ int add_bcast_packet_to_list(struct bat_priv *bat_priv,
 
 	/* as we have a copy now, it is safe to decrease the TTL */
 	bcast_packet = (struct bcast_packet *)newskb->data;
-	bcast_packet->ttl--;
+	bcast_packet->header.ttl--;
 
 	skb_reset_mac_header(newskb);
 
