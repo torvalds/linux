@@ -249,6 +249,12 @@ struct b43_rxhdr_fw4 {
 		} __packed;
 	} __packed;
 	union {
+		/* HT-PHY */
+		struct {
+			PAD_BYTES(1);
+			__s8 phy_ht_power0;
+		} __packed;
+
 		/* RSSI for N-PHYs */
 		struct {
 			__s8 power2;
@@ -257,7 +263,15 @@ struct b43_rxhdr_fw4 {
 
 		__le16 phy_status2;	/* PHY RX Status 2 */
 	} __packed;
-	__le16 phy_status3;	/* PHY RX Status 3 */
+	union {
+		/* HT-PHY */
+		struct {
+			__s8 phy_ht_power1;
+			__s8 phy_ht_power2;
+		} __packed;
+
+		__le16 phy_status3;	/* PHY RX Status 3 */
+	} __packed;
 	union {
 		/* Tested with 598.314, 644.1001 and 666.2 */
 		struct {
