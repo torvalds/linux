@@ -1055,7 +1055,7 @@ ql82xx_rom_lock_d(struct qla_hw_data *ha)
 		    "ROM lock failed.\n");
 		return -1;
 	}
-	return 0;;
+	return 0;
 }
 
 static int
