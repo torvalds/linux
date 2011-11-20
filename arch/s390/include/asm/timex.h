@@ -90,7 +90,7 @@ static inline unsigned long long get_clock_fast(void)
 {
 	unsigned long long clk;
 
-	if (test_facility(25))
+	if (MACHINE_HAS_STCKF)
 		asm volatile(".insn	s,0xb27c0000,%0" : "=Q" (clk) : : "cc");
 	else
 		clk = get_clock();

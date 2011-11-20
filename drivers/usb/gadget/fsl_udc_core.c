@@ -1717,7 +1717,7 @@ static void dtd_complete_irq(struct fsl_udc *udc)
 
 static inline enum usb_device_speed portscx_device_speed(u32 reg)
 {
-	switch (speed & PORTSCX_PORT_SPEED_MASK) {
+	switch (reg & PORTSCX_PORT_SPEED_MASK) {
 	case PORTSCX_PORT_SPEED_HIGH:
 		return USB_SPEED_HIGH;
 	case PORTSCX_PORT_SPEED_FULL:

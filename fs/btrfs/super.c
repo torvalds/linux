@@ -825,13 +825,9 @@ static char *setup_root_args(char *args)
 static struct dentry *mount_subvol(const char *subvol_name, int flags,
 				   const char *device_name, char *data)
 {
-	struct super_block *s;
 	struct dentry *root;
 	struct vfsmount *mnt;
-	struct mnt_namespace *ns_private;
 	char *newargs;
-	struct path path;
-	int error;
 
 	newargs = setup_root_args(data);
 	if (!newargs)
@@ -842,38 +838,16 @@ static struct dentry *mount_subvol(const char *subvol_name, int flags,
 	if (IS_ERR(mnt))
 		return ERR_CAST(mnt);
 
-	ns_private = create_mnt_ns(mnt);
-	if (IS_ERR(ns_private)) {
-		mntput(mnt);
-		return ERR_CAST(ns_private);
-	}
+	root = mount_subtree(mnt, subvol_name);
 
-	/*
-	 * This will trigger the automount of the subvol so we can just
-	 * drop the mnt we have here and return the dentry that we
-	 * found.
-	 */
-	error = vfs_path_lookup(mnt->mnt_root, mnt, subvol_name,
-				LOOKUP_FOLLOW, &path);
-	put_mnt_ns(ns_private);
-	if (error)
-		return ERR_PTR(error);
-
-	if (!is_subvolume_inode(path.dentry->d_inode)) {
-		path_put(&path);
-		mntput(mnt);
-		error = -EINVAL;
+	if (!IS_ERR(root) && !is_subvolume_inode(root->d_inode)) {
+		struct super_block *s = root->d_sb;
+		dput(root);
+		root = ERR_PTR(-EINVAL);
+		deactivate_locked_super(s);
 		printk(KERN_ERR "btrfs: '%s' is not a valid subvolume\n",
 				subvol_name);
-		return ERR_PTR(-EINVAL);
 	}
-
-	/* Get a ref to the sb and the dentry we found and return it */
-	s = path.mnt->mnt_sb;
-	atomic_inc(&s->s_active);
-	root = dget(path.dentry);
-	path_put(&path);
-	down_write(&s->s_umount);
 
 	return root;
 }

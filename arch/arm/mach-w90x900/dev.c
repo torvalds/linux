@@ -422,7 +422,7 @@ struct platform_device nuc900_device_kpi = {
 
 /* LCD controller*/
 
-static struct nuc900fb_display __initdata nuc900_lcd_info[] = {
+static struct nuc900fb_display nuc900_lcd_info[] = {
 	/* Giantplus Technology GPM1040A0 320x240 Color TFT LCD */
 	[0] = {
 		.type		= LCM_DCCS_VA_SRC_RGB565,
@@ -445,7 +445,7 @@ static struct nuc900fb_display __initdata nuc900_lcd_info[] = {
 	},
 };
 
-static struct nuc900fb_mach_info nuc900_fb_info __initdata = {
+static struct nuc900fb_mach_info nuc900_fb_info = {
 #if defined(CONFIG_GPM1040A0_320X240)
 	.displays		= &nuc900_lcd_info[0],
 #else
