@@ -319,6 +319,13 @@ static ssize_t bonding_store_mode(struct device *d,
 		goto out;
 	}
 
+	if (bond->slave_cnt > 0) {
+		pr_err("unable to update mode of %s because it has slaves.\n",
+			bond->dev->name);
+		ret = -EPERM;
+		goto out;
+	}
+
 	new_value = bond_parse_parm(buf, bond_mode_tbl);
 	if (new_value < 0)  {
 		pr_err("%s: Ignoring invalid mode value %.*s.\n",

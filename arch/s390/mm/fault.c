@@ -587,8 +587,13 @@ static void pfault_interrupt(unsigned int ext_int_code,
 		} else {
 			/* Completion interrupt was faster than initial
 			 * interrupt. Set pfault_wait to -1 so the initial
-			 * interrupt doesn't put the task to sleep. */
-			tsk->thread.pfault_wait = -1;
+			 * interrupt doesn't put the task to sleep.
+			 * If the task is not running, ignore the completion
+			 * interrupt since it must be a leftover of a PFAULT
+			 * CANCEL operation which didn't remove all pending
+			 * completion interrupts. */
+			if (tsk->state == TASK_RUNNING)
+				tsk->thread.pfault_wait = -1;
 		}
 		put_task_struct(tsk);
 	} else {

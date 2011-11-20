@@ -65,6 +65,8 @@ $(obj)/%.dtb: $(src)/dts/%.dts
 
 $(obj)/dtbs: $(addprefix $(obj)/, $(dtb-y))
 
+clean-files := *.dtb
+
 quiet_cmd_uimage = UIMAGE  $@
       cmd_uimage = $(CONFIG_SHELL) $(MKIMAGE) -A arm -O linux -T kernel \
 		   -C none -a $(LOADADDR) -e $(STARTADDR) \
