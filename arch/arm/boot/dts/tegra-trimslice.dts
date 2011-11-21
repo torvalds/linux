@@ -30,6 +30,22 @@
 		clock-frequency = < 216000000 >;
 	};
 
+	serial@70006040 {
+		status = "disable";
+	};
+
+	serial@70006200 {
+		status = "disable";
+	};
+
+	serial@70006300 {
+		status = "disable";
+	};
+
+	serial@70006400 {
+		status = "disable";
+	};
+
 	sdhci@c8000600 {
 		cd-gpios = <&gpio 121 0>;
 		wp-gpios = <&gpio 122 0>;

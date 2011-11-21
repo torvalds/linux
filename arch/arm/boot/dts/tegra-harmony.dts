@@ -47,8 +47,24 @@
 		ext-mic-en-gpios = <&gpio 185 0>;
 	};
 
+	serial@70006000 {
+		status = "disable";
+	};
+
+	serial@70006040 {
+		status = "disable";
+	};
+
+	serial@70006200 {
+		status = "disable";
+	};
+
 	serial@70006300 {
 		clock-frequency = < 216000000 >;
+	};
+
+	serial@70006400 {
+		status = "disable";
 	};
 
 	sdhci@c8000200 {
