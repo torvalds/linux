@@ -189,6 +189,13 @@ static void clip_push(struct atm_vcc *vcc, struct sk_buff *skb)
 	struct clip_vcc *clip_vcc = CLIP_VCC(vcc);
 
 	pr_debug("\n");
+
+	if (!clip_devs) {
+		atm_return(vcc, skb->truesize);
+		kfree_skb(skb);
+		return;
+	}
+
 	if (!skb) {
 		pr_debug("removing VCC %p\n", clip_vcc);
 		if (clip_vcc->entry)
@@ -480,13 +487,9 @@ static int clip_mkip(struct atm_vcc *vcc, int timeout)
 	spin_unlock_irqrestore(&rq->lock, flags);
 
 	/* re-process everything received between connection setup and MKIP */
-	skb_queue_walk_safe(&queue, skb, tmp) {
-		if (!clip_devs) {
-			atm_return(vcc, skb->truesize);
-			kfree_skb(skb);
-		} else
-			clip_push(vcc, skb);
-	}
+	skb_queue_walk_safe(&queue, skb, tmp)
+		clip_push(vcc, skb);
+
 	return 0;
 }
 
