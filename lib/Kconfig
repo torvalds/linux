@@ -295,7 +295,7 @@ config MPILIB_EXTRA
 
 config DIGSIG
 	tristate "In-kernel signature checker"
-	depends on CRYPTO
+	depends on KEYS
 	select MPILIB
 	help
 	  Digital signature verification. Currently only RSA is supported.

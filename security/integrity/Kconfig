@@ -5,7 +5,7 @@ config INTEGRITY
 
 config INTEGRITY_DIGSIG
 	boolean "Digital signature verification using multiple keyrings"
-	depends on INTEGRITY
+	depends on INTEGRITY && KEYS
 	default n
 	select DIGSIG
 	help
