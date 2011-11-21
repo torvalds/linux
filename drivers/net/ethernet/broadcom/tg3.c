@@ -8171,7 +8171,8 @@ static void tg3_setup_rxbd_thresholds(struct tg3 *tp)
 	if (!tg3_flag(tp, 5750_PLUS) ||
 	    tg3_flag(tp, 5780_CLASS) ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752)
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752 ||
+	    tg3_flag(tp, 57765_PLUS))
 		bdcache_maxcnt = TG3_SRAM_RX_STD_BDCACHE_SIZE_5700;
 	else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755 ||
 		 GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)
@@ -8191,10 +8192,7 @@ static void tg3_setup_rxbd_thresholds(struct tg3 *tp)
 	if (!tg3_flag(tp, JUMBO_CAPABLE) || tg3_flag(tp, 5780_CLASS))
 		return;
 
-	if (!tg3_flag(tp, 5705_PLUS))
-		bdcache_maxcnt = TG3_SRAM_RX_JMB_BDCACHE_SIZE_5700;
-	else
-		bdcache_maxcnt = TG3_SRAM_RX_JMB_BDCACHE_SIZE_5717;
+	bdcache_maxcnt = TG3_SRAM_RX_JMB_BDCACHE_SIZE_5700;
 
 	host_rep_thresh = max_t(u32, tp->rx_jumbo_pending / 8, 1);
 
