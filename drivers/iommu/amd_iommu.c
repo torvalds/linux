@@ -1637,8 +1637,45 @@ static void free_pagetable(struct protection_domain *domain)
 	domain->pt_root = NULL;
 }
 
+static void free_gcr3_tbl_level1(u64 *tbl)
+{
+	u64 *ptr;
+	int i;
+
+	for (i = 0; i < 512; ++i) {
+		if (!(tbl[i] & GCR3_VALID))
+			continue;
+
+		ptr = __va(tbl[i] & PAGE_MASK);
+
+		free_page((unsigned long)ptr);
+	}
+}
+
+static void free_gcr3_tbl_level2(u64 *tbl)
+{
+	u64 *ptr;
+	int i;
+
+	for (i = 0; i < 512; ++i) {
+		if (!(tbl[i] & GCR3_VALID))
+			continue;
+
+		ptr = __va(tbl[i] & PAGE_MASK);
+
+		free_gcr3_tbl_level1(ptr);
+	}
+}
+
 static void free_gcr3_table(struct protection_domain *domain)
 {
+	if (domain->glx == 2)
+		free_gcr3_tbl_level2(domain->gcr3_tbl);
+	else if (domain->glx == 1)
+		free_gcr3_tbl_level1(domain->gcr3_tbl);
+	else if (domain->glx != 0)
+		BUG();
+
 	free_page((unsigned long)domain->gcr3_tbl);
 }
 
@@ -3282,3 +3319,96 @@ int amd_iommu_flush_tlb(struct iommu_domain *dom, int pasid)
 }
 EXPORT_SYMBOL(amd_iommu_flush_tlb);
 
+static u64 *__get_gcr3_pte(u64 *root, int level, int pasid, bool alloc)
+{
+	int index;
+	u64 *pte;
+
+	while (true) {
+
+		index = (pasid >> (9 * level)) & 0x1ff;
+		pte   = &root[index];
+
+		if (level == 0)
+			break;
+
+		if (!(*pte & GCR3_VALID)) {
+			if (!alloc)
+				return NULL;
+
+			root = (void *)get_zeroed_page(GFP_ATOMIC);
+			if (root == NULL)
+				return NULL;
+
+			*pte = __pa(root) | GCR3_VALID;
+		}
+
+		root = __va(*pte & PAGE_MASK);
+
+		level -= 1;
+	}
+
+	return pte;
+}
+
+static int __set_gcr3(struct protection_domain *domain, int pasid,
+		      unsigned long cr3)
+{
+	u64 *pte;
+
+	if (domain->mode != PAGE_MODE_NONE)
+		return -EINVAL;
+
+	pte = __get_gcr3_pte(domain->gcr3_tbl, domain->glx, pasid, true);
+	if (pte == NULL)
+		return -ENOMEM;
+
+	*pte = (cr3 & PAGE_MASK) | GCR3_VALID;
+
+	return __amd_iommu_flush_tlb(domain, pasid);
+}
+
+static int __clear_gcr3(struct protection_domain *domain, int pasid)
+{
+	u64 *pte;
+
+	if (domain->mode != PAGE_MODE_NONE)
+		return -EINVAL;
+
+	pte = __get_gcr3_pte(domain->gcr3_tbl, domain->glx, pasid, false);
+	if (pte == NULL)
+		return 0;
+
+	*pte = 0;
+
+	return __amd_iommu_flush_tlb(domain, pasid);
+}
+
+int amd_iommu_domain_set_gcr3(struct iommu_domain *dom, int pasid,
+			      unsigned long cr3)
+{
+	struct protection_domain *domain = dom->priv;
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&domain->lock, flags);
+	ret = __set_gcr3(domain, pasid, cr3);
+	spin_unlock_irqrestore(&domain->lock, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL(amd_iommu_domain_set_gcr3);
+
+int amd_iommu_domain_clear_gcr3(struct iommu_domain *dom, int pasid)
+{
+	struct protection_domain *domain = dom->priv;
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&domain->lock, flags);
+	ret = __clear_gcr3(domain, pasid);
+	spin_unlock_irqrestore(&domain->lock, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL(amd_iommu_domain_clear_gcr3);

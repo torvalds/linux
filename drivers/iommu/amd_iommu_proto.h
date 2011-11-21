@@ -43,6 +43,10 @@ extern int amd_iommu_domain_enable_v2(struct iommu_domain *dom, int pasids);
 extern int amd_iommu_flush_page(struct iommu_domain *dom, int pasid,
 				u64 address);
 extern int amd_iommu_flush_tlb(struct iommu_domain *dom, int pasid);
+extern int amd_iommu_domain_set_gcr3(struct iommu_domain *dom, int pasid,
+				     unsigned long cr3);
+extern int amd_iommu_domain_clear_gcr3(struct iommu_domain *dom, int pasid);
+
 
 #ifndef CONFIG_AMD_IOMMU_STATS
 

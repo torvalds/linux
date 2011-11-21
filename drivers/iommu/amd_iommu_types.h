@@ -279,6 +279,7 @@
 #define DTE_GCR3_SHIFT_B	16
 #define DTE_GCR3_SHIFT_C	43
 
+#define GCR3_VALID		0x01ULL
 
 #define IOMMU_PAGE_MASK (((1ULL << 52) - 1) & ~0xfffULL)
 #define IOMMU_PTE_PRESENT(pte) ((pte) & IOMMU_PTE_P)
