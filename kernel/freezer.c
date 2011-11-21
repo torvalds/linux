@@ -145,18 +145,8 @@ void cancel_freezing(struct task_struct *p)
 	}
 }
 
-static int __thaw_process(struct task_struct *p)
-{
-	if (frozen(p)) {
-		p->flags &= ~PF_FROZEN;
-		return 1;
-	}
-	clear_freeze_flag(p);
-	return 0;
-}
-
 /*
- * Wake up a frozen process
+ * Wake up a frozen task
  *
  * task_lock() is needed to prevent the race with refrigerator() which may
  * occur if the freezing of tasks fails.  Namely, without the lock, if the
@@ -164,15 +154,18 @@ static int __thaw_process(struct task_struct *p)
  * refrigerator() could call frozen_process(), in which case the task would be
  * frozen and no one would thaw it.
  */
-int thaw_process(struct task_struct *p)
+void __thaw_task(struct task_struct *p)
 {
+	bool was_frozen;
+
 	task_lock(p);
-	if (__thaw_process(p) == 1) {
-		task_unlock(p);
-		wake_up_process(p);
-		return 1;
-	}
+	was_frozen = frozen(p);
+	if (was_frozen)
+		p->flags &= ~PF_FROZEN;
+	else
+		clear_freeze_flag(p);
 	task_unlock(p);
-	return 0;
+
+	if (was_frozen)
+		wake_up_process(p);
 }
-EXPORT_SYMBOL(thaw_process);
