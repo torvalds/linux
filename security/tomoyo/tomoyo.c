@@ -234,7 +234,7 @@ static int tomoyo_path_symlink(struct path *parent, struct dentry *dentry,
  * Returns 0 on success, negative value otherwise.
  */
 static int tomoyo_path_mknod(struct path *parent, struct dentry *dentry,
-			     int mode, unsigned int dev)
+			     umode_t mode, unsigned int dev)
 {
 	struct path path = { parent->mnt, dentry };
 	int type = TOMOYO_TYPE_CREATE;

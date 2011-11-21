@@ -235,7 +235,7 @@ static void cap_inode_getsecid(const struct inode *inode, u32 *secid)
 }
 
 #ifdef CONFIG_SECURITY_PATH
-static int cap_path_mknod(struct path *dir, struct dentry *dentry, int mode,
+static int cap_path_mknod(struct path *dir, struct dentry *dentry, umode_t mode,
 			  unsigned int dev)
 {
 	return 0;

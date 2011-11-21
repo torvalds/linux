@@ -388,7 +388,7 @@ int security_old_inode_init_security(struct inode *inode, struct inode *dir,
 EXPORT_SYMBOL(security_old_inode_init_security);
 
 #ifdef CONFIG_SECURITY_PATH
-int security_path_mknod(struct path *dir, struct dentry *dentry, int mode,
+int security_path_mknod(struct path *dir, struct dentry *dentry, umode_t mode,
 			unsigned int dev)
 {
 	if (unlikely(IS_PRIVATE(dir->dentry->d_inode)))
