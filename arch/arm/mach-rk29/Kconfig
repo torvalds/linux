@@ -53,6 +53,12 @@ config MACH_RK29_A22
         help
 	  Support for the ROCKCHIP Board For A22.
 
+config MACH_RK29_TD8801_V2
+	depends on ARCH_RK29
+	bool "ROCKCHIP Board Rk29 For TD8801_v2"
+        help
+	  Support for the ROCKCHIP Board For TD8801_v2.
+
 config MACH_RK29_PHONEPADSDK
 	depends on ARCH_RK29
 	bool "ROCKCHIP Board Rk29 For Phone Pad Sdk"

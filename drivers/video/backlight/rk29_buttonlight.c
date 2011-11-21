@@ -76,7 +76,7 @@ static int rk29_button_light_probe(struct platform_device *pdev)
 {		 
     struct rk29_button_light_info *button_light_info = pdev->dev.platform_data;
     
-	rk29_button_light_device = backlight_device_register("rk28_button_light", &pdev->dev, NULL, &rk29_button_light_ops);
+	rk29_button_light_device = backlight_device_register("rk28_button_light", &pdev->dev, NULL, &rk29_button_light_ops,NULL);
 	if (!rk29_button_light_device) {
         DBG("rk29_button_light_probe error\n"); 
 		return -ENODEV;		

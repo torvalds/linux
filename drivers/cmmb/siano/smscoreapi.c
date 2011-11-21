@@ -37,6 +37,7 @@
 #include "smsendian.h"
 #include "sms-cards.h"
 #include <mach/gpio.h>
+#include <linux/slab.h>
 
 #define MAX_GPIO_PIN_NUMBER	31
 

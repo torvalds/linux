@@ -511,6 +511,7 @@ struct v4l2_subdev {
 	/* pointer to private data */
 	void *dev_priv;
 	void *host_priv;
+	void *priv;
 	/* subdev device node */
 	struct video_device devnode;
 	/* number of events to be allocated on open */

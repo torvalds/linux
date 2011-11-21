@@ -3671,7 +3671,11 @@ static void __exit rk29fb_exit(void)
     platform_driver_unregister(&rk29fb_driver);
 }
 
+#if defined(CONFIG_MACH_RK29_TD8801_V2)
+rootfs_initcall(rk29fb_init);
+#else
 fs_initcall(rk29fb_init);
+#endif
 module_exit(rk29fb_exit);
 
 
