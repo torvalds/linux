@@ -1290,7 +1290,7 @@ static int iwlagn_txq_check_empty(struct iwl_trans *trans,
 			IWL_DEBUG_TX_QUEUES(trans,
 				"Can continue DELBA flow ssn = next_recl ="
 				" %d", tid_data->next_reclaimed);
-			iwl_trans_pcie_txq_agg_disable(trans, txq_id);
+			iwl_trans_pcie_tx_agg_disable(trans, sta_id, tid);
 			tid_data->agg.state = IWL_AGG_OFF;
 			iwl_stop_tx_ba_trans_ready(priv(trans),
 						   NUM_IWL_RXON_CTX,

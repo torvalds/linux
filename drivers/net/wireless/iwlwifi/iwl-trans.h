@@ -184,8 +184,7 @@ struct iwl_trans_ops {
 			struct sk_buff_head *skbs);
 
 	int (*tx_agg_disable)(struct iwl_trans *trans,
-			      enum iwl_rxon_context_id ctx, int sta_id,
-			      int tid);
+			      int sta_id, int tid);
 	int (*tx_agg_alloc)(struct iwl_trans *trans,
 			    enum iwl_rxon_context_id ctx, int sta_id, int tid,
 			    u16 *ssn);
@@ -318,10 +317,9 @@ static inline void iwl_trans_reclaim(struct iwl_trans *trans, int sta_id,
 }
 
 static inline int iwl_trans_tx_agg_disable(struct iwl_trans *trans,
-					    enum iwl_rxon_context_id ctx,
 					    int sta_id, int tid)
 {
-	return trans->ops->tx_agg_disable(trans, ctx, sta_id, tid);
+	return trans->ops->tx_agg_disable(trans, sta_id, tid);
 }
 
 static inline int iwl_trans_tx_agg_alloc(struct iwl_trans *trans,

@@ -395,6 +395,77 @@ drop_unlock_priv:
 	return -1;
 }
 
+int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
+			struct ieee80211_sta *sta, u16 tid)
+{
+	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
+	struct iwl_tid_data *tid_data;
+	unsigned long flags;
+	int sta_id;
+
+	sta_id = iwl_sta_id(sta);
+
+	if (sta_id == IWL_INVALID_STATION) {
+		IWL_ERR(priv, "Invalid station for AGG tid %d\n", tid);
+		return -ENXIO;
+	}
+
+	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
+
+	tid_data = &priv->shrd->tid_data[sta_id][tid];
+
+	switch (priv->shrd->tid_data[sta_id][tid].agg.state) {
+	case IWL_EMPTYING_HW_QUEUE_ADDBA:
+		/*
+		* This can happen if the peer stops aggregation
+		* again before we've had a chance to drain the
+		* queue we selected previously, i.e. before the
+		* session was really started completely.
+		*/
+		IWL_DEBUG_HT(priv, "AGG stop before setup done\n");
+		goto turn_off;
+	case IWL_AGG_ON:
+		break;
+	default:
+		IWL_WARN(priv, "Stopping AGG while state not ON "
+			 "or starting for %d on %d (%d)\n", sta_id, tid,
+			 priv->shrd->tid_data[sta_id][tid].agg.state);
+		spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
+		return 0;
+	}
+
+	tid_data->agg.ssn = SEQ_TO_SN(tid_data->seq_number);
+
+	/* There are still packets for this RA / TID in the HW */
+	if (tid_data->agg.ssn != tid_data->next_reclaimed) {
+		IWL_DEBUG_TX_QUEUES(priv, "Can't proceed: ssn %d, "
+				    "next_recl = %d",
+				    tid_data->agg.ssn,
+				    tid_data->next_reclaimed);
+		priv->shrd->tid_data[sta_id][tid].agg.state =
+			IWL_EMPTYING_HW_QUEUE_DELBA;
+		spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
+		return 0;
+	}
+
+	IWL_DEBUG_TX_QUEUES(priv, "Can proceed: ssn = next_recl = %d",
+			    tid_data->agg.ssn);
+turn_off:
+	priv->shrd->tid_data[sta_id][tid].agg.state = IWL_AGG_OFF;
+
+	/* do not restore/save irqs */
+	spin_unlock(&priv->shrd->sta_lock);
+	spin_lock(&priv->shrd->lock);
+
+	iwl_trans_tx_agg_disable(trans(priv), sta_id, tid);
+
+	spin_unlock_irqrestore(&priv->shrd->lock, flags);
+
+	iwl_stop_tx_ba_trans_ready(priv, vif_priv->ctx->ctxid, sta_id, tid);
+
+	return 0;
+}
+
 int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, u16 tid, u16 *ssn)
 {
@@ -426,23 +497,6 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 				     tid, ssn);
 
 	return ret;
-}
-
-int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
-		       struct ieee80211_sta *sta, u16 tid)
-{
-	int sta_id;
-	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
-
-	sta_id = iwl_sta_id(sta);
-
-	if (sta_id == IWL_INVALID_STATION) {
-		IWL_ERR(priv, "Invalid station for AGG tid %d\n", tid);
-		return -ENXIO;
-	}
-
-	return iwl_trans_tx_agg_disable(trans(priv), vif_priv->ctx->ctxid,
-					sta_id, tid);
 }
 
 static void iwlagn_non_agg_tx_status(struct iwl_priv *priv,

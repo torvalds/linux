@@ -280,10 +280,8 @@ void iwl_tx_cmd_complete(struct iwl_trans *trans,
 void iwl_trans_txq_update_byte_cnt_tbl(struct iwl_trans *trans,
 					   struct iwl_tx_queue *txq,
 					   u16 byte_cnt);
-void iwl_trans_pcie_txq_agg_disable(struct iwl_trans *trans, int txq_id);
 int iwl_trans_pcie_tx_agg_disable(struct iwl_trans *trans,
-				  enum iwl_rxon_context_id ctx, int sta_id,
-				  int tid);
+				  int sta_id, int tid);
 void iwl_trans_set_wr_ptrs(struct iwl_trans *trans, int txq_id, u32 index);
 void iwl_trans_tx_queue_set_status(struct iwl_trans *trans,
 			     struct iwl_tx_queue *txq,

@@ -578,9 +578,23 @@ int iwl_trans_pcie_tx_agg_alloc(struct iwl_trans *trans,
 	return 0;
 }
 
-void iwl_trans_pcie_txq_agg_disable(struct iwl_trans *trans, int txq_id)
+int iwl_trans_pcie_tx_agg_disable(struct iwl_trans *trans, int sta_id, int tid)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	/* TODO: the transport layer shouldn't access the tid_data */
+	int txq_id = trans->shrd->tid_data[sta_id][tid].agg.txq_id;
+
+	if ((IWLAGN_FIRST_AMPDU_QUEUE > txq_id) ||
+	    (IWLAGN_FIRST_AMPDU_QUEUE +
+		hw_params(trans).num_ampdu_queues <= txq_id)) {
+		IWL_ERR(trans,
+			"queue number out of range: %d, must be %d to %d\n",
+			txq_id, IWLAGN_FIRST_AMPDU_QUEUE,
+			IWLAGN_FIRST_AMPDU_QUEUE +
+			hw_params(trans).num_ampdu_queues - 1);
+		return -EINVAL;
+	}
+
 	iwlagn_tx_queue_stop_scheduler(trans, txq_id);
 
 	iwl_clear_bits_prph(bus(trans), SCD_AGGR_SEL, (1 << txq_id));
@@ -593,82 +607,6 @@ void iwl_trans_pcie_txq_agg_disable(struct iwl_trans *trans, int txq_id)
 	iwl_clear_bits_prph(bus(trans), SCD_INTERRUPT_MASK, (1 << txq_id));
 	iwl_txq_ctx_deactivate(trans_pcie, txq_id);
 	iwl_trans_tx_queue_set_status(trans, &trans_pcie->txq[txq_id], 0, 0);
-}
-
-int iwl_trans_pcie_tx_agg_disable(struct iwl_trans *trans,
-				  enum iwl_rxon_context_id ctx, int sta_id,
-				  int tid)
-{
-	struct iwl_tid_data *tid_data;
-	unsigned long flags;
-	int txq_id;
-
-	spin_lock_irqsave(&trans->shrd->sta_lock, flags);
-
-	tid_data = &trans->shrd->tid_data[sta_id][tid];
-	txq_id = tid_data->agg.txq_id;
-
-	if ((IWLAGN_FIRST_AMPDU_QUEUE > txq_id) ||
-	    (IWLAGN_FIRST_AMPDU_QUEUE +
-		hw_params(trans).num_ampdu_queues <= txq_id)) {
-		IWL_ERR(trans,
-			"queue number out of range: %d, must be %d to %d\n",
-			txq_id, IWLAGN_FIRST_AMPDU_QUEUE,
-			IWLAGN_FIRST_AMPDU_QUEUE +
-			hw_params(trans).num_ampdu_queues - 1);
-		spin_unlock_irqrestore(&trans->shrd->sta_lock, flags);
-		return -EINVAL;
-	}
-
-	switch (trans->shrd->tid_data[sta_id][tid].agg.state) {
-	case IWL_EMPTYING_HW_QUEUE_ADDBA:
-		/*
-		* This can happen if the peer stops aggregation
-		* again before we've had a chance to drain the
-		* queue we selected previously, i.e. before the
-		* session was really started completely.
-		*/
-		IWL_DEBUG_HT(trans, "AGG stop before setup done\n");
-		goto turn_off;
-	case IWL_AGG_ON:
-		break;
-	default:
-		IWL_WARN(trans, "Stopping AGG while state not ON "
-			 "or starting for %d on %d (%d)\n", sta_id, tid,
-			 trans->shrd->tid_data[sta_id][tid].agg.state);
-		spin_unlock_irqrestore(&trans->shrd->sta_lock, flags);
-		return 0;
-	}
-
-	tid_data->agg.ssn = SEQ_TO_SN(tid_data->seq_number);
-
-	/* There are still packets for this RA / TID in the HW */
-	if (tid_data->agg.ssn != tid_data->next_reclaimed) {
-		IWL_DEBUG_TX_QUEUES(trans, "Can't proceed: ssn %d, "
-				    "next_recl = %d",
-				    tid_data->agg.ssn,
-				    tid_data->next_reclaimed);
-		trans->shrd->tid_data[sta_id][tid].agg.state =
-			IWL_EMPTYING_HW_QUEUE_DELBA;
-		spin_unlock_irqrestore(&trans->shrd->sta_lock, flags);
-		return 0;
-	}
-
-	IWL_DEBUG_TX_QUEUES(trans, "Can proceed: ssn = next_recl = %d",
-			    tid_data->agg.ssn);
-turn_off:
-	trans->shrd->tid_data[sta_id][tid].agg.state = IWL_AGG_OFF;
-
-	/* do not restore/save irqs */
-	spin_unlock(&trans->shrd->sta_lock);
-	spin_lock(&trans->shrd->lock);
-
-	iwl_trans_pcie_txq_agg_disable(trans, txq_id);
-
-	spin_unlock_irqrestore(&trans->shrd->lock, flags);
-
-	iwl_stop_tx_ba_trans_ready(priv(trans), ctx, sta_id, tid);
-
 	return 0;
 }
 
