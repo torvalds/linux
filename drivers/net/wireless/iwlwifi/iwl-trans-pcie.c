@@ -1297,8 +1297,6 @@ static int iwlagn_txq_check_empty(struct iwl_trans *trans,
 			iwl_stop_tx_ba_trans_ready(priv(trans),
 						   NUM_IWL_RXON_CTX,
 						   sta_id, tid);
-			iwl_wake_queue(trans, &trans_pcie->txq[txq_id],
-				       "DELBA flow complete");
 		}
 		break;
 	case IWL_EMPTYING_HW_QUEUE_ADDBA:
@@ -1326,28 +1324,20 @@ static void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int sta_id, int tid,
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_tx_queue *txq = &trans_pcie->txq[txq_id];
-	enum iwl_agg_state agg_state;
 	/* n_bd is usually 256 => n_bd - 1 = 0xff */
 	int tfd_num = ssn & (txq->q.n_bd - 1);
 	int freed = 0;
-	bool cond;
 
 	txq->time_stamp = jiffies;
-
-	if (txq->sched_retry) {
-		agg_state =
-			trans->shrd->tid_data[txq->sta_id][txq->tid].agg.state;
-		cond = (agg_state != IWL_EMPTYING_HW_QUEUE_DELBA);
-	} else {
-		cond = (status != TX_STATUS_FAIL_PASSIVE_NO_RX);
-	}
 
 	if (txq->q.read_ptr != tfd_num) {
 		IWL_DEBUG_TX_REPLY(trans, "[Q %d | AC %d] %d -> %d (%d)\n",
 				txq_id, iwl_get_queue_ac(txq), txq->q.read_ptr,
 				tfd_num, ssn);
 		freed = iwl_tx_queue_reclaim(trans, txq_id, tfd_num, skbs);
-		if (iwl_queue_space(&txq->q) > txq->q.low_mark && cond)
+		if (iwl_queue_space(&txq->q) > txq->q.low_mark &&
+		   (!txq->sched_retry ||
+		   status != TX_STATUS_FAIL_PASSIVE_NO_RX))
 			iwl_wake_queue(trans, txq, "Packets reclaimed");
 	}
 
