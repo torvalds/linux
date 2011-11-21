@@ -736,6 +736,22 @@ static void build_inv_iotlb_pasid(struct iommu_cmd *cmd, u16 devid, int pasid,
 	CMD_SET_TYPE(cmd, CMD_INV_IOTLB_PAGES);
 }
 
+static void build_complete_ppr(struct iommu_cmd *cmd, u16 devid, int pasid,
+			       int status, int tag, bool gn)
+{
+	memset(cmd, 0, sizeof(*cmd));
+
+	cmd->data[0]  = devid;
+	if (gn) {
+		cmd->data[1]  = pasid & PASID_MASK;
+		cmd->data[2]  = CMD_INV_IOMMU_PAGES_GN_MASK;
+	}
+	cmd->data[3]  = tag & 0x1ff;
+	cmd->data[3] |= (status & PPR_STATUS_MASK) << PPR_STATUS_SHIFT;
+
+	CMD_SET_TYPE(cmd, CMD_COMPLETE_PPR);
+}
+
 static void build_inv_all(struct iommu_cmd *cmd)
 {
 	memset(cmd, 0, sizeof(*cmd));
@@ -1950,6 +1966,23 @@ out_err:
 	return ret;
 }
 
+/* FIXME: Move this to PCI code */
+#define PCI_PRI_TLP_OFF		(1 << 2)
+
+bool pci_pri_tlp_required(struct pci_dev *pdev)
+{
+	u16 control;
+	int pos;
+
+	pos = pci_find_ext_capability(pdev, PCI_PRI_CAP);
+	if (!pos)
+		return false;
+
+	pci_read_config_word(pdev, pos + PCI_PRI_CONTROL_OFF, &control);
+
+	return (control & PCI_PRI_TLP_OFF) ? true : false;
+}
+
 /*
  * If a device is not yet associated with a domain, this function does
  * assigns it visible for the hardware
@@ -1973,6 +2006,7 @@ static int attach_device(struct device *dev,
 
 		dev_data->ats.enabled = true;
 		dev_data->ats.qdep    = pci_ats_queue_depth(pdev);
+		dev_data->pri_tlp     = pci_pri_tlp_required(pdev);
 	} else if (amd_iommu_iotlb_sup &&
 		   pci_enable_ats(pdev, PAGE_SHIFT) == 0) {
 		dev_data->ats.enabled = true;
@@ -3412,3 +3446,20 @@ int amd_iommu_domain_clear_gcr3(struct iommu_domain *dom, int pasid)
 	return ret;
 }
 EXPORT_SYMBOL(amd_iommu_domain_clear_gcr3);
+
+int amd_iommu_complete_ppr(struct pci_dev *pdev, int pasid,
+			   int status, int tag)
+{
+	struct iommu_dev_data *dev_data;
+	struct amd_iommu *iommu;
+	struct iommu_cmd cmd;
+
+	dev_data = get_dev_data(&pdev->dev);
+	iommu    = amd_iommu_rlookup_table[dev_data->devid];
+
+	build_complete_ppr(&cmd, dev_data->devid, pasid, status,
+			   tag, dev_data->pri_tlp);
+
+	return iommu_queue_command(iommu, &cmd);
+}
+EXPORT_SYMBOL(amd_iommu_complete_ppr);
