@@ -925,7 +925,7 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 			   ba_resp->sta_id);
 	IWL_DEBUG_TX_REPLY(priv, "TID = %d, SeqCtl = %d, bitmap = 0x%llx, "
 			   "scd_flow = %d, scd_ssn = %d\n",
-			   ba_resp->tid, ba_resp->seq_ctl,
+			   ba_resp->tid, le16_to_cpu(ba_resp->seq_ctl),
 			   (unsigned long long)le64_to_cpu(ba_resp->bitmap),
 			   scd_flow, ba_resp_scd_ssn);
 
