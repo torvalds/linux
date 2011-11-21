@@ -1684,7 +1684,7 @@ static int pcimio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int ret;
 
-	printk("comedi%d: ni_pcimio:", dev->minor);
+	dev_info(dev->hw_dev, "comedi%d: ni_pcimio:\n", dev->minor);
 
 	ret = ni_alloc_private(dev);
 	if (ret < 0)
@@ -1694,7 +1694,7 @@ static int pcimio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret < 0)
 		return ret;
 
-	printk(" %s", boardtype.name);
+	dev_dbg(dev->hw_dev, "%s\n", boardtype.name);
 	dev->board_name = boardtype.name;
 
 	if (boardtype.reg_type & ni_reg_m_series_mask) {
@@ -1711,7 +1711,7 @@ static int pcimio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	ret = mite_setup(devpriv->mite);
 	if (ret < 0) {
-		printk(" error setting up mite\n");
+		pr_warn("error setting up mite\n");
 		return ret;
 	}
 	comedi_set_hw_dev(dev, &devpriv->mite->pcidev->dev);
@@ -1739,13 +1739,13 @@ static int pcimio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->irq = mite_irq(devpriv->mite);
 
 	if (dev->irq == 0) {
-		printk(" unknown irq (bad)\n");
+		pr_warn("unknown irq (bad)\n");
 	} else {
-		printk(" ( irq = %u )", dev->irq);
+		pr_debug("( irq = %u )\n", dev->irq);
 		ret = request_irq(dev->irq, ni_E_interrupt, NI_E_IRQ_FLAGS,
 				  DRV_NAME, dev);
 		if (ret < 0) {
-			printk(" irq not available\n");
+			pr_warn("irq not available\n");
 			dev->irq = 0;
 		}
 	}
@@ -1786,7 +1786,7 @@ static int pcimio_find_device(struct comedi_device *dev, int bus, int slot)
 			}
 		}
 	}
-	printk("no device found\n");
+	pr_warn("no device found\n");
 	mite_list_devices();
 	return -EIO;
 }
