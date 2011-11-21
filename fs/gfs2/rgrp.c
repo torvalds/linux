@@ -1378,7 +1378,7 @@ int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *ndata,
 				  ip->i_inode.i_gid);
 
 	rgd->rd_free_clone -= extlen;
-	trace_gfs2_block_alloc(ip, block, *ndata,
+	trace_gfs2_block_alloc(ip, block, extlen,
 			       dinode ? GFS2_BLKST_DINODE : GFS2_BLKST_USED);
 	*bn = block;
 	return 0;
