@@ -223,10 +223,13 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 
 	mdelay(2);
 
-	dss_mgr_enable(dssdev->manager);
+	r = dss_mgr_enable(dssdev->manager);
+	if (r)
+		goto err_mgr_enable;
 
 	return 0;
 
+err_mgr_enable:
 err_set_mode:
 	if (dpi_use_dsi_pll(dssdev))
 		dsi_pll_uninit(dpi.dsidev, true);

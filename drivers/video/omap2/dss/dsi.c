@@ -3979,6 +3979,7 @@ int dsi_enable_video_output(struct omap_dss_device *dssdev, int channel)
 	int bpp = dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt);
 	u8 data_type;
 	u16 word_count;
+	int r;
 
 	if (dssdev->panel.dsi_mode == OMAP_DSS_DSI_VIDEO_MODE) {
 		switch (dssdev->panel.dsi_pix_fmt) {
@@ -4013,7 +4014,15 @@ int dsi_enable_video_output(struct omap_dss_device *dssdev, int channel)
 		dsi_if_enable(dsidev, true);
 	}
 
-	dss_mgr_enable(dssdev->manager);
+	r = dss_mgr_enable(dssdev->manager);
+	if (r) {
+		if (dssdev->panel.dsi_mode == OMAP_DSS_DSI_VIDEO_MODE) {
+			dsi_if_enable(dsidev, false);
+			dsi_vc_enable(dsidev, channel, false);
+		}
+
+		return r;
+	}
 
 	return 0;
 }
