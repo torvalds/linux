@@ -32,6 +32,7 @@
 #include <asm/compat.h>
 #include <asm/smp.h>
 #include <asm/alternative.h>
+#include <asm/timer.h>
 
 #include "perf_event.h"
 
@@ -1626,6 +1627,19 @@ static struct pmu pmu = {
 
 	.event_idx	= x86_pmu_event_idx,
 };
+
+void perf_update_user_clock(struct perf_event_mmap_page *userpg, u64 now)
+{
+	if (!boot_cpu_has(X86_FEATURE_CONSTANT_TSC))
+		return;
+
+	if (!boot_cpu_has(X86_FEATURE_NONSTOP_TSC))
+		return;
+
+	userpg->time_mult = this_cpu_read(cyc2ns);
+	userpg->time_shift = CYC2NS_SCALE_FACTOR;
+	userpg->time_offset = this_cpu_read(cyc2ns_offset) - now;
+}
 
 /*
  * callchain support

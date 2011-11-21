@@ -3220,15 +3220,20 @@ static int perf_event_index(struct perf_event *event)
 }
 
 static void calc_timer_values(struct perf_event *event,
+				u64 *now,
 				u64 *enabled,
 				u64 *running)
 {
-	u64 now, ctx_time;
+	u64 ctx_time;
 
-	now = perf_clock();
-	ctx_time = event->shadow_ctx_time + now;
+	*now = perf_clock();
+	ctx_time = event->shadow_ctx_time + *now;
 	*enabled = ctx_time - event->tstamp_enabled;
 	*running = ctx_time - event->tstamp_running;
+}
+
+void __weak perf_update_user_clock(struct perf_event_mmap_page *userpg, u64 now)
+{
 }
 
 /*
@@ -3240,7 +3245,7 @@ void perf_event_update_userpage(struct perf_event *event)
 {
 	struct perf_event_mmap_page *userpg;
 	struct ring_buffer *rb;
-	u64 enabled, running;
+	u64 enabled, running, now;
 
 	rcu_read_lock();
 	/*
@@ -3252,7 +3257,7 @@ void perf_event_update_userpage(struct perf_event *event)
 	 * because of locking issue as we can be called in
 	 * NMI context
 	 */
-	calc_timer_values(event, &enabled, &running);
+	calc_timer_values(event, &now, &enabled, &running);
 	rb = rcu_dereference(event->rb);
 	if (!rb)
 		goto unlock;
@@ -3276,6 +3281,8 @@ void perf_event_update_userpage(struct perf_event *event)
 
 	userpg->time_running = running +
 			atomic64_read(&event->child_total_time_running);
+
+	perf_update_user_clock(userpg, now);
 
 	barrier();
 	++userpg->lock;
@@ -3763,7 +3770,7 @@ static void perf_output_read_group(struct perf_output_handle *handle,
 static void perf_output_read(struct perf_output_handle *handle,
 			     struct perf_event *event)
 {
-	u64 enabled = 0, running = 0;
+	u64 enabled = 0, running = 0, now;
 	u64 read_format = event->attr.read_format;
 
 	/*
@@ -3776,7 +3783,7 @@ static void perf_output_read(struct perf_output_handle *handle,
 	 * NMI context
 	 */
 	if (read_format & PERF_FORMAT_TOTAL_TIMES)
-		calc_timer_values(event, &enabled, &running);
+		calc_timer_values(event, &now, &enabled, &running);
 
 	if (event->attr.read_format & PERF_FORMAT_GROUP)
 		perf_output_read_group(handle, event, enabled, running);
