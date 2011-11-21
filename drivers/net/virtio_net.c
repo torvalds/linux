@@ -700,6 +700,7 @@ static struct rtnl_link_stats64 *virtnet_stats(struct net_device *dev,
 	}
 
 	tot->tx_dropped = dev->stats.tx_dropped;
+	tot->tx_fifo_errors = dev->stats.tx_fifo_errors;
 	tot->rx_dropped = dev->stats.rx_dropped;
 	tot->rx_length_errors = dev->stats.rx_length_errors;
 	tot->rx_frame_errors = dev->stats.rx_frame_errors;
