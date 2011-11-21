@@ -901,7 +901,7 @@ int mpic_set_irq_type(struct irq_data *d, unsigned int flow_type)
 	if (vold != vnew)
 		mpic_irq_write(src, MPIC_INFO(IRQ_VECTOR_PRI), vnew);
 
-	return IRQ_SET_MASK_OK_NOCOPY;;
+	return IRQ_SET_MASK_OK_NOCOPY;
 }
 
 void mpic_set_vector(unsigned int virq, unsigned int vector)
