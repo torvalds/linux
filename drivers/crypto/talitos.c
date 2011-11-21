@@ -99,6 +99,8 @@ struct talitos_request {
 
 /* per-channel fifo management */
 struct talitos_channel {
+	void __iomem *reg;
+
 	/* request fifo */
 	struct talitos_request *fifo;
 
@@ -197,9 +199,9 @@ static int reset_channel(struct device *dev, int ch)
 	struct talitos_private *priv = dev_get_drvdata(dev);
 	unsigned int timeout = TALITOS_TIMEOUT;
 
-	setbits32(priv->reg + TALITOS_CCCR(ch), TALITOS_CCCR_RESET);
+	setbits32(priv->chan[ch].reg + TALITOS_CCCR, TALITOS_CCCR_RESET);
 
-	while ((in_be32(priv->reg + TALITOS_CCCR(ch)) & TALITOS_CCCR_RESET)
+	while ((in_be32(priv->chan[ch].reg + TALITOS_CCCR) & TALITOS_CCCR_RESET)
 	       && --timeout)
 		cpu_relax();
 
@@ -209,12 +211,12 @@ static int reset_channel(struct device *dev, int ch)
 	}
 
 	/* set 36-bit addressing, done writeback enable and done IRQ enable */
-	setbits32(priv->reg + TALITOS_CCCR_LO(ch), TALITOS_CCCR_LO_EAE |
+	setbits32(priv->chan[ch].reg + TALITOS_CCCR_LO, TALITOS_CCCR_LO_EAE |
 		  TALITOS_CCCR_LO_CDWE | TALITOS_CCCR_LO_CDIE);
 
 	/* and ICCR writeback, if available */
 	if (priv->features & TALITOS_FTR_HW_AUTH_CHECK)
-		setbits32(priv->reg + TALITOS_CCCR_LO(ch),
+		setbits32(priv->chan[ch].reg + TALITOS_CCCR_LO,
 		          TALITOS_CCCR_LO_IWSE);
 
 	return 0;
@@ -328,8 +330,9 @@ static int talitos_submit(struct device *dev, int ch, struct talitos_desc *desc,
 
 	/* GO! */
 	wmb();
-	out_be32(priv->reg + TALITOS_FF(ch), upper_32_bits(request->dma_desc));
-	out_be32(priv->reg + TALITOS_FF_LO(ch),
+	out_be32(priv->chan[ch].reg + TALITOS_FF,
+		 upper_32_bits(request->dma_desc));
+	out_be32(priv->chan[ch].reg + TALITOS_FF_LO,
 		 lower_32_bits(request->dma_desc));
 
 	spin_unlock_irqrestore(&priv->chan[ch].head_lock, flags);
@@ -423,7 +426,7 @@ static u32 current_desc_hdr(struct device *dev, int ch)
 	int tail = priv->chan[ch].tail;
 	dma_addr_t cur_desc;
 
-	cur_desc = in_be32(priv->reg + TALITOS_CDPR_LO(ch));
+	cur_desc = in_be32(priv->chan[ch].reg + TALITOS_CDPR_LO);
 
 	while (priv->chan[ch].fifo[tail].dma_desc != cur_desc) {
 		tail = (tail + 1) & (priv->fifo_len - 1);
@@ -445,7 +448,7 @@ static void report_eu_error(struct device *dev, int ch, u32 desc_hdr)
 	int i;
 
 	if (!desc_hdr)
-		desc_hdr = in_be32(priv->reg + TALITOS_DESCBUF(ch));
+		desc_hdr = in_be32(priv->chan[ch].reg + TALITOS_DESCBUF);
 
 	switch (desc_hdr & DESC_HDR_SEL0_MASK) {
 	case DESC_HDR_SEL0_AFEU:
@@ -507,8 +510,8 @@ static void report_eu_error(struct device *dev, int ch, u32 desc_hdr)
 
 	for (i = 0; i < 8; i++)
 		dev_err(dev, "DESCBUF 0x%08x_%08x\n",
-			in_be32(priv->reg + TALITOS_DESCBUF(ch) + 8*i),
-			in_be32(priv->reg + TALITOS_DESCBUF_LO(ch) + 8*i));
+			in_be32(priv->chan[ch].reg + TALITOS_DESCBUF + 8*i),
+			in_be32(priv->chan[ch].reg + TALITOS_DESCBUF_LO + 8*i));
 }
 
 /*
@@ -529,8 +532,8 @@ static void talitos_error(unsigned long data, u32 isr, u32 isr_lo)
 
 		error = -EINVAL;
 
-		v = in_be32(priv->reg + TALITOS_CCPSR(ch));
-		v_lo = in_be32(priv->reg + TALITOS_CCPSR_LO(ch));
+		v = in_be32(priv->chan[ch].reg + TALITOS_CCPSR);
+		v_lo = in_be32(priv->chan[ch].reg + TALITOS_CCPSR_LO);
 
 		if (v_lo & TALITOS_CCPSR_LO_DOF) {
 			dev_err(dev, "double fetch fifo overflow error\n");
@@ -568,10 +571,10 @@ static void talitos_error(unsigned long data, u32 isr, u32 isr_lo)
 		if (reset_ch) {
 			reset_channel(dev, ch);
 		} else {
-			setbits32(priv->reg + TALITOS_CCCR(ch),
+			setbits32(priv->chan[ch].reg + TALITOS_CCCR,
 				  TALITOS_CCCR_CONT);
-			setbits32(priv->reg + TALITOS_CCCR_LO(ch), 0);
-			while ((in_be32(priv->reg + TALITOS_CCCR(ch)) &
+			setbits32(priv->chan[ch].reg + TALITOS_CCCR_LO, 0);
+			while ((in_be32(priv->chan[ch].reg + TALITOS_CCCR) &
 			       TALITOS_CCCR_CONT) && --timeout)
 				cpu_relax();
 			if (timeout == 0) {
@@ -2709,6 +2712,10 @@ static int talitos_probe(struct platform_device *ofdev)
 		err = -ENOMEM;
 		goto err_out;
 	}
+
+	for (i = 0; i < priv->num_channels; i++)
+		priv->chan[i].reg = priv->reg + TALITOS_CH_BASE_OFFSET +
+				    TALITOS_CH_STRIDE * (i + 1);
 
 	for (i = 0; i < priv->num_channels; i++) {
 		spin_lock_init(&priv->chan[i].head_lock);

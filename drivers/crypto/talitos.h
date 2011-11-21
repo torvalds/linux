@@ -1,7 +1,7 @@
 /*
  * Freescale SEC (talitos) device register and descriptor header defines
  *
- * Copyright (c) 2006-2010 Freescale Semiconductor, Inc.
+ * Copyright (c) 2006-2011 Freescale Semiconductor, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -49,13 +49,14 @@
 #define TALITOS_ICR_LO			0x101C
 
 /* channel register address stride */
+#define TALITOS_CH_BASE_OFFSET		0x1000	/* default channel map base */
 #define TALITOS_CH_STRIDE		0x100
 
 /* channel configuration register  */
-#define TALITOS_CCCR(ch)		(ch * TALITOS_CH_STRIDE + 0x1108)
+#define TALITOS_CCCR			0x8
 #define   TALITOS_CCCR_CONT		0x2    /* channel continue */
 #define   TALITOS_CCCR_RESET		0x1    /* channel reset */
-#define TALITOS_CCCR_LO(ch)		(ch * TALITOS_CH_STRIDE + 0x110c)
+#define TALITOS_CCCR_LO			0xc
 #define   TALITOS_CCCR_LO_IWSE		0x80   /* chan. ICCR writeback enab. */
 #define   TALITOS_CCCR_LO_EAE		0x20   /* extended address enable */
 #define   TALITOS_CCCR_LO_CDWE		0x10   /* chan. done writeback enab. */
@@ -63,8 +64,8 @@
 #define   TALITOS_CCCR_LO_CDIE		0x2    /* channel done IRQ enable */
 
 /* CCPSR: channel pointer status register */
-#define TALITOS_CCPSR(ch)		(ch * TALITOS_CH_STRIDE + 0x1110)
-#define TALITOS_CCPSR_LO(ch)		(ch * TALITOS_CH_STRIDE + 0x1114)
+#define TALITOS_CCPSR			0x10
+#define TALITOS_CCPSR_LO		0x14
 #define   TALITOS_CCPSR_LO_DOF		0x8000 /* double FF write oflow error */
 #define   TALITOS_CCPSR_LO_SOF		0x4000 /* single FF write oflow error */
 #define   TALITOS_CCPSR_LO_MDTE		0x2000 /* master data transfer error */
@@ -79,24 +80,24 @@
 #define   TALITOS_CCPSR_LO_SRL		0x0010 /* scatter return/length error */
 
 /* channel fetch fifo register */
-#define TALITOS_FF(ch)			(ch * TALITOS_CH_STRIDE + 0x1148)
-#define TALITOS_FF_LO(ch)		(ch * TALITOS_CH_STRIDE + 0x114c)
+#define TALITOS_FF			0x48
+#define TALITOS_FF_LO			0x4c
 
 /* current descriptor pointer register */
-#define TALITOS_CDPR(ch)		(ch * TALITOS_CH_STRIDE + 0x1140)
-#define TALITOS_CDPR_LO(ch)		(ch * TALITOS_CH_STRIDE + 0x1144)
+#define TALITOS_CDPR			0x40
+#define TALITOS_CDPR_LO			0x44
 
 /* descriptor buffer register */
-#define TALITOS_DESCBUF(ch)		(ch * TALITOS_CH_STRIDE + 0x1180)
-#define TALITOS_DESCBUF_LO(ch)		(ch * TALITOS_CH_STRIDE + 0x1184)
+#define TALITOS_DESCBUF			0x80
+#define TALITOS_DESCBUF_LO		0x84
 
 /* gather link table */
-#define TALITOS_GATHER(ch)		(ch * TALITOS_CH_STRIDE + 0x11c0)
-#define TALITOS_GATHER_LO(ch)		(ch * TALITOS_CH_STRIDE + 0x11c4)
+#define TALITOS_GATHER			0xc0
+#define TALITOS_GATHER_LO		0xc4
 
 /* scatter link table */
-#define TALITOS_SCATTER(ch)		(ch * TALITOS_CH_STRIDE + 0x11e0)
-#define TALITOS_SCATTER_LO(ch)		(ch * TALITOS_CH_STRIDE + 0x11e4)
+#define TALITOS_SCATTER			0xe0
+#define TALITOS_SCATTER_LO		0xe4
 
 /* execution unit interrupt status registers */
 #define TALITOS_DEUISR			0x2030 /* DES unit */
