@@ -967,7 +967,7 @@ static void dss_mgr_setup_fifos(struct omap_overlay_manager *mgr)
 	}
 }
 
-void dss_mgr_enable(struct omap_overlay_manager *mgr)
+int dss_mgr_enable(struct omap_overlay_manager *mgr)
 {
 	struct mgr_priv_data *mp = get_mgr_priv(mgr);
 	unsigned long flags;
@@ -986,8 +986,7 @@ void dss_mgr_enable(struct omap_overlay_manager *mgr)
 	if (r) {
 		DSSERR("failed to enable manager %d: check_settings failed\n",
 				mgr->id);
-		spin_unlock_irqrestore(&data_lock, flags);
-		goto out;
+		goto err;
 	}
 
 	mp->enabled = true;
@@ -1006,6 +1005,13 @@ void dss_mgr_enable(struct omap_overlay_manager *mgr)
 
 out:
 	mutex_unlock(&apply_lock);
+
+	return 0;
+
+err:
+	spin_unlock_irqrestore(&data_lock, flags);
+	mutex_unlock(&apply_lock);
+	return r;
 }
 
 void dss_mgr_disable(struct omap_overlay_manager *mgr)
