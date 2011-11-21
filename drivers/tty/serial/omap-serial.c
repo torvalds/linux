@@ -399,7 +399,7 @@ static unsigned int serial_omap_tx_empty(struct uart_port *port)
 static unsigned int serial_omap_get_mctrl(struct uart_port *port)
 {
 	struct uart_omap_port *up = (struct uart_omap_port *)port;
-	unsigned char status;
+	unsigned int status;
 	unsigned int ret = 0;
 
 	status = check_modem_status(up);
