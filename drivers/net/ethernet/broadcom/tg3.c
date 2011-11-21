@@ -3932,6 +3932,7 @@ static int tg3_setup_copper_phy(struct tg3 *tp, int force_reset)
 	current_link_up = 0;
 	current_speed = SPEED_INVALID;
 	current_duplex = DUPLEX_INVALID;
+	tp->phy_flags &= ~TG3_PHYFLG_MDIX_STATE;
 
 	if (tp->phy_flags & TG3_PHYFLG_CAPACITIVE_COUPLING) {
 		err = tg3_phy_auxctl_read(tp,
@@ -4004,8 +4005,22 @@ static int tg3_setup_copper_phy(struct tg3 *tp, int force_reset)
 		}
 
 		if (current_link_up == 1 &&
-		    tp->link_config.active_duplex == DUPLEX_FULL)
+		    tp->link_config.active_duplex == DUPLEX_FULL) {
+			u32 reg, bit;
+
+			if (tp->phy_flags & TG3_PHYFLG_IS_FET) {
+				reg = MII_TG3_FET_GEN_STAT;
+				bit = MII_TG3_FET_GEN_STAT_MDIXSTAT;
+			} else {
+				reg = MII_TG3_EXT_STAT;
+				bit = MII_TG3_EXT_STAT_MDIX;
+			}
+
+			if (!tg3_readphy(tp, reg, &val) && (val & bit))
+				tp->phy_flags |= TG3_PHYFLG_MDIX_STATE;
+
 			tg3_setup_flow_control(tp, lcl_adv, rmt_adv);
+		}
 	}
 
 relink:
@@ -10290,9 +10305,16 @@ static int tg3_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	if (netif_running(dev)) {
 		ethtool_cmd_speed_set(cmd, tp->link_config.active_speed);
 		cmd->duplex = tp->link_config.active_duplex;
+		if (!(tp->phy_flags & TG3_PHYFLG_ANY_SERDES)) {
+			if (tp->phy_flags & TG3_PHYFLG_MDIX_STATE)
+				cmd->eth_tp_mdix = ETH_TP_MDI_X;
+			else
+				cmd->eth_tp_mdix = ETH_TP_MDI;
+		}
 	} else {
 		ethtool_cmd_speed_set(cmd, SPEED_INVALID);
 		cmd->duplex = DUPLEX_INVALID;
+		cmd->eth_tp_mdix = ETH_TP_MDI_INVALID;
 	}
 	cmd->phy_address = tp->phy_addr;
 	cmd->transceiver = XCVR_INTERNAL;

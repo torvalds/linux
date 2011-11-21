@@ -2174,6 +2174,7 @@
 #define  MII_TG3_EXT_CTRL_TBI		0x8000
 
 #define MII_TG3_EXT_STAT		0x11 /* Extended status register */
+#define  MII_TG3_EXT_STAT_MDIX		0x2000
 #define  MII_TG3_EXT_STAT_LPASS		0x0100
 
 #define MII_TG3_RXR_COUNTERS		0x14 /* Local/Remote Receiver Counts */
@@ -2276,6 +2277,9 @@
 #define  MII_TG3_FET_PTEST_TRIM_2	0x0002
 #define  MII_TG3_FET_PTEST_FRC_TX_LINK	0x1000
 #define  MII_TG3_FET_PTEST_FRC_TX_LOCK	0x0800
+
+#define MII_TG3_FET_GEN_STAT		0x1c
+#define  MII_TG3_FET_GEN_STAT_MDIXSTAT	0x2000
 
 #define MII_TG3_FET_TEST		0x1f
 #define  MII_TG3_FET_SHADOW_EN		0x0080
@@ -3135,6 +3139,7 @@ struct tg3 {
 #define TG3_PHYFLG_SERDES_PREEMPHASIS	0x00010000
 #define TG3_PHYFLG_PARALLEL_DETECT	0x00020000
 #define TG3_PHYFLG_EEE_CAP		0x00040000
+#define TG3_PHYFLG_MDIX_STATE		0x00200000
 
 	u32				led_ctrl;
 	u32				phy_otp;
