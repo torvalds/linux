@@ -521,7 +521,6 @@ static void e1000_get_drvinfo(struct net_device *netdev,
 	strlcpy(drvinfo->version, e1000_driver_version,
 		sizeof(drvinfo->version));
 
-	strlcpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
 	drvinfo->regdump_len = e1000_get_regs_len(netdev);

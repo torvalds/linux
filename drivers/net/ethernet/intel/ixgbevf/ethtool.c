@@ -267,11 +267,11 @@ static void ixgbevf_get_drvinfo(struct net_device *netdev,
 {
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 
-	strlcpy(drvinfo->driver, ixgbevf_driver_name, 32);
-	strlcpy(drvinfo->version, ixgbevf_driver_version, 32);
-
-	strlcpy(drvinfo->fw_version, "N/A", 4);
-	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev), 32);
+	strlcpy(drvinfo->driver, ixgbevf_driver_name, sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, ixgbevf_driver_version,
+		sizeof(drvinfo->version));
+	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
+		sizeof(drvinfo->bus_info));
 }
 
 static void ixgbevf_get_ringparam(struct net_device *netdev,

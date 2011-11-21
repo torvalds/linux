@@ -1738,7 +1738,6 @@ static void ql_get_drvinfo(struct net_device *ndev,
 	strlcpy(drvinfo->driver, ql3xxx_driver_name, sizeof(drvinfo->driver));
 	strlcpy(drvinfo->version, ql3xxx_driver_version,
 		sizeof(drvinfo->version));
-	strlcpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
 	strlcpy(drvinfo->bus_info, pci_name(qdev->pdev),
 		sizeof(drvinfo->bus_info));
 	drvinfo->regdump_len = 0;

@@ -1580,9 +1580,7 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, pci_name(adapter->pdev),
 		sizeof(info->bus_info));
-	if (!fw_vers)
-		strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
-	else {
+	if (fw_vers)
 		snprintf(info->fw_version, sizeof(info->fw_version),
 			 "%s %u.%u.%u TP %u.%u.%u",
 			 G_FW_VERSION_TYPE(fw_vers) ? "T" : "N",
@@ -1592,7 +1590,6 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 			 G_TP_VERSION_MAJOR(tp_vers),
 			 G_TP_VERSION_MINOR(tp_vers),
 			 G_TP_VERSION_MICRO(tp_vers));
-	}
 }
 
 static void get_strings(struct net_device *dev, u32 stringset, u8 * data)
