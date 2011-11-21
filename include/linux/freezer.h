@@ -48,7 +48,7 @@ static inline bool try_to_freeze(void)
 	return __refrigerator(false);
 }
 
-extern bool freeze_task(struct task_struct *p, bool sig_only);
+extern bool freeze_task(struct task_struct *p);
 extern bool __set_freezable(bool with_signal);
 
 #ifdef CONFIG_CGROUP_FREEZER

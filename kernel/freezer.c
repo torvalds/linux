@@ -100,20 +100,17 @@ static void fake_signal_wake_up(struct task_struct *p)
 }
 
 /**
- *	freeze_task - send a freeze request to given task
- *	@p: task to send the request to
- *	@sig_only: if set, the request will only be sent if the task has the
- *		PF_FREEZER_NOSIG flag unset
- *	Return value: 'false', if @sig_only is set and the task has
- *		PF_FREEZER_NOSIG set or the task is frozen, 'true', otherwise
+ * freeze_task - send a freeze request to given task
+ * @p: task to send the request to
  *
- *	The freeze request is sent by setting the tasks's TIF_FREEZE flag and
- *	either sending a fake signal to it or waking it up, depending on whether
- *	or not it has PF_FREEZER_NOSIG set.  If @sig_only is set and the task
- *	has PF_FREEZER_NOSIG set (ie. it is a typical kernel thread), its
- *	TIF_FREEZE flag will not be set.
+ * If @p is freezing, the freeze request is sent by setting %TIF_FREEZE
+ * flag and either sending a fake signal to it or waking it up, depending
+ * on whether it has %PF_FREEZER_NOSIG set.
+ *
+ * RETURNS:
+ * %false, if @p is not freezing or already frozen; %true, otherwise
  */
-bool freeze_task(struct task_struct *p, bool sig_only)
+bool freeze_task(struct task_struct *p)
 {
 	unsigned long flags;
 
