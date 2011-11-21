@@ -1581,7 +1581,7 @@ static int tcp_tso_should_defer(struct sock *sk, struct sk_buff *skb)
 		 * frame, so if we have space for more than 3 frames
 		 * then send now.
 		 */
-		if (limit > tcp_max_burst(tp) * tp->mss_cache)
+		if (limit > tcp_max_tso_deferred_mss(tp) * tp->mss_cache)
 			goto send_now;
 	}
 
