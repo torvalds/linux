@@ -11,17 +11,8 @@
 #include <linux/freezer.h>
 #include <linux/kthread.h>
 
-/*
- * freezing is complete, mark current process as frozen
- */
-static inline void frozen_process(void)
-{
-	if (!unlikely(current->flags & PF_NOFREEZE)) {
-		current->flags |= PF_FROZEN;
-		smp_wmb();
-	}
-	clear_freeze_flag(current);
-}
+/* protects freezing and frozen transitions */
+static DEFINE_SPINLOCK(freezer_lock);
 
 /* Refrigerator is place where frozen processes are stored :-). */
 bool __refrigerator(bool check_kthr_stop)
@@ -31,14 +22,16 @@ bool __refrigerator(bool check_kthr_stop)
 	bool was_frozen = false;
 	long save;
 
-	task_lock(current);
-	if (freezing(current)) {
-		frozen_process();
-		task_unlock(current);
-	} else {
-		task_unlock(current);
+	spin_lock_irq(&freezer_lock);
+	if (!freezing(current)) {
+		spin_unlock_irq(&freezer_lock);
 		return was_frozen;
 	}
+	if (!(current->flags & PF_NOFREEZE))
+		current->flags |= PF_FROZEN;
+	clear_freeze_flag(current);
+	spin_unlock_irq(&freezer_lock);
+
 	save = current->state;
 	pr_debug("%s entered refrigerator\n", current->comm);
 
@@ -99,21 +92,18 @@ static void fake_signal_wake_up(struct task_struct *p)
  */
 bool freeze_task(struct task_struct *p, bool sig_only)
 {
-	/*
-	 * We first check if the task is freezing and next if it has already
-	 * been frozen to avoid the race with frozen_process() which first marks
-	 * the task as frozen and next clears its TIF_FREEZE.
-	 */
-	if (!freezing(p)) {
-		smp_rmb();
-		if (frozen(p))
-			return false;
+	unsigned long flags;
+	bool ret = false;
 
-		if (!sig_only || should_send_signal(p))
-			set_freeze_flag(p);
-		else
-			return false;
-	}
+	spin_lock_irqsave(&freezer_lock, flags);
+
+	if (sig_only && !should_send_signal(p))
+		goto out_unlock;
+
+	if (frozen(p))
+		goto out_unlock;
+
+	set_freeze_flag(p);
 
 	if (should_send_signal(p)) {
 		fake_signal_wake_up(p);
@@ -123,26 +113,28 @@ bool freeze_task(struct task_struct *p, bool sig_only)
 		 * TASK_RUNNING transition can't race with task state
 		 * testing in try_to_freeze_tasks().
 		 */
-	} else if (sig_only) {
-		return false;
 	} else {
 		wake_up_state(p, TASK_INTERRUPTIBLE);
 	}
-
-	return true;
+	ret = true;
+out_unlock:
+	spin_unlock_irqrestore(&freezer_lock, flags);
+	return ret;
 }
 
 void cancel_freezing(struct task_struct *p)
 {
 	unsigned long flags;
 
+	spin_lock_irqsave(&freezer_lock, flags);
 	if (freezing(p)) {
 		pr_debug("  clean up: %s\n", p->comm);
 		clear_freeze_flag(p);
-		spin_lock_irqsave(&p->sighand->siglock, flags);
+		spin_lock(&p->sighand->siglock);
 		recalc_sigpending_and_wake(p);
-		spin_unlock_irqrestore(&p->sighand->siglock, flags);
+		spin_unlock(&p->sighand->siglock);
 	}
+	spin_unlock_irqrestore(&freezer_lock, flags);
 }
 
 /*
@@ -156,16 +148,14 @@ void cancel_freezing(struct task_struct *p)
  */
 void __thaw_task(struct task_struct *p)
 {
-	bool was_frozen;
+	unsigned long flags;
 
-	task_lock(p);
-	was_frozen = frozen(p);
-	if (was_frozen)
+	spin_lock_irqsave(&freezer_lock, flags);
+	if (frozen(p)) {
 		p->flags &= ~PF_FROZEN;
-	else
-		clear_freeze_flag(p);
-	task_unlock(p);
-
-	if (was_frozen)
 		wake_up_process(p);
+	} else {
+		clear_freeze_flag(p);
+	}
+	spin_unlock_irqrestore(&freezer_lock, flags);
 }
