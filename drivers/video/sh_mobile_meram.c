@@ -539,7 +539,7 @@ static struct sh_mobile_meram_ops sh_mobile_meram_ops = {
  * Power management
  */
 
-static int sh_mobile_meram_runtime_suspend(struct device *dev)
+static int sh_mobile_meram_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct sh_mobile_meram_priv *priv = platform_get_drvdata(pdev);
@@ -563,7 +563,7 @@ static int sh_mobile_meram_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int sh_mobile_meram_runtime_resume(struct device *dev)
+static int sh_mobile_meram_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct sh_mobile_meram_priv *priv = platform_get_drvdata(pdev);
@@ -582,10 +582,9 @@ static int sh_mobile_meram_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops sh_mobile_meram_dev_pm_ops = {
-	.runtime_suspend = sh_mobile_meram_runtime_suspend,
-	.runtime_resume = sh_mobile_meram_runtime_resume,
-};
+static UNIVERSAL_DEV_PM_OPS(sh_mobile_meram_dev_pm_ops,
+			    sh_mobile_meram_suspend,
+			    sh_mobile_meram_resume, NULL);
 
 /* -----------------------------------------------------------------------------
  * Probe/remove and driver init/exit
