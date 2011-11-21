@@ -432,7 +432,7 @@ static void path_rec_completion(int status,
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	if (ah) {
+	if (!IS_ERR_OR_NULL(ah)) {
 		path->pathrec = *pathrec;
 
 		old_ah   = path->ah;

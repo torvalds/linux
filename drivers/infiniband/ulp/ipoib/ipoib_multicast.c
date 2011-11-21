@@ -240,8 +240,11 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 		av.grh.dgid = mcast->mcmember.mgid;
 
 		ah = ipoib_create_ah(dev, priv->pd, &av);
-		if (!ah) {
-			ipoib_warn(priv, "ib_address_create failed\n");
+		if (IS_ERR(ah)) {
+			ipoib_warn(priv, "ib_address_create failed %ld\n",
+				-PTR_ERR(ah));
+			/* use original error */
+			return PTR_ERR(ah);
 		} else {
 			spin_lock_irq(&priv->lock);
 			mcast->ah = ah;
