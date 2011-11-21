@@ -186,8 +186,7 @@ struct iwl_trans_ops {
 	int (*tx_agg_disable)(struct iwl_trans *trans,
 			      int sta_id, int tid);
 	int (*tx_agg_alloc)(struct iwl_trans *trans,
-			    enum iwl_rxon_context_id ctx, int sta_id, int tid,
-			    u16 *ssn);
+			    int sta_id, int tid);
 	void (*tx_agg_setup)(struct iwl_trans *trans,
 			     enum iwl_rxon_context_id ctx, int sta_id, int tid,
 			     int frame_limit);
@@ -323,10 +322,9 @@ static inline int iwl_trans_tx_agg_disable(struct iwl_trans *trans,
 }
 
 static inline int iwl_trans_tx_agg_alloc(struct iwl_trans *trans,
-					 enum iwl_rxon_context_id ctx,
-					 int sta_id, int tid, u16 *ssn)
+					 int sta_id, int tid)
 {
-	return trans->ops->tx_agg_alloc(trans, ctx, sta_id, tid, ssn);
+	return trans->ops->tx_agg_alloc(trans, sta_id, tid);
 }
 
 

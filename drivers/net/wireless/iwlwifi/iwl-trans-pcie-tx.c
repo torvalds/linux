@@ -539,12 +539,9 @@ static int iwlagn_txq_ctx_activate_free(struct iwl_trans *trans)
 }
 
 int iwl_trans_pcie_tx_agg_alloc(struct iwl_trans *trans,
-				enum iwl_rxon_context_id ctx, int sta_id,
-				int tid, u16 *ssn)
+				int sta_id, int tid)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_tid_data *tid_data;
-	unsigned long flags;
 	int txq_id;
 
 	txq_id = iwlagn_txq_ctx_activate_free(trans);
@@ -553,27 +550,8 @@ int iwl_trans_pcie_tx_agg_alloc(struct iwl_trans *trans,
 		return -ENXIO;
 	}
 
-	spin_lock_irqsave(&trans->shrd->sta_lock, flags);
-	tid_data = &trans->shrd->tid_data[sta_id][tid];
-	tid_data->agg.txq_id = txq_id;
-	tid_data->agg.ssn = SEQ_TO_SN(tid_data->seq_number);
-
-	*ssn = tid_data->agg.ssn;
+	trans->shrd->tid_data[sta_id][tid].agg.txq_id = txq_id;
 	iwl_set_swq_id(&trans_pcie->txq[txq_id], get_ac_from_tid(tid), txq_id);
-
-	if (*ssn == tid_data->next_reclaimed) {
-		IWL_DEBUG_TX_QUEUES(trans, "Proceed: ssn = next_recl = %d",
-				    tid_data->agg.ssn);
-		tid_data->agg.state = IWL_AGG_ON;
-		iwl_start_tx_ba_trans_ready(priv(trans), ctx, sta_id, tid);
-	} else {
-		IWL_DEBUG_TX_QUEUES(trans, "Can't proceed: ssn %d, "
-				    "next_recl = %d",
-				    tid_data->agg.ssn,
-				    tid_data->next_reclaimed);
-		tid_data->agg.state = IWL_EMPTYING_HW_QUEUE_ADDBA;
-	}
-	spin_unlock_irqrestore(&trans->shrd->sta_lock, flags);
 
 	return 0;
 }

@@ -470,6 +470,8 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, u16 tid, u16 *ssn)
 {
 	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
+	struct iwl_tid_data *tid_data;
+	unsigned long flags;
 	int sta_id;
 	int ret;
 
@@ -493,8 +495,34 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	if (ret)
 		return ret;
 
-	ret = iwl_trans_tx_agg_alloc(trans(priv), vif_priv->ctx->ctxid, sta_id,
-				     tid, ssn);
+	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
+
+	tid_data = &priv->shrd->tid_data[sta_id][tid];
+	tid_data->agg.ssn = SEQ_TO_SN(tid_data->seq_number);
+
+	*ssn = tid_data->agg.ssn;
+
+	ret = iwl_trans_tx_agg_alloc(trans(priv), sta_id, tid);
+	if (ret) {
+		spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
+		return ret;
+	}
+
+	if (*ssn == tid_data->next_reclaimed) {
+		IWL_DEBUG_TX_QUEUES(priv, "Can proceed: ssn = next_recl = %d",
+				    tid_data->agg.ssn);
+		tid_data->agg.state = IWL_AGG_ON;
+		iwl_start_tx_ba_trans_ready(priv, vif_priv->ctx->ctxid, sta_id,
+					    tid);
+	} else {
+		IWL_DEBUG_TX_QUEUES(priv, "Can't proceed: ssn %d, "
+				    "next_reclaimed = %d",
+				    tid_data->agg.ssn,
+				    tid_data->next_reclaimed);
+		tid_data->agg.state = IWL_EMPTYING_HW_QUEUE_ADDBA;
+	}
+
+	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
 
 	return ret;
 }
