@@ -1033,22 +1033,16 @@ static int device_prepare(struct device *dev, pm_message_t state)
 		if (dev->pm_domain->ops.prepare)
 			error = dev->pm_domain->ops.prepare(dev);
 		suspend_report_result(dev->pm_domain->ops.prepare, error);
-		if (error)
-			goto End;
 	} else if (dev->type && dev->type->pm) {
 		pm_dev_dbg(dev, state, "preparing type ");
 		if (dev->type->pm->prepare)
 			error = dev->type->pm->prepare(dev);
 		suspend_report_result(dev->type->pm->prepare, error);
-		if (error)
-			goto End;
 	} else if (dev->class && dev->class->pm) {
 		pm_dev_dbg(dev, state, "preparing class ");
 		if (dev->class->pm->prepare)
 			error = dev->class->pm->prepare(dev);
 		suspend_report_result(dev->class->pm->prepare, error);
-		if (error)
-			goto End;
 	} else if (dev->bus && dev->bus->pm) {
 		pm_dev_dbg(dev, state, "preparing ");
 		if (dev->bus->pm->prepare)
@@ -1056,7 +1050,6 @@ static int device_prepare(struct device *dev, pm_message_t state)
 		suspend_report_result(dev->bus->pm->prepare, error);
 	}
 
- End:
 	device_unlock(dev);
 
 	return error;
