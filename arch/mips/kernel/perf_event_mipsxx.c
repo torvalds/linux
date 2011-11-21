@@ -1380,20 +1380,10 @@ static irqreturn_t mipsxx_pmu_handle_irq(int irq, void *dev)
 }
 
 /* 24K */
-#define IS_UNSUPPORTED_24K_EVENT(r, b)					\
-	((b) == 12 || (r) == 151 || (r) == 152 || (b) == 26 ||		\
-	 (b) == 27 || (r) == 28 || (r) == 158 || (b) == 31 ||		\
-	 (b) == 32 || (b) == 34 || (b) == 36 || (r) == 168 ||		\
-	 (r) == 172 || (b) == 47 || ((b) >= 56 && (b) <= 63) ||		\
-	 ((b) >= 68 && (b) <= 127))
 #define IS_BOTH_COUNTERS_24K_EVENT(b)					\
 	((b) == 0 || (b) == 1 || (b) == 11)
 
 /* 34K */
-#define IS_UNSUPPORTED_34K_EVENT(r, b)					\
-	((b) == 12 || (r) == 27 || (r) == 158 || (b) == 36 ||		\
-	 (b) == 38 || (r) == 175 || ((b) >= 56 && (b) <= 63) ||		\
-	 ((b) >= 68 && (b) <= 127))
 #define IS_BOTH_COUNTERS_34K_EVENT(b)					\
 	((b) == 0 || (b) == 1 || (b) == 11)
 #ifdef CONFIG_MIPS_MT_SMP
@@ -1406,20 +1396,10 @@ static irqreturn_t mipsxx_pmu_handle_irq(int irq, void *dev)
 #endif
 
 /* 74K */
-#define IS_UNSUPPORTED_74K_EVENT(r, b)					\
-	((r) == 5 || ((r) >= 135 && (r) <= 137) ||			\
-	 ((b) >= 10 && (b) <= 12) || (b) == 22 || (b) == 27 ||		\
-	 (b) == 33 || (b) == 34 || ((b) >= 47 && (b) <= 49) ||		\
-	 (r) == 178 || (b) == 55 || (b) == 57 || (b) == 60 ||		\
-	 (b) == 61 || (r) == 62 || (r) == 191 ||			\
-	 ((b) >= 64 && (b) <= 127))
 #define IS_BOTH_COUNTERS_74K_EVENT(b)					\
 	((b) == 0 || (b) == 1)
 
 /* 1004K */
-#define IS_UNSUPPORTED_1004K_EVENT(r, b)				\
-	((b) == 12 || (r) == 27 || (r) == 158 || (b) == 38 ||		\
-	 (r) == 175 || (b) == 63 || ((b) >= 68 && (b) <= 127))
 #define IS_BOTH_COUNTERS_1004K_EVENT(b)					\
 	((b) == 0 || (b) == 1 || (b) == 11)
 #ifdef CONFIG_MIPS_MT_SMP
@@ -1445,11 +1425,10 @@ static const struct mips_perf_event *mipsxx_pmu_map_raw_event(u64 config)
 	unsigned int raw_id = config & 0xff;
 	unsigned int base_id = raw_id & 0x7f;
 
+	raw_event.event_id = base_id;
+
 	switch (current_cpu_type()) {
 	case CPU_24K:
-		if (IS_UNSUPPORTED_24K_EVENT(raw_id, base_id))
-			return ERR_PTR(-EOPNOTSUPP);
-		raw_event.event_id = base_id;
 		if (IS_BOTH_COUNTERS_24K_EVENT(base_id))
 			raw_event.cntr_mask = CNTR_EVEN | CNTR_ODD;
 		else
@@ -1464,9 +1443,6 @@ static const struct mips_perf_event *mipsxx_pmu_map_raw_event(u64 config)
 #endif
 		break;
 	case CPU_34K:
-		if (IS_UNSUPPORTED_34K_EVENT(raw_id, base_id))
-			return ERR_PTR(-EOPNOTSUPP);
-		raw_event.event_id = base_id;
 		if (IS_BOTH_COUNTERS_34K_EVENT(base_id))
 			raw_event.cntr_mask = CNTR_EVEN | CNTR_ODD;
 		else
@@ -1482,9 +1458,6 @@ static const struct mips_perf_event *mipsxx_pmu_map_raw_event(u64 config)
 #endif
 		break;
 	case CPU_74K:
-		if (IS_UNSUPPORTED_74K_EVENT(raw_id, base_id))
-			return ERR_PTR(-EOPNOTSUPP);
-		raw_event.event_id = base_id;
 		if (IS_BOTH_COUNTERS_74K_EVENT(base_id))
 			raw_event.cntr_mask = CNTR_EVEN | CNTR_ODD;
 		else
@@ -1495,9 +1468,6 @@ static const struct mips_perf_event *mipsxx_pmu_map_raw_event(u64 config)
 #endif
 		break;
 	case CPU_1004K:
-		if (IS_UNSUPPORTED_1004K_EVENT(raw_id, base_id))
-			return ERR_PTR(-EOPNOTSUPP);
-		raw_event.event_id = base_id;
 		if (IS_BOTH_COUNTERS_1004K_EVENT(base_id))
 			raw_event.cntr_mask = CNTR_EVEN | CNTR_ODD;
 		else
