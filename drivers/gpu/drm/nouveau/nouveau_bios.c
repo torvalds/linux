@@ -27,6 +27,7 @@
 #include "nouveau_drv.h"
 #include "nouveau_hw.h"
 #include "nouveau_encoder.h"
+#include "nouveau_gpio.h"
 
 #include <linux/io-mapping.h>
 
@@ -3124,49 +3125,6 @@ init_8d(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	return 1;
 }
 
-static void
-init_gpio_unknv50(struct nvbios *bios, struct dcb_gpio_entry *gpio)
-{
-	const uint32_t nv50_gpio_ctl[2] = { 0xe100, 0xe28c };
-	u32 r, s, v;
-
-	/* Not a clue, needs de-magicing */
-	r = nv50_gpio_ctl[gpio->line >> 4];
-	s = (gpio->line & 0x0f);
-	v = bios_rd32(bios, r) & ~(0x00010001 << s);
-	switch ((gpio->entry & 0x06000000) >> 25) {
-	case 1:
-		v |= (0x00000001 << s);
-		break;
-	case 2:
-		v |= (0x00010000 << s);
-		break;
-	default:
-		break;
-	}
-
-	bios_wr32(bios, r, v);
-}
-
-static void
-init_gpio_unknvd0(struct nvbios *bios, struct dcb_gpio_entry *gpio)
-{
-	u32 v, i;
-
-	v  = bios_rd32(bios, 0x00d610 + (gpio->line * 4));
-	v &= 0xffffff00;
-	v |= (gpio->entry & 0x00ff0000) >> 16;
-	bios_wr32(bios, 0x00d610 + (gpio->line * 4), v);
-
-	i = (gpio->entry & 0x1f000000) >> 24;
-	if (i) {
-		v  = bios_rd32(bios, 0x00d640 + ((i - 1) * 4));
-		v &= 0xffffff00;
-		v |= gpio->line;
-		bios_wr32(bios, 0x00d640 + ((i - 1) * 4), v);
-	}
-}
-
 static int
 init_gpio(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 {
@@ -3179,35 +3137,8 @@ init_gpio(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	 * each GPIO according to various values listed in each entry
 	 */
 
-	struct drm_nouveau_private *dev_priv = bios->dev->dev_private;
-	struct nouveau_gpio_engine *pgpio = &dev_priv->engine.gpio;
-	int i;
-
-	if (dev_priv->card_type < NV_50) {
-		NV_ERROR(bios->dev, "INIT_GPIO on unsupported chipset\n");
-		return 1;
-	}
-
-	if (!iexec->execute)
-		return 1;
-
-	for (i = 0; i < bios->dcb.gpio.entries; i++) {
-		struct dcb_gpio_entry *gpio = &bios->dcb.gpio.entry[i];
-
-		BIOSLOG(bios, "0x%04X: Entry: 0x%08X\n", offset, gpio->entry);
-
-		BIOSLOG(bios, "0x%04X: set gpio 0x%02x, state %d\n",
-			offset, gpio->tag, gpio->state_default);
-
-		if (!bios->execute)
-			continue;
-
-		pgpio->set(bios->dev, gpio->tag, gpio->state_default);
-		if (dev_priv->card_type < NV_D0)
-			init_gpio_unknv50(bios, gpio);
-		else
-			init_gpio_unknvd0(bios, gpio);
-	}
+	if (iexec->execute && bios->execute)
+		nouveau_gpio_reset(bios->dev);
 
 	return 1;
 }
@@ -5643,132 +5574,6 @@ static uint16_t findstr(uint8_t *data, int n, const uint8_t *str, int len)
 	return 0;
 }
 
-static struct dcb_gpio_entry *
-new_gpio_entry(struct nvbios *bios)
-{
-	struct drm_device *dev = bios->dev;
-	struct dcb_gpio_table *gpio = &bios->dcb.gpio;
-
-	if (gpio->entries >= DCB_MAX_NUM_GPIO_ENTRIES) {
-		NV_ERROR(dev, "exceeded maximum number of gpio entries!!\n");
-		return NULL;
-	}
-
-	return &gpio->entry[gpio->entries++];
-}
-
-struct dcb_gpio_entry *
-nouveau_bios_gpio_entry(struct drm_device *dev, enum dcb_gpio_tag tag)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->vbios;
-	int i;
-
-	for (i = 0; i < bios->dcb.gpio.entries; i++) {
-		if (bios->dcb.gpio.entry[i].tag != tag)
-			continue;
-
-		return &bios->dcb.gpio.entry[i];
-	}
-
-	return NULL;
-}
-
-static void
-parse_dcb_gpio_table(struct nvbios *bios)
-{
-	struct drm_device *dev = bios->dev;
-	struct dcb_gpio_entry *e;
-	u8 headerlen, entries, recordlen;
-	u8 *dcb, *gpio = NULL, *entry;
-	int i;
-
-	dcb = ROMPTR(dev, bios->data[0x36]);
-	if (dcb[0] >= 0x30) {
-		gpio = ROMPTR(dev, dcb[10]);
-		if (!gpio)
-			goto no_table;
-
-		headerlen = gpio[1];
-		entries   = gpio[2];
-		recordlen = gpio[3];
-	} else
-	if (dcb[0] >= 0x22 && dcb[-1] >= 0x13) {
-		gpio = ROMPTR(dev, dcb[-15]);
-		if (!gpio)
-			goto no_table;
-
-		headerlen = 3;
-		entries   = gpio[2];
-		recordlen = gpio[1];
-	} else
-	if (dcb[0] >= 0x22) {
-		/* No GPIO table present, parse the TVDAC GPIO data. */
-		uint8_t *tvdac_gpio = &dcb[-5];
-
-		if (tvdac_gpio[0] & 1) {
-			e = new_gpio_entry(bios);
-			e->tag = DCB_GPIO_TVDAC0;
-			e->line = tvdac_gpio[1] >> 4;
-			e->state[0] = !!(tvdac_gpio[0] & 2);
-			e->state[1] = !e->state[0];
-		}
-
-		goto no_table;
-	} else {
-		NV_DEBUG(dev, "no/unknown gpio table on DCB 0x%02x\n", dcb[0]);
-		goto no_table;
-	}
-
-	entry = gpio + headerlen;
-	for (i = 0; i < entries; i++, entry += recordlen) {
-		e = new_gpio_entry(bios);
-		if (!e)
-			break;
-
-		if (gpio[0] < 0x40) {
-			e->entry = ROM16(entry[0]);
-			e->tag = (e->entry & 0x07e0) >> 5;
-			if (e->tag == 0x3f) {
-				bios->dcb.gpio.entries--;
-				continue;
-			}
-
-			e->line = (e->entry & 0x001f);
-			e->state[0] = ((e->entry & 0xf800) >> 11) != 4;
-			e->state[1] = !e->state[0];
-		} else {
-			e->entry = ROM32(entry[0]);
-			e->tag = (e->entry & 0x0000ff00) >> 8;
-			if (e->tag == 0xff) {
-				bios->dcb.gpio.entries--;
-				continue;
-			}
-
-			e->line = (e->entry & 0x0000001f) >> 0;
-			if (gpio[0] == 0x40) {
-				e->state_default = (e->entry & 0x01000000) >> 24;
-				e->state[0] = (e->entry & 0x18000000) >> 27;
-				e->state[1] = (e->entry & 0x60000000) >> 29;
-			} else {
-				e->state_default = (e->entry & 0x00000080) >> 7;
-				e->state[0] = (entry[4] >> 4) & 3;
-				e->state[1] = (entry[4] >> 6) & 3;
-			}
-		}
-	}
-
-no_table:
-	/* Apple iMac G4 NV18 */
-	if (nv_match_device(dev, 0x0189, 0x10de, 0x0010)) {
-		e = new_gpio_entry(bios);
-		if (e) {
-			e->tag = DCB_GPIO_TVDAC0;
-			e->line = 4;
-		}
-	}
-}
-
 void *
 dcb_table(struct drm_device *dev)
 {
@@ -6366,9 +6171,6 @@ parse_dcb_table(struct drm_device *dev, struct nvbios *bios)
 	NV_TRACE(dev, "DCB version %d.%d\n", dcbt[0] >> 4, dcbt[0] & 0xf);
 
 	dcb->version = dcbt[0];
-	if (dcb->version >= 0x30)
-		dcb->gpio_table_ptr = ROM16(dcbt[10]);
-
 	dcb_outp_foreach(dev, NULL, parse_dcb_entry);
 
 	/*
@@ -6393,8 +6195,6 @@ parse_dcb_table(struct drm_device *dev, struct nvbios *bios)
 		}
 	}
 	dcb_fake_connectors(bios);
-
-	parse_dcb_gpio_table(bios);
 	return 0;
 }
 

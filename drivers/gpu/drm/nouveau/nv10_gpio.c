@@ -28,65 +28,55 @@
 #include "nouveau_drv.h"
 #include "nouveau_hw.h"
 
-static bool
-get_gpio_location(struct dcb_gpio_entry *ent, uint32_t *reg, uint32_t *shift,
-		  uint32_t *mask)
+int
+nv10_gpio_sense(struct drm_device *dev, int line)
 {
-	if (ent->line < 2) {
-		*reg = NV_PCRTC_GPIO;
-		*shift = ent->line * 16;
-		*mask = 0x11;
-
-	} else if (ent->line < 10) {
-		*reg = NV_PCRTC_GPIO_EXT;
-		*shift = (ent->line - 2) * 4;
-		*mask = 0x3;
-
-	} else if (ent->line < 14) {
-		*reg = NV_PCRTC_850;
-		*shift = (ent->line - 10) * 4;
-		*mask = 0x3;
-
-	} else {
-		return false;
+	if (line < 2) {
+		line = line * 16;
+		line = NVReadCRTC(dev, 0, NV_PCRTC_GPIO) >> line;
+		return !!(line & 0x0100);
+	} else
+	if (line < 10) {
+		line = (line - 2) * 4;
+		line = NVReadCRTC(dev, 0, NV_PCRTC_GPIO_EXT) >> line;
+		return !!(line & 0x04);
+	} else
+	if (line < 14) {
+		line = (line - 10) * 4;
+		line = NVReadCRTC(dev, 0, NV_PCRTC_850) >> line;
+		return !!(line & 0x04);
 	}
 
-	return true;
+	return -EINVAL;
 }
 
 int
-nv10_gpio_get(struct drm_device *dev, enum dcb_gpio_tag tag)
+nv10_gpio_drive(struct drm_device *dev, int line, int dir, int out)
 {
-	struct dcb_gpio_entry *ent = nouveau_bios_gpio_entry(dev, tag);
-	uint32_t reg, shift, mask, value;
+	u32 reg, mask, data;
 
-	if (!ent)
-		return -ENODEV;
+	if (line < 2) {
+		line = line * 16;
+		reg  = NV_PCRTC_GPIO;
+		mask = 0x00000011;
+		data = (dir << 4) | out;
+	} else
+	if (line < 10) {
+		line = (line - 2) * 4;
+		reg  = NV_PCRTC_GPIO_EXT;
+		mask = 0x00000003 << ((line - 2) * 4);
+		data = (dir << 1) | out;
+	} else
+	if (line < 14) {
+		line = (line - 10) * 4;
+		reg  = NV_PCRTC_850;
+		mask = 0x00000003;
+		data = (dir << 1) | out;
+	} else {
+		return -EINVAL;
+	}
 
-	if (!get_gpio_location(ent, &reg, &shift, &mask))
-		return -ENODEV;
-
-	value = NVReadCRTC(dev, 0, reg) >> shift;
-
-	return (value & 1) == ent->state[1];
-}
-
-int
-nv10_gpio_set(struct drm_device *dev, enum dcb_gpio_tag tag, int state)
-{
-	struct dcb_gpio_entry *ent = nouveau_bios_gpio_entry(dev, tag);
-	uint32_t reg, shift, mask, value;
-
-	if (!ent)
-		return -ENODEV;
-
-	if (!get_gpio_location(ent, &reg, &shift, &mask))
-		return -ENODEV;
-
-	value = ent->state[state & 1] << shift;
-	mask = ~(mask << shift);
-
-	NVWriteCRTC(dev, 0, reg, value | (NVReadCRTC(dev, 0, reg) & mask));
-
+	mask = NVReadCRTC(dev, 0, reg) & ~(mask << line);
+	NVWriteCRTC(dev, 0, reg, mask | (data << line));
 	return 0;
 }

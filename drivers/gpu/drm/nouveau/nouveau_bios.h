@@ -61,19 +61,6 @@ enum dcb_gpio_tag {
 	DCB_GPIO_UNUSED = 0xff
 };
 
-struct dcb_gpio_entry {
-	enum dcb_gpio_tag tag;
-	int line;
-	uint32_t entry;
-	uint8_t state_default;
-	uint8_t state[2];
-};
-
-struct dcb_gpio_table {
-	int entries;
-	struct dcb_gpio_entry entry[DCB_MAX_NUM_GPIO_ENTRIES];
-};
-
 enum dcb_connector_type {
 	DCB_CONNECTOR_VGA = 0x00,
 	DCB_CONNECTOR_TV_0 = 0x10,
@@ -142,12 +129,8 @@ struct dcb_entry {
 
 struct dcb_table {
 	uint8_t version;
-
 	int entries;
 	struct dcb_entry entry[DCB_MAX_NUM_ENTRIES];
-
-	uint16_t gpio_table_ptr;
-	struct dcb_gpio_table gpio;
 };
 
 enum nouveau_or {

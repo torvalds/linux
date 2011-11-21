@@ -35,6 +35,7 @@
 #include "nouveau_encoder.h"
 #include "nouveau_crtc.h"
 #include "nouveau_connector.h"
+#include "nouveau_gpio.h"
 #include "nouveau_hw.h"
 
 static void nouveau_connector_hotplug(void *, int);
@@ -83,7 +84,6 @@ nouveau_connector_destroy(struct drm_connector *connector)
 {
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct drm_nouveau_private *dev_priv;
-	struct nouveau_gpio_engine *pgpio;
 	struct drm_device *dev;
 
 	if (!nv_connector)
@@ -93,10 +93,9 @@ nouveau_connector_destroy(struct drm_connector *connector)
 	dev_priv = dev->dev_private;
 	NV_DEBUG_KMS(dev, "\n");
 
-	pgpio = &dev_priv->engine.gpio;
-	if (pgpio->irq_unregister) {
-		pgpio->irq_unregister(dev, nv_connector->hpd,
-				      nouveau_connector_hotplug, connector);
+	if (nv_connector->hpd != DCB_GPIO_UNUSED) {
+		nouveau_gpio_isr_del(dev, 0, nv_connector->hpd, 0xff,
+				     nouveau_connector_hotplug, connector);
 	}
 
 	kfree(nv_connector->edid);
@@ -876,7 +875,6 @@ nouveau_connector_create(struct drm_device *dev, int index)
 	const struct drm_connector_funcs *funcs = &nouveau_connector_funcs;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_display_engine *disp = &dev_priv->engine.display;
-	struct nouveau_gpio_engine *pgpio = &dev_priv->engine.gpio;
 	struct nouveau_connector *nv_connector = NULL;
 	struct drm_connector *connector;
 	int type, ret = 0;
@@ -1050,13 +1048,13 @@ nouveau_connector_create(struct drm_device *dev, int index)
 		break;
 	}
 
-	if (nv_connector->hpd != DCB_GPIO_UNUSED && pgpio->irq_register) {
-		pgpio->irq_register(dev, nv_connector->hpd,
-				    nouveau_connector_hotplug, connector);
-
-		connector->polled = DRM_CONNECTOR_POLL_HPD;
-	} else {
-		connector->polled = DRM_CONNECTOR_POLL_CONNECT;
+	connector->polled = DRM_CONNECTOR_POLL_CONNECT;
+	if (nv_connector->hpd != DCB_GPIO_UNUSED) {
+		ret = nouveau_gpio_isr_add(dev, 0, nv_connector->hpd, 0xff,
+					   nouveau_connector_hotplug,
+					   connector);
+		if (ret == 0)
+			connector->polled = DRM_CONNECTOR_POLL_HPD;
 	}
 
 	drm_sysfs_connector_add(connector);

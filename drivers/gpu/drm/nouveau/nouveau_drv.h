@@ -408,19 +408,13 @@ struct nouveau_display_engine {
 };
 
 struct nouveau_gpio_engine {
-	void *priv;
-
-	int  (*init)(struct drm_device *);
-	void (*takedown)(struct drm_device *);
-
-	int  (*get)(struct drm_device *, enum dcb_gpio_tag);
-	int  (*set)(struct drm_device *, enum dcb_gpio_tag, int state);
-
-	int  (*irq_register)(struct drm_device *, enum dcb_gpio_tag,
-			     void (*)(void *, int), void *);
-	void (*irq_unregister)(struct drm_device *, enum dcb_gpio_tag,
-			       void (*)(void *, int), void *);
-	bool (*irq_enable)(struct drm_device *, enum dcb_gpio_tag, bool on);
+	spinlock_t lock;
+	struct list_head isr;
+	int (*init)(struct drm_device *);
+	void (*fini)(struct drm_device *);
+	int (*drive)(struct drm_device *, int line, int dir, int out);
+	int (*sense)(struct drm_device *, int line);
+	void (*irq_enable)(struct drm_device *, int line, bool);
 };
 
 struct nouveau_pm_voltage_level {
@@ -1091,8 +1085,6 @@ extern int nouveau_run_vbios_init(struct drm_device *);
 extern void nouveau_bios_run_init_table(struct drm_device *, uint16_t table,
 					struct dcb_entry *, int crtc);
 extern void nouveau_bios_init_exec(struct drm_device *, uint16_t table);
-extern struct dcb_gpio_entry *nouveau_bios_gpio_entry(struct drm_device *,
-						      enum dcb_gpio_tag);
 extern struct dcb_connector_table_entry *
 nouveau_bios_connector_entry(struct drm_device *, int index);
 extern u32 get_pll_register(struct drm_device *, enum pll_types);
@@ -1476,23 +1468,22 @@ int nouveau_display_dumb_destroy(struct drm_file *, struct drm_device *,
 				 uint32_t handle);
 
 /* nv10_gpio.c */
-int nv10_gpio_get(struct drm_device *dev, enum dcb_gpio_tag tag);
-int nv10_gpio_set(struct drm_device *dev, enum dcb_gpio_tag tag, int state);
+int nv10_gpio_init(struct drm_device *dev);
+void nv10_gpio_fini(struct drm_device *dev);
+int nv10_gpio_drive(struct drm_device *dev, int line, int dir, int out);
+int nv10_gpio_sense(struct drm_device *dev, int line);
+void nv10_gpio_irq_enable(struct drm_device *, int line, bool on);
 
 /* nv50_gpio.c */
 int nv50_gpio_init(struct drm_device *dev);
 void nv50_gpio_fini(struct drm_device *dev);
-int nv50_gpio_get(struct drm_device *dev, enum dcb_gpio_tag tag);
-int nv50_gpio_set(struct drm_device *dev, enum dcb_gpio_tag tag, int state);
-int nvd0_gpio_get(struct drm_device *dev, enum dcb_gpio_tag tag);
-int nvd0_gpio_set(struct drm_device *dev, enum dcb_gpio_tag tag, int state);
-int  nv50_gpio_irq_register(struct drm_device *, enum dcb_gpio_tag,
-			    void (*)(void *, int), void *);
-void nv50_gpio_irq_unregister(struct drm_device *, enum dcb_gpio_tag,
-			      void (*)(void *, int), void *);
-bool nv50_gpio_irq_enable(struct drm_device *, enum dcb_gpio_tag, bool on);
+int nv50_gpio_drive(struct drm_device *dev, int line, int dir, int out);
+int nv50_gpio_sense(struct drm_device *dev, int line);
+void nv50_gpio_irq_enable(struct drm_device *, int line, bool on);
+int nvd0_gpio_drive(struct drm_device *dev, int line, int dir, int out);
+int nvd0_gpio_sense(struct drm_device *dev, int line);
 
-/* nv50_calc. */
+/* nv50_calc.c */
 int nv50_calc_pll(struct drm_device *, struct pll_lims *, int clk,
 		  int *N1, int *M1, int *N2, int *M2, int *P);
 int nva3_calc_pll(struct drm_device *, struct pll_lims *,

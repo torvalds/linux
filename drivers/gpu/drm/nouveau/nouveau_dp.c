@@ -29,6 +29,7 @@
 #include "nouveau_connector.h"
 #include "nouveau_encoder.h"
 #include "nouveau_crtc.h"
+#include "nouveau_gpio.h"
 
 /******************************************************************************
  * aux channel util functions
@@ -556,8 +557,6 @@ dp_link_train_eq(struct drm_device *dev, struct dp_state *dp)
 bool
 nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate)
 {
-	struct drm_nouveau_private *dev_priv = encoder->dev->dev_private;
-	struct nouveau_gpio_engine *pgpio = &dev_priv->engine.gpio;
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
 	struct nouveau_connector *nv_connector =
@@ -587,7 +586,7 @@ nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate)
 	 * we take during link training (DP_SET_POWER is one), we need
 	 * to ignore them for the moment to avoid races.
 	 */
-	pgpio->irq_enable(dev, nv_connector->hpd, false);
+	nouveau_gpio_irq(dev, 0, nv_connector->hpd, 0xff, false);
 
 	/* enable down-spreading, if possible */
 	if (dp.table[1] >= 16) {
@@ -636,7 +635,7 @@ nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate)
 	nouveau_bios_run_init_table(dev, ROM16(dp.entry[8]), dp.dcb, dp.crtc);
 
 	/* re-enable hotplug detect */
-	pgpio->irq_enable(dev, nv_connector->hpd, true);
+	nouveau_gpio_irq(dev, 0, nv_connector->hpd, 0xff, true);
 	return true;
 }
 

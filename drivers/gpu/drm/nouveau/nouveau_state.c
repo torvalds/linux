@@ -36,6 +36,7 @@
 #include "nouveau_drm.h"
 #include "nouveau_fbcon.h"
 #include "nouveau_ramht.h"
+#include "nouveau_gpio.h"
 #include "nouveau_pm.h"
 #include "nv50_display.h"
 
@@ -83,11 +84,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->display.destroy		= nv04_display_destroy;
 		engine->display.init		= nv04_display_init;
 		engine->display.fini		= nv04_display_fini;
-		engine->gpio.init		= nouveau_stub_init;
-		engine->gpio.takedown		= nouveau_stub_takedown;
-		engine->gpio.get		= NULL;
-		engine->gpio.set		= NULL;
-		engine->gpio.irq_enable		= NULL;
 		engine->pm.clocks_get		= nv04_pm_clocks_get;
 		engine->pm.clocks_pre		= nv04_pm_clocks_pre;
 		engine->pm.clocks_set		= nv04_pm_clocks_set;
@@ -133,11 +129,8 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->display.destroy		= nv04_display_destroy;
 		engine->display.init		= nv04_display_init;
 		engine->display.fini		= nv04_display_fini;
-		engine->gpio.init		= nouveau_stub_init;
-		engine->gpio.takedown		= nouveau_stub_takedown;
-		engine->gpio.get		= nv10_gpio_get;
-		engine->gpio.set		= nv10_gpio_set;
-		engine->gpio.irq_enable		= NULL;
+		engine->gpio.drive		= nv10_gpio_drive;
+		engine->gpio.sense		= nv10_gpio_sense;
 		engine->pm.clocks_get		= nv04_pm_clocks_get;
 		engine->pm.clocks_pre		= nv04_pm_clocks_pre;
 		engine->pm.clocks_set		= nv04_pm_clocks_set;
@@ -183,11 +176,8 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->display.destroy		= nv04_display_destroy;
 		engine->display.init		= nv04_display_init;
 		engine->display.fini		= nv04_display_fini;
-		engine->gpio.init		= nouveau_stub_init;
-		engine->gpio.takedown		= nouveau_stub_takedown;
-		engine->gpio.get		= nv10_gpio_get;
-		engine->gpio.set		= nv10_gpio_set;
-		engine->gpio.irq_enable		= NULL;
+		engine->gpio.drive		= nv10_gpio_drive;
+		engine->gpio.sense		= nv10_gpio_sense;
 		engine->pm.clocks_get		= nv04_pm_clocks_get;
 		engine->pm.clocks_pre		= nv04_pm_clocks_pre;
 		engine->pm.clocks_set		= nv04_pm_clocks_set;
@@ -233,11 +223,8 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->display.destroy		= nv04_display_destroy;
 		engine->display.init		= nv04_display_init;
 		engine->display.fini		= nv04_display_fini;
-		engine->gpio.init		= nouveau_stub_init;
-		engine->gpio.takedown		= nouveau_stub_takedown;
-		engine->gpio.get		= nv10_gpio_get;
-		engine->gpio.set		= nv10_gpio_set;
-		engine->gpio.irq_enable		= NULL;
+		engine->gpio.drive		= nv10_gpio_drive;
+		engine->gpio.sense		= nv10_gpio_sense;
 		engine->pm.clocks_get		= nv04_pm_clocks_get;
 		engine->pm.clocks_pre		= nv04_pm_clocks_pre;
 		engine->pm.clocks_set		= nv04_pm_clocks_set;
@@ -286,11 +273,8 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->display.destroy		= nv04_display_destroy;
 		engine->display.init		= nv04_display_init;
 		engine->display.fini		= nv04_display_fini;
-		engine->gpio.init		= nouveau_stub_init;
-		engine->gpio.takedown		= nouveau_stub_takedown;
-		engine->gpio.get		= nv10_gpio_get;
-		engine->gpio.set		= nv10_gpio_set;
-		engine->gpio.irq_enable		= NULL;
+		engine->gpio.drive		= nv10_gpio_drive;
+		engine->gpio.sense		= nv10_gpio_sense;
 		engine->pm.clocks_get		= nv40_pm_clocks_get;
 		engine->pm.clocks_pre		= nv40_pm_clocks_pre;
 		engine->pm.clocks_set		= nv40_pm_clocks_set;
@@ -345,11 +329,9 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->display.init		= nv50_display_init;
 		engine->display.fini		= nv50_display_fini;
 		engine->gpio.init		= nv50_gpio_init;
-		engine->gpio.takedown		= nv50_gpio_fini;
-		engine->gpio.get		= nv50_gpio_get;
-		engine->gpio.set		= nv50_gpio_set;
-		engine->gpio.irq_register	= nv50_gpio_irq_register;
-		engine->gpio.irq_unregister	= nv50_gpio_irq_unregister;
+		engine->gpio.fini		= nv50_gpio_fini;
+		engine->gpio.drive		= nv50_gpio_drive;
+		engine->gpio.sense		= nv50_gpio_sense;
 		engine->gpio.irq_enable		= nv50_gpio_irq_enable;
 		switch (dev_priv->chipset) {
 		case 0x84:
@@ -421,11 +403,9 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->display.init		= nv50_display_init;
 		engine->display.fini		= nv50_display_fini;
 		engine->gpio.init		= nv50_gpio_init;
-		engine->gpio.takedown		= nouveau_stub_takedown;
-		engine->gpio.get		= nv50_gpio_get;
-		engine->gpio.set		= nv50_gpio_set;
-		engine->gpio.irq_register	= nv50_gpio_irq_register;
-		engine->gpio.irq_unregister	= nv50_gpio_irq_unregister;
+		engine->gpio.fini		= nv50_gpio_fini;
+		engine->gpio.drive		= nv50_gpio_drive;
+		engine->gpio.sense		= nv50_gpio_sense;
 		engine->gpio.irq_enable		= nv50_gpio_irq_enable;
 		engine->vram.init		= nvc0_vram_init;
 		engine->vram.takedown		= nv50_vram_fini;
@@ -474,11 +454,9 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->display.init		= nvd0_display_init;
 		engine->display.fini		= nvd0_display_fini;
 		engine->gpio.init		= nv50_gpio_init;
-		engine->gpio.takedown		= nouveau_stub_takedown;
-		engine->gpio.get		= nvd0_gpio_get;
-		engine->gpio.set		= nvd0_gpio_set;
-		engine->gpio.irq_register	= nv50_gpio_irq_register;
-		engine->gpio.irq_unregister	= nv50_gpio_irq_unregister;
+		engine->gpio.fini		= nv50_gpio_fini;
+		engine->gpio.drive		= nvd0_gpio_drive;
+		engine->gpio.sense		= nvd0_gpio_sense;
 		engine->gpio.irq_enable		= nv50_gpio_irq_enable;
 		engine->vram.init		= nvc0_vram_init;
 		engine->vram.takedown		= nv50_vram_fini;
@@ -630,7 +608,7 @@ nouveau_card_init(struct drm_device *dev)
 		goto out_gart;
 
 	/* PGPIO */
-	ret = engine->gpio.init(dev);
+	ret = nouveau_gpio_create(dev);
 	if (ret)
 		goto out_mc;
 
@@ -798,7 +776,7 @@ out_engine:
 out_timer:
 	engine->timer.takedown(dev);
 out_gpio:
-	engine->gpio.takedown(dev);
+	nouveau_gpio_destroy(dev);
 out_mc:
 	engine->mc.takedown(dev);
 out_gart:
@@ -851,7 +829,7 @@ static void nouveau_card_takedown(struct drm_device *dev)
 	}
 	engine->fb.takedown(dev);
 	engine->timer.takedown(dev);
-	engine->gpio.takedown(dev);
+	nouveau_gpio_destroy(dev);
 	engine->mc.takedown(dev);
 	engine->display.late_takedown(dev);
 

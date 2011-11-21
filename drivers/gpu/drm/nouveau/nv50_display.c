@@ -32,6 +32,7 @@
 #include "nouveau_fb.h"
 #include "nouveau_fbcon.h"
 #include "nouveau_ramht.h"
+#include "nouveau_gpio.h"
 #include "drm_crtc_helper.h"
 
 static void nv50_display_isr(struct drm_device *);
@@ -140,8 +141,6 @@ nv50_display_sync(struct drm_device *dev)
 int
 nv50_display_init(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpio_engine *pgpio = &dev_priv->engine.gpio;
 	struct drm_connector *connector;
 	struct nouveau_channel *evo;
 	int ret, i;
@@ -240,11 +239,7 @@ nv50_display_init(struct drm_device *dev)
 	/* enable hotplug interrupts */
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct nouveau_connector *conn = nouveau_connector(connector);
-
-		if (conn->hpd == DCB_GPIO_UNUSED)
-			continue;
-
-		pgpio->irq_enable(dev, conn->hpd, true);
+		nouveau_gpio_irq(dev, 0, conn->hpd, 0xff, true);
 	}
 
 	ret = nv50_evo_init(dev);
