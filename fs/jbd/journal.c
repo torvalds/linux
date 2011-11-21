@@ -166,7 +166,7 @@ loop:
 		 */
 		jbd_debug(1, "Now suspending kjournald\n");
 		spin_unlock(&journal->j_state_lock);
-		refrigerator();
+		try_to_freeze();
 		spin_lock(&journal->j_state_lock);
 	} else {
 		/*

@@ -1703,7 +1703,7 @@ xfsbufd(
 
 		if (unlikely(freezing(current))) {
 			set_bit(XBT_FORCE_SLEEP, &target->bt_flags);
-			refrigerator();
+			try_to_freeze();
 		} else {
 			clear_bit(XBT_FORCE_SLEEP, &target->bt_flags);
 		}

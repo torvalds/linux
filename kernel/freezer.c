@@ -23,10 +23,11 @@ static inline void frozen_process(void)
 }
 
 /* Refrigerator is place where frozen processes are stored :-). */
-void refrigerator(void)
+bool __refrigerator(void)
 {
 	/* Hmm, should we be allowed to suspend when there are realtime
 	   processes around? */
+	bool was_frozen = false;
 	long save;
 
 	task_lock(current);
@@ -35,7 +36,7 @@ void refrigerator(void)
 		task_unlock(current);
 	} else {
 		task_unlock(current);
-		return;
+		return was_frozen;
 	}
 	save = current->state;
 	pr_debug("%s entered refrigerator\n", current->comm);
@@ -51,6 +52,7 @@ void refrigerator(void)
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		if (!frozen(current))
 			break;
+		was_frozen = true;
 		schedule();
 	}
 
@@ -65,8 +67,10 @@ void refrigerator(void)
 	 * synchronization which depends on ordered task state change.
 	 */
 	set_current_state(save);
+
+	return was_frozen;
 }
-EXPORT_SYMBOL(refrigerator);
+EXPORT_SYMBOL(__refrigerator);
 
 static void fake_signal_wake_up(struct task_struct *p)
 {

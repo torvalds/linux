@@ -21,7 +21,7 @@ freeze_processes() (defined in kernel/power/process.c) is called.  It executes
 try_to_freeze_tasks() that sets TIF_FREEZE for all of the freezable tasks and
 either wakes them up, if they are kernel threads, or sends fake signals to them,
 if they are user space processes.  A task that has TIF_FREEZE set, should react
-to it by calling the function called refrigerator() (defined in
+to it by calling the function called __refrigerator() (defined in
 kernel/freezer.c), which sets the task's PF_FROZEN flag, changes its state
 to TASK_UNINTERRUPTIBLE and makes it loop until PF_FROZEN is cleared for it.
 Then, we say that the task is 'frozen' and therefore the set of functions
@@ -29,10 +29,10 @@ handling this mechanism is referred to as 'the freezer' (these functions are
 defined in kernel/power/process.c, kernel/freezer.c & include/linux/freezer.h).
 User space processes are generally frozen before kernel threads.
 
-It is not recommended to call refrigerator() directly.  Instead, it is
-recommended to use the try_to_freeze() function (defined in
-include/linux/freezer.h), that checks the task's TIF_FREEZE flag and makes the
-task enter refrigerator() if the flag is set.
+__refrigerator() must not be called directly.  Instead, use the
+try_to_freeze() function (defined in include/linux/freezer.h), that checks
+the task's TIF_FREEZE flag and makes the task enter __refrigerator() if the
+flag is set.
 
 For user space processes try_to_freeze() is called automatically from the
 signal-handling code, but the freezable kernel threads need to call it
@@ -61,7 +61,7 @@ wait_event_freezable() and wait_event_freezable_timeout() macros.
 After the system memory state has been restored from a hibernation image and
 devices have been reinitialized, the function thaw_processes() is called in
 order to clear the PF_FROZEN flag for each frozen task.  Then, the tasks that
-have been frozen leave refrigerator() and continue running.
+have been frozen leave __refrigerator() and continue running.
 
 III. Which kernel threads are freezable?
 
