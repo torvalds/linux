@@ -1470,7 +1470,7 @@ static void m_series_stc_writew(struct comedi_device *dev, uint16_t data,
 		/* FIXME: DIO_Output_Register (16 bit reg) is replaced by M_Offset_Static_Digital_Output (32 bit)
 		   and M_Offset_SCXI_Serial_Data_Out (8 bit) */
 	default:
-		printk("%s: bug! unhandled register=0x%x in switch.\n",
+		printk(KERN_WARNING "%s: bug! unhandled register=0x%x in switch.\n",
 		       __func__, reg);
 		BUG();
 		return;
@@ -1505,7 +1505,7 @@ static uint16_t m_series_stc_readw(struct comedi_device *dev, int reg)
 		offset = M_Offset_G01_Status;
 		break;
 	default:
-		printk("%s: bug! unhandled register=0x%x in switch.\n",
+		printk(KERN_WARNING "%s: bug! unhandled register=0x%x in switch.\n",
 		       __func__, reg);
 		BUG();
 		return 0;
@@ -1547,7 +1547,7 @@ static void m_series_stc_writel(struct comedi_device *dev, uint32_t data,
 		offset = M_Offset_G1_Load_B;
 		break;
 	default:
-		printk("%s: bug! unhandled register=0x%x in switch.\n",
+		printk(KERN_WARNING "%s: bug! unhandled register=0x%x in switch.\n",
 		       __func__, reg);
 		BUG();
 		return;
@@ -1573,7 +1573,7 @@ static uint32_t m_series_stc_readl(struct comedi_device *dev, int reg)
 		offset = M_Offset_G1_Save;
 		break;
 	default:
-		printk("%s: bug! unhandled register=0x%x in switch.\n",
+		printk(KERN_WARNING "%s: bug! unhandled register=0x%x in switch.\n",
 		       __func__, reg);
 		BUG();
 		return 0;
