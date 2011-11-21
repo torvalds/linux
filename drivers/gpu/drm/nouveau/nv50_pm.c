@@ -715,25 +715,24 @@ resume:
 }
 
 static int
-pwm_info(struct drm_device *dev, struct dcb_gpio_entry *gpio,
-	 int *ctrl, int *line, int *indx)
+pwm_info(struct drm_device *dev, int *line, int *ctrl, int *indx)
 {
-	if (gpio->line == 0x04) {
+	if (*line == 0x04) {
 		*ctrl = 0x00e100;
 		*line = 4;
 		*indx = 0;
 	} else
-	if (gpio->line == 0x09) {
+	if (*line == 0x09) {
 		*ctrl = 0x00e100;
 		*line = 9;
 		*indx = 1;
 	} else
-	if (gpio->line == 0x10) {
+	if (*line == 0x10) {
 		*ctrl = 0x00e28c;
 		*line = 0;
 		*indx = 0;
 	} else {
-		NV_ERROR(dev, "unknown pwm ctrl for gpio %d\n", gpio->line);
+		NV_ERROR(dev, "unknown pwm ctrl for gpio %d\n", *line);
 		return -ENODEV;
 	}
 
@@ -741,10 +740,9 @@ pwm_info(struct drm_device *dev, struct dcb_gpio_entry *gpio,
 }
 
 int
-nv50_pm_pwm_get(struct drm_device *dev, struct dcb_gpio_entry *gpio,
-		u32 *divs, u32 *duty)
+nv50_pm_pwm_get(struct drm_device *dev, int line, u32 *divs, u32 *duty)
 {
-	int ctrl, line, id, ret = pwm_info(dev, gpio, &ctrl, &line, &id);
+	int ctrl, id, ret = pwm_info(dev, &line, &ctrl, &id);
 	if (ret)
 		return ret;
 
@@ -758,10 +756,9 @@ nv50_pm_pwm_get(struct drm_device *dev, struct dcb_gpio_entry *gpio,
 }
 
 int
-nv50_pm_pwm_set(struct drm_device *dev, struct dcb_gpio_entry *gpio,
-		u32 divs, u32 duty)
+nv50_pm_pwm_set(struct drm_device *dev, int line, u32 divs, u32 duty)
 {
-	int ctrl, line, id, ret = pwm_info(dev, gpio, &ctrl, &line, &id);
+	int ctrl, id, ret = pwm_info(dev, &line, &ctrl, &id);
 	if (ret)
 		return ret;
 

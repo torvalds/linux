@@ -351,10 +351,9 @@ resume:
 }
 
 int
-nv40_pm_pwm_get(struct drm_device *dev, struct dcb_gpio_entry *gpio,
-		u32 *divs, u32 *duty)
+nv40_pm_pwm_get(struct drm_device *dev, int line, u32 *divs, u32 *duty)
 {
-	if (gpio->line == 2) {
+	if (line == 2) {
 		u32 reg = nv_rd32(dev, 0x0010f0);
 		if (reg & 0x80000000) {
 			*duty = (reg & 0x7fff0000) >> 16;
@@ -362,7 +361,7 @@ nv40_pm_pwm_get(struct drm_device *dev, struct dcb_gpio_entry *gpio,
 			return 0;
 		}
 	} else
-	if (gpio->line == 9) {
+	if (line == 9) {
 		u32 reg = nv_rd32(dev, 0x0015f4);
 		if (reg & 0x80000000) {
 			*divs = nv_rd32(dev, 0x0015f8);
@@ -370,7 +369,7 @@ nv40_pm_pwm_get(struct drm_device *dev, struct dcb_gpio_entry *gpio,
 			return 0;
 		}
 	} else {
-		NV_ERROR(dev, "unknown pwm ctrl for gpio %d\n", gpio->line);
+		NV_ERROR(dev, "unknown pwm ctrl for gpio %d\n", line);
 		return -ENODEV;
 	}
 
@@ -378,17 +377,16 @@ nv40_pm_pwm_get(struct drm_device *dev, struct dcb_gpio_entry *gpio,
 }
 
 int
-nv40_pm_pwm_set(struct drm_device *dev, struct dcb_gpio_entry *gpio,
-		u32 divs, u32 duty)
+nv40_pm_pwm_set(struct drm_device *dev, int line, u32 divs, u32 duty)
 {
-	if (gpio->line == 2) {
+	if (line == 2) {
 		nv_wr32(dev, 0x0010f0, 0x80000000 | (duty << 16) | divs);
 	} else
-	if (gpio->line == 9) {
+	if (line == 9) {
 		nv_wr32(dev, 0x0015f8, divs);
 		nv_wr32(dev, 0x0015f4, duty | 0x80000000);
 	} else {
-		NV_ERROR(dev, "unknown pwm ctrl for gpio %d\n", gpio->line);
+		NV_ERROR(dev, "unknown pwm ctrl for gpio %d\n", line);
 		return -ENODEV;
 	}
 

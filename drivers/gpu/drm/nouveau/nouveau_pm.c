@@ -49,7 +49,7 @@ nouveau_pwmfan_get(struct drm_device *dev)
 
 	gpio = nouveau_bios_gpio_entry(dev, DCB_GPIO_PWM_FAN);
 	if (gpio) {
-		ret = pm->pwm_get(dev, gpio, &divs, &duty);
+		ret = pm->pwm_get(dev, gpio->line, &divs, &duty);
 		if (ret == 0) {
 			divs = max(divs, duty);
 			if (dev_priv->card_type <= NV_40 ||
@@ -90,7 +90,7 @@ nouveau_pwmfan_set(struct drm_device *dev, int percent)
 		    (gpio->state[0] & 1))
 			duty = divs - duty;
 
-		return pm->pwm_set(dev, gpio, divs, duty);
+		return pm->pwm_set(dev, gpio->line, divs, duty);
 	}
 
 	return -ENODEV;
