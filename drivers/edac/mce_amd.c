@@ -88,7 +88,7 @@ static const char * const f15h_ic_mce_desc[] = {
 	"Parity error for IC probe tag valid bit",
 	"PFB non-cacheable bit parity error",
 	"PFB valid bit parity error",			/* xec = 0xd */
-	"patch RAM",					/* xec = 010 */
+	"Microcode Patch Buffer",			/* xec = 010 */
 	"uop queue",
 	"insn buffer",
 	"predecode buffer",
@@ -354,7 +354,11 @@ static bool f15h_ic_mce(u16 ec, u8 xec)
 		pr_cont("%s.\n", f15h_ic_mce_desc[xec-2]);
 		break;
 
-	case 0x10 ... 0x14:
+	case 0x10:
+		pr_cont("%s.\n", f15h_ic_mce_desc[xec-4]);
+		break;
+
+	case 0x11 ... 0x14:
 		pr_cont("Decoder %s parity error.\n", f15h_ic_mce_desc[xec-4]);
 		break;
 
