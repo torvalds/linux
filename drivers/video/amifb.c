@@ -2363,7 +2363,7 @@ static void __init amifb_setup_mcap(char *spec)
 	fb_info.monspecs.hfmax = hmax;
 }
 
-int __init amifb_setup(char *options)
+static int __init amifb_setup(char *options)
 {
 	char *this_opt;
 
