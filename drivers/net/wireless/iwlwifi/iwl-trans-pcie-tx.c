@@ -448,12 +448,11 @@ static inline int get_fifo_from_tid(struct iwl_trans_pcie *trans_pcie,
 
 void iwl_trans_pcie_tx_agg_setup(struct iwl_trans *trans,
 				 enum iwl_rxon_context_id ctx, int sta_id,
-				 int tid, int frame_limit)
+				 int tid, int frame_limit, u16 ssn)
 {
-	int tx_fifo, txq_id, ssn_idx;
+	int tx_fifo, txq_id;
 	u16 ra_tid;
 	unsigned long flags;
-	struct iwl_tid_data *tid_data;
 
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -469,11 +468,7 @@ void iwl_trans_pcie_tx_agg_setup(struct iwl_trans *trans,
 		return;
 	}
 
-	spin_lock_irqsave(&trans->shrd->sta_lock, flags);
-	tid_data = &trans->shrd->tid_data[sta_id][tid];
-	ssn_idx = SEQ_TO_SN(tid_data->seq_number);
-	txq_id = tid_data->agg.txq_id;
-	spin_unlock_irqrestore(&trans->shrd->sta_lock, flags);
+	txq_id = trans->shrd->tid_data[sta_id][tid].agg.txq_id;
 
 	ra_tid = BUILD_RAxTID(sta_id, tid);
 
@@ -493,9 +488,9 @@ void iwl_trans_pcie_tx_agg_setup(struct iwl_trans *trans,
 
 	/* Place first TFD at index corresponding to start sequence number.
 	 * Assumes that ssn_idx is valid (!= 0xFFF) */
-	trans_pcie->txq[txq_id].q.read_ptr = (ssn_idx & 0xff);
-	trans_pcie->txq[txq_id].q.write_ptr = (ssn_idx & 0xff);
-	iwl_trans_set_wr_ptrs(trans, txq_id, ssn_idx);
+	trans_pcie->txq[txq_id].q.read_ptr = (ssn & 0xff);
+	trans_pcie->txq[txq_id].q.write_ptr = (ssn & 0xff);
+	iwl_trans_set_wr_ptrs(trans, txq_id, ssn);
 
 	/* Set up Tx window size and frame limit for this queue */
 	iwl_write_targ_mem(bus(trans), trans_pcie->scd_base_addr +

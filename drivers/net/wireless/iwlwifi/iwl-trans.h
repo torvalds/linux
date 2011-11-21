@@ -189,7 +189,7 @@ struct iwl_trans_ops {
 			    int sta_id, int tid);
 	void (*tx_agg_setup)(struct iwl_trans *trans,
 			     enum iwl_rxon_context_id ctx, int sta_id, int tid,
-			     int frame_limit);
+			     int frame_limit, u16 ssn);
 
 	void (*kick_nic)(struct iwl_trans *trans);
 
@@ -331,9 +331,9 @@ static inline int iwl_trans_tx_agg_alloc(struct iwl_trans *trans,
 static inline void iwl_trans_tx_agg_setup(struct iwl_trans *trans,
 					   enum iwl_rxon_context_id ctx,
 					   int sta_id, int tid,
-					   int frame_limit)
+					   int frame_limit, u16 ssn)
 {
-	trans->ops->tx_agg_setup(trans, ctx, sta_id, tid, frame_limit);
+	trans->ops->tx_agg_setup(trans, ctx, sta_id, tid, frame_limit, ssn);
 }
 
 static inline void iwl_trans_kick_nic(struct iwl_trans *trans)

@@ -137,6 +137,8 @@ void iwl_setup_rx_handlers(struct iwl_priv *priv);
 int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb);
 int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, u16 tid, u16 *ssn);
+int iwlagn_tx_agg_oper(struct iwl_priv *priv, struct ieee80211_vif *vif,
+			struct ieee80211_sta *sta, u16 tid, u8 buf_size);
 int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta, u16 tid);
 int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,

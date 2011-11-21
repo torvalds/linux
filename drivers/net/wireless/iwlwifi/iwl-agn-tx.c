@@ -527,6 +527,67 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	return ret;
 }
 
+int iwlagn_tx_agg_oper(struct iwl_priv *priv, struct ieee80211_vif *vif,
+			struct ieee80211_sta *sta, u16 tid, u8 buf_size)
+{
+	struct iwl_station_priv *sta_priv = (void *) sta->drv_priv;
+	struct iwl_rxon_context *ctx = iwl_rxon_ctx_from_vif(vif);
+	unsigned long flags;
+	u16 ssn;
+
+	buf_size = min_t(int, buf_size, LINK_QUAL_AGG_FRAME_LIMIT_DEF);
+
+	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
+	ssn = priv->shrd->tid_data[sta_priv->sta_id][tid].agg.ssn;
+	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
+
+	iwl_trans_tx_agg_setup(trans(priv), ctx->ctxid, sta_priv->sta_id, tid,
+			       buf_size, ssn);
+
+	/*
+	 * If the limit is 0, then it wasn't initialised yet,
+	 * use the default. We can do that since we take the
+	 * minimum below, and we don't want to go above our
+	 * default due to hardware restrictions.
+	 */
+	if (sta_priv->max_agg_bufsize == 0)
+		sta_priv->max_agg_bufsize =
+			LINK_QUAL_AGG_FRAME_LIMIT_DEF;
+
+	/*
+	 * Even though in theory the peer could have different
+	 * aggregation reorder buffer sizes for different sessions,
+	 * our ucode doesn't allow for that and has a global limit
+	 * for each station. Therefore, use the minimum of all the
+	 * aggregation sessions and our default value.
+	 */
+	sta_priv->max_agg_bufsize =
+		min(sta_priv->max_agg_bufsize, buf_size);
+
+	if (cfg(priv)->ht_params &&
+	    cfg(priv)->ht_params->use_rts_for_aggregation) {
+		/*
+		 * switch to RTS/CTS if it is the prefer protection
+		 * method for HT traffic
+		 */
+
+		sta_priv->lq_sta.lq.general_params.flags |=
+			LINK_QUAL_FLAGS_SET_STA_TLC_RTS_MSK;
+	}
+	priv->agg_tids_count++;
+	IWL_DEBUG_HT(priv, "priv->agg_tids_count = %u\n",
+		     priv->agg_tids_count);
+
+	sta_priv->lq_sta.lq.agg_params.agg_frame_cnt_limit =
+		sta_priv->max_agg_bufsize;
+
+	IWL_INFO(priv, "Tx aggregation enabled on ra = %pM tid = %d\n",
+		 sta->addr, tid);
+
+	return iwl_send_lq_cmd(priv, ctx,
+			&sta_priv->lq_sta.lq, CMD_ASYNC, false);
+}
+
 static void iwlagn_non_agg_tx_status(struct iwl_priv *priv,
 				     struct iwl_rxon_context *ctx,
 				     const u8 *addr1)

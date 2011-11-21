@@ -611,7 +611,6 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 	struct iwl_priv *priv = hw->priv;
 	int ret = -EINVAL;
 	struct iwl_station_priv *sta_priv = (void *) sta->drv_priv;
-	struct iwl_rxon_context *ctx =  iwl_rxon_ctx_from_vif(vif);
 
 	IWL_DEBUG_HT(priv, "A-MPDU action on addr %pM tid %d\n",
 		     sta->addr, tid);
@@ -659,54 +658,7 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 		}
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
-		buf_size = min_t(int, buf_size, LINK_QUAL_AGG_FRAME_LIMIT_DEF);
-
-		iwl_trans_tx_agg_setup(trans(priv), ctx->ctxid, iwl_sta_id(sta),
-				tid, buf_size);
-
-		/*
-		 * If the limit is 0, then it wasn't initialised yet,
-		 * use the default. We can do that since we take the
-		 * minimum below, and we don't want to go above our
-		 * default due to hardware restrictions.
-		 */
-		if (sta_priv->max_agg_bufsize == 0)
-			sta_priv->max_agg_bufsize =
-				LINK_QUAL_AGG_FRAME_LIMIT_DEF;
-
-		/*
-		 * Even though in theory the peer could have different
-		 * aggregation reorder buffer sizes for different sessions,
-		 * our ucode doesn't allow for that and has a global limit
-		 * for each station. Therefore, use the minimum of all the
-		 * aggregation sessions and our default value.
-		 */
-		sta_priv->max_agg_bufsize =
-			min(sta_priv->max_agg_bufsize, buf_size);
-
-		if (cfg(priv)->ht_params &&
-		    cfg(priv)->ht_params->use_rts_for_aggregation) {
-			/*
-			 * switch to RTS/CTS if it is the prefer protection
-			 * method for HT traffic
-			 */
-
-			sta_priv->lq_sta.lq.general_params.flags |=
-				LINK_QUAL_FLAGS_SET_STA_TLC_RTS_MSK;
-		}
-		priv->agg_tids_count++;
-		IWL_DEBUG_HT(priv, "priv->agg_tids_count = %u\n",
-			     priv->agg_tids_count);
-
-		sta_priv->lq_sta.lq.agg_params.agg_frame_cnt_limit =
-			sta_priv->max_agg_bufsize;
-
-		iwl_send_lq_cmd(priv, iwl_rxon_ctx_from_vif(vif),
-				&sta_priv->lq_sta.lq, CMD_ASYNC, false);
-
-		IWL_INFO(priv, "Tx aggregation enabled on ra = %pM tid = %d\n",
-			 sta->addr, tid);
-		ret = 0;
+		ret = iwlagn_tx_agg_oper(priv, vif, sta, tid, buf_size);
 		break;
 	}
 	mutex_unlock(&priv->shrd->mutex);
