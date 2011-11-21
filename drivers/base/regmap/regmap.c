@@ -241,11 +241,11 @@ struct regmap *regmap_init(struct device *dev,
 		goto err_map;
 	}
 
+	regmap_debugfs_init(map);
+
 	ret = regcache_init(map, config);
 	if (ret < 0)
 		goto err_free_workbuf;
-
-	regmap_debugfs_init(map);
 
 	return map;
 
