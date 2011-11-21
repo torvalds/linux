@@ -155,12 +155,12 @@ int netlbl_cfg_unlbl_map_add(const char *domain,
 			if (map6 == NULL)
 				goto cfg_unlbl_map_add_failure;
 			map6->type = NETLBL_NLTYPE_UNLABELED;
-			ipv6_addr_copy(&map6->list.addr, addr6);
+			map6->list.addr = *addr6;
 			map6->list.addr.s6_addr32[0] &= mask6->s6_addr32[0];
 			map6->list.addr.s6_addr32[1] &= mask6->s6_addr32[1];
 			map6->list.addr.s6_addr32[2] &= mask6->s6_addr32[2];
 			map6->list.addr.s6_addr32[3] &= mask6->s6_addr32[3];
-			ipv6_addr_copy(&map6->list.mask, mask6);
+			map6->list.mask = *mask6;
 			map6->list.valid = 1;
 			ret_val = netlbl_af4list_add(&map4->list,
 						     &addrmap->list4);

@@ -299,9 +299,9 @@ static int rawv6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	}
 
 	inet->inet_rcv_saddr = inet->inet_saddr = v4addr;
-	ipv6_addr_copy(&np->rcv_saddr, &addr->sin6_addr);
+	np->rcv_saddr = addr->sin6_addr;
 	if (!(addr_type & IPV6_ADDR_MULTICAST))
-		ipv6_addr_copy(&np->saddr, &addr->sin6_addr);
+		np->saddr = addr->sin6_addr;
 	err = 0;
 out_unlock:
 	rcu_read_unlock();
@@ -495,7 +495,7 @@ static int rawv6_recvmsg(struct kiocb *iocb, struct sock *sk,
 	if (sin6) {
 		sin6->sin6_family = AF_INET6;
 		sin6->sin6_port = 0;
-		ipv6_addr_copy(&sin6->sin6_addr, &ipv6_hdr(skb)->saddr);
+		sin6->sin6_addr = ipv6_hdr(skb)->saddr;
 		sin6->sin6_flowinfo = 0;
 		sin6->sin6_scope_id = 0;
 		if (ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LINKLOCAL)
@@ -846,11 +846,11 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 		goto out;
 
 	if (!ipv6_addr_any(daddr))
-		ipv6_addr_copy(&fl6.daddr, daddr);
+		fl6.daddr = *daddr;
 	else
 		fl6.daddr.s6_addr[15] = 0x1; /* :: means loopback (BSD'ism) */
 	if (ipv6_addr_any(&fl6.saddr) && !ipv6_addr_any(&np->saddr))
-		ipv6_addr_copy(&fl6.saddr, &np->saddr);
+		fl6.saddr = np->saddr;
 
 	final_p = fl6_update_dst(&fl6, opt, &final);
 

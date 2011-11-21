@@ -1217,8 +1217,8 @@ void xfrm_flowi_addr_get(const struct flowi *fl,
 		memcpy(&daddr->a4, &fl->u.ip4.daddr, sizeof(daddr->a4));
 		break;
 	case AF_INET6:
-		ipv6_addr_copy((struct in6_addr *)&saddr->a6, &fl->u.ip6.saddr);
-		ipv6_addr_copy((struct in6_addr *)&daddr->a6, &fl->u.ip6.daddr);
+		*(struct in6_addr *)saddr->a6 = fl->u.ip6.saddr;
+		*(struct in6_addr *)daddr->a6 = fl->u.ip6.daddr;
 		break;
 	}
 }

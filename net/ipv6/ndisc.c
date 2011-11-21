@@ -481,7 +481,7 @@ struct sk_buff *ndisc_build_skb(struct net_device *dev,
 
 	opt = skb_transport_header(skb) + sizeof(struct icmp6hdr);
 	if (target) {
-		ipv6_addr_copy((struct in6_addr *)opt, target);
+		*(struct in6_addr *)opt = *target;
 		opt += sizeof(*target);
 	}
 
@@ -1622,9 +1622,9 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 	 */
 
 	addrp = (struct in6_addr *)(icmph + 1);
-	ipv6_addr_copy(addrp, target);
+	*addrp = *target;
 	addrp++;
-	ipv6_addr_copy(addrp, &ipv6_hdr(skb)->daddr);
+	*addrp = ipv6_hdr(skb)->daddr;
 
 	opt = (u8*) (addrp + 1);
 

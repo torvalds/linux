@@ -712,7 +712,7 @@ static unsigned int pfkey_sockaddr_fill(const xfrm_address_t *xaddr, __be16 port
 		sin6->sin6_family = AF_INET6;
 		sin6->sin6_port = port;
 		sin6->sin6_flowinfo = 0;
-		ipv6_addr_copy(&sin6->sin6_addr, (const struct in6_addr *)xaddr->a6);
+		sin6->sin6_addr = *(struct in6_addr *)xaddr->a6;
 		sin6->sin6_scope_id = 0;
 		return 128;
 	    }

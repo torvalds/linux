@@ -3475,7 +3475,7 @@ static int cnic_get_v6_route(struct sockaddr_in6 *dst_addr,
 	struct flowi6 fl6;
 
 	memset(&fl6, 0, sizeof(fl6));
-	ipv6_addr_copy(&fl6.daddr, &dst_addr->sin6_addr);
+	fl6.daddr = dst_addr->sin6_addr;
 	if (ipv6_addr_type(&fl6.daddr) & IPV6_ADDR_LINKLOCAL)
 		fl6.flowi6_oif = dst_addr->sin6_scope_id;
 

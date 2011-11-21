@@ -309,11 +309,6 @@ ipv6_masked_addr_cmp(const struct in6_addr *a1, const struct in6_addr *m,
 		  ((a1->s6_addr32[3] ^ a2->s6_addr32[3]) & m->s6_addr32[3]));
 }
 
-static inline void ipv6_addr_copy(struct in6_addr *a1, const struct in6_addr *a2)
-{
-	memcpy(a1, a2, sizeof(struct in6_addr));
-}
-
 static inline void ipv6_addr_prefix(struct in6_addr *pfx, 
 				    const struct in6_addr *addr,
 				    int plen)

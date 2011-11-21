@@ -750,10 +750,10 @@ static int callforward_do_filter(const union nf_inet_addr *src,
 		struct rt6_info *rt1, *rt2;
 
 		memset(&fl1, 0, sizeof(fl1));
-		ipv6_addr_copy(&fl1.daddr, &src->in6);
+		fl1.daddr = src->in6;
 
 		memset(&fl2, 0, sizeof(fl2));
-		ipv6_addr_copy(&fl2.daddr, &dst->in6);
+		fl2.daddr = dst->in6;
 		if (!afinfo->route(&init_net, (struct dst_entry **)&rt1,
 				   flowi6_to_flowi(&fl1), false)) {
 			if (!afinfo->route(&init_net, (struct dst_entry **)&rt2,

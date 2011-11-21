@@ -75,7 +75,7 @@ int ipv6_sock_ac_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 	if (pac == NULL)
 		return -ENOMEM;
 	pac->acl_next = NULL;
-	ipv6_addr_copy(&pac->acl_addr, addr);
+	pac->acl_addr = *addr;
 
 	rcu_read_lock();
 	if (ifindex == 0) {
@@ -296,7 +296,7 @@ int ipv6_dev_ac_inc(struct net_device *dev, const struct in6_addr *addr)
 		goto out;
 	}
 
-	ipv6_addr_copy(&aca->aca_addr, addr);
+	aca->aca_addr = *addr;
 	aca->aca_idev = idev;
 	aca->aca_rt = rt;
 	aca->aca_users = 1;

@@ -118,8 +118,8 @@ int ipv6_skb_to_auditdata(struct sk_buff *skb,
 	ip6 = ipv6_hdr(skb);
 	if (ip6 == NULL)
 		return -EINVAL;
-	ipv6_addr_copy(&ad->u.net.v6info.saddr, &ip6->saddr);
-	ipv6_addr_copy(&ad->u.net.v6info.daddr, &ip6->daddr);
+	ad->u.net.v6info.saddr = ip6->saddr;
+	ad->u.net.v6info.daddr = ip6->daddr;
 	ret = 0;
 	/* IPv6 can have several extension header before the Transport header
 	 * skip them */

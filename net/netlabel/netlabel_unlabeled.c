@@ -300,12 +300,12 @@ static int netlbl_unlhsh_add_addr6(struct netlbl_unlhsh_iface *iface,
 	if (entry == NULL)
 		return -ENOMEM;
 
-	ipv6_addr_copy(&entry->list.addr, addr);
+	entry->list.addr = *addr;
 	entry->list.addr.s6_addr32[0] &= mask->s6_addr32[0];
 	entry->list.addr.s6_addr32[1] &= mask->s6_addr32[1];
 	entry->list.addr.s6_addr32[2] &= mask->s6_addr32[2];
 	entry->list.addr.s6_addr32[3] &= mask->s6_addr32[3];
-	ipv6_addr_copy(&entry->list.mask, mask);
+	entry->list.mask = *mask;
 	entry->list.valid = 1;
 	entry->secid = secid;
 

@@ -161,7 +161,7 @@ static u_int32_t tcpmss_reverse_mtu(const struct sk_buff *skb,
 		struct flowi6 *fl6 = &fl.u.ip6;
 
 		memset(fl6, 0, sizeof(*fl6));
-		ipv6_addr_copy(&fl6->daddr, &ipv6_hdr(skb)->saddr);
+		fl6->daddr = ipv6_hdr(skb)->saddr;
 	}
 	rcu_read_lock();
 	ai = nf_get_afinfo(family);

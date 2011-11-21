@@ -60,8 +60,8 @@ void dccp_time_wait(struct sock *sk, int state, int timeo)
 
 			tw->tw_ipv6_offset = inet6_tw_offset(sk->sk_prot);
 			tw6 = inet6_twsk((struct sock *)tw);
-			ipv6_addr_copy(&tw6->tw_v6_daddr, &np->daddr);
-			ipv6_addr_copy(&tw6->tw_v6_rcv_saddr, &np->rcv_saddr);
+			tw6->tw_v6_daddr = np->daddr;
+			tw6->tw_v6_rcv_saddr = np->rcv_saddr;
 			tw->tw_ipv6only = np->ipv6only;
 		}
 #endif

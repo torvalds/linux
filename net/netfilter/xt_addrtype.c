@@ -42,7 +42,7 @@ static u32 match_lookup_rt6(struct net *net, const struct net_device *dev,
 	int route_err;
 
 	memset(&flow, 0, sizeof(flow));
-	ipv6_addr_copy(&flow.daddr, addr);
+	flow.daddr = *addr;
 	if (dev)
 		flow.flowi6_oif = dev->ifindex;
 

@@ -804,7 +804,7 @@ static int sctp_send_asconf_del_ip(struct sock		*sk,
 				struct sockaddr_in6 *sin6;
 
 				sin6 = (struct sockaddr_in6 *)addrs;
-				ipv6_addr_copy(&asoc->asconf_addr_del_pending->v6.sin6_addr, &sin6->sin6_addr);
+				asoc->asconf_addr_del_pending->v6.sin6_addr = sin6->sin6_addr;
 			}
 			SCTP_DEBUG_PRINTK_IPADDR("send_asconf_del_ip: keep the last address asoc: %p ",
 			    " at %p\n", asoc, asoc->asconf_addr_del_pending,

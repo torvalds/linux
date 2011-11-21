@@ -417,8 +417,7 @@ try_again:
 			ipv6_addr_set_v4mapped(ip_hdr(skb)->saddr,
 					       &sin6->sin6_addr);
 		else {
-			ipv6_addr_copy(&sin6->sin6_addr,
-				       &ipv6_hdr(skb)->saddr);
+			sin6->sin6_addr = ipv6_hdr(skb)->saddr;
 			if (ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LINKLOCAL)
 				sin6->sin6_scope_id = IP6CB(skb)->iif;
 		}
@@ -1115,11 +1114,11 @@ do_udp_sendmsg:
 
 	fl6.flowi6_proto = sk->sk_protocol;
 	if (!ipv6_addr_any(daddr))
-		ipv6_addr_copy(&fl6.daddr, daddr);
+		fl6.daddr = *daddr;
 	else
 		fl6.daddr.s6_addr[15] = 0x1; /* :: means loopback (BSD'ism) */
 	if (ipv6_addr_any(&fl6.saddr) && !ipv6_addr_any(&np->saddr))
-		ipv6_addr_copy(&fl6.saddr, &np->saddr);
+		fl6.saddr = np->saddr;
 	fl6.fl6_sport = inet->inet_sport;
 
 	final_p = fl6_update_dst(&fl6, opt, &final);

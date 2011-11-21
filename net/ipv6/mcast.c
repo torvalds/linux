@@ -155,7 +155,7 @@ int ipv6_sock_mc_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 		return -ENOMEM;
 
 	mc_lst->next = NULL;
-	ipv6_addr_copy(&mc_lst->addr, addr);
+	mc_lst->addr = *addr;
 
 	rcu_read_lock();
 	if (ifindex == 0) {
@@ -858,7 +858,7 @@ int ipv6_dev_mc_inc(struct net_device *dev, const struct in6_addr *addr)
 
 	setup_timer(&mc->mca_timer, igmp6_timer_handler, (unsigned long)mc);
 
-	ipv6_addr_copy(&mc->mca_addr, addr);
+	mc->mca_addr = *addr;
 	mc->idev = idev; /* (reference taken) */
 	mc->mca_users = 1;
 	/* mca_stamp should be updated upon changes */
@@ -1776,7 +1776,7 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 	hdr = (struct mld_msg *) skb_put(skb, sizeof(struct mld_msg));
 	memset(hdr, 0, sizeof(struct mld_msg));
 	hdr->mld_type = type;
-	ipv6_addr_copy(&hdr->mld_mca, addr);
+	hdr->mld_mca = *addr;
 
 	hdr->mld_cksum = csum_ipv6_magic(saddr, snd_addr, len,
 					 IPPROTO_ICMPV6,

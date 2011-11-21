@@ -50,7 +50,7 @@ static void bond_glean_dev_ipv6(struct net_device *dev, struct in6_addr *addr)
 		struct inet6_ifaddr *ifa
 			= list_first_entry(&idev->addr_list,
 					   struct inet6_ifaddr, if_list);
-		ipv6_addr_copy(addr, &ifa->addr);
+		*addr = ifa->addr;
 	} else
 		ipv6_addr_set(addr, 0, 0, 0, 0);
 
@@ -168,8 +168,7 @@ static int bond_inet6addr_event(struct notifier_block *this,
 			switch (event) {
 			case NETDEV_UP:
 				if (ipv6_addr_any(&bond->master_ipv6))
-					ipv6_addr_copy(&bond->master_ipv6,
-						       &ifa->addr);
+					bond->master_ipv6 = ifa->addr;
 				return NOTIFY_OK;
 			case NETDEV_DOWN:
 				if (ipv6_addr_equal(&bond->master_ipv6,
@@ -191,8 +190,7 @@ static int bond_inet6addr_event(struct notifier_block *this,
 				switch (event) {
 				case NETDEV_UP:
 					if (ipv6_addr_any(&vlan->vlan_ipv6))
-						ipv6_addr_copy(&vlan->vlan_ipv6,
-							       &ifa->addr);
+						vlan->vlan_ipv6 = ifa->addr;
 					return NOTIFY_OK;
 				case NETDEV_DOWN:
 					if (ipv6_addr_equal(&vlan->vlan_ipv6,

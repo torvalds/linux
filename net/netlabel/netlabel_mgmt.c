@@ -216,12 +216,12 @@ static int netlbl_mgmt_add_common(struct genl_info *info,
 			ret_val = -ENOMEM;
 			goto add_failure;
 		}
-		ipv6_addr_copy(&map->list.addr, addr);
+		map->list.addr = *addr;
 		map->list.addr.s6_addr32[0] &= mask->s6_addr32[0];
 		map->list.addr.s6_addr32[1] &= mask->s6_addr32[1];
 		map->list.addr.s6_addr32[2] &= mask->s6_addr32[2];
 		map->list.addr.s6_addr32[3] &= mask->s6_addr32[3];
-		ipv6_addr_copy(&map->list.mask, mask);
+		map->list.mask = *mask;
 		map->list.valid = 1;
 		map->type = entry->type;
 

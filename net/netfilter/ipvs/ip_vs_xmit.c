@@ -235,7 +235,7 @@ __ip_vs_route_output_v6(struct net *net, struct in6_addr *daddr,
 			goto out_err;
 		}
 	}
-	ipv6_addr_copy(ret_saddr, &fl6.saddr);
+	*ret_saddr = fl6.saddr;
 	return dst;
 
 out_err:
@@ -279,7 +279,7 @@ __ip_vs_get_out_rt_v6(struct sk_buff *skb, struct ip_vs_dest *dest,
 				  atomic_read(&rt->dst.__refcnt));
 		}
 		if (ret_saddr)
-			ipv6_addr_copy(ret_saddr, &dest->dst_saddr.in6);
+			*ret_saddr = dest->dst_saddr.in6;
 		spin_unlock(&dest->dst_lock);
 	} else {
 		dst = __ip_vs_route_output_v6(net, daddr, ret_saddr, do_xfrm);
@@ -705,7 +705,7 @@ ip_vs_nat_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	/* mangle the packet */
 	if (pp->dnat_handler && !pp->dnat_handler(skb, pp, cp))
 		goto tx_error;
-	ipv6_addr_copy(&ipv6_hdr(skb)->daddr, &cp->daddr.in6);
+	ipv6_hdr(skb)->daddr = cp->daddr.in6;
 
 	if (!local || !skb->dev) {
 		/* drop the old route when skb is not shared */
@@ -967,8 +967,8 @@ ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	be16_add_cpu(&iph->payload_len, sizeof(*old_iph));
 	iph->priority		=	old_iph->priority;
 	memset(&iph->flow_lbl, 0, sizeof(iph->flow_lbl));
-	ipv6_addr_copy(&iph->daddr, &cp->daddr.in6);
-	ipv6_addr_copy(&iph->saddr, &saddr);
+	iph->daddr = cp->daddr.in6;
+	iph->saddr = saddr;
 	iph->hop_limit		=	old_iph->hop_limit;
 
 	/* Another hack: avoid icmp_send in ip_fragment */

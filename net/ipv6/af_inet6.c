@@ -361,10 +361,10 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	inet->inet_rcv_saddr = v4addr;
 	inet->inet_saddr = v4addr;
 
-	ipv6_addr_copy(&np->rcv_saddr, &addr->sin6_addr);
+	np->rcv_saddr = addr->sin6_addr;
 
 	if (!(addr_type & IPV6_ADDR_MULTICAST))
-		ipv6_addr_copy(&np->saddr, &addr->sin6_addr);
+		np->saddr = addr->sin6_addr;
 
 	/* Make sure we are allowed to bind here. */
 	if (sk->sk_prot->get_port(sk, snum)) {
@@ -458,14 +458,14 @@ int inet6_getname(struct socket *sock, struct sockaddr *uaddr,
 		    peer == 1)
 			return -ENOTCONN;
 		sin->sin6_port = inet->inet_dport;
-		ipv6_addr_copy(&sin->sin6_addr, &np->daddr);
+		sin->sin6_addr = np->daddr;
 		if (np->sndflow)
 			sin->sin6_flowinfo = np->flow_label;
 	} else {
 		if (ipv6_addr_any(&np->rcv_saddr))
-			ipv6_addr_copy(&sin->sin6_addr, &np->saddr);
+			sin->sin6_addr = np->saddr;
 		else
-			ipv6_addr_copy(&sin->sin6_addr, &np->rcv_saddr);
+			sin->sin6_addr = np->rcv_saddr;
 
 		sin->sin6_port = inet->inet_sport;
 	}
@@ -660,8 +660,8 @@ int inet6_sk_rebuild_header(struct sock *sk)
 
 		memset(&fl6, 0, sizeof(fl6));
 		fl6.flowi6_proto = sk->sk_protocol;
-		ipv6_addr_copy(&fl6.daddr, &np->daddr);
-		ipv6_addr_copy(&fl6.saddr, &np->saddr);
+		fl6.daddr = np->daddr;
+		fl6.saddr = np->saddr;
 		fl6.flowlabel = np->flow_label;
 		fl6.flowi6_oif = sk->sk_bound_dev_if;
 		fl6.flowi6_mark = sk->sk_mark;

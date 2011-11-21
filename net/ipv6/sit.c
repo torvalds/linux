@@ -914,7 +914,7 @@ ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 				goto done;
 #ifdef CONFIG_IPV6_SIT_6RD
 		} else {
-			ipv6_addr_copy(&ip6rd.prefix, &t->ip6rd.prefix);
+			ip6rd.prefix = t->ip6rd.prefix;
 			ip6rd.relay_prefix = t->ip6rd.relay_prefix;
 			ip6rd.prefixlen = t->ip6rd.prefixlen;
 			ip6rd.relay_prefixlen = t->ip6rd.relay_prefixlen;
@@ -1082,7 +1082,7 @@ ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 			if (relay_prefix != ip6rd.relay_prefix)
 				goto done;
 
-			ipv6_addr_copy(&t->ip6rd.prefix, &prefix);
+			t->ip6rd.prefix = prefix;
 			t->ip6rd.relay_prefix = relay_prefix;
 			t->ip6rd.prefixlen = ip6rd.prefixlen;
 			t->ip6rd.relay_prefixlen = ip6rd.relay_prefixlen;

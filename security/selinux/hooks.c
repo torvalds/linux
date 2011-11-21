@@ -3567,8 +3567,8 @@ static int selinux_parse_skb_ipv6(struct sk_buff *skb,
 	if (ip6 == NULL)
 		goto out;
 
-	ipv6_addr_copy(&ad->u.net.v6info.saddr, &ip6->saddr);
-	ipv6_addr_copy(&ad->u.net.v6info.daddr, &ip6->daddr);
+	ad->u.net.v6info.saddr = ip6->saddr;
+	ad->u.net.v6info.daddr = ip6->daddr;
 	ret = 0;
 
 	nexthdr = ip6->nexthdr;
@@ -3871,7 +3871,7 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 		if (family == PF_INET)
 			ad.u.net.v4info.saddr = addr4->sin_addr.s_addr;
 		else
-			ipv6_addr_copy(&ad.u.net.v6info.saddr, &addr6->sin6_addr);
+			ad.u.net.v6info.saddr = addr6->sin6_addr;
 
 		err = avc_has_perm(sksec->sid, sid,
 				   sksec->sclass, node_perm, &ad);

@@ -129,10 +129,8 @@ static int inet_csk_diag_fill(struct sock *sk,
 	if (r->idiag_family == AF_INET6) {
 		const struct ipv6_pinfo *np = inet6_sk(sk);
 
-		ipv6_addr_copy((struct in6_addr *)r->id.idiag_src,
-			       &np->rcv_saddr);
-		ipv6_addr_copy((struct in6_addr *)r->id.idiag_dst,
-			       &np->daddr);
+		*(struct in6_addr *)r->id.idiag_src = np->rcv_saddr;
+		*(struct in6_addr *)r->id.idiag_dst = np->daddr;
 		if (ext & (1 << (INET_DIAG_TCLASS - 1)))
 			RTA_PUT_U8(skb, INET_DIAG_TCLASS, np->tclass);
 	}
@@ -224,10 +222,8 @@ static int inet_twsk_diag_fill(struct inet_timewait_sock *tw,
 		const struct inet6_timewait_sock *tw6 =
 						inet6_twsk((struct sock *)tw);
 
-		ipv6_addr_copy((struct in6_addr *)r->id.idiag_src,
-			       &tw6->tw_v6_rcv_saddr);
-		ipv6_addr_copy((struct in6_addr *)r->id.idiag_dst,
-			       &tw6->tw_v6_daddr);
+		*(struct in6_addr *)r->id.idiag_src = tw6->tw_v6_rcv_saddr;
+		*(struct in6_addr *)r->id.idiag_dst = tw6->tw_v6_daddr;
 	}
 #endif
 	nlh->nlmsg_len = skb_tail_pointer(skb) - previous_tail;
@@ -603,10 +599,8 @@ static int inet_diag_fill_req(struct sk_buff *skb, struct sock *sk,
 	r->idiag_inode = 0;
 #if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
 	if (r->idiag_family == AF_INET6) {
-		ipv6_addr_copy((struct in6_addr *)r->id.idiag_src,
-			       &inet6_rsk(req)->loc_addr);
-		ipv6_addr_copy((struct in6_addr *)r->id.idiag_dst,
-			       &inet6_rsk(req)->rmt_addr);
+		*(struct in6_addr *)r->id.idiag_src = inet6_rsk(req)->loc_addr;
+		*(struct in6_addr *)r->id.idiag_dst = inet6_rsk(req)->rmt_addr;
 	}
 #endif
 	nlh->nlmsg_len = skb_tail_pointer(skb) - b;

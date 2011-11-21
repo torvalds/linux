@@ -243,8 +243,8 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 	int ret;
 
 	memset(&fl6, 0, sizeof fl6);
-	ipv6_addr_copy(&fl6.daddr, &dst_in->sin6_addr);
-	ipv6_addr_copy(&fl6.saddr, &src_in->sin6_addr);
+	fl6.daddr = dst_in->sin6_addr;
+	fl6.saddr = src_in->sin6_addr;
 	fl6.flowi6_oif = addr->bound_dev_if;
 
 	dst = ip6_route_output(&init_net, NULL, &fl6);
@@ -258,7 +258,7 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 			goto put;
 
 		src_in->sin6_family = AF_INET6;
-		ipv6_addr_copy(&src_in->sin6_addr, &fl6.saddr);
+		src_in->sin6_addr = fl6.saddr;
 	}
 
 	if (dst->dev->flags & IFF_LOOPBACK) {
