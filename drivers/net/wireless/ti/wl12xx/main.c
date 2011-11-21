@@ -27,6 +27,9 @@
 #include "../wlcore/wlcore.h"
 #include "../wlcore/debug.h"
 
+static struct wlcore_ops wl12xx_ops = {
+};
+
 static int __devinit wl12xx_probe(struct platform_device *pdev)
 {
 	struct wl1271 *wl;
@@ -39,6 +42,7 @@ static int __devinit wl12xx_probe(struct platform_device *pdev)
 	}
 
 	wl = hw->priv;
+	wl->ops = &wl12xx_ops;
 
 	return wlcore_probe(wl, pdev);
 }

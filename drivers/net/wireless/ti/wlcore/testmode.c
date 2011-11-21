@@ -25,7 +25,7 @@
 #include <linux/slab.h>
 #include <net/genetlink.h>
 
-#include "wl12xx.h"
+#include "wlcore.h"
 #include "debug.h"
 #include "acx.h"
 #include "reg.h"

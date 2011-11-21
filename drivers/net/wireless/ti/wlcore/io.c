@@ -26,7 +26,7 @@
 #include <linux/spi/spi.h>
 #include <linux/interrupt.h>
 
-#include "wl12xx.h"
+#include "wlcore.h"
 #include "debug.h"
 #include "wl12xx_80211.h"
 #include "io.h"

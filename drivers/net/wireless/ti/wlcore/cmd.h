@@ -25,7 +25,7 @@
 #ifndef __CMD_H__
 #define __CMD_H__
 
-#include "wl12xx.h"
+#include "wlcore.h"
 
 struct acx_header;
 

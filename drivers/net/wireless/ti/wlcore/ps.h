@@ -24,7 +24,7 @@
 #ifndef __PS_H__
 #define __PS_H__
 
-#include "wl12xx.h"
+#include "wlcore.h"
 #include "acx.h"
 
 int wl1271_ps_set_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,

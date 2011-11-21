@@ -24,7 +24,7 @@
 #include <linux/gfp.h>
 #include <linux/sched.h>
 
-#include "wl12xx.h"
+#include "wlcore.h"
 #include "debug.h"
 #include "acx.h"
 #include "reg.h"

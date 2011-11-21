@@ -24,7 +24,7 @@
 #ifndef __BOOT_H__
 #define __BOOT_H__
 
-#include "wl12xx.h"
+#include "wlcore.h"
 
 int wl1271_boot(struct wl1271 *wl);
 int wl1271_load_firmware(struct wl1271 *wl);

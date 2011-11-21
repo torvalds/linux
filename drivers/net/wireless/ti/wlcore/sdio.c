@@ -33,7 +33,7 @@
 #include <linux/wl12xx.h>
 #include <linux/pm_runtime.h>
 
-#include "wl12xx.h"
+#include "wlcore.h"
 #include "wl12xx_80211.h"
 #include "io.h"
 

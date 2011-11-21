@@ -28,7 +28,7 @@
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
 
-#include "wl12xx.h"
+#include "wlcore.h"
 #include "debug.h"
 #include "wl12xx_80211.h"
 #include "reg.h"

@@ -23,7 +23,7 @@
 
 #include <linux/ieee80211.h>
 
-#include "wl12xx.h"
+#include "wlcore.h"
 #include "debug.h"
 #include "cmd.h"
 #include "scan.h"

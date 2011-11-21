@@ -28,7 +28,7 @@
 #include <linux/ieee80211.h>
 #include <linux/slab.h>
 
-#include "wl12xx.h"
+#include "wlcore.h"
 #include "debug.h"
 #include "reg.h"
 #include "io.h"

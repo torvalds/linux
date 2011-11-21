@@ -30,7 +30,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-#include "wl12xx.h"
+#include "wlcore.h"
 #include "wl12xx_80211.h"
 #include "io.h"
 

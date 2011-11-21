@@ -25,7 +25,7 @@
 #include <linux/module.h>
 #include <linux/etherdevice.h>
 
-#include "wl12xx.h"
+#include "wlcore.h"
 #include "debug.h"
 #include "io.h"
 #include "reg.h"

@@ -25,7 +25,7 @@
 #ifndef __ACX_H__
 #define __ACX_H__
 
-#include "wl12xx.h"
+#include "wlcore.h"
 #include "cmd.h"
 
 /*************************************************************************
