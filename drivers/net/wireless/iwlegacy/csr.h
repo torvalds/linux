@@ -60,8 +60,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-#ifndef __iwl_legacy_csr_h__
-#define __iwl_legacy_csr_h__
+#ifndef __il_csr_h__
+#define __il_csr_h__
 /*
  * CSR (control and status registers)
  *
@@ -70,9 +70,9 @@
  * low power states due to driver-invoked device resets
  * (e.g. CSR_RESET_REG_FLAG_SW_RESET) or uCode-driven power-saving modes.
  *
- * Use iwl_write32() and iwl_read32() family to access these registers;
+ * Use _il_wr() and _il_rd() family to access these registers;
  * these provide simple PCI bus access, without waking up the MAC.
- * Do not use iwl_legacy_write_direct32() family for these registers;
+ * Do not use il_wr() family for these registers;
  * no need to "grab nic access" via CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ.
  * The MAC (uCode processor, etc.) does not need to be powered up for accessing
  * the CSR registers.
@@ -82,16 +82,16 @@
  */
 #define CSR_BASE    (0x000)
 
-#define CSR_HW_IF_CONFIG_REG    (CSR_BASE+0x000) /* hardware interface config */
-#define CSR_INT_COALESCING      (CSR_BASE+0x004) /* accum ints, 32-usec units */
-#define CSR_INT                 (CSR_BASE+0x008) /* host interrupt status/ack */
-#define CSR_INT_MASK            (CSR_BASE+0x00c) /* host interrupt enable */
-#define CSR_FH_INT_STATUS       (CSR_BASE+0x010) /* busmaster int status/ack*/
-#define CSR_GPIO_IN             (CSR_BASE+0x018) /* read external chip pins */
-#define CSR_RESET               (CSR_BASE+0x020) /* busmaster enable, NMI, etc*/
+#define CSR_HW_IF_CONFIG_REG    (CSR_BASE+0x000)	/* hardware interface config */
+#define CSR_INT_COALESCING      (CSR_BASE+0x004)	/* accum ints, 32-usec units */
+#define CSR_INT                 (CSR_BASE+0x008)	/* host interrupt status/ack */
+#define CSR_INT_MASK            (CSR_BASE+0x00c)	/* host interrupt enable */
+#define CSR_FH_INT_STATUS       (CSR_BASE+0x010)	/* busmaster int status/ack */
+#define CSR_GPIO_IN             (CSR_BASE+0x018)	/* read external chip pins */
+#define CSR_RESET               (CSR_BASE+0x020)	/* busmaster enable, NMI, etc */
 #define CSR_GP_CNTRL            (CSR_BASE+0x024)
 
-/* 2nd byte of CSR_INT_COALESCING, not accessible via iwl_write32()! */
+/* 2nd byte of CSR_INT_COALESCING, not accessible via _il_wr()! */
 #define CSR_INT_PERIODIC_REG	(CSR_BASE+0x005)
 
 /*
@@ -166,26 +166,26 @@
 
 #define CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A	(0x00080000)
 #define CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM	(0x00200000)
-#define CSR_HW_IF_CONFIG_REG_BIT_NIC_READY	(0x00400000) /* PCI_OWN_SEM */
-#define CSR_HW_IF_CONFIG_REG_BIT_NIC_PREPARE_DONE (0x02000000) /* ME_OWN */
-#define CSR_HW_IF_CONFIG_REG_PREPARE		  (0x08000000) /* WAKE_ME */
+#define CSR_HW_IF_CONFIG_REG_BIT_NIC_READY	(0x00400000)	/* PCI_OWN_SEM */
+#define CSR_HW_IF_CONFIG_REG_BIT_NIC_PREPARE_DONE (0x02000000)	/* ME_OWN */
+#define CSR_HW_IF_CONFIG_REG_PREPARE		  (0x08000000)	/* WAKE_ME */
 
-#define CSR_INT_PERIODIC_DIS			(0x00) /* disable periodic int*/
-#define CSR_INT_PERIODIC_ENA			(0xFF) /* 255*32 usec ~ 8 msec*/
+#define CSR_INT_PERIODIC_DIS			(0x00)	/* disable periodic int */
+#define CSR_INT_PERIODIC_ENA			(0xFF)	/* 255*32 usec ~ 8 msec */
 
 /* interrupt flags in INTA, set by uCode or hardware (e.g. dma),
  * acknowledged (reset) by host writing "1" to flagged bits. */
-#define CSR_INT_BIT_FH_RX        (1 << 31) /* Rx DMA, cmd responses, FH_INT[17:16] */
-#define CSR_INT_BIT_HW_ERR       (1 << 29) /* DMA hardware error FH_INT[31] */
-#define CSR_INT_BIT_RX_PERIODIC	 (1 << 28) /* Rx periodic */
-#define CSR_INT_BIT_FH_TX        (1 << 27) /* Tx DMA FH_INT[1:0] */
-#define CSR_INT_BIT_SCD          (1 << 26) /* TXQ pointer advanced */
-#define CSR_INT_BIT_SW_ERR       (1 << 25) /* uCode error */
-#define CSR_INT_BIT_RF_KILL      (1 << 7)  /* HW RFKILL switch GP_CNTRL[27] toggled */
-#define CSR_INT_BIT_CT_KILL      (1 << 6)  /* Critical temp (chip too hot) rfkill */
-#define CSR_INT_BIT_SW_RX        (1 << 3)  /* Rx, command responses, 3945 */
-#define CSR_INT_BIT_WAKEUP       (1 << 1)  /* NIC controller waking up (pwr mgmt) */
-#define CSR_INT_BIT_ALIVE        (1 << 0)  /* uCode interrupts once it initializes */
+#define CSR_INT_BIT_FH_RX        (1 << 31)	/* Rx DMA, cmd responses, FH_INT[17:16] */
+#define CSR_INT_BIT_HW_ERR       (1 << 29)	/* DMA hardware error FH_INT[31] */
+#define CSR_INT_BIT_RX_PERIODIC	 (1 << 28)	/* Rx periodic */
+#define CSR_INT_BIT_FH_TX        (1 << 27)	/* Tx DMA FH_INT[1:0] */
+#define CSR_INT_BIT_SCD          (1 << 26)	/* TXQ pointer advanced */
+#define CSR_INT_BIT_SW_ERR       (1 << 25)	/* uCode error */
+#define CSR_INT_BIT_RF_KILL      (1 << 7)	/* HW RFKILL switch GP_CNTRL[27] toggled */
+#define CSR_INT_BIT_CT_KILL      (1 << 6)	/* Critical temp (chip too hot) rfkill */
+#define CSR_INT_BIT_SW_RX        (1 << 3)	/* Rx, command responses, 3945 */
+#define CSR_INT_BIT_WAKEUP       (1 << 1)	/* NIC controller waking up (pwr mgmt) */
+#define CSR_INT_BIT_ALIVE        (1 << 0)	/* uCode interrupts once it initializes */
 
 #define CSR_INI_SET_MASK	(CSR_INT_BIT_FH_RX   | \
 				 CSR_INT_BIT_HW_ERR  | \
@@ -197,20 +197,19 @@
 				 CSR_INT_BIT_ALIVE)
 
 /* interrupt flags in FH (flow handler) (PCI busmaster DMA) */
-#define CSR_FH_INT_BIT_ERR       (1 << 31) /* Error */
-#define CSR_FH_INT_BIT_HI_PRIOR  (1 << 30) /* High priority Rx, bypass coalescing */
-#define CSR39_FH_INT_BIT_RX_CHNL2  (1 << 18) /* Rx channel 2 (3945 only) */
-#define CSR_FH_INT_BIT_RX_CHNL1  (1 << 17) /* Rx channel 1 */
-#define CSR_FH_INT_BIT_RX_CHNL0  (1 << 16) /* Rx channel 0 */
-#define CSR39_FH_INT_BIT_TX_CHNL6  (1 << 6)  /* Tx channel 6 (3945 only) */
-#define CSR_FH_INT_BIT_TX_CHNL1  (1 << 1)  /* Tx channel 1 */
-#define CSR_FH_INT_BIT_TX_CHNL0  (1 << 0)  /* Tx channel 0 */
+#define CSR_FH_INT_BIT_ERR       (1 << 31)	/* Error */
+#define CSR_FH_INT_BIT_HI_PRIOR  (1 << 30)	/* High priority Rx, bypass coalescing */
+#define CSR39_FH_INT_BIT_RX_CHNL2  (1 << 18)	/* Rx channel 2 (3945 only) */
+#define CSR_FH_INT_BIT_RX_CHNL1  (1 << 17)	/* Rx channel 1 */
+#define CSR_FH_INT_BIT_RX_CHNL0  (1 << 16)	/* Rx channel 0 */
+#define CSR39_FH_INT_BIT_TX_CHNL6  (1 << 6)	/* Tx channel 6 (3945 only) */
+#define CSR_FH_INT_BIT_TX_CHNL1  (1 << 1)	/* Tx channel 1 */
+#define CSR_FH_INT_BIT_TX_CHNL0  (1 << 0)	/* Tx channel 0 */
 
 #define CSR39_FH_INT_RX_MASK	(CSR_FH_INT_BIT_HI_PRIOR | \
 				 CSR39_FH_INT_BIT_RX_CHNL2 | \
 				 CSR_FH_INT_BIT_RX_CHNL1 | \
 				 CSR_FH_INT_BIT_RX_CHNL0)
-
 
 #define CSR39_FH_INT_TX_MASK	(CSR39_FH_INT_BIT_TX_CHNL6 | \
 				 CSR_FH_INT_BIT_TX_CHNL1 | \
@@ -285,7 +284,6 @@
 #define CSR_GP_CNTRL_REG_FLAG_MAC_POWER_SAVE         (0x04000000)
 #define CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW          (0x08000000)
 
-
 /* EEPROM REG */
 #define CSR_EEPROM_REG_READ_VALID_MSK	(0x00000001)
 #define CSR_EEPROM_REG_BIT_CMD		(0x00000002)
@@ -293,18 +291,17 @@
 #define CSR_EEPROM_REG_MSK_DATA		(0xFFFF0000)
 
 /* EEPROM GP */
-#define CSR_EEPROM_GP_VALID_MSK		(0x00000007) /* signature */
+#define CSR_EEPROM_GP_VALID_MSK		(0x00000007)	/* signature */
 #define CSR_EEPROM_GP_IF_OWNER_MSK	(0x00000180)
 #define CSR_EEPROM_GP_GOOD_SIG_EEP_LESS_THAN_4K		(0x00000002)
 #define CSR_EEPROM_GP_GOOD_SIG_EEP_MORE_THAN_4K		(0x00000004)
 
 /* GP REG */
-#define CSR_GP_REG_POWER_SAVE_STATUS_MSK            (0x03000000) /* bit 24/25 */
+#define CSR_GP_REG_POWER_SAVE_STATUS_MSK            (0x03000000)	/* bit 24/25 */
 #define CSR_GP_REG_NO_POWER_SAVE            (0x00000000)
 #define CSR_GP_REG_MAC_POWER_SAVE           (0x01000000)
 #define CSR_GP_REG_PHY_POWER_SAVE           (0x02000000)
 #define CSR_GP_REG_POWER_SAVE_ERROR         (0x03000000)
-
 
 /* CSR GIO */
 #define CSR_GIO_REG_VAL_L0S_ENABLED	(0x00000002)
@@ -357,7 +354,7 @@
 /* HPET MEM debug */
 #define CSR_DBG_HPET_MEM_REG_VAL	(0xFFFF0000)
 
-/* DRAM INT TABLE */
+/* DRAM INT TBL */
 #define CSR_DRAM_INT_TBL_ENABLE		(1 << 31)
 #define CSR_DRAM_INIT_TBL_WRAP_CHECK	(1 << 27)
 
@@ -368,13 +365,13 @@
  * to indirectly access device's internal memory or registers that
  * may be powered-down.
  *
- * Use iwl_legacy_write_direct32()/iwl_legacy_read_direct32() family
+ * Use il_wr()/il_rd() family
  * for these registers;
  * host must "grab nic access" via CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ
  * to make sure the MAC (uCode processor, etc.) is powered up for accessing
  * internal resources.
  *
- * Do not use iwl_write32()/iwl_read32() family to access these registers;
+ * Do not use _il_wr()/_il_rd() family to access these registers;
  * these provide only simple PCI bus access, without waking up the MAC.
  */
 #define HBUS_BASE	(0x400)
@@ -411,12 +408,12 @@
 #define HBUS_TARG_PRPH_RDAT     (HBUS_BASE+0x050)
 
 /*
- * Per-Tx-queue write pointer (index, really!)
- * Indicates index to next TFD that driver will fill (1 past latest filled).
+ * Per-Tx-queue write pointer (idx, really!)
+ * Indicates idx to next TFD that driver will fill (1 past latest filled).
  * Bit usage:
- *  0-7:  queue write index
+ *  0-7:  queue write idx
  * 11-8:  queue selector
  */
 #define HBUS_TARG_WRPTR         (HBUS_BASE+0x060)
 
-#endif /* !__iwl_legacy_csr_h__ */
+#endif /* !__il_csr_h__ */
