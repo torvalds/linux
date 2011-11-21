@@ -15,6 +15,8 @@
 #include "util/thread_map.h"
 #include "../../include/linux/hw_breakpoint.h"
 
+#include <sys/mman.h>
+
 static int vmlinux_matches_kallsyms_filter(struct map *map __used, struct symbol *sym)
 {
 	bool *visited = symbol__priv(sym);
@@ -1296,6 +1298,173 @@ out:
 	return (err < 0 || errs > 0) ? -1 : 0;
 }
 
+
+#if defined(__x86_64__) || defined(__i386__)
+
+#define barrier() asm volatile("" ::: "memory")
+
+static u64 rdpmc(unsigned int counter)
+{
+	unsigned int low, high;
+
+	asm volatile("rdpmc" : "=a" (low), "=d" (high) : "c" (counter));
+
+	return low | ((u64)high) << 32;
+}
+
+static u64 rdtsc(void)
+{
+	unsigned int low, high;
+
+	asm volatile("rdtsc" : "=a" (low), "=d" (high));
+
+	return low | ((u64)high) << 32;
+}
+
+static u64 mmap_read_self(void *addr)
+{
+	struct perf_event_mmap_page *pc = addr;
+	u32 seq, idx, time_mult = 0, time_shift = 0;
+	u64 count, cyc = 0, time_offset = 0, enabled, running, delta;
+
+	do {
+		seq = pc->lock;
+		barrier();
+
+		enabled = pc->time_enabled;
+		running = pc->time_running;
+
+		if (enabled != running) {
+			cyc = rdtsc();
+			time_mult = pc->time_mult;
+			time_shift = pc->time_shift;
+			time_offset = pc->time_offset;
+		}
+
+		idx = pc->index;
+		count = pc->offset;
+		if (idx)
+			count += rdpmc(idx - 1);
+
+		barrier();
+	} while (pc->lock != seq);
+
+	if (enabled != running) {
+		u64 quot, rem;
+
+		quot = (cyc >> time_shift);
+		rem = cyc & ((1 << time_shift) - 1);
+		delta = time_offset + quot * time_mult +
+			((rem * time_mult) >> time_shift);
+
+		enabled += delta;
+		if (idx)
+			running += delta;
+
+		quot = count / running;
+		rem = count % running;
+		count = quot * enabled + (rem * enabled) / running;
+	}
+
+	return count;
+}
+
+/*
+ * If the RDPMC instruction faults then signal this back to the test parent task:
+ */
+static void segfault_handler(int sig __used, siginfo_t *info __used, void *uc __used)
+{
+	exit(-1);
+}
+
+static int __test__rdpmc(void)
+{
+	long page_size = sysconf(_SC_PAGE_SIZE);
+	volatile int tmp = 0;
+	u64 i, loops = 1000;
+	int n;
+	int fd;
+	void *addr;
+	struct perf_event_attr attr = {
+		.type = PERF_TYPE_HARDWARE,
+		.config = PERF_COUNT_HW_INSTRUCTIONS,
+		.exclude_kernel = 1,
+	};
+	u64 delta_sum = 0;
+        struct sigaction sa;
+
+	sigfillset(&sa.sa_mask);
+	sa.sa_sigaction = segfault_handler;
+	sigaction(SIGSEGV, &sa, NULL);
+
+	fprintf(stderr, "\n\n");
+
+	fd = sys_perf_event_open(&attr, 0, -1, -1, 0);
+	if (fd < 0) {
+		die("Error: sys_perf_event_open() syscall returned "
+		    "with %d (%s)\n", fd, strerror(errno));
+	}
+
+	addr = mmap(NULL, page_size, PROT_READ, MAP_SHARED, fd, 0);
+	if (addr == (void *)(-1)) {
+		die("Error: mmap() syscall returned "
+		    "with (%s)\n", strerror(errno));
+	}
+
+	for (n = 0; n < 6; n++) {
+		u64 stamp, now, delta;
+
+		stamp = mmap_read_self(addr);
+
+		for (i = 0; i < loops; i++)
+			tmp++;
+
+		now = mmap_read_self(addr);
+		loops *= 10;
+
+		delta = now - stamp;
+		fprintf(stderr, "%14d: %14Lu\n", n, (long long)delta);
+
+		delta_sum += delta;
+	}
+
+	munmap(addr, page_size);
+	close(fd);
+
+	fprintf(stderr, "   ");
+
+	if (!delta_sum)
+		return -1;
+
+	return 0;
+}
+
+static int test__rdpmc(void)
+{
+	int status = 0;
+	int wret = 0;
+	int ret;
+	int pid;
+
+	pid = fork();
+	if (pid < 0)
+		return -1;
+
+	if (!pid) {
+		ret = __test__rdpmc();
+
+		exit(ret);
+	}
+
+	wret = waitpid(pid, &status, 0);
+	if (wret < 0 || status)
+		return -1;
+
+	return 0;
+}
+
+#endif
+
 static struct test {
 	const char *desc;
 	int (*func)(void);
@@ -1320,6 +1489,12 @@ static struct test {
 		.desc = "parse events tests",
 		.func = test__parse_events,
 	},
+#if defined(__x86_64__) || defined(__i386__)
+	{
+		.desc = "x86 rdpmc test",
+		.func = test__rdpmc,
+	},
+#endif
 	{
 		.desc = "Validate PERF_RECORD_* events & perf_sample fields",
 		.func = test__PERF_RECORD,
@@ -1411,8 +1586,6 @@ int cmd_test(int argc, const char **argv, const char *prefix __used)
 
 	if (symbol__init() < 0)
 		return -1;
-
-	setup_pager();
 
 	return __cmd_test(argc, argv);
 }
