@@ -557,8 +557,8 @@
 #define M1200X720_R60_VSP       POSITIVE
 
 /* 1200x900@60 Sync Polarity (DCON) */
-#define M1200X900_R60_HSP       NEGATIVE
-#define M1200X900_R60_VSP       NEGATIVE
+#define M1200X900_R60_HSP       POSITIVE
+#define M1200X900_R60_VSP       POSITIVE
 
 /* 1280x600@60 Sync Polarity (GTF Mode) */
 #define M1280x600_R60_HSP       NEGATIVE
