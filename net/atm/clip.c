@@ -455,10 +455,7 @@ static netdev_tx_t clip_start_xmit(struct sk_buff *skb,
 
 static int clip_mkip(struct atm_vcc *vcc, int timeout)
 {
-	struct sk_buff_head *rq, queue;
 	struct clip_vcc *clip_vcc;
-	struct sk_buff *skb, *tmp;
-	unsigned long flags;
 
 	if (!vcc->push)
 		return -EBADFD;
@@ -479,16 +476,8 @@ static int clip_mkip(struct atm_vcc *vcc, int timeout)
 	vcc->push = clip_push;
 	vcc->pop = clip_pop;
 
-	__skb_queue_head_init(&queue);
-	rq = &sk_atm(vcc)->sk_receive_queue;
-
-	spin_lock_irqsave(&rq->lock, flags);
-	skb_queue_splice_init(rq, &queue);
-	spin_unlock_irqrestore(&rq->lock, flags);
-
 	/* re-process everything received between connection setup and MKIP */
-	skb_queue_walk_safe(&queue, skb, tmp)
-		clip_push(vcc, skb);
+	vcc_process_recv_queue(vcc);
 
 	return 0;
 }

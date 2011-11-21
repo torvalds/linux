@@ -489,15 +489,11 @@ free_skb:
  */
 static int br2684_regvcc(struct atm_vcc *atmvcc, void __user * arg)
 {
-	struct sk_buff_head queue;
-	int err;
 	struct br2684_vcc *brvcc;
-	struct sk_buff *skb, *tmp;
-	struct sk_buff_head *rq;
 	struct br2684_dev *brdev;
 	struct net_device *net_dev;
 	struct atm_backend_br2684 be;
-	unsigned long flags;
+	int err;
 
 	if (copy_from_user(&be, arg, sizeof be))
 		return -EFAULT;
@@ -550,16 +546,6 @@ static int br2684_regvcc(struct atm_vcc *atmvcc, void __user * arg)
 	atmvcc->push = br2684_push;
 	atmvcc->pop = br2684_pop;
 
-	__skb_queue_head_init(&queue);
-	rq = &sk_atm(atmvcc)->sk_receive_queue;
-
-	spin_lock_irqsave(&rq->lock, flags);
-	skb_queue_splice_init(rq, &queue);
-	spin_unlock_irqrestore(&rq->lock, flags);
-
-	skb_queue_walk_safe(&queue, skb, tmp)
-		br2684_push(atmvcc, skb);
-
 	/* initialize netdev carrier state */
 	if (atmvcc->dev->signal == ATM_PHY_SIG_LOST)
 		netif_carrier_off(net_dev);
@@ -567,6 +553,10 @@ static int br2684_regvcc(struct atm_vcc *atmvcc, void __user * arg)
 		netif_carrier_on(net_dev);
 
 	__module_get(THIS_MODULE);
+
+	/* re-process everything received between connection setup and
+	   backend setup */
+	vcc_process_recv_queue(atmvcc);
 	return 0;
 
 error:
