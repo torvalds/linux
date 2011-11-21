@@ -63,6 +63,7 @@ static void eeprom_93cx6_startup(struct eeprom_93cx6 *eeprom)
 	eeprom->reg_data_out = 0;
 	eeprom->reg_data_clock = 0;
 	eeprom->reg_chip_select = 1;
+	eeprom->drive_data = 1;
 	eeprom->register_write(eeprom);
 
 	/*
@@ -101,6 +102,7 @@ static void eeprom_93cx6_write_bits(struct eeprom_93cx6 *eeprom,
 	 */
 	eeprom->reg_data_in = 0;
 	eeprom->reg_data_out = 0;
+	eeprom->drive_data = 1;
 
 	/*
 	 * Start writing all bits.
@@ -140,6 +142,7 @@ static void eeprom_93cx6_read_bits(struct eeprom_93cx6 *eeprom,
 	 */
 	eeprom->reg_data_in = 0;
 	eeprom->reg_data_out = 0;
+	eeprom->drive_data = 0;
 
 	/*
 	 * Start reading all bits.

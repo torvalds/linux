@@ -46,6 +46,7 @@
  * @register_write(struct eeprom_93cx6 *eeprom): handler to
  * write to the eeprom register by using all reg_* fields.
  * @width: eeprom width, should be one of the PCI_EEPROM_WIDTH_* defines
+ * @drive_data: Set if we're driving the data line.
  * @reg_data_in: register field to indicate data input
  * @reg_data_out: register field to indicate data output
  * @reg_data_clock: register field to set the data clock
@@ -62,6 +63,7 @@ struct eeprom_93cx6 {
 
 	int width;
 
+	char drive_data;
 	char reg_data_in;
 	char reg_data_out;
 	char reg_data_clock;
