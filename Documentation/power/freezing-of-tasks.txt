@@ -67,7 +67,7 @@ III. Which kernel threads are freezable?
 
 Kernel threads are not freezable by default.  However, a kernel thread may clear
 PF_NOFREEZE for itself by calling set_freezable() (the resetting of PF_NOFREEZE
-directly is strongly discouraged).  From this point it is regarded as freezable
+directly is not allowed).  From this point it is regarded as freezable
 and must call try_to_freeze() in a suitable place.
 
 IV. Why do we do that?
