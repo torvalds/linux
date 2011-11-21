@@ -34,16 +34,24 @@
 
 /* global register offset addresses */
 #define TALITOS_MCR			0x1030  /* master control register */
-#define TALITOS_MCR_LO			0x1038
+#define   TALITOS_MCR_RCA0		(1 << 15) /* remap channel 0 */
+#define   TALITOS_MCR_RCA1		(1 << 14) /* remap channel 1 */
+#define   TALITOS_MCR_RCA2		(1 << 13) /* remap channel 2 */
+#define   TALITOS_MCR_RCA3		(1 << 12) /* remap channel 3 */
 #define   TALITOS_MCR_SWR		0x1     /* s/w reset */
+#define TALITOS_MCR_LO			0x1034
 #define TALITOS_IMR			0x1008  /* interrupt mask register */
 #define   TALITOS_IMR_INIT		0x100ff /* enable channel IRQs */
 #define   TALITOS_IMR_DONE		0x00055 /* done IRQs */
 #define TALITOS_IMR_LO			0x100C
 #define   TALITOS_IMR_LO_INIT		0x20000 /* allow RNGU error IRQs */
 #define TALITOS_ISR			0x1010  /* interrupt status register */
-#define   TALITOS_ISR_CHERR		0xaa    /* channel errors mask */
-#define   TALITOS_ISR_CHDONE		0x55    /* channel done mask */
+#define   TALITOS_ISR_4CHERR		0xaa    /* 4 channel errors mask */
+#define   TALITOS_ISR_4CHDONE		0x55    /* 4 channel done mask */
+#define   TALITOS_ISR_CH_0_2_ERR	0x22    /* channels 0, 2 errors mask */
+#define   TALITOS_ISR_CH_0_2_DONE	0x11    /* channels 0, 2 done mask */
+#define   TALITOS_ISR_CH_1_3_ERR	0x88    /* channels 1, 3 errors mask */
+#define   TALITOS_ISR_CH_1_3_DONE	0x44    /* channels 1, 3 done mask */
 #define TALITOS_ISR_LO			0x1014
 #define TALITOS_ICR			0x1018  /* interrupt clear register */
 #define TALITOS_ICR_LO			0x101C
