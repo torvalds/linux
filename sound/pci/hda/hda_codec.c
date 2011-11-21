@@ -5066,6 +5066,16 @@ const char *hda_get_autocfg_input_label(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_HDA(hda_get_autocfg_input_label);
 
+/* return the position of NID in the list, or -1 if not found */
+static int find_idx_in_nid_list(hda_nid_t nid, const hda_nid_t *list, int nums)
+{
+	int i;
+	for (i = 0; i < nums; i++)
+		if (list[i] == nid)
+			return i;
+	return -1;
+}
+
 /* get a unique suffix or an index number */
 static const char *check_output_sfx(hda_nid_t nid, const hda_nid_t *pins,
 				    int num_pins, int *indexp)
@@ -5075,19 +5085,17 @@ static const char *check_output_sfx(hda_nid_t nid, const hda_nid_t *pins,
 	};
 	int i;
 
-	for (i = 0; i < num_pins; i++) {
-		if (pins[i] == nid) {
-			if (num_pins == 1)
-				return "";
-			if (num_pins > ARRAY_SIZE(channel_sfx)) {
-				if (indexp)
-					*indexp = i;
-				return "";
-			}
-			return channel_sfx[i];
-		}
+	i = find_idx_in_nid_list(nid, pins, num_pins);
+	if (i < 0)
+		return NULL;
+	if (num_pins == 1)
+		return "";
+	if (num_pins > ARRAY_SIZE(channel_sfx)) {
+		if (indexp)
+			*indexp = i;
+		return "";
 	}
-	return NULL;
+	return channel_sfx[i];
 }
 
 static int fill_audio_out_name(struct hda_codec *codec, hda_nid_t nid,
@@ -5116,13 +5124,16 @@ static int fill_audio_out_name(struct hda_codec *codec, hda_nid_t nid,
 		sfx = check_output_sfx(nid, cfg->line_out_pins, cfg->line_outs,
 				       indexp);
 		if (!sfx)
-			sfx = check_output_sfx(nid, cfg->hp_pins, cfg->hp_outs,
-					       indexp);
-		if (!sfx)
 			sfx = check_output_sfx(nid, cfg->speaker_pins, cfg->speaker_outs,
 					       indexp);
-		if (!sfx)
+		if (!sfx) {
+			/* don't add channel suffix for Headphone controls */
+			int idx = find_idx_in_nid_list(nid, cfg->hp_pins,
+						       cfg->hp_outs);
+			if (idx >= 0)
+				*indexp = idx;
 			sfx = "";
+		}
 	}
 	snprintf(label, maxlen, "%s%s%s", pfx, name, sfx);
 	return 1;
@@ -5171,11 +5182,10 @@ int snd_hda_get_pin_label(struct hda_codec *codec, hda_nid_t nid,
 		else
 			name = "SPDIF";
 		if (cfg && indexp) {
-			for (i = 0; i < cfg->dig_outs; i++)
-				if (cfg->dig_out_pins[i] == nid) {
-					*indexp = i;
-					break;
-				}
+			i = find_idx_in_nid_list(nid, cfg->dig_out_pins,
+						 cfg->dig_outs);
+			if (i >= 0)
+				*indexp = i;
 		}
 		break;
 	default:
