@@ -397,7 +397,7 @@ int security_path_mknod(struct path *dir, struct dentry *dentry, int mode,
 }
 EXPORT_SYMBOL(security_path_mknod);
 
-int security_path_mkdir(struct path *dir, struct dentry *dentry, int mode)
+int security_path_mkdir(struct path *dir, struct dentry *dentry, umode_t mode)
 {
 	if (unlikely(IS_PRIVATE(dir->dentry->d_inode)))
 		return 0;

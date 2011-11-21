@@ -1424,7 +1424,7 @@ struct security_operations {
 
 #ifdef CONFIG_SECURITY_PATH
 	int (*path_unlink) (struct path *dir, struct dentry *dentry);
-	int (*path_mkdir) (struct path *dir, struct dentry *dentry, int mode);
+	int (*path_mkdir) (struct path *dir, struct dentry *dentry, umode_t mode);
 	int (*path_rmdir) (struct path *dir, struct dentry *dentry);
 	int (*path_mknod) (struct path *dir, struct dentry *dentry, int mode,
 			   unsigned int dev);
@@ -2855,7 +2855,7 @@ static inline void security_skb_classify_flow(struct sk_buff *skb, struct flowi 
 
 #ifdef CONFIG_SECURITY_PATH
 int security_path_unlink(struct path *dir, struct dentry *dentry);
-int security_path_mkdir(struct path *dir, struct dentry *dentry, int mode);
+int security_path_mkdir(struct path *dir, struct dentry *dentry, umode_t mode);
 int security_path_rmdir(struct path *dir, struct dentry *dentry);
 int security_path_mknod(struct path *dir, struct dentry *dentry, int mode,
 			unsigned int dev);
@@ -2877,7 +2877,7 @@ static inline int security_path_unlink(struct path *dir, struct dentry *dentry)
 }
 
 static inline int security_path_mkdir(struct path *dir, struct dentry *dentry,
-				      int mode)
+				      umode_t mode)
 {
 	return 0;
 }

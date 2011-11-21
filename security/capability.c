@@ -241,7 +241,7 @@ static int cap_path_mknod(struct path *dir, struct dentry *dentry, int mode,
 	return 0;
 }
 
-static int cap_path_mkdir(struct path *dir, struct dentry *dentry, int mode)
+static int cap_path_mkdir(struct path *dir, struct dentry *dentry, umode_t mode)
 {
 	return 0;
 }
