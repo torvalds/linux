@@ -40,6 +40,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define MODULE_NAME "mr97310a"
 
 #include "gspca.h"
@@ -267,7 +269,7 @@ static int mr_write(struct gspca_dev *gspca_dev, int len)
 			  usb_sndbulkpipe(gspca_dev->dev, 4),
 			  gspca_dev->usb_buf, len, NULL, 500);
 	if (rc < 0)
-		err("reg write [%02x] error %d",
+		pr_err("reg write [%02x] error %d\n",
 		       gspca_dev->usb_buf[0], rc);
 	return rc;
 }
@@ -281,7 +283,7 @@ static int mr_read(struct gspca_dev *gspca_dev, int len)
 			  usb_rcvbulkpipe(gspca_dev->dev, 3),
 			  gspca_dev->usb_buf, len, NULL, 500);
 	if (rc < 0)
-		err("reg read [%02x] error %d",
+		pr_err("reg read [%02x] error %d\n",
 		       gspca_dev->usb_buf[0], rc);
 	return rc;
 }
@@ -540,7 +542,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			sd->sensor_type = 1;
 			break;
 		default:
-			err("Unknown CIF Sensor id : %02x",
+			pr_err("Unknown CIF Sensor id : %02x\n",
 			       gspca_dev->usb_buf[1]);
 			return -ENODEV;
 		}
@@ -575,10 +577,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			sd->sensor_type = 2;
 		} else if ((gspca_dev->usb_buf[0] != 0x03) &&
 					(gspca_dev->usb_buf[0] != 0x04)) {
-			err("Unknown VGA Sensor id Byte 0: %02x",
-					gspca_dev->usb_buf[0]);
-			err("Defaults assumed, may not work");
-			err("Please report this");
+			pr_err("Unknown VGA Sensor id Byte 0: %02x\n",
+			       gspca_dev->usb_buf[0]);
+			pr_err("Defaults assumed, may not work\n");
+			pr_err("Please report this\n");
 		}
 		/* Sakar Digital color needs to be adjusted. */
 		if ((gspca_dev->usb_buf[0] == 0x03) &&
@@ -595,10 +597,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 				/* Nothing to do here. */
 				break;
 			default:
-				err("Unknown VGA Sensor id Byte 1: %02x",
-					gspca_dev->usb_buf[1]);
-				err("Defaults assumed, may not work");
-				err("Please report this");
+				pr_err("Unknown VGA Sensor id Byte 1: %02x\n",
+				       gspca_dev->usb_buf[1]);
+				pr_err("Defaults assumed, may not work\n");
+				pr_err("Please report this\n");
 			}
 		}
 		PDEBUG(D_PROBE, "MR97310A VGA camera detected, sensor: %d",

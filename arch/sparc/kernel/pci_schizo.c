@@ -8,6 +8,7 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/of_device.h>
 

@@ -5,6 +5,7 @@
  * any workload, CPU or specific PID.
  *
  * Copyright (C) 2008, Red Hat Inc, Ingo Molnar <mingo@redhat.com>
+ *		 2011, Red Hat Inc, Arnaldo Carvalho de Melo <acme@redhat.com>
  *
  * Improvements and fixes by:
  *
@@ -36,6 +37,7 @@
 #include "util/parse-events.h"
 #include "util/cpumap.h"
 #include "util/xyarray.h"
+#include "util/sort.h"
 
 #include "util/debug.h"
 
@@ -65,18 +67,20 @@
 static struct perf_top top = {
 	.count_filter		= 5,
 	.delay_secs		= 2,
-	.display_weighted	= -1,
 	.target_pid		= -1,
 	.target_tid		= -1,
-	.active_symbols		= LIST_HEAD_INIT(top.active_symbols),
-	.active_symbols_lock	= PTHREAD_MUTEX_INITIALIZER,
-	.active_symbols_cond	= PTHREAD_COND_INITIALIZER,
 	.freq			= 1000, /* 1 KHz */
 };
 
 static bool			system_wide			=  false;
 
 static bool			use_tui, use_stdio;
+
+static bool			sort_has_symbols;
+
+static bool			dont_use_callchains;
+static char			callchain_default_opt[]		= "fractal,0.5,callee";
+
 
 static int			default_interval		=      0;
 
@@ -85,7 +89,7 @@ static bool			vmlinux_warned;
 static bool			inherit				=  false;
 static int			realtime_prio			=      0;
 static bool			group				=  false;
-static unsigned int		page_size;
+static bool			sample_id_all_avail		=   true;
 static unsigned int		mmap_pages			=    128;
 
 static bool			dump_symtab                     =  false;
@@ -93,7 +97,6 @@ static bool			dump_symtab                     =  false;
 static struct winsize		winsize;
 
 static const char		*sym_filter			=   NULL;
-struct sym_entry		*sym_filter_entry_sched		=   NULL;
 static int			sym_pcnt_filter			=      5;
 
 /*
@@ -136,18 +139,18 @@ static void sig_winch_handler(int sig __used)
 	update_print_entries(&winsize);
 }
 
-static int parse_source(struct sym_entry *syme)
+static int parse_source(struct hist_entry *he)
 {
 	struct symbol *sym;
 	struct annotation *notes;
 	struct map *map;
 	int err = -1;
 
-	if (!syme)
+	if (!he || !he->ms.sym)
 		return -1;
 
-	sym = sym_entry__symbol(syme);
-	map = syme->map;
+	sym = he->ms.sym;
+	map = he->ms.map;
 
 	/*
 	 * We can't annotate with just /proc/kallsyms
@@ -175,53 +178,63 @@ static int parse_source(struct sym_entry *syme)
 		return err;
 	}
 
-	err = symbol__annotate(sym, syme->map, 0);
+	err = symbol__annotate(sym, map, 0);
 	if (err == 0) {
 out_assign:
-		top.sym_filter_entry = syme;
+		top.sym_filter_entry = he;
 	}
 
 	pthread_mutex_unlock(&notes->lock);
 	return err;
 }
 
-static void __zero_source_counters(struct sym_entry *syme)
+static void __zero_source_counters(struct hist_entry *he)
 {
-	struct symbol *sym = sym_entry__symbol(syme);
+	struct symbol *sym = he->ms.sym;
 	symbol__annotate_zero_histograms(sym);
 }
 
-static void record_precise_ip(struct sym_entry *syme, struct map *map,
-			      int counter, u64 ip)
+static void record_precise_ip(struct hist_entry *he, int counter, u64 ip)
 {
 	struct annotation *notes;
 	struct symbol *sym;
 
-	if (syme != top.sym_filter_entry)
+	if (he == NULL || he->ms.sym == NULL ||
+	    ((top.sym_filter_entry == NULL ||
+	      top.sym_filter_entry->ms.sym != he->ms.sym) && use_browser != 1))
 		return;
 
-	sym = sym_entry__symbol(syme);
+	sym = he->ms.sym;
 	notes = symbol__annotation(sym);
 
 	if (pthread_mutex_trylock(&notes->lock))
 		return;
 
-	ip = map->map_ip(map, ip);
-	symbol__inc_addr_samples(sym, map, counter, ip);
+	if (notes->src == NULL &&
+	    symbol__alloc_hist(sym, top.evlist->nr_entries) < 0) {
+		pthread_mutex_unlock(&notes->lock);
+		pr_err("Not enough memory for annotating '%s' symbol!\n",
+		       sym->name);
+		sleep(1);
+		return;
+	}
+
+	ip = he->ms.map->map_ip(he->ms.map, ip);
+	symbol__inc_addr_samples(sym, he->ms.map, counter, ip);
 
 	pthread_mutex_unlock(&notes->lock);
 }
 
-static void show_details(struct sym_entry *syme)
+static void show_details(struct hist_entry *he)
 {
 	struct annotation *notes;
 	struct symbol *symbol;
 	int more;
 
-	if (!syme)
+	if (!he)
 		return;
 
-	symbol = sym_entry__symbol(syme);
+	symbol = he->ms.sym;
 	notes = symbol__annotation(symbol);
 
 	pthread_mutex_lock(&notes->lock);
@@ -232,7 +245,7 @@ static void show_details(struct sym_entry *syme)
 	printf("Showing %s for %s\n", event_name(top.sym_evsel), symbol->name);
 	printf("  Events  Pcnt (>=%d%%)\n", sym_pcnt_filter);
 
-	more = symbol__annotate_printf(symbol, syme->map, top.sym_evsel->idx,
+	more = symbol__annotate_printf(symbol, he->ms.map, top.sym_evsel->idx,
 				       0, sym_pcnt_filter, top.print_entries, 4);
 	if (top.zero)
 		symbol__annotate_zero_histogram(symbol, top.sym_evsel->idx);
@@ -246,21 +259,28 @@ out_unlock:
 
 static const char		CONSOLE_CLEAR[] = "[H[2J";
 
-static void __list_insert_active_sym(struct sym_entry *syme)
+static struct hist_entry *
+	perf_session__add_hist_entry(struct perf_session *session,
+				     struct addr_location *al,
+				     struct perf_sample *sample,
+				     struct perf_evsel *evsel)
 {
-	list_add(&syme->node, &top.active_symbols);
+	struct hist_entry *he;
+
+	he = __hists__add_entry(&evsel->hists, al, NULL, sample->period);
+	if (he == NULL)
+		return NULL;
+
+	session->hists.stats.total_period += sample->period;
+	hists__inc_nr_events(&evsel->hists, PERF_RECORD_SAMPLE);
+	return he;
 }
 
-static void print_sym_table(struct perf_session *session)
+static void print_sym_table(void)
 {
 	char bf[160];
 	int printed = 0;
-	struct rb_node *nd;
-	struct sym_entry *syme;
-	struct rb_root tmp = RB_ROOT;
 	const int win_width = winsize.ws_col - 1;
-	int sym_width, dso_width, dso_short_width;
-	float sum_ksamples = perf_top__decay_samples(&top, &tmp);
 
 	puts(CONSOLE_CLEAR);
 
@@ -271,10 +291,14 @@ static void print_sym_table(struct perf_session *session)
 
 	printf("%-*.*s\n", win_width, win_width, graph_dotted_line);
 
-	if (session->hists.stats.total_lost != 0) {
-		color_fprintf(stdout, PERF_COLOR_RED, "WARNING:");
-		printf(" LOST %" PRIu64 " events, Check IO/CPU overload\n",
-		       session->hists.stats.total_lost);
+	if (top.sym_evsel->hists.stats.nr_lost_warned !=
+	    top.sym_evsel->hists.stats.nr_events[PERF_RECORD_LOST]) {
+		top.sym_evsel->hists.stats.nr_lost_warned =
+			top.sym_evsel->hists.stats.nr_events[PERF_RECORD_LOST];
+		color_fprintf(stdout, PERF_COLOR_RED,
+			      "WARNING: LOST %d chunks, Check IO/CPU overload",
+			      top.sym_evsel->hists.stats.nr_lost_warned);
+		++printed;
 	}
 
 	if (top.sym_filter_entry) {
@@ -282,58 +306,15 @@ static void print_sym_table(struct perf_session *session)
 		return;
 	}
 
-	perf_top__find_widths(&top, &tmp, &dso_width, &dso_short_width,
-			      &sym_width);
-
-	if (sym_width + dso_width > winsize.ws_col - 29) {
-		dso_width = dso_short_width;
-		if (sym_width + dso_width > winsize.ws_col - 29)
-			sym_width = winsize.ws_col - dso_width - 29;
-	}
+	hists__collapse_resort_threaded(&top.sym_evsel->hists);
+	hists__output_resort_threaded(&top.sym_evsel->hists);
+	hists__decay_entries_threaded(&top.sym_evsel->hists,
+				      top.hide_user_symbols,
+				      top.hide_kernel_symbols);
+	hists__output_recalc_col_len(&top.sym_evsel->hists, winsize.ws_row - 3);
 	putchar('\n');
-	if (top.evlist->nr_entries == 1)
-		printf("             samples  pcnt");
-	else
-		printf("   weight    samples  pcnt");
-
-	if (verbose)
-		printf("         RIP       ");
-	printf(" %-*.*s DSO\n", sym_width, sym_width, "function");
-	printf("   %s    _______ _____",
-	       top.evlist->nr_entries == 1 ? "      " : "______");
-	if (verbose)
-		printf(" ________________");
-	printf(" %-*.*s", sym_width, sym_width, graph_line);
-	printf(" %-*.*s", dso_width, dso_width, graph_line);
-	puts("\n");
-
-	for (nd = rb_first(&tmp); nd; nd = rb_next(nd)) {
-		struct symbol *sym;
-		double pcnt;
-
-		syme = rb_entry(nd, struct sym_entry, rb_node);
-		sym = sym_entry__symbol(syme);
-		if (++printed > top.print_entries ||
-		    (int)syme->snap_count < top.count_filter)
-			continue;
-
-		pcnt = 100.0 - (100.0 * ((sum_ksamples - syme->snap_count) /
-					 sum_ksamples));
-
-		if (top.evlist->nr_entries == 1 || !top.display_weighted)
-			printf("%20.2f ", syme->weight);
-		else
-			printf("%9.1f %10ld ", syme->weight, syme->snap_count);
-
-		percent_color_fprintf(stdout, "%4.1f%%", pcnt);
-		if (verbose)
-			printf(" %016" PRIx64, sym->start);
-		printf(" %-*.*s", sym_width, sym_width, sym->name);
-		printf(" %-*.*s\n", dso_width, dso_width,
-		       dso_width >= syme->map->dso->long_name_len ?
-					syme->map->dso->long_name :
-					syme->map->dso->short_name);
-	}
+	hists__fprintf(&top.sym_evsel->hists, NULL, false, false,
+		       winsize.ws_row - 4 - printed, win_width, stdout);
 }
 
 static void prompt_integer(int *target, const char *msg)
@@ -371,10 +352,11 @@ static void prompt_percent(int *target, const char *msg)
 		*target = tmp;
 }
 
-static void prompt_symbol(struct sym_entry **target, const char *msg)
+static void prompt_symbol(struct hist_entry **target, const char *msg)
 {
 	char *buf = malloc(0), *p;
-	struct sym_entry *syme = *target, *n, *found = NULL;
+	struct hist_entry *syme = *target, *n, *found = NULL;
+	struct rb_node *next;
 	size_t dummy = 0;
 
 	/* zero counters of active symbol */
@@ -391,17 +373,14 @@ static void prompt_symbol(struct sym_entry **target, const char *msg)
 	if (p)
 		*p = 0;
 
-	pthread_mutex_lock(&top.active_symbols_lock);
-	syme = list_entry(top.active_symbols.next, struct sym_entry, node);
-	pthread_mutex_unlock(&top.active_symbols_lock);
-
-	list_for_each_entry_safe_from(syme, n, &top.active_symbols, node) {
-		struct symbol *sym = sym_entry__symbol(syme);
-
-		if (!strcmp(buf, sym->name)) {
-			found = syme;
+	next = rb_first(&top.sym_evsel->hists.entries);
+	while (next) {
+		n = rb_entry(next, struct hist_entry, rb_node);
+		if (n->ms.sym && !strcmp(buf, n->ms.sym->name)) {
+			found = n;
 			break;
 		}
+		next = rb_next(&n->rb_node);
 	}
 
 	if (!found) {
@@ -420,7 +399,7 @@ static void print_mapped_keys(void)
 	char *name = NULL;
 
 	if (top.sym_filter_entry) {
-		struct symbol *sym = sym_entry__symbol(top.sym_filter_entry);
+		struct symbol *sym = top.sym_filter_entry->ms.sym;
 		name = sym->name;
 	}
 
@@ -436,9 +415,6 @@ static void print_mapped_keys(void)
 	fprintf(stdout, "\t[F]     annotate display filter (percent). \t(%d%%)\n", sym_pcnt_filter);
 	fprintf(stdout, "\t[s]     annotate symbol.                   \t(%s)\n", name?: "NULL");
 	fprintf(stdout, "\t[S]     stop annotation.\n");
-
-	if (top.evlist->nr_entries > 1)
-		fprintf(stdout, "\t[w]     toggle display weighted/count[E]r. \t(%d)\n", top.display_weighted ? 1 : 0);
 
 	fprintf(stdout,
 		"\t[K]     hide kernel_symbols symbols.     \t(%s)\n",
@@ -466,7 +442,6 @@ static int key_mapped(int c)
 		case 'S':
 			return 1;
 		case 'E':
-		case 'w':
 			return top.evlist->nr_entries > 1 ? 1 : 0;
 		default:
 			break;
@@ -475,7 +450,7 @@ static int key_mapped(int c)
 	return 0;
 }
 
-static void handle_keypress(struct perf_session *session, int c)
+static void handle_keypress(int c)
 {
 	if (!key_mapped(c)) {
 		struct pollfd stdin_poll = { .fd = 0, .events = POLLIN };
@@ -551,7 +526,7 @@ static void handle_keypress(struct perf_session *session, int c)
 		case 'Q':
 			printf("exiting.\n");
 			if (dump_symtab)
-				perf_session__fprintf_dsos(session, stderr);
+				perf_session__fprintf_dsos(top.session, stderr);
 			exit(0);
 		case 's':
 			prompt_symbol(&top.sym_filter_entry, "Enter details symbol");
@@ -560,7 +535,7 @@ static void handle_keypress(struct perf_session *session, int c)
 			if (!top.sym_filter_entry)
 				break;
 			else {
-				struct sym_entry *syme = top.sym_filter_entry;
+				struct hist_entry *syme = top.sym_filter_entry;
 
 				top.sym_filter_entry = NULL;
 				__zero_source_counters(syme);
@@ -568,9 +543,6 @@ static void handle_keypress(struct perf_session *session, int c)
 			break;
 		case 'U':
 			top.hide_user_symbols = !top.hide_user_symbols;
-			break;
-		case 'w':
-			top.display_weighted = ~top.display_weighted;
 			break;
 		case 'z':
 			top.zero = !top.zero;
@@ -580,19 +552,30 @@ static void handle_keypress(struct perf_session *session, int c)
 	}
 }
 
+static void perf_top__sort_new_samples(void *arg)
+{
+	struct perf_top *t = arg;
+	perf_top__reset_sample_counters(t);
+
+	if (t->evlist->selected != NULL)
+		t->sym_evsel = t->evlist->selected;
+
+	hists__collapse_resort_threaded(&t->sym_evsel->hists);
+	hists__output_resort_threaded(&t->sym_evsel->hists);
+	hists__decay_entries_threaded(&t->sym_evsel->hists,
+				      top.hide_user_symbols,
+				      top.hide_kernel_symbols);
+}
+
 static void *display_thread_tui(void *arg __used)
 {
-	int err = 0;
-	pthread_mutex_lock(&top.active_symbols_lock);
-	while (list_empty(&top.active_symbols)) {
-		err = pthread_cond_wait(&top.active_symbols_cond,
-					&top.active_symbols_lock);
-		if (err)
-			break;
-	}
-	pthread_mutex_unlock(&top.active_symbols_lock);
-	if (!err)
-		perf_top__tui_browser(&top);
+	const char *help = "For a higher level overview, try: perf top --sort comm,dso";
+
+	perf_top__sort_new_samples(&top);
+	perf_evlist__tui_browse_hists(top.evlist, help,
+				      perf_top__sort_new_samples,
+				      &top, top.delay_secs);
+
 	exit_browser(0);
 	exit(0);
 	return NULL;
@@ -603,7 +586,6 @@ static void *display_thread(void *arg __used)
 	struct pollfd stdin_poll = { .fd = 0, .events = POLLIN };
 	struct termios tc, save;
 	int delay_msecs, c;
-	struct perf_session *session = (struct perf_session *) arg;
 
 	tcgetattr(0, &save);
 	tc = save;
@@ -611,20 +593,35 @@ static void *display_thread(void *arg __used)
 	tc.c_cc[VMIN] = 0;
 	tc.c_cc[VTIME] = 0;
 
+	pthread__unblock_sigwinch();
 repeat:
 	delay_msecs = top.delay_secs * 1000;
 	tcsetattr(0, TCSANOW, &tc);
 	/* trash return*/
 	getc(stdin);
 
-	do {
-		print_sym_table(session);
-	} while (!poll(&stdin_poll, 1, delay_msecs) == 1);
-
+	while (1) {
+		print_sym_table();
+		/*
+		 * Either timeout expired or we got an EINTR due to SIGWINCH,
+		 * refresh screen in both cases.
+		 */
+		switch (poll(&stdin_poll, 1, delay_msecs)) {
+		case 0:
+			continue;
+		case -1:
+			if (errno == EINTR)
+				continue;
+			/* Fall trhu */
+		default:
+			goto process_hotkey;
+		}
+	}
+process_hotkey:
 	c = getc(stdin);
 	tcsetattr(0, TCSAFLUSH, &save);
 
-	handle_keypress(session, c);
+	handle_keypress(c);
 	goto repeat;
 
 	return NULL;
@@ -645,9 +642,8 @@ static const char *skip_symbols[] = {
 	NULL
 };
 
-static int symbol_filter(struct map *map, struct symbol *sym)
+static int symbol_filter(struct map *map __used, struct symbol *sym)
 {
-	struct sym_entry *syme;
 	const char *name = sym->name;
 	int i;
 
@@ -667,16 +663,6 @@ static int symbol_filter(struct map *map, struct symbol *sym)
 	    strstr(name, "_text_end"))
 		return 1;
 
-	syme = symbol__priv(sym);
-	syme->map = map;
-	symbol__annotate_init(map, sym);
-
-	if (!top.sym_filter_entry && sym_filter && !strcmp(name, sym_filter)) {
-		/* schedule initial sym_filter_entry setup */
-		sym_filter_entry_sched = syme;
-		sym_filter = NULL;
-	}
-
 	for (i = 0; skip_symbols[i]; i++) {
 		if (!strcmp(skip_symbols[i], name)) {
 			sym->ignore = true;
@@ -688,13 +674,15 @@ static int symbol_filter(struct map *map, struct symbol *sym)
 }
 
 static void perf_event__process_sample(const union perf_event *event,
+				       struct perf_evsel *evsel,
 				       struct perf_sample *sample,
 				       struct perf_session *session)
 {
+	struct symbol *parent = NULL;
 	u64 ip = event->ip.ip;
-	struct sym_entry *syme;
 	struct addr_location al;
 	struct machine *machine;
+	int err;
 	u8 origin = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
 	++top.samples;
@@ -783,51 +771,43 @@ static void perf_event__process_sample(const union perf_event *event,
 				sleep(5);
 			vmlinux_warned = true;
 		}
-
-		return;
 	}
 
-	/* let's see, whether we need to install initial sym_filter_entry */
-	if (sym_filter_entry_sched) {
-		top.sym_filter_entry = sym_filter_entry_sched;
-		sym_filter_entry_sched = NULL;
-		if (parse_source(top.sym_filter_entry) < 0) {
-			struct symbol *sym = sym_entry__symbol(top.sym_filter_entry);
+	if (al.sym == NULL || !al.sym->ignore) {
+		struct hist_entry *he;
 
-			pr_err("Can't annotate %s", sym->name);
-			if (top.sym_filter_entry->map->dso->symtab_type == SYMTAB__KALLSYMS) {
-				pr_err(": No vmlinux file was found in the path:\n");
-				machine__fprintf_vmlinux_path(machine, stderr);
-			} else
-				pr_err(".\n");
-			exit(1);
+		if ((sort__has_parent || symbol_conf.use_callchain) &&
+		    sample->callchain) {
+			err = perf_session__resolve_callchain(session, al.thread,
+							      sample->callchain, &parent);
+			if (err)
+				return;
 		}
-	}
 
-	syme = symbol__priv(al.sym);
-	if (!al.sym->ignore) {
-		struct perf_evsel *evsel;
-
-		evsel = perf_evlist__id2evsel(top.evlist, sample->id);
-		assert(evsel != NULL);
-		syme->count[evsel->idx]++;
-		record_precise_ip(syme, al.map, evsel->idx, ip);
-		pthread_mutex_lock(&top.active_symbols_lock);
-		if (list_empty(&syme->node) || !syme->node.next) {
-			static bool first = true;
-			__list_insert_active_sym(syme);
-			if (first) {
-				pthread_cond_broadcast(&top.active_symbols_cond);
-				first = false;
-			}
+		he = perf_session__add_hist_entry(session, &al, sample, evsel);
+		if (he == NULL) {
+			pr_err("Problem incrementing symbol period, skipping event\n");
+			return;
 		}
-		pthread_mutex_unlock(&top.active_symbols_lock);
+
+		if (symbol_conf.use_callchain) {
+			err = callchain_append(he->callchain, &session->callchain_cursor,
+					       sample->period);
+			if (err)
+				return;
+		}
+
+		if (sort_has_symbols)
+			record_precise_ip(he, evsel->idx, ip);
 	}
+
+	return;
 }
 
 static void perf_session__mmap_read_idx(struct perf_session *self, int idx)
 {
 	struct perf_sample sample;
+	struct perf_evsel *evsel;
 	union perf_event *event;
 	int ret;
 
@@ -838,10 +818,16 @@ static void perf_session__mmap_read_idx(struct perf_session *self, int idx)
 			continue;
 		}
 
+		evsel = perf_evlist__id2evsel(self->evlist, sample.id);
+		assert(evsel != NULL);
+
 		if (event->header.type == PERF_RECORD_SAMPLE)
-			perf_event__process_sample(event, &sample, self);
-		else
+			perf_event__process_sample(event, evsel, &sample, self);
+		else if (event->header.type < PERF_RECORD_MAX) {
+			hists__inc_nr_events(&evsel->hists, event->header.type);
 			perf_event__process(event, &sample, self);
+		} else
+			++self->hists.stats.nr_unknown_events;
 	}
 }
 
@@ -855,10 +841,16 @@ static void perf_session__mmap_read(struct perf_session *self)
 
 static void start_counters(struct perf_evlist *evlist)
 {
-	struct perf_evsel *counter;
+	struct perf_evsel *counter, *first;
+
+	first = list_entry(evlist->entries.next, struct perf_evsel, node);
 
 	list_for_each_entry(counter, &evlist->entries, node) {
 		struct perf_event_attr *attr = &counter->attr;
+		struct xyarray *group_fd = NULL;
+
+		if (group && counter != first)
+			group_fd = first->fd;
 
 		attr->sample_type = PERF_SAMPLE_IP | PERF_SAMPLE_TID;
 
@@ -873,16 +865,29 @@ static void start_counters(struct perf_evlist *evlist)
 			attr->read_format |= PERF_FORMAT_ID;
 		}
 
+		if (symbol_conf.use_callchain)
+			attr->sample_type |= PERF_SAMPLE_CALLCHAIN;
+
 		attr->mmap = 1;
+		attr->comm = 1;
 		attr->inherit = inherit;
+retry_sample_id:
+		attr->sample_id_all = sample_id_all_avail ? 1 : 0;
 try_again:
 		if (perf_evsel__open(counter, top.evlist->cpus,
-				     top.evlist->threads, group) < 0) {
+				     top.evlist->threads, group,
+				     group_fd) < 0) {
 			int err = errno;
 
 			if (err == EPERM || err == EACCES) {
-				ui__warning_paranoid();
+				ui__error_paranoid();
 				goto out_err;
+			} else if (err == EINVAL && sample_id_all_avail) {
+				/*
+				 * Old kernel, no attr->sample_id_type_all field
+				 */
+				sample_id_all_avail = false;
+				goto retry_sample_id;
 			}
 			/*
 			 * If it's cycles then fall back to hrtimer
@@ -928,35 +933,56 @@ out_err:
 	exit(0);
 }
 
+static int setup_sample_type(void)
+{
+	if (!sort_has_symbols) {
+		if (symbol_conf.use_callchain) {
+			ui__warning("Selected -g but \"sym\" not present in --sort/-s.");
+			return -EINVAL;
+		}
+	} else if (!dont_use_callchains && callchain_param.mode != CHAIN_NONE) {
+		if (callchain_register_param(&callchain_param) < 0) {
+			ui__warning("Can't register callchain params.\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int __cmd_top(void)
 {
 	pthread_t thread;
-	int ret __used;
+	int ret;
 	/*
 	 * FIXME: perf_session__new should allow passing a O_MMAP, so that all this
 	 * mmap reading, etc is encapsulated in it. Use O_WRONLY for now.
 	 */
-	struct perf_session *session = perf_session__new(NULL, O_WRONLY, false, false, NULL);
-	if (session == NULL)
+	top.session = perf_session__new(NULL, O_WRONLY, false, false, NULL);
+	if (top.session == NULL)
 		return -ENOMEM;
+
+	ret = setup_sample_type();
+	if (ret)
+		goto out_delete;
 
 	if (top.target_tid != -1)
 		perf_event__synthesize_thread_map(top.evlist->threads,
-						  perf_event__process, session);
+						  perf_event__process, top.session);
 	else
-		perf_event__synthesize_threads(perf_event__process, session);
+		perf_event__synthesize_threads(perf_event__process, top.session);
 
 	start_counters(top.evlist);
-	session->evlist = top.evlist;
-	perf_session__update_sample_type(session);
+	top.session->evlist = top.evlist;
+	perf_session__update_sample_type(top.session);
 
 	/* Wait for a minimal set of events before starting the snapshot */
 	poll(top.evlist->pollfd, top.evlist->nr_fds, 100);
 
-	perf_session__mmap_read(session);
+	perf_session__mmap_read(top.session);
 
 	if (pthread_create(&thread, NULL, (use_browser > 0 ? display_thread_tui :
-							     display_thread), session)) {
+							     display_thread), NULL)) {
 		printf("Could not create display thread.\n");
 		exit(-1);
 	}
@@ -974,12 +1000,96 @@ static int __cmd_top(void)
 	while (1) {
 		u64 hits = top.samples;
 
-		perf_session__mmap_read(session);
+		perf_session__mmap_read(top.session);
 
 		if (hits == top.samples)
 			ret = poll(top.evlist->pollfd, top.evlist->nr_fds, 100);
 	}
 
+out_delete:
+	perf_session__delete(top.session);
+	top.session = NULL;
+
+	return 0;
+}
+
+static int
+parse_callchain_opt(const struct option *opt __used, const char *arg,
+		    int unset)
+{
+	char *tok, *tok2;
+	char *endptr;
+
+	/*
+	 * --no-call-graph
+	 */
+	if (unset) {
+		dont_use_callchains = true;
+		return 0;
+	}
+
+	symbol_conf.use_callchain = true;
+
+	if (!arg)
+		return 0;
+
+	tok = strtok((char *)arg, ",");
+	if (!tok)
+		return -1;
+
+	/* get the output mode */
+	if (!strncmp(tok, "graph", strlen(arg)))
+		callchain_param.mode = CHAIN_GRAPH_ABS;
+
+	else if (!strncmp(tok, "flat", strlen(arg)))
+		callchain_param.mode = CHAIN_FLAT;
+
+	else if (!strncmp(tok, "fractal", strlen(arg)))
+		callchain_param.mode = CHAIN_GRAPH_REL;
+
+	else if (!strncmp(tok, "none", strlen(arg))) {
+		callchain_param.mode = CHAIN_NONE;
+		symbol_conf.use_callchain = false;
+
+		return 0;
+	}
+
+	else
+		return -1;
+
+	/* get the min percentage */
+	tok = strtok(NULL, ",");
+	if (!tok)
+		goto setup;
+
+	callchain_param.min_percent = strtod(tok, &endptr);
+	if (tok == endptr)
+		return -1;
+
+	/* get the print limit */
+	tok2 = strtok(NULL, ",");
+	if (!tok2)
+		goto setup;
+
+	if (tok2[0] != 'c') {
+		callchain_param.print_limit = strtod(tok2, &endptr);
+		tok2 = strtok(NULL, ",");
+		if (!tok2)
+			goto setup;
+	}
+
+	/* get the call chain order */
+	if (!strcmp(tok2, "caller"))
+		callchain_param.order = ORDER_CALLER;
+	else if (!strcmp(tok2, "callee"))
+		callchain_param.order = ORDER_CALLEE;
+	else
+		return -1;
+setup:
+	if (callchain_register_param(&callchain_param) < 0) {
+		fprintf(stderr, "Can't register callchain params\n");
+		return -1;
+	}
 	return 0;
 }
 
@@ -1019,7 +1129,7 @@ static const struct option options[] = {
 			    "put the counters into a counter group"),
 	OPT_BOOLEAN('i', "inherit", &inherit,
 		    "child tasks inherit counters"),
-	OPT_STRING('s', "sym-annotate", &sym_filter, "symbol name",
+	OPT_STRING(0, "sym-annotate", &sym_filter, "symbol name",
 		    "symbol to annotate"),
 	OPT_BOOLEAN('z', "zero", &top.zero,
 		    "zero history across updates"),
@@ -1033,6 +1143,28 @@ static const struct option options[] = {
 	OPT_BOOLEAN(0, "stdio", &use_stdio, "Use the stdio interface"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show counter open errors, etc)"),
+	OPT_STRING('s', "sort", &sort_order, "key[,key2...]",
+		   "sort by key(s): pid, comm, dso, symbol, parent"),
+	OPT_BOOLEAN('n', "show-nr-samples", &symbol_conf.show_nr_samples,
+		    "Show a column with the number of samples"),
+	OPT_CALLBACK_DEFAULT('G', "call-graph", NULL, "output_type,min_percent, call_order",
+		     "Display callchains using output_type (graph, flat, fractal, or none), min percent threshold and callchain order. "
+		     "Default: fractal,0.5,callee", &parse_callchain_opt,
+		     callchain_default_opt),
+	OPT_BOOLEAN(0, "show-total-period", &symbol_conf.show_total_period,
+		    "Show a column with the sum of periods"),
+	OPT_STRING(0, "dsos", &symbol_conf.dso_list_str, "dso[,dso...]",
+		   "only consider symbols in these dsos"),
+	OPT_STRING(0, "comms", &symbol_conf.comm_list_str, "comm[,comm...]",
+		   "only consider symbols in these comms"),
+	OPT_STRING(0, "symbols", &symbol_conf.sym_list_str, "symbol[,symbol...]",
+		   "only consider these symbols"),
+	OPT_BOOLEAN(0, "source", &symbol_conf.annotate_src,
+		    "Interleave source code with assembly code (default)"),
+	OPT_BOOLEAN(0, "asm-raw", &symbol_conf.annotate_asm_raw,
+		    "Display raw encoding of assembly instructions (default)"),
+	OPT_STRING('M', "disassembler-style", &disassembler_style, "disassembler style",
+		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
 	OPT_END()
 };
 
@@ -1045,18 +1177,16 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 	if (top.evlist == NULL)
 		return -ENOMEM;
 
-	page_size = sysconf(_SC_PAGE_SIZE);
+	symbol_conf.exclude_other = false;
 
 	argc = parse_options(argc, argv, options, top_usage, 0);
 	if (argc)
 		usage_with_options(top_usage, options);
 
-	/*
- 	 * XXX For now start disabled, only using TUI if explicitely asked for.
- 	 * Change that when handle_keys equivalent gets written, live annotation
- 	 * done, etc.
- 	 */
-	use_browser = 0;
+	if (sort_order == default_sort_order)
+		sort_order = "dso,symbol";
+
+	setup_sorting(top_usage, options);
 
 	if (use_stdio)
 		use_browser = 0;
@@ -1119,12 +1249,21 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 
 	top.sym_evsel = list_entry(top.evlist->entries.next, struct perf_evsel, node);
 
-	symbol_conf.priv_size = (sizeof(struct sym_entry) + sizeof(struct annotation) +
-				 (top.evlist->nr_entries + 1) * sizeof(unsigned long));
+	symbol_conf.priv_size = sizeof(struct annotation);
 
 	symbol_conf.try_vmlinux_path = (symbol_conf.vmlinux_name == NULL);
 	if (symbol__init() < 0)
 		return -1;
+
+	sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list, "dso", stdout);
+	sort_entry__setup_elide(&sort_comm, symbol_conf.comm_list, "comm", stdout);
+	sort_entry__setup_elide(&sort_sym, symbol_conf.sym_list, "symbol", stdout);
+
+	/*
+	 * Avoid annotation data structures overhead when symbols aren't on the
+	 * sort list.
+	 */
+	sort_has_symbols = sort_sym.list.next != NULL;
 
 	get_term_dimensions(&winsize);
 	if (top.print_entries == 0) {

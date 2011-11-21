@@ -33,6 +33,7 @@
 #include <linux/highmem.h>
 #include <linux/gfp.h>
 #include <linux/cpu.h>
+#include <linux/export.h>
 
 #include "rds.h"
 

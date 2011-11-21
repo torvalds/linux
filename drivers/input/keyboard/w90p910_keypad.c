@@ -203,7 +203,7 @@ static int __devinit w90p910_keypad_probe(struct platform_device *pdev)
 				   input_dev->keycode, input_dev->keybit);
 
 	error = request_irq(keypad->irq, w90p910_keypad_irq_handler,
-			    IRQF_DISABLED, pdev->name, keypad);
+			    0, pdev->name, keypad);
 	if (error) {
 		dev_err(&pdev->dev, "failed to request IRQ\n");
 		goto failed_put_clk;

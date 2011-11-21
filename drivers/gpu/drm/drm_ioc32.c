@@ -29,6 +29,7 @@
  */
 #include <linux/compat.h>
 #include <linux/ratelimit.h>
+#include <linux/export.h>
 
 #include "drmP.h"
 #include "drm_core.h"

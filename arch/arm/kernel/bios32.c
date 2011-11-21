@@ -5,7 +5,7 @@
  *
  *  Bits taken from various places.
  */
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
@@ -412,6 +412,9 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 	printk(KERN_INFO "PCI: bus%d: Fast back to back transfers %sabled\n",
 		bus->number, (features & PCI_COMMAND_FAST_BACK) ? "en" : "dis");
 }
+#ifdef CONFIG_HOTPLUG
+EXPORT_SYMBOL(pcibios_fixup_bus);
+#endif
 
 /*
  * Convert from Linux-centric to bus-centric addresses for bridge devices.
@@ -431,6 +434,7 @@ pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
 	region->start = res->start - offset;
 	region->end   = res->end - offset;
 }
+EXPORT_SYMBOL(pcibios_resource_to_bus);
 
 void __devinit
 pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
@@ -447,12 +451,7 @@ pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
 	res->start = region->start + offset;
 	res->end   = region->end + offset;
 }
-
-#ifdef CONFIG_HOTPLUG
-EXPORT_SYMBOL(pcibios_fixup_bus);
-EXPORT_SYMBOL(pcibios_resource_to_bus);
 EXPORT_SYMBOL(pcibios_bus_to_resource);
-#endif
 
 /*
  * Swizzle the device pin each time we cross a bridge.

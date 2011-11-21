@@ -66,8 +66,8 @@ int reiserfs_security_init(struct inode *dir, struct inode *inode,
 	if (IS_PRIVATE(dir))
 		return 0;
 
-	error = security_inode_init_security(inode, dir, qstr, &sec->name,
-					     &sec->value, &sec->length);
+	error = security_old_inode_init_security(inode, dir, qstr, &sec->name,
+						 &sec->value, &sec->length);
 	if (error) {
 		if (error == -EOPNOTSUPP)
 			error = 0;

@@ -558,19 +558,28 @@ skip:
 
 /* Create new static fdb entry */
 static int fdb_add_entry(struct net_bridge_port *source, const __u8 *addr,
-			 __u16 state)
+			 __u16 state, __u16 flags)
 {
 	struct net_bridge *br = source->br;
 	struct hlist_head *head = &br->hash[br_mac_hash(addr)];
 	struct net_bridge_fdb_entry *fdb;
 
 	fdb = fdb_find(head, addr);
-	if (fdb)
-		return -EEXIST;
+	if (fdb == NULL) {
+		if (!(flags & NLM_F_CREATE))
+			return -ENOENT;
 
-	fdb = fdb_create(head, source, addr);
-	if (!fdb)
-		return -ENOMEM;
+		fdb = fdb_create(head, source, addr);
+		if (!fdb)
+			return -ENOMEM;
+	} else {
+		if (flags & NLM_F_EXCL)
+			return -EEXIST;
+
+		if (flags & NLM_F_REPLACE)
+			fdb->updated = fdb->used = jiffies;
+		fdb->is_local = fdb->is_static = 0;
+	}
 
 	if (state & NUD_PERMANENT)
 		fdb->is_local = fdb->is_static = 1;
@@ -626,7 +635,7 @@ int br_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	}
 
 	spin_lock_bh(&p->br->hash_lock);
-	err = fdb_add_entry(p, addr, ndm->ndm_state);
+	err = fdb_add_entry(p, addr, ndm->ndm_state, nlh->nlmsg_flags);
 	spin_unlock_bh(&p->br->hash_lock);
 
 	return err;

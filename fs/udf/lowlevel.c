@@ -38,7 +38,7 @@ unsigned int udf_get_last_session(struct super_block *sb)
 
 	if (i == 0) {
 		udf_debug("XA disk: %s, vol_desc_start=%d\n",
-			  (ms_info.xa_flag ? "yes" : "no"), ms_info.addr.lba);
+			  ms_info.xa_flag ? "yes" : "no", ms_info.addr.lba);
 		if (ms_info.xa_flag) /* necessary for a valid ms_info.addr */
 			vol_desc_start = ms_info.addr.lba;
 	} else {

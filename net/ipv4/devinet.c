@@ -258,7 +258,7 @@ static struct in_device *inetdev_init(struct net_device *dev)
 		ip_mc_up(in_dev);
 
 	/* we can receive as soon as ip_ptr is set -- do this last */
-	rcu_assign_pointer(dev->ip_ptr, in_dev);
+	RCU_INIT_POINTER(dev->ip_ptr, in_dev);
 out:
 	return in_dev;
 out_kfree:
@@ -291,7 +291,7 @@ static void inetdev_destroy(struct in_device *in_dev)
 		inet_free_ifa(ifa);
 	}
 
-	rcu_assign_pointer(dev->ip_ptr, NULL);
+	RCU_INIT_POINTER(dev->ip_ptr, NULL);
 
 	devinet_sysctl_unregister(in_dev);
 	neigh_parms_release(&arp_tbl, in_dev->arp_parms);
@@ -1175,7 +1175,7 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 	switch (event) {
 	case NETDEV_REGISTER:
 		printk(KERN_DEBUG "inetdev_event: bug\n");
-		rcu_assign_pointer(dev->ip_ptr, NULL);
+		RCU_INIT_POINTER(dev->ip_ptr, NULL);
 		break;
 	case NETDEV_UP:
 		if (!inetdev_valid_mtu(dev->mtu))

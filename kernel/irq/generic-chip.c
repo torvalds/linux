@@ -6,6 +6,7 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
 #include <linux/syscore_ops.h>
@@ -211,6 +212,7 @@ irq_alloc_generic_chip(const char *name, int num_ct, unsigned int irq_base,
 	}
 	return gc;
 }
+EXPORT_SYMBOL_GPL(irq_alloc_generic_chip);
 
 /*
  * Separate lockdep class for interrupt chip which can nest irq_desc
@@ -258,6 +260,7 @@ void irq_setup_generic_chip(struct irq_chip_generic *gc, u32 msk,
 	}
 	gc->irq_cnt = i - gc->irq_base;
 }
+EXPORT_SYMBOL_GPL(irq_setup_generic_chip);
 
 /**
  * irq_setup_alt_chip - Switch to alternative chip
@@ -281,6 +284,7 @@ int irq_setup_alt_chip(struct irq_data *d, unsigned int type)
 	}
 	return -EINVAL;
 }
+EXPORT_SYMBOL_GPL(irq_setup_alt_chip);
 
 /**
  * irq_remove_generic_chip - Remove a chip
@@ -311,6 +315,7 @@ void irq_remove_generic_chip(struct irq_chip_generic *gc, u32 msk,
 		irq_modify_status(i, clr, set);
 	}
 }
+EXPORT_SYMBOL_GPL(irq_remove_generic_chip);
 
 #ifdef CONFIG_PM
 static int irq_gc_suspend(void)

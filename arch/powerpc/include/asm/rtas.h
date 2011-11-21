@@ -249,10 +249,12 @@ extern void pSeries_log_error(char *buf, unsigned int err_type, int fatal);
 #define ERR_FLAG_ALREADY_LOGGED	0x0
 #define ERR_FLAG_BOOT		0x1 	/* log was pulled from NVRAM on boot */
 #define ERR_TYPE_RTAS_LOG	0x2	/* from rtas event-scan */
-#define ERR_TYPE_KERNEL_PANIC	0x4	/* from panic() */
+#define ERR_TYPE_KERNEL_PANIC	0x4	/* from die()/panic() */
+#define ERR_TYPE_KERNEL_PANIC_GZ 0x8	/* ditto, compressed */
 
 /* All the types and not flags */
-#define ERR_TYPE_MASK	(ERR_TYPE_RTAS_LOG | ERR_TYPE_KERNEL_PANIC)
+#define ERR_TYPE_MASK \
+	(ERR_TYPE_RTAS_LOG | ERR_TYPE_KERNEL_PANIC | ERR_TYPE_KERNEL_PANIC_GZ)
 
 #define RTAS_DEBUG KERN_DEBUG "RTAS: "
  

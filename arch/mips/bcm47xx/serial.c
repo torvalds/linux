@@ -23,10 +23,11 @@ static struct platform_device uart8250_device = {
 	},
 };
 
-static int __init uart8250_init(void)
+#ifdef CONFIG_BCM47XX_SSB
+static int __init uart8250_init_ssb(void)
 {
 	int i;
-	struct ssb_mipscore *mcore = &(ssb_bcm47xx.mipscore);
+	struct ssb_mipscore *mcore = &(bcm47xx_bus.ssb.mipscore);
 
 	memset(&uart8250_data, 0,  sizeof(uart8250_data));
 
@@ -43,6 +44,47 @@ static int __init uart8250_init(void)
 		p->flags = UPF_BOOT_AUTOCONF | UPF_SHARE_IRQ;
 	}
 	return platform_device_register(&uart8250_device);
+}
+#endif
+
+#ifdef CONFIG_BCM47XX_BCMA
+static int __init uart8250_init_bcma(void)
+{
+	int i;
+	struct bcma_drv_cc *cc = &(bcm47xx_bus.bcma.bus.drv_cc);
+
+	memset(&uart8250_data, 0,  sizeof(uart8250_data));
+
+	for (i = 0; i < cc->nr_serial_ports; i++) {
+		struct plat_serial8250_port *p = &(uart8250_data[i]);
+		struct bcma_serial_port *bcma_port;
+		bcma_port = &(cc->serial_ports[i]);
+
+		p->mapbase = (unsigned int) bcma_port->regs;
+		p->membase = (void *) bcma_port->regs;
+		p->irq = bcma_port->irq + 2;
+		p->uartclk = bcma_port->baud_base;
+		p->regshift = bcma_port->reg_shift;
+		p->iotype = UPIO_MEM;
+		p->flags = UPF_BOOT_AUTOCONF | UPF_SHARE_IRQ;
+	}
+	return platform_device_register(&uart8250_device);
+}
+#endif
+
+static int __init uart8250_init(void)
+{
+	switch (bcm47xx_bus_type) {
+#ifdef CONFIG_BCM47XX_SSB
+	case BCM47XX_BUS_TYPE_SSB:
+		return uart8250_init_ssb();
+#endif
+#ifdef CONFIG_BCM47XX_BCMA
+	case BCM47XX_BUS_TYPE_BCMA:
+		return uart8250_init_bcma();
+#endif
+	}
+	return -EINVAL;
 }
 
 module_init(uart8250_init);

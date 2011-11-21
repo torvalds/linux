@@ -26,13 +26,13 @@
  *
  ******************************************************************************/
 
-#include <linux/version.h>
 #include <linux/string.h>
 #include <linux/parser.h>
 #include <linux/timer.h>
 #include <linux/blkdev.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/module.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
 
@@ -273,13 +273,14 @@ fd_alloc_task(unsigned char *cdb)
 static int fd_do_readv(struct se_task *task)
 {
 	struct fd_request *req = FILE_REQ(task);
-	struct fd_dev *dev = req->fd_task.se_dev->dev_ptr;
+	struct se_device *se_dev = req->fd_task.task_se_cmd->se_dev;
+	struct fd_dev *dev = se_dev->dev_ptr;
 	struct file *fd = dev->fd_file;
 	struct scatterlist *sg = task->task_sg;
 	struct iovec *iov;
 	mm_segment_t old_fs;
 	loff_t pos = (task->task_lba *
-		      task->se_dev->se_sub_dev->se_dev_attrib.block_size);
+		      se_dev->se_sub_dev->se_dev_attrib.block_size);
 	int ret = 0, i;
 
 	iov = kzalloc(sizeof(struct iovec) * task->task_sg_nents, GFP_KERNEL);
@@ -325,13 +326,14 @@ static int fd_do_readv(struct se_task *task)
 static int fd_do_writev(struct se_task *task)
 {
 	struct fd_request *req = FILE_REQ(task);
-	struct fd_dev *dev = req->fd_task.se_dev->dev_ptr;
+	struct se_device *se_dev = req->fd_task.task_se_cmd->se_dev;
+	struct fd_dev *dev = se_dev->dev_ptr;
 	struct file *fd = dev->fd_file;
 	struct scatterlist *sg = task->task_sg;
 	struct iovec *iov;
 	mm_segment_t old_fs;
 	loff_t pos = (task->task_lba *
-		      task->se_dev->se_sub_dev->se_dev_attrib.block_size);
+		      se_dev->se_sub_dev->se_dev_attrib.block_size);
 	int ret, i = 0;
 
 	iov = kzalloc(sizeof(struct iovec) * task->task_sg_nents, GFP_KERNEL);
@@ -396,33 +398,6 @@ static void fd_emulate_sync_cache(struct se_task *task)
 
 	if (!immed)
 		transport_complete_sync_cache(cmd, ret == 0);
-}
-
-/*
- * Tell TCM Core that we are capable of WriteCache emulation for
- * an underlying struct se_device.
- */
-static int fd_emulated_write_cache(struct se_device *dev)
-{
-	return 1;
-}
-
-static int fd_emulated_dpo(struct se_device *dev)
-{
-	return 0;
-}
-/*
- * Tell TCM Core that we will be emulating Forced Unit Access (FUA) for WRITEs
- * for TYPE_DISK.
- */
-static int fd_emulated_fua_write(struct se_device *dev)
-{
-	return 1;
-}
-
-static int fd_emulated_fua_read(struct se_device *dev)
-{
-	return 0;
 }
 
 /*
@@ -608,17 +583,6 @@ static ssize_t fd_show_configfs_dev_params(
 	return bl;
 }
 
-/*	fd_get_cdb(): (Part of se_subsystem_api_t template)
- *
- *
- */
-static unsigned char *fd_get_cdb(struct se_task *task)
-{
-	struct fd_request *req = FILE_REQ(task);
-
-	return req->fd_scsi_cdb;
-}
-
 /*	fd_get_device_rev(): (Part of se_subsystem_api_t template)
  *
  *
@@ -650,15 +614,13 @@ static struct se_subsystem_api fileio_template = {
 	.name			= "fileio",
 	.owner			= THIS_MODULE,
 	.transport_type		= TRANSPORT_PLUGIN_VHBA_PDEV,
+	.write_cache_emulated	= 1,
+	.fua_write_emulated	= 1,
 	.attach_hba		= fd_attach_hba,
 	.detach_hba		= fd_detach_hba,
 	.allocate_virtdevice	= fd_allocate_virtdevice,
 	.create_virtdevice	= fd_create_virtdevice,
 	.free_device		= fd_free_device,
-	.dpo_emulated		= fd_emulated_dpo,
-	.fua_write_emulated	= fd_emulated_fua_write,
-	.fua_read_emulated	= fd_emulated_fua_read,
-	.write_cache_emulated	= fd_emulated_write_cache,
 	.alloc_task		= fd_alloc_task,
 	.do_task		= fd_do_task,
 	.do_sync_cache		= fd_emulate_sync_cache,
@@ -666,7 +628,6 @@ static struct se_subsystem_api fileio_template = {
 	.check_configfs_dev_params = fd_check_configfs_dev_params,
 	.set_configfs_dev_params = fd_set_configfs_dev_params,
 	.show_configfs_dev_params = fd_show_configfs_dev_params,
-	.get_cdb		= fd_get_cdb,
 	.get_device_rev		= fd_get_device_rev,
 	.get_device_type	= fd_get_device_type,
 	.get_blocks		= fd_get_blocks,

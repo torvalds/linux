@@ -32,7 +32,7 @@ static inline unsigned long dma_to_pfn(struct device *dev, dma_addr_t addr)
 
 static inline void *dma_to_virt(struct device *dev, dma_addr_t addr)
 {
-	return (void *)__bus_to_virt(addr);
+	return (void *)__bus_to_virt((unsigned long)addr);
 }
 
 static inline dma_addr_t virt_to_dma(struct device *dev, void *addr)
@@ -204,6 +204,13 @@ extern void *dma_alloc_writecombine(struct device *, size_t, dma_addr_t *,
 
 int dma_mmap_writecombine(struct device *, struct vm_area_struct *,
 		void *, dma_addr_t, size_t);
+
+/*
+ * This can be called during boot to increase the size of the consistent
+ * DMA region above it's default value of 2MB. It must be called before the
+ * memory allocator is initialised, i.e. before any core_initcall.
+ */
+extern void __init init_consistent_dma_size(unsigned long size);
 
 
 #ifdef CONFIG_DMABOUNCE

@@ -137,22 +137,6 @@ static inline u8 twl6030_readb(struct twl6030_usb *twl, u8 module, u8 address)
 	return ret;
 }
 
-/*-------------------------------------------------------------------------*/
-static int twl6030_set_phy_clk(struct otg_transceiver *x, int on)
-{
-	struct twl6030_usb *twl;
-	struct device *dev;
-	struct twl4030_usb_data *pdata;
-
-	twl = xceiv_to_twl(x);
-	dev  = twl->dev;
-	pdata = dev->platform_data;
-
-	pdata->phy_set_clock(twl->dev, on);
-
-	return 0;
-}
-
 static int twl6030_phy_init(struct otg_transceiver *x)
 {
 	struct twl6030_usb *twl;

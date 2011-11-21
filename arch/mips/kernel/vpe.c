@@ -29,7 +29,6 @@
  */
 #include <linux/kernel.h>
 #include <linux/device.h>
-#include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <asm/uaccess.h>
@@ -192,7 +191,7 @@ static struct tc *get_tc(int index)
 	}
 	spin_unlock(&vpecontrol.tc_list_lock);
 
-	return NULL;
+	return res;
 }
 
 /* allocate a vpe and associate it with this minor (or index) */

@@ -121,6 +121,7 @@ config SND_PXA2XX_SOC_PALM27X
 config SND_SOC_SAARB
 	tristate "SoC Audio support for Marvell Saarb"
 	depends on SND_PXA2XX_SOC && MACH_SAARB
+	select MFD_88PM860X
 	select SND_PXA_SOC_SSP
 	select SND_SOC_88PM860X
 	help
@@ -130,6 +131,7 @@ config SND_SOC_SAARB
 config SND_SOC_TAVOREVB3
 	tristate "SoC Audio support for Marvell Tavor EVB3"
 	depends on SND_PXA2XX_SOC && MACH_TAVOREVB3
+	select MFD_88PM860X
 	select SND_PXA_SOC_SSP
 	select SND_SOC_88PM860X
 	help

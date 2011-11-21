@@ -1,0 +1,7 @@
+What:		/sys/module/hid_logitech/drivers/hid:logitech/<dev>/range.
+Date:		July 2011
+KernelVersion:	3.2
+Contact:	Michal Malý <madcatxster@gmail.com>
+Description:	Display minimum, maximum and current range of the steering
+		wheel. Writing a value within min and max boundaries sets the
+		range of the wheel.

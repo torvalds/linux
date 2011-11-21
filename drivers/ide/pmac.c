@@ -28,6 +28,7 @@
 #include <linux/delay.h>
 #include <linux/ide.h>
 #include <linux/notifier.h>
+#include <linux/module.h>
 #include <linux/reboot.h>
 #include <linux/pci.h>
 #include <linux/adb.h>

@@ -56,7 +56,7 @@ static const struct dmi_system_id cable_dmi_table[] = {
 		},
 	},
 	{
-		.ident = "Toshiba Satelite S1800-814",
+		.ident = "Toshiba Satellite S1800-814",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "S1800-814"),

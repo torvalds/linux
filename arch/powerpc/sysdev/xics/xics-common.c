@@ -134,11 +134,10 @@ static void xics_request_ipi(void)
 	BUG_ON(ipi == NO_IRQ);
 
 	/*
-	 * IPIs are marked IRQF_DISABLED as they must run with irqs
-	 * disabled, and PERCPU.  The handler was set in map.
+	 * IPIs are marked IRQF_PERCPU. The handler was set in map.
 	 */
 	BUG_ON(request_irq(ipi, icp_ops->ipi_action,
-			   IRQF_DISABLED|IRQF_PERCPU, "IPI", NULL));
+			   IRQF_PERCPU, "IPI", NULL));
 }
 
 int __init xics_smp_probe(void)
@@ -409,14 +408,10 @@ void __init xics_init(void)
 	int rc = -1;
 
 	/* Fist locate ICP */
-#ifdef CONFIG_PPC_ICP_HV
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		rc = icp_hv_init();
-#endif
-#ifdef CONFIG_PPC_ICP_NATIVE
 	if (rc < 0)
 		rc = icp_native_init();
-#endif
 	if (rc < 0) {
 		pr_warning("XICS: Cannot find a Presentation Controller !\n");
 		return;
@@ -429,9 +424,9 @@ void __init xics_init(void)
 	xics_ipi_chip.irq_eoi = icp_ops->eoi;
 
 	/* Now locate ICS */
-#ifdef CONFIG_PPC_ICS_RTAS
 	rc = ics_rtas_init();
-#endif
+	if (rc < 0)
+		rc = ics_opal_init();
 	if (rc < 0)
 		pr_warning("XICS: Cannot find a Source Controller !\n");
 

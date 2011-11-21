@@ -4186,3 +4186,130 @@ qla82xx_mbx_intr_disable(scsi_qla_host_t *vha)
 
 	return rval;
 }
+
+int
+qla82xx_md_get_template_size(scsi_qla_host_t *vha)
+{
+	struct qla_hw_data *ha = vha->hw;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+	int rval = QLA_FUNCTION_FAILED;
+
+	ql_dbg(ql_dbg_mbx, vha, 0x111f, "Entered %s.\n", __func__);
+
+	memset(mcp->mb, 0 , sizeof(mcp->mb));
+	mcp->mb[0] = LSW(MBC_DIAGNOSTIC_MINIDUMP_TEMPLATE);
+	mcp->mb[1] = MSW(MBC_DIAGNOSTIC_MINIDUMP_TEMPLATE);
+	mcp->mb[2] = LSW(RQST_TMPLT_SIZE);
+	mcp->mb[3] = MSW(RQST_TMPLT_SIZE);
+
+	mcp->out_mb = MBX_3|MBX_2|MBX_1|MBX_0;
+	mcp->in_mb = MBX_14|MBX_13|MBX_12|MBX_11|MBX_10|MBX_9|MBX_8|
+	    MBX_7|MBX_6|MBX_5|MBX_4|MBX_3|MBX_2|MBX_1|MBX_0;
+
+	mcp->flags = MBX_DMA_OUT|MBX_DMA_IN|IOCTL_CMD;
+	mcp->tov = MBX_TOV_SECONDS;
+	rval = qla2x00_mailbox_command(vha, mcp);
+
+	/* Always copy back return mailbox values. */
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_mbx, vha, 0x1120,
+		    "mailbox command FAILED=0x%x, subcode=%x.\n",
+		    (mcp->mb[1] << 16) | mcp->mb[0],
+		    (mcp->mb[3] << 16) | mcp->mb[2]);
+	} else {
+		ql_dbg(ql_dbg_mbx, vha, 0x1121, "Done %s.\n", __func__);
+		ha->md_template_size = ((mcp->mb[3] << 16) | mcp->mb[2]);
+		if (!ha->md_template_size) {
+			ql_dbg(ql_dbg_mbx, vha, 0x1122,
+			    "Null template size obtained.\n");
+			rval = QLA_FUNCTION_FAILED;
+		}
+	}
+	return rval;
+}
+
+int
+qla82xx_md_get_template(scsi_qla_host_t *vha)
+{
+	struct qla_hw_data *ha = vha->hw;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+	int rval = QLA_FUNCTION_FAILED;
+
+	ql_dbg(ql_dbg_mbx, vha, 0x1123, "Entered %s.\n", __func__);
+
+	ha->md_tmplt_hdr = dma_alloc_coherent(&ha->pdev->dev,
+	   ha->md_template_size, &ha->md_tmplt_hdr_dma, GFP_KERNEL);
+	if (!ha->md_tmplt_hdr) {
+		ql_log(ql_log_warn, vha, 0x1124,
+		    "Unable to allocate memory for Minidump template.\n");
+		return rval;
+	}
+
+	memset(mcp->mb, 0 , sizeof(mcp->mb));
+	mcp->mb[0] = LSW(MBC_DIAGNOSTIC_MINIDUMP_TEMPLATE);
+	mcp->mb[1] = MSW(MBC_DIAGNOSTIC_MINIDUMP_TEMPLATE);
+	mcp->mb[2] = LSW(RQST_TMPLT);
+	mcp->mb[3] = MSW(RQST_TMPLT);
+	mcp->mb[4] = LSW(LSD(ha->md_tmplt_hdr_dma));
+	mcp->mb[5] = MSW(LSD(ha->md_tmplt_hdr_dma));
+	mcp->mb[6] = LSW(MSD(ha->md_tmplt_hdr_dma));
+	mcp->mb[7] = MSW(MSD(ha->md_tmplt_hdr_dma));
+	mcp->mb[8] = LSW(ha->md_template_size);
+	mcp->mb[9] = MSW(ha->md_template_size);
+
+	mcp->flags = MBX_DMA_OUT|MBX_DMA_IN|IOCTL_CMD;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->out_mb = MBX_11|MBX_10|MBX_9|MBX_8|
+	    MBX_7|MBX_6|MBX_5|MBX_4|MBX_3|MBX_2|MBX_1|MBX_0;
+	mcp->in_mb = MBX_3|MBX_2|MBX_1|MBX_0;
+	rval = qla2x00_mailbox_command(vha, mcp);
+
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_mbx, vha, 0x1125,
+		    "mailbox command FAILED=0x%x, subcode=%x.\n",
+		    ((mcp->mb[1] << 16) | mcp->mb[0]),
+		    ((mcp->mb[3] << 16) | mcp->mb[2]));
+	} else
+		ql_dbg(ql_dbg_mbx, vha, 0x1126, "Done %s.\n", __func__);
+	return rval;
+}
+
+int
+qla82xx_mbx_beacon_ctl(scsi_qla_host_t *vha, int enable)
+{
+	int rval;
+	struct qla_hw_data *ha = vha->hw;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+
+	if (!IS_QLA82XX(ha))
+		return QLA_FUNCTION_FAILED;
+
+	ql_dbg(ql_dbg_mbx, vha, 0x1127,
+		"Entered %s.\n", __func__);
+
+	memset(mcp, 0, sizeof(mbx_cmd_t));
+	mcp->mb[0] = MBC_SET_LED_CONFIG;
+	if (enable)
+		mcp->mb[7] = 0xE;
+	else
+		mcp->mb[7] = 0xD;
+
+	mcp->out_mb = MBX_7|MBX_0;
+	mcp->in_mb = MBX_0;
+	mcp->tov = 30;
+	mcp->flags = 0;
+
+	rval = qla2x00_mailbox_command(vha, mcp);
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_mbx, vha, 0x1128,
+		    "Failed=%x mb[0]=%x.\n", rval, mcp->mb[0]);
+	} else {
+		ql_dbg(ql_dbg_mbx, vha, 0x1129,
+		    "Done %s.\n", __func__);
+	}
+
+	return rval;
+}

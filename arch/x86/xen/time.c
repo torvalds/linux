@@ -201,8 +201,22 @@ static unsigned long xen_get_wallclock(void)
 
 static int xen_set_wallclock(unsigned long now)
 {
+	struct xen_platform_op op;
+	int rc;
+
 	/* do nothing for domU */
-	return -1;
+	if (!xen_initial_domain())
+		return -1;
+
+	op.cmd = XENPF_settime;
+	op.u.settime.secs = now;
+	op.u.settime.nsecs = 0;
+	op.u.settime.system_time = xen_clocksource_read();
+
+	rc = HYPERVISOR_dom0_op(&op);
+	WARN(rc != 0, "XENPF_settime failed: now=%ld\n", now);
+
+	return rc;
 }
 
 static struct clocksource xen_clocksource __read_mostly = {

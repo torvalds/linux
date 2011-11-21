@@ -47,12 +47,6 @@ static struct omap_board_mux board_mux[] __initdata = {
 };
 #endif
 
-static void __init am3517_crane_init_early(void)
-{
-	omap2_init_common_infrastructure();
-	omap2_init_common_devices(NULL, NULL);
-}
-
 static struct usbhs_omap_board_data usbhs_bdata __initdata = {
 	.port_mode[0] = OMAP_EHCI_PORT_MODE_PHY,
 	.port_mode[1] = OMAP_USBHS_PORT_MODE_UNUSED,
@@ -70,6 +64,7 @@ static void __init am3517_crane_init(void)
 
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 	omap_serial_init();
+	omap_sdrc_init(NULL, NULL);
 
 	omap_board_config = am3517_crane_config;
 	omap_board_config_size = ARRAY_SIZE(am3517_crane_config);
@@ -98,10 +93,10 @@ static void __init am3517_crane_init(void)
 }
 
 MACHINE_START(CRANEBOARD, "AM3517/05 CRANEBOARD")
-	.boot_params	= 0x80000100,
+	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
-	.init_early	= am3517_crane_init_early,
+	.init_early	= am35xx_init_early,
 	.init_irq	= omap3_init_irq,
 	.init_machine	= am3517_crane_init,
 	.timer		= &omap3_timer,

@@ -550,7 +550,7 @@ static int __devinit adp5588_probe(struct i2c_client *client,
 	}
 
 	error = request_irq(client->irq, adp5588_irq,
-			    IRQF_TRIGGER_FALLING | IRQF_DISABLED,
+			    IRQF_TRIGGER_FALLING,
 			    client->dev.driver->name, kpad);
 	if (error) {
 		dev_err(&client->dev, "irq %d busy?\n", client->irq);

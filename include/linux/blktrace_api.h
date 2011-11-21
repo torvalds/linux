@@ -170,7 +170,7 @@ extern void blk_trace_shutdown(struct request_queue *);
 extern int do_blk_trace_setup(struct request_queue *q, char *name,
 			      dev_t dev, struct block_device *bdev,
 			      struct blk_user_trace_setup *buts);
-extern __attribute__((format(printf, 2, 3)))
+extern __printf(2, 3)
 void __trace_note_message(struct blk_trace *, const char *fmt, ...);
 
 /**

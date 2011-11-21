@@ -58,6 +58,8 @@
 #include <scsi/sas_ata.h>
 #include "host.h"
 
+#define ISCI_TERMINATION_TIMEOUT_MSEC 500
+
 struct isci_request;
 
 /**
@@ -224,35 +226,6 @@ enum isci_completion_selection {
 	isci_perform_error_io_completion        /* Use sas_task_abort */
 };
 
-static inline void isci_set_task_doneflags(
-	struct sas_task *task)
-{
-	/* Since no futher action will be taken on this task,
-	 * make sure to mark it complete from the lldd perspective.
-	 */
-	task->task_state_flags |= SAS_TASK_STATE_DONE;
-	task->task_state_flags &= ~SAS_TASK_AT_INITIATOR;
-	task->task_state_flags &= ~SAS_TASK_STATE_PENDING;
-}
-/**
- * isci_task_all_done() - This function clears the task bits to indicate the
- *    LLDD is done with the task.
- *
- *
- */
-static inline void isci_task_all_done(
-	struct sas_task *task)
-{
-	unsigned long flags;
-
-	/* Since no futher action will be taken on this task,
-	 * make sure to mark it complete from the lldd perspective.
-	 */
-	spin_lock_irqsave(&task->task_state_lock, flags);
-	isci_set_task_doneflags(task);
-	spin_unlock_irqrestore(&task->task_state_lock, flags);
-}
-
 /**
  * isci_task_set_completion_status() - This function sets the completion status
  *    for the request.
@@ -286,6 +259,25 @@ isci_task_set_completion_status(
 	task->task_status.resp = response;
 	task->task_status.stat = status;
 
+	switch (task->task_proto) {
+
+	case SAS_PROTOCOL_SATA:
+	case SAS_PROTOCOL_STP:
+	case SAS_PROTOCOL_SATA | SAS_PROTOCOL_STP:
+
+		if (task_notification_selection
+		    == isci_perform_error_io_completion) {
+			/* SATA/STP I/O has it's own means of scheduling device
+			* error handling on the normal path.
+			*/
+			task_notification_selection
+				= isci_perform_normal_io_completion;
+		}
+		break;
+	default:
+		break;
+	}
+
 	switch (task_notification_selection) {
 
 	case isci_perform_error_io_completion:
@@ -315,7 +307,9 @@ isci_task_set_completion_status(
 		/* Fall through to the normal case... */
 	case isci_perform_normal_io_completion:
 		/* Normal notification (task_done) */
-		isci_set_task_doneflags(task);
+		task->task_state_flags |= SAS_TASK_STATE_DONE;
+		task->task_state_flags &= ~(SAS_TASK_AT_INITIATOR |
+					    SAS_TASK_STATE_PENDING);
 		break;
 	default:
 		WARN_ONCE(1, "unknown task_notification_selection: %d\n",

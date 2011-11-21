@@ -43,13 +43,18 @@ struct dev_pm_ops {
 	...
 };
 
-The ->runtime_suspend(), ->runtime_resume() and ->runtime_idle() callbacks are
-executed by the PM core for either the device type, or the class (if the device
-type's struct dev_pm_ops object does not exist), or the bus type (if the
-device type's and class' struct dev_pm_ops objects do not exist) of the given
-device (this allows device types to override callbacks provided by bus types or
-classes if necessary).  The bus type, device type and class callbacks are
-referred to as subsystem-level callbacks in what follows.
+The ->runtime_suspend(), ->runtime_resume() and ->runtime_idle() callbacks
+are executed by the PM core for either the power domain, or the device type
+(if the device power domain's struct dev_pm_ops does not exist), or the class
+(if the device power domain's and type's struct dev_pm_ops object does not
+exist), or the bus type (if the device power domain's, type's and class'
+struct dev_pm_ops objects do not exist) of the given device, so the priority
+order of callbacks from high to low is that power domain callbacks, device
+type callbacks, class callbacks and bus type callbacks, and the high priority
+one will take precedence over low priority one. The bus type, device type and
+class callbacks are referred to as subsystem-level callbacks in what follows,
+and generally speaking, the power domain callbacks are used for representing
+power domains within a SoC.
 
 By default, the callbacks are always invoked in process context with interrupts
 enabled.  However, subsystems can use the pm_runtime_irq_safe() helper function
@@ -477,12 +482,14 @@ pm_runtime_autosuspend_expiration()
 If pm_runtime_irq_safe() has been called for a device then the following helper
 functions may also be used in interrupt context:
 
+pm_runtime_idle()
 pm_runtime_suspend()
 pm_runtime_autosuspend()
 pm_runtime_resume()
 pm_runtime_get_sync()
 pm_runtime_put_sync()
 pm_runtime_put_sync_suspend()
+pm_runtime_put_sync_autosuspend()
 
 5. Runtime PM Initialization, Device Probing and Removal
 
@@ -781,6 +788,16 @@ Drivers may also continue to use the non-autosuspend helper functions; they
 will behave normally, not taking the autosuspend delay into account.
 Similarly, if the power.use_autosuspend field isn't set then the autosuspend
 helper functions will behave just like the non-autosuspend counterparts.
+
+Under some circumstances a driver or subsystem may want to prevent a device
+from autosuspending immediately, even though the usage counter is zero and the
+autosuspend delay time has expired.  If the ->runtime_suspend() callback
+returns -EAGAIN or -EBUSY, and if the next autosuspend delay expiration time is
+in the future (as it normally would be if the callback invoked
+pm_runtime_mark_last_busy()), the PM core will automatically reschedule the
+autosuspend.  The ->runtime_suspend() callback can't do this rescheduling
+itself because no suspend requests of any kind are accepted while the device is
+suspending (i.e., while the callback is running).
 
 The implementation is well suited for asynchronous use in interrupt contexts.
 However such use inevitably involves races, because the PM core can't

@@ -1230,7 +1230,7 @@ static int tda18271_set_config(struct dvb_frontend *fe, void *priv_cfg)
 	return 0;
 }
 
-static struct dvb_tuner_ops tda18271_tuner_ops = {
+static const struct dvb_tuner_ops tda18271_tuner_ops = {
 	.info = {
 		.name = "NXP TDA18271HD",
 		.frequency_min  =  45000000,

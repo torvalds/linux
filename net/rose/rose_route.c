@@ -36,6 +36,7 @@
 #include <linux/init.h>
 #include <net/rose.h>
 #include <linux/seq_file.h>
+#include <linux/export.h>
 
 static unsigned int rose_neigh_no = 1;
 

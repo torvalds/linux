@@ -62,9 +62,9 @@ static struct timespec persistent_ts;
 static u64 persistent_ms, last_persistent_ms;
 
 #define timer_writel(value, reg) \
-	__raw_writel(value, (u32)timer_reg_base + (reg))
+	__raw_writel(value, timer_reg_base + (reg))
 #define timer_readl(reg) \
-	__raw_readl((u32)timer_reg_base + (reg))
+	__raw_readl(timer_reg_base + (reg))
 
 static int tegra_timer_set_next_event(unsigned long cycles,
 					 struct clock_event_device *evt)
@@ -133,7 +133,7 @@ static void notrace tegra_update_sched_clock(void)
  * tegra_rtc driver could be executing to avoid race conditions
  * on the RTC shadow register
  */
-u64 tegra_rtc_read_ms(void)
+static u64 tegra_rtc_read_ms(void)
 {
 	u32 ms = readl(rtc_base + RTC_MILLISECONDS);
 	u32 s = readl(rtc_base + RTC_SHADOW_SECONDS);

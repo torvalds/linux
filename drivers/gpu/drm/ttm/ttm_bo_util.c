@@ -321,7 +321,7 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	struct ttm_mem_type_manager *man = &bdev->man[new_mem->mem_type];
 	struct ttm_tt *ttm = bo->ttm;
 	struct ttm_mem_reg *old_mem = &bo->mem;
-	struct ttm_mem_reg old_copy;
+	struct ttm_mem_reg old_copy = *old_mem;
 	void *old_iomap;
 	void *new_iomap;
 	int ret;

@@ -33,6 +33,19 @@ config BCMA_DRIVER_PCI_HOSTMODE
 	help
 	  PCI core hostmode operation (external PCI bus).
 
+config BCMA_HOST_SOC
+	bool
+	depends on BCMA_DRIVER_MIPS
+
+config BCMA_DRIVER_MIPS
+	bool "BCMA Broadcom MIPS core driver"
+	depends on BCMA && MIPS
+	help
+	  Driver for the Broadcom MIPS core attached to Broadcom specific
+	  Advanced Microcontroller Bus.
+
+	  If unsure, say N
+
 config BCMA_DEBUG
 	bool "BCMA debugging"
 	depends on BCMA

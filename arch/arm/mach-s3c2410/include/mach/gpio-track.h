@@ -17,11 +17,11 @@
 
 #include <mach/regs-gpio.h>
 
-extern struct s3c_gpio_chip s3c24xx_gpios[];
+extern struct samsung_gpio_chip s3c24xx_gpios[];
 
-static inline struct s3c_gpio_chip *s3c_gpiolib_getchip(unsigned int pin)
+static inline struct samsung_gpio_chip *samsung_gpiolib_getchip(unsigned int pin)
 {
-	struct s3c_gpio_chip *chip;
+	struct samsung_gpio_chip *chip;
 
 	if (pin > S3C_GPIO_END)
 		return NULL;

@@ -83,16 +83,9 @@ config MTD_NAND_DENALI_SCRATCH_REG_ADDR
           scratch register here to enable this feature. On Intel Moorestown
           boards, the scratch register is at 0xFF108018.
 
-config MTD_NAND_EDB7312
-	tristate "Support for Cirrus Logic EBD7312 evaluation board"
-	depends on ARCH_EDB7312
-	help
-	  This enables the driver for the Cirrus Logic EBD7312 evaluation
-	  board to access the onboard NAND Flash.
-
 config MTD_NAND_H1900
 	tristate "iPAQ H1900 flash"
-	depends on ARCH_PXA
+	depends on ARCH_PXA && BROKEN
 	help
 	  This enables the driver for the iPAQ h1900 flash.
 
@@ -116,10 +109,11 @@ config MTD_NAND_AMS_DELTA
 	  Support for NAND flash on Amstrad E3 (Delta).
 
 config MTD_NAND_OMAP2
-	tristate "NAND Flash device on OMAP2 and OMAP3"
-	depends on ARM && (ARCH_OMAP2 || ARCH_OMAP3)
+	tristate "NAND Flash device on OMAP2, OMAP3 and OMAP4"
+	depends on ARM && (ARCH_OMAP2 || ARCH_OMAP3 || ARCH_OMAP4)
 	help
-          Support for NAND flash on Texas Instruments OMAP2 and OMAP3 platforms.
+          Support for NAND flash on Texas Instruments OMAP2, OMAP3 and OMAP4
+	  platforms.
 
 config MTD_NAND_IDS
 	tristate
@@ -138,7 +132,7 @@ config MTD_NAND_RICOH
 
 config MTD_NAND_AU1550
 	tristate "Au1550/1200 NAND support"
-	depends on SOC_AU1200 || SOC_AU1550
+	depends on MIPS_ALCHEMY
 	help
 	  This enables the driver for the NAND flash controller on the
 	  AMD/Alchemy 1550 SOC.
@@ -422,6 +416,19 @@ config MTD_NAND_NANDSIM
 	help
 	  The simulator may simulate various NAND flash chips for the
 	  MTD nand layer.
+
+config MTD_NAND_GPMI_NAND
+        bool "GPMI NAND Flash Controller driver"
+        depends on MTD_NAND && (SOC_IMX23 || SOC_IMX28)
+	select MTD_PARTITIONS
+	select MTD_CMDLINE_PARTS
+        help
+	 Enables NAND Flash support for IMX23 or IMX28.
+	 The GPMI controller is very powerful, with the help of BCH
+	 module, it can do the hardware ECC. The GPMI supports several
+	 NAND flashs at the same time. The GPMI may conflicts with other
+	 block, such as SD card. So pay attention to it when you enable
+	 the GPMI.
 
 config MTD_NAND_PLATFORM
 	tristate "Support for generic platform NAND driver"

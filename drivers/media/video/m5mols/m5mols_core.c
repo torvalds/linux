@@ -21,6 +21,7 @@
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/videodev2.h>
+#include <linux/module.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
@@ -936,7 +937,7 @@ static int __devinit m5mols_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	if (!pdata->irq) {
+	if (!client->irq) {
 		dev_err(&client->dev, "Interrupt not assigned\n");
 		return -EINVAL;
 	}
@@ -973,7 +974,7 @@ static int __devinit m5mols_probe(struct i2c_client *client,
 
 	init_waitqueue_head(&info->irq_waitq);
 	INIT_WORK(&info->work_irq, m5mols_irq_work);
-	ret = request_irq(pdata->irq, m5mols_irq_handler,
+	ret = request_irq(client->irq, m5mols_irq_handler,
 			  IRQF_TRIGGER_RISING, MODULE_NAME, sd);
 	if (ret) {
 		dev_err(&client->dev, "Interrupt request failed: %d\n", ret);
@@ -998,7 +999,7 @@ static int __devexit m5mols_remove(struct i2c_client *client)
 	struct m5mols_info *info = to_m5mols(sd);
 
 	v4l2_device_unregister_subdev(sd);
-	free_irq(info->pdata->irq, sd);
+	free_irq(client->irq, sd);
 
 	regulator_bulk_free(ARRAY_SIZE(supplies), supplies);
 	gpio_free(info->pdata->gpio_reset);

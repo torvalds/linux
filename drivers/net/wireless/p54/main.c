@@ -20,6 +20,7 @@
 #include <linux/slab.h>
 #include <linux/firmware.h>
 #include <linux/etherdevice.h>
+#include <linux/module.h>
 
 #include <net/mac80211.h>
 
@@ -204,13 +205,11 @@ static void p54_stop(struct ieee80211_hw *dev)
 	struct p54_common *priv = dev->priv;
 	int i;
 
-	mutex_lock(&priv->conf_mutex);
 	priv->mode = NL80211_IFTYPE_UNSPECIFIED;
 	priv->softled_state = 0;
-	p54_set_leds(priv);
-
 	cancel_delayed_work_sync(&priv->work);
-
+	mutex_lock(&priv->conf_mutex);
+	p54_set_leds(priv);
 	priv->stop(dev);
 	skb_queue_purge(&priv->tx_pending);
 	skb_queue_purge(&priv->tx_queue);
@@ -278,6 +277,42 @@ static void p54_remove_interface(struct ieee80211_hw *dev,
 	mutex_unlock(&priv->conf_mutex);
 }
 
+static int p54_wait_for_stats(struct ieee80211_hw *dev)
+{
+	struct p54_common *priv = dev->priv;
+	int ret;
+
+	priv->update_stats = true;
+	ret = p54_fetch_statistics(priv);
+	if (ret)
+		return ret;
+
+	ret = wait_for_completion_interruptible_timeout(&priv->stat_comp, HZ);
+	if (ret == 0)
+		return -ETIMEDOUT;
+
+	return 0;
+}
+
+static void p54_reset_stats(struct p54_common *priv)
+{
+	struct ieee80211_channel *chan = priv->curchan;
+
+	if (chan) {
+		struct survey_info *info = &priv->survey[chan->hw_value];
+
+		/* only reset channel statistics, don't touch .filled, etc. */
+		info->channel_time = 0;
+		info->channel_time_busy = 0;
+		info->channel_time_tx = 0;
+	}
+
+	priv->update_stats = true;
+	priv->survey_raw.active = 0;
+	priv->survey_raw.cca = 0;
+	priv->survey_raw.tx = 0;
+}
+
 static int p54_config(struct ieee80211_hw *dev, u32 changed)
 {
 	int ret = 0;
@@ -288,19 +323,36 @@ static int p54_config(struct ieee80211_hw *dev, u32 changed)
 	if (changed & IEEE80211_CONF_CHANGE_POWER)
 		priv->output_power = conf->power_level << 2;
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
+		struct ieee80211_channel *oldchan;
+		WARN_ON(p54_wait_for_stats(dev));
+		oldchan = priv->curchan;
+		priv->curchan = NULL;
 		ret = p54_scan(priv, P54_SCAN_EXIT, 0);
-		if (ret)
+		if (ret) {
+			priv->curchan = oldchan;
 			goto out;
+		}
+		/*
+		 * TODO: Use the LM_SCAN_TRAP to determine the current
+		 * operating channel.
+		 */
+		priv->curchan = priv->hw->conf.channel;
+		p54_reset_stats(priv);
+		WARN_ON(p54_fetch_statistics(priv));
 	}
 	if (changed & IEEE80211_CONF_CHANGE_PS) {
+		WARN_ON(p54_wait_for_stats(dev));
 		ret = p54_set_ps(priv);
 		if (ret)
 			goto out;
+		WARN_ON(p54_wait_for_stats(dev));
 	}
 	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
+		WARN_ON(p54_wait_for_stats(dev));
 		ret = p54_setup_mac(priv);
 		if (ret)
 			goto out;
+		WARN_ON(p54_wait_for_stats(dev));
 	}
 
 out:
@@ -353,7 +405,8 @@ static void p54_configure_filter(struct ieee80211_hw *dev,
 		p54_set_groupfilter(priv);
 }
 
-static int p54_conf_tx(struct ieee80211_hw *dev, u16 queue,
+static int p54_conf_tx(struct ieee80211_hw *dev,
+		       struct ieee80211_vif *vif, u16 queue,
 		       const struct ieee80211_tx_queue_params *params)
 {
 	struct p54_common *priv = dev->priv;
@@ -384,7 +437,9 @@ static void p54_work(struct work_struct *work)
 	 *      2. cancel stuck frames / reset the device if necessary.
 	 */
 
-	p54_fetch_statistics(priv);
+	mutex_lock(&priv->conf_mutex);
+	WARN_ON_ONCE(p54_fetch_statistics(priv));
+	mutex_unlock(&priv->conf_mutex);
 }
 
 static int p54_get_stats(struct ieee80211_hw *dev,
@@ -541,16 +596,47 @@ static int p54_get_survey(struct ieee80211_hw *dev, int idx,
 				struct survey_info *survey)
 {
 	struct p54_common *priv = dev->priv;
-	struct ieee80211_conf *conf = &dev->conf;
+	struct ieee80211_channel *chan;
+	int err, tries;
+	bool in_use = false;
 
-	if (idx != 0)
+	if (idx >= priv->chan_num)
 		return -ENOENT;
 
-	survey->channel = conf->channel;
-	survey->filled = SURVEY_INFO_NOISE_DBM;
-	survey->noise = clamp_t(s8, priv->noise, -128, 127);
+#define MAX_TRIES 1
+	for (tries = 0; tries < MAX_TRIES; tries++) {
+		chan = priv->curchan;
+		if (chan && chan->hw_value == idx) {
+			mutex_lock(&priv->conf_mutex);
+			err = p54_wait_for_stats(dev);
+			mutex_unlock(&priv->conf_mutex);
+			if (err)
+				return err;
 
-	return 0;
+			in_use = true;
+		}
+
+		memcpy(survey, &priv->survey[idx], sizeof(*survey));
+
+		if (in_use) {
+			/* test if the reported statistics are valid. */
+			if  (survey->channel_time != 0) {
+				survey->filled |= SURVEY_INFO_IN_USE;
+			} else {
+				/*
+				 * hw/fw has not accumulated enough sample sets.
+				 * Wait for 100ms, this ought to be enough to
+				 * to get at least one non-null set of channel
+				 * usage statistics.
+				 */
+				msleep(100);
+				continue;
+			}
+		}
+		return 0;
+	}
+	return -ETIMEDOUT;
+#undef MAX_TRIES
 }
 
 static unsigned int p54_flush_count(struct p54_common *priv)
@@ -686,11 +772,14 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 
 	mutex_init(&priv->conf_mutex);
 	mutex_init(&priv->eeprom_mutex);
+	init_completion(&priv->stat_comp);
 	init_completion(&priv->eeprom_comp);
 	init_completion(&priv->beacon_comp);
 	INIT_DELAYED_WORK(&priv->work, p54_work);
 
 	memset(&priv->mc_maclist[0], ~0, ETH_ALEN);
+	priv->curchan = NULL;
+	p54_reset_stats(priv);
 	return dev;
 }
 EXPORT_SYMBOL_GPL(p54_init_common);
@@ -730,11 +819,13 @@ void p54_free_common(struct ieee80211_hw *dev)
 	kfree(priv->curve_data);
 	kfree(priv->rssi_db);
 	kfree(priv->used_rxkeys);
+	kfree(priv->survey);
 	priv->iq_autocal = NULL;
 	priv->output_limit = NULL;
 	priv->curve_data = NULL;
 	priv->rssi_db = NULL;
 	priv->used_rxkeys = NULL;
+	priv->survey = NULL;
 	ieee80211_free_hw(dev);
 }
 EXPORT_SYMBOL_GPL(p54_free_common);

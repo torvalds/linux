@@ -78,6 +78,7 @@
 #include <net/inet_common.h>
 
 #include <linux/socket.h> /* for sa_family_t */
+#include <linux/export.h>
 #include <net/sock.h>
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>

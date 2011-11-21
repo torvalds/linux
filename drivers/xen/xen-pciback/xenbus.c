@@ -13,7 +13,6 @@
 #include <asm/xen/pci.h>
 #include "pciback.h"
 
-#define	DRV_NAME	"xen-pciback"
 #define INVALID_EVTCHN_IRQ  (-1)
 struct workqueue_struct *xen_pcibk_wq;
 
@@ -44,7 +43,7 @@ static struct xen_pcibk_device *alloc_pdev(struct xenbus_device *xdev)
 	pdev->xdev = xdev;
 	dev_set_drvdata(&xdev->dev, pdev);
 
-	spin_lock_init(&pdev->dev_lock);
+	mutex_init(&pdev->dev_lock);
 
 	pdev->sh_info = NULL;
 	pdev->evtchn_irq = INVALID_EVTCHN_IRQ;
@@ -62,14 +61,12 @@ out:
 
 static void xen_pcibk_disconnect(struct xen_pcibk_device *pdev)
 {
-	spin_lock(&pdev->dev_lock);
-
+	mutex_lock(&pdev->dev_lock);
 	/* Ensure the guest can't trigger our handler before removing devices */
 	if (pdev->evtchn_irq != INVALID_EVTCHN_IRQ) {
 		unbind_from_irqhandler(pdev->evtchn_irq, pdev);
 		pdev->evtchn_irq = INVALID_EVTCHN_IRQ;
 	}
-	spin_unlock(&pdev->dev_lock);
 
 	/* If the driver domain started an op, make sure we complete it
 	 * before releasing the shared memory */
@@ -77,13 +74,11 @@ static void xen_pcibk_disconnect(struct xen_pcibk_device *pdev)
 	/* Note, the workqueue does not use spinlocks at all.*/
 	flush_workqueue(xen_pcibk_wq);
 
-	spin_lock(&pdev->dev_lock);
 	if (pdev->sh_info != NULL) {
 		xenbus_unmap_ring_vfree(pdev->xdev, pdev->sh_info);
 		pdev->sh_info = NULL;
 	}
-	spin_unlock(&pdev->dev_lock);
-
+	mutex_unlock(&pdev->dev_lock);
 }
 
 static void free_pdev(struct xen_pcibk_device *pdev)
@@ -120,9 +115,7 @@ static int xen_pcibk_do_attach(struct xen_pcibk_device *pdev, int gnt_ref,
 		goto out;
 	}
 
-	spin_lock(&pdev->dev_lock);
 	pdev->sh_info = vaddr;
-	spin_unlock(&pdev->dev_lock);
 
 	err = bind_interdomain_evtchn_to_irqhandler(
 		pdev->xdev->otherend_id, remote_evtchn, xen_pcibk_handle_event,
@@ -132,10 +125,7 @@ static int xen_pcibk_do_attach(struct xen_pcibk_device *pdev, int gnt_ref,
 				 "Error binding event channel to IRQ");
 		goto out;
 	}
-
-	spin_lock(&pdev->dev_lock);
 	pdev->evtchn_irq = err;
-	spin_unlock(&pdev->dev_lock);
 	err = 0;
 
 	dev_dbg(&pdev->xdev->dev, "Attached!\n");
@@ -150,6 +140,7 @@ static int xen_pcibk_attach(struct xen_pcibk_device *pdev)
 	char *magic = NULL;
 
 
+	mutex_lock(&pdev->dev_lock);
 	/* Make sure we only do this setup once */
 	if (xenbus_read_driver_state(pdev->xdev->nodename) !=
 	    XenbusStateInitialised)
@@ -176,7 +167,7 @@ static int xen_pcibk_attach(struct xen_pcibk_device *pdev)
 	if (magic == NULL || strcmp(magic, XEN_PCI_MAGIC) != 0) {
 		xenbus_dev_fatal(pdev->xdev, -EFAULT,
 				 "version mismatch (%s/%s) with pcifront - "
-				 "halting xen_pcibk",
+				 "halting " DRV_NAME,
 				 magic, XEN_PCI_MAGIC);
 		goto out;
 	}
@@ -194,6 +185,7 @@ static int xen_pcibk_attach(struct xen_pcibk_device *pdev)
 
 	dev_dbg(&pdev->xdev->dev, "Connected? %d\n", err);
 out:
+	mutex_unlock(&pdev->dev_lock);
 
 	kfree(magic);
 
@@ -249,6 +241,7 @@ static int xen_pcibk_export_device(struct xen_pcibk_device *pdev,
 		goto out;
 
 	dev_dbg(&dev->dev, "registering for %d\n", pdev->xdev->otherend_id);
+	dev->dev_flags |= PCI_DEV_FLAGS_ASSIGNED;
 	if (xen_register_device_domain_owner(dev,
 					     pdev->xdev->otherend_id) != 0) {
 		dev_err(&dev->dev, "device has been assigned to another " \
@@ -288,6 +281,7 @@ static int xen_pcibk_remove_device(struct xen_pcibk_device *pdev,
 	}
 
 	dev_dbg(&dev->dev, "unregistering for %d\n", pdev->xdev->otherend_id);
+	dev->dev_flags &= ~PCI_DEV_FLAGS_ASSIGNED;
 	xen_unregister_device_domain_owner(dev);
 
 	xen_pcibk_release_pci_dev(pdev, dev);
@@ -369,6 +363,7 @@ static int xen_pcibk_reconfigure(struct xen_pcibk_device *pdev)
 
 	dev_dbg(&pdev->xdev->dev, "Reconfiguring device ...\n");
 
+	mutex_lock(&pdev->dev_lock);
 	/* Make sure we only reconfigure once */
 	if (xenbus_read_driver_state(pdev->xdev->nodename) !=
 	    XenbusStateReconfiguring)
@@ -506,6 +501,7 @@ static int xen_pcibk_reconfigure(struct xen_pcibk_device *pdev)
 	}
 
 out:
+	mutex_unlock(&pdev->dev_lock);
 	return 0;
 }
 
@@ -562,6 +558,7 @@ static int xen_pcibk_setup_backend(struct xen_pcibk_device *pdev)
 	char dev_str[64];
 	char state_str[64];
 
+	mutex_lock(&pdev->dev_lock);
 	/* It's possible we could get the call to setup twice, so make sure
 	 * we're not already connected.
 	 */
@@ -642,10 +639,10 @@ static int xen_pcibk_setup_backend(struct xen_pcibk_device *pdev)
 				 "Error switching to initialised state!");
 
 out:
+	mutex_unlock(&pdev->dev_lock);
 	if (!err)
 		/* see if pcifront is already configured (if not, we'll wait) */
 		xen_pcibk_attach(pdev);
-
 	return err;
 }
 
@@ -724,7 +721,7 @@ static struct xenbus_driver xenbus_xen_pcibk_driver = {
 	.otherend_changed	= xen_pcibk_frontend_changed,
 };
 
-struct xen_pcibk_backend *xen_pcibk_backend;
+const struct xen_pcibk_backend *__read_mostly xen_pcibk_backend;
 
 int __init xen_pcibk_xenbus_register(void)
 {

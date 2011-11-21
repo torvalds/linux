@@ -186,7 +186,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/gameport.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/dma-mapping.h>
 #include <sound/core.h>
 #include <sound/control.h>
@@ -2652,8 +2652,9 @@ snd_azf3328_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	   since our hardware ought to be similar, thus use same ID. */
 	err = snd_mpu401_uart_new(
 		card, 0,
-		MPU401_HW_AZT2320, chip->mpu_io, MPU401_INFO_INTEGRATED,
-		pci->irq, 0, &chip->rmidi
+		MPU401_HW_AZT2320, chip->mpu_io,
+		MPU401_INFO_INTEGRATED | MPU401_INFO_IRQ_HOOK,
+		-1, &chip->rmidi
 	);
 	if (err < 0) {
 		snd_printk(KERN_ERR "azf3328: no MPU-401 device at 0x%lx?\n",

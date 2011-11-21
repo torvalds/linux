@@ -175,14 +175,16 @@ extern u64 ppc64_rma_size;
 #define MMU_PAGE_64K_AP	3	/* "Admixed pages" (hash64 only) */
 #define MMU_PAGE_256K	4
 #define MMU_PAGE_1M	5
-#define MMU_PAGE_8M	6
-#define MMU_PAGE_16M	7
-#define MMU_PAGE_256M	8
-#define MMU_PAGE_1G	9
-#define MMU_PAGE_16G	10
-#define MMU_PAGE_64G	11
-#define MMU_PAGE_COUNT	12
+#define MMU_PAGE_4M	6
+#define MMU_PAGE_8M	7
+#define MMU_PAGE_16M	8
+#define MMU_PAGE_64M	9
+#define MMU_PAGE_256M	10
+#define MMU_PAGE_1G	11
+#define MMU_PAGE_16G	12
+#define MMU_PAGE_64G	13
 
+#define MMU_PAGE_COUNT	14
 
 #if defined(CONFIG_PPC_STD_MMU_64)
 /* 64-bit classic hash table MMU */

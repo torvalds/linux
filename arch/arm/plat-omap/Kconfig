@@ -14,6 +14,8 @@ config ARCH_OMAP1
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
 	select GENERIC_IRQ_CHIP
+	select HAVE_IDE
+	select NEED_MACH_MEMORY_H
 	help
 	  "Systems based on omap7xx, omap15xx or omap16xx"
 
@@ -131,18 +133,6 @@ config OMAP_MBOX_KFIFO_SIZE
 	  Specify the default size of mailbox's kfifo buffers (bytes).
 	  This can also be changed at runtime (via the mbox_kfifo_size
 	  module parameter).
-
-config OMAP_IOMMU
-	tristate
-
-config OMAP_IOMMU_DEBUG
-       tristate "Export OMAP IOMMU internals in DebugFS"
-       depends on OMAP_IOMMU && DEBUG_FS
-       help
-         Select this to see extensive information about
-         the internal state of OMAP IOMMU in debugfs.
-
-         Say N unless you know you need this.
 
 config OMAP_IOMMU_IVA2
 	bool

@@ -89,14 +89,13 @@ obj-$(CONFIG_ARCH_OMAP4)		+= prcm.o cm2xxx_3xxx.o cminst44xx.o \
 					   vp44xx_data.o
 
 # OMAP voltage domains
-ifeq ($(CONFIG_PM),y)
-voltagedomain-common			:= voltage.o
-obj-$(CONFIG_ARCH_OMAP2)		+= $(voltagedomain-common)
+voltagedomain-common			:= voltage.o vc.o vp.o
+obj-$(CONFIG_ARCH_OMAP2)		+= $(voltagedomain-common) \
+					   voltagedomains2xxx_data.o
 obj-$(CONFIG_ARCH_OMAP3)		+= $(voltagedomain-common) \
 					   voltagedomains3xxx_data.o
 obj-$(CONFIG_ARCH_OMAP4)		+= $(voltagedomain-common) \
 					   voltagedomains44xx_data.o
-endif
 
 # OMAP powerdomain framework
 powerdomain-common			+= powerdomain.o powerdomain-common.o
@@ -116,9 +115,12 @@ obj-$(CONFIG_ARCH_OMAP4)		+= $(powerdomain-common) \
 obj-$(CONFIG_ARCH_OMAP2)		+= clockdomain.o \
 					   clockdomain2xxx_3xxx.o \
 					   clockdomains2xxx_3xxx_data.o
+obj-$(CONFIG_SOC_OMAP2420)		+= clockdomains2420_data.o
+obj-$(CONFIG_SOC_OMAP2430)		+= clockdomains2430_data.o
 obj-$(CONFIG_ARCH_OMAP3)		+= clockdomain.o \
 					   clockdomain2xxx_3xxx.o \
-					   clockdomains2xxx_3xxx_data.o
+					   clockdomains2xxx_3xxx_data.o \
+					   clockdomains3xxx_data.o
 obj-$(CONFIG_ARCH_OMAP4)		+= clockdomain.o \
 					   clockdomain44xx.o \
 					   clockdomains44xx_data.o
@@ -185,81 +187,67 @@ endif
 # Specific board support
 obj-$(CONFIG_MACH_OMAP_GENERIC)		+= board-generic.o
 obj-$(CONFIG_MACH_OMAP_H4)		+= board-h4.o
-obj-$(CONFIG_MACH_OMAP_2430SDP)		+= board-2430sdp.o \
-					   hsmmc.o
+obj-$(CONFIG_MACH_OMAP_2430SDP)		+= board-2430sdp.o
 obj-$(CONFIG_MACH_OMAP_APOLLON)		+= board-apollon.o
-obj-$(CONFIG_MACH_OMAP3_BEAGLE)		+= board-omap3beagle.o \
-					   hsmmc.o
-obj-$(CONFIG_MACH_DEVKIT8000)     	+= board-devkit8000.o \
-                                           hsmmc.o
-obj-$(CONFIG_MACH_OMAP_LDP)		+= board-ldp.o \
-					   board-flash.o \
-					   hsmmc.o
-obj-$(CONFIG_MACH_OMAP3530_LV_SOM)      += board-omap3logic.o \
-					   hsmmc.o
-obj-$(CONFIG_MACH_OMAP3_TORPEDO)        += board-omap3logic.o \
-					   hsmmc.o
-obj-$(CONFIG_MACH_OVERO)		+= board-overo.o \
-					   hsmmc.o
-obj-$(CONFIG_MACH_OMAP3EVM)		+= board-omap3evm.o \
-					   hsmmc.o
-obj-$(CONFIG_MACH_OMAP3_PANDORA)	+= board-omap3pandora.o \
-					   hsmmc.o
-obj-$(CONFIG_MACH_OMAP_3430SDP)		+= board-3430sdp.o \
-					   hsmmc.o \
-					   board-flash.o
+obj-$(CONFIG_MACH_OMAP3_BEAGLE)		+= board-omap3beagle.o
+obj-$(CONFIG_MACH_DEVKIT8000)     	+= board-devkit8000.o
+obj-$(CONFIG_MACH_OMAP_LDP)		+= board-ldp.o
+obj-$(CONFIG_MACH_OMAP3530_LV_SOM)      += board-omap3logic.o
+obj-$(CONFIG_MACH_OMAP3_TORPEDO)        += board-omap3logic.o
+obj-$(CONFIG_MACH_ENCORE)		+= board-omap3encore.o
+obj-$(CONFIG_MACH_OVERO)		+= board-overo.o
+obj-$(CONFIG_MACH_OMAP3EVM)		+= board-omap3evm.o
+obj-$(CONFIG_MACH_OMAP3_PANDORA)	+= board-omap3pandora.o
+obj-$(CONFIG_MACH_OMAP_3430SDP)		+= board-3430sdp.o
 obj-$(CONFIG_MACH_NOKIA_N8X0)		+= board-n8x0.o
 obj-$(CONFIG_MACH_NOKIA_RM680)		+= board-rm680.o \
-					   sdram-nokia.o \
-					   hsmmc.o
+					   sdram-nokia.o
 obj-$(CONFIG_MACH_NOKIA_RX51)		+= board-rx51.o \
 					   sdram-nokia.o \
 					   board-rx51-peripherals.o \
-					   board-rx51-video.o \
-					   hsmmc.o
+					   board-rx51-video.o
 obj-$(CONFIG_MACH_OMAP_ZOOM2)		+= board-zoom.o \
 					   board-zoom-peripherals.o \
 					   board-zoom-display.o \
-					   board-flash.o \
-					   hsmmc.o \
 					   board-zoom-debugboard.o
 obj-$(CONFIG_MACH_OMAP_ZOOM3)		+= board-zoom.o \
 					   board-zoom-peripherals.o \
 					   board-zoom-display.o \
-					   board-flash.o \
-					   hsmmc.o \
 					   board-zoom-debugboard.o
 obj-$(CONFIG_MACH_OMAP_3630SDP)		+= board-3630sdp.o \
 					   board-zoom-peripherals.o \
-					   board-zoom-display.o \
-					   board-flash.o \
-					   hsmmc.o
-obj-$(CONFIG_MACH_CM_T35)		+= board-cm-t35.o \
-					   hsmmc.o
+					   board-zoom-display.o
+obj-$(CONFIG_MACH_CM_T35)		+= board-cm-t35.o
 obj-$(CONFIG_MACH_CM_T3517)		+= board-cm-t3517.o
-obj-$(CONFIG_MACH_IGEP0020)		+= board-igep0020.o \
-					   hsmmc.o
-obj-$(CONFIG_MACH_OMAP3_TOUCHBOOK)	+= board-omap3touchbook.o \
-					   hsmmc.o
-obj-$(CONFIG_MACH_OMAP_4430SDP)		+= board-4430sdp.o \
-					   hsmmc.o \
-					   omap_phy_internal.o
-obj-$(CONFIG_MACH_OMAP4_PANDA)		+= board-omap4panda.o \
-					   hsmmc.o \
-					   omap_phy_internal.o
+obj-$(CONFIG_MACH_IGEP0020)		+= board-igep0020.o
+obj-$(CONFIG_MACH_OMAP3_TOUCHBOOK)	+= board-omap3touchbook.o
+obj-$(CONFIG_MACH_OMAP_4430SDP)		+= board-4430sdp.o
+obj-$(CONFIG_MACH_OMAP4_PANDA)		+= board-omap4panda.o
 
-obj-$(CONFIG_MACH_OMAP3517EVM)		+= board-am3517evm.o \
-					   omap_phy_internal.o \
+obj-$(CONFIG_MACH_PCM049)		+= board-omap4pcm049.o
+
+obj-$(CONFIG_MACH_OMAP3517EVM)		+= board-am3517evm.o
 
 obj-$(CONFIG_MACH_CRANEBOARD)		+= board-am3517crane.o
 
-obj-$(CONFIG_MACH_SBC3530)		+= board-omap3stalker.o \
-					   hsmmc.o
+obj-$(CONFIG_MACH_SBC3530)		+= board-omap3stalker.o
 obj-$(CONFIG_MACH_TI8168EVM)		+= board-ti8168evm.o
+
 # Platform specific device init code
+
+omap-flash-$(CONFIG_MTD_NAND_OMAP2)	:= board-flash.o
+omap-flash-$(CONFIG_MTD_ONENAND_OMAP2)	:= board-flash.o
+obj-y					+= $(omap-flash-y) $(omap-flash-m)
+
+omap-hsmmc-$(CONFIG_MMC_OMAP_HS)	:= hsmmc.o
+obj-y					+= $(omap-hsmmc-m) $(omap-hsmmc-y)
+
+
 usbfs-$(CONFIG_ARCH_OMAP_OTG)		:= usb-fs.o
 obj-y					+= $(usbfs-m) $(usbfs-y)
 obj-y					+= usb-musb.o
+obj-y					+= omap_phy_internal.o
+
 obj-$(CONFIG_MACH_OMAP2_TUSB6010)	+= usb-tusb6010.o
 obj-y					+= usb-host.o
 

@@ -555,8 +555,8 @@ static int tomoyo_update_path2_acl(const u8 perm,
  *
  * Caller holds tomoyo_read_lock().
  */
-int tomoyo_path_permission(struct tomoyo_request_info *r, u8 operation,
-			   const struct tomoyo_path_info *filename)
+static int tomoyo_path_permission(struct tomoyo_request_info *r, u8 operation,
+				  const struct tomoyo_path_info *filename)
 {
 	int error;
 
@@ -570,13 +570,39 @@ int tomoyo_path_permission(struct tomoyo_request_info *r, u8 operation,
 	do {
 		tomoyo_check_acl(r, tomoyo_check_path_acl);
 		error = tomoyo_audit_path_log(r);
-		/*
-		 * Do not retry for execute request, for alias may have
-		 * changed.
-		 */
-	} while (error == TOMOYO_RETRY_REQUEST &&
-		 operation != TOMOYO_TYPE_EXECUTE);
+	} while (error == TOMOYO_RETRY_REQUEST);
 	return error;
+}
+
+/**
+ * tomoyo_execute_permission - Check permission for execute operation.
+ *
+ * @r:         Pointer to "struct tomoyo_request_info".
+ * @filename:  Filename to check.
+ *
+ * Returns 0 on success, negative value otherwise.
+ *
+ * Caller holds tomoyo_read_lock().
+ */
+int tomoyo_execute_permission(struct tomoyo_request_info *r,
+			      const struct tomoyo_path_info *filename)
+{
+	/*
+	 * Unlike other permission checks, this check is done regardless of
+	 * profile mode settings in order to check for domain transition
+	 * preference.
+	 */
+	r->type = TOMOYO_MAC_FILE_EXECUTE;
+	r->mode = tomoyo_get_mode(r->domain->ns, r->profile, r->type);
+	r->param_type = TOMOYO_TYPE_PATH_ACL;
+	r->param.path.filename = filename;
+	r->param.path.operation = TOMOYO_TYPE_EXECUTE;
+	tomoyo_check_acl(r, tomoyo_check_path_acl);
+	r->ee->transition = r->matched_acl && r->matched_acl->cond ?
+		r->matched_acl->cond->transit : NULL;
+	if (r->mode != TOMOYO_CONFIG_DISABLED)
+		return tomoyo_audit_path_log(r);
+	return 0;
 }
 
 /**

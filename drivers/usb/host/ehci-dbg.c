@@ -697,6 +697,19 @@ static ssize_t fill_periodic_buffer(struct debug_buffer *buf)
 }
 #undef DBG_SCHED_LIMIT
 
+static const char *rh_state_string(struct ehci_hcd *ehci)
+{
+	switch (ehci->rh_state) {
+	case EHCI_RH_HALTED:
+		return "halted";
+	case EHCI_RH_SUSPENDED:
+		return "suspended";
+	case EHCI_RH_RUNNING:
+		return "running";
+	}
+	return "?";
+}
+
 static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 {
 	struct usb_hcd		*hcd;
@@ -730,11 +743,11 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 	temp = scnprintf (next, size,
 		"bus %s, device %s\n"
 		"%s\n"
-		"EHCI %x.%02x, hcd state %d\n",
+		"EHCI %x.%02x, rh state %s\n",
 		hcd->self.controller->bus->name,
 		dev_name(hcd->self.controller),
 		hcd->product_desc,
-		i >> 8, i & 0x0ff, hcd->state);
+		i >> 8, i & 0x0ff, rh_state_string(ehci));
 	size -= temp;
 	next += temp;
 
@@ -808,7 +821,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 	next += temp;
 
 	temp = scnprintf (next, size, "uframe %04x\n",
-			ehci_readl(ehci, &ehci->regs->frame_index));
+			ehci_read_frame_index(ehci));
 	size -= temp;
 	next += temp;
 

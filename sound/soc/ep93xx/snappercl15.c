@@ -12,6 +12,7 @@
  */
 
 #include <linux/platform_device.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
@@ -104,14 +105,10 @@ static struct snd_soc_card snd_soc_snappercl15 = {
 	.num_links	= 1,
 };
 
-static struct platform_device *snappercl15_snd_device;
-
-static int __init snappercl15_init(void)
+static int __devinit snappercl15_probe(struct platform_device *pdev)
 {
+	struct snd_soc_card *card = &snd_soc_snappercl15;
 	int ret;
-
-	if (!machine_is_snapper_cl15())
-		return -ENODEV;
 
 	ret = ep93xx_i2s_acquire(EP93XX_SYSCON_DEVCFG_I2SONAC97,
 				 EP93XX_SYSCON_I2SCLKDIV_ORIDE |
@@ -119,22 +116,45 @@ static int __init snappercl15_init(void)
 	if (ret)
 		return ret;
 
-	snappercl15_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!snappercl15_snd_device)
-		return -ENOMEM;
-	
-	platform_set_drvdata(snappercl15_snd_device, &snd_soc_snappercl15);
-	ret = platform_device_add(snappercl15_snd_device);
-	if (ret)
-		platform_device_put(snappercl15_snd_device);
+	card->dev = &pdev->dev;
+
+	ret = snd_soc_register_card(card);
+	if (ret) {
+		dev_err(&pdev->dev, "snd_soc_register_card() failed: %d\n",
+			ret);
+		ep93xx_i2s_release();
+	}
 
 	return ret;
 }
 
+static int __devexit snappercl15_remove(struct platform_device *pdev)
+{
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+
+	snd_soc_unregister_card(card);
+	ep93xx_i2s_release();
+
+	return 0;
+}
+
+static struct platform_driver snappercl15_driver = {
+	.driver		= {
+		.name	= "snappercl15-audio",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= snappercl15_probe,
+	.remove		= __devexit_p(snappercl15_remove),
+};
+
+static int __init snappercl15_init(void)
+{
+	return platform_driver_register(&snappercl15_driver);
+}
+
 static void __exit snappercl15_exit(void)
 {
-	platform_device_unregister(snappercl15_snd_device);
-	ep93xx_i2s_release();
+	platform_driver_unregister(&snappercl15_driver);
 }
 
 module_init(snappercl15_init);
@@ -143,4 +163,4 @@ module_exit(snappercl15_exit);
 MODULE_AUTHOR("Ryan Mallon");
 MODULE_DESCRIPTION("ALSA SoC Snapper CL15");
 MODULE_LICENSE("GPL");
-
+MODULE_ALIAS("platform:snappercl15-audio");

@@ -16,6 +16,7 @@
 #include <linux/leds.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/module.h>
 
 #include <asm/geode.h>
 

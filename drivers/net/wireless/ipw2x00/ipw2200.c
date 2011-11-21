@@ -32,6 +32,7 @@
 
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <net/cfg80211-wext.h>
 #include "ipw2200.h"
 
 
@@ -11704,7 +11705,7 @@ static const struct net_device_ops ipw_netdev_ops = {
 	.ndo_init		= ipw_net_init,
 	.ndo_open		= ipw_net_open,
 	.ndo_stop		= ipw_net_stop,
-	.ndo_set_multicast_list	= ipw_net_set_multicast_list,
+	.ndo_set_rx_mode	= ipw_net_set_multicast_list,
 	.ndo_set_mac_address	= ipw_net_set_mac_address,
 	.ndo_start_xmit		= libipw_xmit,
 	.ndo_change_mtu		= libipw_change_mtu,

@@ -127,6 +127,17 @@ static int do_setxattr(struct btrfs_trans_handle *trans,
 again:
 	ret = btrfs_insert_xattr_item(trans, root, path, btrfs_ino(inode),
 				      name, name_len, value, size);
+	/*
+	 * If we're setting an xattr to a new value but the new value is say
+	 * exactly BTRFS_MAX_XATTR_SIZE, we could end up with EOVERFLOW getting
+	 * back from split_leaf.  This is because it thinks we'll be extending
+	 * the existing item size, but we're asking for enough space to add the
+	 * item itself.  So if we get EOVERFLOW just set ret to EEXIST and let
+	 * the rest of the function figure it out.
+	 */
+	if (ret == -EOVERFLOW)
+		ret = -EEXIST;
+
 	if (ret == -EEXIST) {
 		if (flags & XATTR_CREATE)
 			goto out;
@@ -383,36 +394,36 @@ int btrfs_removexattr(struct dentry *dentry, const char *name)
 				XATTR_REPLACE);
 }
 
+int btrfs_initxattrs(struct inode *inode, const struct xattr *xattr_array,
+		     void *fs_info)
+{
+	const struct xattr *xattr;
+	struct btrfs_trans_handle *trans = fs_info;
+	char *name;
+	int err = 0;
+
+	for (xattr = xattr_array; xattr->name != NULL; xattr++) {
+		name = kmalloc(XATTR_SECURITY_PREFIX_LEN +
+			       strlen(xattr->name) + 1, GFP_NOFS);
+		if (!name) {
+			err = -ENOMEM;
+			break;
+		}
+		strcpy(name, XATTR_SECURITY_PREFIX);
+		strcpy(name + XATTR_SECURITY_PREFIX_LEN, xattr->name);
+		err = __btrfs_setxattr(trans, inode, name,
+				       xattr->value, xattr->value_len, 0);
+		kfree(name);
+		if (err < 0)
+			break;
+	}
+	return err;
+}
+
 int btrfs_xattr_security_init(struct btrfs_trans_handle *trans,
 			      struct inode *inode, struct inode *dir,
 			      const struct qstr *qstr)
 {
-	int err;
-	size_t len;
-	void *value;
-	char *suffix;
-	char *name;
-
-	err = security_inode_init_security(inode, dir, qstr, &suffix, &value,
-					   &len);
-	if (err) {
-		if (err == -EOPNOTSUPP)
-			return 0;
-		return err;
-	}
-
-	name = kmalloc(XATTR_SECURITY_PREFIX_LEN + strlen(suffix) + 1,
-		       GFP_NOFS);
-	if (!name) {
-		err = -ENOMEM;
-	} else {
-		strcpy(name, XATTR_SECURITY_PREFIX);
-		strcpy(name + XATTR_SECURITY_PREFIX_LEN, suffix);
-		err = __btrfs_setxattr(trans, inode, name, value, len, 0);
-		kfree(name);
-	}
-
-	kfree(suffix);
-	kfree(value);
-	return err;
+	return security_inode_init_security(inode, dir, qstr,
+					    &btrfs_initxattrs, trans);
 }

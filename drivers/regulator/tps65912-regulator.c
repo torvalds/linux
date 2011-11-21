@@ -43,8 +43,6 @@
 #define TPS65912_REG_LDO9	12
 #define TPS65912_REG_LDO10	13
 
-#define TPS65912_MAX_REG_ID	TPS65912_REG_LDO_10
-
 /* Number of step-down converters available */
 #define TPS65912_NUM_DCDC	4
 

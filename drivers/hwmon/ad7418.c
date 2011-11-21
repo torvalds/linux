@@ -76,20 +76,6 @@ static struct i2c_driver ad7418_driver = {
 	.id_table	= ad7418_id,
 };
 
-/* All registers are word-sized, except for the configuration registers.
- * AD7418 uses a high-byte first convention. Do NOT use those functions to
- * access the configuration registers CONF and CONF2, as they are byte-sized.
- */
-static inline int ad7418_read(struct i2c_client *client, u8 reg)
-{
-	return swab16(i2c_smbus_read_word_data(client, reg));
-}
-
-static inline int ad7418_write(struct i2c_client *client, u8 reg, u16 value)
-{
-	return i2c_smbus_write_word_data(client, reg, swab16(value));
-}
-
 static void ad7418_init_client(struct i2c_client *client)
 {
 	struct ad7418_data *data = i2c_get_clientdata(client);
@@ -128,7 +114,9 @@ static struct ad7418_data *ad7418_update_device(struct device *dev)
 		udelay(30);
 
 		for (i = 0; i < 3; i++) {
-			data->temp[i] = ad7418_read(client, AD7418_REG_TEMP[i]);
+			data->temp[i] =
+				i2c_smbus_read_word_swapped(client,
+						AD7418_REG_TEMP[i]);
 		}
 
 		for (i = 0, ch = 4; i < data->adc_max; i++, ch--) {
@@ -138,11 +126,12 @@ static struct ad7418_data *ad7418_update_device(struct device *dev)
 
 			udelay(15);
 			data->in[data->adc_max - 1 - i] =
-				ad7418_read(client, AD7418_REG_ADC);
+				i2c_smbus_read_word_swapped(client,
+						AD7418_REG_ADC);
 		}
 
 		/* restore old configuration value */
-		ad7418_write(client, AD7418_REG_CONF, cfg);
+		i2c_smbus_write_word_swapped(client, AD7418_REG_CONF, cfg);
 
 		data->last_updated = jiffies;
 		data->valid = 1;
@@ -182,7 +171,9 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *devattr,
 
 	mutex_lock(&data->lock);
 	data->temp[attr->index] = LM75_TEMP_TO_REG(temp);
-	ad7418_write(client, AD7418_REG_TEMP[attr->index], data->temp[attr->index]);
+	i2c_smbus_write_word_swapped(client,
+				     AD7418_REG_TEMP[attr->index],
+				     data->temp[attr->index]);
 	mutex_unlock(&data->lock);
 	return count;
 }

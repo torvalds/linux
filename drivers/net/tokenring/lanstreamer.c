@@ -231,7 +231,7 @@ static const struct net_device_ops streamer_netdev_ops = {
 #if STREAMER_IOCTL
 	.ndo_do_ioctl		= streamer_ioctl,
 #endif
-	.ndo_set_multicast_list = streamer_set_rx_mode,
+	.ndo_set_rx_mode	= streamer_set_rx_mode,
 	.ndo_set_mac_address	= streamer_set_mac_address,
 };
 

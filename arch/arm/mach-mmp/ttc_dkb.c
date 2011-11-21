@@ -93,7 +93,7 @@ static struct mtd_partition ttc_dkb_onenand_partitions[] = {
 	}, {
 		.name		= "filesystem",
 		.offset		= MTDPART_OFS_APPEND,
-		.size		= SZ_48M,
+		.size		= SZ_32M + SZ_16M,
 		.mask_flags	= 0,
 	}
 };

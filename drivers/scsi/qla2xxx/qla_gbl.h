@@ -104,6 +104,8 @@ extern int ql2xenablehba_err_chk;
 extern int ql2xtargetreset;
 extern int ql2xdontresethba;
 extern unsigned int ql2xmaxlun;
+extern int ql2xmdcapmask;
+extern int ql2xmdenable;
 
 extern int qla2x00_loop_reset(scsi_qla_host_t *);
 extern void qla2x00_abort_all_cmds(scsi_qla_host_t *, int);
@@ -407,6 +409,8 @@ extern void qla2x00_beacon_blink(struct scsi_qla_host *);
 extern int qla24xx_beacon_on(struct scsi_qla_host *);
 extern int qla24xx_beacon_off(struct scsi_qla_host *);
 extern void qla24xx_beacon_blink(struct scsi_qla_host *);
+extern int qla82xx_beacon_on(struct scsi_qla_host *);
+extern int qla82xx_beacon_off(struct scsi_qla_host *);
 
 extern uint8_t *qla2x00_read_optrom_data(struct scsi_qla_host *, uint8_t *,
     uint32_t, uint32_t);
@@ -442,6 +446,7 @@ extern void qla2x00_dump_buffer_zipped(uint8_t *, uint32_t);
 extern void ql_dump_regs(uint32_t, scsi_qla_host_t *, int32_t);
 extern void ql_dump_buffer(uint32_t, scsi_qla_host_t *, int32_t,
 	uint8_t *, uint32_t);
+extern void qla2xxx_dump_post_process(scsi_qla_host_t *, int);
 
 /*
  * Global Function Prototypes in qla_gs.c source file.
@@ -569,7 +574,10 @@ extern int qla82xx_mbx_intr_enable(scsi_qla_host_t *);
 extern int qla82xx_mbx_intr_disable(scsi_qla_host_t *);
 extern void qla82xx_start_iocbs(srb_t *);
 extern int qla82xx_fcoe_ctx_reset(scsi_qla_host_t *);
+extern int qla82xx_check_md_needed(scsi_qla_host_t *);
 extern void qla82xx_chip_reset_cleanup(scsi_qla_host_t *);
+extern int qla82xx_mbx_beacon_ctl(scsi_qla_host_t *, int);
+extern char *qdev_state(uint32_t);
 
 /* BSG related functions */
 extern int qla24xx_bsg_request(struct fc_bsg_job *);
@@ -579,4 +587,14 @@ extern int qla2x00_issue_iocb_timeout(scsi_qla_host_t *, void *,
 	dma_addr_t, size_t, uint32_t);
 extern int qla2x00_get_idma_speed(scsi_qla_host_t *, uint16_t,
 	uint16_t *, uint16_t *);
+
+/* Minidump related functions */
+extern int qla82xx_md_get_template_size(scsi_qla_host_t *);
+extern int qla82xx_md_get_template(scsi_qla_host_t *);
+extern int qla82xx_md_alloc(scsi_qla_host_t *);
+extern void qla82xx_md_free(scsi_qla_host_t *);
+extern int qla82xx_md_collect(scsi_qla_host_t *);
+extern void qla82xx_md_prep(scsi_qla_host_t *);
+extern void qla82xx_set_reset_owner(scsi_qla_host_t *);
+
 #endif /* _QLA_GBL_H */

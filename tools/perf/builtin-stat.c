@@ -194,6 +194,9 @@ static const char		*cpu_list;
 static const char		*csv_sep			= NULL;
 static bool			csv_output			= false;
 static bool			group				= false;
+static const char		*output_name			= NULL;
+static FILE			*output				= NULL;
+static int			output_fd;
 
 static volatile int done = 0;
 
@@ -251,8 +254,13 @@ static double avg_stats(struct stats *stats)
  */
 static double stddev_stats(struct stats *stats)
 {
-	double variance = stats->M2 / (stats->n - 1);
-	double variance_mean = variance / stats->n;
+	double variance, variance_mean;
+
+	if (!stats->n)
+		return 0.0;
+
+	variance = stats->M2 / (stats->n - 1);
+	variance_mean = variance / stats->n;
 
 	return sqrt(variance_mean);
 }
@@ -270,9 +278,14 @@ struct stats			runtime_itlb_cache_stats[MAX_NR_CPUS];
 struct stats			runtime_dtlb_cache_stats[MAX_NR_CPUS];
 struct stats			walltime_nsecs_stats;
 
-static int create_perf_stat_counter(struct perf_evsel *evsel)
+static int create_perf_stat_counter(struct perf_evsel *evsel,
+				    struct perf_evsel *first)
 {
 	struct perf_event_attr *attr = &evsel->attr;
+	struct xyarray *group_fd = NULL;
+
+	if (group && evsel != first)
+		group_fd = first->fd;
 
 	if (scale)
 		attr->read_format = PERF_FORMAT_TOTAL_TIME_ENABLED |
@@ -281,14 +294,15 @@ static int create_perf_stat_counter(struct perf_evsel *evsel)
 	attr->inherit = !no_inherit;
 
 	if (system_wide)
-		return perf_evsel__open_per_cpu(evsel, evsel_list->cpus, group);
-
+		return perf_evsel__open_per_cpu(evsel, evsel_list->cpus,
+						group, group_fd);
 	if (target_pid == -1 && target_tid == -1) {
 		attr->disabled = 1;
 		attr->enable_on_exec = 1;
 	}
 
-	return perf_evsel__open_per_thread(evsel, evsel_list->threads, group);
+	return perf_evsel__open_per_thread(evsel, evsel_list->threads,
+					   group, group_fd);
 }
 
 /*
@@ -352,7 +366,7 @@ static int read_counter_aggr(struct perf_evsel *counter)
 		update_stats(&ps->res_stats[i], count[i]);
 
 	if (verbose) {
-		fprintf(stderr, "%s: %" PRIu64 " %" PRIu64 " %" PRIu64 "\n",
+		fprintf(output, "%s: %" PRIu64 " %" PRIu64 " %" PRIu64 "\n",
 			event_name(counter), count[0], count[1], count[2]);
 	}
 
@@ -388,7 +402,7 @@ static int read_counter(struct perf_evsel *counter)
 static int run_perf_stat(int argc __used, const char **argv)
 {
 	unsigned long long t0, t1;
-	struct perf_evsel *counter;
+	struct perf_evsel *counter, *first;
 	int status = 0;
 	int child_ready_pipe[2], go_pipe[2];
 	const bool forks = (argc > 0);
@@ -445,8 +459,10 @@ static int run_perf_stat(int argc __used, const char **argv)
 		close(child_ready_pipe[0]);
 	}
 
+	first = list_entry(evsel_list->entries.next, struct perf_evsel, node);
+
 	list_for_each_entry(counter, &evsel_list->entries, node) {
-		if (create_perf_stat_counter(counter) < 0) {
+		if (create_perf_stat_counter(counter, first) < 0) {
 			if (errno == EINVAL || errno == ENOSYS || errno == ENOENT) {
 				if (verbose)
 					ui__warning("%s event is not supported by the kernel.\n",
@@ -487,6 +503,8 @@ static int run_perf_stat(int argc __used, const char **argv)
 	if (forks) {
 		close(go_pipe[1]);
 		wait(&status);
+		if (WIFSIGNALED(status))
+			psignal(WTERMSIG(status), argv[0]);
 	} else {
 		while(!done) sleep(1);
 	}
@@ -519,9 +537,9 @@ static void print_noise_pct(double total, double avg)
 		pct = 100.0*total/avg;
 
 	if (csv_output)
-		fprintf(stderr, "%s%.2f%%", csv_sep, pct);
-	else
-		fprintf(stderr, "  ( +-%6.2f%% )", pct);
+		fprintf(output, "%s%.2f%%", csv_sep, pct);
+	else if (pct)
+		fprintf(output, "  ( +-%6.2f%% )", pct);
 }
 
 static void print_noise(struct perf_evsel *evsel, double avg)
@@ -546,16 +564,17 @@ static void nsec_printout(int cpu, struct perf_evsel *evsel, double avg)
 			csv_output ? 0 : -4,
 			evsel_list->cpus->map[cpu], csv_sep);
 
-	fprintf(stderr, fmt, cpustr, msecs, csv_sep, event_name(evsel));
+	fprintf(output, fmt, cpustr, msecs, csv_sep, event_name(evsel));
 
 	if (evsel->cgrp)
-		fprintf(stderr, "%s%s", csv_sep, evsel->cgrp->name);
+		fprintf(output, "%s%s", csv_sep, evsel->cgrp->name);
 
 	if (csv_output)
 		return;
 
 	if (perf_evsel__match(evsel, SOFTWARE, SW_TASK_CLOCK))
-		fprintf(stderr, " # %8.3f CPUs utilized          ", avg / avg_stats(&walltime_nsecs_stats));
+		fprintf(output, " # %8.3f CPUs utilized          ",
+			avg / avg_stats(&walltime_nsecs_stats));
 }
 
 static void print_stalled_cycles_frontend(int cpu, struct perf_evsel *evsel __used, double avg)
@@ -576,9 +595,9 @@ static void print_stalled_cycles_frontend(int cpu, struct perf_evsel *evsel __us
 	else if (ratio > 10.0)
 		color = PERF_COLOR_YELLOW;
 
-	fprintf(stderr, " #  ");
-	color_fprintf(stderr, color, "%6.2f%%", ratio);
-	fprintf(stderr, " frontend cycles idle   ");
+	fprintf(output, " #  ");
+	color_fprintf(output, color, "%6.2f%%", ratio);
+	fprintf(output, " frontend cycles idle   ");
 }
 
 static void print_stalled_cycles_backend(int cpu, struct perf_evsel *evsel __used, double avg)
@@ -599,9 +618,9 @@ static void print_stalled_cycles_backend(int cpu, struct perf_evsel *evsel __use
 	else if (ratio > 20.0)
 		color = PERF_COLOR_YELLOW;
 
-	fprintf(stderr, " #  ");
-	color_fprintf(stderr, color, "%6.2f%%", ratio);
-	fprintf(stderr, " backend  cycles idle   ");
+	fprintf(output, " #  ");
+	color_fprintf(output, color, "%6.2f%%", ratio);
+	fprintf(output, " backend  cycles idle   ");
 }
 
 static void print_branch_misses(int cpu, struct perf_evsel *evsel __used, double avg)
@@ -622,9 +641,9 @@ static void print_branch_misses(int cpu, struct perf_evsel *evsel __used, double
 	else if (ratio > 5.0)
 		color = PERF_COLOR_YELLOW;
 
-	fprintf(stderr, " #  ");
-	color_fprintf(stderr, color, "%6.2f%%", ratio);
-	fprintf(stderr, " of all branches        ");
+	fprintf(output, " #  ");
+	color_fprintf(output, color, "%6.2f%%", ratio);
+	fprintf(output, " of all branches        ");
 }
 
 static void print_l1_dcache_misses(int cpu, struct perf_evsel *evsel __used, double avg)
@@ -645,9 +664,9 @@ static void print_l1_dcache_misses(int cpu, struct perf_evsel *evsel __used, dou
 	else if (ratio > 5.0)
 		color = PERF_COLOR_YELLOW;
 
-	fprintf(stderr, " #  ");
-	color_fprintf(stderr, color, "%6.2f%%", ratio);
-	fprintf(stderr, " of all L1-dcache hits  ");
+	fprintf(output, " #  ");
+	color_fprintf(output, color, "%6.2f%%", ratio);
+	fprintf(output, " of all L1-dcache hits  ");
 }
 
 static void print_l1_icache_misses(int cpu, struct perf_evsel *evsel __used, double avg)
@@ -668,9 +687,9 @@ static void print_l1_icache_misses(int cpu, struct perf_evsel *evsel __used, dou
 	else if (ratio > 5.0)
 		color = PERF_COLOR_YELLOW;
 
-	fprintf(stderr, " #  ");
-	color_fprintf(stderr, color, "%6.2f%%", ratio);
-	fprintf(stderr, " of all L1-icache hits  ");
+	fprintf(output, " #  ");
+	color_fprintf(output, color, "%6.2f%%", ratio);
+	fprintf(output, " of all L1-icache hits  ");
 }
 
 static void print_dtlb_cache_misses(int cpu, struct perf_evsel *evsel __used, double avg)
@@ -691,9 +710,9 @@ static void print_dtlb_cache_misses(int cpu, struct perf_evsel *evsel __used, do
 	else if (ratio > 5.0)
 		color = PERF_COLOR_YELLOW;
 
-	fprintf(stderr, " #  ");
-	color_fprintf(stderr, color, "%6.2f%%", ratio);
-	fprintf(stderr, " of all dTLB cache hits ");
+	fprintf(output, " #  ");
+	color_fprintf(output, color, "%6.2f%%", ratio);
+	fprintf(output, " of all dTLB cache hits ");
 }
 
 static void print_itlb_cache_misses(int cpu, struct perf_evsel *evsel __used, double avg)
@@ -714,9 +733,9 @@ static void print_itlb_cache_misses(int cpu, struct perf_evsel *evsel __used, do
 	else if (ratio > 5.0)
 		color = PERF_COLOR_YELLOW;
 
-	fprintf(stderr, " #  ");
-	color_fprintf(stderr, color, "%6.2f%%", ratio);
-	fprintf(stderr, " of all iTLB cache hits ");
+	fprintf(output, " #  ");
+	color_fprintf(output, color, "%6.2f%%", ratio);
+	fprintf(output, " of all iTLB cache hits ");
 }
 
 static void print_ll_cache_misses(int cpu, struct perf_evsel *evsel __used, double avg)
@@ -737,9 +756,9 @@ static void print_ll_cache_misses(int cpu, struct perf_evsel *evsel __used, doub
 	else if (ratio > 5.0)
 		color = PERF_COLOR_YELLOW;
 
-	fprintf(stderr, " #  ");
-	color_fprintf(stderr, color, "%6.2f%%", ratio);
-	fprintf(stderr, " of all LL-cache hits   ");
+	fprintf(output, " #  ");
+	color_fprintf(output, color, "%6.2f%%", ratio);
+	fprintf(output, " of all LL-cache hits   ");
 }
 
 static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
@@ -762,10 +781,10 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 	else
 		cpu = 0;
 
-	fprintf(stderr, fmt, cpustr, avg, csv_sep, event_name(evsel));
+	fprintf(output, fmt, cpustr, avg, csv_sep, event_name(evsel));
 
 	if (evsel->cgrp)
-		fprintf(stderr, "%s%s", csv_sep, evsel->cgrp->name);
+		fprintf(output, "%s%s", csv_sep, evsel->cgrp->name);
 
 	if (csv_output)
 		return;
@@ -776,14 +795,14 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 		if (total)
 			ratio = avg / total;
 
-		fprintf(stderr, " #   %5.2f  insns per cycle        ", ratio);
+		fprintf(output, " #   %5.2f  insns per cycle        ", ratio);
 
 		total = avg_stats(&runtime_stalled_cycles_front_stats[cpu]);
 		total = max(total, avg_stats(&runtime_stalled_cycles_back_stats[cpu]));
 
 		if (total && avg) {
 			ratio = total / avg;
-			fprintf(stderr, "\n                                             #   %5.2f  stalled cycles per insn", ratio);
+			fprintf(output, "\n                                             #   %5.2f  stalled cycles per insn", ratio);
 		}
 
 	} else if (perf_evsel__match(evsel, HARDWARE, HW_BRANCH_MISSES) &&
@@ -831,7 +850,7 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 		if (total)
 			ratio = avg * 100 / total;
 
-		fprintf(stderr, " # %8.3f %% of all cache refs    ", ratio);
+		fprintf(output, " # %8.3f %% of all cache refs    ", ratio);
 
 	} else if (perf_evsel__match(evsel, HARDWARE, HW_STALLED_CYCLES_FRONTEND)) {
 		print_stalled_cycles_frontend(cpu, evsel, avg);
@@ -843,16 +862,16 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 		if (total)
 			ratio = 1.0 * avg / total;
 
-		fprintf(stderr, " # %8.3f GHz                    ", ratio);
+		fprintf(output, " # %8.3f GHz                    ", ratio);
 	} else if (runtime_nsecs_stats[cpu].n != 0) {
 		total = avg_stats(&runtime_nsecs_stats[cpu]);
 
 		if (total)
 			ratio = 1000.0 * avg / total;
 
-		fprintf(stderr, " # %8.3f M/sec                  ", ratio);
+		fprintf(output, " # %8.3f M/sec                  ", ratio);
 	} else {
-		fprintf(stderr, "                                   ");
+		fprintf(output, "                                   ");
 	}
 }
 
@@ -867,7 +886,7 @@ static void print_counter_aggr(struct perf_evsel *counter)
 	int scaled = counter->counts->scaled;
 
 	if (scaled == -1) {
-		fprintf(stderr, "%*s%s%*s",
+		fprintf(output, "%*s%s%*s",
 			csv_output ? 0 : 18,
 			counter->supported ? CNTR_NOT_COUNTED : CNTR_NOT_SUPPORTED,
 			csv_sep,
@@ -875,9 +894,9 @@ static void print_counter_aggr(struct perf_evsel *counter)
 			event_name(counter));
 
 		if (counter->cgrp)
-			fprintf(stderr, "%s%s", csv_sep, counter->cgrp->name);
+			fprintf(output, "%s%s", csv_sep, counter->cgrp->name);
 
-		fputc('\n', stderr);
+		fputc('\n', output);
 		return;
 	}
 
@@ -889,7 +908,7 @@ static void print_counter_aggr(struct perf_evsel *counter)
 	print_noise(counter, avg);
 
 	if (csv_output) {
-		fputc('\n', stderr);
+		fputc('\n', output);
 		return;
 	}
 
@@ -899,9 +918,9 @@ static void print_counter_aggr(struct perf_evsel *counter)
 		avg_enabled = avg_stats(&ps->res_stats[1]);
 		avg_running = avg_stats(&ps->res_stats[2]);
 
-		fprintf(stderr, " [%5.2f%%]", 100 * avg_running / avg_enabled);
+		fprintf(output, " [%5.2f%%]", 100 * avg_running / avg_enabled);
 	}
-	fprintf(stderr, "\n");
+	fprintf(output, "\n");
 }
 
 /*
@@ -918,7 +937,7 @@ static void print_counter(struct perf_evsel *counter)
 		ena = counter->counts->cpu[cpu].ena;
 		run = counter->counts->cpu[cpu].run;
 		if (run == 0 || ena == 0) {
-			fprintf(stderr, "CPU%*d%s%*s%s%*s",
+			fprintf(output, "CPU%*d%s%*s%s%*s",
 				csv_output ? 0 : -4,
 				evsel_list->cpus->map[cpu], csv_sep,
 				csv_output ? 0 : 18,
@@ -928,9 +947,10 @@ static void print_counter(struct perf_evsel *counter)
 				event_name(counter));
 
 			if (counter->cgrp)
-				fprintf(stderr, "%s%s", csv_sep, counter->cgrp->name);
+				fprintf(output, "%s%s",
+					csv_sep, counter->cgrp->name);
 
-			fputc('\n', stderr);
+			fputc('\n', output);
 			continue;
 		}
 
@@ -943,9 +963,10 @@ static void print_counter(struct perf_evsel *counter)
 			print_noise(counter, 1.0);
 
 			if (run != ena)
-				fprintf(stderr, "  (%.2f%%)", 100.0 * run / ena);
+				fprintf(output, "  (%.2f%%)",
+					100.0 * run / ena);
 		}
-		fputc('\n', stderr);
+		fputc('\n', output);
 	}
 }
 
@@ -957,21 +978,21 @@ static void print_stat(int argc, const char **argv)
 	fflush(stdout);
 
 	if (!csv_output) {
-		fprintf(stderr, "\n");
-		fprintf(stderr, " Performance counter stats for ");
+		fprintf(output, "\n");
+		fprintf(output, " Performance counter stats for ");
 		if(target_pid == -1 && target_tid == -1) {
-			fprintf(stderr, "\'%s", argv[0]);
+			fprintf(output, "\'%s", argv[0]);
 			for (i = 1; i < argc; i++)
-				fprintf(stderr, " %s", argv[i]);
+				fprintf(output, " %s", argv[i]);
 		} else if (target_pid != -1)
-			fprintf(stderr, "process id \'%d", target_pid);
+			fprintf(output, "process id \'%d", target_pid);
 		else
-			fprintf(stderr, "thread id \'%d", target_tid);
+			fprintf(output, "thread id \'%d", target_tid);
 
-		fprintf(stderr, "\'");
+		fprintf(output, "\'");
 		if (run_count > 1)
-			fprintf(stderr, " (%d runs)", run_count);
-		fprintf(stderr, ":\n\n");
+			fprintf(output, " (%d runs)", run_count);
+		fprintf(output, ":\n\n");
 	}
 
 	if (no_aggr) {
@@ -984,15 +1005,15 @@ static void print_stat(int argc, const char **argv)
 
 	if (!csv_output) {
 		if (!null_run)
-			fprintf(stderr, "\n");
-		fprintf(stderr, " %17.9f seconds time elapsed",
+			fprintf(output, "\n");
+		fprintf(output, " %17.9f seconds time elapsed",
 				avg_stats(&walltime_nsecs_stats)/1e9);
 		if (run_count > 1) {
-			fprintf(stderr, "                                        ");
+			fprintf(output, "                                        ");
 			print_noise_pct(stddev_stats(&walltime_nsecs_stats),
 					avg_stats(&walltime_nsecs_stats));
 		}
-		fprintf(stderr, "\n\n");
+		fprintf(output, "\n\n");
 	}
 }
 
@@ -1029,6 +1050,8 @@ static int stat__set_big_num(const struct option *opt __used,
 	big_num_opt = unset ? 0 : 1;
 	return 0;
 }
+
+static bool append_file;
 
 static const struct option options[] = {
 	OPT_CALLBACK('e', "event", &evsel_list, "event",
@@ -1070,6 +1093,11 @@ static const struct option options[] = {
 	OPT_CALLBACK('G', "cgroup", &evsel_list, "name",
 		     "monitor event in cgroup name only",
 		     parse_cgroups),
+	OPT_STRING('o', "output", &output_name, "file",
+		    "output file name"),
+	OPT_BOOLEAN(0, "append", &append_file, "append to the output file"),
+	OPT_INTEGER(0, "log-fd", &output_fd,
+		    "log output to fd, instead of stderr"),
 	OPT_END()
 };
 
@@ -1141,6 +1169,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 {
 	struct perf_evsel *pos;
 	int status = -ENOMEM;
+	const char *mode;
 
 	setlocale(LC_ALL, "");
 
@@ -1151,16 +1180,46 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 	argc = parse_options(argc, argv, options, stat_usage,
 		PARSE_OPT_STOP_AT_NON_OPTION);
 
-	if (csv_sep)
+	output = stderr;
+	if (output_name && strcmp(output_name, "-"))
+		output = NULL;
+
+	if (output_name && output_fd) {
+		fprintf(stderr, "cannot use both --output and --log-fd\n");
+		usage_with_options(stat_usage, options);
+	}
+	if (!output) {
+		struct timespec tm;
+		mode = append_file ? "a" : "w";
+
+		output = fopen(output_name, mode);
+		if (!output) {
+			perror("failed to create output file");
+			exit(-1);
+		}
+		clock_gettime(CLOCK_REALTIME, &tm);
+		fprintf(output, "# started on %s\n", ctime(&tm.tv_sec));
+	} else if (output_fd != 2) {
+		mode = append_file ? "a" : "w";
+		output = fdopen(output_fd, mode);
+		if (!output) {
+			perror("Failed opening logfd");
+			return -errno;
+		}
+	}
+
+	if (csv_sep) {
 		csv_output = true;
-	else
+		if (!strcmp(csv_sep, "\\t"))
+			csv_sep = "\t";
+	} else
 		csv_sep = DEFAULT_SEPARATOR;
 
 	/*
 	 * let the spreadsheet do the pretty-printing
 	 */
 	if (csv_output) {
-		/* User explicitely passed -B? */
+		/* User explicitly passed -B? */
 		if (big_num_opt == 1) {
 			fprintf(stderr, "-B option not supported with -x\n");
 			usage_with_options(stat_usage, options);
@@ -1226,7 +1285,8 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 	status = 0;
 	for (run_idx = 0; run_idx < run_count; run_idx++) {
 		if (run_count != 1 && verbose)
-			fprintf(stderr, "[ perf stat: executing run #%d ... ]\n", run_idx + 1);
+			fprintf(output, "[ perf stat: executing run #%d ... ]\n",
+				run_idx + 1);
 
 		if (sync_run)
 			sync();

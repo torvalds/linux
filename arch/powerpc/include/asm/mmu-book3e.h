@@ -66,6 +66,7 @@
 #define MAS2_M			0x00000004
 #define MAS2_G			0x00000002
 #define MAS2_E			0x00000001
+#define MAS2_WIMGE_MASK		0x0000001f
 #define MAS2_EPN_MASK(size)		(~0 << (size + 10))
 #define MAS2_VAL(addr, size, flags)	((addr) & MAS2_EPN_MASK(size) | (flags))
 
@@ -80,6 +81,7 @@
 #define MAS3_SW			0x00000004
 #define MAS3_UR			0x00000002
 #define MAS3_SR			0x00000001
+#define MAS3_BAP_MASK		0x0000003f
 #define MAS3_SPSIZE		0x0000003e
 #define MAS3_SPSIZE_SHIFT	1
 
@@ -212,6 +214,11 @@ typedef struct {
 	unsigned int	id;
 	unsigned int	active;
 	unsigned long	vdso_base;
+#ifdef CONFIG_PPC_MM_SLICES
+	u64 low_slices_psize;   /* SLB page size encodings */
+	u64 high_slices_psize;  /* 4 bits per slice for now */
+	u16 user_psize;         /* page size index */
+#endif
 } mm_context_t;
 
 /* Page size definitions, common between 32 and 64-bit

@@ -444,7 +444,7 @@ linux-1.1.x and fairly stable since linux-1.2.x, and are also in FreeBSD
   Kernel Compile options
   ------------------------------
     The various kernel compile time options for this driver are now fairly
-    well documented in the file Documentation/Configure.help.  In order to
+    well documented in the file drivers/scsi/Kconfig.  In order to
     see this documentation, you need to use one of the advanced configuration
     programs (menuconfig and xconfig).  If you are using the "make menuconfig"
     method of configuring your kernel, then you would simply highlight the

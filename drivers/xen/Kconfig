@@ -137,16 +137,6 @@ config XEN_GRANT_DEV_ALLOC
 	  to other domains. This can be used to implement frontend drivers
 	  or as part of an inter-domain shared memory channel.
 
-config XEN_PLATFORM_PCI
-	tristate "xen platform pci device driver"
-	depends on XEN_PVHVM && PCI
-	default m
-	help
-	  Driver for the Xen PCI Platform device: it is responsible for
-	  initializing xenbus and grant_table when running in a Xen HVM
-	  domain. As a consequence this driver is required to run any Xen PV
-	  frontend on Xen HVM.
-
 config SWIOTLB_XEN
 	def_bool y
 	depends on PCI

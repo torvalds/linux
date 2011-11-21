@@ -395,7 +395,6 @@ int si470x_disconnect_check(struct si470x_device *radio)
 static void si470x_int_in_callback(struct urb *urb)
 {
 	struct si470x_device *radio = urb->context;
-	unsigned char buf[RDS_REPORT_SIZE];
 	int retval;
 	unsigned char regnr;
 	unsigned char blocknum;
@@ -423,7 +422,6 @@ static void si470x_int_in_callback(struct urb *urb)
 
 	if (urb->actual_length > 0) {
 		/* Update RDS registers with URB data */
-		buf[0] = RDS_REPORT;
 		for (regnr = 0; regnr < RDS_REGISTER_NUM; regnr++)
 			radio->registers[STATUSRSSI + regnr] =
 			    get_unaligned_be16(&radio->int_in_buffer[

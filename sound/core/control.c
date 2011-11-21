@@ -21,6 +21,7 @@
 
 #include <linux/threads.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/time.h>
@@ -989,7 +990,6 @@ struct user_element {
 	void *tlv_data;			/* TLV data */
 	unsigned long tlv_data_size;	/* TLV data size */
 	void *priv_data;		/* private data (like strings for enumerated type) */
-	unsigned long priv_data_size;	/* size of private data in bytes */
 };
 
 static int snd_ctl_elem_user_info(struct snd_kcontrol *kcontrol,
@@ -998,6 +998,28 @@ static int snd_ctl_elem_user_info(struct snd_kcontrol *kcontrol,
 	struct user_element *ue = kcontrol->private_data;
 
 	*uinfo = ue->info;
+	return 0;
+}
+
+static int snd_ctl_elem_user_enum_info(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_info *uinfo)
+{
+	struct user_element *ue = kcontrol->private_data;
+	const char *names;
+	unsigned int item;
+
+	item = uinfo->value.enumerated.item;
+
+	*uinfo = ue->info;
+
+	item = min(item, uinfo->value.enumerated.items - 1);
+	uinfo->value.enumerated.item = item;
+
+	names = ue->priv_data;
+	for (; item > 0; --item)
+		names += strlen(names) + 1;
+	strcpy(uinfo->value.enumerated.name, names);
+
 	return 0;
 }
 
@@ -1055,11 +1077,46 @@ static int snd_ctl_elem_user_tlv(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
+static int snd_ctl_elem_init_enum_names(struct user_element *ue)
+{
+	char *names, *p;
+	size_t buf_len, name_len;
+	unsigned int i;
+	const uintptr_t user_ptrval = ue->info.value.enumerated.names_ptr;
+
+	if (ue->info.value.enumerated.names_length > 64 * 1024)
+		return -EINVAL;
+
+	names = memdup_user((const void __user *)user_ptrval,
+		ue->info.value.enumerated.names_length);
+	if (IS_ERR(names))
+		return PTR_ERR(names);
+
+	/* check that there are enough valid names */
+	buf_len = ue->info.value.enumerated.names_length;
+	p = names;
+	for (i = 0; i < ue->info.value.enumerated.items; ++i) {
+		name_len = strnlen(p, buf_len);
+		if (name_len == 0 || name_len >= 64 || name_len == buf_len) {
+			kfree(names);
+			return -EINVAL;
+		}
+		p += name_len + 1;
+		buf_len -= name_len + 1;
+	}
+
+	ue->priv_data = names;
+	ue->info.value.enumerated.names_ptr = 0;
+
+	return 0;
+}
+
 static void snd_ctl_elem_user_free(struct snd_kcontrol *kcontrol)
 {
 	struct user_element *ue = kcontrol->private_data;
-	if (ue->tlv_data)
-		kfree(ue->tlv_data);
+
+	kfree(ue->tlv_data);
+	kfree(ue->priv_data);
 	kfree(ue);
 }
 
@@ -1072,8 +1129,8 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	long private_size;
 	struct user_element *ue;
 	int idx, err;
-	
-	if (card->user_ctl_count >= MAX_USER_CONTROLS)
+
+	if (!replace && card->user_ctl_count >= MAX_USER_CONTROLS)
 		return -ENOMEM;
 	if (info->count < 1)
 		return -EINVAL;
@@ -1101,7 +1158,10 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	memcpy(&kctl.id, &info->id, sizeof(info->id));
 	kctl.count = info->owner ? info->owner : 1;
 	access |= SNDRV_CTL_ELEM_ACCESS_USER;
-	kctl.info = snd_ctl_elem_user_info;
+	if (info->type == SNDRV_CTL_ELEM_TYPE_ENUMERATED)
+		kctl.info = snd_ctl_elem_user_enum_info;
+	else
+		kctl.info = snd_ctl_elem_user_info;
 	if (access & SNDRV_CTL_ELEM_ACCESS_READ)
 		kctl.get = snd_ctl_elem_user_get;
 	if (access & SNDRV_CTL_ELEM_ACCESS_WRITE)
@@ -1120,6 +1180,11 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	case SNDRV_CTL_ELEM_TYPE_INTEGER64:
 		private_size = sizeof(long long);
 		if (info->count > 64)
+			return -EINVAL;
+		break;
+	case SNDRV_CTL_ELEM_TYPE_ENUMERATED:
+		private_size = sizeof(unsigned int);
+		if (info->count > 128 || info->value.enumerated.items == 0)
 			return -EINVAL;
 		break;
 	case SNDRV_CTL_ELEM_TYPE_BYTES:
@@ -1143,9 +1208,17 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	ue->info.access = 0;
 	ue->elem_data = (char *)ue + sizeof(*ue);
 	ue->elem_data_size = private_size;
+	if (ue->info.type == SNDRV_CTL_ELEM_TYPE_ENUMERATED) {
+		err = snd_ctl_elem_init_enum_names(ue);
+		if (err < 0) {
+			kfree(ue);
+			return err;
+		}
+	}
 	kctl.private_free = snd_ctl_elem_user_free;
 	_kctl = snd_ctl_new(&kctl, access);
 	if (_kctl == NULL) {
+		kfree(ue->priv_data);
 		kfree(ue);
 		return -ENOMEM;
 	}

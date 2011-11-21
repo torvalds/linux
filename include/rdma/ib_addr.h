@@ -218,8 +218,12 @@ static inline int iboe_get_rate(struct net_device *dev)
 {
 	struct ethtool_cmd cmd;
 	u32 speed;
+	int err;
 
-	if (dev_ethtool_get_settings(dev, &cmd))
+	rtnl_lock();
+	err = __ethtool_get_settings(dev, &cmd);
+	rtnl_unlock();
+	if (err)
 		return IB_RATE_PORT_CURRENT;
 
 	speed = ethtool_cmd_speed(&cmd);

@@ -1009,7 +1009,7 @@ static void ip_mc_filter_add(struct in_device *in_dev, __be32 addr)
 
 	/* Checking for IFF_MULTICAST here is WRONG-WRONG-WRONG.
 	   We will get multicast token leakage, when IFF_MULTICAST
-	   is changed. This check should be done in dev->set_multicast_list
+	   is changed. This check should be done in ndo_set_rx_mode
 	   routine. Something sort of:
 	   if (dev->mc_list && dev->flags&IFF_MULTICAST) { do it; }
 	   --ANK
@@ -1242,7 +1242,7 @@ void ip_mc_inc_group(struct in_device *in_dev, __be32 addr)
 
 	im->next_rcu = in_dev->mc_list;
 	in_dev->mc_count++;
-	rcu_assign_pointer(in_dev->mc_list, im);
+	RCU_INIT_POINTER(in_dev->mc_list, im);
 
 #ifdef CONFIG_IP_MULTICAST
 	igmpv3_del_delrec(in_dev, im->multiaddr);
@@ -1813,7 +1813,7 @@ int ip_mc_join_group(struct sock *sk , struct ip_mreqn *imr)
 	iml->next_rcu = inet->mc_list;
 	iml->sflist = NULL;
 	iml->sfmode = MCAST_EXCLUDE;
-	rcu_assign_pointer(inet->mc_list, iml);
+	RCU_INIT_POINTER(inet->mc_list, iml);
 	ip_mc_inc_group(in_dev, addr);
 	err = 0;
 done:
@@ -1835,7 +1835,7 @@ static int ip_mc_leave_src(struct sock *sk, struct ip_mc_socklist *iml,
 	}
 	err = ip_mc_del_src(in_dev, &iml->multi.imr_multiaddr.s_addr,
 			iml->sfmode, psf->sl_count, psf->sl_addr, 0);
-	rcu_assign_pointer(iml->sflist, NULL);
+	RCU_INIT_POINTER(iml->sflist, NULL);
 	/* decrease mem now to avoid the memleak warning */
 	atomic_sub(IP_SFLSIZE(psf->sl_max), &sk->sk_omem_alloc);
 	kfree_rcu(psf, rcu);
@@ -2000,7 +2000,7 @@ int ip_mc_source(int add, int omode, struct sock *sk, struct
 			atomic_sub(IP_SFLSIZE(psl->sl_max), &sk->sk_omem_alloc);
 			kfree_rcu(psl, rcu);
 		}
-		rcu_assign_pointer(pmc->sflist, newpsl);
+		RCU_INIT_POINTER(pmc->sflist, newpsl);
 		psl = newpsl;
 	}
 	rv = 1;	/* > 0 for insert logic below if sl_count is 0 */
@@ -2103,7 +2103,7 @@ int ip_mc_msfilter(struct sock *sk, struct ip_msfilter *msf, int ifindex)
 	} else
 		(void) ip_mc_del_src(in_dev, &msf->imsf_multiaddr, pmc->sfmode,
 			0, NULL, 0);
-	rcu_assign_pointer(pmc->sflist, newpsl);
+	RCU_INIT_POINTER(pmc->sflist, newpsl);
 	pmc->sfmode = msf->imsf_fmode;
 	err = 0;
 done:

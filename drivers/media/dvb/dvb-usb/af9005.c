@@ -19,7 +19,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * see Documentation/dvb/REDME.dvb-usb for more information
+ * see Documentation/dvb/README.dvb-usb for more information
  */
 #include "af9005.h"
 
@@ -815,7 +815,7 @@ static int af9005_frontend_attach(struct dvb_usb_adapter *adap)
 			debug_dump(buf, 8, printk);
 		}
 	}
-	adap->fe = af9005_fe_attach(adap->dev);
+	adap->fe_adap[0].fe = af9005_fe_attach(adap->dev);
 	return 0;
 }
 
@@ -999,6 +999,8 @@ static struct dvb_usb_device_properties af9005_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		    {
+		    .num_frontends = 1,
+		    .fe = {{
 		     .caps =
 		     DVB_USB_ADAP_HAS_PID_FILTER |
 		     DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
@@ -1018,6 +1020,7 @@ static struct dvb_usb_device_properties af9005_properties = {
 					       }
 				      }
 				},
+		     }},
 		     }
 		    },
 	.power_ctrl = af9005_power_ctrl,

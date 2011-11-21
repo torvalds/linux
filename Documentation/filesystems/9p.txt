@@ -92,7 +92,7 @@ OPTIONS
 
   wfdno=n	the file descriptor for writing with trans=fd
 
-  maxdata=n	the number of bytes to use for 9p packet payload (msize)
+  msize=n	the number of bytes to use for 9p packet payload
 
   port=n	port to connect to on the remote server
 
