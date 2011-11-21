@@ -51,6 +51,14 @@ config AD525X_DPOT_SPI
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad525x_dpot-spi.
 
+config SUN4I_VIBRATOR
+	tristate "Vibrator sun4i platform"
+	help
+	  Say Y here if you have a vibrator on your board.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sun4i-vibrator.
+
 config ATMEL_PWM
 	tristate "Atmel AT32/AT91 PWM support"
 	depends on HAVE_CLK
