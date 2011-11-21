@@ -22,14 +22,6 @@
  */
 #define TIMEOUT	(20 * HZ)
 
-static inline int freezable(struct task_struct * p)
-{
-	if ((p == current) ||
-	    (p->flags & PF_NOFREEZE))
-		return 0;
-	return 1;
-}
-
 static int try_to_freeze_tasks(bool sig_only)
 {
 	struct task_struct *g, *p;
@@ -52,10 +44,7 @@ static int try_to_freeze_tasks(bool sig_only)
 		todo = 0;
 		read_lock(&tasklist_lock);
 		do_each_thread(g, p) {
-			if (frozen(p) || !freezable(p))
-				continue;
-
-			if (!freeze_task(p, sig_only))
+			if (p == current || !freeze_task(p, sig_only))
 				continue;
 
 			/*
@@ -181,9 +170,6 @@ void thaw_processes(void)
 
 	read_lock(&tasklist_lock);
 	do_each_thread(g, p) {
-		if (!freezable(p))
-			continue;
-
 		if (cgroup_freezing_or_frozen(p))
 			continue;
 
