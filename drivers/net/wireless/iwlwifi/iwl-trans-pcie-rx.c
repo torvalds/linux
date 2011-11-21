@@ -1108,7 +1108,7 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 		isr_stats->tx++;
 		handled |= CSR_INT_BIT_FH_TX;
 		/* Wake up uCode load routine, now that load is complete */
-		priv(trans)->ucode_write_complete = 1;
+		trans->ucode_write_complete = 1;
 		wake_up(&trans->shrd->wait_command_queue);
 	}
 

@@ -439,16 +439,6 @@ struct iwl_cfg iwl6035_2agn_cfg = {
 	.ht_params = &iwl6000_ht_params,
 };
 
-struct iwl_cfg iwl6035_2abg_cfg = {
-	.name = "6035 Series 2x2 ABG/BT",
-	IWL_DEVICE_6030,
-};
-
-struct iwl_cfg iwl6035_2bg_cfg = {
-	.name = "6035 Series 2x2 BG/BT",
-	IWL_DEVICE_6030,
-};
-
 struct iwl_cfg iwl1030_bgn_cfg = {
 	.name = "Intel(R) Centrino(R) Wireless-N 1030 BGN",
 	IWL_DEVICE_6030,

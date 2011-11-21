@@ -248,7 +248,6 @@ enum brcms_srom_id {
 };
 
 #define	BRCMS_NUMRATES	16	/* max # of rates in a rateset */
-#define	D11_PHY_HDR_LEN	6	/* Phy header length - 6 bytes */
 
 /* phy types */
 #define	PHY_TYPE_A	0	/* Phy type A */
@@ -382,7 +381,6 @@ struct brcms_pub {
 	uint _nbands;		/* # bands supported */
 	uint now;		/* # elapsed seconds */
 
-	bool promisc;		/* promiscuous destination address */
 	bool delayed_down;	/* down delayed */
 	bool associated;	/* true:part of [I]BSS, false: not */
 	/* (union of stas_associated, aps_associated) */

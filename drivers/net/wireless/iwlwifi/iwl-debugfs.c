@@ -236,9 +236,9 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 	if (!priv->dbgfs_sram_offset && !priv->dbgfs_sram_len) {
 		priv->dbgfs_sram_offset = 0x800000;
 		if (priv->ucode_type == IWL_UCODE_INIT)
-			priv->dbgfs_sram_len = priv->ucode_init.data.len;
+			priv->dbgfs_sram_len = trans(priv)->ucode_init.data.len;
 		else
-			priv->dbgfs_sram_len = priv->ucode_rt.data.len;
+			priv->dbgfs_sram_len = trans(priv)->ucode_rt.data.len;
 	}
 	len = priv->dbgfs_sram_len;
 
@@ -341,7 +341,7 @@ static ssize_t iwl_dbgfs_wowlan_sram_read(struct file *file,
 
 	return simple_read_from_buffer(user_buf, count, ppos,
 				       priv->wowlan_sram,
-				       priv->ucode_wowlan.data.len);
+				       trans(priv)->ucode_wowlan.data.len);
 }
 static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 					size_t count, loff_t *ppos)
@@ -430,7 +430,7 @@ static ssize_t iwl_dbgfs_nvm_read(struct file *file,
 	eeprom_ver = iwl_eeprom_query16(priv, EEPROM_VERSION);
 	pos += scnprintf(buf + pos, buf_size - pos, "NVM Type: %s, "
 			"version: 0x%x\n",
-			(priv->nvm_device_type == NVM_DEVICE_TYPE_OTP)
+			(trans(priv)->nvm_device_type == NVM_DEVICE_TYPE_OTP)
 			 ? "OTP" : "EEPROM", eeprom_ver);
 	for (ofs = 0 ; ofs < eeprom_len ; ofs += 16) {
 		pos += scnprintf(buf + pos, buf_size - pos, "0x%.4x ", ofs);

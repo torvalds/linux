@@ -65,6 +65,12 @@
 
 #include "iwl-dev.h"
 
+struct iwlagn_ucode_capabilities {
+	u32 max_probe_length;
+	u32 standard_phy_calibration_size;
+	u32 flags;
+};
+
 extern struct ieee80211_ops iwlagn_hw_ops;
 
 int iwl_reset_ict(struct iwl_trans *trans);
@@ -76,6 +82,15 @@ static inline void iwl_set_calib_hdr(struct iwl_calib_hdr *hdr, u8 cmd)
 	hdr->groups_num = 1;
 	hdr->data_valid = 1;
 }
+
+void __iwl_down(struct iwl_priv *priv);
+void iwl_down(struct iwl_priv *priv);
+void iwlagn_prepare_restart(struct iwl_priv *priv);
+
+/* MAC80211 */
+struct ieee80211_hw *iwl_alloc_all(void);
+int iwlagn_mac_setup_register(struct iwl_priv *priv,
+			      struct iwlagn_ucode_capabilities *capa);
 
 /* RXON */
 int iwlagn_set_pan_params(struct iwl_priv *priv);
@@ -95,8 +110,7 @@ int iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type);
 void iwlagn_send_prio_tbl(struct iwl_priv *priv);
 int iwlagn_run_init_ucode(struct iwl_priv *priv);
 int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
-				 struct fw_img *image,
-				 enum iwlagn_ucode_type ucode_type);
+				 enum iwl_ucode_type ucode_type);
 
 /* lib */
 int iwlagn_send_tx_power(struct iwl_priv *priv);
@@ -105,6 +119,12 @@ u16 iwlagn_eeprom_calib_version(struct iwl_priv *priv);
 int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
 void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
 int iwlagn_send_beacon_cmd(struct iwl_priv *priv);
+#ifdef CONFIG_PM_SLEEP
+int iwlagn_send_patterns(struct iwl_priv *priv,
+			 struct cfg80211_wowlan *wowlan);
+int iwlagn_suspend(struct iwl_priv *priv,
+		   struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan);
+#endif
 
 /* rx */
 int iwlagn_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band);
@@ -196,9 +216,6 @@ int iwl_add_station_common(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 			   struct ieee80211_sta *sta, u8 *sta_id_r);
 int iwl_remove_station(struct iwl_priv *priv, const u8 sta_id,
 		       const u8 *addr);
-int iwlagn_mac_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		       struct ieee80211_sta *sta);
-
 u8 iwl_prep_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 		    const u8 *addr, bool is_ap, struct ieee80211_sta *sta);
 
@@ -316,10 +333,6 @@ void iwl_sta_modify_sleep_tx_count(struct iwl_priv *priv, int sta_id, int cnt);
 int iwl_update_bcast_station(struct iwl_priv *priv,
 			     struct iwl_rxon_context *ctx);
 int iwl_update_bcast_stations(struct iwl_priv *priv);
-void iwlagn_mac_sta_notify(struct ieee80211_hw *hw,
-			   struct ieee80211_vif *vif,
-			   enum sta_notify_cmd cmd,
-			   struct ieee80211_sta *sta);
 
 /* rate */
 static inline u32 iwl_ant_idx_to_flags(u8 ant_idx)

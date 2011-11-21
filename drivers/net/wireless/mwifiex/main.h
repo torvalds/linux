@@ -775,7 +775,8 @@ struct mwifiex_chan_freq_power *
 struct mwifiex_chan_freq_power *mwifiex_get_cfp_by_band_and_freq_from_cfg80211(
 						struct mwifiex_private *priv,
 						u8 band, u32 freq);
-u32 mwifiex_index_to_data_rate(u8 index, u8 ht_info);
+u32 mwifiex_index_to_data_rate(struct mwifiex_private *priv, u8 index,
+							u8 ht_info);
 u32 mwifiex_find_freq_from_band_chan(u8, u8);
 int mwifiex_cmd_append_vsie_tlv(struct mwifiex_private *priv, u16 vsie_mask,
 				u8 **buffer);

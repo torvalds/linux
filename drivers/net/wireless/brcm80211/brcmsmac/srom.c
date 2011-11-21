@@ -638,7 +638,7 @@ _initvars_srom_pci(u8 sromrev, u16 *srom, struct list_head *var_list)
 	struct brcms_srom_list_head *entry;
 	enum brcms_srom_id id;
 	u16 w;
-	u32 val;
+	u32 val = 0;
 	const struct brcms_sromvar *srv;
 	uint width;
 	uint flags;
@@ -835,6 +835,8 @@ static int otp_read_pci(struct si_pub *sih, u16 *buf, uint nwords)
 		 */
 		return -ENODATA;
 
+	/* fixup the endianness so crc8 will pass */
+	cpu_to_le16_buf(buf, sz);
 	if (crc8(brcms_srom_crc8_table, (u8 *) buf, sz * 2,
 		 CRC8_INIT_VALUE) != CRC8_GOOD_VALUE(brcms_srom_crc8_table))
 		err = -EIO;

@@ -391,6 +391,8 @@ struct cfg80211_crypto_settings {
  * @assocresp_ies: extra information element(s) to add into (Re)Association
  *	Response frames or %NULL
  * @assocresp_ies_len: length of assocresp_ies in octets
+ * @probe_resp_len: length of probe response template (@probe_resp)
+ * @probe_resp: probe response template (AP mode only)
  */
 struct beacon_parameters {
 	u8 *head, *tail;
@@ -408,6 +410,8 @@ struct beacon_parameters {
 	size_t proberesp_ies_len;
 	const u8 *assocresp_ies;
 	size_t assocresp_ies_len;
+	int probe_resp_len;
+	u8 *probe_resp;
 };
 
 /**
@@ -1342,6 +1346,9 @@ struct cfg80211_gtk_rekey_data {
  *	doesn't verify much. Note, however, that the passed netdev may be
  *	%NULL as well if the user requested changing the channel for the
  *	device itself, or for a monitor interface.
+ * @get_channel: Get the current operating channel, should return %NULL if
+ *	there's no single defined operating channel if for example the
+ *	device implements channel hopping for multi-channel virtual interfaces.
  *
  * @scan: Request to do a scan. If returning zero, the scan request is given
  *	the driver, and will be valid until passed to cfg80211_scan_done().
@@ -1627,6 +1634,8 @@ struct cfg80211_ops {
 
 	int	(*probe_client)(struct wiphy *wiphy, struct net_device *dev,
 				const u8 *peer, u64 *cookie);
+
+	struct ieee80211_channel *(*get_channel)(struct wiphy *wiphy);
 };
 
 /*
@@ -1689,6 +1698,8 @@ struct cfg80211_ops {
  * @WIPHY_FLAG_REPORTS_OBSS: the device will report beacons from other BSSes
  *	when there are virtual interfaces in AP mode by calling
  *	cfg80211_report_obss_beacon().
+ * @WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD: When operating as an AP, the device
+ *	responds to probe-requests in hardware.
  */
 enum wiphy_flags {
 	WIPHY_FLAG_CUSTOM_REGULATORY		= BIT(0),
@@ -1709,6 +1720,7 @@ enum wiphy_flags {
 	WIPHY_FLAG_TDLS_EXTERNAL_SETUP		= BIT(16),
 	WIPHY_FLAG_HAVE_AP_SME			= BIT(17),
 	WIPHY_FLAG_REPORTS_OBSS			= BIT(18),
+	WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD	= BIT(19),
 };
 
 /**
@@ -1976,6 +1988,13 @@ struct wiphy {
 
 	u32 available_antennas_tx;
 	u32 available_antennas_rx;
+
+	/*
+	 * Bitmap of supported protocols for probe response offloading
+	 * see &enum nl80211_probe_resp_offload_support_attr. Only valid
+	 * when the wiphy flag @WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD is set.
+	 */
+	u32 probe_resp_offload;
 
 	/* If multiple wiphys are registered and you're handed e.g.
 	 * a regular netdev with assigned ieee80211_ptr, you won't

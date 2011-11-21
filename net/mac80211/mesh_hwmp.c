@@ -871,6 +871,7 @@ static void mesh_queue_preq(struct mesh_path *mpath, u8 flags)
 	if (mpath->flags & MESH_PATH_REQ_QUEUED) {
 		spin_unlock_bh(&mpath->state_lock);
 		spin_unlock_bh(&ifmsh->mesh_preq_queue_lock);
+		kfree(preq_node);
 		return;
 	}
 

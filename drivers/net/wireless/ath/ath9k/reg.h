@@ -1752,19 +1752,10 @@ enum {
 
 #define AR_BT_COEX_WL_WEIGHTS0     0x8174
 #define AR_BT_COEX_WL_WEIGHTS1     0x81c4
+#define AR_MCI_COEX_WL_WEIGHTS(_i) (0x18b0 + (_i << 2))
+#define AR_BT_COEX_BT_WEIGHTS(_i)  (0x83ac + (_i << 2))
 
-#define AR_BT_COEX_BT_WEIGHTS0     0x83ac
-#define AR_BT_COEX_BT_WEIGHTS1     0x83b0
-#define AR_BT_COEX_BT_WEIGHTS2     0x83b4
-#define AR_BT_COEX_BT_WEIGHTS3     0x83b8
-
-#define AR9300_BT_WGHT                     0xcccc4444
-#define AR9300_STOMP_ALL_WLAN_WGHT0        0xfffffff0
-#define AR9300_STOMP_ALL_WLAN_WGHT1        0xfffffff0
-#define AR9300_STOMP_LOW_WLAN_WGHT0        0x88888880
-#define AR9300_STOMP_LOW_WLAN_WGHT1        0x88888880
-#define AR9300_STOMP_NONE_WLAN_WGHT0       0x00000000
-#define AR9300_STOMP_NONE_WLAN_WGHT1       0x00000000
+#define AR9300_BT_WGHT             0xcccc4444
 
 #define AR_BT_COEX_MODE2           0x817c
 #define AR_BT_BCN_MISS_THRESH      0x000000ff

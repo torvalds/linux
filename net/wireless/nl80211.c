@@ -197,6 +197,8 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 	[NL80211_ATTR_TDLS_SUPPORT] = { .type = NLA_FLAG },
 	[NL80211_ATTR_TDLS_EXTERNAL_SETUP] = { .type = NLA_FLAG },
 	[NL80211_ATTR_DONT_WAIT_FOR_ACK] = { .type = NLA_FLAG },
+	[NL80211_ATTR_PROBE_RESP] = { .type = NLA_BINARY,
+				      .len = IEEE80211_MAX_DATA_LEN },
 };
 
 /* policy for the key attributes */
@@ -758,6 +760,10 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 		    dev->wiphy.available_antennas_tx);
 	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_ANTENNA_AVAIL_RX,
 		    dev->wiphy.available_antennas_rx);
+
+	if (dev->wiphy.flags & WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD)
+		NLA_PUT_U32(msg, NL80211_ATTR_PROBE_RESP_OFFLOAD,
+			    dev->wiphy.probe_resp_offload);
 
 	if ((dev->wiphy.available_antennas_tx ||
 	     dev->wiphy.available_antennas_rx) && dev->ops->get_antenna) {
@@ -2165,6 +2171,13 @@ static int nl80211_addset_beacon(struct sk_buff *skb, struct genl_info *info)
 			nla_data(info->attrs[NL80211_ATTR_IE_ASSOC_RESP]);
 		params.assocresp_ies_len =
 			nla_len(info->attrs[NL80211_ATTR_IE_ASSOC_RESP]);
+	}
+
+	if (info->attrs[NL80211_ATTR_PROBE_RESP]) {
+		params.probe_resp =
+			nla_data(info->attrs[NL80211_ATTR_PROBE_RESP]);
+		params.probe_resp_len =
+			nla_len(info->attrs[NL80211_ATTR_PROBE_RESP]);
 	}
 
 	err = call(&rdev->wiphy, dev, &params);
@@ -5283,7 +5296,7 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 	bool channel_type_valid = false;
 	u32 freq;
 	int err;
-	void *hdr;
+	void *hdr = NULL;
 	u64 cookie;
 	struct sk_buff *msg = NULL;
 	unsigned int wait = 0;

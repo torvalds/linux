@@ -60,17 +60,28 @@ struct chip_core_info {
 	u32 base;
 	u32 wrapbase;
 	u32 caps;
+	u32 cib;
 };
 
 struct chip_info {
 	u32 chip;
 	u32 chiprev;
+	u32 socitype;
 	/* core info */
 	/* always put chipcommon core at 0, bus core at 1 */
 	struct chip_core_info c_inf[BRCMF_MAX_CORENUM];
 	u32 pmurev;
 	u32 pmucaps;
 	u32 ramsize;
+
+	bool (*iscoreup)(struct brcmf_sdio_dev *sdiodev, struct chip_info *ci,
+			 u16 coreid);
+	u32 (*corerev)(struct brcmf_sdio_dev *sdiodev, struct chip_info *ci,
+			 u16 coreid);
+	void (*coredisable)(struct brcmf_sdio_dev *sdiodev,
+			struct chip_info *ci, u16 coreid);
+	void (*resetcore)(struct brcmf_sdio_dev *sdiodev,
+			struct chip_info *ci, u16 coreid);
 };
 
 struct sbconfig {
@@ -113,12 +124,6 @@ struct sbconfig {
 	u32 sbidhigh;	/* identification */
 };
 
-extern void brcmf_sdio_chip_resetcore(struct brcmf_sdio_dev *sdiodev,
-				      u32 corebase);
-extern bool brcmf_sdio_chip_iscoreup(struct brcmf_sdio_dev *sdiodev,
-				     u32 corebase);
-extern void brcmf_sdio_chip_coredisable(struct brcmf_sdio_dev *sdiodev,
-					u32 corebase);
 extern int brcmf_sdio_chip_attach(struct brcmf_sdio_dev *sdiodev,
 				  struct chip_info **ci_ptr, u32 regs);
 extern void brcmf_sdio_chip_detach(struct chip_info **ci_ptr);

@@ -687,14 +687,6 @@ static int brcmf_sdbrcm_htclk(struct brcmf_bus *bus, bool on, bool pendok)
 			return -EBADE;
 		}
 
-		if (pendok && ((bus->ci->c_inf[1].id == PCMCIA_CORE_ID)
-			       && (bus->ci->c_inf[1].rev == 9))) {
-			u32 dummy, retries;
-			r_sdreg32(bus, &dummy,
-				  offsetof(struct sdpcmd_regs, clockctlstatus),
-				  &retries);
-		}
-
 		/* Check current status */
 		clkctl = brcmf_sdcard_cfg_read(bus->sdiodev, SDIO_FUNC_1,
 					       SBSDIO_FUNC1_CHIPCLKCSR, &err);
@@ -911,13 +903,6 @@ static int brcmf_sdbrcm_bussleep(struct brcmf_bus *bus, bool sleep)
 		brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
 			SBSDIO_FUNC1_CHIPCLKCSR, 0, NULL);
 
-		/* Force pad isolation off if possible
-			 (in case power never toggled) */
-		if ((bus->ci->c_inf[1].id == PCMCIA_CORE_ID)
-		    && (bus->ci->c_inf[1].rev >= 10))
-			brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
-				SBSDIO_DEVICE_CTL, 0, NULL);
-
 		/* Make sure the controller has the bus up */
 		brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
 
@@ -1107,6 +1092,28 @@ static uint brcmf_sdbrcm_glom_from_buf(struct brcmf_bus *bus, uint len)
 	return ret;
 }
 
+/* return total length of buffer chain */
+static uint brcmf_sdbrcm_glom_len(struct brcmf_bus *bus)
+{
+	struct sk_buff *p;
+	uint total;
+
+	total = 0;
+	skb_queue_walk(&bus->glom, p)
+		total += p->len;
+	return total;
+}
+
+static void brcmf_sdbrcm_free_glom(struct brcmf_bus *bus)
+{
+	struct sk_buff *cur, *next;
+
+	skb_queue_walk_safe(&bus->glom, cur, next) {
+		skb_unlink(cur, &bus->glom);
+		brcmu_pkt_buf_free_skb(cur);
+	}
+}
+
 static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 {
 	u16 dlen, totlen;
@@ -1191,11 +1198,7 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 			}
 			pfirst = pnext = NULL;
 		} else {
-			if (!skb_queue_empty(&bus->glom))
-				skb_queue_walk_safe(&bus->glom, pfirst, pnext) {
-					skb_unlink(pfirst, &bus->glom);
-					brcmu_pkt_buf_free_skb(pfirst);
-				}
+			brcmf_sdbrcm_free_glom(bus);
 			num = 0;
 		}
 
@@ -1218,7 +1221,7 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 		}
 
 		pfirst = skb_peek(&bus->glom);
-		dlen = (u16) brcmu_pkttotlen(pfirst);
+		dlen = (u16) brcmf_sdbrcm_glom_len(bus);
 
 		/* Do an SDIO read for the superframe.  Configurable iovar to
 		 * read directly into the chained packet, or allocate a large
@@ -1262,10 +1265,7 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 				bus->glomerr = 0;
 				brcmf_sdbrcm_rxfail(bus, true, false);
 				bus->rxglomfail++;
-				skb_queue_walk_safe(&bus->glom, pfirst, pnext) {
-					skb_unlink(pfirst, &bus->glom);
-					brcmu_pkt_buf_free_skb(pfirst);
-				}
+				brcmf_sdbrcm_free_glom(bus);
 			}
 			return 0;
 		}
@@ -1387,10 +1387,7 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 				bus->glomerr = 0;
 				brcmf_sdbrcm_rxfail(bus, true, false);
 				bus->rxglomfail++;
-				skb_queue_walk_safe(&bus->glom, pfirst, pnext) {
-					skb_unlink(pfirst, &bus->glom);
-					brcmu_pkt_buf_free_skb(pfirst);
-				}
+				brcmf_sdbrcm_free_glom(bus);
 			}
 			bus->nextlen = 0;
 			return 0;
@@ -3098,7 +3095,6 @@ static int brcmf_sdbrcm_download_state(struct brcmf_bus *bus, bool enter)
 {
 	uint retries;
 	int bcmerror = 0;
-	u8 idx;
 	struct chip_info *ci = bus->ci;
 
 	/* To enter download state, disable ARM and reset SOCRAM.
@@ -3107,11 +3103,9 @@ static int brcmf_sdbrcm_download_state(struct brcmf_bus *bus, bool enter)
 	if (enter) {
 		bus->alp_only = true;
 
-		idx = brcmf_sdio_chip_getinfidx(ci, BCMA_CORE_ARM_CM3);
-		brcmf_sdio_chip_coredisable(bus->sdiodev, ci->c_inf[idx].base);
+		ci->coredisable(bus->sdiodev, ci, BCMA_CORE_ARM_CM3);
 
-		idx = brcmf_sdio_chip_getinfidx(ci, BCMA_CORE_INTERNAL_MEM);
-		brcmf_sdio_chip_resetcore(bus->sdiodev, ci->c_inf[idx].base);
+		ci->resetcore(bus->sdiodev, ci, BCMA_CORE_INTERNAL_MEM);
 
 		/* Clear the top bit of memory */
 		if (bus->ramsize) {
@@ -3120,9 +3114,7 @@ static int brcmf_sdbrcm_download_state(struct brcmf_bus *bus, bool enter)
 					 (u8 *)&zeros, 4);
 		}
 	} else {
-		idx = brcmf_sdio_chip_getinfidx(ci, BCMA_CORE_INTERNAL_MEM);
-		if (!brcmf_sdio_chip_iscoreup(bus->sdiodev,
-					      ci->c_inf[idx].base)) {
+		if (!ci->iscoreup(bus->sdiodev, ci, BCMA_CORE_INTERNAL_MEM)) {
 			brcmf_dbg(ERROR, "SOCRAM core is down after reset?\n");
 			bcmerror = -EBADE;
 			goto fail;
@@ -3137,8 +3129,7 @@ static int brcmf_sdbrcm_download_state(struct brcmf_bus *bus, bool enter)
 		w_sdreg32(bus, 0xFFFFFFFF,
 			  offsetof(struct sdpcmd_regs, intstatus), &retries);
 
-		idx = brcmf_sdio_chip_getinfidx(ci, BCMA_CORE_ARM_CM3);
-		brcmf_sdio_chip_resetcore(bus->sdiodev, ci->c_inf[idx].base);
+		ci->resetcore(bus->sdiodev, ci, BCMA_CORE_ARM_CM3);
 
 		/* Allow HT Clock now that the ARM is running. */
 		bus->alp_only = false;
@@ -3363,8 +3354,6 @@ void brcmf_sdbrcm_bus_stop(struct brcmf_bus *bus)
 	u8 saveclk;
 	uint retries;
 	int err;
-	struct sk_buff *cur;
-	struct sk_buff *next;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -3424,11 +3413,7 @@ void brcmf_sdbrcm_bus_stop(struct brcmf_bus *bus)
 	/* Clear any held glomming stuff */
 	if (bus->glomd)
 		brcmu_pkt_buf_free_skb(bus->glomd);
-	if (!skb_queue_empty(&bus->glom))
-		skb_queue_walk_safe(&bus->glom, cur, next) {
-			skb_unlink(cur, &bus->glom);
-			brcmu_pkt_buf_free_skb(cur);
-		}
+	brcmf_sdbrcm_free_glom(bus);
 
 	/* Clear rx control and wake any waiters */
 	bus->rxlen = 0;

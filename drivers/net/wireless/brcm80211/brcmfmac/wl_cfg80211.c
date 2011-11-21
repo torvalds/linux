@@ -2049,10 +2049,10 @@ static s32 brcmf_inform_single_bss(struct brcmf_cfg80211_priv *cfg_priv,
 		notify_timestamp, notify_capability, notify_interval, notify_ie,
 		notify_ielen, notify_signal, GFP_KERNEL);
 
-	if (!bss) {
-		WL_ERR("cfg80211_inform_bss_frame error\n");
-		return -EINVAL;
-	}
+	if (!bss)
+		return -ENOMEM;
+
+	cfg80211_put_bss(bss);
 
 	return err;
 }
@@ -2096,6 +2096,7 @@ static s32 wl_inform_ibss(struct brcmf_cfg80211_priv *cfg_priv,
 	struct ieee80211_channel *notify_channel;
 	struct brcmf_bss_info_le *bi = NULL;
 	struct ieee80211_supported_band *band;
+	struct cfg80211_bss *bss;
 	u8 *buf = NULL;
 	s32 err = 0;
 	u16 channel;
@@ -2149,9 +2150,16 @@ static s32 wl_inform_ibss(struct brcmf_cfg80211_priv *cfg_priv,
 	WL_CONN("signal: %d\n", notify_signal);
 	WL_CONN("notify_timestamp: %#018llx\n", notify_timestamp);
 
-	cfg80211_inform_bss(wiphy, notify_channel, bssid,
+	bss = cfg80211_inform_bss(wiphy, notify_channel, bssid,
 		notify_timestamp, notify_capability, notify_interval,
 		notify_ie, notify_ielen, notify_signal, GFP_KERNEL);
+
+	if (!bss) {
+		err = -ENOMEM;
+		goto CleanUp;
+	}
+
+	cfg80211_put_bss(bss);
 
 CleanUp:
 
