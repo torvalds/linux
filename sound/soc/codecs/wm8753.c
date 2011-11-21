@@ -486,7 +486,7 @@ SND_SOC_DAPM_INPUT("MIC2"),
 SND_SOC_DAPM_VMID("VREF"),
 };
 
-static const struct snd_soc_dapm_route audio_map[] = {
+static const struct snd_soc_dapm_route wm8753_dapm_routes[] = {
 	/* left mixer */
 	{"Left Mixer", "Left Playback Switch", "Left DAC"},
 	{"Left Mixer", "Voice Playback Switch", "Voice DAC"},
@@ -639,17 +639,6 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	/* ACOP */
 	{"ACOP", NULL, "ALC Mixer"},
 };
-
-static int wm8753_add_widgets(struct snd_soc_codec *codec)
-{
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	snd_soc_dapm_new_controls(dapm, wm8753_dapm_widgets,
-				  ARRAY_SIZE(wm8753_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
-
-	return 0;
-}
 
 /* PLL divisors */
 struct _pll_div {
@@ -1467,10 +1456,6 @@ static int wm8753_probe(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, WM8753_LINVOL, 0x0100, 0x0100);
 	snd_soc_update_bits(codec, WM8753_RINVOL, 0x0100, 0x0100);
 
-	snd_soc_add_controls(codec, wm8753_snd_controls,
-			     ARRAY_SIZE(wm8753_snd_controls));
-	wm8753_add_widgets(codec);
-
 	return 0;
 }
 
@@ -1492,6 +1477,13 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8753 = {
 	.reg_cache_size = ARRAY_SIZE(wm8753_reg),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm8753_reg,
+
+	.controls = wm8753_snd_controls,
+	.num_controls = ARRAY_SIZE(wm8753_snd_controls),
+	.dapm_widgets = wm8753_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8753_dapm_widgets),
+	.dapm_routes = wm8753_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(wm8753_dapm_routes),
 };
 
 static const struct of_device_id wm8753_of_match[] = {
