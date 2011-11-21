@@ -233,13 +233,9 @@ int bbc_i2c_write_buf(struct bbc_i2c_client *client,
 	int ret = 0;
 
 	while (len > 0) {
-		int err = bbc_i2c_writeb(client, *buf, off);
-
-		if (err < 0) {
-			ret = err;
+		ret = bbc_i2c_writeb(client, *buf, off);
+		if (ret < 0)
 			break;
-		}
-
 		len--;
 		buf++;
 		off++;
@@ -253,11 +249,9 @@ int bbc_i2c_read_buf(struct bbc_i2c_client *client,
 	int ret = 0;
 
 	while (len > 0) {
-		int err = bbc_i2c_readb(client, buf, off);
-		if (err < 0) {
-			ret = err;
+		ret = bbc_i2c_readb(client, buf, off);
+		if (ret < 0)
 			break;
-		}
 		len--;
 		buf++;
 		off++;
