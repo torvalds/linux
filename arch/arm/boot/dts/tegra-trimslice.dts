@@ -46,6 +46,18 @@
 		status = "disable";
 	};
 
+	sdhci@c8000000 {
+		status = "disable";
+	};
+
+	sdhci@c8000200 {
+		status = "disable";
+	};
+
+	sdhci@c8000400 {
+		status = "disable";
+	};
+
 	sdhci@c8000600 {
 		cd-gpios = <&gpio 121 0>;
 		wp-gpios = <&gpio 122 0>;
