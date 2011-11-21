@@ -171,3 +171,28 @@ void __thaw_task(struct task_struct *p)
 	}
 	spin_unlock_irqrestore(&freezer_lock, flags);
 }
+
+/**
+ * __set_freezable - make %current freezable
+ * @with_signal: do we want %TIF_SIGPENDING for notification too?
+ *
+ * Mark %current freezable and enter refrigerator if necessary.
+ */
+bool __set_freezable(bool with_signal)
+{
+	might_sleep();
+
+	/*
+	 * Modify flags while holding freezer_lock.  This ensures the
+	 * freezer notices that we aren't frozen yet or the freezing
+	 * condition is visible to try_to_freeze() below.
+	 */
+	spin_lock_irq(&freezer_lock);
+	current->flags &= ~PF_NOFREEZE;
+	if (with_signal)
+		current->flags &= ~PF_FREEZER_NOSIG;
+	spin_unlock_irq(&freezer_lock);
+
+	return try_to_freeze();
+}
+EXPORT_SYMBOL(__set_freezable);
