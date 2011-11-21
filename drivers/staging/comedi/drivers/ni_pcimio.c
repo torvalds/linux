@@ -1632,9 +1632,8 @@ static void m_series_init_eeprom_buffer(struct comedi_device *dev)
 	}
 	devpriv->serial_number = be32_to_cpu(devpriv->serial_number);
 
-	for (i = 0; i < M_SERIES_EEPROM_SIZE; ++i) {
+	for (i = 0; i < M_SERIES_EEPROM_SIZE; ++i)
 		devpriv->eeprom_buffer[i] = ni_readb(Start_Cal_EEPROM + i);
-	}
 
 	writel(old_iodwbsr1_bits, devpriv->mite->mite_io_addr + MITE_IODWBSR_1);
 	writel(old_iodwbsr_bits, devpriv->mite->mite_io_addr + MITE_IODWBSR);
@@ -1665,9 +1664,9 @@ static void init_6143(struct comedi_device *dev)
 static int pcimio_detach(struct comedi_device *dev)
 {
 	mio_common_detach(dev);
-	if (dev->irq) {
+	if (dev->irq)
 		free_irq(dev->irq, dev);
-	}
+
 	if (dev->private) {
 		mite_free_ring(devpriv->ai_mite_ring);
 		mite_free_ring(devpriv->ao_mite_ring);
