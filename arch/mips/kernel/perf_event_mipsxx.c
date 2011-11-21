@@ -633,11 +633,7 @@ static int mipspmu_event_init(struct perf_event *event)
 	if (err)
 		return err;
 
-	err = __hw_perf_event_init(event);
-	if (err)
-		hw_perf_event_destroy(event);
-
-	return err;
+	return __hw_perf_event_init(event);
 }
 
 static struct pmu pmu = {
@@ -1262,13 +1258,14 @@ static int __hw_perf_event_init(struct perf_event *event)
 	}
 
 	err = 0;
-	if (event->group_leader != event) {
+	if (event->group_leader != event)
 		err = validate_group(event);
-		if (err)
-			return -EINVAL;
-	}
 
 	event->destroy = hw_perf_event_destroy;
+
+	if (err)
+		event->destroy(event);
+
 	return err;
 }
 
