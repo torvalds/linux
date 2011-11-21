@@ -1330,7 +1330,7 @@ static int wl12xx_set_power_on(struct wl1271 *wl)
 	wl1271_io_reset(wl);
 	wl1271_io_init(wl);
 
-	wl1271_set_partition(wl, &wl12xx_part_table[PART_DOWN]);
+	wlcore_set_partition(wl, &wl->ptable[PART_DOWN]);
 
 	/* ELP module wake up */
 	wl1271_fw_wakeup(wl);
@@ -5085,7 +5085,7 @@ static void wl12xx_get_fuse_mac(struct wl1271 *wl)
 {
 	u32 mac1, mac2;
 
-	wl1271_set_partition(wl, &wl12xx_part_table[PART_DRPW]);
+	wlcore_set_partition(wl, &wl->ptable[PART_DRPW]);
 
 	mac1 = wl1271_read32(wl, WL12XX_REG_FUSE_BD_ADDR_1);
 	mac2 = wl1271_read32(wl, WL12XX_REG_FUSE_BD_ADDR_2);
@@ -5095,7 +5095,7 @@ static void wl12xx_get_fuse_mac(struct wl1271 *wl)
 		((mac1 & 0xff000000) >> 24);
 	wl->fuse_nic_addr = mac1 & 0xffffff;
 
-	wl1271_set_partition(wl, &wl12xx_part_table[PART_DOWN]);
+	wlcore_set_partition(wl, &wl->ptable[PART_DOWN]);
 }
 
 static int wl12xx_get_hw_info(struct wl1271 *wl)
@@ -5485,7 +5485,7 @@ int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev)
 	unsigned long irqflags;
 	int ret;
 
-	if (!wl->ops) {
+	if (!wl->ops || !wl->ptable) {
 		ret = -EINVAL;
 		goto out_free_hw;
 	}

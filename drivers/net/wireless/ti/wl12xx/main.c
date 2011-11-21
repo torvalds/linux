@@ -27,7 +27,68 @@
 #include "../wlcore/wlcore.h"
 #include "../wlcore/debug.h"
 
+#include "../wlcore/reg.h"
+
 static struct wlcore_ops wl12xx_ops = {
+};
+
+static struct wlcore_partition_set wl12xx_ptable[PART_TABLE_LEN] = {
+	[PART_DOWN] = {
+		.mem = {
+			.start = 0x00000000,
+			.size  = 0x000177c0
+		},
+		.reg = {
+			.start = REGISTERS_BASE,
+			.size  = 0x00008800
+		},
+		.mem2 = {
+			.start = 0x00000000,
+			.size  = 0x00000000
+		},
+		.mem3 = {
+			.start = 0x00000000,
+			.size  = 0x00000000
+		},
+	},
+
+	[PART_WORK] = {
+		.mem = {
+			.start = 0x00040000,
+			.size  = 0x00014fc0
+		},
+		.reg = {
+			.start = REGISTERS_BASE,
+			.size  = 0x0000a000
+		},
+		.mem2 = {
+			.start = 0x003004f8,
+			.size  = 0x00000004
+		},
+		.mem3 = {
+			.start = 0x00040404,
+			.size  = 0x00000000
+		},
+	},
+
+	[PART_DRPW] = {
+		.mem = {
+			.start = 0x00040000,
+			.size  = 0x00014fc0
+		},
+		.reg = {
+			.start = DRPW_BASE,
+			.size  = 0x00006000
+		},
+		.mem2 = {
+			.start = 0x00000000,
+			.size  = 0x00000000
+		},
+		.mem3 = {
+			.start = 0x00000000,
+			.size  = 0x00000000
+		}
+	}
 };
 
 static int __devinit wl12xx_probe(struct platform_device *pdev)
@@ -43,6 +104,7 @@ static int __devinit wl12xx_probe(struct platform_device *pdev)
 
 	wl = hw->priv;
 	wl->ops = &wl12xx_ops;
+	wl->ptable = wl12xx_ptable;
 
 	return wlcore_probe(wl, pdev);
 }

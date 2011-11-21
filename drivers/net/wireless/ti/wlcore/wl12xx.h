@@ -105,26 +105,6 @@ enum wl12xx_fw_type {
 	WL12XX_FW_TYPE_PLT,
 };
 
-enum wl1271_partition_type {
-	PART_DOWN,
-	PART_WORK,
-	PART_DRPW,
-
-	PART_TABLE_LEN
-};
-
-struct wl1271_partition {
-	u32 size;
-	u32 start;
-};
-
-struct wl1271_partition_set {
-	struct wl1271_partition mem;
-	struct wl1271_partition reg;
-	struct wl1271_partition mem2;
-	struct wl1271_partition mem3;
-};
-
 struct wl1271;
 
 enum {

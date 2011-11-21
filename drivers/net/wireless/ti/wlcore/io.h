@@ -43,8 +43,6 @@
 
 #define HW_ACCESS_PRAM_MAX_RANGE	0x3c000
 
-extern struct wl1271_partition_set wl12xx_part_table[PART_TABLE_LEN];
-
 struct wl1271;
 
 void wl1271_disable_interrupts(struct wl1271 *wl);
@@ -52,6 +50,7 @@ void wl1271_enable_interrupts(struct wl1271 *wl);
 
 void wl1271_io_reset(struct wl1271 *wl);
 void wl1271_io_init(struct wl1271 *wl);
+int wlcore_translate_addr(struct wl1271 *wl, int addr);
 
 /* Raw target IO, address is not translated */
 static inline void wl1271_raw_write(struct wl1271 *wl, int addr, void *buf,
@@ -81,36 +80,12 @@ static inline void wl1271_raw_write32(struct wl1271 *wl, int addr, u32 val)
 			     sizeof(wl->buffer_32), false);
 }
 
-/* Translated target IO */
-static inline int wl1271_translate_addr(struct wl1271 *wl, int addr)
-{
-	/*
-	 * To translate, first check to which window of addresses the
-	 * particular address belongs. Then subtract the starting address
-	 * of that window from the address. Then, add offset of the
-	 * translated region.
-	 *
-	 * The translated regions occur next to each other in physical device
-	 * memory, so just add the sizes of the preceding address regions to
-	 * get the offset to the new region.
-	 *
-	 * Currently, only the two first regions are addressed, and the
-	 * assumption is that all addresses will fall into either of those
-	 * two.
-	 */
-	if ((addr >= wl->part.reg.start) &&
-	    (addr < wl->part.reg.start + wl->part.reg.size))
-		return addr - wl->part.reg.start + wl->part.mem.size;
-	else
-		return addr - wl->part.mem.start;
-}
-
 static inline void wl1271_read(struct wl1271 *wl, int addr, void *buf,
 			       size_t len, bool fixed)
 {
 	int physical;
 
-	physical = wl1271_translate_addr(wl, addr);
+	physical = wlcore_translate_addr(wl, addr);
 
 	wl1271_raw_read(wl, physical, buf, len, fixed);
 }
@@ -120,7 +95,7 @@ static inline void wl1271_write(struct wl1271 *wl, int addr, void *buf,
 {
 	int physical;
 
-	physical = wl1271_translate_addr(wl, addr);
+	physical = wlcore_translate_addr(wl, addr);
 
 	wl1271_raw_write(wl, physical, buf, len, fixed);
 }
@@ -134,19 +109,19 @@ static inline void wl1271_read_hwaddr(struct wl1271 *wl, int hwaddr,
 	/* Addresses are stored internally as addresses to 32 bytes blocks */
 	addr = hwaddr << 5;
 
-	physical = wl1271_translate_addr(wl, addr);
+	physical = wlcore_translate_addr(wl, addr);
 
 	wl1271_raw_read(wl, physical, buf, len, fixed);
 }
 
 static inline u32 wl1271_read32(struct wl1271 *wl, int addr)
 {
-	return wl1271_raw_read32(wl, wl1271_translate_addr(wl, addr));
+	return wl1271_raw_read32(wl, wlcore_translate_addr(wl, addr));
 }
 
 static inline void wl1271_write32(struct wl1271 *wl, int addr, u32 val)
 {
-	wl1271_raw_write32(wl, wl1271_translate_addr(wl, addr), val);
+	wl1271_raw_write32(wl, wlcore_translate_addr(wl, addr), val);
 }
 
 static inline void wl1271_power_off(struct wl1271 *wl)
@@ -169,13 +144,15 @@ static inline int wl1271_power_on(struct wl1271 *wl)
 void wl1271_top_reg_write(struct wl1271 *wl, int addr, u16 val);
 u16 wl1271_top_reg_read(struct wl1271 *wl, int addr);
 
-int wl1271_set_partition(struct wl1271 *wl,
-			 struct wl1271_partition_set *p);
+void wlcore_set_partition(struct wl1271 *wl,
+			  const struct wlcore_partition_set *p);
 
 bool wl1271_set_block_size(struct wl1271 *wl);
 
 /* Functions from wl1271_main.c */
 
 int wl1271_tx_dummy_packet(struct wl1271 *wl);
+
+void wlcore_select_partition(struct wl1271 *wl, u8 part);
 
 #endif

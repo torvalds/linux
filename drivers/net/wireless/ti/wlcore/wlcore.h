@@ -30,6 +30,29 @@
 struct wlcore_ops {
 };
 
+enum wlcore_partitions {
+	PART_DOWN,
+	PART_WORK,
+	PART_BOOT,
+	PART_DRPW,
+	PART_TOP_PRCM_ELP_SOC,
+	PART_PHY_INIT,
+
+	PART_TABLE_LEN,
+};
+
+struct wlcore_partition {
+	u32 size;
+	u32 start;
+};
+
+struct wlcore_partition_set {
+	struct wlcore_partition mem;
+	struct wlcore_partition reg;
+	struct wlcore_partition mem2;
+	struct wlcore_partition mem3;
+};
+
 struct wl1271 {
 	struct ieee80211_hw *hw;
 	bool mac80211_registered;
@@ -54,7 +77,7 @@ struct wl1271 {
 
 	unsigned long flags;
 
-	struct wl1271_partition_set part;
+	struct wlcore_partition_set curr_part;
 
 	struct wl1271_chip chip;
 
@@ -241,6 +264,8 @@ struct wl1271 {
 	struct delayed_work tx_watchdog_work;
 
 	struct wlcore_ops *ops;
+	/* pointer to the lower driver partition table */
+	const struct wlcore_partition_set *ptable;
 };
 
 int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev);
