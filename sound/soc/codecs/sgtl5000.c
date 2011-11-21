@@ -365,7 +365,7 @@ static const DECLARE_TLV_DB_SCALE(capture_6db_attenuate, -600, 600, 0);
 
 /* tlv for mic gain, 0db 20db 30db 40db */
 static const unsigned int mic_gain_tlv[] = {
-	TLV_DB_RANGE_HEAD(4),
+	TLV_DB_RANGE_HEAD(2),
 	0, 0, TLV_DB_SCALE_ITEM(0, 0, 0),
 	1, 3, TLV_DB_SCALE_ITEM(2000, 1000, 0),
 };
