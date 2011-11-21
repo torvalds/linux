@@ -380,12 +380,16 @@ static inline void unlock_system_sleep(void) {}
 
 static inline void lock_system_sleep(void)
 {
+	/* simplified freezer_do_not_count() */
+	current->flags |= PF_FREEZER_SKIP;
 	mutex_lock(&pm_mutex);
 }
 
 static inline void unlock_system_sleep(void)
 {
 	mutex_unlock(&pm_mutex);
+	/* simplified freezer_count() */
+	current->flags &= ~PF_FREEZER_SKIP;
 }
 #endif
 
