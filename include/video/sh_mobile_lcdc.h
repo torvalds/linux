@@ -178,7 +178,7 @@ struct sh_mobile_lcdc_chan_cfg {
 	struct sh_mobile_lcdc_panel_cfg panel_cfg;
 	struct sh_mobile_lcdc_bl_info bl_info;
 	struct sh_mobile_lcdc_sys_bus_cfg sys_bus_cfg; /* only for SYSn I/F */
-	struct sh_mobile_meram_cfg *meram_cfg;
+	const struct sh_mobile_meram_cfg *meram_cfg;
 
 	struct platform_device *tx_dev;	/* HDMI/DSI transmitter device */
 };

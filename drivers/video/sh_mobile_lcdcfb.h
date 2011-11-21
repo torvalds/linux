@@ -54,7 +54,7 @@ struct sh_mobile_lcdc_entity {
 struct sh_mobile_lcdc_chan {
 	struct sh_mobile_lcdc_priv *lcdc;
 	struct sh_mobile_lcdc_entity *tx_dev;
-	struct sh_mobile_lcdc_chan_cfg cfg;
+	const struct sh_mobile_lcdc_chan_cfg *cfg;
 
 	unsigned long *reg_offs;
 	unsigned long ldmt1r_value;
@@ -66,6 +66,7 @@ struct sh_mobile_lcdc_chan {
 
 	void *fb_mem;
 	unsigned long fb_size;
+
 	dma_addr_t dma_handle;
 	unsigned long pan_offset;
 
