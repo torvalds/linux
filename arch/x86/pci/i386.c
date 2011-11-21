@@ -39,6 +39,85 @@
 #include <asm/io_apic.h>
 
 
+/*
+ * This list of dynamic mappings is for temporarily maintaining
+ * original BIOS BAR addresses for possible reinstatement.
+ */
+struct pcibios_fwaddrmap {
+	struct list_head list;
+	struct pci_dev *dev;
+	resource_size_t fw_addr[DEVICE_COUNT_RESOURCE];
+};
+
+static LIST_HEAD(pcibios_fwaddrmappings);
+static DEFINE_SPINLOCK(pcibios_fwaddrmap_lock);
+
+/* Must be called with 'pcibios_fwaddrmap_lock' lock held. */
+static struct pcibios_fwaddrmap *pcibios_fwaddrmap_lookup(struct pci_dev *dev)
+{
+	struct pcibios_fwaddrmap *map;
+
+	list_for_each_entry(map, &pcibios_fwaddrmappings, list)
+		if (map->dev == dev)
+			return map;
+
+	return NULL;
+}
+
+static void
+pcibios_save_fw_addr(struct pci_dev *dev, int idx, resource_size_t fw_addr)
+{
+	unsigned long flags;
+	struct pcibios_fwaddrmap *map;
+
+	spin_lock_irqsave(&pcibios_fwaddrmap_lock, flags);
+	map = pcibios_fwaddrmap_lookup(dev);
+	if (!map) {
+		spin_unlock_irqrestore(&pcibios_fwaddrmap_lock, flags);
+		map = kzalloc(sizeof(*map), GFP_KERNEL);
+		if (!map)
+			return;
+
+		map->dev = pci_dev_get(dev);
+		map->fw_addr[idx] = fw_addr;
+		INIT_LIST_HEAD(&map->list);
+
+		spin_lock_irqsave(&pcibios_fwaddrmap_lock, flags);
+		list_add_tail(&map->list, &pcibios_fwaddrmappings);
+	} else
+		map->fw_addr[idx] = fw_addr;
+	spin_unlock_irqrestore(&pcibios_fwaddrmap_lock, flags);
+}
+
+resource_size_t pcibios_retrieve_fw_addr(struct pci_dev *dev, int idx)
+{
+	unsigned long flags;
+	struct pcibios_fwaddrmap *map;
+	resource_size_t fw_addr = 0;
+
+	spin_lock_irqsave(&pcibios_fwaddrmap_lock, flags);
+	map = pcibios_fwaddrmap_lookup(dev);
+	if (map)
+		fw_addr = map->fw_addr[idx];
+	spin_unlock_irqrestore(&pcibios_fwaddrmap_lock, flags);
+
+	return fw_addr;
+}
+
+static void pcibios_fw_addr_list_del(void)
+{
+	unsigned long flags;
+	struct pcibios_fwaddrmap *entry, *next;
+
+	spin_lock_irqsave(&pcibios_fwaddrmap_lock, flags);
+	list_for_each_entry_safe(entry, next, &pcibios_fwaddrmappings, list) {
+		list_del(&entry->list);
+		pci_dev_put(entry->dev);
+		kfree(entry);
+	}
+	spin_unlock_irqrestore(&pcibios_fwaddrmap_lock, flags);
+}
+
 static int
 skip_isa_ioresource_align(struct pci_dev *dev) {
 
