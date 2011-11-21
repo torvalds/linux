@@ -2532,10 +2532,10 @@ static int nv_tx_done_optimized(struct net_device *dev, int limit)
 						nv_legacybackoff_reseed(dev);
 				}
 			} else {
-					u64_stats_update_begin(&np->swstats_tx_syncp);
-					np->stat_tx_packets++;
-					np->stat_tx_bytes += np->get_tx_ctx->skb->len;
-					u64_stats_update_end(&np->swstats_tx_syncp);
+				u64_stats_update_begin(&np->swstats_tx_syncp);
+				np->stat_tx_packets++;
+				np->stat_tx_bytes += np->get_tx_ctx->skb->len;
+				u64_stats_update_end(&np->swstats_tx_syncp);
 			}
 
 			dev_kfree_skb_any(np->get_tx_ctx->skb);

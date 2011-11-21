@@ -36,4 +36,4 @@ config ROADRUNNER_LARGE_RINGS
 	  kernel code or by user space programs. Say Y here only if you have
 	  the memory.
 
-endif /* HIPPI */
+endif # HIPPI

@@ -15,7 +15,9 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/init.h>
+#include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/stat.h>
 #include <linux/opp.h>
 #include <linux/devfreq.h>
 #include <linux/workqueue.h>
@@ -416,10 +418,14 @@ out:
  */
 int devfreq_remove_device(struct devfreq *devfreq)
 {
+	bool central_polling;
+
 	if (!devfreq)
 		return -EINVAL;
 
-	if (!devfreq->governor->no_central_polling) {
+	central_polling = !devfreq->governor->no_central_polling;
+
+	if (central_polling) {
 		mutex_lock(&devfreq_list_lock);
 		while (wait_remove_device == devfreq) {
 			mutex_unlock(&devfreq_list_lock);
@@ -431,7 +437,7 @@ int devfreq_remove_device(struct devfreq *devfreq)
 	mutex_lock(&devfreq->lock);
 	_remove_devfreq(devfreq, false); /* it unlocks devfreq->lock */
 
-	if (!devfreq->governor->no_central_polling)
+	if (central_polling)
 		mutex_unlock(&devfreq_list_lock);
 
 	return 0;

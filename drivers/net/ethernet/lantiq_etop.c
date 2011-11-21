@@ -34,6 +34,8 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/dma-mapping.h>
+#include <linux/module.h>
 
 #include <asm/checksum.h>
 

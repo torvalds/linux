@@ -2563,14 +2563,17 @@ void radeon_combios_get_power_modes(struct radeon_device *rdev)
 
 	/* allocate 2 power states */
 	rdev->pm.power_state = kzalloc(sizeof(struct radeon_power_state) * 2, GFP_KERNEL);
-	if (!rdev->pm.power_state) {
-		rdev->pm.default_power_state_index = state_index;
-		rdev->pm.num_power_states = 0;
-
-		rdev->pm.current_power_state_index = rdev->pm.default_power_state_index;
-		rdev->pm.current_clock_mode_index = 0;
-		return;
-	}
+	if (rdev->pm.power_state) {
+		/* allocate 1 clock mode per state */
+		rdev->pm.power_state[0].clock_info =
+			kzalloc(sizeof(struct radeon_pm_clock_info) * 1, GFP_KERNEL);
+		rdev->pm.power_state[1].clock_info =
+			kzalloc(sizeof(struct radeon_pm_clock_info) * 1, GFP_KERNEL);
+		if (!rdev->pm.power_state[0].clock_info ||
+		    !rdev->pm.power_state[1].clock_info)
+			goto pm_failed;
+	} else
+		goto pm_failed;
 
 	/* check for a thermal chip */
 	offset = combios_get_table_offset(dev, COMBIOS_OVERDRIVE_INFO_TABLE);
@@ -2732,6 +2735,14 @@ default_mode:
 	rdev->pm.power_state[state_index].flags = 0;
 	rdev->pm.default_power_state_index = state_index;
 	rdev->pm.num_power_states = state_index + 1;
+
+	rdev->pm.current_power_state_index = rdev->pm.default_power_state_index;
+	rdev->pm.current_clock_mode_index = 0;
+	return;
+
+pm_failed:
+	rdev->pm.default_power_state_index = state_index;
+	rdev->pm.num_power_states = 0;
 
 	rdev->pm.current_power_state_index = rdev->pm.default_power_state_index;
 	rdev->pm.current_clock_mode_index = 0;
