@@ -2464,7 +2464,6 @@ static void amifb_deinit(struct platform_device *pdev)
 {
 	if (fb_info.cmap.len)
 		fb_dealloc_cmap(&fb_info.cmap);
-	fb_dealloc_cmap(&fb_info.cmap);
 	chipfree();
 	if (videomemory)
 		iounmap((void *)videomemory);
