@@ -27,8 +27,8 @@ use IO::Handle;
 		"or51211", "or51132_qam", "or51132_vsb", "bluebird",
 		"opera1", "cx231xx", "cx18", "cx23885", "pvrusb2", "mpc718",
 		"af9015", "ngene", "az6027", "lme2510_lg", "lme2510c_s7395",
-		"lme2510c_s7395_old", "drxk", "drxk_terratec_h5", "tda10071",
-		"it9135" );
+		"lme2510c_s7395_old", "drxk", "drxk_terratec_h5",
+		"drxk_hauppauge_hvr930c", "tda10071", "it9135" );
 
 # Check args
 syntax() if (scalar(@ARGV) != 1);
@@ -640,6 +640,24 @@ sub drxk {
     verify($zipfile, $hash);
     unzip($zipfile, $tmpdir);
     extract("$tmpdir/$drvfile", 0x14dd8, 15634, "$fwfile");
+
+    "$fwfile"
+}
+
+sub drxk_hauppauge_hvr930c {
+    my $url = "http://www.wintvcd.co.uk/drivers/";
+    my $zipfile = "HVR-9x0_5_10_325_28153_SIGNED.zip";
+    my $hash = "83ab82e7e9480ec8bf1ae0155ca63c88";
+    my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);
+    my $drvfile = "HVR-900/emOEM.sys";
+    my $fwfile = "dvb-usb-hauppauge-hvr930c-drxk.fw";
+
+    checkstandard();
+
+    wgetfile($zipfile, $url . $zipfile);
+    verify($zipfile, $hash);
+    unzip($zipfile, $tmpdir);
+    extract("$tmpdir/$drvfile", 0x117b0, 42692, "$fwfile");
 
     "$fwfile"
 }
