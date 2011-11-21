@@ -262,8 +262,8 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	__le16 fc;
 	u8 hdr_len;
-	u16 len;
-	u8 sta_id;
+	u16 len, seq_number = 0;
+	u8 sta_id, tid = IWL_MAX_TID_COUNT;
 	unsigned long flags;
 	bool is_agg = false;
 
@@ -368,8 +368,32 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	info->driver_data[0] = ctx;
 	info->driver_data[1] = dev_cmd;
 
-	if (iwl_trans_tx(trans(priv), skb, dev_cmd, ctx->ctxid, sta_id))
+	if (ieee80211_is_data_qos(fc) && !ieee80211_is_qos_nullfunc(fc)) {
+		u8 *qc = NULL;
+		struct iwl_tid_data *tid_data;
+		qc = ieee80211_get_qos_ctl(hdr);
+		tid = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
+		if (WARN_ON_ONCE(tid >= IWL_MAX_TID_COUNT))
+			goto drop_unlock_sta;
+		tid_data = &priv->shrd->tid_data[sta_id][tid];
+
+		seq_number = tid_data->seq_number;
+		seq_number &= IEEE80211_SCTL_SEQ;
+		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
+		hdr->seq_ctrl |= cpu_to_le16(seq_number);
+		seq_number += 0x10;
+	}
+
+	/* Copy MAC header from skb into command buffer */
+	memcpy(tx_cmd->hdr, hdr, hdr_len);
+
+	if (iwl_trans_tx(trans(priv), skb, dev_cmd, ctx->ctxid, sta_id, tid))
 		goto drop_unlock_sta;
+
+	if (ieee80211_is_data_qos(fc) && !ieee80211_is_qos_nullfunc(fc) &&
+	    !ieee80211_has_morefrags(fc))
+		priv->shrd->tid_data[sta_id][tid].seq_number =
+				seq_number;
 
 	spin_unlock(&priv->shrd->sta_lock);
 	spin_unlock_irqrestore(&priv->shrd->lock, flags);

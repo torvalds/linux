@@ -1044,7 +1044,7 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 
 static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		struct iwl_device_cmd *dev_cmd, enum iwl_rxon_context_id ctx,
-		u8 sta_id)
+		u8 sta_id, u8 tid)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
@@ -1061,7 +1061,6 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	u16 seq_number = 0;
 	u8 wait_write_ptr = 0;
 	u8 txq_id;
-	u8 tid = 0;
 	bool is_agg = false;
 	__le16 fc = hdr->frame_control;
 	u8 hdr_len = ieee80211_hdrlen(fc);
@@ -1086,20 +1085,11 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		    trans_pcie->ac_to_queue[ctx][skb_get_queue_mapping(skb)];
 
 	if (ieee80211_is_data_qos(fc) && !ieee80211_is_qos_nullfunc(fc)) {
-		u8 *qc = NULL;
 		struct iwl_tid_data *tid_data;
-		qc = ieee80211_get_qos_ctl(hdr);
-		tid = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
 		tid_data = &trans->shrd->tid_data[sta_id][tid];
-
 		if (WARN_ON_ONCE(tid >= IWL_MAX_TID_COUNT))
 			return -1;
 
-		seq_number = tid_data->seq_number;
-		seq_number &= IEEE80211_SCTL_SEQ;
-		hdr->seq_ctrl = hdr->seq_ctrl &
-				cpu_to_le16(IEEE80211_SCTL_FRAG);
-		hdr->seq_ctrl |= cpu_to_le16(seq_number);
 		/* aggregation is on for this <sta,tid> */
 		if (info->flags & IEEE80211_TX_CTL_AMPDU) {
 			if (WARN_ON_ONCE(tid_data->agg.state != IWL_AGG_ON)) {
@@ -1114,11 +1104,7 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 			txq_id = trans_pcie->agg_txq[sta_id][tid];
 			is_agg = true;
 		}
-		seq_number += 0x10;
 	}
-
-	/* Copy MAC header from skb into command buffer */
-	memcpy(tx_cmd->hdr, hdr, hdr_len);
 
 	txq = &trans_pcie->txq[txq_id];
 	q = &txq->q;
@@ -1221,11 +1207,6 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	/* Tell device the write index *just past* this latest filled TFD */
 	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);
 	iwl_txq_update_write_ptr(trans, txq);
-
-	if (ieee80211_is_data_qos(fc) && !ieee80211_is_qos_nullfunc(fc) &&
-	    !ieee80211_has_morefrags(fc))
-			trans->shrd->tid_data[sta_id][tid].seq_number =
-				seq_number;
 
 	/*
 	 * At this point the frame is "transmitted" successfully
