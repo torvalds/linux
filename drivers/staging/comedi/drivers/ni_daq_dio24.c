@@ -140,9 +140,8 @@ static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	printk("comedi%d: ni_daq_dio24: %s, io 0x%lx", dev->minor,
 	       thisboard->name, iobase);
 #ifdef incomplete
-	if (irq) {
+	if (irq)
 		printk(", irq %u", irq);
-	}
 #endif
 
 	printk("\n");
