@@ -58,7 +58,13 @@ void refrigerator(void)
 	current->flags &= ~PF_FREEZING;
 
 	pr_debug("%s left refrigerator\n", current->comm);
-	__set_current_state(save);
+
+	/*
+	 * Restore saved task state before returning.  The mb'd version
+	 * needs to be used; otherwise, it might silently break
+	 * synchronization which depends on ordered task state change.
+	 */
+	set_current_state(save);
 }
 EXPORT_SYMBOL(refrigerator);
 
