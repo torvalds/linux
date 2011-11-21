@@ -557,15 +557,8 @@ static int br2684_regvcc(struct atm_vcc *atmvcc, void __user * arg)
 	skb_queue_splice_init(rq, &queue);
 	spin_unlock_irqrestore(&rq->lock, flags);
 
-	skb_queue_walk_safe(&queue, skb, tmp) {
-		struct net_device *dev;
-
+	skb_queue_walk_safe(&queue, skb, tmp)
 		br2684_push(atmvcc, skb);
-		dev = skb->dev;
-
-		dev->stats.rx_bytes -= skb->len;
-		dev->stats.rx_packets--;
-	}
 
 	/* initialize netdev carrier state */
 	if (atmvcc->dev->signal == ATM_PHY_SIG_LOST)
