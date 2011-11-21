@@ -16,7 +16,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 
-#include <plat/common.h>
+#include "common.h"
 
 #include "prm44xx.h"
 #include "prminst44xx.h"

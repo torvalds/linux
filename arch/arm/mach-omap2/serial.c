@@ -33,7 +33,7 @@
 #include <plat/omap-serial.h>
 #endif
 
-#include <plat/common.h>
+#include "common.h"
 #include <plat/board.h>
 #include <plat/clock.h>
 #include <plat/dma.h>

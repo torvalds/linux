@@ -1,7 +1,6 @@
 /*
- * arch/arm/plat-omap/include/mach/common.h
  *
- * Header for code common to all OMAP machines.
+ * Header for code common to all OMAP1 machines.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -24,15 +23,39 @@
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef __ARCH_ARM_MACH_OMAP_COMMON_H
-#define __ARCH_ARM_MACH_OMAP_COMMON_H
+#ifndef __ARCH_ARM_MACH_OMAP1_COMMON_H
+#define __ARCH_ARM_MACH_OMAP1_COMMON_H
 
-#include <plat/i2c.h>
+#include <plat/common.h>
 
-extern int __init omap_init_clocksource_32k(void);
-extern unsigned long long notrace omap_32k_sched_clock(void);
+#if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
+void omap7xx_map_io(void);
+#else
+static inline void omap7xx_map_io(void)
+{
+}
+#endif
 
-extern void omap_reserve(void);
-void omap_sram_init(void);
+#ifdef CONFIG_ARCH_OMAP15XX
+void omap15xx_map_io(void);
+#else
+static inline void omap15xx_map_io(void)
+{
+}
+#endif
 
-#endif /* __ARCH_ARM_MACH_OMAP_COMMON_H */
+#ifdef CONFIG_ARCH_OMAP16XX
+void omap16xx_map_io(void);
+#else
+static inline void omap16xx_map_io(void)
+{
+}
+#endif
+
+void omap1_init_early(void);
+void omap1_init_irq(void);
+
+extern struct sys_timer omap1_timer;
+extern bool omap_32k_timer_init(void);
+
+#endif /* __ARCH_ARM_MACH_OMAP1_COMMON_H */

@@ -22,7 +22,8 @@
 #include <plat/irqs.h>
 
 #include <mach/hardware.h>
-#include <mach/omap4-common.h>
+
+#include "common.h"
 
 #ifdef CONFIG_CACHE_L2X0
 void __iomem *l2cache_base;

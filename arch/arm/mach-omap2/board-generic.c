@@ -20,8 +20,7 @@
 #include <asm/mach/arch.h>
 
 #include <plat/board.h>
-#include <plat/common.h>
-#include <mach/omap4-common.h>
+#include "common.h"
 #include "common-board-devices.h"
 
 /*

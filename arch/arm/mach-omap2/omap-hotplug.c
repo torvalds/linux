@@ -19,7 +19,8 @@
 #include <linux/smp.h>
 
 #include <asm/cacheflush.h>
-#include <mach/omap4-common.h>
+
+#include "common.h"
 
 int platform_cpu_kill(unsigned int cpu)
 {

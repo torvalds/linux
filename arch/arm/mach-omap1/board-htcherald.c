@@ -41,7 +41,7 @@
 #include <asm/mach/arch.h>
 
 #include <plat/omap7xx.h>
-#include <plat/common.h>
+#include "common.h"
 #include <plat/board.h>
 #include <plat/keypad.h>
 #include <plat/usb.h>

@@ -35,7 +35,7 @@
 #include "clock3xxx.h"
 #include "clock44xx.h"
 
-#include <plat/common.h>
+#include "common.h"
 #include <plat/omap-pm.h>
 #include "voltage.h"
 #include "powerdomain.h"
@@ -43,7 +43,7 @@
 #include "clockdomain.h"
 #include <plat/omap_hwmod.h>
 #include <plat/multi.h>
-#include <plat/common.h>
+#include "common.h"
 
 /*
  * The machine specific code may provide the extra mapping besides the

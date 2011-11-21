@@ -43,7 +43,7 @@
 #include <plat/irda.h>
 #include <plat/usb.h>
 #include <plat/keypad.h>
-#include <plat/common.h>
+#include "common.h"
 #include <plat/flash.h>
 
 #include "board-h2.h"

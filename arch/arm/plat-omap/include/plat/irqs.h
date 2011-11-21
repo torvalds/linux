@@ -438,16 +438,6 @@
 
 #ifndef __ASSEMBLY__
 extern void __iomem *omap_irq_base;
-void omap1_init_irq(void);
-void omap2_init_irq(void);
-void omap3_init_irq(void);
-void ti816x_init_irq(void);
-extern int omap_irq_pending(void);
-void omap_intc_save_context(void);
-void omap_intc_restore_context(void);
-void omap3_intc_suspend(void);
-void omap3_intc_prepare_idle(void);
-void omap3_intc_resume_idle(void);
 #endif
 
 #include <mach/hardware.h>
