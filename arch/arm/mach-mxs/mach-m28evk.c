@@ -361,6 +361,6 @@ static struct sys_timer m28evk_timer = {
 MACHINE_START(M28EVK, "DENX M28 EVK")
 	.map_io		= mx28_map_io,
 	.init_irq	= mx28_init_irq,
-	.init_machine	= m28evk_init,
 	.timer		= &m28evk_timer,
+	.init_machine	= m28evk_init,
 MACHINE_END
