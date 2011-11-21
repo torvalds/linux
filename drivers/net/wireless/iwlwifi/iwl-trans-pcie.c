@@ -1109,7 +1109,7 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 				IWL_ERR(trans, "sta_id = %d, tid = %d "
 					"txq_id = %d, seq_num = %d", sta_id,
 					tid, tid_data->agg.txq_id,
-					seq_number >> 4);
+					SEQ_TO_SN(seq_number));
 			}
 			txq_id = tid_data->agg.txq_id;
 			is_agg = true;
@@ -1222,12 +1222,10 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);
 	iwl_txq_update_write_ptr(trans, txq);
 
-	if (ieee80211_is_data_qos(fc) && !ieee80211_is_qos_nullfunc(fc)) {
-		trans->shrd->tid_data[sta_id][tid].tfds_in_queue++;
-		if (!ieee80211_has_morefrags(fc))
+	if (ieee80211_is_data_qos(fc) && !ieee80211_is_qos_nullfunc(fc) &&
+	    !ieee80211_has_morefrags(fc))
 			trans->shrd->tid_data[sta_id][tid].seq_number =
 				seq_number;
-	}
 
 	/*
 	 * At this point the frame is "transmitted" successfully
@@ -1304,10 +1302,11 @@ static int iwlagn_txq_check_empty(struct iwl_trans *trans,
 		}
 		break;
 	case IWL_EMPTYING_HW_QUEUE_ADDBA:
-		/* We are reclaiming the last packet of the queue */
-		if (tid_data->tfds_in_queue == 0) {
+		/* There are no packets for this RA / TID in the HW any more */
+		if (tid_data->agg.ssn == tid_data->next_reclaimed) {
 			IWL_DEBUG_TX_QUEUES(trans,
-				"HW queue empty: continue ADDBA flow\n");
+				"Can continue ADDBA flow ssn = next_recl ="
+				" %d", tid_data->next_reclaimed);
 			tid_data->agg.state = IWL_AGG_ON;
 			iwl_start_tx_ba_trans_ready(priv(trans),
 						    NUM_IWL_RXON_CTX,
@@ -1319,21 +1318,6 @@ static int iwlagn_txq_check_empty(struct iwl_trans *trans,
 	}
 
 	return 0;
-}
-
-static void iwl_free_tfds_in_queue(struct iwl_trans *trans,
-			    int sta_id, int tid, int freed)
-{
-	lockdep_assert_held(&trans->shrd->sta_lock);
-
-	if (trans->shrd->tid_data[sta_id][tid].tfds_in_queue >= freed)
-		trans->shrd->tid_data[sta_id][tid].tfds_in_queue -= freed;
-	else {
-		IWL_DEBUG_TX(trans, "free more than tfds_in_queue (%u:%d)\n",
-			trans->shrd->tid_data[sta_id][tid].tfds_in_queue,
-			freed);
-		trans->shrd->tid_data[sta_id][tid].tfds_in_queue = 0;
-	}
 }
 
 static void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int sta_id, int tid,
@@ -1367,7 +1351,6 @@ static void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int sta_id, int tid,
 			iwl_wake_queue(trans, txq, "Packets reclaimed");
 	}
 
-	iwl_free_tfds_in_queue(trans, sta_id, tid, freed);
 	iwlagn_txq_check_empty(trans, sta_id, tid, txq_id);
 }
 

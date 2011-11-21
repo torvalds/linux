@@ -555,18 +555,22 @@ int iwl_trans_pcie_tx_agg_alloc(struct iwl_trans *trans,
 
 	spin_lock_irqsave(&trans->shrd->sta_lock, flags);
 	tid_data = &trans->shrd->tid_data[sta_id][tid];
-	*ssn = SEQ_TO_SN(tid_data->seq_number);
 	tid_data->agg.txq_id = txq_id;
+	tid_data->agg.ssn = SEQ_TO_SN(tid_data->seq_number);
+
+	*ssn = tid_data->agg.ssn;
 	iwl_set_swq_id(&trans_pcie->txq[txq_id], get_ac_from_tid(tid), txq_id);
 
-	if (tid_data->tfds_in_queue == 0) {
-		IWL_DEBUG_TX_QUEUES(trans, "HW queue is empty\n");
+	if (*ssn == tid_data->next_reclaimed) {
+		IWL_DEBUG_TX_QUEUES(trans, "Proceed: ssn = next_recl = %d",
+				    tid_data->agg.ssn);
 		tid_data->agg.state = IWL_AGG_ON;
 		iwl_start_tx_ba_trans_ready(priv(trans), ctx, sta_id, tid);
 	} else {
-		IWL_DEBUG_TX_QUEUES(trans,
-				    "HW queue is NOT empty: %d packets in HW"
-				    " queue\n", tid_data->tfds_in_queue);
+		IWL_DEBUG_TX_QUEUES(trans, "Can't proceed: ssn %d, "
+				    "next_recl = %d",
+				    tid_data->agg.ssn,
+				    tid_data->next_reclaimed);
 		tid_data->agg.state = IWL_EMPTYING_HW_QUEUE_ADDBA;
 	}
 	spin_unlock_irqrestore(&trans->shrd->sta_lock, flags);
@@ -647,6 +651,7 @@ int iwl_trans_pcie_tx_agg_disable(struct iwl_trans *trans,
 				    "Stopping a non empty AGG HW QUEUE\n");
 		trans->shrd->tid_data[sta_id][tid].agg.state =
 			IWL_EMPTYING_HW_QUEUE_DELBA;
+		tid_data->agg.ssn = SEQ_TO_SN(tid_data->seq_number);
 		spin_unlock_irqrestore(&trans->shrd->sta_lock, flags);
 		return 0;
 	}

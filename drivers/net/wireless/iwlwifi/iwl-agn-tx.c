@@ -772,7 +772,7 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
 	struct iwlagn_tx_resp *tx_resp = (void *)&pkt->u.raw[0];
 	struct ieee80211_hdr *hdr;
 	u32 status = le16_to_cpu(tx_resp->status.status);
-	u32 ssn = iwlagn_get_scd_ssn(tx_resp);
+	u16 ssn = iwlagn_get_scd_ssn(tx_resp);
 	int tid;
 	int sta_id;
 	int freed;
@@ -794,8 +794,31 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
 		iwl_rx_reply_tx_agg(priv, tx_resp);
 
 	if (tx_resp->frame_count == 1) {
-		IWL_DEBUG_TX_REPLY(priv, "Q %d, ssn %d", txq_id, ssn);
+		u16 next_reclaimed = le16_to_cpu(tx_resp->seq_ctl);
+		next_reclaimed = SEQ_TO_SN(next_reclaimed + 0x10);
+
+		if (is_agg) {
+			/* If this is an aggregation queue, we can rely on the
+			 * ssn since the wifi sequence number corresponds to
+			 * the index in the TFD ring (%256).
+			 * The seq_ctl is the sequence control of the packet
+			 * to which this Tx response relates. But if there is a
+			 * hole in the bitmap of the BA we received, this Tx
+			 * response may allow to reclaim the hole and all the
+			 * subsequent packets that were already acked.
+			 * In that case, seq_ctl != ssn, and the next packet
+			 * to be reclaimed will be ssn and not seq_ctl.
+			 */
+			next_reclaimed = ssn;
+		}
+
 		__skb_queue_head_init(&skbs);
+		priv->shrd->tid_data[sta_id][tid].next_reclaimed =
+			next_reclaimed;
+
+		IWL_DEBUG_TX_REPLY(priv, "Next reclaimed packet:%d",
+					  next_reclaimed);
+
 		/*we can free until ssn % q.n_bd not inclusive */
 		iwl_trans_reclaim(trans(priv), sta_id, tid, txq_id,
 				  ssn, status, &skbs);
@@ -951,6 +974,7 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 	/* Release all TFDs before the SSN, i.e. all TFDs in front of
 	 * block-ack window (we assume that they've been successfully
 	 * transmitted ... if not, it's too late anyway). */
+	priv->shrd->tid_data[sta_id][tid].next_reclaimed = ba_resp_scd_ssn;
 	iwl_trans_reclaim(trans(priv), sta_id, tid, scd_flow, ba_resp_scd_ssn,
 			  0, &reclaimed_skbs);
 	freed = 0;

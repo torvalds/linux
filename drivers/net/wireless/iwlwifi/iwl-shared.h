@@ -231,12 +231,17 @@ enum iwl_agg_state {
  * @state: state of the BA agreement establishment / tear down.
  * @txq_id: Tx queue used by the BA session - used by the transport layer.
  *	Needed by the upper layer for debugfs only.
+ * @ssn: the first packet to be sent in AGG HW queue in Tx AGG start flow, or
+ *	the first packet to be sent in legacy HW queue in Tx AGG stop flow.
+ *	Basically when next_reclaimed reaches ssn, we can tell mac80211 that
+ *	we are ready to finish the Tx AGG stop / start flow.
  * @wait_for_ba: Expect block-ack before next Tx reply
  */
 struct iwl_ht_agg {
 	u32 rate_n_flags;
 	enum iwl_agg_state state;
 	u16 txq_id;
+	u16 ssn;
 	bool wait_for_ba;
 };
 
@@ -246,13 +251,13 @@ struct iwl_ht_agg {
  * This structs holds the states for each RA / TID.
 
  * @seq_number: the next WiFi sequence number to use
- * @tfds_in_queue: number of packets sent to the HW queues.
- *	Exported for debugfs only
+ * @next_reclaimed: the WiFi sequence number of the next packet to be acked.
+ *	This is basically (last acked packet++).
  * @agg: aggregation state machine
  */
 struct iwl_tid_data {
 	u16 seq_number;
-	u16 tfds_in_queue;
+	u16 next_reclaimed;
 	struct iwl_ht_agg agg;
 };
 
