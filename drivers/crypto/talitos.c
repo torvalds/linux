@@ -2784,12 +2784,13 @@ static int talitos_probe(struct platform_device *ofdev)
 				dev_err(dev, "%s alg registration failed\n",
 					name);
 				kfree(t_alg);
-			} else {
+			} else
 				list_add_tail(&t_alg->entry, &priv->alg_list);
-				dev_info(dev, "%s\n", name);
-			}
 		}
 	}
+	if (!list_empty(&priv->alg_list))
+		dev_info(dev, "%s algorithms registered in /proc/crypto\n",
+			 (char *)of_get_property(np, "compatible", NULL));
 
 	return 0;
 
