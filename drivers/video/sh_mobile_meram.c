@@ -448,10 +448,6 @@ static void *sh_mobile_meram_register(struct sh_mobile_meram_info *pdata,
 				      const struct sh_mobile_meram_cfg *cfg,
 				      unsigned int xres, unsigned int yres,
 				      unsigned int pixelformat,
-				      unsigned long base_addr_y,
-				      unsigned long base_addr_c,
-				      unsigned long *icb_addr_y,
-				      unsigned long *icb_addr_c,
 				      unsigned int *pitch)
 {
 	struct sh_mobile_meram_fb_cache *cache;
@@ -470,9 +466,8 @@ static void *sh_mobile_meram_register(struct sh_mobile_meram_info *pdata,
 	priv = pdata->priv;
 	pdev = pdata->pdev;
 
-	dev_dbg(&pdev->dev, "registering %dx%d (%s) (y=%08lx, c=%08lx)",
-		xres, yres, (!pixelformat) ? "yuv" : "rgb",
-		base_addr_y, base_addr_c);
+	dev_dbg(&pdev->dev, "registering %dx%d (%s)", xres, yres,
+		!pixelformat ? "yuv" : "rgb");
 
 	/* we can't handle wider than 8192px */
 	if (xres > 8192) {
@@ -499,12 +494,6 @@ static void *sh_mobile_meram_register(struct sh_mobile_meram_info *pdata,
 	else if (pixelformat == SH_MOBILE_MERAM_PF_NV24)
 		meram_init(priv, &cache->planes[1], 2 * xres, (yres + 1) / 2,
 			&out_pitch);
-
-	meram_set_next_addr(priv, cache, base_addr_y, base_addr_c);
-	meram_get_next_icb_addr(pdata, cache, icb_addr_y, icb_addr_c);
-
-	dev_dbg(&pdev->dev, "registered - can access via y=%08lx, c=%08lx",
-		*icb_addr_y, *icb_addr_c);
 
 err:
 	mutex_unlock(&priv->lock);

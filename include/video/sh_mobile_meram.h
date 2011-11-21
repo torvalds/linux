@@ -46,10 +46,6 @@ struct sh_mobile_meram_ops {
 				const struct sh_mobile_meram_cfg *cfg,
 				unsigned int xres, unsigned int yres,
 				unsigned int pixelformat,
-				unsigned long base_addr_y,
-				unsigned long base_addr_c,
-				unsigned long *icb_addr_y,
-				unsigned long *icb_addr_c,
 				unsigned int *pitch);
 
 	/* unregister usage of meram */

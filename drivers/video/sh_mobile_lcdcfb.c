@@ -882,11 +882,13 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 
 		meram = mdev->ops->meram_register(mdev, ch->cfg->meram_cfg,
 					ch->pitch, ch->yres, pixelformat,
-					ch->base_addr_y, ch->base_addr_c,
-					&ch->base_addr_y, &ch->base_addr_c,
 					&ch->pitch);
-		if (!IS_ERR(meram))
+		if (!IS_ERR(meram)) {
+			mdev->ops->meram_update(mdev, meram,
+					ch->base_addr_y, ch->base_addr_c,
+					&ch->base_addr_y, &ch->base_addr_c);
 			ch->meram = meram;
+		}
 	}
 
 	/* Start the LCDC. */
