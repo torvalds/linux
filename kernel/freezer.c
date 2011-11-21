@@ -132,7 +132,7 @@ bool freeze_task(struct task_struct *p, bool sig_only)
 		return false;
 	}
 
-	if (should_send_signal(p)) {
+	if (!(p->flags & PF_FREEZER_NOSIG)) {
 		fake_signal_wake_up(p);
 		/*
 		 * fake_signal_wake_up() goes through p's scheduler

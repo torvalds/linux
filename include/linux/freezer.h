@@ -15,7 +15,7 @@ extern bool pm_nosig_freezing;		/* PM nosig freezing in effect */
 /*
  * Check if a process has been frozen
  */
-static inline int frozen(struct task_struct *p)
+static inline bool frozen(struct task_struct *p)
 {
 	return p->flags & PF_FROZEN;
 }
@@ -30,11 +30,6 @@ static inline bool freezing(struct task_struct *p)
 	if (likely(!atomic_read(&system_freezing_cnt)))
 		return false;
 	return freezing_slow_path(p);
-}
-
-static inline bool should_send_signal(struct task_struct *p)
-{
-	return !(p->flags & PF_FREEZER_NOSIG);
 }
 
 /* Takes and releases task alloc lock using task_lock() */
@@ -166,7 +161,7 @@ static inline void set_freezable_with_signal(void)
 	__retval;							\
 })
 #else /* !CONFIG_FREEZER */
-static inline int frozen(struct task_struct *p) { return 0; }
+static inline bool frozen(struct task_struct *p) { return false; }
 static inline bool freezing(struct task_struct *p) { return false; }
 
 static inline bool __refrigerator(bool check_kthr_stop) { return false; }
