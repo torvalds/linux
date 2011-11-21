@@ -6,10 +6,6 @@
 	model = "Toshiba AC100 / Dynabook AZ";
 	compatible = "compal,paz00", "nvidia,tegra20";
 
-	chosen {
-		bootargs = "console=ttyS0,115200n8 root=/dev/mmcblk0p1";
-	};
-
 	memory@0 {
 		reg = <0x00000000 0x20000000>;
 	};

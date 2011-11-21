@@ -6,10 +6,6 @@
 	model = "NVIDIA Seaboard";
 	compatible = "nvidia,seaboard", "nvidia,tegra20";
 
-	chosen {
-		bootargs = "vmalloc=192M video=tegrafb console=ttyS0,115200n8 root=/dev/mmcblk1p3 rw rootwait";
-	};
-
 	memory {
 		device_type = "memory";
 		reg = < 0x00000000 0x40000000 >;
