@@ -451,20 +451,14 @@ static void *sh_mobile_meram_register(struct sh_mobile_meram_info *pdata,
 				      unsigned int *pitch)
 {
 	struct sh_mobile_meram_fb_cache *cache;
-	struct sh_mobile_meram_priv *priv;
-	struct platform_device *pdev;
+	struct sh_mobile_meram_priv *priv = pdata->priv;
+	struct platform_device *pdev = pdata->pdev;
 	unsigned int out_pitch;
-
-	if (!pdata || !pdata->priv || !pdata->pdev || !cfg)
-		return ERR_PTR(-EINVAL);
 
 	if (pixelformat != SH_MOBILE_MERAM_PF_NV &&
 	    pixelformat != SH_MOBILE_MERAM_PF_NV24 &&
 	    pixelformat != SH_MOBILE_MERAM_PF_RGB)
 		return ERR_PTR(-EINVAL);
-
-	priv = pdata->priv;
-	pdev = pdata->pdev;
 
 	dev_dbg(&pdev->dev, "registering %dx%d (%s)", xres, yres,
 		!pixelformat ? "yuv" : "rgb");
@@ -500,16 +494,11 @@ err:
 	return cache;
 }
 
-static int
+static void
 sh_mobile_meram_unregister(struct sh_mobile_meram_info *pdata, void *data)
 {
 	struct sh_mobile_meram_fb_cache *cache = data;
-	struct sh_mobile_meram_priv *priv;
-
-	if (!pdata || !pdata->priv || !data)
-		return -EINVAL;
-
-	priv = pdata->priv;
+	struct sh_mobile_meram_priv *priv = pdata->priv;
 
 	mutex_lock(&priv->lock);
 
@@ -521,22 +510,15 @@ sh_mobile_meram_unregister(struct sh_mobile_meram_info *pdata, void *data)
 	meram_free(priv, cache);
 
 	mutex_unlock(&priv->lock);
-
-	return 0;
 }
 
-static int
+static void
 sh_mobile_meram_update(struct sh_mobile_meram_info *pdata, void *data,
 		       unsigned long base_addr_y, unsigned long base_addr_c,
 		       unsigned long *icb_addr_y, unsigned long *icb_addr_c)
 {
 	struct sh_mobile_meram_fb_cache *cache = data;
-	struct sh_mobile_meram_priv *priv;
-
-	if (!pdata || !pdata->priv || !data)
-		return -EINVAL;
-
-	priv = pdata->priv;
+	struct sh_mobile_meram_priv *priv = pdata->priv;
 
 	mutex_lock(&priv->lock);
 
@@ -544,8 +526,6 @@ sh_mobile_meram_update(struct sh_mobile_meram_info *pdata, void *data,
 	meram_get_next_icb_addr(pdata, cache, icb_addr_y, icb_addr_c);
 
 	mutex_unlock(&priv->lock);
-
-	return 0;
 }
 
 static struct sh_mobile_meram_ops sh_mobile_meram_ops = {

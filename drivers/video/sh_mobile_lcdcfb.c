@@ -1072,14 +1072,11 @@ static int sh_mobile_fb_pan_display(struct fb_var_screeninfo *var,
 
 	if (ch->meram) {
 		struct sh_mobile_meram_info *mdev;
-		int ret;
 
 		mdev = priv->meram_dev;
-		ret = mdev->ops->meram_update(mdev, ch->meram,
+		mdev->ops->meram_update(mdev, ch->meram,
 					base_addr_y, base_addr_c,
 					&base_addr_y, &base_addr_c);
-		if (ret)
-			return ret;
 	}
 
 	ch->base_addr_y = base_addr_y;

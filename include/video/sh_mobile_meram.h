@@ -49,16 +49,15 @@ struct sh_mobile_meram_ops {
 				unsigned int *pitch);
 
 	/* unregister usage of meram */
-	int (*meram_unregister)(struct sh_mobile_meram_info *meram_dev,
-				void *data);
+	void (*meram_unregister)(struct sh_mobile_meram_info *meram_dev,
+				 void *data);
 
 	/* update meram settings */
-	int (*meram_update)(struct sh_mobile_meram_info *meram_dev,
-			    void *data,
-			    unsigned long base_addr_y,
-			    unsigned long base_addr_c,
-			    unsigned long *icb_addr_y,
-			    unsigned long *icb_addr_c);
+	void (*meram_update)(struct sh_mobile_meram_info *meram_dev, void *data,
+			     unsigned long base_addr_y,
+			     unsigned long base_addr_c,
+			     unsigned long *icb_addr_y,
+			     unsigned long *icb_addr_c);
 };
 
 #endif /* __VIDEO_SH_MOBILE_MERAM_H__  */
