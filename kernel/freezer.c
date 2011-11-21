@@ -11,8 +11,40 @@
 #include <linux/freezer.h>
 #include <linux/kthread.h>
 
+/* total number of freezing conditions in effect */
+atomic_t system_freezing_cnt = ATOMIC_INIT(0);
+EXPORT_SYMBOL(system_freezing_cnt);
+
+/* indicate whether PM freezing is in effect, protected by pm_mutex */
+bool pm_freezing;
+bool pm_nosig_freezing;
+
 /* protects freezing and frozen transitions */
 static DEFINE_SPINLOCK(freezer_lock);
+
+/**
+ * freezing_slow_path - slow path for testing whether a task needs to be frozen
+ * @p: task to be tested
+ *
+ * This function is called by freezing() if system_freezing_cnt isn't zero
+ * and tests whether @p needs to enter and stay in frozen state.  Can be
+ * called under any context.  The freezers are responsible for ensuring the
+ * target tasks see the updated state.
+ */
+bool freezing_slow_path(struct task_struct *p)
+{
+	if (p->flags & PF_NOFREEZE)
+		return false;
+
+	if (pm_nosig_freezing || cgroup_freezing(p))
+		return true;
+
+	if (pm_freezing && !(p->flags & PF_FREEZER_NOSIG))
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL(freezing_slow_path);
 
 /* Refrigerator is place where frozen processes are stored :-). */
 bool __refrigerator(bool check_kthr_stop)
@@ -23,17 +55,11 @@ bool __refrigerator(bool check_kthr_stop)
 	long save;
 
 	/*
-	 * Enter FROZEN.  If NOFREEZE, schedule immediate thawing by
-	 * clearing freezing.
+	 * No point in checking freezing() again - the caller already did.
+	 * Proceed to enter FROZEN.
 	 */
 	spin_lock_irq(&freezer_lock);
 repeat:
-	if (!freezing(current)) {
-		spin_unlock_irq(&freezer_lock);
-		return was_frozen;
-	}
-	if (current->flags & PF_NOFREEZE)
-		clear_freeze_flag(current);
 	current->flags |= PF_FROZEN;
 	spin_unlock_irq(&freezer_lock);
 
@@ -99,18 +125,12 @@ static void fake_signal_wake_up(struct task_struct *p)
 bool freeze_task(struct task_struct *p, bool sig_only)
 {
 	unsigned long flags;
-	bool ret = false;
 
 	spin_lock_irqsave(&freezer_lock, flags);
-
-	if ((p->flags & PF_NOFREEZE) ||
-	    (sig_only && !should_send_signal(p)))
-		goto out_unlock;
-
-	if (frozen(p))
-		goto out_unlock;
-
-	set_freeze_flag(p);
+	if (!freezing(p) || frozen(p)) {
+		spin_unlock_irqrestore(&freezer_lock, flags);
+		return false;
+	}
 
 	if (should_send_signal(p)) {
 		fake_signal_wake_up(p);
@@ -123,10 +143,9 @@ bool freeze_task(struct task_struct *p, bool sig_only)
 	} else {
 		wake_up_state(p, TASK_INTERRUPTIBLE);
 	}
-	ret = true;
-out_unlock:
+
 	spin_unlock_irqrestore(&freezer_lock, flags);
-	return ret;
+	return true;
 }
 
 void __thaw_task(struct task_struct *p)
@@ -143,7 +162,6 @@ void __thaw_task(struct task_struct *p)
 	 * avoid leaving dangling TIF_SIGPENDING behind.
 	 */
 	spin_lock_irqsave(&freezer_lock, flags);
-	clear_freeze_flag(p);
 	if (frozen(p)) {
 		wake_up_process(p);
 	} else {

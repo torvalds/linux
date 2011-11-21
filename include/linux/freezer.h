@@ -5,8 +5,13 @@
 
 #include <linux/sched.h>
 #include <linux/wait.h>
+#include <linux/atomic.h>
 
 #ifdef CONFIG_FREEZER
+extern atomic_t system_freezing_cnt;	/* nr of freezing conds in effect */
+extern bool pm_freezing;		/* PM freezing in effect */
+extern bool pm_nosig_freezing;		/* PM nosig freezing in effect */
+
 /*
  * Check if a process has been frozen
  */
@@ -15,28 +20,16 @@ static inline int frozen(struct task_struct *p)
 	return p->flags & PF_FROZEN;
 }
 
+extern bool freezing_slow_path(struct task_struct *p);
+
 /*
  * Check if there is a request to freeze a process
  */
-static inline int freezing(struct task_struct *p)
+static inline bool freezing(struct task_struct *p)
 {
-	return test_tsk_thread_flag(p, TIF_FREEZE);
-}
-
-/*
- * Request that a process be frozen
- */
-static inline void set_freeze_flag(struct task_struct *p)
-{
-	set_tsk_thread_flag(p, TIF_FREEZE);
-}
-
-/*
- * Sometimes we may need to cancel the previous 'freeze' request
- */
-static inline void clear_freeze_flag(struct task_struct *p)
-{
-	clear_tsk_thread_flag(p, TIF_FREEZE);
+	if (likely(!atomic_read(&system_freezing_cnt)))
+		return false;
+	return freezing_slow_path(p);
 }
 
 static inline bool should_send_signal(struct task_struct *p)
@@ -174,9 +167,7 @@ static inline void set_freezable_with_signal(void)
 })
 #else /* !CONFIG_FREEZER */
 static inline int frozen(struct task_struct *p) { return 0; }
-static inline int freezing(struct task_struct *p) { return 0; }
-static inline void set_freeze_flag(struct task_struct *p) {}
-static inline void clear_freeze_flag(struct task_struct *p) {}
+static inline bool freezing(struct task_struct *p) { return false; }
 
 static inline bool __refrigerator(bool check_kthr_stop) { return false; }
 static inline int freeze_processes(void) { return -ENOSYS; }
