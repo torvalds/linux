@@ -158,16 +158,34 @@ static int __pci_assign_resource(struct pci_bus *bus, struct pci_dev *dev,
 	return ret;
 }
 
+/*
+ * Generic function that returns a value indicating that the device's
+ * original BIOS BAR address was not saved and so is not available for
+ * reinstatement.
+ *
+ * Can be over-ridden by architecture specific code that implements
+ * reinstatement functionality rather than leaving it disabled when
+ * normal allocation attempts fail.
+ */
+resource_size_t __weak pcibios_retrieve_fw_addr(struct pci_dev *dev, int idx)
+{
+	return 0;
+}
+
 static int pci_revert_fw_address(struct resource *res, struct pci_dev *dev, 
 		int resno, resource_size_t size)
 {
 	struct resource *root, *conflict;
-	resource_size_t start, end;
+	resource_size_t fw_addr, start, end;
 	int ret = 0;
+
+	fw_addr = pcibios_retrieve_fw_addr(dev, resno);
+	if (!fw_addr)
+		return 1;
 
 	start = res->start;
 	end = res->end;
-	res->start = dev->fw_addr[resno];
+	res->start = fw_addr;
 	res->end = res->start + size - 1;
 
 	root = pci_find_parent_resource(dev, res);
@@ -271,7 +289,7 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 	 * where firmware left it.  That at least has a chance of
 	 * working, which is better than just leaving it disabled.
 	 */
-	if (ret < 0 && dev->fw_addr[resno])
+	if (ret < 0)
 		ret = pci_revert_fw_address(res, dev, resno, size);
 
 	if (!ret) {

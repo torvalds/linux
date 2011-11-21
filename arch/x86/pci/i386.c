@@ -261,7 +261,8 @@ static void __init pcibios_allocate_resources(int pass)
 					idx, r, disabled, pass);
 				if (pci_claim_resource(dev, idx) < 0) {
 					/* We'll assign a new address later */
-					dev->fw_addr[idx] = r->start;
+					pcibios_save_fw_addr(dev,
+							idx, r->start);
 					r->end -= r->start;
 					r->start = 0;
 				}
@@ -307,6 +308,7 @@ static int __init pcibios_assign_resources(void)
 	}
 
 	pci_assign_unassigned_resources();
+	pcibios_fw_addr_list_del();
 
 	return 0;
 }
