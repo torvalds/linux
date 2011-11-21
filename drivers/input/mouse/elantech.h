@@ -20,6 +20,7 @@
 #define ETP_FW_VERSION_QUERY		0x01
 #define ETP_CAPABILITIES_QUERY		0x02
 #define ETP_SAMPLE_QUERY		0x03
+#define ETP_RESOLUTION_QUERY		0x04
 
 /*
  * Command values for register reading or writing

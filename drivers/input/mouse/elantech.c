@@ -931,6 +931,30 @@ static int elantech_set_range(struct psmouse *psmouse,
 }
 
 /*
+ * (value from firmware) * 10 + 790 = dpi
+ * we also have to convert dpi to dots/mm (*10/254 to avoid floating point)
+ */
+static unsigned int elantech_convert_res(unsigned int val)
+{
+	return (val * 10 + 790) * 10 / 254;
+}
+
+static int elantech_get_resolution_v4(struct psmouse *psmouse,
+				      unsigned int *x_res,
+				      unsigned int *y_res)
+{
+	unsigned char param[3];
+
+	if (elantech_send_cmd(psmouse, ETP_RESOLUTION_QUERY, param))
+		return -1;
+
+	*x_res = elantech_convert_res(param[1] & 0x0f);
+	*y_res = elantech_convert_res((param[1] & 0xf0) >> 4);
+
+	return 0;
+}
+
+/*
  * Set the appropriate event bits for the input subsystem
  */
 static int elantech_set_input_params(struct psmouse *psmouse)
@@ -938,6 +962,7 @@ static int elantech_set_input_params(struct psmouse *psmouse)
 	struct input_dev *dev = psmouse->dev;
 	struct elantech_data *etd = psmouse->private;
 	unsigned int x_min = 0, y_min = 0, x_max = 0, y_max = 0, width = 0;
+	unsigned int x_res = 0, y_res = 0;
 
 	if (elantech_set_range(psmouse, &x_min, &y_min, &x_max, &y_max, &width))
 		return -1;
@@ -985,10 +1010,20 @@ static int elantech_set_input_params(struct psmouse *psmouse)
 		break;
 
 	case 4:
+		if (elantech_get_resolution_v4(psmouse, &x_res, &y_res)) {
+			/*
+			 * if query failed, print a warning and leave the values
+			 * zero to resemble synaptics.c behavior.
+			 */
+			psmouse_warn(psmouse, "couldn't query resolution data.\n");
+		}
+
 		__set_bit(BTN_TOOL_QUADTAP, dev->keybit);
 		/* For X to recognize me as touchpad. */
 		input_set_abs_params(dev, ABS_X, x_min, x_max, 0, 0);
 		input_set_abs_params(dev, ABS_Y, y_min, y_max, 0, 0);
+		input_abs_set_res(dev, ABS_X, x_res);
+		input_abs_set_res(dev, ABS_Y, y_res);
 		/*
 		 * range of pressure and width is the same as v2,
 		 * report ABS_PRESSURE, ABS_TOOL_WIDTH for compatibility.
@@ -1001,6 +1036,8 @@ static int elantech_set_input_params(struct psmouse *psmouse)
 		input_mt_init_slots(dev, ETP_MAX_FINGERS);
 		input_set_abs_params(dev, ABS_MT_POSITION_X, x_min, x_max, 0, 0);
 		input_set_abs_params(dev, ABS_MT_POSITION_Y, y_min, y_max, 0, 0);
+		input_abs_set_res(dev, ABS_MT_POSITION_X, x_res);
+		input_abs_set_res(dev, ABS_MT_POSITION_Y, y_res);
 		input_set_abs_params(dev, ABS_MT_PRESSURE, ETP_PMIN_V2,
 				     ETP_PMAX_V2, 0, 0);
 		/*
