@@ -1106,6 +1106,7 @@ F:	drivers/media/video/s5p-fimc/
 ARM/SAMSUNG S5P SERIES Multi Format Codec (MFC) SUPPORT
 M:	Kyungmin Park <kyungmin.park@samsung.com>
 M:	Kamil Debski <k.debski@samsung.com>
+M:     Jeongtae Park <jtp.park@samsung.com>
 L:	linux-arm-kernel@lists.infradead.org
 L:	linux-media@vger.kernel.org
 S:	Maintained
@@ -2341,6 +2342,13 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/keithp/linux-2.6.git
 S:	Supported
 F:	drivers/gpu/drm/i915
 F:	include/drm/i915*
+
+DRM DRIVERS FOR EXYNOS
+M:	Inki Dae <inki.dae@samsung.com>
+L:	dri-devel@lists.freedesktop.org
+S:	Supported
+F:	drivers/gpu/drm/exynos
+F:	include/drm/exynos*
 
 DSCC4 DRIVER
 M:	Francois Romieu <romieu@fr.zoreil.com>
@@ -6122,7 +6130,7 @@ F:	sound/
 SOUND - SOC LAYER / DYNAMIC AUDIO POWER MANAGEMENT (ASoC)
 M:	Liam Girdwood <lrg@ti.com>
 M:	Mark Brown <broonie@opensource.wolfsonmicro.com>
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/broonie/sound-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/broonie/sound.git
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 W:	http://alsa-project.org/main/index.php/ASoC
 S:	Supported

@@ -32,8 +32,8 @@
 
 #include "devices.h"
 
-static void __init msm8960_fixup(struct machine_desc *desc, struct tag *tag,
-			 char **cmdline, struct meminfo *mi)
+static void __init msm8960_fixup(struct tag *tag, char **cmdline,
+		struct meminfo *mi)
 {
 	for (; tag->hdr.size; tag = tag_next(tag))
 		if (tag->hdr.tag == ATAG_MEM &&
@@ -99,6 +99,7 @@ MACHINE_START(MSM8960_SIM, "QCT MSM8960 SIMULATOR")
 	.map_io = msm8960_map_io,
 	.init_irq = msm8960_init_irq,
 	.timer = &msm_timer,
+	.handle_irq = gic_handle_irq,
 	.init_machine = msm8960_sim_init,
 MACHINE_END
 
@@ -108,6 +109,7 @@ MACHINE_START(MSM8960_RUMI3, "QCT MSM8960 RUMI3")
 	.map_io = msm8960_map_io,
 	.init_irq = msm8960_init_irq,
 	.timer = &msm_timer,
+	.handle_irq = gic_handle_irq,
 	.init_machine = msm8960_rumi3_init,
 MACHINE_END
 

@@ -396,6 +396,7 @@ MACHINE_START(OMAP_H4, "OMAP2420 H4 board")
 	.map_io		= omap242x_map_io,
 	.init_early	= omap2420_init_early,
 	.init_irq	= omap2_init_irq,
+	.handle_irq	= omap2_intc_handle_irq,
 	.init_machine	= omap_h4_init,
 	.timer		= &omap2_timer,
 MACHINE_END

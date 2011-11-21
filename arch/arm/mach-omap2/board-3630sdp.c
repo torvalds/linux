@@ -215,6 +215,7 @@ MACHINE_START(OMAP_3630SDP, "OMAP 3630SDP board")
 	.map_io		= omap3_map_io,
 	.init_early	= omap3630_init_early,
 	.init_irq	= omap3_init_irq,
+	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= omap_sdp_init,
 	.timer		= &omap3_timer,
 MACHINE_END

@@ -383,6 +383,7 @@ static int crypto_init_ablkcipher_ops(struct crypto_tfm *tfm, u32 type,
 	return 0;
 }
 
+#ifdef CONFIG_NET
 static int crypto_ablkcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
 {
 	struct crypto_report_blkcipher rblkcipher;
@@ -404,6 +405,12 @@ static int crypto_ablkcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
 nla_put_failure:
 	return -EMSGSIZE;
 }
+#else
+static int crypto_ablkcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
+{
+	return -ENOSYS;
+}
+#endif
 
 static void crypto_ablkcipher_show(struct seq_file *m, struct crypto_alg *alg)
 	__attribute__ ((unused));
@@ -457,6 +464,7 @@ static int crypto_init_givcipher_ops(struct crypto_tfm *tfm, u32 type,
 	return 0;
 }
 
+#ifdef CONFIG_NET
 static int crypto_givcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
 {
 	struct crypto_report_blkcipher rblkcipher;
@@ -478,6 +486,12 @@ static int crypto_givcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
 nla_put_failure:
 	return -EMSGSIZE;
 }
+#else
+static int crypto_givcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
+{
+	return -ENOSYS;
+}
+#endif
 
 static void crypto_givcipher_show(struct seq_file *m, struct crypto_alg *alg)
 	__attribute__ ((unused));

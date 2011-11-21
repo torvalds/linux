@@ -29,6 +29,7 @@
 #include <linux/gpio.h>
 #include <linux/rfkill-gpio.h>
 
+#include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
@@ -190,6 +191,7 @@ MACHINE_START(PAZ00, "Toshiba AC100 / Dynabook AZ")
 	.map_io         = tegra_map_common_io,
 	.init_early	= tegra_init_early,
 	.init_irq       = tegra_init_irq,
+	.handle_irq	= gic_handle_irq,
 	.timer          = &tegra_timer,
 	.init_machine   = tegra_paz00_init,
 MACHINE_END

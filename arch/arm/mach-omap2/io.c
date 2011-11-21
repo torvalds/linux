@@ -316,9 +316,6 @@ static int _set_hwmod_postsetup_state(struct omap_hwmod *oh, void *data)
 	return omap_hwmod_set_postsetup_state(oh, *(u8 *)data);
 }
 
-/* See irq.c, omap4-common.c and entry-macro.S */
-void __iomem *omap_irq_base;
-
 static void __init omap_common_init_early(void)
 {
 	omap2_check_revision();

@@ -3,7 +3,7 @@
 #
 
 # Common objects
-obj-y				:= timer.o console.o clock.o pm_runtime.o
+obj-y				:= timer.o console.o clock.o
 
 # CPU objects
 obj-$(CONFIG_ARCH_SH7367)	+= setup-sh7367.o clock-sh7367.o intc-sh7367.o
@@ -28,7 +28,6 @@ pfc-$(CONFIG_ARCH_SH73A0)	+= pfc-sh73a0.o
 obj-$(CONFIG_ARCH_SH7367)	+= entry-intc.o
 obj-$(CONFIG_ARCH_SH7377)	+= entry-intc.o
 obj-$(CONFIG_ARCH_SH7372)	+= entry-intc.o
-obj-$(CONFIG_ARCH_SH73A0)	+= entry-gic.o
 
 # PM objects
 obj-$(CONFIG_SUSPEND)		+= suspend.o

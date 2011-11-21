@@ -56,7 +56,7 @@ static int wm8994_retune_mobile_base[] = {
 static int wm8994_readable(struct snd_soc_codec *codec, unsigned int reg)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
-	struct wm8994 *control = wm8994->control_data;
+	struct wm8994 *control = codec->control_data;
 
 	switch (reg) {
 	case WM8994_GPIO_1:
@@ -3030,19 +3030,34 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 {
 	struct wm8994_priv *wm8994 = data;
 	struct snd_soc_codec *codec = wm8994->codec;
-	int reg;
+	int reg, count;
 
-	reg = snd_soc_read(codec, WM8958_MIC_DETECT_3);
-	if (reg < 0) {
-		dev_err(codec->dev, "Failed to read mic detect status: %d\n",
-			reg);
-		return IRQ_NONE;
-	}
+	/* We may occasionally read a detection without an impedence
+	 * range being provided - if that happens loop again.
+	 */
+	count = 10;
+	do {
+		reg = snd_soc_read(codec, WM8958_MIC_DETECT_3);
+		if (reg < 0) {
+			dev_err(codec->dev,
+				"Failed to read mic detect status: %d\n",
+				reg);
+			return IRQ_NONE;
+		}
 
-	if (!(reg & WM8958_MICD_VALID)) {
-		dev_dbg(codec->dev, "Mic detect data not valid\n");
-		goto out;
-	}
+		if (!(reg & WM8958_MICD_VALID)) {
+			dev_dbg(codec->dev, "Mic detect data not valid\n");
+			goto out;
+		}
+
+		if (!(reg & WM8958_MICD_STS) || (reg & WM8958_MICD_LVL_MASK))
+			break;
+
+		msleep(1);
+	} while (count--);
+
+	if (count == 0)
+		dev_warn(codec->dev, "No impedence range reported for jack\n");
 
 #ifndef CONFIG_SND_SOC_WM8994_MODULE
 	trace_snd_soc_jack_irq(dev_name(codec->dev));
@@ -3180,9 +3195,9 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 
 	wm8994_request_irq(codec->control_data, WM8994_IRQ_FIFOS_ERR,
 			   wm8994_fifo_error, "FIFO error", codec);
-	wm8994_request_irq(wm8994->control_data, WM8994_IRQ_TEMP_WARN,
+	wm8994_request_irq(codec->control_data, WM8994_IRQ_TEMP_WARN,
 			   wm8994_temp_warn, "Thermal warning", codec);
-	wm8994_request_irq(wm8994->control_data, WM8994_IRQ_TEMP_SHUT,
+	wm8994_request_irq(codec->control_data, WM8994_IRQ_TEMP_SHUT,
 			   wm8994_temp_shut, "Thermal shutdown", codec);
 
 	ret = wm8994_request_irq(codec->control_data, WM8994_IRQ_DCS_DONE,

@@ -436,10 +436,6 @@
 #define INTCPS_NR_MIR_REGS	3
 #define INTCPS_NR_IRQS		96
 
-#ifndef __ASSEMBLY__
-extern void __iomem *omap_irq_base;
-#endif
-
 #include <mach/hardware.h>
 
 #ifdef CONFIG_FIQ
