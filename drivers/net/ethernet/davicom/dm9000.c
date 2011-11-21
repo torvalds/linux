@@ -613,7 +613,7 @@ static int dm9000_set_wol(struct net_device *dev, struct ethtool_wolinfo *w)
 
 		if (!dm->wake_state)
 			irq_set_irq_wake(dm->irq_wake, 1);
-		else if (dm->wake_state & !opts)
+		else if (dm->wake_state && !opts)
 			irq_set_irq_wake(dm->irq_wake, 0);
 	}
 
