@@ -1,6 +1,5 @@
 /dts-v1/;
 
-/memreserve/ 0x1c000000 0x04000000;
 /include/ "tegra20.dtsi"
 
 / {
