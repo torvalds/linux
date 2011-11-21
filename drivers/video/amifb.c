@@ -3733,17 +3733,15 @@ default_chipset:
 	memset(dummysprite, 0, DUMMYSPRITEMEMSIZE);
 
 	/*
-	 * Enable Display DMA
-	 */
-
-	custom.dmacon = DMAF_SETCLR | DMAF_MASTER | DMAF_RASTER | DMAF_COPPER |
-			DMAF_BLITTER | DMAF_SPRITE;
-
-	/*
 	 * Make sure the Copper has something to do
 	 */
-
 	ami_init_copper();
+
+	/*
+	 * Enable Display DMA
+	 */
+	custom.dmacon = DMAF_SETCLR | DMAF_MASTER | DMAF_RASTER | DMAF_COPPER |
+			DMAF_BLITTER | DMAF_SPRITE;
 
 	if (request_irq(IRQ_AMIGA_COPPER, amifb_interrupt, 0,
 			"fb vertb handler", &currentpar)) {
