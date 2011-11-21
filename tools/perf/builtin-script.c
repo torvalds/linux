@@ -441,6 +441,7 @@ static int process_sample_event(struct perf_tool *tool __used,
 				struct perf_evsel *evsel,
 				struct machine *machine)
 {
+	struct addr_location al;
 	struct thread *thread = machine__findnew_thread(machine, event->ip.pid);
 
 	if (thread == NULL) {
@@ -459,6 +460,15 @@ static int process_sample_event(struct perf_tool *tool __used,
 		last_timestamp = sample->time;
 		return 0;
 	}
+
+	if (perf_event__preprocess_sample(event, machine, &al, sample, 0) < 0) {
+		pr_err("problem processing %d event, skipping it.\n",
+		       event->header.type);
+		return -1;
+	}
+
+	if (al.filtered)
+		return 0;
 
 	if (cpu_list && !test_bit(sample->cpu, cpu_bitmap))
 		return 0;
@@ -1086,6 +1096,8 @@ static const struct option options[] = {
 		     "comma separated output fields prepend with 'type:'. Valid types: hw,sw,trace,raw. Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso,addr",
 		     parse_output_fields),
 	OPT_STRING('C', "cpu", &cpu_list, "cpu", "list of cpus to profile"),
+	OPT_STRING('c', "comms", &symbol_conf.comm_list_str, "comm[,comm...]",
+		   "only display events for these comms"),
 	OPT_BOOLEAN('I', "show-info", &show_full_info,
 		    "display extended information from perf.data file"),
 	OPT_END()

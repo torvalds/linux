@@ -188,6 +188,11 @@ OPTIONS
 	CPUs are specified with -: 0-2. Default is to report samples on all
 	CPUs.
 
+-c::
+--comms=::
+	Only display events for these comms. CSV that understands
+	file://filename entries.
+
 -I::
 --show-info::
 	Display extended information about the perf.data file. This adds
