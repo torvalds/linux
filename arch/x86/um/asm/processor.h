@@ -11,7 +11,7 @@
 #endif
 
 #define KSTK_EIP(tsk) KSTK_REG(tsk, HOST_IP)
-#define KSTK_ESP(tsk) KSTK_REG(tsk, HOST_IP)
+#define KSTK_ESP(tsk) KSTK_REG(tsk, HOST_SP)
 #define KSTK_EBP(tsk) KSTK_REG(tsk, HOST_BP)
 
 #define ARCH_IS_STACKGROW(address) \
