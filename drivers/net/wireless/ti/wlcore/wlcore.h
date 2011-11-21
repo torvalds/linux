@@ -22,7 +22,12 @@
 #ifndef __WLCORE_H__
 #define __WLCORE_H__
 
-int __devinit wlcore_probe(struct platform_device *pdev);
+#include "wl12xx.h"
+
+int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev);
 int __devexit wlcore_remove(struct platform_device *pdev);
+struct ieee80211_hw *wlcore_alloc_hw(void);
+int wlcore_free_hw(struct wl1271 *wl);
+
 
 #endif /* __WLCORE_H__ */

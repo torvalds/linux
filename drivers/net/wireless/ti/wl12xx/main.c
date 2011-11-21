@@ -22,7 +22,26 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
+#include <linux/err.h>
+
 #include "../wlcore/wlcore.h"
+#include "../wlcore/debug.h"
+
+static int __devinit wl12xx_probe(struct platform_device *pdev)
+{
+	struct wl1271 *wl;
+	struct ieee80211_hw *hw;
+
+	hw = wlcore_alloc_hw();
+	if (IS_ERR(hw)) {
+		wl1271_error("can't allocate hw");
+		return PTR_ERR(hw);
+	}
+
+	wl = hw->priv;
+
+	return wlcore_probe(wl, pdev);
+}
 
 static const struct platform_device_id wl12xx_id_table[] __devinitconst = {
 	{ "wl12xx", 0 },
@@ -31,7 +50,7 @@ static const struct platform_device_id wl12xx_id_table[] __devinitconst = {
 MODULE_DEVICE_TABLE(platform, wl12xx_id_table);
 
 static struct platform_driver wl12xx_driver = {
-	.probe		= wlcore_probe,
+	.probe		= wl12xx_probe,
 	.remove		= __devexit_p(wlcore_remove),
 	.id_table	= wl12xx_id_table,
 	.driver = {
