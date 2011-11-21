@@ -1003,7 +1003,7 @@ static int sh_mobile_lcdc_setcolreg(u_int regno,
 	return 0;
 }
 
-static struct fb_fix_screeninfo sh_mobile_lcdc_fix  = {
+static const struct fb_fix_screeninfo sh_mobile_lcdc_fix  = {
 	.id =		"SH Mobile LCDC",
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_TRUECOLOR,
