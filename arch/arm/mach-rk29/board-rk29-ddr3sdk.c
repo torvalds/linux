@@ -1418,7 +1418,7 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
                 .flags                  = 0,
         },
 #endif
-#if defined (CONFIG_SND_SOC_alc5631)
+#if defined (CONFIG_SND_SOC_RT5631)
         {
                 .type                   = "rt5631",
                 .addr                   = 0x1a,
@@ -1430,6 +1430,13 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.type    		= "rk1000_i2c_codec",
 		.addr           = 0x60,
 		.flags			= 0,
+	},
+#endif
+#if defined (CONFIG_SND_SOC_WM8988)
+	{
+		.type                   = "wm8988",
+		.addr           = 0x1A,
+		.flags                  = 0,
 	},
 #endif
 #if defined (CONFIG_SND_SOC_WM8900)
