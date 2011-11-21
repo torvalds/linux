@@ -129,21 +129,6 @@ out_unlock:
 	return ret;
 }
 
-void cancel_freezing(struct task_struct *p)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&freezer_lock, flags);
-	if (freezing(p)) {
-		pr_debug("  clean up: %s\n", p->comm);
-		clear_freeze_flag(p);
-		spin_lock(&p->sighand->siglock);
-		recalc_sigpending_and_wake(p);
-		spin_unlock(&p->sighand->siglock);
-	}
-	spin_unlock_irqrestore(&freezer_lock, flags);
-}
-
 void __thaw_task(struct task_struct *p)
 {
 	unsigned long flags;
@@ -153,10 +138,18 @@ void __thaw_task(struct task_struct *p)
 	 * be visible to @p as waking up implies wmb.  Waking up inside
 	 * freezer_lock also prevents wakeups from leaking outside
 	 * refrigerator.
+	 *
+	 * If !FROZEN, @p hasn't reached refrigerator, recalc sigpending to
+	 * avoid leaving dangling TIF_SIGPENDING behind.
 	 */
 	spin_lock_irqsave(&freezer_lock, flags);
 	clear_freeze_flag(p);
-	if (frozen(p))
+	if (frozen(p)) {
 		wake_up_process(p);
+	} else {
+		spin_lock(&p->sighand->siglock);
+		recalc_sigpending_and_wake(p);
+		spin_unlock(&p->sighand->siglock);
+	}
 	spin_unlock_irqrestore(&freezer_lock, flags);
 }
