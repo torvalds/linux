@@ -484,16 +484,8 @@ static int clip_mkip(struct atm_vcc *vcc, int timeout)
 		if (!clip_devs) {
 			atm_return(vcc, skb->truesize);
 			kfree_skb(skb);
-		} else {
-			struct net_device *dev = skb->dev;
-			unsigned int len = skb->len;
-
-			skb_get(skb);
+		} else
 			clip_push(vcc, skb);
-			dev->stats.rx_packets--;
-			dev->stats.rx_bytes -= len;
-			kfree_skb(skb);
-		}
 	}
 	return 0;
 }
