@@ -22,6 +22,10 @@
 		clock-frequency = <400000>;
 	};
 
+	i2c@7000d000 {
+		status = "disable";
+	};
+
 	serial@70006000 {
 		clock-frequency = < 216000000 >;
 	};

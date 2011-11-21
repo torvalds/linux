@@ -10,6 +10,22 @@
 		reg = < 0x00000000 0x40000000 >;
 	};
 
+	i2c@7000c000 {
+		clock-frequency = <400000>;
+	};
+
+	i2c@7000c400 {
+		clock-frequency = <400000>;
+	};
+
+	i2c@7000c500 {
+		clock-frequency = <400000>;
+	};
+
+	i2c@7000d000 {
+		clock-frequency = <400000>;
+	};
+
 	serial@70006300 {
 		clock-frequency = < 216000000 >;
 	};
