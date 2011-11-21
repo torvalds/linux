@@ -1399,8 +1399,9 @@ static void gfs2_final_release_pages(struct gfs2_inode *ip)
 static int gfs2_dinode_dealloc(struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	struct gfs2_alloc *al;
+	struct gfs2_qadata *qa;
 	struct gfs2_rgrpd *rgd;
+	struct gfs2_holder gh;
 	int error;
 
 	if (gfs2_get_inode_blocks(&ip->i_inode) != 1) {
@@ -1408,8 +1409,8 @@ static int gfs2_dinode_dealloc(struct gfs2_inode *ip)
 		return -EIO;
 	}
 
-	al = gfs2_alloc_get(ip);
-	if (!al)
+	qa = gfs2_qadata_get(ip);
+	if (!qa)
 		return -ENOMEM;
 
 	error = gfs2_quota_hold(ip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
@@ -1423,8 +1424,7 @@ static int gfs2_dinode_dealloc(struct gfs2_inode *ip)
 		goto out_qs;
 	}
 
-	error = gfs2_glock_nq_init(rgd->rd_gl, LM_ST_EXCLUSIVE, 0,
-				   &al->al_rgd_gh);
+	error = gfs2_glock_nq_init(rgd->rd_gl, LM_ST_EXCLUSIVE, 0, &gh);
 	if (error)
 		goto out_qs;
 
@@ -1440,11 +1440,11 @@ static int gfs2_dinode_dealloc(struct gfs2_inode *ip)
 	gfs2_trans_end(sdp);
 
 out_rg_gunlock:
-	gfs2_glock_dq_uninit(&al->al_rgd_gh);
+	gfs2_glock_dq_uninit(&gh);
 out_qs:
 	gfs2_quota_unhold(ip);
 out:
-	gfs2_alloc_put(ip);
+	gfs2_qadata_put(ip);
 	return error;
 }
 

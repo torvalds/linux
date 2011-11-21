@@ -860,22 +860,36 @@ fail:
 }
 
 /**
- * gfs2_alloc_get - get the struct gfs2_alloc structure for an inode
+ * gfs2_qadata_get - get the struct gfs2_qadata structure for an inode
  * @ip: the incore GFS2 inode structure
  *
- * Returns: the struct gfs2_alloc
+ * Returns: the struct gfs2_qadata
  */
 
-struct gfs2_alloc *gfs2_alloc_get(struct gfs2_inode *ip)
+struct gfs2_qadata *gfs2_qadata_get(struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	int error;
-	BUG_ON(ip->i_alloc != NULL);
-	ip->i_alloc = kzalloc(sizeof(struct gfs2_alloc), GFP_NOFS);
+	BUG_ON(ip->i_qadata != NULL);
+	ip->i_qadata = kzalloc(sizeof(struct gfs2_qadata), GFP_NOFS);
 	error = gfs2_rindex_update(sdp);
 	if (error)
 		fs_warn(sdp, "rindex update returns %d\n", error);
-	return ip->i_alloc;
+	return ip->i_qadata;
+}
+
+/**
+ * gfs2_blkrsv_get - get the struct gfs2_blkreserv structure for an inode
+ * @ip: the incore GFS2 inode structure
+ *
+ * Returns: the struct gfs2_qadata
+ */
+
+static struct gfs2_blkreserv *gfs2_blkrsv_get(struct gfs2_inode *ip)
+{
+	BUG_ON(ip->i_res != NULL);
+	ip->i_res = kzalloc(sizeof(struct gfs2_blkreserv), GFP_NOFS);
+	return ip->i_res;
 }
 
 /**
@@ -890,11 +904,11 @@ struct gfs2_alloc *gfs2_alloc_get(struct gfs2_inode *ip)
 
 static int try_rgrp_fit(const struct gfs2_rgrpd *rgd, const struct gfs2_inode *ip)
 {
-	const struct gfs2_alloc *al = ip->i_alloc;
+	const struct gfs2_blkreserv *rs = ip->i_res;
 
 	if (rgd->rd_flags & (GFS2_RGF_NOALLOC | GFS2_RDF_ERROR))
 		return 0;
-	if (rgd->rd_free_clone >= al->al_requested)
+	if (rgd->rd_free_clone >= rs->rs_requested)
 		return 1;
 	return 0;
 }
@@ -982,7 +996,7 @@ static int get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_rgrpd *rgd, *begin = NULL;
-	struct gfs2_alloc *al = ip->i_alloc;
+	struct gfs2_blkreserv *rs = ip->i_res;
 	int error, rg_locked, flags = LM_FLAG_TRY;
 	int loops = 0;
 
@@ -1002,7 +1016,7 @@ static int get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 			error = 0;
 		} else {
 			error = gfs2_glock_nq_init(rgd->rd_gl, LM_ST_EXCLUSIVE,
-						   flags, &al->al_rgd_gh);
+						   flags, &rs->rs_rgd_gh);
 		}
 		switch (error) {
 		case 0:
@@ -1013,7 +1027,7 @@ static int get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 			if (rgd->rd_flags & GFS2_RDF_CHECK)
 				try_rgrp_unlink(rgd, last_unlinked, ip->i_no_addr);
 			if (!rg_locked)
-				gfs2_glock_dq_uninit(&al->al_rgd_gh);
+				gfs2_glock_dq_uninit(&rs->rs_rgd_gh);
 			/* fall through */
 		case GLR_TRYFAILED:
 			rgd = gfs2_rgrpd_get_next(rgd);
@@ -1030,6 +1044,13 @@ static int get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 	return -ENOSPC;
 }
 
+static void gfs2_blkrsv_put(struct gfs2_inode *ip)
+{
+	BUG_ON(ip->i_res == NULL);
+	kfree(ip->i_res);
+	ip->i_res = NULL;
+}
+
 /**
  * gfs2_inplace_reserve - Reserve space in the filesystem
  * @ip: the inode to reserve space for
@@ -1037,16 +1058,23 @@ static int get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
  * Returns: errno
  */
 
-int gfs2_inplace_reserve(struct gfs2_inode *ip)
+int gfs2_inplace_reserve(struct gfs2_inode *ip, u32 requested)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	struct gfs2_alloc *al = ip->i_alloc;
+	struct gfs2_blkreserv *rs;
 	int error = 0;
 	u64 last_unlinked = NO_BLOCK;
 	int tries = 0;
 
-	if (gfs2_assert_warn(sdp, al->al_requested))
-		return -EINVAL;
+	rs = gfs2_blkrsv_get(ip);
+	if (!rs)
+		return -ENOMEM;
+
+	rs->rs_requested = requested;
+	if (gfs2_assert_warn(sdp, requested)) {
+		error = -EINVAL;
+		goto out;
+	}
 
 	do {
 		error = get_local_rgrp(ip, &last_unlinked);
@@ -1063,6 +1091,9 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip)
 		gfs2_log_flush(sdp, NULL);
 	} while (tries++ < 3);
 
+out:
+	if (error)
+		gfs2_blkrsv_put(ip);
 	return error;
 }
 
@@ -1075,10 +1106,11 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip)
 
 void gfs2_inplace_release(struct gfs2_inode *ip)
 {
-	struct gfs2_alloc *al = ip->i_alloc;
+	struct gfs2_blkreserv *rs = ip->i_res;
 
-	if (al->al_rgd_gh.gh_gl)
-		gfs2_glock_dq_uninit(&al->al_rgd_gh);
+	gfs2_blkrsv_put(ip);
+	if (rs->rs_rgd_gh.gh_gl)
+		gfs2_glock_dq_uninit(&rs->rs_rgd_gh);
 }
 
 /**
@@ -1338,7 +1370,6 @@ int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *ndata,
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct buffer_head *dibh;
-	struct gfs2_alloc *al = ip->i_alloc;
 	struct gfs2_rgrpd *rgd;
 	u32 goal, extlen, blk; /* block, within the rgrp scope */
 	u64 block; /* block, within the file system scope */
@@ -1348,7 +1379,7 @@ int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *ndata,
 	/* Only happens if there is a bug in gfs2, return something distinctive
 	 * to ensure that it is noticed.
 	 */
-	if (al == NULL)
+	if (ip->i_res == NULL)
 		return -ECANCELED;
 
 	rgd = ip->i_rgd;

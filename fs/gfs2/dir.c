@@ -1850,7 +1850,7 @@ static int leaf_dealloc(struct gfs2_inode *dip, u32 index, u32 len,
 	if (!ht)
 		return -ENOMEM;
 
-	if (!gfs2_alloc_get(dip)) {
+	if (!gfs2_qadata_get(dip)) {
 		error = -ENOMEM;
 		goto out;
 	}
@@ -1939,7 +1939,7 @@ out_rlist:
 	gfs2_rlist_free(&rlist);
 	gfs2_quota_unhold(dip);
 out_put:
-	gfs2_alloc_put(dip);
+	gfs2_qadata_put(dip);
 out:
 	kfree(ht);
 	return error;

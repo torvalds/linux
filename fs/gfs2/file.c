@@ -365,7 +365,7 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	u64 pos = page->index << PAGE_CACHE_SHIFT;
 	unsigned int data_blocks, ind_blocks, rblocks;
 	struct gfs2_holder gh;
-	struct gfs2_alloc *al;
+	struct gfs2_qadata *qa;
 	loff_t size;
 	int ret;
 
@@ -393,16 +393,15 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	}
 
 	ret = -ENOMEM;
-	al = gfs2_alloc_get(ip);
-	if (al == NULL)
+	qa = gfs2_qadata_get(ip);
+	if (qa == NULL)
 		goto out_unlock;
 
 	ret = gfs2_quota_lock_check(ip);
 	if (ret)
 		goto out_alloc_put;
 	gfs2_write_calc_reserv(ip, PAGE_CACHE_SIZE, &data_blocks, &ind_blocks);
-	al->al_requested = data_blocks + ind_blocks;
-	ret = gfs2_inplace_reserve(ip);
+	ret = gfs2_inplace_reserve(ip, data_blocks + ind_blocks);
 	if (ret)
 		goto out_quota_unlock;
 
@@ -448,7 +447,7 @@ out_trans_fail:
 out_quota_unlock:
 	gfs2_quota_unlock(ip);
 out_alloc_put:
-	gfs2_alloc_put(ip);
+	gfs2_qadata_put(ip);
 out_unlock:
 	gfs2_glock_dq(&gh);
 out:
@@ -750,7 +749,7 @@ static long gfs2_fallocate(struct file *file, int mode, loff_t offset,
 	struct gfs2_inode *ip = GFS2_I(inode);
 	unsigned int data_blocks = 0, ind_blocks = 0, rblocks;
 	loff_t bytes, max_bytes;
-	struct gfs2_alloc *al;
+	struct gfs2_qadata *qa;
 	int error;
 	const loff_t pos = offset;
 	const loff_t count = len;
@@ -784,8 +783,8 @@ static long gfs2_fallocate(struct file *file, int mode, loff_t offset,
 	while (len > 0) {
 		if (len < bytes)
 			bytes = len;
-		al = gfs2_alloc_get(ip);
-		if (!al) {
+		qa = gfs2_qadata_get(ip);
+		if (!qa) {
 			error = -ENOMEM;
 			goto out_unlock;
 		}
@@ -797,8 +796,7 @@ static long gfs2_fallocate(struct file *file, int mode, loff_t offset,
 retry:
 		gfs2_write_calc_reserv(ip, bytes, &data_blocks, &ind_blocks);
 
-		al->al_requested = data_blocks + ind_blocks;
-		error = gfs2_inplace_reserve(ip);
+		error = gfs2_inplace_reserve(ip, data_blocks + ind_blocks);
 		if (error) {
 			if (error == -ENOSPC && bytes > sdp->sd_sb.sb_bsize) {
 				bytes >>= 1;
@@ -812,7 +810,6 @@ retry:
 		max_bytes = bytes;
 		calc_max_reserv(ip, (len > max_chunk_size)? max_chunk_size: len,
 				&max_bytes, &data_blocks, &ind_blocks);
-		al->al_requested = data_blocks + ind_blocks;
 
 		rblocks = RES_DINODE + ind_blocks + RES_STATFS + RES_QUOTA +
 			  RES_RG_HDR + gfs2_rg_blocks(ip);
@@ -834,7 +831,7 @@ retry:
 		offset += max_bytes;
 		gfs2_inplace_release(ip);
 		gfs2_quota_unlock(ip);
-		gfs2_alloc_put(ip);
+		gfs2_qadata_put(ip);
 	}
 
 	if (error == 0)
@@ -846,7 +843,7 @@ out_trans_fail:
 out_qunlock:
 	gfs2_quota_unlock(ip);
 out_alloc_put:
-	gfs2_alloc_put(ip);
+	gfs2_qadata_put(ip);
 out_unlock:
 	gfs2_glock_dq(&ip->i_gh);
 out_uninit:

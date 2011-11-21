@@ -615,7 +615,7 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 	unsigned int data_blocks = 0, ind_blocks = 0, rblocks;
 	int alloc_required;
 	int error = 0;
-	struct gfs2_alloc *al = NULL;
+	struct gfs2_qadata *qa = NULL;
 	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
 	unsigned from = pos & (PAGE_CACHE_SIZE - 1);
 	struct page *page;
@@ -639,8 +639,8 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 		gfs2_write_calc_reserv(ip, len, &data_blocks, &ind_blocks);
 
 	if (alloc_required) {
-		al = gfs2_alloc_get(ip);
-		if (!al) {
+		qa = gfs2_qadata_get(ip);
+		if (!qa) {
 			error = -ENOMEM;
 			goto out_unlock;
 		}
@@ -649,8 +649,7 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 		if (error)
 			goto out_alloc_put;
 
-		al->al_requested = data_blocks + ind_blocks;
-		error = gfs2_inplace_reserve(ip);
+		error = gfs2_inplace_reserve(ip, data_blocks + ind_blocks);
 		if (error)
 			goto out_qunlock;
 	}
@@ -711,7 +710,7 @@ out_trans_fail:
 out_qunlock:
 		gfs2_quota_unlock(ip);
 out_alloc_put:
-		gfs2_alloc_put(ip);
+		gfs2_qadata_put(ip);
 	}
 out_unlock:
 	if (&ip->i_inode == sdp->sd_rindex) {
@@ -848,7 +847,7 @@ static int gfs2_write_end(struct file *file, struct address_space *mapping,
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct gfs2_inode *m_ip = GFS2_I(sdp->sd_statfs_inode);
 	struct buffer_head *dibh;
-	struct gfs2_alloc *al = ip->i_alloc;
+	struct gfs2_qadata *qa = ip->i_qadata;
 	unsigned int from = pos & (PAGE_CACHE_SIZE - 1);
 	unsigned int to = from + len;
 	int ret;
@@ -880,10 +879,11 @@ static int gfs2_write_end(struct file *file, struct address_space *mapping,
 	brelse(dibh);
 failed:
 	gfs2_trans_end(sdp);
-	if (al) {
+	if (ip->i_res)
 		gfs2_inplace_release(ip);
+	if (qa) {
 		gfs2_quota_unlock(ip);
-		gfs2_alloc_put(ip);
+		gfs2_qadata_put(ip);
 	}
 	if (inode == sdp->sd_rindex) {
 		gfs2_glock_dq(&m_ip->i_gh);
