@@ -522,8 +522,11 @@ int vcc_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 
 	if (sock->state != SS_CONNECTED)
 		return -ENOTCONN;
-	if (flags & ~MSG_DONTWAIT)		/* only handle MSG_DONTWAIT */
+
+	/* only handle MSG_DONTWAIT and MSG_PEEK */
+	if (flags & ~(MSG_DONTWAIT | MSG_PEEK))
 		return -EOPNOTSUPP;
+
 	vcc = ATM_SD(sock);
 	if (test_bit(ATM_VF_RELEASED, &vcc->flags) ||
 	    test_bit(ATM_VF_CLOSE, &vcc->flags) ||
@@ -544,8 +547,13 @@ int vcc_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 	if (error)
 		return error;
 	sock_recv_ts_and_drops(msg, sk, skb);
-	pr_debug("%d -= %d\n", atomic_read(&sk->sk_rmem_alloc), skb->truesize);
-	atm_return(vcc, skb->truesize);
+
+	if (!(flags & MSG_PEEK)) {
+		pr_debug("%d -= %d\n", atomic_read(&sk->sk_rmem_alloc),
+			 skb->truesize);
+		atm_return(vcc, skb->truesize);
+	}
+
 	skb_free_datagram(sk, skb);
 	return copied;
 }
