@@ -2411,7 +2411,7 @@ static int amifb_check_var(struct fb_var_screeninfo *var,
 
 static int amifb_set_par(struct fb_info *info)
 {
-	struct amifb_par *par = (struct amifb_par *)info->par;
+	struct amifb_par *par = info->par;
 
 	do_vmode_pan = 0;
 	do_vmode_full = 0;
@@ -3181,7 +3181,7 @@ static inline void xor_one_line(int bpp, unsigned long next_plane,
 static void amifb_fillrect(struct fb_info *info,
 			   const struct fb_fillrect *rect)
 {
-	struct amifb_par *par = (struct amifb_par *)info->par;
+	struct amifb_par *par = info->par;
 	int dst_idx, x2, y2;
 	unsigned long *dst;
 	u32 width, height;
@@ -3259,7 +3259,7 @@ static inline void copy_one_line_rev(int bpp, unsigned long next_plane,
 static void amifb_copyarea(struct fb_info *info,
 			   const struct fb_copyarea *area)
 {
-	struct amifb_par *par = (struct amifb_par *)info->par;
+	struct amifb_par *par = info->par;
 	int x2, y2;
 	u32 dx, dy, sx, sy, width, height;
 	unsigned long *dst, *src;
@@ -3352,7 +3352,7 @@ static inline void expand_one_line(int bpp, unsigned long next_plane,
 
 static void amifb_imageblit(struct fb_info *info, const struct fb_image *image)
 {
-	struct amifb_par *par = (struct amifb_par *)info->par;
+	struct amifb_par *par = info->par;
 	int x2, y2;
 	unsigned long *dst;
 	int dst_idx;
