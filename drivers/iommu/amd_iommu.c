@@ -698,6 +698,44 @@ static void build_inv_iotlb_pages(struct iommu_cmd *cmd, u16 devid, int qdep,
 		cmd->data[2] |= CMD_INV_IOMMU_PAGES_SIZE_MASK;
 }
 
+static void build_inv_iommu_pasid(struct iommu_cmd *cmd, u16 domid, int pasid,
+				  u64 address, bool size)
+{
+	memset(cmd, 0, sizeof(*cmd));
+
+	address &= ~(0xfffULL);
+
+	cmd->data[0]  = pasid & PASID_MASK;
+	cmd->data[1]  = domid;
+	cmd->data[2]  = lower_32_bits(address);
+	cmd->data[3]  = upper_32_bits(address);
+	cmd->data[2] |= CMD_INV_IOMMU_PAGES_PDE_MASK;
+	cmd->data[2] |= CMD_INV_IOMMU_PAGES_GN_MASK;
+	if (size)
+		cmd->data[2] |= CMD_INV_IOMMU_PAGES_SIZE_MASK;
+	CMD_SET_TYPE(cmd, CMD_INV_IOMMU_PAGES);
+}
+
+static void build_inv_iotlb_pasid(struct iommu_cmd *cmd, u16 devid, int pasid,
+				  int qdep, u64 address, bool size)
+{
+	memset(cmd, 0, sizeof(*cmd));
+
+	address &= ~(0xfffULL);
+
+	cmd->data[0]  = devid;
+	cmd->data[0] |= (pasid & 0xff) << 16;
+	cmd->data[0] |= (qdep  & 0xff) << 24;
+	cmd->data[1]  = devid;
+	cmd->data[1] |= ((pasid >> 8) & 0xfff) << 16;
+	cmd->data[2]  = lower_32_bits(address);
+	cmd->data[2] |= CMD_INV_IOMMU_PAGES_GN_MASK;
+	cmd->data[3]  = upper_32_bits(address);
+	if (size)
+		cmd->data[2] |= CMD_INV_IOMMU_PAGES_SIZE_MASK;
+	CMD_SET_TYPE(cmd, CMD_INV_IOTLB_PAGES);
+}
+
 static void build_inv_all(struct iommu_cmd *cmd)
 {
 	memset(cmd, 0, sizeof(*cmd));
@@ -3146,3 +3184,101 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL(amd_iommu_domain_enable_v2);
+
+static int __flush_pasid(struct protection_domain *domain, int pasid,
+			 u64 address, bool size)
+{
+	struct iommu_dev_data *dev_data;
+	struct iommu_cmd cmd;
+	int i, ret;
+
+	if (!(domain->flags & PD_IOMMUV2_MASK))
+		return -EINVAL;
+
+	build_inv_iommu_pasid(&cmd, domain->id, pasid, address, size);
+
+	/*
+	 * IOMMU TLB needs to be flushed before Device TLB to
+	 * prevent device TLB refill from IOMMU TLB
+	 */
+	for (i = 0; i < amd_iommus_present; ++i) {
+		if (domain->dev_iommu[i] == 0)
+			continue;
+
+		ret = iommu_queue_command(amd_iommus[i], &cmd);
+		if (ret != 0)
+			goto out;
+	}
+
+	/* Wait until IOMMU TLB flushes are complete */
+	domain_flush_complete(domain);
+
+	/* Now flush device TLBs */
+	list_for_each_entry(dev_data, &domain->dev_list, list) {
+		struct amd_iommu *iommu;
+		int qdep;
+
+		BUG_ON(!dev_data->ats.enabled);
+
+		qdep  = dev_data->ats.qdep;
+		iommu = amd_iommu_rlookup_table[dev_data->devid];
+
+		build_inv_iotlb_pasid(&cmd, dev_data->devid, pasid,
+				      qdep, address, size);
+
+		ret = iommu_queue_command(iommu, &cmd);
+		if (ret != 0)
+			goto out;
+	}
+
+	/* Wait until all device TLBs are flushed */
+	domain_flush_complete(domain);
+
+	ret = 0;
+
+out:
+
+	return ret;
+}
+
+static int __amd_iommu_flush_page(struct protection_domain *domain, int pasid,
+				  u64 address)
+{
+	return __flush_pasid(domain, pasid, address, false);
+}
+
+int amd_iommu_flush_page(struct iommu_domain *dom, int pasid,
+			 u64 address)
+{
+	struct protection_domain *domain = dom->priv;
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&domain->lock, flags);
+	ret = __amd_iommu_flush_page(domain, pasid, address);
+	spin_unlock_irqrestore(&domain->lock, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL(amd_iommu_flush_page);
+
+static int __amd_iommu_flush_tlb(struct protection_domain *domain, int pasid)
+{
+	return __flush_pasid(domain, pasid, CMD_INV_IOMMU_ALL_PAGES_ADDRESS,
+			     true);
+}
+
+int amd_iommu_flush_tlb(struct iommu_domain *dom, int pasid)
+{
+	struct protection_domain *domain = dom->priv;
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&domain->lock, flags);
+	ret = __amd_iommu_flush_tlb(domain, pasid);
+	spin_unlock_irqrestore(&domain->lock, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL(amd_iommu_flush_tlb);
+
