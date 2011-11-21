@@ -2177,7 +2177,7 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 
 	/* Negative dentry, just create the file */
 	if (!dentry->d_inode) {
-		int mode = op->mode;
+		umode_t mode = op->mode;
 		if (!IS_POSIXACL(dir->d_inode))
 			mode &= ~current_umask();
 		/*
@@ -2562,7 +2562,7 @@ int vfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	return error;
 }
 
-SYSCALL_DEFINE3(mkdirat, int, dfd, const char __user *, pathname, int, mode)
+SYSCALL_DEFINE3(mkdirat, int, dfd, const char __user *, pathname, umode_t, mode)
 {
 	struct dentry *dentry;
 	struct path path;
@@ -2590,7 +2590,7 @@ out_dput:
 	return error;
 }
 
-SYSCALL_DEFINE2(mkdir, const char __user *, pathname, int, mode)
+SYSCALL_DEFINE2(mkdir, const char __user *, pathname, umode_t, mode)
 {
 	return sys_mkdirat(AT_FDCWD, pathname, mode);
 }

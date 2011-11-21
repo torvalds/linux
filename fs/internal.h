@@ -88,7 +88,7 @@ extern struct file *nameidata_to_filp(struct nameidata *);
 extern void release_open_intent(struct nameidata *);
 struct open_flags {
 	int open_flag;
-	int mode;
+	umode_t mode;
 	int acc_mode;
 	int intent;
 };

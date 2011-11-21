@@ -517,9 +517,9 @@ asmlinkage long sys_sendfile64(int out_fd, int in_fd,
 			       loff_t __user *offset, size_t count);
 asmlinkage long sys_readlink(const char __user *path,
 				char __user *buf, int bufsiz);
-asmlinkage long sys_creat(const char __user *pathname, int mode);
+asmlinkage long sys_creat(const char __user *pathname, umode_t mode);
 asmlinkage long sys_open(const char __user *filename,
-				int flags, int mode);
+				int flags, umode_t mode);
 asmlinkage long sys_close(unsigned int fd);
 asmlinkage long sys_access(const char __user *filename, int mode);
 asmlinkage long sys_vhangup(void);
@@ -582,7 +582,7 @@ asmlinkage long sys_preadv(unsigned long fd, const struct iovec __user *vec,
 asmlinkage long sys_pwritev(unsigned long fd, const struct iovec __user *vec,
 			    unsigned long vlen, unsigned long pos_l, unsigned long pos_h);
 asmlinkage long sys_getcwd(char __user *buf, unsigned long size);
-asmlinkage long sys_mkdir(const char __user *pathname, int mode);
+asmlinkage long sys_mkdir(const char __user *pathname, umode_t mode);
 asmlinkage long sys_chdir(const char __user *filename);
 asmlinkage long sys_fchdir(unsigned int fd);
 asmlinkage long sys_rmdir(const char __user *pathname);
@@ -757,7 +757,7 @@ asmlinkage long sys_spu_create(const char __user *name,
 
 asmlinkage long sys_mknodat(int dfd, const char __user * filename, umode_t mode,
 			    unsigned dev);
-asmlinkage long sys_mkdirat(int dfd, const char __user * pathname, int mode);
+asmlinkage long sys_mkdirat(int dfd, const char __user * pathname, umode_t mode);
 asmlinkage long sys_unlinkat(int dfd, const char __user * pathname, int flag);
 asmlinkage long sys_symlinkat(const char __user * oldname,
 			      int newdfd, const char __user * newname);
@@ -773,7 +773,7 @@ asmlinkage long sys_fchmodat(int dfd, const char __user * filename,
 asmlinkage long sys_fchownat(int dfd, const char __user *filename, uid_t user,
 			     gid_t group, int flag);
 asmlinkage long sys_openat(int dfd, const char __user *filename, int flags,
-			   int mode);
+			   umode_t mode);
 asmlinkage long sys_newfstatat(int dfd, const char __user *filename,
 			       struct stat __user *statbuf, int flag);
 asmlinkage long sys_fstatat64(int dfd, const char __user *filename,
