@@ -752,6 +752,8 @@ static long gfs2_fallocate(struct file *file, int mode, loff_t offset,
 	loff_t bytes, max_bytes;
 	struct gfs2_alloc *al;
 	int error;
+	const loff_t pos = offset;
+	const loff_t count = len;
 	loff_t bsize_mask = ~((loff_t)sdp->sd_sb.sb_bsize - 1);
 	loff_t next = (offset + len - 1) >> sdp->sd_sb.sb_bsize_shift;
 	loff_t max_chunk_size = UINT_MAX & bsize_mask;
@@ -834,6 +836,9 @@ retry:
 		gfs2_quota_unlock(ip);
 		gfs2_alloc_put(ip);
 	}
+
+	if (error == 0)
+		error = generic_write_sync(file, pos, count);
 	goto out_unlock;
 
 out_trans_fail:
