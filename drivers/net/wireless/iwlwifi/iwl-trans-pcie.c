@@ -1108,10 +1108,10 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 					info->flags, tid_data->agg.state);
 				IWL_ERR(trans, "sta_id = %d, tid = %d "
 					"txq_id = %d, seq_num = %d", sta_id,
-					tid, tid_data->agg.txq_id,
+					tid, trans_pcie->agg_txq[sta_id][tid],
 					SEQ_TO_SN(seq_number));
 			}
-			txq_id = tid_data->agg.txq_id;
+			txq_id = trans_pcie->agg_txq[sta_id][tid];
 			is_agg = true;
 		}
 		seq_number += 0x10;
@@ -1275,7 +1275,7 @@ static int iwl_trans_pcie_request_irq(struct iwl_trans *trans)
 	return 0;
 }
 
-static void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int sta_id, int tid,
+static int iwl_trans_pcie_reclaim(struct iwl_trans *trans, int sta_id, int tid,
 		      int txq_id, int ssn, u32 status,
 		      struct sk_buff_head *skbs)
 {
@@ -1287,6 +1287,20 @@ static void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int sta_id, int tid,
 
 	txq->time_stamp = jiffies;
 
+	if (unlikely(txq_id >= IWLAGN_FIRST_AMPDU_QUEUE &&
+		     txq_id != trans_pcie->agg_txq[sta_id][tid])) {
+		/*
+		 * FIXME: this is a uCode bug which need to be addressed,
+		 * log the information and return for now.
+		 * Since it is can possibly happen very often and in order
+		 * not to fill the syslog, don't use IWL_ERR or IWL_WARN
+		 */
+		IWL_DEBUG_TX_QUEUES(trans, "Bad queue mapping txq_id %d, "
+			"agg_txq[sta_id[tid] %d", txq_id,
+			trans_pcie->agg_txq[sta_id][tid]);
+		return 1;
+	}
+
 	if (txq->q.read_ptr != tfd_num) {
 		IWL_DEBUG_TX_REPLY(trans, "[Q %d | AC %d] %d -> %d (%d)\n",
 				txq_id, iwl_get_queue_ac(txq), txq->q.read_ptr,
@@ -1297,6 +1311,7 @@ static void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int sta_id, int tid,
 		   status != TX_STATUS_FAIL_PASSIVE_NO_RX))
 			iwl_wake_queue(trans, txq, "Packets reclaimed");
 	}
+	return 0;
 }
 
 static void iwl_trans_pcie_free(struct iwl_trans *trans)

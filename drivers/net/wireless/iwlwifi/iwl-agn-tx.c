@@ -1000,8 +1000,8 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
 					  next_reclaimed);
 
 		/*we can free until ssn % q.n_bd not inclusive */
-		iwl_trans_reclaim(trans(priv), sta_id, tid, txq_id,
-				  ssn, status, &skbs);
+		WARN_ON(iwl_trans_reclaim(trans(priv), sta_id, tid, txq_id,
+				  ssn, status, &skbs));
 		iwlagn_check_ratid_empty(priv, sta_id, tid);
 		freed = 0;
 		while (!skb_queue_empty(&skbs)) {
@@ -1101,23 +1101,20 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 
 	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
 
-	if (unlikely(agg->txq_id != scd_flow)) {
-		/*
-		 * FIXME: this is a uCode bug which need to be addressed,
-		 * log the information and return for now!
-		 * since it is possible happen very often and in order
-		 * not to fill the syslog, don't enable the logging by default
-		 */
-		IWL_DEBUG_TX_REPLY(priv,
-			"BA scd_flow %d does not match txq_id %d\n",
-			scd_flow, agg->txq_id);
+	if (unlikely(!agg->wait_for_ba)) {
+		if (unlikely(ba_resp->bitmap))
+			IWL_ERR(priv, "Received BA when not expected\n");
 		spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
 		return 0;
 	}
 
-	if (unlikely(!agg->wait_for_ba)) {
-		if (unlikely(ba_resp->bitmap))
-			IWL_ERR(priv, "Received BA when not expected\n");
+	__skb_queue_head_init(&reclaimed_skbs);
+
+	/* Release all TFDs before the SSN, i.e. all TFDs in front of
+	 * block-ack window (we assume that they've been successfully
+	 * transmitted ... if not, it's too late anyway). */
+	if (iwl_trans_reclaim(trans(priv), sta_id, tid, scd_flow,
+			      ba_resp_scd_ssn, 0, &reclaimed_skbs)) {
 		spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
 		return 0;
 	}
@@ -1150,14 +1147,8 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 	IWL_DEBUG_HT(priv, "agg frames sent:%d, acked:%d\n",
 			ba_resp->txed, ba_resp->txed_2_done);
 
-	__skb_queue_head_init(&reclaimed_skbs);
-
-	/* Release all TFDs before the SSN, i.e. all TFDs in front of
-	 * block-ack window (we assume that they've been successfully
-	 * transmitted ... if not, it's too late anyway). */
 	priv->shrd->tid_data[sta_id][tid].next_reclaimed = ba_resp_scd_ssn;
-	iwl_trans_reclaim(trans(priv), sta_id, tid, scd_flow, ba_resp_scd_ssn,
-			  0, &reclaimed_skbs);
+
 	iwlagn_check_ratid_empty(priv, sta_id, tid);
 	freed = 0;
 	while (!skb_queue_empty(&reclaimed_skbs)) {

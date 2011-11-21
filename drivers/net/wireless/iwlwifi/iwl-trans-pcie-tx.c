@@ -446,6 +446,14 @@ static inline int get_fifo_from_tid(struct iwl_trans_pcie *trans_pcie,
 	return -EINVAL;
 }
 
+static inline bool is_agg_txqid_valid(struct iwl_trans *trans, int txq_id)
+{
+	if (txq_id < IWLAGN_FIRST_AMPDU_QUEUE)
+		return false;
+	return txq_id < (IWLAGN_FIRST_AMPDU_QUEUE +
+		hw_params(trans).num_ampdu_queues);
+}
+
 void iwl_trans_pcie_tx_agg_setup(struct iwl_trans *trans,
 				 enum iwl_rxon_context_id ctx, int sta_id,
 				 int tid, int frame_limit, u16 ssn)
@@ -468,7 +476,15 @@ void iwl_trans_pcie_tx_agg_setup(struct iwl_trans *trans,
 		return;
 	}
 
-	txq_id = trans->shrd->tid_data[sta_id][tid].agg.txq_id;
+	txq_id = trans_pcie->agg_txq[sta_id][tid];
+	if (WARN_ON_ONCE(is_agg_txqid_valid(trans, txq_id) == false)) {
+		IWL_ERR(trans,
+			"queue number out of range: %d, must be %d to %d\n",
+			txq_id, IWLAGN_FIRST_AMPDU_QUEUE,
+			IWLAGN_FIRST_AMPDU_QUEUE +
+			hw_params(trans).num_ampdu_queues - 1);
+		return;
+	}
 
 	ra_tid = BUILD_RAxTID(sta_id, tid);
 
@@ -545,7 +561,7 @@ int iwl_trans_pcie_tx_agg_alloc(struct iwl_trans *trans,
 		return -ENXIO;
 	}
 
-	trans->shrd->tid_data[sta_id][tid].agg.txq_id = txq_id;
+	trans_pcie->agg_txq[sta_id][tid] = txq_id;
 	iwl_set_swq_id(&trans_pcie->txq[txq_id], get_ac_from_tid(tid), txq_id);
 
 	return 0;
@@ -554,12 +570,9 @@ int iwl_trans_pcie_tx_agg_alloc(struct iwl_trans *trans,
 int iwl_trans_pcie_tx_agg_disable(struct iwl_trans *trans, int sta_id, int tid)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	/* TODO: the transport layer shouldn't access the tid_data */
-	int txq_id = trans->shrd->tid_data[sta_id][tid].agg.txq_id;
+	u8 txq_id = trans_pcie->agg_txq[sta_id][tid];
 
-	if ((IWLAGN_FIRST_AMPDU_QUEUE > txq_id) ||
-	    (IWLAGN_FIRST_AMPDU_QUEUE +
-		hw_params(trans).num_ampdu_queues <= txq_id)) {
+	if (WARN_ON_ONCE(is_agg_txqid_valid(trans, txq_id) == false)) {
 		IWL_ERR(trans,
 			"queue number out of range: %d, must be %d to %d\n",
 			txq_id, IWLAGN_FIRST_AMPDU_QUEUE,
@@ -572,6 +585,7 @@ int iwl_trans_pcie_tx_agg_disable(struct iwl_trans *trans, int sta_id, int tid)
 
 	iwl_clear_bits_prph(bus(trans), SCD_AGGR_SEL, (1 << txq_id));
 
+	trans_pcie->agg_txq[sta_id][tid] = 0;
 	trans_pcie->txq[txq_id].q.read_ptr = 0;
 	trans_pcie->txq[txq_id].q.write_ptr = 0;
 	/* supposes that ssn_idx is valid (!= 0xFFF) */

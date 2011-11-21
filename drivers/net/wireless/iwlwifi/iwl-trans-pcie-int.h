@@ -236,6 +236,7 @@ struct iwl_trans_pcie {
 	const u8 *ac_to_fifo[NUM_IWL_RXON_CTX];
 	const u8 *ac_to_queue[NUM_IWL_RXON_CTX];
 	u8 mcast_queue[NUM_IWL_RXON_CTX];
+	u8 agg_txq[IWLAGN_STATION_COUNT][IWL_MAX_TID_COUNT];
 
 	struct iwl_tx_queue *txq;
 	unsigned long txq_ctx_active_msk;

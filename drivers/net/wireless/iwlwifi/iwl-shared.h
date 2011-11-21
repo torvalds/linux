@@ -229,8 +229,6 @@ enum iwl_agg_state {
  *	Tx response (REPLY_TX), and the block ack notification
  *	(REPLY_COMPRESSED_BA).
  * @state: state of the BA agreement establishment / tear down.
- * @txq_id: Tx queue used by the BA session - used by the transport layer.
- *	Needed by the upper layer for debugfs only.
  * @ssn: the first packet to be sent in AGG HW queue in Tx AGG start flow, or
  *	the first packet to be sent in legacy HW queue in Tx AGG stop flow.
  *	Basically when next_reclaimed reaches ssn, we can tell mac80211 that
@@ -240,7 +238,6 @@ enum iwl_agg_state {
 struct iwl_ht_agg {
 	u32 rate_n_flags;
 	enum iwl_agg_state state;
-	u16 txq_id;
 	u16 ssn;
 	bool wait_for_ba;
 };
