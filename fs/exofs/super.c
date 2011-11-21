@@ -389,7 +389,7 @@ static int exofs_sync_fs(struct super_block *sb, int wait)
 	ios->length = offsetof(struct exofs_fscb, s_dev_table_oid);
 	memset(fscb, 0, ios->length);
 	fscb->s_nextid = cpu_to_le64(sbi->s_nextid);
-	fscb->s_numfiles = cpu_to_le32(sbi->s_numfiles);
+	fscb->s_numfiles = cpu_to_le64(sbi->s_numfiles);
 	fscb->s_magic = cpu_to_le16(sb->s_magic);
 	fscb->s_newfs = 0;
 	fscb->s_version = EXOFS_FSCB_VER;
