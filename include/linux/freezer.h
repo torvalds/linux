@@ -47,7 +47,7 @@ static inline bool should_send_signal(struct task_struct *p)
 /* Takes and releases task alloc lock using task_lock() */
 extern int thaw_process(struct task_struct *p);
 
-extern bool __refrigerator(void);
+extern bool __refrigerator(bool check_kthr_stop);
 extern int freeze_processes(void);
 extern int freeze_kernel_threads(void);
 extern void thaw_processes(void);
@@ -57,7 +57,7 @@ static inline bool try_to_freeze(void)
 	might_sleep();
 	if (likely(!freezing(current)))
 		return false;
-	return __refrigerator();
+	return __refrigerator(false);
 }
 
 extern bool freeze_task(struct task_struct *p, bool sig_only);
@@ -180,7 +180,7 @@ static inline void set_freeze_flag(struct task_struct *p) {}
 static inline void clear_freeze_flag(struct task_struct *p) {}
 static inline int thaw_process(struct task_struct *p) { return 1; }
 
-static inline bool __refrigerator(void) { return false; }
+static inline bool __refrigerator(bool check_kthr_stop) { return false; }
 static inline int freeze_processes(void) { return -ENOSYS; }
 static inline int freeze_kernel_threads(void) { return -ENOSYS; }
 static inline void thaw_processes(void) {}
