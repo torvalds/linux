@@ -151,11 +151,15 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 		rate = mrate;
 	}
 
-	/* Time needed to transmit ACK
-	 * (10 bytes + 4-byte FCS = 112 bits) plus SIFS; rounded up
-	 * to closest integer */
-
-	dur = ieee80211_frame_duration(local, 10, rate, erp,
+	/* Don't calculate ACKs for QoS Frames with NoAck Policy set */
+	if (ieee80211_is_data_qos(hdr->frame_control) &&
+	    *(ieee80211_get_qos_ctl(hdr)) | IEEE80211_QOS_CTL_ACK_POLICY_NOACK)
+		dur = 0;
+	else
+		/* Time needed to transmit ACK
+		 * (10 bytes + 4-byte FCS = 112 bits) plus SIFS; rounded up
+		 * to closest integer */
+		dur = ieee80211_frame_duration(local, 10, rate, erp,
 				tx->sdata->vif.bss_conf.use_short_preamble);
 
 	if (next_frag_len) {
