@@ -1849,7 +1849,13 @@ again:
 		info = tree_search_offset(ctl, offset_to_bitmap(ctl, offset),
 					  1, 0);
 		if (!info) {
-			WARN_ON(1);
+			/* the tree logging code might be calling us before we
+			 * have fully loaded the free space rbtree for this
+			 * block group.  So it is possible the entry won't
+			 * be in the rbtree yet at all.  The caching code
+			 * will make sure not to put it in the rbtree if
+			 * the logging code has pinned it.
+			 */
 			goto out_lock;
 		}
 	}
