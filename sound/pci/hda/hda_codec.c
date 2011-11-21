@@ -5071,7 +5071,7 @@ static const char *check_output_sfx(hda_nid_t nid, const hda_nid_t *pins,
 				    int num_pins, int *indexp)
 {
 	static const char * const channel_sfx[] = {
-		" Front", " Surrount", " CLFE", " Side"
+		" Front", " Surround", " CLFE", " Side"
 	};
 	int i;
 
