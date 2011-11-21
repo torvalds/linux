@@ -729,10 +729,6 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 			retval = sb_prepare_remount_readonly(sb);
 			if (retval)
 				return retval;
-
-			retval = -EBUSY;
-			if (!fs_may_remount_ro(sb))
-				goto cancel_readonly;
 		}
 	}
 
