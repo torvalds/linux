@@ -133,21 +133,19 @@ static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 #endif
 		break;
 	default:
-		printk("bug! couldn't determine board type\n");
+		pr_err("bug! couldn't determine board type\n");
 		return -EINVAL;
 		break;
 	}
-	printk("comedi%d: ni_daq_dio24: %s, io 0x%lx", dev->minor,
-	       thisboard->name, iobase);
+	pr_debug("comedi%d: ni_daq_dio24: %s, io 0x%lx", dev->minor,
+		 thisboard->name, iobase);
 #ifdef incomplete
 	if (irq)
-		printk(", irq %u", irq);
+		pr_debug("irq %u\n", irq);
 #endif
 
-	printk("\n");
-
 	if (iobase == 0) {
-		printk("io base address is zero!\n");
+		pr_err("io base address is zero!\n");
 		return -EINVAL;
 	}
 
@@ -172,7 +170,7 @@ static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static int dio24_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: ni_daq_dio24: remove\n", dev->minor);
+	dev_info(dev->hw_dev, "comedi%d: ni_daq_dio24: remove\n", dev->minor);
 
 	if (dev->subdevices)
 		subdev_8255_cleanup(dev, dev->subdevices + 0);
