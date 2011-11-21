@@ -108,7 +108,7 @@ static int _usbctrl_vendorreq_sync_read(struct usb_device *udev, u8 request,
 	pipe = usb_rcvctrlpipe(udev, 0); /* read_in */
 	reqtype =  REALTEK_USB_VENQT_READ;
 
-	while (++vendorreq_times <= MAX_USBCTRL_VENDORREQ_TIMES) {
+	do {
 		status = usb_control_msg(udev, pipe, request, reqtype, value,
 					 index, pdata, len, 0); /*max. timeout*/
 		if (status < 0) {
@@ -119,7 +119,8 @@ static int _usbctrl_vendorreq_sync_read(struct usb_device *udev, u8 request,
 		} else {
 			break;
 		}
-	}
+	} while (++vendorreq_times < MAX_USBCTRL_VENDORREQ_TIMES);
+
 	if (status < 0 && count++ < 4)
 		pr_err("reg 0x%x, usbctrl_vendorreq TimeOut! status:0x%x value=0x%x\n",
 		       value, status, le32_to_cpu(*(u32 *)pdata));
