@@ -1278,20 +1278,18 @@ static int iwl_trans_pcie_request_irq(struct iwl_trans *trans)
 static int iwlagn_txq_check_empty(struct iwl_trans *trans,
 			   int sta_id, u8 tid, int txq_id)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_queue *q = &trans_pcie->txq[txq_id].q;
 	struct iwl_tid_data *tid_data = &trans->shrd->tid_data[sta_id][tid];
 
 	lockdep_assert_held(&trans->shrd->sta_lock);
 
 	switch (trans->shrd->tid_data[sta_id][tid].agg.state) {
 	case IWL_EMPTYING_HW_QUEUE_DELBA:
-		/* We are reclaiming the last packet of the */
-		/* aggregated HW queue */
+		/* There are no packets for this RA / TID in the HW any more */
 		if ((txq_id  == tid_data->agg.txq_id) &&
-		    (q->read_ptr == q->write_ptr)) {
+		    (tid_data->agg.ssn == tid_data->next_reclaimed)) {
 			IWL_DEBUG_TX_QUEUES(trans,
-				"HW queue empty: continue DELBA flow\n");
+				"Can continue DELBA flow ssn = next_recl ="
+				" %d", tid_data->next_reclaimed);
 			iwl_trans_pcie_txq_agg_disable(trans, txq_id);
 			tid_data->agg.state = IWL_AGG_OFF;
 			iwl_stop_tx_ba_trans_ready(priv(trans),

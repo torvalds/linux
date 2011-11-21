@@ -599,10 +599,8 @@ int iwl_trans_pcie_tx_agg_disable(struct iwl_trans *trans,
 				  enum iwl_rxon_context_id ctx, int sta_id,
 				  int tid)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	unsigned long flags;
-	int read_ptr, write_ptr;
 	struct iwl_tid_data *tid_data;
+	unsigned long flags;
 	int txq_id;
 
 	spin_lock_irqsave(&trans->shrd->sta_lock, flags);
@@ -642,21 +640,22 @@ int iwl_trans_pcie_tx_agg_disable(struct iwl_trans *trans,
 		return 0;
 	}
 
-	write_ptr = trans_pcie->txq[txq_id].q.write_ptr;
-	read_ptr = trans_pcie->txq[txq_id].q.read_ptr;
+	tid_data->agg.ssn = SEQ_TO_SN(tid_data->seq_number);
 
-	/* The queue is not empty */
-	if (write_ptr != read_ptr) {
-		IWL_DEBUG_TX_QUEUES(trans,
-				    "Stopping a non empty AGG HW QUEUE\n");
+	/* There are still packets for this RA / TID in the HW */
+	if (tid_data->agg.ssn != tid_data->next_reclaimed) {
+		IWL_DEBUG_TX_QUEUES(trans, "Can't proceed: ssn %d, "
+				    "next_recl = %d",
+				    tid_data->agg.ssn,
+				    tid_data->next_reclaimed);
 		trans->shrd->tid_data[sta_id][tid].agg.state =
 			IWL_EMPTYING_HW_QUEUE_DELBA;
-		tid_data->agg.ssn = SEQ_TO_SN(tid_data->seq_number);
 		spin_unlock_irqrestore(&trans->shrd->sta_lock, flags);
 		return 0;
 	}
 
-	IWL_DEBUG_TX_QUEUES(trans, "HW queue is empty\n");
+	IWL_DEBUG_TX_QUEUES(trans, "Can proceed: ssn = next_recl = %d",
+			    tid_data->agg.ssn);
 turn_off:
 	trans->shrd->tid_data[sta_id][tid].agg.state = IWL_AGG_OFF;
 
