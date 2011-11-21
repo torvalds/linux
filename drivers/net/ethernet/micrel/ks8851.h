@@ -16,7 +16,7 @@
 #define CCR_32PIN				(1 << 0)
 
 /* MAC address registers */
-#define KS_MAR(_m)				0x15 - (_m)
+#define KS_MAR(_m)				(0x15 - (_m))
 #define KS_MARL					0x10
 #define KS_MARM					0x12
 #define KS_MARH					0x14

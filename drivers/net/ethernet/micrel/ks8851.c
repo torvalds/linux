@@ -343,6 +343,26 @@ static void ks8851_soft_reset(struct ks8851_net *ks, unsigned op)
 }
 
 /**
+ * ks8851_set_powermode - set power mode of the device
+ * @ks: The device state
+ * @pwrmode: The power mode value to write to KS_PMECR.
+ *
+ * Change the power mode of the chip.
+ */
+static void ks8851_set_powermode(struct ks8851_net *ks, unsigned pwrmode)
+{
+	unsigned pmecr;
+
+	netif_dbg(ks, hw, ks->netdev, "setting power mode %d\n", pwrmode);
+
+	pmecr = ks8851_rdreg16(ks, KS_PMECR);
+	pmecr &= ~PMECR_PM_MASK;
+	pmecr |= pwrmode;
+
+	ks8851_wrreg16(ks, KS_PMECR, pmecr);
+}
+
+/**
  * ks8851_write_mac_addr - write mac address to device registers
  * @dev: The network device
  *
@@ -358,8 +378,15 @@ static int ks8851_write_mac_addr(struct net_device *dev)
 
 	mutex_lock(&ks->lock);
 
+	/*
+	 * Wake up chip in case it was powered off when stopped; otherwise,
+	 * the first write to the MAC address does not take effect.
+	 */
+	ks8851_set_powermode(ks, PMECR_PM_NORMAL);
 	for (i = 0; i < ETH_ALEN; i++)
 		ks8851_wrreg8(ks, KS_MAR(i), dev->dev_addr[i]);
+	if (!netif_running(dev))
+		ks8851_set_powermode(ks, PMECR_PM_SOFTDOWN);
 
 	mutex_unlock(&ks->lock);
 
@@ -762,26 +789,6 @@ static void ks8851_tx_work(struct work_struct *work)
 	}
 
 	mutex_unlock(&ks->lock);
-}
-
-/**
- * ks8851_set_powermode - set power mode of the device
- * @ks: The device state
- * @pwrmode: The power mode value to write to KS_PMECR.
- *
- * Change the power mode of the chip.
- */
-static void ks8851_set_powermode(struct ks8851_net *ks, unsigned pwrmode)
-{
-	unsigned pmecr;
-
-	netif_dbg(ks, hw, ks->netdev, "setting power mode %d\n", pwrmode);
-
-	pmecr = ks8851_rdreg16(ks, KS_PMECR);
-	pmecr &= ~PMECR_PM_MASK;
-	pmecr |= pwrmode;
-
-	ks8851_wrreg16(ks, KS_PMECR, pmecr);
 }
 
 /**
