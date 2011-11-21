@@ -69,8 +69,6 @@ static inline struct mesh_table *resize_dereference_mpp_paths(void)
 		lockdep_is_held(&pathtbl_resize_lock));
 }
 
-static int mesh_gate_add(struct mesh_table *tbl, struct mesh_path *mpath);
-
 /*
  * CAREFUL -- "tbl" must not be an expression,
  * in particular not an rcu_dereference(), since
@@ -420,21 +418,18 @@ static void mesh_gate_node_reclaim(struct rcu_head *rp)
 }
 
 /**
- * mesh_gate_add - mark mpath as path to a mesh gate and add to known_gates
- * @mesh_tbl: table which contains known_gates list
- * @mpath: mpath to known mesh gate
- *
- * Returns: 0 on success
- *
+ * mesh_path_add_gate - add the given mpath to a mesh gate to our path table
+ * @mpath: gate path to add to table
  */
-static int mesh_gate_add(struct mesh_table *tbl, struct mesh_path *mpath)
+int mesh_path_add_gate(struct mesh_path *mpath)
 {
+	struct mesh_table *tbl;
 	struct mpath_node *gate, *new_gate;
 	struct hlist_node *n;
 	int err;
 
 	rcu_read_lock();
-	tbl = rcu_dereference(tbl);
+	tbl = rcu_dereference(mesh_paths);
 
 	hlist_for_each_entry_rcu(gate, n, tbl->known_gates, list)
 		if (gate->mpath == mpath) {
@@ -478,8 +473,6 @@ static int mesh_gate_del(struct mesh_table *tbl, struct mesh_path *mpath)
 	struct mpath_node *gate;
 	struct hlist_node *p, *q;
 
-	tbl = rcu_dereference(tbl);
-
 	hlist_for_each_entry_safe(gate, p, q, tbl->known_gates, list)
 		if (gate->mpath == mpath) {
 			spin_lock_bh(&tbl->gates_lock);
@@ -495,16 +488,6 @@ static int mesh_gate_del(struct mesh_table *tbl, struct mesh_path *mpath)
 		}
 
 	return 0;
-}
-
-/**
- *
- * mesh_path_add_gate - add the given mpath to a mesh gate to our path table
- * @mpath: gate path to add to table
- */
-int mesh_path_add_gate(struct mesh_path *mpath)
-{
-	return mesh_gate_add(mesh_paths, mpath);
 }
 
 /**
