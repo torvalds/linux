@@ -707,18 +707,6 @@ static const struct mips_perf_event *mipspmu_map_cache_event(u64 config)
 
 }
 
-static int validate_event(struct cpu_hw_events *cpuc,
-	       struct perf_event *event)
-{
-	struct hw_perf_event fake_hwc = event->hw;
-
-	/* Allow mixed event group. So return 1 to pass validation. */
-	if (event->pmu != &pmu || event->state <= PERF_EVENT_STATE_OFF)
-		return 1;
-
-	return mipsxx_pmu_alloc_counter(cpuc, &fake_hwc) >= 0;
-}
-
 static int validate_group(struct perf_event *event)
 {
 	struct perf_event *sibling, *leader = event->group_leader;
@@ -726,15 +714,15 @@ static int validate_group(struct perf_event *event)
 
 	memset(&fake_cpuc, 0, sizeof(fake_cpuc));
 
-	if (!validate_event(&fake_cpuc, leader))
+	if (mipsxx_pmu_alloc_counter(&fake_cpuc, &leader->hw) < 0)
 		return -ENOSPC;
 
 	list_for_each_entry(sibling, &leader->sibling_list, group_entry) {
-		if (!validate_event(&fake_cpuc, sibling))
+		if (mipsxx_pmu_alloc_counter(&fake_cpuc, &sibling->hw) < 0)
 			return -ENOSPC;
 	}
 
-	if (!validate_event(&fake_cpuc, event))
+	if (mipsxx_pmu_alloc_counter(&fake_cpuc, &event->hw) < 0)
 		return -ENOSPC;
 
 	return 0;
