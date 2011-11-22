@@ -2638,6 +2638,34 @@ static int em_mov(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_cr_write(struct x86_emulate_ctxt *ctxt)
+{
+	if (ctxt->ops->set_cr(ctxt, ctxt->modrm_reg, ctxt->src.val))
+		return emulate_gp(ctxt, 0);
+
+	/* Disable writeback. */
+	ctxt->dst.type = OP_NONE;
+	return X86EMUL_CONTINUE;
+}
+
+static int em_dr_write(struct x86_emulate_ctxt *ctxt)
+{
+	unsigned long val;
+
+	if (ctxt->mode == X86EMUL_MODE_PROT64)
+		val = ctxt->src.val & ~0ULL;
+	else
+		val = ctxt->src.val & ~0U;
+
+	/* #UD condition is already handled. */
+	if (ctxt->ops->set_dr(ctxt, ctxt->modrm_reg, val) < 0)
+		return emulate_gp(ctxt, 0);
+
+	/* Disable writeback. */
+	ctxt->dst.type = OP_NONE;
+	return X86EMUL_CONTINUE;
+}
+
 static int em_mov_rm_sreg(struct x86_emulate_ctxt *ctxt)
 {
 	if (ctxt->modrm_reg > VCPU_SREG_GS)
@@ -3304,8 +3332,8 @@ static struct opcode twobyte_table[256] = {
 	/* 0x20 - 0x2F */
 	DIP(ModRM | DstMem | Priv | Op3264, cr_read, check_cr_read),
 	DIP(ModRM | DstMem | Priv | Op3264, dr_read, check_dr_read),
-	DIP(ModRM | SrcMem | Priv | Op3264, cr_write, check_cr_write),
-	DIP(ModRM | SrcMem | Priv | Op3264, dr_write, check_dr_write),
+	IIP(ModRM | SrcMem | Priv | Op3264, em_cr_write, cr_write, check_cr_write),
+	IIP(ModRM | SrcMem | Priv | Op3264, em_dr_write, dr_write, check_dr_write),
 	N, N, N, N,
 	N, N, N, N, N, N, N, N,
 	/* 0x30 - 0x3F */
@@ -4079,26 +4107,6 @@ twobyte_insn:
 		break;
 	case 0x21: /* mov from dr to reg */
 		ops->get_dr(ctxt, ctxt->modrm_reg, &ctxt->dst.val);
-		break;
-	case 0x22: /* mov reg, cr */
-		if (ops->set_cr(ctxt, ctxt->modrm_reg, ctxt->src.val)) {
-			emulate_gp(ctxt, 0);
-			rc = X86EMUL_PROPAGATE_FAULT;
-			goto done;
-		}
-		ctxt->dst.type = OP_NONE;
-		break;
-	case 0x23: /* mov from reg to dr */
-		if (ops->set_dr(ctxt, ctxt->modrm_reg, ctxt->src.val &
-				((ctxt->mode == X86EMUL_MODE_PROT64) ?
-				 ~0ULL : ~0U)) < 0) {
-			/* #UD condition is already handled by the code above */
-			emulate_gp(ctxt, 0);
-			rc = X86EMUL_PROPAGATE_FAULT;
-			goto done;
-		}
-
-		ctxt->dst.type = OP_NONE;	/* no writeback */
 		break;
 	case 0x30:
 		/* wrmsr */
