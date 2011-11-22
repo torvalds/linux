@@ -42,8 +42,5 @@ int  smsspibus_ssp_resume(void* context);
 	unsigned int cmmb_pw_rst;
 	unsigned int cmmb_irq;
 	void (*io_init_mux)(void);
-	void (*cmmb_io_pm)(void);
-	void (*cmmb_power_on)(void);
-	void (*cmmb_power_down)(void);
 };
 #endif /* __SMS_SPI_PHY_H__ */

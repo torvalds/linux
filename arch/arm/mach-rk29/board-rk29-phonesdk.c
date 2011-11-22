@@ -2623,9 +2623,7 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 				   MMC_CAP_MMC_HIGHSPEED|MMC_CAP_SD_HIGHSPEED),
 	.io_init = rk29_sdmmc1_cfg_gpio,
 	.dma_name = "sdio",
-#if !defined(CONFIG_SDMMC_RK29_OLD)
 	.set_iomux = rk29_sdmmc_set_iomux,
-#endif
 #ifdef CONFIG_SDMMC1_USE_DMA
 	.use_dma  = 1,
 #else
