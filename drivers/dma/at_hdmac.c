@@ -1185,7 +1185,9 @@ static const struct of_device_id atmel_dma_dt_ids[] = {
 	}, {
 		.compatible = "atmel,at91sam9g45-dma",
 		.data = (void *)ATDMA_DEVTYPE_SAM9G45
-	}, { /* sentinel */ }
+	}, {
+		/* sentinel */
+	}
 };
 
 MODULE_DEVICE_TABLE(of, atmel_dma_dt_ids);
