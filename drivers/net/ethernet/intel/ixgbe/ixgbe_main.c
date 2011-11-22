@@ -1140,7 +1140,7 @@ void ixgbe_alloc_rx_buffers(struct ixgbe_ring *rx_ring, u16 cleaned_count)
 
 		if (ring_is_ps_enabled(rx_ring)) {
 			if (!bi->page) {
-				bi->page = netdev_alloc_page(rx_ring->netdev);
+				bi->page = alloc_page(GFP_ATOMIC | __GFP_COLD);
 				if (!bi->page) {
 					rx_ring->rx_stats.alloc_rx_page_failed++;
 					goto no_buffers;

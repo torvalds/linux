@@ -1669,38 +1669,6 @@ static inline struct sk_buff *netdev_alloc_skb_ip_align(struct net_device *dev,
 }
 
 /**
- *	__netdev_alloc_page - allocate a page for ps-rx on a specific device
- *	@dev: network device to receive on
- *	@gfp_mask: alloc_pages_node mask
- *
- * 	Allocate a new page. dev currently unused.
- *
- * 	%NULL is returned if there is no free memory.
- */
-static inline struct page *__netdev_alloc_page(struct net_device *dev, gfp_t gfp_mask)
-{
-	return alloc_pages_node(NUMA_NO_NODE, gfp_mask, 0);
-}
-
-/**
- *	netdev_alloc_page - allocate a page for ps-rx on a specific device
- *	@dev: network device to receive on
- *
- * 	Allocate a new page. dev currently unused.
- *
- * 	%NULL is returned if there is no free memory.
- */
-static inline struct page *netdev_alloc_page(struct net_device *dev)
-{
-	return __netdev_alloc_page(dev, GFP_ATOMIC);
-}
-
-static inline void netdev_free_page(struct net_device *dev, struct page *page)
-{
-	__free_page(page);
-}
-
-/**
  * skb_frag_page - retrieve the page refered to by a paged fragment
  * @frag: the paged fragment
  *

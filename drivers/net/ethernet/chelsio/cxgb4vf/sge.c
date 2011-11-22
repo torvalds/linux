@@ -653,8 +653,7 @@ static unsigned int refill_fl(struct adapter *adapter, struct sge_fl *fl,
 
 alloc_small_pages:
 	while (n--) {
-		page = __netdev_alloc_page(adapter->port[0],
-					   gfp | __GFP_NOWARN);
+		page = alloc_page(gfp | __GFP_NOWARN | __GFP_COLD);
 		if (unlikely(!page)) {
 			fl->alloc_failed++;
 			break;
@@ -664,7 +663,7 @@ alloc_small_pages:
 		dma_addr = dma_map_page(adapter->pdev_dev, page, 0, PAGE_SIZE,
 				       PCI_DMA_FROMDEVICE);
 		if (unlikely(dma_mapping_error(adapter->pdev_dev, dma_addr))) {
-			netdev_free_page(adapter->port[0], page);
+			put_page(page);
 			break;
 		}
 		*d++ = cpu_to_be64(dma_addr);
