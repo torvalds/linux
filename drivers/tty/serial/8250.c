@@ -1619,11 +1619,13 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 	do {
 		struct uart_8250_port *up;
 		struct uart_port *port;
+		bool skip;
 
 		up = list_entry(l, struct uart_8250_port, list);
 		port = &up->port;
+		skip = pass_counter && up->port.flags & UPF_IIR_ONCE;
 
-		if (port->handle_irq(port)) {
+		if (!skip && port->handle_irq(port)) {
 			handled = 1;
 			end = NULL;
 		} else if (end == NULL)
