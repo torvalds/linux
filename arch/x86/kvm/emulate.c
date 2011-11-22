@@ -2666,6 +2666,30 @@ static int em_dr_write(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_wrmsr(struct x86_emulate_ctxt *ctxt)
+{
+	u64 msr_data;
+
+	msr_data = (u32)ctxt->regs[VCPU_REGS_RAX]
+		| ((u64)ctxt->regs[VCPU_REGS_RDX] << 32);
+	if (ctxt->ops->set_msr(ctxt, ctxt->regs[VCPU_REGS_RCX], msr_data))
+		return emulate_gp(ctxt, 0);
+
+	return X86EMUL_CONTINUE;
+}
+
+static int em_rdmsr(struct x86_emulate_ctxt *ctxt)
+{
+	u64 msr_data;
+
+	if (ctxt->ops->get_msr(ctxt, ctxt->regs[VCPU_REGS_RCX], &msr_data))
+		return emulate_gp(ctxt, 0);
+
+	ctxt->regs[VCPU_REGS_RAX] = (u32)msr_data;
+	ctxt->regs[VCPU_REGS_RDX] = msr_data >> 32;
+	return X86EMUL_CONTINUE;
+}
+
 static int em_mov_rm_sreg(struct x86_emulate_ctxt *ctxt)
 {
 	if (ctxt->modrm_reg > VCPU_SREG_GS)
@@ -3337,9 +3361,9 @@ static struct opcode twobyte_table[256] = {
 	N, N, N, N,
 	N, N, N, N, N, N, N, N,
 	/* 0x30 - 0x3F */
-	DI(ImplicitOps | Priv, wrmsr),
+	II(ImplicitOps | Priv, em_wrmsr, wrmsr),
 	IIP(ImplicitOps, em_rdtsc, rdtsc, check_rdtsc),
-	DI(ImplicitOps | Priv, rdmsr),
+	II(ImplicitOps | Priv, em_rdmsr, rdmsr),
 	DIP(ImplicitOps | Priv, rdpmc, check_rdpmc),
 	I(ImplicitOps | VendorSpecific, em_sysenter),
 	I(ImplicitOps | Priv | VendorSpecific, em_sysexit),
@@ -3818,7 +3842,6 @@ static bool string_insn_completed(struct x86_emulate_ctxt *ctxt)
 int x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 {
 	struct x86_emulate_ops *ops = ctxt->ops;
-	u64 msr_data;
 	int rc = X86EMUL_CONTINUE;
 	int saved_dst_type = ctxt->dst.type;
 
@@ -4107,29 +4130,6 @@ twobyte_insn:
 		break;
 	case 0x21: /* mov from dr to reg */
 		ops->get_dr(ctxt, ctxt->modrm_reg, &ctxt->dst.val);
-		break;
-	case 0x30:
-		/* wrmsr */
-		msr_data = (u32)ctxt->regs[VCPU_REGS_RAX]
-			| ((u64)ctxt->regs[VCPU_REGS_RDX] << 32);
-		if (ops->set_msr(ctxt, ctxt->regs[VCPU_REGS_RCX], msr_data)) {
-			emulate_gp(ctxt, 0);
-			rc = X86EMUL_PROPAGATE_FAULT;
-			goto done;
-		}
-		rc = X86EMUL_CONTINUE;
-		break;
-	case 0x32:
-		/* rdmsr */
-		if (ops->get_msr(ctxt, ctxt->regs[VCPU_REGS_RCX], &msr_data)) {
-			emulate_gp(ctxt, 0);
-			rc = X86EMUL_PROPAGATE_FAULT;
-			goto done;
-		} else {
-			ctxt->regs[VCPU_REGS_RAX] = (u32)msr_data;
-			ctxt->regs[VCPU_REGS_RDX] = msr_data >> 32;
-		}
-		rc = X86EMUL_CONTINUE;
 		break;
 	case 0x40 ... 0x4f:	/* cmov */
 		ctxt->dst.val = ctxt->dst.orig_val = ctxt->src.val;
