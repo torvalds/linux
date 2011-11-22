@@ -20,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/slab.h>
+#include <linux/scatterlist.h>
 #include <linux/types.h>
 #include <linux/usb/ch9.h>
 
@@ -32,6 +33,9 @@ struct usb_ep;
  * @dma: DMA address corresponding to 'buf'.  If you don't set this
  *	field, and the usb controller needs one, it is responsible
  *	for mapping and unmapping the buffer.
+ * @sg: a scatterlist for SG-capable controllers.
+ * @num_sgs: number of SG entries
+ * @num_mapped_sgs: number of SG entries mapped to DMA (internal)
  * @length: Length of that data
  * @stream_id: The stream id, when USB3.0 bulk streams are being used
  * @no_interrupt: If true, hints that no completion irq is needed.
@@ -87,6 +91,10 @@ struct usb_request {
 	void			*buf;
 	unsigned		length;
 	dma_addr_t		dma;
+
+	struct scatterlist	*sg;
+	unsigned		num_sgs;
+	unsigned		num_mapped_sgs;
 
 	unsigned		stream_id:16;
 	unsigned		no_interrupt:1;
@@ -479,6 +487,7 @@ struct usb_gadget_ops {
  * @speed: Speed of current connection to USB host.
  * @max_speed: Maximal speed the UDC can handle.  UDC must support this
  *      and all slower speeds.
+ * @sg_supported: true if we can handle scatter-gather
  * @is_otg: True if the USB device port uses a Mini-AB jack, so that the
  *	gadget driver must provide a USB OTG descriptor.
  * @is_a_peripheral: False unless is_otg, the "A" end of a USB cable
@@ -519,6 +528,7 @@ struct usb_gadget {
 	struct list_head		ep_list;	/* of usb_ep */
 	enum usb_device_speed		speed;
 	enum usb_device_speed		max_speed;
+	unsigned			sg_supported:1;
 	unsigned			is_otg:1;
 	unsigned			is_a_peripheral:1;
 	unsigned			b_hnp_enable:1;
