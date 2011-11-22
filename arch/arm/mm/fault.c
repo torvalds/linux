@@ -110,8 +110,10 @@ void show_pte(struct mm_struct *mm, unsigned long addr)
 
 		pte = pte_offset_map(pmd, addr);
 		printk(", *pte=%08llx", (long long)pte_val(*pte));
+#ifndef CONFIG_ARM_LPAE
 		printk(", *ppte=%08llx",
 		       (long long)pte_val(pte[PTE_HWTABLE_PTRS]));
+#endif
 		pte_unmap(pte);
 	} while(0);
 
@@ -428,6 +430,12 @@ do_translation_fault(unsigned long addr, unsigned int fsr,
 	pmd = pmd_offset(pud, addr);
 	pmd_k = pmd_offset(pud_k, addr);
 
+#ifdef CONFIG_ARM_LPAE
+	/*
+	 * Only one hardware entry per PMD with LPAE.
+	 */
+	index = 0;
+#else
 	/*
 	 * On ARM one Linux PGD entry contains two hardware entries (see page
 	 * tables layout in pgtable.h). We normally guarantee that we always
@@ -437,6 +445,7 @@ do_translation_fault(unsigned long addr, unsigned int fsr,
 	 * for the first of pair.
 	 */
 	index = (addr >> SECTION_SHIFT) & 1;
+#endif
 	if (pmd_none(pmd_k[index]))
 		goto bad_area;
 
@@ -484,7 +493,11 @@ struct fsr_info {
 };
 
 /* FSR definition */
+#ifdef CONFIG_ARM_LPAE
+#include "fsr-3level.c"
+#else
 #include "fsr-2level.c"
+#endif
 
 void __init
 hook_fault_code(int nr, int (*fn)(unsigned long, unsigned int, struct pt_regs *),
@@ -553,6 +566,7 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 	arm_notify_die("", regs, &info, ifsr, 0);
 }
 
+#ifndef CONFIG_ARM_LPAE
 static int __init exceptions_init(void)
 {
 	if (cpu_architecture() >= CPU_ARCH_ARMv6) {
@@ -575,3 +589,4 @@ static int __init exceptions_init(void)
 }
 
 arch_initcall(exceptions_init);
+#endif
