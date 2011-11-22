@@ -44,6 +44,12 @@ typedef enum {
 	set_phy_link_flags_flow_control_mask = 0x3 << 1,	/* Mask for 2 bit wide flow control field */
 } cvmx_helper_board_set_phy_link_flags_types_t;
 
+/*
+ * Fake IPD port, the RGMII/MII interface may use different PHY, use
+ * this macro to return appropriate MIX address to read the PHY.
+ */
+#define CVMX_HELPER_BOARD_MGMT_IPD_PORT     -10
+
 /**
  * cvmx_override_board_link_get(int ipd_port) is a function
  * pointer. It is meant to allow customization of the process of

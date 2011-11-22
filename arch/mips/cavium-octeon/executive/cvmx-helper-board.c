@@ -117,6 +117,10 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
 	case CVMX_BOARD_TYPE_EBH5200:
 	case CVMX_BOARD_TYPE_EBH5201:
 	case CVMX_BOARD_TYPE_EBT5200:
+		/* Board has 2 management ports */
+		if ((ipd_port >= CVMX_HELPER_BOARD_MGMT_IPD_PORT) &&
+		    (ipd_port < (CVMX_HELPER_BOARD_MGMT_IPD_PORT + 2)))
+			return ipd_port - CVMX_HELPER_BOARD_MGMT_IPD_PORT;
 		/*
 		 * Board has 4 SGMII ports. The PHYs start right after the MII
 		 * ports MII0 = 0, MII1 = 1, SGMII = 2-5.
@@ -128,6 +132,9 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
 	case CVMX_BOARD_TYPE_EBH5600:
 	case CVMX_BOARD_TYPE_EBH5601:
 	case CVMX_BOARD_TYPE_EBH5610:
+		/* Board has 1 management port */
+		if (ipd_port == CVMX_HELPER_BOARD_MGMT_IPD_PORT)
+			return 0;
 		/*
 		 * Board has 8 SGMII ports. 4 connect out, two connect
 		 * to a switch, and 2 loop to each other
@@ -145,6 +152,19 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
 		/* Board has 4 SGMII ports. connected QLM3(interface 1) */
 		if ((ipd_port >= 16) && (ipd_port < 20))
 			return ipd_port - 16 + 1;
+		else
+			return -1;
+	case CVMX_BOARD_TYPE_NIC_XLE_10G:
+	case CVMX_BOARD_TYPE_NIC10E:
+		return -1;
+	case CVMX_BOARD_TYPE_NIC4E:
+		if (ipd_port >= 0 && ipd_port <= 3)
+			return (ipd_port + 0x1f) & 0x1f;
+		else
+			return -1;
+	case CVMX_BOARD_TYPE_NIC2E:
+		if (ipd_port >= 0 && ipd_port <= 1)
+			return ipd_port + 1;
 		else
 			return -1;
 	case CVMX_BOARD_TYPE_BBGW_REF:
