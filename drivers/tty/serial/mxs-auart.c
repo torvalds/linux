@@ -145,11 +145,12 @@ static inline void mxs_auart_tx_chars(struct mxs_auart_port *s)
 			writel(xmit->buf[xmit->tail],
 				     s->port.membase + AUART_DATA);
 			xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-			if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
-				uart_write_wakeup(&s->port);
 		} else
 			break;
 	}
+	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+		uart_write_wakeup(&s->port);
+
 	if (uart_circ_empty(&(s->port.state->xmit)))
 		writel(AUART_INTR_TXIEN,
 			     s->port.membase + AUART_INTR_CLR);
