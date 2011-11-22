@@ -25,7 +25,11 @@
 #include <mach/vmalloc.h>
 #include <asm/pgtable-hwdef.h>
 
+#ifdef CONFIG_ARM_LPAE
+#include <asm/pgtable-3level.h>
+#else
 #include <asm/pgtable-2level.h>
+#endif
 
 /*
  * Just any arbitrary offset to the start of the vmalloc VM area: the
