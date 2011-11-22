@@ -24,6 +24,12 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/types.h>
+#include <linux/irq.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
+#include <linux/irqdomain.h>
+#include <linux/err.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
@@ -34,22 +40,24 @@
 #include <asm/mach/map.h>
 
 void __iomem *at91_aic_base;
+static struct irq_domain *at91_aic_domain;
+static struct device_node *at91_aic_np;
 
 static void at91_aic_mask_irq(struct irq_data *d)
 {
 	/* Disable interrupt on AIC */
-	at91_aic_write(AT91_AIC_IDCR, 1 << d->irq);
+	at91_aic_write(AT91_AIC_IDCR, 1 << d->hwirq);
 }
 
 static void at91_aic_unmask_irq(struct irq_data *d)
 {
 	/* Enable interrupt on AIC */
-	at91_aic_write(AT91_AIC_IECR, 1 << d->irq);
+	at91_aic_write(AT91_AIC_IECR, 1 << d->hwirq);
 }
 
 unsigned int at91_extern_irq;
 
-#define is_extern_irq(irq) ((1 << (irq)) & at91_extern_irq)
+#define is_extern_irq(hwirq) ((1 << (hwirq)) & at91_extern_irq)
 
 static int at91_aic_set_type(struct irq_data *d, unsigned type)
 {
@@ -63,13 +71,13 @@ static int at91_aic_set_type(struct irq_data *d, unsigned type)
 		srctype = AT91_AIC_SRCTYPE_RISING;
 		break;
 	case IRQ_TYPE_LEVEL_LOW:
-		if ((d->irq == AT91_ID_FIQ) || is_extern_irq(d->irq))		/* only supported on external interrupts */
+		if ((d->hwirq == AT91_ID_FIQ) || is_extern_irq(d->hwirq))		/* only supported on external interrupts */
 			srctype = AT91_AIC_SRCTYPE_LOW;
 		else
 			return -EINVAL;
 		break;
 	case IRQ_TYPE_EDGE_FALLING:
-		if ((d->irq == AT91_ID_FIQ) || is_extern_irq(d->irq))		/* only supported on external interrupts */
+		if ((d->hwirq == AT91_ID_FIQ) || is_extern_irq(d->hwirq))		/* only supported on external interrupts */
 			srctype = AT91_AIC_SRCTYPE_FALLING;
 		else
 			return -EINVAL;
@@ -78,8 +86,8 @@ static int at91_aic_set_type(struct irq_data *d, unsigned type)
 		return -EINVAL;
 	}
 
-	smr = at91_aic_read(AT91_AIC_SMR(d->irq)) & ~AT91_AIC_SRCTYPE;
-	at91_aic_write(AT91_AIC_SMR(d->irq), smr | srctype);
+	smr = at91_aic_read(AT91_AIC_SMR(d->hwirq)) & ~AT91_AIC_SRCTYPE;
+	at91_aic_write(AT91_AIC_SMR(d->hwirq), smr | srctype);
 	return 0;
 }
 
@@ -90,13 +98,13 @@ static u32 backups;
 
 static int at91_aic_set_wake(struct irq_data *d, unsigned value)
 {
-	if (unlikely(d->irq >= 32))
+	if (unlikely(d->hwirq >= NR_AIC_IRQS))
 		return -EINVAL;
 
 	if (value)
-		wakeups |= (1 << d->irq);
+		wakeups |= (1 << d->hwirq);
 	else
-		wakeups &= ~(1 << d->irq);
+		wakeups &= ~(1 << d->hwirq);
 
 	return 0;
 }
@@ -127,24 +135,64 @@ static struct irq_chip at91_aic_chip = {
 	.irq_set_wake	= at91_aic_set_wake,
 };
 
+#if defined(CONFIG_OF)
+static int __init __at91_aic_of_init(struct device_node *node,
+				     struct device_node *parent)
+{
+	at91_aic_base = of_iomap(node, 0);
+	at91_aic_np = node;
+
+	return 0;
+}
+
+static const struct of_device_id aic_ids[] __initconst = {
+	{ .compatible = "atmel,at91rm9200-aic", .data = __at91_aic_of_init },
+	{ /*sentinel*/ }
+};
+
+static void __init at91_aic_of_init(void)
+{
+	of_irq_init(aic_ids);
+}
+#else
+static void __init at91_aic_of_init(void) {}
+#endif
+
 /*
  * Initialize the AIC interrupt controller.
  */
 void __init at91_aic_init(unsigned int priority[NR_AIC_IRQS])
 {
 	unsigned int i;
+	int irq_base;
 
-	at91_aic_base = ioremap(AT91_AIC, 512);
+	if (of_have_populated_dt())
+		at91_aic_of_init();
+	else
+		at91_aic_base = ioremap(AT91_AIC, 512);
 
 	if (!at91_aic_base)
-		panic("Impossible to ioremap AT91_AIC\n");
+		panic("Unable to ioremap AIC registers\n");
+
+	/* Add irq domain for AIC */
+	irq_base = irq_alloc_descs(-1, 0, NR_AIC_IRQS, 0);
+	if (irq_base < 0) {
+		WARN(1, "Cannot allocate irq_descs, assuming pre-allocated\n");
+		irq_base = 0;
+	}
+	at91_aic_domain = irq_domain_add_legacy(at91_aic_np, NR_AIC_IRQS,
+						irq_base, 0,
+						&irq_domain_simple_ops, NULL);
+
+	if (!at91_aic_domain)
+		panic("Unable to add AIC irq domain\n");
 
 	/*
 	 * The IVR is used by macro get_irqnr_and_base to read and verify.
 	 * The irq number is NR_AIC_IRQS when a spurious interrupt has occurred.
 	 */
 	for (i = 0; i < NR_AIC_IRQS; i++) {
-		/* Put irq number in Source Vector Register: */
+		/* Put hardware irq number in Source Vector Register: */
 		at91_aic_write(AT91_AIC_SVR(i), i);
 		/* Active Low interrupt, with the specified priority */
 		at91_aic_write(AT91_AIC_SMR(i), AT91_AIC_SRCTYPE_LOW | priority[i]);

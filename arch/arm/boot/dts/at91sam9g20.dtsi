@@ -47,7 +47,7 @@
 			ranges;
 
 			aic: interrupt-controller@fffff000 {
-				#interrupt-cells = <1>;
+				#interrupt-cells = <2>;
 				compatible = "atmel,at91rm9200-aic";
 				interrupt-controller;
 				interrupt-parent;
@@ -57,14 +57,14 @@
 			dbgu: serial@fffff200 {
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xfffff200 0x200>;
-				interrupts = <1>;
+				interrupts = <1 4>;
 				status = "disabled";
 			};
 
 			usart0: serial@fffb0000 {
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xfffb0000 0x200>;
-				interrupts = <6>;
+				interrupts = <6 4>;
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
 				status = "disabled";
@@ -73,7 +73,7 @@
 			usart1: serial@fffb4000 {
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xfffb4000 0x200>;
-				interrupts = <7>;
+				interrupts = <7 4>;
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
 				status = "disabled";
@@ -82,7 +82,7 @@
 			usart2: serial@fffb8000 {
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xfffb8000 0x200>;
-				interrupts = <8>;
+				interrupts = <8 4>;
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
 				status = "disabled";
@@ -91,7 +91,7 @@
 			usart3: serial@fffd0000 {
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xfffd0000 0x200>;
-				interrupts = <23>;
+				interrupts = <23 4>;
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
 				status = "disabled";
@@ -100,7 +100,7 @@
 			usart4: serial@fffd4000 {
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xfffd4000 0x200>;
-				interrupts = <24>;
+				interrupts = <24 4>;
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
 				status = "disabled";
@@ -109,7 +109,7 @@
 			usart5: serial@fffd8000 {
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xfffd8000 0x200>;
-				interrupts = <25>;
+				interrupts = <25 4>;
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
 				status = "disabled";
@@ -118,7 +118,7 @@
 			macb0: ethernet@fffc4000 {
 				compatible = "cdns,at32ap7000-macb", "cdns,macb";
 				reg = <0xfffc4000 0x100>;
-				interrupts = <21>;
+				interrupts = <21 4>;
 				status = "disabled";
 			};
 		};
