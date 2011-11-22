@@ -276,12 +276,12 @@ static int db1200_mmc_cd_setup(void *mmc_host, int en)
 
 	if (en) {
 		ret = request_irq(DB1200_SD0_INSERT_INT, db1200_mmc_cd,
-				  IRQF_DISABLED, "sd_insert", mmc_host);
+				  0, "sd_insert", mmc_host);
 		if (ret)
 			goto out;
 
 		ret = request_irq(DB1200_SD0_EJECT_INT, db1200_mmc_cd,
-				  IRQF_DISABLED, "sd_eject", mmc_host);
+				  0, "sd_eject", mmc_host);
 		if (ret) {
 			free_irq(DB1200_SD0_INSERT_INT, mmc_host);
 			goto out;
