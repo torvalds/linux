@@ -1,0 +1,15 @@
+* Calxeda Highbank 10Gb XGMAC Ethernet
+
+Required properties:
+- compatible : Should be "calxeda,hb-xgmac"
+- reg : Address and length of the register set for the device
+- interrupts : Should contain 3 xgmac interrupts. The 1st is main interrupt.
+  The 2nd is pwr mgt interrupt. The 3rd is low power state interrupt.
+
+Example:
+
+ethernet@fff50000 {
+        compatible = "calxeda,hb-xgmac";
+        reg = <0xfff50000 0x1000>;
+        interrupts = <0 77 4  0 78 4  0 79 4>;
+};
