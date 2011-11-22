@@ -32,16 +32,16 @@
 
 #include <asm/octeon/octeon.h>
 
-#include "cvmx-config.h"
+#include <asm/octeon/cvmx-config.h>
 
-#include "cvmx-fpa.h"
-#include "cvmx-pip.h"
-#include "cvmx-pko.h"
-#include "cvmx-ipd.h"
-#include "cvmx-spi.h"
+#include <asm/octeon/cvmx-fpa.h>
+#include <asm/octeon/cvmx-pip.h>
+#include <asm/octeon/cvmx-pko.h>
+#include <asm/octeon/cvmx-ipd.h>
+#include <asm/octeon/cvmx-spi.h>
 
-#include "cvmx-helper.h"
-#include "cvmx-helper-util.h"
+#include <asm/octeon/cvmx-helper.h>
+#include <asm/octeon/cvmx-helper-util.h>
 
 #include <asm/octeon/cvmx-ipd-defs.h>
 

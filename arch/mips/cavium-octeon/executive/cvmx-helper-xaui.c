@@ -33,13 +33,13 @@
 
 #include <asm/octeon/octeon.h>
 
-#include "cvmx-config.h"
+#include <asm/octeon/cvmx-config.h>
 
-#include "cvmx-helper.h"
+#include <asm/octeon/cvmx-helper.h>
 
-#include "cvmx-pko-defs.h"
-#include "cvmx-gmxx-defs.h"
-#include "cvmx-pcsxx-defs.h"
+#include <asm/octeon/cvmx-pko-defs.h>
+#include <asm/octeon/cvmx-gmxx-defs.h>
+#include <asm/octeon/cvmx-pcsxx-defs.h>
 
 void __cvmx_interrupt_gmxx_enable(int interface);
 void __cvmx_interrupt_pcsx_intx_en_reg_enable(int index, int block);

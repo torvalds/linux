@@ -31,18 +31,18 @@
  */
 #include <asm/octeon/octeon.h>
 
-#include "cvmx-config.h"
+#include <asm/octeon/cvmx-config.h>
 
 
-#include "cvmx-mdio.h"
-#include "cvmx-pko.h"
-#include "cvmx-helper.h"
-#include "cvmx-helper-board.h"
+#include <asm/octeon/cvmx-mdio.h>
+#include <asm/octeon/cvmx-pko.h>
+#include <asm/octeon/cvmx-helper.h>
+#include <asm/octeon/cvmx-helper-board.h>
 
 #include <asm/octeon/cvmx-npi-defs.h>
-#include "cvmx-gmxx-defs.h"
-#include "cvmx-asxx-defs.h"
-#include "cvmx-dbg-defs.h"
+#include <asm/octeon/cvmx-gmxx-defs.h>
+#include <asm/octeon/cvmx-asxx-defs.h>
+#include <asm/octeon/cvmx-dbg-defs.h>
 
 void __cvmx_interrupt_gmxx_enable(int interface);
 void __cvmx_interrupt_asxx_enable(int block);
@@ -326,6 +326,7 @@ int __cvmx_helper_rgmii_link_set(int ipd_port,
 		       cvmx_read_csr(CVMX_ASXX_RX_PRT_EN(interface)) &
 				     ~(1 << index));
 
+	memset(pko_mem_queue_qos_save, 0, sizeof(pko_mem_queue_qos_save));
 	/* Disable all queues so that TX should become idle */
 	for (i = 0; i < cvmx_pko_get_num_queues(ipd_port); i++) {
 		int queue = cvmx_pko_get_base_queue(ipd_port) + i;

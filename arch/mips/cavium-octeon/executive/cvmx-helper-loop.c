@@ -31,10 +31,10 @@
  */
 #include <asm/octeon/octeon.h>
 
-#include "cvmx-config.h"
+#include <asm/octeon/cvmx-config.h>
 
-#include "cvmx-helper.h"
-#include "cvmx-pip-defs.h"
+#include <asm/octeon/cvmx-helper.h>
+#include <asm/octeon/cvmx-pip-defs.h>
 
 /**
  * Probe a LOOP interface and determine the number of ports

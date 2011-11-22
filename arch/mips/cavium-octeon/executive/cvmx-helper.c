@@ -32,19 +32,19 @@
  */
 #include <asm/octeon/octeon.h>
 
-#include "cvmx-config.h"
+#include <asm/octeon/cvmx-config.h>
 
-#include "cvmx-fpa.h"
-#include "cvmx-pip.h"
-#include "cvmx-pko.h"
-#include "cvmx-ipd.h"
-#include "cvmx-spi.h"
-#include "cvmx-helper.h"
-#include "cvmx-helper-board.h"
+#include <asm/octeon/cvmx-fpa.h>
+#include <asm/octeon/cvmx-pip.h>
+#include <asm/octeon/cvmx-pko.h>
+#include <asm/octeon/cvmx-ipd.h>
+#include <asm/octeon/cvmx-spi.h>
+#include <asm/octeon/cvmx-helper.h>
+#include <asm/octeon/cvmx-helper-board.h>
 
-#include "cvmx-pip-defs.h"
-#include "cvmx-smix-defs.h"
-#include "cvmx-asxx-defs.h"
+#include <asm/octeon/cvmx-pip-defs.h>
+#include <asm/octeon/cvmx-smix-defs.h>
+#include <asm/octeon/cvmx-asxx-defs.h>
 
 /**
  * cvmx_override_pko_queue_priority(int ipd_port, uint64_t
@@ -548,7 +548,6 @@ int __cvmx_helper_errata_fix_ipd_ptr_alignment(void)
 	union cvmx_gmxx_prtx_cfg gmx_cfg;
 	int retry_cnt;
 	int retry_loop_cnt;
-	int mtu;
 	int i;
 	cvmx_helper_link_info_t link_info;
 
@@ -662,10 +661,6 @@ int __cvmx_helper_errata_fix_ipd_ptr_alignment(void)
 		cvmx_write_csr(CVMX_ASXX_RX_PRT_EN(INTERFACE(FIX_IPD_OUTPORT)),
 			       1 << INDEX(FIX_IPD_OUTPORT));
 
-		mtu =
-		    cvmx_read_csr(CVMX_GMXX_RXX_JABBER
-				  (INDEX(FIX_IPD_OUTPORT),
-				   INTERFACE(FIX_IPD_OUTPORT)));
 		cvmx_write_csr(CVMX_GMXX_RXX_JABBER
 			       (INDEX(FIX_IPD_OUTPORT),
 				INTERFACE(FIX_IPD_OUTPORT)), 65392 - 14 - 4);

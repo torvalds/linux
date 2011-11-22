@@ -31,9 +31,9 @@
 
 #include <asm/octeon/octeon.h>
 
-#include "cvmx-config.h"
-#include "cvmx-pko.h"
-#include "cvmx-helper.h"
+#include <asm/octeon/cvmx-config.h>
+#include <asm/octeon/cvmx-pko.h>
+#include <asm/octeon/cvmx-helper.h>
 
 /**
  * Internal state of packet output
@@ -54,7 +54,7 @@ void cvmx_pko_initialize_global(void)
 	/*
 	 * Set the size of the PKO command buffers to an odd number of
 	 * 64bit words. This allows the normal two word send to stay
-	 * aligned and never span a command word buffer.
+	 * aligned and never span a comamnd word buffer.
 	 */
 	config.u64 = 0;
 	config.s.pool = CVMX_FPA_OUTPUT_BUFFER_POOL;

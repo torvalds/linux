@@ -35,9 +35,9 @@
 #include "octeon-ethernet.h"
 #include "ethernet-util.h"
 
-#include "cvmx-helper.h"
+#include <asm/octeon/cvmx-helper.h>
 
-#include "cvmx-gmxx-defs.h"
+#include <asm/octeon/cvmx-gmxx-defs.h>
 
 int cvm_oct_sgmii_open(struct net_device *dev)
 {

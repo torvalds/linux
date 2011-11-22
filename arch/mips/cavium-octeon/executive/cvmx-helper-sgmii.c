@@ -32,14 +32,14 @@
 
 #include <asm/octeon/octeon.h>
 
-#include "cvmx-config.h"
+#include <asm/octeon/cvmx-config.h>
 
-#include "cvmx-mdio.h"
-#include "cvmx-helper.h"
-#include "cvmx-helper-board.h"
+#include <asm/octeon/cvmx-mdio.h>
+#include <asm/octeon/cvmx-helper.h>
+#include <asm/octeon/cvmx-helper-board.h>
 
-#include "cvmx-gmxx-defs.h"
-#include "cvmx-pcsx-defs.h"
+#include <asm/octeon/cvmx-gmxx-defs.h>
+#include <asm/octeon/cvmx-pcsx-defs.h>
 
 void __cvmx_interrupt_gmxx_enable(int interface);
 void __cvmx_interrupt_pcsx_intx_en_reg_enable(int index, int block);

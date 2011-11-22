@@ -34,16 +34,16 @@
 #include <asm/octeon/octeon.h>
 #include <asm/octeon/cvmx-bootinfo.h>
 
-#include "cvmx-config.h"
+#include <asm/octeon/cvmx-config.h>
 
-#include "cvmx-mdio.h"
+#include <asm/octeon/cvmx-mdio.h>
 
-#include "cvmx-helper.h"
-#include "cvmx-helper-util.h"
-#include "cvmx-helper-board.h"
+#include <asm/octeon/cvmx-helper.h>
+#include <asm/octeon/cvmx-helper-util.h>
+#include <asm/octeon/cvmx-helper-board.h>
 
-#include "cvmx-gmxx-defs.h"
-#include "cvmx-asxx-defs.h"
+#include <asm/octeon/cvmx-gmxx-defs.h>
+#include <asm/octeon/cvmx-asxx-defs.h>
 
 /**
  * cvmx_override_board_link_get(int ipd_port) is a function
@@ -493,7 +493,6 @@ int cvmx_helper_board_link_set_phy(int phy_addr,
 		cvmx_mdio_phy_reg_control_t reg_control;
 		cvmx_mdio_phy_reg_status_t reg_status;
 		cvmx_mdio_phy_reg_autoneg_adver_t reg_autoneg_adver;
-		cvmx_mdio_phy_reg_extended_status_t reg_extended_status;
 		cvmx_mdio_phy_reg_control_1000_t reg_control_1000;
 
 		reg_status.u16 =
@@ -508,9 +507,6 @@ int cvmx_helper_board_link_set_phy(int phy_addr,
 		reg_autoneg_adver.s.advert_100base_tx_full = 0;
 		reg_autoneg_adver.s.advert_100base_tx_half = 0;
 		if (reg_status.s.capable_extended_status) {
-			reg_extended_status.u16 =
-			    cvmx_mdio_read(phy_addr >> 8, phy_addr & 0xff,
-					   CVMX_MDIO_PHY_REG_EXTENDED_STATUS);
 			reg_control_1000.u16 =
 			    cvmx_mdio_read(phy_addr >> 8, phy_addr & 0xff,
 					   CVMX_MDIO_PHY_REG_CONTROL_1000);

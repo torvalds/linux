@@ -35,12 +35,12 @@ void __cvmx_interrupt_stxx_int_msk_enable(int index);
  */
 #include <asm/octeon/octeon.h>
 
-#include "cvmx-config.h"
-#include "cvmx-spi.h"
-#include "cvmx-helper.h"
+#include <asm/octeon/cvmx-config.h>
+#include <asm/octeon/cvmx-spi.h>
+#include <asm/octeon/cvmx-helper.h>
 
-#include "cvmx-pip-defs.h"
-#include "cvmx-pko-defs.h"
+#include <asm/octeon/cvmx-pip-defs.h>
+#include <asm/octeon/cvmx-pko-defs.h>
 
 /*
  * CVMX_HELPER_SPI_TIMEOUT is used to determine how long the SPI

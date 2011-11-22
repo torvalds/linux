@@ -31,14 +31,14 @@
  */
 #include <asm/octeon/octeon.h>
 
-#include "cvmx-config.h"
+#include <asm/octeon/cvmx-config.h>
 
-#include "cvmx-pko.h"
-#include "cvmx-spi.h"
+#include <asm/octeon/cvmx-pko.h>
+#include <asm/octeon/cvmx-spi.h>
 
-#include "cvmx-spxx-defs.h"
-#include "cvmx-stxx-defs.h"
-#include "cvmx-srxx-defs.h"
+#include <asm/octeon/cvmx-spxx-defs.h>
+#include <asm/octeon/cvmx-stxx-defs.h>
+#include <asm/octeon/cvmx-srxx-defs.h>
 
 #define INVOKE_CB(function_p, args...)		\
 	do {					\

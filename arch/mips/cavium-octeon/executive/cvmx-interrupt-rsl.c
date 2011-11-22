@@ -32,8 +32,8 @@
 
 #include <asm/octeon/octeon.h>
 
-#include "cvmx-asxx-defs.h"
-#include "cvmx-gmxx-defs.h"
+#include <asm/octeon/cvmx-asxx-defs.h>
+#include <asm/octeon/cvmx-gmxx-defs.h>
 
 #ifndef PRINT_ERROR
 #define PRINT_ERROR(format, ...)
