@@ -560,6 +560,12 @@ config GREENASIA_FF
 	(like MANTA Warrior MM816 and SpeedLink Strike2 SL-6635) or adapter
 	and want to enable force feedback support for it.
 
+config HID_HYPERV_MOUSE
+	tristate "Microsoft Hyper-V mouse driver"
+	depends on HYPERV
+	---help---
+	Select this option to enable the Hyper-V mouse driver.
+
 config HID_SMARTJOYPLUS
 	tristate "SmartJoy PLUS PS2/USB adapter support"
 	depends on USB_HID
@@ -642,12 +648,6 @@ config HID_ZYDACRON
 	depends on USB_HID
 	---help---
 	Support for Zydacron remote control.
-
-config HYPERV_MOUSE
-	tristate "Microsoft Hyper-V mouse driver"
-	depends on HYPERV
-	---help---
-	Select this option to enable the Hyper-V mouse driver.
 
 endmenu
 
