@@ -42,7 +42,7 @@ struct  cs42l73_private {
 	u32 mclk;
 };
 
-struct reg_default cs42l73_reg_defaults[] = {
+static const struct reg_default cs42l73_reg_defaults[] = {
 	{ 1, 0x42 },	/* r01	- Device ID A&B */
 	{ 2, 0xA7 },	/* r02	- Device ID C&D */
 	{ 3, 0x30 },	/* r03	- Device ID E */
