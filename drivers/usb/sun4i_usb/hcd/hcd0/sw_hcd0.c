@@ -711,9 +711,10 @@ static void sw_hcd_shutdown(struct platform_device *pdev)
 	spin_lock_irqsave(&sw_hcd->lock, flags);
 	sw_hcd_platform_disable(sw_hcd);
 	sw_hcd_generic_disable(sw_hcd);
+	spin_unlock_irqrestore(&sw_hcd->lock, flags);
+
 	close_usb_clock(&g_sw_hcd_io);
 	sw_hcd_set_vbus(sw_hcd, 0);
-	spin_unlock_irqrestore(&sw_hcd->lock, flags);
 
 	DMSG_INFO_HCD0("sw_hcd shutdown end\n");
 
@@ -1547,10 +1548,11 @@ int sw_usb_host0_enable(void)
 		return -1;
 	}
 
-	/* enable usb controller */
-	spin_lock_irqsave(&sw_hcd->lock, flags);
 	sw_hcd_soft_disconnect(sw_hcd);
 	sw_hcd_io_init(usbc_no, pdev, &g_sw_hcd_io);
+
+	/* enable usb controller */
+	spin_lock_irqsave(&sw_hcd->lock, flags);
 	sw_hcd_platform_init(sw_hcd);
 	sw_hcd_restore_context(sw_hcd);
 	sw_hcd_start(sw_hcd);
@@ -1607,12 +1609,10 @@ int sw_usb_host0_disable(void)
 
 	/* nuke all urb and disconnect */
 	spin_lock_irqsave(&sw_hcd->lock, flags);
-
 	sw_hcd_soft_disconnect(sw_hcd);
 	sw_hcd_port_suspend_ex(sw_hcd);
 	sw_hcd_set_vbus(sw_hcd, 0);
 	sw_hcd_stop(sw_hcd);
-
 	spin_unlock_irqrestore(&sw_hcd->lock, flags);
 
 	/* release usb irq */
@@ -1624,16 +1624,17 @@ int sw_usb_host0_disable(void)
 		free_irq(sw_hcd->nIrq, sw_hcd);
 	}
 
-	spin_lock_irqsave(&sw_hcd->lock, flags);
-
 	/* disable usb controller */
+	spin_lock_irqsave(&sw_hcd->lock, flags);
 	sw_hcd_save_context(sw_hcd);
 	sw_hcd_platform_exit(sw_hcd);
+	spin_unlock_irqrestore(&sw_hcd->lock, flags);
+
 	sw_hcd_io_exit(usbc_no, pdev, &g_sw_hcd_io);
 
+	spin_lock_irqsave(&sw_hcd->lock, flags);
 	sw_hcd->enable = 0;
 	g_sw_hcd0 = NULL;
-
 	spin_unlock_irqrestore(&sw_hcd->lock, flags);
 
 	DMSG_INFO_HCD0("sw_usb_host0_disable end\n");
@@ -2087,8 +2088,11 @@ int sw_usb_disable_hcd0(void)
 	sw_hcd_stop(sw_hcd);
 	sw_hcd_set_vbus(sw_hcd, 0);
 	sw_hcd_save_context(sw_hcd);
+	spin_unlock_irqrestore(&sw_hcd->lock, flags);
+
 	close_usb_clock(sw_hcd->sw_hcd_io);
 
+	spin_lock_irqsave(&sw_hcd->lock, flags);
 	sw_hcd_soft_disconnect(sw_hcd);
 	sw_hcd->enable = 0;
 	spin_unlock_irqrestore(&sw_hcd->lock, flags);
@@ -2165,7 +2169,11 @@ int sw_usb_enable_hcd0(void)
 
 	spin_lock_irqsave(&sw_hcd->lock, flags);
 	sw_hcd->enable = 1;
+	spin_unlock_irqrestore(&sw_hcd->lock, flags);
+
 	open_usb_clock(sw_hcd->sw_hcd_io);
+
+	spin_lock_irqsave(&sw_hcd->lock, flags);
 	sw_hcd_restore_context(sw_hcd);
 	sw_hcd_start(sw_hcd);
 	spin_unlock_irqrestore(&sw_hcd->lock, flags);
@@ -2219,8 +2227,9 @@ static int sw_hcd_suspend(struct device *dev)
 	sw_hcd_stop(sw_hcd);
 	sw_hcd_set_vbus(sw_hcd, 0);
 	sw_hcd_save_context(sw_hcd);
-	close_usb_clock(sw_hcd->sw_hcd_io);
 	spin_unlock_irqrestore(&sw_hcd->lock, flags);
+
+	close_usb_clock(sw_hcd->sw_hcd_io);
 
 	DMSG_INFO_HCD0("sw_hcd_suspend end\n");
 
@@ -2262,9 +2271,10 @@ static int sw_hcd_resume(struct device *dev)
 		return 0;
 	}
 
-	spin_lock_irqsave(&sw_hcd->lock, flags);
 	sw_hcd_soft_disconnect(sw_hcd);
 	open_usb_clock(sw_hcd->sw_hcd_io);
+
+	spin_lock_irqsave(&sw_hcd->lock, flags);
 	sw_hcd_restore_context(sw_hcd);
 	sw_hcd_start(sw_hcd);
 	sw_hcd->suspend = 0;
