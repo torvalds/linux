@@ -241,8 +241,16 @@ TRACE_EVENT(rcu_fqs,
 
 /*
  * Tracepoint for dyntick-idle entry/exit events.  These take a string
- * as argument: "Start" for entering dyntick-idle mode and "End" for
- * leaving it.
+ * as argument: "Start" for entering dyntick-idle mode, "End" for
+ * leaving it, "--=" for events moving towards idle, and "++=" for events
+ * moving away from idle.  "Error on entry: not idle task" and "Error on
+ * exit: not idle task" indicate that a non-idle task is erroneously
+ * toying with the idle loop.
+ *
+ * These events also take a pair of numbers, which indicate the nesting
+ * depth before and after the event of interest.  Note that task-related
+ * events use the upper bits of each number, while interrupt-related
+ * events use the lower bits.
  */
 TRACE_EVENT(rcu_dyntick,
 
