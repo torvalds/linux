@@ -1476,7 +1476,7 @@ static int __init imx_serial_init(void)
 	if (ret != 0)
 		uart_unregister_driver(&imx_reg);
 
-	return 0;
+	return ret;
 }
 
 static void __exit imx_serial_exit(void)
