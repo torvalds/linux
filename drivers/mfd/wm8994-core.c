@@ -582,6 +582,14 @@ static void wm8994_device_exit(struct wm8994 *wm8994)
 	regmap_exit(wm8994->regmap);
 }
 
+static const struct of_device_id wm8994_of_match[] = {
+	{ .compatible = "wlf,wm1811", },
+	{ .compatible = "wlf,wm8994", },
+	{ .compatible = "wlf,wm8958", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, wm8994_of_match);
+
 static int wm8994_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
@@ -633,6 +641,7 @@ static struct i2c_driver wm8994_i2c_driver = {
 		.name = "wm8994",
 		.owner = THIS_MODULE,
 		.pm = &wm8994_pm_ops,
+		.of_match_table = wm8994_of_match,
 	},
 	.probe = wm8994_i2c_probe,
 	.remove = wm8994_i2c_remove,
