@@ -76,6 +76,10 @@
 			atmel,vbus-gpio = <&pioD 1 0
 					   &pioD 3 0>;
 		};
+
+		usb1: ehci@00800000 {
+			status = "okay";
+		};
 	};
 
 	leds {

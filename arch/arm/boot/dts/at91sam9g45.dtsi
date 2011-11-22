@@ -224,6 +224,13 @@
 			interrupts = <22 4>;
 			status = "disabled";
 		};
+
+		usb1: ehci@00800000 {
+			compatible = "atmel,at91sam9g45-ehci", "usb-ehci";
+			reg = <0x00800000 0x100000>;
+			interrupts = <22 4>;
+			status = "disabled";
+		};
 	};
 
 	i2c@0 {
