@@ -827,6 +827,14 @@ static inline bool addr_match(const void *token1, const void *token2,
 	return true;
 }
 
+static inline bool addr4_match(__be32 a1, __be32 a2, u8 prefixlen)
+{
+	/* C99 6.5.7 (3): u32 << 32 is undefined behaviour */
+	if (prefixlen == 0)
+		return true;
+	return !((a1 ^ a2) & htonl(0xFFFFFFFFu << (32 - prefixlen)));
+}
+
 static __inline__
 __be16 xfrm_flowi_sport(const struct flowi *fl, const union flowi_uli *uli)
 {
