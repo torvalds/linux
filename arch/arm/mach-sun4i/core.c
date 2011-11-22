@@ -85,12 +85,17 @@ EXPORT_SYMBOL(g2d_start);
 EXPORT_SYMBOL(g2d_size);
 
 unsigned long ve_start = (PLAT_PHYS_OFFSET + SZ_64M);
-unsigned long ve_size = SZ_64M + SZ_16M;
+unsigned long ve_size = SZ_64M;
 EXPORT_SYMBOL(ve_start);
 EXPORT_SYMBOL(ve_size);
 
 static void __init sw_core_reserve(void)
 {
+	memblock_reserve(SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE);
+	memblock_reserve(fb_start, fb_size);
+	memblock_reserve(ve_start, ve_size);
+	pr_info("BENN: try3\n");
+#if 0
         int g2d_used = 0;
         char *script_base = (char *)(PAGE_OFFSET + 0x3000000);
 
@@ -110,6 +115,7 @@ static void __init sw_core_reserve(void)
                 memblock_reserve(g2d_start, g2d_size);
         }
 
+#endif
 	pr_info("Memory Reserved(in bytes):\n");
 	pr_info("\tLCD: 0x%08x, 0x%08x\n", (unsigned int)fb_start, (unsigned int)fb_size);
 	pr_info("\tSYS: 0x%08x, 0x%08x\n", (unsigned int)SYS_CONFIG_MEMBASE, (unsigned int)SYS_CONFIG_MEMSIZE);
