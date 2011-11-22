@@ -402,6 +402,9 @@ armpmu_reserve_hardware(struct arm_pmu *armpmu)
 	int i, err, irq, irqs;
 	struct platform_device *pmu_device = armpmu->plat_device;
 
+	if (!pmu_device)
+		return -ENODEV;
+
 	err = reserve_pmu(armpmu->type);
 	if (err) {
 		pr_warning("unable to reserve pmu\n");
