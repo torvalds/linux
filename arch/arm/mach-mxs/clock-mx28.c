@@ -814,6 +814,15 @@ int __init mx28_clocks_init(void)
 	clk_set_parent(&saif0_clk, &pll0_clk);
 	clk_set_parent(&saif1_clk, &pll0_clk);
 
+	/*
+	 * Set an initial clock rate for the saif internal logic to work
+	 * properly. This is important when working in EXTMASTER mode that
+	 * uses the other saif's BITCLK&LRCLK but it still needs a basic
+	 * clock which should be fast enough for the internal logic.
+	 */
+	clk_set_rate(&saif0_clk, 24000000);
+	clk_set_rate(&saif1_clk, 24000000);
+
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	mxs_timer_init(&clk32k_clk, MX28_INT_TIMER0);
