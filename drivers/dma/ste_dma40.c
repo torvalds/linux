@@ -304,6 +304,7 @@ struct d40_chan {
  * to phy_chans entries.
  * @plat_data: Pointer to provided platform_data which is the driver
  * configuration.
+ * @lcpa_regulator: Pointer to hold the regulator for the esram bank for lcla.
  * @phy_res: Vector containing all physical channels.
  * @lcla_pool: lcla pool settings and data.
  * @lcpa_base: The virtual mapped address of LCPA.
@@ -338,6 +339,7 @@ struct d40_base {
 	struct d40_chan			**lookup_log_chans;
 	struct d40_chan			**lookup_phy_chans;
 	struct stedma40_platform_data	 *plat_data;
+	struct regulator		 *lcpa_regulator;
 	/* Physical half channels */
 	struct d40_phy_res		 *phy_res;
 	struct d40_lcla_pool		  lcla_pool;
@@ -605,6 +607,7 @@ static void d40_log_lli_to_lcxa(struct d40_chan *chan, struct d40_desc *desc)
 	bool cyclic = desc->cyclic;
 	int curr_lcla = -EINVAL;
 	int first_lcla = 0;
+	bool use_esram_lcla = chan->base->plat_data->use_esram_lcla;
 	bool linkback;
 
 	/*
@@ -677,11 +680,16 @@ static void d40_log_lli_to_lcxa(struct d40_chan *chan, struct d40_desc *desc)
 				       &lli->src[lli_current],
 				       next_lcla, flags);
 
-		dma_sync_single_range_for_device(chan->base->dev,
-					pool->dma_addr, lcla_offset,
-					2 * sizeof(struct d40_log_lli),
-					DMA_TO_DEVICE);
-
+		/*
+		 * Cache maintenance is not needed if lcla is
+		 * mapped in esram
+		 */
+		if (!use_esram_lcla) {
+			dma_sync_single_range_for_device(chan->base->dev,
+						pool->dma_addr, lcla_offset,
+						2 * sizeof(struct d40_log_lli),
+						DMA_TO_DEVICE);
+		}
 		curr_lcla = next_lcla;
 
 		if (curr_lcla == -EINVAL || curr_lcla == first_lcla) {
@@ -2668,10 +2676,15 @@ failure1:
 #ifdef CONFIG_PM
 static int dma40_pm_suspend(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
+	struct d40_base *base = platform_get_drvdata(pdev);
+	int ret = 0;
 	if (!pm_runtime_suspended(dev))
 		return -EBUSY;
 
-	return 0;
+	if (base->lcpa_regulator)
+		ret = regulator_disable(base->lcpa_regulator);
+	return ret;
 }
 
 static int dma40_runtime_suspend(struct device *dev)
@@ -2702,11 +2715,23 @@ static int dma40_runtime_resume(struct device *dev)
 	return 0;
 }
 
+static int dma40_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct d40_base *base = platform_get_drvdata(pdev);
+	int ret = 0;
+
+	if (base->lcpa_regulator)
+		ret = regulator_enable(base->lcpa_regulator);
+
+	return ret;
+}
 
 static const struct dev_pm_ops dma40_pm_ops = {
 	.suspend		= dma40_pm_suspend,
 	.runtime_suspend	= dma40_runtime_suspend,
 	.runtime_resume		= dma40_runtime_resume,
+	.resume			= dma40_resume,
 };
 #define DMA40_PM_OPS	(&dma40_pm_ops)
 #else
@@ -3165,11 +3190,31 @@ static int __init d40_probe(struct platform_device *pdev)
 		d40_err(&pdev->dev, "Failed to ioremap LCPA region\n");
 		goto failure;
 	}
+	/* If lcla has to be located in ESRAM we don't need to allocate */
+	if (base->plat_data->use_esram_lcla) {
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+							"lcla_esram");
+		if (!res) {
+			ret = -ENOENT;
+			d40_err(&pdev->dev,
+				"No \"lcla_esram\" memory resource\n");
+			goto failure;
+		}
+		base->lcla_pool.base = ioremap(res->start,
+						resource_size(res));
+		if (!base->lcla_pool.base) {
+			ret = -ENOMEM;
+			d40_err(&pdev->dev, "Failed to ioremap LCLA region\n");
+			goto failure;
+		}
+		writel(res->start, base->virtbase + D40_DREG_LCLA);
 
-	ret = d40_lcla_allocate(base);
-	if (ret) {
-		d40_err(&pdev->dev, "Failed to allocate LCLA area\n");
-		goto failure;
+	} else {
+		ret = d40_lcla_allocate(base);
+		if (ret) {
+			d40_err(&pdev->dev, "Failed to allocate LCLA area\n");
+			goto failure;
+		}
 	}
 
 	spin_lock_init(&base->lcla_pool.lock);
@@ -3187,6 +3232,26 @@ static int __init d40_probe(struct platform_device *pdev)
 	pm_runtime_use_autosuspend(base->dev);
 	pm_runtime_enable(base->dev);
 	pm_runtime_resume(base->dev);
+
+	if (base->plat_data->use_esram_lcla) {
+
+		base->lcpa_regulator = regulator_get(base->dev, "lcla_esram");
+		if (IS_ERR(base->lcpa_regulator)) {
+			d40_err(&pdev->dev, "Failed to get lcpa_regulator\n");
+			base->lcpa_regulator = NULL;
+			goto failure;
+		}
+
+		ret = regulator_enable(base->lcpa_regulator);
+		if (ret) {
+			d40_err(&pdev->dev,
+				"Failed to enable lcpa_regulator\n");
+			regulator_put(base->lcpa_regulator);
+			base->lcpa_regulator = NULL;
+			goto failure;
+		}
+	}
+
 	base->initialized = true;
 	err = d40_dmaengine_init(base, num_reserved_chans);
 	if (err)
@@ -3203,6 +3268,11 @@ failure:
 			kmem_cache_destroy(base->desc_slab);
 		if (base->virtbase)
 			iounmap(base->virtbase);
+
+		if (base->lcla_pool.base && base->plat_data->use_esram_lcla) {
+			iounmap(base->lcla_pool.base);
+			base->lcla_pool.base = NULL;
+		}
 
 		if (base->lcla_pool.dma_addr)
 			dma_unmap_single(base->dev, base->lcla_pool.dma_addr,
@@ -3224,6 +3294,11 @@ failure:
 		if (base->clk) {
 			clk_disable(base->clk);
 			clk_put(base->clk);
+		}
+
+		if (base->lcpa_regulator) {
+			regulator_disable(base->lcpa_regulator);
+			regulator_put(base->lcpa_regulator);
 		}
 
 		kfree(base->lcla_pool.alloc_map);
