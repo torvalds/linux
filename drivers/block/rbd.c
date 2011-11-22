@@ -1152,7 +1152,7 @@ static int rbd_req_read(struct request *rq,
 			 int coll_index)
 {
 	return rbd_do_op(rq, rbd_dev, NULL,
-			 (snapid ? snapid : CEPH_NOSNAP),
+			 snapid,
 			 CEPH_OSD_OP_READ,
 			 CEPH_OSD_FLAG_READ,
 			 2,
@@ -1171,7 +1171,7 @@ static int rbd_req_sync_read(struct rbd_device *dev,
 			  u64 *ver)
 {
 	return rbd_req_sync_op(dev, NULL,
-			       (snapid ? snapid : CEPH_NOSNAP),
+			       snapid,
 			       CEPH_OSD_OP_READ,
 			       CEPH_OSD_FLAG_READ,
 			       NULL,
