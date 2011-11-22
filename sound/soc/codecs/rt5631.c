@@ -1331,16 +1331,9 @@ static int rt5631_add_widgets(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int voltab[2][16] = 
-{
-    //spk
-    {0x27, 0x1b, 0x18, 0x15, 0x13, 0x11, 0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07, 0x06},
-    //hp
-    {0x1f, 0x1c, 0x1a, 0x18, 0x16, 0x14, 0x12, 0x10, 0x0e, 0x0c, 0x0a, 0x08, 0x06, 0x04, 0x02, 0x01},
-};
 static int gvolume = 0;
-#if 1
 
+#if 1
 static int get_vol(int max, int min, int stage_num, int stage)
 {
 	int ret, step=((max-min)<<8)/(stage_num-1);
@@ -1411,6 +1404,14 @@ static void rt5631_set_eq(int on)
 }
 
 #else
+
+static int voltab[2][16] =
+{
+    //spk
+    {0x27, 0x1b, 0x18, 0x15, 0x13, 0x11, 0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07, 0x06},
+    //hp
+    {0x1f, 0x1c, 0x1a, 0x18, 0x16, 0x14, 0x12, 0x10, 0x0e, 0x0c, 0x0a, 0x08, 0x06, 0x04, 0x02, 0x01},
+};
 
 static void rt5631_set_volume(int vollevel)
 {
@@ -1806,6 +1807,7 @@ static int rt5631_codec_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	return ret;
 }
 
+#if defined(CONFIG_ADJUST_VOL_BY_CODEC)
 static int rt5631_trigger(struct snd_pcm_substream *substream, int status, struct snd_soc_dai *dai)
 {
 	//DBG("rt5631_trigger\n");
@@ -1826,6 +1828,7 @@ static int rt5631_trigger(struct snd_pcm_substream *substream, int status, struc
 
 	return 0;
 }
+#endif
 
 static ssize_t rt5631_index_reg_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
@@ -2052,17 +2055,17 @@ void codec_set_spk(bool on)
 
 	if(on){
 		DBG("snd_soc_dapm_enable_pin\n");
-		snd_soc_dapm_enable_pin(codec, "Headphone Jack");
-		snd_soc_dapm_enable_pin(codec, "Ext Spk");
+		snd_soc_dapm_enable_pin(&codec->dapm, "Headphone Jack");
+		snd_soc_dapm_enable_pin(&codec->dapm, "Ext Spk");
 	}
 	else{
 
 		DBG("snd_soc_dapm_disable_pin\n");
-		snd_soc_dapm_disable_pin(codec, "Headphone Jack");
-		snd_soc_dapm_disable_pin(codec, "Ext Spk");
+		snd_soc_dapm_disable_pin(&codec->dapm, "Headphone Jack");
+		snd_soc_dapm_disable_pin(&codec->dapm, "Ext Spk");
 	}
 
-	snd_soc_dapm_sync(codec);
+	snd_soc_dapm_sync(&codec->dapm);
 
 	return;
 }
