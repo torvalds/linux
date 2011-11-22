@@ -64,10 +64,10 @@ static int unmap_pte_fn(pte_t *pte, struct page *pmd_page,
 
 int arch_gnttab_map_shared(unsigned long *frames, unsigned long nr_gframes,
 			   unsigned long max_nr_gframes,
-			   struct grant_entry **__shared)
+			   void **__shared)
 {
 	int rc;
-	struct grant_entry *shared = *__shared;
+	void *shared = *__shared;
 
 	if (shared == NULL) {
 		struct vm_struct *area =
@@ -83,8 +83,7 @@ int arch_gnttab_map_shared(unsigned long *frames, unsigned long nr_gframes,
 	return rc;
 }
 
-void arch_gnttab_unmap_shared(struct grant_entry *shared,
-			      unsigned long nr_gframes)
+void arch_gnttab_unmap_shared(void *shared, unsigned long nr_gframes)
 {
 	apply_to_page_range(&init_mm, (unsigned long)shared,
 			    PAGE_SIZE * nr_gframes, unmap_pte_fn, NULL);

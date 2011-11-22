@@ -145,8 +145,8 @@ gnttab_set_unmap_op(struct gnttab_unmap_grant_ref *unmap, phys_addr_t addr,
 
 int arch_gnttab_map_shared(unsigned long *frames, unsigned long nr_gframes,
 			   unsigned long max_nr_gframes,
-			   struct grant_entry **__shared);
-void arch_gnttab_unmap_shared(struct grant_entry *shared,
+			   void **__shared);
+void arch_gnttab_unmap_shared(void *shared,
 			      unsigned long nr_gframes);
 
 extern unsigned long xen_hvm_resume_frames;

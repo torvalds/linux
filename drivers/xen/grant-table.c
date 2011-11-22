@@ -53,7 +53,7 @@
 /* External tools reserve first few grant table entries. */
 #define NR_RESERVED_ENTRIES 8
 #define GNTTAB_LIST_END 0xffffffff
-#define GREFS_PER_GRANT_FRAME (PAGE_SIZE / sizeof(struct grant_entry))
+#define GREFS_PER_GRANT_FRAME (PAGE_SIZE / sizeof(struct grant_entry_v1))
 
 static grant_ref_t **gnttab_list;
 static unsigned int nr_grant_frames;
@@ -64,7 +64,63 @@ static DEFINE_SPINLOCK(gnttab_list_lock);
 unsigned long xen_hvm_resume_frames;
 EXPORT_SYMBOL_GPL(xen_hvm_resume_frames);
 
-static struct grant_entry *shared;
+static union {
+	struct grant_entry_v1 *v1;
+	void *addr;
+} gnttab_shared;
+
+/*This is a structure of function pointers for grant table*/
+struct gnttab_ops {
+	/*
+	 * Mapping a list of frames for storing grant entries. First input
+	 * parameter is used to storing grant table address when grant table
+	 * being setup, second parameter is the number of frames to map grant
+	 * table. Returning GNTST_okay means success and negative value means
+	 * failure.
+	 */
+	int (*map_frames)(unsigned long *, unsigned int);
+	/*
+	 * Release a list of frames which are mapped in map_frames for grant
+	 * entry status.
+	 */
+	void (*unmap_frames)(void);
+	/*
+	 * Introducing a valid entry into the grant table, granting the frame
+	 * of this grant entry to domain for accessing, or transfering, or
+	 * transitively accessing. First input parameter is reference of this
+	 * introduced grant entry, second one is domid of granted domain, third
+	 * one is the frame to be granted, and the last one is status of the
+	 * grant entry to be updated.
+	 */
+	void (*update_entry)(grant_ref_t, domid_t, unsigned long, unsigned);
+	/*
+	 * Stop granting a grant entry to domain for accessing. First input
+	 * parameter is reference of a grant entry whose grant access will be
+	 * stopped, second one is not in use now. If the grant entry is
+	 * currently mapped for reading or writing, just return failure(==0)
+	 * directly and don't tear down the grant access. Otherwise, stop grant
+	 * access for this entry and return success(==1).
+	 */
+	int (*end_foreign_access_ref)(grant_ref_t, int);
+	/*
+	 * Stop granting a grant entry to domain for transfer. If tranfer has
+	 * not started, just reclaim the grant entry and return failure(==0).
+	 * Otherwise, wait for the transfer to complete and then return the
+	 * frame.
+	 */
+	unsigned long (*end_foreign_transfer_ref)(grant_ref_t);
+	/*
+	 * Query the status of a grant entry. Input parameter is reference of
+	 * queried grant entry, return value is the status of queried entry.
+	 * Detailed status(writing/reading) can be gotten from the return value
+	 * by bit operations.
+	 */
+	int (*query_foreign_access)(grant_ref_t);
+};
+
+static struct gnttab_ops *gnttab_interface;
+
+static int grant_table_version;
 
 static struct gnttab_free_callback *gnttab_free_callback_list;
 
@@ -142,23 +198,23 @@ static void put_free_entry(grant_ref_t ref)
 	spin_unlock_irqrestore(&gnttab_list_lock, flags);
 }
 
-static void update_grant_entry(grant_ref_t ref, domid_t domid,
-			       unsigned long frame, unsigned flags)
+/*
+ * Introducing a valid entry into the grant table:
+ *  1. Write ent->domid.
+ *  2. Write ent->frame:
+ *      GTF_permit_access:   Frame to which access is permitted.
+ *      GTF_accept_transfer: Pseudo-phys frame slot being filled by new
+ *                           frame, or zero if none.
+ *  3. Write memory barrier (WMB).
+ *  4. Write ent->flags, inc. valid type.
+ */
+static void gnttab_update_entry_v1(grant_ref_t ref, domid_t domid,
+				   unsigned long frame, unsigned flags)
 {
-	/*
-	 * Introducing a valid entry into the grant table:
-	 *  1. Write ent->domid.
-	 *  2. Write ent->frame:
-	 *      GTF_permit_access:   Frame to which access is permitted.
-	 *      GTF_accept_transfer: Pseudo-phys frame slot being filled by new
-	 *                           frame, or zero if none.
-	 *  3. Write memory barrier (WMB).
-	 *  4. Write ent->flags, inc. valid type.
-	 */
-	shared[ref].frame = frame;
-	shared[ref].domid = domid;
+	gnttab_shared.v1[ref].domid = domid;
+	gnttab_shared.v1[ref].frame = frame;
 	wmb();
-	shared[ref].flags = flags;
+	gnttab_shared.v1[ref].flags = flags;
 }
 
 /*
@@ -167,7 +223,7 @@ static void update_grant_entry(grant_ref_t ref, domid_t domid,
 void gnttab_grant_foreign_access_ref(grant_ref_t ref, domid_t domid,
 				     unsigned long frame, int readonly)
 {
-	update_grant_entry(ref, domid, frame,
+	gnttab_interface->update_entry(ref, domid, frame,
 			   GTF_permit_access | (readonly ? GTF_readonly : 0));
 }
 EXPORT_SYMBOL_GPL(gnttab_grant_foreign_access_ref);
@@ -187,30 +243,36 @@ int gnttab_grant_foreign_access(domid_t domid, unsigned long frame,
 }
 EXPORT_SYMBOL_GPL(gnttab_grant_foreign_access);
 
+static int gnttab_query_foreign_access_v1(grant_ref_t ref)
+{
+	return gnttab_shared.v1[ref].flags & (GTF_reading|GTF_writing);
+}
+
 int gnttab_query_foreign_access(grant_ref_t ref)
 {
-	u16 nflags;
-
-	nflags = shared[ref].flags;
-
-	return nflags & (GTF_reading|GTF_writing);
+	return gnttab_interface->query_foreign_access(ref);
 }
 EXPORT_SYMBOL_GPL(gnttab_query_foreign_access);
 
-int gnttab_end_foreign_access_ref(grant_ref_t ref, int readonly)
+static int gnttab_end_foreign_access_ref_v1(grant_ref_t ref, int readonly)
 {
 	u16 flags, nflags;
 
-	nflags = shared[ref].flags;
+	nflags = gnttab_shared.v1[ref].flags;
 	do {
 		flags = nflags;
 		if (flags & (GTF_reading|GTF_writing)) {
 			printk(KERN_ALERT "WARNING: g.e. still in use!\n");
 			return 0;
 		}
-	} while ((nflags = sync_cmpxchg(&shared[ref].flags, flags, 0)) != flags);
+	} while ((nflags = sync_cmpxchg(&gnttab_shared.v1[ref].flags, flags, 0)) != flags);
 
 	return 1;
+}
+
+int gnttab_end_foreign_access_ref(grant_ref_t ref, int readonly)
+{
+	return gnttab_interface->end_foreign_access_ref(ref, readonly);
 }
 EXPORT_SYMBOL_GPL(gnttab_end_foreign_access_ref);
 
@@ -246,11 +308,11 @@ EXPORT_SYMBOL_GPL(gnttab_grant_foreign_transfer);
 void gnttab_grant_foreign_transfer_ref(grant_ref_t ref, domid_t domid,
 				       unsigned long pfn)
 {
-	update_grant_entry(ref, domid, pfn, GTF_accept_transfer);
+	gnttab_interface->update_entry(ref, domid, pfn, GTF_accept_transfer);
 }
 EXPORT_SYMBOL_GPL(gnttab_grant_foreign_transfer_ref);
 
-unsigned long gnttab_end_foreign_transfer_ref(grant_ref_t ref)
+static unsigned long gnttab_end_foreign_transfer_ref_v1(grant_ref_t ref)
 {
 	unsigned long frame;
 	u16           flags;
@@ -259,23 +321,28 @@ unsigned long gnttab_end_foreign_transfer_ref(grant_ref_t ref)
 	 * If a transfer is not even yet started, try to reclaim the grant
 	 * reference and return failure (== 0).
 	 */
-	while (!((flags = shared[ref].flags) & GTF_transfer_committed)) {
-		if (sync_cmpxchg(&shared[ref].flags, flags, 0) == flags)
+	while (!((flags = gnttab_shared.v1[ref].flags) & GTF_transfer_committed)) {
+		if (sync_cmpxchg(&gnttab_shared.v1[ref].flags, flags, 0) == flags)
 			return 0;
 		cpu_relax();
 	}
 
 	/* If a transfer is in progress then wait until it is completed. */
 	while (!(flags & GTF_transfer_completed)) {
-		flags = shared[ref].flags;
+		flags = gnttab_shared.v1[ref].flags;
 		cpu_relax();
 	}
 
 	rmb();	/* Read the frame number /after/ reading completion status. */
-	frame = shared[ref].frame;
+	frame = gnttab_shared.v1[ref].frame;
 	BUG_ON(frame == 0);
 
 	return frame;
+}
+
+unsigned long gnttab_end_foreign_transfer_ref(grant_ref_t ref)
+{
+	return gnttab_interface->end_foreign_transfer_ref(ref);
 }
 EXPORT_SYMBOL_GPL(gnttab_end_foreign_transfer_ref);
 
@@ -520,6 +587,23 @@ int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
 }
 EXPORT_SYMBOL_GPL(gnttab_unmap_refs);
 
+static int gnttab_map_frames_v1(unsigned long *frames, unsigned int nr_gframes)
+{
+	int rc;
+
+	rc = arch_gnttab_map_shared(frames, nr_gframes,
+				    gnttab_max_grant_frames(),
+				    &gnttab_shared.addr);
+	BUG_ON(rc);
+
+	return 0;
+}
+
+static void gnttab_unmap_frames_v1(void)
+{
+	arch_gnttab_unmap_shared(gnttab_shared.addr, nr_grant_frames);
+}
+
 static int gnttab_map(unsigned int start_idx, unsigned int end_idx)
 {
 	struct gnttab_setup_table setup;
@@ -567,19 +651,35 @@ static int gnttab_map(unsigned int start_idx, unsigned int end_idx)
 
 	BUG_ON(rc || setup.status);
 
-	rc = arch_gnttab_map_shared(frames, nr_gframes, gnttab_max_grant_frames(),
-				    &shared);
-	BUG_ON(rc);
+	rc = gnttab_interface->map_frames(frames, nr_gframes);
 
 	kfree(frames);
 
-	return 0;
+	return rc;
+}
+
+static struct gnttab_ops gnttab_v1_ops = {
+	.map_frames			= gnttab_map_frames_v1,
+	.unmap_frames			= gnttab_unmap_frames_v1,
+	.update_entry			= gnttab_update_entry_v1,
+	.end_foreign_access_ref		= gnttab_end_foreign_access_ref_v1,
+	.end_foreign_transfer_ref	= gnttab_end_foreign_transfer_ref_v1,
+	.query_foreign_access		= gnttab_query_foreign_access_v1,
+};
+
+static void gnttab_request_version(void)
+{
+	grant_table_version = 1;
+	gnttab_interface = &gnttab_v1_ops;
+	printk(KERN_INFO "Grant tables using version %d layout.\n",
+		grant_table_version);
 }
 
 int gnttab_resume(void)
 {
 	unsigned int max_nr_gframes;
 
+	gnttab_request_version();
 	max_nr_gframes = gnttab_max_grant_frames();
 	if (max_nr_gframes < nr_grant_frames)
 		return -ENOSYS;
@@ -587,9 +687,10 @@ int gnttab_resume(void)
 	if (xen_pv_domain())
 		return gnttab_map(0, nr_grant_frames - 1);
 
-	if (!shared) {
-		shared = ioremap(xen_hvm_resume_frames, PAGE_SIZE * max_nr_gframes);
-		if (shared == NULL) {
+	if (gnttab_shared.addr == NULL) {
+		gnttab_shared.addr = ioremap(xen_hvm_resume_frames,
+						PAGE_SIZE * max_nr_gframes);
+		if (gnttab_shared.addr == NULL) {
 			printk(KERN_WARNING
 					"Failed to ioremap gnttab share frames!");
 			return -ENOMEM;
@@ -603,7 +704,7 @@ int gnttab_resume(void)
 
 int gnttab_suspend(void)
 {
-	arch_gnttab_unmap_shared(shared, nr_grant_frames);
+	gnttab_interface->unmap_frames();
 	return 0;
 }
 
