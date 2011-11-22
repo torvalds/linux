@@ -164,41 +164,8 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 /* to find an entry in a kernel page-table-directory */
 #define pgd_offset_k(addr)	pgd_offset(&init_mm, addr)
 
-/*
- * The "pud_xxx()" functions here are trivial when the pmd is folded into
- * the pud: the pud entry is never bad, always exists, and can't be set or
- * cleared.
- */
-#define pud_none(pud)		(0)
-#define pud_bad(pud)		(0)
-#define pud_present(pud)	(1)
-#define pud_clear(pudp)		do { } while (0)
-#define set_pud(pud,pudp)	do { } while (0)
-
-
-/* Find an entry in the second-level page table.. */
-static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
-{
-	return (pmd_t *)pud;
-}
-
 #define pmd_none(pmd)		(!pmd_val(pmd))
 #define pmd_present(pmd)	(pmd_val(pmd))
-#define pmd_bad(pmd)		(pmd_val(pmd) & 2)
-
-#define copy_pmd(pmdpd,pmdps)		\
-	do {				\
-		pmdpd[0] = pmdps[0];	\
-		pmdpd[1] = pmdps[1];	\
-		flush_pmd_entry(pmdpd);	\
-	} while (0)
-
-#define pmd_clear(pmdp)			\
-	do {				\
-		pmdp[0] = __pmd(0);	\
-		pmdp[1] = __pmd(0);	\
-		clean_pmd_entry(pmdp);	\
-	} while (0)
 
 static inline pte_t *pmd_page_vaddr(pmd_t pmd)
 {
@@ -206,10 +173,6 @@ static inline pte_t *pmd_page_vaddr(pmd_t pmd)
 }
 
 #define pmd_page(pmd)		pfn_to_page(__phys_to_pfn(pmd_val(pmd) & PHYS_MASK))
-
-/* we don't need complex calculations here as the pmd is folded into the pgd */
-#define pmd_addr_end(addr,end)	(end)
-
 
 #ifndef CONFIG_HIGHPTE
 #define __pte_map(pmd)		pmd_page_vaddr(*(pmd))
@@ -232,7 +195,6 @@ static inline pte_t *pmd_page_vaddr(pmd_t pmd)
 #define pte_page(pte)		pfn_to_page(pte_pfn(pte))
 #define mk_pte(page,prot)	pfn_pte(page_to_pfn(page), prot)
 
-#define set_pte_ext(ptep,pte,ext) cpu_set_pte_ext(ptep,pte,ext)
 #define pte_clear(mm,addr,ptep)	set_pte_ext(ptep, __pte(0), 0)
 
 #if __LINUX_ARM_ARCH__ < 6
