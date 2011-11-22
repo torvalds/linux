@@ -3002,6 +3002,8 @@ int mgmt_discovering(struct hci_dev *hdev, u8 discovering)
 {
 	struct pending_cmd *cmd;
 
+	BT_DBG("%s discovering %u", hdev->name, discovering);
+
 	if (discovering)
 		cmd = mgmt_pending_find(MGMT_OP_START_DISCOVERY, hdev);
 	else
