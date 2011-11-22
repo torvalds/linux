@@ -521,7 +521,7 @@ config SC6600_CDROMBASE
 
 config SOUND_VIDC
 	tristate "VIDC 16-bit sound"
-	depends on ARM && (ARCH_ACORN || ARCH_CLPS7500)
+	depends on ARM && ARCH_ACORN
 	help
 	  16-bit support for the VIDC onboard sound hardware found on Acorn
 	  machines.
