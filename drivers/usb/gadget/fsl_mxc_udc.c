@@ -16,6 +16,7 @@
 #include <linux/err.h>
 #include <linux/fsl_devices.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
 
