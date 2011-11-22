@@ -1569,14 +1569,6 @@ long do_fork(unsigned long clone_flags,
 		if (clone_flags & (CLONE_THREAD|CLONE_PARENT))
 			return -EINVAL;
 	}
-	if (clone_flags & CLONE_NEWUSER) {
-		/* hopefully this check will go away when userns support is
-		 * complete
-		 */
-		if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SETUID) ||
-				!capable(CAP_SETGID))
-			return -EPERM;
-	}
 
 	/*
 	 * Determine whether and which event to report to ptracer.  When
