@@ -1177,14 +1177,22 @@ static void atc_free_chan_resources(struct dma_chan *chan)
 
 /*--  Module Management  -----------------------------------------------*/
 
+/* cap_mask is a multi-u32 bitfield, fill it with proper C code. */
+static struct at_dma_platform_data at91sam9rl_config = {
+	.nr_channels = 2,
+};
+static struct at_dma_platform_data at91sam9g45_config = {
+	.nr_channels = 8,
+};
+
 #if defined(CONFIG_OF)
 static const struct of_device_id atmel_dma_dt_ids[] = {
 	{
 		.compatible = "atmel,at91sam9rl-dma",
-		.data = (void *)ATDMA_DEVTYPE_SAM9RL
+		.data = &at91sam9rl_config,
 	}, {
 		.compatible = "atmel,at91sam9g45-dma",
-		.data = (void *)ATDMA_DEVTYPE_SAM9G45
+		.data = &at91sam9g45_config,
 	}, {
 		/* sentinel */
 	}
@@ -1196,26 +1204,27 @@ MODULE_DEVICE_TABLE(of, atmel_dma_dt_ids);
 static const struct platform_device_id atdma_devtypes[] = {
 	{
 		.name = "at91sam9rl_dma",
-		.driver_data = ATDMA_DEVTYPE_SAM9RL,
+		.driver_data = (unsigned long) &at91sam9rl_config,
 	}, {
 		.name = "at91sam9g45_dma",
-		.driver_data = ATDMA_DEVTYPE_SAM9G45,
+		.driver_data = (unsigned long) &at91sam9g45_config,
 	}, {
 		/* sentinel */
 	}
 };
 
-static inline enum atdma_devtype __init at_dma_get_driver_data(
-					struct platform_device *pdev)
+static inline struct at_dma_platform_data * __init at_dma_get_driver_data(
+						struct platform_device *pdev)
 {
 	if (pdev->dev.of_node) {
 		const struct of_device_id *match;
 		match = of_match_node(atmel_dma_dt_ids, pdev->dev.of_node);
 		if (match == NULL)
-			return ATDMA_DEVTYPE_UNDEFINED;
-		return (enum atdma_devtype)match->data;
+			return NULL;
+		return match->data;
 	}
-	return platform_get_device_id(pdev)->driver_data;
+	return (struct at_dma_platform_data *)
+			platform_get_device_id(pdev)->driver_data;
 }
 
 /**
@@ -1242,26 +1251,17 @@ static int __init at_dma_probe(struct platform_device *pdev)
 	int			irq;
 	int			err;
 	int			i;
-	u32                     nr_channels;
-	dma_cap_mask_t          cap_mask = {};
-	enum atdma_devtype	atdmatype;
+	struct at_dma_platform_data *plat_dat;
 
-	dma_cap_set(DMA_MEMCPY, cap_mask);
+	/* setup platform data for each SoC */
+	dma_cap_set(DMA_MEMCPY, at91sam9rl_config.cap_mask);
+	dma_cap_set(DMA_MEMCPY, at91sam9g45_config.cap_mask);
+	dma_cap_set(DMA_SLAVE, at91sam9g45_config.cap_mask);
 
 	/* get DMA parameters from controller type */
-	atdmatype = at_dma_get_driver_data(pdev);
-
-	switch (atdmatype) {
-	case ATDMA_DEVTYPE_SAM9RL:
-		nr_channels = 2;
-		break;
-	case ATDMA_DEVTYPE_SAM9G45:
-		nr_channels = 8;
-		dma_cap_set(DMA_SLAVE, cap_mask);
-		break;
-	default:
-		return -EINVAL;
-	}
+	plat_dat = at_dma_get_driver_data(pdev);
+	if (!plat_dat)
+		return -ENODEV;
 
 	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!io)
@@ -1272,15 +1272,14 @@ static int __init at_dma_probe(struct platform_device *pdev)
 		return irq;
 
 	size = sizeof(struct at_dma);
-	size += nr_channels * sizeof(struct at_dma_chan);
+	size += plat_dat->nr_channels * sizeof(struct at_dma_chan);
 	atdma = kzalloc(size, GFP_KERNEL);
 	if (!atdma)
 		return -ENOMEM;
 
 	/* discover transaction capabilities */
-	atdma->dma_common.cap_mask = cap_mask;
-	atdma->all_chan_mask = (1 << nr_channels) - 1;
-	atdma->devtype = atdmatype;
+	atdma->dma_common.cap_mask = plat_dat->cap_mask;
+	atdma->all_chan_mask = (1 << plat_dat->nr_channels) - 1;
 
 	size = resource_size(io);
 	if (!request_mem_region(io->start, size, pdev->dev.driver->name)) {
@@ -1326,7 +1325,7 @@ static int __init at_dma_probe(struct platform_device *pdev)
 
 	/* initialize channels related values */
 	INIT_LIST_HEAD(&atdma->dma_common.channels);
-	for (i = 0; i < nr_channels; i++) {
+	for (i = 0; i < plat_dat->nr_channels; i++) {
 		struct at_dma_chan	*atchan = &atdma->chan[i];
 
 		atchan->chan_common.device = &atdma->dma_common;
@@ -1371,7 +1370,7 @@ static int __init at_dma_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "Atmel AHB DMA Controller ( %s%s), %d channels\n",
 	  dma_has_cap(DMA_MEMCPY, atdma->dma_common.cap_mask) ? "cpy " : "",
 	  dma_has_cap(DMA_SLAVE, atdma->dma_common.cap_mask)  ? "slave " : "",
-	  nr_channels);
+	  plat_dat->nr_channels);
 
 	dma_async_device_register(&atdma->dma_common);
 
