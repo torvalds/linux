@@ -1988,6 +1988,8 @@ static int __init omap_hsmmc_probe(struct platform_device *pdev)
 	if (mmc_slot(host).nonremovable)
 		mmc->caps |= MMC_CAP_NONREMOVABLE;
 
+	mmc->pm_caps = mmc_slot(host).pm_caps;
+
 	omap_hsmmc_conf_bus_power(host);
 
 	/* Select DMA lines */
