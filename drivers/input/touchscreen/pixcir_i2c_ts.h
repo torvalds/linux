@@ -8,6 +8,7 @@ static void tangoC_init(void);
 
 #define X_MAX 480
 #define Y_MAX 800
+#define MAX_SUPPORT_POINT 5
 
 #define IOMUX_NAME_SIZE 48
 struct pixcir_platform_data {
