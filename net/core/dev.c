@@ -2449,6 +2449,18 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 	return rc;
 }
 
+#if IS_ENABLED(CONFIG_NETPRIO_CGROUP)
+static void skb_update_prio(struct sk_buff *skb)
+{
+	struct netprio_map *map = rcu_dereference(skb->dev->priomap);
+
+	if ((!skb->priority) && (skb->sk) && map)
+		skb->priority = map->priomap[skb->sk->sk_cgrp_prioidx];
+}
+#else
+#define skb_update_prio(skb)
+#endif
+
 static DEFINE_PER_CPU(int, xmit_recursion);
 #define RECURSION_LIMIT 10
 
@@ -2488,6 +2500,8 @@ int dev_queue_xmit(struct sk_buff *skb)
 	 * stops preemption for RCU.
 	 */
 	rcu_read_lock_bh();
+
+	skb_update_prio(skb);
 
 	txq = dev_pick_tx(dev, skb);
 	q = rcu_dereference_bh(txq->qdisc);

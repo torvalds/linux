@@ -125,6 +125,7 @@
 #include <net/xfrm.h>
 #include <linux/ipsec.h>
 #include <net/cls_cgroup.h>
+#include <net/netprio_cgroup.h>
 
 #include <linux/filter.h>
 
@@ -221,9 +222,15 @@ __u32 sysctl_rmem_default __read_mostly = SK_RMEM_MAX;
 int sysctl_optmem_max __read_mostly = sizeof(unsigned long)*(2*UIO_MAXIOV+512);
 EXPORT_SYMBOL(sysctl_optmem_max);
 
-#if defined(CONFIG_CGROUPS) && !defined(CONFIG_NET_CLS_CGROUP)
+#if defined(CONFIG_CGROUPS)
+#if !defined(CONFIG_NET_CLS_CGROUP)
 int net_cls_subsys_id = -1;
 EXPORT_SYMBOL_GPL(net_cls_subsys_id);
+#endif
+#if !defined(CONFIG_NETPRIO_CGROUP)
+int net_prio_subsys_id = -1;
+EXPORT_SYMBOL_GPL(net_prio_subsys_id);
+#endif
 #endif
 
 static int sock_set_timeout(long *timeo_p, char __user *optval, int optlen)
@@ -1120,6 +1127,18 @@ void sock_update_classid(struct sock *sk)
 		sk->sk_classid = classid;
 }
 EXPORT_SYMBOL(sock_update_classid);
+
+void sock_update_netprioidx(struct sock *sk)
+{
+	struct cgroup_netprio_state *state;
+	if (in_interrupt())
+		return;
+	rcu_read_lock();
+	state = task_netprio_state(current);
+	sk->sk_cgrp_prioidx = state ? state->prioidx : 0;
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL_GPL(sock_update_netprioidx);
 #endif
 
 /**
@@ -1147,6 +1166,7 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 		atomic_set(&sk->sk_wmem_alloc, 1);
 
 		sock_update_classid(sk);
+		sock_update_netprioidx(sk);
 	}
 
 	return sk;

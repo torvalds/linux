@@ -50,6 +50,7 @@
 #ifdef CONFIG_DCB
 #include <net/dcbnl.h>
 #endif
+#include <net/netprio_cgroup.h>
 
 #include <linux/netdev_features.h>
 
@@ -1244,6 +1245,9 @@ struct net_device {
 #if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
 	/* max exchange id for FCoE LRO by ddp */
 	unsigned int		fcoe_ddp_xid;
+#endif
+#if IS_ENABLED(CONFIG_NETPRIO_CGROUP)
+	struct netprio_map __rcu *priomap;
 #endif
 	/* phy device may attach itself for hardware timestamping */
 	struct phy_device *phydev;

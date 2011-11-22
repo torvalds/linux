@@ -551,6 +551,8 @@ static inline int __sock_sendmsg_nosec(struct kiocb *iocb, struct socket *sock,
 
 	sock_update_classid(sock->sk);
 
+	sock_update_netprioidx(sock->sk);
+
 	si->sock = sock;
 	si->scm = NULL;
 	si->msg = msg;
