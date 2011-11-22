@@ -3299,14 +3299,15 @@ static void wl12xx_remove_vendor_ie(struct sk_buff *skb,
 	skb_trim(skb, skb->len - len);
 }
 
-static int wl1271_ap_set_probe_resp_tmpl(struct wl1271 *wl, u32 rates)
+static int wl1271_ap_set_probe_resp_tmpl(struct wl1271 *wl, u32 rates,
+					 struct ieee80211_vif *vif)
 {
 	struct sk_buff *skb;
 	int ret;
 
-	skb = ieee80211_proberesp_get(wl->hw, wl->vif);
+	skb = ieee80211_proberesp_get(wl->hw, vif);
 	if (!skb)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	ret = wl1271_cmd_template_set(wl,
 				      CMD_TEMPL_AP_PROBE_RESPONSE,
@@ -3437,12 +3438,10 @@ static int wl1271_bss_beacon_info_changed(struct wl1271 *wl,
 
 	if ((changed & BSS_CHANGED_AP_PROBE_RESP) && is_ap) {
 		u32 rate = wl1271_tx_min_rate_get(wl, wlvif->basic_rate_set);
-		ret = wl1271_ap_set_probe_resp_tmpl(wl, rate);
-		if (ret < 0)
-			goto out;
-
-		wl1271_debug(DEBUG_AP, "probe response updated");
-		set_bit(WLVIF_FLAG_AP_PROBE_RESP_SET, &wlvif->flags);
+		if (!wl1271_ap_set_probe_resp_tmpl(wl, rate, vif)) {
+			wl1271_debug(DEBUG_AP, "probe response updated");
+			set_bit(WLVIF_FLAG_AP_PROBE_RESP_SET, &wlvif->flags);
+		}
 	}
 
 	if ((changed & BSS_CHANGED_BEACON)) {
