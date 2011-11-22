@@ -39,7 +39,7 @@
  * versions.
  */
 #define CVMX_BOOTINFO_MAJ_VER 1
-#define CVMX_BOOTINFO_MIN_VER 2
+#define CVMX_BOOTINFO_MIN_VER 3
 
 #if (CVMX_BOOTINFO_MAJ_VER == 1)
 #define CVMX_BOOTINFO_OCTEON_SERIAL_LEN 20
@@ -116,7 +116,13 @@ struct cvmx_bootinfo {
 	 */
 	uint32_t config_flags;
 #endif
-
+#if (CVMX_BOOTINFO_MIN_VER >= 3)
+	/*
+	 * Address of the OF Flattened Device Tree structure
+	 * describing the board.
+	 */
+	uint64_t fdt_addr;
+#endif
 };
 
 #define CVMX_BOOTINFO_CFG_FLAG_PCI_HOST			(1ull << 0)
