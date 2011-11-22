@@ -605,7 +605,7 @@ static struct timespec timekeeping_suspend_time;
 static void __timekeeping_inject_sleeptime(struct timespec *delta)
 {
 	if (!timespec_valid(delta)) {
-		printk(KERN_WARN "__timekeeping_inject_sleeptime: Invalid "
+		printk(KERN_WARNING "__timekeeping_inject_sleeptime: Invalid "
 					"sleep delta value!\n");
 		return;
 	}
