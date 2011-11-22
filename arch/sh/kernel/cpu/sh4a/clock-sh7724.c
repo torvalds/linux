@@ -189,9 +189,9 @@ static struct clk *fclkbcr_parent[] = {
 };
 
 static struct clk div6_reparent_clks[DIV6_REPARENT_NR] = {
-	[DIV6_FA] = SH_CLK_DIV6_EXT(&div3_clk, FCLKACR, 0,
+	[DIV6_FA] = SH_CLK_DIV6_EXT(FCLKACR, 0,
 				      fclkacr_parent, ARRAY_SIZE(fclkacr_parent), 6, 2),
-	[DIV6_FB] = SH_CLK_DIV6_EXT(&div3_clk, FCLKBCR, 0,
+	[DIV6_FB] = SH_CLK_DIV6_EXT(FCLKBCR, 0,
 				      fclkbcr_parent, ARRAY_SIZE(fclkbcr_parent), 6, 2),
 };
 

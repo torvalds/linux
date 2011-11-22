@@ -411,11 +411,11 @@ static struct clk *fsibckcr_parent[] = {
 };
 
 static struct clk div6_reparent_clks[DIV6_REPARENT_NR] = {
-	[DIV6_HDMI] = SH_CLK_DIV6_EXT(&pllc1_div2_clk, HDMICKCR, 0,
+	[DIV6_HDMI] = SH_CLK_DIV6_EXT(HDMICKCR, 0,
 				      hdmi_parent, ARRAY_SIZE(hdmi_parent), 6, 2),
-	[DIV6_FSIA] = SH_CLK_DIV6_EXT(&pllc1_div2_clk, FSIACKCR, 0,
+	[DIV6_FSIA] = SH_CLK_DIV6_EXT(FSIACKCR, 0,
 				      fsiackcr_parent, ARRAY_SIZE(fsiackcr_parent), 6, 2),
-	[DIV6_FSIB] = SH_CLK_DIV6_EXT(&pllc1_div2_clk, FSIBCKCR, 0,
+	[DIV6_FSIB] = SH_CLK_DIV6_EXT(FSIBCKCR, 0,
 				      fsibckcr_parent, ARRAY_SIZE(fsibckcr_parent), 6, 2),
 };
 
