@@ -44,6 +44,7 @@
  * Returns Number of ports on the interface. Zero to disable.
  */
 extern int __cvmx_helper_loop_probe(int interface);
+static inline int __cvmx_helper_loop_enumerate(int interface) {return 4; }
 
 /**
  * Bringup and enable a LOOP interface. After this call packet

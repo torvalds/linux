@@ -207,6 +207,7 @@ extern int cvmx_helper_link_set(int ipd_port,
  * Returns Zero on success, negative on failure
  */
 extern int cvmx_helper_interface_probe(int interface);
+extern int cvmx_helper_interface_enumerate(int interface);
 
 /**
  * Configure a port for internal and/or external loopback. Internal loopback

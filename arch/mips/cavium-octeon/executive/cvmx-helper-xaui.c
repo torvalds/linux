@@ -44,6 +44,19 @@
 void __cvmx_interrupt_gmxx_enable(int interface);
 void __cvmx_interrupt_pcsx_intx_en_reg_enable(int index, int block);
 void __cvmx_interrupt_pcsxx_int_en_reg_enable(int index);
+
+int __cvmx_helper_xaui_enumerate(int interface)
+{
+	union cvmx_gmxx_hg2_control gmx_hg2_control;
+
+	/* If HiGig2 is enabled return 16 ports, otherwise return 1 port */
+	gmx_hg2_control.u64 = cvmx_read_csr(CVMX_GMXX_HG2_CONTROL(interface));
+	if (gmx_hg2_control.s.hg2tx_en)
+		return 16;
+	else
+		return 1;
+}
+
 /**
  * Probe a XAUI interface and determine the number of ports
  * connected to it. The XAUI interface should still be down
@@ -56,7 +69,6 @@ void __cvmx_interrupt_pcsxx_int_en_reg_enable(int index);
 int __cvmx_helper_xaui_probe(int interface)
 {
 	int i;
-	union cvmx_gmxx_hg2_control gmx_hg2_control;
 	union cvmx_gmxx_inf_mode mode;
 
 	/*
@@ -90,13 +102,7 @@ int __cvmx_helper_xaui_probe(int interface)
 		pko_mem_port_ptrs.s.pid = interface * 16 + i;
 		cvmx_write_csr(CVMX_PKO_MEM_PORT_PTRS, pko_mem_port_ptrs.u64);
 	}
-
-	/* If HiGig2 is enabled return 16 ports, otherwise return 1 port */
-	gmx_hg2_control.u64 = cvmx_read_csr(CVMX_GMXX_HG2_CONTROL(interface));
-	if (gmx_hg2_control.s.hg2tx_en)
-		return 16;
-	else
-		return 1;
+	return __cvmx_helper_xaui_enumerate(interface);
 }
 
 /**

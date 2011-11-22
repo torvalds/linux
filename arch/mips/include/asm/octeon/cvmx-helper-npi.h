@@ -45,6 +45,7 @@
  * Returns Number of ports on the interface. Zero to disable.
  */
 extern int __cvmx_helper_npi_probe(int interface);
+#define __cvmx_helper_npi_enumerate __cvmx_helper_npi_probe
 
 /**
  * Bringup and enable a NPI interface. After this call packet

@@ -45,6 +45,7 @@
  * Returns Number of ports on the interface. Zero to disable.
  */
 extern int __cvmx_helper_xaui_probe(int interface);
+extern int __cvmx_helper_xaui_enumerate(int interface);
 
 /**
  * Bringup and enable a XAUI interface. After this call packet

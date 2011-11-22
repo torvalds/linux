@@ -42,6 +42,7 @@
  * Returns Number of ports on the interface. Zero to disable.
  */
 extern int __cvmx_helper_spi_probe(int interface);
+extern int __cvmx_helper_spi_enumerate(int interface);
 
 /**
  * Bringup and enable a SPI interface. After this call packet I/O

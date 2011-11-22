@@ -51,6 +51,16 @@ void __cvmx_interrupt_stxx_int_msk_enable(int index);
 #define CVMX_HELPER_SPI_TIMEOUT 10
 #endif
 
+int __cvmx_helper_spi_enumerate(int interface)
+{
+	if ((cvmx_sysinfo_get()->board_type != CVMX_BOARD_TYPE_SIM) &&
+	    cvmx_spi4000_is_present(interface)) {
+		return 10;
+	} else {
+		return 16;
+	}
+}
+
 /**
  * Probe a SPI interface and determine the number of ports
  * connected to it. The SPI interface should still be down after

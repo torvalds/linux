@@ -43,6 +43,7 @@
  * Returns Number of RGMII/GMII/MII ports (0-4).
  */
 extern int __cvmx_helper_rgmii_probe(int interface);
+#define __cvmx_helper_rgmii_enumerate __cvmx_helper_rgmii_probe
 
 /**
  * Put an RGMII interface in loopback mode. Internal packets sent

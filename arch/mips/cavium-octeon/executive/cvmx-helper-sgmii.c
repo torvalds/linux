@@ -326,6 +326,10 @@ static int __cvmx_helper_sgmii_hardware_init(int interface, int num_ports)
 	return 0;
 }
 
+int __cvmx_helper_sgmii_enumerate(int interface)
+{
+	return 4;
+}
 /**
  * Probe a SGMII interface and determine the number of ports
  * connected to it. The SGMII interface should still be down after
@@ -347,7 +351,7 @@ int __cvmx_helper_sgmii_probe(int interface)
 	mode.u64 = cvmx_read_csr(CVMX_GMXX_INF_MODE(interface));
 	mode.s.en = 1;
 	cvmx_write_csr(CVMX_GMXX_INF_MODE(interface), mode.u64);
-	return 4;
+	return __cvmx_helper_sgmii_enumerate(interface);
 }
 
 /**
