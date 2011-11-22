@@ -391,7 +391,7 @@ struct inode *hfsplus_new_inode(struct super_block *sb, int mode)
 	inode->i_mode = mode;
 	inode->i_uid = current_fsuid();
 	inode->i_gid = current_fsgid();
-	inode->i_nlink = 1;
+	set_nlink(inode, 1);
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME_SEC;
 
 	hip = HFSPLUS_I(inode);
@@ -512,7 +512,7 @@ int hfsplus_cat_read_inode(struct inode *inode, struct hfs_find_data *fd)
 		hfs_bnode_read(fd->bnode, &entry, fd->entryoffset,
 					sizeof(struct hfsplus_cat_folder));
 		hfsplus_get_perms(inode, &folder->permissions, 1);
-		inode->i_nlink = 1;
+		set_nlink(inode, 1);
 		inode->i_size = 2 + be32_to_cpu(folder->valence);
 		inode->i_atime = hfsp_mt2ut(folder->access_date);
 		inode->i_mtime = hfsp_mt2ut(folder->content_mod_date);
@@ -532,11 +532,11 @@ int hfsplus_cat_read_inode(struct inode *inode, struct hfs_find_data *fd)
 		hfsplus_inode_read_fork(inode, HFSPLUS_IS_RSRC(inode) ?
 					&file->rsrc_fork : &file->data_fork);
 		hfsplus_get_perms(inode, &file->permissions, 0);
-		inode->i_nlink = 1;
+		set_nlink(inode, 1);
 		if (S_ISREG(inode->i_mode)) {
 			if (file->permissions.dev)
-				inode->i_nlink =
-					be32_to_cpu(file->permissions.dev);
+				set_nlink(inode,
+					  be32_to_cpu(file->permissions.dev));
 			inode->i_op = &hfsplus_file_inode_operations;
 			inode->i_fop = &hfsplus_file_operations;
 			inode->i_mapping->a_ops = &hfsplus_aops;

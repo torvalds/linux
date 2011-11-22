@@ -764,7 +764,8 @@ int falcon_probe_board(struct efx_nic *efx, u16 revision_info)
 
 	if (board->type) {
 		netif_info(efx, probe, efx->net_dev, "board is %s rev %c%d\n",
-			 (efx->pci_dev->subsystem_vendor == EFX_VENDID_SFC)
+			 (efx->pci_dev->subsystem_vendor ==
+			  PCI_VENDOR_ID_SOLARFLARE)
 			 ? board->type->ref_model : board->type->gen_type,
 			 'A' + board->major, board->minor);
 		return 0;

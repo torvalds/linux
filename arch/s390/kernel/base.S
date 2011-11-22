@@ -86,6 +86,8 @@ s390_base_pgm_handler_fn:
 ENTRY(diag308_reset)
 	larl	%r4,.Lctlregs		# Save control registers
 	stctg	%c0,%c15,0(%r4)
+	larl	%r4,.Lfpctl		# Floating point control register
+	stfpc	0(%r4)
 	larl	%r4,.Lrestart_psw	# Setup restart PSW at absolute 0
 	lghi	%r3,0
 	lg	%r4,0(%r4)		# Save PSW
@@ -99,6 +101,8 @@ ENTRY(diag308_reset)
 	sam64				# Switch to 64 bit addressing mode
 	larl	%r4,.Lctlregs		# Restore control registers
 	lctlg	%c0,%c15,0(%r4)
+	larl	%r4,.Lfpctl		# Restore floating point ctl register
+	lfpc	0(%r4)
 	br	%r14
 .align 16
 .Lrestart_psw:
@@ -110,6 +114,8 @@ ENTRY(diag308_reset)
 	.rept	16
 	.quad	0
 	.endr
+.Lfpctl:
+	.long	0
 	.previous
 
 #else /* CONFIG_64BIT */

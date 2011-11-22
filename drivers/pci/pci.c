@@ -1407,13 +1407,16 @@ bool pci_check_pme_status(struct pci_dev *dev)
 /**
  * pci_pme_wakeup - Wake up a PCI device if its PME Status bit is set.
  * @dev: Device to handle.
- * @ign: Ignored.
+ * @pme_poll_reset: Whether or not to reset the device's pme_poll flag.
  *
  * Check if @dev has generated PME and queue a resume request for it in that
  * case.
  */
-static int pci_pme_wakeup(struct pci_dev *dev, void *ign)
+static int pci_pme_wakeup(struct pci_dev *dev, void *pme_poll_reset)
 {
+	if (pme_poll_reset && dev->pme_poll)
+		dev->pme_poll = false;
+
 	if (pci_check_pme_status(dev)) {
 		pci_wakeup_event(dev);
 		pm_request_resume(&dev->dev);
@@ -1428,7 +1431,7 @@ static int pci_pme_wakeup(struct pci_dev *dev, void *ign)
 void pci_pme_wakeup_bus(struct pci_bus *bus)
 {
 	if (bus)
-		pci_walk_bus(bus, pci_pme_wakeup, NULL);
+		pci_walk_bus(bus, pci_pme_wakeup, (void *)true);
 }
 
 /**
@@ -1446,28 +1449,23 @@ bool pci_pme_capable(struct pci_dev *dev, pci_power_t state)
 
 static void pci_pme_list_scan(struct work_struct *work)
 {
-	struct pci_pme_device *pme_dev;
+	struct pci_pme_device *pme_dev, *n;
 
 	mutex_lock(&pci_pme_list_mutex);
 	if (!list_empty(&pci_pme_list)) {
-		list_for_each_entry(pme_dev, &pci_pme_list, list)
-			pci_pme_wakeup(pme_dev->dev, NULL);
-		schedule_delayed_work(&pci_pme_work, msecs_to_jiffies(PME_TIMEOUT));
+		list_for_each_entry_safe(pme_dev, n, &pci_pme_list, list) {
+			if (pme_dev->dev->pme_poll) {
+				pci_pme_wakeup(pme_dev->dev, NULL);
+			} else {
+				list_del(&pme_dev->list);
+				kfree(pme_dev);
+			}
+		}
+		if (!list_empty(&pci_pme_list))
+			schedule_delayed_work(&pci_pme_work,
+					      msecs_to_jiffies(PME_TIMEOUT));
 	}
 	mutex_unlock(&pci_pme_list_mutex);
-}
-
-/**
- * pci_external_pme - is a device an external PCI PME source?
- * @dev: PCI device to check
- *
- */
-
-static bool pci_external_pme(struct pci_dev *dev)
-{
-	if (pci_is_pcie(dev) || dev->bus->number == 0)
-		return false;
-	return true;
 }
 
 /**
@@ -1503,7 +1501,7 @@ void pci_pme_active(struct pci_dev *dev, bool enable)
 	   hit, and the power savings from the devices will still be a
 	   win. */
 
-	if (pci_external_pme(dev)) {
+	if (dev->pme_poll) {
 		struct pci_pme_device *pme_dev;
 		if (enable) {
 			pme_dev = kmalloc(sizeof(struct pci_pme_device),
@@ -1821,6 +1819,7 @@ void pci_pm_init(struct pci_dev *dev)
 			 (pmc & PCI_PM_CAP_PME_D3) ? " D3hot" : "",
 			 (pmc & PCI_PM_CAP_PME_D3cold) ? " D3cold" : "");
 		dev->pme_support = pmc >> PCI_PM_CAP_PME_SHIFT;
+		dev->pme_poll = true;
 		/*
 		 * Make device's PM flags reflect the wake-up capability, but
 		 * let the user space enable it to wake up the system as needed.
@@ -3203,8 +3202,6 @@ int pcie_set_readrq(struct pci_dev *dev, int rq)
 	if (rq < 128 || rq > 4096 || !is_power_of_2(rq))
 		goto out;
 
-	v = (ffs(rq) - 8) << 12;
-
 	cap = pci_pcie_cap(dev);
 	if (!cap)
 		goto out;
@@ -3212,6 +3209,22 @@ int pcie_set_readrq(struct pci_dev *dev, int rq)
 	err = pci_read_config_word(dev, cap + PCI_EXP_DEVCTL, &ctl);
 	if (err)
 		goto out;
+	/*
+	 * If using the "performance" PCIe config, we clamp the
+	 * read rq size to the max packet size to prevent the
+	 * host bridge generating requests larger than we can
+	 * cope with
+	 */
+	if (pcie_bus_config == PCIE_BUS_PERFORMANCE) {
+		int mps = pcie_get_mps(dev);
+
+		if (mps < 0)
+			return mps;
+		if (mps < rq)
+			rq = mps;
+	}
+
+	v = (ffs(rq) - 8) << 12;
 
 	if ((ctl & PCI_EXP_DEVCTL_READRQ) != v) {
 		ctl &= ~PCI_EXP_DEVCTL_READRQ;

@@ -90,7 +90,7 @@ struct tc_keypad {
 	bool keypad_stopped;
 };
 
-static int __devinit tc3589x_keypad_init_key_hardware(struct tc_keypad *keypad)
+static int tc3589x_keypad_init_key_hardware(struct tc_keypad *keypad)
 {
 	int ret;
 	struct tc3589x *tc3589x = keypad->tc3589x;

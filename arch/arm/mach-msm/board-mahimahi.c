@@ -74,7 +74,7 @@ static void __init mahimahi_map_io(void)
 extern struct sys_timer msm_timer;
 
 MACHINE_START(MAHIMAHI, "mahimahi")
-	.boot_params	= 0x20000100,
+	.atag_offset	= 0x100,
 	.fixup		= mahimahi_fixup,
 	.map_io		= mahimahi_map_io,
 	.init_irq	= msm_init_irq,

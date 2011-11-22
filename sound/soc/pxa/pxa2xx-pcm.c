@@ -11,6 +11,7 @@
  */
 
 #include <linux/dma-mapping.h>
+#include <linux/module.h>
 
 #include <sound/core.h>
 #include <sound/soc.h>

@@ -37,4 +37,6 @@ struct pdev_archdata {
 	u64 dma_mask;
 };
 
+#define ARCH_HAS_DMA_GET_REQUIRED_MASK
+
 #endif /* _ASM_POWERPC_DEVICE_H */

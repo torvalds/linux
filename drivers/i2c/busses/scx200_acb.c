@@ -550,7 +550,7 @@ static int __devexit scx200_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver scx200_pci_drv = {
+static struct platform_driver scx200_pci_driver = {
 	.driver = {
 		.name = "cs5535-smb",
 		.owner = THIS_MODULE,
@@ -593,14 +593,14 @@ static int __init scx200_acb_init(void)
 		return 0;
 
 	/* No ISA devices; register the platform driver for PCI-based devices */
-	return platform_driver_register(&scx200_pci_drv);
+	return platform_driver_register(&scx200_pci_driver);
 }
 
 static void __exit scx200_acb_cleanup(void)
 {
 	struct scx200_acb_iface *iface;
 
-	platform_driver_unregister(&scx200_pci_drv);
+	platform_driver_unregister(&scx200_pci_driver);
 
 	mutex_lock(&scx200_acb_list_mutex);
 	while ((iface = scx200_acb_list) != NULL) {

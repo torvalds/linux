@@ -293,7 +293,7 @@ static char *datablob_format(struct encrypted_key_payload *epayload,
 	/* convert the hex encoded iv, encrypted-data and HMAC to ascii */
 	bufp = &ascii_buf[len];
 	for (i = 0; i < (asciiblob_len - len) / 2; i++)
-		bufp = pack_hex_byte(bufp, iv[i]);
+		bufp = hex_byte_pack(bufp, iv[i]);
 out:
 	return ascii_buf;
 }

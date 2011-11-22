@@ -260,7 +260,7 @@ static struct rbd_client *rbd_client_create(struct ceph_options *opt,
 	kref_init(&rbdc->kref);
 	INIT_LIST_HEAD(&rbdc->node);
 
-	rbdc->client = ceph_create_client(opt, rbdc);
+	rbdc->client = ceph_create_client(opt, rbdc, 0, 0);
 	if (IS_ERR(rbdc->client))
 		goto out_rbdc;
 	opt = NULL; /* Now rbdc->client is responsible for opt */

@@ -36,6 +36,7 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/module.h>
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>

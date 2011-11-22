@@ -209,6 +209,7 @@ struct dvb_tuner_ops {
 
 	int (*get_frequency)(struct dvb_frontend *fe, u32 *frequency);
 	int (*get_bandwidth)(struct dvb_frontend *fe, u32 *bandwidth);
+	int (*get_if_frequency)(struct dvb_frontend *fe, u32 *frequency);
 
 #define TUNER_STATUS_LOCKED 1
 #define TUNER_STATUS_STEREO 2

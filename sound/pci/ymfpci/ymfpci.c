@@ -22,7 +22,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/time.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/ymfpci.h>
 #include <sound/mpu401.h>
@@ -305,8 +305,9 @@ static int __devinit snd_card_ymfpci_probe(struct pci_dev *pci,
 	if (chip->mpu_res) {
 		if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_YMFPCI,
 					       mpu_port[dev],
-					       MPU401_INFO_INTEGRATED,
-					       pci->irq, 0, &chip->rawmidi)) < 0) {
+					       MPU401_INFO_INTEGRATED |
+					       MPU401_INFO_IRQ_HOOK,
+					       -1, &chip->rawmidi)) < 0) {
 			printk(KERN_WARNING "ymfpci: cannot initialize MPU401 at 0x%lx, skipping...\n", mpu_port[dev]);
 			legacy_ctrl &= ~YMFPCI_LEGACY_MIEN; /* disable MPU401 irq */
 			pci_write_config_word(pci, PCIR_DSXG_LEGACY, legacy_ctrl);

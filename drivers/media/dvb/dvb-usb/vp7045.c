@@ -214,7 +214,7 @@ static int vp7045_frontend_attach(struct dvb_usb_adapter *adap)
 /*	Dump the EEPROM */
 /*	vp7045_read_eeprom(d,buf, 255, FX2_ID_ADDR); */
 
-	adap->fe = vp7045_fe_attach(adap->dev);
+	adap->fe_adap[0].fe = vp7045_fe_attach(adap->dev);
 
 	return 0;
 }
@@ -245,6 +245,8 @@ static struct dvb_usb_device_properties vp7045_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+		.num_frontends = 1,
+		.fe = {{
 			.frontend_attach  = vp7045_frontend_attach,
 			/* parameter for the MPEG2-data transfer */
 			.stream = {
@@ -257,6 +259,7 @@ static struct dvb_usb_device_properties vp7045_properties = {
 					}
 				}
 			},
+		}},
 		}
 	},
 	.power_ctrl       = vp7045_power_ctrl,

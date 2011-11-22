@@ -240,25 +240,23 @@ static int ssi_irq = 0;
 
 static int imx_pcm_fiq_new(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_dai *dai = rtd->cpu_dai;
 	struct snd_pcm *pcm = rtd->pcm;
+	struct snd_pcm_substream *substream;
 	int ret;
 
 	ret = imx_pcm_new(rtd);
 	if (ret)
 		return ret;
 
-	if (dai->driver->playback.channels_min) {
-		struct snd_pcm_substream *substream =
-			pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
+	substream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
+	if (substream) {
 		struct snd_dma_buffer *buf = &substream->dma_buffer;
 
 		imx_ssi_fiq_tx_buffer = (unsigned long)buf->area;
 	}
 
-	if (dai->driver->capture.channels_min) {
-		struct snd_pcm_substream *substream =
-			pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream;
+	substream = pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream;
+	if (substream) {
 		struct snd_dma_buffer *buf = &substream->dma_buffer;
 
 		imx_ssi_fiq_rx_buffer = (unsigned long)buf->area;

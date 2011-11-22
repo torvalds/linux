@@ -38,7 +38,7 @@ int s5p_mfc_alloc_and_load_firmware(struct s5p_mfc_dev *dev)
 	 * into kernel. */
 	mfc_debug_enter();
 	err = request_firmware((const struct firmware **)&fw_blob,
-				     "s5pc110-mfc.fw", dev->v4l2_dev.dev);
+				     "s5p-mfc.fw", dev->v4l2_dev.dev);
 	if (err != 0) {
 		mfc_err("Firmware is not present in the /lib/firmware directory nor compiled in kernel\n");
 		return -EINVAL;
@@ -116,7 +116,7 @@ int s5p_mfc_reload_firmware(struct s5p_mfc_dev *dev)
 	 * into kernel. */
 	mfc_debug_enter();
 	err = request_firmware((const struct firmware **)&fw_blob,
-				     "s5pc110-mfc.fw", dev->v4l2_dev.dev);
+				     "s5p-mfc.fw", dev->v4l2_dev.dev);
 	if (err != 0) {
 		mfc_err("Firmware is not present in the /lib/firmware directory nor compiled in kernel\n");
 		return -EINVAL;

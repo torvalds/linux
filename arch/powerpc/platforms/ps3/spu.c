@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/mmzone.h>
+#include <linux/export.h>
 #include <linux/io.h>
 #include <linux/mm.h>
 

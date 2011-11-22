@@ -46,7 +46,6 @@
 #include <linux/list_nulls.h>
 #include <linux/timer.h>
 #include <linux/cache.h>
-#include <linux/module.h>
 #include <linux/lockdep.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>	/* struct sk_buff */
@@ -76,8 +75,8 @@
 					printk(KERN_DEBUG msg); } while (0)
 #else
 /* Validate arguments and do nothing */
-static inline void __attribute__ ((format (printf, 2, 3)))
-SOCK_DEBUG(struct sock *sk, const char *msg, ...)
+static inline __printf(2, 3)
+void SOCK_DEBUG(struct sock *sk, const char *msg, ...)
 {
 }
 #endif
@@ -730,6 +729,7 @@ struct request_sock_ops;
 struct timewait_sock_ops;
 struct inet_hashinfo;
 struct raw_hashinfo;
+struct module;
 
 /* Networking protocol blocks we attach to sockets.
  * socket layer -> transport layer interface

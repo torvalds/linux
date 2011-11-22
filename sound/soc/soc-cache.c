@@ -17,6 +17,7 @@
 #include <linux/lzo.h>
 #include <linux/bitmap.h>
 #include <linux/rbtree.h>
+#include <linux/export.h>
 
 #include <trace/events/asoc.h>
 
@@ -548,9 +549,6 @@ static inline int snd_soc_lzo_get_blkpos(struct snd_soc_codec *codec,
 
 static inline int snd_soc_lzo_get_blksize(struct snd_soc_codec *codec)
 {
-	const struct snd_soc_codec_driver *codec_drv;
-
-	codec_drv = codec->driver;
 	return DIV_ROUND_UP(codec->reg_size, snd_soc_lzo_block_count());
 }
 
@@ -868,10 +866,6 @@ static int snd_soc_flat_cache_exit(struct snd_soc_codec *codec)
 
 static int snd_soc_flat_cache_init(struct snd_soc_codec *codec)
 {
-	const struct snd_soc_codec_driver *codec_drv;
-
-	codec_drv = codec->driver;
-
 	if (codec->reg_def_copy)
 		codec->reg_cache = kmemdup(codec->reg_def_copy,
 					   codec->reg_size, GFP_KERNEL);

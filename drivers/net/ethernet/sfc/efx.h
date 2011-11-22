@@ -15,10 +15,6 @@
 #include "filter.h"
 
 /* PCI IDs */
-#define EFX_VENDID_SFC	        0x1924
-#define FALCON_A_P_DEVID	0x0703
-#define FALCON_A_S_DEVID        0x6703
-#define FALCON_B_P_DEVID        0x0710
 #define BETHPAGE_A_P_DEVID      0x0803
 #define SIENA_A_P_DEVID         0x0813
 

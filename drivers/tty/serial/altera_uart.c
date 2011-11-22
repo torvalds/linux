@@ -616,8 +616,6 @@ static struct of_device_id altera_uart_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, altera_uart_match);
-#else
-#define altera_uart_match NULL
 #endif /* CONFIG_OF */
 
 static struct platform_driver altera_uart_platform_driver = {
@@ -626,7 +624,7 @@ static struct platform_driver altera_uart_platform_driver = {
 	.driver	= {
 		.name		= DRV_NAME,
 		.owner		= THIS_MODULE,
-		.of_match_table	= altera_uart_match,
+		.of_match_table	= of_match_ptr(altera_uart_match),
 	},
 };
 

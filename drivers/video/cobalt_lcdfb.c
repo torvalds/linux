@@ -24,6 +24,7 @@
 #include <linux/ioport.h>
 #include <linux/uaccess.h>
 #include <linux/platform_device.h>
+#include <linux/module.h>
 
 /*
  * Cursor position address

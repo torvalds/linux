@@ -350,10 +350,10 @@ static struct clk_lookup onchip_clks[] = {
 		.clk = &clk_mem,
 	}, {
 		.dev_id = "sys",
-			.clk = &clk_sys,
+		.clk = &clk_sys,
 	}, {
 		.dev_id = "io",
-			.clk = &clk_io,
+		.clk = &clk_io,
 	},
 };
 

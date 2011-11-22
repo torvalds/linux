@@ -900,7 +900,6 @@ static struct twl4030_platform_data rx51_twldata __initdata = {
 };
 
 static struct tpa6130a2_platform_data rx51_tpa6130a2_data __initdata_or_module = {
-	.id			= TPA6130A2,
 	.power_gpio		= 98,
 };
 

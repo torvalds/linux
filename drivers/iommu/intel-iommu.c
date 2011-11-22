@@ -24,6 +24,7 @@
 #include <linux/init.h>
 #include <linux/bitmap.h>
 #include <linux/debugfs.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
@@ -3642,7 +3643,7 @@ int __init intel_iommu_init(void)
 
 	init_iommu_pm_ops();
 
-	register_iommu(&intel_iommu_ops);
+	bus_set_iommu(&pci_bus_type, &intel_iommu_ops);
 
 	bus_register_notifier(&pci_bus_type, &device_nb);
 

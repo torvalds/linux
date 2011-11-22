@@ -210,24 +210,10 @@ int pm8001_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 		PM8001_CHIP_DISP->phy_stop_req(pm8001_ha, phy_id);
 		break;
 	default:
-		rc = -EOPNOTSUPP;
+		rc = -ENOSYS;
 	}
 	msleep(300);
 	return rc;
-}
-
-int pm8001_slave_alloc(struct scsi_device *scsi_dev)
-{
-	struct domain_device *dev = sdev_to_domain_dev(scsi_dev);
-	if (dev_is_sata(dev)) {
-		/* We don't need to rescan targets
-		* if REPORT_LUNS request is failed
-		*/
-		if (scsi_dev->lun > 0)
-			return -ENXIO;
-		scsi_dev->tagged_supported = 1;
-	}
-	return sas_slave_alloc(scsi_dev);
 }
 
 /**
@@ -314,22 +300,7 @@ static int pm8001_task_prep_ssp(struct pm8001_hba_info *pm8001_ha,
 {
 	return PM8001_CHIP_DISP->ssp_io_req(pm8001_ha, ccb);
 }
-int pm8001_slave_configure(struct scsi_device *sdev)
-{
-	struct domain_device *dev = sdev_to_domain_dev(sdev);
-	int ret = sas_slave_configure(sdev);
-	if (ret)
-		return ret;
-	if (dev_is_sata(dev)) {
-	#ifdef PM8001_DISABLE_NCQ
-		struct ata_port *ap = dev->sata_dev.ap;
-		struct ata_device *adev = ap->link.device;
-		adev->flags |= ATA_DFLAG_NCQ_OFF;
-		scsi_adjust_queue_depth(sdev, MSG_SIMPLE_TAG, 1);
-	#endif
-	}
-	return 0;
-}
+
  /* Find the local port id that's attached to this device */
 static int sas_find_local_port_id(struct domain_device *dev)
 {
@@ -385,21 +356,8 @@ static int pm8001_task_exec(struct sas_task *task, const int num,
 	do {
 		dev = t->dev;
 		pm8001_dev = dev->lldd_dev;
-		if (DEV_IS_GONE(pm8001_dev)) {
-			if (pm8001_dev) {
-				PM8001_IO_DBG(pm8001_ha,
-					pm8001_printk("device %d not ready.\n",
-					pm8001_dev->device_id));
-			} else {
-				PM8001_IO_DBG(pm8001_ha,
-					pm8001_printk("device %016llx not "
-					"ready.\n", SAS_ADDR(dev->sas_addr)));
-			}
-			rc = SAS_PHY_DOWN;
-			goto out_done;
-		}
 		port = &pm8001_ha->port[sas_find_local_port_id(dev)];
-		if (!port->port_attached) {
+		if (DEV_IS_GONE(pm8001_dev) || !port->port_attached) {
 			if (sas_protocol_ata(t->task_proto)) {
 				struct task_status_struct *ts = &t->task_status;
 				ts->resp = SAS_TASK_UNDELIVERED;
@@ -651,7 +609,7 @@ static int pm8001_dev_found_notify(struct domain_device *dev)
 				flag = 1; /* directly sata*/
 		}
 	} /*register this device to HBA*/
-	PM8001_DISC_DBG(pm8001_ha, pm8001_printk("Found device \n"));
+	PM8001_DISC_DBG(pm8001_ha, pm8001_printk("Found device\n"));
 	PM8001_CHIP_DISP->reg_dev_req(pm8001_ha, pm8001_device, flag);
 	spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 	wait_for_completion(&completion);
@@ -667,30 +625,6 @@ found_out:
 int pm8001_dev_found(struct domain_device *dev)
 {
 	return pm8001_dev_found_notify(dev);
-}
-
-/**
-  * pm8001_alloc_task - allocate a task structure for TMF
-  */
-static struct sas_task *pm8001_alloc_task(void)
-{
-	struct sas_task *task = kzalloc(sizeof(*task), GFP_KERNEL);
-	if (task) {
-		INIT_LIST_HEAD(&task->list);
-		spin_lock_init(&task->task_state_lock);
-		task->task_state_flags = SAS_TASK_STATE_PENDING;
-		init_timer(&task->timer);
-		init_completion(&task->completion);
-	}
-	return task;
-}
-
-static void pm8001_free_task(struct sas_task *task)
-{
-	if (task) {
-		BUG_ON(!list_empty(&task->list));
-		kfree(task);
-	}
 }
 
 static void pm8001_task_done(struct sas_task *task)
@@ -728,7 +662,7 @@ static int pm8001_exec_internal_tmf_task(struct domain_device *dev,
 	struct pm8001_hba_info *pm8001_ha = pm8001_find_ha_by_dev(dev);
 
 	for (retry = 0; retry < 3; retry++) {
-		task = pm8001_alloc_task();
+		task = sas_alloc_task(GFP_KERNEL);
 		if (!task)
 			return -ENOMEM;
 
@@ -789,14 +723,13 @@ static int pm8001_exec_internal_tmf_task(struct domain_device *dev,
 				SAS_ADDR(dev->sas_addr),
 				task->task_status.resp,
 				task->task_status.stat));
-			pm8001_free_task(task);
+			sas_free_task(task);
 			task = NULL;
 		}
 	}
 ex_err:
 	BUG_ON(retry == 3 && task != NULL);
-	if (task != NULL)
-		pm8001_free_task(task);
+	sas_free_task(task);
 	return res;
 }
 
@@ -811,7 +744,7 @@ pm8001_exec_internal_task_abort(struct pm8001_hba_info *pm8001_ha,
 	struct sas_task *task = NULL;
 
 	for (retry = 0; retry < 3; retry++) {
-		task = pm8001_alloc_task();
+		task = sas_alloc_task(GFP_KERNEL);
 		if (!task)
 			return -ENOMEM;
 
@@ -864,14 +797,13 @@ pm8001_exec_internal_task_abort(struct pm8001_hba_info *pm8001_ha,
 				SAS_ADDR(dev->sas_addr),
 				task->task_status.resp,
 				task->task_status.stat));
-			pm8001_free_task(task);
+			sas_free_task(task);
 			task = NULL;
 		}
 	}
 ex_err:
 	BUG_ON(retry == 3 && task != NULL);
-	if (task != NULL)
-		pm8001_free_task(task);
+	sas_free_task(task);
 	return res;
 }
 
@@ -1026,13 +958,14 @@ int pm8001_query_task(struct sas_task *task)
 		/* The task is still in Lun, release it then */
 		case TMF_RESP_FUNC_SUCC:
 			PM8001_EH_DBG(pm8001_ha,
-				pm8001_printk("The task is still in Lun \n"));
+				pm8001_printk("The task is still in Lun\n"));
+			break;
 		/* The task is not in Lun or failed, reset the phy */
 		case TMF_RESP_FUNC_FAILED:
 		case TMF_RESP_FUNC_COMPLETE:
 			PM8001_EH_DBG(pm8001_ha,
 			pm8001_printk("The task is not in Lun or failed,"
-			" reset the phy \n"));
+			" reset the phy\n"));
 			break;
 		}
 	}

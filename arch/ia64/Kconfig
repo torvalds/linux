@@ -92,7 +92,7 @@ config HAVE_SETUP_PER_CPU_AREA
 	def_bool y
 
 config GENERIC_GPIO
-	def_bool y
+	bool
 
 config DMI
 	bool

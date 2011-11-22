@@ -24,6 +24,7 @@
 
 #include <linux/device.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <linux/usb.h>
 #include <linux/usb/quirks.h>
 #include <linux/usb/hcd.h>
@@ -1667,6 +1668,11 @@ int usb_runtime_suspend(struct device *dev)
 		return -EAGAIN;
 
 	status = usb_suspend_both(udev, PMSG_AUTO_SUSPEND);
+
+	/* Allow a retry if autosuspend failed temporarily */
+	if (status == -EAGAIN || status == -EBUSY)
+		usb_mark_last_busy(udev);
+
 	/* The PM core reacts badly unless the return code is 0,
 	 * -EAGAIN, or -EBUSY, so always return -EBUSY on an error.
 	 */

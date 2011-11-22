@@ -27,7 +27,7 @@
 #include <net/nfc/nfc.h>
 #include <net/sock.h>
 
-__attribute__((format (printf, 2, 3)))
+__printf(2, 3)
 int nfc_printk(const char *level, const char *fmt, ...);
 
 #define nfc_info(fmt, arg...) nfc_printk(KERN_INFO, fmt, ##arg)

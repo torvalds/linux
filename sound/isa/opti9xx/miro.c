@@ -28,7 +28,7 @@
 #include <linux/pnp.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <sound/core.h>
@@ -1377,8 +1377,7 @@ static int __devinit snd_miro_probe(struct snd_card *card)
 		rmidi = NULL;
 	else {
 		error = snd_mpu401_uart_new(card, 0, MPU401_HW_MPU401,
-				mpu_port, 0, miro->mpu_irq, IRQF_DISABLED,
-				&rmidi);
+				mpu_port, 0, miro->mpu_irq, &rmidi);
 		if (error < 0)
 			snd_printk(KERN_WARNING "no MPU-401 device at 0x%lx?\n",
 				   mpu_port);

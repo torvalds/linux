@@ -487,17 +487,15 @@ static void __check_cap_issue(struct ceph_inode_info *ci, struct ceph_cap *cap,
 		ci->i_rdcache_gen++;
 
 	/*
-	 * if we are newly issued FILE_SHARED, clear I_COMPLETE; we
+	 * if we are newly issued FILE_SHARED, clear D_COMPLETE; we
 	 * don't know what happened to this directory while we didn't
 	 * have the cap.
 	 */
 	if ((issued & CEPH_CAP_FILE_SHARED) &&
 	    (had & CEPH_CAP_FILE_SHARED) == 0) {
 		ci->i_shared_gen++;
-		if (S_ISDIR(ci->vfs_inode.i_mode)) {
-			dout(" marking %p NOT complete\n", &ci->vfs_inode);
-			ci->i_ceph_flags &= ~CEPH_I_COMPLETE;
-		}
+		if (S_ISDIR(ci->vfs_inode.i_mode))
+			ceph_dir_clear_complete(&ci->vfs_inode);
 	}
 }
 
@@ -945,7 +943,7 @@ static int send_cap_msg(struct ceph_mds_session *session,
 	     seq, issue_seq, mseq, follows, size, max_size,
 	     xattr_version, xattrs_buf ? (int)xattrs_buf->vec.iov_len : 0);
 
-	msg = ceph_msg_new(CEPH_MSG_CLIENT_CAPS, sizeof(*fc), GFP_NOFS);
+	msg = ceph_msg_new(CEPH_MSG_CLIENT_CAPS, sizeof(*fc), GFP_NOFS, false);
 	if (!msg)
 		return -ENOMEM;
 
@@ -2363,7 +2361,7 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 	}
 
 	if ((issued & CEPH_CAP_LINK_EXCL) == 0)
-		inode->i_nlink = le32_to_cpu(grant->nlink);
+		set_nlink(inode, le32_to_cpu(grant->nlink));
 
 	if ((issued & CEPH_CAP_XATTR_EXCL) == 0 && grant->xattr_len) {
 		int len = le32_to_cpu(grant->xattr_len);

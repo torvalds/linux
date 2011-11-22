@@ -908,13 +908,14 @@ static int arkfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info
 	unsigned int offset;
 
 	/* Calculate the offset */
-	if (var->bits_per_pixel == 0) {
-		offset = (var->yoffset / 16) * (var->xres_virtual / 2) + (var->xoffset / 2);
+	if (info->var.bits_per_pixel == 0) {
+		offset = (var->yoffset / 16) * (info->var.xres_virtual / 2)
+		       + (var->xoffset / 2);
 		offset = offset >> 2;
 	} else {
 		offset = (var->yoffset * info->fix.line_length) +
-			 (var->xoffset * var->bits_per_pixel / 8);
-		offset = offset >> ((var->bits_per_pixel == 4) ? 2 : 3);
+			 (var->xoffset * info->var.bits_per_pixel / 8);
+		offset = offset >> ((info->var.bits_per_pixel == 4) ? 2 : 3);
 	}
 
 	/* Set the offset */

@@ -80,6 +80,7 @@ defaultimage-$(CONFIG_SH_RSK)			:= uImage
 defaultimage-$(CONFIG_SH_URQUELL)		:= uImage
 defaultimage-$(CONFIG_SH_MIGOR)			:= uImage
 defaultimage-$(CONFIG_SH_AP325RXA)		:= uImage
+defaultimage-$(CONFIG_SH_SH7757LCR)		:= uImage
 defaultimage-$(CONFIG_SH_7724_SOLUTION_ENGINE)	:= uImage
 defaultimage-$(CONFIG_SH_7206_SOLUTION_ENGINE)	:= vmlinux
 defaultimage-$(CONFIG_SH_7619_SOLUTION_ENGINE)	:= vmlinux

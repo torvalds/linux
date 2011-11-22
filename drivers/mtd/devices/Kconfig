@@ -249,6 +249,16 @@ config MTD_DOC2001PLUS
 	  under "NAND Flash Device Drivers" (currently that driver does not
 	  support all Millennium Plus devices).
 
+config MTD_DOCG3
+	tristate "M-Systems Disk-On-Chip G3"
+	---help---
+	  This provides an MTD device driver for the M-Systems DiskOnChip
+	  G3 devices.
+
+	  The driver provides access to G3 DiskOnChip, distributed by
+	  M-Systems and now Sandisk. The support is very experimental,
+	  and doesn't give access to any write operations.
+
 config MTD_DOCPROBE
 	tristate
 	select MTD_DOCECC
@@ -268,8 +278,7 @@ config MTD_DOCPROBE_ADVANCED
 config MTD_DOCPROBE_ADDRESS
 	hex "Physical address of DiskOnChip" if MTD_DOCPROBE_ADVANCED
 	depends on MTD_DOCPROBE
-	default "0x0000" if MTD_DOCPROBE_ADVANCED
-	default "0" if !MTD_DOCPROBE_ADVANCED
+	default "0x0"
 	---help---
 	  By default, the probe for DiskOnChip devices will look for a
 	  DiskOnChip at every multiple of 0x2000 between 0xC8000 and 0xEE000.

@@ -1089,9 +1089,7 @@ typedef struct smb_com_read_rsp {
 	__le16 DataLengthHigh;
 	__u64 Reserved2;
 	__u16 ByteCount;
-	__u8 Pad;		/* BB check for whether padded to DWORD
-				   boundary and optimum performance here */
-	char Data[1];
+	/* read response data immediately follows */
 } __attribute__((packed)) READ_RSP;
 
 typedef struct locking_andx_range {
@@ -1913,6 +1911,10 @@ typedef struct whoami_rsp_data { /* Query level 0x202 */
 
 /* SETFSInfo Levels */
 #define SMB_SET_CIFS_UNIX_INFO    0x200
+/* level 0x203 is defined above in list of QFS info levels */
+/* #define SMB_REQUEST_TRANSPORT_ENCRYPTION 0x203 */
+
+/* Level 0x200 request structure follows */
 typedef struct smb_com_transaction2_setfsi_req {
 	struct smb_hdr hdr;	/* wct = 15 */
 	__le16 TotalParameterCount;
@@ -1940,12 +1942,38 @@ typedef struct smb_com_transaction2_setfsi_req {
 	__le64 ClientUnixCap;   /* Data end */
 } __attribute__((packed)) TRANSACTION2_SETFSI_REQ;
 
+/* level 0x203 request structure follows */
+typedef struct smb_com_transaction2_setfs_enc_req {
+	struct smb_hdr hdr;	/* wct = 15 */
+	__le16 TotalParameterCount;
+	__le16 TotalDataCount;
+	__le16 MaxParameterCount;
+	__le16 MaxDataCount;
+	__u8 MaxSetupCount;
+	__u8 Reserved;
+	__le16 Flags;
+	__le32 Timeout;
+	__u16 Reserved2;
+	__le16 ParameterCount;	/* 4 */
+	__le16 ParameterOffset;
+	__le16 DataCount;	/* 12 */
+	__le16 DataOffset;
+	__u8 SetupCount;	/* one */
+	__u8 Reserved3;
+	__le16 SubCommand;	/* TRANS2_SET_FS_INFORMATION */
+	__le16 ByteCount;
+	__u8 Pad;
+	__u16  Reserved4;	/* Parameters start. */
+	__le16 InformationLevel;/* Parameters end. */
+	/* NTLMSSP Blob, Data start. */
+} __attribute__((packed)) TRANSACTION2_SETFSI_ENC_REQ;
+
+/* response for setfsinfo levels 0x200 and 0x203 */
 typedef struct smb_com_transaction2_setfsi_rsp {
 	struct smb_hdr hdr;	/* wct = 10 */
 	struct trans2_resp t2;
 	__u16 ByteCount;
 } __attribute__((packed)) TRANSACTION2_SETFSI_RSP;
-
 
 typedef struct smb_com_transaction2_get_dfs_refer_req {
 	struct smb_hdr hdr;	/* wct = 15 */
@@ -2098,13 +2126,13 @@ typedef struct {
 #define CIFS_UNIX_PROXY_CAP             0x00000400 /* Proxy cap: 0xACE ioctl and
 						      QFS PROXY call */
 #ifdef CONFIG_CIFS_POSIX
-/* Can not set pathnames cap yet until we send new posix create SMB since
-   otherwise server can treat such handles opened with older ntcreatex
-   (by a new client which knows how to send posix path ops)
-   as non-posix handles (can affect write behavior with byte range locks.
-   We can add back in POSIX_PATH_OPS cap when Posix Create/Mkdir finished */
+/* presumably don't need the 0x20 POSIX_PATH_OPS_CAP since we never send
+   LockingX instead of posix locking call on unix sess (and we do not expect
+   LockingX to use different (ie Windows) semantics than posix locking on
+   the same session (if WINE needs to do this later, we can add this cap
+   back in later */
 /* #define CIFS_UNIX_CAP_MASK              0x000000fb */
-#define CIFS_UNIX_CAP_MASK              0x000000db
+#define CIFS_UNIX_CAP_MASK              0x000003db
 #else
 #define CIFS_UNIX_CAP_MASK              0x00000013
 #endif /* CONFIG_CIFS_POSIX */

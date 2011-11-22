@@ -182,20 +182,11 @@
 #define  ENE_HW_C		2	/* 3926C */
 #define  ENE_HW_D		3	/* 3926D or later */
 
-#define ene_printk(level, text, ...) \
-	printk(level ENE_DRIVER_NAME ": " text "\n", ## __VA_ARGS__)
-
-#define ene_notice(text, ...) ene_printk(KERN_NOTICE, text, ## __VA_ARGS__)
-#define ene_warn(text, ...) ene_printk(KERN_WARNING, text, ## __VA_ARGS__)
-
-
-#define __dbg(level, format, ...) \
-	do { \
-		if (debug >= level) \
-			printk(KERN_DEBUG ENE_DRIVER_NAME \
-				": " format "\n", ## __VA_ARGS__); \
-	} while (0)
-
+#define __dbg(level, format, ...)				\
+do {								\
+	if (debug >= level)					\
+		pr_debug(format "\n", ## __VA_ARGS__);		\
+} while (0)
 
 #define dbg(format, ...)		__dbg(1, format, ## __VA_ARGS__)
 #define dbg_verbose(format, ...)	__dbg(2, format, ## __VA_ARGS__)

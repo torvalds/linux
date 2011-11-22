@@ -13,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/gpio.h>
+#include <linux/export.h>
 
 #include <mach/irqs.h>
 #include <mach/map.h>

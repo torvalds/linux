@@ -32,6 +32,7 @@
  */
 
 #include <linux/errno.h>
+#include <linux/export.h>
 #include <linux/io-mapping.h>
 
 #include <asm/page.h>
@@ -61,6 +62,24 @@ void mlx4_pd_free(struct mlx4_dev *dev, u32 pdn)
 }
 EXPORT_SYMBOL_GPL(mlx4_pd_free);
 
+int mlx4_xrcd_alloc(struct mlx4_dev *dev, u32 *xrcdn)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	*xrcdn = mlx4_bitmap_alloc(&priv->xrcd_bitmap);
+	if (*xrcdn == -1)
+		return -ENOMEM;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mlx4_xrcd_alloc);
+
+void mlx4_xrcd_free(struct mlx4_dev *dev, u32 xrcdn)
+{
+	mlx4_bitmap_free(&mlx4_priv(dev)->xrcd_bitmap, xrcdn);
+}
+EXPORT_SYMBOL_GPL(mlx4_xrcd_free);
+
 int mlx4_init_pd_table(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
@@ -74,6 +93,18 @@ void mlx4_cleanup_pd_table(struct mlx4_dev *dev)
 	mlx4_bitmap_cleanup(&mlx4_priv(dev)->pd_bitmap);
 }
 
+int mlx4_init_xrcd_table(struct mlx4_dev *dev)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	return mlx4_bitmap_init(&priv->xrcd_bitmap, (1 << 16),
+				(1 << 16) - 1, dev->caps.reserved_xrcds + 1, 0);
+}
+
+void mlx4_cleanup_xrcd_table(struct mlx4_dev *dev)
+{
+	mlx4_bitmap_cleanup(&mlx4_priv(dev)->xrcd_bitmap);
+}
 
 int mlx4_uar_alloc(struct mlx4_dev *dev, struct mlx4_uar *uar)
 {

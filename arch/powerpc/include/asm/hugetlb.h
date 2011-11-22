@@ -1,15 +1,60 @@
 #ifndef _ASM_POWERPC_HUGETLB_H
 #define _ASM_POWERPC_HUGETLB_H
 
+#ifdef CONFIG_HUGETLB_PAGE
 #include <asm/page.h>
+
+extern struct kmem_cache *hugepte_cache;
+extern void __init reserve_hugetlb_gpages(void);
+
+static inline pte_t *hugepd_page(hugepd_t hpd)
+{
+	BUG_ON(!hugepd_ok(hpd));
+	return (pte_t *)((hpd.pd & ~HUGEPD_SHIFT_MASK) | PD_HUGE);
+}
+
+static inline unsigned int hugepd_shift(hugepd_t hpd)
+{
+	return hpd.pd & HUGEPD_SHIFT_MASK;
+}
+
+static inline pte_t *hugepte_offset(hugepd_t *hpdp, unsigned long addr,
+				    unsigned pdshift)
+{
+	/*
+	 * On 32-bit, we have multiple higher-level table entries that point to
+	 * the same hugepte.  Just use the first one since they're all
+	 * identical.  So for that case, idx=0.
+	 */
+	unsigned long idx = 0;
+
+	pte_t *dir = hugepd_page(*hpdp);
+#ifdef CONFIG_PPC64
+	idx = (addr & ((1UL << pdshift) - 1)) >> hugepd_shift(*hpdp);
+#endif
+
+	return dir + idx;
+}
 
 pte_t *huge_pte_offset_and_shift(struct mm_struct *mm,
 				 unsigned long addr, unsigned *shift);
 
 void flush_dcache_icache_hugepage(struct page *page);
 
+#if defined(CONFIG_PPC_MM_SLICES) || defined(CONFIG_PPC_SUBPAGE_PROT)
 int is_hugepage_only_range(struct mm_struct *mm, unsigned long addr,
 			   unsigned long len);
+#else
+static inline int is_hugepage_only_range(struct mm_struct *mm,
+					 unsigned long addr,
+					 unsigned long len)
+{
+	return 0;
+}
+#endif
+
+void book3e_hugetlb_preload(struct mm_struct *mm, unsigned long ea, pte_t pte);
+void flush_hugetlb_page(struct vm_area_struct *vma, unsigned long vmaddr);
 
 void hugetlb_free_pgd_range(struct mmu_gather *tlb, unsigned long addr,
 			    unsigned long end, unsigned long floor,
@@ -50,8 +95,11 @@ static inline void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
 					    unsigned long addr, pte_t *ptep)
 {
-	unsigned long old = pte_update(mm, addr, ptep, ~0UL, 1);
-	return __pte(old);
+#ifdef CONFIG_PPC64
+	return __pte(pte_update(mm, addr, ptep, ~0UL, 1));
+#else
+	return __pte(pte_update(ptep, ~0UL, 0));
+#endif
 }
 
 static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
@@ -92,5 +140,16 @@ static inline int arch_prepare_hugepage(struct page *page)
 static inline void arch_release_hugepage(struct page *page)
 {
 }
+
+#else /* ! CONFIG_HUGETLB_PAGE */
+static inline void reserve_hugetlb_gpages(void)
+{
+	pr_err("Cannot reserve gpages without hugetlb enabled\n");
+}
+static inline void flush_hugetlb_page(struct vm_area_struct *vma,
+				      unsigned long vmaddr)
+{
+}
+#endif
 
 #endif /* _ASM_POWERPC_HUGETLB_H */

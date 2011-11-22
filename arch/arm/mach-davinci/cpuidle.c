@@ -16,10 +16,11 @@
 #include <linux/platform_device.h>
 #include <linux/cpuidle.h>
 #include <linux/io.h>
+#include <linux/export.h>
 #include <asm/proc-fns.h>
 
 #include <mach/cpuidle.h>
-#include <mach/memory.h>
+#include <mach/ddr2.h>
 
 #define DAVINCI_CPUIDLE_MAX_STATES	2
 
@@ -78,9 +79,11 @@ static struct davinci_ops davinci_states[DAVINCI_CPUIDLE_MAX_STATES] = {
 
 /* Actual code that puts the SoC in different idle states */
 static int davinci_enter_idle(struct cpuidle_device *dev,
-						struct cpuidle_state *state)
+				struct cpuidle_driver *drv,
+						int index)
 {
-	struct davinci_ops *ops = cpuidle_get_statedata(state);
+	struct cpuidle_state_usage *state_usage = &dev->states_usage[index];
+	struct davinci_ops *ops = cpuidle_get_statedata(state_usage);
 	struct timeval before, after;
 	int idle_time;
 
@@ -98,13 +101,17 @@ static int davinci_enter_idle(struct cpuidle_device *dev,
 	local_irq_enable();
 	idle_time = (after.tv_sec - before.tv_sec) * USEC_PER_SEC +
 			(after.tv_usec - before.tv_usec);
-	return idle_time;
+
+	dev->last_residency = idle_time;
+
+	return index;
 }
 
 static int __init davinci_cpuidle_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct cpuidle_device *device;
+	struct cpuidle_driver *driver = &davinci_idle_driver;
 	struct davinci_cpuidle_config *pdata = pdev->dev.platform_data;
 
 	device = &per_cpu(davinci_cpuidle_device, smp_processor_id());
@@ -116,32 +123,33 @@ static int __init davinci_cpuidle_probe(struct platform_device *pdev)
 
 	ddr2_reg_base = pdata->ddr2_ctlr_base;
 
+	/* Wait for interrupt state */
+	driver->states[0].enter = davinci_enter_idle;
+	driver->states[0].exit_latency = 1;
+	driver->states[0].target_residency = 10000;
+	driver->states[0].flags = CPUIDLE_FLAG_TIME_VALID;
+	strcpy(driver->states[0].name, "WFI");
+	strcpy(driver->states[0].desc, "Wait for interrupt");
+
+	/* Wait for interrupt and DDR self refresh state */
+	driver->states[1].enter = davinci_enter_idle;
+	driver->states[1].exit_latency = 10;
+	driver->states[1].target_residency = 10000;
+	driver->states[1].flags = CPUIDLE_FLAG_TIME_VALID;
+	strcpy(driver->states[1].name, "DDR SR");
+	strcpy(driver->states[1].desc, "WFI and DDR Self Refresh");
+	if (pdata->ddr2_pdown)
+		davinci_states[1].flags |= DAVINCI_CPUIDLE_FLAGS_DDR2_PWDN;
+	cpuidle_set_statedata(&device->states_usage[1], &davinci_states[1]);
+
+	device->state_count = DAVINCI_CPUIDLE_MAX_STATES;
+	driver->state_count = DAVINCI_CPUIDLE_MAX_STATES;
+
 	ret = cpuidle_register_driver(&davinci_idle_driver);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register driver\n");
 		return ret;
 	}
-
-	/* Wait for interrupt state */
-	device->states[0].enter = davinci_enter_idle;
-	device->states[0].exit_latency = 1;
-	device->states[0].target_residency = 10000;
-	device->states[0].flags = CPUIDLE_FLAG_TIME_VALID;
-	strcpy(device->states[0].name, "WFI");
-	strcpy(device->states[0].desc, "Wait for interrupt");
-
-	/* Wait for interrupt and DDR self refresh state */
-	device->states[1].enter = davinci_enter_idle;
-	device->states[1].exit_latency = 10;
-	device->states[1].target_residency = 10000;
-	device->states[1].flags = CPUIDLE_FLAG_TIME_VALID;
-	strcpy(device->states[1].name, "DDR SR");
-	strcpy(device->states[1].desc, "WFI and DDR Self Refresh");
-	if (pdata->ddr2_pdown)
-		davinci_states[1].flags |= DAVINCI_CPUIDLE_FLAGS_DDR2_PWDN;
-	cpuidle_set_statedata(&device->states[1], &davinci_states[1]);
-
-	device->state_count = DAVINCI_CPUIDLE_MAX_STATES;
 
 	ret = cpuidle_register_device(device);
 	if (ret) {

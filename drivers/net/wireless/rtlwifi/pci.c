@@ -27,6 +27,7 @@
  *
  *****************************************************************************/
 
+#include <linux/export.h>
 #include "core.h"
 #include "wifi.h"
 #include "pci.h"
