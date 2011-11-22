@@ -24,6 +24,7 @@
 #include <linux/hrtimer.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
+#include <linux/input/mt.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
@@ -71,7 +72,7 @@ struct point_data{
 	int	posy;
 };
 
-static struct point_data point[5];
+static struct point_data point[MAX_SUPPORT_POINT];
 
 
 struct i2c_dev
@@ -252,10 +253,13 @@ static void pixcir_ts_poscheck(struct pixcir_i2c_ts_data *data)
 				if(point[i].posx < 0)
 					point[i].posx=1;
 
+				input_mt_slot(tsdata->input, 0);
+				input_mt_report_slot_state(tsdata->input, MT_TOOL_FINGER, true);
+				input_report_abs(tsdata->input, ABS_MT_TOUCH_MAJOR, 1);
 				input_report_abs(tsdata->input, ABS_MT_POSITION_X, point[i].posy);
 				input_report_abs(tsdata->input, ABS_MT_POSITION_Y, point[i].posx);
-				input_report_abs(tsdata->input, ABS_MT_TOUCH_MAJOR, 1);
-				input_mt_sync(tsdata->input);
+
+				input_sync(tsdata->input);
 
 				DBG("brn%d=%2d id%d=%1d x=%5d y=%5d \n",
 					i,point[i].brn,i,point[i].id,point[i].posy,point[i].posx);
@@ -283,6 +287,8 @@ static void pixcir_ts_work_func(struct work_struct *work)
 			enable_irq(tsdata->client->irq);
 			//input_report_key(tsdata->input, BTN_TOUCH, 0);
 			input_report_abs(tsdata->input, ABS_MT_TOUCH_MAJOR, 0);
+			input_mt_slot(tsdata->input, 0);
+			input_mt_report_slot_state(tsdata->input, MT_TOOL_FINGER, false);
 			//input_report_key(tsdata->input, ABS_MT_WIDTH_MAJOR,0);
 			input_sync(tsdata->input);
 			break;
@@ -509,19 +515,25 @@ static int __devinit pixcir_i2c_ts_probe(struct i2c_client *client,
 	set_bit(BTN_TOUCH, tsdata->input->keybit);
 	set_bit(BTN_2,     tsdata->input->keybit);//*/
 	
-	tsdata->input->evbit[0] = BIT_MASK(EV_SYN) |  BIT_MASK(EV_ABS) ;
+	//tsdata->input->evbit[0] = BIT_MASK(EV_SYN) |  BIT_MASK(EV_ABS) ;
 	//tsdata->input->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
 	/*tsdata->input->absbit[0] = BIT_MASK(ABS_MT_POSITION_X) | BIT_MASK(ABS_MT_POSITION_Y) |
 			BIT_MASK(ABS_MT_TOUCH_MAJOR) | BIT_MASK(ABS_MT_WIDTH_MAJOR);  // for android*/
-	tsdata->input->keybit[BIT_WORD(BTN_START)] = BIT_MASK(BTN_START);
+	//tsdata->input->keybit[BIT_WORD(BTN_START)] = BIT_MASK(BTN_START);
 
 	//input_set_abs_params(input, ABS_X, 0, X_MAX, 0, 0);
 	//input_set_abs_params(input, ABS_Y, 0, Y_MAX, 0, 0);
+
+	__set_bit(INPUT_PROP_DIRECT, tsdata->input->propbit);
+	__set_bit(EV_ABS, tsdata->input->evbit);
+
+	input_mt_init_slots(tsdata->input, MAX_SUPPORT_POINT);
 	input_set_abs_params(tsdata->input, ABS_MT_POSITION_X,  pdata->x_min,  pdata->x_max, 0, 0);
 	input_set_abs_params(tsdata->input, ABS_MT_POSITION_Y,  pdata->y_min, pdata->y_max, 0, 0);
-	input_set_abs_params(tsdata->input, ABS_MT_WIDTH_MAJOR, 0,   16, 0, 0);
+	//input_set_abs_params(tsdata->input, ABS_MT_WIDTH_MAJOR, 0,   16, 0, 0);
+	//input_set_abs_params(tsdata->input, ABS_MT_PRESSURE, 0, 255, 0, 0);
 	input_set_abs_params(tsdata->input, ABS_MT_TOUCH_MAJOR, 0,    1, 0, 0);
-	input_set_abs_params(tsdata->input, ABS_MT_TRACKING_ID, 0,    5, 0, 0);
+	//input_set_abs_params(tsdata->input, ABS_MT_TRACKING_ID, 0,    5, 0, 0);
 	input_set_drvdata(tsdata->input, tsdata);
 	//init int and reset ports
 	error = gpio_request(client->irq, "TS_INT");	//Request IO

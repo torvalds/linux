@@ -180,7 +180,8 @@ static int __init wm831x_i2c_init(void)
 	return ret;
 }
 //subsys_initcall(wm831x_i2c_init);
-fs_initcall(wm831x_i2c_init);
+//fs_initcall(wm831x_i2c_init);
+subsys_initcall_sync(wm831x_i2c_init);
 static void __exit wm831x_i2c_exit(void)
 {
 	i2c_del_driver(&wm831x_i2c_driver);
