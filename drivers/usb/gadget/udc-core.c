@@ -210,10 +210,10 @@ static void usb_gadget_remove_driver(struct usb_udc *udc)
 	kobject_uevent(&udc->dev.kobj, KOBJ_CHANGE);
 
 	if (udc_is_newstyle(udc)) {
-		usb_gadget_disconnect(udc->gadget);
+		udc->driver->disconnect(udc->gadget);
 		udc->driver->unbind(udc->gadget);
 		usb_gadget_udc_stop(udc->gadget, udc->driver);
-
+		usb_gadget_disconnect(udc->gadget);
 	} else {
 		usb_gadget_stop(udc->gadget, udc->driver);
 	}
@@ -344,7 +344,7 @@ EXPORT_SYMBOL_GPL(usb_gadget_unregister_driver);
 static ssize_t usb_udc_srp_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t n)
 {
-	struct usb_udc		*udc = dev_get_drvdata(dev);
+	struct usb_udc		*udc = container_of(dev, struct usb_udc, dev);
 
 	if (sysfs_streq(buf, "1"))
 		usb_gadget_wakeup(udc->gadget);
@@ -378,7 +378,7 @@ static ssize_t usb_udc_speed_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%s\n",
 			usb_speed_string(udc->gadget->speed));
 }
-static DEVICE_ATTR(speed, S_IRUSR, usb_udc_speed_show, NULL);
+static DEVICE_ATTR(speed, S_IRUGO, usb_udc_speed_show, NULL);
 
 #define USB_UDC_ATTR(name)					\
 ssize_t usb_udc_##name##_show(struct device *dev,		\
@@ -389,7 +389,7 @@ ssize_t usb_udc_##name##_show(struct device *dev,		\
 								\
 	return snprintf(buf, PAGE_SIZE, "%d\n", gadget->name);	\
 }								\
-static DEVICE_ATTR(name, S_IRUSR, usb_udc_##name##_show, NULL)
+static DEVICE_ATTR(name, S_IRUGO, usb_udc_##name##_show, NULL)
 
 static USB_UDC_ATTR(is_dualspeed);
 static USB_UDC_ATTR(is_otg);
