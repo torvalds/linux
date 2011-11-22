@@ -20,7 +20,6 @@
 #include <linux/syscalls.h> /* sys_sync */
 #include <linux/wakelock.h>
 #include <linux/workqueue.h>
-#include <linux/kallsyms.h>
 
 #include "power.h"
 
@@ -99,8 +98,6 @@ static void early_suspend(struct work_struct *work)
 		if (pos->suspend != NULL) {
 			if (debug_mask & DEBUG_VERBOSE)
 				pr_info("early_suspend: calling %pf\n", pos->suspend);
-			if (debug_mask & DEBUG_VERBOSE)
-				print_symbol("early_suspend: call %s\n", (unsigned long)pos->suspend);
 			pos->suspend(pos);
 		}
 	}
@@ -142,8 +139,6 @@ static void late_resume(struct work_struct *work)
 		if (pos->resume != NULL) {
 			if (debug_mask & DEBUG_VERBOSE)
 				pr_info("late_resume: calling %pf\n", pos->resume);
-			if (debug_mask & DEBUG_VERBOSE)
-				print_symbol("late_resume: call %s\n", (unsigned long)pos->resume);
 
 			pos->resume(pos);
 		}
