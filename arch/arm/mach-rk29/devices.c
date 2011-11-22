@@ -221,6 +221,16 @@ struct platform_device rk29_device_backlight = {
         }
 };
 #endif
+
+#ifdef CONFIG_BUTTON_LIGHT
+struct platform_device rk29_device_buttonlight = {
+		.name = "rk29_button_light",
+		.id = -1,
+		.dev = {
+			.platform_data = &rk29_button_light_info,
+		}
+};
+#endif
 #ifdef CONFIG_SDMMC0_RK29 
 #ifndef CONFIG_EMMC_RK29 
 static struct resource resources_sdmmc0[] = {
