@@ -2813,6 +2813,35 @@ static int em_sti(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_bt(struct x86_emulate_ctxt *ctxt)
+{
+	/* Disable writeback. */
+	ctxt->dst.type = OP_NONE;
+	/* only subword offset */
+	ctxt->src.val &= (ctxt->dst.bytes << 3) - 1;
+
+	emulate_2op_SrcV_nobyte(ctxt, "bt");
+	return X86EMUL_CONTINUE;
+}
+
+static int em_bts(struct x86_emulate_ctxt *ctxt)
+{
+	emulate_2op_SrcV_nobyte(ctxt, "bts");
+	return X86EMUL_CONTINUE;
+}
+
+static int em_btr(struct x86_emulate_ctxt *ctxt)
+{
+	emulate_2op_SrcV_nobyte(ctxt, "btr");
+	return X86EMUL_CONTINUE;
+}
+
+static int em_btc(struct x86_emulate_ctxt *ctxt)
+{
+	emulate_2op_SrcV_nobyte(ctxt, "btc");
+	return X86EMUL_CONTINUE;
+}
+
 static bool valid_cr(int nr)
 {
 	switch (nr) {
@@ -3117,10 +3146,10 @@ static struct group_dual group7 = { {
 
 static struct opcode group8[] = {
 	N, N, N, N,
-	D(DstMem | SrcImmByte | ModRM),
-	D(DstMem | SrcImmByte | ModRM | Lock | PageTable),
-	D(DstMem | SrcImmByte | ModRM | Lock),
-	D(DstMem | SrcImmByte | ModRM | Lock | PageTable),
+	I(DstMem | SrcImmByte | ModRM, em_bt),
+	I(DstMem | SrcImmByte | ModRM | Lock | PageTable, em_bts),
+	I(DstMem | SrcImmByte | ModRM | Lock, em_btr),
+	I(DstMem | SrcImmByte | ModRM | Lock | PageTable, em_btc),
 };
 
 static struct group_dual group9 = { {
@@ -3299,26 +3328,27 @@ static struct opcode twobyte_table[256] = {
 	X16(D(ByteOp | DstMem | SrcNone | ModRM| Mov)),
 	/* 0xA0 - 0xA7 */
 	I(Stack | Src2FS, em_push_sreg), I(Stack | Src2FS, em_pop_sreg),
-	DI(ImplicitOps, cpuid), D(DstMem | SrcReg | ModRM | BitOp),
+	DI(ImplicitOps, cpuid), I(DstMem | SrcReg | ModRM | BitOp, em_bt),
 	D(DstMem | SrcReg | Src2ImmByte | ModRM),
 	D(DstMem | SrcReg | Src2CL | ModRM), N, N,
 	/* 0xA8 - 0xAF */
 	I(Stack | Src2GS, em_push_sreg), I(Stack | Src2GS, em_pop_sreg),
 	DI(ImplicitOps, rsm),
-	D(DstMem | SrcReg | ModRM | BitOp | Lock | PageTable),
+	I(DstMem | SrcReg | ModRM | BitOp | Lock | PageTable, em_bts),
 	D(DstMem | SrcReg | Src2ImmByte | ModRM),
 	D(DstMem | SrcReg | Src2CL | ModRM),
 	D(ModRM), I(DstReg | SrcMem | ModRM, em_imul),
 	/* 0xB0 - 0xB7 */
 	D2bv(DstMem | SrcReg | ModRM | Lock | PageTable),
 	I(DstReg | SrcMemFAddr | ModRM | Src2SS, em_lseg),
-	D(DstMem | SrcReg | ModRM | BitOp | Lock),
+	I(DstMem | SrcReg | ModRM | BitOp | Lock, em_btr),
 	I(DstReg | SrcMemFAddr | ModRM | Src2FS, em_lseg),
 	I(DstReg | SrcMemFAddr | ModRM | Src2GS, em_lseg),
 	D(ByteOp | DstReg | SrcMem | ModRM | Mov), D(DstReg | SrcMem16 | ModRM | Mov),
 	/* 0xB8 - 0xBF */
 	N, N,
-	G(BitOp, group8), D(DstMem | SrcReg | ModRM | BitOp | Lock | PageTable),
+	G(BitOp, group8),
+	I(DstMem | SrcReg | ModRM | BitOp | Lock | PageTable, em_btc),
 	D(DstReg | SrcMem | ModRM), D(DstReg | SrcMem | ModRM),
 	D(ByteOp | DstReg | SrcMem | ModRM | Mov), D(DstReg | SrcMem16 | ModRM | Mov),
 	/* 0xC0 - 0xCF */
@@ -4103,20 +4133,9 @@ twobyte_insn:
 	case 0x90 ... 0x9f:     /* setcc r/m8 */
 		ctxt->dst.val = test_cc(ctxt->b, ctxt->eflags);
 		break;
-	case 0xa3:
-	      bt:		/* bt */
-		ctxt->dst.type = OP_NONE;
-		/* only subword offset */
-		ctxt->src.val &= (ctxt->dst.bytes << 3) - 1;
-		emulate_2op_SrcV_nobyte(ctxt, "bt");
-		break;
 	case 0xa4: /* shld imm8, r, r/m */
 	case 0xa5: /* shld cl, r, r/m */
 		emulate_2op_cl(ctxt, "shld");
-		break;
-	case 0xab:
-	      bts:		/* bts */
-		emulate_2op_SrcV_nobyte(ctxt, "bts");
 		break;
 	case 0xac: /* shrd imm8, r, r/m */
 	case 0xad: /* shrd cl, r, r/m */
@@ -4141,30 +4160,10 @@ twobyte_insn:
 			ctxt->dst.addr.reg = (unsigned long *)&ctxt->regs[VCPU_REGS_RAX];
 		}
 		break;
-	case 0xb3:
-	      btr:		/* btr */
-		emulate_2op_SrcV_nobyte(ctxt, "btr");
-		break;
 	case 0xb6 ... 0xb7:	/* movzx */
 		ctxt->dst.bytes = ctxt->op_bytes;
 		ctxt->dst.val = (ctxt->d & ByteOp) ? (u8) ctxt->src.val
 						       : (u16) ctxt->src.val;
-		break;
-	case 0xba:		/* Grp8 */
-		switch (ctxt->modrm_reg & 3) {
-		case 0:
-			goto bt;
-		case 1:
-			goto bts;
-		case 2:
-			goto btr;
-		case 3:
-			goto btc;
-		}
-		break;
-	case 0xbb:
-	      btc:		/* btc */
-		emulate_2op_SrcV_nobyte(ctxt, "btc");
 		break;
 	case 0xbc: {		/* bsf */
 		u8 zf;
