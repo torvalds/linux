@@ -22,7 +22,6 @@ my %default;
 
 #default opts
 $default{"NUM_TESTS"}		= 1;
-$default{"REBOOT_TYPE"}		= "grub";
 $default{"TEST_TYPE"}		= "test";
 $default{"BUILD_TYPE"}		= "randconfig";
 $default{"MAKE_CMD"}		= "make";
@@ -51,7 +50,14 @@ $default{"REBOOT"}		= "ssh \$SSH_USER\@\$MACHINE reboot";
 $default{"STOP_AFTER_SUCCESS"}	= 10;
 $default{"STOP_AFTER_FAILURE"}	= 60;
 $default{"STOP_TEST_AFTER"}	= 600;
+
+# required, and we will ask users if they don't have them but we keep the default
+# value something that is common.
+$default{"REBOOT_TYPE"}		= "grub";
 $default{"LOCALVERSION"}	= "-test";
+$default{"SSH_USER"}		= "root";
+$default{"BUILD_TARGET"} 	= "arch/x86/boot/bzImage";
+$default{"TARGET_IMAGE"}	= "/boot/vmlinuz-test";
 
 my $ktest_config;
 my $version;
