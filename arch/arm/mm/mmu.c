@@ -799,6 +799,9 @@ void __init sanity_check_meminfo(void)
 		struct membank *bank = &meminfo.bank[j];
 		*bank = meminfo.bank[i];
 
+		if (bank->start > ULONG_MAX)
+			highmem = 1;
+
 #ifdef CONFIG_HIGHMEM
 		if (__va(bank->start) >= vmalloc_min ||
 		    __va(bank->start) < (void *)PAGE_OFFSET)
@@ -810,7 +813,7 @@ void __init sanity_check_meminfo(void)
 		 * Split those memory banks which are partially overlapping
 		 * the vmalloc area greatly simplifying things later.
 		 */
-		if (__va(bank->start) < vmalloc_min &&
+		if (!highmem && __va(bank->start) < vmalloc_min &&
 		    bank->size > vmalloc_min - __va(bank->start)) {
 			if (meminfo.nr_banks >= NR_BANKS) {
 				printk(KERN_CRIT "NR_BANKS too low, "
@@ -829,6 +832,17 @@ void __init sanity_check_meminfo(void)
 		}
 #else
 		bank->highmem = highmem;
+
+		/*
+		 * Highmem banks not allowed with !CONFIG_HIGHMEM.
+		 */
+		if (highmem) {
+			printk(KERN_NOTICE "Ignoring RAM at %.8llx-%.8llx "
+			       "(!CONFIG_HIGHMEM).\n",
+			       (unsigned long long)bank->start,
+			       (unsigned long long)bank->start + bank->size - 1);
+			continue;
+		}
 
 		/*
 		 * Check whether this memory bank would entirely overlap
