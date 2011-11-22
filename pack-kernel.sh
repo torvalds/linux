@@ -117,6 +117,9 @@ make distclean >/dev/null 2>&1
 
 popd >/dev/null
 
+# fix local version
+echo "+" > $kerndir/.scmversion
+
 # tar kernel
 pushd $kerndir/../ >/dev/null
 package=$(basename $kerndir).tar
@@ -135,6 +138,8 @@ echo GZIP $(pwd)/$package.gz
 gzip -9 -c $package > $package.gz
 rm $ex
 popd >/dev/null
+
+rm -f $kerndir/.scmversion
 
 echo done
 
