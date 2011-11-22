@@ -30,7 +30,7 @@
  */
 #define pmd_alloc_one(mm,addr)		({ BUG(); ((pmd_t *)2); })
 #define pmd_free(mm, pmd)		do { } while (0)
-#define pgd_populate(mm,pmd,pte)	BUG()
+#define pud_populate(mm,pmd,pte)	BUG()
 
 extern pgd_t *pgd_alloc(struct mm_struct *mm);
 extern void pgd_free(struct mm_struct *mm, pgd_t *pgd);

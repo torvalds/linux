@@ -11,15 +11,16 @@
 #define _ASMARM_PGTABLE_H
 
 #include <linux/const.h>
-#include <asm-generic/4level-fixup.h>
 #include <asm/proc-fns.h>
 
 #ifndef CONFIG_MMU
 
+#include <asm-generic/4level-fixup.h>
 #include "pgtable-nommu.h"
 
 #else
 
+#include <asm-generic/pgtable-nopud.h>
 #include <asm/memory.h>
 #include <mach/vmalloc.h>
 #include <asm/pgtable-hwdef.h>
@@ -164,20 +165,22 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 #define pgd_offset_k(addr)	pgd_offset(&init_mm, addr)
 
 /*
- * The "pgd_xxx()" functions here are trivial for a folded two-level
- * setup: the pgd is never bad, and a pmd always exists (as it's folded
- * into the pgd entry)
+ * The "pud_xxx()" functions here are trivial when the pmd is folded into
+ * the pud: the pud entry is never bad, always exists, and can't be set or
+ * cleared.
  */
-#define pgd_none(pgd)		(0)
-#define pgd_bad(pgd)		(0)
-#define pgd_present(pgd)	(1)
-#define pgd_clear(pgdp)		do { } while (0)
-#define set_pgd(pgd,pgdp)	do { } while (0)
+#define pud_none(pud)		(0)
+#define pud_bad(pud)		(0)
+#define pud_present(pud)	(1)
+#define pud_clear(pudp)		do { } while (0)
 #define set_pud(pud,pudp)	do { } while (0)
 
 
 /* Find an entry in the second-level page table.. */
-#define pmd_offset(dir, addr)	((pmd_t *)(dir))
+static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
+{
+	return (pmd_t *)pud;
+}
 
 #define pmd_none(pmd)		(!pmd_val(pmd))
 #define pmd_present(pmd)	(pmd_val(pmd))
