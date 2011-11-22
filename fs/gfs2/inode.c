@@ -389,7 +389,7 @@ static int alloc_dinode(struct gfs2_inode *dip, u64 *no_addr, u64 *generation)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	int error;
-	int dblocks = 0;
+	int dblocks = 1;
 
 	error = gfs2_rindex_update(sdp);
 	if (error)
