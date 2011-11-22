@@ -2031,10 +2031,13 @@ static void rcu_prepare_for_idle(int cpu)
 	/* If no callbacks or in the holdoff period, enter dyntick-idle. */
 	if (!rcu_cpu_has_callbacks(cpu)) {
 		per_cpu(rcu_dyntick_holdoff, cpu) = jiffies - 1;
+		trace_rcu_prep_idle("No callbacks");
 		return;
 	}
-	if (per_cpu(rcu_dyntick_holdoff, cpu) == jiffies)
+	if (per_cpu(rcu_dyntick_holdoff, cpu) == jiffies) {
+		trace_rcu_prep_idle("In holdoff");
 		return;
+	}
 
 	/* Check and update the rcu_dyntick_drain sequencing. */
 	if (per_cpu(rcu_dyntick_drain, cpu) <= 0) {
@@ -2044,9 +2047,11 @@ static void rcu_prepare_for_idle(int cpu)
 		/* We have hit the limit, so time to give up. */
 		per_cpu(rcu_dyntick_holdoff, cpu) = jiffies;
 		if (!rcu_pending(cpu)) {
+			trace_rcu_prep_idle("Dyntick with callbacks");
 			per_cpu(rcu_awake_at_gp_end, cpu) = 1;
 			return;  /* Nothing to do immediately. */
 		}
+		trace_rcu_prep_idle("Begin holdoff");
 		invoke_rcu_core();  /* Force the CPU out of dyntick-idle. */
 		return;
 	}
@@ -2073,9 +2078,15 @@ static void rcu_prepare_for_idle(int cpu)
 		c = c || per_cpu(rcu_bh_data, cpu).nxtlist;
 	}
 
-	/* If RCU callbacks are still pending, RCU still needs this CPU. */
-	if (c)
+	/*
+	 * If RCU callbacks are still pending, RCU still needs this CPU.
+	 * So try forcing the callbacks through the grace period.
+	 */
+	if (c) {
+		trace_rcu_prep_idle("More callbacks");
 		invoke_rcu_core();
+	} else
+		trace_rcu_prep_idle("Callbacks drained");
 }
 
 /*
@@ -2085,6 +2096,7 @@ static void rcu_prepare_for_idle(int cpu)
  */
 static void rcu_wake_cpu(void *unused)
 {
+	trace_rcu_prep_idle("CPU awakened at GP end");
 	invoke_rcu_core();
 }
 
