@@ -3594,7 +3594,7 @@ static int tg3_phy_autoneg_cfg(struct tg3 *tp, u32 advertise, u32 flowctrl)
 	u32 val, new_adv;
 
 	new_adv = ADVERTISE_CSMA;
-	new_adv |= ethtool_adv_to_mii_adv_t(advertise);
+	new_adv |= ethtool_adv_to_mii_adv_t(advertise) & ADVERTISE_ALL;
 	new_adv |= tg3_advert_flowctrl_1000T(flowctrl);
 
 	err = tg3_writephy(tp, MII_ADVERTISE, new_adv);
@@ -3778,7 +3778,7 @@ static int tg3_copper_is_advertising_all(struct tg3 *tp, u32 mask)
 {
 	u32 adv_reg, all_mask = 0;
 
-	all_mask = ethtool_adv_to_mii_adv_t(mask);
+	all_mask = ethtool_adv_to_mii_adv_t(mask) & ADVERTISE_ALL;
 
 	if (tg3_readphy(tp, MII_ADVERTISE, &adv_reg))
 		return 0;
@@ -13199,8 +13199,7 @@ static u32 __devinit tg3_read_otp_phycfg(struct tg3 *tp)
 
 static void __devinit tg3_phy_init_link_config(struct tg3 *tp)
 {
-	u32 adv = ADVERTISED_Autoneg |
-		  ADVERTISED_Pause;
+	u32 adv = ADVERTISED_Autoneg;
 
 	if (!(tp->phy_flags & TG3_PHYFLG_10_100_ONLY))
 		adv |= ADVERTISED_1000baseT_Half |
