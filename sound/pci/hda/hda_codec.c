@@ -4046,9 +4046,9 @@ int snd_hda_check_board_codec_sid_config(struct hda_codec *codec,
 
 	/* Search for codec ID */
 	for (q = tbl; q->subvendor; q++) {
-		unsigned long vendorid = (q->subdevice) | (q->subvendor << 16);
-
-		if (vendorid == codec->subsystem_id)
+		unsigned int mask = 0xffff0000 | q->subdevice_mask;
+		unsigned int id = (q->subdevice | (q->subvendor << 16)) & mask;
+		if ((codec->subsystem_id & mask) == id)
 			break;
 	}
 
