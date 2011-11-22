@@ -1832,6 +1832,24 @@ static int em_ret_far(struct x86_emulate_ctxt *ctxt)
 	return rc;
 }
 
+static int em_cmpxchg(struct x86_emulate_ctxt *ctxt)
+{
+	/* Save real source value, then compare EAX against destination. */
+	ctxt->src.orig_val = ctxt->src.val;
+	ctxt->src.val = ctxt->regs[VCPU_REGS_RAX];
+	emulate_2op_SrcV(ctxt, "cmp");
+
+	if (ctxt->eflags & EFLG_ZF) {
+		/* Success: write back to memory. */
+		ctxt->dst.val = ctxt->src.orig_val;
+	} else {
+		/* Failure: write the value we saw to EAX. */
+		ctxt->dst.type = OP_REG;
+		ctxt->dst.addr.reg = (unsigned long *)&ctxt->regs[VCPU_REGS_RAX];
+	}
+	return X86EMUL_CONTINUE;
+}
+
 static int em_lseg(struct x86_emulate_ctxt *ctxt)
 {
 	int seg = ctxt->src2.val;
@@ -3400,7 +3418,7 @@ static struct opcode twobyte_table[256] = {
 	D(DstMem | SrcReg | Src2CL | ModRM),
 	D(ModRM), I(DstReg | SrcMem | ModRM, em_imul),
 	/* 0xB0 - 0xB7 */
-	D2bv(DstMem | SrcReg | ModRM | Lock | PageTable),
+	I2bv(DstMem | SrcReg | ModRM | Lock | PageTable, em_cmpxchg),
 	I(DstReg | SrcMemFAddr | ModRM | Src2SS, em_lseg),
 	I(DstMem | SrcReg | ModRM | BitOp | Lock, em_btr),
 	I(DstReg | SrcMemFAddr | ModRM | Src2FS, em_lseg),
@@ -4152,23 +4170,6 @@ twobyte_insn:
 		emulate_2op_cl(ctxt, "shrd");
 		break;
 	case 0xae:              /* clflush */
-		break;
-	case 0xb0 ... 0xb1:	/* cmpxchg */
-		/*
-		 * Save real source value, then compare EAX against
-		 * destination.
-		 */
-		ctxt->src.orig_val = ctxt->src.val;
-		ctxt->src.val = ctxt->regs[VCPU_REGS_RAX];
-		emulate_2op_SrcV(ctxt, "cmp");
-		if (ctxt->eflags & EFLG_ZF) {
-			/* Success: write back to memory. */
-			ctxt->dst.val = ctxt->src.orig_val;
-		} else {
-			/* Failure: write the value we saw to EAX. */
-			ctxt->dst.type = OP_REG;
-			ctxt->dst.addr.reg = (unsigned long *)&ctxt->regs[VCPU_REGS_RAX];
-		}
 		break;
 	case 0xb6 ... 0xb7:	/* movzx */
 		ctxt->dst.bytes = ctxt->op_bytes;
