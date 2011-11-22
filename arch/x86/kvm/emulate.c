@@ -2776,6 +2776,24 @@ static int em_jcxz(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_in(struct x86_emulate_ctxt *ctxt)
+{
+	if (!pio_in_emulated(ctxt, ctxt->dst.bytes, ctxt->src.val,
+			     &ctxt->dst.val))
+		return X86EMUL_IO_NEEDED;
+
+	return X86EMUL_CONTINUE;
+}
+
+static int em_out(struct x86_emulate_ctxt *ctxt)
+{
+	ctxt->ops->pio_out_emulated(ctxt, ctxt->src.bytes, ctxt->dst.val,
+				    &ctxt->src.val, 1);
+	/* Disable writeback. */
+	ctxt->dst.type = OP_NONE;
+	return X86EMUL_CONTINUE;
+}
+
 static int em_cli(struct x86_emulate_ctxt *ctxt)
 {
 	if (emulator_bad_iopl(ctxt))
@@ -3004,6 +3022,8 @@ static int check_perm_out(struct x86_emulate_ctxt *ctxt)
 #define D2bv(_f)      D((_f) | ByteOp), D(_f)
 #define D2bvIP(_f, _i, _p) DIP((_f) | ByteOp, _i, _p), DIP(_f, _i, _p)
 #define I2bv(_f, _e)  I((_f) | ByteOp, _e), I(_f, _e)
+#define I2bvIP(_f, _e, _i, _p) \
+	IIP((_f) | ByteOp, _e, _i, _p), IIP(_f, _e, _i, _p)
 
 #define I6ALU(_f, _e) I2bv((_f) | DstMem | SrcReg | ModRM, _e),		\
 		I2bv(((_f) | DstReg | SrcMem | ModRM) & ~Lock, _e),	\
@@ -3217,13 +3237,13 @@ static struct opcode opcode_table[256] = {
 	/* 0xE0 - 0xE7 */
 	X3(I(SrcImmByte, em_loop)),
 	I(SrcImmByte, em_jcxz),
-	D2bvIP(SrcImmUByte | DstAcc, in,  check_perm_in),
-	D2bvIP(SrcAcc | DstImmUByte, out, check_perm_out),
+	I2bvIP(SrcImmUByte | DstAcc, em_in,  in,  check_perm_in),
+	I2bvIP(SrcAcc | DstImmUByte, em_out, out, check_perm_out),
 	/* 0xE8 - 0xEF */
 	D(SrcImm | Stack), D(SrcImm | ImplicitOps),
 	I(SrcImmFAddr | No64, em_jmp_far), D(SrcImmByte | ImplicitOps),
-	D2bvIP(SrcDX | DstAcc, in,  check_perm_in),
-	D2bvIP(SrcAcc | DstDX, out, check_perm_out),
+	I2bvIP(SrcDX | DstAcc, em_in,  in,  check_perm_in),
+	I2bvIP(SrcAcc | DstDX, em_out, out, check_perm_out),
 	/* 0xF0 - 0xF7 */
 	N, DI(ImplicitOps, icebp), N, N,
 	DI(ImplicitOps | Priv, hlt), D(ImplicitOps),
@@ -3325,6 +3345,7 @@ static struct opcode twobyte_table[256] = {
 #undef D2bv
 #undef D2bvIP
 #undef I2bv
+#undef I2bvIP
 #undef I6ALU
 
 static unsigned imm_size(struct x86_emulate_ctxt *ctxt)
@@ -3867,11 +3888,12 @@ special_insn:
 	case 0x6c:		/* insb */
 	case 0x6d:		/* insw/insd */
 		ctxt->src.val = ctxt->regs[VCPU_REGS_RDX];
-		goto do_io_in;
+		rc = em_in(ctxt);
+		break;
 	case 0x6e:		/* outsb */
 	case 0x6f:		/* outsw/outsd */
 		ctxt->dst.val = ctxt->regs[VCPU_REGS_RDX];
-		goto do_io_out;
+		rc = em_out(ctxt);
 		break;
 	case 0x70 ... 0x7f: /* jcc (short) */
 		if (test_cc(ctxt->b, ctxt->eflags))
@@ -3915,12 +3937,6 @@ special_insn:
 		ctxt->src.val = ctxt->regs[VCPU_REGS_RCX];
 		rc = em_grp2(ctxt);
 		break;
-	case 0xe4: 	/* inb */
-	case 0xe5: 	/* in */
-		goto do_io_in;
-	case 0xe6: /* outb */
-	case 0xe7: /* out */
-		goto do_io_out;
 	case 0xe8: /* call (near) */ {
 		long int rel = ctxt->src.val;
 		ctxt->src.val = (unsigned long) ctxt->_eip;
@@ -3932,20 +3948,6 @@ special_insn:
 	case 0xeb: /* jmp rel short */
 		jmp_rel(ctxt, ctxt->src.val);
 		ctxt->dst.type = OP_NONE; /* Disable writeback. */
-		break;
-	case 0xec: /* in al,dx */
-	case 0xed: /* in (e/r)ax,dx */
-	do_io_in:
-		if (!pio_in_emulated(ctxt, ctxt->dst.bytes, ctxt->src.val,
-				     &ctxt->dst.val))
-			goto done; /* IO is needed */
-		break;
-	case 0xee: /* out dx,al */
-	case 0xef: /* out dx,(e/r)ax */
-	do_io_out:
-		ops->pio_out_emulated(ctxt, ctxt->src.bytes, ctxt->dst.val,
-				      &ctxt->src.val, 1);
-		ctxt->dst.type = OP_NONE;	/* Disable writeback. */
 		break;
 	case 0xf4:              /* hlt */
 		ctxt->ops->halt(ctxt);
