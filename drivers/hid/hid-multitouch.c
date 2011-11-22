@@ -133,7 +133,7 @@ static int find_slot_from_contactid(struct mt_device *td)
 	return -1;
 }
 
-struct mt_class mt_classes[] = {
+static struct mt_class mt_classes[] = {
 	{ .name = MT_CLS_DEFAULT,
 		.quirks = MT_QUIRK_NOT_SEEN_MEANS_UP },
 	{ .name = MT_CLS_SERIAL,
