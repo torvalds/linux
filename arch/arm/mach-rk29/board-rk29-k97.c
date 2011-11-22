@@ -1449,9 +1449,9 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.flags			= 0,
 	},
 #endif
-#if defined (CONFIG_SND_SOC_alc5621)
+#if defined (CONFIG_SND_SOC_RT5621)
         {
-                .type                   = "ALC5621",
+                .type                   = "rt5621",
                 .addr                   = 0x1a,
                 .flags                  = 0,
         },
