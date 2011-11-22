@@ -2921,6 +2921,40 @@ static int em_btc(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_bsf(struct x86_emulate_ctxt *ctxt)
+{
+	u8 zf;
+
+	__asm__ ("bsf %2, %0; setz %1"
+		 : "=r"(ctxt->dst.val), "=q"(zf)
+		 : "r"(ctxt->src.val));
+
+	ctxt->eflags &= ~X86_EFLAGS_ZF;
+	if (zf) {
+		ctxt->eflags |= X86_EFLAGS_ZF;
+		/* Disable writeback. */
+		ctxt->dst.type = OP_NONE;
+	}
+	return X86EMUL_CONTINUE;
+}
+
+static int em_bsr(struct x86_emulate_ctxt *ctxt)
+{
+	u8 zf;
+
+	__asm__ ("bsr %2, %0; setz %1"
+		 : "=r"(ctxt->dst.val), "=q"(zf)
+		 : "r"(ctxt->src.val));
+
+	ctxt->eflags &= ~X86_EFLAGS_ZF;
+	if (zf) {
+		ctxt->eflags |= X86_EFLAGS_ZF;
+		/* Disable writeback. */
+		ctxt->dst.type = OP_NONE;
+	}
+	return X86EMUL_CONTINUE;
+}
+
 static bool valid_cr(int nr)
 {
 	switch (nr) {
@@ -3428,7 +3462,7 @@ static struct opcode twobyte_table[256] = {
 	N, N,
 	G(BitOp, group8),
 	I(DstMem | SrcReg | ModRM | BitOp | Lock | PageTable, em_btc),
-	D(DstReg | SrcMem | ModRM), D(DstReg | SrcMem | ModRM),
+	I(DstReg | SrcMem | ModRM, em_bsf), I(DstReg | SrcMem | ModRM, em_bsr),
 	D(ByteOp | DstReg | SrcMem | ModRM | Mov), D(DstReg | SrcMem16 | ModRM | Mov),
 	/* 0xC0 - 0xCF */
 	D2bv(DstMem | SrcReg | ModRM | Lock),
@@ -4176,30 +4210,6 @@ twobyte_insn:
 		ctxt->dst.val = (ctxt->d & ByteOp) ? (u8) ctxt->src.val
 						       : (u16) ctxt->src.val;
 		break;
-	case 0xbc: {		/* bsf */
-		u8 zf;
-		__asm__ ("bsf %2, %0; setz %1"
-			 : "=r"(ctxt->dst.val), "=q"(zf)
-			 : "r"(ctxt->src.val));
-		ctxt->eflags &= ~X86_EFLAGS_ZF;
-		if (zf) {
-			ctxt->eflags |= X86_EFLAGS_ZF;
-			ctxt->dst.type = OP_NONE;	/* Disable writeback. */
-		}
-		break;
-	}
-	case 0xbd: {		/* bsr */
-		u8 zf;
-		__asm__ ("bsr %2, %0; setz %1"
-			 : "=r"(ctxt->dst.val), "=q"(zf)
-			 : "r"(ctxt->src.val));
-		ctxt->eflags &= ~X86_EFLAGS_ZF;
-		if (zf) {
-			ctxt->eflags |= X86_EFLAGS_ZF;
-			ctxt->dst.type = OP_NONE;	/* Disable writeback. */
-		}
-		break;
-	}
 	case 0xbe ... 0xbf:	/* movsx */
 		ctxt->dst.bytes = ctxt->op_bytes;
 		ctxt->dst.val = (ctxt->d & ByteOp) ? (s8) ctxt->src.val :
