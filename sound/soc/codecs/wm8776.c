@@ -414,12 +414,6 @@ static int wm8776_probe(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, WM8776_HPRVOL, 0x100, 0x100);
 	snd_soc_update_bits(codec, WM8776_DACRVOL, 0x100, 0x100);
 
-	snd_soc_add_controls(codec, wm8776_snd_controls,
-			     ARRAY_SIZE(wm8776_snd_controls));
-	snd_soc_dapm_new_controls(dapm, wm8776_dapm_widgets,
-				  ARRAY_SIZE(wm8776_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, routes, ARRAY_SIZE(routes));
-
 	return ret;
 }
 
@@ -439,6 +433,13 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8776 = {
 	.reg_cache_size = ARRAY_SIZE(wm8776_reg),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm8776_reg,
+
+	.controls = wm8776_snd_controls,
+	.num_controls = ARRAY_SIZE(wm8776_snd_controls),
+	.dapm_widgets = wm8776_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8776_dapm_widgets),
+	.dapm_routes = routes,
+	.num_dapm_routes = ARRAY_SIZE(routes),
 };
 
 static const struct of_device_id wm8776_of_match[] = {
