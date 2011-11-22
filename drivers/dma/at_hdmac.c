@@ -1191,7 +1191,7 @@ static const struct of_device_id atmel_dma_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, atmel_dma_dt_ids);
 #endif
 
-static struct platform_device_id atdma_devtypes[] = {
+static const struct platform_device_id atdma_devtypes[] = {
 	{
 		.name = "at91sam9rl_dma",
 		.driver_data = ATDMA_DEVTYPE_SAM9RL,
