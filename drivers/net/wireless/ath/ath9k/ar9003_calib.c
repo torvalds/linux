@@ -824,7 +824,7 @@ static void ar9003_hw_tx_iq_cal_post_proc(struct ath_hw *ah, bool is_reusable)
 						chan_info_tab[i] + offset);
 
 				ath_dbg(common, ATH_DBG_CALIBRATE,
-					"IQ RES[%d]=0x%x"
+					"IQ_RES[%d]=0x%x "
 					"IQ_RES[%d]=0x%x\n",
 					idx, iq_res[idx], idx + 1,
 					iq_res[idx + 1]);
