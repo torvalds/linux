@@ -257,15 +257,17 @@ EXPORT_SYMBOL_GPL(gnttab_query_foreign_access);
 static int gnttab_end_foreign_access_ref_v1(grant_ref_t ref, int readonly)
 {
 	u16 flags, nflags;
+	u16 *pflags;
 
-	nflags = gnttab_shared.v1[ref].flags;
+	pflags = &gnttab_shared.v1[ref].flags;
+	nflags = *pflags;
 	do {
 		flags = nflags;
 		if (flags & (GTF_reading|GTF_writing)) {
 			printk(KERN_ALERT "WARNING: g.e. still in use!\n");
 			return 0;
 		}
-	} while ((nflags = sync_cmpxchg(&gnttab_shared.v1[ref].flags, flags, 0)) != flags);
+	} while ((nflags = sync_cmpxchg(pflags, flags, 0)) != flags);
 
 	return 1;
 }
@@ -316,20 +318,23 @@ static unsigned long gnttab_end_foreign_transfer_ref_v1(grant_ref_t ref)
 {
 	unsigned long frame;
 	u16           flags;
+	u16          *pflags;
+
+	pflags = &gnttab_shared.v1[ref].flags;
 
 	/*
 	 * If a transfer is not even yet started, try to reclaim the grant
 	 * reference and return failure (== 0).
 	 */
-	while (!((flags = gnttab_shared.v1[ref].flags) & GTF_transfer_committed)) {
-		if (sync_cmpxchg(&gnttab_shared.v1[ref].flags, flags, 0) == flags)
+	while (!((flags = *pflags) & GTF_transfer_committed)) {
+		if (sync_cmpxchg(pflags, flags, 0) == flags)
 			return 0;
 		cpu_relax();
 	}
 
 	/* If a transfer is in progress then wait until it is completed. */
 	while (!(flags & GTF_transfer_completed)) {
-		flags = gnttab_shared.v1[ref].flags;
+		flags = *pflags;
 		cpu_relax();
 	}
 
