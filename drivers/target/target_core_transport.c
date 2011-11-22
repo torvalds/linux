@@ -3770,8 +3770,15 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 		task_cdbs = transport_allocate_control_task(cmd);
 	}
 
-	if (task_cdbs <= 0)
+	if (task_cdbs < 0)
 		goto out_fail;
+	else if (!task_cdbs && (cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB)) {
+		cmd->t_state = TRANSPORT_COMPLETE;
+		atomic_set(&cmd->t_transport_active, 1);
+		INIT_WORK(&cmd->work, target_complete_ok_work);
+		queue_work(target_completion_wq, &cmd->work);
+		return 0;
+	}
 
 	if (set_counts) {
 		atomic_inc(&cmd->t_fe_count);
