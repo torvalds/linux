@@ -885,6 +885,13 @@ static inline int hrtick_enabled(struct rq *rq)
 
 void hrtick_start(struct rq *rq, u64 delay);
 
+#else
+
+static inline int hrtick_enabled(struct rq *rq)
+{
+	return 0;
+}
+
 #endif /* CONFIG_SCHED_HRTICK */
 
 #ifdef CONFIG_SMP
