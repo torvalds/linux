@@ -99,4 +99,57 @@
 #define L_PTE_MT_DEV_CACHED	(_AT(pteval_t, 3) << 2)	/* normal inner write-back */
 #define L_PTE_MT_MASK		(_AT(pteval_t, 7) << 2)
 
+/*
+ * Software PGD flags.
+ */
+#define L_PGD_SWAPPER		(_AT(pgdval_t, 1) << 55)	/* swapper_pg_dir entry */
+
+#ifndef __ASSEMBLY__
+
+#define pud_none(pud)		(!pud_val(pud))
+#define pud_bad(pud)		(!(pud_val(pud) & 2))
+#define pud_present(pud)	(pud_val(pud))
+
+#define pud_clear(pudp)			\
+	do {				\
+		*pudp = __pud(0);	\
+		clean_pmd_entry(pudp);	\
+	} while (0)
+
+#define set_pud(pudp, pud)		\
+	do {				\
+		*pudp = pud;		\
+		flush_pmd_entry(pudp);	\
+	} while (0)
+
+static inline pmd_t *pud_page_vaddr(pud_t pud)
+{
+	return __va(pud_val(pud) & PHYS_MASK & (s32)PAGE_MASK);
+}
+
+/* Find an entry in the second-level page table.. */
+#define pmd_index(addr)		(((addr) >> PMD_SHIFT) & (PTRS_PER_PMD - 1))
+static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
+{
+	return (pmd_t *)pud_page_vaddr(*pud) + pmd_index(addr);
+}
+
+#define pmd_bad(pmd)		(!(pmd_val(pmd) & 2))
+
+#define copy_pmd(pmdpd,pmdps)		\
+	do {				\
+		*pmdpd = *pmdps;	\
+		flush_pmd_entry(pmdpd);	\
+	} while (0)
+
+#define pmd_clear(pmdp)			\
+	do {				\
+		*pmdp = __pmd(0);	\
+		clean_pmd_entry(pmdp);	\
+	} while (0)
+
+#define set_pte_ext(ptep,pte,ext) cpu_set_pte_ext(ptep,__pte(pte_val(pte)|(ext)))
+
+#endif /* __ASSEMBLY__ */
+
 #endif /* _ASM_PGTABLE_3LEVEL_H */
