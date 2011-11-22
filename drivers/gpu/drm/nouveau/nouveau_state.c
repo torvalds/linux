@@ -273,8 +273,11 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->display.destroy		= nv04_display_destroy;
 		engine->display.init		= nv04_display_init;
 		engine->display.fini		= nv04_display_fini;
+		engine->gpio.init		= nv10_gpio_init;
+		engine->gpio.fini		= nv10_gpio_fini;
 		engine->gpio.drive		= nv10_gpio_drive;
 		engine->gpio.sense		= nv10_gpio_sense;
+		engine->gpio.irq_enable		= nv10_gpio_irq_enable;
 		engine->pm.clocks_get		= nv40_pm_clocks_get;
 		engine->pm.clocks_pre		= nv40_pm_clocks_pre;
 		engine->pm.clocks_set		= nv40_pm_clocks_set;
