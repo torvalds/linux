@@ -539,6 +539,78 @@ static void dwc3_gadget_ep_free_request(struct usb_ep *ep,
 	kfree(req);
 }
 
+/**
+ * dwc3_prepare_one_trb - setup one TRB from one request
+ * @dep: endpoint for which this request is prepared
+ * @req: dwc3_request pointer
+ */
+static int dwc3_prepare_one_trb(struct dwc3_ep *dep,
+		struct dwc3_request *req, unsigned last)
+{
+	struct dwc3_trb_hw	*trb_hw;
+	struct dwc3_trb		trb;
+
+	unsigned int		cur_slot;
+
+	trb_hw = &dep->trb_pool[dep->free_slot & DWC3_TRB_MASK];
+	cur_slot = dep->free_slot;
+	dep->free_slot++;
+
+	/* Skip the LINK-TRB on ISOC */
+	if (((cur_slot & DWC3_TRB_MASK) == DWC3_TRB_NUM - 1) &&
+			usb_endpoint_xfer_isoc(dep->desc))
+		return 0;
+
+	dwc3_gadget_move_request_queued(req);
+	memset(&trb, 0, sizeof(trb));
+
+	req->trb = trb_hw;
+
+	if (usb_endpoint_xfer_isoc(dep->desc)) {
+		trb.isp_imi = true;
+		trb.csp = true;
+	} else {
+		trb.lst = last;
+	}
+
+	if (usb_endpoint_xfer_bulk(dep->desc) && dep->stream_capable)
+		trb.sid_sofn = req->request.stream_id;
+
+	switch (usb_endpoint_type(dep->desc)) {
+	case USB_ENDPOINT_XFER_CONTROL:
+		trb.trbctl = DWC3_TRBCTL_CONTROL_SETUP;
+		break;
+
+	case USB_ENDPOINT_XFER_ISOC:
+		trb.trbctl = DWC3_TRBCTL_ISOCHRONOUS_FIRST;
+
+		/* IOC every DWC3_TRB_NUM / 4 so we can refill */
+		if (!(cur_slot % (DWC3_TRB_NUM / 4)))
+			trb.ioc = last;
+		break;
+
+	case USB_ENDPOINT_XFER_BULK:
+	case USB_ENDPOINT_XFER_INT:
+		trb.trbctl = DWC3_TRBCTL_NORMAL;
+		break;
+	default:
+		/*
+		 * This is only possible with faulty memory because we
+		 * checked it already :)
+		 */
+		BUG();
+	}
+
+	trb.length	= req->request.length;
+	trb.bplh	= req->request.dma;
+	trb.hwo		= true;
+
+	dwc3_trb_to_hw(&trb, trb_hw);
+	req->trb_dma = dwc3_trb_dma_offset(dep, trb_hw);
+
+	return 0;
+}
+
 /*
  * dwc3_prepare_trbs - setup TRBs from requests
  * @dep: endpoint for which requests are being prepared
@@ -552,14 +624,14 @@ static struct dwc3_request *dwc3_prepare_trbs(struct dwc3_ep *dep,
 		bool starting)
 {
 	struct dwc3_request	*req, *n, *ret = NULL;
-	struct dwc3_trb_hw	*trb_hw;
-	struct dwc3_trb		trb;
 	u32			trbs_left;
+	unsigned int		last_one = 0;
 
 	BUILD_BUG_ON_NOT_POWER_OF_2(DWC3_TRB_NUM);
 
 	/* the first request must not be queued */
 	trbs_left = (dep->busy_slot - dep->free_slot) & DWC3_TRB_MASK;
+
 	/*
 	 * if busy & slot are equal than it is either full or empty. If we are
 	 * starting to proceed requests then we are empty. Otherwise we ar
@@ -594,25 +666,11 @@ static struct dwc3_request *dwc3_prepare_trbs(struct dwc3_ep *dep,
 		return NULL;
 
 	list_for_each_entry_safe(req, n, &dep->request_list, list) {
-		unsigned int last_one = 0;
-		unsigned int cur_slot;
-
-		trb_hw = &dep->trb_pool[dep->free_slot & DWC3_TRB_MASK];
-		cur_slot = dep->free_slot;
-		dep->free_slot++;
-
-		/* Skip the LINK-TRB on ISOC */
-		if (((cur_slot & DWC3_TRB_MASK) == DWC3_TRB_NUM - 1) &&
-				usb_endpoint_xfer_isoc(dep->desc))
-			continue;
-
-		dwc3_gadget_move_request_queued(req);
-		memset(&trb, 0, sizeof(trb));
 		trbs_left--;
 
-		/* Is our TRB pool empty? */
 		if (!trbs_left)
 			last_one = 1;
+
 		/* Is this the last request? */
 		if (list_empty(&dep->request_list))
 			last_one = 1;
@@ -625,57 +683,9 @@ static struct dwc3_request *dwc3_prepare_trbs(struct dwc3_ep *dep,
 		 * While we're debugging the problem, as a workaround to
 		 * multiple TRBs handling, use only one TRB at a time.
 		 */
-		last_one = 1;
-
-		req->trb = trb_hw;
-		if (!ret)
-			ret = req;
-
-		trb.bplh = req->request.dma;
-
-		if (usb_endpoint_xfer_isoc(dep->desc)) {
-			trb.isp_imi = true;
-			trb.csp = true;
-		} else {
-			trb.lst = last_one;
-		}
-
-		if (usb_endpoint_xfer_bulk(dep->desc) && dep->stream_capable)
-			trb.sid_sofn = req->request.stream_id;
-
-		switch (usb_endpoint_type(dep->desc)) {
-		case USB_ENDPOINT_XFER_CONTROL:
-			trb.trbctl = DWC3_TRBCTL_CONTROL_SETUP;
-			break;
-
-		case USB_ENDPOINT_XFER_ISOC:
-			trb.trbctl = DWC3_TRBCTL_ISOCHRONOUS_FIRST;
-
-			/* IOC every DWC3_TRB_NUM / 4 so we can refill */
-			if (!(cur_slot % (DWC3_TRB_NUM / 4)))
-				trb.ioc = last_one;
-			break;
-
-		case USB_ENDPOINT_XFER_BULK:
-		case USB_ENDPOINT_XFER_INT:
-			trb.trbctl = DWC3_TRBCTL_NORMAL;
-			break;
-		default:
-			/*
-			 * This is only possible with faulty memory because we
-			 * checked it already :)
-			 */
-			BUG();
-		}
-
-		trb.length	= req->request.length;
-		trb.hwo = true;
-
-		dwc3_trb_to_hw(&trb, trb_hw);
-		req->trb_dma = dwc3_trb_dma_offset(dep, trb_hw);
-
-		if (last_one)
-			break;
+		dwc3_prepare_one_trb(dep, req, true);
+		ret = req;
+		break;
 	}
 
 	return ret;
