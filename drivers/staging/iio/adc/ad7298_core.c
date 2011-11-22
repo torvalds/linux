@@ -69,27 +69,28 @@ static int ad7298_scan_direct(struct ad7298_state *st, unsigned ch)
 static int ad7298_scan_temp(struct ad7298_state *st, int *val)
 {
 	int tmp, ret;
+	__be16 buf;
 
-	tmp = cpu_to_be16(AD7298_WRITE | AD7298_TSENSE |
+	buf = cpu_to_be16(AD7298_WRITE | AD7298_TSENSE |
 			  AD7298_TAVG | st->ext_ref);
 
-	ret = spi_write(st->spi, (u8 *)&tmp, 2);
+	ret = spi_write(st->spi, (u8 *)&buf, 2);
 	if (ret)
 		return ret;
 
-	tmp = 0;
+	buf = cpu_to_be16(0);
 
-	ret = spi_write(st->spi, (u8 *)&tmp, 2);
+	ret = spi_write(st->spi, (u8 *)&buf, 2);
 	if (ret)
 		return ret;
 
 	usleep_range(101, 1000); /* sleep > 100us */
 
-	ret = spi_read(st->spi, (u8 *)&tmp, 2);
+	ret = spi_read(st->spi, (u8 *)&buf, 2);
 	if (ret)
 		return ret;
 
-	tmp = be16_to_cpu(tmp) & RES_MASK(AD7298_BITS);
+	tmp = be16_to_cpu(buf) & RES_MASK(AD7298_BITS);
 
 	/*
 	 * One LSB of the ADC corresponds to 0.25 deg C.
