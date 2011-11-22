@@ -56,7 +56,7 @@ static struct resource smsc9220_resources[] = {
 		.flags		= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start		= gic_spi(33), /* PINTA2 @ PORT144 */
+		.start		= SH73A0_PINT0_IRQ(2), /* PINTA2 */
 		.flags		= IORESOURCE_IRQ,
 	},
 };
@@ -317,18 +317,6 @@ static void __init kota2_map_io(void)
 	shmobile_setup_console();
 }
 
-#define PINTER0A	0xe69000a0
-#define PINTCR0A	0xe69000b0
-
-void __init kota2_init_irq(void)
-{
-	sh73a0_init_irq();
-
-	/* setup PINT: enable PINTA2 as active low */
-	__raw_writel(1 << 29, PINTER0A);
-	__raw_writew(2 << 10, PINTCR0A);
-}
-
 static void __init kota2_init(void)
 {
 	sh73a0_pinmux_init();
@@ -447,7 +435,7 @@ struct sys_timer kota2_timer = {
 
 MACHINE_START(KOTA2, "kota2")
 	.map_io		= kota2_map_io,
-	.init_irq	= kota2_init_irq,
+	.init_irq	= sh73a0_init_irq,
 	.handle_irq	= shmobile_handle_irq_gic,
 	.init_machine	= kota2_init,
 	.timer		= &kota2_timer,
