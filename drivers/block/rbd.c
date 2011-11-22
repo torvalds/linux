@@ -553,20 +553,18 @@ static int snap_by_name(struct rbd_image_header *header, const char *snap_name,
 	return i;
 }
 
-static int rbd_header_set_snap(struct rbd_device *dev,
-			       const char *snap_name,
-			       u64 *size)
+static int rbd_header_set_snap(struct rbd_device *dev, u64 *size)
 {
 	struct rbd_image_header *header = &dev->header;
 	struct ceph_snap_context *snapc = header->snapc;
 	int ret = -ENOENT;
 
+	BUILD_BUG_ON(sizeof (dev->snap_name) < sizeof (RBD_SNAP_HEAD_NAME));
+
 	down_write(&header->snap_rwsem);
 
-	if (!snap_name ||
-	    !*snap_name ||
-	    strcmp(snap_name, "-") == 0 ||
-	    strcmp(snap_name, RBD_SNAP_HEAD_NAME) == 0) {
+	if (!memcmp(dev->snap_name, RBD_SNAP_HEAD_NAME,
+		    sizeof (RBD_SNAP_HEAD_NAME))) {
 		if (header->total_snaps)
 			snapc->seq = header->snap_seq;
 		else
@@ -576,7 +574,7 @@ static int rbd_header_set_snap(struct rbd_device *dev,
 		if (size)
 			*size = header->image_size;
 	} else {
-		ret = snap_by_name(header, snap_name, &snapc->seq, size);
+		ret = snap_by_name(header, dev->snap_name, &snapc->seq, size);
 		if (ret < 0)
 			goto done;
 
@@ -1729,7 +1727,7 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	if (rc)
 		return rc;
 
-	rc = rbd_header_set_snap(rbd_dev, rbd_dev->snap_name, &total_size);
+	rc = rbd_header_set_snap(rbd_dev, &total_size);
 	if (rc)
 		return rc;
 
@@ -2215,7 +2213,8 @@ static ssize_t rbd_add(struct bus_type *bus,
 	}
 
 	if (rbd_dev->snap_name[0] == 0)
-		rbd_dev->snap_name[0] = '-';
+		memcpy(rbd_dev->snap_name, RBD_SNAP_HEAD_NAME,
+			sizeof (RBD_SNAP_HEAD_NAME));
 
 	rbd_dev->obj_len = strlen(rbd_dev->obj);
 	snprintf(rbd_dev->obj_md_name, sizeof(rbd_dev->obj_md_name), "%s%s",
