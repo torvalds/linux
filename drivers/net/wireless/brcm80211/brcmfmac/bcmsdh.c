@@ -288,7 +288,7 @@ brcmf_sdcard_recv_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 
 	incr_fix = (flags & SDIO_REQ_FIXED) ? SDIOH_DATA_FIX : SDIOH_DATA_INC;
 	err = brcmf_sdioh_request_buffer(sdiodev, incr_fix, SDIOH_READ,
-					 fn, addr, width, 0, NULL, pkt);
+					 fn, addr, 0, NULL, pkt);
 
 	return err;
 }
@@ -369,7 +369,7 @@ brcmf_sdcard_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
 
 	return brcmf_sdioh_request_buffer(sdiodev, incr_fix, SDIOH_WRITE, fn,
-					  addr, width, 0, NULL, pkt);
+					  addr, 0, NULL, pkt);
 }
 
 int brcmf_sdcard_rwdata(struct brcmf_sdio_dev *sdiodev, uint rw, u32 addr,
@@ -380,7 +380,7 @@ int brcmf_sdcard_rwdata(struct brcmf_sdio_dev *sdiodev, uint rw, u32 addr,
 
 	return brcmf_sdioh_request_buffer(sdiodev, SDIOH_DATA_INC,
 		(rw ? SDIOH_WRITE : SDIOH_READ), SDIO_FUNC_1,
-		addr, 4, nbytes, buf, NULL);
+		addr, nbytes, buf, NULL);
 }
 
 int brcmf_sdcard_abort(struct brcmf_sdio_dev *sdiodev, uint fn)
