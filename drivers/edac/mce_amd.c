@@ -104,7 +104,7 @@ static const char * const f15h_cu_mce_desc[] = {
 	"WCC Tag ECC error",
 	"WCC Data ECC error",
 	"WCB Data parity error",
-	"VB Data/ECC error",
+	"VB Data ECC or parity error",
 	"L2 Tag ECC error",				/* xec = 0x10 */
 	"Hard L2 Tag ECC error",
 	"Multiple hits on L2 tag",
