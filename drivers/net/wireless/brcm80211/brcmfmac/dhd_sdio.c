@@ -2555,7 +2555,7 @@ static int brcmf_sdbrcm_dpc_thread(void *data)
 					complete(&bus->dpc_wait);
 			} else {
 				/* after stopping the bus, exit thread */
-				brcmf_sdbrcm_bus_stop(bus);
+				brcmf_sdbrcm_bus_stop(bus->sdiodev->dev);
 				bus->dpc_tsk = NULL;
 				break;
 			}
@@ -3330,12 +3330,15 @@ brcmf_sdbrcm_download_firmware(struct brcmf_sdio *bus)
 	return ret;
 }
 
-void brcmf_sdbrcm_bus_stop(struct brcmf_sdio *bus)
+void brcmf_sdbrcm_bus_stop(struct device *dev)
 {
 	u32 local_hostintmask;
 	u8 saveclk;
 	uint retries;
 	int err;
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv;
+	struct brcmf_sdio *bus = sdiodev->bus;
 
 	brcmf_dbg(TRACE, "Enter\n");
 

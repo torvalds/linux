@@ -28,7 +28,7 @@
  */
 
 /* Stop bus module: clear pending frames, disable data flow */
-extern void brcmf_sdbrcm_bus_stop(struct brcmf_sdio *bus);
+extern void brcmf_sdbrcm_bus_stop(struct device *dev);
 
 /* Initialize bus module: prepare for communication w/dongle */
 extern int brcmf_sdbrcm_bus_init(struct device *dev);
