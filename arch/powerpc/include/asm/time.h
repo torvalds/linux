@@ -219,5 +219,7 @@ DECLARE_PER_CPU(struct cpu_usage, cpu_usage_array);
 extern void secondary_cpu_time_init(void);
 extern void iSeries_time_init_early(void);
 
+extern void decrementer_check_overflow(void);
+
 #endif /* __KERNEL__ */
 #endif /* __POWERPC_TIME_H */
