@@ -221,7 +221,7 @@ static void core_tmr_drain_task_list(
 			continue;
 
 		list_move_tail(&task->t_state_list, &drain_task_list);
-		atomic_set(&task->task_state_active, 0);
+		task->t_state_active = false;
 		/*
 		 * Remove from task execute list before processing drain_task_list
 		 */

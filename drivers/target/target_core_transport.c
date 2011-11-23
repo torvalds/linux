@@ -421,18 +421,18 @@ static void transport_all_task_dev_remove_state(struct se_cmd *cmd)
 		if (task->task_flags & TF_ACTIVE)
 			continue;
 
-		if (!atomic_read(&task->task_state_active))
-			continue;
-
 		spin_lock_irqsave(&dev->execute_task_lock, flags);
-		list_del(&task->t_state_list);
-		pr_debug("Removed ITT: 0x%08x dev: %p task[%p]\n",
-			cmd->se_tfo->get_task_tag(cmd), dev, task);
-		spin_unlock_irqrestore(&dev->execute_task_lock, flags);
+		if (task->t_state_active) {
+			pr_debug("Removed ITT: 0x%08x dev: %p task[%p]\n",
+				cmd->se_tfo->get_task_tag(cmd), dev, task);
 
-		atomic_set(&task->task_state_active, 0);
-		atomic_dec(&cmd->t_task_cdbs_ex_left);
+			list_del(&task->t_state_list);
+			atomic_dec(&cmd->t_task_cdbs_ex_left);
+			task->t_state_active = false;
+		}
+		spin_unlock_irqrestore(&dev->execute_task_lock, flags);
 	}
+
 }
 
 /*	transport_cmd_check_stop():
@@ -813,7 +813,7 @@ static void __transport_add_task_to_execute_queue(
 	head_of_queue = transport_add_task_check_sam_attr(task, task_prev, dev);
 	atomic_inc(&dev->execute_tasks);
 
-	if (atomic_read(&task->task_state_active))
+	if (task->t_state_active)
 		return;
 	/*
 	 * Determine if this task needs to go to HEAD_OF_QUEUE for the
@@ -827,7 +827,7 @@ static void __transport_add_task_to_execute_queue(
 	else
 		list_add_tail(&task->t_state_list, &dev->state_task_list);
 
-	atomic_set(&task->task_state_active, 1);
+	task->t_state_active = true;
 
 	pr_debug("Added ITT: 0x%08x task[%p] to dev: %p\n",
 		task->task_se_cmd->se_tfo->get_task_tag(task->task_se_cmd),
@@ -842,17 +842,16 @@ static void transport_add_tasks_to_state_queue(struct se_cmd *cmd)
 
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
 	list_for_each_entry(task, &cmd->t_task_list, t_list) {
-		if (atomic_read(&task->task_state_active))
-			continue;
-
 		spin_lock(&dev->execute_task_lock);
-		list_add_tail(&task->t_state_list, &dev->state_task_list);
-		atomic_set(&task->task_state_active, 1);
+		if (!task->t_state_active) {
+			list_add_tail(&task->t_state_list,
+				      &dev->state_task_list);
+			task->t_state_active = true;
 
-		pr_debug("Added ITT: 0x%08x task[%p] to dev: %p\n",
-			task->task_se_cmd->se_tfo->get_task_tag(
-			task->task_se_cmd), task, dev);
-
+			pr_debug("Added ITT: 0x%08x task[%p] to dev: %p\n",
+				task->task_se_cmd->se_tfo->get_task_tag(
+				task->task_se_cmd), task, dev);
+		}
 		spin_unlock(&dev->execute_task_lock);
 	}
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);

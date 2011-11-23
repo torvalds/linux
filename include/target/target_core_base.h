@@ -491,10 +491,10 @@ struct se_task {
 	u16			task_flags;
 	u8			task_scsi_status;
 	enum dma_data_direction	task_data_direction;
-	atomic_t		task_state_active;
 	struct list_head	t_list;
 	struct list_head	t_execute_list;
 	struct list_head	t_state_list;
+	bool			t_state_active;
 	struct completion	task_stop_comp;
 } ____cacheline_aligned;
 
