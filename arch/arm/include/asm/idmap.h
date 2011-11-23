@@ -9,9 +9,6 @@
 
 extern pgd_t *idmap_pgd;
 
-void identity_mapping_add(pgd_t *, unsigned long, unsigned long);
-void identity_mapping_del(pgd_t *, unsigned long, unsigned long);
-
 void setup_mm_for_reboot(void);
 
 #endif	/* __ASM_IDMAP_H */
