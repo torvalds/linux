@@ -250,7 +250,7 @@ for every device before the next phase begins.  Not all busses or classes
 support all these callbacks and not all drivers use all the callbacks.  The
 various phases always run after tasks have been frozen and before they are
 unfrozen.  Furthermore, the *_noirq phases run at a time when IRQ handlers have
-been disabled (except for those marked with the IRQ_WAKEUP flag).
+been disabled (except for those marked with the IRQF_NO_SUSPEND flag).
 
 All phases use PM domain, bus, type, or class callbacks (that is, methods
 defined in dev->pm_domain->ops, dev->bus->pm, dev->type->pm, or dev->class->pm).
@@ -295,9 +295,8 @@ When the system goes into the standby or memory sleep state, the phases are:
 
 	After the prepare callback method returns, no new children may be
 	registered below the device.  The method may also prepare the device or
-	driver in some way for the upcoming system power transition (for
-	example, by allocating additional memory required for this purpose), but
-	it should not put the device into a low-power state.
+	driver in some way for the upcoming system power transition, but it
+	should not put the device into a low-power state.
 
     2.	The suspend methods should quiesce the device to stop it from performing
 	I/O.  They also may save the device registers and put it into the
