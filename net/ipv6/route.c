@@ -157,7 +157,7 @@ static struct dst_ops ip6_dst_ops_template = {
 
 static unsigned int ip6_blackhole_default_mtu(const struct dst_entry *dst)
 {
-	return 0;
+	return dst->dev->mtu;
 }
 
 static void ip6_rt_blackhole_update_pmtu(struct dst_entry *dst, u32 mtu)

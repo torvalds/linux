@@ -2757,7 +2757,7 @@ static struct dst_entry *ipv4_blackhole_dst_check(struct dst_entry *dst, u32 coo
 
 static unsigned int ipv4_blackhole_default_mtu(const struct dst_entry *dst)
 {
-	return 0;
+	return dst->dev->mtu;
 }
 
 static void ipv4_rt_blackhole_update_pmtu(struct dst_entry *dst, u32 mtu)
