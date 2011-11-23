@@ -333,40 +333,21 @@ brcmf_sdioh_request_chain(struct brcmf_sdio_dev *sdiodev, uint fix_inc,
  */
 int brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev,
 			       uint fix_inc, uint write, uint func, uint addr,
-			       uint buflen_u, u8 *buffer, struct sk_buff *pkt)
+			       struct sk_buff *pkt)
 {
-	int Status;
+	int status;
 	struct sk_buff *mypkt = NULL;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
+	if (pkt == NULL)
+		return -EINVAL;
+
 	brcmf_pm_resume_wait(sdiodev, &sdiodev->request_buffer_wait);
 	if (brcmf_pm_resume_error(sdiodev))
 		return -EIO;
-	/* Case 1: we don't have a packet. */
-	if (pkt == NULL) {
-		brcmf_dbg(DATA, "Creating new %s Packet, len=%d\n",
-			  write ? "TX" : "RX", buflen_u);
-		mypkt = brcmu_pkt_buf_get_skb(buflen_u);
-		if (!mypkt) {
-			brcmf_dbg(ERROR, "brcmu_pkt_buf_get_skb failed: len %d\n",
-				  buflen_u);
-			return -EIO;
-		}
 
-		/* For a write, copy the buffer data into the packet. */
-		if (write)
-			memcpy(mypkt->data, buffer, buflen_u);
-
-		Status = brcmf_sdioh_request_packet(sdiodev, fix_inc, write,
-						    func, addr, mypkt);
-
-		/* For a read, copy the packet data back to the buffer. */
-		if (!write)
-			memcpy(buffer, mypkt->data, buflen_u);
-
-		brcmu_pkt_buf_free_skb(mypkt);
-	} else if (((ulong) (pkt->data) & DMA_ALIGN_MASK) != 0) {
+	if (((ulong) (pkt->data) & DMA_ALIGN_MASK) != 0) {
 		/*
 		 * Case 2: We have a packet, but it is unaligned.
 		 * In this case, we cannot have a chain (pkt->next == NULL)
@@ -384,7 +365,7 @@ int brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev,
 		if (write)
 			memcpy(mypkt->data, pkt->data, pkt->len);
 
-		Status = brcmf_sdioh_request_packet(sdiodev, fix_inc, write,
+		status = brcmf_sdioh_request_packet(sdiodev, fix_inc, write,
 						    func, addr, mypkt);
 
 		/* For a read, copy the packet data back to the buffer. */
@@ -396,11 +377,11 @@ int brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev,
 				 it is aligned. */
 		brcmf_dbg(DATA, "Aligned %s Packet, direct DMA\n",
 			  write ? "Tx" : "Rx");
-		Status = brcmf_sdioh_request_packet(sdiodev, fix_inc, write,
+		status = brcmf_sdioh_request_packet(sdiodev, fix_inc, write,
 						    func, addr, pkt);
 	}
 
-	return Status;
+	return status;
 }
 
 /* Read client card reg */

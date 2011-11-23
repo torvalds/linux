@@ -288,7 +288,7 @@ brcmf_sdcard_recv_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 
 	incr_fix = (flags & SDIO_REQ_FIXED) ? SDIOH_DATA_FIX : SDIOH_DATA_INC;
 	err = brcmf_sdioh_request_buffer(sdiodev, incr_fix, SDIOH_READ,
-					 fn, addr, 0, NULL, pkt);
+					 fn, addr, pkt);
 
 	return err;
 }
@@ -369,18 +369,39 @@ brcmf_sdcard_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
 
 	return brcmf_sdioh_request_buffer(sdiodev, incr_fix, SDIOH_WRITE, fn,
-					  addr, 0, NULL, pkt);
+					  addr, pkt);
 }
 
 int brcmf_sdcard_rwdata(struct brcmf_sdio_dev *sdiodev, uint rw, u32 addr,
 			u8 *buf, uint nbytes)
 {
+	struct sk_buff *mypkt;
+	bool write = rw ? SDIOH_WRITE : SDIOH_READ;
+	int err;
+
 	addr &= SBSDIO_SB_OFT_ADDR_MASK;
 	addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
 
-	return brcmf_sdioh_request_buffer(sdiodev, SDIOH_DATA_INC,
-		(rw ? SDIOH_WRITE : SDIOH_READ), SDIO_FUNC_1,
-		addr, nbytes, buf, NULL);
+	mypkt = brcmu_pkt_buf_get_skb(nbytes);
+	if (!mypkt) {
+		brcmf_dbg(ERROR, "brcmu_pkt_buf_get_skb failed: len %d\n",
+			  nbytes);
+		return -EIO;
+	}
+
+	/* For a write, copy the buffer data into the packet. */
+	if (write)
+		memcpy(mypkt->data, buf, nbytes);
+
+	err = brcmf_sdioh_request_buffer(sdiodev, SDIOH_DATA_INC, write,
+					 SDIO_FUNC_1, addr, mypkt);
+
+	/* For a read, copy the packet data back to the buffer. */
+	if (!err && !write)
+		memcpy(buf, mypkt->data, nbytes);
+
+	brcmu_pkt_buf_free_skb(mypkt);
+	return err;
 }
 
 int brcmf_sdcard_abort(struct brcmf_sdio_dev *sdiodev, uint fn)
