@@ -792,59 +792,56 @@ cntrlEnd:
 	case IOCTL_BCM_BUFFER_DOWNLOAD: {
 		FIRMWARE_INFO *psFwInfo = NULL;
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Starting the firmware download PID =0x%x!!!!\n", current->pid);
-		do {
-			if (!down_trylock(&Adapter->fw_download_sema)) {
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
-						"Invalid way to download buffer. Use Start and then call this!!!\n");
-				Status = -EINVAL;
-				break;
-			}
 
-			/* Copy Ioctl Buffer structure */
-			if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
-				return -EFAULT;
-
+		if (!down_trylock(&Adapter->fw_download_sema)) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
-					"Length for FW DLD is : %lx\n", IoBuffer.InputLength);
-
-			if (IoBuffer.InputLength > sizeof(FIRMWARE_INFO))
-				return -EINVAL;
-
-			psFwInfo = kmalloc(sizeof(*psFwInfo), GFP_KERNEL);
-			if (!psFwInfo)
-				return -ENOMEM;
-
-			if (copy_from_user(psFwInfo, IoBuffer.InputBuffer, IoBuffer.InputLength))
-				return -EFAULT;
-
-			if (!psFwInfo->pvMappedFirmwareAddress ||
-				(psFwInfo->u32FirmwareLength == 0)) {
-
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Something else is wrong %lu\n",
-						psFwInfo->u32FirmwareLength);
-				Status = -EINVAL;
-				break;
-			}
-
-			Status = bcm_ioctl_fw_download(Adapter, psFwInfo);
-
-			if (Status != STATUS_SUCCESS) {
-				if (psFwInfo->u32StartingAddress == CONFIG_BEGIN_ADDR)
-					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "IOCTL: Configuration File Upload Failed\n");
-				else
-					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,	"IOCTL: Firmware File Upload Failed\n");
-
-				/* up(&Adapter->fw_download_sema); */
-
-				if (Adapter->LEDInfo.led_thread_running & BCM_LED_THREAD_RUNNING_ACTIVELY) {
-					Adapter->DriverState = DRIVER_INIT;
-					Adapter->LEDInfo.bLedInitDone = FALSE;
-					wake_up(&Adapter->LEDInfo.notify_led_event);
-				}
-			}
+					"Invalid way to download buffer. Use Start and then call this!!!\n");
+			Status = -EINVAL;
 			break;
+		}
 
-		} while (0);
+		/* Copy Ioctl Buffer structure */
+		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+			return -EFAULT;
+
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
+				"Length for FW DLD is : %lx\n", IoBuffer.InputLength);
+
+		if (IoBuffer.InputLength > sizeof(FIRMWARE_INFO))
+			return -EINVAL;
+
+		psFwInfo = kmalloc(sizeof(*psFwInfo), GFP_KERNEL);
+		if (!psFwInfo)
+			return -ENOMEM;
+
+		if (copy_from_user(psFwInfo, IoBuffer.InputBuffer, IoBuffer.InputLength))
+			return -EFAULT;
+
+		if (!psFwInfo->pvMappedFirmwareAddress ||
+			(psFwInfo->u32FirmwareLength == 0)) {
+
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Something else is wrong %lu\n",
+					psFwInfo->u32FirmwareLength);
+			Status = -EINVAL;
+			break;
+		}
+
+		Status = bcm_ioctl_fw_download(Adapter, psFwInfo);
+
+		if (Status != STATUS_SUCCESS) {
+			if (psFwInfo->u32StartingAddress == CONFIG_BEGIN_ADDR)
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "IOCTL: Configuration File Upload Failed\n");
+			else
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,	"IOCTL: Firmware File Upload Failed\n");
+
+			/* up(&Adapter->fw_download_sema); */
+
+			if (Adapter->LEDInfo.led_thread_running & BCM_LED_THREAD_RUNNING_ACTIVELY) {
+				Adapter->DriverState = DRIVER_INIT;
+				Adapter->LEDInfo.bLedInitDone = FALSE;
+				wake_up(&Adapter->LEDInfo.notify_led_event);
+			}
+		}
 
 		if (Status != STATUS_SUCCESS)
 			up(&Adapter->fw_download_sema);
