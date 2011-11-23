@@ -575,7 +575,7 @@ static int iwl_testmode_trace(struct ieee80211_hw *hw, struct nlattr **tb)
 		}
 		priv->testmode_trace.num_chunks =
 			DIV_ROUND_UP(priv->testmode_trace.buff_size,
-				     TRACE_CHUNK_SIZE);
+				     DUMP_CHUNK_SIZE);
 		break;
 
 	case IWL_TM_CMD_APP2DEV_END_TRACE:
@@ -607,15 +607,15 @@ static int iwl_testmode_trace_dump(struct ieee80211_hw *hw, struct nlattr **tb,
 		idx = cb->args[4];
 		if (idx >= priv->testmode_trace.num_chunks)
 			return -ENOENT;
-		length = TRACE_CHUNK_SIZE;
+		length = DUMP_CHUNK_SIZE;
 		if (((idx + 1) == priv->testmode_trace.num_chunks) &&
-		    (priv->testmode_trace.buff_size % TRACE_CHUNK_SIZE))
+		    (priv->testmode_trace.buff_size % DUMP_CHUNK_SIZE))
 			length = priv->testmode_trace.buff_size %
-				TRACE_CHUNK_SIZE;
+				DUMP_CHUNK_SIZE;
 
 		NLA_PUT(skb, IWL_TM_ATTR_TRACE_DUMP, length,
 			priv->testmode_trace.trace_addr +
-			(TRACE_CHUNK_SIZE * idx));
+			(DUMP_CHUNK_SIZE * idx));
 		idx++;
 		cb->args[4] = idx;
 		return 0;
@@ -728,7 +728,7 @@ static int iwl_testmode_sram(struct ieee80211_hw *hw, struct nlattr **tb)
 					priv->testmode_sram.buff_addr,
 					priv->testmode_sram.buff_size / 4);
 	priv->testmode_sram.num_chunks =
-		DIV_ROUND_UP(priv->testmode_sram.buff_size, TRACE_CHUNK_SIZE);
+		DIV_ROUND_UP(priv->testmode_sram.buff_size, DUMP_CHUNK_SIZE);
 	priv->testmode_sram.sram_readed = true;
 	return 0;
 }
@@ -746,15 +746,15 @@ static int iwl_testmode_sram_dump(struct ieee80211_hw *hw, struct nlattr **tb,
 			iwl_sram_cleanup(priv);
 			return -ENOENT;
 		}
-		length = TRACE_CHUNK_SIZE;
+		length = DUMP_CHUNK_SIZE;
 		if (((idx + 1) == priv->testmode_sram.num_chunks) &&
-		    (priv->testmode_sram.buff_size % TRACE_CHUNK_SIZE))
+		    (priv->testmode_sram.buff_size % DUMP_CHUNK_SIZE))
 			length = priv->testmode_sram.buff_size %
-				TRACE_CHUNK_SIZE;
+				DUMP_CHUNK_SIZE;
 
 		NLA_PUT(skb, IWL_TM_ATTR_SRAM_DUMP, length,
 			priv->testmode_sram.buff_addr +
-			(TRACE_CHUNK_SIZE * idx));
+			(DUMP_CHUNK_SIZE * idx));
 		idx++;
 		cb->args[4] = idx;
 		return 0;
