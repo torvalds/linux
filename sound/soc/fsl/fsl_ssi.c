@@ -514,7 +514,7 @@ static void fsl_ssi_shutdown(struct snd_pcm_substream *substream,
 	}
 }
 
-static struct snd_soc_dai_ops fsl_ssi_dai_ops = {
+static const struct snd_soc_dai_ops fsl_ssi_dai_ops = {
 	.startup	= fsl_ssi_startup,
 	.hw_params	= fsl_ssi_hw_params,
 	.shutdown	= fsl_ssi_shutdown,

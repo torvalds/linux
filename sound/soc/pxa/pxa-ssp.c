@@ -771,7 +771,7 @@ static int pxa_ssp_remove(struct snd_soc_dai *dai)
 			    SNDRV_PCM_FMTBIT_S24_LE |	\
 			    SNDRV_PCM_FMTBIT_S32_LE)
 
-static struct snd_soc_dai_ops pxa_ssp_dai_ops = {
+static const struct snd_soc_dai_ops pxa_ssp_dai_ops = {
 	.startup	= pxa_ssp_startup,
 	.shutdown	= pxa_ssp_shutdown,
 	.trigger	= pxa_ssp_trigger,

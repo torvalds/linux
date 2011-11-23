@@ -122,7 +122,7 @@ static int cq93vc_set_bias_level(struct snd_soc_codec *codec,
 #define CQ93VC_RATES	(SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000)
 #define CQ93VC_FORMATS	(SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE)
 
-static struct snd_soc_dai_ops cq93vc_dai_ops = {
+static const struct snd_soc_dai_ops cq93vc_dai_ops = {
 	.digital_mute	= cq93vc_mute,
 	.set_sysclk	= cq93vc_set_dai_sysclk,
 };

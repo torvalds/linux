@@ -474,7 +474,7 @@ static int ams_delta_digital_mute(struct snd_soc_dai *dai, int mute)
 }
 
 /* Our codec DAI probably doesn't have its own .ops structure */
-static struct snd_soc_dai_ops ams_delta_dai_ops = {
+static const struct snd_soc_dai_ops ams_delta_dai_ops = {
 	.digital_mute = ams_delta_digital_mute,
 };
 

@@ -330,7 +330,7 @@ static int ep93xx_ac97_startup(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_dai_ops ep93xx_ac97_dai_ops = {
+static const struct snd_soc_dai_ops ep93xx_ac97_dai_ops = {
 	.startup	= ep93xx_ac97_startup,
 	.trigger	= ep93xx_ac97_trigger,
 };

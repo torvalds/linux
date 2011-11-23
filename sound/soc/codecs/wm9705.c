@@ -258,7 +258,7 @@ static int ac97_prepare(struct snd_pcm_substream *substream,
 			SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | \
 			SNDRV_PCM_RATE_48000)
 
-static struct snd_soc_dai_ops wm9705_dai_ops = {
+static const struct snd_soc_dai_ops wm9705_dai_ops = {
 	.prepare	= ac97_prepare,
 };
 

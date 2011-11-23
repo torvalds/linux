@@ -597,7 +597,7 @@ static int aic32x4_set_bias_level(struct snd_soc_codec *codec,
 #define AIC32X4_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE \
 			 | SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S32_LE)
 
-static struct snd_soc_dai_ops aic32x4_ops = {
+static const struct snd_soc_dai_ops aic32x4_ops = {
 	.hw_params = aic32x4_hw_params,
 	.digital_mute = aic32x4_mute,
 	.set_fmt = aic32x4_set_dai_fmt,

@@ -337,7 +337,7 @@ static int au1xpsc_ac97_probe(struct snd_soc_dai *dai)
 	return au1xpsc_ac97_workdata ? 0 : -ENODEV;
 }
 
-static struct snd_soc_dai_ops au1xpsc_ac97_dai_ops = {
+static const struct snd_soc_dai_ops au1xpsc_ac97_dai_ops = {
 	.startup	= au1xpsc_ac97_startup,
 	.trigger	= au1xpsc_ac97_trigger,
 	.hw_params	= au1xpsc_ac97_hw_params,

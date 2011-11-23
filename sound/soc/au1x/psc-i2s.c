@@ -265,7 +265,7 @@ static int au1xpsc_i2s_startup(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_dai_ops au1xpsc_i2s_dai_ops = {
+static const struct snd_soc_dai_ops au1xpsc_i2s_dai_ops = {
 	.startup	= au1xpsc_i2s_startup,
 	.trigger	= au1xpsc_i2s_trigger,
 	.hw_params	= au1xpsc_i2s_hw_params,

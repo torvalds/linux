@@ -142,7 +142,7 @@ static int s3c2412_i2s_hw_params(struct snd_pcm_substream *substream,
 	SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | \
 	SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000)
 
-static struct snd_soc_dai_ops s3c2412_i2s_dai_ops = {
+static const struct snd_soc_dai_ops s3c2412_i2s_dai_ops = {
 	.hw_params	= s3c2412_i2s_hw_params,
 };
 

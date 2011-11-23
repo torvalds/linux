@@ -1198,14 +1198,14 @@ static int pm860x_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static struct snd_soc_dai_ops pm860x_pcm_dai_ops = {
+static const struct snd_soc_dai_ops pm860x_pcm_dai_ops = {
 	.digital_mute	= pm860x_digital_mute,
 	.hw_params	= pm860x_pcm_hw_params,
 	.set_fmt	= pm860x_pcm_set_dai_fmt,
 	.set_sysclk	= pm860x_set_dai_sysclk,
 };
 
-static struct snd_soc_dai_ops pm860x_i2s_dai_ops = {
+static const struct snd_soc_dai_ops pm860x_i2s_dai_ops = {
 	.digital_mute	= pm860x_digital_mute,
 	.hw_params	= pm860x_i2s_hw_params,
 	.set_fmt	= pm860x_i2s_set_dai_fmt,

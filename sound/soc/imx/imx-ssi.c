@@ -342,7 +342,7 @@ static int imx_ssi_trigger(struct snd_pcm_substream *substream, int cmd,
 	return 0;
 }
 
-static struct snd_soc_dai_ops imx_ssi_pcm_dai_ops = {
+static const struct snd_soc_dai_ops imx_ssi_pcm_dai_ops = {
 	.hw_params	= imx_ssi_hw_params,
 	.set_fmt	= imx_ssi_set_dai_fmt,
 	.set_clkdiv	= imx_ssi_set_dai_clkdiv,

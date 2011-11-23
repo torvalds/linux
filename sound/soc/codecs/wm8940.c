@@ -644,7 +644,7 @@ static int wm8940_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 			SNDRV_PCM_FMTBIT_S24_LE |			\
 			SNDRV_PCM_FMTBIT_S32_LE)
 
-static struct snd_soc_dai_ops wm8940_dai_ops = {
+static const struct snd_soc_dai_ops wm8940_dai_ops = {
 	.hw_params = wm8940_i2s_hw_params,
 	.set_sysclk = wm8940_set_dai_sysclk,
 	.digital_mute = wm8940_mute,

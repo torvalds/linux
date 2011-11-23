@@ -83,7 +83,7 @@ static int omap_hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 	return err;
 }
 
-static struct snd_soc_dai_ops omap_hdmi_dai_ops = {
+static const struct snd_soc_dai_ops omap_hdmi_dai_ops = {
 	.startup	= omap_hdmi_dai_startup,
 	.hw_params	= omap_hdmi_dai_hw_params,
 };

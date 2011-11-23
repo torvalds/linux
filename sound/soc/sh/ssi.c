@@ -332,7 +332,7 @@ static int ssi_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	 SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_U24_3LE |	\
 	 SNDRV_PCM_FMTBIT_S32_LE  | SNDRV_PCM_FMTBIT_U32_LE)
 
-static struct snd_soc_dai_ops ssi_dai_ops = {
+static const struct snd_soc_dai_ops ssi_dai_ops = {
 	.startup	= ssi_startup,
 	.shutdown	= ssi_shutdown,
 	.trigger	= ssi_trigger,

@@ -329,12 +329,12 @@ static int s3c_ac97_mic_trigger(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_dai_ops s3c_ac97_dai_ops = {
+static const struct snd_soc_dai_ops s3c_ac97_dai_ops = {
 	.hw_params	= s3c_ac97_hw_params,
 	.trigger	= s3c_ac97_trigger,
 };
 
-static struct snd_soc_dai_ops s3c_ac97_mic_dai_ops = {
+static const struct snd_soc_dai_ops s3c_ac97_mic_dai_ops = {
 	.hw_params	= s3c_ac97_hw_mic_params,
 	.trigger	= s3c_ac97_mic_trigger,
 };

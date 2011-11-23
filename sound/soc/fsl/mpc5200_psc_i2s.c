@@ -123,7 +123,7 @@ static int psc_i2s_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int format)
 /**
  * psc_i2s_dai_template: template CPU Digital Audio Interface
  */
-static struct snd_soc_dai_ops psc_i2s_dai_ops = {
+static const struct snd_soc_dai_ops psc_i2s_dai_ops = {
 	.hw_params	= psc_i2s_hw_params,
 	.set_sysclk	= psc_i2s_set_sysclk,
 	.set_fmt	= psc_i2s_set_fmt,

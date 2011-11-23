@@ -528,7 +528,7 @@ static int wm8770_set_bias_level(struct snd_soc_codec *codec,
 #define WM8770_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
-static struct snd_soc_dai_ops wm8770_dai_ops = {
+static const struct snd_soc_dai_ops wm8770_dai_ops = {
 	.digital_mute = wm8770_mute,
 	.hw_params = wm8770_hw_params,
 	.set_fmt = wm8770_set_fmt,

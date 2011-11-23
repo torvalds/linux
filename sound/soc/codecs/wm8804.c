@@ -670,7 +670,7 @@ err_reg_get:
 	return ret;
 }
 
-static struct snd_soc_dai_ops wm8804_dai_ops = {
+static const struct snd_soc_dai_ops wm8804_dai_ops = {
 	.hw_params = wm8804_hw_params,
 	.set_fmt = wm8804_set_fmt,
 	.set_sysclk = wm8804_set_sysclk,

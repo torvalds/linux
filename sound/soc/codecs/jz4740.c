@@ -206,7 +206,7 @@ static int jz4740_codec_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_dai_ops jz4740_codec_dai_ops = {
+static const struct snd_soc_dai_ops jz4740_codec_dai_ops = {
 	.hw_params = jz4740_codec_hw_params,
 };
 

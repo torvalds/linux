@@ -1287,7 +1287,7 @@ static int wm8990_set_bias_level(struct snd_soc_codec *codec,
  * 1. ADC/DAC on Primary Interface
  * 2. ADC on Primary Interface/DAC on secondary
  */
-static struct snd_soc_dai_ops wm8990_dai_ops = {
+static const struct snd_soc_dai_ops wm8990_dai_ops = {
 	.hw_params	= wm8990_hw_params,
 	.digital_mute	= wm8990_mute,
 	.set_fmt	= wm8990_set_dai_fmt,

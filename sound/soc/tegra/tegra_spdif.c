@@ -226,7 +226,7 @@ static int tegra_spdif_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
-static struct snd_soc_dai_ops tegra_spdif_dai_ops = {
+static const struct snd_soc_dai_ops tegra_spdif_dai_ops = {
 	.hw_params	= tegra_spdif_hw_params,
 	.trigger	= tegra_spdif_trigger,
 };

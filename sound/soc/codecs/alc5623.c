@@ -839,7 +839,7 @@ static int alc5623_set_bias_level(struct snd_soc_codec *codec,
 			| SNDRV_PCM_FMTBIT_S24_LE \
 			| SNDRV_PCM_FMTBIT_S32_LE)
 
-static struct snd_soc_dai_ops alc5623_dai_ops = {
+static const struct snd_soc_dai_ops alc5623_dai_ops = {
 		.hw_params = alc5623_pcm_hw_params,
 		.digital_mute = alc5623_mute,
 		.set_fmt = alc5623_set_dai_fmt,

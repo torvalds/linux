@@ -2155,7 +2155,7 @@ err_reg_get:
 #define WM8995_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
-static struct snd_soc_dai_ops wm8995_aif1_dai_ops = {
+static const struct snd_soc_dai_ops wm8995_aif1_dai_ops = {
 	.set_sysclk = wm8995_set_dai_sysclk,
 	.set_fmt = wm8995_set_dai_fmt,
 	.hw_params = wm8995_hw_params,
@@ -2164,7 +2164,7 @@ static struct snd_soc_dai_ops wm8995_aif1_dai_ops = {
 	.set_tristate = wm8995_set_tristate,
 };
 
-static struct snd_soc_dai_ops wm8995_aif2_dai_ops = {
+static const struct snd_soc_dai_ops wm8995_aif2_dai_ops = {
 	.set_sysclk = wm8995_set_dai_sysclk,
 	.set_fmt = wm8995_set_dai_fmt,
 	.hw_params = wm8995_hw_params,
@@ -2173,7 +2173,7 @@ static struct snd_soc_dai_ops wm8995_aif2_dai_ops = {
 	.set_tristate = wm8995_set_tristate,
 };
 
-static struct snd_soc_dai_ops wm8995_aif3_dai_ops = {
+static const struct snd_soc_dai_ops wm8995_aif3_dai_ops = {
 	.set_tristate = wm8995_set_tristate,
 };
 

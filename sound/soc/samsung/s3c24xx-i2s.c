@@ -444,7 +444,7 @@ static int s3c24xx_i2s_resume(struct snd_soc_dai *cpu_dai)
 	SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | \
 	SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000)
 
-static struct snd_soc_dai_ops s3c24xx_i2s_dai_ops = {
+static const struct snd_soc_dai_ops s3c24xx_i2s_dai_ops = {
 	.trigger	= s3c24xx_i2s_trigger,
 	.hw_params	= s3c24xx_i2s_hw_params,
 	.set_fmt	= s3c24xx_i2s_set_fmt,

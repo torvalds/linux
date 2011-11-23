@@ -183,7 +183,7 @@ static int davinci_vcif_startup(struct snd_pcm_substream *substream,
 
 #define DAVINCI_VCIF_RATES	SNDRV_PCM_RATE_8000_48000
 
-static struct snd_soc_dai_ops davinci_vcif_dai_ops = {
+static const struct snd_soc_dai_ops davinci_vcif_dai_ops = {
 	.startup	= davinci_vcif_startup,
 	.trigger	= davinci_vcif_trigger,
 	.hw_params	= davinci_vcif_hw_params,

@@ -1394,7 +1394,7 @@ out:
 	return 0;
 }
 
-static struct snd_soc_dai_ops wm8993_ops = {
+static const struct snd_soc_dai_ops wm8993_ops = {
 	.set_sysclk = wm8993_set_sysclk,
 	.set_fmt = wm8993_set_dai_fmt,
 	.hw_params = wm8993_hw_params,

@@ -382,7 +382,7 @@ static int wm8741_set_dai_fmt(struct snd_soc_dai *codec_dai,
 #define WM8741_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
-static struct snd_soc_dai_ops wm8741_dai_ops = {
+static const struct snd_soc_dai_ops wm8741_dai_ops = {
 	.startup	= wm8741_startup,
 	.hw_params	= wm8741_hw_params,
 	.set_sysclk	= wm8741_set_dai_sysclk,

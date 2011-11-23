@@ -707,7 +707,7 @@ epclkget:
 	return ret;
 }
 
-static struct snd_soc_dai_ops siu_dai_ops = {
+static const struct snd_soc_dai_ops siu_dai_ops = {
 	.startup	= siu_dai_startup,
 	.shutdown	= siu_dai_shutdown,
 	.prepare	= siu_dai_prepare,

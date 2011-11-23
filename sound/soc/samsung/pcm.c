@@ -452,7 +452,7 @@ static int s3c_pcm_set_sysclk(struct snd_soc_dai *cpu_dai,
 	return 0;
 }
 
-static struct snd_soc_dai_ops s3c_pcm_dai_ops = {
+static const struct snd_soc_dai_ops s3c_pcm_dai_ops = {
 	.set_sysclk	= s3c_pcm_set_sysclk,
 	.set_clkdiv	= s3c_pcm_set_clkdiv,
 	.trigger	= s3c_pcm_trigger,

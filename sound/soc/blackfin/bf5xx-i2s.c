@@ -223,7 +223,7 @@ static int bf5xx_i2s_resume(struct snd_soc_dai *dai)
 	 SNDRV_PCM_FMTBIT_S24_LE | \
 	 SNDRV_PCM_FMTBIT_S32_LE)
 
-static struct snd_soc_dai_ops bf5xx_i2s_dai_ops = {
+static const struct snd_soc_dai_ops bf5xx_i2s_dai_ops = {
 	.shutdown	= bf5xx_i2s_shutdown,
 	.hw_params	= bf5xx_i2s_hw_params,
 	.set_fmt	= bf5xx_i2s_set_dai_fmt,

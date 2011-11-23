@@ -266,7 +266,7 @@ static int hac_hw_params(struct snd_pcm_substream *substream,
 #define AC97_FMTS	\
 	SNDRV_PCM_FMTBIT_S16_LE
 
-static struct snd_soc_dai_ops hac_dai_ops = {
+static const struct snd_soc_dai_ops hac_dai_ops = {
 	.hw_params	= hac_hw_params,
 };
 

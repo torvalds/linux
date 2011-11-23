@@ -550,7 +550,7 @@ static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
 	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 	SNDRV_PCM_FMTBIT_S24_LE)
 
-static struct snd_soc_dai_ops mxs_saif_dai_ops = {
+static const struct snd_soc_dai_ops mxs_saif_dai_ops = {
 	.startup = mxs_saif_startup,
 	.trigger = mxs_saif_trigger,
 	.prepare = mxs_saif_prepare,

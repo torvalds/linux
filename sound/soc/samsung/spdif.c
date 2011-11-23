@@ -334,7 +334,7 @@ static int spdif_resume(struct snd_soc_dai *cpu_dai)
 #define spdif_resume NULL
 #endif
 
-static struct snd_soc_dai_ops spdif_dai_ops = {
+static const struct snd_soc_dai_ops spdif_dai_ops = {
 	.set_sysclk	= spdif_set_sysclk,
 	.trigger	= spdif_trigger,
 	.hw_params	= spdif_hw_params,

@@ -195,7 +195,7 @@ static int alchemy_ac97c_startup(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_dai_ops alchemy_ac97c_ops = {
+static const struct snd_soc_dai_ops alchemy_ac97c_ops = {
 	.startup		= alchemy_ac97c_startup,
 };
 

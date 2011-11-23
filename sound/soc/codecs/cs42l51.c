@@ -483,7 +483,7 @@ static int cs42l51_dai_mute(struct snd_soc_dai *dai, int mute)
 	return snd_soc_write(codec, CS42L51_DAC_OUT_CTL, reg);
 }
 
-static struct snd_soc_dai_ops cs42l51_dai_ops = {
+static const struct snd_soc_dai_ops cs42l51_dai_ops = {
 	.hw_params      = cs42l51_hw_params,
 	.set_sysclk     = cs42l51_set_dai_sysclk,
 	.set_fmt        = cs42l51_set_dai_fmt,

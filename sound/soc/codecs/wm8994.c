@@ -2531,7 +2531,7 @@ static int wm8994_aif2_probe(struct snd_soc_dai *dai)
 #define WM8994_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
-static struct snd_soc_dai_ops wm8994_aif1_dai_ops = {
+static const struct snd_soc_dai_ops wm8994_aif1_dai_ops = {
 	.set_sysclk	= wm8994_set_dai_sysclk,
 	.set_fmt	= wm8994_set_dai_fmt,
 	.hw_params	= wm8994_hw_params,
@@ -2541,7 +2541,7 @@ static struct snd_soc_dai_ops wm8994_aif1_dai_ops = {
 	.set_tristate	= wm8994_set_tristate,
 };
 
-static struct snd_soc_dai_ops wm8994_aif2_dai_ops = {
+static const struct snd_soc_dai_ops wm8994_aif2_dai_ops = {
 	.set_sysclk	= wm8994_set_dai_sysclk,
 	.set_fmt	= wm8994_set_dai_fmt,
 	.hw_params	= wm8994_hw_params,
@@ -2551,7 +2551,7 @@ static struct snd_soc_dai_ops wm8994_aif2_dai_ops = {
 	.set_tristate	= wm8994_set_tristate,
 };
 
-static struct snd_soc_dai_ops wm8994_aif3_dai_ops = {
+static const struct snd_soc_dai_ops wm8994_aif3_dai_ops = {
 	.hw_params	= wm8994_aif3_hw_params,
 	.set_tristate	= wm8994_set_tristate,
 };

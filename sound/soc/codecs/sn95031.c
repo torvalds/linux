@@ -698,21 +698,21 @@ static int sn95031_pcm_hw_params(struct snd_pcm_substream *substream,
 }
 
 /* Codec DAI section */
-static struct snd_soc_dai_ops sn95031_headset_dai_ops = {
+static const struct snd_soc_dai_ops sn95031_headset_dai_ops = {
 	.digital_mute	= sn95031_pcm_hs_mute,
 	.hw_params	= sn95031_pcm_hw_params,
 };
 
-static struct snd_soc_dai_ops sn95031_speaker_dai_ops = {
+static const struct snd_soc_dai_ops sn95031_speaker_dai_ops = {
 	.digital_mute	= sn95031_pcm_spkr_mute,
 	.hw_params	= sn95031_pcm_hw_params,
 };
 
-static struct snd_soc_dai_ops sn95031_vib1_dai_ops = {
+static const struct snd_soc_dai_ops sn95031_vib1_dai_ops = {
 	.hw_params	= sn95031_pcm_hw_params,
 };
 
-static struct snd_soc_dai_ops sn95031_vib2_dai_ops = {
+static const struct snd_soc_dai_ops sn95031_vib2_dai_ops = {
 	.hw_params	= sn95031_pcm_hw_params,
 };
 

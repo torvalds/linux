@@ -442,14 +442,14 @@ static int ak4641_set_bias_level(struct snd_soc_codec *codec,
 			 SNDRV_PCM_RATE_16000)
 #define AK4641_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE)
 
-static struct snd_soc_dai_ops ak4641_i2s_dai_ops = {
+static const struct snd_soc_dai_ops ak4641_i2s_dai_ops = {
 	.hw_params    = ak4641_i2s_hw_params,
 	.set_fmt      = ak4641_i2s_set_dai_fmt,
 	.digital_mute = ak4641_mute,
 	.set_sysclk   = ak4641_set_dai_sysclk,
 };
 
-static struct snd_soc_dai_ops ak4641_pcm_dai_ops = {
+static const struct snd_soc_dai_ops ak4641_pcm_dai_ops = {
 	.hw_params    = NULL, /* rates are controlled by BT chip */
 	.set_fmt      = ak4641_pcm_set_dai_fmt,
 	.digital_mute = ak4641_mute,

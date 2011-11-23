@@ -1315,7 +1315,7 @@ static int wm8753_set_bias_level(struct snd_soc_codec *codec,
  * 3. Voice disabled - HIFI over HIFI
  * 4. Voice disabled - HIFI over HIFI, uses voice DAI LRC for capture
  */
-static struct snd_soc_dai_ops wm8753_dai_ops_hifi_mode = {
+static const struct snd_soc_dai_ops wm8753_dai_ops_hifi_mode = {
 	.hw_params	= wm8753_i2s_hw_params,
 	.digital_mute	= wm8753_mute,
 	.set_fmt	= wm8753_hifi_set_dai_fmt,
@@ -1324,7 +1324,7 @@ static struct snd_soc_dai_ops wm8753_dai_ops_hifi_mode = {
 	.set_sysclk	= wm8753_set_dai_sysclk,
 };
 
-static struct snd_soc_dai_ops wm8753_dai_ops_voice_mode = {
+static const struct snd_soc_dai_ops wm8753_dai_ops_voice_mode = {
 	.hw_params	= wm8753_pcm_hw_params,
 	.digital_mute	= wm8753_mute,
 	.set_fmt	= wm8753_voice_set_dai_fmt,

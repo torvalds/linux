@@ -1026,19 +1026,19 @@ static int ac97_aux_prepare(struct snd_pcm_substream *substream,
 	(SNDRV_PCM_FORMAT_S16_LE | SNDRV_PCM_FORMAT_S20_3LE | \
 	 SNDRV_PCM_FORMAT_S24_LE)
 
-static struct snd_soc_dai_ops wm9713_dai_ops_hifi = {
+static const struct snd_soc_dai_ops wm9713_dai_ops_hifi = {
 	.prepare	= ac97_hifi_prepare,
 	.set_clkdiv	= wm9713_set_dai_clkdiv,
 	.set_pll	= wm9713_set_dai_pll,
 };
 
-static struct snd_soc_dai_ops wm9713_dai_ops_aux = {
+static const struct snd_soc_dai_ops wm9713_dai_ops_aux = {
 	.prepare	= ac97_aux_prepare,
 	.set_clkdiv	= wm9713_set_dai_clkdiv,
 	.set_pll	= wm9713_set_dai_pll,
 };
 
-static struct snd_soc_dai_ops wm9713_dai_ops_voice = {
+static const struct snd_soc_dai_ops wm9713_dai_ops_voice = {
 	.hw_params	= wm9713_pcm_hw_params,
 	.set_clkdiv	= wm9713_set_dai_clkdiv,
 	.set_pll	= wm9713_set_dai_pll,

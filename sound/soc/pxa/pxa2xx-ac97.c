@@ -163,15 +163,15 @@ static int pxa2xx_ac97_hw_mic_params(struct snd_pcm_substream *substream,
 		SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_44100 | \
 		SNDRV_PCM_RATE_48000)
 
-static struct snd_soc_dai_ops pxa_ac97_hifi_dai_ops = {
+static const struct snd_soc_dai_ops pxa_ac97_hifi_dai_ops = {
 	.hw_params	= pxa2xx_ac97_hw_params,
 };
 
-static struct snd_soc_dai_ops pxa_ac97_aux_dai_ops = {
+static const struct snd_soc_dai_ops pxa_ac97_aux_dai_ops = {
 	.hw_params	= pxa2xx_ac97_hw_aux_params,
 };
 
-static struct snd_soc_dai_ops pxa_ac97_mic_dai_ops = {
+static const struct snd_soc_dai_ops pxa_ac97_mic_dai_ops = {
 	.hw_params	= pxa2xx_ac97_hw_mic_params,
 };
 

@@ -305,7 +305,7 @@ static int tegra_i2s_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
-static struct snd_soc_dai_ops tegra_i2s_dai_ops = {
+static const struct snd_soc_dai_ops tegra_i2s_dai_ops = {
 	.set_fmt	= tegra_i2s_set_fmt,
 	.hw_params	= tegra_i2s_hw_params,
 	.trigger	= tegra_i2s_trigger,

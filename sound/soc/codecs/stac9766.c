@@ -286,11 +286,11 @@ reset:
 	return 0;
 }
 
-static struct snd_soc_dai_ops stac9766_dai_ops_analog = {
+static const struct snd_soc_dai_ops stac9766_dai_ops_analog = {
 	.prepare = ac97_analog_prepare,
 };
 
-static struct snd_soc_dai_ops stac9766_dai_ops_digital = {
+static const struct snd_soc_dai_ops stac9766_dai_ops_digital = {
 	.prepare = ac97_digital_prepare,
 };
 

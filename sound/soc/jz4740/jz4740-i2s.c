@@ -392,7 +392,7 @@ static int jz4740_i2s_dai_remove(struct snd_soc_dai *dai)
 	return 0;
 }
 
-static struct snd_soc_dai_ops jz4740_i2s_dai_ops = {
+static const struct snd_soc_dai_ops jz4740_i2s_dai_ops = {
 	.startup = jz4740_i2s_startup,
 	.shutdown = jz4740_i2s_shutdown,
 	.trigger = jz4740_i2s_trigger,

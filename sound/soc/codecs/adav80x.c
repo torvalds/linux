@@ -718,7 +718,7 @@ static void adav80x_dai_shutdown(struct snd_pcm_substream *substream,
 		adav80x->rate = 0;
 }
 
-static const struct snd_soc_dai_ops adav80x_dai_ops = {
+static const const struct snd_soc_dai_ops adav80x_dai_ops = {
 	.set_fmt = adav80x_set_dai_fmt,
 	.hw_params = adav80x_hw_params,
 	.startup = adav80x_dai_startup,

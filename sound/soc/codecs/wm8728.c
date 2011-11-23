@@ -196,7 +196,7 @@ static int wm8728_set_bias_level(struct snd_soc_codec *codec,
 #define WM8728_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 	SNDRV_PCM_FMTBIT_S24_LE)
 
-static struct snd_soc_dai_ops wm8728_dai_ops = {
+static const struct snd_soc_dai_ops wm8728_dai_ops = {
 	.hw_params	= wm8728_hw_params,
 	.digital_mute	= wm8728_mute,
 	.set_fmt	= wm8728_set_dai_fmt,

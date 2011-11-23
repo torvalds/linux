@@ -291,7 +291,7 @@ static int nuc900_ac97_remove(struct snd_soc_dai *dai)
 	return 0;
 }
 
-static struct snd_soc_dai_ops nuc900_ac97_dai_ops = {
+static const struct snd_soc_dai_ops nuc900_ac97_dai_ops = {
 	.trigger	= nuc900_ac97_trigger,
 };
 

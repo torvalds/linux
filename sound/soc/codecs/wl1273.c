@@ -386,7 +386,7 @@ static int wl1273_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_dai_ops wl1273_dai_ops = {
+static const struct snd_soc_dai_ops wl1273_dai_ops = {
 	.startup	= wl1273_startup,
 	.hw_params	= wl1273_hw_params,
 };

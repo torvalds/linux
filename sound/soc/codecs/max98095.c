@@ -1782,19 +1782,19 @@ static int max98095_set_bias_level(struct snd_soc_codec *codec,
 #define MAX98095_RATES SNDRV_PCM_RATE_8000_96000
 #define MAX98095_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE)
 
-static struct snd_soc_dai_ops max98095_dai1_ops = {
+static const struct snd_soc_dai_ops max98095_dai1_ops = {
 	.set_sysclk = max98095_dai_set_sysclk,
 	.set_fmt = max98095_dai1_set_fmt,
 	.hw_params = max98095_dai1_hw_params,
 };
 
-static struct snd_soc_dai_ops max98095_dai2_ops = {
+static const struct snd_soc_dai_ops max98095_dai2_ops = {
 	.set_sysclk = max98095_dai_set_sysclk,
 	.set_fmt = max98095_dai2_set_fmt,
 	.hw_params = max98095_dai2_hw_params,
 };
 
-static struct snd_soc_dai_ops max98095_dai3_ops = {
+static const struct snd_soc_dai_ops max98095_dai3_ops = {
 	.set_sysclk = max98095_dai_set_sysclk,
 	.set_fmt = max98095_dai3_set_fmt,
 	.hw_params = max98095_dai3_hw_params,

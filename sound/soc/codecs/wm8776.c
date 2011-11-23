@@ -327,14 +327,14 @@ static int wm8776_set_bias_level(struct snd_soc_codec *codec,
 #define WM8776_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
-static struct snd_soc_dai_ops wm8776_dac_ops = {
+static const struct snd_soc_dai_ops wm8776_dac_ops = {
 	.digital_mute	= wm8776_mute,
 	.hw_params      = wm8776_hw_params,
 	.set_fmt        = wm8776_set_fmt,
 	.set_sysclk     = wm8776_set_sysclk,
 };
 
-static struct snd_soc_dai_ops wm8776_adc_ops = {
+static const struct snd_soc_dai_ops wm8776_adc_ops = {
 	.hw_params      = wm8776_hw_params,
 	.set_fmt        = wm8776_set_fmt,
 	.set_sysclk     = wm8776_set_sysclk,

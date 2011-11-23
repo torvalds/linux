@@ -620,7 +620,7 @@ static void davinci_i2s_shutdown(struct snd_pcm_substream *substream,
 
 #define DAVINCI_I2S_RATES	SNDRV_PCM_RATE_8000_96000
 
-static struct snd_soc_dai_ops davinci_i2s_dai_ops = {
+static const struct snd_soc_dai_ops davinci_i2s_dai_ops = {
 	.startup	= davinci_i2s_startup,
 	.shutdown	= davinci_i2s_shutdown,
 	.prepare	= davinci_i2s_prepare,

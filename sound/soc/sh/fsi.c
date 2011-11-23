@@ -1096,7 +1096,7 @@ static int fsi_dai_hw_params(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static struct snd_soc_dai_ops fsi_dai_ops = {
+static const struct snd_soc_dai_ops fsi_dai_ops = {
 	.startup	= fsi_dai_startup,
 	.shutdown	= fsi_dai_shutdown,
 	.trigger	= fsi_dai_trigger,

@@ -776,7 +776,7 @@ static int wm8580_set_bias_level(struct snd_soc_codec *codec,
 #define WM8580_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
-static struct snd_soc_dai_ops wm8580_dai_ops_playback = {
+static const struct snd_soc_dai_ops wm8580_dai_ops_playback = {
 	.set_sysclk	= wm8580_set_sysclk,
 	.hw_params	= wm8580_paif_hw_params,
 	.set_fmt	= wm8580_set_paif_dai_fmt,
@@ -785,7 +785,7 @@ static struct snd_soc_dai_ops wm8580_dai_ops_playback = {
 	.digital_mute	= wm8580_digital_mute,
 };
 
-static struct snd_soc_dai_ops wm8580_dai_ops_capture = {
+static const struct snd_soc_dai_ops wm8580_dai_ops_capture = {
 	.set_sysclk	= wm8580_set_sysclk,
 	.hw_params	= wm8580_paif_hw_params,
 	.set_fmt	= wm8580_set_paif_dai_fmt,

@@ -594,7 +594,7 @@ static int ak4671_set_bias_level(struct snd_soc_codec *codec,
 
 #define AK4671_FORMATS		SNDRV_PCM_FMTBIT_S16_LE
 
-static struct snd_soc_dai_ops ak4671_dai_ops = {
+static const struct snd_soc_dai_ops ak4671_dai_ops = {
 	.hw_params	= ak4671_hw_params,
 	.set_sysclk	= ak4671_set_dai_sysclk,
 	.set_fmt	= ak4671_set_dai_fmt,
