@@ -11,11 +11,11 @@
 #include <linux/list.h>
 #include "mount.h"
 
-#define IS_MNT_SHARED(mnt) (mnt->mnt_flags & MNT_SHARED)
-#define IS_MNT_SLAVE(mnt) (mnt->mnt_master)
-#define IS_MNT_NEW(mnt)  (!mnt->mnt_ns)
-#define CLEAR_MNT_SHARED(mnt) (mnt->mnt_flags &= ~MNT_SHARED)
-#define IS_MNT_UNBINDABLE(mnt) (mnt->mnt_flags & MNT_UNBINDABLE)
+#define IS_MNT_SHARED(mnt) ((mnt)->mnt_flags & MNT_SHARED)
+#define IS_MNT_SLAVE(mnt) ((mnt)->mnt_master)
+#define IS_MNT_NEW(mnt)  (!(mnt)->mnt_ns)
+#define CLEAR_MNT_SHARED(mnt) ((mnt)->mnt_flags &= ~MNT_SHARED)
+#define IS_MNT_UNBINDABLE(mnt) ((mnt)->mnt_flags & MNT_UNBINDABLE)
 
 #define CL_EXPIRE    		0x01
 #define CL_SLAVE     		0x02
