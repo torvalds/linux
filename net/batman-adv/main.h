@@ -73,6 +73,9 @@
 
 #define BATADV_LOG_BUF_LEN 8192	  /* has to be a power of 2 */
 
+/* numbers of originator to contact for any PUT/GET DHT operation */
+#define BATADV_DAT_CANDIDATES_NUM 3
+
 #define BATADV_VIS_INTERVAL 5000	/* 5 seconds */
 
 /* how much worse secondary interfaces may be to be considered as bonding
@@ -116,6 +119,9 @@ enum batadv_uev_type {
 };
 
 #define BATADV_GW_THRESHOLD	50
+
+#define BATADV_DAT_CANDIDATE_NOT_FOUND	0
+#define BATADV_DAT_CANDIDATE_ORIG	1
 
 /* Debug Messages */
 #ifdef pr_fmt

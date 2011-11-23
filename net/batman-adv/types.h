@@ -28,6 +28,13 @@
 	(ETH_HLEN + max(sizeof(struct batadv_unicast_packet), \
 			sizeof(struct batadv_bcast_packet)))
 
+/* batadv_dat_addr_t is the type used for all DHT addresses. If it is changed,
+ * BATADV_DAT_ADDR_MAX is changed as well.
+ *
+ * *Please be careful: batadv_dat_addr_t must be UNSIGNED*
+ */
+#define batadv_dat_addr_t uint16_t
+
 /**
  * struct batadv_hard_iface_bat_iv - per hard interface B.A.T.M.A.N. IV data
  * @ogm_buff: buffer holding the OGM packet
@@ -73,6 +80,7 @@ struct batadv_orig_node {
 	uint8_t orig[ETH_ALEN];
 	uint8_t primary_addr[ETH_ALEN];
 	struct batadv_neigh_node __rcu *router; /* rcu protected pointer */
+	batadv_dat_addr_t dat_addr;
 	unsigned long *bcast_own;
 	uint8_t *bcast_own_sum;
 	unsigned long last_seen;
@@ -238,6 +246,14 @@ struct batadv_priv_vis {
 	struct batadv_vis_info *my_info;
 };
 
+/**
+ * struct batadv_priv_dat - per mesh interface DAT private data
+ * @addr: node DAT address
+ */
+struct batadv_priv_dat {
+	batadv_dat_addr_t addr;
+};
+
 struct batadv_priv {
 	atomic_t mesh_state;
 	struct net_device_stats stats;
@@ -275,6 +291,7 @@ struct batadv_priv {
 	struct batadv_priv_gw gw;
 	struct batadv_priv_tt tt;
 	struct batadv_priv_vis vis;
+	struct batadv_priv_dat dat;
 };
 
 struct batadv_socket_client {
@@ -445,6 +462,19 @@ struct batadv_algo_ops {
 	void (*bat_ogm_schedule)(struct batadv_hard_iface *hard_iface);
 	/* send scheduled OGM */
 	void (*bat_ogm_emit)(struct batadv_forw_packet *forw_packet);
+};
+
+/**
+ * struct batadv_dat_candidate - candidate destination for DAT operations
+ * @type: the type of the selected candidate. It can one of the following:
+ *	  - BATADV_DAT_CANDIDATE_NOT_FOUND
+ *	  - BATADV_DAT_CANDIDATE_ORIG
+ * @orig_node: if type is BATADV_DAT_CANDIDATE_ORIG this field points to the
+ *	       corresponding originator node structure
+ */
+struct batadv_dat_candidate {
+	int type;
+	struct batadv_orig_node *orig_node;
 };
 
 #endif /* _NET_BATMAN_ADV_TYPES_H_ */

@@ -347,10 +347,10 @@ static bool batadv_unicast_prepare_skb(struct sk_buff *skb,
  *
  * Returns false if the payload could not be encapsulated or true otherwise
  */
-static bool batadv_unicast_4addr_prepare_skb(struct batadv_priv *bat_priv,
-					     struct sk_buff *skb,
-					     struct batadv_orig_node *orig,
-					     int packet_subtype)
+bool batadv_unicast_4addr_prepare_skb(struct batadv_priv *bat_priv,
+				      struct sk_buff *skb,
+				      struct batadv_orig_node *orig,
+				      int packet_subtype)
 {
 	struct batadv_hard_iface *primary_if;
 	struct batadv_unicast_4addr_packet *unicast_4addr_packet;
