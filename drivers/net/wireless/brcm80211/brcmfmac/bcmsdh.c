@@ -432,7 +432,7 @@ int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	sdiodev->sbwad = SI_ENUM_BASE;
 
 	/* try to attach to the target device */
-	sdiodev->bus = brcmf_sdbrcm_probe(0, 0, 0, 0, regs, sdiodev);
+	sdiodev->bus = brcmf_sdbrcm_probe(regs, sdiodev);
 	if (!sdiodev->bus) {
 		brcmf_dbg(ERROR, "device attach failed\n");
 		ret = -ENODEV;

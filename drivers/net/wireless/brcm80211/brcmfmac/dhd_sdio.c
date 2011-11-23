@@ -3861,8 +3861,7 @@ static void brcmf_sdbrcm_release(struct brcmf_bus *bus)
 	brcmf_dbg(TRACE, "Disconnected\n");
 }
 
-void *brcmf_sdbrcm_probe(u16 bus_no, u16 slot, u16 func, uint bustype,
-			 u32 regsva, struct brcmf_sdio_dev *sdiodev)
+void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
 {
 	int ret;
 	struct brcmf_bus *bus;
