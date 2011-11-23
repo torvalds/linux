@@ -20,9 +20,11 @@
 #ifndef _ASM_X86_AMD_IOMMU_H
 #define _ASM_X86_AMD_IOMMU_H
 
-#include <linux/irqreturn.h>
+#include <linux/types.h>
 
 #ifdef CONFIG_AMD_IOMMU
+
+struct pci_dev;
 
 extern int amd_iommu_detect(void);
 
@@ -33,6 +35,7 @@ extern int amd_iommu_detect(void);
  * @pdev: The PCI device the workaround is necessary for
  * @erratum: The erratum workaround to enable
  *
+ * The function needs to be called before amd_iommu_init_device().
  * Possible values for the erratum number are for now:
  * - AMD_PRI_DEV_ERRATUM_ENABLE_RESET - Reset PRI capability when PRI
  *					is enabled
@@ -43,6 +46,24 @@ extern int amd_iommu_detect(void);
 #define AMD_PRI_DEV_ERRATUM_LIMIT_REQ_ONE		1
 
 extern void amd_iommu_enable_device_erratum(struct pci_dev *pdev, u32 erratum);
+
+/**
+ * amd_iommu_init_device() - Init device for use with IOMMUv2 driver
+ * @pdev: The PCI device to initialize
+ * @pasids: Number of PASIDs to support for this device
+ *
+ * This function does all setup for the device pdev so that it can be
+ * used with IOMMUv2.
+ * Returns 0 on success or negative value on error.
+ */
+extern int amd_iommu_init_device(struct pci_dev *pdev, int pasids);
+
+/**
+ * amd_iommu_free_device() - Free all IOMMUv2 related device resources
+ *			     and disable IOMMUv2 usage for this device
+ * @pdev: The PCI device to disable IOMMUv2 usage for'
+ */
+extern void amd_iommu_free_device(struct pci_dev *pdev);
 
 #else
 
