@@ -377,6 +377,17 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 			goto drop_unlock_sta;
 		tid_data = &priv->shrd->tid_data[sta_id][tid];
 
+		/* aggregation is on for this <sta,tid> */
+		if (info->flags & IEEE80211_TX_CTL_AMPDU &&
+		    tid_data->agg.state != IWL_AGG_ON) {
+			IWL_ERR(priv, "TX_CTL_AMPDU while not in AGG:"
+				" Tx flags = 0x%08x, agg.state = %d",
+				info->flags, tid_data->agg.state);
+			IWL_ERR(priv, "sta_id = %d, tid = %d seq_num = %d",
+				sta_id, tid, SEQ_TO_SN(tid_data->seq_number));
+			goto drop_unlock_sta;
+		}
+
 		seq_number = tid_data->seq_number;
 		seq_number &= IEEE80211_SCTL_SEQ;
 		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);

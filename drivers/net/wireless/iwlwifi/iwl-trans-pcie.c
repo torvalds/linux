@@ -1058,7 +1058,6 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	dma_addr_t txcmd_phys;
 	dma_addr_t scratch_phys;
 	u16 len, firstlen, secondlen;
-	u16 seq_number = 0;
 	u8 wait_write_ptr = 0;
 	u8 txq_id;
 	bool is_agg = false;
@@ -1084,26 +1083,11 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		txq_id =
 		    trans_pcie->ac_to_queue[ctx][skb_get_queue_mapping(skb)];
 
-	if (ieee80211_is_data_qos(fc) && !ieee80211_is_qos_nullfunc(fc)) {
-		struct iwl_tid_data *tid_data;
-		tid_data = &trans->shrd->tid_data[sta_id][tid];
-		if (WARN_ON_ONCE(tid >= IWL_MAX_TID_COUNT))
-			return -1;
-
-		/* aggregation is on for this <sta,tid> */
-		if (info->flags & IEEE80211_TX_CTL_AMPDU) {
-			if (WARN_ON_ONCE(tid_data->agg.state != IWL_AGG_ON)) {
-				IWL_ERR(trans, "TX_CTL_AMPDU while not in AGG:"
-					" Tx flags = 0x%08x, agg.state = %d",
-					info->flags, tid_data->agg.state);
-				IWL_ERR(trans, "sta_id = %d, tid = %d "
-					"txq_id = %d, seq_num = %d", sta_id,
-					tid, trans_pcie->agg_txq[sta_id][tid],
-					SEQ_TO_SN(seq_number));
-			}
-			txq_id = trans_pcie->agg_txq[sta_id][tid];
-			is_agg = true;
-		}
+	/* aggregation is on for this <sta,tid> */
+	if (info->flags & IEEE80211_TX_CTL_AMPDU) {
+		WARN_ON(tid >= IWL_MAX_TID_COUNT);
+		txq_id = trans_pcie->agg_txq[sta_id][tid];
+		is_agg = true;
 	}
 
 	txq = &trans_pcie->txq[txq_id];
