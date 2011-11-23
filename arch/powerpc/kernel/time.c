@@ -86,8 +86,6 @@ static struct clocksource clocksource_rtc = {
 	.rating       = 400,
 	.flags        = CLOCK_SOURCE_IS_CONTINUOUS,
 	.mask         = CLOCKSOURCE_MASK(64),
-	.shift        = 22,
-	.mult         = 0,	/* To be filled in */
 	.read         = rtc_read,
 };
 
@@ -97,8 +95,6 @@ static struct clocksource clocksource_timebase = {
 	.rating       = 400,
 	.flags        = CLOCK_SOURCE_IS_CONTINUOUS,
 	.mask         = CLOCKSOURCE_MASK(64),
-	.shift        = 22,
-	.mult         = 0,	/* To be filled in */
 	.read         = timebase_read,
 };
 
@@ -822,9 +818,8 @@ void update_vsyscall(struct timespec *wall_time, struct timespec *wtm,
 	++vdso_data->tb_update_count;
 	smp_mb();
 
-	/* XXX this assumes clock->shift == 22 */
-	/* 4611686018 ~= 2^(20+64-22) / 1e9 */
-	new_tb_to_xs = (u64) mult * 4611686018ULL;
+	/* 19342813113834067 ~= 2^(20+64) / 1e9 */
+	new_tb_to_xs = (u64) mult * (19342813113834067ULL >> clock->shift);
 	new_stamp_xsec = (u64) wall_time->tv_nsec * XSEC_PER_SEC;
 	do_div(new_stamp_xsec, 1000000000);
 	new_stamp_xsec += (u64) wall_time->tv_sec * XSEC_PER_SEC;
@@ -875,9 +870,7 @@ static void __init clocksource_init(void)
 	else
 		clock = &clocksource_timebase;
 
-	clock->mult = clocksource_hz2mult(tb_ticks_per_sec, clock->shift);
-
-	if (clocksource_register(clock)) {
+	if (clocksource_register_hz(clock, tb_ticks_per_sec)) {
 		printk(KERN_ERR "clocksource: %s is already registered\n",
 		       clock->name);
 		return;
