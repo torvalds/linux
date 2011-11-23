@@ -1086,7 +1086,6 @@ static void rcu_report_qs_rsp(struct rcu_state *rsp, unsigned long flags)
 	 * callbacks are waiting on the grace period that just now
 	 * completed.
 	 */
-	rcu_schedule_wake_gp_end();
 	if (*rdp->nxttail[RCU_WAIT_TAIL] == NULL) {
 		raw_spin_unlock(&rnp->lock);	 /* irqs remain disabled. */
 
@@ -1672,7 +1671,6 @@ static void rcu_process_callbacks(struct softirq_action *unused)
 				&__get_cpu_var(rcu_sched_data));
 	__rcu_process_callbacks(&rcu_bh_state, &__get_cpu_var(rcu_bh_data));
 	rcu_preempt_process_callbacks();
-	rcu_wake_cpus_for_gp_end();
 	trace_rcu_utilization("End RCU core");
 }
 

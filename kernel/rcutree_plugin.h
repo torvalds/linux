@@ -1964,28 +1964,11 @@ static void rcu_prepare_for_idle(int cpu)
 {
 }
 
-/*
- * CPUs are never putting themselves to sleep with callbacks pending,
- * so there is no need to awaken them.
- */
-static void rcu_wake_cpus_for_gp_end(void)
-{
-}
-
-/*
- * CPUs are never putting themselves to sleep with callbacks pending,
- * so there is no need to schedule the act of awakening them.
- */
-static void rcu_schedule_wake_gp_end(void)
-{
-}
-
 #else /* #if !defined(CONFIG_RCU_FAST_NO_HZ) */
 
 #define RCU_NEEDS_CPU_FLUSHES 5
 static DEFINE_PER_CPU(int, rcu_dyntick_drain);
 static DEFINE_PER_CPU(unsigned long, rcu_dyntick_holdoff);
-static DEFINE_PER_CPU(bool, rcu_awake_at_gp_end);
 
 /*
  * Allow the CPU to enter dyntick-idle mode if either: (1) There are no
@@ -2032,25 +2015,15 @@ static void rcu_prepare_for_idle(int cpu)
 	local_irq_save(flags);
 
 	/*
-	 * If there are no callbacks on this CPU or if RCU has no further
-	 * need for this CPU at the moment, enter dyntick-idle mode.
-	 * Also reset state so as to not prejudice later attempts.
+	 * If there are no callbacks on this CPU, enter dyntick-idle mode.
+	 * Also reset state to avoid prejudicing later attempts.
 	 */
 	if (!rcu_cpu_has_callbacks(cpu)) {
 		per_cpu(rcu_dyntick_holdoff, cpu) = jiffies - 1;
 		per_cpu(rcu_dyntick_drain, cpu) = 0;
-		per_cpu(rcu_awake_at_gp_end, cpu) = 0;
 		local_irq_restore(flags);
 		trace_rcu_prep_idle("No callbacks");
 		return;
-	}
-	if (!rcu_pending(cpu)) {
-		per_cpu(rcu_dyntick_holdoff, cpu) = jiffies - 1;
-		per_cpu(rcu_dyntick_drain, cpu) = 0;
-		per_cpu(rcu_awake_at_gp_end, cpu) = 1;
-		local_irq_restore(flags);
-		trace_rcu_prep_idle("Dyntick with callbacks");
-		return;  /* Nothing to do immediately. */
 	}
 
 	/*
@@ -2067,7 +2040,6 @@ static void rcu_prepare_for_idle(int cpu)
 	if (per_cpu(rcu_dyntick_drain, cpu) <= 0) {
 		/* First time through, initialize the counter. */
 		per_cpu(rcu_dyntick_drain, cpu) = RCU_NEEDS_CPU_FLUSHES;
-		per_cpu(rcu_awake_at_gp_end, cpu) = 0;
 	} else if (--per_cpu(rcu_dyntick_drain, cpu) <= 0) {
 		/* We have hit the limit, so time to give up. */
 		per_cpu(rcu_dyntick_holdoff, cpu) = jiffies;
@@ -2112,51 +2084,5 @@ static void rcu_prepare_for_idle(int cpu)
 		trace_rcu_prep_idle("Callbacks drained");
 	}
 }
-
-/*
- * Wake up a CPU by invoking the RCU core.  Intended for use by
- * rcu_wake_cpus_for_gp_end(), which passes this function to
- * smp_call_function_single().
- */
-static void rcu_wake_cpu(void *unused)
-{
-	trace_rcu_prep_idle("CPU awakened at GP end");
-	invoke_rcu_core();
-}
-
-/*
- * If an RCU grace period ended recently, scan the rcu_awake_at_gp_end
- * per-CPU variables, and wake up any CPUs that requested a wakeup.
- */
-static void rcu_wake_cpus_for_gp_end(void)
-{
-	int cpu;
-	struct rcu_dynticks *rdtp = &__get_cpu_var(rcu_dynticks);
-
-	if (!rdtp->wake_gp_end)
-		return;
-	rdtp->wake_gp_end = 0;
-	for_each_online_cpu(cpu) {
-		if (per_cpu(rcu_awake_at_gp_end, cpu)) {
-			per_cpu(rcu_awake_at_gp_end, cpu) = 0;
-			smp_call_function_single(cpu, rcu_wake_cpu, NULL, 0);
-		}
-	}
-}
-
-/*
- * A grace period has just ended, and so we will need to awaken CPUs
- * that now have work to do.  But we cannot send IPIs with interrupts
- * disabled, so just set a flag so that this will happen upon exit
- * from RCU core processing.
- */
-static void rcu_schedule_wake_gp_end(void)
-{
-	struct rcu_dynticks *rdtp = &__get_cpu_var(rcu_dynticks);
-
-	rdtp->wake_gp_end = 1;
-}
-
-/* @@@ need tracing as well. */
 
 #endif /* #else #if !defined(CONFIG_RCU_FAST_NO_HZ) */

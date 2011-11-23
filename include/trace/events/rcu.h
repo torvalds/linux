@@ -287,7 +287,6 @@ TRACE_EVENT(rcu_dyntick,
  *
  *	"No callbacks": Nothing to do, no callbacks on this CPU.
  *	"In holdoff": Nothing to do, holding off after unsuccessful attempt.
- *	"Dyntick with callbacks": Callbacks remain, but RCU doesn't need CPU.
  *	"Begin holdoff": Attempt failed, don't retry until next jiffy.
  *	"More callbacks": Still more callbacks, try again to clear them out.
  *	"Callbacks drained": All callbacks processed, off to dyntick idle!

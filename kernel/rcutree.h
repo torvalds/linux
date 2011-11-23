@@ -88,7 +88,6 @@ struct rcu_dynticks {
 				    /* Process level is worth LLONG_MAX/2. */
 	int dynticks_nmi_nesting;   /* Track NMI nesting level. */
 	atomic_t dynticks;	    /* Even value for idle, else odd. */
-	int wake_gp_end;	    /* A GP ended, need to wake up CPUs. */
 };
 
 /* RCU's kthread states for tracing. */
@@ -469,7 +468,5 @@ static void rcu_yield(void (*f)(unsigned long), unsigned long arg);
 static void rcu_cpu_kthread_setrt(int cpu, int to_rt);
 static void __cpuinit rcu_prepare_kthreads(int cpu);
 static void rcu_prepare_for_idle(int cpu);
-static void rcu_wake_cpus_for_gp_end(void);
-static void rcu_schedule_wake_gp_end(void);
 
 #endif /* #ifndef RCU_TREE_NONCORE */
