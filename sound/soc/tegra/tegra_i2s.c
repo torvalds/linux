@@ -98,13 +98,11 @@ static const struct file_operations tegra_i2s_debug_fops = {
 	.release = single_release,
 };
 
-static void tegra_i2s_debug_add(struct tegra_i2s *i2s, int id)
+static void tegra_i2s_debug_add(struct tegra_i2s *i2s)
 {
-	char name[] = DRV_NAME ".0";
-
-	snprintf(name, sizeof(name), DRV_NAME".%1d", id);
-	i2s->debug = debugfs_create_file(name, S_IRUGO, snd_soc_debugfs_root,
-						i2s, &tegra_i2s_debug_fops);
+	i2s->debug = debugfs_create_file(i2s->dai.name, S_IRUGO,
+					 snd_soc_debugfs_root, i2s,
+					 &tegra_i2s_debug_fops);
 }
 
 static void tegra_i2s_debug_remove(struct tegra_i2s *i2s)
@@ -311,43 +309,22 @@ static const struct snd_soc_dai_ops tegra_i2s_dai_ops = {
 	.trigger	= tegra_i2s_trigger,
 };
 
-static struct snd_soc_dai_driver tegra_i2s_dai[] = {
-	{
-		.name = DRV_NAME ".0",
-		.probe = tegra_i2s_probe,
-		.playback = {
-			.channels_min = 2,
-			.channels_max = 2,
-			.rates = SNDRV_PCM_RATE_8000_96000,
-			.formats = SNDRV_PCM_FMTBIT_S16_LE,
-		},
-		.capture = {
-			.channels_min = 2,
-			.channels_max = 2,
-			.rates = SNDRV_PCM_RATE_8000_96000,
-			.formats = SNDRV_PCM_FMTBIT_S16_LE,
-		},
-		.ops = &tegra_i2s_dai_ops,
-		.symmetric_rates = 1,
+static const struct snd_soc_dai_driver tegra_i2s_dai_template = {
+	.probe = tegra_i2s_probe,
+	.playback = {
+		.channels_min = 2,
+		.channels_max = 2,
+		.rates = SNDRV_PCM_RATE_8000_96000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	},
-	{
-		.name = DRV_NAME ".1",
-		.probe = tegra_i2s_probe,
-		.playback = {
-			.channels_min = 2,
-			.channels_max = 2,
-			.rates = SNDRV_PCM_RATE_8000_96000,
-			.formats = SNDRV_PCM_FMTBIT_S16_LE,
-		},
-		.capture = {
-			.channels_min = 2,
-			.channels_max = 2,
-			.rates = SNDRV_PCM_RATE_8000_96000,
-			.formats = SNDRV_PCM_FMTBIT_S16_LE,
-		},
-		.ops = &tegra_i2s_dai_ops,
-		.symmetric_rates = 1,
+	.capture = {
+		.channels_min = 2,
+		.channels_max = 2,
+		.rates = SNDRV_PCM_RATE_8000_96000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	},
+	.ops = &tegra_i2s_dai_ops,
+	.symmetric_rates = 1,
 };
 
 static __devinit int tegra_i2s_platform_probe(struct platform_device *pdev)
@@ -356,12 +333,6 @@ static __devinit int tegra_i2s_platform_probe(struct platform_device *pdev)
 	struct resource *mem, *memregion, *dmareq;
 	int ret;
 
-	if ((pdev->id < 0) ||
-		(pdev->id >= ARRAY_SIZE(tegra_i2s_dai))) {
-		dev_err(&pdev->dev, "ID %d out of range\n", pdev->id);
-		return -EINVAL;
-	}
-
 	i2s = devm_kzalloc(&pdev->dev, sizeof(struct tegra_i2s), GFP_KERNEL);
 	if (!i2s) {
 		dev_err(&pdev->dev, "Can't allocate tegra_i2s\n");
@@ -369,6 +340,9 @@ static __devinit int tegra_i2s_platform_probe(struct platform_device *pdev)
 		goto err;
 	}
 	dev_set_drvdata(&pdev->dev, i2s);
+
+	i2s->dai = tegra_i2s_dai_template;
+	i2s->dai.name = dev_name(&pdev->dev);
 
 	i2s->clk_i2s = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(i2s->clk_i2s)) {
@@ -418,14 +392,14 @@ static __devinit int tegra_i2s_platform_probe(struct platform_device *pdev)
 
 	i2s->reg_ctrl = TEGRA_I2S_CTRL_FIFO_FORMAT_PACKED;
 
-	ret = snd_soc_register_dai(&pdev->dev, &tegra_i2s_dai[pdev->id]);
+	ret = snd_soc_register_dai(&pdev->dev, &i2s->dai);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register DAI: %d\n", ret);
 		ret = -ENOMEM;
 		goto err_clk_put;
 	}
 
-	tegra_i2s_debug_add(i2s, pdev->id);
+	tegra_i2s_debug_add(i2s);
 
 	return 0;
 
