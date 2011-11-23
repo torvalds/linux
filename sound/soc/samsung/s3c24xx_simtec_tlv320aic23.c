@@ -102,21 +102,9 @@ static struct platform_driver simtec_audio_tlv320aic23_platdrv = {
 	.remove	= __devexit_p(simtec_audio_remove),
 };
 
+module_platform_driver(simtec_audio_tlv320aic32_driver);
+
 MODULE_ALIAS("platform:s3c24xx-simtec-tlv320aic23");
-
-static int __init simtec_tlv320aic23_modinit(void)
-{
-	return platform_driver_register(&simtec_audio_tlv320aic23_platdrv);
-}
-
-static void __exit simtec_tlv320aic23_modexit(void)
-{
-	platform_driver_unregister(&simtec_audio_tlv320aic23_platdrv);
-}
-
-module_init(simtec_tlv320aic23_modinit);
-module_exit(simtec_tlv320aic23_modexit);
-
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
 MODULE_DESCRIPTION("ALSA SoC Simtec Audio support");
 MODULE_LICENSE("GPL");

@@ -114,21 +114,9 @@ static struct platform_driver simtec_audio_hermes_platdrv = {
 	.remove	= __devexit_p(simtec_audio_remove),
 };
 
+module_platform_driver(simtec_audio_hermes_platdrv);
+
 MODULE_ALIAS("platform:s3c24xx-simtec-hermes-snd");
-
-static int __init simtec_hermes_modinit(void)
-{
-	return platform_driver_register(&simtec_audio_hermes_platdrv);
-}
-
-static void __exit simtec_hermes_modexit(void)
-{
-	platform_driver_unregister(&simtec_audio_hermes_platdrv);
-}
-
-module_init(simtec_hermes_modinit);
-module_exit(simtec_hermes_modexit);
-
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
 MODULE_DESCRIPTION("ALSA SoC Simtec Audio support");
 MODULE_LICENSE("GPL");

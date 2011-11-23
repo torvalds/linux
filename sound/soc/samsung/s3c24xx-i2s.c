@@ -489,17 +489,7 @@ static struct platform_driver s3c24xx_iis_driver = {
 	},
 };
 
-static int __init s3c24xx_i2s_init(void)
-{
-	return platform_driver_register(&s3c24xx_iis_driver);
-}
-module_init(s3c24xx_i2s_init);
-
-static void __exit s3c24xx_i2s_exit(void)
-{
-	platform_driver_unregister(&s3c24xx_iis_driver);
-}
-module_exit(s3c24xx_i2s_exit);
+module_platform_driver(s3c24xx_iis_driver);
 
 /* Module information */
 MODULE_AUTHOR("Ben Dooks, <ben@simtec.co.uk>");

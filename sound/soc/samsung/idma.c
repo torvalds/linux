@@ -437,17 +437,7 @@ static struct platform_driver asoc_idma_driver = {
 	.remove = __devexit_p(asoc_idma_platform_remove),
 };
 
-static int __init asoc_idma_init(void)
-{
-	return platform_driver_register(&asoc_idma_driver);
-}
-module_init(asoc_idma_init);
-
-static void __exit asoc_idma_exit(void)
-{
-	platform_driver_unregister(&asoc_idma_driver);
-}
-module_exit(asoc_idma_exit);
+module_platform_driver(asoc_idma_driver);
 
 MODULE_AUTHOR("Jaswinder Singh, <jassisinghbrar@gmail.com>");
 MODULE_DESCRIPTION("Samsung ASoC IDMA Driver");

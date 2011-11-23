@@ -483,17 +483,7 @@ static struct platform_driver samsung_spdif_driver = {
 	},
 };
 
-static int __init spdif_init(void)
-{
-	return platform_driver_register(&samsung_spdif_driver);
-}
-module_init(spdif_init);
-
-static void __exit spdif_exit(void)
-{
-	platform_driver_unregister(&samsung_spdif_driver);
-}
-module_exit(spdif_exit);
+module_platform_driver(samsung_spdif_driver);
 
 MODULE_AUTHOR("Seungwhan Youn, <sw.youn@samsung.com>");
 MODULE_DESCRIPTION("Samsung S/PDIF Controller Driver");

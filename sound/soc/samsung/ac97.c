@@ -509,17 +509,7 @@ static struct platform_driver s3c_ac97_driver = {
 	},
 };
 
-static int __init s3c_ac97_init(void)
-{
-	return platform_driver_register(&s3c_ac97_driver);
-}
-module_init(s3c_ac97_init);
-
-static void __exit s3c_ac97_exit(void)
-{
-	platform_driver_unregister(&s3c_ac97_driver);
-}
-module_exit(s3c_ac97_exit);
+module_platform_driver(s3c_ac97_driver);
 
 MODULE_AUTHOR("Jaswinder Singh, <jassi.brar@samsung.com>");
 MODULE_DESCRIPTION("AC97 driver for the Samsung SoC");

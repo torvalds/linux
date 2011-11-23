@@ -347,17 +347,7 @@ static struct platform_driver speyside_driver = {
 	.remove = __devexit_p(speyside_remove),
 };
 
-static int __init speyside_audio_init(void)
-{
-	return platform_driver_register(&speyside_driver);
-}
-module_init(speyside_audio_init);
-
-static void __exit speyside_audio_exit(void)
-{
-	platform_driver_unregister(&speyside_driver);
-}
-module_exit(speyside_audio_exit);
+module_platform_driver(speyside_driver);
 
 MODULE_DESCRIPTION("Speyside audio support");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");

@@ -228,17 +228,7 @@ static struct platform_driver lowland_driver = {
 	.remove = __devexit_p(lowland_remove),
 };
 
-static int __init lowland_audio_init(void)
-{
-	return platform_driver_register(&lowland_driver);
-}
-module_init(lowland_audio_init);
-
-static void __exit lowland_audio_exit(void)
-{
-	platform_driver_unregister(&lowland_driver);
-}
-module_exit(lowland_audio_exit);
+module_platform_driver(lowland_driver);
 
 MODULE_DESCRIPTION("Lowland audio support");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");

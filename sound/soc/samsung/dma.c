@@ -458,17 +458,7 @@ static struct platform_driver asoc_dma_driver = {
 	.remove = __devexit_p(samsung_asoc_platform_remove),
 };
 
-static int __init samsung_asoc_init(void)
-{
-	return platform_driver_register(&asoc_dma_driver);
-}
-module_init(samsung_asoc_init);
-
-static void __exit samsung_asoc_exit(void)
-{
-	platform_driver_unregister(&asoc_dma_driver);
-}
-module_exit(samsung_asoc_exit);
+module_platform_driver(asoc_dma_driver);
 
 MODULE_AUTHOR("Ben Dooks, <ben@simtec.co.uk>");
 MODULE_DESCRIPTION("Samsung ASoC DMA Driver");
