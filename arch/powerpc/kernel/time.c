@@ -112,8 +112,6 @@ static void decrementer_set_mode(enum clock_event_mode mode,
 static struct clock_event_device decrementer_clockevent = {
        .name           = "decrementer",
        .rating         = 200,
-       .shift          = 0,	/* To be filled in */
-       .mult           = 0,	/* To be filled in */
        .irq            = 0,
        .set_next_event = decrementer_set_next_event,
        .set_mode       = decrementer_set_mode,
@@ -913,31 +911,6 @@ static void decrementer_set_mode(enum clock_event_mode mode,
 		decrementer_set_next_event(DECREMENTER_MAX, dev);
 }
 
-static inline uint64_t div_sc64(unsigned long ticks, unsigned long nsec,
-				int shift)
-{
-	uint64_t tmp = ((uint64_t)ticks) << shift;
-
-	do_div(tmp, nsec);
-	return tmp;
-}
-
-static void __init setup_clockevent_multiplier(unsigned long hz)
-{
-	u64 mult, shift = 32;
-
-	while (1) {
-		mult = div_sc64(hz, NSEC_PER_SEC, shift);
-		if (mult && (mult >> 32UL) == 0UL)
-			break;
-
-		shift--;
-	}
-
-	decrementer_clockevent.shift = shift;
-	decrementer_clockevent.mult = mult;
-}
-
 static void register_decrementer_clockevent(int cpu)
 {
 	struct clock_event_device *dec = &per_cpu(decrementers, cpu).event;
@@ -955,7 +928,8 @@ static void __init init_decrementer_clockevent(void)
 {
 	int cpu = smp_processor_id();
 
-	setup_clockevent_multiplier(ppc_tb_freq);
+	clockevents_calc_mult_shift(&decrementer_clockevent, ppc_tb_freq, 4);
+
 	decrementer_clockevent.max_delta_ns =
 		clockevent_delta2ns(DECREMENTER_MAX, &decrementer_clockevent);
 	decrementer_clockevent.min_delta_ns =
