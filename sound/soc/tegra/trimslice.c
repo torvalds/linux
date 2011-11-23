@@ -118,7 +118,22 @@ static const struct snd_soc_dapm_route trimslice_audio_map[] = {
 static int trimslice_asoc_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_card *card = codec->card;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	int ret;
+
+	ret = tegra_das_connect_dap_to_dac(TEGRA_DAS_DAP_ID_1,
+					   TEGRA_DAS_DAP_SEL_DAC1);
+	if (ret) {
+		dev_err(card->dev, "Can't set up DAS DAP connection\n");
+		return ret;
+	}
+	ret = tegra_das_connect_dac_to_dap(TEGRA_DAS_DAC_ID_1,
+					   TEGRA_DAS_DAC_SEL_DAP1);
+	if (ret) {
+		dev_err(card->dev, "Can't set up DAS DAC connection\n");
+		return ret;
+	}
 
 	snd_soc_dapm_nc_pin(dapm, "LHPOUT");
 	snd_soc_dapm_nc_pin(dapm, "RHPOUT");

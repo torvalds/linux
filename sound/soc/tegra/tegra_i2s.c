@@ -42,7 +42,6 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 
-#include "tegra_das.h"
 #include "tegra_i2s.h"
 
 #define DRV_NAME "tegra-i2s"
@@ -361,23 +360,6 @@ static __devinit int tegra_i2s_platform_probe(struct platform_device *pdev)
 		(pdev->id >= ARRAY_SIZE(tegra_i2s_dai))) {
 		dev_err(&pdev->dev, "ID %d out of range\n", pdev->id);
 		return -EINVAL;
-	}
-
-	/*
-	 * FIXME: Until a codec driver exists for the tegra DAS, hard-code a
-	 * 1:1 mapping between audio controllers and audio ports.
-	 */
-	ret = tegra_das_connect_dap_to_dac(TEGRA_DAS_DAP_ID_1 + pdev->id,
-					TEGRA_DAS_DAP_SEL_DAC1 + pdev->id);
-	if (ret) {
-		dev_err(&pdev->dev, "Can't set up DAP connection\n");
-		return ret;
-	}
-	ret = tegra_das_connect_dac_to_dap(TEGRA_DAS_DAC_ID_1 + pdev->id,
-					TEGRA_DAS_DAC_SEL_DAP1 + pdev->id);
-	if (ret) {
-		dev_err(&pdev->dev, "Can't set up DAC connection\n");
-		return ret;
 	}
 
 	i2s = kzalloc(sizeof(struct tegra_i2s), GFP_KERNEL);
