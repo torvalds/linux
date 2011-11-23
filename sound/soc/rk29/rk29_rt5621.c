@@ -165,7 +165,7 @@ static const struct snd_soc_dapm_route audio_map[]={
 /*
  * Logic for a rt5621 as connected on a rockchip board.
  */
-static int rk29_wm8988_init(struct snd_soc_pcm_runtime *rtd)
+static int rk29_rt5621_init(struct snd_soc_pcm_runtime *rtd)
 {
         return 0;
 }
@@ -181,7 +181,7 @@ static struct snd_soc_dai_link rk29_dai = {
 	.platform_name = "rockchip-audio",
 	.cpu_dai_name = "rk29_i2s.0",
 	.codec_dai_name = "RT5621 HiFi",
-	.init = rk29_wm8988_init,
+	.init = rk29_rt5621_init,
 	.ops = &rk29_ops,
 };
 
