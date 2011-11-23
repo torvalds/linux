@@ -571,6 +571,11 @@ struct brcmf_dcmd {
 	uint needed;		/* bytes needed (optional) */
 };
 
+struct brcmf_bus {
+	u8 type;		/* bus type */
+	void *bus_priv;		/* pointer to bus private structure */
+};
+
 /* Forward decls for struct brcmf_pub (see below) */
 struct brcmf_sdio;		/* device bus info */
 struct brcmf_proto;	/* device communication protocol info */

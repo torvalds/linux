@@ -134,7 +134,7 @@ struct brcmf_sdio_dev {
 	wait_queue_head_t request_word_wait;
 	wait_queue_head_t request_chain_wait;
 	wait_queue_head_t request_buffer_wait;
-
+	struct device *dev;
 };
 
 /* Register/deregister device interrupt handler. */
