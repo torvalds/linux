@@ -390,17 +390,19 @@ static __devinit int tegra_wm8903_driver_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	machine = kzalloc(sizeof(struct tegra_wm8903), GFP_KERNEL);
+	machine = devm_kzalloc(&pdev->dev, sizeof(struct tegra_wm8903),
+			       GFP_KERNEL);
 	if (!machine) {
 		dev_err(&pdev->dev, "Can't allocate tegra_wm8903 struct\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err;
 	}
 
 	machine->pdata = pdata;
 
 	ret = tegra_asoc_utils_init(&machine->util_data, &pdev->dev);
 	if (ret)
-		goto err_free_machine;
+		goto err;
 
 	card->dev = &pdev->dev;
 	platform_set_drvdata(pdev, card);
@@ -431,8 +433,7 @@ static __devinit int tegra_wm8903_driver_probe(struct platform_device *pdev)
 
 err_fini_utils:
 	tegra_asoc_utils_fini(&machine->util_data);
-err_free_machine:
-	kfree(machine);
+err:
 	return ret;
 }
 
@@ -460,8 +461,6 @@ static int __devexit tegra_wm8903_driver_remove(struct platform_device *pdev)
 
 	tegra_asoc_utils_fini(&machine->util_data);
 
-	kfree(machine);
-
 	return 0;
 }
 
@@ -474,18 +473,7 @@ static struct platform_driver tegra_wm8903_driver = {
 	.probe = tegra_wm8903_driver_probe,
 	.remove = __devexit_p(tegra_wm8903_driver_remove),
 };
-
-static int __init tegra_wm8903_modinit(void)
-{
-	return platform_driver_register(&tegra_wm8903_driver);
-}
-module_init(tegra_wm8903_modinit);
-
-static void __exit tegra_wm8903_modexit(void)
-{
-	platform_driver_unregister(&tegra_wm8903_driver);
-}
-module_exit(tegra_wm8903_modexit);
+module_platform_driver(tegra_wm8903_driver);
 
 MODULE_AUTHOR("Stephen Warren <swarren@nvidia.com>");
 MODULE_DESCRIPTION("Tegra+WM8903 machine ASoC driver");
