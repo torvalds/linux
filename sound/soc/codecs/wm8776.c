@@ -392,7 +392,6 @@ static int wm8776_resume(struct snd_soc_codec *codec)
 static int wm8776_probe(struct snd_soc_codec *codec)
 {
 	struct wm8776_priv *wm8776 = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret = 0;
 
 	ret = snd_soc_codec_set_cache_io(codec, 7, 9, wm8776->control_type);
