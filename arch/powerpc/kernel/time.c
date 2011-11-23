@@ -114,12 +114,8 @@ static struct clock_event_device decrementer_clockevent = {
 	.features       = CLOCK_EVT_FEAT_ONESHOT,
 };
 
-struct decrementer_clock {
-	struct clock_event_device event;
-	u64 next_tb;
-};
-
-static DEFINE_PER_CPU(struct decrementer_clock, decrementers);
+DEFINE_PER_CPU(u64, decrementers_next_tb);
+static DEFINE_PER_CPU(struct clock_event_device, decrementers);
 
 #ifdef CONFIG_PPC_ISERIES
 static unsigned long __initdata iSeries_recal_titan;
@@ -570,8 +566,8 @@ void arch_irq_work_raise(void)
 void timer_interrupt(struct pt_regs * regs)
 {
 	struct pt_regs *old_regs;
-	struct decrementer_clock *decrementer =  &__get_cpu_var(decrementers);
-	struct clock_event_device *evt = &decrementer->event;
+	u64 *next_tb = &__get_cpu_var(decrementers_next_tb);
+	struct clock_event_device *evt = &__get_cpu_var(decrementers);
 
 	/* Ensure a positive value is written to the decrementer, or else
 	 * some CPUs will continue to take decrementer exceptions.
@@ -606,7 +602,7 @@ void timer_interrupt(struct pt_regs * regs)
 		get_lppaca()->int_dword.fields.decr_int = 0;
 #endif
 
-	decrementer->next_tb = ~(u64)0;
+	*next_tb = ~(u64)0;
 	if (evt->event_handler)
 		evt->event_handler(evt);
 
@@ -872,19 +868,10 @@ static void __init clocksource_init(void)
 	       clock->name, clock->mult, clock->shift);
 }
 
-void decrementer_check_overflow(void)
-{
-	u64 now = get_tb_or_rtc();
-	struct decrementer_clock *decrementer = &__get_cpu_var(decrementers);
-
-	if (now >= decrementer->next_tb)
-		set_dec(1);
-}
-
 static int decrementer_set_next_event(unsigned long evt,
 				      struct clock_event_device *dev)
 {
-	__get_cpu_var(decrementers).next_tb = get_tb_or_rtc() + evt;
+	__get_cpu_var(decrementers_next_tb) = get_tb_or_rtc() + evt;
 	set_dec(evt);
 	return 0;
 }
@@ -898,7 +885,7 @@ static void decrementer_set_mode(enum clock_event_mode mode,
 
 static void register_decrementer_clockevent(int cpu)
 {
-	struct clock_event_device *dec = &per_cpu(decrementers, cpu).event;
+	struct clock_event_device *dec = &per_cpu(decrementers, cpu);
 
 	*dec = decrementer_clockevent;
 	dec->cpumask = cpumask_of(cpu);
