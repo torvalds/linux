@@ -56,7 +56,7 @@ drop:
 static void ab_port_leave(struct team *team, struct team_port *port)
 {
 	if (ab_priv(team)->active_port == port)
-		rcu_assign_pointer(ab_priv(team)->active_port, NULL);
+		RCU_INIT_POINTER(ab_priv(team)->active_port, NULL);
 }
 
 static int ab_active_port_get(struct team *team, void *arg)

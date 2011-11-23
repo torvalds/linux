@@ -506,7 +506,7 @@ int cnic_unregister_driver(int ulp_type)
 	}
 	read_unlock(&cnic_dev_lock);
 
-	rcu_assign_pointer(cnic_ulp_tbl[ulp_type], NULL);
+	RCU_INIT_POINTER(cnic_ulp_tbl[ulp_type], NULL);
 
 	mutex_unlock(&cnic_lock);
 	synchronize_rcu();
@@ -579,7 +579,7 @@ static int cnic_unregister_device(struct cnic_dev *dev, int ulp_type)
 	}
 	mutex_lock(&cnic_lock);
 	if (rcu_dereference(cp->ulp_ops[ulp_type])) {
-		rcu_assign_pointer(cp->ulp_ops[ulp_type], NULL);
+		RCU_INIT_POINTER(cp->ulp_ops[ulp_type], NULL);
 		cnic_put(dev);
 	} else {
 		pr_err("%s: device not registered to this ulp type %d\n",
@@ -5134,7 +5134,7 @@ static void cnic_stop_hw(struct cnic_dev *dev)
 		}
 		cnic_shutdown_rings(dev);
 		clear_bit(CNIC_F_CNIC_UP, &dev->flags);
-		rcu_assign_pointer(cp->ulp_ops[CNIC_ULP_L4], NULL);
+		RCU_INIT_POINTER(cp->ulp_ops[CNIC_ULP_L4], NULL);
 		synchronize_rcu();
 		cnic_cm_shutdown(dev);
 		cp->stop_hw(dev);

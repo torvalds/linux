@@ -145,8 +145,8 @@ static void macvtap_put_queue(struct macvtap_queue *q)
 	if (vlan) {
 		int index = get_slot(vlan, q);
 
-		rcu_assign_pointer(vlan->taps[index], NULL);
-		rcu_assign_pointer(q->vlan, NULL);
+		RCU_INIT_POINTER(vlan->taps[index], NULL);
+		RCU_INIT_POINTER(q->vlan, NULL);
 		sock_put(&q->sk);
 		--vlan->numvtaps;
 	}
@@ -223,8 +223,8 @@ static void macvtap_del_queues(struct net_device *dev)
 					      lockdep_is_held(&macvtap_lock));
 		if (q) {
 			qlist[j++] = q;
-			rcu_assign_pointer(vlan->taps[i], NULL);
-			rcu_assign_pointer(q->vlan, NULL);
+			RCU_INIT_POINTER(vlan->taps[i], NULL);
+			RCU_INIT_POINTER(q->vlan, NULL);
 			vlan->numvtaps--;
 		}
 	}

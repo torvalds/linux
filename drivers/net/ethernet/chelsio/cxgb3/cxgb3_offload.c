@@ -1301,7 +1301,7 @@ int cxgb3_offload_activate(struct adapter *adapter)
 
 out_free_l2t:
 	t3_free_l2t(L2DATA(dev));
-	rcu_assign_pointer(dev->l2opt, NULL);
+	RCU_INIT_POINTER(dev->l2opt, NULL);
 out_free:
 	kfree(t);
 	return err;
@@ -1329,7 +1329,7 @@ void cxgb3_offload_deactivate(struct adapter *adapter)
 	rcu_read_lock();
 	d = L2DATA(tdev);
 	rcu_read_unlock();
-	rcu_assign_pointer(tdev->l2opt, NULL);
+	RCU_INIT_POINTER(tdev->l2opt, NULL);
 	call_rcu(&d->rcu_head, clean_l2_data);
 	if (t->nofail_skb)
 		kfree_skb(t->nofail_skb);

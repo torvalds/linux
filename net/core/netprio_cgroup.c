@@ -285,7 +285,7 @@ static int netprio_device_event(struct notifier_block *unused,
 		break;
 	case NETDEV_UNREGISTER:
 		old = rtnl_dereference(dev->priomap);
-		rcu_assign_pointer(dev->priomap, NULL);
+		RCU_INIT_POINTER(dev->priomap, NULL);
 		if (old)
 			kfree_rcu(old, rcu);
 		break;
@@ -332,7 +332,7 @@ static void __exit exit_cgroup_netprio(void)
 	rtnl_lock();
 	for_each_netdev(&init_net, dev) {
 		old = rtnl_dereference(dev->priomap);
-		rcu_assign_pointer(dev->priomap, NULL);
+		RCU_INIT_POINTER(dev->priomap, NULL);
 		if (old)
 			kfree_rcu(old, rcu);
 	}

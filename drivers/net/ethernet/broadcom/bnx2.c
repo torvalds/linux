@@ -409,7 +409,7 @@ static int bnx2_unregister_cnic(struct net_device *dev)
 	mutex_lock(&bp->cnic_lock);
 	cp->drv_state = 0;
 	bnapi->cnic_present = 0;
-	rcu_assign_pointer(bp->cnic_ops, NULL);
+	RCU_INIT_POINTER(bp->cnic_ops, NULL);
 	mutex_unlock(&bp->cnic_lock);
 	synchronize_rcu();
 	return 0;
