@@ -73,8 +73,11 @@ void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 	RCU_INIT_POINTER(sta->ampdu_mlme.tid_rx[tid], NULL);
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
-	printk(KERN_DEBUG "Rx BA session stop requested for %pM tid %u\n",
-	       sta->sta.addr, tid);
+	printk(KERN_DEBUG
+	       "Rx BA session stop requested for %pM tid %u %s reason: %d\n",
+	       sta->sta.addr, tid,
+	       initiator == WLAN_BACK_RECIPIENT ? "recipient" : "inititator",
+	       (int)reason);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 
 	if (drv_ampdu_action(local, sta->sdata, IEEE80211_AMPDU_RX_STOP,
