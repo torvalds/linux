@@ -9,6 +9,7 @@
  *
  */
 
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -469,6 +470,15 @@ static int snd_line6_playback_hw_params(struct snd_pcm_substream *substream,
 	}
 	/* -- [FD] end */
 
+	line6pcm->buffer_out = kmalloc(LINE6_ISO_BUFFERS * LINE6_ISO_PACKETS *
+				       line6pcm->max_packet_size, GFP_KERNEL);
+
+	if (!line6pcm->buffer_out) {
+		dev_err(line6pcm->line6->ifcdev,
+			"cannot malloc playback buffer\n");
+		return -ENOMEM;
+	}
+
 	ret = snd_pcm_lib_malloc_pages(substream,
 				       params_buffer_bytes(hw_params));
 	if (ret < 0)
@@ -481,6 +491,11 @@ static int snd_line6_playback_hw_params(struct snd_pcm_substream *substream,
 /* hw_free playback callback */
 static int snd_line6_playback_hw_free(struct snd_pcm_substream *substream)
 {
+	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
+
+	line6_unlink_wait_clear_audio_out_urbs(line6pcm);
+	kfree(line6pcm->buffer_out);
+	line6pcm->buffer_out = NULL;
 	return snd_pcm_lib_free_pages(substream);
 }
 
