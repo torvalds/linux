@@ -229,8 +229,37 @@ static void l2cap_clear_timer(struct l2cap_chan *chan, struct timer_list *timer)
 		chan_put(chan);
 }
 
+static char *state_to_string(int state)
+{
+	switch(state) {
+	case BT_CONNECTED:
+		return "BT_CONNECTED";
+	case BT_OPEN:
+		return "BT_OPEN";
+	case BT_BOUND:
+		return "BT_BOUND";
+	case BT_LISTEN:
+		return "BT_LISTEN";
+	case BT_CONNECT:
+		return "BT_CONNECT";
+	case BT_CONNECT2:
+		return "BT_CONNECT2";
+	case BT_CONFIG:
+		return "BT_CONFIG";
+	case BT_DISCONN:
+		return "BT_DISCONN";
+	case BT_CLOSED:
+		return "BT_CLOSED";
+	}
+
+	return "invalid state";
+}
+
 static void l2cap_state_change(struct l2cap_chan *chan, int state)
 {
+	BT_DBG("%p %s -> %s", chan, state_to_string(chan->state),
+						state_to_string(state));
+
 	chan->state = state;
 	chan->ops->state_change(chan->data, state);
 }
