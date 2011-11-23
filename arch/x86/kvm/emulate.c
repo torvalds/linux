@@ -3321,8 +3321,8 @@ static struct opcode opcode_table[256] = {
 	I(DstReg | SrcMem | ModRM | Src2Imm, em_imul_3op),
 	I(SrcImmByte | Mov | Stack, em_push),
 	I(DstReg | SrcMem | ModRM | Src2ImmByte, em_imul_3op),
-	D2bvIP(DstDI | SrcDX | Mov | String, ins, check_perm_in), /* insb, insw/insd */
-	D2bvIP(SrcSI | DstDX | String, outs, check_perm_out), /* outsb, outsw/outsd */
+	I2bvIP(DstDI | SrcDX | Mov | String, em_in, ins, check_perm_in), /* insb, insw/insd */
+	I2bvIP(SrcSI | DstDX | String, em_out, outs, check_perm_out), /* outsb, outsw/outsd */
 	/* 0x70 - 0x7F */
 	X16(D(SrcImmByte)),
 	/* 0x80 - 0x87 */
@@ -4026,16 +4026,6 @@ special_insn:
 		if (ctxt->mode != X86EMUL_MODE_PROT64)
 			goto cannot_emulate;
 		ctxt->dst.val = (s32) ctxt->src.val;
-		break;
-	case 0x6c:		/* insb */
-	case 0x6d:		/* insw/insd */
-		ctxt->src.val = ctxt->regs[VCPU_REGS_RDX];
-		rc = em_in(ctxt);
-		break;
-	case 0x6e:		/* outsb */
-	case 0x6f:		/* outsw/outsd */
-		ctxt->dst.val = ctxt->regs[VCPU_REGS_RDX];
-		rc = em_out(ctxt);
 		break;
 	case 0x70 ... 0x7f: /* jcc (short) */
 		if (test_cc(ctxt->b, ctxt->eflags))
