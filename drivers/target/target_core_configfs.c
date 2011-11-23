@@ -1450,7 +1450,7 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 		return -ENOMEM;
 
 	orig = opts;
-	while ((ptr = strsep(&opts, ",")) != NULL) {
+	while ((ptr = strsep(&opts, ",\n")) != NULL) {
 		if (!*ptr)
 			continue;
 
