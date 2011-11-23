@@ -955,8 +955,6 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 	brcms_c_txfifo_complete(wlc, queue, 1);
 
 	if (lastframe) {
-		p->next = NULL;
-		p->prev = NULL;
 		/* remove PLCP & Broadcom tx descriptor header */
 		skb_pull(p, D11_PHY_HDR_LEN);
 		skb_pull(p, D11_TXH_LEN);
