@@ -116,7 +116,7 @@ static int brcmf_proto_cdc_msg(struct brcmf_pub *drvr)
 		len = CDC_MAX_MSG_SIZE;
 
 	/* Send request */
-	return brcmf_sdbrcm_bus_txctl(drvr->bus, (unsigned char *)&prot->msg,
+	return brcmf_sdbrcm_bus_txctl(drvr->dev, (unsigned char *)&prot->msg,
 				      len);
 }
 

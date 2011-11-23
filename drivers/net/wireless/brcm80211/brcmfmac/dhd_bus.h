@@ -43,7 +43,7 @@ extern int brcmf_sdbrcm_bus_txdata(struct brcmf_sdio *bus, struct sk_buff *txp);
  * Expects caller to enforce a single outstanding transaction.
  */
 extern int
-brcmf_sdbrcm_bus_txctl(struct brcmf_sdio *bus, unsigned char *msg, uint msglen);
+brcmf_sdbrcm_bus_txctl(struct device *dev, unsigned char *msg, uint msglen);
 
 extern int
 brcmf_sdbrcm_bus_rxctl(struct device *dev, unsigned char *msg, uint msglen);
