@@ -225,11 +225,18 @@ static int __devexit tegra_das_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id tegra_das_of_match[] __devinitconst = {
+	{ .compatible = "nvidia,tegra20-das", },
+	{},
+};
+
 static struct platform_driver tegra_das_driver = {
 	.probe = tegra_das_probe,
 	.remove = __devexit_p(tegra_das_remove),
 	.driver = {
 		.name = DRV_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = tegra_das_of_match,
 	},
 };
 module_platform_driver(tegra_das_driver);
@@ -238,3 +245,4 @@ MODULE_AUTHOR("Stephen Warren <swarren@nvidia.com>");
 MODULE_DESCRIPTION("Tegra DAS driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRV_NAME);
+MODULE_DEVICE_TABLE(of, tegra_das_of_match);
