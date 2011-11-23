@@ -963,6 +963,7 @@ struct brcmf_pub *brcmf_attach(struct brcmf_sdio *bus, uint bus_hdrlen,
 	drvr_priv->pub.bus = bus;
 	drvr_priv->pub.hdrlen = bus_hdrlen;
 	drvr_priv->pub.bus_if = dev_get_drvdata(dev);
+	drvr_priv->pub.dev = dev;
 
 	/* Attach and link in the protocol */
 	if (brcmf_proto_attach(&drvr_priv->pub) != 0) {

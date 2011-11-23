@@ -128,7 +128,7 @@ static int brcmf_proto_cdc_cmplt(struct brcmf_pub *drvr, u32 id, u32 len)
 	brcmf_dbg(TRACE, "Enter\n");
 
 	do {
-		ret = brcmf_sdbrcm_bus_rxctl(drvr->bus,
+		ret = brcmf_sdbrcm_bus_rxctl(drvr->dev,
 				(unsigned char *)&prot->msg,
 				len + sizeof(struct brcmf_proto_cdc_dcmd));
 		if (ret < 0)

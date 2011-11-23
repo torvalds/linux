@@ -591,6 +591,7 @@ struct brcmf_pub {
 	struct brcmf_proto *prot;
 	struct brcmf_info *info;
 	struct brcmf_cfg80211_dev *config;
+	struct device *dev;		/* fullmac dongle device pointer */
 
 	/* Internal brcmf items */
 	bool up;		/* Driver up/down (to OS) */
