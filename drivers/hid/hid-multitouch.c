@@ -171,7 +171,6 @@ struct mt_class mt_classes[] = {
 	{ .name = MT_CLS_EGALAX,
 		.quirks =  MT_QUIRK_SLOT_IS_CONTACTID |
 			MT_QUIRK_VALID_IS_INRANGE,
-		.maxcontacts = 2,
 		.sn_move = 4096,
 		.sn_pressure = 32,
 	},
