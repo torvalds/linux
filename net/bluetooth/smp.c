@@ -379,7 +379,15 @@ static struct smp_chan *smp_chan_create(struct l2cap_conn *conn)
 
 void smp_chan_destroy(struct l2cap_conn *conn)
 {
-	kfree(conn->smp_chan);
+	struct smp_chan *smp = conn->smp_chan;
+
+	clear_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->pend);
+
+	if (smp->tfm)
+		crypto_free_blkcipher(smp->tfm);
+
+	kfree(smp);
+	conn->smp_chan = NULL;
 	hci_conn_put(conn->hcon);
 }
 
