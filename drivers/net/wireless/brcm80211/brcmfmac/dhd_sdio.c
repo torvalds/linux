@@ -91,7 +91,6 @@ struct rte_console {
 #include "dhd_bus.h"
 #include "dhd_proto.h"
 #include "dhd_dbg.h"
-#include <bcmchip.h>
 
 #define TXQLEN		2048	/* bulk tx queue length */
 #define TXHI		(TXQLEN - 256)	/* turn on flow control above TXHI */
@@ -309,6 +308,11 @@ struct rte_console {
 
 /* Flags for SDH calls */
 #define F2SYNC	(SDIO_REQ_4BYTE | SDIO_REQ_FIXED)
+
+#define BRCMFMAC_FW_NAME	"brcm/brcmfmac.bin"
+#define BRCMFMAC_NV_NAME	"brcm/brcmfmac.txt"
+MODULE_FIRMWARE(BRCMFMAC_FW_NAME);
+MODULE_FIRMWARE(BRCMFMAC_NV_NAME);
 
 /*
  * Conversion of 802.1D priority to precedence level
@@ -562,9 +566,7 @@ struct brcmf_bus {
 
 	struct semaphore sdsem;
 
-	const char *fw_name;
 	const struct firmware *firmware;
-	const char *nv_name;
 	u32 fw_ptr;
 };
 
@@ -3125,9 +3127,6 @@ static int brcmf_sdbrcm_get_image(char *buf, int len, struct brcmf_bus *bus)
 	return len;
 }
 
-MODULE_FIRMWARE(BCM4329_FW_NAME);
-MODULE_FIRMWARE(BCM4329_NV_NAME);
-
 static int brcmf_sdbrcm_download_code_file(struct brcmf_bus *bus)
 {
 	int offset = 0;
@@ -3137,8 +3136,7 @@ static int brcmf_sdbrcm_download_code_file(struct brcmf_bus *bus)
 
 	brcmf_dbg(INFO, "Enter\n");
 
-	bus->fw_name = BCM4329_FW_NAME;
-	ret = request_firmware(&bus->firmware, bus->fw_name,
+	ret = request_firmware(&bus->firmware, BRCMFMAC_FW_NAME,
 			       &bus->sdiodev->func[2]->dev);
 	if (ret) {
 		brcmf_dbg(ERROR, "Fail to request firmware %d\n", ret);
@@ -3235,8 +3233,7 @@ static int brcmf_sdbrcm_download_nvram(struct brcmf_bus *bus)
 	char *bufp;
 	int ret;
 
-	bus->nv_name = BCM4329_NV_NAME;
-	ret = request_firmware(&bus->firmware, bus->nv_name,
+	ret = request_firmware(&bus->firmware, BRCMFMAC_NV_NAME,
 			       &bus->sdiodev->func[2]->dev);
 	if (ret) {
 		brcmf_dbg(ERROR, "Fail to request nvram %d\n", ret);
