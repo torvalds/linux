@@ -162,8 +162,8 @@ int netlbl_cfg_unlbl_map_add(const char *domain,
 			map6->list.addr.s6_addr32[3] &= mask6->s6_addr32[3];
 			ipv6_addr_copy(&map6->list.mask, mask6);
 			map6->list.valid = 1;
-			ret_val = netlbl_af4list_add(&map4->list,
-						     &addrmap->list4);
+			ret_val = netlbl_af6list_add(&map6->list,
+						     &addrmap->list6);
 			if (ret_val != 0)
 				goto cfg_unlbl_map_add_failure;
 			break;
