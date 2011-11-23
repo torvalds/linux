@@ -59,6 +59,31 @@ int kthread_should_stop(void)
 EXPORT_SYMBOL(kthread_should_stop);
 
 /**
+ * kthread_freezable_should_stop - should this freezable kthread return now?
+ * @was_frozen: optional out parameter, indicates whether %current was frozen
+ *
+ * kthread_should_stop() for freezable kthreads, which will enter
+ * refrigerator if necessary.  This function is safe from kthread_stop() /
+ * freezer deadlock and freezable kthreads should use this function instead
+ * of calling try_to_freeze() directly.
+ */
+bool kthread_freezable_should_stop(bool *was_frozen)
+{
+	bool frozen = false;
+
+	might_sleep();
+
+	if (unlikely(freezing(current)))
+		frozen = __refrigerator(true);
+
+	if (was_frozen)
+		*was_frozen = frozen;
+
+	return kthread_should_stop();
+}
+EXPORT_SYMBOL_GPL(kthread_freezable_should_stop);
+
+/**
  * kthread_data - return data value specified on kthread creation
  * @task: kthread task in question
  *
@@ -257,7 +282,7 @@ int kthreadd(void *unused)
 	set_cpus_allowed_ptr(tsk, cpu_all_mask);
 	set_mems_allowed(node_states[N_HIGH_MEMORY]);
 
-	current->flags |= PF_NOFREEZE | PF_FREEZER_NOSIG;
+	current->flags |= PF_NOFREEZE;
 
 	for (;;) {
 		set_current_state(TASK_INTERRUPTIBLE);

@@ -2470,7 +2470,7 @@ static int nilfs_segctor_thread(void *arg)
 
 	if (freezing(current)) {
 		spin_unlock(&sci->sc_state_lock);
-		refrigerator();
+		try_to_freeze();
 		spin_lock(&sci->sc_state_lock);
 	} else {
 		DEFINE_WAIT(wait);
