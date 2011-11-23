@@ -140,6 +140,9 @@ my $successes = 0;
 # which would require more options.
 my $buildonly = 1;
 
+# set when creating a new config
+my $newconfig = 0;
+
 my %entered_configs;
 my %config_help;
 my %variable;
@@ -177,6 +180,11 @@ EOF
 $config_help{"BUILD_TARGET"} = << "EOF"
  The location of the compiled file to copy to the target.
  (relative to OUTPUT_DIR)
+EOF
+    ;
+$config_help{"BUILD_OPTIONS"} = << "EOF"
+ Options to add to \"make\" when building.
+ i.e.  -j20
 EOF
     ;
 $config_help{"TARGET_IMAGE"} = << "EOF"
@@ -306,7 +314,7 @@ sub get_ktest_config {
 
     for (;;) {
 	print "$config = ";
-	if (defined($default{$config})) {
+	if (defined($default{$config}) && length($default{$config})) {
 	    print "\[$default{$config}\] ";
 	}
 	$ans = <STDIN>;
@@ -328,6 +336,10 @@ sub get_ktest_configs {
     get_ktest_config("MACHINE");
     get_ktest_config("BUILD_DIR");
     get_ktest_config("OUTPUT_DIR");
+
+    if ($newconfig) {
+	get_ktest_config("BUILD_OPTIONS");
+    }
 
     # options required for other than just building a kernel
     if (!$buildonly) {
@@ -3094,6 +3106,7 @@ if ($#ARGV == 0) {
 }
 
 if (! -f $ktest_config) {
+    $newconfig = 1;
     get_test_case;
     open(OUT, ">$ktest_config") or die "Can not create $ktest_config";
     print OUT << "EOF"
