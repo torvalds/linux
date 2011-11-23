@@ -39,7 +39,7 @@ bool freezing_slow_path(struct task_struct *p)
 	if (pm_nosig_freezing || cgroup_freezing(p))
 		return true;
 
-	if (pm_freezing && !(p->flags & PF_FREEZER_NOSIG))
+	if (pm_freezing && !(p->flags & PF_KTHREAD))
 		return true;
 
 	return false;
@@ -71,10 +71,6 @@ bool __refrigerator(bool check_kthr_stop)
 		was_frozen = true;
 		schedule();
 	}
-
-	spin_lock_irq(&current->sighand->siglock);
-	recalc_sigpending(); /* We sent fake signal, clean it up */
-	spin_unlock_irq(&current->sighand->siglock);
 
 	pr_debug("%s left refrigerator\n", current->comm);
 
@@ -120,7 +116,7 @@ bool freeze_task(struct task_struct *p)
 		return false;
 	}
 
-	if (!(p->flags & PF_FREEZER_NOSIG)) {
+	if (!(p->flags & PF_KTHREAD)) {
 		fake_signal_wake_up(p);
 		/*
 		 * fake_signal_wake_up() goes through p's scheduler
@@ -145,28 +141,19 @@ void __thaw_task(struct task_struct *p)
 	 * be visible to @p as waking up implies wmb.  Waking up inside
 	 * freezer_lock also prevents wakeups from leaking outside
 	 * refrigerator.
-	 *
-	 * If !FROZEN, @p hasn't reached refrigerator, recalc sigpending to
-	 * avoid leaving dangling TIF_SIGPENDING behind.
 	 */
 	spin_lock_irqsave(&freezer_lock, flags);
-	if (frozen(p)) {
+	if (frozen(p))
 		wake_up_process(p);
-	} else {
-		spin_lock(&p->sighand->siglock);
-		recalc_sigpending_and_wake(p);
-		spin_unlock(&p->sighand->siglock);
-	}
 	spin_unlock_irqrestore(&freezer_lock, flags);
 }
 
 /**
- * __set_freezable - make %current freezable
- * @with_signal: do we want %TIF_SIGPENDING for notification too?
+ * set_freezable - make %current freezable
  *
  * Mark %current freezable and enter refrigerator if necessary.
  */
-bool __set_freezable(bool with_signal)
+bool set_freezable(void)
 {
 	might_sleep();
 
@@ -177,10 +164,8 @@ bool __set_freezable(bool with_signal)
 	 */
 	spin_lock_irq(&freezer_lock);
 	current->flags &= ~PF_NOFREEZE;
-	if (with_signal)
-		current->flags &= ~PF_FREEZER_NOSIG;
 	spin_unlock_irq(&freezer_lock);
 
 	return try_to_freeze();
 }
-EXPORT_SYMBOL(__set_freezable);
+EXPORT_SYMBOL(set_freezable);
