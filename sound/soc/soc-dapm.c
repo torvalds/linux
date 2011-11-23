@@ -2947,6 +2947,79 @@ int snd_soc_dapm_ignore_suspend(struct snd_soc_dapm_context *dapm,
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_ignore_suspend);
 
+static bool snd_soc_dapm_widget_in_card_paths(struct snd_soc_card *card,
+					      struct snd_soc_dapm_widget *w)
+{
+	struct snd_soc_dapm_path *p;
+
+	list_for_each_entry(p, &card->paths, list) {
+		if ((p->source == w) || (p->sink == w)) {
+			dev_dbg(card->dev,
+			    "... Path %s(id:%d dapm:%p) - %s(id:%d dapm:%p)\n",
+			    p->source->name, p->source->id, p->source->dapm,
+			    p->sink->name, p->sink->id, p->sink->dapm);
+
+			/* Connected to something other than the codec */
+			if (p->source->dapm != p->sink->dapm)
+				return true;
+			/*
+			 * Loopback connection from codec external pin to
+			 * codec external pin
+			 */
+			if (p->sink->id == snd_soc_dapm_input) {
+				switch (p->source->id) {
+				case snd_soc_dapm_output:
+				case snd_soc_dapm_micbias:
+					return true;
+				default:
+					break;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+/**
+ * snd_soc_dapm_auto_nc_codec_pins - call snd_soc_dapm_nc_pin for unused pins
+ * @codec: The codec whose pins should be processed
+ *
+ * Automatically call snd_soc_dapm_nc_pin() for any external pins in the codec
+ * which are unused. Pins are used if they are connected externally to the
+ * codec, whether that be to some other device, or a loop-back connection to
+ * the codec itself.
+ */
+void snd_soc_dapm_auto_nc_codec_pins(struct snd_soc_codec *codec)
+{
+	struct snd_soc_card *card = codec->card;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_widget *w;
+
+	dev_dbg(card->dev, "Auto NC: DAPMs: card:%p codec:%p\n",
+		&card->dapm, &codec->dapm);
+
+	list_for_each_entry(w, &card->widgets, list) {
+		if (w->dapm != dapm)
+			continue;
+		switch (w->id) {
+		case snd_soc_dapm_input:
+		case snd_soc_dapm_output:
+		case snd_soc_dapm_micbias:
+			dev_dbg(card->dev, "Auto NC: Checking widget %s\n",
+				w->name);
+			if (!snd_soc_dapm_widget_in_card_paths(card, w)) {
+				dev_dbg(card->dev,
+					"... Not in map; disabling\n");
+				snd_soc_dapm_nc_pin(dapm, w->name);
+			}
+			break;
+		default:
+			break;
+		}
+	}
+}
+
 /**
  * snd_soc_dapm_free - free dapm resources
  * @dapm: DAPM context
