@@ -65,11 +65,12 @@ are referred to as subsystem-level callbacks in what follows.
 
 By default, the callbacks are always invoked in process context with interrupts
 enabled.  However, subsystems can use the pm_runtime_irq_safe() helper function
-to tell the PM core that a device's ->runtime_suspend() and ->runtime_resume()
-callbacks should be invoked in atomic context with interrupts disabled.
-This implies that these callback routines must not block or sleep, but it also
-means that the synchronous helper functions listed at the end of Section 4 can
-be used within an interrupt handler or in an atomic context.
+to tell the PM core that their ->runtime_suspend(), ->runtime_resume() and
+->runtime_idle() callbacks may be invoked in atomic context with interrupts
+disabled for a given device.  This implies that the callback routines in
+question must not block or sleep, but it also means that the synchronous helper
+functions listed at the end of Section 4 may be used for that device within an
+interrupt handler or generally in an atomic context.
 
 The subsystem-level suspend callback is _entirely_ _responsible_ for handling
 the suspend of the device as appropriate, which may, but need not include
