@@ -392,18 +392,7 @@ static struct platform_driver tegra_pcm_driver = {
 	.probe = tegra_pcm_platform_probe,
 	.remove = __devexit_p(tegra_pcm_platform_remove),
 };
-
-static int __init snd_tegra_pcm_init(void)
-{
-	return platform_driver_register(&tegra_pcm_driver);
-}
-module_init(snd_tegra_pcm_init);
-
-static void __exit snd_tegra_pcm_exit(void)
-{
-	platform_driver_unregister(&tegra_pcm_driver);
-}
-module_exit(snd_tegra_pcm_exit);
+module_platform_driver(tegra_pcm_driver);
 
 MODULE_AUTHOR("Stephen Warren <swarren@nvidia.com>");
 MODULE_DESCRIPTION("Tegra PCM ASoC driver");
