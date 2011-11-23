@@ -1067,9 +1067,11 @@ static bool ieee80211_tx_prep_agg(struct ieee80211_tx_data *tx,
 				  int tid)
 {
 	bool queued = false;
+	bool reset_agg_timer = false;
 
 	if (test_bit(HT_AGG_STATE_OPERATIONAL, &tid_tx->state)) {
 		info->flags |= IEEE80211_TX_CTL_AMPDU;
+		reset_agg_timer = true;
 	} else if (test_bit(HT_AGG_STATE_WANT_START, &tid_tx->state)) {
 		/*
 		 * nothing -- this aggregation session is being started
@@ -1101,6 +1103,7 @@ static bool ieee80211_tx_prep_agg(struct ieee80211_tx_data *tx,
 			/* do nothing, let packet pass through */
 		} else if (test_bit(HT_AGG_STATE_OPERATIONAL, &tid_tx->state)) {
 			info->flags |= IEEE80211_TX_CTL_AMPDU;
+			reset_agg_timer = true;
 		} else {
 			queued = true;
 			info->control.vif = &tx->sdata->vif;
@@ -1109,6 +1112,11 @@ static bool ieee80211_tx_prep_agg(struct ieee80211_tx_data *tx,
 		}
 		spin_unlock(&tx->sta->lock);
 	}
+
+	/* reset session timer */
+	if (reset_agg_timer && tid_tx->timeout)
+		mod_timer(&tid_tx->session_timer,
+			  TU_TO_EXP_TIME(tid_tx->timeout));
 
 	return queued;
 }
