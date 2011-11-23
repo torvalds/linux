@@ -137,12 +137,12 @@ static int create_fixed_stream_quirk(struct snd_usb_audio *chip,
 		return -ENOMEM;
 	}
 	if (fp->nr_rates > 0) {
-		rate_table = kmalloc(sizeof(int) * fp->nr_rates, GFP_KERNEL);
+		rate_table = kmemdup(fp->rate_table,
+				     sizeof(int) * fp->nr_rates, GFP_KERNEL);
 		if (!rate_table) {
 			kfree(fp);
 			return -ENOMEM;
 		}
-		memcpy(rate_table, fp->rate_table, sizeof(int) * fp->nr_rates);
 		fp->rate_table = rate_table;
 	}
 
@@ -224,10 +224,9 @@ static int create_uaxx_quirk(struct snd_usb_audio *chip,
 	if (altsd->bNumEndpoints != 1)
 		return -ENXIO;
 
-	fp = kmalloc(sizeof(*fp), GFP_KERNEL);
+	fp = kmemdup(&ua_format, sizeof(*fp), GFP_KERNEL);
 	if (!fp)
 		return -ENOMEM;
-	memcpy(fp, &ua_format, sizeof(*fp));
 
 	fp->iface = altsd->bInterfaceNumber;
 	fp->endpoint = get_endpoint(alts, 0)->bEndpointAddress;

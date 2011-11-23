@@ -132,19 +132,14 @@ static struct mtd_partition __initdata cam60_nand_partition[] = {
 	},
 };
 
-static struct mtd_partition * __init nand_partitions(int size, int *num_partitions)
-{
-	*num_partitions = ARRAY_SIZE(cam60_nand_partition);
-	return cam60_nand_partition;
-}
-
 static struct atmel_nand_data __initdata cam60_nand_data = {
 	.ale		= 21,
 	.cle		= 22,
 	// .det_pin	= ... not there
 	.rdy_pin	= AT91_PIN_PA9,
 	.enable_pin	= AT91_PIN_PA7,
-	.partition_info	= nand_partitions,
+	.parts		= cam60_nand_partition,
+	.num_parts	= ARRAY_SIZE(cam60_nand_partition),
 };
 
 static struct sam9_smc_config __initdata cam60_nand_smc_config = {
