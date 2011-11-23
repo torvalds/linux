@@ -3779,7 +3779,8 @@ static void __exit udc_exit(void)
 EXPORT_SYMBOL(usb_gadget_probe_driver);
 EXPORT_SYMBOL(usb_gadget_unregister_driver);
 
-module_init(udc_init);
+//module_init(udc_init);
+fs_initcall(udc_init);
 module_exit(udc_exit);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
