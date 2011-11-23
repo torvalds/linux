@@ -27,10 +27,6 @@
  * Exported from brcmf bus module (brcmf_usb, brcmf_sdio)
  */
 
-/* Indicate (dis)interest in finding dongles. */
-extern int brcmf_bus_register(void);
-extern void brcmf_bus_unregister(void);
-
 /* obtain linux device object providing bus function */
 extern struct device *brcmf_bus_get_device(struct brcmf_bus *bus);
 

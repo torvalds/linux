@@ -577,17 +577,26 @@ static struct sdio_driver brcmf_sdmmc_driver = {
 #endif	/* CONFIG_PM_SLEEP */
 };
 
-/* bus register interface */
-int brcmf_bus_register(void)
-{
-	brcmf_dbg(TRACE, "Enter\n");
-
-	return sdio_register_driver(&brcmf_sdmmc_driver);
-}
-
-void brcmf_bus_unregister(void)
+static void __exit brcmf_sdio_exit(void)
 {
 	brcmf_dbg(TRACE, "Enter\n");
 
 	sdio_unregister_driver(&brcmf_sdmmc_driver);
 }
+
+static int __init brcmf_sdio_init(void)
+{
+	int ret;
+
+	brcmf_dbg(TRACE, "Enter\n");
+
+	ret = sdio_register_driver(&brcmf_sdmmc_driver);
+
+	if (ret)
+		brcmf_dbg(ERROR, "sdio_register_driver failed: %d\n", ret);
+
+	return ret;
+}
+
+module_init(brcmf_sdio_init);
+module_exit(brcmf_sdio_exit);

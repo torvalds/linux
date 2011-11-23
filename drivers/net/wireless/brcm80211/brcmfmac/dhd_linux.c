@@ -1147,34 +1147,6 @@ void brcmf_detach(struct brcmf_pub *drvr)
 	}
 }
 
-static void __exit brcmf_module_cleanup(void)
-{
-	brcmf_dbg(TRACE, "Enter\n");
-
-	brcmf_bus_unregister();
-}
-
-static int __init brcmf_module_init(void)
-{
-	int error;
-
-	brcmf_dbg(TRACE, "Enter\n");
-
-	error = brcmf_bus_register();
-
-	if (error) {
-		brcmf_dbg(ERROR, "brcmf_bus_register failed\n");
-		goto failed;
-	}
-	return 0;
-
-failed:
-	return -EINVAL;
-}
-
-module_init(brcmf_module_init);
-module_exit(brcmf_module_cleanup);
-
 int brcmf_os_proto_block(struct brcmf_pub *drvr)
 {
 	struct brcmf_info *drvr_priv = drvr->info;
