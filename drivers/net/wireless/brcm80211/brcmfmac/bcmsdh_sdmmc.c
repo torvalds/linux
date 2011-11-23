@@ -229,6 +229,10 @@ brcmf_sdioh_request_data(struct brcmf_sdio_dev *sdiodev, uint write, bool fifo,
 	return err_ret;
 }
 
+/*
+ * This function takes a queue of packets. The packets on the queue
+ * are assumed to be properly aligned by the caller.
+ */
 int
 brcmf_sdioh_request_chain(struct brcmf_sdio_dev *sdiodev, uint fix_inc,
 			  uint write, uint func, uint addr,
@@ -242,7 +246,7 @@ brcmf_sdioh_request_chain(struct brcmf_sdio_dev *sdiodev, uint fix_inc,
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	brcmf_pm_resume_wait(sdiodev, &sdiodev->request_packet_wait);
+	brcmf_pm_resume_wait(sdiodev, &sdiodev->request_chain_wait);
 	if (brcmf_pm_resume_error(sdiodev))
 		return -EIO;
 
@@ -478,7 +482,7 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 		atomic_set(&sdiodev->suspend, false);
 		init_waitqueue_head(&sdiodev->request_byte_wait);
 		init_waitqueue_head(&sdiodev->request_word_wait);
-		init_waitqueue_head(&sdiodev->request_packet_wait);
+		init_waitqueue_head(&sdiodev->request_chain_wait);
 		init_waitqueue_head(&sdiodev->request_buffer_wait);
 	}
 

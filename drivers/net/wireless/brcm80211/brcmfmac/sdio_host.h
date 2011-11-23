@@ -132,7 +132,7 @@ struct brcmf_sdio_dev {
 	atomic_t suspend;		/* suspend flag */
 	wait_queue_head_t request_byte_wait;
 	wait_queue_head_t request_word_wait;
-	wait_queue_head_t request_packet_wait;
+	wait_queue_head_t request_chain_wait;
 	wait_queue_head_t request_buffer_wait;
 
 };
