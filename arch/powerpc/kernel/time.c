@@ -572,7 +572,6 @@ void timer_interrupt(struct pt_regs * regs)
 	struct pt_regs *old_regs;
 	struct decrementer_clock *decrementer =  &__get_cpu_var(decrementers);
 	struct clock_event_device *evt = &decrementer->event;
-	u64 now;
 
 	/* Ensure a positive value is written to the decrementer, or else
 	 * some CPUs will continue to take decrementer exceptions.
@@ -607,16 +606,9 @@ void timer_interrupt(struct pt_regs * regs)
 		get_lppaca()->int_dword.fields.decr_int = 0;
 #endif
 
-	now = get_tb_or_rtc();
-	if (now >= decrementer->next_tb) {
-		decrementer->next_tb = ~(u64)0;
-		if (evt->event_handler)
-			evt->event_handler(evt);
-	} else {
-		now = decrementer->next_tb - now;
-		if (now <= DECREMENTER_MAX)
-			set_dec((int)now);
-	}
+	decrementer->next_tb = ~(u64)0;
+	if (evt->event_handler)
+		evt->event_handler(evt);
 
 #ifdef CONFIG_PPC_ISERIES
 	if (firmware_has_feature(FW_FEATURE_ISERIES) && hvlpevent_is_pending())
