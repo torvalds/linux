@@ -18,11 +18,6 @@
 #include <linux/hardirq.h>
 #include <linux/rcupdate.h>
 
-struct cgroup_netprio_state
-{
-	struct cgroup_subsys_state css;
-	u32 prioidx;
-};
 
 struct netprio_map {
 	struct rcu_head rcu;
@@ -31,6 +26,11 @@ struct netprio_map {
 };
 
 #ifdef CONFIG_CGROUPS
+
+struct cgroup_netprio_state {
+	struct cgroup_subsys_state css;
+	u32 prioidx;
+};
 
 #ifndef CONFIG_NETPRIO_CGROUP
 extern int net_prio_subsys_id;
@@ -52,14 +52,6 @@ static inline struct cgroup_netprio_state
 #else
 
 #define sock_update_netprioidx(sk)
-#define skb_update_prio(skb)
-
-static inline struct cgroup_netprio_state
-		*task_netprio_state(struct task_struct *p)
-{
-	return NULL;
-}
-
 #endif
 
 #endif  /* _NET_CLS_CGROUP_H */
