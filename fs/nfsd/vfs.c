@@ -1300,7 +1300,7 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		goto out;
 	}
 
-	host_err = mnt_want_write(fhp->fh_export->ex_path.mnt);
+	host_err = fh_want_write(fhp);
 	if (host_err)
 		goto out_nfserr;
 
@@ -1325,7 +1325,7 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		break;
 	}
 	if (host_err < 0) {
-		mnt_drop_write(fhp->fh_export->ex_path.mnt);
+		fh_drop_write(fhp);
 		goto out_nfserr;
 	}
 
@@ -1339,7 +1339,7 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	err2 = nfserrno(commit_metadata(fhp));
 	if (err2)
 		err = err2;
-	mnt_drop_write(fhp->fh_export->ex_path.mnt);
+	fh_drop_write(fhp);
 	/*
 	 * Update the file handle to get the new inode info.
 	 */
@@ -1430,7 +1430,7 @@ do_nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		v_atime = verifier[1]&0x7fffffff;
 	}
 	
-	host_err = mnt_want_write(fhp->fh_export->ex_path.mnt);
+	host_err = fh_want_write(fhp);
 	if (host_err)
 		goto out_nfserr;
 	if (dchild->d_inode) {
@@ -1469,13 +1469,13 @@ do_nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		case NFS3_CREATE_GUARDED:
 			err = nfserr_exist;
 		}
-		mnt_drop_write(fhp->fh_export->ex_path.mnt);
+		fh_drop_write(fhp);
 		goto out;
 	}
 
 	host_err = vfs_create(dirp, dchild, iap->ia_mode, NULL);
 	if (host_err < 0) {
-		mnt_drop_write(fhp->fh_export->ex_path.mnt);
+		fh_drop_write(fhp);
 		goto out_nfserr;
 	}
 	if (created)
@@ -1503,7 +1503,7 @@ do_nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (!err)
 		err = nfserrno(commit_metadata(fhp));
 
-	mnt_drop_write(fhp->fh_export->ex_path.mnt);
+	fh_drop_write(fhp);
 	/*
 	 * Update the filehandle to get the new inode info.
 	 */
@@ -1600,7 +1600,7 @@ nfsd_symlink(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (IS_ERR(dnew))
 		goto out_nfserr;
 
-	host_err = mnt_want_write(fhp->fh_export->ex_path.mnt);
+	host_err = fh_want_write(fhp);
 	if (host_err)
 		goto out_nfserr;
 
@@ -1621,7 +1621,7 @@ nfsd_symlink(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		err = nfserrno(commit_metadata(fhp));
 	fh_unlock(fhp);
 
-	mnt_drop_write(fhp->fh_export->ex_path.mnt);
+	fh_drop_write(fhp);
 
 	cerr = fh_compose(resfhp, fhp->fh_export, dnew, fhp);
 	dput(dnew);
@@ -1674,7 +1674,7 @@ nfsd_link(struct svc_rqst *rqstp, struct svc_fh *ffhp,
 
 	dold = tfhp->fh_dentry;
 
-	host_err = mnt_want_write(tfhp->fh_export->ex_path.mnt);
+	host_err = fh_want_write(tfhp);
 	if (host_err) {
 		err = nfserrno(host_err);
 		goto out_dput;
@@ -1699,7 +1699,7 @@ nfsd_link(struct svc_rqst *rqstp, struct svc_fh *ffhp,
 			err = nfserrno(host_err);
 	}
 out_drop_write:
-	mnt_drop_write(tfhp->fh_export->ex_path.mnt);
+	fh_drop_write(tfhp);
 out_dput:
 	dput(dnew);
 out_unlock:
@@ -1776,7 +1776,7 @@ nfsd_rename(struct svc_rqst *rqstp, struct svc_fh *ffhp, char *fname, int flen,
 	host_err = -EXDEV;
 	if (ffhp->fh_export->ex_path.mnt != tfhp->fh_export->ex_path.mnt)
 		goto out_dput_new;
-	host_err = mnt_want_write(ffhp->fh_export->ex_path.mnt);
+	host_err = fh_want_write(ffhp);
 	if (host_err)
 		goto out_dput_new;
 
@@ -1795,7 +1795,7 @@ nfsd_rename(struct svc_rqst *rqstp, struct svc_fh *ffhp, char *fname, int flen,
 			host_err = commit_metadata(ffhp);
 	}
 out_drop_write:
-	mnt_drop_write(ffhp->fh_export->ex_path.mnt);
+	fh_drop_write(ffhp);
  out_dput_new:
 	dput(ndentry);
  out_dput_old:
@@ -1854,7 +1854,7 @@ nfsd_unlink(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 	if (!type)
 		type = rdentry->d_inode->i_mode & S_IFMT;
 
-	host_err = mnt_want_write(fhp->fh_export->ex_path.mnt);
+	host_err = fh_want_write(fhp);
 	if (host_err)
 		goto out_put;
 
@@ -1868,7 +1868,7 @@ nfsd_unlink(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 	if (!host_err)
 		host_err = commit_metadata(fhp);
 out_drop_write:
-	mnt_drop_write(fhp->fh_export->ex_path.mnt);
+	fh_drop_write(fhp);
 out_put:
 	dput(rdentry);
 
@@ -2270,7 +2270,7 @@ nfsd_set_posix_acl(struct svc_fh *fhp, int type, struct posix_acl *acl)
 	} else
 		size = 0;
 
-	error = mnt_want_write(fhp->fh_export->ex_path.mnt);
+	error = fh_want_write(fhp);
 	if (error)
 		goto getout;
 	if (size)
@@ -2284,7 +2284,7 @@ nfsd_set_posix_acl(struct svc_fh *fhp, int type, struct posix_acl *acl)
 				error = 0;
 		}
 	}
-	mnt_drop_write(fhp->fh_export->ex_path.mnt);
+	fh_drop_write(fhp);
 
 getout:
 	kfree(value);
