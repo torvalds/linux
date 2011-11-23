@@ -138,11 +138,12 @@ enum transport_tpg_type_table {
 	TRANSPORT_TPG_TYPE_DISCOVERY = 1,
 };
 
-/* Used for generate timer flags */
+/* struct se_task->task_flags */
 enum se_task_flags {
 	TF_ACTIVE		= (1 << 0),
 	TF_SENT			= (1 << 1),
 	TF_REQUEST_STOP		= (1 << 2),
+	TF_HAS_SENSE		= (1 << 3),
 };
 
 /* Special transport agnostic struct se_cmd->t_states */
@@ -488,7 +489,6 @@ struct se_task {
 	struct scatterlist	*task_sg;
 	u32			task_sg_nents;
 	u16			task_flags;
-	u8			task_sense;
 	u8			task_scsi_status;
 	int			task_error_status;
 	enum dma_data_direction	task_data_direction;

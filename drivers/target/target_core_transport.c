@@ -709,7 +709,7 @@ void transport_complete_task(struct se_task *task, int success)
 	if (dev && dev->transport->transport_complete) {
 		if (dev->transport->transport_complete(task) != 0) {
 			cmd->se_cmd_flags |= SCF_TRANSPORT_TASK_SENSE;
-			task->task_sense = 1;
+			task->task_flags |= TF_HAS_SENSE;
 			success = 1;
 		}
 	}
@@ -2346,7 +2346,7 @@ static int transport_get_sense_data(struct se_cmd *cmd)
 
 	list_for_each_entry_safe(task, task_tmp,
 				&cmd->t_task_list, t_list) {
-		if (!task->task_sense)
+		if (!(task->task_flags & TF_HAS_SENSE))
 			continue;
 
 		if (!dev->transport->get_sense_buffer) {
