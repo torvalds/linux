@@ -3999,11 +3999,6 @@ void brcmf_sdbrcm_disconnect(void *ptr)
 	brcmf_dbg(TRACE, "Disconnected\n");
 }
 
-struct device *brcmf_bus_get_device(struct brcmf_sdio *bus)
-{
-	return &bus->sdiodev->func[2]->dev;
-}
-
 void
 brcmf_sdbrcm_wd_timer(struct brcmf_sdio *bus, uint wdtick)
 {

@@ -608,8 +608,7 @@ static void brcmf_ethtool_get_drvinfo(struct net_device *ndev,
 
 	sprintf(info->driver, KBUILD_MODNAME);
 	sprintf(info->version, "%lu", drvr_priv->pub.drv_version);
-	sprintf(info->bus_info, "%s",
-		dev_name(brcmf_bus_get_device(drvr_priv->pub.bus)));
+	sprintf(info->bus_info, "%s", dev_name(drvr_priv->pub.dev));
 }
 
 static struct ethtool_ops brcmf_ethtool_ops = {
@@ -1082,10 +1081,7 @@ int brcmf_net_attach(struct brcmf_pub *drvr, int ifidx)
 
 	/* attach to cfg80211 for primary interface */
 	if (!ifidx) {
-		drvr->config =
-			brcmf_cfg80211_attach(ndev,
-					      brcmf_bus_get_device(drvr->bus),
-					      drvr);
+		drvr->config = brcmf_cfg80211_attach(ndev, drvr->dev, drvr);
 		if (drvr->config == NULL) {
 			brcmf_dbg(ERROR, "wl_cfg80211_attach failed\n");
 			goto fail;
