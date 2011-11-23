@@ -222,8 +222,6 @@ static struct snd_soc_dai_link speyside_dai[] = {
 
 static int speyside_wm9081_init(struct snd_soc_dapm_context *dapm)
 {
-	snd_soc_dapm_nc_pin(dapm, "LINEOUT");
-
 	/* At any time the WM9081 is active it will have this clock */
 	return snd_soc_codec_set_sysclk(dapm->codec, WM9081_SYSCLK_MCLK, 0,
 					48000 * 256, 0);
@@ -308,6 +306,7 @@ static struct snd_soc_card speyside = {
 	.num_dapm_widgets = ARRAY_SIZE(widgets),
 	.dapm_routes = audio_paths,
 	.num_dapm_routes = ARRAY_SIZE(audio_paths),
+	.fully_routed = true,
 
 	.late_probe = speyside_late_probe,
 };

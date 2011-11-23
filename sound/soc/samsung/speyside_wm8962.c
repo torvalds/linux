@@ -208,6 +208,7 @@ static struct snd_soc_card speyside_wm8962 = {
 	.num_dapm_widgets = ARRAY_SIZE(widgets),
 	.dapm_routes = audio_paths,
 	.num_dapm_routes = ARRAY_SIZE(audio_paths),
+	.fully_routed = true,
 
 	.late_probe = speyside_wm8962_late_probe,
 };
