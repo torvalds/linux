@@ -431,6 +431,12 @@ void brcmf_rx_frame(struct brcmf_pub *drvr, int ifidx,
 		if (ifp == NULL)
 			ifp = drvr_priv->iflist[0];
 
+		if (!ifp || !ifp->ndev ||
+		    ifp->ndev->reg_state != NETREG_REGISTERED) {
+			brcmu_pkt_buf_free_skb(skb);
+			continue;
+		}
+
 		skb->dev = ifp->ndev;
 		skb->protocol = eth_type_trans(skb, skb->dev);
 
