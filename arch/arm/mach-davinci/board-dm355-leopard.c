@@ -74,7 +74,7 @@ static struct davinci_nand_pdata davinci_nand_data = {
 	.parts			= davinci_nand_partitions,
 	.nr_parts		= ARRAY_SIZE(davinci_nand_partitions),
 	.ecc_mode		= NAND_ECC_HW_SYNDROME,
-	.options		= NAND_USE_FLASH_BBT,
+	.bbt_options		= NAND_BBT_USE_FLASH,
 };
 
 static struct resource davinci_nand_resources[] = {

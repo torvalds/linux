@@ -26,6 +26,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/etherdevice.h>
 #include <linux/debugfs.h>
+#include <linux/module.h>
 #include <net/genetlink.h>
 #include "mac80211_hwsim.h"
 

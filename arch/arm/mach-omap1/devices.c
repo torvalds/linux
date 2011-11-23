@@ -22,6 +22,7 @@
 #include <mach/hardware.h>
 #include <asm/mach/map.h>
 
+#include <plat/common.h>
 #include <plat/tc.h>
 #include <plat/board.h>
 #include <plat/mux.h>
@@ -290,6 +291,8 @@ static int __init omap1_init_devices(void)
 {
 	if (!cpu_class_is_omap1())
 		return -ENODEV;
+
+	omap_sram_init();
 
 	/* please keep these calls, and their implementations above,
 	 * in alphabetical order so they're easier to sort through.

@@ -36,11 +36,13 @@
  *	- this size value would be page-aligned internally.
  * @flags: user request for setting memory type or cache attributes.
  * @handle: returned handle for the object.
+ * @pad: just padding to be 64-bit aligned.
  */
 struct drm_exynos_gem_create {
 	unsigned int size;
 	unsigned int flags;
 	unsigned int handle;
+	unsigned int pad;
 };
 
 /**

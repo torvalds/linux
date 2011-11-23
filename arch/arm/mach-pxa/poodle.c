@@ -16,6 +16,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/export.h>
 #include <linux/platform_device.h>
 #include <linux/fb.h>
 #include <linux/pm.h>

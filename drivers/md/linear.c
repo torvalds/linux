@@ -19,6 +19,7 @@
 #include <linux/blkdev.h>
 #include <linux/raid/md_u.h>
 #include <linux/seq_file.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 #include "md.h"
 #include "linear.h"
@@ -264,14 +265,14 @@ static int linear_stop (struct mddev *mddev)
 	return 0;
 }
 
-static int linear_make_request (struct mddev *mddev, struct bio *bio)
+static void linear_make_request(struct mddev *mddev, struct bio *bio)
 {
 	struct dev_info *tmp_dev;
 	sector_t start_sector;
 
 	if (unlikely(bio->bi_rw & REQ_FLUSH)) {
 		md_flush_request(mddev, bio);
-		return 0;
+		return;
 	}
 
 	rcu_read_lock();
@@ -293,7 +294,7 @@ static int linear_make_request (struct mddev *mddev, struct bio *bio)
 		       (unsigned long long)start_sector);
 		rcu_read_unlock();
 		bio_io_error(bio);
-		return 0;
+		return;
 	}
 	if (unlikely(bio->bi_sector + (bio->bi_size >> 9) >
 		     tmp_dev->end_sector)) {
@@ -307,20 +308,17 @@ static int linear_make_request (struct mddev *mddev, struct bio *bio)
 
 		bp = bio_split(bio, end_sector - bio->bi_sector);
 
-		if (linear_make_request(mddev, &bp->bio1))
-			generic_make_request(&bp->bio1);
-		if (linear_make_request(mddev, &bp->bio2))
-			generic_make_request(&bp->bio2);
+		linear_make_request(mddev, &bp->bio1);
+		linear_make_request(mddev, &bp->bio2);
 		bio_pair_release(bp);
-		return 0;
+		return;
 	}
 		    
 	bio->bi_bdev = tmp_dev->rdev->bdev;
 	bio->bi_sector = bio->bi_sector - start_sector
 		+ tmp_dev->rdev->data_offset;
 	rcu_read_unlock();
-
-	return 1;
+	generic_make_request(bio);
 }
 
 static void linear_status (struct seq_file *seq, struct mddev *mddev)

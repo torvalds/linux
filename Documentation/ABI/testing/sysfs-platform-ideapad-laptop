@@ -5,19 +5,4 @@ Contact:	"Ike Panhc <ike.pan@canonical.com>"
 Description:
 		Control the power of camera module. 1 means on, 0 means off.
 
-What:		/sys/devices/platform/ideapad/cfg
-Date:		Jun 2011
-KernelVersion:	3.1
-Contact:	"Ike Panhc <ike.pan@canonical.com>"
-Description:
-		Ideapad capability bits.
-		Bit 8-10: 1 - Intel graphic only
-		          2 - ATI graphic only
-		          3 - Nvidia graphic only
-		          4 - Intel and ATI graphic
-		          5 - Intel and Nvidia graphic
-		Bit 16: Bluetooth exist (1 for exist)
-		Bit 17: 3G exist (1 for exist)
-		Bit 18: Wifi exist (1 for exist)
-		Bit 19: Camera exist (1 for exist)
 

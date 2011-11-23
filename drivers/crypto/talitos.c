@@ -416,7 +416,7 @@ static void talitos_done(unsigned long data)
 /*
  * locate current (offending) descriptor
  */
-static struct talitos_desc *current_desc(struct device *dev, int ch)
+static u32 current_desc_hdr(struct device *dev, int ch)
 {
 	struct talitos_private *priv = dev_get_drvdata(dev);
 	int tail = priv->chan[ch].tail;
@@ -428,23 +428,25 @@ static struct talitos_desc *current_desc(struct device *dev, int ch)
 		tail = (tail + 1) & (priv->fifo_len - 1);
 		if (tail == priv->chan[ch].tail) {
 			dev_err(dev, "couldn't locate current descriptor\n");
-			return NULL;
+			return 0;
 		}
 	}
 
-	return priv->chan[ch].fifo[tail].desc;
+	return priv->chan[ch].fifo[tail].desc->hdr;
 }
 
 /*
  * user diagnostics; report root cause of error based on execution unit status
  */
-static void report_eu_error(struct device *dev, int ch,
-			    struct talitos_desc *desc)
+static void report_eu_error(struct device *dev, int ch, u32 desc_hdr)
 {
 	struct talitos_private *priv = dev_get_drvdata(dev);
 	int i;
 
-	switch (desc->hdr & DESC_HDR_SEL0_MASK) {
+	if (!desc_hdr)
+		desc_hdr = in_be32(priv->reg + TALITOS_DESCBUF(ch));
+
+	switch (desc_hdr & DESC_HDR_SEL0_MASK) {
 	case DESC_HDR_SEL0_AFEU:
 		dev_err(dev, "AFEUISR 0x%08x_%08x\n",
 			in_be32(priv->reg + TALITOS_AFEUISR),
@@ -488,7 +490,7 @@ static void report_eu_error(struct device *dev, int ch,
 		break;
 	}
 
-	switch (desc->hdr & DESC_HDR_SEL1_MASK) {
+	switch (desc_hdr & DESC_HDR_SEL1_MASK) {
 	case DESC_HDR_SEL1_MDEUA:
 	case DESC_HDR_SEL1_MDEUB:
 		dev_err(dev, "MDEUISR 0x%08x_%08x\n",
@@ -550,7 +552,7 @@ static void talitos_error(unsigned long data, u32 isr, u32 isr_lo)
 		if (v_lo & TALITOS_CCPSR_LO_IEU)
 			dev_err(dev, "invalid execution unit error\n");
 		if (v_lo & TALITOS_CCPSR_LO_EU)
-			report_eu_error(dev, ch, current_desc(dev, ch));
+			report_eu_error(dev, ch, current_desc_hdr(dev, ch));
 		if (v_lo & TALITOS_CCPSR_LO_GB)
 			dev_err(dev, "gather boundary error\n");
 		if (v_lo & TALITOS_CCPSR_LO_GRL)

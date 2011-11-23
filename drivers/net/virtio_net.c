@@ -925,12 +925,10 @@ static void virtnet_update_status(struct virtnet_info *vi)
 {
 	u16 v;
 
-	if (!virtio_has_feature(vi->vdev, VIRTIO_NET_F_STATUS))
-		return;
-
-	vi->vdev->config->get(vi->vdev,
+	if (virtio_config_val(vi->vdev, VIRTIO_NET_F_STATUS,
 			      offsetof(struct virtio_net_config, status),
-			      &v, sizeof(v));
+			      &v) < 0)
+		return;
 
 	/* Ignore unknown (future) status bits */
 	v &= VIRTIO_NET_S_LINK_UP;
@@ -1006,11 +1004,9 @@ static int virtnet_probe(struct virtio_device *vdev)
 	}
 
 	/* Configuration may specify what MAC to use.  Otherwise random. */
-	if (virtio_has_feature(vdev, VIRTIO_NET_F_MAC)) {
-		vdev->config->get(vdev,
+	if (virtio_config_val_len(vdev, VIRTIO_NET_F_MAC,
 				  offsetof(struct virtio_net_config, mac),
-				  dev->dev_addr, dev->addr_len);
-	} else
+				  dev->dev_addr, dev->addr_len) < 0)
 		random_ether_addr(dev->dev_addr);
 
 	/* Set up our device-specific information */

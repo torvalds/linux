@@ -6,7 +6,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/suspend.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/syscalls.h>
 #include <linux/freezer.h>
 
@@ -67,7 +67,7 @@ static void fake_signal_wake_up(struct task_struct *p)
 	unsigned long flags;
 
 	spin_lock_irqsave(&p->sighand->siglock, flags);
-	signal_wake_up(p, 1);
+	signal_wake_up(p, 0);
 	spin_unlock_irqrestore(&p->sighand->siglock, flags);
 }
 

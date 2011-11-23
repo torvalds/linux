@@ -31,6 +31,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/clk.h>
+#include <linux/export.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>

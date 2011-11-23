@@ -25,27 +25,13 @@
 #include <linux/gpio.h>
 #include <mach/sh7372.h>
 
-#define _1(fn, pfx, sfx) fn(pfx, sfx)
-
-#define _10(fn, pfx, sfx)				\
-	_1(fn, pfx##0, sfx), _1(fn, pfx##1, sfx),	\
-	_1(fn, pfx##2, sfx), _1(fn, pfx##3, sfx),	\
-	_1(fn, pfx##4, sfx), _1(fn, pfx##5, sfx),	\
-	_1(fn, pfx##6, sfx), _1(fn, pfx##7, sfx),	\
-	_1(fn, pfx##8, sfx), _1(fn, pfx##9, sfx)
-
-#define _80(fn, pfx, sfx)				\
-	_10(fn, pfx##1, sfx),	_10(fn, pfx##2, sfx),	\
-	_10(fn, pfx##3, sfx),	_10(fn, pfx##4, sfx),	\
-	_10(fn, pfx##5, sfx),	_10(fn, pfx##6, sfx),	\
-	_10(fn, pfx##7, sfx),	_10(fn, pfx##8, sfx)
-
-#define _190(fn, pfx, sfx) \
-	_10(fn, pfx, sfx), _80(fn, pfx, sfx), _10(fn, pfx##9, sfx), \
-	_10(fn, pfx##10, sfx), _80(fn, pfx##1, sfx), _1(fn, pfx##190, sfx)
-
-#define _PORT(pfx, sfx) pfx##_##sfx
-#define PORT_ALL(str) _190(_PORT, PORT, str)
+#define CPU_ALL_PORT(fn, pfx, sfx) \
+	PORT_10(fn, pfx, sfx),		PORT_90(fn, pfx, sfx), \
+	PORT_10(fn, pfx##10, sfx),	PORT_10(fn, pfx##11, sfx), \
+	PORT_10(fn, pfx##12, sfx),	PORT_10(fn, pfx##13, sfx), \
+	PORT_10(fn, pfx##14, sfx),	PORT_10(fn, pfx##15, sfx), \
+	PORT_10(fn, pfx##16, sfx),	PORT_10(fn, pfx##17, sfx), \
+	PORT_10(fn, pfx##18, sfx),	PORT_1(fn, pfx##190, sfx)
 
 enum {
 	PINMUX_RESERVED = 0,
@@ -381,108 +367,124 @@ enum {
 	PINMUX_MARK_END,
 };
 
-/* PORT_DATA_I_PD(nr) */
-#define _I___D(nr)			     \
-	PINMUX_DATA(PORT##nr##_DATA, PORT##nr##_FN0, \
-		    PORT##nr##_IN, PORT##nr##_IN_PD)
-
-/* PORT_DATA_I_PU(nr) */
-#define _I__U_(nr)			     \
-	PINMUX_DATA(PORT##nr##_DATA, PORT##nr##_FN0, \
-		    PORT##nr##_IN, PORT##nr##_IN_PU)
-
-/* PORT_DATA_I_PU_PD(nr) */
-#define _I__UD(nr)			     \
-	PINMUX_DATA(PORT##nr##_DATA, PORT##nr##_FN0, \
-		    PORT##nr##_IN, PORT##nr##_IN_PD, PORT##nr##_IN_PU)
-
-/* PORT_DATA_O(nr) */
-#define __O___(nr)							\
-	PINMUX_DATA(PORT##nr##_DATA, PORT##nr##_FN0, PORT##nr##_OUT)
-
-/* PORT_DATA_IO(nr) */
-#define _IO___(nr)				     \
-	PINMUX_DATA(PORT##nr##_DATA, PORT##nr##_FN0, PORT##nr##_OUT, \
-		    PORT##nr##_IN)
-
-/* PORT_DATA_IO_PD(nr) */
-#define _IO__D(nr)					     \
-	PINMUX_DATA(PORT##nr##_DATA, PORT##nr##_FN0, PORT##nr##_OUT, \
-		    PORT##nr##_IN, PORT##nr##_IN_PD)
-
-/* PORT_DATA_IO_PU(nr) */
-#define _IO_U_(nr)					     \
-	PINMUX_DATA(PORT##nr##_DATA, PORT##nr##_FN0, PORT##nr##_OUT, \
-		    PORT##nr##_IN, PORT##nr##_IN_PU)
-
-/* PORT_DATA_IO_PU_PD(nr) */
-#define _IO_UD(nr)					     \
-	PINMUX_DATA(PORT##nr##_DATA, PORT##nr##_FN0, PORT##nr##_OUT, \
-		    PORT##nr##_IN, PORT##nr##_IN_PD, PORT##nr##_IN_PU)
-
-
 static pinmux_enum_t pinmux_data[] = {
 
 	/* specify valid pin states for each pin in GPIO mode */
+	PORT_DATA_IO_PD(0),		PORT_DATA_IO_PD(1),
+	PORT_DATA_O(2),			PORT_DATA_I_PD(3),
+	PORT_DATA_I_PD(4),		PORT_DATA_I_PD(5),
+	PORT_DATA_IO_PU_PD(6),		PORT_DATA_I_PD(7),
+	PORT_DATA_IO_PD(8),		PORT_DATA_O(9),
 
-	_IO__D(0), _IO__D(1), __O___(2), _I___D(3), _I___D(4),
-	_I___D(5), _IO_UD(6), _I___D(7), _IO__D(8), __O___(9),
+	PORT_DATA_O(10),		PORT_DATA_O(11),
+	PORT_DATA_IO_PU_PD(12),		PORT_DATA_IO_PD(13),
+	PORT_DATA_IO_PD(14),		PORT_DATA_O(15),
+	PORT_DATA_IO_PD(16),		PORT_DATA_IO_PD(17),
+	PORT_DATA_I_PD(18),		PORT_DATA_IO(19),
 
-	__O___(10), __O___(11), _IO_UD(12), _IO__D(13), _IO__D(14),
-	__O___(15), _IO__D(16), _IO__D(17), _I___D(18), _IO___(19),
+	PORT_DATA_IO(20),		PORT_DATA_IO(21),
+	PORT_DATA_IO(22),		PORT_DATA_IO(23),
+	PORT_DATA_IO(24),		PORT_DATA_IO(25),
+	PORT_DATA_IO(26),		PORT_DATA_IO(27),
+	PORT_DATA_IO(28),		PORT_DATA_IO(29),
 
-	_IO___(20), _IO___(21), _IO___(22), _IO___(23), _IO___(24),
-	_IO___(25), _IO___(26), _IO___(27), _IO___(28), _IO___(29),
+	PORT_DATA_IO(30),		PORT_DATA_IO(31),
+	PORT_DATA_IO(32),		PORT_DATA_IO(33),
+	PORT_DATA_IO(34),		PORT_DATA_IO(35),
+	PORT_DATA_IO(36),		PORT_DATA_IO(37),
+	PORT_DATA_IO(38),		PORT_DATA_IO(39),
 
-	_IO___(30), _IO___(31), _IO___(32), _IO___(33), _IO___(34),
-	_IO___(35), _IO___(36), _IO___(37), _IO___(38), _IO___(39),
+	PORT_DATA_IO(40),		PORT_DATA_IO(41),
+	PORT_DATA_IO(42),		PORT_DATA_IO(43),
+	PORT_DATA_IO(44),		PORT_DATA_IO(45),
+	PORT_DATA_IO_PU(46),		PORT_DATA_IO_PU(47),
+	PORT_DATA_IO_PU(48),		PORT_DATA_IO_PU(49),
 
-	_IO___(40), _IO___(41), _IO___(42), _IO___(43), _IO___(44),
-	_IO___(45), _IO_U_(46), _IO_U_(47), _IO_U_(48), _IO_U_(49),
+	PORT_DATA_IO_PU(50),		PORT_DATA_IO_PU(51),
+	PORT_DATA_IO_PU(52),		PORT_DATA_IO_PU(53),
+	PORT_DATA_IO_PU(54),		PORT_DATA_IO_PU(55),
+	PORT_DATA_IO_PU(56),		PORT_DATA_IO_PU(57),
+	PORT_DATA_IO_PU(58),		PORT_DATA_IO_PU(59),
 
-	_IO_U_(50), _IO_U_(51), _IO_U_(52), _IO_U_(53), _IO_U_(54),
-	_IO_U_(55), _IO_U_(56), _IO_U_(57), _IO_U_(58), _IO_U_(59),
+	PORT_DATA_IO_PU(60),		PORT_DATA_IO_PU(61),
+	PORT_DATA_IO(62),		PORT_DATA_O(63),
+	PORT_DATA_O(64),		PORT_DATA_IO_PU(65),
+	PORT_DATA_O(66),		PORT_DATA_IO_PU(67),  /*66?*/
+	PORT_DATA_O(68),		PORT_DATA_IO(69),
 
-	_IO_U_(60), _IO_U_(61), _IO___(62), __O___(63), __O___(64),
-	_IO_U_(65), __O___(66), _IO_U_(67), __O___(68), _IO___(69), /*66?*/
+	PORT_DATA_IO(70),		PORT_DATA_IO(71),
+	PORT_DATA_O(72),		PORT_DATA_I_PU(73),
+	PORT_DATA_I_PU_PD(74),		PORT_DATA_IO_PU_PD(75),
+	PORT_DATA_IO_PU_PD(76),		PORT_DATA_IO_PU_PD(77),
+	PORT_DATA_IO_PU_PD(78),		PORT_DATA_IO_PU_PD(79),
 
-	_IO___(70), _IO___(71), __O___(72), _I__U_(73), _I__UD(74),
-	_IO_UD(75), _IO_UD(76), _IO_UD(77), _IO_UD(78), _IO_UD(79),
+	PORT_DATA_IO_PU_PD(80),		PORT_DATA_IO_PU_PD(81),
+	PORT_DATA_IO_PU_PD(82),		PORT_DATA_IO_PU_PD(83),
+	PORT_DATA_IO_PU_PD(84),		PORT_DATA_IO_PU_PD(85),
+	PORT_DATA_IO_PU_PD(86),		PORT_DATA_IO_PU_PD(87),
+	PORT_DATA_IO_PU_PD(88),		PORT_DATA_IO_PU_PD(89),
 
-	_IO_UD(80), _IO_UD(81), _IO_UD(82), _IO_UD(83), _IO_UD(84),
-	_IO_UD(85), _IO_UD(86), _IO_UD(87), _IO_UD(88), _IO_UD(89),
+	PORT_DATA_IO_PU_PD(90),		PORT_DATA_IO_PU_PD(91),
+	PORT_DATA_IO_PU_PD(92),		PORT_DATA_IO_PU_PD(93),
+	PORT_DATA_IO_PU_PD(94),		PORT_DATA_IO_PU_PD(95),
+	PORT_DATA_IO_PU(96),		PORT_DATA_IO_PU_PD(97),
+	PORT_DATA_IO_PU_PD(98),		PORT_DATA_O(99), /*99?*/
 
-	_IO_UD(90), _IO_UD(91), _IO_UD(92), _IO_UD(93), _IO_UD(94),
-	_IO_UD(95), _IO_U_(96), _IO_UD(97), _IO_UD(98), __O___(99), /*99?*/
+	PORT_DATA_IO_PD(100),		PORT_DATA_IO_PD(101),
+	PORT_DATA_IO_PD(102),		PORT_DATA_IO_PD(103),
+	PORT_DATA_IO_PD(104),		PORT_DATA_IO_PD(105),
+	PORT_DATA_IO_PU(106),		PORT_DATA_IO_PU(107),
+	PORT_DATA_IO_PU(108),		PORT_DATA_IO_PU(109),
 
-	_IO__D(100), _IO__D(101), _IO__D(102), _IO__D(103), _IO__D(104),
-	_IO__D(105), _IO_U_(106), _IO_U_(107), _IO_U_(108), _IO_U_(109),
+	PORT_DATA_IO_PU(110),		PORT_DATA_IO_PU(111),
+	PORT_DATA_IO_PD(112),		PORT_DATA_IO_PD(113),
+	PORT_DATA_IO_PU(114),		PORT_DATA_IO_PU(115),
+	PORT_DATA_IO_PU(116),		PORT_DATA_IO_PU(117),
+	PORT_DATA_IO_PU(118),		PORT_DATA_IO_PU(119),
 
-	_IO_U_(110), _IO_U_(111), _IO__D(112), _IO__D(113), _IO_U_(114),
-	_IO_U_(115), _IO_U_(116), _IO_U_(117), _IO_U_(118), _IO_U_(119),
+	PORT_DATA_IO_PU(120),		PORT_DATA_IO_PD(121),
+	PORT_DATA_IO_PD(122),		PORT_DATA_IO_PD(123),
+	PORT_DATA_IO_PD(124),		PORT_DATA_IO_PD(125),
+	PORT_DATA_IO_PD(126),		PORT_DATA_IO_PD(127),
+	PORT_DATA_IO_PD(128),		PORT_DATA_IO_PU_PD(129),
 
-	_IO_U_(120), _IO__D(121), _IO__D(122), _IO__D(123), _IO__D(124),
-	_IO__D(125), _IO__D(126), _IO__D(127), _IO__D(128), _IO_UD(129),
+	PORT_DATA_IO_PU_PD(130),	PORT_DATA_IO_PU_PD(131),
+	PORT_DATA_IO_PU_PD(132),	PORT_DATA_IO_PU_PD(133),
+	PORT_DATA_IO_PU_PD(134),	PORT_DATA_IO_PU_PD(135),
+	PORT_DATA_IO_PD(136),		PORT_DATA_IO_PD(137),
+	PORT_DATA_IO_PD(138),		PORT_DATA_IO_PD(139),
 
-	_IO_UD(130), _IO_UD(131), _IO_UD(132), _IO_UD(133), _IO_UD(134),
-	_IO_UD(135), _IO__D(136), _IO__D(137), _IO__D(138), _IO__D(139),
+	PORT_DATA_IO_PD(140),		PORT_DATA_IO_PD(141),
+	PORT_DATA_IO_PD(142),		PORT_DATA_IO_PU_PD(143),
+	PORT_DATA_IO_PD(144),		PORT_DATA_IO_PD(145),
+	PORT_DATA_IO_PD(146),		PORT_DATA_IO_PD(147),
+	PORT_DATA_IO_PD(148),		PORT_DATA_IO_PD(149),
 
-	_IO__D(140), _IO__D(141), _IO__D(142), _IO_UD(143), _IO__D(144),
-	_IO__D(145), _IO__D(146), _IO__D(147), _IO__D(148), _IO__D(149),
+	PORT_DATA_IO_PD(150),		PORT_DATA_IO_PD(151),
+	PORT_DATA_IO_PU_PD(152),	PORT_DATA_I_PD(153),
+	PORT_DATA_IO_PU_PD(154),	PORT_DATA_I_PD(155),
+	PORT_DATA_IO_PD(156),		PORT_DATA_IO_PD(157),
+	PORT_DATA_I_PD(158),		PORT_DATA_IO_PD(159),
 
-	_IO__D(150), _IO__D(151), _IO_UD(152), _I___D(153), _IO_UD(154),
-	_I___D(155), _IO__D(156), _IO__D(157), _I___D(158), _IO__D(159),
+	PORT_DATA_O(160),		PORT_DATA_IO_PD(161),
+	PORT_DATA_IO_PD(162),		PORT_DATA_IO_PD(163),
+	PORT_DATA_I_PD(164),		PORT_DATA_IO_PD(165),
+	PORT_DATA_I_PD(166),		PORT_DATA_I_PD(167),
+	PORT_DATA_I_PD(168),		PORT_DATA_I_PD(169),
 
-	__O___(160), _IO__D(161), _IO__D(162), _IO__D(163), _I___D(164),
-	_IO__D(165), _I___D(166), _I___D(167), _I___D(168), _I___D(169),
+	PORT_DATA_I_PD(170),		PORT_DATA_O(171),
+	PORT_DATA_IO_PU_PD(172),	PORT_DATA_IO_PU_PD(173),
+	PORT_DATA_IO_PU_PD(174),	PORT_DATA_IO_PU_PD(175),
+	PORT_DATA_IO_PU_PD(176),	PORT_DATA_IO_PU_PD(177),
+	PORT_DATA_IO_PU_PD(178),	PORT_DATA_O(179),
 
-	_I___D(170), __O___(171), _IO_UD(172), _IO_UD(173), _IO_UD(174),
-	_IO_UD(175), _IO_UD(176), _IO_UD(177), _IO_UD(178), __O___(179),
+	PORT_DATA_IO_PU_PD(180),	PORT_DATA_IO_PU_PD(181),
+	PORT_DATA_IO_PU_PD(182),	PORT_DATA_IO_PU_PD(183),
+	PORT_DATA_IO_PU_PD(184),	PORT_DATA_O(185),
+	PORT_DATA_IO_PU_PD(186),	PORT_DATA_IO_PU_PD(187),
+	PORT_DATA_IO_PU_PD(188),	PORT_DATA_IO_PU_PD(189),
 
-	_IO_UD(180), _IO_UD(181), _IO_UD(182), _IO_UD(183), _IO_UD(184),
-	__O___(185), _IO_UD(186), _IO_UD(187), _IO_UD(188), _IO_UD(189),
-
-	_IO_UD(190),
+	PORT_DATA_IO_PU_PD(190),
 
 	/* IRQ */
 	PINMUX_DATA(IRQ0_6_MARK,	PORT6_FN0, 	MSEL1CR_0_0),
@@ -926,10 +928,6 @@ static pinmux_enum_t pinmux_data[] = {
 	PINMUX_DATA(MFIv4_MARK,		MSEL4CR_6_1),
 };
 
-#define _GPIO_PORT(pfx, sfx) PINMUX_GPIO(GPIO_PORT##pfx, PORT##pfx##_DATA)
-#define GPIO_PORT_ALL() _190(_GPIO_PORT, , unused)
-#define GPIO_FN(str) PINMUX_GPIO(GPIO_FN_##str, str##_MARK)
-
 static struct pinmux_gpio pinmux_gpios[] = {
 
 	/* PORT */
@@ -1200,22 +1198,6 @@ static struct pinmux_gpio pinmux_gpios[] = {
 	GPIO_FN(SDENC_CPG),
 	GPIO_FN(SDENC_DV_CLKI),
 };
-
-/* helper for top 4 bits in PORTnCR */
-#define PCRH(in, in_pd, in_pu, out)		\
-	0, (out), (in), 0,			\
-	0, 0, 0, 0,				\
-	0, 0, (in_pd), 0,			\
-	0, 0, (in_pu), 0
-
-#define PORTCR(nr, reg)						\
-	{ PINMUX_CFG_REG("PORT" nr "CR", reg, 8, 4) {		\
-		PCRH(PORT##nr##_IN, PORT##nr##_IN_PD,		\
-		     PORT##nr##_IN_PU, PORT##nr##_OUT),		\
-		PORT##nr##_FN0, PORT##nr##_FN1, PORT##nr##_FN2,	\
-		PORT##nr##_FN3,	PORT##nr##_FN4, PORT##nr##_FN5,	\
-		PORT##nr##_FN6, PORT##nr##_FN7 }		\
-	}
 
 static struct pinmux_cfg_reg pinmux_config_regs[] = {
 	PORTCR(0,	0xE6051000), /* PORT0CR */

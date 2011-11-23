@@ -41,6 +41,7 @@
 #include <linux/pnp.h>
 #include <linux/vga_switcheroo.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <acpi/video.h>
 
 static void i915_write_hws_pga(struct drm_device *dev)

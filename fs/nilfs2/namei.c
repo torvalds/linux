@@ -289,7 +289,7 @@ static int nilfs_do_unlink(struct inode *dir, struct dentry *dentry)
 		nilfs_warning(inode->i_sb, __func__,
 			      "deleting nonexistent file (%lu), %d\n",
 			      inode->i_ino, inode->i_nlink);
-		inode->i_nlink = 1;
+		set_nlink(inode, 1);
 	}
 	err = nilfs_delete_entry(de, page);
 	if (err)

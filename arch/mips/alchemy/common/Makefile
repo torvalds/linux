@@ -12,9 +12,5 @@ obj-$(CONFIG_ALCHEMY_GPIOINT_AU1000) += irq.o
 
 # optional gpiolib support
 ifeq ($(CONFIG_ALCHEMY_GPIO_INDIRECT),)
- ifeq ($(CONFIG_GPIOLIB),y)
-  obj-$(CONFIG_ALCHEMY_GPIOINT_AU1000) += gpiolib-au1000.o
- endif
+ obj-$(CONFIG_GPIOLIB) += gpiolib.o
 endif
-
-obj-$(CONFIG_PCI)		+= pci.o

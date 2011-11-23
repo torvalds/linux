@@ -8,6 +8,7 @@
  * Copyright 2008-2009	Johannes Berg <johannes@sipsolutions.net>
  */
 
+#include <linux/export.h>
 #include <linux/wireless.h>
 #include <linux/nl80211.h>
 #include <linux/if_arp.h>

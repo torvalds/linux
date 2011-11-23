@@ -31,6 +31,7 @@
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
 #include <linux/gpio.h>
+#include <linux/module.h>
 #include <plat/mcbsp.h>
 
 #include "omap-mcbsp.h"

@@ -1153,7 +1153,7 @@ xfs_setup_inode(
 	hlist_add_fake(&inode->i_hash);
 
 	inode->i_mode	= ip->i_d.di_mode;
-	inode->i_nlink	= ip->i_d.di_nlink;
+	set_nlink(inode, ip->i_d.di_nlink);
 	inode->i_uid	= ip->i_d.di_uid;
 	inode->i_gid	= ip->i_d.di_gid;
 

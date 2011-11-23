@@ -100,6 +100,14 @@ config CRYPTO_MANAGER2
 	select CRYPTO_BLKCIPHER2
 	select CRYPTO_PCOMP2
 
+config CRYPTO_USER
+	tristate "Userspace cryptographic algorithm configuration"
+	depends on NET
+	select CRYPTO_MANAGER
+	help
+	  Userapace configuration for cryptographic instantiations such as
+	  cbc(aes).
+
 config CRYPTO_MANAGER_DISABLE_TESTS
 	bool "Disable run-time self tests"
 	default y
@@ -407,6 +415,16 @@ config CRYPTO_SHA1
 	help
 	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
 
+config CRYPTO_SHA1_SSSE3
+	tristate "SHA1 digest algorithm (SSSE3/AVX)"
+	depends on X86 && 64BIT
+	select CRYPTO_SHA1
+	select CRYPTO_HASH
+	help
+	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2) implemented
+	  using Supplemental SSE3 (SSSE3) instructions or Advanced Vector
+	  Extensions (AVX), when available.
+
 config CRYPTO_SHA256
 	tristate "SHA224 and SHA256 digest algorithm"
 	select CRYPTO_HASH
@@ -590,8 +608,33 @@ config CRYPTO_ARC4
 config CRYPTO_BLOWFISH
 	tristate "Blowfish cipher algorithm"
 	select CRYPTO_ALGAPI
+	select CRYPTO_BLOWFISH_COMMON
 	help
 	  Blowfish cipher algorithm, by Bruce Schneier.
+
+	  This is a variable key length cipher which can use keys from 32
+	  bits to 448 bits in length.  It's fast, simple and specifically
+	  designed for use on "large microprocessors".
+
+	  See also:
+	  <http://www.schneier.com/blowfish.html>
+
+config CRYPTO_BLOWFISH_COMMON
+	tristate
+	help
+	  Common parts of the Blowfish cipher algorithm shared by the
+	  generic c and the assembler implementations.
+
+	  See also:
+	  <http://www.schneier.com/blowfish.html>
+
+config CRYPTO_BLOWFISH_X86_64
+	tristate "Blowfish cipher algorithm (x86_64)"
+	depends on (X86 || UML_X86) && 64BIT
+	select CRYPTO_ALGAPI
+	select CRYPTO_BLOWFISH_COMMON
+	help
+	  Blowfish cipher algorithm (x86_64), by Bruce Schneier.
 
 	  This is a variable key length cipher which can use keys from 32
 	  bits to 448 bits in length.  It's fast, simple and specifically
@@ -789,6 +832,26 @@ config CRYPTO_TWOFISH_X86_64
 	  candidate cipher by researchers at CounterPane Systems.  It is a
 	  16 round block cipher supporting key sizes of 128, 192, and 256
 	  bits.
+
+	  See also:
+	  <http://www.schneier.com/twofish.html>
+
+config CRYPTO_TWOFISH_X86_64_3WAY
+	tristate "Twofish cipher algorithm (x86_64, 3-way parallel)"
+	depends on (X86 || UML_X86) && 64BIT
+	select CRYPTO_ALGAPI
+	select CRYPTO_TWOFISH_COMMON
+	select CRYPTO_TWOFISH_X86_64
+	help
+	  Twofish cipher algorithm (x86_64, 3-way parallel).
+
+	  Twofish was submitted as an AES (Advanced Encryption Standard)
+	  candidate cipher by researchers at CounterPane Systems.  It is a
+	  16 round block cipher supporting key sizes of 128, 192, and 256
+	  bits.
+
+	  This module provides Twofish cipher algorithm that processes three
+	  blocks parallel, utilizing resources of out-of-order CPUs better.
 
 	  See also:
 	  <http://www.schneier.com/twofish.html>

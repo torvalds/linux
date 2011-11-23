@@ -28,6 +28,7 @@
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/module.h>
 
 struct fis_image_desc {
     unsigned char name[16];      // Null terminated name
@@ -56,8 +57,8 @@ static inline int redboot_checksum(struct fis_image_desc *img)
 }
 
 static int parse_redboot_partitions(struct mtd_info *master,
-                             struct mtd_partition **pparts,
-                             unsigned long fis_origin)
+				    struct mtd_partition **pparts,
+				    struct mtd_part_parser_data *data)
 {
 	int nrparts = 0;
 	struct fis_image_desc *buf;
@@ -197,11 +198,10 @@ static int parse_redboot_partitions(struct mtd_info *master,
 			goto out;
 		}
 		new_fl->img = &buf[i];
-                if (fis_origin) {
-                        buf[i].flash_base -= fis_origin;
-                } else {
-                        buf[i].flash_base &= master->size-1;
-                }
+		if (data && data->origin)
+			buf[i].flash_base -= data->origin;
+		else
+			buf[i].flash_base &= master->size-1;
 
 		/* I'm sure the JFFS2 code has done me permanent damage.
 		 * I now think the following is _normal_
@@ -296,6 +296,9 @@ static struct mtd_part_parser redboot_parser = {
 	.parse_fn = parse_redboot_partitions,
 	.name = "RedBoot",
 };
+
+/* mtd parsers will request the module by parser name */
+MODULE_ALIAS("RedBoot");
 
 static int __init redboot_parser_init(void)
 {

@@ -284,12 +284,6 @@ static struct omap_dss_board_info apollon_dss_data = {
 	.default_device	= &apollon_lcd_device,
 };
 
-static void __init omap_apollon_init_early(void)
-{
-	omap2_init_common_infrastructure();
-	omap2_init_common_devices(NULL, NULL);
-}
-
 static struct gpio apollon_gpio_leds[] __initdata = {
 	{ LED0_GPIO13, GPIOF_OUT_INIT_LOW, "LED0" }, /* LED0 - AA10 */
 	{ LED1_GPIO14, GPIOF_OUT_INIT_LOW, "LED1" }, /* LED1 - AA6  */
@@ -349,22 +343,16 @@ static void __init omap_apollon_init(void)
 	 */
 	platform_add_devices(apollon_devices, ARRAY_SIZE(apollon_devices));
 	omap_serial_init();
-
+	omap_sdrc_init(NULL, NULL);
 	omap_display_init(&apollon_dss_data);
-}
-
-static void __init omap_apollon_map_io(void)
-{
-	omap2_set_globals_242x();
-	omap242x_map_common_io();
 }
 
 MACHINE_START(OMAP_APOLLON, "OMAP24xx Apollon")
 	/* Maintainer: Kyungmin Park <kyungmin.park@samsung.com> */
 	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
-	.map_io		= omap_apollon_map_io,
-	.init_early	= omap_apollon_init_early,
+	.map_io		= omap242x_map_io,
+	.init_early	= omap2420_init_early,
 	.init_irq	= omap2_init_irq,
 	.init_machine	= omap_apollon_init,
 	.timer		= &omap2_timer,

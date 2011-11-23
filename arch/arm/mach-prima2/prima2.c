@@ -1,5 +1,5 @@
 /*
- * Defines machines for CSR SiRFprimaII 
+ * Defines machines for CSR SiRFprimaII
  *
  * Copyright (c) 2011 Cambridge Silicon Radio Limited, a CSR plc group company.
  *

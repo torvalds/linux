@@ -183,13 +183,6 @@ struct cpu_op {
 };
 
 int tzic_enable_wake(int is_idle);
-enum mxc_cpu_pwr_mode {
-	WAIT_CLOCKED,		/* wfi only */
-	WAIT_UNCLOCKED,		/* WAIT */
-	WAIT_UNCLOCKED_POWER_OFF,	/* WAIT + SRPG */
-	STOP_POWER_ON,		/* just STOP */
-	STOP_POWER_OFF,		/* STOP + SRPG */
-};
 
 extern struct cpu_op *(*get_cpu_op)(int *op);
 #endif
