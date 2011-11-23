@@ -77,7 +77,7 @@ static struct rt6_info *ip6_rt_copy(const struct rt6_info *ort,
 				    const struct in6_addr *dest);
 static struct dst_entry	*ip6_dst_check(struct dst_entry *dst, u32 cookie);
 static unsigned int	 ip6_default_advmss(const struct dst_entry *dst);
-static unsigned int	 ip6_default_mtu(const struct dst_entry *dst);
+static unsigned int	 ip6_mtu(const struct dst_entry *dst);
 static struct dst_entry *ip6_negative_advice(struct dst_entry *);
 static void		ip6_dst_destroy(struct dst_entry *);
 static void		ip6_dst_ifdown(struct dst_entry *,
@@ -144,7 +144,7 @@ static struct dst_ops ip6_dst_ops_template = {
 	.gc_thresh		=	1024,
 	.check			=	ip6_dst_check,
 	.default_advmss		=	ip6_default_advmss,
-	.default_mtu		=	ip6_default_mtu,
+	.mtu			=	ip6_mtu,
 	.cow_metrics		=	ipv6_cow_metrics,
 	.destroy		=	ip6_dst_destroy,
 	.ifdown			=	ip6_dst_ifdown,
@@ -155,7 +155,7 @@ static struct dst_ops ip6_dst_ops_template = {
 	.neigh_lookup		=	ip6_neigh_lookup,
 };
 
-static unsigned int ip6_blackhole_default_mtu(const struct dst_entry *dst)
+static unsigned int ip6_blackhole_mtu(const struct dst_entry *dst)
 {
 	return dst->dev->mtu;
 }
@@ -175,7 +175,7 @@ static struct dst_ops ip6_dst_blackhole_ops = {
 	.protocol		=	cpu_to_be16(ETH_P_IPV6),
 	.destroy		=	ip6_dst_destroy,
 	.check			=	ip6_dst_check,
-	.default_mtu		=	ip6_blackhole_default_mtu,
+	.mtu			=	ip6_blackhole_mtu,
 	.default_advmss		=	ip6_default_advmss,
 	.update_pmtu		=	ip6_rt_blackhole_update_pmtu,
 	.cow_metrics		=	ip6_rt_blackhole_cow_metrics,
@@ -1041,7 +1041,7 @@ static unsigned int ip6_default_advmss(const struct dst_entry *dst)
 	return mtu;
 }
 
-static unsigned int ip6_default_mtu(const struct dst_entry *dst)
+static unsigned int ip6_mtu(const struct dst_entry *dst)
 {
 	unsigned int mtu = IPV6_MIN_MTU;
 	struct inet6_dev *idev;

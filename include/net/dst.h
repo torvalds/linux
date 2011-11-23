@@ -208,7 +208,7 @@ static inline u32 dst_mtu(const struct dst_entry *dst)
 	u32 mtu = dst_metric_raw(dst, RTAX_MTU);
 
 	if (!mtu)
-		mtu = dst->ops->default_mtu(dst);
+		mtu = dst->ops->mtu(dst);
 
 	return mtu;
 }
