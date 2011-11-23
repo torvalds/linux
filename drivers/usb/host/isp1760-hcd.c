@@ -32,6 +32,13 @@ static struct kmem_cache *qtd_cachep;
 static struct kmem_cache *qh_cachep;
 static struct kmem_cache *urb_listitem_cachep;
 
+enum queue_head_types {
+	QH_CONTROL,
+	QH_BULK,
+	QH_INTERRUPT,
+	QH_END
+};
+
 struct isp1760_hcd {
 	u32 hcs_params;
 	spinlock_t		lock;
@@ -40,7 +47,7 @@ struct isp1760_hcd {
 	struct slotinfo		int_slots[32];
 	int			int_done_map;
 	struct memory_chunk memory_pool[BLOCKS];
-	struct list_head	controlqhs, bulkqhs, interruptqhs;
+	struct list_head	qh_list[QH_END];
 
 	/* periodic schedule support */
 #define	DEFAULT_I_TDPS		1024
@@ -406,12 +413,12 @@ static int priv_init(struct usb_hcd *hcd)
 {
 	struct isp1760_hcd		*priv = hcd_to_priv(hcd);
 	u32			hcc_params;
+	int i;
 
 	spin_lock_init(&priv->lock);
 
-	INIT_LIST_HEAD(&priv->interruptqhs);
-	INIT_LIST_HEAD(&priv->controlqhs);
-	INIT_LIST_HEAD(&priv->bulkqhs);
+	for (i = 0; i < QH_END; i++)
+		INIT_LIST_HEAD(&priv->qh_list[i]);
 
 	/*
 	 * hw default: 1K periodic list heads, one per frame.
@@ -933,6 +940,7 @@ void schedule_ptds(struct usb_hcd *hcd)
 	struct usb_host_endpoint *ep;
 	LIST_HEAD(urb_list);
 	struct urb_listitem *urb_listitem, *urb_listitem_next;
+	int i;
 
 	if (!hcd) {
 		WARN_ON(1);
@@ -944,8 +952,8 @@ void schedule_ptds(struct usb_hcd *hcd)
 	/*
 	 * check finished/retired xfers, transfer payloads, call urb_done()
 	 */
-	ep_queue = &priv->interruptqhs;
-	while (ep_queue) {
+	for (i = 0; i < QH_END; i++) {
+		ep_queue = &priv->qh_list[i];
 		list_for_each_entry_safe(qh, qh_next, ep_queue, qh_list) {
 			ep = list_entry(qh->qtd_list.next, struct isp1760_qtd,
 							qtd_list)->urb->ep;
@@ -959,13 +967,6 @@ void schedule_ptds(struct usb_hcd *hcd)
 				}
 			}
 		}
-
-		if (ep_queue == &priv->interruptqhs)
-			ep_queue = &priv->controlqhs;
-		else if (ep_queue == &priv->controlqhs)
-			ep_queue = &priv->bulkqhs;
-		else
-			ep_queue = NULL;
 	}
 
 	list_for_each_entry_safe(urb_listitem, urb_listitem_next, &urb_list,
@@ -998,17 +999,10 @@ void schedule_ptds(struct usb_hcd *hcd)
 	 *
 	 * I'm sure this scheme could be improved upon!
 	 */
-	ep_queue = &priv->controlqhs;
-	while (ep_queue) {
+	for (i = 0; i < QH_END; i++) {
+		ep_queue = &priv->qh_list[i];
 		list_for_each_entry_safe(qh, qh_next, ep_queue, qh_list)
 			enqueue_qtds(hcd, qh);
-
-		if (ep_queue == &priv->controlqhs)
-			ep_queue = &priv->interruptqhs;
-		else if (ep_queue == &priv->interruptqhs)
-			ep_queue = &priv->bulkqhs;
-		else
-			ep_queue = NULL;
 	}
 }
 
@@ -1543,16 +1537,16 @@ static int isp1760_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 
 	switch (usb_pipetype(urb->pipe)) {
 	case PIPE_CONTROL:
-		ep_queue = &priv->controlqhs;
+		ep_queue = &priv->qh_list[QH_CONTROL];
 		break;
 	case PIPE_BULK:
-		ep_queue = &priv->bulkqhs;
+		ep_queue = &priv->qh_list[QH_BULK];
 		break;
 	case PIPE_INTERRUPT:
 		if (urb->interval < 0)
 			return -EINVAL;
 		/* FIXME: Check bandwidth  */
-		ep_queue = &priv->interruptqhs;
+		ep_queue = &priv->qh_list[QH_INTERRUPT];
 		break;
 	case PIPE_ISOCHRONOUS:
 		dev_err(hcd->self.controller, "%s: isochronous USB packets "
