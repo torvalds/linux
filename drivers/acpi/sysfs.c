@@ -706,11 +706,23 @@ static void __exit interrupt_stats_exit(void)
 	return;
 }
 
+static ssize_t
+acpi_show_profile(struct device *dev, struct device_attribute *attr,
+		  char *buf)
+{
+	return sprintf(buf, "%d\n", acpi_gbl_FADT.preferred_profile);
+}
+
+static const struct device_attribute pm_profile_attr =
+	__ATTR(pm_profile, S_IRUGO, acpi_show_profile, NULL);
+
 int __init acpi_sysfs_init(void)
 {
 	int result;
 
 	result = acpi_tables_sysfs_init();
-
+	if (result)
+		return result;
+	result = sysfs_create_file(acpi_kobj, &pm_profile_attr.attr);
 	return result;
 }

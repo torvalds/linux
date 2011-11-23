@@ -6,6 +6,7 @@
 
 #include <linux/types.h>
 #include <linux/serial.h>
+#include <linux/platform_data/macb.h>
 
 #define GPIO_PIN_NONE	(-1)
 
@@ -42,12 +43,8 @@ struct atmel_uart_data {
 void at32_map_usart(unsigned int hw_id, unsigned int line, int flags);
 struct platform_device *at32_add_device_usart(unsigned int id);
 
-struct eth_platform_data {
-	u32	phy_mask;
-	u8	is_rmii;
-};
 struct platform_device *
-at32_add_device_eth(unsigned int id, struct eth_platform_data *data);
+at32_add_device_eth(unsigned int id, struct macb_platform_data *data);
 
 struct spi_board_info;
 struct platform_device *
@@ -128,7 +125,8 @@ struct atmel_nand_data {
 	u8	ale;		/* address line number connected to ALE */
 	u8	cle;		/* address line number connected to CLE */
 	u8	bus_width_16;	/* buswidth is 16 bit */
-	struct mtd_partition *(*partition_info)(int size, int *num_partitions);
+	struct mtd_partition *parts;
+	unsigned int	num_parts;
 };
 struct platform_device *
 at32_add_device_nand(unsigned int id, struct atmel_nand_data *data);

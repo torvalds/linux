@@ -98,7 +98,7 @@ void __init at91_add_device_usbh(struct at91_usbh_data *data) {}
  *  USB HS Device (Gadget)
  * -------------------------------------------------------------------- */
 
-#if defined(CONFIG_USB_GADGET_ATMEL_USBA) || defined(CONFIG_USB_GADGET_ATMEL_USBA_MODULE)
+#if defined(CONFIG_USB_ATMEL_USBA) || defined(CONFIG_USB_ATMEL_USBA_MODULE)
 
 static struct resource usba_udc_resources[] = {
 	[0] = {
@@ -200,7 +200,7 @@ void __init at91_add_device_usba(struct usba_platform_data *data) {}
 
 #if defined(CONFIG_MACB) || defined(CONFIG_MACB_MODULE)
 static u64 eth_dmamask = DMA_BIT_MASK(32);
-static struct at91_eth_data eth_data;
+static struct macb_platform_data eth_data;
 
 static struct resource eth_resources[] = {
 	[0] = {
@@ -227,7 +227,7 @@ static struct platform_device at91cap9_eth_device = {
 	.num_resources	= ARRAY_SIZE(eth_resources),
 };
 
-void __init at91_add_device_eth(struct at91_eth_data *data)
+void __init at91_add_device_eth(struct macb_platform_data *data)
 {
 	if (!data)
 		return;
@@ -264,7 +264,7 @@ void __init at91_add_device_eth(struct at91_eth_data *data)
 	platform_device_register(&at91cap9_eth_device);
 }
 #else
-void __init at91_add_device_eth(struct at91_eth_data *data) {}
+void __init at91_add_device_eth(struct macb_platform_data *data) {}
 #endif
 
 
@@ -1021,8 +1021,8 @@ void __init at91_add_device_ssc(unsigned id, unsigned pins) {}
 #if defined(CONFIG_SERIAL_ATMEL)
 static struct resource dbgu_resources[] = {
 	[0] = {
-		.start	= AT91_VA_BASE_SYS + AT91_DBGU,
-		.end	= AT91_VA_BASE_SYS + AT91_DBGU + SZ_512 - 1,
+		.start	= AT91_BASE_SYS + AT91_DBGU,
+		.end	= AT91_BASE_SYS + AT91_DBGU + SZ_512 - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -1035,7 +1035,6 @@ static struct resource dbgu_resources[] = {
 static struct atmel_uart_data dbgu_data = {
 	.use_dma_tx	= 0,
 	.use_dma_rx	= 0,		/* DBGU not capable of receive DMA */
-	.regs		= (void __iomem *)(AT91_VA_BASE_SYS + AT91_DBGU),
 };
 
 static u64 dbgu_dmamask = DMA_BIT_MASK(32);

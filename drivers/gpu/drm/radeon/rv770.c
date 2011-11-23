@@ -124,7 +124,7 @@ int rv770_pcie_gart_enable(struct radeon_device *rdev)
 	u32 tmp;
 	int r, i;
 
-	if (rdev->gart.table.vram.robj == NULL) {
+	if (rdev->gart.robj == NULL) {
 		dev_err(rdev->dev, "No VRAM object for PCIE GART.\n");
 		return -EINVAL;
 	}
@@ -171,7 +171,7 @@ int rv770_pcie_gart_enable(struct radeon_device *rdev)
 void rv770_pcie_gart_disable(struct radeon_device *rdev)
 {
 	u32 tmp;
-	int i, r;
+	int i;
 
 	/* Disable all tables */
 	for (i = 0; i < 7; i++)
@@ -191,14 +191,7 @@ void rv770_pcie_gart_disable(struct radeon_device *rdev)
 	WREG32(MC_VM_MB_L1_TLB1_CNTL, tmp);
 	WREG32(MC_VM_MB_L1_TLB2_CNTL, tmp);
 	WREG32(MC_VM_MB_L1_TLB3_CNTL, tmp);
-	if (rdev->gart.table.vram.robj) {
-		r = radeon_bo_reserve(rdev->gart.table.vram.robj, false);
-		if (likely(r == 0)) {
-			radeon_bo_kunmap(rdev->gart.table.vram.robj);
-			radeon_bo_unpin(rdev->gart.table.vram.robj);
-			radeon_bo_unreserve(rdev->gart.table.vram.robj);
-		}
-	}
+	radeon_gart_table_vram_unpin(rdev);
 }
 
 void rv770_pcie_gart_fini(struct radeon_device *rdev)
@@ -282,7 +275,7 @@ static void rv770_mc_program(struct radeon_device *rdev)
 		WREG32(MC_VM_SYSTEM_APERTURE_HIGH_ADDR,
 			rdev->mc.vram_end >> 12);
 	}
-	WREG32(MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR, 0);
+	WREG32(MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR, rdev->vram_scratch.gpu_addr >> 12);
 	tmp = ((rdev->mc.vram_end >> 24) & 0xFFFF) << 16;
 	tmp |= ((rdev->mc.vram_start >> 24) & 0xFFFF);
 	WREG32(MC_VM_FB_LOCATION, tmp);
@@ -959,54 +952,6 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 
 }
 
-static int rv770_vram_scratch_init(struct radeon_device *rdev)
-{
-	int r;
-	u64 gpu_addr;
-
-	if (rdev->vram_scratch.robj == NULL) {
-		r = radeon_bo_create(rdev, RADEON_GPU_PAGE_SIZE,
-				     PAGE_SIZE, true, RADEON_GEM_DOMAIN_VRAM,
-				     &rdev->vram_scratch.robj);
-		if (r) {
-			return r;
-		}
-	}
-
-	r = radeon_bo_reserve(rdev->vram_scratch.robj, false);
-	if (unlikely(r != 0))
-		return r;
-	r = radeon_bo_pin(rdev->vram_scratch.robj,
-			  RADEON_GEM_DOMAIN_VRAM, &gpu_addr);
-	if (r) {
-		radeon_bo_unreserve(rdev->vram_scratch.robj);
-		return r;
-	}
-	r = radeon_bo_kmap(rdev->vram_scratch.robj,
-				(void **)&rdev->vram_scratch.ptr);
-	if (r)
-		radeon_bo_unpin(rdev->vram_scratch.robj);
-	radeon_bo_unreserve(rdev->vram_scratch.robj);
-
-	return r;
-}
-
-static void rv770_vram_scratch_fini(struct radeon_device *rdev)
-{
-	int r;
-
-	if (rdev->vram_scratch.robj == NULL) {
-		return;
-	}
-	r = radeon_bo_reserve(rdev->vram_scratch.robj, false);
-	if (likely(r == 0)) {
-		radeon_bo_kunmap(rdev->vram_scratch.robj);
-		radeon_bo_unpin(rdev->vram_scratch.robj);
-		radeon_bo_unreserve(rdev->vram_scratch.robj);
-	}
-	radeon_bo_unref(&rdev->vram_scratch.robj);
-}
-
 void r700_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
 {
 	u64 size_bf, size_af;
@@ -1106,6 +1051,10 @@ static int rv770_startup(struct radeon_device *rdev)
 		}
 	}
 
+	r = r600_vram_scratch_init(rdev);
+	if (r)
+		return r;
+
 	rv770_mc_program(rdev);
 	if (rdev->flags & RADEON_IS_AGP) {
 		rv770_agp_enable(rdev);
@@ -1114,9 +1063,7 @@ static int rv770_startup(struct radeon_device *rdev)
 		if (r)
 			return r;
 	}
-	r = rv770_vram_scratch_init(rdev);
-	if (r)
-		return r;
+
 	rv770_gpu_init(rdev);
 	r = r600_blit_init(rdev);
 	if (r) {
@@ -1316,7 +1263,7 @@ void rv770_fini(struct radeon_device *rdev)
 	radeon_ib_pool_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	rv770_pcie_gart_fini(rdev);
-	rv770_vram_scratch_fini(rdev);
+	r600_vram_scratch_fini(rdev);
 	radeon_gem_fini(rdev);
 	radeon_fence_driver_fini(rdev);
 	radeon_agp_fini(rdev);

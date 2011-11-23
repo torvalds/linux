@@ -69,7 +69,7 @@ static void __init kb9202_init_early(void)
 	at91_set_serial_console(0);
 }
 
-static struct at91_eth_data __initdata kb9202_eth_data = {
+static struct macb_platform_data __initdata kb9202_eth_data = {
 	.phy_irq_pin	= AT91_PIN_PB29,
 	.is_rmii	= 0,
 };
@@ -97,19 +97,14 @@ static struct mtd_partition __initdata kb9202_nand_partition[] = {
 	},
 };
 
-static struct mtd_partition * __init nand_partitions(int size, int *num_partitions)
-{
-	*num_partitions = ARRAY_SIZE(kb9202_nand_partition);
-	return kb9202_nand_partition;
-}
-
 static struct atmel_nand_data __initdata kb9202_nand_data = {
 	.ale		= 22,
 	.cle		= 21,
 	// .det_pin	= ... not there
 	.rdy_pin	= AT91_PIN_PC29,
 	.enable_pin	= AT91_PIN_PC28,
-	.partition_info	= nand_partitions,
+	.parts		= kb9202_nand_partition,
+	.num_parts	= ARRAY_SIZE(kb9202_nand_partition),
 };
 
 static void __init kb9202_board_init(void)

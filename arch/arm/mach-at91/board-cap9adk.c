@@ -153,7 +153,7 @@ static struct at91_mmc_data __initdata cap9adk_mmc_data = {
 /*
  * MACB Ethernet device
  */
-static struct at91_eth_data __initdata cap9adk_macb_data = {
+static struct macb_platform_data __initdata cap9adk_macb_data = {
 	.is_rmii	= 1,
 };
 
@@ -169,19 +169,14 @@ static struct mtd_partition __initdata cap9adk_nand_partitions[] = {
 	},
 };
 
-static struct mtd_partition * __init nand_partitions(int size, int *num_partitions)
-{
-	*num_partitions = ARRAY_SIZE(cap9adk_nand_partitions);
-	return cap9adk_nand_partitions;
-}
-
 static struct atmel_nand_data __initdata cap9adk_nand_data = {
 	.ale		= 21,
 	.cle		= 22,
 //	.det_pin	= ... not connected
 //	.rdy_pin	= ... not connected
 	.enable_pin	= AT91_PIN_PD15,
-	.partition_info	= nand_partitions,
+	.parts		= cap9adk_nand_partitions,
+	.num_parts	= ARRAY_SIZE(cap9adk_nand_partitions),
 };
 
 static struct sam9_smc_config __initdata cap9adk_nand_smc_config = {

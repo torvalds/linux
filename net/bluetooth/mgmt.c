@@ -148,8 +148,6 @@ static int read_index_list(struct sock *sk)
 
 		hci_del_off_timer(d);
 
-		set_bit(HCI_MGMT, &d->flags);
-
 		if (test_bit(HCI_SETUP, &d->flags))
 			continue;
 

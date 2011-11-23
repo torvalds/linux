@@ -101,6 +101,13 @@ static void __init tegra_dt_init(void)
 
 	tegra_clk_init_from_table(tegra_dt_clk_init_table);
 
+	/*
+	 * Finished with the static registrations now; fill in the missing
+	 * devices
+	 */
+	of_platform_populate(NULL, tegra_dt_match_table,
+				tegra20_auxdata_lookup, NULL);
+
 	for (i = 0; i < ARRAY_SIZE(pinmux_configs); i++) {
 		if (of_machine_is_compatible(pinmux_configs[i].machine)) {
 			pinmux_configs[i].init();
@@ -110,12 +117,6 @@ static void __init tegra_dt_init(void)
 
 	WARN(i == ARRAY_SIZE(pinmux_configs),
 		"Unknown platform! Pinmuxing not initialized\n");
-
-	/*
-	 * Finished with the static registrations now; fill in the missing
-	 * devices
-	 */
-	of_platform_populate(NULL, tegra_dt_match_table, tegra20_auxdata_lookup, NULL);
 }
 
 static const char * tegra_dt_board_compat[] = {

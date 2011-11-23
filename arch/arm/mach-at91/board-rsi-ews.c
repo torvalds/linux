@@ -60,7 +60,7 @@ static void __init rsi_ews_init_early(void)
 /*
  * Ethernet
  */
-static struct at91_eth_data rsi_ews_eth_data __initdata = {
+static struct macb_platform_data rsi_ews_eth_data __initdata = {
 	.phy_irq_pin	= AT91_PIN_PC4,
 	.is_rmii	= 1,
 };

@@ -40,6 +40,7 @@
 #include <linux/atmel-mci.h>
 #include <sound/atmel-ac97c.h>
 #include <linux/serial.h>
+#include <linux/platform_data/macb.h>
 
  /* USB Device */
 struct at91_udc_data {
@@ -81,18 +82,7 @@ extern void __init at91_add_device_mmc(short mmc_id, struct at91_mmc_data *data)
   /* atmel-mci platform config */
 extern void __init at91_add_device_mci(short mmc_id, struct mci_platform_data *data);
 
- /* Ethernet (EMAC & MACB) */
-struct at91_eth_data {
-	u32		phy_mask;
-	u8		phy_irq_pin;	/* PHY IRQ */
-	u8		is_rmii;	/* using RMII interface? */
-};
-extern void __init at91_add_device_eth(struct at91_eth_data *data);
-
-#if defined(CONFIG_ARCH_AT91SAM9260) || defined(CONFIG_ARCH_AT91SAM9263) || defined(CONFIG_ARCH_AT91SAM9G20) || defined(CONFIG_ARCH_AT91CAP9) \
-	|| defined(CONFIG_ARCH_AT91SAM9G45)
-#define eth_platform_data	at91_eth_data
-#endif
+extern void __init at91_add_device_eth(struct macb_platform_data *data);
 
  /* USB Host */
 struct at91_usbh_data {
@@ -117,7 +107,8 @@ struct atmel_nand_data {
 	u8		ale;		/* address line number connected to ALE */
 	u8		cle;		/* address line number connected to CLE */
 	u8		bus_width_16;	/* buswidth is 16 bit */
-	struct mtd_partition* (*partition_info)(int, int*);
+	struct mtd_partition *parts;
+	unsigned int	num_parts;
 };
 extern void __init at91_add_device_nand(struct atmel_nand_data *data);
 

@@ -48,7 +48,7 @@ static int sm_block_markbad(struct mtd_info *mtd, loff_t ofs)
 
 	/* As long as this function is called on erase block boundaries
 		it will work correctly for 256 byte nand */
-	ops.mode = MTD_OOB_PLACE;
+	ops.mode = MTD_OPS_PLACE_OOB;
 	ops.ooboffs = 0;
 	ops.ooblen = mtd->oobsize;
 	ops.oobbuf = (void *)&oob;

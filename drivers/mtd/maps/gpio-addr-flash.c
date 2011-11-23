@@ -187,7 +187,6 @@ static const char *part_probe_types[] = { "cmdlinepart", "RedBoot", NULL };
  */
 static int __devinit gpio_flash_probe(struct platform_device *pdev)
 {
-	int nr_parts;
 	size_t i, arr_size;
 	struct physmap_flash_data *pdata;
 	struct resource *memory;
@@ -252,20 +251,9 @@ static int __devinit gpio_flash_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	nr_parts = parse_mtd_partitions(state->mtd, part_probe_types,
-					&pdata->parts, 0);
-	if (nr_parts > 0) {
-		pr_devinit(KERN_NOTICE PFX "Using commandline partition definition\n");
-		kfree(pdata->parts);
-	} else if (pdata->nr_parts) {
-		pr_devinit(KERN_NOTICE PFX "Using board partition definition\n");
-		nr_parts = pdata->nr_parts;
-	} else {
-		pr_devinit(KERN_NOTICE PFX "no partition info available, registering whole flash at once\n");
-		nr_parts = 0;
-	}
 
-	mtd_device_register(state->mtd, pdata->parts, nr_parts);
+	mtd_device_parse_register(state->mtd, part_probe_types, 0,
+			pdata->parts, pdata->nr_parts);
 
 	return 0;
 }

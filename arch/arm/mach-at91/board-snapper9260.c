@@ -65,7 +65,7 @@ static struct at91_udc_data __initdata snapper9260_udc_data = {
 	.vbus_polled		= 1,
 };
 
-static struct at91_eth_data snapper9260_macb_data = {
+static struct macb_platform_data snapper9260_macb_data = {
 	.is_rmii	= 1,
 };
 
@@ -97,18 +97,12 @@ static struct mtd_partition __initdata snapper9260_nand_partitions[] = {
 	},
 };
 
-static struct mtd_partition * __init
-snapper9260_nand_partition_info(int size, int *num_partitions)
-{
-	*num_partitions = ARRAY_SIZE(snapper9260_nand_partitions);
-	return snapper9260_nand_partitions;
-}
-
 static struct atmel_nand_data __initdata snapper9260_nand_data = {
 	.ale		= 21,
 	.cle		= 22,
 	.rdy_pin	= AT91_PIN_PC13,
-	.partition_info	= snapper9260_nand_partition_info,
+	.parts		= snapper9260_nand_partitions,
+	.num_parts	= ARRAY_SIZE(snapper9260_nand_partitions),
 	.bus_width_16	= 0,
 };
 
