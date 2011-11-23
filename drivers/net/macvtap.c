@@ -175,6 +175,14 @@ static struct macvtap_queue *macvtap_get_queue(struct net_device *dev,
 	if (!numvtaps)
 		goto out;
 
+	/* Check if we can use flow to select a queue */
+	rxq = skb_get_rxhash(skb);
+	if (rxq) {
+		tap = rcu_dereference(vlan->taps[rxq % numvtaps]);
+		if (tap)
+			goto out;
+	}
+
 	if (likely(skb_rx_queue_recorded(skb))) {
 		rxq = skb_get_rx_queue(skb);
 
@@ -182,14 +190,6 @@ static struct macvtap_queue *macvtap_get_queue(struct net_device *dev,
 			rxq -= numvtaps;
 
 		tap = rcu_dereference(vlan->taps[rxq]);
-		if (tap)
-			goto out;
-	}
-
-	/* Check if we can use flow to select a queue */
-	rxq = skb_get_rxhash(skb);
-	if (rxq) {
-		tap = rcu_dereference(vlan->taps[rxq % numvtaps]);
 		if (tap)
 			goto out;
 	}
