@@ -1,0 +1,15 @@
+config BCM4330
+	tristate "Broadcom 4330 wireless cards support"
+	depends on MMC
+	select WIRELESS_EXT
+	select WEXT_PRIV
+	default m
+	---help---
+	  This module adds support for wireless adapters based on
+	  Broadcom 4330 chipset.
+
+	  This driver uses the kernel's wireless extensions subsystem.
+
+	  If you choose to build a module, it'll be called dhd. Say M if
+	  unsure.
+

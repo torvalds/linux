@@ -319,19 +319,14 @@ static void sunximmc_finalize_request(struct sunxi_mmc_host *smc_host)
     {
         mrq->cmd->error = ETIMEDOUT;
         if (mrq->data)
-        {
         	mrq->data->error = ETIMEDOUT;
-        }
+        if (mrq->stop)
+            mrq->data->error = ETIMEDOUT;
     }
     else
     {
     	if (mrq->data)
-        {
-    		if (mrq->data)
-    		{
-    	        mrq->data->bytes_xfered = (mrq->data->blocks * mrq->data->blksz);
-    		}
-        }
+    	    mrq->data->bytes_xfered = (mrq->data->blocks * mrq->data->blksz);
     }
 
     smc_host->wait = SDC_WAIT_NONE;
@@ -388,21 +383,30 @@ static void sunximmc_cd_timer(unsigned long data)
     u32 present;
 
     gpio_val = gpio_read_one_pin_value(smc_host->pio_hdle, "sdc_det");
-    if (gpio_val)
+    gpio_val += gpio_read_one_pin_value(smc_host->pio_hdle, "sdc_det");
+    gpio_val += gpio_read_one_pin_value(smc_host->pio_hdle, "sdc_det");
+    gpio_val += gpio_read_one_pin_value(smc_host->pio_hdle, "sdc_det");
+    gpio_val += gpio_read_one_pin_value(smc_host->pio_hdle, "sdc_det");
+    if (gpio_val==5)
         present = 0;
-    else
+    else if (gpio_val==0)
         present = 1;
-
+    else
+        goto modtimer;
 //    SMC_DBG("cd %d, host present %d, cur present %d\n", gpio_val, smc_host->present, present);
 
     if (smc_host->present ^ present) {
         SMC_MSG("mmc %d detect change, present %d\n", smc_host->pdev->id, present);
         smc_host->present = present;
-        mmc_detect_change(smc_host->mmc, msecs_to_jiffies(100));
+        if (smc_host->present)
+            mmc_detect_change(smc_host->mmc, msecs_to_jiffies(300));
+        else
+            mmc_detect_change(smc_host->mmc, msecs_to_jiffies(10));
     } else {
 //        SMC_DBG("card detect no change\n");
     }
 
+modtimer:
     mod_timer(&smc_host->cd_timer, jiffies + 30);
     return;
 }
@@ -616,6 +620,12 @@ static struct mmc_host_ops sunximmc_ops = {
     .enable_sdio_irq = sunximmc_enable_sdio_irq
 };
 
+#ifdef CONFIG_SUNXI_MMC_POWER_CONTROL
+extern int mmc_pm_io_shd_suspend_host(void);
+#else
+static inline int mmc_pm_io_shd_suspend_host(void) {return 1;};
+#endif
+
 static int mmc_pm_get_mod_type(void)
 {
     return 0;
@@ -655,6 +665,8 @@ static int __devinit sunximmc_probe(struct platform_device *pdev)
     mmc->caps	    = MMC_CAP_4_BIT_DATA|MMC_CAP_MMC_HIGHSPEED|MMC_CAP_SD_HIGHSPEED|MMC_CAP_SDIO_IRQ;
     mmc->f_min 	    = 400000;
     mmc->f_max 	    = pdev->id == 3 ? SMC_3_MAX_IO_CLOCK :  smc_io_clock;
+    if (pdev->id==3 && !mmc_pm_io_shd_suspend_host())
+        mmc->pm_flags = MMC_PM_IGNORE_PM_NOTIFY;
 
     mmc->max_blk_count	= 4095;
     mmc->max_blk_size	= 4095;
@@ -803,7 +815,7 @@ static int sunximmc_suspend(struct device *dev)
     {
         struct sunxi_mmc_host *smc_host = mmc_priv(mmc);
 
-        if (mmc->card && (mmc->card->type!=MMC_TYPE_SDIO || (mmc_pm_get_mod_type()!=2 && mmc_pm_get_mod_type()!=5)))
+        if (mmc->card && (mmc->card->type!=MMC_TYPE_SDIO || mmc_pm_io_shd_suspend_host()))
             ret = mmc_suspend_host(mmc);
 
         if (smc_host->power_on) {
@@ -859,7 +871,7 @@ static int sunximmc_resume(struct device *dev)
             enable_irq(smc_host->irq);
         }
 
-        if (mmc->card && (mmc->card->type!=MMC_TYPE_SDIO || mmc_pm_get_mod_type()!=2))
+        if (mmc->card && (mmc->card->type!=MMC_TYPE_SDIO || mmc_pm_io_shd_suspend_host()))
             ret = mmc_resume_host(mmc);
     }
 
