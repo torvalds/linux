@@ -542,7 +542,6 @@ struct ath6kl {
 	struct list_head amsdu_rx_buffer_queue;
 	u8 rx_meta_ver;
 	enum wlan_low_pwr_state wlan_pwr_state;
-	struct wmi_scan_params_cmd sc_params;
 	u8 mac_addr[ETH_ALEN];
 #define AR_MCAST_FILTER_MAC_ADDR_SIZE  4
 	struct {

@@ -748,9 +748,6 @@ struct wmi_start_scan_cmd {
 	__le16 ch_list[1];
 } __packed;
 
-/* WMI_SET_SCAN_PARAMS_CMDID */
-#define WMI_SHORTSCANRATIO_DEFAULT      3
-
 /*
  *  Warning: scan control flag value of 0xFF is used to disable
  *  all flags in WMI_SCAN_PARAMS_CMD. Do not add any more
@@ -782,13 +779,6 @@ enum wmi_scan_ctrl_flags_bits {
 	 */
 	ENABLE_SCAN_ABORT_EVENT = 0x40
 };
-
-#define DEFAULT_SCAN_CTRL_FLAGS			\
-	(CONNECT_SCAN_CTRL_FLAGS |		\
-	 SCAN_CONNECTED_CTRL_FLAGS |		\
-	 ACTIVE_SCAN_CTRL_FLAGS |		\
-	 ROAM_SCAN_CTRL_FLAGS |			\
-	 ENABLE_AUTO_CTRL_FLAGS)
 
 struct wmi_scan_params_cmd {
 	  /* sec */

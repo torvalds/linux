@@ -2480,9 +2480,6 @@ struct ath6kl *ath6kl_core_alloc(struct device *dev)
 	ar->tx_pwr = 0;
 
 	ar->intra_bss = 1;
-	memset(&ar->sc_params, 0, sizeof(ar->sc_params));
-	ar->sc_params.short_scan_ratio = WMI_SHORTSCANRATIO_DEFAULT;
-	ar->sc_params.scan_ctrl_flags = DEFAULT_SCAN_CTRL_FLAGS;
 	ar->lrssi_roam_threshold = DEF_LRSSI_ROAM_THRESHOLD;
 
 	ar->state = ATH6KL_STATE_OFF;
