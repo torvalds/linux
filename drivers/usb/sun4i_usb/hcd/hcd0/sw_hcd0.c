@@ -2335,7 +2335,8 @@ static int __init sw_hcd_init(void)
 /* make us init after usbcore and i2c (transceivers, regulators, etc)
  * and before usb gadget and host-side drivers start to register
  */
-module_init(sw_hcd_init);
+//module_init(sw_hcd_init);
+fs_initcall(sw_hcd_init);
 
 /*
 *******************************************************************************

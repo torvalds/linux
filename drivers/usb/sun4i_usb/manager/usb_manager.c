@@ -589,6 +589,7 @@ static void __exit usb_manager_exit(void)
     return;
 }
 
-module_init(usb_manager_init);
+//module_init(usb_manager_init);
+fs_initcall(usb_manager_init);
 module_exit(usb_manager_exit);
 
