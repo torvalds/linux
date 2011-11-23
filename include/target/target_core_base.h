@@ -490,7 +490,6 @@ struct se_task {
 	u32			task_sg_nents;
 	u16			task_flags;
 	u8			task_scsi_status;
-	int			task_error_status;
 	enum dma_data_direction	task_data_direction;
 	atomic_t		task_state_active;
 	struct list_head	t_list;

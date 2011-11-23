@@ -738,13 +738,7 @@ void transport_complete_task(struct se_task *task, int success)
 	}
 
 	if (cmd->t_tasks_failed) {
-		if (!task->task_error_status) {
-			task->task_error_status =
-				TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-			cmd->scsi_sense_reason =
-				TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-		}
-
+		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		INIT_WORK(&cmd->work, target_complete_failure_work);
 	} else {
 		atomic_set(&cmd->t_transport_complete, 1);
