@@ -677,22 +677,13 @@ static int ehci_init(struct usb_hcd *hcd)
 static int ehci_run (struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
-	int			retval;
 	u32			temp;
 	u32			hcc_params;
 
 	hcd->uses_new_polling = 1;
 
 	/* EHCI spec section 4.1 */
-	/*
-	 * TDI driver does the ehci_reset in their reset callback.
-	 * Don't reset here, because configuration settings will
-	 * vanish.
-	 */
-	if (!ehci_is_TDI(ehci) && (retval = ehci_reset(ehci)) != 0) {
-		ehci_mem_cleanup(ehci);
-		return retval;
-	}
+
 	ehci_writel(ehci, ehci->periodic_dma, &ehci->regs->frame_list);
 	ehci_writel(ehci, (u32)ehci->async->qh_dma, &ehci->regs->async_next);
 
