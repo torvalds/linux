@@ -35,7 +35,7 @@ long ext2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case EXT2_IOC_SETFLAGS: {
 		unsigned int oldflags;
 
-		ret = mnt_want_write(filp->f_path.mnt);
+		ret = mnt_want_write_file(filp);
 		if (ret)
 			return ret;
 
@@ -91,7 +91,7 @@ setflags_out:
 	case EXT2_IOC_SETVERSION:
 		if (!inode_owner_or_capable(inode))
 			return -EPERM;
-		ret = mnt_want_write(filp->f_path.mnt);
+		ret = mnt_want_write_file(filp);
 		if (ret)
 			return ret;
 		if (get_user(inode->i_generation, (int __user *) arg)) {
@@ -121,7 +121,7 @@ setflags_out:
 		if (get_user(rsv_window_size, (int __user *)arg))
 			return -EFAULT;
 
-		ret = mnt_want_write(filp->f_path.mnt);
+		ret = mnt_want_write_file(filp);
 		if (ret)
 			return ret;
 

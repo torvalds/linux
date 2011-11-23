@@ -44,7 +44,7 @@ static int fat_ioctl_set_attributes(struct file *file, u32 __user *user_attr)
 		goto out;
 
 	mutex_lock(&inode->i_mutex);
-	err = mnt_want_write(file->f_path.mnt);
+	err = mnt_want_write_file(file);
 	if (err)
 		goto out_unlock_inode;
 

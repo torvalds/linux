@@ -55,7 +55,7 @@ long reiserfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				break;
 			}
 
-			err = mnt_want_write(filp->f_path.mnt);
+			err = mnt_want_write_file(filp);
 			if (err)
 				break;
 
@@ -107,7 +107,7 @@ setflags_out:
 			err = -EPERM;
 			break;
 		}
-		err = mnt_want_write(filp->f_path.mnt);
+		err = mnt_want_write_file(filp);
 		if (err)
 			break;
 		if (get_user(inode->i_generation, (int __user *)arg)) {

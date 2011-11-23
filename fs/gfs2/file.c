@@ -223,7 +223,7 @@ static int do_gfs2_set_flags(struct file *filp, u32 reqflags, u32 mask)
 	int error;
 	u32 new_flags, flags;
 
-	error = mnt_want_write(filp->f_path.mnt);
+	error = mnt_want_write_file(filp);
 	if (error)
 		return error;
 
