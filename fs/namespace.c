@@ -173,8 +173,9 @@ unsigned int mnt_get_count(struct vfsmount *mnt)
 
 static struct vfsmount *alloc_vfsmnt(const char *name)
 {
-	struct vfsmount *mnt = kmem_cache_zalloc(mnt_cache, GFP_KERNEL);
-	if (mnt) {
+	struct mount *p = kmem_cache_zalloc(mnt_cache, GFP_KERNEL);
+	if (p) {
+		struct vfsmount *mnt = &p->mnt;
 		int err;
 
 		err = mnt_alloc_id(mnt);
@@ -210,16 +211,16 @@ static struct vfsmount *alloc_vfsmnt(const char *name)
 		INIT_HLIST_HEAD(&mnt->mnt_fsnotify_marks);
 #endif
 	}
-	return mnt;
+	return &p->mnt;
 
 #ifdef CONFIG_SMP
 out_free_devname:
-	kfree(mnt->mnt_devname);
+	kfree(p->mnt.mnt_devname);
 #endif
 out_free_id:
-	mnt_free_id(mnt);
+	mnt_free_id(&p->mnt);
 out_free_cache:
-	kmem_cache_free(mnt_cache, mnt);
+	kmem_cache_free(mnt_cache, p);
 	return NULL;
 }
 
@@ -449,12 +450,13 @@ static void __mnt_unmake_readonly(struct vfsmount *mnt)
 
 static void free_vfsmnt(struct vfsmount *mnt)
 {
+	struct mount *p = real_mount(mnt);
 	kfree(mnt->mnt_devname);
 	mnt_free_id(mnt);
 #ifdef CONFIG_SMP
 	free_percpu(mnt->mnt_pcp);
 #endif
-	kmem_cache_free(mnt_cache, mnt);
+	kmem_cache_free(mnt_cache, p);
 }
 
 /*
@@ -2698,7 +2700,7 @@ void __init mnt_init(void)
 
 	init_rwsem(&namespace_sem);
 
-	mnt_cache = kmem_cache_create("mnt_cache", sizeof(struct vfsmount),
+	mnt_cache = kmem_cache_create("mnt_cache", sizeof(struct mount),
 			0, SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
 
 	mount_hashtable = (struct list_head *)__get_free_page(GFP_ATOMIC);
