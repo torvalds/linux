@@ -2027,6 +2027,9 @@ int rcu_needs_cpu(int cpu)
 static void rcu_prepare_for_idle(int cpu)
 {
 	int c = 0;
+	unsigned long flags;
+
+	local_irq_save(flags);
 
 	/*
 	 * If there are no callbacks on this CPU or if RCU has no further
@@ -2036,14 +2039,17 @@ static void rcu_prepare_for_idle(int cpu)
 	if (!rcu_cpu_has_callbacks(cpu)) {
 		per_cpu(rcu_dyntick_holdoff, cpu) = jiffies - 1;
 		per_cpu(rcu_dyntick_drain, cpu) = 0;
+		per_cpu(rcu_awake_at_gp_end, cpu) = 0;
+		local_irq_restore(flags);
 		trace_rcu_prep_idle("No callbacks");
 		return;
 	}
 	if (!rcu_pending(cpu)) {
-		trace_rcu_prep_idle("Dyntick with callbacks");
 		per_cpu(rcu_dyntick_holdoff, cpu) = jiffies - 1;
 		per_cpu(rcu_dyntick_drain, cpu) = 0;
 		per_cpu(rcu_awake_at_gp_end, cpu) = 1;
+		local_irq_restore(flags);
+		trace_rcu_prep_idle("Dyntick with callbacks");
 		return;  /* Nothing to do immediately. */
 	}
 
@@ -2052,6 +2058,7 @@ static void rcu_prepare_for_idle(int cpu)
 	 * refrained from disabling the scheduling-clock tick.
 	 */
 	if (per_cpu(rcu_dyntick_holdoff, cpu) == jiffies) {
+		local_irq_restore(flags);
 		trace_rcu_prep_idle("In holdoff");
 		return;
 	}
@@ -2060,9 +2067,11 @@ static void rcu_prepare_for_idle(int cpu)
 	if (per_cpu(rcu_dyntick_drain, cpu) <= 0) {
 		/* First time through, initialize the counter. */
 		per_cpu(rcu_dyntick_drain, cpu) = RCU_NEEDS_CPU_FLUSHES;
+		per_cpu(rcu_awake_at_gp_end, cpu) = 0;
 	} else if (--per_cpu(rcu_dyntick_drain, cpu) <= 0) {
 		/* We have hit the limit, so time to give up. */
 		per_cpu(rcu_dyntick_holdoff, cpu) = jiffies;
+		local_irq_restore(flags);
 		trace_rcu_prep_idle("Begin holdoff");
 		invoke_rcu_core();  /* Force the CPU out of dyntick-idle. */
 		return;
@@ -2095,10 +2104,13 @@ static void rcu_prepare_for_idle(int cpu)
 	 * So try forcing the callbacks through the grace period.
 	 */
 	if (c) {
+		local_irq_restore(flags);
 		trace_rcu_prep_idle("More callbacks");
 		invoke_rcu_core();
-	} else
+	} else {
+		local_irq_restore(flags);
 		trace_rcu_prep_idle("Callbacks drained");
+	}
 }
 
 /*
