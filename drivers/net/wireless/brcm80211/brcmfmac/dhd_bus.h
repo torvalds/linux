@@ -34,7 +34,7 @@ extern struct device *brcmf_bus_get_device(struct brcmf_sdio *bus);
 extern void brcmf_sdbrcm_bus_stop(struct brcmf_sdio *bus);
 
 /* Initialize bus module: prepare for communication w/dongle */
-extern int brcmf_sdbrcm_bus_init(struct brcmf_pub *drvr);
+extern int brcmf_sdbrcm_bus_init(struct device *dev);
 
 /* Send a data frame to the dongle.  Callee disposes of txp. */
 extern int brcmf_sdbrcm_bus_txdata(struct device *dev, struct sk_buff *txp);

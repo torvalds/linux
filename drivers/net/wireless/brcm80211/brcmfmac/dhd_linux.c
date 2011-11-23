@@ -993,7 +993,7 @@ int brcmf_bus_start(struct brcmf_pub *drvr)
 	brcmf_dbg(TRACE, "\n");
 
 	/* Bring up the bus */
-	ret = brcmf_sdbrcm_bus_init(&drvr_priv->pub);
+	ret = brcmf_sdbrcm_bus_init(drvr_priv->pub.dev);
 	if (ret != 0) {
 		brcmf_dbg(ERROR, "brcmf_sdbrcm_bus_init failed %d\n", ret);
 		return ret;

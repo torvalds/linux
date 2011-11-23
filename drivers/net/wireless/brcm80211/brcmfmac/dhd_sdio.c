@@ -3408,9 +3408,11 @@ void brcmf_sdbrcm_bus_stop(struct brcmf_sdio *bus)
 	up(&bus->sdsem);
 }
 
-int brcmf_sdbrcm_bus_init(struct brcmf_pub *drvr)
+int brcmf_sdbrcm_bus_init(struct device *dev)
 {
-	struct brcmf_sdio *bus = drvr->bus;
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv;
+	struct brcmf_sdio *bus = sdiodev->bus;
 	unsigned long timeout;
 	uint retries = 0;
 	u8 ready, enable;
@@ -3420,7 +3422,7 @@ int brcmf_sdbrcm_bus_init(struct brcmf_pub *drvr)
 	brcmf_dbg(TRACE, "Enter\n");
 
 	/* try to download image and nvram to the dongle */
-	if (drvr->bus_if->state == BRCMF_BUS_DOWN) {
+	if (bus_if->state == BRCMF_BUS_DOWN) {
 		if (!(brcmf_sdbrcm_download_firmware(bus)))
 			return -1;
 	}
@@ -3486,7 +3488,7 @@ int brcmf_sdbrcm_bus_init(struct brcmf_pub *drvr)
 				       SBSDIO_WATERMARK, 8, &err);
 
 		/* Set bus state according to enable result */
-		drvr->bus_if->state = BRCMF_BUS_DATA;
+		bus_if->state = BRCMF_BUS_DATA;
 	}
 
 	else {
@@ -3501,7 +3503,7 @@ int brcmf_sdbrcm_bus_init(struct brcmf_pub *drvr)
 			       SBSDIO_FUNC1_CHIPCLKCSR, saveclk, &err);
 
 	/* If we didn't come up, turn off backplane clock */
-	if (drvr->bus_if->state != BRCMF_BUS_DATA)
+	if (bus_if->state != BRCMF_BUS_DATA)
 		brcmf_sdbrcm_clkctl(bus, CLK_NONE, false);
 
 exit:
