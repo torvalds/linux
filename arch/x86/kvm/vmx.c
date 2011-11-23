@@ -18,6 +18,7 @@
 
 #include "irq.h"
 #include "mmu.h"
+#include "cpuid.h"
 
 #include <linux/kvm_host.h>
 #include <linux/module.h>

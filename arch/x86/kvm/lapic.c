@@ -38,6 +38,7 @@
 #include "irq.h"
 #include "trace.h"
 #include "x86.h"
+#include "cpuid.h"
 
 #ifndef CONFIG_X86_64
 #define mod_64(x, y) ((x) - (y) * div64_u64(x, y))
