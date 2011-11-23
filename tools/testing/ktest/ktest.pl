@@ -22,7 +22,7 @@ my %default;
 
 #default opts
 $default{"NUM_TESTS"}		= 1;
-$default{"TEST_TYPE"}		= "test";
+$default{"TEST_TYPE"}		= "build";
 $default{"BUILD_TYPE"}		= "randconfig";
 $default{"MAKE_CMD"}		= "make";
 $default{"TIMEOUT"}		= 120;
@@ -136,6 +136,10 @@ my $localversion;
 my $iteration = 0;
 my $successes = 0;
 
+# set when a test is something other that just building
+# which would require more options.
+my $buildonly = 1;
+
 my %entered_configs;
 my %config_help;
 my %variable;
@@ -149,6 +153,7 @@ chomp ($variable{"PWD"} = `pwd`);
 
 $config_help{"MACHINE"} = << "EOF"
  The machine hostname that you will test.
+ For build only tests, it is still needed to differentiate log files.
 EOF
     ;
 $config_help{"SSH_USER"} = << "EOF"
@@ -321,14 +326,21 @@ sub get_ktest_config {
 
 sub get_ktest_configs {
     get_ktest_config("MACHINE");
-    get_ktest_config("SSH_USER");
     get_ktest_config("BUILD_DIR");
     get_ktest_config("OUTPUT_DIR");
-    get_ktest_config("BUILD_TARGET");
-    get_ktest_config("TARGET_IMAGE");
-    get_ktest_config("POWER_CYCLE");
-    get_ktest_config("CONSOLE");
+
+    # options required for other than just building a kernel
+    if (!$buildonly) {
+	get_ktest_config("SSH_USER");
+	get_ktest_config("BUILD_TARGET");
+	get_ktest_config("TARGET_IMAGE");
+	get_ktest_config("POWER_CYCLE");
+	get_ktest_config("CONSOLE");
+    }
+
     get_ktest_config("LOCALVERSION");
+
+    return if ($buildonly);
 
     my $rtype = $opt{"REBOOT_TYPE"};
 
@@ -387,6 +399,12 @@ sub process_variables {
 
 sub set_value {
     my ($lvalue, $rvalue, $override, $overrides, $name) = @_;
+
+    if ($lvalue =~ /^TEST_TYPE(\[.*\])?$/ && $rvalue ne "build") {
+	# Note if a test is something other than build, then we
+	# will need other manditory options.
+	$buildonly = 0;
+    }
 
     if (defined($opt{$lvalue})) {
 	if (!$override || defined(${$overrides}{$lvalue})) {
@@ -3271,18 +3289,19 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     $ENV{"SSH_USER"} = $ssh_user;
     $ENV{"MACHINE"} = $machine;
 
-    $target = "$ssh_user\@$machine";
-
     $buildlog = "$tmpdir/buildlog-$machine";
     $testlog = "$tmpdir/testlog-$machine";
     $dmesg = "$tmpdir/dmesg-$machine";
     $make = "$makecmd O=$outputdir";
     $output_config = "$outputdir/.config";
 
-    if ($reboot_type eq "grub") {
-	dodie "GRUB_MENU not defined" if (!defined($grub_menu));
-    } elsif (!defined($reboot_script)) {
-	dodie "REBOOT_SCRIPT not defined"
+    if (!$buildonly) {
+	$target = "$ssh_user\@$machine";
+	if ($reboot_type eq "grub") {
+	    dodie "GRUB_MENU not defined" if (!defined($grub_menu));
+	} elsif (!defined($reboot_script)) {
+	    dodie "REBOOT_SCRIPT not defined"
+	}
     }
 
     my $run_type = $build_type;
