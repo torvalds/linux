@@ -123,9 +123,10 @@ please refer directly to the source code for more information about it.
 Subsystem-Level Methods
 -----------------------
 The core methods to suspend and resume devices reside in struct dev_pm_ops
-pointed to by the pm member of struct bus_type, struct device_type and
-struct class.  They are mostly of interest to the people writing infrastructure
-for buses, like PCI or USB, or device type and device class drivers.
+pointed to by the ops member of struct dev_pm_domain, or by the pm member of
+struct bus_type, struct device_type and struct class.  They are mostly of
+interest to the people writing infrastructure for platforms and buses, like PCI
+or USB, or device type and device class drivers.
 
 Bus drivers implement these methods as appropriate for the hardware and the
 drivers using it; PCI works differently from USB, and so on.  Not many people
@@ -251,18 +252,29 @@ various phases always run after tasks have been frozen and before they are
 unfrozen.  Furthermore, the *_noirq phases run at a time when IRQ handlers have
 been disabled (except for those marked with the IRQ_WAKEUP flag).
 
-All phases use bus, type, or class callbacks (that is, methods defined in
-dev->bus->pm, dev->type->pm, or dev->class->pm).  These callbacks are mutually
-exclusive, so if the device type provides a struct dev_pm_ops object pointed to
-by its pm field (i.e. both dev->type and dev->type->pm are defined), the
-callbacks included in that object (i.e. dev->type->pm) will be used.  Otherwise,
-if the class provides a struct dev_pm_ops object pointed to by its pm field
-(i.e. both dev->class and dev->class->pm are defined), the PM core will use the
-callbacks from that object (i.e. dev->class->pm).  Finally, if the pm fields of
-both the device type and class objects are NULL (or those objects do not exist),
-the callbacks provided by the bus (that is, the callbacks from dev->bus->pm)
-will be used (this allows device types to override callbacks provided by bus
-types or classes if necessary).
+All phases use PM domain, bus, type, or class callbacks (that is, methods
+defined in dev->pm_domain->ops, dev->bus->pm, dev->type->pm, or dev->class->pm).
+These callbacks are regarded by the PM core as mutually exclusive.  Moreover,
+PM domain callbacks always take precedence over bus, type and class callbacks,
+while type callbacks take precedence over bus and class callbacks, and class
+callbacks take precedence over bus callbacks.  To be precise, the following
+rules are used to determine which callback to execute in the given phase:
+
+    1.	If dev->pm_domain is present, the PM core will attempt to execute the
+	callback included in dev->pm_domain->ops.  If that callback is not
+	present, no action will be carried out for the given device.
+
+    2.	Otherwise, if both dev->type and dev->type->pm are present, the callback
+	included in dev->type->pm will be executed.
+
+    3.	Otherwise, if both dev->class and dev->class->pm are present, the
+	callback included in dev->class->pm will be executed.
+
+    4.	Otherwise, if both dev->bus and dev->bus->pm are present, the callback
+	included in dev->bus->pm will be executed.
+
+This allows PM domains and device types to override callbacks provided by bus
+types or device classes if necessary.
 
 These callbacks may in turn invoke device- or driver-specific methods stored in
 dev->driver->pm, but they don't have to.
