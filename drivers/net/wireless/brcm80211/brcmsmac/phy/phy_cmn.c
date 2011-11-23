@@ -109,7 +109,7 @@ static const struct chan_info_basic chan_info_all[] = {
 	{204, 5020},
 	{208, 5040},
 	{212, 5060},
-	{216, 50800}
+	{216, 5080}
 };
 
 static const u8 ofdm_rate_lookup[] = {
