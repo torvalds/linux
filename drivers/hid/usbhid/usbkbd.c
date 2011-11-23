@@ -387,6 +387,7 @@ static void usb_kbd_disconnect(struct usb_interface *intf)
 	if (kbd) {
 		usb_kill_urb(kbd->irq);
 		input_unregister_device(kbd->dev);
+		usb_kill_urb(kbd->led);
 		usb_kbd_free_mem(interface_to_usbdev(intf), kbd);
 		kfree(kbd);
 	}
