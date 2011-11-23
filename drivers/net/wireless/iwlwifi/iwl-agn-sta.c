@@ -463,6 +463,7 @@ int iwl_remove_station(struct iwl_priv *priv, const u8 sta_id,
 		       const u8 *addr)
 {
 	unsigned long flags;
+	u8 tid;
 
 	if (!iwl_is_ready(priv->shrd)) {
 		IWL_DEBUG_INFO(priv,
@@ -500,6 +501,10 @@ int iwl_remove_station(struct iwl_priv *priv, const u8 sta_id,
 		kfree(priv->stations[sta_id].lq);
 		priv->stations[sta_id].lq = NULL;
 	}
+
+	for (tid = 0; tid < IWL_MAX_TID_COUNT; tid++)
+		memset(&priv->tid_data[sta_id][tid], 0,
+			sizeof(priv->tid_data[sta_id][tid]));
 
 	priv->stations[sta_id].used &= ~IWL_STA_DRIVER_ACTIVE;
 
