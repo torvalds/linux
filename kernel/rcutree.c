@@ -607,7 +607,7 @@ int rcu_is_cpu_rrupt_from_idle(void)
 static int dyntick_save_progress_counter(struct rcu_data *rdp)
 {
 	rdp->dynticks_snap = atomic_add_return(0, &rdp->dynticks->dynticks);
-	return 0;
+	return (rdp->dynticks_snap & 0x1) == 0;
 }
 
 /*
