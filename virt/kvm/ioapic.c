@@ -332,9 +332,18 @@ static int ioapic_mmio_write(struct kvm_io_device *this, gpa_t addr, int len,
 		     (void*)addr, len, val);
 	ASSERT(!(addr & 0xf));	/* check alignment */
 
-	if (len == 4 || len == 8)
+	switch (len) {
+	case 8:
+	case 4:
 		data = *(u32 *) val;
-	else {
+		break;
+	case 2:
+		data = *(u16 *) val;
+		break;
+	case 1:
+		data = *(u8  *) val;
+		break;
+	default:
 		printk(KERN_WARNING "ioapic: Unsupported size %d\n", len);
 		return 0;
 	}
@@ -343,7 +352,7 @@ static int ioapic_mmio_write(struct kvm_io_device *this, gpa_t addr, int len,
 	spin_lock(&ioapic->lock);
 	switch (addr) {
 	case IOAPIC_REG_SELECT:
-		ioapic->ioregsel = data;
+		ioapic->ioregsel = data & 0xFF; /* 8-bit register */
 		break;
 
 	case IOAPIC_REG_WINDOW:
