@@ -452,9 +452,14 @@ int line6_init_pcm(struct usb_line6 *line6,
 	line6pcm->line6 = line6;
 	line6pcm->ep_audio_read = ep_read;
 	line6pcm->ep_audio_write = ep_write;
-	line6pcm->max_packet_size = usb_maxpacket(line6->usbdev,
-						  usb_rcvintpipe(line6->usbdev,
-								 ep_read), 0);
+
+	/* Read and write buffers are sized identically, so choose minimum */
+	line6pcm->max_packet_size = min(
+			usb_maxpacket(line6->usbdev,
+				usb_rcvisocpipe(line6->usbdev, ep_read), 0),
+			usb_maxpacket(line6->usbdev,
+				usb_sndisocpipe(line6->usbdev, ep_write), 1));
+
 	line6pcm->properties = properties;
 	line6->line6pcm = line6pcm;
 
