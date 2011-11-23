@@ -397,26 +397,21 @@ static int brcmf_host_event(struct brcmf_info *drvr_priv, int *ifidx,
 	return bcmerror;
 }
 
-void brcmf_rx_frame(struct brcmf_pub *drvr, int ifidx, struct sk_buff *skb,
-		  int numpkt)
+void brcmf_rx_frame(struct brcmf_pub *drvr, int ifidx,
+		    struct sk_buff_head *skb_list)
 {
 	struct brcmf_info *drvr_priv = drvr->info;
 	unsigned char *eth;
 	uint len;
 	void *data;
-	struct sk_buff *pnext, *save_pktbuf;
-	int i;
+	struct sk_buff *skb, *pnext;
 	struct brcmf_if *ifp;
 	struct brcmf_event_msg event;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	save_pktbuf = skb;
-
-	for (i = 0; skb && i < numpkt; i++, skb = pnext) {
-
-		pnext = skb->next;
-		skb->next = NULL;
+	skb_queue_walk_safe(skb_list, skb, pnext) {
+		skb_unlink(skb, skb_list);
 
 		/* Get the protocol, maintain skb around eth_type_trans()
 		 * The main reason for this hack is for the limitation of

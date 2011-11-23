@@ -1120,7 +1120,7 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 	u8 *dptr, num = 0;
 
 	u16 sublen, check;
-	struct sk_buff *pfirst, *plast, *pnext, *save_pfirst;
+	struct sk_buff *pfirst, *pnext;
 
 	int errcode;
 	u8 chan, seq, doff, sfdoff;
@@ -1137,7 +1137,7 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 
 	/* If there's a descriptor, generate the packet chain */
 	if (bus->glomd) {
-		pfirst = plast = pnext = NULL;
+		pfirst = pnext = NULL;
 		dlen = (u16) (bus->glomd->len);
 		dptr = bus->glomd->data;
 		if (!dlen || (dlen & 1)) {
@@ -1338,10 +1338,14 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 		/* Remove superframe header, remember offset */
 		skb_pull(pfirst, doff);
 		sfdoff = doff;
+		num = 0;
 
 		/* Validate all the subframe headers */
-		for (num = 0, pnext = pfirst; pnext && !errcode;
-		     num++, pnext = pnext->next) {
+		skb_queue_walk(&bus->glom, pnext) {
+			/* leave when invalid subframe is found */
+			if (errcode)
+				break;
+
 			dptr = (u8 *) (pnext->data);
 			dlen = (u16) (pnext->len);
 			sublen = get_unaligned_le16(dptr);
@@ -1374,6 +1378,8 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 					  num, doff, sublen, SDPCM_HDRLEN);
 				errcode = -1;
 			}
+			/* increase the subframe count */
+			num++;
 		}
 
 		if (errcode) {
@@ -1394,13 +1400,8 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 		}
 
 		/* Basic SD framing looks ok - process each packet (header) */
-		save_pfirst = pfirst;
-		plast = NULL;
 
-		for (num = 0; pfirst; rxseq++, pfirst = pnext) {
-			pnext = pfirst->next;
-			pfirst->next = NULL;
-
+		skb_queue_walk_safe(&bus->glom, pfirst, pnext) {
 			dptr = (u8 *) (pfirst->data);
 			sublen = get_unaligned_le16(dptr);
 			chan = SDPCM_PACKET_CHANNEL(&dptr[SDPCM_FRAMETAG_LEN]);
@@ -1420,6 +1421,8 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 				bus->rx_badseq++;
 				rxseq = seq;
 			}
+			rxseq++;
+
 #ifdef BCMDBG
 			if (BRCMF_BYTES_ON() && BRCMF_DATA_ON()) {
 				printk(KERN_DEBUG "Rx Subframe Data:\n");
@@ -1432,36 +1435,22 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 			skb_pull(pfirst, doff);
 
 			if (pfirst->len == 0) {
+				skb_unlink(pfirst, &bus->glom);
 				brcmu_pkt_buf_free_skb(pfirst);
-				if (plast)
-					plast->next = pnext;
-				else
-					save_pfirst = pnext;
-
 				continue;
 			} else if (brcmf_proto_hdrpull(bus->drvr, &ifidx,
 						       pfirst) != 0) {
 				brcmf_dbg(ERROR, "rx protocol error\n");
 				bus->drvr->rx_errors++;
+				skb_unlink(pfirst, &bus->glom);
 				brcmu_pkt_buf_free_skb(pfirst);
-				if (plast)
-					plast->next = pnext;
-				else
-					save_pfirst = pnext;
-
 				continue;
 			}
-
-			/* this packet will go up, link back into
-				 chain and count it */
-			pfirst->next = pnext;
-			plast = pfirst;
-			num++;
 
 #ifdef BCMDBG
 			if (BRCMF_GLOM_ON()) {
 				brcmf_dbg(GLOM, "subframe %d to stack, %p (%p/%d) nxt/lnk %p/%p\n",
-					  num, pfirst, pfirst->data,
+					  bus->glom.qlen, pfirst, pfirst->data,
 					  pfirst->len, pfirst->next,
 					  pfirst->prev);
 				print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
@@ -1470,14 +1459,15 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 			}
 #endif				/* BCMDBG */
 		}
-		if (num) {
+		/* sent any remaining packets up */
+		if (bus->glom.qlen) {
 			up(&bus->sdsem);
-			brcmf_rx_frame(bus->drvr, ifidx, save_pfirst, num);
+			brcmf_rx_frame(bus->drvr, ifidx, &bus->glom);
 			down(&bus->sdsem);
 		}
 
 		bus->rxglomframes++;
-		bus->rxglompkts += num;
+		bus->rxglompkts += bus->glom.qlen;
 	}
 	return num;
 }
@@ -2075,7 +2065,7 @@ deliver:
 
 		/* Unlock during rx call */
 		up(&bus->sdsem);
-		brcmf_rx_frame(bus->drvr, ifidx, pkt, 1);
+		brcmf_rx_packet(bus->drvr, ifidx, pkt);
 		down(&bus->sdsem);
 	}
 	rxcount = maxframes - rxleft;
