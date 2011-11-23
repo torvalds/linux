@@ -351,10 +351,6 @@ static int sta_info_finish_insert(struct sta_info *sta,
 
 	if (!sta->dummy || dummy_reinsert) {
 		/* notify driver */
-		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
-			sdata = container_of(sdata->bss,
-					     struct ieee80211_sub_if_data,
-					     u.ap);
 		err = drv_sta_add(local, sdata, &sta->sta);
 		if (err) {
 			if (!async)

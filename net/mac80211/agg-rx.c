@@ -112,7 +112,7 @@ void ieee80211_stop_rx_ba_session(struct ieee80211_vif *vif, u16 ba_rx_bitmap,
 	int i;
 
 	rcu_read_lock();
-	sta = sta_info_get(sdata, addr);
+	sta = sta_info_get_bss(sdata, addr);
 	if (!sta) {
 		rcu_read_unlock();
 		return;

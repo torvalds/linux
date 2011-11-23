@@ -10,6 +10,16 @@ static inline void check_sdata_in_driver(struct ieee80211_sub_if_data *sdata)
 	WARN_ON(!(sdata->flags & IEEE80211_SDATA_IN_DRIVER));
 }
 
+static inline struct ieee80211_sub_if_data *
+get_bss_sdata(struct ieee80211_sub_if_data *sdata)
+{
+	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
+		sdata = container_of(sdata->bss, struct ieee80211_sub_if_data,
+				     u.ap);
+
+	return sdata;
+}
+
 static inline void drv_tx(struct ieee80211_local *local, struct sk_buff *skb)
 {
 	local->ops->tx(&local->hw, skb);
@@ -421,6 +431,7 @@ static inline void drv_sta_notify(struct ieee80211_local *local,
 				  enum sta_notify_cmd cmd,
 				  struct ieee80211_sta *sta)
 {
+	sdata = get_bss_sdata(sdata);
 	check_sdata_in_driver(sdata);
 
 	trace_drv_sta_notify(local, sdata, cmd, sta);
@@ -437,6 +448,7 @@ static inline int drv_sta_add(struct ieee80211_local *local,
 
 	might_sleep();
 
+	sdata = get_bss_sdata(sdata);
 	check_sdata_in_driver(sdata);
 
 	trace_drv_sta_add(local, sdata, sta);
@@ -454,6 +466,7 @@ static inline void drv_sta_remove(struct ieee80211_local *local,
 {
 	might_sleep();
 
+	sdata = get_bss_sdata(sdata);
 	check_sdata_in_driver(sdata);
 
 	trace_drv_sta_remove(local, sdata, sta);
@@ -547,6 +560,7 @@ static inline int drv_ampdu_action(struct ieee80211_local *local,
 
 	might_sleep();
 
+	sdata = get_bss_sdata(sdata);
 	check_sdata_in_driver(sdata);
 
 	trace_drv_ampdu_action(local, sdata, action, sta, tid, ssn, buf_size);

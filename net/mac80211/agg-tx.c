@@ -555,7 +555,7 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u16 tid)
 	}
 
 	mutex_lock(&local->sta_mtx);
-	sta = sta_info_get(sdata, ra);
+	sta = sta_info_get_bss(sdata, ra);
 	if (!sta) {
 		mutex_unlock(&local->sta_mtx);
 #ifdef CONFIG_MAC80211_HT_DEBUG
@@ -684,7 +684,7 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid)
 
 	mutex_lock(&local->sta_mtx);
 
-	sta = sta_info_get(sdata, ra);
+	sta = sta_info_get_bss(sdata, ra);
 	if (!sta) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "Could not find station: %pM\n", ra);
