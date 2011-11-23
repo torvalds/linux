@@ -170,15 +170,17 @@ static __devinit int tegra_snd_trimslice_probe(struct platform_device *pdev)
 	struct tegra_trimslice *trimslice;
 	int ret;
 
-	trimslice = kzalloc(sizeof(struct tegra_trimslice), GFP_KERNEL);
+	trimslice = devm_kzalloc(&pdev->dev, sizeof(struct tegra_trimslice),
+				 GFP_KERNEL);
 	if (!trimslice) {
 		dev_err(&pdev->dev, "Can't allocate tegra_trimslice\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err;
 	}
 
 	ret = tegra_asoc_utils_init(&trimslice->util_data, &pdev->dev);
 	if (ret)
-		goto err_free_trimslice;
+		goto err;
 
 	card->dev = &pdev->dev;
 	platform_set_drvdata(pdev, card);
@@ -195,8 +197,7 @@ static __devinit int tegra_snd_trimslice_probe(struct platform_device *pdev)
 
 err_fini_utils:
 	tegra_asoc_utils_fini(&trimslice->util_data);
-err_free_trimslice:
-	kfree(trimslice);
+err:
 	return ret;
 }
 
@@ -209,8 +210,6 @@ static int __devexit tegra_snd_trimslice_remove(struct platform_device *pdev)
 
 	tegra_asoc_utils_fini(&trimslice->util_data);
 
-	kfree(trimslice);
-
 	return 0;
 }
 
@@ -222,18 +221,7 @@ static struct platform_driver tegra_snd_trimslice_driver = {
 	.probe = tegra_snd_trimslice_probe,
 	.remove = __devexit_p(tegra_snd_trimslice_remove),
 };
-
-static int __init snd_tegra_trimslice_init(void)
-{
-	return platform_driver_register(&tegra_snd_trimslice_driver);
-}
-module_init(snd_tegra_trimslice_init);
-
-static void __exit snd_tegra_trimslice_exit(void)
-{
-	platform_driver_unregister(&tegra_snd_trimslice_driver);
-}
-module_exit(snd_tegra_trimslice_exit);
+module_platform_driver(tegra_snd_trimslice_driver);
 
 MODULE_AUTHOR("Mike Rapoport <mike@compulab.co.il>");
 MODULE_DESCRIPTION("Trimslice machine ASoC driver");
