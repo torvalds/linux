@@ -2028,12 +2028,29 @@ static void rcu_prepare_for_idle(int cpu)
 {
 	int c = 0;
 
-	/* If no callbacks or in the holdoff period, enter dyntick-idle. */
+	/*
+	 * If there are no callbacks on this CPU or if RCU has no further
+	 * need for this CPU at the moment, enter dyntick-idle mode.
+	 * Also reset state so as to not prejudice later attempts.
+	 */
 	if (!rcu_cpu_has_callbacks(cpu)) {
 		per_cpu(rcu_dyntick_holdoff, cpu) = jiffies - 1;
+		per_cpu(rcu_dyntick_drain, cpu) = 0;
 		trace_rcu_prep_idle("No callbacks");
 		return;
 	}
+	if (!rcu_pending(cpu)) {
+		trace_rcu_prep_idle("Dyntick with callbacks");
+		per_cpu(rcu_dyntick_holdoff, cpu) = jiffies - 1;
+		per_cpu(rcu_dyntick_drain, cpu) = 0;
+		per_cpu(rcu_awake_at_gp_end, cpu) = 1;
+		return;  /* Nothing to do immediately. */
+	}
+
+	/*
+	 * If in holdoff mode, just return.  We will presumably have
+	 * refrained from disabling the scheduling-clock tick.
+	 */
 	if (per_cpu(rcu_dyntick_holdoff, cpu) == jiffies) {
 		trace_rcu_prep_idle("In holdoff");
 		return;
@@ -2046,11 +2063,6 @@ static void rcu_prepare_for_idle(int cpu)
 	} else if (--per_cpu(rcu_dyntick_drain, cpu) <= 0) {
 		/* We have hit the limit, so time to give up. */
 		per_cpu(rcu_dyntick_holdoff, cpu) = jiffies;
-		if (!rcu_pending(cpu)) {
-			trace_rcu_prep_idle("Dyntick with callbacks");
-			per_cpu(rcu_awake_at_gp_end, cpu) = 1;
-			return;  /* Nothing to do immediately. */
-		}
 		trace_rcu_prep_idle("Begin holdoff");
 		invoke_rcu_core();  /* Force the CPU out of dyntick-idle. */
 		return;
