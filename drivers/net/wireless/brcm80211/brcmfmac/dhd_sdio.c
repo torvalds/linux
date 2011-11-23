@@ -3535,13 +3535,13 @@ void brcmf_sdbrcm_isr(void *arg)
 		complete(&bus->dpc_wait);
 }
 
-static bool brcmf_sdbrcm_bus_watchdog(struct brcmf_pub *drvr)
+static bool brcmf_sdbrcm_bus_watchdog(struct brcmf_sdio *bus)
 {
-	struct brcmf_sdio *bus;
+#ifdef BCMDBG
+	struct brcmf_bus *bus_if = dev_get_drvdata(bus->sdiodev->dev);
+#endif	/* BCMDBG */
 
 	brcmf_dbg(TIMER, "Enter\n");
-
-	bus = drvr->bus;
 
 	/* Ignore the timer if simulating bus down */
 	if (bus->sleeping)
@@ -3586,7 +3586,7 @@ static bool brcmf_sdbrcm_bus_watchdog(struct brcmf_pub *drvr)
 	}
 #ifdef BCMDBG
 	/* Poll for console output periodically */
-	if (drvr->bus_if->state == BRCMF_BUS_DATA &&
+	if (bus_if->state == BRCMF_BUS_DATA &&
 	    bus->console_interval != 0) {
 		bus->console.count += BRCMF_WD_POLL_MS;
 		if (bus->console.count >= bus->console_interval) {
@@ -3801,7 +3801,7 @@ brcmf_sdbrcm_watchdog_thread(void *data)
 		if (kthread_should_stop())
 			break;
 		if (!wait_for_completion_interruptible(&bus->watchdog_wait)) {
-			brcmf_sdbrcm_bus_watchdog(bus->drvr);
+			brcmf_sdbrcm_bus_watchdog(bus);
 			/* Count the tick for reference */
 			bus->drvr->tickcnt++;
 		} else
