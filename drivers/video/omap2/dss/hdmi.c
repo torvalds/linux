@@ -561,11 +561,13 @@ void omapdss_hdmi_display_disable(struct omap_dss_device *dssdev)
 #if defined(CONFIG_SND_OMAP_SOC_OMAP4_HDMI) || \
 	defined(CONFIG_SND_OMAP_SOC_OMAP4_HDMI_MODULE)
 
-static int hdmi_audio_hw_params(struct hdmi_ip_data *ip_data,
-					struct snd_pcm_substream *substream,
+static int hdmi_audio_hw_params(struct snd_pcm_substream *substream,
 				    struct snd_pcm_hw_params *params,
 				    struct snd_soc_dai *dai)
 {
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_codec *codec = rtd->codec;
+	struct hdmi_ip_data *ip_data = snd_soc_codec_get_drvdata(codec);
 	struct hdmi_audio_format audio_format;
 	struct hdmi_audio_dma audio_dma;
 	struct hdmi_core_audio_config core_cfg;

@@ -1204,11 +1204,14 @@ int hdmi_config_audio_acr(struct hdmi_ip_data *ip_data,
 	return 0;
 }
 
-int hdmi_audio_trigger(struct hdmi_ip_data *ip_data,
-				struct snd_pcm_substream *substream, int cmd,
+int hdmi_audio_trigger(struct snd_pcm_substream *substream, int cmd,
 				struct snd_soc_dai *dai)
 {
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_codec *codec = rtd->codec;
+	struct hdmi_ip_data *ip_data = snd_soc_codec_get_drvdata(codec);
 	int err = 0;
+
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
