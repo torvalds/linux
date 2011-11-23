@@ -37,7 +37,7 @@ extern void brcmf_sdbrcm_bus_stop(struct brcmf_sdio *bus);
 extern int brcmf_sdbrcm_bus_init(struct brcmf_pub *drvr);
 
 /* Send a data frame to the dongle.  Callee disposes of txp. */
-extern int brcmf_sdbrcm_bus_txdata(struct brcmf_sdio *bus, struct sk_buff *txp);
+extern int brcmf_sdbrcm_bus_txdata(struct device *dev, struct sk_buff *txp);
 
 /* Send/receive a control message to/from the dongle.
  * Expects caller to enforce a single outstanding transaction.
