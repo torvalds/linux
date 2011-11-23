@@ -796,6 +796,7 @@ cntrlEnd:
 		if (!down_trylock(&Adapter->fw_download_sema)) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
 					"Invalid way to download buffer. Use Start and then call this!!!\n");
+			up(&Adapter->fw_download_sema);
 			Status = -EINVAL;
 			break;
 		}
