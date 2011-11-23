@@ -332,6 +332,15 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 	struct page *page;
 	void *addr;
 
+	/*
+	 * Following is a work-around (a.k.a. hack) to prevent pages
+	 * with __GFP_COMP being passed to split_page() which cannot
+	 * handle them.  The real problem is that this flag probably
+	 * should be 0 on ARM as it is not supported on this
+	 * platform; see CONFIG_HUGETLBFS.
+	 */
+	gfp &= ~(__GFP_COMP);
+
 	*handle = ~0;
 	size = PAGE_ALIGN(size);
 
