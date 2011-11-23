@@ -1054,8 +1054,20 @@ static bool alc_rebuild_imux_for_auto_mic(struct hda_codec *codec)
 	spec->imux_pins[2] = spec->dock_mic_pin;
 	for (i = 0; i < 3; i++) {
 		strcpy(imux->items[i].label, texts[i]);
-		if (spec->imux_pins[i])
+		if (spec->imux_pins[i]) {
+			hda_nid_t pin = spec->imux_pins[i];
+			int c;
+			for (c = 0; c < spec->num_adc_nids; c++) {
+				hda_nid_t cap = spec->capsrc_nids ?
+				spec->capsrc_nids[c] : spec->adc_nids[c];
+				int idx = get_connection_index(codec, cap, pin);
+				if (idx >= 0) {
+					imux->items[i].index = idx;
+					break;
+				}
+			}
 			imux->num_items = i + 1;
+		}
 	}
 	spec->num_mux_defs = 1;
 	spec->input_mux = imux;
