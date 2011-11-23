@@ -36,6 +36,7 @@
 #define LINE6_DEVID_TONEPORT_UX1  0x4141
 #define LINE6_DEVID_TONEPORT_UX2  0x4142
 #define LINE6_DEVID_VARIAX        0x534d
+#define LINE6_DEVID_PODHD300      0x5057
 
 #define LINE6_BIT_BASSPODXT       (1 <<  0)
 #define LINE6_BIT_BASSPODXTLIVE   (1 <<  1)
@@ -54,6 +55,7 @@
 #define LINE6_BIT_TONEPORT_UX1    (1 << 14)
 #define LINE6_BIT_TONEPORT_UX2    (1 << 15)
 #define LINE6_BIT_VARIAX          (1 << 16)
+#define LINE6_BIT_PODHD300        (1 << 17)
 
 #define LINE6_BITS_PRO		(LINE6_BIT_BASSPODXTPRO | \
 				 LINE6_BIT_PODXTPRO)
