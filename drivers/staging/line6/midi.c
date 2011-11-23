@@ -173,6 +173,7 @@ static int send_midi_async(struct usb_line6 *line6, unsigned char *data,
 		break;
 
 	case LINE6_DEVID_VARIAX:
+	case LINE6_DEVID_PODHD300:
 		break;
 
 	default:
