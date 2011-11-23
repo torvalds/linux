@@ -940,7 +940,7 @@ void brcmf_del_if(struct brcmf_info *drvr_priv, int ifidx)
 	}
 }
 
-struct brcmf_pub *brcmf_attach(struct brcmf_bus *bus, uint bus_hdrlen)
+struct brcmf_pub *brcmf_attach(struct brcmf_sdio *bus, uint bus_hdrlen)
 {
 	struct brcmf_info *drvr_priv = NULL;
 

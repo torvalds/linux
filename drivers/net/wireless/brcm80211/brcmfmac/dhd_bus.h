@@ -28,26 +28,26 @@
  */
 
 /* obtain linux device object providing bus function */
-extern struct device *brcmf_bus_get_device(struct brcmf_bus *bus);
+extern struct device *brcmf_bus_get_device(struct brcmf_sdio *bus);
 
 /* Stop bus module: clear pending frames, disable data flow */
-extern void brcmf_sdbrcm_bus_stop(struct brcmf_bus *bus);
+extern void brcmf_sdbrcm_bus_stop(struct brcmf_sdio *bus);
 
 /* Initialize bus module: prepare for communication w/dongle */
 extern int brcmf_sdbrcm_bus_init(struct brcmf_pub *drvr);
 
 /* Send a data frame to the dongle.  Callee disposes of txp. */
-extern int brcmf_sdbrcm_bus_txdata(struct brcmf_bus *bus, struct sk_buff *txp);
+extern int brcmf_sdbrcm_bus_txdata(struct brcmf_sdio *bus, struct sk_buff *txp);
 
 /* Send/receive a control message to/from the dongle.
  * Expects caller to enforce a single outstanding transaction.
  */
 extern int
-brcmf_sdbrcm_bus_txctl(struct brcmf_bus *bus, unsigned char *msg, uint msglen);
+brcmf_sdbrcm_bus_txctl(struct brcmf_sdio *bus, unsigned char *msg, uint msglen);
 
 extern int
-brcmf_sdbrcm_bus_rxctl(struct brcmf_bus *bus, unsigned char *msg, uint msglen);
+brcmf_sdbrcm_bus_rxctl(struct brcmf_sdio *bus, unsigned char *msg, uint msglen);
 
-extern void brcmf_sdbrcm_wd_timer(struct brcmf_bus *bus, uint wdtick);
+extern void brcmf_sdbrcm_wd_timer(struct brcmf_sdio *bus, uint wdtick);
 
 #endif				/* _BRCMF_BUS_H_ */
