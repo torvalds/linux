@@ -1200,11 +1200,12 @@ static int ath6kl_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 */
 static int ath6kl_cfg80211_set_txpower(struct wiphy *wiphy,
 				       enum nl80211_tx_power_setting type,
-				       int dbm)
+				       int mbm)
 {
 	struct ath6kl *ar = (struct ath6kl *)wiphy_priv(wiphy);
 	struct ath6kl_vif *vif;
 	u8 ath6kl_dbm;
+	int dbm = MBM_TO_DBM(mbm);
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: type 0x%x, dbm %d\n", __func__,
 		   type, dbm);
