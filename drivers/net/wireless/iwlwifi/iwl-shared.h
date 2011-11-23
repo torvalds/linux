@@ -199,66 +199,6 @@ struct iwl_hw_params {
 };
 
 /**
- * enum iwl_agg_state
- *
- * The state machine of the BA agreement establishment / tear down.
- * These states relate to a specific RA / TID.
- *
- * @IWL_AGG_OFF: aggregation is not used
- * @IWL_AGG_ON: aggregation session is up
- * @IWL_EMPTYING_HW_QUEUE_ADDBA: establishing a BA session - waiting for the
- *	HW queue to be empty from packets for this RA /TID.
- * @IWL_EMPTYING_HW_QUEUE_DELBA: tearing down a BA session - waiting for the
- *	HW queue to be empty from packets for this RA /TID.
- */
-enum iwl_agg_state {
-	IWL_AGG_OFF = 0,
-	IWL_AGG_ON,
-	IWL_EMPTYING_HW_QUEUE_ADDBA,
-	IWL_EMPTYING_HW_QUEUE_DELBA,
-};
-
-/**
- * struct iwl_ht_agg - aggregation state machine
-
- * This structs holds the states for the BA agreement establishment and tear
- * down. It also holds the state during the BA session itself. This struct is
- * duplicated for each RA / TID.
-
- * @rate_n_flags: Rate at which Tx was attempted. Holds the data between the
- *	Tx response (REPLY_TX), and the block ack notification
- *	(REPLY_COMPRESSED_BA).
- * @state: state of the BA agreement establishment / tear down.
- * @ssn: the first packet to be sent in AGG HW queue in Tx AGG start flow, or
- *	the first packet to be sent in legacy HW queue in Tx AGG stop flow.
- *	Basically when next_reclaimed reaches ssn, we can tell mac80211 that
- *	we are ready to finish the Tx AGG stop / start flow.
- * @wait_for_ba: Expect block-ack before next Tx reply
- */
-struct iwl_ht_agg {
-	u32 rate_n_flags;
-	enum iwl_agg_state state;
-	u16 ssn;
-	bool wait_for_ba;
-};
-
-/**
- * struct iwl_tid_data - one for each RA / TID
-
- * This structs holds the states for each RA / TID.
-
- * @seq_number: the next WiFi sequence number to use
- * @next_reclaimed: the WiFi sequence number of the next packet to be acked.
- *	This is basically (last acked packet++).
- * @agg: aggregation state machine
- */
-struct iwl_tid_data {
-	u16 seq_number;
-	u16 next_reclaimed;
-	struct iwl_ht_agg agg;
-};
-
-/**
  * enum iwl_ucode_type
  *
  * The type of ucode currently loaded on the hardware.
@@ -447,8 +387,6 @@ struct iwl_shared {
 	spinlock_t lock;
 	spinlock_t sta_lock;
 	struct mutex mutex;
-
-	struct iwl_tid_data tid_data[IWLAGN_STATION_COUNT][IWL_MAX_TID_COUNT];
 
 	wait_queue_head_t wait_command_queue;
 

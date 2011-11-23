@@ -375,7 +375,7 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 				"TID\tseq_num\trate_n_flags\n");
 
 		for (j = 0; j < IWL_MAX_TID_COUNT; j++) {
-			tid_data = &priv->shrd->tid_data[i][j];
+			tid_data = &priv->tid_data[i][j];
 			pos += scnprintf(buf + pos, bufsz - pos,
 				"%d:\t%#x\t%#x",
 				j, tid_data->seq_number,

@@ -1158,7 +1158,7 @@ int iwlagn_suspend(struct iwl_priv *priv,
 	 * since the uCode will add 0x10 before using the value.
 	 */
 	for (i = 0; i < IWL_MAX_TID_COUNT; i++) {
-		seq = priv->shrd->tid_data[IWL_AP_ID][i].seq_number;
+		seq = priv->tid_data[IWL_AP_ID][i].seq_number;
 		seq -= 0x10;
 		wakeup_filter_cmd.qos_seq[i] = cpu_to_le16(seq);
 	}

@@ -375,7 +375,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		tid = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
 		if (WARN_ON_ONCE(tid >= IWL_MAX_TID_COUNT))
 			goto drop_unlock_sta;
-		tid_data = &priv->shrd->tid_data[sta_id][tid];
+		tid_data = &priv->tid_data[sta_id][tid];
 
 		/* aggregation is on for this <sta,tid> */
 		if (info->flags & IEEE80211_TX_CTL_AMPDU &&
@@ -403,8 +403,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	if (ieee80211_is_data_qos(fc) && !ieee80211_is_qos_nullfunc(fc) &&
 	    !ieee80211_has_morefrags(fc))
-		priv->shrd->tid_data[sta_id][tid].seq_number =
-				seq_number;
+		priv->tid_data[sta_id][tid].seq_number = seq_number;
 
 	spin_unlock(&priv->shrd->sta_lock);
 	spin_unlock_irqrestore(&priv->shrd->lock, flags);
@@ -447,9 +446,9 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 
 	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
 
-	tid_data = &priv->shrd->tid_data[sta_id][tid];
+	tid_data = &priv->tid_data[sta_id][tid];
 
-	switch (priv->shrd->tid_data[sta_id][tid].agg.state) {
+	switch (priv->tid_data[sta_id][tid].agg.state) {
 	case IWL_EMPTYING_HW_QUEUE_ADDBA:
 		/*
 		* This can happen if the peer stops aggregation
@@ -464,7 +463,7 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	default:
 		IWL_WARN(priv, "Stopping AGG while state not ON "
 			 "or starting for %d on %d (%d)\n", sta_id, tid,
-			 priv->shrd->tid_data[sta_id][tid].agg.state);
+			 priv->tid_data[sta_id][tid].agg.state);
 		spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
 		return 0;
 	}
@@ -477,7 +476,7 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 				    "next_recl = %d",
 				    tid_data->agg.ssn,
 				    tid_data->next_reclaimed);
-		priv->shrd->tid_data[sta_id][tid].agg.state =
+		priv->tid_data[sta_id][tid].agg.state =
 			IWL_EMPTYING_HW_QUEUE_DELBA;
 		spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
 		return 0;
@@ -486,7 +485,7 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	IWL_DEBUG_TX_QUEUES(priv, "Can proceed: ssn = next_recl = %d",
 			    tid_data->agg.ssn);
 turn_off:
-	priv->shrd->tid_data[sta_id][tid].agg.state = IWL_AGG_OFF;
+	priv->tid_data[sta_id][tid].agg.state = IWL_AGG_OFF;
 
 	/* do not restore/save irqs */
 	spin_unlock(&priv->shrd->sta_lock);
@@ -521,7 +520,7 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	if (unlikely(tid >= IWL_MAX_TID_COUNT))
 		return -EINVAL;
 
-	if (priv->shrd->tid_data[sta_id][tid].agg.state != IWL_AGG_OFF) {
+	if (priv->tid_data[sta_id][tid].agg.state != IWL_AGG_OFF) {
 		IWL_ERR(priv, "Start AGG when state is not IWL_AGG_OFF !\n");
 		return -ENXIO;
 	}
@@ -532,7 +531,7 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 
 	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
 
-	tid_data = &priv->shrd->tid_data[sta_id][tid];
+	tid_data = &priv->tid_data[sta_id][tid];
 	tid_data->agg.ssn = SEQ_TO_SN(tid_data->seq_number);
 
 	*ssn = tid_data->agg.ssn;
@@ -573,7 +572,7 @@ int iwlagn_tx_agg_oper(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	buf_size = min_t(int, buf_size, LINK_QUAL_AGG_FRAME_LIMIT_DEF);
 
 	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
-	ssn = priv->shrd->tid_data[sta_priv->sta_id][tid].agg.ssn;
+	ssn = priv->tid_data[sta_priv->sta_id][tid].agg.ssn;
 	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
 
 	iwl_trans_tx_agg_setup(trans(priv), ctx->ctxid, sta_priv->sta_id, tid,
@@ -625,11 +624,11 @@ int iwlagn_tx_agg_oper(struct iwl_priv *priv, struct ieee80211_vif *vif,
 
 static void iwlagn_check_ratid_empty(struct iwl_priv *priv, int sta_id, u8 tid)
 {
-	struct iwl_tid_data *tid_data = &priv->shrd->tid_data[sta_id][tid];
+	struct iwl_tid_data *tid_data = &priv->tid_data[sta_id][tid];
 
 	lockdep_assert_held(&priv->shrd->sta_lock);
 
-	switch (priv->shrd->tid_data[sta_id][tid].agg.state) {
+	switch (priv->tid_data[sta_id][tid].agg.state) {
 	case IWL_EMPTYING_HW_QUEUE_DELBA:
 		/* There are no packets for this RA / TID in the HW any more */
 		if (tid_data->agg.ssn == tid_data->next_reclaimed) {
@@ -797,7 +796,7 @@ static void iwl_rx_reply_tx_agg(struct iwl_priv *priv,
 		IWLAGN_TX_RES_TID_POS;
 	int sta_id = (tx_resp->ra_tid & IWLAGN_TX_RES_RA_MSK) >>
 		IWLAGN_TX_RES_RA_POS;
-	struct iwl_ht_agg *agg = &priv->shrd->tid_data[sta_id][tid].agg;
+	struct iwl_ht_agg *agg = &priv->tid_data[sta_id][tid].agg;
 	u32 status = le16_to_cpu(tx_resp->status.status);
 	int i;
 
@@ -1028,8 +1027,7 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
 		}
 
 		__skb_queue_head_init(&skbs);
-		priv->shrd->tid_data[sta_id][tid].next_reclaimed =
-			next_reclaimed;
+		priv->tid_data[sta_id][tid].next_reclaimed = next_reclaimed;
 
 		IWL_DEBUG_TX_REPLY(priv, "Next reclaimed packet:%d",
 					  next_reclaimed);
@@ -1132,7 +1130,7 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 
 	sta_id = ba_resp->sta_id;
 	tid = ba_resp->tid;
-	agg = &priv->shrd->tid_data[sta_id][tid].agg;
+	agg = &priv->tid_data[sta_id][tid].agg;
 
 	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
 
@@ -1182,7 +1180,7 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 	IWL_DEBUG_HT(priv, "agg frames sent:%d, acked:%d\n",
 			ba_resp->txed, ba_resp->txed_2_done);
 
-	priv->shrd->tid_data[sta_id][tid].next_reclaimed = ba_resp_scd_ssn;
+	priv->tid_data[sta_id][tid].next_reclaimed = ba_resp_scd_ssn;
 
 	iwlagn_check_ratid_empty(priv, sta_id, tid);
 	freed = 0;

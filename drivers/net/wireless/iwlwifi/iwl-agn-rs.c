@@ -2273,7 +2273,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	tid = rs_tl_add_packet(lq_sta, hdr);
 	if ((tid != IWL_MAX_TID_COUNT) &&
 	    (lq_sta->tx_agg_tid_en & (1 << tid))) {
-		tid_data = &priv->shrd->tid_data[lq_sta->lq.sta_id][tid];
+		tid_data = &priv->tid_data[lq_sta->lq.sta_id][tid];
 		if (tid_data->agg.state == IWL_AGG_OFF)
 			lq_sta->is_agg = 0;
 		else
@@ -2645,8 +2645,7 @@ lq_update:
 			    (lq_sta->tx_agg_tid_en & (1 << tid)) &&
 			    (tid != IWL_MAX_TID_COUNT)) {
 				u8 sta_id = lq_sta->lq.sta_id;
-				tid_data =
-				   &priv->shrd->tid_data[sta_id][tid];
+				tid_data = &priv->tid_data[sta_id][tid];
 				if (tid_data->agg.state == IWL_AGG_OFF) {
 					IWL_DEBUG_RATE(priv,
 						       "try to aggregate tid %d\n",
