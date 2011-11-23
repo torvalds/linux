@@ -103,13 +103,19 @@
  * @IWL_TM_CMD_DEV2APP_EEPROM_RSP:
  *	commands from kernel space to carry the eeprom response
  *	to user application
+ *
  * @IWL_TM_CMD_APP2DEV_OWNERSHIP:
  *	commands from user application to own change the ownership of the uCode
  *	if application has the ownership, the only host command from
  *	testmode will deliver to uCode. Default owner is driver
+ *
  * @IWL_TM_CMD_APP2DEV_INDIRECT_REG_READ32:
  * @IWL_TM_CMD_APP2DEV_INDIRECT_REG_WRITE32:
  *	commands from user applicaiton to indirectly access peripheral register
+ *
+ * @IWL_TM_CMD_APP2DEV_READ_SRAM:
+ * @IWL_TM_CMD_APP2DEV_DUMP_SRAM:
+ *	commands from user applicaiton to read data in sram
  *
  */
 enum iwl_tm_cmd_t {
@@ -132,7 +138,9 @@ enum iwl_tm_cmd_t {
 	IWL_TM_CMD_APP2DEV_OWNERSHIP		= 17,
 	IWL_TM_CMD_APP2DEV_INDIRECT_REG_READ32	= 18,
 	IWL_TM_CMD_APP2DEV_INDIRECT_REG_WRITE32	= 19,
-	IWL_TM_CMD_MAX				= 20,
+	IWL_TM_CMD_APP2DEV_READ_SRAM		= 20,
+	IWL_TM_CMD_APP2DEV_DUMP_SRAM		= 21,
+	IWL_TM_CMD_MAX				= 22,
 };
 
 /*
@@ -202,6 +210,18 @@ enum iwl_tm_cmd_t {
  *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_OWNERSHIP,
  *	The mandatory fields are:
  *	IWL_TM_ATTR_UCODE_OWNER for the new owner
+ *
+ * @IWL_TM_ATTR_SRAM_ADDR:
+ * @IWL_TM_ATTR_SRAM_SIZE:
+ *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_READ_SRAM,
+ *	The mandatory fields are:
+ *	IWL_TM_ATTR_SRAM_ADDR for the address in sram
+ *	IWL_TM_ATTR_SRAM_SIZE for the buffer size of data reading
+ *
+ * @IWL_TM_ATTR_SRAM_DUMP:
+ *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_DUMP_SRAM,
+ *	IWL_TM_ATTR_SRAM_DUMP for the data in sram
+ *
  */
 enum iwl_tm_attr_t {
 	IWL_TM_ATTR_NOT_APPLICABLE		= 0,
@@ -219,7 +239,10 @@ enum iwl_tm_attr_t {
 	IWL_TM_ATTR_TRACE_DUMP			= 12,
 	IWL_TM_ATTR_FIXRATE			= 13,
 	IWL_TM_ATTR_UCODE_OWNER			= 14,
-	IWL_TM_ATTR_MAX				= 15,
+	IWL_TM_ATTR_SRAM_ADDR			= 15,
+	IWL_TM_ATTR_SRAM_SIZE			= 16,
+	IWL_TM_ATTR_SRAM_DUMP			= 17,
+	IWL_TM_ATTR_MAX				= 18,
 };
 
 /* uCode trace buffer */

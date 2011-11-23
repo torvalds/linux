@@ -106,6 +106,10 @@ struct nla_policy iwl_testmode_gnl_msg_policy[IWL_TM_ATTR_MAX] = {
 	[IWL_TM_ATTR_FIXRATE] = { .type = NLA_U32, },
 
 	[IWL_TM_ATTR_UCODE_OWNER] = { .type = NLA_U8, },
+
+	[IWL_TM_ATTR_SRAM_ADDR] = { .type = NLA_U32, },
+	[IWL_TM_ATTR_SRAM_SIZE] = { .type = NLA_U32, },
+	[IWL_TM_ATTR_SRAM_DUMP] = { .type = NLA_UNSPEC, },
 };
 
 /*
@@ -177,6 +181,18 @@ void iwl_testmode_init(struct iwl_priv *priv)
 {
 	priv->pre_rx_handler = iwl_testmode_ucode_rx_pkt;
 	priv->testmode_trace.trace_enabled = false;
+	priv->testmode_sram.sram_readed = false;
+}
+
+void iwl_sram_cleanup(struct iwl_priv *priv)
+{
+	if (priv->testmode_sram.sram_readed) {
+		kfree(priv->testmode_sram.buff_addr);
+		priv->testmode_sram.buff_addr = NULL;
+		priv->testmode_sram.buff_size = 0;
+		priv->testmode_sram.num_chunks = 0;
+		priv->testmode_sram.sram_readed = false;
+	}
 }
 
 static void iwl_trace_cleanup(struct iwl_priv *priv)
@@ -201,6 +217,7 @@ static void iwl_trace_cleanup(struct iwl_priv *priv)
 void iwl_testmode_cleanup(struct iwl_priv *priv)
 {
 	iwl_trace_cleanup(priv);
+	iwl_sram_cleanup(priv);
 }
 
 /*
@@ -644,6 +661,89 @@ static int iwl_testmode_ownership(struct ieee80211_hw *hw, struct nlattr **tb)
 	return 0;
 }
 
+/*
+ * This function handles the user application commands for SRAM data dump
+ *
+ * It retrieves the mandatory fields IWL_TM_ATTR_SRAM_ADDR and
+ * IWL_TM_ATTR_SRAM_SIZE to decide the memory area for SRAM data reading
+ *
+ * Several error will be retured, -EBUSY if the SRAM data retrieved by
+ * previous command has not been delivered to userspace, or -ENOMSG if
+ * the mandatory fields (IWL_TM_ATTR_SRAM_ADDR,IWL_TM_ATTR_SRAM_SIZE)
+ * are missing, or -ENOMEM if the buffer allocation fails.
+ *
+ * Otherwise 0 is replied indicating the success of the SRAM reading.
+ *
+ * @hw: ieee80211_hw object that represents the device
+ * @tb: gnl message fields from the user space
+ */
+static int iwl_testmode_sram(struct ieee80211_hw *hw, struct nlattr **tb)
+{
+	struct iwl_priv *priv = hw->priv;
+	u32 base, ofs, size;
+
+	if (priv->testmode_sram.sram_readed)
+		return -EBUSY;
+
+	if (!tb[IWL_TM_ATTR_SRAM_ADDR]) {
+		IWL_DEBUG_INFO(priv, "Error finding SRAM offset address\n");
+		return -ENOMSG;
+	}
+	ofs = nla_get_u32(tb[IWL_TM_ATTR_SRAM_ADDR]);
+	if (!tb[IWL_TM_ATTR_SRAM_SIZE]) {
+		IWL_DEBUG_INFO(priv, "Error finding size for SRAM reading\n");
+		return -ENOMSG;
+	}
+	size = nla_get_u32(tb[IWL_TM_ATTR_SRAM_SIZE]);
+	priv->testmode_sram.buff_size = (size / 4) * 4;
+	priv->testmode_sram.buff_addr =
+		kmalloc(priv->testmode_sram.buff_size, GFP_KERNEL);
+	if (priv->testmode_sram.buff_addr == NULL) {
+		IWL_DEBUG_INFO(priv, "Error allocating memory\n");
+		return -ENOMEM;
+	}
+	base = 0x800000;
+	_iwl_read_targ_mem_words(bus(priv), base + ofs,
+					priv->testmode_sram.buff_addr,
+					priv->testmode_sram.buff_size / 4);
+	priv->testmode_sram.num_chunks =
+		DIV_ROUND_UP(priv->testmode_sram.buff_size, TRACE_CHUNK_SIZE);
+	priv->testmode_sram.sram_readed = true;
+	return 0;
+}
+
+static int iwl_testmode_sram_dump(struct ieee80211_hw *hw, struct nlattr **tb,
+				   struct sk_buff *skb,
+				   struct netlink_callback *cb)
+{
+	struct iwl_priv *priv = hw->priv;
+	int idx, length;
+
+	if (priv->testmode_sram.sram_readed) {
+		idx = cb->args[4];
+		if (idx >= priv->testmode_sram.num_chunks) {
+			iwl_sram_cleanup(priv);
+			return -ENOENT;
+		}
+		length = TRACE_CHUNK_SIZE;
+		if (((idx + 1) == priv->testmode_sram.num_chunks) &&
+		    (priv->testmode_sram.buff_size % TRACE_CHUNK_SIZE))
+			length = priv->testmode_sram.buff_size %
+				TRACE_CHUNK_SIZE;
+
+		NLA_PUT(skb, IWL_TM_ATTR_SRAM_DUMP, length,
+			priv->testmode_sram.buff_addr +
+			(TRACE_CHUNK_SIZE * idx));
+		idx++;
+		cb->args[4] = idx;
+		return 0;
+	} else
+		return -EFAULT;
+
+ nla_put_failure:
+	return -ENOBUFS;
+}
+
 
 /* The testmode gnl message handler that takes the gnl message from the
  * user space and parses it per the policy iwl_testmode_gnl_msg_policy, then
@@ -721,6 +821,11 @@ int iwlagn_mac_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
 		result = iwl_testmode_ownership(hw, tb);
 		break;
 
+	case IWL_TM_CMD_APP2DEV_READ_SRAM:
+		IWL_DEBUG_INFO(priv, "testmode sram read cmd to driver\n");
+		result = iwl_testmode_sram(hw, tb);
+		break;
+
 	default:
 		IWL_DEBUG_INFO(priv, "Unknown testmode command\n");
 		result = -ENOSYS;
@@ -768,6 +873,10 @@ int iwlagn_mac_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *skb,
 	case IWL_TM_CMD_APP2DEV_READ_TRACE:
 		IWL_DEBUG_INFO(priv, "uCode trace cmd to driver\n");
 		result = iwl_testmode_trace_dump(hw, tb, skb, cb);
+		break;
+	case IWL_TM_CMD_APP2DEV_DUMP_SRAM:
+		IWL_DEBUG_INFO(priv, "testmode sram dump cmd to driver\n");
+		result = iwl_testmode_sram_dump(hw, tb, skb, cb);
 		break;
 	default:
 		result = -EINVAL;
