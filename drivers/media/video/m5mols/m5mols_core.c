@@ -834,7 +834,7 @@ static int m5mols_init_controls(struct m5mols_info *info)
 			4, (1 << V4L2_COLORFX_BW), V4L2_COLORFX_NONE);
 	info->autoexposure = v4l2_ctrl_new_std_menu(&info->handle,
 			&m5mols_ctrl_ops, V4L2_CID_EXPOSURE_AUTO,
-			1, 0, V4L2_EXPOSURE_MANUAL);
+			1, 0, V4L2_EXPOSURE_AUTO);
 
 	sd->ctrl_handler = &info->handle;
 	if (info->handle.error) {
