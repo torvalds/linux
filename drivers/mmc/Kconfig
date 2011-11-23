@@ -26,6 +26,7 @@ source "drivers/mmc/core/Kconfig"
 source "drivers/mmc/card/Kconfig"
 
 #source "drivers/mmc/host/Kconfig"
+source "drivers/mmc/mmc-pm/Kconfig"
 source "drivers/mmc/sunxi-host/Kconfig"
 
 endif # MMC
