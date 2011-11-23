@@ -371,7 +371,8 @@ static void ehea_update_stats(struct work_struct *work)
 out_herr:
 	free_page((unsigned long)cb2);
 resched:
-	schedule_delayed_work(&port->stats_work, msecs_to_jiffies(1000));
+	schedule_delayed_work(&port->stats_work,
+			      round_jiffies_relative(msecs_to_jiffies(1000)));
 }
 
 static void ehea_refill_rq1(struct ehea_port_res *pr, int index, int nr_of_wqes)
@@ -2434,7 +2435,8 @@ static int ehea_open(struct net_device *dev)
 	}
 
 	mutex_unlock(&port->port_lock);
-	schedule_delayed_work(&port->stats_work, msecs_to_jiffies(1000));
+	schedule_delayed_work(&port->stats_work,
+			      round_jiffies_relative(msecs_to_jiffies(1000)));
 
 	return ret;
 }
