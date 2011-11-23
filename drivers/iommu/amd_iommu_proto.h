@@ -46,6 +46,7 @@ extern int amd_iommu_flush_tlb(struct iommu_domain *dom, int pasid);
 extern int amd_iommu_domain_set_gcr3(struct iommu_domain *dom, int pasid,
 				     unsigned long cr3);
 extern int amd_iommu_domain_clear_gcr3(struct iommu_domain *dom, int pasid);
+extern struct iommu_domain *amd_iommu_get_v2_domain(struct pci_dev *pdev);
 
 #define PPR_SUCCESS			0x0
 #define PPR_INVALID			0x1

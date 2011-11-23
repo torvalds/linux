@@ -360,6 +360,8 @@ struct amd_iommu_fault {
 #define PPR_FAULT_RSVD  (1 << 7)
 #define PPR_FAULT_GN    (1 << 8)
 
+struct iommu_domain;
+
 /*
  * This structure contains generic data for  IOMMU protection domains
  * independent of their use.
@@ -379,6 +381,8 @@ struct protection_domain {
 	unsigned dev_cnt;	/* devices assigned to this domain */
 	unsigned dev_iommu[MAX_IOMMUS]; /* per-IOMMU reference count */
 	void *priv;		/* private data */
+	struct iommu_domain *iommu_domain; /* Pointer to generic
+					      domain structure */
 
 };
 
