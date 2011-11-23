@@ -937,7 +937,6 @@ void schedule_ptds(struct usb_hcd *hcd)
 	struct isp1760_hcd *priv;
 	struct isp1760_qh *qh, *qh_next;
 	struct list_head *ep_queue;
-	struct usb_host_endpoint *ep;
 	LIST_HEAD(urb_list);
 	struct urb_listitem *urb_listitem, *urb_listitem_next;
 	int i;
@@ -955,17 +954,9 @@ void schedule_ptds(struct usb_hcd *hcd)
 	for (i = 0; i < QH_END; i++) {
 		ep_queue = &priv->qh_list[i];
 		list_for_each_entry_safe(qh, qh_next, ep_queue, qh_list) {
-			ep = list_entry(qh->qtd_list.next, struct isp1760_qtd,
-							qtd_list)->urb->ep;
 			collect_qtds(hcd, qh, &urb_list);
-			if (list_empty(&qh->qtd_list)) {
+			if (list_empty(&qh->qtd_list))
 				list_del(&qh->qh_list);
-				if (ep->hcpriv == NULL) {
-					/* Endpoint has been disabled, so we
-					can free the associated queue head. */
-					qh_free(qh);
-				}
-			}
 		}
 	}
 
@@ -1708,8 +1699,8 @@ static void isp1760_endpoint_disable(struct usb_hcd *hcd,
 {
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
 	unsigned long spinflags;
-	struct isp1760_qh *qh;
-	struct isp1760_qtd *qtd;
+	struct isp1760_qh *qh, *qh_iter;
+	int i;
 
 	spin_lock_irqsave(&priv->lock, spinflags);
 
@@ -1717,14 +1708,17 @@ static void isp1760_endpoint_disable(struct usb_hcd *hcd,
 	if (!qh)
 		goto out;
 
-	list_for_each_entry(qtd, &qh->qtd_list, qtd_list)
-		if (qtd->status != QTD_RETIRE) {
-			dequeue_urb_from_qtd(hcd, qh, qtd);
-			qtd->urb->status = -ECONNRESET;
-		}
+	WARN_ON(!list_empty(&qh->qtd_list));
 
+	for (i = 0; i < QH_END; i++)
+		list_for_each_entry(qh_iter, &priv->qh_list[i], qh_list)
+			if (qh_iter == qh) {
+				list_del(&qh_iter->qh_list);
+				i = QH_END;
+				break;
+			}
+	qh_free(qh);
 	ep->hcpriv = NULL;
-	/* Cannot free qh here since it will be parsed by schedule_ptds() */
 
 	schedule_ptds(hcd);
 
