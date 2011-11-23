@@ -164,16 +164,13 @@ notrace void arch_local_irq_restore(unsigned long en)
 	 */
 	local_paca->hard_enabled = en;
 
-#ifndef CONFIG_BOOKE
-	/* On server, re-trigger the decrementer if it went negative since
-	 * some processors only trigger on edge transitions of the sign bit.
-	 *
-	 * BookE has a level sensitive decrementer (latches in TSR) so we
-	 * don't need that
+	/*
+	 * Trigger the decrementer if we have a pending event. Some processors
+	 * only trigger on edge transitions of the sign bit. We might also
+	 * have disabled interrupts long enough that the decrementer wrapped
+	 * to positive.
 	 */
-	if ((int)mfspr(SPRN_DEC) < 0)
-		mtspr(SPRN_DEC, 1);
-#endif /* CONFIG_BOOKE */
+	decrementer_check_overflow();
 
 	/*
 	 * Force the delivery of pending soft-disabled interrupts on PS3.
