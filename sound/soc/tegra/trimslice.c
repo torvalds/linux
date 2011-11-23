@@ -119,7 +119,6 @@ static int trimslice_asoc_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_card *card = codec->card;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
 
 	ret = tegra_das_connect_dap_to_dac(TEGRA_DAS_DAP_ID_1,
@@ -134,10 +133,6 @@ static int trimslice_asoc_init(struct snd_soc_pcm_runtime *rtd)
 		dev_err(card->dev, "Can't set up DAS DAC connection\n");
 		return ret;
 	}
-
-	snd_soc_dapm_nc_pin(dapm, "LHPOUT");
-	snd_soc_dapm_nc_pin(dapm, "RHPOUT");
-	snd_soc_dapm_nc_pin(dapm, "MICIN");
 
 	return 0;
 }
@@ -162,6 +157,7 @@ static struct snd_soc_card snd_soc_trimslice = {
 	.num_dapm_widgets = ARRAY_SIZE(trimslice_dapm_widgets),
 	.dapm_routes = trimslice_audio_map,
 	.num_dapm_routes = ARRAY_SIZE(trimslice_audio_map),
+	.fully_routed = true,
 };
 
 static __devinit int tegra_snd_trimslice_probe(struct platform_device *pdev)
