@@ -802,27 +802,36 @@ cntrlEnd:
 		}
 
 		/* Copy Ioctl Buffer structure */
-		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER))) {
+			up(&Adapter->fw_download_sema);
 			return -EFAULT;
+		}
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
 				"Length for FW DLD is : %lx\n", IoBuffer.InputLength);
 
-		if (IoBuffer.InputLength > sizeof(FIRMWARE_INFO))
+		if (IoBuffer.InputLength > sizeof(FIRMWARE_INFO)) {
+			up(&Adapter->fw_download_sema);
 			return -EINVAL;
+		}
 
 		psFwInfo = kmalloc(sizeof(*psFwInfo), GFP_KERNEL);
-		if (!psFwInfo)
+		if (!psFwInfo) {
+			up(&Adapter->fw_download_sema);
 			return -ENOMEM;
+		}
 
-		if (copy_from_user(psFwInfo, IoBuffer.InputBuffer, IoBuffer.InputLength))
+		if (copy_from_user(psFwInfo, IoBuffer.InputBuffer, IoBuffer.InputLength)) {
+			up(&Adapter->fw_download_sema);
 			return -EFAULT;
+		}
 
 		if (!psFwInfo->pvMappedFirmwareAddress ||
 			(psFwInfo->u32FirmwareLength == 0)) {
 
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Something else is wrong %lu\n",
 					psFwInfo->u32FirmwareLength);
+			up(&Adapter->fw_download_sema);
 			Status = -EINVAL;
 			break;
 		}
