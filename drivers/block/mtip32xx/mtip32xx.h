@@ -47,11 +47,11 @@
 
 /* ftl rebuild */
 #define MTIP_FTL_REBUILD_OFFSET		142
-#define MTIP_FTL_REBUILD_MAGIC		0xed51
+#define MTIP_FTL_REBUILD_MAGIC		0xED51
 #define MTIP_FTL_REBUILD_TIMEOUT_MS	2400000
 
 /* Macro to extract the tag bit number from a tag value. */
-#define MTIP_TAG_BIT(tag)	(tag & 0x1f)
+#define MTIP_TAG_BIT(tag)	(tag & 0x1F)
 
 /*
  * Macro to extract the tag index from a tag value. The index
@@ -81,7 +81,7 @@
 
 /* Driver name and version strings */
 #define MTIP_DRV_NAME		"mtip32xx"
-#define MTIP_DRV_VERSION	"1.2.6os2"
+#define MTIP_DRV_VERSION	"1.2.6os3"
 
 /* Maximum number of minor device numbers per device. */
 #define MTIP_MAX_MINORS		16
@@ -113,6 +113,15 @@
 #else
  #define dbg_printk(format, arg...)
 #endif
+
+#define __force_bit2int (unsigned int __force)
+
+/* below are bit numbers in 'flags' defined in mtip_port */
+#define MTIP_FLAG_IC_ACTIVE_BIT			0
+#define MTIP_FLAG_EH_ACTIVE_BIT			1
+#define MTIP_FLAG_SVC_THD_ACTIVE_BIT		2
+#define MTIP_FLAG_ISSUE_CMDS_BIT		4
+#define MTIP_FLAG_SVC_THD_SHOULD_STOP_BIT	8
 
 /* Register Frame Information Structure (FIS), host to device. */
 struct host_to_dev_fis {
@@ -262,7 +271,7 @@ struct mtip_cmd {
 
 	unsigned long comp_time; /* command completion time, in jiffies */
 
-	atomic_t active; /* declares if this command sent to the drive.  */
+	atomic_t active; /* declares if this command sent to the drive. */
 };
 
 /* Structure used to describe a port. */
@@ -278,7 +287,7 @@ struct mtip_port {
 	void __iomem *mmio;
 	/* Array of pointers to the memory mapped s_active registers. */
 	void __iomem *s_active[MTIP_MAX_SLOT_GROUPS];
-	/* Array of pointers to the memory mapped completed registers.  */
+	/* Array of pointers to the memory mapped completed registers. */
 	void __iomem *completed[MTIP_MAX_SLOT_GROUPS];
 	/* Array of pointers to the memory mapped Command Issue registers. */
 	void __iomem *cmd_issue[MTIP_MAX_SLOT_GROUPS];
@@ -340,13 +349,23 @@ struct mtip_port {
 	 */
 	unsigned long allocated[SLOTBITS_IN_LONGS];
 	/*
+	 * used to queue commands when an internal command is in progress
+	 * or error handling is active
+	 */
+	unsigned long cmds_to_issue[SLOTBITS_IN_LONGS];
+	/*
 	 * Array of command slots. Structure includes pointers to the
 	 * command header and command table, and completion function and data
 	 * pointers.
 	 */
 	struct mtip_cmd commands[MTIP_MAX_COMMAND_SLOTS];
-	/* Non-zero if an internal command is in progress. */
-	int internal_cmd_in_progress;
+	/* Used by mtip_service_thread to wait for an event */
+	wait_queue_head_t svc_wait;
+	/*
+	 * indicates the state of the port. Also, helps the service thread
+	 * to determine its action on wake up.
+	 */
+	unsigned long flags;
 	/*
 	 * Timer used to complete commands that have been active for too long.
 	 */
@@ -372,18 +391,11 @@ struct driver_data {
 
 	int instance; /* Instance number. First device probed is 0, ... */
 
-	int protocol; /* FIXME: Protocol ops array index. */
-
 	struct gendisk *disk; /* Pointer to our gendisk structure. */
 
 	struct pci_dev *pdev; /* Pointer to the PCI device structure. */
 
 	struct request_queue *queue; /* Our request queue. */
-	/*
-	 * Semaphore used to lock out read/write commands during the
-	 * execution of an internal command.
-	 */
-	struct rw_semaphore internal_sem;
 
 	struct mtip_port *port; /* Pointer to the port data structure. */
 
@@ -403,6 +415,8 @@ struct driver_data {
 	atomic_t resumeflag; /* Atomic variable to track suspend/resume */
 
 	atomic_t eh_active; /* Flag for error handling tracking */
+
+	struct task_struct *mtip_svc_handler; /* task_struct of svc thd */
 };
 
 #endif
