@@ -2384,7 +2384,9 @@ static unsigned int xfrm_default_advmss(const struct dst_entry *dst)
 
 static unsigned int xfrm_mtu(const struct dst_entry *dst)
 {
-	return dst_mtu(dst->path);
+	unsigned int mtu = dst_metric_raw(dst, RTAX_MTU);
+
+	return mtu ? : dst_mtu(dst->path);
 }
 
 static struct neighbour *xfrm_neigh_lookup(const struct dst_entry *dst, const void *daddr)

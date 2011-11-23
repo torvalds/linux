@@ -827,7 +827,9 @@ static unsigned int dn_dst_default_advmss(const struct dst_entry *dst)
 
 static unsigned int dn_dst_mtu(const struct dst_entry *dst)
 {
-	return dst->dev->mtu;
+	unsigned int mtu = dst_metric_raw(dst, RTAX_MTU);
+
+	return mtu ? : dst->dev->mtu;
 }
 
 static struct neighbour *dn_dst_neigh_lookup(const struct dst_entry *dst, const void *daddr)

@@ -157,7 +157,9 @@ static struct dst_ops ip6_dst_ops_template = {
 
 static unsigned int ip6_blackhole_mtu(const struct dst_entry *dst)
 {
-	return dst->dev->mtu;
+	unsigned int mtu = dst_metric_raw(dst, RTAX_MTU);
+
+	return mtu ? : dst->dev->mtu;
 }
 
 static void ip6_rt_blackhole_update_pmtu(struct dst_entry *dst, u32 mtu)
@@ -1043,8 +1045,13 @@ static unsigned int ip6_default_advmss(const struct dst_entry *dst)
 
 static unsigned int ip6_mtu(const struct dst_entry *dst)
 {
-	unsigned int mtu = IPV6_MIN_MTU;
 	struct inet6_dev *idev;
+	unsigned int mtu = dst_metric_raw(dst, RTAX_MTU);
+
+	if (mtu)
+		return mtu;
+
+	mtu = IPV6_MIN_MTU;
 
 	rcu_read_lock();
 	idev = __in6_dev_get(dst->dev);
