@@ -67,6 +67,7 @@ struct gpio_bank {
 	struct clk *dbck;
 	u32 mod_usage;
 	u32 dbck_enable_mask;
+	bool dbck_enabled;
 	struct device *dev;
 	bool is_mpuio;
 	bool dbck_flag;
@@ -156,6 +157,22 @@ static inline void _gpio_rmw(void __iomem *base, u32 reg, u32 mask, bool set)
 		l &= ~mask;
 
 	__raw_writel(l, base + reg);
+}
+
+static inline void _gpio_dbck_enable(struct gpio_bank *bank)
+{
+	if (bank->dbck_enable_mask && !bank->dbck_enabled) {
+		clk_enable(bank->dbck);
+		bank->dbck_enabled = true;
+	}
+}
+
+static inline void _gpio_dbck_disable(struct gpio_bank *bank)
+{
+	if (bank->dbck_enable_mask && bank->dbck_enabled) {
+		clk_disable(bank->dbck);
+		bank->dbck_enabled = false;
+	}
 }
 
 /**
@@ -1178,6 +1195,7 @@ save_gpio_context:
 				bank->get_context_loss_count(bank->dev);
 
 	omap_gpio_save_context(bank);
+	_gpio_dbck_disable(bank);
 	spin_unlock_irqrestore(&bank->lock, flags);
 
 	return 0;
@@ -1192,6 +1210,7 @@ static int omap_gpio_runtime_resume(struct device *dev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&bank->lock, flags);
+	_gpio_dbck_enable(bank);
 	if (!bank->enabled_non_wakeup_gpios || !bank->workaround_enabled) {
 		spin_unlock_irqrestore(&bank->lock, flags);
 		return 0;
@@ -1274,15 +1293,10 @@ void omap2_gpio_prepare_for_idle(int pwr_mode)
 	struct gpio_bank *bank;
 
 	list_for_each_entry(bank, &omap_gpio_list, node) {
-		int j;
-
 		if (!bank->mod_usage || !bank->loses_context)
 			continue;
 
 		bank->power_mode = pwr_mode;
-
-		for (j = 0; j < hweight_long(bank->dbck_enable_mask); j++)
-			clk_disable(bank->dbck);
 
 		pm_runtime_put_sync_suspend(bank->dev);
 	}
@@ -1293,13 +1307,8 @@ void omap2_gpio_resume_after_idle(void)
 	struct gpio_bank *bank;
 
 	list_for_each_entry(bank, &omap_gpio_list, node) {
-		int j;
-
 		if (!bank->mod_usage || !bank->loses_context)
 			continue;
-
-		for (j = 0; j < hweight_long(bank->dbck_enable_mask); j++)
-			clk_enable(bank->dbck);
 
 		pm_runtime_get_sync(bank->dev);
 	}
