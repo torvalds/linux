@@ -280,7 +280,7 @@ brcmf_proto_dcmd(struct brcmf_pub *drvr, int ifidx, struct brcmf_dcmd *dcmd,
 	struct brcmf_proto *prot = drvr->prot;
 	int ret = -1;
 
-	if (drvr->busstate == BRCMF_BUS_DOWN) {
+	if (drvr->bus_if->state == BRCMF_BUS_DOWN) {
 		brcmf_dbg(ERROR, "bus is down. we have nothing to do.\n");
 		return ret;
 	}

@@ -1068,7 +1068,7 @@ static void brcmf_sdbrcm_rxfail(struct brcmf_sdio *bus, bool abort, bool rtx)
 
 	/* If we can't reach the device, signal failure */
 	if (err || brcmf_sdcard_regfail(bus->sdiodev))
-		bus->drvr->busstate = BRCMF_BUS_DOWN;
+		bus->drvr->bus_if->state = BRCMF_BUS_DOWN;
 }
 
 /* copy a buffer into a pkt buffer chain */
@@ -1714,7 +1714,8 @@ brcmf_sdbrcm_readframes(struct brcmf_sdio *bus, uint maxframes, bool *finished)
 	*finished = false;
 
 	for (rxseq = bus->rx_seq, rxleft = maxframes;
-	     !bus->rxskip && rxleft && bus->drvr->busstate != BRCMF_BUS_DOWN;
+	     !bus->rxskip && rxleft &&
+	     bus->drvr->bus_if->state != BRCMF_BUS_DOWN;
 	     rxseq++, rxleft--) {
 
 		/* Handle glomming separately */
@@ -2286,7 +2287,7 @@ static uint brcmf_sdbrcm_sendfromq(struct brcmf_sdio *bus, uint maxframes)
 	}
 
 	/* Deflow-control stack if needed */
-	if (drvr->up && (drvr->busstate == BRCMF_BUS_DATA) &&
+	if (drvr->up && (drvr->bus_if->state == BRCMF_BUS_DATA) &&
 	    drvr->txoff && (pktq_len(&bus->txq) < TXLOW))
 		brcmf_txflowcontrol(drvr, 0, OFF);
 
@@ -2321,7 +2322,7 @@ static bool brcmf_sdbrcm_dpc(struct brcmf_sdio *bus)
 					       SBSDIO_DEVICE_CTL, &err);
 		if (err) {
 			brcmf_dbg(ERROR, "error reading DEVCTL: %d\n", err);
-			bus->drvr->busstate = BRCMF_BUS_DOWN;
+			bus->drvr->bus_if->state = BRCMF_BUS_DOWN;
 		}
 #endif				/* BCMDBG */
 
@@ -2331,7 +2332,7 @@ static bool brcmf_sdbrcm_dpc(struct brcmf_sdio *bus)
 		if (err) {
 			brcmf_dbg(ERROR, "error reading CSR: %d\n",
 				  err);
-			bus->drvr->busstate = BRCMF_BUS_DOWN;
+			bus->drvr->bus_if->state = BRCMF_BUS_DOWN;
 		}
 
 		brcmf_dbg(INFO, "DPC: PENDING, devctl 0x%02x clkctl 0x%02x\n",
@@ -2344,7 +2345,7 @@ static bool brcmf_sdbrcm_dpc(struct brcmf_sdio *bus)
 			if (err) {
 				brcmf_dbg(ERROR, "error reading DEVCTL: %d\n",
 					  err);
-				bus->drvr->busstate = BRCMF_BUS_DOWN;
+				bus->drvr->bus_if->state = BRCMF_BUS_DOWN;
 			}
 			devctl &= ~SBSDIO_DEVCTL_CA_INT_ONLY;
 			brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
@@ -2352,7 +2353,7 @@ static bool brcmf_sdbrcm_dpc(struct brcmf_sdio *bus)
 			if (err) {
 				brcmf_dbg(ERROR, "error writing DEVCTL: %d\n",
 					  err);
-				bus->drvr->busstate = BRCMF_BUS_DOWN;
+				bus->drvr->bus_if->state = BRCMF_BUS_DOWN;
 			}
 			bus->clkstate = CLK_AVAIL;
 		} else {
@@ -2508,11 +2509,11 @@ clkwait:
 		 else await next interrupt */
 	/* On failed register access, all bets are off:
 		 no resched or interrupts */
-	if ((bus->drvr->busstate == BRCMF_BUS_DOWN) ||
+	if ((bus->drvr->bus_if->state == BRCMF_BUS_DOWN) ||
 	    brcmf_sdcard_regfail(bus->sdiodev)) {
 		brcmf_dbg(ERROR, "failed backplane access over SDIO, halting operation %d\n",
 			  brcmf_sdcard_regfail(bus->sdiodev));
-		bus->drvr->busstate = BRCMF_BUS_DOWN;
+		bus->drvr->bus_if->state = BRCMF_BUS_DOWN;
 		bus->intstatus = 0;
 	} else if (bus->clkstate == CLK_PENDING) {
 		brcmf_dbg(INFO, "rescheduled due to CLK_PENDING awaiting I_CHIPACTIVE interrupt\n");
@@ -2549,7 +2550,7 @@ static int brcmf_sdbrcm_dpc_thread(void *data)
 		if (!wait_for_completion_interruptible(&bus->dpc_wait)) {
 			/* Call bus dpc unless it indicated down
 			(then clean stop) */
-			if (bus->drvr->busstate != BRCMF_BUS_DOWN) {
+			if (bus->drvr->bus_if->state != BRCMF_BUS_DOWN) {
 				if (brcmf_sdbrcm_dpc(bus))
 					complete(&bus->dpc_wait);
 			} else {
@@ -3111,7 +3112,7 @@ static int brcmf_sdbrcm_download_state(struct brcmf_sdio *bus, bool enter)
 		/* Allow HT Clock now that the ARM is running. */
 		bus->alp_only = false;
 
-		bus->drvr->busstate = BRCMF_BUS_LOAD;
+		bus->drvr->bus_if->state = BRCMF_BUS_LOAD;
 	}
 fail:
 	return bcmerror;
@@ -3354,7 +3355,7 @@ void brcmf_sdbrcm_bus_stop(struct brcmf_sdio *bus)
 	bus->hostintmask = 0;
 
 	/* Change our idea of bus state */
-	bus->drvr->busstate = BRCMF_BUS_DOWN;
+	bus->drvr->bus_if->state = BRCMF_BUS_DOWN;
 
 	/* Force clocks on backplane to be sure F2 interrupt propagates */
 	saveclk = brcmf_sdcard_cfg_read(bus->sdiodev, SDIO_FUNC_1,
@@ -3410,7 +3411,7 @@ int brcmf_sdbrcm_bus_init(struct brcmf_pub *drvr)
 	brcmf_dbg(TRACE, "Enter\n");
 
 	/* try to download image and nvram to the dongle */
-	if (drvr->busstate == BRCMF_BUS_DOWN) {
+	if (drvr->bus_if->state == BRCMF_BUS_DOWN) {
 		if (!(brcmf_sdbrcm_download_firmware(bus)))
 			return -1;
 	}
@@ -3476,7 +3477,7 @@ int brcmf_sdbrcm_bus_init(struct brcmf_pub *drvr)
 				       SBSDIO_WATERMARK, 8, &err);
 
 		/* Set bus state according to enable result */
-		drvr->busstate = BRCMF_BUS_DATA;
+		drvr->bus_if->state = BRCMF_BUS_DATA;
 	}
 
 	else {
@@ -3491,7 +3492,7 @@ int brcmf_sdbrcm_bus_init(struct brcmf_pub *drvr)
 			       SBSDIO_FUNC1_CHIPCLKCSR, saveclk, &err);
 
 	/* If we didn't come up, turn off backplane clock */
-	if (drvr->busstate != BRCMF_BUS_DATA)
+	if (drvr->bus_if->state != BRCMF_BUS_DATA)
 		brcmf_sdbrcm_clkctl(bus, CLK_NONE, false);
 
 exit:
@@ -3511,7 +3512,7 @@ void brcmf_sdbrcm_isr(void *arg)
 		return;
 	}
 
-	if (bus->drvr->busstate == BRCMF_BUS_DOWN) {
+	if (bus->drvr->bus_if->state == BRCMF_BUS_DOWN) {
 		brcmf_dbg(ERROR, "bus is down. we have nothing to do\n");
 		return;
 	}
@@ -3585,7 +3586,8 @@ static bool brcmf_sdbrcm_bus_watchdog(struct brcmf_pub *drvr)
 	}
 #ifdef BCMDBG
 	/* Poll for console output periodically */
-	if (drvr->busstate == BRCMF_BUS_DATA && bus->console_interval != 0) {
+	if (drvr->bus_if->state == BRCMF_BUS_DATA &&
+	    bus->console_interval != 0) {
 		bus->console.count += BRCMF_WD_POLL_MS;
 		if (bus->console.count >= bus->console_interval) {
 			bus->console.count -= bus->console_interval;
@@ -3764,7 +3766,7 @@ static bool brcmf_sdbrcm_probe_init(struct brcmf_sdio *bus)
 	brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_0, SDIO_CCCR_IOEx,
 			       SDIO_FUNC_ENABLE_1, NULL);
 
-	bus->drvr->busstate = BRCMF_BUS_DOWN;
+	bus->drvr->bus_if->state = BRCMF_BUS_DOWN;
 	bus->sleeping = false;
 	bus->rxflow = false;
 
@@ -3924,7 +3926,7 @@ void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
 	}
 
 	/* Attach to the brcmf/OS/network interface */
-	bus->drvr = brcmf_attach(bus, SDPCM_RESERVE);
+	bus->drvr = brcmf_attach(bus, SDPCM_RESERVE, bus->sdiodev->dev);
 	if (!bus->drvr) {
 		brcmf_dbg(ERROR, "brcmf_attach failed\n");
 		goto fail;
@@ -4003,7 +4005,7 @@ brcmf_sdbrcm_wd_timer(struct brcmf_sdio *bus, uint wdtick)
 	}
 
 	/* don't start the wd until fw is loaded */
-	if (bus->drvr->busstate == BRCMF_BUS_DOWN)
+	if (bus->drvr->bus_if->state == BRCMF_BUS_DOWN)
 		return;
 
 	if (wdtick) {

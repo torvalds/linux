@@ -574,6 +574,7 @@ struct brcmf_dcmd {
 struct brcmf_bus {
 	u8 type;		/* bus type */
 	void *bus_priv;		/* pointer to bus private structure */
+	enum brcmf_bus_state state;
 };
 
 /* Forward decls for struct brcmf_pub (see below) */
@@ -586,6 +587,7 @@ struct brcmf_cfg80211_dev; /* cfg80211 device info */
 struct brcmf_pub {
 	/* Linkage ponters */
 	struct brcmf_sdio *bus;
+	struct brcmf_bus *bus_if;
 	struct brcmf_proto *prot;
 	struct brcmf_info *info;
 	struct brcmf_cfg80211_dev *config;
@@ -593,7 +595,6 @@ struct brcmf_pub {
 	/* Internal brcmf items */
 	bool up;		/* Driver up/down (to OS) */
 	bool txoff;		/* Transmit flow-controlled */
-	enum brcmf_bus_state busstate;
 	uint hdrlen;		/* Total BRCMF header length (proto + bus) */
 	uint maxctl;		/* Max size rxctl request from proto to bus */
 	uint rxsz;		/* Rx buffer size bus module should use */
@@ -661,7 +662,6 @@ struct brcmf_pub {
 
 	u8 country_code[BRCM_CNTRY_BUF_SZ];
 	char eventmask[BRCMF_EVENTING_MASK_LEN];
-
 };
 
 struct brcmf_if_event {
@@ -687,7 +687,7 @@ extern uint brcmf_c_mkiovar(char *name, char *data, uint datalen,
  * bus_hdrlen specifies required headroom for bus module header.
  */
 extern struct brcmf_pub *brcmf_attach(struct brcmf_sdio *bus,
-				      uint bus_hdrlen);
+				      uint bus_hdrlen, struct device *dev);
 extern int brcmf_net_attach(struct brcmf_pub *drvr, int idx);
 extern int brcmf_netdev_wait_pend8021x(struct net_device *ndev);
 

@@ -292,7 +292,7 @@ int brcmf_sendpkt(struct brcmf_pub *drvr, int ifidx, struct sk_buff *pktbuf)
 	struct brcmf_info *drvr_priv = drvr->info;
 
 	/* Reject if down */
-	if (!drvr->up || (drvr->busstate == BRCMF_BUS_DOWN))
+	if (!drvr->up || (drvr->bus_if->state == BRCMF_BUS_DOWN))
 		return -ENODEV;
 
 	/* Update multicast statistic */
@@ -322,9 +322,11 @@ static int brcmf_netdev_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	brcmf_dbg(TRACE, "Enter\n");
 
 	/* Reject if down */
-	if (!drvr_priv->pub.up || (drvr_priv->pub.busstate == BRCMF_BUS_DOWN)) {
-		brcmf_dbg(ERROR, "xmit rejected pub.up=%d busstate=%d\n",
-			  drvr_priv->pub.up, drvr_priv->pub.busstate);
+	if (!drvr_priv->pub.up ||
+	    (drvr_priv->pub.bus_if->state == BRCMF_BUS_DOWN)) {
+		brcmf_dbg(ERROR, "xmit rejected pub.up=%d state=%d\n",
+			  drvr_priv->pub.up,
+			  drvr_priv->pub.bus_if->state);
 		netif_stop_queue(ndev);
 		return -ENODEV;
 	}
@@ -761,7 +763,7 @@ s32 brcmf_exec_dcmd(struct net_device *ndev, u32 cmd, void *arg, u32 len)
 		buflen = min_t(uint, dcmd.len, BRCMF_DCMD_MAXLEN);
 
 	/* send to dongle (must be up, and wl) */
-	if ((drvr_priv->pub.busstate != BRCMF_BUS_DATA)) {
+	if ((drvr_priv->pub.bus_if->state != BRCMF_BUS_DATA)) {
 		brcmf_dbg(ERROR, "DONGLE_DOWN\n");
 		err = -EIO;
 		goto done;
@@ -940,7 +942,8 @@ void brcmf_del_if(struct brcmf_info *drvr_priv, int ifidx)
 	}
 }
 
-struct brcmf_pub *brcmf_attach(struct brcmf_sdio *bus, uint bus_hdrlen)
+struct brcmf_pub *brcmf_attach(struct brcmf_sdio *bus, uint bus_hdrlen,
+			       struct device *dev)
 {
 	struct brcmf_info *drvr_priv = NULL;
 
@@ -959,6 +962,7 @@ struct brcmf_pub *brcmf_attach(struct brcmf_sdio *bus, uint bus_hdrlen)
 	/* Link to bus module */
 	drvr_priv->pub.bus = bus;
 	drvr_priv->pub.hdrlen = bus_hdrlen;
+	drvr_priv->pub.bus_if = dev_get_drvdata(dev);
 
 	/* Attach and link in the protocol */
 	if (brcmf_proto_attach(&drvr_priv->pub) != 0) {
@@ -995,7 +999,7 @@ int brcmf_bus_start(struct brcmf_pub *drvr)
 	}
 
 	/* If bus is not ready, can't come up */
-	if (drvr_priv->pub.busstate != BRCMF_BUS_DATA) {
+	if (drvr_priv->pub.bus_if->state != BRCMF_BUS_DATA) {
 		brcmf_dbg(ERROR, "failed bus is not ready\n");
 		return -ENODEV;
 	}
