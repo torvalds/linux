@@ -234,19 +234,7 @@ static struct platform_driver tc6387xb_platform_driver = {
 	.resume         = tc6387xb_resume,
 };
 
-
-static int __init tc6387xb_init(void)
-{
-	return platform_driver_register(&tc6387xb_platform_driver);
-}
-
-static void __exit tc6387xb_exit(void)
-{
-	platform_driver_unregister(&tc6387xb_platform_driver);
-}
-
-module_init(tc6387xb_init);
-module_exit(tc6387xb_exit);
+module_platform_driver(tc6387xb_platform_driver);
 
 MODULE_DESCRIPTION("Toshiba TC6387XB core driver");
 MODULE_LICENSE("GPL v2");

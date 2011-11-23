@@ -619,18 +619,7 @@ static struct platform_driver twl6040_driver = {
 	},
 };
 
-static int __devinit twl6040_init(void)
-{
-	return platform_driver_register(&twl6040_driver);
-}
-module_init(twl6040_init);
-
-static void __devexit twl6040_exit(void)
-{
-	platform_driver_unregister(&twl6040_driver);
-}
-
-module_exit(twl6040_exit);
+module_platform_driver(twl6040_driver);
 
 MODULE_DESCRIPTION("TWL6040 MFD");
 MODULE_AUTHOR("Misael Lopez Cruz <misael.lopez@ti.com>");
