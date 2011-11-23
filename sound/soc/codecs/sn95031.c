@@ -920,19 +920,7 @@ static struct platform_driver sn95031_codec_driver = {
 	.remove		= __devexit_p(sn95031_device_remove),
 };
 
-static int __init sn95031_init(void)
-{
-	pr_debug("driver init called\n");
-	return platform_driver_register(&sn95031_codec_driver);
-}
-module_init(sn95031_init);
-
-static void __exit sn95031_exit(void)
-{
-	pr_debug("driver exit called\n");
-	platform_driver_unregister(&sn95031_codec_driver);
-}
-module_exit(sn95031_exit);
+module_platform_driver(sn95031_codec_driver);
 
 MODULE_DESCRIPTION("ASoC TI SN95031 codec driver");
 MODULE_AUTHOR("Vinod Koul <vinod.koul@intel.com>");

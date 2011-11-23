@@ -206,17 +206,7 @@ static struct platform_driver cq93vc_codec_driver = {
 	.remove = __devexit_p(cq93vc_platform_remove),
 };
 
-static int __init cq93vc_init(void)
-{
-	return platform_driver_register(&cq93vc_codec_driver);
-}
-module_init(cq93vc_init);
-
-static void __exit cq93vc_exit(void)
-{
-	platform_driver_unregister(&cq93vc_codec_driver);
-}
-module_exit(cq93vc_exit);
+module_platform_driver(cq93vc_codec_driver);
 
 MODULE_DESCRIPTION("Texas Instruments DaVinci ASoC CQ0093 Voice Codec Driver");
 MODULE_AUTHOR("Miguel Aguilar");

@@ -510,17 +510,7 @@ static struct platform_driver wl1273_platform_driver = {
 	.remove		= __devexit_p(wl1273_platform_remove),
 };
 
-static int __init wl1273_init(void)
-{
-	return platform_driver_register(&wl1273_platform_driver);
-}
-module_init(wl1273_init);
-
-static void __exit wl1273_exit(void)
-{
-	platform_driver_unregister(&wl1273_platform_driver);
-}
-module_exit(wl1273_exit);
+module_platform_driver(wl1273_platform_driver);
 
 MODULE_AUTHOR("Matti Aaltonen <matti.j.aaltonen@nokia.com>");
 MODULE_DESCRIPTION("ASoC WL1273 codec driver");

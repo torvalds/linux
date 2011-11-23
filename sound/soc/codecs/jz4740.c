@@ -424,17 +424,7 @@ static struct platform_driver jz4740_codec_driver = {
 	},
 };
 
-static int __init jz4740_codec_init(void)
-{
-	return platform_driver_register(&jz4740_codec_driver);
-}
-module_init(jz4740_codec_init);
-
-static void __exit jz4740_codec_exit(void)
-{
-	platform_driver_unregister(&jz4740_codec_driver);
-}
-module_exit(jz4740_codec_exit);
+module_platform_driver(jz4740_codec_driver);
 
 MODULE_DESCRIPTION("JZ4740 SoC internal codec driver");
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");

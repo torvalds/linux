@@ -406,17 +406,7 @@ static struct platform_driver wm9705_codec_driver = {
 	.remove = __devexit_p(wm9705_remove),
 };
 
-static int __init wm9705_init(void)
-{
-	return platform_driver_register(&wm9705_codec_driver);
-}
-module_init(wm9705_init);
-
-static void __exit wm9705_exit(void)
-{
-	platform_driver_unregister(&wm9705_codec_driver);
-}
-module_exit(wm9705_exit);
+module_platform_driver(wm9705_codec_driver);
 
 MODULE_DESCRIPTION("ASoC WM9705 driver");
 MODULE_AUTHOR("Ian Molton");

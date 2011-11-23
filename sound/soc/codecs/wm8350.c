@@ -1711,17 +1711,7 @@ static struct platform_driver wm8350_codec_driver = {
 	.remove = __devexit_p(wm8350_remove),
 };
 
-static __init int wm8350_init(void)
-{
-	return platform_driver_register(&wm8350_codec_driver);
-}
-module_init(wm8350_init);
-
-static __exit void wm8350_exit(void)
-{
-	platform_driver_unregister(&wm8350_codec_driver);
-}
-module_exit(wm8350_exit);
+module_platform_driver(wm8350_codec_driver);
 
 MODULE_DESCRIPTION("ASoC WM8350 driver");
 MODULE_AUTHOR("Liam Girdwood");

@@ -1481,17 +1481,7 @@ static struct platform_driver pm860x_codec_driver = {
 	.remove	= __devexit_p(pm860x_codec_remove),
 };
 
-static __init int pm860x_init(void)
-{
-	return platform_driver_register(&pm860x_codec_driver);
-}
-module_init(pm860x_init);
-
-static __exit void pm860x_exit(void)
-{
-	platform_driver_unregister(&pm860x_codec_driver);
-}
-module_exit(pm860x_exit);
+module_platform_driver(pm860x_codec_driver);
 
 MODULE_DESCRIPTION("ASoC 88PM860x driver");
 MODULE_AUTHOR("Haojian Zhuang <haojian.zhuang@marvell.com>");

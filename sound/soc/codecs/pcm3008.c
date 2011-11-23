@@ -172,17 +172,7 @@ static struct platform_driver pcm3008_codec_driver = {
 	},
 };
 
-static int __init pcm3008_modinit(void)
-{
-	return platform_driver_register(&pcm3008_codec_driver);
-}
-module_init(pcm3008_modinit);
-
-static void __exit pcm3008_exit(void)
-{
-	platform_driver_unregister(&pcm3008_codec_driver);
-}
-module_exit(pcm3008_exit);
+module_platform_driver(pcm3008_codec_driver);
 
 MODULE_DESCRIPTION("Soc PCM3008 driver");
 MODULE_AUTHOR("Hugo Villeneuve");
