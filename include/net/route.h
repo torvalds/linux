@@ -71,12 +71,12 @@ struct rtable {
 	struct fib_info		*fi; /* for client ref to shared metrics */
 };
 
-static inline bool rt_is_input_route(struct rtable *rt)
+static inline bool rt_is_input_route(const struct rtable *rt)
 {
 	return rt->rt_route_iif != 0;
 }
 
-static inline bool rt_is_output_route(struct rtable *rt)
+static inline bool rt_is_output_route(const struct rtable *rt)
 {
 	return rt->rt_route_iif == 0;
 }
