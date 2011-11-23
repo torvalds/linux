@@ -2009,7 +2009,6 @@ int rcu_needs_cpu(int cpu)
  */
 static void rcu_prepare_for_idle(int cpu)
 {
-	int c = 0;
 	unsigned long flags;
 
 	local_irq_save(flags);
@@ -2055,27 +2054,30 @@ static void rcu_prepare_for_idle(int cpu)
 	 */
 #ifdef CONFIG_TREE_PREEMPT_RCU
 	if (per_cpu(rcu_preempt_data, cpu).nxtlist) {
+		local_irq_restore(flags);
 		rcu_preempt_qs(cpu);
 		force_quiescent_state(&rcu_preempt_state, 0);
-		c = c || per_cpu(rcu_preempt_data, cpu).nxtlist;
+		local_irq_save(flags);
 	}
 #endif /* #ifdef CONFIG_TREE_PREEMPT_RCU */
 	if (per_cpu(rcu_sched_data, cpu).nxtlist) {
+		local_irq_restore(flags);
 		rcu_sched_qs(cpu);
 		force_quiescent_state(&rcu_sched_state, 0);
-		c = c || per_cpu(rcu_sched_data, cpu).nxtlist;
+		local_irq_save(flags);
 	}
 	if (per_cpu(rcu_bh_data, cpu).nxtlist) {
+		local_irq_restore(flags);
 		rcu_bh_qs(cpu);
 		force_quiescent_state(&rcu_bh_state, 0);
-		c = c || per_cpu(rcu_bh_data, cpu).nxtlist;
+		local_irq_save(flags);
 	}
 
 	/*
 	 * If RCU callbacks are still pending, RCU still needs this CPU.
 	 * So try forcing the callbacks through the grace period.
 	 */
-	if (c) {
+	if (rcu_cpu_has_callbacks(cpu)) {
 		local_irq_restore(flags);
 		trace_rcu_prep_idle("More callbacks");
 		invoke_rcu_core();
