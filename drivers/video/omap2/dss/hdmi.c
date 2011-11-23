@@ -705,7 +705,16 @@ static int hdmi_audio_startup(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int hdmi_audio_codec_probe(struct snd_soc_codec *codec)
+{
+	struct hdmi_ip_data *priv = &hdmi.ip_data;
+
+	snd_soc_codec_set_drvdata(codec, priv);
+	return 0;
+}
+
 static struct snd_soc_codec_driver hdmi_audio_codec_drv = {
+	.probe = hdmi_audio_codec_probe,
 };
 
 static struct snd_soc_dai_ops hdmi_audio_codec_ops = {
