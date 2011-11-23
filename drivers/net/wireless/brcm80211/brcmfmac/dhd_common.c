@@ -32,8 +32,6 @@
 #define PKTFILTER_BUF_SIZE		2048
 #define BRCMF_ARPOL_MODE		0xb	/* agent|snoop|peer_autoreply */
 
-int brcmf_msg_level;
-
 #define MSGTRACE_VERSION	1
 
 #define BRCMF_PKT_FILTER_FIXED_LEN	offsetof(struct brcmf_pkt_filter_le, u)
@@ -83,19 +81,6 @@ brcmf_c_mkiovar(char *name, char *data, uint datalen, char *buf, uint buflen)
 	len += datalen;
 
 	return len;
-}
-
-void brcmf_c_init(void)
-{
-	/* Init global variables at run-time, not as part of the declaration.
-	 * This is required to support init/de-init of the driver.
-	 * Initialization
-	 * of globals as part of the declaration results in non-deterministic
-	 * behaviour since the value of the globals may be different on the
-	 * first time that the driver is initialized vs subsequent
-	 * initializations.
-	 */
-	brcmf_msg_level = BRCMF_ERROR_VAL;
 }
 
 bool brcmf_c_prec_enq(struct brcmf_pub *drvr, struct pktq *q,

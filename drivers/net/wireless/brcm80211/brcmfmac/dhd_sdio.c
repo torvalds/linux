@@ -3867,16 +3867,6 @@ void *brcmf_sdbrcm_probe(u16 bus_no, u16 slot, u16 func, uint bustype,
 	int ret;
 	struct brcmf_bus *bus;
 
-	/* Init global variables at run-time, not as part of the declaration.
-	 * This is required to support init/de-init of the driver.
-	 * Initialization
-	 * of globals as part of the declaration results in non-deterministic
-	 * behavior since the value of the globals may be different on the
-	 * first time that the driver is initialized vs subsequent
-	 * initializations.
-	 */
-	brcmf_c_init();
-
 	brcmf_dbg(TRACE, "Enter\n");
 
 	/* We make an assumption about address window mappings:

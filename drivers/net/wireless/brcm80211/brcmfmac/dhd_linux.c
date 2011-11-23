@@ -76,6 +76,7 @@ struct brcmf_info {
 };
 
 /* Error bits */
+int brcmf_msg_level = BRCMF_ERROR_VAL;
 module_param(brcmf_msg_level, int, 0);
 
 int brcmf_ifname2idx(struct brcmf_info *drvr_priv, char *name)

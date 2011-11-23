@@ -733,8 +733,6 @@ extern int brcmf_c_host_event(struct brcmf_info *drvr_priv, int *idx,
 			      void *pktdata, struct brcmf_event_msg *,
 			      void **data_ptr);
 
-extern void brcmf_c_init(void);
-
 extern int brcmf_add_if(struct brcmf_info *drvr_priv, int ifidx,
 			char *name, u8 *mac_addr);
 extern void brcmf_del_if(struct brcmf_info *drvr_priv, int ifidx);
