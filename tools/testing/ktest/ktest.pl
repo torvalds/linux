@@ -239,25 +239,53 @@ $config_help{"REBOOT_SCRIPT"} = << "EOF"
 EOF
     ;
 
-sub read_yn {
-    my ($prompt) = @_;
+sub read_prompt {
+    my ($cancel, $prompt) = @_;
 
     my $ans;
 
     for (;;) {
-	print "$prompt [Y/n] ";
+	if ($cancel) {
+	    print "$prompt [y/n/C] ";
+	} else {
+	    print "$prompt [Y/n] ";
+	}
 	$ans = <STDIN>;
 	chomp $ans;
 	if ($ans =~ /^\s*$/) {
-	    $ans = "y";
+	    if ($cancel) {
+		$ans = "c";
+	    } else {
+		$ans = "y";
+	    }
 	}
 	last if ($ans =~ /^y$/i || $ans =~ /^n$/i);
-	print "Please answer either 'y' or 'n'.\n";
+	if ($cancel) {
+	    last if ($ans =~ /^c$/i);
+	    print "Please answer either 'y', 'n' or 'c'.\n";
+	} else {
+	    print "Please answer either 'y' or 'n'.\n";
+	}
+    }
+    if ($ans =~ /^c/i) {
+	exit;
     }
     if ($ans !~ /^y$/i) {
 	return 0;
     }
     return 1;
+}
+
+sub read_yn {
+    my ($prompt) = @_;
+
+    return read_prompt 0, $prompt;
+}
+
+sub read_ync {
+    my ($prompt) = @_;
+
+    return read_prompt 1, $prompt;
 }
 
 sub get_ktest_config {
@@ -1895,6 +1923,13 @@ sub run_bisect {
     }
 }
 
+sub update_bisect_replay {
+    my $tmp_log = "$tmpdir/ktest_bisect_log";
+    run_command "git bisect log > $tmp_log" or
+	die "can't create bisect log";
+    return $tmp_log;
+}
+
 sub bisect {
     my ($i) = @_;
 
@@ -1934,8 +1969,31 @@ sub bisect {
 	$type = "boot";
     }
 
+    # Check if a bisect was running
+    my $bisect_start_file = "$builddir/.git/BISECT_START";
+
     my $check = $opt{"BISECT_CHECK[$i]"};
-    if (defined($check) && $check ne "0") {
+    my $do_check = defined($check) && $check ne "0";
+
+    if ( -f $bisect_start_file ) {
+	print "Bisect in progress found\n";
+	if ($do_check) {
+	    print " If you say yes, then no checks of good or bad will be done\n";
+	}
+	if (defined($replay)) {
+	    print "** BISECT_REPLAY is defined in config file **";
+	    print " Ignore config option and perform new git bisect log?\n";
+	    if (read_ync " (yes, no, or cancel) ") {
+		$replay = update_bisect_replay;
+		$do_check = 0;
+	    }
+	} elsif (read_yn "read git log and continue?") {
+	    $replay = update_bisect_replay;
+	    $do_check = 0;
+	}
+    }
+
+    if ($do_check) {
 
 	# get current HEAD
 	my $head = get_sha1("HEAD");
