@@ -52,8 +52,6 @@
 #include <linux/mfd/wm831x/pdata.h>
 #include <linux/mfd/wm831x/core.h>
 #include <linux/mfd/wm831x/gpio.h>
-#include <linux/mfd/wm8994/pdata.h>
-#include <linux/mfd/wm8994/registers.h>
 
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
@@ -1581,35 +1579,6 @@ struct platform_device rk29_device_gps = {
 	};
 #endif
 
-/*****************************************************************************************
- * wm8994  codec
- * author: qjb@rock-chips.com
- *****************************************************************************************/
-struct wm8994_pdata wm8994_platdata = {
-
-	.BB_input_diff = 1,
-	.BB_class = NO_PCM_BB,
-
-	.no_earpiece = 0,
-	.sp_hp_same_channel = 0,
-
-	.PA_control_pin = 0,
-	.Power_EN_Pin = RK29_PIN5_PA1,
-
-	.speaker_incall_vol = 12,
-	.speaker_incall_mic_vol = -9,
-	.speaker_normal_vol = 6,
-	.earpiece_incall_vol = 6,
-	.headset_incall_vol = 6,
-	.headset_incall_mic_vol = -6,
-	.headset_normal_vol = -6,
-	.BT_incall_vol = 0,
-	.BT_incall_mic_vol = 0,
-	.recorder_vol = 30,
-
-};
-
-
 #ifdef CONFIG_RK_HEADSET_DET
 #define HEADSET_GPIO RK29_PIN4_PD2
 struct rk_headset_pdata rk_headset_info = {
@@ -1814,9 +1783,6 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.type    		= "wm8994",
 		.addr           = 0x1a,
 		.flags			= 0,
-//	#if defined(CONFIG_MFD_WM8994)
-		.platform_data  = &wm8994_platdata,
-//	#endif
 	},
 #endif
 #if defined (CONFIG_BATTERY_STC3100)
