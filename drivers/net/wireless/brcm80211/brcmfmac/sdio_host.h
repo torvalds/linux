@@ -182,11 +182,21 @@ extern bool brcmf_sdcard_regfail(struct brcmf_sdio_dev *sdiodev);
  * NOTE: Async operation is not currently supported.
  */
 extern int
+brcmf_sdcard_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
+		      uint flags, struct sk_buff *pkt);
+extern int
 brcmf_sdcard_send_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-		      uint flags, u8 *buf, uint nbytes, struct sk_buff *pkt);
+		      uint flags, u8 *buf, uint nbytes);
+
+extern int
+brcmf_sdcard_recv_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
+		      uint flags, struct sk_buff *pkt);
 extern int
 brcmf_sdcard_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-		      uint flags, u8 *buf, uint nbytes, struct sk_buff *pkt);
+		      uint flags, u8 *buf, uint nbytes);
+extern int
+brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
+			uint flags, struct sk_buff_head *pktq);
 
 /* Flags bits */
 
@@ -240,6 +250,10 @@ brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev,
 			   uint fix_inc, uint rw, uint fnc_num,
 			   u32 addr, uint regwidth,
 			   u32 buflen, u8 *buffer, struct sk_buff *pkt);
+extern int
+brcmf_sdioh_request_chain(struct brcmf_sdio_dev *sdiodev, uint fix_inc,
+			  uint write, uint func, uint addr,
+			  struct sk_buff_head *pktq);
 
 /* Watchdog timer interface for pm ops */
 extern void brcmf_sdio_wdtmr_enable(struct brcmf_sdio_dev *sdiodev,

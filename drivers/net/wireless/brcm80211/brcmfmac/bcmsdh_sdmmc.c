@@ -204,16 +204,39 @@ int brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev,
 	return err_ret;
 }
 
+/* precondition: host controller is claimed */
+static int
+brcmf_sdioh_request_data(struct brcmf_sdio_dev *sdiodev, uint write, bool fifo,
+			 uint func, uint addr, struct sk_buff *pkt, uint pktlen)
+{
+	int err_ret = 0;
+
+	if ((write) && (!fifo)) {
+		err_ret = sdio_memcpy_toio(sdiodev->func[func], addr,
+					   ((u8 *) (pkt->data)), pktlen);
+	} else if (write) {
+		err_ret = sdio_memcpy_toio(sdiodev->func[func], addr,
+					   ((u8 *) (pkt->data)), pktlen);
+	} else if (fifo) {
+		err_ret = sdio_readsb(sdiodev->func[func],
+				      ((u8 *) (pkt->data)), addr, pktlen);
+	} else {
+		err_ret = sdio_memcpy_fromio(sdiodev->func[func],
+					     ((u8 *) (pkt->data)),
+					     addr, pktlen);
+	}
+
+	return err_ret;
+}
+
 static int
 brcmf_sdioh_request_packet(struct brcmf_sdio_dev *sdiodev, uint fix_inc,
 			   uint write, uint func, uint addr,
 			   struct sk_buff *pkt)
 {
 	bool fifo = (fix_inc == SDIOH_DATA_FIX);
-	u32 SGCount = 0;
 	int err_ret = 0;
-
-	struct sk_buff *pnext;
+	uint pkt_len = pkt->len;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -223,43 +246,67 @@ brcmf_sdioh_request_packet(struct brcmf_sdio_dev *sdiodev, uint fix_inc,
 
 	/* Claim host controller */
 	sdio_claim_host(sdiodev->func[func]);
-	for (pnext = pkt; pnext; pnext = pnext->next) {
-		uint pkt_len = pnext->len;
+
+	pkt_len += 3;
+	pkt_len &= 0xFFFFFFFC;
+
+	err_ret = brcmf_sdioh_request_data(sdiodev, write, fifo, func,
+					   addr, pkt, pkt_len);
+	if (err_ret) {
+		brcmf_dbg(ERROR, "%s FAILED %p, addr=0x%05x, pkt_len=%d, ERR=0x%08x\n",
+			  write ? "TX" : "RX", pkt, addr, pkt_len, err_ret);
+	} else {
+		brcmf_dbg(TRACE, "%s xfr'd %p, addr=0x%05x, len=%d\n",
+			  write ? "TX" : "RX", pkt, addr, pkt_len);
+	}
+
+	/* Release host controller */
+	sdio_release_host(sdiodev->func[func]);
+
+	brcmf_dbg(TRACE, "Exit\n");
+	return err_ret;
+}
+
+int
+brcmf_sdioh_request_chain(struct brcmf_sdio_dev *sdiodev, uint fix_inc,
+			  uint write, uint func, uint addr,
+			  struct sk_buff_head *pktq)
+{
+	bool fifo = (fix_inc == SDIOH_DATA_FIX);
+	u32 SGCount = 0;
+	int err_ret = 0;
+
+	struct sk_buff *pkt;
+
+	brcmf_dbg(TRACE, "Enter\n");
+
+	brcmf_pm_resume_wait(sdiodev, &sdiodev->request_packet_wait);
+	if (brcmf_pm_resume_error(sdiodev))
+		return -EIO;
+
+	/* Claim host controller */
+	sdio_claim_host(sdiodev->func[func]);
+
+	skb_queue_walk(pktq, pkt) {
+		uint pkt_len = pkt->len;
 		pkt_len += 3;
 		pkt_len &= 0xFFFFFFFC;
 
-		if ((write) && (!fifo)) {
-			err_ret = sdio_memcpy_toio(sdiodev->func[func], addr,
-						   ((u8 *) (pnext->data)),
-						   pkt_len);
-		} else if (write) {
-			err_ret = sdio_memcpy_toio(sdiodev->func[func], addr,
-						   ((u8 *) (pnext->data)),
-						   pkt_len);
-		} else if (fifo) {
-			err_ret = sdio_readsb(sdiodev->func[func],
-					      ((u8 *) (pnext->data)),
-					      addr, pkt_len);
-		} else {
-			err_ret = sdio_memcpy_fromio(sdiodev->func[func],
-						     ((u8 *) (pnext->data)),
-						     addr, pkt_len);
-		}
-
+		err_ret = brcmf_sdioh_request_data(sdiodev, write, fifo, func,
+						   addr, pkt, pkt_len);
 		if (err_ret) {
 			brcmf_dbg(ERROR, "%s FAILED %p[%d], addr=0x%05x, pkt_len=%d, ERR=0x%08x\n",
-				  write ? "TX" : "RX", pnext, SGCount, addr,
+				  write ? "TX" : "RX", pkt, SGCount, addr,
 				  pkt_len, err_ret);
 		} else {
 			brcmf_dbg(TRACE, "%s xfr'd %p[%d], addr=0x%05x, len=%d\n",
-				  write ? "TX" : "RX", pnext, SGCount, addr,
+				  write ? "TX" : "RX", pkt, SGCount, addr,
 				  pkt_len);
 		}
-
 		if (!fifo)
 			addr += pkt_len;
-		SGCount++;
 
+		SGCount++;
 	}
 
 	/* Release host controller */

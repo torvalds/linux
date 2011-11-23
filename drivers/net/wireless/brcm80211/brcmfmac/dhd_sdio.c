@@ -1228,17 +1228,14 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 		 * packet and and copy into the chain.
 		 */
 		if (usechain) {
-			errcode = brcmf_sdcard_recv_buf(bus->sdiodev,
+			errcode = brcmf_sdcard_recv_chain(bus->sdiodev,
 					bus->sdiodev->sbwad,
-					SDIO_FUNC_2,
-					F2SYNC, (u8 *) pfirst->data, dlen,
-					pfirst);
+					SDIO_FUNC_2, F2SYNC, &bus->glom);
 		} else if (bus->dataptr) {
 			errcode = brcmf_sdcard_recv_buf(bus->sdiodev,
 					bus->sdiodev->sbwad,
-					SDIO_FUNC_2,
-					F2SYNC, bus->dataptr, dlen,
-					NULL);
+					SDIO_FUNC_2, F2SYNC,
+					bus->dataptr, dlen);
 			sublen = (u16) brcmf_sdbrcm_glom_from_buf(bus, dlen);
 			if (sublen != dlen) {
 				brcmf_dbg(ERROR, "FAILED TO COPY, dlen %d sublen %d\n",
@@ -1560,8 +1557,7 @@ brcmf_sdbrcm_read_control(struct brcmf_bus *bus, u8 *hdr, uint len, uint doff)
 	sdret = brcmf_sdcard_recv_buf(bus->sdiodev,
 				bus->sdiodev->sbwad,
 				SDIO_FUNC_2,
-				F2SYNC, (bus->rxctl + BRCMF_FIRSTREAD), rdlen,
-				NULL);
+				F2SYNC, (bus->rxctl + BRCMF_FIRSTREAD), rdlen);
 	bus->f2rxdata++;
 
 	/* Control frame failures need retransmission */
@@ -1617,9 +1613,8 @@ brcmf_alloc_pkt_and_read(struct brcmf_bus *bus, u16 rdlen,
 	pkt_align(*pkt, rdlen, BRCMF_SDALIGN);
 	*rxbuf = (u8 *) ((*pkt)->data);
 	/* Read the entire frame */
-	sdret = brcmf_sdcard_recv_buf(bus->sdiodev, bus->sdiodev->sbwad,
-				      SDIO_FUNC_2, F2SYNC,
-				      *rxbuf, rdlen, *pkt);
+	sdret = brcmf_sdcard_recv_pkt(bus->sdiodev, bus->sdiodev->sbwad,
+				      SDIO_FUNC_2, F2SYNC, *pkt);
 	bus->f2rxdata++;
 
 	if (sdret < 0) {
@@ -1847,7 +1842,7 @@ brcmf_sdbrcm_readframes(struct brcmf_bus *bus, uint maxframes, bool *finished)
 		/* Read frame header (hardware and software) */
 		sdret = brcmf_sdcard_recv_buf(bus->sdiodev, bus->sdiodev->sbwad,
 					      SDIO_FUNC_2, F2SYNC, bus->rxhdr,
-					      BRCMF_FIRSTREAD, NULL);
+					      BRCMF_FIRSTREAD);
 		bus->f2rxhdrs++;
 
 		if (sdret < 0) {
@@ -1996,9 +1991,8 @@ brcmf_sdbrcm_readframes(struct brcmf_bus *bus, uint maxframes, bool *finished)
 		pkt_align(pkt, rdlen, BRCMF_SDALIGN);
 
 		/* Read the remaining frame data */
-		sdret = brcmf_sdcard_recv_buf(bus->sdiodev, bus->sdiodev->sbwad,
-				SDIO_FUNC_2, F2SYNC, ((u8 *) (pkt->data)),
-				rdlen, pkt);
+		sdret = brcmf_sdcard_recv_pkt(bus->sdiodev, bus->sdiodev->sbwad,
+					      SDIO_FUNC_2, F2SYNC, pkt);
 		bus->f2rxdata++;
 
 		if (sdret < 0) {
@@ -2083,14 +2077,6 @@ deliver:
 	bus->rx_seq = rxseq;
 
 	return rxcount;
-}
-
-static int
-brcmf_sdbrcm_send_buf(struct brcmf_bus *bus, u32 addr, uint fn, uint flags,
-		    u8 *buf, uint nbytes, struct sk_buff *pkt)
-{
-	return brcmf_sdcard_send_buf
-		(bus->sdiodev, addr, fn, flags, buf, nbytes, pkt);
 }
 
 static void
@@ -2202,9 +2188,8 @@ static int brcmf_sdbrcm_txpkt(struct brcmf_bus *bus, struct sk_buff *pkt,
 	if (len & (ALIGNMENT - 1))
 			len = roundup(len, ALIGNMENT);
 
-	ret = brcmf_sdbrcm_send_buf(bus, bus->sdiodev->sbwad,
-				    SDIO_FUNC_2, F2SYNC, frame,
-				    len, pkt);
+	ret = brcmf_sdcard_send_pkt(bus->sdiodev, bus->sdiodev->sbwad,
+				    SDIO_FUNC_2, F2SYNC, pkt);
 	bus->f2txdata++;
 
 	if (ret < 0) {
@@ -2467,9 +2452,9 @@ clkwait:
 		(bus->clkstate == CLK_AVAIL)) {
 		int ret, i;
 
-		ret = brcmf_sdbrcm_send_buf(bus, bus->sdiodev->sbwad,
+		ret = brcmf_sdcard_send_buf(bus->sdiodev, bus->sdiodev->sbwad,
 			SDIO_FUNC_2, F2SYNC, (u8 *) bus->ctrl_frame_buf,
-			(u32) bus->ctrl_frame_len, NULL);
+			(u32) bus->ctrl_frame_len);
 
 		if (ret < 0) {
 			/* On failure, abort the command and
@@ -2772,8 +2757,8 @@ static int brcmf_tx_frame(struct brcmf_bus *bus, u8 *frame, u16 len)
 	int ret;
 
 	bus->ctrl_frame_stat = false;
-	ret = brcmf_sdbrcm_send_buf(bus, bus->sdiodev->sbwad,
-				    SDIO_FUNC_2, F2SYNC, frame, len, NULL);
+	ret = brcmf_sdcard_send_buf(bus->sdiodev, bus->sdiodev->sbwad,
+				    SDIO_FUNC_2, F2SYNC, frame, len);
 
 	if (ret < 0) {
 		/* On failure, abort the command and terminate the frame */

@@ -222,18 +222,11 @@ bool brcmf_sdcard_regfail(struct brcmf_sdio_dev *sdiodev)
 	return sdiodev->regfail;
 }
 
-int
-brcmf_sdcard_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-		      uint flags,
-		      u8 *buf, uint nbytes, struct sk_buff *pkt)
+static int brcmf_sdcard_recv_prepare(struct brcmf_sdio_dev *sdiodev, uint fn,
+				     uint flags, uint width, u32 *addr)
 {
-	int status;
-	uint incr_fix;
-	uint width;
-	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
+	uint bar0 = *addr & ~SBSDIO_SB_OFT_ADDR_MASK;
 	int err = 0;
-
-	brcmf_dbg(INFO, "fun = %d, addr = 0x%x, size = %d\n", fn, addr, nbytes);
 
 	/* Async not implemented yet */
 	if (flags & SDIO_REQ_ASYNC)
@@ -247,29 +240,114 @@ brcmf_sdcard_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		sdiodev->sbwad = bar0;
 	}
 
-	addr &= SBSDIO_SB_OFT_ADDR_MASK;
+	*addr &= SBSDIO_SB_OFT_ADDR_MASK;
+
+	if (width == 4)
+		*addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
+
+	return 0;
+}
+
+int
+brcmf_sdcard_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
+		      uint flags, u8 *buf, uint nbytes)
+{
+	struct sk_buff *mypkt;
+	int err;
+
+	mypkt = brcmu_pkt_buf_get_skb(nbytes);
+	if (!mypkt) {
+		brcmf_dbg(ERROR, "brcmu_pkt_buf_get_skb failed: len %d\n",
+			  nbytes);
+		return -EIO;
+	}
+
+	err = brcmf_sdcard_recv_pkt(sdiodev, addr, fn, flags, mypkt);
+	if (!err)
+		memcpy(buf, mypkt->data, nbytes);
+
+	brcmu_pkt_buf_free_skb(mypkt);
+	return err;
+}
+
+int
+brcmf_sdcard_recv_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
+		      uint flags, struct sk_buff *pkt)
+{
+	uint incr_fix;
+	uint width;
+	int err = 0;
+
+	brcmf_dbg(INFO, "fun = %d, addr = 0x%x, size = %d\n",
+		  fn, addr, pkt->len);
+
+	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
+	err = brcmf_sdcard_recv_prepare(sdiodev, fn, flags, width, &addr);
+	if (err)
+		return err;
 
 	incr_fix = (flags & SDIO_REQ_FIXED) ? SDIOH_DATA_FIX : SDIOH_DATA_INC;
+	err = brcmf_sdioh_request_buffer(sdiodev, incr_fix, SDIOH_READ,
+					 fn, addr, width, 0, NULL, pkt);
+
+	return err;
+}
+
+int brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
+			    uint flags, struct sk_buff_head *pktq)
+{
+	uint incr_fix;
+	uint width;
+	int err = 0;
+
+	brcmf_dbg(INFO, "fun = %d, addr = 0x%x, size = %d\n",
+		  fn, addr, pktq->qlen);
+
 	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
-	if (width == 4)
-		addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
+	err = brcmf_sdcard_recv_prepare(sdiodev, fn, flags, width, &addr);
+	if (err)
+		return err;
 
-	status = brcmf_sdioh_request_buffer(sdiodev, incr_fix, SDIOH_READ,
-					    fn, addr, width, nbytes, buf, pkt);
+	incr_fix = (flags & SDIO_REQ_FIXED) ? SDIOH_DATA_FIX : SDIOH_DATA_INC;
+	err = brcmf_sdioh_request_chain(sdiodev, incr_fix, SDIOH_READ, fn, addr,
+					pktq);
 
-	return status;
+	return err;
 }
 
 int
 brcmf_sdcard_send_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-		      uint flags, u8 *buf, uint nbytes, struct sk_buff *pkt)
+		      uint flags, u8 *buf, uint nbytes)
+{
+	struct sk_buff *mypkt;
+	int err;
+
+	mypkt = brcmu_pkt_buf_get_skb(nbytes);
+	if (!mypkt) {
+		brcmf_dbg(ERROR, "brcmu_pkt_buf_get_skb failed: len %d\n",
+			  nbytes);
+		return -EIO;
+	}
+
+	memcpy(mypkt->data, buf, nbytes);
+	err = brcmf_sdcard_send_pkt(sdiodev, addr, fn, flags, mypkt);
+
+	brcmu_pkt_buf_free_skb(mypkt);
+	return err;
+
+}
+
+int
+brcmf_sdcard_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
+		      uint flags, struct sk_buff *pkt)
 {
 	uint incr_fix;
 	uint width;
 	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
 	int err = 0;
 
-	brcmf_dbg(INFO, "fun = %d, addr = 0x%x, size = %d\n", fn, addr, nbytes);
+	brcmf_dbg(INFO, "fun = %d, addr = 0x%x, size = %d\n",
+		  fn, addr, pkt->len);
 
 	/* Async not implemented yet */
 	if (flags & SDIO_REQ_ASYNC)
@@ -291,7 +369,7 @@ brcmf_sdcard_send_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
 
 	return brcmf_sdioh_request_buffer(sdiodev, incr_fix, SDIOH_WRITE, fn,
-					  addr, width, nbytes, buf, pkt);
+					  addr, width, 0, NULL, pkt);
 }
 
 int brcmf_sdcard_rwdata(struct brcmf_sdio_dev *sdiodev, uint rw, u32 addr,
