@@ -1113,10 +1113,23 @@ static unsigned int sci_tx_empty(struct uart_port *port)
  * handled via the ->init_pins() op, which is a bit of a one-way street,
  * lacking any ability to defer pin control -- this will later be
  * converted over to the GPIO framework).
+ *
+ * Other modes (such as loopback) are supported generically on certain
+ * port types, but not others. For these it's sufficient to test for the
+ * existence of the support register and simply ignore the port type.
  */
 static void sci_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
-	/* Nothing to do here. */
+	if (mctrl & TIOCM_LOOP) {
+		struct plat_sci_reg *reg;
+
+		/*
+		 * Standard loopback mode for SCFCR ports.
+		 */
+		reg = sci_getreg(port, SCFCR);
+		if (reg->size)
+			sci_out(port, SCFCR, sci_in(port, SCFCR) | 1);
+	}
 }
 
 static unsigned int sci_get_mctrl(struct uart_port *port)
