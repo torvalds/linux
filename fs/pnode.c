@@ -319,24 +319,24 @@ int propagate_mount_busy(struct vfsmount *mnt, int refcnt)
  * NOTE: unmounting 'mnt' naturally propagates to all other mounts its
  * parent propagates to.
  */
-static void __propagate_umount(struct vfsmount *mnt)
+static void __propagate_umount(struct mount *mnt)
 {
-	struct vfsmount *parent = mnt->mnt_parent;
+	struct vfsmount *parent = mnt->mnt.mnt_parent;
 	struct vfsmount *m;
 
-	BUG_ON(parent == mnt);
+	BUG_ON(parent == &mnt->mnt);
 
 	for (m = propagation_next(parent, parent); m;
 			m = propagation_next(m, parent)) {
 
 		struct mount *child = __lookup_mnt(m,
-					mnt->mnt_mountpoint, 0);
+					mnt->mnt.mnt_mountpoint, 0);
 		/*
 		 * umount the child only if the child has no
 		 * other children
 		 */
 		if (child && list_empty(&child->mnt.mnt_mounts))
-			list_move_tail(&child->mnt.mnt_hash, &mnt->mnt_hash);
+			list_move_tail(&child->mnt.mnt_hash, &mnt->mnt.mnt_hash);
 	}
 }
 
@@ -349,9 +349,9 @@ static void __propagate_umount(struct vfsmount *mnt)
  */
 int propagate_umount(struct list_head *list)
 {
-	struct vfsmount *mnt;
+	struct mount *mnt;
 
-	list_for_each_entry(mnt, list, mnt_hash)
+	list_for_each_entry(mnt, list, mnt.mnt_hash)
 		__propagate_umount(mnt);
 	return 0;
 }
