@@ -1,0 +1,10 @@
+#
+#
+#  To generate the Android buildable files/directory
+#  execute the btfilt.sh script ONLY ONCE and move the
+#  whole btfilter directory to Android external
+#  directoy for compilation.  Modify the  
+#  /android/build/core/prelink-linux-arm.map to add 
+#  this library libbtfilt.so into the final build
+#  image.
+#

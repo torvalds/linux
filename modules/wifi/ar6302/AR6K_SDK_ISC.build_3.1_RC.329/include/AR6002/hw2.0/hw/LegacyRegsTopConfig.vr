@@ -1,0 +1,46 @@
+#include <ave_defines.vrh>
+
+#ifndef SYNOPSYS_NTB
+  #include "AveTopConfig.vr"
+#endif
+
+class LegacyRegsTopConfig extends AveTopConfig {
+  local rvm_log log = new("LegacyRegsTopConfig", "class");
+
+  task new(rvm_log log = null, string name="LegacyRegsTopConfig", string instance="class");
+  virtual function rvm_data allocate();
+  virtual function rvm_data copy(rvm_data cpy = null);
+  virtual function AveData GetDutConfig();
+  virtual task SetDutConfig(AveData dutConfig); 
+}
+
+task LegacyRegsTopConfig::new(rvm_log log = null, string name="LegacyRegsTopConfig", string instance="class") {
+  super.new(((log != null) ? log : this.log), name, instance);
+  if (log != null) this.log = log;
+}
+
+function rvm_data LegacyRegsTopConfig::allocate() {
+  LegacyRegsTopConfig c = new();
+  allocate = c;
+}
+
+function rvm_data LegacyRegsTopConfig::copy(rvm_data cpy = null) {
+  LegacyRegsTopConfig to;
+  if (cpy == null) {
+      cast_assign(to, this.allocate());
+  }
+  else {
+    if(!cast_assign(to, cpy, CHECK))
+      rvm_error(this.log, "PROBLEM");
+   }
+  void = super.copy(to);
+  copy = to;
+}
+
+function AveData LegacyRegsTopConfig::GetDutConfig() {
+  GetDutConfig = null;
+}
+
+task LegacyRegsTopConfig::SetDutConfig(AveData dutConfig) {
+}
+

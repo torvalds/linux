@@ -1,0 +1,19 @@
+ 
+; Sample registry settings for SPI host driver
+
+
+    ; driver manual load keys, use these keys if the device loader utility is used
+IF ATH_SPI_HCD_MANUAL_LOAD 
+[HKEY_LOCAL_MACHINE\Drivers\ATHSPI_SAMPLE]
+    "Dll"="athspi_sample.dll"
+    "Prefix"="ATS"
+ENDIF
+
+IF ATH_SPI_HCD_MANUAL_LOAD  !
+    ; automatic driver load at system startup
+[HKEY_LOCAL_MACHINE\Drivers\BuiltIn\ATHSPI_SAMPLE]
+   "Dll"="athspi_sample.dll"
+   "Prefix"="ATS"
+   "Order"=dword:10      ; change the order to match platform
+   
+ENDIF

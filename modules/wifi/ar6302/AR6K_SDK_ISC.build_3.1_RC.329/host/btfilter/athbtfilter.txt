@@ -1,0 +1,269 @@
+PROPRIETARY AND CONFIDENTIAL
+
+Atheros Bluetooth Filter (Service) Library for WLAN/BT Coexistence
+
+Copyright 2007 Atheros Communications Inc.
+
+
+PURPOSE:
+
+This library provides an API to establish a BT "service" that can issue operating parameters
+to the Atheros WLAN driver when the co-located Bluetooth radio enters/exits specific operating states.
+This mechanism provides the most information to the WLAN device in order to optimize WLAN performance 
+and Bluetooth protection policies/mechanisms.  This filter is intended for system designs where the WLAN
+and BT radios utilize hardware coexistence signaling between the devices.
+
+The library consists of a "front end" API and a "back end" implementation.  The "back end" is operating
+system (and BT Stack) specific.  
+
+The Bluetooth operating state is reported through the "front end" interface.  The service processes the
+report information and issues the appropriate control action to the WLAN driver using operating system-specific 
+interfaces.  The source of BT state notifications can be a Bluetooth stack, stack manager application, or 
+Host Controller Interface (HCI) driver.  The most common approach is to filter at the HCI 
+driver layer in the vendor-specific Bluetooth HCI implementation (or the equivalent of). Some BT state 
+notifications require Bluetooth application level support (e.g. A2DP traffic detection).  These are 
+handled in the OS-specific/BT-stack specific back-end.
+
+
+CORE FUNCTIONALITY:
+
+The front end API provides filter attach/detach APIs and several mechanisms to report BT state. The filter
+can accept either raw HCI Command/Event frames -or- a precise state indication 
+that has been established by the Bluetooth stack, BT manager or BT HCI transport driver.  The "precise" mode
+is the preferred reporting mode, however, HCI command/event filtering is provided when this is 
+not possible or convenient (i.e. BT stack/BT Manager is closed source or not easily extensible).
+
+From this point forward the term "container" shall be used for the body of code that incorporates the 
+filter library and uses the filter APIs.  This can be a BT Stack component, BT stack manager or the 
+BT HCI transport driver.
+
+The library requires that the container allocate (and zero) a ATH_BT_FILTER_INSTANCE structure.  Depending
+on the operatings system used, the container may be required to set the Atheros WLAN adapter name within
+the instance structure.  When the attach API is called, the filter will be associated with the specified
+WLAN adapter instance.
+
+The container attaches to a filter by calling the following API with the local instance structure:
+
+int   AthBtFilter_Attach(ATH_BT_FILTER_INSTANCE *pInstance)
+
+The container can detach the filter (cleans up all resources used by the filter) by calling the
+following api:
+
+void  AthBtFilter_Detach(ATH_BT_FILTER_INSTANCE *pInstance)
+    
+To indicate raw HCI Command packets:
+
+void AthBtFilterHciCommand(ATH_BT_FILTER_INSTANCE *pInstance,
+                           unsigned char 	      *packet,
+                           int                    length)   
+
+To indicate raw HCI Event packets:
+
+void AthBtFilterHciEvent(ATH_BT_FILTER_INSTANCE *pInstance,
+                         unsigned char 	        *packet,
+                         int                    length)   
+
+To indicate a "precise" state:
+
+void AthBtIndicateState(ATH_BT_FILTER_INSTANCE *pInstance,
+                        ATHBT_STATE_INDICATION  State)
+                        
+The state is defined in the API header file.
+
+
+WINCE IMPLEMENTATION:
+
+Atheros provides a reference implementation for the Microsoft Bluetooth stack.  The following features
+are supported:
+
+     - Replaceable Universal Transport Driver (BT UNIV) compatible with any 3rd party BT HCI driver(s)
+     - Filter library that can be incorporated into the HCI driver or application directly.
+     - Detection of Atheros WLAN device arrival/removal.
+     - Detection of WLAN media connection (see below) and RF channel operation.
+     - Detection of A2DP traffic via A2DTP event notfications (Windows Mobile 6 or later)
+     - Detection of SCO connections via Bluetooth Event Notifications.
+     - Detection of Inquiry Start/End
+     - Default Action tables that translate BT operating state to a set of AR6K WMI commands.  
+       This action table is modifiable/extensible via the system registry.
+
+Architecture:
+
+     ----------------                     
+     |  MS BT STACK |
+     ----------------
+     ----------------                     
+     |  BT UNIV HCI |
+     ----------------     
+     ----------------                     
+     |    BT HCI    |
+     ----------------    
+       |         ^
+       |         |   ----------------                 ---------------------  
+     =============== | ATH BT FILTER| --------------> | BT service thread |
+       |         |   ----------------                 ---------------------
+       | Cmds    |                         ---------------------  --------------------------
+       |         | Events                  |   NDIUS UIO       |  |  BT Notifications (WM6) |  
+       V         |                         ---------------------  --------------------------
+     ----------------                        ----------------              
+     |    BT RADIO  |                        | AR6K Driver  |
+     ----------------                        ----------------
+
+
+The filter (by default) is statically linked to the container dll or application.  No additional executables are
+required.  Alternatively the filter can be implemented as an external DLL (athbtfilter.dll) and dynamically 
+loaded when the container calls the AthBtFilter_Attach() API and unloaded by a call to AthBtFilter_Detach().
+This is a compile time option. To compile as a dynamic library set the environment ATH_BTFILT_DYN=1 
+and rebuild cleanly.
+
+The dynamic library approach offers advantages during development and debug. As a DLL, the filter 
+registers CE debug zones which can be manipulated (selectively turned on) through the Platform Builder
+debugger at run time.  For hot pluggable Bluetooth adapters, the DLL can be unloaded,modified and reloaded
+at run time.
+
+WLAN Operating Channel:
+ 
+   The BT service posts the operating channel number to the following registry key:
+   
+   [HKEY_LOCAL_MACHINE\Comm\<adapter name>
+         "WlanChannel"=dword:x
+
+   <adapter name> is typically AR6K_SD1
+
+   The channel number is set to 0 when WLAN is not connected/associated or is operating in the 5Ghz band.
+
+   The valid values for operating channels are 1-11  (typical US regulatory)
+
+   An application (or BT HCI driver) can use Registry Change notifications (Windows CE)
+   to detect updates to this registry key.  This information can be used to adjust channel avoidance 
+   algorithms such as Bluetooth Adaptive Frequency Hopping (AFH).
+
+Replacing BT Universal Transport:
+  
+    The Atheros modified transport driver is called btuniv_ath.dll. Simply rename this DLL to btuniv.dll
+    and replace the version in the $(FLATRELEASEDIR) directory.
+
+Altering/Extending BT Action tables:
+
+    The BT filter implements an internal table of "state actions" for each supported BT state indication. 
+    The state can be "ON" or "OFF".  The supporting indications include: INQUIRY, CONNECT, ACL, SCO
+    and A2DP.  To REPLACE or APPEND state actions for any indication, an override can be added to the
+    system registry.
+    
+    The registry path for BT action override value keys are located under :
+    
+    [HKEY_LOCAL_MACHINE\Services\ATHSRVC\BTFILTER\ACTION_OVERRIDES]
+    
+    The override value keys are multi_sz data types with the following format:
+    
+    "<Indication>-<State>"=multi_sz:"<ModifyAction>","<ActionString>"
+    
+    Note: ModifyAction can be "REPLACE" or "APPEND"
+    
+    For example:
+       
+        "INQUIRY-OFF"=multi_sz:"REPLACE","-s 2 2"
+    
+    Here we have <Indication>="INQUIRY", <State>="OFF", <ModifyAction>="REPLACE", <Action>="-s 2 2". 
+    This override replaces the internal "OFF" entry for the INQUIRY state with the action string of 
+    "-s 2 2".  Refer to btfilter_core.h for details on the action string notation.
+    
+    
+LINUX IMPLEMENTATION:
+
+Atheros provides a reference implementation for the BlueZ stack. The following features are supported:
+
+     - Detection of Atheros WLAN and BT device arrival/removal.
+     - Detection of WLAN media connection (see below) and RF channel operation.
+     - Detection of A2DP traffic via A2DTP event notfications.
+     - Detection of SCO connections via Bluetooth Event Notifications.
+     - Detection of Inquiry Start/End.
+     - Default Action tables that translate BT operating state to a set of AR6K WMI commands.
+       This action table is modifiable/extensible via a config file.
+
+Architecture:
+
+                               --------------------
+                               | BT Filter Core   |
+    --------     --------      --------------------      --------     --------
+    |      |     |      |           ^       |            |      |     |      |
+    |DBUS  |     |BT    |           |       V            |WLAN  |     |Netlnk|
+    |      |     |      |      --------------------      |      |     |      |
+    |      |     |      |      | BT Front End     |      |      |     |      |
+    |Msg   |<--->|Msg   |      --------------------      |Msg   |<----|Socket|
+    |      |     |      |     State ^       | Action     |      |     |      |
+    |      |     |      |     Ind   |       V Msg        |      |     |      |
+    |I/F   |     |Thread|      --------------------      |Thread|     |I/F   |
+    |      |     |      |<---->| BT Filter Thread |<---->|      |     |      |
+    --------     --------      --------------------      --------     --------
+       ^                                                    |            ^
+       |                                                    |            |
+    ---------------------                                   |            |
+    |    BT Profiles    |                                   |            |
+    ---------------------                                   |            |
+       |                           USER SPACE               |            |
+  ==============================================================================
+       |                          KERNEL SPACE              |            |
+       |Cmds/                                               |Cmds        |
+       |Events                                              |      Events|
+       V                                                    V            |
+    ---------------------                                ---------------------
+    |  BlueZ BT Stack   |                                |    AR6K Driver    |
+    ---------------------                                ---------------------
+             ^                                                     ^
+             |                                                     |
+             V                                                     V
+    ---------------------                                ---------------------
+    |     BT Radio      |                                |    WLAN Radio     |
+    ---------------------                                ---------------------
+
+The filter mechanism has been implemented as a service daemon that registers with
+the DBUS messaging interface and the Netlink socket interface to interact with the 
+BT and WLAN modules respectively. This allows the filter service to manage both the 
+interfaces in a centralized fashion by listening to events and issuing appropriate 
+commands to the BT and WLAN adapters. Events related to either of these modules are 
+routed to the filter daemon which then processes and feeds them into the Coexistence 
+filter engine. The resulting action messages are then comunicated to the adapters 
+via their respective interfaces.
+Both WLAN and BT messaging interfaces provide a high degree of extensibility w.r.t. 
+registering hooks for events across different layers of the stack and profiles.
+
+
+The application: abtfilt can be executed as a system daemon and
+should be run with root priveledges.
+
+ > ./abtfilt 
+ 
+The application will operate in the background. Adding -d to the command line 
+will log messages to syslog.
+
+For debug log output to the current console you can execute:
+
+> ./abtfilt -c -d 
+
+To run the application without spawning a daemon (and logging turned on):
+
+> ./abtfilt -c -d -n
+
+
+Altering/Extending BT Action tables:
+
+    The BT filter implements an internal table of "state actions" for each supported 
+    BT state indication. The state can be "ON" or "OFF".  The supporting indications 
+    include: INQUIRY, CONNECT, ACL, SCO and A2DP.  To REPLACE or APPEND state actions 
+    for any indication, an override can be added to a configuration file supplied
+    to the Filter daemon during initalization.
+
+    The override value keys are strings separated by a colon:
+
+    <Indication>-<State>:<ModifyAction>:<ActionString>
+
+    Note: ModifyAction can be "REPLACE" or "APPEND"
+
+    For example:
+
+        INQUIRY-OFF:REPLACE:-s 2 2
+
+    Here we have <Indication>="INQUIRY", <State>="OFF", <ModifyAction>="REPLACE", 
+    <Action>="-s 2 2". This override replaces the internal "OFF" entry for the 
+    INQUIRY state with the action string of "-s 2 2". Refer to btfilter_core.h 
+    for details on the action string notation.

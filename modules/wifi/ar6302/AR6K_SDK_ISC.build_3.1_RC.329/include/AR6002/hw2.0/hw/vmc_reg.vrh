@@ -1,0 +1,100 @@
+#ifndef _VMC_REG_VRH_
+#define _VMC_REG_VRH_
+
+#define MC_TCAM_VALID_ADDRESS                    'h00000000
+#define MC_TCAM_VALID_BIT_MSB                    0
+#define MC_TCAM_VALID_BIT_LSB                    0
+#define MC_TCAM_VALID_BIT_MASK                   'h00000001
+#define MC_TCAM_VALID_BIT_GET(x)                 (((x) & MC_TCAM_VALID_BIT_MASK) >> MC_TCAM_VALID_BIT_LSB)
+#define MC_TCAM_VALID_BIT_SET(x)                 (((32'd0 | (x)) << MC_TCAM_VALID_BIT_LSB) & MC_TCAM_VALID_BIT_MASK)
+#define MC_TCAM_VALID_BIT_RESET                  1'h0
+#define MC_TCAM_VALID_RESET                      (32'h0 | \
+                                                  MC_TCAM_VALID_BIT_SET(MC_TCAM_VALID_BIT_RESET))
+#define MC_TCAM_VALID_HW_MASK                    (32'h0)
+#define MC_TCAM_VALID_SW_MASK                    (32'h0 | \
+                                                  MC_TCAM_VALID_BIT_MASK)
+
+#define MC_TCAM_MASK_ADDRESS                     'h00000080
+#define MC_TCAM_MASK_SIZE_MSB                    2
+#define MC_TCAM_MASK_SIZE_LSB                    0
+#define MC_TCAM_MASK_SIZE_MASK                   'h00000007
+#define MC_TCAM_MASK_SIZE_GET(x)                 (((x) & MC_TCAM_MASK_SIZE_MASK) >> MC_TCAM_MASK_SIZE_LSB)
+#define MC_TCAM_MASK_SIZE_SET(x)                 (((32'd0 | (x)) << MC_TCAM_MASK_SIZE_LSB) & MC_TCAM_MASK_SIZE_MASK)
+#define MC_TCAM_MASK_SIZE_RESET                  3'h0
+#define MC_TCAM_MASK_RESET                       (32'h0 | \
+                                                  MC_TCAM_MASK_SIZE_SET(MC_TCAM_MASK_SIZE_RESET))
+#define MC_TCAM_MASK_HW_MASK                     (32'h0)
+#define MC_TCAM_MASK_SW_MASK                     (32'h0 | \
+                                                  MC_TCAM_MASK_SIZE_MASK)
+
+#define MC_TCAM_COMPARE_ADDRESS                  'h00000100
+#define MC_TCAM_COMPARE_KEY_MSB                  21
+#define MC_TCAM_COMPARE_KEY_LSB                  5
+#define MC_TCAM_COMPARE_KEY_MASK                 'h003fffe0
+#define MC_TCAM_COMPARE_KEY_GET(x)               (((x) & MC_TCAM_COMPARE_KEY_MASK) >> MC_TCAM_COMPARE_KEY_LSB)
+#define MC_TCAM_COMPARE_KEY_SET(x)               (((32'd0 | (x)) << MC_TCAM_COMPARE_KEY_LSB) & MC_TCAM_COMPARE_KEY_MASK)
+#define MC_TCAM_COMPARE_KEY_RESET                17'h0
+#define MC_TCAM_COMPARE_RESET                    (32'h0 | \
+                                                  MC_TCAM_COMPARE_KEY_SET(MC_TCAM_COMPARE_KEY_RESET))
+#define MC_TCAM_COMPARE_HW_MASK                  (32'h0)
+#define MC_TCAM_COMPARE_SW_MASK                  (32'h0 | \
+                                                  MC_TCAM_COMPARE_KEY_MASK)
+
+#define MC_TCAM_TARGET_ADDRESS                   'h00000180
+#define MC_TCAM_TARGET_ADDR_MSB                  21
+#define MC_TCAM_TARGET_ADDR_LSB                  5
+#define MC_TCAM_TARGET_ADDR_MASK                 'h003fffe0
+#define MC_TCAM_TARGET_ADDR_GET(x)               (((x) & MC_TCAM_TARGET_ADDR_MASK) >> MC_TCAM_TARGET_ADDR_LSB)
+#define MC_TCAM_TARGET_ADDR_SET(x)               (((32'd0 | (x)) << MC_TCAM_TARGET_ADDR_LSB) & MC_TCAM_TARGET_ADDR_MASK)
+#define MC_TCAM_TARGET_ADDR_RESET                17'h0
+#define MC_TCAM_TARGET_RESET                     (32'h0 | \
+                                                  MC_TCAM_TARGET_ADDR_SET(MC_TCAM_TARGET_ADDR_RESET))
+#define MC_TCAM_TARGET_HW_MASK                   (32'h0)
+#define MC_TCAM_TARGET_SW_MASK                   (32'h0 | \
+                                                  MC_TCAM_TARGET_ADDR_MASK)
+
+#define ADDR_ERROR_CONTROL_ADDRESS               'h00000200
+#define ADDR_ERROR_CONTROL_QUAL_ENABLE_MSB       1
+#define ADDR_ERROR_CONTROL_QUAL_ENABLE_LSB       1
+#define ADDR_ERROR_CONTROL_QUAL_ENABLE_MASK      'h00000002
+#define ADDR_ERROR_CONTROL_QUAL_ENABLE_GET(x)    (((x) & ADDR_ERROR_CONTROL_QUAL_ENABLE_MASK) >> ADDR_ERROR_CONTROL_QUAL_ENABLE_LSB)
+#define ADDR_ERROR_CONTROL_QUAL_ENABLE_SET(x)    (((32'd0 | (x)) << ADDR_ERROR_CONTROL_QUAL_ENABLE_LSB) & ADDR_ERROR_CONTROL_QUAL_ENABLE_MASK)
+#define ADDR_ERROR_CONTROL_QUAL_ENABLE_RESET     1'h0
+#define ADDR_ERROR_CONTROL_ENABLE_MSB            0
+#define ADDR_ERROR_CONTROL_ENABLE_LSB            0
+#define ADDR_ERROR_CONTROL_ENABLE_MASK           'h00000001
+#define ADDR_ERROR_CONTROL_ENABLE_GET(x)         (((x) & ADDR_ERROR_CONTROL_ENABLE_MASK) >> ADDR_ERROR_CONTROL_ENABLE_LSB)
+#define ADDR_ERROR_CONTROL_ENABLE_SET(x)         (((32'd0 | (x)) << ADDR_ERROR_CONTROL_ENABLE_LSB) & ADDR_ERROR_CONTROL_ENABLE_MASK)
+#define ADDR_ERROR_CONTROL_ENABLE_RESET          1'h0
+#define ADDR_ERROR_CONTROL_RESET                 (32'h0 | \
+                                                  ADDR_ERROR_CONTROL_QUAL_ENABLE_SET(ADDR_ERROR_CONTROL_QUAL_ENABLE_RESET) | \
+                                                  ADDR_ERROR_CONTROL_ENABLE_SET(ADDR_ERROR_CONTROL_ENABLE_RESET))
+#define ADDR_ERROR_CONTROL_HW_MASK               (32'h0)
+#define ADDR_ERROR_CONTROL_SW_MASK               (32'h0 | \
+                                                  ADDR_ERROR_CONTROL_QUAL_ENABLE_MASK | \
+                                                  ADDR_ERROR_CONTROL_ENABLE_MASK)
+
+#define ADDR_ERROR_STATUS_ADDRESS                'h00000204
+#define ADDR_ERROR_STATUS_WRITE_MSB              25
+#define ADDR_ERROR_STATUS_WRITE_LSB              25
+#define ADDR_ERROR_STATUS_WRITE_MASK             'h02000000
+#define ADDR_ERROR_STATUS_WRITE_GET(x)           (((x) & ADDR_ERROR_STATUS_WRITE_MASK) >> ADDR_ERROR_STATUS_WRITE_LSB)
+#define ADDR_ERROR_STATUS_WRITE_SET(x)           (((32'd0 | (x)) << ADDR_ERROR_STATUS_WRITE_LSB) & ADDR_ERROR_STATUS_WRITE_MASK)
+#define ADDR_ERROR_STATUS_WRITE_RESET            1'h0
+#define ADDR_ERROR_STATUS_ADDRESS_MSB            24
+#define ADDR_ERROR_STATUS_ADDRESS_LSB            0
+#define ADDR_ERROR_STATUS_ADDRESS_MASK           'h01ffffff
+#define ADDR_ERROR_STATUS_ADDRESS_GET(x)         (((x) & ADDR_ERROR_STATUS_ADDRESS_MASK) >> ADDR_ERROR_STATUS_ADDRESS_LSB)
+#define ADDR_ERROR_STATUS_ADDRESS_SET(x)         (((32'd0 | (x)) << ADDR_ERROR_STATUS_ADDRESS_LSB) & ADDR_ERROR_STATUS_ADDRESS_MASK)
+#define ADDR_ERROR_STATUS_ADDRESS_RESET          25'h0
+#define ADDR_ERROR_STATUS_RESET                  (32'h0 | \
+                                                  ADDR_ERROR_STATUS_WRITE_SET(ADDR_ERROR_STATUS_WRITE_RESET) | \
+                                                  ADDR_ERROR_STATUS_ADDRESS_SET(ADDR_ERROR_STATUS_ADDRESS_RESET))
+#define ADDR_ERROR_STATUS_HW_MASK                (32'h0 | \
+                                                  ADDR_ERROR_STATUS_WRITE_MASK | \
+                                                  ADDR_ERROR_STATUS_ADDRESS_MASK)
+#define ADDR_ERROR_STATUS_SW_MASK                (32'h0)
+
+#define VMC_REG_ADDRESS_MSB                      9
+
+#endif /* _VMC_REG_VRH_ */

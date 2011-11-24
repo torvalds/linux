@@ -1,0 +1,123 @@
+#ifndef _ADDAC_VRH_
+#define _ADDAC_VRH_
+
+#define ADDAC_ADDAC1_ADDRESS                     'h00000000
+#define ADDAC_ADDAC1_PLL_SVREG_MSB               31
+#define ADDAC_ADDAC1_PLL_SVREG_LSB               31
+#define ADDAC_ADDAC1_PLL_SVREG_MASK              'h80000000
+#define ADDAC_ADDAC1_PLL_SVREG_GET(x)            (((x) & ADDAC_ADDAC1_PLL_SVREG_MASK) >> ADDAC_ADDAC1_PLL_SVREG_LSB)
+#define ADDAC_ADDAC1_PLL_SVREG_SET(x)            (((32'd0 | (x)) << ADDAC_ADDAC1_PLL_SVREG_LSB) & ADDAC_ADDAC1_PLL_SVREG_MASK)
+#define ADDAC_ADDAC1_PLL_SVREG_RESET             1'h1
+#define ADDAC_ADDAC1_PLL_SCLAMP_MSB              30
+#define ADDAC_ADDAC1_PLL_SCLAMP_LSB              28
+#define ADDAC_ADDAC1_PLL_SCLAMP_MASK             'h70000000
+#define ADDAC_ADDAC1_PLL_SCLAMP_GET(x)           (((x) & ADDAC_ADDAC1_PLL_SCLAMP_MASK) >> ADDAC_ADDAC1_PLL_SCLAMP_LSB)
+#define ADDAC_ADDAC1_PLL_SCLAMP_SET(x)           (((32'd0 | (x)) << ADDAC_ADDAC1_PLL_SCLAMP_LSB) & ADDAC_ADDAC1_PLL_SCLAMP_MASK)
+#define ADDAC_ADDAC1_PLL_SCLAMP_RESET            3'h5
+#define ADDAC_ADDAC1_PLL_ATB_MSB                 27
+#define ADDAC_ADDAC1_PLL_ATB_LSB                 26
+#define ADDAC_ADDAC1_PLL_ATB_MASK                'h0c000000
+#define ADDAC_ADDAC1_PLL_ATB_GET(x)              (((x) & ADDAC_ADDAC1_PLL_ATB_MASK) >> ADDAC_ADDAC1_PLL_ATB_LSB)
+#define ADDAC_ADDAC1_PLL_ATB_SET(x)              (((32'd0 | (x)) << ADDAC_ADDAC1_PLL_ATB_LSB) & ADDAC_ADDAC1_PLL_ATB_MASK)
+#define ADDAC_ADDAC1_PLL_ATB_RESET               2'h0
+#define ADDAC_ADDAC1_PLL_ICP_MSB                 25
+#define ADDAC_ADDAC1_PLL_ICP_LSB                 23
+#define ADDAC_ADDAC1_PLL_ICP_MASK                'h03800000
+#define ADDAC_ADDAC1_PLL_ICP_GET(x)              (((x) & ADDAC_ADDAC1_PLL_ICP_MASK) >> ADDAC_ADDAC1_PLL_ICP_LSB)
+#define ADDAC_ADDAC1_PLL_ICP_SET(x)              (((32'd0 | (x)) << ADDAC_ADDAC1_PLL_ICP_LSB) & ADDAC_ADDAC1_PLL_ICP_MASK)
+#define ADDAC_ADDAC1_PLL_ICP_RESET               3'h0
+#define ADDAC_ADDAC1_PLL_FILTER_MSB              22
+#define ADDAC_ADDAC1_PLL_FILTER_LSB              15
+#define ADDAC_ADDAC1_PLL_FILTER_MASK             'h007f8000
+#define ADDAC_ADDAC1_PLL_FILTER_GET(x)           (((x) & ADDAC_ADDAC1_PLL_FILTER_MASK) >> ADDAC_ADDAC1_PLL_FILTER_LSB)
+#define ADDAC_ADDAC1_PLL_FILTER_SET(x)           (((32'd0 | (x)) << ADDAC_ADDAC1_PLL_FILTER_LSB) & ADDAC_ADDAC1_PLL_FILTER_MASK)
+#define ADDAC_ADDAC1_PLL_FILTER_RESET            8'h35
+#define ADDAC_ADDAC1_PWDPLL_MSB                  14
+#define ADDAC_ADDAC1_PWDPLL_LSB                  14
+#define ADDAC_ADDAC1_PWDPLL_MASK                 'h00004000
+#define ADDAC_ADDAC1_PWDPLL_GET(x)               (((x) & ADDAC_ADDAC1_PWDPLL_MASK) >> ADDAC_ADDAC1_PWDPLL_LSB)
+#define ADDAC_ADDAC1_PWDPLL_SET(x)               (((32'd0 | (x)) << ADDAC_ADDAC1_PWDPLL_LSB) & ADDAC_ADDAC1_PWDPLL_MASK)
+#define ADDAC_ADDAC1_PWDPLL_RESET                1'h0
+#define ADDAC_ADDAC1_PWDADC_MSB                  13
+#define ADDAC_ADDAC1_PWDADC_LSB                  13
+#define ADDAC_ADDAC1_PWDADC_MASK                 'h00002000
+#define ADDAC_ADDAC1_PWDADC_GET(x)               (((x) & ADDAC_ADDAC1_PWDADC_MASK) >> ADDAC_ADDAC1_PWDADC_LSB)
+#define ADDAC_ADDAC1_PWDADC_SET(x)               (((32'd0 | (x)) << ADDAC_ADDAC1_PWDADC_LSB) & ADDAC_ADDAC1_PWDADC_MASK)
+#define ADDAC_ADDAC1_PWDADC_RESET                1'h0
+#define ADDAC_ADDAC1_PWDDAC_MSB                  12
+#define ADDAC_ADDAC1_PWDDAC_LSB                  12
+#define ADDAC_ADDAC1_PWDDAC_MASK                 'h00001000
+#define ADDAC_ADDAC1_PWDDAC_GET(x)               (((x) & ADDAC_ADDAC1_PWDDAC_MASK) >> ADDAC_ADDAC1_PWDDAC_LSB)
+#define ADDAC_ADDAC1_PWDDAC_SET(x)               (((32'd0 | (x)) << ADDAC_ADDAC1_PWDDAC_LSB) & ADDAC_ADDAC1_PWDDAC_MASK)
+#define ADDAC_ADDAC1_PWDDAC_RESET                1'h0
+#define ADDAC_ADDAC1_FORCEMSBLOW_MSB             11
+#define ADDAC_ADDAC1_FORCEMSBLOW_LSB             11
+#define ADDAC_ADDAC1_FORCEMSBLOW_MASK            'h00000800
+#define ADDAC_ADDAC1_FORCEMSBLOW_GET(x)          (((x) & ADDAC_ADDAC1_FORCEMSBLOW_MASK) >> ADDAC_ADDAC1_FORCEMSBLOW_LSB)
+#define ADDAC_ADDAC1_FORCEMSBLOW_SET(x)          (((32'd0 | (x)) << ADDAC_ADDAC1_FORCEMSBLOW_LSB) & ADDAC_ADDAC1_FORCEMSBLOW_MASK)
+#define ADDAC_ADDAC1_FORCEMSBLOW_RESET           1'h0
+#define ADDAC_ADDAC1_SELMANPWDS_MSB              10
+#define ADDAC_ADDAC1_SELMANPWDS_LSB              10
+#define ADDAC_ADDAC1_SELMANPWDS_MASK             'h00000400
+#define ADDAC_ADDAC1_SELMANPWDS_GET(x)           (((x) & ADDAC_ADDAC1_SELMANPWDS_MASK) >> ADDAC_ADDAC1_SELMANPWDS_LSB)
+#define ADDAC_ADDAC1_SELMANPWDS_SET(x)           (((32'd0 | (x)) << ADDAC_ADDAC1_SELMANPWDS_LSB) & ADDAC_ADDAC1_SELMANPWDS_MASK)
+#define ADDAC_ADDAC1_SELMANPWDS_RESET            1'h0
+#define ADDAC_ADDAC1_INV_CLK160_ADC_MSB          9
+#define ADDAC_ADDAC1_INV_CLK160_ADC_LSB          9
+#define ADDAC_ADDAC1_INV_CLK160_ADC_MASK         'h00000200
+#define ADDAC_ADDAC1_INV_CLK160_ADC_GET(x)       (((x) & ADDAC_ADDAC1_INV_CLK160_ADC_MASK) >> ADDAC_ADDAC1_INV_CLK160_ADC_LSB)
+#define ADDAC_ADDAC1_INV_CLK160_ADC_SET(x)       (((32'd0 | (x)) << ADDAC_ADDAC1_INV_CLK160_ADC_LSB) & ADDAC_ADDAC1_INV_CLK160_ADC_MASK)
+#define ADDAC_ADDAC1_INV_CLK160_ADC_RESET        1'h0
+#define ADDAC_ADDAC1_CM_SEL_MSB                  8
+#define ADDAC_ADDAC1_CM_SEL_LSB                  7
+#define ADDAC_ADDAC1_CM_SEL_MASK                 'h00000180
+#define ADDAC_ADDAC1_CM_SEL_GET(x)               (((x) & ADDAC_ADDAC1_CM_SEL_MASK) >> ADDAC_ADDAC1_CM_SEL_LSB)
+#define ADDAC_ADDAC1_CM_SEL_SET(x)               (((32'd0 | (x)) << ADDAC_ADDAC1_CM_SEL_LSB) & ADDAC_ADDAC1_CM_SEL_MASK)
+#define ADDAC_ADDAC1_CM_SEL_RESET                2'h1
+#define ADDAC_ADDAC1_DISABLE_DAC_REG_MSB         6
+#define ADDAC_ADDAC1_DISABLE_DAC_REG_LSB         6
+#define ADDAC_ADDAC1_DISABLE_DAC_REG_MASK        'h00000040
+#define ADDAC_ADDAC1_DISABLE_DAC_REG_GET(x)      (((x) & ADDAC_ADDAC1_DISABLE_DAC_REG_MASK) >> ADDAC_ADDAC1_DISABLE_DAC_REG_LSB)
+#define ADDAC_ADDAC1_DISABLE_DAC_REG_SET(x)      (((32'd0 | (x)) << ADDAC_ADDAC1_DISABLE_DAC_REG_LSB) & ADDAC_ADDAC1_DISABLE_DAC_REG_MASK)
+#define ADDAC_ADDAC1_DISABLE_DAC_REG_RESET       1'h0
+#define ADDAC_ADDAC1_SPARE_MSB                   5
+#define ADDAC_ADDAC1_SPARE_LSB                   0
+#define ADDAC_ADDAC1_SPARE_MASK                  'h0000003f
+#define ADDAC_ADDAC1_SPARE_GET(x)                (((x) & ADDAC_ADDAC1_SPARE_MASK) >> ADDAC_ADDAC1_SPARE_LSB)
+#define ADDAC_ADDAC1_SPARE_SET(x)                (((32'd0 | (x)) << ADDAC_ADDAC1_SPARE_LSB) & ADDAC_ADDAC1_SPARE_MASK)
+#define ADDAC_ADDAC1_SPARE_RESET                 6'h0
+#define ADDAC_ADDAC1_RESET                       (32'h0 | \
+                                                  ADDAC_ADDAC1_PLL_SVREG_SET(ADDAC_ADDAC1_PLL_SVREG_RESET) | \
+                                                  ADDAC_ADDAC1_PLL_SCLAMP_SET(ADDAC_ADDAC1_PLL_SCLAMP_RESET) | \
+                                                  ADDAC_ADDAC1_PLL_ATB_SET(ADDAC_ADDAC1_PLL_ATB_RESET) | \
+                                                  ADDAC_ADDAC1_PLL_ICP_SET(ADDAC_ADDAC1_PLL_ICP_RESET) | \
+                                                  ADDAC_ADDAC1_PLL_FILTER_SET(ADDAC_ADDAC1_PLL_FILTER_RESET) | \
+                                                  ADDAC_ADDAC1_PWDPLL_SET(ADDAC_ADDAC1_PWDPLL_RESET) | \
+                                                  ADDAC_ADDAC1_PWDADC_SET(ADDAC_ADDAC1_PWDADC_RESET) | \
+                                                  ADDAC_ADDAC1_PWDDAC_SET(ADDAC_ADDAC1_PWDDAC_RESET) | \
+                                                  ADDAC_ADDAC1_FORCEMSBLOW_SET(ADDAC_ADDAC1_FORCEMSBLOW_RESET) | \
+                                                  ADDAC_ADDAC1_SELMANPWDS_SET(ADDAC_ADDAC1_SELMANPWDS_RESET) | \
+                                                  ADDAC_ADDAC1_INV_CLK160_ADC_SET(ADDAC_ADDAC1_INV_CLK160_ADC_RESET) | \
+                                                  ADDAC_ADDAC1_CM_SEL_SET(ADDAC_ADDAC1_CM_SEL_RESET) | \
+                                                  ADDAC_ADDAC1_DISABLE_DAC_REG_SET(ADDAC_ADDAC1_DISABLE_DAC_REG_RESET) | \
+                                                  ADDAC_ADDAC1_SPARE_SET(ADDAC_ADDAC1_SPARE_RESET))
+#define ADDAC_ADDAC1_HW_MASK                     (32'h0)
+#define ADDAC_ADDAC1_SW_MASK                     (32'h0 | \
+                                                  ADDAC_ADDAC1_PLL_SVREG_MASK | \
+                                                  ADDAC_ADDAC1_PLL_SCLAMP_MASK | \
+                                                  ADDAC_ADDAC1_PLL_ATB_MASK | \
+                                                  ADDAC_ADDAC1_PLL_ICP_MASK | \
+                                                  ADDAC_ADDAC1_PLL_FILTER_MASK | \
+                                                  ADDAC_ADDAC1_PWDPLL_MASK | \
+                                                  ADDAC_ADDAC1_PWDADC_MASK | \
+                                                  ADDAC_ADDAC1_PWDDAC_MASK | \
+                                                  ADDAC_ADDAC1_FORCEMSBLOW_MASK | \
+                                                  ADDAC_ADDAC1_SELMANPWDS_MASK | \
+                                                  ADDAC_ADDAC1_INV_CLK160_ADC_MASK | \
+                                                  ADDAC_ADDAC1_CM_SEL_MASK | \
+                                                  ADDAC_ADDAC1_DISABLE_DAC_REG_MASK | \
+                                                  ADDAC_ADDAC1_SPARE_MASK)
+
+#define ADDAC_ADDRESS_MSB                        1
+
+#endif /* _ADDAC_VRH_ */

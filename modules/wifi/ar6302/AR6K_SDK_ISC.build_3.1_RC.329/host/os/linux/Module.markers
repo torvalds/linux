@@ -1,0 +1,4 @@
+core_marker_format	vmlinux	name %s format %s
+kernel_sched_schedule	vmlinux	prev_pid %d next_pid %d prev_state %ld ## rq %p prev %p next %p
+kernel_sched_wakeup	vmlinux	pid %d state %ld ## rq %p task %p rq->curr %p
+kernel_sched_wakeup_new	vmlinux	pid %d state %ld ## rq %p task %p rq->curr %p

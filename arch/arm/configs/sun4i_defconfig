@@ -492,7 +492,21 @@ CONFIG_NET_PKTGEN=m
 # CONFIG_HAMRADIO is not set
 # CONFIG_CAN is not set
 # CONFIG_IRDA is not set
-# CONFIG_BT is not set
+CONFIG_BT=y
+# CONFIG_BT_L2CAP is not set
+# CONFIG_BT_SCO is not set
+
+#
+# Bluetooth device drivers
+#
+# CONFIG_BT_HCIBTUSB is not set
+# CONFIG_BT_HCIBTSDIO is not set
+# CONFIG_BT_HCIUART is not set
+# CONFIG_BT_HCIBCM203X is not set
+# CONFIG_BT_HCIBPA10X is not set
+# CONFIG_BT_HCIBFUSB is not set
+# CONFIG_BT_HCIVHCI is not set
+# CONFIG_BT_MRVL is not set
 CONFIG_WIRELESS=y
 CONFIG_WIRELESS_EXT=y
 CONFIG_WEXT_CORE=y
@@ -510,7 +524,6 @@ CONFIG_WIRELESS_EXT_SYSFS=y
 # CONFIG_LIB80211 is not set
 # CONFIG_CFG80211_ALLOW_RECONNECT is not set
 # CONFIG_MAC80211 is not set
-# CONFIG_MAC80211_RC_DEFAULT_MINSTREL is not set
 # CONFIG_WIMAX is not set
 # CONFIG_RFKILL is not set
 # CONFIG_RFKILL_REGULATOR is not set
@@ -1246,6 +1259,11 @@ CONFIG_MMC_BLOCK_MINORS=8
 # CONFIG_MMC_BLOCK_DEFERRED_RESUME is not set
 # CONFIG_SDIO_UART is not set
 # CONFIG_MMC_TEST is not set
+
+#
+# MMC/SD/SDIO Card Power Management Drivers
+#
+CONFIG_MMC_SUNXI_POWER_CONTROL=y
 
 #
 # SUNXI MMC/SD/SDIO Host Controller Drivers
