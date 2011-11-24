@@ -1360,7 +1360,6 @@ descriptor_error:
 	return -ENODEV;
 }
 
-/* No BKL needed */
 static int
 hub_ioctl(struct usb_interface *intf, unsigned int code, void *user_data)
 {

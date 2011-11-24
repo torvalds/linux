@@ -1340,7 +1340,6 @@ static void fixup_generic(struct usb_serial_driver *device)
 
 int usb_serial_register(struct usb_serial_driver *driver)
 {
-	/* must be called with BKL held */
 	int retval;
 
 	if (usb_disabled())
@@ -1378,7 +1377,6 @@ EXPORT_SYMBOL_GPL(usb_serial_register);
 
 void usb_serial_deregister(struct usb_serial_driver *device)
 {
-	/* must be called with BKL held */
 	printk(KERN_INFO "USB Serial deregistering driver %s\n",
 	       device->description);
 	mutex_lock(&table_lock);
