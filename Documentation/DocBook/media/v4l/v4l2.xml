@@ -480,6 +480,7 @@ and discussions on the V4L mailing list.</revremark>
     &sub-cropcap;
     &sub-dbg-g-chip-ident;
     &sub-dbg-g-register;
+    &sub-decoder-cmd;
     &sub-dqevent;
     &sub-encoder-cmd;
     &sub-enumaudio;
