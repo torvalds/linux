@@ -22,6 +22,7 @@
 
 #include <linux/preempt.h>
 #include <linux/types.h>
+#include <linux/bug.h>
 #include <linux/kernel.h>
 #include <linux/rcupdate.h>
 

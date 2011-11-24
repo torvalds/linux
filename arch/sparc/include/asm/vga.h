@@ -7,6 +7,7 @@
 #ifndef _LINUX_ASM_VGA_H_
 #define _LINUX_ASM_VGA_H_
 
+#include <linux/bug.h>
 #include <asm/types.h>
 
 #define VT_BUF_HAVE_RW

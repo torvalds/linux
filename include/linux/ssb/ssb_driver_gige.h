@@ -2,6 +2,7 @@
 #define LINUX_SSB_DRIVER_GIGE_H_
 
 #include <linux/ssb/ssb.h>
+#include <linux/bug.h>
 #include <linux/pci.h>
 #include <linux/spinlock.h>
 
