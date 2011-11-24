@@ -584,16 +584,32 @@ static struct regbit {
 	unsigned long bit;
 	const char *name;
 } msr_bits[] = {
+#if defined(CONFIG_PPC64) && !defined(CONFIG_BOOKE)
+	{MSR_SF,	"SF"},
+	{MSR_HV,	"HV"},
+#endif
+	{MSR_VEC,	"VEC"},
+	{MSR_VSX,	"VSX"},
+#ifdef CONFIG_BOOKE
+	{MSR_CE,	"CE"},
+#endif
 	{MSR_EE,	"EE"},
 	{MSR_PR,	"PR"},
 	{MSR_FP,	"FP"},
-	{MSR_VEC,	"VEC"},
-	{MSR_VSX,	"VSX"},
 	{MSR_ME,	"ME"},
-	{MSR_CE,	"CE"},
+#ifdef CONFIG_BOOKE
 	{MSR_DE,	"DE"},
+#else
+	{MSR_SE,	"SE"},
+	{MSR_BE,	"BE"},
+#endif
 	{MSR_IR,	"IR"},
 	{MSR_DR,	"DR"},
+	{MSR_PMM,	"PMM"},
+#ifndef CONFIG_BOOKE
+	{MSR_RI,	"RI"},
+	{MSR_LE,	"LE"},
+#endif
 	{0,		NULL}
 };
 
