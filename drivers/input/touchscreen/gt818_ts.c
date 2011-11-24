@@ -350,8 +350,9 @@ static void goodix_ts_work_func(struct work_struct *work)
 			syn_flag = 1;
 		}
 
-		input_sync(ts->input_dev);
-	}
+}
+input_sync(ts->input_dev);
+
 
 
 #ifdef HAVE_TOUCH_KEY

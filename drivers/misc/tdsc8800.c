@@ -31,7 +31,6 @@ MODULE_LICENSE("GPL");
 #define MODEMDBG(fmt,argss...)
 #endif
 
-static bool wakelock_inited;
 #define SLEEP 1
 #define READY 0
 struct rk2818_23d_data *gpdata = NULL;
@@ -40,7 +39,6 @@ struct rk2818_23d_data *gpdata = NULL;
 int modem_poweron_off(int on_off)
 {
 	struct rk2818_23d_data *pdata = gpdata;
-	int result, error = 0, irq = 0;	
 	
 	if(on_off)
 	{
@@ -53,18 +51,12 @@ int modem_poweron_off(int on_off)
 		printk("tdsc8800_poweroff\n");
 		gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_LOW:GPIO_HIGH);
 	}
+	return 0;
 }
 static int tdsc8800_open(struct inode *inode, struct file *file)
 {
-	struct rk2818_23d_data *pdata = gpdata;
-	//struct rk2818_23d_data *pdata = gpdata = pdev->dev.platform_data;
-	struct platform_data *pdev = container_of(pdata, struct device, platform_data);
-
-	MODEMDBG("tdsc8800_open\n");
-
-	int ret = 0;
 	modem_poweron_off(1);
-	device_init_wakeup(&pdev, 1);
+	device_init_wakeup(gpdata->dev, 1);
 
 	return 0;
 }
@@ -75,7 +67,7 @@ static int tdsc8800_release(struct inode *inode, struct file *file)
 
 	return 0;
 }
-static int tdsc8800_ioctl(struct inode *inode,struct file *file, unsigned int cmd, unsigned long arg)
+static long  tdsc8800_ioctl(struct file *file, unsigned int a, unsigned long b)
 {
 	return 0;
 }
@@ -97,12 +89,13 @@ static int tdsc8800_probe(struct platform_device *pdev)
 {
 	struct rk2818_23d_data *pdata = gpdata = pdev->dev.platform_data;
 	struct modem_dev *tdsc8800_data = NULL;
-	int result, error = 0, irq = 0;	
+	int result = 0;	
 	
 	MODEMDBG("tdsc8800_probe\n");
 
 	//pdata->io_init();
 
+	pdata->dev = &pdev->dev;
 	tdsc8800_data = kzalloc(sizeof(struct modem_dev), GFP_KERNEL);
 	if(NULL == tdsc8800_data)
 	{
@@ -133,7 +126,6 @@ err1:
 	gpio_free(pdata->bp_power);
 err6:
 	kfree(tdsc8800_data);
-ret:
 	return result;
 }
 
@@ -172,8 +164,9 @@ static struct platform_driver tdsc8800_driver = {
 
 static int __init tdsc8800_init(void)
 {
-	MODEMDBG("tdsc8800_init ret=%d\n");
-	return platform_driver_register(&tdsc8800_driver);
+	int ret = platform_driver_register(&tdsc8800_driver);
+	MODEMDBG("tdsc8800_init ret=%d\n",ret);
+	return ret;
 }
 
 static void __exit tdsc8800_exit(void)

@@ -259,7 +259,7 @@ static void pixcir_ts_poscheck(struct pixcir_i2c_ts_data *data)
 				input_report_abs(tsdata->input, ABS_MT_POSITION_X, point[i].posy);
 				input_report_abs(tsdata->input, ABS_MT_POSITION_Y, point[i].posx);
 
-				input_sync(tsdata->input);
+				//input_sync(tsdata->input);
 
 				DBG("brn%d=%2d id%d=%1d x=%5d y=%5d \n",
 					i,point[i].brn,i,point[i].id,point[i].posy,point[i].posx);
@@ -286,17 +286,17 @@ static void pixcir_ts_work_func(struct work_struct *work)
 			DBG("%s:  >>>>>touch release\n\n",__FUNCTION__);
 			enable_irq(tsdata->client->irq);
 			//input_report_key(tsdata->input, BTN_TOUCH, 0);
-			input_report_abs(tsdata->input, ABS_MT_TOUCH_MAJOR, 0);
+			//input_report_abs(tsdata->input, ABS_MT_TOUCH_MAJOR, 0);
 			input_mt_slot(tsdata->input, 0);
 			input_mt_report_slot_state(tsdata->input, MT_TOOL_FINGER, false);
 			//input_report_key(tsdata->input, ABS_MT_WIDTH_MAJOR,0);
-			input_sync(tsdata->input);
 			break;
 		}
 
 		msleep(1);
 	}
 
+	input_sync(tsdata->input);
 	return;
 }
 
