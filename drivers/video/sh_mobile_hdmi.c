@@ -225,6 +225,8 @@ struct sh_hdmi {
 	struct notifier_block notifier;
 };
 
+#define notifier_to_hdmi(n)	container_of(n, struct sh_hdmi, notifier)
+
 static void hdmi_write(struct sh_hdmi *hdmi, u8 data, u8 reg)
 {
 	iowrite8(data, hdmi->base + reg);
@@ -1204,11 +1206,9 @@ static int sh_hdmi_notify(struct notifier_block *nb,
 {
 	struct fb_event *event = data;
 	struct fb_info *info = event->info;
-	struct sh_mobile_lcdc_chan *ch = info->par;
-	struct sh_mobile_lcdc_board_cfg	*board_cfg = &ch->cfg.board_cfg;
-	struct sh_hdmi *hdmi = board_cfg->board_data;
+	struct sh_hdmi *hdmi = notifier_to_hdmi(nb);
 
-	if (!hdmi || nb != &hdmi->notifier || hdmi->info != info)
+	if (hdmi->info != info)
 		return NOTIFY_DONE;
 
 	switch(action) {
