@@ -678,6 +678,11 @@ int nr_rt_ioctl(unsigned int cmd, void __user *arg)
 		}
 		switch (nr_route.type) {
 		case NETROM_NODE:
+			if (strnlen(nr_route.mnemonic, 7) == 7) {
+				ret = -EINVAL;
+				break;
+			}
+
 			ret = nr_add_node(&nr_route.callsign,
 				nr_route.mnemonic,
 				&nr_route.neighbour,
