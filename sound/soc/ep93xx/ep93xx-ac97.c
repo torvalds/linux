@@ -449,17 +449,7 @@ static struct platform_driver ep93xx_ac97_driver = {
 	},
 };
 
-static int __init ep93xx_ac97_init(void)
-{
-	return platform_driver_register(&ep93xx_ac97_driver);
-}
-module_init(ep93xx_ac97_init);
-
-static void __exit ep93xx_ac97_exit(void)
-{
-	platform_driver_unregister(&ep93xx_ac97_driver);
-}
-module_exit(ep93xx_ac97_exit);
+module_platform_driver(ep93xx_ac97_driver);
 
 MODULE_DESCRIPTION("EP93xx AC97 ASoC Driver");
 MODULE_AUTHOR("Mika Westerberg <mika.westerberg@iki.fi>");

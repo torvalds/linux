@@ -147,18 +147,7 @@ static struct platform_driver snappercl15_driver = {
 	.remove		= __devexit_p(snappercl15_remove),
 };
 
-static int __init snappercl15_init(void)
-{
-	return platform_driver_register(&snappercl15_driver);
-}
-
-static void __exit snappercl15_exit(void)
-{
-	platform_driver_unregister(&snappercl15_driver);
-}
-
-module_init(snappercl15_init);
-module_exit(snappercl15_exit);
+module_platform_driver(snappercl15_driver);
 
 MODULE_AUTHOR("Ryan Mallon");
 MODULE_DESCRIPTION("ALSA SoC Snapper CL15");

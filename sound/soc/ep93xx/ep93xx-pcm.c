@@ -339,18 +339,7 @@ static struct platform_driver ep93xx_pcm_driver = {
 	.remove = __devexit_p(ep93xx_soc_platform_remove),
 };
 
-static int __init ep93xx_soc_platform_init(void)
-{
-	return platform_driver_register(&ep93xx_pcm_driver);
-}
-
-static void __exit ep93xx_soc_platform_exit(void)
-{
-	platform_driver_unregister(&ep93xx_pcm_driver);
-}
-
-module_init(ep93xx_soc_platform_init);
-module_exit(ep93xx_soc_platform_exit);
+module_platform_driver(ep93xx_pcm_driver);
 
 MODULE_AUTHOR("Ryan Mallon");
 MODULE_DESCRIPTION("EP93xx ALSA PCM interface");

@@ -131,17 +131,7 @@ static struct platform_driver edb93xx_driver = {
 	.remove		= __devexit_p(edb93xx_remove),
 };
 
-static int __init edb93xx_init(void)
-{
-	return platform_driver_register(&edb93xx_driver);
-}
-module_init(edb93xx_init);
-
-static void __exit edb93xx_exit(void)
-{
-	platform_driver_unregister(&edb93xx_driver);
-}
-module_exit(edb93xx_exit);
+module_platform_driver(edb93xx_driver);
 
 MODULE_AUTHOR("Alexander Sverdlin <subaparts@yandex.ru>");
 MODULE_DESCRIPTION("ALSA SoC EDB93xx");

@@ -464,18 +464,7 @@ static struct platform_driver ep93xx_i2s_driver = {
 	},
 };
 
-static int __init ep93xx_i2s_init(void)
-{
-	return platform_driver_register(&ep93xx_i2s_driver);
-}
-
-static void __exit ep93xx_i2s_exit(void)
-{
-	platform_driver_unregister(&ep93xx_i2s_driver);
-}
-
-module_init(ep93xx_i2s_init);
-module_exit(ep93xx_i2s_exit);
+module_platform_driver(ep93xx_i2s_driver);
 
 MODULE_ALIAS("platform:ep93xx-i2s");
 MODULE_AUTHOR("Ryan Mallon");
