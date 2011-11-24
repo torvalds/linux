@@ -1652,6 +1652,7 @@ static unsigned int sci_scbrr_calc(unsigned int algo_id, unsigned int bps,
 
 static void sci_reset(struct uart_port *port)
 {
+	struct plat_sci_reg *reg;
 	unsigned int status;
 
 	do {
@@ -1660,7 +1661,8 @@ static void sci_reset(struct uart_port *port)
 
 	sci_out(port, SCSCR, 0x00);	/* TE=0, RE=0, CKE1=0 */
 
-	if (port->type != PORT_SCI)
+	reg = sci_getreg(port, SCFCR);
+	if (reg->size)
 		sci_out(port, SCFCR, SCFCR_RFRST | SCFCR_TFRST);
 }
 
@@ -1668,9 +1670,9 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 			    struct ktermios *old)
 {
 	struct sci_port *s = to_sci_port(port);
+	struct plat_sci_reg *reg;
 	unsigned int baud, smr_val, max_baud;
 	int t = -1;
-	u16 scfcr = 0;
 
 	/*
 	 * earlyprintk comes here early on with port->uartclk set to zero.
@@ -1720,7 +1722,18 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 	}
 
 	sci_init_pins(port, termios->c_cflag);
-	sci_out(port, SCFCR, scfcr | ((termios->c_cflag & CRTSCTS) ? SCFCR_MCE : 0));
+
+	reg = sci_getreg(port, SCFCR);
+	if (reg->size) {
+		unsigned short ctrl;
+
+		ctrl = sci_in(port, SCFCR);
+		if (termios->c_cflag & CRTSCTS)
+			ctrl |= SCFCR_MCE;
+		else
+			ctrl &= ~SCFCR_MCE;
+		sci_out(port, SCFCR, ctrl);
+	}
 
 	sci_out(port, SCSCR, s->cfg->scscr);
 
@@ -2113,9 +2126,16 @@ static int sci_runtime_suspend(struct device *dev)
 	struct uart_port *port = &sci_port->port;
 
 	if (uart_console(port)) {
+		struct plat_sci_reg *reg;
+
 		sci_port->saved_smr = sci_in(port, SCSMR);
 		sci_port->saved_brr = sci_in(port, SCBRR);
-		sci_port->saved_fcr = sci_in(port, SCFCR);
+
+		reg = sci_getreg(port, SCFCR);
+		if (reg->size)
+			sci_port->saved_fcr = sci_in(port, SCFCR);
+		else
+			sci_port->saved_fcr = 0;
 	}
 	return 0;
 }
@@ -2129,7 +2149,10 @@ static int sci_runtime_resume(struct device *dev)
 		sci_reset(port);
 		sci_out(port, SCSMR, sci_port->saved_smr);
 		sci_out(port, SCBRR, sci_port->saved_brr);
-		sci_out(port, SCFCR, sci_port->saved_fcr);
+
+		if (sci_port->saved_fcr)
+			sci_out(port, SCFCR, sci_port->saved_fcr);
+
 		sci_out(port, SCSCR, sci_port->cfg->scscr);
 	}
 	return 0;
