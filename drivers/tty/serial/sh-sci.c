@@ -1106,19 +1106,26 @@ static unsigned int sci_tx_empty(struct uart_port *port)
 	return (status & SCxSR_TEND(port)) && !in_tx_fifo ? TIOCSER_TEMT : 0;
 }
 
+/*
+ * Modem control is a bit of a mixed bag for SCI(F) ports. Generally
+ * CTS/RTS is supported in hardware by at least one port and controlled
+ * via SCSPTR (SCxPCR for SCIFA/B parts), or external pins (presently
+ * handled via the ->init_pins() op, which is a bit of a one-way street,
+ * lacking any ability to defer pin control -- this will later be
+ * converted over to the GPIO framework).
+ */
 static void sci_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
-	/* This routine is used for seting signals of: DTR, DCD, CTS/RTS */
-	/* We use SCIF's hardware for CTS/RTS, so don't need any for that. */
-	/* If you have signals for DTR and DCD, please implement here. */
+	/* Nothing to do here. */
 }
 
 static unsigned int sci_get_mctrl(struct uart_port *port)
 {
-	/* This routine is used for getting signals of: DTR, DCD, DSR, RI,
-	   and CTS/RTS */
-
-	return TIOCM_DTR | TIOCM_RTS | TIOCM_CTS | TIOCM_DSR;
+	/*
+	 * CTS/RTS is handled in hardware when supported, while nothing
+	 * else is wired up. Keep it simple and simply assert DSR/CAR.
+	 */
+	return TIOCM_DSR | TIOCM_CAR;
 }
 
 #ifdef CONFIG_SERIAL_SH_SCI_DMA
