@@ -24,9 +24,13 @@
 
 #ifdef CONFIG_AMD_IOMMU
 
+struct task_struct;
 struct pci_dev;
 
 extern int amd_iommu_detect(void);
+extern int amd_iommu_bind_pasid(struct pci_dev *pdev, int pasid,
+				struct task_struct *task);
+extern void amd_iommu_unbind_pasid(struct pci_dev *pdev, int pasid);
 
 
 /**
@@ -64,6 +68,28 @@ extern int amd_iommu_init_device(struct pci_dev *pdev, int pasids);
  * @pdev: The PCI device to disable IOMMUv2 usage for'
  */
 extern void amd_iommu_free_device(struct pci_dev *pdev);
+
+/**
+ * amd_iommu_bind_pasid() - Bind a given task to a PASID on a device
+ * @pdev: The PCI device to bind the task to
+ * @pasid: The PASID on the device the task should be bound to
+ * @task: the task to bind
+ *
+ * The function returns 0 on success or a negative value on error.
+ */
+extern int amd_iommu_bind_pasid(struct pci_dev *pdev, int pasid,
+				struct task_struct *task);
+
+/**
+ * amd_iommu_unbind_pasid() - Unbind a PASID from its task on
+ *			      a device
+ * @pdev: The device of the PASID
+ * @pasid: The PASID to unbind
+ *
+ * When this function returns the device is no longer using the PASID
+ * and the PASID is no longer bound to its task.
+ */
+extern void amd_iommu_unbind_pasid(struct pci_dev *pdev, int pasid);
 
 #else
 
