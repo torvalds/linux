@@ -757,18 +757,7 @@ static struct platform_driver imx_ssi_driver = {
 	},
 };
 
-static int __init imx_ssi_init(void)
-{
-	return platform_driver_register(&imx_ssi_driver);
-}
-
-static void __exit imx_ssi_exit(void)
-{
-	platform_driver_unregister(&imx_ssi_driver);
-}
-
-module_init(imx_ssi_init);
-module_exit(imx_ssi_exit);
+module_platform_driver(imx_ssi_driver);
 
 /* Module information */
 MODULE_AUTHOR("Sascha Hauer, <s.hauer@pengutronix.de>");
