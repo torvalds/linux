@@ -1128,15 +1128,15 @@ static int kvm_handle_hva(struct kvm *kvm, unsigned long hva,
 			  int (*handler)(struct kvm *kvm, unsigned long *rmapp,
 					 unsigned long data))
 {
-	int i, j;
+	int j;
 	int ret;
 	int retval = 0;
 	struct kvm_memslots *slots;
+	struct kvm_memory_slot *memslot;
 
 	slots = kvm_memslots(kvm);
 
-	for (i = 0; i < slots->nmemslots; i++) {
-		struct kvm_memory_slot *memslot = &slots->memslots[i];
+	kvm_for_each_memslot(memslot, slots) {
 		unsigned long start = memslot->userspace_addr;
 		unsigned long end;
 
@@ -3985,15 +3985,15 @@ nomem:
  */
 unsigned int kvm_mmu_calculate_mmu_pages(struct kvm *kvm)
 {
-	int i;
 	unsigned int nr_mmu_pages;
 	unsigned int  nr_pages = 0;
 	struct kvm_memslots *slots;
+	struct kvm_memory_slot *memslot;
 
 	slots = kvm_memslots(kvm);
 
-	for (i = 0; i < slots->nmemslots; i++)
-		nr_pages += slots->memslots[i].npages;
+	kvm_for_each_memslot(memslot, slots)
+		nr_pages += memslot->npages;
 
 	nr_mmu_pages = nr_pages * KVM_PERMILLE_MMU_PAGES / 1000;
 	nr_mmu_pages = max(nr_mmu_pages,
