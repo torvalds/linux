@@ -100,6 +100,21 @@ static void core_tmr_handle_tas_abort(
 	transport_cmd_finish_abort(cmd, 0);
 }
 
+static int core_scsi3_check_cdb_abort_and_preempt(
+	struct list_head *preempt_and_abort_list,
+	struct se_cmd *cmd)
+{
+	struct t10_pr_registration *pr_reg, *pr_reg_tmp;
+
+	list_for_each_entry_safe(pr_reg, pr_reg_tmp, preempt_and_abort_list,
+				pr_reg_abort_list) {
+		if (pr_reg->pr_res_key == cmd->pr_res_key)
+			return 0;
+	}
+
+	return 1;
+}
+
 static void core_tmr_drain_tmr_list(
 	struct se_device *dev,
 	struct se_tmr_req *tmr,

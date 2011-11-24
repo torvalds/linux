@@ -2981,21 +2981,6 @@ static void core_scsi3_release_preempt_and_abort(
 	}
 }
 
-int core_scsi3_check_cdb_abort_and_preempt(
-	struct list_head *preempt_and_abort_list,
-	struct se_cmd *cmd)
-{
-	struct t10_pr_registration *pr_reg, *pr_reg_tmp;
-
-	list_for_each_entry_safe(pr_reg, pr_reg_tmp, preempt_and_abort_list,
-				pr_reg_abort_list) {
-		if (pr_reg->pr_res_key == cmd->pr_res_key)
-			return 0;
-	}
-
-	return 1;
-}
-
 static int core_scsi3_pro_preempt(
 	struct se_cmd *cmd,
 	int type,
