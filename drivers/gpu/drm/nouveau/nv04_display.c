@@ -31,7 +31,6 @@
 #include "nouveau_hw.h"
 #include "nouveau_encoder.h"
 #include "nouveau_connector.h"
-#include "nouveau_gpio.h"
 
 static void nv04_vblank_crtc0_isr(struct drm_device *);
 static void nv04_vblank_crtc1_isr(struct drm_device *);
@@ -221,7 +220,6 @@ nv04_display_destroy(struct drm_device *dev)
 int
 nv04_display_init(struct drm_device *dev)
 {
-	struct drm_connector *connector;
 	struct drm_encoder *encoder;
 	struct drm_crtc *crtc;
 
@@ -241,12 +239,6 @@ nv04_display_init(struct drm_device *dev)
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
 		crtc->funcs->restore(crtc);
-
-	/* enable hotplug interrupts */
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		struct nouveau_connector *conn = nouveau_connector(connector);
-		nouveau_gpio_irq(dev, 0, conn->hpd, 0xff, true);
-	}
 
 	return 0;
 }

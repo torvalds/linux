@@ -33,6 +33,7 @@
 #include "nouveau_crtc.h"
 #include "nouveau_dma.h"
 #include "nouveau_connector.h"
+#include "nouveau_gpio.h"
 #include "nv50_display.h"
 
 static void
@@ -211,11 +212,19 @@ nouveau_display_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_display_engine *disp = &dev_priv->engine.display;
+	struct drm_connector *connector;
 	int ret;
 
 	ret = disp->init(dev);
-	if (ret == 0) {
-		drm_kms_helper_poll_enable(dev);
+	if (ret)
+		return ret;
+
+	drm_kms_helper_poll_enable(dev);
+
+	/* enable hotplug interrupts */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		struct nouveau_connector *conn = nouveau_connector(connector);
+		nouveau_gpio_irq(dev, 0, conn->hpd, 0xff, true);
 	}
 
 	return ret;
@@ -226,6 +235,13 @@ nouveau_display_fini(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_display_engine *disp = &dev_priv->engine.display;
+	struct drm_connector *connector;
+
+	/* disable hotplug interrupts */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		struct nouveau_connector *conn = nouveau_connector(connector);
+		nouveau_gpio_irq(dev, 0, conn->hpd, 0xff, false);
+	}
 
 	drm_kms_helper_poll_disable(dev);
 	disp->fini(dev);

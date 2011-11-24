@@ -32,7 +32,6 @@
 #include "nouveau_fb.h"
 #include "nouveau_fbcon.h"
 #include "nouveau_ramht.h"
-#include "nouveau_gpio.h"
 #include "drm_crtc_helper.h"
 
 static void nv50_display_isr(struct drm_device *);
@@ -141,7 +140,6 @@ nv50_display_sync(struct drm_device *dev)
 int
 nv50_display_init(struct drm_device *dev)
 {
-	struct drm_connector *connector;
 	struct nouveau_channel *evo;
 	int ret, i;
 	u32 val;
@@ -236,12 +234,6 @@ nv50_display_init(struct drm_device *dev)
 		     NV50_PDISPLAY_INTR_EN_1_CLK_UNK20 |
 		     NV50_PDISPLAY_INTR_EN_1_CLK_UNK40);
 
-	/* enable hotplug interrupts */
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		struct nouveau_connector *conn = nouveau_connector(connector);
-		nouveau_gpio_irq(dev, 0, conn->hpd, 0xff, true);
-	}
-
 	ret = nv50_evo_init(dev);
 	if (ret)
 		return ret;
@@ -262,7 +254,6 @@ nv50_display_init(struct drm_device *dev)
 void
 nv50_display_fini(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nv50_display *disp = nv50_display(dev);
 	struct nouveau_channel *evo = disp->master;
 	struct drm_crtc *drm_crtc;
@@ -325,14 +316,6 @@ nv50_display_fini(struct drm_device *dev)
 
 	/* disable interrupts. */
 	nv_wr32(dev, NV50_PDISPLAY_INTR_EN_1, 0x00000000);
-
-	/* disable hotplug interrupts */
-	nv_wr32(dev, 0xe054, 0xffffffff);
-	nv_wr32(dev, 0xe050, 0x00000000);
-	if (dev_priv->chipset >= 0x90) {
-		nv_wr32(dev, 0xe074, 0xffffffff);
-		nv_wr32(dev, 0xe070, 0x00000000);
-	}
 }
 
 int
