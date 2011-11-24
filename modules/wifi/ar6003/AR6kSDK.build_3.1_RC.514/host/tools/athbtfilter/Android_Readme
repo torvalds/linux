@@ -1,0 +1,7 @@
+#
+#
+#  To generate the Android buildable files/directory
+#  execute the filter.sh script ONLY ONCE and move the
+#  whole athbtfilter directory to Android external
+#  directoy for compilation.
+#

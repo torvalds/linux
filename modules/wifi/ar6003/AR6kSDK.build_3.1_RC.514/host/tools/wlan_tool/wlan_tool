@@ -1,0 +1,27 @@
+#!/system/bin/sh
+#
+# To make less patch on Google's beautiful code
+# wlan_tool was changed to ar6002 style
+#
+IFNAME=`getprop wifi.interface wlan0`
+WLAN_ENABLE_CHECK="wmiconfig -i $IFNAME --getRTS"
+DRIVER_PROP_NAME="wlan.driver.status"
+TAGS="WifiHW"
+SYSLOG="log -p i -t $TAGS "
+
+setprop $DRIVER_PROP_NAME ""
+
+for i in 1 2 3 4 5 6 7 8 9 10; do
+    if $WLAN_ENABLE_CHECK; then
+	break;
+    fi
+    $SYSLOG "wlan_tool waiting for ar6k loading"
+    sleep 1
+done
+	
+$SYSLOG "wlan_tool ar6003 driver loaded"
+setprop $DRIVER_PROP_NAME "ok"
+
+#$SYSLOG "wlan_tool ar6003 driver fails to load"
+#setprop $DRIVER_PROP_NAME "failed"
+

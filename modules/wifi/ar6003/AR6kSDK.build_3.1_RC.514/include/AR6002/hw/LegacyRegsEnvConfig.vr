@@ -1,0 +1,42 @@
+#include <ave_defines.vrh>
+#include "AveStdLib.vri"
+
+#ifndef SYNOPSYS_NTB
+  #include "MercuryEnvConfig.vrh"
+#endif
+
+class LegacyRegsEnvConfig extends MercuryEnvConfig {
+  static local rvm_log log = new("LegacyRegsEnvConfig", "class");
+
+  constraint LegacyRegsEnvConfigConstraint {
+    numRuns == 1;
+  }
+
+  constraint LegacyRegsEnvConfigTest;
+
+  task new(rvm_log log = null);
+  virtual function rvm_data allocate();
+  virtual function AveTopConfig GetTopConfig();
+  virtual task SetTopConfig(AveTopConfig topConfig);
+}
+
+task LegacyRegsEnvConfig::new(rvm_log log = null) {
+   super.new((log != null) ? log : this.log);
+   if (log != null) this.log = log;
+}
+
+function rvm_data LegacyRegsEnvConfig::allocate() {
+  LegacyRegsEnvConfig envConfig = new();
+  allocate = envConfig;
+}
+
+function AveTopConfig LegacyRegsEnvConfig::GetTopConfig() {
+  GetTopConfig = this.topConfig;
+}
+
+task LegacyRegsEnvConfig::SetTopConfig(AveTopConfig topConfig) {
+  if (!cast_assign(this.topConfig, topConfig, CHECK)) {
+    rvm_fatal(log, "Cannot set topConfig to non-LegacyRegsTopConfig instance");
+  }
+}
+
