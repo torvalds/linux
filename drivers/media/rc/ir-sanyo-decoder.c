@@ -21,6 +21,7 @@
  * Information for this protocol is available at the Sanyo LC7461 datasheet.
  */
 
+#include <linux/module.h>
 #include <linux/bitrev.h>
 #include "rc-core-priv.h"
 
