@@ -770,6 +770,7 @@ config CRYPTO_SERPENT_SSE2_X86_64
 	tristate "Serpent cipher algorithm (x86_64/SSE2)"
 	depends on X86 && 64BIT
 	select CRYPTO_ALGAPI
+	select CRYPTO_CRYPTD
 	select CRYPTO_SERPENT
 	help
 	  Serpent cipher algorithm, by Anderson, Biham & Knudsen.
@@ -787,6 +788,7 @@ config CRYPTO_SERPENT_SSE2_586
 	tristate "Serpent cipher algorithm (i586/SSE2)"
 	depends on X86 && !64BIT
 	select CRYPTO_ALGAPI
+	select CRYPTO_CRYPTD
 	select CRYPTO_SERPENT
 	help
 	  Serpent cipher algorithm, by Anderson, Biham & Knudsen.
