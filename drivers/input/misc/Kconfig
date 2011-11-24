@@ -18,6 +18,9 @@ config INPUT_LPSENSOR_ISL29028
 config INPUT_LPSENSOR_CM3602
 	tristate "l/p sensor input support"
 
+config INPUT_LPSENSOR_AL3006
+	tristate "al3006 l/p sensor input support"
+
 config INPUT_88PM860X_ONKEY
 	tristate "88PM860x ONKEY support"
 	depends on MFD_88PM860X

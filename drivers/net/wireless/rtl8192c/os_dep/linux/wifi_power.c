@@ -45,7 +45,7 @@ struct wifi_power power_gpio =
 #define GPIO_WIFI_POWER       RK29_PIN6_PC0
 
 	// YIFANG M803
-		POWER_USE_GPIO, 0, 
+		POWER_NOT_USE_GPIO/*POWER_USE_GPIO*/, 0, 
 		0, 0, GPIO_WIFI_POWER, GPIO_HIGH
 	
 	//SDK

@@ -10,7 +10,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#define DEBUG
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -3228,7 +3228,7 @@ static int __devexit wm8994_remove(struct platform_device *pdev)
 
 static struct platform_driver wm8994_codec_driver = {
 	.driver = {
-		   .name = "wm8994-codec",
+		   .name = "WM8994",
 		   .owner = THIS_MODULE,
 		   },
 	.probe = wm8994_probe,

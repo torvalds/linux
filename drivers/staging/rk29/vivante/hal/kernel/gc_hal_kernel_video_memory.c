@@ -822,6 +822,7 @@ gckVIDMEM_AllocateLinear(
 
     acquired = gcvTRUE;
 
+#if 0
     // dkm: 对于花屏死机的问题，感觉VV这么做只是规避，还是没有找到问题的原因
 	if (Type == gcvSURF_TILE_STATUS
     && (Bytes + (1 << 20) > Memory->freeBytes)
@@ -830,6 +831,16 @@ gckVIDMEM_AllocateLinear(
         /* Not enough memory. */
         gcmkONERROR(gcvSTATUS_OUT_OF_MEMORY);
 	}
+#else
+    // dkm : 为gcvSURF_TILE_STATUS保留2M的空间
+	if (Type != gcvSURF_TILE_STATUS
+    && (Bytes + (2 << 20) > Memory->freeBytes)
+	)
+    {
+        /* Not enough memory. */
+        gcmkONERROR(gcvSTATUS_OUT_OF_MEMORY);
+	}
+#endif
 
     // dkm: 多预留64K的空间，否则GPU会有访问非法地址的风险
     if (Bytes + (64 << 10) > Memory->freeBytes)

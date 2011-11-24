@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdstd_linux.c,v 1.11.18.2 2008/05/28 18:36:56 Exp $
+ * $Id: bcmsdstd_linux.c,v 1.11.18.2.16.1 2010/08/17 17:03:13 Exp $
  */
 
 #include <typedefs.h>
@@ -186,7 +186,9 @@ sdstd_lock(sdioh_info_t *sd)
 
 	spin_lock_irqsave(&sdos->lock, flags);
 	if (sd->lockcount) {
-		sd_err(("%s: Already locked!\n", __FUNCTION__));
+		sd_err(("%s: Already locked! called from %p\n",
+		       __FUNCTION__,
+		       __builtin_return_address(0)));
 		ASSERT(sd->lockcount == 0);
 	}
 	sdstd_devintr_off(sd);

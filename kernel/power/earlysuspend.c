@@ -20,7 +20,6 @@
 #include <linux/syscalls.h> /* sys_sync */
 #include <linux/wakelock.h>
 #include <linux/workqueue.h>
-#include <linux/kallsyms.h>
 
 #include "power.h"
 
@@ -29,7 +28,7 @@ enum {
 	DEBUG_SUSPEND = 1U << 2,
 	DEBUG_VERBOSE = 1U << 3,
 };
-static int debug_mask = DEBUG_USER_STATE;
+static int debug_mask = DEBUG_USER_STATE | DEBUG_SUSPEND | DEBUG_VERBOSE;
 module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 static DEFINE_MUTEX(early_suspend_lock);
@@ -99,8 +98,6 @@ static void early_suspend(struct work_struct *work)
 		if (pos->suspend != NULL) {
 			if (debug_mask & DEBUG_VERBOSE)
 				pr_info("early_suspend: calling %pf\n", pos->suspend);
-			if (debug_mask & DEBUG_VERBOSE)
-				print_symbol("early_suspend: call %s\n", (unsigned long)pos->suspend);
 			pos->suspend(pos);
 		}
 	}
@@ -110,6 +107,8 @@ static void early_suspend(struct work_struct *work)
 		pr_info("early_suspend: sync\n");
 
 	sys_sync();
+	if (debug_mask & DEBUG_SUSPEND)
+		pr_info("early_suspend: done\n");
 abort:
 	spin_lock_irqsave(&state_lock, irqflags);
 	if (state == SUSPEND_REQUESTED_AND_SUSPENDED)
@@ -142,8 +141,6 @@ static void late_resume(struct work_struct *work)
 		if (pos->resume != NULL) {
 			if (debug_mask & DEBUG_VERBOSE)
 				pr_info("late_resume: calling %pf\n", pos->resume);
-			if (debug_mask & DEBUG_VERBOSE)
-				print_symbol("late_resume: call %s\n", (unsigned long)pos->resume);
 
 			pos->resume(pos);
 		}

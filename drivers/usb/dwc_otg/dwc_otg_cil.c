@@ -2420,6 +2420,7 @@ void dwc_otg_ep0_start_transfer(dwc_otg_core_if_t *_core_if, dwc_ep_t *_ep)
 		{	
 			dwc_write_reg32 (&(in_regs->diepdma), 
 				(uint32_t)_ep->dma_addr);
+		    _ep->dma_addr += _ep->xfer_len;
 		}
 	
 		/* EP enable, IN data in FIFO */

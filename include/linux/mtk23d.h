@@ -11,6 +11,7 @@ struct modem_dev
 
 /* 耳机数据结构�?*/
 struct rk2818_23d_data {
+	struct device *dev;
 	int (*io_init)(void);
 	int (*io_deinit)(void);
 	unsigned int bp_power;

@@ -28,7 +28,7 @@
 #define __BCMSDH_SDMMC_H__
 
 #define sd_err(x)
-#define sd_trace(x) 
+#define sd_trace(x)
 #define sd_info(x)
 #define sd_debug(x)
 #define sd_data(x)

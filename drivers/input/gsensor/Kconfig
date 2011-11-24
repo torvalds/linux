@@ -53,4 +53,11 @@ config GS_L3G4200D
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 
+config GS_BMA023
+  bool "gs_bma023"
+  depends on G_SENSOR_DEVICE
+  default n
+  help
+    To have support for your specific gsesnor you will have to
+    select the proper drivers which depend on this option.
 endif

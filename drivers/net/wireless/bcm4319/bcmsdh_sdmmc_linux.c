@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_sdmmc_linux.c,v 1.1.2.5.6.15 2010/04/14 21:11:46 Exp $
+ * $Id: bcmsdh_sdmmc_linux.c,v 1.1.2.5.6.17 2010/08/13 00:36:19 Exp $
  */
 
 #include <typedefs.h>
@@ -34,15 +34,20 @@
 
 #include <linux/mmc/core.h>
 #include <linux/mmc/card.h>
-#include <linux/mmc/host.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/sdio_ids.h>
 
 #if !defined(SDIO_VENDOR_ID_BROADCOM)
 #define SDIO_VENDOR_ID_BROADCOM		0x02d0
-#endif /* !defined(SDIO_DEVICE_ID_BROADCOM_4325) */
+#endif /* !defined(SDIO_VENDOR_ID_BROADCOM) */
+
+#define SDIO_DEVICE_ID_BROADCOM_DEFAULT	0x0000
+
+#if !defined(SDIO_DEVICE_ID_BROADCOM_4325_SDGWB)
+#define SDIO_DEVICE_ID_BROADCOM_4325_SDGWB	0x0492	/* BCM94325SDGWB */
+#endif /* !defined(SDIO_DEVICE_ID_BROADCOM_4325_SDGWB) */
 #if !defined(SDIO_DEVICE_ID_BROADCOM_4325)
-#define SDIO_DEVICE_ID_BROADCOM_4325	0x0000
+#define SDIO_DEVICE_ID_BROADCOM_4325	0x0493
 #endif /* !defined(SDIO_DEVICE_ID_BROADCOM_4325) */
 #if !defined(SDIO_DEVICE_ID_BROADCOM_4329)
 #define SDIO_DEVICE_ID_BROADCOM_4329	0x4329
@@ -51,14 +56,9 @@
 #define SDIO_DEVICE_ID_BROADCOM_4319	0x4319
 #endif /* !defined(SDIO_DEVICE_ID_BROADCOM_4329) */
 
-
 #include <bcmsdh_sdmmc.h>
 
 #include <dhd_dbg.h>
-
-
-struct sdio_func *wifi_sdio_func = NULL;
-EXPORT_SYMBOL(wifi_sdio_func);
 
 extern void sdioh_sdmmc_devintr_off(sdioh_info_t *sd);
 extern void sdioh_sdmmc_devintr_on(sdioh_info_t *sd);
@@ -113,13 +113,9 @@ static int bcmsdh_sdmmc_probe(struct sdio_func *func,
 		ret = bcmsdh_probe(&sdmmc_dev);
 	}
 
-	wifi_sdio_func = func;
-	//printk("get wifi_sdio_func\n");
-
 	return ret;
 }
 
-extern int wifi_func_removed;
 static void bcmsdh_sdmmc_remove(struct sdio_func *func)
 {
 	sd_trace(("bcmsdh_sdmmc: %s Enter\n", __FUNCTION__));
@@ -129,16 +125,15 @@ static void bcmsdh_sdmmc_remove(struct sdio_func *func)
 	sd_info(("Function#: 0x%04x\n", func->num));
 
 	if (func->num == 2) {
-		sd_trace(("F2 found, calling bcmsdh_probe...\n"));
+		sd_trace(("F2 found, calling bcmsdh_remove...\n"));
 		bcmsdh_remove(&sdmmc_dev);
 	}
-    wifi_func_removed = 1;
-    
-	wifi_sdio_func = NULL;
 }
 
 /* devices we support, null terminated */
 static const struct sdio_device_id bcmsdh_sdmmc_ids[] = {
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_DEFAULT) },
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4325_SDGWB) },
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4325) },
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4329) },
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4319) },
@@ -235,8 +230,8 @@ bcmsdh_module_cleanup(void)
 	sdio_function_cleanup();
 }
 
-//module_init(bcmsdh_module_init);
-//module_exit(bcmsdh_module_cleanup);
+module_init(bcmsdh_module_init);
+module_exit(bcmsdh_module_cleanup);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION(DESCRIPTION);
@@ -257,6 +252,7 @@ int sdio_function_init(void)
 
 	bzero(&sdmmc_dev, sizeof(sdmmc_dev));
 	error = sdio_register_driver(&bcmsdh_sdmmc_driver);
+
 
 	return error;
 }

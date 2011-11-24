@@ -5605,6 +5605,10 @@ void issue_auth(_adapter *padapter, struct sta_info *psta, unsigned short status
 	struct xmit_priv			*pxmitpriv = &(padapter->xmitpriv);
 	struct mlme_ext_priv	*pmlmeext = &(padapter->mlmeextpriv);
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
+	/*
+	 * Send a deauth message before auth. (meitu's disconnect issue)
+	 */
+	issue_deauth( padapter, (&(pmlmeinfo->network))->MacAddress, WLAN_REASON_DEAUTH_LEAVING);
 
 	if ((pmgntframe = alloc_mgtxmitframe(pxmitpriv)) == NULL)
 	{
@@ -5909,19 +5913,23 @@ void issue_assocreq(_adapter *padapter)
 	struct ieee80211_hdr			*pwlanhdr;
 	unsigned short				*fctrl;
 	unsigned short				val16;
-	unsigned int					i, ie_len;
-	unsigned char					rf_type, bssrate[NumRates];
+	unsigned int					i, j, ie_len, index=0;
+	unsigned char					rf_type, bssrate[NumRates], sta_bssrate[NumRates];
 	PNDIS_802_11_VARIABLE_IEs	pIE;
 	struct registry_priv	*pregpriv = &padapter->registrypriv;
 	struct xmit_priv		*pxmitpriv = &(padapter->xmitpriv);
 	struct mlme_ext_priv	*pmlmeext = &(padapter->mlmeextpriv);
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
-	int	bssrate_len = 0;
+	int	bssrate_len = 0, sta_bssrate_len = 0;
 #ifdef CONFIG_P2P
 	struct wifidirect_info	*pwdinfo = &(padapter->wdinfo);
 	u8					p2pie[ 255 ] = { 0x00 };
 	u16					p2pielen = 0;	
 #endif //CONFIG_P2P
+
+#ifdef CONFIG_DFS
+	u16	cap;
+#endif //CONFIG_DFS
 
 	if ((pmgntframe = alloc_mgtxmitframe(pxmitpriv)) == NULL)
 	{
@@ -5952,8 +5960,13 @@ void issue_assocreq(_adapter *padapter)
 	pattrib->pktlen = sizeof(struct ieee80211_hdr_3addr);
 
 	//caps
-
+#ifdef CONFIG_DFS
+	_rtw_memcpy(&cap, rtw_get_capability_from_ie(pmlmeinfo->network.IEs), 2);
+	cap |= BIT(8);
+	_rtw_memcpy(pframe, &cap, 2);
+#else
 	_rtw_memcpy(pframe, rtw_get_capability_from_ie(pmlmeinfo->network.IEs), 2);
+#endif //CONFIG_DFS
 
 	pframe += 2;
 	pattrib->pktlen += 2;
@@ -5969,15 +5982,56 @@ void issue_assocreq(_adapter *padapter)
 	pframe = rtw_set_ie(pframe, _SSID_IE_,  pmlmeinfo->network.Ssid.SsidLength, pmlmeinfo->network.Ssid.Ssid, &(pattrib->pktlen));
 
 	//supported rate & extended supported rate
+#if 1	// Check if the AP's supported rates are also supported by STA.
+	get_rate_set(padapter, sta_bssrate, &sta_bssrate_len);
+	//DBG_871X("sta_bssrate_len=%d\n", sta_bssrate_len);
+				
+	//for (i = 0; i < sta_bssrate_len; i++) {
+	//	DBG_871X("sta_bssrate[%d]=%02X\n", i, sta_bssrate[i]);
+	//}
+	for (i = 0; i < NDIS_802_11_LENGTH_RATES_EX; i++) {
+		if (pmlmeinfo->network.SupportedRates[i] == 0) break;
+			DBG_871X("network.SupportedRates[%d]=%02X\n", i, pmlmeinfo->network.SupportedRates[i]);
+	}
+											
+	for (i = 0; i < NDIS_802_11_LENGTH_RATES_EX; i++) {
+		if (pmlmeinfo->network.SupportedRates[i] == 0) break;
+						
+		// Check if the AP's supported rates are also supported by STA.
+		for (j=0; j < sta_bssrate_len; j++) {
+		// Avoid the proprietary data rate (22Mbps) of Handlink WSG-4000 AP
+			if ( (pmlmeinfo->network.SupportedRates[i]|IEEE80211_BASIC_RATE_MASK) 
+				== (sta_bssrate[j]|IEEE80211_BASIC_RATE_MASK)) {
+		//DBG_871X("match i = %d, j=%d\n", i, j);
+				break;
+			} else {
+		//DBG_871X("not match: %02X != %02X\n", (pmlmeinfo->network.SupportedRates[i]|IEEE80211_BASIC_RATE_MASK), (sta_bssrate[j]|IEEE80211_BASIC_RATE_MASK));
+			}
+		}
+		if (j == sta_bssrate_len) {
+			// the rate is not supported by STA
+			DBG_871X("%s(): the rate[%d]=%02X is not supported by STA!\n",__FUNCTION__, i, pmlmeinfo->network.SupportedRates[i]);
+		} else {
+		// the rate is supported by STA
+			bssrate[index++] = pmlmeinfo->network.SupportedRates[i];
+		}
+	}
+	bssrate_len = index;
+	DBG_871X("bssrate_len = %d\n", bssrate_len);
+#else	// Check if the AP's supported rates are also supported by STA.
 #if 0
 	get_rate_set(padapter, bssrate, &bssrate_len);
 #else
 	for (bssrate_len = 0; bssrate_len < NumRates; bssrate_len++) {
 		if (pmlmeinfo->network.SupportedRates[bssrate_len] == 0) break;
+		
+		if (pmlmeinfo->network.SupportedRates[bssrate_len] == 0x2C) // Avoid the proprietary data rate (22Mbps) of Handlink WSG-4000 AP
+			break;
+		
 		bssrate[bssrate_len] = pmlmeinfo->network.SupportedRates[bssrate_len];
 	}
 #endif
-
+#endif	// Check if the AP's supported rates are also supported by STA.
 	if (bssrate_len > 8)
 	{
 		pframe = rtw_set_ie(pframe, _SUPPORTEDRATES_IE_ , 8, bssrate, &(pattrib->pktlen));

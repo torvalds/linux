@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdstd.c,v 1.64.4.1.4.4.2.17 2010/03/10 03:09:48 Exp $
+ * $Id: bcmsdstd.c,v 1.64.4.1.4.4.2.18 2010/08/17 17:00:48 Exp $
  */
 
 #include <typedefs.h>
@@ -119,7 +119,7 @@ extern void sdstd_wreg16(sdioh_info_t *sd, uint reg, uint16 data);
 void
 sdstd_wreg16(sdioh_info_t *sd, uint reg, uint16 data)
 {
-	*(volatile uint16 *)(sd->mem_space + reg) = (volatile uint16) data;
+	*(volatile uint16 *)(sd->mem_space + reg) = (uint16)data;
 	sd_ctrl(("16: W Reg 0x%02x, Data 0x%x\n", reg, data));
 }
 
@@ -129,7 +129,7 @@ sdstd_or_reg16(sdioh_info_t *sd, uint reg, uint16 val)
 	volatile uint16 data = *(volatile uint16 *)(sd->mem_space + reg);
 	sd_ctrl(("16: OR Reg 0x%02x, Val 0x%x\n", reg, val));
 	data |= val;
-	*(volatile uint16 *)(sd->mem_space + reg) = (volatile uint16)data;
+	*(volatile uint16 *)(sd->mem_space + reg) = (uint16)data;
 
 }
 static void
@@ -140,7 +140,7 @@ sdstd_mod_reg16(sdioh_info_t *sd, uint reg, int16 mask, uint16 val)
 	sd_ctrl(("16: MOD Reg 0x%02x, Mask 0x%x, Val 0x%x\n", reg, mask, val));
 	data &= ~mask;
 	data |= (val & mask);
-	*(volatile uint16 *)(sd->mem_space + reg) = (volatile uint16)data;
+	*(volatile uint16 *)(sd->mem_space + reg) = (uint16)data;
 }
 
 
@@ -155,7 +155,7 @@ sdstd_rreg(sdioh_info_t *sd, uint reg)
 static inline void
 sdstd_wreg(sdioh_info_t *sd, uint reg, uint32 data)
 {
-	*(volatile uint32 *)(sd->mem_space + reg) = (volatile uint32)data;
+	*(volatile uint32 *)(sd->mem_space + reg) = (uint32)data;
 	sd_ctrl(("32: W Reg 0x%02x, Data 0x%x\n", reg, data));
 
 }
@@ -164,7 +164,7 @@ sdstd_wreg(sdioh_info_t *sd, uint reg, uint32 data)
 static inline void
 sdstd_wreg8(sdioh_info_t *sd, uint reg, uint8 data)
 {
-	*(volatile uint8 *)(sd->mem_space + reg) = (volatile uint8)data;
+	*(volatile uint8 *)(sd->mem_space + reg) = (uint8)data;
 	sd_ctrl(("08: W Reg 0x%02x, Data 0x%x\n", reg, data));
 }
 static uint8
@@ -287,7 +287,7 @@ sdioh_detach(osl_t *osh, sdioh_info_t *sd)
 	return SDIOH_API_RC_SUCCESS;
 }
 
-/* Configure callback to client when we recieve client interrupt */
+/* Configure callback to client when we receive client interrupt */
 extern SDIOH_API_RC
 sdioh_interrupt_register(sdioh_info_t *sd, sdioh_cb_fn_t fn, void *argh)
 {
@@ -2778,10 +2778,6 @@ sdstd_card_buf(sdioh_info_t *sd, int rw, int func, bool fifo, uint32 addr, int n
 				data++;
 			}
 
-			/* Handle < 4 bytes.  wlc_pio.c currently (as of 12/20/05) truncates buflen
-			 * to be evenly divisable by 4.  However dongle passes arbitrary lengths,
-			 * so handle it here
-			 */
 			bytes = blocksize % 4;
 
 			/* If no leftover bytes, go to next block */
@@ -2898,7 +2894,8 @@ set_client_block_size(sdioh_info_t *sd, int func, int block_size)
 }
 
 /* Reset and re-initialize the device */
-int sdioh_sdio_reset(sdioh_info_t *si)
+int
+sdioh_sdio_reset(sdioh_info_t *si)
 {
 	uint8 hreg;
 
