@@ -627,7 +627,7 @@ static const struct of_device_id olpc_battery_ids[] __devinitconst = {
 };
 MODULE_DEVICE_TABLE(of, olpc_battery_ids);
 
-static struct platform_driver olpc_battery_drv = {
+static struct platform_driver olpc_battery_driver = {
 	.driver = {
 		.name = "olpc-battery",
 		.owner = THIS_MODULE,
@@ -640,13 +640,13 @@ static struct platform_driver olpc_battery_drv = {
 
 static int __init olpc_bat_init(void)
 {
-	return platform_driver_register(&olpc_battery_drv);
+	return platform_driver_register(&olpc_battery_driver);
 }
 module_init(olpc_bat_init);
 
 static void __exit olpc_bat_exit(void)
 {
-	platform_driver_unregister(&olpc_battery_drv);
+	platform_driver_unregister(&olpc_battery_driver);
 }
 module_exit(olpc_bat_exit);
 
