@@ -211,6 +211,10 @@ struct v4l2_ioctl_ops {
 					struct v4l2_encoder_cmd *a);
 	int (*vidioc_try_encoder_cmd)  (struct file *file, void *fh,
 					struct v4l2_encoder_cmd *a);
+	int (*vidioc_decoder_cmd)      (struct file *file, void *fh,
+					struct v4l2_decoder_cmd *a);
+	int (*vidioc_try_decoder_cmd)  (struct file *file, void *fh,
+					struct v4l2_decoder_cmd *a);
 
 	/* Stream type-dependent parameter ioctls */
 	int (*vidioc_g_parm)           (struct file *file, void *fh,

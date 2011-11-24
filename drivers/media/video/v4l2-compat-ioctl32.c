@@ -1005,6 +1005,8 @@ long v4l2_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 	case VIDIOC_G_ENC_INDEX:
 	case VIDIOC_ENCODER_CMD:
 	case VIDIOC_TRY_ENCODER_CMD:
+	case VIDIOC_DECODER_CMD:
+	case VIDIOC_TRY_DECODER_CMD:
 	case VIDIOC_DBG_S_REGISTER:
 	case VIDIOC_DBG_G_REGISTER:
 	case VIDIOC_DBG_G_CHIP_IDENT:

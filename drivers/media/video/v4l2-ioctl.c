@@ -260,6 +260,8 @@ static const char *v4l2_ioctls[] = {
 	[_IOC_NR(VIDIOC_ENCODER_CMD)] 	   = "VIDIOC_ENCODER_CMD",
 	[_IOC_NR(VIDIOC_TRY_ENCODER_CMD)]  = "VIDIOC_TRY_ENCODER_CMD",
 
+	[_IOC_NR(VIDIOC_DECODER_CMD)]	   = "VIDIOC_DECODER_CMD",
+	[_IOC_NR(VIDIOC_TRY_DECODER_CMD)]  = "VIDIOC_TRY_DECODER_CMD",
 	[_IOC_NR(VIDIOC_DBG_S_REGISTER)]   = "VIDIOC_DBG_S_REGISTER",
 	[_IOC_NR(VIDIOC_DBG_G_REGISTER)]   = "VIDIOC_DBG_G_REGISTER",
 
@@ -1760,6 +1762,32 @@ static long __video_do_ioctl(struct file *file,
 		if (!ops->vidioc_try_encoder_cmd)
 			break;
 		ret = ops->vidioc_try_encoder_cmd(file, fh, p);
+		if (!ret)
+			dbgarg(cmd, "cmd=%d, flags=%x\n", p->cmd, p->flags);
+		break;
+	}
+	case VIDIOC_DECODER_CMD:
+	{
+		struct v4l2_decoder_cmd *p = arg;
+
+		if (!ops->vidioc_decoder_cmd)
+			break;
+		if (ret_prio) {
+			ret = ret_prio;
+			break;
+		}
+		ret = ops->vidioc_decoder_cmd(file, fh, p);
+		if (!ret)
+			dbgarg(cmd, "cmd=%d, flags=%x\n", p->cmd, p->flags);
+		break;
+	}
+	case VIDIOC_TRY_DECODER_CMD:
+	{
+		struct v4l2_decoder_cmd *p = arg;
+
+		if (!ops->vidioc_try_decoder_cmd)
+			break;
+		ret = ops->vidioc_try_decoder_cmd(file, fh, p);
 		if (!ret)
 			dbgarg(cmd, "cmd=%d, flags=%x\n", p->cmd, p->flags);
 		break;
