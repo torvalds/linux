@@ -803,7 +803,6 @@ static int acx565akm_spi_remove(struct spi_device *spi)
 static struct spi_driver acx565akm_spi_driver = {
 	.driver = {
 		.name	= "acx565akm",
-		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
 	},
 	.probe	= acx565akm_spi_probe,

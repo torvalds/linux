@@ -303,7 +303,6 @@ static struct spi_driver nec_8048_spi_driver = {
 	.resume		= nec_8048_spi_resume,
 	.driver		= {
 		.name	= "nec_8048_spi",
-		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
 	},
 };
