@@ -283,10 +283,7 @@ static void musb_otg_notifier_work(struct work_struct *data_notifier_work)
 		break;
 	default:
 		dev_dbg(musb->controller, "ID float\n");
-		return NOTIFY_DONE;
 	}
-
-	return NOTIFY_OK;
 }
 
 static int omap2430_musb_init(struct musb *musb)
