@@ -632,28 +632,28 @@ static void commit_tree(struct vfsmount *mnt)
 	touch_mnt_namespace(n);
 }
 
-static struct vfsmount *next_mnt(struct vfsmount *p, struct vfsmount *root)
+static struct mount *next_mnt(struct mount *p, struct vfsmount *root)
 {
-	struct list_head *next = p->mnt_mounts.next;
-	if (next == &p->mnt_mounts) {
+	struct list_head *next = p->mnt.mnt_mounts.next;
+	if (next == &p->mnt.mnt_mounts) {
 		while (1) {
-			if (p == root)
+			if (&p->mnt == root)
 				return NULL;
-			next = p->mnt_child.next;
-			if (next != &p->mnt_parent->mnt_mounts)
+			next = p->mnt.mnt_child.next;
+			if (next != &p->mnt.mnt_parent->mnt_mounts)
 				break;
-			p = p->mnt_parent;
+			p = real_mount(p->mnt.mnt_parent);
 		}
 	}
-	return list_entry(next, struct vfsmount, mnt_child);
+	return list_entry(next, struct mount, mnt.mnt_child);
 }
 
-static struct vfsmount *skip_mnt_tree(struct vfsmount *p)
+static struct mount *skip_mnt_tree(struct mount *p)
 {
-	struct list_head *prev = p->mnt_mounts.prev;
-	while (prev != &p->mnt_mounts) {
-		p = list_entry(prev, struct vfsmount, mnt_child);
-		prev = p->mnt_mounts.prev;
+	struct list_head *prev = p->mnt.mnt_mounts.prev;
+	while (prev != &p->mnt.mnt_mounts) {
+		p = list_entry(prev, struct mount, mnt.mnt_child);
+		prev = p->mnt.mnt_mounts.prev;
 	}
 	return p;
 }
@@ -1144,12 +1144,13 @@ int may_umount_tree(struct vfsmount *mnt)
 {
 	int actual_refs = 0;
 	int minimum_refs = 0;
-	struct vfsmount *p;
+	struct mount *p;
+	BUG_ON(!mnt);
 
 	/* write lock needed for mnt_get_count */
 	br_write_lock(vfsmount_lock);
-	for (p = mnt; p; p = next_mnt(p, mnt)) {
-		actual_refs += mnt_get_count(p);
+	for (p = real_mount(mnt); p; p = next_mnt(p, mnt)) {
+		actual_refs += mnt_get_count(&p->mnt);
 		minimum_refs += 2;
 	}
 	br_write_unlock(vfsmount_lock);
@@ -1220,26 +1221,26 @@ void release_mounts(struct list_head *head)
 void umount_tree(struct vfsmount *mnt, int propagate, struct list_head *kill)
 {
 	LIST_HEAD(tmp_list);
-	struct vfsmount *p;
+	struct mount *p;
 
-	for (p = mnt; p; p = next_mnt(p, mnt))
-		list_move(&p->mnt_hash, &tmp_list);
+	for (p = real_mount(mnt); p; p = next_mnt(p, mnt))
+		list_move(&p->mnt.mnt_hash, &tmp_list);
 
 	if (propagate)
 		propagate_umount(&tmp_list);
 
-	list_for_each_entry(p, &tmp_list, mnt_hash) {
-		list_del_init(&p->mnt_expire);
-		list_del_init(&p->mnt_list);
-		__touch_mnt_namespace(p->mnt_ns);
-		p->mnt_ns = NULL;
-		__mnt_make_shortterm(p);
-		list_del_init(&p->mnt_child);
-		if (mnt_has_parent(p)) {
-			p->mnt_parent->mnt_ghosts++;
-			dentry_reset_mounted(p->mnt_mountpoint);
+	list_for_each_entry(p, &tmp_list, mnt.mnt_hash) {
+		list_del_init(&p->mnt.mnt_expire);
+		list_del_init(&p->mnt.mnt_list);
+		__touch_mnt_namespace(p->mnt.mnt_ns);
+		p->mnt.mnt_ns = NULL;
+		__mnt_make_shortterm(&p->mnt);
+		list_del_init(&p->mnt.mnt_child);
+		if (mnt_has_parent(&p->mnt)) {
+			p->mnt.mnt_parent->mnt_ghosts++;
+			dentry_reset_mounted(p->mnt.mnt_mountpoint);
 		}
-		change_mnt_propagation(p, MS_PRIVATE);
+		change_mnt_propagation(&p->mnt, MS_PRIVATE);
 	}
 	list_splice(&tmp_list, kill);
 }
@@ -1411,7 +1412,7 @@ static int mount_is_safe(struct path *path)
 struct vfsmount *copy_tree(struct vfsmount *mnt, struct dentry *dentry,
 					int flag)
 {
-	struct vfsmount *res, *p, *q, *r, *s;
+	struct vfsmount *res, *p, *q, *r;
 	struct path path;
 
 	if (!(flag & CL_COPY_ALL) && IS_MNT_UNBINDABLE(mnt))
@@ -1424,19 +1425,20 @@ struct vfsmount *copy_tree(struct vfsmount *mnt, struct dentry *dentry,
 
 	p = mnt;
 	list_for_each_entry(r, &mnt->mnt_mounts, mnt_child) {
+		struct mount *s;
 		if (!is_subdir(r->mnt_mountpoint, dentry))
 			continue;
 
-		for (s = r; s; s = next_mnt(s, r)) {
-			if (!(flag & CL_COPY_ALL) && IS_MNT_UNBINDABLE(s)) {
+		for (s = real_mount(r); s; s = next_mnt(s, r)) {
+			if (!(flag & CL_COPY_ALL) && IS_MNT_UNBINDABLE(&s->mnt)) {
 				s = skip_mnt_tree(s);
 				continue;
 			}
-			while (p != s->mnt_parent) {
+			while (p != s->mnt.mnt_parent) {
 				p = p->mnt_parent;
 				q = q->mnt_parent;
 			}
-			p = s;
+			p = &s->mnt;
 			path.mnt = q;
 			path.dentry = p->mnt_mountpoint;
 			q = clone_mnt(p, p->mnt_root, flag);
@@ -1497,23 +1499,23 @@ int iterate_mounts(int (*f)(struct vfsmount *, void *), void *arg,
 
 static void cleanup_group_ids(struct vfsmount *mnt, struct vfsmount *end)
 {
-	struct vfsmount *p;
+	struct mount *p;
 
-	for (p = mnt; p != end; p = next_mnt(p, mnt)) {
-		if (p->mnt_group_id && !IS_MNT_SHARED(p))
-			mnt_release_group_id(p);
+	for (p = real_mount(mnt); &p->mnt != end; p = next_mnt(p, mnt)) {
+		if (p->mnt.mnt_group_id && !IS_MNT_SHARED(&p->mnt))
+			mnt_release_group_id(&p->mnt);
 	}
 }
 
 static int invent_group_ids(struct vfsmount *mnt, bool recurse)
 {
-	struct vfsmount *p;
+	struct mount *p;
 
-	for (p = mnt; p; p = recurse ? next_mnt(p, mnt) : NULL) {
-		if (!p->mnt_group_id && !IS_MNT_SHARED(p)) {
-			int err = mnt_alloc_group_id(p);
+	for (p = real_mount(mnt); p; p = recurse ? next_mnt(p, mnt) : NULL) {
+		if (!p->mnt.mnt_group_id && !IS_MNT_SHARED(&p->mnt)) {
+			int err = mnt_alloc_group_id(&p->mnt);
 			if (err) {
-				cleanup_group_ids(mnt, p);
+				cleanup_group_ids(mnt, &p->mnt);
 				return err;
 			}
 		}
@@ -1591,7 +1593,7 @@ static int attach_recursive_mnt(struct vfsmount *source_mnt,
 	LIST_HEAD(tree_list);
 	struct vfsmount *dest_mnt = path->mnt;
 	struct dentry *dest_dentry = path->dentry;
-	struct vfsmount *child, *p;
+	struct mount *child, *p;
 	int err;
 
 	if (IS_MNT_SHARED(dest_mnt)) {
@@ -1606,8 +1608,8 @@ static int attach_recursive_mnt(struct vfsmount *source_mnt,
 	br_write_lock(vfsmount_lock);
 
 	if (IS_MNT_SHARED(dest_mnt)) {
-		for (p = source_mnt; p; p = next_mnt(p, source_mnt))
-			set_mnt_shared(p);
+		for (p = real_mount(source_mnt); p; p = next_mnt(p, source_mnt))
+			set_mnt_shared(&p->mnt);
 	}
 	if (parent_path) {
 		detach_mnt(source_mnt, parent_path);
@@ -1618,9 +1620,9 @@ static int attach_recursive_mnt(struct vfsmount *source_mnt,
 		commit_tree(source_mnt);
 	}
 
-	list_for_each_entry_safe(child, p, &tree_list, mnt_hash) {
-		list_del_init(&child->mnt_hash);
-		commit_tree(child);
+	list_for_each_entry_safe(child, p, &tree_list, mnt.mnt_hash) {
+		list_del_init(&child->mnt.mnt_hash);
+		commit_tree(&child->mnt);
 	}
 	br_write_unlock(vfsmount_lock);
 
@@ -1697,7 +1699,8 @@ static int flags_to_propagation_type(int flags)
  */
 static int do_change_type(struct path *path, int flag)
 {
-	struct vfsmount *m, *mnt = path->mnt;
+	struct mount *m;
+	struct vfsmount *mnt = path->mnt;
 	int recurse = flag & MS_REC;
 	int type;
 	int err = 0;
@@ -1720,8 +1723,8 @@ static int do_change_type(struct path *path, int flag)
 	}
 
 	br_write_lock(vfsmount_lock);
-	for (m = mnt; m; m = (recurse ? next_mnt(m, mnt) : NULL))
-		change_mnt_propagation(m, type);
+	for (m = real_mount(mnt); m; m = (recurse ? next_mnt(m, mnt) : NULL))
+		change_mnt_propagation(&m->mnt, type);
 	br_write_unlock(vfsmount_lock);
 
  out_unlock:
@@ -1844,9 +1847,9 @@ static int do_remount(struct path *path, int flags, int mnt_flags,
 
 static inline int tree_contains_unbindable(struct vfsmount *mnt)
 {
-	struct vfsmount *p;
-	for (p = mnt; p; p = next_mnt(p, mnt)) {
-		if (IS_MNT_UNBINDABLE(p))
+	struct mount *p;
+	for (p = real_mount(mnt); p; p = next_mnt(p, mnt)) {
+		if (IS_MNT_UNBINDABLE(&p->mnt))
 			return 1;
 	}
 	return 0;
@@ -2379,7 +2382,7 @@ static struct mnt_namespace *dup_mnt_ns(struct mnt_namespace *mnt_ns,
 {
 	struct mnt_namespace *new_ns;
 	struct vfsmount *rootmnt = NULL, *pwdmnt = NULL;
-	struct vfsmount *p, *q;
+	struct mount *p, *q;
 
 	new_ns = alloc_mnt_ns();
 	if (IS_ERR(new_ns))
@@ -2403,23 +2406,23 @@ static struct mnt_namespace *dup_mnt_ns(struct mnt_namespace *mnt_ns,
 	 * as belonging to new namespace.  We have already acquired a private
 	 * fs_struct, so tsk->fs->lock is not needed.
 	 */
-	p = mnt_ns->root;
-	q = new_ns->root;
+	p = real_mount(mnt_ns->root);
+	q = real_mount(new_ns->root);
 	while (p) {
-		q->mnt_ns = new_ns;
-		__mnt_make_longterm(q);
+		q->mnt.mnt_ns = new_ns;
+		__mnt_make_longterm(&q->mnt);
 		if (fs) {
-			if (p == fs->root.mnt) {
-				fs->root.mnt = mntget(q);
-				__mnt_make_longterm(q);
-				mnt_make_shortterm(p);
-				rootmnt = p;
+			if (&p->mnt == fs->root.mnt) {
+				fs->root.mnt = mntget(&q->mnt);
+				__mnt_make_longterm(&q->mnt);
+				mnt_make_shortterm(&p->mnt);
+				rootmnt = &p->mnt;
 			}
-			if (p == fs->pwd.mnt) {
-				fs->pwd.mnt = mntget(q);
-				__mnt_make_longterm(q);
-				mnt_make_shortterm(p);
-				pwdmnt = p;
+			if (&p->mnt == fs->pwd.mnt) {
+				fs->pwd.mnt = mntget(&q->mnt);
+				__mnt_make_longterm(&q->mnt);
+				mnt_make_shortterm(&p->mnt);
+				pwdmnt = &p->mnt;
 			}
 		}
 		p = next_mnt(p, mnt_ns->root);
