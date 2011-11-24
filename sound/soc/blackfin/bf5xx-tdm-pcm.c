@@ -339,17 +339,7 @@ static struct platform_driver bfin_tdm_driver = {
 	.remove = __devexit_p(bf5xx_soc_platform_remove),
 };
 
-static int __init snd_bfin_tdm_init(void)
-{
-	return platform_driver_register(&bfin_tdm_driver);
-}
-module_init(snd_bfin_tdm_init);
-
-static void __exit snd_bfin_tdm_exit(void)
-{
-	platform_driver_unregister(&bfin_tdm_driver);
-}
-module_exit(snd_bfin_tdm_exit);
+module_platform_driver(bfin_tdm_driver);
 
 MODULE_AUTHOR("Barry Song");
 MODULE_DESCRIPTION("ADI Blackfin TDM PCM DMA module");

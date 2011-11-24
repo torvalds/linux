@@ -314,17 +314,7 @@ static struct platform_driver bfin_tdm_driver = {
 	},
 };
 
-static int __init bfin_tdm_init(void)
-{
-	return platform_driver_register(&bfin_tdm_driver);
-}
-module_init(bfin_tdm_init);
-
-static void __exit bfin_tdm_exit(void)
-{
-	platform_driver_unregister(&bfin_tdm_driver);
-}
-module_exit(bfin_tdm_exit);
+module_platform_driver(bfin_tdm_driver);
 
 /* Module information */
 MODULE_AUTHOR("Barry Song");

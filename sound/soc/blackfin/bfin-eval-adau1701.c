@@ -121,17 +121,7 @@ static struct platform_driver bfin_eval_adau1701_driver = {
 	.remove = __devexit_p(bfin_eval_adau1701_remove),
 };
 
-static int __init bfin_eval_adau1701_init(void)
-{
-	return platform_driver_register(&bfin_eval_adau1701_driver);
-}
-module_init(bfin_eval_adau1701_init);
-
-static void __exit bfin_eval_adau1701_exit(void)
-{
-	platform_driver_unregister(&bfin_eval_adau1701_driver);
-}
-module_exit(bfin_eval_adau1701_exit);
+module_platform_driver(bfin_eval_adau1701_driver);
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_DESCRIPTION("ALSA SoC bfin ADAU1701 driver");

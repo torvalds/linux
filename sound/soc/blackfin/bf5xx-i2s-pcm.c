@@ -314,17 +314,7 @@ static struct platform_driver bfin_i2s_pcm_driver = {
 	.remove = __devexit_p(bfin_i2s_soc_platform_remove),
 };
 
-static int __init snd_bfin_i2s_pcm_init(void)
-{
-	return platform_driver_register(&bfin_i2s_pcm_driver);
-}
-module_init(snd_bfin_i2s_pcm_init);
-
-static void __exit snd_bfin_i2s_pcm_exit(void)
-{
-	platform_driver_unregister(&bfin_i2s_pcm_driver);
-}
-module_exit(snd_bfin_i2s_pcm_exit);
+module_platform_driver(bfin_i2s_pcm_driver);
 
 MODULE_AUTHOR("Cliff Cai");
 MODULE_DESCRIPTION("ADI Blackfin I2S PCM DMA module");
