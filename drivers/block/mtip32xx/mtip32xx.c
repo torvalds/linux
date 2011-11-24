@@ -1026,7 +1026,8 @@ static void mtip_issue_non_ncq_command(struct mtip_port *port, int tag)
 static int mtip_quiesce_io(struct mtip_port *port, unsigned long timeout)
 {
 	unsigned long to;
-	unsigned int n, active;
+	unsigned int n;
+	unsigned int active = 1;
 
 	to = jiffies + msecs_to_jiffies(timeout);
 	do {
