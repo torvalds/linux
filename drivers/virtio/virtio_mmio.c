@@ -118,7 +118,7 @@ static void vm_finalize_features(struct virtio_device *vdev)
 	vring_transport_features(vdev);
 
 	for (i = 0; i < ARRAY_SIZE(vdev->features); i++) {
-		writel(i, vm_dev->base + VIRTIO_MMIO_GUEST_FEATURES_SET);
+		writel(i, vm_dev->base + VIRTIO_MMIO_GUEST_FEATURES_SEL);
 		writel(vdev->features[i],
 				vm_dev->base + VIRTIO_MMIO_GUEST_FEATURES);
 	}
