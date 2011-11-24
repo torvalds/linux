@@ -402,14 +402,14 @@ static int ax25_ctl_ioctl(const unsigned int cmd, void __user *arg)
 		break;
 
 	case AX25_T1:
-		if (ax25_ctl.arg < 1)
+		if (ax25_ctl.arg < 1 || ax25_ctl.arg > ULONG_MAX / HZ)
 			goto einval_put;
 		ax25->rtt = (ax25_ctl.arg * HZ) / 2;
 		ax25->t1  = ax25_ctl.arg * HZ;
 		break;
 
 	case AX25_T2:
-		if (ax25_ctl.arg < 1)
+		if (ax25_ctl.arg < 1 || ax25_ctl.arg > ULONG_MAX / HZ)
 			goto einval_put;
 		ax25->t2 = ax25_ctl.arg * HZ;
 		break;
@@ -422,10 +422,15 @@ static int ax25_ctl_ioctl(const unsigned int cmd, void __user *arg)
 		break;
 
 	case AX25_T3:
+		if (ax25_ctl.arg > ULONG_MAX / HZ)
+			goto einval_put;
 		ax25->t3 = ax25_ctl.arg * HZ;
 		break;
 
 	case AX25_IDLE:
+		if (ax25_ctl.arg > ULONG_MAX / (60 * HZ))
+			goto einval_put;
+
 		ax25->idle = ax25_ctl.arg * 60 * HZ;
 		break;
 
@@ -571,7 +576,7 @@ static int ax25_setsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	case AX25_T1:
-		if (opt < 1) {
+		if (opt < 1 || opt > ULONG_MAX / HZ) {
 			res = -EINVAL;
 			break;
 		}
@@ -580,7 +585,7 @@ static int ax25_setsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	case AX25_T2:
-		if (opt < 1) {
+		if (opt < 1 || opt > ULONG_MAX / HZ) {
 			res = -EINVAL;
 			break;
 		}
@@ -596,7 +601,7 @@ static int ax25_setsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	case AX25_T3:
-		if (opt < 1) {
+		if (opt < 1 || opt > ULONG_MAX / HZ) {
 			res = -EINVAL;
 			break;
 		}
@@ -604,7 +609,7 @@ static int ax25_setsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	case AX25_IDLE:
-		if (opt < 0) {
+		if (opt < 0 || opt > ULONG_MAX / (60 * HZ)) {
 			res = -EINVAL;
 			break;
 		}
