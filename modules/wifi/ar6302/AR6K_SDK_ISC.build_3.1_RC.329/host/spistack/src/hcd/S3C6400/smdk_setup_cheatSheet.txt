@@ -1,0 +1,145 @@
+Setting up Samsung SMDK6400 (3/4/2008)
+
+
+
+Requirements:
+===============
+  - You must install the latest Windows Mobile Platform builder for WM6 (Jetstream).  
+    Platform Builder for WINCE 5.0 is incompatible with the flash.bin format and USB KITL support.
+  - Windows Mobile 6 AKU 0.4 
+  - Samsung BSP 
+
+
+I. Build OS image
+=================
+
+1). Start "New Build Window Wizard"
+2). Point wizard to AKU directory (i.e. c:\WM604)
+3). For BSP: drop down, select SMDK6400 
+4). For Release type: drop down, select "Retail"
+5). Select SKU: Pocket PC
+6). Select 192 DPI, 480 x 640 res
+7). Select defauls for all other options
+8). Select location of build scripts
+9). From location of build script , select "Build All" link and build system (builds image and update loader image)
+
+*** NOTE: you may get an error after makimg runs, complaining about duplicate entries for atlce400.dll.  To work around this edit dcom.bib in the release directory
+and comment out all entries for atlce400.dll.  This dll is already populated by other packages.
+
+Enabling USB kitl:
+  
+1). From command-line build environment navigate to \Platform\SMDK6400\
+2). Execute "kitl_set.bat"
+3). Execute "build -c"
+4). Execute "makimg"
+
+
+II. Flash SuperIPL loader over USB
+===================================
+*** NOTE : ONLY NEEDS to be DONE ONCE ******
+*** NOTE : If the SMDK6400 was used for CE 6.0 development, the superIPL loader must be re-installed using the procedure below *****
+
+SuperIPL is the initial program loader (IPL) that is placed in a boot partition of the NAND flash device.  
+This loader extracts the flash.bin image stored in another partition directly into main memory. 
+This loader is primarily used for WM6 images.
+
+1). Move CFG0, switch 4 to ON position
+2). Start dnw.exe (located in PLATFORM\SMDK6400\etc).  Select SerialPort->Connect
+3). Power On platform (may require an additional push of reset button (SW3))
+4). From dnw.exe, select Configuration->Options, Set "USB Port Download Address" to: 0x50038000
+5). Select USBPort->Transmit.
+6). Select Eboot.nb0 (from release directory) to download to target.
+7). After download completes, press space bar in dnw.exe to stop Eboot.
+8). From Eboot menu, press [6] to ENABLE : programming an image to NAND disk.
+9). From Eboot menu, press W to write configuration
+10). From Eboot menu, press E to Erase Block 0
+11). From Eboot menu, press U to download image (USB)
+11). From dnw.exe , Select USBPort->UBOOT->UBOOT.  Select superipl.nb0 from release directory
+12). Wait for download/reflash operation to complete.
+13). Reset device and proceed to part III below
+
+*** NOTE sometimes you may have to direct Windows to install the USB device driver for downloading.  Check
+the Windows Device manager for any "unknown" USB devices.  You can install the driver from SMDK6400\etc
+directory.
+
+
+III. Flash OS Image over USB
+=============================
+1). Move CFG0, switch 4 to ON position
+2). Start dnw.exe (located in PLATFORM\SMDK6400\etc).  Select SerialPort->Connect
+3). Power On platform (may require an additional push of reset button (SW3))
+4). From dnw.exe, select Configuration->Options, Set "USB Port Download Address" to:  0x50038000
+5). Select USBPort->Transmit.
+6). Select Eboot.nb0 (from release directory) to download to target.
+7). After download completes, press space bar in dnw.exe to stop Eboot.
+8). From Eboot menu, Select F (Low-level format the Smart Media Card)
+9). From Eboot menu, Select U (DOWNLOAD image now (USB)) ** Note, this may require you to 
+    install the USB device on your PC ***
+10). From dnw.exe , Select USBPort->UBOOT->UBOOT.  Select flash.bin from release directory
+11). Wait for download/reflash operation to complete
+12). Move CFG0, switch 4 back to OFF position and reset device.
+
+
+IV.  Using KITL over USB
+========================
+
+*** after you have flashed the OS image over USB (see step III) ***
+
+1). From Platform Builder, Select File->Open
+2). Navigate to flat release directory and open "flash.bin"
+3). Select "Target->Connectivity Options"
+4). Select "Add device", create a name.
+5). For "Download:" drop down, select "None"
+6). For "Transport:" drop down, select" "USB"
+7). For "Debugger:" drop down, select "KdStub"
+8). Apply changes, close dialog.
+9). Power on platform.  After USB device insertion occurs (listen for device insert chime), select from
+    Platform Builder, Target->Attach.
+
+*** NOTE: 
+      a) You may need to uninstall Active Sync before you try to connect target with USB KITL. 
+      b) It is better to power off S3C6400 before you detach the target. Otherwise, there will be a blue screen.
+    
+Registry or File Updates:
+=========================
+   - this requires an updated flash.bin.  You can simply use Step III above to reflash a new flash.bin
+
+Limitations:
+============
+
+  Ethernet KITL is not supported at this time
+  The platform is setup to suspend after 3-minutes of non-USE.  This can cause the platform to be
+  non-operative.  To disable the suspend timer, follow these steps:
+
+  1. In the upper left system tray click on the battery-charge icon
+  2. Select the "Advanced" tab.
+  3. Uncheck "Turn off device if not used for .."
+  
+
+Using UARTS:
+============
+
+To enable UART0 (COM1) and UART1 (COM2).  The following BSP variables should commented out, (use @REM in SMDK6400.bat)
+
+@REM set BSP_NOUART0=1
+@REM set BSP_NOUART1=1
+@REM BSP_DEBUGPORT != SERIAL_UART0
+@REM set BSP_NOSERIAL=1
+
+make sure KITL is set to use USB:
+
+set BSP_KITL=USBSERIAL
+
+This change requires you to re-build the BSP to apply the changes. If you have not built the BSP, you do not need to do anything
+more.  The changes will be built in when you do a "Build All".  If you have already built an image, you can simply rebuild the
+BSP (switch to "SMDK6400\src", enter "build -c") and then do a "makeimg".
+
+
+
+
+
+
+
+
+
+
