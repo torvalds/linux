@@ -231,8 +231,12 @@ struct kvm_irq_routing_table {};
 #define KVM_MEM_SLOTS_NUM (KVM_MEMORY_SLOTS + KVM_PRIVATE_MEM_SLOTS)
 #endif
 
+/*
+ * Note:
+ * memslots are not sorted by id anymore, please use id_to_memslot()
+ * to get the memslot by its id.
+ */
 struct kvm_memslots {
-	int nmemslots;
 	u64 generation;
 	struct kvm_memory_slot memslots[KVM_MEM_SLOTS_NUM];
 };
@@ -310,7 +314,8 @@ static inline struct kvm_vcpu *kvm_get_vcpu(struct kvm *kvm, int i)
 
 #define kvm_for_each_memslot(memslot, slots)	\
 	for (memslot = &slots->memslots[0];	\
-	      memslot < slots->memslots + (slots)->nmemslots; memslot++)
+	      memslot < slots->memslots + KVM_MEM_SLOTS_NUM && memslot->npages;\
+		memslot++)
 
 int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id);
 void kvm_vcpu_uninit(struct kvm_vcpu *vcpu);
@@ -336,7 +341,14 @@ static inline struct kvm_memslots *kvm_memslots(struct kvm *kvm)
 static inline struct kvm_memory_slot *
 id_to_memslot(struct kvm_memslots *slots, int id)
 {
-	return &slots->memslots[id];
+	int i;
+
+	for (i = 0; i < KVM_MEM_SLOTS_NUM; i++)
+		if (slots->memslots[i].id == id)
+			return &slots->memslots[i];
+
+	WARN_ON(1);
+	return NULL;
 }
 
 #define HPA_MSB ((sizeof(hpa_t) * 8) - 1)
