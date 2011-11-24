@@ -22,7 +22,7 @@
 #include "cxd2820r_priv.h"
 
 int cxd2820r_set_frontend_t2(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *params)
+			     struct dvb_frontend_parameters *params)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;

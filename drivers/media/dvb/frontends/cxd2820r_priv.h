@@ -48,11 +48,8 @@ struct reg_val_mask {
 
 struct cxd2820r_priv {
 	struct i2c_adapter *i2c;
-	struct dvb_frontend fe[2];
+	struct dvb_frontend fe;
 	struct cxd2820r_config cfg;
-
-	struct mutex fe_lock; /* FE lock */
-	int active_fe:2; /* FE lock, -1=NONE, 0=DVB-T/T2, 1=DVB-C */
 
 	bool ber_running;
 
