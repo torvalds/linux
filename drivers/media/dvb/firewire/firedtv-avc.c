@@ -392,10 +392,11 @@ static int avc_tuner_tuneqpsk(struct firedtv *fdtv,
 			default:		c->operand[13] = 0x2; break;
 			}
 			switch (fdtv->fe.dtv_property_cache.rolloff) {
-			case ROLLOFF_AUTO:	c->operand[14] = 0x2; break;
 			case ROLLOFF_35:	c->operand[14] = 0x2; break;
 			case ROLLOFF_20:	c->operand[14] = 0x0; break;
 			case ROLLOFF_25:	c->operand[14] = 0x1; break;
+			case ROLLOFF_AUTO:
+			default:		c->operand[14] = 0x2; break;
 			/* case ROLLOFF_NONE:	c->operand[14] = 0xff; break; */
 			}
 			switch (fdtv->fe.dtv_property_cache.pilot) {
