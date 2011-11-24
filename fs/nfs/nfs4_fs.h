@@ -56,6 +56,9 @@ enum nfs4_session_state {
 	NFS4_SESSION_DRAINING,
 };
 
+#define NFS4_RENEW_TIMEOUT		0x01
+#define NFS4_RENEW_DELEGATION_CB	0x02
+
 struct nfs4_minor_version_ops {
 	u32	minor_version;
 
@@ -225,7 +228,7 @@ struct nfs4_state_recovery_ops {
 };
 
 struct nfs4_state_maintenance_ops {
-	int (*sched_state_renewal)(struct nfs_client *, struct rpc_cred *);
+	int (*sched_state_renewal)(struct nfs_client *, struct rpc_cred *, unsigned);
 	struct rpc_cred * (*get_state_renewal_cred_locked)(struct nfs_client *);
 	int (*renew_lease)(struct nfs_client *, struct rpc_cred *);
 };
@@ -237,8 +240,6 @@ extern const struct inode_operations nfs4_dir_inode_operations;
 extern int nfs4_proc_setclientid(struct nfs_client *, u32, unsigned short, struct rpc_cred *, struct nfs4_setclientid_res *);
 extern int nfs4_proc_setclientid_confirm(struct nfs_client *, struct nfs4_setclientid_res *arg, struct rpc_cred *);
 extern int nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred);
-extern int nfs4_proc_async_renew(struct nfs_client *, struct rpc_cred *);
-extern int nfs4_proc_renew(struct nfs_client *, struct rpc_cred *);
 extern int nfs4_init_clientid(struct nfs_client *, struct rpc_cred *);
 extern int nfs41_init_clientid(struct nfs_client *, struct rpc_cred *);
 extern int nfs4_do_close(struct nfs4_state *state, gfp_t gfp_mask, int wait, bool roc);
@@ -349,6 +350,7 @@ extern void nfs4_close_sync(struct nfs4_state *, fmode_t);
 extern void nfs4_state_set_mode_locked(struct nfs4_state *, fmode_t);
 extern void nfs4_schedule_lease_recovery(struct nfs_client *);
 extern void nfs4_schedule_state_manager(struct nfs_client *);
+extern void nfs4_schedule_path_down_recovery(struct nfs_client *clp);
 extern void nfs4_schedule_stateid_recovery(const struct nfs_server *, struct nfs4_state *);
 extern void nfs41_handle_sequence_flag_errors(struct nfs_client *clp, u32 flags);
 extern void nfs41_handle_recall_slot(struct nfs_client *clp);

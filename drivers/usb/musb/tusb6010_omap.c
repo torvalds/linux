@@ -20,6 +20,7 @@
 #include <plat/mux.h>
 
 #include "musb_core.h"
+#include "tusb6010.h"
 
 #define to_chdat(c)		((struct tusb_omap_dma_ch *)(c)->private_data)
 

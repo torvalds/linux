@@ -1099,12 +1099,11 @@ read_again:
 		bio_list_add(&conf->pending_bio_list, mbio);
 		spin_unlock_irqrestore(&conf->device_lock, flags);
 	}
-	r1_bio_write_done(r1_bio);
-
-	/* In case raid1d snuck in to freeze_array */
-	wake_up(&conf->wait_barrier);
-
+	/* Mustn't call r1_bio_write_done before this next test,
+	 * as it could result in the bio being freed.
+	 */
 	if (sectors_handled < (bio->bi_size >> 9)) {
+		r1_bio_write_done(r1_bio);
 		/* We need another r1_bio.  It has already been counted
 		 * in bio->bi_phys_segments
 		 */
@@ -1116,6 +1115,11 @@ read_again:
 		r1_bio->sector = bio->bi_sector + sectors_handled;
 		goto retry_write;
 	}
+
+	r1_bio_write_done(r1_bio);
+
+	/* In case raid1d snuck in to freeze_array */
+	wake_up(&conf->wait_barrier);
 
 	if (do_sync || !bitmap || !plugged)
 		md_wakeup_thread(mddev->thread);
@@ -2558,8 +2562,7 @@ static int stop(mddev_t *mddev)
 	raise_barrier(conf);
 	lower_barrier(conf);
 
-	md_unregister_thread(mddev->thread);
-	mddev->thread = NULL;
+	md_unregister_thread(&mddev->thread);
 	if (conf->r1bio_pool)
 		mempool_destroy(conf->r1bio_pool);
 	kfree(conf->mirrors);

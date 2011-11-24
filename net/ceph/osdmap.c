@@ -339,6 +339,7 @@ static int __insert_pg_mapping(struct ceph_pg_mapping *new,
 	struct ceph_pg_mapping *pg = NULL;
 	int c;
 
+	dout("__insert_pg_mapping %llx %p\n", *(u64 *)&new->pgid, new);
 	while (*p) {
 		parent = *p;
 		pg = rb_entry(parent, struct ceph_pg_mapping, node);
@@ -366,14 +367,31 @@ static struct ceph_pg_mapping *__lookup_pg_mapping(struct rb_root *root,
 	while (n) {
 		pg = rb_entry(n, struct ceph_pg_mapping, node);
 		c = pgid_cmp(pgid, pg->pgid);
-		if (c < 0)
+		if (c < 0) {
 			n = n->rb_left;
-		else if (c > 0)
+		} else if (c > 0) {
 			n = n->rb_right;
-		else
+		} else {
+			dout("__lookup_pg_mapping %llx got %p\n",
+			     *(u64 *)&pgid, pg);
 			return pg;
+		}
 	}
 	return NULL;
+}
+
+static int __remove_pg_mapping(struct rb_root *root, struct ceph_pg pgid)
+{
+	struct ceph_pg_mapping *pg = __lookup_pg_mapping(root, pgid);
+
+	if (pg) {
+		dout("__remove_pg_mapping %llx %p\n", *(u64 *)&pgid, pg);
+		rb_erase(&pg->node, root);
+		kfree(pg);
+		return 0;
+	}
+	dout("__remove_pg_mapping %llx dne\n", *(u64 *)&pgid);
+	return -ENOENT;
 }
 
 /*
@@ -711,7 +729,6 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 	void *start = *p;
 	int err = -EINVAL;
 	u16 version;
-	struct rb_node *rbp;
 
 	ceph_decode_16_safe(p, end, version, bad);
 	if (version > CEPH_OSDMAP_INC_VERSION) {
@@ -861,7 +878,6 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 	}
 
 	/* new_pg_temp */
-	rbp = rb_first(&map->pg_temp);
 	ceph_decode_32_safe(p, end, len, bad);
 	while (len--) {
 		struct ceph_pg_mapping *pg;
@@ -871,18 +887,6 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 		ceph_decode_need(p, end, sizeof(u64) + sizeof(u32), bad);
 		ceph_decode_copy(p, &pgid, sizeof(pgid));
 		pglen = ceph_decode_32(p);
-
-		/* remove any? */
-		while (rbp && pgid_cmp(rb_entry(rbp, struct ceph_pg_mapping,
-						node)->pgid, pgid) <= 0) {
-			struct ceph_pg_mapping *cur =
-				rb_entry(rbp, struct ceph_pg_mapping, node);
-
-			rbp = rb_next(rbp);
-			dout(" removed pg_temp %llx\n", *(u64 *)&cur->pgid);
-			rb_erase(&cur->node, &map->pg_temp);
-			kfree(cur);
-		}
 
 		if (pglen) {
 			/* insert */
@@ -903,16 +907,10 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 			}
 			dout(" added pg_temp %llx len %d\n", *(u64 *)&pgid,
 			     pglen);
+		} else {
+			/* remove */
+			__remove_pg_mapping(&map->pg_temp, pgid);
 		}
-	}
-	while (rbp) {
-		struct ceph_pg_mapping *cur =
-			rb_entry(rbp, struct ceph_pg_mapping, node);
-
-		rbp = rb_next(rbp);
-		dout(" removed pg_temp %llx\n", *(u64 *)&cur->pgid);
-		rb_erase(&cur->node, &map->pg_temp);
-		kfree(cur);
 	}
 
 	/* ignore the rest */
@@ -1046,10 +1044,25 @@ static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
 	struct ceph_pg_mapping *pg;
 	struct ceph_pg_pool_info *pool;
 	int ruleno;
-	unsigned poolid, ps, pps;
+	unsigned poolid, ps, pps, t;
 	int preferred;
 
+	poolid = le32_to_cpu(pgid.pool);
+	ps = le16_to_cpu(pgid.ps);
+	preferred = (s16)le16_to_cpu(pgid.preferred);
+
+	pool = __lookup_pg_pool(&osdmap->pg_pools, poolid);
+	if (!pool)
+		return NULL;
+
 	/* pg_temp? */
+	if (preferred >= 0)
+		t = ceph_stable_mod(ps, le32_to_cpu(pool->v.lpg_num),
+				    pool->lpgp_num_mask);
+	else
+		t = ceph_stable_mod(ps, le32_to_cpu(pool->v.pg_num),
+				    pool->pgp_num_mask);
+	pgid.ps = cpu_to_le16(t);
 	pg = __lookup_pg_mapping(&osdmap->pg_temp, pgid);
 	if (pg) {
 		*num = pg->len;
@@ -1057,18 +1070,6 @@ static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
 	}
 
 	/* crush */
-	poolid = le32_to_cpu(pgid.pool);
-	ps = le16_to_cpu(pgid.ps);
-	preferred = (s16)le16_to_cpu(pgid.preferred);
-
-	/* don't forcefeed bad device ids to crush */
-	if (preferred >= osdmap->max_osd ||
-	    preferred >= osdmap->crush->max_devices)
-		preferred = -1;
-
-	pool = __lookup_pg_pool(&osdmap->pg_pools, poolid);
-	if (!pool)
-		return NULL;
 	ruleno = crush_find_rule(osdmap->crush, pool->v.crush_ruleset,
 				 pool->v.type, pool->v.size);
 	if (ruleno < 0) {
@@ -1077,6 +1078,11 @@ static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
 		       pool->v.size);
 		return NULL;
 	}
+
+	/* don't forcefeed bad device ids to crush */
+	if (preferred >= osdmap->max_osd ||
+	    preferred >= osdmap->crush->max_devices)
+		preferred = -1;
 
 	if (preferred >= 0)
 		pps = ceph_stable_mod(ps,

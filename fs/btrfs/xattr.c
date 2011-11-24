@@ -116,6 +116,12 @@ static int do_setxattr(struct btrfs_trans_handle *trans,
 		if (ret)
 			goto out;
 		btrfs_release_path(path);
+
+		/*
+		 * remove the attribute
+		 */
+		if (!value)
+			goto out;
 	}
 
 again:
@@ -158,6 +164,9 @@ out:
 	return ret;
 }
 
+/*
+ * @value: "" makes the attribute to empty, NULL removes it
+ */
 int __btrfs_setxattr(struct btrfs_trans_handle *trans,
 		     struct inode *inode, const char *name,
 		     const void *value, size_t size, int flags)

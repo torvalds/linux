@@ -432,6 +432,8 @@ void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 	u8 flogi_maddr[ETH_ALEN];
 	const struct net_device_ops *ops;
 
+	rtnl_lock();
+
 	/*
 	 * Don't listen for Ethernet packets anymore.
 	 * synchronize_net() ensures that the packet handlers are not running
@@ -460,6 +462,8 @@ void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 			FCOE_NETDEV_DBG(netdev, "Failed to disable FCoE"
 					" specific feature for LLD.\n");
 	}
+
+	rtnl_unlock();
 
 	/* Release the self-reference taken during fcoe_interface_create() */
 	fcoe_interface_put(fcoe);
@@ -1951,11 +1955,8 @@ static void fcoe_destroy_work(struct work_struct *work)
 	fcoe_if_destroy(port->lport);
 
 	/* Do not tear down the fcoe interface for NPIV port */
-	if (!npiv) {
-		rtnl_lock();
+	if (!npiv)
 		fcoe_interface_cleanup(fcoe);
-		rtnl_unlock();
-	}
 
 	mutex_unlock(&fcoe_config_mutex);
 }
@@ -2009,8 +2010,9 @@ static int fcoe_create(struct net_device *netdev, enum fip_state fip_mode)
 		printk(KERN_ERR "fcoe: Failed to create interface (%s)\n",
 		       netdev->name);
 		rc = -EIO;
+		rtnl_unlock();
 		fcoe_interface_cleanup(fcoe);
-		goto out_nodev;
+		goto out_nortnl;
 	}
 
 	/* Make this the "master" N_Port */
@@ -2027,6 +2029,7 @@ static int fcoe_create(struct net_device *netdev, enum fip_state fip_mode)
 
 out_nodev:
 	rtnl_unlock();
+out_nortnl:
 	mutex_unlock(&fcoe_config_mutex);
 	return rc;
 }

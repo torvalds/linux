@@ -616,6 +616,9 @@ int wiphy_register(struct wiphy *wiphy)
 	if (res)
 		goto out_rm_dev;
 
+	rtnl_lock();
+	rdev->wiphy.registered = true;
+	rtnl_unlock();
 	return 0;
 
 out_rm_dev:
@@ -646,6 +649,10 @@ EXPORT_SYMBOL(wiphy_rfkill_stop_polling);
 void wiphy_unregister(struct wiphy *wiphy)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+
+	rtnl_lock();
+	rdev->wiphy.registered = false;
+	rtnl_unlock();
 
 	rfkill_unregister(rdev->rfkill);
 

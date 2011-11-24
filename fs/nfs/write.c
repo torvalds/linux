@@ -958,7 +958,7 @@ static int nfs_flush_multi(struct nfs_pageio_descriptor *desc, struct list_head 
 		if (!data)
 			goto out_bad;
 		data->pagevec[0] = page;
-		nfs_write_rpcsetup(req, data, wsize, offset, desc->pg_ioflags);
+		nfs_write_rpcsetup(req, data, len, offset, desc->pg_ioflags);
 		list_add(&data->list, res);
 		requests++;
 		nbytes -= len;

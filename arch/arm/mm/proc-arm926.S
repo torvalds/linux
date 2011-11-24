@@ -394,7 +394,7 @@ ENTRY(cpu_arm926_set_pte_ext)
 
 /* Suspend/resume support: taken from arch/arm/plat-s3c24xx/sleep.S */
 .globl	cpu_arm926_suspend_size
-.equ	cpu_arm926_suspend_size, 4 * 3
+.equ	cpu_arm926_suspend_size, 4 * 4
 #ifdef CONFIG_PM_SLEEP
 ENTRY(cpu_arm926_do_suspend)
 	stmfd	sp!, {r4 - r7, lr}

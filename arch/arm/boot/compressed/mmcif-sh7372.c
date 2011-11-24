@@ -82,7 +82,7 @@ asmlinkage void mmc_loader(unsigned char *buf, unsigned long len)
 
 
 	/* Disable clock to MMC hardware block */
-	__raw_writel(__raw_readl(SMSTPCR3) & (1 << 12), SMSTPCR3);
+	__raw_writel(__raw_readl(SMSTPCR3) | (1 << 12), SMSTPCR3);
 
 	mmc_update_progress(MMC_PROGRESS_DONE);
 }

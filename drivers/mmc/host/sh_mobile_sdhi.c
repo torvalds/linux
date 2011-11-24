@@ -120,11 +120,11 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 	mmc_data->hclk = clk_get_rate(priv->clk);
 	mmc_data->set_pwr = sh_mobile_sdhi_set_pwr;
 	mmc_data->get_cd = sh_mobile_sdhi_get_cd;
-	if (mmc_data->flags & TMIO_MMC_HAS_IDLE_WAIT)
-		mmc_data->write16_hook = sh_mobile_sdhi_write16_hook;
 	mmc_data->capabilities = MMC_CAP_MMC_HIGHSPEED;
 	if (p) {
 		mmc_data->flags = p->tmio_flags;
+		if (mmc_data->flags & TMIO_MMC_HAS_IDLE_WAIT)
+			mmc_data->write16_hook = sh_mobile_sdhi_write16_hook;
 		mmc_data->ocr_mask = p->tmio_ocr_mask;
 		mmc_data->capabilities |= p->tmio_caps;
 

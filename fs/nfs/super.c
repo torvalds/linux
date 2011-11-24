@@ -2035,9 +2035,6 @@ static inline void nfs_initialise_sb(struct super_block *sb)
 		sb->s_blocksize = nfs_block_bits(server->wsize,
 						 &sb->s_blocksize_bits);
 
-	if (server->flags & NFS_MOUNT_NOAC)
-		sb->s_flags |= MS_SYNCHRONOUS;
-
 	sb->s_bdi = &server->backing_dev_info;
 
 	nfs_super_set_maxbytes(sb, server->maxfilesize);
@@ -2249,6 +2246,10 @@ static struct dentry *nfs_fs_mount(struct file_system_type *fs_type,
 	if (server->flags & NFS_MOUNT_UNSHARED)
 		compare_super = NULL;
 
+	/* -o noac implies -o sync */
+	if (server->flags & NFS_MOUNT_NOAC)
+		sb_mntdata.mntflags |= MS_SYNCHRONOUS;
+
 	/* Get a superblock - note that we may end up sharing one that already exists */
 	s = sget(fs_type, compare_super, nfs_set_super, &sb_mntdata);
 	if (IS_ERR(s)) {
@@ -2360,6 +2361,10 @@ nfs_xdev_mount(struct file_system_type *fs_type, int flags,
 
 	if (server->flags & NFS_MOUNT_UNSHARED)
 		compare_super = NULL;
+
+	/* -o noac implies -o sync */
+	if (server->flags & NFS_MOUNT_NOAC)
+		sb_mntdata.mntflags |= MS_SYNCHRONOUS;
 
 	/* Get a superblock - note that we may end up sharing one that already exists */
 	s = sget(&nfs_fs_type, compare_super, nfs_set_super, &sb_mntdata);
@@ -2628,6 +2633,10 @@ nfs4_remote_mount(struct file_system_type *fs_type, int flags,
 	if (server->flags & NFS4_MOUNT_UNSHARED)
 		compare_super = NULL;
 
+	/* -o noac implies -o sync */
+	if (server->flags & NFS_MOUNT_NOAC)
+		sb_mntdata.mntflags |= MS_SYNCHRONOUS;
+
 	/* Get a superblock - note that we may end up sharing one that already exists */
 	s = sget(&nfs4_fs_type, compare_super, nfs_set_super, &sb_mntdata);
 	if (IS_ERR(s)) {
@@ -2789,7 +2798,7 @@ static struct dentry *nfs_follow_remote_path(struct vfsmount *root_mnt,
 		goto out_put_mnt_ns;
 
 	ret = vfs_path_lookup(root_mnt->mnt_root, root_mnt,
-			export_path, LOOKUP_FOLLOW, &path);
+			export_path, LOOKUP_FOLLOW|LOOKUP_AUTOMOUNT, &path);
 
 	nfs_referral_loop_unprotect();
 	put_mnt_ns(ns_private);
@@ -2916,6 +2925,10 @@ nfs4_xdev_mount(struct file_system_type *fs_type, int flags,
 	if (server->flags & NFS4_MOUNT_UNSHARED)
 		compare_super = NULL;
 
+	/* -o noac implies -o sync */
+	if (server->flags & NFS_MOUNT_NOAC)
+		sb_mntdata.mntflags |= MS_SYNCHRONOUS;
+
 	/* Get a superblock - note that we may end up sharing one that already exists */
 	s = sget(&nfs4_fs_type, compare_super, nfs_set_super, &sb_mntdata);
 	if (IS_ERR(s)) {
@@ -3002,6 +3015,10 @@ nfs4_remote_referral_mount(struct file_system_type *fs_type, int flags,
 
 	if (server->flags & NFS4_MOUNT_UNSHARED)
 		compare_super = NULL;
+
+	/* -o noac implies -o sync */
+	if (server->flags & NFS_MOUNT_NOAC)
+		sb_mntdata.mntflags |= MS_SYNCHRONOUS;
 
 	/* Get a superblock - note that we may end up sharing one that already exists */
 	s = sget(&nfs4_fs_type, compare_super, nfs_set_super, &sb_mntdata);

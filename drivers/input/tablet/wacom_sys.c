@@ -49,6 +49,7 @@ struct hid_descriptor {
 #define USB_REQ_GET_REPORT	0x01
 #define USB_REQ_SET_REPORT	0x09
 #define WAC_HID_FEATURE_REPORT	0x03
+#define WAC_MSG_RETRIES		5
 
 static int usb_get_report(struct usb_interface *intf, unsigned char type,
 				unsigned char id, void *buf, int size)
@@ -165,7 +166,7 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 			report,
 			hid_desc->wDescriptorLength,
 			5000); /* 5 secs */
-	} while (result < 0 && limit++ < 5);
+	} while (result < 0 && limit++ < WAC_MSG_RETRIES);
 
 	/* No need to parse the Descriptor. It isn't an error though */
 	if (result < 0)
@@ -228,13 +229,6 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 							get_unaligned_le16(&report[i + 3]);
 						i += 4;
 					}
-				} else if (usage == WCM_DIGITIZER) {
-					/* max pressure isn't reported
-					features->pressure_max = (unsigned short)
-							(report[i+4] << 8  | report[i + 3]);
-					*/
-					features->pressure_max = 255;
-					i += 4;
 				}
 				break;
 
@@ -290,13 +284,6 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 				pen = 1;
 				i++;
 				break;
-
-			case HID_USAGE_UNDEFINED:
-				if (usage == WCM_DESKTOP && finger) /* capacity */
-					features->pressure_max =
-						get_unaligned_le16(&report[i + 3]);
-				i += 4;
-				break;
 			}
 			break;
 
@@ -319,24 +306,26 @@ static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_feat
 	int limit = 0, report_id = 2;
 	int error = -ENOMEM;
 
-	rep_data = kmalloc(2, GFP_KERNEL);
+	rep_data = kmalloc(4, GFP_KERNEL);
 	if (!rep_data)
 		return error;
 
-	/* ask to report tablet data if it is 2FGT Tablet PC or
+	/* ask to report tablet data if it is MT Tablet PC or
 	 * not a Tablet PC */
 	if (features->type == TABLETPC2FG) {
 		do {
 			rep_data[0] = 3;
 			rep_data[1] = 4;
+			rep_data[2] = 0;
+			rep_data[3] = 0;
 			report_id = 3;
 			error = usb_set_report(intf, WAC_HID_FEATURE_REPORT,
-				report_id, rep_data, 2);
+				report_id, rep_data, 4);
 			if (error >= 0)
 				error = usb_get_report(intf,
 					WAC_HID_FEATURE_REPORT, report_id,
-					rep_data, 3);
-		} while ((error < 0 || rep_data[1] != 4) && limit++ < 5);
+					rep_data, 4);
+		} while ((error < 0 || rep_data[1] != 4) && limit++ < WAC_MSG_RETRIES);
 	} else if (features->type != TABLETPC) {
 		do {
 			rep_data[0] = 2;
@@ -347,7 +336,7 @@ static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_feat
 				error = usb_get_report(intf,
 					WAC_HID_FEATURE_REPORT, report_id,
 					rep_data, 2);
-		} while ((error < 0 || rep_data[1] != 2) && limit++ < 5);
+		} while ((error < 0 || rep_data[1] != 2) && limit++ < WAC_MSG_RETRIES);
 	}
 
 	kfree(rep_data);

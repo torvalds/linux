@@ -31,7 +31,6 @@
 
 #define DMA_ERROR_CODE		(~(dma_addr_t)0x0)
 
-int dma_mapping_error(struct device *dev, dma_addr_t dma_addr);
 
 #define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)
 #define dma_free_noncoherent(d, s, v, h) dma_free_coherent(d, s, v, h)
@@ -47,6 +46,12 @@ dma_addr_t or1k_map_page(struct device *dev, struct page *page,
 void or1k_unmap_page(struct device *dev, dma_addr_t dma_handle,
 		     size_t size, enum dma_data_direction dir,
 		     struct dma_attrs *attrs);
+int or1k_map_sg(struct device *dev, struct scatterlist *sg,
+		int nents, enum dma_data_direction dir,
+		struct dma_attrs *attrs);
+void or1k_unmap_sg(struct device *dev, struct scatterlist *sg,
+		   int nents, enum dma_data_direction dir,
+		   struct dma_attrs *attrs);
 void or1k_sync_single_for_cpu(struct device *dev,
 			      dma_addr_t dma_handle, size_t size,
 			      enum dma_data_direction dir);
@@ -98,6 +103,51 @@ static inline void dma_unmap_single(struct device *dev, dma_addr_t addr,
 	debug_dma_unmap_page(dev, addr, size, dir, true);
 }
 
+static inline int dma_map_sg(struct device *dev, struct scatterlist *sg,
+				   int nents, enum dma_data_direction dir)
+{
+	int i, ents;
+	struct scatterlist *s;
+
+	for_each_sg(sg, s, nents, i)
+		kmemcheck_mark_initialized(sg_virt(s), s->length);
+	BUG_ON(!valid_dma_direction(dir));
+	ents = or1k_map_sg(dev, sg, nents, dir, NULL);
+	debug_dma_map_sg(dev, sg, nents, ents, dir);
+
+	return ents;
+}
+
+static inline void dma_unmap_sg(struct device *dev, struct scatterlist *sg,
+				      int nents, enum dma_data_direction dir)
+{
+	BUG_ON(!valid_dma_direction(dir));
+	debug_dma_unmap_sg(dev, sg, nents, dir);
+	or1k_unmap_sg(dev, sg, nents, dir, NULL);
+}
+
+static inline dma_addr_t dma_map_page(struct device *dev, struct page *page,
+				      size_t offset, size_t size,
+				      enum dma_data_direction dir)
+{
+	dma_addr_t addr;
+
+	kmemcheck_mark_initialized(page_address(page) + offset, size);
+	BUG_ON(!valid_dma_direction(dir));
+	addr = or1k_map_page(dev, page, offset, size, dir, NULL);
+	debug_dma_map_page(dev, page, offset, size, dir, addr, false);
+
+	return addr;
+}
+
+static inline void dma_unmap_page(struct device *dev, dma_addr_t addr,
+				  size_t size, enum dma_data_direction dir)
+{
+	BUG_ON(!valid_dma_direction(dir));
+	or1k_unmap_page(dev, addr, size, dir, NULL);
+	debug_dma_unmap_page(dev, addr, size, dir, true);
+}
+
 static inline void dma_sync_single_for_cpu(struct device *dev, dma_addr_t addr,
 					   size_t size,
 					   enum dma_data_direction dir)
@@ -119,7 +169,12 @@ static inline void dma_sync_single_for_device(struct device *dev,
 static inline int dma_supported(struct device *dev, u64 dma_mask)
 {
 	/* Support 32 bit DMA mask exclusively */
-	return dma_mask == 0xffffffffULL;
+	return dma_mask == DMA_BIT_MASK(32);
+}
+
+static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
+{
+	return 0;
 }
 
 static inline int dma_set_mask(struct device *dev, u64 dma_mask)

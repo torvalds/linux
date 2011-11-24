@@ -1300,6 +1300,7 @@ xfs_end_io_direct_write(
 	bool			is_async)
 {
 	struct xfs_ioend	*ioend = iocb->private;
+	struct inode		*inode = ioend->io_inode;
 
 	/*
 	 * blockdev_direct_IO can return an error even after the I/O
@@ -1331,7 +1332,7 @@ xfs_end_io_direct_write(
 	}
 
 	/* XXX: probably should move into the real I/O completion handler */
-	inode_dio_done(ioend->io_inode);
+	inode_dio_done(inode);
 }
 
 STATIC ssize_t

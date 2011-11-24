@@ -702,7 +702,7 @@ err_iounmap:
 err_free_mem_region:
 	release_mem_region(res->start, resource_size(res));
 err_free_mem:
-	input_free_device(kbc->idev);
+	input_free_device(input_dev);
 	kfree(kbc);
 
 	return err;

@@ -473,8 +473,8 @@ pflip_cleanup:
 	spin_lock_irqsave(&dev->event_lock, flags);
 	radeon_crtc->unpin_work = NULL;
 unlock_free:
-	drm_gem_object_unreference_unlocked(old_radeon_fb->obj);
 	spin_unlock_irqrestore(&dev->event_lock, flags);
+	drm_gem_object_unreference_unlocked(old_radeon_fb->obj);
 	radeon_fence_unref(&work->fence);
 	kfree(work);
 
@@ -707,16 +707,21 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 		radeon_router_select_ddc_port(radeon_connector);
 
 	if ((radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_DisplayPort) ||
-	    (radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_eDP)) {
+	    (radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_eDP) ||
+	    radeon_connector_encoder_is_dp_bridge(&radeon_connector->base)) {
 		struct radeon_connector_atom_dig *dig = radeon_connector->con_priv;
+
 		if ((dig->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT ||
 		     dig->dp_sink_type == CONNECTOR_OBJECT_ID_eDP) && dig->dp_i2c_bus)
-			radeon_connector->edid = drm_get_edid(&radeon_connector->base, &dig->dp_i2c_bus->adapter);
-	}
-	if (!radeon_connector->ddc_bus)
-		return -1;
-	if (!radeon_connector->edid) {
-		radeon_connector->edid = drm_get_edid(&radeon_connector->base, &radeon_connector->ddc_bus->adapter);
+			radeon_connector->edid = drm_get_edid(&radeon_connector->base,
+							      &dig->dp_i2c_bus->adapter);
+		else if (radeon_connector->ddc_bus && !radeon_connector->edid)
+			radeon_connector->edid = drm_get_edid(&radeon_connector->base,
+							      &radeon_connector->ddc_bus->adapter);
+	} else {
+		if (radeon_connector->ddc_bus && !radeon_connector->edid)
+			radeon_connector->edid = drm_get_edid(&radeon_connector->base,
+							      &radeon_connector->ddc_bus->adapter);
 	}
 
 	if (!radeon_connector->edid) {

@@ -3376,10 +3376,18 @@ int __init omap4xxx_clk_init(void)
 	} else if (cpu_is_omap446x()) {
 		cpu_mask = RATE_IN_4460;
 		cpu_clkflg = CK_446X;
+	} else {
+		return 0;
 	}
 
 	clk_init(&omap2_clk_functions);
-	omap2_clk_disable_clkdm_control();
+
+	/*
+	 * Must stay commented until all OMAP SoC drivers are
+	 * converted to runtime PM, or drivers may start crashing
+	 *
+	 * omap2_clk_disable_clkdm_control();
+	 */
 
 	for (c = omap44xx_clks; c < omap44xx_clks + ARRAY_SIZE(omap44xx_clks);
 									  c++)

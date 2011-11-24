@@ -51,7 +51,7 @@ config GENERIC_CMOS_UPDATE
         def_bool y
 
 config GENERIC_GPIO
-	def_bool y
+	bool
 
 config ZONE_DMA
 	bool

@@ -35,7 +35,6 @@
 
 /* Append new drm mode definition here, align with libdrm definition */
 #define DRM_MODE_SCALE_NO_SCALE   	2
-#define DRM_MODE_CONNECTOR_MIPI         15
 
 enum {
 	CHIP_PSB_8108 = 0,		/* Poulsbo */

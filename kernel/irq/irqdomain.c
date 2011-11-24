@@ -29,7 +29,11 @@ void irq_domain_add(struct irq_domain *domain)
 	 */
 	for (hwirq = 0; hwirq < domain->nr_irq; hwirq++) {
 		d = irq_get_irq_data(irq_domain_to_irq(domain, hwirq));
-		if (d || d->domain) {
+		if (!d) {
+			WARN(1, "error: assigning domain to non existant irq_desc");
+			return;
+		}
+		if (d->domain) {
 			/* things are broken; just report, don't clean up */
 			WARN(1, "error: irq_desc already assigned to a domain");
 			return;

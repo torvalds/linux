@@ -530,7 +530,8 @@ nouveau_fence_channel_init(struct nouveau_channel *chan)
 		nouveau_gpuobj_ref(NULL, &obj);
 		if (ret)
 			return ret;
-	} else {
+	} else
+	if (USE_SEMA(dev)) {
 		/* map fence bo into channel's vm */
 		ret = nouveau_bo_vma_add(dev_priv->fence.bo, chan->vm,
 					 &chan->fence.vma);

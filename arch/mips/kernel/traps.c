@@ -14,6 +14,7 @@
 #include <linux/bug.h>
 #include <linux/compiler.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -364,21 +365,26 @@ static int regs_to_trapnr(struct pt_regs *regs)
 	return (regs->cp0_cause >> 2) & 0x1f;
 }
 
-static DEFINE_SPINLOCK(die_lock);
+static DEFINE_RAW_SPINLOCK(die_lock);
 
 void __noreturn die(const char *str, struct pt_regs *regs)
 {
 	static int die_counter;
 	int sig = SIGSEGV;
 #ifdef CONFIG_MIPS_MT_SMTC
-	unsigned long dvpret = dvpe();
+	unsigned long dvpret;
 #endif /* CONFIG_MIPS_MT_SMTC */
+
+	oops_enter();
 
 	if (notify_die(DIE_OOPS, str, regs, 0, regs_to_trapnr(regs), SIGSEGV) == NOTIFY_STOP)
 		sig = 0;
 
 	console_verbose();
-	spin_lock_irq(&die_lock);
+	raw_spin_lock_irq(&die_lock);
+#ifdef CONFIG_MIPS_MT_SMTC
+	dvpret = dvpe();
+#endif /* CONFIG_MIPS_MT_SMTC */
 	bust_spinlocks(1);
 #ifdef CONFIG_MIPS_MT_SMTC
 	mips_mt_regdump(dvpret);
@@ -387,7 +393,9 @@ void __noreturn die(const char *str, struct pt_regs *regs)
 	printk("%s[#%d]:\n", str, ++die_counter);
 	show_registers(regs);
 	add_taint(TAINT_DIE);
-	spin_unlock_irq(&die_lock);
+	raw_spin_unlock_irq(&die_lock);
+
+	oops_exit();
 
 	if (in_interrupt())
 		panic("Fatal exception in interrupt");

@@ -2529,6 +2529,7 @@ struct qla_hw_data {
 #define DT_ISP8021			BIT_14
 #define DT_ISP_LAST			(DT_ISP8021 << 1)
 
+#define DT_T10_PI                       BIT_25
 #define DT_IIDMA                        BIT_26
 #define DT_FWI2                         BIT_27
 #define DT_ZIO_SUPPORTED                BIT_28
@@ -2572,6 +2573,7 @@ struct qla_hw_data {
 #define IS_NOCACHE_VPD_TYPE(ha)	(IS_QLA81XX(ha))
 #define IS_ALOGIO_CAPABLE(ha)	(IS_QLA23XX(ha) || IS_FWI2_CAPABLE(ha))
 
+#define IS_T10_PI_CAPABLE(ha)   ((ha)->device_type & DT_T10_PI)
 #define IS_IIDMA_CAPABLE(ha)    ((ha)->device_type & DT_IIDMA)
 #define IS_FWI2_CAPABLE(ha)     ((ha)->device_type & DT_FWI2)
 #define IS_ZIO_SUPPORTED(ha)    ((ha)->device_type & DT_ZIO_SUPPORTED)

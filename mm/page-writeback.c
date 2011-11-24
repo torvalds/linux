@@ -754,20 +754,9 @@ static void balance_dirty_pages(struct address_space *mapping,
 		 * 200ms is typically more than enough to curb heavy dirtiers;
 		 * (b) the pause time limit makes the dirtiers more responsive.
 		 */
-		if (nr_dirty < dirty_thresh +
-			       dirty_thresh / DIRTY_MAXPAUSE_AREA &&
+		if (nr_dirty < dirty_thresh &&
+		    bdi_dirty < (task_bdi_thresh + bdi_thresh) / 2 &&
 		    time_after(jiffies, start_time + MAX_PAUSE))
-			break;
-		/*
-		 * pass-good area. When some bdi gets blocked (eg. NFS server
-		 * not responding), or write bandwidth dropped dramatically due
-		 * to concurrent reads, or dirty threshold suddenly dropped and
-		 * the dirty pages cannot be brought down anytime soon (eg. on
-		 * slow USB stick), at least let go of the good bdi's.
-		 */
-		if (nr_dirty < dirty_thresh +
-			       dirty_thresh / DIRTY_PASSGOOD_AREA &&
-		    bdi_dirty < bdi_thresh)
 			break;
 
 		/*

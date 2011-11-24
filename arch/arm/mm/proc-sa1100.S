@@ -182,11 +182,11 @@ ENDPROC(cpu_sa1100_do_suspend)
 
 ENTRY(cpu_sa1100_do_resume)
 	ldmia	r0, {r4 - r7}			@ load cp regs
-	mov	r1, #0
-	mcr	p15, 0, r1, c8, c7, 0		@ flush I+D TLBs
-	mcr	p15, 0, r1, c7, c7, 0		@ flush I&D cache
-	mcr	p15, 0, r1, c9, c0, 0		@ invalidate RB
-	mcr	p15, 0, r1, c9, c0, 5		@ allow user space to use RB
+	mov	ip, #0
+	mcr	p15, 0, ip, c8, c7, 0		@ flush I+D TLBs
+	mcr	p15, 0, ip, c7, c7, 0		@ flush I&D cache
+	mcr	p15, 0, ip, c9, c0, 0		@ invalidate RB
+	mcr	p15, 0, ip, c9, c0, 5		@ allow user space to use RB
 
 	mcr	p15, 0, r4, c3, c0, 0		@ domain ID
 	mcr	p15, 0, r5, c2, c0, 0		@ translation table base addr

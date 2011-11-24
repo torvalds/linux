@@ -168,13 +168,11 @@ struct regmap *regmap_init(struct device *dev,
 	map->work_buf = kmalloc(map->format.buf_size, GFP_KERNEL);
 	if (map->work_buf == NULL) {
 		ret = -ENOMEM;
-		goto err_bus;
+		goto err_map;
 	}
 
 	return map;
 
-err_bus:
-	module_put(map->bus->owner);
 err_map:
 	kfree(map);
 err:
@@ -188,7 +186,6 @@ EXPORT_SYMBOL_GPL(regmap_init);
 void regmap_exit(struct regmap *map)
 {
 	kfree(map->work_buf);
-	module_put(map->bus->owner);
 	kfree(map);
 }
 EXPORT_SYMBOL_GPL(regmap_exit);
@@ -317,7 +314,7 @@ static int _regmap_raw_read(struct regmap *map, unsigned int reg, void *val,
 		u8[0] |= map->bus->read_flag_mask;
 
 	ret = map->bus->read(map->dev, map->work_buf, map->format.reg_bytes,
-			     val, map->format.val_bytes);
+			     val, val_len);
 	if (ret != 0)
 		return ret;
 

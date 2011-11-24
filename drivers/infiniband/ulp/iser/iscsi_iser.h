@@ -89,7 +89,7 @@
 	} while (0)
 
 #define SHIFT_4K	12
-#define SIZE_4K	(1UL << SHIFT_4K)
+#define SIZE_4K	(1ULL << SHIFT_4K)
 #define MASK_4K	(~(SIZE_4K-1))
 
 					/* support up to 512KB in one RDMA */

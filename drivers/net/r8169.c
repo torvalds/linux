@@ -407,6 +407,7 @@ enum rtl_register_content {
 	RxOK		= 0x0001,
 
 	/* RxStatusDesc */
+	RxBOVF	= (1 << 24),
 	RxFOVF	= (1 << 23),
 	RxRWT	= (1 << 22),
 	RxRES	= (1 << 21),
@@ -682,6 +683,7 @@ struct rtl8169_private {
 	struct mii_if_info mii;
 	struct rtl8169_counters counters;
 	u32 saved_wolopts;
+	u32 opts1_mask;
 
 	struct rtl_fw {
 		const struct firmware *fw;
@@ -710,6 +712,7 @@ MODULE_FIRMWARE(FIRMWARE_8168D_1);
 MODULE_FIRMWARE(FIRMWARE_8168D_2);
 MODULE_FIRMWARE(FIRMWARE_8168E_1);
 MODULE_FIRMWARE(FIRMWARE_8168E_2);
+MODULE_FIRMWARE(FIRMWARE_8168E_3);
 MODULE_FIRMWARE(FIRMWARE_8105E_1);
 
 static int rtl8169_open(struct net_device *dev);
@@ -2856,7 +2859,7 @@ static void rtl8168e_2_hw_phy_config(struct rtl8169_private *tp)
 	rtl_writephy(tp, 0x1f, 0x0004);
 	rtl_writephy(tp, 0x1f, 0x0007);
 	rtl_writephy(tp, 0x1e, 0x0020);
-	rtl_w1w0_phy(tp, 0x06, 0x0000, 0x0100);
+	rtl_w1w0_phy(tp, 0x15, 0x0000, 0x0100);
 	rtl_writephy(tp, 0x1f, 0x0002);
 	rtl_writephy(tp, 0x1f, 0x0000);
 	rtl_writephy(tp, 0x0d, 0x0007);
@@ -3077,6 +3080,14 @@ static void rtl8169_phy_reset(struct net_device *dev,
 	netif_err(tp, link, dev, "PHY reset failed\n");
 }
 
+static bool rtl_tbi_enabled(struct rtl8169_private *tp)
+{
+	void __iomem *ioaddr = tp->mmio_addr;
+
+	return (tp->mac_version == RTL_GIGA_MAC_VER_01) &&
+	    (RTL_R8(PHYstatus) & TBI_Enable);
+}
+
 static void rtl8169_init_phy(struct net_device *dev, struct rtl8169_private *tp)
 {
 	void __iomem *ioaddr = tp->mmio_addr;
@@ -3109,7 +3120,7 @@ static void rtl8169_init_phy(struct net_device *dev, struct rtl8169_private *tp)
 			   ADVERTISED_1000baseT_Half |
 			   ADVERTISED_1000baseT_Full : 0));
 
-	if (RTL_R8(PHYstatus) & TBI_Enable)
+	if (rtl_tbi_enabled(tp))
 		netif_info(tp, link, dev, "TBI auto-negotiating\n");
 }
 
@@ -3305,6 +3316,37 @@ static void __devinit rtl_init_mdio_ops(struct rtl8169_private *tp)
 	}
 }
 
+static void rtl_wol_suspend_quirk(struct rtl8169_private *tp)
+{
+	void __iomem *ioaddr = tp->mmio_addr;
+
+	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_29:
+	case RTL_GIGA_MAC_VER_30:
+	case RTL_GIGA_MAC_VER_32:
+	case RTL_GIGA_MAC_VER_33:
+	case RTL_GIGA_MAC_VER_34:
+		RTL_W32(RxConfig, RTL_R32(RxConfig) |
+			AcceptBroadcast | AcceptMulticast | AcceptMyPhys);
+		break;
+	default:
+		break;
+	}
+}
+
+static bool rtl_wol_pll_power_down(struct rtl8169_private *tp)
+{
+	if (!(__rtl8169_get_wol(tp) & WAKE_ANY))
+		return false;
+
+	rtl_writephy(tp, 0x1f, 0x0000);
+	rtl_writephy(tp, MII_BMCR, 0x0000);
+
+	rtl_wol_suspend_quirk(tp);
+
+	return true;
+}
+
 static void r810x_phy_power_down(struct rtl8169_private *tp)
 {
 	rtl_writephy(tp, 0x1f, 0x0000);
@@ -3319,11 +3361,8 @@ static void r810x_phy_power_up(struct rtl8169_private *tp)
 
 static void r810x_pll_power_down(struct rtl8169_private *tp)
 {
-	if (__rtl8169_get_wol(tp) & WAKE_ANY) {
-		rtl_writephy(tp, 0x1f, 0x0000);
-		rtl_writephy(tp, MII_BMCR, 0x0000);
+	if (rtl_wol_pll_power_down(tp))
 		return;
-	}
 
 	r810x_phy_power_down(tp);
 }
@@ -3412,16 +3451,8 @@ static void r8168_pll_power_down(struct rtl8169_private *tp)
 	    tp->mac_version == RTL_GIGA_MAC_VER_33)
 		rtl_ephy_write(ioaddr, 0x19, 0xff64);
 
-	if (__rtl8169_get_wol(tp) & WAKE_ANY) {
-		rtl_writephy(tp, 0x1f, 0x0000);
-		rtl_writephy(tp, MII_BMCR, 0x0000);
-
-		if (tp->mac_version == RTL_GIGA_MAC_VER_32 ||
-		    tp->mac_version == RTL_GIGA_MAC_VER_33)
-			RTL_W32(RxConfig, RTL_R32(RxConfig) | AcceptBroadcast |
-				AcceptMulticast | AcceptMyPhys);
+	if (rtl_wol_pll_power_down(tp))
 		return;
-	}
 
 	r8168_phy_power_down(tp);
 
@@ -3727,8 +3758,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->features |= rtl_try_msi(pdev, ioaddr, cfg);
 	RTL_W8(Cfg9346, Cfg9346_Lock);
 
-	if ((tp->mac_version <= RTL_GIGA_MAC_VER_06) &&
-	    (RTL_R8(PHYstatus) & TBI_Enable)) {
+	if (rtl_tbi_enabled(tp)) {
 		tp->set_speed = rtl8169_set_speed_tbi;
 		tp->get_settings = rtl8169_gset_tbi;
 		tp->phy_reset_enable = rtl8169_tbi_reset_enable;
@@ -3776,6 +3806,9 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->hw_start = cfg->hw_start;
 	tp->intr_event = cfg->intr_event;
 	tp->napi_event = cfg->napi_event;
+
+	tp->opts1_mask = (tp->mac_version != RTL_GIGA_MAC_VER_01) ?
+		~(RxBOVF | RxFOVF) : ~0;
 
 	init_timer(&tp->timer);
 	tp->timer.data = (unsigned long) dev;
@@ -3988,6 +4021,7 @@ static void rtl8169_hw_reset(struct rtl8169_private *tp)
 		while (RTL_R8(TxPoll) & NPQ)
 			udelay(20);
 	} else if (tp->mac_version == RTL_GIGA_MAC_VER_34) {
+		RTL_W8(ChipCmd, RTL_R8(ChipCmd) | StopReq);
 		while (!(RTL_R32(TxConfig) & TXCFG_EMPTY))
 			udelay(100);
 	} else {
@@ -5314,7 +5348,7 @@ static int rtl8169_rx_interrupt(struct net_device *dev,
 		u32 status;
 
 		rmb();
-		status = le32_to_cpu(desc->opts1);
+		status = le32_to_cpu(desc->opts1) & tp->opts1_mask;
 
 		if (status & DescOwn)
 			break;
@@ -5766,11 +5800,30 @@ static const struct dev_pm_ops rtl8169_pm_ops = {
 
 #endif /* !CONFIG_PM */
 
+static void rtl_wol_shutdown_quirk(struct rtl8169_private *tp)
+{
+	void __iomem *ioaddr = tp->mmio_addr;
+
+	/* WoL fails with 8168b when the receiver is disabled. */
+	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_11:
+	case RTL_GIGA_MAC_VER_12:
+	case RTL_GIGA_MAC_VER_17:
+		pci_clear_master(tp->pci_dev);
+
+		RTL_W8(ChipCmd, CmdRxEnb);
+		/* PCI commit */
+		RTL_R8(ChipCmd);
+		break;
+	default:
+		break;
+	}
+}
+
 static void rtl_shutdown(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct rtl8169_private *tp = netdev_priv(dev);
-	void __iomem *ioaddr = tp->mmio_addr;
 
 	rtl8169_net_suspend(dev);
 
@@ -5784,16 +5837,9 @@ static void rtl_shutdown(struct pci_dev *pdev)
 	spin_unlock_irq(&tp->lock);
 
 	if (system_state == SYSTEM_POWER_OFF) {
-		/* WoL fails with 8168b when the receiver is disabled. */
-		if ((tp->mac_version == RTL_GIGA_MAC_VER_11 ||
-		     tp->mac_version == RTL_GIGA_MAC_VER_12 ||
-		     tp->mac_version == RTL_GIGA_MAC_VER_17) &&
-		    (tp->features & RTL_FEATURE_WOL)) {
-			pci_clear_master(pdev);
-
-			RTL_W8(ChipCmd, CmdRxEnb);
-			/* PCI commit */
-			RTL_R8(ChipCmd);
+		if (__rtl8169_get_wol(tp) & WAKE_ANY) {
+			rtl_wol_suspend_quirk(tp);
+			rtl_wol_shutdown_quirk(tp);
 		}
 
 		pci_wake_from_d3(pdev, true);

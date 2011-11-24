@@ -510,8 +510,9 @@ int twl4030_madc_conversion(struct twl4030_madc_request *req)
 	u8 ch_msb, ch_lsb;
 	int ret;
 
-	if (!req)
+	if (!req || !twl4030_madc)
 		return -EINVAL;
+
 	mutex_lock(&twl4030_madc->lock);
 	if (req->method < TWL4030_MADC_RT || req->method > TWL4030_MADC_SW2) {
 		ret = -EINVAL;
@@ -705,6 +706,8 @@ static int __devinit twl4030_madc_probe(struct platform_device *pdev)
 	madc = kzalloc(sizeof(*madc), GFP_KERNEL);
 	if (!madc)
 		return -ENOMEM;
+
+	madc->dev = &pdev->dev;
 
 	/*
 	 * Phoenix provides 2 interrupt lines. The first one is connected to

@@ -351,9 +351,7 @@ static int
 build_avpair_blob(struct cifs_ses *ses, const struct nls_table *nls_cp)
 {
 	unsigned int dlen;
-	unsigned int wlen;
-	unsigned int size = 6 * sizeof(struct ntlmssp2_name);
-	__le64  curtime;
+	unsigned int size = 2 * sizeof(struct ntlmssp2_name);
 	char *defdmname = "WORKGROUP";
 	unsigned char *blobptr;
 	struct ntlmssp2_name *attrptr;
@@ -365,15 +363,14 @@ build_avpair_blob(struct cifs_ses *ses, const struct nls_table *nls_cp)
 	}
 
 	dlen = strlen(ses->domainName);
-	wlen = strlen(ses->server->hostname);
 
-	/* The length of this blob is a size which is
-	 * six times the size of a structure which holds name/size +
-	 * two times the unicode length of a domain name +
-	 * two times the unicode length of a server name +
-	 * size of a timestamp (which is 8 bytes).
+	/*
+	 * The length of this blob is two times the size of a
+	 * structure (av pair) which holds name/size
+	 * ( for NTLMSSP_AV_NB_DOMAIN_NAME followed by NTLMSSP_AV_EOL ) +
+	 * unicode length of a netbios domain name
 	 */
-	ses->auth_key.len = size + 2 * (2 * dlen) + 2 * (2 * wlen) + 8;
+	ses->auth_key.len = size + 2 * dlen;
 	ses->auth_key.response = kzalloc(ses->auth_key.len, GFP_KERNEL);
 	if (!ses->auth_key.response) {
 		ses->auth_key.len = 0;
@@ -384,43 +381,14 @@ build_avpair_blob(struct cifs_ses *ses, const struct nls_table *nls_cp)
 	blobptr = ses->auth_key.response;
 	attrptr = (struct ntlmssp2_name *) blobptr;
 
+	/*
+	 * As defined in MS-NTLM 3.3.2, just this av pair field
+	 * is sufficient as part of the temp
+	 */
 	attrptr->type = cpu_to_le16(NTLMSSP_AV_NB_DOMAIN_NAME);
 	attrptr->length = cpu_to_le16(2 * dlen);
 	blobptr = (unsigned char *)attrptr + sizeof(struct ntlmssp2_name);
 	cifs_strtoUCS((__le16 *)blobptr, ses->domainName, dlen, nls_cp);
-
-	blobptr += 2 * dlen;
-	attrptr = (struct ntlmssp2_name *) blobptr;
-
-	attrptr->type = cpu_to_le16(NTLMSSP_AV_NB_COMPUTER_NAME);
-	attrptr->length = cpu_to_le16(2 * wlen);
-	blobptr = (unsigned char *)attrptr + sizeof(struct ntlmssp2_name);
-	cifs_strtoUCS((__le16 *)blobptr, ses->server->hostname, wlen, nls_cp);
-
-	blobptr += 2 * wlen;
-	attrptr = (struct ntlmssp2_name *) blobptr;
-
-	attrptr->type = cpu_to_le16(NTLMSSP_AV_DNS_DOMAIN_NAME);
-	attrptr->length = cpu_to_le16(2 * dlen);
-	blobptr = (unsigned char *)attrptr + sizeof(struct ntlmssp2_name);
-	cifs_strtoUCS((__le16 *)blobptr, ses->domainName, dlen, nls_cp);
-
-	blobptr += 2 * dlen;
-	attrptr = (struct ntlmssp2_name *) blobptr;
-
-	attrptr->type = cpu_to_le16(NTLMSSP_AV_DNS_COMPUTER_NAME);
-	attrptr->length = cpu_to_le16(2 * wlen);
-	blobptr = (unsigned char *)attrptr + sizeof(struct ntlmssp2_name);
-	cifs_strtoUCS((__le16 *)blobptr, ses->server->hostname, wlen, nls_cp);
-
-	blobptr += 2 * wlen;
-	attrptr = (struct ntlmssp2_name *) blobptr;
-
-	attrptr->type = cpu_to_le16(NTLMSSP_AV_TIMESTAMP);
-	attrptr->length = cpu_to_le16(sizeof(__le64));
-	blobptr = (unsigned char *)attrptr + sizeof(struct ntlmssp2_name);
-	curtime = cpu_to_le64(cifs_UnixTimeToNT(CURRENT_TIME));
-	memcpy(blobptr, &curtime, sizeof(__le64));
 
 	return 0;
 }

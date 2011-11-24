@@ -1238,14 +1238,15 @@ static void dm_table_set_integrity(struct dm_table *t)
 		return;
 
 	template_disk = dm_table_get_integrity_disk(t, true);
-	if (!template_disk &&
-	    blk_integrity_is_initialized(dm_disk(t->md))) {
+	if (template_disk)
+		blk_integrity_register(dm_disk(t->md),
+				       blk_get_integrity(template_disk));
+	else if (blk_integrity_is_initialized(dm_disk(t->md)))
 		DMWARN("%s: device no longer has a valid integrity profile",
 		       dm_device_name(t->md));
-		return;
-	}
-	blk_integrity_register(dm_disk(t->md),
-			       blk_get_integrity(template_disk));
+	else
+		DMWARN("%s: unable to establish an integrity profile",
+		       dm_device_name(t->md));
 }
 
 static int device_flush_capable(struct dm_target *ti, struct dm_dev *dev,
@@ -1282,6 +1283,22 @@ static bool dm_table_supports_flush(struct dm_table *t, unsigned flush)
 	return 0;
 }
 
+static bool dm_table_discard_zeroes_data(struct dm_table *t)
+{
+	struct dm_target *ti;
+	unsigned i = 0;
+
+	/* Ensure that all targets supports discard_zeroes_data. */
+	while (i < dm_table_get_num_targets(t)) {
+		ti = dm_table_get_target(t, i++);
+
+		if (ti->discard_zeroes_data_unsupported)
+			return 0;
+	}
+
+	return 1;
+}
+
 void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 			       struct queue_limits *limits)
 {
@@ -1303,6 +1320,9 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 			flush |= REQ_FUA;
 	}
 	blk_queue_flush(q, flush);
+
+	if (!dm_table_discard_zeroes_data(t))
+		q->limits.discard_zeroes_data = 0;
 
 	dm_table_set_integrity(t);
 

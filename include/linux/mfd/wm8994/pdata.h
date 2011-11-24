@@ -26,7 +26,7 @@ struct wm8994_ldo_pdata {
 	struct regulator_init_data *init_data;
 };
 
-#define WM8994_CONFIGURE_GPIO 0x8000
+#define WM8994_CONFIGURE_GPIO 0x10000
 
 #define WM8994_DRC_REGS 5
 #define WM8994_EQ_REGS  20

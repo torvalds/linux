@@ -900,6 +900,7 @@ struct netns_ipvs {
 	volatile int		sync_state;
 	volatile int		master_syncid;
 	volatile int		backup_syncid;
+	struct mutex		sync_mutex;
 	/* multicast interface name */
 	char			master_mcast_ifn[IP_VS_IFNAME_MAXLEN];
 	char			backup_mcast_ifn[IP_VS_IFNAME_MAXLEN];

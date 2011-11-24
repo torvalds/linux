@@ -2047,6 +2047,12 @@ sctp_disposition_t sctp_sf_do_5_2_4_dupcook(const struct sctp_endpoint *ep,
 	sctp_add_cmd_sf(commands, SCTP_CMD_NEW_ASOC, SCTP_ASOC(new_asoc));
 	sctp_add_cmd_sf(commands, SCTP_CMD_DELETE_TCB, SCTP_NULL());
 
+	/* Restore association pointer to provide SCTP command interpeter
+	 * with a valid context in case it needs to manipulate
+	 * the queues */
+	sctp_add_cmd_sf(commands, SCTP_CMD_SET_ASOC,
+			 SCTP_ASOC((struct sctp_association *)asoc));
+
 	return retval;
 
 nomem:

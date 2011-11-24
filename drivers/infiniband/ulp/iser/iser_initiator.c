@@ -412,7 +412,7 @@ int iser_send_control(struct iscsi_conn *conn,
 		memcpy(iser_conn->ib_conn->login_buf, task->data,
 							task->data_count);
 		tx_dsg->addr    = iser_conn->ib_conn->login_dma;
-		tx_dsg->length  = data_seg_len;
+		tx_dsg->length  = task->data_count;
 		tx_dsg->lkey    = device->mr->lkey;
 		mdesc->num_sge = 2;
 	}

@@ -345,8 +345,10 @@ static int mpc8610_hpcd_probe(struct platform_device *pdev)
 	}
 
 	machine_data = kzalloc(sizeof(struct mpc8610_hpcd_data), GFP_KERNEL);
-	if (!machine_data)
-		return -ENOMEM;
+	if (!machine_data) {
+		ret = -ENOMEM;
+		goto error_alloc;
+	}
 
 	machine_data->dai[0].cpu_dai_name = dev_name(&ssi_pdev->dev);
 	machine_data->dai[0].ops = &mpc8610_hpcd_ops;
@@ -494,7 +496,7 @@ static int mpc8610_hpcd_probe(struct platform_device *pdev)
 	ret = platform_device_add(sound_device);
 	if (ret) {
 		dev_err(&pdev->dev, "platform device add failed\n");
-		goto error;
+		goto error_sound;
 	}
 	dev_set_drvdata(&pdev->dev, sound_device);
 
@@ -502,14 +504,12 @@ static int mpc8610_hpcd_probe(struct platform_device *pdev)
 
 	return 0;
 
+error_sound:
+	platform_device_unregister(sound_device);
 error:
-	of_node_put(codec_np);
-
-	if (sound_device)
-		platform_device_unregister(sound_device);
-
 	kfree(machine_data);
-
+error_alloc:
+	of_node_put(codec_np);
 	return ret;
 }
 

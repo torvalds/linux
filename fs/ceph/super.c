@@ -813,8 +813,8 @@ static struct dentry *ceph_mount(struct file_system_type *fs_type,
 	fsc = create_fs_client(fsopt, opt);
 	if (IS_ERR(fsc)) {
 		res = ERR_CAST(fsc);
-		kfree(fsopt);
-		kfree(opt);
+		destroy_mount_options(fsopt);
+		ceph_destroy_options(opt);
 		goto out_final;
 	}
 

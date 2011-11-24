@@ -1996,6 +1996,9 @@ int main(int argc, char *argv[])
 	/* We use a simple helper to copy the arguments separated by spaces. */
 	concat((char *)(boot + 1), argv+optind+2);
 
+	/* Set kernel alignment to 16M (CONFIG_PHYSICAL_ALIGN) */
+	boot->hdr.kernel_alignment = 0x1000000;
+
 	/* Boot protocol version: 2.07 supports the fields for lguest. */
 	boot->hdr.version = 0x207;
 

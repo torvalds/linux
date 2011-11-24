@@ -338,7 +338,7 @@ int pwc_init_controls(struct pwc_device *pdev)
 	if (pdev->restore_factory)
 		pdev->restore_factory->flags = V4L2_CTRL_FLAG_UPDATE;
 
-	if (!pdev->features & FEATURE_MOTOR_PANTILT)
+	if (!(pdev->features & FEATURE_MOTOR_PANTILT))
 		return hdl->error;
 
 	/* Motor pan / tilt / reset */

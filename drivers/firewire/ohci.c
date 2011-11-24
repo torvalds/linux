@@ -290,6 +290,9 @@ static const struct {
 	{PCI_VENDOR_ID_NEC, PCI_ANY_ID, PCI_ANY_ID,
 		QUIRK_CYCLE_TIMER},
 
+	{PCI_VENDOR_ID_O2, PCI_ANY_ID, PCI_ANY_ID,
+		QUIRK_NO_MSI},
+
 	{PCI_VENDOR_ID_RICOH, PCI_ANY_ID, PCI_ANY_ID,
 		QUIRK_CYCLE_TIMER},
 
@@ -2179,8 +2182,13 @@ static int ohci_enable(struct fw_card *card,
 			ohci_driver_name, ohci)) {
 		fw_error("Failed to allocate interrupt %d.\n", dev->irq);
 		pci_disable_msi(dev);
-		dma_free_coherent(ohci->card.device, CONFIG_ROM_SIZE,
-				  ohci->config_rom, ohci->config_rom_bus);
+
+		if (config_rom) {
+			dma_free_coherent(ohci->card.device, CONFIG_ROM_SIZE,
+					  ohci->next_config_rom,
+					  ohci->next_config_rom_bus);
+			ohci->next_config_rom = NULL;
+		}
 		return -EIO;
 	}
 

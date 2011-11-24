@@ -668,4 +668,3 @@ module_exit(adp5588_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("ADP5588/87 Keypad driver");
-MODULE_ALIAS("platform:adp5588-keys");
