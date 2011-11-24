@@ -2383,6 +2383,73 @@ void drbd_minor_destroy(struct kref *kref)
 	kref_put(&tconn->kref, &conn_destroy);
 }
 
+/* One global retry thread, if we need to push back some bio and have it
+ * reinserted through our make request function.
+ */
+static struct retry_worker {
+	struct workqueue_struct *wq;
+	struct work_struct worker;
+
+	spinlock_t lock;
+	struct list_head writes;
+} retry;
+
+static void do_retry(struct work_struct *ws)
+{
+	struct retry_worker *retry = container_of(ws, struct retry_worker, worker);
+	LIST_HEAD(writes);
+	struct drbd_request *req, *tmp;
+
+	spin_lock_irq(&retry->lock);
+	list_splice_init(&retry->writes, &writes);
+	spin_unlock_irq(&retry->lock);
+
+	list_for_each_entry_safe(req, tmp, &writes, tl_requests) {
+		struct drbd_conf *mdev = req->w.mdev;
+		struct bio *bio = req->master_bio;
+		unsigned long start_time = req->start_time;
+
+		/* We have exclusive access to this request object.
+		 * If it had not been RQ_POSTPONED, the code path which queued
+		 * it here would have completed and freed it already.
+		 */
+		mempool_free(req, drbd_request_mempool);
+
+		/* A single suspended or otherwise blocking device may stall
+		 * all others as well.  Fortunately, this code path is to
+		 * recover from a situation that "should not happen":
+		 * concurrent writes in multi-primary setup.
+		 * In a "normal" lifecycle, this workqueue is supposed to be
+		 * destroyed without ever doing anything.
+		 * If it turns out to be an issue anyways, we can do per
+		 * resource (replication group) or per device (minor) retry
+		 * workqueues instead.
+		 */
+
+		/* We are not just doing generic_make_request(),
+		 * as we want to keep the start_time information. */
+		do {
+			inc_ap_bio(mdev);
+		} while(__drbd_make_request(mdev, bio, start_time));
+	}
+}
+
+void drbd_restart_write(struct drbd_request *req)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&retry.lock, flags);
+	list_move_tail(&req->tl_requests, &retry.writes);
+	spin_unlock_irqrestore(&retry.lock, flags);
+
+	/* Drop the extra reference that would otherwise
+	 * have been dropped by complete_master_bio.
+	 * do_retry() needs to grab a new one. */
+	dec_ap_bio(req->w.mdev);
+
+	queue_work(retry.wq, &retry.worker);
+}
+
+
 static void drbd_cleanup(void)
 {
 	unsigned int i;
@@ -2401,6 +2468,9 @@ static void drbd_cleanup(void)
 	 */
 	if (drbd_proc)
 		remove_proc_entry("drbd", NULL);
+
+	if (retry.wq)
+		destroy_workqueue(retry.wq);
 
 	drbd_genl_unregister();
 
@@ -2850,6 +2920,15 @@ int __init drbd_init(void)
 
 	rwlock_init(&global_state_lock);
 	INIT_LIST_HEAD(&drbd_tconns);
+
+	retry.wq = create_singlethread_workqueue("drbd-reissue");
+	if (!retry.wq) {
+		printk(KERN_ERR "drbd: unable to create retry workqueue\n");
+		goto fail;
+	}
+	INIT_WORK(&retry.worker, do_retry);
+	spin_lock_init(&retry.lock);
+	INIT_LIST_HEAD(&retry.writes);
 
 	printk(KERN_INFO "drbd: initialized. "
 	       "Version: " REL_VERSION " (api:%d/proto:%d-%d)\n",

@@ -104,7 +104,7 @@ static void _req_is_done(struct drbd_conf *mdev, struct drbd_request *req, const
 	 * and never sent), it should still be "empty" as
 	 * initialized in drbd_req_new(), so we can list_del() it
 	 * here unconditionally */
-	list_del(&req->tl_requests);
+	list_del_init(&req->tl_requests);
 
 	/* if it was a write, we may have to set the corresponding
 	 * bit(s) out-of-sync first. If it had a local part, we need to
@@ -143,7 +143,10 @@ static void _req_is_done(struct drbd_conf *mdev, struct drbd_request *req, const
 		}
 	}
 
-	drbd_req_free(req);
+	if (s & RQ_POSTPONED)
+		drbd_restart_write(req);
+	else
+		drbd_req_free(req);
 }
 
 static void queue_barrier(struct drbd_conf *mdev)
@@ -289,8 +292,16 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
 		if (!(s & RQ_POSTPONED)) {
 			m->error = ok ? 0 : (error ?: -EIO);
 			m->bio = req->master_bio;
+			req->master_bio = NULL;
+		} else {
+			/* Assert that this will be _req_is_done()
+			 * with this very invokation. */
+			/* FIXME:
+			 * what about (RQ_LOCAL_PENDING | RQ_LOCAL_ABORTED)?
+			 */
+			D_ASSERT(!(s & RQ_LOCAL_PENDING));
+			D_ASSERT(s & RQ_NET_DONE);
 		}
-		req->master_bio = NULL;
 	}
 
 	if (s & RQ_LOCAL_PENDING)

@@ -1748,30 +1748,6 @@ static int receive_RSDataReply(struct drbd_tconn *tconn, struct packet_info *pi)
 	return err;
 }
 
-static int w_restart_write(struct drbd_work *w, int cancel)
-{
-	struct drbd_request *req = container_of(w, struct drbd_request, w);
-	struct drbd_conf *mdev = w->mdev;
-	struct bio *bio;
-	unsigned long start_time;
-	unsigned long flags;
-
-	spin_lock_irqsave(&mdev->tconn->req_lock, flags);
-	if (!expect(req->rq_state & RQ_POSTPONED)) {
-		spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
-		return -EIO;
-	}
-	bio = req->master_bio;
-	start_time = req->start_time;
-	/* Postponed requests will not have their master_bio completed!  */
-	__req_mod(req, DISCARD_WRITE, NULL);
-	spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
-
-	while (__drbd_make_request(mdev, bio, start_time))
-		/* retry */ ;
-	return 0;
-}
-
 static void restart_conflicting_writes(struct drbd_conf *mdev,
 				       sector_t sector, int size)
 {
@@ -1785,11 +1761,9 @@ static void restart_conflicting_writes(struct drbd_conf *mdev,
 		if (req->rq_state & RQ_LOCAL_PENDING ||
 		    !(req->rq_state & RQ_POSTPONED))
 			continue;
-		if (expect(list_empty(&req->w.list))) {
-			req->w.mdev = mdev;
-			req->w.cb = w_restart_write;
-			drbd_queue_work(&mdev->tconn->data.work, &req->w);
-		}
+		/* as it is RQ_POSTPONED, this will cause it to
+		 * be queued on the retry workqueue. */
+		__req_mod(req, DISCARD_WRITE, NULL);
 	}
 }
 
