@@ -28,9 +28,9 @@ bool ieee80111_cfg_override_disables_ht40(struct ieee80211_sub_if_data *sdata)
 	return false;
 }
 
-void __check_htcap_disable(struct ieee80211_sub_if_data *sdata,
-			   struct ieee80211_sta_ht_cap *ht_cap,
-			   u16 flag)
+static void __check_htcap_disable(struct ieee80211_sub_if_data *sdata,
+				  struct ieee80211_sta_ht_cap *ht_cap,
+				  u16 flag)
 {
 	__le16 le_flag = cpu_to_le16(flag);
 	if (sdata->u.mgd.ht_capa_mask.cap_info & le_flag) {
