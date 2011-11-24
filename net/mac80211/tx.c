@@ -2265,10 +2265,10 @@ static void ieee80211_beacon_add_tim(struct ieee80211_if_ap *bss,
 		/* Bitmap control */
 		*pos++ = n1 | aid0;
 		/* Part Virt Bitmap */
+		skb_put(skb, n2 - n1);
 		memcpy(pos, bss->tim + n1, n2 - n1 + 1);
 
 		tim[1] = n2 - n1 + 4;
-		skb_put(skb, n2 - n1);
 	} else {
 		*pos++ = aid0; /* Bitmap control */
 		*pos++ = 0; /* Part Virt Bitmap */
