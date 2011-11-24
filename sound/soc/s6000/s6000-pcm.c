@@ -520,17 +520,7 @@ static struct platform_driver s6000_pcm_driver = {
 	.remove = __devexit_p(s6000_soc_platform_remove),
 };
 
-static int __init snd_s6000_pcm_init(void)
-{
-	return platform_driver_register(&s6000_pcm_driver);
-}
-module_init(snd_s6000_pcm_init);
-
-static void __exit snd_s6000_pcm_exit(void)
-{
-	platform_driver_unregister(&s6000_pcm_driver);
-}
-module_exit(snd_s6000_pcm_exit);
+module_platform_driver(s6000_pcm_driver);
 
 MODULE_AUTHOR("Daniel Gloeckner");
 MODULE_DESCRIPTION("Stretch s6000 family PCM DMA module");
