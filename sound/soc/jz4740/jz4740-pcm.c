@@ -356,17 +356,7 @@ static struct platform_driver jz4740_pcm_driver = {
 	},
 };
 
-static int __init jz4740_soc_platform_init(void)
-{
-	return platform_driver_register(&jz4740_pcm_driver);
-}
-module_init(jz4740_soc_platform_init);
-
-static void __exit jz4740_soc_platform_exit(void)
-{
-	return platform_driver_unregister(&jz4740_pcm_driver);
-}
-module_exit(jz4740_soc_platform_exit);
+module_platform_driver(jz4740_pcm_driver);
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_DESCRIPTION("Ingenic SoC JZ4740 PCM driver");

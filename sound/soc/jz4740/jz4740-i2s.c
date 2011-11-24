@@ -519,17 +519,7 @@ static struct platform_driver jz4740_i2s_driver = {
 	},
 };
 
-static int __init jz4740_i2s_init(void)
-{
-	return platform_driver_register(&jz4740_i2s_driver);
-}
-module_init(jz4740_i2s_init);
-
-static void __exit jz4740_i2s_exit(void)
-{
-	platform_driver_unregister(&jz4740_i2s_driver);
-}
-module_exit(jz4740_i2s_exit);
+module_platform_driver(jz4740_i2s_driver);
 
 MODULE_AUTHOR("Lars-Peter Clausen, <lars@metafoo.de>");
 MODULE_DESCRIPTION("Ingenic JZ4740 SoC I2S driver");
