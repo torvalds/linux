@@ -1375,7 +1375,7 @@ static void ivtv_remove(struct pci_dev *pdev)
 			else
 				type = IVTV_DEC_STREAM_TYPE_MPG;
 			ivtv_stop_v4l2_decode_stream(&itv->streams[type],
-				VIDEO_CMD_STOP_TO_BLACK | VIDEO_CMD_STOP_IMMEDIATELY, 0);
+				V4L2_DEC_CMD_STOP_TO_BLACK | V4L2_DEC_CMD_STOP_IMMEDIATELY, 0);
 		}
 		ivtv_halt_firmware(itv);
 	}
