@@ -353,7 +353,7 @@ static int __devinit dwc3_core_init(struct dwc3 *dwc)
 	reg &= ~DWC3_GCTL_SCALEDOWN(3);
 	reg &= ~DWC3_GCTL_DISSCRAMBLE;
 
-	switch (DWC3_GHWPARAMS1_EN_PWROPT(dwc->hwparams.hwparams0)) {
+	switch (DWC3_GHWPARAMS1_EN_PWROPT(dwc->hwparams.hwparams1)) {
 	case DWC3_GHWPARAMS1_EN_PWROPT_CLK:
 		reg &= ~DWC3_GCTL_DSBLCLKGTNG;
 		break;
