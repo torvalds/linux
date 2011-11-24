@@ -72,6 +72,8 @@ static struct macb_platform_data __initdata ek_eth_data = {
 
 static struct at91_usbh_data __initdata ek_usbh_data = {
 	.ports		= 2,
+	.vbus_pin	= {-EINVAL, -EINVAL},
+	.overcurrent_pin= {-EINVAL, -EINVAL},
 };
 
 static struct at91_udc_data __initdata ek_udc_data = {
@@ -85,6 +87,7 @@ static struct at91_mmc_data __initdata ek_mmc_data = {
 	.slot_b		= 0,
 	.wire4		= 1,
 	.wp_pin		= AT91_PIN_PA17,
+	.vcc_pin	= -EINVAL,
 };
 #endif
 

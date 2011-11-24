@@ -70,6 +70,8 @@ static void __init cap9adk_init_early(void)
  */
 static struct at91_usbh_data __initdata cap9adk_usbh_data = {
 	.ports		= 2,
+	.vbus_pin	= {-EINVAL, -EINVAL},
+	.overcurrent_pin= {-EINVAL, -EINVAL},
 };
 
 /*
@@ -144,9 +146,9 @@ static struct spi_board_info cap9adk_spi_devices[] = {
  */
 static struct at91_mmc_data __initdata cap9adk_mmc_data = {
 	.wire4		= 1,
-//	.det_pin	= ... not connected
-//	.wp_pin		= ... not connected
-//	.vcc_pin	= ... not connected
+	.det_pin	= -EINVAL,
+	.wp_pin		= -EINVAL,
+	.vcc_pin	= -EINVAL,
 };
 
 
@@ -154,6 +156,7 @@ static struct at91_mmc_data __initdata cap9adk_mmc_data = {
  * MACB Ethernet device
  */
 static struct macb_platform_data __initdata cap9adk_macb_data = {
+	.phy_irq_pin	= -EINVAL,
 	.is_rmii	= 1,
 };
 
@@ -172,8 +175,8 @@ static struct mtd_partition __initdata cap9adk_nand_partitions[] = {
 static struct atmel_nand_data __initdata cap9adk_nand_data = {
 	.ale		= 21,
 	.cle		= 22,
-//	.det_pin	= ... not connected
-//	.rdy_pin	= ... not connected
+	.det_pin	= -EINVAL,
+	.rdy_pin	= -EINVAL,
 	.enable_pin	= AT91_PIN_PD15,
 	.parts		= cap9adk_nand_partitions,
 	.num_parts	= ARRAY_SIZE(cap9adk_nand_partitions),
@@ -351,7 +354,7 @@ static struct atmel_lcdfb_info __initdata cap9adk_lcdc_data;
  * AC97
  */
 static struct ac97c_platform_data cap9adk_ac97_data = {
-//	.reset_pin	= ... not connected
+	.reset_pin	= -EINVAL,
 };
 
 

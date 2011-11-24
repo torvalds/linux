@@ -67,6 +67,8 @@ static struct macb_platform_data __initdata eb9200_eth_data = {
 
 static struct at91_usbh_data __initdata eb9200_usbh_data = {
 	.ports		= 2,
+	.vbus_pin	= {-EINVAL, -EINVAL},
+	.overcurrent_pin= {-EINVAL, -EINVAL},
 };
 
 static struct at91_udc_data __initdata eb9200_udc_data = {
@@ -75,15 +77,18 @@ static struct at91_udc_data __initdata eb9200_udc_data = {
 };
 
 static struct at91_cf_data __initdata eb9200_cf_data = {
+	.irq_pin	= -EINVAL,
 	.det_pin	= AT91_PIN_PB0,
+	.vcc_pin	= -EINVAL,
 	.rst_pin	= AT91_PIN_PC5,
-	// .irq_pin	= ... not connected
-	// .vcc_pin	= ... always powered
 };
 
 static struct at91_mmc_data __initdata eb9200_mmc_data = {
 	.slot_b		= 0,
 	.wire4		= 1,
+	.det_pin	= -EINVAL,
+	.wp_pin		= -EINVAL,
+	.vcc_pin	= -EINVAL,
 };
 
 static struct i2c_board_info __initdata eb9200_i2c_devices[] = {

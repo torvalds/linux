@@ -62,6 +62,8 @@ static void __init cam60_init_early(void)
  */
 static struct at91_usbh_data __initdata cam60_usbh_data = {
 	.ports		= 1,
+	.vbus_pin	= {-EINVAL, -EINVAL},
+	.overcurrent_pin= {-EINVAL, -EINVAL},
 };
 
 
@@ -135,7 +137,7 @@ static struct mtd_partition __initdata cam60_nand_partition[] = {
 static struct atmel_nand_data __initdata cam60_nand_data = {
 	.ale		= 21,
 	.cle		= 22,
-	// .det_pin	= ... not there
+	.det_pin	= -EINVAL,
 	.rdy_pin	= AT91_PIN_PA9,
 	.enable_pin	= AT91_PIN_PA7,
 	.parts		= cam60_nand_partition,

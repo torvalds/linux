@@ -57,15 +57,19 @@ static void __init snapper9260_init_early(void)
 
 static struct at91_usbh_data __initdata snapper9260_usbh_data = {
 	.ports		= 2,
+	.vbus_pin	= {-EINVAL, -EINVAL},
+	.overcurrent_pin= {-EINVAL, -EINVAL},
 };
 
 static struct at91_udc_data __initdata snapper9260_udc_data = {
 	.vbus_pin		= SNAPPER9260_IO_EXP_GPIO(5),
 	.vbus_active_low	= 1,
 	.vbus_polled		= 1,
+	.pullup_pin		= -EINVAL,
 };
 
 static struct macb_platform_data snapper9260_macb_data = {
+	.phy_irq_pin	= -EINVAL,
 	.is_rmii	= 1,
 };
 
@@ -104,6 +108,8 @@ static struct atmel_nand_data __initdata snapper9260_nand_data = {
 	.parts		= snapper9260_nand_partitions,
 	.num_parts	= ARRAY_SIZE(snapper9260_nand_partitions),
 	.bus_width_16	= 0,
+	.enable_pin	= -EINVAL,
+	.det_pin	= -EINVAL,
 };
 
 static struct sam9_smc_config __initdata snapper9260_nand_smc_config = {

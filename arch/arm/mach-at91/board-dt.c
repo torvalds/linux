@@ -50,6 +50,7 @@ static void __init ek_init_early(void)
 static struct atmel_nand_data __initdata ek_nand_data = {
 	.ale		= 21,
 	.cle		= 22,
+	.det_pin	= -EINVAL,
 	.rdy_pin	= AT91_PIN_PC8,
 	.enable_pin	= AT91_PIN_PC14,
 };
