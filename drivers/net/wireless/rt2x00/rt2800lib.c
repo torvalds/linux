@@ -1203,8 +1203,10 @@ void rt2800_config_filter(struct rt2x00_dev *rt2x00dev,
 			   !(filter_flags & FIF_CONTROL));
 	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_PSPOLL,
 			   !(filter_flags & FIF_PSPOLL));
-	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_BA, 1);
-	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_BAR, 0);
+	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_BA,
+			   !(filter_flags & FIF_CONTROL));
+	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_BAR,
+			   !(filter_flags & FIF_CONTROL));
 	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_CNTL,
 			   !(filter_flags & FIF_CONTROL));
 	rt2800_register_write(rt2x00dev, RX_FILTER_CFG, reg);
