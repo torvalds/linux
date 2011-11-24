@@ -2607,7 +2607,8 @@ static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
 	unsigned int reg;
 	int ret, i;
 
-	wm5100 = kzalloc(sizeof(struct wm5100_priv), GFP_KERNEL);
+	wm5100 = devm_kzalloc(&i2c->dev, sizeof(struct wm5100_priv),
+			      GFP_KERNEL);
 	if (wm5100 == NULL)
 		return -ENOMEM;
 
@@ -2616,7 +2617,7 @@ static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
 		ret = PTR_ERR(wm5100->regmap);
 		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
 			ret);
-		goto err_alloc;
+		goto err;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(wm5100->fll); i++)
@@ -2774,8 +2775,7 @@ err_core:
 			    wm5100->core_supplies);
 err_regmap:
 	regmap_exit(wm5100->regmap);
-err_alloc:
-	kfree(wm5100);
+err:
 	return ret;
 }
 
@@ -2799,7 +2799,6 @@ static __devexit int wm5100_i2c_remove(struct i2c_client *client)
 	regulator_bulk_free(ARRAY_SIZE(wm5100->core_supplies),
 			    wm5100->core_supplies);
 	regmap_exit(wm5100->regmap);
-	kfree(wm5100);
 
 	return 0;
 }
