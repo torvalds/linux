@@ -152,31 +152,6 @@ static inline void mnt_add_count(struct vfsmount *mnt, int n)
 #endif
 }
 
-static inline void mnt_set_count(struct vfsmount *mnt, int n)
-{
-#ifdef CONFIG_SMP
-	this_cpu_write(mnt->mnt_pcp->mnt_count, n);
-#else
-	mnt->mnt_count = n;
-#endif
-}
-
-/*
- * vfsmount lock must be held for read
- */
-static inline void mnt_inc_count(struct vfsmount *mnt)
-{
-	mnt_add_count(mnt, 1);
-}
-
-/*
- * vfsmount lock must be held for read
- */
-static inline void mnt_dec_count(struct vfsmount *mnt)
-{
-	mnt_add_count(mnt, -1);
-}
-
 /*
  * vfsmount lock must be held for write
  */
@@ -780,20 +755,20 @@ put_again:
 #ifdef CONFIG_SMP
 	br_read_lock(vfsmount_lock);
 	if (likely(atomic_read(&mnt->mnt_longterm))) {
-		mnt_dec_count(mnt);
+		mnt_add_count(mnt, -1);
 		br_read_unlock(vfsmount_lock);
 		return;
 	}
 	br_read_unlock(vfsmount_lock);
 
 	br_write_lock(vfsmount_lock);
-	mnt_dec_count(mnt);
+	mnt_add_count(mnt, -1);
 	if (mnt_get_count(mnt)) {
 		br_write_unlock(vfsmount_lock);
 		return;
 	}
 #else
-	mnt_dec_count(mnt);
+	mnt_add_count(mnt, -1);
 	if (likely(mnt_get_count(mnt)))
 		return;
 	br_write_lock(vfsmount_lock);
@@ -823,7 +798,7 @@ EXPORT_SYMBOL(mntput);
 struct vfsmount *mntget(struct vfsmount *mnt)
 {
 	if (mnt)
-		mnt_inc_count(mnt);
+		mnt_add_count(mnt, 1);
 	return mnt;
 }
 EXPORT_SYMBOL(mntget);
@@ -840,7 +815,7 @@ void mnt_unpin(struct vfsmount *mnt)
 {
 	br_write_lock(vfsmount_lock);
 	if (mnt->mnt_pinned) {
-		mnt_inc_count(mnt);
+		mnt_add_count(mnt, 1);
 		mnt->mnt_pinned--;
 	}
 	br_write_unlock(vfsmount_lock);
