@@ -1227,9 +1227,10 @@ static bool ieee80211_tx_frags(struct ieee80211_local *local,
 			 * queue is woken again.
 			 */
 			if (txpending)
-				skb_queue_splice(skbs, &local->pending[q]);
+				skb_queue_splice_init(skbs, &local->pending[q]);
 			else
-				skb_queue_splice_tail(skbs, &local->pending[q]);
+				skb_queue_splice_tail_init(skbs,
+							   &local->pending[q]);
 
 			spin_unlock_irqrestore(&local->queue_stop_reason_lock,
 					       flags);
@@ -1301,7 +1302,7 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 	ieee80211_tpt_led_trig_tx(local, fc, led_len);
 	ieee80211_led_tx(local, 1);
 
-	WARN_ON(!skb_queue_empty(skbs));
+	WARN_ON_ONCE(!skb_queue_empty(skbs));
 
 	return result;
 }
