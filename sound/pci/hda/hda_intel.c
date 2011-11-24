@@ -407,6 +407,14 @@ struct azx_rb {
 	u32 res[AZX_MAX_CODECS];	/* last read value */
 };
 
+struct azx_pcm {
+	struct azx *chip;
+	struct snd_pcm *pcm;
+	struct hda_codec *codec;
+	struct hda_pcm_stream *hinfo[2];
+	struct list_head list;
+};
+
 struct azx {
 	struct snd_card *card;
 	struct pci_dev *pci;
@@ -434,7 +442,7 @@ struct azx {
 	struct azx_dev *azx_dev;
 
 	/* PCM */
-	struct snd_pcm *pcm[HDA_MAX_PCMS];
+	struct list_head pcm_list; /* azx_pcm list */
 
 	/* HD codec */
 	unsigned short codec_mask;
@@ -1486,10 +1494,9 @@ static void azx_bus_reset(struct hda_bus *bus)
 	azx_init_chip(chip, 1);
 #ifdef CONFIG_PM
 	if (chip->initialized) {
-		int i;
-
-		for (i = 0; i < HDA_MAX_PCMS; i++)
-			snd_pcm_suspend_all(chip->pcm[i]);
+		struct azx_pcm *p;
+		list_for_each_entry(p, &chip->pcm_list, list)
+			snd_pcm_suspend_all(p->pcm);
 		snd_hda_suspend(chip->bus);
 		snd_hda_resume(chip->bus);
 	}
@@ -1665,12 +1672,6 @@ static struct snd_pcm_hardware azx_pcm_hw = {
 	.periods_min =		2,
 	.periods_max =		AZX_MAX_FRAG,
 	.fifo_size =		0,
-};
-
-struct azx_pcm {
-	struct azx *chip;
-	struct hda_codec *codec;
-	struct hda_pcm_stream *hinfo[2];
 };
 
 static int azx_pcm_open(struct snd_pcm_substream *substream)
@@ -2197,7 +2198,7 @@ static void azx_pcm_free(struct snd_pcm *pcm)
 {
 	struct azx_pcm *apcm = pcm->private_data;
 	if (apcm) {
-		apcm->chip->pcm[pcm->device] = NULL;
+		list_del(&apcm->list);
 		kfree(apcm);
 	}
 }
@@ -2215,14 +2216,11 @@ azx_attach_pcm_stream(struct hda_bus *bus, struct hda_codec *codec,
 	unsigned int size;
 	int s, err;
 
-	if (pcm_dev >= HDA_MAX_PCMS) {
-		snd_printk(KERN_ERR SFX "Invalid PCM device number %d\n",
-			   pcm_dev);
-		return -EINVAL;
-	}
-	if (chip->pcm[pcm_dev]) {
-		snd_printk(KERN_ERR SFX "PCM %d already exists\n", pcm_dev);
-		return -EBUSY;
+	list_for_each_entry(apcm, &chip->pcm_list, list) {
+		if (apcm->pcm->device == pcm_dev) {
+			snd_printk(KERN_ERR SFX "PCM %d already exists\n", pcm_dev);
+			return -EBUSY;
+		}
 	}
 	err = snd_pcm_new(chip->card, cpcm->name, pcm_dev,
 			  cpcm->stream[SNDRV_PCM_STREAM_PLAYBACK].substreams,
@@ -2235,12 +2233,13 @@ azx_attach_pcm_stream(struct hda_bus *bus, struct hda_codec *codec,
 	if (apcm == NULL)
 		return -ENOMEM;
 	apcm->chip = chip;
+	apcm->pcm = pcm;
 	apcm->codec = codec;
 	pcm->private_data = apcm;
 	pcm->private_free = azx_pcm_free;
 	if (cpcm->pcm_type == HDA_PCM_TYPE_MODEM)
 		pcm->dev_class = SNDRV_PCM_CLASS_MODEM;
-	chip->pcm[pcm_dev] = pcm;
+	list_add_tail(&apcm->list, &chip->pcm_list);
 	cpcm->pcm = pcm;
 	for (s = 0; s < 2; s++) {
 		apcm->hinfo[s] = &cpcm->stream[s];
@@ -2370,12 +2369,12 @@ static int azx_suspend(struct pci_dev *pci, pm_message_t state)
 {
 	struct snd_card *card = pci_get_drvdata(pci);
 	struct azx *chip = card->private_data;
-	int i;
+	struct azx_pcm *p;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	azx_clear_irq_pending(chip);
-	for (i = 0; i < HDA_MAX_PCMS; i++)
-		snd_pcm_suspend_all(chip->pcm[i]);
+	list_for_each_entry(p, &chip->pcm_list, list)
+		snd_pcm_suspend_all(p->pcm);
 	if (chip->initialized)
 		snd_hda_suspend(chip->bus);
 	azx_stop_chip(chip);
@@ -2672,6 +2671,7 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	check_msi(chip);
 	chip->dev_index = dev;
 	INIT_WORK(&chip->irq_pending_work, azx_irq_pending_work);
+	INIT_LIST_HEAD(&chip->pcm_list);
 
 	chip->position_fix[0] = chip->position_fix[1] =
 		check_position_fix(chip, position_fix[dev]);

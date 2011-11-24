@@ -3850,6 +3850,12 @@ static int get_empty_pcm_device(struct hda_bus *bus, int type)
 		if (!test_and_set_bit(audio_idx[type][i], bus->pcm_dev_bits))
 			return audio_idx[type][i];
 
+	/* non-fixed slots starting from 10 */
+	for (i = 10; i < 32; i++) {
+		if (!test_and_set_bit(i, bus->pcm_dev_bits))
+			return i;
+	}
+
 	snd_printk(KERN_WARNING "Too many %s devices\n",
 		snd_hda_pcm_type_name[type]);
 	return -EAGAIN;
