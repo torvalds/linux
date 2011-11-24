@@ -42,4 +42,6 @@ void mnt_set_mountpoint(struct vfsmount *, struct dentry *,
 void release_mounts(struct list_head *);
 void umount_tree(struct vfsmount *, int, struct list_head *);
 struct vfsmount *copy_tree(struct vfsmount *, struct dentry *, int);
+bool is_path_reachable(struct vfsmount *, struct dentry *,
+			 const struct path *root);
 #endif /* _LINUX_PNODE_H */
