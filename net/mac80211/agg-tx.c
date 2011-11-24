@@ -162,6 +162,12 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 		return -ENOENT;
 	}
 
+	/* if we're already stopping ignore any new requests to stop */
+	if (test_bit(HT_AGG_STATE_STOPPING, &tid_tx->state)) {
+		spin_unlock_bh(&sta->lock);
+		return -EALREADY;
+	}
+
 	if (test_bit(HT_AGG_STATE_WANT_START, &tid_tx->state)) {
 		/* not even started yet! */
 		ieee80211_assign_tid_tx(sta, tid, NULL);
@@ -170,14 +176,14 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 		return 0;
 	}
 
+	set_bit(HT_AGG_STATE_STOPPING, &tid_tx->state);
+
 	spin_unlock_bh(&sta->lock);
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
 	printk(KERN_DEBUG "Tx BA session stop requested for %pM tid %u\n",
 	       sta->sta.addr, tid);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
-
-	set_bit(HT_AGG_STATE_STOPPING, &tid_tx->state);
 
 	del_timer_sync(&tid_tx->addba_resp_timer);
 
