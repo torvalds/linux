@@ -3,7 +3,7 @@
 #
 obj-$(CONFIG_SMP) += smp.o
 
-obj-y += mpc85xx_common.o
+obj-y += common.o
 
 obj-$(CONFIG_MPC8540_ADS) += mpc85xx_ads.o
 obj-$(CONFIG_MPC8560_ADS) += mpc85xx_ads.o
