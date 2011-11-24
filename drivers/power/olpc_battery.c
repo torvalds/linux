@@ -525,14 +525,6 @@ static struct power_supply olpc_bat = {
 	.use_for_apm = 1,
 };
 
-void olpc_battery_trigger_uevent(unsigned long cause)
-{
-	if (cause & EC_SCI_SRC_ACPWR)
-		kobject_uevent(&olpc_ac.dev->kobj, KOBJ_CHANGE);
-	if (cause & (EC_SCI_SRC_BATERR|EC_SCI_SRC_BATSOC|EC_SCI_SRC_BATTERY))
-		kobject_uevent(&olpc_bat.dev->kobj, KOBJ_CHANGE);
-}
-
 static int olpc_battery_suspend(struct platform_device *pdev,
 				pm_message_t state)
 {
