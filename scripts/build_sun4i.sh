@@ -74,6 +74,7 @@ build_kernel()
 	${OBJCOPY} -R .note.gnu.build-id -S -O binary vmlinux output/bImage
 	cp -vf arch/arm/boot/[zu]Image output/
 	cp .config output/
+	cp rootfs/sun4i_rootfs.cpio.gz output/
 
 
 	for file in $(find drivers sound crypto block fs security net -name "*.ko"); do
