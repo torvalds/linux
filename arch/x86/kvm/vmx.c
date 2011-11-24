@@ -2711,11 +2711,13 @@ static gva_t rmode_tss_base(struct kvm *kvm)
 {
 	if (!kvm->arch.tss_addr) {
 		struct kvm_memslots *slots;
+		struct kvm_memory_slot *slot;
 		gfn_t base_gfn;
 
 		slots = kvm_memslots(kvm);
-		base_gfn = slots->memslots[0].base_gfn +
-				 kvm->memslots->memslots[0].npages - 3;
+		slot = id_to_memslot(slots, 0);
+		base_gfn = slot->base_gfn + slot->npages - 3;
+
 		return base_gfn << PAGE_SHIFT;
 	}
 	return kvm->arch.tss_addr;

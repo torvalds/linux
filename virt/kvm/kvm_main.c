@@ -634,8 +634,9 @@ void update_memslots(struct kvm_memslots *slots, struct kvm_memory_slot *new)
 {
 	if (new) {
 		int id = new->id;
+		struct kvm_memory_slot *old = id_to_memslot(slots, id);
 
-		slots->memslots[id] = *new;
+		*old = *new;
 		if (id >= slots->nmemslots)
 			slots->nmemslots = id + 1;
 	}
@@ -681,7 +682,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	if (mem->guest_phys_addr + mem->memory_size < mem->guest_phys_addr)
 		goto out;
 
-	memslot = &kvm->memslots->memslots[mem->slot];
+	memslot = id_to_memslot(kvm->memslots, mem->slot);
 	base_gfn = mem->guest_phys_addr >> PAGE_SHIFT;
 	npages = mem->memory_size >> PAGE_SHIFT;
 
@@ -788,12 +789,16 @@ skip_lpage:
 #endif /* not defined CONFIG_S390 */
 
 	if (!npages) {
+		struct kvm_memory_slot *slot;
+
 		r = -ENOMEM;
 		slots = kmemdup(kvm->memslots, sizeof(struct kvm_memslots),
 				GFP_KERNEL);
 		if (!slots)
 			goto out_free;
-		slots->memslots[mem->slot].flags |= KVM_MEMSLOT_INVALID;
+		slot = id_to_memslot(slots, mem->slot);
+		slot->flags |= KVM_MEMSLOT_INVALID;
+
 		update_memslots(slots, NULL);
 
 		old_memslots = kvm->memslots;
@@ -897,7 +902,7 @@ int kvm_get_dirty_log(struct kvm *kvm,
 	if (log->slot >= KVM_MEMORY_SLOTS)
 		goto out;
 
-	memslot = &kvm->memslots->memslots[log->slot];
+	memslot = id_to_memslot(kvm->memslots, log->slot);
 	r = -ENOENT;
 	if (!memslot->dirty_bitmap)
 		goto out;
