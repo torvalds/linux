@@ -165,8 +165,8 @@ struct dpll_data {
 	u8			auto_recal_bit;
 	u8			recal_en_bit;
 	u8			recal_st_bit;
-	u8			flags;
 #  endif
+	u8			flags;
 };
 
 #endif
