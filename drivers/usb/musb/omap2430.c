@@ -258,7 +258,7 @@ static void omap_musb_set_mailbox(struct omap2430_glue *glue)
 		otg->default_a = true;
 		musb->xceiv->state = OTG_STATE_A_IDLE;
 		musb->xceiv->last_event = USB_EVENT_ID;
-		if (!is_otg_enabled(musb) || musb->gadget_driver) {
+		if (musb->gadget_driver) {
 			pm_runtime_get_sync(dev);
 			usb_phy_init(musb->xceiv);
 			omap2430_musb_set_vbus(musb, 1);
@@ -281,11 +281,10 @@ static void omap_musb_set_mailbox(struct omap2430_glue *glue)
 		dev_dbg(dev, "VBUS Disconnect\n");
 
 		musb->xceiv->last_event = USB_EVENT_NONE;
-		if (is_otg_enabled(musb) || is_peripheral_enabled(musb))
-			if (musb->gadget_driver) {
-				pm_runtime_mark_last_busy(dev);
-				pm_runtime_put_autosuspend(dev);
-			}
+		if (musb->gadget_driver) {
+			pm_runtime_mark_last_busy(dev);
+			pm_runtime_put_autosuspend(dev);
+		}
 
 		if (data->interface_type == MUSB_INTERFACE_UTMI) {
 			if (musb->xceiv->otg->set_vbus)

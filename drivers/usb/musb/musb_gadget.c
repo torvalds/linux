@@ -1864,8 +1864,7 @@ int __devinit musb_gadget_setup(struct musb *musb)
 	musb->g.dev.release = musb_gadget_release;
 	musb->g.name = musb_driver_name;
 
-	if (is_otg_enabled(musb))
-		musb->g.is_otg = 1;
+	musb->g.is_otg = 1;
 
 	musb_g_init_endpoints(musb);
 
@@ -1911,11 +1910,14 @@ static int musb_gadget_start(struct usb_gadget *g,
 {
 	struct musb		*musb = gadget_to_musb(g);
 	struct usb_otg		*otg = musb->xceiv->otg;
+	struct usb_hcd		*hcd = musb_to_hcd(musb);
 	unsigned long		flags;
-	int			retval = -EINVAL;
+	int			retval = 0;
 
-	if (driver->max_speed < USB_SPEED_HIGH)
-		goto err0;
+	if (driver->max_speed < USB_SPEED_HIGH) {
+		retval = -EINVAL;
+		goto err;
+	}
 
 	pm_runtime_get_sync(musb->controller);
 
@@ -1929,49 +1931,30 @@ static int musb_gadget_start(struct usb_gadget *g,
 
 	otg_set_peripheral(otg, &musb->g);
 	musb->xceiv->state = OTG_STATE_B_IDLE;
-
-	/*
-	 * FIXME this ignores the softconnect flag.  Drivers are
-	 * allowed hold the peripheral inactive until for example
-	 * userspace hooks up printer hardware or DSP codecs, so
-	 * hosts only see fully functional devices.
-	 */
-
-	if (!is_otg_enabled(musb))
-		musb_start(musb);
-
 	spin_unlock_irqrestore(&musb->lock, flags);
 
-	if (is_otg_enabled(musb)) {
-		struct usb_hcd	*hcd = musb_to_hcd(musb);
-
-		dev_dbg(musb->controller, "OTG startup...\n");
-
-		/* REVISIT:  funcall to other code, which also
-		 * handles power budgeting ... this way also
-		 * ensures HdrcStart is indirectly called.
-		 */
-		retval = usb_add_hcd(musb_to_hcd(musb), 0, 0);
-		if (retval < 0) {
-			dev_dbg(musb->controller, "add_hcd failed, %d\n", retval);
-			goto err2;
-		}
-
-		if ((musb->xceiv->last_event == USB_EVENT_ID)
-					&& otg->set_vbus)
-			otg_set_vbus(otg, 1);
-
-		hcd->self.uses_pio_for_control = 1;
+	/* REVISIT:  funcall to other code, which also
+	 * handles power budgeting ... this way also
+	 * ensures HdrcStart is indirectly called.
+	 */
+	retval = usb_add_hcd(hcd, 0, 0);
+	if (retval < 0) {
+		dev_dbg(musb->controller, "add_hcd failed, %d\n", retval);
+		goto err;
 	}
+
+	if ((musb->xceiv->last_event == USB_EVENT_ID)
+				&& otg->set_vbus)
+		otg_set_vbus(otg, 1);
+
+	hcd->self.uses_pio_for_control = 1;
+
 	if (musb->xceiv->last_event == USB_EVENT_NONE)
 		pm_runtime_put(musb->controller);
 
 	return 0;
 
-err2:
-	if (!is_otg_enabled(musb))
-		musb_stop(musb);
-err0:
+err:
 	return retval;
 }
 
@@ -2049,16 +2032,12 @@ static int musb_gadget_stop(struct usb_gadget *g,
 	musb_platform_try_idle(musb, 0);
 	spin_unlock_irqrestore(&musb->lock, flags);
 
-	if (is_otg_enabled(musb)) {
-		usb_remove_hcd(musb_to_hcd(musb));
-		/* FIXME we need to be able to register another
-		 * gadget driver here and have everything work;
-		 * that currently misbehaves.
-		 */
-	}
-
-	if (!is_otg_enabled(musb))
-		musb_stop(musb);
+	usb_remove_hcd(musb_to_hcd(musb));
+	/*
+	 * FIXME we need to be able to register another
+	 * gadget driver here and have everything work;
+	 * that currently misbehaves.
+	 */
 
 	pm_runtime_put(musb->controller);
 
@@ -2220,13 +2199,11 @@ __acquires(musb->lock)
 	if (devctl & MUSB_DEVCTL_BDEVICE) {
 		musb->xceiv->state = OTG_STATE_B_PERIPHERAL;
 		musb->g.is_a_peripheral = 0;
-	} else if (is_otg_enabled(musb)) {
+	} else {
 		musb->xceiv->state = OTG_STATE_A_PERIPHERAL;
 		musb->g.is_a_peripheral = 1;
-	} else
-		WARN_ON(1);
+	}
 
 	/* start with default limits on VBUS power draw */
-	(void) musb_gadget_vbus_draw(&musb->g,
-			is_otg_enabled(musb) ? 8 : 100);
+	(void) musb_gadget_vbus_draw(&musb->g, 8);
 }

@@ -184,8 +184,8 @@ static irqreturn_t blackfin_interrupt(int irq, void *__hci)
 	}
 
 	/* Start sampling ID pin, when plug is removed from MUSB */
-	if ((is_otg_enabled(musb) && (musb->xceiv->state == OTG_STATE_B_IDLE
-		|| musb->xceiv->state == OTG_STATE_A_WAIT_BCON)) ||
+	if ((musb->xceiv->state == OTG_STATE_B_IDLE
+		|| musb->xceiv->state == OTG_STATE_A_WAIT_BCON) ||
 		(musb->int_usb & MUSB_INTR_DISCONNECT && is_host_active(musb))) {
 		mod_timer(&musb_conn_timer, jiffies + TIMER_DELAY);
 		musb->a_wait_bcon = TIMER_DELAY;
@@ -228,18 +228,13 @@ static void musb_conn_timer_handler(unsigned long _musb)
 
 			val = MUSB_INTR_SUSPEND | MUSB_INTR_VBUSERROR;
 			musb_writeb(musb->mregs, MUSB_INTRUSB, val);
-			if (is_otg_enabled(musb))
-				musb->xceiv->state = OTG_STATE_B_IDLE;
-			else
-				musb_writeb(musb->mregs, MUSB_POWER, MUSB_POWER_HSENAB);
+			musb->xceiv->state = OTG_STATE_B_IDLE;
 		}
 		mod_timer(&musb_conn_timer, jiffies + TIMER_DELAY);
 		break;
 	case OTG_STATE_B_IDLE:
-
-		if (!is_peripheral_enabled(musb))
-			break;
-		/* Start a new session.  It seems that MUSB needs taking
+		/*
+		 * Start a new session.  It seems that MUSB needs taking
 		 * some time to recognize the type of the plug inserted?
 		 */
 		val = musb_readw(musb->mregs, MUSB_DEVCTL);
@@ -295,10 +290,7 @@ static void musb_conn_timer_handler(unsigned long _musb)
 
 static void bfin_musb_enable(struct musb *musb)
 {
-	if (!is_otg_enabled(musb) && is_host_enabled(musb)) {
-		mod_timer(&musb_conn_timer, jiffies + TIMER_DELAY);
-		musb->a_wait_bcon = TIMER_DELAY;
-	}
+	/* REVISIT is this really correct ? */
 }
 
 static void bfin_musb_disable(struct musb *musb)
@@ -321,12 +313,6 @@ static void bfin_musb_set_vbus(struct musb *musb, int is_on)
 static int bfin_musb_set_power(struct usb_phy *x, unsigned mA)
 {
 	return 0;
-}
-
-static void bfin_musb_try_idle(struct musb *musb, unsigned long timeout)
-{
-	if (!is_otg_enabled(musb) && is_host_enabled(musb))
-		mod_timer(&musb_conn_timer, jiffies + TIMER_DELAY);
 }
 
 static int bfin_musb_vbus_status(struct musb *musb)
@@ -424,12 +410,10 @@ static int bfin_musb_init(struct musb *musb)
 
 	bfin_musb_reg_init(musb);
 
-	if (is_host_enabled(musb)) {
-		setup_timer(&musb_conn_timer,
-			musb_conn_timer_handler, (unsigned long) musb);
-	}
-	if (is_peripheral_enabled(musb))
-		musb->xceiv->set_power = bfin_musb_set_power;
+	setup_timer(&musb_conn_timer, musb_conn_timer_handler,
+			(unsigned long) musb);
+
+	musb->xceiv->set_power = bfin_musb_set_power;
 
 	musb->isr = blackfin_interrupt;
 	musb->double_buffer_not_ok = true;
@@ -454,7 +438,6 @@ static const struct musb_platform_ops bfin_ops = {
 	.disable	= bfin_musb_disable,
 
 	.set_mode	= bfin_musb_set_mode,
-	.try_idle	= bfin_musb_try_idle,
 
 	.vbus_status	= bfin_musb_vbus_status,
 	.set_vbus	= bfin_musb_set_vbus,

@@ -437,14 +437,13 @@ static void musb_do_idle(unsigned long _musb)
 		if (is_host_active(musb) && (musb->port1_status >> 16))
 			goto done;
 
-		if (is_peripheral_enabled(musb) && !musb->gadget_driver) {
+		if (!musb->gadget_driver) {
 			wakeups = 0;
 		} else {
 			wakeups = TUSB_PRCM_WHOSTDISCON
 				| TUSB_PRCM_WBUS
 					| TUSB_PRCM_WVBUS;
-			if (is_otg_enabled(musb))
-				wakeups |= TUSB_PRCM_WID;
+			wakeups |= TUSB_PRCM_WID;
 		}
 		tusb_allow_idle(musb, wakeups);
 	}
@@ -582,20 +581,11 @@ static void tusb_musb_set_vbus(struct musb *musb, int is_on)
  *
  * Note that if a mini-A cable is plugged in the ID line will stay down as
  * the weak ID pull-up is not able to pull the ID up.
- *
- * REVISIT: It would be possible to add support for changing between host
- * and peripheral modes in non-OTG configurations by reconfiguring hardware
- * and then setting musb->board_mode. For now, only support OTG mode.
  */
 static int tusb_musb_set_mode(struct musb *musb, u8 musb_mode)
 {
 	void __iomem	*tbase = musb->ctrl_base;
 	u32		otg_stat, phy_otg_ctrl, phy_otg_ena, dev_conf;
-
-	if (musb->board_mode != MUSB_OTG) {
-		ERR("Changing mode currently only supported in OTG mode\n");
-		return -EINVAL;
-	}
 
 	otg_stat = musb_readl(tbase, TUSB_DEV_OTG_STAT);
 	phy_otg_ctrl = musb_readl(tbase, TUSB_PHY_OTG_CTRL);
@@ -652,10 +642,7 @@ tusb_otg_ints(struct musb *musb, u32 int_src, void __iomem *tbase)
 	if ((int_src & TUSB_INT_SRC_ID_STATUS_CHNG)) {
 		int	default_a;
 
-		if (is_otg_enabled(musb))
-			default_a = !(otg_stat & TUSB_DEV_OTG_STAT_ID_STATUS);
-		else
-			default_a = is_host_enabled(musb);
+		default_a = !(otg_stat & TUSB_DEV_OTG_STAT_ID_STATUS);
 		dev_dbg(musb->controller, "Default-%c\n", default_a ? 'A' : 'B');
 		otg->default_a = default_a;
 		tusb_musb_set_vbus(musb, default_a);
@@ -669,8 +656,7 @@ tusb_otg_ints(struct musb *musb, u32 int_src, void __iomem *tbase)
 	if (int_src & TUSB_INT_SRC_VBUS_SENSE_CHNG) {
 
 		/* B-dev state machine:  no vbus ~= disconnect */
-		if ((is_otg_enabled(musb) && !otg->default_a)
-				|| !is_host_enabled(musb)) {
+		if (!otg->default_a) {
 			/* ? musb_root_disconnect(musb); */
 			musb->port1_status &=
 				~(USB_PORT_STAT_CONNECTION
@@ -1119,10 +1105,8 @@ static int tusb_musb_init(struct musb *musb)
 	}
 	musb->isr = tusb_musb_interrupt;
 
-	if (is_peripheral_enabled(musb)) {
-		musb->xceiv->set_power = tusb_draw_power;
-		the_musb = musb;
-	}
+	musb->xceiv->set_power = tusb_draw_power;
+	the_musb = musb;
 
 	setup_timer(&musb_idle_timer, musb_do_idle, (unsigned long) musb);
 

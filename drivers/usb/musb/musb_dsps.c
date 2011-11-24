@@ -137,9 +137,8 @@ static void dsps_musb_enable(struct musb *musb)
 	dsps_writel(reg_base, wrp->epintr_set, epmask);
 	dsps_writel(reg_base, wrp->coreintr_set, coremask);
 	/* Force the DRVVBUS IRQ so we can start polling for ID change. */
-	if (is_otg_enabled(musb))
-		dsps_writel(reg_base, wrp->coreintr_set,
-			    (1 << wrp->drvvbus) << wrp->usb_shift);
+	dsps_writel(reg_base, wrp->coreintr_set,
+		    (1 << wrp->drvvbus) << wrp->usb_shift);
 }
 
 /**
@@ -200,9 +199,6 @@ static void otg_timer(unsigned long _musb)
 			    MUSB_INTR_VBUSERROR << wrp->usb_shift);
 		break;
 	case OTG_STATE_B_IDLE:
-		if (!is_peripheral_enabled(musb))
-			break;
-
 		devctl = dsps_readb(mregs, MUSB_DEVCTL);
 		if (devctl & MUSB_DEVCTL_BDEVICE)
 			mod_timer(&glue->timer,
@@ -222,9 +218,6 @@ static void dsps_musb_try_idle(struct musb *musb, unsigned long timeout)
 	struct platform_device *pdev = to_platform_device(dev->parent);
 	struct dsps_glue *glue = platform_get_drvdata(pdev);
 	static unsigned long last_timer;
-
-	if (!is_otg_enabled(musb))
-		return;
 
 	if (timeout == 0)
 		timeout = jiffies + msecs_to_jiffies(3);
@@ -293,7 +286,7 @@ static irqreturn_t dsps_interrupt(int irq, void *hci)
 	 * value but DEVCTL.BDEVICE is invalid without DEVCTL.SESSION set.
 	 * Also, DRVVBUS pulses for SRP (but not at 5V) ...
 	 */
-	if ((usbintr & MUSB_INTR_BABBLE) && is_host_enabled(musb))
+	if (usbintr & MUSB_INTR_BABBLE)
 		pr_info("CAUTION: musb: Babble Interrupt Occured\n");
 
 	if (usbintr & ((1 << wrp->drvvbus) << wrp->usb_shift)) {
@@ -302,8 +295,7 @@ static irqreturn_t dsps_interrupt(int irq, void *hci)
 		u8 devctl = dsps_readb(mregs, MUSB_DEVCTL);
 		int err;
 
-		err = is_host_enabled(musb) && (musb->int_usb &
-						MUSB_INTR_VBUSERROR);
+		err = musb->int_usb & MUSB_INTR_VBUSERROR;
 		if (err) {
 			/*
 			 * The Mentor core doesn't debounce VBUS as needed
@@ -321,7 +313,7 @@ static irqreturn_t dsps_interrupt(int irq, void *hci)
 			mod_timer(&glue->timer,
 					jiffies + wrp->poll_seconds * HZ);
 			WARNING("VBUS error workaround (delay coming)\n");
-		} else if (is_host_enabled(musb) && drvvbus) {
+		} else if (drvvbus) {
 			musb->is_active = 1;
 			MUSB_HST_MODE(musb);
 			musb->xceiv->otg->default_a = 1;
@@ -352,7 +344,7 @@ static irqreturn_t dsps_interrupt(int irq, void *hci)
 		dsps_writel(reg_base, wrp->eoi, 1);
 
 	/* Poll for ID change */
-	if (is_otg_enabled(musb) && musb->xceiv->state == OTG_STATE_B_IDLE)
+	if (musb->xceiv->state == OTG_STATE_B_IDLE)
 		mod_timer(&glue->timer, jiffies + wrp->poll_seconds * HZ);
 
 	spin_unlock_irqrestore(&musb->lock, flags);
@@ -388,8 +380,7 @@ static int dsps_musb_init(struct musb *musb)
 		goto err0;
 	}
 
-	if (is_host_enabled(musb))
-		setup_timer(&glue->timer, otg_timer, (unsigned long) musb);
+	setup_timer(&glue->timer, otg_timer, (unsigned long) musb);
 
 	/* Reset the musb */
 	dsps_writel(reg_base, wrp->control, (1 << wrp->reset));
@@ -423,8 +414,7 @@ static int dsps_musb_exit(struct musb *musb)
 	struct platform_device *pdev = to_platform_device(dev->parent);
 	struct dsps_glue *glue = platform_get_drvdata(pdev);
 
-	if (is_host_enabled(musb))
-		del_timer_sync(&glue->timer);
+	del_timer_sync(&glue->timer);
 
 	/* Shutdown the on-chip PHY and its PLL. */
 	if (data->set_phy_power)

@@ -115,8 +115,7 @@ static void davinci_musb_enable(struct musb *musb)
 		dma_off = 0;
 
 	/* force a DRVVBUS irq so we can start polling for ID change */
-	if (is_otg_enabled(musb))
-		musb_writel(musb->ctrl_base, DAVINCI_USB_INT_SET_REG,
+	musb_writel(musb->ctrl_base, DAVINCI_USB_INT_SET_REG,
 			DAVINCI_INTR_DRVVBUS << DAVINCI_USB_USBINT_SHIFT);
 }
 
@@ -234,10 +233,8 @@ static void otg_timer(unsigned long _musb)
 			MUSB_INTR_VBUSERROR << DAVINCI_USB_USBINT_SHIFT);
 		break;
 	case OTG_STATE_B_IDLE:
-		if (!is_peripheral_enabled(musb))
-			break;
-
-		/* There's no ID-changed IRQ, so we have no good way to tell
+		/*
+		 * There's no ID-changed IRQ, so we have no good way to tell
 		 * when to switch to the A-Default state machine (by setting
 		 * the DEVCTL.SESSION flag).
 		 *
@@ -315,8 +312,7 @@ static irqreturn_t davinci_musb_interrupt(int irq, void *__hci)
 		u8	devctl = musb_readb(mregs, MUSB_DEVCTL);
 		int	err = musb->int_usb & MUSB_INTR_VBUSERROR;
 
-		err = is_host_enabled(musb)
-				&& (musb->int_usb & MUSB_INTR_VBUSERROR);
+		err = musb->int_usb & MUSB_INTR_VBUSERROR;
 		if (err) {
 			/* The Mentor core doesn't debounce VBUS as needed
 			 * to cope with device connect current spikes. This
@@ -332,7 +328,7 @@ static irqreturn_t davinci_musb_interrupt(int irq, void *__hci)
 			musb->xceiv->state = OTG_STATE_A_WAIT_VFALL;
 			mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
 			WARNING("VBUS error workaround (delay coming)\n");
-		} else if (is_host_enabled(musb) && drvvbus) {
+		} else if (drvvbus) {
 			MUSB_HST_MODE(musb);
 			otg->default_a = 1;
 			musb->xceiv->state = OTG_STATE_A_WAIT_VRISE;
@@ -365,8 +361,7 @@ static irqreturn_t davinci_musb_interrupt(int irq, void *__hci)
 	musb_writel(tibase, DAVINCI_USB_EOI_REG, 0);
 
 	/* poll for ID change */
-	if (is_otg_enabled(musb)
-			&& musb->xceiv->state == OTG_STATE_B_IDLE)
+	if (musb->xceiv->state == OTG_STATE_B_IDLE)
 		mod_timer(&otg_workaround, jiffies + POLL_SECONDS * HZ);
 
 	spin_unlock_irqrestore(&musb->lock, flags);
@@ -397,8 +392,7 @@ static int davinci_musb_init(struct musb *musb)
 	if (revision == 0)
 		goto fail;
 
-	if (is_host_enabled(musb))
-		setup_timer(&otg_workaround, otg_timer, (unsigned long) musb);
+	setup_timer(&otg_workaround, otg_timer, (unsigned long) musb);
 
 	davinci_musb_source_power(musb, 0, 1);
 
@@ -419,12 +413,7 @@ static int davinci_musb_init(struct musb *musb)
 	if (cpu_is_davinci_dm355()) {
 		u32	deepsleep = __raw_readl(DM355_DEEPSLEEP);
 
-		if (is_host_enabled(musb)) {
-			deepsleep &= ~DRVVBUS_OVERRIDE;
-		} else {
-			deepsleep &= ~DRVVBUS_FORCE;
-			deepsleep |= DRVVBUS_OVERRIDE;
-		}
+		deepsleep &= ~DRVVBUS_FORCE;
 		__raw_writel(deepsleep, DM355_DEEPSLEEP);
 	}
 
@@ -453,8 +442,7 @@ unregister:
 
 static int davinci_musb_exit(struct musb *musb)
 {
-	if (is_host_enabled(musb))
-		del_timer_sync(&otg_workaround);
+	del_timer_sync(&otg_workaround);
 
 	/* force VBUS off */
 	if (cpu_is_davinci_dm355()) {
@@ -468,7 +456,7 @@ static int davinci_musb_exit(struct musb *musb)
 	davinci_musb_source_power(musb, 0 /*off*/, 1);
 
 	/* delay, to avoid problems with module reload */
-	if (is_host_enabled(musb) && musb->xceiv->otg->default_a) {
+	if (musb->xceiv->otg->default_a) {
 		int	maxdelay = 30;
 		u8	devctl, warn = 0;
 
