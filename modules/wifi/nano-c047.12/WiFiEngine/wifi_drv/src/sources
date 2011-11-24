@@ -1,0 +1,55 @@
+WIFIENGINEHOME=../..
+
+TARGETNAME=wifiengine
+TARGETTYPE=LIBRARY
+TARGETPATH=.
+
+!include $(WIFIENGINEHOME)/common.mk
+
+SOURCES=					\
+	WiFi_engine_internal.c			\
+	hmg_ps.c				\
+	hmg_traffic.c				\
+	mibtable.c				\
+	pkt_debug.c				\
+	state_trace.c				\
+	we_arp_filter.c				\
+	we_assoc.c				\
+	we_auth.c				\
+	we_cb.c					\
+	we_chan.c				\
+	we_console.c				\
+	we_data.c				\
+	we_dbg.c				\
+	we_dlm.c				\
+	we_dlm_dynamic.c				\
+	we_dump.c				\
+	we_ind.c				\
+	we_init.c				\
+	we_interface_handler.c			\
+	we_mcast.c				\
+	we_mib.c				\
+	we_nr.c					\
+	we_param.c				\
+	we_prop.c				\
+	we_ps.c					\
+	we_rate.c				\
+	we_ratemon.c				\
+	we_roam.c				\
+	we_scan.c				\
+	we_swm500.c				\
+	we_trig.c				\
+	we_util.c				\
+	we_ibss.c				\
+	we_filter.c				\
+	we_cm_scan.c				\
+	we_wps.c				\
+	we_cm.c					\
+	we_lqm.c				\
+	wei_asscache.c				\
+	wei_list.c				\
+	wei_netlist.c				\
+	we_multi_net.c				\
+	we_dlm.c				\
+	we_dlm_dynamic.c
+

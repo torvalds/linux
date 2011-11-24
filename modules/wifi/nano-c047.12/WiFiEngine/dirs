@@ -1,0 +1,12 @@
+DIRS =  wifi_drv \
+        ucos \
+        reg \
+        hic_ctrl_msg \
+        mlme_proxy \
+        80211macmgmt \
+        80211macmib \
+	driverenv \
+        pal \
+        hic \
+        hic_wrapper \
+        mac_wrapper

@@ -1,0 +1,9 @@
+WIFIENGINEHOME=../..
+
+TARGETNAME=mlme_proxy
+TARGETTYPE=LIBRARY
+TARGETPATH=.
+
+!include $(WIFIENGINEHOME)/common.mk
+
+SOURCES=mlme_proxy.c

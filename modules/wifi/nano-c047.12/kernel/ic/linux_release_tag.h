@@ -1,0 +1,1 @@
+#define LINUX_RELEASE_STRING "$Release: 19539 19538 $"

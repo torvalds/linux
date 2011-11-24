@@ -1,0 +1,47 @@
+PRJHOME=../../../..
+DRVHOME=$(PRJHOME)/Miniport/ndis
+OIDHOME=$(PRJHOME)/Miniport/OidHandler
+
+
+
+TARGETNAME=de_common
+TARGETTYPE=LIBRARY
+TARGETPATH=.
+
+!include $(PRJHOME)/WFE.mk
+!include $(PRJHOME)/DE.mk
+!include $(PRJHOME)/ADL.mk
+
+APPLIBS = $(WFELIB) \
+
+INCLUDES=$(DRIVERENVHOME)/inc;\
+         $(BASEDIR)\inc;\
+         $(BASEDIR)\inc\ddk;\
+         $(BASEDIR)\inc\ddk\wxp;\
+         $(BASEDIR)\inc\ddk\wdm\wxp;\
+         $(BASEDIR)\src\network\inc;\
+         $(WFEINC)\
+         ../inc;\
+         $(DRVHOME);\
+         $(OIDHOME);\
+         $(DEINC); \
+         $(ADLINC)
+
+
+C_DEFINES =$(C_DEFINES) -DNDIS_MINIPORT_DRIVER $(NANOFLAGS)
+C_DEFINES =$(C_DEFINES) -DNDIS51_MINIPORT=1
+C_DEFINES =$(C_DEFINES) -DNDIS_WDM=1
+
+
+!IF ("$(DDKBUILDENV)"=="chk")
+C_DEFINES =$(C_DEFINES) -DDEBUG=1
+!ELSE
+MSC_OPTIMIZATION = /O1 /Os
+!ENDIF
+
+
+
+
+
+SOURCES=de_common.c
+

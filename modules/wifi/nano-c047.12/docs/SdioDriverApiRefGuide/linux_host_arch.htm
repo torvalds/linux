@@ -1,0 +1,430 @@
+<html xmlns:v="urn:schemas-microsoft-com:vml"
+xmlns:o="urn:schemas-microsoft-com:office:office"
+xmlns:w="urn:schemas-microsoft-com:office:word"
+xmlns:x="urn:schemas-microsoft-com:office:excel"
+xmlns:p="urn:schemas-microsoft-com:office:powerpoint"
+xmlns:oa="urn:schemas-microsoft-com:office:activation"
+xmlns="http://www.w3.org/TR/REC-html40">
+
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=windows-1252">
+<meta name=ProgId content=Word.Document>
+<meta name=Generator content="Microsoft Word 11">
+<meta name=Originator content="Microsoft Word 11">
+<link rel=File-List href="linux_host_arch_files/filelist.xml">
+<title>Nanoradio Host Driver Architecture</title>
+<!--[if gte mso 9]><xml>
+ <w:WordDocument>
+  <w:Zoom>BestFit</w:Zoom>
+  <w:SpellingState>Clean</w:SpellingState>
+  <w:GrammarState>Clean</w:GrammarState>
+  <w:HyphenationZone>21</w:HyphenationZone>
+  <w:PunctuationKerning/>
+  <w:ValidateAgainstSchemas/>
+  <w:SaveIfXMLInvalid>false</w:SaveIfXMLInvalid>
+  <w:IgnoreMixedContent>false</w:IgnoreMixedContent>
+  <w:AlwaysShowPlaceholderText>false</w:AlwaysShowPlaceholderText>
+  <w:Compatibility>
+   <w:BreakWrappedTables/>
+   <w:SnapToGridInCell/>
+   <w:WrapTextWithPunct/>
+   <w:UseAsianBreakRules/>
+   <w:DontGrowAutofit/>
+   <w:UseFELayout/>
+  </w:Compatibility>
+  <w:BrowserLevel>MicrosoftInternetExplorer4</w:BrowserLevel>
+ </w:WordDocument>
+</xml><![endif]--><!--[if gte mso 9]><xml>
+ <w:LatentStyles DefLockedState="false" LatentStyleCount="156">
+ </w:LatentStyles>
+</xml><![endif]-->
+<style>
+<!--
+ /* Font Definitions */
+ @font-face
+	{font-family:"MS Mincho";
+	panose-1:2 2 6 9 4 2 5 8 3 4;
+	mso-font-alt:"Arial Unicode MS";
+	mso-font-charset:128;
+	mso-generic-font-family:roman;
+	mso-font-format:other;
+	mso-font-pitch:fixed;
+	mso-font-signature:1 134676480 16 0 131072 0;}
+@font-face
+	{font-family:Batang;
+	panose-1:2 3 6 0 0 1 1 1 1 1;
+	mso-font-alt:"Arial Unicode MS";
+	mso-font-charset:129;
+	mso-generic-font-family:auto;
+	mso-font-format:other;
+	mso-font-pitch:fixed;
+	mso-font-signature:1 151388160 16 0 524288 0;}
+@font-face
+	{font-family:"\@Batang";
+	panose-1:0 0 0 0 0 0 0 0 0 0;
+	mso-font-charset:129;
+	mso-generic-font-family:auto;
+	mso-font-format:other;
+	mso-font-pitch:fixed;
+	mso-font-signature:1 151388160 16 0 524288 0;}
+@font-face
+	{font-family:"\@MS Mincho";
+	panose-1:0 0 0 0 0 0 0 0 0 0;
+	mso-font-charset:128;
+	mso-generic-font-family:roman;
+	mso-font-format:other;
+	mso-font-pitch:fixed;
+	mso-font-signature:1 134676480 16 0 131072 0;}
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:Batang;}
+h2
+	{mso-margin-top-alt:auto;
+	margin-right:0cm;
+	mso-margin-bottom-alt:auto;
+	margin-left:0cm;
+	mso-pagination:widow-orphan;
+	mso-outline-level:2;
+	font-size:14.5pt;
+	font-family:Arial;
+	color:#333399;}
+h3
+	{mso-margin-top-alt:auto;
+	margin-right:0cm;
+	mso-margin-bottom-alt:auto;
+	margin-left:0cm;
+	mso-pagination:widow-orphan;
+	mso-outline-level:3;
+	font-size:13.0pt;
+	mso-bidi-font-size:13.5pt;
+	font-family:Arial;
+	mso-bidi-font-family:"Times New Roman";
+	color:#333399;}
+p.MsoBodyText, li.MsoBodyText, div.MsoBodyText
+	{mso-style-link:"Char Char2";
+	margin-top:0cm;
+	margin-right:0cm;
+	margin-bottom:6.0pt;
+	margin-left:0cm;
+	mso-pagination:widow-orphan;
+	font-size:11.0pt;
+	mso-bidi-font-size:12.0pt;
+	font-family:Arial;
+	mso-fareast-font-family:"Times New Roman";
+	mso-bidi-font-family:"Times New Roman";}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+p.MsoPlainText, li.MsoPlainText, div.MsoPlainText
+	{margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:10.0pt;
+	font-family:"Courier New";
+	mso-fareast-font-family:Batang;}
+span.CharChar2
+	{mso-style-name:"Char Char2";
+	mso-style-locked:yes;
+	mso-style-link:"Body Text";
+	mso-ansi-font-size:11.0pt;
+	mso-bidi-font-size:12.0pt;
+	font-family:Arial;
+	mso-ascii-font-family:Arial;
+	mso-hansi-font-family:Arial;
+	mso-bidi-font-family:Arial;
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;
+	mso-bidi-language:AR-SA;}
+span.SpellE
+	{mso-style-name:"";
+	mso-spl-e:yes;}
+span.GramE
+	{mso-style-name:"";
+	mso-gram-e:yes;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:70.85pt 57.6pt 70.85pt 57.6pt;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+ /* List Definitions */
+ @list l0
+	{mso-list-id:1228611780;
+	mso-list-type:hybrid;
+	mso-list-template-ids:1622039844 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l0:level1
+	{mso-level-tab-stop:36.0pt;
+	mso-level-number-position:left;
+	text-indent:-18.0pt;}
+@list l0:level2
+	{mso-level-tab-stop:72.0pt;
+	mso-level-number-position:left;
+	text-indent:-18.0pt;}
+@list l0:level3
+	{mso-level-tab-stop:108.0pt;
+	mso-level-number-position:left;
+	text-indent:-18.0pt;}
+@list l0:level4
+	{mso-level-tab-stop:144.0pt;
+	mso-level-number-position:left;
+	text-indent:-18.0pt;}
+@list l0:level5
+	{mso-level-tab-stop:180.0pt;
+	mso-level-number-position:left;
+	text-indent:-18.0pt;}
+@list l0:level6
+	{mso-level-tab-stop:216.0pt;
+	mso-level-number-position:left;
+	text-indent:-18.0pt;}
+@list l0:level7
+	{mso-level-tab-stop:252.0pt;
+	mso-level-number-position:left;
+	text-indent:-18.0pt;}
+@list l0:level8
+	{mso-level-tab-stop:288.0pt;
+	mso-level-number-position:left;
+	text-indent:-18.0pt;}
+@list l0:level9
+	{mso-level-tab-stop:324.0pt;
+	mso-level-number-position:left;
+	text-indent:-18.0pt;}
+@list l1
+	{mso-list-id:1592858335;
+	mso-list-type:hybrid;
+	mso-list-template-ids:719340164 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l1:level1
+	{mso-level-tab-stop:36.0pt;
+	mso-level-number-position:left;
+	text-indent:-18.0pt;}
+@list l1:level2
+	{mso-level-tab-stop:72.0pt;
+	mso-level-number-position:left;
+	text-indent:-18.0pt;}
+@list l1:level3
+	{mso-level-tab-stop:108.0pt;
+	mso-level-number-position:left;
+	text-indent:-18.0pt;}
+@list l1:level4
+	{mso-level-tab-stop:144.0pt;
+	mso-level-number-position:left;
+	text-indent:-18.0pt;}
+@list l1:level5
+	{mso-level-tab-stop:180.0pt;
+	mso-level-number-position:left;
+	text-indent:-18.0pt;}
+@list l1:level6
+	{mso-level-tab-stop:216.0pt;
+	mso-level-number-position:left;
+	text-indent:-18.0pt;}
+@list l1:level7
+	{mso-level-tab-stop:252.0pt;
+	mso-level-number-position:left;
+	text-indent:-18.0pt;}
+@list l1:level8
+	{mso-level-tab-stop:288.0pt;
+	mso-level-number-position:left;
+	text-indent:-18.0pt;}
+@list l1:level9
+	{mso-level-tab-stop:324.0pt;
+	mso-level-number-position:left;
+	text-indent:-18.0pt;}
+ol
+	{margin-bottom:0cm;}
+ul
+	{margin-bottom:0cm;}
+-->
+</style>
+<!--[if gte mso 10]>
+<style>
+ /* Style Definitions */
+ table.MsoNormalTable
+	{mso-style-name:"Table Normal";
+	mso-tstyle-rowband-size:0;
+	mso-tstyle-colband-size:0;
+	mso-style-noshow:yes;
+	mso-style-parent:"";
+	mso-padding-alt:0cm 5.4pt 0cm 5.4pt;
+	mso-para-margin:0cm;
+	mso-para-margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:10.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	mso-ansi-language:#0400;
+	mso-fareast-language:#0400;
+	mso-bidi-language:#0400;}
+table.Normaltabell
+	{mso-style-name:"Normal tabell";
+	mso-tstyle-rowband-size:0;
+	mso-tstyle-colband-size:0;
+	mso-style-noshow:yes;
+	mso-style-parent:"";
+	mso-padding-alt:0cm 5.4pt 0cm 5.4pt;
+	mso-para-margin:0cm;
+	mso-para-margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:10.0pt;
+	font-family:"Times New Roman";
+	mso-ansi-language:#0400;
+	mso-fareast-language:#0400;
+	mso-bidi-language:#0400;}
+</style>
+<![endif]--><!--[if gte mso 9]><xml>
+ <o:shapedefaults v:ext="edit" spidmax="7170"/>
+</xml><![endif]--><!--[if gte mso 9]><xml>
+ <o:shapelayout v:ext="edit">
+  <o:idmap v:ext="edit" data="1"/>
+ </o:shapelayout></xml><![endif]-->
+</head>
+
+<body lang=EN-US link=blue vlink=purple style='tab-interval:65.2pt'>
+
+<div class=Section1>
+
+<h2><span lang=EN-GB style='mso-ansi-language:EN-GB'>Host Driver Environment<o:p></o:p></span></h2>
+
+<p class=MsoBodyText>The heart of the Nanoradio WLAN networking driver is <span
+class=SpellE>WiFi</span> Engine. <span class=SpellE>WiFi</span> Engine is a
+portable module used as the core component of the device driver for the NRX700.
+This core component is surrounded by interfaces (APIs) and adaptation layers (<span
+class=SpellE>ADLs</span>) to ensure portability between platforms. The
+architecture is truly generic and common to implementations of <span
+class=SpellE>WiFi</span> engine on all platforms and operating systems. The
+interfaces of interest for porting or understanding the Nanoradio host driver
+are:</p>
+
+<p class=MsoBodyText style='margin-left:36.0pt;text-indent:-18.0pt;mso-list:
+l1 level1 lfo2;tab-stops:list 36.0pt'><![if !supportLists]><span
+style='mso-fareast-font-family:Arial;mso-bidi-font-family:Arial'><span
+style='mso-list:Ignore'>1.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span></span><![endif]><span class=SpellE>WiFi</span> Engine API </p>
+
+<p class=MsoBodyText style='margin-left:36.0pt;text-indent:-18.0pt;mso-list:
+l1 level1 lfo2;tab-stops:list 36.0pt'><![if !supportLists]><span
+style='mso-fareast-font-family:Arial;mso-bidi-font-family:Arial'><span
+style='mso-list:Ignore'>2.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span></span><![endif]>Driver Environment API </p>
+
+<p class=MsoBodyText style='margin-left:36.0pt;text-indent:-18.0pt;mso-list:
+l1 level1 lfo2;tab-stops:list 36.0pt'><![if !supportLists]><span
+style='mso-fareast-font-family:Arial;mso-bidi-font-family:Arial'><span
+style='mso-list:Ignore'>3.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span></span><![endif]>Transport Driver API </p>
+
+<h3><a name="wifi_engine_api_intro"></a><span class=SpellE><span
+style='mso-bookmark:wifi_engine_api_intro'>WiFi</span></span><span
+style='mso-bookmark:wifi_engine_api_intro'> Engine API</span></h3>
+
+<p class=MsoBodyText>The <span class=SpellE>WiFi</span> Engine API provides a <span
+lang=EN-GB style='mso-bidi-font-size:11.0pt;mso-bidi-font-family:Arial;
+mso-ansi-language:EN-GB'>generic interface towards the application layer</span><span
+lang=EN-GB style='mso-ansi-language:EN-GB'> </span>and contains all functions
+necessary for a networking driver (e.g. an NDIS miniport driver for Windows XP,
+or a Wireless Extensions compliant driver in Linux). </p>
+
+<h3><a name="driverenv_api_intro">Driver Environment API</a></h3>
+
+<p class=MsoBodyText>The Driver Environment API is the glue layer for services
+needed by the generic <span class=SpellE>WiFi</span> Engine code. The glue
+layer must be ported to each supported platform. The <span class=SpellE>WiFi</span>
+Driver Environment comprises functions that wrap platform specific primitives
+such as memory allocation, string handling, semaphores, frame sending system
+calls, etc. </p>
+
+<h3><a name="transport_driver_intro">Transport Driver API</a></h3>
+
+<p class=MsoBodyText>The Transport Driver API provides an abstraction for any
+physical device driver that can be used for communication with the chipset. The
+chipset offers two alternative interfaces: SDIO or UART. The SDIO interface may
+be run in different modes (4bit, 1bit or SPI mode). The Transport Driver API
+makes it transparent what physical hardware interface is used. </p>
+
+<p class=MsoNormal><span style='mso-fareast-font-family:"Times New Roman"'><o:p>&nbsp;</o:p></span></p>
+
+<h2>Introduction to the host driver <span class=SpellE>ADLs</span></h2>
+
+<p class=MsoBodyText>The generic interfaces of
+the host driver are adapted to the specific host platform OS by a set of
+adaptation layers. The purpose of the adaptation layers is to hide the
+specifics of the underlying hardware or driver and present a uniform interface
+to the application program or simply to map or convert the calls to provide a
+generic interface. And with this purpose it is by definition not necessary for
+an application programmer to use or change the adaptation layers. Hence they are
+just briefly described here. The adaptation layers are: </p>
+
+<p class=MsoBodyText style='margin-left:36.0pt;text-indent:-18.0pt;mso-list:
+l0 level1 lfo4;tab-stops:list 36.0pt'><span style='mso-bookmark:wireless_adapter_intro'><![if !supportLists]><span
+style='mso-fareast-font-family:Arial;mso-bidi-font-family:Arial'><span
+style='mso-list:Ignore'>1.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span></span><![endif]>Wireless Extensions Adaptation Layer </span></p>
+
+<p class=MsoBodyText style='margin-left:36.0pt;text-indent:-18.0pt;mso-list:
+l0 level1 lfo4;tab-stops:list 36.0pt'><span style='mso-bookmark:wireless_adapter_intro'><![if !supportLists]><span
+style='mso-fareast-font-family:Arial;mso-bidi-font-family:Arial'><span
+style='mso-list:Ignore'>2.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span></span><![endif]>Data Path Adaptation Layer </span></p>
+
+<p class=MsoBodyText style='margin-left:36.0pt;text-indent:-18.0pt;mso-list:
+l0 level1 lfo4;tab-stops:list 36.0pt'><span style='mso-bookmark:wireless_adapter_intro'><![if !supportLists]><span
+style='mso-fareast-font-family:Arial;mso-bidi-font-family:Arial'><span
+style='mso-list:Ignore'>3.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span></span><![endif]>Driver Environment Adaptation Layer </span></p>
+
+<p class=MsoBodyText style='margin-left:36.0pt;text-indent:-18.0pt;mso-list:
+l0 level1 lfo4;tab-stops:list 36.0pt'><span style='mso-bookmark:wireless_adapter_intro'><![if !supportLists]><span
+style='mso-fareast-font-family:Arial;mso-bidi-font-family:Arial'><span
+style='mso-list:Ignore'>4.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span></span><![endif]>Transport Driver Adaptation Layer </span></p>
+
+<h3><span style='mso-bookmark:wireless_adapter_intro'>Wireless Extensions
+Adaptation Layer</span></h3>
+
+<p class=MsoBodyText>The Wireless Extensions ADL is the glue code between the
+open Linux Wireless Extensions and the Nanoradio-proprietary <span
+class=SpellE>WiFi</span> Engine API. Nanoradio provides reference
+implementations for Wireless Extensions up to version 20 on Linux 2.4 and Linux
+2.6. </p>
+
+<h3>Data Path Adaptation Layer</h3>
+
+<p class=MsoBodyText>The Data Path ADL maps the inherent Linux Ethernet-type
+network interface calls from <span lang=EN-GB style='mso-bidi-font-size:11.0pt;
+mso-bidi-font-family:Arial;mso-ansi-language:EN-GB'>the Network Driver </span>to
+<span class=SpellE>WiFi</span> Engine API calls and Transport API calls. <span
+lang=EN-GB style='mso-bidi-font-size:11.0pt;mso-bidi-font-family:Arial;
+mso-ansi-language:EN-GB'>Data traffic and all IP-level configurations <span
+class=GramE>takes</span> place through the standard Linux Ethernet-type Network
+Driver.</span></p>
+
+<h3>Driver Environment Adaptation Layer</h3>
+
+<p class=MsoBodyText>The Driver Environment Adaptation Layer abstracts the OS
+by implementing the Driver Environment API using OS primitives.</p>
+
+<h3><a name="transport_driver_adapter_intro">Transport Driver Adaptation Layer</a></h3>
+
+<p class=MsoBodyText>The Transport Driver Adaptation Layer is the glue code
+between the physical device driver and the generic Transport Driver API.
+Nanoradio provides support for physical drivers for various platforms and
+interfaces (e.g. UART/SPI/SDIO for various ARM platforms). By having a common
+interface for different transport mechanisms, it is transparent for the driver,
+and thus for the application, which hardware interface is used.</p>
+
+</div>
+
+</body>
+
+</html>

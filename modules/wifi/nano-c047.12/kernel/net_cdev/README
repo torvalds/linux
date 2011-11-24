@@ -1,0 +1,6 @@
+
+This driver is intended for debugging a network driver in userspace.
+
+It will create /dev/nano_net_cdev to interface with the linux network 
+stack. Use it in combination with nano_pci_cdev
+

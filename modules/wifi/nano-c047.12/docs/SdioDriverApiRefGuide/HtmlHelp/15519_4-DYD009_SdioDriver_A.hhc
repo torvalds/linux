@@ -1,0 +1,825 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+<!-- Sitemap 1.0 -->
+</HEAD><BODY>
+<OBJECT type="text/site properties">
+	<param name="FrameName" value="right">
+</OBJECT>
+<UL>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="Linux SDIO Driver Physical Layer">
+		<param name="Local" value="main.html">
+		<param name="ImageNumber" value="11">
+		</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="Introduction">
+		<param name="Local" value="introduction.html">
+		</OBJECT>
+	<UL>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="Disclaimer and copyright">
+			<param name="Local" value="disclaimer_copyright.html">
+			<param name="ImageNumber" value="11">
+			</OBJECT>
+	</UL>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="Overview">
+		<param name="Local" value="linux_host_arch.html">
+		</OBJECT>
+	<UL>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="Host Environment Architecture">
+			<param name="Local" value="linux_host_arch.html">
+			</OBJECT>
+	</UL>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="Modules">
+		<param name="Local" value="modules.html">
+		</OBJECT>
+	<UL>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="Transport Layer API">
+			<param name="Local" value="group__transport__layer.html">
+			<param name="ImageNumber" value="1">
+			</OBJECT>
+		<UL>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="Defines">
+				<param name="ImageNumber" value="1">
+				</OBJECT>
+			<UL>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="NANONET_BOOT">
+					<param name="Local" value="group__transport__layer.html#g5bb657d2984b8eb5684f756176d41fc0">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="NANONET_BOOT_DISABLE">
+					<param name="Local" value="group__transport__layer.html#g2579fadd775fabc16109032183285799">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="NANONET_BOOT_ENABLE">
+					<param name="Local" value="group__transport__layer.html#g3af51fab9bb5b4614aebbb93fcb162b7">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="NANONET_BOOT_TEST">
+					<param name="Local" value="group__transport__layer.html#g3e500c39acd735e06de811a8d19a691a">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="NANONET_SLEEP">
+					<param name="Local" value="group__transport__layer.html#gf6ec83e622dd4c16aaa8aa25d35b58b3">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="NANONET_SLEEP_OFF">
+					<param name="Local" value="group__transport__layer.html#g7954e5cc5412966ac58c9e668a3ebd54">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="NANONET_SLEEP_ON">
+					<param name="Local" value="group__transport__layer.html#g702ada2be97ab8661f69504d7865e8f7">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="NANONET_SLEEP_TEST">
+					<param name="Local" value="group__transport__layer.html#g992e7f6ddb05dfdd9139233436c7946a">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="WARN_UNUSED">
+					<param name="Local" value="group__transport__layer.html#g6bd66cd1442dfcf69db0b0c7b80b0c7e">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+			</UL>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="Functions">
+				<param name="ImageNumber" value="1">
+				</OBJECT>
+			<UL>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="nano_eth_header">
+					<param name="Local" value="group__transport__layer.html#gf4902ab6cd7f3eb78a39674fd76f4586">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="nano_fw_download">
+					<param name="Local" value="group__transport__layer.html#g5e739e0436db949c1063447326a16e31">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="nano_mib_download">
+					<param name="Local" value="group__transport__layer.html#g4db3870eccbe194221aca63d2203ff98">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="nanonet_create">
+					<param name="Local" value="group__transport__layer.html#g16f81c896abdc9b43a09dbbb21c6637d">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="nanonet_destroy">
+					<param name="Local" value="group__transport__layer.html#g52fcdaf8291846ffad0140fb34f7624d">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="nrx_del_scan_notification">
+					<param name="Local" value="group__transport__layer.html#g80d33343b33306f67f5d798bed4af639">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="nrx_get_mib">
+					<param name="Local" value="group__transport__layer.html#g79daef022308ea9fa3024f9d91e292a0">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="nrx_reg_mib_trigger">
+					<param name="Local" value="group__transport__layer.html#g606650e8390afff2ebaa1b7f03143490">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="nrx_reg_scan_notification">
+					<param name="Local" value="group__transport__layer.html#gb2764611a848977ff5e1b3bad0df023d">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="nrx_trsp_ctrl">
+					<param name="Local" value="group__transport__layer.html#gd108ca204f30bd0735aaf032cdbe72d8">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="nrx_wxevent_ap">
+					<param name="Local" value="group__transport__layer.html#gc378e3dd7c4a37732c3389d57448d093">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="nrx_wxevent_connection_lost">
+					<param name="Local" value="group__transport__layer.html#gd00b4fc523906c793513f629c83e4acf">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="nrx_wxevent_device_reset">
+					<param name="Local" value="group__transport__layer.html#g42ec2a1c2231577b2365c15066a8a2cc">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="nrx_wxevent_mibtrig">
+					<param name="Local" value="group__transport__layer.html#gfce3b4e8558136f32dc995d13595df39">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="nrx_wxevent_pmkid_candidate">
+					<param name="Local" value="group__transport__layer.html#ga2cd0ca1d94e5b6b308d5a5e15e34682">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="nrx_wxevent_rssi_trigger">
+					<param name="Local" value="group__transport__layer.html#g1bfd318e092fb729b2329410c50d994b">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="nrx_wxevent_scan">
+					<param name="Local" value="group__transport__layer.html#g7e797fa974cfdf0eb4cf970aadd64741">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="nrx_wxevent_scan_complete">
+					<param name="Local" value="group__transport__layer.html#g2cf4fc467f188855cfeb69de535093b0">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="ns_net_rx">
+					<param name="Local" value="group__transport__layer.html#ga3e490e38eef05590b615000b8abc74f">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="ns_net_send_buf">
+					<param name="Local" value="group__transport__layer.html#g7fbb20458e29fd3f400d8b086e5b4015">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="synchronous_AddScanFilter">
+					<param name="Local" value="group__transport__layer.html#g27ec9e87825a4f9fa116c1b9ddacfadc">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="synchronous_AddScanJob">
+					<param name="Local" value="group__transport__layer.html#g45aea175bdad04f3f3084a5b6c3ed508">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="synchronous_ConfigureScan">
+					<param name="Local" value="group__transport__layer.html#gcfefb75eca35e189e0ab950303d1b3fa">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="synchronous_GetScanFilter">
+					<param name="Local" value="group__transport__layer.html#ge2a67672d550403705c2080e6ec07cf3">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="synchronous_RegisterScanNotification">
+					<param name="Local" value="group__transport__layer.html#g2e370e653d7a9fb9a5a528f15e52517a">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="synchronous_RemoveScanFilter">
+					<param name="Local" value="group__transport__layer.html#gb837fe36e741f52e3b96ff40c5df47d8">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="synchronous_RemoveScanJob">
+					<param name="Local" value="group__transport__layer.html#g9c54f2cfb35a5995dbf3e3c46b002ace">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="synchronous_SetScanJobState">
+					<param name="Local" value="group__transport__layer.html#gbe75551ca291d539b7e0fcbbc012ca97">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+			</UL>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="Variables">
+				<param name="ImageNumber" value="1">
+				</OBJECT>
+			<UL>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="control">
+					<param name="Local" value="group__transport__layer.html#g397326e6df57c9c0ec6f4e510174c67d">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="fw_download">
+					<param name="Local" value="group__transport__layer.html#gd61edf818b19911a282974133ef816d3">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="header_size">
+					<param name="Local" value="group__transport__layer.html#gc10c5bb2c898da5421e26c9bd91871b3">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="host_attention">
+					<param name="Local" value="group__transport__layer.html#g23ff6634b8d6bb103debaa29e59dd310">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="min_size">
+					<param name="Local" value="group__transport__layer.html#gc5cabbe4cedb8952255e26c9ce0bf76b">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="nano_scan_wait">
+					<param name="Local" value="group__transport__layer.html#g1021a520ecfcf752e2b1f8d8926b3c30">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="nrx_config">
+					<param name="Local" value="group__transport__layer.html#g34b5e596c9960b3d2a6817d96c44f045">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="send">
+					<param name="Local" value="group__transport__layer.html#g95b35973b7de1bb8a67ed6f42b079ce3">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="size_align">
+					<param name="Local" value="group__transport__layer.html#gefe5b124a6b2d7633e66ea1785a752b7">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+			</UL>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="Data Structures">
+				<param name="ImageNumber" value="1">
+				</OBJECT>
+			<UL>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="nanonet_create_param">
+					<param name="Local" value="structnanonet__create__param.html">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+			</UL>
+		</UL>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="Generic SDIO driver implementation">
+			<param name="Local" value="group__sdio__generic.html">
+			<param name="ImageNumber" value="1">
+			</OBJECT>
+		<UL>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="Defines">
+				<param name="ImageNumber" value="1">
+				</OBJECT>
+			<UL>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="DMA_ALIGNMENT">
+					<param name="Local" value="group__sdio__generic.html#g41d07f6572eef225b060ff1c44e51478">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="ERROR">
+					<param name="Local" value="group__sdio__generic.html#gf84be7e9c2a37e84c31ce0d6acb1d43a">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="GPIO_START_MEASURE">
+					<param name="Local" value="group__sdio__generic.html#g0d259214e7b18a291a7d479267393bde">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="GPIO_STOP_MEASURE">
+					<param name="Local" value="group__sdio__generic.html#g52bdd56c29d75382bf6e834602e1c4be">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="MAX_PACKET_SIZE">
+					<param name="Local" value="group__sdio__generic.html#g879456c3b8e2853f7044d764e9c180d4">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="PACKET_HEADER_SIZE">
+					<param name="Local" value="group__sdio__generic.html#g69bfb6e73bae0625ac56f441ccf542d1">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="SDIO_ASSERT">
+					<param name="Local" value="group__sdio__generic.html#g0a6962daa069d4cb324be4eec05b6c23">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="SDIO_IO_R_ARG_BASE">
+					<param name="Local" value="group__sdio__generic.html#g7329a57f92c8be260e6fb630ddad52ac">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="SDIO_IO_W_ARG_BASE">
+					<param name="Local" value="group__sdio__generic.html#g22ad6b772b9a48e692e429ee7ca2787a">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="SET_SDIO_CLOCK_FAST">
+					<param name="Local" value="group__sdio__generic.html#gd1da0c68f83254921f6f0bb36547599b">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="SET_SDIO_CLOCK_OFF">
+					<param name="Local" value="group__sdio__generic.html#gede52abae9f9cad3986bf7f39d4c30b7">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="SET_SDIO_CLOCK_SLOW">
+					<param name="Local" value="group__sdio__generic.html#gd493f74a4e510e4b01755f1eaecb2b8b">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="XMAC_4BIT_BUS">
+					<param name="Local" value="group__sdio__generic.html#gf002e0d54861281262444251f6b1d2eb">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="XMAC_ACKNOWLEDGE_SDIO_IRQ">
+					<param name="Local" value="group__sdio__generic.html#ga5cfb23b02f1b37999bb71558b9922c9">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="XMAC_ALIGNMENT">
+					<param name="Local" value="group__sdio__generic.html#g903508e8debd8b1198103ab6dff9b668">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="XMAC_DISABLE_SLEEP">
+					<param name="Local" value="group__sdio__generic.html#ga4a69334e7d86d91eb7819d28cb985e2">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="XMAC_ENABLE_SDIO_IRQ">
+					<param name="Local" value="group__sdio__generic.html#gd122fd9f326e767440a8bda5763f5efa">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="XMAC_ENABLE_SLEEP">
+					<param name="Local" value="group__sdio__generic.html#gcba6b7fcece70195cd4b6b169d20bca5">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="XMAC_NO_CLOCK_SDIO_IRQ">
+					<param name="Local" value="group__sdio__generic.html#g9b68d610431369c203a55259ec2b037e">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+			</UL>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="Functions">
+				<param name="ImageNumber" value="1">
+				</OBJECT>
+			<UL>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="do_rx_queue">
+					<param name="Local" value="group__sdio__generic.html#ga03a6245fa4602f118d1f66b238c2887">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="do_tx_queue">
+					<param name="Local" value="group__sdio__generic.html#g28684cfcb5d841ffb412d4e0f544ab1b">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="module_exit">
+					<param name="Local" value="group__sdio__generic.html#g8b348659b8012f10c2f7fce11bcf4f0b">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="module_init">
+					<param name="Local" value="group__sdio__generic.html#g773cafdd8b6687f6291d3a826053dae4">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="MODULE_LICENSE">
+					<param name="Local" value="group__sdio__generic.html#gd94b36675e7eb067ea3ce6ff9e244a44">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="sdio_cmd">
+					<param name="Local" value="group__sdio__generic.html#geeb2623bfd21e75e2d3b19380f159d64">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="sdio_control">
+					<param name="Local" value="group__sdio__generic.html#g3c59d61aa9bb361ecbb09f9c8b1f55e5">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="sdio_control_boot">
+					<param name="Local" value="group__sdio__generic.html#g0dafdc3bb0a6dbb8bb053eda930de95d">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="sdio_control_sleep">
+					<param name="Local" value="group__sdio__generic.html#gb4fea57d2bc3b6808bd6ad50ca70b352">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="sdio_exit">
+					<param name="Local" value="group__sdio__generic.html#g2e0c37d6b1e567a1b07da0a88659a088">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="sdio_fifo_callback">
+					<param name="Local" value="group__sdio__generic.html#gbb2d8ea953bee221351e8d2df6f88500">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="sdio_fw_download">
+					<param name="Local" value="group__sdio__generic.html#g3c1c186962970869fb80f713a7e2719e">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="sdio_init">
+					<param name="Local" value="group__sdio__generic.html#g45f5d21e64bcd6fccf5e3510ba53f49e">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="sdio_init_target">
+					<param name="Local" value="group__sdio__generic.html#gdcd49718217eee4777d9c8209eb0ea10">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="sdio_interrupt">
+					<param name="Local" value="group__sdio__generic.html#g4f4f9a5fcbeec259afcafe2464ee28df">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="sdio_irq">
+					<param name="Local" value="group__sdio__generic.html#g0fe826ea2e2a5cda8c0981a1ad489a43">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="sdio_read_proc">
+					<param name="Local" value="group__sdio__generic.html#g18b03725375166749a2c496c31a99cf8">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="sdio_recv">
+					<param name="Local" value="group__sdio__generic.html#g29ada5fe5f6515e5a9bad869e9172dbf">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="sdio_recv_single">
+					<param name="Local" value="group__sdio__generic.html#g4a6d4acbaf2d5d05ab2c71d9d2f5e15c">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="sdio_reset_host">
+					<param name="Local" value="group__sdio__generic.html#g2d09bee97b3a32950ad60379751a5840">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="sdio_reset_target">
+					<param name="Local" value="group__sdio__generic.html#gb78f66586b48357d2b7f80295dc4bc6a">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="sdio_send">
+					<param name="Local" value="group__sdio__generic.html#g3ac6745f7568bb4ffc3c78d2de65a41b">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="sdio_send_single">
+					<param name="Local" value="group__sdio__generic.html#gf7933ad8b95209fee55503c9c3a717ea">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="wifi_send">
+					<param name="Local" value="group__sdio__generic.html#g48cb5fa0214fcc3a78c0350e23fa35bf">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+			</UL>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="Variables">
+				<param name="ImageNumber" value="1">
+				</OBJECT>
+			<UL>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="booting">
+					<param name="Local" value="group__sdio__generic.html#gb4903bf695e3aa07975e4d1daa1e8312">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="create_param">
+					<param name="Local" value="group__sdio__generic.html#g28f931105ad786835d296fed103ba92d">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="iface">
+					<param name="Local" value="group__sdio__generic.html#gdf0a1ebc1a209434d85c36ea17998c02">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="interrupt_lock">
+					<param name="Local" value="group__sdio__generic.html#g0cbd185f0b9e895628b43078cef779c0">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="proc_dir">
+					<param name="Local" value="group__sdio__generic.html#g8d90916c97ac72860961b1f0f471dd29">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="rx_task">
+					<param name="Local" value="group__sdio__generic.html#g82e893e2ad110b1c3fa94c3561886064">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="sdio_dev">
+					<param name="Local" value="group__sdio__generic.html#g9a4b90ee4027d2bd0e232cded0d5fed2">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="sdio_rx_task">
+					<param name="Local" value="group__sdio__generic.html#ge4f2fedf37e042dc4c5666f8f2810997">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="send_lock">
+					<param name="Local" value="group__sdio__generic.html#g1aa18a01215b8257c33fee44ca4f029f">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="skb_rx_head">
+					<param name="Local" value="group__sdio__generic.html#g84b2fede3cc29fa8290b283b49b1ca48">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="skb_tx_head">
+					<param name="Local" value="group__sdio__generic.html#gff7af53081d6dd67ab85419f5f889c6b">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="statistics">
+					<param name="Local" value="group__sdio__generic.html#gf9fe853033a0b843e5943a429349de43">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="tx_task">
+					<param name="Local" value="group__sdio__generic.html#g958c90dae1a450ffe7aedca7aed2b1e5">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+			</UL>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="Data Structures">
+				<param name="ImageNumber" value="1">
+				</OBJECT>
+			<UL>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="sdio_dev_t">
+					<param name="Local" value="structsdio__dev__t.html">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="sdio_statistics_t">
+					<param name="Local" value="structsdio__statistics__t.html">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+			</UL>
+		</UL>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="SDIO host controller interface">
+			<param name="Local" value="group__sdio__host.html">
+			<param name="ImageNumber" value="1">
+			</OBJECT>
+		<UL>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="Defines">
+				<param name="ImageNumber" value="1">
+				</OBJECT>
+			<UL>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="HOST_ASSERT">
+					<param name="Local" value="group__sdio__host.html#g1b0cf10f34b371df43aa90a90e6e65bd">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="MAX_TRANSFER_SIZE">
+					<param name="Local" value="group__sdio__host.html#gf9fa18914f2ecc60de2711d882428f2c">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+			</UL>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="Enumerations">
+				<param name="ImageNumber" value="1">
+				</OBJECT>
+			<UL>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="@0">
+					<param name="Local" value="group__sdio__host.html#g06fc87d81c62e9abb8790b6e5713c55b">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="@1">
+					<param name="Local" value="group__sdio__host.html#gdf764cbdea00d65edcd07bb9953ad2b7">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="clk_mode_t">
+					<param name="Local" value="group__sdio__host.html#g7ddb86ccba25a168f889234061e21692">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="cmd_resp_t">
+					<param name="Local" value="group__sdio__host.html#g3bb7f22f2b33ff84b9e1cb73216346e9">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="cmd_t">
+					<param name="Local" value="group__sdio__host.html#g00d51b3cb2e1fa09bdba2968e0cf7ac7">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="cmd_type_t">
+					<param name="Local" value="group__sdio__host.html#g07a6a91973814c0c577756f699c1e34b">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="ctl_id_t">
+					<param name="Local" value="group__sdio__host.html#g3e95e2672e34548ab80b17a9f5bf3a00">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="gpio_id_t">
+					<param name="Local" value="group__sdio__host.html#ge720c426d6915efc7f101afd34648714">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="gpio_op_t">
+					<param name="Local" value="group__sdio__host.html#gcc8a006bdbc5e0956c02eae0ce922821">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="irq_id_t">
+					<param name="Local" value="group__sdio__host.html#g228b9377d26d56d6905a8f557812a95c">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="irq_op_t">
+					<param name="Local" value="group__sdio__host.html#g18b3213015c415285062494d1361d871">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+			</UL>
+			<LI> <OBJECT type="text/sitemap">
+				<param name="Name" value="Functions">
+				<param name="ImageNumber" value="1">
+				</OBJECT>
+			<UL>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="host_clock">
+					<param name="Local" value="group__sdio__host.html#ga239815cc9c8da3b0f9707dd3b83081e">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="host_cmd">
+					<param name="Local" value="group__sdio__host.html#gd54f8b4607d945cf322a8dce4d687381">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="host_control">
+					<param name="Local" value="group__sdio__host.html#gabce0268b54655f84983d1b0f412897f">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="host_exit">
+					<param name="Local" value="group__sdio__host.html#g5c627eb8fa46a3f1ec7de2246acba7b0">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="host_fifo">
+					<param name="Local" value="group__sdio__host.html#gaf2b99fdee5c6ce79e4e6c62a095f57d">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="host_gpio">
+					<param name="Local" value="group__sdio__host.html#gfd7136a5d41df5f092cae2e8a4ac65d4">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="host_init">
+					<param name="Local" value="group__sdio__host.html#g46f6f147dd7cd571aef36a56b4c5450e">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="host_interrupt">
+					<param name="Local" value="group__sdio__host.html#gcd3a8826be3af80e6fb45edca8acf69d">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="host_reset">
+					<param name="Local" value="group__sdio__host.html#ge93ee21fc5558edfa6ce9e5301d1f9f1">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+				<LI> <OBJECT type="text/sitemap">
+					<param name="Name" value="sdio_fifo_callback">
+					<param name="Local" value="group__sdio__host.html#gbb2d8ea953bee221351e8d2df6f88500">
+					<param name="ImageNumber" value="11">
+					</OBJECT>
+			</UL>
+		</UL>
+	</UL>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="Data Structures">
+		<param name="Local" value="annotated.html">
+		<param name="ImageNumber" value="1">
+		</OBJECT>
+	<UL>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="nanonet_create_param">
+			<param name="Local" value="structnanonet__create__param.html">
+			<param name="ImageNumber" value="11">
+			</OBJECT>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="sdio_dev_t">
+			<param name="Local" value="structsdio__dev__t.html">
+			<param name="ImageNumber" value="11">
+			</OBJECT>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="sdio_statistics_t">
+			<param name="Local" value="structsdio__statistics__t.html">
+			<param name="ImageNumber" value="11">
+			</OBJECT>
+	</UL>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="Data Fields">
+		<param name="Local" value="functions.html">
+		<param name="ImageNumber" value="11">
+		</OBJECT>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="File List">
+		<param name="Local" value="files.html">
+		<param name="ImageNumber" value="1">
+		</OBJECT>
+	<UL>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="host.h">
+			<param name="Local" value="host_8h.html">
+			<param name="ImageNumber" value="11">
+			</OBJECT>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="nanonet.h">
+			<param name="Local" value="nanonet_8h.html">
+			<param name="ImageNumber" value="11">
+			</OBJECT>
+		<LI> <OBJECT type="text/sitemap">
+			<param name="Name" value="sdio.c">
+			<param name="Local" value="sdio_8c.html">
+			<param name="ImageNumber" value="11">
+			</OBJECT>
+	</UL>
+	<LI> <OBJECT type="text/sitemap">
+		<param name="Name" value="Globals">
+		<param name="Local" value="globals.html">
+		<param name="ImageNumber" value="11">
+		</OBJECT>
+</UL>
+</BODY></HTML>

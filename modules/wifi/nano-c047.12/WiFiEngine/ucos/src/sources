@@ -1,0 +1,9 @@
+WIFIENGINEHOME=../..
+
+TARGETNAME=ucos
+TARGETTYPE=LIBRARY
+TARGETPATH=.
+
+!include $(WIFIENGINEHOME)/common.mk
+
+SOURCES=ucos.c ucos_data.c

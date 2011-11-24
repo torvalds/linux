@@ -1,0 +1,9 @@
+WIFIENGINEHOME=../..
+
+TARGETNAME=macWrapper
+TARGETTYPE=LIBRARY
+TARGETPATH=.
+
+!include $(WIFIENGINEHOME)/common.mk
+
+SOURCES=macWrapper.c
