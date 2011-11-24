@@ -213,7 +213,6 @@ struct t10_alua_lu_gp {
 	u16	lu_gp_id;
 	int	lu_gp_valid_id;
 	u32	lu_gp_members;
-	atomic_t lu_gp_shutdown;
 	atomic_t lu_gp_ref_cnt;
 	spinlock_t lu_gp_lock;
 	struct config_group lu_gp_group;
@@ -679,9 +678,6 @@ struct se_subsystem_dev {
 } ____cacheline_aligned;
 
 struct se_device {
-	/* Set to 1 if thread is NOT sleeping on thread_sem */
-	u8			thread_active;
-	u8			dev_status_timer_flags;
 	/* RELATIVE TARGET PORT IDENTIFER Counter */
 	u16			dev_rpti_counter;
 	/* Used for SAM Task Attribute ordering */
@@ -706,14 +702,10 @@ struct se_device {
 	u64			write_bytes;
 	spinlock_t		stats_lock;
 	/* Active commands on this virtual SE device */
-	atomic_t		active_cmds;
 	atomic_t		simple_cmds;
 	atomic_t		depth_left;
 	atomic_t		dev_ordered_id;
-	atomic_t		dev_tur_active;
 	atomic_t		execute_tasks;
-	atomic_t		dev_status_thr_count;
-	atomic_t		dev_hoq_count;
 	atomic_t		dev_ordered_sync;
 	atomic_t		dev_qf_count;
 	struct se_obj		dev_obj;
@@ -722,12 +714,8 @@ struct se_device {
 	struct se_queue_obj	dev_queue_obj;
 	spinlock_t		delayed_cmd_lock;
 	spinlock_t		execute_task_lock;
-	spinlock_t		state_task_lock;
-	spinlock_t		dev_alua_lock;
 	spinlock_t		dev_reservation_lock;
-	spinlock_t		dev_state_lock;
 	spinlock_t		dev_status_lock;
-	spinlock_t		dev_status_thr_lock;
 	spinlock_t		se_port_lock;
 	spinlock_t		se_tmr_lock;
 	spinlock_t		qf_cmd_lock;
@@ -739,11 +727,8 @@ struct se_device {
 	struct t10_pr_registration *dev_pr_res_holder;
 	struct list_head	dev_sep_list;
 	struct list_head	dev_tmr_list;
-	struct timer_list	dev_status_timer;
 	/* Pointer to descriptor for processing thread */
 	struct task_struct	*process_thread;
-	pid_t			process_thread_pid;
-	struct task_struct		*dev_mgmt_thread;
 	struct work_struct	qf_work_queue;
 	struct list_head	delayed_cmd_list;
 	struct list_head	execute_task_list;
@@ -756,8 +741,6 @@ struct se_device {
 	struct se_subsystem_api *transport;
 	/* Linked list for struct se_hba struct se_device list */
 	struct list_head	dev_list;
-	/* Linked list for struct se_global->g_se_dev_list */
-	struct list_head	g_se_dev_list;
 }  ____cacheline_aligned;
 
 struct se_hba {
@@ -819,7 +802,6 @@ struct se_port {
 	u32		sep_index;
 	struct scsi_port_stats sep_stats;
 	/* Used for ALUA Target Port Groups membership */
-	atomic_t	sep_tg_pt_gp_active;
 	atomic_t	sep_tg_pt_secondary_offline;
 	/* Used for PR ALL_TG_PT=1 */
 	atomic_t	sep_tg_pt_ref_cnt;

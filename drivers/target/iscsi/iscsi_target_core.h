@@ -534,7 +534,6 @@ struct iscsi_conn {
 	atomic_t		connection_exit;
 	atomic_t		connection_recovery;
 	atomic_t		connection_reinstatement;
-	atomic_t		connection_wait;
 	atomic_t		connection_wait_rcfr;
 	atomic_t		sleep_on_conn_wait_comp;
 	atomic_t		transport_failed;
@@ -642,7 +641,6 @@ struct iscsi_session {
 	atomic_t		session_reinstatement;
 	atomic_t		session_stop_active;
 	atomic_t		sleep_on_sess_wait_comp;
-	atomic_t		transport_wait_cmds;
 	/* connection list */
 	struct list_head	sess_conn_list;
 	struct list_head	cr_active_list;
