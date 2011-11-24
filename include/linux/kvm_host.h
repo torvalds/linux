@@ -239,6 +239,8 @@ struct kvm_irq_routing_table {};
 struct kvm_memslots {
 	u64 generation;
 	struct kvm_memory_slot memslots[KVM_MEM_SLOTS_NUM];
+	/* The mapping table from slot id to the index in memslots[]. */
+	int id_to_index[KVM_MEM_SLOTS_NUM];
 };
 
 struct kvm {
@@ -341,14 +343,13 @@ static inline struct kvm_memslots *kvm_memslots(struct kvm *kvm)
 static inline struct kvm_memory_slot *
 id_to_memslot(struct kvm_memslots *slots, int id)
 {
-	int i;
+	int index = slots->id_to_index[id];
+	struct kvm_memory_slot *slot;
 
-	for (i = 0; i < KVM_MEM_SLOTS_NUM; i++)
-		if (slots->memslots[i].id == id)
-			return &slots->memslots[i];
+	slot = &slots->memslots[index];
 
-	WARN_ON(1);
-	return NULL;
+	WARN_ON(slot->id != id);
+	return slot;
 }
 
 #define HPA_MSB ((sizeof(hpa_t) * 8) - 1)
