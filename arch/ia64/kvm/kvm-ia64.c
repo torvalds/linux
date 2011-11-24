@@ -774,13 +774,13 @@ struct kvm *kvm_arch_alloc_vm(void)
 	return kvm;
 }
 
-struct kvm_io_range {
+struct kvm_ia64_io_range {
 	unsigned long start;
 	unsigned long size;
 	unsigned long type;
 };
 
-static const struct kvm_io_range io_ranges[] = {
+static const struct kvm_ia64_io_range io_ranges[] = {
 	{VGA_IO_START, VGA_IO_SIZE, GPFN_FRAME_BUFFER},
 	{MMIO_START, MMIO_SIZE, GPFN_LOW_MMIO},
 	{LEGACY_IO_START, LEGACY_IO_SIZE, GPFN_LEGACY_IO},
