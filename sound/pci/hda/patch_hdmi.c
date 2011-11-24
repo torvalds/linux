@@ -48,8 +48,8 @@ MODULE_PARM_DESC(static_hdmi_pcm, "Don't restrict PCM parameters per ELD info");
  *
  * The HDA correspondence of pipes/ports are converter/pin nodes.
  */
-#define MAX_HDMI_CVTS	4
-#define MAX_HDMI_PINS	4
+#define MAX_HDMI_CVTS	8
+#define MAX_HDMI_PINS	8
 
 struct hdmi_spec_per_cvt {
 	hda_nid_t cvt_nid;
@@ -1126,12 +1126,12 @@ static int hdmi_parse_codec(struct hda_codec *codec)
 
 /*
  */
-static char *generic_hdmi_pcm_names[MAX_HDMI_PINS] = {
-	"HDMI 0",
-	"HDMI 1",
-	"HDMI 2",
-	"HDMI 3",
-};
+static char *get_hdmi_pcm_name(int idx)
+{
+	static char names[MAX_HDMI_PINS][8];
+	sprintf(&names[idx][0], "HDMI %d", idx);
+	return &names[idx][0];
+}
 
 /*
  * HDMI callbacks
@@ -1209,7 +1209,7 @@ static int generic_hdmi_build_pcms(struct hda_codec *codec)
 		struct hda_pcm_stream *pstr;
 
 		info = &spec->pcm_rec[pin_idx];
-		info->name = generic_hdmi_pcm_names[pin_idx];
+		info->name = get_hdmi_pcm_name(pin_idx);
 		info->pcm_type = HDA_PCM_TYPE_HDMI;
 
 		pstr = &info->stream[SNDRV_PCM_STREAM_PLAYBACK];
@@ -1364,7 +1364,7 @@ static int simple_playback_build_pcms(struct hda_codec *codec)
 		chans = get_wcaps(codec, spec->cvts[i].cvt_nid);
 		chans = get_wcaps_channels(chans);
 
-		info->name = generic_hdmi_pcm_names[i];
+		info->name = get_hdmi_pcm_name(i);
 		info->pcm_type = HDA_PCM_TYPE_HDMI;
 		pstr = &info->stream[SNDRV_PCM_STREAM_PLAYBACK];
 		snd_BUG_ON(!spec->pcm_playback);
