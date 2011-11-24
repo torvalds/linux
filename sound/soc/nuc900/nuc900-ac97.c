@@ -405,18 +405,7 @@ static struct platform_driver nuc900_ac97_driver = {
 	.remove		= __devexit_p(nuc900_ac97_drvremove),
 };
 
-static int __init nuc900_ac97_init(void)
-{
-	return platform_driver_register(&nuc900_ac97_driver);
-}
-
-static void __exit nuc900_ac97_exit(void)
-{
-	platform_driver_unregister(&nuc900_ac97_driver);
-}
-
-module_init(nuc900_ac97_init);
-module_exit(nuc900_ac97_exit);
+module_platform_driver(nuc900_ac97_driver);
 
 MODULE_AUTHOR("Wan ZongShun <mcuos.com@gmail.com>");
 MODULE_DESCRIPTION("NUC900 AC97 SoC driver!");
