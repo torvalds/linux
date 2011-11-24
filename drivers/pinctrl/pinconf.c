@@ -54,7 +54,7 @@ int pinconf_validate_map(struct pinctrl_map const *map, int i)
 	return 0;
 }
 
-static int pin_config_get_for_pin(struct pinctrl_dev *pctldev, unsigned pin,
+int pin_config_get_for_pin(struct pinctrl_dev *pctldev, unsigned pin,
 			   unsigned long *config)
 {
 	const struct pinconf_ops *ops = pctldev->desc->confops;
@@ -439,6 +439,8 @@ static void pinconf_dump_pin(struct pinctrl_dev *pctldev,
 {
 	const struct pinconf_ops *ops = pctldev->desc->confops;
 
+	/* no-op when not using generic pin config */
+	pinconf_generic_dump_pin(pctldev, s, pin);
 	if (ops && ops->pin_config_dbg_show)
 		ops->pin_config_dbg_show(pctldev, s, pin);
 }
@@ -482,6 +484,8 @@ static void pinconf_dump_group(struct pinctrl_dev *pctldev,
 {
 	const struct pinconf_ops *ops = pctldev->desc->confops;
 
+	/* no-op when not using generic pin config */
+	pinconf_generic_dump_group(pctldev, s, gname);
 	if (ops && ops->pin_config_group_dbg_show)
 		ops->pin_config_group_dbg_show(pctldev, s, selector);
 }

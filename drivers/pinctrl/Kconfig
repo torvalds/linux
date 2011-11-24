@@ -17,6 +17,10 @@ config PINMUX
 config PINCONF
 	bool "Support pin configuration controllers"
 
+config GENERIC_PINCONF
+	bool
+	select PINCONF
+
 config DEBUG_PINCTRL
 	bool "Debug PINCTRL calls"
 	depends on DEBUG_KERNEL
