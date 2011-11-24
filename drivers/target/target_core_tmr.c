@@ -100,15 +100,15 @@ static void core_tmr_handle_tas_abort(
 	transport_cmd_finish_abort(cmd, 0);
 }
 
-static int core_scsi3_check_cdb_abort_and_preempt(
-	struct list_head *preempt_and_abort_list,
-	struct se_cmd *cmd)
+static int target_check_cdb_and_preempt(struct list_head *list,
+		struct se_cmd *cmd)
 {
-	struct t10_pr_registration *pr_reg, *pr_reg_tmp;
+	struct t10_pr_registration *reg;
 
-	list_for_each_entry_safe(pr_reg, pr_reg_tmp, preempt_and_abort_list,
-				pr_reg_abort_list) {
-		if (pr_reg->pr_res_key == cmd->pr_res_key)
+	if (!list)
+		return 0;
+	list_for_each_entry(reg, list, pr_reg_abort_list) {
+		if (reg->pr_res_key == cmd->pr_res_key)
 			return 0;
 	}
 
@@ -146,9 +146,7 @@ static void core_tmr_drain_tmr_list(
 		 * parameter (eg: for PROUT PREEMPT_AND_ABORT service action
 		 * skip non regisration key matching TMRs.
 		 */
-		if (preempt_and_abort_list &&
-		    (core_scsi3_check_cdb_abort_and_preempt(
-					preempt_and_abort_list, cmd) != 0))
+		if (target_check_cdb_and_preempt(preempt_and_abort_list, cmd))
 			continue;
 
 		spin_lock(&cmd->t_state_lock);
@@ -225,9 +223,7 @@ static void core_tmr_drain_task_list(
 		 * For PREEMPT_AND_ABORT usage, only process commands
 		 * with a matching reservation key.
 		 */
-		if (preempt_and_abort_list &&
-		    (core_scsi3_check_cdb_abort_and_preempt(
-					preempt_and_abort_list, cmd) != 0))
+		if (target_check_cdb_and_preempt(preempt_and_abort_list, cmd))
 			continue;
 		/*
 		 * Not aborting PROUT PREEMPT_AND_ABORT CDB..
@@ -335,9 +331,7 @@ static void core_tmr_drain_cmd_list(
 		 * For PREEMPT_AND_ABORT usage, only process commands
 		 * with a matching reservation key.
 		 */
-		if (preempt_and_abort_list &&
-		    (core_scsi3_check_cdb_abort_and_preempt(
-					preempt_and_abort_list, cmd) != 0))
+		if (target_check_cdb_and_preempt(preempt_and_abort_list, cmd))
 			continue;
 		/*
 		 * Not aborting PROUT PREEMPT_AND_ABORT CDB..
