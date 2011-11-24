@@ -864,6 +864,8 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		}
 		break;
 	case EM2884_BOARD_HAUPPAUGE_WINTV_HVR_930C:
+	{
+		struct xc5000_config cfg;
 		hauppauge_hvr930c_init(dev);
 
 		dvb->dont_attach_fe1 = 1;
@@ -883,7 +885,6 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		dvb->fe[1]->id = 1;
 
 		/* Attach xc5000 */
-		struct xc5000_config cfg;
 		memset(&cfg, 0, sizeof(cfg));
 		cfg.i2c_address  = 0x61;
 		cfg.if_khz = 4000;
@@ -906,6 +907,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		       sizeof(dvb->fe[0]->ops.tuner_ops));
 
 		break;
+	}
 	case EM2884_BOARD_TERRATEC_H5:
 		terratec_h5_init(dev);
 

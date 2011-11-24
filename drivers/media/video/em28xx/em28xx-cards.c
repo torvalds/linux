@@ -336,6 +336,7 @@ static struct em28xx_reg_seq pctv_460e[] = {
 	{             -1,   -1,   -1,  -1},
 };
 
+#if 0
 static struct em28xx_reg_seq hauppauge_930c_gpio[] = {
 	{EM2874_R80_GPIO,	0x6f,	0xff,	10},
 	{EM2874_R80_GPIO,	0x4f,	0xff,	10}, /* xc5000 reset */
@@ -344,7 +345,6 @@ static struct em28xx_reg_seq hauppauge_930c_gpio[] = {
 	{ -1,			-1,	-1,	-1},
 };
 
-#if 0
 static struct em28xx_reg_seq hauppauge_930c_digital[] = {
 	{EM2874_R80_GPIO,	0xf6,	0xff,	10},
 	{EM2874_R80_GPIO,	0xe6,	0xff,	100},
