@@ -696,11 +696,13 @@ int tm6000_set_audio_rinput(struct tm6000_core *dev)
 	if (dev->dev_type == TM6010) {
 		/* Audio crossbar setting, default SIF1 */
 		u8 areg_f0;
+		u8 areg_07 = 0x10;
 
 		switch (dev->rinput.amux) {
 		case TM6000_AMUX_SIF1:
 		case TM6000_AMUX_SIF2:
 			areg_f0 = 0x03;
+			areg_07 = 0x30;
 			break;
 		case TM6000_AMUX_ADC1:
 			areg_f0 = 0x00;
@@ -720,6 +722,9 @@ int tm6000_set_audio_rinput(struct tm6000_core *dev)
 		/* Set audio input crossbar */
 		tm6000_set_reg_mask(dev, TM6010_REQ08_RF0_DAUDIO_INPUT_CONFIG,
 							areg_f0, 0x0f);
+		/* Mux overflow workaround */
+		tm6000_set_reg_mask(dev, TM6010_REQ07_R07_OUTPUT_CONTROL,
+			areg_07, 0xf0);
 	} else {
 		u8 areg_eb;
 		/* Audio setting, default LINE1 */
