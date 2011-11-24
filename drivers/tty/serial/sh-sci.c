@@ -1465,12 +1465,17 @@ static void sci_stop_rx(struct uart_port *port)
 
 static void sci_enable_ms(struct uart_port *port)
 {
-	/* Nothing here yet .. */
+	/*
+	 * Not supported by hardware, always a nop.
+	 */
 }
 
 static void sci_break_ctl(struct uart_port *port, int break_state)
 {
-	/* Nothing here yet .. */
+	/*
+	 * Not supported by hardware. Most parts couple break and rx
+	 * interrupts together, with break detection always enabled.
+	 */
 }
 
 #ifdef CONFIG_SERIAL_SH_SCI_DMA
