@@ -34,6 +34,8 @@
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
 
+#include "mpc85xx.h"
+
 /* ************************************************************************
  *
  * Setup the architecture
@@ -92,22 +94,7 @@ static void __init mpc85xx_rds_setup_arch(void)
 #endif
 }
 
-static struct of_device_id p1023_ids[] = {
-	{ .type = "soc", },
-	{ .compatible = "soc", },
-	{ .compatible = "simple-bus", },
-	{},
-};
-
-
-static int __init p1023_publish_devices(void)
-{
-	of_platform_bus_probe(NULL, p1023_ids, NULL);
-
-	return 0;
-}
-
-machine_device_initcall(p1023_rds, p1023_publish_devices);
+machine_device_initcall(p1023_rds, mpc85xx_common_publish_devices);
 
 static void __init mpc85xx_rds_pic_init(void)
 {

@@ -20,6 +20,7 @@ static struct of_device_id __initdata mpc85xx_common_ids[] = {
 	{ .compatible = "gianfar", },
 	{ .compatible = "fsl,qe", },
 	{ .compatible = "fsl,cpm2", },
+	{ .compatible = "fsl,srio", },
 	{},
 };
 
