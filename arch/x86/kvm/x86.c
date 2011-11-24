@@ -3546,7 +3546,7 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 		memslot = &slots->memslots[log->slot];
 		memslot->dirty_bitmap = dirty_bitmap;
 		memslot->nr_dirty_pages = 0;
-		slots->generation++;
+		update_memslots(slots, NULL);
 
 		old_slots = kvm->memslots;
 		rcu_assign_pointer(kvm->memslots, slots);
