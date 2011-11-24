@@ -105,6 +105,10 @@ int vmw_du_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 	struct vmw_dma_buffer *dmabuf = NULL;
 	int ret;
 
+	/* A lot of the code assumes this */
+	if (handle && (width != 64 || height != 64))
+		return -EINVAL;
+
 	if (handle) {
 		ret = vmw_user_surface_lookup_handle(dev_priv, tfile,
 						     handle, &surface);
@@ -410,8 +414,9 @@ static int do_surface_dirty_sou(struct vmw_private *dev_priv,
 	top = clips->y1;
 	bottom = clips->y2;
 
-	clips_ptr = clips;
-	for (i = 1; i < num_clips; i++, clips_ptr += inc) {
+	/* skip the first clip rect */
+	for (i = 1, clips_ptr = clips + inc;
+	     i < num_clips; i++, clips_ptr += inc) {
 		left = min_t(int, left, (int)clips_ptr->x1);
 		right = max_t(int, right, (int)clips_ptr->x2);
 		top = min_t(int, top, (int)clips_ptr->y1);
@@ -1323,7 +1328,10 @@ int vmw_kms_close(struct vmw_private *dev_priv)
 	 * drm_encoder_cleanup which takes the lock we deadlock.
 	 */
 	drm_mode_config_cleanup(dev_priv->dev);
-	vmw_kms_close_legacy_display_system(dev_priv);
+	if (dev_priv->sou_priv)
+		vmw_kms_close_screen_object_display(dev_priv);
+	else
+		vmw_kms_close_legacy_display_system(dev_priv);
 	return 0;
 }
 

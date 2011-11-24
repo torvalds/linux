@@ -591,6 +591,8 @@ einval:	li	v0, -ENOSYS
 	sys	sys_syncfs		1
 	sys	sys_sendmmsg		4
 	sys	sys_setns		2
+	sys	sys_process_vm_readv	6	/* 4345 */
+	sys	sys_process_vm_writev	6
 	.endm
 
 	/* We pre-compute the number of _instruction_ bytes needed to

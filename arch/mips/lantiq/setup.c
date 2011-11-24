@@ -7,7 +7,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <asm/bootinfo.h>

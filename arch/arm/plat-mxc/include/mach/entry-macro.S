@@ -25,6 +25,3 @@
 
 	.macro test_for_ipi, irqnr, irqstat, base, tmp
 	.endm
-
-	.macro test_for_ltirq, irqnr, irqstat, base, tmp
-	.endm

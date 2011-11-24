@@ -465,31 +465,29 @@ static void vga_arbiter_check_bridge_sharing(struct vga_device *vgadev)
 	while (new_bus) {
 		new_bridge = new_bus->self;
 
-		if (new_bridge) {
-			/* go through list of devices already registered */
-			list_for_each_entry(same_bridge_vgadev, &vga_list, list) {
-				bus = same_bridge_vgadev->pdev->bus;
+		/* go through list of devices already registered */
+		list_for_each_entry(same_bridge_vgadev, &vga_list, list) {
+			bus = same_bridge_vgadev->pdev->bus;
+			bridge = bus->self;
+
+			/* see if the share a bridge with this device */
+			if (new_bridge == bridge) {
+				/* if their direct parent bridge is the same
+				   as any bridge of this device then it can't be used
+				   for that device */
+				same_bridge_vgadev->bridge_has_one_vga = false;
+			}
+
+			/* now iterate the previous devices bridge hierarchy */
+			/* if the new devices parent bridge is in the other devices
+			   hierarchy then we can't use it to control this device */
+			while (bus) {
 				bridge = bus->self;
-
-				/* see if the share a bridge with this device */
-				if (new_bridge == bridge) {
-					/* if their direct parent bridge is the same
-					   as any bridge of this device then it can't be used
-					   for that device */
-					same_bridge_vgadev->bridge_has_one_vga = false;
+				if (bridge) {
+					if (bridge == vgadev->pdev->bus->self)
+						vgadev->bridge_has_one_vga = false;
 				}
-
-				/* now iterate the previous devices bridge hierarchy */
-				/* if the new devices parent bridge is in the other devices
-				   hierarchy then we can't use it to control this device */
-				while (bus) {
-					bridge = bus->self;
-					if (bridge) {
-						if (bridge == vgadev->pdev->bus->self)
-							vgadev->bridge_has_one_vga = false;
-					}
-					bus = bus->parent;
-				}
+				bus = bus->parent;
 			}
 		}
 		new_bus = new_bus->parent;
