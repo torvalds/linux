@@ -492,6 +492,13 @@ config HID_ROCCAT_ARVO
 	---help---
 	Support for Roccat Arvo keyboard.
 
+config HID_ROCCAT_ISKU
+	tristate "Roccat Isku keyboard support"
+	depends on USB_HID
+	depends on HID_ROCCAT
+	---help---
+	Support for Roccat Isku keyboard.
+
 config HID_ROCCAT_KONE
 	tristate "Roccat Kone Mouse support"
 	depends on USB_HID
