@@ -428,19 +428,7 @@ static struct platform_driver snd_mfld_mc_driver = {
 	.remove = __devexit_p(snd_mfld_mc_remove),
 };
 
-static int __init snd_mfld_driver_init(void)
-{
-	pr_debug("snd_mfld_driver_init called\n");
-	return platform_driver_register(&snd_mfld_mc_driver);
-}
-module_init(snd_mfld_driver_init);
-
-static void __exit snd_mfld_driver_exit(void)
-{
-	pr_debug("snd_mfld_driver_exit called\n");
-	platform_driver_unregister(&snd_mfld_mc_driver);
-}
-module_exit(snd_mfld_driver_exit);
+module_platform_driver(snd_mfld_mc_driver);
 
 MODULE_DESCRIPTION("ASoC Intel(R) MID Machine driver");
 MODULE_AUTHOR("Vinod Koul <vinod.koul@intel.com>");

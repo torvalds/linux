@@ -472,19 +472,7 @@ static struct platform_driver sst_platform_driver = {
 	.remove		= sst_platform_remove,
 };
 
-static int __init sst_soc_platform_init(void)
-{
-	pr_debug("sst_soc_platform_init called\n");
-	return platform_driver_register(&sst_platform_driver);
-}
-module_init(sst_soc_platform_init);
-
-static void __exit sst_soc_platform_exit(void)
-{
-	platform_driver_unregister(&sst_platform_driver);
-	pr_debug("sst_soc_platform_exit success\n");
-}
-module_exit(sst_soc_platform_exit);
+module_platform_driver(sst_platform_driver);
 
 MODULE_DESCRIPTION("ASoC Intel(R) MID Platform driver");
 MODULE_AUTHOR("Vinod Koul <vinod.koul@intel.com>");
