@@ -621,6 +621,7 @@ static void sci_receive_chars(struct uart_port *port)
 		} else {
 			for (i = 0; i < count; i++) {
 				char c = sci_in(port, SCxRDR);
+
 				status = sci_in(port, SCxSR);
 #if defined(CONFIG_CPU_SH3)
 				/* Skip "chars" during break */
@@ -649,9 +650,11 @@ static void sci_receive_chars(struct uart_port *port)
 				/* Store data and status */
 				if (status & SCxSR_FER(port)) {
 					flag = TTY_FRAME;
+					port->icount.frame++;
 					dev_notice(port->dev, "frame error\n");
 				} else if (status & SCxSR_PER(port)) {
 					flag = TTY_PARITY;
+					port->icount.parity++;
 					dev_notice(port->dev, "parity error\n");
 				} else
 					flag = TTY_NORMAL;
@@ -723,6 +726,8 @@ static int sci_handle_errors(struct uart_port *port)
 	 */
 	if (s->cfg->overrun_bit != SCIx_NOT_SUPPORTED) {
 		if (status & (1 << s->cfg->overrun_bit)) {
+			port->icount.overrun++;
+
 			/* overrun error */
 			if (tty_insert_flip_char(tty, 0, TTY_OVERRUN))
 				copied++;
@@ -737,6 +742,8 @@ static int sci_handle_errors(struct uart_port *port)
 			struct sci_port *sci_port = to_sci_port(port);
 
 			if (!sci_port->break_flag) {
+				port->icount.brk++;
+
 				sci_port->break_flag = 1;
 				sci_schedule_break_timer(sci_port);
 
@@ -752,6 +759,8 @@ static int sci_handle_errors(struct uart_port *port)
 
 		} else {
 			/* frame error */
+			port->icount.frame++;
+
 			if (tty_insert_flip_char(tty, 0, TTY_FRAME))
 				copied++;
 
@@ -761,6 +770,8 @@ static int sci_handle_errors(struct uart_port *port)
 
 	if (status & SCxSR_PER(port)) {
 		/* parity error */
+		port->icount.parity++;
+
 		if (tty_insert_flip_char(tty, 0, TTY_PARITY))
 			copied++;
 
@@ -787,6 +798,8 @@ static int sci_handle_fifo_overrun(struct uart_port *port)
 	if ((sci_in(port, SCLSR) & (1 << s->cfg->overrun_bit))) {
 		sci_out(port, SCLSR, 0);
 
+		port->icount.overrun++;
+
 		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 		tty_flip_buffer_push(tty);
 
@@ -812,6 +825,9 @@ static int sci_handle_breaks(struct uart_port *port)
 		/* Debounce break */
 		s->break_flag = 1;
 #endif
+
+		port->icount.brk++;
+
 		/* Notify of BREAK */
 		if (tty_insert_flip_char(tty, 0, TTY_BREAK))
 			copied++;
