@@ -762,9 +762,22 @@ static struct platform_device fsi_device = {
 	},
 };
 
-static struct platform_device fsi_ak4643_device = {
-	.name		= "sh_fsi2_a_ak4643",
+static struct fsi_ak4642_info fsi2_ak4643_info = {
+	.name		= "AK4643",
+	.card		= "FSI2A-AK4643",
+	.cpu_dai	= "fsia-dai",
+	.codec		= "ak4642-codec.0-0013",
+	.platform	= "sh_fsi2",
+	.id		= FSI_PORT_A,
 };
+
+static struct platform_device fsi_ak4643_device = {
+	.name	= "fsi-ak4642-audio",
+	.dev	= {
+		.platform_data	= &fsi_info,
+	},
+};
+
 static struct sh_mobile_meram_cfg hdmi_meram_cfg = {
 	.icb[0] = {
 		.marker_icb     = 30,
