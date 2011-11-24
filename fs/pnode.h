@@ -9,7 +9,7 @@
 #define _LINUX_PNODE_H
 
 #include <linux/list.h>
-#include <linux/mount.h>
+#include "mount.h"
 
 #define IS_MNT_SHARED(mnt) (mnt->mnt_flags & MNT_SHARED)
 #define IS_MNT_SLAVE(mnt) (mnt->mnt_master)

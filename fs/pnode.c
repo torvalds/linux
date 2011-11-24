@@ -36,7 +36,7 @@ static inline struct vfsmount *next_slave(struct vfsmount *p)
 static bool is_path_reachable(struct vfsmount *mnt, struct dentry *dentry,
 			 const struct path *root)
 {
-	while (mnt != root->mnt && mnt->mnt_parent != mnt) {
+	while (mnt != root->mnt && mnt_has_parent(mnt)) {
 		dentry = mnt->mnt_mountpoint;
 		mnt = mnt->mnt_parent;
 	}
