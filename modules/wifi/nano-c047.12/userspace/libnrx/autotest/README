@@ -1,0 +1,112 @@
+
+Autotest environment
+====================
+
+The autotest environment is designed to automatically generate a
+testprogram to access APIs from the prompt. The APIs are extracted
+from the header files there they are declared. Also doxygen
+documentation will be extracted and viewed when the --help option is
+used in the testprogram. For functions that are present in the header
+file but not in the library file a stub will be created.
+
+
+FILES
+=====
+
+The autotest environment consists of the following files:
+
+header2test:             : Parser for header files, which generates 
+                           several outputs (such as stubs, help
+                           functions, etc.) For mor information, type
+                           ./header2test --help
+
+header2test.c            : Source code to header2test
+
+testprogram.in.c         : Source code containing bash scripts, which 
+                           is a template for $(NRX_API_OUTPUT_FILE).
+
+replace_nanokey          : Output is the input file, except that bash 
+                           scripts are run and replaced with the result 
+                           from running them. For more information,
+                           type ./replace_nanokey --help
+
+$(NRX_API_OUTPUT_FILE)   : Automatically generated testprogram.
+
+$(NRX_API_OUTPUT_FILE).c : Automatically generated source code for
+                           testprogram.
+
+
+PROJECT SETTINGS
+================
+
+The autotest files are used by several projects simultaneously and it
+is easy to port new projects into using it. For each project these
+environmental variables must be set (e.g. in the Makefile):
+
+NRX_API_PROTOCOL_HEADERS : Files with official APIs. All functions in
+                           this file will be exported unless marked
+                           with NRX_API_EXCLUDE.
+
+NRX_API_PRIVATE_HEADERS  : File with internal functions.  No functions
+                           will be exported unless marked with
+                           NRX_API_FOR_TESTING.
+
+NRX_API_TYPE_HEADERS     : Files with definition of types.  Currently only
+                           #defines are extracted from this file, but
+                           eventually enums, typedefs, etc.
+
+NRX_API_LIBRARY_FILE     : Compiled library/executable with functions
+                           (only one file supported)
+
+NRX_API_OUTPUT_FILE      : Name of the output file (e.g. "nrxpriv")
+
+
+
+HEADER FILE MANIPULATION
+========================
+
+Keywords that can be used in header files in association to functions:
+
+NRX_API_EXCLUDE          : Function will be excluded.  Applies to
+                           NRX_API_PROTOCOL_HEADERS.
+
+NRX_API_FOR_TESTING      : Function will be included, but hidden from 
+                           listing. Applies to NRX_API_PROTOCOL_HEADERS 
+                           and NRX_API_PRIVATE_HEADERS.
+
+NRX_API_NOT_IMPLEMENTED  : Function will be listed in the "Functions not 
+                           yet completed" section.
+
+Should a function exist in the header file but not in the lib, a stub
+will be created and the function will be listed in "Functions replaced
+with stub" section.
+
+
+
+ADDING FUNCTIONS
+================
+
+When a new function is added to the header file everything should work
+automatically, unless the declaration contains an unknown variable
+type. Return value from the function is assumed to be 0 on success and
+an appropriate Linux error number on failure.
+
+To add a new variable type, you have to do these changes:
+
+testprogram.in.c         : Add an input function. Similar to main()
+                           the input function gets argc and argv from 
+                           the command line, which it has to process. 
+                           The function must return the number of 
+                           arguments in the command line that it has 
+                           used. Also, add a print out function. It
+                           allways returns 0. 
+
+header2test.c            : Both new functions above together with 
+                           variable type and name should be added to 
+                           the variables[] vector.
+
+Some variables, such as vectors, may have different size. The length
+should preferably be handled internally by grouping vector and length
+into a struct. If this is not possible, you must handle this with the
+special variable size_t len.
+

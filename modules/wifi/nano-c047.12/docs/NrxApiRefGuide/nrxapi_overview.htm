@@ -1,0 +1,259 @@
+<html xmlns:v="urn:schemas-microsoft-com:vml"
+xmlns:o="urn:schemas-microsoft-com:office:office"
+xmlns:w="urn:schemas-microsoft-com:office:word"
+xmlns:x="urn:schemas-microsoft-com:office:excel"
+xmlns:p="urn:schemas-microsoft-com:office:powerpoint"
+xmlns:oa="urn:schemas-microsoft-com:office:activation"
+xmlns="http://www.w3.org/TR/REC-html40">
+
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=windows-1252">
+<meta name=ProgId content=Word.Document>
+<meta name=Generator content="Microsoft Word 11">
+<meta name=Originator content="Microsoft Word 11">
+<link rel=File-List href="nrxapi_overview_files/filelist.xml">
+<title>Nanoradio NRX API Overview</title>
+<!--[if gte mso 9]><xml>
+ <w:WordDocument>
+  <w:Zoom>BestFit</w:Zoom>
+  <w:HyphenationZone>21</w:HyphenationZone>
+  <w:PunctuationKerning/>
+  <w:ValidateAgainstSchemas/>
+  <w:SaveIfXMLInvalid>false</w:SaveIfXMLInvalid>
+  <w:IgnoreMixedContent>false</w:IgnoreMixedContent>
+  <w:AlwaysShowPlaceholderText>false</w:AlwaysShowPlaceholderText>
+  <w:Compatibility>
+   <w:BreakWrappedTables/>
+   <w:SnapToGridInCell/>
+   <w:WrapTextWithPunct/>
+   <w:UseAsianBreakRules/>
+   <w:DontGrowAutofit/>
+   <w:UseFELayout/>
+  </w:Compatibility>
+  <w:BrowserLevel>MicrosoftInternetExplorer4</w:BrowserLevel>
+ </w:WordDocument>
+</xml><![endif]--><!--[if gte mso 9]><xml>
+ <w:LatentStyles DefLockedState="false" LatentStyleCount="156">
+ </w:LatentStyles>
+</xml><![endif]-->
+<style>
+<!--
+ /* Font Definitions */
+ @font-face
+	{font-family:"MS Mincho";
+	panose-1:2 2 6 9 4 2 5 8 3 4;
+	mso-font-alt:"Arial Unicode MS";
+	mso-font-charset:128;
+	mso-generic-font-family:roman;
+	mso-font-format:other;
+	mso-font-pitch:fixed;
+	mso-font-signature:1 134676480 16 0 131072 0;}
+@font-face
+	{font-family:Batang;
+	panose-1:2 3 6 0 0 1 1 1 1 1;
+	mso-font-alt:\BC14\D0D5;
+	mso-font-charset:129;
+	mso-generic-font-family:auto;
+	mso-font-format:other;
+	mso-font-pitch:fixed;
+	mso-font-signature:1 151388160 16 0 524288 0;}
+@font-face
+	{font-family:"\@MS Mincho";
+	panose-1:0 0 0 0 0 0 0 0 0 0;
+	mso-font-charset:128;
+	mso-generic-font-family:roman;
+	mso-font-format:other;
+	mso-font-pitch:fixed;
+	mso-font-signature:1 134676480 16 0 131072 0;}
+@font-face
+	{font-family:"\@Batang";
+	panose-1:0 0 0 0 0 0 0 0 0 0;
+	mso-font-charset:129;
+	mso-generic-font-family:auto;
+	mso-font-format:other;
+	mso-font-pitch:fixed;
+	mso-font-signature:1 151388160 16 0 524288 0;}
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:Batang;}
+h2
+	{mso-style-next:Normal;
+	margin-top:12.0pt;
+	margin-right:0cm;
+	margin-bottom:3.0pt;
+	margin-left:0cm;
+	mso-pagination:widow-orphan;
+	page-break-after:avoid;
+	mso-outline-level:2;
+	font-size:14.0pt;
+	font-family:Arial;
+	mso-fareast-font-family:Batang;
+	font-style:italic;}
+h3
+	{mso-style-next:Normal;
+	margin-top:12.0pt;
+	margin-right:0cm;
+	margin-bottom:3.0pt;
+	margin-left:0cm;
+	mso-pagination:widow-orphan;
+	page-break-after:avoid;
+	mso-outline-level:3;
+	font-size:13.0pt;
+	font-family:Arial;
+	mso-fareast-font-family:Batang;}
+p.MsoBodyText, li.MsoBodyText, div.MsoBodyText
+	{mso-style-link:"Char Char2";
+	margin-top:0cm;
+	margin-right:0cm;
+	margin-bottom:6.0pt;
+	margin-left:0cm;
+	mso-pagination:widow-orphan;
+	font-size:11.0pt;
+	mso-bidi-font-size:12.0pt;
+	font-family:Arial;
+	mso-fareast-font-family:"Times New Roman";
+	mso-bidi-font-family:"Times New Roman";}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+p.MsoPlainText, li.MsoPlainText, div.MsoPlainText
+	{margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:10.0pt;
+	font-family:"Courier New";
+	mso-fareast-font-family:Batang;}
+span.CharChar2
+	{mso-style-name:"Char Char2";
+	mso-style-locked:yes;
+	mso-style-link:"Body Text";
+	mso-ansi-font-size:11.0pt;
+	mso-bidi-font-size:12.0pt;
+	font-family:Arial;
+	mso-ascii-font-family:Arial;
+	mso-hansi-font-family:Arial;
+	mso-bidi-font-family:Arial;
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;
+	mso-bidi-language:AR-SA;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:70.85pt 57.6pt 70.85pt 57.6pt;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
+<!--[if gte mso 10]>
+<style>
+ /* Style Definitions */
+ table.MsoNormalTable
+	{mso-style-name:"Table Normal";
+	mso-tstyle-rowband-size:0;
+	mso-tstyle-colband-size:0;
+	mso-style-noshow:yes;
+	mso-style-parent:"";
+	mso-padding-alt:0cm 5.4pt 0cm 5.4pt;
+	mso-para-margin:0cm;
+	mso-para-margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:10.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";
+	mso-ansi-language:#0400;
+	mso-fareast-language:#0400;
+	mso-bidi-language:#0400;}
+table.Normaltabell
+	{mso-style-name:"Normal tabell";
+	mso-tstyle-rowband-size:0;
+	mso-tstyle-colband-size:0;
+	mso-style-noshow:yes;
+	mso-style-parent:"";
+	mso-padding-alt:0cm 5.4pt 0cm 5.4pt;
+	mso-para-margin:0cm;
+	mso-para-margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:10.0pt;
+	font-family:"Times New Roman";
+	mso-ansi-language:#0400;
+	mso-fareast-language:#0400;
+	mso-bidi-language:#0400;}
+</style>
+<![endif]--><!--[if gte mso 9]><xml>
+ <o:shapedefaults v:ext="edit" spidmax="12290"/>
+</xml><![endif]--><!--[if gte mso 9]><xml>
+ <o:shapelayout v:ext="edit">
+  <o:idmap v:ext="edit" data="1"/>
+ </o:shapelayout></xml><![endif]-->
+</head>
+
+<body lang=EN-US link=blue vlink=purple style='tab-interval:65.2pt'>
+
+<div class=Section1>
+
+<h2><span style='color:#333399;font-style:normal;mso-bidi-font-style:italic'>Nanoradio
+NRX API<o:p></o:p></span></h2>
+
+<p class=MsoBodyText><span lang=EN-GB style='mso-bidi-font-size:11.0pt;
+mso-bidi-font-family:Arial;mso-ansi-language:EN-GB'>This guide describes the
+Nanoradio NRX API, an easy-to-use application interface that provides access to
+most standard WLAN configuration functions and all Nanoradio specific functions
+of the Nanoradio WLAN Host Driver and NRX700. See <a
+href="mk:@MSITStore:\15519_5-DYD009_NRXAPI_PB1.chm::/linux_host_arch.html">Host Environment
+Architecture</a> for an overview of the Nanoradio environment.</span></p>
+
+<p class=MsoBodyText><span lang=EN-GB style='mso-bidi-font-size:11.0pt;
+mso-bidi-font-family:Arial;mso-ansi-language:EN-GB'>Normally, the easiest and
+most common way to use a WLAN driver from a Linux application is to use the <i
+style='mso-bidi-font-style:normal'>Wireless Tools</i> programs (iwconfig,
+iwlist, etc), either directly, through scripts or </span><span
+style='mso-bidi-font-size:11.0pt;mso-bidi-font-family:Arial'>combined in a
+state machine application to create autonomous configuration and connection.</span><span
+lang=EN-GB style='mso-bidi-font-size:11.0pt;mso-bidi-font-family:Arial;
+mso-ansi-language:EN-GB'> When WPA authentication is required a <i
+style='mso-bidi-font-style:normal'>WPA Supplicant </i>is also used. And when
+Wi-Fi Protected Setup is required a <i style='mso-bidi-font-style:normal'>WPS
+Supplicant</i> must be used.<o:p></o:p></span></p>
+
+<p class=MsoPlainText><span lang=EN-GB style='font-size:11.0pt;font-family:
+Arial;mso-ansi-language:EN-GB'>Most of the typical WLAN configuration and
+operation on Linux can also be done through the <i style='mso-bidi-font-style:
+normal'>Wireless Extensions API</i>, which gives a more fine-grained control of
+the WLAN device than what is offered by the Wireless Tools. The Wireless
+Extensions is the de-facto standard interface for 802.11 device control in
+Linux with native support in all modern kernels. Different distributions and
+versions of Linux support different versions of Wireless Extension API. The
+mechanism used for making requests from the application to the driver is IOCTL
+calls. The Wireless Extension API is implemented as a thin adaptation layer
+above WiFi Engine, the “Wireless Extensions ADL”.<o:p></o:p></span></p>
+
+<p class=MsoPlainText><span lang=EN-GB style='font-size:11.0pt;font-family:
+Arial;mso-ansi-language:EN-GB'><o:p>&nbsp;</o:p></span></p>
+
+<p class=MsoPlainText><span lang=EN-GB style='font-size:11.0pt;font-family:
+Arial;mso-ansi-language:EN-GB'>The NRX API is a robust and easy-to-use
+extension to the Wireless Extensions API to be used as the primary
+configuration method for the Nanoradio Linux WiFi networking driver. The
+Wireless Extensions may not offer support for all features available because it
+is specific to the Nanoradio chipset or because the feature is too new. The NRX
+API supports all the advanced features of the Nanoradio NRX700 and will
+continuously be extended as new features become available.<o:p></o:p></span></p>
+
+</div>
+
+</body>
+
+</html>

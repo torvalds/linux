@@ -626,11 +626,6 @@ extern int mmc_pm_io_shd_suspend_host(void);
 static inline int mmc_pm_io_shd_suspend_host(void) {return 1;};
 #endif
 
-static int mmc_pm_get_mod_type(void)
-{
-    return 0;
-}
-
 static int __devinit sunximmc_probe(struct platform_device *pdev)
 {
     struct sunxi_mmc_host *smc_host = NULL;

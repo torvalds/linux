@@ -1,0 +1,342 @@
+<html xmlns:v="urn:schemas-microsoft-com:vml"
+xmlns:o="urn:schemas-microsoft-com:office:office"
+xmlns:w="urn:schemas-microsoft-com:office:word"
+xmlns:x="urn:schemas-microsoft-com:office:excel"
+xmlns:p="urn:schemas-microsoft-com:office:powerpoint"
+xmlns:oa="urn:schemas-microsoft-com:office:activation"
+xmlns="http://www.w3.org/TR/REC-html40">
+
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=windows-1252">
+<meta name=ProgId content=Word.Document>
+<meta name=Generator content="Microsoft Word 11">
+<meta name=Originator content="Microsoft Word 11">
+<link rel=File-List href="introduction_files/filelist.xml">
+<title>Introduction to NRX API Reference Guide</title>
+<!--[if gte mso 9]><xml>
+ <w:WordDocument>
+  <w:Zoom>BestFit</w:Zoom>
+  <w:HyphenationZone>21</w:HyphenationZone>
+  <w:PunctuationKerning/>
+  <w:ValidateAgainstSchemas/>
+  <w:SaveIfXMLInvalid>false</w:SaveIfXMLInvalid>
+  <w:IgnoreMixedContent>false</w:IgnoreMixedContent>
+  <w:AlwaysShowPlaceholderText>false</w:AlwaysShowPlaceholderText>
+  <w:Compatibility>
+   <w:BreakWrappedTables/>
+   <w:SnapToGridInCell/>
+   <w:WrapTextWithPunct/>
+   <w:UseAsianBreakRules/>
+   <w:DontGrowAutofit/>
+   <w:UseFELayout/>
+  </w:Compatibility>
+  <w:BrowserLevel>MicrosoftInternetExplorer4</w:BrowserLevel>
+ </w:WordDocument>
+</xml><![endif]--><!--[if gte mso 9]><xml>
+ <w:LatentStyles DefLockedState="false" LatentStyleCount="156">
+ </w:LatentStyles>
+</xml><![endif]-->
+<style>
+<!--
+ /* Font Definitions */
+ @font-face
+	{font-family:"MS Mincho";
+	panose-1:2 2 6 9 4 2 5 8 3 4;
+	mso-font-alt:"Arial Unicode MS";
+	mso-font-charset:128;
+	mso-generic-font-family:roman;
+	mso-font-format:other;
+	mso-font-pitch:fixed;
+	mso-font-signature:1 134676480 16 0 131072 0;}
+@font-face
+	{font-family:Batang;
+	panose-1:2 3 6 0 0 1 1 1 1 1;
+	mso-font-alt:\BC14\D0D5;
+	mso-font-charset:129;
+	mso-generic-font-family:auto;
+	mso-font-format:other;
+	mso-font-pitch:fixed;
+	mso-font-signature:1 151388160 16 0 524288 0;}
+@font-face
+	{font-family:"\@MS Mincho";
+	panose-1:0 0 0 0 0 0 0 0 0 0;
+	mso-font-charset:128;
+	mso-generic-font-family:roman;
+	mso-font-format:other;
+	mso-font-pitch:fixed;
+	mso-font-signature:1 134676480 16 0 131072 0;}
+@font-face
+	{font-family:"\@Batang";
+	panose-1:0 0 0 0 0 0 0 0 0 0;
+	mso-font-charset:129;
+	mso-generic-font-family:auto;
+	mso-font-format:other;
+	mso-font-pitch:fixed;
+	mso-font-signature:1 151388160 16 0 524288 0;}
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:12.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:Batang;}
+p.MsoBodyText, li.MsoBodyText, div.MsoBodyText
+	{mso-style-link:"Char Char2";
+	margin-top:0cm;
+	margin-right:0cm;
+	margin-bottom:6.0pt;
+	margin-left:0cm;
+	mso-pagination:widow-orphan;
+	font-size:11.0pt;
+	mso-bidi-font-size:12.0pt;
+	font-family:Arial;
+	mso-fareast-font-family:"Times New Roman";
+	mso-bidi-font-family:"Times New Roman";}
+a:link, span.MsoHyperlink
+	{color:blue;
+	text-decoration:underline;
+	text-underline:single;}
+a:visited, span.MsoHyperlinkFollowed
+	{color:purple;
+	text-decoration:underline;
+	text-underline:single;}
+p.MsoPlainText, li.MsoPlainText, div.MsoPlainText
+	{margin:0cm;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:10.0pt;
+	font-family:"Courier New";
+	mso-fareast-font-family:Batang;}
+span.CharChar2
+	{mso-style-name:"Char Char2";
+	mso-style-locked:yes;
+	mso-style-link:"Body Text";
+	mso-ansi-font-size:11.0pt;
+	mso-bidi-font-size:12.0pt;
+	font-family:Arial;
+	mso-ascii-font-family:Arial;
+	mso-hansi-font-family:Arial;
+	mso-bidi-font-family:Arial;
+	mso-ansi-language:EN-US;
+	mso-fareast-language:EN-US;
+	mso-bidi-language:AR-SA;}
+@page Section1
+	{size:595.3pt 841.9pt;
+	margin:70.85pt 57.6pt 70.85pt 57.6pt;
+	mso-header-margin:35.4pt;
+	mso-footer-margin:35.4pt;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+ /* List Definitions */
+ @list l0
+	{mso-list-id:1516964509;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-1345687560 67698689 67698691 67698693 67698689 67698691 67698693 67698689 67698691 67698693;}
+@list l0:level1
+	{mso-level-number-format:bullet;
+	mso-level-text:\F0B7;
+	mso-level-tab-stop:36.0pt;
+	mso-level-number-position:left;
+	text-indent:-18.0pt;
+	font-family:Symbol;}
+@list l0:level2
+	{mso-level-tab-stop:72.0pt;
+	mso-level-number-position:left;
+	text-indent:-18.0pt;}
+@list l0:level3
+	{mso-level-tab-stop:108.0pt;
+	mso-level-number-position:left;
+	text-indent:-18.0pt;}
+@list l0:level4
+	{mso-level-tab-stop:144.0pt;
+	mso-level-number-position:left;
+	text-indent:-18.0pt;}
+@list l0:level5
+	{mso-level-tab-stop:180.0pt;
+	mso-level-number-position:left;
+	text-indent:-18.0pt;}
+@list l0:level6
+	{mso-level-tab-stop:216.0pt;
+	mso-level-number-position:left;
+	text-indent:-18.0pt;}
+@list l0:level7
+	{mso-level-tab-stop:252.0pt;
+	mso-level-number-position:left;
+	text-indent:-18.0pt;}
+@list l0:level8
+	{mso-level-tab-stop:288.0pt;
+	mso-level-number-position:left;
+	text-indent:-18.0pt;}
+@list l0:level9
+	{mso-level-tab-stop:324.0pt;
+	mso-level-number-position:left;
+	text-indent:-18.0pt;}
+ol
+	{margin-bottom:0cm;}
+ul
+	{margin-bottom:0cm;}
+-->
+</style>
+<!--[if gte mso 10]>
+<style>
+ /* Style Definitions */
+ table.MsoNormalTable
+	{mso-style-name:"Table Normal";
+	mso-tstyle-rowband-size:0;
+	mso-tstyle-colband-size:0;
+	mso-style-noshow:yes;
+	mso-style-parent:"";
+	mso-padding-alt:0cm 5.4pt 0cm 5.4pt;
+	mso-para-margin:0cm;
+	mso-para-margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:10.0pt;
+	font-family:"Times New Roman";
+	mso-ansi-language:#0400;
+	mso-fareast-language:#0400;
+	mso-bidi-language:#0400;}
+table.Normaltabell
+	{mso-style-name:"Normal tabell";
+	mso-tstyle-rowband-size:0;
+	mso-tstyle-colband-size:0;
+	mso-style-noshow:yes;
+	mso-style-parent:"";
+	mso-padding-alt:0cm 5.4pt 0cm 5.4pt;
+	mso-para-margin:0cm;
+	mso-para-margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:10.0pt;
+	font-family:"Times New Roman";
+	mso-ansi-language:#0400;
+	mso-fareast-language:#0400;
+	mso-bidi-language:#0400;}
+</style>
+<![endif]--><!--[if gte mso 9]><xml>
+ <o:shapedefaults v:ext="edit" spidmax="11266"/>
+</xml><![endif]--><!--[if gte mso 9]><xml>
+ <o:shapelayout v:ext="edit">
+  <o:idmap v:ext="edit" data="1"/>
+ </o:shapelayout></xml><![endif]-->
+</head>
+
+<body lang=EN-US link=blue vlink=purple style='tab-interval:65.2pt'>
+
+<div class=Section1>
+
+<p class=MsoBodyText><a name="_Toc75670801"><b style='mso-bidi-font-weight:
+normal'><span style='font-size:13.0pt;color:#333399'>Linux SDIO Driver Physical
+Layer Reference Guide <o:p></o:p></span></b></a></p>
+
+<p class=MsoBodyText><span style='mso-bookmark:_Toc75670801'><span lang=EN-GB
+style='mso-ansi-language:EN-GB'>This guide describes the physical layer of the
+Nanoradio Linux SDIO driver for the Nanoradio NRX700 series of Wi-Fi/WLAN
+802.11b/g chipsets and modules. The NRX700 series of chipsets and modules, are
+designed to bring outstanding WLAN capabilities into mobile phones and other
+battery powered consumer electronics.<o:p></o:p></span></span></p>
+
+<p class=MsoBodyText><span style='mso-bookmark:_Toc75670801'><span lang=EN-GB
+style='mso-ansi-language:EN-GB'>When using Linux for the host driver environment
+you need to port the Nanoradio Linux SDIO driver to your own target.<o:p></o:p></span></span></p>
+
+<p class=MsoBodyText><span style='mso-bookmark:_Toc75670801'><span lang=EN-GB
+style='mso-ansi-language:EN-GB'>Refer to the <i style='mso-bidi-font-style:
+normal'>Nanoradio Linux SDIO Driver Porting Guide</i> (1543/18-NRX700) for general
+information on porting the Linux SDIO driver, and for an introduction to the
+details of this Reference Guide.<o:p></o:p></span></span></p>
+
+<p class=MsoBodyText><span style='mso-bookmark:_Toc75670801'><a
+name="_Toc145147603"><b style='mso-bidi-font-weight:normal'><span
+style='font-size:13.0pt;color:#333399'>Purpose and intended audience</span></b></a></span><span
+style='mso-bookmark:_Toc75670801'><b style='mso-bidi-font-weight:normal'><span
+style='font-size:13.0pt;color:#333399'><o:p></o:p></span></b></span></p>
+
+<p class=MsoBodyText><span style='mso-bookmark:_Toc75670801'>This guide is
+intended for experienced programmers who are </span><span style='mso-bookmark:
+_Toc75670801'><span lang=EN-GB style='mso-ansi-language:EN-GB'>porting the
+Linux host driver for the Nanoradio NRX700 to a new Linux based host platform.
+The document will mainly focus on the interfaces of the low-level parts of the
+driver, i.e. the SDIO communication with the target.</span></span></p>
+
+<p class=MsoBodyText><span style='mso-bookmark:_Toc75670801'><span lang=EN-GB
+style='mso-ansi-language:EN-GB'>You are expected to have good knowledge about
+Linux driver development and WLAN networking. In addition, </span>you should
+have a working knowledge of the following:</span></p>
+
+<p class=MsoBodyText style='margin-left:36.0pt;text-indent:-18.0pt;mso-list:
+l0 level1 lfo2;tab-stops:list 36.0pt'><span style='mso-bookmark:_Toc75670801'><![if !supportLists]><span
+style='font-family:Symbol;mso-fareast-font-family:Symbol;mso-bidi-font-family:
+Symbol'><span style='mso-list:Ignore'>·<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span></span><![endif]>Wi-Fi/WLAN standards and protocols</span></p>
+
+<p class=MsoBodyText style='margin-left:36.0pt;text-indent:-18.0pt;mso-list:
+l0 level1 lfo2;tab-stops:list 36.0pt'><span style='mso-bookmark:_Toc75670801'><![if !supportLists]><span
+style='font-family:Symbol;mso-fareast-font-family:Symbol;mso-bidi-font-family:
+Symbol'><span style='mso-list:Ignore'>·<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span></span><![endif]>The architecture of the NRX700 Host Environment.</span></p>
+
+<p class=MsoBodyText style='margin-left:36.0pt;text-indent:-18.0pt;mso-list:
+l0 level1 lfo2;tab-stops:list 36.0pt'><span style='mso-bookmark:_Toc75670801'><![if !supportLists]><span
+style='font-family:Symbol;mso-fareast-font-family:Symbol;mso-bidi-font-family:
+Symbol'><span style='mso-list:Ignore'>·<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span></span><![endif]>The architecture and requirements of your host
+system.</span></p>
+
+<p class=MsoBodyText style='margin-left:36.0pt;text-indent:-18.0pt;mso-list:
+l0 level1 lfo2;tab-stops:list 36.0pt'><span style='mso-bookmark:_Toc75670801'><![if !supportLists]><span
+style='font-family:Symbol;mso-fareast-font-family:Symbol;mso-bidi-font-family:
+Symbol'><span style='mso-list:Ignore'>·<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</span></span></span><![endif]>The operating system and IDE of your development
+system.</span></p>
+
+<p class=MsoBodyText><span style='mso-bookmark:_Toc75670801'><a
+name="_Toc145147607"></a><a name="_Toc148861395"></a><a name="_Toc149100564"><span
+style='mso-bookmark:_Toc148861395'><span style='mso-bookmark:_Toc145147607'><b
+style='mso-bidi-font-weight:normal'><span style='font-size:13.0pt;color:#333399'>Support
+and technical assistance</span></b></span></span></a></span><span
+style='mso-bookmark:_Toc75670801'><span style='mso-bookmark:_Toc145147607'><b
+style='mso-bidi-font-weight:normal'><span style='font-size:13.0pt;color:#333399'><o:p></o:p></span></b></span></span></p>
+
+<p class=MsoBodyText><span style='mso-bookmark:_Toc75670801'><span
+style='mso-bookmark:_Toc145147607'>For questions and technical support please
+contact your Nanoradio office, or </span></span><a
+href="mailto:support@nanoradio.com"><span style='mso-bookmark:_Toc75670801'><span
+style='mso-bookmark:_Toc145147607'>support@nanoradio.com</span></span><span
+style='mso-bookmark:_Toc75670801'><span style='mso-bookmark:_Toc145147607'></span></span></a><span
+style='mso-bookmark:_Toc75670801'><span style='mso-bookmark:_Toc145147607'> </span></span></p>
+
+<p class=MsoBodyText><span style='mso-bookmark:_Toc75670801'><span
+style='mso-bookmark:_Toc145147607'>For additional information on the Nanoradio
+products and services available to customers and partners, please refer to the
+Nanoradio web site at: </span></span><a href="http://www.nanoradio.com/"><span
+style='mso-bookmark:_Toc75670801'><span style='mso-bookmark:_Toc145147607'>www.nanoradio.com</span></span><span
+style='mso-bookmark:_Toc75670801'><span style='mso-bookmark:_Toc145147607'></span></span></a><span
+style='mso-bookmark:_Toc75670801'><span style='mso-bookmark:_Toc145147607'> </span></span></p>
+
+<p class=MsoBodyText><span style='mso-bookmark:_Toc75670801'><span
+style='mso-bookmark:_Toc145147607'><a name="_Toc148861396"></a><a
+name="_Toc149100565"><span style='mso-bookmark:_Toc148861396'><b
+style='mso-bidi-font-weight:normal'><span style='font-size:13.0pt;color:#333399'>User
+feedback</span></b></span></a></span></span><span style='mso-bookmark:_Toc75670801'><span
+style='mso-bookmark:_Toc145147607'><b style='mso-bidi-font-weight:normal'><span
+style='font-size:13.0pt;color:#333399'> <o:p></o:p></span></b></span></span></p>
+
+<p class=MsoBodyText><span style='mso-bookmark:_Toc75670801'><span
+style='mso-bookmark:_Toc145147607'>Your comments and suggestions will help us
+continue to improve the quality of the user documentation. Please send a
+message to </span></span><a href="techdoc@nanoradio.com"><span
+style='mso-bookmark:_Toc75670801'><span style='mso-bookmark:_Toc145147607'>techdoc@nanoradio.com</span></span><span
+style='mso-bookmark:_Toc75670801'><span style='mso-bookmark:_Toc145147607'></span></span></a><span
+style='mso-bookmark:_Toc75670801'><span style='mso-bookmark:_Toc145147607'> with
+your comments or suggestions for this guide. Your feedback will be very much
+appreciated.</span></span></p>
+
+<p class=MsoNormal><span style='mso-bidi-font-size:11.0pt'><o:p>&nbsp;</o:p></span></p>
+
+</div>
+
+</body>
+
+</html>

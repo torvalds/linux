@@ -1,0 +1,133 @@
+# <ID>,<name>,<size>,<display type (decimal | hex | hexvec | hex32 | hex16 | bool | string)>
+# No spaces allowed on each side a comma or at the end of line.
+# Comment lines are empty or begins with a # at position 0.
+1.1.1.1,dot11StationID,6,hexvec
+1.1.1.2,dot11MediumOccupancyLimit,2,decimal
+1.1.1.3,dot11CFPollable,4,bool
+1.1.1.4,dot11CFPeriod,1,decimal
+1.1.1.5,dot11CPFMaxDuration,2,decimal
+1.1.1.6,dot11AuthenticationResponseTimeout,4,decimal
+1.1.1.7,dot11PrivacyOptionImplemented,4,bool
+1.1.1.8,dot11PowerManagementMode,2,decimal
+1.1.1.9,dot11DesiredSSID,12,hexvec
+1.1.1.10,dot11DesiredBSSType,1,decimal
+1.1.1.11,dot11OperationalRatesSet,0,hexvec
+1.1.1.12,dot11BeaconPeriod,2,decimal
+1.1.1.13,dot11DTIMPeriod,1,decimal
+1.1.1.14,dot11AssociationResponsTimeout,4,decimal
+1.1.1.15,dot11DisassociateReason,2,decimal
+1.1.1.16,dot11DisassociateStation,6,hexvec
+1.1.1.17,dot11DeauthenticateReason,2,decimal
+1.1.1.18,dot11DeauthenticateStation,6,hexvec
+1.1.1.19,dot11AuthenticateFailStatus,2,decimal
+1.1.1.20,dot11AuthenticateFailStation,6,hexvec
+1.1.1.21,dot11MultiDomainCapabilityImplemented,4,bool
+1.1.1.22,dot11MultiDomainCapabilityEnabled,4,bool
+1.1.1.23,dot11CountryString,3,hexvec
+1.5.1.4,dot11ExcludeUnencrypted,4,bool
+2.1.1.1,dot11MACAddress,6,hexvec
+2.1.1.2,dot11RTSThreshold,2,decimal
+2.1.1.3,dot11ShortRetryLimit,1,decimal
+2.1.1.4,dot11LongRetryLimit,1,decimal
+2.1.1.5,dot11FragmentationThreshold,2,decimal
+2.2.1.1,dot11TransmittedFragmentCount,4,decimal
+2.2.1.2,dot11MulticastTransmittedFrameCount,4,decimal
+2.2.1.3,dot11FailedCount,4,decimal
+2.2.1.4,dot11RetryCount,4,decimal
+2.2.1.5,dot11MultipleRetryCount,4,decimal
+2.2.1.6,dot11FrameDuplicateCount,4,decimal
+2.2.1.7,dot11RTSSuccessCount,4,decimal
+2.2.1.8,dot11RTSFailureCount,4,decimal
+2.2.1.9,dot11AckFailureCount,4,decimal
+2.2.1.10,dot11ReceivedFragmentCount,4,decimal
+2.2.1.11,dot11MulticastReceviedFrameCount,4,decimal
+2.2.1.12,dot11FCSErrorCount,4,decimal
+2.2.1.13,dot11TransmittedFrameCount,4,decimal
+2.2.1.14,dot11WEPUndecrypttableCount,4,decimal
+3.1.2.1.4,dot11manufacturerProductVersion,0,string
+5.1,agcOpMode,1,decimal
+5.2.1,dot11LinkMonitoring,1,bool
+5.2.2,adaptiveTxRate,1,decimal
+5.3,psModeTrafficMonitorWindow,4,decimal
+5.4,powerIndex,0,hexvec
+5.5.1,txPowerTableQPSK,0,hex32
+5.5.2,txPowerTableOFDM,0,hex32
+5.5.3,txPowerTablePATune,14,hexvec
+5.5.4,txGainTableQPSK,0,hex16
+5.5.5,txGainTableOFDM,0,hex16
+5.6,testADC,0,hexvec
+5.7.1,xcoCrystalFreqIndex,1,decimal
+5.7.2,enableExternalLFC,4,bool
+5.10,mibFlashTableID,4,hex
+5.12.1,powerCorrQPSK,4,decimal
+5.12.2,powerCorrOFDM,4,decimal
+
+
+
+
+# These MIBs are not implemented in target, hence not tested.
+#2.1.1.6,dot11MaxTransmitMSDULifetime,4,decimal
+#2.1.1.7,dot11MaxReceiveLifetime,4,decimal
+#2.1.1.8,dot11ManufacturerID,MIB_MAX_LENGTH_MANUFACTURER_ID,hex
+#2.1.1.9,dot11ProductID,MIB_MAX_LENGTH_PRODUCT_ID,hex
+#2.3.1.2,dot11Address,6,hex
+#2.3.1.2,dot11GroupAddressStatus,4,decimal
+#4.1.1,dot11PHYType,2, decimal
+#4.1.2,dot11CurrentRegDomain,   4, decimal
+#4.1.3,dot11TempType,   2, decimal
+#4.2.1,dot11CurrentTxAntenna,   4, decimal
+#4.2.2,dot11DiversitySupport,   2, decimal
+#4.2.3,dot11CurrentRxAntenna,   4, decimal
+#4.3.1,dot11NumberOfPowerLevels,2, decimal
+#4.3.2,dot11TxPowerLevel1,  2, decimal
+#4.3.3,dot11TxPowerLevel2,  2, decimal
+#4.3.4,dot11TxPowerLevel3,  2, decimal
+#4.3.5,dot11TxPowerLevel4,  2, decimal
+#4.3.6,dot11TxPowerLevel5,  2, decimal
+#4.3.7,dot11TxPowerLevel6,  2, decimal
+#4.3.8,dot11TxPowerLevel7,  2, decimal
+#4.3.9,dot11TxPowerLevel8,  2, decimal
+#4.3.10,dot11CurrentTxPowerLevel,   2, decimal
+#4.4.1,dot11HopTime,2, decimal
+#4.4.2,dot11CurrentChannelNumber,   2, decimal
+#4.4.3,dot11MaxDwellTime,   2, decimal
+#4.4.4,dot11CurrentDwellTime,   2, decimal
+#4.4.5,dot11CurrentSet, 2, decimal
+#4.4.6,dot11CurrentPattern, 2, decimal
+#4.4.7,dot11CurrentIndex,   2, decimal
+#4.4.8,dot11EHCCPrimeRadix, 4, decimal
+#4.4.9,dot11EHCCNumberOfChannelsFamilyIndex,4, decimal
+#4.4.10,dot11EHCCCapabilityImplemented,  4, bool
+#4.4.11,dot11EHCCCapabilityEnabled,  4, bool
+#4.4.12,dot11HopAlgorithmAdopted,   2, decimal
+#4.4.13,dot11RandomTableFlag,    4, bool
+#4.4.14,dot11NumberOfHoppingSets,   4, decimal
+#4.4.15,dot11HopModulus,4, decimal
+#4.4.16,dot11HopOffset, 4, decimal
+#4.5.1,dot11CurrentChannel, 2, decimal,    
+#4.5.2,dot11CCAModeSupported,   2, decimal
+#4.5.3,dot11CurrentCCAMode, 2, decimal
+#4.5.4,dot11EDThreshold,4, decimal
+#4.6.1,dot11CCAWatchdogTimerMax,4, decimal
+#4.6.2,dot11CCAWatchdogCountMax,4, decimal
+#4.6.3,dot11CCAWatchdogTimerMin,4, decimal
+#4.6.4,dot11CCAWatchdogCountMin,4, decimal
+#4.7.1,dot11RegDomainsSupportedValue,   2, decimal
+#4.8.1,dot11SupportedTxAntenna,  4, bool
+#4.8.2,dot11SupportedRxAntenna,  4, bool
+#4.8.3,dot11DiversitySelectedRx, 4, bool
+#4.9.1,dot11SupportedDataRatesTxValue,  4, decimal
+#4.10.1,dot11SupportedDataRatesRxValue, 4, decimal
+#4.11.1,dot11CurrentFrequency,  2, decimal
+#4.11.2,dot11TIThreshold,   4, decimal
+#4.11.3,dot11FrequencyBandsSupported,   2, decimal
+#4.12.1,dot11ShortPreambleOptionImplemented, 4, bool
+#4.12.2,dot11PBCCOptionImplemented,  4, bool
+#4.12.3,dot11ChannelAgilityPresent,  4, bool
+#4.12.4,dot11ChannelAgilityEnabled,  4, bool
+#4.12.5,dot11HRCCAModeSupported,2, decimal
+#4.13.1,dot11RandomTableFieldNumber,4, decimal
+#10.1.1,dot11LocalDefaultRate,1, decimal
+#10.1.2,dot11DataFlowOn,sizeof(MIB_BOOL), bool
+#10.1.3,dot11GenerateBeacon,sizeof(MIB_BOOL), bool
+#10.1.4,dot11ActAsAP,sizeof(MIB_BOOL), bool

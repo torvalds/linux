@@ -1,0 +1,9 @@
+WIFIENGINEHOME=../..
+
+TARGETNAME=hicWrapper
+TARGETTYPE=LIBRARY
+TARGETPATH=.
+
+!include $(WIFIENGINEHOME)/common.mk
+
+SOURCES=hicWrapper.c packer.c

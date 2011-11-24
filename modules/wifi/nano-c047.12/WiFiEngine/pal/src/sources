@@ -1,0 +1,9 @@
+WIFIENGINEHOME=../..
+
+TARGETNAME=pal
+TARGETTYPE=LIBRARY
+TARGETPATH=.
+
+!include $(WIFIENGINEHOME)/common.mk
+
+SOURCES=hmg_pal.c pal_command_parser.c pal_init.c we_pal.c

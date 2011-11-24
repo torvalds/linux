@@ -1,0 +1,57 @@
+[OPTIONS]
+Binary TOC=Yes
+Compatibility=1.1 or later
+Compiled file=15519_5-DYD009_NRXAPI_PB1.chm
+Contents file=index.hhc
+Default Window=main
+Default topic=main.html
+Display compile progress=No
+Full-text search=Yes
+Index file=index.hhk
+Language=0x409 English (United States)
+Title=NRX API Reference Guide
+
+[WINDOWS]
+main="NRXAPI Reference Guide","index.hhc","index.hhk","main.html","main.html",,,,,0x23520,,0x387e,,,,,,,,0
+
+
+[FILES]
+main.html
+nrx__lib_8h-source.html
+nrx__proto_8h-source.html
+nrx__lib_8h.html
+nrx__proto_8h.html
+group___l_i_b.html
+group___s_c_a_n.html
+group___r_a_d_i_o.html
+group___p_s.html
+group___m_i_s_c.html
+modules.html
+annotated.html
+classes.html
+functions.html
+functions_vars.html
+structnrx__ch__list__t.html
+structnrx__conn__lost__data.html
+structnrx__mac__addr__t.html
+structnrx__rate__list__t.html
+structnrx__ssid__list__t.html
+structnrx__ssid__t.html
+structnrx__we__callback__data.html
+files.html
+globals.html
+globals_func.html
+globals_type.html
+globals_enum.html
+globals_eval.html
+globals_defs.html
+tabs.css
+tab_b.gif
+tab_l.gif
+tab_r.gif
+disclaimer_copyright.html
+linux_host_arch.html
+nrxapi_overview.html
+
+[INFOTYPES]
+

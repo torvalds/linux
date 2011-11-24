@@ -1,0 +1,11 @@
+WIFIENGINEHOME=../../..
+
+TARGETNAME=driverenv
+TARGETTYPE=LIBRARY
+TARGETPATH=.
+
+!include $(WIFIENGINEHOME)/common.mk
+
+
+SOURCES=application.c driverenv.c
+

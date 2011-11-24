@@ -1,0 +1,454 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML><HEAD></HEAD><BODY>
+<OBJECT type="text/site properties">
+<param name="FrameName" value="right">
+</OBJECT>
+<UL>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__gpio__pin__t.html#3cd9dbd2c431de76311c07108366bb8d"><param name="Name" value="active_high"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__conn__lost__data.html#356e5a96a591fb4c3885cd46a069bb0a"><param name="Name" value="bssid"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__ch__list__t.html#20b64a5ac48bb6c836797af4db82d4d8"><param name="Name" value="channel"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__we__callback__data.html#f79e9b15bf2ac198e6200366519b3894"><param name="Name" value="cmd"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__we__callback__data.html#47de4a436fa0aa4cd6196373855a37a9"><param name="Name" value="data"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__gpio__pin__t.html#5f68b2d487158aec520b08efbf0f0cb7"><param name="Name" value="gpio_pin"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__event__mibtrigger.html#99a63ebe8948ab6a9b91df6b6444d430"><param name="Name" value="id"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__ch__list__t.html#0f22b703130e99f5a76abdb64aec474e"><param name="Name" value="len"></OBJECT>
+  <UL>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__ch__list__t.html#0f22b703130e99f5a76abdb64aec474e"><param name="Name" value="nrx_ch_list_t"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__gpio__list__t.html#81b8c201d2510130edaecd6ed161296b"><param name="Name" value="nrx_gpio_list_t"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__mac__addr__list__t.html#97813168dac528ee226cade8a25c6259"><param name="Name" value="nrx_mac_addr_list_t"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__rate__list__t.html#9e209da63afc9fa3f9aa58a39cb50ebd"><param name="Name" value="nrx_rate_list_t"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__retry__list__t.html#364ca2d9c717e69ecbc37f4d3746750c"><param name="Name" value="nrx_retry_list_t"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__ssid__list__t.html#a45220686564c2861099ea3688c6238d"><param name="Name" value="nrx_ssid_list_t"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__we__callback__data.html#e04a120f523620a03ee9cf75999f1a5c"><param name="Name" value="nrx_we_callback_data"></OBJECT>
+  </UL>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___l_i_b.html"><param name="Name" value="Library setup and management"></OBJECT>
+  <UL>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___l_i_b.html#g02b5dd8b18504521efe949da05e4228f"><param name="Name" value="nrx_check_wx_version"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___l_i_b.html#g1c851ce210c3da7eb8b6944a5fb3bbee"><param name="Name" value="nrx_event_connection_number"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___l_i_b.html#gfd60446cb1d2c56c472eb77685c9e7f1"><param name="Name" value="nrx_free_context"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___l_i_b.html#ga586938098f6e7e03153ccd7b2d67193"><param name="Name" value="nrx_init_context"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___l_i_b.html#g1658e4c2912d603dc1005840d8c4d2e8"><param name="Name" value="nrx_next_event"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___l_i_b.html#g0492e1e76aeed703b3892d4e0de6c1cd"><param name="Name" value="nrx_wait_event"></OBJECT>
+  </UL>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__mac__addr__list__t.html#f909c574be174c34b265d0333e87959f"><param name="Name" value="mac_addr"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html"><param name="Name" value="Miscellaneous settings"></OBJECT>
+  <UL>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#gb406c1f65150e7e4b9b564ccc63bbcc6"><param name="Name" value="nrx_antenna_diversity"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#g835eb2ea897c895f8cf289349930587d"><param name="Name" value="nrx_cancel_dev_reset_notification"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#g63363c5a00a06c7feaf3bc8e04a8f9f5"><param name="Name" value="nrx_conf_bt_coex"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#g8dddb62a25d6af4cdfd490b43d390a02"><param name="Name" value="nrx_disable_bt_coex"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#gb0744f38e371d6d63cca327723a44428"><param name="Name" value="nrx_disable_heartbeat"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#g39c17b0986bcc0959013bf5a4141bfb8"><param name="Name" value="nrx_disable_multi_domain"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#ga16ee67327d3f9fb7fffa588f8d2ce5d"><param name="Name" value="nrx_disable_wmm"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#g86787be0b0b48f4575d949d72614937e"><param name="Name" value="nrx_enable_bt_coex"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#g24718ffdcdf75312bc55a7eab7cceb74"><param name="Name" value="nrx_enable_heartbeat"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#g1a1d72852cd1015ffbb6c870c814ffa2"><param name="Name" value="nrx_enable_multi_domain"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#g838e31659c641c38fc81605e11e08fbd"><param name="Name" value="nrx_enable_wmm"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#gdf97f3d7ec905ae8a2764b5ecd145d8b"><param name="Name" value="nrx_get_join_timeout"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#gbe93095eeb9bf735cf5d9702ec513516"><param name="Name" value="nrx_get_manufacturer_id"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#g89e56ad3620cb874f92dabe21df7f983"><param name="Name" value="nrx_get_product_id"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#g1e2781071f62505af9ddb106c39b2ba1"><param name="Name" value="nrx_get_product_version"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#g0692b707671fd7dbe8006478af99d66d"><param name="Name" value="nrx_reassociate"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#g6367061d4a9b636e33b64959f12de593"><param name="Name" value="nrx_register_dev_reset_notification"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#gac0cb4352830d94eaeb4b09ab6dd7914"><param name="Name" value="nrx_set_ibss_beacon_period"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#ga673c4c6d18cd6f004723e9b9d90ed90"><param name="Name" value="nrx_set_join_timeout"></OBJECT>
+  </UL>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#c111e6b34dfff4e880164d0f4e16c1fc"><param name="Name" value="nrx_adaptive_tx_rate_mode_t"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___s_c_a_n.html#g8c8f2a4a07e1a0964fd812be1baa15b6"><param name="Name" value="nrx_add_scan_filter"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___s_c_a_n.html#g06667eef9a54f93677e8120cac8c4296"><param name="Name" value="nrx_add_scan_job"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#d6cb2e92705c09aa4f310b83aaf76e95"><param name="Name" value="NRX_ANTENNA_1"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#cd557f491a1eba54bc75f23e2ac1b346"><param name="Name" value="NRX_ANTENNA_2"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#gb406c1f65150e7e4b9b564ccc63bbcc6"><param name="Name" value="nrx_antenna_diversity"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#da1ee0aeb5f0dedf353fa8d0833010de"><param name="Name" value="nrx_antenna_t"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#4fa9fa72ddf96f5a262f223ef43898fa"><param name="Name" value="NRX_BLR_ASSOC_FAIL"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#fa9097b772660c4a81a946a94e81be4e"><param name="Name" value="NRX_BLR_AUTH_FAIL"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#13e26292e6845dd8d0772594de1f08b4"><param name="Name" value="NRX_BLR_DEAUTH"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#19246ce1646ef39883a1365cdb7b4fc9"><param name="Name" value="nrx_bool"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#953fca19850112a78d915ce3adf2197d"><param name="Name" value="NRX_BSS_ESS"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#86802372950d5e94a5e40135e91bae22"><param name="Name" value="NRX_BSS_IBSS"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#0d717d91b9ce1641ebcd0080e8399da4"><param name="Name" value="nrx_bss_type_t"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#f56b4353c23558a8ae767d3708bad742"><param name="Name" value="nrx_callback_handle"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#f83134b1b306d15f00031328586f5fc7"><param name="Name" value="nrx_callback_t"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g3c395b81e554f8ac371b2dd5e71ab966"><param name="Name" value="nrx_cancel_conn_lost_notification"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#g835eb2ea897c895f8cf289349930587d"><param name="Name" value="nrx_cancel_dev_reset_notification"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g4aed35b11a9c5633eab206f8c4de681a"><param name="Name" value="nrx_cancel_link_monitoring_callback"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gb8fe5e84c2a1ae8364e93cb152b7587e"><param name="Name" value="nrx_cancel_per_threshold_callback"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g080256a4c4e53b99933a295c8c511a7f"><param name="Name" value="nrx_cancel_rssi_threshold_callback"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___s_c_a_n.html#g291dc3034c51b22a6e9d4e3a20ef462c"><param name="Name" value="nrx_cancel_scan_notification_handler"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g21e0a35fb7c05280fc0218b3f5a80728"><param name="Name" value="nrx_cancel_snr_threshold_callback"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#06fc87d81c62e9abb8790b6e5713c55bf9b81b68a6910c3f6ba0a59dda287928"><param name="Name" value="NRX_CB_CANCEL"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#06fc87d81c62e9abb8790b6e5713c55bab09aceb88a9c6a07d5660d2f790c9ec"><param name="Name" value="NRX_CB_TRIGGER"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__ch__list__t.html"><param name="Name" value="nrx_ch_list_t"></OBJECT>
+  <UL>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__ch__list__t.html#20b64a5ac48bb6c836797af4db82d4d8"><param name="Name" value="channel"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__ch__list__t.html#0f22b703130e99f5a76abdb64aec474e"><param name="Name" value="len"></OBJECT>
+  </UL>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#4899aedaf2c98cdbe6303b602b918d4f"><param name="Name" value="nrx_channel_t"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#792a16f0cd2f5b17cfc6ab2d0060025a"><param name="Name" value="NRX_CHANNEL_UNKNOWN"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___l_i_b.html#g02b5dd8b18504521efe949da05e4228f"><param name="Name" value="nrx_check_wx_version"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#g63363c5a00a06c7feaf3bc8e04a8f9f5"><param name="Name" value="nrx_conf_bt_coex"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___p_s.html#gde7bf3bd3dd0f522fefbf3901af75e76"><param name="Name" value="nrx_conf_ps"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___s_c_a_n.html#g804d3e2df9ebb9fc3db4cd3e01f58ea9"><param name="Name" value="nrx_conf_scan"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___p_s.html#ga7e92628ab58645e2174473f85110125"><param name="Name" value="nrx_conf_wmm_ps"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__conn__lost__data.html"><param name="Name" value="nrx_conn_lost_data"></OBJECT>
+  <UL>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__conn__lost__data.html#356e5a96a591fb4c3885cd46a069bb0a"><param name="Name" value="bssid"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__conn__lost__data.html#8162747e688cb7b6a0141d50672d5e7b"><param name="Name" value="reason_code"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__conn__lost__data.html#cafde33803c806137fbcce235d4546dd"><param name="Name" value="type"></OBJECT>
+  </UL>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#eecc10b9100466e6bc72c98233f99ab3"><param name="Name" value="nrx_conn_lost_type_t"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#b018dd9f0e31b4bda95daa22e10b5908"><param name="Name" value="nrx_context"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___s_c_a_n.html#gcb1e41e2de4ca669c36816b517583b8b"><param name="Name" value="nrx_delete_scan_filter"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___s_c_a_n.html#g24142f3e969d6060ab31dfe4b51cf297"><param name="Name" value="nrx_delete_scan_job"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#93e92ea6ea276b5b126996f492b1adf2"><param name="Name" value="nrx_detection_target_t"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#g8dddb62a25d6af4cdfd490b43d390a02"><param name="Name" value="nrx_disable_bt_coex"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#gb0744f38e371d6d63cca327723a44428"><param name="Name" value="nrx_disable_heartbeat"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gd5fe30ab24f344c3b9a1da6f1ff52d02"><param name="Name" value="nrx_disable_link_monitoring"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#g39c17b0986bcc0959013bf5a4141bfb8"><param name="Name" value="nrx_disable_multi_domain"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gde507a9c0c6d4ef197f33256ff173bee"><param name="Name" value="nrx_disable_per_threshold"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___p_s.html#g711d6cf0fac9e84252f0c4b18083b268"><param name="Name" value="nrx_disable_ps"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gc0355555b95311b78d0558061692c8fb"><param name="Name" value="nrx_disable_rssi_threshold"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gd55dd33e897b35b7c693821160154bad"><param name="Name" value="nrx_disable_snr_threshold"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gd672caffbde6dcc400a8eb1b3fea2ca9"><param name="Name" value="nrx_disable_traffic_filter"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#ga16ee67327d3f9fb7fffa588f8d2ce5d"><param name="Name" value="nrx_disable_wmm"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___p_s.html#gf4d55db1a1a9a4c1f334ae1a33c8d160"><param name="Name" value="nrx_disable_wmm_ps"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#1a88a5eae5e6e380f9bbb34ca2392b06"><param name="Name" value="NRX_DT_BEACON"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#21bcf5e772639ad6ba477d84fb19e342"><param name="Name" value="NRX_DT_DATA"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#g86787be0b0b48f4575d949d72614937e"><param name="Name" value="nrx_enable_bt_coex"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#g24718ffdcdf75312bc55a7eab7cceb74"><param name="Name" value="nrx_enable_heartbeat"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g797c83b5a5bb5ff096ba382064d7eba6"><param name="Name" value="nrx_enable_link_monitoring"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#g1a1d72852cd1015ffbb6c870c814ffa2"><param name="Name" value="nrx_enable_multi_domain"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#ge8346b1b9aa5e86e25495940e0af725e"><param name="Name" value="nrx_enable_per_threshold"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___p_s.html#gd69f94f40e826eeec756fa3d8d057f2c"><param name="Name" value="nrx_enable_ps"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gecba5883b7518d80268cefca4c613cac"><param name="Name" value="nrx_enable_rssi_threshold"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g391201e916a61f8fc69c066cfc8b8419"><param name="Name" value="nrx_enable_snr_threshold"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g1fea8e504c5a203a1b13a99ba54f5015"><param name="Name" value="nrx_enable_traffic_filter"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#g838e31659c641c38fc81605e11e08fbd"><param name="Name" value="nrx_enable_wmm"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___p_s.html#g9e58bdf533d9b6a64e282b283acd5af0"><param name="Name" value="nrx_enable_wmm_ps"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___l_i_b.html#g1c851ce210c3da7eb8b6944a5fb3bbee"><param name="Name" value="nrx_event_connection_number"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__event__mibtrigger.html"><param name="Name" value="nrx_event_mibtrigger"></OBJECT>
+  <UL>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__event__mibtrigger.html#99a63ebe8948ab6a9b91df6b6444d430"><param name="Name" value="id"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__event__mibtrigger.html#627721d03b65f55f353560bd372bf3d2"><param name="Name" value="result"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__event__mibtrigger.html#c011cec7d08b61bcaa8474e249b579f6"><param name="Name" value="type"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__event__mibtrigger.html#ef216135b63a563ed695b3d6bb76a11a"><param name="Name" value="value"></OBJECT>
+  </UL>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#6c2eed9b144d13d47b0ac5e87311e885"><param name="Name" value="nrx_event_mibtrigger_t"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___l_i_b.html#gfd60446cb1d2c56c472eb77685c9e7f1"><param name="Name" value="nrx_free_context"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g783c474725bb84a6c3179b8d565f1d53"><param name="Name" value="nrx_get_ack_failure_count"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gdea370d5f812b41c7f97b692313df9c4"><param name="Name" value="nrx_get_curr_channel"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#gdf97f3d7ec905ae8a2764b5ecd145d8b"><param name="Name" value="nrx_get_join_timeout"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#gbe93095eeb9bf735cf5d9702ec513516"><param name="Name" value="nrx_get_manufacturer_id"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gb34a92f98360debf1b43ba68b1d8def3"><param name="Name" value="nrx_get_per"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#g89e56ad3620cb874f92dabe21df7f983"><param name="Name" value="nrx_get_product_id"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#g1e2781071f62505af9ddb106c39b2ba1"><param name="Name" value="nrx_get_product_version"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g0523d6a689742eca04a3ceb425380ec0"><param name="Name" value="nrx_get_rssi"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g969222a7761ef0958dde6b8328dfe8a5"><param name="Name" value="nrx_get_rts_failure_count"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g75aacc589a518bae452d46979a1f865d"><param name="Name" value="nrx_get_rts_success_count"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gd5c35e3e3ac8b28c178fe06ae3d229cb"><param name="Name" value="nrx_get_rx_fcs_error_count"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g7f6f551e736aa909b03cb465a33a2d34"><param name="Name" value="nrx_get_rx_fragment_count"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gd18b901a8e9d0cfb4fb81c2ced8710fe"><param name="Name" value="nrx_get_rx_frame_duplicates_count"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gb50306e2390812c886d846e698c14cdb"><param name="Name" value="nrx_get_rx_mcast_frame_count"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g5328a7e308ca76e9d86a20a6de6805d2"><param name="Name" value="nrx_get_rx_undecryptable_count"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___s_c_a_n.html#g72c9fc79bfe5bdc3cb9a3b40f7f09242"><param name="Name" value="nrx_get_scan_list"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g6df9bb0823d3e997b12f159b829b5a9e"><param name="Name" value="nrx_get_snr"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gbe29b8278fbf8cea9ecc57ff1ff2ab35"><param name="Name" value="nrx_get_traffic_filter_counters"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gf98121a04ecbe3e103bb28528601462d"><param name="Name" value="nrx_get_tx_failed_count"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gdaad9de517d87521064d3678c23a238c"><param name="Name" value="nrx_get_tx_fragment_count"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g616aa32bff9ab502396a0fa96dba3cf0"><param name="Name" value="nrx_get_tx_frame_count"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g0711aa8338225d5dd30ed20084de7349"><param name="Name" value="nrx_get_tx_mcast_frame_count"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#ga985911d08da74136c3320772df321f4"><param name="Name" value="nrx_get_tx_multiple_retry_count"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#ge4ab01142055138513e93375b75f8464"><param name="Name" value="nrx_get_tx_retry_count"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__gpio__list__t.html"><param name="Name" value="nrx_gpio_list_t"></OBJECT>
+  <UL>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__gpio__list__t.html#81b8c201d2510130edaecd6ed161296b"><param name="Name" value="len"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__gpio__list__t.html#5b94fb8ab2a885b425dd08df80d68b7d"><param name="Name" value="pin"></OBJECT>
+  </UL>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__gpio__pin__t.html"><param name="Name" value="nrx_gpio_pin_t"></OBJECT>
+  <UL>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__gpio__pin__t.html#3cd9dbd2c431de76311c07108366bb8d"><param name="Name" value="active_high"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__gpio__pin__t.html#5f68b2d487158aec520b08efbf0f0cb7"><param name="Name" value="gpio_pin"></OBJECT>
+  </UL>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___l_i_b.html#ga586938098f6e7e03153ccd7b2d67193"><param name="Name" value="nrx_init_context"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#b6b5d05076ec6e1472f0a2fcb1ce2576"><param name="Name" value="NRX_JOB_FLAG_ASSOCIATED"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#189330c7cdc7eac0a6d1b79a45aafdec"><param name="Name" value="NRX_JOB_FLAG_NOT_ASSOCIATED"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#dd59aa36e21f7bb4cde67c82d1d7cbea"><param name="Name" value="nrx_job_flags_t"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html"><param name="Name" value="nrx_lib.h"></OBJECT>
+  <UL>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#c111e6b34dfff4e880164d0f4e16c1fc"><param name="Name" value="nrx_adaptive_tx_rate_mode_t"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#d6cb2e92705c09aa4f310b83aaf76e95"><param name="Name" value="NRX_ANTENNA_1"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#cd557f491a1eba54bc75f23e2ac1b346"><param name="Name" value="NRX_ANTENNA_2"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#da1ee0aeb5f0dedf353fa8d0833010de"><param name="Name" value="nrx_antenna_t"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#4fa9fa72ddf96f5a262f223ef43898fa"><param name="Name" value="NRX_BLR_ASSOC_FAIL"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#fa9097b772660c4a81a946a94e81be4e"><param name="Name" value="NRX_BLR_AUTH_FAIL"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#13e26292e6845dd8d0772594de1f08b4"><param name="Name" value="NRX_BLR_DEAUTH"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#19246ce1646ef39883a1365cdb7b4fc9"><param name="Name" value="nrx_bool"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#953fca19850112a78d915ce3adf2197d"><param name="Name" value="NRX_BSS_ESS"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#86802372950d5e94a5e40135e91bae22"><param name="Name" value="NRX_BSS_IBSS"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#0d717d91b9ce1641ebcd0080e8399da4"><param name="Name" value="nrx_bss_type_t"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#f56b4353c23558a8ae767d3708bad742"><param name="Name" value="nrx_callback_handle"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#f83134b1b306d15f00031328586f5fc7"><param name="Name" value="nrx_callback_t"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#06fc87d81c62e9abb8790b6e5713c55bf9b81b68a6910c3f6ba0a59dda287928"><param name="Name" value="NRX_CB_CANCEL"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#06fc87d81c62e9abb8790b6e5713c55bab09aceb88a9c6a07d5660d2f790c9ec"><param name="Name" value="NRX_CB_TRIGGER"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#4899aedaf2c98cdbe6303b602b918d4f"><param name="Name" value="nrx_channel_t"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#792a16f0cd2f5b17cfc6ab2d0060025a"><param name="Name" value="NRX_CHANNEL_UNKNOWN"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#eecc10b9100466e6bc72c98233f99ab3"><param name="Name" value="nrx_conn_lost_type_t"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#b018dd9f0e31b4bda95daa22e10b5908"><param name="Name" value="nrx_context"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#93e92ea6ea276b5b126996f492b1adf2"><param name="Name" value="nrx_detection_target_t"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#1a88a5eae5e6e380f9bbb34ca2392b06"><param name="Name" value="NRX_DT_BEACON"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#21bcf5e772639ad6ba477d84fb19e342"><param name="Name" value="NRX_DT_DATA"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#6c2eed9b144d13d47b0ac5e87311e885"><param name="Name" value="nrx_event_mibtrigger_t"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#b6b5d05076ec6e1472f0a2fcb1ce2576"><param name="Name" value="NRX_JOB_FLAG_ASSOCIATED"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#189330c7cdc7eac0a6d1b79a45aafdec"><param name="Name" value="NRX_JOB_FLAG_NOT_ASSOCIATED"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#dd59aa36e21f7bb4cde67c82d1d7cbea"><param name="Name" value="nrx_job_flags_t"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#a5edffd5099f819f5669e7abeffa43cb1357ed0a8d960bf05200b2a005a4f019"><param name="Name" value="NRX_LONG_PREAMBLE"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#1da0a912a7deea7e8489247e4351b06b"><param name="Name" value="NRX_MAC_ADDR_LEN"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#1c13578f41a667051632218c4c106bdc"><param name="Name" value="NRX_MAX_CHAN_LIST_LEN"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#b0589c962367475aafccf12a09659d3b"><param name="Name" value="NRX_MAX_GPIO_LIST_LEN"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#21bd945db28b9963fd50607adfcbcc23"><param name="Name" value="NRX_MAX_MAC_ADDR_LIST_LEN"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#4a2481444722e19fcd7e41bbd77df307"><param name="Name" value="NRX_MAX_RATE_LIST_LEN"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#a973c53dcb346d53b17cc5bd4a989f6a"><param name="Name" value="NRX_MAX_SSID_LEN"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#b1d6c165de0fb9dee460dad6ce8a61c8"><param name="Name" value="NRX_MAX_SSID_LIST_LEN"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#a5edffd5099f819f5669e7abeffa43cb"><param name="Name" value="nrx_preamble_type_t"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#ff0a2036fc201e8e73f07e0823e0e496"><param name="Name" value="nrx_rate_t"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#26e78c1b5ebf7bf899f6e81b96691eac1d92369a6a578e990d833554d39352b5"><param name="Name" value="NRX_REGION_AMERICA"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#26e78c1b5ebf7bf899f6e81b96691eac"><param name="Name" value="nrx_region_code_t"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#26e78c1b5ebf7bf899f6e81b96691eac20bccb19316ec54b0137226f2b43bc20"><param name="Name" value="NRX_REGION_EMEA"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#26e78c1b5ebf7bf899f6e81b96691eac803e680a3d152677e6b15c2e7ad77cb6"><param name="Name" value="NRX_REGION_ETSI"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#26e78c1b5ebf7bf899f6e81b96691eacdbc535be63373dac5de3d441d99048ac"><param name="Name" value="NRX_REGION_FCC"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#26e78c1b5ebf7bf899f6e81b96691eacfc56299a14fe2d5eb29720d2b534832c"><param name="Name" value="NRX_REGION_FRANCE"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#26e78c1b5ebf7bf899f6e81b96691eac8186df41cc624fd24bb84a120642f69c"><param name="Name" value="NRX_REGION_IC"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#26e78c1b5ebf7bf899f6e81b96691eac46433a4851b987536a04efee018700c8"><param name="Name" value="NRX_REGION_JAPAN"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#26e78c1b5ebf7bf899f6e81b96691eac9601c5a7b6cb74dbd2f6c55eff162c76"><param name="Name" value="NRX_REGION_MKK"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#26e78c1b5ebf7bf899f6e81b96691eac317fe734d3b1fde323f79ffabfbe0b24"><param name="Name" value="NRX_REGION_SPAIN"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#44fcbae102bd41bdc5d6d50e7d6e45cb347a9cb7697d87dd1662b98bdac27a42"><param name="Name" value="NRX_SCAN_ACTIVE"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#e2d96d7286ce0c0ece3c58097ab8fcf391dfccf2e4421bdd5690c89a6e6bcfa9"><param name="Name" value="NRX_SCAN_JOB_STATE_RUNNING"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#e2d96d7286ce0c0ece3c58097ab8fcf3fd1060b459f496c0b7783cea240cbb1a"><param name="Name" value="NRX_SCAN_JOB_STATE_SUSPENDED"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#e2d96d7286ce0c0ece3c58097ab8fcf3"><param name="Name" value="nrx_scan_job_state_t"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#44fcbae102bd41bdc5d6d50e7d6e45cbe9bf7b3e5f2dbc86d7833f22310ea6b9"><param name="Name" value="NRX_SCAN_PASSIVE"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#44fcbae102bd41bdc5d6d50e7d6e45cb"><param name="Name" value="nrx_scan_type_t"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#a5edffd5099f819f5669e7abeffa43cb7ea44c4eefc0cdb805ab56ab3d4b19d5"><param name="Name" value="NRX_SHORT_PREAMBLE"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#c14716e1ba57a045417f913f7af7f074"><param name="Name" value="NRX_SN_POL_ALL_DONE"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#5a531b9e1b687c4a7822cdcfbdce5b44"><param name="Name" value="NRX_SN_POL_FIRST_HIT"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#f1beb6cfb98d845e7736f90a48a593ea"><param name="Name" value="NRX_SN_POL_JOB_COMPLETE"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#a1135de1511c923ce24ace30c8fdca56"><param name="Name" value="nrx_sn_pol_t"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#7b80eb3ee7fdde57ec53547ab198f6a03f7ab4bbf56a1c4dbeaff1e35e264e0d"><param name="Name" value="NRX_SP_LEN_2"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#7b80eb3ee7fdde57ec53547ab198f6a0f8443ba558b9b9779a3db9c60cb87a57"><param name="Name" value="NRX_SP_LEN_4"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#7b80eb3ee7fdde57ec53547ab198f6a02e72c41d1d4ff0627893f606b4cd9b1e"><param name="Name" value="NRX_SP_LEN_6"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#7b80eb3ee7fdde57ec53547ab198f6a01de53f6c10933dd923e88f2991e1f77e"><param name="Name" value="NRX_SP_LEN_ALL"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#7b80eb3ee7fdde57ec53547ab198f6a0"><param name="Name" value="nrx_sp_len_t"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#10633ca47c973d2c1c921e60e5d25c2a"><param name="Name" value="nrx_thr_dir_t"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#2899d29e0f2dca45f0faa34344f30305"><param name="Name" value="NRX_THR_FALLING"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#c3a8c921b45666710defc4313f151f2b"><param name="Name" value="NRX_THR_RISING"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#cb104c78f83632beebc056339223cfb8"><param name="Name" value="NRX_TRAFFIC_BROADCAST"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#afb9946d14fc7a862eaaa7c7d07c7fd9"><param name="Name" value="NRX_TRAFFIC_MULTICAST"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#0ee0c22351f88047f1983efe2075cc59"><param name="Name" value="nrx_traffic_type_t"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#001db51f29ddce660f99206380aaaa6f"><param name="Name" value="NRX_TX_ADAP_RATE_STEPDOWN"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#58eed47a8c24f01b4c21a4846623ff0e"><param name="Name" value="NRX_TX_ADAP_RETRANSMISSION_RATE_STEPDOWN"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#de658eda16cfa8492c9e315f2e4aeabf"><param name="Name" value="NRX_TX_ADAP_TPC"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#33f732e4ba5ea34277d543248aafa3d5"><param name="Name" value="NRX_WMM_AC_BE"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#af1fb0f69ffc151956d737cec4cb7cc5"><param name="Name" value="NRX_WMM_AC_BK"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#65bf933c5fc2f3d94a5b5a95c77b3be9"><param name="Name" value="nrx_wmm_ac_t"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#cc95cbb4af4854a06d9496ead11312d0"><param name="Name" value="NRX_WMM_AC_VI"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#cca971ff88123c22ff413cbd484302e5"><param name="Name" value="NRX_WMM_AC_VO"></OBJECT>
+  </UL>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g6fe87c6f0b3b6f0b0e4f787c42f7bd53"><param name="Name" value="nrx_lock_rate"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#a5edffd5099f819f5669e7abeffa43cb1357ed0a8d960bf05200b2a005a4f019"><param name="Name" value="NRX_LONG_PREAMBLE"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#1da0a912a7deea7e8489247e4351b06b"><param name="Name" value="NRX_MAC_ADDR_LEN"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__mac__addr__list__t.html"><param name="Name" value="nrx_mac_addr_list_t"></OBJECT>
+  <UL>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__mac__addr__list__t.html#97813168dac528ee226cade8a25c6259"><param name="Name" value="len"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__mac__addr__list__t.html#f909c574be174c34b265d0333e87959f"><param name="Name" value="mac_addr"></OBJECT>
+  </UL>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__mac__addr__t.html"><param name="Name" value="nrx_mac_addr_t"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#1c13578f41a667051632218c4c106bdc"><param name="Name" value="NRX_MAX_CHAN_LIST_LEN"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#b0589c962367475aafccf12a09659d3b"><param name="Name" value="NRX_MAX_GPIO_LIST_LEN"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#21bd945db28b9963fd50607adfcbcc23"><param name="Name" value="NRX_MAX_MAC_ADDR_LIST_LEN"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#4a2481444722e19fcd7e41bbd77df307"><param name="Name" value="NRX_MAX_RATE_LIST_LEN"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#a973c53dcb346d53b17cc5bd4a989f6a"><param name="Name" value="NRX_MAX_SSID_LEN"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#b1d6c165de0fb9dee460dad6ce8a61c8"><param name="Name" value="NRX_MAX_SSID_LIST_LEN"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___l_i_b.html#g1658e4c2912d603dc1005840d8c4d2e8"><param name="Name" value="nrx_next_event"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#a5edffd5099f819f5669e7abeffa43cb"><param name="Name" value="nrx_preamble_type_t"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__rate__list__t.html"><param name="Name" value="nrx_rate_list_t"></OBJECT>
+  <UL>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__rate__list__t.html#9e209da63afc9fa3f9aa58a39cb50ebd"><param name="Name" value="len"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__rate__list__t.html#b1072309ba9335416c97173a05f525ca"><param name="Name" value="rates"></OBJECT>
+  </UL>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#ff0a2036fc201e8e73f07e0823e0e496"><param name="Name" value="nrx_rate_t"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#g0692b707671fd7dbe8006478af99d66d"><param name="Name" value="nrx_reassociate"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#26e78c1b5ebf7bf899f6e81b96691eac1d92369a6a578e990d833554d39352b5"><param name="Name" value="NRX_REGION_AMERICA"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#26e78c1b5ebf7bf899f6e81b96691eac"><param name="Name" value="nrx_region_code_t"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#26e78c1b5ebf7bf899f6e81b96691eac20bccb19316ec54b0137226f2b43bc20"><param name="Name" value="NRX_REGION_EMEA"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#26e78c1b5ebf7bf899f6e81b96691eac803e680a3d152677e6b15c2e7ad77cb6"><param name="Name" value="NRX_REGION_ETSI"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#26e78c1b5ebf7bf899f6e81b96691eacdbc535be63373dac5de3d441d99048ac"><param name="Name" value="NRX_REGION_FCC"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#26e78c1b5ebf7bf899f6e81b96691eacfc56299a14fe2d5eb29720d2b534832c"><param name="Name" value="NRX_REGION_FRANCE"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#26e78c1b5ebf7bf899f6e81b96691eac8186df41cc624fd24bb84a120642f69c"><param name="Name" value="NRX_REGION_IC"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#26e78c1b5ebf7bf899f6e81b96691eac46433a4851b987536a04efee018700c8"><param name="Name" value="NRX_REGION_JAPAN"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#26e78c1b5ebf7bf899f6e81b96691eac9601c5a7b6cb74dbd2f6c55eff162c76"><param name="Name" value="NRX_REGION_MKK"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#26e78c1b5ebf7bf899f6e81b96691eac317fe734d3b1fde323f79ffabfbe0b24"><param name="Name" value="NRX_REGION_SPAIN"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g9710f7f7d89228988d665664bab22265"><param name="Name" value="nrx_register_conn_lost_notification"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#g6367061d4a9b636e33b64959f12de593"><param name="Name" value="nrx_register_dev_reset_notification"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gc96a576f9d84fac4e055aa7d1d1cdc7a"><param name="Name" value="nrx_register_link_monitoring_callback"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g07b40b7bf33d7628aa3964fbbfd395e1"><param name="Name" value="nrx_register_per_threshold_callback"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g4d259218aee8f64fa7df355f42f2cca2"><param name="Name" value="nrx_register_rssi_threshold_callback"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___s_c_a_n.html#g9e2053c0b50182c2576ea4c27f4c77bd"><param name="Name" value="nrx_register_scan_notification_handler"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g34bbc4e57afb5354df721cb5452837dc"><param name="Name" value="nrx_register_snr_threshold_callback"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g585b3d3c665828f069f5b2b0f809da39"><param name="Name" value="nrx_reset_traffic_filter_counters"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__retry__list__t.html"><param name="Name" value="nrx_retry_list_t"></OBJECT>
+  <UL>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__retry__list__t.html#364ca2d9c717e69ecbc37f4d3746750c"><param name="Name" value="len"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__retry__list__t.html#d3884c32939aa69dbd1fe51bbd484dae"><param name="Name" value="retries"></OBJECT>
+  </UL>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#44fcbae102bd41bdc5d6d50e7d6e45cb347a9cb7697d87dd1662b98bdac27a42"><param name="Name" value="NRX_SCAN_ACTIVE"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#e2d96d7286ce0c0ece3c58097ab8fcf391dfccf2e4421bdd5690c89a6e6bcfa9"><param name="Name" value="NRX_SCAN_JOB_STATE_RUNNING"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#e2d96d7286ce0c0ece3c58097ab8fcf3fd1060b459f496c0b7783cea240cbb1a"><param name="Name" value="NRX_SCAN_JOB_STATE_SUSPENDED"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#e2d96d7286ce0c0ece3c58097ab8fcf3"><param name="Name" value="nrx_scan_job_state_t"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#44fcbae102bd41bdc5d6d50e7d6e45cbe9bf7b3e5f2dbc86d7833f22310ea6b9"><param name="Name" value="NRX_SCAN_PASSIVE"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#44fcbae102bd41bdc5d6d50e7d6e45cb"><param name="Name" value="nrx_scan_type_t"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g334eb303bdeca7c20cbb938288500be0"><param name="Name" value="nrx_set_adaptive_tx_rate_mode"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g5c1425e2ab78f7a756db14841fe57e15"><param name="Name" value="nrx_set_channel_list"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___p_s.html#g7ef9ffe6364290699565a755568f705d"><param name="Name" value="nrx_set_dev_listen_interval"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___p_s.html#g53476eb643d3e50728b0d5f56c34e0bb"><param name="Name" value="nrx_set_ibss_atim_window"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#gac0cb4352830d94eaeb4b09ab6dd7914"><param name="Name" value="nrx_set_ibss_beacon_period"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___m_i_s_c.html#ga673c4c6d18cd6f004723e9b9d90ed90"><param name="Name" value="nrx_set_join_timeout"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g745e2013f4b0e769f49d1671af99230b"><param name="Name" value="nrx_set_max_tx_power"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g19a64aaf8ef557b69b53a00a99a405e0"><param name="Name" value="nrx_set_op_rates"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gc754efaef3f8964028d45a9bac567fb5"><param name="Name" value="nrx_set_region_code"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___s_c_a_n.html#g65cc084035a61b1c84d5fddedd9158c8"><param name="Name" value="nrx_set_scan_job_state"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gff7fa5c9719eadd313b401ec6a0e0ec2"><param name="Name" value="nrx_set_tx_retry_limit_by_rate"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#ga0b4caacc103359c8b54ec72102fa544"><param name="Name" value="nrx_set_tx_retry_limits"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#a5edffd5099f819f5669e7abeffa43cb7ea44c4eefc0cdb805ab56ab3d4b19d5"><param name="Name" value="NRX_SHORT_PREAMBLE"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#c14716e1ba57a045417f913f7af7f074"><param name="Name" value="NRX_SN_POL_ALL_DONE"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#5a531b9e1b687c4a7822cdcfbdce5b44"><param name="Name" value="NRX_SN_POL_FIRST_HIT"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#f1beb6cfb98d845e7736f90a48a593ea"><param name="Name" value="NRX_SN_POL_JOB_COMPLETE"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#a1135de1511c923ce24ace30c8fdca56"><param name="Name" value="nrx_sn_pol_t"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#7b80eb3ee7fdde57ec53547ab198f6a03f7ab4bbf56a1c4dbeaff1e35e264e0d"><param name="Name" value="NRX_SP_LEN_2"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#7b80eb3ee7fdde57ec53547ab198f6a0f8443ba558b9b9779a3db9c60cb87a57"><param name="Name" value="NRX_SP_LEN_4"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#7b80eb3ee7fdde57ec53547ab198f6a02e72c41d1d4ff0627893f606b4cd9b1e"><param name="Name" value="NRX_SP_LEN_6"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#7b80eb3ee7fdde57ec53547ab198f6a01de53f6c10933dd923e88f2991e1f77e"><param name="Name" value="NRX_SP_LEN_ALL"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#7b80eb3ee7fdde57ec53547ab198f6a0"><param name="Name" value="nrx_sp_len_t"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__ssid__list__t.html"><param name="Name" value="nrx_ssid_list_t"></OBJECT>
+  <UL>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__ssid__list__t.html#a45220686564c2861099ea3688c6238d"><param name="Name" value="len"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__ssid__list__t.html#a9546ca408d65777180dfc98b08ebf78"><param name="Name" value="ssids"></OBJECT>
+  </UL>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__ssid__t.html"><param name="Name" value="nrx_ssid_t"></OBJECT>
+  <UL>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__ssid__t.html#d320a1f403789d5b7698d5bde56b536e"><param name="Name" value="ssid"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__ssid__t.html#b3cd0164c6e37df10187abf1ff79af03"><param name="Name" value="ssid_len"></OBJECT>
+  </UL>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#10633ca47c973d2c1c921e60e5d25c2a"><param name="Name" value="nrx_thr_dir_t"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#2899d29e0f2dca45f0faa34344f30305"><param name="Name" value="NRX_THR_FALLING"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#c3a8c921b45666710defc4313f151f2b"><param name="Name" value="NRX_THR_RISING"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#cb104c78f83632beebc056339223cfb8"><param name="Name" value="NRX_TRAFFIC_BROADCAST"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#afb9946d14fc7a862eaaa7c7d07c7fd9"><param name="Name" value="NRX_TRAFFIC_MULTICAST"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#0ee0c22351f88047f1983efe2075cc59"><param name="Name" value="nrx_traffic_type_t"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___s_c_a_n.html#g867a5c5de2da388da73c327cc6097d6c"><param name="Name" value="nrx_trigger_scan"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#001db51f29ddce660f99206380aaaa6f"><param name="Name" value="NRX_TX_ADAP_RATE_STEPDOWN"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#58eed47a8c24f01b4c21a4846623ff0e"><param name="Name" value="NRX_TX_ADAP_RETRANSMISSION_RATE_STEPDOWN"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#de658eda16cfa8492c9e315f2e4aeabf"><param name="Name" value="NRX_TX_ADAP_TPC"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g28d12b9a255e3542f4f1db017acb25a8"><param name="Name" value="nrx_unlock_rate"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___l_i_b.html#g0492e1e76aeed703b3892d4e0de6c1cd"><param name="Name" value="nrx_wait_event"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__we__callback__data.html"><param name="Name" value="nrx_we_callback_data"></OBJECT>
+  <UL>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__we__callback__data.html#f79e9b15bf2ac198e6200366519b3894"><param name="Name" value="cmd"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__we__callback__data.html#47de4a436fa0aa4cd6196373855a37a9"><param name="Name" value="data"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__we__callback__data.html#e04a120f523620a03ee9cf75999f1a5c"><param name="Name" value="len"></OBJECT>
+  </UL>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#33f732e4ba5ea34277d543248aafa3d5"><param name="Name" value="NRX_WMM_AC_BE"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#af1fb0f69ffc151956d737cec4cb7cc5"><param name="Name" value="NRX_WMM_AC_BK"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#65bf933c5fc2f3d94a5b5a95c77b3be9"><param name="Name" value="nrx_wmm_ac_t"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#cc95cbb4af4854a06d9496ead11312d0"><param name="Name" value="NRX_WMM_AC_VI"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="nrx__lib_8h.html#cca971ff88123c22ff413cbd484302e5"><param name="Name" value="NRX_WMM_AC_VO"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__mac__addr__t.html#a7b57583c8bd6553c47d1c49fedcdc22"><param name="Name" value="octet"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__gpio__list__t.html#5b94fb8ab2a885b425dd08df80d68b7d"><param name="Name" value="pin"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___p_s.html"><param name="Name" value="Power Save"></OBJECT>
+  <UL>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___p_s.html#gde7bf3bd3dd0f522fefbf3901af75e76"><param name="Name" value="nrx_conf_ps"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___p_s.html#ga7e92628ab58645e2174473f85110125"><param name="Name" value="nrx_conf_wmm_ps"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___p_s.html#g711d6cf0fac9e84252f0c4b18083b268"><param name="Name" value="nrx_disable_ps"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___p_s.html#gf4d55db1a1a9a4c1f334ae1a33c8d160"><param name="Name" value="nrx_disable_wmm_ps"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___p_s.html#gd69f94f40e826eeec756fa3d8d057f2c"><param name="Name" value="nrx_enable_ps"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___p_s.html#g9e58bdf533d9b6a64e282b283acd5af0"><param name="Name" value="nrx_enable_wmm_ps"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___p_s.html#g7ef9ffe6364290699565a755568f705d"><param name="Name" value="nrx_set_dev_listen_interval"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___p_s.html#g53476eb643d3e50728b0d5f56c34e0bb"><param name="Name" value="nrx_set_ibss_atim_window"></OBJECT>
+  </UL>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__rate__list__t.html#b1072309ba9335416c97173a05f525ca"><param name="Name" value="rates"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__conn__lost__data.html#8162747e688cb7b6a0141d50672d5e7b"><param name="Name" value="reason_code"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__event__mibtrigger.html#627721d03b65f55f353560bd372bf3d2"><param name="Name" value="result"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__retry__list__t.html#d3884c32939aa69dbd1fe51bbd484dae"><param name="Name" value="retries"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___s_c_a_n.html"><param name="Name" value="Scan"></OBJECT>
+  <UL>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___s_c_a_n.html#g8c8f2a4a07e1a0964fd812be1baa15b6"><param name="Name" value="nrx_add_scan_filter"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___s_c_a_n.html#g06667eef9a54f93677e8120cac8c4296"><param name="Name" value="nrx_add_scan_job"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___s_c_a_n.html#g291dc3034c51b22a6e9d4e3a20ef462c"><param name="Name" value="nrx_cancel_scan_notification_handler"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___s_c_a_n.html#g804d3e2df9ebb9fc3db4cd3e01f58ea9"><param name="Name" value="nrx_conf_scan"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___s_c_a_n.html#gcb1e41e2de4ca669c36816b517583b8b"><param name="Name" value="nrx_delete_scan_filter"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___s_c_a_n.html#g24142f3e969d6060ab31dfe4b51cf297"><param name="Name" value="nrx_delete_scan_job"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___s_c_a_n.html#g72c9fc79bfe5bdc3cb9a3b40f7f09242"><param name="Name" value="nrx_get_scan_list"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___s_c_a_n.html#g9e2053c0b50182c2576ea4c27f4c77bd"><param name="Name" value="nrx_register_scan_notification_handler"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___s_c_a_n.html#g65cc084035a61b1c84d5fddedd9158c8"><param name="Name" value="nrx_set_scan_job_state"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___s_c_a_n.html#g867a5c5de2da388da73c327cc6097d6c"><param name="Name" value="nrx_trigger_scan"></OBJECT>
+  </UL>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__ssid__t.html#d320a1f403789d5b7698d5bde56b536e"><param name="Name" value="ssid"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__ssid__t.html#b3cd0164c6e37df10187abf1ff79af03"><param name="Name" value="ssid_len"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__ssid__list__t.html#a9546ca408d65777180dfc98b08ebf78"><param name="Name" value="ssids"></OBJECT>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html"><param name="Name" value="Transmission/reception settings"></OBJECT>
+  <UL>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g3c395b81e554f8ac371b2dd5e71ab966"><param name="Name" value="nrx_cancel_conn_lost_notification"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g4aed35b11a9c5633eab206f8c4de681a"><param name="Name" value="nrx_cancel_link_monitoring_callback"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gb8fe5e84c2a1ae8364e93cb152b7587e"><param name="Name" value="nrx_cancel_per_threshold_callback"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g080256a4c4e53b99933a295c8c511a7f"><param name="Name" value="nrx_cancel_rssi_threshold_callback"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g21e0a35fb7c05280fc0218b3f5a80728"><param name="Name" value="nrx_cancel_snr_threshold_callback"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gd5fe30ab24f344c3b9a1da6f1ff52d02"><param name="Name" value="nrx_disable_link_monitoring"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gde507a9c0c6d4ef197f33256ff173bee"><param name="Name" value="nrx_disable_per_threshold"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gc0355555b95311b78d0558061692c8fb"><param name="Name" value="nrx_disable_rssi_threshold"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gd55dd33e897b35b7c693821160154bad"><param name="Name" value="nrx_disable_snr_threshold"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gd672caffbde6dcc400a8eb1b3fea2ca9"><param name="Name" value="nrx_disable_traffic_filter"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g797c83b5a5bb5ff096ba382064d7eba6"><param name="Name" value="nrx_enable_link_monitoring"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#ge8346b1b9aa5e86e25495940e0af725e"><param name="Name" value="nrx_enable_per_threshold"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gecba5883b7518d80268cefca4c613cac"><param name="Name" value="nrx_enable_rssi_threshold"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g391201e916a61f8fc69c066cfc8b8419"><param name="Name" value="nrx_enable_snr_threshold"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g1fea8e504c5a203a1b13a99ba54f5015"><param name="Name" value="nrx_enable_traffic_filter"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g783c474725bb84a6c3179b8d565f1d53"><param name="Name" value="nrx_get_ack_failure_count"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gdea370d5f812b41c7f97b692313df9c4"><param name="Name" value="nrx_get_curr_channel"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gb34a92f98360debf1b43ba68b1d8def3"><param name="Name" value="nrx_get_per"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g0523d6a689742eca04a3ceb425380ec0"><param name="Name" value="nrx_get_rssi"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g969222a7761ef0958dde6b8328dfe8a5"><param name="Name" value="nrx_get_rts_failure_count"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g75aacc589a518bae452d46979a1f865d"><param name="Name" value="nrx_get_rts_success_count"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gd5c35e3e3ac8b28c178fe06ae3d229cb"><param name="Name" value="nrx_get_rx_fcs_error_count"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g7f6f551e736aa909b03cb465a33a2d34"><param name="Name" value="nrx_get_rx_fragment_count"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gd18b901a8e9d0cfb4fb81c2ced8710fe"><param name="Name" value="nrx_get_rx_frame_duplicates_count"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gb50306e2390812c886d846e698c14cdb"><param name="Name" value="nrx_get_rx_mcast_frame_count"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g5328a7e308ca76e9d86a20a6de6805d2"><param name="Name" value="nrx_get_rx_undecryptable_count"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g6df9bb0823d3e997b12f159b829b5a9e"><param name="Name" value="nrx_get_snr"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gbe29b8278fbf8cea9ecc57ff1ff2ab35"><param name="Name" value="nrx_get_traffic_filter_counters"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gf98121a04ecbe3e103bb28528601462d"><param name="Name" value="nrx_get_tx_failed_count"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gdaad9de517d87521064d3678c23a238c"><param name="Name" value="nrx_get_tx_fragment_count"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g616aa32bff9ab502396a0fa96dba3cf0"><param name="Name" value="nrx_get_tx_frame_count"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g0711aa8338225d5dd30ed20084de7349"><param name="Name" value="nrx_get_tx_mcast_frame_count"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#ga985911d08da74136c3320772df321f4"><param name="Name" value="nrx_get_tx_multiple_retry_count"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#ge4ab01142055138513e93375b75f8464"><param name="Name" value="nrx_get_tx_retry_count"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g6fe87c6f0b3b6f0b0e4f787c42f7bd53"><param name="Name" value="nrx_lock_rate"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g9710f7f7d89228988d665664bab22265"><param name="Name" value="nrx_register_conn_lost_notification"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gc96a576f9d84fac4e055aa7d1d1cdc7a"><param name="Name" value="nrx_register_link_monitoring_callback"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g07b40b7bf33d7628aa3964fbbfd395e1"><param name="Name" value="nrx_register_per_threshold_callback"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g4d259218aee8f64fa7df355f42f2cca2"><param name="Name" value="nrx_register_rssi_threshold_callback"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g34bbc4e57afb5354df721cb5452837dc"><param name="Name" value="nrx_register_snr_threshold_callback"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g585b3d3c665828f069f5b2b0f809da39"><param name="Name" value="nrx_reset_traffic_filter_counters"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g334eb303bdeca7c20cbb938288500be0"><param name="Name" value="nrx_set_adaptive_tx_rate_mode"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g5c1425e2ab78f7a756db14841fe57e15"><param name="Name" value="nrx_set_channel_list"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g745e2013f4b0e769f49d1671af99230b"><param name="Name" value="nrx_set_max_tx_power"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g19a64aaf8ef557b69b53a00a99a405e0"><param name="Name" value="nrx_set_op_rates"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gc754efaef3f8964028d45a9bac567fb5"><param name="Name" value="nrx_set_region_code"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#gff7fa5c9719eadd313b401ec6a0e0ec2"><param name="Name" value="nrx_set_tx_retry_limit_by_rate"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#ga0b4caacc103359c8b54ec72102fa544"><param name="Name" value="nrx_set_tx_retry_limits"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="group___r_a_d_i_o.html#g28d12b9a255e3542f4f1db017acb25a8"><param name="Name" value="nrx_unlock_rate"></OBJECT>
+  </UL>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__conn__lost__data.html#cafde33803c806137fbcce235d4546dd"><param name="Name" value="type"></OBJECT>
+  <UL>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__conn__lost__data.html#cafde33803c806137fbcce235d4546dd"><param name="Name" value="nrx_conn_lost_data"></OBJECT>
+    <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__event__mibtrigger.html#c011cec7d08b61bcaa8474e249b579f6"><param name="Name" value="nrx_event_mibtrigger"></OBJECT>
+  </UL>
+  <LI><OBJECT type="text/sitemap"><param name="Local" value="structnrx__event__mibtrigger.html#ef216135b63a563ed695b3d6bb76a11a"><param name="Name" value="value"></OBJECT>
+</UL>

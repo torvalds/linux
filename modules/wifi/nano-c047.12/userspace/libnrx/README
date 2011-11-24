@@ -1,0 +1,7 @@
+To compile this you need autoconf (>= 2.5x) and automake (>= 1.8). 
+
+To generate everything needed to compile, run autoreconf -fi, 
+and then ./configure.
+
+Currently nanoioctl.h and mac_mib_defs.h will have to be manually
+provided.

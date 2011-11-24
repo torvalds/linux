@@ -1,0 +1,38 @@
+/*! 
+ * \mainpage Linux SDIO Driver Physical Layer
+ *
+ * \section intro Reference Guide
+ * - \ref introduction		"Introduction"
+ * - \ref disclaimer_copyright	"Disclaimer and Copyright"
+ *
+ * \subsection overview Overview
+ * - \ref linux_host_arch 	"Host Environment Architecture"
+ *
+ * \subsection modules Modules
+ * - \ref group__transport__layer		"Transport Layer API"
+ * - \ref group__sdio__generic	"Generic SDIO driver implementation"
+ * - \ref group__sdio__host 	"SDIO host controller interface"
+ *
+ * \subsection classes Data Structures
+ * - \ref nanonet_create_param 	"nanonet_create_param Struct Reference"
+ * - \ref sdio_statistics_t	"sdio_statistics_t Struct Reference"
+ * - \ref sdio_dev_t		"sdio_dev_t Struct Reference"
+ * 
+ * \subsection files File List
+ * - \ref host.h 		"host.h"
+ * - \ref nanonet.h 		"nanonet.h"
+ * - \ref sdio.c 		"sdio.c"
+ */
+
+/*!
+ * \page introduction		Introduction
+ * \htmlinclude 		introduction.htm
+ * \page disclaimer_copyright 	Disclaimer and copyright
+ * \htmlinclude 		disclaimer_copyright.htm
+ * \page linux_host_arch	Host Environment Architecture
+ * \image html			linux_architecture.png
+ * \htmlinclude 		linux_host_arch.htm
+ * \page group__transport__layer		Transport Layer API
+ * \page group__sdio__generic	Generic SDIO driver implementation
+ * \page group__sdio__host 	SDIO host controller interface
+ */

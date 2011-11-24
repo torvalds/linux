@@ -1,0 +1,6 @@
+USB_KERNEL_DIR?=/lib/modules/$(shell uname -r)/build
+KERNEL_DIR = $(USB_KERNEL_DIR)
+CROSS_COMPILE = $(USB_COMPILE)
+KERNEL_MAJOR_VERSION=2.6
+TRANSPORT=usb
+

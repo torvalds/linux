@@ -1,0 +1,60 @@
+PRJHOME=../../..
+
+!include $(PRJHOME)/WFE.mk
+!include $(PRJHOME)/DE.mk
+!include $(PRJHOME)/ADL.mk
+
+          
+!IF ("$(DDKBUILDENV)"=="chk") || ("$(DDKBUILDENV)"=="checked")
+BUILDTYPE = CHECKED
+NANOFLAGS = -DWIFI_DEBUG_ON -DWIFI_DEBUG_VERBOSE -DWIFI_DUMP_PACKETS -DPRINT_PKT_HDR -DDEBUG=1
+# NANOFLAGS = -DENABLE_MIB_CACHE -DWIFI_DEBUG_ON -DTRANSID_IN_DATAREQ -DWIFI_DEBUG_VERBOSE -DWIFI_DUMP_PACKETS -DPRINT_PKT_HDR -DWITH_8021X_PORT -DDEBUG=1
+!ELSE
+BUILDTYPE = FREE
+NTDEBUG=
+# NANOFLAGS = -DENABLE_MIB_CACHE -DTRANSID_IN_DATAREQ
+!ENDIF
+
+C_DEFINES =$(C_DEFINES) -DNDIS_MINIPORT_DRIVER $(NANOFLAGS)
+C_DEFINES =$(C_DEFINES) -DNDIS51_MINIPORT=1
+C_DEFINES =$(C_DEFINES) -DNDIS_WDM=1
+
+APPLIBS = $(PRJHOME)/WiFiEngine/driverenv/common/src/i386/de_common.lib \
+	  $(WFELIB) \
+          $(ADLHOME)/src/i386/adl.lib \
+          $(DRIVERENVHOME)/src/i386/driverenv.lib \
+          $(OIDHANDLER)/i386/oidhandler.lib \
+          $(DRVHOME)/support/i386/support.lib \
+          $(TRANSPORTHOME)/src/i386/transport.lib \
+          $(DRVHOME)/support/i386/support.lib
+
+
+TARGETLIBS=$(DDK_LIB_PATH)\ntstrsafe.lib $(DDK_LIB_PATH)\csq.lib
+TARGETLIBS=$(TARGETLIBS) $(DDK_LIB_PATH)\ndis.lib
+TARGETLIBS=$(TARGETLIBS) $(DRIVERNETWORKS)\lib\*\$(BUILDTYPE)\kndis5mp.lib
+C_DEFINES =$(C_DEFINES) -DNTVERSION='WDM'
+TARGETLIBS=$(TARGETLIBS) $(DRIVERWORKS)\lib\*\$(BUILDTYPE)\kndiswdm.lib
+TARGETLIBS=$(TARGETLIBS) $(APPLIBS)
+
+LINK_LIB_IGNORE=4099,4210
+
+
+
+INCLUDES=$(WFEINC) \
+         $(DEINC) \
+         $(ADLINC) \
+         $(BASEDIR)\inc;\
+         $(BASEDIR)\inc\ddk;\
+         $(BASEDIR)\inc\ddk\wxp; \
+         $(BASEDIR)\src\network\inc;\
+         $(DRVHOME); \
+         $(TRANSPORTHOME)/inc;\
+         $(OIDHANDLER);\
+         $(DRVHOME)/support;\
+	 $(PRJHOME)/WiFiEngine/driverenv/common/inc;\
+         $(WDM_INC_PATH);
+
+
+MSC_WARNING_LEVEL=/wd4103
+
+C_DEFINES= $(NANOFLAGS) -DNDIS_MINIPORT_DRIVER -DNDIS51_MINIPORT -DBINARY_COMPATIBLE=1 -DNDIS_WDM=1 -DNTVERSION='WDM' -DUSE_KLOCKS=1

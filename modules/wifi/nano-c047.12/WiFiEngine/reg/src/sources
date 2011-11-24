@@ -1,0 +1,9 @@
+WIFIENGINEHOME=../..
+
+TARGETNAME=registry
+TARGETTYPE=LIBRARY
+TARGETPATH=.
+
+!include $(WIFIENGINEHOME)/common.mk
+
+SOURCES=registryAccess.c defaultreg.c
