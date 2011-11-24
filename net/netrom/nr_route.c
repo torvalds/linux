@@ -670,12 +670,10 @@ int nr_rt_ioctl(unsigned int cmd, void __user *arg)
 	case SIOCADDRT:
 		if (copy_from_user(&nr_route, arg, sizeof(struct nr_route_struct)))
 			return -EFAULT;
+		if (nr_route.ndigis > AX25_MAX_DIGIS)
+			return -EINVAL;
 		if ((dev = nr_ax25_dev_get(nr_route.device)) == NULL)
 			return -EINVAL;
-		if (nr_route.ndigis < 0 || nr_route.ndigis > AX25_MAX_DIGIS) {
-			dev_put(dev);
-			return -EINVAL;
-		}
 		switch (nr_route.type) {
 		case NETROM_NODE:
 			if (strnlen(nr_route.mnemonic, 7) == 7) {
