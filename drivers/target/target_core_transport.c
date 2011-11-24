@@ -4161,7 +4161,7 @@ check_cond:
 
 static int transport_clear_lun_thread(void *p)
 {
-	struct se_lun *lun = (struct se_lun *)p;
+	struct se_lun *lun = p;
 
 	__transport_clear_lun_from_sessions(lun);
 	complete(&lun->lun_shutdown_comp);
@@ -4580,7 +4580,7 @@ static int transport_processing_thread(void *param)
 {
 	int ret;
 	struct se_cmd *cmd;
-	struct se_device *dev = (struct se_device *) param;
+	struct se_device *dev = param;
 
 	while (!kthread_should_stop()) {
 		ret = wait_event_interruptible(dev->dev_queue_obj.thread_wq,

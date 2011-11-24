@@ -399,7 +399,7 @@ char *iscsi_parse_pr_out_transport_id(
 		add_len = ((buf[2] >> 8) & 0xff);
 		add_len |= (buf[3] & 0xff);
 
-		tid_len = strlen((char *)&buf[4]);
+		tid_len = strlen(&buf[4]);
 		tid_len += 4; /* Add four bytes for iSCSI Transport ID header */
 		tid_len += 1; /* Add one byte for NULL terminator */
 		padding = ((-tid_len) & 3);
@@ -420,11 +420,11 @@ char *iscsi_parse_pr_out_transport_id(
 	 * format.
 	 */
 	if (format_code == 0x40) {
-		p = strstr((char *)&buf[4], ",i,0x");
+		p = strstr(&buf[4], ",i,0x");
 		if (!p) {
 			pr_err("Unable to locate \",i,0x\" seperator"
 				" for Initiator port identifier: %s\n",
-				(char *)&buf[4]);
+				&buf[4]);
 			return NULL;
 		}
 		*p = '\0'; /* Terminate iSCSI Name */

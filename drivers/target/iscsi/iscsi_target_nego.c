@@ -732,7 +732,7 @@ static void iscsi_initiatorname_tolower(
 	u32 iqn_size = strlen(param_buf), i;
 
 	for (i = 0; i < iqn_size; i++) {
-		c = (char *)&param_buf[i];
+		c = &param_buf[i];
 		if (!isupper(*c))
 			continue;
 

@@ -104,7 +104,7 @@ static void pscsi_detach_hba(struct se_hba *hba)
 
 static int pscsi_pmode_enable_hba(struct se_hba *hba, unsigned long mode_flag)
 {
-	struct pscsi_hba_virt *phv = (struct pscsi_hba_virt *)hba->hba_ptr;
+	struct pscsi_hba_virt *phv = hba->hba_ptr;
 	struct Scsi_Host *sh = phv->phv_lld_host;
 	/*
 	 * Release the struct Scsi_Host
@@ -405,7 +405,7 @@ static struct se_device *pscsi_create_type_disk(
 	__releases(sh->host_lock)
 {
 	struct se_device *dev;
-	struct pscsi_hba_virt *phv = (struct pscsi_hba_virt *)pdv->pdv_se_hba->hba_ptr;
+	struct pscsi_hba_virt *phv = pdv->pdv_se_hba->hba_ptr;
 	struct Scsi_Host *sh = sd->host;
 	struct block_device *bd;
 	u32 dev_flags = 0;
@@ -453,7 +453,7 @@ static struct se_device *pscsi_create_type_rom(
 	__releases(sh->host_lock)
 {
 	struct se_device *dev;
-	struct pscsi_hba_virt *phv = (struct pscsi_hba_virt *)pdv->pdv_se_hba->hba_ptr;
+	struct pscsi_hba_virt *phv = pdv->pdv_se_hba->hba_ptr;
 	struct Scsi_Host *sh = sd->host;
 	u32 dev_flags = 0;
 
@@ -488,7 +488,7 @@ static struct se_device *pscsi_create_type_other(
 	__releases(sh->host_lock)
 {
 	struct se_device *dev;
-	struct pscsi_hba_virt *phv = (struct pscsi_hba_virt *)pdv->pdv_se_hba->hba_ptr;
+	struct pscsi_hba_virt *phv = pdv->pdv_se_hba->hba_ptr;
 	struct Scsi_Host *sh = sd->host;
 	u32 dev_flags = 0;
 
@@ -509,10 +509,10 @@ static struct se_device *pscsi_create_virtdevice(
 	struct se_subsystem_dev *se_dev,
 	void *p)
 {
-	struct pscsi_dev_virt *pdv = (struct pscsi_dev_virt *)p;
+	struct pscsi_dev_virt *pdv = p;
 	struct se_device *dev;
 	struct scsi_device *sd;
-	struct pscsi_hba_virt *phv = (struct pscsi_hba_virt *)hba->hba_ptr;
+	struct pscsi_hba_virt *phv = hba->hba_ptr;
 	struct Scsi_Host *sh = phv->phv_lld_host;
 	int legacy_mode_enable = 0;
 
@@ -1143,7 +1143,7 @@ static unsigned char *pscsi_get_sense_buffer(struct se_task *task)
 {
 	struct pscsi_plugin_task *pt = PSCSI_TASK(task);
 
-	return (unsigned char *)&pt->pscsi_sense[0];
+	return pt->pscsi_sense;
 }
 
 /*	pscsi_get_device_rev():
