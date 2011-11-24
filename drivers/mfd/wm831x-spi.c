@@ -94,7 +94,6 @@ MODULE_DEVICE_TABLE(spi, wm831x_spi_id);
 static struct spi_driver wm831x_spi_driver = {
 	.driver = {
 		.name	= "wm831x",
-		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
 		.pm	= &wm831x_spi_pm,
 	},

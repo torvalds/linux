@@ -805,7 +805,6 @@ static struct spi_driver mc13xxx_driver = {
 	.id_table = mc13xxx_device_id,
 	.driver = {
 		.name = "mc13xxx",
-		.bus = &spi_bus_type,
 		.owner = THIS_MODULE,
 	},
 	.probe = mc13xxx_probe,
