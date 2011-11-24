@@ -781,18 +781,8 @@ static struct platform_driver mxs_saif_driver = {
 	},
 };
 
-static int __init mxs_saif_init(void)
-{
-	return platform_driver_register(&mxs_saif_driver);
-}
+module_platform_driver(mxs_saif_driver);
 
-static void __exit mxs_saif_exit(void)
-{
-	platform_driver_unregister(&mxs_saif_driver);
-}
-
-module_init(mxs_saif_init);
-module_exit(mxs_saif_exit);
 MODULE_AUTHOR("Freescale Semiconductor, Inc.");
 MODULE_DESCRIPTION("MXS ASoC SAIF driver");
 MODULE_LICENSE("GPL");

@@ -156,17 +156,7 @@ static struct platform_driver mxs_sgtl5000_audio_driver = {
 	.remove = __devexit_p(mxs_sgtl5000_remove),
 };
 
-static int __init mxs_sgtl5000_init(void)
-{
-	return platform_driver_register(&mxs_sgtl5000_audio_driver);
-}
-module_init(mxs_sgtl5000_init);
-
-static void __exit mxs_sgtl5000_exit(void)
-{
-	platform_driver_unregister(&mxs_sgtl5000_audio_driver);
-}
-module_exit(mxs_sgtl5000_exit);
+module_platform_driver(mxs_sgtl5000_audio_driver);
 
 MODULE_AUTHOR("Freescale Semiconductor, Inc.");
 MODULE_DESCRIPTION("MXS ALSA SoC Machine driver");
