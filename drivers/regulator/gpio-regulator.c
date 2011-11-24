@@ -284,7 +284,7 @@ static int __devinit gpio_regulator_probe(struct platform_device *pdev)
 	drvdata->state = state;
 
 	drvdata->dev = regulator_register(&drvdata->desc, &pdev->dev,
-					  config->init_data, drvdata);
+					  config->init_data, drvdata, NULL);
 	if (IS_ERR(drvdata->dev)) {
 		ret = PTR_ERR(drvdata->dev);
 		dev_err(&pdev->dev, "Failed to register regulator: %d\n", ret);
