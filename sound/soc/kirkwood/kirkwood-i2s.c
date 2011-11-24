@@ -483,17 +483,7 @@ static struct platform_driver kirkwood_i2s_driver = {
 	},
 };
 
-static int __init kirkwood_i2s_init(void)
-{
-	return platform_driver_register(&kirkwood_i2s_driver);
-}
-module_init(kirkwood_i2s_init);
-
-static void __exit kirkwood_i2s_exit(void)
-{
-	platform_driver_unregister(&kirkwood_i2s_driver);
-}
-module_exit(kirkwood_i2s_exit);
+module_platform_driver(kirkwood_i2s_driver);
 
 /* Module information */
 MODULE_AUTHOR("Arnaud Patard, <arnaud.patard@rtp-net.org>");

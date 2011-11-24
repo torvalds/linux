@@ -388,17 +388,7 @@ static struct platform_driver kirkwood_pcm_driver = {
 	.remove = __devexit_p(kirkwood_soc_platform_remove),
 };
 
-static int __init kirkwood_pcm_init(void)
-{
-	return platform_driver_register(&kirkwood_pcm_driver);
-}
-module_init(kirkwood_pcm_init);
-
-static void __exit kirkwood_pcm_exit(void)
-{
-	platform_driver_unregister(&kirkwood_pcm_driver);
-}
-module_exit(kirkwood_pcm_exit);
+module_platform_driver(kirkwood_pcm_driver);
 
 MODULE_AUTHOR("Arnaud Patard <arnaud.patard@rtp-net.org>");
 MODULE_DESCRIPTION("Marvell Kirkwood Audio DMA module");
