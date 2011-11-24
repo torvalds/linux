@@ -1334,7 +1334,6 @@ MODULE_DEVICE_TABLE(spi, ifx_id_table);
 static const struct spi_driver ifx_spi_driver = {
 	.driver = {
 		.name = DRVNAME,
-		.bus = &spi_bus_type,
 		.pm = &ifx_spi_pm,
 		.owner = THIS_MODULE},
 	.probe = ifx_spi_spi_probe,
