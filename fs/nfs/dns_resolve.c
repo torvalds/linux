@@ -40,6 +40,7 @@ ssize_t nfs_dns_resolve_name(struct net *net, char *name, size_t namelen,
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/cache.h>
 #include <linux/sunrpc/svcauth.h>
+#include <linux/sunrpc/rpc_pipe_fs.h>
 
 #include "dns_resolve.h"
 #include "cache_lib.h"
@@ -400,12 +401,47 @@ void nfs_dns_resolver_cache_destroy(struct net *net)
 	kfree(cd);
 }
 
+static int rpc_pipefs_event(struct notifier_block *nb, unsigned long event,
+			   void *ptr)
+{
+	struct super_block *sb = ptr;
+	struct net *net = sb->s_fs_info;
+	struct nfs_net *nn = net_generic(net, nfs_net_id);
+	struct cache_detail *cd = nn->nfs_dns_resolve;
+	int ret = 0;
+
+	if (cd == NULL)
+		return 0;
+
+	if (!try_module_get(THIS_MODULE))
+		return 0;
+
+	switch (event) {
+	case RPC_PIPEFS_MOUNT:
+		ret = nfs_cache_register_sb(sb, cd);
+		break;
+	case RPC_PIPEFS_UMOUNT:
+		nfs_cache_unregister_sb(sb, cd);
+		break;
+	default:
+		ret = -ENOTSUPP;
+		break;
+	}
+	module_put(THIS_MODULE);
+	return ret;
+}
+
+static struct notifier_block nfs_dns_resolver_block = {
+	.notifier_call	= rpc_pipefs_event,
+};
+
 int nfs_dns_resolver_init(void)
 {
-	return 0;
+	return rpc_pipefs_notifier_register(&nfs_dns_resolver_block);
 }
 
 void nfs_dns_resolver_destroy(void)
 {
+	rpc_pipefs_notifier_unregister(&nfs_dns_resolver_block);
 }
 #endif

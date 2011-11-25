@@ -112,7 +112,7 @@ int nfs_cache_wait_for_upcall(struct nfs_cache_defer_req *dreq)
 	return 0;
 }
 
-static int nfs_cache_register_sb(struct super_block *sb, struct cache_detail *cd)
+int nfs_cache_register_sb(struct super_block *sb, struct cache_detail *cd)
 {
 	int ret;
 	struct dentry *dir;
@@ -147,7 +147,7 @@ err:
 	return ret;
 }
 
-static void nfs_cache_unregister_sb(struct super_block *sb, struct cache_detail *cd)
+void nfs_cache_unregister_sb(struct super_block *sb, struct cache_detail *cd)
 {
 	if (cd->u.pipefs.dir)
 		sunrpc_cache_unregister_pipefs(cd);
