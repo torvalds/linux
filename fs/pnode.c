@@ -58,7 +58,7 @@ int get_dominating_id(struct mount *mnt, const struct path *root)
 	for (m = mnt->mnt_master; m != NULL; m = m->mnt_master) {
 		struct mount *d = get_peer_under_root(m, mnt->mnt_ns, root);
 		if (d)
-			return d->mnt.mnt_group_id;
+			return d->mnt_group_id;
 	}
 
 	return 0;
@@ -86,7 +86,7 @@ static int do_make_slave(struct mount *mnt)
 		mnt_release_group_id(mnt);
 
 	list_del_init(&mnt->mnt_share);
-	mnt->mnt.mnt_group_id = 0;
+	mnt->mnt_group_id = 0;
 
 	if (peer_mnt)
 		master = peer_mnt;

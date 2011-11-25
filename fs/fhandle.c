@@ -10,6 +10,7 @@
 #include <linux/personality.h>
 #include <asm/uaccess.h>
 #include "internal.h"
+#include "mount.h"
 
 static long do_sys_name_to_handle(struct path *path,
 				  struct file_handle __user *ufh,
@@ -66,7 +67,8 @@ static long do_sys_name_to_handle(struct path *path,
 	} else
 		retval = 0;
 	/* copy the mount id */
-	if (copy_to_user(mnt_id, &path->mnt->mnt_id, sizeof(*mnt_id)) ||
+	if (copy_to_user(mnt_id, &real_mount(path->mnt)->mnt_id,
+			 sizeof(*mnt_id)) ||
 	    copy_to_user(ufh, handle,
 			 sizeof(struct file_handle) + handle_bytes))
 		retval = -EFAULT;

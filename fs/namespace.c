@@ -85,9 +85,9 @@ static int mnt_alloc_id(struct mount *mnt)
 retry:
 	ida_pre_get(&mnt_id_ida, GFP_KERNEL);
 	spin_lock(&mnt_id_lock);
-	res = ida_get_new_above(&mnt_id_ida, mnt_id_start, &mnt->mnt.mnt_id);
+	res = ida_get_new_above(&mnt_id_ida, mnt_id_start, &mnt->mnt_id);
 	if (!res)
-		mnt_id_start = mnt->mnt.mnt_id + 1;
+		mnt_id_start = mnt->mnt_id + 1;
 	spin_unlock(&mnt_id_lock);
 	if (res == -EAGAIN)
 		goto retry;
@@ -97,7 +97,7 @@ retry:
 
 static void mnt_free_id(struct mount *mnt)
 {
-	int id = mnt->mnt.mnt_id;
+	int id = mnt->mnt_id;
 	spin_lock(&mnt_id_lock);
 	ida_remove(&mnt_id_ida, id);
 	if (mnt_id_start > id)
@@ -119,9 +119,9 @@ static int mnt_alloc_group_id(struct mount *mnt)
 
 	res = ida_get_new_above(&mnt_group_ida,
 				mnt_group_start,
-				&mnt->mnt.mnt_group_id);
+				&mnt->mnt_group_id);
 	if (!res)
-		mnt_group_start = mnt->mnt.mnt_group_id + 1;
+		mnt_group_start = mnt->mnt_group_id + 1;
 
 	return res;
 }
@@ -131,11 +131,11 @@ static int mnt_alloc_group_id(struct mount *mnt)
  */
 void mnt_release_group_id(struct mount *mnt)
 {
-	int id = mnt->mnt.mnt_group_id;
+	int id = mnt->mnt_group_id;
 	ida_remove(&mnt_group_ida, id);
 	if (mnt_group_start > id)
 		mnt_group_start = id;
-	mnt->mnt.mnt_group_id = 0;
+	mnt->mnt_group_id = 0;
 }
 
 /*
@@ -696,11 +696,11 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
 
 	if (mnt) {
 		if (flag & (CL_SLAVE | CL_PRIVATE))
-			mnt->mnt.mnt_group_id = 0; /* not a peer of original */
+			mnt->mnt_group_id = 0; /* not a peer of original */
 		else
-			mnt->mnt.mnt_group_id = old->mnt.mnt_group_id;
+			mnt->mnt_group_id = old->mnt_group_id;
 
-		if ((flag & CL_MAKE_SHARED) && !mnt->mnt.mnt_group_id) {
+		if ((flag & CL_MAKE_SHARED) && !mnt->mnt_group_id) {
 			int err = mnt_alloc_group_id(mnt);
 			if (err)
 				goto out_free;
@@ -1029,7 +1029,7 @@ static int show_mountinfo(struct seq_file *m, void *v)
 	struct path root = p->root;
 	int err = 0;
 
-	seq_printf(m, "%i %i %u:%u ", mnt->mnt_id, r->mnt_parent->mnt.mnt_id,
+	seq_printf(m, "%i %i %u:%u ", r->mnt_id, r->mnt_parent->mnt_id,
 		   MAJOR(sb->s_dev), MINOR(sb->s_dev));
 	if (sb->s_op->show_path)
 		err = sb->s_op->show_path(m, mnt);
@@ -1049,9 +1049,9 @@ static int show_mountinfo(struct seq_file *m, void *v)
 
 	/* Tagged fields ("foo:X" or "bar") */
 	if (IS_MNT_SHARED(mnt))
-		seq_printf(m, " shared:%i", mnt->mnt_group_id);
+		seq_printf(m, " shared:%i", r->mnt_group_id);
 	if (IS_MNT_SLAVE(r)) {
-		int master = r->mnt_master->mnt.mnt_group_id;
+		int master = r->mnt_master->mnt_group_id;
 		int dom = get_dominating_id(r, &p->root);
 		seq_printf(m, " master:%i", master);
 		if (dom && dom != master)
@@ -1507,7 +1507,7 @@ static void cleanup_group_ids(struct mount *mnt, struct mount *end)
 	struct mount *p;
 
 	for (p = mnt; p != end; p = next_mnt(p, &mnt->mnt)) {
-		if (p->mnt.mnt_group_id && !IS_MNT_SHARED(&p->mnt))
+		if (p->mnt_group_id && !IS_MNT_SHARED(&p->mnt))
 			mnt_release_group_id(p);
 	}
 }
@@ -1517,7 +1517,7 @@ static int invent_group_ids(struct mount *mnt, bool recurse)
 	struct mount *p;
 
 	for (p = mnt; p; p = recurse ? next_mnt(p, &mnt->mnt) : NULL) {
-		if (!p->mnt.mnt_group_id && !IS_MNT_SHARED(&p->mnt)) {
+		if (!p->mnt_group_id && !IS_MNT_SHARED(&p->mnt)) {
 			int err = mnt_alloc_group_id(p);
 			if (err) {
 				cleanup_group_ids(mnt, p);

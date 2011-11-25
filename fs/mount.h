@@ -26,6 +26,8 @@ struct mount {
 	struct list_head mnt_slave;	/* slave list entry */
 	struct mount *mnt_master;	/* slave is on master->mnt_slave_list */
 	struct mnt_namespace *mnt_ns;	/* containing namespace */
+	int mnt_id;			/* mount identifier */
+	int mnt_group_id;		/* peer group identifier */
 };
 
 static inline struct mount *real_mount(struct vfsmount *mnt)
