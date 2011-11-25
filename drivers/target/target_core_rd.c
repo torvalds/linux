@@ -583,14 +583,12 @@ static int rd_MEMCPY_do_task(struct se_task *task)
 {
 	struct se_device *dev = task->task_se_cmd->se_dev;
 	struct rd_request *req = RD_REQ(task);
-	unsigned long long lba;
+	u64 tmp;
 	int ret;
 
-	req->rd_page = (task->task_lba * dev->se_sub_dev->se_dev_attrib.block_size) / PAGE_SIZE;
-	lba = task->task_lba;
-	req->rd_offset = (do_div(lba,
-			  (PAGE_SIZE / dev->se_sub_dev->se_dev_attrib.block_size))) *
-			   dev->se_sub_dev->se_dev_attrib.block_size;
+	tmp = task->task_lba * dev->se_sub_dev->se_dev_attrib.block_size;
+	req->rd_offset = do_div(tmp, PAGE_SIZE);
+	req->rd_page = tmp;
 	req->rd_size = task->task_size;
 
 	if (task->task_data_direction == DMA_FROM_DEVICE)
