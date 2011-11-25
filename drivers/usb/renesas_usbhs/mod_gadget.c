@@ -45,7 +45,6 @@ struct usbhsg_uep {
 struct usbhsg_gpriv {
 	struct usb_gadget	 gadget;
 	struct usbhs_mod	 mod;
-	struct list_head	 link;
 
 	struct usbhsg_uep	*uep;
 	int			 uep_size;
@@ -114,16 +113,6 @@ struct usbhsg_recip_handle {
 #define usbhsg_status_set(gp, b) (gp->status |=  b)
 #define usbhsg_status_clr(gp, b) (gp->status &= ~b)
 #define usbhsg_status_has(gp, b) (gp->status &   b)
-
-/* controller */
-LIST_HEAD(the_controller_link);
-
-#define usbhsg_for_each_controller(gpriv)\
-	list_for_each_entry(gpriv, &the_controller_link, link)
-#define usbhsg_controller_register(gpriv)\
-	list_add_tail(&(gpriv)->link, &the_controller_link)
-#define usbhsg_controller_unregister(gpriv)\
-	list_del_init(&(gpriv)->link)
 
 /*
  *		queue push/pop
@@ -1032,8 +1021,6 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 		}
 	}
 
-	usbhsg_controller_register(gpriv);
-
 	ret = usb_add_gadget_udc(dev, &gpriv->gadget);
 	if (ret)
 		goto err_register;
@@ -1061,8 +1048,6 @@ void usbhs_mod_gadget_remove(struct usbhs_priv *priv)
 	usb_del_gadget_udc(&gpriv->gadget);
 
 	device_unregister(&gpriv->gadget.dev);
-
-	usbhsg_controller_unregister(gpriv);
 
 	kfree(gpriv->uep);
 	kfree(gpriv);
