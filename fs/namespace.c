@@ -144,10 +144,10 @@ void mnt_release_group_id(struct mount *mnt)
 static inline void mnt_add_count(struct mount *mnt, int n)
 {
 #ifdef CONFIG_SMP
-	this_cpu_add(mnt->mnt.mnt_pcp->mnt_count, n);
+	this_cpu_add(mnt->mnt_pcp->mnt_count, n);
 #else
 	preempt_disable();
-	mnt->mnt.mnt_count += n;
+	mnt->mnt_count += n;
 	preempt_enable();
 #endif
 }
@@ -162,12 +162,12 @@ unsigned int mnt_get_count(struct mount *mnt)
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
-		count += per_cpu_ptr(mnt->mnt.mnt_pcp, cpu)->mnt_count;
+		count += per_cpu_ptr(mnt->mnt_pcp, cpu)->mnt_count;
 	}
 
 	return count;
 #else
-	return mnt->mnt.mnt_count;
+	return mnt->mnt_count;
 #endif
 }
 
@@ -189,14 +189,14 @@ static struct mount *alloc_vfsmnt(const char *name)
 		}
 
 #ifdef CONFIG_SMP
-		mnt->mnt_pcp = alloc_percpu(struct mnt_pcp);
-		if (!mnt->mnt_pcp)
+		p->mnt_pcp = alloc_percpu(struct mnt_pcp);
+		if (!p->mnt_pcp)
 			goto out_free_devname;
 
-		this_cpu_add(mnt->mnt_pcp->mnt_count, 1);
+		this_cpu_add(p->mnt_pcp->mnt_count, 1);
 #else
-		mnt->mnt_count = 1;
-		mnt->mnt_writers = 0;
+		p->mnt_count = 1;
+		p->mnt_writers = 0;
 #endif
 
 		INIT_LIST_HEAD(&p->mnt_hash);
@@ -256,18 +256,18 @@ EXPORT_SYMBOL_GPL(__mnt_is_readonly);
 static inline void mnt_inc_writers(struct mount *mnt)
 {
 #ifdef CONFIG_SMP
-	this_cpu_inc(mnt->mnt.mnt_pcp->mnt_writers);
+	this_cpu_inc(mnt->mnt_pcp->mnt_writers);
 #else
-	mnt->mnt.mnt_writers++;
+	mnt->mnt_writers++;
 #endif
 }
 
 static inline void mnt_dec_writers(struct mount *mnt)
 {
 #ifdef CONFIG_SMP
-	this_cpu_dec(mnt->mnt.mnt_pcp->mnt_writers);
+	this_cpu_dec(mnt->mnt_pcp->mnt_writers);
 #else
-	mnt->mnt.mnt_writers--;
+	mnt->mnt_writers--;
 #endif
 }
 
@@ -278,7 +278,7 @@ static unsigned int mnt_get_writers(struct mount *mnt)
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
-		count += per_cpu_ptr(mnt->mnt.mnt_pcp, cpu)->mnt_writers;
+		count += per_cpu_ptr(mnt->mnt_pcp, cpu)->mnt_writers;
 	}
 
 	return count;
@@ -454,7 +454,7 @@ static void free_vfsmnt(struct mount *mnt)
 	kfree(mnt->mnt.mnt_devname);
 	mnt_free_id(mnt);
 #ifdef CONFIG_SMP
-	free_percpu(mnt->mnt.mnt_pcp);
+	free_percpu(mnt->mnt_pcp);
 #endif
 	kmem_cache_free(mnt_cache, mnt);
 }
@@ -594,7 +594,7 @@ static void attach_mnt(struct mount *mnt, struct path *path)
 static inline void __mnt_make_longterm(struct mount *mnt)
 {
 #ifdef CONFIG_SMP
-	atomic_inc(&mnt->mnt.mnt_longterm);
+	atomic_inc(&mnt->mnt_longterm);
 #endif
 }
 
@@ -602,7 +602,7 @@ static inline void __mnt_make_longterm(struct mount *mnt)
 static inline void __mnt_make_shortterm(struct mount *mnt)
 {
 #ifdef CONFIG_SMP
-	atomic_dec(&mnt->mnt.mnt_longterm);
+	atomic_dec(&mnt->mnt_longterm);
 #endif
 }
 
@@ -769,7 +769,7 @@ static void mntput_no_expire(struct vfsmount *m)
 put_again:
 #ifdef CONFIG_SMP
 	br_read_lock(vfsmount_lock);
-	if (likely(atomic_read(&mnt->mnt.mnt_longterm))) {
+	if (likely(atomic_read(&mnt->mnt_longterm))) {
 		mnt_add_count(mnt, -1);
 		br_read_unlock(vfsmount_lock);
 		return;
@@ -2375,10 +2375,10 @@ void mnt_make_shortterm(struct vfsmount *m)
 {
 #ifdef CONFIG_SMP
 	struct mount *mnt = real_mount(m);
-	if (atomic_add_unless(&mnt->mnt.mnt_longterm, -1, 1))
+	if (atomic_add_unless(&mnt->mnt_longterm, -1, 1))
 		return;
 	br_write_lock(vfsmount_lock);
-	atomic_dec(&mnt->mnt.mnt_longterm);
+	atomic_dec(&mnt->mnt_longterm);
 	br_write_unlock(vfsmount_lock);
 #endif
 }

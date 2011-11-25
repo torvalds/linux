@@ -47,21 +47,9 @@ struct mnt_namespace;
 
 #define MNT_INTERNAL	0x4000
 
-struct mnt_pcp {
-	int mnt_count;
-	int mnt_writers;
-};
-
 struct vfsmount {
 	struct dentry *mnt_root;	/* root of the mounted tree */
 	struct super_block *mnt_sb;	/* pointer to superblock */
-#ifdef CONFIG_SMP
-	struct mnt_pcp __percpu *mnt_pcp;
-	atomic_t mnt_longterm;		/* how many of the refs are longterm */
-#else
-	int mnt_count;
-	int mnt_writers;
-#endif
 	struct list_head mnt_mounts;	/* list of children, anchored here */
 	struct list_head mnt_child;	/* and going through their mnt_child */
 	int mnt_flags;
