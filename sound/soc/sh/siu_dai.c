@@ -852,18 +852,7 @@ static struct platform_driver siu_driver = {
 	.remove		= __devexit_p(siu_remove),
 };
 
-static int __init siu_init(void)
-{
-	return platform_driver_register(&siu_driver);
-}
-
-static void __exit siu_exit(void)
-{
-	platform_driver_unregister(&siu_driver);
-}
-
-module_init(siu_init)
-module_exit(siu_exit)
+module_platform_driver(siu_driver);
 
 MODULE_AUTHOR("Carlos Munoz <carlos@kenati.com>");
 MODULE_DESCRIPTION("ALSA SoC SH7722 SIU driver");

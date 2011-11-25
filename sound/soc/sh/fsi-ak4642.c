@@ -100,18 +100,7 @@ static struct platform_driver fsi_ak4642 = {
 	.remove		= fsi_ak4642_remove,
 };
 
-static int __init fsi_ak4642_init(void)
-{
-	return platform_driver_register(&fsi_ak4642);
-}
-
-static void __exit fsi_ak4642_exit(void)
-{
-	platform_driver_unregister(&fsi_ak4642);
-}
-
-module_init(fsi_ak4642_init);
-module_exit(fsi_ak4642_exit);
+module_platform_driver(fsi_ak4642);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Generic SH4 FSI-AK4642 sound card");
