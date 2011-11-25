@@ -202,7 +202,7 @@ static struct mount *alloc_vfsmnt(const char *name)
 		INIT_LIST_HEAD(&p->mnt_hash);
 		INIT_LIST_HEAD(&p->mnt_child);
 		INIT_LIST_HEAD(&p->mnt_mounts);
-		INIT_LIST_HEAD(&mnt->mnt_list);
+		INIT_LIST_HEAD(&p->mnt_list);
 		INIT_LIST_HEAD(&p->mnt_expire);
 		INIT_LIST_HEAD(&p->mnt_share);
 		INIT_LIST_HEAD(&p->mnt_slave_list);
@@ -618,8 +618,8 @@ static void commit_tree(struct mount *mnt)
 
 	BUG_ON(parent == mnt);
 
-	list_add_tail(&head, &mnt->mnt.mnt_list);
-	list_for_each_entry(m, &head, mnt.mnt_list) {
+	list_add_tail(&head, &mnt->mnt_list);
+	list_for_each_entry(m, &head, mnt_list) {
 		m->mnt_ns = n;
 		__mnt_make_longterm(m);
 	}
@@ -987,7 +987,8 @@ static void show_type(struct seq_file *m, struct super_block *sb)
 
 static int show_vfsmnt(struct seq_file *m, void *v)
 {
-	struct vfsmount *mnt = list_entry(v, struct vfsmount, mnt_list);
+	struct mount *r = list_entry(v, struct mount, mnt_list);
+	struct vfsmount *mnt = &r->mnt;
 	int err = 0;
 	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
 
@@ -1024,8 +1025,8 @@ const struct seq_operations mounts_op = {
 static int show_mountinfo(struct seq_file *m, void *v)
 {
 	struct proc_mounts *p = m->private;
-	struct vfsmount *mnt = list_entry(v, struct vfsmount, mnt_list);
-	struct mount *r = real_mount(mnt);
+	struct mount *r = list_entry(v, struct mount, mnt_list);
+	struct vfsmount *mnt = &r->mnt;
 	struct super_block *sb = mnt->mnt_sb;
 	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
 	struct path root = p->root;
@@ -1092,7 +1093,8 @@ const struct seq_operations mountinfo_op = {
 
 static int show_vfsstat(struct seq_file *m, void *v)
 {
-	struct vfsmount *mnt = list_entry(v, struct vfsmount, mnt_list);
+	struct mount *r = list_entry(v, struct mount, mnt_list);
+	struct vfsmount *mnt = &r->mnt;
 	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
 	int err = 0;
 
@@ -1235,7 +1237,7 @@ void umount_tree(struct mount *mnt, int propagate, struct list_head *kill)
 
 	list_for_each_entry(p, &tmp_list, mnt_hash) {
 		list_del_init(&p->mnt_expire);
-		list_del_init(&p->mnt.mnt_list);
+		list_del_init(&p->mnt_list);
 		__touch_mnt_namespace(p->mnt_ns);
 		p->mnt_ns = NULL;
 		__mnt_make_shortterm(p);
@@ -1331,7 +1333,7 @@ static int do_umount(struct mount *mnt, int flags)
 
 	retval = -EBUSY;
 	if (flags & MNT_DETACH || !propagate_mount_busy(mnt, 2)) {
-		if (!list_empty(&mnt->mnt.mnt_list))
+		if (!list_empty(&mnt->mnt_list))
 			umount_tree(mnt, 1, &umount_list);
 		retval = 0;
 	}
@@ -1451,7 +1453,7 @@ struct mount *copy_tree(struct mount *mnt, struct dentry *dentry,
 			if (!q)
 				goto Enomem;
 			br_write_lock(vfsmount_lock);
-			list_add_tail(&q->mnt.mnt_list, &res->mnt.mnt_list);
+			list_add_tail(&q->mnt_list, &res->mnt_list);
 			attach_mnt(q, &path);
 			br_write_unlock(vfsmount_lock);
 		}
@@ -1492,12 +1494,12 @@ void drop_collected_mounts(struct vfsmount *mnt)
 int iterate_mounts(int (*f)(struct vfsmount *, void *), void *arg,
 		   struct vfsmount *root)
 {
-	struct vfsmount *mnt;
+	struct mount *mnt;
 	int res = f(root, arg);
 	if (res)
 		return res;
-	list_for_each_entry(mnt, &root->mnt_list, mnt_list) {
-		res = f(mnt, arg);
+	list_for_each_entry(mnt, &real_mount(root)->mnt_list, mnt_list) {
+		res = f(&mnt->mnt, arg);
 		if (res)
 			return res;
 	}
@@ -2415,7 +2417,7 @@ static struct mnt_namespace *dup_mnt_ns(struct mnt_namespace *mnt_ns,
 	}
 	new_ns->root = &new->mnt;
 	br_write_lock(vfsmount_lock);
-	list_add_tail(&new_ns->list, &new_ns->root->mnt_list);
+	list_add_tail(&new_ns->list, &new->mnt_list);
 	br_write_unlock(vfsmount_lock);
 
 	/*
@@ -2476,18 +2478,17 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
  * create_mnt_ns - creates a private namespace and adds a root filesystem
  * @mnt: pointer to the new root filesystem mountpoint
  */
-static struct mnt_namespace *create_mnt_ns(struct vfsmount *mnt)
+static struct mnt_namespace *create_mnt_ns(struct vfsmount *m)
 {
-	struct mnt_namespace *new_ns;
-
-	new_ns = alloc_mnt_ns();
+	struct mnt_namespace *new_ns = alloc_mnt_ns();
 	if (!IS_ERR(new_ns)) {
-		real_mount(mnt)->mnt_ns = new_ns;
-		__mnt_make_longterm(real_mount(mnt));
-		new_ns->root = mnt;
-		list_add(&new_ns->list, &new_ns->root->mnt_list);
+		struct mount *mnt = real_mount(m);
+		mnt->mnt_ns = new_ns;
+		__mnt_make_longterm(mnt);
+		new_ns->root = m;
+		list_add(&new_ns->list, &mnt->mnt_list);
 	} else {
-		mntput(mnt);
+		mntput(m);
 	}
 	return new_ns;
 }

@@ -57,7 +57,6 @@ struct vfsmount {
 	struct hlist_head mnt_fsnotify_marks;
 #endif
 	const char *mnt_devname;	/* Name of device e.g. /dev/dsk/hda1 */
-	struct list_head mnt_list;
 };
 
 struct file; /* forward dec */
