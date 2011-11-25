@@ -2473,7 +2473,7 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 #if IS_ENABLED(CONFIG_NETPRIO_CGROUP)
 static void skb_update_prio(struct sk_buff *skb)
 {
-	struct netprio_map *map = rcu_dereference(skb->dev->priomap);
+	struct netprio_map *map = rcu_dereference_bh(skb->dev->priomap);
 
 	if ((!skb->priority) && (skb->sk) && map)
 		skb->priority = map->priomap[skb->sk->sk_cgrp_prioidx];
