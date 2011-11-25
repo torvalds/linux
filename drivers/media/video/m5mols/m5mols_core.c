@@ -272,14 +272,14 @@ int m5mols_write(struct v4l2_subdev *sd, u32 reg, u32 val)
 	return 0;
 }
 
-int m5mols_busy(struct v4l2_subdev *sd, u8 category, u8 cmd, u8 mask)
+int m5mols_busy(struct v4l2_subdev *sd, u32 reg, u8 mask)
 {
 	u8 busy;
 	int i;
 	int ret;
 
 	for (i = 0; i < M5MOLS_I2C_CHECK_RETRY; i++) {
-		ret = m5mols_read_u8(sd, I2C_REG(category, cmd, 1), &busy);
+		ret = m5mols_read_u8(sd, reg, &busy);
 		if (ret < 0)
 			return ret;
 		if ((busy & mask) == mask)
@@ -317,7 +317,7 @@ static int m5mols_reg_mode(struct v4l2_subdev *sd, u8 mode)
 {
 	int ret = m5mols_write(sd, SYSTEM_SYSMODE, mode);
 
-	return ret ? ret : m5mols_busy(sd, CAT_SYSTEM, CAT0_SYSMODE, mode);
+	return ret ? ret : m5mols_busy(sd, mode, SYSTEM_SYSMODE);
 }
 
 /**
@@ -829,8 +829,7 @@ static int m5mols_s_power(struct v4l2_subdev *sd, int on)
 		if (!ret)
 			ret = m5mols_write(sd, AF_MODE, REG_AF_POWEROFF);
 		if (!ret)
-			ret = m5mols_busy(sd, CAT_SYSTEM, CAT0_STATUS,
-					REG_AF_IDLE);
+			ret = m5mols_busy(sd, SYSTEM_STATUS, REG_AF_IDLE);
 		if (!ret)
 			v4l2_info(sd, "Success soft-landing lens\n");
 	}

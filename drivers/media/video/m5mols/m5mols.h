@@ -257,7 +257,7 @@ int m5mols_read_u8(struct v4l2_subdev *sd, u32 reg_comb, u8 *val);
 int m5mols_read_u16(struct v4l2_subdev *sd, u32 reg_comb, u16 *val);
 int m5mols_read_u32(struct v4l2_subdev *sd, u32 reg_comb, u32 *val);
 int m5mols_write(struct v4l2_subdev *sd, u32 reg_comb, u32 val);
-int m5mols_busy(struct v4l2_subdev *sd, u8 category, u8 cmd, u8 value);
+int m5mols_busy(struct v4l2_subdev *sd, u32 reg, u8 value);
 
 /*
  * Mode operation of the M-5MOLS
