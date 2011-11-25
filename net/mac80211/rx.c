@@ -1974,7 +1974,6 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 				goto out;
 
 			fwd_hdr =  (struct ieee80211_hdr *) fwd_skb->data;
-			memcpy(fwd_hdr->addr2, sdata->vif.addr, ETH_ALEN);
 			info = IEEE80211_SKB_CB(fwd_skb);
 			memset(info, 0, sizeof(*info));
 			info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
@@ -1983,14 +1982,9 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 			if (is_multicast_ether_addr(fwd_hdr->addr1)) {
 				IEEE80211_IFSTA_MESH_CTR_INC(&sdata->u.mesh,
 								fwded_mcast);
+				memcpy(fwd_hdr->addr2, sdata->vif.addr, ETH_ALEN);
 			} else {
 				int err;
-				/*
-				 * Save TA to addr1 to send TA a path error if a
-				 * suitable next hop is not found
-				 */
-				memcpy(fwd_hdr->addr1, fwd_hdr->addr2,
-						ETH_ALEN);
 				err = mesh_nexthop_lookup(fwd_skb, sdata);
 				/* Failed to immediately resolve next hop:
 				 * fwded frame was dropped or will be added

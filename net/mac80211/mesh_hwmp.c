@@ -1029,9 +1029,10 @@ int mesh_nexthop_lookup(struct sk_buff *skb,
 					PREQ_Q_F_START | PREQ_Q_F_REFRESH);
 		}
 		next_hop = rcu_dereference(mpath->next_hop);
-		if (next_hop)
+		if (next_hop) {
 			memcpy(hdr->addr1, next_hop->sta.addr, ETH_ALEN);
-		else
+			memcpy(hdr->addr2, sdata->vif.addr, ETH_ALEN);
+		} else
 			err = -ENOENT;
 	} else {
 		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);

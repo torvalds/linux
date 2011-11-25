@@ -221,6 +221,7 @@ void mesh_path_assign_nexthop(struct mesh_path *mpath, struct sta_info *sta)
 	while ((skb = __skb_dequeue(&mpath->frame_queue)) != NULL) {
 		hdr = (struct ieee80211_hdr *) skb->data;
 		memcpy(hdr->addr1, sta->sta.addr, ETH_ALEN);
+		memcpy(hdr->addr2, mpath->sdata->vif.addr, ETH_ALEN);
 		__skb_queue_tail(&tmpq, skb);
 	}
 
@@ -264,6 +265,7 @@ static void prepare_for_gate(struct sk_buff *skb, char *dst_addr,
 	next_hop = rcu_dereference(gate_mpath->next_hop)->sta.addr;
 	memcpy(hdr->addr1, next_hop, ETH_ALEN);
 	rcu_read_unlock();
+	memcpy(hdr->addr2, gate_mpath->sdata->vif.addr, ETH_ALEN);
 	memcpy(hdr->addr3, dst_addr, ETH_ALEN);
 }
 
@@ -990,7 +992,7 @@ void mesh_path_discard_frame(struct sk_buff *skb,
 		u8 *ra, *da;
 
 		da = hdr->addr3;
-		ra = hdr->addr1;
+		ra = hdr->addr2;
 		rcu_read_lock();
 		mpath = mesh_path_lookup(da, sdata);
 		if (mpath) {
@@ -999,7 +1001,7 @@ void mesh_path_discard_frame(struct sk_buff *skb,
 			spin_unlock_bh(&mpath->state_lock);
 		}
 		rcu_read_unlock();
-		mesh_path_error_tx(sdata->u.mesh.mshcfg.element_ttl, skb->data,
+		mesh_path_error_tx(sdata->u.mesh.mshcfg.element_ttl, da,
 				   cpu_to_le32(sn), reason, ra, sdata);
 	}
 
