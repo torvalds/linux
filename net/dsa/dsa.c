@@ -29,6 +29,7 @@ void register_switch_driver(struct dsa_switch_driver *drv)
 	list_add_tail(&drv->list, &dsa_switch_drivers);
 	mutex_unlock(&dsa_switch_drivers_mutex);
 }
+EXPORT_SYMBOL_GPL(register_switch_driver);
 
 void unregister_switch_driver(struct dsa_switch_driver *drv)
 {
@@ -36,6 +37,7 @@ void unregister_switch_driver(struct dsa_switch_driver *drv)
 	list_del_init(&drv->list);
 	mutex_unlock(&dsa_switch_drivers_mutex);
 }
+EXPORT_SYMBOL_GPL(unregister_switch_driver);
 
 static struct dsa_switch_driver *
 dsa_switch_probe(struct mii_bus *bus, int sw_addr, char **_name)
