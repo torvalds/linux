@@ -1079,7 +1079,7 @@ struct net_device {
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 	struct vlan_group __rcu	*vlgrp;		/* VLAN group */
 #endif
-#ifdef CONFIG_NET_DSA
+#if IS_ENABLED(CONFIG_NET_DSA)
 	struct dsa_switch_tree	*dsa_ptr;	/* dsa specific data */
 #endif
 	void 			*atalk_ptr;	/* AppleTalk link 	*/
