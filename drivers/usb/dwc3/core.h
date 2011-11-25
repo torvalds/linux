@@ -548,6 +548,20 @@ struct dwc3_hwparams {
 /* HWPARAMS1 */
 #define DWC3_NUM_INT(n)	(((n) & (0x3f << 15)) >> 15)
 
+struct dwc3_request {
+	struct usb_request	request;
+	struct list_head	list;
+	struct dwc3_ep		*dep;
+
+	u8			epnum;
+	struct dwc3_trb_hw	*trb;
+	dma_addr_t		trb_dma;
+
+	unsigned		direction:1;
+	unsigned		mapped:1;
+	unsigned		queued:1;
+};
+
 /**
  * struct dwc3 - representation of our controller
  * @ctrl_req: usb control request which is used for ep0
@@ -596,7 +610,7 @@ struct dwc3 {
 	dma_addr_t		ep0_trb_addr;
 	dma_addr_t		setup_buf_addr;
 	dma_addr_t		ep0_bounce_addr;
-	struct usb_request	ep0_usb_req;
+	struct dwc3_request	ep0_usb_req;
 	/* device lock */
 	spinlock_t		lock;
 	struct device		*dev;

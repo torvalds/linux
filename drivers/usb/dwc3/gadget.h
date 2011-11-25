@@ -79,19 +79,6 @@ struct dwc3_gadget_ep_cmd_params {
 
 /* -------------------------------------------------------------------------- */
 
-struct dwc3_request {
-	struct usb_request	request;
-	struct list_head	list;
-	struct dwc3_ep		*dep;
-
-	u8			epnum;
-	struct dwc3_trb_hw	*trb;
-	dma_addr_t		trb_dma;
-
-	unsigned		direction:1;
-	unsigned		mapped:1;
-	unsigned		queued:1;
-};
 #define to_dwc3_request(r)	(container_of(r, struct dwc3_request, request))
 
 static inline struct dwc3_request *next_request(struct list_head *list)
