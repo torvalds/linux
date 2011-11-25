@@ -38,7 +38,7 @@ void mnt_release_group_id(struct mount *);
 int get_dominating_id(struct vfsmount *mnt, const struct path *root);
 unsigned int mnt_get_count(struct vfsmount *mnt);
 void mnt_set_mountpoint(struct vfsmount *, struct dentry *,
-			struct vfsmount *);
+			struct mount *);
 void release_mounts(struct list_head *);
 void umount_tree(struct mount *, int, struct list_head *);
 struct mount *copy_tree(struct mount *, struct dentry *, int);

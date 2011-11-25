@@ -570,10 +570,10 @@ static void detach_mnt(struct mount *mnt, struct path *old_path)
  * vfsmount lock must be held for write
  */
 void mnt_set_mountpoint(struct vfsmount *mnt, struct dentry *dentry,
-			struct vfsmount *child_mnt)
+			struct mount *child_mnt)
 {
-	child_mnt->mnt_parent = mntget(mnt);
-	child_mnt->mnt_mountpoint = dget(dentry);
+	child_mnt->mnt.mnt_parent = mntget(mnt);
+	child_mnt->mnt.mnt_mountpoint = dget(dentry);
 	spin_lock(&dentry->d_lock);
 	dentry->d_flags |= DCACHE_MOUNTED;
 	spin_unlock(&dentry->d_lock);
@@ -584,7 +584,7 @@ void mnt_set_mountpoint(struct vfsmount *mnt, struct dentry *dentry,
  */
 static void attach_mnt(struct mount *mnt, struct path *path)
 {
-	mnt_set_mountpoint(path->mnt, path->dentry, &mnt->mnt);
+	mnt_set_mountpoint(path->mnt, path->dentry, mnt);
 	list_add_tail(&mnt->mnt_hash, mount_hashtable +
 			hash(path->mnt, path->dentry));
 	list_add_tail(&mnt->mnt.mnt_child, &path->mnt->mnt_mounts);
@@ -1617,7 +1617,7 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 		attach_mnt(source_mnt, path);
 		touch_mnt_namespace(parent_path->mnt->mnt_ns);
 	} else {
-		mnt_set_mountpoint(dest_mnt, dest_dentry, &source_mnt->mnt);
+		mnt_set_mountpoint(dest_mnt, dest_dentry, source_mnt);
 		commit_tree(source_mnt);
 	}
 

@@ -246,7 +246,7 @@ int propagate_mnt(struct vfsmount *dest_mnt, struct dentry *dest_dentry,
 		}
 
 		if (is_subdir(dest_dentry, m->mnt_root)) {
-			mnt_set_mountpoint(m, dest_dentry, &child->mnt);
+			mnt_set_mountpoint(m, dest_dentry, child);
 			list_add_tail(&child->mnt_hash, tree_list);
 		} else {
 			/*
