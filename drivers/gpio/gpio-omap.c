@@ -245,7 +245,7 @@ static void _set_gpio_debounce(struct gpio_bank *bank, unsigned gpio,
 }
 
 static inline void set_gpio_trigger(struct gpio_bank *bank, int gpio,
-						int trigger)
+						unsigned trigger)
 {
 	void __iomem *base = bank->base;
 	u32 gpio_bit = 1 << gpio;
@@ -327,7 +327,8 @@ static void _toggle_gpio_edge_triggering(struct gpio_bank *bank, int gpio)
 static void _toggle_gpio_edge_triggering(struct gpio_bank *bank, int gpio) {}
 #endif
 
-static int _set_gpio_triggering(struct gpio_bank *bank, int gpio, int trigger)
+static int _set_gpio_triggering(struct gpio_bank *bank, int gpio,
+							unsigned trigger)
 {
 	void __iomem *reg = bank->base;
 	void __iomem *base = bank->base;
