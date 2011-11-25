@@ -286,3 +286,8 @@ static void __exit mv88e6060_cleanup(void)
 	unregister_switch_driver(&mv88e6060_switch_driver);
 }
 module_exit(mv88e6060_cleanup);
+
+MODULE_AUTHOR("Lennert Buytenhek <buytenh@wantstofly.org>");
+MODULE_DESCRIPTION("Driver for Marvell 88E6060 ethernet switch chip");
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:mv88e6060");

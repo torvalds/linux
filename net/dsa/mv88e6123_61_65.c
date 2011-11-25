@@ -432,3 +432,7 @@ struct dsa_switch_driver mv88e6123_61_65_switch_driver = {
 	.get_ethtool_stats	= mv88e6123_61_65_get_ethtool_stats,
 	.get_sset_count		= mv88e6123_61_65_get_sset_count,
 };
+
+MODULE_ALIAS("platform:mv88e6123");
+MODULE_ALIAS("platform:mv88e6161");
+MODULE_ALIAS("platform:mv88e6165");
