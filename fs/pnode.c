@@ -221,7 +221,8 @@ static struct vfsmount *get_source(struct vfsmount *dest,
 int propagate_mnt(struct vfsmount *dest_mnt, struct dentry *dest_dentry,
 		    struct vfsmount *source_mnt, struct list_head *tree_list)
 {
-	struct vfsmount *m, *child;
+	struct vfsmount *m;
+	struct mount *child;
 	int ret = 0;
 	struct vfsmount *prev_dest_mnt = dest_mnt;
 	struct vfsmount *prev_src_mnt  = source_mnt;
@@ -245,23 +246,23 @@ int propagate_mnt(struct vfsmount *dest_mnt, struct dentry *dest_dentry,
 		}
 
 		if (is_subdir(dest_dentry, m->mnt_root)) {
-			mnt_set_mountpoint(m, dest_dentry, child);
-			list_add_tail(&child->mnt_hash, tree_list);
+			mnt_set_mountpoint(m, dest_dentry, &child->mnt);
+			list_add_tail(&child->mnt.mnt_hash, tree_list);
 		} else {
 			/*
 			 * This can happen if the parent mount was bind mounted
 			 * on some subdirectory of a shared/slave mount.
 			 */
-			list_add_tail(&child->mnt_hash, &tmp_list);
+			list_add_tail(&child->mnt.mnt_hash, &tmp_list);
 		}
 		prev_dest_mnt = m;
-		prev_src_mnt  = child;
+		prev_src_mnt  = &child->mnt;
 	}
 out:
 	br_write_lock(vfsmount_lock);
 	while (!list_empty(&tmp_list)) {
-		child = list_first_entry(&tmp_list, struct vfsmount, mnt_hash);
-		umount_tree(child, 0, &umount_list);
+		child = list_first_entry(&tmp_list, struct mount, mnt.mnt_hash);
+		umount_tree(&child->mnt, 0, &umount_list);
 	}
 	br_write_unlock(vfsmount_lock);
 	release_mounts(&umount_list);
