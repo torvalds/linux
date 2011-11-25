@@ -845,7 +845,8 @@ static void dump_info(void)
 		die("Unknown type of information\n");
 }
 
-static int process_sample_event(union perf_event *event,
+static int process_sample_event(struct perf_event_ops *ops __used,
+				union perf_event *event,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel __used,
 				struct perf_session *s)

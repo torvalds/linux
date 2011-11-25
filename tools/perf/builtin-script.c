@@ -434,7 +434,8 @@ static int cleanup_scripting(void)
 
 static char const		*input_name = "perf.data";
 
-static int process_sample_event(union perf_event *event,
+static int process_sample_event(struct perf_event_ops *ops __used,
+				union perf_event *event,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel,
 				struct perf_session *session)

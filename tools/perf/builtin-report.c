@@ -35,7 +35,9 @@
 
 #include <linux/bitmap.h>
 
-static struct perf_report {
+struct perf_report {
+	struct perf_event_ops	ops;
+	struct perf_session	*session;
 	char const		*input_name;
 	bool			force, use_tui, use_stdio;
 	bool			hide_unresolved;
@@ -48,12 +50,7 @@ static struct perf_report {
 	symbol_filter_t		annotate_init;
 	const char		*cpu_list;
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
-} report = {
-	.input_name	       = "perf.data",
-	.pretty_printing_style = "normal",
-}, *rep = &report;
-
-static char callchain_default_opt[] = "fractal,0.5,callee";
+};
 
 static int perf_session__add_hist_entry(struct perf_session *session,
 					struct addr_location *al,
@@ -106,11 +103,13 @@ out:
 }
 
 
-static int process_sample_event(union perf_event *event,
+static int process_sample_event(struct perf_event_ops *ops,
+				union perf_event *event,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel,
 				struct perf_session *session)
 {
+	struct perf_report *rep = container_of(ops, struct perf_report, ops);
 	struct addr_location al;
 
 	if (perf_event__preprocess_sample(event, session, &al, sample,
@@ -137,10 +136,12 @@ static int process_sample_event(union perf_event *event,
 	return 0;
 }
 
-static int process_read_event(union perf_event *event,
+static int process_read_event(struct perf_event_ops *ops,
+			      union perf_event *event,
 			      struct perf_sample *sample __used,
 			      struct perf_session *session)
 {
+	struct perf_report *rep = container_of(ops, struct perf_report, ops);
 	struct perf_evsel *evsel = perf_evlist__id2evsel(session->evlist,
 							 event->read.id);
 	if (rep->show_threads) {
@@ -159,8 +160,10 @@ static int process_read_event(union perf_event *event,
 	return 0;
 }
 
-static int perf_session__setup_sample_type(struct perf_session *self)
+static int perf_report__setup_sample_type(struct perf_report *rep)
 {
+	struct perf_session *self = rep->session;
+
 	if (!(self->sample_type & PERF_SAMPLE_CALLCHAIN)) {
 		if (sort__has_parent) {
 			ui__warning("Selected --sort parent, but no "
@@ -187,22 +190,6 @@ static int perf_session__setup_sample_type(struct perf_session *self)
 	return 0;
 }
 
-static struct perf_event_ops event_ops = {
-	.sample		 = process_sample_event,
-	.mmap		 = perf_event__process_mmap,
-	.comm		 = perf_event__process_comm,
-	.exit		 = perf_event__process_task,
-	.fork		 = perf_event__process_task,
-	.lost		 = perf_event__process_lost,
-	.read		 = process_read_event,
-	.attr		 = perf_event__process_attr,
-	.event_type	 = perf_event__process_event_type,
-	.tracing_data	 = perf_event__process_tracing_data,
-	.build_id	 = perf_event__process_build_id,
-	.ordered_samples = true,
-	.ordering_requires_timestamps = true,
-};
-
 extern volatile int session_done;
 
 static void sig_handler(int sig __used)
@@ -225,6 +212,7 @@ static size_t hists__fprintf_nr_sample_events(struct hists *self,
 }
 
 static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
+					 struct perf_report *rep,
 					 const char *help)
 {
 	struct perf_evsel *pos;
@@ -253,7 +241,7 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 	return 0;
 }
 
-static int __cmd_report(void)
+static int __cmd_report(struct perf_report *rep)
 {
 	int ret = -EINVAL;
 	u64 nr_samples;
@@ -266,9 +254,11 @@ static int __cmd_report(void)
 	signal(SIGINT, sig_handler);
 
 	session = perf_session__new(rep->input_name, O_RDONLY,
-				    rep->force, false, &event_ops);
+				    rep->force, false, &rep->ops);
 	if (session == NULL)
 		return -ENOMEM;
+
+	rep->session = session;
 
 	if (rep->cpu_list) {
 		ret = perf_session__cpu_bitmap(session, rep->cpu_list,
@@ -283,11 +273,11 @@ static int __cmd_report(void)
 	if (rep->show_threads)
 		perf_read_values_init(&rep->show_threads_values);
 
-	ret = perf_session__setup_sample_type(session);
+	ret = perf_report__setup_sample_type(rep);
 	if (ret)
 		goto out_delete;
 
-	ret = perf_session__process_events(session, &event_ops);
+	ret = perf_session__process_events(session, &rep->ops);
 	if (ret)
 		goto out_delete;
 
@@ -339,7 +329,7 @@ static int __cmd_report(void)
 		perf_evlist__tui_browse_hists(session->evlist, help,
 					      NULL, NULL, 0);
 	} else
-		perf_evlist__tty_browse_hists(session->evlist, help);
+		perf_evlist__tty_browse_hists(session->evlist, rep, help);
 
 out_delete:
 	/*
@@ -358,9 +348,9 @@ out_delete:
 }
 
 static int
-parse_callchain_opt(const struct option *opt __used, const char *arg,
-		    int unset)
+parse_callchain_opt(const struct option *opt, const char *arg, int unset)
 {
+	struct perf_report *rep = (struct perf_report *)opt->value;
 	char *tok, *tok2;
 	char *endptr;
 
@@ -437,12 +427,33 @@ setup:
 	return 0;
 }
 
-static const char * const report_usage[] = {
-	"perf report [<options>] <command>",
-	NULL
-};
-
-static const struct option options[] = {
+int cmd_report(int argc, const char **argv, const char *prefix __used)
+{
+	char callchain_default_opt[] = "fractal,0.5,callee";
+	const char * const report_usage[] = {
+		"perf report [<options>] <command>",
+		NULL
+	};
+	struct perf_report report = {
+		.ops = {
+			.sample		 = process_sample_event,
+			.mmap		 = perf_event__process_mmap,
+			.comm		 = perf_event__process_comm,
+			.exit		 = perf_event__process_task,
+			.fork		 = perf_event__process_task,
+			.lost		 = perf_event__process_lost,
+			.read		 = process_read_event,
+			.attr		 = perf_event__process_attr,
+			.event_type	 = perf_event__process_event_type,
+			.tracing_data	 = perf_event__process_tracing_data,
+			.build_id	 = perf_event__process_build_id,
+			.ordered_samples = true,
+			.ordering_requires_timestamps = true,
+		},
+		.input_name		 = "perf.data",
+		.pretty_printing_style	 = "normal",
+	};
+	const struct option options[] = {
 	OPT_STRING('i', "input", &report.input_name, "file",
 		    "input file name"),
 	OPT_INCR('v', "verbose", &verbose,
@@ -473,7 +484,7 @@ static const struct option options[] = {
 		   "regex filter to identify parent, see: '--sort parent'"),
 	OPT_BOOLEAN('x', "exclude-other", &symbol_conf.exclude_other,
 		    "Only display entries with parent-match"),
-	OPT_CALLBACK_DEFAULT('g', "call-graph", NULL, "output_type,min_percent, call_order",
+	OPT_CALLBACK_DEFAULT('g', "call-graph", &report, "output_type,min_percent, call_order",
 		     "Display callchains using output_type (graph, flat, fractal, or none) , min percent threshold and callchain order. "
 		     "Default: fractal,0.5,callee", &parse_callchain_opt, callchain_default_opt),
 	OPT_BOOLEAN('G', "inverted", &report.inverted_callchain,
@@ -507,10 +518,8 @@ static const struct option options[] = {
 	OPT_BOOLEAN(0, "show-total-period", &symbol_conf.show_total_period,
 		    "Show a column with the sum of periods"),
 	OPT_END()
-};
+	};
 
-int cmd_report(int argc, const char **argv, const char *prefix __used)
-{
 	argc = parse_options(argc, argv, options, report_usage, 0);
 
 	if (report.use_stdio)
@@ -579,5 +588,5 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 	sort_entry__setup_elide(&sort_comm, symbol_conf.comm_list, "comm", stdout);
 	sort_entry__setup_elide(&sort_sym, symbol_conf.sym_list, "symbol", stdout);
 
-	return __cmd_report();
+	return __cmd_report(&report);
 }

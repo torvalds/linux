@@ -2,14 +2,15 @@
 #define __PERF_TOP_H 1
 
 #include "types.h"
+#include "session.h"
 #include "../perf.h"
 #include <stddef.h>
 
 struct perf_evlist;
 struct perf_evsel;
-struct perf_session;
 
 struct perf_top {
+	struct perf_event_ops ops;
 	struct perf_evlist *evlist;
 	/*
 	 * Symbols will be added here in perf_event__process_sample and will

@@ -2070,7 +2070,8 @@ out_delete_evlist:
 	return -ENOMEM;
 }
 
-int perf_event__synthesize_attr(struct perf_event_attr *attr, u16 ids, u64 *id,
+int perf_event__synthesize_attr(struct perf_event_ops *ops,
+				struct perf_event_attr *attr, u16 ids, u64 *id,
 				perf_event__handler_t process,
 				struct perf_session *session)
 {
@@ -2094,21 +2095,22 @@ int perf_event__synthesize_attr(struct perf_event_attr *attr, u16 ids, u64 *id,
 	ev->attr.header.type = PERF_RECORD_HEADER_ATTR;
 	ev->attr.header.size = size;
 
-	err = process(ev, NULL, session);
+	err = process(ops, ev, NULL, session);
 
 	free(ev);
 
 	return err;
 }
 
-int perf_session__synthesize_attrs(struct perf_session *session,
+int perf_event__synthesize_attrs(struct perf_event_ops *ops,
+				   struct perf_session *session,
 				   perf_event__handler_t process)
 {
 	struct perf_evsel *attr;
 	int err = 0;
 
 	list_for_each_entry(attr, &session->evlist->entries, node) {
-		err = perf_event__synthesize_attr(&attr->attr, attr->ids,
+		err = perf_event__synthesize_attr(ops, &attr->attr, attr->ids,
 						  attr->id, process, session);
 		if (err) {
 			pr_debug("failed to create perf header attribute\n");
@@ -2156,7 +2158,8 @@ int perf_event__process_attr(union perf_event *event,
 	return 0;
 }
 
-int perf_event__synthesize_event_type(u64 event_id, char *name,
+int perf_event__synthesize_event_type(struct perf_event_ops *ops,
+				      u64 event_id, char *name,
 				      perf_event__handler_t process,
 				      struct perf_session *session)
 {
@@ -2176,12 +2179,13 @@ int perf_event__synthesize_event_type(u64 event_id, char *name,
 	ev.event_type.header.size = sizeof(ev.event_type) -
 		(sizeof(ev.event_type.event_type.name) - size);
 
-	err = process(&ev, NULL, session);
+	err = process(ops, &ev, NULL, session);
 
 	return err;
 }
 
-int perf_event__synthesize_event_types(perf_event__handler_t process,
+int perf_event__synthesize_event_types(struct perf_event_ops *ops,
+				       perf_event__handler_t process,
 				       struct perf_session *session)
 {
 	struct perf_trace_event_type *type;
@@ -2190,7 +2194,7 @@ int perf_event__synthesize_event_types(perf_event__handler_t process,
 	for (i = 0; i < event_count; i++) {
 		type = &events[i];
 
-		err = perf_event__synthesize_event_type(type->event_id,
+		err = perf_event__synthesize_event_type(ops, type->event_id,
 							type->name, process,
 							session);
 		if (err) {
@@ -2202,7 +2206,8 @@ int perf_event__synthesize_event_types(perf_event__handler_t process,
 	return err;
 }
 
-int perf_event__process_event_type(union perf_event *event,
+int perf_event__process_event_type(struct perf_event_ops *ops __unused,
+				   union perf_event *event,
 				   struct perf_session *session __unused)
 {
 	if (perf_header__push_event(event->event_type.event_type.event_id,
@@ -2212,7 +2217,8 @@ int perf_event__process_event_type(union perf_event *event,
 	return 0;
 }
 
-int perf_event__synthesize_tracing_data(int fd, struct perf_evlist *evlist,
+int perf_event__synthesize_tracing_data(struct perf_event_ops *ops, int fd,
+					struct perf_evlist *evlist,
 					 perf_event__handler_t process,
 				   struct perf_session *session __unused)
 {
@@ -2245,7 +2251,7 @@ int perf_event__synthesize_tracing_data(int fd, struct perf_evlist *evlist,
 	ev.tracing_data.header.size = sizeof(ev.tracing_data);
 	ev.tracing_data.size = aligned_size;
 
-	process(&ev, NULL, session);
+	process(ops, &ev, NULL, session);
 
 	/*
 	 * The put function will copy all the tracing data
@@ -2287,7 +2293,8 @@ int perf_event__process_tracing_data(union perf_event *event,
 	return size_read + padding;
 }
 
-int perf_event__synthesize_build_id(struct dso *pos, u16 misc,
+int perf_event__synthesize_build_id(struct perf_event_ops *ops,
+				    struct dso *pos, u16 misc,
 				    perf_event__handler_t process,
 				    struct machine *machine,
 				    struct perf_session *session)
@@ -2310,12 +2317,13 @@ int perf_event__synthesize_build_id(struct dso *pos, u16 misc,
 	ev.build_id.header.size = sizeof(ev.build_id) + len;
 	memcpy(&ev.build_id.filename, pos->long_name, pos->long_name_len);
 
-	err = process(&ev, NULL, session);
+	err = process(ops, &ev, NULL, session);
 
 	return err;
 }
 
-int perf_event__process_build_id(union perf_event *event,
+int perf_event__process_build_id(struct perf_event_ops *ops __used,
+				 union perf_event *event,
 				 struct perf_session *session)
 {
 	__event_process_build_id(&event->build_id,

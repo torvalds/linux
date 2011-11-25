@@ -274,7 +274,8 @@ static int cpus_cstate_state[MAX_CPUS];
 static u64 cpus_pstate_start_times[MAX_CPUS];
 static u64 cpus_pstate_state[MAX_CPUS];
 
-static int process_comm_event(union perf_event *event,
+static int process_comm_event(struct perf_event_ops *ops __used,
+			      union perf_event *event,
 			      struct perf_sample *sample __used,
 			      struct perf_session *session __used)
 {
@@ -282,7 +283,8 @@ static int process_comm_event(union perf_event *event,
 	return 0;
 }
 
-static int process_fork_event(union perf_event *event,
+static int process_fork_event(struct perf_event_ops *ops __used,
+			      union perf_event *event,
 			      struct perf_sample *sample __used,
 			      struct perf_session *session __used)
 {
@@ -290,7 +292,8 @@ static int process_fork_event(union perf_event *event,
 	return 0;
 }
 
-static int process_exit_event(union perf_event *event,
+static int process_exit_event(struct perf_event_ops *ops __used,
+			      union perf_event *event,
 			      struct perf_sample *sample __used,
 			      struct perf_session *session __used)
 {
@@ -487,7 +490,8 @@ static void sched_switch(int cpu, u64 timestamp, struct trace_entry *te)
 }
 
 
-static int process_sample_event(union perf_event *event __used,
+static int process_sample_event(struct perf_event_ops *ops __used,
+				union perf_event *event __used,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel,
 				struct perf_session *session __used)

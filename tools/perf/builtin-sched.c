@@ -1602,7 +1602,8 @@ static void process_raw_event(union perf_event *raw_event __used,
 		process_sched_migrate_task_event(data, session, event, cpu, timestamp, thread);
 }
 
-static int process_sample_event(union perf_event *event,
+static int process_sample_event(struct perf_event_ops *ops __used,
+				union perf_event *event,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel,
 				struct perf_session *session)

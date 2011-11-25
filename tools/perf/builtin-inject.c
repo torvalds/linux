@@ -16,7 +16,8 @@
 static char		const *input_name = "-";
 static bool		inject_build_ids;
 
-static int perf_event__repipe_synth(union perf_event *event,
+static int perf_event__repipe_synth(struct perf_event_ops *ops __used,
+				    union perf_event *event,
 				    struct perf_session *session __used)
 {
 	uint32_t size;
@@ -36,47 +37,57 @@ static int perf_event__repipe_synth(union perf_event *event,
 	return 0;
 }
 
+static int perf_event__repipe_tracing_data_synth(union perf_event *event,
+						 struct perf_session *session)
+{
+	return perf_event__repipe_synth(NULL, event, session);
+}
+
 static int perf_event__repipe_attr(union perf_event *event,
 				   struct perf_evlist **pevlist __used)
 {
-	return perf_event__repipe_synth(event, NULL);
+	return perf_event__repipe_synth(NULL, event, NULL);
 }
 
-static int perf_event__repipe(union perf_event *event,
+static int perf_event__repipe(struct perf_event_ops *ops,
+			      union perf_event *event,
 			      struct perf_sample *sample __used,
 			      struct perf_session *session)
 {
-	return perf_event__repipe_synth(event, session);
+	return perf_event__repipe_synth(ops, event, session);
 }
 
-static int perf_event__repipe_sample(union perf_event *event,
+static int perf_event__repipe_sample(struct perf_event_ops *ops,
+				     union perf_event *event,
 			      struct perf_sample *sample __used,
 			      struct perf_evsel *evsel __used,
 			      struct perf_session *session)
 {
-	return perf_event__repipe_synth(event, session);
+	return perf_event__repipe_synth(ops, event, session);
 }
 
-static int perf_event__repipe_mmap(union perf_event *event,
+static int perf_event__repipe_mmap(struct perf_event_ops *ops,
+				   union perf_event *event,
 				   struct perf_sample *sample,
 				   struct perf_session *session)
 {
 	int err;
 
-	err = perf_event__process_mmap(event, sample, session);
-	perf_event__repipe(event, sample, session);
+	err = perf_event__process_mmap(ops, event, sample, session);
+	perf_event__repipe(ops, event, sample, session);
 
 	return err;
 }
 
-static int perf_event__repipe_task(union perf_event *event,
+static int perf_event__repipe_task(struct perf_event_ops *ops,
+				   union perf_event *event,
 				   struct perf_sample *sample,
 				   struct perf_session *session)
 {
 	int err;
 
-	err = perf_event__process_task(event, sample, session);
-	perf_event__repipe(event, sample, session);
+	err = perf_event__process_task(ops, event, sample, session);
+	perf_event__repipe(ops, event, sample, session);
 
 	return err;
 }
@@ -86,7 +97,7 @@ static int perf_event__repipe_tracing_data(union perf_event *event,
 {
 	int err;
 
-	perf_event__repipe_synth(event, session);
+	perf_event__repipe_synth(NULL, event, session);
 	err = perf_event__process_tracing_data(event, session);
 
 	return err;
@@ -106,7 +117,8 @@ static int dso__read_build_id(struct dso *self)
 	return -1;
 }
 
-static int dso__inject_build_id(struct dso *self, struct perf_session *session)
+static int dso__inject_build_id(struct dso *self, struct perf_event_ops *ops,
+				struct perf_session *session)
 {
 	u16 misc = PERF_RECORD_MISC_USER;
 	struct machine *machine;
@@ -126,7 +138,7 @@ static int dso__inject_build_id(struct dso *self, struct perf_session *session)
 	if (self->kernel)
 		misc = PERF_RECORD_MISC_KERNEL;
 
-	err = perf_event__synthesize_build_id(self, misc, perf_event__repipe,
+	err = perf_event__synthesize_build_id(ops, self, misc, perf_event__repipe,
 					      machine, session);
 	if (err) {
 		pr_err("Can't synthesize build_id event for %s\n", self->long_name);
@@ -136,7 +148,8 @@ static int dso__inject_build_id(struct dso *self, struct perf_session *session)
 	return 0;
 }
 
-static int perf_event__inject_buildid(union perf_event *event,
+static int perf_event__inject_buildid(struct perf_event_ops *ops,
+				      union perf_event *event,
 				      struct perf_sample *sample,
 				      struct perf_evsel *evsel __used,
 				      struct perf_session *session)
@@ -161,7 +174,7 @@ static int perf_event__inject_buildid(union perf_event *event,
 		if (!al.map->dso->hit) {
 			al.map->dso->hit = 1;
 			if (map__load(al.map, NULL) >= 0) {
-				dso__inject_build_id(al.map->dso, session);
+				dso__inject_build_id(al.map->dso, ops, session);
 				/*
 				 * If this fails, too bad, let the other side
 				 * account this as unresolved.
@@ -174,7 +187,7 @@ static int perf_event__inject_buildid(union perf_event *event,
 	}
 
 repipe:
-	perf_event__repipe(event, sample, session);
+	perf_event__repipe(ops, event, sample, session);
 	return 0;
 }
 
@@ -189,9 +202,9 @@ struct perf_event_ops inject_ops = {
 	.throttle	= perf_event__repipe,
 	.unthrottle	= perf_event__repipe,
 	.attr		= perf_event__repipe_attr,
-	.event_type 	= perf_event__repipe_synth,
-	.tracing_data 	= perf_event__repipe_synth,
-	.build_id 	= perf_event__repipe_synth,
+	.event_type	= perf_event__repipe_synth,
+	.tracing_data	= perf_event__repipe_tracing_data_synth,
+	.build_id	= perf_event__repipe_synth,
 };
 
 extern volatile int session_done;

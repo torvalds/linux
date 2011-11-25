@@ -141,38 +141,52 @@ union perf_event {
 
 void perf_event__print_totals(void);
 
+struct perf_event_ops;
 struct perf_session;
 struct thread_map;
 
-typedef int (*perf_event__handler_synth_t)(union perf_event *event, 
-					   struct perf_session *session);
-typedef int (*perf_event__handler_t)(union perf_event *event,
+typedef int (*perf_event__handler_t)(struct perf_event_ops *ops,
+				     union perf_event *event,
 				     struct perf_sample *sample,
 				      struct perf_session *session);
 
-int perf_event__synthesize_thread_map(struct thread_map *threads,
+int perf_event__synthesize_thread_map(struct perf_event_ops *ops,
+				      struct thread_map *threads,
 				      perf_event__handler_t process,
 				      struct perf_session *session);
-int perf_event__synthesize_threads(perf_event__handler_t process,
+int perf_event__synthesize_threads(struct perf_event_ops *ops,
+				   perf_event__handler_t process,
 				   struct perf_session *session);
-int perf_event__synthesize_kernel_mmap(perf_event__handler_t process,
+int perf_event__synthesize_kernel_mmap(struct perf_event_ops *ops,
+				       perf_event__handler_t process,
 				       struct perf_session *session,
 				       struct machine *machine,
 				       const char *symbol_name);
 
-int perf_event__synthesize_modules(perf_event__handler_t process,
+int perf_event__synthesize_modules(struct perf_event_ops *ops,
+				   perf_event__handler_t process,
 				   struct perf_session *session,
 				   struct machine *machine);
 
-int perf_event__process_comm(union perf_event *event, struct perf_sample *sample,
+int perf_event__process_comm(struct perf_event_ops *ops,
+			     union perf_event *event,
+			     struct perf_sample *sample,
 			     struct perf_session *session);
-int perf_event__process_lost(union perf_event *event, struct perf_sample *sample,
+int perf_event__process_lost(struct perf_event_ops *ops,
+			     union perf_event *event,
+			     struct perf_sample *sample,
 			     struct perf_session *session);
-int perf_event__process_mmap(union perf_event *event, struct perf_sample *sample,
+int perf_event__process_mmap(struct perf_event_ops *ops,
+			     union perf_event *event,
+			     struct perf_sample *sample,
 			     struct perf_session *session);
-int perf_event__process_task(union perf_event *event, struct perf_sample *sample,
+int perf_event__process_task(struct perf_event_ops *ops,
+			     union perf_event *event,
+			     struct perf_sample *sample,
 			     struct perf_session *session);
-int perf_event__process(union perf_event *event, struct perf_sample *sample,
+int perf_event__process(struct perf_event_ops *ops,
+			union perf_event *event,
+			struct perf_sample *sample,
 			struct perf_session *session);
 
 struct addr_location;

@@ -56,16 +56,18 @@ struct perf_session {
 struct perf_evsel;
 struct perf_event_ops;
 
-typedef int (*event_sample)(union perf_event *event, struct perf_sample *sample,
+typedef int (*event_sample)(struct perf_event_ops *ops,
+			    union perf_event *event, struct perf_sample *sample,
 			    struct perf_evsel *evsel, struct perf_session *session);
-typedef int (*event_op)(union perf_event *self, struct perf_sample *sample,
+typedef int (*event_op)(struct perf_event_ops *ops, union perf_event *event,
+			struct perf_sample *sample,
 			struct perf_session *session);
 typedef int (*event_synth_op)(union perf_event *self,
 			      struct perf_session *session);
 typedef int (*event_attr_op)(union perf_event *event,
 			     struct perf_evlist **pevlist);
-typedef int (*event_op2)(union perf_event *self, struct perf_session *session,
-			 struct perf_event_ops *ops);
+typedef int (*event_op2)(struct perf_event_ops *ops, union perf_event *event,
+			 struct perf_session *session);
 
 struct perf_event_ops {
 	event_sample	sample;
@@ -78,10 +80,10 @@ struct perf_event_ops {
 			throttle,
 			unthrottle;
 	event_attr_op	attr;
-	event_synth_op	event_type,
-			tracing_data,
-			build_id;
-	event_op2	finished_round;
+	event_synth_op	tracing_data;
+	event_op2	event_type,
+			build_id,
+			finished_round;
 	bool		ordered_samples;
 	bool		ordering_requires_timestamps;
 };
@@ -142,10 +144,11 @@ struct machine *perf_session__findnew_machine(struct perf_session *self, pid_t p
 
 static inline
 void perf_session__process_machines(struct perf_session *self,
+				    struct perf_event_ops *ops,
 				    machine__process_t process)
 {
-	process(&self->host_machine, self);
-	return machines__process(&self->machines, process, self);
+	process(&self->host_machine, ops);
+	return machines__process(&self->machines, process, ops);
 }
 
 size_t perf_session__fprintf_dsos(struct perf_session *self, FILE *fp);

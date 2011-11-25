@@ -30,7 +30,8 @@ static int hists__add_entry(struct hists *self,
 	return -ENOMEM;
 }
 
-static int diff__process_sample_event(union perf_event *event,
+static int diff__process_sample_event(struct perf_event_ops *ops __used,
+				      union perf_event *event,
 				      struct perf_sample *sample,
 				      struct perf_evsel *evsel __used,
 				      struct perf_session *session)

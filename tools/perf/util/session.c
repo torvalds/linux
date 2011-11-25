@@ -270,8 +270,16 @@ int perf_session__resolve_callchain(struct perf_session *self, struct perf_evsel
 	return 0;
 }
 
-static int process_event_synth_stub(union perf_event *event __used,
+static int process_event_synth_stub(struct perf_event_ops *ops __used,
+				    union perf_event *event __used,
 				    struct perf_session *session __used)
+{
+	dump_printf(": unhandled!\n");
+	return 0;
+}
+
+static int process_event_synth_tracing_data_stub(union perf_event *event __used,
+						 struct perf_session *session __used)
 {
 	dump_printf(": unhandled!\n");
 	return 0;
@@ -284,7 +292,8 @@ static int process_event_synth_attr_stub(union perf_event *event __used,
 	return 0;
 }
 
-static int process_event_sample_stub(union perf_event *event __used,
+static int process_event_sample_stub(struct perf_event_ops *ops __used,
+				     union perf_event *event __used,
 				     struct perf_sample *sample __used,
 				     struct perf_evsel *evsel __used,
 				     struct perf_session *session __used)
@@ -293,7 +302,8 @@ static int process_event_sample_stub(union perf_event *event __used,
 	return 0;
 }
 
-static int process_event_stub(union perf_event *event __used,
+static int process_event_stub(struct perf_event_ops *ops __used,
+			      union perf_event *event __used,
 			      struct perf_sample *sample __used,
 			      struct perf_session *session __used)
 {
@@ -301,17 +311,17 @@ static int process_event_stub(union perf_event *event __used,
 	return 0;
 }
 
-static int process_finished_round_stub(union perf_event *event __used,
-				       struct perf_session *session __used,
-				       struct perf_event_ops *ops __used)
+static int process_finished_round_stub(struct perf_event_ops *ops __used,
+				       union perf_event *event __used,
+				       struct perf_session *session __used)
 {
 	dump_printf(": unhandled!\n");
 	return 0;
 }
 
-static int process_finished_round(union perf_event *event,
-				  struct perf_session *session,
-				  struct perf_event_ops *ops);
+static int process_finished_round(struct perf_event_ops *ops,
+				  union perf_event *event,
+				  struct perf_session *session);
 
 static void perf_event_ops__fill_defaults(struct perf_event_ops *handler)
 {
@@ -338,7 +348,7 @@ static void perf_event_ops__fill_defaults(struct perf_event_ops *handler)
 	if (handler->event_type == NULL)
 		handler->event_type = process_event_synth_stub;
 	if (handler->tracing_data == NULL)
-		handler->tracing_data = process_event_synth_stub;
+		handler->tracing_data = process_event_synth_tracing_data_stub;
 	if (handler->build_id == NULL)
 		handler->build_id = process_event_synth_stub;
 	if (handler->finished_round == NULL) {
@@ -565,9 +575,9 @@ static void flush_sample_queue(struct perf_session *s,
  *      Flush every events below timestamp 7
  *      etc...
  */
-static int process_finished_round(union perf_event *event __used,
-				  struct perf_session *session,
-				  struct perf_event_ops *ops)
+static int process_finished_round(struct perf_event_ops *ops,
+				  union perf_event *event __used,
+				  struct perf_session *session)
 {
 	flush_sample_queue(session, ops);
 	session->ordered_samples.next_flush = session->ordered_samples.max_timestamp;
@@ -759,23 +769,23 @@ static int perf_session_deliver_event(struct perf_session *session,
 			++session->hists.stats.nr_unknown_id;
 			return -1;
 		}
-		return ops->sample(event, sample, evsel, session);
+		return ops->sample(ops, event, sample, evsel, session);
 	case PERF_RECORD_MMAP:
-		return ops->mmap(event, sample, session);
+		return ops->mmap(ops, event, sample, session);
 	case PERF_RECORD_COMM:
-		return ops->comm(event, sample, session);
+		return ops->comm(ops, event, sample, session);
 	case PERF_RECORD_FORK:
-		return ops->fork(event, sample, session);
+		return ops->fork(ops, event, sample, session);
 	case PERF_RECORD_EXIT:
-		return ops->exit(event, sample, session);
+		return ops->exit(ops, event, sample, session);
 	case PERF_RECORD_LOST:
-		return ops->lost(event, sample, session);
+		return ops->lost(ops, event, sample, session);
 	case PERF_RECORD_READ:
-		return ops->read(event, sample, session);
+		return ops->read(ops, event, sample, session);
 	case PERF_RECORD_THROTTLE:
-		return ops->throttle(event, sample, session);
+		return ops->throttle(ops, event, sample, session);
 	case PERF_RECORD_UNTHROTTLE:
-		return ops->unthrottle(event, sample, session);
+		return ops->unthrottle(ops, event, sample, session);
 	default:
 		++session->hists.stats.nr_unknown_events;
 		return -1;
@@ -813,15 +823,15 @@ static int perf_session__process_user_event(struct perf_session *session, union 
 			perf_session__update_sample_type(session);
 		return err;
 	case PERF_RECORD_HEADER_EVENT_TYPE:
-		return ops->event_type(event, session);
+		return ops->event_type(ops, event, session);
 	case PERF_RECORD_HEADER_TRACING_DATA:
 		/* setup for reading amidst mmap */
 		lseek(session->fd, file_offset, SEEK_SET);
 		return ops->tracing_data(event, session);
 	case PERF_RECORD_HEADER_BUILD_ID:
-		return ops->build_id(event, session);
+		return ops->build_id(ops, event, session);
 	case PERF_RECORD_FINISHED_ROUND:
-		return ops->finished_round(event, session, ops);
+		return ops->finished_round(ops, event, session);
 	default:
 		return -EINVAL;
 	}

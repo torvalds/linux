@@ -13,8 +13,10 @@
 #include "symbol.h"
 #include <linux/kernel.h>
 #include "debug.h"
+#include "session.h"
 
-static int build_id__mark_dso_hit(union perf_event *event,
+static int build_id__mark_dso_hit(struct perf_event_ops *ops __used,
+				  union perf_event *event,
 				  struct perf_sample *sample __used,
 				  struct perf_evsel *evsel __used,
 				  struct perf_session *session)
@@ -38,7 +40,8 @@ static int build_id__mark_dso_hit(union perf_event *event,
 	return 0;
 }
 
-static int perf_event__exit_del_thread(union perf_event *event,
+static int perf_event__exit_del_thread(struct perf_event_ops *ops __used,
+				       union perf_event *event,
 				       struct perf_sample *sample __used,
 				       struct perf_session *session)
 {

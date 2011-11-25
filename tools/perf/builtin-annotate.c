@@ -30,7 +30,8 @@
 
 #include <linux/bitmap.h>
 
-static struct perf_annotate {
+struct perf_annotate {
+	struct perf_event_ops ops;
 	char const *input_name;
 	bool	   force, use_tui, use_stdio;
 	bool	   full_paths;
@@ -38,13 +39,12 @@ static struct perf_annotate {
 	const char *sym_hist_filter;
 	const char *cpu_list;
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
-} annotate = {
-	.input_name = "perf.data",
-}, *ann = &annotate;
+};
 
 static int perf_evsel__add_sample(struct perf_evsel *evsel,
 				  struct perf_sample *sample,
-				  struct addr_location *al)
+				  struct addr_location *al,
+				  struct perf_annotate *ann)
 {
 	struct hist_entry *he;
 	int ret;
@@ -79,11 +79,13 @@ static int perf_evsel__add_sample(struct perf_evsel *evsel,
 	return ret;
 }
 
-static int process_sample_event(union perf_event *event,
+static int process_sample_event(struct perf_event_ops *ops,
+				union perf_event *event,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel,
 				struct perf_session *session)
 {
+	struct perf_annotate *ann = container_of(ops, struct perf_annotate, ops);
 	struct addr_location al;
 
 	if (perf_event__preprocess_sample(event, session, &al, sample,
@@ -96,7 +98,7 @@ static int process_sample_event(union perf_event *event,
 	if (ann->cpu_list && !test_bit(sample->cpu, ann->cpu_bitmap))
 		return 0;
 
-	if (!al.filtered && perf_evsel__add_sample(evsel, sample, &al)) {
+	if (!al.filtered && perf_evsel__add_sample(evsel, sample, &al, ann)) {
 		pr_warning("problem incrementing symbol count, "
 			   "skipping event\n");
 		return -1;
@@ -105,13 +107,15 @@ static int process_sample_event(union perf_event *event,
 	return 0;
 }
 
-static int hist_entry__tty_annotate(struct hist_entry *he, int evidx)
+static int hist_entry__tty_annotate(struct hist_entry *he, int evidx,
+				    struct perf_annotate *ann)
 {
 	return symbol__tty_annotate(he->ms.sym, he->ms.map, evidx,
 				    ann->print_line, ann->full_paths, 0, 0);
 }
 
-static void hists__find_annotations(struct hists *self, int evidx)
+static void hists__find_annotations(struct hists *self, int evidx,
+				    struct perf_annotate *ann)
 {
 	struct rb_node *nd = rb_first(&self->entries), *next;
 	int key = K_RIGHT;
@@ -149,7 +153,7 @@ find_next:
 			if (next != NULL)
 				nd = next;
 		} else {
-			hist_entry__tty_annotate(he, evidx);
+			hist_entry__tty_annotate(he, evidx, ann);
 			nd = rb_next(nd);
 			/*
 			 * Since we have a hist_entry per IP for the same
@@ -162,16 +166,7 @@ find_next:
 	}
 }
 
-static struct perf_event_ops event_ops = {
-	.sample	= process_sample_event,
-	.mmap	= perf_event__process_mmap,
-	.comm	= perf_event__process_comm,
-	.fork	= perf_event__process_task,
-	.ordered_samples = true,
-	.ordering_requires_timestamps = true,
-};
-
-static int __cmd_annotate(void)
+static int __cmd_annotate(struct perf_annotate *ann)
 {
 	int ret;
 	struct perf_session *session;
@@ -179,7 +174,7 @@ static int __cmd_annotate(void)
 	u64 total_nr_samples;
 
 	session = perf_session__new(ann->input_name, O_RDONLY,
-				    ann->force, false, &event_ops);
+				    ann->force, false, &ann->ops);
 	if (session == NULL)
 		return -ENOMEM;
 
@@ -190,7 +185,7 @@ static int __cmd_annotate(void)
 			goto out_delete;
 	}
 
-	ret = perf_session__process_events(session, &event_ops);
+	ret = perf_session__process_events(session, &ann->ops);
 	if (ret)
 		goto out_delete;
 
@@ -214,7 +209,7 @@ static int __cmd_annotate(void)
 			total_nr_samples += nr_samples;
 			hists__collapse_resort(hists);
 			hists__output_resort(hists);
-			hists__find_annotations(hists, pos->idx);
+			hists__find_annotations(hists, pos->idx, ann);
 		}
 	}
 
@@ -243,7 +238,20 @@ static const char * const annotate_usage[] = {
 	NULL
 };
 
-static const struct option options[] = {
+int cmd_annotate(int argc, const char **argv, const char *prefix __used)
+{
+	struct perf_annotate annotate = {
+		.ops = {
+			.sample	= process_sample_event,
+			.mmap	= perf_event__process_mmap,
+			.comm	= perf_event__process_comm,
+			.fork	= perf_event__process_task,
+			.ordered_samples = true,
+			.ordering_requires_timestamps = true,
+		},
+		.input_name = "perf.data",
+	};
+	const struct option options[] = {
 	OPT_STRING('i', "input", &annotate.input_name, "file",
 		    "input file name"),
 	OPT_STRING('d', "dsos", &symbol_conf.dso_list_str, "dso[,dso...]",
@@ -275,10 +283,8 @@ static const struct option options[] = {
 	OPT_STRING('M', "disassembler-style", &disassembler_style, "disassembler style",
 		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
 	OPT_END()
-};
+	};
 
-int cmd_annotate(int argc, const char **argv, const char *prefix __used)
-{
 	argc = parse_options(argc, argv, options, annotate_usage, 0);
 
 	if (annotate.use_stdio)
@@ -312,5 +318,5 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __used)
 		return -1;
 	}
 
-	return __cmd_annotate();
+	return __cmd_annotate(&annotate);
 }

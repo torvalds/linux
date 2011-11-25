@@ -824,7 +824,7 @@ static void perf_session__mmap_read_idx(struct perf_session *self, int idx)
 			perf_event__process_sample(event, evsel, &sample, self);
 		else if (event->header.type < PERF_RECORD_MAX) {
 			hists__inc_nr_events(&evsel->hists, event->header.type);
-			perf_event__process(event, &sample, self);
+			perf_event__process(&top.ops, event, &sample, self);
 		} else
 			++self->hists.stats.nr_unknown_events;
 	}
@@ -966,10 +966,10 @@ static int __cmd_top(void)
 		goto out_delete;
 
 	if (top.target_tid != -1)
-		perf_event__synthesize_thread_map(top.evlist->threads,
+		perf_event__synthesize_thread_map(&top.ops, top.evlist->threads,
 						  perf_event__process, top.session);
 	else
-		perf_event__synthesize_threads(perf_event__process, top.session);
+		perf_event__synthesize_threads(&top.ops, perf_event__process, top.session);
 
 	start_counters(top.evlist);
 	top.session->evlist = top.evlist;
