@@ -680,7 +680,7 @@ static int follow_up_rcu(struct path *path)
 	struct vfsmount *parent;
 	struct dentry *mountpoint;
 
-	parent = path->mnt->mnt_parent;
+	parent = real_mount(path->mnt)->mnt_parent;
 	if (parent == path->mnt)
 		return 0;
 	mountpoint = path->mnt->mnt_mountpoint;
@@ -695,7 +695,7 @@ int follow_up(struct path *path)
 	struct dentry *mountpoint;
 
 	br_read_lock(vfsmount_lock);
-	parent = path->mnt->mnt_parent;
+	parent = real_mount(path->mnt)->mnt_parent;
 	if (parent == path->mnt) {
 		br_read_unlock(vfsmount_lock);
 		return 0;

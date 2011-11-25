@@ -2465,7 +2465,7 @@ static int prepend_path(const struct path *path,
 			if (!mnt_has_parent(mnt))
 				goto global_root;
 			dentry = vfsmnt->mnt_mountpoint;
-			vfsmnt = vfsmnt->mnt_parent;
+			vfsmnt = mnt->mnt_parent;
 			continue;
 		}
 		parent = dentry->d_parent;
