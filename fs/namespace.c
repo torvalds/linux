@@ -1053,7 +1053,7 @@ static int show_mountinfo(struct seq_file *m, void *v)
 		seq_printf(m, " shared:%i", mnt->mnt_group_id);
 	if (IS_MNT_SLAVE(mnt)) {
 		int master = mnt->mnt_master->mnt_group_id;
-		int dom = get_dominating_id(mnt, &p->root);
+		int dom = get_dominating_id(r, &p->root);
 		seq_printf(m, " master:%i", master);
 		if (dom && dom != master)
 			seq_printf(m, " propagate_from:%i", dom);

@@ -28,19 +28,19 @@ static inline struct vfsmount *next_slave(struct vfsmount *p)
 	return list_entry(p->mnt_slave.next, struct vfsmount, mnt_slave);
 }
 
-static struct vfsmount *get_peer_under_root(struct vfsmount *mnt,
-					    struct mnt_namespace *ns,
-					    const struct path *root)
+static struct mount *get_peer_under_root(struct mount *mnt,
+					 struct mnt_namespace *ns,
+					 const struct path *root)
 {
-	struct mount *m = real_mount(mnt);
+	struct mount *m = mnt;
 
 	do {
 		/* Check the namespace first for optimization */
 		if (m->mnt.mnt_ns == ns && is_path_reachable(m, m->mnt.mnt_root, root))
-			return &m->mnt;
+			return m;
 
 		m = real_mount(next_peer(&m->mnt));
-	} while (&m->mnt != mnt);
+	} while (m != mnt);
 
 	return NULL;
 }
@@ -51,22 +51,22 @@ static struct vfsmount *get_peer_under_root(struct vfsmount *mnt,
  *
  * Caller must hold namespace_sem
  */
-int get_dominating_id(struct vfsmount *mnt, const struct path *root)
+int get_dominating_id(struct mount *mnt, const struct path *root)
 {
-	struct vfsmount *m;
+	struct mount *m;
 
-	for (m = mnt->mnt_master; m != NULL; m = m->mnt_master) {
-		struct vfsmount *d = get_peer_under_root(m, mnt->mnt_ns, root);
+	for (m = real_mount(mnt->mnt.mnt_master); m != NULL; m = real_mount(m->mnt.mnt_master)) {
+		struct mount *d = get_peer_under_root(m, mnt->mnt.mnt_ns, root);
 		if (d)
-			return d->mnt_group_id;
+			return d->mnt.mnt_group_id;
 	}
 
 	return 0;
 }
 
-static int do_make_slave(struct vfsmount *mnt)
+static int do_make_slave(struct mount *mnt)
 {
-	struct vfsmount *peer_mnt = mnt, *master = mnt->mnt_master;
+	struct mount *peer_mnt = mnt, *master = real_mount(mnt->mnt.mnt_master);
 	struct vfsmount *slave_mnt;
 
 	/*
@@ -74,31 +74,31 @@ static int do_make_slave(struct vfsmount *mnt)
 	 * same root dentry. If none is available then
 	 * slave it to anything that is available.
 	 */
-	while ((peer_mnt = next_peer(peer_mnt)) != mnt &&
-	       peer_mnt->mnt_root != mnt->mnt_root) ;
+	while ((peer_mnt = real_mount(next_peer(&peer_mnt->mnt))) != mnt &&
+	       peer_mnt->mnt.mnt_root != mnt->mnt.mnt_root) ;
 
 	if (peer_mnt == mnt) {
-		peer_mnt = next_peer(mnt);
+		peer_mnt = real_mount(next_peer(&mnt->mnt));
 		if (peer_mnt == mnt)
 			peer_mnt = NULL;
 	}
-	if (IS_MNT_SHARED(mnt) && list_empty(&mnt->mnt_share))
-		mnt_release_group_id(real_mount(mnt));
+	if (IS_MNT_SHARED(&mnt->mnt) && list_empty(&mnt->mnt.mnt_share))
+		mnt_release_group_id(mnt);
 
-	list_del_init(&mnt->mnt_share);
-	mnt->mnt_group_id = 0;
+	list_del_init(&mnt->mnt.mnt_share);
+	mnt->mnt.mnt_group_id = 0;
 
 	if (peer_mnt)
 		master = peer_mnt;
 
 	if (master) {
-		list_for_each_entry(slave_mnt, &mnt->mnt_slave_list, mnt_slave)
-			slave_mnt->mnt_master = master;
-		list_move(&mnt->mnt_slave, &master->mnt_slave_list);
-		list_splice(&mnt->mnt_slave_list, master->mnt_slave_list.prev);
-		INIT_LIST_HEAD(&mnt->mnt_slave_list);
+		list_for_each_entry(slave_mnt, &mnt->mnt.mnt_slave_list, mnt_slave)
+			slave_mnt->mnt_master = &master->mnt;
+		list_move(&mnt->mnt.mnt_slave, &master->mnt.mnt_slave_list);
+		list_splice(&mnt->mnt.mnt_slave_list, master->mnt.mnt_slave_list.prev);
+		INIT_LIST_HEAD(&mnt->mnt.mnt_slave_list);
 	} else {
-		struct list_head *p = &mnt->mnt_slave_list;
+		struct list_head *p = &mnt->mnt.mnt_slave_list;
 		while (!list_empty(p)) {
                         slave_mnt = list_first_entry(p,
 					struct vfsmount, mnt_slave);
@@ -106,8 +106,8 @@ static int do_make_slave(struct vfsmount *mnt)
 			slave_mnt->mnt_master = NULL;
 		}
 	}
-	mnt->mnt_master = master;
-	CLEAR_MNT_SHARED(mnt);
+	mnt->mnt.mnt_master = &master->mnt;
+	CLEAR_MNT_SHARED(&mnt->mnt);
 	return 0;
 }
 
@@ -120,7 +120,7 @@ void change_mnt_propagation(struct mount *mnt, int type)
 		set_mnt_shared(mnt);
 		return;
 	}
-	do_make_slave(&mnt->mnt);
+	do_make_slave(mnt);
 	if (type != MS_SLAVE) {
 		list_del_init(&mnt->mnt.mnt_slave);
 		mnt->mnt.mnt_master = NULL;
