@@ -1899,6 +1899,7 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 	struct ieee80211_local *local = rx->local;
 	struct ieee80211_sub_if_data *sdata = rx->sdata;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
+	u16 q;
 
 	hdr = (struct ieee80211_hdr *) skb->data;
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
@@ -1916,12 +1917,6 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 	if (!mesh_hdr->ttl)
 		/* illegal frame */
 		return RX_DROP_MONITOR;
-
-	if (ieee80211_queue_stopped(&local->hw, skb_get_queue_mapping(skb))) {
-		IEEE80211_IFSTA_MESH_CTR_INC(&sdata->u.mesh,
-						dropped_frames_congestion);
-		return RX_DROP_MONITOR;
-	}
 
 	if (mesh_hdr->flags & MESH_FLAGS_AE) {
 		struct mesh_path *mppath;
@@ -1954,7 +1949,13 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 	    compare_ether_addr(sdata->vif.addr, hdr->addr3) == 0)
 		return RX_CONTINUE;
 
-	skb_set_queue_mapping(skb, ieee80211_select_queue(sdata, skb));
+	q = ieee80211_select_queue_80211(local, skb, hdr);
+	if (ieee80211_queue_stopped(&local->hw, q)) {
+		IEEE80211_IFSTA_MESH_CTR_INC(&sdata->u.mesh,
+					     dropped_frames_congestion);
+		return RX_DROP_MONITOR;
+	}
+	skb_set_queue_mapping(skb, q);
 	mesh_hdr->ttl--;
 
 	if (status->rx_flags & IEEE80211_RX_RA_MATCH) {
