@@ -1669,8 +1669,9 @@ int be_cmd_rss_config(struct be_adapter *adapter, u8 *rsstable, u16 table_size)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_rss_config *req;
-	u32 myhash[10] = {0x0123, 0x4567, 0x89AB, 0xCDEF, 0x01EF,
-			0x0123, 0x4567, 0x89AB, 0xCDEF, 0x01EF};
+	u32 myhash[10] = {0x15d43fa5, 0x2534685a, 0x5f87693a, 0x5668494e,
+			0x33cf6a53, 0x383334c6, 0x76ac4257, 0x59b242b2,
+			0x3ea83c02, 0x4a110304};
 	int status;
 
 	if (mutex_lock_interruptible(&adapter->mbox_lock))
