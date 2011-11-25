@@ -78,6 +78,7 @@ struct max8925_power_info {
 	unsigned		batt_detect:1;	/* detecing MB by ID pin */
 	unsigned		topoff_threshold:2;
 	unsigned		fast_charge:3;
+	unsigned		no_temp_support:1;
 
 	int (*set_charger) (int);
 };
@@ -116,7 +117,7 @@ static irqreturn_t max8925_charger_handler(int irq, void *data)
 	case MAX8925_IRQ_VCHG_DC_F:
 		info->ac_online = 0;
 		__set_charger(info, 0);
-		dev_dbg(chip->dev, "Adapter is removal\n");
+		dev_dbg(chip->dev, "Adapter removed\n");
 		break;
 	case MAX8925_IRQ_VCHG_USB_R:
 		info->usb_online = 1;
@@ -126,7 +127,7 @@ static irqreturn_t max8925_charger_handler(int irq, void *data)
 	case MAX8925_IRQ_VCHG_USB_F:
 		info->usb_online = 0;
 		__set_charger(info, 0);
-		dev_dbg(chip->dev, "USB is removal\n");
+		dev_dbg(chip->dev, "USB removed\n");
 		break;
 	case MAX8925_IRQ_VCHG_THM_OK_F:
 		/* Battery is not ready yet */
@@ -369,8 +370,10 @@ static __devinit int max8925_init_charger(struct max8925_chip *chip,
 	REQUEST_IRQ(MAX8925_IRQ_VCHG_USB_OVP, "usb-ovp");
 	REQUEST_IRQ(MAX8925_IRQ_VCHG_USB_F, "usb-remove");
 	REQUEST_IRQ(MAX8925_IRQ_VCHG_USB_R, "usb-insert");
-	REQUEST_IRQ(MAX8925_IRQ_VCHG_THM_OK_R, "batt-temp-in-range");
-	REQUEST_IRQ(MAX8925_IRQ_VCHG_THM_OK_F, "batt-temp-out-range");
+	if (!info->no_temp_support) {
+		REQUEST_IRQ(MAX8925_IRQ_VCHG_THM_OK_R, "batt-temp-in-range");
+		REQUEST_IRQ(MAX8925_IRQ_VCHG_THM_OK_F, "batt-temp-out-range");
+	}
 	REQUEST_IRQ(MAX8925_IRQ_VCHG_SYSLOW_F, "vsys-high");
 	REQUEST_IRQ(MAX8925_IRQ_VCHG_SYSLOW_R, "vsys-low");
 	REQUEST_IRQ(MAX8925_IRQ_VCHG_RST, "charger-reset");
@@ -477,6 +480,7 @@ static __devinit int max8925_power_probe(struct platform_device *pdev)
 	info->topoff_threshold = pdata->topoff_threshold;
 	info->fast_charge = pdata->fast_charge;
 	info->set_charger = pdata->set_charger;
+	info->no_temp_support = pdata->no_temp_support;
 
 	max8925_init_charger(chip, info);
 	return 0;
