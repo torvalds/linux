@@ -126,24 +126,14 @@ int nfs_cache_register_sb(struct super_block *sb, struct cache_detail *cd)
 
 int nfs_cache_register_net(struct net *net, struct cache_detail *cd)
 {
-	struct vfsmount *mnt;
 	struct super_block *pipefs_sb;
-	int ret;
+	int ret = 0;
 
-	mnt = rpc_get_mount();
-	if (IS_ERR(mnt))
-		return PTR_ERR(mnt);
 	pipefs_sb = rpc_get_sb_net(net);
-	if (!pipefs_sb) {
-		ret = -ENOENT;
-		goto err;
+	if (pipefs_sb) {
+		ret = nfs_cache_register_sb(pipefs_sb, cd);
+		rpc_put_sb_net(net);
 	}
-	ret = nfs_cache_register_sb(pipefs_sb, cd);
-	rpc_put_sb_net(net);
-	if (!ret)
-		return ret;
-err:
-	rpc_put_mount();
 	return ret;
 }
 
@@ -162,7 +152,6 @@ void nfs_cache_unregister_net(struct net *net, struct cache_detail *cd)
 		nfs_cache_unregister_sb(pipefs_sb, cd);
 		rpc_put_sb_net(net);
 	}
-	rpc_put_mount();
 }
 
 void nfs_cache_init(struct cache_detail *cd)
