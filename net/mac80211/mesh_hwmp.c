@@ -241,10 +241,14 @@ int mesh_path_error_tx(u8 ttl, u8 *target, __le32 target_sn,
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct ieee80211_mgmt *mgmt;
 	u8 *pos, ie_len;
 	int hdr_len = offsetof(struct ieee80211_mgmt, u.action.u.mesh_action) +
 		      sizeof(mgmt->u.action.u.mesh_action);
+
+	if (time_before(jiffies, ifmsh->next_perr))
+		return -EAGAIN;
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom +
 			    hdr_len +
@@ -290,6 +294,8 @@ int mesh_path_error_tx(u8 ttl, u8 *target, __le32 target_sn,
 
 	/* see note in function header */
 	prepare_frame_for_deferred_tx(sdata, skb);
+	ifmsh->next_perr = TU_TO_EXP_TIME(
+				   ifmsh->mshcfg.dot11MeshHWMPperrMinInterval);
 	ieee80211_add_pending_skb(local, skb);
 	return 0;
 }

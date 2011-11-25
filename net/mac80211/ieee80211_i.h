@@ -514,7 +514,9 @@ struct ieee80211_if_mesh {
 	atomic_t mpaths;
 	/* Timestamp of last SN update */
 	unsigned long last_sn_update;
-	/* Timestamp of last SN sent */
+	/* Time when it's ok to send next PERR */
+	unsigned long next_perr;
+	/* Timestamp of last PREQ sent */
 	unsigned long last_preq;
 	struct mesh_rmc *rmc;
 	spinlock_t mesh_preq_queue_lock;
