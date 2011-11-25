@@ -83,7 +83,7 @@ static int do_make_slave(struct vfsmount *mnt)
 			peer_mnt = NULL;
 	}
 	if (IS_MNT_SHARED(mnt) && list_empty(&mnt->mnt_share))
-		mnt_release_group_id(mnt);
+		mnt_release_group_id(real_mount(mnt));
 
 	list_del_init(&mnt->mnt_share);
 	mnt->mnt_group_id = 0;

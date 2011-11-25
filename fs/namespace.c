@@ -110,7 +110,7 @@ static void mnt_free_id(struct vfsmount *mnt)
  *
  * mnt_group_ida is protected by namespace_sem
  */
-static int mnt_alloc_group_id(struct vfsmount *mnt)
+static int mnt_alloc_group_id(struct mount *mnt)
 {
 	int res;
 
@@ -119,9 +119,9 @@ static int mnt_alloc_group_id(struct vfsmount *mnt)
 
 	res = ida_get_new_above(&mnt_group_ida,
 				mnt_group_start,
-				&mnt->mnt_group_id);
+				&mnt->mnt.mnt_group_id);
 	if (!res)
-		mnt_group_start = mnt->mnt_group_id + 1;
+		mnt_group_start = mnt->mnt.mnt_group_id + 1;
 
 	return res;
 }
@@ -129,13 +129,13 @@ static int mnt_alloc_group_id(struct vfsmount *mnt)
 /*
  * Release a peer group ID
  */
-void mnt_release_group_id(struct vfsmount *mnt)
+void mnt_release_group_id(struct mount *mnt)
 {
-	int id = mnt->mnt_group_id;
+	int id = mnt->mnt.mnt_group_id;
 	ida_remove(&mnt_group_ida, id);
 	if (mnt_group_start > id)
 		mnt_group_start = id;
-	mnt->mnt_group_id = 0;
+	mnt->mnt.mnt_group_id = 0;
 }
 
 /*
@@ -701,7 +701,7 @@ static struct vfsmount *clone_mnt(struct vfsmount *old, struct dentry *root,
 			mnt->mnt_group_id = old->mnt_group_id;
 
 		if ((flag & CL_MAKE_SHARED) && !mnt->mnt_group_id) {
-			int err = mnt_alloc_group_id(mnt);
+			int err = mnt_alloc_group_id(real_mount(mnt));
 			if (err)
 				goto out_free;
 		}
@@ -1497,25 +1497,25 @@ int iterate_mounts(int (*f)(struct vfsmount *, void *), void *arg,
 	return 0;
 }
 
-static void cleanup_group_ids(struct vfsmount *mnt, struct vfsmount *end)
+static void cleanup_group_ids(struct mount *mnt, struct mount *end)
 {
 	struct mount *p;
 
-	for (p = real_mount(mnt); &p->mnt != end; p = next_mnt(p, mnt)) {
+	for (p = mnt; p != end; p = next_mnt(p, &mnt->mnt)) {
 		if (p->mnt.mnt_group_id && !IS_MNT_SHARED(&p->mnt))
-			mnt_release_group_id(&p->mnt);
+			mnt_release_group_id(p);
 	}
 }
 
-static int invent_group_ids(struct vfsmount *mnt, bool recurse)
+static int invent_group_ids(struct mount *mnt, bool recurse)
 {
 	struct mount *p;
 
-	for (p = real_mount(mnt); p; p = recurse ? next_mnt(p, mnt) : NULL) {
+	for (p = mnt; p; p = recurse ? next_mnt(p, &mnt->mnt) : NULL) {
 		if (!p->mnt.mnt_group_id && !IS_MNT_SHARED(&p->mnt)) {
-			int err = mnt_alloc_group_id(&p->mnt);
+			int err = mnt_alloc_group_id(p);
 			if (err) {
-				cleanup_group_ids(mnt, &p->mnt);
+				cleanup_group_ids(mnt, p);
 				return err;
 			}
 		}
@@ -1597,7 +1597,7 @@ static int attach_recursive_mnt(struct vfsmount *source_mnt,
 	int err;
 
 	if (IS_MNT_SHARED(dest_mnt)) {
-		err = invent_group_ids(source_mnt, true);
+		err = invent_group_ids(real_mount(source_mnt), true);
 		if (err)
 			goto out;
 	}
@@ -1630,7 +1630,7 @@ static int attach_recursive_mnt(struct vfsmount *source_mnt,
 
  out_cleanup_ids:
 	if (IS_MNT_SHARED(dest_mnt))
-		cleanup_group_ids(source_mnt, NULL);
+		cleanup_group_ids(real_mount(source_mnt), NULL);
  out:
 	return err;
 }
@@ -1700,7 +1700,7 @@ static int flags_to_propagation_type(int flags)
 static int do_change_type(struct path *path, int flag)
 {
 	struct mount *m;
-	struct vfsmount *mnt = path->mnt;
+	struct mount *mnt = real_mount(path->mnt);
 	int recurse = flag & MS_REC;
 	int type;
 	int err = 0;
@@ -1723,7 +1723,7 @@ static int do_change_type(struct path *path, int flag)
 	}
 
 	br_write_lock(vfsmount_lock);
-	for (m = real_mount(mnt); m; m = (recurse ? next_mnt(m, mnt) : NULL))
+	for (m = mnt; m; m = (recurse ? next_mnt(m, &mnt->mnt) : NULL))
 		change_mnt_propagation(&m->mnt, type);
 	br_write_unlock(vfsmount_lock);
 
