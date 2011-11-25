@@ -859,17 +859,7 @@ int atmel_ssc_set_audio(int ssc_id)
 }
 EXPORT_SYMBOL_GPL(atmel_ssc_set_audio);
 
-static int __init snd_atmel_ssc_init(void)
-{
-	return platform_driver_register(&asoc_ssc_driver);
-}
-module_init(snd_atmel_ssc_init);
-
-static void __exit snd_atmel_ssc_exit(void)
-{
-	platform_driver_unregister(&asoc_ssc_driver);
-}
-module_exit(snd_atmel_ssc_exit);
+module_platform_driver(asoc_ssc_driver);
 
 /* Module information */
 MODULE_AUTHOR("Sedji Gaouaou, sedji.gaouaou@atmel.com, www.atmel.com");

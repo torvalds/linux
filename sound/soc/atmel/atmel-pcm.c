@@ -495,17 +495,7 @@ static struct platform_driver atmel_pcm_driver = {
 	.remove = __devexit_p(atmel_soc_platform_remove),
 };
 
-static int __init snd_atmel_pcm_init(void)
-{
-	return platform_driver_register(&atmel_pcm_driver);
-}
-module_init(snd_atmel_pcm_init);
-
-static void __exit snd_atmel_pcm_exit(void)
-{
-	platform_driver_unregister(&atmel_pcm_driver);
-}
-module_exit(snd_atmel_pcm_exit);
+module_platform_driver(atmel_pcm_driver);
 
 MODULE_AUTHOR("Sedji Gaouaou <sedji.gaouaou@atmel.com>");
 MODULE_DESCRIPTION("Atmel PCM module");
