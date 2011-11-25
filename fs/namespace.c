@@ -200,8 +200,8 @@ static struct mount *alloc_vfsmnt(const char *name)
 #endif
 
 		INIT_LIST_HEAD(&p->mnt_hash);
-		INIT_LIST_HEAD(&mnt->mnt_child);
-		INIT_LIST_HEAD(&mnt->mnt_mounts);
+		INIT_LIST_HEAD(&p->mnt_child);
+		INIT_LIST_HEAD(&p->mnt_mounts);
 		INIT_LIST_HEAD(&mnt->mnt_list);
 		INIT_LIST_HEAD(&mnt->mnt_expire);
 		INIT_LIST_HEAD(&mnt->mnt_share);
@@ -562,7 +562,7 @@ static void detach_mnt(struct mount *mnt, struct path *old_path)
 	old_path->mnt = &mnt->mnt_parent->mnt;
 	mnt->mnt_parent = mnt;
 	mnt->mnt_mountpoint = mnt->mnt.mnt_root;
-	list_del_init(&mnt->mnt.mnt_child);
+	list_del_init(&mnt->mnt_child);
 	list_del_init(&mnt->mnt_hash);
 	dentry_reset_mounted(old_path->dentry);
 }
@@ -588,7 +588,7 @@ static void attach_mnt(struct mount *mnt, struct path *path)
 	mnt_set_mountpoint(path->mnt, path->dentry, mnt);
 	list_add_tail(&mnt->mnt_hash, mount_hashtable +
 			hash(path->mnt, path->dentry));
-	list_add_tail(&mnt->mnt.mnt_child, &path->mnt->mnt_mounts);
+	list_add_tail(&mnt->mnt_child, &real_mount(path->mnt)->mnt_mounts);
 }
 
 static inline void __mnt_make_longterm(struct mount *mnt)
@@ -628,32 +628,32 @@ static void commit_tree(struct mount *mnt)
 
 	list_add_tail(&mnt->mnt_hash, mount_hashtable +
 				hash(&parent->mnt, mnt->mnt_mountpoint));
-	list_add_tail(&mnt->mnt.mnt_child, &parent->mnt.mnt_mounts);
+	list_add_tail(&mnt->mnt_child, &parent->mnt_mounts);
 	touch_mnt_namespace(n);
 }
 
 static struct mount *next_mnt(struct mount *p, struct vfsmount *root)
 {
-	struct list_head *next = p->mnt.mnt_mounts.next;
-	if (next == &p->mnt.mnt_mounts) {
+	struct list_head *next = p->mnt_mounts.next;
+	if (next == &p->mnt_mounts) {
 		while (1) {
 			if (&p->mnt == root)
 				return NULL;
-			next = p->mnt.mnt_child.next;
-			if (next != &p->mnt_parent->mnt.mnt_mounts)
+			next = p->mnt_child.next;
+			if (next != &p->mnt_parent->mnt_mounts)
 				break;
 			p = p->mnt_parent;
 		}
 	}
-	return list_entry(next, struct mount, mnt.mnt_child);
+	return list_entry(next, struct mount, mnt_child);
 }
 
 static struct mount *skip_mnt_tree(struct mount *p)
 {
-	struct list_head *prev = p->mnt.mnt_mounts.prev;
-	while (prev != &p->mnt.mnt_mounts) {
-		p = list_entry(prev, struct mount, mnt.mnt_child);
-		prev = p->mnt.mnt_mounts.prev;
+	struct list_head *prev = p->mnt_mounts.prev;
+	while (prev != &p->mnt_mounts) {
+		p = list_entry(prev, struct mount, mnt_child);
+		prev = p->mnt_mounts.prev;
 	}
 	return p;
 }
@@ -1238,7 +1238,7 @@ void umount_tree(struct mount *mnt, int propagate, struct list_head *kill)
 		__touch_mnt_namespace(p->mnt.mnt_ns);
 		p->mnt.mnt_ns = NULL;
 		__mnt_make_shortterm(p);
-		list_del_init(&p->mnt.mnt_child);
+		list_del_init(&p->mnt_child);
 		if (mnt_has_parent(p)) {
 			p->mnt_parent->mnt.mnt_ghosts++;
 			dentry_reset_mounted(p->mnt_mountpoint);
@@ -1427,7 +1427,7 @@ struct mount *copy_tree(struct mount *mnt, struct dentry *dentry,
 	q->mnt_mountpoint = mnt->mnt_mountpoint;
 
 	p = mnt;
-	list_for_each_entry(r, &mnt->mnt.mnt_mounts, mnt.mnt_child) {
+	list_for_each_entry(r, &mnt->mnt_mounts, mnt_child) {
 		struct mount *s;
 		if (!is_subdir(r->mnt_mountpoint, dentry))
 			continue;
@@ -2134,11 +2134,11 @@ static int select_submounts(struct mount *parent, struct list_head *graveyard)
 	int found = 0;
 
 repeat:
-	next = this_parent->mnt.mnt_mounts.next;
+	next = this_parent->mnt_mounts.next;
 resume:
-	while (next != &this_parent->mnt.mnt_mounts) {
+	while (next != &this_parent->mnt_mounts) {
 		struct list_head *tmp = next;
-		struct mount *mnt = list_entry(tmp, struct mount, mnt.mnt_child);
+		struct mount *mnt = list_entry(tmp, struct mount, mnt_child);
 
 		next = tmp->next;
 		if (!(mnt->mnt.mnt_flags & MNT_SHRINKABLE))
@@ -2146,7 +2146,7 @@ resume:
 		/*
 		 * Descend a level if the d_mounts list is non-empty.
 		 */
-		if (!list_empty(&mnt->mnt.mnt_mounts)) {
+		if (!list_empty(&mnt->mnt_mounts)) {
 			this_parent = mnt;
 			goto repeat;
 		}
@@ -2160,7 +2160,7 @@ resume:
 	 * All done at this level ... ascend and resume the search
 	 */
 	if (this_parent != parent) {
-		next = this_parent->mnt.mnt_child.next;
+		next = this_parent->mnt_child.next;
 		this_parent = this_parent->mnt_parent;
 		goto resume;
 	}

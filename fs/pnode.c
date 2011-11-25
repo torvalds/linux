@@ -303,13 +303,13 @@ int propagate_mount_busy(struct mount *mnt, int refcnt)
 	 * If not, we don't have to go checking for all other
 	 * mounts
 	 */
-	if (!list_empty(&mnt->mnt.mnt_mounts) || do_refcount_check(mnt, refcnt))
+	if (!list_empty(&mnt->mnt_mounts) || do_refcount_check(mnt, refcnt))
 		return 1;
 
 	for (m = propagation_next(&parent->mnt, &parent->mnt); m;
 	     		m = propagation_next(m, &parent->mnt)) {
 		child = __lookup_mnt(m, mnt->mnt_mountpoint, 0);
-		if (child && list_empty(&child->mnt.mnt_mounts) &&
+		if (child && list_empty(&child->mnt_mounts) &&
 		    (ret = do_refcount_check(child, 1)))
 			break;
 	}
@@ -336,7 +336,7 @@ static void __propagate_umount(struct mount *mnt)
 		 * umount the child only if the child has no
 		 * other children
 		 */
-		if (child && list_empty(&child->mnt.mnt_mounts))
+		if (child && list_empty(&child->mnt_mounts))
 			list_move_tail(&child->mnt_hash, &mnt->mnt_hash);
 	}
 }

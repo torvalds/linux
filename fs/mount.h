@@ -17,6 +17,8 @@ struct mount {
 	int mnt_count;
 	int mnt_writers;
 #endif
+	struct list_head mnt_mounts;	/* list of children, anchored here */
+	struct list_head mnt_child;	/* and going through their mnt_child */
 };
 
 static inline struct mount *real_mount(struct vfsmount *mnt)
