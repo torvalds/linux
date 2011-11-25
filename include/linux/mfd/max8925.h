@@ -224,6 +224,7 @@ struct max8925_power_pdata {
 	unsigned	topoff_threshold:2;
 	unsigned	fast_charge:3;	/* charge current */
 	unsigned	no_temp_support:1; /* set if no temperature detect */
+	unsigned	no_insert_detect:1; /* set if no ac insert detect */
 };
 
 /*

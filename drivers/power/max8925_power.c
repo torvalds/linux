@@ -79,6 +79,7 @@ struct max8925_power_info {
 	unsigned		topoff_threshold:2;
 	unsigned		fast_charge:3;
 	unsigned		no_temp_support:1;
+	unsigned		no_insert_detect:1;
 
 	int (*set_charger) (int);
 };
@@ -365,8 +366,10 @@ static __devinit int max8925_init_charger(struct max8925_chip *chip,
 	int ret;
 
 	REQUEST_IRQ(MAX8925_IRQ_VCHG_DC_OVP, "ac-ovp");
-	REQUEST_IRQ(MAX8925_IRQ_VCHG_DC_F, "ac-remove");
-	REQUEST_IRQ(MAX8925_IRQ_VCHG_DC_R, "ac-insert");
+	if (!info->no_insert_detect) {
+		REQUEST_IRQ(MAX8925_IRQ_VCHG_DC_F, "ac-remove");
+		REQUEST_IRQ(MAX8925_IRQ_VCHG_DC_R, "ac-insert");
+	}
 	REQUEST_IRQ(MAX8925_IRQ_VCHG_USB_OVP, "usb-ovp");
 	REQUEST_IRQ(MAX8925_IRQ_VCHG_USB_F, "usb-remove");
 	REQUEST_IRQ(MAX8925_IRQ_VCHG_USB_R, "usb-insert");
@@ -481,6 +484,7 @@ static __devinit int max8925_power_probe(struct platform_device *pdev)
 	info->fast_charge = pdata->fast_charge;
 	info->set_charger = pdata->set_charger;
 	info->no_temp_support = pdata->no_temp_support;
+	info->no_insert_detect = pdata->no_insert_detect;
 
 	max8925_init_charger(chip, info);
 	return 0;
