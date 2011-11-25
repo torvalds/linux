@@ -80,6 +80,11 @@ static int modparam_fastchanswitch;
 module_param_named(fastchanswitch, modparam_fastchanswitch, bool, S_IRUGO);
 MODULE_PARM_DESC(fastchanswitch, "Enable fast channel switching for AR2413/AR5413 radios.");
 
+static int ath5k_modparam_no_hw_rfkill_switch;
+module_param_named(no_hw_rfkill_switch, ath5k_modparam_no_hw_rfkill_switch,
+								bool, S_IRUGO);
+MODULE_PARM_DESC(no_hw_rfkill_switch, "Ignore the GPIO RFKill switch state");
+
 
 /* Module info */
 MODULE_AUTHOR("Jiri Slaby");
@@ -2635,7 +2640,8 @@ int ath5k_start(struct ieee80211_hw *hw)
 	if (ret)
 		goto done;
 
-	ath5k_rfkill_hw_start(ah);
+	if (!ath5k_modparam_no_hw_rfkill_switch)
+		ath5k_rfkill_hw_start(ah);
 
 	/*
 	 * Reset the key cache since some parts do not reset the
@@ -2719,7 +2725,8 @@ void ath5k_stop(struct ieee80211_hw *hw)
 
 	cancel_delayed_work_sync(&ah->tx_complete_work);
 
-	ath5k_rfkill_hw_stop(ah);
+	if (!ath5k_modparam_no_hw_rfkill_switch)
+		ath5k_rfkill_hw_stop(ah);
 }
 
 /*
