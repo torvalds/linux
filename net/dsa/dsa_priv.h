@@ -137,12 +137,15 @@ struct net_device *dsa_slave_create(struct dsa_switch *ds,
 
 /* tag_dsa.c */
 netdev_tx_t dsa_xmit(struct sk_buff *skb, struct net_device *dev);
+extern struct packet_type dsa_packet_type;
 
 /* tag_edsa.c */
 netdev_tx_t edsa_xmit(struct sk_buff *skb, struct net_device *dev);
+extern struct packet_type edsa_packet_type;
 
 /* tag_trailer.c */
 netdev_tx_t trailer_xmit(struct sk_buff *skb, struct net_device *dev);
+extern struct packet_type trailer_packet_type;
 
 
 #endif

@@ -398,12 +398,36 @@ static struct platform_driver dsa_driver = {
 
 static int __init dsa_init_module(void)
 {
-	return platform_driver_register(&dsa_driver);
+	int rc;
+
+	rc = platform_driver_register(&dsa_driver);
+	if (rc)
+		return rc;
+
+#ifdef CONFIG_NET_DSA_TAG_DSA
+	dev_add_pack(&dsa_packet_type);
+#endif
+#ifdef CONFIG_NET_DSA_TAG_EDSA
+	dev_add_pack(&edsa_packet_type);
+#endif
+#ifdef CONFIG_NET_DSA_TAG_TRAILER
+	dev_add_pack(&trailer_packet_type);
+#endif
+	return 0;
 }
 module_init(dsa_init_module);
 
 static void __exit dsa_cleanup_module(void)
 {
+#ifdef CONFIG_NET_DSA_TAG_TRAILER
+	dev_remove_pack(&trailer_packet_type);
+#endif
+#ifdef CONFIG_NET_DSA_TAG_EDSA
+	dev_remove_pack(&edsa_packet_type);
+#endif
+#ifdef CONFIG_NET_DSA_TAG_DSA
+	dev_remove_pack(&dsa_packet_type);
+#endif
 	platform_driver_unregister(&dsa_driver);
 }
 module_exit(dsa_cleanup_module);
