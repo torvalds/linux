@@ -199,7 +199,7 @@ static struct mount *alloc_vfsmnt(const char *name)
 		mnt->mnt_writers = 0;
 #endif
 
-		INIT_LIST_HEAD(&p->mnt.mnt_hash);
+		INIT_LIST_HEAD(&p->mnt_hash);
 		INIT_LIST_HEAD(&mnt->mnt_child);
 		INIT_LIST_HEAD(&mnt->mnt_mounts);
 		INIT_LIST_HEAD(&mnt->mnt_list);
@@ -475,7 +475,7 @@ struct mount *__lookup_mnt(struct vfsmount *mnt, struct dentry *dentry,
 		p = NULL;
 		if (tmp == head)
 			break;
-		p = list_entry(tmp, struct mount, mnt.mnt_hash);
+		p = list_entry(tmp, struct mount, mnt_hash);
 		if (p->mnt.mnt_parent == mnt && p->mnt.mnt_mountpoint == dentry) {
 			found = p;
 			break;
@@ -542,7 +542,7 @@ static void dentry_reset_mounted(struct dentry *dentry)
 	for (u = 0; u < HASH_SIZE; u++) {
 		struct mount *p;
 
-		list_for_each_entry(p, &mount_hashtable[u], mnt.mnt_hash) {
+		list_for_each_entry(p, &mount_hashtable[u], mnt_hash) {
 			if (p->mnt.mnt_mountpoint == dentry)
 				return;
 		}
@@ -562,7 +562,7 @@ static void detach_mnt(struct mount *mnt, struct path *old_path)
 	mnt->mnt.mnt_parent = &mnt->mnt;
 	mnt->mnt.mnt_mountpoint = mnt->mnt.mnt_root;
 	list_del_init(&mnt->mnt.mnt_child);
-	list_del_init(&mnt->mnt.mnt_hash);
+	list_del_init(&mnt->mnt_hash);
 	dentry_reset_mounted(old_path->dentry);
 }
 
@@ -585,7 +585,7 @@ void mnt_set_mountpoint(struct vfsmount *mnt, struct dentry *dentry,
 static void attach_mnt(struct mount *mnt, struct path *path)
 {
 	mnt_set_mountpoint(path->mnt, path->dentry, &mnt->mnt);
-	list_add_tail(&mnt->mnt.mnt_hash, mount_hashtable +
+	list_add_tail(&mnt->mnt_hash, mount_hashtable +
 			hash(path->mnt, path->dentry));
 	list_add_tail(&mnt->mnt.mnt_child, &path->mnt->mnt_mounts);
 }
@@ -625,7 +625,7 @@ static void commit_tree(struct mount *mnt)
 
 	list_splice(&head, n->list.prev);
 
-	list_add_tail(&mnt->mnt.mnt_hash, mount_hashtable +
+	list_add_tail(&mnt->mnt_hash, mount_hashtable +
 				hash(parent, mnt->mnt.mnt_mountpoint));
 	list_add_tail(&mnt->mnt.mnt_child, &parent->mnt_mounts);
 	touch_mnt_namespace(n);
@@ -1193,8 +1193,8 @@ void release_mounts(struct list_head *head)
 {
 	struct mount *mnt;
 	while (!list_empty(head)) {
-		mnt = list_first_entry(head, struct mount, mnt.mnt_hash);
-		list_del_init(&mnt->mnt.mnt_hash);
+		mnt = list_first_entry(head, struct mount, mnt_hash);
+		list_del_init(&mnt->mnt_hash);
 		if (mnt_has_parent(&mnt->mnt)) {
 			struct dentry *dentry;
 			struct vfsmount *m;
@@ -1223,12 +1223,12 @@ void umount_tree(struct vfsmount *mnt, int propagate, struct list_head *kill)
 	struct mount *p;
 
 	for (p = real_mount(mnt); p; p = next_mnt(p, mnt))
-		list_move(&p->mnt.mnt_hash, &tmp_list);
+		list_move(&p->mnt_hash, &tmp_list);
 
 	if (propagate)
 		propagate_umount(&tmp_list);
 
-	list_for_each_entry(p, &tmp_list, mnt.mnt_hash) {
+	list_for_each_entry(p, &tmp_list, mnt_hash) {
 		list_del_init(&p->mnt.mnt_expire);
 		list_del_init(&p->mnt.mnt_list);
 		__touch_mnt_namespace(p->mnt.mnt_ns);
@@ -1620,8 +1620,8 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 		commit_tree(source_mnt);
 	}
 
-	list_for_each_entry_safe(child, p, &tree_list, mnt.mnt_hash) {
-		list_del_init(&child->mnt.mnt_hash);
+	list_for_each_entry_safe(child, p, &tree_list, mnt_hash) {
+		list_del_init(&child->mnt_hash);
 		commit_tree(child);
 	}
 	br_write_unlock(vfsmount_lock);

@@ -1,6 +1,7 @@
 #include <linux/mount.h>
 
 struct mount {
+	struct list_head mnt_hash;
 	struct vfsmount mnt;
 };
 

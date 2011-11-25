@@ -247,13 +247,13 @@ int propagate_mnt(struct vfsmount *dest_mnt, struct dentry *dest_dentry,
 
 		if (is_subdir(dest_dentry, m->mnt_root)) {
 			mnt_set_mountpoint(m, dest_dentry, &child->mnt);
-			list_add_tail(&child->mnt.mnt_hash, tree_list);
+			list_add_tail(&child->mnt_hash, tree_list);
 		} else {
 			/*
 			 * This can happen if the parent mount was bind mounted
 			 * on some subdirectory of a shared/slave mount.
 			 */
-			list_add_tail(&child->mnt.mnt_hash, &tmp_list);
+			list_add_tail(&child->mnt_hash, &tmp_list);
 		}
 		prev_dest_mnt = m;
 		prev_src_mnt  = &child->mnt;
@@ -261,7 +261,7 @@ int propagate_mnt(struct vfsmount *dest_mnt, struct dentry *dest_dentry,
 out:
 	br_write_lock(vfsmount_lock);
 	while (!list_empty(&tmp_list)) {
-		child = list_first_entry(&tmp_list, struct mount, mnt.mnt_hash);
+		child = list_first_entry(&tmp_list, struct mount, mnt_hash);
 		umount_tree(&child->mnt, 0, &umount_list);
 	}
 	br_write_unlock(vfsmount_lock);
@@ -337,7 +337,7 @@ static void __propagate_umount(struct mount *mnt)
 		 * other children
 		 */
 		if (child && list_empty(&child->mnt.mnt_mounts))
-			list_move_tail(&child->mnt.mnt_hash, &mnt->mnt.mnt_hash);
+			list_move_tail(&child->mnt_hash, &mnt->mnt_hash);
 	}
 }
 
@@ -352,7 +352,7 @@ int propagate_umount(struct list_head *list)
 {
 	struct mount *mnt;
 
-	list_for_each_entry(mnt, list, mnt.mnt_hash)
+	list_for_each_entry(mnt, list, mnt_hash)
 		__propagate_umount(mnt);
 	return 0;
 }
