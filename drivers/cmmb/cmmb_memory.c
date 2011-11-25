@@ -4,6 +4,8 @@
 #include <linux/workqueue.h>
 #include <asm/atomic.h>
 #include <linux/vmalloc.h> 
+#include <linux/slab.h>
+
 #if 1
 #define DBGERR(x...)	printk(KERN_INFO x)
 #else

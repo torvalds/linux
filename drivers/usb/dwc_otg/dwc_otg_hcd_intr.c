@@ -519,6 +519,12 @@ int32_t dwc_otg_hcd_handle_hc_intr (dwc_otg_hcd_t *_dwc_otg_hcd)
 			retval |= dwc_otg_hcd_handle_hc_n_intr (_dwc_otg_hcd, hcnum);
 		}
 	}
+	haint.d32 = dwc_otg_read_host_all_channels_intr(_dwc_otg_hcd->core_if);
+	int i;
+	for (i = 0; i < _dwc_otg_hcd->core_if->core_params->host_channels; i++) {
+		if (haint.b2.chint & (1 << i))
+			retval |= dwc_otg_hcd_handle_hc_n_intr(_dwc_otg_hcd, i);
+	}
 #endif
 	return retval;
 }

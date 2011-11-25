@@ -376,7 +376,6 @@ static void ProcessReport(unsigned char *buf, int buflen)
 				input_mt_slot(input_dev, i);
 				input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, true);
 				input_report_abs(input_dev, ABS_MT_TOUCH_MAJOR, PointBuf[i].Status);
-				input_report_abs(input_dev, ABS_MT_PRESSURE, 100);
 				input_report_abs(input_dev, ABS_MT_POSITION_X, PointBuf[i].X);
 				input_report_abs(input_dev, ABS_MT_POSITION_Y, PointBuf[i].Y);
 
@@ -421,7 +420,6 @@ static struct input_dev * allocate_Input_Dev(void)
 	input_set_abs_params(pInputDev, ABS_MT_POSITION_X, 0, CONFIG_EETI_EGALAX_MAX_X, 0, 0);
 	input_set_abs_params(pInputDev, ABS_MT_POSITION_Y, 0, CONFIG_EETI_EGALAX_MAX_Y, 0, 0);
 	input_set_abs_params(pInputDev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
-	input_set_abs_params(pInputDev, ABS_MT_PRESSURE, 0, 255, 0, 0);
 
 	ret = input_register_device(pInputDev);
 	if(ret) 
@@ -503,7 +501,6 @@ static void egalax_i2c_wq(struct work_struct *work)
 				input_mt_slot(input_dev, i);
 				input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, true);
 				input_report_abs(input_dev, ABS_MT_TOUCH_MAJOR, 0);
-				input_report_abs(input_dev, ABS_MT_PRESSURE, 100);
 				input_report_abs(input_dev, ABS_MT_POSITION_X, PointBuf[i].X);
 				input_report_abs(input_dev, ABS_MT_POSITION_Y, PointBuf[i].Y);
 				PointBuf[i].Status = 0;

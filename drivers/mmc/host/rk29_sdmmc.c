@@ -696,7 +696,7 @@ void  rk29_sdmmc_set_frq(struct rk29_sdmmc *host)
     card = (struct mmc_card	*)mmchost->card;
     ios  = ( struct mmc_ios *)&mmchost->ios;
 
-    if(!card && !ios)
+    if(!card || !ios)
         return;
 
     if(MMC_POWER_ON == ios->power_mode)

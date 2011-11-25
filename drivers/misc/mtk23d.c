@@ -23,6 +23,7 @@
 #include <linux/mtk23d.h>
 #include <linux/wakelock.h>
 #include "../mtd/rknand/api_flash.h"
+#include <linux/slab.h>
 
 MODULE_LICENSE("GPL");
 
@@ -290,9 +291,9 @@ int modem_poweron_off(int on_off)
 static int power_on =1;
 static int mtk23d_open(struct inode *inode, struct file *file)
 {
-	struct rk2818_23d_data *pdata = gpdata;
+	//struct rk2818_23d_data *pdata = gpdata;
 	//struct rk2818_23d_data *pdata = gpdata = pdev->dev.platform_data;
-	struct platform_data *pdev = container_of(pdata, struct device, platform_data);
+	//struct platform_data *pdev = container_of(pdata, struct device, platform_data);
 
 	MODEMDBG("modem_open\n");
 
@@ -302,7 +303,7 @@ static int mtk23d_open(struct inode *inode, struct file *file)
 		power_on = 0;
 		modem_poweron_off(1);
 	}
-	device_init_wakeup(&pdev, 1);
+	device_init_wakeup(&pdev->dev, 1);
 
 	return 0;
 }
@@ -405,7 +406,7 @@ static struct file_operations mtk23d_fops = {
 	.owner = THIS_MODULE,
 	.open = mtk23d_open,
 	.release = mtk23d_release,
-	.ioctl = mtk23d_ioctl
+	.unlocked_ioctl = mtk23d_ioctl
 };
 
 static struct miscdevice mtk23d_misc = {
@@ -423,6 +424,7 @@ static int mtk23d_probe(struct platform_device *pdev)
 	MODEMDBG("mtk23d_probe\n");
 
 	//pdata->io_init();
+	pdata->dev = &pdev->dev;
 
 	mt6223d_data = kzalloc(sizeof(struct modem_dev), GFP_KERNEL);
 	if(NULL == mt6223d_data)
@@ -492,7 +494,7 @@ static int mtk23d_probe(struct platform_device *pdev)
 #endif	
 
 	INIT_WORK(&mt6223d_data->work, bpwakeup_work_func_work);
-	init_MUTEX(&pdata->power_sem);
+	sema_init(&pdata->power_sem,1);
   	power_on = 1;
 	result = misc_register(&mtk23d_misc);
 	if(result)

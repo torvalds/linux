@@ -52,22 +52,22 @@ config SND_RK29_SOC_WM8900
 	help
 	  Say Y if you want to add support for SoC audio on rockchip
 	  with the WM8900.
-config SND_RK29_SOC_alc5621
-	tristate "SoC I2S Audio support for rockchip - alc5621"
+config SND_RK29_SOC_RT5621
+	tristate "SoC I2S Audio support for rockchip - rt5621"
 	depends on SND_RK29_SOC && I2C_RK29
 	select SND_RK29_SOC_I2S
-	select SND_SOC_alc5621
+	select SND_SOC_RT5621
 	help
 	  Say Y if you want to add support for SoC audio on rockchip
-	  with the alc5621.
-config SND_RK29_SOC_alc5631
-	tristate "SoC I2S Audio support for rockchip - alc5631"
+	  with the rt5621.
+config SND_RK29_SOC_RT5631
+	tristate "SoC I2S Audio support for rockchip - RT5631"
 	depends on SND_RK29_SOC && I2C_RK29
 	select SND_RK29_SOC_I2S
-	select SND_SOC_alc5631
+	select SND_SOC_RT5631
 	help
 	  Say Y if you want to add support for SoC audio on rockchip
-	  with the alc5631.
+	  with the RT5631.
 
 config SND_RK29_SOC_RT5625
 	tristate "SoC I2S Audio support for rockchip - RT5625"
@@ -105,7 +105,7 @@ config SND_RK29_SOC_RK1000
 	  Say Y if you want to add support for SoC audio on rockchip
 	  with the RK1000.	 
 	   
-if SND_RK29_SOC_WM8988 || SND_RK29_SOC_RK1000 || SND_RK29_SOC_WM8994 || SND_RK29_SOC_WM8900 || SND_RK29_SOC_alc5621 || SND_RK29_SOC_alc5631 || SND_RK29_SOC_RT5625 || SND_RK29_SOC_CS42L52
+if SND_RK29_SOC_WM8988 || SND_RK29_SOC_RK1000 || SND_RK29_SOC_WM8994 || SND_RK29_SOC_WM8900 || SND_RK29_SOC_RT5621 || SND_RK29_SOC_RT5631 || SND_RK29_SOC_RT5625 || SND_RK29_SOC_CS42L52
 choice
   prompt "Set i2s type"
 	config SND_RK29_CODEC_SOC_MASTER

@@ -651,7 +651,7 @@ static UNIVERSAL_DEV_PM_OPS(wm8994_pm_ops, wm8994_suspend, wm8994_resume,
 
 static struct i2c_driver wm8994_i2c_driver = {
 	.driver = {
-		.name = "wm8994",
+		.name = "WM8994",
 		.owner = THIS_MODULE,
 		.pm = &wm8994_pm_ops,
 	},

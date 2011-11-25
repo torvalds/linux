@@ -344,6 +344,9 @@ int drv_release(struct inode* inode, struct file* filp)
 
 #ifndef ANDROID
 	gcmkVERIFY_OK(gckCOMMAND_Stall(device->kernel->command));
+#else
+    // dkm: 保留delay的做法
+    //gcmkVERIFY_OK(gckOS_Delay(galDevice->os, 1000));
 #endif
 
     gcmkVERIFY_OK(
@@ -352,10 +355,7 @@ int drv_release(struct inode* inode, struct file* filp)
 #if gcdkUSE_MEMORY_RECORD
 	FreeAllMemoryRecord(galDevice->os, private, &private->memoryRecordList);
 
-#ifdef ANDROID
-// dkm: 保留delay的做法
-	gcmkVERIFY_OK(gckOS_Delay(galDevice->os, 1000));
-#else
+#ifndef ANDROID
 	gcmkVERIFY_OK(gckCOMMAND_Stall(device->kernel->command));
 #endif
 #endif

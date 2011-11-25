@@ -19,8 +19,7 @@
 *****************************************************************************/
 
 
-
-
+#include <linux/string.h>
 #include "gc_hal_kernel_precomp.h"
 
 #define _GC_OBJ_ZONE    gcvZONE_KERNEL
@@ -293,7 +292,7 @@ _AllocateMemory(
     
 #if (0==gcdPAGE_ALLOC_LIMIT)
     // dkm : force gcvSURF_TILE_STATUS use contiguous memory
-    if(gcvSURF_TILE_STATUS == Type)     pool = gcvPOOL_CONTIGUOUS;
+    //if(gcvSURF_TILE_STATUS == Type)     pool = gcvPOOL_CONTIGUOUS;
 #endif
 
     do
@@ -370,7 +369,9 @@ _AllocateMemory(
             pool = gcvPOOL_SYSTEM;
         }
         else
-        if (pool == gcvPOOL_SYSTEM)
+        if ((pool == gcvPOOL_SYSTEM)
+        &&  (Type != gcvSURF_TILE_STATUS)
+        )
         {
             /* Advance to contiguous memory. */
             pool = gcvPOOL_CONTIGUOUS;
@@ -404,7 +405,7 @@ _AllocateMemory(
         /* Return pool used for allocation. */
         *Pool = pool;
     } else {
-        printk("_AllocateMemory fail! pool=%d, Bytes=%d, Type=%d\n", pool, (int)Bytes, Type);
+        printk("_AllocateMemory fail! pool=%d->%d, Bytes=%d, Type=%d\n", *Pool, pool, (int)Bytes, Type);
     }
 
     /* Return status. */
@@ -468,6 +469,10 @@ gckKERNEL_Dispatch(
         gcmkONERROR(
             gckOS_GetBaseAddress(Kernel->os,
                                  &Interface->u.GetBaseAddress.baseAddress));
+        strcpy(Interface->u.GetBaseAddress.fwVersion, GPU_FW_VERSION);
+#if BUILD_FOR_1_28
+        strcat(Interface->u.GetBaseAddress.fwVersion, "_for1.28");
+#endif
         break;
 
     case gcvHAL_QUERY_VIDEO_MEMORY:

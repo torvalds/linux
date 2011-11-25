@@ -413,10 +413,14 @@ static int rockchip_pcm_close(struct snd_pcm_substream *substream)
         struct rockchip_dma_buf_set *sg_buf = NULL;
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 
-	if (!prtd)
+	if (!prtd) {
 		DBG("rockchip_pcm_close called with prtd == NULL\n");
-        if (prtd) 
-		sg_buf = prtd->curr;
+		return 0;
+	}
+
+	if (prtd->params)
+		rk29_dma_set_buffdone_fn(prtd->params->channel, NULL);
+	sg_buf = prtd->curr;
 
 	while (sg_buf != NULL) {
 		prtd->curr = sg_buf->next;

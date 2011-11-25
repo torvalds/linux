@@ -149,6 +149,7 @@ typedef struct _gcsHAL_INTERFACE
         {
             /* Physical memory address of internal memory. */
             OUT gctUINT32               baseAddress;
+            OUT gctCHAR                 fwVersion[20];
         }
         GetBaseAddress;
 

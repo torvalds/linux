@@ -2888,11 +2888,17 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 		udev->ttport = hdev->ttport;
 	} else if (udev->speed != USB_SPEED_HIGH
 			&& hdev->speed == USB_SPEED_HIGH) {
+			
+	/* yk@rk 20110617
+	 * parent hub has no TT would not be error in rk29
+	 */
+		#if 0
 		if (!hub->tt.hub) {
 			dev_err(&udev->dev, "parent hub has no TT\n");
 			retval = -EINVAL;
 			goto fail;
 		}
+		#endif
 		udev->tt = &hub->tt;
 		udev->ttport = port1;
 	}

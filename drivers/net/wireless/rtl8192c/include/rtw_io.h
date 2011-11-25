@@ -33,7 +33,7 @@
 #include <linux/semaphore.h>
 #endif
 #include <linux/list.h>
-#include <linux/smp_lock.h>
+//#include <linux/smp_lock.h>
 #include <linux/spinlock.h>
 #include <asm/atomic.h>
 

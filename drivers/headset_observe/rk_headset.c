@@ -39,6 +39,7 @@
 #include <linux/earlysuspend.h>
 #include <linux/gpio.h>
 #include <mach/board.h>
+#include <linux/slab.h>
 
 /* Debug */
 #if 1
@@ -60,8 +61,11 @@
 #define enable 1
 #define disable 0
 
-extern int wm8994_set_status(void);
 
+/*#ifdef CONFIG_SND_SOC_WM8994
+extern int wm8994_set_status(void);
+#endif
+*/
 /* headset private data */
 struct headset_priv {
 	struct input_dev *input_dev;
@@ -258,13 +262,13 @@ static void Hook_work(struct work_struct *work)
 		DBG("Headset is out\n");
 		goto RE_ERROR;
 	}	
-	#ifdef CONFIG_SND_SOC_WM8994
+	/*#ifdef CONFIG_SND_SOC_WM8994
 	if(wm8994_set_status() < 0)
 	{
 		DBG("wm8994 is not set on heatset channel or suspend\n");
 		goto RE_ERROR;
 	}
-	#endif		
+	#endif*/
 	for(i=0; i<3; i++)
 	{
 		level = gpio_get_value(pdata->Hook_gpio);
@@ -325,7 +329,7 @@ static void headset_timer_callback(unsigned long arg)
 		DBG("Headset is out\n");
 		goto out;
 	}
-	#ifdef CONFIG_SND_SOC_WM8994
+	/*#ifdef CONFIG_SND_SOC_WM8994
 	if(wm8994_set_status() < 0)
 	{
 		DBG("wm8994 is not set on heatset channel\n");
@@ -333,7 +337,7 @@ static void headset_timer_callback(unsigned long arg)
 		add_timer(&headset_info->headset_timer);	
 		goto out;
 	}
-	#endif
+	#endif*/
 	for(i=0; i<3; i++)
 	{
 		level = gpio_get_value(pdata->Hook_gpio);

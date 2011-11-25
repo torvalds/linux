@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_bus.h,v 1.4.6.3.2.3.6.6 2010/05/17 18:18:13 Exp $
+ * $Id: dhd_bus.h,v 1.4.6.3.2.3.6.7 2010/08/13 01:35:24 Exp $
  */
 
 #ifndef _dhd_bus_h_
@@ -63,7 +63,7 @@ extern bool dhd_bus_watchdog(dhd_pub_t *dhd);
 #ifdef DHD_DEBUG
 /* Device console input function */
 extern int dhd_bus_console_in(dhd_pub_t *dhd, uchar *msg, uint msglen);
-#endif
+#endif /* DHD_DEBUG */
 
 /* Deferred processing for the bus, return TRUE requests reschedule */
 extern bool dhd_bus_dpc(struct dhd_bus *bus);

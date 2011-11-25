@@ -298,11 +298,13 @@ static int verify_coord(struct ili2102_ts_data *ts,unsigned int *x,unsigned int 
 {
 
 	//DBG("%s:(%d/%d)\n",__FUNCTION__,*x, *y);
+	#ifndef CONFIG_MACH_RK29_TD8801_V2
 	if((*x< ts->x_min) || (*x > ts->x_max))
 		return -1;
 
 	if((*y< ts->y_min) || (*y > ts->y_max))
 		return -1;
+    #endif
 
 	/*android do not support min and max value*/
 	if(*x == ts->x_min)
@@ -398,7 +400,10 @@ static void ili2102_ts_work_func(struct work_struct *work)
 					x = g_x[i];
 					y = g_y[i];
 				}
-
+				#ifdef CONFIG_MACH_RK29_TD8801_V2
+				if( y >=80 ) y-=80;
+				if( x >= 50 ) x-=50;
+				#endif
 				g_x[i] = x;
 				g_y[i] = y;			
 				input_event(ts->input_dev, EV_ABS, ABS_MT_TRACKING_ID, i);

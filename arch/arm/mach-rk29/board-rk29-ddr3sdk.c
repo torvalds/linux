@@ -71,6 +71,7 @@
 #define CONFIG_SENSOR_0 RK29_CAM_SENSOR_OV5642                      /* back camera sensor */
 #define CONFIG_SENSOR_IIC_ADDR_0 	    0x78
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_0    1
+#define CONFIG_SENSOR_ORIENTATION_0       0
 #define CONFIG_SENSOR_POWER_PIN_0         INVALID_GPIO
 #define CONFIG_SENSOR_RESET_PIN_0         INVALID_GPIO
 #define CONFIG_SENSOR_POWERDN_PIN_0       RK29_PIN6_PB7
@@ -83,6 +84,7 @@
 #define CONFIG_SENSOR_1 RK29_CAM_SENSOR_OV2659                      /* front camera sensor */
 #define CONFIG_SENSOR_IIC_ADDR_1 	    0x60
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_1    1
+#define CONFIG_SENSOR_ORIENTATION_1       0
 #define CONFIG_SENSOR_POWER_PIN_1         INVALID_GPIO
 #define CONFIG_SENSOR_RESET_PIN_1         INVALID_GPIO
 #define CONFIG_SENSOR_POWERDN_PIN_1       RK29_PIN5_PD7
@@ -1411,14 +1413,14 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.flags			= 0,
 	},
 #endif
-#if defined (CONFIG_SND_SOC_alc5621)
+#if defined (CONFIG_SND_SOC_RT5621)
         {
-                .type                   = "ALC5621",
+                .type                   = "rt5621",
                 .addr                   = 0x1a,
                 .flags                  = 0,
         },
 #endif
-#if defined (CONFIG_SND_SOC_alc5631)
+#if defined (CONFIG_SND_SOC_RT5631)
         {
                 .type                   = "rt5631",
                 .addr                   = 0x1a,
@@ -1430,6 +1432,13 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.type    		= "rk1000_i2c_codec",
 		.addr           = 0x60,
 		.flags			= 0,
+	},
+#endif
+#if defined (CONFIG_SND_SOC_WM8988)
+	{
+		.type                   = "wm8988",
+		.addr           = 0x1A,
+		.flags                  = 0,
 	},
 #endif
 #if defined (CONFIG_SND_SOC_WM8900)

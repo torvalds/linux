@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_sdmmc.c,v 1.1.2.5.6.29 2010/03/19 17:16:08 Exp $
+ * $Id: bcmsdh_sdmmc.c,v 1.1.2.5.6.30.4.1 2010/09/02 23:12:21 Exp $
  */
 #include <typedefs.h>
 
@@ -55,7 +55,7 @@ extern void sdio_function_cleanup(void);
 #if !defined(OOB_INTR_ONLY)
 static void IRQHandler(struct sdio_func *func);
 static void IRQHandlerF2(struct sdio_func *func);
-#endif
+#endif /* !defined(OOB_INTR_ONLY) */
 static int sdioh_sdmmc_get_cisaddr(sdioh_info_t *sd, uint32 regaddr);
 extern int sdio_reset_comm(struct mmc_card *card);
 
@@ -675,6 +675,7 @@ sdioh_enable_hw_oob_intr(sdioh_info_t *sd, bool enable)
 		data = 3;	/* enable hw oob interrupt */
 	else
 		data = 4;	/* disable hw oob interrupt */
+	data |= 4;		/* Active HIGH */
 
 	status = sdioh_request_byte(sd, SDIOH_WRITE, 0, 0xf2, &data);
 	return status;
@@ -1064,14 +1065,18 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write, u
 	return (Status);
 }
 
+/* this function performs "abort" for both of host & device */
 extern int
 sdioh_abort(sdioh_info_t *sd, uint func)
 {
+#if defined(MMC_SDIO_ABORT)
+	char t_func = (char) func;
+#endif /* defined(MMC_SDIO_ABORT) */
 	sd_trace(("%s: Enter\n", __FUNCTION__));
 
 #if defined(MMC_SDIO_ABORT)
 	/* issue abort cmd52 command through F1 */
-	sdioh_request_byte(sd, SD_IO_OP_WRITE, SDIO_FUNC_0, SDIOD_CCCR_IOABORT, (uint8 *)&func);
+	sdioh_request_byte(sd, SD_IO_OP_WRITE, SDIO_FUNC_0, SDIOD_CCCR_IOABORT, &t_func);
 #endif /* defined(MMC_SDIO_ABORT) */
 
 	sd_trace(("%s: Exit\n", __FUNCTION__));
@@ -1215,9 +1220,9 @@ sdioh_start(sdioh_info_t *si, int stage)
 		   2.6.27. The implementation prior to that is buggy, and needs broadcom's
 		   patch for it
 		*/
-//		if ((ret = sdio_reset_comm(gInstance->func[0]->card)))
-//			sd_err(("%s Failed, error = %d\n", __FUNCTION__, ret));
-//		else {
+		if ((ret = sdio_reset_comm(gInstance->func[0]->card)))
+			sd_err(("%s Failed, error = %d\n", __FUNCTION__, ret));
+		else {
 			sd->num_funcs = 2;
 			sd->sd_blockmode = TRUE;
 			sd->use_client_ints = TRUE;
@@ -1250,7 +1255,7 @@ sdioh_start(sdioh_info_t *si, int stage)
 			}
 
 			sdioh_sdmmc_card_enablefuncs(sd);
-//			}
+			}
 		} else {
 #if !defined(OOB_INTR_ONLY)
 			sdio_claim_host(gInstance->func[0]);

@@ -200,15 +200,10 @@ static __devinit int wm831x_isink_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-<<<<<<< HEAD
-	ret = request_threaded_irq(irq, NULL, wm831x_isink_irq,
-				   IRQF_TRIGGER_RISING, isink->name, isink);
-=======
 	printk("%s:line=%d,irq=%d\n",__FUNCTION__,__LINE__,irq);
 	ret = wm831x_request_irq(wm831x, irq, wm831x_isink_irq,
 				 IRQF_TRIGGER_RISING, isink->name,
 				 isink);
->>>>>>> parent of 15f7fab... temp revert rk change
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request ISINK IRQ %d: %d\n",
 			irq, ret);
@@ -229,10 +224,11 @@ err:
 static __devexit int wm831x_isink_remove(struct platform_device *pdev)
 {
 	struct wm831x_isink *isink = platform_get_drvdata(pdev);
+	struct wm831x *wm831x = isink->wm831x;
 
 	platform_set_drvdata(pdev, NULL);
 
-	free_irq(platform_get_irq(pdev, 0), isink);
+	wm831x_free_irq(wm831x, platform_get_irq(pdev, 0), isink);
 
 	regulator_unregister(isink->regulator);
 	kfree(isink);

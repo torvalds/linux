@@ -5,6 +5,7 @@ obj-$(CONFIG_LCD_TD043MGEA1) += lcd_td043mgea1.o
 obj-$(CONFIG_LCD_HSD070IDW1) += lcd_hsd800x480.o
 obj-$(CONFIG_LCD_HL070VM4AU) += lcd_hl070vm4.o
 obj-$(CONFIG_LCD_BYD8688FTGF) += lcd_byd1024x600.o
+obj-$(CONFIG_LCD_LG_LP097X02)+=	lcd_LG_LP097X02.o
 obj-$(CONFIG_LCD_TJ048NC01CA) 		+= lcd_tj048nc01ca.o
 
 obj-$(CONFIG_LCD_A060SE02) += lcd_a060se02.o
@@ -15,6 +16,7 @@ obj-$(CONFIG_LCD_IPS1P5680_V1_E) += lcd_ips1p5680_v1_e.o
 obj-$(CONFIG_LCD_RGB_TFT480800_25_E) += lcd_rgb_tft480800_25_e.o
 obj-$(CONFIG_LCD_MCU_TFT480800_25_E) += lcd_mcu_tft480800_25_e.o
 obj-$(CONFIG_LCD_LS035Y8DX02A) += lcd_ls035y8dx02a.o
+obj-$(CONFIG_LCD_LS035Y8DX04A) += lcd_ls035y8dx04a.o
 obj-$(CONFIG_LCD_CPTCLAA038LA31XE) += lcd_CPTclaa038la31xe.o
 
 
