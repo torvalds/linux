@@ -440,13 +440,12 @@ ath5k_ani_save_and_clear_phy_errors(struct ath5k_hw *ah,
 
 /**
  * ath5k_ani_period_restart() - Restart ANI period
- * @ah: The &struct ath5k_hw
  * @as: The &struct ath5k_ani_state
  *
  * Just reset counters, so they are clear for the next "ani period".
  */
 static void
-ath5k_ani_period_restart(struct ath5k_hw *ah, struct ath5k_ani_state *as)
+ath5k_ani_period_restart(struct ath5k_ani_state *as)
 {
 	/* keep last values for debugging */
 	as->last_ofdm_errors = as->ofdm_errors;
@@ -502,7 +501,7 @@ ath5k_ani_calibration(struct ath5k_hw *ah)
 		/* too many PHY errors - we have to raise immunity */
 		bool ofdm_flag = as->ofdm_errors > ofdm_high ? true : false;
 		ath5k_ani_raise_immunity(ah, as, ofdm_flag);
-		ath5k_ani_period_restart(ah, as);
+		ath5k_ani_period_restart(as);
 
 	} else if (as->listen_time > 5 * ATH5K_ANI_LISTEN_PERIOD) {
 		/* If more than 5 (TODO: why 5?) periods have passed and we got
@@ -514,7 +513,7 @@ ath5k_ani_calibration(struct ath5k_hw *ah)
 		if (as->ofdm_errors <= ofdm_low && as->cck_errors <= cck_low)
 			ath5k_ani_lower_immunity(ah, as);
 
-		ath5k_ani_period_restart(ah, as);
+		ath5k_ani_period_restart(as);
 	}
 }
 
