@@ -136,7 +136,7 @@ static const char * const fr_ex_mce_desc[] = {
 	"Physical register file AG0 port",
 	"Physical register file AG1 port",
 	"Flag register file",
-	"DE correctable error could not be corrected"
+	"DE error occurred"
 };
 
 static bool f12h_dc_mce(u16 ec, u8 xec)
@@ -575,9 +575,6 @@ static void amd_decode_fr_mce(struct mce *m)
 	u8 xec = XEC(m->status, xec_mask);
 
 	if (c->x86 == 0xf || c->x86 == 0x11)
-		goto wrong_fr_mce;
-
-	if (c->x86 != 0x15 && xec != 0x0)
 		goto wrong_fr_mce;
 
 	pr_emerg(HW_ERR "%s Error: ",
