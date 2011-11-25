@@ -477,9 +477,11 @@ static int iwlagn_alive_notify(struct iwl_priv *priv)
 	if (ret)
 		return ret;
 
-	ret = iwlagn_set_Xtal_calib(priv);
-	if (ret)
-		return ret;
+	if (!priv->cfg->no_xtal_calib) {
+		ret = iwlagn_set_Xtal_calib(priv);
+		if (ret)
+			return ret;
+	}
 
 	return iwl_send_calib_results(priv);
 }

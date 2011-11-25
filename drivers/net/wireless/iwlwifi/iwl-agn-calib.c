@@ -84,30 +84,28 @@ struct statistics_general_data {
 
 int iwl_send_calib_results(struct iwl_priv *priv)
 {
-	int ret = 0;
-	int i = 0;
-
 	struct iwl_host_cmd hcmd = {
 		.id = REPLY_PHY_CALIBRATION_CMD,
 		.flags = CMD_SYNC,
 	};
+	int i = 0;
 
 	for (i = 0; i < IWL_CALIB_MAX; i++) {
-		if ((BIT(i) & hw_params(priv).calib_init_cfg) &&
-		    priv->calib_results[i].buf) {
-			hcmd.len[0] = priv->calib_results[i].buf_len;
-			hcmd.data[0] = priv->calib_results[i].buf;
-			hcmd.dataflags[0] = IWL_HCMD_DFL_NOCOPY;
-			ret = iwl_trans_send_cmd(trans(priv), &hcmd);
-			if (ret) {
-				IWL_ERR(priv, "Error %d iteration %d\n",
-					ret, i);
-				break;
-			}
+		int ret;
+
+		if (!priv->calib_results[i].buf)
+			continue;
+		hcmd.len[0] = priv->calib_results[i].buf_len;
+		hcmd.data[0] = priv->calib_results[i].buf;
+		hcmd.dataflags[0] = IWL_HCMD_DFL_NOCOPY;
+		ret = iwl_trans_send_cmd(trans(priv), &hcmd);
+		if (ret) {
+			IWL_ERR(priv, "Error %d iteration %d\n", ret, i);
+			return ret;
 		}
 	}
 
-	return ret;
+	return 0;
 }
 
 int iwl_calib_set(struct iwl_calib_result *res, const u8 *buf, int len)

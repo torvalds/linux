@@ -186,14 +186,7 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 	iwl5000_set_ct_threshold(priv);
 
 	/* Set initial sensitivity parameters */
-	/* Set initial calibration set */
 	hw_params(priv).sens = &iwl5000_sensitivity;
-	hw_params(priv).calib_init_cfg =
-		BIT(IWL_CALIB_XTAL)		|
-		BIT(IWL_CALIB_LO)		|
-		BIT(IWL_CALIB_TX_IQ)		|
-		BIT(IWL_CALIB_TX_IQ_PERD)	|
-		BIT(IWL_CALIB_BASE_BAND);
 
 	return 0;
 }
@@ -222,14 +215,7 @@ static int iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 	iwl5150_set_ct_threshold(priv);
 
 	/* Set initial sensitivity parameters */
-	/* Set initial calibration set */
 	hw_params(priv).sens = &iwl5150_sensitivity;
-	hw_params(priv).calib_init_cfg =
-		BIT(IWL_CALIB_LO)		|
-		BIT(IWL_CALIB_TX_IQ)		|
-		BIT(IWL_CALIB_BASE_BAND);
-	if (priv->cfg->need_dc_calib)
-		hw_params(priv).calib_init_cfg |= BIT(IWL_CALIB_DC);
 
 	return 0;
 }
@@ -433,7 +419,7 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,	\
 	.lib = &iwl5150_lib,					\
 	.base_params = &iwl5000_base_params,			\
-	.need_dc_calib = true,					\
+	.no_xtal_calib = true,					\
 	.led_mode = IWL_LED_BLINK,				\
 	.internal_wimax_coex = true
 
