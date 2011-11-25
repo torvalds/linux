@@ -24,6 +24,7 @@ static u64			nr_unordered;
 extern const struct option	record_options[];
 static bool			no_callchain;
 static bool			show_full_info;
+static bool			system_wide;
 static const char		*cpu_list;
 static DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 
@@ -1105,6 +1106,8 @@ static const struct option options[] = {
 	OPT_CALLBACK('f', "fields", NULL, "str",
 		     "comma separated output fields prepend with 'type:'. Valid types: hw,sw,trace,raw. Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso,addr",
 		     parse_output_fields),
+	OPT_BOOLEAN('a', "all-cpus", &system_wide,
+		     "system-wide collection from all CPUs"),
 	OPT_STRING('C', "cpu", &cpu_list, "cpu", "list of cpus to profile"),
 	OPT_STRING('c', "comms", &symbol_conf.comm_list_str, "comm[,comm...]",
 		   "only display events for these comms"),
@@ -1134,7 +1137,6 @@ int cmd_script(int argc, const char **argv, const char *prefix __used)
 	struct perf_session *session;
 	char *script_path = NULL;
 	const char **__argv;
-	bool system_wide;
 	int i, j, err;
 
 	setup_scripting();
@@ -1202,15 +1204,17 @@ int cmd_script(int argc, const char **argv, const char *prefix __used)
 		}
 
 		if (!pid) {
-			system_wide = true;
 			j = 0;
 
 			dup2(live_pipe[1], 1);
 			close(live_pipe[0]);
 
-			if (!is_top_script(argv[0]))
+			if (is_top_script(argv[0])) {
+				system_wide = true;
+			} else if (!system_wide) {
 				system_wide = !have_cmd(argc - rep_args,
 							&argv[rep_args]);
+			}
 
 			__argv = malloc((argc + 6) * sizeof(const char *));
 			if (!__argv)
@@ -1258,10 +1262,11 @@ int cmd_script(int argc, const char **argv, const char *prefix __used)
 		script_path = rep_script_path;
 
 	if (script_path) {
-		system_wide = false;
 		j = 0;
 
-		if (rec_script_path)
+		if (!rec_script_path)
+			system_wide = false;
+		else if (!system_wide)
 			system_wide = !have_cmd(argc - 1, &argv[1]);
 
 		__argv = malloc((argc + 2) * sizeof(const char *));
