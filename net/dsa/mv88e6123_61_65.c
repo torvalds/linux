@@ -419,7 +419,7 @@ static int mv88e6123_61_65_get_sset_count(struct dsa_switch *ds)
 	return ARRAY_SIZE(mv88e6123_61_65_hw_stats);
 }
 
-static struct dsa_switch_driver mv88e6123_61_65_switch_driver = {
+struct dsa_switch_driver mv88e6123_61_65_switch_driver = {
 	.tag_protocol		= cpu_to_be16(ETH_P_EDSA),
 	.priv_size		= sizeof(struct mv88e6xxx_priv_state),
 	.probe			= mv88e6123_61_65_probe,
@@ -432,16 +432,3 @@ static struct dsa_switch_driver mv88e6123_61_65_switch_driver = {
 	.get_ethtool_stats	= mv88e6123_61_65_get_ethtool_stats,
 	.get_sset_count		= mv88e6123_61_65_get_sset_count,
 };
-
-static int __init mv88e6123_61_65_init(void)
-{
-	register_switch_driver(&mv88e6123_61_65_switch_driver);
-	return 0;
-}
-module_init(mv88e6123_61_65_init);
-
-static void __exit mv88e6123_61_65_cleanup(void)
-{
-	unregister_switch_driver(&mv88e6123_61_65_switch_driver);
-}
-module_exit(mv88e6123_61_65_cleanup);

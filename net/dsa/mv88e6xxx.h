@@ -71,6 +71,9 @@ void mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds,
 				 int nr_stats, struct mv88e6xxx_hw_stat *stats,
 				 int port, uint64_t *data);
 
+extern struct dsa_switch_driver mv88e6131_switch_driver;
+extern struct dsa_switch_driver mv88e6123_61_65_switch_driver;
+
 #define REG_READ(addr, reg)						\
 	({								\
 		int __ret;						\
