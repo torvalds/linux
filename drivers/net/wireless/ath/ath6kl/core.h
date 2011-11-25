@@ -618,7 +618,7 @@ struct ath6kl {
 #endif /* CONFIG_ATH6KL_DEBUG */
 };
 
-static inline void *ath6kl_priv(struct net_device *dev)
+static inline struct ath6kl *ath6kl_priv(struct net_device *dev)
 {
 	return ((struct ath6kl_vif *) netdev_priv(dev))->ar;
 }
