@@ -631,12 +631,12 @@ static void commit_tree(struct mount *mnt)
 	touch_mnt_namespace(n);
 }
 
-static struct mount *next_mnt(struct mount *p, struct vfsmount *root)
+static struct mount *next_mnt(struct mount *p, struct mount *root)
 {
 	struct list_head *next = p->mnt_mounts.next;
 	if (next == &p->mnt_mounts) {
 		while (1) {
-			if (&p->mnt == root)
+			if (p == root)
 				return NULL;
 			next = p->mnt_child.next;
 			if (next != &p->mnt_parent->mnt_mounts)
@@ -1145,16 +1145,17 @@ const struct seq_operations mountstats_op = {
  * open files, pwds, chroots or sub mounts that are
  * busy.
  */
-int may_umount_tree(struct vfsmount *mnt)
+int may_umount_tree(struct vfsmount *m)
 {
+	struct mount *mnt = real_mount(m);
 	int actual_refs = 0;
 	int minimum_refs = 0;
 	struct mount *p;
-	BUG_ON(!mnt);
+	BUG_ON(!m);
 
 	/* write lock needed for mnt_get_count */
 	br_write_lock(vfsmount_lock);
-	for (p = real_mount(mnt); p; p = next_mnt(p, mnt)) {
+	for (p = mnt; p; p = next_mnt(p, mnt)) {
 		actual_refs += mnt_get_count(p);
 		minimum_refs += 2;
 	}
@@ -1228,7 +1229,7 @@ void umount_tree(struct mount *mnt, int propagate, struct list_head *kill)
 	LIST_HEAD(tmp_list);
 	struct mount *p;
 
-	for (p = mnt; p; p = next_mnt(p, &mnt->mnt))
+	for (p = mnt; p; p = next_mnt(p, mnt))
 		list_move(&p->mnt_hash, &tmp_list);
 
 	if (propagate)
@@ -1436,7 +1437,7 @@ struct mount *copy_tree(struct mount *mnt, struct dentry *dentry,
 		if (!is_subdir(r->mnt_mountpoint, dentry))
 			continue;
 
-		for (s = r; s; s = next_mnt(s, &r->mnt)) {
+		for (s = r; s; s = next_mnt(s, r)) {
 			if (!(flag & CL_COPY_ALL) && IS_MNT_UNBINDABLE(s)) {
 				s = skip_mnt_tree(s);
 				continue;
@@ -1509,7 +1510,7 @@ static void cleanup_group_ids(struct mount *mnt, struct mount *end)
 {
 	struct mount *p;
 
-	for (p = mnt; p != end; p = next_mnt(p, &mnt->mnt)) {
+	for (p = mnt; p != end; p = next_mnt(p, mnt)) {
 		if (p->mnt_group_id && !IS_MNT_SHARED(p))
 			mnt_release_group_id(p);
 	}
@@ -1519,7 +1520,7 @@ static int invent_group_ids(struct mount *mnt, bool recurse)
 {
 	struct mount *p;
 
-	for (p = mnt; p; p = recurse ? next_mnt(p, &mnt->mnt) : NULL) {
+	for (p = mnt; p; p = recurse ? next_mnt(p, mnt) : NULL) {
 		if (!p->mnt_group_id && !IS_MNT_SHARED(p)) {
 			int err = mnt_alloc_group_id(p);
 			if (err) {
@@ -1616,7 +1617,7 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 	br_write_lock(vfsmount_lock);
 
 	if (IS_MNT_SHARED(dest_mnt)) {
-		for (p = source_mnt; p; p = next_mnt(p, &source_mnt->mnt))
+		for (p = source_mnt; p; p = next_mnt(p, source_mnt))
 			set_mnt_shared(p);
 	}
 	if (parent_path) {
@@ -1731,7 +1732,7 @@ static int do_change_type(struct path *path, int flag)
 	}
 
 	br_write_lock(vfsmount_lock);
-	for (m = mnt; m; m = (recurse ? next_mnt(m, &mnt->mnt) : NULL))
+	for (m = mnt; m; m = (recurse ? next_mnt(m, mnt) : NULL))
 		change_mnt_propagation(m, type);
 	br_write_unlock(vfsmount_lock);
 
@@ -1859,7 +1860,7 @@ static int do_remount(struct path *path, int flags, int mnt_flags,
 static inline int tree_contains_unbindable(struct mount *mnt)
 {
 	struct mount *p;
-	for (p = mnt; p; p = next_mnt(p, &mnt->mnt)) {
+	for (p = mnt; p; p = next_mnt(p, mnt)) {
 		if (IS_MNT_UNBINDABLE(p))
 			return 1;
 	}
@@ -2399,6 +2400,7 @@ static struct mnt_namespace *dup_mnt_ns(struct mnt_namespace *mnt_ns,
 	struct mnt_namespace *new_ns;
 	struct vfsmount *rootmnt = NULL, *pwdmnt = NULL;
 	struct mount *p, *q;
+	struct mount *old = real_mount(mnt_ns->root);
 	struct mount *new;
 
 	new_ns = alloc_mnt_ns();
@@ -2407,8 +2409,7 @@ static struct mnt_namespace *dup_mnt_ns(struct mnt_namespace *mnt_ns,
 
 	down_write(&namespace_sem);
 	/* First pass: copy the tree topology */
-	new = copy_tree(real_mount(mnt_ns->root), mnt_ns->root->mnt_root,
-					CL_COPY_ALL | CL_EXPIRE);
+	new = copy_tree(old, old->mnt.mnt_root, CL_COPY_ALL | CL_EXPIRE);
 	if (!new) {
 		up_write(&namespace_sem);
 		kfree(new_ns);
@@ -2424,7 +2425,7 @@ static struct mnt_namespace *dup_mnt_ns(struct mnt_namespace *mnt_ns,
 	 * as belonging to new namespace.  We have already acquired a private
 	 * fs_struct, so tsk->fs->lock is not needed.
 	 */
-	p = real_mount(mnt_ns->root);
+	p = old;
 	q = new;
 	while (p) {
 		q->mnt_ns = new_ns;
@@ -2443,8 +2444,8 @@ static struct mnt_namespace *dup_mnt_ns(struct mnt_namespace *mnt_ns,
 				pwdmnt = &p->mnt;
 			}
 		}
-		p = next_mnt(p, mnt_ns->root);
-		q = next_mnt(q, new_ns->root);
+		p = next_mnt(p, old);
+		q = next_mnt(q, new);
 	}
 	up_write(&namespace_sem);
 
