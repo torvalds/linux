@@ -13,19 +13,19 @@
 #include "pnode.h"
 
 /* return the next shared peer mount of @p */
-static inline struct vfsmount *next_peer(struct vfsmount *p)
+static inline struct mount *next_peer(struct mount *p)
 {
-	return list_entry(p->mnt_share.next, struct vfsmount, mnt_share);
+	return list_entry(p->mnt.mnt_share.next, struct mount, mnt.mnt_share);
 }
 
-static inline struct vfsmount *first_slave(struct vfsmount *p)
+static inline struct mount *first_slave(struct mount *p)
 {
-	return list_entry(p->mnt_slave_list.next, struct vfsmount, mnt_slave);
+	return list_entry(p->mnt.mnt_slave_list.next, struct mount, mnt.mnt_slave);
 }
 
-static inline struct vfsmount *next_slave(struct vfsmount *p)
+static inline struct mount *next_slave(struct mount *p)
 {
-	return list_entry(p->mnt_slave.next, struct vfsmount, mnt_slave);
+	return list_entry(p->mnt.mnt_slave.next, struct mount, mnt.mnt_slave);
 }
 
 static struct mount *get_peer_under_root(struct mount *mnt,
@@ -39,7 +39,7 @@ static struct mount *get_peer_under_root(struct mount *mnt,
 		if (m->mnt.mnt_ns == ns && is_path_reachable(m, m->mnt.mnt_root, root))
 			return m;
 
-		m = real_mount(next_peer(&m->mnt));
+		m = next_peer(m);
 	} while (m != mnt);
 
 	return NULL;
@@ -74,11 +74,11 @@ static int do_make_slave(struct mount *mnt)
 	 * same root dentry. If none is available then
 	 * slave it to anything that is available.
 	 */
-	while ((peer_mnt = real_mount(next_peer(&peer_mnt->mnt))) != mnt &&
+	while ((peer_mnt = next_peer(peer_mnt)) != mnt &&
 	       peer_mnt->mnt.mnt_root != mnt->mnt.mnt_root) ;
 
 	if (peer_mnt == mnt) {
-		peer_mnt = real_mount(next_peer(&mnt->mnt));
+		peer_mnt = next_peer(mnt);
 		if (peer_mnt == mnt)
 			peer_mnt = NULL;
 	}
@@ -141,21 +141,20 @@ void change_mnt_propagation(struct mount *mnt, int type)
  * vfsmount found while iterating with propagation_next() is
  * a peer of one we'd found earlier.
  */
-static struct vfsmount *propagation_next(struct vfsmount *m,
-					 struct vfsmount *origin)
+static struct mount *propagation_next(struct mount *m,
+					 struct mount *origin)
 {
 	/* are there any slaves of this mount? */
-	if (!IS_MNT_NEW(m) && !list_empty(&m->mnt_slave_list))
+	if (!IS_MNT_NEW(&m->mnt) && !list_empty(&m->mnt.mnt_slave_list))
 		return first_slave(m);
 
 	while (1) {
-		struct vfsmount *next;
-		struct vfsmount *master = m->mnt_master;
+		struct mount *master = real_mount(m->mnt.mnt_master);
 
-		if (master == origin->mnt_master) {
-			next = next_peer(m);
-			return ((next == origin) ? NULL : next);
-		} else if (m->mnt_slave.next != &master->mnt_slave_list)
+		if (&master->mnt == origin->mnt.mnt_master) {
+			struct mount *next = next_peer(m);
+			return (next == origin) ? NULL : next;
+		} else if (m->mnt.mnt_slave.next != &master->mnt.mnt_slave_list)
 			return next_slave(m);
 
 		/* back at master */
@@ -172,25 +171,25 @@ static struct vfsmount *propagation_next(struct vfsmount *m,
  * @type	return CL_SLAVE if the new mount has to be
  * 		cloned as a slave.
  */
-static struct vfsmount *get_source(struct vfsmount *dest,
-					struct vfsmount *last_dest,
-					struct vfsmount *last_src,
-					int *type)
+static struct mount *get_source(struct mount *dest,
+				struct mount *last_dest,
+				struct mount *last_src,
+				int *type)
 {
-	struct vfsmount *p_last_src = NULL;
-	struct vfsmount *p_last_dest = NULL;
+	struct mount *p_last_src = NULL;
+	struct mount *p_last_dest = NULL;
 
-	while (last_dest != dest->mnt_master) {
+	while (&last_dest->mnt != dest->mnt.mnt_master) {
 		p_last_dest = last_dest;
 		p_last_src = last_src;
-		last_dest = last_dest->mnt_master;
-		last_src = last_src->mnt_master;
+		last_dest = real_mount(last_dest->mnt.mnt_master);
+		last_src = real_mount(last_src->mnt.mnt_master);
 	}
 
 	if (p_last_dest) {
 		do {
 			p_last_dest = next_peer(p_last_dest);
-		} while (IS_MNT_NEW(p_last_dest));
+		} while (IS_MNT_NEW(&p_last_dest->mnt));
 		/* is that a peer of the earlier? */
 		if (dest == p_last_dest) {
 			*type = CL_MAKE_SHARED;
@@ -200,7 +199,7 @@ static struct vfsmount *get_source(struct vfsmount *dest,
 	/* slave of the earlier, then */
 	*type = CL_SLAVE;
 	/* beginning of peer group among the slaves? */
-	if (IS_MNT_SHARED(dest))
+	if (IS_MNT_SHARED(&dest->mnt))
 		*type |= CL_MAKE_SHARED;
 	return last_src;
 }
@@ -221,32 +220,31 @@ static struct vfsmount *get_source(struct vfsmount *dest,
 int propagate_mnt(struct vfsmount *dest_mnt, struct dentry *dest_dentry,
 		    struct vfsmount *source_mnt, struct list_head *tree_list)
 {
-	struct vfsmount *m;
-	struct mount *child;
+	struct mount *m, *child;
 	int ret = 0;
-	struct vfsmount *prev_dest_mnt = dest_mnt;
-	struct vfsmount *prev_src_mnt  = source_mnt;
+	struct mount *prev_dest_mnt = real_mount(dest_mnt);
+	struct mount *prev_src_mnt  = real_mount(source_mnt);
 	LIST_HEAD(tmp_list);
 	LIST_HEAD(umount_list);
 
-	for (m = propagation_next(dest_mnt, dest_mnt); m;
-			m = propagation_next(m, dest_mnt)) {
+	for (m = propagation_next(real_mount(dest_mnt), real_mount(dest_mnt)); m;
+			m = propagation_next(m, real_mount(dest_mnt))) {
 		int type;
-		struct vfsmount *source;
+		struct mount *source;
 
-		if (IS_MNT_NEW(m))
+		if (IS_MNT_NEW(&m->mnt))
 			continue;
 
 		source =  get_source(m, prev_dest_mnt, prev_src_mnt, &type);
 
-		if (!(child = copy_tree(real_mount(source), source->mnt_root, type))) {
+		if (!(child = copy_tree(source, source->mnt.mnt_root, type))) {
 			ret = -ENOMEM;
 			list_splice(tree_list, tmp_list.prev);
 			goto out;
 		}
 
-		if (is_subdir(dest_dentry, m->mnt_root)) {
-			mnt_set_mountpoint(m, dest_dentry, child);
+		if (is_subdir(dest_dentry, m->mnt.mnt_root)) {
+			mnt_set_mountpoint(&m->mnt, dest_dentry, child);
 			list_add_tail(&child->mnt_hash, tree_list);
 		} else {
 			/*
@@ -256,7 +254,7 @@ int propagate_mnt(struct vfsmount *dest_mnt, struct dentry *dest_dentry,
 			list_add_tail(&child->mnt_hash, &tmp_list);
 		}
 		prev_dest_mnt = m;
-		prev_src_mnt  = &child->mnt;
+		prev_src_mnt  = child;
 	}
 out:
 	br_write_lock(vfsmount_lock);
@@ -290,8 +288,7 @@ static inline int do_refcount_check(struct mount *mnt, int count)
  */
 int propagate_mount_busy(struct mount *mnt, int refcnt)
 {
-	struct vfsmount *m;
-	struct mount *child;
+	struct mount *m, *child;
 	struct mount *parent = mnt->mnt_parent;
 	int ret = 0;
 
@@ -306,9 +303,9 @@ int propagate_mount_busy(struct mount *mnt, int refcnt)
 	if (!list_empty(&mnt->mnt_mounts) || do_refcount_check(mnt, refcnt))
 		return 1;
 
-	for (m = propagation_next(&parent->mnt, &parent->mnt); m;
-	     		m = propagation_next(m, &parent->mnt)) {
-		child = __lookup_mnt(m, mnt->mnt_mountpoint, 0);
+	for (m = propagation_next(parent, parent); m;
+	     		m = propagation_next(m, parent)) {
+		child = __lookup_mnt(&m->mnt, mnt->mnt_mountpoint, 0);
 		if (child && list_empty(&child->mnt_mounts) &&
 		    (ret = do_refcount_check(child, 1)))
 			break;
@@ -323,14 +320,14 @@ int propagate_mount_busy(struct mount *mnt, int refcnt)
 static void __propagate_umount(struct mount *mnt)
 {
 	struct mount *parent = mnt->mnt_parent;
-	struct vfsmount *m;
+	struct mount *m;
 
 	BUG_ON(parent == mnt);
 
-	for (m = propagation_next(&parent->mnt, &parent->mnt); m;
-			m = propagation_next(m, &parent->mnt)) {
+	for (m = propagation_next(parent, parent); m;
+			m = propagation_next(m, parent)) {
 
-		struct mount *child = __lookup_mnt(m,
+		struct mount *child = __lookup_mnt(&m->mnt,
 					mnt->mnt_mountpoint, 0);
 		/*
 		 * umount the child only if the child has no
