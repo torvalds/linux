@@ -358,16 +358,38 @@ static bool need_isr(void)
 			if (mp->info_dirty)
 				return true;
 
+			/* to set GO bit */
+			if (mp->shadow_info_dirty)
+				return true;
+
 			list_for_each_entry(ovl, &mgr->overlays, list) {
 				struct ovl_priv_data *op;
 
 				op = get_ovl_priv(ovl);
 
+				/*
+				 * NOTE: we check extra_info flags even for
+				 * disabled overlays, as extra_infos need to be
+				 * always written.
+				 */
+
+				/* to write new values to registers */
+				if (op->extra_info_dirty)
+					return true;
+
+				/* to set GO bit */
+				if (op->shadow_extra_info_dirty)
+					return true;
+
 				if (!op->enabled)
 					continue;
 
 				/* to write new values to registers */
-				if (op->info_dirty || op->extra_info_dirty)
+				if (op->info_dirty)
+					return true;
+
+				/* to set GO bit */
+				if (op->shadow_info_dirty)
 					return true;
 			}
 		}
