@@ -1244,7 +1244,7 @@ void umount_tree(struct mount *mnt, int propagate, struct list_head *kill)
 	list_splice(&tmp_list, kill);
 }
 
-static void shrink_submounts(struct vfsmount *mnt, struct list_head *umounts);
+static void shrink_submounts(struct mount *mnt, struct list_head *umounts);
 
 static int do_umount(struct vfsmount *mnt, int flags)
 {
@@ -1322,7 +1322,7 @@ static int do_umount(struct vfsmount *mnt, int flags)
 	event++;
 
 	if (!(flags & MNT_DETACH))
-		shrink_submounts(mnt, &umount_list);
+		shrink_submounts(real_mount(mnt), &umount_list);
 
 	retval = -EBUSY;
 	if (flags & MNT_DETACH || !propagate_mount_busy(mnt, 2)) {
@@ -2121,32 +2121,32 @@ EXPORT_SYMBOL_GPL(mark_mounts_for_expiry);
  * search the list of submounts for a given mountpoint, and move any
  * shrinkable submounts to the 'graveyard' list.
  */
-static int select_submounts(struct vfsmount *parent, struct list_head *graveyard)
+static int select_submounts(struct mount *parent, struct list_head *graveyard)
 {
-	struct vfsmount *this_parent = parent;
+	struct mount *this_parent = parent;
 	struct list_head *next;
 	int found = 0;
 
 repeat:
-	next = this_parent->mnt_mounts.next;
+	next = this_parent->mnt.mnt_mounts.next;
 resume:
-	while (next != &this_parent->mnt_mounts) {
+	while (next != &this_parent->mnt.mnt_mounts) {
 		struct list_head *tmp = next;
-		struct vfsmount *mnt = list_entry(tmp, struct vfsmount, mnt_child);
+		struct mount *mnt = list_entry(tmp, struct mount, mnt.mnt_child);
 
 		next = tmp->next;
-		if (!(mnt->mnt_flags & MNT_SHRINKABLE))
+		if (!(mnt->mnt.mnt_flags & MNT_SHRINKABLE))
 			continue;
 		/*
 		 * Descend a level if the d_mounts list is non-empty.
 		 */
-		if (!list_empty(&mnt->mnt_mounts)) {
+		if (!list_empty(&mnt->mnt.mnt_mounts)) {
 			this_parent = mnt;
 			goto repeat;
 		}
 
-		if (!propagate_mount_busy(mnt, 1)) {
-			list_move_tail(&mnt->mnt_expire, graveyard);
+		if (!propagate_mount_busy(&mnt->mnt, 1)) {
+			list_move_tail(&mnt->mnt.mnt_expire, graveyard);
 			found++;
 		}
 	}
@@ -2154,8 +2154,8 @@ resume:
 	 * All done at this level ... ascend and resume the search
 	 */
 	if (this_parent != parent) {
-		next = this_parent->mnt_child.next;
-		this_parent = this_parent->mnt_parent;
+		next = this_parent->mnt.mnt_child.next;
+		this_parent = real_mount(this_parent->mnt.mnt_parent);
 		goto resume;
 	}
 	return found;
@@ -2167,7 +2167,7 @@ resume:
  *
  * vfsmount_lock must be held for write
  */
-static void shrink_submounts(struct vfsmount *mnt, struct list_head *umounts)
+static void shrink_submounts(struct mount *mnt, struct list_head *umounts)
 {
 	LIST_HEAD(graveyard);
 	struct mount *m;
