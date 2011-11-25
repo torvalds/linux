@@ -426,7 +426,6 @@ static bool extra_info_update_ongoing(void)
 	struct omap_overlay *ovl;
 	struct mgr_priv_data *mp;
 	int i;
-	bool eid;
 
 	for (i = 0; i < num_ovls; ++i) {
 		ovl = omap_dss_get_overlay(i);
@@ -437,15 +436,11 @@ static bool extra_info_update_ongoing(void)
 		if (!mp->enabled)
 			continue;
 
-		eid = op->extra_info_dirty || op->shadow_extra_info_dirty;
-
-		if (!eid)
+		if (!mp->updating)
 			continue;
 
-		if (ovl_manual_update(ovl) && !mp->updating)
-			continue;
-
-		return true;
+		if (op->extra_info_dirty || op->shadow_extra_info_dirty)
+			return true;
 	}
 
 	return false;
