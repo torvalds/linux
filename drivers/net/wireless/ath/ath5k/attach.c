@@ -298,7 +298,7 @@ int ath5k_hw_init(struct ath5k_hw *ah)
 
 		/* Reset SERDES to load new settings */
 		ath5k_hw_reg_write(ah, 0x00000000, AR5K_PCIE_SERDES_RESET);
-		mdelay(1);
+		usleep_range(1000, 1500);
 	}
 
 	/* Get misc capabilities */

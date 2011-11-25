@@ -58,7 +58,7 @@ u16 ath5k_hw_radio_revision(struct ath5k_hw *ah, enum ieee80211_band band)
 		return 0;
 	}
 
-	mdelay(2);
+	usleep_range(2000, 2500);
 
 	/* ...wait until PHY is ready and read the selected radio revision */
 	ath5k_hw_reg_write(ah, 0x00001c16, AR5K_PHY(0x34));
@@ -308,9 +308,9 @@ static void ath5k_hw_wait_for_synth(struct ath5k_hw *ah,
 			delay = delay << 2;
 		/* XXX: /2 on turbo ? Let's be safe
 		 * for now */
-		udelay(100 + delay);
+		usleep_range(100 + delay, 100 + (2 * delay));
 	} else {
-		mdelay(1);
+		usleep_range(1000, 1500);
 	}
 }
 
@@ -1083,7 +1083,7 @@ static int ath5k_hw_rf5110_channel(struct ath5k_hw *ah,
 	data = ath5k_hw_rf5110_chan2athchan(channel);
 	ath5k_hw_reg_write(ah, data, AR5K_RF_BUFFER);
 	ath5k_hw_reg_write(ah, 0, AR5K_RF_BUFFER_CONTROL_0);
-	mdelay(1);
+	usleep_range(1000, 1500);
 
 	return 0;
 }
@@ -1454,7 +1454,7 @@ static int ath5k_hw_rf5110_calibrate(struct ath5k_hw *ah,
 	beacon = ath5k_hw_reg_read(ah, AR5K_BEACON_5210);
 	ath5k_hw_reg_write(ah, beacon & ~AR5K_BEACON_ENABLE, AR5K_BEACON_5210);
 
-	mdelay(2);
+	usleep_range(2000, 2500);
 
 	/*
 	 * Set the channel (with AGC turned off)
@@ -1467,7 +1467,7 @@ static int ath5k_hw_rf5110_calibrate(struct ath5k_hw *ah,
 	 * Activate PHY and wait
 	 */
 	ath5k_hw_reg_write(ah, AR5K_PHY_ACT_ENABLE, AR5K_PHY_ACT);
-	mdelay(1);
+	usleep_range(1000, 1500);
 
 	AR5K_REG_DISABLE_BITS(ah, AR5K_PHY_AGC, AR5K_PHY_AGC_DISABLE);
 
@@ -1504,7 +1504,7 @@ static int ath5k_hw_rf5110_calibrate(struct ath5k_hw *ah,
 	ath5k_hw_reg_write(ah, AR5K_PHY_RFSTG_DISABLE, AR5K_PHY_RFSTG);
 	AR5K_REG_DISABLE_BITS(ah, AR5K_PHY_AGC, AR5K_PHY_AGC_DISABLE);
 
-	mdelay(1);
+	usleep_range(1000, 1500);
 
 	/*
 	 * Enable calibration and wait until completion
@@ -3397,7 +3397,7 @@ int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 		if (ret)
 			return ret;
 
-		mdelay(1);
+		usleep_range(1000, 1500);
 
 		/*
 		 * Write RF buffer
@@ -3418,10 +3418,10 @@ int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 		}
 
 	} else if (ah->ah_version == AR5K_AR5210) {
-		mdelay(1);
+		usleep_range(1000, 1500);
 		/* Disable phy and wait */
 		ath5k_hw_reg_write(ah, AR5K_PHY_ACT_DISABLE, AR5K_PHY_ACT);
-		mdelay(1);
+		usleep_range(1000, 1500);
 	}
 
 	/* Set channel on PHY */
@@ -3447,7 +3447,7 @@ int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 	for (i = 0; i <= 20; i++) {
 		if (!(ath5k_hw_reg_read(ah, AR5K_PHY_ADC_TEST) & 0x10))
 			break;
-		udelay(200);
+		usleep_range(200, 250);
 	}
 	ath5k_hw_reg_write(ah, phy_tst1, AR5K_PHY_TST1);
 
