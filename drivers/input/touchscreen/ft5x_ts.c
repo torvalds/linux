@@ -1283,9 +1283,12 @@ static void ft5x_report_multitouch(void)
 	struct ft5x_ts_data *data = i2c_get_clientdata(this_client);
 	struct ts_event *event = &data->event;
 
+#ifdef TOUCH_KEY_SUPPORT
 	if(1 == key_tp){
 		return;
 	}
+#endif
+
 	switch(event->touch_point) {
 	case 5:
 		input_report_abs(data->input_dev, ABS_MT_TRACKING_ID, event->touch_ID5);
@@ -1361,10 +1364,9 @@ static void ft5x_report_singletouch(void)
 
 static void ft5x_report_touchkey(void)
 {
+#ifdef TOUCH_KEY_SUPPORT
 	struct ft5x_ts_data *data = i2c_get_clientdata(this_client);
 	struct ts_event *event = &data->event;
-
-#ifdef TOUCH_KEY_SUPPORT
 	//print_point_info("x=%d===Y=%d\n",event->x1,event->y1);
 
 #ifdef TOUCH_KEY_FOR_ANGDA
