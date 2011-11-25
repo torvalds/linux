@@ -557,13 +557,15 @@ static int usbhsg_pipe_disable(struct usbhsg_uep *uep)
 	struct usbhs_pipe *pipe = usbhsg_uep_to_pipe(uep);
 	struct usbhs_pkt *pkt;
 
-	usbhs_pipe_disable(pipe);
-
 	while (1) {
 		pkt = usbhs_pkt_pop(pipe, NULL);
 		if (!pkt)
 			break;
+
+		usbhsg_queue_pop(uep, usbhsg_pkt_to_ureq(pkt), -ECONNRESET);
 	}
+
+	usbhs_pipe_disable(pipe);
 
 	return 0;
 }
