@@ -48,39 +48,6 @@ struct dsa_switch {
 	struct net_device	*ports[DSA_MAX_PORTS];
 };
 
-struct dsa_switch_tree {
-	/*
-	 * Configuration data for the platform device that owns
-	 * this dsa switch tree instance.
-	 */
-	struct dsa_platform_data	*pd;
-
-	/*
-	 * Reference to network device to use, and which tagging
-	 * protocol to use.
-	 */
-	struct net_device	*master_netdev;
-	__be16			tag_protocol;
-
-	/*
-	 * The switch and port to which the CPU is attached.
-	 */
-	s8			cpu_switch;
-	s8			cpu_port;
-
-	/*
-	 * Link state polling.
-	 */
-	int			link_poll_needed;
-	struct work_struct	link_poll_work;
-	struct timer_list	link_poll_timer;
-
-	/*
-	 * Data for the individual switch chips.
-	 */
-	struct dsa_switch	*ds[DSA_MAX_SWITCHES];
-};
-
 static inline bool dsa_is_cpu_port(struct dsa_switch *ds, int p)
 {
 	return !!(ds->index == ds->dst->cpu_switch && p == ds->dst->cpu_port);

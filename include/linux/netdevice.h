@@ -1080,7 +1080,7 @@ struct net_device {
 	struct vlan_group __rcu	*vlgrp;		/* VLAN group */
 #endif
 #ifdef CONFIG_NET_DSA
-	void			*dsa_ptr;	/* dsa specific data */
+	struct dsa_switch_tree	*dsa_ptr;	/* dsa specific data */
 #endif
 	void 			*atalk_ptr;	/* AppleTalk link 	*/
 	struct in_device __rcu	*ip_ptr;	/* IPv4 specific data	*/

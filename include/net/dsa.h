@@ -11,6 +11,9 @@
 #ifndef __LINUX_NET_DSA_H
 #define __LINUX_NET_DSA_H
 
+#include <linux/timer.h>
+#include <linux/workqueue.h>
+
 #define DSA_MAX_SWITCHES	4
 #define DSA_MAX_PORTS		12
 
@@ -54,8 +57,54 @@ struct dsa_platform_data {
 	struct dsa_chip_data	*chip;
 };
 
-extern bool dsa_uses_dsa_tags(void *dsa_ptr);
-extern bool dsa_uses_trailer_tags(void *dsa_ptr);
+struct dsa_switch_tree {
+	/*
+	 * Configuration data for the platform device that owns
+	 * this dsa switch tree instance.
+	 */
+	struct dsa_platform_data	*pd;
 
+	/*
+	 * Reference to network device to use, and which tagging
+	 * protocol to use.
+	 */
+	struct net_device	*master_netdev;
+	__be16			tag_protocol;
+
+	/*
+	 * The switch and port to which the CPU is attached.
+	 */
+	s8			cpu_switch;
+	s8			cpu_port;
+
+	/*
+	 * Link state polling.
+	 */
+	int			link_poll_needed;
+	struct work_struct	link_poll_work;
+	struct timer_list	link_poll_timer;
+
+	/*
+	 * Data for the individual switch chips.
+	 */
+	struct dsa_switch	*ds[DSA_MAX_SWITCHES];
+};
+
+/*
+ * The original DSA tag format and some other tag formats have no
+ * ethertype, which means that we need to add a little hack to the
+ * networking receive path to make sure that received frames get
+ * the right ->protocol assigned to them when one of those tag
+ * formats is in use.
+ */
+static inline bool dsa_uses_dsa_tags(struct dsa_switch_tree *dst)
+{
+	return !!(dst->tag_protocol == htons(ETH_P_DSA));
+}
+
+static inline bool dsa_uses_trailer_tags(struct dsa_switch_tree *dst)
+{
+	return !!(dst->tag_protocol == htons(ETH_P_TRAILER));
+}
 
 #endif
