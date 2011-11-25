@@ -244,7 +244,7 @@ int propagate_mnt(struct mount *dest_mnt, struct dentry *dest_dentry,
 		}
 
 		if (is_subdir(dest_dentry, m->mnt.mnt_root)) {
-			mnt_set_mountpoint(&m->mnt, dest_dentry, child);
+			mnt_set_mountpoint(m, dest_dentry, child);
 			list_add_tail(&child->mnt_hash, tree_list);
 		} else {
 			/*
