@@ -361,12 +361,21 @@ ssize_t nfs_dns_resolve_name(char *name, size_t namelen,
 
 int nfs_dns_resolver_init(void)
 {
-	return nfs_cache_register(&nfs_dns_resolve);
+	int err;
+
+	nfs_cache_init(&nfs_dns_resolve);
+	err = nfs_cache_register(&nfs_dns_resolve);
+	if (err) {
+		nfs_cache_destroy(&nfs_dns_resolve);
+		return err;
+	}
+	return 0;
 }
 
 void nfs_dns_resolver_destroy(void)
 {
 	nfs_cache_unregister(&nfs_dns_resolve);
+	nfs_cache_destroy(&nfs_dns_resolve);
 }
 
 #endif
