@@ -715,7 +715,7 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
 
 		if (flag & CL_SLAVE) {
 			list_add(&mnt->mnt.mnt_slave, &old->mnt.mnt_slave_list);
-			mnt->mnt_master = &old->mnt;
+			mnt->mnt_master = old;
 			CLEAR_MNT_SHARED(&mnt->mnt);
 		} else if (!(flag & CL_PRIVATE)) {
 			if ((flag & CL_MAKE_SHARED) || IS_MNT_SHARED(&old->mnt))
@@ -1052,7 +1052,7 @@ static int show_mountinfo(struct seq_file *m, void *v)
 	if (IS_MNT_SHARED(mnt))
 		seq_printf(m, " shared:%i", mnt->mnt_group_id);
 	if (IS_MNT_SLAVE(r)) {
-		int master = r->mnt_master->mnt_group_id;
+		int master = r->mnt_master->mnt.mnt_group_id;
 		int dom = get_dominating_id(r, &p->root);
 		seq_printf(m, " master:%i", master);
 		if (dom && dom != master)

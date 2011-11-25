@@ -55,7 +55,7 @@ int get_dominating_id(struct mount *mnt, const struct path *root)
 {
 	struct mount *m;
 
-	for (m = real_mount(mnt->mnt_master); m != NULL; m = real_mount(m->mnt_master)) {
+	for (m = mnt->mnt_master; m != NULL; m = m->mnt_master) {
 		struct mount *d = get_peer_under_root(m, mnt->mnt.mnt_ns, root);
 		if (d)
 			return d->mnt.mnt_group_id;
@@ -66,7 +66,7 @@ int get_dominating_id(struct mount *mnt, const struct path *root)
 
 static int do_make_slave(struct mount *mnt)
 {
-	struct mount *peer_mnt = mnt, *master = real_mount(mnt->mnt_master);
+	struct mount *peer_mnt = mnt, *master = mnt->mnt_master;
 	struct mount *slave_mnt;
 
 	/*
@@ -93,7 +93,7 @@ static int do_make_slave(struct mount *mnt)
 
 	if (master) {
 		list_for_each_entry(slave_mnt, &mnt->mnt.mnt_slave_list, mnt.mnt_slave)
-			slave_mnt->mnt_master = &master->mnt;
+			slave_mnt->mnt_master = master;
 		list_move(&mnt->mnt.mnt_slave, &master->mnt.mnt_slave_list);
 		list_splice(&mnt->mnt.mnt_slave_list, master->mnt.mnt_slave_list.prev);
 		INIT_LIST_HEAD(&mnt->mnt.mnt_slave_list);
@@ -106,7 +106,7 @@ static int do_make_slave(struct mount *mnt)
 			slave_mnt->mnt_master = NULL;
 		}
 	}
-	mnt->mnt_master = &master->mnt;
+	mnt->mnt_master = master;
 	CLEAR_MNT_SHARED(&mnt->mnt);
 	return 0;
 }
@@ -149,9 +149,9 @@ static struct mount *propagation_next(struct mount *m,
 		return first_slave(m);
 
 	while (1) {
-		struct mount *master = real_mount(m->mnt_master);
+		struct mount *master = m->mnt_master;
 
-		if (&master->mnt == origin->mnt_master) {
+		if (master == origin->mnt_master) {
 			struct mount *next = next_peer(m);
 			return (next == origin) ? NULL : next;
 		} else if (m->mnt.mnt_slave.next != &master->mnt.mnt_slave_list)
@@ -179,11 +179,11 @@ static struct mount *get_source(struct mount *dest,
 	struct mount *p_last_src = NULL;
 	struct mount *p_last_dest = NULL;
 
-	while (&last_dest->mnt != dest->mnt_master) {
+	while (last_dest != dest->mnt_master) {
 		p_last_dest = last_dest;
 		p_last_src = last_src;
-		last_dest = real_mount(last_dest->mnt_master);
-		last_src = real_mount(last_src->mnt_master);
+		last_dest = last_dest->mnt_master;
+		last_src = last_src->mnt_master;
 	}
 
 	if (p_last_dest) {
