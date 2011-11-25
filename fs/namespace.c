@@ -1587,7 +1587,7 @@ static int invent_group_ids(struct mount *mnt, bool recurse)
  * Must be called without spinlocks held, since this function can sleep
  * in allocations.
  */
-static int attach_recursive_mnt(struct vfsmount *source_mnt,
+static int attach_recursive_mnt(struct mount *source_mnt,
 			struct path *path, struct path *parent_path)
 {
 	LIST_HEAD(tree_list);
@@ -1597,27 +1597,27 @@ static int attach_recursive_mnt(struct vfsmount *source_mnt,
 	int err;
 
 	if (IS_MNT_SHARED(dest_mnt)) {
-		err = invent_group_ids(real_mount(source_mnt), true);
+		err = invent_group_ids(source_mnt, true);
 		if (err)
 			goto out;
 	}
-	err = propagate_mnt(dest_mnt, dest_dentry, source_mnt, &tree_list);
+	err = propagate_mnt(dest_mnt, dest_dentry, &source_mnt->mnt, &tree_list);
 	if (err)
 		goto out_cleanup_ids;
 
 	br_write_lock(vfsmount_lock);
 
 	if (IS_MNT_SHARED(dest_mnt)) {
-		for (p = real_mount(source_mnt); p; p = next_mnt(p, source_mnt))
+		for (p = source_mnt; p; p = next_mnt(p, &source_mnt->mnt))
 			set_mnt_shared(&p->mnt);
 	}
 	if (parent_path) {
-		detach_mnt(real_mount(source_mnt), parent_path);
-		attach_mnt(real_mount(source_mnt), path);
+		detach_mnt(source_mnt, parent_path);
+		attach_mnt(source_mnt, path);
 		touch_mnt_namespace(parent_path->mnt->mnt_ns);
 	} else {
-		mnt_set_mountpoint(dest_mnt, dest_dentry, source_mnt);
-		commit_tree(real_mount(source_mnt));
+		mnt_set_mountpoint(dest_mnt, dest_dentry, &source_mnt->mnt);
+		commit_tree(source_mnt);
 	}
 
 	list_for_each_entry_safe(child, p, &tree_list, mnt.mnt_hash) {
@@ -1630,7 +1630,7 @@ static int attach_recursive_mnt(struct vfsmount *source_mnt,
 
  out_cleanup_ids:
 	if (IS_MNT_SHARED(dest_mnt))
-		cleanup_group_ids(real_mount(source_mnt), NULL);
+		cleanup_group_ids(source_mnt, NULL);
  out:
 	return err;
 }
@@ -1674,7 +1674,7 @@ static int graft_tree(struct vfsmount *mnt, struct path *path)
 	if (d_unlinked(path->dentry))
 		return -ENOENT;
 
-	return attach_recursive_mnt(mnt, path, NULL);
+	return attach_recursive_mnt(real_mount(mnt), path, NULL);
 }
 
 /*
@@ -1859,6 +1859,7 @@ static int do_move_mount(struct path *path, char *old_name)
 {
 	struct path old_path, parent_path;
 	struct vfsmount *p;
+	struct mount *old;
 	int err = 0;
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -1883,6 +1884,8 @@ static int do_move_mount(struct path *path, char *old_name)
 	if (old_path.dentry != old_path.mnt->mnt_root)
 		goto out1;
 
+	old = real_mount(old_path.mnt);
+
 	if (!mnt_has_parent(old_path.mnt))
 		goto out1;
 
@@ -1906,7 +1909,7 @@ static int do_move_mount(struct path *path, char *old_name)
 		if (p == old_path.mnt)
 			goto out1;
 
-	err = attach_recursive_mnt(old_path.mnt, path, &parent_path);
+	err = attach_recursive_mnt(old, path, &parent_path);
 	if (err)
 		goto out1;
 
