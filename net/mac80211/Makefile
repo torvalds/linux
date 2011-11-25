@@ -24,7 +24,8 @@ mac80211-y := \
 	util.o \
 	wme.o \
 	event.o \
-	chan.o
+	chan.o \
+	driver-trace.o
 
 mac80211-$(CONFIG_MAC80211_LEDS) += led.o
 mac80211-$(CONFIG_MAC80211_DEBUGFS) += \
@@ -41,7 +42,6 @@ mac80211-$(CONFIG_MAC80211_MESH) += \
 
 mac80211-$(CONFIG_PM) += pm.o
 
-mac80211-$(CONFIG_MAC80211_DRIVER_API_TRACER) += driver-trace.o
 CFLAGS_driver-trace.o := -I$(src)
 
 # objects for PID algorithm
