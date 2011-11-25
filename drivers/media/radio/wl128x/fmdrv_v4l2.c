@@ -28,6 +28,8 @@
  *
  */
 
+#include <linux/export.h>
+
 #include "fmdrv.h"
 #include "fmdrv_v4l2.h"
 #include "fmdrv_common.h"
@@ -84,12 +86,14 @@ static ssize_t fm_v4l2_fops_write(struct file *file, const char __user * buf,
 	ret = copy_from_user(&rds, buf, sizeof(rds));
 	fmdbg("(%d)type: %d, text %s, af %d\n",
 		   ret, rds.text_type, rds.text, rds.af_freq);
+	if (ret)
+		return -EFAULT;
 
 	fmdev = video_drvdata(file);
 	fm_tx_set_radio_text(fmdev, rds.text, rds.text_type);
 	fm_tx_set_af(fmdev, rds.af_freq);
 
-	return 0;
+	return sizeof(rds);
 }
 
 static u32 fm_v4l2_fops_poll(struct file *file, struct poll_table_struct *pts)
@@ -557,7 +561,7 @@ int fm_v4l2_init_video_device(struct fmdev *fmdev, int radio_nr)
 			255, 1, 255);
 
 	if (ctrl)
-		ctrl->is_volatile = 1;
+		ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
 
 	return 0;
 }

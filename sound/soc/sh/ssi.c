@@ -342,7 +342,7 @@ static struct snd_soc_dai_ops ssi_dai_ops = {
 	.set_fmt	= ssi_set_fmt,
 };
 
-struct snd_soc_dai_driver sh4_ssi_dai[] = {
+static struct snd_soc_dai_driver sh4_ssi_dai[] = {
 {
 	.name			= "ssi-dai.0",
 	.playback = {

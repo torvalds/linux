@@ -4,6 +4,7 @@
 #include "libslang.h"
 #include <newt.h>
 #include "ui.h"
+#include "util.h"
 #include <linux/compiler.h>
 #include <linux/list.h>
 #include <linux/rbtree.h>
@@ -168,6 +169,59 @@ void ui_browser__refresh_dimensions(struct ui_browser *self)
 	self->x = 0;
 }
 
+void ui_browser__handle_resize(struct ui_browser *browser)
+{
+	ui__refresh_dimensions(false);
+	ui_browser__show(browser, browser->title, ui_helpline__current);
+	ui_browser__refresh(browser);
+}
+
+int ui_browser__warning(struct ui_browser *browser, int timeout,
+			const char *format, ...)
+{
+	va_list args;
+	char *text;
+	int key = 0, err;
+
+	va_start(args, format);
+	err = vasprintf(&text, format, args);
+	va_end(args);
+
+	if (err < 0) {
+		va_start(args, format);
+		ui_helpline__vpush(format, args);
+		va_end(args);
+	} else {
+		while ((key == ui__question_window("Warning!", text,
+						   "Press any key...",
+						   timeout)) == K_RESIZE)
+			ui_browser__handle_resize(browser);
+		free(text);
+	}
+
+	return key;
+}
+
+int ui_browser__help_window(struct ui_browser *browser, const char *text)
+{
+	int key;
+
+	while ((key = ui__help_window(text)) == K_RESIZE)
+		ui_browser__handle_resize(browser);
+
+	return key;
+}
+
+bool ui_browser__dialog_yesno(struct ui_browser *browser, const char *text)
+{
+	int key;
+
+	while ((key = ui__dialog_yesno(text)) == K_RESIZE)
+		ui_browser__handle_resize(browser);
+
+	return key == K_ENTER || toupper(key) == 'Y';
+}
+
 void ui_browser__reset_index(struct ui_browser *self)
 {
 	self->index = self->top_idx = 0;
@@ -230,13 +284,15 @@ static void ui_browser__scrollbar_set(struct ui_browser *browser)
 		       (browser->nr_entries - 1));
 	}
 
+	SLsmg_set_char_set(1);
+
 	while (h < height) {
 	        ui_browser__gotorc(browser, row++, col);
-		SLsmg_set_char_set(1);
-		SLsmg_write_char(h == pct ? SLSMG_DIAMOND_CHAR : SLSMG_BOARD_CHAR);
-		SLsmg_set_char_set(0);
+		SLsmg_write_char(h == pct ? SLSMG_DIAMOND_CHAR : SLSMG_CKBRD_CHAR);
 		++h;
 	}
+
+	SLsmg_set_char_set(0);
 }
 
 static int __ui_browser__refresh(struct ui_browser *browser)
@@ -291,52 +347,9 @@ void ui_browser__update_nr_entries(struct ui_browser *browser, u32 nr_entries)
 	browser->seek(browser, browser->top_idx, SEEK_SET);
 }
 
-static int ui__getch(int delay_secs)
-{
-	struct timeval timeout, *ptimeout = delay_secs ? &timeout : NULL;
-	fd_set read_set;
-	int err, key;
-
-	FD_ZERO(&read_set);
-	FD_SET(0, &read_set);
-
-	if (delay_secs) {
-		timeout.tv_sec = delay_secs;
-		timeout.tv_usec = 0;
-	}
-
-        err = select(1, &read_set, NULL, NULL, ptimeout);
-
-	if (err == 0)
-		return K_TIMER;
-
-	if (err == -1) {
-		if (errno == EINTR)
-			return K_RESIZE;
-		return K_ERROR;
-	}
-
-	key = SLang_getkey();
-	if (key != K_ESC)
-		return key;
-
-	FD_ZERO(&read_set);
-	FD_SET(0, &read_set);
-	timeout.tv_sec = 0;
-	timeout.tv_usec = 20;
-        err = select(1, &read_set, NULL, NULL, &timeout);
-	if (err == 0)
-		return K_ESC;
-
-	SLang_ungetkey(key);
-	return SLkp_getkey();
-}
-
 int ui_browser__run(struct ui_browser *self, int delay_secs)
 {
 	int err, key;
-
-	pthread__unblock_sigwinch();
 
 	while (1) {
 		off_t offset;
@@ -351,10 +364,7 @@ int ui_browser__run(struct ui_browser *self, int delay_secs)
 		key = ui__getch(delay_secs);
 
 		if (key == K_RESIZE) {
-			pthread_mutex_lock(&ui__lock);
-			SLtt_get_screen_size();
-			SLsmg_reinit_smg();
-			pthread_mutex_unlock(&ui__lock);
+			ui__refresh_dimensions(false);
 			ui_browser__refresh_dimensions(self);
 			__ui_browser__show_title(self, self->title);
 			ui_helpline__puts(self->helpline);
@@ -531,6 +541,47 @@ static int ui_browser__color_config(const char *var, const char *value,
 
 	free(fg);
 	return -1;
+}
+
+void ui_browser__argv_seek(struct ui_browser *browser, off_t offset, int whence)
+{
+	switch (whence) {
+	case SEEK_SET:
+		browser->top = browser->entries;
+		break;
+	case SEEK_CUR:
+		browser->top = browser->top + browser->top_idx + offset;
+		break;
+	case SEEK_END:
+		browser->top = browser->top + browser->nr_entries + offset;
+		break;
+	default:
+		return;
+	}
+}
+
+unsigned int ui_browser__argv_refresh(struct ui_browser *browser)
+{
+	unsigned int row = 0, idx = browser->top_idx;
+	char **pos;
+
+	if (browser->top == NULL)
+		browser->top = browser->entries;
+
+	pos = (char **)browser->top;
+	while (idx < browser->nr_entries) {
+		if (!browser->filter || !browser->filter(browser, *pos)) {
+			ui_browser__gotorc(browser, row, 0);
+			browser->write(browser, pos, row);
+			if (++row == browser->height)
+				break;
+		}
+
+		++idx;
+		++pos;
+	}
+
+	return row;
 }
 
 void ui_browser__init(void)

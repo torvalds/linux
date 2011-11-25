@@ -377,16 +377,14 @@ xfs_qm_dqalloc(
 		return (ESRCH);
 	}
 
-	xfs_trans_ijoin_ref(tp, quotip, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin(tp, quotip, XFS_ILOCK_EXCL);
 	nmaps = 1;
-	if ((error = xfs_bmapi(tp, quotip,
-			      offset_fsb, XFS_DQUOT_CLUSTER_SIZE_FSB,
-			      XFS_BMAPI_METADATA | XFS_BMAPI_WRITE,
-			      &firstblock,
-			      XFS_QM_DQALLOC_SPACE_RES(mp),
-			      &map, &nmaps, &flist))) {
+	error = xfs_bmapi_write(tp, quotip, offset_fsb,
+				XFS_DQUOT_CLUSTER_SIZE_FSB, XFS_BMAPI_METADATA,
+				&firstblock, XFS_QM_DQALLOC_SPACE_RES(mp),
+				&map, &nmaps, &flist);
+	if (error)
 		goto error0;
-	}
 	ASSERT(map.br_blockcount == XFS_DQUOT_CLUSTER_SIZE_FSB);
 	ASSERT(nmaps == 1);
 	ASSERT((map.br_startblock != DELAYSTARTBLOCK) &&
@@ -402,8 +400,11 @@ xfs_qm_dqalloc(
 			       dqp->q_blkno,
 			       mp->m_quotainfo->qi_dqchunklen,
 			       0);
-	if (!bp || (error = xfs_buf_geterror(bp)))
+
+	error = xfs_buf_geterror(bp);
+	if (error)
 		goto error1;
+
 	/*
 	 * Make a chunk of dquots out of this buffer and log
 	 * the entire thing.
@@ -485,9 +486,8 @@ xfs_qm_dqtobp(
 	/*
 	 * Find the block map; no allocations yet
 	 */
-	error = xfs_bmapi(NULL, quotip, dqp->q_fileoffset,
-			  XFS_DQUOT_CLUSTER_SIZE_FSB, XFS_BMAPI_METADATA,
-			  NULL, 0, &map, &nmaps, NULL);
+	error = xfs_bmapi_read(quotip, dqp->q_fileoffset,
+			       XFS_DQUOT_CLUSTER_SIZE_FSB, &map, &nmaps, 0);
 
 	xfs_iunlock(quotip, XFS_ILOCK_SHARED);
 	if (error)
@@ -605,7 +605,7 @@ xfs_qm_dqread(
 	dqp->q_res_rtbcount = be64_to_cpu(ddqp->d_rtbcount);
 
 	/* Mark the buf so that this will stay incore a little longer */
-	XFS_BUF_SET_VTYPE_REF(bp, B_FS_DQUOT, XFS_DQUOT_REF);
+	xfs_buf_set_ref(bp, XFS_DQUOT_REF);
 
 	/*
 	 * We got the buffer with a xfs_trans_read_buf() (in dqtobp())
@@ -1242,9 +1242,11 @@ xfs_qm_dqflush(
 	}
 
 	if (flags & SYNC_WAIT)
-		error = xfs_bwrite(mp, bp);
+		error = xfs_bwrite(bp);
 	else
-		xfs_bdwrite(mp, bp);
+		xfs_buf_delwri_queue(bp);
+
+	xfs_buf_relse(bp);
 
 	trace_xfs_dqflush_done(dqp);
 

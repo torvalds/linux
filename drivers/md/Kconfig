@@ -208,6 +208,16 @@ config DM_DEBUG
 
 	  If unsure, say N.
 
+config DM_BUFIO
+       tristate
+       depends on BLK_DEV_DM && EXPERIMENTAL
+       ---help---
+	 This interface allows you to do buffered I/O on a device and acts
+	 as a cache, holding recently-read blocks in memory and performing
+	 delayed writes.
+
+source "drivers/md/persistent-data/Kconfig"
+
 config DM_CRYPT
 	tristate "Crypt target support"
 	depends on BLK_DEV_DM
@@ -232,6 +242,32 @@ config DM_SNAPSHOT
        depends on BLK_DEV_DM
        ---help---
          Allow volume managers to take writable snapshots of a device.
+
+config DM_THIN_PROVISIONING
+       tristate "Thin provisioning target (EXPERIMENTAL)"
+       depends on BLK_DEV_DM && EXPERIMENTAL
+       select DM_PERSISTENT_DATA
+       ---help---
+         Provides thin provisioning and snapshots that share a data store.
+
+config DM_DEBUG_BLOCK_STACK_TRACING
+	boolean "Keep stack trace of thin provisioning block lock holders"
+	depends on STACKTRACE_SUPPORT && DM_THIN_PROVISIONING
+	select STACKTRACE
+	---help---
+	  Enable this for messages that may help debug problems with the
+	  block manager locking used by thin provisioning.
+
+	  If unsure, say N.
+
+config DM_DEBUG_SPACE_MAPS
+	boolean "Extra validation for thin provisioning space maps"
+	depends on DM_THIN_PROVISIONING
+	---help---
+	  Enable this for messages that may help debug problems with the
+	  space maps used by thin provisioning.
+
+          If unsure, say N.
 
 config DM_MIRROR
        tristate "Mirror target"

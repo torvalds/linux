@@ -505,7 +505,7 @@ static int mpc8610_hpcd_probe(struct platform_device *pdev)
 	return 0;
 
 error_sound:
-	platform_device_unregister(sound_device);
+	platform_device_put(sound_device);
 error:
 	kfree(machine_data);
 error_alloc:

@@ -30,7 +30,7 @@
 #include <linux/clk.h>
 #include <linux/gfp.h>
 #include <asm/uaccess.h>
-#include <mach/gpio.h>
+#include <asm/gpio.h>
 
 #include "sdum.h"
 #include "fbcommon.h"

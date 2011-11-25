@@ -2,19 +2,13 @@ source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
 
-source "drivers/block/Kconfig"
-
 source "arch/um/Kconfig.char"
 
-source "drivers/base/Kconfig"
+source "drivers/Kconfig"
 
 source "net/Kconfig"
 
 source "arch/um/Kconfig.net"
-
-source "drivers/net/Kconfig"
-
-source "drivers/connector/Kconfig"
 
 source "fs/Kconfig"
 
@@ -23,20 +17,5 @@ source "security/Kconfig"
 source "crypto/Kconfig"
 
 source "lib/Kconfig"
-
-source "drivers/scsi/Kconfig"
-
-source "drivers/md/Kconfig"
-
-if BROKEN
-	source "drivers/mtd/Kconfig"
-endif
-
-source "drivers/leds/Kconfig"
-
-#This is just to shut up some Kconfig warnings, so no prompt.
-config INPUT
-	tristate
-	default n
 
 source "arch/um/Kconfig.debug"

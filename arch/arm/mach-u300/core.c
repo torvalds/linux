@@ -27,6 +27,7 @@
 #include <linux/mtd/fsmc.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/pinctrl/pinmux.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -39,6 +40,7 @@
 #include <mach/hardware.h>
 #include <mach/syscon.h>
 #include <mach/dma_channels.h>
+#include <mach/gpio-u300.h>
 
 #include "clock.h"
 #include "mmc.h"
@@ -70,30 +72,13 @@ static struct map_desc u300_io_desc[] __initdata = {
 		.length		= SZ_32K,
 		.type		= MT_DEVICE,
 	},
-	{
-		.virtual	= 0xffff2000, /* TCM memory */
-		.pfn		= __phys_to_pfn(0xffff2000),
-		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-	},
-
-	/*
-	 * This overlaps with the IRQ vectors etc at 0xffff0000, so these
-	 * may have to be moved to 0x00000000 in order to use the ROM.
-	 */
-	/*
-	{
-		.virtual	= U300_BOOTROM_VIRT_BASE,
-		.pfn		= __phys_to_pfn(U300_BOOTROM_PHYS_BASE),
-		.length		= SZ_64K,
-		.type		= MT_ROM,
-	},
-	*/
 };
 
 void __init u300_map_io(void)
 {
 	iotable_init(u300_io_desc, ARRAY_SIZE(u300_io_desc));
+	/* We enable a real big DMA buffer if need be. */
+	init_consistent_dma_size(SZ_4M);
 }
 
 /*
@@ -241,7 +226,7 @@ static struct resource gpio_resources[] = {
 		.end   = IRQ_U300_GPIO_PORT2,
 		.flags = IORESOURCE_IRQ,
 	},
-#ifdef U300_COH901571_3
+#if defined(CONFIG_MACH_U300_BS365) || defined(CONFIG_MACH_U300_BS335)
 	{
 		.name  = "gpio3",
 		.start = IRQ_U300_GPIO_PORT3,
@@ -254,6 +239,7 @@ static struct resource gpio_resources[] = {
 		.end   = IRQ_U300_GPIO_PORT4,
 		.flags = IORESOURCE_IRQ,
 	},
+#endif
 #ifdef CONFIG_MACH_U300_BS335
 	{
 		.name  = "gpio5",
@@ -268,7 +254,6 @@ static struct resource gpio_resources[] = {
 		.flags = IORESOURCE_IRQ,
 	},
 #endif /* CONFIG_MACH_U300_BS335 */
-#endif /* U300_COH901571_3 */
 };
 
 static struct resource keypad_resources[] = {
@@ -361,51 +346,6 @@ static struct resource wdog_resources[] = {
 		.end   = IRQ_U300_WDOG,
 		.flags = IORESOURCE_IRQ,
 	}
-};
-
-/* TODO: These should be protected by suitable #ifdef's */
-static struct resource ave_resources[] = {
-	{
-		.name  = "AVE3e I/O Area",
-		.start = U300_VIDEOENC_BASE,
-		.end   = U300_VIDEOENC_BASE + SZ_512K - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	{
-		.name  = "AVE3e IRQ0",
-		.start = IRQ_U300_VIDEO_ENC_0,
-		.end   = IRQ_U300_VIDEO_ENC_0,
-		.flags = IORESOURCE_IRQ,
-	},
-	{
-		.name  = "AVE3e IRQ1",
-		.start = IRQ_U300_VIDEO_ENC_1,
-		.end   = IRQ_U300_VIDEO_ENC_1,
-		.flags = IORESOURCE_IRQ,
-	},
-	{
-		.name  = "AVE3e Physmem Area",
-		.start = 0, /* 0 will be remapped to reserved memory */
-		.end   = SZ_1M - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	/*
-	 * The AVE3e requires two regions of 256MB that it considers
-	 * "invisible". The hardware will not be able to access these
-	 * addresses, so they should never point to system RAM.
-	 */
-	{
-		.name  = "AVE3e Reserved 0",
-		.start = 0xd0000000,
-		.end   = 0xd0000000 + SZ_256M - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	{
-		.name  = "AVE3e Reserved 1",
-		.start = 0xe0000000,
-		.end   = 0xe0000000 + SZ_256M - 1,
-		.flags = IORESOURCE_MEM,
-	},
 };
 
 static struct resource dma_resource[] = {
@@ -1566,11 +1506,35 @@ static struct platform_device i2c1_device = {
 	.resource = i2c1_resources,
 };
 
+/*
+ * The different variants have a few different versions of the
+ * GPIO block, with different number of ports.
+ */
+static struct u300_gpio_platform u300_gpio_plat = {
+#if defined(CONFIG_MACH_U300_BS2X) || defined(CONFIG_MACH_U300_BS330)
+	.variant = U300_GPIO_COH901335,
+	.ports = 3,
+#endif
+#ifdef CONFIG_MACH_U300_BS335
+	.variant = U300_GPIO_COH901571_3_BS335,
+	.ports = 7,
+#endif
+#ifdef CONFIG_MACH_U300_BS365
+	.variant = U300_GPIO_COH901571_3_BS365,
+	.ports = 5,
+#endif
+	.gpio_base = 0,
+	.gpio_irq_base = IRQ_U300_GPIO_BASE,
+};
+
 static struct platform_device gpio_device = {
 	.name = "u300-gpio",
 	.id = -1,
 	.num_resources = ARRAY_SIZE(gpio_resources),
 	.resource = gpio_resources,
+	.dev = {
+		.platform_data = &u300_gpio_plat,
+	},
 };
 
 static struct platform_device keypad_device = {
@@ -1620,13 +1584,6 @@ static struct platform_device nand_device = {
 	.dev = {
 		.platform_data = &nand_platform_data,
 	},
-};
-
-static struct platform_device ave_device = {
-	.name = "video_enc",
-	.id = -1,
-	.num_resources = ARRAY_SIZE(ave_resources),
-	.resource = ave_resources,
 };
 
 static struct platform_device dma_device = {
@@ -1719,7 +1676,6 @@ static struct platform_device *platform_devs[] __initdata = {
 	&gpio_device,
 	&nand_device,
 	&wdog_device,
-	&ave_device,
 	&pinmux_device,
 };
 
@@ -1742,7 +1698,7 @@ void __init u300_init_irq(void)
 	BUG_ON(IS_ERR(clk));
 	clk_enable(clk);
 
-	for (i = 0; i < NR_IRQS; i++)
+	for (i = 0; i < U300_VIC_IRQS_END; i++)
 		set_bit(i, (unsigned long *) &mask[0]);
 	vic_init((void __iomem *) U300_INTCON0_VBASE, 0, mask[0], mask[0]);
 	vic_init((void __iomem *) U300_INTCON1_VBASE, 32, mask[1], mask[1]);
@@ -1917,17 +1873,10 @@ void __init u300_init_devices(void)
 	/* Register subdevices on the SPI bus */
 	u300_spi_register_board_devices();
 
-#ifndef CONFIG_MACH_U300_SEMI_IS_SHARED
-	/*
-	 * Enable SEMI self refresh. Self-refresh of the SDRAM is entered when
-	 * both subsystems are requesting this mode.
-	 * If we not share the Acc SDRAM, this is never the case. Therefore
-	 * enable it here from the App side.
-	 */
+	/* Enable SEMI self refresh */
 	val = readw(U300_SYSCON_VBASE + U300_SYSCON_SMCR) |
 		U300_SYSCON_SMCR_SEMI_SREFREQ_ENABLE;
 	writew(val, U300_SYSCON_VBASE + U300_SYSCON_SMCR);
-#endif /* CONFIG_MACH_U300_SEMI_IS_SHARED */
 }
 
 static int core_module_init(void)

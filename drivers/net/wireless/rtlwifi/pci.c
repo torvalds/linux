@@ -27,6 +27,7 @@
  *
  *****************************************************************************/
 
+#include <linux/export.h>
 #include "core.h"
 #include "wifi.h"
 #include "pci.h"
@@ -888,9 +889,6 @@ static irqreturn_t _rtl_pci_interrupt(int irq, void *dev_id)
 
 	if (rtlpriv->rtlhal.earlymode_enable)
 		tasklet_schedule(&rtlpriv->works.irq_tasklet);
-
-	spin_unlock_irqrestore(&rtlpriv->locks.irq_th_lock, flags);
-	return IRQ_HANDLED;
 
 done:
 	spin_unlock_irqrestore(&rtlpriv->locks.irq_th_lock, flags);

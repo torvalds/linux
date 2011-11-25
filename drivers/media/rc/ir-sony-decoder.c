@@ -13,6 +13,7 @@
  */
 
 #include <linux/bitrev.h>
+#include <linux/module.h>
 #include "rc-core-priv.h"
 
 #define SONY_UNIT		600000 /* ns */

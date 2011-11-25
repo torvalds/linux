@@ -23,6 +23,7 @@
  */
 
 #include <linux/firmware.h>
+#include <linux/module.h>
 
 #include "drmP.h"
 
@@ -156,8 +157,8 @@ nvc0_graph_create_context_mmio_list(struct nouveau_channel *chan)
 	struct nvc0_graph_priv *priv = nv_engine(chan->dev, NVOBJ_ENGINE_GR);
 	struct nvc0_graph_chan *grch = chan->engctx[NVOBJ_ENGINE_GR];
 	struct drm_device *dev = chan->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	int i = 0, gpc, tp, ret;
-	u32 magic;
 
 	ret = nouveau_gpuobj_new(dev, chan, 0x2000, 256, NVOBJ_FLAG_VM,
 				 &grch->unk408004);
@@ -206,14 +207,37 @@ nvc0_graph_create_context_mmio_list(struct nouveau_channel *chan)
 	nv_wo32(grch->mmio, i++ * 4, 0x0041880c);
 	nv_wo32(grch->mmio, i++ * 4, 0x80000018);
 
-	magic = 0x02180000;
-	nv_wo32(grch->mmio, i++ * 4, 0x00405830);
-	nv_wo32(grch->mmio, i++ * 4, magic);
-	for (gpc = 0; gpc < priv->gpc_nr; gpc++) {
-		for (tp = 0; tp < priv->tp_nr[gpc]; tp++, magic += 0x0324) {
-			u32 reg = 0x504520 + (gpc * 0x8000) + (tp * 0x0800);
-			nv_wo32(grch->mmio, i++ * 4, reg);
-			nv_wo32(grch->mmio, i++ * 4, magic);
+	if (dev_priv->chipset != 0xc1) {
+		u32 magic = 0x02180000;
+		nv_wo32(grch->mmio, i++ * 4, 0x00405830);
+		nv_wo32(grch->mmio, i++ * 4, magic);
+		for (gpc = 0; gpc < priv->gpc_nr; gpc++) {
+			for (tp = 0; tp < priv->tp_nr[gpc]; tp++) {
+				u32 reg = TP_UNIT(gpc, tp, 0x520);
+				nv_wo32(grch->mmio, i++ * 4, reg);
+				nv_wo32(grch->mmio, i++ * 4, magic);
+				magic += 0x0324;
+			}
+		}
+	} else {
+		u32 magic = 0x02180000;
+		nv_wo32(grch->mmio, i++ * 4, 0x00405830);
+		nv_wo32(grch->mmio, i++ * 4, magic | 0x0000218);
+		nv_wo32(grch->mmio, i++ * 4, 0x004064c4);
+		nv_wo32(grch->mmio, i++ * 4, 0x0086ffff);
+		for (gpc = 0; gpc < priv->gpc_nr; gpc++) {
+			for (tp = 0; tp < priv->tp_nr[gpc]; tp++) {
+				u32 reg = TP_UNIT(gpc, tp, 0x520);
+				nv_wo32(grch->mmio, i++ * 4, reg);
+				nv_wo32(grch->mmio, i++ * 4, (1 << 28) | magic);
+				magic += 0x0324;
+			}
+			for (tp = 0; tp < priv->tp_nr[gpc]; tp++) {
+				u32 reg = TP_UNIT(gpc, tp, 0x544);
+				nv_wo32(grch->mmio, i++ * 4, reg);
+				nv_wo32(grch->mmio, i++ * 4, magic);
+				magic += 0x0324;
+			}
 		}
 	}
 
@@ -390,7 +414,7 @@ nvc0_graph_init_gpc_0(struct drm_device *dev)
 	}
 
 	nv_wr32(dev, GPC_BCAST(0x1bd4), magicgpc918);
-	nv_wr32(dev, GPC_BCAST(0x08ac), priv->rop_nr);
+	nv_wr32(dev, GPC_BCAST(0x08ac), nv_rd32(dev, 0x100800));
 }
 
 static void
@@ -700,22 +724,6 @@ nvc0_graph_isr(struct drm_device *dev)
 	nv_wr32(dev, 0x400500, 0x00010001);
 }
 
-static void
-nvc0_runk140_isr(struct drm_device *dev)
-{
-	u32 units = nv_rd32(dev, 0x00017c) & 0x1f;
-
-	while (units) {
-		u32 unit = ffs(units) - 1;
-		u32 reg = 0x140000 + unit * 0x2000;
-		u32 st0 = nv_mask(dev, reg + 0x1020, 0, 0);
-		u32 st1 = nv_mask(dev, reg + 0x1420, 0, 0);
-
-		NV_DEBUG(dev, "PRUNK140: %d 0x%08x 0x%08x\n", unit, st0, st1);
-		units &= ~(1 << unit);
-	}
-}
-
 static int
 nvc0_graph_create_fw(struct drm_device *dev, const char *fwname,
 		     struct nvc0_graph_fuc *fuc)
@@ -764,7 +772,6 @@ nvc0_graph_destroy(struct drm_device *dev, int engine)
 	}
 
 	nouveau_irq_unregister(dev, 12);
-	nouveau_irq_unregister(dev, 25);
 
 	nouveau_gpuobj_ref(NULL, &priv->unk4188b8);
 	nouveau_gpuobj_ref(NULL, &priv->unk4188b4);
@@ -803,7 +810,6 @@ nvc0_graph_create(struct drm_device *dev)
 
 	NVOBJ_ENGINE_ADD(dev, GR, &priv->base);
 	nouveau_irq_register(dev, 12, nvc0_graph_isr);
-	nouveau_irq_register(dev, 25, nvc0_runk140_isr);
 
 	if (nouveau_ctxfw) {
 		NV_INFO(dev, "PGRAPH: using external firmware\n");
@@ -864,6 +870,9 @@ nvc0_graph_create(struct drm_device *dev)
 	case 0xce: /* 4/4/0/0, 4 */
 		priv->magic_not_rop_nr = 0x03;
 		break;
+	case 0xcf: /* 4/0/0/0, 3 */
+		priv->magic_not_rop_nr = 0x03;
+		break;
 	}
 
 	if (!priv->magic_not_rop_nr) {
@@ -889,20 +898,3 @@ error:
 	nvc0_graph_destroy(dev, NVOBJ_ENGINE_GR);
 	return ret;
 }
-
-MODULE_FIRMWARE("nouveau/nvc0_fuc409c");
-MODULE_FIRMWARE("nouveau/nvc0_fuc409d");
-MODULE_FIRMWARE("nouveau/nvc0_fuc41ac");
-MODULE_FIRMWARE("nouveau/nvc0_fuc41ad");
-MODULE_FIRMWARE("nouveau/nvc3_fuc409c");
-MODULE_FIRMWARE("nouveau/nvc3_fuc409d");
-MODULE_FIRMWARE("nouveau/nvc3_fuc41ac");
-MODULE_FIRMWARE("nouveau/nvc3_fuc41ad");
-MODULE_FIRMWARE("nouveau/nvc4_fuc409c");
-MODULE_FIRMWARE("nouveau/nvc4_fuc409d");
-MODULE_FIRMWARE("nouveau/nvc4_fuc41ac");
-MODULE_FIRMWARE("nouveau/nvc4_fuc41ad");
-MODULE_FIRMWARE("nouveau/fuc409c");
-MODULE_FIRMWARE("nouveau/fuc409d");
-MODULE_FIRMWARE("nouveau/fuc41ac");
-MODULE_FIRMWARE("nouveau/fuc41ad");

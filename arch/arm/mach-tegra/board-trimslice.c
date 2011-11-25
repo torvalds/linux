@@ -32,7 +32,6 @@
 
 #include <mach/iomap.h>
 #include <mach/sdhci.h>
-#include <mach/gpio.h>
 
 #include "board.h"
 #include "clock.h"
@@ -46,7 +45,8 @@ static struct plat_serial8250_port debug_uart_platform_data[] = {
 		.membase	= IO_ADDRESS(TEGRA_UARTA_BASE),
 		.mapbase	= TEGRA_UARTA_BASE,
 		.irq		= INT_UARTA,
-		.flags		= UPF_BOOT_AUTOCONF,
+		.flags		= UPF_BOOT_AUTOCONF | UPF_FIXED_TYPE,
+		.type		= PORT_TEGRA,
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
 		.uartclk	= 216000000,
@@ -171,7 +171,7 @@ static void __init tegra_trimslice_init(void)
 }
 
 MACHINE_START(TRIMSLICE, "trimslice")
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.fixup		= tegra_trimslice_fixup,
 	.map_io         = tegra_map_common_io,
 	.init_early	= tegra_init_early,

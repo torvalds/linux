@@ -80,6 +80,13 @@
 #include "isph3a.h"
 #include "isphist.h"
 
+/*
+ * this is provided as an interim solution until omap3isp doesn't need
+ * any omap-specific iommu API
+ */
+#define to_iommu(dev)							\
+	(struct omap_iommu *)platform_get_drvdata(to_platform_device(dev))
+
 static unsigned int autoidle;
 module_param(autoidle, int, 0444);
 MODULE_PARM_DESC(autoidle, "Enable OMAP3ISP AUTOIDLE support");
@@ -732,7 +739,7 @@ static int isp_pipeline_enable(struct isp_pipeline *pipe,
 	struct media_pad *pad;
 	struct v4l2_subdev *subdev;
 	unsigned long flags;
-	int ret = 0;
+	int ret;
 
 	spin_lock_irqsave(&pipe->lock, flags);
 	pipe->state &= ~(ISP_PIPELINE_IDLE_INPUT | ISP_PIPELINE_IDLE_OUTPUT);
@@ -756,7 +763,7 @@ static int isp_pipeline_enable(struct isp_pipeline *pipe,
 
 		ret = v4l2_subdev_call(subdev, video, s_stream, mode);
 		if (ret < 0 && ret != -ENOIOCTLCMD)
-			break;
+			return ret;
 
 		if (subdev == &isp->isp_ccdc.subdev) {
 			v4l2_subdev_call(&isp->isp_aewb.subdev, video,
@@ -777,7 +784,7 @@ static int isp_pipeline_enable(struct isp_pipeline *pipe,
 	if (pipe->do_propagation && mode == ISP_PIPELINE_STREAM_SINGLESHOT)
 		atomic_inc(&pipe->frame_number);
 
-	return ret;
+	return 0;
 }
 
 static int isp_pipeline_wait_resizer(struct isp_device *isp)
@@ -1108,7 +1115,7 @@ static void isp_save_ctx(struct isp_device *isp)
 {
 	isp_save_context(isp, isp_reg_list);
 	if (isp->iommu)
-		iommu_save_ctx(isp->iommu);
+		omap_iommu_save_ctx(isp->iommu);
 }
 
 /*
@@ -1122,7 +1129,7 @@ static void isp_restore_ctx(struct isp_device *isp)
 {
 	isp_restore_context(isp, isp_reg_list);
 	if (isp->iommu)
-		iommu_restore_ctx(isp->iommu);
+		omap_iommu_restore_ctx(isp->iommu);
 	omap3isp_ccdc_restore_context(isp);
 	omap3isp_preview_restore_context(isp);
 }
@@ -1697,6 +1704,7 @@ static int isp_register_entities(struct isp_device *isp)
 	isp->media_dev.dev = isp->dev;
 	strlcpy(isp->media_dev.model, "TI OMAP3 ISP",
 		sizeof(isp->media_dev.model));
+	isp->media_dev.hw_revision = isp->revision;
 	isp->media_dev.link_notify = isp_pipeline_link_notify;
 	ret = media_device_register(&isp->media_dev);
 	if (ret < 0) {
@@ -1975,7 +1983,8 @@ static int isp_remove(struct platform_device *pdev)
 	isp_cleanup_modules(isp);
 
 	omap3isp_get(isp);
-	iommu_put(isp->iommu);
+	iommu_detach_device(isp->domain, isp->iommu_dev);
+	iommu_domain_free(isp->domain);
 	omap3isp_put(isp);
 
 	free_irq(isp->irq_num, isp);
@@ -2123,11 +2132,27 @@ static int isp_probe(struct platform_device *pdev)
 	}
 
 	/* IOMMU */
-	isp->iommu = iommu_get("isp");
-	if (IS_ERR_OR_NULL(isp->iommu)) {
-		isp->iommu = NULL;
+	isp->iommu_dev = omap_find_iommu_device("isp");
+	if (!isp->iommu_dev) {
+		dev_err(isp->dev, "omap_find_iommu_device failed\n");
 		ret = -ENODEV;
 		goto error_isp;
+	}
+
+	/* to be removed once iommu migration is complete */
+	isp->iommu = to_iommu(isp->iommu_dev);
+
+	isp->domain = iommu_domain_alloc(pdev->dev.bus);
+	if (!isp->domain) {
+		dev_err(isp->dev, "can't alloc iommu domain\n");
+		ret = -ENOMEM;
+		goto error_isp;
+	}
+
+	ret = iommu_attach_device(isp->domain, isp->iommu_dev);
+	if (ret) {
+		dev_err(&pdev->dev, "can't attach iommu device: %d\n", ret);
+		goto free_domain;
 	}
 
 	/* Interrupt */
@@ -2135,13 +2160,13 @@ static int isp_probe(struct platform_device *pdev)
 	if (isp->irq_num <= 0) {
 		dev_err(isp->dev, "No IRQ resource\n");
 		ret = -ENODEV;
-		goto error_isp;
+		goto detach_dev;
 	}
 
 	if (request_irq(isp->irq_num, isp_isr, IRQF_SHARED, "OMAP3 ISP", isp)) {
 		dev_err(isp->dev, "Unable to request IRQ\n");
 		ret = -EINVAL;
-		goto error_isp;
+		goto detach_dev;
 	}
 
 	/* Entities */
@@ -2162,8 +2187,11 @@ error_modules:
 	isp_cleanup_modules(isp);
 error_irq:
 	free_irq(isp->irq_num, isp);
+detach_dev:
+	iommu_detach_device(isp->domain, isp->iommu_dev);
+free_domain:
+	iommu_domain_free(isp->domain);
 error_isp:
-	iommu_put(isp->iommu);
 	omap3isp_put(isp);
 error:
 	isp_put_clocks(isp);
@@ -2183,6 +2211,8 @@ error:
 	regulator_put(isp->isp_csiphy2.vdd);
 	regulator_put(isp->isp_csiphy1.vdd);
 	platform_set_drvdata(pdev, NULL);
+
+	mutex_destroy(&isp->isp_mutex);
 	kfree(isp);
 
 	return ret;

@@ -47,6 +47,8 @@
 #include <linux/srcu.h>
 #include <linux/hugetlb.h>
 #include <linux/slab.h>
+#include <linux/sort.h>
+#include <linux/bsearch.h>
 
 #include <asm/processor.h>
 #include <asm/io.h>
@@ -2391,24 +2393,92 @@ static void kvm_io_bus_destroy(struct kvm_io_bus *bus)
 	int i;
 
 	for (i = 0; i < bus->dev_count; i++) {
-		struct kvm_io_device *pos = bus->devs[i];
+		struct kvm_io_device *pos = bus->range[i].dev;
 
 		kvm_iodevice_destructor(pos);
 	}
 	kfree(bus);
 }
 
+int kvm_io_bus_sort_cmp(const void *p1, const void *p2)
+{
+	const struct kvm_io_range *r1 = p1;
+	const struct kvm_io_range *r2 = p2;
+
+	if (r1->addr < r2->addr)
+		return -1;
+	if (r1->addr + r1->len > r2->addr + r2->len)
+		return 1;
+	return 0;
+}
+
+int kvm_io_bus_insert_dev(struct kvm_io_bus *bus, struct kvm_io_device *dev,
+			  gpa_t addr, int len)
+{
+	if (bus->dev_count == NR_IOBUS_DEVS)
+		return -ENOSPC;
+
+	bus->range[bus->dev_count++] = (struct kvm_io_range) {
+		.addr = addr,
+		.len = len,
+		.dev = dev,
+	};
+
+	sort(bus->range, bus->dev_count, sizeof(struct kvm_io_range),
+		kvm_io_bus_sort_cmp, NULL);
+
+	return 0;
+}
+
+int kvm_io_bus_get_first_dev(struct kvm_io_bus *bus,
+			     gpa_t addr, int len)
+{
+	struct kvm_io_range *range, key;
+	int off;
+
+	key = (struct kvm_io_range) {
+		.addr = addr,
+		.len = len,
+	};
+
+	range = bsearch(&key, bus->range, bus->dev_count,
+			sizeof(struct kvm_io_range), kvm_io_bus_sort_cmp);
+	if (range == NULL)
+		return -ENOENT;
+
+	off = range - bus->range;
+
+	while (off > 0 && kvm_io_bus_sort_cmp(&key, &bus->range[off-1]) == 0)
+		off--;
+
+	return off;
+}
+
 /* kvm_io_bus_write - called under kvm->slots_lock */
 int kvm_io_bus_write(struct kvm *kvm, enum kvm_bus bus_idx, gpa_t addr,
 		     int len, const void *val)
 {
-	int i;
+	int idx;
 	struct kvm_io_bus *bus;
+	struct kvm_io_range range;
+
+	range = (struct kvm_io_range) {
+		.addr = addr,
+		.len = len,
+	};
 
 	bus = srcu_dereference(kvm->buses[bus_idx], &kvm->srcu);
-	for (i = 0; i < bus->dev_count; i++)
-		if (!kvm_iodevice_write(bus->devs[i], addr, len, val))
+	idx = kvm_io_bus_get_first_dev(bus, addr, len);
+	if (idx < 0)
+		return -EOPNOTSUPP;
+
+	while (idx < bus->dev_count &&
+		kvm_io_bus_sort_cmp(&range, &bus->range[idx]) == 0) {
+		if (!kvm_iodevice_write(bus->range[idx].dev, addr, len, val))
 			return 0;
+		idx++;
+	}
+
 	return -EOPNOTSUPP;
 }
 
@@ -2416,19 +2486,33 @@ int kvm_io_bus_write(struct kvm *kvm, enum kvm_bus bus_idx, gpa_t addr,
 int kvm_io_bus_read(struct kvm *kvm, enum kvm_bus bus_idx, gpa_t addr,
 		    int len, void *val)
 {
-	int i;
+	int idx;
 	struct kvm_io_bus *bus;
+	struct kvm_io_range range;
+
+	range = (struct kvm_io_range) {
+		.addr = addr,
+		.len = len,
+	};
 
 	bus = srcu_dereference(kvm->buses[bus_idx], &kvm->srcu);
-	for (i = 0; i < bus->dev_count; i++)
-		if (!kvm_iodevice_read(bus->devs[i], addr, len, val))
+	idx = kvm_io_bus_get_first_dev(bus, addr, len);
+	if (idx < 0)
+		return -EOPNOTSUPP;
+
+	while (idx < bus->dev_count &&
+		kvm_io_bus_sort_cmp(&range, &bus->range[idx]) == 0) {
+		if (!kvm_iodevice_read(bus->range[idx].dev, addr, len, val))
 			return 0;
+		idx++;
+	}
+
 	return -EOPNOTSUPP;
 }
 
 /* Caller must hold slots_lock. */
-int kvm_io_bus_register_dev(struct kvm *kvm, enum kvm_bus bus_idx,
-			    struct kvm_io_device *dev)
+int kvm_io_bus_register_dev(struct kvm *kvm, enum kvm_bus bus_idx, gpa_t addr,
+			    int len, struct kvm_io_device *dev)
 {
 	struct kvm_io_bus *new_bus, *bus;
 
@@ -2440,7 +2524,7 @@ int kvm_io_bus_register_dev(struct kvm *kvm, enum kvm_bus bus_idx,
 	if (!new_bus)
 		return -ENOMEM;
 	memcpy(new_bus, bus, sizeof(struct kvm_io_bus));
-	new_bus->devs[new_bus->dev_count++] = dev;
+	kvm_io_bus_insert_dev(new_bus, dev, addr, len);
 	rcu_assign_pointer(kvm->buses[bus_idx], new_bus);
 	synchronize_srcu_expedited(&kvm->srcu);
 	kfree(bus);
@@ -2464,9 +2548,13 @@ int kvm_io_bus_unregister_dev(struct kvm *kvm, enum kvm_bus bus_idx,
 
 	r = -ENOENT;
 	for (i = 0; i < new_bus->dev_count; i++)
-		if (new_bus->devs[i] == dev) {
+		if (new_bus->range[i].dev == dev) {
 			r = 0;
-			new_bus->devs[i] = new_bus->devs[--new_bus->dev_count];
+			new_bus->dev_count--;
+			new_bus->range[i] = new_bus->range[new_bus->dev_count];
+			sort(new_bus->range, new_bus->dev_count,
+			     sizeof(struct kvm_io_range),
+			     kvm_io_bus_sort_cmp, NULL);
 			break;
 		}
 

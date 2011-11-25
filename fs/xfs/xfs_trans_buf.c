@@ -160,8 +160,10 @@ xfs_trans_get_buf(xfs_trans_t	*tp,
 	bp = xfs_trans_buf_item_match(tp, target_dev, blkno, len);
 	if (bp != NULL) {
 		ASSERT(xfs_buf_islocked(bp));
-		if (XFS_FORCED_SHUTDOWN(tp->t_mountp))
-			XFS_BUF_SUPER_STALE(bp);
+		if (XFS_FORCED_SHUTDOWN(tp->t_mountp)) {
+			xfs_buf_stale(bp);
+			XFS_BUF_DONE(bp);
+		}
 
 		/*
 		 * If the buffer is stale then it was binval'ed
@@ -294,8 +296,7 @@ xfs_trans_read_buf(
 
 		if (bp->b_error) {
 			error = bp->b_error;
-			xfs_ioerror_alert("xfs_trans_read_buf", mp,
-					  bp, blkno);
+			xfs_buf_ioerror_alert(bp, __func__);
 			xfs_buf_relse(bp);
 			return error;
 		}
@@ -337,8 +338,7 @@ xfs_trans_read_buf(
 			xfsbdstrat(tp->t_mountp, bp);
 			error = xfs_buf_iowait(bp);
 			if (error) {
-				xfs_ioerror_alert("xfs_trans_read_buf", mp,
-						  bp, blkno);
+				xfs_buf_ioerror_alert(bp, __func__);
 				xfs_buf_relse(bp);
 				/*
 				 * We can gracefully recover from most read
@@ -387,9 +387,9 @@ xfs_trans_read_buf(
 	}
 	if (bp->b_error) {
 		error = bp->b_error;
-		XFS_BUF_SUPER_STALE(bp);
-		xfs_ioerror_alert("xfs_trans_read_buf", mp,
-				  bp, blkno);
+		xfs_buf_stale(bp);
+		XFS_BUF_DONE(bp);
+		xfs_buf_ioerror_alert(bp, __func__);
 		if (tp->t_flags & XFS_TRANS_DIRTY)
 			xfs_force_shutdown(tp->t_mountp, SHUTDOWN_META_IO_ERROR);
 		xfs_buf_relse(bp);
@@ -643,12 +643,13 @@ xfs_trans_log_buf(xfs_trans_t	*tp,
 	 * inside the b_bdstrat callback so that this won't get written to
 	 * disk.
 	 */
-	XFS_BUF_DELAYWRITE(bp);
 	XFS_BUF_DONE(bp);
 
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
 	bp->b_iodone = xfs_buf_iodone_callbacks;
 	bip->bli_item.li_cb = xfs_buf_iodone;
+
+	xfs_buf_delwri_queue(bp);
 
 	trace_xfs_trans_log_buf(bip);
 
@@ -738,8 +739,7 @@ xfs_trans_binval(
 	 * We set the stale bit in the buffer as well since we're getting
 	 * rid of it.
 	 */
-	XFS_BUF_UNDELAYWRITE(bp);
-	XFS_BUF_STALE(bp);
+	xfs_buf_stale(bp);
 	bip->bli_flags |= XFS_BLI_STALE;
 	bip->bli_flags &= ~(XFS_BLI_INODE_BUF | XFS_BLI_LOGGED | XFS_BLI_DIRTY);
 	bip->bli_format.blf_flags &= ~XFS_BLF_INODE_BUF;

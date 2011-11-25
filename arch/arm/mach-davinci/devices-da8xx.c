@@ -136,6 +136,7 @@ static struct edma_soc_info da830_edma_cc0_info = {
 	.n_cc			= 1,
 	.queue_tc_mapping	= da8xx_queue_tc_mapping,
 	.queue_priority_mapping	= da8xx_queue_priority_mapping,
+	.default_queue		= EVENTQ_1,
 };
 
 static struct edma_soc_info *da830_edma_info[EDMA_MAX_CC] = {
@@ -151,6 +152,7 @@ static struct edma_soc_info da850_edma_cc_info[] = {
 		.n_cc			= 1,
 		.queue_tc_mapping	= da8xx_queue_tc_mapping,
 		.queue_priority_mapping	= da8xx_queue_priority_mapping,
+		.default_queue		= EVENTQ_1,
 	},
 	{
 		.n_channel		= 32,
@@ -160,6 +162,7 @@ static struct edma_soc_info da850_edma_cc_info[] = {
 		.n_cc			= 1,
 		.queue_tc_mapping	= da850_queue_tc_mapping,
 		.queue_priority_mapping	= da850_queue_priority_mapping,
+		.default_queue		= EVENTQ_0,
 	},
 };
 

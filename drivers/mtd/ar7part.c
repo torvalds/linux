@@ -27,6 +27,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/bootmem.h>
 #include <linux/magic.h>
+#include <linux/module.h>
 
 #define AR7_PARTS	4
 #define ROOT_OFFSET	0xe0000
@@ -46,7 +47,7 @@ struct ar7_bin_rec {
 
 static int create_mtd_partitions(struct mtd_info *master,
 				 struct mtd_partition **pparts,
-				 unsigned long origin)
+				 struct mtd_part_parser_data *data)
 {
 	struct ar7_bin_rec header;
 	unsigned int offset;

@@ -11,4 +11,6 @@ void ui_helpline__vpush(const char *fmt, va_list ap);
 void ui_helpline__fpush(const char *fmt, ...);
 void ui_helpline__puts(const char *msg);
 
+extern char ui_helpline__current[];
+
 #endif /* _PERF_UI_HELPLINE_H_ */

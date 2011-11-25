@@ -88,8 +88,8 @@ static int __devinit tmio_mmc_probe(struct platform_device *pdev)
 	if (ret)
 		goto cell_disable;
 
-	ret = request_irq(irq, tmio_mmc_irq, IRQF_DISABLED |
-			  IRQF_TRIGGER_FALLING, dev_name(&pdev->dev), host);
+	ret = request_irq(irq, tmio_mmc_irq, IRQF_TRIGGER_FALLING,
+				dev_name(&pdev->dev), host);
 	if (ret)
 		goto host_remove;
 

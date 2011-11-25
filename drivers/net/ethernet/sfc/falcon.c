@@ -1426,7 +1426,8 @@ static int falcon_probe_nic(struct efx_nic *efx)
 		}
 
 		dev = pci_dev_get(efx->pci_dev);
-		while ((dev = pci_get_device(EFX_VENDID_SFC, FALCON_A_S_DEVID,
+		while ((dev = pci_get_device(PCI_VENDOR_ID_SOLARFLARE,
+					     PCI_DEVICE_ID_SOLARFLARE_SFC4000A_1,
 					     dev))) {
 			if (dev->bus == efx->pci_dev->bus &&
 			    dev->devfn == efx->pci_dev->devfn + 1) {

@@ -384,13 +384,10 @@ static struct i2c_driver lm75_driver = {
  */
 static int lm75_read_value(struct i2c_client *client, u8 reg)
 {
-	int value;
-
 	if (reg == LM75_REG_CONF)
 		return i2c_smbus_read_byte_data(client, reg);
-
-	value = i2c_smbus_read_word_data(client, reg);
-	return (value < 0) ? value : swab16(value);
+	else
+		return i2c_smbus_read_word_swapped(client, reg);
 }
 
 static int lm75_write_value(struct i2c_client *client, u8 reg, u16 value)
@@ -398,7 +395,7 @@ static int lm75_write_value(struct i2c_client *client, u8 reg, u16 value)
 	if (reg == LM75_REG_CONF)
 		return i2c_smbus_write_byte_data(client, reg, value);
 	else
-		return i2c_smbus_write_word_data(client, reg, swab16(value));
+		return i2c_smbus_write_word_swapped(client, reg, value);
 }
 
 static struct lm75_data *lm75_update_device(struct device *dev)

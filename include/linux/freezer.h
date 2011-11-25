@@ -135,9 +135,19 @@ static inline void set_freezable_with_signal(void)
 }
 
 /*
- * Freezer-friendly wrappers around wait_event_interruptible() and
- * wait_event_interruptible_timeout(), originally defined in <linux/wait.h>
+ * Freezer-friendly wrappers around wait_event_interruptible(),
+ * wait_event_killable() and wait_event_interruptible_timeout(), originally
+ * defined in <linux/wait.h>
  */
+
+#define wait_event_freezekillable(wq, condition)			\
+({									\
+	int __retval;							\
+	freezer_do_not_count();						\
+	__retval = wait_event_killable(wq, (condition));		\
+	freezer_count();						\
+	__retval;							\
+})
 
 #define wait_event_freezable(wq, condition)				\
 ({									\
@@ -189,6 +199,9 @@ static inline void set_freezable_with_signal(void) {}
 
 #define wait_event_freezable_timeout(wq, condition, timeout)		\
 		wait_event_interruptible_timeout(wq, condition, timeout)
+
+#define wait_event_freezekillable(wq, condition)		\
+		wait_event_killable(wq, condition)
 
 #endif /* !CONFIG_FREEZER */
 

@@ -18,6 +18,7 @@
 #include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/err.h>
+#include <linux/module.h>
 #include <linux/string.h>
 #include <linux/clk.h>
 #include <linux/mutex.h>

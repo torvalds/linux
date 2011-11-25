@@ -63,6 +63,7 @@
 #define AC_MAX					4
 #define QOS_QUEUE_NUM				4
 #define RTL_MAC80211_NUM_QUEUE			5
+#define REALTEK_USB_VENQT_MAX_BUF_SIZE		254
 
 #define QBSS_LOAD_SIZE				5
 #define MAX_WMMELE_LENGTH			64
@@ -943,8 +944,10 @@ struct rtl_io {
 	unsigned long pci_base_addr;	/*device I/O address */
 
 	void (*write8_async) (struct rtl_priv *rtlpriv, u32 addr, u8 val);
-	void (*write16_async) (struct rtl_priv *rtlpriv, u32 addr, __le16 val);
-	void (*write32_async) (struct rtl_priv *rtlpriv, u32 addr, __le32 val);
+	void (*write16_async) (struct rtl_priv *rtlpriv, u32 addr, u16 val);
+	void (*write32_async) (struct rtl_priv *rtlpriv, u32 addr, u32 val);
+	void (*writeN_sync) (struct rtl_priv *rtlpriv, u32 addr, void *buf,
+			     u16 len);
 
 	u8(*read8_sync) (struct rtl_priv *rtlpriv, u32 addr);
 	u16(*read16_sync) (struct rtl_priv *rtlpriv, u32 addr);

@@ -20,6 +20,7 @@
 
 #include <linux/kvm_host.h>
 #include <linux/init.h>
+#include <linux/export.h>
 #include <linux/kvm_para.h>
 #include <linux/slab.h>
 #include <linux/of.h>

@@ -11,10 +11,8 @@
 #include <termios.h>
 #include <sys/ioctl.h>
 #include "chan_user.h"
-#include "kern_constants.h"
 #include "os.h"
 #include "um_malloc.h"
-#include "user.h"
 
 void generic_close(int fd, void *unused)
 {
@@ -283,7 +281,12 @@ void register_winch(int fd, struct tty_struct *tty)
 		return;
 
 	pid = tcgetpgrp(fd);
-	if (!is_skas_winch(pid, fd, tty) && (pid == -1)) {
+	if (is_skas_winch(pid, fd, tty)) {
+		register_winch_irq(-1, fd, -1, tty, 0);
+		return;
+	}
+
+	if (pid == -1) {
 		thread = winch_tramp(fd, tty, &thread_fd, &stack);
 		if (thread < 0)
 			return;

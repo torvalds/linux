@@ -39,6 +39,7 @@
 #include <linux/if_vlan.h>
 #include <linux/vmalloc.h>
 #include <linux/tcp.h>
+#include <linux/moduleparam.h>
 
 #include "mlx4_en.h"
 

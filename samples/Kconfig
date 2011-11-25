@@ -61,10 +61,4 @@ config SAMPLE_KDB
 	  Build an example of how to dynamically add the hello
 	  command to the kdb shell.
 
-config SAMPLE_HIDRAW
-	bool "Build simple hidraw example"
-	depends on HIDRAW && HEADERS_CHECK
-	help
-	  Build an example of how to use hidraw from userspace.
-
 endif # SAMPLES

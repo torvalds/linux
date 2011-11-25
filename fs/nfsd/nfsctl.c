@@ -13,6 +13,7 @@
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/gss_api.h>
 #include <linux/sunrpc/gss_krb5_enctypes.h>
+#include <linux/module.h>
 
 #include "idmap.h"
 #include "nfsd.h"

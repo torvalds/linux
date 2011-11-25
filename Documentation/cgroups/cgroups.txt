@@ -454,8 +454,8 @@ mounted hierarchy, to remove a task from its current cgroup you must
 move it into a new cgroup (possibly the root cgroup) by writing to the
 new cgroup's tasks file.
 
-Note: If the ns cgroup is active, moving a process to another cgroup can
-fail.
+Note: Due to some restrictions enforced by some cgroup subsystems, moving
+a process to another cgroup can fail.
 
 2.3 Mounting hierarchies by name
 --------------------------------

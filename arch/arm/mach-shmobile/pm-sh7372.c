@@ -402,22 +402,18 @@ static void sh7372_setup_a3sm(unsigned long msk, unsigned long msk2)
 
 #ifdef CONFIG_CPU_IDLE
 
-static void sh7372_cpuidle_setup(struct cpuidle_device *dev)
+static void sh7372_cpuidle_setup(struct cpuidle_driver *drv)
 {
-	struct cpuidle_state *state;
-	int i = dev->state_count;
+	struct cpuidle_state *state = &drv->states[drv->state_count];
 
-	state = &dev->states[i];
 	snprintf(state->name, CPUIDLE_NAME_LEN, "C2");
 	strncpy(state->desc, "Core Standby Mode", CPUIDLE_DESC_LEN);
 	state->exit_latency = 10;
 	state->target_residency = 20 + 10;
-	state->power_usage = 1; /* perhaps not */
-	state->flags = 0;
-	state->flags |= CPUIDLE_FLAG_TIME_VALID;
-	shmobile_cpuidle_modes[i] = sh7372_enter_core_standby;
+	state->flags = CPUIDLE_FLAG_TIME_VALID;
+	shmobile_cpuidle_modes[drv->state_count] = sh7372_enter_core_standby;
 
-	dev->state_count = i + 1;
+	drv->state_count++;
 }
 
 static void sh7372_cpuidle_init(void)

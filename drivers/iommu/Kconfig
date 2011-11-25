@@ -112,4 +112,23 @@ config IRQ_REMAP
 	  To use x2apic mode in the CPU's which support x2APIC enhancements or
 	  to support platforms with CPU's having > 8 bit APIC ID, say Y.
 
+# OMAP IOMMU support
+config OMAP_IOMMU
+	bool "OMAP IOMMU Support"
+	depends on ARCH_OMAP
+	select IOMMU_API
+
+config OMAP_IOVMM
+	tristate "OMAP IO Virtual Memory Manager Support"
+	depends on OMAP_IOMMU
+
+config OMAP_IOMMU_DEBUG
+       tristate "Export OMAP IOMMU/IOVMM internals in DebugFS"
+       depends on OMAP_IOVMM && DEBUG_FS
+       help
+         Select this to see extensive information about
+         the internal state of OMAP IOMMU/IOVMM in debugfs.
+
+         Say N unless you know you need this.
+
 endif # IOMMU_SUPPORT

@@ -15,6 +15,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 #include <unistd.h>
 #include <locale.h>
 
@@ -272,6 +273,7 @@ static struct menu *current_menu;
 static int child_count;
 static int single_menu_mode;
 static int show_all_options;
+static int saved_x, saved_y;
 
 static void conf(struct menu *menu);
 static void conf_choice(struct menu *menu);
@@ -792,15 +794,62 @@ static void conf_save(void)
 	}
 }
 
+static int handle_exit(void)
+{
+	int res;
+
+	dialog_clear();
+	if (conf_get_changed())
+		res = dialog_yesno(NULL,
+				   _("Do you wish to save your new configuration ?\n"
+				     "<ESC><ESC> to continue."),
+				   6, 60);
+	else
+		res = -1;
+
+	end_dialog(saved_x, saved_y);
+
+	switch (res) {
+	case 0:
+		if (conf_write(filename)) {
+			fprintf(stderr, _("\n\n"
+					  "Error while writing of the configuration.\n"
+					  "Your configuration changes were NOT saved."
+					  "\n\n"));
+			return 1;
+		}
+		/* fall through */
+	case -1:
+		printf(_("\n\n"
+			 "*** End of the configuration.\n"
+			 "*** Execute 'make' to start the build or try 'make help'."
+			 "\n\n"));
+		res = 0;
+		break;
+	default:
+		fprintf(stderr, _("\n\n"
+				  "Your configuration changes were NOT saved."
+				  "\n\n"));
+	}
+
+	return res;
+}
+
+static void sig_handler(int signo)
+{
+	exit(handle_exit());
+}
+
 int main(int ac, char **av)
 {
-	int saved_x, saved_y;
 	char *mode;
 	int res;
 
 	setlocale(LC_ALL, "");
 	bindtextdomain(PACKAGE, LOCALEDIR);
 	textdomain(PACKAGE);
+
+	signal(SIGINT, sig_handler);
 
 	conf_parse(av[1]);
 	conf_read(NULL);
@@ -823,40 +872,9 @@ int main(int ac, char **av)
 	set_config_filename(conf_get_configname());
 	do {
 		conf(&rootmenu);
-		dialog_clear();
-		if (conf_get_changed())
-			res = dialog_yesno(NULL,
-					   _("Do you wish to save your "
-					     "new configuration?\n"
-					     "<ESC><ESC> to continue."),
-					   6, 60);
-		else
-			res = -1;
+		res = handle_exit();
 	} while (res == KEY_ESC);
-	end_dialog(saved_x, saved_y);
 
-	switch (res) {
-	case 0:
-		if (conf_write(filename)) {
-			fprintf(stderr, _("\n\n"
-				"Error while writing of the configuration.\n"
-				"Your configuration changes were NOT saved."
-				"\n\n"));
-			return 1;
-		}
-		/* fall through */
-	case -1:
-		printf(_("\n\n"
-			"*** End of the configuration.\n"
-			"*** Execute 'make' to start the build or try 'make help'."
-			"\n\n"));
-		break;
-	default:
-		fprintf(stderr, _("\n\n"
-			"Your configuration changes were NOT saved."
-			"\n\n"));
-	}
-
-	return 0;
+	return res;
 }
 

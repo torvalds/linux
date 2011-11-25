@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/msi.h>
+#include <linux/export.h>
 #include <linux/of_platform.h>
 #include <linux/debugfs.h>
 #include <linux/slab.h>

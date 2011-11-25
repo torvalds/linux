@@ -1290,17 +1290,20 @@ static int serial_imx_resume(struct platform_device *dev)
 static int serial_imx_probe_dt(struct imx_port *sport,
 		struct platform_device *pdev)
 {
-	static int portnum = 0;
 	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *of_id =
 			of_match_device(imx_uart_dt_ids, &pdev->dev);
+	int ret;
 
 	if (!np)
 		return -ENODEV;
 
-	sport->port.line = portnum++;
-	if (sport->port.line >= UART_NR)
-		return -EINVAL;
+	ret = of_alias_get_id(np, "serial");
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to get alias id, errno %d\n", ret);
+		return -ENODEV;
+	}
+	sport->port.line = ret;
 
 	if (of_get_property(np, "fsl,uart-has-rtscts", NULL))
 		sport->have_rtscts = 1;

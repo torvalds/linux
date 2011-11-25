@@ -17,6 +17,7 @@
 
 #include <linux/spi/spi.h>
 #include <linux/spi/ds1305.h>
+#include <linux/module.h>
 
 
 /*

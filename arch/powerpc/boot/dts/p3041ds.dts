@@ -45,6 +45,10 @@
 		device_type = "memory";
 	};
 
+	dcsr: dcsr@f00000000 {
+		ranges = <0x00000000 0xf 0x00000000 0x01008000>;
+	};
+
 	soc: soc@ffe000000 {
 		spi@110000 {
 			flash@0 {
@@ -147,8 +151,8 @@
 		};
 
 		board-control@3,0 {
-			compatible = "fsl,p3041ds-pixis";
-			reg = <3 0 0x20>;
+			compatible = "fsl,p3041ds-fpga", "fsl,fpga-ngpixis";
+			reg = <3 0 0x30>;
 		};
 	};
 
