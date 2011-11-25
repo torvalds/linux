@@ -1666,9 +1666,12 @@ static int be_tx_queues_create(struct be_adapter *adapter)
 	u8 i;
 
 	adapter->num_tx_qs = be_num_txqs_want(adapter);
-	if (adapter->num_tx_qs != MAX_TX_QS)
+	if (adapter->num_tx_qs != MAX_TX_QS) {
+		rtnl_lock();
 		netif_set_real_num_tx_queues(adapter->netdev,
 			adapter->num_tx_qs);
+		rtnl_unlock();
+	}
 
 	adapter->tx_eq.max_eqd = 0;
 	adapter->tx_eq.min_eqd = 0;
