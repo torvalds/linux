@@ -188,7 +188,7 @@ static int start_measure(struct max8925_power_info *info, int type)
 	}
 
 	max8925_bulk_read(info->adc, meas_reg, 2, buf);
-	ret = (buf[0] << 4) | (buf[1] >> 4);
+	ret = ((buf[0]<<8) | buf[1]) >> 4;
 
 	return ret;
 }
@@ -208,7 +208,7 @@ static int max8925_ac_get_prop(struct power_supply *psy,
 		if (info->ac_online) {
 			ret = start_measure(info, MEASURE_VCHG);
 			if (ret >= 0) {
-				val->intval = ret << 1;	/* unit is mV */
+				val->intval = ret * 2000;	/* unit is uV */
 				goto out;
 			}
 		}
@@ -242,7 +242,7 @@ static int max8925_usb_get_prop(struct power_supply *psy,
 		if (info->usb_online) {
 			ret = start_measure(info, MEASURE_VCHG);
 			if (ret >= 0) {
-				val->intval = ret << 1;	/* unit is mV */
+				val->intval = ret * 2000;	/* unit is uV */
 				goto out;
 			}
 		}
@@ -266,7 +266,6 @@ static int max8925_bat_get_prop(struct power_supply *psy,
 				union power_supply_propval *val)
 {
 	struct max8925_power_info *info = dev_get_drvdata(psy->dev->parent);
-	long long int tmp = 0;
 	int ret = 0;
 
 	switch (psp) {
@@ -277,7 +276,7 @@ static int max8925_bat_get_prop(struct power_supply *psy,
 		if (info->bat_online) {
 			ret = start_measure(info, MEASURE_VMBATT);
 			if (ret >= 0) {
-				val->intval = ret << 1;	/* unit is mV */
+				val->intval = ret * 2000;	/* unit is uV */
 				ret = 0;
 				break;
 			}
@@ -288,8 +287,8 @@ static int max8925_bat_get_prop(struct power_supply *psy,
 		if (info->bat_online) {
 			ret = start_measure(info, MEASURE_ISNS);
 			if (ret >= 0) {
-				tmp = (long long int)ret * 6250 / 4096 - 3125;
-				ret = (int)tmp;
+				/* assume r_sns is 0.02 */
+				ret = ((ret * 6250) - 3125) /* uA */;
 				val->intval = 0;
 				if (ret > 0)
 					val->intval = ret; /* unit is mA */
