@@ -183,8 +183,8 @@ static struct mount *alloc_vfsmnt(const char *name)
 			goto out_free_cache;
 
 		if (name) {
-			mnt->mnt_devname = kstrdup(name, GFP_KERNEL);
-			if (!mnt->mnt_devname)
+			p->mnt_devname = kstrdup(name, GFP_KERNEL);
+			if (!p->mnt_devname)
 				goto out_free_id;
 		}
 
@@ -215,7 +215,7 @@ static struct mount *alloc_vfsmnt(const char *name)
 
 #ifdef CONFIG_SMP
 out_free_devname:
-	kfree(p->mnt.mnt_devname);
+	kfree(p->mnt_devname);
 #endif
 out_free_id:
 	mnt_free_id(p);
@@ -451,7 +451,7 @@ static void __mnt_unmake_readonly(struct mount *mnt)
 
 static void free_vfsmnt(struct mount *mnt)
 {
-	kfree(mnt->mnt.mnt_devname);
+	kfree(mnt->mnt_devname);
 	mnt_free_id(mnt);
 #ifdef CONFIG_SMP
 	free_percpu(mnt->mnt_pcp);
@@ -692,7 +692,7 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
 					int flag)
 {
 	struct super_block *sb = old->mnt.mnt_sb;
-	struct mount *mnt = alloc_vfsmnt(old->mnt.mnt_devname);
+	struct mount *mnt = alloc_vfsmnt(old->mnt_devname);
 
 	if (mnt) {
 		if (flag & (CL_SLAVE | CL_PRIVATE))
@@ -997,7 +997,7 @@ static int show_vfsmnt(struct seq_file *m, void *v)
 		if (err)
 			goto out;
 	} else {
-		mangle(m, mnt->mnt_devname ? mnt->mnt_devname : "none");
+		mangle(m, r->mnt_devname ? r->mnt_devname : "none");
 	}
 	seq_putc(m, ' ');
 	seq_path(m, &mnt_path, " \t\n\\");
@@ -1070,7 +1070,7 @@ static int show_mountinfo(struct seq_file *m, void *v)
 	if (sb->s_op->show_devname)
 		err = sb->s_op->show_devname(m, mnt);
 	else
-		mangle(m, mnt->mnt_devname ? mnt->mnt_devname : "none");
+		mangle(m, r->mnt_devname ? r->mnt_devname : "none");
 	if (err)
 		goto out;
 	seq_puts(m, sb->s_flags & MS_RDONLY ? " ro" : " rw");
@@ -1103,9 +1103,9 @@ static int show_vfsstat(struct seq_file *m, void *v)
 		seq_puts(m, "device ");
 		err = mnt->mnt_sb->s_op->show_devname(m, mnt);
 	} else {
-		if (mnt->mnt_devname) {
+		if (r->mnt_devname) {
 			seq_puts(m, "device ");
-			mangle(m, mnt->mnt_devname);
+			mangle(m, r->mnt_devname);
 		} else
 			seq_puts(m, "no device");
 	}

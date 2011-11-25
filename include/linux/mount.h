@@ -56,7 +56,6 @@ struct vfsmount {
 	__u32 mnt_fsnotify_mask;
 	struct hlist_head mnt_fsnotify_marks;
 #endif
-	const char *mnt_devname;	/* Name of device e.g. /dev/dsk/hda1 */
 };
 
 struct file; /* forward dec */
