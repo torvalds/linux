@@ -143,6 +143,13 @@ config FUJITSU_LAPTOP_DEBUG
 
 	  If you are not sure, say N here.
 
+config AMILO_RFKILL
+	tristate "Fujitsu-Siemens Amilo rfkill support"
+	depends on RFKILL
+	---help---
+	  This is a driver for enabling wifi on some Fujitsu-Siemens Amilo
+	  laptops.
+
 config TC1100_WMI
 	tristate "HP Compaq TC1100 Tablet WMI Extras (EXPERIMENTAL)"
 	depends on !X86_64
