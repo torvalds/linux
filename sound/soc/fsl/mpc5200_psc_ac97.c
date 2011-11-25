@@ -325,21 +325,7 @@ static struct platform_driver psc_ac97_driver = {
 	},
 };
 
-/* ---------------------------------------------------------------------
- * Module setup and teardown; simply register the of_platform driver
- * for the PSC in AC97 mode.
- */
-static int __init psc_ac97_init(void)
-{
-	return platform_driver_register(&psc_ac97_driver);
-}
-module_init(psc_ac97_init);
-
-static void __exit psc_ac97_exit(void)
-{
-	platform_driver_unregister(&psc_ac97_driver);
-}
-module_exit(psc_ac97_exit);
+module_platform_driver(psc_ac97_driver);
 
 MODULE_AUTHOR("Jon Smirl <jonsmirl@gmail.com>");
 MODULE_DESCRIPTION("mpc5200 AC97 module");
