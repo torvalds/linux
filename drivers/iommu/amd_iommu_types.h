@@ -129,6 +129,7 @@
 #define CONTROL_PPFLOG_EN       0x0dULL
 #define CONTROL_PPFINT_EN       0x0eULL
 #define CONTROL_PPR_EN          0x0fULL
+#define CONTROL_GT_EN           0x10ULL
 
 /* command specific defines */
 #define CMD_COMPL_WAIT          0x01

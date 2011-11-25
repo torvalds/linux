@@ -623,6 +623,14 @@ static void __init free_ppr_log(struct amd_iommu *iommu)
 	free_pages((unsigned long)iommu->ppr_log, get_order(PPR_LOG_SIZE));
 }
 
+static void iommu_enable_gt(struct amd_iommu *iommu)
+{
+	if (!iommu_feature(iommu, FEATURE_GT))
+		return;
+
+	iommu_feature_enable(iommu, CONTROL_GT_EN);
+}
+
 /* sets a specific bit in the device table entry. */
 static void set_dev_entry_bit(u16 devid, u8 bit)
 {
@@ -1338,6 +1346,7 @@ static void enable_iommus(void)
 		iommu_enable_command_buffer(iommu);
 		iommu_enable_event_buffer(iommu);
 		iommu_enable_ppr_log(iommu);
+		iommu_enable_gt(iommu);
 		iommu_set_exclusion_range(iommu);
 		iommu_init_msi(iommu);
 		iommu_enable(iommu);
