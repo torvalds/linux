@@ -15,17 +15,17 @@
 /* return the next shared peer mount of @p */
 static inline struct mount *next_peer(struct mount *p)
 {
-	return list_entry(p->mnt.mnt_share.next, struct mount, mnt.mnt_share);
+	return list_entry(p->mnt_share.next, struct mount, mnt_share);
 }
 
 static inline struct mount *first_slave(struct mount *p)
 {
-	return list_entry(p->mnt.mnt_slave_list.next, struct mount, mnt.mnt_slave);
+	return list_entry(p->mnt_slave_list.next, struct mount, mnt_slave);
 }
 
 static inline struct mount *next_slave(struct mount *p)
 {
-	return list_entry(p->mnt.mnt_slave.next, struct mount, mnt.mnt_slave);
+	return list_entry(p->mnt_slave.next, struct mount, mnt_slave);
 }
 
 static struct mount *get_peer_under_root(struct mount *mnt,
@@ -82,27 +82,27 @@ static int do_make_slave(struct mount *mnt)
 		if (peer_mnt == mnt)
 			peer_mnt = NULL;
 	}
-	if (IS_MNT_SHARED(&mnt->mnt) && list_empty(&mnt->mnt.mnt_share))
+	if (IS_MNT_SHARED(&mnt->mnt) && list_empty(&mnt->mnt_share))
 		mnt_release_group_id(mnt);
 
-	list_del_init(&mnt->mnt.mnt_share);
+	list_del_init(&mnt->mnt_share);
 	mnt->mnt.mnt_group_id = 0;
 
 	if (peer_mnt)
 		master = peer_mnt;
 
 	if (master) {
-		list_for_each_entry(slave_mnt, &mnt->mnt.mnt_slave_list, mnt.mnt_slave)
+		list_for_each_entry(slave_mnt, &mnt->mnt_slave_list, mnt_slave)
 			slave_mnt->mnt_master = master;
-		list_move(&mnt->mnt.mnt_slave, &master->mnt.mnt_slave_list);
-		list_splice(&mnt->mnt.mnt_slave_list, master->mnt.mnt_slave_list.prev);
-		INIT_LIST_HEAD(&mnt->mnt.mnt_slave_list);
+		list_move(&mnt->mnt_slave, &master->mnt_slave_list);
+		list_splice(&mnt->mnt_slave_list, master->mnt_slave_list.prev);
+		INIT_LIST_HEAD(&mnt->mnt_slave_list);
 	} else {
-		struct list_head *p = &mnt->mnt.mnt_slave_list;
+		struct list_head *p = &mnt->mnt_slave_list;
 		while (!list_empty(p)) {
                         slave_mnt = list_first_entry(p,
-					struct mount, mnt.mnt_slave);
-			list_del_init(&slave_mnt->mnt.mnt_slave);
+					struct mount, mnt_slave);
+			list_del_init(&slave_mnt->mnt_slave);
 			slave_mnt->mnt_master = NULL;
 		}
 	}
@@ -122,7 +122,7 @@ void change_mnt_propagation(struct mount *mnt, int type)
 	}
 	do_make_slave(mnt);
 	if (type != MS_SLAVE) {
-		list_del_init(&mnt->mnt.mnt_slave);
+		list_del_init(&mnt->mnt_slave);
 		mnt->mnt_master = NULL;
 		if (type == MS_UNBINDABLE)
 			mnt->mnt.mnt_flags |= MNT_UNBINDABLE;
@@ -145,7 +145,7 @@ static struct mount *propagation_next(struct mount *m,
 					 struct mount *origin)
 {
 	/* are there any slaves of this mount? */
-	if (!IS_MNT_NEW(&m->mnt) && !list_empty(&m->mnt.mnt_slave_list))
+	if (!IS_MNT_NEW(&m->mnt) && !list_empty(&m->mnt_slave_list))
 		return first_slave(m);
 
 	while (1) {
@@ -154,7 +154,7 @@ static struct mount *propagation_next(struct mount *m,
 		if (master == origin->mnt_master) {
 			struct mount *next = next_peer(m);
 			return (next == origin) ? NULL : next;
-		} else if (m->mnt.mnt_slave.next != &master->mnt.mnt_slave_list)
+		} else if (m->mnt_slave.next != &master->mnt_slave_list)
 			return next_slave(m);
 
 		/* back at master */

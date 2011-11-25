@@ -203,10 +203,10 @@ static struct mount *alloc_vfsmnt(const char *name)
 		INIT_LIST_HEAD(&p->mnt_child);
 		INIT_LIST_HEAD(&p->mnt_mounts);
 		INIT_LIST_HEAD(&mnt->mnt_list);
-		INIT_LIST_HEAD(&mnt->mnt_expire);
-		INIT_LIST_HEAD(&mnt->mnt_share);
-		INIT_LIST_HEAD(&mnt->mnt_slave_list);
-		INIT_LIST_HEAD(&mnt->mnt_slave);
+		INIT_LIST_HEAD(&p->mnt_expire);
+		INIT_LIST_HEAD(&p->mnt_share);
+		INIT_LIST_HEAD(&p->mnt_slave_list);
+		INIT_LIST_HEAD(&p->mnt_slave);
 #ifdef CONFIG_FSNOTIFY
 		INIT_HLIST_HEAD(&mnt->mnt_fsnotify_marks);
 #endif
@@ -714,14 +714,14 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
 		mnt->mnt_parent = mnt;
 
 		if (flag & CL_SLAVE) {
-			list_add(&mnt->mnt.mnt_slave, &old->mnt.mnt_slave_list);
+			list_add(&mnt->mnt_slave, &old->mnt_slave_list);
 			mnt->mnt_master = old;
 			CLEAR_MNT_SHARED(&mnt->mnt);
 		} else if (!(flag & CL_PRIVATE)) {
 			if ((flag & CL_MAKE_SHARED) || IS_MNT_SHARED(&old->mnt))
-				list_add(&mnt->mnt.mnt_share, &old->mnt.mnt_share);
+				list_add(&mnt->mnt_share, &old->mnt_share);
 			if (IS_MNT_SLAVE(old))
-				list_add(&mnt->mnt.mnt_slave, &old->mnt.mnt_slave);
+				list_add(&mnt->mnt_slave, &old->mnt_slave);
 			mnt->mnt_master = old->mnt_master;
 		}
 		if (flag & CL_MAKE_SHARED)
@@ -730,8 +730,8 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
 		/* stick the duplicate mount on the same expiry list
 		 * as the original if that was on one */
 		if (flag & CL_EXPIRE) {
-			if (!list_empty(&old->mnt.mnt_expire))
-				list_add(&mnt->mnt.mnt_expire, &old->mnt.mnt_expire);
+			if (!list_empty(&old->mnt_expire))
+				list_add(&mnt->mnt_expire, &old->mnt_expire);
 		}
 	}
 	return mnt;
@@ -1233,7 +1233,7 @@ void umount_tree(struct mount *mnt, int propagate, struct list_head *kill)
 		propagate_umount(&tmp_list);
 
 	list_for_each_entry(p, &tmp_list, mnt_hash) {
-		list_del_init(&p->mnt.mnt_expire);
+		list_del_init(&p->mnt_expire);
 		list_del_init(&p->mnt.mnt_list);
 		__touch_mnt_namespace(p->mnt.mnt_ns);
 		p->mnt.mnt_ns = NULL;
@@ -1921,7 +1921,7 @@ static int do_move_mount(struct path *path, char *old_name)
 
 	/* if the mount is moved, it should no longer be expire
 	 * automatically */
-	list_del_init(&old_path.mnt->mnt_expire);
+	list_del_init(&old->mnt_expire);
 out1:
 	unlock_mount(path);
 out:
@@ -2033,11 +2033,12 @@ static int do_new_mount(struct path *path, char *type, int flags,
 
 int finish_automount(struct vfsmount *m, struct path *path)
 {
+	struct mount *mnt = real_mount(m);
 	int err;
 	/* The new mount record should have at least 2 refs to prevent it being
 	 * expired before we get a chance to add it
 	 */
-	BUG_ON(mnt_get_count(real_mount(m)) < 2);
+	BUG_ON(mnt_get_count(mnt) < 2);
 
 	if (m->mnt_sb == path->mnt->mnt_sb &&
 	    m->mnt_root == path->dentry) {
@@ -2050,10 +2051,10 @@ int finish_automount(struct vfsmount *m, struct path *path)
 		return 0;
 fail:
 	/* remove m from any expiration list it may be on */
-	if (!list_empty(&m->mnt_expire)) {
+	if (!list_empty(&mnt->mnt_expire)) {
 		down_write(&namespace_sem);
 		br_write_lock(vfsmount_lock);
-		list_del_init(&m->mnt_expire);
+		list_del_init(&mnt->mnt_expire);
 		br_write_unlock(vfsmount_lock);
 		up_write(&namespace_sem);
 	}
@@ -2072,7 +2073,7 @@ void mnt_set_expiry(struct vfsmount *mnt, struct list_head *expiry_list)
 	down_write(&namespace_sem);
 	br_write_lock(vfsmount_lock);
 
-	list_add_tail(&mnt->mnt_expire, expiry_list);
+	list_add_tail(&real_mount(mnt)->mnt_expire, expiry_list);
 
 	br_write_unlock(vfsmount_lock);
 	up_write(&namespace_sem);
@@ -2102,14 +2103,14 @@ void mark_mounts_for_expiry(struct list_head *mounts)
 	 * - still marked for expiry (marked on the last call here; marks are
 	 *   cleared by mntput())
 	 */
-	list_for_each_entry_safe(mnt, next, mounts, mnt.mnt_expire) {
+	list_for_each_entry_safe(mnt, next, mounts, mnt_expire) {
 		if (!xchg(&mnt->mnt.mnt_expiry_mark, 1) ||
 			propagate_mount_busy(mnt, 1))
 			continue;
-		list_move(&mnt->mnt.mnt_expire, &graveyard);
+		list_move(&mnt->mnt_expire, &graveyard);
 	}
 	while (!list_empty(&graveyard)) {
-		mnt = list_first_entry(&graveyard, struct mount, mnt.mnt_expire);
+		mnt = list_first_entry(&graveyard, struct mount, mnt_expire);
 		touch_mnt_namespace(mnt->mnt.mnt_ns);
 		umount_tree(mnt, 1, &umounts);
 	}
@@ -2152,7 +2153,7 @@ resume:
 		}
 
 		if (!propagate_mount_busy(mnt, 1)) {
-			list_move_tail(&mnt->mnt.mnt_expire, graveyard);
+			list_move_tail(&mnt->mnt_expire, graveyard);
 			found++;
 		}
 	}
@@ -2182,7 +2183,7 @@ static void shrink_submounts(struct mount *mnt, struct list_head *umounts)
 	while (select_submounts(mnt, &graveyard)) {
 		while (!list_empty(&graveyard)) {
 			m = list_first_entry(&graveyard, struct mount,
-						mnt.mnt_expire);
+						mnt_expire);
 			touch_mnt_namespace(m->mnt.mnt_ns);
 			umount_tree(m, 1, umounts);
 		}
