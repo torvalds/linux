@@ -556,14 +556,14 @@ static void dentry_reset_mounted(struct dentry *dentry)
 /*
  * vfsmount lock must be held for write
  */
-static void detach_mnt(struct vfsmount *mnt, struct path *old_path)
+static void detach_mnt(struct mount *mnt, struct path *old_path)
 {
-	old_path->dentry = mnt->mnt_mountpoint;
-	old_path->mnt = mnt->mnt_parent;
-	mnt->mnt_parent = mnt;
-	mnt->mnt_mountpoint = mnt->mnt_root;
-	list_del_init(&mnt->mnt_child);
-	list_del_init(&mnt->mnt_hash);
+	old_path->dentry = mnt->mnt.mnt_mountpoint;
+	old_path->mnt = mnt->mnt.mnt_parent;
+	mnt->mnt.mnt_parent = &mnt->mnt;
+	mnt->mnt.mnt_mountpoint = mnt->mnt.mnt_root;
+	list_del_init(&mnt->mnt.mnt_child);
+	list_del_init(&mnt->mnt.mnt_hash);
 	dentry_reset_mounted(old_path->dentry);
 }
 
@@ -583,12 +583,12 @@ void mnt_set_mountpoint(struct vfsmount *mnt, struct dentry *dentry,
 /*
  * vfsmount lock must be held for write
  */
-static void attach_mnt(struct vfsmount *mnt, struct path *path)
+static void attach_mnt(struct mount *mnt, struct path *path)
 {
-	mnt_set_mountpoint(path->mnt, path->dentry, mnt);
-	list_add_tail(&mnt->mnt_hash, mount_hashtable +
+	mnt_set_mountpoint(path->mnt, path->dentry, &mnt->mnt);
+	list_add_tail(&mnt->mnt.mnt_hash, mount_hashtable +
 			hash(path->mnt, path->dentry));
-	list_add_tail(&mnt->mnt_child, &path->mnt->mnt_mounts);
+	list_add_tail(&mnt->mnt.mnt_child, &path->mnt->mnt_mounts);
 }
 
 static inline void __mnt_make_longterm(struct vfsmount *mnt)
@@ -1446,7 +1446,7 @@ struct vfsmount *copy_tree(struct vfsmount *mnt, struct dentry *dentry,
 				goto Enomem;
 			br_write_lock(vfsmount_lock);
 			list_add_tail(&q->mnt_list, &res->mnt_list);
-			attach_mnt(q, &path);
+			attach_mnt(real_mount(q), &path);
 			br_write_unlock(vfsmount_lock);
 		}
 	}
@@ -1612,8 +1612,8 @@ static int attach_recursive_mnt(struct vfsmount *source_mnt,
 			set_mnt_shared(&p->mnt);
 	}
 	if (parent_path) {
-		detach_mnt(source_mnt, parent_path);
-		attach_mnt(source_mnt, path);
+		detach_mnt(real_mount(source_mnt), parent_path);
+		attach_mnt(real_mount(source_mnt), path);
 		touch_mnt_namespace(parent_path->mnt->mnt_ns);
 	} else {
 		mnt_set_mountpoint(dest_mnt, dest_dentry, source_mnt);
@@ -2600,6 +2600,7 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 		const char __user *, put_old)
 {
 	struct path new, old, parent_path, root_parent, root;
+	struct mount *new_mnt, *root_mnt;
 	int error;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -2623,6 +2624,8 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 		goto out3;
 
 	error = -EINVAL;
+	new_mnt = real_mount(new.mnt);
+	root_mnt = real_mount(root.mnt);
 	if (IS_MNT_SHARED(old.mnt) ||
 		IS_MNT_SHARED(new.mnt->mnt_parent) ||
 		IS_MNT_SHARED(root.mnt->mnt_parent))
@@ -2651,12 +2654,12 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 	if (!is_path_reachable(old.mnt, old.dentry, &new))
 		goto out4;
 	br_write_lock(vfsmount_lock);
-	detach_mnt(new.mnt, &parent_path);
-	detach_mnt(root.mnt, &root_parent);
+	detach_mnt(new_mnt, &parent_path);
+	detach_mnt(root_mnt, &root_parent);
 	/* mount old root on put_old */
-	attach_mnt(root.mnt, &old);
+	attach_mnt(root_mnt, &old);
 	/* mount new_root on / */
-	attach_mnt(new.mnt, &root_parent);
+	attach_mnt(new_mnt, &root_parent);
 	touch_mnt_namespace(current->nsproxy->mnt_ns);
 	br_write_unlock(vfsmount_lock);
 	chroot_fs_refs(&root, &new);
