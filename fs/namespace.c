@@ -763,9 +763,8 @@ static inline void mntfree(struct mount *mnt)
 	deactivate_super(sb);
 }
 
-static void mntput_no_expire(struct vfsmount *m)
+static void mntput_no_expire(struct mount *mnt)
 {
-	struct mount *mnt = real_mount(m);
 put_again:
 #ifdef CONFIG_SMP
 	br_read_lock(vfsmount_lock);
@@ -792,7 +791,7 @@ put_again:
 		mnt_add_count(mnt, mnt->mnt.mnt_pinned + 1);
 		mnt->mnt.mnt_pinned = 0;
 		br_write_unlock(vfsmount_lock);
-		acct_auto_close_mnt(m);
+		acct_auto_close_mnt(&mnt->mnt);
 		goto put_again;
 	}
 	br_write_unlock(vfsmount_lock);
@@ -805,7 +804,7 @@ void mntput(struct vfsmount *mnt)
 		/* avoid cacheline pingpong, hope gcc doesn't get "smart" */
 		if (unlikely(mnt->mnt_expiry_mark))
 			mnt->mnt_expiry_mark = 0;
-		mntput_no_expire(mnt);
+		mntput_no_expire(real_mount(mnt));
 	}
 }
 EXPORT_SYMBOL(mntput);
@@ -1351,6 +1350,7 @@ static int do_umount(struct mount *mnt, int flags)
 SYSCALL_DEFINE2(umount, char __user *, name, int, flags)
 {
 	struct path path;
+	struct mount *mnt;
 	int retval;
 	int lookup_flags = 0;
 
@@ -1363,6 +1363,7 @@ SYSCALL_DEFINE2(umount, char __user *, name, int, flags)
 	retval = user_path_at(AT_FDCWD, name, lookup_flags, &path);
 	if (retval)
 		goto out;
+	mnt = real_mount(path.mnt);
 	retval = -EINVAL;
 	if (path.dentry != path.mnt->mnt_root)
 		goto dput_and_out;
@@ -1373,11 +1374,11 @@ SYSCALL_DEFINE2(umount, char __user *, name, int, flags)
 	if (!capable(CAP_SYS_ADMIN))
 		goto dput_and_out;
 
-	retval = do_umount(real_mount(path.mnt), flags);
+	retval = do_umount(mnt, flags);
 dput_and_out:
 	/* we mustn't call path_put() as that would clear mnt_expiry_mark */
 	dput(path.dentry);
-	mntput_no_expire(path.mnt);
+	mntput_no_expire(mnt);
 out:
 	return retval;
 }
