@@ -262,7 +262,7 @@ out:
 	br_write_lock(vfsmount_lock);
 	while (!list_empty(&tmp_list)) {
 		child = list_first_entry(&tmp_list, struct mount, mnt_hash);
-		umount_tree(&child->mnt, 0, &umount_list);
+		umount_tree(child, 0, &umount_list);
 	}
 	br_write_unlock(vfsmount_lock);
 	release_mounts(&umount_list);
