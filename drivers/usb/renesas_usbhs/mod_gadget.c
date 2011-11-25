@@ -282,6 +282,29 @@ struct usbhsg_recip_handle req_clear_feature = {
 };
 
 /*
+ *		USB_TYPE_STANDARD / set feature functions
+ */
+static int usbhsg_recip_handler_std_set_endpoint(struct usbhs_priv *priv,
+						 struct usbhsg_uep *uep,
+						 struct usb_ctrlrequest *ctrl)
+{
+	struct usbhs_pipe *pipe = usbhsg_uep_to_pipe(uep);
+
+	usbhs_pipe_stall(pipe);
+
+	usbhsg_recip_handler_std_control_done(priv, uep, ctrl);
+
+	return 0;
+}
+
+struct usbhsg_recip_handle req_set_feature = {
+	.name		= "set feature",
+	.device		= usbhsg_recip_handler_std_control_done,
+	.interface	= usbhsg_recip_handler_std_control_done,
+	.endpoint	= usbhsg_recip_handler_std_set_endpoint,
+};
+
+/*
  *		USB_TYPE handler
  */
 static int usbhsg_recip_run_handle(struct usbhs_priv *priv,
@@ -404,6 +427,9 @@ static int usbhsg_irq_ctrl_stage(struct usbhs_priv *priv,
 		switch (ctrl.bRequest) {
 		case USB_REQ_CLEAR_FEATURE:
 			recip_handler = &req_clear_feature;
+			break;
+		case USB_REQ_SET_FEATURE:
+			recip_handler = &req_set_feature;
 			break;
 		}
 	}
