@@ -53,7 +53,6 @@ struct mnt_pcp {
 };
 
 struct vfsmount {
-	struct dentry *mnt_mountpoint;	/* dentry of mountpoint */
 	struct dentry *mnt_root;	/* root of the mounted tree */
 	struct super_block *mnt_sb;	/* pointer to superblock */
 #ifdef CONFIG_SMP

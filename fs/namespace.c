@@ -476,7 +476,7 @@ struct mount *__lookup_mnt(struct vfsmount *mnt, struct dentry *dentry,
 		if (tmp == head)
 			break;
 		p = list_entry(tmp, struct mount, mnt_hash);
-		if (&p->mnt_parent->mnt == mnt && p->mnt.mnt_mountpoint == dentry) {
+		if (&p->mnt_parent->mnt == mnt && p->mnt_mountpoint == dentry) {
 			found = p;
 			break;
 		}
@@ -543,7 +543,7 @@ static void dentry_reset_mounted(struct dentry *dentry)
 		struct mount *p;
 
 		list_for_each_entry(p, &mount_hashtable[u], mnt_hash) {
-			if (p->mnt.mnt_mountpoint == dentry)
+			if (p->mnt_mountpoint == dentry)
 				return;
 		}
 	}
@@ -557,10 +557,10 @@ static void dentry_reset_mounted(struct dentry *dentry)
  */
 static void detach_mnt(struct mount *mnt, struct path *old_path)
 {
-	old_path->dentry = mnt->mnt.mnt_mountpoint;
+	old_path->dentry = mnt->mnt_mountpoint;
 	old_path->mnt = &mnt->mnt_parent->mnt;
 	mnt->mnt_parent = mnt;
-	mnt->mnt.mnt_mountpoint = mnt->mnt.mnt_root;
+	mnt->mnt_mountpoint = mnt->mnt.mnt_root;
 	list_del_init(&mnt->mnt.mnt_child);
 	list_del_init(&mnt->mnt_hash);
 	dentry_reset_mounted(old_path->dentry);
@@ -573,7 +573,7 @@ void mnt_set_mountpoint(struct vfsmount *mnt, struct dentry *dentry,
 			struct mount *child_mnt)
 {
 	child_mnt->mnt_parent = real_mount(mntget(mnt));
-	child_mnt->mnt.mnt_mountpoint = dget(dentry);
+	child_mnt->mnt_mountpoint = dget(dentry);
 	spin_lock(&dentry->d_lock);
 	dentry->d_flags |= DCACHE_MOUNTED;
 	spin_unlock(&dentry->d_lock);
@@ -626,7 +626,7 @@ static void commit_tree(struct mount *mnt)
 	list_splice(&head, n->list.prev);
 
 	list_add_tail(&mnt->mnt_hash, mount_hashtable +
-				hash(&parent->mnt, mnt->mnt.mnt_mountpoint));
+				hash(&parent->mnt, mnt->mnt_mountpoint));
 	list_add_tail(&mnt->mnt.mnt_child, &parent->mnt.mnt_mounts);
 	touch_mnt_namespace(n);
 }
@@ -681,7 +681,7 @@ vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void 
 
 	mnt->mnt.mnt_root = root;
 	mnt->mnt.mnt_sb = root->d_sb;
-	mnt->mnt.mnt_mountpoint = mnt->mnt.mnt_root;
+	mnt->mnt_mountpoint = mnt->mnt.mnt_root;
 	mnt->mnt_parent = mnt;
 	return &mnt->mnt;
 }
@@ -709,7 +709,7 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
 		atomic_inc(&sb->s_active);
 		mnt->mnt.mnt_sb = sb;
 		mnt->mnt.mnt_root = dget(root);
-		mnt->mnt.mnt_mountpoint = mnt->mnt.mnt_root;
+		mnt->mnt_mountpoint = mnt->mnt.mnt_root;
 		mnt->mnt_parent = mnt;
 
 		if (flag & CL_SLAVE) {
@@ -1201,9 +1201,9 @@ void release_mounts(struct list_head *head)
 			struct vfsmount *m;
 
 			br_write_lock(vfsmount_lock);
-			dentry = mnt->mnt.mnt_mountpoint;
+			dentry = mnt->mnt_mountpoint;
 			m = &mnt->mnt_parent->mnt;
-			mnt->mnt.mnt_mountpoint = mnt->mnt.mnt_root;
+			mnt->mnt_mountpoint = mnt->mnt.mnt_root;
 			mnt->mnt_parent = mnt;
 			m->mnt_ghosts--;
 			br_write_unlock(vfsmount_lock);
@@ -1238,7 +1238,7 @@ void umount_tree(struct mount *mnt, int propagate, struct list_head *kill)
 		list_del_init(&p->mnt.mnt_child);
 		if (mnt_has_parent(p)) {
 			p->mnt_parent->mnt.mnt_ghosts++;
-			dentry_reset_mounted(p->mnt.mnt_mountpoint);
+			dentry_reset_mounted(p->mnt_mountpoint);
 		}
 		change_mnt_propagation(p, MS_PRIVATE);
 	}
@@ -1412,8 +1412,7 @@ static int mount_is_safe(struct path *path)
 struct mount *copy_tree(struct mount *mnt, struct dentry *dentry,
 					int flag)
 {
-	struct mount *res, *p, *q;
-	struct vfsmount *r;
+	struct mount *res, *p, *q, *r;
 	struct path path;
 
 	if (!(flag & CL_COPY_ALL) && IS_MNT_UNBINDABLE(&mnt->mnt))
@@ -1422,15 +1421,15 @@ struct mount *copy_tree(struct mount *mnt, struct dentry *dentry,
 	res = q = clone_mnt(mnt, dentry, flag);
 	if (!q)
 		goto Enomem;
-	q->mnt.mnt_mountpoint = mnt->mnt.mnt_mountpoint;
+	q->mnt_mountpoint = mnt->mnt_mountpoint;
 
 	p = mnt;
-	list_for_each_entry(r, &mnt->mnt.mnt_mounts, mnt_child) {
+	list_for_each_entry(r, &mnt->mnt.mnt_mounts, mnt.mnt_child) {
 		struct mount *s;
 		if (!is_subdir(r->mnt_mountpoint, dentry))
 			continue;
 
-		for (s = real_mount(r); s; s = next_mnt(s, r)) {
+		for (s = r; s; s = next_mnt(s, &r->mnt)) {
 			if (!(flag & CL_COPY_ALL) && IS_MNT_UNBINDABLE(&s->mnt)) {
 				s = skip_mnt_tree(s);
 				continue;
@@ -1441,7 +1440,7 @@ struct mount *copy_tree(struct mount *mnt, struct dentry *dentry,
 			}
 			p = s;
 			path.mnt = &q->mnt;
-			path.dentry = p->mnt.mnt_mountpoint;
+			path.dentry = p->mnt_mountpoint;
 			q = clone_mnt(p, p->mnt.mnt_root, flag);
 			if (!q)
 				goto Enomem;
@@ -2564,7 +2563,7 @@ bool is_path_reachable(struct mount *mnt, struct dentry *dentry,
 			 const struct path *root)
 {
 	while (&mnt->mnt != root->mnt && mnt_has_parent(mnt)) {
-		dentry = mnt->mnt.mnt_mountpoint;
+		dentry = mnt->mnt_mountpoint;
 		mnt = mnt->mnt_parent;
 	}
 	return &mnt->mnt == root->mnt && is_subdir(dentry, root->dentry);
