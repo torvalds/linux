@@ -19,6 +19,8 @@ struct mount {
 #endif
 	struct list_head mnt_mounts;	/* list of children, anchored here */
 	struct list_head mnt_child;	/* and going through their mnt_child */
+	/* yet to be moved - up to mnt_slave */
+	struct vfsmount *mnt_master;	/* slave is on master->mnt_slave_list */
 };
 
 static inline struct mount *real_mount(struct vfsmount *mnt)
