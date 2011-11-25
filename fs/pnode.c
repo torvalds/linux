@@ -272,9 +272,9 @@ out:
 /*
  * return true if the refcount is greater than count
  */
-static inline int do_refcount_check(struct vfsmount *mnt, int count)
+static inline int do_refcount_check(struct mount *mnt, int count)
 {
-	int mycount = mnt_get_count(mnt) - mnt->mnt_ghosts;
+	int mycount = mnt_get_count(&mnt->mnt) - mnt->mnt.mnt_ghosts;
 	return (mycount > count);
 }
 
@@ -288,14 +288,14 @@ static inline int do_refcount_check(struct vfsmount *mnt, int count)
  *
  * vfsmount lock must be held for write
  */
-int propagate_mount_busy(struct vfsmount *mnt, int refcnt)
+int propagate_mount_busy(struct mount *mnt, int refcnt)
 {
 	struct vfsmount *m;
 	struct mount *child;
-	struct vfsmount *parent = mnt->mnt_parent;
+	struct vfsmount *parent = mnt->mnt.mnt_parent;
 	int ret = 0;
 
-	if (mnt == parent)
+	if (&mnt->mnt == parent)
 		return do_refcount_check(mnt, refcnt);
 
 	/*
@@ -303,14 +303,14 @@ int propagate_mount_busy(struct vfsmount *mnt, int refcnt)
 	 * If not, we don't have to go checking for all other
 	 * mounts
 	 */
-	if (!list_empty(&mnt->mnt_mounts) || do_refcount_check(mnt, refcnt))
+	if (!list_empty(&mnt->mnt.mnt_mounts) || do_refcount_check(mnt, refcnt))
 		return 1;
 
 	for (m = propagation_next(parent, parent); m;
 	     		m = propagation_next(m, parent)) {
-		child = __lookup_mnt(m, mnt->mnt_mountpoint, 0);
+		child = __lookup_mnt(m, mnt->mnt.mnt_mountpoint, 0);
 		if (child && list_empty(&child->mnt.mnt_mounts) &&
-		    (ret = do_refcount_check(&child->mnt, 1)))
+		    (ret = do_refcount_check(child, 1)))
 			break;
 	}
 	return ret;

@@ -1180,7 +1180,7 @@ int may_umount(struct vfsmount *mnt)
 	int ret = 1;
 	down_read(&namespace_sem);
 	br_write_lock(vfsmount_lock);
-	if (propagate_mount_busy(mnt, 2))
+	if (propagate_mount_busy(real_mount(mnt), 2))
 		ret = 0;
 	br_write_unlock(vfsmount_lock);
 	up_read(&namespace_sem);
@@ -1246,13 +1246,13 @@ void umount_tree(struct mount *mnt, int propagate, struct list_head *kill)
 
 static void shrink_submounts(struct mount *mnt, struct list_head *umounts);
 
-static int do_umount(struct vfsmount *mnt, int flags)
+static int do_umount(struct mount *mnt, int flags)
 {
-	struct super_block *sb = mnt->mnt_sb;
+	struct super_block *sb = mnt->mnt.mnt_sb;
 	int retval;
 	LIST_HEAD(umount_list);
 
-	retval = security_sb_umount(mnt, flags);
+	retval = security_sb_umount(&mnt->mnt, flags);
 	if (retval)
 		return retval;
 
@@ -1263,7 +1263,7 @@ static int do_umount(struct vfsmount *mnt, int flags)
 	 *  (2) the usage count == 1 [parent vfsmount] + 1 [sys_umount]
 	 */
 	if (flags & MNT_EXPIRE) {
-		if (mnt == current->fs->root.mnt ||
+		if (&mnt->mnt == current->fs->root.mnt ||
 		    flags & (MNT_FORCE | MNT_DETACH))
 			return -EINVAL;
 
@@ -1272,13 +1272,13 @@ static int do_umount(struct vfsmount *mnt, int flags)
 		 * all race cases, but it's a slowpath.
 		 */
 		br_write_lock(vfsmount_lock);
-		if (mnt_get_count(mnt) != 2) {
+		if (mnt_get_count(&mnt->mnt) != 2) {
 			br_write_unlock(vfsmount_lock);
 			return -EBUSY;
 		}
 		br_write_unlock(vfsmount_lock);
 
-		if (!xchg(&mnt->mnt_expiry_mark, 1))
+		if (!xchg(&mnt->mnt.mnt_expiry_mark, 1))
 			return -EAGAIN;
 	}
 
@@ -1305,7 +1305,7 @@ static int do_umount(struct vfsmount *mnt, int flags)
 	 * /reboot - static binary that would close all descriptors and
 	 * call reboot(9). Then init(8) could umount root and exec /reboot.
 	 */
-	if (mnt == current->fs->root.mnt && !(flags & MNT_DETACH)) {
+	if (&mnt->mnt == current->fs->root.mnt && !(flags & MNT_DETACH)) {
 		/*
 		 * Special case for "unmounting" root ...
 		 * we just try to remount it readonly.
@@ -1322,12 +1322,12 @@ static int do_umount(struct vfsmount *mnt, int flags)
 	event++;
 
 	if (!(flags & MNT_DETACH))
-		shrink_submounts(real_mount(mnt), &umount_list);
+		shrink_submounts(mnt, &umount_list);
 
 	retval = -EBUSY;
 	if (flags & MNT_DETACH || !propagate_mount_busy(mnt, 2)) {
-		if (!list_empty(&mnt->mnt_list))
-			umount_tree(real_mount(mnt), 1, &umount_list);
+		if (!list_empty(&mnt->mnt.mnt_list))
+			umount_tree(mnt, 1, &umount_list);
 		retval = 0;
 	}
 	br_write_unlock(vfsmount_lock);
@@ -1369,7 +1369,7 @@ SYSCALL_DEFINE2(umount, char __user *, name, int, flags)
 	if (!capable(CAP_SYS_ADMIN))
 		goto dput_and_out;
 
-	retval = do_umount(path.mnt, flags);
+	retval = do_umount(real_mount(path.mnt), flags);
 dput_and_out:
 	/* we mustn't call path_put() as that would clear mnt_expiry_mark */
 	dput(path.dentry);
@@ -2101,7 +2101,7 @@ void mark_mounts_for_expiry(struct list_head *mounts)
 	 */
 	list_for_each_entry_safe(mnt, next, mounts, mnt.mnt_expire) {
 		if (!xchg(&mnt->mnt.mnt_expiry_mark, 1) ||
-			propagate_mount_busy(&mnt->mnt, 1))
+			propagate_mount_busy(mnt, 1))
 			continue;
 		list_move(&mnt->mnt.mnt_expire, &graveyard);
 	}
@@ -2148,7 +2148,7 @@ resume:
 			goto repeat;
 		}
 
-		if (!propagate_mount_busy(&mnt->mnt, 1)) {
+		if (!propagate_mount_busy(mnt, 1)) {
 			list_move_tail(&mnt->mnt.mnt_expire, graveyard);
 			found++;
 		}
