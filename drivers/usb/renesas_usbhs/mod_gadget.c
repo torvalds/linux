@@ -327,15 +327,8 @@ static int usbhsg_recip_run_handle(struct usbhs_priv *priv,
 	}
 
 	if (func) {
-		unsigned long flags;
-
 		dev_dbg(dev, "%s (pipe %d :%s)\n", handler->name, nth, msg);
-
-		/********************  spin lock ********************/
-		usbhs_lock(priv, flags);
 		ret = func(priv, uep, ctrl);
-		usbhs_unlock(priv, flags);
-		/********************  spin unlock ******************/
 	}
 
 usbhsg_recip_run_handle_end:
