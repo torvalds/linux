@@ -23,6 +23,7 @@ Queue Control Unit, DCF Control Unit Functions
 #include "ath5k.h"
 #include "reg.h"
 #include "debug.h"
+#include <linux/log2.h>
 
 /**
  * DOC: Queue Control Unit (QCU)/DCF Control Unit (DCU) functions
@@ -108,13 +109,21 @@ ath5k_hw_release_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 static u16
 ath5k_cw_validate(u16 cw_req)
 {
-	u32 cw = 1;
 	cw_req = min(cw_req, (u16)1023);
 
-	while (cw < cw_req)
-		cw = (cw << 1) | 1;
+	/* Check if cw_req + 1 a power of 2 */
+	if (is_power_of_2(cw_req + 1))
+		return cw_req;
 
-	return cw;
+	/* Check if cw_req is a power of 2 */
+	if (is_power_of_2(cw_req))
+		return cw_req - 1;
+
+	/* If none of the above is correct
+	 * find the closest power of 2 */
+	cw_req = (u16) roundup_pow_of_two(cw_req) - 1;
+
+	return cw_req;
 }
 
 /**
