@@ -132,6 +132,11 @@ void usbhs_sys_function_ctrl(struct usbhs_priv *priv, int enable)
 	usbhs_bset(priv, SYSCFG, mask, enable ? val : 0);
 }
 
+void usbhs_sys_set_test_mode(struct usbhs_priv *priv, u16 mode)
+{
+	usbhs_write(priv, TESTMODE, mode);
+}
+
 /*
  *		frame functions
  */

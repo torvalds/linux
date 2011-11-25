@@ -33,6 +33,7 @@ struct usbhs_priv;
 #define SYSCFG		0x0000
 #define BUSWAIT		0x0002
 #define DVSTCTR		0x0008
+#define TESTMODE	0x000C
 #define CFIFO		0x0014
 #define CFIFOSEL	0x0020
 #define CFIFOCTR	0x0022
@@ -283,6 +284,7 @@ void usbhs_bset(struct usbhs_priv *priv, u32 reg, u16 mask, u16 data);
  */
 void usbhs_sys_host_ctrl(struct usbhs_priv *priv, int enable);
 void usbhs_sys_function_ctrl(struct usbhs_priv *priv, int enable);
+void usbhs_sys_set_test_mode(struct usbhs_priv *priv, u16 mode);
 
 /*
  * usb request

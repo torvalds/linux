@@ -14,6 +14,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
+#include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -286,6 +287,24 @@ struct usbhsg_recip_handle req_clear_feature = {
 /*
  *		USB_TYPE_STANDARD / set feature functions
  */
+static int usbhsg_recip_handler_std_set_device(struct usbhs_priv *priv,
+						 struct usbhsg_uep *uep,
+						 struct usb_ctrlrequest *ctrl)
+{
+	switch (le16_to_cpu(ctrl->wValue)) {
+	case USB_DEVICE_TEST_MODE:
+		usbhsg_recip_handler_std_control_done(priv, uep, ctrl);
+		udelay(100);
+		usbhs_sys_set_test_mode(priv, le16_to_cpu(ctrl->wIndex >> 8));
+		break;
+	default:
+		usbhsg_recip_handler_std_control_done(priv, uep, ctrl);
+		break;
+	}
+
+	return 0;
+}
+
 static int usbhsg_recip_handler_std_set_endpoint(struct usbhs_priv *priv,
 						 struct usbhsg_uep *uep,
 						 struct usb_ctrlrequest *ctrl)
@@ -301,7 +320,7 @@ static int usbhsg_recip_handler_std_set_endpoint(struct usbhs_priv *priv,
 
 struct usbhsg_recip_handle req_set_feature = {
 	.name		= "set feature",
-	.device		= usbhsg_recip_handler_std_control_done,
+	.device		= usbhsg_recip_handler_std_set_device,
 	.interface	= usbhsg_recip_handler_std_control_done,
 	.endpoint	= usbhsg_recip_handler_std_set_endpoint,
 };
@@ -849,6 +868,7 @@ static int usbhsg_try_stop(struct usbhs_priv *priv, u32 status)
 	gpriv->gadget.speed = USB_SPEED_UNKNOWN;
 
 	/* disable sys */
+	usbhs_sys_set_test_mode(priv, 0);
 	usbhs_sys_function_ctrl(priv, 0);
 
 	usbhsg_pipe_disable(dcp);
