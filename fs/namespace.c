@@ -1666,19 +1666,19 @@ static void unlock_mount(struct path *path)
 	mutex_unlock(&path->dentry->d_inode->i_mutex);
 }
 
-static int graft_tree(struct vfsmount *mnt, struct path *path)
+static int graft_tree(struct mount *mnt, struct path *path)
 {
-	if (mnt->mnt_sb->s_flags & MS_NOUSER)
+	if (mnt->mnt.mnt_sb->s_flags & MS_NOUSER)
 		return -EINVAL;
 
 	if (S_ISDIR(path->dentry->d_inode->i_mode) !=
-	      S_ISDIR(mnt->mnt_root->d_inode->i_mode))
+	      S_ISDIR(mnt->mnt.mnt_root->d_inode->i_mode))
 		return -ENOTDIR;
 
 	if (d_unlinked(path->dentry))
 		return -ENOENT;
 
-	return attach_recursive_mnt(real_mount(mnt), path, NULL);
+	return attach_recursive_mnt(mnt, path, NULL);
 }
 
 /*
@@ -1776,7 +1776,7 @@ static int do_loopback(struct path *path, char *old_name,
 	if (!mnt)
 		goto out2;
 
-	err = graft_tree(&mnt->mnt, path);
+	err = graft_tree(mnt, path);
 	if (err) {
 		br_write_lock(vfsmount_lock);
 		umount_tree(mnt, 0, &umount_list);
@@ -1972,7 +1972,7 @@ do_kern_mount(const char *fstype, int flags, const char *name, void *data)
 /*
  * add a mount into a namespace's mount tree
  */
-static int do_add_mount(struct vfsmount *newmnt, struct path *path, int mnt_flags)
+static int do_add_mount(struct mount *newmnt, struct path *path, int mnt_flags)
 {
 	int err;
 
@@ -1988,15 +1988,15 @@ static int do_add_mount(struct vfsmount *newmnt, struct path *path, int mnt_flag
 
 	/* Refuse the same filesystem on the same mount point */
 	err = -EBUSY;
-	if (path->mnt->mnt_sb == newmnt->mnt_sb &&
+	if (path->mnt->mnt_sb == newmnt->mnt.mnt_sb &&
 	    path->mnt->mnt_root == path->dentry)
 		goto unlock;
 
 	err = -EINVAL;
-	if (S_ISLNK(newmnt->mnt_root->d_inode->i_mode))
+	if (S_ISLNK(newmnt->mnt.mnt_root->d_inode->i_mode))
 		goto unlock;
 
-	newmnt->mnt_flags = mnt_flags;
+	newmnt->mnt.mnt_flags = mnt_flags;
 	err = graft_tree(newmnt, path);
 
 unlock:
@@ -2025,7 +2025,7 @@ static int do_new_mount(struct path *path, char *type, int flags,
 	if (IS_ERR(mnt))
 		return PTR_ERR(mnt);
 
-	err = do_add_mount(mnt, path, mnt_flags);
+	err = do_add_mount(real_mount(mnt), path, mnt_flags);
 	if (err)
 		mntput(mnt);
 	return err;
@@ -2046,7 +2046,7 @@ int finish_automount(struct vfsmount *m, struct path *path)
 		goto fail;
 	}
 
-	err = do_add_mount(m, path, path->mnt->mnt_flags | MNT_SHRINKABLE);
+	err = do_add_mount(mnt, path, path->mnt->mnt_flags | MNT_SHRINKABLE);
 	if (!err)
 		return 0;
 fail:
