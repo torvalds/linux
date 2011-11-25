@@ -172,10 +172,10 @@ static void mxr_vp_fix_geometry(struct mxr_layer *layer,
 		y_center = src->y_offset + src->height / 2;
 
 		/* ensure scaling is between 0.25x .. 16x */
-		src->width = clamp(src->width, round_up(dst->width, 4),
-			dst->width * 16);
-		src->height = clamp(src->height, round_up(dst->height, 4),
-			dst->height * 16);
+		src->width = clamp(src->width, round_up(dst->width / 16, 4),
+			dst->width * 4);
+		src->height = clamp(src->height, round_up(dst->height / 16, 4),
+			dst->height * 4);
 
 		/* hardware limits */
 		src->width = clamp(src->width, 32U, 2047U);
