@@ -77,10 +77,8 @@
 
 
 /*
- * System Peripherals (offset from AT91_BASE_SYS)
+ * System Peripherals
  */
-#define AT91_PMC	(0xfffffc00 - AT91_BASE_SYS)	/* Power Management Controller */
-
 #define AT91RM9200_BASE_DBGU	AT91_BASE_DBGU0	/* Debug Unit */
 #define AT91RM9200_BASE_PIOA	0xfffff400	/* PIO Controller A */
 #define AT91RM9200_BASE_PIOB	0xfffff600	/* PIO Controller B */

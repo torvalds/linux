@@ -136,7 +136,7 @@ static int at91_pm_verify_clocks(void)
 	unsigned long scsr;
 	int i;
 
-	scsr = at91_sys_read(AT91_PMC_SCSR);
+	scsr = at91_pmc_read(AT91_PMC_SCSR);
 
 	/* USB must not be using PLLB */
 	if (cpu_is_at91rm9200()) {
@@ -160,7 +160,7 @@ static int at91_pm_verify_clocks(void)
 		if ((scsr & (AT91_PMC_PCK0 << i)) == 0)
 			continue;
 
-		css = at91_sys_read(AT91_PMC_PCKR(i)) & AT91_PMC_CSS;
+		css = at91_pmc_read(AT91_PMC_PCKR(i)) & AT91_PMC_CSS;
 		if (css != AT91_PMC_CSS_SLOW) {
 			pr_err("AT91: PM - Suspend-to-RAM with PCK%d src %d\n", i, css);
 			return 0;
@@ -197,7 +197,6 @@ extern void at91_slow_clock(void __iomem *pmc, void __iomem *ramc0,
 extern u32 at91_slow_clock_sz;
 #endif
 
-static void __iomem *at91_pmc_base = (void __iomem*)(AT91_VA_BASE_SYS + AT91_PMC);
 void __iomem *at91_ramc_base[2];
 
 void __init at91_ioremap_ramc(int id, u32 addr, u32 size)
@@ -218,7 +217,7 @@ static int at91_pm_enter(suspend_state_t state)
 
 	pr_debug("AT91: PM - wake mask %08x, pm state %d\n",
 			/* remember all the always-wake irqs */
-			(at91_sys_read(AT91_PMC_PCSR)
+			(at91_pmc_read(AT91_PMC_PCSR)
 					| (1 << AT91_ID_FIQ)
 					| (1 << AT91_ID_SYS)
 					| (at91_extern_irq))

@@ -295,7 +295,7 @@ static void at91rm9200_idle(void)
 	 * Disable the processor clock.  The processor will be automatically
 	 * re-enabled by an interrupt or by a reset.
 	 */
-	at91_sys_write(AT91_PMC_SCDR, AT91_PMC_PCK);
+	at91_pmc_write(AT91_PMC_SCDR, AT91_PMC_PCK);
 }
 
 static void at91rm9200_restart(char mode, const char *cmd)

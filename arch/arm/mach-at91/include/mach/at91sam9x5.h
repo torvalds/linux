@@ -55,10 +55,9 @@
 #define AT91SAM9X5_BASE_USART2	0xf8024000
 
 /*
- * System Peripherals (offset from AT91_BASE_SYS)
+ * System Peripherals
  */
 #define AT91SAM9X5_BASE_DDRSDRC0	0xffffe800
-#define AT91_PMC	(0xfffffc00 - AT91_BASE_SYS)
 
 /*
  * Base addresses for early serial code (uncompress.h)
