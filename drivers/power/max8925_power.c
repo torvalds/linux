@@ -120,16 +120,6 @@ static irqreturn_t max8925_charger_handler(int irq, void *data)
 		__set_charger(info, 0);
 		dev_dbg(chip->dev, "Adapter removed\n");
 		break;
-	case MAX8925_IRQ_VCHG_USB_R:
-		info->usb_online = 1;
-		__set_charger(info, 1);
-		dev_dbg(chip->dev, "USB inserted\n");
-		break;
-	case MAX8925_IRQ_VCHG_USB_F:
-		info->usb_online = 0;
-		__set_charger(info, 0);
-		dev_dbg(chip->dev, "USB removed\n");
-		break;
 	case MAX8925_IRQ_VCHG_THM_OK_F:
 		/* Battery is not ready yet */
 		dev_dbg(chip->dev, "Battery temperature is out of range\n");
@@ -370,9 +360,6 @@ static __devinit int max8925_init_charger(struct max8925_chip *chip,
 		REQUEST_IRQ(MAX8925_IRQ_VCHG_DC_F, "ac-remove");
 		REQUEST_IRQ(MAX8925_IRQ_VCHG_DC_R, "ac-insert");
 	}
-	REQUEST_IRQ(MAX8925_IRQ_VCHG_USB_OVP, "usb-ovp");
-	REQUEST_IRQ(MAX8925_IRQ_VCHG_USB_F, "usb-remove");
-	REQUEST_IRQ(MAX8925_IRQ_VCHG_USB_R, "usb-insert");
 	if (!info->no_temp_support) {
 		REQUEST_IRQ(MAX8925_IRQ_VCHG_THM_OK_R, "batt-temp-in-range");
 		REQUEST_IRQ(MAX8925_IRQ_VCHG_THM_OK_F, "batt-temp-out-range");
