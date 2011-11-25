@@ -23,13 +23,13 @@
 #define CL_MAKE_SHARED 		0x08
 #define CL_PRIVATE 		0x10
 
-static inline void set_mnt_shared(struct vfsmount *mnt)
+static inline void set_mnt_shared(struct mount *mnt)
 {
-	mnt->mnt_flags &= ~MNT_SHARED_MASK;
-	mnt->mnt_flags |= MNT_SHARED;
+	mnt->mnt.mnt_flags &= ~MNT_SHARED_MASK;
+	mnt->mnt.mnt_flags |= MNT_SHARED;
 }
 
-void change_mnt_propagation(struct vfsmount *, int);
+void change_mnt_propagation(struct mount *, int);
 int propagate_mnt(struct vfsmount *, struct dentry *, struct vfsmount *,
 		struct list_head *);
 int propagate_umount(struct list_head *);

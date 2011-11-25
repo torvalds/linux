@@ -114,20 +114,20 @@ static int do_make_slave(struct vfsmount *mnt)
 /*
  * vfsmount lock must be held for write
  */
-void change_mnt_propagation(struct vfsmount *mnt, int type)
+void change_mnt_propagation(struct mount *mnt, int type)
 {
 	if (type == MS_SHARED) {
 		set_mnt_shared(mnt);
 		return;
 	}
-	do_make_slave(mnt);
+	do_make_slave(&mnt->mnt);
 	if (type != MS_SLAVE) {
-		list_del_init(&mnt->mnt_slave);
-		mnt->mnt_master = NULL;
+		list_del_init(&mnt->mnt.mnt_slave);
+		mnt->mnt.mnt_master = NULL;
 		if (type == MS_UNBINDABLE)
-			mnt->mnt_flags |= MNT_UNBINDABLE;
+			mnt->mnt.mnt_flags |= MNT_UNBINDABLE;
 		else
-			mnt->mnt_flags &= ~MNT_UNBINDABLE;
+			mnt->mnt.mnt_flags &= ~MNT_UNBINDABLE;
 	}
 }
 

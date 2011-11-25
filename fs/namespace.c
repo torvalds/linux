@@ -724,7 +724,7 @@ static struct vfsmount *clone_mnt(struct vfsmount *old, struct dentry *root,
 			mnt->mnt.mnt_master = old->mnt_master;
 		}
 		if (flag & CL_MAKE_SHARED)
-			set_mnt_shared(&mnt->mnt);
+			set_mnt_shared(mnt);
 
 		/* stick the duplicate mount on the same expiry list
 		 * as the original if that was on one */
@@ -1239,7 +1239,7 @@ void umount_tree(struct vfsmount *mnt, int propagate, struct list_head *kill)
 			p->mnt.mnt_parent->mnt_ghosts++;
 			dentry_reset_mounted(p->mnt.mnt_mountpoint);
 		}
-		change_mnt_propagation(&p->mnt, MS_PRIVATE);
+		change_mnt_propagation(p, MS_PRIVATE);
 	}
 	list_splice(&tmp_list, kill);
 }
@@ -1608,7 +1608,7 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 
 	if (IS_MNT_SHARED(dest_mnt)) {
 		for (p = source_mnt; p; p = next_mnt(p, &source_mnt->mnt))
-			set_mnt_shared(&p->mnt);
+			set_mnt_shared(p);
 	}
 	if (parent_path) {
 		detach_mnt(source_mnt, parent_path);
@@ -1723,7 +1723,7 @@ static int do_change_type(struct path *path, int flag)
 
 	br_write_lock(vfsmount_lock);
 	for (m = mnt; m; m = (recurse ? next_mnt(m, &mnt->mnt) : NULL))
-		change_mnt_propagation(&m->mnt, type);
+		change_mnt_propagation(m, type);
 	br_write_unlock(vfsmount_lock);
 
  out_unlock:
