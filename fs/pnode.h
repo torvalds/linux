@@ -30,7 +30,7 @@ static inline void set_mnt_shared(struct mount *mnt)
 }
 
 void change_mnt_propagation(struct mount *, int);
-int propagate_mnt(struct vfsmount *, struct dentry *, struct vfsmount *,
+int propagate_mnt(struct mount *, struct dentry *, struct mount *,
 		struct list_head *);
 int propagate_umount(struct list_head *);
 int propagate_mount_busy(struct mount *, int);

@@ -1595,23 +1595,23 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 			struct path *path, struct path *parent_path)
 {
 	LIST_HEAD(tree_list);
-	struct vfsmount *dest_mnt = path->mnt;
+	struct mount *dest_mnt = real_mount(path->mnt);
 	struct dentry *dest_dentry = path->dentry;
 	struct mount *child, *p;
 	int err;
 
-	if (IS_MNT_SHARED(dest_mnt)) {
+	if (IS_MNT_SHARED(&dest_mnt->mnt)) {
 		err = invent_group_ids(source_mnt, true);
 		if (err)
 			goto out;
 	}
-	err = propagate_mnt(dest_mnt, dest_dentry, &source_mnt->mnt, &tree_list);
+	err = propagate_mnt(dest_mnt, dest_dentry, source_mnt, &tree_list);
 	if (err)
 		goto out_cleanup_ids;
 
 	br_write_lock(vfsmount_lock);
 
-	if (IS_MNT_SHARED(dest_mnt)) {
+	if (IS_MNT_SHARED(&dest_mnt->mnt)) {
 		for (p = source_mnt; p; p = next_mnt(p, &source_mnt->mnt))
 			set_mnt_shared(p);
 	}
@@ -1620,7 +1620,7 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 		attach_mnt(source_mnt, path);
 		touch_mnt_namespace(parent_path->mnt->mnt_ns);
 	} else {
-		mnt_set_mountpoint(dest_mnt, dest_dentry, source_mnt);
+		mnt_set_mountpoint(&dest_mnt->mnt, dest_dentry, source_mnt);
 		commit_tree(source_mnt);
 	}
 
@@ -1633,7 +1633,7 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 	return 0;
 
  out_cleanup_ids:
-	if (IS_MNT_SHARED(dest_mnt))
+	if (IS_MNT_SHARED(&dest_mnt->mnt))
 		cleanup_group_ids(source_mnt, NULL);
  out:
 	return err;
