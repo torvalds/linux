@@ -134,44 +134,40 @@ static inline void iwl_dbgfs_unregister(struct iwl_priv *priv)
  */
 
 /* 0x0000000F - 0x00000001 */
-#define IWL_DL_INFO		(1 << 0)
-#define IWL_DL_MAC80211		(1 << 1)
-#define IWL_DL_HCMD		(1 << 2)
-#define IWL_DL_STATE		(1 << 3)
+#define IWL_DL_INFO		0x00000001
+#define IWL_DL_MAC80211		0x00000002
+#define IWL_DL_HCMD		0x00000004
+#define IWL_DL_STATE		0x00000008
 /* 0x000000F0 - 0x00000010 */
-/* unused (1 << 4) */
-/* unused (1 << 5) */
-#define IWL_DL_EEPROM		(1 << 6)
-#define IWL_DL_RADIO		(1 << 7)
+#define IWL_DL_EEPROM		0x00000040
+#define IWL_DL_RADIO		0x00000080
 /* 0x00000F00 - 0x00000100 */
-#define IWL_DL_POWER		(1 << 8)
-#define IWL_DL_TEMP		(1 << 9)
-/* reserved (1 << 10) */
-#define IWL_DL_SCAN		(1 << 11)
+#define IWL_DL_POWER		0x00000100
+#define IWL_DL_TEMP		0x00000200
+#define IWL_DL_SCAN		0x00000800
 /* 0x0000F000 - 0x00001000 */
-#define IWL_DL_ASSOC		(1 << 12)
-#define IWL_DL_DROP		(1 << 13)
-/* reserved (1 << 14) */
-#define IWL_DL_COEX		(1 << 15)
+#define IWL_DL_ASSOC		0x00001000
+#define IWL_DL_DROP		0x00002000
+#define IWL_DL_COEX		0x00008000
 /* 0x000F0000 - 0x00010000 */
-#define IWL_DL_FW		(1 << 16)
-#define IWL_DL_RF_KILL		(1 << 17)
-#define IWL_DL_FW_ERRORS	(1 << 18)
-#define IWL_DL_LED		(1 << 19)
+#define IWL_DL_FW		0x00010000
+#define IWL_DL_RF_KILL		0x00020000
+#define IWL_DL_FW_ERRORS	0x00040000
+#define IWL_DL_LED		0x00080000
 /* 0x00F00000 - 0x00100000 */
-#define IWL_DL_RATE		(1 << 20)
-#define IWL_DL_CALIB		(1 << 21)
-#define IWL_DL_WEP		(1 << 22)
-#define IWL_DL_TX		(1 << 23)
+#define IWL_DL_RATE		0x00100000
+#define IWL_DL_CALIB		0x00200000
+#define IWL_DL_WEP		0x00400000
+#define IWL_DL_TX		0x00800000
 /* 0x0F000000 - 0x01000000 */
-#define IWL_DL_RX		(1 << 24)
-#define IWL_DL_ISR		(1 << 25)
-#define IWL_DL_HT		(1 << 26)
+#define IWL_DL_RX		0x01000000
+#define IWL_DL_ISR		0x02000000
+#define IWL_DL_HT		0x04000000
 /* 0xF0000000 - 0x10000000 */
-#define IWL_DL_11H		(1 << 28)
-#define IWL_DL_STATS		(1 << 29)
-#define IWL_DL_TX_REPLY		(1 << 30)
-#define IWL_DL_TX_QUEUES	(1 << 31)
+#define IWL_DL_11H		0x10000000
+#define IWL_DL_STATS		0x20000000
+#define IWL_DL_TX_REPLY		0x40000000
+#define IWL_DL_TX_QUEUES	0x80000000
 
 #define IWL_DEBUG_INFO(p, f, a...)	IWL_DEBUG(p, IWL_DL_INFO, f, ## a)
 #define IWL_DEBUG_MAC80211(p, f, a...)	IWL_DEBUG(p, IWL_DL_MAC80211, f, ## a)
