@@ -51,11 +51,6 @@ struct vfsmount {
 	struct dentry *mnt_root;	/* root of the mounted tree */
 	struct super_block *mnt_sb;	/* pointer to superblock */
 	int mnt_flags;
-	/* 4 bytes hole on 64bits arches without fsnotify */
-#ifdef CONFIG_FSNOTIFY
-	__u32 mnt_fsnotify_mask;
-	struct hlist_head mnt_fsnotify_marks;
-#endif
 };
 
 struct file; /* forward dec */
