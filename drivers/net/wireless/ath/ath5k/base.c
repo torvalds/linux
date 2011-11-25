@@ -2149,69 +2149,110 @@ ath5k_intr(int irq, void *dev_id)
 	enum ath5k_int status;
 	unsigned int counter = 1000;
 
+
+	/*
+	 * If hw is not ready (or detached) and we get an
+	 * interrupt, or if we have no interrupts pending
+	 * (that means it's not for us) skip it.
+	 *
+	 * NOTE: Group 0/1 PCI interface registers are not
+	 * supported on WiSOCs, so we can't check for pending
+	 * interrupts (ISR belongs to another register group
+	 * so we are ok).
+	 */
 	if (unlikely(test_bit(ATH_STAT_INVALID, ah->status) ||
-		((ath5k_get_bus_type(ah) != ATH_AHB) &&
-				!ath5k_hw_is_intr_pending(ah))))
+			((ath5k_get_bus_type(ah) != ATH_AHB) &&
+			!ath5k_hw_is_intr_pending(ah))))
 		return IRQ_NONE;
 
+	/** Main loop **/
 	do {
-		ath5k_hw_get_isr(ah, &status);		/* NB: clears IRQ too */
+		ath5k_hw_get_isr(ah, &status);	/* NB: clears IRQ too */
+
 		ATH5K_DBG(ah, ATH5K_DEBUG_INTR, "status 0x%x/0x%x\n",
 				status, ah->imask);
+
+		/*
+		 * Fatal hw error -> Log and reset
+		 *
+		 * Fatal errors are unrecoverable so we have to
+		 * reset the card. These errors include bus and
+		 * dma errors.
+		 */
 		if (unlikely(status & AR5K_INT_FATAL)) {
-			/*
-			 * Fatal errors are unrecoverable.
-			 * Typically these are caused by DMA errors.
-			 */
+
 			ATH5K_DBG(ah, ATH5K_DEBUG_RESET,
 				  "fatal int, resetting\n");
 			ieee80211_queue_work(ah->hw, &ah->reset_work);
+
+		/*
+		 * RX Overrun -> Count and reset if needed
+		 *
+		 * Receive buffers are full. Either the bus is busy or
+		 * the CPU is not fast enough to process all received
+		 * frames.
+		 */
 		} else if (unlikely(status & AR5K_INT_RXORN)) {
+
 			/*
-			 * Receive buffers are full. Either the bus is busy or
-			 * the CPU is not fast enough to process all received
-			 * frames.
 			 * Older chipsets need a reset to come out of this
 			 * condition, but we treat it as RX for newer chips.
-			 * We don't know exactly which versions need a reset -
+			 * We don't know exactly which versions need a reset
 			 * this guess is copied from the HAL.
 			 */
 			ah->stats.rxorn_intr++;
+
 			if (ah->ah_mac_srev < AR5K_SREV_AR5212) {
 				ATH5K_DBG(ah, ATH5K_DEBUG_RESET,
 					  "rx overrun, resetting\n");
 				ieee80211_queue_work(ah->hw, &ah->reset_work);
 			} else
 				ath5k_schedule_rx(ah);
+
 		} else {
+
+			/* Software Beacon Alert -> Schedule beacon tasklet */
 			if (status & AR5K_INT_SWBA)
 				tasklet_hi_schedule(&ah->beacontq);
 
-			if (status & AR5K_INT_RXEOL) {
-				/*
-				* NB: the hardware should re-read the link when
-				*     RXE bit is written, but it doesn't work at
-				*     least on older hardware revs.
-				*/
+			/*
+			 * No more RX descriptors -> Just count
+			 *
+			 * NB: the hardware should re-read the link when
+			 *     RXE bit is written, but it doesn't work at
+			 *     least on older hardware revs.
+			 */
+			if (status & AR5K_INT_RXEOL)
 				ah->stats.rxeol_intr++;
-			}
-			if (status & AR5K_INT_TXURN) {
-				/* bump tx trigger level */
+
+
+			/* TX Underrun -> Bump tx trigger level */
+			if (status & AR5K_INT_TXURN)
 				ath5k_hw_update_tx_triglevel(ah, true);
-			}
+
+			/* RX -> Schedule rx tasklet */
 			if (status & (AR5K_INT_RXOK | AR5K_INT_RXERR))
 				ath5k_schedule_rx(ah);
-			if (status & (AR5K_INT_TXOK | AR5K_INT_TXDESC
-					| AR5K_INT_TXERR | AR5K_INT_TXEOL))
+
+			/* TX -> Schedule tx tasklet */
+			if (status & (AR5K_INT_TXOK
+					| AR5K_INT_TXDESC
+					| AR5K_INT_TXERR
+					| AR5K_INT_TXEOL))
 				ath5k_schedule_tx(ah);
-			if (status & AR5K_INT_BMISS) {
-				/* TODO */
-			}
+
+			/* Missed beacon -> TODO
+			if (status & AR5K_INT_BMISS)
+			*/
+
+			/* MIB event -> Update counters and notify ANI */
 			if (status & AR5K_INT_MIB) {
 				ah->stats.mib_intr++;
 				ath5k_hw_update_mib_counters(ah);
 				ath5k_ani_mib_intr(ah);
 			}
+
+			/* GPIO -> Notify RFKill layer */
 			if (status & AR5K_INT_GPIO)
 				tasklet_schedule(&ah->rf_kill.toggleq);
 
@@ -2222,12 +2263,19 @@ ath5k_intr(int irq, void *dev_id)
 
 	} while (ath5k_hw_is_intr_pending(ah) && --counter > 0);
 
+	/*
+	 * Until we handle rx/tx interrupts mask them on IMR
+	 *
+	 * NOTE: ah->(rx/tx)_pending are set when scheduling the tasklets
+	 * and unset after we 've handled the interrupts.
+	 */
 	if (ah->rx_pending || ah->tx_pending)
 		ath5k_set_current_imask(ah);
 
 	if (unlikely(!counter))
 		ATH5K_WARN(ah, "too many interrupts, giving up for now\n");
 
+	/* Fire up calibration poll */
 	ath5k_intr_calibration_poll(ah);
 
 	return IRQ_HANDLED;
@@ -2544,9 +2592,15 @@ int ath5k_start(struct ieee80211_hw *hw)
 	 * and then setup of the interrupt mask.
 	 */
 	ah->curchan = ah->hw->conf.channel;
-	ah->imask = AR5K_INT_RXOK | AR5K_INT_RXERR | AR5K_INT_RXEOL |
-		AR5K_INT_RXORN | AR5K_INT_TXDESC | AR5K_INT_TXEOL |
-		AR5K_INT_FATAL | AR5K_INT_GLOBAL | AR5K_INT_MIB;
+	ah->imask = AR5K_INT_RXOK
+		| AR5K_INT_RXERR
+		| AR5K_INT_RXEOL
+		| AR5K_INT_RXORN
+		| AR5K_INT_TXDESC
+		| AR5K_INT_TXEOL
+		| AR5K_INT_FATAL
+		| AR5K_INT_GLOBAL
+		| AR5K_INT_MIB;
 
 	ret = ath5k_reset(ah, NULL, false);
 	if (ret)

@@ -701,21 +701,25 @@ int ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask)
 		if (unlikely(pisr & (AR5K_ISR_BNR)))
 			*interrupt_mask |= AR5K_INT_BNR;
 
+		/* Doppler chirp received */
 		if (unlikely(pisr & (AR5K_ISR_RXDOPPLER)))
 			*interrupt_mask |= AR5K_INT_RX_DOPPLER;
 
+		/* A queue got CBR overrun */
 		if (unlikely(pisr & (AR5K_ISR_QCBRORN))) {
 			*interrupt_mask |= AR5K_INT_QCBRORN;
 			ah->ah_txq_isr_qcborn |= AR5K_REG_MS(sisr3,
 						AR5K_SISR3_QCBRORN);
 		}
 
+		/* A queue got CBR underrun */
 		if (unlikely(pisr & (AR5K_ISR_QCBRURN))) {
 			*interrupt_mask |= AR5K_INT_QCBRURN;
 			ah->ah_txq_isr_qcburn |= AR5K_REG_MS(sisr3,
 						AR5K_SISR3_QCBRURN);
 		}
 
+		/* A queue got triggered */
 		if (unlikely(pisr & (AR5K_ISR_QTRIG))) {
 			*interrupt_mask |= AR5K_INT_QTRIG;
 			ah->ah_txq_isr_qtrig |= AR5K_REG_MS(sisr4,
@@ -772,16 +776,14 @@ enum ath5k_int ath5k_hw_set_imr(struct ath5k_hw *ah, enum ath5k_int new_mask)
 		u32 simr2 = ath5k_hw_reg_read(ah, AR5K_SIMR2)
 				& AR5K_SIMR2_QCU_TXURN;
 
+		/* Fatal interrupt abstraction for 5211+ */
 		if (new_mask & AR5K_INT_FATAL) {
 			int_mask |= AR5K_IMR_HIUERR;
 			simr2 |= (AR5K_SIMR2_MCABT | AR5K_SIMR2_SSERR
 				| AR5K_SIMR2_DPERR);
 		}
 
-		/*Beacon Not Ready*/
-		if (new_mask & AR5K_INT_BNR)
-			int_mask |= AR5K_INT_BNR;
-
+		/* Misc beacon related interrupts */
 		if (new_mask & AR5K_INT_TIM)
 			int_mask |= AR5K_IMR_TIM;
 
@@ -796,6 +798,11 @@ enum ath5k_int ath5k_hw_set_imr(struct ath5k_hw *ah, enum ath5k_int new_mask)
 		if (new_mask & AR5K_INT_CAB_TIMEOUT)
 			simr2 |= AR5K_SISR2_CAB_TIMEOUT;
 
+		/*Beacon Not Ready*/
+		if (new_mask & AR5K_INT_BNR)
+			int_mask |= AR5K_INT_BNR;
+
+		/* RX doppler chirp */
 		if (new_mask & AR5K_INT_RX_DOPPLER)
 			int_mask |= AR5K_IMR_RXDOPPLER;
 
@@ -805,10 +812,12 @@ enum ath5k_int ath5k_hw_set_imr(struct ath5k_hw *ah, enum ath5k_int new_mask)
 		ath5k_hw_reg_write(ah, simr2, AR5K_SIMR2);
 
 	} else {
+		/* Fatal interrupt abstraction for 5210 */
 		if (new_mask & AR5K_INT_FATAL)
 			int_mask |= (AR5K_IMR_SSERR | AR5K_IMR_MCABT
 				| AR5K_IMR_HIUERR | AR5K_IMR_DPERR);
 
+		/* Only common interrupts left for 5210 (no SIMRs) */
 		ath5k_hw_reg_write(ah, int_mask, AR5K_IMR);
 	}
 
