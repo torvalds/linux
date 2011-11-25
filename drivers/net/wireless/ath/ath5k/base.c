@@ -725,21 +725,24 @@ ath5k_txbuf_setup(struct ath5k_hw *ah, struct ath5k_buf *bf,
 	if (ret)
 		goto err_unmap;
 
-	memset(mrr_rate, 0, sizeof(mrr_rate));
-	memset(mrr_tries, 0, sizeof(mrr_tries));
-	for (i = 0; i < 3; i++) {
-		rate = ieee80211_get_alt_retry_rate(ah->hw, info, i);
-		if (!rate)
-			break;
+	/* Set up MRR descriptor */
+	if (ah->ah_capabilities.cap_has_mrr_support) {
+		memset(mrr_rate, 0, sizeof(mrr_rate));
+		memset(mrr_tries, 0, sizeof(mrr_tries));
+		for (i = 0; i < 3; i++) {
+			rate = ieee80211_get_alt_retry_rate(ah->hw, info, i);
+			if (!rate)
+				break;
 
-		mrr_rate[i] = rate->hw_value;
-		mrr_tries[i] = info->control.rates[i + 1].count;
+			mrr_rate[i] = rate->hw_value;
+			mrr_tries[i] = info->control.rates[i + 1].count;
+		}
+
+		ath5k_hw_setup_mrr_tx_desc(ah, ds,
+			mrr_rate[0], mrr_tries[0],
+			mrr_rate[1], mrr_tries[1],
+			mrr_rate[2], mrr_tries[2]);
 	}
-
-	ath5k_hw_setup_mrr_tx_desc(ah, ds,
-		mrr_rate[0], mrr_tries[0],
-		mrr_rate[1], mrr_tries[1],
-		mrr_rate[2], mrr_tries[2]);
 
 	ds->ds_link = 0;
 	ds->ds_data = bf->skbaddr;
@@ -2489,8 +2492,8 @@ ath5k_init_ah(struct ath5k_hw *ah, const struct ath_bus_ops *bus_ops)
 	if (ret)
 		goto err_irq;
 
-	/* set up multi-rate retry capabilities */
-	if (ah->ah_version == AR5K_AR5212) {
+	/* Set up multi-rate retry capabilities */
+	if (ah->ah_capabilities.cap_has_mrr_support) {
 		hw->max_rates = 4;
 		hw->max_rate_tries = max(AR5K_INIT_RETRY_SHORT,
 					 AR5K_INIT_RETRY_LONG);
@@ -2847,20 +2850,6 @@ ath5k_init(struct ieee80211_hw *hw)
 	u8 mac[ETH_ALEN] = {};
 	int ret;
 
-
-	/*
-	 * Check if the MAC has multi-rate retry support.
-	 * We do this by trying to setup a fake extended
-	 * descriptor.  MACs that don't have support will
-	 * return false w/o doing anything.  MACs that do
-	 * support it will return true w/o doing anything.
-	 */
-	ret = ath5k_hw_setup_mrr_tx_desc(ah, NULL, 0, 0, 0, 0, 0, 0);
-
-	if (ret < 0)
-		goto err;
-	if (ret > 0)
-		__set_bit(ATH_STAT_MRRETRY, ah->status);
 
 	/*
 	 * Collect the channel list.  The 802.11 layer

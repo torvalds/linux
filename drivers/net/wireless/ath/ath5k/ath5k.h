@@ -1159,6 +1159,8 @@ struct ath5k_capabilities {
 	} cap_queues;
 
 	bool cap_has_phyerr_counters;
+	bool cap_has_mrr_support;
+	bool cap_needs_2GHz_ovr;
 };
 
 /* size of noise floor history (keep it a power of two) */
@@ -1274,13 +1276,11 @@ struct ath5k_hw {
 	dma_addr_t		desc_daddr;	/* DMA (physical) address */
 	size_t			desc_len;	/* size of TX/RX descriptors */
 
-	DECLARE_BITMAP(status, 6);
+	DECLARE_BITMAP(status, 4);
 #define ATH_STAT_INVALID	0		/* disable hardware accesses */
-#define ATH_STAT_MRRETRY	1		/* multi-rate retry support */
-#define ATH_STAT_PROMISC	2
-#define ATH_STAT_LEDSOFT	3		/* enable LED gpio status */
-#define ATH_STAT_STARTED	4		/* opened & irqs enabled */
-#define ATH_STAT_2G_DISABLED	5		/* multiband radio without 2G */
+#define ATH_STAT_PROMISC	1
+#define ATH_STAT_LEDSOFT	2		/* enable LED gpio status */
+#define ATH_STAT_STARTED	3		/* opened & irqs enabled */
 
 	unsigned int		filter_flags;	/* HW flags, AR5K_RX_FILTER_* */
 	struct ieee80211_channel *curchan;	/* current h/w channel */

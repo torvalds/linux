@@ -306,11 +306,6 @@ int ath5k_hw_init(struct ath5k_hw *ah)
 		goto err;
 	}
 
-	if (test_bit(ATH_STAT_2G_DISABLED, ah->status)) {
-		__clear_bit(AR5K_MODE_11B, ah->ah_capabilities.cap_mode);
-		__clear_bit(AR5K_MODE_11G, ah->ah_capabilities.cap_mode);
-	}
-
 	/* Crypto settings */
 	common->keymax = (ah->ah_version == AR5K_AR5210 ?
 			  AR5K_KEYTABLE_SIZE_5210 : AR5K_KEYTABLE_SIZE_5211);
