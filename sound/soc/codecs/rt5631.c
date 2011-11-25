@@ -147,10 +147,10 @@ struct rt5631_init_reg {
 };
 
 #ifndef DEF_VOL
-#define DEF_VOL					0xc0
+#define DEF_VOL					0xd4//0xd4 -30dB 0xc0 0dB
 #endif
 #ifndef DEF_VOL_SPK
-#define DEF_VOL_SPK				0xc0
+#define DEF_VOL_SPK				0xc4
 #endif
 
 /*
@@ -170,38 +170,40 @@ struct rt5631_init_reg {
  */
 static struct rt5631_init_reg init_list[] = {
 
-	{RT5631_SPK_OUT_VOL			, (DEF_VOL_SPK<<8) | DEF_VOL_SPK},		//speaker channel volume select SPKMIXER,0DB by default
-	{RT5631_HP_OUT_VOL			, (DEF_VOL<<8) | DEF_VOL},		//Headphone channel volume select OUTMIXER,0DB by default
-	{RT5631_MONO_AXO_1_2_VOL	, 0xf0c0},		//AXO1/AXO2 channel volume select OUTMIXER,0DB by default
-	{RT5631_ADC_REC_MIXER		, 0xb0f0},		//Record Mixer source from Mic1 by default
-	{RT5631_ADC_CTRL_1			, 0x0006},//STEREO ADC CONTROL 1
-	{RT5631_MIC_CTRL_2			, 0x6600},//0x8800},//0x5500}, 		//Mic1/Mic2 boost 40DB by default
+	{RT5631_SPK_OUT_VOL		, (DEF_VOL_SPK<<8) | DEF_VOL_SPK},//speaker channel volume select SPKMIXER,0DB by default
+	{RT5631_HP_OUT_VOL		, (DEF_VOL<<8) | DEF_VOL},//Headphone channel volume select OUTMIXER,0DB by default
+	{RT5631_MONO_AXO_1_2_VOL	, 0xf0c0},//AXO1/AXO2 channel volume select OUTMIXER,0DB by default
+	//{RT5631_STEREO_DAC_VOL_1	, 0x004C},
+	{RT5631_ADC_REC_MIXER		, 0xb0f0},//Record Mixer source from Mic1 by default
+	{RT5631_ADC_CTRL_1		, 0x0006},//STEREO ADC CONTROL 1
+	{RT5631_MIC_CTRL_2		, 0x6600},//0x8800},//0x5500}, //Mic1/Mic2 boost 40DB by default
+	{RT5631_PWR_MANAG_ADD1		, 0x93e0},
 	
 #if RT5631_ALC_ADC_FUNC_ENA	
 
-	{RT5631_ALC_CTRL_1			, 0x0a0f},//ALC CONTROL 1
-	{RT5631_ALC_CTRL_2			, 0x0005},//ALC CONTROL 2
-	{RT5631_ALC_CTRL_3			, 0xe080},//ALC CONTROL 3
+	{RT5631_ALC_CTRL_1		, 0x0a0f},//ALC CONTROL 1
+	{RT5631_ALC_CTRL_2		, 0x0005},//ALC CONTROL 2
+	{RT5631_ALC_CTRL_3		, 0xe080},//ALC CONTROL 3
 	
 #endif	
-	{RT5631_OUTMIXER_L_CTRL		, 0xdfC0},		//DAC_L-->OutMixer_L by default
-	{RT5631_OUTMIXER_R_CTRL		, 0xdfC0},		//DAC_R-->OutMixer_R by default
-	{RT5631_AXO1MIXER_CTRL		, 0x8840},		//OutMixer_L-->AXO1Mixer by default
-	{RT5631_AXO2MIXER_CTRL		, 0x8880},		//OutMixer_R-->AXO2Mixer by default
-	{RT5631_SPK_MIXER_CTRL		, 0xd8d8},		//DAC-->SpeakerMixer
-	{RT5631_SPK_MONO_OUT_CTRL	, 0x6c00},		//Speaker volume-->SPOMixer(L-->L,R-->R)	
-	{RT5631_GEN_PUR_CTRL_REG	, 0x2e00},		//Speaker AMP ratio gain is 1.27x
+	{RT5631_OUTMIXER_L_CTRL		, 0xdfC0},//DAC_L-->OutMixer_L by default
+	{RT5631_OUTMIXER_R_CTRL		, 0xdfC0},//DAC_R-->OutMixer_R by default
+	{RT5631_AXO1MIXER_CTRL		, 0x8840},//OutMixer_L-->AXO1Mixer by default
+	{RT5631_AXO2MIXER_CTRL		, 0x8880},//OutMixer_R-->AXO2Mixer by default
+	{RT5631_SPK_MIXER_CTRL		, 0xd8d8},//DAC-->SpeakerMixer
+	{RT5631_SPK_MONO_OUT_CTRL	, 0x6c00},//Speaker volume-->SPOMixer(L-->L,R-->R)	
+	{RT5631_GEN_PUR_CTRL_REG	, 0x4e00},//Speaker AMP ratio gain is 1.27x
 #if defined(CONFIG_ADJUST_VOL_BY_CODEC)
-	{RT5631_SPK_MONO_HP_OUT_CTRL, 0x0000},		//HP from outputmixer,speaker out from SpeakerOut Mixer	
+	{RT5631_SPK_MONO_HP_OUT_CTRL	, 0x0000},//HP from outputmixer,speaker out from SpeakerOut Mixer	
 #else
-	{RT5631_SPK_MONO_HP_OUT_CTRL, 0x000c},		//HP from DAC,speaker out from SpeakerOut Mixer
+	{RT5631_SPK_MONO_HP_OUT_CTRL	, 0x000c},//HP from DAC,speaker out from SpeakerOut Mixer
 #endif
-	{RT5631_DEPOP_FUN_CTRL_2	, 0x8000},		//HP depop by register control	
-	{RT5631_INT_ST_IRQ_CTRL_2	, 0x0f18},		//enable HP zero cross	
-	{RT5631_MIC_CTRL_1			, 0x8000},		//set mic 1 to differnetial mode
-	{RT5631_GPIO_CTRL			, 0x0000},		//set GPIO to input pin	
-//	{RT5631_JACK_DET_CTRL		, 0x4e80},		//Jack detect for GPIO,high is HP,low is speaker	
-	{RT5631_JACK_DET_CTRL		, 0x4bc0},		//Jack detect for GPIO,high is speaker,low is hp	
+	{RT5631_DEPOP_FUN_CTRL_2	, 0x8000},//HP depop by register control	
+	{RT5631_INT_ST_IRQ_CTRL_2	, 0x0f18},//enable HP zero cross	
+	{RT5631_MIC_CTRL_1		, 0x8000},//set mic 1 to differnetial mode
+	{RT5631_GPIO_CTRL		, 0x0000},//set GPIO to input pin	
+//	{RT5631_JACK_DET_CTRL		, 0x4e80},//Jack detect for GPIO,high is HP,low is speaker	
+	{RT5631_JACK_DET_CTRL		, 0x4bc0},//Jack detect for GPIO,high is speaker,low is hp	
 };
 #define RT5631_INIT_REG_LEN ARRAY_SIZE(init_list)
 
@@ -1005,10 +1007,10 @@ static int config_common_power(struct snd_soc_codec *codec, bool pmu)
 			PWR_MAIN_I2S_EN | PWR_DAC_REF,
 			PWR_MAIN_I2S_EN | PWR_DAC_REF);
 		mux_val = rt5631_read(codec, RT5631_SPK_MONO_HP_OUT_CTRL);
-		if (!(mux_val & HP_L_MUX_SEL_DAC_L))
+		//if (!(mux_val & HP_L_MUX_SEL_DAC_L))
 			rt5631_write_mask(codec, RT5631_PWR_MANAG_ADD1,
 				PWR_DAC_L_TO_MIXER, PWR_DAC_L_TO_MIXER);
-		if (!(mux_val & HP_R_MUX_SEL_DAC_R))
+		//if (!(mux_val & HP_R_MUX_SEL_DAC_R))
 			rt5631_write_mask(codec, RT5631_PWR_MANAG_ADD1,
 				PWR_DAC_R_TO_MIXER, PWR_DAC_R_TO_MIXER);
 		if (rt5631->pll_used_flag)
@@ -1331,6 +1333,13 @@ static int rt5631_add_widgets(struct snd_soc_codec *codec)
 	return 0;
 }
 
+static int voltab[2][16] = 
+{
+    //spk
+    {0x27, 0x1b, 0x18, 0x15, 0x13, 0x11, 0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07, 0x06},
+    //hp
+    {0x1f, 0x1c, 0x1a, 0x18, 0x16, 0x14, 0x12, 0x10, 0x0e, 0x0c, 0x0a, 0x08, 0x06, 0x04, 0x02, 0x01},
+};
 static int gvolume = 0;
 
 #if 1
@@ -1404,14 +1413,6 @@ static void rt5631_set_eq(int on)
 }
 
 #else
-
-static int voltab[2][16] =
-{
-    //spk
-    {0x27, 0x1b, 0x18, 0x15, 0x13, 0x11, 0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07, 0x06},
-    //hp
-    {0x1f, 0x1c, 0x1a, 0x18, 0x16, 0x14, 0x12, 0x10, 0x0e, 0x0c, 0x0a, 0x08, 0x06, 0x04, 0x02, 0x01},
-};
 
 static void rt5631_set_volume(int vollevel)
 {

@@ -217,14 +217,14 @@ static int __init audio_card_init(void)
         DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 	rk29_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!rk29_snd_device) {
-		  DBG("platform device allocation failed\n");
+		  printk("platform device allocation failed\n");
 		  ret = -ENOMEM;
 		  return ret;
 	}
 	platform_set_drvdata(rk29_snd_device, &snd_soc_card_rk29);
 	ret = platform_device_add(rk29_snd_device);
 	if (ret) {
-	        DBG("platform device add failed\n");
+	        printk("platform device add failed\n");
 	        platform_device_put(rk29_snd_device);
 	}
 	return ret;
