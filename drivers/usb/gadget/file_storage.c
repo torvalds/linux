@@ -3568,6 +3568,9 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 
 	/* Tell the thread to start working */
 	wake_up_process(fsg->thread_task);
+
+	usb_gadget_connect(gadget);
+
 	return 0;
 
 autoconf_fail:

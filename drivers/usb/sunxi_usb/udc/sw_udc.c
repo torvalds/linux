@@ -70,6 +70,7 @@ static u32              usbd_port_no = 0;
 static sw_udc_io_t      g_sw_udc_io;
 static u32 usb_connect = 0;
 static u32 is_controller_alive = 0;
+static u8 is_udc_enable = 0; /* is udc enable by gadget? */
 
 #ifdef CONFIG_USB_SW_SUNXI_USB0_OTG
 static struct platform_device *g_udc_pdev = NULL;
@@ -2759,6 +2760,8 @@ static int sw_udc_set_pullup(struct sw_udc *udc, int is_on)
 		return 0;
 	}
 
+	is_udc_enable = is_on;
+
 	if(is_on){
 		sw_udc_enable(udc);
 	}else{
@@ -3312,7 +3315,7 @@ int sw_usb_device_enable(void)
 		goto err;
 	}
 
-	if(udc->driver){
+	if(udc->driver && is_udc_enable){
 		sw_udc_enable(udc);
 		cfg_udc_command(SW_UDC_P_ENABLE);
 	}
@@ -3728,16 +3731,18 @@ static int sw_udc_resume(struct platform_device *pdev)
 		return 0;
 	}
 
-    /* open USB clock */
+	/* open USB clock */
 	open_usb_clock(&g_sw_udc_io);
 
-	/* enable usb controller */
-    sw_udc_enable(udc);
+	if (is_udc_enable){
+		/* enable usb controller */
+		sw_udc_enable(udc);
 
-    /* soft connect */
-	cfg_udc_command(SW_UDC_P_ENABLE);
+		/* soft connect */
+		cfg_udc_command(SW_UDC_P_ENABLE);
+	}
 
-    DMSG_INFO_UDC("sw_udc_resume end\n");
+	DMSG_INFO_UDC("sw_udc_resume end\n");
 
 	return 0;
 }
