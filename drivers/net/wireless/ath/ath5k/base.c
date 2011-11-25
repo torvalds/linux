@@ -1689,7 +1689,7 @@ ath5k_tasklet_tx(unsigned long data)
 	struct ath5k_hw *ah = (void *)data;
 
 	for (i = 0; i < AR5K_NUM_TX_QUEUES; i++)
-		if (ah->txqs[i].setup && (ah->ah_txq_isr & BIT(i)))
+		if (ah->txqs[i].setup && (ah->ah_txq_isr_txok_all & BIT(i)))
 			ath5k_tx_processq(ah, &ah->txqs[i]);
 
 	ah->tx_pending = false;
