@@ -384,18 +384,7 @@ static struct platform_driver au1xpsc_pcm_driver = {
 	.remove		= __devexit_p(au1xpsc_pcm_drvremove),
 };
 
-static int __init au1xpsc_audio_dbdma_load(void)
-{
-	return platform_driver_register(&au1xpsc_pcm_driver);
-}
-
-static void __exit au1xpsc_audio_dbdma_unload(void)
-{
-	platform_driver_unregister(&au1xpsc_pcm_driver);
-}
-
-module_init(au1xpsc_audio_dbdma_load);
-module_exit(au1xpsc_audio_dbdma_unload);
+module_platform_driver(au1xpsc_pcm_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Au12x0/Au1550 PSC Audio DMA driver");

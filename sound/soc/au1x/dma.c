@@ -359,18 +359,7 @@ static struct platform_driver alchemy_pcmdma_driver = {
 	.remove		= __devexit_p(alchemy_pcm_drvremove),
 };
 
-static int __init alchemy_pcmdma_load(void)
-{
-	return platform_driver_register(&alchemy_pcmdma_driver);
-}
-
-static void __exit alchemy_pcmdma_unload(void)
-{
-	platform_driver_unregister(&alchemy_pcmdma_driver);
-}
-
-module_init(alchemy_pcmdma_load);
-module_exit(alchemy_pcmdma_unload);
+module_platform_driver(alchemy_pcmdma_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Au1000/Au1500/Au1100 Audio DMA driver");

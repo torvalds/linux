@@ -57,18 +57,7 @@ static struct platform_driver db1000_audio_driver = {
 	.remove		= __devexit_p(db1000_audio_remove),
 };
 
-static int __init db1000_audio_load(void)
-{
-	return platform_driver_register(&db1000_audio_driver);
-}
-
-static void __exit db1000_audio_unload(void)
-{
-	platform_driver_unregister(&db1000_audio_driver);
-}
-
-module_init(db1000_audio_load);
-module_exit(db1000_audio_unload);
+module_platform_driver(db1000_audio_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("DB1000/DB1500/DB1100 ASoC audio");

@@ -435,18 +435,7 @@ static struct platform_driver au1xpsc_i2s_driver = {
 	.remove		= __devexit_p(au1xpsc_i2s_drvremove),
 };
 
-static int __init au1xpsc_i2s_load(void)
-{
-	return platform_driver_register(&au1xpsc_i2s_driver);
-}
-
-static void __exit au1xpsc_i2s_unload(void)
-{
-	platform_driver_unregister(&au1xpsc_i2s_driver);
-}
-
-module_init(au1xpsc_i2s_load);
-module_exit(au1xpsc_i2s_unload);
+module_platform_driver(au1xpsc_i2s_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Au12x0/Au1550 PSC I2S ALSA ASoC audio driver");

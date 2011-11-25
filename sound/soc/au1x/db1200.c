@@ -133,18 +133,7 @@ static struct platform_driver db1200_audio_driver = {
 	.remove		= __devexit_p(db1200_audio_remove),
 };
 
-static int __init db1200_audio_load(void)
-{
-	return platform_driver_register(&db1200_audio_driver);
-}
-
-static void __exit db1200_audio_unload(void)
-{
-	platform_driver_unregister(&db1200_audio_driver);
-}
-
-module_init(db1200_audio_load);
-module_exit(db1200_audio_unload);
+module_platform_driver(db1200_audio_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("DB1200 ASoC audio support");
