@@ -78,16 +78,16 @@ static inline unsigned long hash(struct vfsmount *mnt, struct dentry *dentry)
  * allocation is serialized by namespace_sem, but we need the spinlock to
  * serialize with freeing.
  */
-static int mnt_alloc_id(struct vfsmount *mnt)
+static int mnt_alloc_id(struct mount *mnt)
 {
 	int res;
 
 retry:
 	ida_pre_get(&mnt_id_ida, GFP_KERNEL);
 	spin_lock(&mnt_id_lock);
-	res = ida_get_new_above(&mnt_id_ida, mnt_id_start, &mnt->mnt_id);
+	res = ida_get_new_above(&mnt_id_ida, mnt_id_start, &mnt->mnt.mnt_id);
 	if (!res)
-		mnt_id_start = mnt->mnt_id + 1;
+		mnt_id_start = mnt->mnt.mnt_id + 1;
 	spin_unlock(&mnt_id_lock);
 	if (res == -EAGAIN)
 		goto retry;
@@ -95,9 +95,9 @@ retry:
 	return res;
 }
 
-static void mnt_free_id(struct vfsmount *mnt)
+static void mnt_free_id(struct mount *mnt)
 {
-	int id = mnt->mnt_id;
+	int id = mnt->mnt.mnt_id;
 	spin_lock(&mnt_id_lock);
 	ida_remove(&mnt_id_ida, id);
 	if (mnt_id_start > id)
@@ -171,14 +171,14 @@ unsigned int mnt_get_count(struct vfsmount *mnt)
 #endif
 }
 
-static struct vfsmount *alloc_vfsmnt(const char *name)
+static struct mount *alloc_vfsmnt(const char *name)
 {
 	struct mount *p = kmem_cache_zalloc(mnt_cache, GFP_KERNEL);
 	if (p) {
 		struct vfsmount *mnt = &p->mnt;
 		int err;
 
-		err = mnt_alloc_id(mnt);
+		err = mnt_alloc_id(p);
 		if (err)
 			goto out_free_cache;
 
@@ -211,14 +211,14 @@ static struct vfsmount *alloc_vfsmnt(const char *name)
 		INIT_HLIST_HEAD(&mnt->mnt_fsnotify_marks);
 #endif
 	}
-	return &p->mnt;
+	return p;
 
 #ifdef CONFIG_SMP
 out_free_devname:
 	kfree(p->mnt.mnt_devname);
 #endif
 out_free_id:
-	mnt_free_id(&p->mnt);
+	mnt_free_id(p);
 out_free_cache:
 	kmem_cache_free(mnt_cache, p);
 	return NULL;
@@ -448,15 +448,14 @@ static void __mnt_unmake_readonly(struct vfsmount *mnt)
 	br_write_unlock(vfsmount_lock);
 }
 
-static void free_vfsmnt(struct vfsmount *mnt)
+static void free_vfsmnt(struct mount *mnt)
 {
-	struct mount *p = real_mount(mnt);
-	kfree(mnt->mnt_devname);
+	kfree(mnt->mnt.mnt_devname);
 	mnt_free_id(mnt);
 #ifdef CONFIG_SMP
-	free_percpu(mnt->mnt_pcp);
+	free_percpu(mnt->mnt.mnt_pcp);
 #endif
-	kmem_cache_free(mnt_cache, p);
+	kmem_cache_free(mnt_cache, mnt);
 }
 
 /*
@@ -661,7 +660,7 @@ static struct mount *skip_mnt_tree(struct mount *p)
 struct vfsmount *
 vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void *data)
 {
-	struct vfsmount *mnt;
+	struct mount *mnt;
 	struct dentry *root;
 
 	if (!type)
@@ -672,7 +671,7 @@ vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void 
 		return ERR_PTR(-ENOMEM);
 
 	if (flags & MS_KERNMOUNT)
-		mnt->mnt_flags = MNT_INTERNAL;
+		mnt->mnt.mnt_flags = MNT_INTERNAL;
 
 	root = mount_fs(type, flags, name, data);
 	if (IS_ERR(root)) {
@@ -680,11 +679,11 @@ vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void 
 		return ERR_CAST(root);
 	}
 
-	mnt->mnt_root = root;
-	mnt->mnt_sb = root->d_sb;
-	mnt->mnt_mountpoint = mnt->mnt_root;
-	mnt->mnt_parent = mnt;
-	return mnt;
+	mnt->mnt.mnt_root = root;
+	mnt->mnt.mnt_sb = root->d_sb;
+	mnt->mnt.mnt_mountpoint = mnt->mnt.mnt_root;
+	mnt->mnt.mnt_parent = &mnt->mnt;
+	return &mnt->mnt;
 }
 EXPORT_SYMBOL_GPL(vfs_kern_mount);
 
@@ -692,49 +691,49 @@ static struct vfsmount *clone_mnt(struct vfsmount *old, struct dentry *root,
 					int flag)
 {
 	struct super_block *sb = old->mnt_sb;
-	struct vfsmount *mnt = alloc_vfsmnt(old->mnt_devname);
+	struct mount *mnt = alloc_vfsmnt(old->mnt_devname);
 
 	if (mnt) {
 		if (flag & (CL_SLAVE | CL_PRIVATE))
-			mnt->mnt_group_id = 0; /* not a peer of original */
+			mnt->mnt.mnt_group_id = 0; /* not a peer of original */
 		else
-			mnt->mnt_group_id = old->mnt_group_id;
+			mnt->mnt.mnt_group_id = old->mnt_group_id;
 
-		if ((flag & CL_MAKE_SHARED) && !mnt->mnt_group_id) {
-			int err = mnt_alloc_group_id(real_mount(mnt));
+		if ((flag & CL_MAKE_SHARED) && !mnt->mnt.mnt_group_id) {
+			int err = mnt_alloc_group_id(mnt);
 			if (err)
 				goto out_free;
 		}
 
-		mnt->mnt_flags = old->mnt_flags & ~MNT_WRITE_HOLD;
+		mnt->mnt.mnt_flags = old->mnt_flags & ~MNT_WRITE_HOLD;
 		atomic_inc(&sb->s_active);
-		mnt->mnt_sb = sb;
-		mnt->mnt_root = dget(root);
-		mnt->mnt_mountpoint = mnt->mnt_root;
-		mnt->mnt_parent = mnt;
+		mnt->mnt.mnt_sb = sb;
+		mnt->mnt.mnt_root = dget(root);
+		mnt->mnt.mnt_mountpoint = mnt->mnt.mnt_root;
+		mnt->mnt.mnt_parent = &mnt->mnt;
 
 		if (flag & CL_SLAVE) {
-			list_add(&mnt->mnt_slave, &old->mnt_slave_list);
-			mnt->mnt_master = old;
-			CLEAR_MNT_SHARED(mnt);
+			list_add(&mnt->mnt.mnt_slave, &old->mnt_slave_list);
+			mnt->mnt.mnt_master = old;
+			CLEAR_MNT_SHARED(&mnt->mnt);
 		} else if (!(flag & CL_PRIVATE)) {
 			if ((flag & CL_MAKE_SHARED) || IS_MNT_SHARED(old))
-				list_add(&mnt->mnt_share, &old->mnt_share);
+				list_add(&mnt->mnt.mnt_share, &old->mnt_share);
 			if (IS_MNT_SLAVE(old))
-				list_add(&mnt->mnt_slave, &old->mnt_slave);
-			mnt->mnt_master = old->mnt_master;
+				list_add(&mnt->mnt.mnt_slave, &old->mnt_slave);
+			mnt->mnt.mnt_master = old->mnt_master;
 		}
 		if (flag & CL_MAKE_SHARED)
-			set_mnt_shared(mnt);
+			set_mnt_shared(&mnt->mnt);
 
 		/* stick the duplicate mount on the same expiry list
 		 * as the original if that was on one */
 		if (flag & CL_EXPIRE) {
 			if (!list_empty(&old->mnt_expire))
-				list_add(&mnt->mnt_expire, &old->mnt_expire);
+				list_add(&mnt->mnt.mnt_expire, &old->mnt_expire);
 		}
 	}
-	return mnt;
+	return &mnt->mnt;
 
  out_free:
 	free_vfsmnt(mnt);
@@ -758,7 +757,7 @@ static inline void mntfree(struct vfsmount *mnt)
 	WARN_ON(mnt_get_writers(mnt));
 	fsnotify_vfsmount_delete(mnt);
 	dput(mnt->mnt_root);
-	free_vfsmnt(mnt);
+	free_vfsmnt(real_mount(mnt));
 	deactivate_super(sb);
 }
 
