@@ -199,7 +199,7 @@ static struct mount *alloc_vfsmnt(const char *name)
 		mnt->mnt_writers = 0;
 #endif
 
-		INIT_LIST_HEAD(&mnt->mnt_hash);
+		INIT_LIST_HEAD(&p->mnt.mnt_hash);
 		INIT_LIST_HEAD(&mnt->mnt_child);
 		INIT_LIST_HEAD(&mnt->mnt_mounts);
 		INIT_LIST_HEAD(&mnt->mnt_list);
@@ -540,10 +540,10 @@ static void dentry_reset_mounted(struct dentry *dentry)
 	unsigned u;
 
 	for (u = 0; u < HASH_SIZE; u++) {
-		struct vfsmount *p;
+		struct mount *p;
 
-		list_for_each_entry(p, &mount_hashtable[u], mnt_hash) {
-			if (p->mnt_mountpoint == dentry)
+		list_for_each_entry(p, &mount_hashtable[u], mnt.mnt_hash) {
+			if (p->mnt.mnt_mountpoint == dentry)
 				return;
 		}
 	}
@@ -1191,25 +1191,25 @@ EXPORT_SYMBOL(may_umount);
 
 void release_mounts(struct list_head *head)
 {
-	struct vfsmount *mnt;
+	struct mount *mnt;
 	while (!list_empty(head)) {
-		mnt = list_first_entry(head, struct vfsmount, mnt_hash);
-		list_del_init(&mnt->mnt_hash);
-		if (mnt_has_parent(mnt)) {
+		mnt = list_first_entry(head, struct mount, mnt.mnt_hash);
+		list_del_init(&mnt->mnt.mnt_hash);
+		if (mnt_has_parent(&mnt->mnt)) {
 			struct dentry *dentry;
 			struct vfsmount *m;
 
 			br_write_lock(vfsmount_lock);
-			dentry = mnt->mnt_mountpoint;
-			m = mnt->mnt_parent;
-			mnt->mnt_mountpoint = mnt->mnt_root;
-			mnt->mnt_parent = mnt;
+			dentry = mnt->mnt.mnt_mountpoint;
+			m = mnt->mnt.mnt_parent;
+			mnt->mnt.mnt_mountpoint = mnt->mnt.mnt_root;
+			mnt->mnt.mnt_parent = &mnt->mnt;
 			m->mnt_ghosts--;
 			br_write_unlock(vfsmount_lock);
 			dput(dentry);
 			mntput(m);
 		}
-		mntput(mnt);
+		mntput(&mnt->mnt);
 	}
 }
 
