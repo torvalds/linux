@@ -433,17 +433,7 @@ static struct platform_driver omap_pcm_driver = {
 	.remove = __devexit_p(omap_pcm_remove),
 };
 
-static int __init snd_omap_pcm_init(void)
-{
-	return platform_driver_register(&omap_pcm_driver);
-}
-module_init(snd_omap_pcm_init);
-
-static void __exit snd_omap_pcm_exit(void)
-{
-	platform_driver_unregister(&omap_pcm_driver);
-}
-module_exit(snd_omap_pcm_exit);
+module_platform_driver(omap_pcm_driver);
 
 MODULE_AUTHOR("Jarkko Nikula <jarkko.nikula@bitmer.com>");
 MODULE_DESCRIPTION("OMAP PCM DMA module");

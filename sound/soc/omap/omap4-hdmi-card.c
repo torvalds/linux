@@ -112,17 +112,7 @@ static struct platform_driver omap4_hdmi_driver = {
 	.remove = __devexit_p(omap4_hdmi_remove),
 };
 
-static int __init omap4_hdmi_init(void)
-{
-	return platform_driver_register(&omap4_hdmi_driver);
-}
-module_init(omap4_hdmi_init);
-
-static void __exit omap4_hdmi_exit(void)
-{
-	platform_driver_unregister(&omap4_hdmi_driver);
-}
-module_exit(omap4_hdmi_exit);
+module_platform_driver(omap4_hdmi_driver);
 
 MODULE_AUTHOR("Ricardo Neri <ricardo.neri@ti.com>");
 MODULE_DESCRIPTION("OMAP4 HDMI machine ASoC driver");

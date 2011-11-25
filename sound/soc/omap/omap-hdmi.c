@@ -139,17 +139,7 @@ static struct platform_driver hdmi_dai_driver = {
 	.remove = __devexit_p(omap_hdmi_remove),
 };
 
-static int __init hdmi_dai_init(void)
-{
-	return platform_driver_register(&hdmi_dai_driver);
-}
-module_init(hdmi_dai_init);
-
-static void __exit hdmi_dai_exit(void)
-{
-	platform_driver_unregister(&hdmi_dai_driver);
-}
-module_exit(hdmi_dai_exit);
+module_platform_driver(hdmi_dai_driver);
 
 MODULE_AUTHOR("Jorge Candelaria <jorge.candelaria@ti.com>");
 MODULE_AUTHOR("Ricardo Neri <ricardo.neri@ti.com>");

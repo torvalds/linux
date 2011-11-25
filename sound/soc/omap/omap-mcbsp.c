@@ -785,17 +785,7 @@ static struct platform_driver asoc_mcbsp_driver = {
 	.remove = __devexit_p(asoc_mcbsp_remove),
 };
 
-static int __init snd_omap_mcbsp_init(void)
-{
-	return platform_driver_register(&asoc_mcbsp_driver);
-}
-module_init(snd_omap_mcbsp_init);
-
-static void __exit snd_omap_mcbsp_exit(void)
-{
-	platform_driver_unregister(&asoc_mcbsp_driver);
-}
-module_exit(snd_omap_mcbsp_exit);
+module_platform_driver(asoc_mcbsp_driver);
 
 MODULE_AUTHOR("Jarkko Nikula <jarkko.nikula@bitmer.com>");
 MODULE_DESCRIPTION("OMAP I2S SoC Interface");

@@ -520,17 +520,7 @@ static struct platform_driver asoc_mcpdm_driver = {
 	.remove	= __devexit_p(asoc_mcpdm_remove),
 };
 
-static int __init snd_omap_mcpdm_init(void)
-{
-	return platform_driver_register(&asoc_mcpdm_driver);
-}
-module_init(snd_omap_mcpdm_init);
-
-static void __exit snd_omap_mcpdm_exit(void)
-{
-	platform_driver_unregister(&asoc_mcpdm_driver);
-}
-module_exit(snd_omap_mcpdm_exit);
+module_platform_driver(asoc_mcpdm_driver);
 
 MODULE_AUTHOR("Misael Lopez Cruz <misael.lopez@ti.com>");
 MODULE_DESCRIPTION("OMAP PDM SoC Interface");
