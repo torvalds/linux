@@ -671,7 +671,7 @@ static int do_insnlist_ioctl(struct comedi_device *dev,
 	}
 
 	insns =
-	    kmalloc(sizeof(struct comedi_insn) * insnlist.n_insns, GFP_KERNEL);
+	    kcalloc(insnlist.n_insns, sizeof(struct comedi_insn), GFP_KERNEL);
 	if (!insns) {
 		DPRINTK("kmalloc failed\n");
 		ret = -ENOMEM;
