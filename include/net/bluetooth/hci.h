@@ -88,6 +88,14 @@ enum {
 	HCI_RESET,
 };
 
+/*
+ * BR/EDR and/or LE controller flags: the flags defined here should represent
+ * states from the controller.
+ */
+enum {
+	HCI_LE_SCAN,
+};
+
 /* HCI ioctl defines */
 #define HCIDEVUP	_IOW('H', 201, int)
 #define HCIDEVDOWN	_IOW('H', 202, int)

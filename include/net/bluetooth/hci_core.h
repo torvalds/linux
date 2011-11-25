@@ -252,6 +252,8 @@ struct hci_dev {
 
 	struct module		*owner;
 
+	unsigned long		dev_flags;
+
 	int (*open)(struct hci_dev *hdev);
 	int (*close)(struct hci_dev *hdev);
 	int (*flush)(struct hci_dev *hdev);

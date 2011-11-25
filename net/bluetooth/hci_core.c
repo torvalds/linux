@@ -1458,6 +1458,7 @@ int hci_register_dev(struct hci_dev *hdev)
 	spin_lock_init(&hdev->lock);
 
 	hdev->flags = 0;
+	hdev->dev_flags = 0;
 	hdev->pkt_type  = (HCI_DM1 | HCI_DH1 | HCI_HV1);
 	hdev->esco_type = (ESCO_HV1);
 	hdev->link_mode = (HCI_LM_ACCEPT);
