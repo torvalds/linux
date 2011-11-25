@@ -305,6 +305,104 @@ struct usbhsg_recip_handle req_set_feature = {
 };
 
 /*
+ *		USB_TYPE_STANDARD / get status functions
+ */
+static void __usbhsg_recip_send_complete(struct usb_ep *ep,
+					 struct usb_request *req)
+{
+	struct usbhsg_request *ureq = usbhsg_req_to_ureq(req);
+
+	/* free allocated recip-buffer/usb_request */
+	kfree(ureq->pkt.buf);
+	usb_ep_free_request(ep, req);
+}
+
+static void __usbhsg_recip_send_status(struct usbhsg_gpriv *gpriv,
+				       unsigned short status)
+{
+	struct usbhsg_uep *dcp = usbhsg_gpriv_to_dcp(gpriv);
+	struct usbhs_pipe *pipe = usbhsg_uep_to_pipe(dcp);
+	struct device *dev = usbhsg_gpriv_to_dev(gpriv);
+	struct usb_request *req;
+	unsigned short *buf;
+
+	/* alloc new usb_request for recip */
+	req = usb_ep_alloc_request(&dcp->ep, GFP_ATOMIC);
+	if (!req) {
+		dev_err(dev, "recip request allocation fail\n");
+		return;
+	}
+
+	/* alloc recip data buffer */
+	buf = kmalloc(sizeof(*buf), GFP_ATOMIC);
+	if (!buf) {
+		usb_ep_free_request(&dcp->ep, req);
+		dev_err(dev, "recip data allocation fail\n");
+		return;
+	}
+
+	/* recip data is status */
+	*buf = cpu_to_le16(status);
+
+	/* allocated usb_request/buffer will be freed */
+	req->complete	= __usbhsg_recip_send_complete;
+	req->buf	= buf;
+	req->length	= sizeof(*buf);
+	req->zero	= 0;
+
+	/* push packet */
+	pipe->handler = &usbhs_fifo_pio_push_handler;
+	usbhsg_queue_push(dcp, usbhsg_req_to_ureq(req));
+}
+
+static int usbhsg_recip_handler_std_get_device(struct usbhs_priv *priv,
+					       struct usbhsg_uep *uep,
+					       struct usb_ctrlrequest *ctrl)
+{
+	struct usbhsg_gpriv *gpriv = usbhsg_uep_to_gpriv(uep);
+	unsigned short status = 1 << USB_DEVICE_SELF_POWERED;
+
+	__usbhsg_recip_send_status(gpriv, status);
+
+	return 0;
+}
+
+static int usbhsg_recip_handler_std_get_interface(struct usbhs_priv *priv,
+						  struct usbhsg_uep *uep,
+						  struct usb_ctrlrequest *ctrl)
+{
+	struct usbhsg_gpriv *gpriv = usbhsg_uep_to_gpriv(uep);
+	unsigned short status = 0;
+
+	__usbhsg_recip_send_status(gpriv, status);
+
+	return 0;
+}
+
+static int usbhsg_recip_handler_std_get_endpoint(struct usbhs_priv *priv,
+						 struct usbhsg_uep *uep,
+						 struct usb_ctrlrequest *ctrl)
+{
+	struct usbhsg_gpriv *gpriv = usbhsg_uep_to_gpriv(uep);
+	struct usbhs_pipe *pipe = usbhsg_uep_to_pipe(uep);
+	unsigned short status = 0;
+
+	if (usbhs_pipe_is_stall(pipe))
+		status = 1 << USB_ENDPOINT_HALT;
+
+	__usbhsg_recip_send_status(gpriv, status);
+
+	return 0;
+}
+
+struct usbhsg_recip_handle req_get_status = {
+	.name		= "get status",
+	.device		= usbhsg_recip_handler_std_get_device,
+	.interface	= usbhsg_recip_handler_std_get_interface,
+	.endpoint	= usbhsg_recip_handler_std_get_endpoint,
+};
+
+/*
  *		USB_TYPE handler
  */
 static int usbhsg_recip_run_handle(struct usbhs_priv *priv,
@@ -430,6 +528,9 @@ static int usbhsg_irq_ctrl_stage(struct usbhs_priv *priv,
 			break;
 		case USB_REQ_SET_FEATURE:
 			recip_handler = &req_set_feature;
+			break;
+		case USB_REQ_GET_STATUS:
+			recip_handler = &req_get_status;
 			break;
 		}
 	}
