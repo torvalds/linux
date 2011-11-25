@@ -1674,6 +1674,9 @@ ath5k_hw_rf5110_calibrate(struct ath5k_hw *ah,
 	u32 phy_sig, phy_agc, phy_sat, beacon;
 	int ret;
 
+	if (!(ah->ah_cal_mask & AR5K_CALIBRATION_FULL))
+		return 0;
+
 	/*
 	 * Disable beacons and RX/TX queues, wait
 	 */
