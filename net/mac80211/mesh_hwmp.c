@@ -982,72 +982,97 @@ enddiscovery:
 	kfree(preq_node);
 }
 
-/**
- * mesh_nexthop_lookup - put the appropriate next hop on a mesh frame
+/* mesh_nexthop_resolve - lookup next hop for given skb and start path
+ * discovery if no forwarding information is found.
  *
  * @skb: 802.11 frame to be sent
  * @sdata: network subif the frame will be sent through
  *
- * Returns: 0 if the next hop was found. Nonzero otherwise. If no next hop is
- * found, the function will start a path discovery and queue the frame so it is
- * sent when the path is resolved. This means the caller must not free the skb
- * in this case.
+ * Returns: 0 if the next hop was found and -ENOENT if the frame was queued.
+ * skb is freeed here if no mpath could be allocated.
  */
-int mesh_nexthop_lookup(struct sk_buff *skb,
-			struct ieee80211_sub_if_data *sdata)
+int mesh_nexthop_resolve(struct sk_buff *skb,
+			 struct ieee80211_sub_if_data *sdata)
 {
-	struct sk_buff *skb_to_free = NULL;
-	struct mesh_path *mpath;
-	struct sta_info *next_hop;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct mesh_path *mpath;
+	struct sk_buff *skb_to_free = NULL;
 	u8 *target_addr = hdr->addr3;
 	int err = 0;
 
 	rcu_read_lock();
-	mpath = mesh_path_lookup(target_addr, sdata);
+	err = mesh_nexthop_lookup(skb, sdata);
+	if (!err)
+		goto endlookup;
 
+	/* no nexthop found, start resolving */
+	mpath = mesh_path_lookup(target_addr, sdata);
 	if (!mpath) {
 		mesh_path_add(target_addr, sdata);
 		mpath = mesh_path_lookup(target_addr, sdata);
 		if (!mpath) {
-			sdata->u.mesh.mshstats.dropped_frames_no_route++;
+			mesh_path_discard_frame(skb, sdata);
 			err = -ENOSPC;
 			goto endlookup;
 		}
 	}
 
-	if (mpath->flags & MESH_PATH_ACTIVE) {
-		if (time_after(jiffies,
-			       mpath->exp_time -
-			       msecs_to_jiffies(sdata->u.mesh.mshcfg.path_refresh_time)) &&
-		    !memcmp(sdata->vif.addr, hdr->addr4, ETH_ALEN) &&
-		    !(mpath->flags & MESH_PATH_RESOLVING) &&
-		    !(mpath->flags & MESH_PATH_FIXED)) {
-			mesh_queue_preq(mpath,
-					PREQ_Q_F_START | PREQ_Q_F_REFRESH);
-		}
-		next_hop = rcu_dereference(mpath->next_hop);
-		if (next_hop) {
-			memcpy(hdr->addr1, next_hop->sta.addr, ETH_ALEN);
-			memcpy(hdr->addr2, sdata->vif.addr, ETH_ALEN);
-		} else
-			err = -ENOENT;
-	} else {
-		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-		if (!(mpath->flags & MESH_PATH_RESOLVING)) {
-			/* Start discovery only if it is not running yet */
-			mesh_queue_preq(mpath, PREQ_Q_F_START);
-		}
+	if (!(mpath->flags & MESH_PATH_RESOLVING))
+		mesh_queue_preq(mpath, PREQ_Q_F_START);
 
-		if (skb_queue_len(&mpath->frame_queue) >= MESH_FRAME_QUEUE_LEN)
-			skb_to_free = skb_dequeue(&mpath->frame_queue);
+	if (skb_queue_len(&mpath->frame_queue) >= MESH_FRAME_QUEUE_LEN)
+		skb_to_free = skb_dequeue(&mpath->frame_queue);
 
-		info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
-		ieee80211_set_qos_hdr(sdata, skb);
-		skb_queue_tail(&mpath->frame_queue, skb);
-		if (skb_to_free)
-			mesh_path_discard_frame(skb_to_free, sdata);
-		err = -ENOENT;
+	info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
+	ieee80211_set_qos_hdr(sdata, skb);
+	skb_queue_tail(&mpath->frame_queue, skb);
+	err = -ENOENT;
+	if (skb_to_free)
+		mesh_path_discard_frame(skb_to_free, sdata);
+
+endlookup:
+	rcu_read_unlock();
+	return err;
+}
+/**
+ * mesh_nexthop_lookup - put the appropriate next hop on a mesh frame. Calling
+ * this function is considered "using" the associated mpath, so preempt a path
+ * refresh if this mpath expires soon.
+ *
+ * @skb: 802.11 frame to be sent
+ * @sdata: network subif the frame will be sent through
+ *
+ * Returns: 0 if the next hop was found. Nonzero otherwise.
+ */
+int mesh_nexthop_lookup(struct sk_buff *skb,
+			struct ieee80211_sub_if_data *sdata)
+{
+	struct mesh_path *mpath;
+	struct sta_info *next_hop;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	u8 *target_addr = hdr->addr3;
+	int err = -ENOENT;
+
+	rcu_read_lock();
+	mpath = mesh_path_lookup(target_addr, sdata);
+
+	if (!mpath || !(mpath->flags & MESH_PATH_ACTIVE))
+		goto endlookup;
+
+	if (time_after(jiffies,
+		       mpath->exp_time -
+		       msecs_to_jiffies(sdata->u.mesh.mshcfg.path_refresh_time)) &&
+	    !memcmp(sdata->vif.addr, hdr->addr4, ETH_ALEN) &&
+	    !(mpath->flags & MESH_PATH_RESOLVING) &&
+	    !(mpath->flags & MESH_PATH_FIXED))
+		mesh_queue_preq(mpath, PREQ_Q_F_START | PREQ_Q_F_REFRESH);
+
+	next_hop = rcu_dereference(mpath->next_hop);
+	if (next_hop) {
+		memcpy(hdr->addr1, next_hop->sta.addr, ETH_ALEN);
+		memcpy(hdr->addr2, sdata->vif.addr, ETH_ALEN);
+		err = 0;
 	}
 
 endlookup:

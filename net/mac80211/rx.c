@@ -1899,6 +1899,7 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 	struct ieee80211_local *local = rx->local;
 	struct ieee80211_sub_if_data *sdata = rx->sdata;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
+	__le16 reason = cpu_to_le16(WLAN_REASON_MESH_PATH_NOFORWARD);
 	u16 q;
 
 	hdr = (struct ieee80211_hdr *) skb->data;
@@ -1985,13 +1986,14 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 								fwded_mcast);
 				memcpy(fwd_hdr->addr2, sdata->vif.addr, ETH_ALEN);
 			} else {
-				int err;
-				err = mesh_nexthop_lookup(fwd_skb, sdata);
-				/* Failed to immediately resolve next hop:
-				 * fwded frame was dropped or will be added
-				 * later to the pending skb queue.  */
-				if (err)
+				if (mesh_nexthop_lookup(fwd_skb, sdata)) {
+				/* can't resolve next hop, send a PERR */
+					mesh_path_error_tx(sdata->u.mesh.mshcfg.element_ttl,
+							   fwd_hdr->addr3, 0, reason,
+							   fwd_hdr->addr2, sdata);
+					sdata->u.mesh.mshstats.dropped_frames_no_route++;
 					return RX_DROP_MONITOR;
+				}
 
 				IEEE80211_IFSTA_MESH_CTR_INC(&sdata->u.mesh,
 								fwded_unicast);
