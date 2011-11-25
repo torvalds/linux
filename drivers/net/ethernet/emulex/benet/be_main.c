@@ -2044,52 +2044,6 @@ void be_detect_dump_ue(struct be_adapter *adapter)
 	}
 }
 
-static void be_worker(struct work_struct *work)
-{
-	struct be_adapter *adapter =
-		container_of(work, struct be_adapter, work.work);
-	struct be_rx_obj *rxo;
-	int i;
-
-	be_detect_dump_ue(adapter);
-
-	/* when interrupts are not yet enabled, just reap any pending
-	* mcc completions */
-	if (!netif_running(adapter->netdev)) {
-		int mcc_compl, status = 0;
-
-		mcc_compl = be_process_mcc(adapter, &status);
-
-		if (mcc_compl) {
-			struct be_mcc_obj *mcc_obj = &adapter->mcc_obj;
-			be_cq_notify(adapter, mcc_obj->cq.id, false, mcc_compl);
-		}
-
-		goto reschedule;
-	}
-
-	if (!adapter->stats_cmd_sent) {
-		if (lancer_chip(adapter))
-			lancer_cmd_get_pport_stats(adapter,
-						&adapter->stats_cmd);
-		else
-			be_cmd_get_stats(adapter, &adapter->stats_cmd);
-	}
-
-	for_all_rx_queues(adapter, rxo, i) {
-		be_rx_eqd_update(adapter, rxo);
-
-		if (rxo->rx_post_starved) {
-			rxo->rx_post_starved = false;
-			be_post_rx_frags(rxo, GFP_KERNEL);
-		}
-	}
-
-reschedule:
-	adapter->work_counter++;
-	schedule_delayed_work(&adapter->work, msecs_to_jiffies(1000));
-}
-
 static void be_msix_disable(struct be_adapter *adapter)
 {
 	if (msix_enabled(adapter)) {
@@ -3328,7 +3282,7 @@ static int be_dev_family_check(struct be_adapter *adapter)
 
 static int lancer_wait_ready(struct be_adapter *adapter)
 {
-#define SLIPORT_READY_TIMEOUT 500
+#define SLIPORT_READY_TIMEOUT 30
 	u32 sliport_status;
 	int status = 0, i;
 
@@ -3337,7 +3291,7 @@ static int lancer_wait_ready(struct be_adapter *adapter)
 		if (sliport_status & SLIPORT_STATUS_RDY_MASK)
 			break;
 
-		msleep(20);
+		msleep(1000);
 	}
 
 	if (i == SLIPORT_READY_TIMEOUT)
@@ -3372,6 +3326,104 @@ static int lancer_test_and_set_rdy_state(struct be_adapter *adapter)
 		}
 	}
 	return status;
+}
+
+static void lancer_test_and_recover_fn_err(struct be_adapter *adapter)
+{
+	int status;
+	u32 sliport_status;
+
+	if (adapter->eeh_err || adapter->ue_detected)
+		return;
+
+	sliport_status = ioread32(adapter->db + SLIPORT_STATUS_OFFSET);
+
+	if (sliport_status & SLIPORT_STATUS_ERR_MASK) {
+		dev_err(&adapter->pdev->dev,
+				"Adapter in error state."
+				"Trying to recover.\n");
+
+		status = lancer_test_and_set_rdy_state(adapter);
+		if (status)
+			goto err;
+
+		netif_device_detach(adapter->netdev);
+
+		if (netif_running(adapter->netdev))
+			be_close(adapter->netdev);
+
+		be_clear(adapter);
+
+		adapter->fw_timeout = false;
+
+		status = be_setup(adapter);
+		if (status)
+			goto err;
+
+		if (netif_running(adapter->netdev)) {
+			status = be_open(adapter->netdev);
+			if (status)
+				goto err;
+		}
+
+		netif_device_attach(adapter->netdev);
+
+		dev_err(&adapter->pdev->dev,
+				"Adapter error recovery succeeded\n");
+	}
+	return;
+err:
+	dev_err(&adapter->pdev->dev,
+			"Adapter error recovery failed\n");
+}
+
+static void be_worker(struct work_struct *work)
+{
+	struct be_adapter *adapter =
+		container_of(work, struct be_adapter, work.work);
+	struct be_rx_obj *rxo;
+	int i;
+
+	if (lancer_chip(adapter))
+		lancer_test_and_recover_fn_err(adapter);
+
+	be_detect_dump_ue(adapter);
+
+	/* when interrupts are not yet enabled, just reap any pending
+	* mcc completions */
+	if (!netif_running(adapter->netdev)) {
+		int mcc_compl, status = 0;
+
+		mcc_compl = be_process_mcc(adapter, &status);
+
+		if (mcc_compl) {
+			struct be_mcc_obj *mcc_obj = &adapter->mcc_obj;
+			be_cq_notify(adapter, mcc_obj->cq.id, false, mcc_compl);
+		}
+
+		goto reschedule;
+	}
+
+	if (!adapter->stats_cmd_sent) {
+		if (lancer_chip(adapter))
+			lancer_cmd_get_pport_stats(adapter,
+						&adapter->stats_cmd);
+		else
+			be_cmd_get_stats(adapter, &adapter->stats_cmd);
+	}
+
+	for_all_rx_queues(adapter, rxo, i) {
+		be_rx_eqd_update(adapter, rxo);
+
+		if (rxo->rx_post_starved) {
+			rxo->rx_post_starved = false;
+			be_post_rx_frags(rxo, GFP_KERNEL);
+		}
+	}
+
+reschedule:
+	adapter->work_counter++;
+	schedule_delayed_work(&adapter->work, msecs_to_jiffies(1000));
 }
 
 static int __devinit be_probe(struct pci_dev *pdev,
@@ -3426,7 +3478,12 @@ static int __devinit be_probe(struct pci_dev *pdev,
 		goto disable_sriov;
 
 	if (lancer_chip(adapter)) {
-		status = lancer_test_and_set_rdy_state(adapter);
+		status = lancer_wait_ready(adapter);
+		if (!status) {
+			iowrite32(SLI_PORT_CONTROL_IP_MASK,
+					adapter->db + SLIPORT_CONTROL_OFFSET);
+			status = lancer_test_and_set_rdy_state(adapter);
+		}
 		if (status) {
 			dev_err(&pdev->dev, "Adapter in non recoverable error\n");
 			goto ctrl_clean;
