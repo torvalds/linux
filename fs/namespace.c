@@ -1845,10 +1845,10 @@ static int do_remount(struct path *path, int flags, int mnt_flags,
 	return err;
 }
 
-static inline int tree_contains_unbindable(struct vfsmount *mnt)
+static inline int tree_contains_unbindable(struct mount *mnt)
 {
 	struct mount *p;
-	for (p = real_mount(mnt); p; p = next_mnt(p, mnt)) {
+	for (p = mnt; p; p = next_mnt(p, &mnt->mnt)) {
 		if (IS_MNT_UNBINDABLE(&p->mnt))
 			return 1;
 	}
@@ -1902,7 +1902,7 @@ static int do_move_mount(struct path *path, char *old_name)
 	 * mount which is shared.
 	 */
 	if (IS_MNT_SHARED(path->mnt) &&
-	    tree_contains_unbindable(old_path.mnt))
+	    tree_contains_unbindable(old))
 		goto out1;
 	err = -ELOOP;
 	for (p = path->mnt; mnt_has_parent(p); p = p->mnt_parent)
