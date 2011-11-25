@@ -715,16 +715,35 @@ static void dss_write_regs(void)
 		}
 
 		dss_mgr_write_regs(mgr);
-
-		if (need_go(mgr)) {
-			mp->busy = true;
-
-			if (!dss_data.irq_enabled && need_isr())
-				dss_register_vsync_isr();
-
-			dispc_mgr_go(mgr->id);
-		}
 	}
+}
+
+static void dss_set_go_bits(void)
+{
+	const int num_mgrs = omap_dss_get_num_overlay_managers();
+	int i;
+
+	for (i = 0; i < num_mgrs; ++i) {
+		struct omap_overlay_manager *mgr;
+		struct mgr_priv_data *mp;
+
+		mgr = omap_dss_get_overlay_manager(i);
+		mp = get_mgr_priv(mgr);
+
+		if (!mp->enabled || mgr_manual_update(mgr) || mp->busy)
+			continue;
+
+		if (!need_go(mgr))
+			continue;
+
+		mp->busy = true;
+
+		if (!dss_data.irq_enabled && need_isr())
+			dss_register_vsync_isr();
+
+		dispc_mgr_go(mgr->id);
+	}
+
 }
 
 void dss_mgr_start_update(struct omap_overlay_manager *mgr)
@@ -848,6 +867,7 @@ static void dss_apply_irq_handler(void *data, u32 mask)
 	}
 
 	dss_write_regs();
+	dss_set_go_bits();
 
 	extra_updating = extra_info_update_ongoing();
 	if (!extra_updating)
@@ -912,6 +932,7 @@ int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 	omap_dss_mgr_apply_mgr(mgr);
 
 	dss_write_regs();
+	dss_set_go_bits();
 
 	spin_unlock_irqrestore(&data_lock, flags);
 
@@ -1016,6 +1037,7 @@ int dss_mgr_enable(struct omap_overlay_manager *mgr)
 	dss_mgr_setup_fifos(mgr);
 
 	dss_write_regs();
+	dss_set_go_bits();
 
 	if (!mgr_manual_update(mgr))
 		mp->updating = true;
@@ -1392,6 +1414,7 @@ int dss_ovl_enable(struct omap_overlay *ovl)
 	dss_ovl_setup_fifo(ovl);
 
 	dss_write_regs();
+	dss_set_go_bits();
 
 	spin_unlock_irqrestore(&data_lock, flags);
 
@@ -1426,8 +1449,8 @@ int dss_ovl_disable(struct omap_overlay *ovl)
 	spin_lock_irqsave(&data_lock, flags);
 
 	dss_apply_ovl_enable(ovl, false);
-
 	dss_write_regs();
+	dss_set_go_bits();
 
 	spin_unlock_irqrestore(&data_lock, flags);
 
