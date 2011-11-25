@@ -79,7 +79,7 @@ struct goodix_ts_data {
 #endif
 };
 
-const char *f3x_ts_name = "Goodix TouchScreen of GT80X";
+const char *f3x_ts_name = "gt80x";
 static struct workqueue_struct *goodix_wq;
 #define X_DIFF (800)
 
