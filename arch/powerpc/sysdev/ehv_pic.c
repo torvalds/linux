@@ -280,6 +280,7 @@ void __init ehv_pic_init(void)
 
 	if (!ehv_pic->irqhost) {
 		of_node_put(np);
+		kfree(ehv_pic);
 		return;
 	}
 

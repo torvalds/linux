@@ -15,7 +15,7 @@
  * option) any later version.
  */
 
-/include/ "p1020si.dtsi"
+/include/ "p1020rdb.dts"
 
 / {
 	model = "fsl,P1020RDB";
@@ -28,7 +28,7 @@
 
 	cpus {
 		PowerPC,P1020@0 {
-		status = "disabled";
+			status = "disabled";
 		};
 	};
 
@@ -85,12 +85,6 @@
 			status = "disabled";
 		};
 
-		enet0: ethernet@b0000 {
-			fixed-link = <1 1 1000 0 0>;
-			phy-connection-type = "rgmii-id";
-
-		};
-
 		enet1: ethernet@b1000 {
 			status = "disabled";
 		};
@@ -135,7 +129,6 @@
 		global-utilities@e0000 {	//global utilities block
 			status = "disabled";
 		};
-
 	};
 
 	pci0: pcie@ffe09000 {

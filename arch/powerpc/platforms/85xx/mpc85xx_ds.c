@@ -36,6 +36,8 @@
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
 
+#include "mpc85xx.h"
+
 #undef DEBUG
 
 #ifdef DEBUG
@@ -219,21 +221,9 @@ static int __init mpc8544_ds_probe(void)
 	return 0;
 }
 
-static struct of_device_id __initdata mpc85xxds_ids[] = {
-	{ .type = "soc", },
-	{ .compatible = "soc", },
-	{ .compatible = "simple-bus", },
-	{ .compatible = "gianfar", },
-	{},
-};
-
-static int __init mpc85xxds_publish_devices(void)
-{
-	return of_platform_bus_probe(NULL, mpc85xxds_ids, NULL);
-}
-machine_device_initcall(mpc8544_ds, mpc85xxds_publish_devices);
-machine_device_initcall(mpc8572_ds, mpc85xxds_publish_devices);
-machine_device_initcall(p2020_ds, mpc85xxds_publish_devices);
+machine_device_initcall(mpc8544_ds, mpc85xx_common_publish_devices);
+machine_device_initcall(mpc8572_ds, mpc85xx_common_publish_devices);
+machine_device_initcall(p2020_ds, mpc85xx_common_publish_devices);
 
 machine_arch_initcall(mpc8544_ds, swiotlb_setup_bus_notifier);
 machine_arch_initcall(mpc8572_ds, swiotlb_setup_bus_notifier);

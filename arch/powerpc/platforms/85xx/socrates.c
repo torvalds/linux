@@ -41,6 +41,7 @@
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
 
+#include "mpc85xx.h"
 #include "socrates_fpga_pic.h"
 
 static void __init socrates_pic_init(void)
@@ -96,17 +97,7 @@ static void __init socrates_setup_arch(void)
 #endif
 }
 
-static struct of_device_id __initdata socrates_of_bus_ids[] = {
-	{ .compatible = "simple-bus", },
-	{ .compatible = "gianfar", },
-	{},
-};
-
-static int __init socrates_publish_devices(void)
-{
-	return of_platform_bus_probe(NULL, socrates_of_bus_ids, NULL);
-}
-machine_device_initcall(socrates, socrates_publish_devices);
+machine_device_initcall(socrates, mpc85xx_common_publish_devices);
 
 /*
  * Called very early, device-tree isn't unflattened

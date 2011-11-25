@@ -30,6 +30,8 @@
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
 
+#include "mpc85xx.h"
+
 #undef DEBUG
 
 #ifdef DEBUG
@@ -109,20 +111,8 @@ static void __init mpc85xx_rdb_setup_arch(void)
 	printk(KERN_INFO "MPC85xx RDB board from Freescale Semiconductor\n");
 }
 
-static struct of_device_id __initdata mpc85xxrdb_ids[] = {
-	{ .type = "soc", },
-	{ .compatible = "soc", },
-	{ .compatible = "simple-bus", },
-	{ .compatible = "gianfar", },
-	{},
-};
-
-static int __init mpc85xxrdb_publish_devices(void)
-{
-	return of_platform_bus_probe(NULL, mpc85xxrdb_ids, NULL);
-}
-machine_device_initcall(p2020_rdb, mpc85xxrdb_publish_devices);
-machine_device_initcall(p1020_rdb, mpc85xxrdb_publish_devices);
+machine_device_initcall(p2020_rdb, mpc85xx_common_publish_devices);
+machine_device_initcall(p1020_rdb, mpc85xx_common_publish_devices);
 
 /*
  * Called very early, device-tree isn't unflattened

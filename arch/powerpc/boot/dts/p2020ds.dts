@@ -9,30 +9,17 @@
  * option) any later version.
  */
 
-/include/ "p2020si.dtsi"
+/include/ "fsl/p2020si-pre.dtsi"
 
 / {
 	model = "fsl,P2020DS";
 	compatible = "fsl,P2020DS";
 
-	aliases {
-		ethernet0 = &enet0;
-		ethernet1 = &enet1;
-		ethernet2 = &enet2;
-		serial0 = &serial0;
-		serial1 = &serial1;
-		pci0 = &pci0;
-		pci1 = &pci1;
-		pci2 = &pci2;
-	};
-
-
 	memory {
 		device_type = "memory";
 	};
 
-	localbus@ffe05000 {
-		compatible = "fsl,elbc", "simple-bus";
+	board_lbc: lbc: localbus@ffe05000 {
 		ranges = <0x0 0x0 0x0 0xe8000000 0x08000000
 			  0x1 0x0 0x0 0xe0000000 0x08000000
 			  0x2 0x0 0x0 0xffa00000 0x00040000
@@ -40,203 +27,18 @@
 			  0x4 0x0 0x0 0xffa40000 0x00040000
 			  0x5 0x0 0x0 0xffa80000 0x00040000
 			  0x6 0x0 0x0 0xffac0000 0x00040000>;
-
-		nor@0,0 {
-			#address-cells = <1>;
-			#size-cells = <1>;
-			compatible = "cfi-flash";
-			reg = <0x0 0x0 0x8000000>;
-			bank-width = <2>;
-			device-width = <1>;
-
-			ramdisk@0 {
-				reg = <0x0 0x03000000>;
-				read-only;
-			};
-
-			diagnostic@3000000 {
-				reg = <0x03000000 0x00e00000>;
-				read-only;
-			};
-
-			dink@3e00000 {
-				reg = <0x03e00000 0x00200000>;
-				read-only;
-			};
-
-			kernel@4000000 {
-				reg = <0x04000000 0x00400000>;
-				read-only;
-			};
-
-			jffs2@4400000 {
-				reg = <0x04400000 0x03b00000>;
-			};
-
-			dtb@7f00000 {
-				reg = <0x07f00000 0x00080000>;
-				read-only;
-			};
-
-			u-boot@7f80000 {
-				reg = <0x07f80000 0x00080000>;
-				read-only;
-			};
-		};
-
-		nand@2,0 {
-			#address-cells = <1>;
-			#size-cells = <1>;
-			compatible = "fsl,elbc-fcm-nand";
-			reg = <0x2 0x0 0x40000>;
-
-			u-boot@0 {
-				reg = <0x0 0x02000000>;
-				read-only;
-			};
-
-			jffs2@2000000 {
-				reg = <0x02000000 0x10000000>;
-			};
-
-			ramdisk@12000000 {
-				reg = <0x12000000 0x08000000>;
-				read-only;
-			};
-
-			kernel@1a000000 {
-				reg = <0x1a000000 0x04000000>;
-			};
-
-			dtb@1e000000 {
-				reg = <0x1e000000 0x01000000>;
-				read-only;
-			};
-
-			empty@1f000000 {
-				reg = <0x1f000000 0x21000000>;
-			};
-		};
-
-		board-control@3,0 {
-			compatible = "fsl,p2020ds-fpga", "fsl,fpga-ngpixis";
-			reg = <0x3 0x0 0x30>;
-		};
-
-		nand@4,0 {
-			compatible = "fsl,elbc-fcm-nand";
-			reg = <0x4 0x0 0x40000>;
-		};
-
-		nand@5,0 {
-			compatible = "fsl,elbc-fcm-nand";
-			reg = <0x5 0x0 0x40000>;
-		};
-
-		nand@6,0 {
-			compatible = "fsl,elbc-fcm-nand";
-			reg = <0x6 0x0 0x40000>;
-		};
+		reg = <0 0xffe05000 0 0x1000>;
 	};
 
-	soc@ffe00000 {
-
-		usb@22000 {
-			phy_type = "ulpi";
-		};
-
-		mdio@24520 {
-			phy0: ethernet-phy@0 {
-				interrupt-parent = <&mpic>;
-				interrupts = <3 1>;
-				reg = <0x0>;
-			};
-			phy1: ethernet-phy@1 {
-				interrupt-parent = <&mpic>;
-				interrupts = <3 1>;
-				reg = <0x1>;
-			};
-			phy2: ethernet-phy@2 {
-				interrupt-parent = <&mpic>;
-				interrupts = <3 1>;
-				reg = <0x2>;
-			};
-			tbi0: tbi-phy@11 {
-				reg = <0x11>;
-				device_type = "tbi-phy";
-			};
-
-		};
-
-		mdio@25520 {
-			tbi1: tbi-phy@11 {
-				reg = <0x11>;
-				device_type = "tbi-phy";
-			};
-		};
-
-		mdio@26520 {
-			tbi2: tbi-phy@11 {
-				reg = <0x11>;
-				device_type = "tbi-phy";
-			};
-
-		};
-
-		ptp_clock@24E00 {
-			compatible = "fsl,etsec-ptp";
-			reg = <0x24E00 0xB0>;
-			interrupts = <68 2 69 2 70 2>;
-			interrupt-parent = < &mpic >;
-			fsl,tclk-period = <5>;
-			fsl,tmr-prsc = <200>;
-			fsl,tmr-add = <0xCCCCCCCD>;
-			fsl,tmr-fiper1 = <0x3B9AC9FB>;
-			fsl,tmr-fiper2 = <0x0001869B>;
-			fsl,max-adj = <249999999>;
-		};
-
-		enet0: ethernet@24000 {
-			tbi-handle = <&tbi0>;
-			phy-handle = <&phy0>;
-			phy-connection-type = "rgmii-id";
-		};
-
-		enet1: ethernet@25000 {
-			tbi-handle = <&tbi1>;
-			phy-handle = <&phy1>;
-			phy-connection-type = "rgmii-id";
-
-		};
-
-		enet2: ethernet@26000 {
-			tbi-handle = <&tbi2>;
-			phy-handle = <&phy2>;
-			phy-connection-type = "rgmii-id";
-		};
-
-
-		msi@41600 {
-			compatible = "fsl,mpic-msi";
-		};
+	board_soc: soc: soc@ffe00000 {
+		ranges = <0x0 0x0 0xffe00000 0x100000>;
 	};
 
-	pci0: pcie@ffe08000 {
+	pci2: pcie@ffe08000 {
 		ranges = <0x2000000 0x0 0x80000000 0 0x80000000 0x0 0x20000000
 			  0x1000000 0x0 0x00000000 0 0xffc00000 0x0 0x10000>;
-		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
-		interrupt-map = <
-			/* IDSEL 0x0 */
-			0000 0x0 0x0 0x1 &mpic 0x8 0x1
-			0000 0x0 0x0 0x2 &mpic 0x9 0x1
-			0000 0x0 0x0 0x3 &mpic 0xa 0x1
-			0000 0x0 0x0 0x4 &mpic 0xb 0x1
-			>;
+		reg = <0 0xffe08000 0 0x1000>;
 		pcie@0 {
-			reg = <0x0 0x0 0x0 0x0 0x0>;
-			#size-cells = <2>;
-			#address-cells = <3>;
-			device_type = "pci";
 			ranges = <0x2000000 0x0 0x80000000
 				  0x2000000 0x0 0x80000000
 				  0x0 0x20000000
@@ -247,61 +49,11 @@
 		};
 	};
 
-	pci1: pcie@ffe09000 {
+	board_pci1: pci1: pcie@ffe09000 {
 		ranges = <0x2000000 0x0 0xa0000000 0 0xa0000000 0x0 0x20000000
 			  0x1000000 0x0 0x00000000 0 0xffc10000 0x0 0x10000>;
-		interrupt-map-mask = <0xff00 0x0 0x0 0x7>;
-		interrupt-map = <
-
-			// IDSEL 0x11 func 0 - PCI slot 1
-			0x8800 0x0 0x0 0x1 &i8259 0x9 0x2
-			0x8800 0x0 0x0 0x2 &i8259 0xa 0x2
-
-			// IDSEL 0x11 func 1 - PCI slot 1
-			0x8900 0x0 0x0 0x1 &i8259 0x9 0x2
-			0x8900 0x0 0x0 0x2 &i8259 0xa 0x2
-
-			// IDSEL 0x11 func 2 - PCI slot 1
-			0x8a00 0x0 0x0 0x1 &i8259 0x9 0x2
-			0x8a00 0x0 0x0 0x2 &i8259 0xa 0x2
-
-			// IDSEL 0x11 func 3 - PCI slot 1
-			0x8b00 0x0 0x0 0x1 &i8259 0x9 0x2
-			0x8b00 0x0 0x0 0x2 &i8259 0xa 0x2
-
-			// IDSEL 0x11 func 4 - PCI slot 1
-			0x8c00 0x0 0x0 0x1 &i8259 0x9 0x2
-			0x8c00 0x0 0x0 0x2 &i8259 0xa 0x2
-
-			// IDSEL 0x11 func 5 - PCI slot 1
-			0x8d00 0x0 0x0 0x1 &i8259 0x9 0x2
-			0x8d00 0x0 0x0 0x2 &i8259 0xa 0x2
-
-			// IDSEL 0x11 func 6 - PCI slot 1
-			0x8e00 0x0 0x0 0x1 &i8259 0x9 0x2
-			0x8e00 0x0 0x0 0x2 &i8259 0xa 0x2
-
-			// IDSEL 0x11 func 7 - PCI slot 1
-			0x8f00 0x0 0x0 0x1 &i8259 0x9 0x2
-			0x8f00 0x0 0x0 0x2 &i8259 0xa 0x2
-
-			// IDSEL 0x1d  Audio
-			0xe800 0x0 0x0 0x1 &i8259 0x6 0x2
-
-			// IDSEL 0x1e Legacy
-			0xf000 0x0 0x0 0x1 &i8259 0x7 0x2
-			0xf100 0x0 0x0 0x1 &i8259 0x7 0x2
-
-			// IDSEL 0x1f IDE/SATA
-			0xf800 0x0 0x0 0x1 &i8259 0xe 0x2
-			0xf900 0x0 0x0 0x1 &i8259 0x5 0x2
-			>;
-
+		reg = <0 0xffe09000 0 0x1000>;
 		pcie@0 {
-			reg = <0x0 0x0 0x0 0x0 0x0>;
-			#size-cells = <2>;
-			#address-cells = <3>;
-			device_type = "pci";
 			ranges = <0x2000000 0x0 0xa0000000
 				  0x2000000 0x0 0xa0000000
 				  0x0 0x20000000
@@ -309,89 +61,14 @@
 				  0x1000000 0x0 0x0
 				  0x1000000 0x0 0x0
 				  0x0 0x10000>;
-			uli1575@0 {
-				reg = <0x0 0x0 0x0 0x0 0x0>;
-				#size-cells = <2>;
-				#address-cells = <3>;
-				ranges = <0x2000000 0x0 0xa0000000
-					  0x2000000 0x0 0xa0000000
-					  0x0 0x20000000
-
-					  0x1000000 0x0 0x0
-					  0x1000000 0x0 0x0
-					  0x0 0x10000>;
-				isa@1e {
-					device_type = "isa";
-					#interrupt-cells = <2>;
-					#size-cells = <1>;
-					#address-cells = <2>;
-					reg = <0xf000 0x0 0x0 0x0 0x0>;
-					ranges = <0x1 0x0 0x1000000 0x0 0x0
-						  0x1000>;
-					interrupt-parent = <&i8259>;
-
-					i8259: interrupt-controller@20 {
-						reg = <0x1 0x20 0x2
-						       0x1 0xa0 0x2
-						       0x1 0x4d0 0x2>;
-						interrupt-controller;
-						device_type = "interrupt-controller";
-						#address-cells = <0>;
-						#interrupt-cells = <2>;
-						compatible = "chrp,iic";
-						interrupts = <4 1>;
-						interrupt-parent = <&mpic>;
-					};
-
-					i8042@60 {
-						#size-cells = <0>;
-						#address-cells = <1>;
-						reg = <0x1 0x60 0x1 0x1 0x64 0x1>;
-						interrupts = <1 3 12 3>;
-						interrupt-parent =
-							<&i8259>;
-
-						keyboard@0 {
-							reg = <0x0>;
-							compatible = "pnpPNP,303";
-						};
-
-						mouse@1 {
-							reg = <0x1>;
-							compatible = "pnpPNP,f03";
-						};
-					};
-
-					rtc@70 {
-						compatible = "pnpPNP,b00";
-						reg = <0x1 0x70 0x2>;
-					};
-
-					gpio@400 {
-						reg = <0x1 0x400 0x80>;
-					};
-				};
-			};
 		};
-
 	};
 
-	pci2: pcie@ffe0a000 {
+	pci0: pcie@ffe0a000 {
 		ranges = <0x2000000 0x0 0xc0000000 0 0xc0000000 0x0 0x20000000
 			  0x1000000 0x0 0x00000000 0 0xffc20000 0x0 0x10000>;
-		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
-		interrupt-map = <
-			/* IDSEL 0x0 */
-			0000 0x0 0x0 0x1 &mpic 0x0 0x1
-			0000 0x0 0x0 0x2 &mpic 0x1 0x1
-			0000 0x0 0x0 0x3 &mpic 0x2 0x1
-			0000 0x0 0x0 0x4 &mpic 0x3 0x1
-			>;
+		reg = <0 0xffe0a000 0 0x1000>;
 		pcie@0 {
-			reg = <0x0 0x0 0x0 0x0 0x0>;
-			#size-cells = <2>;
-			#address-cells = <3>;
-			device_type = "pci";
 			ranges = <0x2000000 0x0 0xc0000000
 				  0x2000000 0x0 0xc0000000
 				  0x0 0x20000000
@@ -402,3 +79,11 @@
 		};
 	};
 };
+
+/*
+ * p2020ds.dtsi must be last to ensure board_pci0 overrides pci0 settings
+ * for interrupt-map & interrupt-map-mask
+ */
+
+/include/ "fsl/p2020si-post.dtsi"
+/include/ "p2020ds.dtsi"

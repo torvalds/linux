@@ -148,14 +148,47 @@ static void fsl_compose_msi_msg(struct pci_dev *pdev, int hwirq,
 
 static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 {
+	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
+	struct device_node *np;
+	phandle phandle = 0;
 	int rc, hwirq = -ENOMEM;
 	unsigned int virq;
 	struct msi_desc *entry;
 	struct msi_msg msg;
 	struct fsl_msi *msi_data;
 
+	/*
+	 * If the PCI node has an fsl,msi property, then we need to use it
+	 * to find the specific MSI.
+	 */
+	np = of_parse_phandle(hose->dn, "fsl,msi", 0);
+	if (np) {
+		if (of_device_is_compatible(np, "fsl,mpic-msi"))
+			phandle = np->phandle;
+		else {
+			dev_err(&pdev->dev, "node %s has an invalid fsl,msi"
+				" phandle\n", hose->dn->full_name);
+			return -EINVAL;
+		}
+	}
+
 	list_for_each_entry(entry, &pdev->msi_list, list) {
+		/*
+		 * Loop over all the MSI devices until we find one that has an
+		 * available interrupt.
+		 */
 		list_for_each_entry(msi_data, &msi_head, list) {
+			/*
+			 * If the PCI node has an fsl,msi property, then we
+			 * restrict our search to the corresponding MSI node.
+			 * The simplest way is to skip over MSI nodes with the
+			 * wrong phandle. Under the Freescale hypervisor, this
+			 * has the additional benefit of skipping over MSI
+			 * nodes that are not mapped in the PAMU.
+			 */
+			if (phandle && (phandle != msi_data->phandle))
+				continue;
+
 			hwirq = msi_bitmap_alloc_hwirqs(&msi_data->bitmap, 1);
 			if (hwirq >= 0)
 				break;
@@ -369,6 +402,12 @@ static int __devinit fsl_of_msi_probe(struct platform_device *dev)
 	msi->irqhost->host_data = msi;
 
 	msi->msiir_offset = features->msiir_offset + (res.start & 0xfffff);
+
+	/*
+	 * Remember the phandle, so that we can match with any PCI nodes
+	 * that have an "fsl,msi" property.
+	 */
+	msi->phandle = dev->dev.of_node->phandle;
 
 	rc = fsl_msi_init_allocator(msi);
 	if (rc) {

@@ -27,6 +27,8 @@
 #include <sysdev/fsl_pci.h>
 #include <asm/fsl_guts.h>
 
+#include "mpc85xx.h"
+
 #if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
 
 /*
@@ -325,10 +327,6 @@ static void __init p1022_ds_setup_arch(void)
 }
 
 static struct of_device_id __initdata p1022_ds_ids[] = {
-	{ .type = "soc", },
-	{ .compatible = "soc", },
-	{ .compatible = "simple-bus", },
-	{ .compatible = "gianfar", },
 	/* So that the DMA channel nodes can be probed individually: */
 	{ .compatible = "fsl,eloplus-dma", },
 	{},
@@ -336,6 +334,7 @@ static struct of_device_id __initdata p1022_ds_ids[] = {
 
 static int __init p1022_ds_publish_devices(void)
 {
+	mpc85xx_common_publish_devices();
 	return of_platform_bus_probe(NULL, p1022_ds_ids, NULL);
 }
 machine_device_initcall(p1022_ds, p1022_ds_publish_devices);

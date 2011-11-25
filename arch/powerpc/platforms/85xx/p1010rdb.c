@@ -28,6 +28,8 @@
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
 
+#include "mpc85xx.h"
+
 void __init p1010_rdb_pic_init(void)
 {
 	struct mpic *mpic;
@@ -81,18 +83,7 @@ static void __init p1010_rdb_setup_arch(void)
 	printk(KERN_INFO "P1010 RDB board from Freescale Semiconductor\n");
 }
 
-static struct of_device_id __initdata p1010rdb_ids[] = {
-	{ .type = "soc", },
-	{ .compatible = "soc", },
-	{ .compatible = "simple-bus", },
-	{},
-};
-
-static int __init p1010rdb_publish_devices(void)
-{
-	return of_platform_bus_probe(NULL, p1010rdb_ids, NULL);
-}
-machine_device_initcall(p1010_rdb, p1010rdb_publish_devices);
+machine_device_initcall(p1010_rdb, mpc85xx_common_publish_devices);
 machine_arch_initcall(p1010_rdb, swiotlb_setup_bus_notifier);
 
 /*
