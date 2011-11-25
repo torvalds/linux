@@ -48,9 +48,9 @@
 //#define PRINT_INT_INFO
 //#define PRINT_POINT_INFO
 //#define DEBUG
-#define TOUCH_KEY_SUPPORT
+//#define TOUCH_KEY_SUPPORT
 #ifdef TOUCH_KEY_SUPPORT
-#define TOUCH_KEY_FOR_EVB13
+//#define TOUCH_KEY_FOR_EVB13
 //#define TOUCH_KEY_FOR_ANGDA
 #ifdef TOUCH_KEY_FOR_ANGDA
 #define TOUCH_KEY_X_LIMIT	(60000)
@@ -1216,8 +1216,7 @@ static int ft5x_read_data(void)
 				swap(event->x1, event->y1);
 			}
 		}
-#endif
-#ifdef TOUCH_KEY_FOR_EVB13
+#elif defined(TOUCH_KEY_FOR_EVB13)
 		if((event->x1 > TOUCH_KEY_LOWER_X_LIMIT)&&(event->x1<TOUCH_KEY_HIGHER_X_LIMIT))
 		{
 			if(1 == revert_x_flag){
@@ -1230,6 +1229,17 @@ static int ft5x_read_data(void)
 			if(1 == exchange_x_y_flag){
 				swap(event->x1, event->y1);
 			}
+		}
+#else
+		if(1 == revert_x_flag){
+			event->x1 = SCREEN_MAX_X - event->x1;
+		}
+		if(1 == revert_y_flag){
+			event->y1 = SCREEN_MAX_Y - event->y1;
+		}
+		//printk("before swap: event->x1 = %d, event->y1 = %d. \n", event->x1, event->y1);
+		if(1 == exchange_x_y_flag){
+			swap(event->x1, event->y1);
 		}
 #endif
 
