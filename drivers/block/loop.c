@@ -422,7 +422,7 @@ static int do_bio_filebacked(struct loop_device *lo, struct bio *bio)
 
 		/*
 		 * We use punch hole to reclaim the free space used by the
-		 * image a.k.a. discard. However we do support discard if
+		 * image a.k.a. discard. However we do not support discard if
 		 * encryption is enabled, because it may give an attacker
 		 * useful information.
 		 */
