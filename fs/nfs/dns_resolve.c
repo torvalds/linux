@@ -364,7 +364,7 @@ int nfs_dns_resolver_init(void)
 	int err;
 
 	nfs_cache_init(&nfs_dns_resolve);
-	err = nfs_cache_register(&nfs_dns_resolve);
+	err = nfs_cache_register_net(&init_net, &nfs_dns_resolve);
 	if (err) {
 		nfs_cache_destroy(&nfs_dns_resolve);
 		return err;
@@ -374,7 +374,7 @@ int nfs_dns_resolver_init(void)
 
 void nfs_dns_resolver_destroy(void)
 {
-	nfs_cache_unregister(&nfs_dns_resolve);
+	nfs_cache_unregister_net(&init_net, &nfs_dns_resolve);
 	nfs_cache_destroy(&nfs_dns_resolve);
 }
 
