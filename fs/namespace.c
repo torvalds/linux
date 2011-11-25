@@ -609,16 +609,16 @@ static inline void __mnt_make_shortterm(struct vfsmount *mnt)
 /*
  * vfsmount lock must be held for write
  */
-static void commit_tree(struct vfsmount *mnt)
+static void commit_tree(struct mount *mnt)
 {
-	struct vfsmount *parent = mnt->mnt_parent;
+	struct vfsmount *parent = mnt->mnt.mnt_parent;
 	struct vfsmount *m;
 	LIST_HEAD(head);
 	struct mnt_namespace *n = parent->mnt_ns;
 
-	BUG_ON(parent == mnt);
+	BUG_ON(parent == &mnt->mnt);
 
-	list_add_tail(&head, &mnt->mnt_list);
+	list_add_tail(&head, &mnt->mnt.mnt_list);
 	list_for_each_entry(m, &head, mnt_list) {
 		m->mnt_ns = n;
 		__mnt_make_longterm(m);
@@ -626,9 +626,9 @@ static void commit_tree(struct vfsmount *mnt)
 
 	list_splice(&head, n->list.prev);
 
-	list_add_tail(&mnt->mnt_hash, mount_hashtable +
-				hash(parent, mnt->mnt_mountpoint));
-	list_add_tail(&mnt->mnt_child, &parent->mnt_mounts);
+	list_add_tail(&mnt->mnt.mnt_hash, mount_hashtable +
+				hash(parent, mnt->mnt.mnt_mountpoint));
+	list_add_tail(&mnt->mnt.mnt_child, &parent->mnt_mounts);
 	touch_mnt_namespace(n);
 }
 
@@ -1617,12 +1617,12 @@ static int attach_recursive_mnt(struct vfsmount *source_mnt,
 		touch_mnt_namespace(parent_path->mnt->mnt_ns);
 	} else {
 		mnt_set_mountpoint(dest_mnt, dest_dentry, source_mnt);
-		commit_tree(source_mnt);
+		commit_tree(real_mount(source_mnt));
 	}
 
 	list_for_each_entry_safe(child, p, &tree_list, mnt.mnt_hash) {
 		list_del_init(&child->mnt.mnt_hash);
-		commit_tree(&child->mnt);
+		commit_tree(child);
 	}
 	br_write_unlock(vfsmount_lock);
 
