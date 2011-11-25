@@ -693,7 +693,8 @@ static int parse_output_fields(const struct option *opt __used,
 			type = PERF_TYPE_RAW;
 		else {
 			fprintf(stderr, "Invalid event type in field string.\n");
-			return -EINVAL;
+			rc = -EINVAL;
+			goto out;
 		}
 
 		if (output[type].user_set)
@@ -935,6 +936,24 @@ static int read_script_info(struct script_desc *desc, const char *filename)
 	return 0;
 }
 
+static char *get_script_root(struct dirent *script_dirent, const char *suffix)
+{
+	char *script_root, *str;
+
+	script_root = strdup(script_dirent->d_name);
+	if (!script_root)
+		return NULL;
+
+	str = (char *)ends_with(script_root, suffix);
+	if (!str) {
+		free(script_root);
+		return NULL;
+	}
+
+	*str = '\0';
+	return script_root;
+}
+
 static int list_available_scripts(const struct option *opt __used,
 				  const char *s __used, int unset __used)
 {
@@ -946,7 +965,6 @@ static int list_available_scripts(const struct option *opt __used,
 	struct script_desc *desc;
 	char first_half[BUFSIZ];
 	char *script_root;
-	char *str;
 
 	snprintf(scripts_path, MAXPATHLEN, "%s/scripts", perf_exec_path());
 
@@ -962,16 +980,14 @@ static int list_available_scripts(const struct option *opt __used,
 			continue;
 
 		for_each_script(lang_path, lang_dir, script_dirent, script_next) {
-			script_root = strdup(script_dirent.d_name);
-			str = (char *)ends_with(script_root, REPORT_SUFFIX);
-			if (str) {
-				*str = '\0';
+			script_root = get_script_root(&script_dirent, REPORT_SUFFIX);
+			if (script_root) {
 				desc = script_desc__findnew(script_root);
 				snprintf(script_path, MAXPATHLEN, "%s/%s",
 					 lang_path, script_dirent.d_name);
 				read_script_info(desc, script_path);
+				free(script_root);
 			}
-			free(script_root);
 		}
 	}
 
@@ -993,8 +1009,7 @@ static char *get_script_path(const char *script_root, const char *suffix)
 	char script_path[MAXPATHLEN];
 	DIR *scripts_dir, *lang_dir;
 	char lang_path[MAXPATHLEN];
-	char *str, *__script_root;
-	char *path = NULL;
+	char *__script_root;
 
 	snprintf(scripts_path, MAXPATHLEN, "%s/scripts", perf_exec_path());
 
@@ -1010,23 +1025,18 @@ static char *get_script_path(const char *script_root, const char *suffix)
 			continue;
 
 		for_each_script(lang_path, lang_dir, script_dirent, script_next) {
-			__script_root = strdup(script_dirent.d_name);
-			str = (char *)ends_with(__script_root, suffix);
-			if (str) {
-				*str = '\0';
-				if (strcmp(__script_root, script_root))
-					continue;
+			__script_root = get_script_root(&script_dirent, suffix);
+			if (__script_root && !strcmp(script_root, __script_root)) {
+				free(__script_root);
 				snprintf(script_path, MAXPATHLEN, "%s/%s",
 					 lang_path, script_dirent.d_name);
-				path = strdup(script_path);
-				free(__script_root);
-				break;
+				return strdup(script_path);
 			}
 			free(__script_root);
 		}
 	}
 
-	return path;
+	return NULL;
 }
 
 static bool is_top_script(const char *script_path)
