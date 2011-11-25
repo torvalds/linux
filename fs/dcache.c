@@ -2460,8 +2460,9 @@ static int prepend_path(const struct path *path,
 		struct dentry * parent;
 
 		if (dentry == vfsmnt->mnt_root || IS_ROOT(dentry)) {
+			struct mount *mnt = real_mount(vfsmnt);
 			/* Global root? */
-			if (!mnt_has_parent(vfsmnt))
+			if (!mnt_has_parent(mnt))
 				goto global_root;
 			dentry = vfsmnt->mnt_mountpoint;
 			vfsmnt = vfsmnt->mnt_parent;
