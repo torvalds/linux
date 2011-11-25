@@ -193,14 +193,10 @@ static irqreturn_t ipi_handler_int1(int irq, void *dev_instance)
 			scheduler_ipi();
 			break;
 		case BFIN_IPI_CALL_FUNC:
-			spin_unlock_irqrestore(&msg_queue->lock, flags);
 			ipi_call_function(cpu, msg);
-			spin_lock_irqsave(&msg_queue->lock, flags);
 			break;
 		case BFIN_IPI_CPU_STOP:
-			spin_unlock_irqrestore(&msg_queue->lock, flags);
 			ipi_cpu_stop(cpu);
-			spin_lock_irqsave(&msg_queue->lock, flags);
 			break;
 		default:
 			printk(KERN_CRIT "CPU%u: Unknown IPI message 0x%lx\n",
@@ -482,8 +478,10 @@ void smp_icache_flush_range_others(unsigned long start, unsigned long end)
 	smp_flush_data.start = start;
 	smp_flush_data.end = end;
 
-	if (smp_call_function(&ipi_flush_icache, &smp_flush_data, 0))
+	preempt_disable();
+	if (smp_call_function(&ipi_flush_icache, &smp_flush_data, 1))
 		printk(KERN_WARNING "SMP: failed to run I-cache flush request on other CPUs\n");
+	preempt_enable();
 }
 EXPORT_SYMBOL_GPL(smp_icache_flush_range_others);
 
