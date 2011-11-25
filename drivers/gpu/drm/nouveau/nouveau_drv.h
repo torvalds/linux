@@ -446,6 +446,11 @@ struct nouveau_pm_memtiming {
 	/* To be written to 0x1002c0 */
 	u8 CL;
 	u8 WR;
+	u8 tCWL;
+
+	bool odt;
+	bool dll_disable;
+	bool ron_pull;
 };
 
 struct nouveau_pm_tbl_header {
@@ -457,18 +462,26 @@ struct nouveau_pm_tbl_header {
 
 struct nouveau_pm_tbl_entry {
 	u8 tWR;
-	u8 tUNK_1;
+	u8 tWTR;
 	u8 tCL;
-	u8 tRP;		/* Byte 3 */
+	u8 tRC;
 	u8 empty_4;
-	u8 tRAS;	/* Byte 5 */
+	u8 tRFC;	/* Byte 5 */
 	u8 empty_6;
-	u8 tRFC;	/* Byte 7 */
+	u8 tRAS;	/* Byte 7 */
 	u8 empty_8;
-	u8 tRC;		/* Byte 9 */
-	u8 tUNK_10, tUNK_11, tUNK_12, tUNK_13, tUNK_14;
-	u8 empty_15,empty_16,empty_17;
-	u8 tUNK_18, tUNK_19, tUNK_20, tUNK_21;
+	u8 tRP;		/* Byte 9 */
+	u8 tRCDRD;
+	u8 tRCDWR;
+	u8 tRRD;
+	u8 tUNK_13;
+	u8 RAM_FT1;		/* 14, a bitmask of random RAM features */
+	u8 empty_15;
+	u8 tUNK_16;
+	u8 empty_17;
+	u8 tUNK_18;
+	u8 tCWL;
+	u8 tUNK_20, tUNK_21;
 };
 
 #define NOUVEAU_PM_MAX_LEVEL 8
