@@ -222,8 +222,7 @@ static int iwlagn_set_Xtal_calib(struct iwl_priv *priv)
 	iwl_set_calib_hdr(&cmd.hdr, IWL_PHY_CALIBRATE_CRYSTAL_FRQ_CMD);
 	cmd.cap_pin1 = le16_to_cpu(xtal_calib[0]);
 	cmd.cap_pin2 = le16_to_cpu(xtal_calib[1]);
-	return iwl_calib_set(&priv->calib_results[IWL_CALIB_XTAL],
-			     (u8 *)&cmd, sizeof(cmd));
+	return iwl_calib_set(priv, (void *)&cmd, sizeof(cmd));
 }
 
 static int iwlagn_set_temperature_offset_calib(struct iwl_priv *priv)
@@ -240,8 +239,7 @@ static int iwlagn_set_temperature_offset_calib(struct iwl_priv *priv)
 
 	IWL_DEBUG_CALIB(priv, "Radio sensor offset: %d\n",
 			le16_to_cpu(cmd.radio_sensor_offset));
-	return iwl_calib_set(&priv->calib_results[IWL_CALIB_TEMP_OFFSET],
-			     (u8 *)&cmd, sizeof(cmd));
+	return iwl_calib_set(priv, (void *)&cmd, sizeof(cmd));
 }
 
 static int iwlagn_set_temperature_offset_calib_v2(struct iwl_priv *priv)
@@ -276,8 +274,7 @@ static int iwlagn_set_temperature_offset_calib_v2(struct iwl_priv *priv)
 	IWL_DEBUG_CALIB(priv, "Voltage Ref: %d\n",
 			le16_to_cpu(cmd.burntVoltageRef));
 
-	return iwl_calib_set(&priv->calib_results[IWL_CALIB_TEMP_OFFSET],
-			     (u8 *)&cmd, sizeof(cmd));
+	return iwl_calib_set(priv, (void *)&cmd, sizeof(cmd));
 }
 
 static int iwlagn_send_calib_cfg(struct iwl_priv *priv)
@@ -306,37 +303,14 @@ int iwlagn_rx_calib_result(struct iwl_priv *priv,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_calib_hdr *hdr = (struct iwl_calib_hdr *)pkt->u.raw;
 	int len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
-	int index;
 
 	/* reduce the size of the length field itself */
 	len -= 4;
 
-	/* Define the order in which the results will be sent to the runtime
-	 * uCode. iwl_send_calib_results sends them in a row according to
-	 * their index. We sort them here
-	 */
-	switch (hdr->op_code) {
-	case IWL_PHY_CALIBRATE_DC_CMD:
-		index = IWL_CALIB_DC;
-		break;
-	case IWL_PHY_CALIBRATE_LO_CMD:
-		index = IWL_CALIB_LO;
-		break;
-	case IWL_PHY_CALIBRATE_TX_IQ_CMD:
-		index = IWL_CALIB_TX_IQ;
-		break;
-	case IWL_PHY_CALIBRATE_TX_IQ_PERD_CMD:
-		index = IWL_CALIB_TX_IQ_PERD;
-		break;
-	case IWL_PHY_CALIBRATE_BASE_BAND_CMD:
-		index = IWL_CALIB_BASE_BAND;
-		break;
-	default:
-		IWL_ERR(priv, "Unknown calibration notification %d\n",
-			  hdr->op_code);
-		return -1;
-	}
-	iwl_calib_set(&priv->calib_results[index], pkt->u.raw, len);
+	if (iwl_calib_set(priv, hdr, len))
+		IWL_ERR(priv, "Failed to record calibration data %d\n",
+			hdr->op_code);
+
 	return 0;
 }
 
