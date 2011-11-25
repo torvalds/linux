@@ -168,7 +168,7 @@ static int wm831x_power_read_voltage(struct wm831x *wm831x,
 	int ret;
 	ret = wm831x_auxadc_read_uv(wm831x, src);
 	if (ret >= 0)
-		val->intval = ret;
+		val->intval = ret / 1000;
 	
 	return ret ;
 }
@@ -184,7 +184,7 @@ int wm831x_read_batt_voltage(void)
 	}
 	
 	ret = wm831x_auxadc_read_uv(g_wm831x_power->wm831x, WM831X_AUX_BATT);
-	return ret;
+	return ret / 1000;
 }
 //EXPORT_SYMBOL_GPL(wm831x_get_batt_voltage);
 
@@ -475,7 +475,6 @@ static int wm831x_bat_check_status(struct wm831x *wm831x, int *status)
 	if (ret < 0)
 		return ret;
 
-	
 	switch (ret & WM831X_CHG_STATE_MASK) {
 	case WM831X_CHG_STATE_OFF:
 		*status = POWER_SUPPLY_STATUS_NOT_CHARGING;
@@ -606,7 +605,7 @@ static int wm831x_bat_get_prop(struct power_supply *psy,
 {
 	struct wm831x_power *wm831x_power = dev_get_drvdata(psy->dev->parent);
 	struct wm831x *wm831x = wm831x_power->wm831x;
-	int  ret = 0;
+	int ret = 0;
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
@@ -620,7 +619,7 @@ static int wm831x_bat_get_prop(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		//ret = wm831x_power_read_voltage(wm831x, WM831X_AUX_BATT, val);
-		val->intval = wm831x_power->batt_info.voltage;//uV
+		val->intval = wm831x_power->batt_info.voltage*1000;//uV
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
 		//ret = wm831x_bat_check_health(wm831x, &val->intval);
@@ -716,7 +715,6 @@ static irqreturn_t wm831x_pwr_src_irq(int irq, void *data)
 	power_supply_changed(&wm831x_power->battery);
 	power_supply_changed(&wm831x_power->usb);
 	power_supply_changed(&wm831x_power->wall);
-
 
 	return IRQ_HANDLED;
 }
@@ -988,7 +986,7 @@ static void wm831x_batt_work(struct work_struct *work)
 	}
 	power->batt_info.voltage = val.intval;
 
-	wm831x_batt_vol_level(power, val.intval / 1000, &level);
+	wm831x_batt_vol_level(power, val.intval, &level);
 	//mod_timer(&power->timer, jiffies + msecs_to_jiffies(power->interval));
 
 	if (online != power->batt_info.online || status != power->batt_info.status
@@ -1057,7 +1055,7 @@ static __devinit int wm831x_power_probe(struct platform_device *pdev)
 		goto err_battery;
 
 	irq = platform_get_irq_byname(pdev, "SYSLO");
-	ret = request_threaded_irq(irq, NULL, wm831x_syslo_irq, 
+	ret = request_threaded_irq(irq, NULL, wm831x_syslo_irq,
 				   IRQF_TRIGGER_RISING, "System power low",
 				   power);
 	if (ret != 0) {
@@ -1095,7 +1093,7 @@ static __devinit int wm831x_power_probe(struct platform_device *pdev)
 
 	power->interval = TIMER_MS_COUNTS;
 	power->batt_info.level = 100;
-	power->batt_info.voltage   = 4200000;
+	power->batt_info.voltage   = 4200;
 	power->batt_info.online    = 1;
 	power->batt_info.status    = POWER_SUPPLY_STATUS_DISCHARGING;
 	power->batt_info.health    = POWER_SUPPLY_HEALTH_GOOD;
@@ -1238,7 +1236,7 @@ static ssize_t power_prop_show(struct device *dev,
 	ret = wm831x_power_read_voltage(g_wm831x_power->wm831x, WM831X_AUX_BATT, &val);
 	if (ret < 0)
 		return ret;
-	wm831x_batt_vol_level(g_wm831x_power, val.intval / 1000, &level);
+	wm831x_batt_vol_level(g_wm831x_power, val.intval, &level);
 	//printk("batt_vol = %d batt_level = %d\n", val.intval, level);
 	//
 	sprintf(buf, "power_status=%#x\n"
@@ -1294,4 +1292,3 @@ MODULE_DESCRIPTION("Power supply driver for WM831x PMICs");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:wm831x-power");
-

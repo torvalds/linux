@@ -154,7 +154,7 @@ static int wm831x_backlight_get_brightness(struct backlight_device *bl)
 	return data->current_brightness;
 }
 
-static struct backlight_ops wm831x_backlight_ops = {
+static const struct backlight_ops wm831x_backlight_ops = {
 	.options = BL_CORE_SUSPENDRESUME,
 	.update_status	= wm831x_backlight_update_status,
 	.get_brightness	= wm831x_backlight_get_brightness,
@@ -268,9 +268,10 @@ static int wm831x_backlight_probe(struct platform_device *pdev)
 	data->current_brightness = 0;
 	data->isink_reg = isink_reg;
 
-	props.max_brightness = max_isel;
+	props.type = BACKLIGHT_RAW;
+	props.max_brightness = BL_SET;
 	bl = backlight_device_register("wm831x", &pdev->dev, data,
-				       &wm831x_backlight_ops);
+				       &wm831x_backlight_ops, &props);
 	if (IS_ERR(bl)) {
 		dev_err(&pdev->dev, "failed to register backlight\n");
 		kfree(data);
@@ -278,7 +279,6 @@ static int wm831x_backlight_probe(struct platform_device *pdev)
 	}
 
 	bl->props.brightness = BL_INIT_VALUE;
-	bl->props.max_brightness= BL_SET;
 
 	platform_set_drvdata(pdev, bl);
 

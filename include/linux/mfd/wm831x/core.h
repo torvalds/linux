@@ -249,6 +249,16 @@ enum wm831x_parent {
 	WM8325 = 0x8325,
 };
 
+enum wm831x_parent {
+	WM8310 = 0x8310,
+	WM8311 = 0x8311,
+	WM8312 = 0x8312,
+	WM8320 = 0x8320,
+	WM8321 = 0x8321,
+	WM8325 = 0x8325,
+	WM8326 = 0x8326,
+};
+
 struct wm831x {
 	struct mutex io_lock;
 
@@ -350,31 +360,5 @@ int wm831x_read_usb(struct wm831x *wm831x);
 int wm831x_device_restart(struct wm831x *wm831x);
 int wm831x_irq_init(struct wm831x *wm831x, int irq);
 void wm831x_irq_exit(struct wm831x *wm831x);
-
-static inline int __must_check wm831x_request_irq(struct wm831x *wm831x,
-						  unsigned int irq,
-						  irq_handler_t handler,
-						  unsigned long flags,
-						  const char *name,
-						  void *dev)
-{
-	return request_threaded_irq(irq, NULL, handler, flags, name, dev);
-}
-
-static inline void wm831x_free_irq(struct wm831x *wm831x,
-				   unsigned int irq, void *dev)
-{
-	free_irq(irq, dev);
-}
-
-static inline void wm831x_disable_irq(struct wm831x *wm831x, int irq)
-{
-	disable_irq(irq);
-}
-
-static inline void wm831x_enable_irq(struct wm831x *wm831x, int irq)
-{
-	enable_irq(irq);
-}
 
 #endif

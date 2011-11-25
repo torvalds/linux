@@ -14,9 +14,9 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/pm.h>
 #include <linux/spi/spi.h>
 #include <linux/gpio.h>
-
 
 #include <linux/mfd/wm831x/core.h>
 
@@ -29,14 +29,24 @@ static int wm831x_spi_read_device(struct wm831x *wm831x, unsigned short reg,
 
 	/* Go register at a time */
 	for (r = reg; r < reg + (bytes / 2); r++) {
+<<<<<<< HEAD
+		tx_val = r | 0x8000;
+
+=======
 		tx_val = cpu_to_be16(r | 0x8000);
 		//printk("read:reg=0x%x,",reg);
+>>>>>>> parent of 15f7fab... temp revert rk change
 		ret = spi_write_then_read(wm831x->control_data,
 					  (u8 *)&tx_val, 2, (u8 *)d, 2);
 		if (ret != 0)
 			return ret;
+<<<<<<< HEAD
+
+		*d = be16_to_cpu(*d);
+=======
 		//printk("rec=0x%x\n",be16_to_cpu(*d));
 		//*d = be16_to_cpu(*d);
+>>>>>>> parent of 15f7fab... temp revert rk change
 
 		d++;
 	}
@@ -54,9 +64,15 @@ static int wm831x_spi_write_device(struct wm831x *wm831x, unsigned short reg,
 
 	/* Go register at a time */
 	for (r = reg; r < reg + (bytes / 2); r++) {
+<<<<<<< HEAD
+		data[0] = r;
+		data[1] = *s++;
+
+=======
 		data[0] = cpu_to_be16(r);
 		data[1] = *s++;
 		//printk("write:reg=0x%x,send=0x%x\n",reg, data[0]);
+>>>>>>> parent of 15f7fab... temp revert rk change
 		ret = spi_write(spi, (char *)&data, sizeof(data));
 		if (ret != 0)
 			return ret;
@@ -69,8 +85,12 @@ static int __devinit wm831x_spi_probe(struct spi_device *spi)
 {
 	struct wm831x *wm831x;
 	enum wm831x_parent type;
+<<<<<<< HEAD
+
+=======
 	int ret,gpio,irq;
-	
+
+>>>>>>> parent of 15f7fab... temp revert rk change
 	/* Currently SPI support for ID tables is unmerged, we're faking it */
 	if (strcmp(spi->modalias, "wm8310") == 0)
 		type = WM8310;
@@ -84,6 +104,8 @@ static int __devinit wm831x_spi_probe(struct spi_device *spi)
 		type = WM8321;
 	else if (strcmp(spi->modalias, "wm8325") == 0)
 		type = WM8325;
+	else if (strcmp(spi->modalias, "wm8326") == 0)
+		type = WM8326;
 	else {
 		dev_err(&spi->dev, "Unknown device type\n");
 		return -EINVAL;
@@ -96,6 +118,8 @@ static int __devinit wm831x_spi_probe(struct spi_device *spi)
 	spi->bits_per_word = 16;
 	spi->mode = SPI_MODE_0;
 
+<<<<<<< HEAD
+=======
 	gpio = spi->irq;
 	ret = gpio_request(gpio, "wm831x");
 	if (ret) {
@@ -109,13 +133,18 @@ static int __devinit wm831x_spi_probe(struct spi_device *spi)
 	}	
 	irq = gpio_to_irq(gpio);
 
+>>>>>>> parent of 15f7fab... temp revert rk change
 	dev_set_drvdata(&spi->dev, wm831x);
 	wm831x->dev = &spi->dev;
 	wm831x->control_data = spi;
 	wm831x->read_dev = wm831x_spi_read_device;
 	wm831x->write_dev = wm831x_spi_write_device;
 
+<<<<<<< HEAD
+	return wm831x_device_init(wm831x, type, spi->irq);
+=======
 	return wm831x_device_init(wm831x, type, irq);
+>>>>>>> parent of 15f7fab... temp revert rk change
 }
 
 static int __devexit wm831x_spi_remove(struct spi_device *spi)
@@ -127,24 +156,31 @@ static int __devexit wm831x_spi_remove(struct spi_device *spi)
 	return 0;
 }
 
-static int wm831x_spi_suspend(struct spi_device *spi, pm_message_t m)
+static int wm831x_spi_suspend(struct device *dev)
 {
-	struct wm831x *wm831x = dev_get_drvdata(&spi->dev);
+	struct wm831x *wm831x = dev_get_drvdata(dev);
+
 	spin_lock(&wm831x->flag_lock);
 	wm831x->flag_suspend = 1;
 	spin_unlock(&wm831x->flag_lock);
+
 	return wm831x_device_suspend(wm831x);
 }
+
+static const struct dev_pm_ops wm831x_spi_pm = {
+	.freeze = wm831x_spi_suspend,
+	.suspend = wm831x_spi_suspend,
+};
 
 static struct spi_driver wm8310_spi_driver = {
 	.driver = {
 		.name	= "wm8310",
 		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
+		.pm	= &wm831x_spi_pm,
 	},
 	.probe		= wm831x_spi_probe,
 	.remove		= __devexit_p(wm831x_spi_remove),
-	.suspend	= wm831x_spi_suspend,
 };
 
 static struct spi_driver wm8311_spi_driver = {
@@ -152,10 +188,10 @@ static struct spi_driver wm8311_spi_driver = {
 		.name	= "wm8311",
 		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
+		.pm	= &wm831x_spi_pm,
 	},
 	.probe		= wm831x_spi_probe,
 	.remove		= __devexit_p(wm831x_spi_remove),
-	.suspend	= wm831x_spi_suspend,
 };
 
 static struct spi_driver wm8312_spi_driver = {
@@ -163,10 +199,10 @@ static struct spi_driver wm8312_spi_driver = {
 		.name	= "wm8312",
 		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
+		.pm	= &wm831x_spi_pm,
 	},
 	.probe		= wm831x_spi_probe,
 	.remove		= __devexit_p(wm831x_spi_remove),
-	.suspend	= wm831x_spi_suspend,
 };
 
 static struct spi_driver wm8320_spi_driver = {
@@ -174,10 +210,10 @@ static struct spi_driver wm8320_spi_driver = {
 		.name	= "wm8320",
 		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
+		.pm	= &wm831x_spi_pm,
 	},
 	.probe		= wm831x_spi_probe,
 	.remove		= __devexit_p(wm831x_spi_remove),
-	.suspend	= wm831x_spi_suspend,
 };
 
 static struct spi_driver wm8321_spi_driver = {
@@ -185,10 +221,10 @@ static struct spi_driver wm8321_spi_driver = {
 		.name	= "wm8321",
 		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
+		.pm	= &wm831x_spi_pm,
 	},
 	.probe		= wm831x_spi_probe,
 	.remove		= __devexit_p(wm831x_spi_remove),
-	.suspend	= wm831x_spi_suspend,
 };
 
 static struct spi_driver wm8325_spi_driver = {
@@ -196,10 +232,21 @@ static struct spi_driver wm8325_spi_driver = {
 		.name	= "wm8325",
 		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
+		.pm	= &wm831x_spi_pm,
 	},
 	.probe		= wm831x_spi_probe,
 	.remove		= __devexit_p(wm831x_spi_remove),
-	.suspend	= wm831x_spi_suspend,
+};
+
+static struct spi_driver wm8326_spi_driver = {
+	.driver = {
+		.name	= "wm8326",
+		.bus	= &spi_bus_type,
+		.owner	= THIS_MODULE,
+		.pm	= &wm831x_spi_pm,
+	},
+	.probe		= wm831x_spi_probe,
+	.remove		= __devexit_p(wm831x_spi_remove),
 };
 
 static int __init wm831x_spi_init(void)
@@ -230,12 +277,17 @@ static int __init wm831x_spi_init(void)
 	if (ret != 0)
 		pr_err("Failed to register WM8325 SPI driver: %d\n", ret);
 
+	ret = spi_register_driver(&wm8326_spi_driver);
+	if (ret != 0)
+		pr_err("Failed to register WM8326 SPI driver: %d\n", ret);
+
 	return 0;
 }
 subsys_initcall(wm831x_spi_init);
 
 static void __exit wm831x_spi_exit(void)
 {
+	spi_unregister_driver(&wm8326_spi_driver);
 	spi_unregister_driver(&wm8325_spi_driver);
 	spi_unregister_driver(&wm8321_spi_driver);
 	spi_unregister_driver(&wm8320_spi_driver);

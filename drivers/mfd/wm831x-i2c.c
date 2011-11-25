@@ -52,6 +52,27 @@ static int wm831x_i2c_write_device(struct wm831x *wm831x, unsigned short reg,
 				   int bytes, void *src)
 {
 	struct i2c_client *i2c = wm831x->control_data;
+<<<<<<< HEAD
+	struct i2c_msg xfer[2];
+	int ret;
+
+	reg = cpu_to_be16(reg);
+
+	xfer[0].addr = i2c->addr;
+	xfer[0].flags = 0;
+	xfer[0].len = 2;
+	xfer[0].buf = (char *)&reg;
+
+	xfer[1].addr = i2c->addr;
+	xfer[1].flags = I2C_M_NOSTART;
+	xfer[1].len = bytes;
+	xfer[1].buf = (char *)src;
+
+	ret = i2c_transfer(i2c->adapter, xfer, 2);
+	if (ret < 0)
+		return ret;
+	if (ret != 2)
+=======
 	unsigned char msg[bytes + 2];
 	int ret;
 
@@ -63,6 +84,7 @@ static int wm831x_i2c_write_device(struct wm831x *wm831x, unsigned short reg,
 	if (ret < 0)
 		return ret;
 	if (ret < bytes + 2)
+>>>>>>> parent of 15f7fab... temp revert rk change
 		return -EIO;
 
 	return 0;
@@ -72,13 +94,19 @@ static int wm831x_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct wm831x *wm831x;
+<<<<<<< HEAD
+
+=======
 	int ret,gpio,irq;
-	
+
+>>>>>>> parent of 15f7fab... temp revert rk change
 	wm831x = kzalloc(sizeof(struct wm831x), GFP_KERNEL);
 	if (wm831x == NULL)
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, wm831x);
+<<<<<<< HEAD
+=======
 	
 	gpio = i2c->irq;
 	ret = gpio_request(gpio, "wm831x");
@@ -93,12 +121,17 @@ static int wm831x_i2c_probe(struct i2c_client *i2c,
 	}	
 	irq = gpio_to_irq(gpio);
 	
+>>>>>>> parent of 15f7fab... temp revert rk change
 	wm831x->dev = &i2c->dev;
 	wm831x->control_data = i2c;
 	wm831x->read_dev = wm831x_i2c_read_device;
 	wm831x->write_dev = wm831x_i2c_write_device;
 
+<<<<<<< HEAD
+	return wm831x_device_init(wm831x, id->driver_data, i2c->irq);
+=======
 	return wm831x_device_init(wm831x, id->driver_data, irq);
+>>>>>>> parent of 15f7fab... temp revert rk change
 }
 
 static int wm831x_i2c_remove(struct i2c_client *i2c)
@@ -110,16 +143,16 @@ static int wm831x_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
-static int wm831x_i2c_suspend(struct i2c_client *i2c, pm_message_t mesg)
+static int wm831x_i2c_suspend(struct device *dev)
 {
-	struct wm831x *wm831x = i2c_get_clientdata(i2c);
+	struct wm831x *wm831x = dev_get_drvdata(dev);
 
 	return wm831x_device_suspend(wm831x);
 }
 
-static int wm831x_i2c_resume(struct i2c_client *i2c)
+static int wm831x_i2c_resume(struct device *dev)
 {
-	struct wm831x *wm831x = i2c_get_clientdata(i2c);
+	struct wm831x *wm831x = dev_get_drvdata(dev);
 	int i;
 	//set some intterupt again while resume 
 	for (i = 0; i < ARRAY_SIZE(wm831x->irq_masks_cur); i++) {
@@ -151,20 +184,24 @@ static const struct i2c_device_id wm831x_i2c_id[] = {
 	{ "wm8320", WM8320 },
 	{ "wm8321", WM8321 },
 	{ "wm8325", WM8325 },
+	{ "wm8326", WM8326 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm831x_i2c_id);
 
+static const struct dev_pm_ops wm831x_pm_ops = {
+	.suspend = wm831x_i2c_suspend,
+	.resume = wm831x_i2c_resume,
+};
 
 static struct i2c_driver wm831x_i2c_driver = {
 	.driver = {
-		   .name = "wm831x",
-		   .owner = THIS_MODULE,
+		.name = "wm831x",
+		.owner = THIS_MODULE,
+		.pm = &wm831x_pm_ops,
 	},
 	.probe = wm831x_i2c_probe,
 	.remove = wm831x_i2c_remove,
-	.suspend = wm831x_i2c_suspend,
-	.resume = wm831x_i2c_resume,
 	.shutdown = wm831x_i2c_shutdown,
 	.id_table = wm831x_i2c_id,
 };
@@ -172,6 +209,7 @@ static struct i2c_driver wm831x_i2c_driver = {
 static int __init wm831x_i2c_init(void)
 {
 	int ret;
+
 	printk("%s \n", __FUNCTION__);
 	ret = i2c_add_driver(&wm831x_i2c_driver);
 	if (ret != 0)
@@ -179,8 +217,8 @@ static int __init wm831x_i2c_init(void)
 
 	return ret;
 }
-//subsys_initcall(wm831x_i2c_init);
-fs_initcall(wm831x_i2c_init);
+subsys_initcall(wm831x_i2c_init);
+
 static void __exit wm831x_i2c_exit(void)
 {
 	i2c_del_driver(&wm831x_i2c_driver);
