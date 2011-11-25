@@ -344,7 +344,7 @@ static int current_index;
 static void do_cache_clean(struct work_struct *work);
 static struct delayed_work cache_cleaner;
 
-static void sunrpc_init_cache_detail(struct cache_detail *cd)
+void sunrpc_init_cache_detail(struct cache_detail *cd)
 {
 	rwlock_init(&cd->hash_lock);
 	INIT_LIST_HEAD(&cd->queue);
@@ -360,8 +360,9 @@ static void sunrpc_init_cache_detail(struct cache_detail *cd)
 	/* start the cleaning process */
 	schedule_delayed_work(&cache_cleaner, 0);
 }
+EXPORT_SYMBOL_GPL(sunrpc_init_cache_detail);
 
-static void sunrpc_destroy_cache_detail(struct cache_detail *cd)
+void sunrpc_destroy_cache_detail(struct cache_detail *cd)
 {
 	cache_purge(cd);
 	spin_lock(&cache_list_lock);
@@ -384,6 +385,7 @@ static void sunrpc_destroy_cache_detail(struct cache_detail *cd)
 out:
 	printk(KERN_ERR "nfsd: failed to unregister %s cache\n", cd->name);
 }
+EXPORT_SYMBOL_GPL(sunrpc_destroy_cache_detail);
 
 /* clean cache tries to find something to clean
  * and cleans it.
@@ -1787,17 +1789,14 @@ int sunrpc_cache_register_pipefs(struct dentry *parent,
 	struct dentry *dir;
 	int ret = 0;
 
-	sunrpc_init_cache_detail(cd);
 	q.name = name;
 	q.len = strlen(name);
 	q.hash = full_name_hash(q.name, q.len);
 	dir = rpc_create_cache_dir(parent, &q, umode, cd);
 	if (!IS_ERR(dir))
 		cd->u.pipefs.dir = dir;
-	else {
-		sunrpc_destroy_cache_detail(cd);
+	else
 		ret = PTR_ERR(dir);
-	}
 	return ret;
 }
 EXPORT_SYMBOL_GPL(sunrpc_cache_register_pipefs);
@@ -1806,7 +1805,6 @@ void sunrpc_cache_unregister_pipefs(struct cache_detail *cd)
 {
 	rpc_remove_cache_dir(cd->u.pipefs.dir);
 	cd->u.pipefs.dir = NULL;
-	sunrpc_destroy_cache_detail(cd);
 }
 EXPORT_SYMBOL_GPL(sunrpc_cache_unregister_pipefs);
 

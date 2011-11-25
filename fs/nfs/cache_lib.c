@@ -120,6 +120,7 @@ int nfs_cache_register(struct cache_detail *cd)
 	mnt = rpc_get_mount();
 	if (IS_ERR(mnt))
 		return PTR_ERR(mnt);
+	sunrpc_init_cache_detail(cd);
 	ret = vfs_path_lookup(mnt->mnt_root, mnt, "/cache", 0, &path);
 	if (ret)
 		goto err;
@@ -128,6 +129,7 @@ int nfs_cache_register(struct cache_detail *cd)
 	if (!ret)
 		return ret;
 err:
+	sunrpc_destroy_cache_detail(cd);
 	rpc_put_mount();
 	return ret;
 }
@@ -135,6 +137,7 @@ err:
 void nfs_cache_unregister(struct cache_detail *cd)
 {
 	sunrpc_cache_unregister_pipefs(cd);
+	sunrpc_destroy_cache_detail(cd);
 	rpc_put_mount();
 }
 
