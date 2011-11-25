@@ -338,9 +338,6 @@ static void ath5k_hw_wait_for_synth(struct ath5k_hw *ah,
  * And this is the MadWiFi bug entry related to the above
  * http://madwifi-project.org/ticket/1659
  * with various measurements and diagrams
- *
- * TODO: Deal with power drops due to probes by setting an appropriate
- * tx power on the probe packets ! Make this part of the calibration process.
  */
 
 /* Initialize ah_gain during attach */
@@ -372,10 +369,9 @@ int ath5k_hw_rfgain_opt_init(struct ath5k_hw *ah)
  * tx power and a Peak to Average Power Detector (PAPD) will try
  * to measure the gain.
  *
- * XXX:  How about forcing a tx packet (bypassing PCU arbitrator etc)
+ * TODO: Force a tx packet (bypassing PCU arbitrator etc)
  * just after we enable the probe so that we don't mess with
- * standard traffic ? Maybe it's time to use sw interrupts and
- * a probe tasklet !!!
+ * standard traffic.
  */
 static void ath5k_hw_request_rfgain_probe(struct ath5k_hw *ah)
 {
@@ -575,9 +571,7 @@ done:
 /* Main callback for thermal RF gain calibration engine
  * Check for a new gain reading and schedule an adjustment
  * if needed.
- *
- * TODO: Use sw interrupt to schedule reset if gain_F needs
- * adjustment */
+ */
 enum ath5k_rfgain ath5k_hw_gainf_calibrate(struct ath5k_hw *ah)
 {
 	u32 data, type;
@@ -1390,6 +1384,8 @@ void ath5k_hw_update_noise_floor(struct ath5k_hw *ah)
 		return;
 	}
 
+	ah->ah_cal_mask |= AR5K_CALIBRATION_NF;
+
 	ee_mode = ath5k_eeprom_mode_from_channel(ah->ah_current_channel);
 
 	/* completed NF calibration, test threshold */
@@ -1433,6 +1429,8 @@ void ath5k_hw_update_noise_floor(struct ath5k_hw *ah)
 		AR5K_PHY_AGCCTL_NF);
 
 	ah->ah_noise_floor = nf;
+
+	ah->ah_cal_mask &= ~AR5K_CALIBRATION_NF;
 
 	ATH5K_DBG(ah, ATH5K_DEBUG_CALIBRATE,
 		"noise floor calibrated: %d\n", nf);
@@ -1547,12 +1545,19 @@ ath5k_hw_rf511x_iq_calibrate(struct ath5k_hw *ah)
 	s32 iq_corr, i_coff, i_coffd, q_coff, q_coffd;
 	int i;
 
-	if (!ah->ah_calibration ||
-		ath5k_hw_reg_read(ah, AR5K_PHY_IQ) & AR5K_PHY_IQ_RUN)
-		return 0;
+	/* Skip if I/Q calibration is not needed or if it's still running */
+	if (!ah->ah_iq_cal_needed)
+		return -EINVAL;
+	else if (ath5k_hw_reg_read(ah, AR5K_PHY_IQ) & AR5K_PHY_IQ_RUN) {
+		ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_CALIBRATE,
+				"I/Q calibration still running");
+		return -EBUSY;
+	}
 
 	/* Calibration has finished, get the results and re-run */
-	/* work around empty results which can apparently happen on 5212 */
+
+	/* Work around for empty results which can apparently happen on 5212:
+	 * Read registers up to 10 times until we get both i_pr and q_pwr */
 	for (i = 0; i <= 10; i++) {
 		iq_corr = ath5k_hw_reg_read(ah, AR5K_PHY_IQRES_CAL_CORR);
 		i_pwr = ath5k_hw_reg_read(ah, AR5K_PHY_IQRES_CAL_PWR_I);
@@ -1570,9 +1575,13 @@ ath5k_hw_rf511x_iq_calibrate(struct ath5k_hw *ah)
 	else
 		q_coffd = q_pwr >> 7;
 
-	/* protect against divide by 0 and loss of sign bits */
+	/* In case i_coffd became zero, cancel calibration
+	 * not only it's too small, it'll also result a divide
+	 * by zero later on. */
 	if (i_coffd == 0 || q_coffd < 2)
-		return 0;
+		return -ECANCELED;
+
+	/* Protect against loss of sign bits */
 
 	i_coff = (-iq_corr) / i_coffd;
 	i_coff = clamp(i_coff, -32, 31); /* signed 6 bit */
@@ -1613,10 +1622,43 @@ int ath5k_hw_phy_calibrate(struct ath5k_hw *ah,
 		return ath5k_hw_rf5110_calibrate(ah, channel);
 
 	ret = ath5k_hw_rf511x_iq_calibrate(ah);
+	if (ret) {
+		ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_CALIBRATE,
+			"No I/Q correction performed (%uMHz)\n",
+			channel->center_freq);
 
-	if ((ah->ah_radio == AR5K_RF5111 || ah->ah_radio == AR5K_RF5112) &&
-	    (channel->hw_value != AR5K_MODE_11B))
-		ath5k_hw_request_rfgain_probe(ah);
+		/* Happens all the time if there is not much
+		 * traffic, consider it normal behaviour. */
+		ret = 0;
+	}
+
+	/* On full calibration do an AGC calibration and
+	 * request a PAPD probe for gainf calibration if
+	 * needed */
+	if (ah->ah_cal_mask & AR5K_CALIBRATION_FULL) {
+
+		AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_AGCCTL,
+					AR5K_PHY_AGCCTL_CAL);
+
+		ret = ath5k_hw_register_timeout(ah, AR5K_PHY_AGCCTL,
+			AR5K_PHY_AGCCTL_CAL | AR5K_PHY_AGCCTL_NF,
+			0, false);
+		if (ret) {
+			ATH5K_ERR(ah,
+				"gain calibration timeout (%uMHz)\n",
+				channel->center_freq);
+		}
+
+		if ((ah->ah_radio == AR5K_RF5111 ||
+			ah->ah_radio == AR5K_RF5112)
+			&& (channel->hw_value != AR5K_MODE_11B))
+			ath5k_hw_request_rfgain_probe(ah);
+	}
+
+	/* Update noise floor
+	 * XXX: Only do this after AGC calibration */
+	if (!(ah->ah_cal_mask & AR5K_CALIBRATION_NF))
+		ath5k_hw_update_noise_floor(ah);
 
 	return ret;
 }
@@ -3433,9 +3475,9 @@ int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 
 	/* At the same time start I/Q calibration for QAM constellation
 	 * -no need for CCK- */
-	ah->ah_calibration = false;
+	ah->ah_iq_cal_needed = false;
 	if (!(mode == AR5K_MODE_11B)) {
-		ah->ah_calibration = true;
+		ah->ah_iq_cal_needed = true;
 		AR5K_REG_WRITE_BITS(ah, AR5K_PHY_IQ,
 				AR5K_PHY_IQ_CAL_NUM_LOG_MAX, 15);
 		AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_IQ,

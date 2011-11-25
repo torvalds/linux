@@ -187,10 +187,9 @@
 #define AR5K_TUNE_MAX_TXPOWER			63
 #define AR5K_TUNE_DEFAULT_TXPOWER		25
 #define AR5K_TUNE_TPC_TXPOWER			false
-#define ATH5K_TUNE_CALIBRATION_INTERVAL_FULL    10000   /* 10 sec */
+#define ATH5K_TUNE_CALIBRATION_INTERVAL_FULL    60000   /* 60 sec */
+#define	ATH5K_TUNE_CALIBRATION_INTERVAL_SHORT	10000	/* 10 sec */
 #define ATH5K_TUNE_CALIBRATION_INTERVAL_ANI	1000	/* 1 sec */
-#define ATH5K_TUNE_CALIBRATION_INTERVAL_NF	60000	/* 60 sec */
-
 #define ATH5K_TX_COMPLETE_POLL_INT		3000	/* 3 sec */
 
 #define AR5K_INIT_CARR_SENSE_EN			1
@@ -896,7 +895,8 @@ enum ath5k_int {
 enum ath5k_calibration_mask {
 	AR5K_CALIBRATION_FULL = 0x01,
 	AR5K_CALIBRATION_SHORT = 0x02,
-	AR5K_CALIBRATION_ANI = 0x04,
+	AR5K_CALIBRATION_NF = 0x04,
+	AR5K_CALIBRATION_ANI = 0x08,
 };
 
 /*
@@ -1098,6 +1098,7 @@ struct ath5k_hw {
 				led_on;		/* pin setting for LED on */
 
 	struct work_struct	reset_work;	/* deferred chip reset */
+	struct work_struct	calib_work;	/* deferred phy calibration */
 
 	struct list_head	rxbuf;		/* receive buffer */
 	spinlock_t		rxbuflock;
@@ -1113,8 +1114,6 @@ struct ath5k_hw {
 	struct ath5k_led	tx_led;		/* tx led */
 
 	struct ath5k_rfkill	rf_kill;
-
-	struct tasklet_struct	calib;		/* calibration tasklet */
 
 	spinlock_t		block;		/* protects beacon */
 	struct tasklet_struct	beacontq;	/* beacon intr tasklet */
@@ -1145,7 +1144,7 @@ struct ath5k_hw {
 	enum ath5k_int		ah_imr;
 
 	struct ieee80211_channel *ah_current_channel;
-	bool			ah_calibration;
+	bool			ah_iq_cal_needed;
 	bool			ah_single_chip;
 
 	enum ath5k_version	ah_version;
@@ -1235,8 +1234,8 @@ struct ath5k_hw {
 
 	/* Calibration timestamp */
 	unsigned long		ah_cal_next_full;
+	unsigned long		ah_cal_next_short;
 	unsigned long		ah_cal_next_ani;
-	unsigned long		ah_cal_next_nf;
 
 	/* Calibration mask */
 	u8			ah_cal_mask;

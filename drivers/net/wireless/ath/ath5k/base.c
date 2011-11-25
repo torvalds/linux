@@ -2112,16 +2112,29 @@ static void
 ath5k_intr_calibration_poll(struct ath5k_hw *ah)
 {
 	if (time_is_before_eq_jiffies(ah->ah_cal_next_ani) &&
-	    !(ah->ah_cal_mask & AR5K_CALIBRATION_FULL)) {
-		/* run ANI only when full calibration is not active */
+	   !(ah->ah_cal_mask & AR5K_CALIBRATION_FULL) &&
+	   !(ah->ah_cal_mask & AR5K_CALIBRATION_SHORT)) {
+
+		/* Run ANI only when calibration is not active */
+
 		ah->ah_cal_next_ani = jiffies +
 			msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_ANI);
 		tasklet_schedule(&ah->ani_tasklet);
 
-	} else if (time_is_before_eq_jiffies(ah->ah_cal_next_full)) {
-		ah->ah_cal_next_full = jiffies +
-			msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_FULL);
-		tasklet_schedule(&ah->calib);
+	} else if (time_is_before_eq_jiffies(ah->ah_cal_next_short) &&
+		!(ah->ah_cal_mask & AR5K_CALIBRATION_FULL) &&
+		!(ah->ah_cal_mask & AR5K_CALIBRATION_SHORT)) {
+
+		/* Run calibration only when another calibration
+		 * is not running.
+		 *
+		 * Note: This is for both full/short calibration,
+		 * if it's time for a full one, ath5k_calibrate_work will deal
+		 * with it. */
+
+		ah->ah_cal_next_short = jiffies +
+			msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_SHORT);
+		ieee80211_queue_work(ah->hw, &ah->calib_work);
 	}
 	/* we could use SWI to generate enough interrupts to meet our
 	 * calibration interval requirements, if necessary:
@@ -2286,41 +2299,58 @@ ath5k_intr(int irq, void *dev_id)
  * for temperature/environment changes.
  */
 static void
-ath5k_tasklet_calibrate(unsigned long data)
+ath5k_calibrate_work(struct work_struct *work)
 {
-	struct ath5k_hw *ah = (void *)data;
+	struct ath5k_hw *ah = container_of(work, struct ath5k_hw,
+		calib_work);
 
-	/* Only full calibration for now */
-	ah->ah_cal_mask |= AR5K_CALIBRATION_FULL;
+	/* Should we run a full calibration ? */
+	if (time_is_before_eq_jiffies(ah->ah_cal_next_full)) {
+
+		ah->ah_cal_next_full = jiffies +
+			msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_FULL);
+		ah->ah_cal_mask |= AR5K_CALIBRATION_FULL;
+
+		ATH5K_DBG(ah, ATH5K_DEBUG_CALIBRATE,
+				"running full calibration\n");
+
+		if (ath5k_hw_gainf_calibrate(ah) == AR5K_RFGAIN_NEED_CHANGE) {
+			/*
+			 * Rfgain is out of bounds, reset the chip
+			 * to load new gain values.
+			 */
+			ATH5K_DBG(ah, ATH5K_DEBUG_RESET,
+					"got new rfgain, resetting\n");
+			ieee80211_queue_work(ah->hw, &ah->reset_work);
+		}
+
+		/* TODO: On full calibration we should stop TX here,
+		 * so that it doesn't interfere (mostly due to gain_f
+		 * calibration that messes with tx packets -see phy.c).
+		 *
+		 * NOTE: Stopping the queues from above is not enough
+		 * to stop TX but saves us from disconecting (at least
+		 * we don't lose packets). */
+		ieee80211_stop_queues(ah->hw);
+	} else
+		ah->ah_cal_mask |= AR5K_CALIBRATION_SHORT;
+
 
 	ATH5K_DBG(ah, ATH5K_DEBUG_CALIBRATE, "channel %u/%x\n",
 		ieee80211_frequency_to_channel(ah->curchan->center_freq),
 		ah->curchan->hw_value);
 
-	if (ath5k_hw_gainf_calibrate(ah) == AR5K_RFGAIN_NEED_CHANGE) {
-		/*
-		 * Rfgain is out of bounds, reset the chip
-		 * to load new gain values.
-		 */
-		ATH5K_DBG(ah, ATH5K_DEBUG_RESET, "calibration, resetting\n");
-		ieee80211_queue_work(ah->hw, &ah->reset_work);
-	}
 	if (ath5k_hw_phy_calibrate(ah, ah->curchan))
 		ATH5K_ERR(ah, "calibration of channel %u failed\n",
 			ieee80211_frequency_to_channel(
 				ah->curchan->center_freq));
 
-	/* Noise floor calibration interrupts rx/tx path while I/Q calibration
-	 * doesn't.
-	 * TODO: We should stop TX here, so that it doesn't interfere.
-	 * Note that stopping the queues is not enough to stop TX! */
-	if (time_is_before_eq_jiffies(ah->ah_cal_next_nf)) {
-		ah->ah_cal_next_nf = jiffies +
-			msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_NF);
-		ath5k_hw_update_noise_floor(ah);
-	}
-
-	ah->ah_cal_mask &= ~AR5K_CALIBRATION_FULL;
+	/* Clear calibration flags */
+	if (ah->ah_cal_mask & AR5K_CALIBRATION_FULL) {
+		ieee80211_wake_queues(ah->hw);
+		ah->ah_cal_mask &= ~AR5K_CALIBRATION_FULL;
+	} else if (ah->ah_cal_mask & AR5K_CALIBRATION_SHORT)
+		ah->ah_cal_mask &= ~AR5K_CALIBRATION_SHORT;
 }
 
 
@@ -2639,7 +2669,6 @@ static void ath5k_stop_tasklets(struct ath5k_hw *ah)
 	ah->tx_pending = false;
 	tasklet_kill(&ah->rxtq);
 	tasklet_kill(&ah->txtq);
-	tasklet_kill(&ah->calib);
 	tasklet_kill(&ah->beacontq);
 	tasklet_kill(&ah->ani_tasklet);
 }
@@ -2743,9 +2772,24 @@ ath5k_reset(struct ath5k_hw *ah, struct ieee80211_channel *chan,
 
 	ath5k_ani_init(ah, ani_mode);
 
-	ah->ah_cal_next_full = jiffies + msecs_to_jiffies(100);
-	ah->ah_cal_next_ani = jiffies;
-	ah->ah_cal_next_nf = jiffies;
+	/*
+	 * Set calibration intervals
+	 *
+	 * Note: We don't need to run calibration imediately
+	 * since some initial calibration is done on reset
+	 * even for fast channel switching. Also on scanning
+	 * this will get set again and again and it won't get
+	 * executed unless we connect somewhere and spend some
+	 * time on the channel (that's what calibration needs
+	 * anyway to be accurate).
+	 */
+	ah->ah_cal_next_full = jiffies +
+		msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_FULL);
+	ah->ah_cal_next_ani = jiffies +
+		msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_ANI);
+	ah->ah_cal_next_short = jiffies +
+		msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_SHORT);
+
 	ewma_init(&ah->ah_beacon_rssi_avg, 1024, 8);
 
 	/* clear survey data and cycle counters */
@@ -2895,11 +2939,11 @@ ath5k_init(struct ieee80211_hw *hw)
 
 	tasklet_init(&ah->rxtq, ath5k_tasklet_rx, (unsigned long)ah);
 	tasklet_init(&ah->txtq, ath5k_tasklet_tx, (unsigned long)ah);
-	tasklet_init(&ah->calib, ath5k_tasklet_calibrate, (unsigned long)ah);
 	tasklet_init(&ah->beacontq, ath5k_tasklet_beacon, (unsigned long)ah);
 	tasklet_init(&ah->ani_tasklet, ath5k_tasklet_ani, (unsigned long)ah);
 
 	INIT_WORK(&ah->reset_work, ath5k_reset_work);
+	INIT_WORK(&ah->calib_work, ath5k_calibrate_work);
 	INIT_DELAYED_WORK(&ah->tx_complete_work, ath5k_tx_complete_poll_work);
 
 	ret = ath5k_hw_common(ah)->bus_ops->eeprom_read_mac(ah, mac);
