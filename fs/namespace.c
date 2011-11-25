@@ -787,9 +787,9 @@ put_again:
 		return;
 	br_write_lock(vfsmount_lock);
 #endif
-	if (unlikely(mnt->mnt.mnt_pinned)) {
-		mnt_add_count(mnt, mnt->mnt.mnt_pinned + 1);
-		mnt->mnt.mnt_pinned = 0;
+	if (unlikely(mnt->mnt_pinned)) {
+		mnt_add_count(mnt, mnt->mnt_pinned + 1);
+		mnt->mnt_pinned = 0;
 		br_write_unlock(vfsmount_lock);
 		acct_auto_close_mnt(&mnt->mnt);
 		goto put_again;
@@ -801,10 +801,11 @@ put_again:
 void mntput(struct vfsmount *mnt)
 {
 	if (mnt) {
+		struct mount *m = real_mount(mnt);
 		/* avoid cacheline pingpong, hope gcc doesn't get "smart" */
-		if (unlikely(mnt->mnt_expiry_mark))
-			mnt->mnt_expiry_mark = 0;
-		mntput_no_expire(real_mount(mnt));
+		if (unlikely(m->mnt_expiry_mark))
+			m->mnt_expiry_mark = 0;
+		mntput_no_expire(m);
 	}
 }
 EXPORT_SYMBOL(mntput);
@@ -820,16 +821,17 @@ EXPORT_SYMBOL(mntget);
 void mnt_pin(struct vfsmount *mnt)
 {
 	br_write_lock(vfsmount_lock);
-	mnt->mnt_pinned++;
+	real_mount(mnt)->mnt_pinned++;
 	br_write_unlock(vfsmount_lock);
 }
 EXPORT_SYMBOL(mnt_pin);
 
-void mnt_unpin(struct vfsmount *mnt)
+void mnt_unpin(struct vfsmount *m)
 {
+	struct mount *mnt = real_mount(m);
 	br_write_lock(vfsmount_lock);
 	if (mnt->mnt_pinned) {
-		mnt_add_count(real_mount(mnt), 1);
+		mnt_add_count(mnt, 1);
 		mnt->mnt_pinned--;
 	}
 	br_write_unlock(vfsmount_lock);
@@ -1200,17 +1202,17 @@ void release_mounts(struct list_head *head)
 		list_del_init(&mnt->mnt_hash);
 		if (mnt_has_parent(mnt)) {
 			struct dentry *dentry;
-			struct vfsmount *m;
+			struct mount *m;
 
 			br_write_lock(vfsmount_lock);
 			dentry = mnt->mnt_mountpoint;
-			m = &mnt->mnt_parent->mnt;
+			m = mnt->mnt_parent;
 			mnt->mnt_mountpoint = mnt->mnt.mnt_root;
 			mnt->mnt_parent = mnt;
 			m->mnt_ghosts--;
 			br_write_unlock(vfsmount_lock);
 			dput(dentry);
-			mntput(m);
+			mntput(&m->mnt);
 		}
 		mntput(&mnt->mnt);
 	}
@@ -1239,7 +1241,7 @@ void umount_tree(struct mount *mnt, int propagate, struct list_head *kill)
 		__mnt_make_shortterm(p);
 		list_del_init(&p->mnt_child);
 		if (mnt_has_parent(p)) {
-			p->mnt_parent->mnt.mnt_ghosts++;
+			p->mnt_parent->mnt_ghosts++;
 			dentry_reset_mounted(p->mnt_mountpoint);
 		}
 		change_mnt_propagation(p, MS_PRIVATE);
@@ -1281,7 +1283,7 @@ static int do_umount(struct mount *mnt, int flags)
 		}
 		br_write_unlock(vfsmount_lock);
 
-		if (!xchg(&mnt->mnt.mnt_expiry_mark, 1))
+		if (!xchg(&mnt->mnt_expiry_mark, 1))
 			return -EAGAIN;
 	}
 
@@ -2106,7 +2108,7 @@ void mark_mounts_for_expiry(struct list_head *mounts)
 	 *   cleared by mntput())
 	 */
 	list_for_each_entry_safe(mnt, next, mounts, mnt_expire) {
-		if (!xchg(&mnt->mnt.mnt_expiry_mark, 1) ||
+		if (!xchg(&mnt->mnt_expiry_mark, 1) ||
 			propagate_mount_busy(mnt, 1))
 			continue;
 		list_move(&mnt->mnt_expire, &graveyard);

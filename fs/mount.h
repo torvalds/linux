@@ -28,6 +28,9 @@ struct mount {
 	struct mnt_namespace *mnt_ns;	/* containing namespace */
 	int mnt_id;			/* mount identifier */
 	int mnt_group_id;		/* peer group identifier */
+	int mnt_expiry_mark;		/* true if marked for expiry */
+	int mnt_pinned;
+	int mnt_ghosts;
 };
 
 static inline struct mount *real_mount(struct vfsmount *mnt)
