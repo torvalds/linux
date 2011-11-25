@@ -271,6 +271,8 @@ static int usbhsg_recip_handler_std_clear_endpoint(struct usbhs_priv *priv,
 
 	usbhsg_recip_handler_std_control_done(priv, uep, ctrl);
 
+	usbhs_pkt_start(pipe);
+
 	return 0;
 }
 
@@ -424,8 +426,7 @@ static int usbhsg_recip_run_handle(struct usbhs_priv *priv,
 	pipe = usbhsg_uep_to_pipe(uep);
 	if (!pipe) {
 		dev_err(dev, "wrong recip request\n");
-		ret = -EINVAL;
-		goto usbhsg_recip_run_handle_end;
+		return -EINVAL;
 	}
 
 	switch (recip) {
@@ -451,9 +452,6 @@ static int usbhsg_recip_run_handle(struct usbhs_priv *priv,
 		dev_dbg(dev, "%s (pipe %d :%s)\n", handler->name, nth, msg);
 		ret = func(priv, uep, ctrl);
 	}
-
-usbhsg_recip_run_handle_end:
-	usbhs_pkt_start(pipe);
 
 	return ret;
 }
