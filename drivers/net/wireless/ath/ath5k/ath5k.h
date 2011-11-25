@@ -571,20 +571,18 @@ enum ath5k_tx_queue_subtype {
  * @AR5K_TX_QUEUE_ID_CAB: Content after beacon queue
  * @AR5K_TX_QUEUE_ID_BEACON: Beacon queue
  * @AR5K_TX_QUEUE_ID_UAPSD: Urgent Automatic Power Save Delivery,
- * @AR5K_TX_QUEUE_ID_XR_DATA: XR Data queue
  *
  * Each number represents a hw queue. If hw does not support hw queues
- * (eg 5210) all data goes in one queue. These match
- * mac80211 definitions.
+ * (eg 5210) all data goes in one queue.
  */
 enum ath5k_tx_queue_id {
 	AR5K_TX_QUEUE_ID_NOQCU_DATA	= 0,
 	AR5K_TX_QUEUE_ID_NOQCU_BEACON	= 1,
 	AR5K_TX_QUEUE_ID_DATA_MIN	= 0,
 	AR5K_TX_QUEUE_ID_DATA_MAX	= 3,
-	AR5K_TX_QUEUE_ID_CAB		= 6,
-	AR5K_TX_QUEUE_ID_BEACON		= 7,
-	AR5K_TX_QUEUE_ID_UAPSD		= 8,
+	AR5K_TX_QUEUE_ID_UAPSD		= 7,
+	AR5K_TX_QUEUE_ID_CAB		= 8,
+	AR5K_TX_QUEUE_ID_BEACON		= 9,
 };
 
 /*

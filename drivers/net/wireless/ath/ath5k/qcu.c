@@ -54,7 +54,7 @@ Queue Control Unit, DCF Control Unit Functions
 /**
  * ath5k_hw_num_tx_pending() - Get number of pending frames for a  given queue
  * @ah: The &struct ath5k_hw
- * @queue: The hw queue number
+ * @queue: One of enum ath5k_tx_queue_id
  */
 u32
 ath5k_hw_num_tx_pending(struct ath5k_hw *ah, unsigned int queue)
@@ -85,7 +85,7 @@ ath5k_hw_num_tx_pending(struct ath5k_hw *ah, unsigned int queue)
 /**
  * ath5k_hw_release_tx_queue() - Set a transmit queue inactive
  * @ah: The &struct ath5k_hw
- * @queue: The hw queue number
+ * @queue: One of enum ath5k_tx_queue_id
  */
 void
 ath5k_hw_release_tx_queue(struct ath5k_hw *ah, unsigned int queue)
@@ -120,7 +120,7 @@ ath5k_cw_validate(u16 cw_req)
 /**
  * ath5k_hw_get_tx_queueprops() - Get properties for a transmit queue
  * @ah: The &struct ath5k_hw
- * @queue: The hw queue number
+ * @queue: One of enum ath5k_tx_queue_id
  * @queue_info: The &struct ath5k_txq_info to fill
  */
 int
@@ -134,7 +134,7 @@ ath5k_hw_get_tx_queueprops(struct ath5k_hw *ah, int queue,
 /**
  * ath5k_hw_set_tx_queueprops() - Set properties for a transmit queue
  * @ah: The &struct ath5k_hw
- * @queue: The hw queue number
+ * @queue: One of enum ath5k_tx_queue_id
  * @qinfo: The &struct ath5k_txq_info to use
  *
  * Returns 0 on success or -EIO if queue is inactive
@@ -267,7 +267,7 @@ ath5k_hw_setup_tx_queue(struct ath5k_hw *ah, enum ath5k_tx_queue queue_type,
 /**
  * ath5k_hw_set_tx_retry_limits() - Set tx retry limits on DCU
  * @ah: The &struct ath5k_hw
- * @queue: The hw queue number
+ * @queue: One of enum ath5k_tx_queue_id
  *
  * This function is used when initializing a queue, to set
  * retry limits based on ah->ah_retry_* and the chipset used.
@@ -310,9 +310,9 @@ ath5k_hw_set_tx_retry_limits(struct ath5k_hw *ah,
 /**
  * ath5k_hw_reset_tx_queue() - Initialize a single hw queue
  * @ah: The &struct ath5k_hw
- * @queue: The hw queue number
+ * @queue: One of enum ath5k_tx_queue_id
  *
- * Set DFS properties for the given transmit queue on DCU
+ * Set DCF properties for the given transmit queue on DCU
  * and configures all queue-specific parameters.
  */
 int
