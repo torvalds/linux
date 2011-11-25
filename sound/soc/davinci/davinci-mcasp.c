@@ -991,17 +991,7 @@ static struct platform_driver davinci_mcasp_driver = {
 	},
 };
 
-static int __init davinci_mcasp_init(void)
-{
-	return platform_driver_register(&davinci_mcasp_driver);
-}
-module_init(davinci_mcasp_init);
-
-static void __exit davinci_mcasp_exit(void)
-{
-	platform_driver_unregister(&davinci_mcasp_driver);
-}
-module_exit(davinci_mcasp_exit);
+module_platform_driver(davinci_mcasp_driver);
 
 MODULE_AUTHOR("Steve Chen");
 MODULE_DESCRIPTION("TI DAVINCI McASP SoC Interface");
