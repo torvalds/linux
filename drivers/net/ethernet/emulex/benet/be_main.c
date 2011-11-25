@@ -237,7 +237,8 @@ static int be_mac_addr_set(struct net_device *netdev, void *p)
 		return -EADDRNOTAVAIL;
 
 	status = be_cmd_mac_addr_query(adapter, current_mac,
-			MAC_ADDRESS_TYPE_NETWORK, false, adapter->if_handle);
+				MAC_ADDRESS_TYPE_NETWORK, false,
+				adapter->if_handle, 0);
 	if (status)
 		goto err;
 
@@ -848,11 +849,18 @@ static int be_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 	if (!is_valid_ether_addr(mac) || (vf >= num_vfs))
 		return -EINVAL;
 
-	status = be_cmd_pmac_del(adapter, adapter->vf_cfg[vf].vf_if_handle,
+	if (lancer_chip(adapter)) {
+		status = be_cmd_set_mac_list(adapter,  mac, 1, vf + 1);
+	} else {
+		status = be_cmd_pmac_del(adapter,
+				adapter->vf_cfg[vf].vf_if_handle,
 				adapter->vf_cfg[vf].vf_pmac_id, vf + 1);
 
-	status = be_cmd_pmac_add(adapter, mac, adapter->vf_cfg[vf].vf_if_handle,
+		status = be_cmd_pmac_add(adapter, mac,
+				adapter->vf_cfg[vf].vf_if_handle,
 				&adapter->vf_cfg[vf].vf_pmac_id, vf + 1);
+	}
+
 	if (status)
 		dev_err(&adapter->pdev->dev, "MAC %pM set on VF %d Failed\n",
 				mac, vf);
@@ -2465,13 +2473,18 @@ static inline int be_vf_eth_addr_config(struct be_adapter *adapter)
 	be_vf_eth_addr_generate(adapter, mac);
 
 	for (vf = 0; vf < num_vfs; vf++) {
-		status = be_cmd_pmac_add(adapter, mac,
+		if (lancer_chip(adapter)) {
+			status = be_cmd_set_mac_list(adapter,  mac, 1, vf + 1);
+		} else {
+			status = be_cmd_pmac_add(adapter, mac,
 					adapter->vf_cfg[vf].vf_if_handle,
 					&adapter->vf_cfg[vf].vf_pmac_id,
 					vf + 1);
+		}
+
 		if (status)
 			dev_err(&adapter->pdev->dev,
-				"Mac address add failed for VF %d\n", vf);
+			"Mac address assignment failed for VF %d\n", vf);
 		else
 			memcpy(adapter->vf_cfg[vf].vf_mac_addr, mac, ETH_ALEN);
 
@@ -2484,9 +2497,14 @@ static void be_vf_clear(struct be_adapter *adapter)
 {
 	u32 vf;
 
-	for (vf = 0; vf < num_vfs; vf++)
-		be_cmd_pmac_del(adapter, adapter->vf_cfg[vf].vf_if_handle,
-				adapter->vf_cfg[vf].vf_pmac_id, vf + 1);
+	for (vf = 0; vf < num_vfs; vf++) {
+		if (lancer_chip(adapter))
+			be_cmd_set_mac_list(adapter, NULL, 0, vf + 1);
+		else
+			be_cmd_pmac_del(adapter,
+					adapter->vf_cfg[vf].vf_if_handle,
+					adapter->vf_cfg[vf].vf_pmac_id, vf + 1);
+	}
 
 	for (vf = 0; vf < num_vfs; vf++)
 		be_cmd_if_destroy(adapter, adapter->vf_cfg[vf].vf_if_handle,
@@ -2527,7 +2545,9 @@ static int be_vf_setup(struct be_adapter *adapter)
 
 	be_vf_setup_init(adapter);
 
-	cap_flags = en_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST;
+	cap_flags = en_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST |
+				BE_IF_FLAGS_MULTICAST;
+
 	for (vf = 0; vf < num_vfs; vf++) {
 		status = be_cmd_if_create(adapter, cap_flags, en_flags, NULL,
 					&adapter->vf_cfg[vf].vf_if_handle,
@@ -2536,11 +2556,9 @@ static int be_vf_setup(struct be_adapter *adapter)
 			goto err;
 	}
 
-	if (!lancer_chip(adapter)) {
-		status = be_vf_eth_addr_config(adapter);
-		if (status)
-			goto err;
-	}
+	status = be_vf_eth_addr_config(adapter);
+	if (status)
+		goto err;
 
 	for (vf = 0; vf < num_vfs; vf++) {
 		status = be_cmd_link_status_query(adapter, NULL, &lnk_speed,
@@ -2562,6 +2580,23 @@ static void be_setup_init(struct be_adapter *adapter)
 	adapter->be3_native = false;
 	adapter->promiscuous = false;
 	adapter->eq_next_idx = 0;
+}
+
+static int be_configure_mac_from_list(struct be_adapter *adapter, u8 *mac)
+{
+	u32 pmac_id;
+	int status = be_cmd_get_mac_from_list(adapter, 0, &pmac_id);
+	if (status != 0)
+		goto do_none;
+	status = be_cmd_mac_addr_query(adapter, mac,
+			MAC_ADDRESS_TYPE_NETWORK,
+			false, adapter->if_handle, pmac_id);
+	if (status != 0)
+		goto do_none;
+	status = be_cmd_pmac_add(adapter, mac, adapter->if_handle,
+			&adapter->pmac_id, 0);
+do_none:
+	return status;
 }
 
 static int be_setup(struct be_adapter *adapter)
@@ -2591,7 +2626,7 @@ static int be_setup(struct be_adapter *adapter)
 
 	memset(mac, 0, ETH_ALEN);
 	status = be_cmd_mac_addr_query(adapter, mac, MAC_ADDRESS_TYPE_NETWORK,
-			true /*permanent */, 0);
+			true /*permanent */, 0, 0);
 	if (status)
 		return status;
 	memcpy(adapter->netdev->dev_addr, mac, ETH_ALEN);
@@ -2618,12 +2653,17 @@ static int be_setup(struct be_adapter *adapter)
 			goto err;
 	}
 
-	/* For BEx, the VF's permanent mac queried from card is incorrect.
-	 * Query the mac configued by the PF using if_handle
-	 */
-	if (!be_physfn(adapter) && !lancer_chip(adapter)) {
-		status = be_cmd_mac_addr_query(adapter, mac,
-			MAC_ADDRESS_TYPE_NETWORK, false, adapter->if_handle);
+	 /* The VF's permanent mac queried from card is incorrect.
+	  * For BEx: Query the mac configued by the PF using if_handle
+	  * For Lancer: Get and use mac_list to obtain mac address.
+	  */
+	if (!be_physfn(adapter)) {
+		if (lancer_chip(adapter))
+			status = be_configure_mac_from_list(adapter, mac);
+		else
+			status = be_cmd_mac_addr_query(adapter, mac,
+					MAC_ADDRESS_TYPE_NETWORK, false,
+					adapter->if_handle, 0);
 		if (!status) {
 			memcpy(adapter->netdev->dev_addr, mac, ETH_ALEN);
 			memcpy(adapter->netdev->perm_addr, mac, ETH_ALEN);
@@ -2639,12 +2679,15 @@ static int be_setup(struct be_adapter *adapter)
 	be_set_rx_mode(adapter->netdev);
 
 	status = be_cmd_get_flow_control(adapter, &tx_fc, &rx_fc);
-	if (status)
+	/* For Lancer: It is legal for this cmd to fail on VF */
+	if (status && (be_physfn(adapter) || !lancer_chip(adapter)))
 		goto err;
+
 	if (rx_fc != adapter->rx_fc || tx_fc != adapter->tx_fc) {
 		status = be_cmd_set_flow_control(adapter, adapter->tx_fc,
 					adapter->rx_fc);
-		if (status)
+		/* For Lancer: It is legal for this cmd to fail on VF */
+		if (status && (be_physfn(adapter) || !lancer_chip(adapter)))
 			goto err;
 	}
 

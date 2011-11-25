@@ -609,7 +609,7 @@ int be_cmd_eq_create(struct be_adapter *adapter,
 
 /* Use MCC */
 int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
-			u8 type, bool permanent, u32 if_handle)
+			u8 type, bool permanent, u32 if_handle, u32 pmac_id)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_mac_query *req;
@@ -631,6 +631,7 @@ int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
 		req->permanent = 1;
 	} else {
 		req->if_id = cpu_to_le16((u16) if_handle);
+		req->pmac_id = cpu_to_le32(pmac_id);
 		req->permanent = 0;
 	}
 
@@ -2278,5 +2279,101 @@ int be_cmd_req_native_mode(struct be_adapter *adapter)
 	}
 err:
 	mutex_unlock(&adapter->mbox_lock);
+	return status;
+}
+
+/* Uses synchronous MCCQ */
+int be_cmd_get_mac_from_list(struct be_adapter *adapter, u32 domain,
+							u32 *pmac_id)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_get_mac_list *req;
+	int status;
+	int mac_count;
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+	req = embedded_payload(wrb);
+
+	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+				OPCODE_COMMON_GET_MAC_LIST, sizeof(*req),
+				wrb, NULL);
+
+	req->hdr.domain = domain;
+
+	status = be_mcc_notify_wait(adapter);
+	if (!status) {
+		struct be_cmd_resp_get_mac_list *resp =
+						embedded_payload(wrb);
+		int i;
+		u8 *ctxt = &resp->context[0][0];
+		status = -EIO;
+		mac_count = resp->mac_count;
+		be_dws_le_to_cpu(&resp->context, sizeof(resp->context));
+		for (i = 0; i < mac_count; i++) {
+			if (!AMAP_GET_BITS(struct amap_get_mac_list_context,
+					   act, ctxt)) {
+				*pmac_id = AMAP_GET_BITS
+					(struct amap_get_mac_list_context,
+					 macid, ctxt);
+				status = 0;
+				break;
+			}
+			ctxt += sizeof(struct amap_get_mac_list_context) / 8;
+		}
+	}
+
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
+}
+
+/* Uses synchronous MCCQ */
+int be_cmd_set_mac_list(struct be_adapter *adapter, u8 *mac_array,
+			u8 mac_count, u32 domain)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_set_mac_list *req;
+	int status;
+	struct be_dma_mem cmd;
+
+	memset(&cmd, 0, sizeof(struct be_dma_mem));
+	cmd.size = sizeof(struct be_cmd_req_set_mac_list);
+	cmd.va = dma_alloc_coherent(&adapter->pdev->dev, cmd.size,
+			&cmd.dma, GFP_KERNEL);
+	if (!cmd.va) {
+		dev_err(&adapter->pdev->dev, "Memory alloc failure\n");
+		return -ENOMEM;
+	}
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+
+	req = cmd.va;
+	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+				OPCODE_COMMON_SET_MAC_LIST, sizeof(*req),
+				wrb, &cmd);
+
+	req->hdr.domain = domain;
+	req->mac_count = mac_count;
+	if (mac_count)
+		memcpy(req->mac, mac_array, ETH_ALEN*mac_count);
+
+	status = be_mcc_notify_wait(adapter);
+
+err:
+	dma_free_coherent(&adapter->pdev->dev, cmd.size,
+				cmd.va, cmd.dma);
+	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
 }

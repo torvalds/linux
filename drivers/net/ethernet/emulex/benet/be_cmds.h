@@ -189,6 +189,8 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_GET_PHY_DETAILS			102
 #define OPCODE_COMMON_SET_DRIVER_FUNCTION_CAP		103
 #define OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES	121
+#define OPCODE_COMMON_GET_MAC_LIST			147
+#define OPCODE_COMMON_SET_MAC_LIST			148
 #define OPCODE_COMMON_READ_OBJECT			171
 #define OPCODE_COMMON_WRITE_OBJECT			172
 
@@ -295,6 +297,7 @@ struct be_cmd_req_mac_query {
 	u8 type;
 	u8 permanent;
 	u16 if_id;
+	u32 pmac_id;
 } __packed;
 
 struct be_cmd_resp_mac_query {
@@ -1340,6 +1343,34 @@ struct be_cmd_resp_set_func_cap {
 	u8 rsvd[212];
 };
 
+/******************** GET/SET_MACLIST  **************************/
+#define BE_MAX_MAC			64
+struct amap_get_mac_list_context {
+	u8 macid[31];
+	u8 act;
+} __packed;
+
+struct be_cmd_req_get_mac_list {
+	struct be_cmd_req_hdr hdr;
+	u32 rsvd;
+} __packed;
+
+struct be_cmd_resp_get_mac_list {
+	struct be_cmd_resp_hdr hdr;
+	u8 mac_count;
+	u8 rsvd1;
+	u16 rsvd2;
+	u8 context[sizeof(struct amap_get_mac_list_context) / 8][BE_MAX_MAC];
+} __packed;
+
+struct be_cmd_req_set_mac_list {
+	struct be_cmd_req_hdr hdr;
+	u8 mac_count;
+	u8 rsvd1;
+	u16 rsvd2;
+	struct macaddr mac[BE_MAX_MAC];
+} __packed;
+
 /*************** HW Stats Get v1 **********************************/
 #define BE_TXP_SW_SZ			48
 struct be_port_rxf_stats_v1 {
@@ -1446,7 +1477,7 @@ static inline void *be_erx_stats_from_cmd(struct be_adapter *adapter)
 extern int be_pci_fnum_get(struct be_adapter *adapter);
 extern int be_cmd_POST(struct be_adapter *adapter);
 extern int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
-			u8 type, bool permanent, u32 if_handle);
+			u8 type, bool permanent, u32 if_handle, u32 pmac_id);
 extern int be_cmd_pmac_add(struct be_adapter *adapter, u8 *mac_addr,
 			u32 if_id, u32 *pmac_id, u32 domain);
 extern int be_cmd_pmac_del(struct be_adapter *adapter, u32 if_id,
@@ -1542,4 +1573,8 @@ extern int be_cmd_get_cntl_attributes(struct be_adapter *adapter);
 extern int be_cmd_req_native_mode(struct be_adapter *adapter);
 extern int be_cmd_get_reg_len(struct be_adapter *adapter, u32 *log_size);
 extern void be_cmd_get_regs(struct be_adapter *adapter, u32 buf_len, void *buf);
+extern int be_cmd_get_mac_from_list(struct be_adapter *adapter, u32 domain,
+							u32 *pmac_id);
+extern int be_cmd_set_mac_list(struct be_adapter *adapter, u8 *mac_array,
+						u8 mac_count, u32 domain);
 
