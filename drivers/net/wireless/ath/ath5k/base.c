@@ -183,7 +183,6 @@ static const struct ieee80211_rate ath5k_rates[] = {
 	{ .bitrate = 540,
 	  .hw_value = ATH5K_RATE_CODE_54M,
 	  .flags = 0 },
-	/* XR missing */
 };
 
 static inline u64 ath5k_extend_tsf(struct ath5k_hw *ah, u32 rstamp)
@@ -2005,7 +2004,7 @@ ath5k_beacon_update_timers(struct ath5k_hw *ah, u64 bc_tsf)
 	ah->nexttbtt = nexttbtt;
 
 	intval |= AR5K_BEACON_ENA;
-	ath5k_hw_init_beacon(ah, nexttbtt, intval);
+	ath5k_hw_init_beacon_timers(ah, nexttbtt, intval);
 
 	/*
 	 * debugging output last in order to preserve the time critical aspect

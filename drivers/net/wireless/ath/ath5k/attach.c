@@ -27,8 +27,7 @@
 #include "debug.h"
 
 /**
- * ath5k_hw_post - Power On Self Test helper function
- *
+ * ath5k_hw_post() - Power On Self Test helper function
  * @ah: The &struct ath5k_hw
  */
 static int ath5k_hw_post(struct ath5k_hw *ah)
@@ -92,8 +91,7 @@ static int ath5k_hw_post(struct ath5k_hw *ah)
 }
 
 /**
- * ath5k_hw_init - Check if hw is supported and init the needed structs
- *
+ * ath5k_hw_init() - Check if hw is supported and init the needed structs
  * @ah: The &struct ath5k_hw associated with the device
  *
  * Check if the device is supported, perform a POST and initialize the needed
@@ -349,8 +347,7 @@ err:
 }
 
 /**
- * ath5k_hw_deinit - Free the ath5k_hw struct
- *
+ * ath5k_hw_deinit() - Free the &struct ath5k_hw
  * @ah: The &struct ath5k_hw
  */
 void ath5k_hw_deinit(struct ath5k_hw *ah)
