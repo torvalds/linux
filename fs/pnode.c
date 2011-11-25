@@ -32,15 +32,15 @@ static struct vfsmount *get_peer_under_root(struct vfsmount *mnt,
 					    struct mnt_namespace *ns,
 					    const struct path *root)
 {
-	struct vfsmount *m = mnt;
+	struct mount *m = real_mount(mnt);
 
 	do {
 		/* Check the namespace first for optimization */
-		if (m->mnt_ns == ns && is_path_reachable(m, m->mnt_root, root))
-			return m;
+		if (m->mnt.mnt_ns == ns && is_path_reachable(m, m->mnt.mnt_root, root))
+			return &m->mnt;
 
-		m = next_peer(m);
-	} while (m != mnt);
+		m = real_mount(next_peer(&m->mnt));
+	} while (&m->mnt != mnt);
 
 	return NULL;
 }
