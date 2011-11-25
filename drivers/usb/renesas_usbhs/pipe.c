@@ -257,6 +257,13 @@ void usbhs_pipe_stall(struct usbhs_pipe *pipe)
 	}
 }
 
+int usbhs_pipe_is_stall(struct usbhs_pipe *pipe)
+{
+	u16 pid = usbhsp_pipectrl_get(pipe) & PID_MASK;
+
+	return (int)(pid == PID_STALL10 || pid == PID_STALL11);
+}
+
 /*
  *		pipe setup
  */
