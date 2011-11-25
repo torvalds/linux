@@ -36,7 +36,7 @@ static struct mount *get_peer_under_root(struct mount *mnt,
 
 	do {
 		/* Check the namespace first for optimization */
-		if (m->mnt.mnt_ns == ns && is_path_reachable(m, m->mnt.mnt_root, root))
+		if (m->mnt_ns == ns && is_path_reachable(m, m->mnt.mnt_root, root))
 			return m;
 
 		m = next_peer(m);
@@ -56,7 +56,7 @@ int get_dominating_id(struct mount *mnt, const struct path *root)
 	struct mount *m;
 
 	for (m = mnt->mnt_master; m != NULL; m = m->mnt_master) {
-		struct mount *d = get_peer_under_root(m, mnt->mnt.mnt_ns, root);
+		struct mount *d = get_peer_under_root(m, mnt->mnt_ns, root);
 		if (d)
 			return d->mnt.mnt_group_id;
 	}
@@ -145,7 +145,7 @@ static struct mount *propagation_next(struct mount *m,
 					 struct mount *origin)
 {
 	/* are there any slaves of this mount? */
-	if (!IS_MNT_NEW(&m->mnt) && !list_empty(&m->mnt_slave_list))
+	if (!IS_MNT_NEW(m) && !list_empty(&m->mnt_slave_list))
 		return first_slave(m);
 
 	while (1) {
@@ -189,7 +189,7 @@ static struct mount *get_source(struct mount *dest,
 	if (p_last_dest) {
 		do {
 			p_last_dest = next_peer(p_last_dest);
-		} while (IS_MNT_NEW(&p_last_dest->mnt));
+		} while (IS_MNT_NEW(p_last_dest));
 		/* is that a peer of the earlier? */
 		if (dest == p_last_dest) {
 			*type = CL_MAKE_SHARED;
@@ -232,7 +232,7 @@ int propagate_mnt(struct mount *dest_mnt, struct dentry *dest_dentry,
 		int type;
 		struct mount *source;
 
-		if (IS_MNT_NEW(&m->mnt))
+		if (IS_MNT_NEW(m))
 			continue;
 
 		source =  get_source(m, prev_dest_mnt, prev_src_mnt, &type);

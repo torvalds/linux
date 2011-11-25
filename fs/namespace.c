@@ -505,7 +505,7 @@ struct vfsmount *lookup_mnt(struct path *path)
 	}
 }
 
-static inline int check_mnt(struct vfsmount *mnt)
+static inline int check_mnt(struct mount *mnt)
 {
 	return mnt->mnt_ns == current->nsproxy->mnt_ns;
 }
@@ -614,13 +614,13 @@ static void commit_tree(struct mount *mnt)
 	struct mount *parent = mnt->mnt_parent;
 	struct mount *m;
 	LIST_HEAD(head);
-	struct mnt_namespace *n = parent->mnt.mnt_ns;
+	struct mnt_namespace *n = parent->mnt_ns;
 
 	BUG_ON(parent == mnt);
 
 	list_add_tail(&head, &mnt->mnt.mnt_list);
 	list_for_each_entry(m, &head, mnt.mnt_list) {
-		m->mnt.mnt_ns = n;
+		m->mnt_ns = n;
 		__mnt_make_longterm(m);
 	}
 
@@ -1234,8 +1234,8 @@ void umount_tree(struct mount *mnt, int propagate, struct list_head *kill)
 	list_for_each_entry(p, &tmp_list, mnt_hash) {
 		list_del_init(&p->mnt_expire);
 		list_del_init(&p->mnt.mnt_list);
-		__touch_mnt_namespace(p->mnt.mnt_ns);
-		p->mnt.mnt_ns = NULL;
+		__touch_mnt_namespace(p->mnt_ns);
+		p->mnt_ns = NULL;
 		__mnt_make_shortterm(p);
 		list_del_init(&p->mnt_child);
 		if (mnt_has_parent(p)) {
@@ -1367,7 +1367,7 @@ SYSCALL_DEFINE2(umount, char __user *, name, int, flags)
 	retval = -EINVAL;
 	if (path.dentry != path.mnt->mnt_root)
 		goto dput_and_out;
-	if (!check_mnt(path.mnt))
+	if (!check_mnt(mnt))
 		goto dput_and_out;
 
 	retval = -EPERM;
@@ -1619,7 +1619,7 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 	if (parent_path) {
 		detach_mnt(source_mnt, parent_path);
 		attach_mnt(source_mnt, path);
-		touch_mnt_namespace(parent_path->mnt->mnt_ns);
+		touch_mnt_namespace(source_mnt->mnt_ns);
 	} else {
 		mnt_set_mountpoint(dest_mnt, dest_dentry, source_mnt);
 		commit_tree(source_mnt);
@@ -1765,7 +1765,7 @@ static int do_loopback(struct path *path, char *old_name,
 	if (IS_MNT_UNBINDABLE(old_path.mnt))
 		goto out2;
 
-	if (!check_mnt(path->mnt) || !check_mnt(old_path.mnt))
+	if (!check_mnt(real_mount(path->mnt)) || !check_mnt(old))
 		goto out2;
 
 	err = -ENOMEM;
@@ -1818,11 +1818,12 @@ static int do_remount(struct path *path, int flags, int mnt_flags,
 {
 	int err;
 	struct super_block *sb = path->mnt->mnt_sb;
+	struct mount *mnt = real_mount(path->mnt);
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (!check_mnt(path->mnt))
+	if (!check_mnt(mnt))
 		return -EINVAL;
 
 	if (path->dentry != path->mnt->mnt_root)
@@ -1839,14 +1840,14 @@ static int do_remount(struct path *path, int flags, int mnt_flags,
 		err = do_remount_sb(sb, flags, data, 0);
 	if (!err) {
 		br_write_lock(vfsmount_lock);
-		mnt_flags |= path->mnt->mnt_flags & MNT_PROPAGATION_MASK;
-		path->mnt->mnt_flags = mnt_flags;
+		mnt_flags |= mnt->mnt.mnt_flags & MNT_PROPAGATION_MASK;
+		mnt->mnt.mnt_flags = mnt_flags;
 		br_write_unlock(vfsmount_lock);
 	}
 	up_write(&sb->s_umount);
 	if (!err) {
 		br_write_lock(vfsmount_lock);
-		touch_mnt_namespace(path->mnt->mnt_ns);
+		touch_mnt_namespace(mnt->mnt_ns);
 		br_write_unlock(vfsmount_lock);
 	}
 	return err;
@@ -1880,8 +1881,10 @@ static int do_move_mount(struct path *path, char *old_name)
 	if (err < 0)
 		goto out;
 
+	old = real_mount(old_path.mnt);
+
 	err = -EINVAL;
-	if (!check_mnt(path->mnt) || !check_mnt(old_path.mnt))
+	if (!check_mnt(real_mount(path->mnt)) || !check_mnt(old))
 		goto out1;
 
 	if (d_unlinked(path->dentry))
@@ -1890,8 +1893,6 @@ static int do_move_mount(struct path *path, char *old_name)
 	err = -EINVAL;
 	if (old_path.dentry != old_path.mnt->mnt_root)
 		goto out1;
-
-	old = real_mount(old_path.mnt);
 
 	if (!mnt_has_parent(old))
 		goto out1;
@@ -1984,7 +1985,7 @@ static int do_add_mount(struct mount *newmnt, struct path *path, int mnt_flags)
 		return err;
 
 	err = -EINVAL;
-	if (!(mnt_flags & MNT_SHRINKABLE) && !check_mnt(path->mnt))
+	if (!(mnt_flags & MNT_SHRINKABLE) && !check_mnt(real_mount(path->mnt)))
 		goto unlock;
 
 	/* Refuse the same filesystem on the same mount point */
@@ -2112,7 +2113,7 @@ void mark_mounts_for_expiry(struct list_head *mounts)
 	}
 	while (!list_empty(&graveyard)) {
 		mnt = list_first_entry(&graveyard, struct mount, mnt_expire);
-		touch_mnt_namespace(mnt->mnt.mnt_ns);
+		touch_mnt_namespace(mnt->mnt_ns);
 		umount_tree(mnt, 1, &umounts);
 	}
 	br_write_unlock(vfsmount_lock);
@@ -2185,7 +2186,7 @@ static void shrink_submounts(struct mount *mnt, struct list_head *umounts)
 		while (!list_empty(&graveyard)) {
 			m = list_first_entry(&graveyard, struct mount,
 						mnt_expire);
-			touch_mnt_namespace(m->mnt.mnt_ns);
+			touch_mnt_namespace(m->mnt_ns);
 			umount_tree(m, 1, umounts);
 		}
 	}
@@ -2423,7 +2424,7 @@ static struct mnt_namespace *dup_mnt_ns(struct mnt_namespace *mnt_ns,
 	p = real_mount(mnt_ns->root);
 	q = new;
 	while (p) {
-		q->mnt.mnt_ns = new_ns;
+		q->mnt_ns = new_ns;
 		__mnt_make_longterm(q);
 		if (fs) {
 			if (&p->mnt == fs->root.mnt) {
@@ -2479,7 +2480,7 @@ static struct mnt_namespace *create_mnt_ns(struct vfsmount *mnt)
 
 	new_ns = alloc_mnt_ns();
 	if (!IS_ERR(new_ns)) {
-		mnt->mnt_ns = new_ns;
+		real_mount(mnt)->mnt_ns = new_ns;
 		__mnt_make_longterm(real_mount(mnt));
 		new_ns->root = mnt;
 		list_add(&new_ns->list, &new_ns->root->mnt_list);
@@ -2644,7 +2645,7 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 		IS_MNT_SHARED(&new_mnt->mnt_parent->mnt) ||
 		IS_MNT_SHARED(&root_mnt->mnt_parent->mnt))
 		goto out4;
-	if (!check_mnt(root.mnt) || !check_mnt(new.mnt))
+	if (!check_mnt(root_mnt) || !check_mnt(new_mnt))
 		goto out4;
 	error = -ENOENT;
 	if (d_unlinked(new.dentry))
@@ -2793,5 +2794,5 @@ EXPORT_SYMBOL(kern_unmount);
 
 bool our_mnt(struct vfsmount *mnt)
 {
-	return check_mnt(mnt);
+	return check_mnt(real_mount(mnt));
 }

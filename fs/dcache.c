@@ -2503,7 +2503,7 @@ global_root:
 	if (!slash)
 		error = prepend(buffer, buflen, "/", 1);
 	if (!error)
-		error = vfsmnt->mnt_ns ? 1 : 2;
+		error = real_mount(vfsmnt)->mnt_ns ? 1 : 2;
 	goto out;
 }
 
