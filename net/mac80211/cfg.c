@@ -1195,6 +1195,8 @@ static int copy_mesh_setup(struct ieee80211_if_mesh *ifmsh,
 {
 	u8 *new_ie;
 	const u8 *old_ie;
+	struct ieee80211_sub_if_data *sdata = container_of(ifmsh,
+					struct ieee80211_sub_if_data, u.mesh);
 
 	/* allocate information elements */
 	new_ie = NULL;
@@ -1220,6 +1222,10 @@ static int copy_mesh_setup(struct ieee80211_if_mesh *ifmsh,
 		ifmsh->security |= IEEE80211_MESH_SEC_AUTHED;
 	if (setup->is_secure)
 		ifmsh->security |= IEEE80211_MESH_SEC_SECURED;
+
+	/* mcast rate setting in Mesh Node */
+	memcpy(sdata->vif.bss_conf.mcast_rate, setup->mcast_rate,
+						sizeof(setup->mcast_rate));
 
 	return 0;
 }

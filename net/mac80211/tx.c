@@ -640,6 +640,7 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	else
 		txrc.max_rate_idx = fls(txrc.rate_idx_mask) - 1;
 	txrc.bss = (tx->sdata->vif.type == NL80211_IFTYPE_AP ||
+		    tx->sdata->vif.type == NL80211_IFTYPE_MESH_POINT ||
 		    tx->sdata->vif.type == NL80211_IFTYPE_ADHOC);
 
 	/* set up RTS protection if desired */

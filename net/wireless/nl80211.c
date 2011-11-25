@@ -5667,6 +5667,11 @@ static int nl80211_join_mesh(struct sk_buff *skb, struct genl_info *info)
 	setup.mesh_id = nla_data(info->attrs[NL80211_ATTR_MESH_ID]);
 	setup.mesh_id_len = nla_len(info->attrs[NL80211_ATTR_MESH_ID]);
 
+	if (info->attrs[NL80211_ATTR_MCAST_RATE] &&
+	    !nl80211_parse_mcast_rate(rdev, setup.mcast_rate,
+			    nla_get_u32(info->attrs[NL80211_ATTR_MCAST_RATE])))
+			return -EINVAL;
+
 	if (info->attrs[NL80211_ATTR_MESH_SETUP]) {
 		/* parse additional setup parameters if given */
 		err = nl80211_parse_mesh_setup(info, &setup);
