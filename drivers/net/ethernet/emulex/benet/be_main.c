@@ -2312,8 +2312,8 @@ static int be_close(struct net_device *netdev)
 static int be_rx_queues_setup(struct be_adapter *adapter)
 {
 	struct be_rx_obj *rxo;
-	int rc, i;
-	u8 rsstable[MAX_RSS_QS];
+	int rc, i, j;
+	u8 rsstable[128];
 
 	for_all_rx_queues(adapter, rxo, i) {
 		rc = be_cmd_rxq_create(adapter, &rxo->q, rxo->cq.id,
@@ -2325,11 +2325,15 @@ static int be_rx_queues_setup(struct be_adapter *adapter)
 	}
 
 	if (be_multi_rxq(adapter)) {
-		for_all_rss_queues(adapter, rxo, i)
-			rsstable[i] = rxo->rss_id;
+		for (j = 0; j < 128; j += adapter->num_rx_qs - 1) {
+			for_all_rss_queues(adapter, rxo, i) {
+				if ((j + i) >= 128)
+					break;
+				rsstable[j + i] = rxo->rss_id;
+			}
+		}
+		rc = be_cmd_rss_config(adapter, rsstable, 128);
 
-		rc = be_cmd_rss_config(adapter, rsstable,
-			adapter->num_rx_qs - 1);
 		if (rc)
 			return rc;
 	}
