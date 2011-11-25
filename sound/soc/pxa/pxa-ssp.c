@@ -825,17 +825,7 @@ static struct platform_driver asoc_ssp_driver = {
 	.remove = __devexit_p(asoc_ssp_remove),
 };
 
-static int __init pxa_ssp_init(void)
-{
-	return platform_driver_register(&asoc_ssp_driver);
-}
-module_init(pxa_ssp_init);
-
-static void __exit pxa_ssp_exit(void)
-{
-	platform_driver_unregister(&asoc_ssp_driver);
-}
-module_exit(pxa_ssp_exit);
+module_platform_driver(asoc_ssp_driver);
 
 /* Module information */
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");

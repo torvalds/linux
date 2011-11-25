@@ -236,18 +236,7 @@ static struct platform_driver hx4700_audio_driver = {
 	.remove	= __devexit_p(hx4700_audio_remove),
 };
 
-static int __init hx4700_modinit(void)
-{
-	return platform_driver_register(&hx4700_audio_driver);
-}
-module_init(hx4700_modinit);
-
-static void __exit hx4700_modexit(void)
-{
-	platform_driver_unregister(&hx4700_audio_driver);
-}
-
-module_exit(hx4700_modexit);
+module_platform_driver(hx4700_audio_driver);
 
 MODULE_AUTHOR("Philipp Zabel");
 MODULE_DESCRIPTION("ALSA SoC iPAQ hx4700");
