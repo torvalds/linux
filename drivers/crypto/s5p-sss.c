@@ -683,18 +683,7 @@ static struct platform_driver s5p_aes_crypto = {
 	},
 };
 
-static int __init s5p_aes_mod_init(void)
-{
-	return  platform_driver_register(&s5p_aes_crypto);
-}
-
-static void __exit s5p_aes_mod_exit(void)
-{
-	platform_driver_unregister(&s5p_aes_crypto);
-}
-
-module_init(s5p_aes_mod_init);
-module_exit(s5p_aes_mod_exit);
+module_platform_driver(s5p_aes_crypto);
 
 MODULE_DESCRIPTION("S5PV210 AES hw acceleration support.");
 MODULE_LICENSE("GPL v2");

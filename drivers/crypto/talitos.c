@@ -2894,17 +2894,7 @@ static struct platform_driver talitos_driver = {
 	.remove = talitos_remove,
 };
 
-static int __init talitos_init(void)
-{
-	return platform_driver_register(&talitos_driver);
-}
-module_init(talitos_init);
-
-static void __exit talitos_exit(void)
-{
-	platform_driver_unregister(&talitos_driver);
-}
-module_exit(talitos_exit);
+module_platform_driver(talitos_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kim Phillips <kim.phillips@freescale.com>");
