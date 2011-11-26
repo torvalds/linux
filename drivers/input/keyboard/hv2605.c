@@ -42,9 +42,9 @@
     #include <linux/earlysuspend.h>
 #endif
 
-#define KEY_DEBUG
-#define PRINT_STATUS_INFO
-#define  PRINT_SUSPEND_INFO
+//#define KEY_DEBUG
+//#define PRINT_STATUS_INFO
+#define PRINT_SUSPEND_INFO
 
 static struct i2c_client *this_client;
 static struct hv_keypad_data *hv_keypad;
@@ -196,7 +196,7 @@ static int hv_i2c_rxdata(char *rxdata, int length)
 	//printk("msg i2c read: 0x%x\n", this_client->addr);
 	//printk("HV IIC read data\n");
 	if (ret < 0){
-		//pr_info("msg %s i2c read error: 0x%x\n", __func__, this_client->addr);
+		pr_info("msg %s i2c read error: 0x%x\n", __func__, this_client->addr);
 	}
 
 	return ret;
@@ -272,7 +272,7 @@ static int hv_read_data(void)
 			event->key_val    = buf[0];
 			//printk("receive 0xff. \n");
 		}
-		print_status_info("157 event->key_status = %d\n",event->key_status);
+		print_status_info("157 event->key_status = %d, event->key_val = %d.\n",event->key_status, event->key_val);
 
 	}else{
 		if(event->key_status ==1){
@@ -333,7 +333,7 @@ static void hv_read_loop(struct work_struct *work)
 
 		}
 
-		print_status_info("225 event->key_status = %d\n",event->key_status);
+		print_status_info("225 event->key_status = %d, event->key_val = %d.\n",event->key_status, event->key_val);
 	}else if(event->key_status ==0){
 		hv_keypad_release();
 		print_status_info("233 event->key_status = %d\n",event->key_status);
