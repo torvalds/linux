@@ -1025,15 +1025,13 @@ int dss_mgr_enable(struct omap_overlay_manager *mgr)
 	spin_lock_irqsave(&data_lock, flags);
 
 	mp->enabled = true;
+
 	r = dss_check_settings(mgr, mgr->device);
-	mp->enabled = false;
 	if (r) {
 		DSSERR("failed to enable manager %d: check_settings failed\n",
 				mgr->id);
 		goto err;
 	}
-
-	mp->enabled = true;
 
 	dss_mgr_setup_fifos(mgr);
 
@@ -1054,6 +1052,7 @@ out:
 	return 0;
 
 err:
+	mp->enabled = false;
 	spin_unlock_irqrestore(&data_lock, flags);
 	mutex_unlock(&apply_lock);
 	return r;
