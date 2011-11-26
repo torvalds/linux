@@ -55,12 +55,12 @@ static inline void kunmap(struct page *page)
 {
 }
 
-static inline void *__kmap_atomic(struct page *page)
+static inline void *kmap_atomic(struct page *page)
 {
 	pagefault_disable();
 	return page_address(page);
 }
-#define kmap_atomic_prot(page, prot)	__kmap_atomic(page)
+#define kmap_atomic_prot(page, prot)	kmap_atomic(page)
 
 static inline void __kunmap_atomic(void *addr)
 {
@@ -121,15 +121,10 @@ static inline void kmap_atomic_idx_pop(void)
 #define NARG_(_2, _1, n, ...) n
 #define NARG(...) NARG_(__VA_ARGS__, 2, 1, :)
 
-static inline void *kmap_atomic(struct page *page)
-{
-	return __kmap_atomic(page);
-}
-
 static inline void __deprecated *kmap_atomic_deprecated(struct page *page,
 							enum km_type km)
 {
-	return __kmap_atomic(page);
+	return kmap_atomic(page);
 }
 
 #define kmap_atomic1(...) kmap_atomic(__VA_ARGS__)
