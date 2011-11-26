@@ -108,6 +108,10 @@ struct sabi_commands {
 	u16 get_battery_life_extender;
 	u16 set_battery_life_extender;
 
+	/* 0x80 is off, 0x81 is on */
+	u16 get_usb_charge;
+	u16 set_usb_charge;
+
 	/*
 	 * Tell the BIOS that Linux is running on this machine.
 	 * 81 is on, 80 is off
@@ -164,6 +168,9 @@ static const struct sabi_config sabi_configs[] = {
 			.get_battery_life_extender = 0xFFFF,
 			.set_battery_life_extender = 0xFFFF,
 
+			.get_usb_charge = 0xFFFF,
+			.set_usb_charge = 0xFFFF,
+
 			.set_linux = 0x0a,
 		},
 
@@ -213,6 +220,9 @@ static const struct sabi_config sabi_configs[] = {
 
 			.get_battery_life_extender = 0x65,
 			.set_battery_life_extender = 0x66,
+
+			.get_usb_charge = 0x67,
+			.set_usb_charge = 0x68,
 
 			.set_linux = 0xff,
 		},
@@ -622,9 +632,79 @@ static ssize_t set_battery_life_extender(struct device *dev,
 static DEVICE_ATTR(battery_life_extender, S_IWUSR | S_IRUGO,
 		   get_battery_life_extender, set_battery_life_extender);
 
+static int read_usb_charge(struct samsung_laptop *samsung)
+{
+	const struct sabi_commands *commands = &samsung->config->commands;
+	struct sabi_data data;
+	int retval;
+
+	if (commands->get_usb_charge == 0xFFFF)
+		return -ENODEV;
+
+	memset(&data, 0, sizeof(data));
+	data.data[0] = 0x80;
+	retval = sabi_command(samsung, commands->get_usb_charge,
+			      &data, &data);
+
+	if (retval)
+		return retval;
+
+	if (data.data[0] != 0 && data.data[0] != 1)
+		return -ENODEV;
+
+	return data.data[0];
+}
+
+static int write_usb_charge(struct samsung_laptop *samsung,
+			    int enabled)
+{
+	const struct sabi_commands *commands = &samsung->config->commands;
+	struct sabi_data data;
+
+	memset(&data, 0, sizeof(data));
+	data.data[0] = 0x80 | enabled;
+	return sabi_command(samsung, commands->set_usb_charge,
+			    &data, NULL);
+}
+
+static ssize_t get_usb_charge(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	struct samsung_laptop *samsung = dev_get_drvdata(dev);
+	int ret;
+
+	ret = read_usb_charge(samsung);
+	if (ret < 0)
+		return ret;
+
+	return sprintf(buf, "%d\n", ret);
+}
+
+static ssize_t set_usb_charge(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	struct samsung_laptop *samsung = dev_get_drvdata(dev);
+	int ret, value;
+
+	if (!count || sscanf(buf, "%i", &value) != 1)
+		return -EINVAL;
+
+	ret = write_usb_charge(samsung, !!value);
+	if (ret < 0)
+		return ret;
+
+	return count;
+}
+
+static DEVICE_ATTR(usb_charge, S_IWUSR | S_IRUGO,
+		   get_usb_charge, set_usb_charge);
+
 static struct attribute *platform_attributes[] = {
 	&dev_attr_performance_level.attr,
 	&dev_attr_battery_life_extender.attr,
+	&dev_attr_usb_charge.attr,
 	NULL
 };
 
@@ -725,6 +805,8 @@ static mode_t samsung_sysfs_is_visible(struct kobject *kobj,
 		ok = !!samsung->config->performance_levels[0].name;
 	if (attr == &dev_attr_battery_life_extender.attr)
 		ok = !!(read_battery_life_extender(samsung) >= 0);
+	if (attr == &dev_attr_usb_charge.attr)
+		ok = !!(read_usb_charge(samsung) >= 0);
 
 	return ok ? attr->mode : 0;
 }
