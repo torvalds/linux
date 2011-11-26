@@ -733,8 +733,9 @@ int twl4030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
 	}
 
 	/* install an irq handler to demultiplex the TWL4030 interrupt */
-	status = request_threaded_irq(irq_num, NULL, handle_twl4030_pih, 0,
-					"TWL4030-PIH", NULL);
+	status = request_threaded_irq(irq_num, NULL, handle_twl4030_pih,
+				      IRQF_ONESHOT,
+				      "TWL4030-PIH", NULL);
 	if (status < 0) {
 		pr_err("twl4030: could not claim irq%d: %d\n", irq_num, status);
 		goto fail_rqirq;
