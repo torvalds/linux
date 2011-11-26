@@ -64,6 +64,9 @@ struct fixed_voltage_config *of_get_fixed_voltage_config(struct device *dev)
 		return NULL;
 
 	config->init_data = of_get_regulator_init_data(dev);
+	if (!config->init_data)
+		return NULL;
+
 	init_data = config->init_data;
 
 	config->supply_name = init_data->constraints.name;
