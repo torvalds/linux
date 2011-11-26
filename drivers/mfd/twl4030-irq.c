@@ -432,6 +432,7 @@ struct sih_agent {
 	u32			edge_change;
 
 	struct mutex		irq_lock;
+	char			*irq_name;
 };
 
 /*----------------------------------------------------------------------*/
@@ -589,7 +590,7 @@ static inline int sih_read_isr(const struct sih *sih)
  * Generic handler for SIH interrupts ... we "know" this is called
  * in task context, with IRQs enabled.
  */
-static void handle_twl4030_sih(unsigned irq, struct irq_desc *desc)
+static irqreturn_t handle_twl4030_sih(int irq, void *data)
 {
 	struct sih_agent *agent = irq_get_handler_data(irq);
 	const struct sih *sih = agent->sih;
@@ -602,7 +603,7 @@ static void handle_twl4030_sih(unsigned irq, struct irq_desc *desc)
 		pr_err("twl4030: %s SIH, read ISR error %d\n",
 			sih->name, isr);
 		/* REVISIT:  recover; eventually mask it all, etc */
-		return;
+		return IRQ_HANDLED;
 	}
 
 	while (isr) {
@@ -616,6 +617,7 @@ static void handle_twl4030_sih(unsigned irq, struct irq_desc *desc)
 			pr_err("twl4030: %s SIH, invalid ISR bit %d\n",
 				sih->name, irq);
 	}
+	return IRQ_HANDLED;
 }
 
 static unsigned twl4030_irq_next;
@@ -668,18 +670,19 @@ int twl4030_sih_setup(int module)
 		activate_irq(irq);
 	}
 
-	status = irq_base;
 	twl4030_irq_next += i;
 
 	/* replace generic PIH handler (handle_simple_irq) */
 	irq = sih_mod + twl4030_irq_base;
 	irq_set_handler_data(irq, agent);
-	irq_set_chained_handler(irq, handle_twl4030_sih);
+	agent->irq_name = kasprintf(GFP_KERNEL, "twl4030_%s", sih->name);
+	status = request_threaded_irq(irq, NULL, handle_twl4030_sih, 0,
+				      agent->irq_name ?: sih->name, NULL);
 
 	pr_info("twl4030: %s (irq %d) chaining IRQs %d..%d\n", sih->name,
 			irq, irq_base, twl4030_irq_next - 1);
 
-	return status;
+	return status < 0 ? status : irq_base;
 }
 
 /* FIXME need a call to reverse twl4030_sih_setup() ... */
