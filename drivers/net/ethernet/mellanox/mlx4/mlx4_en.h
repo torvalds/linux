@@ -485,9 +485,9 @@ struct mlx4_en_priv {
 enum mlx4_en_wol {
 	MLX4_EN_WOL_MAGIC = (1ULL << 61),
 	MLX4_EN_WOL_ENABLED = (1ULL << 62),
-	MLX4_EN_WOL_DO_MODIFY = (1ULL << 63),
 };
 
+#define MLX4_EN_WOL_DO_MODIFY (1ULL << 63)
 
 void mlx4_en_destroy_netdev(struct net_device *dev);
 int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
