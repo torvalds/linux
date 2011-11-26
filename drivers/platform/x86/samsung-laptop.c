@@ -303,6 +303,7 @@ struct samsung_laptop_debug {
 
 	struct debugfs_blob_wrapper f0000_wrapper;
 	struct debugfs_blob_wrapper data_wrapper;
+	struct debugfs_blob_wrapper sdiag_wrapper;
 };
 
 struct samsung_laptop;
@@ -337,6 +338,8 @@ struct samsung_laptop {
 
 	bool handle_backlight;
 	bool has_stepping_quirk;
+
+	char sdiag[64];
 };
 
 
@@ -1164,6 +1167,9 @@ static int samsung_debugfs_init(struct samsung_laptop *samsung)
 	samsung->debug.data_wrapper.data = &samsung->debug.data;
 	samsung->debug.data_wrapper.size = sizeof(samsung->debug.data);
 
+	samsung->debug.sdiag_wrapper.data = samsung->sdiag;
+	samsung->debug.sdiag_wrapper.size = strlen(samsung->sdiag);
+
 	dent = debugfs_create_u16("command", S_IRUGO | S_IWUSR,
 				  samsung->debug.root, &samsung->debug.command);
 	if (!dent)
@@ -1204,6 +1210,12 @@ static int samsung_debugfs_init(struct samsung_laptop *samsung)
 	dent = debugfs_create_file("call", S_IFREG | S_IRUGO,
 				   samsung->debug.root, samsung,
 				   &samsung_laptop_call_io_ops);
+	if (!dent)
+		goto error_debugfs;
+
+	dent = debugfs_create_blob("sdiag", S_IRUGO | S_IWUSR,
+				   samsung->debug.root,
+				   &samsung->debug.sdiag_wrapper);
 	if (!dent)
 		goto error_debugfs;
 
@@ -1259,6 +1271,34 @@ static __init void samsung_sabi_infos(struct samsung_laptop *samsung, int loca,
 	printk(KERN_DEBUG " SABI pointer = 0x%08x\n", ifaceP);
 }
 
+static void __init samsung_sabi_diag(struct samsung_laptop *samsung)
+{
+	int loca = find_signature(samsung->f0000_segment, "SDiaG@");
+	int i;
+
+	if (loca == 0xffff)
+		return ;
+
+	/* Example:
+	 * Ident: @SDiaG@686XX-N90X3A/966-SEC-07HL-S90X3A
+	 *
+	 * Product name: 90X3A
+	 * BIOS Version: 07HL
+	 */
+	loca += 1;
+	for (i = 0; loca < 0xffff && i < sizeof(samsung->sdiag) - 1; loca++) {
+		char temp = readb(samsung->f0000_segment + loca);
+
+		if (isalnum(temp) || temp == '/' || temp == '-')
+			samsung->sdiag[i++] = temp;
+		else
+			break ;
+	}
+
+	if (debug && samsung->sdiag[0])
+		pr_info("sdiag: %s", samsung->sdiag);
+}
+
 static int __init samsung_sabi_init(struct samsung_laptop *samsung)
 {
 	const struct sabi_config *config = NULL;
@@ -1275,6 +1315,8 @@ static int __init samsung_sabi_init(struct samsung_laptop *samsung)
 		ret = -EINVAL;
 		goto exit;
 	}
+
+	samsung_sabi_diag(samsung);
 
 	/* Try to find one of the signatures in memory to find the header */
 	for (i = 0; sabi_configs[i].test_string != 0; ++i) {
