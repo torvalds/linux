@@ -953,6 +953,19 @@ static void dss_apply_ovl_enable(struct omap_overlay *ovl, bool enable)
 	op->extra_info_dirty = true;
 }
 
+static void dss_apply_ovl_fifo_thresholds(struct omap_overlay *ovl,
+		u32 fifo_low, u32 fifo_high)
+{
+	struct ovl_priv_data *op = get_ovl_priv(ovl);
+
+	if (op->fifo_low == fifo_low && op->fifo_high == fifo_high)
+		return;
+
+	op->fifo_low = fifo_low;
+	op->fifo_high = fifo_high;
+	op->extra_info_dirty = true;
+}
+
 static void dss_ovl_setup_fifo(struct omap_overlay *ovl)
 {
 	struct ovl_priv_data *op = get_ovl_priv(ovl);
@@ -988,9 +1001,7 @@ static void dss_ovl_setup_fifo(struct omap_overlay *ovl)
 		BUG();
 	}
 
-	op->fifo_low = fifo_low;
-	op->fifo_high = fifo_high;
-	op->extra_info_dirty = true;
+	dss_apply_ovl_fifo_thresholds(ovl, fifo_low, fifo_high);
 }
 
 static void dss_mgr_setup_fifos(struct omap_overlay_manager *mgr)
