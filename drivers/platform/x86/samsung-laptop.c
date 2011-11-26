@@ -22,6 +22,8 @@
 #include <linux/platform_device.h>
 #include <linux/rfkill.h>
 #include <linux/acpi.h>
+#include <linux/seq_file.h>
+#include <linux/debugfs.h>
 
 /*
  * This driver is needed because a number of Samsung laptops do not hook
@@ -226,6 +228,35 @@ static const struct sabi_config sabi_configs[] = {
 	{ },
 };
 
+/*
+ * samsung-laptop/    - debugfs root directory
+ *   f0000_segment    - dump f0000 segment
+ *   command          - current command
+ *   data             - current data
+ *   d0, d1, d2, d3   - data fields
+ *   call             - call SABI using command and data
+ *
+ * This allow to call arbitrary sabi commands wihout
+ * modifying the driver at all.
+ * For example, setting the keyboard backlight brightness to 5
+ *
+ *  echo 0x78 > command
+ *  echo 0x0582 > d0
+ *  echo 0 > d1
+ *  echo 0 > d2
+ *  echo 0 > d3
+ *  cat call
+ */
+
+struct samsung_laptop_debug {
+	struct dentry *root;
+	struct sabi_data data;
+	u16 command;
+
+	struct debugfs_blob_wrapper f0000_wrapper;
+	struct debugfs_blob_wrapper data_wrapper;
+};
+
 struct samsung_laptop {
 	const struct sabi_config *config;
 
@@ -238,6 +269,8 @@ struct samsung_laptop {
 	struct platform_device *platform_device;
 	struct backlight_device *backlight_device;
 	struct rfkill *rfk;
+
+	struct samsung_laptop_debug debug;
 
 	bool handle_backlight;
 	bool has_stepping_quirk;
@@ -678,6 +711,113 @@ static int __init samsung_sysfs_init(struct samsung_laptop *samsung)
 
 	return sysfs_create_group(&device->dev.kobj, &platform_attribute_group);
 
+}
+
+static int show_call(struct seq_file *m, void *data)
+{
+	struct samsung_laptop *samsung = m->private;
+	struct sabi_data *sdata = &samsung->debug.data;
+	int ret;
+
+	seq_printf(m, "SABI 0x%04x {0x%08x, 0x%08x, 0x%04x, 0x%02x}\n",
+		   samsung->debug.command,
+		   sdata->d0, sdata->d1, sdata->d2, sdata->d3);
+
+	ret = sabi_command(samsung, samsung->debug.command, sdata, sdata);
+
+	if (ret) {
+		seq_printf(m, "SABI command 0x%04x failed\n",
+			   samsung->debug.command);
+		return ret;
+	}
+
+	seq_printf(m, "SABI {0x%08x, 0x%08x, 0x%04x, 0x%02x}\n",
+		   sdata->d0, sdata->d1, sdata->d2, sdata->d3);
+	return 0;
+}
+
+static int samsung_debugfs_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, show_call, inode->i_private);
+}
+
+static const struct file_operations samsung_laptop_call_io_ops = {
+	.owner = THIS_MODULE,
+	.open = samsung_debugfs_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static void samsung_debugfs_exit(struct samsung_laptop *samsung)
+{
+	debugfs_remove_recursive(samsung->debug.root);
+}
+
+static int samsung_debugfs_init(struct samsung_laptop *samsung)
+{
+	struct dentry *dent;
+
+	samsung->debug.root = debugfs_create_dir("samsung-laptop", NULL);
+	if (!samsung->debug.root) {
+		pr_err("failed to create debugfs directory");
+		goto error_debugfs;
+	}
+
+	samsung->debug.f0000_wrapper.data = samsung->f0000_segment;
+	samsung->debug.f0000_wrapper.size = 0xffff;
+
+	samsung->debug.data_wrapper.data = &samsung->debug.data;
+	samsung->debug.data_wrapper.size = sizeof(samsung->debug.data);
+
+	dent = debugfs_create_u16("command", S_IRUGO | S_IWUSR,
+				  samsung->debug.root, &samsung->debug.command);
+	if (!dent)
+		goto error_debugfs;
+
+	dent = debugfs_create_u32("d0", S_IRUGO | S_IWUSR, samsung->debug.root,
+				  &samsung->debug.data.d0);
+	if (!dent)
+		goto error_debugfs;
+
+	dent = debugfs_create_u32("d1", S_IRUGO | S_IWUSR, samsung->debug.root,
+				  &samsung->debug.data.d1);
+	if (!dent)
+		goto error_debugfs;
+
+	dent = debugfs_create_u16("d2", S_IRUGO | S_IWUSR, samsung->debug.root,
+				  &samsung->debug.data.d2);
+	if (!dent)
+		goto error_debugfs;
+
+	dent = debugfs_create_u8("d3", S_IRUGO | S_IWUSR, samsung->debug.root,
+				 &samsung->debug.data.d3);
+	if (!dent)
+		goto error_debugfs;
+
+	dent = debugfs_create_blob("data", S_IRUGO | S_IWUSR,
+				   samsung->debug.root,
+				   &samsung->debug.data_wrapper);
+	if (!dent)
+		goto error_debugfs;
+
+	dent = debugfs_create_blob("f0000_segment", S_IRUSR | S_IWUSR,
+				   samsung->debug.root,
+				   &samsung->debug.f0000_wrapper);
+	if (!dent)
+		goto error_debugfs;
+
+	dent = debugfs_create_file("call", S_IFREG | S_IRUGO,
+				   samsung->debug.root, samsung,
+				   &samsung_laptop_call_io_ops);
+	if (!dent)
+		goto error_debugfs;
+
+	return 0;
+
+error_debugfs:
+	samsung_debugfs_exit(samsung);
+	return -ENOMEM;
 }
 
 static void samsung_sabi_exit(struct samsung_laptop *samsung)
@@ -1123,9 +1263,15 @@ static int __init samsung_init(void)
 	if (ret)
 		goto error_rfkill;
 
+	ret = samsung_debugfs_init(samsung);
+	if (ret)
+		goto error_debugfs;
+
 	samsung_platform_device = samsung->platform_device;
 	return ret;
 
+error_debugfs:
+	samsung_rfkill_exit(samsung);
 error_rfkill:
 	samsung_backlight_exit(samsung);
 error_backlight:
@@ -1145,6 +1291,7 @@ static void __exit samsung_exit(void)
 
 	samsung = platform_get_drvdata(samsung_platform_device);
 
+	samsung_debugfs_exit(samsung);
 	samsung_rfkill_exit(samsung);
 	samsung_backlight_exit(samsung);
 	samsung_sysfs_exit(samsung);
