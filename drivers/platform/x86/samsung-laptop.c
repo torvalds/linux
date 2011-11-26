@@ -362,52 +362,6 @@ static int sabi_set_commandb(struct samsung_laptop *samsung,
 	return sabi_command(samsung, command, &in, NULL);
 }
 
-static void test_backlight(struct samsung_laptop *samsung)
-{
-	const struct sabi_commands *commands = &samsung->config->commands;
-	struct sabi_data sretval;
-
-	sabi_command(samsung, commands->get_backlight, NULL, &sretval);
-	printk(KERN_DEBUG "backlight = 0x%02x\n", sretval.data[0]);
-
-	sabi_set_commandb(samsung, commands->set_backlight, 0);
-	printk(KERN_DEBUG "backlight should be off\n");
-
-	sabi_command(samsung, commands->get_backlight, NULL, &sretval);
-	printk(KERN_DEBUG "backlight = 0x%02x\n", sretval.data[0]);
-
-	msleep(1000);
-
-	sabi_set_commandb(samsung, commands->set_backlight, 1);
-	printk(KERN_DEBUG "backlight should be on\n");
-
-	sabi_command(samsung, commands->get_backlight, NULL, &sretval);
-	printk(KERN_DEBUG "backlight = 0x%02x\n", sretval.data[0]);
-}
-
-static void test_wireless(struct samsung_laptop *samsung)
-{
-	const struct sabi_commands *commands = &samsung->config->commands;
-	struct sabi_data sretval;
-
-	sabi_command(samsung, commands->get_wireless_button, NULL, &sretval);
-	printk(KERN_DEBUG "wireless led = 0x%02x\n", sretval.data[0]);
-
-	sabi_set_commandb(samsung, commands->set_wireless_button, 0);
-	printk(KERN_DEBUG "wireless led should be off\n");
-
-	sabi_command(samsung, commands->get_wireless_button, NULL, &sretval);
-	printk(KERN_DEBUG "wireless led = 0x%02x\n", sretval.data[0]);
-
-	msleep(1000);
-
-	sabi_set_commandb(samsung, commands->set_wireless_button, 1);
-	printk(KERN_DEBUG "wireless led should be on\n");
-
-	sabi_command(samsung, commands->get_wireless_button, NULL, &sretval);
-	printk(KERN_DEBUG "wireless led = 0x%02x\n", sretval.data[0]);
-}
-
 static int read_brightness(struct samsung_laptop *samsung)
 {
 	const struct sabi_config *config = samsung->config;
@@ -840,12 +794,14 @@ static void samsung_sabi_exit(struct samsung_laptop *samsung)
 	samsung->config = NULL;
 }
 
-static __init void samsung_sabi_infos(struct samsung_laptop *samsung, int loca)
+static __init void samsung_sabi_infos(struct samsung_laptop *samsung, int loca,
+				      unsigned int ifaceP)
 {
 	const struct sabi_config *config = samsung->config;
 
 	printk(KERN_DEBUG "This computer supports SABI==%x\n",
 	       loca + 0xf0000 - 6);
+
 	printk(KERN_DEBUG "SABI header:\n");
 	printk(KERN_DEBUG " SMI Port Number = 0x%04x\n",
 	       readw(samsung->sabi + config->header_offsets.port));
@@ -859,23 +815,8 @@ static __init void samsung_sabi_infos(struct samsung_laptop *samsung, int loca)
 	       readw(samsung->sabi + config->header_offsets.data_offset));
 	printk(KERN_DEBUG " SABI data segment = 0x%04x\n",
 	       readw(samsung->sabi + config->header_offsets.data_segment));
-}
 
-static void __init samsung_sabi_selftest(struct samsung_laptop *samsung,
-					unsigned int ifaceP)
-{
-	const struct sabi_config *config = samsung->config;
-	struct sabi_data sretval;
-
-	printk(KERN_DEBUG "ifaceP = 0x%08x\n", ifaceP);
-	printk(KERN_DEBUG "sabi_iface = %p\n", samsung->sabi_iface);
-
-	if (samsung->handle_backlight)
-		test_backlight(samsung);
-	test_wireless(samsung);
-
-	sabi_command(samsung, config->commands.get_brightness, NULL, &sretval);
-	printk(KERN_DEBUG "brightness = 0x%02x\n", sretval.data[0]);
+	printk(KERN_DEBUG " SABI pointer = 0x%08x\n", ifaceP);
 }
 
 static int __init samsung_sabi_init(struct samsung_laptop *samsung)
@@ -916,21 +857,19 @@ static int __init samsung_sabi_init(struct samsung_laptop *samsung)
 	loca += 1;
 	samsung->sabi = (samsung->f0000_segment + loca);
 
-	if (debug)
-		samsung_sabi_infos(samsung, loca);
-
 	/* Get a pointer to the SABI Interface */
 	ifaceP = (readw(samsung->sabi + config->header_offsets.data_segment) & 0x0ffff) << 4;
 	ifaceP += readw(samsung->sabi + config->header_offsets.data_offset) & 0x0ffff;
+
+	if (debug)
+		samsung_sabi_infos(samsung, loca, ifaceP);
+
 	samsung->sabi_iface = ioremap_nocache(ifaceP, 16);
 	if (!samsung->sabi_iface) {
 		pr_err("Can't remap %x\n", ifaceP);
 		ret = -EINVAL;
 		goto exit;
 	}
-
-	if (debug)
-		samsung_sabi_selftest(samsung, ifaceP);
 
 	/* Turn on "Linux" mode in the BIOS */
 	if (commands->set_linux != 0xff) {
