@@ -165,7 +165,6 @@ static inline void aw_gpio_trigger_single1(void)
 static inline void aw_gpio_cfg_pi1(void)
 {
 	u32 rval;
-    u32 backup;
     void __iomem* cfg_base  = (void __iomem*)PI_CFG0_REG;
     void __iomem* data_base = (void __iomem*)PI_DAT_REG;
 
