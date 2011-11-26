@@ -416,17 +416,6 @@ static struct platform_driver bbc_i2c_driver = {
 	.remove		= __devexit_p(bbc_i2c_remove),
 };
 
-static int __init bbc_i2c_init(void)
-{
-	return platform_driver_register(&bbc_i2c_driver);
-}
-
-static void __exit bbc_i2c_exit(void)
-{
-	platform_driver_unregister(&bbc_i2c_driver);
-}
-
-module_init(bbc_i2c_init);
-module_exit(bbc_i2c_exit);
+module_platform_driver(bbc_i2c_driver);
 
 MODULE_LICENSE("GPL");
