@@ -492,7 +492,7 @@ static void twl4030_sih_bus_sync_unlock(struct irq_data *data)
 			u8	bytes[4];
 		} imr;
 
-		/* byte[0] gets overwriten as we write ... */
+		/* byte[0] gets overwritten as we write ... */
 		imr.word = cpu_to_le32(agent->imr << 8);
 		agent->imr_change_pending = false;
 
