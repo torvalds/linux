@@ -884,7 +884,7 @@ int sdxc_send_manual_stop(struct sunxi_mmc_host* smc_host, struct mmc_request* r
 		ret = -1;
 	}
 
-	writel(iflags, SDXC_REG_RINTR);
+	writel(iflags & (~SDXC_SDIOInt), SDXC_REG_RINTR);
     data->stop->resp[0] = readl(SDXC_REG_RESP0);
 
 	sdxc_int_enable(smc_host);
@@ -1131,7 +1131,13 @@ _out_:
     {
         if (!(req->data->flags & MMC_DATA_WRITE) && (readl(SDXC_REG_STAS) & SDXC_DataFSMBusy))
         {
-            printk("data fsm busy\n");
+            if (readl(SDXC_REG_STAS) & SDXC_DataFSMBusy)
+                if (readl(SDXC_REG_STAS) & SDXC_DataFSMBusy)
+                    if (readl(SDXC_REG_STAS) & SDXC_DataFSMBusy)
+                        if (readl(SDXC_REG_STAS) & SDXC_DataFSMBusy)
+                            if (readl(SDXC_REG_STAS) & SDXC_DataFSMBusy)
+                                if (readl(SDXC_REG_STAS) & SDXC_DataFSMBusy)
+                                    SMC_ERR("data fsm busy %08x, len %d\n", readl(SDXC_REG_STAS), req->data->blksz * req->data->blocks);
         }
         if (smc_host->dodma)
         {
@@ -1143,6 +1149,21 @@ _out_:
         }
 
         sdxc_fifo_reset(smc_host);
+        #if 0
+        if (smc_host->pdev->id == 3)
+        {
+            int i = 0;
+            char* dirstr = req->data->flags & MMC_DATA_WRITE ? "== Tx Data ==" : "== Rx Data ==";
+            u32 sg_len = req->data->sg_len;
+
+            SMC_MSG("%s\n", dirstr);
+            for (i=0; i<sg_len; i++) {
+                char sgstr[8] = {0};
+                sprintf(sgstr, "sg[%d]", i);
+                hexdump(sgstr, sg_virt(&req->data->sg[i]), req->data->sg[i].length > 64 ? 64 : req->data->sg[i].length);
+            }
+        }
+        #endif
     }
 
     temp = readl(SDXC_REG_STAS);

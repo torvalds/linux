@@ -448,7 +448,7 @@ static irqreturn_t sunximmc_irq(int irq, void *dev_id)
     if (smc_host->sdio_int)
     {
         mmc_signal_sdio_irq(smc_host->mmc);
-    	//SMC_DBG("- sdio int -\n");
+//    	SMC_MSG("- sdio int -\n");
     }
 
     /* card detect change */
@@ -623,7 +623,7 @@ static struct mmc_host_ops sunximmc_ops = {
 #ifdef CONFIG_SUNXI_MMC_POWER_CONTROL
 extern int mmc_pm_io_shd_suspend_host(void);
 #else
-static inline int mmc_pm_io_shd_suspend_host(void) {return 1;};
+static inline int mmc_pm_io_shd_suspend_host(void) {return 1;}
 #endif
 
 static int __devinit sunximmc_probe(struct platform_device *pdev)
@@ -944,7 +944,6 @@ static int __init sunximmc_init(void)
     int used = 0;
 
     SMC_MSG("sunximmc_init\n");
-
     for (i=0; i<SUNXI_MMC_HOST_NUM; i++)
     {
         memset(mmc_para, 0, sizeof(mmc_para));

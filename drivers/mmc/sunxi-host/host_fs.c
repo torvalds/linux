@@ -21,7 +21,7 @@
 
 extern unsigned int smc_debug;
 
-void hexdump(char* name, char* base, int len)
+void dumphex32(char* name, char* base, int len)
 {
     __u32 i;
 
@@ -31,6 +31,22 @@ void hexdump(char* name, char* base, int len)
         if (!(i&0xf))
             printk("\n0x%p : ", base + i);
         printk("0x%08x ", readl(base + i));
+    }
+    printk("\n");
+}
+
+void hexdump(char* name, char* base, int len)
+{
+    __u32 i;
+
+    printk("%s :", name);
+    for (i=0; i<len; i++)
+    {
+        if (!(i&0x1f))
+            printk("\n0x%p : ", base + i);
+        if (!(i&0xf))
+            printk(" ");
+        printk("%02x ", readb(base + i));
     }
     printk("\n");
 }
