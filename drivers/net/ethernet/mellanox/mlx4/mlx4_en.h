@@ -366,16 +366,6 @@ struct mlx4_en_rss_map {
 	enum mlx4_qp_state indir_state;
 };
 
-struct mlx4_en_rss_context {
-	__be32 base_qpn;
-	__be32 default_qpn;
-	u16 reserved;
-	u8 hash_fn;
-	u8 flags;
-	__be32 rss_key[10];
-	__be32 base_qpn_udp;
-};
-
 struct mlx4_en_port_state {
 	int link_state;
 	int link_speed;
