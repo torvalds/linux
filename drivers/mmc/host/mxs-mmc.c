@@ -855,18 +855,7 @@ static struct platform_driver mxs_mmc_driver = {
 	},
 };
 
-static int __init mxs_mmc_init(void)
-{
-	return platform_driver_register(&mxs_mmc_driver);
-}
-
-static void __exit mxs_mmc_exit(void)
-{
-	platform_driver_unregister(&mxs_mmc_driver);
-}
-
-module_init(mxs_mmc_init);
-module_exit(mxs_mmc_exit);
+module_platform_driver(mxs_mmc_driver);
 
 MODULE_DESCRIPTION("FREESCALE MXS MMC peripheral");
 MODULE_AUTHOR("Freescale Semiconductor");

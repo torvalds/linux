@@ -1480,18 +1480,7 @@ static struct platform_driver msmsdcc_driver = {
 	},
 };
 
-static int __init msmsdcc_init(void)
-{
-	return platform_driver_register(&msmsdcc_driver);
-}
-
-static void __exit msmsdcc_exit(void)
-{
-	platform_driver_unregister(&msmsdcc_driver);
-}
-
-module_init(msmsdcc_init);
-module_exit(msmsdcc_exit);
+module_platform_driver(msmsdcc_driver);
 
 MODULE_DESCRIPTION("Qualcomm MSM 7X00A Multimedia Card Interface driver");
 MODULE_LICENSE("GPL");

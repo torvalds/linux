@@ -320,17 +320,7 @@ static struct platform_driver sdhci_driver = {
 	.remove		= __devexit_p(sdhci_remove),
 };
 
-static int __init sdhci_init(void)
-{
-	return platform_driver_register(&sdhci_driver);
-}
-module_init(sdhci_init);
-
-static void __exit sdhci_exit(void)
-{
-	platform_driver_unregister(&sdhci_driver);
-}
-module_exit(sdhci_exit);
+module_platform_driver(sdhci_driver);
 
 MODULE_DESCRIPTION("SPEAr Secure Digital Host Controller Interface driver");
 MODULE_AUTHOR("Viresh Kumar <viresh.kumar@st.com>");

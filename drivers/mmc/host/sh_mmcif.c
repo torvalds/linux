@@ -1207,19 +1207,7 @@ static struct platform_driver sh_mmcif_driver = {
 	},
 };
 
-static int __init sh_mmcif_init(void)
-{
-	return platform_driver_register(&sh_mmcif_driver);
-}
-
-static void __exit sh_mmcif_exit(void)
-{
-	platform_driver_unregister(&sh_mmcif_driver);
-}
-
-module_init(sh_mmcif_init);
-module_exit(sh_mmcif_exit);
-
+module_platform_driver(sh_mmcif_driver);
 
 MODULE_DESCRIPTION("SuperH on-chip MMC/eMMC interface driver");
 MODULE_LICENSE("GPL");
