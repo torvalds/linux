@@ -960,6 +960,9 @@ static void dss_ovl_setup_fifo(struct omap_overlay *ovl)
 	u32 size, burst_size;
 	u32 fifo_low, fifo_high;
 
+	if (!op->enabled && !op->enabling)
+		return;
+
 	dssdev = ovl->manager->device;
 
 	size = dispc_ovl_get_fifo_size(ovl->id);
@@ -993,7 +996,6 @@ static void dss_ovl_setup_fifo(struct omap_overlay *ovl)
 static void dss_mgr_setup_fifos(struct omap_overlay_manager *mgr)
 {
 	struct omap_overlay *ovl;
-	struct ovl_priv_data *op;
 	struct mgr_priv_data *mp;
 
 	mp = get_mgr_priv(mgr);
@@ -1001,13 +1003,19 @@ static void dss_mgr_setup_fifos(struct omap_overlay_manager *mgr)
 	if (!mp->enabled)
 		return;
 
-	list_for_each_entry(ovl, &mgr->overlays, list) {
-		op = get_ovl_priv(ovl);
-
-		if (!op->enabled && !op->enabling)
-			continue;
-
+	list_for_each_entry(ovl, &mgr->overlays, list)
 		dss_ovl_setup_fifo(ovl);
+}
+
+static void dss_setup_fifos(void)
+{
+	const int num_mgrs = omap_dss_get_num_overlay_managers();
+	struct omap_overlay_manager *mgr;
+	int i;
+
+	for (i = 0; i < num_mgrs; ++i) {
+		mgr = omap_dss_get_overlay_manager(i);
+		dss_mgr_setup_fifos(mgr);
 	}
 }
 
@@ -1033,7 +1041,7 @@ int dss_mgr_enable(struct omap_overlay_manager *mgr)
 		goto err;
 	}
 
-	dss_mgr_setup_fifos(mgr);
+	dss_setup_fifos();
 
 	dss_write_regs();
 	dss_set_go_bits();
@@ -1409,7 +1417,7 @@ int dss_ovl_enable(struct omap_overlay *ovl)
 		goto err2;
 	}
 
-	dss_ovl_setup_fifo(ovl);
+	dss_setup_fifos();
 
 	op->enabling = false;
 	dss_apply_ovl_enable(ovl, true);
