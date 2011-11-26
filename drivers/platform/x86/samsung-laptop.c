@@ -555,6 +555,10 @@ static ssize_t set_performance_level(struct device *dev,
 static DEVICE_ATTR(performance_level, S_IWUSR | S_IRUGO,
 		   get_performance_level, set_performance_level);
 
+static struct attribute *platform_attributes[] = {
+	&dev_attr_performance_level.attr,
+	NULL
+};
 
 static int find_signature(void __iomem *memcheck, const char *testStr)
 {
@@ -641,16 +645,38 @@ static int __init samsung_backlight_init(struct samsung_laptop *samsung)
 	return 0;
 }
 
+static mode_t samsung_sysfs_is_visible(struct kobject *kobj,
+				       struct attribute *attr, int idx)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct platform_device *pdev = to_platform_device(dev);
+	struct samsung_laptop *samsung = platform_get_drvdata(pdev);
+	bool ok = true;
+
+	if (attr == &dev_attr_performance_level.attr)
+		ok = !!samsung->config->performance_levels[0].name;
+
+	return ok ? attr->mode : 0;
+}
+
+static struct attribute_group platform_attribute_group = {
+	.is_visible = samsung_sysfs_is_visible,
+	.attrs = platform_attributes
+};
+
 static void samsung_sysfs_exit(struct samsung_laptop *samsung)
 {
-	device_remove_file(&samsung->platform_device->dev,
-			   &dev_attr_performance_level);
+	struct platform_device *device = samsung->platform_device;
+
+	sysfs_remove_group(&device->dev.kobj, &platform_attribute_group);
 }
 
 static int __init samsung_sysfs_init(struct samsung_laptop *samsung)
 {
-	return device_create_file(&samsung->platform_device->dev,
-				  &dev_attr_performance_level);
+	struct platform_device *device = samsung->platform_device;
+
+	return sysfs_create_group(&device->dev.kobj, &platform_attribute_group);
+
 }
 
 static void samsung_sabi_exit(struct samsung_laptop *samsung)
