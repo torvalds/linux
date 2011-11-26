@@ -560,8 +560,13 @@ static void inode_free_block(struct super_block *sb, struct logfs_block *block)
 static void indirect_free_block(struct super_block *sb,
 		struct logfs_block *block)
 {
-	ClearPagePrivate(block->page);
-	block->page->private = 0;
+	struct page *page = block->page;
+
+	if (PagePrivate(page)) {
+		ClearPagePrivate(page);
+		page_cache_release(page);
+		set_page_private(page, 0);
+	}
 	__free_block(sb, block);
 }
 
@@ -650,8 +655,11 @@ static void alloc_data_block(struct inode *inode, struct page *page)
 	logfs_unpack_index(page->index, &bix, &level);
 	block = __alloc_block(inode->i_sb, inode->i_ino, bix, level);
 	block->page = page;
+
 	SetPagePrivate(page);
-	page->private = (unsigned long)block;
+	page_cache_get(page);
+	set_page_private(page, (unsigned long) block);
+
 	block->ops = &indirect_block_ops;
 }
 
@@ -1901,8 +1909,11 @@ static void move_page_to_inode(struct inode *inode, struct page *page)
 	li->li_block = block;
 
 	block->page = NULL;
-	page->private = 0;
-	ClearPagePrivate(page);
+	if (PagePrivate(page)) {
+		ClearPagePrivate(page);
+		page_cache_release(page);
+		set_page_private(page, 0);
+	}
 }
 
 static void move_inode_to_page(struct page *page, struct inode *inode)
@@ -1918,8 +1929,12 @@ static void move_inode_to_page(struct page *page, struct inode *inode)
 	BUG_ON(PagePrivate(page));
 	block->ops = &indirect_block_ops;
 	block->page = page;
-	page->private = (unsigned long)block;
-	SetPagePrivate(page);
+
+	if (!PagePrivate(page)) {
+		SetPagePrivate(page);
+		page_cache_get(page);
+		set_page_private(page, (unsigned long) block);
+	}
 
 	block->inode = NULL;
 	li->li_block = NULL;
