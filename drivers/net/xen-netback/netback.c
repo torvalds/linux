@@ -1021,7 +1021,7 @@ static int xen_netbk_tx_check_gop(struct xen_netbk *netbk,
 		pending_idx = *((u16 *)skb->data);
 		xen_netbk_idx_release(netbk, pending_idx);
 		for (j = start; j < i; j++) {
-			pending_idx = frag_get_pending_idx(&shinfo->frags[i]);
+			pending_idx = frag_get_pending_idx(&shinfo->frags[j]);
 			xen_netbk_idx_release(netbk, pending_idx);
 		}
 

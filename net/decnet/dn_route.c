@@ -112,7 +112,7 @@ static unsigned long dn_rt_deadline;
 static int dn_dst_gc(struct dst_ops *ops);
 static struct dst_entry *dn_dst_check(struct dst_entry *, __u32);
 static unsigned int dn_dst_default_advmss(const struct dst_entry *dst);
-static unsigned int dn_dst_default_mtu(const struct dst_entry *dst);
+static unsigned int dn_dst_mtu(const struct dst_entry *dst);
 static void dn_dst_destroy(struct dst_entry *);
 static struct dst_entry *dn_dst_negative_advice(struct dst_entry *);
 static void dn_dst_link_failure(struct sk_buff *);
@@ -135,7 +135,7 @@ static struct dst_ops dn_dst_ops = {
 	.gc =			dn_dst_gc,
 	.check =		dn_dst_check,
 	.default_advmss =	dn_dst_default_advmss,
-	.default_mtu =		dn_dst_default_mtu,
+	.mtu =			dn_dst_mtu,
 	.cow_metrics =		dst_cow_metrics_generic,
 	.destroy =		dn_dst_destroy,
 	.negative_advice =	dn_dst_negative_advice,
@@ -825,9 +825,11 @@ static unsigned int dn_dst_default_advmss(const struct dst_entry *dst)
 	return dn_mss_from_pmtu(dst->dev, dst_mtu(dst));
 }
 
-static unsigned int dn_dst_default_mtu(const struct dst_entry *dst)
+static unsigned int dn_dst_mtu(const struct dst_entry *dst)
 {
-	return dst->dev->mtu;
+	unsigned int mtu = dst_metric_raw(dst, RTAX_MTU);
+
+	return mtu ? : dst->dev->mtu;
 }
 
 static struct neighbour *dn_dst_neigh_lookup(const struct dst_entry *dst, const void *daddr)

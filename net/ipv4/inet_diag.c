@@ -108,9 +108,6 @@ static int inet_csk_diag_fill(struct sock *sk,
 		       icsk->icsk_ca_ops->name);
 	}
 
-	if ((ext & (1 << (INET_DIAG_TOS - 1))) && (sk->sk_family != AF_INET6))
-		RTA_PUT_U8(skb, INET_DIAG_TOS, inet->tos);
-
 	r->idiag_family = sk->sk_family;
 	r->idiag_state = sk->sk_state;
 	r->idiag_timer = 0;
@@ -124,6 +121,12 @@ static int inet_csk_diag_fill(struct sock *sk,
 	r->id.idiag_dport = inet->inet_dport;
 	r->id.idiag_src[0] = inet->inet_rcv_saddr;
 	r->id.idiag_dst[0] = inet->inet_daddr;
+
+	/* IPv6 dual-stack sockets use inet->tos for IPv4 connections,
+	 * hence this needs to be included regardless of socket family.
+	 */
+	if (ext & (1 << (INET_DIAG_TOS - 1)))
+		RTA_PUT_U8(skb, INET_DIAG_TOS, inet->tos);
 
 #if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
 	if (r->idiag_family == AF_INET6) {

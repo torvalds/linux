@@ -31,6 +31,7 @@
 /** struct ip_options - IP Options
  *
  * @faddr - Saved first hop address
+ * @nexthop - Saved nexthop address in LSRR and SSRR
  * @is_data - Options in __data, rather than skb
  * @is_strictroute - Strict source route
  * @srr_is_hit - Packet destination addr was our one
@@ -41,6 +42,7 @@
  */
 struct ip_options {
 	__be32		faddr;
+	__be32		nexthop;
 	unsigned char	optlen;
 	unsigned char	srr;
 	unsigned char	rr;

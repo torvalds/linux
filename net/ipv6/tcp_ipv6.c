@@ -1253,6 +1253,13 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (!want_cookie || tmp_opt.tstamp_ok)
 		TCP_ECN_create_request(req, tcp_hdr(skb));
 
+	treq->iif = sk->sk_bound_dev_if;
+
+	/* So that link locals have meaning */
+	if (!sk->sk_bound_dev_if &&
+	    ipv6_addr_type(&treq->rmt_addr) & IPV6_ADDR_LINKLOCAL)
+		treq->iif = inet6_iif(skb);
+
 	if (!isn) {
 		struct inet_peer *peer = NULL;
 
@@ -1262,12 +1269,6 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 			atomic_inc(&skb->users);
 			treq->pktopts = skb;
 		}
-		treq->iif = sk->sk_bound_dev_if;
-
-		/* So that link locals have meaning */
-		if (!sk->sk_bound_dev_if &&
-		    ipv6_addr_type(&treq->rmt_addr) & IPV6_ADDR_LINKLOCAL)
-			treq->iif = inet6_iif(skb);
 
 		if (want_cookie) {
 			isn = cookie_v6_init_sequence(sk, skb, &req->mss);

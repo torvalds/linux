@@ -85,7 +85,7 @@ struct dst_entry *inet6_csk_route_req(struct sock *sk,
  * request_sock (formerly open request) hash tables.
  */
 static u32 inet6_synq_hash(const struct in6_addr *raddr, const __be16 rport,
-			   const u32 rnd, const u16 synq_hsize)
+			   const u32 rnd, const u32 synq_hsize)
 {
 	u32 c;
 

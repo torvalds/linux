@@ -58,10 +58,8 @@
 
 
 #define TX_DESC_PER_IOCB 8
-/* The maximum number of frags we handle is based
- * on PAGE_SIZE...
- */
-#if (PAGE_SHIFT == 12) || (PAGE_SHIFT == 13)	/* 4k & 8k pages */
+
+#if ((MAX_SKB_FRAGS - TX_DESC_PER_IOCB) + 2) > 0
 #define TX_DESC_PER_OAL ((MAX_SKB_FRAGS - TX_DESC_PER_IOCB) + 2)
 #else /* all other page sizes */
 #define TX_DESC_PER_OAL 0
@@ -1353,7 +1351,7 @@ struct tx_ring_desc {
 	struct ob_mac_iocb_req *queue_entry;
 	u32 index;
 	struct oal oal;
-	struct map_list map[MAX_SKB_FRAGS + 1];
+	struct map_list map[MAX_SKB_FRAGS + 2];
 	int map_cnt;
 	struct tx_ring_desc *next;
 };

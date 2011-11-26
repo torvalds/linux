@@ -10327,6 +10327,43 @@ static int bnx2x_54618se_config_init(struct bnx2x_phy *phy,
 	return 0;
 }
 
+
+static void bnx2x_5461x_set_link_led(struct bnx2x_phy *phy,
+				       struct link_params *params, u8 mode)
+{
+	struct bnx2x *bp = params->bp;
+	u16 temp;
+
+	bnx2x_cl22_write(bp, phy,
+		MDIO_REG_GPHY_SHADOW,
+		MDIO_REG_GPHY_SHADOW_LED_SEL1);
+	bnx2x_cl22_read(bp, phy,
+		MDIO_REG_GPHY_SHADOW,
+		&temp);
+	temp &= 0xff00;
+
+	DP(NETIF_MSG_LINK, "54618x set link led (mode=%x)\n", mode);
+	switch (mode) {
+	case LED_MODE_FRONT_PANEL_OFF:
+	case LED_MODE_OFF:
+		temp |= 0x00ee;
+		break;
+	case LED_MODE_OPER:
+		temp |= 0x0001;
+		break;
+	case LED_MODE_ON:
+		temp |= 0x00ff;
+		break;
+	default:
+		break;
+	}
+	bnx2x_cl22_write(bp, phy,
+		MDIO_REG_GPHY_SHADOW,
+		MDIO_REG_GPHY_SHADOW_WR_ENA | temp);
+	return;
+}
+
+
 static void bnx2x_54618se_link_reset(struct bnx2x_phy *phy,
 				     struct link_params *params)
 {
@@ -11103,7 +11140,7 @@ static struct bnx2x_phy phy_54618se = {
 	.config_loopback = (config_loopback_t)bnx2x_54618se_config_loopback,
 	.format_fw_ver	= (format_fw_ver_t)NULL,
 	.hw_reset	= (hw_reset_t)NULL,
-	.set_link_led	= (set_link_led_t)NULL,
+	.set_link_led	= (set_link_led_t)bnx2x_5461x_set_link_led,
 	.phy_specific_func = (phy_specific_func_t)NULL
 };
 /*****************************************************************/
