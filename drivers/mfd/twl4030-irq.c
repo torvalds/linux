@@ -667,6 +667,7 @@ int twl4030_sih_setup(int module)
 		irq_set_chip_data(irq, agent);
 		irq_set_chip_and_handler(irq, &twl4030_sih_irq_chip,
 					 handle_edge_irq);
+		irq_set_nested_thread(irq, 1);
 		activate_irq(irq);
 	}
 
