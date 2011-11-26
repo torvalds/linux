@@ -699,17 +699,7 @@ static struct platform_driver sirfsoc_dma_driver = {
 	},
 };
 
-static int __init sirfsoc_dma_init(void)
-{
-	return platform_driver_register(&sirfsoc_dma_driver);
-}
-module_init(sirfsoc_dma_init);
-
-static void __exit sirfsoc_dma_exit(void)
-{
-	platform_driver_unregister(&sirfsoc_dma_driver);
-}
-module_exit(sirfsoc_dma_exit);
+module_platform_driver(sirfsoc_dma_driver);
 
 MODULE_AUTHOR("Rongjun Ying <rongjun.ying@csr.com>, "
 	"Barry Song <baohua.song@csr.com>");
