@@ -523,17 +523,7 @@ static struct platform_driver max8925_power_driver = {
 	},
 };
 
-static int __init max8925_power_init(void)
-{
-	return platform_driver_register(&max8925_power_driver);
-}
-module_init(max8925_power_init);
-
-static void __exit max8925_power_exit(void)
-{
-	platform_driver_unregister(&max8925_power_driver);
-}
-module_exit(max8925_power_exit);
+module_platform_driver(max8925_power_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Power supply driver for MAX8925");

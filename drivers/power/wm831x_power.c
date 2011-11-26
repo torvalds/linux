@@ -655,17 +655,7 @@ static struct platform_driver wm831x_power_driver = {
 	},
 };
 
-static int __init wm831x_power_init(void)
-{
-	return platform_driver_register(&wm831x_power_driver);
-}
-module_init(wm831x_power_init);
-
-static void __exit wm831x_power_exit(void)
-{
-	platform_driver_unregister(&wm831x_power_driver);
-}
-module_exit(wm831x_power_exit);
+module_platform_driver(wm831x_power_driver);
 
 MODULE_DESCRIPTION("Power supply driver for WM831x PMICs");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");

@@ -291,18 +291,7 @@ static struct platform_driver wm97xx_bat_driver = {
 	.remove		= __devexit_p(wm97xx_bat_remove),
 };
 
-static int __init wm97xx_bat_init(void)
-{
-	return platform_driver_register(&wm97xx_bat_driver);
-}
-
-static void __exit wm97xx_bat_exit(void)
-{
-	platform_driver_unregister(&wm97xx_bat_driver);
-}
-
-module_init(wm97xx_bat_init);
-module_exit(wm97xx_bat_exit);
+module_platform_driver(wm97xx_bat_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Marek Vasut <marek.vasut@gmail.com>");

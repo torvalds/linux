@@ -630,17 +630,7 @@ static struct platform_driver olpc_battery_driver = {
 	.suspend = olpc_battery_suspend,
 };
 
-static int __init olpc_bat_init(void)
-{
-	return platform_driver_register(&olpc_battery_driver);
-}
-module_init(olpc_bat_init);
-
-static void __exit olpc_bat_exit(void)
-{
-	platform_driver_unregister(&olpc_battery_driver);
-}
-module_exit(olpc_bat_exit);
+module_platform_driver(olpc_battery_driver);
 
 MODULE_AUTHOR("David Woodhouse <dwmw2@infradead.org>");
 MODULE_LICENSE("GPL");

@@ -498,8 +498,6 @@ static int pda_power_resume(struct platform_device *pdev)
 #define pda_power_resume NULL
 #endif /* CONFIG_PM */
 
-MODULE_ALIAS("platform:pda-power");
-
 static struct platform_driver pda_power_pdrv = {
 	.driver = {
 		.name = "pda-power",
@@ -510,17 +508,8 @@ static struct platform_driver pda_power_pdrv = {
 	.resume = pda_power_resume,
 };
 
-static int __init pda_power_init(void)
-{
-	return platform_driver_register(&pda_power_pdrv);
-}
+module_platform_driver(pda_power_pdrv);
 
-static void __exit pda_power_exit(void)
-{
-	platform_driver_unregister(&pda_power_pdrv);
-}
-
-module_init(pda_power_init);
-module_exit(pda_power_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Anton Vorontsov <cbou@mail.ru>");
+MODULE_ALIAS("platform:pda-power");

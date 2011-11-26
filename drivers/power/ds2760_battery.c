@@ -641,18 +641,7 @@ static struct platform_driver ds2760_battery_driver = {
 	.resume	  = ds2760_battery_resume,
 };
 
-static int __init ds2760_battery_init(void)
-{
-	return platform_driver_register(&ds2760_battery_driver);
-}
-
-static void __exit ds2760_battery_exit(void)
-{
-	platform_driver_unregister(&ds2760_battery_driver);
-}
-
-module_init(ds2760_battery_init);
-module_exit(ds2760_battery_exit);
+module_platform_driver(ds2760_battery_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Szabolcs Gyurko <szabolcs.gyurko@tlt.hu>, "

@@ -421,17 +421,7 @@ static struct platform_driver s3c_adc_bat_driver = {
 	.resume		= s3c_adc_bat_resume,
 };
 
-static int __init s3c_adc_bat_init(void)
-{
-	return platform_driver_register(&s3c_adc_bat_driver);
-}
-module_init(s3c_adc_bat_init);
-
-static void __exit s3c_adc_bat_exit(void)
-{
-	platform_driver_unregister(&s3c_adc_bat_driver);
-}
-module_exit(s3c_adc_bat_exit);
+module_platform_driver(s3c_adc_bat_driver);
 
 MODULE_AUTHOR("Vasily Khoruzhick <anarsoul@gmail.com>");
 MODULE_DESCRIPTION("iPAQ H1930/H1940/RX1950 battery controller driver");

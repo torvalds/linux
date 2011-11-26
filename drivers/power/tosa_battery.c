@@ -438,18 +438,7 @@ static struct platform_driver tosa_bat_driver = {
 	.resume		= tosa_bat_resume,
 };
 
-static int __init tosa_bat_init(void)
-{
-	return platform_driver_register(&tosa_bat_driver);
-}
-
-static void __exit tosa_bat_exit(void)
-{
-	platform_driver_unregister(&tosa_bat_driver);
-}
-
-module_init(tosa_bat_init);
-module_exit(tosa_bat_exit);
+module_platform_driver(tosa_bat_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Dmitry Baryshkov");
