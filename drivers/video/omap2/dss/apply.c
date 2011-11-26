@@ -72,6 +72,12 @@ struct ovl_priv_data {
 	bool enabled;
 	enum omap_channel channel;
 	u32 fifo_low, fifo_high;
+
+	/*
+	 * True if overlay is to be enabled. Used to check and calculate configs
+	 * for the overlay before it is enabled in the HW.
+	 */
+	bool enabling;
 };
 
 struct mgr_priv_data {
@@ -297,7 +303,7 @@ static int dss_check_settings_low(struct omap_overlay_manager *mgr,
 	list_for_each_entry(ovl, &mgr->overlays, list) {
 		op = get_ovl_priv(ovl);
 
-		if (!op->enabled)
+		if (!op->enabled && !op->enabling)
 			oi = NULL;
 		else if (applying && op->user_info_dirty)
 			oi = &op->user_info;
@@ -998,7 +1004,7 @@ static void dss_mgr_setup_fifos(struct omap_overlay_manager *mgr)
 	list_for_each_entry(ovl, &mgr->overlays, list) {
 		op = get_ovl_priv(ovl);
 
-		if (!op->enabled)
+		if (!op->enabled && !op->enabling)
 			continue;
 
 		dss_ovl_setup_fifo(ovl);
@@ -1395,18 +1401,19 @@ int dss_ovl_enable(struct omap_overlay *ovl)
 
 	spin_lock_irqsave(&data_lock, flags);
 
-	op->enabled = true;
+	op->enabling = true;
+
 	r = dss_check_settings(ovl->manager, ovl->manager->device);
-	op->enabled = false;
 	if (r) {
 		DSSERR("failed to enable overlay %d: check_settings failed\n",
 				ovl->id);
 		goto err2;
 	}
 
-	dss_apply_ovl_enable(ovl, true);
-
 	dss_ovl_setup_fifo(ovl);
+
+	op->enabling = false;
+	dss_apply_ovl_enable(ovl, true);
 
 	dss_write_regs();
 	dss_set_go_bits();
@@ -1417,6 +1424,7 @@ int dss_ovl_enable(struct omap_overlay *ovl)
 
 	return 0;
 err2:
+	op->enabling = false;
 	spin_unlock_irqrestore(&data_lock, flags);
 err1:
 	mutex_unlock(&apply_lock);
