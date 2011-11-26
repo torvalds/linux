@@ -106,8 +106,17 @@ static void mlx4_en_get_wol(struct net_device *netdev,
 	struct mlx4_en_priv *priv = netdev_priv(netdev);
 	int err = 0;
 	u64 config = 0;
+	u64 mask;
 
-	if (!(priv->mdev->dev->caps.flags & MLX4_DEV_CAP_FLAG_WOL)) {
+	if ((priv->port < 1) || (priv->port > 2)) {
+		en_err(priv, "Failed to get WoL information\n");
+		return;
+	}
+
+	mask = (priv->port == 1) ? MLX4_DEV_CAP_FLAG_WOL_PORT1 :
+		MLX4_DEV_CAP_FLAG_WOL_PORT2;
+
+	if (!(priv->mdev->dev->caps.flags & mask)) {
 		wol->supported = 0;
 		wol->wolopts = 0;
 		return;
@@ -136,8 +145,15 @@ static int mlx4_en_set_wol(struct net_device *netdev,
 	struct mlx4_en_priv *priv = netdev_priv(netdev);
 	u64 config = 0;
 	int err = 0;
+	u64 mask;
 
-	if (!(priv->mdev->dev->caps.flags & MLX4_DEV_CAP_FLAG_WOL))
+	if ((priv->port < 1) || (priv->port > 2))
+		return -EOPNOTSUPP;
+
+	mask = (priv->port == 1) ? MLX4_DEV_CAP_FLAG_WOL_PORT1 :
+		MLX4_DEV_CAP_FLAG_WOL_PORT2;
+
+	if (!(priv->mdev->dev->caps.flags & mask))
 		return -EOPNOTSUPP;
 
 	if (wol->supported & ~WAKE_MAGIC)
