@@ -210,6 +210,7 @@ struct mlx4_wqe_ctrl_seg {
 	 * [4]   IP checksum
 	 * [3:2] C (generate completion queue entry)
 	 * [1]   SE (solicited event)
+	 * [0]   FL (force loopback)
 	 */
 	__be32			srcrb_flags;
 	/*

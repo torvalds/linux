@@ -974,6 +974,21 @@ static int mlx4_en_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
+static int mlx4_en_set_features(struct net_device *netdev,
+		netdev_features_t features)
+{
+	struct mlx4_en_priv *priv = netdev_priv(netdev);
+
+	if (features & NETIF_F_LOOPBACK)
+		priv->ctrl_flags |= cpu_to_be32(MLX4_WQE_CTRL_FORCE_LOOPBACK);
+	else
+		priv->ctrl_flags &=
+			cpu_to_be32(~MLX4_WQE_CTRL_FORCE_LOOPBACK);
+
+	return 0;
+
+}
+
 static const struct net_device_ops mlx4_netdev_ops = {
 	.ndo_open		= mlx4_en_open,
 	.ndo_stop		= mlx4_en_close,
@@ -990,6 +1005,7 @@ static const struct net_device_ops mlx4_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= mlx4_en_netpoll,
 #endif
+	.ndo_set_features	= mlx4_en_set_features,
 };
 
 int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
@@ -1022,6 +1038,8 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	priv->port = port;
 	priv->port_up = false;
 	priv->flags = prof->flags;
+	priv->ctrl_flags = cpu_to_be32(MLX4_WQE_CTRL_CQ_UPDATE |
+			MLX4_WQE_CTRL_SOLICITED);
 	priv->tx_ring_num = prof->tx_ring_num;
 	priv->rx_ring_num = prof->rx_ring_num;
 	priv->mac_index = -1;
@@ -1088,6 +1106,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	dev->features = dev->hw_features | NETIF_F_HIGHDMA |
 			NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX |
 			NETIF_F_HW_VLAN_FILTER;
+	dev->hw_features |= NETIF_F_LOOPBACK;
 
 	mdev->pndev[port] = dev;
 
