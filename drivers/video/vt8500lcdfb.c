@@ -457,18 +457,7 @@ static struct platform_driver vt8500lcd_driver = {
 	},
 };
 
-static int __init vt8500lcd_init(void)
-{
-	return platform_driver_register(&vt8500lcd_driver);
-}
-
-static void __exit vt8500lcd_exit(void)
-{
-	platform_driver_unregister(&vt8500lcd_driver);
-}
-
-module_init(vt8500lcd_init);
-module_exit(vt8500lcd_exit);
+module_platform_driver(vt8500lcd_driver);
 
 MODULE_AUTHOR("Alexey Charkov <alchark@gmail.com>");
 MODULE_DESCRIPTION("LCD controller driver for VIA VT8500");

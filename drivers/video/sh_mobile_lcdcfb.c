@@ -1709,18 +1709,7 @@ static struct platform_driver sh_mobile_lcdc_driver = {
 	.remove		= sh_mobile_lcdc_remove,
 };
 
-static int __init sh_mobile_lcdc_init(void)
-{
-	return platform_driver_register(&sh_mobile_lcdc_driver);
-}
-
-static void __exit sh_mobile_lcdc_exit(void)
-{
-	platform_driver_unregister(&sh_mobile_lcdc_driver);
-}
-
-module_init(sh_mobile_lcdc_init);
-module_exit(sh_mobile_lcdc_exit);
+module_platform_driver(sh_mobile_lcdc_driver);
 
 MODULE_DESCRIPTION("SuperH Mobile LCDC Framebuffer driver");
 MODULE_AUTHOR("Magnus Damm <damm@opensource.se>");

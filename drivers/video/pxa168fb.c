@@ -832,17 +832,7 @@ static struct platform_driver pxa168fb_driver = {
 	.remove		= __devexit_p(pxa168fb_remove),
 };
 
-static int __init pxa168fb_init(void)
-{
-	return platform_driver_register(&pxa168fb_driver);
-}
-module_init(pxa168fb_init);
-
-static void __exit pxa168fb_exit(void)
-{
-	platform_driver_unregister(&pxa168fb_driver);
-}
-module_exit(pxa168fb_exit);
+module_platform_driver(pxa168fb_driver);
 
 MODULE_AUTHOR("Lennert Buytenhek <buytenh@marvell.com> "
 	      "Green Wan <gwan@marvell.com>");

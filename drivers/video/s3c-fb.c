@@ -2003,18 +2003,7 @@ static struct platform_driver s3c_fb_driver = {
 	},
 };
 
-static int __init s3c_fb_init(void)
-{
-	return platform_driver_register(&s3c_fb_driver);
-}
-
-static void __exit s3c_fb_cleanup(void)
-{
-	platform_driver_unregister(&s3c_fb_driver);
-}
-
-module_init(s3c_fb_init);
-module_exit(s3c_fb_cleanup);
+module_platform_driver(s3c_fb_driver);
 
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
 MODULE_DESCRIPTION("Samsung S3C SoC Framebuffer driver");
