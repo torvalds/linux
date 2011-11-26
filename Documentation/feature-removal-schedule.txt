@@ -524,3 +524,11 @@ Files:	arch/arm/mach-at91/at91cap9.c
 Why:	The code is not actively maintained and platforms are now hard to find.
 Who:	Nicolas Ferre <nicolas.ferre@atmel.com>
 	Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
+
+----------------------------
+
+What:	kmap_atomic(page, km_type)
+When:	3.5
+Why:	The old kmap_atomic() with two arguments is deprecated, we only
+	keep it for backward compatibility for few cycles and then drop it.
+Who:	Cong Wang <amwang@redhat.com>
