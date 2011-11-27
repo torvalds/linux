@@ -32,6 +32,7 @@
 /* VENDOR SPEC register */
 #define SDHCI_VENDOR_SPEC		0xC0
 #define  SDHCI_VENDOR_SPEC_SDIO_QUIRK	0x00000002
+#define SDHCI_WTMK_LVL			0x44
 #define SDHCI_MIX_CTRL			0x48
 
 /*
@@ -475,6 +476,13 @@ static int __devinit sdhci_esdhc_imx_probe(struct platform_device *pdev)
 
 	if (is_imx53_esdhc(imx_data))
 		imx_data->flags |= ESDHC_FLAG_MULTIBLK_NO_INT;
+
+	/*
+	 * The imx6q ROM code will change the default watermark level setting
+	 * to something insane.  Change it back here.
+	 */
+	if (is_imx6q_usdhc(imx_data))
+		writel(0x08100810, host->ioaddr + SDHCI_WTMK_LVL);
 
 	boarddata = &imx_data->boarddata;
 	if (sdhci_esdhc_imx_probe_dt(pdev, boarddata) < 0) {

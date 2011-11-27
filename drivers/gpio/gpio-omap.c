@@ -148,13 +148,17 @@ static int _get_gpio_dataout(struct gpio_bank *bank, int gpio)
 	return (__raw_readl(reg) & GPIO_BIT(bank, gpio)) != 0;
 }
 
-#define MOD_REG_BIT(reg, bit_mask, set)	\
-do {	\
-	int l = __raw_readl(base + reg); \
-	if (set) l |= bit_mask; \
-	else l &= ~bit_mask; \
-	__raw_writel(l, base + reg); \
-} while(0)
+static inline void _gpio_rmw(void __iomem *base, u32 reg, u32 mask, bool set)
+{
+	int l = __raw_readl(base + reg);
+
+	if (set) 
+		l |= mask;
+	else
+		l &= ~mask;
+
+	__raw_writel(l, base + reg);
+}
 
 /**
  * _set_gpio_debounce - low level gpio debounce time
@@ -210,28 +214,28 @@ static inline void set_24xx_gpio_triggering(struct gpio_bank *bank, int gpio,
 	u32 gpio_bit = 1 << gpio;
 
 	if (cpu_is_omap44xx()) {
-		MOD_REG_BIT(OMAP4_GPIO_LEVELDETECT0, gpio_bit,
-			trigger & IRQ_TYPE_LEVEL_LOW);
-		MOD_REG_BIT(OMAP4_GPIO_LEVELDETECT1, gpio_bit,
-			trigger & IRQ_TYPE_LEVEL_HIGH);
-		MOD_REG_BIT(OMAP4_GPIO_RISINGDETECT, gpio_bit,
-			trigger & IRQ_TYPE_EDGE_RISING);
-		MOD_REG_BIT(OMAP4_GPIO_FALLINGDETECT, gpio_bit,
-			trigger & IRQ_TYPE_EDGE_FALLING);
+		_gpio_rmw(base, OMAP4_GPIO_LEVELDETECT0, gpio_bit,
+			  trigger & IRQ_TYPE_LEVEL_LOW);
+		_gpio_rmw(base, OMAP4_GPIO_LEVELDETECT1, gpio_bit,
+			  trigger & IRQ_TYPE_LEVEL_HIGH);
+		_gpio_rmw(base, OMAP4_GPIO_RISINGDETECT, gpio_bit,
+			  trigger & IRQ_TYPE_EDGE_RISING);
+		_gpio_rmw(base, OMAP4_GPIO_FALLINGDETECT, gpio_bit,
+			  trigger & IRQ_TYPE_EDGE_FALLING);
 	} else {
-		MOD_REG_BIT(OMAP24XX_GPIO_LEVELDETECT0, gpio_bit,
-			trigger & IRQ_TYPE_LEVEL_LOW);
-		MOD_REG_BIT(OMAP24XX_GPIO_LEVELDETECT1, gpio_bit,
-			trigger & IRQ_TYPE_LEVEL_HIGH);
-		MOD_REG_BIT(OMAP24XX_GPIO_RISINGDETECT, gpio_bit,
-			trigger & IRQ_TYPE_EDGE_RISING);
-		MOD_REG_BIT(OMAP24XX_GPIO_FALLINGDETECT, gpio_bit,
-			trigger & IRQ_TYPE_EDGE_FALLING);
+		_gpio_rmw(base, OMAP24XX_GPIO_LEVELDETECT0, gpio_bit,
+			  trigger & IRQ_TYPE_LEVEL_LOW);
+		_gpio_rmw(base, OMAP24XX_GPIO_LEVELDETECT1, gpio_bit,
+			  trigger & IRQ_TYPE_LEVEL_HIGH);
+		_gpio_rmw(base, OMAP24XX_GPIO_RISINGDETECT, gpio_bit,
+			  trigger & IRQ_TYPE_EDGE_RISING);
+		_gpio_rmw(base, OMAP24XX_GPIO_FALLINGDETECT, gpio_bit,
+			  trigger & IRQ_TYPE_EDGE_FALLING);
 	}
 	if (likely(!(bank->non_wakeup_gpios & gpio_bit))) {
 		if (cpu_is_omap44xx()) {
-			MOD_REG_BIT(OMAP4_GPIO_IRQWAKEN0, gpio_bit,
-				trigger != 0);
+			_gpio_rmw(base, OMAP4_GPIO_IRQWAKEN0, gpio_bit,
+				  trigger != 0);
 		} else {
 			/*
 			 * GPIO wakeup request can only be generated on edge
@@ -1086,6 +1090,11 @@ omap_mpuio_alloc_gc(struct gpio_bank *bank, unsigned int irq_start,
 
 	gc = irq_alloc_generic_chip("MPUIO", 1, irq_start, bank->base,
 				    handle_simple_irq);
+	if (!gc) {
+		dev_err(bank->dev, "Memory alloc failed for gc\n");
+		return;
+	}
+
 	ct = gc->chip_types;
 
 	/* NOTE: No ack required, reading IRQ status clears it. */
