@@ -332,11 +332,11 @@ static ssize_t lis3l02dq_write_frequency(struct device *dev,
 					 size_t len)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	long val;
+	unsigned long val;
 	int ret;
 	u8 t;
 
-	ret = strict_strtol(buf, 10, &val);
+	ret = kstrtoul(buf, 10, &val);
 	if (ret)
 		return ret;
 
