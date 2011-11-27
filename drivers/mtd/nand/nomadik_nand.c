@@ -228,19 +228,7 @@ static struct platform_driver nomadik_nand_driver = {
 	},
 };
 
-static int __init nand_nomadik_init(void)
-{
-	pr_info("Nomadik NAND driver\n");
-	return platform_driver_register(&nomadik_nand_driver);
-}
-
-static void __exit nand_nomadik_exit(void)
-{
-	platform_driver_unregister(&nomadik_nand_driver);
-}
-
-module_init(nand_nomadik_init);
-module_exit(nand_nomadik_exit);
+module_platform_driver(nomadik_nand_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("ST Microelectronics (sachin.verma@st.com)");

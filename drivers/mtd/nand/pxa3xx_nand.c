@@ -1311,17 +1311,7 @@ static struct platform_driver pxa3xx_nand_driver = {
 	.resume		= pxa3xx_nand_resume,
 };
 
-static int __init pxa3xx_nand_init(void)
-{
-	return platform_driver_register(&pxa3xx_nand_driver);
-}
-module_init(pxa3xx_nand_init);
-
-static void __exit pxa3xx_nand_exit(void)
-{
-	platform_driver_unregister(&pxa3xx_nand_driver);
-}
-module_exit(pxa3xx_nand_exit);
+module_platform_driver(pxa3xx_nand_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("PXA3xx NAND controller driver");

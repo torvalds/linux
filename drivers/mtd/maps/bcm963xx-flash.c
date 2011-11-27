@@ -257,18 +257,7 @@ static struct platform_driver bcm63xx_mtd_dev = {
 	},
 };
 
-static int __init bcm963xx_mtd_init(void)
-{
-	return platform_driver_register(&bcm63xx_mtd_dev);
-}
-
-static void __exit bcm963xx_mtd_exit(void)
-{
-	platform_driver_unregister(&bcm63xx_mtd_dev);
-}
-
-module_init(bcm963xx_mtd_init);
-module_exit(bcm963xx_mtd_exit);
+module_platform_driver(bcm63xx_mtd_dev);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Broadcom BCM63xx MTD driver for CFE and RedBoot");

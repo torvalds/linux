@@ -394,18 +394,7 @@ static struct platform_driver sa1100_mtd_driver = {
 	},
 };
 
-static int __init sa1100_mtd_init(void)
-{
-	return platform_driver_register(&sa1100_mtd_driver);
-}
-
-static void __exit sa1100_mtd_exit(void)
-{
-	platform_driver_unregister(&sa1100_mtd_driver);
-}
-
-module_init(sa1100_mtd_init);
-module_exit(sa1100_mtd_exit);
+module_platform_driver(sa1100_mtd_driver);
 
 MODULE_AUTHOR("Nicolas Pitre");
 MODULE_DESCRIPTION("SA1100 CFI map driver");

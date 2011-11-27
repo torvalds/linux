@@ -971,18 +971,7 @@ static struct platform_driver fsl_elbc_nand_driver = {
 	.remove = fsl_elbc_nand_remove,
 };
 
-static int __init fsl_elbc_nand_init(void)
-{
-	return platform_driver_register(&fsl_elbc_nand_driver);
-}
-
-static void __exit fsl_elbc_nand_exit(void)
-{
-	platform_driver_unregister(&fsl_elbc_nand_driver);
-}
-
-module_init(fsl_elbc_nand_init);
-module_exit(fsl_elbc_nand_exit);
+module_platform_driver(fsl_elbc_nand_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Freescale");
