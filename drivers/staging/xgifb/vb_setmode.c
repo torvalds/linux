@@ -3132,19 +3132,6 @@ static void XGI_UpdateModeInfo(struct xgi_hw_device_info *HwDeviceExtension,
 	}
 }
 
-static void XGI_GetVGAType(struct xgi_hw_device_info *HwDeviceExtension,
-		struct vb_device_info *pVBInfo)
-{
-	/*
-	if ( HwDeviceExtension->jChipType >= XG20 ) {
-		pVBInfo->Set_VGAType = XG20;
-	} else {
-		pVBInfo->Set_VGAType = VGA_XGI340;
-	}
-	*/
-	pVBInfo->Set_VGAType = HwDeviceExtension->jChipType;
-}
-
 void XGI_GetVBType(struct vb_device_info *pVBInfo)
 {
 	unsigned short flag, tempbx, tempah;
@@ -3220,8 +3207,8 @@ static void XGI_GetVBInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 
 		if (pVBInfo->IF_DEF_LCDA == 1) {
 
-			if ((pVBInfo->Set_VGAType >= XG20)
-					|| (pVBInfo->Set_VGAType >= XG40)) {
+			if ((HwDeviceExtension->jChipType >= XG20) ||
+			    (HwDeviceExtension->jChipType >= XG40)) {
 				if (pVBInfo->IF_DEF_LVDS == 0) {
 					/* if ((pVBInfo->VBType & VB_XGI302B)
 					    || (pVBInfo->VBType & VB_XGI301LV)
@@ -7844,8 +7831,6 @@ unsigned char XGISetModeNew(struct xgi_hw_device_info *HwDeviceExtension,
 		XGI_UnLockCRT2(HwDeviceExtension, pVBInfo);
 
 	XGI_SearchModeID(ModeNo, &ModeIdIndex, pVBInfo);
-
-	XGI_GetVGAType(HwDeviceExtension, pVBInfo);
 
 	if (HwDeviceExtension->jChipType < XG20) { /* kuku 2004/06/25 */
 		XGI_GetVBInfo(ModeNo, ModeIdIndex, HwDeviceExtension, pVBInfo);
