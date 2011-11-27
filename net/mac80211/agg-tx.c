@@ -194,6 +194,20 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 	 */
 	clear_bit(HT_AGG_STATE_OPERATIONAL, &tid_tx->state);
 
+	/*
+	 * There might be a few packets being processed right now (on
+	 * another CPU) that have already gotten past the aggregation
+	 * check when it was still OPERATIONAL and consequently have
+	 * IEEE80211_TX_CTL_AMPDU set. In that case, this code might
+	 * call into the driver at the same time or even before the
+	 * TX paths calls into it, which could confuse the driver.
+	 *
+	 * Wait for all currently running TX paths to finish before
+	 * telling the driver. New packets will not go through since
+	 * the aggregation session is no longer OPERATIONAL.
+	 */
+	synchronize_net();
+
 	tid_tx->stop_initiator = initiator;
 	tid_tx->tx_stop = tx;
 
