@@ -6973,38 +6973,6 @@ unsigned char XGI_BridgeIsOn(struct vb_device_info *pVBInfo)
 	}
 }
 
-static void XGI_VBLongWait(struct vb_device_info *pVBInfo)
-{
-	unsigned short tempal, temp, i, j;
-	return;
-	if (!(pVBInfo->VBInfo & SetCRT2ToTV)) {
-		temp = 0;
-		for (i = 0; i < 3; i++) {
-			for (j = 0; j < 100; j++) {
-				tempal = inb(pVBInfo->P3da);
-				if (temp & 0x01) { /* VBWaitMode2 */
-					if ((tempal & 0x08))
-						continue;
-
-					if (!(tempal & 0x08))
-						break;
-
-				} else { /* VBWaitMode1 */
-					if (!(tempal & 0x08))
-						continue;
-
-					if ((tempal & 0x08))
-						break;
-				}
-			}
-			temp = temp ^ 0x01;
-		}
-	} else {
-		XGI_LongWait(pVBInfo);
-	}
-	return;
-}
-
 unsigned short XGI_GetRatePtrCRT2(struct xgi_hw_device_info *pXGIHWDE,
 		unsigned short ModeNo, unsigned short ModeIdIndex,
 		struct vb_device_info *pVBInfo)
@@ -7225,10 +7193,6 @@ void XGI_SenseCRT1(struct vb_device_info *pVBInfo)
 		outb((unsigned char) DAC_TEST_PARMS[2], (pVBInfo->P3c8 + 1));
 	}
 
-	XGI_VBLongWait(pVBInfo);
-	XGI_VBLongWait(pVBInfo);
-	XGI_VBLongWait(pVBInfo);
-
 	mdelay(1);
 
 	XGI_WaitDisply(pVBInfo);
@@ -7361,12 +7325,10 @@ static void XGI_EnableBridge(struct xgi_hw_device_info *HwDeviceExtension,
 		xgifb_reg_or(pVBInfo->Part4Port, 0x1F, tempah);
 
 		if (!(pVBInfo->SetFlag & DisableChA)) {
-			XGI_VBLongWait(pVBInfo);
 			if (!(pVBInfo->SetFlag & GatingCRT)) {
 				XGI_DisableGatingCRT(HwDeviceExtension,
 						     pVBInfo);
 				XGI_DisplayOn(HwDeviceExtension, pVBInfo);
-				XGI_VBLongWait(pVBInfo);
 			}
 		}
 	} /* 301 */
