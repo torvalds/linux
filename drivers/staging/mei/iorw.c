@@ -231,8 +231,7 @@ struct mei_cl_cb *find_amthi_read_list_entry(
 	struct mei_cl_cb *cb_pos = NULL;
 	struct mei_cl_cb *cb_next = NULL;
 
-	if (!dev->amthi_read_complete_list.status &&
-	    !list_empty(&dev->amthi_read_complete_list.mei_cb.cb_list)) {
+	if (!list_empty(&dev->amthi_read_complete_list.mei_cb.cb_list)) {
 		list_for_each_entry_safe(cb_pos, cb_next,
 		    &dev->amthi_read_complete_list.mei_cb.cb_list, cb_list) {
 			cl_temp = (struct mei_cl *)cb_pos->file_private;
@@ -565,8 +564,7 @@ void mei_run_next_iamthif_cmd(struct mei_device *dev)
 	dev->iamthif_timer = 0;
 	dev->iamthif_file_object = NULL;
 
-	if (dev->amthi_cmd_list.status == 0 &&
-	    !list_empty(&dev->amthi_cmd_list.mei_cb.cb_list)) {
+	if (!list_empty(&dev->amthi_cmd_list.mei_cb.cb_list)) {
 		dev_dbg(&dev->pdev->dev, "complete amthi cmd_list cb.\n");
 
 		list_for_each_entry_safe(cb_pos, cb_next,

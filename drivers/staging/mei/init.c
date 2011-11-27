@@ -38,7 +38,6 @@ void mei_io_list_init(struct mei_io_list *list)
 {
 	/* initialize our queue list */
 	INIT_LIST_HEAD(&list->mei_cb.cb_list);
-	list->status = 0;
 }
 
 /**
@@ -52,8 +51,6 @@ void mei_io_list_flush(struct mei_io_list *list, struct mei_cl *cl)
 	struct mei_cl_cb *cb_pos = NULL;
 	struct mei_cl_cb *cb_next = NULL;
 
-	if (list->status != 0)
-		return;
 
 	if (list_empty(&list->mei_cb.cb_list))
 		return;
@@ -338,8 +335,7 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 		}
 	}
 	/* remove all waiting requests */
-	if (dev->write_list.status == 0 &&
-		!list_empty(&dev->write_list.mei_cb.cb_list)) {
+	if (!list_empty(&dev->write_list.mei_cb.cb_list)) {
 		list_for_each_entry_safe(cb_pos, cb_next,
 				&dev->write_list.mei_cb.cb_list, cb_list) {
 			if (cb_pos) {

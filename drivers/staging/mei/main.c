@@ -201,8 +201,7 @@ static struct mei_cl_cb *find_read_list_entry(
 	struct mei_cl_cb *cb_pos = NULL;
 	struct mei_cl_cb *cb_next = NULL;
 
-	if (!dev->read_list.status &&
-	    !list_empty(&dev->read_list.mei_cb.cb_list)) {
+	if (!list_empty(&dev->read_list.mei_cb.cb_list)) {
 
 		dev_dbg(&dev->pdev->dev, "remove read_list CB\n");
 		list_for_each_entry_safe(cb_pos, cb_next,

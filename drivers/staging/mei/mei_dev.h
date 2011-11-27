@@ -168,7 +168,6 @@ struct mei_cl {
 
 struct mei_io_list {
 	struct mei_cl_cb mei_cb;
-	int status;
 };
 
 /* MEI private device struct */
