@@ -1274,77 +1274,55 @@ static unsigned short XGI_GetVCLK2Ptr(unsigned short ModeNo,
 				VCLKIndex = LCDXlat2VCLK[CRT2Index];
 			else
 				VCLKIndex = LCDXlat1VCLK[CRT2Index];
-		} else { /* for TV */
-			if (pVBInfo->VBInfo & SetCRT2ToTV) {
-				if (pVBInfo->VBInfo & SetCRT2ToHiVisionTV) {
-					if (pVBInfo->SetFlag & RPLLDIV2XO) {
-						VCLKIndex = HiTVVCLKDIV2;
-						VCLKIndex += 25;
-					} else {
-						VCLKIndex = HiTVVCLK;
-						VCLKIndex += 25;
-					}
+		} else if (pVBInfo->VBInfo & SetCRT2ToHiVisionTV) {
+			if (pVBInfo->SetFlag & RPLLDIV2XO) {
+				VCLKIndex = HiTVVCLKDIV2;
+				VCLKIndex += 25;
+			} else {
+				VCLKIndex = HiTVVCLK;
+				VCLKIndex += 25;
+			}
 
-					if (pVBInfo->SetFlag & TVSimuMode) {
-						if (modeflag & Charx8Dot) {
-							VCLKIndex =
-								HiTVSimuVCLK;
-							VCLKIndex += 25;
-						} else {
-							VCLKIndex =
-								HiTVTextVCLK;
-							VCLKIndex += 25;
-						}
-					}
-
-					/* 301lv */
-					if (pVBInfo->VBType & VB_XGI301LV) {
-						if (!(pVBInfo->VBExtInfo ==
-						     VB_YPbPr1080i)) {
-							VCLKIndex =
-								YPbPr750pVCLK;
-							if (!(pVBInfo->VBExtInfo
-									==
-							     VB_YPbPr750p)) {
-								VCLKIndex =
-								  YPbPr525pVCLK;
-								if (!(pVBInfo->VBExtInfo
-										== VB_YPbPr525p)) {
-									VCLKIndex
-											= YPbPr525iVCLK_2;
-									if (!(pVBInfo->SetFlag
-											& RPLLDIV2XO))
-										VCLKIndex
-												= YPbPr525iVCLK;
-								}
-							}
-						}
-					}
+			if (pVBInfo->SetFlag & TVSimuMode) {
+				if (modeflag & Charx8Dot) {
+					VCLKIndex = HiTVSimuVCLK;
+					VCLKIndex += 25;
 				} else {
-					if (pVBInfo->VBInfo & SetCRT2ToTV) {
-						if (pVBInfo->SetFlag &
-						    RPLLDIV2XO) {
-							VCLKIndex = TVVCLKDIV2;
-							VCLKIndex += 25;
-						} else {
-							VCLKIndex = TVVCLK;
-							VCLKIndex += 25;
-						}
-					}
+					VCLKIndex = HiTVTextVCLK;
+					VCLKIndex += 25;
 				}
-			} else { /* for CRT2 */
-				/* Port 3cch */
-				VCLKIndex = (unsigned char) inb(
-						(pVBInfo->P3ca + 0x02));
-				VCLKIndex = ((VCLKIndex >> 2) & 0x03);
-				if (ModeNo > 0x13) {
-					/* di+Ext_CRTVCLK */
-					VCLKIndex =
-						pVBInfo->RefIndex[
+			}
+
+			/* 301lv */
+			if ((pVBInfo->VBType & VB_XGI301LV) &&
+			    !(pVBInfo->VBExtInfo == VB_YPbPr1080i)) {
+				if (pVBInfo->VBExtInfo == VB_YPbPr750p)
+					VCLKIndex = YPbPr750pVCLK;
+				else if (pVBInfo->VBExtInfo == VB_YPbPr525p)
+					VCLKIndex = YPbPr525pVCLK;
+				else if (pVBInfo->SetFlag & RPLLDIV2XO)
+					VCLKIndex = YPbPr525iVCLK_2;
+				else
+					VCLKIndex = YPbPr525iVCLK;
+			}
+		} else if (pVBInfo->VBInfo & SetCRT2ToTV) {
+			if (pVBInfo->SetFlag & RPLLDIV2XO) {
+				VCLKIndex = TVVCLKDIV2;
+				VCLKIndex += 25;
+			} else {
+				VCLKIndex = TVVCLK;
+				VCLKIndex += 25;
+			}
+		} else { /* for CRT2 */
+			/* Port 3cch */
+			VCLKIndex = (unsigned char) inb((pVBInfo->P3ca + 0x02));
+			VCLKIndex = ((VCLKIndex >> 2) & 0x03);
+			if (ModeNo > 0x13) {
+				/* di+Ext_CRTVCLK */
+				VCLKIndex = pVBInfo->RefIndex[
 							RefreshRateTableIndex].
 								Ext_CRTVCLK;
-					VCLKIndex &= IndexMask;
-				}
+				VCLKIndex &= IndexMask;
 			}
 		}
 	} else { /* LVDS */
