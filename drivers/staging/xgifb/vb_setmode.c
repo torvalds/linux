@@ -3753,6 +3753,41 @@ static unsigned char XGI_XG27GetPSCValue(struct vb_device_info *pVBInfo)
 	return temp;
 }
 
+/*----------------------------------------------------------------------------*/
+/* input                                                                      */
+/*      bl[5] : 1;LVDS signal on                                              */
+/*      bl[1] : 1;LVDS backlight on                                           */
+/*      bl[0] : 1:LVDS VDD on                                                 */
+/*      bh: 100000b : clear bit 5, to set bit5                                */
+/*          000010b : clear bit 1, to set bit1                                */
+/*          000001b : clear bit 0, to set bit0                                */
+/*----------------------------------------------------------------------------*/
+static void XGI_XG21BLSignalVDD(unsigned short tempbh, unsigned short tempbl,
+		struct vb_device_info *pVBInfo)
+{
+	unsigned char CR4A, temp;
+
+	CR4A = xgifb_reg_get(pVBInfo->P3d4, 0x4A);
+	tempbh &= 0x23;
+	tempbl &= 0x23;
+	xgifb_reg_and(pVBInfo->P3d4, 0x4A, ~tempbh); /* enable GPIO write */
+
+	if (tempbh & 0x20) {
+		temp = (tempbl >> 4) & 0x02;
+
+		/* CR B4[1] */
+		xgifb_reg_and_or(pVBInfo->P3d4, 0xB4, ~0x02, temp);
+
+	}
+
+	temp = xgifb_reg_get(pVBInfo->P3d4, 0x48);
+
+	temp = XG21GPIODataTransfer(temp);
+	temp &= ~tempbh;
+	temp |= tempbl;
+	xgifb_reg_set(pVBInfo->P3d4, 0x48, temp);
+}
+
 void XGI_DisplayOn(struct xgi_hw_device_info *pXGIHWDE,
 		struct vb_device_info *pVBInfo)
 {
@@ -5946,41 +5981,6 @@ static void XGI_DisableGatingCRT(struct xgi_hw_device_info *HwDeviceExtension,
 {
 
 	xgifb_reg_and_or(pVBInfo->P3d4, 0x63, 0xBF, 0x00);
-}
-
-/*----------------------------------------------------------------------------*/
-/* input                                                                      */
-/*      bl[5] : 1;LVDS signal on                                              */
-/*      bl[1] : 1;LVDS backlight on                                           */
-/*      bl[0] : 1:LVDS VDD on                                                 */
-/*      bh: 100000b : clear bit 5, to set bit5                                */
-/*          000010b : clear bit 1, to set bit1                                */
-/*          000001b : clear bit 0, to set bit0                                */
-/*----------------------------------------------------------------------------*/
-void XGI_XG21BLSignalVDD(unsigned short tempbh, unsigned short tempbl,
-		struct vb_device_info *pVBInfo)
-{
-	unsigned char CR4A, temp;
-
-	CR4A = xgifb_reg_get(pVBInfo->P3d4, 0x4A);
-	tempbh &= 0x23;
-	tempbl &= 0x23;
-	xgifb_reg_and(pVBInfo->P3d4, 0x4A, ~tempbh); /* enable GPIO write */
-
-	if (tempbh & 0x20) {
-		temp = (tempbl >> 4) & 0x02;
-
-		/* CR B4[1] */
-		xgifb_reg_and_or(pVBInfo->P3d4, 0xB4, ~0x02, temp);
-
-	}
-
-	temp = xgifb_reg_get(pVBInfo->P3d4, 0x48);
-
-	temp = XG21GPIODataTransfer(temp);
-	temp &= ~tempbh;
-	temp |= tempbl;
-	xgifb_reg_set(pVBInfo->P3d4, 0x48, temp);
 }
 
 void XGI_XG27BLSignalVDD(unsigned short tempbh, unsigned short tempbl,
