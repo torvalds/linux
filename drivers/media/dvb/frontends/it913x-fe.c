@@ -46,6 +46,8 @@ MODULE_PARM_DESC(debug, "set debugging level (1=info (or-able)).");
 	  dprintk(level, name" (%02x%02x%02x%02x%02x%02x%02x%02x)", \
 		*p, *(p+1), *(p+2), *(p+3), *(p+4), \
 			*(p+5), *(p+6), *(p+7));
+#define info(format, arg...) \
+	printk(KERN_INFO "it913x-fe: " format "\n" , ## arg)
 
 struct it913x_fe_state {
 	struct dvb_frontend frontend;
@@ -739,6 +741,8 @@ static int it913x_fe_start(struct it913x_fe_state *state)
 	if (state->config->chip_ver == 1)
 		ret = it913x_init_tuner(state);
 
+	info("ADF table value	:%02x", adf);
+
 	if (adf < 10) {
 		state->crystalFrequency = fe_clockTable[adf].xtal ;
 		state->table = fe_clockTable[adf].table;
@@ -749,9 +753,6 @@ static int it913x_fe_start(struct it913x_fe_state *state)
 
 	} else
 		return -EINVAL;
-
-	deb_info("Xtal Freq :%d Adc Freq :%d Adc %08x Xtal %08x",
-		state->crystalFrequency, state->adcFrequency, adc, xtal);
 
 	/* Set LED indicator on GPIOH3 */
 	ret = it913x_write_reg(state, PRO_LINK, GPIOH3_EN, 0x1);
@@ -772,6 +773,11 @@ static int it913x_fe_start(struct it913x_fe_state *state)
 	b[1] = (adc >> 8) & 0xff;
 	b[2] = (adc >> 16) & 0xff;
 	ret |= it913x_write(state, PRO_DMOD, ADC_FREQ, b, 3);
+
+	info("Crystal Frequency :%d Adc Frequency :%d",
+		state->crystalFrequency, state->adcFrequency);
+	deb_info("Xtal value :%04x Adc value :%04x", xtal, adc);
+
 	if (ret < 0)
 		return -ENODEV;
 
@@ -804,6 +810,8 @@ static int it913x_fe_start(struct it913x_fe_state *state)
 	default:
 		set_lna = it9135_38;
 	}
+	info("Tuner LNA type :%02x", state->tuner_type);
+
 	ret = it913x_fe_script_loader(state, set_lna);
 	if (ret < 0)
 		return ret;
