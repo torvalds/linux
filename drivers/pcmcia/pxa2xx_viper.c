@@ -204,18 +204,7 @@ static struct platform_driver viper_pcmcia_driver = {
 	.id_table	= viper_pcmcia_id_table,
 };
 
-static int __init viper_pcmcia_init(void)
-{
-	return platform_driver_register(&viper_pcmcia_driver);
-}
-
-static void __exit viper_pcmcia_exit(void)
-{
-	return platform_driver_unregister(&viper_pcmcia_driver);
-}
-
-module_init(viper_pcmcia_init);
-module_exit(viper_pcmcia_exit);
+module_platform_driver(viper_pcmcia_driver);
 
 MODULE_DEVICE_TABLE(platform, viper_pcmcia_id_table);
 MODULE_LICENSE("GPL");

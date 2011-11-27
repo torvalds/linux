@@ -365,17 +365,7 @@ static struct platform_driver electra_cf_driver = {
 	.remove   = electra_cf_remove,
 };
 
-static int __init electra_cf_init(void)
-{
-	return platform_driver_register(&electra_cf_driver);
-}
-module_init(electra_cf_init);
-
-static void __exit electra_cf_exit(void)
-{
-	platform_driver_unregister(&electra_cf_driver);
-}
-module_exit(electra_cf_exit);
+module_platform_driver(electra_cf_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR ("Olof Johansson <olof@lixom.net>");

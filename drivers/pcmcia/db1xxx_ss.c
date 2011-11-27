@@ -580,18 +580,7 @@ static struct platform_driver db1x_pcmcia_socket_driver = {
 	.remove		= __devexit_p(db1x_pcmcia_socket_remove),
 };
 
-int __init db1x_pcmcia_socket_load(void)
-{
-	return platform_driver_register(&db1x_pcmcia_socket_driver);
-}
-
-void  __exit db1x_pcmcia_socket_unload(void)
-{
-	platform_driver_unregister(&db1x_pcmcia_socket_driver);
-}
-
-module_init(db1x_pcmcia_socket_load);
-module_exit(db1x_pcmcia_socket_unload);
+module_platform_driver(db1x_pcmcia_socket_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("PCMCIA Socket Services for Alchemy Db/Pb1x00 boards");
