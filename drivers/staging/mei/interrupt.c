@@ -210,9 +210,6 @@ static int mei_irq_thread_read_client_message(struct mei_io_list *complete_list,
 			buffer = (unsigned char *)
 				(cb_pos->response_buffer.data +
 				cb_pos->information);
-			BUG_ON(cb_pos->response_buffer.size <
-					mei_hdr->length +
-					cb_pos->information);
 
 			if (cb_pos->response_buffer.size <
 					mei_hdr->length + cb_pos->information) {
