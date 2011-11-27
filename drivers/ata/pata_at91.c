@@ -454,20 +454,7 @@ static struct platform_driver pata_at91_driver = {
 	},
 };
 
-static int __init pata_at91_init(void)
-{
-	return platform_driver_register(&pata_at91_driver);
-}
-
-static void __exit pata_at91_exit(void)
-{
-	platform_driver_unregister(&pata_at91_driver);
-}
-
-
-module_init(pata_at91_init);
-module_exit(pata_at91_exit);
-
+module_platform_driver(pata_at91_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Driver for CF in True IDE mode on AT91SAM9260 SoC");

@@ -101,17 +101,7 @@ static struct platform_driver pata_of_platform_driver = {
 	.remove		= __devexit_p(pata_of_platform_remove),
 };
 
-static int __init pata_of_platform_init(void)
-{
-	return platform_driver_register(&pata_of_platform_driver);
-}
-module_init(pata_of_platform_init);
-
-static void __exit pata_of_platform_exit(void)
-{
-	platform_driver_unregister(&pata_of_platform_driver);
-}
-module_exit(pata_of_platform_exit);
+module_platform_driver(pata_of_platform_driver);
 
 MODULE_DESCRIPTION("OF-platform PATA driver");
 MODULE_AUTHOR("Anton Vorontsov <avorontsov@ru.mvista.com>");
