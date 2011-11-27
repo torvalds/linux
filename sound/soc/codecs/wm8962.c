@@ -4150,7 +4150,8 @@ static __devinit int wm8962_i2c_probe(struct i2c_client *i2c,
 	unsigned int reg;
 	int ret, i;
 
-	wm8962 = kzalloc(sizeof(struct wm8962_priv), GFP_KERNEL);
+	wm8962 = devm_kzalloc(&i2c->dev, sizeof(struct wm8962_priv),
+			      GFP_KERNEL);
 	if (wm8962 == NULL)
 		return -ENOMEM;
 
@@ -4167,7 +4168,7 @@ static __devinit int wm8962_i2c_probe(struct i2c_client *i2c,
 				 wm8962->supplies);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to request supplies: %d\n", ret);
-		goto err_alloc;
+		goto err;
 	}
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(wm8962->supplies),
@@ -4241,8 +4242,7 @@ err_enable:
 	regulator_bulk_disable(ARRAY_SIZE(wm8962->supplies), wm8962->supplies);
 err_get:
 	regulator_bulk_free(ARRAY_SIZE(wm8962->supplies), wm8962->supplies);
-err_alloc:
-	kfree(wm8962);
+err:
 	return ret;
 }
 
@@ -4253,7 +4253,6 @@ static __devexit int wm8962_i2c_remove(struct i2c_client *client)
 	snd_soc_unregister_codec(&client->dev);
 	regmap_exit(wm8962->regmap);
 	regulator_bulk_free(ARRAY_SIZE(wm8962->supplies), wm8962->supplies);
-	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
