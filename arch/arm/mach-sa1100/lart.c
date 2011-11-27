@@ -24,6 +24,7 @@
 static struct mcp_plat_data lart_mcp_data = {
 	.mccr0		= MCCR0_ADM,
 	.sclk_rate	= 11981000,
+	.codec		= "ucb1x00",
 };
 
 static void __init lart_init(void)

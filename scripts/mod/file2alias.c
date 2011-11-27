@@ -774,6 +774,15 @@ static int do_spi_entry(const char *filename, struct spi_device_id *id,
 	return 1;
 }
 
+/* Looks like: mcp:S */
+static int do_mcp_entry(const char *filename, struct mcp_device_id *id,
+			char *alias)
+{
+	sprintf(alias, MCP_MODULE_PREFIX "%s", id->name);
+
+	return 1;
+}
+
 static const struct dmifield {
 	const char *prefix;
 	int field;
@@ -1027,6 +1036,10 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		do_table(symval, sym->st_size,
 			 sizeof(struct spi_device_id), "spi",
 			 do_spi_entry, mod);
+	else if (sym_is(symname, "__mod_mcp_device_table"))
+		do_table(symval, sym->st_size,
+			 sizeof(struct mcp_device_id), "mcp",
+			 do_mcp_entry, mod);
 	else if (sym_is(symname, "__mod_dmi_device_table"))
 		do_table(symval, sym->st_size,
 			 sizeof(struct dmi_system_id), "dmi",

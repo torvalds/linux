@@ -202,6 +202,7 @@ static struct irda_platform_data assabet_irda_data = {
 static struct mcp_plat_data assabet_mcp_data = {
 	.mccr0		= MCCR0_ADM,
 	.sclk_rate	= 11981000,
+	.codec		= "ucb1x00",
 };
 
 static void __init assabet_init(void)

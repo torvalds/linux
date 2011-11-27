@@ -14,6 +14,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/mfd/ucb1x00.h>
 
 #include <asm/irq.h>
 #include <mach/hardware.h>
@@ -187,10 +188,15 @@ static struct resource simpad_flash_resources [] = {
 	}
 };
 
+static struct ucb1x00_plat_data simpad_ucb1x00_data = {
+	.gpio_base	= SIMPAD_UCB1X00_GPIO_BASE,
+};
+
 static struct mcp_plat_data simpad_mcp_data = {
 	.mccr0		= MCCR0_ADM,
 	.sclk_rate	= 11981000,
-	.gpio_base	= SIMPAD_UCB1X00_GPIO_BASE,
+	.codec		= "ucb1300",
+	.codec_pdata	= &simpad_ucb1x00_data,
 };
 
 

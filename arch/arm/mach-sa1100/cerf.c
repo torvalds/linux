@@ -124,6 +124,7 @@ static void __init cerf_map_io(void)
 static struct mcp_plat_data cerf_mcp_data = {
 	.mccr0		= MCCR0_ADM,
 	.sclk_rate	= 11981000,
+	.codec		= "ucb1x00",
 };
 
 static void __init cerf_init(void)
