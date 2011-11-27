@@ -51,7 +51,8 @@ struct fixed_voltage_data {
  * tree node, returns a pointer to the populated structure of NULL if memory
  * alloc fails.
  */
-struct fixed_voltage_config *of_get_fixed_voltage_config(struct device *dev)
+static struct fixed_voltage_config *
+of_get_fixed_voltage_config(struct device *dev)
 {
 	struct fixed_voltage_config *config;
 	struct device_node *np = dev->of_node;
@@ -64,6 +65,9 @@ struct fixed_voltage_config *of_get_fixed_voltage_config(struct device *dev)
 		return NULL;
 
 	config->init_data = of_get_regulator_init_data(dev);
+	if (!config->init_data)
+		return NULL;
+
 	init_data = config->init_data;
 
 	config->supply_name = init_data->constraints.name;

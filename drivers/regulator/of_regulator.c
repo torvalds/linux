@@ -10,6 +10,7 @@
  * (at your option) any later version.
  */
 
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/regulator/machine.h>
@@ -79,3 +80,4 @@ struct regulator_init_data *of_get_regulator_init_data(struct device *dev)
 	of_get_regulation_constraints(dev->of_node, &init_data);
 	return init_data;
 }
+EXPORT_SYMBOL_GPL(of_get_regulator_init_data);
