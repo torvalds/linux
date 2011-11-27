@@ -383,10 +383,10 @@ sca3000_store_measurement_mode(struct device *dev,
 	struct sca3000_state *st = iio_priv(indio_dev);
 	int ret;
 	int mask = 0x03;
-	long val;
+	u8 val;
 
 	mutex_lock(&st->lock);
-	ret = strict_strtol(buf, 10, &val);
+	ret = kstrtou8(buf, 10, &val);
 	if (ret)
 		goto error_ret;
 	ret = sca3000_read_data_short(st, SCA3000_REG_ADDR_MODE, 1);
