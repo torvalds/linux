@@ -163,12 +163,17 @@ static struct regulator_ops fixed_voltage_ops = {
 
 static int __devinit reg_fixed_voltage_probe(struct platform_device *pdev)
 {
-	struct fixed_voltage_config *config = pdev->dev.platform_data;
+	struct fixed_voltage_config *config;
 	struct fixed_voltage_data *drvdata;
 	int ret;
 
 	if (pdev->dev.of_node)
 		config = of_get_fixed_voltage_config(&pdev->dev);
+	else
+		config = pdev->dev.platform_data;
+
+	if (!config)
+		return -ENOMEM;
 
 	drvdata = kzalloc(sizeof(struct fixed_voltage_data), GFP_KERNEL);
 	if (drvdata == NULL) {
