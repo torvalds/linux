@@ -201,8 +201,8 @@ static const struct snd_soc_dapm_route harmony_audio_map[] = {
 	{"Int Spk", NULL, "RON"},
 	{"Int Spk", NULL, "LOP"},
 	{"Int Spk", NULL, "LON"},
-	{"Mic Bias", NULL, "Mic Jack"},
-	{"IN1L", NULL, "Mic Bias"},
+	{"Mic Jack", NULL, "MICBIAS"},
+	{"IN1L", NULL, "Mic Jack"},
 };
 
 static const struct snd_soc_dapm_route seaboard_audio_map[] = {
@@ -212,8 +212,8 @@ static const struct snd_soc_dapm_route seaboard_audio_map[] = {
 	{"Int Spk", NULL, "RON"},
 	{"Int Spk", NULL, "LOP"},
 	{"Int Spk", NULL, "LON"},
-	{"Mic Bias", NULL, "Mic Jack"},
-	{"IN1R", NULL, "Mic Bias"},
+	{"Mic Jack", NULL, "MICBIAS"},
+	{"IN1R", NULL, "Mic Jack"},
 };
 
 static const struct snd_soc_dapm_route kaen_audio_map[] = {
@@ -223,8 +223,8 @@ static const struct snd_soc_dapm_route kaen_audio_map[] = {
 	{"Int Spk", NULL, "RON"},
 	{"Int Spk", NULL, "LOP"},
 	{"Int Spk", NULL, "LON"},
-	{"Mic Bias", NULL, "Mic Jack"},
-	{"IN2R", NULL, "Mic Bias"},
+	{"Mic Jack", NULL, "MICBIAS"},
+	{"IN2R", NULL, "Mic Jack"},
 };
 
 static const struct snd_soc_dapm_route aebl_audio_map[] = {
@@ -232,8 +232,8 @@ static const struct snd_soc_dapm_route aebl_audio_map[] = {
 	{"Headphone Jack", NULL, "HPOUTL"},
 	{"Int Spk", NULL, "LINEOUTR"},
 	{"Int Spk", NULL, "LINEOUTL"},
-	{"Mic Bias", NULL, "Mic Jack"},
-	{"IN1R", NULL, "Mic Bias"},
+	{"Mic Jack", NULL, "MICBIAS"},
+	{"IN1R", NULL, "Mic Jack"},
 };
 
 static const struct snd_kcontrol_new tegra_wm8903_controls[] = {
@@ -329,7 +329,7 @@ static int tegra_wm8903_init(struct snd_soc_pcm_runtime *rtd)
 	wm8903_mic_detect(codec, &tegra_wm8903_mic_jack, SND_JACK_MICROPHONE,
 				0);
 
-	snd_soc_dapm_force_enable_pin(dapm, "Mic Bias");
+	snd_soc_dapm_force_enable_pin(dapm, "MICBIAS");
 
 	return 0;
 }
