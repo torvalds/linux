@@ -236,28 +236,6 @@ static void XGI_SetSeqRegs(unsigned short ModeNo,
 	}
 }
 
-static void XGI_SetMiscRegs(unsigned short StandTableIndex,
-			    struct vb_device_info *pVBInfo)
-{
-	unsigned char Miscdata;
-
-	/* Get Misc from file */
-	Miscdata = pVBInfo->StandTable[StandTableIndex].MISC;
-	/*
-	if (pVBInfo->VBType & (VB_XGI301B |
-			       VB_XGI302B |
-			       VB_XGI301LV |
-			       VB_XGI302LV |
-			       VB_XGI301C)) {
-		if (pVBInfo->VBInfo & SetCRT2ToLCDA) {
-			Miscdata |= 0x0C;
-		}
-	}
-	*/
-
-	outb(Miscdata, pVBInfo->P3c2); /* Set Misc(3c2) */
-}
-
 static void XGI_SetCRTCRegs(struct xgi_hw_device_info *HwDeviceExtension,
 			    unsigned short StandTableIndex,
 			    struct vb_device_info *pVBInfo)
@@ -7663,7 +7641,7 @@ static void XGI_SetCRT1Group(struct xgi_hw_device_info *HwDeviceExtension,
 	/* XGI_SetBIOSData(ModeNo, ModeIdIndex); */
 	/* XGI_ClearBankRegs(ModeNo, ModeIdIndex); */
 	XGI_SetSeqRegs(ModeNo, StandTableIndex, ModeIdIndex, pVBInfo);
-	XGI_SetMiscRegs(StandTableIndex, pVBInfo);
+	outb(pVBInfo->StandTable[StandTableIndex].MISC, pVBInfo->P3c2);
 	XGI_SetCRTCRegs(HwDeviceExtension, StandTableIndex, pVBInfo);
 	XGI_SetATTRegs(ModeNo, StandTableIndex, ModeIdIndex, pVBInfo);
 	XGI_SetGRCRegs(StandTableIndex, pVBInfo);
