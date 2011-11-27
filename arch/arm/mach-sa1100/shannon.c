@@ -61,6 +61,16 @@ static struct mcp_plat_data shannon_mcp_data = {
 static void __init shannon_init(void)
 {
 	sa11x0_register_mtd(&shannon_flash_data, &shannon_flash_resource, 1);
+
+	/*
+	 * Setup the PPC unit correctly.
+	 */
+	PPDR &= ~PPC_RXD4;
+	PPDR |= PPC_TXD4 | PPC_SCLK | PPC_SFRM;
+	PSDR |= PPC_RXD4;
+	PSDR &= ~(PPC_TXD4 | PPC_SCLK | PPC_SFRM);
+	PPSR &= ~(PPC_TXD4 | PPC_SCLK | PPC_SFRM);
+
 	sa11x0_register_mcp(&shannon_mcp_data);
 }
 

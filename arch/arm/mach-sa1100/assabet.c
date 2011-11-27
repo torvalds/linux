@@ -253,6 +253,17 @@ static void __init assabet_init(void)
 	sa11x0_register_mtd(&assabet_flash_data, assabet_flash_resources,
 			    ARRAY_SIZE(assabet_flash_resources));
 	sa11x0_register_irda(&assabet_irda_data);
+
+	/*
+	 * Setup the PPC unit correctly.
+	 */
+	PPDR &= ~PPC_RXD4;
+	PPDR |= PPC_TXD4 | PPC_SCLK | PPC_SFRM;
+	PSDR |= PPC_RXD4;
+	PSDR &= ~(PPC_TXD4 | PPC_SCLK | PPC_SFRM);
+	PPSR &= ~(PPC_TXD4 | PPC_SCLK | PPC_SFRM);
+
+	ASSABET_BCR_set(ASSABET_BCR_CODEC_RST);
 	sa11x0_register_mcp(&assabet_mcp_data);
 }
 

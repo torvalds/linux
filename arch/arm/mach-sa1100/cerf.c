@@ -131,6 +131,16 @@ static void __init cerf_init(void)
 {
 	platform_add_devices(cerf_devices, ARRAY_SIZE(cerf_devices));
 	sa11x0_register_mtd(&cerf_flash_data, &cerf_flash_resource, 1);
+
+	/*
+	 * Setup the PPC unit correctly.
+	 */
+	PPDR &= ~PPC_RXD4;
+	PPDR |= PPC_TXD4 | PPC_SCLK | PPC_SFRM;
+	PSDR |= PPC_RXD4;
+	PSDR &= ~(PPC_TXD4 | PPC_SCLK | PPC_SFRM);
+	PPSR &= ~(PPC_TXD4 | PPC_SCLK | PPC_SFRM);
+
 	sa11x0_register_mcp(&cerf_mcp_data);
 }
 

@@ -29,6 +29,15 @@ static struct mcp_plat_data lart_mcp_data = {
 
 static void __init lart_init(void)
 {
+	/*
+	 * Setup the PPC unit correctly.
+	 */
+	PPDR &= ~PPC_RXD4;
+	PPDR |= PPC_TXD4 | PPC_SCLK | PPC_SFRM;
+	PSDR |= PPC_RXD4;
+	PSDR &= ~(PPC_TXD4 | PPC_SCLK | PPC_SFRM);
+	PPSR &= ~(PPC_TXD4 | PPC_SCLK | PPC_SFRM);
+
 	sa11x0_register_mcp(&lart_mcp_data);
 }
 

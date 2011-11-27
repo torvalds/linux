@@ -384,6 +384,16 @@ static int __init simpad_init(void)
 
 	sa11x0_register_mtd(&simpad_flash_data, simpad_flash_resources,
 			      ARRAY_SIZE(simpad_flash_resources));
+
+	/*
+	 * Setup the PPC unit correctly.
+	 */
+	PPDR &= ~PPC_RXD4;
+	PPDR |= PPC_TXD4 | PPC_SCLK | PPC_SFRM;
+	PSDR |= PPC_RXD4;
+	PSDR &= ~(PPC_TXD4 | PPC_SCLK | PPC_SFRM);
+	PPSR &= ~(PPC_TXD4 | PPC_SCLK | PPC_SFRM);
+
 	sa11x0_register_mcp(&simpad_mcp_data);
 
 	ret = platform_add_devices(devices, ARRAY_SIZE(devices));
