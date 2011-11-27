@@ -6,49 +6,20 @@ extern void XGI_UnLockCRT2(struct xgi_hw_device_info *HwDeviceExtension,
 			   struct vb_device_info *);
 extern void XGI_LockCRT2(struct xgi_hw_device_info *HwDeviceExtension,
 			 struct vb_device_info *);
-extern void XGI_SetCRT2ModeRegs(unsigned short ModeNo,
-				struct xgi_hw_device_info *,
-				struct vb_device_info *);
-extern void XGI_DisableBridge(struct xgi_hw_device_info *HwDeviceExtension,
-			      struct vb_device_info *);
-extern void XGI_EnableBridge(struct xgi_hw_device_info *HwDeviceExtension,
-			     struct vb_device_info *);
 extern void XGI_DisplayOff(struct xgi_hw_device_info *,
 			   struct vb_device_info *);
-extern void XGI_DisplayOn(struct xgi_hw_device_info *,
-			  struct vb_device_info *);
 extern void XGI_GetVBType(struct vb_device_info *);
 extern void XGI_SenseCRT1(struct vb_device_info *);
-extern void XGI_GetVGAType(struct xgi_hw_device_info *HwDeviceExtension,
-			   struct vb_device_info *);
-extern void XGI_GetVBInfo(unsigned short ModeNo,
-			  unsigned short ModeIdIndex,
-			  struct xgi_hw_device_info *HwDeviceExtension,
-			  struct vb_device_info *);
-extern void XGI_GetTVInfo(unsigned short ModeNo,
-			  unsigned short ModeIdIndex,
-			  struct vb_device_info *);
 extern unsigned char XGISetModeNew(struct xgi_hw_device_info *HwDeviceExtension,
 				   unsigned short ModeNo) ;
 
 extern unsigned char XGI_SearchModeID(unsigned short ModeNo,
 				      unsigned short *ModeIdIndex,
 				      struct vb_device_info *);
-extern unsigned char XGI_GetLCDInfo(unsigned short ModeNo,
-				    unsigned short ModeIdIndex,
-				    struct vb_device_info *);
 extern unsigned char XGI_BridgeIsOn(struct vb_device_info *);
-
-extern unsigned char
-XGI_SetCRT2Group301(unsigned short ModeNo,
-		    struct xgi_hw_device_info *HwDeviceExtension,
-		    struct vb_device_info *);
 extern unsigned short XGI_GetRatePtrCRT2(struct xgi_hw_device_info *pXGIHWDE,
 					 unsigned short ModeNo,
 					 unsigned short ModeIdIndex,
 					 struct vb_device_info *);
-extern unsigned char XGI_XG21CheckLVDSMode(unsigned short ModeNo,
-					   unsigned short ModeIdIndex,
-					   struct vb_device_info *pVBInfo);
 
 #endif

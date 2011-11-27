@@ -3132,7 +3132,7 @@ static void XGI_UpdateModeInfo(struct xgi_hw_device_info *HwDeviceExtension,
 	}
 }
 
-void XGI_GetVGAType(struct xgi_hw_device_info *HwDeviceExtension,
+static void XGI_GetVGAType(struct xgi_hw_device_info *HwDeviceExtension,
 		struct vb_device_info *pVBInfo)
 {
 	/*
@@ -3187,7 +3187,7 @@ void XGI_GetVBType(struct vb_device_info *pVBInfo)
 	}
 }
 
-void XGI_GetVBInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
+static void XGI_GetVBInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 		struct xgi_hw_device_info *HwDeviceExtension,
 		struct vb_device_info *pVBInfo)
 {
@@ -3395,7 +3395,7 @@ void XGI_GetVBInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 	pVBInfo->VBInfo = tempbx;
 }
 
-void XGI_GetTVInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
+static void XGI_GetTVInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 		struct vb_device_info *pVBInfo)
 {
 	unsigned short temp, tempbx = 0, resinfo = 0, modeflag, index1;
@@ -3503,8 +3503,8 @@ void XGI_GetTVInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
 	pVBInfo->TVInfo = tempbx;
 }
 
-unsigned char XGI_GetLCDInfo(unsigned short ModeNo, unsigned short ModeIdIndex,
-		struct vb_device_info *pVBInfo)
+static unsigned char XGI_GetLCDInfo(unsigned short ModeNo,
+		unsigned short ModeIdIndex, struct vb_device_info *pVBInfo)
 {
 	unsigned short temp, tempax, tempbx, modeflag, resinfo = 0, LCDIdIndex;
 
@@ -3859,7 +3859,7 @@ static void XGI_XG21SetPanelDelay(unsigned short tempbl,
 		mdelay(pVBInfo->XG21_LVDSCapList[index].PSC_S4);
 }
 
-void XGI_DisplayOn(struct xgi_hw_device_info *pXGIHWDE,
+static void XGI_DisplayOn(struct xgi_hw_device_info *pXGIHWDE,
 		struct vb_device_info *pVBInfo)
 {
 
@@ -6054,7 +6054,7 @@ static void XGI_DisableGatingCRT(struct xgi_hw_device_info *HwDeviceExtension,
 	xgifb_reg_and_or(pVBInfo->P3d4, 0x63, 0xBF, 0x00);
 }
 
-unsigned char XGI_XG21CheckLVDSMode(unsigned short ModeNo,
+static unsigned char XGI_XG21CheckLVDSMode(unsigned short ModeNo,
 		unsigned short ModeIdIndex, struct vb_device_info *pVBInfo)
 {
 	unsigned short xres, yres, colordepth, modeflag, resindex,
@@ -6397,7 +6397,7 @@ static unsigned char XGI_EnableChISLCD(struct vb_device_info *pVBInfo)
 	return 0;
 }
 
-void XGI_DisableBridge(struct xgi_hw_device_info *HwDeviceExtension,
+static void XGI_DisableBridge(struct xgi_hw_device_info *HwDeviceExtension,
 		struct vb_device_info *pVBInfo)
 {
 	unsigned short tempah = 0;
@@ -6981,7 +6981,7 @@ static void XGI_OEM310Setting(unsigned short ModeNo,
 /* Output : */
 /* Description : Origin code for crt2group */
 /* --------------------------------------------------------------------- */
-void XGI_SetCRT2ModeRegs(unsigned short ModeNo,
+static void XGI_SetCRT2ModeRegs(unsigned short ModeNo,
 		struct xgi_hw_device_info *HwDeviceExtension,
 		struct vb_device_info *pVBInfo)
 {
@@ -7393,7 +7393,7 @@ static void XGI_SetLCDAGroup(unsigned short ModeNo, unsigned short ModeIdIndex,
 	XGI_SetCRT2ECLK(ModeNo, ModeIdIndex, RefreshRateTableIndex, pVBInfo);
 }
 
-unsigned char XGI_SetCRT2Group301(unsigned short ModeNo,
+static unsigned char XGI_SetCRT2Group301(unsigned short ModeNo,
 		struct xgi_hw_device_info *HwDeviceExtension,
 		struct vb_device_info *pVBInfo)
 {
@@ -7531,7 +7531,7 @@ void XGI_SenseCRT1(struct vb_device_info *pVBInfo)
 	xgifb_reg_set(pVBInfo->P3c4, 0x1F, (unsigned char) SR1F);
 }
 
-void XGI_EnableBridge(struct xgi_hw_device_info *HwDeviceExtension,
+static void XGI_EnableBridge(struct xgi_hw_device_info *HwDeviceExtension,
 		struct vb_device_info *pVBInfo)
 {
 	unsigned short tempah;
