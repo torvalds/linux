@@ -148,12 +148,14 @@ struct adis16400_chip_info {
  * @tx:			transmit buffer
  * @rx:			receive buffer
  * @buf_lock:		mutex to protect tx and rx
+ * @filt_int:		integer part of requested filter frequency
  **/
 struct adis16400_state {
 	struct spi_device		*us;
 	struct iio_trigger		*trig;
 	struct mutex			buf_lock;
 	struct adis16400_chip_info	*variant;
+	int				filt_int;
 
 	u8	tx[ADIS16400_MAX_TX] ____cacheline_aligned;
 	u8	rx[ADIS16400_MAX_RX] ____cacheline_aligned;
