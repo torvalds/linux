@@ -2996,7 +2996,7 @@ void snd_soc_dapm_auto_nc_codec_pins(struct snd_soc_codec *codec)
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	struct snd_soc_dapm_widget *w;
 
-	dev_dbg(card->dev, "Auto NC: DAPMs: card:%p codec:%p\n",
+	dev_dbg(codec->dev, "Auto NC: DAPMs: card:%p codec:%p\n",
 		&card->dapm, &codec->dapm);
 
 	list_for_each_entry(w, &card->widgets, list) {
@@ -3006,10 +3006,10 @@ void snd_soc_dapm_auto_nc_codec_pins(struct snd_soc_codec *codec)
 		case snd_soc_dapm_input:
 		case snd_soc_dapm_output:
 		case snd_soc_dapm_micbias:
-			dev_dbg(card->dev, "Auto NC: Checking widget %s\n",
+			dev_dbg(codec->dev, "Auto NC: Checking widget %s\n",
 				w->name);
 			if (!snd_soc_dapm_widget_in_card_paths(card, w)) {
-				dev_dbg(card->dev,
+				dev_dbg(codec->dev,
 					"... Not in map; disabling\n");
 				snd_soc_dapm_nc_pin(dapm, w->name);
 			}
