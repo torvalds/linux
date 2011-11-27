@@ -11,7 +11,7 @@
 #include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/phy.h>
-#include "dsa_priv.h"
+#include <net/dsa.h>
 #include "mv88e6xxx.h"
 
 static char *mv88e6123_61_65_probe(struct mii_bus *bus, int sw_addr)
