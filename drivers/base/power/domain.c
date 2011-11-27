@@ -56,6 +56,16 @@ static int genpd_start_dev(struct generic_pm_domain *genpd, struct device *dev)
 	return GENPD_DEV_CALLBACK(genpd, int, start, dev);
 }
 
+static int genpd_save_dev(struct generic_pm_domain *genpd, struct device *dev)
+{
+	return GENPD_DEV_CALLBACK(genpd, int, save_state, dev);
+}
+
+static int genpd_restore_dev(struct generic_pm_domain *genpd, struct device *dev)
+{
+	return GENPD_DEV_CALLBACK(genpd, int, restore_state, dev);
+}
+
 static bool genpd_sd_counter_dec(struct generic_pm_domain *genpd)
 {
 	bool ret = false;
@@ -217,7 +227,6 @@ static int __pm_genpd_save_device(struct pm_domain_data *pdd,
 {
 	struct generic_pm_domain_data *gpd_data = to_gpd_data(pdd);
 	struct device *dev = pdd->dev;
-	struct device_driver *drv = dev->driver;
 	int ret = 0;
 
 	if (gpd_data->need_restore)
@@ -225,11 +234,9 @@ static int __pm_genpd_save_device(struct pm_domain_data *pdd,
 
 	mutex_unlock(&genpd->lock);
 
-	if (drv && drv->pm && drv->pm->runtime_suspend) {
-		genpd_start_dev(genpd, dev);
-		ret = drv->pm->runtime_suspend(dev);
-		genpd_stop_dev(genpd, dev);
-	}
+	genpd_start_dev(genpd, dev);
+	ret = genpd_save_dev(genpd, dev);
+	genpd_stop_dev(genpd, dev);
 
 	mutex_lock(&genpd->lock);
 
@@ -250,18 +257,15 @@ static void __pm_genpd_restore_device(struct pm_domain_data *pdd,
 {
 	struct generic_pm_domain_data *gpd_data = to_gpd_data(pdd);
 	struct device *dev = pdd->dev;
-	struct device_driver *drv = dev->driver;
 
 	if (!gpd_data->need_restore)
 		return;
 
 	mutex_unlock(&genpd->lock);
 
-	if (drv && drv->pm && drv->pm->runtime_resume) {
-		genpd_start_dev(genpd, dev);
-		drv->pm->runtime_resume(dev);
-		genpd_stop_dev(genpd, dev);
-	}
+	genpd_start_dev(genpd, dev);
+	genpd_restore_dev(genpd, dev);
+	genpd_stop_dev(genpd, dev);
 
 	mutex_lock(&genpd->lock);
 
@@ -1358,6 +1362,44 @@ int pm_genpd_remove_callbacks(struct device *dev)
 EXPORT_SYMBOL_GPL(pm_genpd_remove_callbacks);
 
 /**
+ * pm_genpd_default_save_state - Default "save device state" for PM domians.
+ * @dev: Device to handle.
+ */
+static int pm_genpd_default_save_state(struct device *dev)
+{
+	int (*cb)(struct device *__dev);
+	struct device_driver *drv = dev->driver;
+
+	cb = dev_gpd_data(dev)->ops.save_state;
+	if (cb)
+		return cb(dev);
+
+	if (drv && drv->pm && drv->pm->runtime_suspend)
+		return drv->pm->runtime_suspend(dev);
+
+	return 0;
+}
+
+/**
+ * pm_genpd_default_restore_state - Default PM domians "restore device state".
+ * @dev: Device to handle.
+ */
+static int pm_genpd_default_restore_state(struct device *dev)
+{
+	int (*cb)(struct device *__dev);
+	struct device_driver *drv = dev->driver;
+
+	cb = dev_gpd_data(dev)->ops.restore_state;
+	if (cb)
+		return cb(dev);
+
+	if (drv && drv->pm && drv->pm->runtime_resume)
+		return drv->pm->runtime_resume(dev);
+
+	return 0;
+}
+
+/**
  * pm_genpd_init - Initialize a generic I/O PM domain object.
  * @genpd: PM domain object to initialize.
  * @gov: PM domain governor to associate with the domain (may be NULL).
@@ -1400,6 +1442,8 @@ void pm_genpd_init(struct generic_pm_domain *genpd,
 	genpd->domain.ops.restore_noirq = pm_genpd_restore_noirq;
 	genpd->domain.ops.restore = pm_genpd_restore;
 	genpd->domain.ops.complete = pm_genpd_complete;
+	genpd->dev_ops.save_state = pm_genpd_default_save_state;
+	genpd->dev_ops.restore_state = pm_genpd_default_restore_state;
 	mutex_lock(&gpd_list_lock);
 	list_add(&genpd->gpd_list_node, &gpd_list);
 	mutex_unlock(&gpd_list_lock);
