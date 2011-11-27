@@ -990,18 +990,7 @@ static struct platform_driver axdrv = {
 	.resume		= ax_resume,
 };
 
-static int __init axdrv_init(void)
-{
-	return platform_driver_register(&axdrv);
-}
-
-static void __exit axdrv_exit(void)
-{
-	platform_driver_unregister(&axdrv);
-}
-
-module_init(axdrv_init);
-module_exit(axdrv_exit);
+module_platform_driver(axdrv);
 
 MODULE_DESCRIPTION("AX88796 10/100 Ethernet platform driver");
 MODULE_AUTHOR("Ben Dooks, <ben@simtec.co.uk>");

@@ -1181,17 +1181,7 @@ static struct platform_driver temac_of_driver = {
 	},
 };
 
-static int __init temac_init(void)
-{
-	return platform_driver_register(&temac_of_driver);
-}
-module_init(temac_init);
-
-static void __exit temac_exit(void)
-{
-	platform_driver_unregister(&temac_of_driver);
-}
-module_exit(temac_exit);
+module_platform_driver(temac_of_driver);
 
 MODULE_DESCRIPTION("Xilinx LL_TEMAC Ethernet driver");
 MODULE_AUTHOR("Yoshio Kashiwagi");

@@ -1957,18 +1957,7 @@ static struct platform_driver sh_eth_driver = {
 	},
 };
 
-static int __init sh_eth_init(void)
-{
-	return platform_driver_register(&sh_eth_driver);
-}
-
-static void __exit sh_eth_cleanup(void)
-{
-	platform_driver_unregister(&sh_eth_driver);
-}
-
-module_init(sh_eth_init);
-module_exit(sh_eth_cleanup);
+module_platform_driver(sh_eth_driver);
 
 MODULE_AUTHOR("Nobuhiro Iwamatsu, Yoshihiro Shimoda");
 MODULE_DESCRIPTION("Renesas SuperH Ethernet driver");

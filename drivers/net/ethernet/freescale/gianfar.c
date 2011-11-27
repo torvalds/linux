@@ -3281,16 +3281,4 @@ static struct platform_driver gfar_driver = {
 	.remove = gfar_remove,
 };
 
-static int __init gfar_init(void)
-{
-	return platform_driver_register(&gfar_driver);
-}
-
-static void __exit gfar_exit(void)
-{
-	platform_driver_unregister(&gfar_driver);
-}
-
-module_init(gfar_init);
-module_exit(gfar_exit);
-
+module_platform_driver(gfar_driver);

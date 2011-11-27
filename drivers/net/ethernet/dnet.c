@@ -977,18 +977,7 @@ static struct platform_driver dnet_driver = {
 	},
 };
 
-static int __init dnet_init(void)
-{
-	return platform_driver_register(&dnet_driver);
-}
-
-static void __exit dnet_exit(void)
-{
-	platform_driver_unregister(&dnet_driver);
-}
-
-module_init(dnet_init);
-module_exit(dnet_exit);
+module_platform_driver(dnet_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Dave DNET Ethernet driver");

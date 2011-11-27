@@ -2131,27 +2131,6 @@ static struct platform_driver stmmac_driver = {
 	},
 };
 
-/**
- * stmmac_init_module - Entry point for the driver
- * Description: This function is the entry point for the driver.
- */
-static int __init stmmac_init_module(void)
-{
-	int ret;
-
-	ret = platform_driver_register(&stmmac_driver);
-	return ret;
-}
-
-/**
- * stmmac_cleanup_module - Cleanup routine for the driver
- * Description: This function is the cleanup routine for the driver.
- */
-static void __exit stmmac_cleanup_module(void)
-{
-	platform_driver_unregister(&stmmac_driver);
-}
-
 #ifndef MODULE
 static int __init stmmac_cmdline_opt(char *str)
 {
@@ -2211,8 +2190,7 @@ err:
 __setup("stmmaceth=", stmmac_cmdline_opt);
 #endif
 
-module_init(stmmac_init_module);
-module_exit(stmmac_cleanup_module);
+module_platform_driver(stmmac_driver);
 
 MODULE_DESCRIPTION("STMMAC 10/100/1000 Ethernet driver");
 MODULE_AUTHOR("Giuseppe Cavallaro <peppe.cavallaro@st.com>");

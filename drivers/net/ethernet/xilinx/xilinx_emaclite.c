@@ -1303,27 +1303,7 @@ static struct platform_driver xemaclite_of_driver = {
 	.remove		= __devexit_p(xemaclite_of_remove),
 };
 
-/**
- * xgpiopss_init - Initial driver registration call
- *
- * Return:	0 upon success, or a negative error upon failure.
- */
-static int __init xemaclite_init(void)
-{
-	/* No kernel boot options used, we just need to register the driver */
-	return platform_driver_register(&xemaclite_of_driver);
-}
-
-/**
- * xemaclite_cleanup - Driver un-registration call
- */
-static void __exit xemaclite_cleanup(void)
-{
-	platform_driver_unregister(&xemaclite_of_driver);
-}
-
-module_init(xemaclite_init);
-module_exit(xemaclite_cleanup);
+module_platform_driver(xemaclite_of_driver);
 
 MODULE_AUTHOR("Xilinx, Inc.");
 MODULE_DESCRIPTION("Xilinx Ethernet MAC Lite driver");

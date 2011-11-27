@@ -2675,15 +2675,4 @@ static struct platform_driver sbmac_driver = {
 	},
 };
 
-static int __init sbmac_init_module(void)
-{
-	return platform_driver_register(&sbmac_driver);
-}
-
-static void __exit sbmac_cleanup_module(void)
-{
-	platform_driver_unregister(&sbmac_driver);
-}
-
-module_init(sbmac_init_module);
-module_exit(sbmac_cleanup_module);
+module_platform_driver(sbmac_driver);

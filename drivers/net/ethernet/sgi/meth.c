@@ -830,24 +830,7 @@ static struct platform_driver meth_driver = {
 	}
 };
 
-static int __init meth_init_module(void)
-{
-	int err;
-
-	err = platform_driver_register(&meth_driver);
-	if (err)
-		printk(KERN_ERR "Driver registration failed\n");
-
-	return err;
-}
-
-static void __exit meth_exit_module(void)
-{
-	platform_driver_unregister(&meth_driver);
-}
-
-module_init(meth_init_module);
-module_exit(meth_exit_module);
+module_platform_driver(meth_driver);
 
 MODULE_AUTHOR("Ilya Volynets <ilya@theIlya.com>");
 MODULE_DESCRIPTION("SGI O2 Builtin Fast Ethernet driver");

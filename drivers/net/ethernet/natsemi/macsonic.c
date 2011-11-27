@@ -643,15 +643,4 @@ static struct platform_driver mac_sonic_driver = {
 	},
 };
 
-static int __init mac_sonic_init_module(void)
-{
-	return platform_driver_register(&mac_sonic_driver);
-}
-
-static void __exit mac_sonic_cleanup_module(void)
-{
-	platform_driver_unregister(&mac_sonic_driver);
-}
-
-module_init(mac_sonic_init_module);
-module_exit(mac_sonic_cleanup_module);
+module_platform_driver(mac_sonic_driver);

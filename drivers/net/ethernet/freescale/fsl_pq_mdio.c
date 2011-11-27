@@ -443,15 +443,6 @@ static struct platform_driver fsl_pq_mdio_driver = {
 	.remove = fsl_pq_mdio_remove,
 };
 
-int __init fsl_pq_mdio_init(void)
-{
-	return platform_driver_register(&fsl_pq_mdio_driver);
-}
-module_init(fsl_pq_mdio_init);
+module_platform_driver(fsl_pq_mdio_driver);
 
-void fsl_pq_mdio_exit(void)
-{
-	platform_driver_unregister(&fsl_pq_mdio_driver);
-}
-module_exit(fsl_pq_mdio_exit);
 MODULE_LICENSE("GPL");
