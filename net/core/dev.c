@@ -4282,6 +4282,12 @@ static int dev_seq_open(struct inode *inode, struct file *file)
 			    sizeof(struct dev_iter_state));
 }
 
+int dev_seq_open_ops(struct inode *inode, struct file *file,
+		     const struct seq_operations *ops)
+{
+	return seq_open_net(inode, file, ops, sizeof(struct dev_iter_state));
+}
+
 static const struct file_operations dev_seq_fops = {
 	.owner	 = THIS_MODULE,
 	.open    = dev_seq_open,
