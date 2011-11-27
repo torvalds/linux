@@ -4547,36 +4547,23 @@ static void XGI_SetLockRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 						temp -= 6;
 				}
 			}
-		} else {
-			if (!(modeflag & HalfDCLK)) {
-				temp -= 4;
-				if (pVBInfo->LCDResInfo != Panel1280x960) {
-					if (pVBInfo->VGAHDE >= 800) {
-						temp -= 7;
-						if (pVBInfo->ModeType ==
-							ModeEGA) {
-							if (pVBInfo->VGAVDE ==
-							    1024) {
-								temp += 15;
-								if (pVBInfo->LCDResInfo != Panel1280x1024) {
-									temp +=
-									    7;
-								}
-							}
-						}
-
-						if (pVBInfo->VGAHDE >= 1280) {
-							if (pVBInfo->LCDResInfo
-									!= Panel1280x960) {
-								if (pVBInfo->LCDInfo
-										& LCDNonExpanding) {
-									temp
-											+= 28;
-								}
-							}
-						}
-					}
+		} else if (!(modeflag & HalfDCLK)) {
+			temp -= 4;
+			if (pVBInfo->LCDResInfo != Panel1280x960 &&
+			    pVBInfo->VGAHDE >= 800) {
+				temp -= 7;
+				if (pVBInfo->ModeType == ModeEGA &&
+				    pVBInfo->VGAVDE == 1024) {
+					temp += 15;
+					if (pVBInfo->LCDResInfo !=
+						Panel1280x1024)
+						temp += 7;
 				}
+
+				if (pVBInfo->VGAHDE >= 1280 &&
+				    pVBInfo->LCDResInfo != Panel1280x960 &&
+				    (pVBInfo->LCDInfo & LCDNonExpanding))
+					temp += 28;
 			}
 		}
 	}
