@@ -198,20 +198,17 @@ static struct mei_cl_cb *find_read_list_entry(
 		struct mei_device *dev,
 		struct mei_cl *cl)
 {
-	struct mei_cl_cb *cb_pos = NULL;
-	struct mei_cl_cb *cb_next = NULL;
+	struct mei_cl_cb *pos = NULL;
+	struct mei_cl_cb *next = NULL;
 
-	if (!list_empty(&dev->read_list.mei_cb.cb_list)) {
+	dev_dbg(&dev->pdev->dev, "remove read_list CB\n");
+	list_for_each_entry_safe(pos, next,
+			&dev->read_list.mei_cb.cb_list, cb_list) {
+		struct mei_cl *cl_temp;
+		cl_temp = (struct mei_cl *)pos->file_private;
 
-		dev_dbg(&dev->pdev->dev, "remove read_list CB\n");
-		list_for_each_entry_safe(cb_pos, cb_next,
-				&dev->read_list.mei_cb.cb_list, cb_list) {
-			struct mei_cl *cl_temp;
-			cl_temp = (struct mei_cl *)cb_pos->file_private;
-
-			if (mei_cl_cmp_id(cl, cl_temp))
-				return cb_pos;
-		}
+		if (mei_cl_cmp_id(cl, cl_temp))
+			return pos;
 	}
 	return NULL;
 }

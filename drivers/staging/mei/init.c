@@ -48,20 +48,15 @@ void mei_io_list_init(struct mei_io_list *list)
  */
 void mei_io_list_flush(struct mei_io_list *list, struct mei_cl *cl)
 {
-	struct mei_cl_cb *cb_pos = NULL;
-	struct mei_cl_cb *cb_next = NULL;
+	struct mei_cl_cb *pos = NULL;
+	struct mei_cl_cb *next = NULL;
 
-
-	if (list_empty(&list->mei_cb.cb_list))
-		return;
-
-	list_for_each_entry_safe(cb_pos, cb_next,
-				 &list->mei_cb.cb_list, cb_list) {
-		if (cb_pos) {
+	list_for_each_entry_safe(pos, next, &list->mei_cb.cb_list, cb_list) {
+		if (pos) {
 			struct mei_cl *cl_tmp;
-			cl_tmp = (struct mei_cl *)cb_pos->file_private;
+			cl_tmp = (struct mei_cl *)pos->file_private;
 			if (mei_cl_cmp_id(cl, cl_tmp))
-				list_del(&cb_pos->cb_list);
+				list_del(&pos->cb_list);
 		}
 	}
 }
@@ -335,14 +330,12 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 		}
 	}
 	/* remove all waiting requests */
-	if (!list_empty(&dev->write_list.mei_cb.cb_list)) {
-		list_for_each_entry_safe(cb_pos, cb_next,
-				&dev->write_list.mei_cb.cb_list, cb_list) {
-			if (cb_pos) {
-				list_del(&cb_pos->cb_list);
-				mei_free_cb_private(cb_pos);
-				cb_pos = NULL;
-			}
+	list_for_each_entry_safe(cb_pos, cb_next,
+			&dev->write_list.mei_cb.cb_list, cb_list) {
+		if (cb_pos) {
+			list_del(&cb_pos->cb_list);
+			mei_free_cb_private(cb_pos);
+			cb_pos = NULL;
 		}
 	}
 }
