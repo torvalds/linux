@@ -676,17 +676,7 @@ static struct platform_driver bfin_can_driver = {
 	},
 };
 
-static int __init bfin_can_init(void)
-{
-	return platform_driver_register(&bfin_can_driver);
-}
-module_init(bfin_can_init);
-
-static void __exit bfin_can_exit(void)
-{
-	platform_driver_unregister(&bfin_can_driver);
-}
-module_exit(bfin_can_exit);
+module_platform_driver(bfin_can_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_LICENSE("GPL");
