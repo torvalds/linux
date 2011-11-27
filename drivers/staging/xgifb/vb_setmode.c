@@ -976,6 +976,20 @@ static void XGI_SetXG27CRTC(unsigned short ModeNo,
 	}
 }
 
+static void XGI_SetXG27FPBits(struct vb_device_info *pVBInfo)
+{
+	unsigned char temp;
+
+	/* D[1:0] 01: 18bit, 00: dual 12, 10: single 24 */
+	temp = xgifb_reg_get(pVBInfo->P3d4, 0x37);
+	temp = (temp & 3) << 6;
+	/* SR06[7]0: dual 12/1: single 24 [6] 18bit Dither <= 0 h/w recommend */
+	xgifb_reg_and_or(pVBInfo->P3c4, 0x06, ~0xc0, temp & 0x80);
+	/* SR09[7] enable FP output, SR09[6] 1: sigle 18bits, 0: 24bits */
+	xgifb_reg_and_or(pVBInfo->P3c4, 0x09, ~0xc0, temp | 0x80);
+
+}
+
 static void xgifb_set_lcd(int chip_id,
 			  struct vb_device_info *pVBInfo,
 			  unsigned short RefreshRateTableIndex,
@@ -6095,20 +6109,6 @@ unsigned char XGI_XG21CheckLVDSMode(unsigned short ModeNo,
 		}
 	}
 	return 1;
-}
-
-void XGI_SetXG27FPBits(struct vb_device_info *pVBInfo)
-{
-	unsigned char temp;
-
-	/* D[1:0] 01: 18bit, 00: dual 12, 10: single 24 */
-	temp = xgifb_reg_get(pVBInfo->P3d4, 0x37);
-	temp = (temp & 3) << 6;
-	/* SR06[7]0: dual 12/1: single 24 [6] 18bit Dither <= 0 h/w recommend */
-	xgifb_reg_and_or(pVBInfo->P3c4, 0x06, ~0xc0, temp & 0x80);
-	/* SR09[7] enable FP output, SR09[6] 1: sigle 18bits, 0: 24bits */
-	xgifb_reg_and_or(pVBInfo->P3c4, 0x09, ~0xc0, temp | 0x80);
-
 }
 
 static void xgifb_set_lvds(int chip_id,
