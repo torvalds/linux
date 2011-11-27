@@ -337,6 +337,13 @@ static int it913x_rc_query(struct dvb_usb_device *d)
 
 	return ret;
 }
+
+#define TS_MPEG_PKT_SIZE	188
+#define EP_LOW			21
+#define TS_BUFFER_SIZE_PID	(EP_LOW*TS_MPEG_PKT_SIZE)
+#define EP_HIGH			348
+#define TS_BUFFER_SIZE_MAX	(EP_HIGH*TS_MPEG_PKT_SIZE)
+
 static int it913x_identify_state(struct usb_device *udev,
 		struct dvb_usb_device_properties *props,
 		struct dvb_usb_device_description **desc,
@@ -373,6 +380,17 @@ static int it913x_identify_state(struct usb_device *udev,
 
 	info("Dual mode=%x Remote=%x Tuner Type=%x", it913x_config.dual_mode
 		, remote, it913x_config.tuner_id_0);
+
+	/* Select Stream Buffer Size */
+	if (pid_filter)
+		props->adapter[0].fe[0].stream.u.bulk.buffersize =
+			TS_BUFFER_SIZE_MAX;
+	else
+		props->adapter[0].fe[0].stream.u.bulk.buffersize =
+			TS_BUFFER_SIZE_PID;
+	if (it913x_config.dual_mode)
+		props->adapter[1].fe[0].stream.u.bulk.buffersize =
+			props->adapter[0].fe[0].stream.u.bulk.buffersize;
 
 	if (firm_no > 0) {
 		*cold = 0;
@@ -511,7 +529,7 @@ static int it913x_frontend_attach(struct dvb_usb_adapter *adap)
 	struct usb_device *udev = adap->dev->udev;
 	int ret = 0;
 	u8 adap_addr = I2C_BASE_ADDR + (adap->id << 5);
-	u16 ep_size = adap->props.fe[0].stream.u.bulk.buffersize;
+	u16 ep_size = adap->props.fe[0].stream.u.bulk.buffersize / 4;
 	u8 pkt_size = 0x80;
 
 	if (adap->dev->udev->speed != USB_SPEED_HIGH)
@@ -610,8 +628,8 @@ static struct dvb_usb_device_properties it913x_properties = {
 				.endpoint = 0x04,
 				.u = {/* Keep Low if PID filter on */
 					.bulk = {
-						.buffersize = 3584,
-
+					.buffersize =
+						TS_BUFFER_SIZE_PID,
 					}
 				}
 			}
@@ -635,8 +653,8 @@ static struct dvb_usb_device_properties it913x_properties = {
 				.endpoint = 0x05,
 				.u = {
 					.bulk = {
-						.buffersize = 3584,
-
+						.buffersize =
+							TS_BUFFER_SIZE_PID,
 					}
 				}
 			}
