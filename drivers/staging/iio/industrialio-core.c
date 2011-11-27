@@ -261,7 +261,7 @@ static int iio_event_getfd(struct iio_dev *indio_dev)
 				indio_dev->event_interface, O_RDONLY);
 	if (fd < 0) {
 		mutex_lock(&indio_dev->event_interface->event_list_lock);
-		clear_bit(IIO_BUSY_BIT_POS, &ev_int->flags);
+		clear_bit(IIO_BUSY_BIT_POS, &indio_dev->event_interface->flags);
 		mutex_unlock(&indio_dev->event_interface->event_list_lock);
 	}
 	return fd;
