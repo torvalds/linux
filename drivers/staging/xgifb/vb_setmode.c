@@ -3819,6 +3819,35 @@ static void XGI_XG27BLSignalVDD(unsigned short tempbh, unsigned short tempbl,
 	xgifb_reg_and_or(pVBInfo->P3d4, 0x48, ~tempbh, tempbl);
 }
 
+/* --------------------------------------------------------------------- */
+/* Function : XGI_XG21SetPanelDelay */
+/* Input : */
+/* Output : */
+/* Description : */
+/* I/P : bl : 1 ; T1 : the duration between CPL on and signal on */
+/* : bl : 2 ; T2 : the duration signal on and Vdd on */
+/* : bl : 3 ; T3 : the duration between CPL off and signal off */
+/* : bl : 4 ; T4 : the duration signal off and Vdd off */
+/* --------------------------------------------------------------------- */
+static void XGI_XG21SetPanelDelay(unsigned short tempbl,
+		struct vb_device_info *pVBInfo)
+{
+	unsigned short index;
+
+	index = XGI_GetLVDSOEMTableIndex(pVBInfo);
+	if (tempbl == 1)
+		mdelay(pVBInfo->XG21_LVDSCapList[index].PSC_S1);
+
+	if (tempbl == 2)
+		mdelay(pVBInfo->XG21_LVDSCapList[index].PSC_S2);
+
+	if (tempbl == 3)
+		mdelay(pVBInfo->XG21_LVDSCapList[index].PSC_S3);
+
+	if (tempbl == 4)
+		mdelay(pVBInfo->XG21_LVDSCapList[index].PSC_S4);
+}
+
 void XGI_DisplayOn(struct xgi_hw_device_info *pXGIHWDE,
 		struct vb_device_info *pVBInfo)
 {
@@ -6024,35 +6053,6 @@ unsigned short XGI_GetLVDSOEMTableIndex(struct vb_device_info *pVBInfo)
 			/ sizeof(struct XGI21_LVDSCapStruct))
 		return index;
 	return 0;
-}
-
-/* --------------------------------------------------------------------- */
-/* Function : XGI_XG21SetPanelDelay */
-/* Input : */
-/* Output : */
-/* Description : */
-/* I/P : bl : 1 ; T1 : the duration between CPL on and signal on */
-/* : bl : 2 ; T2 : the duration signal on and Vdd on */
-/* : bl : 3 ; T3 : the duration between CPL off and signal off */
-/* : bl : 4 ; T4 : the duration signal off and Vdd off */
-/* --------------------------------------------------------------------- */
-void XGI_XG21SetPanelDelay(unsigned short tempbl,
-		struct vb_device_info *pVBInfo)
-{
-	unsigned short index;
-
-	index = XGI_GetLVDSOEMTableIndex(pVBInfo);
-	if (tempbl == 1)
-		mdelay(pVBInfo->XG21_LVDSCapList[index].PSC_S1);
-
-	if (tempbl == 2)
-		mdelay(pVBInfo->XG21_LVDSCapList[index].PSC_S2);
-
-	if (tempbl == 3)
-		mdelay(pVBInfo->XG21_LVDSCapList[index].PSC_S3);
-
-	if (tempbl == 4)
-		mdelay(pVBInfo->XG21_LVDSCapList[index].PSC_S4);
 }
 
 unsigned char XGI_XG21CheckLVDSMode(unsigned short ModeNo,
