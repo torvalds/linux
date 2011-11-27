@@ -136,7 +136,7 @@ my $localversion;
 my $iteration = 0;
 my $successes = 0;
 
-# set when a test is something other that just building
+# set when a test is something other that just building or install
 # which would require more options.
 my $buildonly = 1;
 
@@ -343,11 +343,15 @@ sub get_ktest_configs {
 
     # options required for other than just building a kernel
     if (!$buildonly) {
+	get_ktest_config("POWER_CYCLE");
+	get_ktest_config("CONSOLE");
+    }
+
+    # options required for install and more
+    if ($buildonly != 1) {
 	get_ktest_config("SSH_USER");
 	get_ktest_config("BUILD_TARGET");
 	get_ktest_config("TARGET_IMAGE");
-	get_ktest_config("POWER_CYCLE");
-	get_ktest_config("CONSOLE");
     }
 
     get_ktest_config("LOCALVERSION");
@@ -412,10 +416,15 @@ sub process_variables {
 sub set_value {
     my ($lvalue, $rvalue, $override, $overrides, $name) = @_;
 
-    if ($lvalue =~ /^TEST_TYPE(\[.*\])?$/ && $rvalue ne "build") {
+    if ($buildonly && $lvalue =~ /^TEST_TYPE(\[.*\])?$/ && $rvalue ne "build") {
 	# Note if a test is something other than build, then we
 	# will need other manditory options.
-	$buildonly = 0;
+	if ($rvalue ne "install") {
+	    $buildonly = 0;
+	} else {
+	    # install still limits some manditory options.
+	    $buildonly = 2;
+	}
     }
 
     if (defined($opt{$lvalue})) {
