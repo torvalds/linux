@@ -32,8 +32,6 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
-#define AK4642_VERSION "0.0.1"
-
 #define PW_MGMT1	0x00
 #define PW_MGMT2	0x01
 #define SG_SL1		0x02
@@ -472,8 +470,6 @@ static int ak4642_probe(struct snd_soc_codec *codec)
 {
 	struct ak4642_priv *ak4642 = snd_soc_codec_get_drvdata(codec);
 	int ret;
-
-	dev_info(codec->dev, "AK4642 Audio Codec %s", AK4642_VERSION);
 
 	ret = snd_soc_codec_set_cache_io(codec, 8, 8, ak4642->control_type);
 	if (ret < 0) {
