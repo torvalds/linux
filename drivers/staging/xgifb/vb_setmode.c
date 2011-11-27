@@ -3819,6 +3819,17 @@ static void XGI_XG27BLSignalVDD(unsigned short tempbh, unsigned short tempbl,
 	xgifb_reg_and_or(pVBInfo->P3d4, 0x48, ~tempbh, tempbl);
 }
 
+static unsigned short XGI_GetLVDSOEMTableIndex(struct vb_device_info *pVBInfo)
+{
+	unsigned short index;
+
+	index = xgifb_reg_get(pVBInfo->P3d4, 0x36);
+	if (index < sizeof(XGI21_LCDCapList)
+			/ sizeof(struct XGI21_LVDSCapStruct))
+		return index;
+	return 0;
+}
+
 /* --------------------------------------------------------------------- */
 /* Function : XGI_XG21SetPanelDelay */
 /* Input : */
@@ -6041,18 +6052,6 @@ static void XGI_DisableGatingCRT(struct xgi_hw_device_info *HwDeviceExtension,
 {
 
 	xgifb_reg_and_or(pVBInfo->P3d4, 0x63, 0xBF, 0x00);
-}
-
-/* --------------------------------------------------------------------- */
-unsigned short XGI_GetLVDSOEMTableIndex(struct vb_device_info *pVBInfo)
-{
-	unsigned short index;
-
-	index = xgifb_reg_get(pVBInfo->P3d4, 0x36);
-	if (index < sizeof(XGI21_LCDCapList)
-			/ sizeof(struct XGI21_LVDSCapStruct))
-		return index;
-	return 0;
 }
 
 unsigned char XGI_XG21CheckLVDSMode(unsigned short ModeNo,

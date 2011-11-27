@@ -50,6 +50,5 @@ extern unsigned short XGI_GetRatePtrCRT2(struct xgi_hw_device_info *pXGIHWDE,
 extern unsigned char XGI_XG21CheckLVDSMode(unsigned short ModeNo,
 					   unsigned short ModeIdIndex,
 					   struct vb_device_info *pVBInfo);
-extern unsigned short XGI_GetLVDSOEMTableIndex(struct vb_device_info *pVBInfo);
 
 #endif
