@@ -6,7 +6,6 @@ extern void XGI_UnLockCRT2(struct xgi_hw_device_info *HwDeviceExtension,
 			   struct vb_device_info *);
 extern void XGI_LockCRT2(struct xgi_hw_device_info *HwDeviceExtension,
 			 struct vb_device_info *);
-extern void XGI_LongWait(struct vb_device_info *);
 extern void XGI_SetCRT2ModeRegs(unsigned short ModeNo,
 				struct xgi_hw_device_info *,
 				struct vb_device_info *);

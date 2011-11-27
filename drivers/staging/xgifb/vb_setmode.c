@@ -6718,6 +6718,25 @@ static void XGI_SetLCDCap_B(unsigned short tempcx,
 						| 0x18)); /* Enable Dither */
 }
 
+static void XGI_LongWait(struct vb_device_info *pVBInfo)
+{
+	unsigned short i;
+
+	i = xgifb_reg_get(pVBInfo->P3c4, 0x1F);
+
+	if (!(i & 0xC0)) {
+		for (i = 0; i < 0xFFFF; i++) {
+			if (!(inb(pVBInfo->P3da) & 0x08))
+				break;
+		}
+
+		for (i = 0; i < 0xFFFF; i++) {
+			if ((inb(pVBInfo->P3da) & 0x08))
+				break;
+		}
+	}
+}
+
 static void SetSpectrum(struct vb_device_info *pVBInfo)
 {
 	unsigned short index;
@@ -7216,25 +7235,6 @@ unsigned char XGI_BridgeIsOn(struct vb_device_info *pVBInfo)
 			return 1; /* 301b */
 		else
 			return 0;
-	}
-}
-
-void XGI_LongWait(struct vb_device_info *pVBInfo)
-{
-	unsigned short i;
-
-	i = xgifb_reg_get(pVBInfo->P3c4, 0x1F);
-
-	if (!(i & 0xC0)) {
-		for (i = 0; i < 0xFFFF; i++) {
-			if (!(inb(pVBInfo->P3da) & 0x08))
-				break;
-		}
-
-		for (i = 0; i < 0xFFFF; i++) {
-			if ((inb(pVBInfo->P3da) & 0x08))
-				break;
-		}
 	}
 }
 
