@@ -2697,16 +2697,4 @@ static struct platform_driver dbri_sbus_driver = {
 	.remove		= __devexit_p(dbri_remove),
 };
 
-/* Probe for the dbri chip and then attach the driver. */
-static int __init dbri_init(void)
-{
-	return platform_driver_register(&dbri_sbus_driver);
-}
-
-static void __exit dbri_exit(void)
-{
-	platform_driver_unregister(&dbri_sbus_driver);
-}
-
-module_init(dbri_init);
-module_exit(dbri_exit);
+module_platform_driver(dbri_sbus_driver);

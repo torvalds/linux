@@ -1341,15 +1341,4 @@ static struct platform_driver snd_ml403_ac97cr_driver = {
 	},
 };
 
-static int __init alsa_card_ml403_ac97cr_init(void)
-{
-	return platform_driver_register(&snd_ml403_ac97cr_driver);
-}
-
-static void __exit alsa_card_ml403_ac97cr_exit(void)
-{
-	platform_driver_unregister(&snd_ml403_ac97cr_driver);
-}
-
-module_init(alsa_card_ml403_ac97cr_init)
-module_exit(alsa_card_ml403_ac97cr_exit)
+module_platform_driver(snd_ml403_ac97cr_driver);
