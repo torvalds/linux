@@ -881,7 +881,7 @@ static int samsung_i2s_dai_probe(struct snd_soc_dai *dai)
 		writel(CON_RSTCLR, i2s->addr + I2SCON);
 
 	if (i2s->quirks & QUIRK_SEC_DAI)
-		idma_reg_addr_init((void *)i2s->addr,
+		idma_reg_addr_init(i2s->addr,
 					i2s->sec_dai->idma_playback.dma_addr);
 
 probe_exit:

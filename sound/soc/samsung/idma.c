@@ -403,7 +403,7 @@ static int idma_new(struct snd_soc_pcm_runtime *rtd)
 	return ret;
 }
 
-void idma_reg_addr_init(void *regs, dma_addr_t addr)
+void idma_reg_addr_init(void __iomem *regs, dma_addr_t addr)
 {
 	spin_lock_init(&idma.lock);
 	idma.regs = regs;
