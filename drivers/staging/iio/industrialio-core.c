@@ -85,6 +85,8 @@ static const char * const iio_chan_info_postfix[] = {
 	[IIO_CHAN_INFO_PEAK_SCALE] = "peak_scale",
 	[IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW] = "quadrature_correction_raw",
 	[IIO_CHAN_INFO_AVERAGE_RAW] = "mean_raw",
+	[IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY]
+	= "filter_low_pass_3db_frequency",
 };
 
 /**
