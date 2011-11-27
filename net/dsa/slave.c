@@ -45,7 +45,6 @@ void dsa_slave_mii_bus_init(struct dsa_switch *ds)
 			ds->master_mii_bus->id, ds->pd->sw_addr);
 	ds->slave_mii_bus->parent = &ds->master_mii_bus->dev;
 }
-EXPORT_SYMBOL_GPL(dsa_slave_mii_bus_init);
 
 
 /* slave device handling ****************************************************/
@@ -403,4 +402,3 @@ dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 
 	return slave_dev;
 }
-EXPORT_SYMBOL_GPL(dsa_slave_create);
