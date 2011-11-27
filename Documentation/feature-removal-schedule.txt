@@ -523,14 +523,6 @@ Who:	Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
 
 ----------------------------
 
-What:	kmap_atomic(page, km_type)
-When:	3.5
-Why:	The old kmap_atomic() with two arguments is deprecated, we only
-	keep it for backward compatibility for few cycles and then drop it.
-Who:	Cong Wang <amwang@redhat.com>
-
-----------------------------
-
 What:	get_robust_list syscall
 When:	2013
 Why:	There appear to be no production users of the get_robust_list syscall,
