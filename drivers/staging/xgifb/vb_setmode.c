@@ -1461,6 +1461,19 @@ static void XGI_SetCRT1VCLK(unsigned short ModeNo,
 	}
 }
 
+static void XGI_SetXG21FPBits(struct vb_device_info *pVBInfo)
+{
+	unsigned char temp;
+
+	temp = xgifb_reg_get(pVBInfo->P3d4, 0x37); /* D[0] 1: 18bit */
+	temp = (temp & 1) << 6;
+	/* SR06[6] 18bit Dither */
+	xgifb_reg_and_or(pVBInfo->P3c4, 0x06, ~0x40, temp);
+	/* SR09[7] enable FP output, SR09[6] 1: sigle 18bits, 0: dual 12bits */
+	xgifb_reg_and_or(pVBInfo->P3c4, 0x09, ~0xc0, temp | 0x80);
+
+}
+
 static void XGI_SetCRT1FIFO(unsigned short ModeNo,
 		struct xgi_hw_device_info *HwDeviceExtension,
 		struct vb_device_info *pVBInfo)
@@ -6082,19 +6095,6 @@ unsigned char XGI_XG21CheckLVDSMode(unsigned short ModeNo,
 		}
 	}
 	return 1;
-}
-
-void XGI_SetXG21FPBits(struct vb_device_info *pVBInfo)
-{
-	unsigned char temp;
-
-	temp = xgifb_reg_get(pVBInfo->P3d4, 0x37); /* D[0] 1: 18bit */
-	temp = (temp & 1) << 6;
-	/* SR06[6] 18bit Dither */
-	xgifb_reg_and_or(pVBInfo->P3c4, 0x06, ~0x40, temp);
-	/* SR09[7] enable FP output, SR09[6] 1: sigle 18bits, 0: dual 12bits */
-	xgifb_reg_and_or(pVBInfo->P3c4, 0x09, ~0xc0, temp | 0x80);
-
 }
 
 void XGI_SetXG27FPBits(struct vb_device_info *pVBInfo)

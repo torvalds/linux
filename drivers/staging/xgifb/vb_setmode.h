@@ -47,8 +47,6 @@ extern unsigned short XGI_GetRatePtrCRT2(struct xgi_hw_device_info *pXGIHWDE,
 					 unsigned short ModeNo,
 					 unsigned short ModeIdIndex,
 					 struct vb_device_info *);
-
-extern void XGI_SetXG21FPBits(struct vb_device_info *pVBInfo);
 extern void XGI_SetXG27FPBits(struct vb_device_info *pVBInfo);
 extern void XGI_XG21BLSignalVDD(unsigned short tempbh,
 				unsigned short tempbl,
