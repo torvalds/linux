@@ -561,6 +561,37 @@ void omapdss_hdmi_display_disable(struct omap_dss_device *dssdev)
 #if defined(CONFIG_SND_OMAP_SOC_OMAP4_HDMI) || \
 	defined(CONFIG_SND_OMAP_SOC_OMAP4_HDMI_MODULE)
 
+static int hdmi_audio_trigger(struct snd_pcm_substream *substream, int cmd,
+				struct snd_soc_dai *dai)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_codec *codec = rtd->codec;
+	struct platform_device *pdev = to_platform_device(codec->dev);
+	struct hdmi_ip_data *ip_data = snd_soc_codec_get_drvdata(codec);
+	int err = 0;
+
+	if (!(ip_data->ops) && !(ip_data->ops->audio_enable)) {
+		dev_err(&pdev->dev, "Cannot enable/disable audio\n");
+		return -ENODEV;
+	}
+
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		ip_data->ops->audio_enable(ip_data, true);
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		ip_data->ops->audio_enable(ip_data, false);
+		break;
+	default:
+		err = -EINVAL;
+	}
+	return err;
+}
+
 static int hdmi_audio_hw_params(struct snd_pcm_substream *substream,
 				    struct snd_pcm_hw_params *params,
 				    struct snd_soc_dai *dai)
