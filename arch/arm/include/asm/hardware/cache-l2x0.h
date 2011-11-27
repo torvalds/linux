@@ -20,6 +20,8 @@
 #ifndef __ASM_ARM_HARDWARE_L2X0_H
 #define __ASM_ARM_HARDWARE_L2X0_H
 
+#include <linux/errno.h>
+
 #define L2X0_CACHE_ID			0x000
 #define L2X0_CACHE_TYPE			0x004
 #define L2X0_CTRL			0x100

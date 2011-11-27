@@ -2530,8 +2530,10 @@ static struct rpc_xprt *xs_setup_xprt(struct xprt_create *args,
 		int err;
 		err = xs_init_anyaddr(args->dstaddr->sa_family,
 					(struct sockaddr *)&new->srcaddr);
-		if (err != 0)
+		if (err != 0) {
+			xprt_free(xprt);
 			return ERR_PTR(err);
+		}
 	}
 
 	return xprt;

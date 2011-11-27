@@ -1717,7 +1717,7 @@ static void dtd_complete_irq(struct fsl_udc *udc)
 
 static inline enum usb_device_speed portscx_device_speed(u32 reg)
 {
-	switch (speed & PORTSCX_PORT_SPEED_MASK) {
+	switch (reg & PORTSCX_PORT_SPEED_MASK) {
 	case PORTSCX_PORT_SPEED_HIGH:
 		return USB_SPEED_HIGH;
 	case PORTSCX_PORT_SPEED_FULL:
@@ -2480,8 +2480,7 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 
 #ifndef CONFIG_ARCH_MXC
 	if (pdata->have_sysif_regs)
-		usb_sys_regs = (struct usb_sys_interface *)
-				((u32)dr_regs + USB_DR_SYS_OFFSET);
+		usb_sys_regs = (void *)dr_regs + USB_DR_SYS_OFFSET;
 #endif
 
 	/* Initialize USB clocks */
