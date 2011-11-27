@@ -28,10 +28,6 @@ extern void XGI_GetVBInfo(unsigned short ModeNo,
 extern void XGI_GetTVInfo(unsigned short ModeNo,
 			  unsigned short ModeIdIndex,
 			  struct vb_device_info *);
-extern unsigned short XGI_GetResInfo(unsigned short ModeNo,
-				     unsigned short ModeIdIndex,
-				     struct vb_device_info *pVBInfo);
-
 extern unsigned char XGISetModeNew(struct xgi_hw_device_info *HwDeviceExtension,
 				   unsigned short ModeNo) ;
 

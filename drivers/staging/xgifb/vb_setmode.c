@@ -1088,6 +1088,20 @@ static void XGI_UpdateXG21CRTC(unsigned short ModeNo,
 	}
 }
 
+static unsigned short XGI_GetResInfo(unsigned short ModeNo,
+		unsigned short ModeIdIndex, struct vb_device_info *pVBInfo)
+{
+	unsigned short resindex;
+
+	if (ModeNo <= 0x13)
+		/* si+St_ResInfo */
+		resindex = pVBInfo->SModeIDTable[ModeIdIndex].St_ResInfo;
+	else
+		/* si+Ext_ResInfo */
+		resindex = pVBInfo->EModeIDTable[ModeIdIndex].Ext_RESINFO;
+	return resindex;
+}
+
 static void XGI_SetCRT1DE(struct xgi_hw_device_info *HwDeviceExtension,
 		unsigned short ModeNo, unsigned short ModeIdIndex,
 		unsigned short RefreshRateTableIndex,
@@ -1161,20 +1175,6 @@ static void XGI_SetCRT1DE(struct xgi_hw_device_info *HwDeviceExtension,
 
 	xgifb_reg_and_or(pVBInfo->P3d4, 0x0a, ~0x02, tempax);
 	xgifb_reg_set(pVBInfo->P3d4, 0x11, temp);
-}
-
-unsigned short XGI_GetResInfo(unsigned short ModeNo,
-		unsigned short ModeIdIndex, struct vb_device_info *pVBInfo)
-{
-	unsigned short resindex;
-
-	if (ModeNo <= 0x13)
-		/* si+St_ResInfo */
-		resindex = pVBInfo->SModeIDTable[ModeIdIndex].St_ResInfo;
-	else
-		/* si+Ext_ResInfo */
-		resindex = pVBInfo->EModeIDTable[ModeIdIndex].Ext_RESINFO;
-	return resindex;
 }
 
 static void XGI_SetCRT1Offset(unsigned short ModeNo,
