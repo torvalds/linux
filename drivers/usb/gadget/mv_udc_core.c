@@ -2463,24 +2463,11 @@ static struct platform_driver udc_driver = {
 #endif
 	},
 };
-MODULE_ALIAS("platform:pxa-u2o");
+
+module_platform_driver(udc_driver);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Chao Xie <chao.xie@marvell.com>");
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
-
-
-static int __init init(void)
-{
-	return platform_driver_register(&udc_driver);
-}
-module_init(init);
-
-
-static void __exit cleanup(void)
-{
-	platform_driver_unregister(&udc_driver);
-}
-module_exit(cleanup);
-
+MODULE_ALIAS("platform:pxa-u2o");

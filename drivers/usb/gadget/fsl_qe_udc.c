@@ -2815,20 +2815,7 @@ static struct platform_driver udc_driver = {
 #endif
 };
 
-static int __init qe_udc_init(void)
-{
-	printk(KERN_INFO "%s: %s, %s\n", driver_name, driver_desc,
-			DRIVER_VERSION);
-	return platform_driver_register(&udc_driver);
-}
-
-static void __exit qe_udc_exit(void)
-{
-	platform_driver_unregister(&udc_driver);
-}
-
-module_init(qe_udc_init);
-module_exit(qe_udc_exit);
+module_platform_driver(udc_driver);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR(DRIVER_AUTHOR);

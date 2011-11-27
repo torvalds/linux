@@ -3469,18 +3469,7 @@ static struct platform_driver s3c_hsotg_driver = {
 	.resume		= s3c_hsotg_resume,
 };
 
-static int __init s3c_hsotg_modinit(void)
-{
-	return platform_driver_register(&s3c_hsotg_driver);
-}
-
-static void __exit s3c_hsotg_modexit(void)
-{
-	platform_driver_unregister(&s3c_hsotg_driver);
-}
-
-module_init(s3c_hsotg_modinit);
-module_exit(s3c_hsotg_modexit);
+module_platform_driver(s3c_hsotg_driver);
 
 MODULE_DESCRIPTION("Samsung S3C USB High-speed/OtG device");
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");

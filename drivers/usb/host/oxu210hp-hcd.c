@@ -3951,24 +3951,7 @@ static struct platform_driver oxu_driver = {
 	}
 };
 
-static int __init oxu_module_init(void)
-{
-	int retval = 0;
-
-	retval = platform_driver_register(&oxu_driver);
-	if (retval < 0)
-		return retval;
-
-	return retval;
-}
-
-static void __exit oxu_module_cleanup(void)
-{
-	platform_driver_unregister(&oxu_driver);
-}
-
-module_init(oxu_module_init);
-module_exit(oxu_module_cleanup);
+module_platform_driver(oxu_driver);
 
 MODULE_DESCRIPTION("Oxford OXU210HP HCD driver - ver. " DRIVER_VERSION);
 MODULE_AUTHOR("Rodolfo Giometti <giometti@linux.it>");

@@ -637,18 +637,7 @@ static struct platform_driver renesas_usbhs_driver = {
 	.remove		= __devexit_p(usbhs_remove),
 };
 
-static int __init usbhs_init(void)
-{
-	return platform_driver_register(&renesas_usbhs_driver);
-}
-
-static void __exit usbhs_exit(void)
-{
-	platform_driver_unregister(&renesas_usbhs_driver);
-}
-
-module_init(usbhs_init);
-module_exit(usbhs_exit);
+module_platform_driver(renesas_usbhs_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Renesas USB driver");

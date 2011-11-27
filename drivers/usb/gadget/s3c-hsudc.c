@@ -1378,21 +1378,10 @@ static struct platform_driver s3c_hsudc_driver = {
 	},
 	.probe		= s3c_hsudc_probe,
 };
-MODULE_ALIAS("platform:s3c-hsudc");
 
-static int __init s3c_hsudc_modinit(void)
-{
-	return platform_driver_register(&s3c_hsudc_driver);
-}
-
-static void __exit s3c_hsudc_modexit(void)
-{
-	platform_driver_unregister(&s3c_hsudc_driver);
-}
-
-module_init(s3c_hsudc_modinit);
-module_exit(s3c_hsudc_modexit);
+module_platform_driver(s3c_hsudc_driver);
 
 MODULE_DESCRIPTION("Samsung S3C24XX USB high-speed controller driver");
 MODULE_AUTHOR("Thomas Abraham <thomas.ab@samsung.com>");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:s3c-hsudc");
