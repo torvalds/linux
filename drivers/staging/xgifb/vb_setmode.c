@@ -2312,9 +2312,7 @@ static void *XGI_GetTVPtr(unsigned short BX, unsigned short ModeNo,
 	}
 
 	/* 07/05/22 */
-	if (table == 0x00) {
-	} else if (table == 0x01) {
-	} else if (table == 0x04) {
+	if (table == 0x04) {
 		switch (tempdi[i].DATAPTR) {
 		case 0:
 			return &XGI_ExtPALData[tempal];
@@ -2378,7 +2376,6 @@ static void *XGI_GetTVPtr(unsigned short BX, unsigned short ModeNo,
 		default:
 			break;
 		}
-	} else if (table == 0x06) {
 	}
 	return NULL;
 }
