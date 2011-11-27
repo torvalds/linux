@@ -43,6 +43,9 @@
 	.num_kcontrols = 0}
 
 /* platform domain */
+#define SND_SOC_DAPM_SIGGEN(wname) \
+{	.id = snd_soc_dapm_siggen, .name = wname, .kcontrol_news = NULL, \
+	.num_kcontrols = 0, .reg = SND_SOC_NOPM }
 #define SND_SOC_DAPM_INPUT(wname) \
 {	.id = snd_soc_dapm_input, .name = wname, .kcontrol_news = NULL, \
 	.num_kcontrols = 0, .reg = SND_SOC_NOPM }
@@ -410,6 +413,7 @@ enum snd_soc_dapm_type {
 	snd_soc_dapm_supply,		/* power/clock supply */
 	snd_soc_dapm_aif_in,		/* audio interface input */
 	snd_soc_dapm_aif_out,		/* audio interface output */
+	snd_soc_dapm_siggen,		/* signal generator */
 };
 
 /*
