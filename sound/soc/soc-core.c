@@ -1489,7 +1489,7 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 	snd_soc_dapm_new_widgets(&card->dapm);
 
 	if (card->fully_routed)
-		list_for_each_entry(codec, &codec_list, list)
+		list_for_each_entry(codec, &card->codec_dev_list, card_list)
 			snd_soc_dapm_auto_nc_codec_pins(codec);
 
 	ret = snd_card_register(card->snd_card);
