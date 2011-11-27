@@ -51,7 +51,8 @@ struct fixed_voltage_data {
  * tree node, returns a pointer to the populated structure of NULL if memory
  * alloc fails.
  */
-struct fixed_voltage_config *of_get_fixed_voltage_config(struct device *dev)
+static struct fixed_voltage_config *
+of_get_fixed_voltage_config(struct device *dev)
 {
 	struct fixed_voltage_config *config;
 	struct device_node *np = dev->of_node;
