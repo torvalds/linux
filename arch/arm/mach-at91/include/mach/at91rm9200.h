@@ -95,8 +95,6 @@
 #define AT91_USART2	AT91RM9200_BASE_US2
 #define AT91_USART3	AT91RM9200_BASE_US3
 
-#define AT91_MATRIX	0	/* not supported */
-
 /*
  * Internal Memory.
  */

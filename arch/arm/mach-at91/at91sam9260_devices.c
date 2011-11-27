@@ -21,6 +21,7 @@
 #include <mach/cpu.h>
 #include <mach/at91sam9260.h>
 #include <mach/at91sam9260_matrix.h>
+#include <mach/at91_matrix.h>
 #include <mach/at91sam9_smc.h>
 
 #include "generic.h"
@@ -422,8 +423,8 @@ void __init at91_add_device_nand(struct atmel_nand_data *data)
 	if (!data)
 		return;
 
-	csa = at91_sys_read(AT91_MATRIX_EBICSA);
-	at91_sys_write(AT91_MATRIX_EBICSA, csa | AT91_MATRIX_CS3A_SMC_SMARTMEDIA);
+	csa = at91_matrix_read(AT91_MATRIX_EBICSA);
+	at91_matrix_write(AT91_MATRIX_EBICSA, csa | AT91_MATRIX_CS3A_SMC_SMARTMEDIA);
 
 	/* enable pin */
 	if (gpio_is_valid(data->enable_pin))
@@ -1265,7 +1266,7 @@ void __init at91_add_device_cf(struct at91_cf_data *data)
 	if (!data)
 		return;
 
-	csa = at91_sys_read(AT91_MATRIX_EBICSA);
+	csa = at91_matrix_read(AT91_MATRIX_EBICSA);
 
 	switch (data->chipselect) {
 	case 4:
@@ -1288,7 +1289,7 @@ void __init at91_add_device_cf(struct at91_cf_data *data)
 		return;
 	}
 
-	at91_sys_write(AT91_MATRIX_EBICSA, csa);
+	at91_matrix_write(AT91_MATRIX_EBICSA, csa);
 
 	if (gpio_is_valid(data->rst_pin)) {
 		at91_set_multi_drive(data->rst_pin, 0);

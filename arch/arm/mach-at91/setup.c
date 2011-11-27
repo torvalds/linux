@@ -276,6 +276,15 @@ void __init at91_ioremap_rstc(u32 base_addr)
 		panic("Impossible to ioremap at91_rstc_base\n");
 }
 
+void __iomem *at91_matrix_base;
+
+void __init at91_ioremap_matrix(u32 base_addr)
+{
+	at91_matrix_base = ioremap(base_addr, 512);
+	if (!at91_matrix_base)
+		panic("Impossible to ioremap at91_matrix_base\n");
+}
+
 void __init at91_initialize(unsigned long main_clock)
 {
 	at91_boot_soc.ioremap_registers();
