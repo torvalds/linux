@@ -1278,7 +1278,7 @@ static const char * const cs420x_models[CS420X_MODELS] = {
 	[CS420X_MBP53] = "mbp53",
 	[CS420X_MBP55] = "mbp55",
 	[CS420X_IMAC27] = "imac27",
-	[CS420X_IMAC27] = "apple",
+	[CS420X_APPLE] = "apple",
 	[CS420X_AUTO] = "auto",
 };
 
