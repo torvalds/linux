@@ -72,13 +72,44 @@ void jump_label_inc(struct jump_label_key *key)
 	jump_label_unlock();
 }
 
-void jump_label_dec(struct jump_label_key *key)
+static void __jump_label_dec(struct jump_label_key *key,
+		unsigned long rate_limit, struct delayed_work *work)
 {
 	if (!atomic_dec_and_mutex_lock(&key->enabled, &jump_label_mutex))
 		return;
 
-	jump_label_update(key, JUMP_LABEL_DISABLE);
+	if (rate_limit) {
+		atomic_inc(&key->enabled);
+		schedule_delayed_work(work, rate_limit);
+	} else
+		jump_label_update(key, JUMP_LABEL_DISABLE);
+
 	jump_label_unlock();
+}
+
+static void jump_label_update_timeout(struct work_struct *work)
+{
+	struct jump_label_key_deferred *key =
+		container_of(work, struct jump_label_key_deferred, work.work);
+	__jump_label_dec(&key->key, 0, NULL);
+}
+
+void jump_label_dec(struct jump_label_key *key)
+{
+	__jump_label_dec(key, 0, NULL);
+}
+
+void jump_label_dec_deferred(struct jump_label_key_deferred *key)
+{
+	__jump_label_dec(&key->key, key->timeout, &key->work);
+}
+
+
+void jump_label_rate_limit(struct jump_label_key_deferred *key,
+		unsigned long rl)
+{
+	key->timeout = rl;
+	INIT_DELAYED_WORK(&key->work, jump_label_update_timeout);
 }
 
 static int addr_conflict(struct jump_entry *entry, void *start, void *end)
