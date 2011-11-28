@@ -4880,7 +4880,7 @@ static int cciss_request_irq(ctlr_info_t *h,
 {
 	if (h->msix_vector || h->msi_vector) {
 		if (!request_irq(h->intr[h->intr_mode], msixhandler,
-				IRQF_DISABLED, h->devname, h))
+				0, h->devname, h))
 			return 0;
 		dev_err(&h->pdev->dev, "Unable to get msi irq %d"
 			" for %s\n", h->intr[h->intr_mode],
@@ -4889,7 +4889,7 @@ static int cciss_request_irq(ctlr_info_t *h,
 	}
 
 	if (!request_irq(h->intr[h->intr_mode], intxhandler,
-			IRQF_DISABLED, h->devname, h))
+			IRQF_SHARED, h->devname, h))
 		return 0;
 	dev_err(&h->pdev->dev, "Unable to get irq %d for %s\n",
 		h->intr[h->intr_mode], h->devname);
