@@ -30,7 +30,7 @@ struct ad193x_priv {
 /*
  * AD193X volume/mute/de-emphasis etc. controls
  */
-static const char *ad193x_deemp[] = {"None", "48kHz", "44.1kHz", "32kHz"};
+static const char * const ad193x_deemp[] = {"None", "48kHz", "44.1kHz", "32kHz"};
 
 static const struct soc_enum ad193x_deemp_enum =
 	SOC_ENUM_SINGLE(AD193X_DAC_CTRL2, 1, 4, ad193x_deemp);
