@@ -809,7 +809,7 @@ static int __init xen_blkif_init(void)
 	int i, mmap_pages;
 	int rc = 0;
 
-	if (!xen_pv_domain())
+	if (!xen_domain())
 		return -ENODEV;
 
 	blkbk = kzalloc(sizeof(struct xen_blkbk), GFP_KERNEL);
