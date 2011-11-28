@@ -1030,6 +1030,8 @@ static void enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 				trace_sched_stat_iowait(tsk, delta);
 			}
 
+			trace_sched_stat_blocked(tsk, delta);
+
 			/*
 			 * Blocking time is in units of nanosecs, so shift by
 			 * 20 to get a milliseconds-range estimation of the
