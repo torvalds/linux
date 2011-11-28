@@ -562,25 +562,21 @@ struct drbd_request {
 	struct bio *private_bio;
 
 	struct drbd_interval i;
-	unsigned int epoch; /* barrier_nr */
 
-	/* barrier_nr: used to check on "completion" whether this req was in
+	/* epoch: used to check on "completion" whether this req was in
 	 * the current epoch, and we therefore have to close it,
-	 * starting a new epoch...
+	 * causing a p_barrier packet to be send, starting a new epoch.
+	 *
+	 * This corresponds to "barrier" in struct p_barrier[_ack],
+	 * and to "barrier_nr" in struct drbd_epoch (and various
+	 * comments/function parameters/local variable names).
 	 */
+	unsigned int epoch;
 
 	struct list_head tl_requests; /* ring list in the transfer log */
 	struct bio *master_bio;       /* master bio pointer */
 	unsigned long rq_state; /* see comments above _req_mod() */
 	unsigned long start_time;
-};
-
-struct drbd_tl_epoch {
-	struct drbd_work w;
-	struct list_head requests; /* requests before */
-	struct drbd_tl_epoch *next; /* pointer to the next barrier */
-	unsigned int br_number;  /* the barriers identifier. */
-	int n_writes;	/* number of requests attached before this barrier */
 };
 
 struct drbd_epoch {
@@ -845,11 +841,8 @@ struct drbd_tconn {			/* is a resource from the config file */
 	unsigned int ko_count;
 
 	spinlock_t req_lock;
-	struct drbd_tl_epoch *unused_spare_tle; /* for pre-allocation */
-	struct drbd_tl_epoch *newest_tle;
-	struct drbd_tl_epoch *oldest_tle;
-	struct list_head out_of_sequence_requests;
-	struct list_head barrier_acked_requests;
+
+	struct list_head transfer_log;	/* all requests not yet fully processed */
 
 	struct crypto_hash *cram_hmac_tfm;
 	struct crypto_hash *integrity_tfm;  /* checksums we compute, updates protected by tconn->data->mutex */
@@ -859,18 +852,36 @@ struct drbd_tconn {			/* is a resource from the config file */
 	void *int_dig_in;
 	void *int_dig_vv;
 
+	/* receiver side */
 	struct drbd_epoch *current_epoch;
 	spinlock_t epoch_lock;
 	unsigned int epochs;
 	enum write_ordering_e write_ordering;
 	atomic_t current_tle_nr;	/* transfer log epoch number */
+	unsigned current_tle_writes;	/* writes seen within this tl epoch */
 
 	unsigned long last_reconnect_jif;
 	struct drbd_thread receiver;
 	struct drbd_thread worker;
 	struct drbd_thread asender;
 	cpumask_var_t cpu_mask;
+
+	/* sender side */
 	struct drbd_work_queue sender_work;
+
+	struct {
+		/* whether this sender thread
+		 * has processed a single write yet. */
+		bool seen_any_write_yet;
+
+		/* Which barrier number to send with the next P_BARRIER */
+		int current_epoch_nr;
+
+		/* how many write requests have been sent
+		 * with req->epoch == current_epoch_nr.
+		 * If none, no P_BARRIER will be sent. */
+		unsigned current_epoch_writes;
+	} send;
 };
 
 struct drbd_conf {
@@ -1054,7 +1065,6 @@ extern void drbd_calc_cpu_mask(struct drbd_tconn *tconn);
 extern void tl_release(struct drbd_tconn *, unsigned int barrier_nr,
 		       unsigned int set_size);
 extern void tl_clear(struct drbd_tconn *);
-extern void _tl_add_barrier(struct drbd_tconn *, struct drbd_tl_epoch *);
 extern void drbd_free_sock(struct drbd_tconn *tconn);
 extern int drbd_send(struct drbd_tconn *tconn, struct socket *sock,
 		     void *buf, size_t size, unsigned msg_flags);
@@ -1460,7 +1470,6 @@ extern int w_resync_timer(struct drbd_work *, int);
 extern int w_send_write_hint(struct drbd_work *, int);
 extern int w_make_resync_request(struct drbd_work *, int);
 extern int w_send_dblock(struct drbd_work *, int);
-extern int w_send_barrier(struct drbd_work *, int);
 extern int w_send_read_req(struct drbd_work *, int);
 extern int w_prev_work_done(struct drbd_work *, int);
 extern int w_e_reissue(struct drbd_work *, int);

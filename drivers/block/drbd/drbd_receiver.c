@@ -4451,6 +4451,7 @@ static void conn_disconnect(struct drbd_tconn *tconn)
 		conn_err(tconn, "ASSERTION FAILED: tconn->current_epoch->list not empty\n");
 	/* ok, no more ee's on the fly, it is safe to reset the epoch_size */
 	atomic_set(&tconn->current_epoch->epoch_size, 0);
+	tconn->send.seen_any_write_yet = false;
 
 	conn_info(tconn, "Connection closed\n");
 

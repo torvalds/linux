@@ -622,6 +622,8 @@ drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 	/* Wait until nothing is on the fly :) */
 	wait_event(mdev->misc_wait, atomic_read(&mdev->ap_pending_cnt) == 0);
 
+	/* FIXME also wait for all pending P_BARRIER_ACK? */
+
 	if (new_role == R_SECONDARY) {
 		set_disk_ro(mdev->vdisk, true);
 		if (get_ldev(mdev)) {
@@ -1436,6 +1438,12 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 
 	drbd_suspend_io(mdev);
 	/* also wait for the last barrier ack. */
+	/* FIXME see also https://daiquiri.linbit/cgi-bin/bugzilla/show_bug.cgi?id=171
+	 * We need a way to either ignore barrier acks for barriers sent before a device
+	 * was attached, or a way to wait for all pending barrier acks to come in.
+	 * As barriers are counted per resource,
+	 * we'd need to suspend io on all devices of a resource.
+	 */
 	wait_event(mdev->misc_wait, !atomic_read(&mdev->ap_pending_cnt) || drbd_suspended(mdev));
 	/* and for any other previously queued work */
 	drbd_flush_workqueue(mdev);
