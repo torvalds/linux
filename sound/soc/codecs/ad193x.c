@@ -123,35 +123,29 @@ static int ad193x_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 			       unsigned int rx_mask, int slots, int width)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	int dac_reg = snd_soc_read(codec, AD193X_DAC_CTRL1);
-	int adc_reg = snd_soc_read(codec, AD193X_ADC_CTRL2);
-
-	dac_reg &= ~AD193X_DAC_CHAN_MASK;
-	adc_reg &= ~AD193X_ADC_CHAN_MASK;
+	unsigned int channels;
 
 	switch (slots) {
 	case 2:
-		dac_reg |= AD193X_DAC_2_CHANNELS << AD193X_DAC_CHAN_SHFT;
-		adc_reg |= AD193X_ADC_2_CHANNELS << AD193X_ADC_CHAN_SHFT;
+		channels = AD193X_2_CHANNELS;
 		break;
 	case 4:
-		dac_reg |= AD193X_DAC_4_CHANNELS << AD193X_DAC_CHAN_SHFT;
-		adc_reg |= AD193X_ADC_4_CHANNELS << AD193X_ADC_CHAN_SHFT;
+		channels = AD193X_4_CHANNELS;
 		break;
 	case 8:
-		dac_reg |= AD193X_DAC_8_CHANNELS << AD193X_DAC_CHAN_SHFT;
-		adc_reg |= AD193X_ADC_8_CHANNELS << AD193X_ADC_CHAN_SHFT;
+		channels = AD193X_8_CHANNELS;
 		break;
 	case 16:
-		dac_reg |= AD193X_DAC_16_CHANNELS << AD193X_DAC_CHAN_SHFT;
-		adc_reg |= AD193X_ADC_16_CHANNELS << AD193X_ADC_CHAN_SHFT;
+		channels = AD193X_16_CHANNELS;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	snd_soc_write(codec, AD193X_DAC_CTRL1, dac_reg);
-	snd_soc_write(codec, AD193X_ADC_CTRL2, adc_reg);
+	snd_soc_update_bits(codec, AD193X_DAC_CTRL1, AD193X_DAC_CHAN_MASK,
+		channels << AD193X_DAC_CHAN_SHFT);
+	snd_soc_update_bits(codec, AD193X_ADC_CTRL2, AD193X_ADC_CHAN_MASK,
+		channels << AD193X_ADC_CHAN_SHFT);
 
 	return 0;
 }
@@ -160,23 +154,19 @@ static int ad193x_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		unsigned int fmt)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	int adc_reg1, adc_reg2, dac_reg;
-
-	adc_reg1 = snd_soc_read(codec, AD193X_ADC_CTRL1);
-	adc_reg2 = snd_soc_read(codec, AD193X_ADC_CTRL2);
-	dac_reg = snd_soc_read(codec, AD193X_DAC_CTRL1);
+	unsigned int adc_serfmt = 0;
+	unsigned int adc_fmt = 0;
+	unsigned int dac_fmt = 0;
 
 	/* At present, the driver only support AUX ADC mode(SND_SOC_DAIFMT_I2S
 	 * with TDM) and ADC&DAC TDM mode(SND_SOC_DAIFMT_DSP_A)
 	 */
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
-		adc_reg1 &= ~AD193X_ADC_SERFMT_MASK;
-		adc_reg1 |= AD193X_ADC_SERFMT_TDM;
+		adc_serfmt |= AD193X_ADC_SERFMT_TDM;
 		break;
 	case SND_SOC_DAIFMT_DSP_A:
-		adc_reg1 &= ~AD193X_ADC_SERFMT_MASK;
-		adc_reg1 |= AD193X_ADC_SERFMT_AUX;
+		adc_serfmt |= AD193X_ADC_SERFMT_AUX;
 		break;
 	default:
 		return -EINVAL;
@@ -184,29 +174,20 @@ static int ad193x_set_dai_fmt(struct snd_soc_dai *codec_dai,
 
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF: /* normal bit clock + frame */
-		adc_reg2 &= ~AD193X_ADC_LEFT_HIGH;
-		adc_reg2 &= ~AD193X_ADC_BCLK_INV;
-		dac_reg &= ~AD193X_DAC_LEFT_HIGH;
-		dac_reg &= ~AD193X_DAC_BCLK_INV;
 		break;
 	case SND_SOC_DAIFMT_NB_IF: /* normal bclk + invert frm */
-		adc_reg2 |= AD193X_ADC_LEFT_HIGH;
-		adc_reg2 &= ~AD193X_ADC_BCLK_INV;
-		dac_reg |= AD193X_DAC_LEFT_HIGH;
-		dac_reg &= ~AD193X_DAC_BCLK_INV;
+		adc_fmt |= AD193X_ADC_LEFT_HIGH;
+		dac_fmt |= AD193X_DAC_LEFT_HIGH;
 		break;
 	case SND_SOC_DAIFMT_IB_NF: /* invert bclk + normal frm */
-		adc_reg2 &= ~AD193X_ADC_LEFT_HIGH;
-		adc_reg2 |= AD193X_ADC_BCLK_INV;
-		dac_reg &= ~AD193X_DAC_LEFT_HIGH;
-		dac_reg |= AD193X_DAC_BCLK_INV;
+		adc_fmt |= AD193X_ADC_BCLK_INV;
+		dac_fmt |= AD193X_DAC_BCLK_INV;
 		break;
-
 	case SND_SOC_DAIFMT_IB_IF: /* invert bclk + frm */
-		adc_reg2 |= AD193X_ADC_LEFT_HIGH;
-		adc_reg2 |= AD193X_ADC_BCLK_INV;
-		dac_reg |= AD193X_DAC_LEFT_HIGH;
-		dac_reg |= AD193X_DAC_BCLK_INV;
+		adc_fmt |= AD193X_ADC_LEFT_HIGH;
+		adc_fmt |= AD193X_ADC_BCLK_INV;
+		dac_fmt |= AD193X_DAC_LEFT_HIGH;
+		dac_fmt |= AD193X_DAC_BCLK_INV;
 		break;
 	default:
 		return -EINVAL;
@@ -214,36 +195,31 @@ static int ad193x_set_dai_fmt(struct snd_soc_dai *codec_dai,
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM: /* codec clk & frm master */
-		adc_reg2 |= AD193X_ADC_LCR_MASTER;
-		adc_reg2 |= AD193X_ADC_BCLK_MASTER;
-		dac_reg |= AD193X_DAC_LCR_MASTER;
-		dac_reg |= AD193X_DAC_BCLK_MASTER;
+		adc_fmt |= AD193X_ADC_LCR_MASTER;
+		adc_fmt |= AD193X_ADC_BCLK_MASTER;
+		dac_fmt |= AD193X_DAC_LCR_MASTER;
+		dac_fmt |= AD193X_DAC_BCLK_MASTER;
 		break;
 	case SND_SOC_DAIFMT_CBS_CFM: /* codec clk slave & frm master */
-		adc_reg2 |= AD193X_ADC_LCR_MASTER;
-		adc_reg2 &= ~AD193X_ADC_BCLK_MASTER;
-		dac_reg |= AD193X_DAC_LCR_MASTER;
-		dac_reg &= ~AD193X_DAC_BCLK_MASTER;
+		adc_fmt |= AD193X_ADC_LCR_MASTER;
+		dac_fmt |= AD193X_DAC_LCR_MASTER;
 		break;
 	case SND_SOC_DAIFMT_CBM_CFS: /* codec clk master & frame slave */
-		adc_reg2 &= ~AD193X_ADC_LCR_MASTER;
-		adc_reg2 |= AD193X_ADC_BCLK_MASTER;
-		dac_reg &= ~AD193X_DAC_LCR_MASTER;
-		dac_reg |= AD193X_DAC_BCLK_MASTER;
+		adc_fmt |= AD193X_ADC_BCLK_MASTER;
+		dac_fmt |= AD193X_DAC_BCLK_MASTER;
 		break;
 	case SND_SOC_DAIFMT_CBS_CFS: /* codec clk & frm slave */
-		adc_reg2 &= ~AD193X_ADC_LCR_MASTER;
-		adc_reg2 &= ~AD193X_ADC_BCLK_MASTER;
-		dac_reg &= ~AD193X_DAC_LCR_MASTER;
-		dac_reg &= ~AD193X_DAC_BCLK_MASTER;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	snd_soc_write(codec, AD193X_ADC_CTRL1, adc_reg1);
-	snd_soc_write(codec, AD193X_ADC_CTRL2, adc_reg2);
-	snd_soc_write(codec, AD193X_DAC_CTRL1, dac_reg);
+	snd_soc_update_bits(codec, AD193X_ADC_CTRL1, AD193X_ADC_SERFMT_MASK,
+	    adc_serfmt);
+	snd_soc_update_bits(codec, AD193X_ADC_CTRL2, AD193X_ADC_FMT_MASK,
+	    adc_fmt);
+	snd_soc_update_bits(codec, AD193X_DAC_CTRL1, AD193X_DAC_FMT_MASK,
+	    dac_fmt);
 
 	return 0;
 }
