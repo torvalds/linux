@@ -265,6 +265,11 @@ extern int debug_lockdep_rcu_enabled(void);
  *
  * Checks debug_lockdep_rcu_enabled() to prevent false positives during boot
  * and while lockdep is disabled.
+ *
+ * Note that rcu_read_lock() and the matching rcu_read_unlock() must
+ * occur in the same context, for example, it is illegal to invoke
+ * rcu_read_unlock() in process context if the matching rcu_read_lock()
+ * was invoked from within an irq handler.
  */
 static inline int rcu_read_lock_held(void)
 {
@@ -689,6 +694,11 @@ static inline void rcu_read_unlock(void)
  * critical sections in interrupt context can use just rcu_read_lock(),
  * though this should at least be commented to avoid confusing people
  * reading the code.
+ *
+ * Note that rcu_read_lock_bh() and the matching rcu_read_unlock_bh()
+ * must occur in the same context, for example, it is illegal to invoke
+ * rcu_read_unlock_bh() from one task if the matching rcu_read_lock_bh()
+ * was invoked from some other task.
  */
 static inline void rcu_read_lock_bh(void)
 {
@@ -716,6 +726,11 @@ static inline void rcu_read_unlock_bh(void)
  * are being done using call_rcu_sched() or synchronize_rcu_sched().
  * Read-side critical sections can also be introduced by anything that
  * disables preemption, including local_irq_disable() and friends.
+ *
+ * Note that rcu_read_lock_sched() and the matching rcu_read_unlock_sched()
+ * must occur in the same context, for example, it is illegal to invoke
+ * rcu_read_unlock_sched() from process context if the matching
+ * rcu_read_lock_sched() was invoked from an NMI handler.
  */
 static inline void rcu_read_lock_sched(void)
 {

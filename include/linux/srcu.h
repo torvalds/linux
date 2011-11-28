@@ -158,6 +158,11 @@ static inline int srcu_read_lock_held(struct srcu_struct *sp)
  * one way to indirectly wait on an SRCU grace period is to acquire
  * a mutex that is held elsewhere while calling synchronize_srcu() or
  * synchronize_srcu_expedited().
+ *
+ * Note that srcu_read_lock() and the matching srcu_read_unlock() must
+ * occur in the same context, for example, it is illegal to invoke
+ * srcu_read_unlock() in an irq handler if the matching srcu_read_lock()
+ * was invoked in process context.
  */
 static inline int srcu_read_lock(struct srcu_struct *sp) __acquires(sp)
 {
