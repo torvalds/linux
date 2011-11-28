@@ -147,22 +147,19 @@ int vmw_du_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 		return -EINVAL;
 
 	if (handle) {
-		ret = vmw_user_surface_lookup_handle(dev_priv, tfile,
-						     handle, &surface);
-		if (!ret) {
-			if (!surface->snooper.image) {
-				DRM_ERROR("surface not suitable for cursor\n");
-				vmw_surface_unreference(&surface);
-				return -EINVAL;
-			}
-		} else {
-			ret = vmw_user_dmabuf_lookup(tfile,
-						     handle, &dmabuf);
-			if (ret) {
-				DRM_ERROR("failed to find surface or dmabuf: %i\n", ret);
-				return -EINVAL;
-			}
+		ret = vmw_user_lookup_handle(dev_priv, tfile,
+					     handle, &surface, &dmabuf);
+		if (ret) {
+			DRM_ERROR("failed to find surface or dmabuf: %i\n", ret);
+			return -EINVAL;
 		}
+	}
+
+	/* need to do this before taking down old image */
+	if (surface && !surface->snooper.image) {
+		DRM_ERROR("surface not suitable for cursor\n");
+		vmw_surface_unreference(&surface);
+		return -EINVAL;
 	}
 
 	/* takedown old cursor */
@@ -567,6 +564,10 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 	/*
 	 * Sanity checks.
 	 */
+
+	/* Surface must be marked as a scanout. */
+	if (unlikely(!surface->scanout))
+		return -EINVAL;
 
 	if (unlikely(surface->mip_levels[0] != 1 ||
 		     surface->num_sizes != 1 ||
@@ -1045,46 +1046,29 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 		return ERR_PTR(-ENOENT);
 	}
 
-	/**
-	 * End conditioned code.
-	 */
-
-	ret = vmw_user_surface_lookup_handle(dev_priv, tfile,
-					     mode_cmd->handle, &surface);
+	/* returns either a dmabuf or surface */
+	ret = vmw_user_lookup_handle(dev_priv, tfile,
+				     mode_cmd->handle,
+				     &surface, &bo);
 	if (ret)
-		goto try_dmabuf;
+		goto err_out;
 
-	if (!surface->scanout)
-		goto err_not_scanout;
+	/* Create the new framebuffer depending one what we got back */
+	if (bo)
+		ret = vmw_kms_new_framebuffer_dmabuf(dev_priv, bo, &vfb,
+						     mode_cmd);
+	else if (surface)
+		ret = vmw_kms_new_framebuffer_surface(dev_priv, file_priv,
+						      surface, &vfb, mode_cmd);
+	else
+		BUG();
 
-	ret = vmw_kms_new_framebuffer_surface(dev_priv, file_priv, surface,
-					      &vfb, mode_cmd);
-
-	/* vmw_user_surface_lookup takes one ref so does new_fb */
-	vmw_surface_unreference(&surface);
-
-	if (ret) {
-		DRM_ERROR("failed to create vmw_framebuffer: %i\n", ret);
-		ttm_base_object_unref(&user_obj);
-		return ERR_PTR(ret);
-	} else
-		vfb->user_obj = user_obj;
-	return &vfb->base;
-
-try_dmabuf:
-	DRM_INFO("%s: trying buffer\n", __func__);
-
-	ret = vmw_user_dmabuf_lookup(tfile, mode_cmd->handle, &bo);
-	if (ret) {
-		DRM_ERROR("failed to find buffer: %i\n", ret);
-		return ERR_PTR(-ENOENT);
-	}
-
-	ret = vmw_kms_new_framebuffer_dmabuf(dev_priv, bo, &vfb,
-					     mode_cmd);
-
-	/* vmw_user_dmabuf_lookup takes one ref so does new_fb */
-	vmw_dmabuf_unreference(&bo);
+err_out:
+	/* vmw_user_lookup_handle takes one ref so does new_fb */
+	if (bo)
+		vmw_dmabuf_unreference(&bo);
+	if (surface)
+		vmw_surface_unreference(&surface);
 
 	if (ret) {
 		DRM_ERROR("failed to create vmw_framebuffer: %i\n", ret);
@@ -1094,14 +1078,6 @@ try_dmabuf:
 		vfb->user_obj = user_obj;
 
 	return &vfb->base;
-
-err_not_scanout:
-	DRM_ERROR("surface not marked as scanout\n");
-	/* vmw_user_surface_lookup takes one ref */
-	vmw_surface_unreference(&surface);
-	ttm_base_object_unref(&user_obj);
-
-	return ERR_PTR(-EINVAL);
 }
 
 static struct drm_mode_config_funcs vmw_kms_funcs = {
