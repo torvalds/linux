@@ -1,0 +1,48 @@
+LTTng 2.0 modules
+
+Mathieu Desnoyers
+November 1st, 2011
+
+LTTng 2.0 kernel modules is currently part of the Linux kernel staging
+tree. It features (new features since LTTng 0.x):
+
+- Produces CTF (Common Trace Format) natively,
+  (http://www.efficios.com/ctf)
+- Tracepoints, Function tracer, CPU Performance Monitoring Unit (PMU)
+  counters, kprobes, and kretprobes support,
+- Integrated interface for both kernel and userspace tracing,
+- Have the ability to attach "context" information to events in the
+  trace (e.g. any PMU counter, pid, ppid, tid, comm name, etc).
+  All the extra information fields to be collected with events are
+  optional, specified on a per-tracing-session basis (except for
+  timestamp and event id, which are mandatory).
+
+To build and install, you need to select "Staging" modules, and the
+LTTng kernel tracer.
+
+Use lttng-tools to control the tracer. LTTng tools should automatically
+load the kernel modules when needed. Use Babeltrace to print traces as a
+human-readable text log. These tools are available at the following URL:
+http://lttng.org/lttng2.0
+
+Please note that the LTTng-UST 2.0 (user-space tracing counterpart of
+LTTng 2.0) is now ready to be used, but still only available from the
+git repository.
+
+So far, it has been tested on vanilla Linux kernels 2.6.38, 2.6.39 and
+3.0 (on x86 32/64-bit, and powerpc 32-bit at the moment, build tested on
+ARM). It should work fine with newer kernels and other architectures,
+but expect build issues with kernels older than 2.6.36. The clock source
+currently used is the standard gettimeofday (slower, less scalable and
+less precise than the LTTng 0.x clocks).  Support for LTTng 0.x clocks
+will be added back soon into LTTng 2.0.  Please note that lttng-modules
+2.0 can build on a Linux kernel patched with the LTTng 0.x patchset, but
+the lttng-modules 2.0 replace the lttng-modules 0.x, so both tracers
+cannot be installed at the same time for a given kernel version.
+
+* Note about Perf PMU counters support
+
+Each PMU counter has its zero value set when it is attached to a context with
+add-context. Therefore, it is normal that the same counters attached to both the
+stream context and event context show different values for a given event; what
+matters is that they increment at the same rate.
