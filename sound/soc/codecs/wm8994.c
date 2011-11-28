@@ -2357,6 +2357,11 @@ static int wm8994_hw_params(struct snd_pcm_substream *substream,
 	bclk |= best << WM8994_AIF1_BCLK_DIV_SHIFT;
 
 	lrclk = bclk_rate / params_rate(params);
+	if (!lrclk) {
+		dev_err(dai->dev, "Unable to generate LRCLK from %dHz BCLK\n",
+			bclk_rate);
+		return -EINVAL;
+	}
 	dev_dbg(dai->dev, "Using LRCLK rate %d for actual LRCLK %dHz\n",
 		lrclk, bclk_rate / lrclk);
 
