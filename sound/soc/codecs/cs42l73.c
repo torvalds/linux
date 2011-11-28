@@ -1339,7 +1339,8 @@ static __devinit int cs42l73_i2c_probe(struct i2c_client *i2c_client,
 	unsigned int devid = 0;
 	unsigned int reg;
 
-	cs42l73 = kzalloc((sizeof *cs42l73), GFP_KERNEL);
+	cs42l73 = devm_kzalloc(&i2c_client->dev, sizeof(struct cs42l73_private),
+			       GFP_KERNEL);
 	if (!cs42l73) {
 		dev_err(&i2c_client->dev, "could not allocate codec\n");
 		return -ENOMEM;
@@ -1394,8 +1395,6 @@ err_regmap:
 	regmap_exit(cs42l73->regmap);
 
 err:
-	kfree(cs42l73);
-
 	return ret;
 }
 
@@ -1406,7 +1405,6 @@ static __devexit int cs42l73_i2c_remove(struct i2c_client *client)
 	snd_soc_unregister_codec(&client->dev);
 	regmap_exit(cs42l73->regmap);
 
-	kfree(cs42l73);
 	return 0;
 }
 
