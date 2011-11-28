@@ -412,7 +412,7 @@ static int mipi_display_on(struct sh_mobile_lcdc_entity *entity)
 
 	sh_mipi_dsi_enable(mipi, true);
 
-	return 0;
+	return SH_MOBILE_LCDC_DISPLAY_CONNECTED;
 
 mipi_display_on_fail1:
 	pm_runtime_put_sync(&mipi->pdev->dev);

@@ -338,8 +338,14 @@ static void sh_mobile_lcdc_display_on(struct sh_mobile_lcdc_chan *ch)
 	struct sh_mobile_lcdc_panel_cfg *panel = &ch->cfg.panel_cfg;
 
 	if (ch->tx_dev) {
-		if (ch->tx_dev->ops->display_on(ch->tx_dev) < 0)
+		int ret;
+
+		ret = ch->tx_dev->ops->display_on(ch->tx_dev);
+		if (ret < 0)
 			return;
+
+		if (ret == SH_MOBILE_LCDC_DISPLAY_DISCONNECTED)
+			ch->info->state = FBINFO_STATE_SUSPENDED;
 	}
 
 	/* HDMI must be enabled before LCDC configuration */

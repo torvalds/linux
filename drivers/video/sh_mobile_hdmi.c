@@ -1004,9 +1004,9 @@ static int sh_hdmi_display_on(struct sh_mobile_lcdc_entity *entity)
 {
 	struct sh_hdmi *hdmi = entity_to_sh_hdmi(entity);
 	struct sh_mobile_lcdc_chan *ch = entity->lcdc;
-	struct fb_info *info = ch->info;
 
-	dev_dbg(hdmi->dev, "%s(%p): state %x\n", __func__, hdmi, info->state);
+	dev_dbg(hdmi->dev, "%s(%p): state %x\n", __func__, hdmi,
+		hdmi->hp_state);
 
 	/*
 	 * hp_state can be set to
@@ -1021,12 +1021,13 @@ static int sh_hdmi_display_on(struct sh_mobile_lcdc_entity *entity)
 		dev_dbg(hdmi->dev, "HDMI running\n");
 		break;
 	case HDMI_HOTPLUG_DISCONNECTED:
-		info->state = FBINFO_STATE_SUSPENDED;
 	default:
 		hdmi->var = ch->display_var;
 	}
 
-	return 0;
+	return hdmi->hp_state == HDMI_HOTPLUG_DISCONNECTED
+		? SH_MOBILE_LCDC_DISPLAY_DISCONNECTED
+		: SH_MOBILE_LCDC_DISPLAY_CONNECTED;
 }
 
 static void sh_hdmi_display_off(struct sh_mobile_lcdc_entity *entity)

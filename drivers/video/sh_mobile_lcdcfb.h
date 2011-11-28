@@ -21,6 +21,9 @@ struct sh_mobile_lcdc_entity;
 struct sh_mobile_lcdc_priv;
 struct sh_mobile_lcdc_chan;
 
+#define SH_MOBILE_LCDC_DISPLAY_DISCONNECTED	0
+#define SH_MOBILE_LCDC_DISPLAY_CONNECTED	1
+
 struct sh_mobile_lcdc_entity_ops {
 	/* Display */
 	int (*display_on)(struct sh_mobile_lcdc_entity *entity);
