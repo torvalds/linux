@@ -20,7 +20,6 @@
  */
 
 #include "main.h"
-#include "bat_ogm.h"
 #include "translation-table.h"
 #include "ring_buffer.h"
 #include "originator.h"
@@ -31,7 +30,7 @@
 #include "send.h"
 #include "bat_algo.h"
 
-void bat_ogm_init(struct hard_iface *hard_iface)
+static void bat_iv_ogm_init(struct hard_iface *hard_iface)
 {
 	struct batman_ogm_packet *batman_ogm_packet;
 
@@ -48,7 +47,7 @@ void bat_ogm_init(struct hard_iface *hard_iface)
 	batman_ogm_packet->ttvn = 0;
 }
 
-void bat_ogm_init_primary(struct hard_iface *hard_iface)
+static void bat_iv_ogm_init_primary(struct hard_iface *hard_iface)
 {
 	struct batman_ogm_packet *batman_ogm_packet;
 
@@ -57,7 +56,7 @@ void bat_ogm_init_primary(struct hard_iface *hard_iface)
 	batman_ogm_packet->header.ttl = TTL;
 }
 
-void bat_ogm_update_mac(struct hard_iface *hard_iface)
+static void bat_iv_ogm_update_mac(struct hard_iface *hard_iface)
 {
 	struct batman_ogm_packet *batman_ogm_packet;
 
@@ -69,7 +68,7 @@ void bat_ogm_update_mac(struct hard_iface *hard_iface)
 }
 
 /* when do we schedule our own ogm to be sent */
-static unsigned long bat_ogm_emit_send_time(const struct bat_priv *bat_priv)
+static unsigned long bat_iv_ogm_emit_send_time(const struct bat_priv *bat_priv)
 {
 	return jiffies + msecs_to_jiffies(
 		   atomic_read(&bat_priv->orig_interval) -
@@ -77,7 +76,7 @@ static unsigned long bat_ogm_emit_send_time(const struct bat_priv *bat_priv)
 }
 
 /* when do we schedule a ogm packet to be sent */
-static unsigned long bat_ogm_fwd_send_time(void)
+static unsigned long bat_iv_ogm_fwd_send_time(void)
 {
 	return jiffies + msecs_to_jiffies(random32() % (JITTER/2));
 }
@@ -90,8 +89,8 @@ static uint8_t hop_penalty(uint8_t tq, const struct bat_priv *bat_priv)
 }
 
 /* is there another aggregated packet here? */
-static int bat_ogm_aggr_packet(int buff_pos, int packet_len,
-			       int tt_num_changes)
+static int bat_iv_ogm_aggr_packet(int buff_pos, int packet_len,
+				  int tt_num_changes)
 {
 	int next_buff_pos = buff_pos + BATMAN_OGM_LEN + tt_len(tt_num_changes);
 
@@ -100,8 +99,8 @@ static int bat_ogm_aggr_packet(int buff_pos, int packet_len,
 }
 
 /* send a batman ogm to a given interface */
-static void bat_ogm_send_to_if(struct forw_packet *forw_packet,
-			       struct hard_iface *hard_iface)
+static void bat_iv_ogm_send_to_if(struct forw_packet *forw_packet,
+				  struct hard_iface *hard_iface)
 {
 	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 	char *fwd_str;
@@ -118,8 +117,8 @@ static void bat_ogm_send_to_if(struct forw_packet *forw_packet,
 	batman_ogm_packet = (struct batman_ogm_packet *)forw_packet->skb->data;
 
 	/* adjust all flags and log packets */
-	while (bat_ogm_aggr_packet(buff_pos, forw_packet->packet_len,
-				   batman_ogm_packet->tt_num_changes)) {
+	while (bat_iv_ogm_aggr_packet(buff_pos, forw_packet->packet_len,
+				      batman_ogm_packet->tt_num_changes)) {
 
 		/* we might have aggregated direct link packets with an
 		 * ordinary base packet */
@@ -158,7 +157,7 @@ static void bat_ogm_send_to_if(struct forw_packet *forw_packet,
 }
 
 /* send a batman ogm packet */
-void bat_ogm_emit(struct forw_packet *forw_packet)
+static void bat_iv_ogm_emit(struct forw_packet *forw_packet)
 {
 	struct hard_iface *hard_iface;
 	struct net_device *soft_iface;
@@ -217,7 +216,7 @@ void bat_ogm_emit(struct forw_packet *forw_packet)
 		if (hard_iface->soft_iface != soft_iface)
 			continue;
 
-		bat_ogm_send_to_if(forw_packet, hard_iface);
+		bat_iv_ogm_send_to_if(forw_packet, hard_iface);
 	}
 	rcu_read_unlock();
 
@@ -227,13 +226,13 @@ out:
 }
 
 /* return true if new_packet can be aggregated with forw_packet */
-static bool bat_ogm_can_aggregate(const struct batman_ogm_packet
+static bool bat_iv_ogm_can_aggregate(const struct batman_ogm_packet
 							*new_batman_ogm_packet,
-				  struct bat_priv *bat_priv,
-				  int packet_len, unsigned long send_time,
-				  bool directlink,
-				  const struct hard_iface *if_incoming,
-				  const struct forw_packet *forw_packet)
+				     struct bat_priv *bat_priv,
+				     int packet_len, unsigned long send_time,
+				     bool directlink,
+				     const struct hard_iface *if_incoming,
+				     const struct forw_packet *forw_packet)
 {
 	struct batman_ogm_packet *batman_ogm_packet;
 	int aggregated_bytes = forw_packet->packet_len + packet_len;
@@ -307,11 +306,11 @@ out:
 }
 
 /* create a new aggregated packet and add this packet to it */
-static void bat_ogm_aggregate_new(const unsigned char *packet_buff,
-				  int packet_len, unsigned long send_time,
-				  bool direct_link,
-				  struct hard_iface *if_incoming,
-				  int own_packet)
+static void bat_iv_ogm_aggregate_new(const unsigned char *packet_buff,
+				     int packet_len, unsigned long send_time,
+				     bool direct_link,
+				     struct hard_iface *if_incoming,
+				     int own_packet)
 {
 	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
 	struct forw_packet *forw_packet_aggr;
@@ -386,9 +385,9 @@ out:
 }
 
 /* aggregate a new packet into the existing ogm packet */
-static void bat_ogm_aggregate(struct forw_packet *forw_packet_aggr,
-			      const unsigned char *packet_buff,
-			      int packet_len, bool direct_link)
+static void bat_iv_ogm_aggregate(struct forw_packet *forw_packet_aggr,
+				 const unsigned char *packet_buff,
+				 int packet_len, bool direct_link)
 {
 	unsigned char *skb_buff;
 
@@ -403,10 +402,10 @@ static void bat_ogm_aggregate(struct forw_packet *forw_packet_aggr,
 			(1 << forw_packet_aggr->num_packets);
 }
 
-static void bat_ogm_queue_add(struct bat_priv *bat_priv,
-			      unsigned char *packet_buff,
-			      int packet_len, struct hard_iface *if_incoming,
-			      int own_packet, unsigned long send_time)
+static void bat_iv_ogm_queue_add(struct bat_priv *bat_priv,
+				 unsigned char *packet_buff,
+				 int packet_len, struct hard_iface *if_incoming,
+				 int own_packet, unsigned long send_time)
 {
 	/**
 	 * _aggr -> pointer to the packet we want to aggregate with
@@ -426,11 +425,11 @@ static void bat_ogm_queue_add(struct bat_priv *bat_priv,
 	if ((atomic_read(&bat_priv->aggregated_ogms)) && (!own_packet)) {
 		hlist_for_each_entry(forw_packet_pos, tmp_node,
 				     &bat_priv->forw_bat_list, list) {
-			if (bat_ogm_can_aggregate(batman_ogm_packet,
-						  bat_priv, packet_len,
-						  send_time, direct_link,
-						  if_incoming,
-						  forw_packet_pos)) {
+			if (bat_iv_ogm_can_aggregate(batman_ogm_packet,
+						     bat_priv, packet_len,
+						     send_time, direct_link,
+						     if_incoming,
+						     forw_packet_pos)) {
 				forw_packet_aggr = forw_packet_pos;
 				break;
 			}
@@ -452,20 +451,20 @@ static void bat_ogm_queue_add(struct bat_priv *bat_priv,
 		    (atomic_read(&bat_priv->aggregated_ogms)))
 			send_time += msecs_to_jiffies(MAX_AGGREGATION_MS);
 
-		bat_ogm_aggregate_new(packet_buff, packet_len,
-				      send_time, direct_link,
-				      if_incoming, own_packet);
+		bat_iv_ogm_aggregate_new(packet_buff, packet_len,
+					 send_time, direct_link,
+					 if_incoming, own_packet);
 	} else {
-		bat_ogm_aggregate(forw_packet_aggr, packet_buff, packet_len,
-				  direct_link);
+		bat_iv_ogm_aggregate(forw_packet_aggr, packet_buff,
+				     packet_len, direct_link);
 		spin_unlock_bh(&bat_priv->forw_bat_list_lock);
 	}
 }
 
-static void bat_ogm_forward(struct orig_node *orig_node,
-			    const struct ethhdr *ethhdr,
-			    struct batman_ogm_packet *batman_ogm_packet,
-			    int directlink, struct hard_iface *if_incoming)
+static void bat_iv_ogm_forward(struct orig_node *orig_node,
+			       const struct ethhdr *ethhdr,
+			       struct batman_ogm_packet *batman_ogm_packet,
+			       int directlink, struct hard_iface *if_incoming)
 {
 	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
 	struct neigh_node *router;
@@ -524,12 +523,13 @@ static void bat_ogm_forward(struct orig_node *orig_node,
 	else
 		batman_ogm_packet->flags &= ~DIRECTLINK;
 
-	bat_ogm_queue_add(bat_priv, (unsigned char *)batman_ogm_packet,
-			  BATMAN_OGM_LEN + tt_len(tt_num_changes),
-			  if_incoming, 0, bat_ogm_fwd_send_time());
+	bat_iv_ogm_queue_add(bat_priv, (unsigned char *)batman_ogm_packet,
+			     BATMAN_OGM_LEN + tt_len(tt_num_changes),
+			     if_incoming, 0, bat_iv_ogm_fwd_send_time());
 }
 
-void bat_ogm_schedule(struct hard_iface *hard_iface, int tt_num_changes)
+static void bat_iv_ogm_schedule(struct hard_iface *hard_iface,
+				int tt_num_changes)
 {
 	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 	struct batman_ogm_packet *batman_ogm_packet;
@@ -566,21 +566,22 @@ void bat_ogm_schedule(struct hard_iface *hard_iface, int tt_num_changes)
 	atomic_inc(&hard_iface->seqno);
 
 	slide_own_bcast_window(hard_iface);
-	bat_ogm_queue_add(bat_priv, hard_iface->packet_buff,
-			  hard_iface->packet_len, hard_iface, 1,
-			  bat_ogm_emit_send_time(bat_priv));
+	bat_iv_ogm_queue_add(bat_priv, hard_iface->packet_buff,
+			     hard_iface->packet_len, hard_iface, 1,
+			     bat_iv_ogm_emit_send_time(bat_priv));
 
 	if (primary_if)
 		hardif_free_ref(primary_if);
 }
 
-static void bat_ogm_orig_update(struct bat_priv *bat_priv,
-				struct orig_node *orig_node,
-				const struct ethhdr *ethhdr,
-				const struct batman_ogm_packet
+static void bat_iv_ogm_orig_update(struct bat_priv *bat_priv,
+				   struct orig_node *orig_node,
+				   const struct ethhdr *ethhdr,
+				   const struct batman_ogm_packet
 							*batman_ogm_packet,
-				struct hard_iface *if_incoming,
-				const unsigned char *tt_buff, int is_duplicate)
+				   struct hard_iface *if_incoming,
+				   const unsigned char *tt_buff,
+				   int is_duplicate)
 {
 	struct neigh_node *neigh_node = NULL, *tmp_neigh_node = NULL;
 	struct neigh_node *router = NULL;
@@ -715,10 +716,10 @@ out:
 		neigh_node_free_ref(router);
 }
 
-static int bat_ogm_calc_tq(struct orig_node *orig_node,
-			   struct orig_node *orig_neigh_node,
-			   struct batman_ogm_packet *batman_ogm_packet,
-			   struct hard_iface *if_incoming)
+static int bat_iv_ogm_calc_tq(struct orig_node *orig_node,
+			      struct orig_node *orig_neigh_node,
+			      struct batman_ogm_packet *batman_ogm_packet,
+			      struct hard_iface *if_incoming)
 {
 	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
 	struct neigh_node *neigh_node = NULL, *tmp_neigh_node;
@@ -827,10 +828,10 @@ out:
  *  -1 the packet is old and has been received while the seqno window
  *     was protected. Caller should drop it.
  */
-static int bat_ogm_update_seqnos(const struct ethhdr *ethhdr,
-				 const struct batman_ogm_packet
+static int bat_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
+				    const struct batman_ogm_packet
 							*batman_ogm_packet,
-				 const struct hard_iface *if_incoming)
+				    const struct hard_iface *if_incoming)
 {
 	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
 	struct orig_node *orig_node;
@@ -892,10 +893,10 @@ out:
 	return ret;
 }
 
-static void bat_ogm_process(const struct ethhdr *ethhdr,
-			    struct batman_ogm_packet *batman_ogm_packet,
-			    const unsigned char *tt_buff,
-			    struct hard_iface *if_incoming)
+static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
+			       struct batman_ogm_packet *batman_ogm_packet,
+			       const unsigned char *tt_buff,
+			       struct hard_iface *if_incoming)
 {
 	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
 	struct hard_iface *hard_iface;
@@ -1033,8 +1034,8 @@ static void bat_ogm_process(const struct ethhdr *ethhdr,
 	if (!orig_node)
 		return;
 
-	is_duplicate = bat_ogm_update_seqnos(ethhdr, batman_ogm_packet,
-					     if_incoming);
+	is_duplicate = bat_iv_ogm_update_seqnos(ethhdr, batman_ogm_packet,
+						if_incoming);
 
 	if (is_duplicate == -1) {
 		bat_dbg(DBG_BATMAN, bat_priv,
@@ -1083,8 +1084,8 @@ static void bat_ogm_process(const struct ethhdr *ethhdr,
 		goto out_neigh;
 	}
 
-	is_bidirectional = bat_ogm_calc_tq(orig_node, orig_neigh_node,
-					   batman_ogm_packet, if_incoming);
+	is_bidirectional = bat_iv_ogm_calc_tq(orig_node, orig_neigh_node,
+					      batman_ogm_packet, if_incoming);
 
 	bonding_save_primary(orig_node, orig_neigh_node, batman_ogm_packet);
 
@@ -1094,16 +1095,16 @@ static void bat_ogm_process(const struct ethhdr *ethhdr,
 	    (!is_duplicate ||
 	     ((orig_node->last_real_seqno == batman_ogm_packet->seqno) &&
 	      (orig_node->last_ttl - 3 <= batman_ogm_packet->header.ttl))))
-		bat_ogm_orig_update(bat_priv, orig_node, ethhdr,
-				    batman_ogm_packet, if_incoming,
-				    tt_buff, is_duplicate);
+		bat_iv_ogm_orig_update(bat_priv, orig_node, ethhdr,
+				       batman_ogm_packet, if_incoming,
+				       tt_buff, is_duplicate);
 
 	/* is single hop (direct) neighbor */
 	if (is_single_hop_neigh) {
 
 		/* mark direct link on incoming interface */
-		bat_ogm_forward(orig_node, ethhdr, batman_ogm_packet,
-				1, if_incoming);
+		bat_iv_ogm_forward(orig_node, ethhdr, batman_ogm_packet,
+				   1, if_incoming);
 
 		bat_dbg(DBG_BATMAN, bat_priv, "Forwarding packet: "
 			"rebroadcast neighbor packet with direct link flag\n");
@@ -1125,7 +1126,8 @@ static void bat_ogm_process(const struct ethhdr *ethhdr,
 
 	bat_dbg(DBG_BATMAN, bat_priv,
 		"Forwarding packet: rebroadcast originator packet\n");
-	bat_ogm_forward(orig_node, ethhdr, batman_ogm_packet, 0, if_incoming);
+	bat_iv_ogm_forward(orig_node, ethhdr, batman_ogm_packet,
+			   0, if_incoming);
 
 out_neigh:
 	if ((orig_neigh_node) && (!is_single_hop_neigh))
@@ -1141,7 +1143,8 @@ out:
 	orig_node_free_ref(orig_node);
 }
 
-void bat_ogm_receive(struct hard_iface *if_incoming, struct sk_buff *skb)
+static void bat_iv_ogm_receive(struct hard_iface *if_incoming,
+			       struct sk_buff *skb)
 {
 	struct batman_ogm_packet *batman_ogm_packet;
 	struct ethhdr *ethhdr;
@@ -1162,20 +1165,26 @@ void bat_ogm_receive(struct hard_iface *if_incoming, struct sk_buff *skb)
 
 		tt_buff = packet_buff + buff_pos + BATMAN_OGM_LEN;
 
-		bat_ogm_process(ethhdr, batman_ogm_packet,
-				tt_buff, if_incoming);
+		bat_iv_ogm_process(ethhdr, batman_ogm_packet,
+				   tt_buff, if_incoming);
 
 		buff_pos += BATMAN_OGM_LEN +
 				tt_len(batman_ogm_packet->tt_num_changes);
 
 		batman_ogm_packet = (struct batman_ogm_packet *)
 						(packet_buff + buff_pos);
-	} while (bat_ogm_aggr_packet(buff_pos, packet_len,
-				     batman_ogm_packet->tt_num_changes));
+	} while (bat_iv_ogm_aggr_packet(buff_pos, packet_len,
+					batman_ogm_packet->tt_num_changes));
 }
 
 static struct bat_algo_ops batman_iv __read_mostly = {
 	.name = "BATMAN IV",
+	.bat_ogm_init = bat_iv_ogm_init,
+	.bat_ogm_init_primary = bat_iv_ogm_init_primary,
+	.bat_ogm_update_mac = bat_iv_ogm_update_mac,
+	.bat_ogm_schedule = bat_iv_ogm_schedule,
+	.bat_ogm_emit = bat_iv_ogm_emit,
+	.bat_ogm_receive = bat_iv_ogm_receive,
 };
 
 int __init bat_iv_init(void)

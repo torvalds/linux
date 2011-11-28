@@ -29,7 +29,6 @@
 #include "originator.h"
 #include "vis.h"
 #include "unicast.h"
-#include "bat_ogm.h"
 
 void slide_own_bcast_window(struct hard_iface *hard_iface)
 {
@@ -248,6 +247,7 @@ int window_protected(struct bat_priv *bat_priv, int32_t seq_num_diff,
 
 int recv_bat_ogm_packet(struct sk_buff *skb, struct hard_iface *hard_iface)
 {
+	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 	struct ethhdr *ethhdr;
 
 	/* drop packet if it has not necessary minimum size */
@@ -272,7 +272,7 @@ int recv_bat_ogm_packet(struct sk_buff *skb, struct hard_iface *hard_iface)
 	if (skb_linearize(skb) < 0)
 		return NET_RX_DROP;
 
-	bat_ogm_receive(hard_iface, skb);
+	bat_priv->bat_algo_ops->bat_ogm_receive(hard_iface, skb);
 
 	kfree_skb(skb);
 	return NET_RX_SUCCESS;

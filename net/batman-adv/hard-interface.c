@@ -28,7 +28,6 @@
 #include "bat_sysfs.h"
 #include "originator.h"
 #include "hash.h"
-#include "bat_ogm.h"
 
 #include <linux/if_arp.h>
 
@@ -147,7 +146,7 @@ static void primary_if_select(struct bat_priv *bat_priv,
 	if (!new_hard_iface)
 		return;
 
-	bat_ogm_init_primary(new_hard_iface);
+	bat_priv->bat_algo_ops->bat_ogm_init_primary(new_hard_iface);
 	primary_if_update_addr(bat_priv);
 }
 
@@ -233,7 +232,7 @@ static void hardif_activate_interface(struct hard_iface *hard_iface)
 
 	bat_priv = netdev_priv(hard_iface->soft_iface);
 
-	bat_ogm_update_mac(hard_iface);
+	bat_priv->bat_algo_ops->bat_ogm_update_mac(hard_iface);
 	hard_iface->if_status = IF_TO_BE_ACTIVATED;
 
 	/**
@@ -315,7 +314,7 @@ int hardif_enable_interface(struct hard_iface *hard_iface,
 	hard_iface->soft_iface = soft_iface;
 	bat_priv = netdev_priv(hard_iface->soft_iface);
 
-	bat_ogm_init(hard_iface);
+	bat_priv->bat_algo_ops->bat_ogm_init(hard_iface);
 
 	if (!hard_iface->packet_buff) {
 		bat_err(hard_iface->soft_iface, "Can't add interface packet "
@@ -535,9 +534,10 @@ static int hard_if_event(struct notifier_block *this,
 			goto hardif_put;
 
 		check_known_mac_addr(hard_iface->net_dev);
-		bat_ogm_update_mac(hard_iface);
 
 		bat_priv = netdev_priv(hard_iface->soft_iface);
+		bat_priv->bat_algo_ops->bat_ogm_update_mac(hard_iface);
+
 		primary_if = primary_if_get_selected(bat_priv);
 		if (!primary_if)
 			goto hardif_put;

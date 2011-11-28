@@ -206,6 +206,18 @@ int bat_algo_register(struct bat_algo_ops *bat_algo_ops)
 		goto out;
 	}
 
+	/* all algorithms must implement all ops (for now) */
+	if (!bat_algo_ops->bat_ogm_init ||
+	    !bat_algo_ops->bat_ogm_init_primary ||
+	    !bat_algo_ops->bat_ogm_update_mac ||
+	    !bat_algo_ops->bat_ogm_schedule ||
+	    !bat_algo_ops->bat_ogm_emit ||
+	    !bat_algo_ops->bat_ogm_receive) {
+		pr_info("Routing algo '%s' does not implement required ops\n",
+			bat_algo_ops->name);
+		goto out;
+	}
+
 	INIT_HLIST_NODE(&bat_algo_ops->list);
 	hlist_add_head(&bat_algo_ops->list, &bat_algo_list);
 	ret = 0;

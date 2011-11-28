@@ -348,6 +348,20 @@ struct softif_neigh {
 struct bat_algo_ops {
 	struct hlist_node list;
 	char *name;
+	/* init OGM when hard-interface is enabled */
+	void (*bat_ogm_init)(struct hard_iface *hard_iface);
+	/* init primary OGM when primary interface is selected */
+	void (*bat_ogm_init_primary)(struct hard_iface *hard_iface);
+	/* init mac addresses of the OGM belonging to this hard-interface */
+	void (*bat_ogm_update_mac)(struct hard_iface *hard_iface);
+	/* prepare a new outgoing OGM for the send queue */
+	void (*bat_ogm_schedule)(struct hard_iface *hard_iface,
+				 int tt_num_changes);
+	/* send scheduled OGM */
+	void (*bat_ogm_emit)(struct forw_packet *forw_packet);
+	/* receive incoming OGM */
+	void (*bat_ogm_receive)(struct hard_iface *if_incoming,
+				struct sk_buff *skb);
 };
 
 #endif /* _NET_BATMAN_ADV_TYPES_H_ */
