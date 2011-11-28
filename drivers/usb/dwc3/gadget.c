@@ -672,16 +672,10 @@ static void dwc3_prepare_trbs(struct dwc3_ep *dep, bool starting)
 		if (list_empty(&dep->request_list))
 			last_one = 1;
 
-		/*
-		 * FIXME we shouldn't need to set LST bit always but we are
-		 * facing some weird problem with the Hardware where it doesn't
-		 * complete even though it has been previously started.
-		 *
-		 * While we're debugging the problem, as a workaround to
-		 * multiple TRBs handling, use only one TRB at a time.
-		 */
-		dwc3_prepare_one_trb(dep, req, true);
-		break;
+		dwc3_prepare_one_trb(dep, req, last_one);
+
+		if (last_one)
+			break;
 	}
 }
 
