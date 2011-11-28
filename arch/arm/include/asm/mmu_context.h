@@ -105,19 +105,40 @@ static inline void finish_arch_post_lock_switch(void)
 
 #else	/* !CONFIG_CPU_HAS_ASID */
 
+#ifdef CONFIG_MMU
+
 static inline void check_and_switch_context(struct mm_struct *mm,
 					    struct task_struct *tsk)
 {
-#ifdef CONFIG_MMU
 	if (unlikely(mm->context.kvm_seq != init_mm.context.kvm_seq))
 		__check_kvm_seq(mm);
-	cpu_switch_mm(mm->pgd, mm);
-#endif
+
+	if (irqs_disabled())
+		/*
+		 * cpu_switch_mm() needs to flush the VIVT caches. To avoid
+		 * high interrupt latencies, defer the call and continue
+		 * running with the old mm. Since we only support UP systems
+		 * on non-ASID CPUs, the old mm will remain valid until the
+		 * finish_arch_post_lock_switch() call.
+		 */
+		set_ti_thread_flag(task_thread_info(tsk), TIF_SWITCH_MM);
+	else
+		cpu_switch_mm(mm->pgd, mm);
 }
 
-#define init_new_context(tsk,mm)	0
+#define finish_arch_post_lock_switch \
+	finish_arch_post_lock_switch
+static inline void finish_arch_post_lock_switch(void)
+{
+	if (test_and_clear_thread_flag(TIF_SWITCH_MM)) {
+		struct mm_struct *mm = current->mm;
+		cpu_switch_mm(mm->pgd, mm);
+	}
+}
 
-#define finish_arch_post_lock_switch()	do { } while (0)
+#endif	/* CONFIG_MMU */
+
+#define init_new_context(tsk,mm)	0
 
 #endif	/* CONFIG_CPU_HAS_ASID */
 
