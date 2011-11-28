@@ -52,7 +52,8 @@ static inline int is_hugepage_only_range(struct mm_struct *mm,
 }
 #endif
 
-void book3e_hugetlb_preload(struct mm_struct *mm, unsigned long ea, pte_t pte);
+void book3e_hugetlb_preload(struct vm_area_struct *vma, unsigned long ea,
+			    pte_t pte);
 void flush_hugetlb_page(struct vm_area_struct *vma, unsigned long vmaddr);
 
 void hugetlb_free_pgd_range(struct mmu_gather *tlb, unsigned long addr,

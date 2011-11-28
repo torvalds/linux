@@ -553,7 +553,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 #if (defined(CONFIG_PPC_BOOK3E_64) || defined(CONFIG_PPC_FSL_BOOK3E)) \
 	&& defined(CONFIG_HUGETLB_PAGE)
 	if (is_vm_hugetlb_page(vma))
-		book3e_hugetlb_preload(vma->vm_mm, address, *ptep);
+		book3e_hugetlb_preload(vma, address, *ptep);
 #endif
 }
 
