@@ -103,6 +103,8 @@ static void __init sw_core_fixup(struct machine_desc *desc,
 
 	size = DRAMC_get_dram_size();
 
+	early_printk("DRAM: %d", size);
+
 	if (size <= 512) {
 		mi->nr_banks = 1;
 		mi->bank[0].start = 0x40000000;
