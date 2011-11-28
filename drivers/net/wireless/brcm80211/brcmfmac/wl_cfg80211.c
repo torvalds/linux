@@ -1429,7 +1429,7 @@ brcmf_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *ndev,
 
 static s32
 brcmf_cfg80211_set_tx_power(struct wiphy *wiphy,
-			 enum nl80211_tx_power_setting type, s32 dbm)
+			    enum nl80211_tx_power_setting type, s32 mbm)
 {
 
 	struct brcmf_cfg80211_priv *cfg_priv = wiphy_to_cfg(wiphy);
@@ -1437,6 +1437,7 @@ brcmf_cfg80211_set_tx_power(struct wiphy *wiphy,
 	u16 txpwrmw;
 	s32 err = 0;
 	s32 disable = 0;
+	s32 dbm = MBM_TO_DBM(mbm);
 
 	WL_TRACE("Enter\n");
 	if (!check_sys_up(wiphy))
