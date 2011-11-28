@@ -5302,6 +5302,7 @@ static void tg3_tx(struct tg3_napi *tnapi)
 	u32 sw_idx = tnapi->tx_cons;
 	struct netdev_queue *txq;
 	int index = tnapi - tp->napi;
+	unsigned int pkts_compl = 0, bytes_compl = 0;
 
 	if (tg3_flag(tp, ENABLE_TSS))
 		index--;
@@ -5352,6 +5353,9 @@ static void tg3_tx(struct tg3_napi *tnapi)
 			sw_idx = NEXT_TX(sw_idx);
 		}
 
+		pkts_compl++;
+		bytes_compl += skb->len;
+
 		dev_kfree_skb(skb);
 
 		if (unlikely(tx_bug)) {
@@ -5359,6 +5363,8 @@ static void tg3_tx(struct tg3_napi *tnapi)
 			return;
 		}
 	}
+
+	netdev_completed_queue(tp->dev, pkts_compl, bytes_compl);
 
 	tnapi->tx_cons = sw_idx;
 
@@ -6804,6 +6810,7 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	skb_tx_timestamp(skb);
+	netdev_sent_queue(tp->dev, skb->len);
 
 	/* Packets are ready, update Tx producer idx local and on card. */
 	tw32_tx_mbox(tnapi->prodmbox, entry);
@@ -7286,6 +7293,7 @@ static void tg3_free_rings(struct tg3 *tp)
 			dev_kfree_skb_any(skb);
 		}
 	}
+	netdev_reset_queue(tp->dev);
 }
 
 /* Initialize tx/rx rings for packet processing.
