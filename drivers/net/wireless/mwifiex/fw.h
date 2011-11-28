@@ -165,6 +165,7 @@ enum MWIFIEX_802_11_WEP_STATUS {
 
 #define GET_RXMCSSUPP(DevMCSSupported) (DevMCSSupported & 0x0f)
 #define SETHT_MCS32(x) (x[4] |= 1)
+#define HT_STREAM_2X2	0x22
 
 #define SET_SECONDARYCHAN(RadioType, SECCHAN) (RadioType |= (SECCHAN << 4))
 

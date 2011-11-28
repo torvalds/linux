@@ -793,8 +793,8 @@ islpci_set_multicast_list(struct net_device *dev)
 static void islpci_ethtool_get_drvinfo(struct net_device *dev,
                                        struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 }
 
 static const struct ethtool_ops islpci_ethtool_ops = {

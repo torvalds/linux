@@ -16,6 +16,8 @@
  * File contents: support functions for PCI/PCIe
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/delay.h>
 #include <linux/pci.h>
 
@@ -349,9 +351,9 @@
 #define PCI_FORCEHT(si)	(PCIE(si) && (si->pub.chip == BCM4716_CHIP_ID))
 
 #ifdef BCMDBG
-#define	SI_MSG(args)	printk args
+#define	SI_MSG(fmt, ...)	pr_debug(fmt, ##__VA_ARGS__)
 #else
-#define	SI_MSG(args)
+#define	SI_MSG(fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
 #endif				/* BCMDBG */
 
 #define	GOODCOREADDR(x, b) \
@@ -1073,7 +1075,7 @@ static struct si_info *ai_doattach(struct si_info *sii,
 
 	/* scan for cores */
 	if (socitype == SOCI_AI) {
-		SI_MSG(("Found chip type AI (0x%08x)\n", w));
+		SI_MSG("Found chip type AI (0x%08x)\n", w);
 		/* pass chipc address instead of original core base */
 		ai_scan(&sii->pub, cc);
 	} else {
@@ -1129,7 +1131,7 @@ static struct si_info *ai_doattach(struct si_info *sii,
 		 * set chipControl register bit 15
 		 */
 		if (sih->chiprev == 0) {
-			SI_MSG(("Applying 43224A0 WARs\n"));
+			SI_MSG("Applying 43224A0 WARs\n");
 			ai_corereg(sih, SI_CC_IDX,
 				   offsetof(struct chipcregs, chipcontrol),
 				   CCTRL43224_GPIO_TOGGLE,
@@ -1138,7 +1140,7 @@ static struct si_info *ai_doattach(struct si_info *sii,
 					   CCTRL_43224A0_12MA_LED_DRIVE);
 		}
 		if (sih->chiprev >= 1) {
-			SI_MSG(("Applying 43224B0+ WARs\n"));
+			SI_MSG("Applying 43224B0+ WARs\n");
 			si_pmu_chipcontrol(sih, 0, CCTRL_43224B0_12MA_LED_DRIVE,
 					   CCTRL_43224B0_12MA_LED_DRIVE);
 		}
@@ -1149,7 +1151,7 @@ static struct si_info *ai_doattach(struct si_info *sii,
 		 * enable 12 mA drive strenth for 4313 and
 		 * set chipControl register bit 1
 		 */
-		SI_MSG(("Applying 4313 WARs\n"));
+		SI_MSG("Applying 4313 WARs\n");
 		si_pmu_chipcontrol(sih, 0, CCTRL_4313_12MA_LED_DRIVE,
 				   CCTRL_4313_12MA_LED_DRIVE);
 	}

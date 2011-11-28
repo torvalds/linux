@@ -59,6 +59,18 @@
 /* mode to enable special 4-bit interrupt assertion without clock */
 #define SDIO_IRQ_MODE_ASYNC_4BIT_IRQ   (1 << 0)
 
+/* HTC runs over mailbox 0 */
+#define HTC_MAILBOX	0
+
+#define ATH6KL_TARGET_DEBUG_INTR_MASK     0x01
+
+/* FIXME: are these duplicates with MAX_SCATTER_ values in hif.h? */
+#define ATH6KL_SCATTER_ENTRIES_PER_REQ            16
+#define ATH6KL_MAX_TRANSFER_SIZE_PER_SCATTER      (16 * 1024)
+#define ATH6KL_SCATTER_REQS                       4
+
+#define ATH6KL_HIF_COMMUNICATION_TIMEOUT	1000
+
 struct bus_request {
 	struct list_head list;
 
@@ -186,6 +198,34 @@ struct hif_scatter_req {
 	struct hif_scatter_item scat_list[1];
 };
 
+struct ath6kl_irq_proc_registers {
+	u8 host_int_status;
+	u8 cpu_int_status;
+	u8 error_int_status;
+	u8 counter_int_status;
+	u8 mbox_frame;
+	u8 rx_lkahd_valid;
+	u8 host_int_status2;
+	u8 gmbox_rx_avail;
+	__le32 rx_lkahd[2];
+	__le32 rx_gmbox_lkahd_alias[2];
+} __packed;
+
+struct ath6kl_irq_enable_reg {
+	u8 int_status_en;
+	u8 cpu_int_status_en;
+	u8 err_int_status_en;
+	u8 cntr_int_status_en;
+} __packed;
+
+struct ath6kl_device {
+	spinlock_t lock;
+	struct ath6kl_irq_proc_registers irq_proc_reg;
+	struct ath6kl_irq_enable_reg irq_en_reg;
+	struct htc_target *htc_cnxt;
+	struct ath6kl *ar;
+};
+
 struct ath6kl_hif_ops {
 	int (*read_write_sync)(struct ath6kl *ar, u32 addr, u8 *buf,
 			       u32 len, u32 request);
@@ -202,7 +242,26 @@ struct ath6kl_hif_ops {
 	int (*scat_req_rw) (struct ath6kl *ar,
 			    struct hif_scatter_req *scat_req);
 	void (*cleanup_scatter)(struct ath6kl *ar);
-	int (*suspend)(struct ath6kl *ar);
+	int (*suspend)(struct ath6kl *ar, struct cfg80211_wowlan *wow);
+	int (*resume)(struct ath6kl *ar);
+	int (*power_on)(struct ath6kl *ar);
+	int (*power_off)(struct ath6kl *ar);
+	void (*stop)(struct ath6kl *ar);
 };
+
+int ath6kl_hif_setup(struct ath6kl_device *dev);
+int ath6kl_hif_unmask_intrs(struct ath6kl_device *dev);
+int ath6kl_hif_mask_intrs(struct ath6kl_device *dev);
+int ath6kl_hif_poll_mboxmsg_rx(struct ath6kl_device *dev,
+			       u32 *lk_ahd, int timeout);
+int ath6kl_hif_rx_control(struct ath6kl_device *dev, bool enable_rx);
+int ath6kl_hif_disable_intrs(struct ath6kl_device *dev);
+
+int ath6kl_hif_rw_comp_handler(void *context, int status);
+int ath6kl_hif_intr_bh_handler(struct ath6kl *ar);
+
+/* Scatter Function and Definitions */
+int ath6kl_hif_submit_scat_req(struct ath6kl_device *dev,
+			       struct hif_scatter_req *scat_req, bool read);
 
 #endif
