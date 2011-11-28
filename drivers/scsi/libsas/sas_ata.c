@@ -100,15 +100,31 @@ static void sas_ata_task_done(struct sas_task *task)
 	enum ata_completion_errors ac;
 	unsigned long flags;
 	struct ata_link *link;
+	struct ata_port *ap;
 
 	if (!qc)
 		goto qc_already_gone;
 
-	dev = qc->ap->private_data;
+	ap = qc->ap;
+	dev = ap->private_data;
 	sas_ha = dev->port->ha;
-	link = &dev->sata_dev.ap->link;
+	link = &ap->link;
 
-	spin_lock_irqsave(dev->sata_dev.ap->lock, flags);
+	spin_lock_irqsave(ap->lock, flags);
+	/* check if we lost the race with libata/sas_ata_post_internal() */
+	if (unlikely(ap->pflags & ATA_PFLAG_FROZEN)) {
+		spin_unlock_irqrestore(ap->lock, flags);
+		if (qc->scsicmd)
+			goto qc_already_gone;
+		else {
+			/* if eh is not involved and the port is frozen then the
+			 * ata internal abort process has taken responsibility
+			 * for this sas_task
+			 */
+			return;
+		}
+	}
+
 	if (stat->stat == SAS_PROTO_RESPONSE || stat->stat == SAM_STAT_GOOD ||
 	    ((stat->stat == SAM_STAT_CHECK_CONDITION &&
 	      dev->sata_dev.command_set == ATAPI_COMMAND_SET))) {
@@ -143,7 +159,7 @@ static void sas_ata_task_done(struct sas_task *task)
 	if (qc->scsicmd)
 		ASSIGN_SAS_TASK(qc->scsicmd, NULL);
 	ata_qc_complete(qc);
-	spin_unlock_irqrestore(dev->sata_dev.ap->lock, flags);
+	spin_unlock_irqrestore(ap->lock, flags);
 
 qc_already_gone:
 	list_del_init(&task->list);
@@ -325,6 +341,54 @@ static int sas_ata_soft_reset(struct ata_link *link, unsigned int *class,
 	return ret;
 }
 
+/*
+ * notify the lldd to forget the sas_task for this internal ata command
+ * that bypasses scsi-eh
+ */
+static void sas_ata_internal_abort(struct sas_task *task)
+{
+	struct sas_internal *si =
+		to_sas_internal(task->dev->port->ha->core.shost->transportt);
+	unsigned long flags;
+	int res;
+
+	spin_lock_irqsave(&task->task_state_lock, flags);
+	if (task->task_state_flags & SAS_TASK_STATE_ABORTED ||
+	    task->task_state_flags & SAS_TASK_STATE_DONE) {
+		spin_unlock_irqrestore(&task->task_state_lock, flags);
+		SAS_DPRINTK("%s: Task %p already finished.\n", __func__,
+			    task);
+		goto out;
+	}
+	task->task_state_flags |= SAS_TASK_STATE_ABORTED;
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
+
+	res = si->dft->lldd_abort_task(task);
+
+	spin_lock_irqsave(&task->task_state_lock, flags);
+	if (task->task_state_flags & SAS_TASK_STATE_DONE ||
+	    res == TMF_RESP_FUNC_COMPLETE) {
+		spin_unlock_irqrestore(&task->task_state_lock, flags);
+		goto out;
+	}
+
+	/* XXX we are not prepared to deal with ->lldd_abort_task()
+	 * failures.  TODO: lldds need to unconditionally forget about
+	 * aborted ata tasks, otherwise we (likely) leak the sas task
+	 * here
+	 */
+	SAS_DPRINTK("%s: Task %p leaked.\n", __func__, task);
+
+	if (!(task->task_state_flags & SAS_TASK_STATE_DONE))
+		task->task_state_flags &= ~SAS_TASK_STATE_ABORTED;
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
+
+	return;
+ out:
+	list_del_init(&task->list);
+	sas_free_task(task);
+}
+
 static void sas_ata_post_internal(struct ata_queued_cmd *qc)
 {
 	if (qc->flags & ATA_QCFLAG_FAILED)
@@ -332,10 +396,12 @@ static void sas_ata_post_internal(struct ata_queued_cmd *qc)
 
 	if (qc->err_mask) {
 		/*
-		 * Find the sas_task and kill it.  By this point,
-		 * libata has decided to kill the qc, so we needn't
-		 * bother with sas_ata_task_done.  But we still
-		 * ought to abort the task.
+		 * Find the sas_task and kill it.  By this point, libata
+		 * has decided to kill the qc and has frozen the port.
+		 * In this state sas_ata_task_done() will no longer free
+		 * the sas_task, so we need to notify the lldd (via
+		 * ->lldd_abort_task) that the task is dead and free it
+		 *  ourselves.
 		 */
 		struct sas_task *task = qc->lldd_task;
 		unsigned long flags;
@@ -348,7 +414,7 @@ static void sas_ata_post_internal(struct ata_queued_cmd *qc)
 			spin_unlock_irqrestore(&task->task_state_lock, flags);
 
 			task->uldd_task = NULL;
-			__sas_task_abort(task);
+			sas_ata_internal_abort(task);
 		}
 	}
 }

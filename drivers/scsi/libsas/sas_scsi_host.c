@@ -957,49 +957,6 @@ void sas_shutdown_queue(struct sas_ha_struct *sas_ha)
 }
 
 /*
- * Call the LLDD task abort routine directly.  This function is intended for
- * use by upper layers that need to tell the LLDD to abort a task.
- */
-int __sas_task_abort(struct sas_task *task)
-{
-	struct sas_internal *si =
-		to_sas_internal(task->dev->port->ha->core.shost->transportt);
-	unsigned long flags;
-	int res;
-
-	spin_lock_irqsave(&task->task_state_lock, flags);
-	if (task->task_state_flags & SAS_TASK_STATE_ABORTED ||
-	    task->task_state_flags & SAS_TASK_STATE_DONE) {
-		spin_unlock_irqrestore(&task->task_state_lock, flags);
-		SAS_DPRINTK("%s: Task %p already finished.\n", __func__,
-			    task);
-		return 0;
-	}
-	task->task_state_flags |= SAS_TASK_STATE_ABORTED;
-	spin_unlock_irqrestore(&task->task_state_lock, flags);
-
-	if (!si->dft->lldd_abort_task)
-		return -ENODEV;
-
-	res = si->dft->lldd_abort_task(task);
-
-	spin_lock_irqsave(&task->task_state_lock, flags);
-	if ((task->task_state_flags & SAS_TASK_STATE_DONE) ||
-	    (res == TMF_RESP_FUNC_COMPLETE))
-	{
-		spin_unlock_irqrestore(&task->task_state_lock, flags);
-		task->task_done(task);
-		return 0;
-	}
-
-	if (!(task->task_state_flags & SAS_TASK_STATE_DONE))
-		task->task_state_flags &= ~SAS_TASK_STATE_ABORTED;
-	spin_unlock_irqrestore(&task->task_state_lock, flags);
-
-	return -EAGAIN;
-}
-
-/*
  * Tell an upper layer that it needs to initiate an abort for a given task.
  * This should only ever be called by an LLDD.
  */
@@ -1097,7 +1054,6 @@ EXPORT_SYMBOL_GPL(sas_slave_configure);
 EXPORT_SYMBOL_GPL(sas_change_queue_depth);
 EXPORT_SYMBOL_GPL(sas_change_queue_type);
 EXPORT_SYMBOL_GPL(sas_bios_param);
-EXPORT_SYMBOL_GPL(__sas_task_abort);
 EXPORT_SYMBOL_GPL(sas_task_abort);
 EXPORT_SYMBOL_GPL(sas_phy_reset);
 EXPORT_SYMBOL_GPL(sas_phy_enable);
