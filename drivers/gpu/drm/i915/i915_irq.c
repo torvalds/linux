@@ -306,11 +306,14 @@ static void i915_hotplug_work_func(struct work_struct *work)
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct intel_encoder *encoder;
 
+	mutex_lock(&mode_config->mutex);
 	DRM_DEBUG_KMS("running encoder hotplug functions\n");
 
 	list_for_each_entry(encoder, &mode_config->encoder_list, base.head)
 		if (encoder->hot_plug)
 			encoder->hot_plug(encoder);
+
+	mutex_unlock(&mode_config->mutex);
 
 	/* Just fire off a uevent and let userspace tell us what to do */
 	drm_helper_hpd_irq_event(dev);
@@ -361,10 +364,12 @@ static void notify_ring(struct drm_device *dev,
 
 	ring->irq_seqno = seqno;
 	wake_up_all(&ring->irq_queue);
-
-	dev_priv->hangcheck_count = 0;
-	mod_timer(&dev_priv->hangcheck_timer,
-		  jiffies + msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD));
+	if (i915_enable_hangcheck) {
+		dev_priv->hangcheck_count = 0;
+		mod_timer(&dev_priv->hangcheck_timer,
+			  jiffies +
+			  msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD));
+	}
 }
 
 static void gen6_pm_rps_work(struct work_struct *work)
@@ -378,6 +383,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	pm_iir = dev_priv->pm_iir;
 	dev_priv->pm_iir = 0;
 	pm_imr = I915_READ(GEN6_PMIMR);
+	I915_WRITE(GEN6_PMIMR, 0);
 	spin_unlock_irq(&dev_priv->rps_lock);
 
 	if (!pm_iir)
@@ -415,7 +421,6 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	 * an *extremely* unlikely race with gen6_rps_enable() that is prevented
 	 * by holding struct_mutex for the duration of the write.
 	 */
-	I915_WRITE(GEN6_PMIMR, pm_imr & ~pm_iir);
 	mutex_unlock(&dev_priv->dev->struct_mutex);
 }
 
@@ -531,8 +536,9 @@ static irqreturn_t ivybridge_irq_handler(DRM_IRQ_ARGS)
 		unsigned long flags;
 		spin_lock_irqsave(&dev_priv->rps_lock, flags);
 		WARN(dev_priv->pm_iir & pm_iir, "Missed a PM interrupt\n");
-		I915_WRITE(GEN6_PMIMR, pm_iir);
 		dev_priv->pm_iir |= pm_iir;
+		I915_WRITE(GEN6_PMIMR, dev_priv->pm_iir);
+		POSTING_READ(GEN6_PMIMR);
 		spin_unlock_irqrestore(&dev_priv->rps_lock, flags);
 		queue_work(dev_priv->wq, &dev_priv->rps_work);
 	}
@@ -644,8 +650,9 @@ static irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
 		unsigned long flags;
 		spin_lock_irqsave(&dev_priv->rps_lock, flags);
 		WARN(dev_priv->pm_iir & pm_iir, "Missed a PM interrupt\n");
-		I915_WRITE(GEN6_PMIMR, pm_iir);
 		dev_priv->pm_iir |= pm_iir;
+		I915_WRITE(GEN6_PMIMR, dev_priv->pm_iir);
+		POSTING_READ(GEN6_PMIMR);
 		spin_unlock_irqrestore(&dev_priv->rps_lock, flags);
 		queue_work(dev_priv->wq, &dev_priv->rps_work);
 	}
@@ -706,7 +713,7 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 
 	page_count = src->base.size / PAGE_SIZE;
 
-	dst = kmalloc(sizeof(*dst) + page_count * sizeof (u32 *), GFP_ATOMIC);
+	dst = kmalloc(sizeof(*dst) + page_count * sizeof(u32 *), GFP_ATOMIC);
 	if (dst == NULL)
 		return NULL;
 
@@ -817,6 +824,7 @@ static void i915_gem_record_fences(struct drm_device *dev,
 
 	/* Fences */
 	switch (INTEL_INFO(dev)->gen) {
+	case 7:
 	case 6:
 		for (i = 0; i < 16; i++)
 			error->fence[i] = I915_READ64(FENCE_REG_SANDYBRIDGE_0 + (i * 8));
@@ -1488,7 +1496,7 @@ static int ironlake_enable_vblank(struct drm_device *dev, int pipe)
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	ironlake_enable_display_irq(dev_priv, (pipe == 0) ?
-				    DE_PIPEA_VBLANK: DE_PIPEB_VBLANK);
+				    DE_PIPEA_VBLANK : DE_PIPEB_VBLANK);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
 	return 0;
@@ -1536,7 +1544,7 @@ static void ironlake_disable_vblank(struct drm_device *dev, int pipe)
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	ironlake_disable_display_irq(dev_priv, (pipe == 0) ?
-				     DE_PIPEA_VBLANK: DE_PIPEB_VBLANK);
+				     DE_PIPEA_VBLANK : DE_PIPEB_VBLANK);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
@@ -1664,6 +1672,9 @@ void i915_hangcheck_elapsed(unsigned long data)
 	uint32_t acthd, instdone, instdone1;
 	bool err = false;
 
+	if (!i915_enable_hangcheck)
+		return;
+
 	/* If all work is done then ACTHD clearly hasn't advanced. */
 	if (i915_hangcheck_ring_idle(&dev_priv->ring[RCS], &err) &&
 	    i915_hangcheck_ring_idle(&dev_priv->ring[VCS], &err) &&
@@ -1769,6 +1780,26 @@ static void ironlake_irq_preinstall(struct drm_device *dev)
 	POSTING_READ(SDEIER);
 }
 
+/*
+ * Enable digital hotplug on the PCH, and configure the DP short pulse
+ * duration to 2ms (which is the minimum in the Display Port spec)
+ *
+ * This register is the same on all known PCH chips.
+ */
+
+static void ironlake_enable_pch_hotplug(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	u32	hotplug;
+
+	hotplug = I915_READ(PCH_PORT_HOTPLUG);
+	hotplug &= ~(PORTD_PULSE_DURATION_MASK|PORTC_PULSE_DURATION_MASK|PORTB_PULSE_DURATION_MASK);
+	hotplug |= PORTD_HOTPLUG_ENABLE | PORTD_PULSE_DURATION_2ms;
+	hotplug |= PORTC_HOTPLUG_ENABLE | PORTC_PULSE_DURATION_2ms;
+	hotplug |= PORTB_HOTPLUG_ENABLE | PORTB_PULSE_DURATION_2ms;
+	I915_WRITE(PCH_PORT_HOTPLUG, hotplug);
+}
+
 static int ironlake_irq_postinstall(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
@@ -1831,6 +1862,8 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	I915_WRITE(SDEIER, hotplug_mask);
 	POSTING_READ(SDEIER);
 
+	ironlake_enable_pch_hotplug(dev);
+
 	if (IS_IRONLAKE_M(dev)) {
 		/* Clear & enable PCU event interrupts */
 		I915_WRITE(DEIIR, DE_PCU_EVENT);
@@ -1887,6 +1920,8 @@ static int ivybridge_irq_postinstall(struct drm_device *dev)
 	I915_WRITE(SDEIMR, dev_priv->pch_irq_mask);
 	I915_WRITE(SDEIER, hotplug_mask);
 	POSTING_READ(SDEIER);
+
+	ironlake_enable_pch_hotplug(dev);
 
 	return 0;
 }
@@ -2012,6 +2047,10 @@ static void ironlake_irq_uninstall(struct drm_device *dev)
 	I915_WRITE(GTIMR, 0xffffffff);
 	I915_WRITE(GTIER, 0x0);
 	I915_WRITE(GTIIR, I915_READ(GTIIR));
+
+	I915_WRITE(SDEIMR, 0xffffffff);
+	I915_WRITE(SDEIER, 0x0);
+	I915_WRITE(SDEIIR, I915_READ(SDEIIR));
 }
 
 static void i915_driver_irq_uninstall(struct drm_device * dev)
@@ -2050,8 +2089,10 @@ void intel_irq_init(struct drm_device *dev)
 		dev->driver->get_vblank_counter = gm45_get_vblank_counter;
 	}
 
-
-	dev->driver->get_vblank_timestamp = i915_get_vblank_timestamp;
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		dev->driver->get_vblank_timestamp = i915_get_vblank_timestamp;
+	else
+		dev->driver->get_vblank_timestamp = NULL;
 	dev->driver->get_scanout_position = i915_get_crtc_scanoutpos;
 
 	if (IS_IVYBRIDGE(dev)) {

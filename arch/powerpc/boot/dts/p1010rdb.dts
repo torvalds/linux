@@ -1,0 +1,274 @@
+/*
+ * P1010 RDB Device Tree Source
+ *
+ * Copyright 2011 Freescale Semiconductor Inc.
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
+
+/include/ "p1010si.dtsi"
+
+/ {
+	model = "fsl,P1010RDB";
+	compatible = "fsl,P1010RDB";
+
+	aliases {
+		serial0 = &serial0;
+		serial1 = &serial1;
+		ethernet0 = &enet0;
+		ethernet1 = &enet1;
+		ethernet2 = &enet2;
+		pci0 = &pci0;
+		pci1 = &pci1;
+		can0 = &can0;
+		can1 = &can1;
+	};
+
+	memory {
+		device_type = "memory";
+	};
+
+	ifc@ffe1e000 {
+		/* NOR, NAND Flashes and CPLD on board */
+		ranges = <0x0 0x0 0x0 0xee000000 0x02000000
+			  0x1 0x0 0x0 0xff800000 0x00010000
+			  0x3 0x0 0x0 0xffb00000 0x00000020>;
+
+		nor@0,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "cfi-flash";
+			reg = <0x0 0x0 0x2000000>;
+			bank-width = <2>;
+			device-width = <1>;
+
+			partition@40000 {
+				/* 256KB for DTB Image */
+				reg = <0x00040000 0x00040000>;
+				label = "NOR DTB Image";
+			};
+
+			partition@80000 {
+				/* 7 MB for Linux Kernel Image */
+				reg = <0x00080000 0x00700000>;
+				label = "NOR Linux Kernel Image";
+			};
+
+			partition@800000 {
+				/* 20MB for JFFS2 based Root file System */
+				reg = <0x00800000 0x01400000>;
+				label = "NOR JFFS2 Root File System";
+			};
+
+			partition@1f00000 {
+				/* This location must not be altered  */
+				/* 512KB for u-boot Bootloader Image */
+				/* 512KB for u-boot Environment Variables */
+				reg = <0x01f00000 0x00100000>;
+				label = "NOR U-Boot Image";
+				read-only;
+			};
+		};
+
+		nand@1,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,ifc-nand";
+			reg = <0x1 0x0 0x10000>;
+
+			partition@0 {
+				/* This location must not be altered  */
+				/* 1MB for u-boot Bootloader Image */
+				reg = <0x0 0x00100000>;
+				label = "NAND U-Boot Image";
+				read-only;
+			};
+
+			partition@100000 {
+				/* 1MB for DTB Image */
+				reg = <0x00100000 0x00100000>;
+				label = "NAND DTB Image";
+			};
+
+			partition@200000 {
+				/* 4MB for Linux Kernel Image */
+				reg = <0x00200000 0x00400000>;
+				label = "NAND Linux Kernel Image";
+			};
+
+			partition@600000 {
+				/* 4MB for Compressed Root file System Image */
+				reg = <0x00600000 0x00400000>;
+				label = "NAND Compressed RFS Image";
+			};
+
+			partition@a00000 {
+				/* 15MB for JFFS2 based Root file System */
+				reg = <0x00a00000 0x00f00000>;
+				label = "NAND JFFS2 Root File System";
+			};
+
+			partition@1900000 {
+				/* 7MB for User Area */
+				reg = <0x01900000 0x00700000>;
+				label = "NAND User area";
+			};
+		};
+
+		cpld@3,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,p1010rdb-cpld";
+			reg = <0x3 0x0 0x0000020>;
+			bank-width = <1>;
+			device-width = <1>;
+		};
+	};
+
+	soc@ffe00000 {
+		spi@7000 {
+			flash@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "spansion,s25sl12801";
+				reg = <0>;
+				spi-max-frequency = <50000000>;
+
+				partition@0 {
+					/* 1MB for u-boot Bootloader Image */
+					/* 1MB for Environment */
+					reg = <0x0 0x00100000>;
+					label = "SPI Flash U-Boot Image";
+					read-only;
+				};
+
+				partition@100000 {
+					/* 512KB for DTB Image */
+					reg = <0x00100000 0x00080000>;
+					label = "SPI Flash DTB Image";
+				};
+
+				partition@180000 {
+					/* 4MB for Linux Kernel Image */
+					reg = <0x00180000 0x00400000>;
+					label = "SPI Flash Linux Kernel Image";
+				};
+
+				partition@580000 {
+					/* 4MB for Compressed RFS Image */
+					reg = <0x00580000 0x00400000>;
+					label = "SPI Flash Compressed RFSImage";
+				};
+
+				partition@980000 {
+					/* 6.5MB for JFFS2 based RFS */
+					reg = <0x00980000 0x00680000>;
+					label = "SPI Flash JFFS2 RFS";
+				};
+			};
+		};
+
+		usb@22000 {
+			phy_type = "utmi";
+		};
+
+		mdio@24000 {
+			phy0: ethernet-phy@0 {
+				interrupt-parent = <&mpic>;
+				interrupts = <3 1>;
+				reg = <0x1>;
+			};
+
+			phy1: ethernet-phy@1 {
+				interrupt-parent = <&mpic>;
+				interrupts = <2 1>;
+				reg = <0x0>;
+			};
+
+			phy2: ethernet-phy@2 {
+				interrupt-parent = <&mpic>;
+				interrupts = <2 1>;
+				reg = <0x2>;
+			};
+		};
+
+		enet0: ethernet@b0000 {
+			phy-handle = <&phy0>;
+			phy-connection-type = "rgmii-id";
+		};
+
+		enet1: ethernet@b1000 {
+			phy-handle = <&phy1>;
+			tbi-handle = <&tbi0>;
+			phy-connection-type = "sgmii";
+		};
+
+		enet2: ethernet@b2000 {
+			phy-handle = <&phy2>;
+			tbi-handle = <&tbi1>;
+			phy-connection-type = "sgmii";
+		};
+	};
+
+	pci0: pcie@ffe09000 {
+		ranges = <0x2000000 0x0 0xa0000000 0 0xa0000000 0x0 0x20000000
+			  0x1000000 0x0 0x00000000 0 0xffc10000 0x0 0x10000>;
+		pcie@0 {
+			reg = <0x0 0x0 0x0 0x0 0x0>;
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+			device_type = "pci";
+			interrupt-parent = <&mpic>;
+			interrupts = <16 2>;
+			interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
+			interrupt-map = <
+			/* IDSEL 0x0 */
+			0000 0x0 0x0 0x1 &mpic 0x4 0x1
+			0000 0x0 0x0 0x2 &mpic 0x5 0x1
+			0000 0x0 0x0 0x3 &mpic 0x6 0x1
+			0000 0x0 0x0 0x4 &mpic 0x7 0x1
+			>;
+
+			ranges = <0x2000000 0x0 0xa0000000
+				  0x2000000 0x0 0xa0000000
+				  0x0 0x20000000
+
+				  0x1000000 0x0 0x0
+				  0x1000000 0x0 0x0
+				  0x0 0x100000>;
+		};
+	};
+
+	pci1: pcie@ffe0a000 {
+		ranges = <0x2000000 0x0 0x80000000 0 0x80000000 0x0 0x20000000
+			  0x1000000 0x0 0x00000000 0 0xffc00000 0x0 0x10000>;
+		pcie@0 {
+			reg = <0x0 0x0 0x0 0x0 0x0>;
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+			device_type = "pci";
+			interrupt-parent = <&mpic>;
+			interrupts = <16 2>;
+			interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
+			interrupt-map = <
+			/* IDSEL 0x0 */
+			0000 0x0 0x0 0x1 &mpic 0x4 0x1
+			0000 0x0 0x0 0x2 &mpic 0x5 0x1
+			0000 0x0 0x0 0x3 &mpic 0x6 0x1
+			0000 0x0 0x0 0x4 &mpic 0x7 0x1
+			>;
+			ranges = <0x2000000 0x0 0x80000000
+				  0x2000000 0x0 0x80000000
+				  0x0 0x20000000
+
+				  0x1000000 0x0 0x0
+				  0x1000000 0x0 0x0
+				  0x0 0x100000>;
+		};
+	};
+};

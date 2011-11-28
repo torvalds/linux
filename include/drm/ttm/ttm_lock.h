@@ -51,7 +51,7 @@
 
 #include "ttm/ttm_object.h"
 #include <linux/wait.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 /**
  * struct ttm_lock

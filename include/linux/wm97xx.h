@@ -38,7 +38,11 @@
 #define WM97XX_ADCSEL_X		0x1000	/* x coord measurement */
 #define WM97XX_ADCSEL_Y		0x2000	/* y coord measurement */
 #define WM97XX_ADCSEL_PRES	0x3000	/* pressure measurement */
-#define WM97XX_ADCSEL_MASK	0x7000
+#define WM97XX_AUX_ID1		0x4000
+#define WM97XX_AUX_ID2		0x5000
+#define WM97XX_AUX_ID3		0x6000
+#define WM97XX_AUX_ID4		0x7000
+#define WM97XX_ADCSEL_MASK	0x7000	/* ADC selection mask */
 #define WM97XX_COO		0x0800	/* enable coordinate mode */
 #define WM97XX_CTC		0x0400	/* enable continuous mode */
 #define WM97XX_CM_RATE_93	0x0000	/* 93.75Hz continuous rate */
@@ -61,13 +65,6 @@
 #define WM97XX_PRP_DET_DIG	0xc000	/* setect on, digitise on */
 #define WM97XX_RPR		0x2000	/* wake up on pen down */
 #define WM97XX_PEN_DOWN		0x8000	/* pen is down */
-#define WM97XX_ADCSRC_MASK	0x7000	/* ADC source mask */
-
-#define WM97XX_AUX_ID1		0x8001
-#define WM97XX_AUX_ID2		0x8002
-#define WM97XX_AUX_ID3		0x8003
-#define WM97XX_AUX_ID4		0x8004
-
 
 /* WM9712 Bits */
 #define WM9712_45W		0x1000	/* set for 5-wire touchscreen */

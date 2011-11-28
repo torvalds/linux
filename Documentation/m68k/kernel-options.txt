@@ -129,6 +129,20 @@ decimal 11 is the major of SCSI CD-ROMs, and the minor 0 stands for
 the first of these. You can find out all valid major numbers by
 looking into include/linux/major.h.
 
+In addition to major and minor numbers, if the device containing your
+root partition uses a partition table format with unique partition
+identifiers, then you may use them.  For instance,
+"root=PARTUUID=00112233-4455-6677-8899-AABBCCDDEEFF".  It is also
+possible to reference another partition on the same device using a
+known partition UUID as the starting point.  For example,
+if partition 5 of the device has the UUID of
+00112233-4455-6677-8899-AABBCCDDEEFF then partition 3 may be found as
+follows:
+  PARTUUID=00112233-4455-6677-8899-AABBCCDDEEFF/PARTNROFF=-2
+
+Authoritative information can be found in
+"Documentation/kernel-parameters.txt".
+
 
 2.2) ro, rw
 -----------

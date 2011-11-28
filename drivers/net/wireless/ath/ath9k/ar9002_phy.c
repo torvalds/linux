@@ -111,7 +111,9 @@ static int ar9002_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 
 		switch (ah->eep_ops->get_eeprom(ah, EEP_FRAC_N_5G)) {
 		case 0:
-			if ((freq % 20) == 0)
+			if (IS_CHAN_HALF_RATE(chan) || IS_CHAN_QUARTER_RATE(chan))
+				aModeRefSel = 0;
+			else if ((freq % 20) == 0)
 				aModeRefSel = 3;
 			else if ((freq % 10) == 0)
 				aModeRefSel = 2;
@@ -129,8 +131,9 @@ static int ar9002_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 			channelSel = CHANSEL_5G(freq);
 
 			/* RefDivA setting */
-			REG_RMW_FIELD(ah, AR_AN_SYNTH9,
-				      AR_AN_SYNTH9_REFDIVA, refDivA);
+			ath9k_hw_analog_shift_rmw(ah, AR_AN_SYNTH9,
+				      AR_AN_SYNTH9_REFDIVA,
+				      AR_AN_SYNTH9_REFDIVA_S, refDivA);
 
 		}
 
@@ -447,25 +450,26 @@ static void ar9002_olc_init(struct ath_hw *ah)
 static u32 ar9002_hw_compute_pll_control(struct ath_hw *ah,
 					 struct ath9k_channel *chan)
 {
+	int ref_div = 5;
+	int pll_div = 0x2c;
 	u32 pll;
 
-	pll = SM(0x5, AR_RTC_9160_PLL_REFDIV);
+	if (chan && IS_CHAN_5GHZ(chan) && !IS_CHAN_A_FAST_CLOCK(ah, chan)) {
+		if (AR_SREV_9280_20(ah)) {
+			ref_div = 10;
+			pll_div = 0x50;
+		} else {
+			pll_div = 0x28;
+		}
+	}
+
+	pll = SM(ref_div, AR_RTC_9160_PLL_REFDIV);
+	pll |= SM(pll_div, AR_RTC_9160_PLL_DIV);
 
 	if (chan && IS_CHAN_HALF_RATE(chan))
 		pll |= SM(0x1, AR_RTC_9160_PLL_CLKSEL);
 	else if (chan && IS_CHAN_QUARTER_RATE(chan))
 		pll |= SM(0x2, AR_RTC_9160_PLL_CLKSEL);
-
-	if (chan && IS_CHAN_5GHZ(chan)) {
-		if (IS_CHAN_A_FAST_CLOCK(ah, chan))
-			pll = 0x142c;
-		else if (AR_SREV_9280_20(ah))
-			pll = 0x2850;
-		else
-			pll |= SM(0x28, AR_RTC_9160_PLL_DIV);
-	} else {
-		pll |= SM(0x2c, AR_RTC_9160_PLL_DIV);
-	}
 
 	return pll;
 }

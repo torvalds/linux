@@ -36,8 +36,7 @@
 
 #define XEN_BUS_ID_SIZE			20
 
-struct xen_bus_type
-{
+struct xen_bus_type {
 	char *root;
 	unsigned int levels;
 	int (*get_bus_id)(char bus_id[XEN_BUS_ID_SIZE], const char *nodename);
@@ -47,6 +46,8 @@ struct xen_bus_type
 				 unsigned int len);
 	struct bus_type bus;
 };
+
+extern struct device_attribute xenbus_dev_attrs[];
 
 extern int xenbus_match(struct device *_dev, struct device_driver *_drv);
 extern int xenbus_dev_probe(struct device *_dev);

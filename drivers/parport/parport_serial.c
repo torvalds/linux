@@ -33,6 +33,9 @@ enum parport_pc_pci_cards {
 	netmos_9xx5_combo,
 	netmos_9855,
 	netmos_9855_2p,
+	netmos_9900,
+	netmos_9900_2p,
+	netmos_99xx_1p,
 	avlab_1s1p,
 	avlab_1s2p,
 	avlab_2s1p,
@@ -41,6 +44,24 @@ enum parport_pc_pci_cards {
 	siig_2p1s_20x,
 	siig_1s1p_20x,
 	siig_2s1p_20x,
+	timedia_4078a,
+	timedia_4079h,
+	timedia_4085h,
+	timedia_4088a,
+	timedia_4089a,
+	timedia_4095a,
+	timedia_4096a,
+	timedia_4078u,
+	timedia_4079a,
+	timedia_4085u,
+	timedia_4079r,
+	timedia_4079s,
+	timedia_4079d,
+	timedia_4079e,
+	timedia_4079f,
+	timedia_9079a,
+	timedia_9079b,
+	timedia_9079c,
 };
 
 /* each element directly indexed from enum list, above */
@@ -72,22 +93,20 @@ static int __devinit netmos_parallel_init(struct pci_dev *dev, struct parport_pc
 			dev->subsystem_vendor == PCI_VENDOR_ID_IBM &&
 			dev->subsystem_device == 0x0299)
 		return -ENODEV;
-	/*
-	 * Netmos uses the subdevice ID to indicate the number of parallel
-	 * and serial ports.  The form is 0x00PS, where <P> is the number of
-	 * parallel ports and <S> is the number of serial ports.
-	 */
-	par->numports = (dev->subsystem_device & 0xf0) >> 4;
-	if (par->numports > ARRAY_SIZE(par->addr))
-		par->numports = ARRAY_SIZE(par->addr);
-	/*
-	 * This function is currently only called for cards with up to
-	 * one parallel port.
-	 * Parallel port BAR is either before or after serial ports BARS;
-	 * hence, lo should be either 0 or equal to the number of serial ports.
-	 */
-	if (par->addr[0].lo != 0)
-		par->addr[0].lo = dev->subsystem_device & 0xf;
+
+	if (dev->device == PCI_DEVICE_ID_NETMOS_9912) {
+		par->numports = 1;
+	} else {
+		/*
+		 * Netmos uses the subdevice ID to indicate the number of parallel
+		 * and serial ports.  The form is 0x00PS, where <P> is the number of
+		 * parallel ports and <S> is the number of serial ports.
+		 */
+		par->numports = (dev->subsystem_device & 0xf0) >> 4;
+		if (par->numports > ARRAY_SIZE(par->addr))
+			par->numports = ARRAY_SIZE(par->addr);
+	}
+
 	return 0;
 }
 
@@ -97,6 +116,9 @@ static struct parport_pc_pci cards[] __devinitdata = {
 	/* netmos_9xx5_combo */		{ 1, { { 2, -1 }, }, netmos_parallel_init },
 	/* netmos_9855 */		{ 1, { { 0, -1 }, }, netmos_parallel_init },
 	/* netmos_9855_2p */		{ 2, { { 0, -1 }, { 2, -1 }, } },
+	/* netmos_9900 */		{1, { { 3, 4 }, }, netmos_parallel_init },
+	/* netmos_9900_2p */		{2, { { 0, 1 }, { 3, 4 }, } },
+	/* netmos_99xx_1p */		{1, { { 0, 1 }, } },
 	/* avlab_1s1p     */		{ 1, { { 1, 2}, } },
 	/* avlab_1s2p     */		{ 2, { { 1, 2}, { 3, 4 },} },
 	/* avlab_2s1p     */		{ 1, { { 2, 3}, } },
@@ -105,6 +127,24 @@ static struct parport_pc_pci cards[] __devinitdata = {
 	/* siig_2p1s_20x */		{ 2, { { 1, 2 }, { 3, 4 }, } },
 	/* siig_1s1p_20x */		{ 1, { { 1, 2 }, } },
 	/* siig_2s1p_20x */		{ 1, { { 2, 3 }, } },
+	/* timedia_4078a */		{ 1, { { 2, -1 }, } },
+	/* timedia_4079h */             { 1, { { 2, 3 }, } },
+	/* timedia_4085h */             { 2, { { 2, -1 }, { 4, -1 }, } },
+	/* timedia_4088a */             { 2, { { 2, 3 }, { 4, 5 }, } },
+	/* timedia_4089a */             { 2, { { 2, 3 }, { 4, 5 }, } },
+	/* timedia_4095a */             { 2, { { 2, 3 }, { 4, 5 }, } },
+	/* timedia_4096a */             { 2, { { 2, 3 }, { 4, 5 }, } },
+	/* timedia_4078u */             { 1, { { 2, -1 }, } },
+	/* timedia_4079a */             { 1, { { 2, 3 }, } },
+	/* timedia_4085u */             { 2, { { 2, -1 }, { 4, -1 }, } },
+	/* timedia_4079r */             { 1, { { 2, 3 }, } },
+	/* timedia_4079s */             { 1, { { 2, 3 }, } },
+	/* timedia_4079d */             { 1, { { 2, 3 }, } },
+	/* timedia_4079e */             { 1, { { 2, 3 }, } },
+	/* timedia_4079f */             { 1, { { 2, 3 }, } },
+	/* timedia_9079a */             { 1, { { 2, 3 }, } },
+	/* timedia_9079b */             { 1, { { 2, 3 }, } },
+	/* timedia_9079c */             { 1, { { 2, 3 }, } },
 };
 
 static struct pci_device_id parport_serial_pci_tbl[] = {
@@ -127,6 +167,14 @@ static struct pci_device_id parport_serial_pci_tbl[] = {
 	  0x1000, 0x0022, 0, 0, netmos_9855_2p },
 	{ PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9855,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, netmos_9855 },
+	{ PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9900,
+	  0xA000, 0x3011, 0, 0, netmos_9900 },
+	{ PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9900,
+	  0xA000, 0x3012, 0, 0, netmos_9900 },
+	{ PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9900,
+	  0xA000, 0x3020, 0, 0, netmos_9900_2p },
+	{ PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9912,
+	  0xA000, 0x2000, 0, 0, netmos_99xx_1p },
 	/* PCI_VENDOR_ID_AVLAB/Intek21 has another bunch of cards ...*/
 	{ PCI_VENDOR_ID_AFAVLAB, 0x2110,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, avlab_1s1p },
@@ -176,6 +224,25 @@ static struct pci_device_id parport_serial_pci_tbl[] = {
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, siig_2s1p_20x },
 	{ PCI_VENDOR_ID_SIIG, PCI_DEVICE_ID_SIIG_2S1P_20x_850,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, siig_2s1p_20x },
+	/* PCI_VENDOR_ID_TIMEDIA/SUNIX has many differing cards ...*/
+	{ 0x1409, 0x7168, 0x1409, 0x4078, 0, 0, timedia_4078a },
+	{ 0x1409, 0x7168, 0x1409, 0x4079, 0, 0, timedia_4079h },
+	{ 0x1409, 0x7168, 0x1409, 0x4085, 0, 0, timedia_4085h },
+	{ 0x1409, 0x7168, 0x1409, 0x4088, 0, 0, timedia_4088a },
+	{ 0x1409, 0x7168, 0x1409, 0x4089, 0, 0, timedia_4089a },
+	{ 0x1409, 0x7168, 0x1409, 0x4095, 0, 0, timedia_4095a },
+	{ 0x1409, 0x7168, 0x1409, 0x4096, 0, 0, timedia_4096a },
+	{ 0x1409, 0x7168, 0x1409, 0x5078, 0, 0, timedia_4078u },
+	{ 0x1409, 0x7168, 0x1409, 0x5079, 0, 0, timedia_4079a },
+	{ 0x1409, 0x7168, 0x1409, 0x5085, 0, 0, timedia_4085u },
+	{ 0x1409, 0x7168, 0x1409, 0x6079, 0, 0, timedia_4079r },
+	{ 0x1409, 0x7168, 0x1409, 0x7079, 0, 0, timedia_4079s },
+	{ 0x1409, 0x7168, 0x1409, 0x8079, 0, 0, timedia_4079d },
+	{ 0x1409, 0x7168, 0x1409, 0x9079, 0, 0, timedia_4079e },
+	{ 0x1409, 0x7168, 0x1409, 0xa079, 0, 0, timedia_4079f },
+	{ 0x1409, 0x7168, 0x1409, 0xb079, 0, 0, timedia_9079a },
+	{ 0x1409, 0x7168, 0x1409, 0xc079, 0, 0, timedia_9079b },
+	{ 0x1409, 0x7168, 0x1409, 0xd079, 0, 0, timedia_9079c },
 
 	{ 0, } /* terminate list */
 };
@@ -216,6 +283,24 @@ static struct pciserial_board pci_parport_serial_boards[] __devinitdata = {
 	[netmos_9855_2p] = {
 		.flags		= FL_BASE4 | FL_BASE_BARS,
 		.num_ports	= 1,
+		.base_baud	= 115200,
+		.uart_offset	= 8,
+	},
+	[netmos_9900] = { /* n/t */
+		.flags		= FL_BASE0 | FL_BASE_BARS,
+		.num_ports	= 1,
+		.base_baud	= 115200,
+		.uart_offset	= 8,
+	},
+	[netmos_9900_2p] = { /* parallel only */ /* n/t */
+		.flags		= FL_BASE0,
+		.num_ports	= 0,
+		.base_baud	= 115200,
+		.uart_offset	= 8,
+	},
+	[netmos_99xx_1p] = { /* parallel only */ /* n/t */
+		.flags		= FL_BASE0,
+		.num_ports	= 0,
 		.base_baud	= 115200,
 		.uart_offset	= 8,
 	},
@@ -267,6 +352,114 @@ static struct pciserial_board pci_parport_serial_boards[] __devinitdata = {
 		.base_baud	= 921600,
 		.uart_offset	= 8,
 	},
+	[timedia_4078a] = {
+		.flags		= FL_BASE0|FL_BASE_BARS,
+		.num_ports	= 1,
+		.base_baud	= 921600,
+		.uart_offset	= 8,
+	},
+	[timedia_4079h] = {
+		.flags		= FL_BASE0|FL_BASE_BARS,
+		.num_ports	= 1,
+		.base_baud	= 921600,
+		.uart_offset	= 8,
+	},
+	[timedia_4085h] = {
+		.flags		= FL_BASE0|FL_BASE_BARS,
+		.num_ports	= 1,
+		.base_baud	= 921600,
+		.uart_offset	= 8,
+	},
+	[timedia_4088a] = {
+		.flags		= FL_BASE0|FL_BASE_BARS,
+		.num_ports	= 1,
+		.base_baud	= 921600,
+		.uart_offset	= 8,
+	},
+	[timedia_4089a] = {
+		.flags		= FL_BASE0|FL_BASE_BARS,
+		.num_ports	= 1,
+		.base_baud	= 921600,
+		.uart_offset	= 8,
+	},
+	[timedia_4095a] = {
+		.flags		= FL_BASE0|FL_BASE_BARS,
+		.num_ports	= 1,
+		.base_baud	= 921600,
+		.uart_offset	= 8,
+	},
+	[timedia_4096a] = {
+		.flags		= FL_BASE0|FL_BASE_BARS,
+		.num_ports	= 1,
+		.base_baud	= 921600,
+		.uart_offset	= 8,
+	},
+	[timedia_4078u] = {
+		.flags		= FL_BASE0|FL_BASE_BARS,
+		.num_ports	= 1,
+		.base_baud	= 921600,
+		.uart_offset	= 8,
+	},
+	[timedia_4079a] = {
+		.flags		= FL_BASE0|FL_BASE_BARS,
+		.num_ports	= 1,
+		.base_baud	= 921600,
+		.uart_offset	= 8,
+	},
+	[timedia_4085u] = {
+		.flags		= FL_BASE0|FL_BASE_BARS,
+		.num_ports	= 1,
+		.base_baud	= 921600,
+		.uart_offset	= 8,
+	},
+	[timedia_4079r] = {
+		.flags		= FL_BASE0|FL_BASE_BARS,
+		.num_ports	= 1,
+		.base_baud	= 921600,
+		.uart_offset	= 8,
+	},
+	[timedia_4079s] = {
+		.flags		= FL_BASE0|FL_BASE_BARS,
+		.num_ports	= 1,
+		.base_baud	= 921600,
+		.uart_offset	= 8,
+	},
+	[timedia_4079d] = {
+		.flags		= FL_BASE0|FL_BASE_BARS,
+		.num_ports	= 1,
+		.base_baud	= 921600,
+		.uart_offset	= 8,
+	},
+	[timedia_4079e] = {
+		.flags		= FL_BASE0|FL_BASE_BARS,
+		.num_ports	= 1,
+		.base_baud	= 921600,
+		.uart_offset	= 8,
+	},
+	[timedia_4079f] = {
+		.flags		= FL_BASE0|FL_BASE_BARS,
+		.num_ports	= 1,
+		.base_baud	= 921600,
+		.uart_offset	= 8,
+	},
+	[timedia_9079a] = {
+		.flags		= FL_BASE0|FL_BASE_BARS,
+		.num_ports	= 1,
+		.base_baud	= 921600,
+		.uart_offset	= 8,
+	},
+	[timedia_9079b] = {
+		.flags		= FL_BASE0|FL_BASE_BARS,
+		.num_ports	= 1,
+		.base_baud	= 921600,
+		.uart_offset	= 8,
+	},
+	[timedia_9079c] = {
+		.flags		= FL_BASE0|FL_BASE_BARS,
+		.num_ports	= 1,
+		.base_baud	= 921600,
+		.uart_offset	= 8,
+	},
 };
 
 struct parport_serial_private {
@@ -285,6 +478,10 @@ static int __devinit serial_register (struct pci_dev *dev,
 	struct serial_private *serial;
 
 	board = &pci_parport_serial_boards[id->driver_data];
+
+	if (board->num_ports == 0)
+		return 0;
+
 	serial = pciserial_init_ports(dev, board);
 
 	if (IS_ERR(serial))

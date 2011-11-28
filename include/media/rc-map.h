@@ -18,12 +18,13 @@
 #define RC_TYPE_JVC	(1  << 3)	/* JVC protocol */
 #define RC_TYPE_SONY	(1  << 4)	/* Sony12/15/20 protocol */
 #define RC_TYPE_RC5_SZ	(1  << 5)	/* RC5 variant used by Streamzap */
+#define RC_TYPE_MCE_KBD	(1  << 29)	/* RC6-ish MCE keyboard/mouse */
 #define RC_TYPE_LIRC	(1  << 30)	/* Pass raw IR to lirc userspace */
 #define RC_TYPE_OTHER	(1u << 31)
 
 #define RC_TYPE_ALL (RC_TYPE_RC5 | RC_TYPE_NEC  | RC_TYPE_RC6  | \
 		     RC_TYPE_JVC | RC_TYPE_SONY | RC_TYPE_LIRC | \
-		     RC_TYPE_RC5_SZ | RC_TYPE_OTHER)
+		     RC_TYPE_RC5_SZ | RC_TYPE_MCE_KBD | RC_TYPE_OTHER)
 
 struct rc_map_table {
 	u32	scancode;
@@ -60,6 +61,7 @@ void rc_map_init(void);
 #define RC_MAP_APAC_VIEWCOMP             "rc-apac-viewcomp"
 #define RC_MAP_ASUS_PC39                 "rc-asus-pc39"
 #define RC_MAP_ATI_TV_WONDER_HD_600      "rc-ati-tv-wonder-hd-600"
+#define RC_MAP_ATI_X10                   "rc-ati-x10"
 #define RC_MAP_AVERMEDIA_A16D            "rc-avermedia-a16d"
 #define RC_MAP_AVERMEDIA_CARDBUS         "rc-avermedia-cardbus"
 #define RC_MAP_AVERMEDIA_DVBT            "rc-avermedia-dvbt"
@@ -105,6 +107,7 @@ void rc_map_init(void);
 #define RC_MAP_LIRC                      "rc-lirc"
 #define RC_MAP_LME2510                   "rc-lme2510"
 #define RC_MAP_MANLI                     "rc-manli"
+#define RC_MAP_MEDION_X10                "rc-medion-x10"
 #define RC_MAP_MSI_DIGIVOX_II            "rc-msi-digivox-ii"
 #define RC_MAP_MSI_DIGIVOX_III           "rc-msi-digivox-iii"
 #define RC_MAP_MSI_TVANYWHERE_PLUS       "rc-msi-tvanywhere-plus"
@@ -129,6 +132,7 @@ void rc_map_init(void);
 #define RC_MAP_RC5_TV                    "rc-rc5-tv"
 #define RC_MAP_RC6_MCE                   "rc-rc6-mce"
 #define RC_MAP_REAL_AUDIO_220_32_KEYS    "rc-real-audio-220-32-keys"
+#define RC_MAP_SNAPSTREAM_FIREFLY        "rc-snapstream-firefly"
 #define RC_MAP_STREAMZAP                 "rc-streamzap"
 #define RC_MAP_TBS_NEC                   "rc-tbs-nec"
 #define RC_MAP_TECHNISAT_USB2            "rc-technisat-usb2"

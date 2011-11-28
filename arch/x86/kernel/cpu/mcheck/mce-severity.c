@@ -43,61 +43,105 @@ static struct severity {
 	unsigned char covered;
 	char *msg;
 } severities[] = {
-#define KERNEL .context = IN_KERNEL
-#define USER .context = IN_USER
-#define SER .ser = SER_REQUIRED
-#define NOSER .ser = NO_SER
-#define SEV(s) .sev = MCE_ ## s ## _SEVERITY
-#define BITCLR(x, s, m, r...) { .mask = x, .result = 0, SEV(s), .msg = m, ## r }
-#define BITSET(x, s, m, r...) { .mask = x, .result = x, SEV(s), .msg = m, ## r }
-#define MCGMASK(x, res, s, m, r...) \
-	{ .mcgmask = x, .mcgres = res, SEV(s), .msg = m, ## r }
-#define MASK(x, y, s, m, r...) \
-	{ .mask = x, .result = y, SEV(s), .msg = m, ## r }
+#define MCESEV(s, m, c...) { .sev = MCE_ ## s ## _SEVERITY, .msg = m, ## c }
+#define  KERNEL		.context = IN_KERNEL
+#define  USER		.context = IN_USER
+#define  SER		.ser = SER_REQUIRED
+#define  NOSER		.ser = NO_SER
+#define  BITCLR(x)	.mask = x, .result = 0
+#define  BITSET(x)	.mask = x, .result = x
+#define  MCGMASK(x, y)	.mcgmask = x, .mcgres = y
+#define  MASK(x, y)	.mask = x, .result = y
 #define MCI_UC_S (MCI_STATUS_UC|MCI_STATUS_S)
 #define MCI_UC_SAR (MCI_STATUS_UC|MCI_STATUS_S|MCI_STATUS_AR)
 #define MCACOD 0xffff
 
-	BITCLR(MCI_STATUS_VAL, NO, "Invalid"),
-	BITCLR(MCI_STATUS_EN, NO, "Not enabled"),
-	BITSET(MCI_STATUS_PCC, PANIC, "Processor context corrupt"),
+	MCESEV(
+		NO, "Invalid",
+		BITCLR(MCI_STATUS_VAL)
+		),
+	MCESEV(
+		NO, "Not enabled",
+		BITCLR(MCI_STATUS_EN)
+		),
+	MCESEV(
+		PANIC, "Processor context corrupt",
+		BITSET(MCI_STATUS_PCC)
+		),
 	/* When MCIP is not set something is very confused */
-	MCGMASK(MCG_STATUS_MCIP, 0, PANIC, "MCIP not set in MCA handler"),
+	MCESEV(
+		PANIC, "MCIP not set in MCA handler",
+		MCGMASK(MCG_STATUS_MCIP, 0)
+		),
 	/* Neither return not error IP -- no chance to recover -> PANIC */
-	MCGMASK(MCG_STATUS_RIPV|MCG_STATUS_EIPV, 0, PANIC,
-		"Neither restart nor error IP"),
-	MCGMASK(MCG_STATUS_RIPV, 0, PANIC, "In kernel and no restart IP",
-		KERNEL),
-	BITCLR(MCI_STATUS_UC, KEEP, "Corrected error", NOSER),
-	MASK(MCI_STATUS_OVER|MCI_STATUS_UC|MCI_STATUS_EN, MCI_STATUS_UC, SOME,
-	     "Spurious not enabled", SER),
+	MCESEV(
+		PANIC, "Neither restart nor error IP",
+		MCGMASK(MCG_STATUS_RIPV|MCG_STATUS_EIPV, 0)
+		),
+	MCESEV(
+		PANIC, "In kernel and no restart IP",
+		KERNEL, MCGMASK(MCG_STATUS_RIPV, 0)
+		),
+	MCESEV(
+		KEEP, "Corrected error",
+		NOSER, BITCLR(MCI_STATUS_UC)
+		),
 
 	/* ignore OVER for UCNA */
-	MASK(MCI_UC_SAR, MCI_STATUS_UC, KEEP,
-	     "Uncorrected no action required", SER),
-	MASK(MCI_STATUS_OVER|MCI_UC_SAR, MCI_STATUS_UC|MCI_STATUS_AR, PANIC,
-	     "Illegal combination (UCNA with AR=1)", SER),
-	MASK(MCI_STATUS_S, 0, KEEP, "Non signalled machine check", SER),
+	MCESEV(
+		KEEP, "Uncorrected no action required",
+		SER, MASK(MCI_UC_SAR, MCI_STATUS_UC)
+		),
+	MCESEV(
+		PANIC, "Illegal combination (UCNA with AR=1)",
+		SER,
+		MASK(MCI_STATUS_OVER|MCI_UC_SAR, MCI_STATUS_UC|MCI_STATUS_AR)
+		),
+	MCESEV(
+		KEEP, "Non signalled machine check",
+		SER, BITCLR(MCI_STATUS_S)
+		),
 
 	/* AR add known MCACODs here */
-	MASK(MCI_STATUS_OVER|MCI_UC_SAR, MCI_STATUS_OVER|MCI_UC_SAR, PANIC,
-	     "Action required with lost events", SER),
-	MASK(MCI_STATUS_OVER|MCI_UC_SAR|MCACOD, MCI_UC_SAR, PANIC,
-	     "Action required; unknown MCACOD", SER),
+	MCESEV(
+		PANIC, "Action required with lost events",
+		SER, BITSET(MCI_STATUS_OVER|MCI_UC_SAR)
+		),
+	MCESEV(
+		PANIC, "Action required: unknown MCACOD",
+		SER, MASK(MCI_STATUS_OVER|MCI_UC_SAR, MCI_UC_SAR)
+		),
 
 	/* known AO MCACODs: */
-	MASK(MCI_UC_SAR|MCI_STATUS_OVER|0xfff0, MCI_UC_S|0xc0, AO,
-	     "Action optional: memory scrubbing error", SER),
-	MASK(MCI_UC_SAR|MCI_STATUS_OVER|MCACOD, MCI_UC_S|0x17a, AO,
-	     "Action optional: last level cache writeback error", SER),
+	MCESEV(
+		AO, "Action optional: memory scrubbing error",
+		SER, MASK(MCI_STATUS_OVER|MCI_UC_SAR|0xfff0, MCI_UC_S|0x00c0)
+		),
+	MCESEV(
+		AO, "Action optional: last level cache writeback error",
+		SER, MASK(MCI_STATUS_OVER|MCI_UC_SAR|MCACOD, MCI_UC_S|0x017a)
+		),
+	MCESEV(
+		SOME, "Action optional: unknown MCACOD",
+		SER, MASK(MCI_STATUS_OVER|MCI_UC_SAR, MCI_UC_S)
+		),
+	MCESEV(
+		SOME, "Action optional with lost events",
+		SER, MASK(MCI_STATUS_OVER|MCI_UC_SAR, MCI_STATUS_OVER|MCI_UC_S)
+		),
 
-	MASK(MCI_STATUS_OVER|MCI_UC_SAR, MCI_UC_S, SOME,
-	     "Action optional unknown MCACOD", SER),
-	MASK(MCI_STATUS_OVER|MCI_UC_SAR, MCI_UC_S|MCI_STATUS_OVER, SOME,
-	     "Action optional with lost events", SER),
-	BITSET(MCI_STATUS_UC|MCI_STATUS_OVER, PANIC, "Overflowed uncorrected"),
-	BITSET(MCI_STATUS_UC, UC, "Uncorrected"),
-	BITSET(0, SOME, "No match")	/* always matches. keep at end */
+	MCESEV(
+		PANIC, "Overflowed uncorrected",
+		BITSET(MCI_STATUS_OVER|MCI_STATUS_UC)
+		),
+	MCESEV(
+		UC, "Uncorrected",
+		BITSET(MCI_STATUS_UC)
+		),
+	MCESEV(
+		SOME, "No match",
+		BITSET(0)
+		)	/* always matches. keep at end */
 };
 
 /*
@@ -112,15 +156,15 @@ static int error_context(struct mce *m)
 	return IN_KERNEL;
 }
 
-int mce_severity(struct mce *a, int tolerant, char **msg)
+int mce_severity(struct mce *m, int tolerant, char **msg)
 {
-	enum context ctx = error_context(a);
+	enum context ctx = error_context(m);
 	struct severity *s;
 
 	for (s = severities;; s++) {
-		if ((a->status & s->mask) != s->result)
+		if ((m->status & s->mask) != s->result)
 			continue;
-		if ((a->mcgstatus & s->mcgmask) != s->mcgres)
+		if ((m->mcgstatus & s->mcgmask) != s->mcgres)
 			continue;
 		if (s->ser == SER_REQUIRED && !mce_ser)
 			continue;
@@ -197,15 +241,15 @@ static const struct file_operations severities_coverage_fops = {
 
 static int __init severities_debugfs_init(void)
 {
-	struct dentry *dmce = NULL, *fseverities_coverage = NULL;
+	struct dentry *dmce, *fsev;
 
 	dmce = mce_get_debugfs_dir();
-	if (dmce == NULL)
+	if (!dmce)
 		goto err_out;
-	fseverities_coverage = debugfs_create_file("severities-coverage",
-						   0444, dmce, NULL,
-						   &severities_coverage_fops);
-	if (fseverities_coverage == NULL)
+
+	fsev = debugfs_create_file("severities-coverage", 0444, dmce, NULL,
+				   &severities_coverage_fops);
+	if (!fsev)
 		goto err_out;
 
 	return 0;
@@ -214,4 +258,4 @@ err_out:
 	return -ENOMEM;
 }
 late_initcall(severities_debugfs_init);
-#endif
+#endif /* CONFIG_DEBUG_FS */

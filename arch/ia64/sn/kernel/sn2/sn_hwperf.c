@@ -615,11 +615,15 @@ static int sn_hwperf_op_cpu(struct sn_hwperf_op_info *op_info)
 		}
 	}
 
-	if (cpu == SN_HWPERF_ARG_ANY_CPU || cpu == get_cpu()) {
-		/* don't care, or already on correct cpu */
+	if (cpu == SN_HWPERF_ARG_ANY_CPU) {
+		/* don't care which cpu */
 		sn_hwperf_call_sal(op_info);
-	}
-	else {
+	} else if (cpu == get_cpu()) {
+		/* already on correct cpu */
+		sn_hwperf_call_sal(op_info);
+		put_cpu();
+	} else {
+		put_cpu();
 		if (use_ipi) {
 			/* use an interprocessor interrupt to call SAL */
 			smp_call_function_single(cpu, sn_hwperf_call_sal,

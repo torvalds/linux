@@ -105,34 +105,6 @@ in_irq_stack(unsigned long *stack, unsigned long *irq_stack,
 }
 
 /*
- * We are returning from the irq stack and go to the previous one.
- * If the previous stack is also in the irq stack, then bp in the first
- * frame of the irq stack points to the previous, interrupted one.
- * Otherwise we have another level of indirection: We first save
- * the bp of the previous stack, then we switch the stack to the irq one
- * and save a new bp that links to the previous one.
- * (See save_args())
- */
-static inline unsigned long
-fixup_bp_irq_link(unsigned long bp, unsigned long *stack,
-		  unsigned long *irq_stack, unsigned long *irq_stack_end)
-{
-#ifdef CONFIG_FRAME_POINTER
-	struct stack_frame *frame = (struct stack_frame *)bp;
-	unsigned long next;
-
-	if (!in_irq_stack(stack, irq_stack, irq_stack_end)) {
-		if (!probe_kernel_address(&frame->next_frame, next))
-			return next;
-		else
-			WARN_ONCE(1, "Perf: bad frame pointer = %p in "
-				  "callchain\n", &frame->next_frame);
-	}
-#endif
-	return bp;
-}
-
-/*
  * x86-64 can have up to three kernel stacks:
  * process stack
  * interrupt stack
@@ -155,9 +127,12 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 		task = current;
 
 	if (!stack) {
-		stack = &dummy;
-		if (task && task != current)
+		if (regs)
+			stack = (unsigned long *)regs->sp;
+		else if (task && task != current)
 			stack = (unsigned long *)task->thread.sp;
+		else
+			stack = &dummy;
 	}
 
 	if (!bp)
@@ -205,8 +180,6 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 				 * pointer (index -1 to end) in the IRQ stack:
 				 */
 				stack = (unsigned long *) (irq_stack_end[-1]);
-				bp = fixup_bp_irq_link(bp, stack, irq_stack,
-						       irq_stack_end);
 				irq_stack_end = NULL;
 				ops->stack(data, "EOI");
 				continue;

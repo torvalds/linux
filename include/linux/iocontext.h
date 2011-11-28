@@ -5,6 +5,14 @@
 #include <linux/rcupdate.h>
 
 struct cfq_queue;
+struct cfq_ttime {
+	unsigned long last_end_request;
+
+	unsigned long ttime_total;
+	unsigned long ttime_samples;
+	unsigned long ttime_mean;
+};
+
 struct cfq_io_context {
 	void *key;
 
@@ -12,11 +20,7 @@ struct cfq_io_context {
 
 	struct io_context *ioc;
 
-	unsigned long last_end_request;
-
-	unsigned long ttime_total;
-	unsigned long ttime_samples;
-	unsigned long ttime_mean;
+	struct cfq_ttime ttime;
 
 	struct list_head queue_list;
 	struct hlist_node cic_list;

@@ -457,7 +457,14 @@ int machine_check_e500mc(struct pt_regs *regs)
 
 	if (reason & MCSR_DCPERR_MC) {
 		printk("Data Cache Parity Error\n");
-		recoverable = 0;
+
+		/*
+		 * In write shadow mode we auto-recover from the error, but it
+		 * may still get logged and cause a machine check.  We should
+		 * only treat the non-write shadow case as non-recoverable.
+		 */
+		if (!(mfspr(SPRN_L1CSR2) & L1CSR2_DCWS))
+			recoverable = 0;
 	}
 
 	if (reason & MCSR_L2MMU_MHIT) {
@@ -1291,14 +1298,12 @@ void __kprobes DebugException(struct pt_regs *regs, unsigned long debug_status)
 
 		if (user_mode(regs)) {
 			current->thread.dbcr0 &= ~DBCR0_IC;
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
 			if (DBCR_ACTIVE_EVENTS(current->thread.dbcr0,
 					       current->thread.dbcr1))
 				regs->msr |= MSR_DE;
 			else
 				/* Make sure the IDM bit is off */
 				current->thread.dbcr0 &= ~DBCR0_IDM;
-#endif
 		}
 
 		_exception(SIGTRAP, regs, TRAP_TRACE, regs->nip);
@@ -1387,10 +1392,7 @@ void SPEFloatingPointException(struct pt_regs *regs)
 	int code = 0;
 	int err;
 
-	preempt_disable();
-	if (regs->msr & MSR_SPE)
-		giveup_spe(current);
-	preempt_enable();
+	flush_spe_to_thread(current);
 
 	spefscr = current->thread.spefscr;
 	fpexc_mode = current->thread.fpexc_mode;

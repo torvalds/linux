@@ -42,6 +42,7 @@
 MODULE_DESCRIPTION("driver for cx2388x/cx23416 based mpeg encoder cards");
 MODULE_AUTHOR("Jelle Foks <jelle@foks.us>, Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(CX88_VERSION);
 
 static unsigned int mpegbufs = 32;
 module_param(mpegbufs,int,0644);
@@ -730,7 +731,6 @@ static int vidioc_querycap (struct file *file, void  *priv,
 	strcpy(cap->driver, "cx88_blackbird");
 	strlcpy(cap->card, core->board.name, sizeof(cap->card));
 	sprintf(cap->bus_info,"PCI:%s",pci_name(dev->pci));
-	cap->version = CX88_VERSION_CODE;
 	cap->capabilities =
 		V4L2_CAP_VIDEO_CAPTURE |
 		V4L2_CAP_READWRITE     |
@@ -1368,14 +1368,8 @@ static struct cx8802_driver cx8802_blackbird_driver = {
 
 static int __init blackbird_init(void)
 {
-	printk(KERN_INFO "cx2388x blackbird driver version %d.%d.%d loaded\n",
-	       (CX88_VERSION_CODE >> 16) & 0xff,
-	       (CX88_VERSION_CODE >>  8) & 0xff,
-	       CX88_VERSION_CODE & 0xff);
-#ifdef SNAPSHOT
-	printk(KERN_INFO "cx2388x: snapshot date %04d-%02d-%02d\n",
-	       SNAPSHOT/10000, (SNAPSHOT/100)%100, SNAPSHOT%100);
-#endif
+	printk(KERN_INFO "cx2388x blackbird driver version %s loaded\n",
+	       CX88_VERSION);
 	return cx8802_register_driver(&cx8802_blackbird_driver);
 }
 
@@ -1389,11 +1383,3 @@ module_exit(blackbird_fini);
 
 module_param_named(video_debug,cx8802_mpeg_template.debug, int, 0644);
 MODULE_PARM_DESC(debug,"enable debug messages [video]");
-
-/* ----------------------------------------------------------- */
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- * kate: eol "unix"; indent-width 3; remove-trailing-space on; replace-trailing-space-save on; tab-width 8; replace-tabs off; space-indent off; mixed-indent off
- */

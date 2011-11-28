@@ -254,3 +254,71 @@
 	mcr	p15, 0, r0, c7, c10, 1		@ clean L1 D line
 	mcr	p15, 0, ip, c7, c10, 4		@ data write barrier
 	.endm
+
+.macro define_processor_functions name:req, dabort:req, pabort:req, nommu=0, suspend=0
+	.type	\name\()_processor_functions, #object
+	.align 2
+ENTRY(\name\()_processor_functions)
+	.word	\dabort
+	.word	\pabort
+	.word	cpu_\name\()_proc_init
+	.word	cpu_\name\()_proc_fin
+	.word	cpu_\name\()_reset
+	.word	cpu_\name\()_do_idle
+	.word	cpu_\name\()_dcache_clean_area
+	.word	cpu_\name\()_switch_mm
+
+	.if \nommu
+	.word	0
+	.else
+	.word	cpu_\name\()_set_pte_ext
+	.endif
+
+	.if \suspend
+	.word	cpu_\name\()_suspend_size
+#ifdef CONFIG_PM_SLEEP
+	.word	cpu_\name\()_do_suspend
+	.word	cpu_\name\()_do_resume
+#else
+	.word	0
+	.word	0
+#endif
+	.else
+	.word	0
+	.word	0
+	.word	0
+	.endif
+
+	.size	\name\()_processor_functions, . - \name\()_processor_functions
+.endm
+
+.macro define_cache_functions name:req
+	.align 2
+	.type	\name\()_cache_fns, #object
+ENTRY(\name\()_cache_fns)
+	.long	\name\()_flush_icache_all
+	.long	\name\()_flush_kern_cache_all
+	.long	\name\()_flush_user_cache_all
+	.long	\name\()_flush_user_cache_range
+	.long	\name\()_coherent_kern_range
+	.long	\name\()_coherent_user_range
+	.long	\name\()_flush_kern_dcache_area
+	.long	\name\()_dma_map_area
+	.long	\name\()_dma_unmap_area
+	.long	\name\()_dma_flush_range
+	.size	\name\()_cache_fns, . - \name\()_cache_fns
+.endm
+
+.macro define_tlb_functions name:req, flags_up:req, flags_smp
+	.type	\name\()_tlb_fns, #object
+ENTRY(\name\()_tlb_fns)
+	.long	\name\()_flush_user_tlb_range
+	.long	\name\()_flush_kern_tlb_range
+	.ifnb \flags_smp
+		ALT_SMP(.long	\flags_smp )
+		ALT_UP(.long	\flags_up )
+	.else
+		.long	\flags_up
+	.endif
+	.size	\name\()_tlb_fns, . - \name\()_tlb_fns
+.endm

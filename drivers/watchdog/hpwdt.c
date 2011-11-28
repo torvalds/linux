@@ -35,8 +35,9 @@
 #include <linux/notifier.h>
 #include <asm/cacheflush.h>
 #endif /* CONFIG_HPWDT_NMI_DECODING */
+#include <asm/nmi.h>
 
-#define HPWDT_VERSION			"1.2.0"
+#define HPWDT_VERSION			"1.3.0"
 #define SECS_TO_TICKS(secs)		((secs) * 1000 / 128)
 #define TICKS_TO_SECS(ticks)		((ticks) * 128 / 1000)
 #define HPWDT_MAX_TIMER			TICKS_TO_SECS(65535)
@@ -87,6 +88,19 @@ struct smbios_cru64_info {
 };
 #define SMBIOS_CRU64_INFORMATION	212
 
+/* type 219 */
+struct smbios_proliant_info {
+	u8 type;
+	u8 byte_length;
+	u16 handle;
+	u32 power_features;
+	u32 omega_features;
+	u32 reserved;
+	u32 misc_features;
+};
+#define SMBIOS_ICRU_INFORMATION		219
+
+
 struct cmn_registers {
 	union {
 		struct {
@@ -132,6 +146,7 @@ struct cmn_registers {
 static unsigned int hpwdt_nmi_decoding;
 static unsigned int allow_kdump;
 static unsigned int priority;		/* hpwdt at end of die_notify list */
+static unsigned int is_icru;
 static DEFINE_SPINLOCK(rom_lock);
 static void *cru_rom_addr;
 static struct cmn_registers cmn_regs;
@@ -463,34 +478,34 @@ static int hpwdt_time_left(void)
 /*
  *	NMI Handler
  */
-static int hpwdt_pretimeout(struct notifier_block *nb, unsigned long ulReason,
-				void *data)
+static int hpwdt_pretimeout(unsigned int ulReason, struct pt_regs *regs)
 {
 	unsigned long rom_pl;
 	static int die_nmi_called;
-
-	if (ulReason != DIE_NMIUNKNOWN)
-		goto out;
 
 	if (!hpwdt_nmi_decoding)
 		goto out;
 
 	spin_lock_irqsave(&rom_lock, rom_pl);
-	if (!die_nmi_called)
+	if (!die_nmi_called && !is_icru)
 		asminline_call(&cmn_regs, cru_rom_addr);
 	die_nmi_called = 1;
 	spin_unlock_irqrestore(&rom_lock, rom_pl);
-	if (cmn_regs.u1.ral == 0) {
-		printk(KERN_WARNING "hpwdt: An NMI occurred, "
-			"but unable to determine source.\n");
-	} else {
-		if (allow_kdump)
-			hpwdt_stop();
-		panic("An NMI occurred, please see the Integrated "
-			"Management Log for details.\n");
+
+	if (allow_kdump)
+		hpwdt_stop();
+
+	if (!is_icru) {
+		if (cmn_regs.u1.ral == 0) {
+			panic("An NMI occurred, "
+				"but unable to determine source.\n");
+		}
 	}
+	panic("An NMI occurred, please see the Integrated "
+		"Management Log for details.\n");
+
 out:
-	return NOTIFY_OK;
+	return NMI_DONE;
 }
 #endif /* CONFIG_HPWDT_NMI_DECODING */
 
@@ -630,13 +645,6 @@ static struct miscdevice hpwdt_miscdev = {
 	.fops = &hpwdt_fops,
 };
 
-#ifdef CONFIG_HPWDT_NMI_DECODING
-static struct notifier_block die_notifier = {
-	.notifier_call = hpwdt_pretimeout,
-	.priority = 0,
-};
-#endif /* CONFIG_HPWDT_NMI_DECODING */
-
 /*
  *	Init & Exit
  */
@@ -659,40 +667,72 @@ static void __devinit hpwdt_check_nmi_decoding(struct pci_dev *dev)
 }
 #endif /* CONFIG_X86_LOCAL_APIC */
 
+/*
+ *	dmi_find_icru
+ *
+ *	Routine Description:
+ *	This function checks whether or not we are on an iCRU-based server.
+ *	This check is independent of architecture and needs to be made for
+ *	any ProLiant system.
+ */
+static void __devinit dmi_find_icru(const struct dmi_header *dm, void *dummy)
+{
+	struct smbios_proliant_info *smbios_proliant_ptr;
+
+	if (dm->type == SMBIOS_ICRU_INFORMATION) {
+		smbios_proliant_ptr = (struct smbios_proliant_info *) dm;
+		if (smbios_proliant_ptr->misc_features & 0x01)
+			is_icru = 1;
+	}
+}
+
 static int __devinit hpwdt_init_nmi_decoding(struct pci_dev *dev)
 {
 	int retval;
 
 	/*
-	 * We need to map the ROM to get the CRU service.
-	 * For 32 bit Operating Systems we need to go through the 32 Bit
-	 * BIOS Service Directory
-	 * For 64 bit Operating Systems we get that service through SMBIOS.
+	 * On typical CRU-based systems we need to map that service in
+	 * the BIOS. For 32 bit Operating Systems we need to go through
+	 * the 32 Bit BIOS Service Directory. For 64 bit Operating
+	 * Systems we get that service through SMBIOS.
+	 *
+	 * On systems that support the new iCRU service all we need to
+	 * do is call dmi_walk to get the supported flag value and skip
+	 * the old cru detect code.
 	 */
-	retval = detect_cru_service();
-	if (retval < 0) {
-		dev_warn(&dev->dev,
-			"Unable to detect the %d Bit CRU Service.\n",
-			HPWDT_ARCH);
-		return retval;
-	}
+	dmi_walk(dmi_find_icru, NULL);
+	if (!is_icru) {
 
-	/*
-	 * We know this is the only CRU call we need to make so lets keep as
-	 * few instructions as possible once the NMI comes in.
-	 */
-	cmn_regs.u1.rah = 0x0D;
-	cmn_regs.u1.ral = 0x02;
+		/*
+		* We need to map the ROM to get the CRU service.
+		* For 32 bit Operating Systems we need to go through the 32 Bit
+		* BIOS Service Directory
+		* For 64 bit Operating Systems we get that service through SMBIOS.
+		*/
+		retval = detect_cru_service();
+		if (retval < 0) {
+			dev_warn(&dev->dev,
+				"Unable to detect the %d Bit CRU Service.\n",
+				HPWDT_ARCH);
+			return retval;
+		}
+
+		/*
+		* We know this is the only CRU call we need to make so lets keep as
+		* few instructions as possible once the NMI comes in.
+		*/
+		cmn_regs.u1.rah = 0x0D;
+		cmn_regs.u1.ral = 0x02;
+	}
 
 	/*
 	 * If the priority is set to 1, then we will be put first on the
 	 * die notify list to handle a critical NMI. The default is to
 	 * be last so other users of the NMI signal can function.
 	 */
-	if (priority)
-		die_notifier.priority = 0x7FFFFFFF;
-
-	retval = register_die_notifier(&die_notifier);
+	retval = register_nmi_handler(NMI_UNKNOWN, hpwdt_pretimeout,
+					(priority) ? NMI_FLAG_FIRST : 0,
+					"hpwdt");
 	if (retval != 0) {
 		dev_warn(&dev->dev,
 			"Unable to register a die notifier (err=%d).\n",
@@ -712,7 +752,7 @@ static int __devinit hpwdt_init_nmi_decoding(struct pci_dev *dev)
 
 static void hpwdt_exit_nmi_decoding(void)
 {
-	unregister_die_notifier(&die_notifier);
+	unregister_nmi_handler(NMI_UNKNOWN, "hpwdt");
 	if (cru_rom_addr)
 		iounmap(cru_rom_addr);
 }

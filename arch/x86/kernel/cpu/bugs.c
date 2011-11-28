@@ -62,6 +62,8 @@ static void __init check_fpu(void)
 		return;
 	}
 
+	kernel_fpu_begin();
+
 	/*
 	 * trap_init() enabled FXSR and company _before_ testing for FP
 	 * problems here.
@@ -79,6 +81,8 @@ static void __init check_fpu(void)
 		"fninit"
 		: "=m" (*&fdiv_bug)
 		: "m" (*&x), "m" (*&y));
+
+	kernel_fpu_end();
 
 	boot_cpu_data.fdiv_bug = fdiv_bug;
 	if (boot_cpu_data.fdiv_bug)

@@ -45,6 +45,9 @@
 #define AR9300_DEVID_PCIE	0x0030
 #define AR9300_DEVID_AR9340	0x0031
 #define AR9300_DEVID_AR9485_PCIE 0x0032
+#define AR9300_DEVID_AR9580	0x0033
+#define AR9300_DEVID_AR9462	0x0034
+#define AR9300_DEVID_AR9330	0x0035
 
 #define AR5416_AR9100_DEVID	0x000b
 
@@ -90,6 +93,12 @@
 	do {								\
 		if ((_ah)->reg_ops.write_flush)		\
 			(_ah)->reg_ops.write_flush((_ah));	\
+	} while (0)
+
+#define PR_EEP(_s, _val)						\
+	do {								\
+		len += snprintf(buf + len, size - len, "%20s : %10d\n",	\
+				_s, (_val));				\
 	} while (0)
 
 #define SM(_v, _f)  (((_v) << _f##_S) & _f)
@@ -142,6 +151,8 @@
 #define AR_KEYTABLE_SIZE            128
 #define POWER_UP_TIME               10000
 #define SPUR_RSSI_THRESH            40
+#define UPPER_5G_SUB_BAND_START		5700
+#define MID_5G_SUB_BAND_START		5400
 
 #define CAB_TIMEOUT_VAL             10
 #define BEACON_TIMEOUT_VAL          10
@@ -157,8 +168,9 @@
 #define ATH9K_HW_RX_HP_QDEPTH	16
 #define ATH9K_HW_RX_LP_QDEPTH	128
 
-#define PAPRD_GAIN_TABLE_ENTRIES    32
-#define PAPRD_TABLE_SZ              24
+#define PAPRD_GAIN_TABLE_ENTRIES	32
+#define PAPRD_TABLE_SZ			24
+#define PAPRD_IDEAL_AGC2_PWR_RANGE	0xe0
 
 enum ath_hw_txq_subtype {
 	ATH_TXQ_AC_BE = 0,
@@ -190,6 +202,7 @@ enum ath9k_hw_caps {
 	ATH9K_HW_CAP_2GHZ			= BIT(13),
 	ATH9K_HW_CAP_5GHZ			= BIT(14),
 	ATH9K_HW_CAP_APM			= BIT(15),
+	ATH9K_HW_CAP_RTT			= BIT(16),
 };
 
 struct ath9k_hw_capabilities {
@@ -215,7 +228,6 @@ struct ath9k_ops_config {
 	int additional_swba_backoff;
 	int ack_6mb;
 	u32 cwm_ignore_extcca;
-	u8 pcie_powersave_enable;
 	bool pcieSerDesWrite;
 	u8 pcie_clock_req;
 	u32 pcie_waen;
@@ -326,6 +338,16 @@ enum ath9k_int {
 	 CHANNEL_HT40PLUS |			\
 	 CHANNEL_HT40MINUS)
 
+#define MAX_RTT_TABLE_ENTRY     6
+#define RTT_HIST_MAX            3
+struct ath9k_rtt_hist {
+	u32 table[AR9300_MAX_CHAINS][RTT_HIST_MAX][MAX_RTT_TABLE_ENTRY];
+	u8 num_readings;
+};
+
+#define MAX_IQCAL_MEASUREMENT	8
+#define MAX_CL_TAB_ENTRY	16
+
 struct ath9k_hw_cal_data {
 	u16 channel;
 	u32 channelFlags;
@@ -335,9 +357,15 @@ struct ath9k_hw_cal_data {
 	bool paprd_done;
 	bool nfcal_pending;
 	bool nfcal_interference;
+	bool done_txiqcal_once;
+	bool done_txclcal_once;
 	u16 small_signal_gain[AR9300_MAX_CHAINS];
 	u32 pa_table[AR9300_MAX_CHAINS][PAPRD_TABLE_SZ];
+	u32 num_measures[AR9300_MAX_CHAINS];
+	int tx_corr_coeff[MAX_IQCAL_MEASUREMENT][AR9300_MAX_CHAINS];
+	u32 tx_clcal[AR9300_MAX_CHAINS][MAX_CL_TAB_ENTRY];
 	struct ath9k_nfcal_hist nfCalHist[NUM_NF_READINGS];
+	struct ath9k_rtt_hist rtt_hist;
 };
 
 struct ath9k_channel {
@@ -379,14 +407,6 @@ enum ath9k_power_mode {
 	ATH9K_PM_UNDEFINED
 };
 
-enum ath9k_tp_scale {
-	ATH9K_TP_SCALE_MAX = 0,
-	ATH9K_TP_SCALE_50,
-	ATH9K_TP_SCALE_25,
-	ATH9K_TP_SCALE_12,
-	ATH9K_TP_SCALE_MIN
-};
-
 enum ser_reg_mode {
 	SER_REG_MODE_OFF = 0,
 	SER_REG_MODE_ON = 1,
@@ -403,7 +423,6 @@ struct ath9k_beacon_state {
 	u32 bs_nexttbtt;
 	u32 bs_nextdtim;
 	u32 bs_intval;
-#define ATH9K_BEACON_PERIOD       0x0000ffff
 #define ATH9K_TSFOOR_THRESHOLD    0x00004240 /* 16k us */
 	u32 bs_dtimperiod;
 	u16 bs_cfpperiod;
@@ -436,7 +455,6 @@ struct ath9k_hw_version {
 	u16 phyRev;
 	u16 analog5GhzRev;
 	u16 analog2GhzRev;
-	u16 subsysid;
 	enum ath_usb_dev usbdev;
 };
 
@@ -575,7 +593,6 @@ struct ath_hw_private_ops {
 	bool (*rfbus_req)(struct ath_hw *ah);
 	void (*rfbus_done)(struct ath_hw *ah);
 	void (*restore_chainmask)(struct ath_hw *ah);
-	void (*set_diversity)(struct ath_hw *ah, bool value);
 	u32 (*compute_pll_control)(struct ath_hw *ah,
 				   struct ath9k_channel *chan);
 	bool (*ani_control)(struct ath_hw *ah, enum ath9k_ani_cmd cmd,
@@ -583,6 +600,8 @@ struct ath_hw_private_ops {
 	void (*do_getnf)(struct ath_hw *ah, int16_t nfarray[NUM_NF_READINGS]);
 	void (*set_radar_params)(struct ath_hw *ah,
 				 struct ath_hw_radar_conf *conf);
+	int (*fast_chan_change)(struct ath_hw *ah, struct ath9k_channel *chan,
+				u8 *ini_reloaded);
 
 	/* ANI */
 	void (*ani_cache_ini_regs)(struct ath_hw *ah);
@@ -599,40 +618,18 @@ struct ath_hw_private_ops {
  */
 struct ath_hw_ops {
 	void (*config_pci_powersave)(struct ath_hw *ah,
-				     int restore,
-				     int power_off);
+				     bool power_off);
 	void (*rx_enable)(struct ath_hw *ah);
 	void (*set_desc_link)(void *ds, u32 link);
-	void (*get_desc_link)(void *ds, u32 **link);
 	bool (*calibrate)(struct ath_hw *ah,
 			  struct ath9k_channel *chan,
 			  u8 rxchainmask,
 			  bool longcal);
 	bool (*get_isr)(struct ath_hw *ah, enum ath9k_int *masked);
-	void (*fill_txdesc)(struct ath_hw *ah, void *ds, u32 seglen,
-			    bool is_firstseg, bool is_is_lastseg,
-			    const void *ds0, dma_addr_t buf_addr,
-			    unsigned int qcu);
+	void (*set_txdesc)(struct ath_hw *ah, void *ds,
+			   struct ath_tx_info *i);
 	int (*proc_txdesc)(struct ath_hw *ah, void *ds,
 			   struct ath_tx_status *ts);
-	void (*set11n_txdesc)(struct ath_hw *ah, void *ds,
-			      u32 pktLen, enum ath9k_pkt_type type,
-			      u32 txPower, u32 keyIx,
-			      enum ath9k_key_type keyType,
-			      u32 flags);
-	void (*set11n_ratescenario)(struct ath_hw *ah, void *ds,
-				void *lastds,
-				u32 durUpdateEn, u32 rtsctsRate,
-				u32 rtsctsDuration,
-				struct ath9k_11n_rate_series series[],
-				u32 nseries, u32 flags);
-	void (*set11n_aggr_first)(struct ath_hw *ah, void *ds,
-				  u32 aggrLen);
-	void (*set11n_aggr_middle)(struct ath_hw *ah, void *ds,
-				   u32 numDelims);
-	void (*set11n_aggr_last)(struct ath_hw *ah, void *ds);
-	void (*clr11n_aggr)(struct ath_hw *ah, void *ds);
-	void (*set_clrdmask)(struct ath_hw *ah, void *ds, bool val);
 	void (*antdiv_comb_conf_get)(struct ath_hw *ah,
 			struct ath_hw_antcomb_conf *antconf);
 	void (*antdiv_comb_conf_set)(struct ath_hw *ah,
@@ -646,9 +643,16 @@ struct ath_nf_limits {
 	s16 nominal;
 };
 
+enum ath_cal_list {
+	TX_IQ_CAL         =	BIT(0),
+	TX_IQ_ON_AGC_CAL  =	BIT(1),
+	TX_CL_CAL         =	BIT(2),
+};
+
 /* ah_flags */
 #define AH_USE_EEPROM   0x1
 #define AH_UNPLUGGED    0x2 /* The card has been physically removed. */
+#define AH_FASTCC       0x4
 
 struct ath_hw {
 	struct ath_ops reg_ops;
@@ -671,6 +675,7 @@ struct ath_hw {
 
 	bool sw_mgmt_crypto;
 	bool is_pciexpress;
+	bool aspm_enabled;
 	bool is_monitoring;
 	bool need_an_top2_fixup;
 	u16 tx_trig_level;
@@ -688,6 +693,7 @@ struct ath_hw {
 	enum nl80211_iftype opmode;
 	enum ath9k_power_mode power_mode;
 
+	s8 noise;
 	struct ath9k_hw_cal_data *caldata;
 	struct ath9k_pacal_info pacal_info;
 	struct ar5416Stats stats;
@@ -701,8 +707,10 @@ struct ath_hw {
 	u32 txdesc_interrupt_mask;
 	u32 txeol_interrupt_mask;
 	u32 txurn_interrupt_mask;
+	atomic_t intr_ref_cnt;
 	bool chip_fullsleep;
 	u32 atim_window;
+	u32 modes_index;
 
 	/* Calibration */
 	u32 supp_cals;
@@ -741,6 +749,7 @@ struct ath_hw {
 		int32_t sign[AR5416_MAX_CHAINS];
 	} meas3;
 	u16 cal_samples;
+	u8 enabled_cals;
 
 	u32 sta_id1_defaults;
 	u32 misc_mode;
@@ -818,11 +827,14 @@ struct ath_hw {
 	struct ar5416IniArray iniModes_9271_1_0_only;
 	struct ar5416IniArray iniCckfirNormal;
 	struct ar5416IniArray iniCckfirJapan2484;
+	struct ar5416IniArray ini_japan2484;
 	struct ar5416IniArray iniCommon_normal_cck_fir_coeff_9271;
 	struct ar5416IniArray iniCommon_japan_2484_cck_fir_coeff_9271;
 	struct ar5416IniArray iniModes_9271_ANI_reg;
 	struct ar5416IniArray iniModes_high_power_tx_gain_9271;
 	struct ar5416IniArray iniModes_normal_power_tx_gain_9271;
+	struct ar5416IniArray ini_radio_post_sys2ant;
+	struct ar5416IniArray ini_BTCOEX_MAX_TXPWR;
 
 	struct ar5416IniArray iniMac[ATH_INI_NUM_SPLIT];
 	struct ar5416IniArray iniBB[ATH_INI_NUM_SPLIT];
@@ -862,6 +874,8 @@ struct ath_hw {
 	u32 ent_mode;
 
 	bool is_clk_25mhz;
+	int (*get_mac_revision)(void);
+	int (*external_reset)(void);
 };
 
 struct ath_bus_ops {
@@ -870,6 +884,7 @@ struct ath_bus_ops {
 	bool (*eeprom_read)(struct ath_common *common, u32 off, u16 *data);
 	void (*bt_coex_prep)(struct ath_common *common);
 	void (*extn_synch_en)(struct ath_common *common);
+	void (*aspm_init)(struct ath_common *common);
 };
 
 static inline struct ath_common *ath9k_hw_common(struct ath_hw *ah)
@@ -973,6 +988,7 @@ void ath9k_hw_htc_resetinit(struct ath_hw *ah);
 /* PHY */
 void ath9k_hw_get_delta_slope_vals(struct ath_hw *ah, u32 coef_scaled,
 				   u32 *coef_mantissa, u32 *coef_exponent);
+void ath9k_hw_apply_txpower(struct ath_hw *ah, struct ath9k_channel *chan);
 
 /*
  * Code Specific to AR5008, AR9001 or AR9002,
@@ -981,8 +997,6 @@ void ath9k_hw_get_delta_slope_vals(struct ath_hw *ah, u32 coef_scaled,
 void ar9002_hw_cck_chan14_spread(struct ath_hw *ah);
 int ar9002_hw_rf_claim(struct ath_hw *ah);
 void ar9002_hw_enable_async_fifo(struct ath_hw *ah);
-void ar9002_hw_update_async_fifo(struct ath_hw *ah);
-void ar9002_hw_enable_wep_aggregation(struct ath_hw *ah);
 
 /*
  * Code specific to AR9003, we stuff these here to avoid callbacks
@@ -1026,10 +1040,6 @@ extern int modparam_force_new_ani;
 void ath9k_ani_reset(struct ath_hw *ah, bool is_scanning);
 void ath9k_hw_proc_mib_event(struct ath_hw *ah);
 void ath9k_hw_ani_monitor(struct ath_hw *ah, struct ath9k_channel *chan);
-
-#define ATH_PCIE_CAP_LINK_CTRL	0x70
-#define ATH_PCIE_CAP_LINK_L0S	1
-#define ATH_PCIE_CAP_LINK_L1	2
 
 #define ATH9K_CLOCK_RATE_CCK		22
 #define ATH9K_CLOCK_RATE_5GHZ_OFDM	40

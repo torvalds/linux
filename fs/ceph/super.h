@@ -36,7 +36,8 @@
 #define ceph_test_mount_opt(fsc, opt) \
 	(!!((fsc)->mount_options->flags & CEPH_MOUNT_OPT_##opt))
 
-#define CEPH_RSIZE_DEFAULT             (512*1024) /* readahead */
+#define CEPH_RSIZE_DEFAULT             0           /* max read size */
+#define CEPH_RASIZE_DEFAULT            (8192*1024) /* readahead */
 #define CEPH_MAX_READDIR_DEFAULT        1024
 #define CEPH_MAX_READDIR_BYTES_DEFAULT  (512*1024)
 #define CEPH_SNAPDIRNAME_DEFAULT        ".snap"
@@ -45,8 +46,9 @@ struct ceph_mount_options {
 	int flags;
 	int sb_flags;
 
-	int wsize;
-	int rsize;            /* max readahead */
+	int wsize;            /* max write size */
+	int rsize;            /* max read size */
+	int rasize;           /* max readahead */
 	int congestion_kb;    /* max writeback in flight */
 	int caps_wanted_delay_min, caps_wanted_delay_max;
 	int cap_release_safety;
@@ -201,6 +203,7 @@ struct ceph_inode_xattr {
  * Ceph dentry state
  */
 struct ceph_dentry_info {
+	unsigned long flags;
 	struct ceph_mds_session *lease_session;
 	u32 lease_gen, lease_shared_gen;
 	u32 lease_seq;
@@ -210,6 +213,18 @@ struct ceph_dentry_info {
 	u64 time;
 	u64 offset;
 };
+
+/*
+ * dentry flags
+ *
+ * The locking for D_COMPLETE is a bit odd:
+ *  - we can clear it at almost any time (see ceph_d_prune)
+ *  - it is only meaningful if:
+ *    - we hold dir inode i_lock
+ *    - we hold dir FILE_SHARED caps
+ *    - the dentry D_COMPLETE is set
+ */
+#define CEPH_D_COMPLETE 1  /* if set, d_u.d_subdirs is complete directory */
 
 struct ceph_inode_xattrs_info {
 	/*
@@ -249,7 +264,7 @@ struct ceph_inode_info {
 	struct timespec i_rctime;
 	u64 i_rbytes, i_rfiles, i_rsubdirs;
 	u64 i_files, i_subdirs;
-	u64 i_max_offset;  /* largest readdir offset, set with I_COMPLETE */
+	u64 i_max_offset;  /* largest readdir offset, set with D_COMPLETE */
 
 	struct rb_root i_fragtree;
 	struct mutex i_fragtree_mutex;
@@ -344,9 +359,10 @@ static inline struct ceph_vino ceph_vino(struct inode *inode)
  * x86_64+ino32  64                     32
  * x86_64        64                     64
  */
-static inline u32 ceph_ino_to_ino32(ino_t ino)
+static inline u32 ceph_ino_to_ino32(__u64 vino)
 {
-	ino ^= ino >> (sizeof(ino) * 8 - 32);
+	u32 ino = vino & 0xffffffff;
+	ino ^= vino >> 32;
 	if (!ino)
 		ino = 1;
 	return ino;
@@ -357,11 +373,11 @@ static inline u32 ceph_ino_to_ino32(ino_t ino)
  */
 static inline ino_t ceph_vino_to_ino(struct ceph_vino vino)
 {
-	ino_t ino = (ino_t)vino.ino;  /* ^ (vino.snap << 20); */
 #if BITS_PER_LONG == 32
-	ino = ceph_ino_to_ino32(ino);
+	return ceph_ino_to_ino32(vino.ino);
+#else
+	return (ino_t)vino.ino;
 #endif
-	return ino;
 }
 
 /*
@@ -413,7 +429,6 @@ static inline struct inode *ceph_find_inode(struct super_block *sb,
 /*
  * Ceph inode.
  */
-#define CEPH_I_COMPLETE  1  /* we have complete directory cached */
 #define CEPH_I_NODELAY   4  /* do not delay cap release */
 #define CEPH_I_FLUSH     8  /* do not delay flush of dirty metadata */
 #define CEPH_I_NOFLUSH  16  /* do not flush dirty caps */
@@ -469,6 +484,13 @@ static inline loff_t ceph_make_fpos(unsigned frag, unsigned off)
 {
 	return ((loff_t)frag << 32) | (loff_t)off;
 }
+
+/*
+ * set/clear directory D_COMPLETE flag
+ */
+void ceph_dir_set_complete(struct inode *inode);
+void ceph_dir_clear_complete(struct inode *inode);
+bool ceph_dir_test_complete(struct inode *inode);
 
 /*
  * caps helpers
@@ -543,13 +565,16 @@ extern void ceph_reservation_status(struct ceph_fs_client *client,
 /*
  * we keep buffered readdir results attached to file->private_data
  */
+#define CEPH_F_SYNC     1
+#define CEPH_F_ATEND    2
+
 struct ceph_file_info {
-	int fmode;     /* initialized on open */
+	short fmode;     /* initialized on open */
+	short flags;     /* CEPH_F_* */
 
 	/* readdir: position within the dir */
 	u32 frag;
 	struct ceph_mds_request *last_readdir;
-	int at_end;
 
 	/* readdir: position within a frag */
 	unsigned offset;       /* offset of last chunk, adjusted for . and .. */
@@ -692,7 +717,7 @@ extern void ceph_queue_invalidate(struct inode *inode);
 extern void ceph_queue_writeback(struct inode *inode);
 
 extern int ceph_do_getattr(struct inode *inode, int mask);
-extern int ceph_permission(struct inode *inode, int mask, unsigned int flags);
+extern int ceph_permission(struct inode *inode, int mask);
 extern int ceph_setattr(struct dentry *dentry, struct iattr *attr);
 extern int ceph_getattr(struct vfsmount *mnt, struct dentry *dentry,
 			struct kstat *stat);
@@ -728,7 +753,8 @@ extern void ceph_put_cap(struct ceph_mds_client *mdsc,
 
 extern void ceph_queue_caps_release(struct inode *inode);
 extern int ceph_write_inode(struct inode *inode, struct writeback_control *wbc);
-extern int ceph_fsync(struct file *file, int datasync);
+extern int ceph_fsync(struct file *file, loff_t start, loff_t end,
+		      int datasync);
 extern void ceph_kick_flushing_caps(struct ceph_mds_client *mdsc,
 				    struct ceph_mds_session *session);
 extern struct ceph_cap *ceph_get_cap_for_mds(struct ceph_inode_info *ci,
@@ -788,6 +814,8 @@ extern const struct dentry_operations ceph_dentry_ops, ceph_snap_dentry_ops,
 	ceph_snapdir_dentry_ops;
 
 extern int ceph_handle_notrace_create(struct inode *dir, struct dentry *dentry);
+extern int ceph_handle_snapdir(struct ceph_mds_request *req,
+			       struct dentry *dentry, int err);
 extern struct dentry *ceph_finish_lookup(struct ceph_mds_request *req,
 					 struct dentry *dentry, int err);
 
@@ -795,7 +823,8 @@ extern void ceph_dentry_lru_add(struct dentry *dn);
 extern void ceph_dentry_lru_touch(struct dentry *dn);
 extern void ceph_dentry_lru_del(struct dentry *dn);
 extern void ceph_invalidate_dentry_lease(struct dentry *dentry);
-extern unsigned ceph_dentry_hash(struct dentry *dn);
+extern unsigned ceph_dentry_hash(struct inode *dir, struct dentry *dn);
+extern struct inode *ceph_get_dentry_parent_inode(struct dentry *dentry);
 
 /*
  * our d_ops vary depending on whether the inode is live,
@@ -817,14 +846,6 @@ extern void ceph_count_locks(struct inode *inode, int *p_num, int *f_num);
 extern int ceph_encode_locks(struct inode *i, struct ceph_pagelist *p,
 			     int p_locks, int f_locks);
 extern int lock_to_ceph_filelock(struct file_lock *fl, struct ceph_filelock *c);
-
-static inline struct inode *get_dentry_parent_inode(struct dentry *dentry)
-{
-	if (dentry && dentry->d_parent)
-		return dentry->d_parent->d_inode;
-
-	return NULL;
-}
 
 /* debugfs.c */
 extern int ceph_fs_debugfs_init(struct ceph_fs_client *client);

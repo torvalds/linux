@@ -149,8 +149,7 @@ static int load_misc_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 
 		/* if the binary is not readable than enforce mm->dumpable=0
 		   regardless of the interpreter's permissions */
-		if (file_permission(bprm->file, MAY_READ))
-			bprm->interp_flags |= BINPRM_FLAGS_ENFORCE_NONDUMP;
+		would_dump(bprm, bprm->file);
 
 		allow_write_access(bprm->file);
 		bprm->file = NULL;
@@ -522,7 +521,7 @@ static void kill_node(Node *e)
 	write_unlock(&entries_lock);
 
 	if (dentry) {
-		dentry->d_inode->i_nlink--;
+		drop_nlink(dentry->d_inode);
 		d_drop(dentry);
 		dput(dentry);
 		simple_release_fs(&bm_mnt, &entry_count);

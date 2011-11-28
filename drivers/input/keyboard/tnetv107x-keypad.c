@@ -24,6 +24,7 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/input/matrix_keypad.h>
+#include <linux/module.h>
 
 #define BITS(x)			(BIT(x) - 1)
 
@@ -337,5 +338,5 @@ module_exit(keypad_exit);
 
 MODULE_AUTHOR("Cyril Chemparathy");
 MODULE_DESCRIPTION("TNETV107X Keypad Driver");
-MODULE_ALIAS("platform: tnetv107x-keypad");
+MODULE_ALIAS("platform:tnetv107x-keypad");
 MODULE_LICENSE("GPL");

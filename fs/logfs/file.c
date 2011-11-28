@@ -219,11 +219,20 @@ long logfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 }
 
-int logfs_fsync(struct file *file, int datasync)
+int logfs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct super_block *sb = file->f_mapping->host->i_sb;
+	struct inode *inode = file->f_mapping->host;
+	int ret;
 
+	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	if (ret)
+		return ret;
+
+	mutex_lock(&inode->i_mutex);
 	logfs_write_anchor(sb);
+	mutex_unlock(&inode->i_mutex);
+
 	return 0;
 }
 

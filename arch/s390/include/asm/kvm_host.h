@@ -47,7 +47,7 @@ struct sca_block {
 #define KVM_HPAGE_MASK(x)	(~(KVM_HPAGE_SIZE(x) - 1))
 #define KVM_PAGES_PER_HPAGE(x)	(KVM_HPAGE_SIZE(x) / PAGE_SIZE)
 
-#define CPUSTAT_HOST       0x80000000
+#define CPUSTAT_STOPPED    0x80000000
 #define CPUSTAT_WAIT       0x10000000
 #define CPUSTAT_ECALL_PEND 0x08000000
 #define CPUSTAT_STOP_INT   0x04000000
@@ -93,9 +93,7 @@ struct kvm_s390_sie_block {
 	__u32	scaol;			/* 0x0064 */
 	__u8	reserved68[4];		/* 0x0068 */
 	__u32	todpr;			/* 0x006c */
-	__u8	reserved70[16];		/* 0x0070 */
-	__u64	gmsor;			/* 0x0080 */
-	__u64	gmslm;			/* 0x0088 */
+	__u8	reserved70[32];		/* 0x0070 */
 	psw_t	gpsw;			/* 0x0090 */
 	__u64	gg14;			/* 0x00a0 */
 	__u64	gg15;			/* 0x00a8 */
@@ -121,6 +119,7 @@ struct kvm_vcpu_stat {
 	u32 instruction_lctlg;
 	u32 exit_program_interruption;
 	u32 exit_instr_and_program;
+	u32 deliver_external_call;
 	u32 deliver_emergency_signal;
 	u32 deliver_service_signal;
 	u32 deliver_virtio_interrupt;
@@ -138,12 +137,16 @@ struct kvm_vcpu_stat {
 	u32 instruction_chsc;
 	u32 instruction_stsi;
 	u32 instruction_stfl;
+	u32 instruction_tprot;
 	u32 instruction_sigp_sense;
+	u32 instruction_sigp_sense_running;
+	u32 instruction_sigp_external_call;
 	u32 instruction_sigp_emergency;
 	u32 instruction_sigp_stop;
 	u32 instruction_sigp_arch;
 	u32 instruction_sigp_prefix;
 	u32 instruction_sigp_restart;
+	u32 diagnose_10;
 	u32 diagnose_44;
 };
 
@@ -175,6 +178,14 @@ struct kvm_s390_prefix_info {
 	__u32 address;
 };
 
+struct kvm_s390_extcall_info {
+	__u16 code;
+};
+
+struct kvm_s390_emerg_info {
+	__u16 code;
+};
+
 struct kvm_s390_interrupt_info {
 	struct list_head list;
 	u64	type;
@@ -182,6 +193,8 @@ struct kvm_s390_interrupt_info {
 		struct kvm_s390_io_info io;
 		struct kvm_s390_ext_info ext;
 		struct kvm_s390_pgm_info pgm;
+		struct kvm_s390_emerg_info emerg;
+		struct kvm_s390_extcall_info extcall;
 		struct kvm_s390_prefix_info prefix;
 	};
 };
@@ -226,6 +239,7 @@ struct kvm_vcpu_arch {
 		struct cpuid	cpu_id;
 		u64		stidp_data;
 	};
+	struct gmap *gmap;
 };
 
 struct kvm_vm_stat {
@@ -236,6 +250,7 @@ struct kvm_arch{
 	struct sca_block *sca;
 	debug_info_t *dbf;
 	struct kvm_s390_float_interrupt float_int;
+	struct gmap *gmap;
 };
 
 extern int sie64a(struct kvm_s390_sie_block *, unsigned long *);

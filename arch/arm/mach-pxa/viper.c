@@ -992,9 +992,10 @@ static void __init viper_map_io(void)
 
 MACHINE_START(VIPER, "Arcom/Eurotech VIPER SBC")
 	/* Maintainer: Marc Zyngier <maz@misterjones.org> */
-	.boot_params	= 0xa0000100,
+	.atag_offset	= 0x100,
 	.map_io		= viper_map_io,
 	.init_irq	= viper_init_irq,
+	.handle_irq	= pxa25x_handle_irq,
 	.timer          = &pxa_timer,
 	.init_machine	= viper_init,
 MACHINE_END

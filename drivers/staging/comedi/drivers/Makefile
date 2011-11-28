@@ -86,6 +86,7 @@ obj-$(CONFIG_COMEDI_AMPLC_PCI224)	+= amplc_pci224.o
 obj-$(CONFIG_COMEDI_AMPLC_PCI230)	+= amplc_pci230.o
 obj-$(CONFIG_COMEDI_CONTEC_PCI_DIO)	+= contec_pci_dio.o
 obj-$(CONFIG_COMEDI_DT3000)		+= dt3000.o
+obj-$(CONFIG_COMEDI_DYNA_PCI10XX)	+= dyna_pci10xx.o
 obj-$(CONFIG_COMEDI_UNIOXX5)		+= unioxx5.o
 obj-$(CONFIG_COMEDI_GSC_HPDI)		+= gsc_hpdi.o
 obj-$(CONFIG_COMEDI_ICP_MULTI)		+= icp_multi.o
@@ -125,6 +126,7 @@ obj-$(CONFIG_COMEDI_QUATECH_DAQP_CS)	+= quatech_daqp_cs.o
 obj-$(CONFIG_COMEDI_DT9812)		+= dt9812.o
 obj-$(CONFIG_COMEDI_USBDUX)		+= usbdux.o
 obj-$(CONFIG_COMEDI_USBDUXFAST)		+= usbduxfast.o
+obj-$(CONFIG_COMEDI_USBDUXSIGMA)	+= usbduxsigma.o
 obj-$(CONFIG_COMEDI_VMK80XX)		+= vmk80xx.o
 
 # Comedi NI drivers

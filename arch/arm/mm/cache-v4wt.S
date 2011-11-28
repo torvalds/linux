@@ -197,16 +197,5 @@ ENDPROC(v4wt_dma_map_area)
 
 	__INITDATA
 
-	.type	v4wt_cache_fns, #object
-ENTRY(v4wt_cache_fns)
-	.long	v4wt_flush_icache_all
-	.long	v4wt_flush_kern_cache_all
-	.long	v4wt_flush_user_cache_all
-	.long	v4wt_flush_user_cache_range
-	.long	v4wt_coherent_kern_range
-	.long	v4wt_coherent_user_range
-	.long	v4wt_flush_kern_dcache_area
-	.long	v4wt_dma_map_area
-	.long	v4wt_dma_unmap_area
-	.long	v4wt_dma_flush_range
-	.size	v4wt_cache_fns, . - v4wt_cache_fns
+	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
+	define_cache_functions v4wt

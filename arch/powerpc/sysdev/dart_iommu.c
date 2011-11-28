@@ -239,7 +239,7 @@ static int __init dart_init(struct device_node *dart_node)
 					 DARTMAP_RPNMASK);
 
 	/* Map in DART registers */
-	dart = ioremap(r.start, r.end - r.start + 1);
+	dart = ioremap(r.start, resource_size(&r));
 	if (dart == NULL)
 		panic("DART: Cannot map registers!");
 

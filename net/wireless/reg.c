@@ -36,12 +36,14 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/random.h>
 #include <linux/ctype.h>
 #include <linux/nl80211.h>
 #include <linux/platform_device.h>
+#include <linux/moduleparam.h>
 #include <net/cfg80211.h>
 #include "core.h"
 #include "reg.h"
@@ -49,10 +51,8 @@
 #include "nl80211.h"
 
 #ifdef CONFIG_CFG80211_REG_DEBUG
-#define REG_DBG_PRINT(format, args...) \
-	do { \
-		printk(KERN_DEBUG pr_fmt(format), ##args);	\
-	} while (0)
+#define REG_DBG_PRINT(format, args...)			\
+	printk(KERN_DEBUG pr_fmt(format), ##args)
 #else
 #define REG_DBG_PRINT(args...)
 #endif
@@ -753,9 +753,10 @@ static void chan_reg_rule_print_dbg(struct ieee80211_channel *chan,
 		      chan->center_freq,
 		      KHZ_TO_MHZ(desired_bw_khz));
 
-	REG_DBG_PRINT("%d KHz - %d KHz @  KHz), (%s mBi, %d mBm)\n",
+	REG_DBG_PRINT("%d KHz - %d KHz @ %d KHz), (%s mBi, %d mBm)\n",
 		      freq_range->start_freq_khz,
 		      freq_range->end_freq_khz,
+		      freq_range->max_bandwidth_khz,
 		      max_antenna_gain,
 		      power_rule->max_eirp);
 }
@@ -852,6 +853,7 @@ static void handle_channel(struct wiphy *wiphy,
 		return;
 	}
 
+	chan->beacon_found = false;
 	chan->flags = flags | bw_flags | map_regdom_flags(reg_rule->flags);
 	chan->max_antenna_gain = min(chan->orig_mag,
 		(int) MBI_TO_DBI(power_rule->max_antenna_gain));
@@ -890,7 +892,7 @@ static bool ignore_reg_update(struct wiphy *wiphy,
 	    wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY) {
 		REG_DBG_PRINT("Ignoring regulatory request %s "
 			      "since the driver uses its own custom "
-			      "regulatory domain ",
+			      "regulatory domain\n",
 			      reg_initiator_name(initiator));
 		return true;
 	}
@@ -903,21 +905,13 @@ static bool ignore_reg_update(struct wiphy *wiphy,
 	    initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE &&
 	    !is_world_regdom(last_request->alpha2)) {
 		REG_DBG_PRINT("Ignoring regulatory request %s "
-			      "since the driver requires its own regulaotry "
-			      "domain to be set first",
+			      "since the driver requires its own regulatory "
+			      "domain to be set first\n",
 			      reg_initiator_name(initiator));
 		return true;
 	}
 
 	return false;
-}
-
-static void update_all_wiphy_regulatory(enum nl80211_reg_initiator initiator)
-{
-	struct cfg80211_registered_device *rdev;
-
-	list_for_each_entry(rdev, &cfg80211_rdev_list, list)
-		wiphy_update_regulatory(&rdev->wiphy, initiator);
 }
 
 static void handle_reg_beacon(struct wiphy *wiphy,
@@ -1119,22 +1113,41 @@ static void reg_process_ht_flags(struct wiphy *wiphy)
 
 }
 
-void wiphy_update_regulatory(struct wiphy *wiphy,
-			     enum nl80211_reg_initiator initiator)
+static void wiphy_update_regulatory(struct wiphy *wiphy,
+				    enum nl80211_reg_initiator initiator)
 {
 	enum ieee80211_band band;
 
+	assert_reg_lock();
+
 	if (ignore_reg_update(wiphy, initiator))
-		goto out;
+		return;
+
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 		if (wiphy->bands[band])
 			handle_band(wiphy, band, initiator);
 	}
-out:
+
 	reg_process_beacons(wiphy);
 	reg_process_ht_flags(wiphy);
 	if (wiphy->reg_notifier)
 		wiphy->reg_notifier(wiphy, last_request);
+}
+
+void regulatory_update(struct wiphy *wiphy,
+		       enum nl80211_reg_initiator setby)
+{
+	mutex_lock(&reg_mutex);
+	wiphy_update_regulatory(wiphy, setby);
+	mutex_unlock(&reg_mutex);
+}
+
+static void update_all_wiphy_regulatory(enum nl80211_reg_initiator initiator)
+{
+	struct cfg80211_registered_device *rdev;
+
+	list_for_each_entry(rdev, &cfg80211_rdev_list, list)
+		wiphy_update_regulatory(&rdev->wiphy, initiator);
 }
 
 static void handle_channel_custom(struct wiphy *wiphy,
@@ -1473,7 +1486,7 @@ static void reg_process_pending_hints(void)
 	/* When last_request->processed becomes true this will be rescheduled */
 	if (last_request && !last_request->processed) {
 		REG_DBG_PRINT("Pending regulatory request, waiting "
-			      "for it to be processed...");
+			      "for it to be processed...\n");
 		goto out;
 	}
 
@@ -2186,7 +2199,7 @@ out:
 static void reg_timeout_work(struct work_struct *work)
 {
 	REG_DBG_PRINT("Timeout while waiting for CRDA to reply, "
-		      "restoring regulatory settings");
+		      "restoring regulatory settings\n");
 	restore_regulatory_settings(true);
 }
 
@@ -2251,6 +2264,9 @@ void /* __init_or_exit */ regulatory_exit(void)
 	reset_regdomains();
 
 	kfree(last_request);
+
+	last_request = NULL;
+	dev_set_uevent_suppress(&reg_pdev->dev, true);
 
 	platform_device_unregister(reg_pdev);
 

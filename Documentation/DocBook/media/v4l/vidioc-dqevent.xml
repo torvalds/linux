@@ -1,0 +1,271 @@
+<refentry id="vidioc-dqevent">
+  <refmeta>
+    <refentrytitle>ioctl VIDIOC_DQEVENT</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>VIDIOC_DQEVENT</refname>
+    <refpurpose>Dequeue event</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>struct v4l2_event
+*<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>VIDIOC_DQEVENT</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>Dequeue an event from a video device. No input is required
+    for this ioctl. All the fields of the &v4l2-event; structure are
+    filled by the driver. The file handle will also receive exceptions
+    which the application may get by e.g. using the select system
+    call.</para>
+
+    <table frame="none" pgwide="1" id="v4l2-event">
+      <title>struct <structname>v4l2_event</structname></title>
+      <tgroup cols="4">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>type</structfield></entry>
+            <entry></entry>
+	    <entry>Type of the event.</entry>
+	  </row>
+	  <row>
+	    <entry>union</entry>
+	    <entry><structfield>u</structfield></entry>
+            <entry></entry>
+	    <entry></entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>&v4l2-event-vsync;</entry>
+            <entry><structfield>vsync</structfield></entry>
+	    <entry>Event data for event V4L2_EVENT_VSYNC.
+            </entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>&v4l2-event-ctrl;</entry>
+            <entry><structfield>ctrl</structfield></entry>
+	    <entry>Event data for event V4L2_EVENT_CTRL.
+            </entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>&v4l2-event-frame-sync;</entry>
+            <entry><structfield>frame</structfield></entry>
+	    <entry>Event data for event V4L2_EVENT_FRAME_SYNC.</entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>__u8</entry>
+            <entry><structfield>data</structfield>[64]</entry>
+	    <entry>Event data. Defined by the event type. The union
+            should be used to define easily accessible type for
+            events.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>pending</structfield></entry>
+            <entry></entry>
+	    <entry>Number of pending events excluding this one.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>sequence</structfield></entry>
+            <entry></entry>
+	    <entry>Event sequence number. The sequence number is
+	    incremented for every subscribed event that takes place.
+	    If sequence numbers are not contiguous it means that
+	    events have been lost.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry>struct timespec</entry>
+	    <entry><structfield>timestamp</structfield></entry>
+            <entry></entry>
+	    <entry>Event timestamp.</entry>
+	  </row>
+	  <row>
+	    <entry>u32</entry>
+	    <entry><structfield>id</structfield></entry>
+            <entry></entry>
+	    <entry>The ID associated with the event source. If the event does not
+		have an associated ID (this depends on the event type), then this
+		is 0.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved</structfield>[8]</entry>
+            <entry></entry>
+	    <entry>Reserved for future extensions. Drivers must set
+	    the array to zero.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table frame="none" pgwide="1" id="v4l2-event-vsync">
+      <title>struct <structname>v4l2_event_vsync</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u8</entry>
+	    <entry><structfield>field</structfield></entry>
+	    <entry>The upcoming field. See &v4l2-field;.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table frame="none" pgwide="1" id="v4l2-event-ctrl">
+      <title>struct <structname>v4l2_event_ctrl</structname></title>
+      <tgroup cols="4">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>changes</structfield></entry>
+	    <entry></entry>
+	    <entry>A bitmask that tells what has changed. See <xref linkend="changes-flags" />.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>type</structfield></entry>
+	    <entry></entry>
+	    <entry>The type of the control. See &v4l2-ctrl-type;.</entry>
+	  </row>
+	  <row>
+	    <entry>union (anonymous)</entry>
+	    <entry></entry>
+	    <entry></entry>
+	    <entry></entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>__s32</entry>
+	    <entry><structfield>value</structfield></entry>
+	    <entry>The 32-bit value of the control for 32-bit control types.
+		This is 0 for string controls since the value of a string
+		cannot be passed using &VIDIOC-DQEVENT;.</entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>__s64</entry>
+	    <entry><structfield>value64</structfield></entry>
+	    <entry>The 64-bit value of the control for 64-bit control types.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>flags</structfield></entry>
+	    <entry></entry>
+	    <entry>The control flags. See <xref linkend="control-flags" />.</entry>
+	  </row>
+	  <row>
+	    <entry>__s32</entry>
+	    <entry><structfield>minimum</structfield></entry>
+	    <entry></entry>
+	    <entry>The minimum value of the control. See &v4l2-queryctrl;.</entry>
+	  </row>
+	  <row>
+	    <entry>__s32</entry>
+	    <entry><structfield>maximum</structfield></entry>
+	    <entry></entry>
+	    <entry>The maximum value of the control. See &v4l2-queryctrl;.</entry>
+	  </row>
+	  <row>
+	    <entry>__s32</entry>
+	    <entry><structfield>step</structfield></entry>
+	    <entry></entry>
+	    <entry>The step value of the control. See &v4l2-queryctrl;.</entry>
+	  </row>
+	  <row>
+	    <entry>__s32</entry>
+	    <entry><structfield>default_value</structfield></entry>
+	    <entry></entry>
+	    <entry>The default value value of the control. See &v4l2-queryctrl;.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table frame="none" pgwide="1" id="v4l2-event-frame-sync">
+      <title>struct <structname>v4l2_event_frame_sync</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>frame_sequence</structfield></entry>
+	    <entry>
+	      The sequence number of the frame being received.
+	    </entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table pgwide="1" frame="none" id="changes-flags">
+      <title>Changes</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_EVENT_CTRL_CH_VALUE</constant></entry>
+	    <entry>0x0001</entry>
+	    <entry>This control event was triggered because the value of the control
+		changed. Special case: if a button control is pressed, then this
+		event is sent as well, even though there is not explicit value
+		associated with a button control.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_EVENT_CTRL_CH_FLAGS</constant></entry>
+	    <entry>0x0002</entry>
+	    <entry>This control event was triggered because the control flags
+		changed.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+  </refsect1>
+  <refsect1>
+    &return-value;
+  </refsect1>
+</refentry>

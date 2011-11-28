@@ -21,7 +21,6 @@
  * Lock ordering in mm:
  *
  * inode->i_mutex	(while writing or truncating, not reading or faulting)
- *   inode->i_alloc_sem (vmtruncate_range)
  *   mm->mmap_sem
  *     page->flags PG_locked (lock_page)
  *       mapping->i_mmap_mutex
@@ -32,11 +31,11 @@
  *               mmlist_lock (in mmput, drain_mmlist and others)
  *               mapping->private_lock (in __set_page_dirty_buffers)
  *               inode->i_lock (in set_page_dirty's __mark_inode_dirty)
- *               inode_wb_list_lock (in set_page_dirty's __mark_inode_dirty)
+ *               bdi.wb->list_lock (in set_page_dirty's __mark_inode_dirty)
  *                 sb_lock (within inode_lock in fs/fs-writeback.c)
  *                 mapping->tree_lock (widely used, in set_page_dirty,
  *                           in arch-dependent flush_dcache_mmap_lock,
- *                           within inode_wb_list_lock in __sync_single_inode)
+ *                           within bdi.wb->list_lock in __sync_single_inode)
  *
  * anon_vma->mutex,mapping->i_mutex      (memory_failure, collect_procs_anon)
  *   ->tasklist_lock
@@ -52,7 +51,7 @@
 #include <linux/ksm.h>
 #include <linux/rmap.h>
 #include <linux/rcupdate.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/memcontrol.h>
 #include <linux/mmu_notifier.h>
 #include <linux/migrate.h>
@@ -870,11 +869,11 @@ int page_referenced(struct page *page,
 								vm_flags);
 		if (we_locked)
 			unlock_page(page);
+
+		if (page_test_and_clear_young(page_to_pfn(page)))
+			referenced++;
 	}
 out:
-	if (page_test_and_clear_young(page_to_pfn(page)))
-		referenced++;
-
 	return referenced;
 }
 
@@ -1165,7 +1164,7 @@ void page_remove_rmap(struct page *page)
 
 /*
  * Subfunctions of try_to_unmap: try_to_unmap_one called
- * repeatedly from either try_to_unmap_anon or try_to_unmap_file.
+ * repeatedly from try_to_unmap_ksm, try_to_unmap_anon or try_to_unmap_file.
  */
 int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 		     unsigned long address, enum ttu_flags flags)

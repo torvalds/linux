@@ -500,23 +500,20 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	 * Note: Adler-32 is no longer applicable, as has been replaced
 	 * by CRC32-C as described in <draft-ietf-tsvwg-sctpcsum-02.txt>.
 	 */
-	if (!sctp_checksum_disable &&
-	    !(dst->dev->features & (NETIF_F_NO_CSUM | NETIF_F_SCTP_CSUM))) {
-		__u32 crc32 = sctp_start_cksum((__u8 *)sh, cksum_buf_len);
+	if (!sctp_checksum_disable) {
+		if (!(dst->dev->features & NETIF_F_SCTP_CSUM)) {
+			__u32 crc32 = sctp_start_cksum((__u8 *)sh, cksum_buf_len);
 
-		/* 3) Put the resultant value into the checksum field in the
-		 *    common header, and leave the rest of the bits unchanged.
-		 */
-		sh->checksum = sctp_end_cksum(crc32);
-	} else {
-		if (dst->dev->features & NETIF_F_SCTP_CSUM) {
+			/* 3) Put the resultant value into the checksum field in the
+			 *    common header, and leave the rest of the bits unchanged.
+			 */
+			sh->checksum = sctp_end_cksum(crc32);
+		} else {
 			/* no need to seed pseudo checksum for SCTP */
 			nskb->ip_summed = CHECKSUM_PARTIAL;
 			nskb->csum_start = (skb_transport_header(nskb) -
 			                    nskb->head);
 			nskb->csum_offset = offsetof(struct sctphdr, checksum);
-		} else {
-			nskb->ip_summed = CHECKSUM_UNNECESSARY;
 		}
 	}
 

@@ -172,12 +172,9 @@ static void sch_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 static int __devinit sch_init_one(struct pci_dev *pdev,
 				   const struct pci_device_id *ent)
 {
-	static int printed_version;
 	const struct ata_port_info *ppi[] = { &sch_port_info, NULL };
 
-	if (!printed_version++)
-		dev_printk(KERN_DEBUG, &pdev->dev,
-			   "version " DRV_VERSION "\n");
+	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
 	return ata_pci_bmdma_init_one(pdev, ppi, &sch_sht, NULL, 0);
 }

@@ -30,6 +30,7 @@
 #include <linux/input/matrix_keypad.h>
 #include <linux/regulator/machine.h>
 #include <linux/io.h>
+#include <linux/module.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -970,8 +971,8 @@ static void __init spitz_init(void)
 	spitz_i2c_init();
 }
 
-static void __init spitz_fixup(struct machine_desc *desc,
-		struct tag *tags, char **cmdline, struct meminfo *mi)
+static void __init spitz_fixup(struct tag *tags, char **cmdline,
+			       struct meminfo *mi)
 {
 	sharpsl_save_param();
 	mi->nr_banks = 1;
@@ -984,6 +985,7 @@ MACHINE_START(SPITZ, "SHARP Spitz")
 	.fixup		= spitz_fixup,
 	.map_io		= pxa27x_map_io,
 	.init_irq	= pxa27x_init_irq,
+	.handle_irq	= pxa27x_handle_irq,
 	.init_machine	= spitz_init,
 	.timer		= &pxa_timer,
 MACHINE_END
@@ -994,6 +996,7 @@ MACHINE_START(BORZOI, "SHARP Borzoi")
 	.fixup		= spitz_fixup,
 	.map_io		= pxa27x_map_io,
 	.init_irq	= pxa27x_init_irq,
+	.handle_irq	= pxa27x_handle_irq,
 	.init_machine	= spitz_init,
 	.timer		= &pxa_timer,
 MACHINE_END
@@ -1004,6 +1007,7 @@ MACHINE_START(AKITA, "SHARP Akita")
 	.fixup		= spitz_fixup,
 	.map_io		= pxa27x_map_io,
 	.init_irq	= pxa27x_init_irq,
+	.handle_irq	= pxa27x_handle_irq,
 	.init_machine	= spitz_init,
 	.timer		= &pxa_timer,
 MACHINE_END

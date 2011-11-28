@@ -23,6 +23,7 @@
 
 #include <linux/slab.h>
 #include <linux/wl12xx.h>
+#include <linux/export.h>
 
 #include "acx.h"
 #include "reg.h"
@@ -102,6 +103,23 @@ static void wl1271_boot_set_ecpu_ctrl(struct wl1271 *wl, u32 flag)
 	wl1271_write32(wl, ACX_REG_ECPU_CONTROL, cpu_ctrl);
 }
 
+static unsigned int wl12xx_get_fw_ver_quirks(struct wl1271 *wl)
+{
+	unsigned int quirks = 0;
+	unsigned int *fw_ver = wl->chip.fw_ver;
+
+	/* Only new station firmwares support routing fw logs to the host */
+	if ((fw_ver[FW_VER_IF_TYPE] == FW_VER_IF_TYPE_STA) &&
+	    (fw_ver[FW_VER_MINOR] < FW_VER_MINOR_FWLOG_STA_MIN))
+		quirks |= WL12XX_QUIRK_FWLOG_NOT_IMPLEMENTED;
+
+	/* This feature is not yet supported for AP mode */
+	if (fw_ver[FW_VER_IF_TYPE] == FW_VER_IF_TYPE_AP)
+		quirks |= WL12XX_QUIRK_FWLOG_NOT_IMPLEMENTED;
+
+	return quirks;
+}
+
 static void wl1271_parse_fw_ver(struct wl1271 *wl)
 {
 	int ret;
@@ -116,6 +134,9 @@ static void wl1271_parse_fw_ver(struct wl1271 *wl)
 		memset(wl->chip.fw_ver, 0, sizeof(wl->chip.fw_ver));
 		return;
 	}
+
+	/* Check if any quirks are needed with older fw versions */
+	wl->quirks |= wl12xx_get_fw_ver_quirks(wl);
 }
 
 static void wl1271_boot_fw_version(struct wl1271 *wl)
@@ -274,9 +295,7 @@ static int wl1271_boot_upload_nvs(struct wl1271 *wl)
 		 */
 		if (wl->nvs_len == sizeof(struct wl1271_nvs_file) ||
 		    wl->nvs_len == WL1271_INI_LEGACY_NVS_FILE_SIZE) {
-			/* for now 11a is unsupported in AP mode */
-			if (wl->bss_type != BSS_TYPE_AP_BSS &&
-			    nvs->general_params.dual_mode_select)
+			if (nvs->general_params.dual_mode_select)
 				wl->enable_11a = true;
 		}
 
@@ -474,18 +493,19 @@ static int wl1271_boot_run_firmware(struct wl1271 *wl)
 	wl->event_mask = BSS_LOSE_EVENT_ID |
 		SCAN_COMPLETE_EVENT_ID |
 		PS_REPORT_EVENT_ID |
-		JOIN_EVENT_COMPLETE_ID |
 		DISCONNECT_EVENT_COMPLETE_ID |
 		RSSI_SNR_TRIGGER_0_EVENT_ID |
 		PSPOLL_DELIVERY_FAILURE_EVENT_ID |
 		SOFT_GEMINI_SENSE_EVENT_ID |
 		PERIODIC_SCAN_REPORT_EVENT_ID |
-		PERIODIC_SCAN_COMPLETE_EVENT_ID;
-
-	if (wl->bss_type == BSS_TYPE_AP_BSS)
-		wl->event_mask |= STA_REMOVE_COMPLETE_EVENT_ID;
-	else
-		wl->event_mask |= DUMMY_PACKET_EVENT_ID;
+		PERIODIC_SCAN_COMPLETE_EVENT_ID |
+		DUMMY_PACKET_EVENT_ID |
+		PEER_REMOVE_COMPLETE_EVENT_ID |
+		BA_SESSION_RX_CONSTRAINT_EVENT_ID |
+		REMAIN_ON_CHANNEL_COMPLETE_EVENT_ID |
+		INACTIVE_STA_EVENT_ID |
+		MAX_TX_RETRY_EVENT_ID |
+		CHANNEL_SWITCH_COMPLETE_EVENT_ID;
 
 	ret = wl1271_event_unmask(wl);
 	if (ret < 0) {
@@ -516,13 +536,13 @@ static void wl1271_boot_hw_version(struct wl1271 *wl)
 {
 	u32 fuse;
 
-	fuse = wl1271_top_reg_read(wl, REG_FUSE_DATA_2_1);
+	if (wl->chip.id == CHIP_ID_1283_PG20)
+		fuse = wl1271_top_reg_read(wl, WL128X_REG_FUSE_DATA_2_1);
+	else
+		fuse = wl1271_top_reg_read(wl, WL127X_REG_FUSE_DATA_2_1);
 	fuse = (fuse & PG_VER_MASK) >> PG_VER_OFFSET;
 
 	wl->hw_pg_ver = (s8)fuse;
-
-	if (((wl->hw_pg_ver & PG_MAJOR_VER_MASK) >> PG_MAJOR_VER_OFFSET) < 3)
-		wl->quirks |= WL12XX_QUIRK_END_OF_TRANSACTION;
 }
 
 static int wl128x_switch_tcxo_to_fref(struct wl1271 *wl)
@@ -663,7 +683,8 @@ static int wl127x_boot_clk(struct wl1271 *wl)
 	u32 pause;
 	u32 clk;
 
-	wl1271_boot_hw_version(wl);
+	if (((wl->hw_pg_ver & PG_MAJOR_VER_MASK) >> PG_MAJOR_VER_OFFSET) < 3)
+		wl->quirks |= WL12XX_QUIRK_END_OF_TRANSACTION;
 
 	if (wl->ref_clock == CONF_REF_CLK_19_2_E ||
 	    wl->ref_clock == CONF_REF_CLK_38_4_E ||
@@ -716,6 +737,8 @@ int wl1271_load_firmware(struct wl1271 *wl)
 	int ret = 0;
 	u32 tmp, clk;
 	int selected_clock = -1;
+
+	wl1271_boot_hw_version(wl);
 
 	if (wl->chip.id == CHIP_ID_1283_PG20) {
 		ret = wl128x_boot_clk(wl, &selected_clock);
@@ -815,9 +838,6 @@ int wl1271_boot(struct wl1271 *wl)
 
 	/* Enable firmware interrupts now */
 	wl1271_boot_enable_interrupts(wl);
-
-	/* set the wl1271 default filters */
-	wl1271_set_default_filters(wl);
 
 	wl1271_event_mbox_config(wl);
 

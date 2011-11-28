@@ -6,7 +6,7 @@
 #include <linux/mm.h>
 #include <linux/mmzone.h>
 #include <linux/vm_event_item.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 extern int sysctl_stat_interval;
 

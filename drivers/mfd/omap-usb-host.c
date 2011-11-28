@@ -17,6 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
@@ -676,7 +677,6 @@ static void usbhs_omap_tll_init(struct device *dev, u8 tll_channel_count)
 				| OMAP_TLL_CHANNEL_CONF_ULPINOBITSTUFF
 				| OMAP_TLL_CHANNEL_CONF_ULPIDDRMODE);
 
-			reg |= (1 << (i + 1));
 		} else
 			continue;
 
@@ -998,9 +998,9 @@ static void usbhs_disable(struct device *dev)
 
 	if (is_omap_usbhs_rev2(omap)) {
 		if (is_ehci_tll_mode(pdata->port_mode[0]))
-			clk_enable(omap->usbtll_p1_fck);
+			clk_disable(omap->usbtll_p1_fck);
 		if (is_ehci_tll_mode(pdata->port_mode[1]))
-			clk_enable(omap->usbtll_p2_fck);
+			clk_disable(omap->usbtll_p2_fck);
 		clk_disable(omap->utmi_p2_fck);
 		clk_disable(omap->utmi_p1_fck);
 	}

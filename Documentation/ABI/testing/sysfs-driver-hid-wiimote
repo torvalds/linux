@@ -1,0 +1,10 @@
+What:		/sys/bus/hid/drivers/wiimote/<dev>/led1
+What:		/sys/bus/hid/drivers/wiimote/<dev>/led2
+What:		/sys/bus/hid/drivers/wiimote/<dev>/led3
+What:		/sys/bus/hid/drivers/wiimote/<dev>/led4
+Date:		July 2011
+KernelVersion:	3.1
+Contact:	David Herrmann <dh.herrmann@googlemail.com>
+Description:	Make it possible to set/get current led state. Reading from it
+		returns 0 if led is off and 1 if it is on. Writing 0 to it
+		disables the led, writing 1 enables it.

@@ -27,7 +27,10 @@
  *
  *****************************************************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/ip.h>
+#include <linux/module.h>
 #include "wifi.h"
 #include "rc.h"
 #include "base.h"
@@ -309,6 +312,8 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 	    IEEE80211_HW_RX_INCLUDES_FCS |
 	    IEEE80211_HW_BEACON_FILTER |
 	    IEEE80211_HW_AMPDU_AGGREGATION |
+	    IEEE80211_HW_CONNECTION_MONITOR |
+	    /* IEEE80211_HW_SUPPORTS_CQM_RSSI | */
 	    IEEE80211_HW_REPORTS_TX_ACK_STATUS | 0;
 
 	/* swlps or hwlps has been set in diff chip in init_sw_vars */
@@ -397,8 +402,8 @@ void rtl_init_rfkill(struct ieee80211_hw *hw)
 	radio_state = rtlpriv->cfg->ops->radio_onoff_checking(hw, &valid);
 
 	if (valid) {
-		printk(KERN_INFO "rtlwifi: wireless switch is %s\n",
-				rtlpriv->rfkill.rfkill_state ? "on" : "off");
+		pr_info("wireless switch is %s\n",
+			rtlpriv->rfkill.rfkill_state ? "on" : "off");
 
 		rtlpriv->rfkill.rfkill_state = radio_state;
 
@@ -523,7 +528,7 @@ static void _rtl_query_shortgi(struct ieee80211_hw *hw,
 		mac->opmode == NL80211_IFTYPE_ADHOC)
 		bw_40 = sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 
-	if ((bw_40 == true) && sgi_40)
+	if (bw_40 && sgi_40)
 		tcb_desc->use_shortgi = true;
 	else if ((bw_40 == false) && sgi_20)
 		tcb_desc->use_shortgi = true;
@@ -662,6 +667,167 @@ static u8 _rtl_get_highest_n_rate(struct ieee80211_hw *hw)
 	return hw_rate;
 }
 
+/* mac80211's rate_idx is like this:
+ *
+ * 2.4G band:rx_status->band == IEEE80211_BAND_2GHZ
+ *
+ * B/G rate:
+ * (rx_status->flag & RX_FLAG_HT) = 0,
+ * DESC92_RATE1M-->DESC92_RATE54M ==> idx is 0-->11,
+ *
+ * N rate:
+ * (rx_status->flag & RX_FLAG_HT) = 1,
+ * DESC92_RATEMCS0-->DESC92_RATEMCS15 ==> idx is 0-->15
+ *
+ * 5G band:rx_status->band == IEEE80211_BAND_5GHZ
+ * A rate:
+ * (rx_status->flag & RX_FLAG_HT) = 0,
+ * DESC92_RATE6M-->DESC92_RATE54M ==> idx is 0-->7,
+ *
+ * N rate:
+ * (rx_status->flag & RX_FLAG_HT) = 1,
+ * DESC92_RATEMCS0-->DESC92_RATEMCS15 ==> idx is 0-->15
+ */
+int rtlwifi_rate_mapping(struct ieee80211_hw *hw,
+			 bool isht, u8 desc_rate, bool first_ampdu)
+{
+	int rate_idx;
+
+	if (false == isht) {
+		if (IEEE80211_BAND_2GHZ == hw->conf.channel->band) {
+			switch (desc_rate) {
+			case DESC92_RATE1M:
+				rate_idx = 0;
+				break;
+			case DESC92_RATE2M:
+				rate_idx = 1;
+				break;
+			case DESC92_RATE5_5M:
+				rate_idx = 2;
+				break;
+			case DESC92_RATE11M:
+				rate_idx = 3;
+				break;
+			case DESC92_RATE6M:
+				rate_idx = 4;
+				break;
+			case DESC92_RATE9M:
+				rate_idx = 5;
+				break;
+			case DESC92_RATE12M:
+				rate_idx = 6;
+				break;
+			case DESC92_RATE18M:
+				rate_idx = 7;
+				break;
+			case DESC92_RATE24M:
+				rate_idx = 8;
+				break;
+			case DESC92_RATE36M:
+				rate_idx = 9;
+				break;
+			case DESC92_RATE48M:
+				rate_idx = 10;
+				break;
+			case DESC92_RATE54M:
+				rate_idx = 11;
+				break;
+			default:
+				rate_idx = 0;
+				break;
+			}
+		} else {
+			switch (desc_rate) {
+			case DESC92_RATE6M:
+				rate_idx = 0;
+				break;
+			case DESC92_RATE9M:
+				rate_idx = 1;
+				break;
+			case DESC92_RATE12M:
+				rate_idx = 2;
+				break;
+			case DESC92_RATE18M:
+				rate_idx = 3;
+				break;
+			case DESC92_RATE24M:
+				rate_idx = 4;
+				break;
+			case DESC92_RATE36M:
+				rate_idx = 5;
+				break;
+			case DESC92_RATE48M:
+				rate_idx = 6;
+				break;
+			case DESC92_RATE54M:
+				rate_idx = 7;
+				break;
+			default:
+				rate_idx = 0;
+				break;
+			}
+		}
+
+	} else {
+
+		switch (desc_rate) {
+		case DESC92_RATEMCS0:
+			rate_idx = 0;
+			break;
+		case DESC92_RATEMCS1:
+			rate_idx = 1;
+			break;
+		case DESC92_RATEMCS2:
+			rate_idx = 2;
+			break;
+		case DESC92_RATEMCS3:
+			rate_idx = 3;
+			break;
+		case DESC92_RATEMCS4:
+			rate_idx = 4;
+			break;
+		case DESC92_RATEMCS5:
+			rate_idx = 5;
+			break;
+		case DESC92_RATEMCS6:
+			rate_idx = 6;
+			break;
+		case DESC92_RATEMCS7:
+			rate_idx = 7;
+			break;
+		case DESC92_RATEMCS8:
+			rate_idx = 8;
+			break;
+		case DESC92_RATEMCS9:
+			rate_idx = 9;
+			break;
+		case DESC92_RATEMCS10:
+			rate_idx = 10;
+			break;
+		case DESC92_RATEMCS11:
+			rate_idx = 11;
+			break;
+		case DESC92_RATEMCS12:
+			rate_idx = 12;
+			break;
+		case DESC92_RATEMCS13:
+			rate_idx = 13;
+			break;
+		case DESC92_RATEMCS14:
+			rate_idx = 14;
+			break;
+		case DESC92_RATEMCS15:
+			rate_idx = 15;
+			break;
+		default:
+			rate_idx = 0;
+			break;
+		}
+	}
+	return rate_idx;
+}
+EXPORT_SYMBOL(rtlwifi_rate_mapping);
+
 void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 		      struct ieee80211_tx_info *info,
 		      struct ieee80211_sta *sta,
@@ -687,7 +853,7 @@ void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 		 *So tcb_desc->hw_rate is just used for
 		 *special data and mgt frames
 		 */
-		if (info->control.rates[0].idx == 0 &&
+		if (info->control.rates[0].idx == 0 ||
 				ieee80211_is_nullfunc(fc)) {
 			tcb_desc->use_driver_rate = true;
 			tcb_desc->ratr_index = RATR_INX_WIRELESS_MC;
@@ -756,18 +922,17 @@ bool rtl_action_proc(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 				return false;
 
 			RT_TRACE(rtlpriv, (COMP_SEND | COMP_RECV), DBG_DMESG,
-				 ("%s ACT_ADDBAREQ From :" MAC_FMT "\n",
-				  is_tx ? "Tx" : "Rx", MAC_ARG(hdr->addr2)));
+				 ("%s ACT_ADDBAREQ From :%pM\n",
+				  is_tx ? "Tx" : "Rx", hdr->addr2));
 			break;
 		case ACT_ADDBARSP:
 			RT_TRACE(rtlpriv, (COMP_SEND | COMP_RECV), DBG_DMESG,
-				 ("%s ACT_ADDBARSP From :" MAC_FMT "\n",
-				  is_tx ? "Tx" : "Rx", MAC_ARG(hdr->addr2)));
+				 ("%s ACT_ADDBARSP From :%pM\n",
+				  is_tx ? "Tx" : "Rx", hdr->addr2));
 			break;
 		case ACT_DELBA:
 			RT_TRACE(rtlpriv, (COMP_SEND | COMP_RECV), DBG_DMESG,
-				 ("ACT_ADDBADEL From :" MAC_FMT "\n",
-				  MAC_ARG(hdr->addr2)));
+				 ("ACT_ADDBADEL From :%pM\n", hdr->addr2));
 			break;
 		}
 		break;
@@ -888,7 +1053,6 @@ int rtl_tx_agg_stop(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-	struct rtl_tid_data *tid_data;
 	struct rtl_sta_info *sta_entry = NULL;
 
 	if (sta == NULL)
@@ -906,7 +1070,6 @@ int rtl_tx_agg_stop(struct ieee80211_hw *hw,
 		return -EINVAL;
 
 	sta_entry = (struct rtl_sta_info *)sta->drv_priv;
-	tid_data = &sta_entry->tids[tid];
 	sta_entry->tids[tid].agg.agg_state = RTL_AGG_STOP;
 
 	ieee80211_stop_tx_ba_cb_irqsafe(mac->vif, sta->addr, tid);
@@ -918,7 +1081,6 @@ int rtl_tx_agg_oper(struct ieee80211_hw *hw,
 		struct ieee80211_sta *sta, u16 tid)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_tid_data *tid_data;
 	struct rtl_sta_info *sta_entry = NULL;
 
 	if (sta == NULL)
@@ -936,7 +1098,6 @@ int rtl_tx_agg_oper(struct ieee80211_hw *hw,
 		return -EINVAL;
 
 	sta_entry = (struct rtl_sta_info *)sta->drv_priv;
-	tid_data = &sta_entry->tids[tid];
 	sta_entry->tids[tid].agg.agg_state = RTL_AGG_OPERATIONAL;
 
 	return 0;
@@ -980,7 +1141,7 @@ void rtl_watchdog_wq_callback(void *data)
 	}
 
 	/*
-	 *<3> to check if traffic busy, if
+	 *<2> to check if traffic busy, if
 	 * busytraffic we don't change channel
 	 */
 	if (mac->link_state >= MAC80211_LINKED) {
@@ -1406,8 +1567,7 @@ MODULE_DESCRIPTION("Realtek 802.11n PCI wireless core");
 static int __init rtl_core_module_init(void)
 {
 	if (rtl_rate_control_register())
-		printk(KERN_ERR "rtlwifi: Unable to register rtl_rc,"
-		       "use default RC !!\n");
+		pr_err("Unable to register rtl_rc, use default RC !!\n");
 
 	return 0;
 }

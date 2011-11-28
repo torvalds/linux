@@ -92,7 +92,7 @@ config LEDS_NET48XX
 config LEDS_NET5501
 	tristate "LED Support for Soekris net5501 series Error LED"
 	depends on LEDS_TRIGGERS
-	depends on X86 && LEDS_GPIO_PLATFORM && GPIO_CS5535
+	depends on X86 && GPIO_CS5535
 	select LEDS_TRIGGER_DEFAULT_ON
 	default n
 	help
@@ -112,14 +112,6 @@ config LEDS_WRAP
 	depends on SCx200_GPIO
 	help
 	  This option enables support for the PCEngines WRAP programmable LEDs.
-
-config LEDS_ALIX2
-	tristate "LED Support for ALIX.2 and ALIX.3 series"
-	depends on LEDS_CLASS
-	depends on X86 && !GPIO_CS5535 && !CS5535_GPIO
-	help
-	  This option enables support for the PCEngines ALIX.2 and ALIX.3 LEDs.
-	  You have to set leds-alix2.force=1 for boards with Award BIOS.
 
 config LEDS_COBALT_QUBE
 	tristate "LED Support for the Cobalt Qube series front LED"
@@ -181,23 +173,6 @@ config LEDS_GPIO
 	  and they must be connected to the GPIO lines.  The LEDs must be
 	  defined as platform devices and/or OpenFirmware platform devices.
 	  The code to use these bindings can be selected below.
-
-config LEDS_GPIO_PLATFORM
-	bool "Platform device bindings for GPIO LEDs"
-	depends on LEDS_GPIO
-	default y
-	help
-	  Let the leds-gpio driver drive LEDs which have been defined as
-	  platform devices.  If you don't know what this means, say yes.
-
-config LEDS_GPIO_OF
-	bool "OpenFirmware platform device bindings for GPIO LEDs"
-	depends on LEDS_GPIO && OF_DEVICE
-	default y
-	help
-	  Let the leds-gpio driver drive LEDs which have been defined as
-	  of_platform devices.  For instance, LEDs which are listed in a "dts"
-	  file.
 
 config LEDS_LP3944
 	tristate "LED Support for N.S. LP3944 (Fun Light) I2C chip"
@@ -382,6 +357,7 @@ config LEDS_NS2
 config LEDS_NETXBIG
 	tristate "LED support for Big Network series LEDs"
 	depends on MACH_NET2BIG_V2 || MACH_NET5BIG_V2
+	depends on LEDS_CLASS
 	default y
 	help
 	  This option enable support for LEDs found on the LaCie 2Big
@@ -398,6 +374,18 @@ config LEDS_ASIC3
 	  ASIC3 LED GPIOs are inputs, not outputs, thus the leds-gpio driver
 	  cannot be used. This driver supports hardware blinking with an on+off
 	  period from 62ms to 125s. Say Y to enable LEDs on the HP iPAQ hx4700.
+
+config LEDS_RENESAS_TPU
+	bool "LED support for Renesas TPU"
+	depends on LEDS_CLASS && HAVE_CLK && GENERIC_GPIO
+	help
+	  This option enables build of the LED TPU platform driver,
+	  suitable to drive any TPU channel on newer Renesas SoCs.
+	  The driver controls the GPIO pin connected to the LED via
+	  the GPIO framework and expects the LED to be connected to
+	  a pin that can be driven in both GPIO mode and using TPU
+	  pin function. The latter to support brightness control.
+	  Brightness control is supported but hardware blinking is not.
 
 config LEDS_TRIGGERS
 	bool "LED Trigger support"
@@ -416,7 +404,7 @@ config LEDS_TRIGGER_TIMER
 	  This allows LEDs to be controlled by a programmable timer
 	  via sysfs. Some LED hardware can be programmed to start
 	  blinking the LED without any further software interaction.
-	  For more details read Documentation/leds-class.txt.
+	  For more details read Documentation/leds/leds-class.txt.
 
 	  If unsure, say Y.
 

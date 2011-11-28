@@ -673,7 +673,8 @@ static void configure_nonsound_components(void)
 
 	if (pss_cdrom_port == -1) {	/* If cdrom port enablation wasn't requested */
 		printk(KERN_INFO "PSS: CDROM port not enabled.\n");
-	} else if (check_region(pss_cdrom_port, 2)) {
+	} else if (!request_region(pss_cdrom_port, 2, "PSS CDROM")) {
+		pss_cdrom_port = -1;
 		printk(KERN_ERR "PSS: CDROM I/O port conflict.\n");
 	} else {
 		set_io_base(devc, CONF_CDROM, pss_cdrom_port);
@@ -1232,7 +1233,8 @@ static void __exit cleanup_pss(void)
 		if(pssmpu)
 			unload_pss_mpu(&cfg_mpu);
 		unload_pss(&cfg);
-	}
+	} else if (pss_cdrom_port != -1)
+		release_region(pss_cdrom_port, 2);
 
 	if(!pss_keep_settings)	/* Keep hardware settings if asked */
 	{

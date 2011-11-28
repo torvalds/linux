@@ -1,0 +1,321 @@
+<refentry id="vidioc-g-ext-ctrls">
+  <refmeta>
+    <refentrytitle>ioctl VIDIOC_G_EXT_CTRLS, VIDIOC_S_EXT_CTRLS,
+VIDIOC_TRY_EXT_CTRLS</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>VIDIOC_G_EXT_CTRLS</refname>
+    <refname>VIDIOC_S_EXT_CTRLS</refname>
+    <refname>VIDIOC_TRY_EXT_CTRLS</refname>
+    <refpurpose>Get or set the value of several controls, try control
+values</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>struct v4l2_ext_controls
+*<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>VIDIOC_G_EXT_CTRLS, VIDIOC_S_EXT_CTRLS,
+VIDIOC_TRY_EXT_CTRLS</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>These ioctls allow the caller to get or set multiple
+controls atomically. Control IDs are grouped into control classes (see
+<xref linkend="ctrl-class" />) and all controls in the control array
+must belong to the same control class.</para>
+
+    <para>Applications must always fill in the
+<structfield>count</structfield>,
+<structfield>ctrl_class</structfield>,
+<structfield>controls</structfield> and
+<structfield>reserved</structfield> fields of &v4l2-ext-controls;, and
+initialize the &v4l2-ext-control; array pointed to by the
+<structfield>controls</structfield> fields.</para>
+
+    <para>To get the current value of a set of controls applications
+initialize the <structfield>id</structfield>,
+<structfield>size</structfield> and <structfield>reserved2</structfield> fields
+of each &v4l2-ext-control; and call the
+<constant>VIDIOC_G_EXT_CTRLS</constant> ioctl. String controls controls
+must also set the <structfield>string</structfield> field.</para>
+
+    <para>If the <structfield>size</structfield> is too small to
+receive the control result (only relevant for pointer-type controls
+like strings), then the driver will set <structfield>size</structfield>
+to a valid value and return an &ENOSPC;. You should re-allocate the
+string memory to this new size and try again. It is possible that the
+same issue occurs again if the string has grown in the meantime. It is
+recommended to call &VIDIOC-QUERYCTRL; first and use
+<structfield>maximum</structfield>+1 as the new <structfield>size</structfield>
+value. It is guaranteed that that is sufficient memory.
+</para>
+
+    <para>To change the value of a set of controls applications
+initialize the <structfield>id</structfield>, <structfield>size</structfield>,
+<structfield>reserved2</structfield> and
+<structfield>value/string</structfield> fields of each &v4l2-ext-control; and
+call the <constant>VIDIOC_S_EXT_CTRLS</constant> ioctl. The controls
+will only be set if <emphasis>all</emphasis> control values are
+valid.</para>
+
+    <para>To check if a set of controls have correct values applications
+initialize the <structfield>id</structfield>, <structfield>size</structfield>,
+<structfield>reserved2</structfield> and
+<structfield>value/string</structfield> fields of each &v4l2-ext-control; and
+call the <constant>VIDIOC_TRY_EXT_CTRLS</constant> ioctl. It is up to
+the driver whether wrong values are automatically adjusted to a valid
+value or if an error is returned.</para>
+
+    <para>When the <structfield>id</structfield> or
+<structfield>ctrl_class</structfield> is invalid drivers return an
+&EINVAL;. When the value is out of bounds drivers can choose to take
+the closest valid value or return an &ERANGE;, whatever seems more
+appropriate. In the first case the new value is set in
+&v4l2-ext-control;.</para>
+
+    <para>The driver will only set/get these controls if all control
+values are correct. This prevents the situation where only some of the
+controls were set/get. Only low-level errors (&eg; a failed i2c
+command) can still cause this situation.</para>
+
+    <table pgwide="1" frame="none" id="v4l2-ext-control">
+      <title>struct <structname>v4l2_ext_control</structname></title>
+      <tgroup cols="4">
+	&cs-ustr;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>id</structfield></entry>
+	    <entry></entry>
+	    <entry>Identifies the control, set by the
+application.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>size</structfield></entry>
+	    <entry></entry>
+	    <entry>The total size in bytes of the payload of this
+control. This is normally 0, but for pointer controls this should be
+set to the size of the memory containing the payload, or that will
+receive the payload. If <constant>VIDIOC_G_EXT_CTRLS</constant> finds
+that this value is less than is required to store
+the payload result, then it is set to a value large enough to store the
+payload result and ENOSPC is returned. Note that for string controls
+this <structfield>size</structfield> field should not be confused with the length of the string.
+This field refers to the size of the memory that contains the string.
+The actual <emphasis>length</emphasis> of the string may well be much smaller.
+</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved2</structfield>[1]</entry>
+	    <entry></entry>
+	    <entry>Reserved for future extensions. Drivers and
+applications must set the array to zero.</entry>
+	  </row>
+	  <row>
+	    <entry>union</entry>
+	    <entry>(anonymous)</entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>__s32</entry>
+	    <entry><structfield>value</structfield></entry>
+	    <entry>New value or current value.</entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>__s64</entry>
+	    <entry><structfield>value64</structfield></entry>
+	    <entry>New value or current value.</entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>char *</entry>
+	    <entry><structfield>string</structfield></entry>
+	    <entry>A pointer to a string.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table pgwide="1" frame="none" id="v4l2-ext-controls">
+      <title>struct <structname>v4l2_ext_controls</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>ctrl_class</structfield></entry>
+	    <entry>The control class to which all controls belong, see
+<xref linkend="ctrl-class" />.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>count</structfield></entry>
+	    <entry>The number of controls in the controls array. May
+also be zero.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>error_idx</structfield></entry>
+	    <entry>Set by the driver in case of an error. It is the
+index of the control causing the error or equal to 'count' when the
+error is not associated with a particular control. Undefined when the
+ioctl returns 0 (success).</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved</structfield>[2]</entry>
+	    <entry>Reserved for future extensions. Drivers and
+applications must set the array to zero.</entry>
+	  </row>
+	  <row>
+	    <entry>&v4l2-ext-control; *</entry>
+	    <entry><structfield>controls</structfield></entry>
+	    <entry>Pointer to an array of
+<structfield>count</structfield> v4l2_ext_control structures. Ignored
+if <structfield>count</structfield> equals zero.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table pgwide="1" frame="none" id="ctrl-class">
+      <title>Control classes</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_CTRL_CLASS_USER</constant></entry>
+	    <entry>0x980000</entry>
+	    <entry>The class containing user controls. These controls
+are described in <xref linkend="control" />. All controls that can be set
+using the &VIDIOC-S-CTRL; and &VIDIOC-G-CTRL; ioctl belong to this
+class.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CTRL_CLASS_MPEG</constant></entry>
+	    <entry>0x990000</entry>
+	    <entry>The class containing MPEG compression controls.
+These controls are described in <xref
+		linkend="mpeg-controls" />.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CTRL_CLASS_CAMERA</constant></entry>
+	    <entry>0x9a0000</entry>
+	    <entry>The class containing camera controls.
+These controls are described in <xref
+		linkend="camera-controls" />.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CTRL_CLASS_FM_TX</constant></entry>
+	    <entry>0x9b0000</entry>
+	    <entry>The class containing FM Transmitter (FM TX) controls.
+These controls are described in <xref
+		linkend="fm-tx-controls" />.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CTRL_CLASS_FLASH</constant></entry>
+	    <entry>0x9c0000</entry>
+	    <entry>The class containing flash device controls.
+These controls are described in <xref
+		linkend="flash-controls" />.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+  </refsect1>
+
+  <refsect1>
+    &return-value;
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EINVAL</errorcode></term>
+	<listitem>
+	  <para>The &v4l2-ext-control; <structfield>id</structfield>
+is invalid or the &v4l2-ext-controls;
+<structfield>ctrl_class</structfield> is invalid. This error code is
+also returned by the <constant>VIDIOC_S_EXT_CTRLS</constant> and
+<constant>VIDIOC_TRY_EXT_CTRLS</constant> ioctls if two or more
+control values are in conflict.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>ERANGE</errorcode></term>
+	<listitem>
+	  <para>The &v4l2-ext-control; <structfield>value</structfield>
+is out of bounds.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EBUSY</errorcode></term>
+	<listitem>
+	  <para>The control is temporarily not changeable, possibly
+because another applications took over control of the device function
+this control belongs to.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>ENOSPC</errorcode></term>
+	<listitem>
+	  <para>The space reserved for the control's payload is insufficient.
+The field <structfield>size</structfield> is set to a value that is enough
+to store the payload and this error code is returned.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><errorcode>EACCES</errorcode></term>
+	<listitem>
+	  <para>Attempt to try or set a read-only control or to get a
+	  write-only control.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+</refentry>
+
+<!--
+Local Variables:
+mode: sgml
+sgml-parent-document: "v4l2.sgml"
+indent-tabs-mode: nil
+End:
+-->

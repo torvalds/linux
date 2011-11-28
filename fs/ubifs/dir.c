@@ -102,7 +102,7 @@ struct inode *ubifs_new_inode(struct ubifs_info *c, const struct inode *dir,
 	 * UBIFS has to fully control "clean <-> dirty" transitions of inodes
 	 * to make budgeting work.
 	 */
-	inode->i_flags |= (S_NOCMTIME);
+	inode->i_flags |= S_NOCMTIME;
 
 	inode_init_owner(inode, dir, mode);
 	inode->i_mtime = inode->i_atime = inode->i_ctime =
@@ -172,9 +172,11 @@ struct inode *ubifs_new_inode(struct ubifs_info *c, const struct inode *dir,
 
 #ifdef CONFIG_UBIFS_FS_DEBUG
 
-static int dbg_check_name(struct ubifs_dent_node *dent, struct qstr *nm)
+static int dbg_check_name(const struct ubifs_info *c,
+			  const struct ubifs_dent_node *dent,
+			  const struct qstr *nm)
 {
-	if (!(ubifs_chk_flags & UBIFS_CHK_GEN))
+	if (!dbg_is_chk_gen(c))
 		return 0;
 	if (le16_to_cpu(dent->nlen) != nm->len)
 		return -EINVAL;
@@ -185,7 +187,7 @@ static int dbg_check_name(struct ubifs_dent_node *dent, struct qstr *nm)
 
 #else
 
-#define dbg_check_name(dent, nm) 0
+#define dbg_check_name(c, dent, nm) 0
 
 #endif
 
@@ -219,7 +221,7 @@ static struct dentry *ubifs_lookup(struct inode *dir, struct dentry *dentry,
 		goto out;
 	}
 
-	if (dbg_check_name(dent, &dentry->d_name)) {
+	if (dbg_check_name(c, dent, &dentry->d_name)) {
 		err = -EINVAL;
 		goto out;
 	}
@@ -522,7 +524,7 @@ static int ubifs_link(struct dentry *old_dentry, struct inode *dir,
 	ubifs_assert(mutex_is_locked(&dir->i_mutex));
 	ubifs_assert(mutex_is_locked(&inode->i_mutex));
 
-	err = dbg_check_synced_i_size(inode);
+	err = dbg_check_synced_i_size(c, inode);
 	if (err)
 		return err;
 
@@ -577,7 +579,7 @@ static int ubifs_unlink(struct inode *dir, struct dentry *dentry)
 		inode->i_nlink, dir->i_ino);
 	ubifs_assert(mutex_is_locked(&dir->i_mutex));
 	ubifs_assert(mutex_is_locked(&inode->i_mutex));
-	err = dbg_check_synced_i_size(inode);
+	err = dbg_check_synced_i_size(c, inode);
 	if (err)
 		return err;
 

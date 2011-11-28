@@ -55,8 +55,8 @@ static ssize_t bonding_show_bonds(struct class *cls,
 				  struct class_attribute *attr,
 				  char *buf)
 {
-	struct net *net = current->nsproxy->net_ns;
-	struct bond_net *bn = net_generic(net, bond_net_id);
+	struct bond_net *bn =
+		container_of(attr, struct bond_net, class_attr_bonding_masters);
 	int res = 0;
 	struct bonding *bond;
 
@@ -79,9 +79,8 @@ static ssize_t bonding_show_bonds(struct class *cls,
 	return res;
 }
 
-static struct net_device *bond_get_by_name(struct net *net, const char *ifname)
+static struct net_device *bond_get_by_name(struct bond_net *bn, const char *ifname)
 {
-	struct bond_net *bn = net_generic(net, bond_net_id);
 	struct bonding *bond;
 
 	list_for_each_entry(bond, &bn->dev_list, bond_list) {
@@ -103,7 +102,8 @@ static ssize_t bonding_store_bonds(struct class *cls,
 				   struct class_attribute *attr,
 				   const char *buffer, size_t count)
 {
-	struct net *net = current->nsproxy->net_ns;
+	struct bond_net *bn =
+		container_of(attr, struct bond_net, class_attr_bonding_masters);
 	char command[IFNAMSIZ + 1] = {0, };
 	char *ifname;
 	int rv, res = count;
@@ -116,7 +116,7 @@ static ssize_t bonding_store_bonds(struct class *cls,
 
 	if (command[0] == '+') {
 		pr_info("%s is being created...\n", ifname);
-		rv = bond_create(net, ifname);
+		rv = bond_create(bn->net, ifname);
 		if (rv) {
 			if (rv == -EEXIST)
 				pr_info("%s already exists.\n", ifname);
@@ -128,7 +128,7 @@ static ssize_t bonding_store_bonds(struct class *cls,
 		struct net_device *bond_dev;
 
 		rtnl_lock();
-		bond_dev = bond_get_by_name(net, ifname);
+		bond_dev = bond_get_by_name(bn, ifname);
 		if (bond_dev) {
 			pr_info("%s is being deleted...\n", ifname);
 			unregister_netdevice(bond_dev);
@@ -150,9 +150,24 @@ err_no_cmd:
 	return -EPERM;
 }
 
+static const void *bonding_namespace(struct class *cls,
+				     const struct class_attribute *attr)
+{
+	const struct bond_net *bn =
+		container_of(attr, struct bond_net, class_attr_bonding_masters);
+	return bn->net;
+}
+
 /* class attribute for bond_masters file.  This ends up in /sys/class/net */
-static CLASS_ATTR(bonding_masters,  S_IWUSR | S_IRUGO,
-		  bonding_show_bonds, bonding_store_bonds);
+static const struct class_attribute class_attr_bonding_masters = {
+	.attr = {
+		.name = "bonding_masters",
+		.mode = S_IWUSR | S_IRUGO,
+	},
+	.show = bonding_show_bonds,
+	.store = bonding_store_bonds,
+	.namespace = bonding_namespace,
+};
 
 int bond_create_slave_symlinks(struct net_device *master,
 			       struct net_device *slave)
@@ -300,6 +315,13 @@ static ssize_t bonding_store_mode(struct device *d,
 	if (bond->dev->flags & IFF_UP) {
 		pr_err("unable to update mode of %s because interface is up.\n",
 		       bond->dev->name);
+		ret = -EPERM;
+		goto out;
+	}
+
+	if (bond->slave_cnt > 0) {
+		pr_err("unable to update mode of %s because it has slaves.\n",
+			bond->dev->name);
 		ret = -EPERM;
 		goto out;
 	}
@@ -804,6 +826,7 @@ static ssize_t bonding_store_lacp(struct device *d,
 
 	if ((new_value == 1) || (new_value == 0)) {
 		bond->params.lacp_fast = new_value;
+		bond_3ad_update_lacp_rate(bond);
 		pr_info("%s: Setting LACP rate to %s (%d).\n",
 			bond->dev->name, bond_lacp_tbl[new_value].modename,
 			new_value);
@@ -817,6 +840,38 @@ out:
 }
 static DEVICE_ATTR(lacp_rate, S_IRUGO | S_IWUSR,
 		   bonding_show_lacp, bonding_store_lacp);
+
+static ssize_t bonding_show_min_links(struct device *d,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	struct bonding *bond = to_bond(d);
+
+	return sprintf(buf, "%d\n", bond->params.min_links);
+}
+
+static ssize_t bonding_store_min_links(struct device *d,
+				       struct device_attribute *attr,
+				       const char *buf, size_t count)
+{
+	struct bonding *bond = to_bond(d);
+	int ret;
+	unsigned int new_value;
+
+	ret = kstrtouint(buf, 0, &new_value);
+	if (ret < 0) {
+		pr_err("%s: Ignoring invalid min links value %s.\n",
+		       bond->dev->name, buf);
+		return ret;
+	}
+
+	pr_info("%s: Setting min links value to %u\n",
+		bond->dev->name, new_value);
+	bond->params.min_links = new_value;
+	return count;
+}
+static DEVICE_ATTR(min_links, S_IRUGO | S_IWUSR,
+		   bonding_show_min_links, bonding_store_min_links);
 
 static ssize_t bonding_show_ad_select(struct device *d,
 				      struct device_attribute *attr,
@@ -992,6 +1047,7 @@ static ssize_t bonding_store_primary(struct device *d,
 	int i;
 	struct slave *slave;
 	struct bonding *bond = to_bond(d);
+	char ifname[IFNAMSIZ];
 
 	if (!rtnl_trylock())
 		return restart_syscall();
@@ -1002,32 +1058,33 @@ static ssize_t bonding_store_primary(struct device *d,
 	if (!USES_PRIMARY(bond->params.mode)) {
 		pr_info("%s: Unable to set primary slave; %s is in mode %d\n",
 			bond->dev->name, bond->dev->name, bond->params.mode);
-	} else {
-		bond_for_each_slave(bond, slave, i) {
-			if (strnicmp
-			    (slave->dev->name, buf,
-			     strlen(slave->dev->name)) == 0) {
-				pr_info("%s: Setting %s as primary slave.\n",
-					bond->dev->name, slave->dev->name);
-				bond->primary_slave = slave;
-				strcpy(bond->params.primary, slave->dev->name);
-				bond_select_active_slave(bond);
-				goto out;
-			}
-		}
+		goto out;
+	}
 
-		/* if we got here, then we didn't match the name of any slave */
+	sscanf(buf, "%16s", ifname); /* IFNAMSIZ */
 
-		if (strlen(buf) == 0 || buf[0] == '\n') {
-			pr_info("%s: Setting primary slave to None.\n",
-				bond->dev->name);
-			bond->primary_slave = NULL;
-				bond_select_active_slave(bond);
-		} else {
-			pr_info("%s: Unable to set %.*s as primary slave as it is not a slave.\n",
-				bond->dev->name, (int)strlen(buf) - 1, buf);
+	/* check to see if we are clearing primary */
+	if (!strlen(ifname) || buf[0] == '\n') {
+		pr_info("%s: Setting primary slave to None.\n",
+			bond->dev->name);
+		bond->primary_slave = NULL;
+		bond_select_active_slave(bond);
+		goto out;
+	}
+
+	bond_for_each_slave(bond, slave, i) {
+		if (strncmp(slave->dev->name, ifname, IFNAMSIZ) == 0) {
+			pr_info("%s: Setting %s as primary slave.\n",
+				bond->dev->name, slave->dev->name);
+			bond->primary_slave = slave;
+			strcpy(bond->params.primary, slave->dev->name);
+			bond_select_active_slave(bond);
+			goto out;
 		}
 	}
+
+	pr_info("%s: Unable to set %.*s as primary slave.\n",
+		bond->dev->name, (int)strlen(buf) - 1, buf);
 out:
 	write_unlock_bh(&bond->curr_slave_lock);
 	read_unlock(&bond->lock);
@@ -1162,6 +1219,7 @@ static ssize_t bonding_store_active_slave(struct device *d,
 	struct slave *old_active = NULL;
 	struct slave *new_active = NULL;
 	struct bonding *bond = to_bond(d);
+	char ifname[IFNAMSIZ];
 
 	if (!rtnl_trylock())
 		return restart_syscall();
@@ -1170,56 +1228,62 @@ static ssize_t bonding_store_active_slave(struct device *d,
 	read_lock(&bond->lock);
 	write_lock_bh(&bond->curr_slave_lock);
 
-	if (!USES_PRIMARY(bond->params.mode))
+	if (!USES_PRIMARY(bond->params.mode)) {
 		pr_info("%s: Unable to change active slave; %s is in mode %d\n",
 			bond->dev->name, bond->dev->name, bond->params.mode);
-	else {
-		bond_for_each_slave(bond, slave, i) {
-			if (strnicmp
-			    (slave->dev->name, buf,
-			     strlen(slave->dev->name)) == 0) {
-        			old_active = bond->curr_active_slave;
-        			new_active = slave;
-        			if (new_active == old_active) {
-					/* do nothing */
-					pr_info("%s: %s is already the current active slave.\n",
+		goto out;
+	}
+
+	sscanf(buf, "%16s", ifname); /* IFNAMSIZ */
+
+	/* check to see if we are clearing active */
+	if (!strlen(ifname) || buf[0] == '\n') {
+		pr_info("%s: Clearing current active slave.\n",
+			bond->dev->name);
+		bond->curr_active_slave = NULL;
+		bond_select_active_slave(bond);
+		goto out;
+	}
+
+	bond_for_each_slave(bond, slave, i) {
+		if (strncmp(slave->dev->name, ifname, IFNAMSIZ) == 0) {
+			old_active = bond->curr_active_slave;
+			new_active = slave;
+			if (new_active == old_active) {
+				/* do nothing */
+				pr_info("%s: %s is already the current"
+					" active slave.\n",
+					bond->dev->name,
+					slave->dev->name);
+				goto out;
+			}
+			else {
+				if ((new_active) &&
+				    (old_active) &&
+				    (new_active->link == BOND_LINK_UP) &&
+				    IS_UP(new_active->dev)) {
+					pr_info("%s: Setting %s as active"
+						" slave.\n",
 						bond->dev->name,
 						slave->dev->name);
-					goto out;
+					bond_change_active_slave(bond,
+								 new_active);
 				}
 				else {
-        				if ((new_active) &&
-            				    (old_active) &&
-				            (new_active->link == BOND_LINK_UP) &&
-				            IS_UP(new_active->dev)) {
-						pr_info("%s: Setting %s as active slave.\n",
-							bond->dev->name,
-							slave->dev->name);
-							bond_change_active_slave(bond, new_active);
-        				}
-					else {
-						pr_info("%s: Could not set %s as active slave; either %s is down or the link is down.\n",
-							bond->dev->name,
-							slave->dev->name,
-							slave->dev->name);
-					}
-					goto out;
+					pr_info("%s: Could not set %s as"
+						" active slave; either %s is"
+						" down or the link is down.\n",
+						bond->dev->name,
+						slave->dev->name,
+						slave->dev->name);
 				}
+				goto out;
 			}
 		}
-
-		/* if we got here, then we didn't match the name of any slave */
-
-		if (strlen(buf) == 0 || buf[0] == '\n') {
-			pr_info("%s: Setting active slave to None.\n",
-				bond->dev->name);
-			bond->primary_slave = NULL;
-			bond_select_active_slave(bond);
-		} else {
-			pr_info("%s: Unable to set %.*s as active slave as it is not a slave.\n",
-				bond->dev->name, (int)strlen(buf) - 1, buf);
-		}
 	}
+
+	pr_info("%s: Unable to set %.*s as active slave.\n",
+		bond->dev->name, (int)strlen(buf) - 1, buf);
  out:
 	write_unlock_bh(&bond->curr_slave_lock);
 	read_unlock(&bond->lock);
@@ -1600,6 +1664,7 @@ static struct attribute *per_bond_attrs[] = {
 	&dev_attr_queue_id.attr,
 	&dev_attr_all_slaves_active.attr,
 	&dev_attr_resend_igmp.attr,
+	&dev_attr_min_links.attr,
 	NULL,
 };
 
@@ -1612,11 +1677,14 @@ static struct attribute_group bonding_group = {
  * Initialize sysfs.  This sets up the bonding_masters file in
  * /sys/class/net.
  */
-int bond_create_sysfs(void)
+int bond_create_sysfs(struct bond_net *bn)
 {
 	int ret;
 
-	ret = netdev_class_create_file(&class_attr_bonding_masters);
+	bn->class_attr_bonding_masters = class_attr_bonding_masters;
+	sysfs_attr_init(&bn->class_attr_bonding_masters.attr);
+
+	ret = netdev_class_create_file(&bn->class_attr_bonding_masters);
 	/*
 	 * Permit multiple loads of the module by ignoring failures to
 	 * create the bonding_masters sysfs file.  Bonding devices
@@ -1630,7 +1698,7 @@ int bond_create_sysfs(void)
 	 */
 	if (ret == -EEXIST) {
 		/* Is someone being kinky and naming a device bonding_master? */
-		if (__dev_get_by_name(&init_net,
+		if (__dev_get_by_name(bn->net,
 				      class_attr_bonding_masters.attr.name))
 			pr_err("network device named %s already exists in sysfs",
 			       class_attr_bonding_masters.attr.name);
@@ -1644,9 +1712,9 @@ int bond_create_sysfs(void)
 /*
  * Remove /sys/class/net/bonding_masters.
  */
-void bond_destroy_sysfs(void)
+void bond_destroy_sysfs(struct bond_net *bn)
 {
-	netdev_class_remove_file(&class_attr_bonding_masters);
+	netdev_class_remove_file(&bn->class_attr_bonding_masters);
 }
 
 /*

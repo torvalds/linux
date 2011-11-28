@@ -16,6 +16,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/export.h>
 #include <linux/platform_device.h>
 #include <linux/fb.h>
 #include <linux/pm.h>
@@ -454,8 +455,8 @@ static void __init poodle_init(void)
 	poodle_init_spi();
 }
 
-static void __init fixup_poodle(struct machine_desc *desc,
-		struct tag *tags, char **cmdline, struct meminfo *mi)
+static void __init fixup_poodle(struct tag *tags, char **cmdline,
+				struct meminfo *mi)
 {
 	sharpsl_save_param();
 	mi->nr_banks=1;
@@ -468,6 +469,7 @@ MACHINE_START(POODLE, "SHARP Poodle")
 	.map_io		= pxa25x_map_io,
 	.nr_irqs	= POODLE_NR_IRQS,	/* 4 for LoCoMo */
 	.init_irq	= pxa25x_init_irq,
+	.handle_irq	= pxa25x_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= poodle_init,
 MACHINE_END

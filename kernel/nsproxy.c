@@ -14,7 +14,7 @@
  */
 
 #include <linux/slab.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/nsproxy.h>
 #include <linux/init_task.h>
 #include <linux/mnt_namespace.h>
@@ -271,10 +271,8 @@ out:
 	return err;
 }
 
-static int __init nsproxy_cache_init(void)
+int __init nsproxy_cache_init(void)
 {
 	nsproxy_cachep = KMEM_CACHE(nsproxy, SLAB_PANIC);
 	return 0;
 }
-
-module_init(nsproxy_cache_init);

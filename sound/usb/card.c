@@ -47,6 +47,7 @@
 #include <linux/mutex.h>
 #include <linux/usb/audio.h>
 #include <linux/usb/audio-v2.h>
+#include <linux/module.h>
 
 #include <sound/control.h>
 #include <sound/core.h>
@@ -65,9 +66,9 @@
 #include "helper.h"
 #include "debug.h"
 #include "pcm.h"
-#include "urb.h"
 #include "format.h"
 #include "power.h"
+#include "stream.h"
 
 MODULE_AUTHOR("Takashi Iwai <tiwai@suse.de>");
 MODULE_DESCRIPTION("USB Audio");
@@ -185,7 +186,7 @@ static int snd_usb_create_stream(struct snd_usb_audio *chip, int ctrlif, int int
 		return -EINVAL;
 	}
 
-	if (! snd_usb_parse_audio_endpoints(chip, interface)) {
+	if (! snd_usb_parse_audio_interface(chip, interface)) {
 		usb_set_interface(dev, interface, 0); /* reset the current interface */
 		usb_driver_claim_interface(&usb_audio_driver, iface, (void *)-1L);
 		return -EINVAL;
@@ -433,9 +434,10 @@ static int snd_usb_audio_create(struct usb_device *dev, int idx,
  * only at the first time.  the successive calls of this function will
  * append the pcm interface to the corresponding card.
  */
-static void *snd_usb_audio_probe(struct usb_device *dev,
-				 struct usb_interface *intf,
-				 const struct usb_device_id *usb_id)
+static struct snd_usb_audio *
+snd_usb_audio_probe(struct usb_device *dev,
+		    struct usb_interface *intf,
+		    const struct usb_device_id *usb_id)
 {
 	const struct snd_usb_audio_quirk *quirk = (const struct snd_usb_audio_quirk *)usb_id->driver_info;
 	int i, err;
@@ -529,8 +531,11 @@ static void *snd_usb_audio_probe(struct usb_device *dev,
 	return chip;
 
  __error:
-	if (chip && !chip->num_interfaces)
-		snd_card_free(chip->card);
+	if (chip) {
+		if (!chip->num_interfaces)
+			snd_card_free(chip->card);
+		chip->probing = 0;
+	}
 	mutex_unlock(&register_mutex);
  __err_val:
 	return NULL;
@@ -540,16 +545,15 @@ static void *snd_usb_audio_probe(struct usb_device *dev,
  * we need to take care of counter, since disconnection can be called also
  * many times as well as usb_audio_probe().
  */
-static void snd_usb_audio_disconnect(struct usb_device *dev, void *ptr)
+static void snd_usb_audio_disconnect(struct usb_device *dev,
+				     struct snd_usb_audio *chip)
 {
-	struct snd_usb_audio *chip;
 	struct snd_card *card;
 	struct list_head *p;
 
-	if (ptr == (void *)-1L)
+	if (chip == (void *)-1L)
 		return;
 
-	chip = ptr;
 	card = chip->card;
 	mutex_lock(&register_mutex);
 	mutex_lock(&chip->shutdown_mutex);
@@ -585,7 +589,7 @@ static void snd_usb_audio_disconnect(struct usb_device *dev, void *ptr)
 static int usb_audio_probe(struct usb_interface *intf,
 			   const struct usb_device_id *id)
 {
-	void *chip;
+	struct snd_usb_audio *chip;
 	chip = snd_usb_audio_probe(interface_to_usbdev(intf), intf, id);
 	if (chip) {
 		usb_set_intfdata(intf, chip);
@@ -628,7 +632,7 @@ static int usb_audio_suspend(struct usb_interface *intf, pm_message_t message)
 	if (chip == (void *)-1L)
 		return 0;
 
-	if (!(message.event & PM_EVENT_AUTO)) {
+	if (!PMSG_IS_AUTO(message)) {
 		snd_power_change_state(chip->card, SNDRV_CTL_POWER_D3hot);
 		if (!chip->num_suspended_intf++) {
 			list_for_each(p, &chip->pcm_list) {

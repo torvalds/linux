@@ -13,6 +13,7 @@
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
+#include <linux/gpio.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -24,9 +25,8 @@
 #include <mach/3ds_debugboard.h>
 
 #include "devices-imx51.h"
-#include "devices.h"
 
-#define EXPIO_PARENT_INT	(MXC_INTERNAL_IRQS + GPIO_PORTA + 6)
+#define EXPIO_PARENT_INT	gpio_to_irq(IMX_GPIO_NR(1, 6))
 #define MX51_3DS_ECSPI2_CS	(GPIO_PORTC + 28)
 
 static iomux_v3_cfg_t mx51_3ds_pads[] = {
@@ -135,6 +135,8 @@ static struct spi_board_info mx51_3ds_spi_nor_device[] = {
  */
 static void __init mx51_3ds_init(void)
 {
+	imx51_soc_init();
+
 	mxc_iomux_v3_setup_multiple_pads(mx51_3ds_pads,
 					ARRAY_SIZE(mx51_3ds_pads));
 
@@ -166,10 +168,11 @@ static struct sys_timer mx51_3ds_timer = {
 
 MACHINE_START(MX51_3DS, "Freescale MX51 3-Stack Board")
 	/* Maintainer: Freescale Semiconductor, Inc. */
-	.boot_params = MX51_PHYS_OFFSET + 0x100,
+	.atag_offset = 0x100,
 	.map_io = mx51_map_io,
 	.init_early = imx51_init_early,
 	.init_irq = mx51_init_irq,
+	.handle_irq = imx51_handle_irq,
 	.timer = &mx51_3ds_timer,
 	.init_machine = mx51_3ds_init,
 MACHINE_END

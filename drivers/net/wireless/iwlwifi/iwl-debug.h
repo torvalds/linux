@@ -29,57 +29,56 @@
 #ifndef __iwl_debug_h__
 #define __iwl_debug_h__
 
+#include "iwl-bus.h"
+#include "iwl-shared.h"
+
 struct iwl_priv;
-extern u32 iwl_debug_level;
 
-#define IWL_ERR(p, f, a...) dev_err(&((p)->pci_dev->dev), f, ## a)
-#define IWL_WARN(p, f, a...) dev_warn(&((p)->pci_dev->dev), f, ## a)
-#define IWL_INFO(p, f, a...) dev_info(&((p)->pci_dev->dev), f, ## a)
-#define IWL_CRIT(p, f, a...) dev_crit(&((p)->pci_dev->dev), f, ## a)
+/*No matter what is m (priv, bus, trans), this will work */
+#define IWL_ERR(m, f, a...) dev_err(bus(m)->dev, f, ## a)
+#define IWL_WARN(m, f, a...) dev_warn(bus(m)->dev, f, ## a)
+#define IWL_INFO(m, f, a...) dev_info(bus(m)->dev, f, ## a)
+#define IWL_CRIT(m, f, a...) dev_crit(bus(m)->dev, f, ## a)
 
-#define iwl_print_hex_error(priv, p, len) 				\
+#define iwl_print_hex_error(m, p, len)					\
 do {									\
 	print_hex_dump(KERN_ERR, "iwl data: ",				\
 		       DUMP_PREFIX_OFFSET, 16, 1, p, len, 1);		\
 } while (0)
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-#define IWL_DEBUG(__priv, level, fmt, args...)				\
+#define IWL_DEBUG(m, level, fmt, args...)				\
 do {									\
-	if (iwl_get_debug_level(__priv) & (level))					\
-		dev_printk(KERN_ERR, &(__priv->hw->wiphy->dev),		\
+	if (iwl_get_debug_level((m)->shrd) & (level))			\
+		dev_printk(KERN_ERR, bus(m)->dev,			\
 			 "%c %s " fmt, in_interrupt() ? 'I' : 'U',	\
 			__func__ , ## args);				\
 } while (0)
 
-#define IWL_DEBUG_LIMIT(__priv, level, fmt, args...)			\
+#define IWL_DEBUG_LIMIT(m, level, fmt, args...)				\
 do {									\
-	if ((iwl_get_debug_level(__priv) & (level)) && net_ratelimit())		\
-		dev_printk(KERN_ERR, &(__priv->hw->wiphy->dev),		\
+	if (iwl_get_debug_level((m)->shrd) & (level) && net_ratelimit())\
+		dev_printk(KERN_ERR, bus(m)->dev,			\
 			"%c %s " fmt, in_interrupt() ? 'I' : 'U',	\
 			 __func__ , ## args);				\
 } while (0)
 
-#define iwl_print_hex_dump(priv, level, p, len) 			\
+#define iwl_print_hex_dump(m, level, p, len)				\
 do {                                            			\
-	if (iwl_get_debug_level(priv) & level) 				\
+	if (iwl_get_debug_level((m)->shrd) & level)			\
 		print_hex_dump(KERN_DEBUG, "iwl data: ",		\
 			       DUMP_PREFIX_OFFSET, 16, 1, p, len, 1);	\
 } while (0)
 
 #else
-#define IWL_DEBUG(__priv, level, fmt, args...)
-#define IWL_DEBUG_LIMIT(__priv, level, fmt, args...)
-static inline void iwl_print_hex_dump(struct iwl_priv *priv, int level,
-				      const void *p, u32 len)
-{}
+#define IWL_DEBUG(m, level, fmt, args...)
+#define IWL_DEBUG_LIMIT(m, level, fmt, args...)
+#define iwl_print_hex_dump(m, level, p, len)
 #endif				/* CONFIG_IWLWIFI_DEBUG */
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 int iwl_dbgfs_register(struct iwl_priv *priv, const char *name);
 void iwl_dbgfs_unregister(struct iwl_priv *priv);
-extern int iwl_dbgfs_statistics_flag(struct iwl_priv *priv, char *buf,
-				     int bufsz);
 #else
 static inline int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 {
@@ -106,10 +105,12 @@ static inline void iwl_dbgfs_unregister(struct iwl_priv *priv)
  *
  * The active debug levels can be accessed via files
  *
- * 	/sys/module/iwlagn/parameters/debug{50}
- * 	/sys/class/net/wlan0/device/debug_level
- *
+ *	/sys/module/iwlwifi/parameters/debug
  * when CONFIG_IWLWIFI_DEBUG=y.
+ *
+ *	/sys/kernel/debug/phy0/iwlwifi/debug/debug_level
+ * when CONFIG_IWLWIFI_DEBUGFS=y.
+ *
  */
 
 /* 0x0000000F - 0x00000001 */
@@ -125,13 +126,13 @@ static inline void iwl_dbgfs_unregister(struct iwl_priv *priv)
 /* 0x00000F00 - 0x00000100 */
 #define IWL_DL_POWER		(1 << 8)
 #define IWL_DL_TEMP		(1 << 9)
-#define IWL_DL_NOTIF		(1 << 10)
+/* reserved (1 << 10) */
 #define IWL_DL_SCAN		(1 << 11)
 /* 0x0000F000 - 0x00001000 */
 #define IWL_DL_ASSOC		(1 << 12)
 #define IWL_DL_DROP		(1 << 13)
-#define IWL_DL_TXPOWER		(1 << 14)
-#define IWL_DL_AP		(1 << 15)
+/* reserved (1 << 14) */
+#define IWL_DL_COEX		(1 << 15)
 /* 0x000F0000 - 0x00010000 */
 #define IWL_DL_FW		(1 << 16)
 #define IWL_DL_RF_KILL		(1 << 17)
@@ -168,15 +169,14 @@ static inline void iwl_dbgfs_unregister(struct iwl_priv *priv)
 #define IWL_DEBUG_CALIB(p, f, a...)	IWL_DEBUG(p, IWL_DL_CALIB, f, ## a)
 #define IWL_DEBUG_FW(p, f, a...)	IWL_DEBUG(p, IWL_DL_FW, f, ## a)
 #define IWL_DEBUG_RF_KILL(p, f, a...)	IWL_DEBUG(p, IWL_DL_RF_KILL, f, ## a)
+#define IWL_DEBUG_FW_ERRORS(p, f, a...)	IWL_DEBUG(p, IWL_DL_FW_ERRORS, f, ## a)
 #define IWL_DEBUG_DROP(p, f, a...)	IWL_DEBUG(p, IWL_DL_DROP, f, ## a)
 #define IWL_DEBUG_DROP_LIMIT(p, f, a...)	\
 		IWL_DEBUG_LIMIT(p, IWL_DL_DROP, f, ## a)
-#define IWL_DEBUG_AP(p, f, a...)	IWL_DEBUG(p, IWL_DL_AP, f, ## a)
-#define IWL_DEBUG_TXPOWER(p, f, a...)	IWL_DEBUG(p, IWL_DL_TXPOWER, f, ## a)
+#define IWL_DEBUG_COEX(p, f, a...)	IWL_DEBUG(p, IWL_DL_COEX, f, ## a)
 #define IWL_DEBUG_RATE(p, f, a...)	IWL_DEBUG(p, IWL_DL_RATE, f, ## a)
 #define IWL_DEBUG_RATE_LIMIT(p, f, a...)	\
 		IWL_DEBUG_LIMIT(p, IWL_DL_RATE, f, ## a)
-#define IWL_DEBUG_NOTIF(p, f, a...)	IWL_DEBUG(p, IWL_DL_NOTIF, f, ## a)
 #define IWL_DEBUG_ASSOC(p, f, a...)	\
 		IWL_DEBUG(p, IWL_DL_ASSOC | IWL_DL_INFO, f, ## a)
 #define IWL_DEBUG_ASSOC_LIMIT(p, f, a...)	\

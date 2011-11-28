@@ -74,9 +74,10 @@ static cycle_t kvm_clock_read(void)
 	struct pvclock_vcpu_time_info *src;
 	cycle_t ret;
 
-	src = &get_cpu_var(hv_clock);
+	preempt_disable_notrace();
+	src = &__get_cpu_var(hv_clock);
 	ret = pvclock_clocksource_read(src);
-	put_cpu_var(hv_clock);
+	preempt_enable_notrace();
 	return ret;
 }
 
@@ -160,6 +161,7 @@ static void __cpuinit kvm_setup_secondary_clock(void)
 static void kvm_crash_shutdown(struct pt_regs *regs)
 {
 	native_write_msr(msr_kvm_system_time, 0, 0);
+	kvm_disable_steal_time();
 	native_machine_crash_shutdown(regs);
 }
 #endif
@@ -167,6 +169,7 @@ static void kvm_crash_shutdown(struct pt_regs *regs)
 static void kvm_shutdown(void)
 {
 	native_write_msr(msr_kvm_system_time, 0, 0);
+	kvm_disable_steal_time();
 	native_machine_shutdown();
 }
 

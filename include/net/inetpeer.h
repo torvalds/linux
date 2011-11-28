@@ -13,7 +13,7 @@
 #include <linux/spinlock.h>
 #include <linux/rtnetlink.h>
 #include <net/ipv6.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 struct inetpeer_addr_base {
 	union {
@@ -32,13 +32,17 @@ struct inet_peer {
 	struct inet_peer __rcu	*avl_left, *avl_right;
 	struct inetpeer_addr	daddr;
 	__u32			avl_height;
-	struct list_head	unused;
-	__u32			dtime;		/* the time of last use of not
-						 * referenced entries */
-	atomic_t		refcnt;
+
+	u32			metrics[RTAX_MAX];
+	u32			rate_tokens;	/* rate limiting for ICMP */
+	unsigned long		rate_last;
+	unsigned long		pmtu_expires;
+	u32			pmtu_orig;
+	u32			pmtu_learned;
+	struct inetpeer_addr_base redirect_learned;
 	/*
 	 * Once inet_peer is queued for deletion (refcnt == -1), following fields
-	 * are not available: rid, ip_id_count, tcp_ts, tcp_ts_stamp, metrics
+	 * are not available: rid, ip_id_count, tcp_ts, tcp_ts_stamp
 	 * We can share memory with rcu_head to help keep inet_peer small.
 	 */
 	union {
@@ -47,16 +51,14 @@ struct inet_peer {
 			atomic_t			ip_id_count;	/* IP ID for the next packet */
 			__u32				tcp_ts;
 			__u32				tcp_ts_stamp;
-			u32				metrics[RTAX_MAX];
-			u32				rate_tokens;	/* rate limiting for ICMP */
-			unsigned long			rate_last;
-			unsigned long			pmtu_expires;
-			u32				pmtu_orig;
-			u32				pmtu_learned;
-			struct inetpeer_addr_base	redirect_learned;
 		};
 		struct rcu_head         rcu;
+		struct inet_peer	*gc_next;
 	};
+
+	/* following fields might be frequently dirtied */
+	__u32			dtime;	/* the time of last use of not referenced entries */
+	atomic_t		refcnt;
 };
 
 void			inet_initpeers(void) __init;
@@ -69,7 +71,7 @@ static inline bool inet_metrics_new(const struct inet_peer *p)
 }
 
 /* can be called with or without local BH being disabled */
-struct inet_peer	*inet_getpeer(struct inetpeer_addr *daddr, int create);
+struct inet_peer	*inet_getpeer(const struct inetpeer_addr *daddr, int create);
 
 static inline struct inet_peer *inet_getpeer_v4(__be32 v4daddr, int create)
 {
@@ -104,11 +106,18 @@ static inline void inet_peer_refcheck(const struct inet_peer *p)
 
 
 /* can be called with or without local BH being disabled */
-static inline __u16	inet_getid(struct inet_peer *p, int more)
+static inline int inet_getid(struct inet_peer *p, int more)
 {
+	int old, new;
 	more++;
 	inet_peer_refcheck(p);
-	return atomic_add_return(more, &p->ip_id_count) - more;
+	do {
+		old = atomic_read(&p->ip_id_count);
+		new = old + more;
+		if (!new)
+			new = 1;
+	} while (atomic_cmpxchg(&p->ip_id_count, old, new) != old);
+	return new;
 }
 
 #endif /* _NET_INETPEER_H */

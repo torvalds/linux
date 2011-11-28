@@ -61,6 +61,7 @@
 #include <linux/if_arp.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/compat.h>
+#include <linux/export.h>
 #include <net/ipip.h>
 #include <net/checksum.h>
 #include <net/netlink.h>
@@ -1176,7 +1177,7 @@ static void mrtsock_destruct(struct sock *sk)
 	ipmr_for_each_table(mrt, net) {
 		if (sk == rtnl_dereference(mrt->mroute_sk)) {
 			IPV4_DEVCONF_ALL(net, MC_FORWARDING)--;
-			rcu_assign_pointer(mrt->mroute_sk, NULL);
+			RCU_INIT_POINTER(mrt->mroute_sk, NULL);
 			mroute_clean_tables(mrt);
 		}
 	}
@@ -1203,7 +1204,7 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, unsi
 		return -ENOENT;
 
 	if (optname != MRT_INIT) {
-		if (sk != rcu_dereference_raw(mrt->mroute_sk) &&
+		if (sk != rcu_access_pointer(mrt->mroute_sk) &&
 		    !capable(CAP_NET_ADMIN))
 			return -EACCES;
 	}
@@ -1224,13 +1225,13 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, unsi
 
 		ret = ip_ra_control(sk, 1, mrtsock_destruct);
 		if (ret == 0) {
-			rcu_assign_pointer(mrt->mroute_sk, sk);
+			RCU_INIT_POINTER(mrt->mroute_sk, sk);
 			IPV4_DEVCONF_ALL(net, MC_FORWARDING)++;
 		}
 		rtnl_unlock();
 		return ret;
 	case MRT_DONE:
-		if (sk != rcu_dereference_raw(mrt->mroute_sk))
+		if (sk != rcu_access_pointer(mrt->mroute_sk))
 			return -EACCES;
 		return ip_ra_control(sk, 0, NULL);
 	case MRT_ADD_VIF:
@@ -1796,7 +1797,7 @@ static struct mr_table *ipmr_rt_fib_lookup(struct net *net, struct sk_buff *skb)
 	struct flowi4 fl4 = {
 		.daddr = iph->daddr,
 		.saddr = iph->saddr,
-		.flowi4_tos = iph->tos,
+		.flowi4_tos = RT_TOS(iph->tos),
 		.flowi4_oif = rt->rt_oif,
 		.flowi4_iif = rt->rt_iif,
 		.flowi4_mark = rt->rt_mark,
@@ -2544,7 +2545,8 @@ int __init ip_mr_init(void)
 		goto add_proto_fail;
 	}
 #endif
-	rtnl_register(RTNL_FAMILY_IPMR, RTM_GETROUTE, NULL, ipmr_rtm_dumproute);
+	rtnl_register(RTNL_FAMILY_IPMR, RTM_GETROUTE,
+		      NULL, ipmr_rtm_dumproute, NULL);
 	return 0;
 
 #ifdef CONFIG_IP_PIMSM_V2

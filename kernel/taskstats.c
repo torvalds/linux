@@ -28,7 +28,7 @@
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <net/genetlink.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 /*
  * Maximum length of a cpumask that can be specified in
@@ -291,30 +291,28 @@ static int add_del_listener(pid_t pid, const struct cpumask *mask, int isadd)
 	if (!cpumask_subset(mask, cpu_possible_mask))
 		return -EINVAL;
 
-	s = NULL;
 	if (isadd == REGISTER) {
 		for_each_cpu(cpu, mask) {
-			if (!s)
-				s = kmalloc_node(sizeof(struct listener),
-						 GFP_KERNEL, cpu_to_node(cpu));
+			s = kmalloc_node(sizeof(struct listener),
+					GFP_KERNEL, cpu_to_node(cpu));
 			if (!s)
 				goto cleanup;
+
 			s->pid = pid;
-			INIT_LIST_HEAD(&s->list);
 			s->valid = 1;
 
 			listeners = &per_cpu(listener_array, cpu);
 			down_write(&listeners->sem);
-			list_for_each_entry_safe(s2, tmp, &listeners->list, list) {
-				if (s2->pid == pid)
-					goto next_cpu;
+			list_for_each_entry(s2, &listeners->list, list) {
+				if (s2->pid == pid && s2->valid)
+					goto exists;
 			}
 			list_add(&s->list, &listeners->list);
 			s = NULL;
-next_cpu:
+exists:
 			up_write(&listeners->sem);
+			kfree(s); /* nop if NULL */
 		}
-		kfree(s);
 		return 0;
 	}
 
@@ -657,6 +655,7 @@ static struct genl_ops taskstats_ops = {
 	.cmd		= TASKSTATS_CMD_GET,
 	.doit		= taskstats_user_cmd,
 	.policy		= taskstats_cmd_get_policy,
+	.flags		= GENL_ADMIN_PERM,
 };
 
 static struct genl_ops cgroupstats_ops = {

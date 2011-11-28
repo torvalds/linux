@@ -2754,7 +2754,7 @@ static const struct net_device_ops airo_netdev_ops = {
 	.ndo_stop		= airo_close,
 	.ndo_start_xmit		= airo_start_xmit,
 	.ndo_get_stats		= airo_get_stats,
-	.ndo_set_multicast_list	= airo_set_multicast_list,
+	.ndo_set_rx_mode	= airo_set_multicast_list,
 	.ndo_set_mac_address	= airo_set_mac_address,
 	.ndo_do_ioctl		= airo_ioctl,
 	.ndo_change_mtu		= airo_change_mtu,
@@ -2766,7 +2766,7 @@ static const struct net_device_ops mpi_netdev_ops = {
 	.ndo_stop		= airo_close,
 	.ndo_start_xmit		= mpi_start_xmit,
 	.ndo_get_stats		= airo_get_stats,
-	.ndo_set_multicast_list	= airo_set_multicast_list,
+	.ndo_set_rx_mode	= airo_set_multicast_list,
 	.ndo_set_mac_address	= airo_set_mac_address,
 	.ndo_do_ioctl		= airo_ioctl,
 	.ndo_change_mtu		= airo_change_mtu,
@@ -2823,6 +2823,7 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 	dev->wireless_data = &ai->wireless_data;
 	dev->irq = irq;
 	dev->base_addr = port;
+	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 
 	SET_NETDEV_DEV(dev, dmdev);
 

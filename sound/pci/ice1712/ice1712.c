@@ -54,7 +54,7 @@
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
 
 #include <sound/core.h>
@@ -87,7 +87,7 @@ static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;/* Enable this card */
 static char *model[SNDRV_CARDS];
 static int omni[SNDRV_CARDS];				/* Delta44 & 66 Omni I/O support */
-static int cs8427_timeout[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = 500}; /* CS8427 S/PDIF transciever reset timeout value in msec */
+static int cs8427_timeout[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = 500}; /* CS8427 S/PDIF transceiver reset timeout value in msec */
 static int dxr_enable[SNDRV_CARDS];			/* DXR enable for DMX6FIRE */
 
 module_param_array(index, int, NULL, 0444);
@@ -2607,7 +2607,7 @@ static int __devinit snd_ice1712_create(struct snd_card *card,
 	ice->profi_port = pci_resource_start(pci, 3);
 
 	if (request_irq(pci->irq, snd_ice1712_interrupt, IRQF_SHARED,
-			"ICE1712", ice)) {
+			KBUILD_MODNAME, ice)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_ice1712_free(ice);
 		return -EIO;
@@ -2748,8 +2748,9 @@ static int __devinit snd_ice1712_probe(struct pci_dev *pci,
 	if (!c->no_mpu401) {
 		err = snd_mpu401_uart_new(card, 0, MPU401_HW_ICE1712,
 			ICEREG(ice, MPU1_CTRL),
-			(c->mpu401_1_info_flags | MPU401_INFO_INTEGRATED),
-			ice->irq, 0, &ice->rmidi[0]);
+			c->mpu401_1_info_flags |
+			MPU401_INFO_INTEGRATED | MPU401_INFO_IRQ_HOOK,
+			-1, &ice->rmidi[0]);
 		if (err < 0) {
 			snd_card_free(card);
 			return err;
@@ -2764,8 +2765,9 @@ static int __devinit snd_ice1712_probe(struct pci_dev *pci,
 			/*  2nd port used  */
 			err = snd_mpu401_uart_new(card, 1, MPU401_HW_ICE1712,
 				ICEREG(ice, MPU2_CTRL),
-				(c->mpu401_2_info_flags | MPU401_INFO_INTEGRATED),
-				ice->irq, 0, &ice->rmidi[1]);
+				c->mpu401_2_info_flags |
+				MPU401_INFO_INTEGRATED | MPU401_INFO_IRQ_HOOK,
+				-1, &ice->rmidi[1]);
 
 			if (err < 0) {
 				snd_card_free(card);
@@ -2802,7 +2804,7 @@ static void __devexit snd_ice1712_remove(struct pci_dev *pci)
 }
 
 static struct pci_driver driver = {
-	.name = "ICE1712",
+	.name = KBUILD_MODNAME,
 	.id_table = snd_ice1712_ids,
 	.probe = snd_ice1712_probe,
 	.remove = __devexit_p(snd_ice1712_remove),

@@ -114,10 +114,12 @@ int __request_module(bool wait, const char *fmt, ...)
 	atomic_inc(&kmod_concurrent);
 	if (atomic_read(&kmod_concurrent) > max_modprobes) {
 		/* We may be blaming an innocent here, but unlikely */
-		if (kmod_loop_msg++ < 5)
+		if (kmod_loop_msg < 5) {
 			printk(KERN_ERR
 			       "request_module: runaway loop modprobe %s\n",
 			       module_name);
+			kmod_loop_msg++;
+		}
 		atomic_dec(&kmod_concurrent);
 		return -ENOMEM;
 	}
@@ -274,7 +276,7 @@ static void __call_usermodehelper(struct work_struct *work)
  * (used for preventing user land processes from being created after the user
  * land has been frozen during a system-wide hibernation or suspend operation).
  */
-static int usermodehelper_disabled;
+static int usermodehelper_disabled = 1;
 
 /* Number of helpers running */
 static atomic_t running_helpers = ATOMIC_INIT(0);

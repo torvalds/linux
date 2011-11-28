@@ -1,5 +1,6 @@
 menu "Platform support"
 
+source "arch/powerpc/platforms/powernv/Kconfig"
 source "arch/powerpc/platforms/pseries/Kconfig"
 source "arch/powerpc/platforms/iseries/Kconfig"
 source "arch/powerpc/platforms/chrp/Kconfig"
@@ -24,7 +25,7 @@ source "arch/powerpc/platforms/wsp/Kconfig"
 
 config KVM_GUEST
 	bool "KVM Guest support"
-	default y
+	default n
 	---help---
 	  This option enables various optimizations for running under the KVM
 	  hypervisor. Overhead for the kernel when not running inside KVM should
@@ -75,6 +76,10 @@ config IPIC
 	default n
 
 config MPIC
+	bool
+	default n
+
+config PPC_EPAPR_HV_PIC
 	bool
 	default n
 
@@ -266,7 +271,7 @@ config TAU_AVERAGE
 
 config QUICC_ENGINE
 	bool "Freescale QUICC Engine (QE) Support"
-	depends on FSL_SOC
+	depends on FSL_SOC && PPC32
 	select PPC_LIB_RHEAP
 	select CRC32
 	help
@@ -329,16 +334,6 @@ config OF_RTC
 
 source "arch/powerpc/sysdev/bestcomm/Kconfig"
 
-config MPC8xxx_GPIO
-	bool "MPC512x/MPC8xxx GPIO support"
-	depends on PPC_MPC512x || PPC_MPC831x || PPC_MPC834x || PPC_MPC837x || \
-		   FSL_SOC_BOOKE || PPC_86xx
-	select GENERIC_GPIO
-	select ARCH_REQUIRE_GPIOLIB
-	help
-	  Say Y here if you're going to use hardware that connects to the
-	  MPC512x/831x/834x/837x/8572/8610 GPIOs.
-
 config SIMPLE_GPIO
 	bool "Support for simple, memory-mapped GPIO controllers"
 	depends on PPC
@@ -351,8 +346,8 @@ config SIMPLE_GPIO
 	  on-board peripherals.
 
 config MCU_MPC8349EMITX
-	tristate "MPC8349E-mITX MCU driver"
-	depends on I2C && PPC_83xx
+	bool "MPC8349E-mITX MCU driver"
+	depends on I2C=y && PPC_83xx
 	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	help

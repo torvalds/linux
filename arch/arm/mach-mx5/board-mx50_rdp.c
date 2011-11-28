@@ -192,6 +192,8 @@ static const struct imxi2c_platform_data i2c_data __initconst = {
  */
 static void __init mx50_rdp_board_init(void)
 {
+	imx50_soc_init();
+
 	mxc_iomux_v3_setup_multiple_pads(mx50_rdp_pads,
 					ARRAY_SIZE(mx50_rdp_pads));
 
@@ -217,6 +219,7 @@ MACHINE_START(MX50_RDP, "Freescale MX50 Reference Design Platform")
 	.map_io = mx50_map_io,
 	.init_early = imx50_init_early,
 	.init_irq = mx50_init_irq,
+	.handle_irq = imx50_handle_irq,
 	.timer = &mx50_rdp_timer,
 	.init_machine = mx50_rdp_board_init,
 MACHINE_END

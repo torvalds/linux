@@ -18,7 +18,6 @@
 #include "ctatc.h"
 #include "ctpcm.h"
 #include "ctmixer.h"
-#include "cthardware.h"
 #include "ctsrc.h"
 #include "ctamixer.h"
 #include "ctdaio.h"
@@ -30,7 +29,6 @@
 #include <sound/asoundef.h>
 
 #define MONO_SUM_SCALE	0x19a8	/* 2^(-0.5) in 14-bit floating format */
-#define DAIONUM		7
 #define MAX_MULTI_CHN	8
 
 #define IEC958_DEFAULT_CON ((IEC958_AES0_NONAUDIO \
@@ -53,6 +51,8 @@ static struct snd_pci_quirk __devinitdata subsys_20k1_list[] = {
 static struct snd_pci_quirk __devinitdata subsys_20k2_list[] = {
 	SND_PCI_QUIRK(PCI_VENDOR_ID_CREATIVE, PCI_SUBDEVICE_ID_CREATIVE_SB0760,
 		      "SB0760", CTSB0760),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_CREATIVE, PCI_SUBDEVICE_ID_CREATIVE_SB1270,
+		      "SB1270", CTSB1270),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_CREATIVE, PCI_SUBDEVICE_ID_CREATIVE_SB08801,
 		      "SB0880", CTSB0880),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_CREATIVE, PCI_SUBDEVICE_ID_CREATIVE_SB08802,
@@ -75,6 +75,7 @@ static const char *ct_subsys_name[NUM_CTCARDS] = {
 	[CTSB0760]	= "SB076x",
 	[CTHENDRIX]	= "Hendrix",
 	[CTSB0880]	= "SB0880",
+	[CTSB1270]      = "SB1270",
 	[CT20K2_UNKNOWN] = "Unknown",
 };
 
@@ -459,12 +460,12 @@ static void setup_src_node_conf(struct ct_atc *atc, struct ct_atc_pcm *apcm,
 				apcm->substream->runtime->rate);
 	*n_srcc = 0;
 
-	if (1 == atc->msr) {
+	if (1 == atc->msr) { /* FIXME: do we really need SRC here if pitch==1 */
 		*n_srcc = apcm->substream->runtime->channels;
 		conf[0].pitch = pitch;
 		conf[0].mix_msr = conf[0].imp_msr = conf[0].msr = 1;
 		conf[0].vo = 1;
-	} else if (2 == atc->msr) {
+	} else if (2 <= atc->msr) {
 		if (0x8000000 < pitch) {
 			/* Need two-stage SRCs, SRCIMPs and
 			 * AMIXERs for converting format */
@@ -970,11 +971,39 @@ static int atc_select_mic_in(struct ct_atc *atc)
 	return 0;
 }
 
-static int atc_have_digit_io_switch(struct ct_atc *atc)
+static struct capabilities atc_capabilities(struct ct_atc *atc)
 {
 	struct hw *hw = atc->hw;
 
-	return hw->have_digit_io_switch(hw);
+	return hw->capabilities(hw);
+}
+
+static int atc_output_switch_get(struct ct_atc *atc)
+{
+	struct hw *hw = atc->hw;
+
+	return hw->output_switch_get(hw);
+}
+
+static int atc_output_switch_put(struct ct_atc *atc, int position)
+{
+	struct hw *hw = atc->hw;
+
+	return hw->output_switch_put(hw, position);
+}
+
+static int atc_mic_source_switch_get(struct ct_atc *atc)
+{
+	struct hw *hw = atc->hw;
+
+	return hw->mic_source_switch_get(hw);
+}
+
+static int atc_mic_source_switch_put(struct ct_atc *atc, int position)
+{
+	struct hw *hw = atc->hw;
+
+	return hw->mic_source_switch_put(hw, position);
 }
 
 static int atc_select_digit_io(struct ct_atc *atc)
@@ -1043,6 +1072,11 @@ static int atc_line_rear_unmute(struct ct_atc *atc, unsigned char state)
 static int atc_line_in_unmute(struct ct_atc *atc, unsigned char state)
 {
 	return atc_daio_unmute(atc, state, LINEIM);
+}
+
+static int atc_mic_unmute(struct ct_atc *atc, unsigned char state)
+{
+	return atc_daio_unmute(atc, state, MIC);
 }
 
 static int atc_spdif_out_unmute(struct ct_atc *atc, unsigned char state)
@@ -1331,17 +1365,20 @@ static int atc_get_resources(struct ct_atc *atc)
 	struct srcimp_mgr *srcimp_mgr;
 	struct sum_desc sum_dsc = {0};
 	struct sum_mgr *sum_mgr;
-	int err, i;
+	int err, i, num_srcs, num_daios;
 
-	atc->daios = kzalloc(sizeof(void *)*(DAIONUM), GFP_KERNEL);
+	num_daios = ((atc->model == CTSB1270) ? 8 : 7);
+	num_srcs = ((atc->model == CTSB1270) ? 6 : 4);
+
+	atc->daios = kzalloc(sizeof(void *)*num_daios, GFP_KERNEL);
 	if (!atc->daios)
 		return -ENOMEM;
 
-	atc->srcs = kzalloc(sizeof(void *)*(2*2), GFP_KERNEL);
+	atc->srcs = kzalloc(sizeof(void *)*num_srcs, GFP_KERNEL);
 	if (!atc->srcs)
 		return -ENOMEM;
 
-	atc->srcimps = kzalloc(sizeof(void *)*(2*2), GFP_KERNEL);
+	atc->srcimps = kzalloc(sizeof(void *)*num_srcs, GFP_KERNEL);
 	if (!atc->srcimps)
 		return -ENOMEM;
 
@@ -1351,8 +1388,9 @@ static int atc_get_resources(struct ct_atc *atc)
 
 	daio_mgr = (struct daio_mgr *)atc->rsc_mgrs[DAIO];
 	da_desc.msr = atc->msr;
-	for (i = 0, atc->n_daio = 0; i < DAIONUM-1; i++) {
-		da_desc.type = i;
+	for (i = 0, atc->n_daio = 0; i < num_daios; i++) {
+		da_desc.type = (atc->model != CTSB073X) ? i :
+			     ((i == SPDIFIO) ? SPDIFI1 : i);
 		err = daio_mgr->get_daio(daio_mgr, &da_desc,
 					(struct daio **)&atc->daios[i]);
 		if (err) {
@@ -1362,23 +1400,12 @@ static int atc_get_resources(struct ct_atc *atc)
 		}
 		atc->n_daio++;
 	}
-	if (atc->model == CTSB073X)
-		da_desc.type = SPDIFI1;
-	else
-		da_desc.type = SPDIFIO;
-	err = daio_mgr->get_daio(daio_mgr, &da_desc,
-				(struct daio **)&atc->daios[i]);
-	if (err) {
-		printk(KERN_ERR "ctxfi: Failed to get S/PDIF-in resource!!!\n");
-		return err;
-	}
-	atc->n_daio++;
 
 	src_mgr = atc->rsc_mgrs[SRC];
 	src_dsc.multi = 1;
 	src_dsc.msr = atc->msr;
 	src_dsc.mode = ARCRW;
-	for (i = 0, atc->n_src = 0; i < (2*2); i++) {
+	for (i = 0, atc->n_src = 0; i < num_srcs; i++) {
 		err = src_mgr->get_src(src_mgr, &src_dsc,
 					(struct src **)&atc->srcs[i]);
 		if (err)
@@ -1388,19 +1415,10 @@ static int atc_get_resources(struct ct_atc *atc)
 	}
 
 	srcimp_mgr = atc->rsc_mgrs[SRCIMP];
-	srcimp_dsc.msr = 8; /* SRCIMPs for S/PDIFIn SRT */
-	for (i = 0, atc->n_srcimp = 0; i < (2*1); i++) {
+	srcimp_dsc.msr = 8;
+	for (i = 0, atc->n_srcimp = 0; i < num_srcs; i++) {
 		err = srcimp_mgr->get_srcimp(srcimp_mgr, &srcimp_dsc,
 					(struct srcimp **)&atc->srcimps[i]);
-		if (err)
-			return err;
-
-		atc->n_srcimp++;
-	}
-	srcimp_dsc.msr = 8; /* SRCIMPs for LINE/MICIn SRT */
-	for (i = 0; i < (2*1); i++) {
-		err = srcimp_mgr->get_srcimp(srcimp_mgr, &srcimp_dsc,
-				(struct srcimp **)&atc->srcimps[2*1+i]);
 		if (err)
 			return err;
 
@@ -1487,6 +1505,18 @@ static void atc_connect_resources(struct ct_atc *atc)
 	mixer->set_input_left(mixer, MIX_LINE_IN, &src->rsc);
 	src = atc->srcs[3];
 	mixer->set_input_right(mixer, MIX_LINE_IN, &src->rsc);
+
+	if (atc->model == CTSB1270) {
+		/* Titanium HD has a dedicated ADC for the Mic. */
+		dai = container_of(atc->daios[MIC], struct dai, daio);
+		atc_connect_dai(atc->rsc_mgrs[SRC], dai,
+			(struct src **)&atc->srcs[4],
+			(struct srcimp **)&atc->srcimps[4]);
+		src = atc->srcs[4];
+		mixer->set_input_left(mixer, MIX_MIC_IN, &src->rsc);
+		src = atc->srcs[5];
+		mixer->set_input_right(mixer, MIX_MIC_IN, &src->rsc);
+	}
 
 	dai = container_of(atc->daios[SPDIFIO], struct dai, daio);
 	atc_connect_dai(atc->rsc_mgrs[SRC], dai,
@@ -1606,12 +1636,17 @@ static struct ct_atc atc_preset __devinitdata = {
 	.line_clfe_unmute = atc_line_clfe_unmute,
 	.line_rear_unmute = atc_line_rear_unmute,
 	.line_in_unmute = atc_line_in_unmute,
+	.mic_unmute = atc_mic_unmute,
 	.spdif_out_unmute = atc_spdif_out_unmute,
 	.spdif_in_unmute = atc_spdif_in_unmute,
 	.spdif_out_get_status = atc_spdif_out_get_status,
 	.spdif_out_set_status = atc_spdif_out_set_status,
 	.spdif_out_passthru = atc_spdif_out_passthru,
-	.have_digit_io_switch = atc_have_digit_io_switch,
+	.capabilities = atc_capabilities,
+	.output_switch_get = atc_output_switch_get,
+	.output_switch_put = atc_output_switch_put,
+	.mic_source_switch_get = atc_mic_source_switch_get,
+	.mic_source_switch_put = atc_mic_source_switch_put,
 #ifdef CONFIG_PM
 	.suspend = atc_suspend,
 	.resume = atc_resume,

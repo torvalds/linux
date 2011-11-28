@@ -27,6 +27,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/delay.h>
 #include <linux/timex.h>
+#include <linux/i8253.h>
 #include <linux/dmar.h>
 #include <linux/init.h>
 #include <linux/cpu.h>
@@ -37,9 +38,8 @@
 #include <asm/perf_event.h>
 #include <asm/x86_init.h>
 #include <asm/pgalloc.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/mpspec.h>
-#include <asm/i8253.h>
 #include <asm/i8259.h>
 #include <asm/proto.h>
 #include <asm/apic.h>
@@ -48,6 +48,7 @@
 #include <asm/hpet.h>
 #include <asm/idle.h>
 #include <asm/mtrr.h>
+#include <asm/time.h>
 #include <asm/smp.h>
 #include <asm/mce.h>
 #include <asm/tsc.h>
@@ -185,7 +186,7 @@ static struct resource lapic_resource = {
 	.flags = IORESOURCE_MEM | IORESOURCE_BUSY,
 };
 
-static unsigned int calibration_result;
+unsigned int lapic_timer_frequency = 0;
 
 static void apic_pm_activate(void);
 
@@ -453,7 +454,7 @@ static void lapic_timer_setup(enum clock_event_mode mode,
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
 	case CLOCK_EVT_MODE_ONESHOT:
-		__setup_APIC_LVTT(calibration_result,
+		__setup_APIC_LVTT(lapic_timer_frequency,
 				  mode != CLOCK_EVT_MODE_PERIODIC, 1);
 		break;
 	case CLOCK_EVT_MODE_UNUSED:
@@ -637,6 +638,25 @@ static int __init calibrate_APIC_clock(void)
 	long delta, deltatsc;
 	int pm_referenced = 0;
 
+	/**
+	 * check if lapic timer has already been calibrated by platform
+	 * specific routine, such as tsc calibration code. if so, we just fill
+	 * in the clockevent structure and return.
+	 */
+
+	if (lapic_timer_frequency) {
+		apic_printk(APIC_VERBOSE, "lapic timer already calibrated %d\n",
+				lapic_timer_frequency);
+		lapic_clockevent.mult = div_sc(lapic_timer_frequency/APIC_DIVISOR,
+					TICK_NSEC, lapic_clockevent.shift);
+		lapic_clockevent.max_delta_ns =
+			clockevent_delta2ns(0x7FFFFF, &lapic_clockevent);
+		lapic_clockevent.min_delta_ns =
+			clockevent_delta2ns(0xF, &lapic_clockevent);
+		lapic_clockevent.features &= ~CLOCK_EVT_FEAT_DUMMY;
+		return 0;
+	}
+
 	local_irq_disable();
 
 	/* Replace the global interrupt handler */
@@ -678,12 +698,12 @@ static int __init calibrate_APIC_clock(void)
 	lapic_clockevent.min_delta_ns =
 		clockevent_delta2ns(0xF, &lapic_clockevent);
 
-	calibration_result = (delta * APIC_DIVISOR) / LAPIC_CAL_LOOPS;
+	lapic_timer_frequency = (delta * APIC_DIVISOR) / LAPIC_CAL_LOOPS;
 
 	apic_printk(APIC_VERBOSE, "..... delta %ld\n", delta);
 	apic_printk(APIC_VERBOSE, "..... mult: %u\n", lapic_clockevent.mult);
 	apic_printk(APIC_VERBOSE, "..... calibration result: %u\n",
-		    calibration_result);
+		    lapic_timer_frequency);
 
 	if (cpu_has_tsc) {
 		apic_printk(APIC_VERBOSE, "..... CPU clock speed is "
@@ -694,13 +714,13 @@ static int __init calibrate_APIC_clock(void)
 
 	apic_printk(APIC_VERBOSE, "..... host bus clock speed is "
 		    "%u.%04u MHz.\n",
-		    calibration_result / (1000000 / HZ),
-		    calibration_result % (1000000 / HZ));
+		    lapic_timer_frequency / (1000000 / HZ),
+		    lapic_timer_frequency % (1000000 / HZ));
 
 	/*
 	 * Do a sanity check on the APIC calibration result
 	 */
-	if (calibration_result < (1000000 / HZ)) {
+	if (lapic_timer_frequency < (1000000 / HZ)) {
 		local_irq_enable();
 		pr_warning("APIC frequency too slow, disabling apic timer\n");
 		return -1;
@@ -1429,34 +1449,28 @@ void enable_x2apic(void)
 	rdmsr(MSR_IA32_APICBASE, msr, msr2);
 	if (!(msr & X2APIC_ENABLE)) {
 		printk_once(KERN_INFO "Enabling x2apic\n");
-		wrmsr(MSR_IA32_APICBASE, msr | X2APIC_ENABLE, 0);
+		wrmsr(MSR_IA32_APICBASE, msr | X2APIC_ENABLE, msr2);
 	}
 }
 #endif /* CONFIG_X86_X2APIC */
 
 int __init enable_IR(void)
 {
-#ifdef CONFIG_INTR_REMAP
+#ifdef CONFIG_IRQ_REMAP
 	if (!intr_remapping_supported()) {
 		pr_debug("intr-remapping not supported\n");
-		return 0;
+		return -1;
 	}
 
 	if (!x2apic_preenabled && skip_ioapic_setup) {
 		pr_info("Skipped enabling intr-remap because of skipping "
 			"io-apic setup\n");
-		return 0;
+		return -1;
 	}
 
-	if (enable_intr_remapping(x2apic_supported()))
-		return 0;
-
-	pr_info("Enabled Interrupt-remapping\n");
-
-	return 1;
-
+	return enable_intr_remapping();
 #endif
-	return 0;
+	return -1;
 }
 
 void __init enable_IR_x2apic(void)
@@ -1480,11 +1494,11 @@ void __init enable_IR_x2apic(void)
 	mask_ioapic_entries();
 
 	if (dmar_table_init_ret)
-		ret = 0;
+		ret = -1;
 	else
 		ret = enable_IR();
 
-	if (!ret) {
+	if (ret < 0) {
 		/* IR is required if there is APIC ID > 255 even when running
 		 * under KVM
 		 */
@@ -1498,6 +1512,9 @@ void __init enable_IR_x2apic(void)
 		x2apic_force_phys();
 	}
 
+	if (ret == IRQ_REMAP_XAPIC_MODE)
+		goto nox2apic;
+
 	x2apic_enabled = 1;
 
 	if (x2apic_supported() && !x2apic_mode) {
@@ -1507,19 +1524,21 @@ void __init enable_IR_x2apic(void)
 	}
 
 nox2apic:
-	if (!ret) /* IR enabling failed */
+	if (ret < 0) /* IR enabling failed */
 		restore_ioapic_entries();
 	legacy_pic->restore_mask();
 	local_irq_restore(flags);
 
 out:
-	if (x2apic_enabled)
+	if (x2apic_enabled || !x2apic_supported())
 		return;
 
 	if (x2apic_preenabled)
 		panic("x2apic: enabled by BIOS but kernel init failed.");
-	else if (cpu_has_x2apic)
-		pr_info("Not enabling x2apic, Intr-remapping init failed.\n");
+	else if (ret == IRQ_REMAP_XAPIC_MODE)
+		pr_info("x2apic not enabled, IRQ remapping is in xapic mode\n");
+	else if (ret < 0)
+		pr_info("x2apic not enabled, IRQ remapping init failed\n");
 }
 
 #ifdef CONFIG_X86_64
@@ -1943,10 +1962,28 @@ void disconnect_bsp_APIC(int virt_wire_setup)
 
 void __cpuinit generic_processor_info(int apicid, int version)
 {
-	int cpu;
+	int cpu, max = nr_cpu_ids;
+	bool boot_cpu_detected = physid_isset(boot_cpu_physical_apicid,
+				phys_cpu_present_map);
+
+	/*
+	 * If boot cpu has not been detected yet, then only allow upto
+	 * nr_cpu_ids - 1 processors and keep one slot free for boot cpu
+	 */
+	if (!boot_cpu_detected && num_processors >= nr_cpu_ids - 1 &&
+	    apicid != boot_cpu_physical_apicid) {
+		int thiscpu = max + disabled_cpus - 1;
+
+		pr_warning(
+			"ACPI: NR_CPUS/possible_cpus limit of %i almost"
+			" reached. Keeping one slot for boot cpu."
+			"  Processor %d/0x%x ignored.\n", max, thiscpu, apicid);
+
+		disabled_cpus++;
+		return;
+	}
 
 	if (num_processors >= nr_cpu_ids) {
-		int max = nr_cpu_ids;
 		int thiscpu = max + disabled_cpus;
 
 		pr_warning(

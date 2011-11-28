@@ -7,6 +7,7 @@
  *	      Michael Holzheu <holzheu@linux.vnet.ibm.com>
  */
 
+#include <linux/linkage.h>
 #include <asm/page.h>
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
@@ -22,9 +23,7 @@
  * This function runs with disabled interrupts.
  */
 	.section .text
-	.align	4
-	.globl swsusp_arch_suspend
-swsusp_arch_suspend:
+ENTRY(swsusp_arch_suspend)
 	stmg	%r6,%r15,__SF_GPRS(%r15)
 	lgr	%r1,%r15
 	aghi	%r15,-STACK_FRAME_OVERHEAD
@@ -112,8 +111,7 @@ swsusp_arch_suspend:
  * Then we return to the function that called swsusp_arch_suspend().
  * swsusp_arch_resume() runs with disabled interrupts.
  */
-	.globl swsusp_arch_resume
-swsusp_arch_resume:
+ENTRY(swsusp_arch_resume)
 	stmg	%r6,%r15,__SF_GPRS(%r15)
 	lgr	%r1,%r15
 	aghi	%r15,-STACK_FRAME_OVERHEAD
@@ -138,11 +136,14 @@ swsusp_arch_resume:
 0:
 	lg	%r2,8(%r1)
 	lg	%r4,0(%r1)
+	iske	%r0,%r4
 	lghi	%r3,PAGE_SIZE
 	lghi	%r5,PAGE_SIZE
 1:
 	mvcle	%r2,%r4,0
 	jo	1b
+	lg	%r2,8(%r1)
+	sske	%r0,%r2
 	lg	%r1,16(%r1)
 	ltgr	%r1,%r1
 	jnz	0b

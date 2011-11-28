@@ -6,7 +6,7 @@
  *
  * Based on drivers/ssb/pcmcia.c
  * Copyright 2006 Johannes Berg <johannes@sipsolutions.net>
- * Copyright 2007-2008 Michael Buesch <mb@bu3sch.de>
+ * Copyright 2007-2008 Michael Buesch <m@bues.ch>
  *
  * Licensed under the GNU/GPL. See COPYING for details.
  *

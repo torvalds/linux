@@ -93,8 +93,8 @@ static int ohci_ath79_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		goto err_put_hcd;
 	}
-	hcd->rsrc_start	= res->start;
-	hcd->rsrc_len	= res->end - res->start + 1;
+	hcd->rsrc_start = res->start;
+	hcd->rsrc_len = resource_size(res);
 
 	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
 		dev_dbg(&pdev->dev, "controller already in use\n");
@@ -111,7 +111,7 @@ static int ohci_ath79_probe(struct platform_device *pdev)
 
 	ohci_hcd_init(hcd_to_ohci(hcd));
 
-	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED);
+	ret = usb_add_hcd(hcd, irq, 0);
 	if (ret)
 		goto err_stop_hcd;
 

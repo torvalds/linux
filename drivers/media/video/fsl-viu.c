@@ -23,19 +23,13 @@
 #include <linux/io.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
-#include <linux/version.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf-dma-contig.h>
 
 #define DRV_NAME		"fsl_viu"
-#define VIU_MAJOR_VERSION	0
-#define VIU_MINOR_VERSION	5
-#define VIU_RELEASE		0
-#define VIU_VERSION		KERNEL_VERSION(VIU_MAJOR_VERSION, \
-					       VIU_MINOR_VERSION, \
-					       VIU_RELEASE)
+#define VIU_VERSION		"0.5.1"
 
 #define BUFFER_TIMEOUT		msecs_to_jiffies(500)  /* 0.5 seconds */
 
@@ -610,7 +604,6 @@ static int vidioc_querycap(struct file *file, void *priv,
 {
 	strcpy(cap->driver, "viu");
 	strcpy(cap->card, "viu");
-	cap->version = VIU_VERSION;
 	cap->capabilities =	V4L2_CAP_VIDEO_CAPTURE |
 				V4L2_CAP_STREAMING     |
 				V4L2_CAP_VIDEO_OVERLAY |
@@ -1684,3 +1677,4 @@ module_exit(viu_exit);
 MODULE_DESCRIPTION("Freescale Video-In(VIU)");
 MODULE_AUTHOR("Hongjun Chen");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(VIU_VERSION);

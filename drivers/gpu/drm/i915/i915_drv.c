@@ -35,46 +35,79 @@
 #include "intel_drv.h"
 
 #include <linux/console.h>
+#include <linux/module.h>
 #include "drm_crtc_helper.h"
 
-static int i915_modeset = -1;
+static int i915_modeset __read_mostly = -1;
 module_param_named(modeset, i915_modeset, int, 0400);
+MODULE_PARM_DESC(modeset,
+		"Use kernel modesetting [KMS] (0=DRM_I915_KMS from .config, "
+		"1=on, -1=force vga console preference [default])");
 
-unsigned int i915_fbpercrtc = 0;
+unsigned int i915_fbpercrtc __always_unused = 0;
 module_param_named(fbpercrtc, i915_fbpercrtc, int, 0400);
 
-int i915_panel_ignore_lid = 0;
+int i915_panel_ignore_lid __read_mostly = 0;
 module_param_named(panel_ignore_lid, i915_panel_ignore_lid, int, 0600);
+MODULE_PARM_DESC(panel_ignore_lid,
+		"Override lid status (0=autodetect [default], 1=lid open, "
+		"-1=lid closed)");
 
-unsigned int i915_powersave = 1;
+unsigned int i915_powersave __read_mostly = 1;
 module_param_named(powersave, i915_powersave, int, 0600);
+MODULE_PARM_DESC(powersave,
+		"Enable powersavings, fbc, downclocking, etc. (default: true)");
 
-unsigned int i915_semaphores = 0;
+unsigned int i915_semaphores __read_mostly = 0;
 module_param_named(semaphores, i915_semaphores, int, 0600);
+MODULE_PARM_DESC(semaphores,
+		"Use semaphores for inter-ring sync (default: false)");
 
-unsigned int i915_enable_rc6 = 1;
+unsigned int i915_enable_rc6 __read_mostly = 0;
 module_param_named(i915_enable_rc6, i915_enable_rc6, int, 0600);
+MODULE_PARM_DESC(i915_enable_rc6,
+		"Enable power-saving render C-state 6 (default: true)");
 
-unsigned int i915_enable_fbc = 0;
+int i915_enable_fbc __read_mostly = -1;
 module_param_named(i915_enable_fbc, i915_enable_fbc, int, 0600);
+MODULE_PARM_DESC(i915_enable_fbc,
+		"Enable frame buffer compression for power savings "
+		"(default: -1 (use per-chip default))");
 
-unsigned int i915_lvds_downclock = 0;
+unsigned int i915_lvds_downclock __read_mostly = 0;
 module_param_named(lvds_downclock, i915_lvds_downclock, int, 0400);
+MODULE_PARM_DESC(lvds_downclock,
+		"Use panel (LVDS/eDP) downclocking for power savings "
+		"(default: false)");
 
-unsigned int i915_panel_use_ssc = 1;
+int i915_panel_use_ssc __read_mostly = -1;
 module_param_named(lvds_use_ssc, i915_panel_use_ssc, int, 0600);
+MODULE_PARM_DESC(lvds_use_ssc,
+		"Use Spread Spectrum Clock with panels [LVDS/eDP] "
+		"(default: auto from VBT)");
 
-int i915_vbt_sdvo_panel_type = -1;
+int i915_vbt_sdvo_panel_type __read_mostly = -1;
 module_param_named(vbt_sdvo_panel_type, i915_vbt_sdvo_panel_type, int, 0600);
+MODULE_PARM_DESC(vbt_sdvo_panel_type,
+		"Override selection of SDVO panel mode in the VBT "
+		"(default: auto)");
 
-static bool i915_try_reset = true;
+static bool i915_try_reset __read_mostly = true;
 module_param_named(reset, i915_try_reset, bool, 0600);
+MODULE_PARM_DESC(reset, "Attempt GPU resets (default: true)");
+
+bool i915_enable_hangcheck __read_mostly = true;
+module_param_named(enable_hangcheck, i915_enable_hangcheck, bool, 0644);
+MODULE_PARM_DESC(enable_hangcheck,
+		"Periodically check GPU activity for detecting hangs. "
+		"WARNING: Disabling this can cause system wide hangs. "
+		"(default: true)");
 
 static struct drm_driver driver;
 extern int intel_agp_enabled;
 
 #define INTEL_VGA_DEVICE(id, info) {		\
-	.class = PCI_CLASS_DISPLAY_VGA << 8,	\
+	.class = PCI_BASE_CLASS_DISPLAY << 16,	\
 	.class_mask = 0xff0000,			\
 	.vendor = 0x8086,			\
 	.device = id,				\
@@ -262,7 +295,7 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 #define INTEL_PCH_CPT_DEVICE_ID_TYPE	0x1c00
 #define INTEL_PCH_PPT_DEVICE_ID_TYPE	0x1e00
 
-void intel_detect_pch (struct drm_device *dev)
+void intel_detect_pch(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct pci_dev *pch;
@@ -345,12 +378,17 @@ void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
 
 void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 {
-	int loop = 500;
-	u32 fifo = I915_READ_NOTRACE(GT_FIFO_FREE_ENTRIES);
-	while (fifo < 20 && loop--) {
-		udelay(10);
-		fifo = I915_READ_NOTRACE(GT_FIFO_FREE_ENTRIES);
+	if (dev_priv->gt_fifo_count < GT_FIFO_NUM_RESERVED_ENTRIES) {
+		int loop = 500;
+		u32 fifo = I915_READ_NOTRACE(GT_FIFO_FREE_ENTRIES);
+		while (fifo <= GT_FIFO_NUM_RESERVED_ENTRIES && loop--) {
+			udelay(10);
+			fifo = I915_READ_NOTRACE(GT_FIFO_FREE_ENTRIES);
+		}
+		WARN_ON(loop < 0 && fifo <= GT_FIFO_NUM_RESERVED_ENTRIES);
+		dev_priv->gt_fifo_count = fifo;
 	}
+	dev_priv->gt_fifo_count--;
 }
 
 static int i915_drm_freeze(struct drm_device *dev)
@@ -433,6 +471,9 @@ static int i915_drm_thaw(struct drm_device *dev)
 
 		error = i915_gem_init_ringbuffer(dev);
 		mutex_unlock(&dev->struct_mutex);
+
+		if (HAS_PCH_SPLIT(dev))
+			ironlake_init_pch_refclk(dev);
 
 		drm_mode_config_reset(dev);
 		drm_irq_install(dev);
@@ -577,6 +618,7 @@ int i915_reset(struct drm_device *dev, u8 flags)
 	if (get_seconds() - dev_priv->last_gpu_reset < 5) {
 		DRM_ERROR("GPU hanging too fast, declaring wedged!\n");
 	} else switch (INTEL_INFO(dev)->gen) {
+	case 7:
 	case 6:
 		ret = gen6_do_reset(dev, flags);
 		/* If reset with a user forcewake, try to restore */
@@ -732,12 +774,12 @@ static int i915_pm_poweroff(struct device *dev)
 }
 
 static const struct dev_pm_ops i915_pm_ops = {
-     .suspend = i915_pm_suspend,
-     .resume = i915_pm_resume,
-     .freeze = i915_pm_freeze,
-     .thaw = i915_pm_thaw,
-     .poweroff = i915_pm_poweroff,
-     .restore = i915_pm_resume,
+	.suspend = i915_pm_suspend,
+	.resume = i915_pm_resume,
+	.freeze = i915_pm_freeze,
+	.thaw = i915_pm_thaw,
+	.poweroff = i915_pm_poweroff,
+	.restore = i915_pm_resume,
 };
 
 static struct vm_operations_struct i915_gem_vm_ops = {
@@ -747,8 +789,8 @@ static struct vm_operations_struct i915_gem_vm_ops = {
 };
 
 static struct drm_driver driver = {
-	/* don't use mtrr's here, the Xserver or user space app should
-	 * deal with them for intel hardware.
+	/* Don't use MTRRs here; the Xserver or userspace app should
+	 * deal with them for Intel hardware.
 	 */
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_REQUIRE_AGP | /* DRIVER_USE_MTRR |*/
@@ -857,3 +899,43 @@ module_exit(i915_exit);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL and additional rights");
+
+/* We give fast paths for the really cool registers */
+#define NEEDS_FORCE_WAKE(dev_priv, reg) \
+	(((dev_priv)->info->gen >= 6) && \
+	((reg) < 0x40000) && \
+	((reg) != FORCEWAKE))
+
+#define __i915_read(x, y) \
+u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg) { \
+	u##x val = 0; \
+	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
+		gen6_gt_force_wake_get(dev_priv); \
+		val = read##y(dev_priv->regs + reg); \
+		gen6_gt_force_wake_put(dev_priv); \
+	} else { \
+		val = read##y(dev_priv->regs + reg); \
+	} \
+	trace_i915_reg_rw(false, reg, val, sizeof(val)); \
+	return val; \
+}
+
+__i915_read(8, b)
+__i915_read(16, w)
+__i915_read(32, l)
+__i915_read(64, q)
+#undef __i915_read
+
+#define __i915_write(x, y) \
+void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val) { \
+	trace_i915_reg_rw(true, reg, val, sizeof(val)); \
+	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
+		__gen6_gt_wait_for_fifo(dev_priv); \
+	} \
+	write##y(val, dev_priv->regs + reg); \
+}
+__i915_write(8, b)
+__i915_write(16, w)
+__i915_write(32, l)
+__i915_write(64, q)
+#undef __i915_write

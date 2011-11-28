@@ -26,6 +26,7 @@
 #include <linux/err.h>
 
 #include "../iio.h"
+#include "../sysfs.h"
 #include "dac.h"
 
 #include "max517.h"
@@ -58,8 +59,8 @@ static ssize_t max517_set_value(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *buf, size_t count, int channel)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct max517_data *data = iio_dev_get_devdata(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct max517_data *data = iio_priv(indio_dev);
 	struct i2c_client *client = data->client;
 	u8 outbuf[4]; /* 1x or 2x command + value */
 	int outbuf_size = 0;
@@ -119,15 +120,16 @@ static ssize_t max517_set_value_both(struct device *dev,
 {
 	return max517_set_value(dev, attr, buf, count, 3);
 }
-static IIO_DEVICE_ATTR_NAMED(out1and2_raw, out1&2_raw, S_IWUSR, NULL,
-		max517_set_value_both, -1);
+static IIO_DEVICE_ATTR_NAMED(out_voltage1and2_raw,
+			     out_voltage1&2_raw, S_IWUSR, NULL,
+			     max517_set_value_both, -1);
 
 static ssize_t max517_show_scale(struct device *dev,
 				struct device_attribute *attr,
 				char *buf, int channel)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct max517_data *data = iio_dev_get_devdata(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct max517_data *data = iio_priv(indio_dev);
 	/* Corresponds to Vref / 2^(bits) */
 	unsigned int scale_uv = (data->vref_mv[channel - 1] * 1000) >> 8;
 
@@ -140,7 +142,8 @@ static ssize_t max517_show_scale1(struct device *dev,
 {
 	return max517_show_scale(dev, attr, buf, 1);
 }
-static IIO_DEVICE_ATTR(out1_scale, S_IRUGO, max517_show_scale1, NULL, 0);
+static IIO_DEVICE_ATTR(out_voltage1_scale, S_IRUGO,
+		       max517_show_scale1, NULL, 0);
 
 static ssize_t max517_show_scale2(struct device *dev,
 				struct device_attribute *attr,
@@ -148,12 +151,13 @@ static ssize_t max517_show_scale2(struct device *dev,
 {
 	return max517_show_scale(dev, attr, buf, 2);
 }
-static IIO_DEVICE_ATTR(out2_scale, S_IRUGO, max517_show_scale2, NULL, 0);
+static IIO_DEVICE_ATTR(out_voltage2_scale, S_IRUGO,
+		       max517_show_scale2, NULL, 0);
 
 /* On MAX517 variant, we have one output */
 static struct attribute *max517_attributes[] = {
-	&iio_dev_attr_out1_raw.dev_attr.attr,
-	&iio_dev_attr_out1_scale.dev_attr.attr,
+	&iio_dev_attr_out_voltage1_raw.dev_attr.attr,
+	&iio_dev_attr_out_voltage1_scale.dev_attr.attr,
 	NULL
 };
 
@@ -163,11 +167,11 @@ static struct attribute_group max517_attribute_group = {
 
 /* On MAX518 and MAX519 variant, we have two outputs */
 static struct attribute *max518_attributes[] = {
-	&iio_dev_attr_out1_raw.dev_attr.attr,
-	&iio_dev_attr_out1_scale.dev_attr.attr,
-	&iio_dev_attr_out2_raw.dev_attr.attr,
-	&iio_dev_attr_out2_scale.dev_attr.attr,
-	&iio_dev_attr_out1and2_raw.dev_attr.attr,
+	&iio_dev_attr_out_voltage1_raw.dev_attr.attr,
+	&iio_dev_attr_out_voltage1_scale.dev_attr.attr,
+	&iio_dev_attr_out_voltage2_raw.dev_attr.attr,
+	&iio_dev_attr_out_voltage2_scale.dev_attr.attr,
+	&iio_dev_attr_out_voltage1and2_raw.dev_attr.attr,
 	NULL
 };
 
@@ -203,35 +207,28 @@ static int max517_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct max517_data *data;
+	struct iio_dev *indio_dev;
 	struct max517_platform_data *platform_data = client->dev.platform_data;
 	int err;
 
-	data = kzalloc(sizeof(struct max517_data), GFP_KERNEL);
-	if (!data) {
+	indio_dev = iio_allocate_device(sizeof(*data));
+	if (indio_dev == NULL) {
 		err = -ENOMEM;
 		goto exit;
 	}
-
-	i2c_set_clientdata(client, data);
-
+	data = iio_priv(indio_dev);
+	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
 
-	data->indio_dev = iio_allocate_device(0);
-	if (data->indio_dev == NULL) {
-		err = -ENOMEM;
-		goto exit_free_data;
-	}
-
 	/* establish that the iio_dev is a child of the i2c device */
-	data->indio_dev->dev.parent = &client->dev;
+	indio_dev->dev.parent = &client->dev;
 
 	/* reduced attribute set for MAX517 */
 	if (id->driver_data == ID_MAX517)
-		data->indio_dev->info = &max517_info;
+		indio_dev->info = &max517_info;
 	else
-		data->indio_dev->info = &max518_info;
-	data->indio_dev->dev_data = (void *)(data);
-	data->indio_dev->modes = INDIO_DIRECT_MODE;
+		indio_dev->info = &max518_info;
+	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	/*
 	 * Reference voltage on MAX518 and default is 5V, else take vref_mv
@@ -244,7 +241,7 @@ static int max517_probe(struct i2c_client *client,
 		data->vref_mv[1] = platform_data->vref_mv[1];
 	}
 
-	err = iio_device_register(data->indio_dev);
+	err = iio_device_register(indio_dev);
 	if (err)
 		goto exit_free_device;
 
@@ -253,19 +250,14 @@ static int max517_probe(struct i2c_client *client,
 	return 0;
 
 exit_free_device:
-	iio_free_device(data->indio_dev);
-exit_free_data:
-	kfree(data);
+	iio_free_device(indio_dev);
 exit:
 	return err;
 }
 
 static int max517_remove(struct i2c_client *client)
 {
-	struct max517_data *data = i2c_get_clientdata(client);
-
-	iio_free_device(data->indio_dev);
-	kfree(data);
+	iio_free_device(i2c_get_clientdata(client));
 
 	return 0;
 }

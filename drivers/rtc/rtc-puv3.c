@@ -220,7 +220,7 @@ static void puv3_rtc_enable(struct platform_device *pdev, int en)
 	}
 }
 
-static int puv3_rtc_remove(struct platform_device *dev)
+static int __devexit puv3_rtc_remove(struct platform_device *dev)
 {
 	struct rtc_device *rtc = platform_get_drvdata(dev);
 
@@ -236,7 +236,7 @@ static int puv3_rtc_remove(struct platform_device *dev)
 	return 0;
 }
 
-static int puv3_rtc_probe(struct platform_device *pdev)
+static int __devinit puv3_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
 	struct resource *res;
@@ -267,9 +267,8 @@ static int puv3_rtc_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	puv3_rtc_mem = request_mem_region(res->start,
-					 res->end-res->start+1,
-					 pdev->name);
+	puv3_rtc_mem = request_mem_region(res->start, resource_size(res),
+					  pdev->name);
 
 	if (puv3_rtc_mem == NULL) {
 		dev_err(&pdev->dev, "failed to reserve memory region\n");

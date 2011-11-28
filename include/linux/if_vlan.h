@@ -91,25 +91,6 @@ struct vlan_group {
 	struct rcu_head		rcu;
 };
 
-static inline struct net_device *vlan_group_get_device(struct vlan_group *vg,
-						       u16 vlan_id)
-{
-	struct net_device **array;
-	array = vg->vlan_devices_arrays[vlan_id / VLAN_GROUP_ARRAY_PART_LEN];
-	return array ? array[vlan_id % VLAN_GROUP_ARRAY_PART_LEN] : NULL;
-}
-
-static inline void vlan_group_set_device(struct vlan_group *vg,
-					 u16 vlan_id,
-					 struct net_device *dev)
-{
-	struct net_device **array;
-	if (!vg)
-		return;
-	array = vg->vlan_devices_arrays[vlan_id / VLAN_GROUP_ARRAY_PART_LEN];
-	array[vlan_id % VLAN_GROUP_ARRAY_PART_LEN] = dev;
-}
-
 static inline int is_vlan_dev(struct net_device *dev)
 {
         return dev->priv_flags & IFF_802_1Q_VLAN;
@@ -119,35 +100,18 @@ static inline int is_vlan_dev(struct net_device *dev)
 #define vlan_tx_tag_get(__skb)		((__skb)->vlan_tci & ~VLAN_TAG_PRESENT)
 
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
-/* Must be invoked with rcu_read_lock or with RTNL. */
-static inline struct net_device *vlan_find_dev(struct net_device *real_dev,
-					       u16 vlan_id)
-{
-	struct vlan_group *grp = rcu_dereference_rtnl(real_dev->vlgrp);
 
-	if (grp)
-		return vlan_group_get_device(grp, vlan_id);
-
-	return NULL;
-}
-
+extern struct net_device *__vlan_find_dev_deep(struct net_device *real_dev,
+					       u16 vlan_id);
 extern struct net_device *vlan_dev_real_dev(const struct net_device *dev);
 extern u16 vlan_dev_vlan_id(const struct net_device *dev);
 
-extern int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
-			     u16 vlan_tci, int polling);
-extern bool vlan_do_receive(struct sk_buff **skb);
+extern bool vlan_do_receive(struct sk_buff **skb, bool last_handler);
 extern struct sk_buff *vlan_untag(struct sk_buff *skb);
-extern gro_result_t
-vlan_gro_receive(struct napi_struct *napi, struct vlan_group *grp,
-		 unsigned int vlan_tci, struct sk_buff *skb);
-extern gro_result_t
-vlan_gro_frags(struct napi_struct *napi, struct vlan_group *grp,
-	       unsigned int vlan_tci);
 
 #else
-static inline struct net_device *vlan_find_dev(struct net_device *real_dev,
-					       u16 vlan_id)
+static inline struct net_device *
+__vlan_find_dev_deep(struct net_device *real_dev, u16 vlan_id)
 {
 	return NULL;
 }
@@ -164,16 +128,9 @@ static inline u16 vlan_dev_vlan_id(const struct net_device *dev)
 	return 0;
 }
 
-static inline int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
-				    u16 vlan_tci, int polling)
+static inline bool vlan_do_receive(struct sk_buff **skb, bool last_handler)
 {
-	BUG();
-	return NET_XMIT_SUCCESS;
-}
-
-static inline bool vlan_do_receive(struct sk_buff **skb)
-{
-	if ((*skb)->vlan_tci & VLAN_VID_MASK)
+	if (((*skb)->vlan_tci & VLAN_VID_MASK) && last_handler)
 		(*skb)->pkt_type = PACKET_OTHERHOST;
 	return false;
 }
@@ -182,47 +139,7 @@ static inline struct sk_buff *vlan_untag(struct sk_buff *skb)
 {
 	return skb;
 }
-
-static inline gro_result_t
-vlan_gro_receive(struct napi_struct *napi, struct vlan_group *grp,
-		 unsigned int vlan_tci, struct sk_buff *skb)
-{
-	return GRO_DROP;
-}
-
-static inline gro_result_t
-vlan_gro_frags(struct napi_struct *napi, struct vlan_group *grp,
-	       unsigned int vlan_tci)
-{
-	return GRO_DROP;
-}
 #endif
-
-/**
- * vlan_hwaccel_rx - netif_rx wrapper for VLAN RX acceleration
- * @skb: buffer
- * @grp: vlan group
- * @vlan_tci: VLAN TCI as received from the card
- */
-static inline int vlan_hwaccel_rx(struct sk_buff *skb,
-				  struct vlan_group *grp,
-				  u16 vlan_tci)
-{
-	return __vlan_hwaccel_rx(skb, grp, vlan_tci, 0);
-}
-
-/**
- * vlan_hwaccel_receive_skb - netif_receive_skb wrapper for VLAN RX acceleration
- * @skb: buffer
- * @grp: vlan group
- * @vlan_tci: VLAN TCI as received from the card
- */
-static inline int vlan_hwaccel_receive_skb(struct sk_buff *skb,
-					   struct vlan_group *grp,
-					   u16 vlan_tci)
-{
-	return __vlan_hwaccel_rx(skb, grp, vlan_tci, 1);
-}
 
 /**
  * vlan_insert_tag - regular VLAN tag inserting

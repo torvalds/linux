@@ -261,8 +261,9 @@ static void ip_expire(unsigned long arg)
 		 * Only an end host needs to send an ICMP
 		 * "Fragment Reassembly Timeout" message, per RFC792.
 		 */
-		if (qp->user == IP_DEFRAG_CONNTRACK_IN &&
-		    skb_rtable(head)->rt_type != RTN_LOCAL)
+		if (qp->user == IP_DEFRAG_AF_PACKET ||
+		    (qp->user == IP_DEFRAG_CONNTRACK_IN &&
+		     skb_rtable(head)->rt_type != RTN_LOCAL))
 			goto out_rcu_unlock;
 
 
@@ -598,8 +599,8 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 		head->next = clone;
 		skb_shinfo(clone)->frag_list = skb_shinfo(head)->frag_list;
 		skb_frag_list_init(head);
-		for (i=0; i<skb_shinfo(head)->nr_frags; i++)
-			plen += skb_shinfo(head)->frags[i].size;
+		for (i = 0; i < skb_shinfo(head)->nr_frags; i++)
+			plen += skb_frag_size(&skb_shinfo(head)->frags[i]);
 		clone->len = clone->data_len = head->data_len - plen;
 		head->data_len -= clone->len;
 		head->len -= clone->len;
@@ -680,6 +681,42 @@ int ip_defrag(struct sk_buff *skb, u32 user)
 	return -ENOMEM;
 }
 EXPORT_SYMBOL(ip_defrag);
+
+struct sk_buff *ip_check_defrag(struct sk_buff *skb, u32 user)
+{
+	const struct iphdr *iph;
+	u32 len;
+
+	if (skb->protocol != htons(ETH_P_IP))
+		return skb;
+
+	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
+		return skb;
+
+	iph = ip_hdr(skb);
+	if (iph->ihl < 5 || iph->version != 4)
+		return skb;
+	if (!pskb_may_pull(skb, iph->ihl*4))
+		return skb;
+	iph = ip_hdr(skb);
+	len = ntohs(iph->tot_len);
+	if (skb->len < len || len < (iph->ihl * 4))
+		return skb;
+
+	if (ip_is_fragment(ip_hdr(skb))) {
+		skb = skb_share_check(skb, GFP_ATOMIC);
+		if (skb) {
+			if (pskb_trim_rcsum(skb, len))
+				return skb;
+			memset(IPCB(skb), 0, sizeof(struct inet_skb_parm));
+			if (ip_defrag(skb, user))
+				return NULL;
+			skb->rxhash = 0;
+		}
+	}
+	return skb;
+}
+EXPORT_SYMBOL(ip_check_defrag);
 
 #ifdef CONFIG_SYSCTL
 static int zero;

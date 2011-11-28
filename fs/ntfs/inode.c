@@ -612,7 +612,7 @@ static int ntfs_read_locked_inode(struct inode *vi)
 	 * might be tricky due to vfs interactions. Need to think about this
 	 * some more when implementing the unlink command.
 	 */
-	vi->i_nlink = le16_to_cpu(m->link_count);
+	set_nlink(vi, le16_to_cpu(m->link_count));
 	/*
 	 * FIXME: Reparse points can have the directory bit set even though
 	 * they would be S_IFLNK. Need to deal with this further below when we
@@ -634,7 +634,7 @@ static int ntfs_read_locked_inode(struct inode *vi)
 		vi->i_mode &= ~vol->dmask;
 		/* Things break without this kludge! */
 		if (vi->i_nlink > 1)
-			vi->i_nlink = 1;
+			set_nlink(vi, 1);
 	} else {
 		vi->i_mode |= S_IFREG;
 		/* Apply the file permissions mask set in the mount options. */
@@ -1242,7 +1242,7 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 	vi->i_version	= base_vi->i_version;
 	vi->i_uid	= base_vi->i_uid;
 	vi->i_gid	= base_vi->i_gid;
-	vi->i_nlink	= base_vi->i_nlink;
+	set_nlink(vi, base_vi->i_nlink);
 	vi->i_mtime	= base_vi->i_mtime;
 	vi->i_ctime	= base_vi->i_ctime;
 	vi->i_atime	= base_vi->i_atime;
@@ -1508,7 +1508,7 @@ static int ntfs_read_locked_index_inode(struct inode *base_vi, struct inode *vi)
 	vi->i_version	= base_vi->i_version;
 	vi->i_uid	= base_vi->i_uid;
 	vi->i_gid	= base_vi->i_gid;
-	vi->i_nlink	= base_vi->i_nlink;
+	set_nlink(vi, base_vi->i_nlink);
 	vi->i_mtime	= base_vi->i_mtime;
 	vi->i_ctime	= base_vi->i_ctime;
 	vi->i_atime	= base_vi->i_atime;
@@ -2357,12 +2357,7 @@ static const char *es = "  Leaving inconsistent metadata.  Unmount and run "
  *
  * Returns 0 on success or -errno on error.
  *
- * Called with ->i_mutex held.  In all but one case ->i_alloc_sem is held for
- * writing.  The only case in the kernel where ->i_alloc_sem is not held is
- * mm/filemap.c::generic_file_buffered_write() where vmtruncate() is called
- * with the current i_size as the offset.  The analogous place in NTFS is in
- * fs/ntfs/file.c::ntfs_file_buffered_write() where we call vmtruncate() again
- * without holding ->i_alloc_sem.
+ * Called with ->i_mutex held.
  */
 int ntfs_truncate(struct inode *vi)
 {
@@ -2887,8 +2882,7 @@ void ntfs_truncate_vfs(struct inode *vi) {
  * We also abort all changes of user, group, and mode as we do not implement
  * the NTFS ACLs yet.
  *
- * Called with ->i_mutex held.  For the ATTR_SIZE (i.e. ->truncate) case, also
- * called with ->i_alloc_sem held for writing.
+ * Called with ->i_mutex held.
  */
 int ntfs_setattr(struct dentry *dentry, struct iattr *attr)
 {

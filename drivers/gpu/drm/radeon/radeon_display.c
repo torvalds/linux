@@ -33,8 +33,6 @@
 #include "drm_crtc_helper.h"
 #include "drm_edid.h"
 
-static int radeon_ddc_dump(struct drm_connector *connector);
-
 static void avivo_crtc_load_lut(struct drm_crtc *crtc)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
@@ -282,7 +280,7 @@ void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id)
 	spin_lock_irqsave(&rdev->ddev->event_lock, flags);
 	work = radeon_crtc->unpin_work;
 	if (work == NULL ||
-	    !radeon_fence_signaled(work->fence)) {
+	    (work->fence && !radeon_fence_signaled(work->fence))) {
 		spin_unlock_irqrestore(&rdev->ddev->event_lock, flags);
 		return;
 	}
@@ -348,7 +346,6 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 	struct radeon_framebuffer *new_radeon_fb;
 	struct drm_gem_object *obj;
 	struct radeon_bo *rbo;
-	struct radeon_fence *fence;
 	struct radeon_unpin_work *work;
 	unsigned long flags;
 	u32 tiling_flags, pitch_pixels;
@@ -359,16 +356,9 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 	if (work == NULL)
 		return -ENOMEM;
 
-	r = radeon_fence_create(rdev, &fence);
-	if (unlikely(r != 0)) {
-		kfree(work);
-		DRM_ERROR("flip queue: failed to create fence.\n");
-		return -ENOMEM;
-	}
 	work->event = event;
 	work->rdev = rdev;
 	work->crtc_id = radeon_crtc->crtc_id;
-	work->fence = radeon_fence_ref(fence);
 	old_radeon_fb = to_radeon_framebuffer(crtc->fb);
 	new_radeon_fb = to_radeon_framebuffer(fb);
 	/* schedule unpin of the old buffer */
@@ -377,6 +367,10 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 	drm_gem_object_reference(obj);
 	rbo = gem_to_radeon_bo(obj);
 	work->old_rbo = rbo;
+	obj = new_radeon_fb->obj;
+	rbo = gem_to_radeon_bo(obj);
+	if (rbo->tbo.sync_obj)
+		work->fence = radeon_fence_ref(rbo->tbo.sync_obj);
 	INIT_WORK(&work->work, radeon_unpin_work_func);
 
 	/* We borrow the event spin lock for protecting unpin_work */
@@ -391,9 +385,6 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	/* pin the new buffer */
-	obj = new_radeon_fb->obj;
-	rbo = gem_to_radeon_bo(obj);
-
 	DRM_DEBUG_DRIVER("flip-ioctl() cur_fbo = %p, cur_bbo = %p\n",
 			 work->old_rbo, rbo);
 
@@ -461,37 +452,18 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 		goto pflip_cleanup1;
 	}
 
-	/* 32 ought to cover us */
-	r = radeon_ring_lock(rdev, 32);
-	if (r) {
-		DRM_ERROR("failed to lock the ring before flip\n");
-		goto pflip_cleanup2;
-	}
-
-	/* emit the fence */
-	radeon_fence_emit(rdev, fence);
 	/* set the proper interrupt */
 	radeon_pre_page_flip(rdev, radeon_crtc->crtc_id);
-	/* fire the ring */
-	radeon_ring_unlock_commit(rdev);
 
 	return 0;
 
-pflip_cleanup2:
-	drm_vblank_put(dev, radeon_crtc->crtc_id);
-
 pflip_cleanup1:
-	r = radeon_bo_reserve(rbo, false);
-	if (unlikely(r != 0)) {
+	if (unlikely(radeon_bo_reserve(rbo, false) != 0)) {
 		DRM_ERROR("failed to reserve new rbo in error path\n");
 		goto pflip_cleanup;
 	}
-	r = radeon_bo_unpin(rbo);
-	if (unlikely(r != 0)) {
-		radeon_bo_unreserve(rbo);
-		r = -EINVAL;
+	if (unlikely(radeon_bo_unpin(rbo) != 0)) {
 		DRM_ERROR("failed to unpin new rbo in error path\n");
-		goto pflip_cleanup;
 	}
 	radeon_bo_unreserve(rbo);
 
@@ -499,9 +471,9 @@ pflip_cleanup:
 	spin_lock_irqsave(&dev->event_lock, flags);
 	radeon_crtc->unpin_work = NULL;
 unlock_free:
-	drm_gem_object_unreference_unlocked(old_radeon_fb->obj);
 	spin_unlock_irqrestore(&dev->event_lock, flags);
-	radeon_fence_unref(&fence);
+	drm_gem_object_unreference_unlocked(old_radeon_fb->obj);
+	radeon_fence_unref(&work->fence);
 	kfree(work);
 
 	return r;
@@ -695,7 +667,6 @@ static void radeon_print_display_setup(struct drm_device *dev)
 static bool radeon_setup_enc_conn(struct drm_device *dev)
 {
 	struct radeon_device *rdev = dev->dev_private;
-	struct drm_connector *drm_connector;
 	bool ret = false;
 
 	if (rdev->bios) {
@@ -715,8 +686,6 @@ static bool radeon_setup_enc_conn(struct drm_device *dev)
 	if (ret) {
 		radeon_setup_encoder_clones(dev);
 		radeon_print_display_setup(dev);
-		list_for_each_entry(drm_connector, &dev->mode_config.connector_list, head)
-			radeon_ddc_dump(drm_connector);
 	}
 
 	return ret;
@@ -733,16 +702,22 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 		radeon_router_select_ddc_port(radeon_connector);
 
 	if ((radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_DisplayPort) ||
-	    (radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_eDP)) {
+	    (radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_eDP) ||
+	    (radeon_connector_encoder_get_dp_bridge_encoder_id(&radeon_connector->base) !=
+	     ENCODER_OBJECT_ID_NONE)) {
 		struct radeon_connector_atom_dig *dig = radeon_connector->con_priv;
+
 		if ((dig->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT ||
 		     dig->dp_sink_type == CONNECTOR_OBJECT_ID_eDP) && dig->dp_i2c_bus)
-			radeon_connector->edid = drm_get_edid(&radeon_connector->base, &dig->dp_i2c_bus->adapter);
-	}
-	if (!radeon_connector->ddc_bus)
-		return -1;
-	if (!radeon_connector->edid) {
-		radeon_connector->edid = drm_get_edid(&radeon_connector->base, &radeon_connector->ddc_bus->adapter);
+			radeon_connector->edid = drm_get_edid(&radeon_connector->base,
+							      &dig->dp_i2c_bus->adapter);
+		else if (radeon_connector->ddc_bus && !radeon_connector->edid)
+			radeon_connector->edid = drm_get_edid(&radeon_connector->base,
+							      &radeon_connector->ddc_bus->adapter);
+	} else {
+		if (radeon_connector->ddc_bus && !radeon_connector->edid)
+			radeon_connector->edid = drm_get_edid(&radeon_connector->base,
+							      &radeon_connector->ddc_bus->adapter);
 	}
 
 	if (!radeon_connector->edid) {
@@ -762,25 +737,6 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 	}
 	drm_mode_connector_update_edid_property(&radeon_connector->base, NULL);
 	return 0;
-}
-
-static int radeon_ddc_dump(struct drm_connector *connector)
-{
-	struct edid *edid;
-	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
-	int ret = 0;
-
-	/* on hw with routers, select right port */
-	if (radeon_connector->router.ddc_valid)
-		radeon_router_select_ddc_port(radeon_connector);
-
-	if (!radeon_connector->ddc_bus)
-		return -1;
-	edid = drm_get_edid(connector, &radeon_connector->ddc_bus->adapter);
-	if (edid) {
-		kfree(edid);
-	}
-	return ret;
 }
 
 /* avivo */

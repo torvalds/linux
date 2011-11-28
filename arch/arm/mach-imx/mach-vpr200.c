@@ -162,7 +162,7 @@ static struct i2c_board_info vpr200_i2c_devices[] = {
 	}, {
 		I2C_BOARD_INFO("mc13892", 0x08),
 		.platform_data = &vpr200_pmic,
-		.irq = gpio_to_irq(GPIO_PMIC_INT),
+		.irq = IMX_GPIO_TO_IRQ(GPIO_PMIC_INT),
 	}
 };
 
@@ -267,6 +267,8 @@ static struct platform_device *devices[] __initdata = {
  */
 static void __init vpr200_board_init(void)
 {
+	imx35_soc_init();
+
 	mxc_iomux_v3_setup_multiple_pads(vpr200_pads, ARRAY_SIZE(vpr200_pads));
 
 	imx35_add_fec(NULL);
@@ -317,6 +319,7 @@ MACHINE_START(VPR200, "VPR200")
 	.map_io = mx35_map_io,
 	.init_early = imx35_init_early,
 	.init_irq = mx35_init_irq,
+	.handle_irq = imx35_handle_irq,
 	.timer = &vpr200_timer,
 	.init_machine = vpr200_board_init,
 MACHINE_END

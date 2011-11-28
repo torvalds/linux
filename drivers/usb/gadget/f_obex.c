@@ -10,15 +10,6 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 /* #define VERBOSE_DEBUG */
@@ -26,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
+#include <linux/module.h>
 
 #include "u_serial.h"
 #include "gadget_chips.h"
@@ -39,20 +31,12 @@
  * ready to handle the commands.
  */
 
-struct obex_ep_descs {
-	struct usb_endpoint_descriptor	*obex_in;
-	struct usb_endpoint_descriptor	*obex_out;
-};
-
 struct f_obex {
 	struct gserial			port;
 	u8				ctrl_id;
 	u8				data_id;
 	u8				port_num;
 	u8				can_activate;
-
-	struct obex_ep_descs		fs;
-	struct obex_ep_descs		hs;
 };
 
 static inline struct f_obex *func_to_obex(struct usb_function *f)
@@ -227,12 +211,16 @@ static int obex_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 			gserial_disconnect(&obex->port);
 		}
 
-		if (!obex->port.in_desc) {
+		if (!obex->port.in->desc || !obex->port.out->desc) {
 			DBG(cdev, "init obex ttyGS%d\n", obex->port_num);
-			obex->port.in_desc = ep_choose(cdev->gadget,
-					obex->hs.obex_in, obex->fs.obex_in);
-			obex->port.out_desc = ep_choose(cdev->gadget,
-					obex->hs.obex_out, obex->fs.obex_out);
+			if (config_ep_by_speed(cdev->gadget, f,
+					       obex->port.in) ||
+			    config_ep_by_speed(cdev->gadget, f,
+					       obex->port.out)) {
+				obex->port.out->desc = NULL;
+				obex->port.in->desc = NULL;
+				goto fail;
+			}
 		}
 
 		if (alt == 1) {
@@ -346,11 +334,6 @@ obex_bind(struct usb_configuration *c, struct usb_function *f)
 	/* copy descriptors, and track endpoint copies */
 	f->descriptors = usb_copy_descriptors(fs_function);
 
-	obex->fs.obex_in = usb_find_endpoint(fs_function,
-			f->descriptors, &obex_fs_ep_in_desc);
-	obex->fs.obex_out = usb_find_endpoint(fs_function,
-			f->descriptors, &obex_fs_ep_out_desc);
-
 	/* support all relevant hardware speeds... we expect that when
 	 * hardware is dual speed, all bulk-capable endpoints work at
 	 * both speeds
@@ -364,11 +347,6 @@ obex_bind(struct usb_configuration *c, struct usb_function *f)
 
 		/* copy descriptors, and track endpoint copies */
 		f->hs_descriptors = usb_copy_descriptors(hs_function);
-
-		obex->hs.obex_in = usb_find_endpoint(hs_function,
-				f->hs_descriptors, &obex_hs_ep_in_desc);
-		obex->hs.obex_out = usb_find_endpoint(hs_function,
-				f->hs_descriptors, &obex_hs_ep_out_desc);
 	}
 
 	/* Avoid letting this gadget enumerate until the userspace

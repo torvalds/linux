@@ -16,6 +16,7 @@
 #define __LINUX_REGULATOR_DRIVER_H_
 
 #include <linux/device.h>
+#include <linux/notifier.h>
 #include <linux/regulator/consumer.h>
 
 struct regulator_dev;
@@ -188,18 +189,19 @@ struct regulator_dev {
 
 	/* lists we belong to */
 	struct list_head list; /* list of all regulators */
-	struct list_head slist; /* list of supplied regulators */
 
 	/* lists we own */
 	struct list_head consumer_list; /* consumers we supply */
-	struct list_head supply_list; /* regulators we supply */
 
 	struct blocking_notifier_head notifier;
 	struct mutex mutex; /* consumer lock */
 	struct module *owner;
 	struct device dev;
 	struct regulation_constraints *constraints;
-	struct regulator_dev *supply;	/* for tree */
+	struct regulator *supply;	/* for tree */
+
+	struct delayed_work disable_work;
+	int deferred_disables;
 
 	void *reg_data;		/* regulator_dev data */
 

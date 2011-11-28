@@ -108,6 +108,8 @@
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
 #endif
+#include <net/atmclip.h>
+#include <net/secure_seq.h>
 
 #define RT_FL_TOS(oldflp4) \
     ((u32)(oldflp4->flowi4_tos & (IPTOS_RT_MASK | RTO_ONLINK)))
@@ -118,7 +120,6 @@
 
 static int ip_rt_max_size;
 static int ip_rt_gc_timeout __read_mostly	= RT_GC_TIMEOUT;
-static int ip_rt_gc_interval __read_mostly	= 60 * HZ;
 static int ip_rt_gc_min_interval __read_mostly	= HZ / 2;
 static int ip_rt_redirect_number __read_mostly	= 9;
 static int ip_rt_redirect_load __read_mostly	= HZ / 50;
@@ -184,6 +185,8 @@ static u32 *ipv4_cow_metrics(struct dst_entry *dst, unsigned long old)
 	return p;
 }
 
+static struct neighbour *ipv4_neigh_lookup(const struct dst_entry *dst, const void *daddr);
+
 static struct dst_ops ipv4_dst_ops = {
 	.family =		AF_INET,
 	.protocol =		cpu_to_be16(ETH_P_IP),
@@ -198,6 +201,7 @@ static struct dst_ops ipv4_dst_ops = {
 	.link_failure =		ipv4_link_failure,
 	.update_pmtu =		ip_rt_update_pmtu,
 	.local_out =		__ip_local_out,
+	.neigh_lookup =		ipv4_neigh_lookup,
 };
 
 #define ECN_OR_COST(class)	TC_PRIO_##class
@@ -319,7 +323,7 @@ static struct rtable *rt_cache_get_first(struct seq_file *seq)
 	struct rtable *r = NULL;
 
 	for (st->bucket = rt_hash_mask; st->bucket >= 0; --st->bucket) {
-		if (!rcu_dereference_raw(rt_hash_table[st->bucket].chain))
+		if (!rcu_access_pointer(rt_hash_table[st->bucket].chain))
 			continue;
 		rcu_read_lock_bh();
 		r = rcu_dereference_bh(rt_hash_table[st->bucket].chain);
@@ -345,7 +349,7 @@ static struct rtable *__rt_cache_get_next(struct seq_file *seq,
 		do {
 			if (--st->bucket < 0)
 				return NULL;
-		} while (!rcu_dereference_raw(rt_hash_table[st->bucket].chain));
+		} while (!rcu_access_pointer(rt_hash_table[st->bucket].chain));
 		rcu_read_lock_bh();
 		r = rcu_dereference_bh(rt_hash_table[st->bucket].chain);
 	}
@@ -411,8 +415,10 @@ static int rt_cache_seq_show(struct seq_file *seq, void *v)
 			   "HHUptod\tSpecDst");
 	else {
 		struct rtable *r = v;
+		struct neighbour *n;
 		int len;
 
+		n = dst_get_neighbour(&r->dst);
 		seq_printf(seq, "%s\t%08X\t%08X\t%8X\t%d\t%u\t%d\t"
 			      "%08X\t%d\t%u\t%u\t%02X\t%d\t%1d\t%08X%n",
 			r->dst.dev ? r->dst.dev->name : "*",
@@ -425,9 +431,8 @@ static int rt_cache_seq_show(struct seq_file *seq, void *v)
 			(int)((dst_metric(&r->dst, RTAX_RTT) >> 3) +
 			      dst_metric(&r->dst, RTAX_RTTVAR)),
 			r->rt_key_tos,
-			r->dst.hh ? atomic_read(&r->dst.hh->hh_refcnt) : -1,
-			r->dst.hh ? (r->dst.hh->hh_output ==
-				       dev_queue_xmit) : 0,
+			-1,
+			(n && (n->nud_state & NUD_CONNECTED)) ? 1 : 0,
 			r->rt_spec_dst, &len);
 
 		seq_printf(seq, "%*s\n", 127 - len, "");
@@ -716,7 +721,7 @@ static inline bool compare_hash_inputs(const struct rtable *rt1,
 {
 	return ((((__force u32)rt1->rt_key_dst ^ (__force u32)rt2->rt_key_dst) |
 		((__force u32)rt1->rt_key_src ^ (__force u32)rt2->rt_key_src) |
-		(rt1->rt_iif ^ rt2->rt_iif)) == 0);
+		(rt1->rt_route_iif ^ rt2->rt_route_iif)) == 0);
 }
 
 static inline int compare_keys(struct rtable *rt1, struct rtable *rt2)
@@ -725,8 +730,8 @@ static inline int compare_keys(struct rtable *rt1, struct rtable *rt2)
 		((__force u32)rt1->rt_key_src ^ (__force u32)rt2->rt_key_src) |
 		(rt1->rt_mark ^ rt2->rt_mark) |
 		(rt1->rt_key_tos ^ rt2->rt_key_tos) |
-		(rt1->rt_oif ^ rt2->rt_oif) |
-		(rt1->rt_iif ^ rt2->rt_iif)) == 0;
+		(rt1->rt_route_iif ^ rt2->rt_route_iif) |
+		(rt1->rt_oif ^ rt2->rt_oif)) == 0;
 }
 
 static inline int compare_netns(struct rtable *rt1, struct rtable *rt2)
@@ -755,7 +760,7 @@ static void rt_do_flush(struct net *net, int process_context)
 
 		if (process_context && need_resched())
 			cond_resched();
-		rth = rcu_dereference_raw(rt_hash_table[i].chain);
+		rth = rcu_access_pointer(rt_hash_table[i].chain);
 		if (!rth)
 			continue;
 
@@ -1006,6 +1011,37 @@ static int slow_chain_length(const struct rtable *head)
 	return length >> FRACT_BITS;
 }
 
+static struct neighbour *ipv4_neigh_lookup(const struct dst_entry *dst, const void *daddr)
+{
+	struct neigh_table *tbl = &arp_tbl;
+	static const __be32 inaddr_any = 0;
+	struct net_device *dev = dst->dev;
+	const __be32 *pkey = daddr;
+	struct neighbour *n;
+
+#if defined(CONFIG_ATM_CLIP) || defined(CONFIG_ATM_CLIP_MODULE)
+	if (dev->type == ARPHRD_ATM)
+		tbl = clip_tbl_hook;
+#endif
+	if (dev->flags & (IFF_LOOPBACK | IFF_POINTOPOINT))
+		pkey = &inaddr_any;
+
+	n = __ipv4_neigh_lookup(tbl, dev, *(__force u32 *)pkey);
+	if (n)
+		return n;
+	return neigh_create(tbl, pkey, dev);
+}
+
+static int rt_bind_neighbour(struct rtable *rt)
+{
+	struct neighbour *n = ipv4_neigh_lookup(&rt->dst, &rt->rt_gateway);
+	if (IS_ERR(n))
+		return PTR_ERR(n);
+	dst_set_neighbour(&rt->dst, n);
+
+	return 0;
+}
+
 static struct rtable *rt_intern_hash(unsigned hash, struct rtable *rt,
 				     struct sk_buff *skb, int ifindex)
 {
@@ -1042,7 +1078,7 @@ restart:
 
 		rt->dst.flags |= DST_NOCACHE;
 		if (rt->rt_type == RTN_UNICAST || rt_is_output_route(rt)) {
-			int err = arp_bind_neighbour(&rt->dst);
+			int err = rt_bind_neighbour(rt);
 			if (err) {
 				if (net_ratelimit())
 					printk(KERN_WARNING
@@ -1138,7 +1174,7 @@ restart:
 	   route or unicast forwarding path.
 	 */
 	if (rt->rt_type == RTN_UNICAST || rt_is_output_route(rt)) {
-		int err = arp_bind_neighbour(&rt->dst);
+		int err = rt_bind_neighbour(rt);
 		if (err) {
 			spin_unlock_bh(rt_hash_lock_addr(hash));
 
@@ -1268,11 +1304,42 @@ static void rt_del(unsigned hash, struct rtable *rt)
 	spin_unlock_bh(rt_hash_lock_addr(hash));
 }
 
+static int check_peer_redir(struct dst_entry *dst, struct inet_peer *peer)
+{
+	struct rtable *rt = (struct rtable *) dst;
+	__be32 orig_gw = rt->rt_gateway;
+	struct neighbour *n, *old_n;
+
+	dst_confirm(&rt->dst);
+
+	rt->rt_gateway = peer->redirect_learned.a4;
+
+	n = ipv4_neigh_lookup(&rt->dst, &rt->rt_gateway);
+	if (IS_ERR(n))
+		return PTR_ERR(n);
+	old_n = xchg(&rt->dst._neighbour, n);
+	if (old_n)
+		neigh_release(old_n);
+	if (!n || !(n->nud_state & NUD_VALID)) {
+		if (n)
+			neigh_event_send(n, NULL);
+		rt->rt_gateway = orig_gw;
+		return -EAGAIN;
+	} else {
+		rt->rt_flags |= RTCF_REDIRECTED;
+		call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, n);
+	}
+	return 0;
+}
+
 /* called in rcu_read_lock() section */
 void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 		    __be32 saddr, struct net_device *dev)
 {
+	int s, i;
 	struct in_device *in_dev = __in_dev_get_rcu(dev);
+	__be32 skeys[2] = { saddr, 0 };
+	int    ikeys[2] = { dev->ifindex, 0 };
 	struct inet_peer *peer;
 	struct net *net;
 
@@ -1295,13 +1362,43 @@ void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 			goto reject_redirect;
 	}
 
-	peer = inet_getpeer_v4(daddr, 1);
-	if (peer) {
-		peer->redirect_learned.a4 = new_gw;
+	for (s = 0; s < 2; s++) {
+		for (i = 0; i < 2; i++) {
+			unsigned int hash;
+			struct rtable __rcu **rthp;
+			struct rtable *rt;
 
-		inet_putpeer(peer);
+			hash = rt_hash(daddr, skeys[s], ikeys[i], rt_genid(net));
 
-		atomic_inc(&__rt_peer_genid);
+			rthp = &rt_hash_table[hash].chain;
+
+			while ((rt = rcu_dereference(*rthp)) != NULL) {
+				rthp = &rt->dst.rt_next;
+
+				if (rt->rt_key_dst != daddr ||
+				    rt->rt_key_src != skeys[s] ||
+				    rt->rt_oif != ikeys[i] ||
+				    rt_is_input_route(rt) ||
+				    rt_is_expired(rt) ||
+				    !net_eq(dev_net(rt->dst.dev), net) ||
+				    rt->dst.error ||
+				    rt->dst.dev != dev ||
+				    rt->rt_gateway != old_gw)
+					continue;
+
+				if (!rt->peer)
+					rt_bind_peer(rt, rt->rt_dst, 1);
+
+				peer = rt->peer;
+				if (peer) {
+					if (peer->redirect_learned.a4 != new_gw) {
+						peer->redirect_learned.a4 = new_gw;
+						atomic_inc(&__rt_peer_genid);
+					}
+					check_peer_redir(&rt->dst, peer);
+				}
+			}
+		}
 	}
 	return;
 
@@ -1439,20 +1536,20 @@ static int ip_error(struct sk_buff *skb)
 	int code;
 
 	switch (rt->dst.error) {
-		case EINVAL:
-		default:
-			goto out;
-		case EHOSTUNREACH:
-			code = ICMP_HOST_UNREACH;
-			break;
-		case ENETUNREACH:
-			code = ICMP_NET_UNREACH;
-			IP_INC_STATS_BH(dev_net(rt->dst.dev),
-					IPSTATS_MIB_INNOROUTES);
-			break;
-		case EACCES:
-			code = ICMP_PKT_FILTERED;
-			break;
+	case EINVAL:
+	default:
+		goto out;
+	case EHOSTUNREACH:
+		code = ICMP_HOST_UNREACH;
+		break;
+	case ENETUNREACH:
+		code = ICMP_NET_UNREACH;
+		IP_INC_STATS_BH(dev_net(rt->dst.dev),
+				IPSTATS_MIB_INNOROUTES);
+		break;
+	case EACCES:
+		code = ICMP_PKT_FILTERED;
+		break;
 	}
 
 	if (!rt->peer)
@@ -1531,11 +1628,10 @@ unsigned short ip_rt_frag_needed(struct net *net, const struct iphdr *iph,
 			est_mtu = mtu;
 			peer->pmtu_learned = mtu;
 			peer->pmtu_expires = pmtu_expires;
+			atomic_inc(&__rt_peer_genid);
 		}
 
 		inet_putpeer(peer);
-
-		atomic_inc(&__rt_peer_genid);
 	}
 	return est_mtu ? : new_mtu;
 }
@@ -1588,30 +1684,6 @@ static void ip_rt_update_pmtu(struct dst_entry *dst, u32 mtu)
 	}
 }
 
-static int check_peer_redir(struct dst_entry *dst, struct inet_peer *peer)
-{
-	struct rtable *rt = (struct rtable *) dst;
-	__be32 orig_gw = rt->rt_gateway;
-
-	dst_confirm(&rt->dst);
-
-	neigh_release(rt->dst.neighbour);
-	rt->dst.neighbour = NULL;
-
-	rt->rt_gateway = peer->redirect_learned.a4;
-	if (arp_bind_neighbour(&rt->dst) ||
-	    !(rt->dst.neighbour->nud_state & NUD_VALID)) {
-		if (rt->dst.neighbour)
-			neigh_event_send(rt->dst.neighbour, NULL);
-		rt->rt_gateway = orig_gw;
-		return -EAGAIN;
-	} else {
-		rt->rt_flags |= RTCF_REDIRECTED;
-		call_netevent_notifiers(NETEVENT_NEIGH_UPDATE,
-					rt->dst.neighbour);
-	}
-	return 0;
-}
 
 static struct dst_entry *ipv4_dst_check(struct dst_entry *dst, u32 cookie)
 {
@@ -1703,7 +1775,7 @@ void ip_rt_get_source(u8 *addr, struct sk_buff *skb, struct rtable *rt)
 		memset(&fl4, 0, sizeof(fl4));
 		fl4.daddr = iph->daddr;
 		fl4.saddr = iph->saddr;
-		fl4.flowi4_tos = iph->tos;
+		fl4.flowi4_tos = RT_TOS(iph->tos);
 		fl4.flowi4_oif = rt->dst.dev->ifindex;
 		fl4.flowi4_iif = skb->dev->ifindex;
 		fl4.flowi4_mark = skb->mark;
@@ -2280,8 +2352,7 @@ int ip_route_input_common(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	     rth = rcu_dereference(rth->dst.rt_next)) {
 		if ((((__force u32)rth->rt_key_dst ^ (__force u32)daddr) |
 		     ((__force u32)rth->rt_key_src ^ (__force u32)saddr) |
-		     (rth->rt_iif ^ iif) |
-		     rth->rt_oif |
+		     (rth->rt_route_iif ^ iif) |
 		     (rth->rt_key_tos ^ tos)) == 0 &&
 		    rth->rt_mark == skb->mark &&
 		    net_eq(dev_net(rth->dst.dev), net) &&
@@ -2708,6 +2779,7 @@ static struct dst_ops ipv4_dst_blackhole_ops = {
 	.default_advmss		=	ipv4_default_advmss,
 	.update_pmtu		=	ipv4_rt_blackhole_update_pmtu,
 	.cow_metrics		=	ipv4_rt_blackhole_cow_metrics,
+	.neigh_lookup		=	ipv4_neigh_lookup,
 };
 
 struct dst_entry *ipv4_blackhole_route(struct net *net, struct dst_entry *dst_orig)
@@ -2781,7 +2853,7 @@ static int rt_fill_info(struct net *net,
 	struct rtable *rt = skb_rtable(skb);
 	struct rtmsg *r;
 	struct nlmsghdr *nlh;
-	long expires = 0;
+	unsigned long expires = 0;
 	const struct inet_peer *peer = rt->peer;
 	u32 id = 0, ts = 0, tsage = 0, error;
 
@@ -2838,8 +2910,12 @@ static int rt_fill_info(struct net *net,
 			tsage = get_seconds() - peer->tcp_ts_stamp;
 		}
 		expires = ACCESS_ONCE(peer->pmtu_expires);
-		if (expires)
-			expires -= jiffies;
+		if (expires) {
+			if (time_before(jiffies, expires))
+				expires -= jiffies;
+			else
+				expires = 0;
+		}
 	}
 
 	if (rt_is_input_route(rt)) {
@@ -3081,13 +3157,6 @@ static ctl_table ipv4_route_table[] = {
 		.proc_handler	= proc_dointvec_jiffies,
 	},
 	{
-		.procname	= "gc_interval",
-		.data		= &ip_rt_gc_interval,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
 		.procname	= "redirect_load",
 		.data		= &ip_rt_redirect_load,
 		.maxlen		= sizeof(int),
@@ -3303,7 +3372,7 @@ int __init ip_rt_init(void)
 	xfrm_init();
 	xfrm4_init(ip_rt_max_size);
 #endif
-	rtnl_register(PF_INET, RTM_GETROUTE, inet_rtm_getroute, NULL);
+	rtnl_register(PF_INET, RTM_GETROUTE, inet_rtm_getroute, NULL, NULL);
 
 #ifdef CONFIG_SYSCTL
 	register_pernet_subsys(&sysctl_route_ops);

@@ -40,8 +40,7 @@
 #include <plat/common.h>
 #include <plat/usb.h>
 #include <plat/mmc.h>
-#include <video/omap-panel-generic-dpi.h>
-#include "timer-gp.h"
+#include <video/omap-panel-dvi.h>
 
 #include "hsmmc.h"
 #include "control.h"
@@ -96,12 +95,6 @@ static struct platform_device *panda_devices[] __initdata = {
 	&wl1271_device,
 };
 
-static void __init omap4_panda_init_early(void)
-{
-	omap2_init_common_infrastructure();
-	omap2_init_common_devices(NULL, NULL);
-}
-
 static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
 	.port_mode[0] = OMAP_EHCI_PORT_MODE_PHY,
 	.port_mode[1] = OMAP_USBHS_PORT_MODE_UNUSED,
@@ -155,14 +148,6 @@ static struct omap_musb_board_data musb_board_data = {
 	.power			= 100,
 };
 
-static struct twl4030_usb_data omap4_usbphy_data = {
-	.phy_init	= omap4430_phy_init,
-	.phy_exit	= omap4430_phy_exit,
-	.phy_power	= omap4430_phy_power,
-	.phy_set_clock	= omap4430_phy_set_clk,
-	.phy_suspend	= omap4430_phy_suspend,
-};
-
 static struct omap2_hsmmc_info mmc[] = {
 	{
 		.mmc		= 1,
@@ -182,24 +167,16 @@ static struct omap2_hsmmc_info mmc[] = {
 	{}	/* Terminator */
 };
 
-static struct regulator_consumer_supply omap4_panda_vmmc_supply[] = {
-	{
-		.supply = "vmmc",
-		.dev_name = "omap_hsmmc.0",
-	},
-};
-
-static struct regulator_consumer_supply omap4_panda_vmmc5_supply = {
-	.supply = "vmmc",
-	.dev_name = "omap_hsmmc.4",
+static struct regulator_consumer_supply omap4_panda_vmmc5_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.4"),
 };
 
 static struct regulator_init_data panda_vmmc5 = {
 	.constraints = {
 		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies = 1,
-	.consumer_supplies = &omap4_panda_vmmc5_supply,
+	.num_consumer_supplies = ARRAY_SIZE(omap4_panda_vmmc5_supply),
+	.consumer_supplies = omap4_panda_vmmc5_supply,
 };
 
 static struct fixed_voltage_config panda_vwlan = {
@@ -274,128 +251,8 @@ static int __init omap4_twl6030_hsmmc_init(struct omap2_hsmmc_info *controllers)
 	return 0;
 }
 
-static struct regulator_init_data omap4_panda_vaux2 = {
-	.constraints = {
-		.min_uV			= 1200000,
-		.max_uV			= 2800000,
-		.apply_uV		= true,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask	 = REGULATOR_CHANGE_VOLTAGE
-					| REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-};
-
-static struct regulator_init_data omap4_panda_vaux3 = {
-	.constraints = {
-		.min_uV			= 1000000,
-		.max_uV			= 3000000,
-		.apply_uV		= true,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask	 = REGULATOR_CHANGE_VOLTAGE
-					| REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-};
-
-/* VMMC1 for MMC1 card */
-static struct regulator_init_data omap4_panda_vmmc = {
-	.constraints = {
-		.min_uV			= 1200000,
-		.max_uV			= 3000000,
-		.apply_uV		= true,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask	 = REGULATOR_CHANGE_VOLTAGE
-					| REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-	.num_consumer_supplies  = 1,
-	.consumer_supplies      = omap4_panda_vmmc_supply,
-};
-
-static struct regulator_init_data omap4_panda_vpp = {
-	.constraints = {
-		.min_uV			= 1800000,
-		.max_uV			= 2500000,
-		.apply_uV		= true,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask	 = REGULATOR_CHANGE_VOLTAGE
-					| REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-};
-
-static struct regulator_init_data omap4_panda_vana = {
-	.constraints = {
-		.min_uV			= 2100000,
-		.max_uV			= 2100000,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask	 = REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-};
-
-static struct regulator_init_data omap4_panda_vcxio = {
-	.constraints = {
-		.min_uV			= 1800000,
-		.max_uV			= 1800000,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask	 = REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-};
-
-static struct regulator_init_data omap4_panda_vdac = {
-	.constraints = {
-		.min_uV			= 1800000,
-		.max_uV			= 1800000,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask	 = REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-};
-
-static struct regulator_init_data omap4_panda_vusb = {
-	.constraints = {
-		.min_uV			= 3300000,
-		.max_uV			= 3300000,
-		.apply_uV		= true,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask	 =	REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-};
-
-static struct regulator_init_data omap4_panda_clk32kg = {
-	.constraints = {
-		.valid_ops_mask		= REGULATOR_CHANGE_STATUS,
-	},
-};
-
-static struct twl4030_platform_data omap4_panda_twldata = {
-	.irq_base	= TWL6030_IRQ_BASE,
-	.irq_end	= TWL6030_IRQ_END,
-
-	/* Regulators */
-	.vmmc		= &omap4_panda_vmmc,
-	.vpp		= &omap4_panda_vpp,
-	.vana		= &omap4_panda_vana,
-	.vcxio		= &omap4_panda_vcxio,
-	.vdac		= &omap4_panda_vdac,
-	.vusb		= &omap4_panda_vusb,
-	.vaux2		= &omap4_panda_vaux2,
-	.vaux3		= &omap4_panda_vaux3,
-	.clk32kg	= &omap4_panda_clk32kg,
-	.usb		= &omap4_usbphy_data,
-};
+/* Panda board uses the common PMIC configuration */
+static struct twl4030_platform_data omap4_panda_twldata;
 
 /*
  * Display monitor features are burnt in their EEPROM as EDID data. The EEPROM
@@ -409,6 +266,16 @@ static struct i2c_board_info __initdata panda_i2c_eeprom[] = {
 
 static int __init omap4_panda_i2c_init(void)
 {
+	omap4_pmic_get_config(&omap4_panda_twldata, TWL_COMMON_PDATA_USB,
+			TWL_COMMON_REGULATOR_VDAC |
+			TWL_COMMON_REGULATOR_VAUX2 |
+			TWL_COMMON_REGULATOR_VAUX3 |
+			TWL_COMMON_REGULATOR_VMMC |
+			TWL_COMMON_REGULATOR_VPP |
+			TWL_COMMON_REGULATOR_VANA |
+			TWL_COMMON_REGULATOR_VCXIO |
+			TWL_COMMON_REGULATOR_VUSB |
+			TWL_COMMON_REGULATOR_CLK32KG);
 	omap4_pmic_init("twl6030", &omap4_panda_twldata);
 	omap_register_i2c_bus(2, 400, NULL, 0);
 	/*
@@ -582,16 +449,16 @@ static void omap4_panda_disable_dvi(struct omap_dss_device *dssdev)
 }
 
 /* Using generic display panel */
-static struct panel_generic_dpi_data omap4_dvi_panel = {
-	.name			= "generic",
+static struct panel_dvi_platform_data omap4_dvi_panel = {
 	.platform_enable	= omap4_panda_enable_dvi,
 	.platform_disable	= omap4_panda_disable_dvi,
+	.i2c_bus_num = 3,
 };
 
 struct omap_dss_device omap4_panda_dvi_device = {
 	.type			= OMAP_DISPLAY_TYPE_DPI,
 	.name			= "dvi",
-	.driver_name		= "generic_dpi_panel",
+	.driver_name		= "dvi",
 	.data			= &omap4_dvi_panel,
 	.phy.dpi.data_lines	= 24,
 	.reset_gpio		= PANDA_DVI_TFP410_POWER_DOWN_GPIO,
@@ -696,25 +563,20 @@ static void __init omap4_panda_init(void)
 	platform_add_devices(panda_devices, ARRAY_SIZE(panda_devices));
 	platform_device_register(&omap_vwlan_device);
 	board_serial_init();
+	omap_sdrc_init(NULL, NULL);
 	omap4_twl6030_hsmmc_init(mmc);
 	omap4_ehci_init();
 	usb_musb_init(&musb_board_data);
 	omap4_panda_display_init();
 }
 
-static void __init omap4_panda_map_io(void)
-{
-	omap2_set_globals_443x();
-	omap44xx_map_common_io();
-}
-
 MACHINE_START(OMAP4_PANDA, "OMAP4 Panda board")
 	/* Maintainer: David Anders - Texas Instruments Inc */
-	.boot_params	= 0x80000100,
+	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
-	.map_io		= omap4_panda_map_io,
-	.init_early	= omap4_panda_init_early,
+	.map_io		= omap4_map_io,
+	.init_early	= omap4430_init_early,
 	.init_irq	= gic_init_irq,
 	.init_machine	= omap4_panda_init,
-	.timer		= &omap_timer,
+	.timer		= &omap4_timer,
 MACHINE_END

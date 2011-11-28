@@ -20,7 +20,7 @@ ip_no_pmtu_disc - BOOLEAN
 	default FALSE
 
 min_pmtu - INTEGER
-	default 562 - minimum discovered Path MTU
+	default 552 - minimum discovered Path MTU
 
 route/max_size - INTEGER
 	Maximum number of routes allowed in the kernel.  Increase
@@ -104,16 +104,6 @@ inet_peer_maxttl - INTEGER
 	Maximum time-to-live of entries.  Unused entries will expire after
 	this period of time if there is no memory pressure on the pool (i.e.
 	when the number of entries in the pool is very small).
-	Measured in seconds.
-
-inet_peer_gc_mintime - INTEGER
-	Minimum interval between garbage collection passes.  This interval is
-	in effect under high memory pressure on the pool.
-	Measured in seconds.
-
-inet_peer_gc_maxtime - INTEGER
-	Minimum interval between garbage collection passes.  This interval is
-	in effect under low (or absent) memory pressure on the pool.
 	Measured in seconds.
 
 TCP variables:
@@ -346,7 +336,7 @@ tcp_orphan_retries - INTEGER
 	when RTO retransmissions remain unacknowledged.
 	See tcp_retries2 for more details.
 
-	The default value is 7.
+	The default value is 8.
 	If your machine is a loaded WEB server,
 	you should think about lowering this value, such sockets
 	may consume significant resources. Cf. tcp_max_orphans.
@@ -394,7 +384,7 @@ tcp_rmem - vector of 3 INTEGERs: min, default, max
 	min: Minimal size of receive buffer used by TCP sockets.
 	It is guaranteed to each TCP socket, even under moderate memory
 	pressure.
-	Default: 8K
+	Default: 1 page
 
 	default: initial size of receive buffer used by TCP sockets.
 	This value overrides net.core.rmem_default used by other protocols.
@@ -483,7 +473,7 @@ tcp_window_scaling - BOOLEAN
 tcp_wmem - vector of 3 INTEGERs: min, default, max
 	min: Amount of memory reserved for send buffers for TCP sockets.
 	Each TCP socket has rights to use it due to fact of its birth.
-	Default: 4K
+	Default: 1 page
 
 	default: initial size of send buffer used by TCP sockets.  This
 	value overrides net.core.wmem_default used by other protocols.
@@ -553,13 +543,13 @@ udp_rmem_min - INTEGER
 	Minimal size of receive buffer used by UDP sockets in moderation.
 	Each UDP socket is able to use the size for receiving data, even if
 	total pages of UDP sockets exceed udp_mem pressure. The unit is byte.
-	Default: 4096
+	Default: 1 page
 
 udp_wmem_min - INTEGER
 	Minimal size of send buffer used by UDP sockets in moderation.
 	Each UDP socket is able to use the size for sending data, even if
 	total pages of UDP sockets exceed udp_mem pressure. The unit is byte.
-	Default: 4096
+	Default: 1 page
 
 CIPSOv4 Variables:
 
@@ -1002,7 +992,7 @@ bindv6only - BOOLEAN
 		TRUE: disable IPv4-mapped address feature
 		FALSE: enable IPv4-mapped address feature
 
-	Default: FALSE (as specified in RFC2553bis)
+	Default: FALSE (as specified in RFC3493)
 
 IPv6 Fragmentation:
 
@@ -1052,8 +1042,13 @@ conf/interface/*:
 	The functional behaviour for certain settings is different
 	depending on whether local forwarding is enabled or not.
 
-accept_ra - BOOLEAN
+accept_ra - INTEGER
 	Accept Router Advertisements; autoconfigure using them.
+
+	It also determines whether or not to transmit Router
+	Solicitations. If and only if the functional setting is to
+	accept Router Advertisements, Router Solicitations will be
+	transmitted.
 
 	Possible values are:
 		0 Do not accept Router Advertisements.
@@ -1116,7 +1111,7 @@ dad_transmits - INTEGER
 	The amount of Duplicate Address Detection probes to send.
 	Default: 1
 
-forwarding - BOOLEAN
+forwarding - INTEGER
 	Configure interface-specific Host/Router behaviour.
 
 	Note: It is recommended to have the same setting on all
@@ -1125,14 +1120,14 @@ forwarding - BOOLEAN
 	Possible values are:
 		0 Forwarding disabled
 		1 Forwarding enabled
-		2 Forwarding enabled (Hybrid Mode)
 
 	FALSE (0):
 
 	By default, Host behaviour is assumed.  This means:
 
 	1. IsRouter flag is not set in Neighbour Advertisements.
-	2. Router Solicitations are being sent when necessary.
+	2. If accept_ra is TRUE (default), transmit Router
+	   Solicitations.
 	3. If accept_ra is TRUE (default), accept Router
 	   Advertisements (and do autoconfiguration).
 	4. If accept_redirects is TRUE (default), accept Redirects.
@@ -1143,15 +1138,9 @@ forwarding - BOOLEAN
 	This means exactly the reverse from the above:
 
 	1. IsRouter flag is set in Neighbour Advertisements.
-	2. Router Solicitations are not sent.
+	2. Router Solicitations are not sent unless accept_ra is 2.
 	3. Router Advertisements are ignored unless accept_ra is 2.
 	4. Redirects are ignored.
-
-	TRUE (2):
-
-	Hybrid mode. Same behaviour as TRUE, except for:
-
-	2. Router Solicitations are being sent when necessary.
 
 	Default: 0 (disabled) if global forwarding is disabled (default),
 		 otherwise 1 (enabled).
@@ -1465,10 +1454,17 @@ sctp_mem - vector of 3 INTEGERs: min, pressure, max
 	Default is calculated at boot time from amount of available memory.
 
 sctp_rmem - vector of 3 INTEGERs: min, default, max
-	See tcp_rmem for a description.
+	Only the first value ("min") is used, "default" and "max" are
+	ignored.
+
+	min: Minimal size of receive buffer used by SCTP socket.
+	It is guaranteed to each SCTP socket (but not association) even
+	under moderate memory pressure.
+
+	Default: 1 page
 
 sctp_wmem  - vector of 3 INTEGERs: min, default, max
-	See tcp_wmem for a description.
+	Currently this tunable has no effect.
 
 addr_scope_policy - INTEGER
 	Control IPv4 address scoping - draft-stewart-tsvwg-sctp-ipv4-00

@@ -139,6 +139,27 @@ out:
 	return rc;
 }
 
+static void ecryptfs_vma_close(struct vm_area_struct *vma)
+{
+	filemap_write_and_wait(vma->vm_file->f_mapping);
+}
+
+static const struct vm_operations_struct ecryptfs_file_vm_ops = {
+	.close		= ecryptfs_vma_close,
+	.fault		= filemap_fault,
+};
+
+static int ecryptfs_file_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	int rc;
+
+	rc = generic_file_mmap(file, vma);
+	if (!rc)
+		vma->vm_ops = &ecryptfs_file_vm_ops;
+
+	return rc;
+}
+
 struct kmem_cache *ecryptfs_file_info_cache;
 
 /**
@@ -270,14 +291,15 @@ static int ecryptfs_release(struct inode *inode, struct file *file)
 }
 
 static int
-ecryptfs_fsync(struct file *file, int datasync)
+ecryptfs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	int rc = 0;
 
-	rc = generic_file_fsync(file, datasync);
+	rc = generic_file_fsync(file, start, end, datasync);
 	if (rc)
 		goto out;
-	rc = vfs_fsync(ecryptfs_file_to_lower(file), datasync);
+	rc = vfs_fsync_range(ecryptfs_file_to_lower(file), start, end,
+			     datasync);
 out:
 	return rc;
 }
@@ -348,7 +370,7 @@ const struct file_operations ecryptfs_main_fops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = ecryptfs_compat_ioctl,
 #endif
-	.mmap = generic_file_mmap,
+	.mmap = ecryptfs_file_mmap,
 	.open = ecryptfs_open,
 	.flush = ecryptfs_flush,
 	.release = ecryptfs_release,

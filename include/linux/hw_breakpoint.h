@@ -73,6 +73,7 @@ static inline unsigned long hw_breakpoint_len(struct perf_event *bp)
 extern struct perf_event *
 register_user_hw_breakpoint(struct perf_event_attr *attr,
 			    perf_overflow_handler_t triggered,
+			    void *context,
 			    struct task_struct *tsk);
 
 /* FIXME: only change from the attr, and don't unregister */
@@ -85,11 +86,13 @@ modify_user_hw_breakpoint(struct perf_event *bp, struct perf_event_attr *attr);
 extern struct perf_event *
 register_wide_hw_breakpoint_cpu(struct perf_event_attr *attr,
 				perf_overflow_handler_t	triggered,
+				void *context,
 				int cpu);
 
 extern struct perf_event * __percpu *
 register_wide_hw_breakpoint(struct perf_event_attr *attr,
-			    perf_overflow_handler_t triggered);
+			    perf_overflow_handler_t triggered,
+			    void *context);
 
 extern int register_perf_hw_breakpoint(struct perf_event *bp);
 extern int __register_perf_hw_breakpoint(struct perf_event *bp);
@@ -115,6 +118,7 @@ static inline int __init init_hw_breakpoint(void) { return 0; }
 static inline struct perf_event *
 register_user_hw_breakpoint(struct perf_event_attr *attr,
 			    perf_overflow_handler_t triggered,
+			    void *context,
 			    struct task_struct *tsk)	{ return NULL; }
 static inline int
 modify_user_hw_breakpoint(struct perf_event *bp,
@@ -122,10 +126,12 @@ modify_user_hw_breakpoint(struct perf_event *bp,
 static inline struct perf_event *
 register_wide_hw_breakpoint_cpu(struct perf_event_attr *attr,
 				perf_overflow_handler_t	 triggered,
+				void *context,
 				int cpu)		{ return NULL; }
 static inline struct perf_event * __percpu *
 register_wide_hw_breakpoint(struct perf_event_attr *attr,
-			    perf_overflow_handler_t triggered)	{ return NULL; }
+			    perf_overflow_handler_t triggered,
+			    void *context)		{ return NULL; }
 static inline int
 register_perf_hw_breakpoint(struct perf_event *bp)	{ return -ENOSYS; }
 static inline int

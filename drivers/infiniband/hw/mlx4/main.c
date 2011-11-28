@@ -128,6 +128,8 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 	    (dev->dev->caps.bmme_flags & MLX4_BMME_FLAG_REMOTE_INV) &&
 	    (dev->dev->caps.bmme_flags & MLX4_BMME_FLAG_FAST_REG_WR))
 		props->device_cap_flags |= IB_DEVICE_MEM_MGT_EXTENSIONS;
+	if (dev->dev->caps.flags & MLX4_DEV_CAP_FLAG_XRC)
+		props->device_cap_flags |= IB_DEVICE_XRC;
 
 	props->vendor_id	   = be32_to_cpup((__be32 *) (out_mad->data + 36)) &
 		0xffffff;
@@ -181,8 +183,12 @@ mlx4_ib_port_link_layer(struct ib_device *device, u8 port_num)
 
 static int ib_link_query_port(struct ib_device *ibdev, u8 port,
 			      struct ib_port_attr *props,
+			      struct ib_smp *in_mad,
 			      struct ib_smp *out_mad)
 {
+	int ext_active_speed;
+	int err;
+
 	props->lid		= be16_to_cpup((__be16 *) (out_mad->data + 16));
 	props->lmc		= out_mad->data[34] & 0x7;
 	props->sm_lid		= be16_to_cpup((__be16 *) (out_mad->data + 18));
@@ -202,6 +208,39 @@ static int ib_link_query_port(struct ib_device *ibdev, u8 port,
 	props->subnet_timeout	= out_mad->data[51] & 0x1f;
 	props->max_vl_num	= out_mad->data[37] >> 4;
 	props->init_type_reply	= out_mad->data[41] >> 4;
+
+	/* Check if extended speeds (EDR/FDR/...) are supported */
+	if (props->port_cap_flags & IB_PORT_EXTENDED_SPEEDS_SUP) {
+		ext_active_speed = out_mad->data[62] >> 4;
+
+		switch (ext_active_speed) {
+		case 1:
+			props->active_speed = 16; /* FDR */
+			break;
+		case 2:
+			props->active_speed = 32; /* EDR */
+			break;
+		}
+	}
+
+	/* If reported active speed is QDR, check if is FDR-10 */
+	if (props->active_speed == 4) {
+		if (to_mdev(ibdev)->dev->caps.ext_port_cap[port] &
+		    MLX_EXT_PORT_CAP_FLAG_EXTENDED_PORT_INFO) {
+			init_query_mad(in_mad);
+			in_mad->attr_id = MLX4_ATTR_EXTENDED_PORT_INFO;
+			in_mad->attr_mod = cpu_to_be32(port);
+
+			err = mlx4_MAD_IFC(to_mdev(ibdev), 1, 1, port,
+					   NULL, NULL, in_mad, out_mad);
+			if (err)
+				return err;
+
+			/* Checking LinkSpeedActive for FDR-10 */
+			if (out_mad->data[15] & 0x1)
+				props->active_speed = 8;
+		}
+	}
 
 	return 0;
 }
@@ -227,7 +266,7 @@ static int eth_link_query_port(struct ib_device *ibdev, u8 port,
 	props->pkey_tbl_len	= 1;
 	props->bad_pkey_cntr	= be16_to_cpup((__be16 *) (out_mad->data + 46));
 	props->qkey_viol_cntr	= be16_to_cpup((__be16 *) (out_mad->data + 48));
-	props->max_mtu		= IB_MTU_2048;
+	props->max_mtu		= IB_MTU_4096;
 	props->subnet_timeout	= 0;
 	props->max_vl_num	= out_mad->data[37] >> 4;
 	props->init_type_reply	= 0;
@@ -274,7 +313,7 @@ static int mlx4_ib_query_port(struct ib_device *ibdev, u8 port,
 		goto out;
 
 	err = mlx4_ib_port_link_layer(ibdev, port) == IB_LINK_LAYER_INFINIBAND ?
-		ib_link_query_port(ibdev, port, props, out_mad) :
+		ib_link_query_port(ibdev, port, props, in_mad, out_mad) :
 		eth_link_query_port(ibdev, port, props, out_mad);
 
 out:
@@ -566,6 +605,57 @@ static int mlx4_ib_dealloc_pd(struct ib_pd *pd)
 	return 0;
 }
 
+static struct ib_xrcd *mlx4_ib_alloc_xrcd(struct ib_device *ibdev,
+					  struct ib_ucontext *context,
+					  struct ib_udata *udata)
+{
+	struct mlx4_ib_xrcd *xrcd;
+	int err;
+
+	if (!(to_mdev(ibdev)->dev->caps.flags & MLX4_DEV_CAP_FLAG_XRC))
+		return ERR_PTR(-ENOSYS);
+
+	xrcd = kmalloc(sizeof *xrcd, GFP_KERNEL);
+	if (!xrcd)
+		return ERR_PTR(-ENOMEM);
+
+	err = mlx4_xrcd_alloc(to_mdev(ibdev)->dev, &xrcd->xrcdn);
+	if (err)
+		goto err1;
+
+	xrcd->pd = ib_alloc_pd(ibdev);
+	if (IS_ERR(xrcd->pd)) {
+		err = PTR_ERR(xrcd->pd);
+		goto err2;
+	}
+
+	xrcd->cq = ib_create_cq(ibdev, NULL, NULL, xrcd, 1, 0);
+	if (IS_ERR(xrcd->cq)) {
+		err = PTR_ERR(xrcd->cq);
+		goto err3;
+	}
+
+	return &xrcd->ibxrcd;
+
+err3:
+	ib_dealloc_pd(xrcd->pd);
+err2:
+	mlx4_xrcd_free(to_mdev(ibdev)->dev, xrcd->xrcdn);
+err1:
+	kfree(xrcd);
+	return ERR_PTR(err);
+}
+
+static int mlx4_ib_dealloc_xrcd(struct ib_xrcd *xrcd)
+{
+	ib_destroy_cq(to_mxrcd(xrcd)->cq);
+	ib_dealloc_pd(to_mxrcd(xrcd)->pd);
+	mlx4_xrcd_free(to_mdev(xrcd->device)->dev, to_mxrcd(xrcd)->xrcdn);
+	kfree(xrcd);
+
+	return 0;
+}
+
 static int add_gid_entry(struct ib_qp *ibqp, union ib_gid *gid)
 {
 	struct mlx4_ib_qp *mqp = to_mqp(ibqp);
@@ -816,7 +906,7 @@ static void update_gids_task(struct work_struct *work)
 		memcpy(gw->dev->iboe.gid_table[gw->port - 1], gw->gids, sizeof gw->gids);
 		event.device = &gw->dev->ib_dev;
 		event.element.port_num = gw->port;
-		event.event    = IB_EVENT_LID_CHANGE;
+		event.event    = IB_EVENT_GID_CHANGE;
 		ib_dispatch_event(&event);
 	}
 
@@ -1044,7 +1134,9 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 		(1ull << IB_USER_VERBS_CMD_CREATE_SRQ)		|
 		(1ull << IB_USER_VERBS_CMD_MODIFY_SRQ)		|
 		(1ull << IB_USER_VERBS_CMD_QUERY_SRQ)		|
-		(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ);
+		(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ)		|
+		(1ull << IB_USER_VERBS_CMD_CREATE_XSRQ)		|
+		(1ull << IB_USER_VERBS_CMD_OPEN_QP);
 
 	ibdev->ib_dev.query_device	= mlx4_ib_query_device;
 	ibdev->ib_dev.query_port	= mlx4_ib_query_port;
@@ -1093,16 +1185,34 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->ib_dev.unmap_fmr		= mlx4_ib_unmap_fmr;
 	ibdev->ib_dev.dealloc_fmr	= mlx4_ib_fmr_dealloc;
 
+	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_XRC) {
+		ibdev->ib_dev.alloc_xrcd = mlx4_ib_alloc_xrcd;
+		ibdev->ib_dev.dealloc_xrcd = mlx4_ib_dealloc_xrcd;
+		ibdev->ib_dev.uverbs_cmd_mask |=
+			(1ull << IB_USER_VERBS_CMD_OPEN_XRCD) |
+			(1ull << IB_USER_VERBS_CMD_CLOSE_XRCD);
+	}
+
 	spin_lock_init(&iboe->lock);
 
 	if (init_node_data(ibdev))
 		goto err_map;
 
+	for (i = 0; i < ibdev->num_ports; ++i) {
+		if (mlx4_ib_port_link_layer(&ibdev->ib_dev, i + 1) ==
+						IB_LINK_LAYER_ETHERNET) {
+			err = mlx4_counter_alloc(ibdev->dev, &ibdev->counters[i]);
+			if (err)
+				ibdev->counters[i] = -1;
+		} else
+				ibdev->counters[i] = -1;
+	}
+
 	spin_lock_init(&ibdev->sm_lock);
 	mutex_init(&ibdev->cap_mask_mutex);
 
 	if (ib_register_device(&ibdev->ib_dev, NULL))
-		goto err_map;
+		goto err_counter;
 
 	if (mlx4_ib_mad_init(ibdev))
 		goto err_reg;
@@ -1132,6 +1242,10 @@ err_notif:
 err_reg:
 	ib_unregister_device(&ibdev->ib_dev);
 
+err_counter:
+	for (; i; --i)
+		mlx4_counter_free(ibdev->dev, ibdev->counters[i - 1]);
+
 err_map:
 	iounmap(ibdev->uar_map);
 
@@ -1160,7 +1274,8 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 		ibdev->iboe.nb.notifier_call = NULL;
 	}
 	iounmap(ibdev->uar_map);
-
+	for (p = 0; p < ibdev->num_ports; ++p)
+		mlx4_counter_free(ibdev->dev, ibdev->counters[p]);
 	mlx4_foreach_port(p, dev, MLX4_PORT_TYPE_IB)
 		mlx4_CLOSE_PORT(dev, p);
 

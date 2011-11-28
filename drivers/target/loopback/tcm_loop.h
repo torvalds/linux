@@ -16,12 +16,6 @@
  */
 #define TL_SCSI_MAX_CMD_LEN		32
 
-#ifdef CONFIG_LOOPBACK_TARGET_CDB_DEBUG
-# define TL_CDB_DEBUG(x...)		printk(KERN_INFO x)
-#else
-# define TL_CDB_DEBUG(x...)
-#endif
-
 struct tcm_loop_cmd {
 	/* State of Linux/SCSI CDB+Data descriptor */
 	u32 sc_cmd_state;

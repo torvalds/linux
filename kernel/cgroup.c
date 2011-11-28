@@ -27,9 +27,11 @@
  */
 
 #include <linux/cgroup.h>
+#include <linux/cred.h>
 #include <linux/ctype.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
+#include <linux/init_task.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/mm.h>
@@ -59,7 +61,7 @@
 #include <linux/poll.h>
 #include <linux/flex_array.h> /* used in cgroup_attach_proc */
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 static DEFINE_MUTEX(cgroup_mutex);
 
@@ -263,7 +265,7 @@ list_for_each_entry(_root, &roots, root_list)
 /* the list of cgroups eligible for automatic release. Protected by
  * release_list_lock */
 static LIST_HEAD(release_list);
-static DEFINE_SPINLOCK(release_list_lock);
+static DEFINE_RAW_SPINLOCK(release_list_lock);
 static void cgroup_release_agent(struct work_struct *work);
 static DECLARE_WORK(release_agent_work, cgroup_release_agent);
 static void check_for_release(struct cgroup *cgrp);
@@ -1514,6 +1516,7 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 		struct cgroup *root_cgrp = &root->top_cgroup;
 		struct inode *inode;
 		struct cgroupfs_root *existing_root;
+		const struct cred *cred;
 		int i;
 
 		BUG_ON(sb->s_root != NULL);
@@ -1593,7 +1596,9 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 		BUG_ON(!list_empty(&root_cgrp->children));
 		BUG_ON(root->number_of_cgroups != 1);
 
+		cred = override_creds(&init_cred);
 		cgroup_populate_dir(root_cgrp);
+		revert_creds(cred);
 		mutex_unlock(&cgroup_mutex);
 		mutex_unlock(&inode->i_mutex);
 	} else {
@@ -1697,7 +1702,6 @@ int cgroup_path(const struct cgroup *cgrp, char *buf, int buflen)
 {
 	char *start;
 	struct dentry *dentry = rcu_dereference_check(cgrp->dentry,
-						      rcu_read_lock_held() ||
 						      cgroup_lock_is_held());
 
 	if (!dentry || cgrp == dummytop) {
@@ -1723,7 +1727,6 @@ int cgroup_path(const struct cgroup *cgrp, char *buf, int buflen)
 			break;
 
 		dentry = rcu_dereference_check(cgrp->dentry,
-					       rcu_read_lock_held() ||
 					       cgroup_lock_is_held());
 		if (!cgrp->parent)
 			continue;
@@ -2024,7 +2027,7 @@ int cgroup_attach_proc(struct cgroup *cgrp, struct task_struct *leader)
 		goto out_free_group_list;
 
 	/* prevent changes to the threadgroup list while we take a snapshot. */
-	rcu_read_lock();
+	read_lock(&tasklist_lock);
 	if (!thread_group_leader(leader)) {
 		/*
 		 * a race with de_thread from another thread's exec() may strip
@@ -2033,7 +2036,7 @@ int cgroup_attach_proc(struct cgroup *cgrp, struct task_struct *leader)
 		 * throw this task away and try again (from cgroup_procs_write);
 		 * this is "double-double-toil-and-trouble-check locking".
 		 */
-		rcu_read_unlock();
+		read_unlock(&tasklist_lock);
 		retval = -EAGAIN;
 		goto out_free_group_list;
 	}
@@ -2054,7 +2057,7 @@ int cgroup_attach_proc(struct cgroup *cgrp, struct task_struct *leader)
 	} while_each_thread(leader, tsk);
 	/* remember the number of threads in the array for later. */
 	group_size = i;
-	rcu_read_unlock();
+	read_unlock(&tasklist_lock);
 
 	/*
 	 * step 1: check that we can legitimately attach to the cgroup.
@@ -2132,14 +2135,17 @@ int cgroup_attach_proc(struct cgroup *cgrp, struct task_struct *leader)
 		oldcgrp = task_cgroup_from_root(tsk, root);
 		if (cgrp == oldcgrp)
 			continue;
-		/* attach each task to each subsystem */
-		for_each_subsys(root, ss) {
-			if (ss->attach_task)
-				ss->attach_task(cgrp, tsk);
-		}
 		/* if the thread is PF_EXITING, it can just get skipped. */
 		retval = cgroup_task_migrate(cgrp, oldcgrp, tsk, true);
-		BUG_ON(retval != 0 && retval != -ESRCH);
+		if (retval == 0) {
+			/* attach each task to each subsystem */
+			for_each_subsys(root, ss) {
+				if (ss->attach_task)
+					ss->attach_task(cgrp, tsk);
+			}
+		} else {
+			BUG_ON(retval != -ESRCH);
+		}
 	}
 	/* nothing is sensitive to fork() after this point. */
 
@@ -3542,7 +3548,8 @@ static int cgroup_write_event_control(struct cgroup *cgrp, struct cftype *cft,
 	}
 
 	/* the process need read permission on control file */
-	ret = file_permission(cfile, MAY_READ);
+	/* AV: shouldn't we check that it's been opened for read instead? */
+	ret = inode_permission(cfile->f_path.dentry->d_inode, MAY_READ);
 	if (ret < 0)
 		goto fail;
 
@@ -4010,11 +4017,11 @@ again:
 	finish_wait(&cgroup_rmdir_waitq, &wait);
 	clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
 
-	spin_lock(&release_list_lock);
+	raw_spin_lock(&release_list_lock);
 	set_bit(CGRP_REMOVED, &cgrp->flags);
 	if (!list_empty(&cgrp->release_list))
 		list_del_init(&cgrp->release_list);
-	spin_unlock(&release_list_lock);
+	raw_spin_unlock(&release_list_lock);
 
 	cgroup_lock_hierarchy(cgrp->root);
 	/* delete this cgroup from parent->children */
@@ -4667,13 +4674,13 @@ static void check_for_release(struct cgroup *cgrp)
 		 * already queued for a userspace notification, queue
 		 * it now */
 		int need_schedule_work = 0;
-		spin_lock(&release_list_lock);
+		raw_spin_lock(&release_list_lock);
 		if (!cgroup_is_removed(cgrp) &&
 		    list_empty(&cgrp->release_list)) {
 			list_add(&cgrp->release_list, &release_list);
 			need_schedule_work = 1;
 		}
-		spin_unlock(&release_list_lock);
+		raw_spin_unlock(&release_list_lock);
 		if (need_schedule_work)
 			schedule_work(&release_agent_work);
 	}
@@ -4725,7 +4732,7 @@ static void cgroup_release_agent(struct work_struct *work)
 {
 	BUG_ON(work != &release_agent_work);
 	mutex_lock(&cgroup_mutex);
-	spin_lock(&release_list_lock);
+	raw_spin_lock(&release_list_lock);
 	while (!list_empty(&release_list)) {
 		char *argv[3], *envp[3];
 		int i;
@@ -4734,7 +4741,7 @@ static void cgroup_release_agent(struct work_struct *work)
 						    struct cgroup,
 						    release_list);
 		list_del_init(&cgrp->release_list);
-		spin_unlock(&release_list_lock);
+		raw_spin_unlock(&release_list_lock);
 		pathbuf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 		if (!pathbuf)
 			goto continue_free;
@@ -4764,9 +4771,9 @@ static void cgroup_release_agent(struct work_struct *work)
  continue_free:
 		kfree(pathbuf);
 		kfree(agentbuf);
-		spin_lock(&release_list_lock);
+		raw_spin_lock(&release_list_lock);
 	}
-	spin_unlock(&release_list_lock);
+	raw_spin_unlock(&release_list_lock);
 	mutex_unlock(&cgroup_mutex);
 }
 
@@ -4813,8 +4820,7 @@ unsigned short css_id(struct cgroup_subsys_state *css)
 	 * on this or this is under rcu_read_lock(). Once css->id is allocated,
 	 * it's unchanged until freed.
 	 */
-	cssid = rcu_dereference_check(css->id,
-			rcu_read_lock_held() || atomic_read(&css->refcnt));
+	cssid = rcu_dereference_check(css->id, atomic_read(&css->refcnt));
 
 	if (cssid)
 		return cssid->id;
@@ -4826,8 +4832,7 @@ unsigned short css_depth(struct cgroup_subsys_state *css)
 {
 	struct css_id *cssid;
 
-	cssid = rcu_dereference_check(css->id,
-			rcu_read_lock_held() || atomic_read(&css->refcnt));
+	cssid = rcu_dereference_check(css->id, atomic_read(&css->refcnt));
 
 	if (cssid)
 		return cssid->depth;
@@ -4878,9 +4883,9 @@ void free_css_id(struct cgroup_subsys *ss, struct cgroup_subsys_state *css)
 
 	rcu_assign_pointer(id->css, NULL);
 	rcu_assign_pointer(css->id, NULL);
-	spin_lock(&ss->id_lock);
+	write_lock(&ss->id_lock);
 	idr_remove(&ss->idr, id->id);
-	spin_unlock(&ss->id_lock);
+	write_unlock(&ss->id_lock);
 	kfree_rcu(id, rcu_head);
 }
 EXPORT_SYMBOL_GPL(free_css_id);
@@ -4906,10 +4911,10 @@ static struct css_id *get_new_cssid(struct cgroup_subsys *ss, int depth)
 		error = -ENOMEM;
 		goto err_out;
 	}
-	spin_lock(&ss->id_lock);
+	write_lock(&ss->id_lock);
 	/* Don't use 0. allocates an ID of 1-65535 */
 	error = idr_get_new_above(&ss->idr, newid, 1, &myid);
-	spin_unlock(&ss->id_lock);
+	write_unlock(&ss->id_lock);
 
 	/* Returns error when there are no free spaces for new ID.*/
 	if (error) {
@@ -4924,9 +4929,9 @@ static struct css_id *get_new_cssid(struct cgroup_subsys *ss, int depth)
 	return newid;
 remove_idr:
 	error = -ENOSPC;
-	spin_lock(&ss->id_lock);
+	write_lock(&ss->id_lock);
 	idr_remove(&ss->idr, myid);
-	spin_unlock(&ss->id_lock);
+	write_unlock(&ss->id_lock);
 err_out:
 	kfree(newid);
 	return ERR_PTR(error);
@@ -4938,7 +4943,7 @@ static int __init_or_module cgroup_init_idr(struct cgroup_subsys *ss,
 {
 	struct css_id *newid;
 
-	spin_lock_init(&ss->id_lock);
+	rwlock_init(&ss->id_lock);
 	idr_init(&ss->idr);
 
 	newid = get_new_cssid(ss, 0);
@@ -5033,9 +5038,9 @@ css_get_next(struct cgroup_subsys *ss, int id,
 		 * scan next entry from bitmap(tree), tmpid is updated after
 		 * idr_get_next().
 		 */
-		spin_lock(&ss->id_lock);
+		read_lock(&ss->id_lock);
 		tmp = idr_get_next(&ss->idr, &tmpid);
-		spin_unlock(&ss->id_lock);
+		read_unlock(&ss->id_lock);
 
 		if (!tmp)
 			break;

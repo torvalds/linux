@@ -42,6 +42,8 @@
 #include <linux/leds.h>
 #include <linux/input/sh_keysc.h>
 #include <linux/usb/r8a66597.h>
+#include <linux/pm_clock.h>
+#include <linux/dma-mapping.h>
 
 #include <media/sh_mobile_ceu.h>
 #include <media/sh_mobile_csi2.h>
@@ -198,8 +200,8 @@ static struct physmap_flash_data nor_flash_data = {
 
 static struct resource nor_flash_resources[] = {
 	[0]	= {
-		.start	= 0x00000000,
-		.end	= 0x08000000 - 1,
+		.start	= 0x20000000, /* CS0 shadow instead of regular CS0 */
+		.end	= 0x28000000 - 1, /* needed by USB MASK ROM boot */
 		.flags	= IORESOURCE_MEM,
 	}
 };
@@ -443,7 +445,7 @@ static struct platform_device usb1_host_device = {
 	.resource	= usb1_host_resources,
 };
 
-const static struct fb_videomode ap4evb_lcdc_modes[] = {
+static const struct fb_videomode ap4evb_lcdc_modes[] = {
 	{
 #ifdef CONFIG_AP4EVB_QHD
 		.name		= "R63302(QHD)",
@@ -931,7 +933,7 @@ static struct platform_device ap4evb_camera = {
 static struct sh_csi2_client_config csi2_clients[] = {
 	{
 		.phy		= SH_CSI2_PHY_MAIN,
-		.lanes		= 3,
+		.lanes		= 0,		/* default: 2 lanes */
 		.channel	= 0,
 		.pdev		= &ap4evb_camera,
 	},
@@ -957,19 +959,16 @@ static struct resource csi2_resources[] = {
 	},
 };
 
-static struct platform_device csi2_device = {
-	.name   = "sh-mobile-csi2",
-	.id     = 0,
+static struct sh_mobile_ceu_companion csi2 = {
+	.id		= 0,
 	.num_resources	= ARRAY_SIZE(csi2_resources),
 	.resource	= csi2_resources,
-	.dev    = {
-		.platform_data = &csi2_info,
-	},
+	.platform_data	= &csi2_info,
 };
 
 static struct sh_mobile_ceu_info sh_mobile_ceu_info = {
 	.flags = SH_CEU_FLAG_USE_8BIT_BUS,
-	.csi2_dev = &csi2_device.dev,
+	.csi2 = &csi2,
 };
 
 static struct resource ceu_resources[] = {
@@ -1013,7 +1012,6 @@ static struct platform_device *ap4evb_devices[] __initdata = {
 	&lcdc1_device,
 	&lcdc_device,
 	&hdmi_device,
-	&csi2_device,
 	&ceu_device,
 	&ap4evb_camera,
 	&meram_device,
@@ -1174,6 +1172,8 @@ static struct map_desc ap4evb_io_desc[] __initdata = {
 static void __init ap4evb_map_io(void)
 {
 	iotable_init(ap4evb_io_desc, ARRAY_SIZE(ap4evb_io_desc));
+	/* DMA memory at 0xf6000000 - 0xffdfffff */
+	init_consistent_dma_size(158 << 20);
 
 	/* setup early devices and console here as well */
 	sh7372_add_early_devices();
@@ -1408,9 +1408,20 @@ static void __init ap4evb_init(void)
 
 	platform_add_devices(ap4evb_devices, ARRAY_SIZE(ap4evb_devices));
 
+	sh7372_add_device_to_domain(&sh7372_a4lc, &lcdc1_device);
+	sh7372_add_device_to_domain(&sh7372_a4lc, &lcdc_device);
+	sh7372_add_device_to_domain(&sh7372_a4mp, &fsi_device);
+
+	sh7372_add_device_to_domain(&sh7372_a3sp, &sh_mmcif_device);
+	sh7372_add_device_to_domain(&sh7372_a3sp, &sdhi0_device);
+	sh7372_add_device_to_domain(&sh7372_a3sp, &sdhi1_device);
+	sh7372_add_device_to_domain(&sh7372_a4r, &ceu_device);
+
 	hdmi_init_pm_clock();
 	fsi_init_pm_clock();
 	sh7372_pm_init();
+	pm_clk_add(&fsi_device.dev, "spu2");
+	pm_clk_add(&lcdc1_device.dev, "hdmi");
 }
 
 static void __init ap4evb_timer_init(void)

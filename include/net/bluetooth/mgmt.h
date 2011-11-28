@@ -101,6 +101,8 @@ struct mgmt_key_info {
 	u8 type;
 	u8 val[16];
 	u8 pin_len;
+	u8 dlen;
+	u8 data[0];
 } __packed;
 
 #define MGMT_OP_LOAD_KEYS		0x000D
@@ -199,6 +201,21 @@ struct mgmt_cp_remove_remote_oob_data {
 
 #define MGMT_OP_STOP_DISCOVERY		0x001C
 
+#define MGMT_OP_BLOCK_DEVICE		0x001D
+struct mgmt_cp_block_device {
+	bdaddr_t bdaddr;
+} __packed;
+
+#define MGMT_OP_UNBLOCK_DEVICE		0x001E
+struct mgmt_cp_unblock_device {
+	bdaddr_t bdaddr;
+} __packed;
+
+#define MGMT_OP_SET_FAST_CONNECTABLE	0x001F
+struct mgmt_cp_set_fast_connectable {
+	__u8 enable;
+} __packed;
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16 opcode;
@@ -237,6 +254,7 @@ struct mgmt_ev_new_key {
 #define MGMT_EV_CONNECTED		0x000B
 struct mgmt_ev_connected {
 	bdaddr_t bdaddr;
+	__u8 link_type;
 } __packed;
 
 #define MGMT_EV_DISCONNECTED		0x000C
@@ -289,3 +307,13 @@ struct mgmt_ev_remote_name {
 } __packed;
 
 #define MGMT_EV_DISCOVERING		0x0014
+
+#define MGMT_EV_DEVICE_BLOCKED		0x0015
+struct mgmt_ev_device_blocked {
+	bdaddr_t bdaddr;
+} __packed;
+
+#define MGMT_EV_DEVICE_UNBLOCKED	0x0016
+struct mgmt_ev_device_unblocked {
+	bdaddr_t bdaddr;
+} __packed;

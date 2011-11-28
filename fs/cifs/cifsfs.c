@@ -35,6 +35,7 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+#include <linux/namei.h>
 #include <net/ipv6.h>
 #include "cifsfs.h"
 #include "cifspdu.h"
@@ -52,7 +53,7 @@
 int cifsFYI = 0;
 int cifsERROR = 1;
 int traceSMB = 0;
-unsigned int oplockEnabled = 1;
+bool enable_oplocks = true;
 unsigned int linuxExtEnabled = 1;
 unsigned int lookupCacheEnabled = 1;
 unsigned int multiuser_mount = 0;
@@ -73,7 +74,7 @@ module_param(cifs_min_small, int, 0);
 MODULE_PARM_DESC(cifs_min_small, "Small network buffers in pool. Default: 30 "
 				 "Range: 2 to 256");
 unsigned int cifs_max_pending = CIFS_MAX_REQ;
-module_param(cifs_max_pending, int, 0);
+module_param(cifs_max_pending, int, 0444);
 MODULE_PARM_DESC(cifs_max_pending, "Simultaneous requests to server. "
 				   "Default: 50 Range: 2 to 256");
 unsigned short echo_retries = 5;
@@ -81,27 +82,13 @@ module_param(echo_retries, ushort, 0644);
 MODULE_PARM_DESC(echo_retries, "Number of echo attempts before giving up and "
 			       "reconnecting server. Default: 5. 0 means "
 			       "never reconnect.");
+module_param(enable_oplocks, bool, 0644);
+MODULE_PARM_DESC(enable_oplocks, "Enable or disable oplocks (bool). Default:"
+				 "y/Y/1");
+
 extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
 extern mempool_t *cifs_mid_poolp;
-
-void
-cifs_sb_active(struct super_block *sb)
-{
-	struct cifs_sb_info *server = CIFS_SB(sb);
-
-	if (atomic_inc_return(&server->active) == 1)
-		atomic_inc(&sb->s_active);
-}
-
-void
-cifs_sb_deactive(struct super_block *sb)
-{
-	struct cifs_sb_info *server = CIFS_SB(sb);
-
-	if (atomic_dec_and_test(&server->active))
-		deactivate_super(sb);
-}
 
 static int
 cifs_read_super(struct super_block *sb)
@@ -149,12 +136,12 @@ cifs_read_super(struct super_block *sb)
 	else
 		sb->s_d_op = &cifs_dentry_ops;
 
-#ifdef CIFS_NFSD_EXPORT
+#ifdef CONFIG_CIFS_NFSD_EXPORT
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) {
 		cFYI(1, "export ops supported");
 		sb->s_export_op = &cifs_export_ops;
 	}
-#endif /* CIFS_NFSD_EXPORT */
+#endif /* CONFIG_CIFS_NFSD_EXPORT */
 
 	return 0;
 
@@ -223,7 +210,7 @@ cifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-static int cifs_permission(struct inode *inode, int mask, unsigned int flags)
+static int cifs_permission(struct inode *inode, int mask)
 {
 	struct cifs_sb_info *cifs_sb;
 
@@ -238,7 +225,7 @@ static int cifs_permission(struct inode *inode, int mask, unsigned int flags)
 		on the client (above and beyond ACL on servers) for
 		servers which do not support setting and viewing mode bits,
 		so allowing client to check permissions is useful */
-		return generic_permission(inode, mask, flags, NULL);
+		return generic_permission(inode, mask);
 }
 
 static struct kmem_cache *cifs_inode_cachep;
@@ -449,6 +436,12 @@ cifs_show_options(struct seq_file *s, struct vfsmount *m)
 		seq_printf(s, ",mfsymlinks");
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_FSCACHE)
 		seq_printf(s, ",fsc");
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NOSSYNC)
+		seq_printf(s, ",nostrictsync");
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM)
+		seq_printf(s, ",noperm");
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_STRICT_IO)
+		seq_printf(s, ",strictcache");
 
 	seq_printf(s, ",rsize=%d", cifs_sb->rsize);
 	seq_printf(s, ",wsize=%d", cifs_sb->wsize);
@@ -542,13 +535,10 @@ static const struct super_operations cifs_super_ops = {
 static struct dentry *
 cifs_get_root(struct smb_vol *vol, struct super_block *sb)
 {
-	int xid, rc;
-	struct inode *inode;
-	struct qstr name;
-	struct dentry *dparent = NULL, *dchild = NULL, *alias;
+	struct dentry *dentry;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
-	unsigned int i, full_len, len;
-	char *full_path = NULL, *pstart;
+	char *full_path = NULL;
+	char *s, *p;
 	char sep;
 
 	full_path = cifs_build_path_to_root(vol, cifs_sb,
@@ -558,75 +548,38 @@ cifs_get_root(struct smb_vol *vol, struct super_block *sb)
 
 	cFYI(1, "Get root dentry for %s", full_path);
 
-	xid = GetXid();
 	sep = CIFS_DIR_SEP(cifs_sb);
-	dparent = dget(sb->s_root);
-	full_len = strlen(full_path);
-	full_path[full_len] = sep;
-	pstart = full_path + 1;
+	dentry = dget(sb->s_root);
+	p = s = full_path;
 
-	for (i = 1, len = 0; i <= full_len; i++) {
-		if (full_path[i] != sep || !len) {
-			len++;
-			continue;
+	do {
+		struct inode *dir = dentry->d_inode;
+		struct dentry *child;
+
+		if (!dir) {
+			dput(dentry);
+			dentry = ERR_PTR(-ENOENT);
+			break;
 		}
 
-		full_path[i] = 0;
-		cFYI(1, "get dentry for %s", pstart);
+		/* skip separators */
+		while (*s == sep)
+			s++;
+		if (!*s)
+			break;
+		p = s++;
+		/* next separator */
+		while (*s && *s != sep)
+			s++;
 
-		name.name = pstart;
-		name.len = len;
-		name.hash = full_name_hash(pstart, len);
-		dchild = d_lookup(dparent, &name);
-		if (dchild == NULL) {
-			cFYI(1, "not exists");
-			dchild = d_alloc(dparent, &name);
-			if (dchild == NULL) {
-				dput(dparent);
-				dparent = ERR_PTR(-ENOMEM);
-				goto out;
-			}
-		}
-
-		cFYI(1, "get inode");
-		if (dchild->d_inode == NULL) {
-			cFYI(1, "not exists");
-			inode = NULL;
-			if (cifs_sb_master_tcon(CIFS_SB(sb))->unix_ext)
-				rc = cifs_get_inode_info_unix(&inode, full_path,
-							      sb, xid);
-			else
-				rc = cifs_get_inode_info(&inode, full_path,
-							 NULL, sb, xid, NULL);
-			if (rc) {
-				dput(dchild);
-				dput(dparent);
-				dparent = ERR_PTR(rc);
-				goto out;
-			}
-			alias = d_materialise_unique(dchild, inode);
-			if (alias != NULL) {
-				dput(dchild);
-				if (IS_ERR(alias)) {
-					dput(dparent);
-					dparent = ERR_PTR(-EINVAL); /* XXX */
-					goto out;
-				}
-				dchild = alias;
-			}
-		}
-		cFYI(1, "parent %p, child %p", dparent, dchild);
-
-		dput(dparent);
-		dparent = dchild;
-		len = 0;
-		pstart = full_path + i + 1;
-		full_path[i] = sep;
-	}
-out:
-	_FreeXid(xid);
+		mutex_lock(&dir->i_mutex);
+		child = lookup_one_len(p, dentry, s - p);
+		mutex_unlock(&dir->i_mutex);
+		dput(dentry);
+		dentry = child;
+	} while (!IS_ERR(dentry));
 	kfree(full_path);
-	return dparent;
+	return dentry;
 }
 
 static int cifs_set_super(struct super_block *sb, void *data)
@@ -746,8 +699,11 @@ static ssize_t cifs_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 
 static loff_t cifs_llseek(struct file *file, loff_t offset, int origin)
 {
-	/* origin == SEEK_END => we must revalidate the cached file length */
-	if (origin == SEEK_END) {
+	/*
+	 * origin == SEEK_END || SEEK_DATA || SEEK_HOLE => we must revalidate
+	 * the cached file length
+	 */
+	if (origin != SEEK_SET || origin != SEEK_CUR) {
 		int rc;
 		struct inode *inode = file->f_path.dentry->d_inode;
 
@@ -774,7 +730,7 @@ static loff_t cifs_llseek(struct file *file, loff_t offset, int origin)
 		if (rc < 0)
 			return (loff_t)rc;
 	}
-	return generic_file_llseek_unlocked(file, offset, origin);
+	return generic_file_llseek(file, offset, origin);
 }
 
 static int cifs_setlease(struct file *file, long arg, struct file_lock **lease)
@@ -993,7 +949,8 @@ cifs_init_once(void *inode)
 	struct cifsInodeInfo *cifsi = inode;
 
 	inode_init_once(&cifsi->vfs_inode);
-	INIT_LIST_HEAD(&cifsi->lockList);
+	INIT_LIST_HEAD(&cifsi->llist);
+	mutex_init(&cifsi->lock_mutex);
 }
 
 static int

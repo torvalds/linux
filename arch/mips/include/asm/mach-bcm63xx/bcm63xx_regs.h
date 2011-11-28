@@ -89,7 +89,6 @@
 
 /* Interrupt Mask register */
 #define PERF_IRQMASK_REG		0xc
-#define PERF_IRQSTAT_REG		0x10
 
 /* Interrupt Status register */
 #define PERF_IRQSTAT_REG		0x10

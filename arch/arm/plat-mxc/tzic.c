@@ -17,6 +17,7 @@
 #include <linux/io.h>
 
 #include <asm/mach/irq.h>
+#include <asm/exception.h>
 
 #include <mach/hardware.h>
 #include <mach/common.h>
@@ -42,12 +43,14 @@
 #define TZIC_SRCCLAR0	0x0280	/* Source Clear Register 0 */
 #define TZIC_PRIORITY0	0x0400	/* Priority Register 0 */
 #define TZIC_PND0	0x0D00	/* Pending Register 0 */
-#define TZIC_HIPND0	0x0D80	/* High Priority Pending Register */
+#define TZIC_HIPND(i)	(0x0D80+ ((i) << 2))	/* High Priority Pending Register */
 #define TZIC_WAKEUP0(i)	(0x0E00 + ((i) << 2))	/* Wakeup Config Register */
 #define TZIC_SWINT	0x0F00	/* Software Interrupt Rigger Register */
 #define TZIC_ID0	0x0FD0	/* Indentification Register 0 */
 
 void __iomem *tzic_base; /* Used as irq controller base in entry-macro.S */
+
+#define TZIC_NUM_IRQS 128
 
 #ifdef CONFIG_FIQ
 static int tzic_set_irq_fiq(unsigned int irq, unsigned int type)
@@ -66,77 +69,61 @@ static int tzic_set_irq_fiq(unsigned int irq, unsigned int type)
 
 	return 0;
 }
+#else
+#define tzic_set_irq_fiq NULL
 #endif
 
-/**
- * tzic_mask_irq() - Disable interrupt source "d" in the TZIC
- *
- * @param  d            interrupt source
- */
-static void tzic_mask_irq(struct irq_data *d)
-{
-	int index, off;
+static unsigned int *wakeup_intr[4];
 
-	index = d->irq >> 5;
-	off = d->irq & 0x1F;
-	__raw_writel(1 << off, tzic_base + TZIC_ENCLEAR0(index));
-}
-
-/**
- * tzic_unmask_irq() - Enable interrupt source "d" in the TZIC
- *
- * @param  d            interrupt source
- */
-static void tzic_unmask_irq(struct irq_data *d)
-{
-	int index, off;
-
-	index = d->irq >> 5;
-	off = d->irq & 0x1F;
-	__raw_writel(1 << off, tzic_base + TZIC_ENSET0(index));
-}
-
-static unsigned int wakeup_intr[4];
-
-/**
- * tzic_set_wake_irq() - Set interrupt source "d" in the TZIC as a wake-up source.
- *
- * @param  d            interrupt source
- * @param  enable       enable as wake-up if equal to non-zero
- * 			disble as wake-up if equal to zero
- *
- * @return       This function returns 0 on success.
- */
-static int tzic_set_wake_irq(struct irq_data *d, unsigned int enable)
-{
-	unsigned int index, off;
-
-	index = d->irq >> 5;
-	off = d->irq & 0x1F;
-
-	if (index > 3)
-		return -EINVAL;
-
-	if (enable)
-		wakeup_intr[index] |= (1 << off);
-	else
-		wakeup_intr[index] &= ~(1 << off);
-
-	return 0;
-}
-
-static struct mxc_irq_chip mxc_tzic_chip = {
-	.base = {
-		.name = "MXC_TZIC",
-		.irq_ack = tzic_mask_irq,
-		.irq_mask = tzic_mask_irq,
-		.irq_unmask = tzic_unmask_irq,
-		.irq_set_wake = tzic_set_wake_irq,
-	},
+static struct mxc_extra_irq tzic_extra_irq = {
 #ifdef CONFIG_FIQ
 	.set_irq_fiq = tzic_set_irq_fiq,
 #endif
 };
+
+static __init void tzic_init_gc(unsigned int irq_start)
+{
+	struct irq_chip_generic *gc;
+	struct irq_chip_type *ct;
+	int idx = irq_start >> 5;
+
+	gc = irq_alloc_generic_chip("tzic", 1, irq_start, tzic_base,
+				    handle_level_irq);
+	gc->private = &tzic_extra_irq;
+	gc->wake_enabled = IRQ_MSK(32);
+	wakeup_intr[idx] = &gc->wake_active;
+
+	ct = gc->chip_types;
+	ct->chip.irq_mask = irq_gc_mask_disable_reg;
+	ct->chip.irq_unmask = irq_gc_unmask_enable_reg;
+	ct->chip.irq_set_wake = irq_gc_set_wake;
+	ct->regs.disable = TZIC_ENCLEAR0(idx);
+	ct->regs.enable = TZIC_ENSET0(idx);
+
+	irq_setup_generic_chip(gc, IRQ_MSK(32), 0, IRQ_NOREQUEST, 0);
+}
+
+asmlinkage void __exception_irq_entry tzic_handle_irq(struct pt_regs *regs)
+{
+	u32 stat;
+	int i, irqofs, handled;
+
+	do {
+		handled = 0;
+
+		for (i = 0; i < 4; i++) {
+			stat = __raw_readl(tzic_base + TZIC_HIPND(i)) &
+				__raw_readl(tzic_base + TZIC_INTSEC0(i));
+
+			while (stat) {
+				handled = 1;
+				irqofs = fls(stat) - 1;
+				handle_IRQ(irqofs + i * 32, regs);
+				stat &= ~(1 << irqofs);
+			}
+		}
+	} while (handled);
+}
 
 /*
  * This function initializes the TZIC hardware and disables all the
@@ -166,11 +153,8 @@ void __init tzic_init_irq(void __iomem *irqbase)
 
 	/* all IRQ no FIQ Warning :: No selection */
 
-	for (i = 0; i < MXC_INTERNAL_IRQS; i++) {
-		irq_set_chip_and_handler(i, &mxc_tzic_chip.base,
-					 handle_level_irq);
-		set_irq_flags(i, IRQF_VALID);
-	}
+	for (i = 0; i < TZIC_NUM_IRQS; i += 32)
+		tzic_init_gc(i);
 
 #ifdef CONFIG_FIQ
 	/* Initialize FIQ */
@@ -197,7 +181,7 @@ int tzic_enable_wake(int is_idle)
 
 	for (i = 0; i < 4; i++) {
 		v = is_idle ? __raw_readl(tzic_base + TZIC_ENSET0(i)) :
-			wakeup_intr[i];
+			*wakeup_intr[i];
 		__raw_writel(v, tzic_base + TZIC_WAKEUP0(i));
 	}
 

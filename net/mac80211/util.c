@@ -13,13 +13,13 @@
 
 #include <net/mac80211.h>
 #include <linux/netdevice.h>
+#include <linux/export.h>
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/skbuff.h>
 #include <linux/etherdevice.h>
 #include <linux/if_arp.h>
 #include <linux/bitmap.h>
-#include <linux/crc32.h>
 #include <net/net_namespace.h>
 #include <net/cfg80211.h>
 #include <net/rtnetlink.h>
@@ -368,14 +368,14 @@ void ieee80211_add_pending_skb(struct ieee80211_local *local,
 	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
 }
 
-int ieee80211_add_pending_skbs_fn(struct ieee80211_local *local,
-				  struct sk_buff_head *skbs,
-				  void (*fn)(void *data), void *data)
+void ieee80211_add_pending_skbs_fn(struct ieee80211_local *local,
+				   struct sk_buff_head *skbs,
+				   void (*fn)(void *data), void *data)
 {
 	struct ieee80211_hw *hw = &local->hw;
 	struct sk_buff *skb;
 	unsigned long flags;
-	int queue, ret = 0, i;
+	int queue, i;
 
 	spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
 	for (i = 0; i < hw->queues; i++)
@@ -390,7 +390,6 @@ int ieee80211_add_pending_skbs_fn(struct ieee80211_local *local,
 			continue;
 		}
 
-		ret++;
 		queue = skb_get_queue_mapping(skb);
 		__skb_queue_tail(&local->pending[queue], skb);
 	}
@@ -402,14 +401,12 @@ int ieee80211_add_pending_skbs_fn(struct ieee80211_local *local,
 		__ieee80211_wake_queue(hw, i,
 			IEEE80211_QUEUE_STOP_REASON_SKB_ADD);
 	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
-
-	return ret;
 }
 
-int ieee80211_add_pending_skbs(struct ieee80211_local *local,
-			       struct sk_buff_head *skbs)
+void ieee80211_add_pending_skbs(struct ieee80211_local *local,
+				struct sk_buff_head *skbs)
 {
-	return ieee80211_add_pending_skbs_fn(local, skbs, NULL, NULL);
+	ieee80211_add_pending_skbs_fn(local, skbs, NULL, NULL);
 }
 
 void ieee80211_stop_queues_by_reason(struct ieee80211_hw *hw,
@@ -573,172 +570,6 @@ void ieee802_11_parse_elems(u8 *start, size_t len,
 	ieee802_11_parse_elems_crc(start, len, elems, 0, 0);
 }
 
-u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
-			       struct ieee802_11_elems *elems,
-			       u64 filter, u32 crc)
-{
-	size_t left = len;
-	u8 *pos = start;
-	bool calc_crc = filter != 0;
-
-	memset(elems, 0, sizeof(*elems));
-	elems->ie_start = start;
-	elems->total_len = len;
-
-	while (left >= 2) {
-		u8 id, elen;
-
-		id = *pos++;
-		elen = *pos++;
-		left -= 2;
-
-		if (elen > left)
-			break;
-
-		if (calc_crc && id < 64 && (filter & (1ULL << id)))
-			crc = crc32_be(crc, pos - 2, elen + 2);
-
-		switch (id) {
-		case WLAN_EID_SSID:
-			elems->ssid = pos;
-			elems->ssid_len = elen;
-			break;
-		case WLAN_EID_SUPP_RATES:
-			elems->supp_rates = pos;
-			elems->supp_rates_len = elen;
-			break;
-		case WLAN_EID_FH_PARAMS:
-			elems->fh_params = pos;
-			elems->fh_params_len = elen;
-			break;
-		case WLAN_EID_DS_PARAMS:
-			elems->ds_params = pos;
-			elems->ds_params_len = elen;
-			break;
-		case WLAN_EID_CF_PARAMS:
-			elems->cf_params = pos;
-			elems->cf_params_len = elen;
-			break;
-		case WLAN_EID_TIM:
-			if (elen >= sizeof(struct ieee80211_tim_ie)) {
-				elems->tim = (void *)pos;
-				elems->tim_len = elen;
-			}
-			break;
-		case WLAN_EID_IBSS_PARAMS:
-			elems->ibss_params = pos;
-			elems->ibss_params_len = elen;
-			break;
-		case WLAN_EID_CHALLENGE:
-			elems->challenge = pos;
-			elems->challenge_len = elen;
-			break;
-		case WLAN_EID_VENDOR_SPECIFIC:
-			if (elen >= 4 && pos[0] == 0x00 && pos[1] == 0x50 &&
-			    pos[2] == 0xf2) {
-				/* Microsoft OUI (00:50:F2) */
-
-				if (calc_crc)
-					crc = crc32_be(crc, pos - 2, elen + 2);
-
-				if (pos[3] == 1) {
-					/* OUI Type 1 - WPA IE */
-					elems->wpa = pos;
-					elems->wpa_len = elen;
-				} else if (elen >= 5 && pos[3] == 2) {
-					/* OUI Type 2 - WMM IE */
-					if (pos[4] == 0) {
-						elems->wmm_info = pos;
-						elems->wmm_info_len = elen;
-					} else if (pos[4] == 1) {
-						elems->wmm_param = pos;
-						elems->wmm_param_len = elen;
-					}
-				}
-			}
-			break;
-		case WLAN_EID_RSN:
-			elems->rsn = pos;
-			elems->rsn_len = elen;
-			break;
-		case WLAN_EID_ERP_INFO:
-			elems->erp_info = pos;
-			elems->erp_info_len = elen;
-			break;
-		case WLAN_EID_EXT_SUPP_RATES:
-			elems->ext_supp_rates = pos;
-			elems->ext_supp_rates_len = elen;
-			break;
-		case WLAN_EID_HT_CAPABILITY:
-			if (elen >= sizeof(struct ieee80211_ht_cap))
-				elems->ht_cap_elem = (void *)pos;
-			break;
-		case WLAN_EID_HT_INFORMATION:
-			if (elen >= sizeof(struct ieee80211_ht_info))
-				elems->ht_info_elem = (void *)pos;
-			break;
-		case WLAN_EID_MESH_ID:
-			elems->mesh_id = pos;
-			elems->mesh_id_len = elen;
-			break;
-		case WLAN_EID_MESH_CONFIG:
-			if (elen >= sizeof(struct ieee80211_meshconf_ie))
-				elems->mesh_config = (void *)pos;
-			break;
-		case WLAN_EID_PEER_LINK:
-			elems->peer_link = pos;
-			elems->peer_link_len = elen;
-			break;
-		case WLAN_EID_PREQ:
-			elems->preq = pos;
-			elems->preq_len = elen;
-			break;
-		case WLAN_EID_PREP:
-			elems->prep = pos;
-			elems->prep_len = elen;
-			break;
-		case WLAN_EID_PERR:
-			elems->perr = pos;
-			elems->perr_len = elen;
-			break;
-		case WLAN_EID_RANN:
-			if (elen >= sizeof(struct ieee80211_rann_ie))
-				elems->rann = (void *)pos;
-			break;
-		case WLAN_EID_CHANNEL_SWITCH:
-			elems->ch_switch_elem = pos;
-			elems->ch_switch_elem_len = elen;
-			break;
-		case WLAN_EID_QUIET:
-			if (!elems->quiet_elem) {
-				elems->quiet_elem = pos;
-				elems->quiet_elem_len = elen;
-			}
-			elems->num_of_quiet_elem++;
-			break;
-		case WLAN_EID_COUNTRY:
-			elems->country_elem = pos;
-			elems->country_elem_len = elen;
-			break;
-		case WLAN_EID_PWR_CONSTRAINT:
-			elems->pwr_constr_elem = pos;
-			elems->pwr_constr_elem_len = elen;
-			break;
-		case WLAN_EID_TIMEOUT_INTERVAL:
-			elems->timeout_int = pos;
-			elems->timeout_int_len = elen;
-			break;
-		default:
-			break;
-		}
-
-		left -= elen;
-		pos += elen;
-	}
-
-	return crc;
-}
-
 void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
@@ -799,7 +630,8 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata)
 
 		qparam.uapsd = false;
 
-		drv_conf_tx(local, queue, &qparam);
+		sdata->tx_conf[queue] = qparam;
+		drv_conf_tx(local, sdata, queue, &qparam);
 	}
 
 	/* after reinitialize QoS TX queues setting to default,
@@ -873,11 +705,9 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom +
 			    sizeof(*mgmt) + 6 + extra_len);
-	if (!skb) {
-		printk(KERN_DEBUG "%s: failed to allocate buffer for auth "
-		       "frame\n", sdata->name);
+	if (!skb)
 		return;
-	}
+
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 
 	mgmt = (struct ieee80211_mgmt *) skb_put(skb, 24 + 6);
@@ -1016,9 +846,10 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 }
 
 struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
-					  u8 *dst,
+					  u8 *dst, u32 ratemask,
 					  const u8 *ssid, size_t ssid_len,
-					  const u8 *ie, size_t ie_len)
+					  const u8 *ie, size_t ie_len,
+					  bool directed)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
@@ -1029,24 +860,29 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 
 	/* FIXME: come up with a proper value */
 	buf = kmalloc(200 + ie_len, GFP_KERNEL);
-	if (!buf) {
-		printk(KERN_DEBUG "%s: failed to allocate temporary IE "
-		       "buffer\n", sdata->name);
+	if (!buf)
 		return NULL;
-	}
 
-	chan = ieee80211_frequency_to_channel(
-		local->hw.conf.channel->center_freq);
+	/*
+	 * Do not send DS Channel parameter for directed probe requests
+	 * in order to maximize the chance that we get a response.  Some
+	 * badly-behaved APs don't respond when this parameter is included.
+	 */
+	if (directed)
+		chan = 0;
+	else
+		chan = ieee80211_frequency_to_channel(
+			local->hw.conf.channel->center_freq);
 
 	buf_len = ieee80211_build_preq_ies(local, buf, ie, ie_len,
 					   local->hw.conf.channel->band,
-					   sdata->rc_rateidx_mask
-					   [local->hw.conf.channel->band],
-					   chan);
+					   ratemask, chan);
 
 	skb = ieee80211_probereq_get(&local->hw, &sdata->vif,
 				     ssid, ssid_len,
 				     buf, buf_len);
+	if (!skb)
+		goto out;
 
 	if (dst) {
 		mgmt = (struct ieee80211_mgmt *) skb->data;
@@ -1055,6 +891,8 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 	}
 
 	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+
+ out:
 	kfree(buf);
 
 	return skb;
@@ -1062,13 +900,19 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 
 void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 			      const u8 *ssid, size_t ssid_len,
-			      const u8 *ie, size_t ie_len)
+			      const u8 *ie, size_t ie_len,
+			      u32 ratemask, bool directed, bool no_cck)
 {
 	struct sk_buff *skb;
 
-	skb = ieee80211_build_probe_req(sdata, dst, ssid, ssid_len, ie, ie_len);
-	if (skb)
+	skb = ieee80211_build_probe_req(sdata, dst, ratemask, ssid, ssid_len,
+					ie, ie_len, directed);
+	if (skb) {
+		if (no_cck)
+			IEEE80211_SKB_CB(skb)->flags |=
+				IEEE80211_TX_CTL_NO_CCK_RATE;
 		ieee80211_tx_skb(sdata, skb);
+	}
 }
 
 u32 ieee80211_sta_get_rates(struct ieee80211_local *local,
@@ -1123,7 +967,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	struct ieee80211_hw *hw = &local->hw;
 	struct ieee80211_sub_if_data *sdata;
 	struct sta_info *sta;
-	int res;
+	int res, i;
 
 #ifdef CONFIG_PM
 	if (local->suspended)
@@ -1146,26 +990,36 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	}
 #endif
 
-	/* restart hardware */
-	if (local->open_count) {
-		/*
-		 * Upon resume hardware can sometimes be goofy due to
-		 * various platform / driver / bus issues, so restarting
-		 * the device may at times not work immediately. Propagate
-		 * the error.
-		 */
-		res = drv_start(local);
-		if (res) {
-			WARN(local->suspended, "Hardware became unavailable "
-			     "upon resume. This could be a software issue "
-			     "prior to suspend or a hardware issue.\n");
-			return res;
-		}
+	/* setup fragmentation threshold */
+	drv_set_frag_threshold(local, hw->wiphy->frag_threshold);
 
-		ieee80211_led_radio(local, true);
-		ieee80211_mod_tpt_led_trig(local,
-					   IEEE80211_TPT_LEDTRIG_FL_RADIO, 0);
+	/* setup RTS threshold */
+	drv_set_rts_threshold(local, hw->wiphy->rts_threshold);
+
+	/* reset coverage class */
+	drv_set_coverage_class(local, hw->wiphy->coverage_class);
+
+	/* everything else happens only if HW was up & running */
+	if (!local->open_count)
+		goto wake_up;
+
+	/*
+	 * Upon resume hardware can sometimes be goofy due to
+	 * various platform / driver / bus issues, so restarting
+	 * the device may at times not work immediately. Propagate
+	 * the error.
+	 */
+	res = drv_start(local);
+	if (res) {
+		WARN(local->suspended, "Hardware became unavailable "
+		     "upon resume. This could be a software issue "
+		     "prior to suspend or a hardware issue.\n");
+		return res;
 	}
+
+	ieee80211_led_radio(local, true);
+	ieee80211_mod_tpt_led_trig(local,
+				   IEEE80211_TPT_LEDTRIG_FL_RADIO, 0);
 
 	/* add interfaces */
 	list_for_each_entry(sdata, &local->interfaces, list) {
@@ -1185,16 +1039,22 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 					     struct ieee80211_sub_if_data,
 					     u.ap);
 
+			memset(&sta->sta.drv_priv, 0, hw->sta_data_size);
 			WARN_ON(drv_sta_add(local, sdata, &sta->sta));
 		}
 	}
 	mutex_unlock(&local->sta_mtx);
 
-	/* setup fragmentation threshold */
-	drv_set_frag_threshold(local, hw->wiphy->frag_threshold);
+	/* reconfigure tx conf */
+	list_for_each_entry(sdata, &local->interfaces, list) {
+		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
+		    sdata->vif.type == NL80211_IFTYPE_MONITOR ||
+		    !ieee80211_sdata_running(sdata))
+			continue;
 
-	/* setup RTS threshold */
-	drv_set_rts_threshold(local, hw->wiphy->rts_threshold);
+		for (i = 0; i < hw->queues; i++)
+			drv_conf_tx(local, sdata, i, &sdata->tx_conf[i]);
+	}
 
 	/* reconfigure hardware */
 	ieee80211_hw_config(local, ~0);
@@ -1230,6 +1090,8 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			changed |= BSS_CHANGED_IBSS;
 			/* fall through */
 		case NL80211_IFTYPE_AP:
+			changed |= BSS_CHANGED_SSID;
+			/* fall through */
 		case NL80211_IFTYPE_MESH_POINT:
 			changed |= BSS_CHANGED_BEACON |
 				   BSS_CHANGED_BEACON_ENABLED;
@@ -1265,7 +1127,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 
 		list_for_each_entry(sta, &local->sta_list, list) {
 			ieee80211_sta_tear_down_BA_sessions(sta, true);
-			clear_sta_flags(sta, WLAN_STA_BLOCK_BA);
+			clear_sta_flag(sta, WLAN_STA_BLOCK_BA);
 		}
 
 		mutex_unlock(&local->sta_mtx);
@@ -1320,6 +1182,33 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 #endif
 	return 0;
 }
+
+void ieee80211_resume_disconnect(struct ieee80211_vif *vif)
+{
+	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_local *local;
+	struct ieee80211_key *key;
+
+	if (WARN_ON(!vif))
+		return;
+
+	sdata = vif_to_sdata(vif);
+	local = sdata->local;
+
+	if (WARN_ON(!local->resuming))
+		return;
+
+	if (WARN_ON(vif->type != NL80211_IFTYPE_STATION))
+		return;
+
+	sdata->flags |= IEEE80211_SDATA_DISCONNECT_RESUME;
+
+	mutex_lock(&local->key_mtx);
+	list_for_each_entry(key, &sdata->key_list, list)
+		key->flags |= KEY_FLAG_TAINTED;
+	mutex_unlock(&local->key_mtx);
+}
+EXPORT_SYMBOL_GPL(ieee80211_resume_disconnect);
 
 static int check_mgd_smps(struct ieee80211_if_managed *ifmgd,
 			  enum ieee80211_smps_mode *smps_mode)
@@ -1436,4 +1325,101 @@ size_t ieee80211_ie_split_vendor(const u8 *ies, size_t ielen, size_t offset)
 		pos += 2 + ies[pos + 1];
 
 	return pos;
+}
+
+static void _ieee80211_enable_rssi_reports(struct ieee80211_sub_if_data *sdata,
+					    int rssi_min_thold,
+					    int rssi_max_thold)
+{
+	trace_api_enable_rssi_reports(sdata, rssi_min_thold, rssi_max_thold);
+
+	if (WARN_ON(sdata->vif.type != NL80211_IFTYPE_STATION))
+		return;
+
+	/*
+	 * Scale up threshold values before storing it, as the RSSI averaging
+	 * algorithm uses a scaled up value as well. Change this scaling
+	 * factor if the RSSI averaging algorithm changes.
+	 */
+	sdata->u.mgd.rssi_min_thold = rssi_min_thold*16;
+	sdata->u.mgd.rssi_max_thold = rssi_max_thold*16;
+}
+
+void ieee80211_enable_rssi_reports(struct ieee80211_vif *vif,
+				    int rssi_min_thold,
+				    int rssi_max_thold)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+
+	WARN_ON(rssi_min_thold == rssi_max_thold ||
+		rssi_min_thold > rssi_max_thold);
+
+	_ieee80211_enable_rssi_reports(sdata, rssi_min_thold,
+				       rssi_max_thold);
+}
+EXPORT_SYMBOL(ieee80211_enable_rssi_reports);
+
+void ieee80211_disable_rssi_reports(struct ieee80211_vif *vif)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+
+	_ieee80211_enable_rssi_reports(sdata, 0, 0);
+}
+EXPORT_SYMBOL(ieee80211_disable_rssi_reports);
+
+int ieee80211_add_srates_ie(struct ieee80211_vif *vif, struct sk_buff *skb)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_supported_band *sband;
+	int rate;
+	u8 i, rates, *pos;
+
+	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
+	rates = sband->n_bitrates;
+	if (rates > 8)
+		rates = 8;
+
+	if (skb_tailroom(skb) < rates + 2)
+		return -ENOMEM;
+
+	pos = skb_put(skb, rates + 2);
+	*pos++ = WLAN_EID_SUPP_RATES;
+	*pos++ = rates;
+	for (i = 0; i < rates; i++) {
+		rate = sband->bitrates[i].bitrate;
+		*pos++ = (u8) (rate / 5);
+	}
+
+	return 0;
+}
+
+int ieee80211_add_ext_srates_ie(struct ieee80211_vif *vif, struct sk_buff *skb)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_supported_band *sband;
+	int rate;
+	u8 i, exrates, *pos;
+
+	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
+	exrates = sband->n_bitrates;
+	if (exrates > 8)
+		exrates -= 8;
+	else
+		exrates = 0;
+
+	if (skb_tailroom(skb) < exrates + 2)
+		return -ENOMEM;
+
+	if (exrates) {
+		pos = skb_put(skb, exrates + 2);
+		*pos++ = WLAN_EID_EXT_SUPP_RATES;
+		*pos++ = exrates;
+		for (i = 8; i < sband->n_bitrates; i++) {
+			rate = sband->bitrates[i].bitrate;
+			*pos++ = (u8) (rate / 5);
+		}
+	}
+	return 0;
 }

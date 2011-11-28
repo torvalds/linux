@@ -23,6 +23,8 @@
  * Authors: Dave Airlie
  *          Alex Deucher
  */
+#include <linux/export.h>
+
 #include "drmP.h"
 #include "radeon_drm.h"
 #include "radeon.h"
@@ -34,20 +36,20 @@
  */
 bool radeon_ddc_probe(struct radeon_connector *radeon_connector)
 {
-	u8 out_buf[] = { 0x0, 0x0};
-	u8 buf[2];
+	u8 out = 0x0;
+	u8 buf[8];
 	int ret;
 	struct i2c_msg msgs[] = {
 		{
 			.addr = 0x50,
 			.flags = 0,
 			.len = 1,
-			.buf = out_buf,
+			.buf = &out,
 		},
 		{
 			.addr = 0x50,
 			.flags = I2C_M_RD,
-			.len = 1,
+			.len = 8,
 			.buf = buf,
 		}
 	};
@@ -57,16 +59,27 @@ bool radeon_ddc_probe(struct radeon_connector *radeon_connector)
 		radeon_router_select_ddc_port(radeon_connector);
 
 	ret = i2c_transfer(&radeon_connector->ddc_bus->adapter, msgs, 2);
-	if (ret == 2)
-		return true;
-
-	return false;
+	if (ret != 2)
+		/* Couldn't find an accessible DDC on this connector */
+		return false;
+	/* Probe also for valid EDID header
+	 * EDID header starts with:
+	 * 0x00,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0x00.
+	 * Only the first 6 bytes must be valid as
+	 * drm_edid_block_valid() can fix the last 2 bytes */
+	if (drm_edid_header_is_valid(buf) < 6) {
+		/* Couldn't find an accessible EDID on this
+		 * connector */
+		return false;
+	}
+	return true;
 }
 
 /* bit banging i2c */
 
-static void radeon_i2c_do_lock(struct radeon_i2c_chan *i2c, int lock_state)
+static int pre_xfer(struct i2c_adapter *i2c_adap)
 {
+	struct radeon_i2c_chan *i2c = i2c_get_adapdata(i2c_adap);
 	struct radeon_device *rdev = i2c->dev->dev_private;
 	struct radeon_i2c_bus_rec *rec = &i2c->rec;
 	uint32_t temp;
@@ -121,19 +134,30 @@ static void radeon_i2c_do_lock(struct radeon_i2c_chan *i2c, int lock_state)
 	WREG32(rec->en_data_reg, temp);
 
 	/* mask the gpio pins for software use */
-	temp = RREG32(rec->mask_clk_reg);
-	if (lock_state)
-		temp |= rec->mask_clk_mask;
-	else
-		temp &= ~rec->mask_clk_mask;
+	temp = RREG32(rec->mask_clk_reg) | rec->mask_clk_mask;
 	WREG32(rec->mask_clk_reg, temp);
 	temp = RREG32(rec->mask_clk_reg);
 
+	temp = RREG32(rec->mask_data_reg) | rec->mask_data_mask;
+	WREG32(rec->mask_data_reg, temp);
 	temp = RREG32(rec->mask_data_reg);
-	if (lock_state)
-		temp |= rec->mask_data_mask;
-	else
-		temp &= ~rec->mask_data_mask;
+
+	return 0;
+}
+
+static void post_xfer(struct i2c_adapter *i2c_adap)
+{
+	struct radeon_i2c_chan *i2c = i2c_get_adapdata(i2c_adap);
+	struct radeon_device *rdev = i2c->dev->dev_private;
+	struct radeon_i2c_bus_rec *rec = &i2c->rec;
+	uint32_t temp;
+
+	/* unmask the gpio pins for software use */
+	temp = RREG32(rec->mask_clk_reg) & ~rec->mask_clk_mask;
+	WREG32(rec->mask_clk_reg, temp);
+	temp = RREG32(rec->mask_clk_reg);
+
+	temp = RREG32(rec->mask_data_reg) & ~rec->mask_data_mask;
 	WREG32(rec->mask_data_reg, temp);
 	temp = RREG32(rec->mask_data_reg);
 }
@@ -191,22 +215,6 @@ static void set_data(void *i2c_priv, int data)
 	val = RREG32(rec->en_data_reg) & ~rec->en_data_mask;
 	val |= data ? 0 : rec->en_data_mask;
 	WREG32(rec->en_data_reg, val);
-}
-
-static int pre_xfer(struct i2c_adapter *i2c_adap)
-{
-	struct radeon_i2c_chan *i2c = i2c_get_adapdata(i2c_adap);
-
-	radeon_i2c_do_lock(i2c, 1);
-
-	return 0;
-}
-
-static void post_xfer(struct i2c_adapter *i2c_adap)
-{
-	struct radeon_i2c_chan *i2c = i2c_get_adapdata(i2c_adap);
-
-	radeon_i2c_do_lock(i2c, 0);
 }
 
 /* hw i2c */

@@ -179,8 +179,6 @@ static void vhci_recv_ret_unlink(struct vhci_device *vdev,
 	}
 
 	kfree(unlink);
-
-	return;
 }
 
 static int vhci_priv_tx_empty(struct vhci_device *vdev)

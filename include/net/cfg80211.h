@@ -20,11 +20,6 @@
 #include <linux/ieee80211.h>
 #include <net/regulatory.h>
 
-/* remove once we remove the wext stuff */
-#include <net/iw_handler.h>
-#include <linux/wireless.h>
-
-
 /**
  * DOC: Introduction
  *
@@ -339,6 +334,36 @@ struct survey_info {
 };
 
 /**
+ * struct cfg80211_crypto_settings - Crypto settings
+ * @wpa_versions: indicates which, if any, WPA versions are enabled
+ *	(from enum nl80211_wpa_versions)
+ * @cipher_group: group key cipher suite (or 0 if unset)
+ * @n_ciphers_pairwise: number of AP supported unicast ciphers
+ * @ciphers_pairwise: unicast key cipher suites
+ * @n_akm_suites: number of AKM suites
+ * @akm_suites: AKM suites
+ * @control_port: Whether user space controls IEEE 802.1X port, i.e.,
+ *	sets/clears %NL80211_STA_FLAG_AUTHORIZED. If true, the driver is
+ *	required to assume that the port is unauthorized until authorized by
+ *	user space. Otherwise, port is marked authorized by default.
+ * @control_port_ethertype: the control port protocol that should be
+ *	allowed through even on unauthorized ports
+ * @control_port_no_encrypt: TRUE to prevent encryption of control port
+ *	protocol frames.
+ */
+struct cfg80211_crypto_settings {
+	u32 wpa_versions;
+	u32 cipher_group;
+	int n_ciphers_pairwise;
+	u32 ciphers_pairwise[NL80211_MAX_NR_CIPHER_SUITES];
+	int n_akm_suites;
+	u32 akm_suites[NL80211_MAX_NR_AKM_SUITES];
+	bool control_port;
+	__be16 control_port_ethertype;
+	bool control_port_no_encrypt;
+};
+
+/**
  * struct beacon_parameters - beacon parameters
  *
  * Used to configure the beacon for an interface.
@@ -351,11 +376,38 @@ struct survey_info {
  * @dtim_period: DTIM period or zero if not changed
  * @head_len: length of @head
  * @tail_len: length of @tail
+ * @ssid: SSID to be used in the BSS (note: may be %NULL if not provided from
+ *	user space)
+ * @ssid_len: length of @ssid
+ * @hidden_ssid: whether to hide the SSID in Beacon/Probe Response frames
+ * @crypto: crypto settings
+ * @privacy: the BSS uses privacy
+ * @auth_type: Authentication type (algorithm)
+ * @beacon_ies: extra information element(s) to add into Beacon frames or %NULL
+ * @beacon_ies_len: length of beacon_ies in octets
+ * @proberesp_ies: extra information element(s) to add into Probe Response
+ *	frames or %NULL
+ * @proberesp_ies_len: length of proberesp_ies in octets
+ * @assocresp_ies: extra information element(s) to add into (Re)Association
+ *	Response frames or %NULL
+ * @assocresp_ies_len: length of assocresp_ies in octets
  */
 struct beacon_parameters {
 	u8 *head, *tail;
 	int interval, dtim_period;
 	int head_len, tail_len;
+	const u8 *ssid;
+	size_t ssid_len;
+	enum nl80211_hidden_ssid hidden_ssid;
+	struct cfg80211_crypto_settings crypto;
+	bool privacy;
+	enum nl80211_auth_type auth_type;
+	const u8 *beacon_ies;
+	size_t beacon_ies_len;
+	const u8 *proberesp_ies;
+	size_t proberesp_ies_len;
+	const u8 *assocresp_ies;
+	size_t assocresp_ies_len;
 };
 
 /**
@@ -369,6 +421,17 @@ enum plink_actions {
 	PLINK_ACTION_INVALID,
 	PLINK_ACTION_OPEN,
 	PLINK_ACTION_BLOCK,
+};
+
+/**
+ * enum station_parameters_apply_mask - station parameter values to apply
+ * @STATION_PARAM_APPLY_UAPSD: apply new uAPSD parameters (uapsd_queues, max_sp)
+ *
+ * Not all station parameters have in-band "no change" signalling,
+ * for those that don't these flags will are used.
+ */
+enum station_parameters_apply_mask {
+	STATION_PARAM_APPLY_UAPSD = BIT(0),
 };
 
 /**
@@ -389,17 +452,27 @@ enum plink_actions {
  * @plink_action: plink action to take
  * @plink_state: set the peer link state for a station
  * @ht_capa: HT capabilities of station
+ * @uapsd_queues: bitmap of queues configured for uapsd. same format
+ *	as the AC bitmap in the QoS info field
+ * @max_sp: max Service Period. same format as the MAX_SP in the
+ *	QoS info field (but already shifted down)
+ * @sta_modify_mask: bitmap indicating which parameters changed
+ *	(for those that don't have a natural "no change" value),
+ *	see &enum station_parameters_apply_mask
  */
 struct station_parameters {
 	u8 *supported_rates;
 	struct net_device *vlan;
 	u32 sta_flags_mask, sta_flags_set;
+	u32 sta_modify_mask;
 	int listen_interval;
 	u16 aid;
 	u8 supported_rates_len;
 	u8 plink_action;
 	u8 plink_state;
 	struct ieee80211_ht_cap *ht_capa;
+	u8 uapsd_queues;
+	u8 max_sp;
 };
 
 /**
@@ -426,6 +499,8 @@ struct station_parameters {
  * @STATION_INFO_RX_BITRATE: @rxrate fields are filled
  * @STATION_INFO_BSS_PARAM: @bss_param filled
  * @STATION_INFO_CONNECTED_TIME: @connected_time filled
+ * @STATION_INFO_ASSOC_REQ_IES: @assoc_req_ies filled
+ * @STATION_INFO_STA_FLAGS: @sta_flags filled
  */
 enum station_info_flags {
 	STATION_INFO_INACTIVE_TIME	= 1<<0,
@@ -444,7 +519,9 @@ enum station_info_flags {
 	STATION_INFO_SIGNAL_AVG		= 1<<13,
 	STATION_INFO_RX_BITRATE		= 1<<14,
 	STATION_INFO_BSS_PARAM          = 1<<15,
-	STATION_INFO_CONNECTED_TIME	= 1<<16
+	STATION_INFO_CONNECTED_TIME	= 1<<16,
+	STATION_INFO_ASSOC_REQ_IES	= 1<<17,
+	STATION_INFO_STA_FLAGS		= 1<<18
 };
 
 /**
@@ -536,6 +613,12 @@ struct sta_bss_parameters {
  *	This number should increase every time the list of stations
  *	changes, i.e. when a station is added or removed, so that
  *	userspace can tell whether it got a consistent snapshot.
+ * @assoc_req_ies: IEs from (Re)Association Request.
+ *	This is used only when in AP mode with drivers that do not use
+ *	user space MLME/SME implementation. The information is provided for
+ *	the cfg80211_new_sta() calls to notify user space of the IEs.
+ * @assoc_req_ies_len: Length of assoc_req_ies buffer in octets.
+ * @sta_flags: station flags mask & values
  */
 struct station_info {
 	u32 filled;
@@ -556,8 +639,17 @@ struct station_info {
 	u32 tx_failed;
 	u32 rx_dropped_misc;
 	struct sta_bss_parameters bss_param;
+	struct nl80211_sta_flag_update sta_flags;
 
 	int generation;
+
+	const u8 *assoc_req_ies;
+	size_t assoc_req_ies_len;
+
+	/*
+	 * Note: Add a new enum station_info_flags value for each new field and
+	 * use it to check which fields are initialized.
+	 */
 };
 
 /**
@@ -688,6 +780,12 @@ struct mesh_config {
 	u16 dot11MeshHWMPpreqMinInterval;
 	u16 dot11MeshHWMPnetDiameterTraversalTime;
 	u8  dot11MeshHWMPRootMode;
+	u16 dot11MeshHWMPRannInterval;
+	/* This is missnamed in draft 12.0: dot11MeshGateAnnouncementProtocol
+	 * set to true only means that the station will announce others it's a
+	 * mesh gate, but not necessarily using the gate announcement protocol.
+	 * Still keeping the same nomenclature to be in sync with the spec. */
+	bool  dot11MeshGateAnnouncementProtocol;
 };
 
 /**
@@ -777,9 +875,11 @@ struct cfg80211_ssid {
  * @n_channels: total number of channels to scan
  * @ie: optional information element(s) to add into Probe Request or %NULL
  * @ie_len: length of ie in octets
+ * @rates: bitmap of rates to advertise for each band
  * @wiphy: the wiphy this was for
  * @dev: the interface
  * @aborted: (internal) scan request was notified as aborted
+ * @no_cck: used to send probe requests at non CCK rate in 2GHz band
  */
 struct cfg80211_scan_request {
 	struct cfg80211_ssid *ssids;
@@ -788,13 +888,25 @@ struct cfg80211_scan_request {
 	const u8 *ie;
 	size_t ie_len;
 
+	u32 rates[IEEE80211_NUM_BANDS];
+
 	/* internal */
 	struct wiphy *wiphy;
 	struct net_device *dev;
 	bool aborted;
+	bool no_cck;
 
 	/* keep last */
 	struct ieee80211_channel *channels[0];
+};
+
+/**
+ * struct cfg80211_match_set - sets of attributes to match
+ *
+ * @ssid: SSID to be matched
+ */
+struct cfg80211_match_set {
+	struct cfg80211_ssid ssid;
 };
 
 /**
@@ -806,6 +918,11 @@ struct cfg80211_scan_request {
  * @interval: interval between each scheduled scan cycle
  * @ie: optional information element(s) to add into Probe Request or %NULL
  * @ie_len: length of ie in octets
+ * @match_sets: sets of parameters to be matched for a scan result
+ * 	entry to be considered valid and to be passed to the host
+ * 	(others are filtered out).
+ *	If ommited, all results are passed.
+ * @n_match_sets: number of match sets
  * @wiphy: the wiphy this was for
  * @dev: the interface
  * @channels: channels to scan
@@ -817,6 +934,8 @@ struct cfg80211_sched_scan_request {
 	u32 interval;
 	const u8 *ie;
 	size_t ie_len;
+	struct cfg80211_match_set *match_sets;
+	int n_match_sets;
 
 	/* internal */
 	struct wiphy *wiphy;
@@ -891,36 +1010,6 @@ struct cfg80211_bss {
  */
 const u8 *ieee80211_bss_get_ie(struct cfg80211_bss *bss, u8 ie);
 
-
-/**
- * struct cfg80211_crypto_settings - Crypto settings
- * @wpa_versions: indicates which, if any, WPA versions are enabled
- *	(from enum nl80211_wpa_versions)
- * @cipher_group: group key cipher suite (or 0 if unset)
- * @n_ciphers_pairwise: number of AP supported unicast ciphers
- * @ciphers_pairwise: unicast key cipher suites
- * @n_akm_suites: number of AKM suites
- * @akm_suites: AKM suites
- * @control_port: Whether user space controls IEEE 802.1X port, i.e.,
- *	sets/clears %NL80211_STA_FLAG_AUTHORIZED. If true, the driver is
- *	required to assume that the port is unauthorized until authorized by
- *	user space. Otherwise, port is marked authorized by default.
- * @control_port_ethertype: the control port protocol that should be
- *	allowed through even on unauthorized ports
- * @control_port_no_encrypt: TRUE to prevent encryption of control port
- *	protocol frames.
- */
-struct cfg80211_crypto_settings {
-	u32 wpa_versions;
-	u32 cipher_group;
-	int n_ciphers_pairwise;
-	u32 ciphers_pairwise[NL80211_MAX_NR_CIPHER_SUITES];
-	int n_akm_suites;
-	u32 akm_suites[NL80211_MAX_NR_AKM_SUITES];
-	bool control_port;
-	__be16 control_port_ethertype;
-	bool control_port_no_encrypt;
-};
 
 /**
  * struct cfg80211_auth_request - Authentication request data
@@ -1146,11 +1235,29 @@ struct cfg80211_wowlan_trig_pkt_pattern {
  * @magic_pkt: wake up on receiving magic packet
  * @patterns: wake up on receiving packet matching a pattern
  * @n_patterns: number of patterns
+ * @gtk_rekey_failure: wake up on GTK rekey failure
+ * @eap_identity_req: wake up on EAP identity request packet
+ * @four_way_handshake: wake up on 4-way handshake
+ * @rfkill_release: wake up when rfkill is released
  */
 struct cfg80211_wowlan {
-	bool any, disconnect, magic_pkt;
+	bool any, disconnect, magic_pkt, gtk_rekey_failure,
+	     eap_identity_req, four_way_handshake,
+	     rfkill_release;
 	struct cfg80211_wowlan_trig_pkt_pattern *patterns;
 	int n_patterns;
+};
+
+/**
+ * struct cfg80211_gtk_rekey_data - rekey data
+ * @kek: key encryption key
+ * @kck: key confirmation key
+ * @replay_ctr: replay counter
+ */
+struct cfg80211_gtk_rekey_data {
+	u8 kek[NL80211_KEK_LEN];
+	u8 kck[NL80211_KCK_LEN];
+	u8 replay_ctr[NL80211_REPLAY_CTR_LEN];
 };
 
 /**
@@ -1196,6 +1303,8 @@ struct cfg80211_wowlan {
  * @set_default_key: set the default key on an interface
  *
  * @set_default_mgmt_key: set the default management frame key on an interface
+ *
+ * @set_rekey_data: give the data necessary for GTK rekeying to the driver
  *
  * @add_beacon: Add a beacon with given parameters, @head, @interval
  *	and @dtim_period will be valid, @tail is optional.
@@ -1284,6 +1393,12 @@ struct cfg80211_wowlan {
  *	frame on another channel
  *
  * @testmode_cmd: run a test mode command
+ * @testmode_dump: Implement a test mode dump. The cb->args[2] and up may be
+ *	used by the function, but 0 and 1 must not be touched. Additionally,
+ *	return error codes other than -ENOBUFS and -ENOENT will terminate the
+ *	dump and return to userspace with an error, so be careful. If any data
+ *	was passed in from userspace then the data/len arguments will be present
+ *	and point to the data contained in %NL80211_ATTR_TESTDATA.
  *
  * @set_bitrate_mask: set the bitrate mask configuration
  *
@@ -1314,6 +1429,9 @@ struct cfg80211_wowlan {
  * @set_ringparam: Set tx and rx ring sizes.
  *
  * @get_ringparam: Get tx and rx ring current and maximum sizes.
+ *
+ * @tdls_mgmt: Transmit a TDLS management frame.
+ * @tdls_oper: Perform a high-level TDLS operation (e.g. TDLS link setup).
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
@@ -1390,7 +1508,7 @@ struct cfg80211_ops {
 	int	(*change_bss)(struct wiphy *wiphy, struct net_device *dev,
 			      struct bss_parameters *params);
 
-	int	(*set_txq_params)(struct wiphy *wiphy,
+	int	(*set_txq_params)(struct wiphy *wiphy, struct net_device *dev,
 				  struct ieee80211_txq_params *params);
 
 	int	(*set_channel)(struct wiphy *wiphy, struct net_device *dev,
@@ -1433,6 +1551,9 @@ struct cfg80211_ops {
 
 #ifdef CONFIG_NL80211_TESTMODE
 	int	(*testmode_cmd)(struct wiphy *wiphy, void *data, int len);
+	int	(*testmode_dump)(struct wiphy *wiphy, struct sk_buff *skb,
+				 struct netlink_callback *cb,
+				 void *data, int len);
 #endif
 
 	int	(*set_bitrate_mask)(struct wiphy *wiphy,
@@ -1463,7 +1584,8 @@ struct cfg80211_ops {
 			  struct ieee80211_channel *chan, bool offchan,
 			  enum nl80211_channel_type channel_type,
 			  bool channel_type_valid, unsigned int wait,
-			  const u8 *buf, size_t len, u64 *cookie);
+			  const u8 *buf, size_t len, bool no_cck,
+			  u64 *cookie);
 	int	(*mgmt_tx_cancel_wait)(struct wiphy *wiphy,
 				       struct net_device *dev,
 				       u64 cookie);
@@ -1490,6 +1612,15 @@ struct cfg80211_ops {
 				struct net_device *dev,
 				struct cfg80211_sched_scan_request *request);
 	int	(*sched_scan_stop)(struct wiphy *wiphy, struct net_device *dev);
+
+	int	(*set_rekey_data)(struct wiphy *wiphy, struct net_device *dev,
+				  struct cfg80211_gtk_rekey_data *data);
+
+	int	(*tdls_mgmt)(struct wiphy *wiphy, struct net_device *dev,
+			     u8 *peer, u8 action_code,  u8 dialog_token,
+			     u16 status_code, const u8 *buf, size_t len);
+	int	(*tdls_oper)(struct wiphy *wiphy, struct net_device *dev,
+			     u8 *peer, enum nl80211_tdls_operation oper);
 };
 
 /*
@@ -1539,6 +1670,15 @@ struct cfg80211_ops {
  * @WIPHY_FLAG_MESH_AUTH: The device supports mesh authentication by routing
  *	auth frames to userspace. See @NL80211_MESH_SETUP_USERSPACE_AUTH.
  * @WIPHY_FLAG_SUPPORTS_SCHED_SCAN: The device supports scheduled scans.
+ * @WIPHY_FLAG_SUPPORTS_FW_ROAM: The device supports roaming feature in the
+ *	firmware.
+ * @WIPHY_FLAG_AP_UAPSD: The device supports uapsd on AP.
+ * @WIPHY_FLAG_SUPPORTS_TDLS: The device supports TDLS (802.11z) operation.
+ * @WIPHY_FLAG_TDLS_EXTERNAL_SETUP: The device does not handle TDLS (802.11z)
+ *	link setup/discovery operations internally. Setup, discovery and
+ *	teardown packets should be sent through the @NL80211_CMD_TDLS_MGMT
+ *	command. When this flag is not set, @NL80211_CMD_TDLS_OPER should be
+ *	used for asking the driver/firmware to perform a TDLS operation.
  */
 enum wiphy_flags {
 	WIPHY_FLAG_CUSTOM_REGULATORY		= BIT(0),
@@ -1553,6 +1693,10 @@ enum wiphy_flags {
 	WIPHY_FLAG_MESH_AUTH			= BIT(10),
 	WIPHY_FLAG_SUPPORTS_SCHED_SCAN		= BIT(11),
 	WIPHY_FLAG_ENFORCE_COMBINATIONS		= BIT(12),
+	WIPHY_FLAG_SUPPORTS_FW_ROAM		= BIT(13),
+	WIPHY_FLAG_AP_UAPSD			= BIT(14),
+	WIPHY_FLAG_SUPPORTS_TDLS		= BIT(15),
+	WIPHY_FLAG_TDLS_EXTERNAL_SETUP		= BIT(16),
 };
 
 /**
@@ -1647,11 +1791,21 @@ struct ieee80211_txrx_stypes {
  * @WIPHY_WOWLAN_MAGIC_PKT: supports wakeup on magic packet
  *	(see nl80211.h)
  * @WIPHY_WOWLAN_DISCONNECT: supports wakeup on disconnect
+ * @WIPHY_WOWLAN_SUPPORTS_GTK_REKEY: supports GTK rekeying while asleep
+ * @WIPHY_WOWLAN_GTK_REKEY_FAILURE: supports wakeup on GTK rekey failure
+ * @WIPHY_WOWLAN_EAP_IDENTITY_REQ: supports wakeup on EAP identity request
+ * @WIPHY_WOWLAN_4WAY_HANDSHAKE: supports wakeup on 4-way handshake failure
+ * @WIPHY_WOWLAN_RFKILL_RELEASE: supports wakeup on RF-kill release
  */
 enum wiphy_wowlan_support_flags {
-	WIPHY_WOWLAN_ANY	= BIT(0),
-	WIPHY_WOWLAN_MAGIC_PKT	= BIT(1),
-	WIPHY_WOWLAN_DISCONNECT	= BIT(2),
+	WIPHY_WOWLAN_ANY		= BIT(0),
+	WIPHY_WOWLAN_MAGIC_PKT		= BIT(1),
+	WIPHY_WOWLAN_DISCONNECT		= BIT(2),
+	WIPHY_WOWLAN_SUPPORTS_GTK_REKEY	= BIT(3),
+	WIPHY_WOWLAN_GTK_REKEY_FAILURE	= BIT(4),
+	WIPHY_WOWLAN_EAP_IDENTITY_REQ	= BIT(5),
+	WIPHY_WOWLAN_4WAY_HANDSHAKE	= BIT(6),
+	WIPHY_WOWLAN_RFKILL_RELEASE	= BIT(7),
 };
 
 /**
@@ -1699,9 +1853,12 @@ struct wiphy_wowlan_support {
  *	by default for perm_addr. In this case, the mask should be set to
  *	all-zeroes. In this case it is assumed that the device can handle
  *	the same number of arbitrary MAC addresses.
+ * @registered: protects ->resume and ->suspend sysfs callbacks against
+ *	unregister hardware
  * @debugfsdir: debugfs directory used for this wiphy, will be renamed
  *	automatically on wiphy renames
  * @dev: (virtual) struct device for this wiphy
+ * @registered: helps synchronize suspend/resume with wiphy unregister
  * @wext: wireless extension handlers
  * @priv: driver private data (sized according to wiphy_new() parameter)
  * @interface_modes: bitmask of interfaces types valid for this wiphy,
@@ -1716,9 +1873,16 @@ struct wiphy_wowlan_support {
  *	this variable determines its size
  * @max_scan_ssids: maximum number of SSIDs the device can scan for in
  *	any given scan
+ * @max_sched_scan_ssids: maximum number of SSIDs the device can scan
+ *	for in any given scheduled scan
+ * @max_match_sets: maximum number of match sets the device can handle
+ *	when performing a scheduled scan, 0 if filtering is not
+ *	supported.
  * @max_scan_ie_len: maximum length of user-controlled IEs device can
  *	add to probe request frames transmitted during a scan, must not
  *	include fixed IEs like supported rates
+ * @max_sched_scan_ie_len: same as max_scan_ie_len, but for scheduled
+ *	scans
  * @coverage_class: current coverage class
  * @fw_version: firmware version for ethtool reporting
  * @hw_version: hardware version for ethtool reporting
@@ -1770,7 +1934,10 @@ struct wiphy {
 
 	int bss_priv_size;
 	u8 max_scan_ssids;
+	u8 max_sched_scan_ssids;
+	u8 max_match_sets;
 	u16 max_scan_ie_len;
+	u16 max_sched_scan_ie_len;
 
 	int n_cipher_suites;
 	const u32 *cipher_suites;
@@ -1813,6 +1980,9 @@ struct wiphy {
 	/* the item in /sys/class/ieee80211/ points to this,
 	 * you need use set_wiphy_dev() (see below) */
 	struct device dev;
+
+	/* protects ->resume, ->suspend sysfs callbacks against unregister hw */
+	bool registered;
 
 	/* dir in debugfs: ieee80211/<wiphyname> */
 	struct dentry *debugfsdir;
@@ -2179,6 +2349,69 @@ extern int ieee80211_radiotap_iterator_next(
 extern const unsigned char rfc1042_header[6];
 extern const unsigned char bridge_tunnel_header[6];
 
+/* Parsed Information Elements */
+struct ieee802_11_elems {
+	u8 *ie_start;
+	size_t total_len;
+
+	/* pointers to IEs */
+	u8 *ssid;
+	u8 *supp_rates;
+	u8 *fh_params;
+	u8 *ds_params;
+	u8 *cf_params;
+	struct ieee80211_tim_ie *tim;
+	u8 *ibss_params;
+	u8 *challenge;
+	u8 *wpa;
+	u8 *rsn;
+	u8 *erp_info;
+	u8 *ext_supp_rates;
+	u8 *wmm_info;
+	u8 *wmm_param;
+	struct ieee80211_ht_cap *ht_cap_elem;
+	struct ieee80211_ht_info *ht_info_elem;
+	struct ieee80211_meshconf_ie *mesh_config;
+	u8 *mesh_id;
+	u8 *peering;
+	u8 *preq;
+	u8 *prep;
+	u8 *perr;
+	struct ieee80211_rann_ie *rann;
+	u8 *ch_switch_elem;
+	u8 *country_elem;
+	u8 *pwr_constr_elem;
+	u8 *quiet_elem;	/* first quite element */
+	u8 *timeout_int;
+
+	/* length of them, respectively */
+	u8 ssid_len;
+	u8 supp_rates_len;
+	u8 fh_params_len;
+	u8 ds_params_len;
+	u8 cf_params_len;
+	u8 tim_len;
+	u8 ibss_params_len;
+	u8 challenge_len;
+	u8 wpa_len;
+	u8 rsn_len;
+	u8 erp_info_len;
+	u8 ext_supp_rates_len;
+	u8 wmm_info_len;
+	u8 wmm_param_len;
+	u8 mesh_id_len;
+	u8 peering_len;
+	u8 preq_len;
+	u8 prep_len;
+	u8 perr_len;
+	u8 ch_switch_elem_len;
+	u8 country_elem_len;
+	u8 pwr_constr_elem_len;
+	u8 quiet_elem_len;
+	u8 num_of_quiet_elem;	/* can be more the one */
+	u8 timeout_int_len;
+};
+
 /**
  * ieee80211_get_hdrlen_from_skb - get header length from data
  *
@@ -2268,6 +2501,24 @@ unsigned int cfg80211_classify8021d(struct sk_buff *skb);
 const u8 *cfg80211_find_ie(u8 eid, const u8 *ies, int len);
 
 /**
+ * cfg80211_find_vendor_ie - find vendor specific information element in data
+ *
+ * @oui: vendor OUI
+ * @oui_type: vendor-specific OUI type
+ * @ies: data consisting of IEs
+ * @len: length of data
+ *
+ * This function will return %NULL if the vendor specific element ID
+ * could not be found or if the element is invalid (claims to be
+ * longer than the given data), or a pointer to the first byte
+ * of the requested element, that is the byte containing the
+ * element ID. There are no checks on the element length
+ * other than having to fit into the given data.
+ */
+const u8 *cfg80211_find_vendor_ie(unsigned int oui, u8 oui_type,
+				  const u8 *ies, int len);
+
+/**
  * DOC: Regulatory enforcement infrastructure
  *
  * TODO
@@ -2340,113 +2591,6 @@ extern int freq_reg_info(struct wiphy *wiphy,
 			 u32 center_freq,
 			 u32 desired_bw_khz,
 			 const struct ieee80211_reg_rule **reg_rule);
-
-/*
- * Temporary wext handlers & helper functions
- *
- * In the future cfg80211 will simply assign the entire wext handler
- * structure to netdevs it manages, but we're not there yet.
- */
-int cfg80211_wext_giwname(struct net_device *dev,
-			  struct iw_request_info *info,
-			  char *name, char *extra);
-int cfg80211_wext_siwmode(struct net_device *dev, struct iw_request_info *info,
-			  u32 *mode, char *extra);
-int cfg80211_wext_giwmode(struct net_device *dev, struct iw_request_info *info,
-			  u32 *mode, char *extra);
-int cfg80211_wext_siwscan(struct net_device *dev,
-			  struct iw_request_info *info,
-			  union iwreq_data *wrqu, char *extra);
-int cfg80211_wext_giwscan(struct net_device *dev,
-			  struct iw_request_info *info,
-			  struct iw_point *data, char *extra);
-int cfg80211_wext_siwmlme(struct net_device *dev,
-			  struct iw_request_info *info,
-			  struct iw_point *data, char *extra);
-int cfg80211_wext_giwrange(struct net_device *dev,
-			   struct iw_request_info *info,
-			   struct iw_point *data, char *extra);
-int cfg80211_wext_siwgenie(struct net_device *dev,
-			   struct iw_request_info *info,
-			   struct iw_point *data, char *extra);
-int cfg80211_wext_siwauth(struct net_device *dev,
-			  struct iw_request_info *info,
-			  struct iw_param *data, char *extra);
-int cfg80211_wext_giwauth(struct net_device *dev,
-			  struct iw_request_info *info,
-			  struct iw_param *data, char *extra);
-
-int cfg80211_wext_siwfreq(struct net_device *dev,
-			  struct iw_request_info *info,
-			  struct iw_freq *freq, char *extra);
-int cfg80211_wext_giwfreq(struct net_device *dev,
-			  struct iw_request_info *info,
-			  struct iw_freq *freq, char *extra);
-int cfg80211_wext_siwessid(struct net_device *dev,
-			   struct iw_request_info *info,
-			   struct iw_point *data, char *ssid);
-int cfg80211_wext_giwessid(struct net_device *dev,
-			   struct iw_request_info *info,
-			   struct iw_point *data, char *ssid);
-int cfg80211_wext_siwrate(struct net_device *dev,
-			  struct iw_request_info *info,
-			  struct iw_param *rate, char *extra);
-int cfg80211_wext_giwrate(struct net_device *dev,
-			  struct iw_request_info *info,
-			  struct iw_param *rate, char *extra);
-
-int cfg80211_wext_siwrts(struct net_device *dev,
-			 struct iw_request_info *info,
-			 struct iw_param *rts, char *extra);
-int cfg80211_wext_giwrts(struct net_device *dev,
-			 struct iw_request_info *info,
-			 struct iw_param *rts, char *extra);
-int cfg80211_wext_siwfrag(struct net_device *dev,
-			  struct iw_request_info *info,
-			  struct iw_param *frag, char *extra);
-int cfg80211_wext_giwfrag(struct net_device *dev,
-			  struct iw_request_info *info,
-			  struct iw_param *frag, char *extra);
-int cfg80211_wext_siwretry(struct net_device *dev,
-			   struct iw_request_info *info,
-			   struct iw_param *retry, char *extra);
-int cfg80211_wext_giwretry(struct net_device *dev,
-			   struct iw_request_info *info,
-			   struct iw_param *retry, char *extra);
-int cfg80211_wext_siwencodeext(struct net_device *dev,
-			       struct iw_request_info *info,
-			       struct iw_point *erq, char *extra);
-int cfg80211_wext_siwencode(struct net_device *dev,
-			    struct iw_request_info *info,
-			    struct iw_point *erq, char *keybuf);
-int cfg80211_wext_giwencode(struct net_device *dev,
-			    struct iw_request_info *info,
-			    struct iw_point *erq, char *keybuf);
-int cfg80211_wext_siwtxpower(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *data, char *keybuf);
-int cfg80211_wext_giwtxpower(struct net_device *dev,
-			     struct iw_request_info *info,
-			     union iwreq_data *data, char *keybuf);
-struct iw_statistics *cfg80211_wireless_stats(struct net_device *dev);
-
-int cfg80211_wext_siwpower(struct net_device *dev,
-			   struct iw_request_info *info,
-			   struct iw_param *wrq, char *extra);
-int cfg80211_wext_giwpower(struct net_device *dev,
-			   struct iw_request_info *info,
-			   struct iw_param *wrq, char *extra);
-
-int cfg80211_wext_siwap(struct net_device *dev,
-			struct iw_request_info *info,
-			struct sockaddr *ap_addr, char *extra);
-int cfg80211_wext_giwap(struct net_device *dev,
-			struct iw_request_info *info,
-			struct sockaddr *ap_addr, char *extra);
-
-int cfg80211_wext_siwpmksa(struct net_device *dev,
-			   struct iw_request_info *info,
-			   struct iw_point *data, char *extra);
 
 /*
  * callbacks for asynchronous cfg80211 methods, notification
@@ -2849,8 +2993,10 @@ struct sk_buff *cfg80211_testmode_alloc_event_skb(struct wiphy *wiphy,
 void cfg80211_testmode_event(struct sk_buff *skb, gfp_t gfp);
 
 #define CFG80211_TESTMODE_CMD(cmd)	.testmode_cmd = (cmd),
+#define CFG80211_TESTMODE_DUMP(cmd)	.testmode_dump = (cmd),
 #else
 #define CFG80211_TESTMODE_CMD(cmd)
+#define CFG80211_TESTMODE_DUMP(cmd)
 #endif
 
 /**
@@ -3021,6 +3167,27 @@ void cfg80211_cqm_rssi_notify(struct net_device *dev,
  */
 void cfg80211_cqm_pktloss_notify(struct net_device *dev,
 				 const u8 *peer, u32 num_packets, gfp_t gfp);
+
+/**
+ * cfg80211_gtk_rekey_notify - notify userspace about driver rekeying
+ * @dev: network device
+ * @bssid: BSSID of AP (to avoid races)
+ * @replay_ctr: new replay counter
+ * @gfp: allocation flags
+ */
+void cfg80211_gtk_rekey_notify(struct net_device *dev, const u8 *bssid,
+			       const u8 *replay_ctr, gfp_t gfp);
+
+/**
+ * cfg80211_pmksa_candidate_notify - notify about PMKSA caching candidate
+ * @dev: network device
+ * @index: candidate index (the smaller the index, the higher the priority)
+ * @bssid: BSSID of AP
+ * @preauth: Whether AP advertises support for RSN pre-authentication
+ * @gfp: allocation flags
+ */
+void cfg80211_pmksa_candidate_notify(struct net_device *dev, int index,
+				     const u8 *bssid, bool preauth, gfp_t gfp);
 
 /* Logging, debugging and troubleshooting/diagnostic helpers. */
 

@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include "hda_codec.h"
 #include "hda_local.h"
@@ -240,7 +241,8 @@ static int ca0110_build_controls(struct hda_codec *codec)
 	}
 
 	if (spec->dig_out) {
-		err = snd_hda_create_spdif_out_ctls(codec, spec->dig_out);
+		err = snd_hda_create_spdif_out_ctls(codec, spec->dig_out,
+						    spec->dig_out);
 		if (err < 0)
 			return err;
 		err = snd_hda_create_spdif_share_sw(codec, &spec->multiout);

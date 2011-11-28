@@ -532,12 +532,21 @@ minstrel_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
 	mp->hw = hw;
 	mp->update_interval = 100;
 
+#ifdef CONFIG_MAC80211_DEBUGFS
+	mp->fixed_rate_idx = (u32) -1;
+	mp->dbg_fixed_rate = debugfs_create_u32("fixed_rate_idx",
+			S_IRUGO | S_IWUGO, debugfsdir, &mp->fixed_rate_idx);
+#endif
+
 	return mp;
 }
 
 static void
 minstrel_free(void *priv)
 {
+#ifdef CONFIG_MAC80211_DEBUGFS
+	debugfs_remove(((struct minstrel_priv *)priv)->dbg_fixed_rate);
+#endif
 	kfree(priv);
 }
 

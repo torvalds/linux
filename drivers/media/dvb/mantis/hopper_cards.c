@@ -65,7 +65,7 @@ static int devs;
 
 static irqreturn_t hopper_irq_handler(int irq, void *dev_id)
 {
-	u32 stat = 0, mask = 0, lstat = 0, mstat = 0;
+	u32 stat = 0, mask = 0, lstat = 0;
 	u32 rst_stat = 0, rst_mask = 0;
 
 	struct mantis_pci *mantis;
@@ -80,7 +80,7 @@ static irqreturn_t hopper_irq_handler(int irq, void *dev_id)
 
 	stat = mmread(MANTIS_INT_STAT);
 	mask = mmread(MANTIS_INT_MASK);
-	mstat = lstat = stat & ~MANTIS_INT_RISCSTAT;
+	lstat = stat & ~MANTIS_INT_RISCSTAT;
 	if (!(stat & mask))
 		return IRQ_NONE;
 
@@ -126,7 +126,7 @@ static irqreturn_t hopper_irq_handler(int irq, void *dev_id)
 	}
 	if (stat & MANTIS_INT_RISCI) {
 		dprintk(MANTIS_DEBUG, 0, "<%s>", label[8]);
-		mantis->finished_block = (stat & MANTIS_INT_RISCSTAT) >> 28;
+		mantis->busy_block = (stat & MANTIS_INT_RISCSTAT) >> 28;
 		tasklet_schedule(&mantis->tasklet);
 	}
 	if (stat & MANTIS_INT_I2CDONE) {

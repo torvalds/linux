@@ -52,7 +52,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/gameport.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <sound/core.h>
@@ -1514,7 +1514,7 @@ static int es1938_resume(struct pci_dev *pci)
 	}
 
 	if (request_irq(pci->irq, snd_es1938_interrupt,
-			IRQF_SHARED, "ES1938", chip)) {
+			IRQF_SHARED, KBUILD_MODNAME, chip)) {
 		printk(KERN_ERR "es1938: unable to grab IRQ %d, "
 		       "disabling device\n", pci->irq);
 		snd_card_disconnect(card);
@@ -1636,7 +1636,7 @@ static int __devinit snd_es1938_create(struct snd_card *card,
 	chip->mpu_port = pci_resource_start(pci, 3);
 	chip->game_port = pci_resource_start(pci, 4);
 	if (request_irq(pci->irq, snd_es1938_interrupt, IRQF_SHARED,
-			"ES1938", chip)) {
+			KBUILD_MODNAME, chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_es1938_free(chip);
 		return -EBUSY;
@@ -1854,8 +1854,9 @@ static int __devinit snd_es1938_probe(struct pci_dev *pci,
 		}
 	}
 	if (snd_mpu401_uart_new(card, 0, MPU401_HW_MPU401,
-				chip->mpu_port, MPU401_INFO_INTEGRATED,
-				chip->irq, 0, &chip->rmidi) < 0) {
+				chip->mpu_port,
+				MPU401_INFO_INTEGRATED | MPU401_INFO_IRQ_HOOK,
+				-1, &chip->rmidi) < 0) {
 		printk(KERN_ERR "es1938: unable to initialize MPU-401\n");
 	} else {
 		// this line is vital for MIDI interrupt handling on ess-solo1
@@ -1882,7 +1883,7 @@ static void __devexit snd_es1938_remove(struct pci_dev *pci)
 }
 
 static struct pci_driver driver = {
-	.name = "ESS ES1938 (Solo-1)",
+	.name = KBUILD_MODNAME,
 	.id_table = snd_es1938_ids,
 	.probe = snd_es1938_probe,
 	.remove = __devexit_p(snd_es1938_remove),

@@ -63,9 +63,10 @@
 #include <linux/spinlock.h>
 #include <linux/sysrq.h>
 #include <linux/tty.h>
+#include <linux/tty_flip.h>
 #include <linux/types.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/system.h>
 
 #include <asm/dec/interrupts.h>

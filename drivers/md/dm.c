@@ -25,6 +25,16 @@
 
 #define DM_MSG_PREFIX "core"
 
+#ifdef CONFIG_PRINTK
+/*
+ * ratelimit state to be used in DMXXX_LIMIT().
+ */
+DEFINE_RATELIMIT_STATE(dm_ratelimit_state,
+		       DEFAULT_RATELIMIT_INTERVAL,
+		       DEFAULT_RATELIMIT_BURST);
+EXPORT_SYMBOL(dm_ratelimit_state);
+#endif
+
 /*
  * Cookies are numeric values sent with CHANGE and REMOVE
  * uevents while resuming, removing or renaming the device.
@@ -36,6 +46,8 @@ static const char *_name = DM_NAME;
 
 static unsigned int major = 0;
 static unsigned int _major = 0;
+
+static DEFINE_IDR(_minor_idr);
 
 static DEFINE_SPINLOCK(_minor_lock);
 /*
@@ -109,6 +121,7 @@ EXPORT_SYMBOL_GPL(dm_get_rq_mapinfo);
 #define DMF_FREEING 3
 #define DMF_DELETING 4
 #define DMF_NOFLUSH_SUSPENDING 5
+#define DMF_MERGE_IS_OPTIONAL 6
 
 /*
  * Work processed by per-device workqueue.
@@ -126,6 +139,8 @@ struct mapped_device {
 	unsigned type;
 	/* Protect queue and type against concurrent access. */
 	struct mutex type_lock;
+
+	struct target_type *immutable_target_type;
 
 	struct gendisk *disk;
 	char name[16];
@@ -176,9 +191,6 @@ struct mapped_device {
 
 	/* forced geometry settings */
 	struct hd_geometry geometry;
-
-	/* For saving the address of __make_request for request based dm */
-	make_request_fn *saved_make_request_fn;
 
 	/* sysfs handle */
 	struct kobject kobj;
@@ -313,6 +325,12 @@ static void __exit dm_exit(void)
 
 	while (i--)
 		_exits[i]();
+
+	/*
+	 * Should be empty by this point.
+	 */
+	idr_remove_all(&_minor_idr);
+	idr_destroy(&_minor_idr);
 }
 
 /*
@@ -1171,7 +1189,8 @@ static int __clone_and_map_discard(struct clone_info *ci)
 
 		/*
 		 * Even though the device advertised discard support,
-		 * reconfiguration might have changed that since the
+		 * that does not mean every target supports it, and
+		 * reconfiguration might also have changed that since the
 		 * check was performed.
 		 */
 		if (!ti->num_discard_requests)
@@ -1381,7 +1400,7 @@ out:
  * The request function that just remaps the bio built up by
  * dm_merge_bvec.
  */
-static int _dm_request(struct request_queue *q, struct bio *bio)
+static void _dm_request(struct request_queue *q, struct bio *bio)
 {
 	int rw = bio_data_dir(bio);
 	struct mapped_device *md = q->queuedata;
@@ -1402,19 +1421,12 @@ static int _dm_request(struct request_queue *q, struct bio *bio)
 			queue_io(md, bio);
 		else
 			bio_io_error(bio);
-		return 0;
+		return;
 	}
 
 	__split_and_process_bio(md, bio);
 	up_read(&md->io_lock);
-	return 0;
-}
-
-static int dm_make_request(struct request_queue *q, struct bio *bio)
-{
-	struct mapped_device *md = q->queuedata;
-
-	return md->saved_make_request_fn(q, bio); /* call __make_request() */
+	return;
 }
 
 static int dm_request_based(struct mapped_device *md)
@@ -1422,14 +1434,14 @@ static int dm_request_based(struct mapped_device *md)
 	return blk_queue_stackable(md->queue);
 }
 
-static int dm_request(struct request_queue *q, struct bio *bio)
+static void dm_request(struct request_queue *q, struct bio *bio)
 {
 	struct mapped_device *md = q->queuedata;
 
 	if (dm_request_based(md))
-		return dm_make_request(q, bio);
-
-	return _dm_request(q, bio);
+		blk_queue_bio(q, bio);
+	else
+		_dm_request(q, bio);
 }
 
 void dm_dispatch_request(struct request *rq)
@@ -1705,8 +1717,6 @@ static int dm_any_congested(void *congested_data, int bdi_bits)
 /*-----------------------------------------------------------------
  * An IDR is used to keep track of allocated minor numbers.
  *---------------------------------------------------------------*/
-static DEFINE_IDR(_minor_idr);
-
 static void free_minor(int minor)
 {
 	spin_lock(&_minor_lock);
@@ -1800,7 +1810,6 @@ static void dm_init_md_queue(struct mapped_device *md)
 	blk_queue_make_request(md->queue, dm_request);
 	blk_queue_bounce_limit(md->queue, BLK_BOUNCE_ANY);
 	blk_queue_merge_bvec(md->queue, dm_merge_bvec);
-	blk_queue_flush(md->queue, REQ_FLUSH | REQ_FUA);
 }
 
 /*
@@ -1986,6 +1995,59 @@ static void __set_size(struct mapped_device *md, sector_t size)
 }
 
 /*
+ * Return 1 if the queue has a compulsory merge_bvec_fn function.
+ *
+ * If this function returns 0, then the device is either a non-dm
+ * device without a merge_bvec_fn, or it is a dm device that is
+ * able to split any bios it receives that are too big.
+ */
+int dm_queue_merge_is_compulsory(struct request_queue *q)
+{
+	struct mapped_device *dev_md;
+
+	if (!q->merge_bvec_fn)
+		return 0;
+
+	if (q->make_request_fn == dm_request) {
+		dev_md = q->queuedata;
+		if (test_bit(DMF_MERGE_IS_OPTIONAL, &dev_md->flags))
+			return 0;
+	}
+
+	return 1;
+}
+
+static int dm_device_merge_is_compulsory(struct dm_target *ti,
+					 struct dm_dev *dev, sector_t start,
+					 sector_t len, void *data)
+{
+	struct block_device *bdev = dev->bdev;
+	struct request_queue *q = bdev_get_queue(bdev);
+
+	return dm_queue_merge_is_compulsory(q);
+}
+
+/*
+ * Return 1 if it is acceptable to ignore merge_bvec_fn based
+ * on the properties of the underlying devices.
+ */
+static int dm_table_merge_is_optional(struct dm_table *table)
+{
+	unsigned i = 0;
+	struct dm_target *ti;
+
+	while (i < dm_table_get_num_targets(table)) {
+		ti = dm_table_get_target(table, i++);
+
+		if (ti->type->iterate_devices &&
+		    ti->type->iterate_devices(ti, dm_device_merge_is_compulsory, NULL))
+			return 0;
+	}
+
+	return 1;
+}
+
+/*
  * Returns old map, which caller must destroy.
  */
 static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
@@ -1995,6 +2057,7 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
 	struct request_queue *q = md->queue;
 	sector_t size;
 	unsigned long flags;
+	int merge_is_optional;
 
 	size = dm_table_get_size(t);
 
@@ -2020,10 +2083,18 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
 
 	__bind_mempools(md, t);
 
+	merge_is_optional = dm_table_merge_is_optional(t);
+
 	write_lock_irqsave(&md->map_lock, flags);
 	old_map = md->map;
 	md->map = t;
+	md->immutable_target_type = dm_table_get_immutable_target_type(t);
+
 	dm_table_set_restrictions(t, q, limits);
+	if (merge_is_optional)
+		set_bit(DMF_MERGE_IS_OPTIONAL, &md->flags);
+	else
+		clear_bit(DMF_MERGE_IS_OPTIONAL, &md->flags);
 	write_unlock_irqrestore(&md->map_lock, flags);
 
 	return old_map;
@@ -2089,6 +2160,11 @@ unsigned dm_get_md_type(struct mapped_device *md)
 	return md->type;
 }
 
+struct target_type *dm_get_immutable_target_type(struct mapped_device *md)
+{
+	return md->immutable_target_type;
+}
+
 /*
  * Fully initialize a request-based queue (->elevator, ->request_fn, etc).
  */
@@ -2105,7 +2181,6 @@ static int dm_init_request_based_queue(struct mapped_device *md)
 		return 0;
 
 	md->queue = q;
-	md->saved_make_request_fn = md->queue->make_request_fn;
 	dm_init_md_queue(md);
 	blk_queue_softirq_done(md->queue, dm_softirq_done);
 	blk_queue_prep_rq(md->queue, dm_prep_fn);
@@ -2164,6 +2239,7 @@ struct mapped_device *dm_get_md(dev_t dev)
 
 	return md;
 }
+EXPORT_SYMBOL_GPL(dm_get_md);
 
 void *dm_get_mdptr(struct mapped_device *md)
 {
@@ -2249,7 +2325,6 @@ static int dm_wait_for_completion(struct mapped_device *md, int interruptible)
 	while (1) {
 		set_current_state(interruptible);
 
-		smp_mb();
 		if (!md_in_flight(md))
 			break;
 

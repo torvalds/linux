@@ -17,7 +17,7 @@
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/smp-ops.h>
 
 extern int smp_num_siblings;

@@ -105,6 +105,7 @@ static intercept_handler_t instruction_handlers[256] = {
 	[0xae] = kvm_s390_handle_sigp,
 	[0xb2] = kvm_s390_handle_b2,
 	[0xb7] = handle_lctl,
+	[0xe5] = kvm_s390_handle_e5,
 	[0xeb] = handle_lctlg,
 };
 
@@ -131,7 +132,6 @@ static int handle_stop(struct kvm_vcpu *vcpu)
 	int rc = 0;
 
 	vcpu->stat.exit_stop_request++;
-	atomic_clear_mask(CPUSTAT_RUNNING, &vcpu->arch.sie_block->cpuflags);
 	spin_lock_bh(&vcpu->arch.local_int.lock);
 	if (vcpu->arch.local_int.action_bits & ACTION_STORE_ON_STOP) {
 		vcpu->arch.local_int.action_bits &= ~ACTION_STORE_ON_STOP;
@@ -148,6 +148,8 @@ static int handle_stop(struct kvm_vcpu *vcpu)
 	}
 
 	if (vcpu->arch.local_int.action_bits & ACTION_STOP_ON_STOP) {
+		atomic_set_mask(CPUSTAT_STOPPED,
+				&vcpu->arch.sie_block->cpuflags);
 		vcpu->arch.local_int.action_bits &= ~ACTION_STOP_ON_STOP;
 		VCPU_EVENT(vcpu, 3, "%s", "cpu stopped");
 		rc = -EOPNOTSUPP;
@@ -159,22 +161,42 @@ static int handle_stop(struct kvm_vcpu *vcpu)
 
 static int handle_validity(struct kvm_vcpu *vcpu)
 {
+	unsigned long vmaddr;
 	int viwhy = vcpu->arch.sie_block->ipb >> 16;
 	int rc;
 
 	vcpu->stat.exit_validity++;
-	if ((viwhy == 0x37) && (vcpu->arch.sie_block->prefix
-		<= kvm_s390_vcpu_get_memsize(vcpu) - 2*PAGE_SIZE)) {
-		rc = fault_in_pages_writeable((char __user *)
-			 vcpu->arch.sie_block->gmsor +
-			 vcpu->arch.sie_block->prefix,
-			 2*PAGE_SIZE);
-		if (rc)
+	if (viwhy == 0x37) {
+		vmaddr = gmap_fault(vcpu->arch.sie_block->prefix,
+				    vcpu->arch.gmap);
+		if (IS_ERR_VALUE(vmaddr)) {
+			rc = -EOPNOTSUPP;
+			goto out;
+		}
+		rc = fault_in_pages_writeable((char __user *) vmaddr,
+			 PAGE_SIZE);
+		if (rc) {
 			/* user will receive sigsegv, exit to user */
 			rc = -EOPNOTSUPP;
+			goto out;
+		}
+		vmaddr = gmap_fault(vcpu->arch.sie_block->prefix + PAGE_SIZE,
+				    vcpu->arch.gmap);
+		if (IS_ERR_VALUE(vmaddr)) {
+			rc = -EOPNOTSUPP;
+			goto out;
+		}
+		rc = fault_in_pages_writeable((char __user *) vmaddr,
+			 PAGE_SIZE);
+		if (rc) {
+			/* user will receive sigsegv, exit to user */
+			rc = -EOPNOTSUPP;
+			goto out;
+		}
 	} else
 		rc = -EOPNOTSUPP;
 
+out:
 	if (rc)
 		VCPU_EVENT(vcpu, 2, "unhandled validity intercept code %d",
 			   viwhy);

@@ -25,12 +25,12 @@
 #define IEEE80211_H
 #include <linux/if_ether.h> /* ETH_ALEN */
 #include <linux/kernel.h>   /* ARRAY_SIZE */
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/jiffies.h>
 #include <linux/timer.h>
 #include <linux/sched.h>
 #include <linux/semaphore.h>
+#include <linux/interrupt.h>
 
 #include <linux/delay.h>
 #include <linux/wireless.h>
@@ -2416,8 +2416,8 @@ extern int ieee80211_wx_set_mlme(struct ieee80211_device *ieee,
 extern int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len);
 
 /* ieee80211_softmac.c */
-extern short ieee80211_is_54g(struct ieee80211_network net);
-extern short ieee80211_is_shortslot(struct ieee80211_network net);
+extern short ieee80211_is_54g(const struct ieee80211_network *net);
+extern short ieee80211_is_shortslot(const struct ieee80211_network *net);
 extern int ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 			struct ieee80211_rx_stats *rx_stats, u16 type,
 			u16 stype);

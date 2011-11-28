@@ -313,6 +313,7 @@ config PATA_AMD
 
 config PATA_ARASAN_CF
 	tristate "ARASAN CompactFlash PATA Controller Support"
+	depends on DMADEVICES
 	select DMA_ENGINE
 	help
 	  Say Y here to support the ARASAN CompactFlash PATA controller
@@ -466,6 +467,15 @@ config PATA_ICSIDE
 	  On Acorn systems, say Y here if you wish to use the ICS PATA
 	  interface card.  This is not required for ICS partition support.
 	  If you are unsure, say N to this.
+
+config PATA_IMX
+	tristate "PATA support for Freescale iMX"
+	depends on ARCH_MXC
+	help
+	  This option enables support for the PATA host available on Freescale
+          iMX SoCs.
+
+	  If unsure, say N.
 
 config PATA_IT8213
 	tristate "IT8213 PATA support (Experimental)"
@@ -810,7 +820,7 @@ config PATA_PLATFORM
 
 config PATA_OF_PLATFORM
 	tristate "OpenFirmware platform device PATA support"
-	depends on PATA_PLATFORM && PPC_OF
+	depends on PATA_PLATFORM && OF
 	help
 	  This option enables support for generic directly connected ATA
 	  devices commonly found on embedded systems with OpenFirmware
@@ -821,6 +831,7 @@ config PATA_OF_PLATFORM
 config PATA_QDI
 	tristate "QDI VLB PATA support"
 	depends on ISA
+	select PATA_LEGACY
 	help
 	  Support for QDI 6500 and 6580 PATA controllers on VESA local bus.
 

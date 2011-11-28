@@ -18,6 +18,7 @@
 #ifndef R8180H
 #define R8180H
 
+#include <linux/interrupt.h>
 
 #define RTL8180_MODULE_NAME "r8180"
 #define DMESG(x,a...) printk(KERN_INFO RTL8180_MODULE_NAME ": " x "\n", ## a)

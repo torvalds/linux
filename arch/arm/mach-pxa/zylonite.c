@@ -24,7 +24,7 @@
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <mach/hardware.h>
+#include <mach/pxa3xx.h>
 #include <mach/audio.h>
 #include <mach/pxafb.h>
 #include <mach/zylonite.h>
@@ -366,8 +366,9 @@ static struct mtd_partition zylonite_nand_partitions[] = {
 
 static struct pxa3xx_nand_platform_data zylonite_nand_info = {
 	.enable_arbiter	= 1,
-	.parts		= zylonite_nand_partitions,
-	.nr_parts	= ARRAY_SIZE(zylonite_nand_partitions),
+	.num_cs		= 1,
+	.parts[0]	= zylonite_nand_partitions,
+	.nr_parts[0]	= ARRAY_SIZE(zylonite_nand_partitions),
 };
 
 static void __init zylonite_init_nand(void)
@@ -422,10 +423,11 @@ static void __init zylonite_init(void)
 }
 
 MACHINE_START(ZYLONITE, "PXA3xx Platform Development Kit (aka Zylonite)")
-	.boot_params	= 0xa0000100,
+	.atag_offset	= 0x100,
 	.map_io		= pxa3xx_map_io,
 	.nr_irqs	= ZYLONITE_NR_IRQS,
 	.init_irq	= pxa3xx_init_irq,
+	.handle_irq	= pxa3xx_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= zylonite_init,
 MACHINE_END

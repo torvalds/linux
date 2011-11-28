@@ -40,7 +40,6 @@ struct max98095_cdata {
 
 struct max98095_priv {
 	enum max98095_type devtype;
-	void *control_data;
 	struct max98095_pdata *pdata;
 	unsigned int sysclk;
 	struct max98095_cdata dai[3];
@@ -618,14 +617,13 @@ static int max98095_volatile(struct snd_soc_codec *codec, unsigned int reg)
 static int max98095_hw_write(struct snd_soc_codec *codec, unsigned int reg,
 			     unsigned int value)
 {
-	u8 data[2];
+	int ret;
 
-	data[0] = reg;
-	data[1] = value;
-	if (codec->hw_write(codec->control_data, data, 2) == 2)
-		return 0;
-	else
-		return -EIO;
+	codec->cache_bypass = 1;
+	ret = snd_soc_write(codec, reg, value);
+	codec->cache_bypass = 0;
+
+	return ret ? -EIO : 0;
 }
 
 /*
@@ -1517,8 +1515,6 @@ static int max98095_dai_set_sysclk(struct snd_soc_dai *dai,
 	if (freq == max98095->sysclk)
 		return 0;
 
-	max98095->sysclk = freq; /* remember current sysclk */
-
 	/* Setup clocks for slave mode, and using the PLL
 	 * PSCLK = 0x01 (when master clk is 10MHz to 20MHz)
 	 *         0x02 (when master clk is 20MHz to 40MHz)..
@@ -1994,12 +1990,19 @@ static void max98095_handle_eq_pdata(struct snd_soc_codec *codec)
 		dev_err(codec->dev, "Failed to add EQ control: %d\n", ret);
 }
 
-static int max98095_get_bq_channel(const char *name)
+static const char *bq_mode_name[] = {"Biquad1 Mode", "Biquad2 Mode"};
+
+static int max98095_get_bq_channel(struct snd_soc_codec *codec,
+				   const char *name)
 {
-	if (strcmp(name, "Biquad1 Mode") == 0)
-		return 0;
-	if (strcmp(name, "Biquad2 Mode") == 0)
-		return 1;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(bq_mode_name); i++)
+		if (strcmp(name, bq_mode_name[i]) == 0)
+			return i;
+
+	/* Shouldn't happen */
+	dev_err(codec->dev, "Bad biquad channel name '%s'\n", name);
 	return -EINVAL;
 }
 
@@ -2009,14 +2012,15 @@ static int max98095_put_bq_enum(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
 	struct max98095_pdata *pdata = max98095->pdata;
-	int channel = max98095_get_bq_channel(kcontrol->id.name);
+	int channel = max98095_get_bq_channel(codec, kcontrol->id.name);
 	struct max98095_cdata *cdata;
 	int sel = ucontrol->value.integer.value[0];
 	struct max98095_biquad_cfg *coef_set;
 	int fs, best, best_val, i;
 	int regmask, regsave;
 
-	BUG_ON(channel > 1);
+	if (channel < 0)
+		return channel;
 
 	if (!pdata || !max98095->bq_textcnt)
 		return 0;
@@ -2068,8 +2072,11 @@ static int max98095_get_bq_enum(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct max98095_priv *max98095 = snd_soc_codec_get_drvdata(codec);
-	int channel = max98095_get_bq_channel(kcontrol->id.name);
+	int channel = max98095_get_bq_channel(codec, kcontrol->id.name);
 	struct max98095_cdata *cdata;
+
+	if (channel < 0)
+		return channel;
 
 	cdata = &max98095->dai[channel];
 	ucontrol->value.enumerated.item[0] = cdata->bq_sel;
@@ -2088,15 +2095,16 @@ static void max98095_handle_bq_pdata(struct snd_soc_codec *codec)
 	int ret;
 
 	struct snd_kcontrol_new controls[] = {
-		SOC_ENUM_EXT("Biquad1 Mode",
+		SOC_ENUM_EXT((char *)bq_mode_name[0],
 			max98095->bq_enum,
 			max98095_get_bq_enum,
 			max98095_put_bq_enum),
-		SOC_ENUM_EXT("Biquad2 Mode",
+		SOC_ENUM_EXT((char *)bq_mode_name[1],
 			max98095->bq_enum,
 			max98095_get_bq_enum,
 			max98095_put_bq_enum),
 	};
+	BUILD_BUG_ON(ARRAY_SIZE(controls) != ARRAY_SIZE(bq_mode_name));
 
 	cfg = pdata->bq_cfg;
 	cfgcnt = pdata->bq_cfgcnt;
@@ -2261,11 +2269,11 @@ static int max98095_probe(struct snd_soc_codec *codec)
 
 	ret = snd_soc_read(codec, M98095_0FF_REV_ID);
 	if (ret < 0) {
-		dev_err(codec->dev, "Failed to read device revision: %d\n",
+		dev_err(codec->dev, "Failure reading hardware revision: %d\n",
 			ret);
 		goto err_access;
 	}
-	dev_info(codec->dev, "revision %c\n", ret + 'A');
+	dev_info(codec->dev, "Hardware revision: %c\n", ret - 0x40 + 'A');
 
 	snd_soc_write(codec, M98095_097_PWR_SYS, M98095_PWRSV);
 
@@ -2339,11 +2347,10 @@ static int max98095_i2c_probe(struct i2c_client *i2c,
 
 	max98095->devtype = id->driver_data;
 	i2c_set_clientdata(i2c, max98095);
-	max98095->control_data = i2c;
 	max98095->pdata = i2c->dev.platform_data;
 
-	ret = snd_soc_register_codec(&i2c->dev,
-			&soc_codec_dev_max98095, &max98095_dai[0], 3);
+	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_max98095,
+				     max98095_dai, ARRAY_SIZE(max98095_dai));
 	if (ret < 0)
 		kfree(max98095);
 	return ret;

@@ -54,7 +54,7 @@
  * @QID_RX: RX queue
  * @QID_OTHER: None of the above (don't use, only present for completeness)
  * @QID_BEACON: Beacon queue (value unspecified, don't send it to device)
- * @QID_ATIM: Atim queue (value unspeficied, don't send it to device)
+ * @QID_ATIM: Atim queue (value unspecified, don't send it to device)
  */
 enum data_queue_qid {
 	QID_AC_VO = 0,
@@ -288,8 +288,8 @@ enum txentry_desc_flags {
  * @signal: PLCP signal.
  * @service: PLCP service.
  * @msc: MCS.
- * @stbc: STBC.
- * @ba_size: BA size.
+ * @stbc: Use Space Time Block Coding (only available for MCS rates < 8).
+ * @ba_size: Size of the recepients RX reorder buffer - 1.
  * @rate_mode: Rate mode (See @enum rate_modulation).
  * @mpdu_density: MDPU density.
  * @retry_limit: Max number of retries.
@@ -321,6 +321,7 @@ struct txentry_desc {
 			u8 ba_size;
 			u8 mpdu_density;
 			enum txop txop;
+			int wcid;
 		} ht;
 	} u;
 
@@ -432,6 +433,7 @@ enum data_queue_flags {
  * @flags: Entry flags, see &enum queue_entry_flags.
  * @status_lock: The mutex for protecting the start/stop/flush
  *	handling on this queue.
+ * @tx_lock: Spinlock to serialize tx operations on this queue.
  * @index_lock: Spinlock to protect index handling. Whenever @index, @index_done or
  *	@index_crypt needs to be changed this lock should be grabbed to prevent
  *	index corruption due to concurrency.
@@ -458,6 +460,7 @@ struct data_queue {
 	unsigned long flags;
 
 	struct mutex status_lock;
+	spinlock_t tx_lock;
 	spinlock_t index_lock;
 
 	unsigned int count;

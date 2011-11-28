@@ -23,6 +23,7 @@ struct ordered_samples {
 	struct sample_queue	*sample_buffer;
 	struct sample_queue	*last_sample;
 	int			sample_buffer_idx;
+	unsigned int		nr_samples;
 };
 
 struct perf_session {
@@ -112,6 +113,7 @@ int perf_session__set_kallsyms_ref_reloc_sym(struct map **maps,
 					     u64 addr);
 
 void mem_bswap_64(void *src, int byte_size);
+void perf_event__attr_swap(struct perf_event_attr *attr);
 
 int perf_session__create_kernel_maps(struct perf_session *self);
 
@@ -161,14 +163,20 @@ static inline int perf_session__parse_sample(struct perf_session *session,
 {
 	return perf_event__parse_sample(event, session->sample_type,
 					session->sample_size,
-					session->sample_id_all, sample);
+					session->sample_id_all, sample,
+					session->header.needs_swap);
 }
 
 struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 					    unsigned int type);
 
-void perf_session__print_symbols(union perf_event *event,
+void perf_session__print_ip(union perf_event *event,
 				 struct perf_sample *sample,
-				 struct perf_session *session);
+				 struct perf_session *session,
+				 int print_sym, int print_dso);
 
+int perf_session__cpu_bitmap(struct perf_session *session,
+			     const char *cpu_list, unsigned long *cpu_bitmap);
+
+void perf_session__fprintf_info(struct perf_session *s, FILE *fp, bool full);
 #endif /* __PERF_SESSION_H */

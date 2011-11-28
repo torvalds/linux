@@ -18,6 +18,7 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/bootmem.h>
+#include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/list.h>
 #include <linux/syscalls.h>
@@ -55,12 +56,12 @@ static int __init pcibios_init(void)
 	ppc_md.phys_mem_access_prot = pci_phys_mem_access_prot;
 
 	if (pci_probe_only)
-		ppc_pci_flags |= PPC_PCI_PROBE_ONLY;
+		pci_add_flags(PCI_PROBE_ONLY);
 
 	/* On ppc64, we always enable PCI domains and we keep domain 0
 	 * backward compatible in /proc for video cards
 	 */
-	ppc_pci_flags |= PPC_PCI_ENABLE_PROC_DOMAINS | PPC_PCI_COMPAT_DOMAIN_0;
+	pci_add_flags(PCI_ENABLE_PROC_DOMAINS | PCI_COMPAT_DOMAIN_0);
 
 	/* Scan all of the recorded PCI controllers.  */
 	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {

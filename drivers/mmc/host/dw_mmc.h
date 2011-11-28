@@ -14,6 +14,8 @@
 #ifndef _DW_MMC_H_
 #define _DW_MMC_H_
 
+#define DW_MMC_240A		0x240a
+
 #define SDMMC_CTRL		0x000
 #define SDMMC_PWREN		0x004
 #define SDMMC_CLKDIV		0x008
@@ -51,7 +53,14 @@
 #define SDMMC_IDINTEN		0x090
 #define SDMMC_DSCADDR		0x094
 #define SDMMC_BUFADDR		0x098
-#define SDMMC_DATA		0x100
+#define SDMMC_DATA(x)		(x)
+
+/*
+ * Data offset is difference according to Version
+ * Lower than 2.40a : data register offest is 0x100
+ */
+#define DATA_OFFSET		0x100
+#define DATA_240A_OFFSET	0x200
 
 /* shift bit field */
 #define _SBF(f, v)		((v) << (f))
@@ -82,7 +91,7 @@
 #define SDMMC_CTYPE_4BIT		BIT(0)
 #define SDMMC_CTYPE_1BIT		0
 /* Interrupt status & mask register defines */
-#define SDMMC_INT_SDIO			BIT(16)
+#define SDMMC_INT_SDIO(n)		BIT(16 + (n))
 #define SDMMC_INT_EBE			BIT(15)
 #define SDMMC_INT_ACD			BIT(14)
 #define SDMMC_INT_SBE			BIT(13)
@@ -118,7 +127,6 @@
 #define SDMMC_CMD_INDX(n)		((n) & 0x1F)
 /* Status register defines */
 #define SDMMC_GET_FCNT(x)		(((x)>>17) & 0x1FF)
-#define SDMMC_FIFO_SZ			32
 /* Internal DMAC interrupt defines */
 #define SDMMC_IDMAC_INT_AI		BIT(9)
 #define SDMMC_IDMAC_INT_NI		BIT(8)
@@ -131,25 +139,27 @@
 #define SDMMC_IDMAC_ENABLE		BIT(7)
 #define SDMMC_IDMAC_FB			BIT(1)
 #define SDMMC_IDMAC_SWRESET		BIT(0)
+/* Version ID register define */
+#define SDMMC_GET_VERID(x)		((x) & 0xFFFF)
 
 /* Register access macros */
 #define mci_readl(dev, reg)			\
-	__raw_readl(dev->regs + SDMMC_##reg)
+	__raw_readl((dev)->regs + SDMMC_##reg)
 #define mci_writel(dev, reg, value)			\
-	__raw_writel((value), dev->regs + SDMMC_##reg)
+	__raw_writel((value), (dev)->regs + SDMMC_##reg)
 
 /* 16-bit FIFO access macros */
 #define mci_readw(dev, reg)			\
-	__raw_readw(dev->regs + SDMMC_##reg)
+	__raw_readw((dev)->regs + SDMMC_##reg)
 #define mci_writew(dev, reg, value)			\
-	__raw_writew((value), dev->regs + SDMMC_##reg)
+	__raw_writew((value), (dev)->regs + SDMMC_##reg)
 
 /* 64-bit FIFO access macros */
 #ifdef readq
 #define mci_readq(dev, reg)			\
-	__raw_readq(dev->regs + SDMMC_##reg)
+	__raw_readq((dev)->regs + SDMMC_##reg)
 #define mci_writeq(dev, reg, value)			\
-	__raw_writeq((value), dev->regs + SDMMC_##reg)
+	__raw_writeq((value), (dev)->regs + SDMMC_##reg)
 #else
 /*
  * Dummy readq implementation for architectures that don't define it.
@@ -160,9 +170,9 @@
  * rest of the code free from ifdefs.
  */
 #define mci_readq(dev, reg)			\
-	(*(volatile u64 __force *)(dev->regs + SDMMC_##reg))
+	(*(volatile u64 __force *)((dev)->regs + SDMMC_##reg))
 #define mci_writeq(dev, reg, value)			\
-	(*(volatile u64 __force *)(dev->regs + SDMMC_##reg) = value)
+	(*(volatile u64 __force *)((dev)->regs + SDMMC_##reg) = (value))
 #endif
 
 #endif /* _DW_MMC_H_ */

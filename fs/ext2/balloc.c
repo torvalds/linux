@@ -421,7 +421,7 @@ static inline int rsv_is_empty(struct ext2_reserve_window *rsv)
 void ext2_init_block_alloc_info(struct inode *inode)
 {
 	struct ext2_inode_info *ei = EXT2_I(inode);
-	struct ext2_block_alloc_info *block_i = ei->i_block_alloc_info;
+	struct ext2_block_alloc_info *block_i;
 	struct super_block *sb = inode->i_sb;
 
 	block_i = kmalloc(sizeof(*block_i), GFP_NOFS);

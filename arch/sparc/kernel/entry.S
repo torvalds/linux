@@ -293,7 +293,7 @@ maybe_smp4m_msg:
 	WRITE_PAUSE
 	wr	%l4, PSR_ET, %psr
 	WRITE_PAUSE
-	sll	%o3, 28, %o2		! shift for simpler checks below
+	srl	%o3, 28, %o2		! shift for simpler checks below
 maybe_smp4m_msg_check_single:
 	andcc	%o2, 0x1, %g0
 	beq,a	maybe_smp4m_msg_check_mask

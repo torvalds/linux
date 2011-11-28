@@ -35,7 +35,7 @@
 #include <linux/compiler.h>
 
 #include <asm/ptrace.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/code-patching.h>
 #include <asm/irq.h>
 #include <asm/page.h>
@@ -200,7 +200,7 @@ static int psurge_secondary_ipi_init(void)
 
 	if (psurge_secondary_virq)
 		rc = request_irq(psurge_secondary_virq, psurge_ipi_intr,
-			IRQF_DISABLED|IRQF_PERCPU, "IPI", NULL);
+			IRQF_PERCPU, "IPI", NULL);
 
 	if (rc)
 		pr_err("Failed to setup secondary cpu IPI\n");
@@ -408,7 +408,7 @@ static int __init smp_psurge_kick_cpu(int nr)
 
 static struct irqaction psurge_irqaction = {
 	.handler = psurge_ipi_intr,
-	.flags = IRQF_DISABLED|IRQF_PERCPU,
+	.flags = IRQF_PERCPU,
 	.name = "primary IPI",
 };
 
@@ -447,7 +447,7 @@ void __init smp_psurge_give_timebase(void)
 
 /* PowerSurge-style Macs */
 struct smp_ops_t psurge_smp_ops = {
-	.message_pass	= smp_muxed_ipi_message_pass,
+	.message_pass	= NULL,	/* Use smp_muxed_ipi_message_pass */
 	.cause_ipi	= smp_psurge_cause_ipi,
 	.probe		= smp_psurge_probe,
 	.kick_cpu	= smp_psurge_kick_cpu,

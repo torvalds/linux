@@ -36,4 +36,6 @@ struct op_mips_model {
 	unsigned char num_counters;
 };
 
+void op_mips_backtrace(struct pt_regs * const regs, unsigned int depth);
+
 #endif

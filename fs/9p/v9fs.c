@@ -78,6 +78,25 @@ static const match_table_t tokens = {
 	{Opt_err, NULL}
 };
 
+/* Interpret mount options for cache mode */
+static int get_cache_mode(char *s)
+{
+	int version = -EINVAL;
+
+	if (!strcmp(s, "loose")) {
+		version = CACHE_LOOSE;
+		P9_DPRINTK(P9_DEBUG_9P, "Cache mode: loose\n");
+	} else if (!strcmp(s, "fscache")) {
+		version = CACHE_FSCACHE;
+		P9_DPRINTK(P9_DEBUG_9P, "Cache mode: fscache\n");
+	} else if (!strcmp(s, "none")) {
+		version = CACHE_NONE;
+		P9_DPRINTK(P9_DEBUG_9P, "Cache mode: none\n");
+	} else
+		printk(KERN_INFO "9p: Unknown Cache mode %s.\n", s);
+	return version;
+}
+
 /**
  * v9fs_parse_options - parse mount options into session structure
  * @v9ses: existing v9fs session information
@@ -97,7 +116,7 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 	/* setup defaults */
 	v9ses->afid = ~0;
 	v9ses->debug = 0;
-	v9ses->cache = 0;
+	v9ses->cache = CACHE_NONE;
 #ifdef CONFIG_9P_FSCACHE
 	v9ses->cachetag = NULL;
 #endif
@@ -113,21 +132,19 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 	options = tmp_options;
 
 	while ((p = strsep(&options, ",")) != NULL) {
-		int token;
+		int token, r;
 		if (!*p)
 			continue;
 		token = match_token(p, tokens, args);
-		if (token < Opt_uname) {
-			int r = match_int(&args[0], &option);
+		switch (token) {
+		case Opt_debug:
+			r = match_int(&args[0], &option);
 			if (r < 0) {
 				P9_DPRINTK(P9_DEBUG_ERROR,
-					"integer field, but no integer?\n");
+					   "integer field, but no integer?\n");
 				ret = r;
 				continue;
 			}
-		}
-		switch (token) {
-		case Opt_debug:
 			v9ses->debug = option;
 #ifdef CONFIG_NET_9P_DEBUG
 			p9_debug_level = option;
@@ -135,12 +152,33 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 			break;
 
 		case Opt_dfltuid:
+			r = match_int(&args[0], &option);
+			if (r < 0) {
+				P9_DPRINTK(P9_DEBUG_ERROR,
+					   "integer field, but no integer?\n");
+				ret = r;
+				continue;
+			}
 			v9ses->dfltuid = option;
 			break;
 		case Opt_dfltgid:
+			r = match_int(&args[0], &option);
+			if (r < 0) {
+				P9_DPRINTK(P9_DEBUG_ERROR,
+					   "integer field, but no integer?\n");
+				ret = r;
+				continue;
+			}
 			v9ses->dfltgid = option;
 			break;
 		case Opt_afid:
+			r = match_int(&args[0], &option);
+			if (r < 0) {
+				P9_DPRINTK(P9_DEBUG_ERROR,
+					   "integer field, but no integer?\n");
+				ret = r;
+				continue;
+			}
 			v9ses->afid = option;
 			break;
 		case Opt_uname:
@@ -171,13 +209,13 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 				  "problem allocating copy of cache arg\n");
 				goto free_and_return;
 			}
+			ret = get_cache_mode(s);
+			if (ret == -EINVAL) {
+				kfree(s);
+				goto free_and_return;
+			}
 
-			if (strcmp(s, "loose") == 0)
-				v9ses->cache = CACHE_LOOSE;
-			else if (strcmp(s, "fscache") == 0)
-				v9ses->cache = CACHE_FSCACHE;
-			else
-				v9ses->cache = CACHE_NONE;
+			v9ses->cache = ret;
 			kfree(s);
 			break;
 
@@ -200,9 +238,15 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 			} else {
 				v9ses->flags |= V9FS_ACCESS_SINGLE;
 				v9ses->uid = simple_strtoul(s, &e, 10);
-				if (*e != '\0')
-					v9ses->uid = ~0;
+				if (*e != '\0') {
+					ret = -EINVAL;
+					printk(KERN_INFO "9p: Unknown access "
+							"argument %s.\n", s);
+					kfree(s);
+					goto free_and_return;
+				}
 			}
+
 			kfree(s);
 			break;
 
@@ -487,8 +531,8 @@ static void v9fs_inode_init_once(void *foo)
 	struct v9fs_inode *v9inode = (struct v9fs_inode *)foo;
 #ifdef CONFIG_9P_FSCACHE
 	v9inode->fscache = NULL;
-	v9inode->fscache_key = NULL;
 #endif
+	memset(&v9inode->qid, 0, sizeof(v9inode->qid));
 	inode_init_once(&v9inode->vfs_inode);
 }
 

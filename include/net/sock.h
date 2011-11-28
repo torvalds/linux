@@ -40,12 +40,12 @@
 #ifndef _SOCK_H
 #define _SOCK_H
 
+#include <linux/hardirq.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/list_nulls.h>
 #include <linux/timer.h>
 #include <linux/cache.h>
-#include <linux/module.h>
 #include <linux/lockdep.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>	/* struct sk_buff */
@@ -75,8 +75,8 @@
 					printk(KERN_DEBUG msg); } while (0)
 #else
 /* Validate arguments and do nothing */
-static inline void __attribute__ ((format (printf, 2, 3)))
-SOCK_DEBUG(struct sock *sk, const char *msg, ...)
+static inline __printf(2, 3)
+void SOCK_DEBUG(struct sock *sk, const char *msg, ...)
 {
 }
 #endif
@@ -562,6 +562,7 @@ enum sock_flags {
 	SOCK_TIMESTAMPING_SYS_HARDWARE, /* %SOF_TIMESTAMPING_SYS_HARDWARE */
 	SOCK_FASYNC, /* fasync() active */
 	SOCK_RXQ_OVFL,
+	SOCK_ZEROCOPY, /* buffers from userspace */
 };
 
 static inline void sock_copy_flags(struct sock *nsk, struct sock *osk)
@@ -684,13 +685,22 @@ static inline void sock_rps_reset_flow(const struct sock *sk)
 #endif
 }
 
-static inline void sock_rps_save_rxhash(struct sock *sk, u32 rxhash)
+static inline void sock_rps_save_rxhash(struct sock *sk,
+					const struct sk_buff *skb)
 {
 #ifdef CONFIG_RPS
-	if (unlikely(sk->sk_rxhash != rxhash)) {
+	if (unlikely(sk->sk_rxhash != skb->rxhash)) {
 		sock_rps_reset_flow(sk);
-		sk->sk_rxhash = rxhash;
+		sk->sk_rxhash = skb->rxhash;
 	}
+#endif
+}
+
+static inline void sock_rps_reset_rxhash(struct sock *sk)
+{
+#ifdef CONFIG_RPS
+	sock_rps_reset_flow(sk);
+	sk->sk_rxhash = 0;
 #endif
 }
 
@@ -718,6 +728,7 @@ struct request_sock_ops;
 struct timewait_sock_ops;
 struct inet_hashinfo;
 struct raw_hashinfo;
+struct module;
 
 /* Networking protocol blocks we attach to sockets.
  * socket layer -> transport layer interface
@@ -1301,8 +1312,7 @@ extern unsigned long sock_i_ino(struct sock *sk);
 static inline struct dst_entry *
 __sk_dst_get(struct sock *sk)
 {
-	return rcu_dereference_check(sk->sk_dst_cache, rcu_read_lock_held() ||
-						       sock_owned_by_user(sk) ||
+	return rcu_dereference_check(sk->sk_dst_cache, sock_owned_by_user(sk) ||
 						       lockdep_is_held(&sk->sk_lock.slock));
 }
 

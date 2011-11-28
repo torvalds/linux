@@ -8,15 +8,6 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 /*
@@ -354,7 +345,7 @@ udc_ep_enable(struct usb_ep *usbep, const struct usb_endpoint_descriptor *desc)
 	writel(tmp, &dev->ep[ep->num].regs->ctl);
 
 	/* set max packet size */
-	maxpacket = le16_to_cpu(desc->wMaxPacketSize);
+	maxpacket = usb_endpoint_maxp(desc);
 	tmp = readl(&dev->ep[ep->num].regs->bufout_maxpkt);
 	tmp = AMD_ADDBITS(tmp, maxpacket, UDC_EP_MAX_PKT_SIZE);
 	ep->ep.maxpacket = maxpacket;
@@ -1438,10 +1429,15 @@ static int udc_wakeup(struct usb_gadget *gadget)
 	return 0;
 }
 
+static int amd5536_start(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *));
+static int amd5536_stop(struct usb_gadget_driver *driver);
 /* gadget operations */
 static const struct usb_gadget_ops udc_ops = {
 	.wakeup		= udc_wakeup,
 	.get_frame	= udc_get_frame,
+	.start		= amd5536_start,
+	.stop		= amd5536_stop,
 };
 
 /* Setups endpoint parameters, adds endpoints to linked list */
@@ -1955,7 +1951,7 @@ static int setup_ep0(struct udc *dev)
 }
 
 /* Called by gadget driver to register itself */
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+static int amd5536_start(struct usb_gadget_driver *driver,
 		int (*bind)(struct usb_gadget *))
 {
 	struct udc		*dev = udc;
@@ -2002,7 +1998,6 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_probe_driver);
 
 /* shutdown requests and disconnect from gadget */
 static void
@@ -2027,7 +2022,7 @@ __acquires(dev->lock)
 }
 
 /* Called by gadget driver to unregister itself */
-int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
+static int amd5536_stop(struct usb_gadget_driver *driver)
 {
 	struct udc	*dev = udc;
 	unsigned long	flags;
@@ -2057,8 +2052,6 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_unregister_driver);
-
 
 /* Clear pending NAK bits */
 static void udc_process_cnak_queue(struct udc *dev)
@@ -3012,13 +3005,8 @@ __acquires(dev->lock)
 
 		/* link up all endpoints */
 		udc_setup_endpoints(dev);
-		if (dev->gadget.speed == USB_SPEED_HIGH) {
-			dev_info(&dev->pdev->dev, "Connect: speed = %s\n",
-				"high");
-		} else if (dev->gadget.speed == USB_SPEED_FULL) {
-			dev_info(&dev->pdev->dev, "Connect: speed = %s\n",
-				"full");
-		}
+		dev_info(&dev->pdev->dev, "Connect: %s\n",
+			 usb_speed_string(dev->gadget.speed));
 
 		/* init ep 0 */
 		activate_control_endpoints(dev);
@@ -3134,6 +3122,7 @@ static void udc_pci_remove(struct pci_dev *pdev)
 
 	dev = pci_get_drvdata(pdev);
 
+	usb_del_gadget_udc(&udc->gadget);
 	/* gadget driver must not be registered */
 	BUG_ON(dev->driver != NULL);
 
@@ -3382,8 +3371,13 @@ static int udc_probe(struct udc *dev)
 		"driver version: %s(for Geode5536 B1)\n", tmp);
 	udc = dev;
 
+	retval = usb_add_gadget_udc(&udc->pdev->dev, &dev->gadget);
+	if (retval)
+		goto finished;
+
 	retval = device_register(&dev->gadget.dev);
 	if (retval) {
+		usb_del_gadget_udc(&dev->gadget);
 		put_device(&dev->gadget.dev);
 		goto finished;
 	}

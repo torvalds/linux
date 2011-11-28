@@ -1,5 +1,5 @@
 /*
- * gaccess.h -  access guest memory
+ * access.h -  access guest memory
  *
  * Copyright IBM Corp. 2008,2009
  *
@@ -22,20 +22,13 @@ static inline void __user *__guestaddr_to_user(struct kvm_vcpu *vcpu,
 					       unsigned long guestaddr)
 {
 	unsigned long prefix  = vcpu->arch.sie_block->prefix;
-	unsigned long origin  = vcpu->arch.sie_block->gmsor;
-	unsigned long memsize = kvm_s390_vcpu_get_memsize(vcpu);
 
 	if (guestaddr < 2 * PAGE_SIZE)
 		guestaddr += prefix;
 	else if ((guestaddr >= prefix) && (guestaddr < prefix + 2 * PAGE_SIZE))
 		guestaddr -= prefix;
 
-	if (guestaddr > memsize)
-		return (void __user __force *) ERR_PTR(-EFAULT);
-
-	guestaddr += origin;
-
-	return (void __user *) guestaddr;
+	return (void __user *) gmap_fault(guestaddr, vcpu->arch.gmap);
 }
 
 static inline int get_guest_u64(struct kvm_vcpu *vcpu, unsigned long guestaddr,
@@ -141,11 +134,11 @@ static inline int put_guest_u8(struct kvm_vcpu *vcpu, unsigned long guestaddr,
 
 static inline int __copy_to_guest_slow(struct kvm_vcpu *vcpu,
 				       unsigned long guestdest,
-				       const void *from, unsigned long n)
+				       void *from, unsigned long n)
 {
 	int rc;
 	unsigned long i;
-	const u8 *data = from;
+	u8 *data = from;
 
 	for (i = 0; i < n; i++) {
 		rc = put_guest_u8(vcpu, guestdest++, *(data++));
@@ -155,12 +148,95 @@ static inline int __copy_to_guest_slow(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
+static inline int __copy_to_guest_fast(struct kvm_vcpu *vcpu,
+				       unsigned long guestdest,
+				       void *from, unsigned long n)
+{
+	int r;
+	void __user *uptr;
+	unsigned long size;
+
+	if (guestdest + n < guestdest)
+		return -EFAULT;
+
+	/* simple case: all within one segment table entry? */
+	if ((guestdest & PMD_MASK) == ((guestdest+n) & PMD_MASK)) {
+		uptr = (void __user *) gmap_fault(guestdest, vcpu->arch.gmap);
+
+		if (IS_ERR((void __force *) uptr))
+			return PTR_ERR((void __force *) uptr);
+
+		r = copy_to_user(uptr, from, n);
+
+		if (r)
+			r = -EFAULT;
+
+		goto out;
+	}
+
+	/* copy first segment */
+	uptr = (void __user *)gmap_fault(guestdest, vcpu->arch.gmap);
+
+	if (IS_ERR((void __force *) uptr))
+		return PTR_ERR((void __force *) uptr);
+
+	size = PMD_SIZE - (guestdest & ~PMD_MASK);
+
+	r = copy_to_user(uptr, from, size);
+
+	if (r) {
+		r = -EFAULT;
+		goto out;
+	}
+	from += size;
+	n -= size;
+	guestdest += size;
+
+	/* copy full segments */
+	while (n >= PMD_SIZE) {
+		uptr = (void __user *)gmap_fault(guestdest, vcpu->arch.gmap);
+
+		if (IS_ERR((void __force *) uptr))
+			return PTR_ERR((void __force *) uptr);
+
+		r = copy_to_user(uptr, from, PMD_SIZE);
+
+		if (r) {
+			r = -EFAULT;
+			goto out;
+		}
+		from += PMD_SIZE;
+		n -= PMD_SIZE;
+		guestdest += PMD_SIZE;
+	}
+
+	/* copy the tail segment */
+	if (n) {
+		uptr = (void __user *)gmap_fault(guestdest, vcpu->arch.gmap);
+
+		if (IS_ERR((void __force *) uptr))
+			return PTR_ERR((void __force *) uptr);
+
+		r = copy_to_user(uptr, from, n);
+
+		if (r)
+			r = -EFAULT;
+	}
+out:
+	return r;
+}
+
+static inline int copy_to_guest_absolute(struct kvm_vcpu *vcpu,
+					 unsigned long guestdest,
+					 void *from, unsigned long n)
+{
+	return __copy_to_guest_fast(vcpu, guestdest, from, n);
+}
+
 static inline int copy_to_guest(struct kvm_vcpu *vcpu, unsigned long guestdest,
-				const void *from, unsigned long n)
+				void *from, unsigned long n)
 {
 	unsigned long prefix  = vcpu->arch.sie_block->prefix;
-	unsigned long origin  = vcpu->arch.sie_block->gmsor;
-	unsigned long memsize = kvm_s390_vcpu_get_memsize(vcpu);
 
 	if ((guestdest < 2 * PAGE_SIZE) && (guestdest + n > 2 * PAGE_SIZE))
 		goto slowpath;
@@ -177,15 +253,7 @@ static inline int copy_to_guest(struct kvm_vcpu *vcpu, unsigned long guestdest,
 	else if ((guestdest >= prefix) && (guestdest < prefix + 2 * PAGE_SIZE))
 		guestdest -= prefix;
 
-	if (guestdest + n > memsize)
-		return -EFAULT;
-
-	if (guestdest + n < guestdest)
-		return -EFAULT;
-
-	guestdest += origin;
-
-	return copy_to_user((void __user *) guestdest, from, n);
+	return __copy_to_guest_fast(vcpu, guestdest, from, n);
 slowpath:
 	return __copy_to_guest_slow(vcpu, guestdest, from, n);
 }
@@ -206,12 +274,95 @@ static inline int __copy_from_guest_slow(struct kvm_vcpu *vcpu, void *to,
 	return 0;
 }
 
+static inline int __copy_from_guest_fast(struct kvm_vcpu *vcpu, void *to,
+					 unsigned long guestsrc,
+					 unsigned long n)
+{
+	int r;
+	void __user *uptr;
+	unsigned long size;
+
+	if (guestsrc + n < guestsrc)
+		return -EFAULT;
+
+	/* simple case: all within one segment table entry? */
+	if ((guestsrc & PMD_MASK) == ((guestsrc+n) & PMD_MASK)) {
+		uptr = (void __user *) gmap_fault(guestsrc, vcpu->arch.gmap);
+
+		if (IS_ERR((void __force *) uptr))
+			return PTR_ERR((void __force *) uptr);
+
+		r = copy_from_user(to, uptr, n);
+
+		if (r)
+			r = -EFAULT;
+
+		goto out;
+	}
+
+	/* copy first segment */
+	uptr = (void __user *)gmap_fault(guestsrc, vcpu->arch.gmap);
+
+	if (IS_ERR((void __force *) uptr))
+		return PTR_ERR((void __force *) uptr);
+
+	size = PMD_SIZE - (guestsrc & ~PMD_MASK);
+
+	r = copy_from_user(to, uptr, size);
+
+	if (r) {
+		r = -EFAULT;
+		goto out;
+	}
+	to += size;
+	n -= size;
+	guestsrc += size;
+
+	/* copy full segments */
+	while (n >= PMD_SIZE) {
+		uptr = (void __user *)gmap_fault(guestsrc, vcpu->arch.gmap);
+
+		if (IS_ERR((void __force *) uptr))
+			return PTR_ERR((void __force *) uptr);
+
+		r = copy_from_user(to, uptr, PMD_SIZE);
+
+		if (r) {
+			r = -EFAULT;
+			goto out;
+		}
+		to += PMD_SIZE;
+		n -= PMD_SIZE;
+		guestsrc += PMD_SIZE;
+	}
+
+	/* copy the tail segment */
+	if (n) {
+		uptr = (void __user *)gmap_fault(guestsrc, vcpu->arch.gmap);
+
+		if (IS_ERR((void __force *) uptr))
+			return PTR_ERR((void __force *) uptr);
+
+		r = copy_from_user(to, uptr, n);
+
+		if (r)
+			r = -EFAULT;
+	}
+out:
+	return r;
+}
+
+static inline int copy_from_guest_absolute(struct kvm_vcpu *vcpu, void *to,
+					   unsigned long guestsrc,
+					   unsigned long n)
+{
+	return __copy_from_guest_fast(vcpu, to, guestsrc, n);
+}
+
 static inline int copy_from_guest(struct kvm_vcpu *vcpu, void *to,
 				  unsigned long guestsrc, unsigned long n)
 {
 	unsigned long prefix  = vcpu->arch.sie_block->prefix;
-	unsigned long origin  = vcpu->arch.sie_block->gmsor;
-	unsigned long memsize = kvm_s390_vcpu_get_memsize(vcpu);
 
 	if ((guestsrc < 2 * PAGE_SIZE) && (guestsrc + n > 2 * PAGE_SIZE))
 		goto slowpath;
@@ -228,52 +379,8 @@ static inline int copy_from_guest(struct kvm_vcpu *vcpu, void *to,
 	else if ((guestsrc >= prefix) && (guestsrc < prefix + 2 * PAGE_SIZE))
 		guestsrc -= prefix;
 
-	if (guestsrc + n > memsize)
-		return -EFAULT;
-
-	if (guestsrc + n < guestsrc)
-		return -EFAULT;
-
-	guestsrc += origin;
-
-	return copy_from_user(to, (void __user *) guestsrc, n);
+	return __copy_from_guest_fast(vcpu, to, guestsrc, n);
 slowpath:
 	return __copy_from_guest_slow(vcpu, to, guestsrc, n);
-}
-
-static inline int copy_to_guest_absolute(struct kvm_vcpu *vcpu,
-					 unsigned long guestdest,
-					 const void *from, unsigned long n)
-{
-	unsigned long origin  = vcpu->arch.sie_block->gmsor;
-	unsigned long memsize = kvm_s390_vcpu_get_memsize(vcpu);
-
-	if (guestdest + n > memsize)
-		return -EFAULT;
-
-	if (guestdest + n < guestdest)
-		return -EFAULT;
-
-	guestdest += origin;
-
-	return copy_to_user((void __user *) guestdest, from, n);
-}
-
-static inline int copy_from_guest_absolute(struct kvm_vcpu *vcpu, void *to,
-					   unsigned long guestsrc,
-					   unsigned long n)
-{
-	unsigned long origin  = vcpu->arch.sie_block->gmsor;
-	unsigned long memsize = kvm_s390_vcpu_get_memsize(vcpu);
-
-	if (guestsrc + n > memsize)
-		return -EFAULT;
-
-	if (guestsrc + n < guestsrc)
-		return -EFAULT;
-
-	guestsrc += origin;
-
-	return copy_from_user(to, (void __user *) guestsrc, n);
 }
 #endif

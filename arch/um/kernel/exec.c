@@ -3,14 +3,15 @@
  * Licensed under the GPL
  */
 
-#include "linux/stddef.h"
-#include "linux/fs.h"
-#include "linux/ptrace.h"
-#include "linux/sched.h"
-#include "linux/slab.h"
-#include "asm/current.h"
-#include "asm/processor.h"
-#include "asm/uaccess.h"
+#include <linux/stddef.h>
+#include <linux/module.h>
+#include <linux/fs.h>
+#include <linux/ptrace.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
+#include <asm/current.h>
+#include <asm/processor.h>
+#include <asm/uaccess.h>
 #include "as-layout.h"
 #include "mem_user.h"
 #include "skas.h"
@@ -38,10 +39,10 @@ void flush_thread(void)
 
 void start_thread(struct pt_regs *regs, unsigned long eip, unsigned long esp)
 {
-	set_fs(USER_DS);
 	PT_REGS_IP(regs) = eip;
 	PT_REGS_SP(regs) = esp;
 }
+EXPORT_SYMBOL(start_thread);
 
 static long execve1(const char *file,
 		    const char __user *const __user *argv,

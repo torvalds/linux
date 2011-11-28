@@ -68,6 +68,11 @@
  * controller and report the event to the driver.
  */
 #define TMIO_MMC_HAS_COLD_CD		(1 << 3)
+/*
+ * Some controllers require waiting for the SD bus to become
+ * idle before writing to some registers.
+ */
+#define TMIO_MMC_HAS_IDLE_WAIT		(1 << 4)
 
 int tmio_core_mmc_enable(void __iomem *cnf, int shift, unsigned long base);
 int tmio_core_mmc_resume(void __iomem *cnf, int shift, unsigned long base);
@@ -79,6 +84,8 @@ struct tmio_mmc_dma {
 	void *chan_priv_rx;
 	int alignment_shift;
 };
+
+struct tmio_mmc_host;
 
 /*
  * data for the MMC controller
@@ -94,6 +101,7 @@ struct tmio_mmc_data {
 	void (*set_pwr)(struct platform_device *host, int state);
 	void (*set_clk_div)(struct platform_device *host, int state);
 	int (*get_cd)(struct platform_device *host);
+	int (*write16_hook)(struct tmio_mmc_host *host, int addr);
 };
 
 static inline void tmio_mmc_cd_wakeup(struct tmio_mmc_data *pdata)

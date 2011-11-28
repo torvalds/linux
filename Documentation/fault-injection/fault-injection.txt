@@ -21,6 +21,11 @@ o fail_make_request
   /sys/block/<device>/make-it-fail or
   /sys/block/<device>/<partition>/make-it-fail. (generic_make_request())
 
+o fail_mmc_request
+
+  injects MMC data errors on devices permitted by setting
+  debugfs entries under /sys/kernel/debug/mmc0/fail_mmc_request
+
 Configure fault-injection capabilities behavior
 -----------------------------------------------
 
@@ -115,7 +120,8 @@ use the boot option:
 
 	failslab=
 	fail_page_alloc=
-	fail_make_request=<interval>,<probability>,<space>,<times>
+	fail_make_request=
+	mmc_core.fail_request=<interval>,<probability>,<space>,<times>
 
 How to add new fault injection capability
 -----------------------------------------
@@ -143,8 +149,7 @@ o provide a way to configure fault attributes
   failslab, fail_page_alloc, and fail_make_request use this way.
   Helper functions:
 
-	init_fault_attr_dentries(entries, attr, name);
-	void cleanup_fault_attr_dentries(entries);
+	fault_create_debugfs_attr(name, parent, attr);
 
 - module parameters
 

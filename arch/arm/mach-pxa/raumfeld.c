@@ -46,10 +46,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/hardware.h>
-#include <mach/pxa3xx-regs.h>
-#include <mach/mfp-pxa3xx.h>
-#include <mach/mfp-pxa300.h>
+#include <mach/pxa300.h>
 #include <mach/ohci.h>
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
@@ -349,8 +346,9 @@ static struct mtd_partition raumfeld_nand_partitions[] = {
 static struct pxa3xx_nand_platform_data raumfeld_nand_info = {
 	.enable_arbiter	= 1,
 	.keep_config	= 1,
-	.parts		= raumfeld_nand_partitions,
-	.nr_parts	= ARRAY_SIZE(raumfeld_nand_partitions),
+	.num_cs		= 1,
+	.parts[0]	= raumfeld_nand_partitions,
+	.nr_parts[0]	= ARRAY_SIZE(raumfeld_nand_partitions),
 };
 
 /**
@@ -573,10 +571,10 @@ static struct pxafb_mode_info sharp_lq043t3dx02_mode = {
 	.xres		= 480,
 	.yres		= 272,
 	.bpp		= 16,
-	.hsync_len	= 4,
+	.hsync_len	= 41,
 	.left_margin	= 2,
 	.right_margin	= 1,
-	.vsync_len	= 1,
+	.vsync_len	= 10,
 	.upper_margin	= 3,
 	.lower_margin	= 1,
 	.sync		= 0,
@@ -596,22 +594,13 @@ static void __init raumfeld_lcd_init(void)
 {
 	int ret;
 
-	pxa_set_fb_info(NULL, &raumfeld_sharp_lcd_info);
-
-	/* Earlier devices had the backlight regulator controlled
-	 * via PWM, later versions use another controller for that */
-	if ((system_rev & 0xff) < 2) {
-		mfp_cfg_t raumfeld_pwm_pin_config = GPIO17_PWM0_OUT;
-		pxa3xx_mfp_config(&raumfeld_pwm_pin_config, 1);
-		platform_device_register(&raumfeld_pwm_backlight_device);
-	} else
-		platform_device_register(&raumfeld_lt3593_device);
-
 	ret = gpio_request(GPIO_TFT_VA_EN, "display VA enable");
 	if (ret < 0)
 		pr_warning("Unable to request GPIO_TFT_VA_EN\n");
 	else
 		gpio_direction_output(GPIO_TFT_VA_EN, 1);
+
+	msleep(100);
 
 	ret = gpio_request(GPIO_DISPLAY_ENABLE, "display enable");
 	if (ret < 0)
@@ -619,6 +608,17 @@ static void __init raumfeld_lcd_init(void)
 	else
 		gpio_direction_output(GPIO_DISPLAY_ENABLE, 1);
 
+	/* Hardware revision 2 has the backlight regulator controlled
+	 * by an LT3593, earlier and later devices use PWM for that. */
+	if ((system_rev & 0xff) == 2) {
+		platform_device_register(&raumfeld_lt3593_device);
+	} else {
+		mfp_cfg_t raumfeld_pwm_pin_config = GPIO17_PWM0_OUT;
+		pxa3xx_mfp_config(&raumfeld_pwm_pin_config, 1);
+		platform_device_register(&raumfeld_pwm_backlight_device);
+	}
+
+	pxa_set_fb_info(NULL, &raumfeld_sharp_lcd_info);
 	platform_device_register(&pxa3xx_device_gcu);
 }
 
@@ -657,10 +657,10 @@ static struct lis3lv02d_platform_data lis3_pdata = {
 
 #define SPI_AK4104	\
 {			\
-	.modalias	= "ak4104",	\
-	.max_speed_hz	= 10000,	\
-	.bus_num	= 0,		\
-	.chip_select	= 0,		\
+	.modalias	= "ak4104-codec",	\
+	.max_speed_hz	= 10000,		\
+	.bus_num	= 0,			\
+	.chip_select	= 0,			\
 	.controller_data = (void *) GPIO_SPDIF_CS,	\
 }
 
@@ -1087,30 +1087,33 @@ static void __init raumfeld_speaker_init(void)
 
 #ifdef CONFIG_MACH_RAUMFELD_RC
 MACHINE_START(RAUMFELD_RC, "Raumfeld Controller")
-	.boot_params	= RAUMFELD_SDRAM_BASE + 0x100,
+	.atag_offset	= 0x100,
 	.init_machine	= raumfeld_controller_init,
 	.map_io		= pxa3xx_map_io,
 	.init_irq	= pxa3xx_init_irq,
+	.handle_irq	= pxa3xx_handle_irq,
 	.timer		= &pxa_timer,
 MACHINE_END
 #endif
 
 #ifdef CONFIG_MACH_RAUMFELD_CONNECTOR
 MACHINE_START(RAUMFELD_CONNECTOR, "Raumfeld Connector")
-	.boot_params	= RAUMFELD_SDRAM_BASE + 0x100,
+	.atag_offset	= 0x100,
 	.init_machine	= raumfeld_connector_init,
 	.map_io		= pxa3xx_map_io,
 	.init_irq	= pxa3xx_init_irq,
+	.handle_irq	= pxa3xx_handle_irq,
 	.timer		= &pxa_timer,
 MACHINE_END
 #endif
 
 #ifdef CONFIG_MACH_RAUMFELD_SPEAKER
 MACHINE_START(RAUMFELD_SPEAKER, "Raumfeld Speaker")
-	.boot_params	= RAUMFELD_SDRAM_BASE + 0x100,
+	.atag_offset	= 0x100,
 	.init_machine	= raumfeld_speaker_init,
 	.map_io		= pxa3xx_map_io,
 	.init_irq	= pxa3xx_init_irq,
+	.handle_irq	= pxa3xx_handle_irq,
 	.timer		= &pxa_timer,
 MACHINE_END
 #endif

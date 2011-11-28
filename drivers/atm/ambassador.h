@@ -630,10 +630,6 @@ struct amb_dev {
   u32              iobase;
   u32 *            membase;
 
-#ifdef FILL_RX_POOLS_IN_BH
-  struct work_struct bh;
-#endif
-  
   amb_cq           cq;
   amb_txq          txq;
   amb_rxq          rxq[NUM_RX_POOLS];

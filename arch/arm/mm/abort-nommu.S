@@ -3,11 +3,11 @@
 /*
  * Function: nommu_early_abort
  *
- * Params  : r2 = address of aborted instruction
- *         : r3 = saved SPSR
+ * Params  : r2 = pt_regs
+ *	   : r4 = aborted context pc
+ *	   : r5 = aborted context psr
  *
- * Returns : r0 = 0 (abort address)
- *	   : r1 = 0 (FSR)
+ * Returns : r4 - r11, r13 preserved
  *
  * Note: There is no FSR/FAR on !CPU_CP15_MMU cores.
  *       Just fill zero into the registers.
@@ -16,5 +16,5 @@
 ENTRY(nommu_early_abort)
 	mov	r0, #0				@ clear r0, r1 (no FSR/FAR)
 	mov	r1, #0
-	mov	pc, lr
+	b	do_DataAbort
 ENDPROC(nommu_early_abort)

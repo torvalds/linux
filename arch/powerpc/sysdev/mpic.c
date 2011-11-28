@@ -598,42 +598,6 @@ static void __init mpic_scan_ht_pics(struct mpic *mpic)
 
 #endif /* CONFIG_MPIC_U3_HT_IRQS */
 
-#ifdef CONFIG_SMP
-static int irq_choose_cpu(const struct cpumask *mask)
-{
-	int cpuid;
-
-	if (cpumask_equal(mask, cpu_all_mask)) {
-		static int irq_rover = 0;
-		static DEFINE_RAW_SPINLOCK(irq_rover_lock);
-		unsigned long flags;
-
-		/* Round-robin distribution... */
-	do_round_robin:
-		raw_spin_lock_irqsave(&irq_rover_lock, flags);
-
-		irq_rover = cpumask_next(irq_rover, cpu_online_mask);
-		if (irq_rover >= nr_cpu_ids)
-			irq_rover = cpumask_first(cpu_online_mask);
-
-		cpuid = irq_rover;
-
-		raw_spin_unlock_irqrestore(&irq_rover_lock, flags);
-	} else {
-		cpuid = cpumask_first_and(mask, cpu_online_mask);
-		if (cpuid >= nr_cpu_ids)
-			goto do_round_robin;
-	}
-
-	return get_hard_smp_processor_id(cpuid);
-}
-#else
-static int irq_choose_cpu(const struct cpumask *mask)
-{
-	return hard_smp_processor_id();
-}
-#endif
-
 /* Find an mpic associated with a given linux interrupt */
 static struct mpic *mpic_find(unsigned int irq)
 {
@@ -836,8 +800,6 @@ static void mpic_end_ipi(struct irq_data *d)
 	 * IPIs are marked IRQ_PER_CPU. This has the side effect of
 	 * preventing the IRQ_PENDING/IRQ_INPROGRESS logic from
 	 * applying to them. We EOI them late to avoid re-entering.
-	 * We mark IPI's with IRQF_DISABLED as they must run with
-	 * irqs disabled.
 	 */
 	mpic_eoi(mpic);
 }
@@ -849,7 +811,7 @@ static void mpic_unmask_tm(struct irq_data *d)
 	struct mpic *mpic = mpic_from_irq_data(d);
 	unsigned int src = virq_to_hw(d->irq) - mpic->timer_vecs[0];
 
-	DBG("%s: enable_tm: %d (tm %d)\n", mpic->name, irq, src);
+	DBG("%s: enable_tm: %d (tm %d)\n", mpic->name, d->irq, src);
 	mpic_tm_write(src, mpic_tm_read(src) & ~MPIC_VECPRI_MASK);
 	mpic_tm_read(src);
 }
@@ -1321,13 +1283,11 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 			   mpic_read(mpic->gregs, MPIC_INFO(GREG_GLOBAL_CONF_0))
 			   | MPIC_GREG_GCONF_MCK);
 
-	/* Read feature register, calculate num CPUs and, for non-ISU
-	 * MPICs, num sources as well. On ISU MPICs, sources are counted
-	 * as ISUs are added
+	/*
+	 * Read feature register.  For non-ISU MPICs, num sources as well. On
+	 * ISU MPICs, sources are counted as ISUs are added
 	 */
 	greg_feature = mpic_read(mpic->gregs, MPIC_INFO(GREG_FEATURE_0));
-	mpic->num_cpus = ((greg_feature & MPIC_GREG_FEATURE_LAST_CPU_MASK)
-			  >> MPIC_GREG_FEATURE_LAST_CPU_SHIFT) + 1;
 	if (isu_size == 0) {
 		if (flags & MPIC_BROKEN_FRR_NIRQS)
 			mpic->num_sources = mpic->irq_count;
@@ -1337,10 +1297,18 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 				 >> MPIC_GREG_FEATURE_LAST_SRC_SHIFT) + 1;
 	}
 
+	/*
+	 * The MPIC driver will crash if there are more cores than we
+	 * can initialize, so we may as well catch that problem here.
+	 */
+	BUG_ON(num_possible_cpus() > MPIC_MAX_CPUS);
+
 	/* Map the per-CPU registers */
-	for (i = 0; i < mpic->num_cpus; i++) {
-		mpic_map(mpic, node, paddr, &mpic->cpuregs[i],
-			 MPIC_INFO(CPU_BASE) + i * MPIC_INFO(CPU_STRIDE),
+	for_each_possible_cpu(i) {
+		unsigned int cpu = get_hard_smp_processor_id(i);
+
+		mpic_map(mpic, node, paddr, &mpic->cpuregs[cpu],
+			 MPIC_INFO(CPU_BASE) + cpu * MPIC_INFO(CPU_STRIDE),
 			 0x1000);
 	}
 
@@ -1379,7 +1347,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	}
 	printk(KERN_INFO "mpic: Setting up MPIC \"%s\" version %s at %llx,"
 	       " max %d CPUs\n",
-	       name, vers, (unsigned long long)paddr, mpic->num_cpus);
+	       name, vers, (unsigned long long)paddr, num_possible_cpus());
 	printk(KERN_INFO "mpic: ISU size: %d, shift: %d, mask: %x\n",
 	       mpic->isu_size, mpic->isu_shift, mpic->isu_mask);
 
@@ -1778,6 +1746,7 @@ void mpic_reset_core(int cpu)
 	struct mpic *mpic = mpic_primary;
 	u32 pir;
 	int cpuid = get_hard_smp_processor_id(cpu);
+	int i;
 
 	/* Set target bit for core reset */
 	pir = mpic_read(mpic->gregs, MPIC_INFO(GREG_PROCESSOR_INIT));
@@ -1789,6 +1758,15 @@ void mpic_reset_core(int cpu)
 	pir &= ~(1 << cpuid);
 	mpic_write(mpic->gregs, MPIC_INFO(GREG_PROCESSOR_INIT), pir);
 	mpic_read(mpic->gregs, MPIC_INFO(GREG_PROCESSOR_INIT));
+
+	/* Perform 15 EOI on each reset core to clear pending interrupts.
+	 * This is required for FSL CoreNet based devices */
+	if (mpic->flags & MPIC_FSL) {
+		for (i = 0; i < 15; i++) {
+			_mpic_write(mpic->reg_type, &mpic->cpuregs[cpuid],
+				      MPIC_CPU_EOI, 0);
+		}
+	}
 }
 #endif /* CONFIG_SMP */
 

@@ -14,6 +14,7 @@
 #include <asm/cacheflush.h>
 #include <asm/r4kcache.h>
 #include <asm/reboot.h>
+#include <asm/smp-ops.h>
 #include <asm/time.h>
 
 #include <msp_prom.h>
@@ -228,13 +229,11 @@ void __init prom_init(void)
 	 */
 	msp_serial_setup();
 
-#ifdef CONFIG_MIPS_MT_SMP
-	register_smp_ops(&vsmp_smp_ops);
-#endif
-
+	if (register_vsmp_smp_ops()) {
 #ifdef CONFIG_MIPS_MT_SMTC
-	register_smp_ops(&msp_smtc_smp_ops);
+		register_smp_ops(&msp_smtc_smp_ops);
 #endif
+	}
 
 #ifdef CONFIG_PMCTWILED
 	/*

@@ -27,6 +27,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/module.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
@@ -124,11 +125,7 @@ static void am35x_musb_disable(struct musb *musb)
 	musb_writel(reg_base, USB_END_OF_INTR_REG, 0);
 }
 
-#ifdef CONFIG_USB_MUSB_HDRC_HCD
 #define portstate(stmt)		stmt
-#else
-#define portstate(stmt)
-#endif
 
 static void am35x_musb_set_vbus(struct musb *musb, int is_on)
 {

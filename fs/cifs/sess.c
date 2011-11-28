@@ -124,7 +124,9 @@ static __u32 cifs_ssetup_hdr(struct cifs_ses *ses, SESSION_SETUP_ANDX *pSMB)
 	/*	that we use in next few lines                               */
 	/* Note that header is initialized to zero in header_assemble */
 	pSMB->req.AndXCommand = 0xFF;
-	pSMB->req.MaxBufferSize = cpu_to_le16(ses->server->maxBuf);
+	pSMB->req.MaxBufferSize = cpu_to_le16(min_t(u32,
+					CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4,
+					USHRT_MAX));
 	pSMB->req.MaxMpxCount = cpu_to_le16(ses->server->maxReq);
 	pSMB->req.VcNumber = get_next_vcnum(ses);
 
@@ -428,8 +430,7 @@ static void build_ntlmssp_negotiate_blob(unsigned char *pbuffer,
 			(SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) {
 		flags |= NTLMSSP_NEGOTIATE_SIGN;
 		if (!ses->server->session_estab)
-			flags |= NTLMSSP_NEGOTIATE_KEY_XCH |
-				NTLMSSP_NEGOTIATE_EXTENDED_SEC;
+			flags |= NTLMSSP_NEGOTIATE_KEY_XCH;
 	}
 
 	sec_blob->NegotiateFlags = cpu_to_le32(flags);
@@ -465,10 +466,11 @@ static int build_ntlmssp_auth_blob(unsigned char *pbuffer,
 		NTLMSSP_NEGOTIATE_128 | NTLMSSP_NEGOTIATE_UNICODE |
 		NTLMSSP_NEGOTIATE_NTLM | NTLMSSP_NEGOTIATE_EXTENDED_SEC;
 	if (ses->server->sec_mode &
-	   (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
+	   (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) {
 		flags |= NTLMSSP_NEGOTIATE_SIGN;
-	if (ses->server->sec_mode & SECMODE_SIGN_REQUIRED)
-		flags |= NTLMSSP_NEGOTIATE_ALWAYS_SIGN;
+		if (!ses->server->session_estab)
+			flags |= NTLMSSP_NEGOTIATE_KEY_XCH;
+	}
 
 	tmp = pbuffer + sizeof(AUTHENTICATE_MESSAGE);
 	sec_blob->NegotiateFlags = cpu_to_le32(flags);
@@ -681,7 +683,7 @@ ssetup_ntlmssp_authenticate:
 			cpu_to_le16(CIFS_AUTH_RESP_SIZE);
 
 		/* calculate ntlm response and session key */
-		rc = setup_ntlm_response(ses);
+		rc = setup_ntlm_response(ses, nls_cp);
 		if (rc) {
 			cERROR(1, "Error %d during NTLM authentication", rc);
 			goto ssetup_exit;

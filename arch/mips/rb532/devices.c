@@ -251,28 +251,22 @@ static struct platform_device *rb532_devs[] = {
 
 static void __init parse_mac_addr(char *macstr)
 {
-	int i, j;
-	unsigned char result, value;
+	int i, h, l;
 
 	for (i = 0; i < 6; i++) {
-		result = 0;
-
 		if (i != 5 && *(macstr + 2) != ':')
 			return;
 
-		for (j = 0; j < 2; j++) {
-			if (isxdigit(*macstr)
-			    && (value =
-				isdigit(*macstr) ? *macstr -
-				'0' : toupper(*macstr) - 'A' + 10) < 16) {
-				result = result * 16 + value;
-				macstr++;
-			} else
-				return;
-		}
+		h = hex_to_bin(*macstr++);
+		if (h == -1)
+			return;
+
+		l = hex_to_bin(*macstr++);
+		if (l == -1)
+			return;
 
 		macstr++;
-		korina_dev0_data.mac[i] = result;
+		korina_dev0_data.mac[i] = (h << 4) + l;
 	}
 }
 

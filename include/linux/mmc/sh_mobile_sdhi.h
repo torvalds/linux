@@ -1,10 +1,14 @@
-#ifndef __SH_MOBILE_SDHI_H__
-#define __SH_MOBILE_SDHI_H__
+#ifndef LINUX_MMC_SH_MOBILE_SDHI_H
+#define LINUX_MMC_SH_MOBILE_SDHI_H
 
 #include <linux/types.h>
 
 struct platform_device;
 struct tmio_mmc_data;
+
+#define SH_MOBILE_SDHI_IRQ_CARD_DETECT	"card_detect"
+#define SH_MOBILE_SDHI_IRQ_SDCARD	"sdcard"
+#define SH_MOBILE_SDHI_IRQ_SDIO		"sdio"
 
 struct sh_mobile_sdhi_info {
 	int dma_slave_tx;
@@ -17,4 +21,4 @@ struct sh_mobile_sdhi_info {
 	int (*get_cd)(struct platform_device *pdev);
 };
 
-#endif /* __SH_MOBILE_SDHI_H__ */
+#endif /* LINUX_MMC_SH_MOBILE_SDHI_H */

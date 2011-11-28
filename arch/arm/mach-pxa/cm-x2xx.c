@@ -21,7 +21,8 @@
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 
-#include <mach/pxa2xx-regs.h>
+#include <mach/pxa25x.h>
+#include <mach/pxa27x.h>
 #include <mach/audio.h>
 #include <mach/pxafb.h>
 #include <mach/smemc.h>
@@ -38,7 +39,7 @@ extern void cmx270_init(void);
 #define CMX2XX_NR_IRQS		(IRQ_BOARD_START + 40)
 
 /* virtual addresses for statically mapped regions */
-#define CMX2XX_VIRT_BASE	(0xe8000000)
+#define CMX2XX_VIRT_BASE	(void __iomem *)(0xe8000000)
 #define CMX2XX_IT8152_VIRT	(CMX2XX_VIRT_BASE)
 
 /* physical address if local-bus attached devices */
@@ -481,7 +482,7 @@ static void __init cmx2xx_init_irq(void)
 /* Map PCI companion statically */
 static struct map_desc cmx2xx_io_desc[] __initdata = {
 	[0] = { /* PCI bridge */
-		.virtual	= CMX2XX_IT8152_VIRT,
+		.virtual	= (unsigned long)CMX2XX_IT8152_VIRT,
 		.pfn		= __phys_to_pfn(PXA_CS4_PHYS),
 		.length		= SZ_64M,
 		.type		= MT_DEVICE
@@ -512,10 +513,15 @@ static void __init cmx2xx_map_io(void)
 #endif
 
 MACHINE_START(ARMCORE, "Compulab CM-X2XX")
-	.boot_params	= 0xa0000100,
+	.atag_offset	= 0x100,
 	.map_io		= cmx2xx_map_io,
 	.nr_irqs	= CMX2XX_NR_IRQS,
 	.init_irq	= cmx2xx_init_irq,
+	/* NOTE: pxa25x_handle_irq() works on PXA27x w/o camera support */
+	.handle_irq	= pxa25x_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= cmx2xx_init,
+#ifdef CONFIG_PCI
+	.dma_zone_size	= SZ_64M,
+#endif
 MACHINE_END

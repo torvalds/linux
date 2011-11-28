@@ -1,5 +1,5 @@
 /*
- * spi.c - SPI init/core code
+ * SPI init/core code
  *
  * Copyright (C) 2005 David Brownell
  *
@@ -29,6 +29,7 @@
 #include <linux/spi/spi.h>
 #include <linux/of_spi.h>
 #include <linux/pm_runtime.h>
+#include <linux/export.h>
 
 static void spidev_release(struct device *dev)
 {

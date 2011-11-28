@@ -43,7 +43,7 @@ static int wm8994_ldo_enable(struct regulator_dev *rdev)
 	if (!ldo->enable)
 		return 0;
 
-	gpio_set_value(ldo->enable, 1);
+	gpio_set_value_cansleep(ldo->enable, 1);
 	ldo->is_enabled = true;
 
 	return 0;
@@ -57,7 +57,7 @@ static int wm8994_ldo_disable(struct regulator_dev *rdev)
 	if (!ldo->enable)
 		return -EINVAL;
 
-	gpio_set_value(ldo->enable, 0);
+	gpio_set_value_cansleep(ldo->enable, 0);
 	ldo->is_enabled = false;
 
 	return 0;
@@ -140,6 +140,14 @@ static int wm8994_ldo2_list_voltage(struct regulator_dev *rdev,
 		return (selector * 100000) + 900000;
 	case WM8958:
 		return (selector * 100000) + 1000000;
+	case WM1811:
+		switch (selector) {
+		case 0:
+			return -EINVAL;
+		default:
+			return (selector * 100000) + 950000;
+		}
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -169,6 +177,11 @@ static int wm8994_ldo2_set_voltage(struct regulator_dev *rdev,
 		break;
 	case WM8958:
 		selector = (min_uV - 1000000) / 100000;
+		break;
+	case WM1811:
+		selector = (min_uV - 950000) / 100000;
+		if (selector == 0)
+			selector = 1;
 		break;
 	default:
 		return -EINVAL;

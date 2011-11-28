@@ -578,11 +578,10 @@ static int carl9170_init_phy(struct ar9170 *ar, enum ieee80211_band band)
 	if (err)
 		return err;
 
-	/* XXX: remove magic! */
-	if (is_2ghz)
-		err = carl9170_write_reg(ar, AR9170_PWR_REG_PLL_ADDAC, 0x5163);
-	else
-		err = carl9170_write_reg(ar, AR9170_PWR_REG_PLL_ADDAC, 0x5143);
+	if (!ar->fw.hw_counters) {
+		err = carl9170_write_reg(ar, AR9170_PWR_REG_PLL_ADDAC,
+					 is_2ghz ? 0x5163 : 0x5143);
+	}
 
 	return err;
 }
@@ -1098,7 +1097,7 @@ static u8 carl9170_interpolate_u8(u8 x, u8 x1, u8 y1, u8 x2, u8 y2)
 	 *	Isn't it just DIV_ROUND_UP(y, 1<<SHIFT)?
 	 *	Can we rely on the compiler to optimise away the div?
 	 */
-	return (y >> SHIFT) + ((y & (1<<(SHIFT-1))) >> (SHIFT - 1));
+	return (y >> SHIFT) + ((y & (1 << (SHIFT - 1))) >> (SHIFT - 1));
 #undef SHIFT
 }
 
@@ -1379,7 +1378,7 @@ static void carl9170_calc_ctl(struct ar9170 *ar, u32 freq, enum carl9170_bw bw)
 
 			modes[i].max_power =
 				carl9170_get_max_edge_power(ar,
-					freq+f_off, EDGES(ctl_idx, 1));
+					freq + f_off, EDGES(ctl_idx, 1));
 
 			/*
 			 * TODO: check if the regulatory max. power is
@@ -1441,7 +1440,7 @@ static int carl9170_set_power_cal(struct ar9170 *ar, u32 freq,
 	if (freq < 3000)
 		f = freq - 2300;
 	else
-		f = (freq - 4800)/5;
+		f = (freq - 4800) / 5;
 
 	/*
 	 * cycle through the various modes
@@ -1573,6 +1572,9 @@ int carl9170_get_noisefloor(struct ar9170 *ar)
 		ar->noise[i + 2] = sign_extend32(GET_VAL(
 			AR9170_PHY_EXT_CCA_MIN_PWR, phy_res[i + 2]), 8);
 	}
+
+	if (ar->channel)
+		ar->survey[ar->channel->hw_value].noise = ar->noise[0];
 
 	return 0;
 }
@@ -1766,10 +1768,6 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 		ar->chan_fail = 0;
 	}
 
-	err = carl9170_get_noisefloor(ar);
-	if (err)
-		return err;
-
 	if (ar->heavy_clip) {
 		err = carl9170_write_reg(ar, AR9170_PHY_REG_HEAVY_CLIP_ENABLE,
 					 0x200 | ar->heavy_clip);
@@ -1782,12 +1780,6 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 			return err;
 		}
 	}
-
-	/* FIXME: PSM does not work in 5GHz Band */
-	if (channel->band == IEEE80211_BAND_5GHZ)
-		ar->ps.off_override |= PS_OFF_5GHZ;
-	else
-		ar->ps.off_override &= ~PS_OFF_5GHZ;
 
 	ar->channel = channel;
 	ar->ht_settings = new_ht;

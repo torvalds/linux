@@ -597,6 +597,28 @@ static DEVICE_ATTR(signalling, S_IRUGO,
 		   show_spi_host_signalling,
 		   store_spi_host_signalling);
 
+static ssize_t show_spi_host_width(struct device *cdev,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	struct Scsi_Host *shost = transport_class_to_shost(cdev);
+
+	return sprintf(buf, "%s\n", shost->max_id == 16 ? "wide" : "narrow");
+}
+static DEVICE_ATTR(host_width, S_IRUGO,
+		   show_spi_host_width, NULL);
+
+static ssize_t show_spi_host_hba_id(struct device *cdev,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	struct Scsi_Host *shost = transport_class_to_shost(cdev);
+
+	return sprintf(buf, "%d\n", shost->this_id);
+}
+static DEVICE_ATTR(hba_id, S_IRUGO,
+		   show_spi_host_hba_id, NULL);
+
 #define DV_SET(x, y)			\
 	if(i->f->set_##x)		\
 		i->f->set_##x(sdev->sdev_target, y)
@@ -1380,6 +1402,8 @@ static DECLARE_ANON_TRANSPORT_CLASS(spi_device_class,
 
 static struct attribute *host_attributes[] = {
 	&dev_attr_signalling.attr,
+	&dev_attr_host_width.attr,
+	&dev_attr_hba_id.attr,
 	NULL
 };
 

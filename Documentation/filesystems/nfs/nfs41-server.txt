@@ -39,27 +39,17 @@ interoperability problems with future clients.  Known issues:
 	  from a linux client are possible, but we aren't really
 	  conformant with the spec (for example, we don't use kerberos
 	  on the backchannel correctly).
-	- no trunking support: no clients currently take advantage of
-	  trunking, but this is a mandatory feature, and its use is
-	  recommended to clients in a number of places.  (E.g. to ensure
-	  timely renewal in case an existing connection's retry timeouts
-	  have gotten too long; see section 8.3 of the RFC.)
-	  Therefore, lack of this feature may cause future clients to
-	  fail.
 	- Incomplete backchannel support: incomplete backchannel gss
 	  support and no support for BACKCHANNEL_CTL mean that
 	  callbacks (hence delegations and layouts) may not be
 	  available and clients confused by the incomplete
 	  implementation may fail.
-	- Server reboot recovery is unsupported; if the server reboots,
-	  clients may fail.
 	- We do not support SSV, which provides security for shared
 	  client-server state (thus preventing unauthorized tampering
 	  with locks and opens, for example).  It is mandatory for
 	  servers to support this, though no clients use it yet.
 	- Mandatory operations which we do not support, such as
-	  DESTROY_CLIENTID, FREE_STATEID, SECINFO_NO_NAME, and
-	  TEST_STATEID, are not currently used by clients, but will be
+	  DESTROY_CLIENTID, are not currently used by clients, but will be
 	  (and the spec recommends their uses in common cases), and
 	  clients should not be expected to know how to recover from the
 	  case where they are not supported.  This will eventually cause
@@ -69,8 +59,9 @@ In addition, some limitations are inherited from the current NFSv4
 implementation:
 
 	- Incomplete delegation enforcement: if a file is renamed or
-	  unlinked, a client holding a delegation may continue to
-	  indefinitely allow opens of the file under the old name.
+	  unlinked by a local process, a client holding a delegation may
+	  continue to indefinitely allow opens of the file under the old
+	  name.
 
 The table below, taken from the NFSv4.1 document, lists
 the operations that are mandatory to implement (REQ), optional
@@ -99,7 +90,7 @@ Operations
    +----------------------+------------+--------------+----------------+
    | ACCESS               | REQ        |              | Section 18.1   |
 NS | BACKCHANNEL_CTL      | REQ        |              | Section 18.33  |
-NS | BIND_CONN_TO_SESSION | REQ        |              | Section 18.34  |
+I  | BIND_CONN_TO_SESSION | REQ        |              | Section 18.34  |
    | CLOSE                | REQ        |              | Section 18.2   |
    | COMMIT               | REQ        |              | Section 18.3   |
    | CREATE               | REQ        |              | Section 18.4   |
@@ -111,7 +102,7 @@ NS*| DELEGPURGE           | OPT        | FDELG (REQ)  | Section 18.5   |
 NS | DESTROY_CLIENTID     | REQ        |              | Section 18.50  |
 I  | DESTROY_SESSION      | REQ        |              | Section 18.37  |
 I  | EXCHANGE_ID          | REQ        |              | Section 18.35  |
-NS | FREE_STATEID         | REQ        |              | Section 18.38  |
+I  | FREE_STATEID         | REQ        |              | Section 18.38  |
    | GETATTR              | REQ        |              | Section 18.7   |
 P  | GETDEVICEINFO        | OPT        | pNFS (REQ)   | Section 18.40  |
 P  | GETDEVICELIST        | OPT        | pNFS (OPT)   | Section 18.41  |
@@ -145,14 +136,14 @@ NS*| OPENATTR             | OPT        |              | Section 18.17  |
    | RESTOREFH            | REQ        |              | Section 18.27  |
    | SAVEFH               | REQ        |              | Section 18.28  |
    | SECINFO              | REQ        |              | Section 18.29  |
-NS | SECINFO_NO_NAME      | REC        | pNFS files   | Section 18.45, |
+I  | SECINFO_NO_NAME      | REC        | pNFS files   | Section 18.45, |
    |                      |            | layout (REQ) | Section 13.12  |
 I  | SEQUENCE             | REQ        |              | Section 18.46  |
    | SETATTR              | REQ        |              | Section 18.30  |
    | SETCLIENTID          | MNI        |              | N/A            |
    | SETCLIENTID_CONFIRM  | MNI        |              | N/A            |
 NS | SET_SSV              | REQ        |              | Section 18.47  |
-NS | TEST_STATEID         | REQ        |              | Section 18.48  |
+I  | TEST_STATEID         | REQ        |              | Section 18.48  |
    | VERIFY               | REQ        |              | Section 18.31  |
 NS*| WANT_DELEGATION      | OPT        | FDELG (OPT)  | Section 18.49  |
    | WRITE                | REQ        |              | Section 18.32  |
@@ -206,12 +197,6 @@ CREATE_SESSION:
 SEQUENCE:
 * no support for dynamic slot table renegotiation (optional)
 
-nfsv4.1 COMPOUND rules:
-The following cases aren't supported yet:
-* Enforcing of NFS4ERR_NOT_ONLY_OP for: BIND_CONN_TO_SESSION, CREATE_SESSION,
-  DESTROY_CLIENTID, DESTROY_SESSION, EXCHANGE_ID.
-* DESTROY_SESSION MUST be the final operation in the COMPOUND request.
-
 Nonstandard compound limitations:
 * No support for a sessions fore channel RPC compound that requires both a
   ca_maxrequestsize request and a ca_maxresponsesize reply, so we may
@@ -219,3 +204,5 @@ Nonstandard compound limitations:
   negotiation.
 * No more than one IO operation (read, write, readdir) allowed per
   compound.
+
+See also http://wiki.linux-nfs.org/wiki/index.php/Server_4.0_and_4.1_issues.

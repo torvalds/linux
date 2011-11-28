@@ -243,7 +243,8 @@
 
 
 /*Registers VDD1, VDD2 voltage values definitions */
-#define VDD1_2_NUM_VOLTS				73
+#define VDD1_2_NUM_VOLT_FINE				73
+#define VDD1_2_NUM_VOLT_COARSE				3
 #define VDD1_2_MIN_VOLT					6000
 #define VDD1_2_OFFSET					125
 
@@ -269,7 +270,7 @@
 #define LDO1_SEL_MASK					0xFC
 #define LDO3_SEL_MASK					0x7C
 #define LDO_MIN_VOLT					1000
-#define LDO_MAX_VOLT					3300;
+#define LDO_MAX_VOLT					3300
 
 
 /*Register VDIG1  (0x80) register.RegisterDescription */
@@ -791,6 +792,7 @@ int tps65910_clear_bits(struct tps65910 *tps65910, u8 reg, u8 mask);
 void tps65910_gpio_init(struct tps65910 *tps65910, int gpio_base);
 int tps65910_irq_init(struct tps65910 *tps65910, int irq,
 		struct tps65910_platform_data *pdata);
+int tps65910_irq_exit(struct tps65910 *tps65910);
 
 static inline int tps65910_chip_id(struct tps65910 *tps65910)
 {

@@ -757,7 +757,6 @@ static int ivtv_querycap(struct file *file, void *fh, struct v4l2_capability *vc
 	strlcpy(vcap->driver, IVTV_DRIVER_NAME, sizeof(vcap->driver));
 	strlcpy(vcap->card, itv->card_name, sizeof(vcap->card));
 	snprintf(vcap->bus_info, sizeof(vcap->bus_info), "PCI:%s", pci_name(itv->pdev));
-	vcap->version = IVTV_DRIVER_VERSION; 	    /* version */
 	vcap->capabilities = itv->v4l2_cap; 	    /* capabilities */
 	return 0;
 }
@@ -1204,9 +1203,7 @@ static int ivtv_g_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_sliced
 					cap->service_lines[f][l] = set;
 			}
 		}
-		return 0;
-	}
-	if (cap->type == V4L2_BUF_TYPE_SLICED_VBI_OUTPUT) {
+	} else if (cap->type == V4L2_BUF_TYPE_SLICED_VBI_OUTPUT) {
 		if (!(itv->v4l2_cap & V4L2_CAP_SLICED_VBI_OUTPUT))
 			return -EINVAL;
 		if (itv->is_60hz) {
@@ -1216,9 +1213,16 @@ static int ivtv_g_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_sliced
 			cap->service_lines[0][23] = V4L2_SLICED_WSS_625;
 			cap->service_lines[0][16] = V4L2_SLICED_VPS;
 		}
-		return 0;
+	} else {
+		return -EINVAL;
 	}
-	return -EINVAL;
+
+	set = 0;
+	for (f = 0; f < 2; f++)
+		for (l = 0; l < 24; l++)
+			set |= cap->service_lines[f][l];
+	cap->service_set = set;
+	return 0;
 }
 
 static int ivtv_g_enc_index(struct file *file, void *fh, struct v4l2_enc_idx *idx)
@@ -1451,11 +1455,11 @@ static int ivtv_subscribe_event(struct v4l2_fh *fh, struct v4l2_event_subscripti
 	switch (sub->type) {
 	case V4L2_EVENT_VSYNC:
 	case V4L2_EVENT_EOS:
-		break;
+	case V4L2_EVENT_CTRL:
+		return v4l2_event_subscribe(fh, sub, 0);
 	default:
 		return -EINVAL;
 	}
-	return v4l2_event_subscribe(fh, sub);
 }
 
 static int ivtv_log_status(struct file *file, void *fh)

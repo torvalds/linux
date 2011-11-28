@@ -2,7 +2,7 @@
 #define _ARCH_POWERPC_LOCAL_H
 
 #include <linux/percpu.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 typedef struct
 {

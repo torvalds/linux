@@ -34,7 +34,7 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 

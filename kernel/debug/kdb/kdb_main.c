@@ -145,10 +145,10 @@ static char *__env[] = {
 #endif
  "RADIX=16",
  "MDCOUNT=8",			/* lines of md output */
- "BTARGS=9",			/* 9 possible args in bt */
  KDB_PLATFORM_ENV,
  "DTABCOUNT=30",
  "NOSECT=1",
+ (char *)0,
  (char *)0,
  (char *)0,
  (char *)0,
@@ -1386,7 +1386,7 @@ int kdb_main_loop(kdb_reason_t reason, kdb_reason_t reason2, int error,
 		}
 
 		if (result == KDB_CMD_KGDB) {
-			if (!(KDB_STATE(DOING_KGDB) || KDB_STATE(DOING_KGDB2)))
+			if (!KDB_STATE(DOING_KGDB))
 				kdb_printf("Entering please attach debugger "
 					   "or use $D#44+ or $3#33\n");
 			break;

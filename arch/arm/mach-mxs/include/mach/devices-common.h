@@ -11,6 +11,8 @@
 #include <linux/init.h>
 #include <linux/amba/bus.h>
 
+extern struct device mxs_apbh_bus;
+
 struct platform_device *mxs_add_platform_device_dmamask(
 		const char *name, int id,
 		const struct resource *res, unsigned int num_resources,
@@ -90,3 +92,15 @@ struct platform_device *__init mxs_add_mxs_mmc(
 /* pwm */
 struct platform_device *__init mxs_add_mxs_pwm(
 		resource_size_t iobase, int id);
+
+/* saif */
+struct mxs_saif_data {
+	int id;
+	resource_size_t iobase;
+	resource_size_t irq;
+	resource_size_t dma;
+	resource_size_t dmairq;
+};
+
+struct platform_device *__init mxs_add_saif(
+		const struct mxs_saif_data *data);

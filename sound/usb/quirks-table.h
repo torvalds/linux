@@ -39,6 +39,17 @@
 	.idProduct = prod, \
 	.bInterfaceClass = USB_CLASS_VENDOR_SPEC
 
+/* FTDI devices */
+{
+	USB_DEVICE(0x0403, 0xb8d8),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		/* .vendor_name = "STARR LABS", */
+		/* .product_name = "Starr Labs MIDI USB device", */
+		.ifnum = 0,
+		.type = QUIRK_MIDI_FTDI
+	}
+},
+
 /* Creative/Toshiba Multimedia Center SB-0500 */
 {
 	USB_DEVICE(0x041e, 0x3048),
@@ -1677,6 +1688,84 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		}
 	}
 },
+{
+	/* Added support for Roland UM-ONE which differs from UM-1 */
+	USB_DEVICE(0x0582, 0x012a),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		/* .vendor_name = "ROLAND", */
+		/* .product_name = "UM-ONE", */
+		.ifnum = 0,
+		.type = QUIRK_MIDI_FIXED_ENDPOINT,
+		.data = & (const struct snd_usb_midi_endpoint_info) {
+			.out_cables = 0x0001,
+			.in_cables  = 0x0003
+		}
+	}
+},
+{
+	USB_DEVICE(0x0582, 0x011e),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		/* .vendor_name = "BOSS", */
+		/* .product_name = "BR-800", */
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_COMPOSITE,
+		.data = (const struct snd_usb_audio_quirk[]) {
+			{
+				.ifnum = 0,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = 1,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = 2,
+				.type = QUIRK_MIDI_FIXED_ENDPOINT,
+				.data = & (const struct snd_usb_midi_endpoint_info) {
+					.out_cables = 0x0001,
+					.in_cables  = 0x0001
+				}
+			},
+			{
+				.ifnum = -1
+			}
+		}
+	}
+},
+{
+	USB_DEVICE(0x0582, 0x0130),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		/* .vendor_name = "BOSS", */
+		/* .product_name = "MICRO BR-80", */
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_COMPOSITE,
+		.data = (const struct snd_usb_audio_quirk[]) {
+			{
+				.ifnum = 0,
+				.type = QUIRK_IGNORE_INTERFACE
+			},
+			{
+				.ifnum = 1,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = 2,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = 3,
+				.type = QUIRK_MIDI_FIXED_ENDPOINT,
+				.data = & (const struct snd_usb_midi_endpoint_info) {
+					.out_cables = 0x0001,
+					.in_cables  = 0x0001
+				}
+			},
+			{
+				.ifnum = -1
+			}
+		}
+	}
+},
 
 /* Guillemot devices */
 {
@@ -2385,6 +2474,12 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	.match_flags = USB_DEVICE_ID_MATCH_DEVICE,
 	.idVendor = 0x17cc,
 	.idProduct = 0x1020,
+},
+
+/* KeithMcMillen Stringport */
+{
+	USB_DEVICE(0x1f38, 0x0001),
+	.bInterfaceClass = USB_CLASS_AUDIO,
 },
 
 /* Miditech devices */

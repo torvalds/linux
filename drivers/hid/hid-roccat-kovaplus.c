@@ -58,7 +58,7 @@ static int kovaplus_send_control(struct usb_device *usb_dev, uint value,
 	control.value = value;
 	control.request = request;
 
-	retval = roccat_common_send(usb_dev, KOVAPLUS_USB_COMMAND_CONTROL,
+	retval = roccat_common_send(usb_dev, KOVAPLUS_COMMAND_CONTROL,
 			&control, sizeof(struct kovaplus_control));
 
 	return retval;
@@ -70,7 +70,7 @@ static int kovaplus_receive_control_status(struct usb_device *usb_dev)
 	struct kovaplus_control control;
 
 	do {
-		retval = roccat_common_receive(usb_dev, KOVAPLUS_USB_COMMAND_CONTROL,
+		retval = roccat_common_receive(usb_dev, KOVAPLUS_COMMAND_CONTROL,
 				&control, sizeof(struct kovaplus_control));
 
 		/* check if we get a completely wrong answer */
@@ -90,7 +90,7 @@ static int kovaplus_receive_control_status(struct usb_device *usb_dev)
 		if (control.value == KOVAPLUS_CONTROL_REQUEST_STATUS_OVERLOAD)
 			return -EINVAL;
 
-		hid_err(usb_dev, "kovaplus_receive_control_status: "
+		hid_err(usb_dev, "roccat_common_receive_control_status: "
 				"unknown response value 0x%x\n", control.value);
 		return -EINVAL;
 	} while (1);
@@ -119,7 +119,7 @@ static int kovaplus_select_profile(struct usb_device *usb_dev, uint number,
 static int kovaplus_get_info(struct usb_device *usb_dev,
 		struct kovaplus_info *buf)
 {
-	return roccat_common_receive(usb_dev, KOVAPLUS_USB_COMMAND_INFO,
+	return roccat_common_receive(usb_dev, KOVAPLUS_COMMAND_INFO,
 			buf, sizeof(struct kovaplus_info));
 }
 
@@ -133,14 +133,14 @@ static int kovaplus_get_profile_settings(struct usb_device *usb_dev,
 	if (retval)
 		return retval;
 
-	return roccat_common_receive(usb_dev, KOVAPLUS_USB_COMMAND_PROFILE_SETTINGS,
+	return roccat_common_receive(usb_dev, KOVAPLUS_COMMAND_PROFILE_SETTINGS,
 			buf, sizeof(struct kovaplus_profile_settings));
 }
 
 static int kovaplus_set_profile_settings(struct usb_device *usb_dev,
 		struct kovaplus_profile_settings const *settings)
 {
-	return kovaplus_send(usb_dev, KOVAPLUS_USB_COMMAND_PROFILE_SETTINGS,
+	return kovaplus_send(usb_dev, KOVAPLUS_COMMAND_PROFILE_SETTINGS,
 			settings, sizeof(struct kovaplus_profile_settings));
 }
 
@@ -154,14 +154,14 @@ static int kovaplus_get_profile_buttons(struct usb_device *usb_dev,
 	if (retval)
 		return retval;
 
-	return roccat_common_receive(usb_dev, KOVAPLUS_USB_COMMAND_PROFILE_BUTTONS,
+	return roccat_common_receive(usb_dev, KOVAPLUS_COMMAND_PROFILE_BUTTONS,
 			buf, sizeof(struct kovaplus_profile_buttons));
 }
 
 static int kovaplus_set_profile_buttons(struct usb_device *usb_dev,
 		struct kovaplus_profile_buttons const *buttons)
 {
-	return kovaplus_send(usb_dev, KOVAPLUS_USB_COMMAND_PROFILE_BUTTONS,
+	return kovaplus_send(usb_dev, KOVAPLUS_COMMAND_PROFILE_BUTTONS,
 			buttons, sizeof(struct kovaplus_profile_buttons));
 }
 
@@ -171,7 +171,7 @@ static int kovaplus_get_actual_profile(struct usb_device *usb_dev)
 	struct kovaplus_actual_profile buf;
 	int retval;
 
-	retval = roccat_common_receive(usb_dev, KOVAPLUS_USB_COMMAND_ACTUAL_PROFILE,
+	retval = roccat_common_receive(usb_dev, KOVAPLUS_COMMAND_ACTUAL_PROFILE,
 			&buf, sizeof(struct kovaplus_actual_profile));
 
 	return retval ? retval : buf.actual_profile;
@@ -186,7 +186,7 @@ static int kovaplus_set_actual_profile(struct usb_device *usb_dev,
 	buf.size = sizeof(struct kovaplus_actual_profile);
 	buf.actual_profile = new_profile;
 
-	return kovaplus_send(usb_dev, KOVAPLUS_USB_COMMAND_ACTUAL_PROFILE,
+	return kovaplus_send(usb_dev, KOVAPLUS_COMMAND_ACTUAL_PROFILE,
 			&buf, sizeof(struct kovaplus_actual_profile));
 }
 
@@ -323,6 +323,7 @@ static ssize_t kovaplus_sysfs_set_actual_profile(struct device *dev,
 	struct usb_device *usb_dev;
 	unsigned long profile;
 	int retval;
+	struct kovaplus_roccat_report roccat_report;
 
 	dev = dev->parent->parent;
 	kovaplus = hid_get_drvdata(dev_get_drvdata(dev));
@@ -337,10 +338,22 @@ static ssize_t kovaplus_sysfs_set_actual_profile(struct device *dev,
 
 	mutex_lock(&kovaplus->kovaplus_lock);
 	retval = kovaplus_set_actual_profile(usb_dev, profile);
-	kovaplus->actual_profile = profile;
-	mutex_unlock(&kovaplus->kovaplus_lock);
-	if (retval)
+	if (retval) {
+		mutex_unlock(&kovaplus->kovaplus_lock);
 		return retval;
+	}
+
+	kovaplus_profile_activated(kovaplus, profile);
+
+	roccat_report.type = KOVAPLUS_MOUSE_REPORT_BUTTON_TYPE_PROFILE_1;
+	roccat_report.profile = profile + 1;
+	roccat_report.button = 0;
+	roccat_report.data1 = profile + 1;
+	roccat_report.data2 = 0;
+	roccat_report_event(kovaplus->chrdev_minor,
+			(uint8_t const *)&roccat_report);
+
+	mutex_unlock(&kovaplus->kovaplus_lock);
 
 	return size;
 }
@@ -660,6 +673,9 @@ static int kovaplus_raw_event(struct hid_device *hdev,
 
 	if (intf->cur_altsetting->desc.bInterfaceProtocol
 			!= USB_INTERFACE_PROTOCOL_MOUSE)
+		return 0;
+
+	if (kovaplus == NULL)
 		return 0;
 
 	kovaplus_keep_values_up_to_date(kovaplus, data);

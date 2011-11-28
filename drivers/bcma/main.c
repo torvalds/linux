@@ -6,7 +6,9 @@
  */
 
 #include "bcma_private.h"
+#include <linux/module.h>
 #include <linux/bcma/bcma.h>
+#include <linux/slab.h>
 
 MODULE_DESCRIPTION("Broadcom's specific AMBA driver");
 MODULE_LICENSE("GPL");
@@ -14,6 +16,7 @@ MODULE_LICENSE("GPL");
 static int bcma_bus_match(struct device *dev, struct device_driver *drv);
 static int bcma_device_probe(struct device *dev);
 static int bcma_device_remove(struct device *dev);
+static int bcma_device_uevent(struct device *dev, struct kobj_uevent_env *env);
 
 static ssize_t manuf_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -48,6 +51,7 @@ static struct bus_type bcma_bus_type = {
 	.match		= bcma_bus_match,
 	.probe		= bcma_device_probe,
 	.remove		= bcma_device_remove,
+	.uevent		= bcma_device_uevent,
 	.dev_attrs	= bcma_device_attrs,
 };
 
@@ -65,6 +69,10 @@ static struct bcma_device *bcma_find_core(struct bcma_bus *bus, u16 coreid)
 static void bcma_release_core_dev(struct device *dev)
 {
 	struct bcma_device *core = container_of(dev, struct bcma_device, dev);
+	if (core->io_addr)
+		iounmap(core->io_addr);
+	if (core->io_wrap)
+		iounmap(core->io_wrap);
 	kfree(core);
 }
 
@@ -79,6 +87,7 @@ static int bcma_register_cores(struct bcma_bus *bus)
 		case BCMA_CORE_CHIPCOMMON:
 		case BCMA_CORE_PCI:
 		case BCMA_CORE_PCIE:
+		case BCMA_CORE_MIPS_74K:
 			continue;
 		}
 
@@ -89,8 +98,13 @@ static int bcma_register_cores(struct bcma_bus *bus)
 		switch (bus->hosttype) {
 		case BCMA_HOSTTYPE_PCI:
 			core->dev.parent = &bus->host_pci->dev;
+			core->dma_dev = &bus->host_pci->dev;
+			core->irq = bus->host_pci->irq;
 			break;
-		case BCMA_HOSTTYPE_NONE:
+		case BCMA_HOSTTYPE_SOC:
+			core->dev.dma_mask = &core->dev.coherent_dma_mask;
+			core->dma_dev = &core->dev;
+			break;
 		case BCMA_HOSTTYPE_SDIO:
 			break;
 		}
@@ -137,11 +151,27 @@ int bcma_bus_register(struct bcma_bus *bus)
 		bcma_core_chipcommon_init(&bus->drv_cc);
 	}
 
+	/* Init MIPS core */
+	core = bcma_find_core(bus, BCMA_CORE_MIPS_74K);
+	if (core) {
+		bus->drv_mips.core = core;
+		bcma_core_mips_init(&bus->drv_mips);
+	}
+
 	/* Init PCIE core */
 	core = bcma_find_core(bus, BCMA_CORE_PCIE);
 	if (core) {
 		bus->drv_pci.core = core;
 		bcma_core_pci_init(&bus->drv_pci);
+	}
+
+	/* Try to get SPROM */
+	err = bcma_sprom_get(bus);
+	if (err == -ENOENT) {
+		pr_err("No SPROM available\n");
+	} else if (err) {
+		pr_err("Failed to get SPROM: %d\n", err);
+		return -ENOENT;
 	}
 
 	/* Register found cores */
@@ -151,13 +181,64 @@ int bcma_bus_register(struct bcma_bus *bus)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(bcma_bus_register);
 
 void bcma_bus_unregister(struct bcma_bus *bus)
 {
 	bcma_unregister_cores(bus);
 }
-EXPORT_SYMBOL_GPL(bcma_bus_unregister);
+
+int __init bcma_bus_early_register(struct bcma_bus *bus,
+				   struct bcma_device *core_cc,
+				   struct bcma_device *core_mips)
+{
+	int err;
+	struct bcma_device *core;
+	struct bcma_device_id match;
+
+	bcma_init_bus(bus);
+
+	match.manuf = BCMA_MANUF_BCM;
+	match.id = BCMA_CORE_CHIPCOMMON;
+	match.class = BCMA_CL_SIM;
+	match.rev = BCMA_ANY_REV;
+
+	/* Scan for chip common core */
+	err = bcma_bus_scan_early(bus, &match, core_cc);
+	if (err) {
+		pr_err("Failed to scan for common core: %d\n", err);
+		return -1;
+	}
+
+	match.manuf = BCMA_MANUF_MIPS;
+	match.id = BCMA_CORE_MIPS_74K;
+	match.class = BCMA_CL_SIM;
+	match.rev = BCMA_ANY_REV;
+
+	/* Scan for mips core */
+	err = bcma_bus_scan_early(bus, &match, core_mips);
+	if (err) {
+		pr_err("Failed to scan for mips core: %d\n", err);
+		return -1;
+	}
+
+	/* Init CC core */
+	core = bcma_find_core(bus, BCMA_CORE_CHIPCOMMON);
+	if (core) {
+		bus->drv_cc.core = core;
+		bcma_core_chipcommon_init(&bus->drv_cc);
+	}
+
+	/* Init MIPS core */
+	core = bcma_find_core(bus, BCMA_CORE_MIPS_74K);
+	if (core) {
+		bus->drv_mips.core = core;
+		bcma_core_mips_init(&bus->drv_mips);
+	}
+
+	pr_info("Early bus registered\n");
+
+	return 0;
+}
 
 int __bcma_driver_register(struct bcma_driver *drv, struct module *owner)
 {
@@ -215,6 +296,16 @@ static int bcma_device_remove(struct device *dev)
 		adrv->remove(core);
 
 	return 0;
+}
+
+static int bcma_device_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	struct bcma_device *core = container_of(dev, struct bcma_device, dev);
+
+	return add_uevent_var(env,
+			      "MODALIAS=bcma:m%04Xid%04Xrev%02Xcl%02X",
+			      core->id.manuf, core->id.id,
+			      core->id.rev, core->id.class);
 }
 
 static int __init bcma_modinit(void)

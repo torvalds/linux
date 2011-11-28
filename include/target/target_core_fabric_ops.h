@@ -27,6 +27,12 @@ struct target_core_fabric_ops {
 	int (*tpg_check_demo_mode_cache)(struct se_portal_group *);
 	int (*tpg_check_demo_mode_write_protect)(struct se_portal_group *);
 	int (*tpg_check_prod_mode_write_protect)(struct se_portal_group *);
+	/*
+	 * Optionally used by fabrics to allow demo-mode login, but not
+	 * expose any TPG LUNs, and return 'not connected' in standard
+	 * inquiry response
+	 */
+	int (*tpg_check_demo_mode_login_only)(struct se_portal_group *);
 	struct se_node_acl *(*tpg_alloc_fabric_acl)(
 					struct se_portal_group *);
 	void (*tpg_release_fabric_acl)(struct se_portal_group *,
@@ -39,17 +45,18 @@ struct target_core_fabric_ops {
 	 */
 	int (*new_cmd_map)(struct se_cmd *);
 	/*
-	 * Optional function pointer for TCM fabric modules that use
-	 * Linux/NET sockets to allocate struct iovec array to struct se_cmd
-	 */
-	int (*alloc_cmd_iovecs)(struct se_cmd *);
-	/*
 	 * Optional to release struct se_cmd and fabric dependent allocated
-	 * I/O descriptor in transport_cmd_check_stop()
+	 * I/O descriptor in transport_cmd_check_stop().
+	 *
+	 * Returning 1 will signal a descriptor has been released.
+	 * Returning 0 will signal a descriptor has not been released.
 	 */
-	void (*check_stop_free)(struct se_cmd *);
-	void (*release_cmd_to_pool)(struct se_cmd *);
-	void (*release_cmd_direct)(struct se_cmd *);
+	int (*check_stop_free)(struct se_cmd *);
+	/*
+	 * Optional check for active I/O shutdown
+	 */
+	int (*check_release_cmd)(struct se_cmd *);
+	void (*release_cmd)(struct se_cmd *);
 	/*
 	 * Called with spin_lock_bh(struct se_portal_group->session_lock held.
 	 */
@@ -70,7 +77,6 @@ struct target_core_fabric_ops {
 	void (*set_default_node_attributes)(struct se_node_acl *);
 	u32 (*get_task_tag)(struct se_cmd *);
 	int (*get_cmd_state)(struct se_cmd *);
-	void (*new_cmd_failure)(struct se_cmd *);
 	int (*queue_data_in)(struct se_cmd *);
 	int (*queue_status)(struct se_cmd *);
 	int (*queue_tm_rsp)(struct se_cmd *);

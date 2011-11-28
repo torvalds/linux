@@ -2,7 +2,7 @@ SQUASHFS 4.0 FILESYSTEM
 =======================
 
 Squashfs is a compressed read-only filesystem for Linux.
-It uses zlib/lzo compression to compress files, inodes and directories.
+It uses zlib/lzo/xz compression to compress files, inodes and directories.
 Inodes in the system are very small and all blocks are packed to minimise
 data overhead. Block sizes greater than 4K are supported up to a maximum
 of 1Mbytes (default block size 128K).
@@ -55,6 +55,8 @@ create populated squashfs filesystems.  This and other squashfs utilities
 can be obtained from http://www.squashfs.org.  Usage instructions can be
 obtained from this site also.
 
+The squashfs-tools development tree is now located on kernel.org
+	git://git.kernel.org/pub/scm/fs/squashfs/squashfs-tools.git
 
 3. SQUASHFS FILESYSTEM DESIGN
 -----------------------------

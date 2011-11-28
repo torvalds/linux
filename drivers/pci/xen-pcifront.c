@@ -16,7 +16,7 @@
 #include <xen/interface/io/pciif.h>
 #include <asm/xen/pci.h>
 #include <linux/interrupt.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/workqueue.h>
 #include <linux/bitops.h>
 #include <linux/time.h>
@@ -400,9 +400,8 @@ static int pcifront_claim_resource(struct pci_dev *dev, void *data)
 			dev_info(&pdev->xdev->dev, "claiming resource %s/%d\n",
 				pci_name(dev), i);
 			if (pci_claim_resource(dev, i)) {
-				dev_err(&pdev->xdev->dev, "Could not claim "
-					"resource %s/%d! Device offline. Try "
-					"giving less than 4GB to domain.\n",
+				dev_err(&pdev->xdev->dev, "Could not claim resource %s/%d! "
+					"Device offline. Try using e820_host=1 in the guest config.\n",
 					pci_name(dev), i);
 			}
 		}

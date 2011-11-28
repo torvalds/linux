@@ -467,6 +467,20 @@ config VIDEO_OV7670
 	  OV7670 VGA camera.  It currently only works with the M88ALP01
 	  controller.
 
+config VIDEO_MT9P031
+	tristate "Aptina MT9P031 support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the Aptina
+	  (Micron) mt9p031 5 Mpixel camera.
+
+config VIDEO_MT9T001
+	tristate "Aptina MT9T001 support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the Aptina
+	  (Micron) mt0t001 3 Mpixel camera.
+
 config VIDEO_MT9V011
 	tristate "Micron mt9v011 sensor support"
 	depends on I2C && VIDEO_V4L2
@@ -488,6 +502,36 @@ config VIDEO_TCM825X
 	---help---
 	  This is a driver for the Toshiba TCM825x VGA camera sensor.
 	  It is used for example in Nokia N800.
+
+config VIDEO_SR030PC30
+	tristate "Siliconfile SR030PC30 sensor support"
+	depends on I2C && VIDEO_V4L2
+	---help---
+	  This driver supports SR030PC30 VGA camera from Siliconfile
+
+config VIDEO_NOON010PC30
+	tristate "Siliconfile NOON010PC30 sensor support"
+	depends on I2C && VIDEO_V4L2 && EXPERIMENTAL && VIDEO_V4L2_SUBDEV_API
+	---help---
+	  This driver supports NOON010PC30 CIF camera from Siliconfile
+
+source "drivers/media/video/m5mols/Kconfig"
+
+config VIDEO_S5K6AA
+	tristate "Samsung S5K6AAFX sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	---help---
+	  This is a V4L2 sensor-level driver for Samsung S5K6AA(FX) 1.3M
+	  camera sensor with an embedded SoC image signal processor.
+
+comment "Flash devices"
+
+config VIDEO_ADP1653
+	tristate "ADP1653 flash support"
+	depends on I2C && VIDEO_V4L2 && MEDIA_CONTROLLER
+	---help---
+	  This is a driver for the ADP1653 flash controller. It is used for
+	  example in Nokia N900.
 
 comment "Video improvement chips"
 
@@ -699,6 +743,8 @@ source "drivers/media/video/cx88/Kconfig"
 
 source "drivers/media/video/cx23885/Kconfig"
 
+source "drivers/media/video/cx25821/Kconfig"
+
 source "drivers/media/video/au0828/Kconfig"
 
 source "drivers/media/video/ivtv/Kconfig"
@@ -706,6 +752,8 @@ source "drivers/media/video/ivtv/Kconfig"
 source "drivers/media/video/cx18/Kconfig"
 
 source "drivers/media/video/saa7164/Kconfig"
+
+source "drivers/media/video/marvell-ccic/Kconfig"
 
 config VIDEO_M32R_AR
 	tristate "AR devices"
@@ -726,21 +774,6 @@ config VIDEO_M32R_AR_M64278
 	  To compile this driver as a module, choose M here: the
 	  module will be called arv.
 
-config VIDEO_CAFE_CCIC
-	tristate "Marvell 88ALP01 (Cafe) CMOS Camera Controller support"
-	depends on PCI && I2C && VIDEO_V4L2
-	select VIDEO_OV7670
-	---help---
-	  This is a video4linux2 driver for the Marvell 88ALP01 integrated
-	  CMOS camera controller.  This is the controller found on first-
-	  generation OLPC systems.
-
-config VIDEO_SR030PC30
-	tristate "SR030PC30 VGA camera sensor support"
-	depends on I2C && VIDEO_V4L2
-	---help---
-	  This driver supports SR030PC30 VGA camera from Siliconfile
-
 config VIDEO_VIA_CAMERA
 	tristate "VIAFB camera controller support"
 	depends on FB_VIA
@@ -751,18 +784,9 @@ config VIDEO_VIA_CAMERA
 	   Chrome9 chipsets.  Currently only tested on OLPC xo-1.5 systems
 	   with ov7670 sensors.
 
-config VIDEO_NOON010PC30
-	tristate "NOON010PC30 CIF camera sensor support"
-	depends on I2C && VIDEO_V4L2
-	---help---
-	  This driver supports NOON010PC30 CIF camera from Siliconfile
-
-source "drivers/media/video/m5mols/Kconfig"
-
 config VIDEO_OMAP3
 	tristate "OMAP 3 Camera support (EXPERIMENTAL)"
-	select OMAP_IOMMU
-	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API && ARCH_OMAP3 && EXPERIMENTAL
+	depends on OMAP_IOVMM && VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API && ARCH_OMAP3 && EXPERIMENTAL
 	---help---
 	  Driver for an OMAP 3 camera controller.
 
@@ -845,6 +869,12 @@ config SOC_CAMERA_OV2640
 	depends on SOC_CAMERA && I2C
 	help
 	  This is a ov2640 camera driver
+
+config SOC_CAMERA_OV5642
+	tristate "ov5642 camera support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a V4L2 camera driver for the OmniVision OV5642 sensor
 
 config SOC_CAMERA_OV6650
 	tristate "ov6650 sensor support"
@@ -941,8 +971,9 @@ config VIDEO_MX2
 	  Interface
 
 config  VIDEO_SAMSUNG_S5P_FIMC
-	tristate "Samsung S5P and EXYNOS4 camera host interface driver"
-	depends on VIDEO_DEV && VIDEO_V4L2 && PLAT_S5P
+	tristate "Samsung S5P and EXYNOS4 camera interface driver (EXPERIMENTAL)"
+	depends on VIDEO_V4L2 && I2C && PLAT_S5P && PM_RUNTIME && \
+		VIDEO_V4L2_SUBDEV_API && EXPERIMENTAL
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV
 	---help---
@@ -952,6 +983,14 @@ config  VIDEO_SAMSUNG_S5P_FIMC
 	  To compile this driver as a module, choose M here: the
 	  module will be called s5p-fimc.
 
+config VIDEO_ATMEL_ISI
+	tristate "ATMEL Image Sensor Interface (ISI) support"
+	depends on VIDEO_DEV && SOC_CAMERA && ARCH_AT91
+	select VIDEOBUF2_DMA_CONTIG
+	---help---
+	  This module makes the ATMEL Image Sensor Interface available
+	  as a v4l2 device.
+
 config VIDEO_S5P_MIPI_CSIS
 	tristate "Samsung S5P and EXYNOS4 MIPI CSI receiver driver"
 	depends on VIDEO_V4L2 && PM_RUNTIME && PLAT_S5P && VIDEO_V4L2_SUBDEV_API
@@ -960,6 +999,8 @@ config VIDEO_S5P_MIPI_CSIS
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called s5p-csis.
+
+source "drivers/media/video/s5p-tv/Kconfig"
 
 #
 # USB Multimedia device configuration
@@ -985,6 +1026,8 @@ source "drivers/media/video/em28xx/Kconfig"
 source "drivers/media/video/tlg2300/Kconfig"
 
 source "drivers/media/video/cx231xx/Kconfig"
+
+source "drivers/media/video/tm6000/Kconfig"
 
 source "drivers/media/video/usbvision/Kconfig"
 
@@ -1055,5 +1098,13 @@ config VIDEO_MEM2MEM_TESTDEV
 	  This is a virtual test device for the memory-to-memory driver
 	  framework.
 
+
+config VIDEO_SAMSUNG_S5P_MFC
+	tristate "Samsung S5P MFC 5.1 Video Codec"
+	depends on VIDEO_DEV && VIDEO_V4L2 && PLAT_S5P
+	select VIDEOBUF2_DMA_CONTIG
+	default n
+	help
+	    MFC 5.1 driver for V4L2.
 
 endif # V4L_MEM2MEM_DRIVERS

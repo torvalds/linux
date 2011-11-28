@@ -85,6 +85,8 @@
  * @reset: reset the device
  *	vdev: the virtio device
  *	After this, status and feature negotiation must be done again
+ *	Device must not be reset from its vq/config callbacks, or in
+ *	parallel with being added/removed.
  * @find_vqs: find virtqueues and instantiate them.
  *	vdev: the virtio_device
  *	nvqs: the number of virtqueues to find
@@ -154,6 +156,9 @@ static inline bool virtio_has_feature(const struct virtio_device *vdev,
  * the config value is copied into whatever is pointed to by v. */
 #define virtio_config_val(vdev, fbit, offset, v) \
 	virtio_config_buf((vdev), (fbit), (offset), (v), sizeof(*v))
+
+#define virtio_config_val_len(vdev, fbit, offset, v, len) \
+	virtio_config_buf((vdev), (fbit), (offset), (v), (len))
 
 static inline int virtio_config_buf(struct virtio_device *vdev,
 				    unsigned int fbit,

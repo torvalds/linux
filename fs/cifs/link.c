@@ -74,8 +74,14 @@ symlink_hash(unsigned int link_len, const char *link_str, u8 *md5_hash)
 		cERROR(1, "%s: Could not init md5 shash\n", __func__);
 		goto symlink_hash_err;
 	}
-	crypto_shash_update(&sdescmd5->shash, link_str, link_len);
+	rc = crypto_shash_update(&sdescmd5->shash, link_str, link_len);
+	if (rc) {
+		cERROR(1, "%s: Could not update iwth link_str\n", __func__);
+		goto symlink_hash_err;
+	}
 	rc = crypto_shash_final(&sdescmd5->shash, md5_hash);
+	if (rc)
+		cERROR(1, "%s: Could not generate md5 hash\n", __func__);
 
 symlink_hash_err:
 	crypto_free_shash(md5);
@@ -177,14 +183,20 @@ CIFSFormatMFSymlink(u8 *buf, unsigned int buf_len, const char *link_str)
 static int
 CIFSCreateMFSymLink(const int xid, struct cifs_tcon *tcon,
 		    const char *fromName, const char *toName,
-		    const struct nls_table *nls_codepage, int remap)
+		    struct cifs_sb_info *cifs_sb)
 {
 	int rc;
 	int oplock = 0;
+	int remap;
+	int create_options = CREATE_NOT_DIR;
 	__u16 netfid = 0;
 	u8 *buf;
 	unsigned int bytes_written = 0;
 	struct cifs_io_parms io_parms;
+	struct nls_table *nls_codepage;
+
+	nls_codepage = cifs_sb->local_nls;
+	remap = cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR;
 
 	buf = kmalloc(CIFS_MF_SYMLINK_FILE_SIZE, GFP_KERNEL);
 	if (!buf)
@@ -196,8 +208,11 @@ CIFSCreateMFSymLink(const int xid, struct cifs_tcon *tcon,
 		return rc;
 	}
 
+	if (backup_cred(cifs_sb))
+		create_options |= CREATE_OPEN_BACKUP_INTENT;
+
 	rc = CIFSSMBOpen(xid, tcon, fromName, FILE_CREATE, GENERIC_WRITE,
-			 CREATE_NOT_DIR, &netfid, &oplock, NULL,
+			 create_options, &netfid, &oplock, NULL,
 			 nls_codepage, remap);
 	if (rc != 0) {
 		kfree(buf);
@@ -418,7 +433,7 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 	if (old_file->d_inode) {
 		cifsInode = CIFS_I(old_file->d_inode);
 		if (rc == 0) {
-			old_file->d_inode->i_nlink++;
+			inc_nlink(old_file->d_inode);
 /* BB should we make this contingent on superblock flag NOATIME? */
 /*			old_file->d_inode->i_ctime = CURRENT_TIME;*/
 			/* parent dir timestamps will update from srv
@@ -553,9 +568,7 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 	/* BB what if DFS and this volume is on different share? BB */
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS)
 		rc = CIFSCreateMFSymLink(xid, pTcon, full_path, symname,
-					 cifs_sb->local_nls,
-					 cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
+					cifs_sb);
 	else if (pTcon->unix_ext)
 		rc = CIFSUnixCreateSymLink(xid, pTcon, full_path, symname,
 					   cifs_sb->local_nls);

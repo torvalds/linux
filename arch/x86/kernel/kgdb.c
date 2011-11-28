@@ -511,28 +511,37 @@ single_step_cont(struct pt_regs *regs, struct die_args *args)
 
 static int was_in_debug_nmi[NR_CPUS];
 
-static int __kgdb_notify(struct die_args *args, unsigned long cmd)
+static int kgdb_nmi_handler(unsigned int cmd, struct pt_regs *regs)
 {
-	struct pt_regs *regs = args->regs;
-
 	switch (cmd) {
-	case DIE_NMI:
+	case NMI_LOCAL:
 		if (atomic_read(&kgdb_active) != -1) {
 			/* KGDB CPU roundup */
 			kgdb_nmicallback(raw_smp_processor_id(), regs);
 			was_in_debug_nmi[raw_smp_processor_id()] = 1;
 			touch_nmi_watchdog();
-			return NOTIFY_STOP;
+			return NMI_HANDLED;
 		}
-		return NOTIFY_DONE;
+		break;
 
-	case DIE_NMIUNKNOWN:
+	case NMI_UNKNOWN:
 		if (was_in_debug_nmi[raw_smp_processor_id()]) {
 			was_in_debug_nmi[raw_smp_processor_id()] = 0;
-			return NOTIFY_STOP;
+			return NMI_HANDLED;
 		}
-		return NOTIFY_DONE;
+		break;
+	default:
+		/* do nothing */
+		break;
+	}
+	return NMI_DONE;
+}
 
+static int __kgdb_notify(struct die_args *args, unsigned long cmd)
+{
+	struct pt_regs *regs = args->regs;
+
+	switch (cmd) {
 	case DIE_DEBUG:
 		if (atomic_read(&kgdb_cpu_doing_single_step) != -1) {
 			if (user_mode(regs))
@@ -590,11 +599,6 @@ kgdb_notify(struct notifier_block *self, unsigned long cmd, void *ptr)
 
 static struct notifier_block kgdb_notifier = {
 	.notifier_call	= kgdb_notify,
-
-	/*
-	 * Lowest-prio notifier priority, we want to be notified last:
-	 */
-	.priority	= NMI_LOCAL_LOW_PRIOR,
 };
 
 /**
@@ -605,10 +609,34 @@ static struct notifier_block kgdb_notifier = {
  */
 int kgdb_arch_init(void)
 {
-	return register_die_notifier(&kgdb_notifier);
+	int retval;
+
+	retval = register_die_notifier(&kgdb_notifier);
+	if (retval)
+		goto out;
+
+	retval = register_nmi_handler(NMI_LOCAL, kgdb_nmi_handler,
+					0, "kgdb");
+	if (retval)
+		goto out1;
+
+	retval = register_nmi_handler(NMI_UNKNOWN, kgdb_nmi_handler,
+					0, "kgdb");
+
+	if (retval)
+		goto out2;
+
+	return retval;
+
+out2:
+	unregister_nmi_handler(NMI_LOCAL, "kgdb");
+out1:
+	unregister_die_notifier(&kgdb_notifier);
+out:
+	return retval;
 }
 
-static void kgdb_hw_overflow_handler(struct perf_event *event, int nmi,
+static void kgdb_hw_overflow_handler(struct perf_event *event,
 		struct perf_sample_data *data, struct pt_regs *regs)
 {
 	struct task_struct *tsk = current;
@@ -638,7 +666,7 @@ void kgdb_arch_late(void)
 	for (i = 0; i < HBP_NUM; i++) {
 		if (breakinfo[i].pev)
 			continue;
-		breakinfo[i].pev = register_wide_hw_breakpoint(&attr, NULL);
+		breakinfo[i].pev = register_wide_hw_breakpoint(&attr, NULL, NULL);
 		if (IS_ERR((void * __force)breakinfo[i].pev)) {
 			printk(KERN_ERR "kgdb: Could not allocate hw"
 			       "breakpoints\nDisabling the kernel debugger\n");
@@ -673,6 +701,8 @@ void kgdb_arch_exit(void)
 			breakinfo[i].pev = NULL;
 		}
 	}
+	unregister_nmi_handler(NMI_UNKNOWN, "kgdb");
+	unregister_nmi_handler(NMI_LOCAL, "kgdb");
 	unregister_die_notifier(&kgdb_notifier);
 }
 

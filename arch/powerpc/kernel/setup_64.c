@@ -12,7 +12,7 @@
 
 #undef DEBUG
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/string.h>
 #include <linux/sched.h>
 #include <linux/init.h>
@@ -63,6 +63,7 @@
 #include <asm/kexec.h>
 #include <asm/mmu_context.h>
 #include <asm/code-patching.h>
+#include <asm/kvm_ppc.h>
 
 #include "setup.h"
 
@@ -73,7 +74,7 @@
 #endif
 
 int boot_cpuid = 0;
-int __initdata boot_cpu_count;
+int __initdata spinning_secondaries;
 u64 ppc64_pft_size;
 
 /* Pick defaults since we might want to patch instructions
@@ -253,11 +254,11 @@ void smp_release_cpus(void)
 	for (i = 0; i < 100000; i++) {
 		mb();
 		HMT_low();
-		if (boot_cpu_count == 0)
+		if (spinning_secondaries == 0)
 			break;
 		udelay(1);
 	}
-	DBG("boot_cpu_count = %d\n", boot_cpu_count);
+	DBG("spinning_secondaries = %d\n", spinning_secondaries);
 
 	DBG(" <- smp_release_cpus()\n");
 }
@@ -277,14 +278,14 @@ static void __init initialize_cache_info(void)
 
 	DBG(" -> initialize_cache_info()\n");
 
-	for (np = NULL; (np = of_find_node_by_type(np, "cpu"));) {
+	for_each_node_by_type(np, "cpu") {
 		num_cpus += 1;
 
-		/* We're assuming *all* of the CPUs have the same
+		/*
+		 * We're assuming *all* of the CPUs have the same
 		 * d-cache and i-cache sizes... -Peter
 		 */
-
-		if ( num_cpus == 1 ) {
+		if (num_cpus == 1) {
 			const u32 *sizep, *lsizep;
 			u32 size, lsize;
 
@@ -293,10 +294,13 @@ static void __init initialize_cache_info(void)
 			sizep = of_get_property(np, "d-cache-size", NULL);
 			if (sizep != NULL)
 				size = *sizep;
-			lsizep = of_get_property(np, "d-cache-block-size", NULL);
+			lsizep = of_get_property(np, "d-cache-block-size",
+						 NULL);
 			/* fallback if block size missing */
 			if (lsizep == NULL)
-				lsizep = of_get_property(np, "d-cache-line-size", NULL);
+				lsizep = of_get_property(np,
+							 "d-cache-line-size",
+							 NULL);
 			if (lsizep != NULL)
 				lsize = *lsizep;
 			if (sizep == 0 || lsizep == 0)
@@ -313,9 +317,12 @@ static void __init initialize_cache_info(void)
 			sizep = of_get_property(np, "i-cache-size", NULL);
 			if (sizep != NULL)
 				size = *sizep;
-			lsizep = of_get_property(np, "i-cache-block-size", NULL);
+			lsizep = of_get_property(np, "i-cache-block-size",
+						 NULL);
 			if (lsizep == NULL)
-				lsizep = of_get_property(np, "i-cache-line-size", NULL);
+				lsizep = of_get_property(np,
+							 "i-cache-line-size",
+							 NULL);
 			if (lsizep != NULL)
 				lsize = *lsizep;
 			if (sizep == 0 || lsizep == 0)
@@ -352,6 +359,7 @@ void __init setup_system(void)
 			  &__start___fw_ftr_fixup, &__stop___fw_ftr_fixup);
 	do_lwsync_fixups(cur_cpu_spec->cpu_features,
 			 &__start___lwsync_fixup, &__stop___lwsync_fixup);
+	do_final_fixups();
 
 	/*
 	 * Unflatten the device-tree passed by prom_init or kexec
@@ -579,6 +587,8 @@ void __init setup_arch(char **cmdline_p)
 
 	/* Initialize the MMU context management stuff */
 	mmu_context_init();
+
+	kvm_rma_init();
 
 	ppc64_boot_msg(0x15, "Setup Done");
 }

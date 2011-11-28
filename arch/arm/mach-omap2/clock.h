@@ -16,6 +16,8 @@
 #ifndef __ARCH_ARM_MACH_OMAP2_CLOCK_H
 #define __ARCH_ARM_MACH_OMAP2_CLOCK_H
 
+#include <linux/kernel.h>
+
 #include <plat/clock.h>
 
 /* CM_CLKSEL2_PLL.CORE_CLK_SRC bits (2XXX) */
@@ -64,6 +66,8 @@ void omap3_noncore_dpll_disable(struct clk *clk);
 int omap4_dpllmx_gatectrl_read(struct clk *clk);
 void omap4_dpllmx_allow_gatectrl(struct clk *clk);
 void omap4_dpllmx_deny_gatectrl(struct clk *clk);
+long omap4_dpll_regm4xen_round_rate(struct clk *clk, unsigned long target_rate);
+unsigned long omap4_dpll_regm4xen_recalc(struct clk *clk);
 
 #ifdef CONFIG_OMAP_RESET_CLOCKS
 void omap2_clk_disable_unused(struct clk *clk);
@@ -72,6 +76,7 @@ void omap2_clk_disable_unused(struct clk *clk);
 #endif
 
 void omap2_init_clk_clkdm(struct clk *clk);
+void __init omap2_clk_disable_clkdm_control(void);
 
 /* clkt_clksel.c public functions */
 u32 omap2_clksel_round_rate_div(struct clk *clk, unsigned long target_rate,

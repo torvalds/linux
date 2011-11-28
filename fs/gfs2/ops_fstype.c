@@ -14,6 +14,7 @@
 #include <linux/buffer_head.h>
 #include <linux/blkdev.h>
 #include <linux/kthread.h>
+#include <linux/export.h>
 #include <linux/namei.h>
 #include <linux/mount.h>
 #include <linux/gfs2_ondisk.h>
@@ -72,12 +73,12 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 
 	init_waitqueue_head(&sdp->sd_glock_wait);
 	atomic_set(&sdp->sd_glock_disposal, 0);
+	init_completion(&sdp->sd_locking_init);
 	spin_lock_init(&sdp->sd_statfs_spin);
 
 	spin_lock_init(&sdp->sd_rindex_spin);
 	mutex_init(&sdp->sd_rindex_mutex);
-	INIT_LIST_HEAD(&sdp->sd_rindex_list);
-	INIT_LIST_HEAD(&sdp->sd_rindex_mru_list);
+	sdp->sd_rindex_tree.rb_node = NULL;
 
 	INIT_LIST_HEAD(&sdp->sd_jindex_list);
 	spin_lock_init(&sdp->sd_jindex_spin);
@@ -223,7 +224,7 @@ static int gfs2_read_super(struct gfs2_sbd *sdp, sector_t sector, int silent)
 
 	bio->bi_end_io = end_bio_io_page;
 	bio->bi_private = page;
-	submit_bio(READ_SYNC | REQ_META, bio);
+	submit_bio(READ_SYNC | REQ_META | REQ_PRIO, bio);
 	wait_on_page_locked(page);
 	bio_put(bio);
 	if (!PageUptodate(page)) {
@@ -651,7 +652,6 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 		fs_err(sdp, "can't lookup journal index: %d\n", error);
 		return PTR_ERR(sdp->sd_jindex);
 	}
-	ip = GFS2_I(sdp->sd_jindex);
 
 	/* Load in the journal index special file */
 
@@ -763,7 +763,6 @@ fail:
 static int init_inodes(struct gfs2_sbd *sdp, int undo)
 {
 	int error = 0;
-	struct gfs2_inode *ip;
 	struct inode *master = sdp->sd_master_dir->d_inode;
 
 	if (undo)
@@ -788,7 +787,6 @@ static int init_inodes(struct gfs2_sbd *sdp, int undo)
 		fs_err(sdp, "can't get resource index inode: %d\n", error);
 		goto fail_statfs;
 	}
-	ip = GFS2_I(sdp->sd_rindex);
 	sdp->sd_rindex_uptodate = 0;
 
 	/* Read in the quota inode */
@@ -1017,11 +1015,13 @@ hostdata_error:
 		fsname++;
 	if (lm->lm_mount == NULL) {
 		fs_info(sdp, "Now mounting FS...\n");
+		complete_all(&sdp->sd_locking_init);
 		return 0;
 	}
 	ret = lm->lm_mount(sdp, fsname);
 	if (ret == 0)
 		fs_info(sdp, "Joined cluster. Now mounting FS...\n");
+	complete_all(&sdp->sd_locking_init);
 	return ret;
 }
 
@@ -1091,6 +1091,7 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
 	if (sdp->sd_args.ar_nobarrier)
 		set_bit(SDF_NOBARRIERS, &sdp->sd_flags);
 
+	sb->s_flags |= MS_NOSEC;
 	sb->s_magic = GFS2_MAGIC;
 	sb->s_op = &gfs2_super_ops;
 	sb->s_d_op = &gfs2_dops;

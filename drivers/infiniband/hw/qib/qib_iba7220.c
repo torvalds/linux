@@ -39,6 +39,7 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 #include <linux/io.h>
 #include <rdma/ib_verbs.h>
 
@@ -2434,6 +2435,7 @@ static int qib_7220_set_ib_cfg(struct qib_pportdata *ppd, int which, u32 val)
 	int lsb, ret = 0, setforce = 0;
 	u16 lcmd, licmd;
 	unsigned long flags;
+	u32 tmp = 0;
 
 	switch (which) {
 	case QIB_IB_CFG_LIDLMC:
@@ -2467,9 +2469,6 @@ static int qib_7220_set_ib_cfg(struct qib_pportdata *ppd, int which, u32 val)
 		maskr = IBA7220_IBC_WIDTH_MASK;
 		lsb = IBA7220_IBC_WIDTH_SHIFT;
 		setforce = 1;
-		spin_lock_irqsave(&ppd->lflags_lock, flags);
-		ppd->lflags |= QIBL_IB_FORCE_NOTIFY;
-		spin_unlock_irqrestore(&ppd->lflags_lock, flags);
 		break;
 
 	case QIB_IB_CFG_SPD_ENB: /* set allowed Link speeds */
@@ -2643,6 +2642,28 @@ static int qib_7220_set_ib_cfg(struct qib_pportdata *ppd, int which, u32 val)
 			goto bail;
 		}
 		qib_set_ib_7220_lstate(ppd, lcmd, licmd);
+
+		maskr = IBA7220_IBC_WIDTH_MASK;
+		lsb = IBA7220_IBC_WIDTH_SHIFT;
+		tmp = (ppd->cpspec->ibcddrctrl >> lsb) & maskr;
+		/* If the width active on the chip does not match the
+		 * width in the shadow register, write the new active
+		 * width to the chip.
+		 * We don't have to worry about speed as the speed is taken
+		 * care of by set_7220_ibspeed_fast called by ib_updown.
+		 */
+		if (ppd->link_width_enabled-1 != tmp) {
+			ppd->cpspec->ibcddrctrl &= ~(maskr << lsb);
+			ppd->cpspec->ibcddrctrl |=
+				(((u64)(ppd->link_width_enabled-1) & maskr) <<
+				 lsb);
+			qib_write_kreg(dd, kr_ibcddrctrl,
+				       ppd->cpspec->ibcddrctrl);
+			qib_write_kreg(dd, kr_scratch, 0);
+			spin_lock_irqsave(&ppd->lflags_lock, flags);
+			ppd->lflags |= QIBL_IB_FORCE_NOTIFY;
+			spin_unlock_irqrestore(&ppd->lflags_lock, flags);
+		}
 		goto bail;
 
 	case QIB_IB_CFG_HRTBT: /* set Heartbeat off/enable/auto */
@@ -4065,6 +4086,8 @@ static int qib_init_7220_variables(struct qib_devdata *dd)
 	/* we always allocate at least 2048 bytes for eager buffers */
 	ret = ib_mtu_enum_to_int(qib_ibmtu);
 	dd->rcvegrbufsize = ret != -1 ? max(ret, 2048) : QIB_DEFAULT_MTU;
+	BUG_ON(!is_power_of_2(dd->rcvegrbufsize));
+	dd->rcvegrbufsize_shift = ilog2(dd->rcvegrbufsize);
 
 	qib_7220_tidtemplate(dd);
 

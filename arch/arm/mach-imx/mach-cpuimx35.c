@@ -66,7 +66,7 @@ static struct i2c_board_info eukrea_cpuimx35_i2c_devices[] = {
 		I2C_BOARD_INFO("tsc2007", 0x48),
 		.type		= "tsc2007",
 		.platform_data	= &tsc2007_info,
-		.irq		= gpio_to_irq(TSC2007_IRQGPIO),
+		.irq		= IMX_GPIO_TO_IRQ(TSC2007_IRQGPIO),
 	},
 };
 
@@ -156,6 +156,8 @@ __setup("otg_mode=", eukrea_cpuimx35_otg_mode);
  */
 static void __init eukrea_cpuimx35_init(void)
 {
+	imx35_soc_init();
+
 	mxc_iomux_v3_setup_multiple_pads(eukrea_cpuimx35_pads,
 			ARRAY_SIZE(eukrea_cpuimx35_pads));
 
@@ -190,12 +192,13 @@ struct sys_timer eukrea_cpuimx35_timer = {
 	.init	= eukrea_cpuimx35_timer_init,
 };
 
-MACHINE_START(EUKREA_CPUIMX35, "Eukrea CPUIMX35")
+MACHINE_START(EUKREA_CPUIMX35SD, "Eukrea CPUIMX35")
 	/* Maintainer: Eukrea Electromatique */
-	.boot_params = MX3x_PHYS_OFFSET + 0x100,
+	.atag_offset = 0x100,
 	.map_io = mx35_map_io,
 	.init_early = imx35_init_early,
 	.init_irq = mx35_init_irq,
+	.handle_irq = imx35_handle_irq,
 	.timer = &eukrea_cpuimx35_timer,
 	.init_machine = eukrea_cpuimx35_init,
 MACHINE_END

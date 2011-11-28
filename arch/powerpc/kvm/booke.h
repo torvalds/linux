@@ -52,24 +52,19 @@
 
 extern unsigned long kvmppc_booke_handlers;
 
-/* Helper function for "full" MSR writes. No need to call this if only EE is
- * changing. */
-static inline void kvmppc_set_msr(struct kvm_vcpu *vcpu, u32 new_msr)
-{
-	if ((new_msr & MSR_PR) != (vcpu->arch.shared->msr & MSR_PR))
-		kvmppc_mmu_priv_switch(vcpu, new_msr & MSR_PR);
-
-	vcpu->arch.shared->msr = new_msr;
-
-	if (vcpu->arch.shared->msr & MSR_WE) {
-		kvm_vcpu_block(vcpu);
-		kvmppc_set_exit_type(vcpu, EMULATED_MTMSRWE_EXITS);
-	};
-}
+void kvmppc_set_msr(struct kvm_vcpu *vcpu, u32 new_msr);
+void kvmppc_mmu_msr_notify(struct kvm_vcpu *vcpu, u32 old_msr);
 
 int kvmppc_booke_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
                             unsigned int inst, int *advance);
 int kvmppc_booke_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt);
 int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs);
+
+/* low-level asm code to transfer guest state */
+void kvmppc_load_guest_spe(struct kvm_vcpu *vcpu);
+void kvmppc_save_guest_spe(struct kvm_vcpu *vcpu);
+
+/* high-level function, manages flags, host state */
+void kvmppc_vcpu_disable_spe(struct kvm_vcpu *vcpu);
 
 #endif /* __KVM_BOOKE_H__ */

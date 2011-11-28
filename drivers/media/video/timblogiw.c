@@ -20,7 +20,6 @@
  * Timberdale FPGA LogiWin Video In
  */
 
-#include <linux/version.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/dmaengine.h>
@@ -28,6 +27,7 @@
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/i2c.h>
+#include <linux/module.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
 #include <media/videobuf-dma-contig.h>

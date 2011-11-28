@@ -31,7 +31,7 @@ static int ixp4xx_set_mode(struct ata_link *link, struct ata_device **error)
 	struct ata_device *dev;
 
 	ata_for_each_dev(dev, link, ENABLED) {
-		ata_dev_printk(dev, KERN_INFO, "configured for PIO0\n");
+		ata_dev_info(dev, "configured for PIO0\n");
 		dev->pio_mode = XFER_PIO_0;
 		dev->xfer_mode = XFER_PIO_0;
 		dev->xfer_shift = ATA_SHIFT_PIO;
@@ -181,7 +181,7 @@ static __devinit int ixp4xx_pata_probe(struct platform_device *pdev)
 
 	ixp4xx_setup_port(ap, data, cs0->start, cs1->start);
 
-	dev_printk(KERN_INFO, &pdev->dev, "version " DRV_VERSION "\n");
+	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
 	/* activate host */
 	return ata_host_activate(host, irq, ata_sff_interrupt, 0, &ixp4xx_sht);

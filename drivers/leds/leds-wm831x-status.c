@@ -18,6 +18,7 @@
 #include <linux/mfd/wm831x/core.h>
 #include <linux/mfd/wm831x/pdata.h>
 #include <linux/mfd/wm831x/status.h>
+#include <linux/module.h>
 
 
 struct wm831x_status {

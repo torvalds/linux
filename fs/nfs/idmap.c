@@ -36,6 +36,8 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
+#include <linux/nfs_idmap.h>
 
 static int nfs_map_string_to_numeric(const char *name, size_t namelen, __u32 *res)
 {
@@ -59,12 +61,10 @@ static int nfs_map_numeric_to_string(__u32 id, char *buf, size_t buflen)
 
 #ifdef CONFIG_NFS_USE_NEW_IDMAPPER
 
-#include <linux/slab.h>
 #include <linux/cred.h>
 #include <linux/sunrpc/sched.h>
 #include <linux/nfs4.h>
 #include <linux/nfs_fs_sb.h>
-#include <linux/nfs_idmap.h>
 #include <linux/keyctl.h>
 #include <linux/key-type.h>
 #include <linux/rcupdate.h>
@@ -284,18 +284,15 @@ int nfs_map_gid_to_group(const struct nfs_server *server, __u32 gid, char *buf, 
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/socket.h>
 #include <linux/in.h>
 #include <linux/sched.h>
-
 #include <linux/sunrpc/clnt.h>
 #include <linux/workqueue.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
 
 #include <linux/nfs_fs.h>
 
-#include <linux/nfs_idmap.h>
 #include "nfs4_fs.h"
 
 #define IDMAP_HASH_SZ          128
@@ -339,8 +336,6 @@ struct idmap {
 	struct idmap_hashtable	idmap_group_hash;
 };
 
-static ssize_t idmap_pipe_upcall(struct file *, struct rpc_pipe_msg *,
-				 char __user *, size_t);
 static ssize_t idmap_pipe_downcall(struct file *, const char __user *,
 				   size_t);
 static void idmap_pipe_destroy_msg(struct rpc_pipe_msg *);
@@ -348,7 +343,7 @@ static void idmap_pipe_destroy_msg(struct rpc_pipe_msg *);
 static unsigned int fnvhash32(const void *, size_t);
 
 static const struct rpc_pipe_ops idmap_upcall_ops = {
-	.upcall		= idmap_pipe_upcall,
+	.upcall		= rpc_pipe_generic_upcall,
 	.downcall	= idmap_pipe_downcall,
 	.destroy_msg	= idmap_pipe_destroy_msg,
 };
@@ -596,27 +591,6 @@ nfs_idmap_name(struct idmap *idmap, struct idmap_hashtable *h,
 	mutex_unlock(&idmap->idmap_im_lock);
 	mutex_unlock(&idmap->idmap_lock);
 	return ret;
-}
-
-/* RPC pipefs upcall/downcall routines */
-static ssize_t
-idmap_pipe_upcall(struct file *filp, struct rpc_pipe_msg *msg,
-		  char __user *dst, size_t buflen)
-{
-	char *data = (char *)msg->data + msg->copied;
-	size_t mlen = min(msg->len, buflen);
-	unsigned long left;
-
-	left = copy_to_user(dst, data, mlen);
-	if (left == mlen) {
-		msg->errno = -EFAULT;
-		return -EFAULT;
-	}
-
-	mlen -= left;
-	msg->copied += mlen;
-	msg->errno = 0;
-	return mlen;
 }
 
 static ssize_t

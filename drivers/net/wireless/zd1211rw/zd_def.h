@@ -37,9 +37,15 @@ typedef u16 __nocast zd_addr_t;
 	if (net_ratelimit()) \
 		dev_printk_f(KERN_DEBUG, dev, fmt, ## args); \
 } while (0)
+#  define dev_dbg_f_cond(dev, cond, fmt, args...) ({ \
+	bool __cond = !!(cond); \
+	if (unlikely(__cond)) \
+		dev_printk_f(KERN_DEBUG, dev, fmt, ## args); \
+})
 #else
 #  define dev_dbg_f(dev, fmt, args...) do { (void)(dev); } while (0)
 #  define dev_dbg_f_limit(dev, fmt, args...) do { (void)(dev); } while (0)
+#  define dev_dbg_f_cond(dev, cond, fmt, args...) do { (void)(dev); } while (0)
 #endif /* DEBUG */
 
 #ifdef DEBUG

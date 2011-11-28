@@ -12,15 +12,15 @@
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  */
-
+#include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/syscore_ops.h>
 
-#include <mach/gpio.h>
 #include <mach/pxa2xx-regs.h>
 #include <mach/mfp-pxa2xx.h>
+#include <mach/gpio-pxa.h>
 
 #include "generic.h"
 
@@ -347,9 +347,9 @@ static int pxa2xx_mfp_suspend(void)
 		if ((gpio_desc[i].config & MFP_LPM_KEEP_OUTPUT) &&
 		    (GPDR(i) & GPIO_bit(i))) {
 			if (GPLR(i) & GPIO_bit(i))
-				PGSR(i) |= GPIO_bit(i);
+				PGSR(gpio_to_bank(i)) |= GPIO_bit(i);
 			else
-				PGSR(i) &= ~GPIO_bit(i);
+				PGSR(gpio_to_bank(i)) &= ~GPIO_bit(i);
 		}
 	}
 

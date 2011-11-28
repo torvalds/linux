@@ -299,8 +299,8 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 			goto err_del_interface;
 		}
 
-		/* no locking required since STA is not live yet */
-		sta->flags |= WLAN_STA_AUTHORIZED;
+		/* no atomic bitop required since STA is not live yet */
+		set_sta_flag(sta, WLAN_STA_AUTHORIZED);
 
 		res = sta_info_insert(sta);
 		if (res) {
@@ -363,8 +363,7 @@ static int ieee80211_open(struct net_device *dev)
 	int err;
 
 	/* fail early if user set an invalid address */
-	if (!is_zero_ether_addr(dev->dev_addr) &&
-	    !is_valid_ether_addr(dev->dev_addr))
+	if (!is_valid_ether_addr(dev->dev_addr))
 		return -EADDRNOTAVAIL;
 
 	err = ieee80211_check_concurrent_iface(sdata, sdata->vif.type);
@@ -457,21 +456,19 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 						 BSS_CHANGED_BEACON_ENABLED);
 
 		/* remove beacon */
-		rcu_assign_pointer(sdata->u.ap.beacon, NULL);
+		RCU_INIT_POINTER(sdata->u.ap.beacon, NULL);
 		synchronize_rcu();
 		kfree(old_beacon);
-
-		/* free all potentially still buffered bcast frames */
-		while ((skb = skb_dequeue(&sdata->u.ap.ps_bc_buf))) {
-			local->total_ps_buffered--;
-			dev_kfree_skb(skb);
-		}
 
 		/* down all dependent devices, that is VLANs */
 		list_for_each_entry_safe(vlan, tmpsdata, &sdata->u.ap.vlans,
 					 u.vlan.list)
 			dev_close(vlan->dev);
 		WARN_ON(!list_empty(&sdata->u.ap.vlans));
+
+		/* free all potentially still buffered bcast frames */
+		local->total_ps_buffered -= skb_queue_len(&sdata->u.ap.ps_bc_buf);
+		skb_queue_purge(&sdata->u.ap.ps_bc_buf);
 	}
 
 	if (going_down)
@@ -646,7 +643,7 @@ static const struct net_device_ops ieee80211_dataif_ops = {
 	.ndo_stop		= ieee80211_stop,
 	.ndo_uninit		= ieee80211_teardown_sdata,
 	.ndo_start_xmit		= ieee80211_subif_start_xmit,
-	.ndo_set_multicast_list = ieee80211_set_multicast_list,
+	.ndo_set_rx_mode	= ieee80211_set_multicast_list,
 	.ndo_change_mtu 	= ieee80211_change_mtu,
 	.ndo_set_mac_address 	= ieee80211_change_mac,
 	.ndo_select_queue	= ieee80211_netdev_select_queue,
@@ -690,7 +687,7 @@ static const struct net_device_ops ieee80211_monitorif_ops = {
 	.ndo_stop		= ieee80211_stop,
 	.ndo_uninit		= ieee80211_teardown_sdata,
 	.ndo_start_xmit		= ieee80211_monitor_start_xmit,
-	.ndo_set_multicast_list = ieee80211_set_multicast_list,
+	.ndo_set_rx_mode	= ieee80211_set_multicast_list,
 	.ndo_change_mtu 	= ieee80211_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_select_queue	= ieee80211_monitor_select_queue,
@@ -699,6 +696,7 @@ static const struct net_device_ops ieee80211_monitorif_ops = {
 static void ieee80211_if_setup(struct net_device *dev)
 {
 	ether_setup(dev);
+	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	dev->netdev_ops = &ieee80211_dataif_ops;
 	dev->destructor = free_netdev;
 }
@@ -1130,8 +1128,8 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 
 	ASSERT_RTNL();
 
-	ndev = alloc_netdev_mq(sizeof(*sdata) + local->hw.vif_data_size,
-			       name, ieee80211_if_setup, local->hw.queues);
+	ndev = alloc_netdev_mqs(sizeof(*sdata) + local->hw.vif_data_size,
+				name, ieee80211_if_setup, local->hw.queues, 1);
 	if (!ndev)
 		return -ENOMEM;
 	dev_net_set(ndev, wiphy_net(local->hw.wiphy));
@@ -1214,6 +1212,9 @@ void ieee80211_if_remove(struct ieee80211_sub_if_data *sdata)
 	list_del_rcu(&sdata->list);
 	mutex_unlock(&sdata->local->iflist_mtx);
 
+	if (ieee80211_vif_is_mesh(&sdata->vif))
+		mesh_path_flush_by_iface(sdata);
+
 	synchronize_rcu();
 	unregister_netdevice(sdata->dev);
 }
@@ -1232,6 +1233,9 @@ void ieee80211_remove_interfaces(struct ieee80211_local *local)
 	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry_safe(sdata, tmp, &local->interfaces, list) {
 		list_del(&sdata->list);
+
+		if (ieee80211_vif_is_mesh(&sdata->vif))
+			mesh_path_flush_by_iface(sdata);
 
 		unregister_netdevice_queue(sdata->dev, &unreg_list);
 	}

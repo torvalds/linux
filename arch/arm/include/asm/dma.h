@@ -1,15 +1,16 @@
 #ifndef __ASM_ARM_DMA_H
 #define __ASM_ARM_DMA_H
 
-#include <asm/memory.h>
-
 /*
  * This is the maximum virtual address which can be DMA'd from.
  */
-#ifndef ARM_DMA_ZONE_SIZE
-#define MAX_DMA_ADDRESS	0xffffffff
+#ifndef CONFIG_ZONE_DMA
+#define MAX_DMA_ADDRESS	0xffffffffUL
 #else
-#define MAX_DMA_ADDRESS	(PAGE_OFFSET + ARM_DMA_ZONE_SIZE)
+#define MAX_DMA_ADDRESS	({ \
+	extern unsigned long arm_dma_zone_size; \
+	arm_dma_zone_size ? \
+		(PAGE_OFFSET + arm_dma_zone_size) : 0xffffffffUL; })
 #endif
 
 #ifdef CONFIG_ISA_DMA_API
@@ -33,18 +34,18 @@
 #define DMA_MODE_CASCADE 0xc0
 #define DMA_AUTOINIT	 0x10
 
-extern spinlock_t  dma_spin_lock;
+extern raw_spinlock_t  dma_spin_lock;
 
 static inline unsigned long claim_dma_lock(void)
 {
 	unsigned long flags;
-	spin_lock_irqsave(&dma_spin_lock, flags);
+	raw_spin_lock_irqsave(&dma_spin_lock, flags);
 	return flags;
 }
 
 static inline void release_dma_lock(unsigned long flags)
 {
-	spin_unlock_irqrestore(&dma_spin_lock, flags);
+	raw_spin_unlock_irqrestore(&dma_spin_lock, flags);
 }
 
 /* Clear the 'DMA Pointer Flip Flop'.

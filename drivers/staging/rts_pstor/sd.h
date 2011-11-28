@@ -38,6 +38,11 @@
 #define SD_RSP_TIMEOUT		0x04
 #define SD_IO_ERR		0x02
 
+/* Return code for MMC switch bus */
+#define SWITCH_SUCCESS		0
+#define SWITCH_ERR		1
+#define SWITCH_FAIL		2
+
 /* MMC/SD Command Index */
 /* Basic command (class 0) */
 #define GO_IDLE_STATE		0

@@ -44,6 +44,9 @@
 #include "acl.h"
 #include "namei.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/ext3.h>
+
 #ifdef CONFIG_EXT3_DEFAULTS_TO_ORDERED
   #define EXT3_MOUNT_DEFAULT_DATA_MODE EXT3_MOUNT_ORDERED_DATA
 #else
@@ -497,6 +500,14 @@ static struct inode *ext3_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
+static int ext3_drop_inode(struct inode *inode)
+{
+	int drop = generic_drop_inode(inode);
+
+	trace_ext3_drop_inode(inode, drop);
+	return drop;
+}
+
 static void ext3_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
@@ -641,8 +652,6 @@ static int ext3_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_puts(seq, ",nouid32");
 	if (test_opt(sb, DEBUG))
 		seq_puts(seq, ",debug");
-	if (test_opt(sb, OLDALLOC))
-		seq_puts(seq, ",oldalloc");
 #ifdef CONFIG_EXT3_FS_XATTR
 	if (test_opt(sb, XATTR_USER))
 		seq_puts(seq, ",user_xattr");
@@ -788,6 +797,7 @@ static const struct super_operations ext3_sops = {
 	.destroy_inode	= ext3_destroy_inode,
 	.write_inode	= ext3_write_inode,
 	.dirty_inode	= ext3_dirty_inode,
+	.drop_inode	= ext3_drop_inode,
 	.evict_inode	= ext3_evict_inode,
 	.put_super	= ext3_put_super,
 	.sync_fs	= ext3_sync_fs,
@@ -1037,10 +1047,12 @@ static int parse_options (char *options, struct super_block *sb,
 			set_opt (sbi->s_mount_opt, DEBUG);
 			break;
 		case Opt_oldalloc:
-			set_opt (sbi->s_mount_opt, OLDALLOC);
+			ext3_msg(sb, KERN_WARNING,
+				"Ignoring deprecated oldalloc option");
 			break;
 		case Opt_orlov:
-			clear_opt (sbi->s_mount_opt, OLDALLOC);
+			ext3_msg(sb, KERN_WARNING,
+				"Ignoring deprecated orlov option");
 			break;
 #ifdef CONFIG_EXT3_FS_XATTR
 		case Opt_user_xattr:
@@ -1718,6 +1730,8 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 	sbi->s_resuid = le16_to_cpu(es->s_def_resuid);
 	sbi->s_resgid = le16_to_cpu(es->s_def_resgid);
 
+	/* enable barriers by default */
+	set_opt(sbi->s_mount_opt, BARRIER);
 	set_opt(sbi->s_mount_opt, RESERVATION);
 
 	if (!parse_options ((char *) data, sb, &journal_inum, &journal_devnum,
@@ -2507,6 +2521,7 @@ static int ext3_sync_fs(struct super_block *sb, int wait)
 {
 	tid_t target;
 
+	trace_ext3_sync_fs(sb, wait);
 	if (journal_start_commit(EXT3_SB(sb)->s_journal, &target)) {
 		if (wait)
 			log_wait_commit(EXT3_SB(sb)->s_journal, target);
@@ -2654,13 +2669,13 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 			/*
 			 * If we have an unprocessed orphan list hanging
 			 * around from a previously readonly bdev mount,
-			 * require a full umount/remount for now.
+			 * require a full umount & mount for now.
 			 */
 			if (es->s_last_orphan) {
 				ext3_msg(sb, KERN_WARNING, "warning: couldn't "
 				       "remount RDWR because of unprocessed "
 				       "orphan inode list.  Please "
-				       "umount/remount instead.");
+				       "umount & mount instead.");
 				err = -EINVAL;
 				goto restore_opts;
 			}

@@ -36,6 +36,7 @@
 #include <linux/quotaops.h>
 #include <linux/buffer_head.h>
 #include <linux/bio.h>
+#include <trace/events/ext3.h>
 
 #include "namei.h"
 #include "xattr.h"
@@ -287,7 +288,7 @@ static struct stats dx_show_leaf(struct dx_hash_info *hinfo, struct ext3_dir_ent
 				while (len--) printk("%c", *name++);
 				ext3fs_dirhash(de->name, de->name_len, &h);
 				printk(":%x.%u ", h.hash,
-				       ((char *) de - base));
+				       (unsigned) ((char *) de - base));
 			}
 			space += EXT3_DIR_REC_LEN(de->name_len);
 			names++;
@@ -921,7 +922,8 @@ restart:
 				bh = ext3_getblk(NULL, dir, b++, 0, &err);
 				bh_use[ra_max] = bh;
 				if (bh)
-					ll_rw_block(READ_META, 1, &bh);
+					ll_rw_block(READ | REQ_META | REQ_PRIO,
+						    1, &bh);
 			}
 		}
 		if ((bh = bh_use[ra_ptr++]) == NULL)
@@ -1013,7 +1015,7 @@ static struct buffer_head * ext3_dx_find_entry(struct inode *dir,
 
 	*err = -ENOENT;
 errout:
-	dxtrace(printk("%s not found\n", name));
+	dxtrace(printk("%s not found\n", entry->name));
 	dx_release (frames);
 	return NULL;
 }
@@ -1038,15 +1040,11 @@ static struct dentry *ext3_lookup(struct inode * dir, struct dentry *dentry, str
 			return ERR_PTR(-EIO);
 		}
 		inode = ext3_iget(dir->i_sb, ino);
-		if (IS_ERR(inode)) {
-			if (PTR_ERR(inode) == -ESTALE) {
-				ext3_error(dir->i_sb, __func__,
-						"deleted inode referenced: %lu",
-						ino);
-				return ERR_PTR(-EIO);
-			} else {
-				return ERR_CAST(inode);
-			}
+		if (inode == ERR_PTR(-ESTALE)) {
+			ext3_error(dir->i_sb, __func__,
+					"deleted inode referenced: %lu",
+					ino);
+			return ERR_PTR(-EIO);
 		}
 	}
 	return d_splice_alias(inode, dentry);
@@ -1823,7 +1821,7 @@ retry:
 	de->name_len = 2;
 	strcpy (de->name, "..");
 	ext3_set_de_type(dir->i_sb, de, S_IFDIR);
-	inode->i_nlink = 2;
+	set_nlink(inode, 2);
 	BUFFER_TRACE(dir_block, "call ext3_journal_dirty_metadata");
 	err = ext3_journal_dirty_metadata(handle, dir_block);
 	if (err)
@@ -1835,7 +1833,7 @@ retry:
 
 	if (err) {
 out_clear_inode:
-		inode->i_nlink = 0;
+		clear_nlink(inode);
 		unlock_new_inode(inode);
 		ext3_mark_inode_dirty(handle, inode);
 		iput (inode);
@@ -2144,6 +2142,7 @@ static int ext3_unlink(struct inode * dir, struct dentry *dentry)
 	struct ext3_dir_entry_2 * de;
 	handle_t *handle;
 
+	trace_ext3_unlink_enter(dir, dentry);
 	/* Initialize quotas before so that eventual writes go
 	 * in separate transaction */
 	dquot_initialize(dir);
@@ -2171,7 +2170,7 @@ static int ext3_unlink(struct inode * dir, struct dentry *dentry)
 		ext3_warning (inode->i_sb, "ext3_unlink",
 			      "Deleting nonexistent file (%lu), %d",
 			      inode->i_ino, inode->i_nlink);
-		inode->i_nlink = 1;
+		set_nlink(inode, 1);
 	}
 	retval = ext3_delete_entry(handle, dir, de, bh);
 	if (retval)
@@ -2189,6 +2188,7 @@ static int ext3_unlink(struct inode * dir, struct dentry *dentry)
 end_unlink:
 	ext3_journal_stop(handle);
 	brelse (bh);
+	trace_ext3_unlink_exit(dentry, retval);
 	return retval;
 }
 
@@ -2210,9 +2210,11 @@ static int ext3_symlink (struct inode * dir,
 		/*
 		 * For non-fast symlinks, we just allocate inode and put it on
 		 * orphan list in the first transaction => we need bitmap,
-		 * group descriptor, sb, inode block, quota blocks.
+		 * group descriptor, sb, inode block, quota blocks, and
+		 * possibly selinux xattr blocks.
 		 */
-		credits = 4 + EXT3_MAXQUOTAS_INIT_BLOCKS(dir->i_sb);
+		credits = 4 + EXT3_MAXQUOTAS_INIT_BLOCKS(dir->i_sb) +
+			  EXT3_XATTR_TRANS_BLOCKS;
 	} else {
 		/*
 		 * Fast symlink. We have to add entry to directory
@@ -2533,7 +2535,7 @@ const struct inode_operations ext3_dir_inode_operations = {
 	.listxattr	= ext3_listxattr,
 	.removexattr	= generic_removexattr,
 #endif
-	.check_acl	= ext3_check_acl,
+	.get_acl	= ext3_get_acl,
 };
 
 const struct inode_operations ext3_special_inode_operations = {
@@ -2544,5 +2546,5 @@ const struct inode_operations ext3_special_inode_operations = {
 	.listxattr	= ext3_listxattr,
 	.removexattr	= generic_removexattr,
 #endif
-	.check_acl	= ext3_check_acl,
+	.get_acl	= ext3_get_acl,
 };

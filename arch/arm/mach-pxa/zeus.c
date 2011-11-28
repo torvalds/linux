@@ -31,17 +31,17 @@
 #include <linux/can/platform/mcp251x.h>
 
 #include <asm/mach-types.h>
+#include <asm/suspend.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/pxa2xx-regs.h>
+#include <mach/pxa27x.h>
 #include <mach/regs-uart.h>
 #include <mach/ohci.h>
 #include <mach/mmc.h>
 #include <mach/pxa27x-udc.h>
 #include <mach/udc.h>
 #include <mach/pxafb.h>
-#include <mach/mfp-pxa27x.h>
 #include <mach/pm.h>
 #include <mach/audio.h>
 #include <mach/arcom-pcmcia.h>
@@ -676,7 +676,7 @@ static struct pxa2xx_udc_mach_info zeus_udc_info = {
 static void zeus_power_off(void)
 {
 	local_irq_disable();
-	pxa27x_cpu_suspend(PWRMODE_DEEPSLEEP, PLAT_PHYS_OFFSET - PAGE_OFFSET);
+	cpu_suspend(PWRMODE_DEEPSLEEP, pxa27x_finish_suspend);
 }
 #else
 #define zeus_power_off   NULL
@@ -860,25 +860,25 @@ static void __init zeus_init(void)
 
 static struct map_desc zeus_io_desc[] __initdata = {
 	{
-		.virtual = ZEUS_CPLD_VERSION,
+		.virtual = (unsigned long)ZEUS_CPLD_VERSION,
 		.pfn     = __phys_to_pfn(ZEUS_CPLD_VERSION_PHYS),
 		.length  = 0x1000,
 		.type    = MT_DEVICE,
 	},
 	{
-		.virtual = ZEUS_CPLD_ISA_IRQ,
+		.virtual = (unsigned long)ZEUS_CPLD_ISA_IRQ,
 		.pfn     = __phys_to_pfn(ZEUS_CPLD_ISA_IRQ_PHYS),
 		.length  = 0x1000,
 		.type    = MT_DEVICE,
 	},
 	{
-		.virtual = ZEUS_CPLD_CONTROL,
+		.virtual = (unsigned long)ZEUS_CPLD_CONTROL,
 		.pfn     = __phys_to_pfn(ZEUS_CPLD_CONTROL_PHYS),
 		.length  = 0x1000,
 		.type    = MT_DEVICE,
 	},
 	{
-		.virtual = ZEUS_PC104IO,
+		.virtual = (unsigned long)ZEUS_PC104IO,
 		.pfn     = __phys_to_pfn(ZEUS_PC104IO_PHYS),
 		.length  = 0x00800000,
 		.type    = MT_DEVICE,
@@ -904,10 +904,11 @@ static void __init zeus_map_io(void)
 
 MACHINE_START(ARCOM_ZEUS, "Arcom/Eurotech ZEUS")
 	/* Maintainer: Marc Zyngier <maz@misterjones.org> */
-	.boot_params	= 0xa0000100,
+	.atag_offset	= 0x100,
 	.map_io		= zeus_map_io,
 	.nr_irqs	= ZEUS_NR_IRQS,
 	.init_irq	= zeus_init_irq,
+	.handle_irq	= pxa27x_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= zeus_init,
 MACHINE_END

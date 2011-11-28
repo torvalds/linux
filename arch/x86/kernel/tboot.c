@@ -22,6 +22,7 @@
 #include <linux/dma_remapping.h>
 #include <linux/init_task.h>
 #include <linux/spinlock.h>
+#include <linux/export.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/init.h>
@@ -36,6 +37,7 @@
 #include <asm/bootparam.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
+#include <asm/swiotlb.h>
 #include <asm/fixmap.h>
 #include <asm/proto.h>
 #include <asm/setup.h>

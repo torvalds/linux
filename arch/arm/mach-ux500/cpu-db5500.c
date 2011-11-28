@@ -13,7 +13,7 @@
 #include <asm/mach/map.h>
 #include <asm/pmu.h>
 
-#include <plat/gpio.h>
+#include <plat/gpio-nomadik.h>
 
 #include <mach/hardware.h>
 #include <mach/devices.h>
@@ -44,6 +44,7 @@ static struct map_desc u5500_io_desc[] __initdata = {
 	__IO_DEV_DESC(U5500_GPIO3_BASE, SZ_4K),
 	__IO_DEV_DESC(U5500_GPIO4_BASE, SZ_4K),
 	__IO_DEV_DESC(U5500_PRCMU_BASE, SZ_4K),
+	__IO_DEV_DESC(U5500_PRCMU_TCDM_BASE, SZ_4K),
 };
 
 static struct resource db5500_pmu_resources[] = {

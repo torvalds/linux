@@ -53,6 +53,7 @@
 #include <linux/slab.h>
 #include <linux/gameport.h>
 #include <linux/mutex.h>
+#include <linux/export.h>
 
 
 #include <sound/core.h>
@@ -3835,7 +3836,7 @@ int __devinit snd_cs46xx_create(struct snd_card *card,
 	}
 
 	if (request_irq(pci->irq, snd_cs46xx_interrupt, IRQF_SHARED,
-			"CS46XX", chip)) {
+			KBUILD_MODNAME, chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_cs46xx_free(chip);
 		return -EBUSY;

@@ -459,7 +459,8 @@ static void kill_stream_urbs(struct ua101_stream *stream)
 	unsigned int i;
 
 	for (i = 0; i < stream->queue_length; ++i)
-		usb_kill_urb(&stream->urbs[i]->urb);
+		if (stream->urbs[i])
+			usb_kill_urb(&stream->urbs[i]->urb);
 }
 
 static int enable_iso_interface(struct ua101 *ua, unsigned int intf_index)
@@ -483,6 +484,9 @@ static int enable_iso_interface(struct ua101 *ua, unsigned int intf_index)
 static void disable_iso_interface(struct ua101 *ua, unsigned int intf_index)
 {
 	struct usb_host_interface *alts;
+
+	if (!ua->intf[intf_index])
+		return;
 
 	alts = ua->intf[intf_index]->cur_altsetting;
 	if (alts->desc.bAlternateSetting != 0) {
@@ -645,7 +649,7 @@ static int set_stream_hw(struct ua101 *ua, struct snd_pcm_substream *substream,
 	err = snd_pcm_hw_constraint_minmax(substream->runtime,
 					   SNDRV_PCM_HW_PARAM_PERIOD_TIME,
 					   1500000 / ua->packets_per_second,
-					   8192000);
+					   UINT_MAX);
 	if (err < 0)
 		return err;
 	err = snd_pcm_hw_constraint_msbits(substream->runtime, 0, 32, 24);
@@ -1144,27 +1148,37 @@ static void free_stream_urbs(struct ua101_stream *stream)
 {
 	unsigned int i;
 
-	for (i = 0; i < stream->queue_length; ++i)
+	for (i = 0; i < stream->queue_length; ++i) {
 		kfree(stream->urbs[i]);
+		stream->urbs[i] = NULL;
+	}
 }
 
 static void free_usb_related_resources(struct ua101 *ua,
 				       struct usb_interface *interface)
 {
 	unsigned int i;
+	struct usb_interface *intf;
 
+	mutex_lock(&ua->mutex);
 	free_stream_urbs(&ua->capture);
 	free_stream_urbs(&ua->playback);
+	mutex_unlock(&ua->mutex);
 	free_stream_buffers(ua, &ua->capture);
 	free_stream_buffers(ua, &ua->playback);
 
-	for (i = 0; i < ARRAY_SIZE(ua->intf); ++i)
-		if (ua->intf[i]) {
-			usb_set_intfdata(ua->intf[i], NULL);
-			if (ua->intf[i] != interface)
+	for (i = 0; i < ARRAY_SIZE(ua->intf); ++i) {
+		mutex_lock(&ua->mutex);
+		intf = ua->intf[i];
+		ua->intf[i] = NULL;
+		mutex_unlock(&ua->mutex);
+		if (intf) {
+			usb_set_intfdata(intf, NULL);
+			if (intf != interface)
 				usb_driver_release_interface(&ua101_driver,
-							     ua->intf[i]);
+							     intf);
 		}
+	}
 }
 
 static void ua101_card_free(struct snd_card *card)

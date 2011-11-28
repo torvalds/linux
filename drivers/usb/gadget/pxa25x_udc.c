@@ -11,16 +11,6 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 /* #define VERBOSE_DEBUG */
@@ -232,8 +222,7 @@ static int pxa25x_ep_enable (struct usb_ep *_ep,
 	if (!_ep || !desc || ep->desc || _ep->name == ep0name
 			|| desc->bDescriptorType != USB_DT_ENDPOINT
 			|| ep->bEndpointAddress != desc->bEndpointAddress
-			|| ep->fifo_size < le16_to_cpu
-						(desc->wMaxPacketSize)) {
+			|| ep->fifo_size < usb_endpoint_maxp (desc)) {
 		DMSG("%s, bad ep or descriptor\n", __func__);
 		return -EINVAL;
 	}
@@ -248,7 +237,7 @@ static int pxa25x_ep_enable (struct usb_ep *_ep,
 
 	/* hardware _could_ do smaller, but driver doesn't */
 	if ((desc->bmAttributes == USB_ENDPOINT_XFER_BULK
-				&& le16_to_cpu (desc->wMaxPacketSize)
+				&& usb_endpoint_maxp (desc)
 						!= BULK_FIFO_SIZE)
 			|| !desc->wMaxPacketSize) {
 		DMSG("%s, bad %s maxpacket\n", __func__, _ep->name);
@@ -264,7 +253,7 @@ static int pxa25x_ep_enable (struct usb_ep *_ep,
 	ep->desc = desc;
 	ep->stopped = 0;
 	ep->pio_irqs = 0;
-	ep->ep.maxpacket = le16_to_cpu (desc->wMaxPacketSize);
+	ep->ep.maxpacket = usb_endpoint_maxp (desc);
 
 	/* flush fifo (mostly for OUT buffers) */
 	pxa25x_ep_fifo_flush (_ep);
@@ -401,7 +390,7 @@ write_fifo (struct pxa25x_ep *ep, struct pxa25x_request *req)
 {
 	unsigned		max;
 
-	max = le16_to_cpu(ep->desc->wMaxPacketSize);
+	max = usb_endpoint_maxp(ep->desc);
 	do {
 		unsigned	count;
 		int		is_last, is_short;
@@ -671,8 +660,7 @@ pxa25x_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	 * we can report per-packet status.  that also helps with dma.
 	 */
 	if (unlikely (ep->bmAttributes == USB_ENDPOINT_XFER_ISOC
-			&& req->req.length > le16_to_cpu
-						(ep->desc->wMaxPacketSize)))
+		        && req->req.length > usb_endpoint_maxp (ep->desc)))
 		return -EMSGSIZE;
 
 	DBG(DBG_NOISY, "%s queue req %p, len %d buf %p\n",
@@ -1011,12 +999,18 @@ static int pxa25x_udc_vbus_draw(struct usb_gadget *_gadget, unsigned mA)
 	return -EOPNOTSUPP;
 }
 
+static int pxa25x_start(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *));
+static int pxa25x_stop(struct usb_gadget_driver *driver);
+
 static const struct usb_gadget_ops pxa25x_udc_ops = {
 	.get_frame	= pxa25x_udc_get_frame,
 	.wakeup		= pxa25x_udc_wakeup,
 	.vbus_session	= pxa25x_udc_vbus_session,
 	.pullup		= pxa25x_udc_pullup,
 	.vbus_draw	= pxa25x_udc_vbus_draw,
+	.start		= pxa25x_start,
+	.stop		= pxa25x_stop,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -1099,7 +1093,7 @@ udc_seq_show(struct seq_file *m, void *_d)
 			tmp = *dev->ep [i].reg_udccs;
 			seq_printf(m,
 				"%s max %d %s udccs %02x irqs %lu\n",
-				ep->ep.name, le16_to_cpu(desc->wMaxPacketSize),
+				ep->ep.name, usb_endpoint_maxp(desc),
 				"pio", tmp, ep->pio_irqs);
 			/* TODO translate all five groups of udccs bits! */
 
@@ -1263,7 +1257,7 @@ static void udc_enable (struct pxa25x_udc *dev)
  * disconnect is reported.  then a host may connect again, or
  * the driver might get unbound.
  */
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+static int pxa25x_start(struct usb_gadget_driver *driver,
 		int (*bind)(struct usb_gadget *))
 {
 	struct pxa25x_udc	*dev = the_controller;
@@ -1322,7 +1316,6 @@ fail:
 bind_fail:
 	return retval;
 }
-EXPORT_SYMBOL(usb_gadget_probe_driver);
 
 static void
 stop_activity(struct pxa25x_udc *dev, struct usb_gadget_driver *driver)
@@ -1351,7 +1344,7 @@ stop_activity(struct pxa25x_udc *dev, struct usb_gadget_driver *driver)
 	udc_reinit(dev);
 }
 
-int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
+static int pxa25x_stop(struct usb_gadget_driver *driver)
 {
 	struct pxa25x_udc	*dev = the_controller;
 
@@ -1379,8 +1372,6 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	dump_state(dev);
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_unregister_driver);
-
 
 /*-------------------------------------------------------------------------*/
 
@@ -2199,7 +2190,7 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 
 	/* irq setup after old hardware state is cleaned up */
 	retval = request_irq(irq, pxa25x_udc_irq,
-			IRQF_DISABLED, driver_name, dev);
+			0, driver_name, dev);
 	if (retval != 0) {
 		pr_err("%s: can't get irq %d, err %d\n",
 			driver_name, irq, retval);
@@ -2211,7 +2202,7 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 	if (machine_is_lubbock()) {
 		retval = request_irq(LUBBOCK_USB_DISC_IRQ,
 				lubbock_vbus_irq,
-				IRQF_DISABLED | IRQF_SAMPLE_RANDOM,
+				IRQF_SAMPLE_RANDOM,
 				driver_name, dev);
 		if (retval != 0) {
 			pr_err("%s: can't get irq %i, err %d\n",
@@ -2220,7 +2211,7 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 		}
 		retval = request_irq(LUBBOCK_USB_IRQ,
 				lubbock_vbus_irq,
-				IRQF_DISABLED | IRQF_SAMPLE_RANDOM,
+				IRQF_SAMPLE_RANDOM,
 				driver_name, dev);
 		if (retval != 0) {
 			pr_err("%s: can't get irq %i, err %d\n",
@@ -2231,8 +2222,11 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 #endif
 	create_debug_files(dev);
 
-	return 0;
+	retval = usb_add_gadget_udc(&pdev->dev, &dev->gadget);
+	if (!retval)
+		return retval;
 
+	remove_debug_files(dev);
 #ifdef	CONFIG_ARCH_LUBBOCK
 lubbock_fail0:
 	free_irq(LUBBOCK_USB_DISC_IRQ, dev);
@@ -2261,6 +2255,7 @@ static int __exit pxa25x_udc_remove(struct platform_device *pdev)
 {
 	struct pxa25x_udc *dev = platform_get_drvdata(pdev);
 
+	usb_del_gadget_udc(&dev->gadget);
 	if (dev->driver)
 		return -EBUSY;
 

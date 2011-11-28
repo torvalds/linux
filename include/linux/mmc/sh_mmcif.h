@@ -11,8 +11,8 @@
  *
  */
 
-#ifndef __SH_MMCIF_H__
-#define __SH_MMCIF_H__
+#ifndef LINUX_MMC_SH_MMCIF_H
+#define LINUX_MMC_SH_MMCIF_H
 
 #include <linux/io.h>
 #include <linux/platform_device.h>
@@ -41,7 +41,9 @@ struct sh_mmcif_plat_data {
 	void (*set_pwr)(struct platform_device *pdev, int state);
 	void (*down_pwr)(struct platform_device *pdev);
 	int (*get_cd)(struct platform_device *pdef);
-	struct sh_mmcif_dma	*dma;
+	struct sh_mmcif_dma	*dma;		/* Deprecated. Instead */
+	unsigned int		slave_id_tx;	/* use embedded slave_id_[tr]x */
+	unsigned int		slave_id_rx;
 	u8			sup_pclk;	/* 1 :SH7757, 0: SH7724/SH7372 */
 	unsigned long		caps;
 	u32			ocr;
@@ -220,4 +222,4 @@ static inline void sh_mmcif_boot_init(void __iomem *base)
 	sh_mmcif_boot_cmd(base, 0x03400040, 0x00010000);
 }
 
-#endif /* __SH_MMCIF_H__ */
+#endif /* LINUX_MMC_SH_MMCIF_H */

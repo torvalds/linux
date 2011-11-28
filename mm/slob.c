@@ -63,14 +63,14 @@
 #include <linux/swap.h> /* struct reclaim_state */
 #include <linux/cache.h>
 #include <linux/init.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/rcupdate.h>
 #include <linux/list.h>
 #include <linux/kmemleak.h>
 
 #include <trace/events/kmem.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 /*
  * slob_block has a field 'units', which indicates size of block if +ve,
@@ -482,6 +482,8 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
 	int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
 	void *ret;
 
+	gfp &= gfp_allowed_mask;
+
 	lockdep_trace_alloc(gfp);
 
 	if (size < PAGE_SIZE - align) {
@@ -607,6 +609,10 @@ EXPORT_SYMBOL(kmem_cache_destroy);
 void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
 {
 	void *b;
+
+	flags &= gfp_allowed_mask;
+
+	lockdep_trace_alloc(flags);
 
 	if (c->size < PAGE_SIZE) {
 		b = slob_alloc(c->size, flags, c->align, node);

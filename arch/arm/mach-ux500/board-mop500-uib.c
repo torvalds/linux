@@ -25,7 +25,7 @@ struct uib {
 	void (*init)(void);
 };
 
-static struct __initdata uib mop500_uibs[] = {
+static struct uib __initdata mop500_uibs[] = {
 	[STUIB] = {
 		.name	= "ST-UIB",
 		.option	= "stuib",

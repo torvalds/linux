@@ -19,6 +19,7 @@
 
 #include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/initval.h>
 #include <sound/pcm.h>
@@ -88,7 +89,7 @@ static int __devinit xonar_probe(struct pci_dev *pci,
 }
 
 static struct pci_driver xonar_driver = {
-	.name = "AV200",
+	.name = KBUILD_MODNAME,
 	.id_table = xonar_ids,
 	.probe = xonar_probe,
 	.remove = __devexit_p(oxygen_pci_remove),

@@ -52,7 +52,6 @@
  * |  DATA7|  DATA6|  DATA5|  DATA4|  DATA3|  DATA2|  DATA1|  DATA0|
  * +-------+-------+-------+-------+-------+-------+-------+-------+
  */
-#include <linux/version.h>
 #include <media/videobuf-dma-sg.h>
 #include <media/videobuf-dvb.h>
 #include "altera-ci.h"

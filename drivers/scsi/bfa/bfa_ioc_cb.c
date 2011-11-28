@@ -17,7 +17,7 @@
 
 #include "bfad_drv.h"
 #include "bfa_ioc.h"
-#include "bfi_cbreg.h"
+#include "bfi_reg.h"
 #include "bfa_defs.h"
 
 BFA_TRC_FILE(CNA, IOC_CB);
@@ -69,21 +69,6 @@ bfa_ioc_set_cb_hwif(struct bfa_ioc_s *ioc)
 static bfa_boolean_t
 bfa_ioc_cb_firmware_lock(struct bfa_ioc_s *ioc)
 {
-	struct bfi_ioc_image_hdr_s fwhdr;
-	uint32_t fwstate = readl(ioc->ioc_regs.ioc_fwstate);
-
-	if (fwstate == BFI_IOC_UNINIT)
-		return BFA_TRUE;
-
-	bfa_ioc_fwver_get(ioc, &fwhdr);
-
-	if (swab32(fwhdr.exec) == BFI_BOOT_TYPE_NORMAL)
-		return BFA_TRUE;
-
-	bfa_trc(ioc, fwstate);
-	bfa_trc(ioc, fwhdr.exec);
-	writel(BFI_IOC_UNINIT, ioc->ioc_regs.ioc_fwstate);
-
 	return BFA_TRUE;
 }
 
@@ -98,7 +83,7 @@ bfa_ioc_cb_firmware_unlock(struct bfa_ioc_s *ioc)
 static void
 bfa_ioc_cb_notify_fail(struct bfa_ioc_s *ioc)
 {
-	writel(__PSS_ERR_STATUS_SET, ioc->ioc_regs.err_set);
+	writel(~0U, ioc->ioc_regs.err_set);
 	readl(ioc->ioc_regs.err_set);
 }
 
@@ -152,8 +137,8 @@ bfa_ioc_cb_reg_init(struct bfa_ioc_s *ioc)
 	 */
 	ioc->ioc_regs.pss_ctl_reg = (rb + PSS_CTL_REG);
 	ioc->ioc_regs.pss_err_status_reg = (rb + PSS_ERR_STATUS_REG);
-	ioc->ioc_regs.app_pll_fast_ctl_reg = (rb + APP_PLL_400_CTL_REG);
-	ioc->ioc_regs.app_pll_slow_ctl_reg = (rb + APP_PLL_212_CTL_REG);
+	ioc->ioc_regs.app_pll_fast_ctl_reg = (rb + APP_PLL_LCLK_CTL_REG);
+	ioc->ioc_regs.app_pll_slow_ctl_reg = (rb + APP_PLL_SCLK_CTL_REG);
 
 	/*
 	 * IOC semaphore registers and serialization
@@ -285,18 +270,18 @@ bfa_ioc_cb_sync_complete(struct bfa_ioc_s *ioc)
 }
 
 bfa_status_t
-bfa_ioc_cb_pll_init(void __iomem *rb, bfa_boolean_t fcmode)
+bfa_ioc_cb_pll_init(void __iomem *rb, enum bfi_asic_mode fcmode)
 {
 	u32	pll_sclk, pll_fclk;
 
-	pll_sclk = __APP_PLL_212_ENABLE | __APP_PLL_212_LRESETN |
-		__APP_PLL_212_P0_1(3U) |
-		__APP_PLL_212_JITLMT0_1(3U) |
-		__APP_PLL_212_CNTLMT0_1(3U);
-	pll_fclk = __APP_PLL_400_ENABLE | __APP_PLL_400_LRESETN |
-		__APP_PLL_400_RSEL200500 | __APP_PLL_400_P0_1(3U) |
-		__APP_PLL_400_JITLMT0_1(3U) |
-		__APP_PLL_400_CNTLMT0_1(3U);
+	pll_sclk = __APP_PLL_SCLK_ENABLE | __APP_PLL_SCLK_LRESETN |
+		__APP_PLL_SCLK_P0_1(3U) |
+		__APP_PLL_SCLK_JITLMT0_1(3U) |
+		__APP_PLL_SCLK_CNTLMT0_1(3U);
+	pll_fclk = __APP_PLL_LCLK_ENABLE | __APP_PLL_LCLK_LRESETN |
+		__APP_PLL_LCLK_RSEL200500 | __APP_PLL_LCLK_P0_1(3U) |
+		__APP_PLL_LCLK_JITLMT0_1(3U) |
+		__APP_PLL_LCLK_CNTLMT0_1(3U);
 	writel(BFI_IOC_UNINIT, (rb + BFA_IOC0_STATE_REG));
 	writel(BFI_IOC_UNINIT, (rb + BFA_IOC1_STATE_REG));
 	writel(0xffffffffU, (rb + HOSTFN0_INT_MSK));
@@ -305,24 +290,24 @@ bfa_ioc_cb_pll_init(void __iomem *rb, bfa_boolean_t fcmode)
 	writel(0xffffffffU, (rb + HOSTFN1_INT_STATUS));
 	writel(0xffffffffU, (rb + HOSTFN0_INT_MSK));
 	writel(0xffffffffU, (rb + HOSTFN1_INT_MSK));
-	writel(__APP_PLL_212_LOGIC_SOFT_RESET, rb + APP_PLL_212_CTL_REG);
-	writel(__APP_PLL_212_BYPASS | __APP_PLL_212_LOGIC_SOFT_RESET,
-			rb + APP_PLL_212_CTL_REG);
-	writel(__APP_PLL_400_LOGIC_SOFT_RESET, rb + APP_PLL_400_CTL_REG);
-	writel(__APP_PLL_400_BYPASS | __APP_PLL_400_LOGIC_SOFT_RESET,
-			rb + APP_PLL_400_CTL_REG);
+	writel(__APP_PLL_SCLK_LOGIC_SOFT_RESET, rb + APP_PLL_SCLK_CTL_REG);
+	writel(__APP_PLL_SCLK_BYPASS | __APP_PLL_SCLK_LOGIC_SOFT_RESET,
+			rb + APP_PLL_SCLK_CTL_REG);
+	writel(__APP_PLL_LCLK_LOGIC_SOFT_RESET, rb + APP_PLL_LCLK_CTL_REG);
+	writel(__APP_PLL_LCLK_BYPASS | __APP_PLL_LCLK_LOGIC_SOFT_RESET,
+			rb + APP_PLL_LCLK_CTL_REG);
 	udelay(2);
-	writel(__APP_PLL_212_LOGIC_SOFT_RESET, rb + APP_PLL_212_CTL_REG);
-	writel(__APP_PLL_400_LOGIC_SOFT_RESET, rb + APP_PLL_400_CTL_REG);
-	writel(pll_sclk | __APP_PLL_212_LOGIC_SOFT_RESET,
-			rb + APP_PLL_212_CTL_REG);
-	writel(pll_fclk | __APP_PLL_400_LOGIC_SOFT_RESET,
-			rb + APP_PLL_400_CTL_REG);
+	writel(__APP_PLL_SCLK_LOGIC_SOFT_RESET, rb + APP_PLL_SCLK_CTL_REG);
+	writel(__APP_PLL_LCLK_LOGIC_SOFT_RESET, rb + APP_PLL_LCLK_CTL_REG);
+	writel(pll_sclk | __APP_PLL_SCLK_LOGIC_SOFT_RESET,
+			rb + APP_PLL_SCLK_CTL_REG);
+	writel(pll_fclk | __APP_PLL_LCLK_LOGIC_SOFT_RESET,
+			rb + APP_PLL_LCLK_CTL_REG);
 	udelay(2000);
 	writel(0xffffffffU, (rb + HOSTFN0_INT_STATUS));
 	writel(0xffffffffU, (rb + HOSTFN1_INT_STATUS));
-	writel(pll_sclk, (rb + APP_PLL_212_CTL_REG));
-	writel(pll_fclk, (rb + APP_PLL_400_CTL_REG));
+	writel(pll_sclk, (rb + APP_PLL_SCLK_CTL_REG));
+	writel(pll_fclk, (rb + APP_PLL_LCLK_CTL_REG));
 
 	return BFA_STATUS_OK;
 }

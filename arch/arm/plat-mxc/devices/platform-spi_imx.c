@@ -40,9 +40,10 @@ const struct imx_spi_imx_data imx21_cspi_data[] __initconst = {
 #endif
 
 #ifdef CONFIG_SOC_IMX25
+/* i.mx25 has the i.mx35 type cspi */
 const struct imx_spi_imx_data imx25_cspi_data[] __initconst = {
 #define imx25_cspi_data_entry(_id, _hwid)				\
-	imx_spi_imx_data_entry(MX25, CSPI, "imx25-cspi", _id, _hwid, SZ_16K)
+	imx_spi_imx_data_entry(MX25, CSPI, "imx35-cspi", _id, _hwid, SZ_16K)
 	imx25_cspi_data_entry(0, 1),
 	imx25_cspi_data_entry(1, 2),
 	imx25_cspi_data_entry(2, 3),
@@ -79,8 +80,9 @@ const struct imx_spi_imx_data imx35_cspi_data[] __initconst = {
 #endif /* ifdef CONFIG_SOC_IMX35 */
 
 #ifdef CONFIG_SOC_IMX51
+/* i.mx51 has the i.mx35 type cspi */
 const struct imx_spi_imx_data imx51_cspi_data __initconst =
-	imx_spi_imx_data_entry_single(MX51, CSPI, "imx51-cspi", 2, , SZ_4K);
+	imx_spi_imx_data_entry_single(MX51, CSPI, "imx35-cspi", 2, , SZ_4K);
 
 const struct imx_spi_imx_data imx51_ecspi_data[] __initconst = {
 #define imx51_ecspi_data_entry(_id, _hwid)				\
@@ -91,12 +93,14 @@ const struct imx_spi_imx_data imx51_ecspi_data[] __initconst = {
 #endif /* ifdef CONFIG_SOC_IMX51 */
 
 #ifdef CONFIG_SOC_IMX53
+/* i.mx53 has the i.mx35 type cspi */
 const struct imx_spi_imx_data imx53_cspi_data __initconst =
-	imx_spi_imx_data_entry_single(MX53, CSPI, "imx53-cspi", 0, , SZ_4K);
+	imx_spi_imx_data_entry_single(MX53, CSPI, "imx35-cspi", 0, , SZ_4K);
 
+/* i.mx53 has the i.mx51 type ecspi */
 const struct imx_spi_imx_data imx53_ecspi_data[] __initconst = {
 #define imx53_ecspi_data_entry(_id, _hwid)				\
-	imx_spi_imx_data_entry(MX53, ECSPI, "imx53-ecspi", _id, _hwid, SZ_4K)
+	imx_spi_imx_data_entry(MX53, ECSPI, "imx51-ecspi", _id, _hwid, SZ_4K)
 	imx53_ecspi_data_entry(0, 1),
 	imx53_ecspi_data_entry(1, 2),
 };

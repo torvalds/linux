@@ -56,6 +56,7 @@
 #include "lgs8gxx.h"
 
 #include "zl10353.h"
+#include "qt1010.h"
 
 #include "zl10036.h"
 #include "zl10039.h"
@@ -939,6 +940,18 @@ static struct zl10353_config behold_x7_config = {
 	.disable_i2c_gate_ctrl = 1,
 };
 
+static struct zl10353_config videomate_t750_zl10353_config = {
+	.demod_address         = 0x0f,
+	.no_tuner              = 1,
+	.parallel_ts           = 1,
+	.disable_i2c_gate_ctrl = 1,
+};
+
+static struct qt1010_config videomate_t750_qt1010_config = {
+	.i2c_address = 0x62
+};
+
+
 /* ==================================================================
  * tda10086 based DVB-S cards, helper functions
  */
@@ -1649,6 +1662,18 @@ static int dvb_init(struct saa7134_dev *dev)
 				wprintk("%s: No zl10039 found!\n",
 					__func__);
 
+		break;
+	case SAA7134_BOARD_VIDEOMATE_T750:
+		fe0->dvb.frontend = dvb_attach(zl10353_attach,
+						&videomate_t750_zl10353_config,
+						&dev->i2c_adap);
+		if (fe0->dvb.frontend != NULL) {
+			if (dvb_attach(qt1010_attach,
+					fe0->dvb.frontend,
+					&dev->i2c_adap,
+					&videomate_t750_qt1010_config) == NULL)
+				wprintk("error attaching QT1010\n");
+		}
 		break;
 	case SAA7134_BOARD_ZOLID_HYBRID_PCI:
 		fe0->dvb.frontend = dvb_attach(tda10048_attach,

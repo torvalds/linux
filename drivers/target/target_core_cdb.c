@@ -23,6 +23,8 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <asm/unaligned.h>
 #include <scsi/scsi.h>
 
@@ -30,6 +32,7 @@
 #include <target/target_core_transport.h>
 #include <target/target_core_fabric_ops.h>
 #include "target_core_ua.h"
+#include "target_core_cdb.h"
 
 static void
 target_fill_alua_data(struct se_port *port, unsigned char *buf)
@@ -64,34 +67,41 @@ target_fill_alua_data(struct se_port *port, unsigned char *buf)
 static int
 target_emulate_inquiry_std(struct se_cmd *cmd)
 {
-	struct se_lun *lun = SE_LUN(cmd);
-	struct se_device *dev = SE_DEV(cmd);
-	unsigned char *buf = cmd->t_task->t_task_buf;
+	struct se_lun *lun = cmd->se_lun;
+	struct se_device *dev = cmd->se_dev;
+	struct se_portal_group *tpg = lun->lun_sep->sep_tpg;
+	unsigned char *buf;
 
 	/*
 	 * Make sure we at least have 6 bytes of INQUIRY response
 	 * payload going back for EVPD=0
 	 */
 	if (cmd->data_length < 6) {
-		printk(KERN_ERR "SCSI Inquiry payload length: %u"
+		pr_err("SCSI Inquiry payload length: %u"
 			" too small for EVPD=0\n", cmd->data_length);
-		return -1;
+		return -EINVAL;
 	}
 
-	buf[0] = dev->transport->get_device_type(dev);
-	if (buf[0] == TYPE_TAPE)
-		buf[1] = 0x80;
+	buf = transport_kmap_first_data_page(cmd);
+
+	if (dev == tpg->tpg_virt_lun0.lun_se_dev) {
+		buf[0] = 0x3f; /* Not connected */
+	} else {
+		buf[0] = dev->transport->get_device_type(dev);
+		if (buf[0] == TYPE_TAPE)
+			buf[1] = 0x80;
+	}
 	buf[2] = dev->transport->get_device_rev(dev);
 
 	/*
 	 * Enable SCCS and TPGS fields for Emulated ALUA
 	 */
-	if (T10_ALUA(dev->se_sub_dev)->alua_type == SPC3_ALUA_EMULATED)
+	if (dev->se_sub_dev->t10_alua.alua_type == SPC3_ALUA_EMULATED)
 		target_fill_alua_data(lun->lun_sep, buf);
 
 	if (cmd->data_length < 8) {
 		buf[4] = 1; /* Set additional length to 1 */
-		return 0;
+		goto out;
 	}
 
 	buf[7] = 0x32; /* Sync=1 and CmdQue=1 */
@@ -102,40 +112,18 @@ target_emulate_inquiry_std(struct se_cmd *cmd)
 	 */
 	if (cmd->data_length < 36) {
 		buf[4] = 3; /* Set additional length to 3 */
-		return 0;
+		goto out;
 	}
 
 	snprintf((unsigned char *)&buf[8], 8, "LIO-ORG");
 	snprintf((unsigned char *)&buf[16], 16, "%s",
-		 &DEV_T10_WWN(dev)->model[0]);
+		 &dev->se_sub_dev->t10_wwn.model[0]);
 	snprintf((unsigned char *)&buf[32], 4, "%s",
-		 &DEV_T10_WWN(dev)->revision[0]);
+		 &dev->se_sub_dev->t10_wwn.revision[0]);
 	buf[4] = 31; /* Set additional length to 31 */
-	return 0;
-}
 
-/* supported vital product data pages */
-static int
-target_emulate_evpd_00(struct se_cmd *cmd, unsigned char *buf)
-{
-	buf[1] = 0x00;
-	if (cmd->data_length < 8)
-		return 0;
-
-	buf[4] = 0x0;
-	/*
-	 * Only report the INQUIRY EVPD=1 pages after a valid NAA
-	 * Registered Extended LUN WWN has been set via ConfigFS
-	 * during device creation/restart.
-	 */
-	if (SE_DEV(cmd)->se_sub_dev->su_dev_flags &
-			SDF_EMULATED_VPD_UNIT_SERIAL) {
-		buf[3] = 3;
-		buf[5] = 0x80;
-		buf[6] = 0x83;
-		buf[7] = 0x86;
-	}
-
+out:
+	transport_kunmap_first_data_page(cmd);
 	return 0;
 }
 
@@ -143,16 +131,15 @@ target_emulate_evpd_00(struct se_cmd *cmd, unsigned char *buf)
 static int
 target_emulate_evpd_80(struct se_cmd *cmd, unsigned char *buf)
 {
-	struct se_device *dev = SE_DEV(cmd);
+	struct se_device *dev = cmd->se_dev;
 	u16 len = 0;
 
-	buf[1] = 0x80;
 	if (dev->se_sub_dev->su_dev_flags &
 			SDF_EMULATED_VPD_UNIT_SERIAL) {
 		u32 unit_serial_len;
 
 		unit_serial_len =
-			strlen(&DEV_T10_WWN(dev)->unit_serial[0]);
+			strlen(&dev->se_sub_dev->t10_wwn.unit_serial[0]);
 		unit_serial_len++; /* For NULL Terminator */
 
 		if (((len + 4) + unit_serial_len) > cmd->data_length) {
@@ -162,11 +149,42 @@ target_emulate_evpd_80(struct se_cmd *cmd, unsigned char *buf)
 			return 0;
 		}
 		len += sprintf((unsigned char *)&buf[4], "%s",
-			&DEV_T10_WWN(dev)->unit_serial[0]);
+			&dev->se_sub_dev->t10_wwn.unit_serial[0]);
 		len++; /* Extra Byte for NULL Terminator */
 		buf[3] = len;
 	}
 	return 0;
+}
+
+static void
+target_parse_naa_6h_vendor_specific(struct se_device *dev, unsigned char *buf)
+{
+	unsigned char *p = &dev->se_sub_dev->t10_wwn.unit_serial[0];
+	int cnt;
+	bool next = true;
+
+	/*
+	 * Generate up to 36 bits of VENDOR SPECIFIC IDENTIFIER starting on
+	 * byte 3 bit 3-0 for NAA IEEE Registered Extended DESIGNATOR field
+	 * format, followed by 64 bits of VENDOR SPECIFIC IDENTIFIER EXTENSION
+	 * to complete the payload.  These are based from VPD=0x80 PRODUCT SERIAL
+	 * NUMBER set via vpd_unit_serial in target_core_configfs.c to ensure
+	 * per device uniqeness.
+	 */
+	for (cnt = 0; *p && cnt < 13; p++) {
+		int val = hex_to_bin(*p);
+
+		if (val < 0)
+			continue;
+
+		if (next) {
+			next = false;
+			buf[cnt++] |= val;
+		} else {
+			next = true;
+			buf[cnt] = val << 4;
+		}
+	}
 }
 
 /*
@@ -176,21 +194,18 @@ target_emulate_evpd_80(struct se_cmd *cmd, unsigned char *buf)
 static int
 target_emulate_evpd_83(struct se_cmd *cmd, unsigned char *buf)
 {
-	struct se_device *dev = SE_DEV(cmd);
-	struct se_lun *lun = SE_LUN(cmd);
+	struct se_device *dev = cmd->se_dev;
+	struct se_lun *lun = cmd->se_lun;
 	struct se_port *port = NULL;
 	struct se_portal_group *tpg = NULL;
 	struct t10_alua_lu_gp_member *lu_gp_mem;
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
 	struct t10_alua_tg_pt_gp_member *tg_pt_gp_mem;
-	unsigned char binary, binary_new;
-	unsigned char *prod = &DEV_T10_WWN(dev)->model[0];
+	unsigned char *prod = &dev->se_sub_dev->t10_wwn.model[0];
 	u32 prod_len;
 	u32 unit_serial_len, off = 0;
-	int i;
 	u16 len = 0, id_len;
 
-	buf[1] = 0x83;
 	off = 4;
 
 	/*
@@ -210,11 +225,11 @@ target_emulate_evpd_83(struct se_cmd *cmd, unsigned char *buf)
 	/* CODE SET == Binary */
 	buf[off++] = 0x1;
 
-	/* Set ASSOICATION == addressed logical unit: 0)b */
+	/* Set ASSOCIATION == addressed logical unit: 0)b */
 	buf[off] = 0x00;
 
 	/* Identifier/Designator type == NAA identifier */
-	buf[off++] = 0x3;
+	buf[off++] |= 0x3;
 	off++;
 
 	/* Identifier/Designator length */
@@ -237,16 +252,8 @@ target_emulate_evpd_83(struct se_cmd *cmd, unsigned char *buf)
 	 * VENDOR_SPECIFIC_IDENTIFIER and
 	 * VENDOR_SPECIFIC_IDENTIFIER_EXTENTION
 	 */
-	binary = transport_asciihex_to_binaryhex(
-				&DEV_T10_WWN(dev)->unit_serial[0]);
-	buf[off++] |= (binary & 0xf0) >> 4;
-	for (i = 0; i < 24; i += 2) {
-		binary_new = transport_asciihex_to_binaryhex(
-			&DEV_T10_WWN(dev)->unit_serial[i+2]);
-		buf[off] = (binary & 0x0f) << 4;
-		buf[off++] |= (binary_new & 0xf0) >> 4;
-		binary = binary_new;
-	}
+	target_parse_naa_6h_vendor_specific(dev, &buf[off]);
+
 	len = 20;
 	off = (len + 4);
 
@@ -263,7 +270,7 @@ check_t10_vend_desc:
 	if (dev->se_sub_dev->su_dev_flags &
 			SDF_EMULATED_VPD_UNIT_SERIAL) {
 		unit_serial_len =
-			strlen(&DEV_T10_WWN(dev)->unit_serial[0]);
+			strlen(&dev->se_sub_dev->t10_wwn.unit_serial[0]);
 		unit_serial_len++; /* For NULL Terminator */
 
 		if ((len + (id_len + 4) +
@@ -274,7 +281,7 @@ check_t10_vend_desc:
 		}
 		id_len += sprintf((unsigned char *)&buf[off+12],
 				"%s:%s", prod,
-				&DEV_T10_WWN(dev)->unit_serial[0]);
+				&dev->se_sub_dev->t10_wwn.unit_serial[0]);
 	}
 	buf[off] = 0x2; /* ASCII */
 	buf[off+1] = 0x1; /* T10 Vendor ID */
@@ -312,10 +319,10 @@ check_port:
 			goto check_tpgi;
 		}
 		buf[off] =
-			(TPG_TFO(tpg)->get_fabric_proto_ident(tpg) << 4);
+			(tpg->se_tpg_tfo->get_fabric_proto_ident(tpg) << 4);
 		buf[off++] |= 0x1; /* CODE SET == Binary */
 		buf[off] = 0x80; /* Set PIV=1 */
-		/* Set ASSOICATION == target port: 01b */
+		/* Set ASSOCIATION == target port: 01b */
 		buf[off] |= 0x10;
 		/* DESIGNATOR TYPE == Relative target port identifer */
 		buf[off++] |= 0x4;
@@ -335,7 +342,7 @@ check_port:
 		 * section 7.5.1 Table 362
 		 */
 check_tpgi:
-		if (T10_ALUA(dev->se_sub_dev)->alua_type !=
+		if (dev->se_sub_dev->t10_alua.alua_type !=
 				SPC3_ALUA_EMULATED)
 			goto check_scsi_name;
 
@@ -349,7 +356,7 @@ check_tpgi:
 
 		spin_lock(&tg_pt_gp_mem->tg_pt_gp_mem_lock);
 		tg_pt_gp = tg_pt_gp_mem->tg_pt_gp;
-		if (!(tg_pt_gp)) {
+		if (!tg_pt_gp) {
 			spin_unlock(&tg_pt_gp_mem->tg_pt_gp_mem_lock);
 			goto check_lu_gp;
 		}
@@ -357,10 +364,10 @@ check_tpgi:
 		spin_unlock(&tg_pt_gp_mem->tg_pt_gp_mem_lock);
 
 		buf[off] =
-			(TPG_TFO(tpg)->get_fabric_proto_ident(tpg) << 4);
+			(tpg->se_tpg_tfo->get_fabric_proto_ident(tpg) << 4);
 		buf[off++] |= 0x1; /* CODE SET == Binary */
 		buf[off] = 0x80; /* Set PIV=1 */
-		/* Set ASSOICATION == target port: 01b */
+		/* Set ASSOCIATION == target port: 01b */
 		buf[off] |= 0x10;
 		/* DESIGNATOR TYPE == Target port group identifier */
 		buf[off++] |= 0x5;
@@ -380,12 +387,12 @@ check_lu_gp:
 			goto check_scsi_name;
 		}
 		lu_gp_mem = dev->dev_alua_lu_gp_mem;
-		if (!(lu_gp_mem))
+		if (!lu_gp_mem)
 			goto check_scsi_name;
 
 		spin_lock(&lu_gp_mem->lu_gp_mem_lock);
 		lu_gp = lu_gp_mem->lu_gp;
-		if (!(lu_gp)) {
+		if (!lu_gp) {
 			spin_unlock(&lu_gp_mem->lu_gp_mem_lock);
 			goto check_scsi_name;
 		}
@@ -409,7 +416,7 @@ check_lu_gp:
 		 * section 7.5.1 Table 362
 		 */
 check_scsi_name:
-		scsi_name_len = strlen(TPG_TFO(tpg)->tpg_get_wwn(tpg));
+		scsi_name_len = strlen(tpg->se_tpg_tfo->tpg_get_wwn(tpg));
 		/* UTF-8 ",t,0x<16-bit TPGT>" + NULL Terminator */
 		scsi_name_len += 10;
 		/* Check for 4-byte padding */
@@ -424,10 +431,10 @@ check_scsi_name:
 			goto set_len;
 		}
 		buf[off] =
-			(TPG_TFO(tpg)->get_fabric_proto_ident(tpg) << 4);
+			(tpg->se_tpg_tfo->get_fabric_proto_ident(tpg) << 4);
 		buf[off++] |= 0x3; /* CODE SET == UTF-8 */
 		buf[off] = 0x80; /* Set PIV=1 */
-		/* Set ASSOICATION == target port: 01b */
+		/* Set ASSOCIATION == target port: 01b */
 		buf[off] |= 0x10;
 		/* DESIGNATOR TYPE == SCSI name string */
 		buf[off++] |= 0x8;
@@ -438,9 +445,9 @@ check_scsi_name:
 		 * Target Port, this means "<iSCSI name>,t,0x<TPGT> in
 		 * UTF-8 encoding.
 		 */
-		tpgt = TPG_TFO(tpg)->tpg_get_tag(tpg);
+		tpgt = tpg->se_tpg_tfo->tpg_get_tag(tpg);
 		scsi_name_len = sprintf(&buf[off], "%s,t,0x%04x",
-					TPG_TFO(tpg)->tpg_get_wwn(tpg), tpgt);
+					tpg->se_tpg_tfo->tpg_get_wwn(tpg), tpgt);
 		scsi_name_len += 1 /* Include  NULL terminator */;
 		/*
 		 * The null-terminated, null-padded (see 4.4.2) SCSI
@@ -471,13 +478,12 @@ target_emulate_evpd_86(struct se_cmd *cmd, unsigned char *buf)
 	if (cmd->data_length < 60)
 		return 0;
 
-	buf[1] = 0x86;
 	buf[2] = 0x3c;
 	/* Set HEADSUP, ORDSUP, SIMPSUP */
 	buf[5] = 0x07;
 
 	/* If WriteCache emulation is enabled, set V_SUP */
-	if (DEV_ATTRIB(SE_DEV(cmd))->emulate_write_cache > 0)
+	if (cmd->se_dev->se_sub_dev->se_dev_attrib.emulate_write_cache > 0)
 		buf[6] = 0x01;
 	return 0;
 }
@@ -486,7 +492,7 @@ target_emulate_evpd_86(struct se_cmd *cmd, unsigned char *buf)
 static int
 target_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 {
-	struct se_device *dev = SE_DEV(cmd);
+	struct se_device *dev = cmd->se_dev;
 	int have_tp = 0;
 
 	/*
@@ -494,26 +500,28 @@ target_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 	 * emulate_tpu=1 or emulate_tpws=1 we will be expect a
 	 * different page length for Thin Provisioning.
 	 */
-	if (DEV_ATTRIB(dev)->emulate_tpu || DEV_ATTRIB(dev)->emulate_tpws)
+	if (dev->se_sub_dev->se_dev_attrib.emulate_tpu || dev->se_sub_dev->se_dev_attrib.emulate_tpws)
 		have_tp = 1;
 
 	if (cmd->data_length < (0x10 + 4)) {
-		printk(KERN_INFO "Received data_length: %u"
+		pr_debug("Received data_length: %u"
 			" too small for EVPD 0xb0\n",
 			cmd->data_length);
-		return -1;
+		return -EINVAL;
 	}
 
 	if (have_tp && cmd->data_length < (0x3c + 4)) {
-		printk(KERN_INFO "Received data_length: %u"
+		pr_debug("Received data_length: %u"
 			" too small for TPE=1 EVPD 0xb0\n",
 			cmd->data_length);
 		have_tp = 0;
 	}
 
 	buf[0] = dev->transport->get_device_type(dev);
-	buf[1] = 0xb0;
 	buf[3] = have_tp ? 0x3c : 0x10;
+
+	/* Set WSNZ to 1 */
+	buf[4] = 0x01;
 
 	/*
 	 * Set OPTIMAL TRANSFER LENGTH GRANULARITY
@@ -523,12 +531,12 @@ target_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 	/*
 	 * Set MAXIMUM TRANSFER LENGTH
 	 */
-	put_unaligned_be32(DEV_ATTRIB(dev)->max_sectors, &buf[8]);
+	put_unaligned_be32(dev->se_sub_dev->se_dev_attrib.max_sectors, &buf[8]);
 
 	/*
 	 * Set OPTIMAL TRANSFER LENGTH
 	 */
-	put_unaligned_be32(DEV_ATTRIB(dev)->optimal_sectors, &buf[12]);
+	put_unaligned_be32(dev->se_sub_dev->se_dev_attrib.optimal_sectors, &buf[12]);
 
 	/*
 	 * Exit now if we don't support TP or the initiator sent a too
@@ -540,26 +548,42 @@ target_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 	/*
 	 * Set MAXIMUM UNMAP LBA COUNT
 	 */
-	put_unaligned_be32(DEV_ATTRIB(dev)->max_unmap_lba_count, &buf[20]);
+	put_unaligned_be32(dev->se_sub_dev->se_dev_attrib.max_unmap_lba_count, &buf[20]);
 
 	/*
 	 * Set MAXIMUM UNMAP BLOCK DESCRIPTOR COUNT
 	 */
-	put_unaligned_be32(DEV_ATTRIB(dev)->max_unmap_block_desc_count,
+	put_unaligned_be32(dev->se_sub_dev->se_dev_attrib.max_unmap_block_desc_count,
 			   &buf[24]);
 
 	/*
 	 * Set OPTIMAL UNMAP GRANULARITY
 	 */
-	put_unaligned_be32(DEV_ATTRIB(dev)->unmap_granularity, &buf[28]);
+	put_unaligned_be32(dev->se_sub_dev->se_dev_attrib.unmap_granularity, &buf[28]);
 
 	/*
 	 * UNMAP GRANULARITY ALIGNMENT
 	 */
-	put_unaligned_be32(DEV_ATTRIB(dev)->unmap_granularity_alignment,
+	put_unaligned_be32(dev->se_sub_dev->se_dev_attrib.unmap_granularity_alignment,
 			   &buf[32]);
-	if (DEV_ATTRIB(dev)->unmap_granularity_alignment != 0)
+	if (dev->se_sub_dev->se_dev_attrib.unmap_granularity_alignment != 0)
 		buf[32] |= 0x80; /* Set the UGAVALID bit */
+
+	return 0;
+}
+
+/* Block Device Characteristics VPD page */
+static int
+target_emulate_evpd_b1(struct se_cmd *cmd, unsigned char *buf)
+{
+	struct se_device *dev = cmd->se_dev;
+
+	buf[0] = dev->transport->get_device_type(dev);
+	buf[3] = 0x3c;
+
+	if (cmd->data_length >= 5 &&
+	    dev->se_sub_dev->se_dev_attrib.is_nonrot)
+		buf[5] = 1;
 
 	return 0;
 }
@@ -568,7 +592,7 @@ target_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 static int
 target_emulate_evpd_b2(struct se_cmd *cmd, unsigned char *buf)
 {
-	struct se_device *dev = SE_DEV(cmd);
+	struct se_device *dev = cmd->se_dev;
 
 	/*
 	 * From sbc3r22 section 6.5.4 Thin Provisioning VPD page:
@@ -579,7 +603,6 @@ target_emulate_evpd_b2(struct se_cmd *cmd, unsigned char *buf)
 	 * defined in table 162.
 	 */
 	buf[0] = dev->transport->get_device_type(dev);
-	buf[1] = 0xb2;
 
 	/*
 	 * Set Hardcoded length mentioned above for DP=0
@@ -602,7 +625,7 @@ target_emulate_evpd_b2(struct se_cmd *cmd, unsigned char *buf)
 	 * the UNMAP command (see 5.25). A TPU bit set to zero indicates
 	 * that the device server does not support the UNMAP command.
 	 */
-	if (DEV_ATTRIB(dev)->emulate_tpu != 0)
+	if (dev->se_sub_dev->se_dev_attrib.emulate_tpu != 0)
 		buf[5] = 0x80;
 
 	/*
@@ -611,21 +634,64 @@ target_emulate_evpd_b2(struct se_cmd *cmd, unsigned char *buf)
 	 * A TPWS bit set to zero indicates that the device server does not
 	 * support the use of the WRITE SAME (16) command to unmap LBAs.
 	 */
-	if (DEV_ATTRIB(dev)->emulate_tpws != 0)
+	if (dev->se_sub_dev->se_dev_attrib.emulate_tpws != 0)
 		buf[5] |= 0x40;
 
 	return 0;
 }
 
 static int
-target_emulate_inquiry(struct se_cmd *cmd)
-{
-	struct se_device *dev = SE_DEV(cmd);
-	unsigned char *buf = cmd->t_task->t_task_buf;
-	unsigned char *cdb = cmd->t_task->t_task_cdb;
+target_emulate_evpd_00(struct se_cmd *cmd, unsigned char *buf);
 
-	if (!(cdb[1] & 0x1))
-		return target_emulate_inquiry_std(cmd);
+static struct {
+	uint8_t		page;
+	int		(*emulate)(struct se_cmd *, unsigned char *);
+} evpd_handlers[] = {
+	{ .page = 0x00, .emulate = target_emulate_evpd_00 },
+	{ .page = 0x80, .emulate = target_emulate_evpd_80 },
+	{ .page = 0x83, .emulate = target_emulate_evpd_83 },
+	{ .page = 0x86, .emulate = target_emulate_evpd_86 },
+	{ .page = 0xb0, .emulate = target_emulate_evpd_b0 },
+	{ .page = 0xb1, .emulate = target_emulate_evpd_b1 },
+	{ .page = 0xb2, .emulate = target_emulate_evpd_b2 },
+};
+
+/* supported vital product data pages */
+static int
+target_emulate_evpd_00(struct se_cmd *cmd, unsigned char *buf)
+{
+	int p;
+
+	if (cmd->data_length < 8)
+		return 0;
+	/*
+	 * Only report the INQUIRY EVPD=1 pages after a valid NAA
+	 * Registered Extended LUN WWN has been set via ConfigFS
+	 * during device creation/restart.
+	 */
+	if (cmd->se_dev->se_sub_dev->su_dev_flags &
+			SDF_EMULATED_VPD_UNIT_SERIAL) {
+		buf[3] = ARRAY_SIZE(evpd_handlers);
+		for (p = 0; p < min_t(int, ARRAY_SIZE(evpd_handlers),
+				      cmd->data_length - 4); ++p)
+			buf[p + 4] = evpd_handlers[p].page;
+	}
+
+	return 0;
+}
+
+int target_emulate_inquiry(struct se_task *task)
+{
+	struct se_cmd *cmd = task->task_se_cmd;
+	struct se_device *dev = cmd->se_dev;
+	unsigned char *buf;
+	unsigned char *cdb = cmd->t_task_cdb;
+	int p, ret;
+
+	if (!(cdb[1] & 0x1)) {
+		ret = target_emulate_inquiry_std(cmd);
+		goto out;
+	}
 
 	/*
 	 * Make sure we at least have 4 bytes of INQUIRY response
@@ -635,38 +701,41 @@ target_emulate_inquiry(struct se_cmd *cmd)
 	 * payload length left for the next outgoing EVPD metadata
 	 */
 	if (cmd->data_length < 4) {
-		printk(KERN_ERR "SCSI Inquiry payload length: %u"
+		pr_err("SCSI Inquiry payload length: %u"
 			" too small for EVPD=1\n", cmd->data_length);
-		return -1;
+		return -EINVAL;
 	}
+
+	buf = transport_kmap_first_data_page(cmd);
+
 	buf[0] = dev->transport->get_device_type(dev);
 
-	switch (cdb[2]) {
-	case 0x00:
-		return target_emulate_evpd_00(cmd, buf);
-	case 0x80:
-		return target_emulate_evpd_80(cmd, buf);
-	case 0x83:
-		return target_emulate_evpd_83(cmd, buf);
-	case 0x86:
-		return target_emulate_evpd_86(cmd, buf);
-	case 0xb0:
-		return target_emulate_evpd_b0(cmd, buf);
-	case 0xb2:
-		return target_emulate_evpd_b2(cmd, buf);
-	default:
-		printk(KERN_ERR "Unknown VPD Code: 0x%02x\n", cdb[2]);
-		return -1;
+	for (p = 0; p < ARRAY_SIZE(evpd_handlers); ++p) {
+		if (cdb[2] == evpd_handlers[p].page) {
+			buf[1] = cdb[2];
+			ret = evpd_handlers[p].emulate(cmd, buf);
+			goto out_unmap;
+		}
 	}
 
-	return 0;
+	pr_err("Unknown VPD Code: 0x%02x\n", cdb[2]);
+	ret = -EINVAL;
+
+out_unmap:
+	transport_kunmap_first_data_page(cmd);
+out:
+	if (!ret) {
+		task->task_scsi_status = GOOD;
+		transport_complete_task(task, 1);
+	}
+	return ret;
 }
 
-static int
-target_emulate_readcapacity(struct se_cmd *cmd)
+int target_emulate_readcapacity(struct se_task *task)
 {
-	struct se_device *dev = SE_DEV(cmd);
-	unsigned char *buf = cmd->t_task->t_task_buf;
+	struct se_cmd *cmd = task->task_se_cmd;
+	struct se_device *dev = cmd->se_dev;
+	unsigned char *buf;
 	unsigned long long blocks_long = dev->transport->get_blocks(dev);
 	u32 blocks;
 
@@ -675,29 +744,37 @@ target_emulate_readcapacity(struct se_cmd *cmd)
 	else
 		blocks = (u32)blocks_long;
 
+	buf = transport_kmap_first_data_page(cmd);
+
 	buf[0] = (blocks >> 24) & 0xff;
 	buf[1] = (blocks >> 16) & 0xff;
 	buf[2] = (blocks >> 8) & 0xff;
 	buf[3] = blocks & 0xff;
-	buf[4] = (DEV_ATTRIB(dev)->block_size >> 24) & 0xff;
-	buf[5] = (DEV_ATTRIB(dev)->block_size >> 16) & 0xff;
-	buf[6] = (DEV_ATTRIB(dev)->block_size >> 8) & 0xff;
-	buf[7] = DEV_ATTRIB(dev)->block_size & 0xff;
+	buf[4] = (dev->se_sub_dev->se_dev_attrib.block_size >> 24) & 0xff;
+	buf[5] = (dev->se_sub_dev->se_dev_attrib.block_size >> 16) & 0xff;
+	buf[6] = (dev->se_sub_dev->se_dev_attrib.block_size >> 8) & 0xff;
+	buf[7] = dev->se_sub_dev->se_dev_attrib.block_size & 0xff;
 	/*
 	 * Set max 32-bit blocks to signal SERVICE ACTION READ_CAPACITY_16
 	*/
-	if (DEV_ATTRIB(dev)->emulate_tpu || DEV_ATTRIB(dev)->emulate_tpws)
+	if (dev->se_sub_dev->se_dev_attrib.emulate_tpu || dev->se_sub_dev->se_dev_attrib.emulate_tpws)
 		put_unaligned_be32(0xFFFFFFFF, &buf[0]);
 
+	transport_kunmap_first_data_page(cmd);
+
+	task->task_scsi_status = GOOD;
+	transport_complete_task(task, 1);
 	return 0;
 }
 
-static int
-target_emulate_readcapacity_16(struct se_cmd *cmd)
+int target_emulate_readcapacity_16(struct se_task *task)
 {
-	struct se_device *dev = SE_DEV(cmd);
-	unsigned char *buf = cmd->t_task->t_task_buf;
+	struct se_cmd *cmd = task->task_se_cmd;
+	struct se_device *dev = cmd->se_dev;
+	unsigned char *buf;
 	unsigned long long blocks = dev->transport->get_blocks(dev);
+
+	buf = transport_kmap_first_data_page(cmd);
 
 	buf[0] = (blocks >> 56) & 0xff;
 	buf[1] = (blocks >> 48) & 0xff;
@@ -707,17 +784,21 @@ target_emulate_readcapacity_16(struct se_cmd *cmd)
 	buf[5] = (blocks >> 16) & 0xff;
 	buf[6] = (blocks >> 8) & 0xff;
 	buf[7] = blocks & 0xff;
-	buf[8] = (DEV_ATTRIB(dev)->block_size >> 24) & 0xff;
-	buf[9] = (DEV_ATTRIB(dev)->block_size >> 16) & 0xff;
-	buf[10] = (DEV_ATTRIB(dev)->block_size >> 8) & 0xff;
-	buf[11] = DEV_ATTRIB(dev)->block_size & 0xff;
+	buf[8] = (dev->se_sub_dev->se_dev_attrib.block_size >> 24) & 0xff;
+	buf[9] = (dev->se_sub_dev->se_dev_attrib.block_size >> 16) & 0xff;
+	buf[10] = (dev->se_sub_dev->se_dev_attrib.block_size >> 8) & 0xff;
+	buf[11] = dev->se_sub_dev->se_dev_attrib.block_size & 0xff;
 	/*
 	 * Set Thin Provisioning Enable bit following sbc3r22 in section
 	 * READ CAPACITY (16) byte 14 if emulate_tpu or emulate_tpws is enabled.
 	 */
-	if (DEV_ATTRIB(dev)->emulate_tpu || DEV_ATTRIB(dev)->emulate_tpws)
+	if (dev->se_sub_dev->se_dev_attrib.emulate_tpu || dev->se_sub_dev->se_dev_attrib.emulate_tpws)
 		buf[14] = 0x80;
 
+	transport_kunmap_first_data_page(cmd);
+
+	task->task_scsi_status = GOOD;
+	transport_complete_task(task, 1);
 	return 0;
 }
 
@@ -736,6 +817,35 @@ target_modesense_control(struct se_device *dev, unsigned char *p)
 	p[0] = 0x0a;
 	p[1] = 0x0a;
 	p[2] = 2;
+	/*
+	 * From spc4r23, 7.4.7 Control mode page
+	 *
+	 * The QUEUE ALGORITHM MODIFIER field (see table 368) specifies
+	 * restrictions on the algorithm used for reordering commands
+	 * having the SIMPLE task attribute (see SAM-4).
+	 *
+	 *                    Table 368 -- QUEUE ALGORITHM MODIFIER field
+	 *                         Code      Description
+	 *                          0h       Restricted reordering
+	 *                          1h       Unrestricted reordering allowed
+	 *                          2h to 7h    Reserved
+	 *                          8h to Fh    Vendor specific
+	 *
+	 * A value of zero in the QUEUE ALGORITHM MODIFIER field specifies that
+	 * the device server shall order the processing sequence of commands
+	 * having the SIMPLE task attribute such that data integrity is maintained
+	 * for that I_T nexus (i.e., if the transmission of new SCSI transport protocol
+	 * requests is halted at any time, the final value of all data observable
+	 * on the medium shall be the same as if all the commands had been processed
+	 * with the ORDERED task attribute).
+	 *
+	 * A value of one in the QUEUE ALGORITHM MODIFIER field specifies that the
+	 * device server may reorder the processing sequence of commands having the
+	 * SIMPLE task attribute in any manner. Any data integrity exposures related to
+	 * command sequence order shall be explicitly handled by the application client
+	 * through the selection of appropriate ommands and task attributes.
+	 */
+	p[3] = (dev->se_sub_dev->se_dev_attrib.emulate_rest_reord == 1) ? 0x00 : 0x10;
 	/*
 	 * From spc4r17, section 7.4.6 Control mode Page
 	 *
@@ -765,8 +875,8 @@ target_modesense_control(struct se_device *dev, unsigned char *p)
 	 * for a BUSY, TASK SET FULL, or RESERVATION CONFLICT status regardless
 	 * to the number of commands completed with one of those status codes.
 	 */
-	p[4] = (DEV_ATTRIB(dev)->emulate_ua_intlck_ctrl == 2) ? 0x30 :
-	       (DEV_ATTRIB(dev)->emulate_ua_intlck_ctrl == 1) ? 0x20 : 0x00;
+	p[4] = (dev->se_sub_dev->se_dev_attrib.emulate_ua_intlck_ctrl == 2) ? 0x30 :
+	       (dev->se_sub_dev->se_dev_attrib.emulate_ua_intlck_ctrl == 1) ? 0x20 : 0x00;
 	/*
 	 * From spc4r17, section 7.4.6 Control mode Page
 	 *
@@ -779,7 +889,7 @@ target_modesense_control(struct se_device *dev, unsigned char *p)
 	 * which the command was received shall be completed with TASK ABORTED
 	 * status (see SAM-4).
 	 */
-	p[5] = (DEV_ATTRIB(dev)->emulate_tas) ? 0x40 : 0x00;
+	p[5] = (dev->se_sub_dev->se_dev_attrib.emulate_tas) ? 0x40 : 0x00;
 	p[8] = 0xff;
 	p[9] = 0xff;
 	p[11] = 30;
@@ -792,7 +902,7 @@ target_modesense_caching(struct se_device *dev, unsigned char *p)
 {
 	p[0] = 0x08;
 	p[1] = 0x12;
-	if (DEV_ATTRIB(dev)->emulate_write_cache > 0)
+	if (dev->se_sub_dev->se_dev_attrib.emulate_write_cache > 0)
 		p[2] = 0x04; /* Write Cache Enable */
 	p[12] = 0x20; /* Disabled Read Ahead */
 
@@ -827,14 +937,15 @@ target_modesense_dpofua(unsigned char *buf, int type)
 	}
 }
 
-static int
-target_emulate_modesense(struct se_cmd *cmd, int ten)
+int target_emulate_modesense(struct se_task *task)
 {
-	struct se_device *dev = SE_DEV(cmd);
-	char *cdb = cmd->t_task->t_task_cdb;
-	unsigned char *rbuf = cmd->t_task->t_task_buf;
+	struct se_cmd *cmd = task->task_se_cmd;
+	struct se_device *dev = cmd->se_dev;
+	char *cdb = cmd->t_task_cdb;
+	unsigned char *rbuf;
 	int type = dev->transport->get_device_type(dev);
-	int offset = (ten) ? 8 : 4;
+	int ten = (cmd->t_task_cdb[0] == MODE_SENSE_10);
+	int offset = ten ? 8 : 4;
 	int length = 0;
 	unsigned char buf[SE_MODE_PAGE_BUF];
 
@@ -856,8 +967,8 @@ target_emulate_modesense(struct se_cmd *cmd, int ten)
 		length += target_modesense_control(dev, &buf[offset+length]);
 		break;
 	default:
-		printk(KERN_ERR "Got Unknown Mode Page: 0x%02x\n",
-				cdb[2] & 0x3f);
+		pr_err("MODE SENSE: unimplemented page/subpage: 0x%02x/0x%02x\n",
+		       cdb[2] & 0x3f, cdb[3]);
 		return PYX_TRANSPORT_UNKNOWN_MODE_PAGE;
 	}
 	offset += length;
@@ -867,13 +978,13 @@ target_emulate_modesense(struct se_cmd *cmd, int ten)
 		buf[0] = (offset >> 8) & 0xff;
 		buf[1] = offset & 0xff;
 
-		if ((SE_LUN(cmd)->lun_access & TRANSPORT_LUNFLAGS_READ_ONLY) ||
+		if ((cmd->se_lun->lun_access & TRANSPORT_LUNFLAGS_READ_ONLY) ||
 		    (cmd->se_deve &&
 		    (cmd->se_deve->lun_flags & TRANSPORT_LUNFLAGS_READ_ONLY)))
 			target_modesense_write_protect(&buf[3], type);
 
-		if ((DEV_ATTRIB(dev)->emulate_write_cache > 0) &&
-		    (DEV_ATTRIB(dev)->emulate_fua_write > 0))
+		if ((dev->se_sub_dev->se_dev_attrib.emulate_write_cache > 0) &&
+		    (dev->se_sub_dev->se_dev_attrib.emulate_fua_write > 0))
 			target_modesense_dpofua(&buf[3], type);
 
 		if ((offset + 2) > cmd->data_length)
@@ -883,36 +994,45 @@ target_emulate_modesense(struct se_cmd *cmd, int ten)
 		offset -= 1;
 		buf[0] = offset & 0xff;
 
-		if ((SE_LUN(cmd)->lun_access & TRANSPORT_LUNFLAGS_READ_ONLY) ||
+		if ((cmd->se_lun->lun_access & TRANSPORT_LUNFLAGS_READ_ONLY) ||
 		    (cmd->se_deve &&
 		    (cmd->se_deve->lun_flags & TRANSPORT_LUNFLAGS_READ_ONLY)))
 			target_modesense_write_protect(&buf[2], type);
 
-		if ((DEV_ATTRIB(dev)->emulate_write_cache > 0) &&
-		    (DEV_ATTRIB(dev)->emulate_fua_write > 0))
+		if ((dev->se_sub_dev->se_dev_attrib.emulate_write_cache > 0) &&
+		    (dev->se_sub_dev->se_dev_attrib.emulate_fua_write > 0))
 			target_modesense_dpofua(&buf[2], type);
 
 		if ((offset + 1) > cmd->data_length)
 			offset = cmd->data_length;
 	}
-	memcpy(rbuf, buf, offset);
 
+	rbuf = transport_kmap_first_data_page(cmd);
+	memcpy(rbuf, buf, offset);
+	transport_kunmap_first_data_page(cmd);
+
+	task->task_scsi_status = GOOD;
+	transport_complete_task(task, 1);
 	return 0;
 }
 
-static int
-target_emulate_request_sense(struct se_cmd *cmd)
+int target_emulate_request_sense(struct se_task *task)
 {
-	unsigned char *cdb = cmd->t_task->t_task_cdb;
-	unsigned char *buf = cmd->t_task->t_task_buf;
+	struct se_cmd *cmd = task->task_se_cmd;
+	unsigned char *cdb = cmd->t_task_cdb;
+	unsigned char *buf;
 	u8 ua_asc = 0, ua_ascq = 0;
+	int err = 0;
 
 	if (cdb[1] & 0x01) {
-		printk(KERN_ERR "REQUEST_SENSE description emulation not"
+		pr_err("REQUEST_SENSE description emulation not"
 			" supported\n");
 		return PYX_TRANSPORT_INVALID_CDB_FIELD;
 	}
-	if (!(core_scsi3_ua_clear_for_request_sense(cmd, &ua_asc, &ua_ascq))) {
+
+	buf = transport_kmap_first_data_page(cmd);
+
+	if (!core_scsi3_ua_clear_for_request_sense(cmd, &ua_asc, &ua_ascq)) {
 		/*
 		 * CURRENT ERROR, UNIT ATTENTION
 		 */
@@ -924,7 +1044,8 @@ target_emulate_request_sense(struct se_cmd *cmd)
 		 */
 		if (cmd->data_length <= 18) {
 			buf[7] = 0x00;
-			return 0;
+			err = -EINVAL;
+			goto end;
 		}
 		/*
 		 * The Additional Sense Code (ASC) from the UNIT ATTENTION
@@ -944,7 +1065,8 @@ target_emulate_request_sense(struct se_cmd *cmd)
 		 */
 		if (cmd->data_length <= 18) {
 			buf[7] = 0x00;
-			return 0;
+			err = -EINVAL;
+			goto end;
 		}
 		/*
 		 * NO ADDITIONAL SENSE INFORMATION
@@ -953,6 +1075,10 @@ target_emulate_request_sense(struct se_cmd *cmd)
 		buf[7] = 0x0A;
 	}
 
+end:
+	transport_kunmap_first_data_page(cmd);
+	task->task_scsi_status = GOOD;
+	transport_complete_task(task, 1);
 	return 0;
 }
 
@@ -960,71 +1086,103 @@ target_emulate_request_sense(struct se_cmd *cmd)
  * Used for TCM/IBLOCK and TCM/FILEIO for block/blk-lib.c level discard support.
  * Note this is not used for TCM/pSCSI passthrough
  */
-static int
-target_emulate_unmap(struct se_task *task)
+int target_emulate_unmap(struct se_task *task)
 {
-	struct se_cmd *cmd = TASK_CMD(task);
-	struct se_device *dev = SE_DEV(cmd);
-	unsigned char *buf = cmd->t_task->t_task_buf, *ptr = NULL;
-	unsigned char *cdb = &cmd->t_task->t_task_cdb[0];
+	struct se_cmd *cmd = task->task_se_cmd;
+	struct se_device *dev = cmd->se_dev;
+	unsigned char *buf, *ptr = NULL;
+	unsigned char *cdb = &cmd->t_task_cdb[0];
 	sector_t lba;
 	unsigned int size = cmd->data_length, range;
-	int ret, offset;
+	int ret = 0, offset;
 	unsigned short dl, bd_dl;
+
+	if (!dev->transport->do_discard) {
+		pr_err("UNMAP emulation not supported for: %s\n",
+				dev->transport->name);
+		return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
+	}
 
 	/* First UNMAP block descriptor starts at 8 byte offset */
 	offset = 8;
 	size -= 8;
 	dl = get_unaligned_be16(&cdb[0]);
 	bd_dl = get_unaligned_be16(&cdb[2]);
+
+	buf = transport_kmap_first_data_page(cmd);
+
 	ptr = &buf[offset];
-	printk(KERN_INFO "UNMAP: Sub: %s Using dl: %hu bd_dl: %hu size: %hu"
+	pr_debug("UNMAP: Sub: %s Using dl: %hu bd_dl: %hu size: %hu"
 		" ptr: %p\n", dev->transport->name, dl, bd_dl, size, ptr);
 
 	while (size) {
 		lba = get_unaligned_be64(&ptr[0]);
 		range = get_unaligned_be32(&ptr[8]);
-		printk(KERN_INFO "UNMAP: Using lba: %llu and range: %u\n",
+		pr_debug("UNMAP: Using lba: %llu and range: %u\n",
 				 (unsigned long long)lba, range);
 
 		ret = dev->transport->do_discard(dev, lba, range);
 		if (ret < 0) {
-			printk(KERN_ERR "blkdev_issue_discard() failed: %d\n",
+			pr_err("blkdev_issue_discard() failed: %d\n",
 					ret);
-			return -1;
+			goto err;
 		}
 
 		ptr += 16;
 		size -= 16;
 	}
 
-	task->task_scsi_status = GOOD;
-	transport_complete_task(task, 1);
-	return 0;
+err:
+	transport_kunmap_first_data_page(cmd);
+	if (!ret) {
+		task->task_scsi_status = GOOD;
+		transport_complete_task(task, 1);
+	}
+	return ret;
 }
 
 /*
  * Used for TCM/IBLOCK and TCM/FILEIO for block/blk-lib.c level discard support.
  * Note this is not used for TCM/pSCSI passthrough
  */
-static int
-target_emulate_write_same(struct se_task *task)
+int target_emulate_write_same(struct se_task *task)
 {
-	struct se_cmd *cmd = TASK_CMD(task);
-	struct se_device *dev = SE_DEV(cmd);
-	sector_t lba = cmd->t_task->t_task_lba;
-	unsigned int range;
+	struct se_cmd *cmd = task->task_se_cmd;
+	struct se_device *dev = cmd->se_dev;
+	sector_t range;
+	sector_t lba = cmd->t_task_lba;
+	u32 num_blocks;
 	int ret;
 
-	range = (cmd->data_length / DEV_ATTRIB(dev)->block_size);
+	if (!dev->transport->do_discard) {
+		pr_err("WRITE_SAME emulation not supported"
+				" for: %s\n", dev->transport->name);
+		return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
+	}
 
-	printk(KERN_INFO "WRITE_SAME UNMAP: LBA: %llu Range: %u\n",
-			 (unsigned long long)lba, range);
+	if (cmd->t_task_cdb[0] == WRITE_SAME)
+		num_blocks = get_unaligned_be16(&cmd->t_task_cdb[7]);
+	else if (cmd->t_task_cdb[0] == WRITE_SAME_16)
+		num_blocks = get_unaligned_be32(&cmd->t_task_cdb[10]);
+	else /* WRITE_SAME_32 via VARIABLE_LENGTH_CMD */
+		num_blocks = get_unaligned_be32(&cmd->t_task_cdb[28]);
+
+	/*
+	 * Use the explicit range when non zero is supplied, otherwise calculate
+	 * the remaining range based on ->get_blocks() - starting LBA.
+	 */
+	if (num_blocks != 0)
+		range = num_blocks;
+	else
+		range = (dev->transport->get_blocks(dev) - lba);
+
+	pr_debug("WRITE_SAME UNMAP: LBA: %llu Range: %llu\n",
+		 (unsigned long long)lba, (unsigned long long)range);
 
 	ret = dev->transport->do_discard(dev, lba, range);
 	if (ret < 0) {
-		printk(KERN_INFO "blkdev_issue_discard() failed for WRITE_SAME\n");
-		return -1;
+		pr_debug("blkdev_issue_discard() failed for WRITE_SAME\n");
+		return ret;
 	}
 
 	task->task_scsi_status = GOOD;
@@ -1032,106 +1190,72 @@ target_emulate_write_same(struct se_task *task)
 	return 0;
 }
 
-int
-transport_emulate_control_cdb(struct se_task *task)
+int target_emulate_synchronize_cache(struct se_task *task)
 {
-	struct se_cmd *cmd = TASK_CMD(task);
-	struct se_device *dev = SE_DEV(cmd);
-	unsigned short service_action;
-	int ret = 0;
+	struct se_device *dev = task->task_se_cmd->se_dev;
 
-	switch (cmd->t_task->t_task_cdb[0]) {
-	case INQUIRY:
-		ret = target_emulate_inquiry(cmd);
-		break;
-	case READ_CAPACITY:
-		ret = target_emulate_readcapacity(cmd);
-		break;
-	case MODE_SENSE:
-		ret = target_emulate_modesense(cmd, 0);
-		break;
-	case MODE_SENSE_10:
-		ret = target_emulate_modesense(cmd, 1);
-		break;
-	case SERVICE_ACTION_IN:
-		switch (cmd->t_task->t_task_cdb[1] & 0x1f) {
-		case SAI_READ_CAPACITY_16:
-			ret = target_emulate_readcapacity_16(cmd);
-			break;
-		default:
-			printk(KERN_ERR "Unsupported SA: 0x%02x\n",
-				cmd->t_task->t_task_cdb[1] & 0x1f);
-			return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
-		}
-		break;
-	case REQUEST_SENSE:
-		ret = target_emulate_request_sense(cmd);
-		break;
-	case UNMAP:
-		if (!dev->transport->do_discard) {
-			printk(KERN_ERR "UNMAP emulation not supported for: %s\n",
-					dev->transport->name);
-			return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
-		}
-		ret = target_emulate_unmap(task);
-		break;
-	case WRITE_SAME_16:
-		if (!dev->transport->do_discard) {
-			printk(KERN_ERR "WRITE_SAME_16 emulation not supported"
-					" for: %s\n", dev->transport->name);
-			return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
-		}
-		ret = target_emulate_write_same(task);
-		break;
-	case VARIABLE_LENGTH_CMD:
-		service_action =
-			get_unaligned_be16(&cmd->t_task->t_task_cdb[8]);
-		switch (service_action) {
-		case WRITE_SAME_32:
-			if (!dev->transport->do_discard) {
-				printk(KERN_ERR "WRITE_SAME_32 SA emulation not"
-					" supported for: %s\n",
-					dev->transport->name);
-				return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
-			}
-			ret = target_emulate_write_same(task);
-			break;
-		default:
-			printk(KERN_ERR "Unsupported VARIABLE_LENGTH_CMD SA:"
-					" 0x%02x\n", service_action);
-			break;
-		}
-		break;
-	case SYNCHRONIZE_CACHE:
-	case 0x91: /* SYNCHRONIZE_CACHE_16: */
-		if (!dev->transport->do_sync_cache) {
-			printk(KERN_ERR
-				"SYNCHRONIZE_CACHE emulation not supported"
-				" for: %s\n", dev->transport->name);
-			return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
-		}
-		dev->transport->do_sync_cache(task);
-		break;
-	case ALLOW_MEDIUM_REMOVAL:
-	case ERASE:
-	case REZERO_UNIT:
-	case SEEK_10:
-	case SPACE:
-	case START_STOP:
-	case TEST_UNIT_READY:
-	case VERIFY:
-	case WRITE_FILEMARKS:
-		break;
-	default:
-		printk(KERN_ERR "Unsupported SCSI Opcode: 0x%02x for %s\n",
-			cmd->t_task->t_task_cdb[0], dev->transport->name);
+	if (!dev->transport->do_sync_cache) {
+		pr_err("SYNCHRONIZE_CACHE emulation not supported"
+			" for: %s\n", dev->transport->name);
 		return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
 	}
 
-	if (ret < 0)
-		return ret;
+	dev->transport->do_sync_cache(task);
+	return 0;
+}
+
+int target_emulate_noop(struct se_task *task)
+{
 	task->task_scsi_status = GOOD;
 	transport_complete_task(task, 1);
-
-	return PYX_TRANSPORT_SENT_TO_TRANSPORT;
+	return 0;
 }
+
+/*
+ * Write a CDB into @cdb that is based on the one the intiator sent us,
+ * but updated to only cover the sectors that the current task handles.
+ */
+void target_get_task_cdb(struct se_task *task, unsigned char *cdb)
+{
+	struct se_cmd *cmd = task->task_se_cmd;
+	unsigned int cdb_len = scsi_command_size(cmd->t_task_cdb);
+
+	memcpy(cdb, cmd->t_task_cdb, cdb_len);
+	if (cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB) {
+		unsigned long long lba = task->task_lba;
+		u32 sectors = task->task_sectors;
+
+		switch (cdb_len) {
+		case 6:
+			/* 21-bit LBA and 8-bit sectors */
+			cdb[1] = (lba >> 16) & 0x1f;
+			cdb[2] = (lba >> 8) & 0xff;
+			cdb[3] = lba & 0xff;
+			cdb[4] = sectors & 0xff;
+			break;
+		case 10:
+			/* 32-bit LBA and 16-bit sectors */
+			put_unaligned_be32(lba, &cdb[2]);
+			put_unaligned_be16(sectors, &cdb[7]);
+			break;
+		case 12:
+			/* 32-bit LBA and 32-bit sectors */
+			put_unaligned_be32(lba, &cdb[2]);
+			put_unaligned_be32(sectors, &cdb[6]);
+			break;
+		case 16:
+			/* 64-bit LBA and 32-bit sectors */
+			put_unaligned_be64(lba, &cdb[2]);
+			put_unaligned_be32(sectors, &cdb[10]);
+			break;
+		case 32:
+			/* 64-bit LBA and 32-bit sectors, extended CDB */
+			put_unaligned_be64(lba, &cdb[12]);
+			put_unaligned_be32(sectors, &cdb[28]);
+			break;
+		default:
+			BUG();
+		}
+	}
+}
+EXPORT_SYMBOL(target_get_task_cdb);

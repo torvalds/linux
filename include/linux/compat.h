@@ -438,16 +438,6 @@ asmlinkage long compat_sys_ppoll(struct pollfd __user *ufds,
 				 struct compat_timespec __user *tsp,
 				 const compat_sigset_t __user *sigmask,
 				 compat_size_t sigsetsize);
-#if (defined(CONFIG_NFSD) || defined(CONFIG_NFSD_MODULE)) && \
-	!defined(CONFIG_NFSD_DEPRECATED)
-union compat_nfsctl_res;
-struct compat_nfsctl_arg;
-asmlinkage long compat_sys_nfsservctl(int cmd,
-				      struct compat_nfsctl_arg __user *arg,
-				      union compat_nfsctl_res __user *res);
-#else
-asmlinkage long compat_sys_nfsservctl(int cmd, void *notused, void *notused2);
-#endif
 asmlinkage long compat_sys_signalfd4(int ufd,
 				     const compat_sigset_t __user *sigmask,
 				     compat_size_t sigsetsize, int flags);
@@ -557,7 +547,8 @@ extern ssize_t compat_rw_copy_check_uvector(int type,
 		const struct compat_iovec __user *uvector,
 		unsigned long nr_segs,
 		unsigned long fast_segs, struct iovec *fast_pointer,
-		struct iovec **ret_pointer);
+		struct iovec **ret_pointer,
+		int check_access);
 
 extern void __user *compat_alloc_user_space(unsigned long len);
 

@@ -124,7 +124,7 @@ static int ehci_octeon_drv_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	hcd->rsrc_start = res_mem->start;
-	hcd->rsrc_len = res_mem->end - res_mem->start + 1;
+	hcd->rsrc_len = resource_size(res_mem);
 
 	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len,
 				OCTEON_EHCI_HCD_NAME)) {
@@ -155,7 +155,7 @@ static int ehci_octeon_drv_probe(struct platform_device *pdev)
 	/* cache this readonly data; minimize chip reads */
 	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
 
-	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED | IRQF_SHARED);
+	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (ret) {
 		dev_dbg(&pdev->dev, "failed to add hcd with err %d\n", ret);
 		goto err3;

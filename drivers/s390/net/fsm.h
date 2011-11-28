@@ -8,7 +8,7 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/string.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 /**
  * Define this to get debugging messages.

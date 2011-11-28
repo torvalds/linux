@@ -273,7 +273,7 @@ static SENSOR_DEVICE_ATTR(in4_max, S_IRUGO | S_IWUSR,
 
 #define DIV_FROM_REG(val) (1 << (val))
 #define FAN_FROM_REG(val,div) ((val)==0 ? 0 : (480000/((val) << (div))))
-#define FAN_TO_REG(val,div) ((val)<=0?0:SENSORS_LIMIT((480000 + ((val) << ((div)-1))) / ((val) << (div)), 1, 255));
+#define FAN_TO_REG(val,div) ((val)<=0?0:SENSORS_LIMIT((480000 + ((val) << ((div)-1))) / ((val) << (div)), 1, 255))
 
 static ssize_t get_fan_input(struct device *dev, struct device_attribute *attr,
 			     char *buf)
@@ -821,7 +821,7 @@ static int gl520_remove(struct i2c_client *client)
 static int gl520_read_value(struct i2c_client *client, u8 reg)
 {
 	if ((reg >= 0x07) && (reg <= 0x0c))
-		return swab16(i2c_smbus_read_word_data(client, reg));
+		return i2c_smbus_read_word_swapped(client, reg);
 	else
 		return i2c_smbus_read_byte_data(client, reg);
 }
@@ -829,7 +829,7 @@ static int gl520_read_value(struct i2c_client *client, u8 reg)
 static int gl520_write_value(struct i2c_client *client, u8 reg, u16 value)
 {
 	if ((reg >= 0x07) && (reg <= 0x0c))
-		return i2c_smbus_write_word_data(client, reg, swab16(value));
+		return i2c_smbus_write_word_swapped(client, reg, value);
 	else
 		return i2c_smbus_write_byte_data(client, reg, value);
 }

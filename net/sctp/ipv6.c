@@ -112,6 +112,7 @@ static int sctp_inet6addr_event(struct notifier_block *this, unsigned long ev,
 			addr->valid = 1;
 			spin_lock_bh(&sctp_local_addr_lock);
 			list_add_tail_rcu(&addr->list, &sctp_local_addr_list);
+			sctp_addr_wq_mgmt(addr, SCTP_ADDR_NEW);
 			spin_unlock_bh(&sctp_local_addr_lock);
 		}
 		break;
@@ -122,6 +123,7 @@ static int sctp_inet6addr_event(struct notifier_block *this, unsigned long ev,
 			if (addr->a.sa.sa_family == AF_INET6 &&
 					ipv6_addr_equal(&addr->a.v6.sin6_addr,
 						&ifa->addr)) {
+				sctp_addr_wq_mgmt(addr, SCTP_ADDR_DEL);
 				found = 1;
 				addr->valid = 0;
 				list_del_rcu(&addr->list);
@@ -241,7 +243,7 @@ static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport)
 	if (!(transport->param_flags & SPP_PMTUD_ENABLE))
 		skb->local_df = 1;
 
-	return ip6_xmit(sk, skb, &fl6, np->opt);
+	return ip6_xmit(sk, skb, &fl6, np->opt, np->tclass);
 }
 
 /* Returns the dst cache entry for the given source and destination ip

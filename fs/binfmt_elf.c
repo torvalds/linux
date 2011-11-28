@@ -668,8 +668,7 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 			 * mm->dumpable = 0 regardless of the interpreter's
 			 * permissions.
 			 */
-			if (file_permission(interpreter, MAY_READ) < 0)
-				bprm->interp_flags |= BINPRM_FLAGS_ENFORCE_NONDUMP;
+			would_dump(bprm, interpreter);
 
 			retval = kernel_read(interpreter, 0, bprm->buf,
 					     BINPRM_BUF_SIZE);
@@ -796,7 +795,16 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 			 * might try to exec.  This is because the brk will
 			 * follow the loader, and is not movable.  */
 #if defined(CONFIG_X86) || defined(CONFIG_ARM)
-			load_bias = 0;
+			/* Memory randomization might have been switched off
+			 * in runtime via sysctl.
+			 * If that is the case, retain the original non-zero
+			 * load_bias value in order to establish proper
+			 * non-randomized mappings.
+			 */
+			if (current->flags & PF_RANDOMIZE)
+				load_bias = 0;
+			else
+				load_bias = ELF_PAGESTART(ELF_ET_DYN_BASE - vaddr);
 #else
 			load_bias = ELF_PAGESTART(ELF_ET_DYN_BASE - vaddr);
 #endif

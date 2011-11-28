@@ -74,6 +74,16 @@
 
 #define BPRINTK(fmt, args...) if (ap->flags & ATA_FLAG_DEBUGMSG) printk(KERN_ERR "%s: " fmt, __func__, ## args)
 
+#define ata_print_version_once(dev, version)			\
+({								\
+	static bool __print_once;				\
+								\
+	if (!__print_once) {					\
+		__print_once = true;				\
+		ata_print_version(dev, version);		\
+	}							\
+})
+
 /* NEW: debug levels */
 #define HAVE_LIBATA_MSG 1
 
@@ -1042,6 +1052,8 @@ extern int ata_scsi_slave_config(struct scsi_device *sdev);
 extern void ata_scsi_slave_destroy(struct scsi_device *sdev);
 extern int ata_scsi_change_queue_depth(struct scsi_device *sdev,
 				       int queue_depth, int reason);
+extern int __ata_change_queue_depth(struct ata_port *ap, struct scsi_device *sdev,
+				    int queue_depth, int reason);
 extern struct ata_device *ata_dev_pair(struct ata_device *adev);
 extern int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev);
 extern void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap);
@@ -1244,28 +1256,58 @@ static inline int sata_srst_pmp(struct ata_link *link)
 /*
  * printk helpers
  */
-#define ata_port_printk(ap, lv, fmt, args...) \
-	printk("%sata%u: "fmt, lv, (ap)->print_id , ##args)
+__printf(3, 4)
+int ata_port_printk(const struct ata_port *ap, const char *level,
+		    const char *fmt, ...);
+__printf(3, 4)
+int ata_link_printk(const struct ata_link *link, const char *level,
+		    const char *fmt, ...);
+__printf(3, 4)
+int ata_dev_printk(const struct ata_device *dev, const char *level,
+		   const char *fmt, ...);
 
-#define ata_link_printk(link, lv, fmt, args...) do { \
-	if (sata_pmp_attached((link)->ap) || (link)->ap->slave_link)	\
-		printk("%sata%u.%02u: "fmt, lv, (link)->ap->print_id,	\
-		       (link)->pmp , ##args); \
-	else \
-		printk("%sata%u: "fmt, lv, (link)->ap->print_id , ##args); \
-	} while(0)
+#define ata_port_err(ap, fmt, ...)				\
+	ata_port_printk(ap, KERN_ERR, fmt, ##__VA_ARGS__)
+#define ata_port_warn(ap, fmt, ...)				\
+	ata_port_printk(ap, KERN_WARNING, fmt, ##__VA_ARGS__)
+#define ata_port_notice(ap, fmt, ...)				\
+	ata_port_printk(ap, KERN_NOTICE, fmt, ##__VA_ARGS__)
+#define ata_port_info(ap, fmt, ...)				\
+	ata_port_printk(ap, KERN_INFO, fmt, ##__VA_ARGS__)
+#define ata_port_dbg(ap, fmt, ...)				\
+	ata_port_printk(ap, KERN_DEBUG, fmt, ##__VA_ARGS__)
 
-#define ata_dev_printk(dev, lv, fmt, args...) \
-	printk("%sata%u.%02u: "fmt, lv, (dev)->link->ap->print_id,	\
-	       (dev)->link->pmp + (dev)->devno , ##args)
+#define ata_link_err(link, fmt, ...)				\
+	ata_link_printk(link, KERN_ERR, fmt, ##__VA_ARGS__)
+#define ata_link_warn(link, fmt, ...)				\
+	ata_link_printk(link, KERN_WARNING, fmt, ##__VA_ARGS__)
+#define ata_link_notice(link, fmt, ...)				\
+	ata_link_printk(link, KERN_NOTICE, fmt, ##__VA_ARGS__)
+#define ata_link_info(link, fmt, ...)				\
+	ata_link_printk(link, KERN_INFO, fmt, ##__VA_ARGS__)
+#define ata_link_dbg(link, fmt, ...)				\
+	ata_link_printk(link, KERN_DEBUG, fmt, ##__VA_ARGS__)
+
+#define ata_dev_err(dev, fmt, ...)				\
+	ata_dev_printk(dev, KERN_ERR, fmt, ##__VA_ARGS__)
+#define ata_dev_warn(dev, fmt, ...)				\
+	ata_dev_printk(dev, KERN_WARNING, fmt, ##__VA_ARGS__)
+#define ata_dev_notice(dev, fmt, ...)				\
+	ata_dev_printk(dev, KERN_NOTICE, fmt, ##__VA_ARGS__)
+#define ata_dev_info(dev, fmt, ...)				\
+	ata_dev_printk(dev, KERN_INFO, fmt, ##__VA_ARGS__)
+#define ata_dev_dbg(dev, fmt, ...)				\
+	ata_dev_printk(dev, KERN_DEBUG, fmt, ##__VA_ARGS__)
+
+void ata_print_version(const struct device *dev, const char *version);
 
 /*
  * ata_eh_info helpers
  */
-extern void __ata_ehi_push_desc(struct ata_eh_info *ehi, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
-extern void ata_ehi_push_desc(struct ata_eh_info *ehi, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
+extern __printf(2, 3)
+void __ata_ehi_push_desc(struct ata_eh_info *ehi, const char *fmt, ...);
+extern __printf(2, 3)
+void ata_ehi_push_desc(struct ata_eh_info *ehi, const char *fmt, ...);
 extern void ata_ehi_clear_desc(struct ata_eh_info *ehi);
 
 static inline void ata_ehi_hotplugged(struct ata_eh_info *ehi)
@@ -1279,8 +1321,8 @@ static inline void ata_ehi_hotplugged(struct ata_eh_info *ehi)
 /*
  * port description helpers
  */
-extern void ata_port_desc(struct ata_port *ap, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
+extern __printf(2, 3)
+void ata_port_desc(struct ata_port *ap, const char *fmt, ...);
 #ifdef CONFIG_PCI
 extern void ata_port_pbar_desc(struct ata_port *ap, int bar, ssize_t offset,
 			       const char *name);

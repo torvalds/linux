@@ -5,6 +5,8 @@
 # Rewritten to use lists instead of if-statements.
 #
 
+# GPIO must come after pinctrl as gpios may need to mux pins etc
+obj-y				+= pinctrl/
 obj-y				+= gpio/
 obj-$(CONFIG_PCI)		+= pci/
 obj-$(CONFIG_PARISC)		+= parisc/
@@ -122,3 +124,11 @@ obj-y				+= ieee802154/
 obj-y				+= clk/
 
 obj-$(CONFIG_HWSPINLOCK)	+= hwspinlock/
+obj-$(CONFIG_NFC)		+= nfc/
+obj-$(CONFIG_IOMMU_SUPPORT)	+= iommu/
+
+# Virtualization drivers
+obj-$(CONFIG_VIRT_DRIVERS)	+= virt/
+obj-$(CONFIG_HYPERV)		+= hv/
+
+obj-$(CONFIG_PM_DEVFREQ)	+= devfreq/

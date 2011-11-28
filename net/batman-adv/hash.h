@@ -28,12 +28,12 @@
  * compare 2 element datas for their keys,
  * return 0 if same and not 0 if not
  * same */
-typedef int (*hashdata_compare_cb)(struct hlist_node *, void *);
+typedef int (*hashdata_compare_cb)(const struct hlist_node *, const void *);
 
 /* the hashfunction, should return an index
  * based on the key in the data of the first
  * argument and the size the second */
-typedef int (*hashdata_choose_cb)(void *, int);
+typedef int (*hashdata_choose_cb)(const void *, int);
 typedef void (*hashdata_free_cb)(struct hlist_node *, void *);
 
 struct hashtable_t {
@@ -76,19 +76,30 @@ static inline void hash_delete(struct hashtable_t *hash,
 	hash_destroy(hash);
 }
 
-/* adds data to the hashtable. returns 0 on success, -1 on error */
+/**
+ *	hash_add - adds data to the hashtable
+ *	@hash: storage hash table
+ *	@compare: callback to determine if 2 hash elements are identical
+ *	@choose: callback calculating the hash index
+ *	@data: data passed to the aforementioned callbacks as argument
+ *	@data_node: to be added element
+ *
+ *	Returns 0 on success, 1 if the element already is in the hash
+ *	and -1 on error.
+ */
+
 static inline int hash_add(struct hashtable_t *hash,
 			   hashdata_compare_cb compare,
 			   hashdata_choose_cb choose,
-			   void *data, struct hlist_node *data_node)
+			   const void *data, struct hlist_node *data_node)
 {
-	int index;
+	int index, ret = -1;
 	struct hlist_head *head;
 	struct hlist_node *node;
 	spinlock_t *list_lock; /* spinlock to protect write access */
 
 	if (!hash)
-		goto err;
+		goto out;
 
 	index = choose(data, hash->size);
 	head = &hash->table[index];
@@ -99,6 +110,7 @@ static inline int hash_add(struct hashtable_t *hash,
 		if (!compare(node, data))
 			continue;
 
+		ret = 1;
 		goto err_unlock;
 	}
 	rcu_read_unlock();
@@ -108,12 +120,13 @@ static inline int hash_add(struct hashtable_t *hash,
 	hlist_add_head_rcu(data_node, head);
 	spin_unlock_bh(list_lock);
 
-	return 0;
+	ret = 0;
+	goto out;
 
 err_unlock:
 	rcu_read_unlock();
-err:
-	return -1;
+out:
+	return ret;
 }
 
 /* removes data from hash, if found. returns pointer do data on success, so you

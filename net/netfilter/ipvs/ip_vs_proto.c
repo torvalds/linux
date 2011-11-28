@@ -74,10 +74,9 @@ register_ip_vs_proto_netns(struct net *net, struct ip_vs_protocol *pp)
 	struct ip_vs_proto_data *pd =
 			kzalloc(sizeof(struct ip_vs_proto_data), GFP_ATOMIC);
 
-	if (!pd) {
-		pr_err("%s(): no memory.\n", __func__);
+	if (!pd)
 		return -ENOMEM;
-	}
+
 	pd->pp = pp;	/* For speed issues */
 	pd->next = ipvs->proto_data_table[hash];
 	ipvs->proto_data_table[hash] = pd;
@@ -316,7 +315,7 @@ ip_vs_tcpudp_debug_packet(int af, struct ip_vs_protocol *pp,
 /*
  * per network name-space init
  */
-int __net_init __ip_vs_protocol_init(struct net *net)
+int __net_init ip_vs_protocol_net_init(struct net *net)
 {
 #ifdef CONFIG_IP_VS_PROTO_TCP
 	register_ip_vs_proto_netns(net, &ip_vs_protocol_tcp);
@@ -336,7 +335,7 @@ int __net_init __ip_vs_protocol_init(struct net *net)
 	return 0;
 }
 
-void __net_exit __ip_vs_protocol_cleanup(struct net *net)
+void __net_exit ip_vs_protocol_net_cleanup(struct net *net)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ip_vs_proto_data *pd;

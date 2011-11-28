@@ -142,8 +142,22 @@ enum version_8192c {
 	VERSION_UNKNOWN = 0x88,
 };
 
+#define CUT_VERSION_MASK		(BIT(6)|BIT(7))
+#define CHIP_VENDOR_UMC			BIT(5)
+#define CHIP_VENDOR_UMC_B_CUT		BIT(6) /* Chip version for ECO */
+#define IS_VENDOR_UMC_A_CUT(version)	((IS_CHIP_VENDOR_UMC(version)) ? \
+	((GET_CVID_CUT_VERSION(version)) ? false : true) : false)
 #define IS_CHIP_VER_B(version)  ((version & CHIP_VER_B) ? true : false)
+#define IS_VENDOR_UMC_A_CUT(version)	((IS_CHIP_VENDOR_UMC(version)) ? \
+	((GET_CVID_CUT_VERSION(version)) ? false : true) : false)
 #define IS_92C_SERIAL(version)  ((version & CHIP_92C_BITMASK) ? true : false)
+#define IS_CHIP_VENDOR_UMC(version)		\
+	((version & CHIP_VENDOR_UMC) ? true : false)
+#define GET_CVID_CUT_VERSION(version)	((version) & CUT_VERSION_MASK)
+#define IS_81xxC_VENDOR_UMC_B_CUT(version)		\
+	((IS_CHIP_VENDOR_UMC(version)) ? \
+	((GET_CVID_CUT_VERSION(version) == CHIP_VENDOR_UMC_B_CUT) ?	\
+	true : false) : false)
 
 enum rtl819x_loopback_e {
 	RTL819X_NO_LOOPBACK = 0,
@@ -220,41 +234,6 @@ enum rtl_desc_qsel {
 	QSLT_CMD = 0x13,
 };
 
-enum rtl_desc92c_rate {
-	DESC92C_RATE1M = 0x00,
-	DESC92C_RATE2M = 0x01,
-	DESC92C_RATE5_5M = 0x02,
-	DESC92C_RATE11M = 0x03,
-
-	DESC92C_RATE6M = 0x04,
-	DESC92C_RATE9M = 0x05,
-	DESC92C_RATE12M = 0x06,
-	DESC92C_RATE18M = 0x07,
-	DESC92C_RATE24M = 0x08,
-	DESC92C_RATE36M = 0x09,
-	DESC92C_RATE48M = 0x0a,
-	DESC92C_RATE54M = 0x0b,
-
-	DESC92C_RATEMCS0 = 0x0c,
-	DESC92C_RATEMCS1 = 0x0d,
-	DESC92C_RATEMCS2 = 0x0e,
-	DESC92C_RATEMCS3 = 0x0f,
-	DESC92C_RATEMCS4 = 0x10,
-	DESC92C_RATEMCS5 = 0x11,
-	DESC92C_RATEMCS6 = 0x12,
-	DESC92C_RATEMCS7 = 0x13,
-	DESC92C_RATEMCS8 = 0x14,
-	DESC92C_RATEMCS9 = 0x15,
-	DESC92C_RATEMCS10 = 0x16,
-	DESC92C_RATEMCS11 = 0x17,
-	DESC92C_RATEMCS12 = 0x18,
-	DESC92C_RATEMCS13 = 0x19,
-	DESC92C_RATEMCS14 = 0x1a,
-	DESC92C_RATEMCS15 = 0x1b,
-	DESC92C_RATEMCS15_SG = 0x1c,
-	DESC92C_RATEMCS32 = 0x20,
-};
-
 struct phy_sts_cck_8192s_t {
 	u8 adc_pwdb_X[4];
 	u8 sq_rpt;
@@ -266,109 +245,5 @@ struct h2c_cmd_8192c {
 	u32 cmd_len;
 	u8 *p_cmdbuffer;
 };
-
-/* NOTE: reference to rtl8192c_rates struct */
-static inline int _rtl92c_rate_mapping(struct ieee80211_hw *hw, bool isHT,
-				       u8 desc_rate, bool first_ampdu)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	int rate_idx = 0;
-
-	if (first_ampdu) {
-		if (false == isHT) {
-			switch (desc_rate) {
-			case DESC92C_RATE1M:
-				rate_idx = 0;
-				break;
-			case DESC92C_RATE2M:
-				rate_idx = 1;
-				break;
-			case DESC92C_RATE5_5M:
-				rate_idx = 2;
-				break;
-			case DESC92C_RATE11M:
-				rate_idx = 3;
-				break;
-			case DESC92C_RATE6M:
-				rate_idx = 4;
-				break;
-			case DESC92C_RATE9M:
-				rate_idx = 5;
-				break;
-			case DESC92C_RATE12M:
-				rate_idx = 6;
-				break;
-			case DESC92C_RATE18M:
-				rate_idx = 7;
-				break;
-			case DESC92C_RATE24M:
-				rate_idx = 8;
-				break;
-			case DESC92C_RATE36M:
-				rate_idx = 9;
-				break;
-			case DESC92C_RATE48M:
-				rate_idx = 10;
-				break;
-			case DESC92C_RATE54M:
-				rate_idx = 11;
-				break;
-			default:
-				RT_TRACE(rtlpriv, COMP_ERR, DBG_DMESG,
-					 ("Rate %d is not support, set to "
-					"1M rate.\n", desc_rate));
-				rate_idx = 0;
-				break;
-			}
-		} else {
-			rate_idx = 11;
-		}
-		return rate_idx;
-	}
-	switch (desc_rate) {
-	case DESC92C_RATE1M:
-		rate_idx = 0;
-		break;
-	case DESC92C_RATE2M:
-		rate_idx = 1;
-		break;
-	case DESC92C_RATE5_5M:
-		rate_idx = 2;
-		break;
-	case DESC92C_RATE11M:
-		rate_idx = 3;
-		break;
-	case DESC92C_RATE6M:
-		rate_idx = 4;
-		break;
-	case DESC92C_RATE9M:
-		rate_idx = 5;
-		break;
-	case DESC92C_RATE12M:
-		rate_idx = 6;
-		break;
-	case DESC92C_RATE18M:
-		rate_idx = 7;
-		break;
-	case DESC92C_RATE24M:
-		rate_idx = 8;
-		break;
-	case DESC92C_RATE36M:
-		rate_idx = 9;
-		break;
-	case DESC92C_RATE48M:
-		rate_idx = 10;
-		break;
-	case DESC92C_RATE54M:
-		rate_idx = 11;
-		break;
-	/* TODO: How to mapping MCS rate? */
-	/*  NOTE: referenc to __ieee80211_rx */
-	default:
-		rate_idx = 11;
-		break;
-	}
-	return rate_idx;
-}
 
 #endif

@@ -78,70 +78,63 @@ static inline int atomic_add_return(int i, atomic_t *v)
 /*
  * atomic_sub_unless - sub unless the number is a given value
  * @v: pointer of type atomic_t
- * @a: the amount to add to v...
+ * @a: the amount to subtract from v...
  * @u: ...unless v is equal to u.
  *
- * If the atomic value v is not equal to u, this function subtracts a
- * from v, and returns non zero. If v is equal to u then it returns
- * zero. This is done as an atomic operation.
+ * Atomically subtract @a from @v, so long as it was not @u.
+ * Returns the old value of @v.
 */
-static inline int atomic_sub_unless(atomic_t *v, int a, int u)
+static inline void atomic_sub_unless(atomic_t *v, int a, int u)
 {
-	int tmp, result = 0;
+	int tmp;
 
 	asm volatile(
 		"/* atomic_sub_unless */\n"
 		"1:	ssrf	5\n"
-		"	ld.w	%0, %3\n"
-		"	cp.w	%0, %5\n"
+		"	ld.w	%0, %2\n"
+		"	cp.w	%0, %4\n"
 		"	breq	1f\n"
-		"	sub	%0, %4\n"
-		"	stcond	%2, %0\n"
+		"	sub	%0, %3\n"
+		"	stcond	%1, %0\n"
 		"	brne	1b\n"
-		"	mov	%1, 1\n"
 		"1:"
-		: "=&r"(tmp), "=&r"(result), "=o"(v->counter)
-		: "m"(v->counter), "rKs21"(a), "rKs21"(u), "1"(result)
+		: "=&r"(tmp), "=o"(v->counter)
+		: "m"(v->counter), "rKs21"(a), "rKs21"(u)
 		: "cc", "memory");
-
-	return result;
 }
 
 /*
- * atomic_add_unless - add unless the number is a given value
+ * __atomic_add_unless - add unless the number is a given value
  * @v: pointer of type atomic_t
  * @a: the amount to add to v...
  * @u: ...unless v is equal to u.
  *
- * If the atomic value v is not equal to u, this function adds a to v,
- * and returns non zero. If v is equal to u then it returns zero. This
- * is done as an atomic operation.
+ * Atomically adds @a to @v, so long as it was not @u.
+ * Returns the old value of @v.
 */
-static inline int atomic_add_unless(atomic_t *v, int a, int u)
+static inline int __atomic_add_unless(atomic_t *v, int a, int u)
 {
-	int tmp, result;
+	int tmp, old = atomic_read(v);
 
 	if (__builtin_constant_p(a) && (a >= -1048575) && (a <= 1048576))
-		result = atomic_sub_unless(v, -a, u);
+		atomic_sub_unless(v, -a, u);
 	else {
-		result = 0;
 		asm volatile(
-			"/* atomic_add_unless */\n"
+			"/* __atomic_add_unless */\n"
 			"1:	ssrf	5\n"
-			"	ld.w	%0, %3\n"
-			"	cp.w	%0, %5\n"
+			"	ld.w	%0, %2\n"
+			"	cp.w	%0, %4\n"
 			"	breq	1f\n"
-			"	add	%0, %4\n"
-			"	stcond	%2, %0\n"
+			"	add	%0, %3\n"
+			"	stcond	%1, %0\n"
 			"	brne	1b\n"
-			"	mov	%1, 1\n"
 			"1:"
-			: "=&r"(tmp), "=&r"(result), "=o"(v->counter)
-			: "m"(v->counter), "r"(a), "ir"(u), "1"(result)
+			: "=&r"(tmp), "=o"(v->counter)
+			: "m"(v->counter), "r"(a), "ir"(u)
 			: "cc", "memory");
 	}
 
-	return result;
+	return old;
 }
 
 /*
@@ -188,14 +181,11 @@ static inline int atomic_sub_if_positive(int i, atomic_t *v)
 #define atomic_dec_and_test(v) (atomic_sub_return(1, v) == 0)
 #define atomic_add_negative(i, v) (atomic_add_return(i, v) < 0)
 
-#define atomic_inc_not_zero(v)	atomic_add_unless(v, 1, 0)
 #define atomic_dec_if_positive(v) atomic_sub_if_positive(1, v)
 
 #define smp_mb__before_atomic_dec()	barrier()
 #define smp_mb__after_atomic_dec()	barrier()
 #define smp_mb__before_atomic_inc()	barrier()
 #define smp_mb__after_atomic_inc()	barrier()
-
-#include <asm-generic/atomic-long.h>
 
 #endif /*  __ASM_AVR32_ATOMIC_H */

@@ -227,7 +227,7 @@ static int nuc900_dma_trigger(struct snd_pcm_substream *substream, int cmd)
 	return ret;
 }
 
-int nuc900_dma_getposition(struct snd_pcm_substream *substream,
+static int nuc900_dma_getposition(struct snd_pcm_substream *substream,
 					dma_addr_t *src, dma_addr_t *dst)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -268,7 +268,7 @@ static int nuc900_dma_open(struct snd_pcm_substream *substream)
 	nuc900_audio = nuc900_ac97_data;
 
 	if (request_irq(nuc900_audio->irq_num, nuc900_dma_interrupt,
-			IRQF_DISABLED, "nuc900-dma", substream))
+			0, "nuc900-dma", substream))
 		return -EBUSY;
 
 	runtime->private_data = nuc900_audio;
@@ -315,9 +315,11 @@ static void nuc900_dma_free_dma_buffers(struct snd_pcm *pcm)
 }
 
 static u64 nuc900_pcm_dmamask = DMA_BIT_MASK(32);
-static int nuc900_dma_new(struct snd_card *card,
-	struct snd_soc_dai *dai, struct snd_pcm *pcm)
+static int nuc900_dma_new(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_card *card = rtd->card->snd_card;
+	struct snd_pcm *pcm = rtd->pcm;
+
 	if (!card->dev->dma_mask)
 		card->dev->dma_mask = &nuc900_pcm_dmamask;
 	if (!card->dev->coherent_dma_mask)

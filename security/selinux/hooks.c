@@ -14,7 +14,7 @@
  *  Copyright (C) 2004-2005 Trusted Computer Solutions, Inc.
  *			    <dgoeddel@trustedcs.com>
  *  Copyright (C) 2006, 2007, 2009 Hewlett-Packard Development Company, L.P.
- *	Paul Moore <paul.moore@hp.com>
+ *	Paul Moore <paul@paul-moore.com>
  *  Copyright (C) 2007 Hitachi Software Engineering Co., Ltd.
  *		       Yuichi Nakamura <ynakam@hitachisoft.jp>
  *
@@ -57,7 +57,7 @@
 #include <net/netlabel.h>
 #include <linux/uaccess.h>
 #include <asm/ioctls.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/bitops.h>
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>	/* for network interface checks */
@@ -80,6 +80,7 @@
 #include <linux/posix-timers.h>
 #include <linux/syslog.h>
 #include <linux/user_namespace.h>
+#include <linux/export.h>
 
 #include "avc.h"
 #include "objsec.h"
@@ -89,14 +90,14 @@
 #include "xfrm.h"
 #include "netlabel.h"
 #include "audit.h"
+#include "avc_ss.h"
 
 #define NUM_SEL_MNT_OPTS 5
 
-extern int selinux_nlmsg_lookup(u16 sclass, u16 nlmsg_type, u32 *perm);
 extern struct security_operations *security_ops;
 
 /* SECMARK reference count */
-atomic_t selinux_secmark_refcount = ATOMIC_INIT(0);
+static atomic_t selinux_secmark_refcount = ATOMIC_INIT(0);
 
 #ifdef CONFIG_SECURITY_SELINUX_DEVELOP
 int selinux_enforcing;
@@ -278,10 +279,6 @@ static void superblock_free_security(struct super_block *sb)
 	sb->s_security = NULL;
 	kfree(sbsec);
 }
-
-/* The security server must be initialized before
-   any labeling or access decisions can be provided. */
-extern int ss_initialized;
 
 /* The file system's label must be initialized prior to use. */
 
@@ -2053,7 +2050,7 @@ static int selinux_bprm_set_creds(struct linux_binprm *bprm)
 			u32 ptsid = 0;
 
 			rcu_read_lock();
-			tracer = tracehook_tracer_task(current);
+			tracer = ptrace_parent(current);
 			if (likely(tracer != NULL)) {
 				sec = __task_cred(tracer)->security;
 				ptsid = sec->sid;
@@ -2096,9 +2093,6 @@ static int selinux_bprm_secureexec(struct linux_binprm *bprm)
 
 	return (atsecure || cap_bprm_secureexec(bprm));
 }
-
-extern struct vfsmount *selinuxfs_mount;
-extern struct dentry *selinux_null;
 
 /* Derived from fs/exec.c:flush_old_files. */
 static inline void flush_unauthorized_files(const struct cred *cred,
@@ -2659,12 +2653,13 @@ static int selinux_inode_follow_link(struct dentry *dentry, struct nameidata *na
 	return dentry_has_perm(cred, dentry, FILE__READ);
 }
 
-static int selinux_inode_permission(struct inode *inode, int mask, unsigned flags)
+static int selinux_inode_permission(struct inode *inode, int mask)
 {
 	const struct cred *cred = current_cred();
 	struct common_audit_data ad;
 	u32 perms;
 	bool from_access;
+	unsigned flags = mask & MAY_NOT_BLOCK;
 
 	from_access = mask & MAY_ACCESS;
 	mask &= (MAY_READ|MAY_WRITE|MAY_EXEC|MAY_APPEND);
@@ -5319,7 +5314,7 @@ static int selinux_setprocattr(struct task_struct *p,
 		   Otherwise, leave SID unchanged and fail. */
 		ptsid = 0;
 		task_lock(p);
-		tracer = tracehook_tracer_task(p);
+		tracer = ptrace_parent(p);
 		if (tracer)
 			ptsid = task_sid(tracer);
 		task_unlock(p);
@@ -5802,8 +5797,6 @@ static int selinux_disabled;
 
 int selinux_disable(void)
 {
-	extern void exit_sel_fs(void);
-
 	if (ss_initialized) {
 		/* Not permitted after initial policy load. */
 		return -EINVAL;

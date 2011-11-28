@@ -47,7 +47,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20110413
+#define ACPI_CA_VERSION                 0x20110623
 
 #include "actypes.h"
 #include "actbl.h"
@@ -69,6 +69,7 @@ extern u32 acpi_gbl_trace_flags;
 extern u32 acpi_gbl_enable_aml_debug_object;
 extern u8 acpi_gbl_copy_dsdt_locally;
 extern u8 acpi_gbl_truncate_io_addresses;
+extern u8 acpi_gbl_disable_auto_repair;
 
 extern u32 acpi_current_gpe_count;
 extern struct acpi_table_fadt acpi_gbl_FADT;

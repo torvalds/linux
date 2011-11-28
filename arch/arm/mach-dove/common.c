@@ -13,11 +13,9 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/pci.h>
-#include <linux/serial_8250.h>
 #include <linux/clk.h>
 #include <linux/mbus.h>
 #include <linux/ata_platform.h>
-#include <linux/serial_8250.h>
 #include <linux/gpio.h>
 #include <asm/page.h>
 #include <asm/setup.h>
@@ -160,7 +158,7 @@ void __init dove_spi0_init(void)
 
 void __init dove_spi1_init(void)
 {
-	orion_spi_init(DOVE_SPI1_PHYS_BASE, get_tclk());
+	orion_spi_1_init(DOVE_SPI1_PHYS_BASE, get_tclk());
 }
 
 /*****************************************************************************

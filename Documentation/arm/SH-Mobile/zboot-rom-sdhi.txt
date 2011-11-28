@@ -1,0 +1,42 @@
+ROM-able zImage boot from eSD
+-----------------------------
+
+An ROM-able zImage compiled with ZBOOT_ROM_SDHI may be written to eSD and
+SuperH Mobile ARM will to boot directly from the SDHI hardware block.
+
+This is achieved by the mask ROM loading the first portion of the image into
+MERAM and then jumping to it. This portion contains loader code which
+copies the entire image to SDRAM and jumps to it. From there the zImage
+boot code proceeds as normal, uncompressing the image into its final
+location and then jumping to it.
+
+This code has been tested on an mackerel board using the developer 1A eSD
+boot mode which is configured using the following jumper settings.
+
+   8 7 6 5 4 3 2 1
+   x|x|x|x| |x|x|
+S4 -+-+-+-+-+-+-+-
+    | | | |x| | |x on
+
+The eSD card needs to be present in SDHI slot 1 (CN7).
+As such S1 and S33 also need to be configured as per
+the notes in arch/arm/mach-shmobile/board-mackerel.c.
+
+A partial zImage must be written to physical partition #1 (boot)
+of the eSD at sector 0 in vrl4 format. A utility vrl4 is supplied to
+accomplish this.
+
+e.g.
+	vrl4 < zImage | dd of=/dev/sdX bs=512 count=17
+
+A full copy of _the same_ zImage should be written to physical partition #1
+(boot) of the eSD at sector 0. This should _not_ be in vrl4 format.
+
+	vrl4 < zImage | dd of=/dev/sdX bs=512
+
+Note: The commands above assume that the physical partition has been
+switched. No such facility currently exists in the Linux Kernel.
+
+Physical partitions are described in the eSD specification.  At the time of
+writing they are not the same as partitions that are typically configured
+using fdisk and visible through /proc/partitions

@@ -33,6 +33,7 @@
 #include <linux/fs.h>
 #include <linux/firmware.h>
 #include <linux/pm_runtime.h>
+#include <linux/export.h>
 #include "intel_sst.h"
 #include "intel_sst_ioctl.h"
 #include "intel_sst_fw_ipc.h"
@@ -53,6 +54,13 @@ int sst_download_fw(void)
 	if (sst_drv_ctx->sst_state != SST_UN_INIT)
 		return -EPERM;
 
+	/* Reload firmware is not needed for MRST */
+	if ( (sst_drv_ctx->pci_id == SST_MRST_PCI_ID) && sst_drv_ctx->fw_downloaded) {
+		pr_debug("FW already downloaded, skip for MRST platform\n");
+		sst_drv_ctx->sst_state = SST_FW_RUNNING;
+		return 0;
+	}
+
 	snprintf(name, sizeof(name), "%s%04x%s", "fw_sst_",
 					sst_drv_ctx->pci_id, ".bin");
 
@@ -71,6 +79,9 @@ int sst_download_fw(void)
 	retval = sst_wait_timeout(sst_drv_ctx, &sst_drv_ctx->alloc_block[0]);
 	if (retval)
 		pr_err("fw download failed %d\n" , retval);
+	else
+		sst_drv_ctx->fw_downloaded = 1;
+
 end_restore:
 	release_firmware(fw_sst);
 	sst_drv_ctx->alloc_block[0].sst_id = BLOCK_UNINIT;

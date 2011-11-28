@@ -24,6 +24,7 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/sfi.h>
+#include <linux/module.h>
 #include <asm/mrst.h>
 #include <asm/intel_scu_ipc.h>
 
@@ -725,7 +726,7 @@ static void ipc_remove(struct pci_dev *pdev)
 	intel_scu_devices_destroy();
 }
 
-static const struct pci_device_id pci_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(pci_ids) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x080e)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x082a)},
 	{ 0,}

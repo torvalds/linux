@@ -2,7 +2,7 @@
 #define _ASM_X86_MMU_CONTEXT_H
 
 #include <asm/desc.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include <asm/paravirt.h>

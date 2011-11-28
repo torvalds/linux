@@ -174,17 +174,6 @@ int module_frob_arch_sections(Elf32_Ehdr *hdr,
 	return 0;
 }
 
-int apply_relocate(Elf32_Shdr *sechdrs,
-		   const char *strtab,
-		   unsigned int symindex,
-		   unsigned int relsec,
-		   struct module *module)
-{
-	printk(KERN_ERR "%s: Non-ADD RELOCATION unsupported\n",
-	       module->name);
-	return -ENOEXEC;
-}
-
 static inline int entry_matches(struct ppc_plt_entry *entry, Elf32_Addr val)
 {
 	if (entry->jump[0] == 0x3d600000 + ((val + 0x8000) >> 16)

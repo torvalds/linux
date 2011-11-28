@@ -25,6 +25,7 @@
 #ifndef __IO_H__
 #define __IO_H__
 
+#include <linux/irqreturn.h>
 #include "reg.h"
 
 #define HW_ACCESS_MEMORY_MAX_RANGE	0x1FFC0
@@ -128,6 +129,20 @@ static inline void wl1271_write(struct wl1271 *wl, int addr, void *buf,
 	wl1271_raw_write(wl, physical, buf, len, fixed);
 }
 
+static inline void wl1271_read_hwaddr(struct wl1271 *wl, int hwaddr,
+				      void *buf, size_t len, bool fixed)
+{
+	int physical;
+	int addr;
+
+	/* Addresses are stored internally as addresses to 32 bytes blocks */
+	addr = hwaddr << 5;
+
+	physical = wl1271_translate_addr(wl, addr);
+
+	wl1271_raw_read(wl, physical, buf, len, fixed);
+}
+
 static inline u32 wl1271_read32(struct wl1271 *wl, int addr)
 {
 	return wl1271_raw_read32(wl, wl1271_translate_addr(wl, addr));
@@ -171,6 +186,5 @@ int wl1271_free_hw(struct wl1271 *wl);
 irqreturn_t wl1271_irq(int irq, void *data);
 bool wl1271_set_block_size(struct wl1271 *wl);
 int wl1271_tx_dummy_packet(struct wl1271 *wl);
-void wl1271_configure_filters(struct wl1271 *wl, unsigned int filters);
 
 #endif

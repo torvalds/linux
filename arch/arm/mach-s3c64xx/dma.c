@@ -113,7 +113,7 @@ found:
 	return chan;
 }
 
-int s3c2410_dma_config(unsigned int channel, int xferunit)
+int s3c2410_dma_config(enum dma_ch channel, int xferunit)
 {
 	struct s3c2410_dma_chan *chan = s3c_dma_lookup_channel(channel);
 
@@ -147,14 +147,14 @@ static void s3c64xx_dma_fill_lli(struct s3c2410_dma_chan *chan,
 	u32 control0, control1;
 
 	switch (chan->source) {
-	case S3C2410_DMASRC_HW:
+	case DMA_FROM_DEVICE:
 		src = chan->dev_addr;
 		dst = data;
 		control0 = PL080_CONTROL_SRC_AHB2;
 		control0 |= PL080_CONTROL_DST_INCR;
 		break;
 
-	case S3C2410_DMASRC_MEM:
+	case DMA_TO_DEVICE:
 		src = data;
 		dst = chan->dev_addr;
 		control0 = PL080_CONTROL_DST_AHB2;
@@ -297,7 +297,7 @@ static int s3c64xx_dma_flush(struct s3c2410_dma_chan *chan)
 	return 0;
 }
 
-int s3c2410_dma_ctrl(unsigned int channel, enum s3c2410_chan_op op)
+int s3c2410_dma_ctrl(enum dma_ch channel, enum s3c2410_chan_op op)
 {
 	struct s3c2410_dma_chan *chan = s3c_dma_lookup_channel(channel);
 
@@ -331,7 +331,7 @@ EXPORT_SYMBOL(s3c2410_dma_ctrl);
  *
  */
 
-int s3c2410_dma_enqueue(unsigned int channel, void *id,
+int s3c2410_dma_enqueue(enum dma_ch channel, void *id,
 			dma_addr_t data, int size)
 {
 	struct s3c2410_dma_chan *chan = s3c_dma_lookup_channel(channel);
@@ -415,8 +415,8 @@ err_buff:
 EXPORT_SYMBOL(s3c2410_dma_enqueue);
 
 
-int s3c2410_dma_devconfig(unsigned int channel,
-			  enum s3c2410_dmasrc source,
+int s3c2410_dma_devconfig(enum dma_ch channel,
+			  enum dma_data_direction source,
 			  unsigned long devaddr)
 {
 	struct s3c2410_dma_chan *chan = s3c_dma_lookup_channel(channel);
@@ -437,11 +437,11 @@ int s3c2410_dma_devconfig(unsigned int channel,
 	pr_debug("%s: peripheral %d\n", __func__, peripheral);
 
 	switch (source) {
-	case S3C2410_DMASRC_HW:
+	case DMA_FROM_DEVICE:
 		config = 2 << PL080_CONFIG_FLOW_CONTROL_SHIFT;
 		config |= peripheral << PL080_CONFIG_SRC_SEL_SHIFT;
 		break;
-	case S3C2410_DMASRC_MEM:
+	case DMA_TO_DEVICE:
 		config = 1 << PL080_CONFIG_FLOW_CONTROL_SHIFT;
 		config |= peripheral << PL080_CONFIG_DST_SEL_SHIFT;
 		break;
@@ -463,7 +463,7 @@ int s3c2410_dma_devconfig(unsigned int channel,
 EXPORT_SYMBOL(s3c2410_dma_devconfig);
 
 
-int s3c2410_dma_getposition(unsigned int channel,
+int s3c2410_dma_getposition(enum dma_ch channel,
 			    dma_addr_t *src, dma_addr_t *dst)
 {
 	struct s3c2410_dma_chan *chan = s3c_dma_lookup_channel(channel);
@@ -487,7 +487,7 @@ EXPORT_SYMBOL(s3c2410_dma_getposition);
  * get control of an dma channel
 */
 
-int s3c2410_dma_request(unsigned int channel,
+int s3c2410_dma_request(enum dma_ch channel,
 			struct s3c2410_dma_client *client,
 			void *dev)
 {
@@ -533,7 +533,7 @@ EXPORT_SYMBOL(s3c2410_dma_request);
  * allowed to go through.
 */
 
-int s3c2410_dma_free(unsigned int channel, struct s3c2410_dma_client *client)
+int s3c2410_dma_free(enum dma_ch channel, struct s3c2410_dma_client *client)
 {
 	struct s3c2410_dma_chan *chan = s3c_dma_lookup_channel(channel);
 	unsigned long flags;
@@ -740,7 +740,7 @@ static int __init s3c64xx_dma_init(void)
 	}
 
 	/* Set all DMA configuration to be DMA, not SDMA */
-	writel(0xffffff, S3C_SYSREG(0x110));
+	writel(0xffffff, S3C64XX_SDMA_SEL);
 
 	/* Register standard DMA controllers */
 	s3c64xx_dma_init1(0, DMACH_UART0, IRQ_DMA0, 0x75000000);

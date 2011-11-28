@@ -887,11 +887,16 @@ static struct inode *pohmelfs_alloc_inode(struct super_block *sb)
 /*
  * We want fsync() to work on POHMELFS.
  */
-static int pohmelfs_fsync(struct file *file, int datasync)
+static int pohmelfs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct inode *inode = file->f_mapping->host;
-
-	return sync_inode_metadata(inode, 1);
+	int err = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	if (!err) {
+		mutex_lock(&inode->i_mutex);
+		err = sync_inode_metadata(inode, 1);
+		mutex_unlock(&inode->i_mutex);
+	}
+	return err;
 }
 
 ssize_t pohmelfs_write(struct file *file, const char __user *buf,
@@ -1192,7 +1197,7 @@ const struct inode_operations pohmelfs_file_inode_operations = {
 void pohmelfs_fill_inode(struct inode *inode, struct netfs_inode_info *info)
 {
 	inode->i_mode = info->mode;
-	inode->i_nlink = info->nlink;
+	set_nlink(inode, info->nlink);
 	inode->i_uid = info->uid;
 	inode->i_gid = info->gid;
 	inode->i_blocks = info->blocks;

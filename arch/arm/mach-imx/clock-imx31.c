@@ -476,7 +476,7 @@ DEFINE_CLOCK(gpt_clk,     0, MXC_CCM_CGR0,  4, NULL, NULL, &perclk_clk);
 DEFINE_CLOCK(epit1_clk,   0, MXC_CCM_CGR0,  6, NULL, NULL, &perclk_clk);
 DEFINE_CLOCK(epit2_clk,   1, MXC_CCM_CGR0,  8, NULL, NULL, &perclk_clk);
 DEFINE_CLOCK(iim_clk,     0, MXC_CCM_CGR0, 10, NULL, NULL, &ipg_clk);
-DEFINE_CLOCK(ata_clk,     0, MXC_CCM_CGR0, 12, NULL, NULL, &ipg_clk);
+DEFINE_CLOCK(pata_clk,     0, MXC_CCM_CGR0, 12, NULL, NULL, &ipg_clk);
 DEFINE_CLOCK(sdma_clk1,   0, MXC_CCM_CGR0, 14, NULL, NULL, &ahb_clk);
 DEFINE_CLOCK(cspi3_clk,   2, MXC_CCM_CGR0, 16, NULL, NULL, &ipg_clk);
 DEFINE_CLOCK(rng_clk,     0, MXC_CCM_CGR0, 18, NULL, NULL, &ipg_clk);
@@ -547,11 +547,12 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("fsl-usb2-udc", "usb", usb_clk1)
 	_REGISTER_CLOCK("fsl-usb2-udc", "usb_ahb", usb_clk2)
 	_REGISTER_CLOCK("mx3-camera.0", NULL, csi_clk)
-	_REGISTER_CLOCK("imx-uart.0", NULL, uart1_clk)
-	_REGISTER_CLOCK("imx-uart.1", NULL, uart2_clk)
-	_REGISTER_CLOCK("imx-uart.2", NULL, uart3_clk)
-	_REGISTER_CLOCK("imx-uart.3", NULL, uart4_clk)
-	_REGISTER_CLOCK("imx-uart.4", NULL, uart5_clk)
+	/* i.mx31 has the i.mx21 type uart */
+	_REGISTER_CLOCK("imx21-uart.0", NULL, uart1_clk)
+	_REGISTER_CLOCK("imx21-uart.1", NULL, uart2_clk)
+	_REGISTER_CLOCK("imx21-uart.2", NULL, uart3_clk)
+	_REGISTER_CLOCK("imx21-uart.3", NULL, uart4_clk)
+	_REGISTER_CLOCK("imx21-uart.4", NULL, uart5_clk)
 	_REGISTER_CLOCK("imx-i2c.0", NULL, i2c1_clk)
 	_REGISTER_CLOCK("imx-i2c.1", NULL, i2c2_clk)
 	_REGISTER_CLOCK("imx-i2c.2", NULL, i2c3_clk)
@@ -561,10 +562,10 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("imx-ssi.0", NULL, ssi1_clk)
 	_REGISTER_CLOCK("imx-ssi.1", NULL, ssi2_clk)
 	_REGISTER_CLOCK(NULL, "firi", firi_clk)
-	_REGISTER_CLOCK(NULL, "ata", ata_clk)
+	_REGISTER_CLOCK("pata_imx", NULL, pata_clk)
 	_REGISTER_CLOCK(NULL, "rtic", rtic_clk)
 	_REGISTER_CLOCK(NULL, "rng", rng_clk)
-	_REGISTER_CLOCK("imx-sdma", NULL, sdma_clk1)
+	_REGISTER_CLOCK("imx31-sdma", NULL, sdma_clk1)
 	_REGISTER_CLOCK(NULL, "sdma_ipg", sdma_clk2)
 	_REGISTER_CLOCK(NULL, "mstick", mstick1_clk)
 	_REGISTER_CLOCK(NULL, "mstick", mstick2_clk)
@@ -610,10 +611,10 @@ int __init mx31_clocks_init(unsigned long fref)
 	clk_enable(&gpt_clk);
 	clk_enable(&emi_clk);
 	clk_enable(&iim_clk);
+	mx31_revision();
+	clk_disable(&iim_clk);
 
 	clk_enable(&serial_pll_clk);
-
-	mx31_read_cpu_rev();
 
 	if (mx31_revision() >= IMX_CHIP_REVISION_2_0) {
 		reg = __raw_readl(MXC_CCM_PMCR1);

@@ -182,7 +182,7 @@ static void ipip6_tunnel_unlink(struct sit_net *sitn, struct ip_tunnel *t)
 	     (iter = rtnl_dereference(*tp)) != NULL;
 	     tp = &iter->next) {
 		if (t == iter) {
-			rcu_assign_pointer(*tp, t->next);
+			RCU_INIT_POINTER(*tp, t->next);
 			break;
 		}
 	}
@@ -192,8 +192,8 @@ static void ipip6_tunnel_link(struct sit_net *sitn, struct ip_tunnel *t)
 {
 	struct ip_tunnel __rcu **tp = ipip6_bucket(sitn, t);
 
-	rcu_assign_pointer(t->next, rtnl_dereference(*tp));
-	rcu_assign_pointer(*tp, t);
+	RCU_INIT_POINTER(t->next, rtnl_dereference(*tp));
+	RCU_INIT_POINTER(*tp, t);
 }
 
 static void ipip6_tunnel_clone_6rd(struct net_device *dev, struct sit_net *sitn)
@@ -391,7 +391,7 @@ ipip6_tunnel_add_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a, int chg)
 	p->addr = a->addr;
 	p->flags = a->flags;
 	t->prl_count++;
-	rcu_assign_pointer(t->prl, p);
+	RCU_INIT_POINTER(t->prl, p);
 out:
 	return err;
 }
@@ -474,7 +474,7 @@ static void ipip6_tunnel_uninit(struct net_device *dev)
 	struct sit_net *sitn = net_generic(net, sit_net_id);
 
 	if (dev == sitn->fb_tunnel_dev) {
-		rcu_assign_pointer(sitn->tunnels_wc[0], NULL);
+		RCU_INIT_POINTER(sitn->tunnels_wc[0], NULL);
 	} else {
 		ipip6_tunnel_unlink(sitn, netdev_priv(dev));
 		ipip6_tunnel_del_prl(netdev_priv(dev), NULL);
@@ -672,12 +672,15 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 	if (skb->protocol != htons(ETH_P_IPV6))
 		goto tx_error;
 
+	if (tos == 1)
+		tos = ipv6_get_dsfield(iph6);
+
 	/* ISATAP (RFC4214) - must come before 6to4 */
 	if (dev->priv_flags & IFF_ISATAP) {
 		struct neighbour *neigh = NULL;
 
 		if (skb_dst(skb))
-			neigh = skb_dst(skb)->neighbour;
+			neigh = dst_get_neighbour(skb_dst(skb));
 
 		if (neigh == NULL) {
 			if (net_ratelimit())
@@ -702,7 +705,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		struct neighbour *neigh = NULL;
 
 		if (skb_dst(skb))
-			neigh = skb_dst(skb)->neighbour;
+			neigh = dst_get_neighbour(skb_dst(skb));
 
 		if (neigh == NULL) {
 			if (net_ratelimit())
@@ -1173,7 +1176,7 @@ static int __net_init ipip6_fb_tunnel_init(struct net_device *dev)
 	if (!dev->tstats)
 		return -ENOMEM;
 	dev_hold(dev);
-	rcu_assign_pointer(sitn->tunnels_wc[0], tunnel);
+	RCU_INIT_POINTER(sitn->tunnels_wc[0], tunnel);
 	return 0;
 }
 

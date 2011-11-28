@@ -15,7 +15,7 @@
  */
 
 #include <linux/init.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/compiler.h>
 #include <linux/spinlock.h>
@@ -23,6 +23,7 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/slab.h>
+#include <linux/sched.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/mod_devicetable.h>
@@ -327,6 +328,7 @@ static int __devinit fsl_lbc_ctrl_probe(struct platform_device *dev)
 err:
 	iounmap(fsl_lbc_ctrl_dev->regs);
 	kfree(fsl_lbc_ctrl_dev);
+	fsl_lbc_ctrl_dev = NULL;
 	return ret;
 }
 

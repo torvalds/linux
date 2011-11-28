@@ -319,7 +319,7 @@ static int proc_reg_open(struct inode *inode, struct file *file)
 	if (!pde->proc_fops) {
 		spin_unlock(&pde->pde_unload_lock);
 		kfree(pdeo);
-		return -EINVAL;
+		return -ENOENT;
 	}
 	pde->pde_users++;
 	open = pde->proc_fops->open;
@@ -445,7 +445,7 @@ struct inode *proc_get_inode(struct super_block *sb, struct proc_dir_entry *de)
 		if (de->size)
 			inode->i_size = de->size;
 		if (de->nlink)
-			inode->i_nlink = de->nlink;
+			set_nlink(inode, de->nlink);
 		if (de->proc_iops)
 			inode->i_op = de->proc_iops;
 		if (de->proc_fops) {

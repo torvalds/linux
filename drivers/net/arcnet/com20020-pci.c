@@ -34,6 +34,7 @@
 #include <linux/errno.h>
 #include <linux/netdevice.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/arcdevice.h>
 #include <linux/com20020.h>

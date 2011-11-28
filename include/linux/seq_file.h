@@ -23,6 +23,7 @@ struct seq_file {
 	u64 version;
 	struct mutex lock;
 	const struct seq_operations *op;
+	int poll_event;
 	void *private;
 };
 
@@ -83,8 +84,7 @@ int seq_putc(struct seq_file *m, char c);
 int seq_puts(struct seq_file *m, const char *s);
 int seq_write(struct seq_file *seq, const void *data, size_t len);
 
-int seq_printf(struct seq_file *, const char *, ...)
-	__attribute__ ((format (printf,2,3)));
+__printf(2, 3) int seq_printf(struct seq_file *, const char *, ...);
 
 int seq_path(struct seq_file *, struct path *, char *);
 int seq_dentry(struct seq_file *, struct dentry *, char *);

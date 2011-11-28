@@ -94,7 +94,6 @@ fcbuild_init(void)
 	 */
 	plogi_tmpl.csp.verhi = FC_PH_VER_PH_3;
 	plogi_tmpl.csp.verlo = FC_PH_VER_4_3;
-	plogi_tmpl.csp.bbcred = cpu_to_be16(0x0004);
 	plogi_tmpl.csp.ciro = 0x1;
 	plogi_tmpl.csp.cisc = 0x0;
 	plogi_tmpl.csp.altbbcred = 0x0;
@@ -156,6 +155,22 @@ fc_gs_fchdr_build(struct fchs_s *fchs, u32 d_id, u32 s_id, u32 ox_id)
 	 */
 }
 
+static void
+fc_gsresp_fchdr_build(struct fchs_s *fchs, u32 d_id, u32 s_id, u16 ox_id)
+{
+	memset(fchs, 0, sizeof(struct fchs_s));
+
+	fchs->routing = FC_RTG_FC4_DEV_DATA;
+	fchs->cat_info = FC_CAT_SOLICIT_CTRL;
+	fchs->type = FC_TYPE_SERVICES;
+	fchs->f_ctl =
+		bfa_hton3b(FCTL_EC_RESP | FCTL_SEQ_INI | FCTL_LS_EXCH |
+			   FCTL_END_SEQ | FCTL_SI_XFER);
+	fchs->d_id = d_id;
+	fchs->s_id = s_id;
+	fchs->ox_id = ox_id;
+}
+
 void
 fc_els_req_build(struct fchs_s *fchs, u32 d_id, u32 s_id, __be16 ox_id)
 {
@@ -207,7 +222,7 @@ fc_bls_rsp_build(struct fchs_s *fchs, u32 d_id, u32 s_id, __be16 ox_id)
 static          u16
 fc_plogi_x_build(struct fchs_s *fchs, void *pld, u32 d_id, u32 s_id,
 		 __be16 ox_id, wwn_t port_name, wwn_t node_name,
-		 u16 pdu_size, u8 els_code)
+		 u16 pdu_size, u16 bb_cr, u8 els_code)
 {
 	struct fc_logi_s *plogi = (struct fc_logi_s *) (pld);
 
@@ -220,6 +235,7 @@ fc_plogi_x_build(struct fchs_s *fchs, void *pld, u32 d_id, u32 s_id,
 		fc_els_rsp_build(fchs, d_id, s_id, ox_id);
 
 	plogi->csp.rxsz = plogi->class3.rxsz = cpu_to_be16(pdu_size);
+	plogi->csp.bbcred  = cpu_to_be16(bb_cr);
 
 	memcpy(&plogi->port_name, &port_name, sizeof(wwn_t));
 	memcpy(&plogi->node_name, &node_name, sizeof(wwn_t));
@@ -268,15 +284,17 @@ fc_flogi_build(struct fchs_s *fchs, struct fc_logi_s *flogi, u32 s_id,
 u16
 fc_flogi_acc_build(struct fchs_s *fchs, struct fc_logi_s *flogi, u32 s_id,
 		   __be16 ox_id, wwn_t port_name, wwn_t node_name,
-		   u16 pdu_size, u16 local_bb_credits)
+		   u16 pdu_size, u16 local_bb_credits, u8 bb_scn)
 {
 	u32        d_id = 0;
+	u16	   bbscn_rxsz = (bb_scn << 12) | pdu_size;
 
 	memcpy(flogi, &plogi_tmpl, sizeof(struct fc_logi_s));
 	fc_els_rsp_build(fchs, d_id, s_id, ox_id);
 
 	flogi->els_cmd.els_code = FC_ELS_ACC;
-	flogi->csp.rxsz = flogi->class3.rxsz = cpu_to_be16(pdu_size);
+	flogi->class3.rxsz = cpu_to_be16(pdu_size);
+	flogi->csp.rxsz  = cpu_to_be16(bbscn_rxsz);	/* bb_scn/rxsz */
 	flogi->port_name = port_name;
 	flogi->node_name = node_name;
 
@@ -306,19 +324,19 @@ fc_fdisc_build(struct fchs_s *fchs, struct fc_logi_s *flogi, u32 s_id,
 u16
 fc_plogi_build(struct fchs_s *fchs, void *pld, u32 d_id, u32 s_id,
 	       u16 ox_id, wwn_t port_name, wwn_t node_name,
-	       u16 pdu_size)
+	       u16 pdu_size, u16 bb_cr)
 {
 	return fc_plogi_x_build(fchs, pld, d_id, s_id, ox_id, port_name,
-				node_name, pdu_size, FC_ELS_PLOGI);
+				node_name, pdu_size, bb_cr, FC_ELS_PLOGI);
 }
 
 u16
 fc_plogi_acc_build(struct fchs_s *fchs, void *pld, u32 d_id, u32 s_id,
 		   u16 ox_id, wwn_t port_name, wwn_t node_name,
-		   u16 pdu_size)
+		   u16 pdu_size, u16 bb_cr)
 {
 	return fc_plogi_x_build(fchs, pld, d_id, s_id, ox_id, port_name,
-				node_name, pdu_size, FC_ELS_ACC);
+				node_name, pdu_size, bb_cr, FC_ELS_ACC);
 }
 
 enum fc_parse_status
@@ -1093,6 +1111,21 @@ fc_ct_rsp_parse(struct ct_hdr_s *cthdr)
 	}
 
 	return FC_PARSE_OK;
+}
+
+u16
+fc_gs_rjt_build(struct fchs_s *fchs,  struct ct_hdr_s *cthdr,
+		u32 d_id, u32 s_id, u16 ox_id, u8 reason_code,
+		u8 reason_code_expl)
+{
+	fc_gsresp_fchdr_build(fchs, d_id, s_id, ox_id);
+
+	cthdr->cmd_rsp_code = cpu_to_be16(CT_RSP_REJECT);
+	cthdr->rev_id = CT_GS3_REVISION;
+
+	cthdr->reason_code = reason_code;
+	cthdr->exp_code    = reason_code_expl;
+	return sizeof(struct ct_hdr_s);
 }
 
 u16

@@ -42,7 +42,7 @@
 
 #include <linux/wait.h> 		/* wait_queue_head_t, etc */
 #include <linux/spinlock.h> 		/* spinlock_t, etc */
-#include <asm/atomic.h>			/* atomic_t, etc */
+#include <linux/atomic.h>			/* atomic_t, etc */
 
 #include <rdma/rdma_cm.h>		/* RDMA connection api */
 #include <rdma/ib_verbs.h>		/* RDMA verbs api */
@@ -109,7 +109,7 @@ struct rpcrdma_ep {
  */
 
 /* temporary static scatter/gather max */
-#define RPCRDMA_MAX_DATA_SEGS	(8)	/* max scatter/gather */
+#define RPCRDMA_MAX_DATA_SEGS	(64)	/* max scatter/gather */
 #define RPCRDMA_MAX_SEGS 	(RPCRDMA_MAX_DATA_SEGS + 2) /* head+tail = 2 */
 #define MAX_RPCRDMAHDR	(\
 	/* max supported RPC/RDMA header */ \

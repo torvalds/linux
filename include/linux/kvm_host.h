@@ -18,6 +18,7 @@
 #include <linux/msi.h>
 #include <linux/slab.h>
 #include <linux/rcupdate.h>
+#include <linux/ratelimit.h>
 #include <asm/signal.h>
 
 #include <linux/kvm.h>
@@ -47,6 +48,8 @@
 #define KVM_REQ_DEACTIVATE_FPU    10
 #define KVM_REQ_EVENT             11
 #define KVM_REQ_APF_HALT          12
+#define KVM_REQ_STEAL_UPDATE      13
+#define KVM_REQ_NMI               14
 
 #define KVM_USERSPACE_IRQ_SOURCE_ID	0
 
@@ -54,16 +57,16 @@ struct kvm;
 struct kvm_vcpu;
 extern struct kmem_cache *kvm_vcpu_cache;
 
-/*
- * It would be nice to use something smarter than a linear search, TBD...
- * Thankfully we dont expect many devices to register (famous last words :),
- * so until then it will suffice.  At least its abstracted so we can change
- * in one place.
- */
+struct kvm_io_range {
+	gpa_t addr;
+	int len;
+	struct kvm_io_device *dev;
+};
+
 struct kvm_io_bus {
 	int                   dev_count;
-#define NR_IOBUS_DEVS 200
-	struct kvm_io_device *devs[NR_IOBUS_DEVS];
+#define NR_IOBUS_DEVS 300
+	struct kvm_io_range range[NR_IOBUS_DEVS];
 };
 
 enum kvm_bus {
@@ -76,8 +79,8 @@ int kvm_io_bus_write(struct kvm *kvm, enum kvm_bus bus_idx, gpa_t addr,
 		     int len, const void *val);
 int kvm_io_bus_read(struct kvm *kvm, enum kvm_bus bus_idx, gpa_t addr, int len,
 		    void *val);
-int kvm_io_bus_register_dev(struct kvm *kvm, enum kvm_bus bus_idx,
-			    struct kvm_io_device *dev);
+int kvm_io_bus_register_dev(struct kvm *kvm, enum kvm_bus bus_idx, gpa_t addr,
+			    int len, struct kvm_io_device *dev);
 int kvm_io_bus_unregister_dev(struct kvm *kvm, enum kvm_bus bus_idx,
 			      struct kvm_io_device *dev);
 
@@ -255,8 +258,9 @@ struct kvm {
 	struct kvm_arch arch;
 	atomic_t users_count;
 #ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
-	struct kvm_coalesced_mmio_dev *coalesced_mmio_dev;
 	struct kvm_coalesced_mmio_ring *coalesced_mmio_ring;
+	spinlock_t ring_lock;
+	struct list_head coalesced_zones;
 #endif
 
 	struct mutex irq_lock;
@@ -280,11 +284,8 @@ struct kvm {
 
 /* The guest did something we don't support. */
 #define pr_unimpl(vcpu, fmt, ...)					\
- do {									\
-	if (printk_ratelimit())						\
-		printk(KERN_ERR "kvm: %i: cpu%i " fmt,			\
-		       current->tgid, (vcpu)->vcpu_id , ## __VA_ARGS__); \
- } while (0)
+	pr_err_ratelimited("kvm: %i: cpu%i " fmt,			\
+			   current->tgid, (vcpu)->vcpu_id , ## __VA_ARGS__)
 
 #define kvm_printf(kvm, fmt ...) printk(KERN_DEBUG fmt)
 #define vcpu_printf(vcpu, fmt...) kvm_printf(vcpu->kvm, fmt)
@@ -326,12 +327,17 @@ static inline struct kvm_memslots *kvm_memslots(struct kvm *kvm)
 static inline int is_error_hpa(hpa_t hpa) { return hpa >> HPA_MSB; }
 
 extern struct page *bad_page;
+extern struct page *fault_page;
+
 extern pfn_t bad_pfn;
+extern pfn_t fault_pfn;
 
 int is_error_page(struct page *page);
 int is_error_pfn(pfn_t pfn);
 int is_hwpoison_pfn(pfn_t pfn);
 int is_fault_pfn(pfn_t pfn);
+int is_noslot_pfn(pfn_t pfn);
+int is_invalid_pfn(pfn_t pfn);
 int kvm_is_error_hva(unsigned long addr);
 int kvm_set_memory_region(struct kvm *kvm,
 			  struct kvm_userspace_memory_region *mem,
@@ -381,6 +387,8 @@ int kvm_read_guest_page(struct kvm *kvm, gfn_t gfn, void *data, int offset,
 int kvm_read_guest_atomic(struct kvm *kvm, gpa_t gpa, void *data,
 			  unsigned long len);
 int kvm_read_guest(struct kvm *kvm, gpa_t gpa, void *data, unsigned long len);
+int kvm_read_guest_cached(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
+			   void *data, unsigned long len);
 int kvm_write_guest_page(struct kvm *kvm, gfn_t gfn, const void *data,
 			 int offset, int len);
 int kvm_write_guest(struct kvm *kvm, gpa_t gpa, const void *data,

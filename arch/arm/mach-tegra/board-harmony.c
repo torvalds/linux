@@ -25,7 +25,6 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
-#include <linux/i2c-tegra.h>
 
 #include <sound/wm8903.h>
 
@@ -50,7 +49,8 @@ static struct plat_serial8250_port debug_uart_platform_data[] = {
 		.membase	= IO_ADDRESS(TEGRA_UARTD_BASE),
 		.mapbase	= TEGRA_UARTD_BASE,
 		.irq		= INT_UARTD,
-		.flags		= UPF_BOOT_AUTOCONF,
+		.flags		= UPF_BOOT_AUTOCONF | UPF_FIXED_TYPE,
+		.type		= PORT_TEGRA,
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
 		.uartclk	= 216000000,
@@ -83,22 +83,6 @@ static struct platform_device harmony_audio_device = {
 	},
 };
 
-static struct tegra_i2c_platform_data harmony_i2c1_platform_data = {
-	.bus_clk_rate   = 400000,
-};
-
-static struct tegra_i2c_platform_data harmony_i2c2_platform_data = {
-	.bus_clk_rate   = 400000,
-};
-
-static struct tegra_i2c_platform_data harmony_i2c3_platform_data = {
-	.bus_clk_rate   = 400000,
-};
-
-static struct tegra_i2c_platform_data harmony_dvc_platform_data = {
-	.bus_clk_rate   = 400000,
-};
-
 static struct wm8903_platform_data harmony_wm8903_pdata = {
 	.irq_active_low = 0,
 	.micdet_cfg = 0,
@@ -121,11 +105,6 @@ static struct i2c_board_info __initdata wm8903_board_info = {
 
 static void __init harmony_i2c_init(void)
 {
-	tegra_i2c_device1.dev.platform_data = &harmony_i2c1_platform_data;
-	tegra_i2c_device2.dev.platform_data = &harmony_i2c2_platform_data;
-	tegra_i2c_device3.dev.platform_data = &harmony_i2c3_platform_data;
-	tegra_i2c_device4.dev.platform_data = &harmony_dvc_platform_data;
-
 	platform_device_register(&tegra_i2c_device1);
 	platform_device_register(&tegra_i2c_device2);
 	platform_device_register(&tegra_i2c_device3);
@@ -139,14 +118,15 @@ static struct platform_device *harmony_devices[] __initdata = {
 	&tegra_sdhci_device1,
 	&tegra_sdhci_device2,
 	&tegra_sdhci_device4,
+	&tegra_ehci3_device,
 	&tegra_i2s_device1,
 	&tegra_das_device,
 	&tegra_pcm_device,
 	&harmony_audio_device,
 };
 
-static void __init tegra_harmony_fixup(struct machine_desc *desc,
-	struct tag *tags, char **cmdline, struct meminfo *mi)
+static void __init tegra_harmony_fixup(struct tag *tags, char **cmdline,
+	struct meminfo *mi)
 {
 	mi->nr_banks = 2;
 	mi->bank[0].start = PHYS_OFFSET;
@@ -162,6 +142,7 @@ static __initdata struct tegra_clk_init_table harmony_clk_init_table[] = {
 	{ "pll_a_out0",	"pll_a",	11289600,	true },
 	{ "cdev1",	NULL,		0,		true },
 	{ "i2s1",	"pll_a_out0",	11289600,	false},
+	{ "usb3",	"clk_m",	12000000,	true },
 	{ NULL,		NULL,		0,		0},
 };
 
@@ -201,7 +182,7 @@ static void __init tegra_harmony_init(void)
 }
 
 MACHINE_START(HARMONY, "harmony")
-	.boot_params  = 0x00000100,
+	.atag_offset	= 0x100,
 	.fixup		= tegra_harmony_fixup,
 	.map_io         = tegra_map_common_io,
 	.init_early	= tegra_init_early,

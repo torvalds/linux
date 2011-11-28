@@ -25,8 +25,10 @@ struct ssb_sprom {
 	u8 et1phyaddr;		/* MII address for enet1 */
 	u8 et0mdcport;		/* MDIO for enet0 */
 	u8 et1mdcport;		/* MDIO for enet1 */
-	u8 board_rev;		/* Board revision number from SPROM. */
+	u16 board_rev;		/* Board revision number from SPROM. */
 	u8 country_code;	/* Country Code */
+	u16 leddc_on_time;	/* LED Powersave Duty Cycle On Count */
+	u16 leddc_off_time;	/* LED Powersave Duty Cycle Off Count */
 	u8 ant_available_a;	/* 2GHz antenna available bits (up to 4) */
 	u8 ant_available_bg;	/* 5GHz antenna available bits (up to 4) */
 	u16 pa0b0;
@@ -99,7 +101,7 @@ struct ssb_sprom {
 struct ssb_boardinfo {
 	u16 vendor;
 	u16 type;
-	u16 rev;
+	u8  rev;
 };
 
 
@@ -229,10 +231,9 @@ struct ssb_driver {
 #define drv_to_ssb_drv(_drv) container_of(_drv, struct ssb_driver, drv)
 
 extern int __ssb_driver_register(struct ssb_driver *drv, struct module *owner);
-static inline int ssb_driver_register(struct ssb_driver *drv)
-{
-	return __ssb_driver_register(drv, THIS_MODULE);
-}
+#define ssb_driver_register(drv) \
+	__ssb_driver_register(drv, THIS_MODULE)
+
 extern void ssb_driver_unregister(struct ssb_driver *drv);
 
 

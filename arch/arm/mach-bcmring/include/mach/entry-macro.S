@@ -80,7 +80,3 @@
 
 		.macro  arch_ret_to_user, tmp1, tmp2
 		.endm
-
-		.macro	irq_prio_table
-		.endm
-

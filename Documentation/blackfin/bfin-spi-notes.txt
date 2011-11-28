@@ -9,6 +9,8 @@ the entire SPI transfer. - And not just bits_per_word duration.
 In most cases you can utilize SPI MODE_3 instead of MODE_0 to work-around this
 behavior. If your SPI slave device in question requires SPI MODE_0 or MODE_2
 timing, you can utilize the GPIO controlled SPI Slave Select option instead.
+In this case, you should use GPIO based CS for all of your slaves and not just
+the ones using mode 0 or 2 in order to guarantee correct CS toggling behavior.
 
 You can even use the same pin whose peripheral role is a SSEL,
 but use it as a GPIO instead.

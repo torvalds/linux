@@ -20,6 +20,8 @@
  *		2 of the License, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/skbuff.h>
@@ -55,7 +57,7 @@ static int vlan_dev_rebuild_header(struct sk_buff *skb)
 		return arp_find(veth->h_dest, skb);
 #endif
 	default:
-		pr_debug("%s: unable to resolve type %X addresses.\n",
+		pr_debug("%s: unable to resolve type %X addresses\n",
 			 dev->name, ntohs(veth->h_vlan_encapsulated_proto));
 
 		memcpy(veth->h_source, dev->dev_addr, ETH_ALEN);
@@ -468,10 +470,12 @@ static void vlan_dev_change_rx_flags(struct net_device *dev, int change)
 {
 	struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
 
-	if (change & IFF_ALLMULTI)
-		dev_set_allmulti(real_dev, dev->flags & IFF_ALLMULTI ? 1 : -1);
-	if (change & IFF_PROMISC)
-		dev_set_promiscuity(real_dev, dev->flags & IFF_PROMISC ? 1 : -1);
+	if (dev->flags & IFF_UP) {
+		if (change & IFF_ALLMULTI)
+			dev_set_allmulti(real_dev, dev->flags & IFF_ALLMULTI ? 1 : -1);
+		if (change & IFF_PROMISC)
+			dev_set_promiscuity(real_dev, dev->flags & IFF_PROMISC ? 1 : -1);
+	}
 }
 
 static void vlan_dev_set_rx_mode(struct net_device *vlan_dev)
@@ -528,7 +532,11 @@ static int vlan_dev_init(struct net_device *dev)
 					  (1<<__LINK_STATE_DORMANT))) |
 		      (1<<__LINK_STATE_PRESENT);
 
-	dev->hw_features = NETIF_F_ALL_TX_OFFLOADS;
+	dev->hw_features = NETIF_F_ALL_CSUM | NETIF_F_SG |
+			   NETIF_F_FRAGLIST | NETIF_F_ALL_TSO |
+			   NETIF_F_HIGHDMA | NETIF_F_SCTP_CSUM |
+			   NETIF_F_ALL_FCOE;
+
 	dev->features |= real_dev->vlan_features | NETIF_F_LLTX;
 	dev->gso_max_size = real_dev->gso_max_size;
 
@@ -591,8 +599,7 @@ static u32 vlan_dev_fix_features(struct net_device *dev, u32 features)
 	features &= real_dev->features;
 	features &= real_dev->vlan_features;
 
-	if (old_features & NETIF_F_SOFT_FEATURES)
-		features |= old_features & NETIF_F_SOFT_FEATURES;
+	features |= old_features & NETIF_F_SOFT_FEATURES;
 
 	if (dev_ethtool_get_rx_csum(real_dev))
 		features |= NETIF_F_RXCSUM;
@@ -605,7 +612,8 @@ static int vlan_ethtool_get_settings(struct net_device *dev,
 				     struct ethtool_cmd *cmd)
 {
 	const struct vlan_dev_info *vlan = vlan_dev_info(dev);
-	return dev_ethtool_get_settings(vlan->real_dev, cmd);
+
+	return __ethtool_get_settings(vlan->real_dev, cmd);
 }
 
 static void vlan_ethtool_get_drvinfo(struct net_device *dev,
@@ -669,7 +677,6 @@ static const struct net_device_ops vlan_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= vlan_dev_set_mac_address,
 	.ndo_set_rx_mode	= vlan_dev_set_rx_mode,
-	.ndo_set_multicast_list	= vlan_dev_set_rx_mode,
 	.ndo_change_rx_flags	= vlan_dev_change_rx_flags,
 	.ndo_do_ioctl		= vlan_dev_ioctl,
 	.ndo_neigh_setup	= vlan_dev_neigh_setup,
@@ -690,7 +697,7 @@ void vlan_setup(struct net_device *dev)
 	ether_setup(dev);
 
 	dev->priv_flags		|= IFF_802_1Q_VLAN;
-	dev->priv_flags		&= ~IFF_XMIT_DST_RELEASE;
+	dev->priv_flags		&= ~(IFF_XMIT_DST_RELEASE | IFF_TX_SKB_SHARING);
 	dev->tx_queue_len	= 0;
 
 	dev->netdev_ops		= &vlan_netdev_ops;

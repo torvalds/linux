@@ -485,7 +485,7 @@ void card_send_command(struct ft1000_device *ft1000dev, void *ptempbuffer,
 
 	DEBUG("card_send_command: enter card_send_command... size=%d\n", size);
 
-	commandbuf = (unsigned char *)kmalloc(size + 2, GFP_KERNEL);
+	commandbuf = kmalloc(size + 2, GFP_KERNEL);
 	memcpy((void *)commandbuf + 2, (void *)ptempbuffer, size);
 
 	ft1000_read_register(ft1000dev, &temp, FT1000_REG_DOORBELL);
@@ -671,7 +671,6 @@ static int ft1000_reset_card(struct net_device *dev)
 	return TRUE;
 }
 
-#ifdef HAVE_NET_DEVICE_OPS
 static const struct net_device_ops ftnet_ops =
 {
 	.ndo_open = &ft1000_open,
@@ -679,7 +678,6 @@ static const struct net_device_ops ftnet_ops =
 	.ndo_start_xmit = &ft1000_start_xmit,
 	.ndo_get_stats = &ft1000_netdev_stats,
 };
-#endif
 
 
 //---------------------------------------------------------------------------
@@ -764,14 +762,7 @@ int init_ft1000_netdev(struct ft1000_device *ft1000dev)
 
 	INIT_LIST_HEAD(&pInfo->nodes.list);
 
-#ifdef HAVE_NET_DEVICE_OPS
 	netdev->netdev_ops = &ftnet_ops;
-#else
-	netdev->hard_start_xmit = &ft1000_start_xmit;
-	netdev->get_stats = &ft1000_netdev_stats;
-	netdev->open = &ft1000_open;
-	netdev->stop = &ft1000_close;
-#endif
 
 	ft1000dev->net = netdev;
 

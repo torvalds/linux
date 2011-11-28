@@ -15,6 +15,7 @@ config PARISC
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_PROBE
 	select IRQ_PER_CPU
+	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 
 	help
 	  The PA-RISC microprocessor is designed by Hewlett-Packard and used
@@ -168,9 +169,7 @@ config 64BIT
 
 choice
 	prompt "Kernel page size"
-	default PARISC_PAGE_SIZE_4KB  if !64BIT
-	default PARISC_PAGE_SIZE_4KB  if 64BIT
-#	default PARISC_PAGE_SIZE_16KB if 64BIT
+	default PARISC_PAGE_SIZE_4KB
 
 config PARISC_PAGE_SIZE_4KB
 	bool "4KB"

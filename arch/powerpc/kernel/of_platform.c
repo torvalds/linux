@@ -15,7 +15,7 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/mod_devicetable.h>
 #include <linux/pci.h>
 #include <linux/of.h>
@@ -26,7 +26,7 @@
 #include <asm/topology.h>
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #ifdef CONFIG_PPC_OF_PLATFORM_PCI
 

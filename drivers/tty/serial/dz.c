@@ -47,8 +47,9 @@
 #include <linux/serial_core.h>
 #include <linux/sysrq.h>
 #include <linux/tty.h>
+#include <linux/tty_flip.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/bootinfo.h>
 #include <asm/io.h>
 #include <asm/system.h>

@@ -13,6 +13,7 @@
 #include <linux/fsnotify.h>
 #include <linux/fcntl.h>
 #include <linux/security.h>
+#include <linux/evm.h>
 
 /**
  * inode_change_ok - check if attribute changes to an inode are allowed
@@ -232,19 +233,15 @@ int notify_change(struct dentry * dentry, struct iattr * attr)
 	if (error)
 		return error;
 
-	if (ia_valid & ATTR_SIZE)
-		down_write(&dentry->d_inode->i_alloc_sem);
-
 	if (inode->i_op->setattr)
 		error = inode->i_op->setattr(dentry, attr);
 	else
 		error = simple_setattr(dentry, attr);
 
-	if (ia_valid & ATTR_SIZE)
-		up_write(&dentry->d_inode->i_alloc_sem);
-
-	if (!error)
+	if (!error) {
 		fsnotify_change(dentry, ia_valid);
+		evm_inode_post_setattr(dentry, ia_valid);
+	}
 
 	return error;
 }

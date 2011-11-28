@@ -6,7 +6,7 @@
  * system manages static and dynamic label mappings for network protocols such
  * as CIPSO and RIPSO.
  *
- * Author: Paul Moore <paul.moore@hp.com>
+ * Author: Paul Moore <paul@paul-moore.com>
  *
  */
 
@@ -55,8 +55,7 @@ struct netlbl_domhsh_tbl {
  * should be okay */
 static DEFINE_SPINLOCK(netlbl_domhsh_lock);
 #define netlbl_domhsh_rcu_deref(p) \
-	rcu_dereference_check(p, rcu_read_lock_held() || \
-				 lockdep_is_held(&netlbl_domhsh_lock))
+	rcu_dereference_check(p, lockdep_is_held(&netlbl_domhsh_lock))
 static struct netlbl_domhsh_tbl *netlbl_domhsh = NULL;
 static struct netlbl_dom_map *netlbl_domhsh_def = NULL;
 
@@ -283,7 +282,7 @@ int __init netlbl_domhsh_init(u32 size)
 		INIT_LIST_HEAD(&hsh_tbl->tbl[iter]);
 
 	spin_lock(&netlbl_domhsh_lock);
-	rcu_assign_pointer(netlbl_domhsh, hsh_tbl);
+	RCU_INIT_POINTER(netlbl_domhsh, hsh_tbl);
 	spin_unlock(&netlbl_domhsh_lock);
 
 	return 0;
@@ -331,7 +330,7 @@ int netlbl_domhsh_add(struct netlbl_dom_map *entry,
 				    &rcu_dereference(netlbl_domhsh)->tbl[bkt]);
 		} else {
 			INIT_LIST_HEAD(&entry->list);
-			rcu_assign_pointer(netlbl_domhsh_def, entry);
+			RCU_INIT_POINTER(netlbl_domhsh_def, entry);
 		}
 
 		if (entry->type == NETLBL_NLTYPE_ADDRSELECT) {
@@ -452,7 +451,7 @@ int netlbl_domhsh_remove_entry(struct netlbl_dom_map *entry,
 		if (entry != rcu_dereference(netlbl_domhsh_def))
 			list_del_rcu(&entry->list);
 		else
-			rcu_assign_pointer(netlbl_domhsh_def, NULL);
+			RCU_INIT_POINTER(netlbl_domhsh_def, NULL);
 	} else
 		ret_val = -ENOENT;
 	spin_unlock(&netlbl_domhsh_lock);

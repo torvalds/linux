@@ -78,9 +78,6 @@ extern int dvb_usb_gp8psk_debug;
 #define ADV_MOD_DVB_BPSK 9     /* DVB-S BPSK */
 
 #define GET_USB_SPEED                     0x07
- #define USB_SPEED_LOW                    0
- #define USB_SPEED_FULL                   1
- #define USB_SPEED_HIGH                   2
 
 #define RESET_FX2                         0x13
 

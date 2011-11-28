@@ -33,6 +33,7 @@
 #include <linux/netfilter.h>
 #include <linux/route.h>
 #include <linux/mroute.h>
+#include <net/inet_ecn.h>
 #include <net/route.h>
 #include <net/xfrm.h>
 #include <net/compat.h>
@@ -578,8 +579,8 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 		break;
 	case IP_TOS:	/* This sets both TOS and Precedence */
 		if (sk->sk_type == SOCK_STREAM) {
-			val &= ~3;
-			val |= inet->tos & 3;
+			val &= ~INET_ECN_MASK;
+			val |= inet->tos & INET_ECN_MASK;
 		}
 		if (inet->tos != val) {
 			inet->tos = val;
@@ -961,7 +962,7 @@ mc_msf_out:
 		break;
 
 	case IP_TRANSPARENT:
-		if (!capable(CAP_NET_ADMIN)) {
+		if (!!val && !capable(CAP_NET_RAW) && !capable(CAP_NET_ADMIN)) {
 			err = -EPERM;
 			break;
 		}
@@ -1067,7 +1068,7 @@ EXPORT_SYMBOL(compat_ip_setsockopt);
  */
 
 static int do_ip_getsockopt(struct sock *sk, int level, int optname,
-			    char __user *optval, int __user *optlen)
+			    char __user *optval, int __user *optlen, unsigned flags)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	int val;
@@ -1240,7 +1241,7 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 
 		msg.msg_control = optval;
 		msg.msg_controllen = len;
-		msg.msg_flags = 0;
+		msg.msg_flags = flags;
 
 		if (inet->cmsg_flags & IP_CMSG_PKTINFO) {
 			struct in_pktinfo info;
@@ -1294,7 +1295,7 @@ int ip_getsockopt(struct sock *sk, int level,
 {
 	int err;
 
-	err = do_ip_getsockopt(sk, level, optname, optval, optlen);
+	err = do_ip_getsockopt(sk, level, optname, optval, optlen, 0);
 #ifdef CONFIG_NETFILTER
 	/* we need to exclude all possible ENOPROTOOPTs except default case */
 	if (err == -ENOPROTOOPT && optname != IP_PKTOPTIONS &&
@@ -1327,7 +1328,8 @@ int compat_ip_getsockopt(struct sock *sk, int level, int optname,
 		return compat_mc_getsockopt(sk, level, optname, optval, optlen,
 			ip_getsockopt);
 
-	err = do_ip_getsockopt(sk, level, optname, optval, optlen);
+	err = do_ip_getsockopt(sk, level, optname, optval, optlen,
+		MSG_CMSG_COMPAT);
 
 #ifdef CONFIG_NETFILTER
 	/* we need to exclude all possible ENOPROTOOPTs except default case */

@@ -14,7 +14,6 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <scsi/scsi_host.h>
@@ -106,25 +105,7 @@ static struct iscsi_transport cxgb3i_iscsi_transport = {
 	.caps		= CAP_RECOVERY_L0 | CAP_MULTI_R2T | CAP_HDRDGST
 				| CAP_DATADGST | CAP_DIGEST_OFFLOAD |
 				CAP_PADDING_OFFLOAD | CAP_TEXT_NEGO,
-	.param_mask	= ISCSI_MAX_RECV_DLENGTH | ISCSI_MAX_XMIT_DLENGTH |
-				ISCSI_HDRDGST_EN | ISCSI_DATADGST_EN |
-				ISCSI_INITIAL_R2T_EN | ISCSI_MAX_R2T |
-				ISCSI_IMM_DATA_EN | ISCSI_FIRST_BURST |
-				ISCSI_MAX_BURST | ISCSI_PDU_INORDER_EN |
-				ISCSI_DATASEQ_INORDER_EN | ISCSI_ERL |
-				ISCSI_CONN_PORT | ISCSI_CONN_ADDRESS |
-				ISCSI_EXP_STATSN | ISCSI_PERSISTENT_PORT |
-				ISCSI_PERSISTENT_ADDRESS |
-				ISCSI_TARGET_NAME | ISCSI_TPGT |
-				ISCSI_USERNAME | ISCSI_PASSWORD |
-				ISCSI_USERNAME_IN | ISCSI_PASSWORD_IN |
-				ISCSI_FAST_ABORT | ISCSI_ABORT_TMO |
-				ISCSI_LU_RESET_TMO | ISCSI_TGT_RESET_TMO |
-				ISCSI_PING_TMO | ISCSI_RECV_TMO |
-				ISCSI_IFACE_NAME | ISCSI_INITIATOR_NAME,
-	.host_param_mask	= ISCSI_HOST_HWADDRESS | ISCSI_HOST_IPADDRESS |
-				ISCSI_HOST_INITIATOR_NAME |
-				ISCSI_HOST_NETDEV_NAME,
+	.attr_is_visible	= cxgbi_attr_is_visible,
 	.get_host_param	= cxgbi_get_host_param,
 	.set_host_param	= cxgbi_set_host_param,
 	/* session management */
@@ -913,7 +894,7 @@ static void l2t_put(struct cxgbi_sock *csk)
 	struct t3cdev *t3dev = (struct t3cdev *)csk->cdev->lldev;
 
 	if (csk->l2t) {
-		l2t_release(L2DATA(t3dev), csk->l2t);
+		l2t_release(t3dev, csk->l2t);
 		csk->l2t = NULL;
 		cxgbi_sock_put(csk);
 	}
@@ -985,7 +966,7 @@ static int init_act_open(struct cxgbi_sock *csk)
 		csk->saddr.sin_addr.s_addr = chba->ipv4addr;
 
 	csk->rss_qid = 0;
-	csk->l2t = t3_l2t_get(t3dev, dst->neighbour, ndev);
+	csk->l2t = t3_l2t_get(t3dev, dst_get_neighbour(dst), ndev);
 	if (!csk->l2t) {
 		pr_err("NO l2t available.\n");
 		return -EINVAL;
@@ -1245,7 +1226,7 @@ static int cxgb3i_ddp_init(struct cxgbi_device *cdev)
 	struct cxgbi_ddp_info *ddp = tdev->ulp_iscsi;
 	struct ulp_iscsi_info uinfo;
 	unsigned int pgsz_factor[4];
-	int err;
+	int i, err;
 
 	if (ddp) {
 		kref_get(&ddp->refcnt);
@@ -1271,6 +1252,8 @@ static int cxgb3i_ddp_init(struct cxgbi_device *cdev)
 
 	uinfo.tagmask = ddp->idx_mask << PPOD_IDX_SHIFT;
 	cxgbi_ddp_page_size_factor(pgsz_factor);
+	for (i = 0; i < 4; i++)
+		uinfo.pgsz_factor[i] = pgsz_factor[i];
 	uinfo.ulimit = uinfo.llimit + (ddp->nppods << PPOD_SIZE_SHIFT);
 
 	err = tdev->ctl(tdev, ULP_ISCSI_SET_PARAMS, &uinfo);

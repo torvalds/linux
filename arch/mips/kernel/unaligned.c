@@ -73,7 +73,6 @@
  *       Undo the partial store in this case.
  */
 #include <linux/mm.h>
-#include <linux/module.h>
 #include <linux/signal.h>
 #include <linux/smp.h>
 #include <linux/sched.h>
@@ -111,8 +110,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 	unsigned long value;
 	unsigned int res;
 
-	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS,
-		      1, 0, regs, 0);
+	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, regs, 0);
 
 	/*
 	 * This load never faults.
@@ -517,7 +515,7 @@ asmlinkage void do_ade(struct pt_regs *regs)
 	mm_segment_t seg;
 
 	perf_sw_event(PERF_COUNT_SW_ALIGNMENT_FAULTS,
-			1, 0, regs, regs->cp0_badvaddr);
+			1, regs, regs->cp0_badvaddr);
 	/*
 	 * Did we catch a fault trying to load an instruction?
 	 * Or are we running in MIPS16 mode?

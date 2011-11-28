@@ -1,0 +1,855 @@
+<section id="FE_GET_SET_PROPERTY">
+<title><constant>FE_GET_PROPERTY/FE_SET_PROPERTY</constant></title>
+<para>This section describes the DVB version 5 extention of the DVB-API, also
+called "S2API", as this API were added to provide support for DVB-S2. It was
+designed to be able to replace the old frontend API. Yet, the DISEQC and
+the capability ioctls weren't implemented yet via the new way.</para>
+<para>The typical usage for the <constant>FE_GET_PROPERTY/FE_SET_PROPERTY</constant>
+API is to replace the ioctl's were the <link linkend="dvb-frontend-parameters">
+struct <constant>dvb_frontend_parameters</constant></link> were used.</para>
+<section id="dtv-property">
+<title>DTV property type</title>
+<programlisting>
+/* Reserved fields should be set to 0 */
+struct dtv_property {
+	__u32 cmd;
+	union {
+		__u32 data;
+		struct {
+			__u8 data[32];
+			__u32 len;
+			__u32 reserved1[3];
+			void *reserved2;
+		} buffer;
+	} u;
+	int result;
+} __attribute__ ((packed));
+
+/* num of properties cannot exceed DTV_IOCTL_MAX_MSGS per ioctl */
+#define DTV_IOCTL_MAX_MSGS 64
+</programlisting>
+</section>
+<section id="dtv-properties">
+<title>DTV properties type</title>
+<programlisting>
+struct dtv_properties {
+	__u32 num;
+	struct dtv_property *props;
+};
+</programlisting>
+</section>
+
+<section id="FE_GET_PROPERTY">
+<title>FE_GET_PROPERTY</title>
+<para>DESCRIPTION
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>This ioctl call returns one or more frontend properties. This call only
+ requires read-only access to the device.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>SYNOPSIS
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>int ioctl(int fd, int request = <link linkend="FE_GET_PROPERTY">FE_GET_PROPERTY</link>,
+ dtv_properties &#x22C6;props);</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>PARAMETERS
+</para>
+<informaltable><tgroup cols="2"><tbody><row><entry align="char">
+<para>int fd</para>
+</entry><entry
+ align="char">
+<para>File descriptor returned by a previous call to open().</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>int num</para>
+</entry><entry
+ align="char">
+<para>Equals <link linkend="FE_GET_PROPERTY">FE_GET_PROPERTY</link> for this command.</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>struct dtv_property *props</para>
+</entry><entry
+ align="char">
+<para>Points to the location where the front-end property commands are stored.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+&return-value-dvb;
+<informaltable><tgroup cols="2"><tbody><row>
+  <entry align="char"><para>EOPNOTSUPP</para></entry>
+  <entry align="char"><para>Property type not supported.</para></entry>
+ </row></tbody></tgroup></informaltable>
+</section>
+
+<section id="FE_SET_PROPERTY">
+<title>FE_SET_PROPERTY</title>
+<para>DESCRIPTION
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>This ioctl call sets one or more frontend properties. This call only
+ requires read-only access to the device.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>SYNOPSIS
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>int ioctl(int fd, int request = <link linkend="FE_SET_PROPERTY">FE_SET_PROPERTY</link>,
+ dtv_properties &#x22C6;props);</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>PARAMETERS
+</para>
+<informaltable><tgroup cols="2"><tbody><row><entry align="char">
+<para>int fd</para>
+</entry><entry
+ align="char">
+<para>File descriptor returned by a previous call to open().</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>int num</para>
+</entry><entry
+ align="char">
+<para>Equals <link linkend="FE_SET_PROPERTY">FE_SET_PROPERTY</link> for this command.</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>struct dtv_property *props</para>
+</entry><entry
+ align="char">
+<para>Points to the location where the front-end property commands are stored.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+&return-value-dvb;
+<informaltable><tgroup cols="2"><tbody><row>
+  <entry align="char"><para>EOPNOTSUPP</para></entry>
+  <entry align="char"><para>Property type not supported.</para></entry>
+ </row></tbody></tgroup></informaltable>
+</section>
+
+<section>
+	<title>Property types</title>
+<para>
+On <link linkend="FE_GET_PROPERTY">FE_GET_PROPERTY</link>/<link linkend="FE_SET_PROPERTY">FE_SET_PROPERTY</link>,
+the actual action is determined by the dtv_property cmd/data pairs. With one single ioctl, is possible to
+get/set up to 64 properties. The actual meaning of each property is described on the next sections.
+</para>
+
+<para>The available frontend property types are shown on the next section.</para>
+</section>
+
+<section id="fe_property_parameters">
+	<title>Digital TV property parameters</title>
+	<section id="DTV-UNDEFINED">
+	<title><constant>DTV_UNDEFINED</constant></title>
+	<para>Used internally. A GET/SET operation for it won't change or return anything.</para>
+	</section>
+	<section id="DTV-TUNE">
+	<title><constant>DTV_TUNE</constant></title>
+	<para>Interpret the cache of data, build either a traditional frontend tunerequest so we can pass validation in the <constant>FE_SET_FRONTEND</constant> ioctl.</para>
+	</section>
+	<section id="DTV-CLEAR">
+	<title><constant>DTV_CLEAR</constant></title>
+	<para>Reset a cache of data specific to the frontend here. This does not effect hardware.</para>
+	</section>
+	<section id="DTV-FREQUENCY">
+		<title><constant>DTV_FREQUENCY</constant></title>
+
+		<para>Central frequency of the channel, in HZ.</para>
+
+		<para>Notes:</para>
+		<para>1)For ISDB-T, the channels are usually transmitted with an offset of 143kHz.
+			E.g. a valid frequncy could be 474143 kHz. The stepping is bound to the bandwidth of
+			the channel which is 6MHz.</para>
+
+		<para>2)As in ISDB-Tsb the channel consists of only one or three segments the
+			frequency step is 429kHz, 3*429 respectively. As for ISDB-T the
+			central frequency of the channel is expected.</para>
+	</section>
+	<section id="DTV-MODULATION">
+	<title><constant>DTV_MODULATION</constant></title>
+<para>Specifies the frontend modulation type for cable and satellite types. The modulation can be one of the types bellow:</para>
+<programlisting>
+ typedef enum fe_modulation {
+	QPSK,
+	QAM_16,
+	QAM_32,
+	QAM_64,
+	QAM_128,
+	QAM_256,
+	QAM_AUTO,
+	VSB_8,
+	VSB_16,
+	PSK_8,
+	APSK_16,
+	APSK_32,
+	DQPSK,
+ } fe_modulation_t;
+</programlisting>
+	</section>
+	<section id="DTV-BANDWIDTH-HZ">
+		<title><constant>DTV_BANDWIDTH_HZ</constant></title>
+
+		<para>Bandwidth for the channel, in HZ.</para>
+
+		<para>Possible values:
+			<constant>1712000</constant>,
+			<constant>5000000</constant>,
+			<constant>6000000</constant>,
+			<constant>7000000</constant>,
+			<constant>8000000</constant>,
+			<constant>10000000</constant>.
+		</para>
+
+		<para>Notes:</para>
+
+		<para>1) For ISDB-T it should be always 6000000Hz (6MHz)</para>
+		<para>2) For ISDB-Tsb it can vary depending on the number of connected segments</para>
+		<para>3) Bandwidth doesn't apply for DVB-C transmissions, as the bandwidth
+			 for DVB-C depends on the symbol rate</para>
+		<para>4) Bandwidth in ISDB-T is fixed (6MHz) or can be easily derived from
+			other parameters (DTV_ISDBT_SB_SEGMENT_IDX,
+			DTV_ISDBT_SB_SEGMENT_COUNT).</para>
+		<para>5) DVB-T supports 6, 7 and 8MHz.</para>
+		<para>6) In addition, DVB-T2 supports 1.172, 5 and 10MHz.</para>
+	</section>
+	<section id="DTV-INVERSION">
+	<title><constant>DTV_INVERSION</constant></title>
+	<para>The Inversion field can take one of these values:
+	</para>
+	<programlisting>
+	typedef enum fe_spectral_inversion {
+		INVERSION_OFF,
+		INVERSION_ON,
+		INVERSION_AUTO
+	} fe_spectral_inversion_t;
+	</programlisting>
+	<para>It indicates if spectral inversion should be presumed or not. In the automatic setting
+	(<constant>INVERSION_AUTO</constant>) the hardware will try to figure out the correct setting by
+	itself.
+	</para>
+	</section>
+	<section id="DTV-DISEQC-MASTER">
+	<title><constant>DTV_DISEQC_MASTER</constant></title>
+	<para>Currently not implemented.</para>
+	</section>
+	<section id="DTV-SYMBOL-RATE">
+	<title><constant>DTV_SYMBOL_RATE</constant></title>
+	<para>Digital TV symbol rate, in bauds (symbols/second). Used on cable standards.</para>
+	</section>
+	<section id="DTV-INNER-FEC">
+	<title><constant>DTV_INNER_FEC</constant></title>
+	<para>Used cable/satellite transmissions. The acceptable values are:
+	</para>
+	<programlisting>
+typedef enum fe_code_rate {
+	FEC_NONE = 0,
+	FEC_1_2,
+	FEC_2_3,
+	FEC_3_4,
+	FEC_4_5,
+	FEC_5_6,
+	FEC_6_7,
+	FEC_7_8,
+	FEC_8_9,
+	FEC_AUTO,
+	FEC_3_5,
+	FEC_9_10,
+} fe_code_rate_t;
+	</programlisting>
+	<para>which correspond to error correction rates of 1/2, 2/3, etc.,
+	no error correction or auto detection.</para>
+	</section>
+	<section id="DTV-VOLTAGE">
+	<title><constant>DTV_VOLTAGE</constant></title>
+	<para>The voltage is usually used with non-DiSEqC capable LNBs to switch
+	the polarzation (horizontal/vertical). When using DiSEqC epuipment this
+	voltage has to be switched consistently to the DiSEqC commands as
+	described in the DiSEqC spec.</para>
+	<programlisting>
+		typedef enum fe_sec_voltage {
+		SEC_VOLTAGE_13,
+		SEC_VOLTAGE_18
+		} fe_sec_voltage_t;
+	</programlisting>
+	</section>
+	<section id="DTV-TONE">
+	<title><constant>DTV_TONE</constant></title>
+	<para>Currently not used.</para>
+	</section>
+	<section id="DTV-PILOT">
+	<title><constant>DTV_PILOT</constant></title>
+	<para>Sets DVB-S2 pilot</para>
+	<section id="fe-pilot-t">
+		<title>fe_pilot type</title>
+		<programlisting>
+typedef enum fe_pilot {
+	PILOT_ON,
+	PILOT_OFF,
+	PILOT_AUTO,
+} fe_pilot_t;
+		</programlisting>
+		</section>
+	</section>
+	<section id="DTV-ROLLOFF">
+	<title><constant>DTV_ROLLOFF</constant></title>
+		<para>Sets DVB-S2 rolloff</para>
+
+	<section id="fe-rolloff-t">
+		<title>fe_rolloff type</title>
+		<programlisting>
+typedef enum fe_rolloff {
+	ROLLOFF_35, /* Implied value in DVB-S, default for DVB-S2 */
+	ROLLOFF_20,
+	ROLLOFF_25,
+	ROLLOFF_AUTO,
+} fe_rolloff_t;
+		</programlisting>
+		</section>
+	</section>
+	<section id="DTV-DISEQC-SLAVE-REPLY">
+	<title><constant>DTV_DISEQC_SLAVE_REPLY</constant></title>
+	<para>Currently not implemented.</para>
+	</section>
+	<section id="DTV-FE-CAPABILITY-COUNT">
+	<title><constant>DTV_FE_CAPABILITY_COUNT</constant></title>
+	<para>Currently not implemented.</para>
+	</section>
+	<section id="DTV-FE-CAPABILITY">
+	<title><constant>DTV_FE_CAPABILITY</constant></title>
+	<para>Currently not implemented.</para>
+	</section>
+	<section id="DTV-DELIVERY-SYSTEM">
+		<title><constant>DTV_DELIVERY_SYSTEM</constant></title>
+		<para>Specifies the type of Delivery system</para>
+		<section id="fe-delivery-system-t">
+		<title>fe_delivery_system type</title>
+		<para>Possible values: </para>
+<programlisting>
+typedef enum fe_delivery_system {
+	SYS_UNDEFINED,
+	SYS_DVBC_ANNEX_AC,
+	SYS_DVBC_ANNEX_B,
+	SYS_DVBT,
+	SYS_DSS,
+	SYS_DVBS,
+	SYS_DVBS2,
+	SYS_DVBH,
+	SYS_ISDBT,
+	SYS_ISDBS,
+	SYS_ISDBC,
+	SYS_ATSC,
+	SYS_ATSCMH,
+	SYS_DMBTH,
+	SYS_CMMB,
+	SYS_DAB,
+	SYS_DVBT2,
+	SYS_TURBO,
+} fe_delivery_system_t;
+</programlisting>
+		</section>
+	</section>
+	<section id="DTV-ISDBT-PARTIAL-RECEPTION">
+		<title><constant>DTV_ISDBT_PARTIAL_RECEPTION</constant></title>
+
+		<para>If <constant>DTV_ISDBT_SOUND_BROADCASTING</constant> is '0' this bit-field represents whether
+			the channel is in partial reception mode or not.</para>
+
+		<para>If '1' <constant>DTV_ISDBT_LAYERA_*</constant> values are assigned to the center segment and
+			<constant>DTV_ISDBT_LAYERA_SEGMENT_COUNT</constant> has to be '1'.</para>
+
+		<para>If in addition <constant>DTV_ISDBT_SOUND_BROADCASTING</constant> is '1'
+			<constant>DTV_ISDBT_PARTIAL_RECEPTION</constant> represents whether this ISDB-Tsb channel
+			is consisting of one segment and layer or three segments and two layers.</para>
+
+		<para>Possible values: 0, 1, -1 (AUTO)</para>
+	</section>
+	<section id="DTV-ISDBT-SOUND-BROADCASTING">
+		<title><constant>DTV_ISDBT_SOUND_BROADCASTING</constant></title>
+
+		<para>This field represents whether the other DTV_ISDBT_*-parameters are
+			referring to an ISDB-T and an ISDB-Tsb channel. (See also
+			<constant>DTV_ISDBT_PARTIAL_RECEPTION</constant>).</para>
+
+		<para>Possible values: 0, 1, -1 (AUTO)</para>
+	</section>
+	<section id="DTV-ISDBT-SB-SUBCHANNEL-ID">
+		<title><constant>DTV_ISDBT_SB_SUBCHANNEL_ID</constant></title>
+
+		<para>This field only applies if <constant>DTV_ISDBT_SOUND_BROADCASTING</constant> is '1'.</para>
+
+		<para>(Note of the author: This might not be the correct description of the
+			<constant>SUBCHANNEL-ID</constant> in all details, but it is my understanding of the technical
+			background needed to program a device)</para>
+
+		<para>An ISDB-Tsb channel (1 or 3 segments) can be broadcasted alone or in a
+			set of connected ISDB-Tsb channels. In this set of channels every
+			channel can be received independently. The number of connected
+			ISDB-Tsb segment can vary, e.g. depending on the frequency spectrum
+			bandwidth available.</para>
+
+		<para>Example: Assume 8 ISDB-Tsb connected segments are broadcasted. The
+			broadcaster has several possibilities to put those channels in the
+			air: Assuming a normal 13-segment ISDB-T spectrum he can align the 8
+			segments from position 1-8 to 5-13 or anything in between.</para>
+
+		<para>The underlying layer of segments are subchannels: each segment is
+			consisting of several subchannels with a predefined IDs. A sub-channel
+			is used to help the demodulator to synchronize on the channel.</para>
+
+		<para>An ISDB-T channel is always centered over all sub-channels. As for
+			the example above, in ISDB-Tsb it is no longer as simple as that.</para>
+
+		<para><constant>The DTV_ISDBT_SB_SUBCHANNEL_ID</constant> parameter is used to give the
+			sub-channel ID of the segment to be demodulated.</para>
+
+		<para>Possible values: 0 .. 41, -1 (AUTO)</para>
+	</section>
+	<section id="DTV-ISDBT-SB-SEGMENT-IDX">
+		<title><constant>DTV_ISDBT_SB_SEGMENT_IDX</constant></title>
+		<para>This field only applies if <constant>DTV_ISDBT_SOUND_BROADCASTING</constant> is '1'.</para>
+		<para><constant>DTV_ISDBT_SB_SEGMENT_IDX</constant> gives the index of the segment to be
+			demodulated for an ISDB-Tsb channel where several of them are
+			transmitted in the connected manner.</para>
+		<para>Possible values: 0 .. <constant>DTV_ISDBT_SB_SEGMENT_COUNT</constant> - 1</para>
+		<para>Note: This value cannot be determined by an automatic channel search.</para>
+	</section>
+	<section id="DTV-ISDBT-SB-SEGMENT-COUNT">
+		<title><constant>DTV_ISDBT_SB_SEGMENT_COUNT</constant></title>
+		<para>This field only applies if <constant>DTV_ISDBT_SOUND_BROADCASTING</constant> is '1'.</para>
+		<para><constant>DTV_ISDBT_SB_SEGMENT_COUNT</constant> gives the total count of connected ISDB-Tsb
+			channels.</para>
+		<para>Possible values: 1 .. 13</para>
+		<para>Note: This value cannot be determined by an automatic channel search.</para>
+	</section>
+	<section id="isdb-hierq-layers">
+		<title><constant>DTV-ISDBT-LAYER*</constant> parameters</title>
+		<para>ISDB-T channels can be coded hierarchically. As opposed to DVB-T in
+			ISDB-T hierarchical layers can be decoded simultaneously. For that
+			reason a ISDB-T demodulator has 3 viterbi and 3 reed-solomon-decoders.</para>
+		<para>ISDB-T has 3 hierarchical layers which each can use a part of the
+			available segments. The total number of segments over all layers has
+			to 13 in ISDB-T.</para>
+		<para>There are 3 parameter sets, for Layers A, B and C.</para>
+		<section id="DTV-ISDBT-LAYER-ENABLED">
+			<title><constant>DTV_ISDBT_LAYER_ENABLED</constant></title>
+			<para>Hierarchical reception in ISDB-T is achieved by enabling or disabling
+				layers in the decoding process. Setting all bits of
+				<constant>DTV_ISDBT_LAYER_ENABLED</constant> to '1' forces all layers (if applicable) to be
+				demodulated. This is the default.</para>
+			<para>If the channel is in the partial reception mode
+				(<constant>DTV_ISDBT_PARTIAL_RECEPTION</constant> = 1) the central segment can be decoded
+				independently of the other 12 segments. In that mode layer A has to
+				have a <constant>SEGMENT_COUNT</constant> of 1.</para>
+			<para>In ISDB-Tsb only layer A is used, it can be 1 or 3 in ISDB-Tsb
+				according to <constant>DTV_ISDBT_PARTIAL_RECEPTION</constant>. <constant>SEGMENT_COUNT</constant> must be filled
+				accordingly.</para>
+			<para>Possible values: 0x1, 0x2, 0x4 (|-able)</para>
+			<para><constant>DTV_ISDBT_LAYER_ENABLED[0:0]</constant> - layer A</para>
+			<para><constant>DTV_ISDBT_LAYER_ENABLED[1:1]</constant> - layer B</para>
+			<para><constant>DTV_ISDBT_LAYER_ENABLED[2:2]</constant> - layer C</para>
+			<para><constant>DTV_ISDBT_LAYER_ENABLED[31:3]</constant> unused</para>
+		</section>
+		<section id="DTV-ISDBT-LAYER-FEC">
+			<title><constant>DTV_ISDBT_LAYER*_FEC</constant></title>
+			<para>Possible values: <constant>FEC_AUTO</constant>, <constant>FEC_1_2</constant>, <constant>FEC_2_3</constant>, <constant>FEC_3_4</constant>, <constant>FEC_5_6</constant>, <constant>FEC_7_8</constant></para>
+		</section>
+		<section id="DTV-ISDBT-LAYER-MODULATION">
+			<title><constant>DTV_ISDBT_LAYER*_MODULATION</constant></title>
+			<para>Possible values: <constant>QAM_AUTO</constant>, QP<constant>SK, QAM_16</constant>, <constant>QAM_64</constant>, <constant>DQPSK</constant></para>
+			<para>Note: If layer C is <constant>DQPSK</constant> layer B has to be <constant>DQPSK</constant>. If layer B is <constant>DQPSK</constant>
+				and <constant>DTV_ISDBT_PARTIAL_RECEPTION</constant>=0 layer has to be <constant>DQPSK</constant>.</para>
+		</section>
+		<section id="DTV-ISDBT-LAYER-SEGMENT-COUNT">
+			<title><constant>DTV_ISDBT_LAYER*_SEGMENT_COUNT</constant></title>
+			<para>Possible values: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, -1 (AUTO)</para>
+			<para>Note: Truth table for <constant>DTV_ISDBT_SOUND_BROADCASTING</constant> and
+				<constant>DTV_ISDBT_PARTIAL_RECEPTION</constant> and <constant>LAYER</constant>*_SEGMENT_COUNT</para>
+			<informaltable id="isdbt-layer_seg-cnt-table">
+				<tgroup cols="6">
+					<tbody>
+						<row>
+							<entry>PR</entry>
+							<entry>SB</entry>
+							<entry>Layer A width</entry>
+							<entry>Layer B width</entry>
+							<entry>Layer C width</entry>
+							<entry>total width</entry>
+						</row>
+						<row>
+							<entry>0</entry>
+							<entry>0</entry>
+							<entry>1 .. 13</entry>
+							<entry>1 .. 13</entry>
+							<entry>1 .. 13</entry>
+							<entry>13</entry>
+						</row>
+						<row>
+							<entry>1</entry>
+							<entry>0</entry>
+							<entry>1</entry>
+							<entry>1 .. 13</entry>
+							<entry>1 .. 13</entry>
+							<entry>13</entry>
+						</row>
+						<row>
+							<entry>0</entry>
+							<entry>1</entry>
+							<entry>1</entry>
+							<entry>0</entry>
+							<entry>0</entry>
+							<entry>1</entry>
+						</row>
+						<row>
+							<entry>1</entry>
+							<entry>1</entry>
+							<entry>1</entry>
+							<entry>2</entry>
+							<entry>0</entry>
+							<entry>13</entry>
+						</row>
+					</tbody>
+				</tgroup>
+			</informaltable>
+		</section>
+		<section id="DTV-ISDBT-LAYER-TIME-INTERLEAVING">
+			<title><constant>DTV_ISDBT_LAYER*_TIME_INTERLEAVING</constant></title>
+			<para>Possible values: 0, 1, 2, 3, -1 (AUTO)</para>
+			<para>Note: The real inter-leaver depth-names depend on the mode (fft-size); the values
+				here are referring to what can be found in the TMCC-structure -
+				independent of the mode.</para>
+		</section>
+	</section>
+	<section id="DTV-API-VERSION">
+	<title><constant>DTV_API_VERSION</constant></title>
+	<para>Returns the major/minor version of the DVB API</para>
+	</section>
+	<section id="DTV-CODE-RATE-HP">
+	<title><constant>DTV_CODE_RATE_HP</constant></title>
+	<para>Used on terrestrial transmissions. The acceptable values are:
+	</para>
+	<programlisting>
+typedef enum fe_code_rate {
+	FEC_NONE = 0,
+	FEC_1_2,
+	FEC_2_3,
+	FEC_3_4,
+	FEC_4_5,
+	FEC_5_6,
+	FEC_6_7,
+	FEC_7_8,
+	FEC_8_9,
+	FEC_AUTO,
+	FEC_3_5,
+	FEC_9_10,
+} fe_code_rate_t;
+	</programlisting>
+	</section>
+	<section id="DTV-CODE-RATE-LP">
+	<title><constant>DTV_CODE_RATE_LP</constant></title>
+	<para>Used on terrestrial transmissions. The acceptable values are:
+	</para>
+	<programlisting>
+typedef enum fe_code_rate {
+	FEC_NONE = 0,
+	FEC_1_2,
+	FEC_2_3,
+	FEC_3_4,
+	FEC_4_5,
+	FEC_5_6,
+	FEC_6_7,
+	FEC_7_8,
+	FEC_8_9,
+	FEC_AUTO,
+	FEC_3_5,
+	FEC_9_10,
+} fe_code_rate_t;
+	</programlisting>
+	</section>
+	<section id="DTV-GUARD-INTERVAL">
+		<title><constant>DTV_GUARD_INTERVAL</constant></title>
+
+		<para>Possible values are:</para>
+<programlisting>
+typedef enum fe_guard_interval {
+	GUARD_INTERVAL_1_32,
+	GUARD_INTERVAL_1_16,
+	GUARD_INTERVAL_1_8,
+	GUARD_INTERVAL_1_4,
+	GUARD_INTERVAL_AUTO,
+	GUARD_INTERVAL_1_128,
+	GUARD_INTERVAL_19_128,
+	GUARD_INTERVAL_19_256,
+} fe_guard_interval_t;
+</programlisting>
+
+		<para>Notes:</para>
+		<para>1) If <constant>DTV_GUARD_INTERVAL</constant> is set the <constant>GUARD_INTERVAL_AUTO</constant> the hardware will
+			try to find the correct guard interval (if capable) and will use TMCC to fill
+			in the missing parameters.</para>
+		<para>2) Intervals 1/128, 19/128 and 19/256 are used only for DVB-T2 at present</para>
+	</section>
+	<section id="DTV-TRANSMISSION-MODE">
+		<title><constant>DTV_TRANSMISSION_MODE</constant></title>
+
+		<para>Specifies the number of carriers used by the standard</para>
+
+		<para>Possible values are:</para>
+<programlisting>
+typedef enum fe_transmit_mode {
+	TRANSMISSION_MODE_2K,
+	TRANSMISSION_MODE_8K,
+	TRANSMISSION_MODE_AUTO,
+	TRANSMISSION_MODE_4K,
+	TRANSMISSION_MODE_1K,
+	TRANSMISSION_MODE_16K,
+	TRANSMISSION_MODE_32K,
+} fe_transmit_mode_t;
+</programlisting>
+		<para>Notes:</para>
+		<para>1) ISDB-T supports three carrier/symbol-size: 8K, 4K, 2K. It is called
+			'mode' in the standard: Mode 1 is 2K, mode 2 is 4K, mode 3 is 8K</para>
+
+		<para>2) If <constant>DTV_TRANSMISSION_MODE</constant> is set the <constant>TRANSMISSION_MODE_AUTO</constant> the
+			hardware will try to find the correct FFT-size (if capable) and will
+			use TMCC to fill in the missing parameters.</para>
+		<para>3) DVB-T specifies 2K and 8K as valid sizes.</para>
+		<para>4) DVB-T2 specifies 1K, 2K, 4K, 8K, 16K and 32K.</para>
+	</section>
+	<section id="DTV-HIERARCHY">
+	<title><constant>DTV_HIERARCHY</constant></title>
+	<para>Frontend hierarchy</para>
+	<programlisting>
+typedef enum fe_hierarchy {
+	 HIERARCHY_NONE,
+	 HIERARCHY_1,
+	 HIERARCHY_2,
+	 HIERARCHY_4,
+	 HIERARCHY_AUTO
+ } fe_hierarchy_t;
+	</programlisting>
+	</section>
+	<section id="DTV-ISDBS-TS-ID">
+	<title><constant>DTV_ISDBS_TS_ID</constant></title>
+	<para>Currently unused.</para>
+	</section>
+	<section id="DTV-DVBT2-PLP-ID">
+		<title><constant>DTV_DVBT2_PLP_ID</constant></title>
+		<para>DVB-T2 supports Physical Layer Pipes (PLP) to allow transmission of
+			many data types via a single multiplex. The API will soon support this
+			at which point this section will be expanded.</para>
+	</section>
+</section>
+	<section id="frontend-property-terrestrial-systems">
+	<title>Properties used on terrestrial delivery systems</title>
+		<section id="dvbt-params">
+			<title>DVB-T delivery system</title>
+			<para>The following parameters are valid for DVB-T:</para>
+			<itemizedlist mark='opencircle'>
+				<listitem><para><link linkend="DTV-API-VERSION"><constant>DTV_API_VERSION</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-DELIVERY-SYSTEM"><constant>DTV_DELIVERY_SYSTEM</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-TUNE"><constant>DTV_TUNE</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-CLEAR"><constant>DTV_CLEAR</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-FREQUENCY"><constant>DTV_FREQUENCY</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-MODULATION"><constant>DTV_MODULATION</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-BANDWIDTH-HZ"><constant>DTV_BANDWIDTH_HZ</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-INVERSION"><constant>DTV_INVERSION</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-CODE-RATE-HP"><constant>DTV_CODE_RATE_HP</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-CODE-RATE-LP"><constant>DTV_CODE_RATE_LP</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-GUARD-INTERVAL"><constant>DTV_GUARD_INTERVAL</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-TRANSMISSION-MODE"><constant>DTV_TRANSMISSION_MODE</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-HIERARCHY"><constant>DTV_HIERARCHY</constant></link></para></listitem>
+			</itemizedlist>
+		</section>
+		<section id="dvbt2-params">
+			<title>DVB-T2 delivery system</title>
+			<para>DVB-T2 support is currently in the early stages
+			of development, so expect that this section maygrow and become
+			more detailed with time.</para>
+		<para>The following parameters are valid for DVB-T2:</para>
+		<itemizedlist mark='opencircle'>
+			<listitem><para><link linkend="DTV-API-VERSION"><constant>DTV_API_VERSION</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-DELIVERY-SYSTEM"><constant>DTV_DELIVERY_SYSTEM</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-TUNE"><constant>DTV_TUNE</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-CLEAR"><constant>DTV_CLEAR</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-FREQUENCY"><constant>DTV_FREQUENCY</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-MODULATION"><constant>DTV_MODULATION</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-BANDWIDTH-HZ"><constant>DTV_BANDWIDTH_HZ</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-INVERSION"><constant>DTV_INVERSION</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-CODE-RATE-HP"><constant>DTV_CODE_RATE_HP</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-CODE-RATE-LP"><constant>DTV_CODE_RATE_LP</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-GUARD-INTERVAL"><constant>DTV_GUARD_INTERVAL</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-TRANSMISSION-MODE"><constant>DTV_TRANSMISSION_MODE</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-HIERARCHY"><constant>DTV_HIERARCHY</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-DVBT2-PLP-ID"><constant>DTV_DVBT2_PLP_ID</constant></link></para></listitem>
+		</itemizedlist>
+		</section>
+		<section id="isdbt">
+		<title>ISDB-T delivery system</title>
+		<para>This ISDB-T/ISDB-Tsb API extension should reflect all information
+			needed to tune any ISDB-T/ISDB-Tsb hardware. Of course it is possible
+			that some very sophisticated devices won't need certain parameters to
+			tune.</para>
+		<para>The information given here should help application writers to know how
+			to handle ISDB-T and ISDB-Tsb hardware using the Linux DVB-API.</para>
+		<para>The details given here about ISDB-T and ISDB-Tsb are just enough to
+			basically show the dependencies between the needed parameter values,
+			but surely some information is left out. For more detailed information
+			see the following documents:</para>
+		<para>ARIB STD-B31 - "Transmission System for Digital Terrestrial
+			Television Broadcasting" and</para>
+		<para>ARIB TR-B14 - "Operational Guidelines for Digital Terrestrial
+			Television Broadcasting".</para>
+		<para>In order to understand the ISDB specific parameters,
+			one has to have some knowledge the channel structure in
+			ISDB-T and ISDB-Tsb. I.e. it has to be known to
+			the reader that an ISDB-T channel consists of 13 segments,
+			that it can have up to 3 layer sharing those segments,
+			and things like that.</para>
+		<para>The following parameters are valid for ISDB-T:</para>
+		<itemizedlist mark='opencircle'>
+			<listitem><para><link linkend="DTV-API-VERSION"><constant>DTV_API_VERSION</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-DELIVERY-SYSTEM"><constant>DTV_DELIVERY_SYSTEM</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-TUNE"><constant>DTV_TUNE</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-CLEAR"><constant>DTV_CLEAR</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-FREQUENCY"><constant>DTV_FREQUENCY</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-MODULATION"><constant>DTV_MODULATION</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-BANDWIDTH-HZ"><constant>DTV_BANDWIDTH_HZ</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-INVERSION"><constant>DTV_INVERSION</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-CODE-RATE-HP"><constant>DTV_CODE_RATE_HP</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-CODE-RATE-LP"><constant>DTV_CODE_RATE_LP</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-GUARD-INTERVAL"><constant>DTV_GUARD_INTERVAL</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-TRANSMISSION-MODE"><constant>DTV_TRANSMISSION_MODE</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-HIERARCHY"><constant>DTV_HIERARCHY</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-ISDBT-LAYER-ENABLED"><constant>DTV_ISDBT_LAYER_ENABLED</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-ISDBT-PARTIAL-RECEPTION"><constant>DTV_ISDBT_PARTIAL_RECEPTION</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-ISDBT-SOUND-BROADCASTING"><constant>DTV_ISDBT_SOUND_BROADCASTING</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-ISDBT-SB-SUBCHANNEL-ID"><constant>DTV_ISDBT_SB_SUBCHANNEL_ID</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-ISDBT-SB-SEGMENT-IDX"><constant>DTV_ISDBT_SB_SEGMENT_IDX</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-ISDBT-SB-SEGMENT-COUNT"><constant>DTV_ISDBT_SB_SEGMENT_COUNT</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-ISDBT-LAYER-FEC"><constant>DTV_ISDBT_LAYERA_FEC</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-ISDBT-LAYER-MODULATION"><constant>DTV_ISDBT_LAYERA_MODULATION</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-ISDBT-LAYER-SEGMENT-COUNT"><constant>DTV_ISDBT_LAYERA_SEGMENT_COUNT</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-ISDBT-LAYER-TIME-INTERLEAVING"><constant>DTV_ISDBT_LAYERA_TIME_INTERLEAVING</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-ISDBT-LAYER-FEC"><constant>DTV_ISDBT_LAYERB_FEC</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-ISDBT-LAYER-MODULATION"><constant>DTV_ISDBT_LAYERB_MODULATION</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-ISDBT-LAYER-SEGMENT-COUNT"><constant>DTV_ISDBT_LAYERB_SEGMENT_COUNT</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-ISDBT-LAYER-TIME-INTERLEAVING"><constant>DTV_ISDBT_LAYERB_TIME_INTERLEAVING</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-ISDBT-LAYER-FEC"><constant>DTV_ISDBT_LAYERC_FEC</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-ISDBT-LAYER-MODULATION"><constant>DTV_ISDBT_LAYERC_MODULATION</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-ISDBT-LAYER-SEGMENT-COUNT"><constant>DTV_ISDBT_LAYERC_SEGMENT_COUNT</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-ISDBT-LAYER-TIME-INTERLEAVING"><constant>DTV_ISDBT_LAYERC_TIME_INTERLEAVING</constant></link></para></listitem>
+		</itemizedlist>
+		</section>
+		<section id="atsc-params">
+			<title>ATSC delivery system</title>
+			<para>The following parameters are valid for ATSC:</para>
+			<itemizedlist mark='opencircle'>
+				<listitem><para><link linkend="DTV-API-VERSION"><constant>DTV_API_VERSION</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-DELIVERY-SYSTEM"><constant>DTV_DELIVERY_SYSTEM</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-TUNE"><constant>DTV_TUNE</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-CLEAR"><constant>DTV_CLEAR</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-FREQUENCY"><constant>DTV_FREQUENCY</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-MODULATION"><constant>DTV_MODULATION</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-BANDWIDTH-HZ"><constant>DTV_BANDWIDTH_HZ</constant></link></para></listitem>
+			</itemizedlist>
+		</section>
+	</section>
+	<section id="frontend-property-cable-systems">
+	<title>Properties used on cable delivery systems</title>
+	<section id="dvbc-params">
+		<title>DVB-C delivery system</title>
+		<para>The DVB-C Annex-A/C is the widely used cable standard. Transmission uses QAM modulation.</para>
+		<para>The following parameters are valid for DVB-C Annex A/C:</para>
+		<itemizedlist mark='opencircle'>
+			<listitem><para><link linkend="DTV-API-VERSION"><constant>DTV_API_VERSION</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-DELIVERY-SYSTEM"><constant>DTV_DELIVERY_SYSTEM</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-TUNE"><constant>DTV_TUNE</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-CLEAR"><constant>DTV_CLEAR</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-FREQUENCY"><constant>DTV_FREQUENCY</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-MODULATION"><constant>DTV_MODULATION</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-INVERSION"><constant>DTV_INVERSION</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-SYMBOL-RATE"><constant>DTV_SYMBOL_RATE</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-INNER-FEC"><constant>DTV_INNER_FEC</constant></link></para></listitem>
+		</itemizedlist>
+	</section>
+	<section id="dvbc-annex-b-params">
+		<title>DVB-C Annex B delivery system</title>
+		<para>The DVB-C Annex-B is only used on a few Countries like the United States.</para>
+		<para>The following parameters are valid for DVB-C Annex B:</para>
+		<itemizedlist mark='opencircle'>
+			<listitem><para><link linkend="DTV-API-VERSION"><constant>DTV_API_VERSION</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-DELIVERY-SYSTEM"><constant>DTV_DELIVERY_SYSTEM</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-TUNE"><constant>DTV_TUNE</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-CLEAR"><constant>DTV_CLEAR</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-FREQUENCY"><constant>DTV_FREQUENCY</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-MODULATION"><constant>DTV_MODULATION</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-INVERSION"><constant>DTV_INVERSION</constant></link></para></listitem>
+		</itemizedlist>
+	</section>
+	</section>
+	<section id="frontend-property-satellital-systems">
+	<title>Properties used on satellital delivery systems</title>
+	<section id="dvbs-params">
+		<title>DVB-S delivery system</title>
+		<para>The following parameters are valid for DVB-S:</para>
+		<itemizedlist mark='opencircle'>
+			<listitem><para><link linkend="DTV-API-VERSION"><constant>DTV_API_VERSION</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-DELIVERY-SYSTEM"><constant>DTV_DELIVERY_SYSTEM</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-TUNE"><constant>DTV_TUNE</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-CLEAR"><constant>DTV_CLEAR</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-FREQUENCY"><constant>DTV_FREQUENCY</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-INVERSION"><constant>DTV_INVERSION</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-SYMBOL-RATE"><constant>DTV_SYMBOL_RATE</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-INNER-FEC"><constant>DTV_INNER_FEC</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-VOLTAGE"><constant>DTV_VOLTAGE</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-TONE"><constant>DTV_TONE</constant></link></para></listitem>
+		</itemizedlist>
+		<para>Future implementations might add those two missing parameters:</para>
+		<itemizedlist mark='opencircle'>
+			<listitem><para><link linkend="DTV-DISEQC-MASTER"><constant>DTV_DISEQC_MASTER</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-DISEQC-SLAVE-REPLY"><constant>DTV_DISEQC_SLAVE_REPLY</constant></link></para></listitem>
+		</itemizedlist>
+	</section>
+	<section id="dvbs2-params">
+		<title>DVB-S2 delivery system</title>
+		<para>In addition to all parameters valid for DVB-S, DVB-S2 supports the following parameters:</para>
+		<itemizedlist mark='opencircle'>
+			<listitem><para><link linkend="DTV-MODULATION"><constant>DTV_MODULATION</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-PILOT"><constant>DTV_PILOT</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-ROLLOFF"><constant>DTV_ROLLOFF</constant></link></para></listitem>
+		</itemizedlist>
+	</section>
+	<section id="turbo-params">
+		<title>Turbo code delivery system</title>
+		<para>In addition to all parameters valid for DVB-S, turbo code supports the following parameters:</para>
+		<itemizedlist mark='opencircle'>
+			<listitem><para><link linkend="DTV-MODULATION"><constant>DTV_MODULATION</constant></link></para></listitem>
+		</itemizedlist>
+	</section>
+	<section id="isdbs-params">
+		<title>ISDB-S delivery system</title>
+		<para>The following parameters are valid for ISDB-S:</para>
+		<itemizedlist mark='opencircle'>
+			<listitem><para><link linkend="DTV-API-VERSION"><constant>DTV_API_VERSION</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-DELIVERY-SYSTEM"><constant>DTV_DELIVERY_SYSTEM</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-TUNE"><constant>DTV_TUNE</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-CLEAR"><constant>DTV_CLEAR</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-FREQUENCY"><constant>DTV_FREQUENCY</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-INVERSION"><constant>DTV_INVERSION</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-SYMBOL-RATE"><constant>DTV_SYMBOL_RATE</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-INNER-FEC"><constant>DTV_INNER_FEC</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-VOLTAGE"><constant>DTV_VOLTAGE</constant></link></para></listitem>
+			<listitem><para><link linkend="DTV-ISDBS-TS-ID"><constant>DTV_ISDBS_TS_ID</constant></link></para></listitem>
+		</itemizedlist>
+	</section>
+	</section>
+</section>

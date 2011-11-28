@@ -180,8 +180,8 @@ struct ext3_group_desc
 
 /* Flags that should be inherited by new inodes from their parent. */
 #define EXT3_FL_INHERITED (EXT3_SECRM_FL | EXT3_UNRM_FL | EXT3_COMPR_FL |\
-			   EXT3_SYNC_FL | EXT3_IMMUTABLE_FL | EXT3_APPEND_FL |\
-			   EXT3_NODUMP_FL | EXT3_NOATIME_FL | EXT3_COMPRBLK_FL|\
+			   EXT3_SYNC_FL | EXT3_NODUMP_FL |\
+			   EXT3_NOATIME_FL | EXT3_COMPRBLK_FL |\
 			   EXT3_NOCOMPR_FL | EXT3_JOURNAL_DATA_FL |\
 			   EXT3_NOTAIL_FL | EXT3_DIRSYNC_FL)
 
@@ -381,7 +381,7 @@ struct ext3_inode {
  * Mount flags
  */
 #define EXT3_MOUNT_CHECK		0x00001	/* Do mount-time checks */
-#define EXT3_MOUNT_OLDALLOC		0x00002  /* Don't use the new Orlov allocator */
+/* EXT3_MOUNT_OLDALLOC was there */
 #define EXT3_MOUNT_GRPID		0x00004	/* Create files with directory's group */
 #define EXT3_MOUNT_DEBUG		0x00008	/* Some debugging messages */
 #define EXT3_MOUNT_ERRORS_CONT		0x00010	/* Continue on errors */
@@ -418,12 +418,11 @@ struct ext3_inode {
 #define EXT2_MOUNT_DATA_FLAGS		EXT3_MOUNT_DATA_FLAGS
 #endif
 
-#define ext3_set_bit			__test_and_set_bit_le
+#define ext3_set_bit			__set_bit_le
 #define ext3_set_bit_atomic		ext2_set_bit_atomic
-#define ext3_clear_bit			__test_and_clear_bit_le
+#define ext3_clear_bit			__clear_bit_le
 #define ext3_clear_bit_atomic		ext2_clear_bit_atomic
 #define ext3_test_bit			test_bit_le
-#define ext3_find_first_zero_bit	find_first_zero_bit_le
 #define ext3_find_next_zero_bit		find_next_zero_bit_le
 
 /*
@@ -877,7 +876,7 @@ extern int ext3_htree_store_dirent(struct file *dir_file, __u32 hash,
 extern void ext3_htree_free_dir_info(struct dir_private_info *p);
 
 /* fsync.c */
-extern int ext3_sync_file(struct file *, int);
+extern int ext3_sync_file(struct file *, loff_t, loff_t, int);
 
 /* hash.c */
 extern int ext3fs_dirhash(const char *name, int len, struct
@@ -913,7 +912,7 @@ extern void ext3_dirty_inode(struct inode *, int);
 extern int ext3_change_inode_journal_flag(struct inode *, int);
 extern int ext3_get_inode_loc(struct inode *, struct ext3_iloc *);
 extern int ext3_can_truncate(struct inode *inode);
-extern void ext3_truncate (struct inode *);
+extern void ext3_truncate(struct inode *inode);
 extern void ext3_set_inode_flags(struct inode *);
 extern void ext3_get_inode_flags(struct ext3_inode_info *);
 extern void ext3_set_aops(struct inode *inode);
@@ -938,15 +937,15 @@ extern int ext3_group_extend(struct super_block *sb,
 				ext3_fsblk_t n_blocks_count);
 
 /* super.c */
-extern void ext3_error (struct super_block *, const char *, const char *, ...)
-	__attribute__ ((format (printf, 3, 4)));
+extern __printf(3, 4)
+void ext3_error(struct super_block *, const char *, const char *, ...);
 extern void __ext3_std_error (struct super_block *, const char *, int);
-extern void ext3_abort (struct super_block *, const char *, const char *, ...)
-	__attribute__ ((format (printf, 3, 4)));
-extern void ext3_warning (struct super_block *, const char *, const char *, ...)
-	__attribute__ ((format (printf, 3, 4)));
-extern void ext3_msg(struct super_block *, const char *, const char *, ...)
-	__attribute__ ((format (printf, 3, 4)));
+extern __printf(3, 4)
+void ext3_abort(struct super_block *, const char *, const char *, ...);
+extern __printf(3, 4)
+void ext3_warning(struct super_block *, const char *, const char *, ...);
+extern __printf(3, 4)
+void ext3_msg(struct super_block *, const char *, const char *, ...);
 extern void ext3_update_dynamic_rev (struct super_block *sb);
 
 #define ext3_std_error(sb, errno)				\

@@ -46,26 +46,28 @@ ext2_xattr_security_set(struct dentry *dentry, const char *name,
 			      value, size, flags);
 }
 
+int ext2_initxattrs(struct inode *inode, const struct xattr *xattr_array,
+		    void *fs_info)
+{
+	const struct xattr *xattr;
+	int err = 0;
+
+	for (xattr = xattr_array; xattr->name != NULL; xattr++) {
+		err = ext2_xattr_set(inode, EXT2_XATTR_INDEX_SECURITY,
+				     xattr->name, xattr->value,
+				     xattr->value_len, 0);
+		if (err < 0)
+			break;
+	}
+	return err;
+}
+
 int
 ext2_init_security(struct inode *inode, struct inode *dir,
 		   const struct qstr *qstr)
 {
-	int err;
-	size_t len;
-	void *value;
-	char *name;
-
-	err = security_inode_init_security(inode, dir, qstr, &name, &value, &len);
-	if (err) {
-		if (err == -EOPNOTSUPP)
-			return 0;
-		return err;
-	}
-	err = ext2_xattr_set(inode, EXT2_XATTR_INDEX_SECURITY,
-			     name, value, len, 0);
-	kfree(name);
-	kfree(value);
-	return err;
+	return security_inode_init_security(inode, dir, qstr,
+					    &ext2_initxattrs, NULL);
 }
 
 const struct xattr_handler ext2_xattr_security_handler = {

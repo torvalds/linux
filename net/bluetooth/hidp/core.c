@@ -464,7 +464,8 @@ static void hidp_idle_timeout(unsigned long arg)
 {
 	struct hidp_session *session = (struct hidp_session *) arg;
 
-	kthread_stop(session->task);
+	atomic_inc(&session->terminate);
+	wake_up_process(session->task);
 }
 
 static void hidp_set_timer(struct hidp_session *session)
@@ -535,7 +536,8 @@ static void hidp_process_hid_control(struct hidp_session *session,
 		skb_queue_purge(&session->ctrl_transmit);
 		skb_queue_purge(&session->intr_transmit);
 
-		kthread_stop(session->task);
+		atomic_inc(&session->terminate);
+		wake_up_process(current);
 	}
 }
 
@@ -706,26 +708,32 @@ static int hidp_session(void *arg)
 	add_wait_queue(sk_sleep(intr_sk), &intr_wait);
 	session->waiting_for_startup = 0;
 	wake_up_interruptible(&session->startup_queue);
-	while (!kthread_should_stop()) {
-		set_current_state(TASK_INTERRUPTIBLE);
-
+	set_current_state(TASK_INTERRUPTIBLE);
+	while (!atomic_read(&session->terminate)) {
 		if (ctrl_sk->sk_state != BT_CONNECTED ||
 				intr_sk->sk_state != BT_CONNECTED)
 			break;
 
 		while ((skb = skb_dequeue(&ctrl_sk->sk_receive_queue))) {
 			skb_orphan(skb);
-			hidp_recv_ctrl_frame(session, skb);
+			if (!skb_linearize(skb))
+				hidp_recv_ctrl_frame(session, skb);
+			else
+				kfree_skb(skb);
 		}
 
 		while ((skb = skb_dequeue(&intr_sk->sk_receive_queue))) {
 			skb_orphan(skb);
-			hidp_recv_intr_frame(session, skb);
+			if (!skb_linearize(skb))
+				hidp_recv_intr_frame(session, skb);
+			else
+				kfree_skb(skb);
 		}
 
 		hidp_process_transmit(session);
 
 		schedule();
+		set_current_state(TASK_INTERRUPTIBLE);
 	}
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(sk_sleep(intr_sk), &intr_wait);
@@ -762,6 +770,7 @@ static int hidp_session(void *arg)
 
 	up_write(&hidp_session_sem);
 
+	kfree(session->rd_data);
 	kfree(session);
 	return 0;
 }
@@ -839,7 +848,8 @@ static int hidp_setup_input(struct hidp_session *session,
 
 	err = input_register_device(input);
 	if (err < 0) {
-		hci_conn_put_device(session->conn);
+		input_free_device(input);
+		session->input = NULL;
 		return err;
 	}
 
@@ -867,6 +877,9 @@ static int hidp_start(struct hid_device *hid)
 {
 	struct hidp_session *session = hid->driver_data;
 	struct hid_report *report;
+
+	if (hid->quirks & HID_QUIRK_NO_INIT_REPORTS)
+		return 0;
 
 	list_for_each_entry(report, &hid->report_enum[HID_INPUT_REPORT].
 			report_list, list)
@@ -1042,8 +1055,12 @@ int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, 
 	}
 
 	err = hid_add_device(session->hid);
-	if (err < 0)
-		goto err_add_device;
+	if (err < 0) {
+		atomic_inc(&session->terminate);
+		wake_up_process(session->task);
+		up_write(&hidp_session_sem);
+		return err;
+	}
 
 	if (session->input) {
 		hidp_send_ctrl_message(session,
@@ -1056,11 +1073,6 @@ int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, 
 
 	up_write(&hidp_session_sem);
 	return 0;
-
-err_add_device:
-	hid_destroy_device(session->hid);
-	session->hid = NULL;
-	kthread_stop(session->task);
 
 unlink:
 	hidp_del_timer(session);
@@ -1087,7 +1099,6 @@ purge:
 failed:
 	up_write(&hidp_session_sem);
 
-	input_free_device(session->input);
 	kfree(session);
 	return err;
 }
@@ -1111,7 +1122,8 @@ int hidp_del_connection(struct hidp_conndel_req *req)
 			skb_queue_purge(&session->ctrl_transmit);
 			skb_queue_purge(&session->intr_transmit);
 
-			kthread_stop(session->task);
+			atomic_inc(&session->terminate);
+			wake_up_process(session->task);
 		}
 	} else
 		err = -ENOENT;

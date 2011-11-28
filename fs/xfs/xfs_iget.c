@@ -38,7 +38,6 @@
 #include "xfs_trans_priv.h"
 #include "xfs_inode_item.h"
 #include "xfs_bmap.h"
-#include "xfs_btree_trace.h"
 #include "xfs_trace.h"
 
 
@@ -76,7 +75,6 @@ xfs_inode_alloc(
 		return NULL;
 	}
 
-	ASSERT(atomic_read(&ip->i_iocount) == 0);
 	ASSERT(atomic_read(&ip->i_pincount) == 0);
 	ASSERT(!spin_is_locked(&ip->i_flags_lock));
 	ASSERT(completion_done(&ip->i_flush));
@@ -151,7 +149,6 @@ xfs_inode_free(
 	}
 
 	/* asserts to verify all state is correct here */
-	ASSERT(atomic_read(&ip->i_iocount) == 0);
 	ASSERT(atomic_read(&ip->i_pincount) == 0);
 	ASSERT(!spin_is_locked(&ip->i_flags_lock));
 	ASSERT(completion_done(&ip->i_flush));

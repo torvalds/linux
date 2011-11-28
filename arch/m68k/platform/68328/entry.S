@@ -67,7 +67,7 @@ ret_from_signal:
 	jra	ret_from_exception
 
 ENTRY(system_call)
-	SAVE_ALL
+	SAVE_ALL_SYS
 
 	/* save top of frame*/
 	pea	%sp@
@@ -129,7 +129,7 @@ Lsignal_return:
  * This is the main interrupt handler, responsible for calling process_int()
  */
 inthandler1:
-	SAVE_ALL
+	SAVE_ALL_INT
 	movew	%sp@(PT_OFF_FORMATVEC), %d0
 	and	#0x3ff, %d0
 
@@ -140,7 +140,7 @@ inthandler1:
 	bra	ret_from_interrupt
 
 inthandler2:
-	SAVE_ALL
+	SAVE_ALL_INT
 	movew	%sp@(PT_OFF_FORMATVEC), %d0
 	and	#0x3ff, %d0
 
@@ -151,7 +151,7 @@ inthandler2:
 	bra	ret_from_interrupt
 
 inthandler3:
-	SAVE_ALL
+	SAVE_ALL_INT
 	movew	%sp@(PT_OFF_FORMATVEC), %d0
 	and	#0x3ff, %d0
 
@@ -162,7 +162,7 @@ inthandler3:
 	bra	ret_from_interrupt
 
 inthandler4:
-	SAVE_ALL
+	SAVE_ALL_INT
 	movew	%sp@(PT_OFF_FORMATVEC), %d0
 	and	#0x3ff, %d0
 
@@ -173,7 +173,7 @@ inthandler4:
 	bra	ret_from_interrupt
 
 inthandler5:
-	SAVE_ALL
+	SAVE_ALL_INT
 	movew	%sp@(PT_OFF_FORMATVEC), %d0
 	and	#0x3ff, %d0
 
@@ -184,7 +184,7 @@ inthandler5:
 	bra	ret_from_interrupt
 
 inthandler6:
-	SAVE_ALL
+	SAVE_ALL_INT
 	movew	%sp@(PT_OFF_FORMATVEC), %d0
 	and	#0x3ff, %d0
 
@@ -195,7 +195,7 @@ inthandler6:
 	bra	ret_from_interrupt
 
 inthandler7:
-	SAVE_ALL
+	SAVE_ALL_INT
 	movew	%sp@(PT_OFF_FORMATVEC), %d0
 	and	#0x3ff, %d0
 
@@ -206,7 +206,7 @@ inthandler7:
 	bra	ret_from_interrupt
 
 inthandler:
-	SAVE_ALL
+	SAVE_ALL_INT
 	movew	%sp@(PT_OFF_FORMATVEC), %d0
 	and	#0x3ff, %d0
 
@@ -236,27 +236,26 @@ ret_from_interrupt:
  * Handler for uninitialized and spurious interrupts.
  */
 ENTRY(bad_interrupt)
-	addql	#1,num_spurious
+	addql	#1,irq_err_count
 	rte
 
 /*
  * Beware - when entering resume, prev (the current task) is
- * in a0, next (the new task) is in a1,so don't change these
+ * in a0, next (the new task) is in a1, so don't change these
  * registers until their contents are no longer needed.
  */
 ENTRY(resume)
 	movel	%a0,%d1				/* save prev thread in d1 */
 	movew	%sr,%a0@(TASK_THREAD+THREAD_SR)	/* save sr */
-	movel	%usp,%a2			/* save usp */
-	movel	%a2,%a0@(TASK_THREAD+THREAD_USP)
-
 	SAVE_SWITCH_STACK
 	movel	%sp,%a0@(TASK_THREAD+THREAD_KSP) /* save kernel stack */
+	movel	%usp,%a3			/* save usp */
+	movel	%a3,%a0@(TASK_THREAD+THREAD_USP)
+
+	movel	%a1@(TASK_THREAD+THREAD_USP),%a3 /* restore user stack */
+	movel	%a3,%usp
 	movel	%a1@(TASK_THREAD+THREAD_KSP),%sp /* restore new thread stack */
 	RESTORE_SWITCH_STACK
-
-	movel	%a1@(TASK_THREAD+THREAD_USP),%a0 /* restore user stack */
-	movel	%a0,%usp
 	movew	%a1@(TASK_THREAD+THREAD_SR),%sr	/* restore thread status reg */
 	rts
 

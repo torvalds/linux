@@ -11,7 +11,7 @@
  *  See Documentation/rt-mutex-design.txt for details.
  */
 #include <linux/spinlock.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
 
@@ -579,6 +579,7 @@ __rt_mutex_slowlock(struct rt_mutex *lock, int state,
 		    struct rt_mutex_waiter *waiter)
 {
 	int ret = 0;
+	int was_disabled;
 
 	for (;;) {
 		/* Try to acquire the lock: */
@@ -601,9 +602,16 @@ __rt_mutex_slowlock(struct rt_mutex *lock, int state,
 
 		raw_spin_unlock(&lock->wait_lock);
 
+		was_disabled = irqs_disabled();
+		if (was_disabled)
+			local_irq_enable();
+
 		debug_rt_mutex_print_deadlock(waiter);
 
 		schedule_rt_mutex(lock);
+
+		if (was_disabled)
+			local_irq_disable();
 
 		raw_spin_lock(&lock->wait_lock);
 		set_current_state(state);
@@ -890,7 +898,7 @@ void __rt_mutex_init(struct rt_mutex *lock, const char *name)
 {
 	lock->owner = NULL;
 	raw_spin_lock_init(&lock->wait_lock);
-	plist_head_init_raw(&lock->wait_list, &lock->wait_lock);
+	plist_head_init(&lock->wait_list);
 
 	debug_rt_mutex_init(lock, name);
 }

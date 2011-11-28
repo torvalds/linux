@@ -17,6 +17,7 @@
 #include <linux/reboot.h>
 #include <linux/kexec.h>
 #include <linux/bootmem.h>
+#include <linux/export.h>
 #include <linux/crash_dump.h>
 #include <linux/delay.h>
 #include <linux/elf.h>
@@ -242,12 +243,8 @@ static void crash_kexec_wait_realmode(int cpu)
 
 		while (paca[i].kexec_state < KEXEC_STATE_REAL_MODE) {
 			barrier();
-			if (!cpu_possible(i)) {
+			if (!cpu_possible(i) || !cpu_online(i) || (msecs <= 0))
 				break;
-			}
-			if (!cpu_online(i)) {
-				break;
-			}
 			msecs--;
 			mdelay(1);
 		}

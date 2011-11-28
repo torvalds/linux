@@ -247,7 +247,7 @@ static int create_default_filesystem(struct ubifs_info *c)
 	mst->total_dirty = cpu_to_le64(tmp64);
 
 	/*  The indexing LEB does not contribute to dark space */
-	tmp64 = (c->main_lebs - 1) * c->dark_wm;
+	tmp64 = ((long long)(c->main_lebs - 1) * c->dark_wm);
 	mst->total_dark = cpu_to_le64(tmp64);
 
 	mst->total_used = cpu_to_le64(UBIFS_INO_NODE_SZ);
@@ -674,15 +674,15 @@ static int fixup_leb(struct ubifs_info *c, int lnum, int len)
 
 	if (len == 0) {
 		dbg_mnt("unmap empty LEB %d", lnum);
-		return ubi_leb_unmap(c->ubi, lnum);
+		return ubifs_leb_unmap(c, lnum);
 	}
 
 	dbg_mnt("fixup LEB %d, data len %d", lnum, len);
-	err = ubi_read(c->ubi, lnum, c->sbuf, 0, len);
+	err = ubifs_leb_read(c, lnum, c->sbuf, 0, len, 1);
 	if (err)
 		return err;
 
-	return ubi_leb_change(c->ubi, lnum, c->sbuf, len, UBI_UNKNOWN);
+	return ubifs_leb_change(c, lnum, c->sbuf, len, UBI_UNKNOWN);
 }
 
 /**

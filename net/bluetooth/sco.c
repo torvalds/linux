@@ -41,6 +41,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/list.h>
+#include <linux/security.h>
 #include <net/sock.h>
 
 #include <asm/system.h>
@@ -403,8 +404,10 @@ static void sco_sock_init(struct sock *sk, struct sock *parent)
 {
 	BT_DBG("sk %p", sk);
 
-	if (parent)
+	if (parent) {
 		sk->sk_type = parent->sk_type;
+		security_sk_clone(parent, sk);
+	}
 }
 
 static struct proto sco_proto = {
@@ -564,30 +567,26 @@ static int sco_sock_accept(struct socket *sock, struct socket *newsock, int flag
 
 	lock_sock(sk);
 
-	if (sk->sk_state != BT_LISTEN) {
-		err = -EBADFD;
-		goto done;
-	}
-
 	timeo = sock_rcvtimeo(sk, flags & O_NONBLOCK);
 
 	BT_DBG("sk %p timeo %ld", sk, timeo);
 
 	/* Wait for an incoming connection. (wake-one). */
 	add_wait_queue_exclusive(sk_sleep(sk), &wait);
-	while (!(ch = bt_accept_dequeue(sk, newsock))) {
+	while (1) {
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (!timeo) {
-			err = -EAGAIN;
-			break;
-		}
-
-		release_sock(sk);
-		timeo = schedule_timeout(timeo);
-		lock_sock(sk);
 
 		if (sk->sk_state != BT_LISTEN) {
 			err = -EBADFD;
+			break;
+		}
+
+		ch = bt_accept_dequeue(sk, newsock);
+		if (ch)
+			break;
+
+		if (!timeo) {
+			err = -EAGAIN;
 			break;
 		}
 
@@ -595,8 +594,12 @@ static int sco_sock_accept(struct socket *sock, struct socket *newsock, int flag
 			err = sock_intr_errno(timeo);
 			break;
 		}
+
+		release_sock(sk);
+		timeo = schedule_timeout(timeo);
+		lock_sock(sk);
 	}
-	set_current_state(TASK_RUNNING);
+	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(sk_sleep(sk), &wait);
 
 	if (err)
@@ -932,7 +935,7 @@ static int sco_connect_cfm(struct hci_conn *hcon, __u8 status)
 		if (conn)
 			sco_conn_ready(conn);
 	} else
-		sco_conn_del(hcon, bt_err(status));
+		sco_conn_del(hcon, bt_to_errno(status));
 
 	return 0;
 }
@@ -944,7 +947,7 @@ static int sco_disconn_cfm(struct hci_conn *hcon, __u8 reason)
 	if (hcon->type != SCO_LINK && hcon->type != ESCO_LINK)
 		return -EINVAL;
 
-	sco_conn_del(hcon, bt_err(reason));
+	sco_conn_del(hcon, bt_to_errno(reason));
 
 	return 0;
 }

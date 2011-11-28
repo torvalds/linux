@@ -97,13 +97,12 @@ void stub_complete(struct urb *urb)
 
 	/* link a urb to the queue of tx. */
 	spin_lock_irqsave(&sdev->priv_lock, flags);
-
 	if (priv->unlinking) {
 		stub_enqueue_ret_unlink(sdev, priv->seqnum, urb->status);
 		stub_free_priv_and_urb(priv);
-	} else
+	} else {
 		list_move_tail(&priv->list, &sdev->priv_tx);
-
+	}
 	spin_unlock_irqrestore(&sdev->priv_lock, flags);
 
 	/* wake up tx_thread */
@@ -113,10 +112,10 @@ void stub_complete(struct urb *urb)
 static inline void setup_base_pdu(struct usbip_header_basic *base,
 				  __u32 command, __u32 seqnum)
 {
-	base->command = command;
-	base->seqnum  = seqnum;
-	base->devid   = 0;
-	base->ep      = 0;
+	base->command	= command;
+	base->seqnum	= seqnum;
+	base->devid	= 0;
+	base->ep	= 0;
 	base->direction = 0;
 }
 
@@ -232,7 +231,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 			if (txsize != sizeof(pdu_header) + urb->actual_length) {
 				dev_err(&sdev->interface->dev,
 					"actual length of urb %d does not "
-					"match iso packet sizes %lu\n",
+					"match iso packet sizes %zu\n",
 					urb->actual_length,
 					txsize-sizeof(pdu_header));
 				kfree(iov);

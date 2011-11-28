@@ -14,6 +14,7 @@
 #include <linux/sunrpc/svc_xprt.h>
 #include <linux/sunrpc/svcsock.h>
 #include <linux/sunrpc/xprt.h>
+#include <linux/module.h>
 
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
@@ -254,8 +255,6 @@ EXPORT_SYMBOL_GPL(svc_create_xprt);
  */
 void svc_xprt_copy_addrs(struct svc_rqst *rqstp, struct svc_xprt *xprt)
 {
-	struct sockaddr *sin;
-
 	memcpy(&rqstp->rq_addr, &xprt->xpt_remote, xprt->xpt_remotelen);
 	rqstp->rq_addrlen = xprt->xpt_remotelen;
 
@@ -263,15 +262,8 @@ void svc_xprt_copy_addrs(struct svc_rqst *rqstp, struct svc_xprt *xprt)
 	 * Destination address in request is needed for binding the
 	 * source address in RPC replies/callbacks later.
 	 */
-	sin = (struct sockaddr *)&xprt->xpt_local;
-	switch (sin->sa_family) {
-	case AF_INET:
-		rqstp->rq_daddr.addr = ((struct sockaddr_in *)sin)->sin_addr;
-		break;
-	case AF_INET6:
-		rqstp->rq_daddr.addr6 = ((struct sockaddr_in6 *)sin)->sin6_addr;
-		break;
-	}
+	memcpy(&rqstp->rq_daddr, &xprt->xpt_local, xprt->xpt_locallen);
+	rqstp->rq_daddrlen = xprt->xpt_locallen;
 }
 EXPORT_SYMBOL_GPL(svc_xprt_copy_addrs);
 
@@ -902,12 +894,13 @@ void svc_delete_xprt(struct svc_xprt *xprt)
 	if (!test_and_set_bit(XPT_DETACHED, &xprt->xpt_flags))
 		list_del_init(&xprt->xpt_list);
 	/*
-	 * We used to delete the transport from whichever list
-	 * it's sk_xprt.xpt_ready node was on, but we don't actually
-	 * need to.  This is because the only time we're called
-	 * while still attached to a queue, the queue itself
-	 * is about to be destroyed (in svc_destroy).
+	 * The only time we're called while xpt_ready is still on a list
+	 * is while the list itself is about to be destroyed (in
+	 * svc_destroy).  BUT svc_xprt_enqueue could still be attempting
+	 * to add new entries to the sp_sockets list, so we can't leave
+	 * a freed xprt on it.
 	 */
+	list_del_init(&xprt->xpt_ready);
 	if (test_bit(XPT_TEMP, &xprt->xpt_flags))
 		serv->sv_tmpcnt--;
 	spin_unlock_bh(&serv->sv_lock);

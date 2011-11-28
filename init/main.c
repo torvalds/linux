@@ -163,7 +163,7 @@ static int __init obsolete_checksetup(char *line)
 	p = __setup_start;
 	do {
 		int n = strlen(p->str);
-		if (!strncmp(line, p->str, n)) {
+		if (parameqn(line, p->str, n)) {
 			if (p->early) {
 				/* Already done in parse_early_param?
 				 * (Needs exact match on param part).
@@ -209,8 +209,19 @@ early_param("quiet", quiet_kernel);
 
 static int __init loglevel(char *str)
 {
-	get_option(&str, &console_loglevel);
-	return 0;
+	int newlevel;
+
+	/*
+	 * Only update loglevel value when a correct setting was passed,
+	 * to prevent blind crashes (when loglevel being set to 0) that
+	 * are quite hard to debug
+	 */
+	if (get_option(&str, &newlevel)) {
+		console_loglevel = newlevel;
+		return 0;
+	}
+
+	return -EINVAL;
 }
 
 early_param("loglevel", loglevel);
@@ -369,9 +380,9 @@ static noinline void __init_refok rest_init(void)
 	init_idle_bootup_task(current);
 	preempt_enable_no_resched();
 	schedule();
-	preempt_disable();
 
 	/* Call into cpu_idle with preempt disabled */
+	preempt_disable();
 	cpu_idle();
 }
 
@@ -381,7 +392,7 @@ static int __init do_early_param(char *param, char *val)
 	const struct obs_kernel_param *p;
 
 	for (p = __setup_start; p < __setup_end; p++) {
-		if ((p->early && strcmp(param, p->str) == 0) ||
+		if ((p->early && parameq(param, p->str)) ||
 		    (strcmp(param, "console") == 0 &&
 		     strcmp(p->str, "earlycon") == 0)
 		) {
@@ -501,6 +512,9 @@ asmlinkage void __init start_kernel(void)
 	parse_args("Booting kernel", static_command_line, __start___param,
 		   __stop___param - __start___param,
 		   &unknown_bootoption);
+
+	jump_label_init();
+
 	/*
 	 * These use large bootmem allocations and must precede
 	 * kmem_cache_init()
@@ -715,10 +729,11 @@ static void __init do_basic_setup(void)
 {
 	cpuset_init_smp();
 	usermodehelper_init();
-	init_tmpfs();
+	shmem_init();
 	driver_init();
 	init_irq_proc();
 	do_ctors();
+	usermodehelper_enable();
 	do_initcalls();
 }
 

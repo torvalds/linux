@@ -82,10 +82,8 @@ static int vfat_revalidate_ci(struct dentry *dentry, struct nameidata *nd)
 	 * case sensitive name which is specified by user if this is
 	 * for creation.
 	 */
-	if (!(nd->flags & (LOOKUP_CONTINUE | LOOKUP_PARENT))) {
-		if (nd->flags & (LOOKUP_CREATE | LOOKUP_RENAME_TARGET))
-			return 0;
-	}
+	if (nd->flags & (LOOKUP_CREATE | LOOKUP_RENAME_TARGET))
+		return 0;
 
 	return vfat_revalidate_shortname(dentry);
 }
@@ -902,7 +900,7 @@ static int vfat_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 		goto out;
 	}
 	inode->i_version++;
-	inode->i_nlink = 2;
+	set_nlink(inode, 2);
 	inode->i_mtime = inode->i_atime = inode->i_ctime = ts;
 	/* timestamp is already written, so mark_inode_dirty() is unneeded. */
 

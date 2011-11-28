@@ -12,8 +12,8 @@ static inline pmd_t *pmd_off_k(unsigned long virt)
 
 struct mem_type {
 	pteval_t prot_pte;
-	unsigned int prot_l1;
-	unsigned int prot_sect;
+	pmdval_t prot_l1;
+	pmdval_t prot_sect;
 	unsigned int domain;
 };
 
@@ -21,6 +21,12 @@ const struct mem_type *get_mem_type(unsigned int type);
 
 extern void __flush_dcache_page(struct address_space *mapping, struct page *page);
 
+#endif
+
+#ifdef CONFIG_ZONE_DMA
+extern u32 arm_dma_limit;
+#else
+#define arm_dma_limit ((u32)~0)
 #endif
 
 void __init bootmem_init(void);

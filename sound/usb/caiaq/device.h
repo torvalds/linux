@@ -18,6 +18,7 @@
 #define USB_PID_TRAKTORKONTROLX1	0x2305
 #define USB_PID_TRAKTORKONTROLS4	0xbaff
 #define USB_PID_TRAKTORAUDIO2		0x041d
+#define USB_PID_MASCHINECONTROLLER  0x0808
 
 #define EP1_BUFSIZE 64
 #define EP4_BUFSIZE 512
@@ -96,6 +97,7 @@ struct snd_usb_caiaqdev {
 	int input_panic, output_panic, warned;
 	char *audio_in_buf, *audio_out_buf;
 	unsigned int samplerates, bpp;
+	unsigned long outurb_active_mask;
 
 	struct snd_pcm_substream *sub_playback[MAX_STREAMS];
 	struct snd_pcm_substream *sub_capture[MAX_STREAMS];

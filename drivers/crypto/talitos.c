@@ -1,7 +1,7 @@
 /*
  * talitos - Freescale Integrated Security Engine (SEC) device driver
  *
- * Copyright (c) 2008-2010 Freescale Semiconductor, Inc.
+ * Copyright (c) 2008-2011 Freescale Semiconductor, Inc.
  *
  * Scatterlist Crypto API glue code copied from files with the following:
  * Copyright (c) 2006-2007 Herbert Xu <herbert@gondor.apana.org.au>
@@ -282,6 +282,7 @@ static int init_device(struct device *dev)
 /**
  * talitos_submit - submits a descriptor to the device for processing
  * @dev:	the SEC device to be used
+ * @ch:		the SEC device channel to be used
  * @desc:	the descriptor to be processed by the device
  * @callback:	whom to call when processing is complete
  * @context:	a handle for use by caller (optional)
@@ -290,7 +291,7 @@ static int init_device(struct device *dev)
  * callback must check err and feedback in descriptor header
  * for device processing status.
  */
-static int talitos_submit(struct device *dev, struct talitos_desc *desc,
+static int talitos_submit(struct device *dev, int ch, struct talitos_desc *desc,
 			  void (*callback)(struct device *dev,
 					   struct talitos_desc *desc,
 					   void *context, int error),
@@ -298,14 +299,8 @@ static int talitos_submit(struct device *dev, struct talitos_desc *desc,
 {
 	struct talitos_private *priv = dev_get_drvdata(dev);
 	struct talitos_request *request;
-	unsigned long flags, ch;
+	unsigned long flags;
 	int head;
-
-	/* select done notification */
-	desc->hdr |= DESC_HDR_DONE_NOTIFY;
-
-	/* emulate SEC's round-robin channel fifo polling scheme */
-	ch = atomic_inc_return(&priv->last_chan) & (priv->num_channels - 1);
 
 	spin_lock_irqsave(&priv->chan[ch].head_lock, flags);
 
@@ -421,7 +416,7 @@ static void talitos_done(unsigned long data)
 /*
  * locate current (offending) descriptor
  */
-static struct talitos_desc *current_desc(struct device *dev, int ch)
+static u32 current_desc_hdr(struct device *dev, int ch)
 {
 	struct talitos_private *priv = dev_get_drvdata(dev);
 	int tail = priv->chan[ch].tail;
@@ -433,23 +428,25 @@ static struct talitos_desc *current_desc(struct device *dev, int ch)
 		tail = (tail + 1) & (priv->fifo_len - 1);
 		if (tail == priv->chan[ch].tail) {
 			dev_err(dev, "couldn't locate current descriptor\n");
-			return NULL;
+			return 0;
 		}
 	}
 
-	return priv->chan[ch].fifo[tail].desc;
+	return priv->chan[ch].fifo[tail].desc->hdr;
 }
 
 /*
  * user diagnostics; report root cause of error based on execution unit status
  */
-static void report_eu_error(struct device *dev, int ch,
-			    struct talitos_desc *desc)
+static void report_eu_error(struct device *dev, int ch, u32 desc_hdr)
 {
 	struct talitos_private *priv = dev_get_drvdata(dev);
 	int i;
 
-	switch (desc->hdr & DESC_HDR_SEL0_MASK) {
+	if (!desc_hdr)
+		desc_hdr = in_be32(priv->reg + TALITOS_DESCBUF(ch));
+
+	switch (desc_hdr & DESC_HDR_SEL0_MASK) {
 	case DESC_HDR_SEL0_AFEU:
 		dev_err(dev, "AFEUISR 0x%08x_%08x\n",
 			in_be32(priv->reg + TALITOS_AFEUISR),
@@ -493,7 +490,7 @@ static void report_eu_error(struct device *dev, int ch,
 		break;
 	}
 
-	switch (desc->hdr & DESC_HDR_SEL1_MASK) {
+	switch (desc_hdr & DESC_HDR_SEL1_MASK) {
 	case DESC_HDR_SEL1_MDEUA:
 	case DESC_HDR_SEL1_MDEUB:
 		dev_err(dev, "MDEUISR 0x%08x_%08x\n",
@@ -555,7 +552,7 @@ static void talitos_error(unsigned long data, u32 isr, u32 isr_lo)
 		if (v_lo & TALITOS_CCPSR_LO_IEU)
 			dev_err(dev, "invalid execution unit error\n");
 		if (v_lo & TALITOS_CCPSR_LO_EU)
-			report_eu_error(dev, ch, current_desc(dev, ch));
+			report_eu_error(dev, ch, current_desc_hdr(dev, ch));
 		if (v_lo & TALITOS_CCPSR_LO_GB)
 			dev_err(dev, "gather boundary error\n");
 		if (v_lo & TALITOS_CCPSR_LO_GRL)
@@ -706,6 +703,7 @@ static void talitos_unregister_rng(struct device *dev)
 
 struct talitos_ctx {
 	struct device *dev;
+	int ch;
 	__be32 desc_hdr_template;
 	u8 key[TALITOS_MAX_KEY_SIZE];
 	u8 iv[TALITOS_MAX_IV_LENGTH];
@@ -1117,7 +1115,7 @@ static int ipsec_esp(struct talitos_edesc *edesc, struct aead_request *areq,
 	map_single_talitos_ptr(dev, &desc->ptr[6], ivsize, ctx->iv, 0,
 			       DMA_FROM_DEVICE);
 
-	ret = talitos_submit(dev, desc, callback, areq);
+	ret = talitos_submit(dev, ctx->ch, desc, callback, areq);
 	if (ret != -EINPROGRESS) {
 		ipsec_esp_unmap(dev, edesc, areq);
 		kfree(edesc);
@@ -1382,22 +1380,11 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *cipher,
 			     const u8 *key, unsigned int keylen)
 {
 	struct talitos_ctx *ctx = crypto_ablkcipher_ctx(cipher);
-	struct ablkcipher_alg *alg = crypto_ablkcipher_alg(cipher);
-
-	if (keylen > TALITOS_MAX_KEY_SIZE)
-		goto badkey;
-
-	if (keylen < alg->min_keysize || keylen > alg->max_keysize)
-		goto badkey;
 
 	memcpy(&ctx->key, key, keylen);
 	ctx->keylen = keylen;
 
 	return 0;
-
-badkey:
-	crypto_ablkcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
-	return -EINVAL;
 }
 
 static void common_nonsnoop_unmap(struct device *dev,
@@ -1433,7 +1420,6 @@ static void ablkcipher_done(struct device *dev,
 
 static int common_nonsnoop(struct talitos_edesc *edesc,
 			   struct ablkcipher_request *areq,
-			   u8 *giv,
 			   void (*callback) (struct device *dev,
 					     struct talitos_desc *desc,
 					     void *context, int error))
@@ -1453,7 +1439,7 @@ static int common_nonsnoop(struct talitos_edesc *edesc,
 
 	/* cipher iv */
 	ivsize = crypto_ablkcipher_ivsize(cipher);
-	map_single_talitos_ptr(dev, &desc->ptr[1], ivsize, giv ?: areq->info, 0,
+	map_single_talitos_ptr(dev, &desc->ptr[1], ivsize, areq->info, 0,
 			       DMA_TO_DEVICE);
 
 	/* cipher key */
@@ -1524,7 +1510,7 @@ static int common_nonsnoop(struct talitos_edesc *edesc,
 	to_talitos_ptr(&desc->ptr[6], 0);
 	desc->ptr[6].j_extent = 0;
 
-	ret = talitos_submit(dev, desc, callback, areq);
+	ret = talitos_submit(dev, ctx->ch, desc, callback, areq);
 	if (ret != -EINPROGRESS) {
 		common_nonsnoop_unmap(dev, edesc, areq);
 		kfree(edesc);
@@ -1556,7 +1542,7 @@ static int ablkcipher_encrypt(struct ablkcipher_request *areq)
 	/* set encrypt */
 	edesc->desc.hdr = ctx->desc_hdr_template | DESC_HDR_MODE0_ENCRYPT;
 
-	return common_nonsnoop(edesc, areq, NULL, ablkcipher_done);
+	return common_nonsnoop(edesc, areq, ablkcipher_done);
 }
 
 static int ablkcipher_decrypt(struct ablkcipher_request *areq)
@@ -1572,7 +1558,7 @@ static int ablkcipher_decrypt(struct ablkcipher_request *areq)
 
 	edesc->desc.hdr = ctx->desc_hdr_template | DESC_HDR_DIR_INBOUND;
 
-	return common_nonsnoop(edesc, areq, NULL, ablkcipher_done);
+	return common_nonsnoop(edesc, areq, ablkcipher_done);
 }
 
 static void common_nonsnoop_hash_unmap(struct device *dev,
@@ -1703,7 +1689,7 @@ static int common_nonsnoop_hash(struct talitos_edesc *edesc,
 	/* last DWORD empty */
 	desc->ptr[6] = zero_entry;
 
-	ret = talitos_submit(dev, desc, callback, areq);
+	ret = talitos_submit(dev, ctx->ch, desc, callback, areq);
 	if (ret != -EINPROGRESS) {
 		common_nonsnoop_hash_unmap(dev, edesc, areq);
 		kfree(edesc);
@@ -2244,6 +2230,7 @@ static int talitos_cra_init(struct crypto_tfm *tfm)
 	struct crypto_alg *alg = tfm->__crt_alg;
 	struct talitos_crypto_alg *talitos_alg;
 	struct talitos_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct talitos_private *priv;
 
 	if ((alg->cra_flags & CRYPTO_ALG_TYPE_MASK) == CRYPTO_ALG_TYPE_AHASH)
 		talitos_alg = container_of(__crypto_ahash_alg(alg),
@@ -2256,8 +2243,16 @@ static int talitos_cra_init(struct crypto_tfm *tfm)
 	/* update context with ptr to dev */
 	ctx->dev = talitos_alg->dev;
 
+	/* assign SEC channel to tfm in round-robin fashion */
+	priv = dev_get_drvdata(ctx->dev);
+	ctx->ch = atomic_inc_return(&priv->last_chan) &
+		  (priv->num_channels - 1);
+
 	/* copy descriptor header template value */
 	ctx->desc_hdr_template = talitos_alg->algt.desc_hdr_template;
+
+	/* select done notification */
+	ctx->desc_hdr_template |= DESC_HDR_DONE_NOTIFY;
 
 	return 0;
 }

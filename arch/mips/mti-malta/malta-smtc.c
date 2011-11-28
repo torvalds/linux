@@ -152,7 +152,7 @@ int plat_set_irq_affinity(struct irq_data *d, const struct cpumask *affinity,
 		 * runtime code can anyway deal with the null set
 		 */
 		printk(KERN_WARNING
-			"IRQ affinity leaves no legal CPU for IRQ %d\n", irq);
+		       "IRQ affinity leaves no legal CPU for IRQ %d\n", d->irq);
 
 	/* Do any generic SMTC IRQ affinity setup */
 	smtc_set_irq_affinity(d->irq, tmask);

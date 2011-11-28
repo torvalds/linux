@@ -874,6 +874,10 @@ struct drm_radeon_gem_pwrite {
 
 #define RADEON_CHUNK_ID_RELOCS	0x01
 #define RADEON_CHUNK_ID_IB	0x02
+#define RADEON_CHUNK_ID_FLAGS	0x03
+
+/* The first dword of RADEON_CHUNK_ID_FLAGS is a uint32 of these flags: */
+#define RADEON_CS_KEEP_TILING_FLAGS 0x01
 
 struct drm_radeon_cs_chunk {
 	uint32_t		chunk_id;
@@ -911,6 +915,7 @@ struct drm_radeon_cs {
 #define RADEON_INFO_NUM_BACKENDS	0x0a /* DB/backends for r600+ - need for OQ */
 #define RADEON_INFO_NUM_TILE_PIPES	0x0b /* tile pipes for r600+ */
 #define RADEON_INFO_FUSION_GART_WORKING	0x0c /* fusion writes to GTT were broken before this */
+#define RADEON_INFO_BACKEND_MAP		0x0d /* pipe to backend map, needed by mesa */
 
 struct drm_radeon_info {
 	uint32_t		request;

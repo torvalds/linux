@@ -4,7 +4,7 @@
 
   DMA ringbuffer and descriptor allocation/management
 
-  Copyright (c) 2005, 2006 Michael Buesch <mb@bu3sch.de>
+  Copyright (c) 2005, 2006 Michael Buesch <m@bues.ch>
 
   Some code in this file is derived from the b44.c driver
   Copyright (C) 2002 David S. Miller
@@ -47,6 +47,38 @@
  * into separate slots. */
 #define TX_SLOTS_PER_FRAME	2
 
+static u32 b43_dma_address(struct b43_dma *dma, dma_addr_t dmaaddr,
+			   enum b43_addrtype addrtype)
+{
+	u32 uninitialized_var(addr);
+
+	switch (addrtype) {
+	case B43_DMA_ADDR_LOW:
+		addr = lower_32_bits(dmaaddr);
+		if (dma->translation_in_low) {
+			addr &= ~SSB_DMA_TRANSLATION_MASK;
+			addr |= dma->translation;
+		}
+		break;
+	case B43_DMA_ADDR_HIGH:
+		addr = upper_32_bits(dmaaddr);
+		if (!dma->translation_in_low) {
+			addr &= ~SSB_DMA_TRANSLATION_MASK;
+			addr |= dma->translation;
+		}
+		break;
+	case B43_DMA_ADDR_EXT:
+		if (dma->translation_in_low)
+			addr = lower_32_bits(dmaaddr);
+		else
+			addr = upper_32_bits(dmaaddr);
+		addr &= SSB_DMA_TRANSLATION_MASK;
+		addr >>= SSB_DMA_TRANSLATION_SHIFT;
+		break;
+	}
+
+	return addr;
+}
 
 /* 32bit DMA ops. */
 static
@@ -77,10 +109,9 @@ static void op32_fill_descriptor(struct b43_dmaring *ring,
 	slot = (int)(&(desc->dma32) - descbase);
 	B43_WARN_ON(!(slot >= 0 && slot < ring->nr_slots));
 
-	addr = (u32) (dmaaddr & ~SSB_DMA_TRANSLATION_MASK);
-	addrext = (u32) (dmaaddr & SSB_DMA_TRANSLATION_MASK)
-	    >> SSB_DMA_TRANSLATION_SHIFT;
-	addr |= ring->dev->dma.translation;
+	addr = b43_dma_address(&ring->dev->dma, dmaaddr, B43_DMA_ADDR_LOW);
+	addrext = b43_dma_address(&ring->dev->dma, dmaaddr, B43_DMA_ADDR_EXT);
+
 	ctl = bufsize & B43_DMA32_DCTL_BYTECNT;
 	if (slot == ring->nr_slots - 1)
 		ctl |= B43_DMA32_DCTL_DTABLEEND;
@@ -170,11 +201,10 @@ static void op64_fill_descriptor(struct b43_dmaring *ring,
 	slot = (int)(&(desc->dma64) - descbase);
 	B43_WARN_ON(!(slot >= 0 && slot < ring->nr_slots));
 
-	addrlo = (u32) (dmaaddr & 0xFFFFFFFF);
-	addrhi = (((u64) dmaaddr >> 32) & ~SSB_DMA_TRANSLATION_MASK);
-	addrext = (((u64) dmaaddr >> 32) & SSB_DMA_TRANSLATION_MASK)
-	    >> SSB_DMA_TRANSLATION_SHIFT;
-	addrhi |= (ring->dev->dma.translation << 1);
+	addrlo = b43_dma_address(&ring->dev->dma, dmaaddr, B43_DMA_ADDR_LOW);
+	addrhi = b43_dma_address(&ring->dev->dma, dmaaddr, B43_DMA_ADDR_HIGH);
+	addrext = b43_dma_address(&ring->dev->dma, dmaaddr, B43_DMA_ADDR_EXT);
+
 	if (slot == ring->nr_slots - 1)
 		ctl0 |= B43_DMA64_DCTL0_DTABLEEND;
 	if (start)
@@ -333,10 +363,10 @@ static inline
 	dma_addr_t dmaaddr;
 
 	if (tx) {
-		dmaaddr = dma_map_single(ring->dev->sdev->dma_dev,
+		dmaaddr = dma_map_single(ring->dev->dev->dma_dev,
 					 buf, len, DMA_TO_DEVICE);
 	} else {
-		dmaaddr = dma_map_single(ring->dev->sdev->dma_dev,
+		dmaaddr = dma_map_single(ring->dev->dev->dma_dev,
 					 buf, len, DMA_FROM_DEVICE);
 	}
 
@@ -348,10 +378,10 @@ static inline
 			  dma_addr_t addr, size_t len, int tx)
 {
 	if (tx) {
-		dma_unmap_single(ring->dev->sdev->dma_dev,
+		dma_unmap_single(ring->dev->dev->dma_dev,
 				 addr, len, DMA_TO_DEVICE);
 	} else {
-		dma_unmap_single(ring->dev->sdev->dma_dev,
+		dma_unmap_single(ring->dev->dev->dma_dev,
 				 addr, len, DMA_FROM_DEVICE);
 	}
 }
@@ -361,7 +391,7 @@ static inline
 				 dma_addr_t addr, size_t len)
 {
 	B43_WARN_ON(ring->tx);
-	dma_sync_single_for_cpu(ring->dev->sdev->dma_dev,
+	dma_sync_single_for_cpu(ring->dev->dev->dma_dev,
 				    addr, len, DMA_FROM_DEVICE);
 }
 
@@ -370,7 +400,7 @@ static inline
 				    dma_addr_t addr, size_t len)
 {
 	B43_WARN_ON(ring->tx);
-	dma_sync_single_for_device(ring->dev->sdev->dma_dev,
+	dma_sync_single_for_device(ring->dev->dev->dma_dev,
 				   addr, len, DMA_FROM_DEVICE);
 }
 
@@ -389,33 +419,34 @@ static int alloc_ringmemory(struct b43_dmaring *ring)
 	gfp_t flags = GFP_KERNEL;
 
 	/* The specs call for 4K buffers for 30- and 32-bit DMA with 4K
-	 * alignment and 8K buffers for 64-bit DMA with 8K alignment. Testing
-	 * has shown that 4K is sufficient for the latter as long as the buffer
-	 * does not cross an 8K boundary.
-	 *
-	 * For unknown reasons - possibly a hardware error - the BCM4311 rev
-	 * 02, which uses 64-bit DMA, needs the ring buffer in very low memory,
-	 * which accounts for the GFP_DMA flag below.
-	 *
-	 * The flags here must match the flags in free_ringmemory below!
+	 * alignment and 8K buffers for 64-bit DMA with 8K alignment.
+	 * In practice we could use smaller buffers for the latter, but the
+	 * alignment is really important because of the hardware bug. If bit
+	 * 0x00001000 is used in DMA address, some hardware (like BCM4331)
+	 * copies that bit into B43_DMA64_RXSTATUS and we get false values from
+	 * B43_DMA64_RXSTATDPTR. Let's just use 8K buffers even if we don't use
+	 * more than 256 slots for ring.
 	 */
-	if (ring->type == B43_DMA_64BIT)
-		flags |= GFP_DMA;
-	ring->descbase = dma_alloc_coherent(ring->dev->sdev->dma_dev,
-					    B43_DMA_RINGMEMSIZE,
-					    &(ring->dmabase), flags);
+	u16 ring_mem_size = (ring->type == B43_DMA_64BIT) ?
+				B43_DMA64_RINGMEMSIZE : B43_DMA32_RINGMEMSIZE;
+
+	ring->descbase = dma_alloc_coherent(ring->dev->dev->dma_dev,
+					    ring_mem_size, &(ring->dmabase),
+					    flags);
 	if (!ring->descbase) {
 		b43err(ring->dev->wl, "DMA ringmemory allocation failed\n");
 		return -ENOMEM;
 	}
-	memset(ring->descbase, 0, B43_DMA_RINGMEMSIZE);
+	memset(ring->descbase, 0, ring_mem_size);
 
 	return 0;
 }
 
 static void free_ringmemory(struct b43_dmaring *ring)
 {
-	dma_free_coherent(ring->dev->sdev->dma_dev, B43_DMA_RINGMEMSIZE,
+	u16 ring_mem_size = (ring->type == B43_DMA_64BIT) ?
+				B43_DMA64_RINGMEMSIZE : B43_DMA32_RINGMEMSIZE;
+	dma_free_coherent(ring->dev->dev->dma_dev, ring_mem_size,
 			  ring->descbase, ring->dmabase);
 }
 
@@ -523,7 +554,7 @@ static bool b43_dma_mapping_error(struct b43_dmaring *ring,
 				  dma_addr_t addr,
 				  size_t buffersize, bool dma_to_device)
 {
-	if (unlikely(dma_mapping_error(ring->dev->sdev->dma_dev, addr)))
+	if (unlikely(dma_mapping_error(ring->dev->dev->dma_dev, addr)))
 		return 1;
 
 	switch (ring->type) {
@@ -658,36 +689,37 @@ static int dmacontroller_setup(struct b43_dmaring *ring)
 	int err = 0;
 	u32 value;
 	u32 addrext;
-	u32 trans = ring->dev->dma.translation;
+	bool parity = ring->dev->dma.parity;
+	u32 addrlo;
+	u32 addrhi;
 
 	if (ring->tx) {
 		if (ring->type == B43_DMA_64BIT) {
 			u64 ringbase = (u64) (ring->dmabase);
+			addrext = b43_dma_address(&ring->dev->dma, ringbase, B43_DMA_ADDR_EXT);
+			addrlo = b43_dma_address(&ring->dev->dma, ringbase, B43_DMA_ADDR_LOW);
+			addrhi = b43_dma_address(&ring->dev->dma, ringbase, B43_DMA_ADDR_HIGH);
 
-			addrext = ((ringbase >> 32) & SSB_DMA_TRANSLATION_MASK)
-			    >> SSB_DMA_TRANSLATION_SHIFT;
 			value = B43_DMA64_TXENABLE;
 			value |= (addrext << B43_DMA64_TXADDREXT_SHIFT)
 			    & B43_DMA64_TXADDREXT_MASK;
+			if (!parity)
+				value |= B43_DMA64_TXPARITYDISABLE;
 			b43_dma_write(ring, B43_DMA64_TXCTL, value);
-			b43_dma_write(ring, B43_DMA64_TXRINGLO,
-				      (ringbase & 0xFFFFFFFF));
-			b43_dma_write(ring, B43_DMA64_TXRINGHI,
-				      ((ringbase >> 32) &
-				       ~SSB_DMA_TRANSLATION_MASK)
-				      | (trans << 1));
+			b43_dma_write(ring, B43_DMA64_TXRINGLO, addrlo);
+			b43_dma_write(ring, B43_DMA64_TXRINGHI, addrhi);
 		} else {
 			u32 ringbase = (u32) (ring->dmabase);
+			addrext = b43_dma_address(&ring->dev->dma, ringbase, B43_DMA_ADDR_EXT);
+			addrlo = b43_dma_address(&ring->dev->dma, ringbase, B43_DMA_ADDR_LOW);
 
-			addrext = (ringbase & SSB_DMA_TRANSLATION_MASK)
-			    >> SSB_DMA_TRANSLATION_SHIFT;
 			value = B43_DMA32_TXENABLE;
 			value |= (addrext << B43_DMA32_TXADDREXT_SHIFT)
 			    & B43_DMA32_TXADDREXT_MASK;
+			if (!parity)
+				value |= B43_DMA32_TXPARITYDISABLE;
 			b43_dma_write(ring, B43_DMA32_TXCTL, value);
-			b43_dma_write(ring, B43_DMA32_TXRING,
-				      (ringbase & ~SSB_DMA_TRANSLATION_MASK)
-				      | trans);
+			b43_dma_write(ring, B43_DMA32_TXRING, addrlo);
 		}
 	} else {
 		err = alloc_initial_descbuffers(ring);
@@ -695,35 +727,34 @@ static int dmacontroller_setup(struct b43_dmaring *ring)
 			goto out;
 		if (ring->type == B43_DMA_64BIT) {
 			u64 ringbase = (u64) (ring->dmabase);
+			addrext = b43_dma_address(&ring->dev->dma, ringbase, B43_DMA_ADDR_EXT);
+			addrlo = b43_dma_address(&ring->dev->dma, ringbase, B43_DMA_ADDR_LOW);
+			addrhi = b43_dma_address(&ring->dev->dma, ringbase, B43_DMA_ADDR_HIGH);
 
-			addrext = ((ringbase >> 32) & SSB_DMA_TRANSLATION_MASK)
-			    >> SSB_DMA_TRANSLATION_SHIFT;
 			value = (ring->frameoffset << B43_DMA64_RXFROFF_SHIFT);
 			value |= B43_DMA64_RXENABLE;
 			value |= (addrext << B43_DMA64_RXADDREXT_SHIFT)
 			    & B43_DMA64_RXADDREXT_MASK;
+			if (!parity)
+				value |= B43_DMA64_RXPARITYDISABLE;
 			b43_dma_write(ring, B43_DMA64_RXCTL, value);
-			b43_dma_write(ring, B43_DMA64_RXRINGLO,
-				      (ringbase & 0xFFFFFFFF));
-			b43_dma_write(ring, B43_DMA64_RXRINGHI,
-				      ((ringbase >> 32) &
-				       ~SSB_DMA_TRANSLATION_MASK)
-				      | (trans << 1));
+			b43_dma_write(ring, B43_DMA64_RXRINGLO, addrlo);
+			b43_dma_write(ring, B43_DMA64_RXRINGHI, addrhi);
 			b43_dma_write(ring, B43_DMA64_RXINDEX, ring->nr_slots *
 				      sizeof(struct b43_dmadesc64));
 		} else {
 			u32 ringbase = (u32) (ring->dmabase);
+			addrext = b43_dma_address(&ring->dev->dma, ringbase, B43_DMA_ADDR_EXT);
+			addrlo = b43_dma_address(&ring->dev->dma, ringbase, B43_DMA_ADDR_LOW);
 
-			addrext = (ringbase & SSB_DMA_TRANSLATION_MASK)
-			    >> SSB_DMA_TRANSLATION_SHIFT;
 			value = (ring->frameoffset << B43_DMA32_RXFROFF_SHIFT);
 			value |= B43_DMA32_RXENABLE;
 			value |= (addrext << B43_DMA32_RXADDREXT_SHIFT)
 			    & B43_DMA32_RXADDREXT_MASK;
+			if (!parity)
+				value |= B43_DMA32_RXPARITYDISABLE;
 			b43_dma_write(ring, B43_DMA32_RXCTL, value);
-			b43_dma_write(ring, B43_DMA32_RXRING,
-				      (ringbase & ~SSB_DMA_TRANSLATION_MASK)
-				      | trans);
+			b43_dma_write(ring, B43_DMA32_RXRING, addrlo);
 			b43_dma_write(ring, B43_DMA32_RXINDEX, ring->nr_slots *
 				      sizeof(struct b43_dmadesc32));
 		}
@@ -757,14 +788,14 @@ static void dmacontroller_cleanup(struct b43_dmaring *ring)
 
 static void free_all_descbuffers(struct b43_dmaring *ring)
 {
-	struct b43_dmadesc_generic *desc;
 	struct b43_dmadesc_meta *meta;
 	int i;
 
 	if (!ring->used_slots)
 		return;
 	for (i = 0; i < ring->nr_slots; i++) {
-		desc = ring->ops->idx2desc(ring, i, &meta);
+		/* get meta - ignore returned value */
+		ring->ops->idx2desc(ring, i, &meta);
 
 		if (!meta->skb || b43_dma_ptr_is_poisoned(meta->skb)) {
 			B43_WARN_ON(!ring->tx);
@@ -786,9 +817,23 @@ static u64 supported_dma_mask(struct b43_wldev *dev)
 	u32 tmp;
 	u16 mmio_base;
 
-	tmp = b43_read32(dev, SSB_TMSHIGH);
-	if (tmp & SSB_TMSHIGH_DMA64)
-		return DMA_BIT_MASK(64);
+	switch (dev->dev->bus_type) {
+#ifdef CONFIG_B43_BCMA
+	case B43_BUS_BCMA:
+		tmp = bcma_aread32(dev->dev->bdev, BCMA_IOST);
+		if (tmp & BCMA_IOST_DMA64)
+			return DMA_BIT_MASK(64);
+		break;
+#endif
+#ifdef CONFIG_B43_SSB
+	case B43_BUS_SSB:
+		tmp = ssb_read32(dev->dev->sdev, SSB_TMSHIGH);
+		if (tmp & SSB_TMSHIGH_DMA64)
+			return DMA_BIT_MASK(64);
+		break;
+#endif
+	}
+
 	mmio_base = b43_dmacontroller_base(0, 0);
 	b43_write32(dev, mmio_base + B43_DMA32_TXCTL, B43_DMA32_TXADDREXT_MASK);
 	tmp = b43_read32(dev, mmio_base + B43_DMA32_TXCTL);
@@ -849,8 +894,17 @@ struct b43_dmaring *b43_setup_dmaring(struct b43_wldev *dev,
 		ring->current_slot = -1;
 	} else {
 		if (ring->index == 0) {
-			ring->rx_buffersize = B43_DMA0_RX_BUFFERSIZE;
-			ring->frameoffset = B43_DMA0_RX_FRAMEOFFSET;
+			switch (dev->fw.hdr_format) {
+			case B43_FW_HDR_598:
+				ring->rx_buffersize = B43_DMA0_RX_FW598_BUFSIZE;
+				ring->frameoffset = B43_DMA0_RX_FW598_FO;
+				break;
+			case B43_FW_HDR_410:
+			case B43_FW_HDR_351:
+				ring->rx_buffersize = B43_DMA0_RX_FW351_BUFSIZE;
+				ring->frameoffset = B43_DMA0_RX_FW351_FO;
+				break;
+			}
 		} else
 			B43_WARN_ON(1);
 	}
@@ -869,7 +923,7 @@ struct b43_dmaring *b43_setup_dmaring(struct b43_wldev *dev,
 			goto err_kfree_meta;
 
 		/* test for ability to dma to txhdr_cache */
-		dma_test = dma_map_single(dev->sdev->dma_dev,
+		dma_test = dma_map_single(dev->dev->dma_dev,
 					  ring->txhdr_cache,
 					  b43_txhdr_size(dev),
 					  DMA_TO_DEVICE);
@@ -884,7 +938,7 @@ struct b43_dmaring *b43_setup_dmaring(struct b43_wldev *dev,
 			if (!ring->txhdr_cache)
 				goto err_kfree_meta;
 
-			dma_test = dma_map_single(dev->sdev->dma_dev,
+			dma_test = dma_map_single(dev->dev->dma_dev,
 						  ring->txhdr_cache,
 						  b43_txhdr_size(dev),
 						  DMA_TO_DEVICE);
@@ -898,7 +952,7 @@ struct b43_dmaring *b43_setup_dmaring(struct b43_wldev *dev,
 			}
 		}
 
-		dma_unmap_single(dev->sdev->dma_dev,
+		dma_unmap_single(dev->dev->dma_dev,
 				 dma_test, b43_txhdr_size(dev),
 				 DMA_TO_DEVICE);
 	}
@@ -1013,9 +1067,9 @@ static int b43_dma_set_mask(struct b43_wldev *dev, u64 mask)
 	/* Try to set the DMA mask. If it fails, try falling back to a
 	 * lower mask, as we can always also support a lower one. */
 	while (1) {
-		err = dma_set_mask(dev->sdev->dma_dev, mask);
+		err = dma_set_mask(dev->dev->dma_dev, mask);
 		if (!err) {
-			err = dma_set_coherent_mask(dev->sdev->dma_dev, mask);
+			err = dma_set_coherent_mask(dev->dev->dma_dev, mask);
 			if (!err)
 				break;
 		}
@@ -1043,6 +1097,25 @@ static int b43_dma_set_mask(struct b43_wldev *dev, u64 mask)
 	return 0;
 }
 
+/* Some hardware with 64-bit DMA seems to be bugged and looks for translation
+ * bit in low address word instead of high one.
+ */
+static bool b43_dma_translation_in_low_word(struct b43_wldev *dev,
+					    enum b43_dmatype type)
+{
+	if (type != B43_DMA_64BIT)
+		return 1;
+
+#ifdef CONFIG_B43_SSB
+	if (dev->dev->bus_type == B43_BUS_SSB &&
+	    dev->dev->sdev->bus->bustype == SSB_BUSTYPE_PCI &&
+	    !(dev->dev->sdev->bus->host_pci->is_pcie &&
+	      ssb_read32(dev->dev->sdev, SSB_TMSHIGH) & SSB_TMSHIGH_DMA64))
+			return 1;
+#endif
+	return 0;
+}
+
 int b43_dma_init(struct b43_wldev *dev)
 {
 	struct b43_dma *dma = &dev->dma;
@@ -1055,7 +1128,27 @@ int b43_dma_init(struct b43_wldev *dev)
 	err = b43_dma_set_mask(dev, dmamask);
 	if (err)
 		return err;
-	dma->translation = ssb_dma_translation(dev->sdev);
+
+	switch (dev->dev->bus_type) {
+#ifdef CONFIG_B43_BCMA
+	case B43_BUS_BCMA:
+		dma->translation = bcma_core_dma_translation(dev->dev->bdev);
+		break;
+#endif
+#ifdef CONFIG_B43_SSB
+	case B43_BUS_SSB:
+		dma->translation = ssb_dma_translation(dev->dev->sdev);
+		break;
+#endif
+	}
+	dma->translation_in_low = b43_dma_translation_in_low_word(dev, type);
+
+	dma->parity = true;
+#ifdef CONFIG_B43_BCMA
+	/* TODO: find out which SSB devices need disabling parity */
+	if (dev->dev->bus_type == B43_BUS_BCMA)
+		dma->parity = false;
+#endif
 
 	err = -ENOMEM;
 	/* setup TX DMA channels. */
@@ -1085,7 +1178,7 @@ int b43_dma_init(struct b43_wldev *dev)
 		goto err_destroy_mcast;
 
 	/* No support for the TX status DMA ring. */
-	B43_WARN_ON(dev->sdev->id.revision < 5);
+	B43_WARN_ON(dev->dev->core_rev < 5);
 
 	b43dbg(dev->wl, "%u-bit DMA initialized\n",
 	       (unsigned int)type);
@@ -1388,7 +1481,6 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 {
 	const struct b43_dma_ops *ops;
 	struct b43_dmaring *ring;
-	struct b43_dmadesc_generic *desc;
 	struct b43_dmadesc_meta *meta;
 	int slot, firstused;
 	bool frame_succeed;
@@ -1416,7 +1508,8 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 	ops = ring->ops;
 	while (1) {
 		B43_WARN_ON(slot < 0 || slot >= ring->nr_slots);
-		desc = ops->idx2desc(ring, slot, &meta);
+		/* get meta - ignore returned value */
+		ops->idx2desc(ring, slot, &meta);
 
 		if (b43_dma_ptr_is_poisoned(meta->skb)) {
 			b43dbg(dev->wl, "Poisoned TX slot %d (first=%d) "
@@ -1600,6 +1693,7 @@ void b43_dma_rx(struct b43_dmaring *ring)
 		dma_rx(ring, &slot);
 		update_max_used_slots(ring, ++used_slots);
 	}
+	wmb();
 	ops->set_current_rxslot(ring, slot);
 	ring->current_slot = slot;
 }

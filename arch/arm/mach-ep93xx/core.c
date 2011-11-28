@@ -33,11 +33,13 @@
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
 #include <linux/spi/spi.h>
+#include <linux/export.h>
 
 #include <mach/hardware.h>
 #include <mach/fb.h>
 #include <mach/ep93xx_keypad.h>
 #include <mach/ep93xx_spi.h>
+#include <mach/gpio-ep93xx.h>
 
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
@@ -174,14 +176,10 @@ struct sys_timer ep93xx_timer = {
 /*************************************************************************
  * EP93xx IRQ handling
  *************************************************************************/
-extern void ep93xx_gpio_init_irq(void);
-
 void __init ep93xx_init_irq(void)
 {
 	vic_init(EP93XX_VIC1_BASE, 0, EP93XX_VIC1_VALID_IRQ_MASK, 0);
 	vic_init(EP93XX_VIC2_BASE, 32, EP93XX_VIC2_VALID_IRQ_MASK, 0);
-
-	ep93xx_gpio_init_irq();
 }
 
 
@@ -239,6 +237,24 @@ unsigned int ep93xx_chip_revision(void)
 	v >>= EP93XX_SYSCON_SYSCFG_REV_SHIFT;
 	return v;
 }
+
+/*************************************************************************
+ * EP93xx GPIO
+ *************************************************************************/
+static struct resource ep93xx_gpio_resource[] = {
+	{
+		.start		= EP93XX_GPIO_PHYS_BASE,
+		.end		= EP93XX_GPIO_PHYS_BASE + 0xcc - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device ep93xx_gpio_device = {
+	.name		= "gpio-ep93xx",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(ep93xx_gpio_resource),
+	.resource	= ep93xx_gpio_resource,
+};
 
 /*************************************************************************
  * EP93xx peripheral handling
@@ -492,11 +508,15 @@ static struct resource ep93xx_spi_resources[] = {
 	},
 };
 
+static u64 ep93xx_spi_dma_mask = DMA_BIT_MASK(32);
+
 static struct platform_device ep93xx_spi_device = {
 	.name		= "ep93xx-spi",
 	.id		= 0,
 	.dev		= {
-		.platform_data = &ep93xx_spi_master_data,
+		.platform_data		= &ep93xx_spi_master_data,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.dma_mask		= &ep93xx_spi_dma_mask,
 	},
 	.num_resources	= ARRAY_SIZE(ep93xx_spi_resources),
 	.resource	= ep93xx_spi_resources,
@@ -870,14 +890,13 @@ void __init ep93xx_register_ac97(void)
 	platform_device_register(&ep93xx_pcm_device);
 }
 
-extern void ep93xx_gpio_init(void);
-
 void __init ep93xx_init_devices(void)
 {
 	/* Disallow access to MaverickCrunch initially */
 	ep93xx_devcfg_clear_bits(EP93XX_SYSCON_DEVCFG_CPENA);
 
-	ep93xx_gpio_init();
+	/* Get the GPIO working early, other devices need it */
+	platform_device_register(&ep93xx_gpio_device);
 
 	amba_device_register(&uart1_device, &iomem_resource);
 	amba_device_register(&uart2_device, &iomem_resource);

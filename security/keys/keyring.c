@@ -155,7 +155,6 @@ static void keyring_destroy(struct key *keyring)
 	}
 
 	klist = rcu_dereference_check(keyring->payload.subscriptions,
-				      rcu_read_lock_held() ||
 				      atomic_read(&keyring->usage) == 0);
 	if (klist) {
 		for (loop = klist->nkeys - 1; loop >= 0; loop--)
@@ -861,8 +860,7 @@ void __key_link(struct key *keyring, struct key *key,
 
 	kenter("%d,%d,%p", keyring->serial, key->serial, nklist);
 
-	klist = rcu_dereference_protected(keyring->payload.subscriptions,
-					  rwsem_is_locked(&keyring->sem));
+	klist = rcu_dereference_locked_keyring(keyring);
 
 	atomic_inc(&key->usage);
 

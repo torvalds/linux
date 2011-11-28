@@ -16,6 +16,7 @@
  * initialization stuff for PXA machines which can be overridden later if
  * need be.
  */
+#include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -23,11 +24,12 @@
 #include <linux/suspend.h>
 #include <linux/syscore_ops.h>
 #include <linux/irq.h>
+#include <linux/gpio.h>
 
 #include <asm/mach/map.h>
+#include <asm/suspend.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
-#include <mach/gpio.h>
 #include <mach/pxa25x.h>
 #include <mach/reset.h>
 #include <mach/pm.h>
@@ -244,7 +246,7 @@ static void pxa25x_cpu_pm_enter(suspend_state_t state)
 
 	switch (state) {
 	case PM_SUSPEND_MEM:
-		pxa25x_cpu_suspend(PWRMODE_SLEEP, PLAT_PHYS_OFFSET - PAGE_OFFSET);
+		cpu_suspend(PWRMODE_SLEEP, pxa25x_finish_suspend);
 		break;
 	}
 }
@@ -323,7 +325,7 @@ void __init pxa26x_init_irq(void)
 
 static struct map_desc pxa25x_io_desc[] __initdata = {
 	{	/* Mem Ctl */
-		.virtual	= SMEMC_VIRT,
+		.virtual	= (unsigned long)SMEMC_VIRT,
 		.pfn		= __phys_to_pfn(PXA2XX_SMEMC_BASE),
 		.length		= 0x00200000,
 		.type		= MT_DEVICE

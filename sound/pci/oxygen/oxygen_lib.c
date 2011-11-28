@@ -22,6 +22,7 @@
 #include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <sound/ac97_codec.h>
 #include <sound/asoundef.h>
 #include <sound/core.h>
@@ -655,7 +656,7 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	chip->model.init(chip);
 
 	err = request_irq(pci->irq, oxygen_interrupt, IRQF_SHARED,
-			  DRIVER, chip);
+			  KBUILD_MODNAME, chip);
 	if (err < 0) {
 		snd_printk(KERN_ERR "cannot grab interrupt %d\n", pci->irq);
 		goto err_card;
@@ -678,15 +679,15 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 		goto err_card;
 
 	if (chip->model.device_config & (MIDI_OUTPUT | MIDI_INPUT)) {
-		unsigned int info_flags = MPU401_INFO_INTEGRATED;
+		unsigned int info_flags =
+				MPU401_INFO_INTEGRATED | MPU401_INFO_IRQ_HOOK;
 		if (chip->model.device_config & MIDI_OUTPUT)
 			info_flags |= MPU401_INFO_OUTPUT;
 		if (chip->model.device_config & MIDI_INPUT)
 			info_flags |= MPU401_INFO_INPUT;
 		err = snd_mpu401_uart_new(card, 0, MPU401_HW_CMIPCI,
 					  chip->addr + OXYGEN_MPU401,
-					  info_flags, 0, 0,
-					  &chip->midi);
+					  info_flags, -1, &chip->midi);
 		if (err < 0)
 			goto err_card;
 	}

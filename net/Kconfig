@@ -322,6 +322,7 @@ source "net/rfkill/Kconfig"
 source "net/9p/Kconfig"
 source "net/caif/Kconfig"
 source "net/ceph/Kconfig"
+source "net/nfc/Kconfig"
 
 
 endif   # if NET

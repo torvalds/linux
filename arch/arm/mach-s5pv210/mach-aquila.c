@@ -29,7 +29,6 @@
 
 #include <mach/map.h>
 #include <mach/regs-clock.h>
-#include <mach/regs-fb.h>
 
 #include <plat/gpio-cfg.h>
 #include <plat/regs-serial.h>
@@ -40,6 +39,7 @@
 #include <plat/fimc-core.h>
 #include <plat/sdhci.h>
 #include <plat/s5p-time.h>
+#include <plat/regs-fb-v4.h>
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define AQUILA_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
@@ -678,7 +678,7 @@ MACHINE_START(AQUILA, "Aquila")
 	/* Maintainers:
 	   Marek Szyprowski <m.szyprowski@samsung.com>
 	   Kyungmin Park <kyungmin.park@samsung.com> */
-	.boot_params	= S5P_PA_SDRAM + 0x100,
+	.atag_offset	= 0x100,
 	.init_irq	= s5pv210_init_irq,
 	.map_io		= aquila_map_io,
 	.init_machine	= aquila_machine_init,

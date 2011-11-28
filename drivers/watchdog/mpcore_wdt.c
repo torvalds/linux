@@ -367,8 +367,7 @@ static int __devinit mpcore_wdt_probe(struct platform_device *dev)
 		goto err_misc;
 	}
 
-	ret = request_irq(wdt->irq, mpcore_wdt_fire, IRQF_DISABLED,
-							"mpcore_wdt", wdt);
+	ret = request_irq(wdt->irq, mpcore_wdt_fire, 0, "mpcore_wdt", wdt);
 	if (ret) {
 		dev_printk(KERN_ERR, wdt->dev,
 			"cannot register IRQ%d for watchdog\n", wdt->irq);
@@ -407,12 +406,35 @@ static int __devexit mpcore_wdt_remove(struct platform_device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int mpcore_wdt_suspend(struct platform_device *dev, pm_message_t msg)
+{
+	struct mpcore_wdt *wdt = platform_get_drvdata(dev);
+	mpcore_wdt_stop(wdt);		/* Turn the WDT off */
+	return 0;
+}
+
+static int mpcore_wdt_resume(struct platform_device *dev)
+{
+	struct mpcore_wdt *wdt = platform_get_drvdata(dev);
+	/* re-activate timer */
+	if (test_bit(0, &wdt->timer_alive))
+		mpcore_wdt_start(wdt);
+	return 0;
+}
+#else
+#define mpcore_wdt_suspend	NULL
+#define mpcore_wdt_resume	NULL
+#endif
+
 /* work with hotplug and coldplug */
 MODULE_ALIAS("platform:mpcore_wdt");
 
 static struct platform_driver mpcore_wdt_driver = {
 	.probe		= mpcore_wdt_probe,
 	.remove		= __devexit_p(mpcore_wdt_remove),
+	.suspend	= mpcore_wdt_suspend,
+	.resume		= mpcore_wdt_resume,
 	.shutdown	= mpcore_wdt_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,

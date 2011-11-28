@@ -11,6 +11,7 @@
 #include <linux/platform_device.h>
 #include <linux/uio_driver.h>
 #include <linux/stringify.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 
 #define DRIVER_NAME "uio_pdrv"
@@ -58,7 +59,7 @@ static int uio_pdrv_probe(struct platform_device *pdev)
 
 		uiomem->memtype = UIO_MEM_PHYS;
 		uiomem->addr = r->start;
-		uiomem->size = r->end - r->start + 1;
+		uiomem->size = resource_size(r);
 		++uiomem;
 	}
 

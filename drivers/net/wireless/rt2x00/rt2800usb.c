@@ -457,6 +457,96 @@ static int rt2800usb_get_tx_data_len(struct queue_entry *entry)
 /*
  * TX control handlers
  */
+static bool rt2800usb_txdone_entry_check(struct queue_entry *entry, u32 reg)
+{
+	__le32 *txwi;
+	u32 word;
+	int wcid, ack, pid;
+	int tx_wcid, tx_ack, tx_pid;
+
+	if (test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags) ||
+	    !test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags)) {
+		WARNING(entry->queue->rt2x00dev,
+			"Data pending for entry %u in queue %u\n",
+			entry->entry_idx, entry->queue->qid);
+		cond_resched();
+		return false;
+	}
+
+	wcid	= rt2x00_get_field32(reg, TX_STA_FIFO_WCID);
+	ack	= rt2x00_get_field32(reg, TX_STA_FIFO_TX_ACK_REQUIRED);
+	pid	= rt2x00_get_field32(reg, TX_STA_FIFO_PID_TYPE);
+
+	/*
+	 * This frames has returned with an IO error,
+	 * so the status report is not intended for this
+	 * frame.
+	 */
+	if (test_bit(ENTRY_DATA_IO_FAILED, &entry->flags)) {
+		rt2x00lib_txdone_noinfo(entry, TXDONE_FAILURE);
+		return false;
+	}
+
+	/*
+	 * Validate if this TX status report is intended for
+	 * this entry by comparing the WCID/ACK/PID fields.
+	 */
+	txwi = rt2800usb_get_txwi(entry);
+
+	rt2x00_desc_read(txwi, 1, &word);
+	tx_wcid = rt2x00_get_field32(word, TXWI_W1_WIRELESS_CLI_ID);
+	tx_ack  = rt2x00_get_field32(word, TXWI_W1_ACK);
+	tx_pid  = rt2x00_get_field32(word, TXWI_W1_PACKETID);
+
+	if ((wcid != tx_wcid) || (ack != tx_ack) || (pid != tx_pid)) {
+		WARNING(entry->queue->rt2x00dev,
+			"TX status report missed for queue %d entry %d\n",
+		entry->queue->qid, entry->entry_idx);
+		rt2x00lib_txdone_noinfo(entry, TXDONE_UNKNOWN);
+		return false;
+	}
+
+	return true;
+}
+
+static void rt2800usb_txdone(struct rt2x00_dev *rt2x00dev)
+{
+	struct data_queue *queue;
+	struct queue_entry *entry;
+	u32 reg;
+	u8 qid;
+
+	while (kfifo_get(&rt2x00dev->txstatus_fifo, &reg)) {
+
+		/* TX_STA_FIFO_PID_QUEUE is a 2-bit field, thus
+		 * qid is guaranteed to be one of the TX QIDs
+		 */
+		qid = rt2x00_get_field32(reg, TX_STA_FIFO_PID_QUEUE);
+		queue = rt2x00queue_get_tx_queue(rt2x00dev, qid);
+		if (unlikely(!queue)) {
+			WARNING(rt2x00dev, "Got TX status for an unavailable "
+					   "queue %u, dropping\n", qid);
+			continue;
+		}
+
+		/*
+		 * Inside each queue, we process each entry in a chronological
+		 * order. We first check that the queue is not empty.
+		 */
+		entry = NULL;
+		while (!rt2x00queue_empty(queue)) {
+			entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
+			if (rt2800usb_txdone_entry_check(entry, reg))
+				break;
+			entry = NULL;
+		}
+
+		if (entry)
+			rt2800_txdone_entry(entry, reg,
+					    rt2800usb_get_txwi(entry));
+	}
+}
+
 static void rt2800usb_work_txdone(struct work_struct *work)
 {
 	struct rt2x00_dev *rt2x00dev =
@@ -464,7 +554,7 @@ static void rt2800usb_work_txdone(struct work_struct *work)
 	struct data_queue *queue;
 	struct queue_entry *entry;
 
-	rt2800_txdone(rt2x00dev);
+	rt2800usb_txdone(rt2x00dev);
 
 	/*
 	 * Process any trailing TX status reports for IO failures,
@@ -477,8 +567,10 @@ static void rt2800usb_work_txdone(struct work_struct *work)
 		while (!rt2x00queue_empty(queue)) {
 			entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
 
-			if (test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
+			if (test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags) ||
+			    !test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags))
 				break;
+
 			if (test_bit(ENTRY_DATA_IO_FAILED, &entry->flags))
 				rt2x00lib_txdone_noinfo(entry, TXDONE_FAILURE);
 			else if (rt2x00queue_status_timeout(entry))
@@ -668,6 +760,8 @@ static const struct ieee80211_ops rt2800usb_mac80211_ops = {
 	.get_stats		= rt2x00mac_get_stats,
 	.get_tkip_seq		= rt2800_get_tkip_seq,
 	.set_rts_threshold	= rt2800_set_rts_threshold,
+	.sta_add		= rt2x00mac_sta_add,
+	.sta_remove		= rt2x00mac_sta_remove,
 	.bss_info_changed	= rt2x00mac_bss_info_changed,
 	.conf_tx		= rt2800_conf_tx,
 	.get_tsf		= rt2800_get_tsf,
@@ -676,6 +770,7 @@ static const struct ieee80211_ops rt2800usb_mac80211_ops = {
 	.flush			= rt2x00mac_flush,
 	.get_survey		= rt2800_get_survey,
 	.get_ringparam		= rt2x00mac_get_ringparam,
+	.tx_frames_pending	= rt2x00mac_tx_frames_pending,
 };
 
 static const struct rt2800_ops rt2800usb_rt2800_ops = {
@@ -724,6 +819,8 @@ static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 	.config_erp		= rt2800_config_erp,
 	.config_ant		= rt2800_config_ant,
 	.config			= rt2800_config,
+	.sta_add		= rt2800_sta_add,
+	.sta_remove		= rt2800_sta_remove,
 };
 
 static const struct data_queue_desc rt2800usb_queue_rx = {
@@ -822,6 +919,7 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x050d, 0x935b) },
 	/* Buffalo */
 	{ USB_DEVICE(0x0411, 0x00e8) },
+	{ USB_DEVICE(0x0411, 0x0158) },
 	{ USB_DEVICE(0x0411, 0x016f) },
 	{ USB_DEVICE(0x0411, 0x01a2) },
 	/* Corega */
@@ -839,6 +937,8 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x07d1, 0x3c16) },
 	/* Draytek */
 	{ USB_DEVICE(0x07fa, 0x7712) },
+	/* DVICO */
+	{ USB_DEVICE(0x0fe9, 0xb307) },
 	/* Edimax */
 	{ USB_DEVICE(0x7392, 0x7711) },
 	{ USB_DEVICE(0x7392, 0x7717) },
@@ -939,6 +1039,7 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x0df6, 0x0048) },
 	{ USB_DEVICE(0x0df6, 0x0051) },
 	{ USB_DEVICE(0x0df6, 0x005f) },
+	{ USB_DEVICE(0x0df6, 0x0060) },
 	/* SMC */
 	{ USB_DEVICE(0x083a, 0x6618) },
 	{ USB_DEVICE(0x083a, 0x7511) },
@@ -971,6 +1072,8 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x0586, 0x341e) },
 	{ USB_DEVICE(0x0586, 0x343e) },
 #ifdef CONFIG_RT2800USB_RT33XX
+	/* Belkin */
+	{ USB_DEVICE(0x050d, 0x945b) },
 	/* Ralink */
 	{ USB_DEVICE(0x148f, 0x3370) },
 	{ USB_DEVICE(0x148f, 0x8070) },
@@ -995,6 +1098,7 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x148f, 0x3572) },
 	/* Sitecom */
 	{ USB_DEVICE(0x0df6, 0x0041) },
+	{ USB_DEVICE(0x0df6, 0x0062) },
 	/* Toshiba */
 	{ USB_DEVICE(0x0930, 0x0a07) },
 	/* Zinwell */
@@ -1093,8 +1197,6 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x0df6, 0x004a) },
 	{ USB_DEVICE(0x0df6, 0x004d) },
 	{ USB_DEVICE(0x0df6, 0x0053) },
-	{ USB_DEVICE(0x0df6, 0x0060) },
-	{ USB_DEVICE(0x0df6, 0x0062) },
 	/* SMC */
 	{ USB_DEVICE(0x083a, 0xa512) },
 	{ USB_DEVICE(0x083a, 0xc522) },

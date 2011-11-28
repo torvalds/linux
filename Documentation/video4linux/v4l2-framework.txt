@@ -817,11 +817,7 @@ int my_open(struct file *file)
 
 	...
 
-	ret = v4l2_fh_init(&my_fh->fh, vfd);
-	if (ret) {
-		kfree(my_fh);
-		return ret;
-	}
+	v4l2_fh_init(&my_fh->fh, vfd);
 
 	...
 
@@ -844,7 +840,7 @@ int my_release(struct file *file)
 
 Below is a short description of the v4l2_fh functions used:
 
-int v4l2_fh_init(struct v4l2_fh *fh, struct video_device *vdev)
+void v4l2_fh_init(struct v4l2_fh *fh, struct video_device *vdev)
 
   Initialise the file handle. This *MUST* be performed in the driver's
   v4l2_file_operations->open() handler.
@@ -901,14 +897,38 @@ V4L2 events
 The V4L2 events provide a generic way to pass events to user space.
 The driver must use v4l2_fh to be able to support V4L2 events.
 
+Events are defined by a type and an optional ID. The ID may refer to a V4L2
+object such as a control ID. If unused, then the ID is 0.
+
+When the user subscribes to an event the driver will allocate a number of
+kevent structs for that event. So every (type, ID) event tuple will have
+its own set of kevent structs. This guarantees that if a driver is generating
+lots of events of one type in a short time, then that will not overwrite
+events of another type.
+
+But if you get more events of one type than the number of kevents that were
+reserved, then the oldest event will be dropped and the new one added.
+
+Furthermore, the internal struct v4l2_subscribed_event has merge() and
+replace() callbacks which drivers can set. These callbacks are called when
+a new event is raised and there is no more room. The replace() callback
+allows you to replace the payload of the old event with that of the new event,
+merging any relevant data from the old payload into the new payload that
+replaces it. It is called when this event type has only one kevent struct
+allocated. The merge() callback allows you to merge the oldest event payload
+into that of the second-oldest event payload. It is called when there are two
+or more kevent structs allocated.
+
+This way no status information is lost, just the intermediate steps leading
+up to that state.
+
+A good example of these replace/merge callbacks is in v4l2-event.c:
+ctrls_replace() and ctrls_merge() callbacks for the control event.
+
+Note: these callbacks can be called from interrupt context, so they must be
+fast.
+
 Useful functions:
-
-- v4l2_event_alloc()
-
-  To use events, the driver must allocate events for the file handle. By
-  calling the function more than once, the driver may assure that at least n
-  events in total have been allocated. The function may not be called in
-  atomic context.
 
 - v4l2_event_queue()
 
@@ -920,7 +940,9 @@ Useful functions:
 
   The video_device->ioctl_ops->vidioc_subscribe_event must check the driver
   is able to produce events with specified event id. Then it calls
-  v4l2_event_subscribe() to subscribe the event.
+  v4l2_event_subscribe() to subscribe the event. The last argument is the
+  size of the event queue for this event. If it is 0, then the framework
+  will fill in a default value (this depends on the event type).
 
 - v4l2_event_unsubscribe()
 
@@ -935,14 +957,8 @@ Useful functions:
 
   Returns the number of pending events. Useful when implementing poll.
 
-Drivers do not initialise events directly. The events are initialised
-through v4l2_fh_init() if video_device->ioctl_ops->vidioc_subscribe_event is
-non-NULL. This *MUST* be performed in the driver's
-v4l2_file_operations->open() handler.
-
 Events are delivered to user space through the poll system call. The driver
-can use v4l2_fh->events->wait wait_queue_head_t as the argument for
-poll_wait().
+can use v4l2_fh->wait (a wait_queue_head_t) as the argument for poll_wait().
 
 There are standard and private events. New standard events must use the
 smallest available event type. The drivers must allocate their events from
@@ -952,5 +968,4 @@ The first event type in the class is reserved for future use, so the first
 available event type is 'class base + 1'.
 
 An example on how the V4L2 events may be used can be found in the OMAP
-3 ISP driver available at <URL:http://gitorious.org/omap3camera> as of
-writing this.
+3 ISP driver (drivers/media/video/omap3isp).

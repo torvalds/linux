@@ -63,6 +63,7 @@ enum {
 };
 
 static int pdc2027x_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
+static int pdc2027x_reinit_one(struct pci_dev *pdev);
 static int pdc2027x_prereset(struct ata_link *link, unsigned long deadline);
 static void pdc2027x_set_piomode(struct ata_port *ap, struct ata_device *adev);
 static void pdc2027x_set_dmamode(struct ata_port *ap, struct ata_device *adev);
@@ -126,6 +127,10 @@ static struct pci_driver pdc2027x_pci_driver = {
 	.id_table		= pdc2027x_pci_tbl,
 	.probe			= pdc2027x_init_one,
 	.remove			= ata_pci_remove_one,
+#ifdef CONFIG_PM
+	.suspend		= ata_pci_device_suspend,
+	.resume			= pdc2027x_reinit_one,
+#endif
 };
 
 static struct scsi_host_template pdc2027x_sht = {
@@ -655,7 +660,7 @@ static int pdc_hardware_init(struct ata_host *host, unsigned int board_idx)
 	 */
 	pll_clock = pdc_detect_pll_input_clock(host);
 
-	dev_printk(KERN_INFO, host->dev, "PLL input clock %ld kHz\n", pll_clock/1000);
+	dev_info(host->dev, "PLL input clock %ld kHz\n", pll_clock/1000);
 
 	/* Adjust PLL control register */
 	pdc_adjust_pll(host, pll_clock, board_idx);
@@ -697,7 +702,6 @@ static void pdc_ata_setup_port(struct ata_ioports *port, void __iomem *base)
  */
 static int __devinit pdc2027x_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	static int printed_version;
 	static const unsigned long cmd_offset[] = { 0x17c0, 0x15c0 };
 	static const unsigned long bmdma_offset[] = { 0x1000, 0x1008 };
 	unsigned int board_idx = (unsigned int) ent->driver_data;
@@ -707,8 +711,7 @@ static int __devinit pdc2027x_init_one(struct pci_dev *pdev, const struct pci_de
 	void __iomem *mmio_base;
 	int i, rc;
 
-	if (!printed_version++)
-		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
+	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
 	/* alloc host */
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi, 2);
@@ -755,6 +758,31 @@ static int __devinit pdc2027x_init_one(struct pci_dev *pdev, const struct pci_de
 	return ata_host_activate(host, pdev->irq, ata_bmdma_interrupt,
 				 IRQF_SHARED, &pdc2027x_sht);
 }
+
+#ifdef CONFIG_PM
+static int pdc2027x_reinit_one(struct pci_dev *pdev)
+{
+	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	unsigned int board_idx;
+	int rc;
+
+	rc = ata_pci_device_do_resume(pdev);
+	if (rc)
+		return rc;
+
+	if (pdev->device == PCI_DEVICE_ID_PROMISE_20268 ||
+	    pdev->device == PCI_DEVICE_ID_PROMISE_20270)
+		board_idx = PDC_UDMA_100;
+	else
+		board_idx = PDC_UDMA_133;
+
+	if (pdc_hardware_init(host, board_idx))
+		return -EIO;
+
+	ata_host_resume(host);
+	return 0;
+}
+#endif
 
 /**
  * pdc2027x_init - Called after this module is loaded into the kernel.

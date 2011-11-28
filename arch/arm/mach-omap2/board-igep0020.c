@@ -32,7 +32,7 @@
 #include <plat/gpmc.h>
 #include <plat/usb.h>
 #include <video/omapdss.h>
-#include <video/omap-panel-generic-dpi.h>
+#include <video/omap-panel-dvi.h>
 #include <plat/onenand.h>
 
 #include "mux.h"
@@ -222,8 +222,9 @@ static inline void __init igep2_init_smsc911x(void)
 static inline void __init igep2_init_smsc911x(void) { }
 #endif
 
-static struct regulator_consumer_supply igep_vmmc1_supply =
-	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0");
+static struct regulator_consumer_supply igep_vmmc1_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
+};
 
 /* VMMC1 for OMAP VDD_MMC1 (i/o) and MMC1 card */
 static struct regulator_init_data igep_vmmc1 = {
@@ -236,12 +237,13 @@ static struct regulator_init_data igep_vmmc1 = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies  = 1,
-	.consumer_supplies      = &igep_vmmc1_supply,
+	.num_consumer_supplies  = ARRAY_SIZE(igep_vmmc1_supply),
+	.consumer_supplies      = igep_vmmc1_supply,
 };
 
-static struct regulator_consumer_supply igep_vio_supply =
-	REGULATOR_SUPPLY("vmmc_aux", "omap_hsmmc.1");
+static struct regulator_consumer_supply igep_vio_supply[] = {
+	REGULATOR_SUPPLY("vmmc_aux", "omap_hsmmc.1"),
+};
 
 static struct regulator_init_data igep_vio = {
 	.constraints = {
@@ -254,20 +256,21 @@ static struct regulator_init_data igep_vio = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies  = 1,
-	.consumer_supplies      = &igep_vio_supply,
+	.num_consumer_supplies  = ARRAY_SIZE(igep_vio_supply),
+	.consumer_supplies      = igep_vio_supply,
 };
 
-static struct regulator_consumer_supply igep_vmmc2_supply =
-	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1");
+static struct regulator_consumer_supply igep_vmmc2_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1"),
+};
 
 static struct regulator_init_data igep_vmmc2 = {
 	.constraints		= {
 		.valid_modes_mask	= REGULATOR_MODE_NORMAL,
 		.always_on		= 1,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &igep_vmmc2_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(igep_vmmc2_supply),
+	.consumer_supplies	= igep_vmmc2_supply,
 };
 
 static struct fixed_voltage_config igep_vwlan = {
@@ -440,10 +443,6 @@ static struct twl4030_gpio_platform_data igep_twl4030_gpio_pdata = {
 	.setup		= igep_twl_gpio_setup,
 };
 
-static struct twl4030_usb_data igep_usb_data = {
-	.usb_mode	= T2_USB_MODE_ULPI,
-};
-
 static int igep2_enable_dvi(struct omap_dss_device *dssdev)
 {
 	gpio_direction_output(IGEP2_GPIO_DVI_PUP, 1);
@@ -456,16 +455,16 @@ static void igep2_disable_dvi(struct omap_dss_device *dssdev)
 	gpio_direction_output(IGEP2_GPIO_DVI_PUP, 0);
 }
 
-static struct panel_generic_dpi_data dvi_panel = {
-	.name			= "generic",
+static struct panel_dvi_platform_data dvi_panel = {
 	.platform_enable	= igep2_enable_dvi,
 	.platform_disable	= igep2_disable_dvi,
+	.i2c_bus_num = 3,
 };
 
 static struct omap_dss_device igep2_dvi_device = {
 	.type			= OMAP_DISPLAY_TYPE_DPI,
 	.name			= "dvi",
-	.driver_name		= "generic_dpi_panel",
+	.driver_name		= "dvi",
 	.data			= &dvi_panel,
 	.phy.dpi.data_lines	= 24,
 };
@@ -480,26 +479,6 @@ static struct omap_dss_board_info igep2_dss_data = {
 	.default_device	= &igep2_dvi_device,
 };
 
-static struct regulator_consumer_supply igep2_vpll2_supplies[] = {
-	REGULATOR_SUPPLY("vdds_dsi", "omapdss"),
-	REGULATOR_SUPPLY("vdds_dsi", "omapdss_dsi1"),
-};
-
-static struct regulator_init_data igep2_vpll2 = {
-	.constraints = {
-		.name			= "VDVI",
-		.min_uV			= 1800000,
-		.max_uV			= 1800000,
-		.apply_uV		= true,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask		= REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-	.num_consumer_supplies	= ARRAY_SIZE(igep2_vpll2_supplies),
-	.consumer_supplies	= igep2_vpll2_supplies,
-};
-
 static void __init igep2_display_init(void)
 {
 	int err = gpio_request_one(IGEP2_GPIO_DVI_PUP, GPIOF_OUT_INIT_HIGH,
@@ -510,20 +489,6 @@ static void __init igep2_display_init(void)
 
 static struct platform_device *igep_devices[] __initdata = {
 	&igep_vwlan_device,
-};
-
-static void __init igep_init_early(void)
-{
-	omap2_init_common_infrastructure();
-	omap2_init_common_devices(m65kxxxxam_sdrc_params,
-				  m65kxxxxam_sdrc_params);
-}
-
-static struct twl4030_codec_audio_data igep2_audio_data;
-
-static struct twl4030_codec_data igep2_codec_data = {
-	.audio_mclk = 26000000,
-	.audio = &igep2_audio_data,
 };
 
 static int igep2_keymap[] = {
@@ -558,11 +523,7 @@ static struct twl4030_keypad_data igep2_keypad_pdata = {
 };
 
 static struct twl4030_platform_data igep_twldata = {
-	.irq_base	= TWL4030_IRQ_BASE,
-	.irq_end	= TWL4030_IRQ_END,
-
 	/* platform_data for children goes here */
-	.usb		= &igep_usb_data,
 	.gpio		= &igep_twl4030_gpio_pdata,
 	.vmmc1          = &igep_vmmc1,
 	.vio		= &igep_vio,
@@ -578,6 +539,8 @@ static void __init igep_i2c_init(void)
 {
 	int ret;
 
+	omap3_pmic_get_config(&igep_twldata, TWL_COMMON_PDATA_USB, 0);
+
 	if (machine_is_igep0020()) {
 		/*
 		 * Bus 3 is attached to the DVI port where devices like the
@@ -588,9 +551,12 @@ static void __init igep_i2c_init(void)
 		if (ret)
 			pr_warning("IGEP2: Could not register I2C3 bus (%d)\n", ret);
 
-		igep_twldata.codec	= &igep2_codec_data;
 		igep_twldata.keypad	= &igep2_keypad_pdata;
-		igep_twldata.vpll2	= &igep2_vpll2;
+		/* Get common pmic data */
+		omap3_pmic_get_config(&igep_twldata, TWL_COMMON_PDATA_AUDIO,
+				      TWL_COMMON_REGULATOR_VPLL2);
+		igep_twldata.vpll2->constraints.apply_uV = true;
+		igep_twldata.vpll2->constraints.name = "VDVI";
 	}
 
 	omap3_pmic_init("twl4030", &igep_twldata);
@@ -677,6 +643,8 @@ static void __init igep_init(void)
 	igep_i2c_init();
 	platform_add_devices(igep_devices, ARRAY_SIZE(igep_devices));
 	omap_serial_init();
+	omap_sdrc_init(m65kxxxxam_sdrc_params,
+				  m65kxxxxam_sdrc_params);
 	usb_musb_init(NULL);
 
 	igep_flash_init();
@@ -699,21 +667,21 @@ static void __init igep_init(void)
 }
 
 MACHINE_START(IGEP0020, "IGEP v2 board")
-	.boot_params	= 0x80000100,
+	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
-	.init_early	= igep_init_early,
-	.init_irq	= omap_init_irq,
+	.init_early	= omap35xx_init_early,
+	.init_irq	= omap3_init_irq,
 	.init_machine	= igep_init,
-	.timer		= &omap_timer,
+	.timer		= &omap3_timer,
 MACHINE_END
 
 MACHINE_START(IGEP0030, "IGEP OMAP3 module")
-	.boot_params	= 0x80000100,
+	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
-	.init_early	= igep_init_early,
-	.init_irq	= omap_init_irq,
+	.init_early	= omap35xx_init_early,
+	.init_irq	= omap3_init_irq,
 	.init_machine	= igep_init,
-	.timer		= &omap_timer,
+	.timer		= &omap3_timer,
 MACHINE_END

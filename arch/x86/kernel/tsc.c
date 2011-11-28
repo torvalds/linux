@@ -5,7 +5,6 @@
 #include <linux/timer.h>
 #include <linux/acpi_pmtmr.h>
 #include <linux/cpufreq.h>
-#include <linux/dmi.h>
 #include <linux/delay.h>
 #include <linux/clocksource.h>
 #include <linux/percpu.h>
@@ -777,7 +776,7 @@ static struct clocksource clocksource_tsc = {
 	.flags                  = CLOCK_SOURCE_IS_CONTINUOUS |
 				  CLOCK_SOURCE_MUST_VERIFY,
 #ifdef CONFIG_X86_64
-	.vread                  = vread_tsc,
+	.archdata               = { .vclock_mode = VCLOCK_TSC },
 #endif
 };
 
@@ -799,27 +798,6 @@ void mark_tsc_unstable(char *reason)
 }
 
 EXPORT_SYMBOL_GPL(mark_tsc_unstable);
-
-static int __init dmi_mark_tsc_unstable(const struct dmi_system_id *d)
-{
-	printk(KERN_NOTICE "%s detected: marking TSC unstable.\n",
-			d->ident);
-	tsc_unstable = 1;
-	return 0;
-}
-
-/* List of systems that have known TSC problems */
-static struct dmi_system_id __initdata bad_tsc_dmi_table[] = {
-	{
-		.callback = dmi_mark_tsc_unstable,
-		.ident = "IBM Thinkpad 380XD",
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "IBM"),
-			DMI_MATCH(DMI_BOARD_NAME, "2635FA0"),
-		},
-	},
-	{}
-};
 
 static void __init check_system_tsc_reliable(void)
 {
@@ -1010,8 +988,6 @@ void __init tsc_init(void)
 	lpj_fine = lpj;
 
 	use_tsc_delay();
-	/* Check and install the TSC clocksource */
-	dmi_check_system(bad_tsc_dmi_table);
 
 	if (unsynchronized_tsc())
 		mark_tsc_unstable("TSCs unsynchronized");

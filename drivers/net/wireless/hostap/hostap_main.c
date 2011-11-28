@@ -816,7 +816,7 @@ static const struct net_device_ops hostap_netdev_ops = {
 	.ndo_stop		= prism2_close,
 	.ndo_do_ioctl		= hostap_ioctl,
 	.ndo_set_mac_address	= prism2_set_mac_address,
-	.ndo_set_multicast_list = hostap_set_multicast_list,
+	.ndo_set_rx_mode	= hostap_set_multicast_list,
 	.ndo_change_mtu 	= prism2_change_mtu,
 	.ndo_tx_timeout 	= prism2_tx_timeout,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -829,7 +829,7 @@ static const struct net_device_ops hostap_mgmt_netdev_ops = {
 	.ndo_stop		= prism2_close,
 	.ndo_do_ioctl		= hostap_ioctl,
 	.ndo_set_mac_address	= prism2_set_mac_address,
-	.ndo_set_multicast_list = hostap_set_multicast_list,
+	.ndo_set_rx_mode	= hostap_set_multicast_list,
 	.ndo_change_mtu 	= prism2_change_mtu,
 	.ndo_tx_timeout 	= prism2_tx_timeout,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -842,7 +842,7 @@ static const struct net_device_ops hostap_master_ops = {
 	.ndo_stop		= prism2_close,
 	.ndo_do_ioctl		= hostap_ioctl,
 	.ndo_set_mac_address	= prism2_set_mac_address,
-	.ndo_set_multicast_list = hostap_set_multicast_list,
+	.ndo_set_rx_mode	= hostap_set_multicast_list,
 	.ndo_change_mtu 	= prism2_change_mtu,
 	.ndo_tx_timeout 	= prism2_tx_timeout,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -855,6 +855,7 @@ void hostap_setup_dev(struct net_device *dev, local_info_t *local,
 
 	iface = netdev_priv(dev);
 	ether_setup(dev);
+	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 
 	/* kernel callbacks */
 	if (iface) {

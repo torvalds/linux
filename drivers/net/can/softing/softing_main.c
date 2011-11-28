@@ -17,10 +17,10 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <asm/io.h>
 
 #include "softing.h"
 
@@ -799,7 +799,7 @@ static __devinit int softing_pdev_probe(struct platform_device *pdev)
 	if (!pres)
 		goto platform_resource_failed;
 	card->dpram_phys = pres->start;
-	card->dpram_size = pres->end - pres->start + 1;
+	card->dpram_size = resource_size(pres);
 	card->dpram = ioremap_nocache(card->dpram_phys, card->dpram_size);
 	if (!card->dpram) {
 		dev_alert(&card->pdev->dev, "dpram ioremap failed\n");

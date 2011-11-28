@@ -308,8 +308,8 @@ void __init orion5x_init(void)
  * Many orion-based systems have buggy bootloader implementations.
  * This is a common fixup for bogus memory tags.
  */
-void __init tag_fixup_mem32(struct machine_desc *mdesc, struct tag *t,
-			    char **from, struct meminfo *meminfo)
+void __init tag_fixup_mem32(struct tag *t, char **from,
+			    struct meminfo *meminfo)
 {
 	for (; t->hdr.size; t = tag_next(t))
 		if (t->hdr.tag == ATAG_MEM &&

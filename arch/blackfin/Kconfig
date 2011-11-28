@@ -248,10 +248,6 @@ config HOTPLUG_CPU
 	depends on SMP && HOTPLUG
 	default y
 
-config HAVE_LEGACY_PER_CPU_AREA
-	def_bool y
-	depends on SMP
-
 config BF_REV_MIN
 	int
 	default 0 if (BF51x || BF52x || (BF54x && !BF54xM))
@@ -952,6 +948,16 @@ config BFIN_GPTIMERS
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called gptimers.
+
+config HAVE_PWM
+	tristate "Enable PWM API support"
+	depends on BFIN_GPTIMERS
+	help
+	  Enable support for the Pulse Width Modulation framework (as
+	  found in linux/pwm.h).
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm.
 
 choice
 	prompt "Uncached DMA region"

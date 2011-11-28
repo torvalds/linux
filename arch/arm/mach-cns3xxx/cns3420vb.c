@@ -29,7 +29,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-#include <mach/hardware.h>
 #include <mach/cns3xxx.h>
 #include <mach/irqs.h>
 #include "core.h"
@@ -170,6 +169,8 @@ static struct platform_device *cns3420_pdevs[] __initdata = {
 
 static void __init cns3420_init(void)
 {
+	cns3xxx_l2x0_init();
+
 	platform_add_devices(cns3420_pdevs, ARRAY_SIZE(cns3420_pdevs));
 
 	cns3xxx_ahci_init();
@@ -196,7 +197,7 @@ static void __init cns3420_map_io(void)
 }
 
 MACHINE_START(CNS3420VB, "Cavium Networks CNS3420 Validation Board")
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.map_io		= cns3420_map_io,
 	.init_irq	= cns3xxx_init_irq,
 	.timer		= &cns3xxx_timer,

@@ -42,7 +42,7 @@ static void __exit ca91cx42_exit(void);
 /* Module parameters */
 static int geoid;
 
-static char driver_name[] = "vme_ca91cx42";
+static const char driver_name[] = "vme_ca91cx42";
 
 static DEFINE_PCI_DEVICE_TABLE(ca91cx42_ids) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_TUNDRA, PCI_DEVICE_ID_TUNDRA_CA91C142) },
@@ -190,7 +190,7 @@ static irqreturn_t ca91cx42_irqhandler(int irq, void *ptr)
 		serviced |= ca91cx42_VIRQ_irqhandler(ca91cx42_bridge, stat);
 
 	/* Clear serviced interrupts */
-	iowrite32(stat, bridge->base + LINT_STAT);
+	iowrite32(serviced, bridge->base + LINT_STAT);
 
 	return IRQ_HANDLED;
 }
@@ -256,6 +256,18 @@ static void ca91cx42_irq_exit(struct ca91cx42_driver *bridge,
 	free_irq(pdev->irq, pdev);
 }
 
+static int ca91cx42_iack_received(struct ca91cx42_driver *bridge, int level)
+{
+	u32 tmp;
+
+	tmp = ioread32(bridge->base + LINT_STAT);
+
+	if (tmp & (1 << level))
+		return 0;
+	else
+		return 1;
+}
+
 /*
  * Set up an VME interrupt
  */
@@ -311,7 +323,8 @@ static int ca91cx42_irq_generate(struct vme_bridge *ca91cx42_bridge, int level,
 	iowrite32(tmp, bridge->base + VINT_EN);
 
 	/* Wait for IACK */
-	wait_event_interruptible(bridge->iack_queue, 0);
+	wait_event_interruptible(bridge->iack_queue,
+				 ca91cx42_iack_received(bridge, level));
 
 	/* Return interrupt to low state */
 	tmp = ioread32(bridge->base + VINT_EN);
@@ -1487,6 +1500,28 @@ static int ca91cx42_slot_get(struct vme_bridge *ca91cx42_bridge)
 
 }
 
+void *ca91cx42_alloc_consistent(struct device *parent, size_t size,
+	dma_addr_t *dma)
+{
+	struct pci_dev *pdev;
+
+	/* Find pci_dev container of dev */
+	pdev = container_of(parent, struct pci_dev, dev);
+
+	return pci_alloc_consistent(pdev, size, dma);
+}
+
+void ca91cx42_free_consistent(struct device *parent, size_t size, void *vaddr,
+	dma_addr_t dma)
+{
+	struct pci_dev *pdev;
+
+	/* Find pci_dev container of dev */
+	pdev = container_of(parent, struct pci_dev, dev);
+
+	pci_free_consistent(pdev, size, vaddr, dma);
+}
+
 static int __init ca91cx42_init(void)
 {
 	return pci_register_driver(&ca91cx42_driver);
@@ -1756,6 +1791,8 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ca91cx42_bridge->lm_attach = ca91cx42_lm_attach;
 	ca91cx42_bridge->lm_detach = ca91cx42_lm_detach;
 	ca91cx42_bridge->slot_get = ca91cx42_slot_get;
+	ca91cx42_bridge->alloc_consistent = ca91cx42_alloc_consistent;
+	ca91cx42_bridge->free_consistent = ca91cx42_free_consistent;
 
 	data = ioread32(ca91cx42_device->base + MISC_CTL);
 	dev_info(&pdev->dev, "Board is%s the VME system controller\n",

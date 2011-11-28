@@ -27,6 +27,7 @@
  *
  *****************************************************************************/
 
+#include <linux/export.h>
 #include "dm_common.h"
 #include "phy_common.h"
 #include "../pci.h"
@@ -474,7 +475,7 @@ static void rtl92c_dm_ctrl_initgain_by_twoport(struct ieee80211_hw *hw)
 {
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 
-	if (mac->act_scanning == true)
+	if (mac->act_scanning)
 		return;
 
 	if (mac->link_state >= MAC80211_LINKED)
@@ -670,7 +671,7 @@ static void rtl92c_dm_txpower_tracking_callback_thermalmeter(struct ieee80211_hw
 	u8 ofdm_index[2], cck_index = 0, ofdm_index_old[2], cck_index_old = 0;
 	int i;
 	bool is2t = IS_92C_SERIAL(rtlhal->version);
-	u8 txpwr_level[2] = {0, 0};
+	s8 txpwr_level[2] = {0, 0};
 	u8 ofdm_min_index = 6, rf;
 
 	rtlpriv->dm.txpower_trackinginit = true;

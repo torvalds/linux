@@ -27,7 +27,7 @@
 #include <linux/delay.h>
 #include <linux/initrd.h>
 #include <linux/bitops.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/kexec.h>
 #include <linux/debugfs.h>
 #include <linux/irq.h>
@@ -54,6 +54,8 @@
 #include <asm/pci-bridge.h>
 #include <asm/phyp_dump.h>
 #include <asm/kexec.h>
+#include <asm/opal.h>
+
 #include <mm/mmu_decl.h>
 
 #ifdef DEBUG
@@ -69,6 +71,7 @@ unsigned long tce_alloc_start, tce_alloc_end;
 u64 ppc64_rma_size;
 #endif
 static phys_addr_t first_memblock_size;
+static int __initdata boot_cpu_count;
 
 static int __init early_parse_mem(char *p)
 {
@@ -706,10 +709,22 @@ void __init early_init_devtree(void *params)
 	of_scan_flat_dt(early_init_dt_scan_rtas, NULL);
 #endif
 
+#ifdef CONFIG_PPC_POWERNV
+	/* Some machines might need OPAL info for debugging, grab it now. */
+	of_scan_flat_dt(early_init_dt_scan_opal, NULL);
+#endif
+
 #ifdef CONFIG_PHYP_DUMP
 	/* scan tree to see if dump occurred during last boot */
 	of_scan_flat_dt(early_init_dt_scan_phyp_dump, NULL);
 #endif
+
+	/* Pre-initialize the cmd_line with the content of boot_commmand_line,
+	 * which will be empty except when the content of the variable has
+	 * been overriden by a bootloading mechanism. This happens typically
+	 * with HAL takeover
+	 */
+	strlcpy(cmd_line, boot_command_line, COMMAND_LINE_SIZE);
 
 	/* Retrieve various informations from the /chosen node of the
 	 * device-tree, including the platform type, initrd location and
@@ -722,12 +737,15 @@ void __init early_init_devtree(void *params)
 
 	of_scan_flat_dt(early_init_dt_scan_root, NULL);
 	of_scan_flat_dt(early_init_dt_scan_memory_ppc, NULL);
-	setup_initial_memory_limit(memstart_addr, first_memblock_size);
 
 	/* Save command line for /proc/cmdline and then parse parameters */
 	strlcpy(boot_command_line, cmd_line, COMMAND_LINE_SIZE);
 	parse_early_param();
 
+	/* make sure we've parsed cmdline for mem= before this */
+	if (memory_limit)
+		first_memblock_size = min(first_memblock_size, memory_limit);
+	setup_initial_memory_limit(memstart_addr, first_memblock_size);
 	/* Reserve MEMBLOCK regions used by kernel, initrd, dt, etc... */
 	memblock_reserve(PHYSICAL_START, __pa(klimit) - PHYSICAL_START);
 	/* If relocatable, reserve first 32k for interrupt vectors etc. */
@@ -768,6 +786,13 @@ void __init early_init_devtree(void *params)
 	 * (altivec support, boot CPU ID, ...)
 	 */
 	of_scan_flat_dt(early_init_dt_scan_cpus, NULL);
+
+#if defined(CONFIG_SMP) && defined(CONFIG_PPC64)
+	/* We'll later wait for secondaries to check in; there are
+	 * NCPUS-1 non-boot CPUs  :-)
+	 */
+	spinning_secondaries = boot_cpu_count - 1;
+#endif
 
 	DBG(" <- early_init_devtree()\n");
 }
@@ -862,16 +887,14 @@ static int prom_reconfig_notifier(struct notifier_block *nb,
 	switch (action) {
 	case PSERIES_RECONFIG_ADD:
 		err = of_finish_dynamic_node(node);
-		if (err < 0) {
+		if (err < 0)
 			printk(KERN_ERR "finish_node returned %d\n", err);
-			err = NOTIFY_BAD;
-		}
 		break;
 	default:
-		err = NOTIFY_DONE;
+		err = 0;
 		break;
 	}
-	return err;
+	return notifier_from_errno(err);
 }
 
 static struct notifier_block prom_reconfig_nb = {

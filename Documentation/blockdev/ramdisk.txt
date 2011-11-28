@@ -64,9 +64,9 @@ the RAM disk dynamically grows as data is being written into it, a size field
 is not required. Bits 11 to 13 are not currently used and may as well be zero.
 These numbers are no magical secrets, as seen below:
 
-./arch/i386/kernel/setup.c:#define RAMDISK_IMAGE_START_MASK     0x07FF
-./arch/i386/kernel/setup.c:#define RAMDISK_PROMPT_FLAG          0x8000
-./arch/i386/kernel/setup.c:#define RAMDISK_LOAD_FLAG            0x4000
+./arch/x86/kernel/setup.c:#define RAMDISK_IMAGE_START_MASK     0x07FF
+./arch/x86/kernel/setup.c:#define RAMDISK_PROMPT_FLAG          0x8000
+./arch/x86/kernel/setup.c:#define RAMDISK_LOAD_FLAG            0x4000
 
 Consider a typical two floppy disk setup, where you will have the
 kernel on disk one, and have already put a RAM disk image onto disk #2.
@@ -85,7 +85,7 @@ The command line equivalent is: "prompt_ramdisk=1"
 Putting that together gives 2^15 + 2^14 + 0 = 49152 for an rdev word.
 So to create disk one of the set, you would do:
 
-	/usr/src/linux# cat arch/i386/boot/zImage > /dev/fd0
+	/usr/src/linux# cat arch/x86/boot/zImage > /dev/fd0
 	/usr/src/linux# rdev /dev/fd0 /dev/fd0
 	/usr/src/linux# rdev -r /dev/fd0 49152
 

@@ -16,12 +16,13 @@
 #include <linux/thread_info.h>
 #include <linux/irqflags.h>
 #include <linux/smp.h>
+#include <linux/cpuidle.h>
 #include <asm/pgalloc.h>
 #include <asm/system.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/smp.h>
 
-void (*pm_idle)(void) = NULL;
+void (*pm_idle)(void);
 
 static int hlt_counter;
 
@@ -100,7 +101,8 @@ void cpu_idle(void)
 			local_irq_disable();
 			/* Don't trace irqs off for idle */
 			stop_critical_timings();
-			pm_idle();
+			if (cpuidle_idle_call())
+				pm_idle();
 			/*
 			 * Sanity check to ensure that pm_idle() returns
 			 * with IRQs enabled

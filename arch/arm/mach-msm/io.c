@@ -20,6 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/export.h>
 
 #include <mach/hardware.h>
 #include <asm/page.h>
@@ -43,8 +44,8 @@ static struct map_desc msm_io_desc[] __initdata = {
 	MSM_DEVICE(VIC),
 	MSM_CHIP_DEVICE(CSR, MSM7X00),
 	MSM_DEVICE(DMOV),
-	MSM_DEVICE(GPIO1),
-	MSM_DEVICE(GPIO2),
+	MSM_CHIP_DEVICE(GPIO1, MSM7X00),
+	MSM_CHIP_DEVICE(GPIO2, MSM7X00),
 	MSM_DEVICE(CLK_CTL),
 #ifdef CONFIG_MSM_DEBUG_UART
 	MSM_DEVICE(DEBUG_UART),
@@ -76,8 +77,8 @@ static struct map_desc qsd8x50_io_desc[] __initdata = {
 	MSM_DEVICE(VIC),
 	MSM_CHIP_DEVICE(CSR, QSD8X50),
 	MSM_DEVICE(DMOV),
-	MSM_DEVICE(GPIO1),
-	MSM_DEVICE(GPIO2),
+	MSM_CHIP_DEVICE(GPIO1, QSD8X50),
+	MSM_CHIP_DEVICE(GPIO2, QSD8X50),
 	MSM_DEVICE(CLK_CTL),
 	MSM_DEVICE(SIRC),
 	MSM_DEVICE(SCPLL),
@@ -135,8 +136,8 @@ static struct map_desc msm7x30_io_desc[] __initdata = {
 	MSM_DEVICE(VIC),
 	MSM_CHIP_DEVICE(CSR, MSM7X30),
 	MSM_DEVICE(DMOV),
-	MSM_DEVICE(GPIO1),
-	MSM_DEVICE(GPIO2),
+	MSM_CHIP_DEVICE(GPIO1, MSM7X30),
+	MSM_CHIP_DEVICE(GPIO2, MSM7X30),
 	MSM_DEVICE(CLK_CTL),
 	MSM_DEVICE(CLK_CTL_SH2),
 	MSM_DEVICE(AD5),

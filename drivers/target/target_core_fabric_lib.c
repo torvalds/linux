@@ -25,9 +25,11 @@
  *
  ******************************************************************************/
 
+#include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/spinlock.h>
+#include <linux/export.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 
@@ -61,9 +63,9 @@ u32 sas_get_pr_transport_id(
 	int *format_code,
 	unsigned char *buf)
 {
-	unsigned char binary, *ptr;
-	int i;
-	u32 off = 4;
+	unsigned char *ptr;
+	int ret;
+
 	/*
 	 * Set PROTOCOL IDENTIFIER to 6h for SAS
 	 */
@@ -74,10 +76,10 @@ u32 sas_get_pr_transport_id(
 	 */
 	ptr = &se_nacl->initiatorname[4]; /* Skip over 'naa. prefix */
 
-	for (i = 0; i < 16; i += 2) {
-		binary = transport_asciihex_to_binaryhex(&ptr[i]);
-		buf[off++] = binary;
-	}
+	ret = hex2bin(&buf[4], ptr, 8);
+	if (ret < 0)
+		pr_debug("sas transport_id: invalid hex string\n");
+
 	/*
 	 * The SAS Transport ID is a hardcoded 24-byte length
 	 */
@@ -157,9 +159,10 @@ u32 fc_get_pr_transport_id(
 	int *format_code,
 	unsigned char *buf)
 {
-	unsigned char binary, *ptr;
-	int i;
+	unsigned char *ptr;
+	int i, ret;
 	u32 off = 8;
+
 	/*
 	 * PROTOCOL IDENTIFIER is 0h for FCP-2
 	 *
@@ -172,12 +175,13 @@ u32 fc_get_pr_transport_id(
 	ptr = &se_nacl->initiatorname[0];
 
 	for (i = 0; i < 24; ) {
-		if (!(strncmp(&ptr[i], ":", 1))) {
+		if (!strncmp(&ptr[i], ":", 1)) {
 			i++;
 			continue;
 		}
-		binary = transport_asciihex_to_binaryhex(&ptr[i]);
-		buf[off++] = binary;
+		ret = hex2bin(&buf[off++], &ptr[i], 1);
+		if (ret < 0)
+			pr_debug("fc transport_id: invalid hex string\n");
 		i += 2;
 	}
 	/*
@@ -386,7 +390,7 @@ char *iscsi_parse_pr_out_transport_id(
 	 *            Reserved
 	 */
 	if ((format_code != 0x00) && (format_code != 0x40)) {
-		printk(KERN_ERR "Illegal format code: 0x%02x for iSCSI"
+		pr_err("Illegal format code: 0x%02x for iSCSI"
 			" Initiator Transport ID\n", format_code);
 		return NULL;
 	}
@@ -406,7 +410,7 @@ char *iscsi_parse_pr_out_transport_id(
 			tid_len += padding;
 
 		if ((add_len + 4) != tid_len) {
-			printk(KERN_INFO "LIO-Target Extracted add_len: %hu "
+			pr_debug("LIO-Target Extracted add_len: %hu "
 				"does not match calculated tid_len: %u,"
 				" using tid_len instead\n", add_len+4, tid_len);
 			*out_tid_len = tid_len;
@@ -420,8 +424,8 @@ char *iscsi_parse_pr_out_transport_id(
 	 */
 	if (format_code == 0x40) {
 		p = strstr((char *)&buf[4], ",i,0x");
-		if (!(p)) {
-			printk(KERN_ERR "Unable to locate \",i,0x\" seperator"
+		if (!p) {
+			pr_err("Unable to locate \",i,0x\" seperator"
 				" for Initiator port identifier: %s\n",
 				(char *)&buf[4]);
 			return NULL;

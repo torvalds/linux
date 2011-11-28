@@ -114,9 +114,6 @@ static bool iwl_within_ct_kill_margin(struct iwl_priv *priv)
 	s32 temp = priv->temperature; /* degrees CELSIUS except specified */
 	bool within_margin = false;
 
-	if (priv->cfg->base_params->temperature_kelvin)
-		temp = KELVIN_TO_CELSIUS(priv->temperature);
-
 	if (!priv->thermal_throttle.advanced_tt)
 		within_margin = ((temp + IWL_TT_CT_KILL_MARGIN) >=
 				CT_KILL_THRESHOLD_LEGACY) ? true : false;
@@ -176,29 +173,29 @@ static void iwl_tt_check_exit_ct_kill(unsigned long data)
 	struct iwl_tt_mgmt *tt = &priv->thermal_throttle;
 	unsigned long flags;
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 		return;
 
 	if (tt->state == IWL_TI_CT_KILL) {
 		if (priv->thermal_throttle.ct_kill_toggle) {
-			iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR,
+			iwl_write32(bus(priv), CSR_UCODE_DRV_GP1_CLR,
 				    CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT);
 			priv->thermal_throttle.ct_kill_toggle = false;
 		} else {
-			iwl_write32(priv, CSR_UCODE_DRV_GP1_SET,
+			iwl_write32(bus(priv), CSR_UCODE_DRV_GP1_SET,
 				    CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT);
 			priv->thermal_throttle.ct_kill_toggle = true;
 		}
-		iwl_read32(priv, CSR_UCODE_DRV_GP1);
-		spin_lock_irqsave(&priv->reg_lock, flags);
-		if (!iwl_grab_nic_access(priv))
-			iwl_release_nic_access(priv);
-		spin_unlock_irqrestore(&priv->reg_lock, flags);
+		iwl_read32(bus(priv), CSR_UCODE_DRV_GP1);
+		spin_lock_irqsave(&bus(priv)->reg_lock, flags);
+		if (!iwl_grab_nic_access(bus(priv)))
+			iwl_release_nic_access(bus(priv));
+		spin_unlock_irqrestore(&bus(priv)->reg_lock, flags);
 
 		/* Reschedule the ct_kill timer to occur in
 		 * CT_KILL_EXIT_DURATION seconds to ensure we get a
 		 * thermal update */
-		IWL_DEBUG_POWER(priv, "schedule ct_kill exit timer\n");
+		IWL_DEBUG_TEMP(priv, "schedule ct_kill exit timer\n");
 		mod_timer(&priv->thermal_throttle.ct_kill_exit_tm,
 			  jiffies + CT_KILL_EXIT_DURATION * HZ);
 	}
@@ -208,15 +205,15 @@ static void iwl_perform_ct_kill_task(struct iwl_priv *priv,
 			   bool stop)
 {
 	if (stop) {
-		IWL_DEBUG_POWER(priv, "Stop all queues\n");
+		IWL_DEBUG_TEMP(priv, "Stop all queues\n");
 		if (priv->mac80211_registered)
 			ieee80211_stop_queues(priv->hw);
-		IWL_DEBUG_POWER(priv,
+		IWL_DEBUG_TEMP(priv,
 				"Schedule 5 seconds CT_KILL Timer\n");
 		mod_timer(&priv->thermal_throttle.ct_kill_exit_tm,
 			  jiffies + CT_KILL_EXIT_DURATION * HZ);
 	} else {
-		IWL_DEBUG_POWER(priv, "Wake all queues\n");
+		IWL_DEBUG_TEMP(priv, "Wake all queues\n");
 		if (priv->mac80211_registered)
 			ieee80211_wake_queues(priv->hw);
 	}
@@ -227,22 +224,22 @@ static void iwl_tt_ready_for_ct_kill(unsigned long data)
 	struct iwl_priv *priv = (struct iwl_priv *)data;
 	struct iwl_tt_mgmt *tt = &priv->thermal_throttle;
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 		return;
 
 	/* temperature timer expired, ready to go into CT_KILL state */
 	if (tt->state != IWL_TI_CT_KILL) {
-		IWL_DEBUG_POWER(priv, "entering CT_KILL state when "
+		IWL_DEBUG_TEMP(priv, "entering CT_KILL state when "
 				"temperature timer expired\n");
 		tt->state = IWL_TI_CT_KILL;
-		set_bit(STATUS_CT_KILL, &priv->status);
+		set_bit(STATUS_CT_KILL, &priv->shrd->status);
 		iwl_perform_ct_kill_task(priv, true);
 	}
 }
 
 static void iwl_prepare_ct_kill_task(struct iwl_priv *priv)
 {
-	IWL_DEBUG_POWER(priv, "Prepare to enter IWL_TI_CT_KILL\n");
+	IWL_DEBUG_TEMP(priv, "Prepare to enter IWL_TI_CT_KILL\n");
 	/* make request to retrieve statistics information */
 	iwl_send_statistics_request(priv, CMD_SYNC, false);
 	/* Reschedule the ct_kill wait timer */
@@ -273,7 +270,7 @@ static void iwl_legacy_tt_handler(struct iwl_priv *priv, s32 temp, bool force)
 	    (temp > tt->tt_previous_temp) &&
 	    ((temp - tt->tt_previous_temp) >
 	    IWL_TT_INCREASE_MARGIN)) {
-		IWL_DEBUG_POWER(priv,
+		IWL_DEBUG_TEMP(priv,
 			"Temperature increase %d degree Celsius\n",
 			(temp - tt->tt_previous_temp));
 	}
@@ -313,23 +310,24 @@ static void iwl_legacy_tt_handler(struct iwl_priv *priv, s32 temp, bool force)
 			tt->tt_power_mode = IWL_POWER_INDEX_5;
 			break;
 		}
-		mutex_lock(&priv->mutex);
+		mutex_lock(&priv->shrd->mutex);
 		if (old_state == IWL_TI_CT_KILL)
-			clear_bit(STATUS_CT_KILL, &priv->status);
+			clear_bit(STATUS_CT_KILL, &priv->shrd->status);
 		if (tt->state != IWL_TI_CT_KILL &&
 		    iwl_power_update_mode(priv, true)) {
 			/* TT state not updated
 			 * try again during next temperature read
 			 */
 			if (old_state == IWL_TI_CT_KILL)
-				set_bit(STATUS_CT_KILL, &priv->status);
+				set_bit(STATUS_CT_KILL, &priv->shrd->status);
 			tt->state = old_state;
 			IWL_ERR(priv, "Cannot update power mode, "
 					"TT state not updated\n");
 		} else {
 			if (tt->state == IWL_TI_CT_KILL) {
 				if (force) {
-					set_bit(STATUS_CT_KILL, &priv->status);
+					set_bit(STATUS_CT_KILL,
+						&priv->shrd->status);
 					iwl_perform_ct_kill_task(priv, true);
 				} else {
 					iwl_prepare_ct_kill_task(priv);
@@ -338,12 +336,12 @@ static void iwl_legacy_tt_handler(struct iwl_priv *priv, s32 temp, bool force)
 			} else if (old_state == IWL_TI_CT_KILL &&
 				 tt->state != IWL_TI_CT_KILL)
 				iwl_perform_ct_kill_task(priv, false);
-			IWL_DEBUG_POWER(priv, "Temperature state changed %u\n",
+			IWL_DEBUG_TEMP(priv, "Temperature state changed %u\n",
 					tt->state);
-			IWL_DEBUG_POWER(priv, "Power Index change to %u\n",
+			IWL_DEBUG_TEMP(priv, "Power Index change to %u\n",
 					tt->tt_power_mode);
 		}
-		mutex_unlock(&priv->mutex);
+		mutex_unlock(&priv->shrd->mutex);
 	}
 }
 
@@ -397,7 +395,7 @@ static void iwl_advance_tt_handler(struct iwl_priv *priv, s32 temp, bool force)
 			    (temp > tt->tt_previous_temp) &&
 			    ((temp - tt->tt_previous_temp) >
 			    IWL_TT_INCREASE_MARGIN)) {
-				IWL_DEBUG_POWER(priv,
+				IWL_DEBUG_TEMP(priv,
 					"Temperature increase %d "
 					"degree Celsius\n",
 					(temp - tt->tt_previous_temp));
@@ -453,9 +451,9 @@ static void iwl_advance_tt_handler(struct iwl_priv *priv, s32 temp, bool force)
 			 * in case get disabled before */
 			iwl_set_rxon_ht(priv, &priv->current_ht_config);
 		}
-		mutex_lock(&priv->mutex);
+		mutex_lock(&priv->shrd->mutex);
 		if (old_state == IWL_TI_CT_KILL)
-			clear_bit(STATUS_CT_KILL, &priv->status);
+			clear_bit(STATUS_CT_KILL, &priv->shrd->status);
 		if (tt->state != IWL_TI_CT_KILL &&
 		    iwl_power_update_mode(priv, true)) {
 			/* TT state not updated
@@ -464,18 +462,19 @@ static void iwl_advance_tt_handler(struct iwl_priv *priv, s32 temp, bool force)
 			IWL_ERR(priv, "Cannot update power mode, "
 					"TT state not updated\n");
 			if (old_state == IWL_TI_CT_KILL)
-				set_bit(STATUS_CT_KILL, &priv->status);
+				set_bit(STATUS_CT_KILL, &priv->shrd->status);
 			tt->state = old_state;
 		} else {
-			IWL_DEBUG_POWER(priv,
+			IWL_DEBUG_TEMP(priv,
 					"Thermal Throttling to new state: %u\n",
 					tt->state);
 			if (old_state != IWL_TI_CT_KILL &&
 			    tt->state == IWL_TI_CT_KILL) {
 				if (force) {
-					IWL_DEBUG_POWER(priv,
+					IWL_DEBUG_TEMP(priv,
 						"Enter IWL_TI_CT_KILL\n");
-					set_bit(STATUS_CT_KILL, &priv->status);
+					set_bit(STATUS_CT_KILL,
+						&priv->shrd->status);
 					iwl_perform_ct_kill_task(priv, true);
 				} else {
 					iwl_prepare_ct_kill_task(priv);
@@ -483,11 +482,11 @@ static void iwl_advance_tt_handler(struct iwl_priv *priv, s32 temp, bool force)
 				}
 			} else if (old_state == IWL_TI_CT_KILL &&
 				  tt->state != IWL_TI_CT_KILL) {
-				IWL_DEBUG_POWER(priv, "Exit IWL_TI_CT_KILL\n");
+				IWL_DEBUG_TEMP(priv, "Exit IWL_TI_CT_KILL\n");
 				iwl_perform_ct_kill_task(priv, false);
 			}
 		}
-		mutex_unlock(&priv->mutex);
+		mutex_unlock(&priv->shrd->mutex);
 	}
 }
 
@@ -506,10 +505,10 @@ static void iwl_bg_ct_enter(struct work_struct *work)
 	struct iwl_priv *priv = container_of(work, struct iwl_priv, ct_enter);
 	struct iwl_tt_mgmt *tt = &priv->thermal_throttle;
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 		return;
 
-	if (!iwl_is_ready(priv))
+	if (!iwl_is_ready(priv->shrd))
 		return;
 
 	if (tt->state != IWL_TI_CT_KILL) {
@@ -535,10 +534,10 @@ static void iwl_bg_ct_exit(struct work_struct *work)
 	struct iwl_priv *priv = container_of(work, struct iwl_priv, ct_exit);
 	struct iwl_tt_mgmt *tt = &priv->thermal_throttle;
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 		return;
 
-	if (!iwl_is_ready(priv))
+	if (!iwl_is_ready(priv->shrd))
 		return;
 
 	/* stop ct_kill_exit_tm timer */
@@ -565,20 +564,20 @@ static void iwl_bg_ct_exit(struct work_struct *work)
 
 void iwl_tt_enter_ct_kill(struct iwl_priv *priv)
 {
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 		return;
 
-	IWL_DEBUG_POWER(priv, "Queueing critical temperature enter.\n");
-	queue_work(priv->workqueue, &priv->ct_enter);
+	IWL_DEBUG_TEMP(priv, "Queueing critical temperature enter.\n");
+	queue_work(priv->shrd->workqueue, &priv->ct_enter);
 }
 
 void iwl_tt_exit_ct_kill(struct iwl_priv *priv)
 {
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 		return;
 
-	IWL_DEBUG_POWER(priv, "Queueing critical temperature exit.\n");
-	queue_work(priv->workqueue, &priv->ct_exit);
+	IWL_DEBUG_TEMP(priv, "Queueing critical temperature exit.\n");
+	queue_work(priv->shrd->workqueue, &priv->ct_exit);
 }
 
 static void iwl_bg_tt_work(struct work_struct *work)
@@ -586,11 +585,8 @@ static void iwl_bg_tt_work(struct work_struct *work)
 	struct iwl_priv *priv = container_of(work, struct iwl_priv, tt_work);
 	s32 temp = priv->temperature; /* degrees CELSIUS except specified */
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 		return;
-
-	if (priv->cfg->base_params->temperature_kelvin)
-		temp = KELVIN_TO_CELSIUS(priv->temperature);
 
 	if (!priv->thermal_throttle.advanced_tt)
 		iwl_legacy_tt_handler(priv, temp, false);
@@ -600,11 +596,11 @@ static void iwl_bg_tt_work(struct work_struct *work)
 
 void iwl_tt_handler(struct iwl_priv *priv)
 {
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 		return;
 
-	IWL_DEBUG_POWER(priv, "Queueing thermal throttling work.\n");
-	queue_work(priv->workqueue, &priv->tt_work);
+	IWL_DEBUG_TEMP(priv, "Queueing thermal throttling work.\n");
+	queue_work(priv->shrd->workqueue, &priv->tt_work);
 }
 
 /* Thermal throttling initialization
@@ -618,7 +614,7 @@ void iwl_tt_initialize(struct iwl_priv *priv)
 	int size = sizeof(struct iwl_tt_trans) * (IWL_TI_STATE_MAX - 1);
 	struct iwl_tt_trans *transaction;
 
-	IWL_DEBUG_POWER(priv, "Initialize Thermal Throttling\n");
+	IWL_DEBUG_TEMP(priv, "Initialize Thermal Throttling\n");
 
 	memset(tt, 0, sizeof(struct iwl_tt_mgmt));
 
@@ -638,12 +634,14 @@ void iwl_tt_initialize(struct iwl_priv *priv)
 	INIT_WORK(&priv->ct_exit, iwl_bg_ct_exit);
 
 	if (priv->cfg->base_params->adv_thermal_throttle) {
-		IWL_DEBUG_POWER(priv, "Advanced Thermal Throttling\n");
-		tt->restriction = kzalloc(sizeof(struct iwl_tt_restriction) *
-					 IWL_TI_STATE_MAX, GFP_KERNEL);
-		tt->transaction = kzalloc(sizeof(struct iwl_tt_trans) *
-			IWL_TI_STATE_MAX * (IWL_TI_STATE_MAX - 1),
-			GFP_KERNEL);
+		IWL_DEBUG_TEMP(priv, "Advanced Thermal Throttling\n");
+		tt->restriction = kcalloc(IWL_TI_STATE_MAX,
+					  sizeof(struct iwl_tt_restriction),
+					  GFP_KERNEL);
+		tt->transaction = kcalloc(IWL_TI_STATE_MAX *
+					  (IWL_TI_STATE_MAX - 1),
+					  sizeof(struct iwl_tt_trans),
+					  GFP_KERNEL);
 		if (!tt->restriction || !tt->transaction) {
 			IWL_ERR(priv, "Fallback to Legacy Throttling\n");
 			priv->thermal_throttle.advanced_tt = false;
@@ -671,7 +669,7 @@ void iwl_tt_initialize(struct iwl_priv *priv)
 			priv->thermal_throttle.advanced_tt = true;
 		}
 	} else {
-		IWL_DEBUG_POWER(priv, "Legacy Thermal Throttling\n");
+		IWL_DEBUG_TEMP(priv, "Legacy Thermal Throttling\n");
 		priv->thermal_throttle.advanced_tt = false;
 	}
 }

@@ -98,8 +98,11 @@ acpi_os_table_override(struct acpi_table_header *existing_table,
 /*
  * Spinlock primitives
  */
+
+#ifndef acpi_os_create_lock
 acpi_status
 acpi_os_create_lock(acpi_spinlock *out_handle);
+#endif
 
 void acpi_os_delete_lock(acpi_spinlock handle);
 
@@ -186,6 +189,8 @@ void acpi_os_fixed_event_count(u32 fixed_event_number);
 /*
  * Threads and Scheduling
  */
+extern struct workqueue_struct *kacpi_hotplug_wq;
+
 acpi_thread_id acpi_os_get_thread_id(void);
 
 acpi_status

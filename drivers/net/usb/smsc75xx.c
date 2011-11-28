@@ -51,6 +51,7 @@
 #define USB_VENDOR_ID_SMSC		(0x0424)
 #define USB_PRODUCT_ID_LAN7500		(0x7500)
 #define USB_PRODUCT_ID_LAN7505		(0x7505)
+#define RXW_PADDING			2
 
 #define check_warn(ret, fmt, args...) \
 	({ if (ret < 0) netdev_warn(dev->net, fmt, ##args); })
@@ -1000,7 +1001,7 @@ static const struct net_device_ops smsc75xx_netdev_ops = {
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl 		= smsc75xx_ioctl,
-	.ndo_set_multicast_list = smsc75xx_set_multicast,
+	.ndo_set_rx_mode	= smsc75xx_set_multicast,
 	.ndo_set_features	= smsc75xx_set_features,
 };
 
@@ -1088,13 +1089,13 @@ static int smsc75xx_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 
 		memcpy(&rx_cmd_b, skb->data, sizeof(rx_cmd_b));
 		le32_to_cpus(&rx_cmd_b);
-		skb_pull(skb, 4 + NET_IP_ALIGN);
+		skb_pull(skb, 4 + RXW_PADDING);
 
 		packet = skb->data;
 
 		/* get the packet length */
-		size = (rx_cmd_a & RX_CMD_A_LEN) - NET_IP_ALIGN;
-		align_count = (4 - ((size + NET_IP_ALIGN) % 4)) % 4;
+		size = (rx_cmd_a & RX_CMD_A_LEN) - RXW_PADDING;
+		align_count = (4 - ((size + RXW_PADDING) % 4)) % 4;
 
 		if (unlikely(rx_cmd_a & RX_CMD_A_RED)) {
 			netif_dbg(dev, rx_err, dev->net,

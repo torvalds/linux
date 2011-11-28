@@ -15,7 +15,7 @@
 #include <linux/kvm_host.h>
 #include <linux/kvm.h>
 #include <linux/hrtimer.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include "kvm_timer.h"
 
 static int __kvm_timer_fn(struct kvm_vcpu *vcpu, struct kvm_timer *ktimer)

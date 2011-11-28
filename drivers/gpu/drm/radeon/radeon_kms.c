@@ -60,7 +60,7 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	/* update BUS flag */
 	if (drm_pci_device_is_agp(dev)) {
 		flags |= RADEON_IS_AGP;
-	} else if (drm_pci_device_is_pcie(dev)) {
+	} else if (pci_is_pcie(dev->pdev)) {
 		flags |= RADEON_IS_PCIE;
 	} else {
 		flags |= RADEON_IS_PCI;
@@ -236,6 +236,19 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		break;
 	case RADEON_INFO_FUSION_GART_WORKING:
 		value = 1;
+		break;
+	case RADEON_INFO_BACKEND_MAP:
+		if (rdev->family >= CHIP_CAYMAN)
+			value = rdev->config.cayman.backend_map;
+		else if (rdev->family >= CHIP_CEDAR)
+			value = rdev->config.evergreen.backend_map;
+		else if (rdev->family >= CHIP_RV770)
+			value = rdev->config.rv770.backend_map;
+		else if (rdev->family >= CHIP_R600)
+			value = rdev->config.r600.backend_map;
+		else {
+			return -EINVAL;
+		}
 		break;
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->request);

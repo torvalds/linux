@@ -50,6 +50,8 @@ in1_min_alarm		Voltage low alarm. From VOLTAGE_UV_WARNING status.
 in1_max_alarm		Voltage high alarm. From VOLTAGE_OV_WARNING status.
 in1_lcrit_alarm		Voltage critical low alarm. From VOLTAGE_UV_FAULT status.
 in1_crit_alarm		Voltage critical high alarm. From VOLTAGE_OV_FAULT status.
+in1_highest		Historical maximum voltage.
+in1_reset_history	Write any value to reset history.
 
 curr1_label		"iout1"
 curr1_input		Measured current. From READ_IOUT register.
@@ -57,6 +59,8 @@ curr1_max		Maximum current. From IOUT_OC_WARN_LIMIT register.
 curr1_crit		Critical maximum current. From IOUT_OC_FAULT_LIMIT register.
 curr1_max_alarm		Current high alarm. From IOUT_OC_WARN_LIMIT register.
 curr1_crit_alarm	Current critical high alarm. From IOUT_OC_FAULT status.
+curr1_highest		Historical maximum current.
+curr1_reset_history	Write any value to reset history.
 
 temp1_input		Measured temperature. From READ_TEMPERATURE_1 register.
 temp1_max		Maximum temperature. From OT_WARN_LIMIT register.
@@ -67,3 +71,5 @@ temp1_max_alarm		Chip temperature high alarm. Set by comparing
 temp1_crit_alarm	Chip temperature critical high alarm. Set by comparing
 			READ_TEMPERATURE_1 with OT_FAULT_LIMIT if TEMP_OT_FAULT
 			status is set.
+temp1_highest		Historical maximum temperature.
+temp1_reset_history	Write any value to reset history.

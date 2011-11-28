@@ -12,11 +12,12 @@
  */
 
 #include <linux/device.h>
+#include <linux/gpio.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
+#include <linux/export.h>
 #include <linux/io.h>
-#include <asm/gpio.h>
 #include <asm/hardware/scoop.h>
 
 /* PCMCIA to Scoop linkage
@@ -193,7 +194,7 @@ static int __devinit scoop_probe(struct platform_device *pdev)
 	spin_lock_init(&devptr->scoop_lock);
 
 	inf = pdev->dev.platform_data;
-	devptr->base = ioremap(mem->start, mem->end - mem->start + 1);
+	devptr->base = ioremap(mem->start, resource_size(mem));
 
 	if (!devptr->base) {
 		ret = -ENOMEM;

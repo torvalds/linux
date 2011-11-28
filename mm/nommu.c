@@ -13,7 +13,7 @@
  *  Copyright (c) 2007-2010 Paul Mundt <lethal@linux-sh.org>
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
 #include <linux/swap.h>
@@ -22,7 +22,6 @@
 #include <linux/pagemap.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-#include <linux/tracehook.h>
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
 #include <linux/mount.h>
@@ -455,7 +454,7 @@ void  __attribute__((weak)) vmalloc_sync_all(void)
  *	between processes, it syncs the pagetable across all
  *	processes.
  */
-struct vm_struct *alloc_vm_area(size_t size)
+struct vm_struct *alloc_vm_area(size_t size, pte_t **ptes)
 {
 	BUG();
 	return NULL;
@@ -1087,7 +1086,7 @@ static unsigned long determine_vm_flags(struct file *file,
 	 * it's being traced - otherwise breakpoints set in it may interfere
 	 * with another untraced process
 	 */
-	if ((flags & MAP_PRIVATE) && tracehook_expect_breakpoints(current))
+	if ((flags & MAP_PRIVATE) && current->ptrace)
 		vm_flags &= ~VM_MAYSHARE;
 
 	return vm_flags;
@@ -1885,9 +1884,17 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
 		return 0;
 
 	if (sysctl_overcommit_memory == OVERCOMMIT_GUESS) {
-		unsigned long n;
+		free = global_page_state(NR_FREE_PAGES);
+		free += global_page_state(NR_FILE_PAGES);
 
-		free = global_page_state(NR_FILE_PAGES);
+		/*
+		 * shmem pages shouldn't be counted as free in this
+		 * case, they can't be purged, only swapped out, and
+		 * that won't affect the overall amount of available
+		 * memory in the system.
+		 */
+		free -= global_page_state(NR_SHMEM);
+
 		free += nr_swap_pages;
 
 		/*
@@ -1899,34 +1906,18 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
 		free += global_page_state(NR_SLAB_RECLAIMABLE);
 
 		/*
+		 * Leave reserved pages. The pages are not for anonymous pages.
+		 */
+		if (free <= totalreserve_pages)
+			goto error;
+		else
+			free -= totalreserve_pages;
+
+		/*
 		 * Leave the last 3% for root
 		 */
 		if (!cap_sys_admin)
 			free -= free / 32;
-
-		if (free > pages)
-			return 0;
-
-		/*
-		 * nr_free_pages() is very expensive on large systems,
-		 * only call if we're about to fail.
-		 */
-		n = nr_free_pages();
-
-		/*
-		 * Leave reserved pages. The pages are not for anonymous pages.
-		 */
-		if (n <= totalreserve_pages)
-			goto error;
-		else
-			n -= totalreserve_pages;
-
-		/*
-		 * Leave the last 3% for root
-		 */
-		if (!cap_sys_admin)
-			n -= n / 32;
-		free += n;
 
 		if (free > pages)
 			return 0;

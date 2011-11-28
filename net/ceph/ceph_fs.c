@@ -36,16 +36,19 @@ int ceph_flags_to_mode(int flags)
 	if ((flags & O_DIRECTORY) == O_DIRECTORY)
 		return CEPH_FILE_MODE_PIN;
 #endif
-	if ((flags & O_APPEND) == O_APPEND)
-		flags |= O_WRONLY;
 
-	if ((flags & O_ACCMODE) == O_RDWR)
-		mode = CEPH_FILE_MODE_RDWR;
-	else if ((flags & O_ACCMODE) == O_WRONLY)
+	switch (flags & O_ACCMODE) {
+	case O_WRONLY:
 		mode = CEPH_FILE_MODE_WR;
-	else
+		break;
+	case O_RDONLY:
 		mode = CEPH_FILE_MODE_RD;
-
+		break;
+	case O_RDWR:
+	case O_ACCMODE: /* this is what the VFS does */
+		mode = CEPH_FILE_MODE_RDWR;
+		break;
+	}
 #ifdef O_LAZY
 	if (flags & O_LAZY)
 		mode |= CEPH_FILE_MODE_LAZY;

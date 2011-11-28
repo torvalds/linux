@@ -493,20 +493,30 @@ static int mid_thermal_probe(struct platform_device *pdev)
 
 	/* Register each sensor with the generic thermal framework*/
 	for (i = 0; i < MSIC_THERMAL_SENSORS; i++) {
+		struct thermal_device_info *td_info = initialize_sensor(i);
+
+		if (!td_info) {
+			ret = -ENOMEM;
+			goto err;
+		}
 		pinfo->tzd[i] = thermal_zone_device_register(name[i],
-				0, initialize_sensor(i), &tzd_ops, 0, 0, 0, 0);
-		if (IS_ERR(pinfo->tzd[i]))
-			goto reg_fail;
+				0, td_info, &tzd_ops, 0, 0, 0, 0);
+		if (IS_ERR(pinfo->tzd[i])) {
+			kfree(td_info);
+			ret = PTR_ERR(pinfo->tzd[i]);
+			goto err;
+		}
 	}
 
 	pinfo->pdev = pdev;
 	platform_set_drvdata(pdev, pinfo);
 	return 0;
 
-reg_fail:
-	ret = PTR_ERR(pinfo->tzd[i]);
-	while (--i >= 0)
+err:
+	while (--i >= 0) {
+		kfree(pinfo->tzd[i]->devdata);
 		thermal_zone_device_unregister(pinfo->tzd[i]);
+	}
 	configure_adc(0);
 	kfree(pinfo);
 	return ret;
@@ -524,8 +534,10 @@ static int mid_thermal_remove(struct platform_device *pdev)
 	int i;
 	struct platform_info *pinfo = platform_get_drvdata(pdev);
 
-	for (i = 0; i < MSIC_THERMAL_SENSORS; i++)
+	for (i = 0; i < MSIC_THERMAL_SENSORS; i++) {
+		kfree(pinfo->tzd[i]->devdata);
 		thermal_zone_device_unregister(pinfo->tzd[i]);
+	}
 
 	kfree(pinfo);
 	platform_set_drvdata(pdev, NULL);

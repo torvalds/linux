@@ -487,8 +487,8 @@ static int power6_generic_events[] = {
  */
 static int power6_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	[C(L1D)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
-		[C(OP_READ)] = {	0x80082,	0x80080		},
-		[C(OP_WRITE)] = {	0x80086,	0x80088		},
+		[C(OP_READ)] = {	0x280030,	0x80080		},
+		[C(OP_WRITE)] = {	0x180032,	0x80088		},
 		[C(OP_PREFETCH)] = {	0x810a4,	0		},
 	},
 	[C(L1I)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
@@ -516,6 +516,11 @@ static int power6_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 		[C(OP_WRITE)] = {	-1,		-1		},
 		[C(OP_PREFETCH)] = {	-1,		-1		},
 	},
+	[C(NODE)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
+		[C(OP_READ)] = {	-1,		-1		},
+		[C(OP_WRITE)] = {	-1,		-1		},
+		[C(OP_PREFETCH)] = {	-1,		-1		},
+	},
 };
 
 static struct power_pmu power6_pmu = {
@@ -535,7 +540,7 @@ static struct power_pmu power6_pmu = {
 	.cache_events		= &power6_cache_events,
 };
 
-static int init_power6_pmu(void)
+static int __init init_power6_pmu(void)
 {
 	if (!cur_cpu_spec->oprofile_cpu_type ||
 	    strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power6"))

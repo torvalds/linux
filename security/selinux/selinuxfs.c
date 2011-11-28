@@ -2,7 +2,7 @@
  *
  *	Added conditional policy language extensions
  *
- *  Updated: Hewlett-Packard <paul.moore@hp.com>
+ *  Updated: Hewlett-Packard <paul@paul-moore.com>
  *
  *	Added support for the policy capability bitmap
  *
@@ -74,8 +74,6 @@ static char policy_opened;
 
 /* global data for policy capabilities */
 static struct dentry *policycap_dir;
-
-extern void selnl_notify_setenforce(int val);
 
 /* Check whether a task is allowed to use a security operation. */
 static int task_has_security(struct task_struct *tsk,
@@ -278,7 +276,6 @@ static ssize_t sel_write_disable(struct file *file, const char __user *buf,
 	char *page = NULL;
 	ssize_t length;
 	int new_value;
-	extern int selinux_disable(void);
 
 	length = -ENOMEM;
 	if (count >= PAGE_SIZE)
@@ -478,7 +475,7 @@ static struct vm_operations_struct sel_mmap_policy_ops = {
 	.page_mkwrite = sel_mmap_policy_fault,
 };
 
-int sel_mmap_policy(struct file *filp, struct vm_area_struct *vma)
+static int sel_mmap_policy(struct file *filp, struct vm_area_struct *vma)
 {
 	if (vma->vm_flags & VM_SHARED) {
 		/* do not allow mprotect to make mapping writable */
@@ -1984,6 +1981,7 @@ __initcall(init_sel_fs);
 void exit_sel_fs(void)
 {
 	kobject_put(selinuxfs_kobj);
+	kern_unmount(selinuxfs_mount);
 	unregister_filesystem(&sel_fs_type);
 }
 #endif

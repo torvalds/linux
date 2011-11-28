@@ -164,3 +164,8 @@ In either case, the following conditions must be met:
 - The boot loader is expected to call the kernel image by jumping
   directly to the first instruction of the kernel image.
 
+  On CPUs supporting the ARM instruction set, the entry must be
+  made in ARM state, even for a Thumb-2 kernel.
+
+  On CPUs supporting only the Thumb instruction set such as
+  Cortex-M class CPUs, the entry must be made in Thumb state.

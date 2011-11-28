@@ -10,7 +10,7 @@
  *	Remote softirq infrastructure is by Jens Axboe.
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/kernel_stat.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -315,16 +315,24 @@ static inline void invoke_softirq(void)
 {
 	if (!force_irqthreads)
 		__do_softirq();
-	else
+	else {
+		__local_bh_disable((unsigned long)__builtin_return_address(0),
+				SOFTIRQ_OFFSET);
 		wakeup_softirqd();
+		__local_bh_enable(SOFTIRQ_OFFSET);
+	}
 }
 #else
 static inline void invoke_softirq(void)
 {
 	if (!force_irqthreads)
 		do_softirq();
-	else
+	else {
+		__local_bh_disable((unsigned long)__builtin_return_address(0),
+				SOFTIRQ_OFFSET);
 		wakeup_softirqd();
+		__local_bh_enable(SOFTIRQ_OFFSET);
+	}
 }
 #endif
 

@@ -41,6 +41,7 @@
 #include <linux/pnp.h>
 #include <linux/vga_switcheroo.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <acpi/video.h>
 
 static void i915_write_hws_pga(struct drm_device *dev)
@@ -61,7 +62,6 @@ static void i915_write_hws_pga(struct drm_device *dev)
 static int i915_init_phys_hws(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring = LP_RING(dev_priv);
 
 	/* Program Hardware Status Page */
 	dev_priv->status_page_dmah =
@@ -71,10 +71,9 @@ static int i915_init_phys_hws(struct drm_device *dev)
 		DRM_ERROR("Can not allocate hardware status page\n");
 		return -ENOMEM;
 	}
-	ring->status_page.page_addr =
-		(void __force __iomem *)dev_priv->status_page_dmah->vaddr;
 
-	memset_io(ring->status_page.page_addr, 0, PAGE_SIZE);
+	memset_io((void __force __iomem *)dev_priv->status_page_dmah->vaddr,
+		  0, PAGE_SIZE);
 
 	i915_write_hws_pga(dev);
 
@@ -886,7 +885,7 @@ static int i915_get_bridge_dev(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	dev_priv->bridge_dev = pci_get_bus_and_slot(0, PCI_DEVFN(0,0));
+	dev_priv->bridge_dev = pci_get_bus_and_slot(0, PCI_DEVFN(0, 0));
 	if (!dev_priv->bridge_dev) {
 		DRM_ERROR("bridge device not found\n");
 		return -1;
@@ -1073,6 +1072,9 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 	unsigned long cfb_base;
 	unsigned long ll_base = 0;
 
+	/* Just in case the BIOS is doing something questionable. */
+	intel_disable_fbc(dev);
+
 	compressed_fb = drm_mm_search_free(&dev_priv->mm.stolen, size, 4096, 0);
 	if (compressed_fb)
 		compressed_fb = drm_mm_get_block(compressed_fb, size, 4096);
@@ -1099,7 +1101,6 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 
 	dev_priv->cfb_size = size;
 
-	intel_disable_fbc(dev);
 	dev_priv->compressed_fb = compressed_fb;
 	if (HAS_PCH_SPLIT(dev))
 		I915_WRITE(ILK_DPFC_CB_BASE, compressed_fb->start);
@@ -1730,10 +1731,10 @@ static DEFINE_SPINLOCK(mchdev_lock);
  */
 unsigned long i915_read_mch_val(void)
 {
-  	struct drm_i915_private *dev_priv;
+	struct drm_i915_private *dev_priv;
 	unsigned long chipset_val, graphics_val, ret = 0;
 
-  	spin_lock(&mchdev_lock);
+	spin_lock(&mchdev_lock);
 	if (!i915_mch_dev)
 		goto out_unlock;
 	dev_priv = i915_mch_dev;
@@ -1744,9 +1745,9 @@ unsigned long i915_read_mch_val(void)
 	ret = chipset_val + graphics_val;
 
 out_unlock:
-  	spin_unlock(&mchdev_lock);
+	spin_unlock(&mchdev_lock);
 
-  	return ret;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(i915_read_mch_val);
 
@@ -1757,10 +1758,10 @@ EXPORT_SYMBOL_GPL(i915_read_mch_val);
  */
 bool i915_gpu_raise(void)
 {
-  	struct drm_i915_private *dev_priv;
+	struct drm_i915_private *dev_priv;
 	bool ret = true;
 
-  	spin_lock(&mchdev_lock);
+	spin_lock(&mchdev_lock);
 	if (!i915_mch_dev) {
 		ret = false;
 		goto out_unlock;
@@ -1771,9 +1772,9 @@ bool i915_gpu_raise(void)
 		dev_priv->max_delay--;
 
 out_unlock:
-  	spin_unlock(&mchdev_lock);
+	spin_unlock(&mchdev_lock);
 
-  	return ret;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(i915_gpu_raise);
 
@@ -1785,10 +1786,10 @@ EXPORT_SYMBOL_GPL(i915_gpu_raise);
  */
 bool i915_gpu_lower(void)
 {
-  	struct drm_i915_private *dev_priv;
+	struct drm_i915_private *dev_priv;
 	bool ret = true;
 
-  	spin_lock(&mchdev_lock);
+	spin_lock(&mchdev_lock);
 	if (!i915_mch_dev) {
 		ret = false;
 		goto out_unlock;
@@ -1799,9 +1800,9 @@ bool i915_gpu_lower(void)
 		dev_priv->max_delay++;
 
 out_unlock:
-  	spin_unlock(&mchdev_lock);
+	spin_unlock(&mchdev_lock);
 
-  	return ret;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(i915_gpu_lower);
 
@@ -1812,10 +1813,10 @@ EXPORT_SYMBOL_GPL(i915_gpu_lower);
  */
 bool i915_gpu_busy(void)
 {
-  	struct drm_i915_private *dev_priv;
+	struct drm_i915_private *dev_priv;
 	bool ret = false;
 
-  	spin_lock(&mchdev_lock);
+	spin_lock(&mchdev_lock);
 	if (!i915_mch_dev)
 		goto out_unlock;
 	dev_priv = i915_mch_dev;
@@ -1823,9 +1824,9 @@ bool i915_gpu_busy(void)
 	ret = dev_priv->busy;
 
 out_unlock:
-  	spin_unlock(&mchdev_lock);
+	spin_unlock(&mchdev_lock);
 
-  	return ret;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(i915_gpu_busy);
 
@@ -1837,10 +1838,10 @@ EXPORT_SYMBOL_GPL(i915_gpu_busy);
  */
 bool i915_gpu_turbo_disable(void)
 {
-  	struct drm_i915_private *dev_priv;
+	struct drm_i915_private *dev_priv;
 	bool ret = true;
 
-  	spin_lock(&mchdev_lock);
+	spin_lock(&mchdev_lock);
 	if (!i915_mch_dev) {
 		ret = false;
 		goto out_unlock;
@@ -1853,9 +1854,9 @@ bool i915_gpu_turbo_disable(void)
 		ret = false;
 
 out_unlock:
-  	spin_unlock(&mchdev_lock);
+	spin_unlock(&mchdev_lock);
 
-  	return ret;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(i915_gpu_turbo_disable);
 
@@ -1943,12 +1944,12 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (!dev_priv->mm.gtt) {
 		DRM_ERROR("Failed to initialize GTT\n");
 		ret = -ENODEV;
-		goto out_iomapfree;
+		goto out_rmmap;
 	}
 
 	agp_size = dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
 
-        dev_priv->mm.gtt_mapping =
+	dev_priv->mm.gtt_mapping =
 		io_mapping_create_wc(dev->agp->base, agp_size);
 	if (dev_priv->mm.gtt_mapping == NULL) {
 		ret = -EIO;
@@ -1987,7 +1988,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (dev_priv->wq == NULL) {
 		DRM_ERROR("Failed to create our workqueue.\n");
 		ret = -ENOMEM;
-		goto out_iomapfree;
+		goto out_mtrrfree;
 	}
 
 	/* enable GEM by default */
@@ -2035,7 +2036,9 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	spin_lock_init(&dev_priv->error_lock);
 	spin_lock_init(&dev_priv->rps_lock);
 
-	if (IS_MOBILE(dev) || !IS_GEN2(dev))
+	if (IS_IVYBRIDGE(dev))
+		dev_priv->num_pipe = 3;
+	else if (IS_MOBILE(dev) || !IS_GEN2(dev))
 		dev_priv->num_pipe = 2;
 	else
 		dev_priv->num_pipe = 1;
@@ -2074,13 +2077,21 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	return 0;
 
 out_gem_unload:
+	if (dev_priv->mm.inactive_shrinker.shrink)
+		unregister_shrinker(&dev_priv->mm.inactive_shrinker);
+
 	if (dev->pdev->msi_enabled)
 		pci_disable_msi(dev->pdev);
 
 	intel_teardown_gmbus(dev);
 	intel_teardown_mchbar(dev);
 	destroy_workqueue(dev_priv->wq);
-out_iomapfree:
+out_mtrrfree:
+	if (dev_priv->mm.gtt_mtrr >= 0) {
+		mtrr_del(dev_priv->mm.gtt_mtrr, dev->agp->base,
+			 dev->agp->agp_info.aper_size * 1024 * 1024);
+		dev_priv->mm.gtt_mtrr = -1;
+	}
 	io_mapping_free(dev_priv->mm.gtt_mapping);
 out_rmmap:
 	pci_iounmap(dev->pdev, dev_priv->regs);

@@ -1,7 +1,7 @@
 /*
  * 	connector.h
  * 
- * 2004-2005 Copyright (c) Evgeniy Polyakov <johnpol@2ka.mipt.ru>
+ * 2004-2005 Copyright (c) Evgeniy Polyakov <zbr@ioremap.net>
  * All rights reserved.
  * 
  * This program is free software; you can redistribute it and/or modify
@@ -75,7 +75,7 @@ struct cn_msg {
 
 #ifdef __KERNEL__
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include <linux/list.h>
 #include <linux/workqueue.h>

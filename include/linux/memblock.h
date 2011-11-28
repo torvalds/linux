@@ -127,6 +127,7 @@ extern phys_addr_t __memblock_alloc_base(phys_addr_t size,
 					   phys_addr_t align,
 					   phys_addr_t max_addr);
 extern phys_addr_t memblock_phys_mem_size(void);
+extern phys_addr_t memblock_start_of_DRAM(void);
 extern phys_addr_t memblock_end_of_DRAM(void);
 extern void memblock_enforce_memory_limit(phys_addr_t memory_limit);
 extern int memblock_is_memory(phys_addr_t addr);

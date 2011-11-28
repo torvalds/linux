@@ -26,7 +26,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/time.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/emu10k1.h>
 #include <sound/initval.h>
@@ -264,7 +264,7 @@ static int snd_emu10k1_resume(struct pci_dev *pci)
 #endif
 
 static struct pci_driver driver = {
-	.name = "EMU10K1_Audigy",
+	.name = KBUILD_MODNAME,
 	.id_table = snd_emu10k1_ids,
 	.probe = snd_card_emu10k1_probe,
 	.remove = __devexit_p(snd_card_emu10k1_remove),

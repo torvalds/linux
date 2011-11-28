@@ -6,7 +6,7 @@
  */
 
 #include <linux/spinlock.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
   asm (".text					\n\
 	.global _atomic_dec_and_lock		\n\

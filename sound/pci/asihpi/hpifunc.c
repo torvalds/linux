@@ -1663,68 +1663,64 @@ u16 hpi_channel_mode_get(u32 h_control, u16 *mode)
 u16 hpi_cobranet_hmi_write(u32 h_control, u32 hmi_address, u32 byte_count,
 	u8 *pb_data)
 {
-	struct hpi_message hm;
-	struct hpi_response hr;
+	struct hpi_msg_cobranet_hmiwrite hm;
+	struct hpi_response_header hr;
 
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_CONTROLEX,
-		HPI_CONTROL_SET_STATE);
-	if (hpi_handle_indexes(h_control, &hm.adapter_index, &hm.obj_index))
+	hpi_init_message_responseV1(&hm.h, sizeof(hm), &hr, sizeof(hr),
+		HPI_OBJ_CONTROL, HPI_CONTROL_SET_STATE);
+
+	if (hpi_handle_indexes(h_control, &hm.h.adapter_index,
+			&hm.h.obj_index))
 		return HPI_ERROR_INVALID_HANDLE;
 
-	hm.u.cx.u.cobranet_data.byte_count = byte_count;
-	hm.u.cx.u.cobranet_data.hmi_address = hmi_address;
+	if (byte_count > sizeof(hm.bytes))
+		return HPI_ERROR_MESSAGE_BUFFER_TOO_SMALL;
 
-	if (byte_count <= 8) {
-		memcpy(hm.u.cx.u.cobranet_data.data, pb_data, byte_count);
-		hm.u.cx.attribute = HPI_COBRANET_SET;
-	} else {
-		hm.u.cx.u.cobranet_bigdata.pb_data = pb_data;
-		hm.u.cx.attribute = HPI_COBRANET_SET_DATA;
-	}
+	hm.p.attribute = HPI_COBRANET_SET;
+	hm.p.byte_count = byte_count;
+	hm.p.hmi_address = hmi_address;
+	memcpy(hm.bytes, pb_data, byte_count);
+	hm.h.size = (u16)(sizeof(hm.h) + sizeof(hm.p) + byte_count);
 
-	hpi_send_recv(&hm, &hr);
-
+	hpi_send_recvV1(&hm.h, &hr);
 	return hr.error;
 }
 
 u16 hpi_cobranet_hmi_read(u32 h_control, u32 hmi_address, u32 max_byte_count,
 	u32 *pbyte_count, u8 *pb_data)
 {
-	struct hpi_message hm;
-	struct hpi_response hr;
+	struct hpi_msg_cobranet_hmiread hm;
+	struct hpi_res_cobranet_hmiread hr;
 
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_CONTROLEX,
-		HPI_CONTROL_GET_STATE);
-	if (hpi_handle_indexes(h_control, &hm.adapter_index, &hm.obj_index))
+	hpi_init_message_responseV1(&hm.h, sizeof(hm), &hr.h, sizeof(hr),
+		HPI_OBJ_CONTROL, HPI_CONTROL_GET_STATE);
+
+	if (hpi_handle_indexes(h_control, &hm.h.adapter_index,
+			&hm.h.obj_index))
 		return HPI_ERROR_INVALID_HANDLE;
 
-	hm.u.cx.u.cobranet_data.byte_count = max_byte_count;
-	hm.u.cx.u.cobranet_data.hmi_address = hmi_address;
+	if (max_byte_count > sizeof(hr.bytes))
+		return HPI_ERROR_RESPONSE_BUFFER_TOO_SMALL;
 
-	if (max_byte_count <= 8) {
-		hm.u.cx.attribute = HPI_COBRANET_GET;
-	} else {
-		hm.u.cx.u.cobranet_bigdata.pb_data = pb_data;
-		hm.u.cx.attribute = HPI_COBRANET_GET_DATA;
-	}
+	hm.p.attribute = HPI_COBRANET_GET;
+	hm.p.byte_count = max_byte_count;
+	hm.p.hmi_address = hmi_address;
 
-	hpi_send_recv(&hm, &hr);
-	if (!hr.error && pb_data) {
+	hpi_send_recvV1(&hm.h, &hr.h);
 
-		*pbyte_count = hr.u.cx.u.cobranet_data.byte_count;
+	if (!hr.h.error && pb_data) {
+		if (hr.byte_count > sizeof(hr.bytes))
 
-		if (*pbyte_count < max_byte_count)
+			return HPI_ERROR_RESPONSE_BUFFER_TOO_SMALL;
+
+		*pbyte_count = hr.byte_count;
+
+		if (hr.byte_count < max_byte_count)
 			max_byte_count = *pbyte_count;
 
-		if (hm.u.cx.attribute == HPI_COBRANET_GET) {
-			memcpy(pb_data, hr.u.cx.u.cobranet_data.data,
-				max_byte_count);
-		} else {
-
-		}
-
+		memcpy(pb_data, hr.bytes, max_byte_count);
 	}
-	return hr.error;
+	return hr.h.error;
 }
 
 u16 hpi_cobranet_hmi_get_status(u32 h_control, u32 *pstatus,
@@ -1733,23 +1729,23 @@ u16 hpi_cobranet_hmi_get_status(u32 h_control, u32 *pstatus,
 	struct hpi_message hm;
 	struct hpi_response hr;
 
-	hpi_init_message_response(&hm, &hr, HPI_OBJ_CONTROLEX,
+	hpi_init_message_response(&hm, &hr, HPI_OBJ_CONTROL,
 		HPI_CONTROL_GET_STATE);
 	if (hpi_handle_indexes(h_control, &hm.adapter_index, &hm.obj_index))
 		return HPI_ERROR_INVALID_HANDLE;
 
-	hm.u.cx.attribute = HPI_COBRANET_GET_STATUS;
+	hm.u.c.attribute = HPI_COBRANET_GET_STATUS;
 
 	hpi_send_recv(&hm, &hr);
 	if (!hr.error) {
 		if (pstatus)
-			*pstatus = hr.u.cx.u.cobranet_status.status;
+			*pstatus = hr.u.cu.cobranet.status.status;
 		if (preadable_size)
 			*preadable_size =
-				hr.u.cx.u.cobranet_status.readable_size;
+				hr.u.cu.cobranet.status.readable_size;
 		if (pwriteable_size)
 			*pwriteable_size =
-				hr.u.cx.u.cobranet_status.writeable_size;
+				hr.u.cu.cobranet.status.writeable_size;
 	}
 	return hr.error;
 }

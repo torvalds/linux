@@ -56,7 +56,7 @@ const struct inode_operations jffs2_dir_inode_operations =
 	.rmdir =	jffs2_rmdir,
 	.mknod =	jffs2_mknod,
 	.rename =	jffs2_rename,
-	.check_acl =	jffs2_check_acl,
+	.get_acl =	jffs2_get_acl,
 	.setattr =	jffs2_setattr,
 	.setxattr =	jffs2_setxattr,
 	.getxattr =	jffs2_getxattr,
@@ -102,10 +102,8 @@ static struct dentry *jffs2_lookup(struct inode *dir_i, struct dentry *target,
 	mutex_unlock(&dir_f->sem);
 	if (ino) {
 		inode = jffs2_iget(dir_i->i_sb, ino);
-		if (IS_ERR(inode)) {
+		if (IS_ERR(inode))
 			printk(KERN_WARNING "iget() failed for ino #%u\n", ino);
-			return ERR_CAST(inode);
-		}
 	}
 
 	return d_splice_alias(inode, target);
@@ -247,7 +245,7 @@ static int jffs2_unlink(struct inode *dir_i, struct dentry *dentry)
 	ret = jffs2_do_unlink(c, dir_f, dentry->d_name.name,
 			      dentry->d_name.len, dead_f, now);
 	if (dead_f->inocache)
-		dentry->d_inode->i_nlink = dead_f->inocache->pino_nlink;
+		set_nlink(dentry->d_inode, dead_f->inocache->pino_nlink);
 	if (!ret)
 		dir_i->i_mtime = dir_i->i_ctime = ITIME(now);
 	return ret;
@@ -280,7 +278,7 @@ static int jffs2_link (struct dentry *old_dentry, struct inode *dir_i, struct de
 
 	if (!ret) {
 		mutex_lock(&f->sem);
-		old_dentry->d_inode->i_nlink = ++f->inocache->pino_nlink;
+		set_nlink(old_dentry->d_inode, ++f->inocache->pino_nlink);
 		mutex_unlock(&f->sem);
 		d_instantiate(dentry, old_dentry->d_inode);
 		dir_i->i_mtime = dir_i->i_ctime = ITIME(now);
@@ -499,7 +497,7 @@ static int jffs2_mkdir (struct inode *dir_i, struct dentry *dentry, int mode)
 	f = JFFS2_INODE_INFO(inode);
 
 	/* Directories get nlink 2 at start */
-	inode->i_nlink = 2;
+	set_nlink(inode, 2);
 	/* but ic->pino_nlink is the parent ino# */
 	f->inocache->pino_nlink = dir_i->i_ino;
 
@@ -822,7 +820,10 @@ static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
 
 	if (victim_f) {
 		/* There was a victim. Kill it off nicely */
-		drop_nlink(new_dentry->d_inode);
+		if (S_ISDIR(new_dentry->d_inode->i_mode))
+			clear_nlink(new_dentry->d_inode);
+		else
+			drop_nlink(new_dentry->d_inode);
 		/* Don't oops if the victim was a dirent pointing to an
 		   inode which didn't exist. */
 		if (victim_f->inocache) {

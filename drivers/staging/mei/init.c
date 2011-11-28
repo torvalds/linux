@@ -29,53 +29,28 @@ const uuid_le mei_amthi_guid  = UUID_LE(0x12f80028, 0xb4b7, 0x4b2d, 0xac,
 						0x81, 0x4c);
 
 /**
- * mei_initialize_list - Sets up a queue list.
+ * mei_io_list_init - Sets up a queue list.
  *
- * @list: An instance of our list structure
+ * @list: An instance io list structure
  * @dev: the device structure
  */
-void mei_initialize_list(struct mei_io_list *list, struct mei_device *dev)
+void mei_io_list_init(struct mei_io_list *list)
 {
 	/* initialize our queue list */
 	INIT_LIST_HEAD(&list->mei_cb.cb_list);
 	list->status = 0;
-	list->device_extension = dev;
 }
 
 /**
- * mei_flush_queues - flushes queue lists belonging to cl.
- *
- * @dev: the device structure
- * @cl: private data of the file object
- */
-void mei_flush_queues(struct mei_device *dev, struct mei_cl *cl)
-{
-	int i;
-
-	if (!dev || !cl)
-		return;
-
-	for (i = 0; i < MEI_IO_LISTS_NUMBER; i++) {
-		dev_dbg(&dev->pdev->dev, "remove list entry belonging to cl\n");
-		mei_flush_list(dev->io_list_array[i], cl);
-	}
-}
-
-
-/**
- * mei_flush_list - removes list entry belonging to cl.
+ * mei_io_list_flush - removes list entry belonging to cl.
  *
  * @list:  An instance of our list structure
  * @cl: private data of the file object
  */
-void mei_flush_list(struct mei_io_list *list, struct mei_cl *cl)
+void mei_io_list_flush(struct mei_io_list *list, struct mei_cl *cl)
 {
-	struct mei_cl *cl_tmp;
 	struct mei_cl_cb *cb_pos = NULL;
 	struct mei_cl_cb *cb_next = NULL;
-
-	if (!list || !cl)
-		return;
 
 	if (list->status != 0)
 		return;
@@ -86,14 +61,36 @@ void mei_flush_list(struct mei_io_list *list, struct mei_cl *cl)
 	list_for_each_entry_safe(cb_pos, cb_next,
 				 &list->mei_cb.cb_list, cb_list) {
 		if (cb_pos) {
-			cl_tmp = (struct mei_cl *)
-				cb_pos->file_private;
-			if (cl_tmp &&
-			    mei_fe_same_id(cl, cl_tmp))
+			struct mei_cl *cl_tmp;
+			cl_tmp = (struct mei_cl *)cb_pos->file_private;
+			if (mei_cl_cmp_id(cl, cl_tmp))
 				list_del(&cb_pos->cb_list);
 		}
 	}
 }
+/**
+ * mei_cl_flush_queues - flushes queue lists belonging to cl.
+ *
+ * @dev: the device structure
+ * @cl: private data of the file object
+ */
+int mei_cl_flush_queues(struct mei_cl *cl)
+{
+	if (!cl || !cl->dev)
+		return -EINVAL;
+
+	dev_dbg(&cl->dev->pdev->dev, "remove list entry belonging to cl\n");
+	mei_io_list_flush(&cl->dev->read_list, cl);
+	mei_io_list_flush(&cl->dev->write_list, cl);
+	mei_io_list_flush(&cl->dev->write_waiting_list, cl);
+	mei_io_list_flush(&cl->dev->ctrl_wr_list, cl);
+	mei_io_list_flush(&cl->dev->ctrl_rd_list, cl);
+	mei_io_list_flush(&cl->dev->amthi_cmd_list, cl);
+	mei_io_list_flush(&cl->dev->amthi_read_complete_list, cl);
+	return 0;
+}
+
+
 
 /**
  * mei_reset_iamthif_params - initializes mei device iamthif
@@ -106,8 +103,8 @@ static void mei_reset_iamthif_params(struct mei_device *dev)
 	dev->iamthif_current_cb = NULL;
 	dev->iamthif_msg_buf_size = 0;
 	dev->iamthif_msg_buf_index = 0;
-	dev->iamthif_canceled = 0;
-	dev->iamthif_ioctl = 0;
+	dev->iamthif_canceled = false;
+	dev->iamthif_ioctl = false;
 	dev->iamthif_state = MEI_IAMTHIF_IDLE;
 	dev->iamthif_timer = 0;
 }
@@ -119,9 +116,8 @@ static void mei_reset_iamthif_params(struct mei_device *dev)
  *
  * returns The mei_device_device pointer on success, NULL on failure.
  */
-struct mei_device *init_mei_device(struct pci_dev *pdev)
+struct mei_device *mei_device_init(struct pci_dev *pdev)
 {
-	int i;
 	struct mei_device *dev;
 
 	dev = kzalloc(sizeof(struct mei_device), GFP_KERNEL);
@@ -129,13 +125,6 @@ struct mei_device *init_mei_device(struct pci_dev *pdev)
 		return NULL;
 
 	/* setup our list array */
-	dev->io_list_array[0] = &dev->read_list;
-	dev->io_list_array[1] = &dev->write_list;
-	dev->io_list_array[2] = &dev->write_waiting_list;
-	dev->io_list_array[3] = &dev->ctrl_wr_list;
-	dev->io_list_array[4] = &dev->ctrl_rd_list;
-	dev->io_list_array[5] = &dev->amthi_cmd_list;
-	dev->io_list_array[6] = &dev->amthi_read_complete_list;
 	INIT_LIST_HEAD(&dev->file_list);
 	INIT_LIST_HEAD(&dev->wd_cl.link);
 	INIT_LIST_HEAD(&dev->iamthif_cl.link);
@@ -144,8 +133,16 @@ struct mei_device *init_mei_device(struct pci_dev *pdev)
 	init_waitqueue_head(&dev->wait_stop_wd);
 	dev->mei_state = MEI_INITIALIZING;
 	dev->iamthif_state = MEI_IAMTHIF_IDLE;
-	for (i = 0; i < MEI_IO_LISTS_NUMBER; i++)
-		mei_initialize_list(dev->io_list_array[i], dev);
+	dev->wd_interface_reg = false;
+
+
+	mei_io_list_init(&dev->read_list);
+	mei_io_list_init(&dev->write_list);
+	mei_io_list_init(&dev->write_waiting_list);
+	mei_io_list_init(&dev->ctrl_wr_list);
+	mei_io_list_init(&dev->ctrl_rd_list);
+	mei_io_list_init(&dev->amthi_cmd_list);
+	mei_io_list_init(&dev->amthi_read_complete_list);
 	dev->pdev = pdev;
 	return dev;
 }
@@ -173,7 +170,7 @@ int mei_hw_init(struct mei_device *dev)
 	if ((dev->host_hw_state & H_IS) == H_IS)
 		mei_reg_write(dev, H_CSR, dev->host_hw_state);
 
-	dev->recvd_msg = 0;
+	dev->recvd_msg = false;
 	dev_dbg(&dev->pdev->dev, "reset in start the mei device.\n");
 
 	mei_reset(dev, 1);
@@ -223,7 +220,7 @@ int mei_hw_init(struct mei_device *dev)
 		goto out;
 	}
 
-	dev->recvd_msg = 0;
+	dev->recvd_msg = false;
 	dev_dbg(&dev->pdev->dev, "host_hw_state = 0x%08x, me_hw_state = 0x%08x.\n",
 	    dev->host_hw_state, dev->me_hw_state);
 	dev_dbg(&dev->pdev->dev, "ME turn on ME_RDY and host turn on H_RDY.\n");
@@ -267,7 +264,7 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 	bool unexpected;
 
 	if (dev->mei_state == MEI_RECOVERING_FROM_RESET) {
-		dev->need_reset = 1;
+		dev->need_reset = true;
 		return;
 	}
 
@@ -291,7 +288,7 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 	dev_dbg(&dev->pdev->dev, "currently saved host_hw_state = 0x%08x.\n",
 	    dev->host_hw_state);
 
-	dev->need_reset = 0;
+	dev->need_reset = false;
 
 	if (dev->mei_state != MEI_INITIALIZING) {
 		if (dev->mei_state != MEI_DISABLED &&
@@ -318,10 +315,10 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 		dev->extra_write_index = 0;
 	}
 
-	dev->num_mei_me_clients = 0;
+	dev->me_clients_num = 0;
 	dev->rd_msg_hdr = 0;
-	dev->stop = 0;
-	dev->wd_pending = 0;
+	dev->stop = false;
+	dev->wd_pending = false;
 
 	/* update the state of the registers after reset */
 	dev->host_hw_state = mei_hcsr_read(dev);
@@ -363,7 +360,7 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
  *
  * returns none.
  */
-void host_start_message(struct mei_device *dev)
+void mei_host_start_message(struct mei_device *dev)
 {
 	struct mei_msg_hdr *mei_hdr;
 	struct hbm_host_version_request *host_start_req;
@@ -382,7 +379,7 @@ void host_start_message(struct mei_device *dev)
 	host_start_req->cmd.cmd = HOST_START_REQ_CMD;
 	host_start_req->host_version.major_version = HBM_MAJOR_VERSION;
 	host_start_req->host_version.minor_version = HBM_MINOR_VERSION;
-	dev->recvd_msg = 0;
+	dev->recvd_msg = false;
 	if (!mei_write_message(dev, mei_hdr,
 				       (unsigned char *) (host_start_req),
 				       mei_hdr->length)) {
@@ -402,7 +399,7 @@ void host_start_message(struct mei_device *dev)
  *
  * returns none.
  */
-void host_enum_clients_message(struct mei_device *dev)
+void mei_host_enum_clients_message(struct mei_device *dev)
 {
 	struct mei_msg_hdr *mei_hdr;
 	struct hbm_host_enum_request *host_enum_req;
@@ -437,16 +434,16 @@ void host_enum_clients_message(struct mei_device *dev)
  *
  * returns none.
  */
-void allocate_me_clients_storage(struct mei_device *dev)
+void mei_allocate_me_clients_storage(struct mei_device *dev)
 {
 	struct mei_me_client *clients;
 	int b;
 
 	/* count how many ME clients we have */
 	for_each_set_bit(b, dev->me_clients_map, MEI_CLIENTS_MAX)
-		dev->num_mei_me_clients++;
+		dev->me_clients_num++;
 
-	if (dev->num_mei_me_clients <= 0)
+	if (dev->me_clients_num <= 0)
 		return ;
 
 
@@ -455,9 +452,9 @@ void allocate_me_clients_storage(struct mei_device *dev)
 		dev->me_clients = NULL;
 	}
 	dev_dbg(&dev->pdev->dev, "memory allocation for ME clients size=%zd.\n",
-		dev->num_mei_me_clients * sizeof(struct mei_me_client));
+		dev->me_clients_num * sizeof(struct mei_me_client));
 	/* allocate storage for ME clients representation */
-	clients = kcalloc(dev->num_mei_me_clients,
+	clients = kcalloc(dev->me_clients_num,
 			sizeof(struct mei_me_client), GFP_KERNEL);
 	if (!clients) {
 		dev_dbg(&dev->pdev->dev, "memory allocation for ME clients failed.\n");
@@ -473,9 +470,12 @@ void allocate_me_clients_storage(struct mei_device *dev)
  *
  * @dev: the device structure
  *
- * returns none.
+ * returns:
+ * 	< 0 - Error.
+ *  = 0 - no more clients.
+ *  = 1 - still have clients to send properties request.
  */
-void host_client_properties(struct mei_device *dev)
+int mei_host_client_properties(struct mei_device *dev)
 {
 	struct mei_msg_hdr *mei_header;
 	struct hbm_props_request *host_cli_req;
@@ -507,27 +507,15 @@ void host_client_properties(struct mei_device *dev)
 			dev->mei_state = MEI_RESETING;
 			dev_dbg(&dev->pdev->dev, "write send enumeration request message to FW fail.\n");
 			mei_reset(dev, 1);
-			return;
+			return -EIO;
 		}
 
 		dev->init_clients_timer = INIT_CLIENTS_TIMEOUT;
 		dev->me_client_index = b;
-		return;
+		return 1;
 	}
 
-
-	/*
-	 * Clear Map for indicating now ME clients
-	 * with associated host client
-	 */
-	bitmap_zero(dev->host_clients_map, MEI_CLIENTS_MAX);
-	dev->write_hang = -1;
-	dev->open_handle_count = 0;
-	bitmap_set(dev->host_clients_map, 0, 3);
-	dev->mei_state = MEI_ENABLED;
-
-	mei_wd_host_init(dev);
-	return;
+	return 0;
 }
 
 /**
@@ -536,7 +524,7 @@ void host_client_properties(struct mei_device *dev)
  * @priv: private file structure to be initialized
  * @file: the file structure
  */
-void mei_init_file_private(struct mei_cl *priv, struct mei_device *dev)
+void mei_cl_init(struct mei_cl *priv, struct mei_device *dev)
 {
 	memset(priv, 0, sizeof(struct mei_cl));
 	init_waitqueue_head(&priv->wait);
@@ -552,7 +540,7 @@ int mei_find_me_client_index(const struct mei_device *dev, uuid_le cuuid)
 {
 	int i, res = -1;
 
-	for (i = 0; i < dev->num_mei_me_clients; ++i)
+	for (i = 0; i < dev->me_clients_num; ++i)
 		if (uuid_le_cmp(cuuid,
 				dev->me_clients[i].props.protocol_name) == 0) {
 			res = i;
@@ -601,12 +589,12 @@ u8 mei_find_me_client_update_filext(struct mei_device *dev, struct mei_cl *priv,
  * @dev: the device structure
  *
  */
-void host_init_iamthif(struct mei_device *dev)
+void mei_host_init_iamthif(struct mei_device *dev)
 {
 	u8 i;
 	unsigned char *msg_buf;
 
-	mei_init_file_private(&dev->iamthif_cl, dev);
+	mei_cl_init(&dev->iamthif_cl, dev);
 	dev->iamthif_cl.state = MEI_FILE_DISCONNECTED;
 
 	/* find ME amthi client */
@@ -656,17 +644,17 @@ void host_init_iamthif(struct mei_device *dev)
  *
  * returns  The allocated file or NULL on failure
  */
-struct mei_cl *mei_alloc_file_private(struct mei_device *dev)
+struct mei_cl *mei_cl_allocate(struct mei_device *dev)
 {
-	struct mei_cl *priv;
+	struct mei_cl *cl;
 
-	priv = kmalloc(sizeof(struct mei_cl), GFP_KERNEL);
-	if (!priv)
+	cl = kmalloc(sizeof(struct mei_cl), GFP_KERNEL);
+	if (!cl)
 		return NULL;
 
-	mei_init_file_private(priv, dev);
+	mei_cl_init(cl, dev);
 
-	return priv;
+	return cl;
 }
 
 
@@ -701,7 +689,7 @@ int mei_disconnect_host_client(struct mei_device *dev, struct mei_cl *cl)
 	cb->file_private = cl;
 	cb->major_file_operations = MEI_CLOSE;
 	if (dev->mei_host_buffer_is_empty) {
-		dev->mei_host_buffer_is_empty = 0;
+		dev->mei_host_buffer_is_empty = false;
 		if (mei_disconnect(dev, cl)) {
 			mdelay(10); /* Wait for hardware disconnection ready */
 			list_add_tail(&cb->cb_list,
@@ -739,8 +727,8 @@ int mei_disconnect_host_client(struct mei_device *dev, struct mei_cl *cl)
 		dev_dbg(&dev->pdev->dev, "failed to disconnect from FW client.\n");
 	}
 
-	mei_flush_list(&dev->ctrl_rd_list, cl);
-	mei_flush_list(&dev->ctrl_wr_list, cl);
+	mei_io_list_flush(&dev->ctrl_rd_list, cl);
+	mei_io_list_flush(&dev->ctrl_wr_list, cl);
 free:
 	mei_free_cb_private(cb);
 	return rets;

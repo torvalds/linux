@@ -117,8 +117,6 @@ static int afeb9260_tlv320aic23_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_enable_pin(dapm, "Line In");
 	snd_soc_dapm_enable_pin(dapm, "Mic Jack");
 
-	snd_soc_dapm_sync(dapm);
-
 	return 0;
 }
 

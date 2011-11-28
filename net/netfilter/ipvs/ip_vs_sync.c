@@ -61,6 +61,7 @@
 
 #define SYNC_PROTO_VER  1		/* Protocol version in header */
 
+static struct lock_class_key __ipvs_sync_key;
 /*
  *	IPVS sync connection entry
  *	Version 0, i.e. original version.
@@ -1545,6 +1546,7 @@ int start_sync_thread(struct net *net, int state, char *mcast_ifn, __u8 syncid)
 	IP_VS_DBG(7, "Each ip_vs_sync_conn entry needs %Zd bytes\n",
 		  sizeof(struct ip_vs_sync_conn_v0));
 
+
 	if (state == IP_VS_STATE_MASTER) {
 		if (ipvs->master_thread)
 			return -EEXIST;
@@ -1663,10 +1665,11 @@ int stop_sync_thread(struct net *net, int state)
 /*
  * Initialize data struct for each netns
  */
-int __net_init __ip_vs_sync_init(struct net *net)
+int __net_init ip_vs_sync_net_init(struct net *net)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
+	__mutex_init(&ipvs->sync_mutex, "ipvs->sync_mutex", &__ipvs_sync_key);
 	INIT_LIST_HEAD(&ipvs->sync_queue);
 	spin_lock_init(&ipvs->sync_lock);
 	spin_lock_init(&ipvs->sync_buff_lock);
@@ -1677,10 +1680,12 @@ int __net_init __ip_vs_sync_init(struct net *net)
 	return 0;
 }
 
-void __ip_vs_sync_cleanup(struct net *net)
+void ip_vs_sync_net_cleanup(struct net *net)
 {
 	int retc;
+	struct netns_ipvs *ipvs = net_ipvs(net);
 
+	mutex_lock(&ipvs->sync_mutex);
 	retc = stop_sync_thread(net, IP_VS_STATE_MASTER);
 	if (retc && retc != -ESRCH)
 		pr_err("Failed to stop Master Daemon\n");
@@ -1688,13 +1693,5 @@ void __ip_vs_sync_cleanup(struct net *net)
 	retc = stop_sync_thread(net, IP_VS_STATE_BACKUP);
 	if (retc && retc != -ESRCH)
 		pr_err("Failed to stop Backup Daemon\n");
-}
-
-int __init ip_vs_sync_init(void)
-{
-	return 0;
-}
-
-void ip_vs_sync_cleanup(void)
-{
+	mutex_unlock(&ipvs->sync_mutex);
 }

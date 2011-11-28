@@ -88,7 +88,7 @@ nf_nat_fn(unsigned int hooknum,
 
 	/* We never see fragments: conntrack defrags on pre-routing
 	   and local-out, and nf_nat_out protects post-routing. */
-	NF_CT_ASSERT(!(ip_hdr(skb)->frag_off & htons(IP_MF | IP_OFFSET)));
+	NF_CT_ASSERT(!ip_is_fragment(ip_hdr(skb)));
 
 	ct = nf_ct_get(skb, &ctinfo);
 	/* Can't track?  It's not due to stress, or conntrack would
@@ -284,7 +284,7 @@ static int __init nf_nat_standalone_init(void)
 
 #ifdef CONFIG_XFRM
 	BUG_ON(ip_nat_decode_session != NULL);
-	rcu_assign_pointer(ip_nat_decode_session, nat_decode_session);
+	RCU_INIT_POINTER(ip_nat_decode_session, nat_decode_session);
 #endif
 	ret = nf_nat_rule_init();
 	if (ret < 0) {
@@ -302,7 +302,7 @@ static int __init nf_nat_standalone_init(void)
 	nf_nat_rule_cleanup();
  cleanup_decode_session:
 #ifdef CONFIG_XFRM
-	rcu_assign_pointer(ip_nat_decode_session, NULL);
+	RCU_INIT_POINTER(ip_nat_decode_session, NULL);
 	synchronize_net();
 #endif
 	return ret;
@@ -313,7 +313,7 @@ static void __exit nf_nat_standalone_fini(void)
 	nf_unregister_hooks(nf_nat_ops, ARRAY_SIZE(nf_nat_ops));
 	nf_nat_rule_cleanup();
 #ifdef CONFIG_XFRM
-	rcu_assign_pointer(ip_nat_decode_session, NULL);
+	RCU_INIT_POINTER(ip_nat_decode_session, NULL);
 	synchronize_net();
 #endif
 	/* Conntrack caches are unregistered in nf_conntrack_cleanup */

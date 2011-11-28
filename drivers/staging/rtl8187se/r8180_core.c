@@ -33,6 +33,7 @@
 #include <linux/slab.h>
 #include <linux/syscalls.h>
 #include <linux/eeprom_93cx6.h>
+#include <linux/interrupt.h>
 
 #include "r8180_hw.h"
 #include "r8180.h"
@@ -306,7 +307,7 @@ static int proc_get_stats_tx(char *page, char **start,
 void rtl8180_proc_module_init(void)
 {
 	DMESG("Initializing proc filesystem");
-	rtl8180_proc = create_proc_entry(RTL8180_MODULE_NAME, S_IFDIR, init_net.proc_net);
+	rtl8180_proc = proc_mkdir(RTL8180_MODULE_NAME, init_net.proc_net);
 }
 
 void rtl8180_proc_module_remove(void)
@@ -3533,7 +3534,7 @@ static const struct net_device_ops rtl8180_netdev_ops = {
 	.ndo_get_stats		= rtl8180_stats,
 	.ndo_tx_timeout		= rtl8180_restart,
 	.ndo_do_ioctl		= rtl8180_ioctl,
-	.ndo_set_multicast_list	= r8180_set_multicast,
+	.ndo_set_rx_mode	= r8180_set_multicast,
 	.ndo_set_mac_address	= r8180_set_mac_adr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= eth_change_mtu,

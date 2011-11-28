@@ -33,7 +33,7 @@
  */
 
 #include <linux/errno.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/param.h>
@@ -544,7 +544,7 @@ DEFINE_PER_CPU(u8, irq_work_pending);
 
 #endif /* 32 vs 64 bit */
 
-void set_irq_work_pending(void)
+void arch_irq_work_raise(void)
 {
 	preempt_disable();
 	set_irq_work_pending_flag();

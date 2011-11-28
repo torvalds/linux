@@ -40,7 +40,7 @@
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include "ttm/ttm_bo_driver.h"
 #include "ttm/ttm_page_alloc.h"
@@ -355,7 +355,7 @@ restart:
 			if (nr_free)
 				goto restart;
 
-			/* Not allowed to fall tough or break because
+			/* Not allowed to fall through or break because
 			 * following context is inside spinlock while we are
 			 * outside here.
 			 */
@@ -556,7 +556,7 @@ out:
 }
 
 /**
- * Fill the given pool if there isn't enough pages and requested number of
+ * Fill the given pool if there aren't enough pages and the requested number of
  * pages is small.
  */
 static void ttm_page_pool_fill_locked(struct ttm_page_pool *pool,
@@ -576,8 +576,8 @@ static void ttm_page_pool_fill_locked(struct ttm_page_pool *pool,
 
 	pool->fill_lock = true;
 
-	/* If allocation request is small and there is not enough
-	 * pages in pool we fill the pool first */
+	/* If allocation request is small and there are not enough
+	 * pages in a pool we fill the pool up first. */
 	if (count < _manager->options.small
 		&& count > pool->npages) {
 		struct list_head new_pages;
@@ -614,9 +614,9 @@ static void ttm_page_pool_fill_locked(struct ttm_page_pool *pool,
 }
 
 /**
- * Cut count nubmer of pages from the pool and put them to return list
+ * Cut 'count' number of pages from the pool and put them on the return list.
  *
- * @return count of pages still to allocate to fill the request.
+ * @return count of pages still required to fulfill the request.
  */
 static unsigned ttm_page_pool_get_pages(struct ttm_page_pool *pool,
 		struct list_head *pages, int ttm_flags,
@@ -637,7 +637,7 @@ static unsigned ttm_page_pool_get_pages(struct ttm_page_pool *pool,
 		goto out;
 	}
 	/* find the last pages to include for requested number of pages. Split
-	 * pool to begin and halves to reduce search space. */
+	 * pool to begin and halve it to reduce search space. */
 	if (count <= pool->npages/2) {
 		i = 0;
 		list_for_each(p, &pool->list) {
@@ -651,7 +651,7 @@ static unsigned ttm_page_pool_get_pages(struct ttm_page_pool *pool,
 				break;
 		}
 	}
-	/* Cut count number of pages from pool */
+	/* Cut 'count' number of pages from the pool */
 	list_cut_position(pages, &pool->list, p);
 	pool->npages -= count;
 	count = 0;

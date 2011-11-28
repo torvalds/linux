@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Freescale Semiconductor, Inc. All rights reserved.
+ * Copyright (C) 2008-2011 Freescale Semiconductor, Inc. All rights reserved.
  *
  * Author: Yu Liu, <yu.liu@freescale.com>
  *
@@ -41,6 +41,11 @@ void kvmppc_core_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 void kvmppc_core_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	kvmppc_e500_tlb_put(vcpu);
+
+#ifdef CONFIG_SPE
+	if (vcpu->arch.shadow_msr & MSR_SPE)
+		kvmppc_vcpu_disable_spe(vcpu);
+#endif
 }
 
 int kvmppc_core_check_processor_compat(void)
@@ -67,6 +72,8 @@ int kvmppc_core_vcpu_setup(struct kvm_vcpu *vcpu)
 
 	/* Since booke kvm only support one core, update all vcpus' PIR to 0 */
 	vcpu->vcpu_id = 0;
+
+	vcpu->arch.cpu_type = KVM_CPU_E500V2;
 
 	return 0;
 }

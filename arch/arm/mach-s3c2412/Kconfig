@@ -9,13 +9,12 @@ config CPU_S3C2412
 	select CPU_LLSERIAL_S3C2440
 	select S3C2412_PM if PM
 	select S3C2412_DMA if S3C2410_DMA
-	select S3C2410_GPIO
 	help
 	  Support for the S3C2412 and S3C2413 SoCs from the S3C24XX line
 
 config CPU_S3C2412_ONLY
 	bool
-	depends on ARCH_S3C2410 && !CPU_S3C2400 && !CPU_S3C2410 && \
+	depends on ARCH_S3C2410 && !CPU_S3C2410 && \
 		   !CPU_S3C2416 && !CPU_S3C2440 && !CPU_S3C2442 && \
 		   !CPU_S3C2443 && CPU_S3C2412
 	default y if CPU_S3C2412

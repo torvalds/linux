@@ -37,7 +37,7 @@
 #include <linux/completion.h>
 #include <linux/radix-tree.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #define MAX_MSIX_P_PORT		17
 #define MAX_MSIX		64
@@ -58,22 +58,36 @@ enum {
 };
 
 enum {
-	MLX4_DEV_CAP_FLAG_RC		= 1 <<  0,
-	MLX4_DEV_CAP_FLAG_UC		= 1 <<  1,
-	MLX4_DEV_CAP_FLAG_UD		= 1 <<  2,
-	MLX4_DEV_CAP_FLAG_SRQ		= 1 <<  6,
-	MLX4_DEV_CAP_FLAG_IPOIB_CSUM	= 1 <<  7,
-	MLX4_DEV_CAP_FLAG_BAD_PKEY_CNTR	= 1 <<  8,
-	MLX4_DEV_CAP_FLAG_BAD_QKEY_CNTR	= 1 <<  9,
-	MLX4_DEV_CAP_FLAG_DPDP		= 1 << 12,
-	MLX4_DEV_CAP_FLAG_BLH		= 1 << 15,
-	MLX4_DEV_CAP_FLAG_MEM_WINDOW	= 1 << 16,
-	MLX4_DEV_CAP_FLAG_APM		= 1 << 17,
-	MLX4_DEV_CAP_FLAG_ATOMIC	= 1 << 18,
-	MLX4_DEV_CAP_FLAG_RAW_MCAST	= 1 << 19,
-	MLX4_DEV_CAP_FLAG_UD_AV_PORT	= 1 << 20,
-	MLX4_DEV_CAP_FLAG_UD_MCAST	= 1 << 21,
-	MLX4_DEV_CAP_FLAG_IBOE		= 1 << 30
+	MLX4_DEV_CAP_FLAG_RC		= 1LL <<  0,
+	MLX4_DEV_CAP_FLAG_UC		= 1LL <<  1,
+	MLX4_DEV_CAP_FLAG_UD		= 1LL <<  2,
+	MLX4_DEV_CAP_FLAG_XRC		= 1LL <<  3,
+	MLX4_DEV_CAP_FLAG_SRQ		= 1LL <<  6,
+	MLX4_DEV_CAP_FLAG_IPOIB_CSUM	= 1LL <<  7,
+	MLX4_DEV_CAP_FLAG_BAD_PKEY_CNTR	= 1LL <<  8,
+	MLX4_DEV_CAP_FLAG_BAD_QKEY_CNTR	= 1LL <<  9,
+	MLX4_DEV_CAP_FLAG_DPDP		= 1LL << 12,
+	MLX4_DEV_CAP_FLAG_BLH		= 1LL << 15,
+	MLX4_DEV_CAP_FLAG_MEM_WINDOW	= 1LL << 16,
+	MLX4_DEV_CAP_FLAG_APM		= 1LL << 17,
+	MLX4_DEV_CAP_FLAG_ATOMIC	= 1LL << 18,
+	MLX4_DEV_CAP_FLAG_RAW_MCAST	= 1LL << 19,
+	MLX4_DEV_CAP_FLAG_UD_AV_PORT	= 1LL << 20,
+	MLX4_DEV_CAP_FLAG_UD_MCAST	= 1LL << 21,
+	MLX4_DEV_CAP_FLAG_IBOE		= 1LL << 30,
+	MLX4_DEV_CAP_FLAG_UC_LOOPBACK	= 1LL << 32,
+	MLX4_DEV_CAP_FLAG_FCS_KEEP	= 1LL << 34,
+	MLX4_DEV_CAP_FLAG_WOL		= 1LL << 38,
+	MLX4_DEV_CAP_FLAG_UDP_RSS	= 1LL << 40,
+	MLX4_DEV_CAP_FLAG_VEP_UC_STEER	= 1LL << 41,
+	MLX4_DEV_CAP_FLAG_VEP_MC_STEER	= 1LL << 42,
+	MLX4_DEV_CAP_FLAG_COUNTERS	= 1LL << 48
+};
+
+#define MLX4_ATTR_EXTENDED_PORT_INFO	cpu_to_be16(0xff90)
+
+enum {
+	MLX_EXT_PORT_CAP_FLAG_EXTENDED_PORT_INFO	= 1 <<  0
 };
 
 enum {
@@ -250,18 +264,15 @@ struct mlx4_caps {
 	int			num_qp_per_mgm;
 	int			num_pds;
 	int			reserved_pds;
+	int			max_xrcds;
+	int			reserved_xrcds;
 	int			mtt_entry_sz;
 	u32			max_msg_sz;
 	u32			page_size_cap;
-	u32			flags;
+	u64			flags;
 	u32			bmme_flags;
 	u32			reserved_lkey;
 	u16			stat_rate_support;
-	int			udp_rss;
-	int			loopback_support;
-	int			vep_uc_steering;
-	int			vep_mc_steering;
-	int			wol;
 	u8			port_width_cap[MLX4_MAX_PORTS + 1];
 	int			max_gso_sz;
 	int                     reserved_qps_cnt[MLX4_NUM_QP_REGION];
@@ -274,6 +285,8 @@ struct mlx4_caps {
 	u8			supported_type[MLX4_MAX_PORTS + 1];
 	u32			port_mask;
 	enum mlx4_port_type	possible_type[MLX4_MAX_PORTS + 1];
+	u32			max_counters;
+	u8			ext_port_cap[MLX4_MAX_PORTS + 1];
 };
 
 struct mlx4_buf_list {
@@ -438,6 +451,17 @@ union mlx4_ext_av {
 	struct mlx4_eth_av	eth;
 };
 
+struct mlx4_counter {
+	u8	reserved1[3];
+	u8	counter_mode;
+	__be32	num_ifc;
+	u32	reserved2[2];
+	__be64	rx_frames;
+	__be64	rx_bytes;
+	__be64	tx_frames;
+	__be64	tx_bytes;
+};
+
 struct mlx4_dev {
 	struct pci_dev	       *pdev;
 	unsigned long		flags;
@@ -486,6 +510,8 @@ static inline void *mlx4_buf_offset(struct mlx4_buf *buf, int offset)
 
 int mlx4_pd_alloc(struct mlx4_dev *dev, u32 *pdn);
 void mlx4_pd_free(struct mlx4_dev *dev, u32 pdn);
+int mlx4_xrcd_alloc(struct mlx4_dev *dev, u32 *xrcdn);
+void mlx4_xrcd_free(struct mlx4_dev *dev, u32 xrcdn);
 
 int mlx4_uar_alloc(struct mlx4_dev *dev, struct mlx4_uar *uar);
 void mlx4_uar_free(struct mlx4_dev *dev, struct mlx4_uar *uar);
@@ -525,8 +551,8 @@ void mlx4_qp_release_range(struct mlx4_dev *dev, int base_qpn, int cnt);
 int mlx4_qp_alloc(struct mlx4_dev *dev, int qpn, struct mlx4_qp *qp);
 void mlx4_qp_free(struct mlx4_dev *dev, struct mlx4_qp *qp);
 
-int mlx4_srq_alloc(struct mlx4_dev *dev, u32 pdn, struct mlx4_mtt *mtt,
-		   u64 db_rec, struct mlx4_srq *srq);
+int mlx4_srq_alloc(struct mlx4_dev *dev, u32 pdn, u32 cqn, u16 xrcdn,
+		   struct mlx4_mtt *mtt, u64 db_rec, struct mlx4_srq *srq);
 void mlx4_srq_free(struct mlx4_dev *dev, struct mlx4_srq *srq);
 int mlx4_srq_arm(struct mlx4_dev *dev, struct mlx4_srq *srq, int limit_watermark);
 int mlx4_srq_query(struct mlx4_dev *dev, struct mlx4_srq *srq, int *limit_watermark);
@@ -567,5 +593,8 @@ void mlx4_release_eq(struct mlx4_dev *dev, int vec);
 
 int mlx4_wol_read(struct mlx4_dev *dev, u64 *config, int port);
 int mlx4_wol_write(struct mlx4_dev *dev, u64 config, int port);
+
+int mlx4_counter_alloc(struct mlx4_dev *dev, u32 *idx);
+void mlx4_counter_free(struct mlx4_dev *dev, u32 idx);
 
 #endif /* MLX4_DEVICE_H */

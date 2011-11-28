@@ -960,8 +960,8 @@ static void __init tosa_init(void)
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
-static void __init fixup_tosa(struct machine_desc *desc,
-		struct tag *tags, char **cmdline, struct meminfo *mi)
+static void __init fixup_tosa(struct tag *tags, char **cmdline,
+			      struct meminfo *mi)
 {
 	sharpsl_save_param();
 	mi->nr_banks=1;
@@ -974,6 +974,7 @@ MACHINE_START(TOSA, "SHARP Tosa")
 	.map_io         = pxa25x_map_io,
 	.nr_irqs	= TOSA_NR_IRQS,
 	.init_irq       = pxa25x_init_irq,
+	.handle_irq       = pxa25x_handle_irq,
 	.init_machine   = tosa_init,
 	.timer          = &pxa_timer,
 MACHINE_END

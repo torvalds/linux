@@ -42,6 +42,7 @@
 #include <linux/sunrpc/svc_xprt.h>
 #include <linux/sunrpc/debug.h>
 #include <linux/sunrpc/rpc_rdma.h>
+#include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -49,6 +50,7 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
 #include <linux/sunrpc/svc_rdma.h>
+#include <linux/export.h>
 
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 

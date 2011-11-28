@@ -1,10 +1,40 @@
+/******************************************************************************
+ *
+ * Copyright(c) 2007 - 2010 Realtek Corporation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
+ *
+ * Modifications for inclusion into the Linux staging tree are
+ * Copyright(c) 2010 Larry Finger. All rights reserved.
+ *
+ * Contact information:
+ * WLAN FAE <wlanfae@realtek.com>
+ * Larry Finger <Larry.Finger@lwfinger.net>
+ *
+ ******************************************************************************/
 #ifndef _RTL8712_RECV_H_
 #define _RTL8712_RECV_H_
 
 #include "osdep_service.h"
 #include "drv_types.h"
 
+/* Realtek's v2.6.6 reduced this to 4. However, under heavy network and CPU
+ * loads, even 8 receive buffers might not be enough; cutting it to 4 seemed
+ * unwise.
+ */
 #define NR_RECVBUFF (8)
+
 #define NR_PREALLOC_RECV_SKB (8)
 #define RXDESC_SIZE	24
 #define RXDESC_OFFSET RXDESC_SIZE
@@ -115,7 +145,6 @@ union recv_frame {
 	union {
 		struct list_head list;
 		struct recv_frame_hdr hdr;
-		addr_t mem[RECVFRAME_HDR_ALIGN>>2];
 	} u;
 };
 

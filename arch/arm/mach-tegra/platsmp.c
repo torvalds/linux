@@ -21,7 +21,6 @@
 
 #include <asm/cacheflush.h>
 #include <asm/hardware/gic.h>
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/smp_scu.h>
 
@@ -115,28 +114,20 @@ void __init smp_init_cpus(void)
 {
 	unsigned int i, ncores = scu_get_core_count(scu_base);
 
-	if (ncores > NR_CPUS) {
-		printk(KERN_ERR "Tegra: no. of cores (%u) greater than configured (%u), clipping\n",
-			ncores, NR_CPUS);
-		ncores = NR_CPUS;
+	if (ncores > nr_cpu_ids) {
+		pr_warn("SMP: %u cores greater than maximum (%u), clipping\n",
+			ncores, nr_cpu_ids);
+		ncores = nr_cpu_ids;
 	}
 
 	for (i = 0; i < ncores; i++)
-		cpu_set(i, cpu_possible_map);
+		set_cpu_possible(i, true);
 
 	set_smp_cross_call(gic_raise_softirq);
 }
 
 void __init platform_smp_prepare_cpus(unsigned int max_cpus)
 {
-	int i;
-
-	/*
-	 * Initialise the present map, which describes the set of CPUs
-	 * actually populated at the present time.
-	 */
-	for (i = 0; i < max_cpus; i++)
-		set_cpu_present(i, true);
 
 	scu_enable(scu_base);
 }

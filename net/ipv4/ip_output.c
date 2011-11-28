@@ -122,6 +122,7 @@ static int ip_dev_loopback_xmit(struct sk_buff *newskb)
 	newskb->pkt_type = PACKET_LOOPBACK;
 	newskb->ip_summed = CHECKSUM_UNNECESSARY;
 	WARN_ON(!skb_dst(newskb));
+	skb_dst_force(newskb);
 	netif_rx_ni(newskb);
 	return 0;
 }
@@ -182,6 +183,7 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 	struct rtable *rt = (struct rtable *)dst;
 	struct net_device *dev = dst->dev;
 	unsigned int hh_len = LL_RESERVED_SPACE(dev);
+	struct neighbour *neigh;
 
 	if (rt->rt_type == RTN_MULTICAST) {
 		IP_UPD_PO_STATS(dev_net(dev), IPSTATS_MIB_OUTMCAST, skb->len);
@@ -203,10 +205,15 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 		skb = skb2;
 	}
 
-	if (dst->hh)
-		return neigh_hh_output(dst->hh, skb);
-	else if (dst->neighbour)
-		return dst->neighbour->output(skb);
+	rcu_read_lock();
+	neigh = dst_get_neighbour(dst);
+	if (neigh) {
+		int res = neigh_output(neigh, skb);
+
+		rcu_read_unlock();
+		return res;
+	}
+	rcu_read_unlock();
 
 	if (net_ratelimit())
 		printk(KERN_DEBUG "ip_finish_output2: No header cache and no neighbour!\n");
@@ -489,7 +496,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 
 		if (first_len - hlen > mtu ||
 		    ((first_len - hlen) & 7) ||
-		    (iph->frag_off & htons(IP_MF|IP_OFFSET)) ||
+		    ip_is_fragment(iph) ||
 		    skb_cloned(skb))
 			goto slow_path;
 
@@ -734,7 +741,7 @@ static inline int ip_ufo_append_data(struct sock *sk,
 			int getfrag(void *from, char *to, int offset, int len,
 			       int odd, struct sk_buff *skb),
 			void *from, int length, int hh_len, int fragheaderlen,
-			int transhdrlen, int mtu, unsigned int flags)
+			int transhdrlen, int maxfraglen, unsigned int flags)
 {
 	struct sk_buff *skb;
 	int err;
@@ -767,7 +774,7 @@ static inline int ip_ufo_append_data(struct sock *sk,
 		skb->csum = 0;
 
 		/* specify the length of each IP datagram fragment */
-		skb_shinfo(skb)->gso_size = mtu - fragheaderlen;
+		skb_shinfo(skb)->gso_size = maxfraglen - fragheaderlen;
 		skb_shinfo(skb)->gso_type = SKB_GSO_UDP;
 		__skb_queue_tail(queue, skb);
 	}
@@ -831,7 +838,7 @@ static int __ip_append_data(struct sock *sk,
 	    (rt->dst.dev->features & NETIF_F_UFO) && !rt->dst.header_len) {
 		err = ip_ufo_append_data(sk, queue, getfrag, from, length,
 					 hh_len, fragheaderlen, transhdrlen,
-					 mtu, flags);
+					 maxfraglen, flags);
 		if (err)
 			goto error;
 		return 0;
@@ -982,13 +989,13 @@ alloc_new_skb:
 			if (page && (left = PAGE_SIZE - off) > 0) {
 				if (copy >= left)
 					copy = left;
-				if (page != frag->page) {
+				if (page != skb_frag_page(frag)) {
 					if (i == MAX_SKB_FRAGS) {
 						err = -EMSGSIZE;
 						goto error;
 					}
-					get_page(page);
 					skb_fill_page_desc(skb, i, page, off, 0);
+					skb_frag_ref(skb, i);
 					frag = &skb_shinfo(skb)->frags[i];
 				}
 			} else if (i < MAX_SKB_FRAGS) {
@@ -1008,12 +1015,13 @@ alloc_new_skb:
 				err = -EMSGSIZE;
 				goto error;
 			}
-			if (getfrag(from, page_address(frag->page)+frag->page_offset+frag->size, offset, copy, skb->len, skb) < 0) {
+			if (getfrag(from, skb_frag_address(frag)+skb_frag_size(frag),
+				    offset, copy, skb->len, skb) < 0) {
 				err = -EFAULT;
 				goto error;
 			}
 			cork->off += copy;
-			frag->size += copy;
+			skb_frag_size_add(frag, copy);
 			skb->len += copy;
 			skb->data_len += copy;
 			skb->truesize += copy;
@@ -1222,7 +1230,7 @@ ssize_t	ip_append_page(struct sock *sk, struct flowi4 *fl4, struct page *page,
 		if (len > size)
 			len = size;
 		if (skb_can_coalesce(skb, i, page, offset)) {
-			skb_shinfo(skb)->frags[i-1].size += len;
+			skb_frag_size_add(&skb_shinfo(skb)->frags[i-1], len);
 		} else if (i < MAX_SKB_FRAGS) {
 			get_page(page);
 			skb_fill_page_desc(skb, i, page, offset, len);
@@ -1458,7 +1466,7 @@ static int ip_reply_glue_bits(void *dptr, char *to, int offset,
  *     	structure to pass arguments.
  */
 void ip_send_reply(struct sock *sk, struct sk_buff *skb, __be32 daddr,
-		   struct ip_reply_arg *arg, unsigned int len)
+		   const struct ip_reply_arg *arg, unsigned int len)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct ip_options_data replyopts;
@@ -1481,7 +1489,7 @@ void ip_send_reply(struct sock *sk, struct sk_buff *skb, __be32 daddr,
 	}
 
 	flowi4_init_output(&fl4, arg->bound_dev_if, 0,
-			   RT_TOS(ip_hdr(skb)->tos),
+			   RT_TOS(arg->tos),
 			   RT_SCOPE_UNIVERSE, sk->sk_protocol,
 			   ip_reply_arg_flowi_flags(arg),
 			   daddr, rt->rt_spec_dst,
@@ -1498,7 +1506,7 @@ void ip_send_reply(struct sock *sk, struct sk_buff *skb, __be32 daddr,
 	   with locally disabled BH and that sk cannot be already spinlocked.
 	 */
 	bh_lock_sock(sk);
-	inet->tos = ip_hdr(skb)->tos;
+	inet->tos = arg->tos;
 	sk->sk_priority = skb->priority;
 	sk->sk_protocol = ip_hdr(skb)->protocol;
 	sk->sk_bound_dev_if = arg->bound_dev_if;

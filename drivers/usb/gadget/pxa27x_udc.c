@@ -8,16 +8,6 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -1439,7 +1429,7 @@ static int pxa_ep_enable(struct usb_ep *_ep,
 		return -EINVAL;
 	}
 
-	if (ep->fifo_size < le16_to_cpu(desc->wMaxPacketSize)) {
+	if (ep->fifo_size < usb_endpoint_maxp(desc)) {
 		ep_err(ep, "bad maxpacket\n");
 		return -ERANGE;
 	}
@@ -1680,12 +1670,18 @@ static int pxa_udc_vbus_draw(struct usb_gadget *_gadget, unsigned mA)
 	return -EOPNOTSUPP;
 }
 
+static int pxa27x_udc_start(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *));
+static int pxa27x_udc_stop(struct usb_gadget_driver *driver);
+
 static const struct usb_gadget_ops pxa_udc_ops = {
 	.get_frame	= pxa_udc_get_frame,
 	.wakeup		= pxa_udc_wakeup,
 	.pullup		= pxa_udc_pullup,
 	.vbus_session	= pxa_udc_vbus_session,
 	.vbus_draw	= pxa_udc_vbus_draw,
+	.start		= pxa27x_udc_start,
+	.stop		= pxa27x_udc_stop,
 };
 
 /**
@@ -1791,7 +1787,7 @@ static void udc_enable(struct pxa_udc *udc)
 }
 
 /**
- * usb_gadget_probe_driver - Register gadget driver
+ * pxa27x_start - Register gadget driver
  * @driver: gadget driver
  * @bind: bind function
  *
@@ -1805,7 +1801,7 @@ static void udc_enable(struct pxa_udc *udc)
  *
  * Returns 0 if no error, -EINVAL, -ENODEV, -EBUSY otherwise
  */
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+static int pxa27x_udc_start(struct usb_gadget_driver *driver,
 		int (*bind)(struct usb_gadget *))
 {
 	struct pxa_udc *udc = the_controller;
@@ -1860,8 +1856,6 @@ add_fail:
 	udc->gadget.dev.driver = NULL;
 	return retval;
 }
-EXPORT_SYMBOL(usb_gadget_probe_driver);
-
 
 /**
  * stop_activity - Stops udc endpoints
@@ -1888,12 +1882,12 @@ static void stop_activity(struct pxa_udc *udc, struct usb_gadget_driver *driver)
 }
 
 /**
- * usb_gadget_unregister_driver - Unregister the gadget driver
+ * pxa27x_udc_stop - Unregister the gadget driver
  * @driver: gadget driver
  *
  * Returns 0 if no error, -ENODEV, -EINVAL otherwise
  */
-int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
+static int pxa27x_udc_stop(struct usb_gadget_driver *driver)
 {
 	struct pxa_udc *udc = the_controller;
 
@@ -1917,7 +1911,6 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 		return otg_set_peripheral(udc->transceiver, NULL);
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_unregister_driver);
 
 /**
  * handle_ep0_ctrl_req - handle control endpoint control request
@@ -2516,9 +2509,14 @@ static int __init pxa_udc_probe(struct platform_device *pdev)
 			driver_name, IRQ_USB, retval);
 		goto err_irq;
 	}
+	retval = usb_add_gadget_udc(&pdev->dev, &udc->gadget);
+	if (retval)
+		goto err_add_udc;
 
 	pxa_init_debugfs(udc);
 	return 0;
+err_add_udc:
+	free_irq(udc->irq, udc);
 err_irq:
 	iounmap(udc->regs);
 err_map:
@@ -2537,6 +2535,7 @@ static int __exit pxa_udc_remove(struct platform_device *_dev)
 	struct pxa_udc *udc = platform_get_drvdata(_dev);
 	int gpio = udc->mach->gpio_pullup;
 
+	usb_del_gadget_udc(&udc->gadget);
 	usb_gadget_unregister_driver(udc->driver);
 	free_irq(udc->irq, udc);
 	pxa_cleanup_debugfs(udc);

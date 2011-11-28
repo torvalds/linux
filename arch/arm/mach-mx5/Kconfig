@@ -1,8 +1,9 @@
-if ARCH_MX503 || ARCH_MX51
+if ARCH_MX5
+
 # ARCH_MX5/50/53 are left to mark places where prevent multi-soc in single
 # image. So for most time, SOC_IMX50/51/53 should be used.
 
-config ARCH_MX5
+config ARCH_MX51
 	bool
 
 config ARCH_MX50
@@ -19,7 +20,6 @@ config SOC_IMX50
 	select ARCH_MXC_IOMUX_V3
 	select ARCH_MXC_AUDMUX_V2
 	select ARCH_HAS_CPUFREQ
-	select ARCH_MX5
 	select ARCH_MX50
 
 config	SOC_IMX51
@@ -30,7 +30,7 @@ config	SOC_IMX51
 	select ARCH_MXC_IOMUX_V3
 	select ARCH_MXC_AUDMUX_V2
 	select ARCH_HAS_CPUFREQ
-	select ARCH_MX5
+	select ARCH_MX51
 
 config	SOC_IMX53
 	bool
@@ -38,10 +38,8 @@ config	SOC_IMX53
 	select ARM_L1_CACHE_SHIFT_6
 	select MXC_TZIC
 	select ARCH_MXC_IOMUX_V3
-	select ARCH_MX5
 	select ARCH_MX53
 
-if ARCH_MX50_SUPPORTED
 #comment "i.MX50 machines:"
 
 config MACH_MX50_RDP
@@ -52,22 +50,29 @@ config MACH_MX50_RDP
 	select IMX_HAVE_PLATFORM_IMX_UART
 	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
 	select IMX_HAVE_PLATFORM_SPI_IMX
-	select IMX_HAVE_PLATFORM_FEC
 	help
 	  Include support for MX50 reference design platform (RDP) board. This
 	  includes specific configurations for the board and its peripherals.
 
-endif # ARCH_MX50_SUPPORTED
-
-if ARCH_MX51
 comment "i.MX51 machines:"
+
+config MACH_IMX51_DT
+	bool "Support i.MX51 platforms from device tree"
+	select SOC_IMX51
+	select USE_OF
+	select MACH_MX51_BABBAGE
+	help
+	  Include support for Freescale i.MX51 based platforms
+	  using the device tree for discovery
 
 config MACH_MX51_BABBAGE
 	bool "Support MX51 BABBAGE platforms"
 	select SOC_IMX51
+	select IMX_HAVE_PLATFORM_FSL_USB2_UDC
 	select IMX_HAVE_PLATFORM_IMX2_WDT
 	select IMX_HAVE_PLATFORM_IMX_I2C
 	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_MXC_EHCI
 	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
 	select IMX_HAVE_PLATFORM_SPI_IMX
 	help
@@ -91,8 +96,10 @@ config MACH_MX51_3DS
 config MACH_EUKREA_CPUIMX51
 	bool "Support Eukrea CPUIMX51 module"
 	select SOC_IMX51
+	select IMX_HAVE_PLATFORM_FSL_USB2_UDC
 	select IMX_HAVE_PLATFORM_IMX_I2C
 	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_MXC_EHCI
 	select IMX_HAVE_PLATFORM_MXC_NAND
 	select IMX_HAVE_PLATFORM_SPI_IMX
 	help
@@ -109,6 +116,7 @@ config MACH_EUKREA_MBIMX51_BASEBOARD
 	bool
 	select IMX_HAVE_PLATFORM_IMX_KEYPAD
 	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
+	select LEDS_GPIO_REGISTER
 	help
 	  This adds board specific devices that can be found on Eukrea's
 	  MBIMX51 evaluation board.
@@ -118,10 +126,12 @@ endchoice
 config MACH_EUKREA_CPUIMX51SD
 	bool "Support Eukrea CPUIMX51SD module"
 	select SOC_IMX51
+	select IMX_HAVE_PLATFORM_FSL_USB2_UDC
 	select IMX_HAVE_PLATFORM_IMX_I2C
-	select IMX_HAVE_PLATFORM_SPI_IMX
 	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_MXC_EHCI
 	select IMX_HAVE_PLATFORM_MXC_NAND
+	select IMX_HAVE_PLATFORM_SPI_IMX
 	help
 	  Include support for Eukrea CPUIMX51SD platform. This includes
 	  specific configurations for the module and its peripherals.
@@ -135,6 +145,7 @@ config MACH_EUKREA_MBIMXSD51_BASEBOARD
 	prompt "Eukrea MBIMXSD development board"
 	bool
 	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
+	select LEDS_GPIO_REGISTER
 	help
 	  This adds board specific devices that can be found on Eukrea's
 	  MBIMXSD evaluation board.
@@ -145,12 +156,15 @@ config MX51_EFIKA_COMMON
 	bool
 	select SOC_IMX51
 	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_MXC_EHCI
+	select IMX_HAVE_PLATFORM_PATA_IMX
 	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
 	select IMX_HAVE_PLATFORM_SPI_IMX
 	select MXC_ULPI if USB_ULPI
 
 config MACH_MX51_EFIKAMX
 	bool "Support MX51 Genesi Efika MX nettop"
+	select LEDS_GPIO_REGISTER
 	select MX51_EFIKA_COMMON
 	help
 	  Include support for Genesi Efika MX nettop. This includes specific
@@ -158,15 +172,25 @@ config MACH_MX51_EFIKAMX
 
 config MACH_MX51_EFIKASB
 	bool "Support MX51 Genesi Efika Smartbook"
+	select LEDS_GPIO_REGISTER
 	select MX51_EFIKA_COMMON
 	help
 	  Include support for Genesi Efika Smartbook. This includes specific
 	  configurations for the board and its peripherals.
 
-endif # ARCH_MX51
-
-if ARCH_MX53_SUPPORTED
 comment "i.MX53 machines:"
+
+config MACH_IMX53_DT
+	bool "Support i.MX53 platforms from device tree"
+	select SOC_IMX53
+	select USE_OF
+	select MACH_MX53_ARD
+	select MACH_MX53_EVK
+	select MACH_MX53_LOCO
+	select MACH_MX53_SMD
+	help
+	  Include support for Freescale i.MX53 based platforms
+	  using the device tree for discovery
 
 config MACH_MX53_EVK
 	bool "Support MX53 EVK platforms"
@@ -176,6 +200,7 @@ config MACH_MX53_EVK
 	select IMX_HAVE_PLATFORM_IMX_I2C
 	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
 	select IMX_HAVE_PLATFORM_SPI_IMX
+	select LEDS_GPIO_REGISTER
 	help
 	  Include support for MX53 EVK platform. This includes specific
 	  configurations for the board and its peripherals.
@@ -199,10 +224,21 @@ config MACH_MX53_LOCO
 	select IMX_HAVE_PLATFORM_IMX_UART
 	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
 	select IMX_HAVE_PLATFORM_GPIO_KEYS
+	select LEDS_GPIO_REGISTER
 	help
 	  Include support for MX53 LOCO platform. This includes specific
 	  configurations for the board and its peripherals.
 
-endif # ARCH_MX53_SUPPORTED
+config MACH_MX53_ARD
+	bool "Support MX53 ARD platforms"
+	select SOC_IMX53
+	select IMX_HAVE_PLATFORM_IMX2_WDT
+	select IMX_HAVE_PLATFORM_IMX_I2C
+	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
+	select IMX_HAVE_PLATFORM_GPIO_KEYS
+	help
+	  Include support for MX53 ARD platform. This includes specific
+	  configurations for the board and its peripherals.
 
 endif

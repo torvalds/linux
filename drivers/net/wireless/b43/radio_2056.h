@@ -1,29 +1,3 @@
-/*
-
-  Broadcom B43 wireless driver
-
-  Copyright (c) 2010 Rafał Miłecki <zajec5@gmail.com>
-
-  Some parts of the code in this file are derived from the brcm80211
-  driver  Copyright (c) 2010 Broadcom Corporation
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program; see the file COPYING.  If not, write to
-  the Free Software Foundation, Inc., 51 Franklin Steet, Fifth Floor,
-  Boston, MA 02110-1301, USA.
-
-*/
-
 #ifndef B43_RADIO_2056_H_
 #define B43_RADIO_2056_H_
 
@@ -1116,5 +1090,10 @@ struct b43_nphy_channeltab_entry_rev3 {
 
 void b2056_upload_inittabs(struct b43_wldev *dev,
 			   bool ghz5, bool ignore_uploadflag);
+
+/* Get the NPHY Channel Switch Table entry for a channel.
+ * Returns NULL on failure to find an entry. */
+const struct b43_nphy_channeltab_entry_rev3 *
+b43_nphy_get_chantabent_rev3(struct b43_wldev *dev, u16 freq);
 
 #endif /* B43_RADIO_2056_H_ */

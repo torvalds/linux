@@ -319,6 +319,49 @@ TRACE_EVENT(drv_bss_info_changed,
 	)
 );
 
+DECLARE_EVENT_CLASS(tx_sync_evt,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 const u8 *bssid,
+		 enum ieee80211_tx_sync_type type),
+	TP_ARGS(local, sdata, bssid, type),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		__array(char, bssid, ETH_ALEN)
+		__field(u32, sync_type)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		memcpy(__entry->bssid, bssid, ETH_ALEN);
+		__entry->sync_type = type;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT  VIF_PR_FMT " bssid:%pM type:%d",
+		LOCAL_PR_ARG, VIF_PR_ARG, __entry->bssid, __entry->sync_type
+	)
+);
+
+DEFINE_EVENT(tx_sync_evt, drv_tx_sync,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 const u8 *bssid,
+		 enum ieee80211_tx_sync_type type),
+	TP_ARGS(local, sdata, bssid, type)
+);
+
+DEFINE_EVENT(tx_sync_evt, drv_finish_tx_sync,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 const u8 *bssid,
+		 enum ieee80211_tx_sync_type type),
+	TP_ARGS(local, sdata, bssid, type)
+);
+
 TRACE_EVENT(drv_prepare_multicast,
 	TP_PROTO(struct ieee80211_local *local, int mc_count),
 
@@ -455,6 +498,12 @@ TRACE_EVENT(drv_update_tkip_key,
 );
 
 DEFINE_EVENT(local_sdata_evt, drv_hw_scan,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata),
+	TP_ARGS(local, sdata)
+);
+
+DEFINE_EVENT(local_sdata_evt, drv_cancel_hw_scan,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata),
 	TP_ARGS(local, sdata)
@@ -648,64 +697,76 @@ TRACE_EVENT(drv_sta_remove,
 );
 
 TRACE_EVENT(drv_conf_tx,
-	TP_PROTO(struct ieee80211_local *local, u16 queue,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 u16 queue,
 		 const struct ieee80211_tx_queue_params *params),
 
-	TP_ARGS(local, queue, params),
+	TP_ARGS(local, sdata, queue, params),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
+		VIF_ENTRY
 		__field(u16, queue)
 		__field(u16, txop)
 		__field(u16, cw_min)
 		__field(u16, cw_max)
 		__field(u8, aifs)
+		__field(bool, uapsd)
 	),
 
 	TP_fast_assign(
 		LOCAL_ASSIGN;
+		VIF_ASSIGN;
 		__entry->queue = queue;
 		__entry->txop = params->txop;
 		__entry->cw_max = params->cw_max;
 		__entry->cw_min = params->cw_min;
 		__entry->aifs = params->aifs;
+		__entry->uapsd = params->uapsd;
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT " queue:%d",
-		LOCAL_PR_ARG, __entry->queue
+		LOCAL_PR_FMT  VIF_PR_FMT  " queue:%d",
+		LOCAL_PR_ARG, VIF_PR_ARG, __entry->queue
 	)
 );
 
-DEFINE_EVENT(local_only_evt, drv_get_tsf,
-	TP_PROTO(struct ieee80211_local *local),
-	TP_ARGS(local)
+DEFINE_EVENT(local_sdata_evt, drv_get_tsf,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata),
+	TP_ARGS(local, sdata)
 );
 
 TRACE_EVENT(drv_set_tsf,
-	TP_PROTO(struct ieee80211_local *local, u64 tsf),
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 u64 tsf),
 
-	TP_ARGS(local, tsf),
+	TP_ARGS(local, sdata, tsf),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
+		VIF_ENTRY
 		__field(u64, tsf)
 	),
 
 	TP_fast_assign(
 		LOCAL_ASSIGN;
+		VIF_ASSIGN;
 		__entry->tsf = tsf;
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT " tsf:%llu",
-		LOCAL_PR_ARG, (unsigned long long)__entry->tsf
+		LOCAL_PR_FMT  VIF_PR_FMT  " tsf:%llu",
+		LOCAL_PR_ARG, VIF_PR_ARG, (unsigned long long)__entry->tsf
 	)
 );
 
-DEFINE_EVENT(local_only_evt, drv_reset_tsf,
-	TP_PROTO(struct ieee80211_local *local),
-	TP_ARGS(local)
+DEFINE_EVENT(local_sdata_evt, drv_reset_tsf,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata),
+	TP_ARGS(local, sdata)
 );
 
 DEFINE_EVENT(local_only_evt, drv_tx_last_beacon,
@@ -1018,6 +1079,111 @@ TRACE_EVENT(drv_set_bitrate_mask,
 	)
 );
 
+TRACE_EVENT(drv_set_rekey_data,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct cfg80211_gtk_rekey_data *data),
+
+	TP_ARGS(local, sdata, data),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		__array(u8, kek, NL80211_KEK_LEN)
+		__array(u8, kck, NL80211_KCK_LEN)
+		__array(u8, replay_ctr, NL80211_REPLAY_CTR_LEN)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		memcpy(__entry->kek, data->kek, NL80211_KEK_LEN);
+		memcpy(__entry->kck, data->kck, NL80211_KCK_LEN);
+		memcpy(__entry->replay_ctr, data->replay_ctr,
+		       NL80211_REPLAY_CTR_LEN);
+	),
+
+	TP_printk(LOCAL_PR_FMT VIF_PR_FMT,
+		  LOCAL_PR_ARG, VIF_PR_ARG)
+);
+
+TRACE_EVENT(drv_rssi_callback,
+	TP_PROTO(struct ieee80211_local *local,
+		 enum ieee80211_rssi_event rssi_event),
+
+	TP_ARGS(local, rssi_event),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		__field(u32, rssi_event)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		__entry->rssi_event = rssi_event;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT " rssi_event:%d",
+		LOCAL_PR_ARG, __entry->rssi_event
+	)
+);
+
+DECLARE_EVENT_CLASS(release_evt,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sta *sta,
+		 u16 tids, int num_frames,
+		 enum ieee80211_frame_release_type reason,
+		 bool more_data),
+
+	TP_ARGS(local, sta, tids, num_frames, reason, more_data),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		STA_ENTRY
+		__field(u16, tids)
+		__field(int, num_frames)
+		__field(int, reason)
+		__field(bool, more_data)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		STA_ASSIGN;
+		__entry->tids = tids;
+		__entry->num_frames = num_frames;
+		__entry->reason = reason;
+		__entry->more_data = more_data;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT STA_PR_FMT
+		" TIDs:0x%.4x frames:%d reason:%d more:%d",
+		LOCAL_PR_ARG, STA_PR_ARG, __entry->tids, __entry->num_frames,
+		__entry->reason, __entry->more_data
+	)
+);
+
+DEFINE_EVENT(release_evt, drv_release_buffered_frames,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sta *sta,
+		 u16 tids, int num_frames,
+		 enum ieee80211_frame_release_type reason,
+		 bool more_data),
+
+	TP_ARGS(local, sta, tids, num_frames, reason, more_data)
+);
+
+DEFINE_EVENT(release_evt, drv_allow_buffered_frames,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sta *sta,
+		 u16 tids, int num_frames,
+		 enum ieee80211_frame_release_type reason,
+		 bool more_data),
+
+	TP_ARGS(local, sta, tids, num_frames, reason, more_data)
+);
+
 /*
  * Tracing for API calls that drivers call.
  */
@@ -1285,6 +1451,73 @@ DEFINE_EVENT(local_only_evt, api_ready_on_channel,
 DEFINE_EVENT(local_only_evt, api_remain_on_channel_expired,
 	TP_PROTO(struct ieee80211_local *local),
 	TP_ARGS(local)
+);
+
+TRACE_EVENT(api_gtk_rekey_notify,
+	TP_PROTO(struct ieee80211_sub_if_data *sdata,
+		 const u8 *bssid, const u8 *replay_ctr),
+
+	TP_ARGS(sdata, bssid, replay_ctr),
+
+	TP_STRUCT__entry(
+		VIF_ENTRY
+		__array(u8, bssid, ETH_ALEN)
+		__array(u8, replay_ctr, NL80211_REPLAY_CTR_LEN)
+	),
+
+	TP_fast_assign(
+		VIF_ASSIGN;
+		memcpy(__entry->bssid, bssid, ETH_ALEN);
+		memcpy(__entry->replay_ctr, replay_ctr, NL80211_REPLAY_CTR_LEN);
+	),
+
+	TP_printk(VIF_PR_FMT, VIF_PR_ARG)
+);
+
+TRACE_EVENT(api_enable_rssi_reports,
+	TP_PROTO(struct ieee80211_sub_if_data *sdata,
+		 int rssi_min_thold, int rssi_max_thold),
+
+	TP_ARGS(sdata, rssi_min_thold, rssi_max_thold),
+
+	TP_STRUCT__entry(
+		VIF_ENTRY
+		__field(int, rssi_min_thold)
+		__field(int, rssi_max_thold)
+	),
+
+	TP_fast_assign(
+		VIF_ASSIGN;
+		__entry->rssi_min_thold = rssi_min_thold;
+		__entry->rssi_max_thold = rssi_max_thold;
+	),
+
+	TP_printk(
+		VIF_PR_FMT " rssi_min_thold =%d, rssi_max_thold = %d",
+		VIF_PR_ARG, __entry->rssi_min_thold, __entry->rssi_max_thold
+	)
+);
+
+TRACE_EVENT(api_eosp,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sta *sta),
+
+	TP_ARGS(local, sta),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		STA_ENTRY
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		STA_ASSIGN;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT STA_PR_FMT,
+		LOCAL_PR_ARG, STA_PR_FMT
+	)
 );
 
 /*

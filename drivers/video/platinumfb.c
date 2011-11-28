@@ -490,7 +490,7 @@ static int platinum_var_to_par(struct fb_var_screeninfo *var,
 
 
 /* 
- * Parse user speficied options (`video=platinumfb:')
+ * Parse user specified options (`video=platinumfb:')
  */
 static int __init platinumfb_setup(char *options)
 {
@@ -567,7 +567,7 @@ static int __devinit platinumfb_probe(struct platform_device* odev)
 	 * northbridge and that can fail. Only request framebuffer
 	 */
 	if (!request_mem_region(pinfo->rsrc_fb.start,
-				pinfo->rsrc_fb.end - pinfo->rsrc_fb.start + 1,
+				resource_size(&pinfo->rsrc_fb),
 				"platinumfb framebuffer")) {
 		printk(KERN_ERR "platinumfb: Can't request framebuffer !\n");
 		framebuffer_release(info);
@@ -658,8 +658,7 @@ static int __devexit platinumfb_remove(struct platform_device* odev)
 	iounmap(pinfo->cmap_regs);
 
 	release_mem_region(pinfo->rsrc_fb.start,
-			   pinfo->rsrc_fb.end -
-			   pinfo->rsrc_fb.start + 1);
+			   resource_size(&pinfo->rsrc_fb));
 
 	release_mem_region(pinfo->cmap_regs_phys, 0x1000);
 
@@ -684,7 +683,7 @@ static struct platform_driver platinum_driver =
 		.of_match_table = platinumfb_match,
 	},
 	.probe		= platinumfb_probe,
-	.remove		= platinumfb_remove,
+	.remove		= __devexit_p(platinumfb_remove),
 };
 
 static int __init platinumfb_init(void)

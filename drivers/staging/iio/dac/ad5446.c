@@ -16,6 +16,7 @@
 #include <linux/spi/spi.h>
 #include <linux/regulator/consumer.h>
 #include <linux/err.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
@@ -67,8 +68,8 @@ static ssize_t ad5446_write(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad5446_state *st = dev_info->dev_data;
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad5446_state *st = iio_priv(indio_dev);
 	int ret;
 	long val;
 
@@ -81,11 +82,11 @@ static ssize_t ad5446_write(struct device *dev,
 		goto error_ret;
 	}
 
-	mutex_lock(&dev_info->mlock);
+	mutex_lock(&indio_dev->mlock);
 	st->cached_val = val;
 	st->chip_info->store_sample(st, val);
 	ret = spi_sync(st->spi, &st->msg);
-	mutex_unlock(&dev_info->mlock);
+	mutex_unlock(&indio_dev->mlock);
 
 error_ret:
 	return ret ? ret : len;
@@ -97,21 +98,21 @@ static ssize_t ad5446_show_scale(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad5446_state *st = iio_dev_get_devdata(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad5446_state *st = iio_priv(indio_dev);
 	/* Corresponds to Vref / 2^(bits) */
 	unsigned int scale_uv = (st->vref_mv * 1000) >> st->chip_info->bits;
 
 	return sprintf(buf, "%d.%03d\n", scale_uv / 1000, scale_uv % 1000);
 }
-static IIO_DEVICE_ATTR(out_scale, S_IRUGO, ad5446_show_scale, NULL, 0);
+static IIO_DEVICE_ATTR(out_voltage_scale, S_IRUGO, ad5446_show_scale, NULL, 0);
 
 static ssize_t ad5446_write_powerdown_mode(struct device *dev,
 				       struct device_attribute *attr,
 				       const char *buf, size_t len)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad5446_state *st = dev_info->dev_data;
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad5446_state *st = iio_priv(indio_dev);
 
 	if (sysfs_streq(buf, "1kohm_to_gnd"))
 		st->pwr_down_mode = MODE_PWRDWN_1k;
@@ -128,8 +129,8 @@ static ssize_t ad5446_write_powerdown_mode(struct device *dev,
 static ssize_t ad5446_read_powerdown_mode(struct device *dev,
 				      struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad5446_state *st = dev_info->dev_data;
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad5446_state *st = iio_priv(indio_dev);
 
 	char mode[][15] = {"", "1kohm_to_gnd", "100kohm_to_gnd", "three_state"};
 
@@ -140,8 +141,8 @@ static ssize_t ad5446_read_dac_powerdown(struct device *dev,
 					   struct device_attribute *attr,
 					   char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad5446_state *st = dev_info->dev_data;
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad5446_state *st = iio_priv(indio_dev);
 
 	return sprintf(buf, "%d\n", st->pwr_down);
 }
@@ -150,8 +151,8 @@ static ssize_t ad5446_write_dac_powerdown(struct device *dev,
 					    struct device_attribute *attr,
 					    const char *buf, size_t len)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad5446_state *st = dev_info->dev_data;
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad5446_state *st = iio_priv(indio_dev);
 	unsigned long readin;
 	int ret;
 
@@ -162,7 +163,7 @@ static ssize_t ad5446_write_dac_powerdown(struct device *dev,
 	if (readin > 1)
 		ret = -EINVAL;
 
-	mutex_lock(&dev_info->mlock);
+	mutex_lock(&indio_dev->mlock);
 	st->pwr_down = readin;
 
 	if (st->pwr_down)
@@ -171,28 +172,28 @@ static ssize_t ad5446_write_dac_powerdown(struct device *dev,
 		st->chip_info->store_sample(st, st->cached_val);
 
 	ret = spi_sync(st->spi, &st->msg);
-	mutex_unlock(&dev_info->mlock);
+	mutex_unlock(&indio_dev->mlock);
 
 	return ret ? ret : len;
 }
 
-static IIO_DEVICE_ATTR(out_powerdown_mode, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(out_voltage_powerdown_mode, S_IRUGO | S_IWUSR,
 			ad5446_read_powerdown_mode,
 			ad5446_write_powerdown_mode, 0);
 
-static IIO_CONST_ATTR(out_powerdown_mode_available,
+static IIO_CONST_ATTR(out_voltage_powerdown_mode_available,
 			"1kohm_to_gnd 100kohm_to_gnd three_state");
 
-static IIO_DEVICE_ATTR(out0_powerdown, S_IRUGO | S_IWUSR,
+static IIO_DEVICE_ATTR(out_voltage0_powerdown, S_IRUGO | S_IWUSR,
 			ad5446_read_dac_powerdown,
 			ad5446_write_dac_powerdown, 0);
 
 static struct attribute *ad5446_attributes[] = {
-	&iio_dev_attr_out0_raw.dev_attr.attr,
-	&iio_dev_attr_out_scale.dev_attr.attr,
-	&iio_dev_attr_out0_powerdown.dev_attr.attr,
-	&iio_dev_attr_out_powerdown_mode.dev_attr.attr,
-	&iio_const_attr_out_powerdown_mode_available.dev_attr.attr,
+	&iio_dev_attr_out_voltage0_raw.dev_attr.attr,
+	&iio_dev_attr_out_voltage_scale.dev_attr.attr,
+	&iio_dev_attr_out_voltage0_powerdown.dev_attr.attr,
+	&iio_dev_attr_out_voltage_powerdown_mode.dev_attr.attr,
+	&iio_const_attr_out_voltage_powerdown_mode_available.dev_attr.attr,
 	NULL,
 };
 
@@ -200,16 +201,18 @@ static mode_t ad5446_attr_is_visible(struct kobject *kobj,
 				     struct attribute *attr, int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad5446_state *st = iio_dev_get_devdata(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ad5446_state *st = iio_priv(indio_dev);
 
 	mode_t mode = attr->mode;
 
 	if (!st->chip_info->store_pwr_down &&
-		(attr == &iio_dev_attr_out0_powerdown.dev_attr.attr ||
-		attr == &iio_dev_attr_out_powerdown_mode.dev_attr.attr ||
+		(attr == &iio_dev_attr_out_voltage0_powerdown.dev_attr.attr ||
+		attr == &iio_dev_attr_out_voltage_powerdown_mode.
+		 dev_attr.attr ||
 		attr ==
-		&iio_const_attr_out_powerdown_mode_available.dev_attr.attr))
+		&iio_const_attr_out_voltage_powerdown_mode_available.
+		 dev_attr.attr))
 		mode = 0;
 
 	return mode;
@@ -342,42 +345,37 @@ static const struct iio_info ad5446_info = {
 static int __devinit ad5446_probe(struct spi_device *spi)
 {
 	struct ad5446_state *st;
+	struct iio_dev *indio_dev;
+	struct regulator *reg;
 	int ret, voltage_uv = 0;
 
-	st = kzalloc(sizeof(*st), GFP_KERNEL);
-	if (st == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-
-	st->reg = regulator_get(&spi->dev, "vcc");
-	if (!IS_ERR(st->reg)) {
-		ret = regulator_enable(st->reg);
+	reg = regulator_get(&spi->dev, "vcc");
+	if (!IS_ERR(reg)) {
+		ret = regulator_enable(reg);
 		if (ret)
 			goto error_put_reg;
 
-		voltage_uv = regulator_get_voltage(st->reg);
+		voltage_uv = regulator_get_voltage(reg);
 	}
 
-	st->chip_info =
-		&ad5446_chip_info_tbl[spi_get_device_id(spi)->driver_data];
-
-	spi_set_drvdata(spi, st);
-
-	st->spi = spi;
-
-	st->indio_dev = iio_allocate_device(0);
-	if (st->indio_dev == NULL) {
+	indio_dev = iio_allocate_device(sizeof(*st));
+	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_disable_reg;
 	}
+	st = iio_priv(indio_dev);
+	st->chip_info =
+		&ad5446_chip_info_tbl[spi_get_device_id(spi)->driver_data];
+
+	spi_set_drvdata(spi, indio_dev);
+	st->reg = reg;
+	st->spi = spi;
 
 	/* Estabilish that the iio_dev is a child of the spi device */
-	st->indio_dev->dev.parent = &spi->dev;
-	st->indio_dev->name = spi_get_device_id(spi)->name;
-	st->indio_dev->info = &ad5446_info;
-	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->modes = INDIO_DIRECT_MODE;
+	indio_dev->dev.parent = &spi->dev;
+	indio_dev->name = spi_get_device_id(spi)->name;
+	indio_dev->info = &ad5446_info;
+	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	/* Setup default message */
 
@@ -404,36 +402,36 @@ static int __devinit ad5446_probe(struct spi_device *spi)
 				 "reference voltage unspecified\n");
 	}
 
-	ret = iio_device_register(st->indio_dev);
+	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto error_free_device;
 
 	return 0;
 
 error_free_device:
-	iio_free_device(st->indio_dev);
+	iio_free_device(indio_dev);
 error_disable_reg:
-	if (!IS_ERR(st->reg))
-		regulator_disable(st->reg);
+	if (!IS_ERR(reg))
+		regulator_disable(reg);
 error_put_reg:
-	if (!IS_ERR(st->reg))
-		regulator_put(st->reg);
-	kfree(st);
-error_ret:
+	if (!IS_ERR(reg))
+		regulator_put(reg);
+
 	return ret;
 }
 
 static int ad5446_remove(struct spi_device *spi)
 {
-	struct ad5446_state *st = spi_get_drvdata(spi);
-	struct iio_dev *indio_dev = st->indio_dev;
+	struct iio_dev *indio_dev = spi_get_drvdata(spi);
+	struct ad5446_state *st = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
 	if (!IS_ERR(st->reg)) {
 		regulator_disable(st->reg);
 		regulator_put(st->reg);
 	}
-	kfree(st);
+	iio_free_device(indio_dev);
+
 	return 0;
 }
 

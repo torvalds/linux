@@ -2397,6 +2397,12 @@ static int nand_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	struct mrst_nand_info *pndev = &info;
 	u32 int_mask;
 
+	ret = pci_enable_device(dev);
+	if (ret) {
+		printk(KERN_ERR "Spectra: pci_enable_device failed.\n");
+		return ret;
+	}
+
 	nand_dbg_print(NAND_DBG_WARN, "%s, Line %d, Function: %s\n",
 		       __FILE__, __LINE__, __func__);
 
@@ -2404,7 +2410,7 @@ static int nand_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 			GLOB_HWCTL_REG_SIZE);
 	if (!FlashReg) {
 		printk(KERN_ERR "Spectra: ioremap_nocache failed!");
-		return -ENOMEM;
+		goto failed_disable;
 	}
 	nand_dbg_print(NAND_DBG_WARN,
 		"Spectra: Remapped reg base address: "
@@ -2416,7 +2422,7 @@ static int nand_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (!FlashMem) {
 		printk(KERN_ERR "Spectra: ioremap_nocache failed!");
 		iounmap(FlashReg);
-		return -ENOMEM;
+		goto failed_disable;
 	}
 	nand_dbg_print(NAND_DBG_WARN,
 		"Spectra: Remapped flash base address: "
@@ -2479,11 +2485,6 @@ static int nand_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	iowrite32(0, FlashReg + TWO_ROW_ADDR_CYCLES);
 	iowrite32(1, FlashReg + ECC_ENABLE);
 	enable_ecc = 1;
-	ret = pci_enable_device(dev);
-	if (ret) {
-		printk(KERN_ERR "Spectra: pci_enable_device failed.\n");
-		goto failed_req_csr;
-	}
 
 	pci_set_master(dev);
 	pndev->dev = dev;
@@ -2558,9 +2559,10 @@ static int nand_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 failed_remap_csr:
 	pci_release_regions(dev);
 failed_req_csr:
-	pci_disable_device(dev);
 	iounmap(FlashMem);
 	iounmap(FlashReg);
+failed_disable:
+	pci_disable_device(dev);
 
 	return ret;
 }

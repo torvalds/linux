@@ -934,8 +934,8 @@ int mnt_had_events(struct proc_mounts *p)
 	int res = 0;
 
 	br_read_lock(vfsmount_lock);
-	if (p->event != ns->event) {
-		p->event = ns->event;
+	if (p->m.poll_event != ns->event) {
+		p->m.poll_event = ns->event;
 		res = 1;
 	}
 	br_read_unlock(vfsmount_lock);
@@ -1109,6 +1109,7 @@ static int show_vfsstat(struct seq_file *m, void *v)
 
 	/* device */
 	if (mnt->mnt_sb->s_op->show_devname) {
+		seq_puts(m, "device ");
 		err = mnt->mnt_sb->s_op->show_devname(m, mnt);
 	} else {
 		if (mnt->mnt_devname) {
@@ -1757,7 +1758,7 @@ static int do_loopback(struct path *path, char *old_name,
 		return err;
 	if (!old_name || !*old_name)
 		return -EINVAL;
-	err = kern_path(old_name, LOOKUP_FOLLOW, &old_path);
+	err = kern_path(old_name, LOOKUP_FOLLOW|LOOKUP_AUTOMOUNT, &old_path);
 	if (err)
 		return err;
 
@@ -2482,10 +2483,42 @@ struct mnt_namespace *create_mnt_ns(struct vfsmount *mnt)
 		__mnt_make_longterm(mnt);
 		new_ns->root = mnt;
 		list_add(&new_ns->list, &new_ns->root->mnt_list);
+	} else {
+		mntput(mnt);
 	}
 	return new_ns;
 }
 EXPORT_SYMBOL(create_mnt_ns);
+
+struct dentry *mount_subtree(struct vfsmount *mnt, const char *name)
+{
+	struct mnt_namespace *ns;
+	struct super_block *s;
+	struct path path;
+	int err;
+
+	ns = create_mnt_ns(mnt);
+	if (IS_ERR(ns))
+		return ERR_CAST(ns);
+
+	err = vfs_path_lookup(mnt->mnt_root, mnt,
+			name, LOOKUP_FOLLOW|LOOKUP_AUTOMOUNT, &path);
+
+	put_mnt_ns(ns);
+
+	if (err)
+		return ERR_PTR(err);
+
+	/* trade a vfsmount reference for active sb one */
+	s = path.mnt->mnt_sb;
+	atomic_inc(&s->s_active);
+	mntput(path.mnt);
+	/* lock the sucker */
+	down_write(&s->s_umount);
+	/* ... and return the root of (sub)tree on it */
+	return path.dentry;
+}
+EXPORT_SYMBOL(mount_subtree);
 
 SYSCALL_DEFINE5(mount, char __user *, dev_name, char __user *, dir_name,
 		char __user *, type, unsigned long, flags, void __user *, data)
@@ -2721,6 +2754,25 @@ EXPORT_SYMBOL(put_mnt_ns);
 
 struct vfsmount *kern_mount_data(struct file_system_type *type, void *data)
 {
-	return vfs_kern_mount(type, MS_KERNMOUNT, type->name, data);
+	struct vfsmount *mnt;
+	mnt = vfs_kern_mount(type, MS_KERNMOUNT, type->name, data);
+	if (!IS_ERR(mnt)) {
+		/*
+		 * it is a longterm mount, don't release mnt until
+		 * we unmount before file sys is unregistered
+		*/
+		mnt_make_longterm(mnt);
+	}
+	return mnt;
 }
 EXPORT_SYMBOL_GPL(kern_mount_data);
+
+void kern_unmount(struct vfsmount *mnt)
+{
+	/* release long term mount so mount point can be released */
+	if (!IS_ERR_OR_NULL(mnt)) {
+		mnt_make_shortterm(mnt);
+		mntput(mnt);
+	}
+}
+EXPORT_SYMBOL(kern_unmount);

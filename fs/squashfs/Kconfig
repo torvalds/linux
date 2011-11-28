@@ -1,7 +1,6 @@
 config SQUASHFS
 	tristate "SquashFS 4.0 - Squashed file system support"
 	depends on BLOCK
-	select ZLIB_INFLATE
 	help
 	  Saying Y here includes support for SquashFS 4.0 (a Compressed
 	  Read-Only File System).  Squashfs is a highly compressed read-only
@@ -20,9 +19,9 @@ config SQUASHFS
 
 	  If you want to compile this as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want),
-	  say M here and read <file:Documentation/modules.txt>.  The module
-	  will be called squashfs.  Note that the root file system (the one
-	  containing the directory /) cannot be compiled as a module.
+	  say M here.  The module will be called squashfs.  Note that the root
+	  file system (the one containing the directory /) cannot be compiled
+	  as a module.
 
 	  If unsure, say N.
 
@@ -35,6 +34,19 @@ config SQUASHFS_XATTR
 	  the kernel or by users (see the attr(5) manual page).
 
 	  If unsure, say N.
+
+config SQUASHFS_ZLIB
+	bool "Include support for ZLIB compressed file systems"
+	depends on SQUASHFS
+	select ZLIB_INFLATE
+	default y
+	help
+	  ZLIB compression is the standard compression used by Squashfs
+	  file systems.  It offers a good trade-off between compression
+	  achieved and the amount of CPU time and memory necessary to
+	  compress and decompress.
+
+	  If unsure, say Y.
 
 config SQUASHFS_LZO
 	bool "Include support for LZO compressed file systems"
@@ -63,6 +75,28 @@ config SQUASHFS_XZ
 
 	  XZ is not the standard compression used in Squashfs and so most
 	  file systems will be readable without selecting this option.
+
+	  If unsure, say N.
+
+config SQUASHFS_4K_DEVBLK_SIZE
+	bool "Use 4K device block size?"
+	depends on SQUASHFS
+	help
+	  By default Squashfs sets the dev block size (sb_min_blocksize)
+	  to 1K or the smallest block size supported by the block device
+	  (if larger).  This, because blocks are packed together and
+	  unaligned in Squashfs, should reduce latency.
+
+	  This, however, gives poor performance on MTD NAND devices where
+	  the optimal I/O size is 4K (even though the devices can support
+	  smaller block sizes).
+
+	  Using a 4K device block size may also improve overall I/O
+	  performance for some file access patterns (e.g. sequential
+	  accesses of files in filesystem order) on all media.
+
+	  Setting this option will force Squashfs to use a 4K device block
+	  size by default.
 
 	  If unsure, say N.
 

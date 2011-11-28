@@ -37,6 +37,7 @@
 #include <linux/kernel.h>
 #include <linux/blkdev.h>
 #include <linux/spinlock.h>
+#include <linux/export.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_cmnd.h>
@@ -1108,8 +1109,7 @@ static int ata_scsi_dev_config(struct scsi_device *sdev,
 		/* configure draining */
 		buf = kmalloc(ATAPI_MAX_DRAIN, q->bounce_gfp | GFP_KERNEL);
 		if (!buf) {
-			ata_dev_printk(dev, KERN_ERR,
-				       "drain buffer allocation failed\n");
+			ata_dev_err(dev, "drain buffer allocation failed\n");
 			return -ENOMEM;
 		}
 
@@ -1127,7 +1127,7 @@ static int ata_scsi_dev_config(struct scsi_device *sdev,
 	 * IDENTIFY_PACKET is executed as ATA_PROT_PIO.
 	 */
 	if (sdev->sector_size > PAGE_SIZE)
-		ata_dev_printk(dev, KERN_WARNING,
+		ata_dev_warn(dev,
 			"sector_size=%u > PAGE_SIZE, PIO may malfunction\n",
 			sdev->sector_size);
 
@@ -1216,25 +1216,19 @@ void ata_scsi_slave_destroy(struct scsi_device *sdev)
 }
 
 /**
- *	ata_scsi_change_queue_depth - SCSI callback for queue depth config
+ *	__ata_change_queue_depth - helper for ata_scsi_change_queue_depth
+ *	@ap: ATA port to which the device change the queue depth
  *	@sdev: SCSI device to configure queue depth for
  *	@queue_depth: new queue depth
  *	@reason: calling context
  *
- *	This is libata standard hostt->change_queue_depth callback.
- *	SCSI will call into this callback when user tries to set queue
- *	depth via sysfs.
+ *	libsas and libata have different approaches for associating a sdev to
+ *	its ata_port.
  *
- *	LOCKING:
- *	SCSI layer (we don't care)
- *
- *	RETURNS:
- *	Newly configured queue depth.
  */
-int ata_scsi_change_queue_depth(struct scsi_device *sdev, int queue_depth,
-				int reason)
+int __ata_change_queue_depth(struct ata_port *ap, struct scsi_device *sdev,
+			     int queue_depth, int reason)
 {
-	struct ata_port *ap = ata_shost_to_port(sdev->host);
 	struct ata_device *dev;
 	unsigned long flags;
 
@@ -1267,6 +1261,30 @@ int ata_scsi_change_queue_depth(struct scsi_device *sdev, int queue_depth,
 
 	scsi_adjust_queue_depth(sdev, MSG_SIMPLE_TAG, queue_depth);
 	return queue_depth;
+}
+
+/**
+ *	ata_scsi_change_queue_depth - SCSI callback for queue depth config
+ *	@sdev: SCSI device to configure queue depth for
+ *	@queue_depth: new queue depth
+ *	@reason: calling context
+ *
+ *	This is libata standard hostt->change_queue_depth callback.
+ *	SCSI will call into this callback when user tries to set queue
+ *	depth via sysfs.
+ *
+ *	LOCKING:
+ *	SCSI layer (we don't care)
+ *
+ *	RETURNS:
+ *	Newly configured queue depth.
+ */
+int ata_scsi_change_queue_depth(struct scsi_device *sdev, int queue_depth,
+				int reason)
+{
+	struct ata_port *ap = ata_shost_to_port(sdev->host);
+
+	return __ata_change_queue_depth(ap, sdev, queue_depth, reason);
 }
 
 /**
@@ -1784,8 +1802,7 @@ static int ata_scsi_translate(struct ata_device *dev, struct scsi_cmnd *cmd,
 	if (cmd->sc_data_direction == DMA_FROM_DEVICE ||
 	    cmd->sc_data_direction == DMA_TO_DEVICE) {
 		if (unlikely(scsi_bufflen(cmd) < 1)) {
-			ata_dev_printk(dev, KERN_WARNING,
-				       "WARNING: zero len r/w req\n");
+			ata_dev_warn(dev, "WARNING: zero len r/w req\n");
 			goto err_did;
 		}
 
@@ -2969,9 +2986,8 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 		 * with the cached multi_count of libata
 		 */
 		if (multi_count != dev->multi_count)
-			ata_dev_printk(dev, KERN_WARNING,
-				       "invalid multi_count %u ignored\n",
-				       multi_count);
+			ata_dev_warn(dev, "invalid multi_count %u ignored\n",
+				     multi_count);
 	}
 
 	/*
@@ -3466,9 +3482,8 @@ void ata_scsi_scan_host(struct ata_port *ap, int sync)
 			goto repeat;
 		}
 
-		ata_port_printk(ap, KERN_ERR, "WARNING: synchronous SCSI scan "
-				"failed without making any progress,\n"
-				"                  switching to async\n");
+		ata_port_err(ap,
+			     "WARNING: synchronous SCSI scan failed without making any progress, switching to async\n");
 	}
 
 	queue_delayed_work(system_long_wq, &ap->hotplug_task,
@@ -3550,8 +3565,8 @@ static void ata_scsi_remove_dev(struct ata_device *dev)
 	mutex_unlock(&ap->scsi_host->scan_mutex);
 
 	if (sdev) {
-		ata_dev_printk(dev, KERN_INFO, "detaching (SCSI %s)\n",
-			       dev_name(&sdev->sdev_gendev));
+		ata_dev_info(dev, "detaching (SCSI %s)\n",
+			     dev_name(&sdev->sdev_gendev));
 
 		scsi_remove_device(sdev);
 		scsi_device_put(sdev);

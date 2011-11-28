@@ -33,11 +33,14 @@
 #include "util/sort.h"
 #include "util/hist.h"
 
+#include <linux/bitmap.h>
+
 static char		const *input_name = "perf.data";
 
 static bool		force, use_tui, use_stdio;
 static bool		hide_unresolved;
 static bool		dont_use_callchains;
+static bool		show_full_info;
 
 static bool		show_threads;
 static struct perf_read_values	show_threads_values;
@@ -45,8 +48,12 @@ static struct perf_read_values	show_threads_values;
 static const char	default_pretty_printing_style[] = "normal";
 static const char	*pretty_printing_style = default_pretty_printing_style;
 
-static char		callchain_default_opt[] = "fractal,0.5";
+static char		callchain_default_opt[] = "fractal,0.5,callee";
+static bool		inverted_callchain;
 static symbol_filter_t	annotate_init;
+
+static const char	*cpu_list;
+static DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 
 static int perf_session__add_hist_entry(struct perf_session *session,
 					struct addr_location *al,
@@ -116,6 +123,9 @@ static int process_sample_event(union perf_event *event,
 	if (al.filtered || (hide_unresolved && al.sym == NULL))
 		return 0;
 
+	if (cpu_list && !test_bit(sample->cpu, cpu_bitmap))
+		return 0;
+
 	if (al.map != NULL)
 		al.map->dso->hit = 1;
 
@@ -153,23 +163,22 @@ static int perf_session__setup_sample_type(struct perf_session *self)
 {
 	if (!(self->sample_type & PERF_SAMPLE_CALLCHAIN)) {
 		if (sort__has_parent) {
-			fprintf(stderr, "selected --sort parent, but no"
-					" callchain data. Did you call"
-					" perf record without -g?\n");
+			ui__warning("Selected --sort parent, but no "
+				    "callchain data. Did you call "
+				    "'perf record' without -g?\n");
 			return -EINVAL;
 		}
 		if (symbol_conf.use_callchain) {
-			fprintf(stderr, "selected -g but no callchain data."
-					" Did you call perf record without"
-					" -g?\n");
+			ui__warning("Selected -g but no callchain data. Did "
+				    "you call 'perf record' without -g?\n");
 			return -1;
 		}
 	} else if (!dont_use_callchains && callchain_param.mode != CHAIN_NONE &&
 		   !symbol_conf.use_callchain) {
 			symbol_conf.use_callchain = true;
 			if (callchain_register_param(&callchain_param) < 0) {
-				fprintf(stderr, "Can't register callchain"
-						" params\n");
+				ui__warning("Can't register callchain "
+					    "params.\n");
 				return -EINVAL;
 			}
 	}
@@ -221,13 +230,10 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 
 	list_for_each_entry(pos, &evlist->entries, node) {
 		struct hists *hists = &pos->hists;
-		const char *evname = NULL;
-
-		if (rb_first(&hists->entries) != rb_last(&hists->entries))
-			evname = event_name(pos);
+		const char *evname = event_name(pos);
 
 		hists__fprintf_nr_sample_events(hists, evname, stdout);
-		hists__fprintf(hists, NULL, false, stdout);
+		hists__fprintf(hists, NULL, false, true, 0, 0, stdout);
 		fprintf(stdout, "\n\n");
 	}
 
@@ -261,6 +267,15 @@ static int __cmd_report(void)
 	session = perf_session__new(input_name, O_RDONLY, force, false, &event_ops);
 	if (session == NULL)
 		return -ENOMEM;
+
+	if (cpu_list) {
+		ret = perf_session__cpu_bitmap(session, cpu_list, cpu_bitmap);
+		if (ret)
+			goto out_delete;
+	}
+
+	if (use_browser <= 0)
+		perf_session__fprintf_info(session, stdout, show_full_info);
 
 	if (show_threads)
 		perf_read_values_init(&show_threads_values);
@@ -316,9 +331,10 @@ static int __cmd_report(void)
 		goto out_delete;
 	}
 
-	if (use_browser > 0)
-		perf_evlist__tui_browse_hists(session->evlist, help);
-	else
+	if (use_browser > 0) {
+		perf_evlist__tui_browse_hists(session->evlist, help,
+					      NULL, NULL, 0);
+	} else
 		perf_evlist__tty_browse_hists(session->evlist, help);
 
 out_delete:
@@ -386,13 +402,29 @@ parse_callchain_opt(const struct option *opt __used, const char *arg,
 	if (!tok)
 		goto setup;
 
-	tok2 = strtok(NULL, ",");
 	callchain_param.min_percent = strtod(tok, &endptr);
 	if (tok == endptr)
 		return -1;
 
-	if (tok2)
+	/* get the print limit */
+	tok2 = strtok(NULL, ",");
+	if (!tok2)
+		goto setup;
+
+	if (tok2[0] != 'c') {
 		callchain_param.print_limit = strtod(tok2, &endptr);
+		tok2 = strtok(NULL, ",");
+		if (!tok2)
+			goto setup;
+	}
+
+	/* get the call chain order */
+	if (!strcmp(tok2, "caller"))
+		callchain_param.order = ORDER_CALLER;
+	else if (!strcmp(tok2, "callee"))
+		callchain_param.order = ORDER_CALLEE;
+	else
+		return -1;
 setup:
 	if (callchain_register_param(&callchain_param) < 0) {
 		fprintf(stderr, "Can't register callchain params\n");
@@ -436,9 +468,10 @@ static const struct option options[] = {
 		   "regex filter to identify parent, see: '--sort parent'"),
 	OPT_BOOLEAN('x', "exclude-other", &symbol_conf.exclude_other,
 		    "Only display entries with parent-match"),
-	OPT_CALLBACK_DEFAULT('g', "call-graph", NULL, "output_type,min_percent",
-		     "Display callchains using output_type (graph, flat, fractal, or none) and min percent threshold. "
-		     "Default: fractal,0.5", &parse_callchain_opt, callchain_default_opt),
+	OPT_CALLBACK_DEFAULT('g', "call-graph", NULL, "output_type,min_percent, call_order",
+		     "Display callchains using output_type (graph, flat, fractal, or none) , min percent threshold and callchain order. "
+		     "Default: fractal,0.5,callee", &parse_callchain_opt, callchain_default_opt),
+	OPT_BOOLEAN('G', "inverted", &inverted_callchain, "alias for inverted call graph"),
 	OPT_STRING('d', "dsos", &symbol_conf.dso_list_str, "dso[,dso...]",
 		   "only consider symbols in these dsos"),
 	OPT_STRING('C', "comms", &symbol_conf.comm_list_str, "comm[,comm...]",
@@ -455,6 +488,17 @@ static const struct option options[] = {
 		    "Only display entries resolved to a symbol"),
 	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
 		    "Look for files with symbols relative to this directory"),
+	OPT_STRING('c', "cpu", &cpu_list, "cpu", "list of cpus to profile"),
+	OPT_BOOLEAN('I', "show-info", &show_full_info,
+		    "Display extended information about perf.data file"),
+	OPT_BOOLEAN(0, "source", &symbol_conf.annotate_src,
+		    "Interleave source code with assembly code (default)"),
+	OPT_BOOLEAN(0, "asm-raw", &symbol_conf.annotate_asm_raw,
+		    "Display raw encoding of assembly instructions (default)"),
+	OPT_STRING('M', "disassembler-style", &disassembler_style, "disassembler style",
+		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
+	OPT_BOOLEAN(0, "show-total-period", &symbol_conf.show_total_period,
+		    "Show a column with the sum of periods"),
 	OPT_END()
 };
 
@@ -466,6 +510,9 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 		use_browser = 0;
 	else if (use_tui)
 		use_browser = 1;
+
+	if (inverted_callchain)
+		callchain_param.order = ORDER_CALLER;
 
 	if (strcmp(input_name, "-") != 0)
 		setup_browser(true);
@@ -504,7 +551,14 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 	if (parent_pattern != default_parent_pattern) {
 		if (sort_dimension__add("parent") < 0)
 			return -1;
-		sort_parent.elide = 1;
+
+		/*
+		 * Only show the parent fields if we explicitly
+		 * sort that way. If we only use parent machinery
+		 * for filtering, we don't want it.
+		 */
+		if (!strstr(sort_order, "parent"))
+			sort_parent.elide = 1;
 	} else
 		symbol_conf.exclude_other = false;
 

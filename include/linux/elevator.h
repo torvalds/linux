@@ -38,6 +38,12 @@ struct elevator_ops
 	elevator_merged_fn *elevator_merged_fn;
 	elevator_merge_req_fn *elevator_merge_req_fn;
 	elevator_allow_merge_fn *elevator_allow_merge_fn;
+
+	/*
+	 * Used for both plugged list and elevator merging and in the
+	 * former case called without queue_lock.  Read comment on top of
+	 * attempt_plug_merge() for details.
+	 */
 	elevator_bio_merged_fn *elevator_bio_merged_fn;
 
 	elevator_dispatch_fn *elevator_dispatch_fn;
@@ -146,7 +152,7 @@ extern struct request *elv_rb_latter_request(struct request_queue *, struct requ
 /*
  * rb support functions.
  */
-extern struct request *elv_rb_add(struct rb_root *, struct request *);
+extern void elv_rb_add(struct rb_root *, struct request *);
 extern void elv_rb_del(struct rb_root *, struct request *);
 extern struct request *elv_rb_find(struct rb_root *, sector_t);
 

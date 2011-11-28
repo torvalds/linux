@@ -30,7 +30,6 @@
 #include <linux/ioport.h>	/* request_region		*/
 #include <linux/delay.h>	/* udelay			*/
 #include <linux/videodev2.h>	/* kernel radio structs		*/
-#include <linux/version.h>      /* for KERNEL_VERSION MACRO     */
 #include <linux/io.h>		/* outb, outb_p			*/
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
@@ -38,6 +37,7 @@
 MODULE_AUTHOR("Russell Kroll, Quay Lu, Donald Song, Jason Lewis, Scott McGrath, William McGrath");
 MODULE_DESCRIPTION("A driver for the Aztech radio card.");
 MODULE_LICENSE("GPL");
+MODULE_VERSION("0.0.3");
 
 /* acceptable ports: 0x350 (JP3 shorted), 0x358 (JP3 open) */
 
@@ -52,8 +52,6 @@ static int radio_wait_time = 1000;
 module_param(io, int, 0);
 module_param(radio_nr, int, 0);
 MODULE_PARM_DESC(io, "I/O address of the Aztech card (0x350 or 0x358)");
-
-#define RADIO_VERSION KERNEL_VERSION(0, 0, 2)
 
 struct aztech
 {
@@ -188,7 +186,6 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	strlcpy(v->driver, "radio-aztech", sizeof(v->driver));
 	strlcpy(v->card, "Aztech Radio", sizeof(v->card));
 	strlcpy(v->bus_info, "ISA", sizeof(v->bus_info));
-	v->version = RADIO_VERSION;
 	v->capabilities = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
 	return 0;
 }

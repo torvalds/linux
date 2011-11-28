@@ -17,8 +17,13 @@
 #ifndef _MACH_TEGRA_BOARD_TRIMSLICE_H
 #define _MACH_TEGRA_BOARD_TRIMSLICE_H
 
+#include <mach/gpio-tegra.h>
+
 #define TRIMSLICE_GPIO_SD4_CD	TEGRA_GPIO_PP1	/* mmc4 cd */
 #define TRIMSLICE_GPIO_SD4_WP	TEGRA_GPIO_PP2	/* mmc4 wp */
+
+#define TRIMSLICE_GPIO_USB1_MODE	TEGRA_GPIO_PV2 /* USB1 mode */
+#define TRIMSLICE_GPIO_USB2_RST		TEGRA_GPIO_PV0 /* USB2 PHY reset */
 
 void trimslice_pinmux_init(void);
 

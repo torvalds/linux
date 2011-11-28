@@ -177,7 +177,7 @@ SYSCALL(sys_getresuid16,sys_ni_syscall,sys32_getresuid16_wrapper)	/* 165 old get
 NI_SYSCALL							/* for vm86 */
 NI_SYSCALL							/* old sys_query_module */
 SYSCALL(sys_poll,sys_poll,sys32_poll_wrapper)
-SYSCALL(sys_nfsservctl,sys_nfsservctl,compat_sys_nfsservctl_wrapper)
+NI_SYSCALL							/* old nfsservctl */
 SYSCALL(sys_setresgid16,sys_ni_syscall,sys32_setresgid16_wrapper)	/* 170 old setresgid16 syscall */
 SYSCALL(sys_getresgid16,sys_ni_syscall,sys32_getresgid16_wrapper)	/* old getresgid16 syscall */
 SYSCALL(sys_prctl,sys_prctl,sys32_prctl_wrapper)
@@ -348,3 +348,5 @@ SYSCALL(sys_open_by_handle_at,sys_open_by_handle_at,compat_sys_open_by_handle_at
 SYSCALL(sys_clock_adjtime,sys_clock_adjtime,compat_sys_clock_adjtime_wrapper)
 SYSCALL(sys_syncfs,sys_syncfs,sys_syncfs_wrapper)
 SYSCALL(sys_setns,sys_setns,sys_setns_wrapper)
+SYSCALL(sys_process_vm_readv,sys_process_vm_readv,compat_sys_process_vm_readv_wrapper) /* 340 */
+SYSCALL(sys_process_vm_writev,sys_process_vm_writev,compat_sys_process_vm_writev_wrapper)

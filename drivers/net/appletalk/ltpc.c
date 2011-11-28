@@ -652,9 +652,9 @@ static int do_write(struct net_device *dev, void *cbuf, int cbuflen,
 	int ret;
 
 	if(i) {
-		qels[i].cbuf = (unsigned char *) cbuf;
+		qels[i].cbuf = cbuf;
 		qels[i].cbuflen = cbuflen;
-		qels[i].dbuf = (unsigned char *) dbuf;
+		qels[i].dbuf = dbuf;
 		qels[i].dbuflen = dbuflen;
 		qels[i].QWrite = 1;
 		qels[i].mailbox = i;  /* this should be initted rather */
@@ -676,9 +676,9 @@ static int do_read(struct net_device *dev, void *cbuf, int cbuflen,
 	int ret;
 
 	if(i) {
-		qels[i].cbuf = (unsigned char *) cbuf;
+		qels[i].cbuf = cbuf;
 		qels[i].cbuflen = cbuflen;
-		qels[i].dbuf = (unsigned char *) dbuf;
+		qels[i].dbuf = dbuf;
 		qels[i].dbuflen = dbuflen;
 		qels[i].QWrite = 0;
 		qels[i].mailbox = i;  /* this should be initted rather */
@@ -1014,7 +1014,7 @@ static int __init ltpc_probe_dma(int base, int dma)
 static const struct net_device_ops ltpc_netdev = {
 	.ndo_start_xmit		= ltpc_xmit,
 	.ndo_do_ioctl		= ltpc_ioctl,
-	.ndo_set_multicast_list = set_multicast_list,
+	.ndo_set_rx_mode	= set_multicast_list,
 };
 
 struct net_device * __init ltpc_probe(void)

@@ -13,7 +13,7 @@
  *
  *	Added conditional policy language extensions
  *
- * Updated: Hewlett-Packard <paul.moore@hp.com>
+ * Updated: Hewlett-Packard <paul@paul-moore.com>
  *
  *      Added support for NetLabel
  *      Added support for the policy capability bitmap
@@ -69,8 +69,6 @@
 #include "xfrm.h"
 #include "ebitmap.h"
 #include "audit.h"
-
-extern void selnl_notify_policyload(u32 seqno);
 
 int selinux_policycap_netpeer;
 int selinux_policycap_openperm;
@@ -1790,7 +1788,6 @@ static void security_load_policycaps(void)
 						  POLICYDB_CAPABILITY_OPENPERM);
 }
 
-extern void selinux_complete_init(void);
 static int security_preserve_bools(struct policydb *p);
 
 /**

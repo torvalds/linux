@@ -30,8 +30,6 @@
 #include <sched.h>
 #include <sys/mman.h>
 
-#define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
-
 enum write_mode_t {
 	WRITE_FORCE,
 	WRITE_APPEND
@@ -47,7 +45,7 @@ static int			freq				=   1000;
 static int			output;
 static int			pipe_output			=      0;
 static const char		*output_name			= NULL;
-static int			group				=      0;
+static bool			group				=  false;
 static int			realtime_prio			=      0;
 static bool			nodelay				=  false;
 static bool			raw_samples			=  false;
@@ -75,6 +73,7 @@ static off_t			post_processing_offset;
 
 static struct perf_session	*session;
 static const char		*cpu_list;
+static const char               *progname;
 
 static void advance_output(size_t size)
 {
@@ -139,17 +138,29 @@ static void mmap_read(struct perf_mmap *md)
 
 static volatile int done = 0;
 static volatile int signr = -1;
+static volatile int child_finished = 0;
 
 static void sig_handler(int sig)
 {
+	if (sig == SIGCHLD)
+		child_finished = 1;
+
 	done = 1;
 	signr = sig;
 }
 
 static void sig_atexit(void)
 {
-	if (child_pid > 0)
-		kill(child_pid, SIGTERM);
+	int status;
+
+	if (child_pid > 0) {
+		if (!child_finished)
+			kill(child_pid, SIGTERM);
+
+		wait(&status);
+		if (WIFSIGNALED(status))
+			psignal(WTERMSIG(status), progname);
+	}
 
 	if (signr == -1 || signr == SIGUSR1)
 		return;
@@ -163,6 +174,7 @@ static void config_attr(struct perf_evsel *evsel, struct perf_evlist *evlist)
 	struct perf_event_attr *attr = &evsel->attr;
 	int track = !evsel->idx; /* only the first counter needs these */
 
+	attr->disabled		= 1;
 	attr->inherit		= !no_inherit;
 	attr->read_format	= PERF_FORMAT_TOTAL_TIME_ENABLED |
 				  PERF_FORMAT_TOTAL_TIME_RUNNING |
@@ -250,13 +262,16 @@ static bool perf_evlist__equal(struct perf_evlist *evlist,
 
 static void open_counters(struct perf_evlist *evlist)
 {
-	struct perf_evsel *pos;
+	struct perf_evsel *pos, *first;
 
 	if (evlist->cpus->map[0] < 0)
 		no_inherit = true;
 
+	first = list_entry(evlist->entries.next, struct perf_evsel, node);
+
 	list_for_each_entry(pos, &evlist->entries, node) {
 		struct perf_event_attr *attr = &pos->attr;
+		struct xyarray *group_fd = NULL;
 		/*
 		 * Check if parse_single_tracepoint_event has already asked for
 		 * PERF_SAMPLE_TIME.
@@ -271,15 +286,19 @@ static void open_counters(struct perf_evlist *evlist)
 		 */
 		bool time_needed = attr->sample_type & PERF_SAMPLE_TIME;
 
+		if (group && pos != first)
+			group_fd = first->fd;
+
 		config_attr(pos, evlist);
 retry_sample_id:
 		attr->sample_id_all = sample_id_all_avail ? 1 : 0;
 try_again:
-		if (perf_evsel__open(pos, evlist->cpus, evlist->threads, group) < 0) {
+		if (perf_evsel__open(pos, evlist->cpus, evlist->threads, group,
+				     group_fd) < 0) {
 			int err = errno;
 
 			if (err == EPERM || err == EACCES) {
-				ui__warning_paranoid();
+				ui__error_paranoid();
 				exit(EXIT_FAILURE);
 			} else if (err ==  ENODEV && cpu_list) {
 				die("No such device - did you specify"
@@ -438,7 +457,6 @@ static void mmap_read_all(void)
 
 static int __cmd_record(int argc, const char **argv)
 {
-	int i;
 	struct stat st;
 	int flags;
 	int err;
@@ -447,6 +465,8 @@ static int __cmd_record(int argc, const char **argv)
 	const bool forks = argc > 0;
 	char buf;
 	struct machine *machine;
+
+	progname = argv[0];
 
 	page_size = sysconf(_SC_PAGE_SIZE);
 
@@ -515,6 +535,19 @@ static int __cmd_record(int argc, const char **argv)
 
 	if (have_tracepoints(&evsel_list->entries))
 		perf_header__set_feat(&session->header, HEADER_TRACE_INFO);
+
+	perf_header__set_feat(&session->header, HEADER_HOSTNAME);
+	perf_header__set_feat(&session->header, HEADER_OSRELEASE);
+	perf_header__set_feat(&session->header, HEADER_ARCH);
+	perf_header__set_feat(&session->header, HEADER_CPUDESC);
+	perf_header__set_feat(&session->header, HEADER_NRCPUS);
+	perf_header__set_feat(&session->header, HEADER_EVENT_DESC);
+	perf_header__set_feat(&session->header, HEADER_CMDLINE);
+	perf_header__set_feat(&session->header, HEADER_VERSION);
+	perf_header__set_feat(&session->header, HEADER_CPU_TOPOLOGY);
+	perf_header__set_feat(&session->header, HEADER_TOTAL_MEM);
+	perf_header__set_feat(&session->header, HEADER_NUMA_TOPOLOGY);
+	perf_header__set_feat(&session->header, HEADER_CPUID);
 
 	/* 512 kiB: default amount of unprivileged mlocked memory */
 	if (mmap_pages == UINT_MAX)
@@ -674,6 +707,8 @@ static int __cmd_record(int argc, const char **argv)
 		}
 	}
 
+	perf_evlist__enable(evsel_list);
+
 	/*
 	 * Let the child rip
 	 */
@@ -682,7 +717,6 @@ static int __cmd_record(int argc, const char **argv)
 
 	for (;;) {
 		int hits = samples;
-		int thread;
 
 		mmap_read_all();
 
@@ -693,19 +727,8 @@ static int __cmd_record(int argc, const char **argv)
 			waking++;
 		}
 
-		if (done) {
-			for (i = 0; i < evsel_list->cpus->nr; i++) {
-				struct perf_evsel *pos;
-
-				list_for_each_entry(pos, &evsel_list->entries, node) {
-					for (thread = 0;
-						thread < evsel_list->threads->nr;
-						thread++)
-						ioctl(FD(pos, i, thread),
-							PERF_EVENT_IOC_DISABLE);
-				}
-			}
-		}
+		if (done)
+			perf_evlist__disable(evsel_list);
 	}
 
 	if (quiet || signr == SIGUSR1)
@@ -740,7 +763,7 @@ static bool force, append_file;
 const struct option record_options[] = {
 	OPT_CALLBACK('e', "event", &evsel_list, "event",
 		     "event selector. use 'perf list' to list available events",
-		     parse_events),
+		     parse_events_option),
 	OPT_CALLBACK(0, "filter", &evsel_list, "filter",
 		     "event filter", parse_filter),
 	OPT_INTEGER('p', "pid", &target_pid,
@@ -768,6 +791,8 @@ const struct option record_options[] = {
 		    "child tasks do not inherit counters"),
 	OPT_UINTEGER('F', "freq", &user_freq, "profile at this frequency"),
 	OPT_UINTEGER('m', "mmap-pages", &mmap_pages, "number of mmap data pages"),
+	OPT_BOOLEAN(0, "group", &group,
+		    "put the counters into a counter group"),
 	OPT_BOOLEAN('g', "call-graph", &call_graph,
 		    "do call-graph (stack chain/backtrace) recording"),
 	OPT_INCR('v', "verbose", &verbose,
@@ -794,6 +819,8 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 {
 	int err = -ENOMEM;
 	struct perf_evsel *pos;
+
+	perf_header__set_cmdline(argc, argv);
 
 	evsel_list = perf_evlist__new(NULL, NULL);
 	if (evsel_list == NULL)

@@ -117,8 +117,21 @@
 #define IEEE80211_MAX_MESH_ID_LEN	32
 
 #define IEEE80211_QOS_CTL_LEN		2
-#define IEEE80211_QOS_CTL_TID_MASK	0x000F
-#define IEEE80211_QOS_CTL_TAG1D_MASK	0x0007
+/* 1d tag mask */
+#define IEEE80211_QOS_CTL_TAG1D_MASK		0x0007
+/* TID mask */
+#define IEEE80211_QOS_CTL_TID_MASK		0x000f
+/* EOSP */
+#define IEEE80211_QOS_CTL_EOSP			0x0010
+/* ACK policy */
+#define IEEE80211_QOS_CTL_ACK_POLICY_NORMAL	0x0000
+#define IEEE80211_QOS_CTL_ACK_POLICY_NOACK	0x0020
+#define IEEE80211_QOS_CTL_ACK_POLICY_NO_EXPL	0x0040
+#define IEEE80211_QOS_CTL_ACK_POLICY_BLOCKACK	0x0060
+/* A-MSDU 802.11n */
+#define IEEE80211_QOS_CTL_A_MSDU_PRESENT	0x0080
+/* Mesh Control 802.11s */
+#define IEEE80211_QOS_CTL_MESH_CONTROL_PRESENT  0x0100
 
 /* U-APSD queue for WMM IEs sent by AP */
 #define IEEE80211_WMM_IE_AP_QOSINFO_UAPSD	(1<<7)
@@ -618,8 +631,13 @@ struct ieee80211_rann_ie {
 	u8 rann_ttl;
 	u8 rann_addr[6];
 	u32 rann_seq;
+	u32 rann_interval;
 	u32 rann_metric;
 } __attribute__ ((packed));
+
+enum ieee80211_rann_flags {
+	RANN_FLAG_IS_GATE = 1 << 0,
+};
 
 #define WLAN_SA_QUERY_TR_ID_LEN 2
 
@@ -725,19 +743,10 @@ struct ieee80211_mgmt {
 					__le16 params;
 					__le16 reason_code;
 				} __attribute__((packed)) delba;
-				struct{
+				struct {
 					u8 action_code;
-					/* capab_info for open and confirm,
-					 * reason for close
-					 */
-					__le16 aux;
-					/* Followed in plink_confirm by status
-					 * code, AID and supported rates,
-					 * and directly by supported rates in
-					 * plink_open and plink_close
-					 */
 					u8 variable[0];
-				} __attribute__((packed)) plink_action;
+				} __attribute__((packed)) self_prot;
 				struct{
 					u8 action_code;
 					u8 variable[0];
@@ -750,6 +759,12 @@ struct ieee80211_mgmt {
 					u8 action;
 					u8 smps_control;
 				} __attribute__ ((packed)) ht_smps;
+				struct {
+					u8 action_code;
+					u8 dialog_token;
+					__le16 capability;
+					u8 variable[0];
+				} __packed tdls_discover_resp;
 			} u;
 		} __attribute__ ((packed)) action;
 	} u;
@@ -767,6 +782,13 @@ struct ieee80211_mmie {
 	u8 sequence_number[6];
 	u8 mic[8];
 } __attribute__ ((packed));
+
+struct ieee80211_vendor_ie {
+	u8 element_id;
+	u8 len;
+	u8 oui[3];
+	u8 oui_type;
+} __packed;
 
 /* Control frames */
 struct ieee80211_rts {
@@ -789,6 +811,52 @@ struct ieee80211_pspoll {
 	u8 ta[6];
 } __attribute__ ((packed));
 
+/* TDLS */
+
+/* Link-id information element */
+struct ieee80211_tdls_lnkie {
+	u8 ie_type; /* Link Identifier IE */
+	u8 ie_len;
+	u8 bssid[6];
+	u8 init_sta[6];
+	u8 resp_sta[6];
+} __packed;
+
+struct ieee80211_tdls_data {
+	u8 da[6];
+	u8 sa[6];
+	__be16 ether_type;
+	u8 payload_type;
+	u8 category;
+	u8 action_code;
+	union {
+		struct {
+			u8 dialog_token;
+			__le16 capability;
+			u8 variable[0];
+		} __packed setup_req;
+		struct {
+			__le16 status_code;
+			u8 dialog_token;
+			__le16 capability;
+			u8 variable[0];
+		} __packed setup_resp;
+		struct {
+			__le16 status_code;
+			u8 dialog_token;
+			u8 variable[0];
+		} __packed setup_cfm;
+		struct {
+			__le16 reason_code;
+			u8 variable[0];
+		} __packed teardown;
+		struct {
+			u8 dialog_token;
+			u8 variable[0];
+		} __packed discover_req;
+	} u;
+} __packed;
+
 /**
  * struct ieee80211_bar - HT Block Ack Request
  *
@@ -805,9 +873,11 @@ struct ieee80211_bar {
 } __attribute__((packed));
 
 /* 802.11 BAR control masks */
-#define IEEE80211_BAR_CTRL_ACK_POLICY_NORMAL     0x0000
-#define IEEE80211_BAR_CTRL_CBMTID_COMPRESSED_BA  0x0004
-
+#define IEEE80211_BAR_CTRL_ACK_POLICY_NORMAL	0x0000
+#define IEEE80211_BAR_CTRL_MULTI_TID		0x0002
+#define IEEE80211_BAR_CTRL_CBMTID_COMPRESSED_BA	0x0004
+#define IEEE80211_BAR_CTRL_TID_INFO_MASK	0xf000
+#define IEEE80211_BAR_CTRL_TID_INFO_SHIFT	12
 
 #define IEEE80211_HT_MCS_MASK_LEN		10
 
@@ -1178,16 +1248,13 @@ enum ieee80211_eid {
 	WLAN_EID_TS_DELAY = 43,
 	WLAN_EID_TCLAS_PROCESSING = 44,
 	WLAN_EID_QOS_CAPA = 46,
+	/* 802.11z */
+	WLAN_EID_LINK_ID = 101,
 	/* 802.11s */
 	WLAN_EID_MESH_CONFIG = 113,
 	WLAN_EID_MESH_ID = 114,
 	WLAN_EID_LINK_METRIC_REPORT = 115,
 	WLAN_EID_CONGESTION_NOTIFICATION = 116,
-	/* Note that the Peer Link IE has been replaced with the similar
-	 * Peer Management IE.  We will keep the former definition until mesh
-	 * code is changed to comply with latest 802.11s drafts.
-	 */
-	WLAN_EID_PEER_LINK = 55,  /* no longer in 802.11s drafts */
 	WLAN_EID_PEER_MGMT = 117,
 	WLAN_EID_CHAN_SWITCH_PARAM = 118,
 	WLAN_EID_MESH_AWAKE_WINDOW = 119,
@@ -1266,13 +1333,11 @@ enum ieee80211_category {
 	WLAN_CATEGORY_HT = 7,
 	WLAN_CATEGORY_SA_QUERY = 8,
 	WLAN_CATEGORY_PROTECTED_DUAL_OF_ACTION = 9,
+	WLAN_CATEGORY_TDLS = 12,
 	WLAN_CATEGORY_MESH_ACTION = 13,
 	WLAN_CATEGORY_MULTIHOP_ACTION = 14,
 	WLAN_CATEGORY_SELF_PROTECTED = 15,
 	WLAN_CATEGORY_WMM = 17,
-	/* TODO: remove MESH_PATH_SEL after mesh is updated
-	 * to current 802.11s draft  */
-	WLAN_CATEGORY_MESH_PATH_SEL = 32,
 	WLAN_CATEGORY_VENDOR_SPECIFIC_PROTECTED = 126,
 	WLAN_CATEGORY_VENDOR_SPECIFIC = 127,
 };
@@ -1298,6 +1363,31 @@ enum ieee80211_ht_actioncode {
 	WLAN_HT_ACTION_ASEL_IDX_FEEDBACK = 7,
 };
 
+/* Self Protected Action codes */
+enum ieee80211_self_protected_actioncode {
+	WLAN_SP_RESERVED = 0,
+	WLAN_SP_MESH_PEERING_OPEN = 1,
+	WLAN_SP_MESH_PEERING_CONFIRM = 2,
+	WLAN_SP_MESH_PEERING_CLOSE = 3,
+	WLAN_SP_MGK_INFORM = 4,
+	WLAN_SP_MGK_ACK = 5,
+};
+
+/* Mesh action codes */
+enum ieee80211_mesh_actioncode {
+	WLAN_MESH_ACTION_LINK_METRIC_REPORT,
+	WLAN_MESH_ACTION_HWMP_PATH_SELECTION,
+	WLAN_MESH_ACTION_GATE_ANNOUNCEMENT,
+	WLAN_MESH_ACTION_CONGESTION_CONTROL_NOTIFICATION,
+	WLAN_MESH_ACTION_MCCA_SETUP_REQUEST,
+	WLAN_MESH_ACTION_MCCA_SETUP_REPLY,
+	WLAN_MESH_ACTION_MCCA_ADVERTISEMENT_REQUEST,
+	WLAN_MESH_ACTION_MCCA_ADVERTISEMENT,
+	WLAN_MESH_ACTION_MCCA_TEARDOWN,
+	WLAN_MESH_ACTION_TBTT_ADJUSTMENT_REQUEST,
+	WLAN_MESH_ACTION_TBTT_ADJUSTMENT_RESPONSE,
+};
+
 /* Security key length */
 enum ieee80211_key_len {
 	WLAN_KEY_LEN_WEP40 = 5,
@@ -1306,6 +1396,36 @@ enum ieee80211_key_len {
 	WLAN_KEY_LEN_TKIP = 32,
 	WLAN_KEY_LEN_AES_CMAC = 16,
 };
+
+/* Public action codes */
+enum ieee80211_pub_actioncode {
+	WLAN_PUB_ACTION_TDLS_DISCOVER_RES = 14,
+};
+
+/* TDLS action codes */
+enum ieee80211_tdls_actioncode {
+	WLAN_TDLS_SETUP_REQUEST = 0,
+	WLAN_TDLS_SETUP_RESPONSE = 1,
+	WLAN_TDLS_SETUP_CONFIRM = 2,
+	WLAN_TDLS_TEARDOWN = 3,
+	WLAN_TDLS_PEER_TRAFFIC_INDICATION = 4,
+	WLAN_TDLS_CHANNEL_SWITCH_REQUEST = 5,
+	WLAN_TDLS_CHANNEL_SWITCH_RESPONSE = 6,
+	WLAN_TDLS_PEER_PSM_REQUEST = 7,
+	WLAN_TDLS_PEER_PSM_RESPONSE = 8,
+	WLAN_TDLS_PEER_TRAFFIC_RESPONSE = 9,
+	WLAN_TDLS_DISCOVERY_REQUEST = 10,
+};
+
+/*
+ * TDLS capabililites to be enabled in the 5th byte of the
+ * @WLAN_EID_EXT_CAPABILITY information element
+ */
+#define WLAN_EXT_CAPA5_TDLS_ENABLED	BIT(5)
+#define WLAN_EXT_CAPA5_TDLS_PROHIBITED	BIT(6)
+
+/* TDLS specific payload type in the LLC/SNAP header */
+#define WLAN_TDLS_SNAP_RFTYPE	0x2
 
 /**
  * enum - mesh path selection protocol identifier
@@ -1423,9 +1543,6 @@ enum ieee80211_sa_query_action {
 };
 
 
-/* A-MSDU 802.11n */
-#define IEEE80211_QOS_CONTROL_A_MSDU_PRESENT 0x0080
-
 /* cipher suite selectors */
 #define WLAN_CIPHER_SUITE_USE_GROUP	0x000FAC00
 #define WLAN_CIPHER_SUITE_WEP40		0x000FAC01
@@ -1444,6 +1561,46 @@ enum ieee80211_sa_query_action {
 #define WLAN_MAX_KEY_LEN		32
 
 #define WLAN_PMKID_LEN			16
+
+#define WLAN_OUI_WFA			0x506f9a
+#define WLAN_OUI_TYPE_WFA_P2P		9
+
+/*
+ * WMM/802.11e Tspec Element
+ */
+#define IEEE80211_WMM_IE_TSPEC_TID_MASK		0x0F
+#define IEEE80211_WMM_IE_TSPEC_TID_SHIFT	1
+
+enum ieee80211_tspec_status_code {
+	IEEE80211_TSPEC_STATUS_ADMISS_ACCEPTED = 0,
+	IEEE80211_TSPEC_STATUS_ADDTS_INVAL_PARAMS = 0x1,
+};
+
+struct ieee80211_tspec_ie {
+	u8 element_id;
+	u8 len;
+	u8 oui[3];
+	u8 oui_type;
+	u8 oui_subtype;
+	u8 version;
+	__le16 tsinfo;
+	u8 tsinfo_resvd;
+	__le16 nominal_msdu;
+	__le16 max_msdu;
+	__le32 min_service_int;
+	__le32 max_service_int;
+	__le32 inactivity_int;
+	__le32 suspension_int;
+	__le32 service_start_time;
+	__le32 min_data_rate;
+	__le32 mean_data_rate;
+	__le32 peak_data_rate;
+	__le32 max_burst_size;
+	__le32 delay_bound;
+	__le32 min_phy_rate;
+	__le16 sba;
+	__le16 medium_time;
+} __packed;
 
 /**
  * ieee80211_get_qos_ctl - get pointer to qos control bytes

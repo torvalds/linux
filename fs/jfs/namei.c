@@ -172,7 +172,7 @@ static int jfs_create(struct inode *dip, struct dentry *dentry, int mode,
 	mutex_unlock(&JFS_IP(dip)->commit_mutex);
 	if (rc) {
 		free_ea_wmap(ip);
-		ip->i_nlink = 0;
+		clear_nlink(ip);
 		unlock_new_inode(ip);
 		iput(ip);
 	} else {
@@ -292,7 +292,7 @@ static int jfs_mkdir(struct inode *dip, struct dentry *dentry, int mode)
 		goto out3;
 	}
 
-	ip->i_nlink = 2;	/* for '.' */
+	set_nlink(ip, 2);	/* for '.' */
 	ip->i_op = &jfs_dir_inode_operations;
 	ip->i_fop = &jfs_dir_operations;
 
@@ -311,7 +311,7 @@ static int jfs_mkdir(struct inode *dip, struct dentry *dentry, int mode)
 	mutex_unlock(&JFS_IP(dip)->commit_mutex);
 	if (rc) {
 		free_ea_wmap(ip);
-		ip->i_nlink = 0;
+		clear_nlink(ip);
 		unlock_new_inode(ip);
 		iput(ip);
 	} else {
@@ -844,7 +844,7 @@ static int jfs_link(struct dentry *old_dentry,
 	rc = txCommit(tid, 2, &iplist[0], 0);
 
 	if (rc) {
-		ip->i_nlink--; /* never instantiated */
+		drop_nlink(ip); /* never instantiated */
 		iput(ip);
 	} else
 		d_instantiate(dentry, ip);
@@ -893,7 +893,7 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 	unchar *i_fastsymlink;
 	s64 xlen = 0;
 	int bmask = 0, xsize;
-	s64 extent = 0, xaddr;
+	s64 xaddr;
 	struct metapage *mp;
 	struct super_block *sb;
 	struct tblock *tblk;
@@ -993,7 +993,6 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 			txAbort(tid, 0);
 			goto out3;
 		}
-		extent = xaddr;
 		ip->i_size = ssize - 1;
 		while (ssize) {
 			/* This is kind of silly since PATH_MAX == 4K */
@@ -1049,7 +1048,7 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 	mutex_unlock(&JFS_IP(dip)->commit_mutex);
 	if (rc) {
 		free_ea_wmap(ip);
-		ip->i_nlink = 0;
+		clear_nlink(ip);
 		unlock_new_inode(ip);
 		iput(ip);
 	} else {
@@ -1434,7 +1433,7 @@ static int jfs_mknod(struct inode *dir, struct dentry *dentry,
 	mutex_unlock(&JFS_IP(dir)->commit_mutex);
 	if (rc) {
 		free_ea_wmap(ip);
-		ip->i_nlink = 0;
+		clear_nlink(ip);
 		unlock_new_inode(ip);
 		iput(ip);
 	} else {
@@ -1456,34 +1455,23 @@ static struct dentry *jfs_lookup(struct inode *dip, struct dentry *dentry, struc
 	ino_t inum;
 	struct inode *ip;
 	struct component_name key;
-	const char *name = dentry->d_name.name;
-	int len = dentry->d_name.len;
 	int rc;
 
-	jfs_info("jfs_lookup: name = %s", name);
+	jfs_info("jfs_lookup: name = %s", dentry->d_name.name);
 
-	if ((name[0] == '.') && (len == 1))
-		inum = dip->i_ino;
-	else if (strcmp(name, "..") == 0)
-		inum = PARENT(dip);
-	else {
-		if ((rc = get_UCSname(&key, dentry)))
-			return ERR_PTR(rc);
-		rc = dtSearch(dip, &key, &inum, &btstack, JFS_LOOKUP);
-		free_UCSname(&key);
-		if (rc == -ENOENT) {
-			d_add(dentry, NULL);
-			return NULL;
-		} else if (rc) {
-			jfs_err("jfs_lookup: dtSearch returned %d", rc);
-			return ERR_PTR(rc);
-		}
-	}
-
-	ip = jfs_iget(dip->i_sb, inum);
-	if (IS_ERR(ip)) {
-		jfs_err("jfs_lookup: iget failed on inum %d", (uint) inum);
-		return ERR_CAST(ip);
+	if ((rc = get_UCSname(&key, dentry)))
+		return ERR_PTR(rc);
+	rc = dtSearch(dip, &key, &inum, &btstack, JFS_LOOKUP);
+	free_UCSname(&key);
+	if (rc == -ENOENT) {
+		ip = NULL;
+	} else if (rc) {
+		jfs_err("jfs_lookup: dtSearch returned %d", rc);
+		ip = ERR_PTR(rc);
+	} else {
+		ip = jfs_iget(dip->i_sb, inum);
+		if (IS_ERR(ip))
+			jfs_err("jfs_lookup: iget failed on inum %d", (uint)inum);
 	}
 
 	return d_splice_alias(ip, dentry);
@@ -1548,7 +1536,7 @@ const struct inode_operations jfs_dir_inode_operations = {
 	.removexattr	= jfs_removexattr,
 	.setattr	= jfs_setattr,
 #ifdef CONFIG_JFS_POSIX_ACL
-	.check_acl	= jfs_check_acl,
+	.get_acl	= jfs_get_acl,
 #endif
 };
 
@@ -1597,8 +1585,6 @@ out:
 
 static int jfs_ci_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
-	if (nd && nd->flags & LOOKUP_RCU)
-		return -ECHILD;
 	/*
 	 * This is not negative dentry. Always valid.
 	 *
@@ -1624,10 +1610,8 @@ static int jfs_ci_revalidate(struct dentry *dentry, struct nameidata *nd)
 	 * case sensitive name which is specified by user if this is
 	 * for creation.
 	 */
-	if (!(nd->flags & (LOOKUP_CONTINUE | LOOKUP_PARENT))) {
-		if (nd->flags & (LOOKUP_CREATE | LOOKUP_RENAME_TARGET))
-			return 0;
-	}
+	if (nd->flags & (LOOKUP_CREATE | LOOKUP_RENAME_TARGET))
+		return 0;
 	return 1;
 }
 

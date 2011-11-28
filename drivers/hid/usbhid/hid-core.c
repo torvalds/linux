@@ -1191,6 +1191,8 @@ static int usbhid_probe(struct usb_interface *intf, const struct usb_device_id *
 	if (intf->cur_altsetting->desc.bInterfaceProtocol ==
 			USB_INTERFACE_PROTOCOL_MOUSE)
 		hid->type = HID_TYPE_USBMOUSE;
+	else if (intf->cur_altsetting->desc.bInterfaceProtocol == 0)
+		hid->type = HID_TYPE_USBNONE;
 
 	if (dev->manufacturer)
 		strlcpy(hid->name, dev->manufacturer, sizeof(hid->name));
@@ -1268,7 +1270,7 @@ static void hid_cancel_delayed_stuff(struct usbhid_device *usbhid)
 
 static void hid_cease_io(struct usbhid_device *usbhid)
 {
-	del_timer(&usbhid->io_retry);
+	del_timer_sync(&usbhid->io_retry);
 	usb_kill_urb(usbhid->urbin);
 	usb_kill_urb(usbhid->urbctrl);
 	usb_kill_urb(usbhid->urbout);
@@ -1330,7 +1332,7 @@ static int hid_suspend(struct usb_interface *intf, pm_message_t message)
 	struct usbhid_device *usbhid = hid->driver_data;
 	int status;
 
-	if (message.event & PM_EVENT_AUTO) {
+	if (PMSG_IS_AUTO(message)) {
 		spin_lock_irq(&usbhid->lock);	/* Sync with error handler */
 		if (!test_bit(HID_RESET_PENDING, &usbhid->iofl)
 		    && !test_bit(HID_CLEAR_HALT, &usbhid->iofl)
@@ -1365,7 +1367,7 @@ static int hid_suspend(struct usb_interface *intf, pm_message_t message)
 			return -EIO;
 	}
 
-	if (!ignoreled && (message.event & PM_EVENT_AUTO)) {
+	if (!ignoreled && PMSG_IS_AUTO(message)) {
 		spin_lock_irq(&usbhid->lock);
 		if (test_bit(HID_LED_ON, &usbhid->iofl)) {
 			spin_unlock_irq(&usbhid->lock);
@@ -1378,8 +1380,7 @@ static int hid_suspend(struct usb_interface *intf, pm_message_t message)
 	hid_cancel_delayed_stuff(usbhid);
 	hid_cease_io(usbhid);
 
-	if ((message.event & PM_EVENT_AUTO) &&
-			test_bit(HID_KEYS_PRESSED, &usbhid->iofl)) {
+	if (PMSG_IS_AUTO(message) && test_bit(HID_KEYS_PRESSED, &usbhid->iofl)) {
 		/* lost race against keypresses */
 		status = hid_start_in(hid);
 		if (status < 0)

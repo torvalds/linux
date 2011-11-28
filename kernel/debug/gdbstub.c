@@ -42,6 +42,8 @@
 /* Our I/O buffers. */
 static char			remcom_in_buffer[BUFMAX];
 static char			remcom_out_buffer[BUFMAX];
+static int			gdbstub_use_prev_in_buf;
+static int			gdbstub_prev_in_buf_pos;
 
 /* Storage for the registers, in GDB format. */
 static unsigned long		gdb_regs[(NUMREGBYTES +
@@ -57,6 +59,13 @@ static int gdbstub_read_wait(void)
 {
 	int ret = -1;
 	int i;
+
+	if (unlikely(gdbstub_use_prev_in_buf)) {
+		if (gdbstub_prev_in_buf_pos < gdbstub_use_prev_in_buf)
+			return remcom_in_buffer[gdbstub_prev_in_buf_pos++];
+		else
+			gdbstub_use_prev_in_buf = 0;
+	}
 
 	/* poll any additional I/O interfaces that are defined */
 	while (ret < 0)
@@ -109,7 +118,6 @@ static void get_packet(char *buffer)
 			buffer[count] = ch;
 			count = count + 1;
 		}
-		buffer[count] = 0;
 
 		if (ch == '#') {
 			xmitcsum = hex_to_bin(gdbstub_read_wait()) << 4;
@@ -124,6 +132,7 @@ static void get_packet(char *buffer)
 			if (dbg_io_ops->flush)
 				dbg_io_ops->flush();
 		}
+		buffer[count] = 0;
 	} while (checksum != xmitcsum);
 }
 
@@ -208,7 +217,7 @@ void gdbstub_msg_write(const char *s, int len)
 
 		/* Pack in hex chars */
 		for (i = 0; i < wcount; i++)
-			bufptr = pack_hex_byte(bufptr, s[i]);
+			bufptr = hex_byte_pack(bufptr, s[i]);
 		*bufptr = '\0';
 
 		/* Move up */
@@ -240,7 +249,7 @@ char *kgdb_mem2hex(char *mem, char *buf, int count)
 	if (err)
 		return NULL;
 	while (count > 0) {
-		buf = pack_hex_byte(buf, *tmp);
+		buf = hex_byte_pack(buf, *tmp);
 		tmp++;
 		count--;
 	}
@@ -402,14 +411,14 @@ static char *pack_threadid(char *pkt, unsigned char *id)
 	limit = id + (BUF_THREAD_ID_SIZE / 2);
 	while (id < limit) {
 		if (!lzero || *id != 0) {
-			pkt = pack_hex_byte(pkt, *id);
+			pkt = hex_byte_pack(pkt, *id);
 			lzero = 0;
 		}
 		id++;
 	}
 
 	if (lzero)
-		pkt = pack_hex_byte(pkt, 0);
+		pkt = hex_byte_pack(pkt, 0);
 
 	return pkt;
 }
@@ -477,7 +486,7 @@ static void gdb_cmd_status(struct kgdb_state *ks)
 	dbg_remove_all_break();
 
 	remcom_out_buffer[0] = 'S';
-	pack_hex_byte(&remcom_out_buffer[1], ks->signo);
+	hex_byte_pack(&remcom_out_buffer[1], ks->signo);
 }
 
 static void gdb_get_regs_helper(struct kgdb_state *ks)
@@ -945,7 +954,7 @@ int gdb_serial_stub(struct kgdb_state *ks)
 		/* Reply to host that an exception has occurred */
 		ptr = remcom_out_buffer;
 		*ptr++ = 'T';
-		ptr = pack_hex_byte(ptr, ks->signo);
+		ptr = hex_byte_pack(ptr, ks->signo);
 		ptr += strlen(strcpy(ptr, "thread:"));
 		int_to_threadref(thref, shadow_pid(current->pid));
 		ptr = pack_threadid(ptr, thref);
@@ -1082,12 +1091,11 @@ int gdbstub_state(struct kgdb_state *ks, char *cmd)
 	case 'c':
 		strcpy(remcom_in_buffer, cmd);
 		return 0;
-	case '?':
-		gdb_cmd_status(ks);
-		break;
-	case '\0':
-		strcpy(remcom_out_buffer, "");
-		break;
+	case '$':
+		strcpy(remcom_in_buffer, cmd);
+		gdbstub_use_prev_in_buf = strlen(remcom_in_buffer);
+		gdbstub_prev_in_buf_pos = 0;
+		return 0;
 	}
 	dbg_io_ops->write_char('+');
 	put_packet(remcom_out_buffer);

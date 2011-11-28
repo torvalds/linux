@@ -299,7 +299,7 @@ sys_call_table:
 	PTR	sys_ni_syscall			/* 5170, was get_kernel_syms */
 	PTR	sys_ni_syscall			/* was query_module */
 	PTR	sys_quotactl
-	PTR	sys_nfsservctl
+	PTR	sys_ni_syscall			/* was nfsservctl */
 	PTR	sys_ni_syscall			/* res. for getpmsg */
 	PTR	sys_ni_syscall			/* 5175  for putpmsg */
 	PTR	sys_ni_syscall			/* res. for afs_syscall */
@@ -428,5 +428,8 @@ sys_call_table:
 	PTR	sys_open_by_handle_at
 	PTR	sys_clock_adjtime		/* 5300 */
 	PTR	sys_syncfs
+	PTR	sys_sendmmsg
 	PTR	sys_setns
+	PTR	sys_process_vm_readv
+	PTR	sys_process_vm_writev		/* 5305 */
 	.size	sys_call_table,.-sys_call_table

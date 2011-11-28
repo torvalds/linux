@@ -31,6 +31,7 @@
 #include <linux/stddef.h>
 #include <linux/unistd.h>
 #include <linux/ptrace.h>
+#include <linux/export.h>
 #include <linux/user.h>
 #include <linux/tty.h>
 #include <linux/string.h>
@@ -355,9 +356,6 @@ static int initializing = 1;
 static int pmac_late_init(void)
 {
 	initializing = 0;
-	/* this is udbg (which is __init) and we can later use it during
-	 * cpu hotplug (in smp_core99_kick_cpu) */
-	ppc_md.progress = NULL;
 	return 0;
 }
 machine_late_initcall(powermac, pmac_late_init);

@@ -39,8 +39,8 @@
 
 #include "bcast.h"
 
-#define MAX_BEARERS 8
-#define MAX_MEDIA 4
+#define MAX_BEARERS	2
+#define MAX_MEDIA	2
 
 /*
  * Identifiers of supported TIPC media types
@@ -107,7 +107,6 @@ struct media {
  * @link_req: ptr to (optional) structure making periodic link setup requests
  * @links: list of non-congested links associated with bearer
  * @cong_links: list of congested links associated with bearer
- * @continue_count: # of times bearer has resumed after congestion or blocking
  * @active: non-zero if bearer structure is represents a bearer
  * @net_plane: network plane ('A' through 'H') currently associated with bearer
  * @nodes: indicates which nodes in cluster can be reached through bearer
@@ -129,7 +128,6 @@ struct tipc_bearer {
 	struct link_req *link_req;
 	struct list_head links;
 	struct list_head cong_links;
-	u32 continue_count;
 	int active;
 	char net_plane;
 	struct tipc_node_map nodes;

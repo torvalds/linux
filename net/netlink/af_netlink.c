@@ -1324,10 +1324,9 @@ static int netlink_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	if (msg->msg_flags&MSG_OOB)
 		return -EOPNOTSUPP;
 
-	if (NULL == siocb->scm) {
+	if (NULL == siocb->scm)
 		siocb->scm = &scm;
-		memset(&scm, 0, sizeof(scm));
-	}
+
 	err = scm_send(sock, msg, siocb->scm);
 	if (err < 0)
 		return err;
@@ -1578,7 +1577,7 @@ int __netlink_change_ngroups(struct sock *sk, unsigned int groups)
 		new = kzalloc(sizeof(*new) + NLGRPSZ(groups), GFP_ATOMIC);
 		if (!new)
 			return -ENOMEM;
-		old = rcu_dereference_raw(tbl->listeners);
+		old = rcu_dereference_protected(tbl->listeners, 1);
 		memcpy(new->masks, old->masks, NLGRPSZ(tbl->groups));
 		rcu_assign_pointer(tbl->listeners, new);
 
@@ -1659,13 +1658,10 @@ static int netlink_dump(struct sock *sk)
 {
 	struct netlink_sock *nlk = nlk_sk(sk);
 	struct netlink_callback *cb;
-	struct sk_buff *skb;
+	struct sk_buff *skb = NULL;
 	struct nlmsghdr *nlh;
 	int len, err = -ENOBUFS;
-
-	skb = sock_rmalloc(sk, NLMSG_GOODSIZE, 0, GFP_KERNEL);
-	if (!skb)
-		goto errout;
+	int alloc_size;
 
 	mutex_lock(nlk->cb_mutex);
 
@@ -1674,6 +1670,12 @@ static int netlink_dump(struct sock *sk)
 		err = -EINVAL;
 		goto errout_skb;
 	}
+
+	alloc_size = max_t(int, cb->min_dump_alloc, NLMSG_GOODSIZE);
+
+	skb = sock_rmalloc(sk, alloc_size, 0, GFP_KERNEL);
+	if (!skb)
+		goto errout_skb;
 
 	len = cb->dump(skb, cb);
 
@@ -1692,6 +1694,8 @@ static int netlink_dump(struct sock *sk)
 	nlh = nlmsg_put_answer(skb, cb, NLMSG_DONE, sizeof(len), NLM_F_MULTI);
 	if (!nlh)
 		goto errout_skb;
+
+	nl_dump_check_consistent(cb, nlh);
 
 	memcpy(nlmsg_data(nlh), &len, sizeof(len));
 
@@ -1713,7 +1717,6 @@ static int netlink_dump(struct sock *sk)
 errout_skb:
 	mutex_unlock(nlk->cb_mutex);
 	kfree_skb(skb);
-errout:
 	return err;
 }
 
@@ -1721,7 +1724,8 @@ int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 		       const struct nlmsghdr *nlh,
 		       int (*dump)(struct sk_buff *skb,
 				   struct netlink_callback *),
-		       int (*done)(struct netlink_callback *))
+		       int (*done)(struct netlink_callback *),
+		       u16 min_dump_alloc)
 {
 	struct netlink_callback *cb;
 	struct sock *sk;
@@ -1735,6 +1739,7 @@ int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 	cb->dump = dump;
 	cb->done = done;
 	cb->nlh = nlh;
+	cb->min_dump_alloc = min_dump_alloc;
 	atomic_inc(&skb->users);
 	cb->skb = skb;
 

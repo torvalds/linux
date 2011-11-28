@@ -68,7 +68,7 @@
 extern unsigned int __mxc_cpu_type;
 #endif
 
-#ifdef CONFIG_ARCH_MX1
+#ifdef CONFIG_SOC_IMX1
 # ifdef mxc_cpu_type
 #  undef mxc_cpu_type
 #  define mxc_cpu_type __mxc_cpu_type
@@ -80,7 +80,7 @@ extern unsigned int __mxc_cpu_type;
 # define cpu_is_mx1()		(0)
 #endif
 
-#ifdef CONFIG_MACH_MX21
+#ifdef CONFIG_SOC_IMX21
 # ifdef mxc_cpu_type
 #  undef mxc_cpu_type
 #  define mxc_cpu_type __mxc_cpu_type
@@ -92,7 +92,7 @@ extern unsigned int __mxc_cpu_type;
 # define cpu_is_mx21()		(0)
 #endif
 
-#ifdef CONFIG_ARCH_MX25
+#ifdef CONFIG_SOC_IMX25
 # ifdef mxc_cpu_type
 #  undef mxc_cpu_type
 #  define mxc_cpu_type __mxc_cpu_type
@@ -104,7 +104,7 @@ extern unsigned int __mxc_cpu_type;
 # define cpu_is_mx25()		(0)
 #endif
 
-#ifdef CONFIG_MACH_MX27
+#ifdef CONFIG_SOC_IMX27
 # ifdef mxc_cpu_type
 #  undef mxc_cpu_type
 #  define mxc_cpu_type __mxc_cpu_type
@@ -183,13 +183,6 @@ struct cpu_op {
 };
 
 int tzic_enable_wake(int is_idle);
-enum mxc_cpu_pwr_mode {
-	WAIT_CLOCKED,		/* wfi only */
-	WAIT_UNCLOCKED,		/* WAIT */
-	WAIT_UNCLOCKED_POWER_OFF,	/* WAIT + SRPG */
-	STOP_POWER_ON,		/* just STOP */
-	STOP_POWER_OFF,		/* STOP + SRPG */
-};
 
 extern struct cpu_op *(*get_cpu_op)(int *op);
 #endif

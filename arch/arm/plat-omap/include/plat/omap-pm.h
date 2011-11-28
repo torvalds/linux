@@ -40,11 +40,7 @@
  * framework starts.  The "_if_" is to avoid name collisions with the
  * PM idle-loop code.
  */
-#ifdef CONFIG_OMAP_PM_NONE
-#define omap_pm_if_early_init() 0
-#else
 int __init omap_pm_if_early_init(void);
-#endif
 
 /**
  * omap_pm_if_init - OMAP PM init code called after clock fw init
@@ -52,11 +48,7 @@ int __init omap_pm_if_early_init(void);
  * The main initialization code.  OPP tables are passed in here.  The
  * "_if_" is to avoid name collisions with the PM idle-loop code.
  */
-#ifdef CONFIG_OMAP_PM_NONE
-#define omap_pm_if_init() 0
-#else
 int __init omap_pm_if_init(void);
-#endif
 
 /**
  * omap_pm_if_exit - OMAP PM exit code
@@ -350,9 +342,9 @@ unsigned long omap_pm_cpu_get_freq(void);
  * driver must restore device context.   If the number of context losses
  * exceeds the maximum positive integer, the function will wrap to 0 and
  * continue counting.  Returns the number of context losses for this device,
- * or zero upon error.
+ * or negative value upon error.
  */
-u32 omap_pm_get_dev_context_loss_count(struct device *dev);
+int omap_pm_get_dev_context_loss_count(struct device *dev);
 
 void omap_pm_enable_off_mode(void);
 void omap_pm_disable_off_mode(void);

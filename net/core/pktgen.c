@@ -1070,7 +1070,9 @@ static ssize_t pktgen_if_write(struct file *file,
 		len = num_arg(&user_buffer[i], 10, &value);
 		if (len < 0)
 			return len;
-
+		if ((value > 0) &&
+		    (!(pkt_dev->odev->priv_flags & IFF_TX_SKB_SHARING)))
+			return -ENOTSUPP;
 		i += len;
 		pkt_dev->clone_skb = value;
 
@@ -2143,9 +2145,12 @@ static void spin(struct pktgen_dev *pkt_dev, ktime_t spin_until)
 	}
 
 	start_time = ktime_now();
-	if (remaining < 100000)
-		ndelay(remaining);	/* really small just spin */
-	else {
+	if (remaining < 100000) {
+		/* for small delays (<100us), just loop until limit is reached */
+		do {
+			end_time = ktime_now();
+		} while (ktime_lt(end_time, spin_until));
+	} else {
 		/* see do_nanosleep */
 		hrtimer_init_sleeper(&t, current);
 		do {
@@ -2160,8 +2165,8 @@ static void spin(struct pktgen_dev *pkt_dev, ktime_t spin_until)
 			hrtimer_cancel(&t.timer);
 		} while (t.task && pkt_dev->running && !signal_pending(current));
 		__set_current_state(TASK_RUNNING);
+		end_time = ktime_now();
 	}
-	end_time = ktime_now();
 
 	pkt_dev->idle_acc += ktime_to_ns(ktime_sub(end_time, start_time));
 	pkt_dev->next_tx = ktime_add_ns(spin_until, pkt_dev->delay);
@@ -2600,18 +2605,18 @@ static void pktgen_finalize_skb(struct pktgen_dev *pkt_dev, struct sk_buff *skb,
 				if (!pkt_dev->page)
 					break;
 			}
-			skb_shinfo(skb)->frags[i].page = pkt_dev->page;
 			get_page(pkt_dev->page);
+			skb_frag_set_page(skb, i, pkt_dev->page);
 			skb_shinfo(skb)->frags[i].page_offset = 0;
 			/*last fragment, fill rest of data*/
 			if (i == (frags - 1))
-				skb_shinfo(skb)->frags[i].size =
-				    (datalen < PAGE_SIZE ? datalen : PAGE_SIZE);
+				skb_frag_size_set(&skb_shinfo(skb)->frags[i],
+				    (datalen < PAGE_SIZE ? datalen : PAGE_SIZE));
 			else
-				skb_shinfo(skb)->frags[i].size = frag_len;
-			datalen -= skb_shinfo(skb)->frags[i].size;
-			skb->len += skb_shinfo(skb)->frags[i].size;
-			skb->data_len += skb_shinfo(skb)->frags[i].size;
+				skb_frag_size_set(&skb_shinfo(skb)->frags[i], frag_len);
+			datalen -= skb_frag_size(&skb_shinfo(skb)->frags[i]);
+			skb->len += skb_frag_size(&skb_shinfo(skb)->frags[i]);
+			skb->data_len += skb_frag_size(&skb_shinfo(skb)->frags[i]);
 			i++;
 			skb_shinfo(skb)->nr_frags = i;
 		}
@@ -3555,7 +3560,6 @@ static int pktgen_add_device(struct pktgen_thread *t, const char *ifname)
 	pkt_dev->min_pkt_size = ETH_ZLEN;
 	pkt_dev->max_pkt_size = ETH_ZLEN;
 	pkt_dev->nfrags = 0;
-	pkt_dev->clone_skb = pg_clone_skb_d;
 	pkt_dev->delay = pg_delay_d;
 	pkt_dev->count = pg_count_d;
 	pkt_dev->sofar = 0;
@@ -3563,7 +3567,6 @@ static int pktgen_add_device(struct pktgen_thread *t, const char *ifname)
 	pkt_dev->udp_src_max = 9;
 	pkt_dev->udp_dst_min = 9;
 	pkt_dev->udp_dst_max = 9;
-
 	pkt_dev->vlan_p = 0;
 	pkt_dev->vlan_cfi = 0;
 	pkt_dev->vlan_id = 0xffff;
@@ -3575,6 +3578,8 @@ static int pktgen_add_device(struct pktgen_thread *t, const char *ifname)
 	err = pktgen_setup_dev(pkt_dev, ifname);
 	if (err)
 		goto out1;
+	if (pkt_dev->odev->priv_flags & IFF_TX_SKB_SHARING)
+		pkt_dev->clone_skb = pg_clone_skb_d;
 
 	pkt_dev->entry = proc_create_data(ifname, 0600, pg_proc_dir,
 					  &pktgen_if_fops, pkt_dev);

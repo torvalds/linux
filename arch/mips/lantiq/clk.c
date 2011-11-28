@@ -7,7 +7,7 @@
  * Copyright (C) 2010 John Crispin <blogic@openwrt.org>
  */
 #include <linux/io.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -99,6 +99,19 @@ void clk_put(struct clk *clk)
 	/* not used */
 }
 EXPORT_SYMBOL(clk_put);
+
+int clk_enable(struct clk *clk)
+{
+	/* not used */
+	return 0;
+}
+EXPORT_SYMBOL(clk_enable);
+
+void clk_disable(struct clk *clk)
+{
+	/* not used */
+}
+EXPORT_SYMBOL(clk_disable);
 
 static inline u32 ltq_get_counter_resolution(void)
 {

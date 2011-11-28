@@ -44,7 +44,7 @@
 #include <linux/io.h>
 
 #include <asm/irq.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
 
@@ -116,7 +116,7 @@ void omap1_pm_idle(void)
 		return;
 	}
 
-#ifdef CONFIG_OMAP_MPU_TIMER
+#if defined(CONFIG_OMAP_MPU_TIMER) && !defined(CONFIG_OMAP_DM_TIMER)
 #warning Enable 32kHz OS timer in order to allow sleep states in idle
 	use_idlect1 = use_idlect1 & ~(1 << 9);
 #else

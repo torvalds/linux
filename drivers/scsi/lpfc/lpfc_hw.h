@@ -2955,18 +2955,18 @@ typedef struct _SLI2_RDSC {
 typedef struct _PCB {
 #ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t type:8;
-#define TYPE_NATIVE_SLI2       0x01;
+#define TYPE_NATIVE_SLI2       0x01
 	uint32_t feature:8;
-#define FEATURE_INITIAL_SLI2   0x01;
+#define FEATURE_INITIAL_SLI2   0x01
 	uint32_t rsvd:12;
 	uint32_t maxRing:4;
 #else	/*  __LITTLE_ENDIAN_BITFIELD */
 	uint32_t maxRing:4;
 	uint32_t rsvd:12;
 	uint32_t feature:8;
-#define FEATURE_INITIAL_SLI2   0x01;
+#define FEATURE_INITIAL_SLI2   0x01
 	uint32_t type:8;
-#define TYPE_NATIVE_SLI2       0x01;
+#define TYPE_NATIVE_SLI2       0x01
 #endif
 
 	uint32_t mailBoxSize;
@@ -3470,11 +3470,16 @@ typedef struct {
    or CMD_IOCB_RCV_SEQ64_CX (0xB5) */
 
 struct rcv_sli3 {
-	uint32_t word8Rsvd;
 #ifdef __BIG_ENDIAN_BITFIELD
+	uint16_t ox_id;
+	uint16_t seq_cnt;
+
 	uint16_t vpi;
 	uint16_t word9Rsvd;
 #else  /*  __LITTLE_ENDIAN */
+	uint16_t seq_cnt;
+	uint16_t ox_id;
+
 	uint16_t word9Rsvd;
 	uint16_t vpi;
 #endif

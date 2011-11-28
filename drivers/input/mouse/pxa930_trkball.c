@@ -12,7 +12,6 @@
 
 #include <linux/init.h>
 #include <linux/input.h>
-#include <linux/version.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -184,7 +183,7 @@ static int __devinit pxa930_trkball_probe(struct platform_device *pdev)
 	/* held the module in reset, will be enabled in open() */
 	pxa930_trkball_disable(trkball);
 
-	error = request_irq(irq, pxa930_trkball_interrupt, IRQF_DISABLED,
+	error = request_irq(irq, pxa930_trkball_interrupt, 0,
 			    pdev->name, trkball);
 	if (error) {
 		dev_err(&pdev->dev, "failed to request irq: %d\n", error);

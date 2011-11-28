@@ -31,11 +31,10 @@
 #include <linux/if_link.h>
 
 #ifdef __KERNEL__
-#include <linux/pm_qos_params.h>
+#include <linux/pm_qos.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
-#include <linux/mm.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/cache.h>
 #include <asm/byteorder.h>
 
@@ -60,11 +59,6 @@ struct wireless_dev;
 					/* source back-compat hooks */
 #define SET_ETHTOOL_OPS(netdev,ops) \
 	( (netdev)->ethtool_ops = (ops) )
-
-#define HAVE_ALLOC_NETDEV		/* feature macro: alloc_xxxdev
-					   functions are available. */
-#define HAVE_FREE_NETDEV		/* free_netdev() */
-#define HAVE_NETDEV_PRIV		/* netdev_priv() */
 
 /* hardware address assignment types */
 #define NET_ADDR_PERM		0	/* address is permanent (default) */
@@ -258,21 +252,8 @@ struct netdev_hw_addr_list {
 	netdev_hw_addr_list_for_each(ha, &(dev)->mc)
 
 struct hh_cache {
-	struct hh_cache *hh_next;	/* Next entry			     */
-	atomic_t	hh_refcnt;	/* number of users                   */
-/*
- * We want hh_output, hh_len, hh_lock and hh_data be a in a separate
- * cache line on SMP.
- * They are mostly read, but hh_refcnt may be changed quite frequently,
- * incurring cache line ping pongs.
- */
-	__be16		hh_type ____cacheline_aligned_in_smp;
-					/* protocol identifier, f.e ETH_P_IP
-                                         *  NOTE:  For VLANs, this will be the
-                                         *  encapuslated type. --BLG
-                                         */
-	u16		hh_len;		/* length of header */
-	int		(*hh_output)(struct sk_buff *skb);
+	u16		hh_len;
+	u16		__pad;
 	seqlock_t	hh_lock;
 
 	/* cached hardware header; allow for machine alignment needs.        */
@@ -283,12 +264,6 @@ struct hh_cache {
 	(((__len)+(HH_DATA_MOD-1))&~(HH_DATA_MOD - 1))
 	unsigned long	hh_data[HH_DATA_ALIGN(LL_MAX_HEADER) / sizeof(long)];
 };
-
-static inline void hh_cache_put(struct hh_cache *hh)
-{
-	if (atomic_dec_and_test(&hh->hh_refcnt))
-		kfree(hh);
-}
 
 /* Reserve HH_DATA_MOD byte aligned hard_header_len, but at least that much.
  * Alternative is:
@@ -314,8 +289,7 @@ struct header_ops {
 			   const void *saddr, unsigned len);
 	int	(*parse)(const struct sk_buff *skb, unsigned char *haddr);
 	int	(*rebuild)(struct sk_buff *skb);
-#define HAVE_HEADER_CACHE
-	int	(*cache)(const struct neighbour *neigh, struct hh_cache *hh);
+	int	(*cache)(const struct neighbour *neigh, struct hh_cache *hh, __be16 type);
 	void	(*cache_update)(struct hh_cache *hh,
 				const struct net_device *dev,
 				const unsigned char *haddr);
@@ -556,7 +530,7 @@ struct netdev_queue {
 	struct Qdisc		*qdisc;
 	unsigned long		state;
 	struct Qdisc		*qdisc_sleeping;
-#ifdef CONFIG_RPS
+#if defined(CONFIG_RPS) || defined(CONFIG_XPS)
 	struct kobject		kobj;
 #endif
 #if defined(CONFIG_XPS) && defined(CONFIG_NUMA)
@@ -749,9 +723,8 @@ struct netdev_tc_txq {
  *
  * void (*ndo_set_rx_mode)(struct net_device *dev);
  *	This function is called device changes address list filtering.
- *
- * void (*ndo_set_multicast_list)(struct net_device *dev);
- *	This function is called when the multicast address list changes.
+ *	If driver handles unicast address filtering, it should set
+ *	IFF_UNICAST_FLT to its priv_flags.
  *
  * int (*ndo_set_mac_address)(struct net_device *dev, void *addr);
  *	This function  is called when the Media Access Control address
@@ -794,12 +767,6 @@ struct netdev_tc_txq {
  *	3. Update dev->stats asynchronously and atomically, and define
  *	   neither operation.
  *
- * void (*ndo_vlan_rx_register)(struct net_device *dev, struct vlan_group *grp);
- *	If device support VLAN receive acceleration
- *	(ie. dev->features & NETIF_F_HW_VLAN_RX), then this function is called
- *	when vlan groups for the device changes.  Note: grp is NULL
- *	if no vlan's groups are being used.
- *
  * void (*ndo_vlan_rx_add_vid)(struct net_device *dev, unsigned short vid);
  *	If device support VLAN filtering (dev->features & NETIF_F_HW_VLAN_FILTER)
  *	this function is called when a VLAN id is registered.
@@ -814,6 +781,7 @@ struct netdev_tc_txq {
  * int (*ndo_set_vf_mac)(struct net_device *dev, int vf, u8* mac);
  * int (*ndo_set_vf_vlan)(struct net_device *dev, int vf, u16 vlan, u8 qos);
  * int (*ndo_set_vf_tx_rate)(struct net_device *dev, int vf, int rate);
+ * int (*ndo_set_vf_spoofchk)(struct net_device *dev, int vf, bool setting);
  * int (*ndo_get_vf_config)(struct net_device *dev,
  *			    int vf, struct ifla_vf_info *ivf);
  * int (*ndo_set_vf_port)(struct net_device *dev, int vf,
@@ -888,7 +856,6 @@ struct netdev_tc_txq {
  *	Must return >0 or -errno if it changed dev->features itself.
  *
  */
-#define HAVE_NET_DEVICE_OPS
 struct net_device_ops {
 	int			(*ndo_init)(struct net_device *dev);
 	void			(*ndo_uninit)(struct net_device *dev);
@@ -901,7 +868,6 @@ struct net_device_ops {
 	void			(*ndo_change_rx_flags)(struct net_device *dev,
 						       int flags);
 	void			(*ndo_set_rx_mode)(struct net_device *dev);
-	void			(*ndo_set_multicast_list)(struct net_device *dev);
 	int			(*ndo_set_mac_address)(struct net_device *dev,
 						       void *addr);
 	int			(*ndo_validate_addr)(struct net_device *dev);
@@ -919,8 +885,6 @@ struct net_device_ops {
 						     struct rtnl_link_stats64 *storage);
 	struct net_device_stats* (*ndo_get_stats)(struct net_device *dev);
 
-	void			(*ndo_vlan_rx_register)(struct net_device *dev,
-						        struct vlan_group *grp);
 	void			(*ndo_vlan_rx_add_vid)(struct net_device *dev,
 						       unsigned short vid);
 	void			(*ndo_vlan_rx_kill_vid)(struct net_device *dev,
@@ -937,6 +901,8 @@ struct net_device_ops {
 						   int queue, u16 vlan, u8 qos);
 	int			(*ndo_set_vf_tx_rate)(struct net_device *dev,
 						      int vf, int rate);
+	int			(*ndo_set_vf_spoofchk)(struct net_device *dev,
+						       int vf, bool setting);
 	int			(*ndo_get_vf_config)(struct net_device *dev,
 						     int vf,
 						     struct ifla_vf_info *ivf);
@@ -959,11 +925,15 @@ struct net_device_ops {
 						       u16 xid,
 						       struct scatterlist *sgl,
 						       unsigned int sgc);
+#endif
+
+#if defined(CONFIG_LIBFCOE) || defined(CONFIG_LIBFCOE_MODULE)
 #define NETDEV_FCOE_WWNN 0
 #define NETDEV_FCOE_WWPN 1
 	int			(*ndo_fcoe_get_wwn)(struct net_device *dev,
 						    u64 *wwn, int type);
 #endif
+
 #ifdef CONFIG_RFS_ACCEL
 	int			(*ndo_rx_flow_steer)(struct net_device *dev,
 						     const struct sk_buff *skb,
@@ -999,7 +969,7 @@ struct net_device {
 	 */
 	char			name[IFNAMSIZ];
 
-	struct pm_qos_request_list pm_qos_req;
+	struct pm_qos_request	pm_qos_req;
 
 	/* device name hash chain */
 	struct hlist_node	name_hlist;
@@ -1097,12 +1067,6 @@ struct net_device {
 #define NETIF_F_ALL_FCOE	(NETIF_F_FCOE_CRC | NETIF_F_FCOE_MTU | \
 				 NETIF_F_FSO)
 
-#define NETIF_F_ALL_TX_OFFLOADS	(NETIF_F_ALL_CSUM | NETIF_F_SG | \
-				 NETIF_F_FRAGLIST | NETIF_F_ALL_TSO | \
-				 NETIF_F_HIGHDMA | \
-				 NETIF_F_SCTP_CSUM | \
-				 NETIF_F_ALL_FCOE)
-
 	/*
 	 * If one device supports one of these features, then enable them
 	 * for all in netdev_increment_features.
@@ -1173,7 +1137,7 @@ struct net_device {
 	spinlock_t		addr_list_lock;
 	struct netdev_hw_addr_list	uc;	/* Unicast mac addresses */
 	struct netdev_hw_addr_list	mc;	/* Multicast mac addresses */
-	int			uc_promisc;
+	bool			uc_promisc;
 	unsigned int		promiscuity;
 	unsigned int		allmulti;
 
@@ -1220,7 +1184,7 @@ struct net_device {
 
 	unsigned char		broadcast[MAX_ADDR_LEN];	/* hw bcast add	*/
 
-#ifdef CONFIG_RPS
+#if defined(CONFIG_RPS) || defined(CONFIG_XPS)
 	struct kset		*queues_kset;
 
 	struct netdev_rx_queue	*_rx;
@@ -1348,9 +1312,6 @@ struct net_device {
 	/* max exchange id for FCoE LRO by ddp */
 	unsigned int		fcoe_ddp_xid;
 #endif
-	/* n-tuple filter list attached to this device */
-	struct ethtool_rx_ntuple_list ethtool_ntuple_list;
-
 	/* phy device may attach itself for hardware timestamping */
 	struct phy_device *phydev;
 
@@ -1563,8 +1524,40 @@ struct packet_type {
 	struct list_head	list;
 };
 
-#include <linux/interrupt.h>
 #include <linux/notifier.h>
+
+/* netdevice notifier chain. Please remember to update the rtnetlink
+ * notification exclusion list in rtnetlink_event() when adding new
+ * types.
+ */
+#define NETDEV_UP	0x0001	/* For now you can't veto a device up/down */
+#define NETDEV_DOWN	0x0002
+#define NETDEV_REBOOT	0x0003	/* Tell a protocol stack a network interface
+				   detected a hardware crash and restarted
+				   - we can use this eg to kick tcp sessions
+				   once done */
+#define NETDEV_CHANGE	0x0004	/* Notify device state change */
+#define NETDEV_REGISTER 0x0005
+#define NETDEV_UNREGISTER	0x0006
+#define NETDEV_CHANGEMTU	0x0007
+#define NETDEV_CHANGEADDR	0x0008
+#define NETDEV_GOING_DOWN	0x0009
+#define NETDEV_CHANGENAME	0x000A
+#define NETDEV_FEAT_CHANGE	0x000B
+#define NETDEV_BONDING_FAILOVER 0x000C
+#define NETDEV_PRE_UP		0x000D
+#define NETDEV_PRE_TYPE_CHANGE	0x000E
+#define NETDEV_POST_TYPE_CHANGE	0x000F
+#define NETDEV_POST_INIT	0x0010
+#define NETDEV_UNREGISTER_BATCH 0x0011
+#define NETDEV_RELEASE		0x0012
+#define NETDEV_NOTIFY_PEERS	0x0013
+#define NETDEV_JOIN		0x0014
+
+extern int register_netdevice_notifier(struct notifier_block *nb);
+extern int unregister_netdevice_notifier(struct notifier_block *nb);
+extern int call_netdevice_notifiers(unsigned long val, struct net_device *dev);
+
 
 extern rwlock_t				dev_base_lock;		/* Device list lock */
 
@@ -1648,12 +1641,9 @@ static inline void unregister_netdevice(struct net_device *dev)
 extern int 		netdev_refcnt_read(const struct net_device *dev);
 extern void		free_netdev(struct net_device *dev);
 extern void		synchronize_net(void);
-extern int 		register_netdevice_notifier(struct notifier_block *nb);
-extern int		unregister_netdevice_notifier(struct notifier_block *nb);
 extern int		init_dummy_netdev(struct net_device *dev);
 extern void		netdev_resync_ops(struct net_device *dev);
 
-extern int call_netdevice_notifiers(unsigned long val, struct net_device *dev);
 extern struct net_device	*dev_get_by_index(struct net *net, int ifindex);
 extern struct net_device	*__dev_get_by_index(struct net *net, int ifindex);
 extern struct net_device	*dev_get_by_index_rcu(struct net *net, int ifindex);
@@ -1694,9 +1684,12 @@ static inline int skb_gro_header_hard(struct sk_buff *skb, unsigned int hlen)
 static inline void *skb_gro_header_slow(struct sk_buff *skb, unsigned int hlen,
 					unsigned int offset)
 {
+	if (!pskb_may_pull(skb, hlen))
+		return NULL;
+
 	NAPI_GRO_CB(skb)->frag0 = NULL;
 	NAPI_GRO_CB(skb)->frag0_len = 0;
-	return pskb_may_pull(skb, hlen) ? skb->data + offset : NULL;
+	return skb->data + offset;
 }
 
 static inline void *skb_gro_mac_header(struct sk_buff *skb)
@@ -1785,8 +1778,6 @@ static inline void input_queue_tail_incr_save(struct softnet_data *sd,
 }
 
 DECLARE_PER_CPU_ALIGNED(struct softnet_data, softnet_data);
-
-#define HAVE_NETIF_QUEUE
 
 extern void __netif_schedule(struct Qdisc *q);
 
@@ -2063,10 +2054,8 @@ extern void dev_kfree_skb_irq(struct sk_buff *skb);
  */
 extern void dev_kfree_skb_any(struct sk_buff *skb);
 
-#define HAVE_NETIF_RX 1
 extern int		netif_rx(struct sk_buff *skb);
 extern int		netif_rx_ni(struct sk_buff *skb);
-#define HAVE_NETIF_RECEIVE_SKB 1
 extern int		netif_receive_skb(struct sk_buff *skb);
 extern gro_result_t	dev_gro_receive(struct napi_struct *napi,
 					struct sk_buff *skb);
@@ -2246,7 +2235,6 @@ extern void netif_device_attach(struct net_device *dev);
 /*
  * Network interface message level settings
  */
-#define HAVE_NETIF_MSG 1
 
 enum {
 	NETIF_MSG_DRV		= 0x0001,
@@ -2564,7 +2552,6 @@ static inline u32 netdev_get_wanted_features(struct net_device *dev)
 	return (dev->features & ~dev->hw_features) | dev->wanted_features;
 }
 u32 netdev_increment_features(u32 all, u32 one, u32 mask);
-u32 netdev_fix_features(struct net_device *dev, u32 features);
 int __netdev_update_features(struct net_device *dev);
 void netdev_update_features(struct net_device *dev);
 void netdev_change_features(struct net_device *dev);
@@ -2605,9 +2592,6 @@ static inline int netif_is_bond_slave(struct net_device *dev)
 
 extern struct pernet_operations __net_initdata loopback_net_ops;
 
-int dev_ethtool_get_settings(struct net_device *dev,
-			     struct ethtool_cmd *cmd);
-
 static inline u32 dev_ethtool_get_rx_csum(struct net_device *dev)
 {
 	if (dev->features & NETIF_F_RXCSUM)
@@ -2635,23 +2619,26 @@ static inline const char *netdev_name(const struct net_device *dev)
 	return dev->name;
 }
 
-extern int netdev_printk(const char *level, const struct net_device *dev,
-			 const char *format, ...)
-	__attribute__ ((format (printf, 3, 4)));
-extern int netdev_emerg(const struct net_device *dev, const char *format, ...)
-	__attribute__ ((format (printf, 2, 3)));
-extern int netdev_alert(const struct net_device *dev, const char *format, ...)
-	__attribute__ ((format (printf, 2, 3)));
-extern int netdev_crit(const struct net_device *dev, const char *format, ...)
-	__attribute__ ((format (printf, 2, 3)));
-extern int netdev_err(const struct net_device *dev, const char *format, ...)
-	__attribute__ ((format (printf, 2, 3)));
-extern int netdev_warn(const struct net_device *dev, const char *format, ...)
-	__attribute__ ((format (printf, 2, 3)));
-extern int netdev_notice(const struct net_device *dev, const char *format, ...)
-	__attribute__ ((format (printf, 2, 3)));
-extern int netdev_info(const struct net_device *dev, const char *format, ...)
-	__attribute__ ((format (printf, 2, 3)));
+extern int __netdev_printk(const char *level, const struct net_device *dev,
+			struct va_format *vaf);
+
+extern __printf(3, 4)
+int netdev_printk(const char *level, const struct net_device *dev,
+		  const char *format, ...);
+extern __printf(2, 3)
+int netdev_emerg(const struct net_device *dev, const char *format, ...);
+extern __printf(2, 3)
+int netdev_alert(const struct net_device *dev, const char *format, ...);
+extern __printf(2, 3)
+int netdev_crit(const struct net_device *dev, const char *format, ...);
+extern __printf(2, 3)
+int netdev_err(const struct net_device *dev, const char *format, ...);
+extern __printf(2, 3)
+int netdev_warn(const struct net_device *dev, const char *format, ...);
+extern __printf(2, 3)
+int netdev_notice(const struct net_device *dev, const char *format, ...);
+extern __printf(2, 3)
+int netdev_info(const struct net_device *dev, const char *format, ...);
 
 #define MODULE_ALIAS_NETDEV(device) \
 	MODULE_ALIAS("netdev-" device)
@@ -2662,8 +2649,7 @@ extern int netdev_info(const struct net_device *dev, const char *format, ...)
 #elif defined(CONFIG_DYNAMIC_DEBUG)
 #define netdev_dbg(__dev, format, args...)			\
 do {								\
-	dynamic_dev_dbg((__dev)->dev.parent, "%s: " format,	\
-			netdev_name(__dev), ##args);		\
+	dynamic_netdev_dbg(__dev, format, ##args);		\
 } while (0)
 #else
 #define netdev_dbg(__dev, format, args...)			\
@@ -2730,9 +2716,7 @@ do {								\
 #define netif_dbg(priv, type, netdev, format, args...)		\
 do {								\
 	if (netif_msg_##type(priv))				\
-		dynamic_dev_dbg((netdev)->dev.parent,		\
-				"%s: " format,			\
-				netdev_name(netdev), ##args);	\
+		dynamic_netdev_dbg(netdev, format, ##args);	\
 } while (0)
 #else
 #define netif_dbg(priv, type, dev, format, args...)			\

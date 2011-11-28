@@ -25,6 +25,7 @@
 #include <linux/time.h>
 #include <linux/timex.h>
 #include <linux/interrupt.h>
+#include <linux/export.h>
 
 #include <asm/irq.h>
 #include <asm/oplib.h>
@@ -352,8 +353,8 @@ int __init pcic_probe(void)
 	strcpy(pbm->prom_name, namebuf);
 
 	{
-		extern volatile int t_nmi[1];
-		extern int pcic_nmi_trap_patch[1];
+		extern volatile int t_nmi[4];
+		extern int pcic_nmi_trap_patch[4];
 
 		t_nmi[0] = pcic_nmi_trap_patch[0];
 		t_nmi[1] = pcic_nmi_trap_patch[1];
@@ -884,14 +885,6 @@ int pcibios_assign_resource(struct pci_dev *pdev, int resource)
 {
 	return -ENXIO;
 }
-
-struct device_node *pci_device_to_OF_node(struct pci_dev *pdev)
-{
-	struct pcidev_cookie *pc = pdev->sysdata;
-
-	return pc->prom_node;
-}
-EXPORT_SYMBOL(pci_device_to_OF_node);
 
 /*
  * This probably belongs here rather than ioport.c because

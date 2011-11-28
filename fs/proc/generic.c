@@ -283,7 +283,7 @@ static int proc_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	struct inode *inode = dentry->d_inode;
 	struct proc_dir_entry *de = PROC_I(inode)->pde;
 	if (de && de->nlink)
-		inode->i_nlink = de->nlink;
+		set_nlink(inode, de->nlink);
 
 	generic_fillattr(inode, stat);
 	return 0;
@@ -620,8 +620,7 @@ static struct proc_dir_entry *__proc_create(struct proc_dir_entry **parent,
 	if (!ent) goto out;
 
 	memset(ent, 0, sizeof(struct proc_dir_entry));
-	memcpy(((char *) ent) + sizeof(struct proc_dir_entry), fn, len + 1);
-	ent->name = ((char *) ent) + sizeof(*ent);
+	memcpy(ent->name, fn, len + 1);
 	ent->namelen = len;
 	ent->mode = mode;
 	ent->nlink = nlink;

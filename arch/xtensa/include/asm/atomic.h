@@ -225,15 +225,15 @@ static inline int atomic_sub_return(int i, atomic_t * v)
 #define atomic_xchg(v, new) (xchg(&((v)->counter), new))
 
 /**
- * atomic_add_unless - add unless the number is a given value
+ * __atomic_add_unless - add unless the number is a given value
  * @v: pointer of type atomic_t
  * @a: the amount to add to v...
  * @u: ...unless v is equal to u.
  *
  * Atomically adds @a to @v, so long as it was not @u.
- * Returns non-zero if @v was not @u, and zero otherwise.
+ * Returns the old value of @v.
  */
-static __inline__ int atomic_add_unless(atomic_t *v, int a, int u)
+static __inline__ int __atomic_add_unless(atomic_t *v, int a, int u)
 {
 	int c, old;
 	c = atomic_read(v);
@@ -245,10 +245,9 @@ static __inline__ int atomic_add_unless(atomic_t *v, int a, int u)
 			break;
 		c = old;
 	}
-	return c != (u);
+	return c;
 }
 
-#define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
 
 static inline void atomic_clear_mask(unsigned int mask, atomic_t *v)
 {
@@ -292,7 +291,6 @@ static inline void atomic_set_mask(unsigned int mask, atomic_t *v)
 #define smp_mb__before_atomic_inc()	barrier()
 #define smp_mb__after_atomic_inc()	barrier()
 
-#include <asm-generic/atomic-long.h>
 #endif /* __KERNEL__ */
 
 #endif /* _XTENSA_ATOMIC_H */

@@ -1,6 +1,7 @@
 #ifndef HOSTAP_WLAN_H
 #define HOSTAP_WLAN_H
 
+#include <linux/interrupt.h>
 #include <linux/wireless.h>
 #include <linux/netdevice.h>
 #include <linux/mutex.h>

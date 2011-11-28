@@ -12,6 +12,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#define pr_fmt(fmt) "%s: " fmt, __func__
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -161,10 +162,10 @@ static mfp_cfg_t cm_x3xx_mfp_cfg[] __initdata = {
 	GPIO99_GPIO,			/* Ethernet IRQ */
 
 	/* RTC GPIOs */
-	GPIO95_GPIO,			/* RTC CS */
-	GPIO96_GPIO,			/* RTC WR */
-	GPIO97_GPIO,			/* RTC RD */
-	GPIO98_GPIO,			/* RTC IO */
+	GPIO95_GPIO | MFP_LPM_DRIVE_HIGH,	/* RTC CS */
+	GPIO96_GPIO | MFP_LPM_DRIVE_HIGH,	/* RTC WR */
+	GPIO97_GPIO | MFP_LPM_DRIVE_HIGH,	/* RTC RD */
+	GPIO98_GPIO,				/* RTC IO */
 
 	/* Standard I2C */
 	GPIO21_I2C_SCL,
@@ -423,8 +424,9 @@ static struct mtd_partition cm_x300_nand_partitions[] = {
 static struct pxa3xx_nand_platform_data cm_x300_nand_info = {
 	.enable_arbiter	= 1,
 	.keep_config	= 1,
-	.parts		= cm_x300_nand_partitions,
-	.nr_parts	= ARRAY_SIZE(cm_x300_nand_partitions),
+	.num_cs		= 1,
+	.parts[0]	= cm_x300_nand_partitions,
+	.nr_parts[0]	= ARRAY_SIZE(cm_x300_nand_partitions),
 };
 
 static void __init cm_x300_init_nand(void)
@@ -484,14 +486,13 @@ static int cm_x300_ulpi_phy_reset(void)
 	int err;
 
 	/* reset the PHY */
-	err = gpio_request(GPIO_ULPI_PHY_RST, "ulpi reset");
+	err = gpio_request_one(GPIO_ULPI_PHY_RST, GPIOF_OUT_INIT_LOW,
+			       "ulpi reset");
 	if (err) {
-		pr_err("%s: failed to request ULPI reset GPIO: %d\n",
-		       __func__, err);
+		pr_err("failed to request ULPI reset GPIO: %d\n", err);
 		return err;
 	}
 
-	gpio_direction_output(GPIO_ULPI_PHY_RST, 0);
 	msleep(10);
 	gpio_set_value(GPIO_ULPI_PHY_RST, 1);
 	msleep(10);
@@ -510,8 +511,7 @@ static inline int cm_x300_u2d_init(struct device *dev)
 		pout_clk = clk_get(NULL, "CLK_POUT");
 		if (IS_ERR(pout_clk)) {
 			err = PTR_ERR(pout_clk);
-			pr_err("%s: failed to get CLK_POUT: %d\n",
-			       __func__, err);
+			pr_err("failed to get CLK_POUT: %d\n", err);
 			return err;
 		}
 		clk_enable(pout_clk);
@@ -768,39 +768,34 @@ static void __init cm_x300_init_da9030(void)
 	irq_set_irq_wake(IRQ_WAKEUP0, 1);
 }
 
+/* wi2wi gpio setting for system_rev >= 130 */
+static struct gpio cm_x300_wi2wi_gpios[] __initdata = {
+	{ 71, GPIOF_OUT_INIT_HIGH, "wlan en" },
+	{ 70, GPIOF_OUT_INIT_HIGH, "bt reset" },
+};
+
 static void __init cm_x300_init_wi2wi(void)
 {
-	int bt_reset, wlan_en;
 	int err;
 
 	if (system_rev < 130) {
-		wlan_en = 77;
-		bt_reset = 78;
-	} else {
-		wlan_en = 71;
-		bt_reset = 70;
+		cm_x300_wi2wi_gpios[0].gpio = 77;	/* wlan en */
+		cm_x300_wi2wi_gpios[1].gpio = 78;	/* bt reset */
 	}
 
 	/* Libertas and CSR reset */
-	err = gpio_request(wlan_en, "wlan en");
+	err = gpio_request_array(ARRAY_AND_SIZE(cm_x300_wi2wi_gpios));
 	if (err) {
-		pr_err("CM-X300: failed to request wlan en gpio: %d\n", err);
-	} else {
-		gpio_direction_output(wlan_en, 1);
-		gpio_free(wlan_en);
+		pr_err("failed to request wifi/bt gpios: %d\n", err);
+		return;
 	}
 
-	err = gpio_request(bt_reset, "bt reset");
-	if (err) {
-		pr_err("CM-X300: failed to request bt reset gpio: %d\n", err);
-	} else {
-		gpio_direction_output(bt_reset, 1);
-		udelay(10);
-		gpio_set_value(bt_reset, 0);
-		udelay(10);
-		gpio_set_value(bt_reset, 1);
-		gpio_free(bt_reset);
-	}
+	udelay(10);
+	gpio_set_value(cm_x300_wi2wi_gpios[1].gpio, 0);
+	udelay(10);
+	gpio_set_value(cm_x300_wi2wi_gpios[1].gpio, 1);
+
+	gpio_free_array(ARRAY_AND_SIZE(cm_x300_wi2wi_gpios));
 }
 
 /* MFP */
@@ -843,8 +838,8 @@ static void __init cm_x300_init(void)
 	cm_x300_init_bl();
 }
 
-static void __init cm_x300_fixup(struct machine_desc *mdesc, struct tag *tags,
-				 char **cmdline, struct meminfo *mi)
+static void __init cm_x300_fixup(struct tag *tags, char **cmdline,
+				 struct meminfo *mi)
 {
 	/* Make sure that mi->bank[0].start = PHYS_ADDR */
 	for (; tags->hdr.size; tags = tag_next(tags))
@@ -856,9 +851,10 @@ static void __init cm_x300_fixup(struct machine_desc *mdesc, struct tag *tags,
 }
 
 MACHINE_START(CM_X300, "CM-X300 module")
-	.boot_params	= 0xa0000100,
+	.atag_offset	= 0x100,
 	.map_io		= pxa3xx_map_io,
 	.init_irq	= pxa3xx_init_irq,
+	.handle_irq	= pxa3xx_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= cm_x300_init,
 	.fixup		= cm_x300_fixup,

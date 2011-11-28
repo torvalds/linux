@@ -175,12 +175,11 @@ static int tweak_reset_device_cmd(struct urb *urb)
 	dev_info(&urb->dev->dev, "usb_queue_reset_device\n");
 
 	/*
-	 * With the implementation of pre_reset and post_reset the driver no 
+	 * With the implementation of pre_reset and post_reset the driver no
 	 * longer unbinds. This allows the use of synchronous reset.
 	 */
 
-	if (usb_lock_device_for_reset(sdev->udev, sdev->interface)<0)
-	{
+	if (usb_lock_device_for_reset(sdev->udev, sdev->interface) < 0) {
 		dev_err(&urb->dev->dev, "could not obtain lock to reset device\n");
 		return 0;
 	}
@@ -306,18 +305,18 @@ static int stub_recv_cmd_unlink(struct stub_device *sdev,
 static int valid_request(struct stub_device *sdev, struct usbip_header *pdu)
 {
 	struct usbip_device *ud = &sdev->ud;
+	int valid = 0;
 
 	if (pdu->base.devid == sdev->devid) {
 		spin_lock(&ud->lock);
 		if (ud->status == SDEV_ST_USED) {
 			/* A request is valid. */
-			spin_unlock(&ud->lock);
-			return 1;
+			valid = 1;
 		}
 		spin_unlock(&ud->lock);
 	}
 
-	return 0;
+	return valid;
 }
 
 static struct stub_priv *stub_priv_alloc(struct stub_device *sdev,

@@ -1,5 +1,5 @@
 menuconfig OMAP2_DSS
-        tristate "OMAP2+ Display Subsystem support (EXPERIMENTAL)"
+        tristate "OMAP2+ Display Subsystem support"
         depends on ARCH_OMAP2PLUS
         help
 	  OMAP2+ Display Subsystem support.
@@ -116,18 +116,6 @@ config OMAP2_DSS_MIN_FCK_PER_PCK
 
 	  Max FCK is 173MHz, so this doesn't work if your PCK
 	  is very high.
-
-config OMAP2_DSS_SLEEP_BEFORE_RESET
-	bool "Sleep 50ms before DSS reset"
-	default y
-	help
-	  For some unknown reason we may get SYNC_LOST errors from the display
-	  subsystem at initialization time if we don't sleep before resetting
-	  the DSS. See the source (dss.c) for more comments.
-
-	  However, 50ms is quite long time to sleep, and with some
-	  configurations the SYNC_LOST may never happen, so the sleep can
-	  be disabled here.
 
 config OMAP2_DSS_SLEEP_AFTER_VENC_RESET
 	bool "Sleep 20ms after VENC reset"

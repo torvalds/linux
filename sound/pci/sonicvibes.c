@@ -28,7 +28,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/gameport.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/dma-mapping.h>
 
 #include <sound/core.h>
@@ -1294,7 +1294,7 @@ static int __devinit snd_sonicvibes_create(struct snd_card *card,
 	sonic->game_port = pci_resource_start(pci, 4);
 
 	if (request_irq(pci->irq, snd_sonicvibes_interrupt, IRQF_SHARED,
-			"S3 SonicVibes", sonic)) {
+			KBUILD_MODNAME, sonic)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_sonicvibes_free(sonic);
 		return -EBUSY;
@@ -1493,9 +1493,10 @@ static int __devinit snd_sonic_probe(struct pci_dev *pci,
 		return err;
 	}
 	if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_SONICVIBES,
-				       sonic->midi_port, MPU401_INFO_INTEGRATED,
-				       sonic->irq, 0,
-				       &midi_uart)) < 0) {
+				       sonic->midi_port,
+				       MPU401_INFO_INTEGRATED |
+				       MPU401_INFO_IRQ_HOOK,
+				       -1, &midi_uart)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -1530,7 +1531,7 @@ static void __devexit snd_sonic_remove(struct pci_dev *pci)
 }
 
 static struct pci_driver driver = {
-	.name = "S3 SonicVibes",
+	.name = KBUILD_MODNAME,
 	.id_table = snd_sonic_ids,
 	.probe = snd_sonic_probe,
 	.remove = __devexit_p(snd_sonic_remove),

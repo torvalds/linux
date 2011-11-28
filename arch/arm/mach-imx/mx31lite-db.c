@@ -161,7 +161,7 @@ static const struct spi_imx_master spi0_pdata __initconst = {
 
 /* GPIO LEDs */
 
-static struct gpio_led litekit_leds[] = {
+static const struct gpio_led litekit_leds[] __initconst = {
 	{
 		.name           = "GPIO0",
 		.gpio           = IOMUX_TO_GPIO(MX31_PIN_COMPARE),
@@ -176,17 +176,10 @@ static struct gpio_led litekit_leds[] = {
 	}
 };
 
-static struct gpio_led_platform_data litekit_led_platform_data = {
+static const struct gpio_led_platform_data
+		litekit_led_platform_data __initconst = {
 	.leds           = litekit_leds,
 	.num_leds       = ARRAY_SIZE(litekit_leds),
-};
-
-static struct platform_device litekit_led_device = {
-	.name   = "leds-gpio",
-	.id     = -1,
-	.dev    = {
-		.platform_data = &litekit_led_platform_data,
-	},
 };
 
 void __init mx31lite_db_init(void)
@@ -197,7 +190,7 @@ void __init mx31lite_db_init(void)
 	imx31_add_imx_uart0(&uart_pdata);
 	imx31_add_mxc_mmc(0, &mmc_pdata);
 	imx31_add_spi_imx0(&spi0_pdata);
-	platform_device_register(&litekit_led_device);
+	gpio_led_register_device(-1, &litekit_led_platform_data);
 	imx31_add_imx2_wdt(NULL);
 	imx31_add_mxc_rtc(NULL);
 }

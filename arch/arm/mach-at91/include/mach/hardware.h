@@ -36,6 +36,20 @@
 #error "Unsupported AT91 processor"
 #endif
 
+#if !defined(CONFIG_ARCH_AT91X40)
+/*
+ * On all at91 except rm9200 and x40 have the System Controller starts
+ * at address 0xffffc000 and has a size of 16KiB.
+ *
+ * On rm9200 it's start at 0xfffe4000 of 111KiB with non reserved data starting
+ * at 0xfffff000
+ *
+ * Removes the individual definitions of AT91_BASE_SYS and
+ * replaces them with a common version at base 0xfffffc000 and size 16KiB
+ * and map the same memory space
+ */
+#define AT91_BASE_SYS	0xffffc000
+#endif
 
 /*
  * Peripheral identifiers/interrupts.

@@ -22,6 +22,7 @@
  */
 
 #include <linux/gfp.h>
+#include <linux/sched.h>
 
 #include "wl12xx.h"
 #include "acx.h"
@@ -29,18 +30,26 @@
 #include "rx.h"
 #include "io.h"
 
-static u8 wl1271_rx_get_mem_block(struct wl1271_fw_common_status *status,
+static u8 wl12xx_rx_get_mem_block(struct wl12xx_fw_status *status,
 				  u32 drv_rx_counter)
 {
 	return le32_to_cpu(status->rx_pkt_descs[drv_rx_counter]) &
 		RX_MEM_BLOCK_MASK;
 }
 
-static u32 wl1271_rx_get_buf_size(struct wl1271_fw_common_status *status,
+static u32 wl12xx_rx_get_buf_size(struct wl12xx_fw_status *status,
 				 u32 drv_rx_counter)
 {
 	return (le32_to_cpu(status->rx_pkt_descs[drv_rx_counter]) &
 		RX_BUF_SIZE_MASK) >> RX_BUF_SIZE_SHIFT_DIV;
+}
+
+static bool wl12xx_rx_get_unaligned(struct wl12xx_fw_status *status,
+				    u32 drv_rx_counter)
+{
+	/* Convert the value to bool */
+	return !!(le32_to_cpu(status->rx_pkt_descs[drv_rx_counter]) &
+		RX_BUF_UNALIGNED_PAYLOAD);
 }
 
 static void wl1271_rx_status(struct wl1271 *wl,
@@ -57,11 +66,9 @@ static void wl1271_rx_status(struct wl1271 *wl,
 
 	status->rate_idx = wl1271_rate_to_idx(desc->rate, status->band);
 
-#ifdef CONFIG_WL12XX_HT
 	/* 11n support */
 	if (desc->rate <= CONF_HW_RXTX_RATE_MCS0)
 		status->flag |= RX_FLAG_HT;
-#endif
 
 	status->signal = desc->rssi;
 
@@ -88,13 +95,17 @@ static void wl1271_rx_status(struct wl1271 *wl,
 	}
 }
 
-static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length)
+static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
+				 bool unaligned)
 {
 	struct wl1271_rx_descriptor *desc;
 	struct sk_buff *skb;
 	struct ieee80211_hdr *hdr;
 	u8 *buf;
 	u8 beacon = 0;
+	u8 is_data = 0;
+	u8 reserved = unaligned ? NET_IP_ALIGN : 0;
+	u16 seq_num;
 
 	/*
 	 * In PLT mode we seem to get frames and mac80211 warns about them,
@@ -105,6 +116,13 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length)
 
 	/* the data read starts with the descriptor */
 	desc = (struct wl1271_rx_descriptor *) data;
+
+	if (desc->packet_class == WL12XX_RX_CLASS_LOGGER) {
+		size_t len = length - sizeof(*desc);
+		wl12xx_copy_fwlog(wl, data + sizeof(*desc), len);
+		wake_up_interruptible(&wl->fwlog_waitq);
+		return 0;
+	}
 
 	switch (desc->status & WL1271_RX_DESC_STATUS_MASK) {
 	/* discard corrupted packets */
@@ -122,37 +140,49 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length)
 		return -EINVAL;
 	}
 
-	skb = __dev_alloc_skb(length, GFP_KERNEL);
+	/* skb length not included rx descriptor */
+	skb = __dev_alloc_skb(length + reserved - sizeof(*desc), GFP_KERNEL);
 	if (!skb) {
 		wl1271_error("Couldn't allocate RX frame");
 		return -ENOMEM;
 	}
 
-	buf = skb_put(skb, length);
-	memcpy(buf, data, length);
+	/* reserve the unaligned payload(if any) */
+	skb_reserve(skb, reserved);
 
-	/* now we pull the descriptor out of the buffer */
-	skb_pull(skb, sizeof(*desc));
+	buf = skb_put(skb, length - sizeof(*desc));
+
+	/*
+	 * Copy packets from aggregation buffer to the skbs without rx
+	 * descriptor and with packet payload aligned care. In case of unaligned
+	 * packets copy the packets in offset of 2 bytes guarantee IP header
+	 * payload aligned to 4 bytes.
+	 */
+	memcpy(buf, data + sizeof(*desc), length - sizeof(*desc));
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 	if (ieee80211_is_beacon(hdr->frame_control))
 		beacon = 1;
+	if (ieee80211_is_data_present(hdr->frame_control))
+		is_data = 1;
 
 	wl1271_rx_status(wl, desc, IEEE80211_SKB_RXCB(skb), beacon);
 
-	wl1271_debug(DEBUG_RX, "rx skb 0x%p: %d B %s", skb,
+	seq_num = (le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_SEQ) >> 4;
+	wl1271_debug(DEBUG_RX, "rx skb 0x%p: %d B %s seq %d", skb,
 		     skb->len - desc->pad_len,
-		     beacon ? "beacon" : "");
+		     beacon ? "beacon" : "",
+		     seq_num);
 
 	skb_trim(skb, skb->len - desc->pad_len);
 
 	skb_queue_tail(&wl->deferred_rx_queue, skb);
-	ieee80211_queue_work(wl->hw, &wl->netstack_work);
+	queue_work(wl->freezable_wq, &wl->netstack_work);
 
-	return 0;
+	return is_data;
 }
 
-void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_common_status *status)
+void wl12xx_rx(struct wl1271 *wl, struct wl12xx_fw_status *status)
 {
 	struct wl1271_acx_mem_map *wl_mem_map = wl->target_mem_map;
 	u32 buf_size;
@@ -162,12 +192,15 @@ void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_common_status *status)
 	u32 mem_block;
 	u32 pkt_length;
 	u32 pkt_offset;
+	bool is_ap = (wl->bss_type == BSS_TYPE_AP_BSS);
+	bool had_data = false;
+	bool unaligned = false;
 
 	while (drv_rx_counter != fw_rx_counter) {
 		buf_size = 0;
 		rx_counter = drv_rx_counter;
 		while (rx_counter != fw_rx_counter) {
-			pkt_length = wl1271_rx_get_buf_size(status, rx_counter);
+			pkt_length = wl12xx_rx_get_buf_size(status, rx_counter);
 			if (buf_size + pkt_length > WL1271_AGGR_BUFFER_SIZE)
 				break;
 			buf_size += pkt_length;
@@ -186,7 +219,7 @@ void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_common_status *status)
 			 * For aggregated packets, only the first memory block
 			 * should be retrieved. The FW takes care of the rest.
 			 */
-			mem_block = wl1271_rx_get_mem_block(status,
+			mem_block = wl12xx_rx_get_mem_block(status,
 							    drv_rx_counter);
 
 			wl->rx_mem_pool_addr.addr = (mem_block << 8) +
@@ -207,16 +240,22 @@ void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_common_status *status)
 		/* Split data into separate packets */
 		pkt_offset = 0;
 		while (pkt_offset < buf_size) {
-			pkt_length = wl1271_rx_get_buf_size(status,
+			pkt_length = wl12xx_rx_get_buf_size(status,
 					drv_rx_counter);
+
+			unaligned = wl12xx_rx_get_unaligned(status,
+					drv_rx_counter);
+
 			/*
 			 * the handle data call can only fail in memory-outage
 			 * conditions, in that case the received frame will just
 			 * be dropped.
 			 */
-			wl1271_rx_handle_data(wl,
-					      wl->aggr_buf + pkt_offset,
-					      pkt_length);
+			if (wl1271_rx_handle_data(wl,
+						  wl->aggr_buf + pkt_offset,
+						  pkt_length, unaligned) == 1)
+				had_data = true;
+
 			wl->rx_counter++;
 			drv_rx_counter++;
 			drv_rx_counter &= NUM_RX_PKT_DESC_MOD_MASK;
@@ -230,15 +269,18 @@ void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_common_status *status)
 	 */
 	if (wl->quirks & WL12XX_QUIRK_END_OF_TRANSACTION)
 		wl1271_write32(wl, RX_DRIVER_COUNTER_ADDRESS, wl->rx_counter);
-}
 
-void wl1271_set_default_filters(struct wl1271 *wl)
-{
-	if (wl->bss_type == BSS_TYPE_AP_BSS) {
-		wl->rx_config = WL1271_DEFAULT_AP_RX_CONFIG;
-		wl->rx_filter = WL1271_DEFAULT_AP_RX_FILTER;
-	} else {
-		wl->rx_config = WL1271_DEFAULT_STA_RX_CONFIG;
-		wl->rx_filter = WL1271_DEFAULT_STA_RX_FILTER;
+	if (!is_ap && wl->conf.rx_streaming.interval && had_data &&
+	    (wl->conf.rx_streaming.always ||
+	     test_bit(WL1271_FLAG_SOFT_GEMINI, &wl->flags))) {
+		u32 timeout = wl->conf.rx_streaming.duration;
+
+		/* restart rx streaming */
+		if (!test_bit(WL1271_FLAG_RX_STREAMING_STARTED, &wl->flags))
+			ieee80211_queue_work(wl->hw,
+					     &wl->rx_streaming_enable_work);
+
+		mod_timer(&wl->rx_streaming_timer,
+			  jiffies + msecs_to_jiffies(timeout));
 	}
 }

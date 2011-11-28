@@ -15,7 +15,7 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/errno.h>
@@ -67,20 +67,27 @@ static void maybe_kfree_parameter(void *param)
 	}
 }
 
-static inline char dash2underscore(char c)
+static char dash2underscore(char c)
 {
 	if (c == '-')
 		return '_';
 	return c;
 }
 
-static inline int parameq(const char *input, const char *paramname)
+bool parameqn(const char *a, const char *b, size_t n)
 {
-	unsigned int i;
-	for (i = 0; dash2underscore(input[i]) == paramname[i]; i++)
-		if (input[i] == '\0')
-			return 1;
-	return 0;
+	size_t i;
+
+	for (i = 0; i < n; i++) {
+		if (dash2underscore(a[i]) != dash2underscore(b[i]))
+			return false;
+	}
+	return true;
+}
+
+bool parameq(const char *a, const char *b)
+{
+	return parameqn(a, b, strlen(a)+1);
 }
 
 static int parse_one(char *param,
@@ -225,8 +232,8 @@ int parse_args(const char *name,
 		int ret;						\
 									\
 		ret = strtolfn(val, 0, &l);				\
-		if (ret == -EINVAL || ((type)l != l))			\
-			return -EINVAL;					\
+		if (ret < 0 || ((type)l != l))				\
+			return ret < 0 ? ret : -EINVAL;			\
 		*((type *)kp->arg) = l;					\
 		return 0;						\
 	}								\
@@ -511,7 +518,7 @@ struct module_param_attrs
 #define to_param_attr(n) container_of(n, struct param_attribute, mattr)
 
 static ssize_t param_attr_show(struct module_attribute *mattr,
-			       struct module *mod, char *buf)
+			       struct module_kobject *mk, char *buf)
 {
 	int count;
 	struct param_attribute *attribute = to_param_attr(mattr);
@@ -531,7 +538,7 @@ static ssize_t param_attr_show(struct module_attribute *mattr,
 
 /* sysfs always hands a nul-terminated string in buf.  We rely on that. */
 static ssize_t param_attr_store(struct module_attribute *mattr,
-				struct module *owner,
+				struct module_kobject *km,
 				const char *buf, size_t len)
 {
  	int err;
@@ -730,6 +737,10 @@ static struct module_kobject * __init locate_module_kobject(const char *name)
 		mk->kobj.kset = module_kset;
 		err = kobject_init_and_add(&mk->kobj, &module_ktype, NULL,
 					   "%s", name);
+#ifdef CONFIG_MODULES
+		if (!err)
+			err = sysfs_create_file(&mk->kobj, &module_uevent.attr);
+#endif
 		if (err) {
 			kobject_put(&mk->kobj);
 			printk(KERN_ERR
@@ -807,7 +818,7 @@ static void __init param_sysfs_builtin(void)
 }
 
 ssize_t __modver_version_show(struct module_attribute *mattr,
-			      struct module *mod, char *buf)
+			      struct module_kobject *mk, char *buf)
 {
 	struct module_version_attribute *vattr =
 		container_of(mattr, struct module_version_attribute, mattr);
@@ -852,7 +863,7 @@ static ssize_t module_attr_show(struct kobject *kobj,
 	if (!attribute->show)
 		return -EIO;
 
-	ret = attribute->show(attribute, mk->mod, buf);
+	ret = attribute->show(attribute, mk, buf);
 
 	return ret;
 }
@@ -871,7 +882,7 @@ static ssize_t module_attr_store(struct kobject *kobj,
 	if (!attribute->store)
 		return -EIO;
 
-	ret = attribute->store(attribute, mk->mod, buf, len);
+	ret = attribute->store(attribute, mk, buf, len);
 
 	return ret;
 }

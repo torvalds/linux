@@ -31,6 +31,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/spinlock.h>
+#include <linux/module.h>
 
 #define DRIVER_NAME	"sh_mmcif"
 #define DRIVER_VERSION	"2010-04-28"
@@ -165,6 +166,8 @@ struct sh_mmcif_host {
 	struct mmc_host *mmc;
 	struct mmc_data *data;
 	struct platform_device *pd;
+	struct sh_dmae_slave dma_slave_tx;
+	struct sh_dmae_slave dma_slave_rx;
 	struct clk *hclk;
 	unsigned int clk;
 	int bus_width;
@@ -175,6 +178,7 @@ struct sh_mmcif_host {
 	enum mmcif_state state;
 	spinlock_t lock;
 	bool power;
+	bool card_present;
 
 	/* DMA support */
 	struct dma_chan		*chan_rx;
@@ -322,25 +326,35 @@ static bool sh_mmcif_filter(struct dma_chan *chan, void *arg)
 static void sh_mmcif_request_dma(struct sh_mmcif_host *host,
 				 struct sh_mmcif_plat_data *pdata)
 {
+	struct sh_dmae_slave *tx, *rx;
 	host->dma_active = false;
 
 	/* We can only either use DMA for both Tx and Rx or not use it at all */
 	if (pdata->dma) {
+		dev_warn(&host->pd->dev,
+			 "Update your platform to use embedded DMA slave IDs\n");
+		tx = &pdata->dma->chan_priv_tx;
+		rx = &pdata->dma->chan_priv_rx;
+	} else {
+		tx = &host->dma_slave_tx;
+		tx->slave_id = pdata->slave_id_tx;
+		rx = &host->dma_slave_rx;
+		rx->slave_id = pdata->slave_id_rx;
+	}
+	if (tx->slave_id > 0 && rx->slave_id > 0) {
 		dma_cap_mask_t mask;
 
 		dma_cap_zero(mask);
 		dma_cap_set(DMA_SLAVE, mask);
 
-		host->chan_tx = dma_request_channel(mask, sh_mmcif_filter,
-						    &pdata->dma->chan_priv_tx);
+		host->chan_tx = dma_request_channel(mask, sh_mmcif_filter, tx);
 		dev_dbg(&host->pd->dev, "%s: TX: got channel %p\n", __func__,
 			host->chan_tx);
 
 		if (!host->chan_tx)
 			return;
 
-		host->chan_rx = dma_request_channel(mask, sh_mmcif_filter,
-						    &pdata->dma->chan_priv_rx);
+		host->chan_rx = dma_request_channel(mask, sh_mmcif_filter, rx);
 		dev_dbg(&host->pd->dev, "%s: RX: got channel %p\n", __func__,
 			host->chan_rx);
 
@@ -877,23 +891,23 @@ static void sh_mmcif_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	spin_unlock_irqrestore(&host->lock, flags);
 
 	if (ios->power_mode == MMC_POWER_UP) {
-		if (p->set_pwr)
-			p->set_pwr(host->pd, ios->power_mode);
-		if (!host->power) {
+		if (!host->card_present) {
 			/* See if we also get DMA */
 			sh_mmcif_request_dma(host, host->pd->dev.platform_data);
-			pm_runtime_get_sync(&host->pd->dev);
-			host->power = true;
+			host->card_present = true;
 		}
 	} else if (ios->power_mode == MMC_POWER_OFF || !ios->clock) {
 		/* clock stop */
 		sh_mmcif_clock_control(host, 0);
 		if (ios->power_mode == MMC_POWER_OFF) {
-			if (host->power) {
-				pm_runtime_put(&host->pd->dev);
+			if (host->card_present) {
 				sh_mmcif_release_dma(host);
-				host->power = false;
+				host->card_present = false;
 			}
+		}
+		if (host->power) {
+			pm_runtime_put(&host->pd->dev);
+			host->power = false;
 			if (p->down_pwr)
 				p->down_pwr(host->pd);
 		}
@@ -901,8 +915,16 @@ static void sh_mmcif_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		return;
 	}
 
-	if (ios->clock)
+	if (ios->clock) {
+		if (!host->power) {
+			if (p->set_pwr)
+				p->set_pwr(host->pd, ios->power_mode);
+			pm_runtime_get_sync(&host->pd->dev);
+			host->power = true;
+			sh_mmcif_sync_reset(host);
+		}
 		sh_mmcif_clock_control(host, ios->clock);
+	}
 
 	host->bus_width = ios->bus_width;
 	host->state = STATE_IDLE;

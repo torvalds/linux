@@ -31,6 +31,9 @@ void __init udbg_early_init(void)
 #if defined(CONFIG_PPC_EARLY_DEBUG_LPAR)
 	/* For LPAR machines that have an HVC console on vterm 0 */
 	udbg_init_debug_lpar();
+#elif defined(CONFIG_PPC_EARLY_DEBUG_LPAR_HVSI)
+	/* For LPAR machines that have an HVSI console on vterm 0 */
+	udbg_init_debug_lpar_hvsi();
 #elif defined(CONFIG_PPC_EARLY_DEBUG_G5)
 	/* For use on Apple G5 machines */
 	udbg_init_pmac_realmode();
@@ -64,10 +67,20 @@ void __init udbg_early_init(void)
 	udbg_init_usbgecko();
 #elif defined(CONFIG_PPC_EARLY_DEBUG_WSP)
 	udbg_init_wsp();
+#elif defined(CONFIG_PPC_EARLY_DEBUG_EHV_BC)
+	udbg_init_ehv_bc();
+#elif defined(CONFIG_PPC_EARLY_DEBUG_PS3GELIC)
+	udbg_init_ps3gelic();
+#elif defined(CONFIG_PPC_EARLY_DEBUG_OPAL_RAW)
+	udbg_init_debug_opal_raw();
+#elif defined(CONFIG_PPC_EARLY_DEBUG_OPAL_HVSI)
+	udbg_init_debug_opal_hvsi();
 #endif
 
 #ifdef CONFIG_PPC_EARLY_DEBUG
 	console_loglevel = 10;
+
+	register_early_udbg_console();
 #endif
 }
 

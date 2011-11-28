@@ -124,6 +124,17 @@ static const struct via_isa_bridge {
 	{ NULL }
 };
 
+static const struct dmi_system_id no_atapi_dma_dmi_table[] = {
+	{
+		.ident = "AVERATEC 3200",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "AVERATEC"),
+			DMI_MATCH(DMI_BOARD_NAME, "3200"),
+		},
+	},
+	{ }
+};
+
 struct via_port {
 	u8 cached_device;
 };
@@ -350,11 +361,18 @@ static unsigned long via_mode_filter(struct ata_device *dev, unsigned long mask)
 	if (config->id == PCI_DEVICE_ID_VIA_82C586_0) {
 		ata_id_c_string(dev->id, model_num, ATA_ID_PROD, sizeof(model_num));
 		if (strcmp(model_num, "TS64GSSD25-M") == 0) {
-			ata_dev_printk(dev, KERN_WARNING,
-	"disabling UDMA mode due to reported lockups with this device.\n");
+			ata_dev_warn(dev,
+	"disabling UDMA mode due to reported lockups with this device\n");
 			mask &= ~ ATA_MASK_UDMA;
 		}
 	}
+
+	if (dev->class == ATA_DEV_ATAPI &&
+	    dmi_check_system(no_atapi_dma_dmi_table)) {
+		ata_dev_warn(dev, "controller locks up on ATAPI DMA, forcing PIO\n");
+		mask &= ATA_MASK_PIO;
+	}
+
 	return mask;
 }
 
@@ -491,6 +509,27 @@ static void via_config_fifo(struct pci_dev *pdev, unsigned int flags)
 	}
 }
 
+static void via_fixup(struct pci_dev *pdev, const struct via_isa_bridge *config)
+{
+	u32 timing;
+
+	/* Initialise the FIFO for the enabled channels. */
+	via_config_fifo(pdev, config->flags);
+
+	if (config->udma_mask == ATA_UDMA4) {
+		/* The 66 MHz devices require we enable the clock */
+		pci_read_config_dword(pdev, 0x50, &timing);
+		timing |= 0x80008;
+		pci_write_config_dword(pdev, 0x50, timing);
+	}
+	if (config->flags & VIA_BAD_CLK66) {
+		/* Disable the 66MHz clock on problem devices */
+		pci_read_config_dword(pdev, 0x50, &timing);
+		timing &= ~0x80008;
+		pci_write_config_dword(pdev, 0x50, timing);
+	}
+}
+
 /**
  *	via_init_one		-	discovery callback
  *	@pdev: PCI device
@@ -551,14 +590,11 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	const struct ata_port_info *ppi[] = { NULL, NULL };
 	struct pci_dev *isa;
 	const struct via_isa_bridge *config;
-	static int printed_version;
 	u8 enable;
-	u32 timing;
 	unsigned long flags = id->driver_data;
 	int rc;
 
-	if (!printed_version++)
-		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
+	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
 	rc = pcim_enable_device(pdev);
 	if (rc)
@@ -593,9 +629,6 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 			return -ENODEV;
 	}
 
-	/* Initialise the FIFO for the enabled channels. */
-	via_config_fifo(pdev, config->flags);
-
 	/* Clock set up */
 	switch (config->udma_mask) {
 	case 0x00:
@@ -621,12 +654,7 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		return -ENODEV;
  	}
 
-	if (config->flags & VIA_BAD_CLK66) {
-		/* Disable the 66MHz clock on problem devices */
-		pci_read_config_dword(pdev, 0x50, &timing);
-		timing &= ~0x80008;
-		pci_write_config_dword(pdev, 0x50, timing);
-	}
+	via_fixup(pdev, config);
 
 	/* We have established the device type, now fire it up */
 	return ata_pci_bmdma_init_one(pdev, ppi, &via_sht, (void *)config, 0);
@@ -645,29 +673,14 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 static int via_reinit_one(struct pci_dev *pdev)
 {
-	u32 timing;
 	struct ata_host *host = dev_get_drvdata(&pdev->dev);
-	const struct via_isa_bridge *config = host->private_data;
 	int rc;
 
 	rc = ata_pci_device_do_resume(pdev);
 	if (rc)
 		return rc;
 
-	via_config_fifo(pdev, config->flags);
-
-	if (config->udma_mask == ATA_UDMA4) {
-		/* The 66 MHz devices require we enable the clock */
-		pci_read_config_dword(pdev, 0x50, &timing);
-		timing |= 0x80008;
-		pci_write_config_dword(pdev, 0x50, timing);
-	}
-	if (config->flags & VIA_BAD_CLK66) {
-		/* Disable the 66MHz clock on problem devices */
-		pci_read_config_dword(pdev, 0x50, &timing);
-		timing &= ~0x80008;
-		pci_write_config_dword(pdev, 0x50, timing);
-	}
+	via_fixup(pdev, host->private_data);
 
 	ata_host_resume(host);
 	return 0;

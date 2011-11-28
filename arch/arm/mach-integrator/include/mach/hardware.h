@@ -32,13 +32,6 @@
 #define IO_SIZE			0x0B000000                 // How much?
 #define IO_START		INTEGRATOR_HDR_BASE        // PA of IO
 
-#define PCIMEM_BASE		PCI_MEMORY_VADDR
-
-#define pcibios_assign_all_busses()	1
-
-#define PCIBIOS_MIN_IO		0x6000
-#define PCIBIOS_MIN_MEM 	0x00100000
-
 /* macro to get at IO space when running virtually */
 #ifdef CONFIG_MMU
 #define IO_ADDRESS(x)	(((x) & 0x000fffff) | (((x) >> 4) & 0x0ff00000) | IO_BASE)

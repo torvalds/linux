@@ -22,7 +22,7 @@
 #include <linux/timer.h>
 #include <linux/spinlock.h>
 #include <net/sock.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <net/flow.h>
 #include <net/dn.h>
 

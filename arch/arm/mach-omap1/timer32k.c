@@ -183,10 +183,6 @@ static __init void omap_init_32k_timer(void)
 bool __init omap_32k_timer_init(void)
 {
 	omap_init_clocksource_32k();
-
-#ifdef CONFIG_OMAP_DM_TIMER
-	omap_dm_timer_init();
-#endif
 	omap_init_32k_timer();
 
 	return true;

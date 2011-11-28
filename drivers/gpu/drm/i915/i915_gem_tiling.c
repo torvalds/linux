@@ -92,7 +92,10 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 	uint32_t swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
 	uint32_t swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
 
-	if (INTEL_INFO(dev)->gen >= 5) {
+	if (INTEL_INFO(dev)->gen >= 6) {
+		swizzle_x = I915_BIT_6_SWIZZLE_NONE;
+		swizzle_y = I915_BIT_6_SWIZZLE_NONE;
+	} else if (IS_GEN5(dev)) {
 		/* On Ironlake whatever DRAM config, GPU always do
 		 * same swizzling setup.
 		 */
@@ -348,7 +351,9 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		/* Rebind if we need a change of alignment */
 		if (!obj->map_and_fenceable) {
 			u32 unfenced_alignment =
-				i915_gem_get_unfenced_gtt_alignment(obj);
+				i915_gem_get_unfenced_gtt_alignment(dev,
+								    obj->base.size,
+								    args->tiling_mode);
 			if (obj->gtt_offset & (unfenced_alignment - 1))
 				ret = i915_gem_object_unbind(obj);
 		}
@@ -438,13 +443,8 @@ i915_gem_swizzle_page(struct page *page)
 void
 i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj)
 {
-	struct drm_device *dev = obj->base.dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
 	int page_count = obj->base.size >> PAGE_SHIFT;
 	int i;
-
-	if (dev_priv->mm.bit_6_swizzle_x != I915_BIT_6_SWIZZLE_9_10_17)
-		return;
 
 	if (obj->bit_17 == NULL)
 		return;
@@ -462,13 +462,8 @@ i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj)
 void
 i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj)
 {
-	struct drm_device *dev = obj->base.dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
 	int page_count = obj->base.size >> PAGE_SHIFT;
 	int i;
-
-	if (dev_priv->mm.bit_6_swizzle_x != I915_BIT_6_SWIZZLE_9_10_17)
-		return;
 
 	if (obj->bit_17 == NULL) {
 		obj->bit_17 = kmalloc(BITS_TO_LONGS(page_count) *

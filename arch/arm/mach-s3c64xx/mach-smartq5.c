@@ -21,14 +21,14 @@
 #include <asm/mach/arch.h>
 
 #include <mach/map.h>
-#include <mach/regs-fb.h>
 #include <mach/regs-gpio.h>
-#include <mach/s3c6410.h>
 
+#include <plat/s3c6410.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/fb.h>
 #include <plat/gpio-cfg.h>
+#include <plat/regs-fb-v4.h>
 
 #include "mach-smartq.h"
 
@@ -146,7 +146,7 @@ static void __init smartq5_machine_init(void)
 
 MACHINE_START(SMARTQ5, "SmartQ 5")
 	/* Maintainer: Maurus Cuelenaere <mcuelenaere AT gmail DOT com> */
-	.boot_params	= S3C64XX_PA_SDRAM + 0x100,
+	.atag_offset	= 0x100,
 	.init_irq	= s3c6410_init_irq,
 	.map_io		= smartq_map_io,
 	.init_machine	= smartq5_machine_init,

@@ -1,0 +1,54 @@
+.TH "cpupower-freqency-set" "1" "0.1" "Mattia Dongili" ""
+.SH "NAME"
+.LP 
+cpupower frequency\-set \- A small tool which allows to modify cpufreq settings.
+.SH "SYNTAX"
+.LP 
+cpupower [ \-c cpu ] frequency\-set [\fIoptions\fP]
+.SH "DESCRIPTION"
+.LP 
+cpupower frequency\-set allows you to modify cpufreq settings without having to type e.g. "/sys/devices/system/cpu/cpu0/cpufreq/scaling_set_speed" all the time.
+.SH "OPTIONS"
+.LP 
+.TP 
+\fB\-d\fR \fB\-\-min\fR <FREQ>
+new minimum CPU frequency the governor may select.
+.TP 
+\fB\-u\fR \fB\-\-max\fR <FREQ>
+new maximum CPU frequency the governor may select.
+.TP 
+\fB\-g\fR \fB\-\-governor\fR <GOV>
+new cpufreq governor.
+.TP 
+\fB\-f\fR \fB\-\-freq\fR <FREQ>
+specific frequency to be set. Requires userspace governor to be available and loaded.
+.TP 
+\fB\-r\fR \fB\-\-related\fR
+modify all hardware-related CPUs at the same time
+.TP 
+\fB\-h\fR \fB\-\-help\fR
+Prints out the help screen.
+.SH "REMARKS"
+.LP 
+By default values are applied on all cores. How to modify single core
+configurations is described in the cpupower(1) manpage in the \-\-cpu option section.
+.LP 
+The \-f FREQ, \-\-freq FREQ parameter cannot be combined with any other parameter.
+.LP 
+FREQuencies can be passed in Hz, kHz (default), MHz, GHz, or THz by postfixing the value with the wanted unit name, without any space (frequency in kHz =^ Hz * 0.001 =^ MHz * 1000 =^ GHz * 1000000).
+.LP 
+On Linux kernels up to 2.6.29, the \-r or \-\-related parameter is ignored.
+.SH "FILES" 
+.nf
+\fI/sys/devices/system/cpu/cpu*/cpufreq/\fP  
+\fI/proc/cpufreq\fP (deprecated) 
+\fI/proc/sys/cpu/\fP (deprecated)
+.fi 
+.SH "AUTHORS"
+.nf 
+Dominik Brodowski <linux@brodo.de> \- author 
+Mattia Dongili<malattia@gmail.com> \- first autolibtoolization
+.fi
+.SH "SEE ALSO"
+.LP 
+cpupower\-frequency\-info(1), cpupower(1)

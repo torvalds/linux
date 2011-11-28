@@ -53,8 +53,8 @@ kernel patches.
 
 12: Has been tested with CONFIG_PREEMPT, CONFIG_DEBUG_PREEMPT,
     CONFIG_DEBUG_SLAB, CONFIG_DEBUG_PAGEALLOC, CONFIG_DEBUG_MUTEXES,
-    CONFIG_DEBUG_SPINLOCK, CONFIG_DEBUG_SPINLOCK_SLEEP all simultaneously
-    enabled.
+    CONFIG_DEBUG_SPINLOCK, CONFIG_DEBUG_ATOMIC_SLEEP, CONFIG_PROVE_RCU
+    and CONFIG_DEBUG_OBJECTS_RCU_HEAD all simultaneously enabled.
 
 13: Has been build- and runtime tested with and without CONFIG_SMP and
     CONFIG_PREEMPT.

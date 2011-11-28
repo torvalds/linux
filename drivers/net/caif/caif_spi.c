@@ -5,7 +5,6 @@
  * License terms: GNU General Public License (GPL) version 2.
  */
 
-#include <linux/version.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/device.h>
@@ -665,8 +664,6 @@ int cfspi_spi_probe(struct platform_device *pdev)
 	/* Allocate DMA buffers. */
 	cfspi->xfer.va_tx = dma_alloc(&cfspi->xfer.pa_tx);
 	if (!cfspi->xfer.va_tx) {
-		printk(KERN_WARNING
-		       "CFSPI: failed to allocate dma TX buffer.\n");
 		res = -ENODEV;
 		goto err_dma_alloc_tx;
 	}
@@ -674,8 +671,6 @@ int cfspi_spi_probe(struct platform_device *pdev)
 	cfspi->xfer.va_rx = dma_alloc(&cfspi->xfer.pa_rx);
 
 	if (!cfspi->xfer.va_rx) {
-		printk(KERN_WARNING
-		       "CFSPI: failed to allocate dma TX buffer.\n");
 		res = -ENODEV;
 		goto err_dma_alloc_rx;
 	}

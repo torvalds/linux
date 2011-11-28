@@ -276,7 +276,6 @@ error_oom:
 	kfree(ec);
 	return NULL;
 }
-
 EXPORT_SYMBOL_GPL(oslec_create);
 
 void oslec_free(struct oslec_state *ec)
@@ -290,14 +289,12 @@ void oslec_free(struct oslec_state *ec)
 	kfree(ec->snapshot);
 	kfree(ec);
 }
-
 EXPORT_SYMBOL_GPL(oslec_free);
 
 void oslec_adaption_mode(struct oslec_state *ec, int adaption_mode)
 {
 	ec->adaption_mode = adaption_mode;
 }
-
 EXPORT_SYMBOL_GPL(oslec_adaption_mode);
 
 void oslec_flush(struct oslec_state *ec)
@@ -324,14 +321,12 @@ void oslec_flush(struct oslec_state *ec)
 	ec->curr_pos = ec->taps - 1;
 	ec->Pstates = 0;
 }
-
 EXPORT_SYMBOL_GPL(oslec_flush);
 
 void oslec_snapshot(struct oslec_state *ec)
 {
 	memcpy(ec->snapshot, ec->fir_taps16[0], ec->taps * sizeof(int16_t));
 }
-
 EXPORT_SYMBOL_GPL(oslec_snapshot);
 
 /* Dual Path Echo Canceller */
@@ -406,7 +401,7 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 		/* efficient "out with the old and in with the new" algorithm so
 		   we don't have to recalculate over the whole block of
 		   samples. */
-		new = (int)tx *(int)tx;
+		new = (int)tx * (int)tx;
 		old = (int)ec->fir_state.history[ec->fir_state.curr_pos] *
 		    (int)ec->fir_state.history[ec->fir_state.curr_pos];
 		ec->Pstates +=
@@ -603,7 +598,6 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 
 	return (int16_t) ec->clean_nlp << 1;
 }
-
 EXPORT_SYMBOL_GPL(oslec_update);
 
 /* This function is separated from the echo canceller is it is usually called
@@ -628,7 +622,7 @@ EXPORT_SYMBOL_GPL(oslec_update);
    giving very clean DC removal.
 */
 
-int16_t oslec_hpf_tx(struct oslec_state * ec, int16_t tx)
+int16_t oslec_hpf_tx(struct oslec_state *ec, int16_t tx)
 {
 	int tmp, tmp1;
 
@@ -657,7 +651,6 @@ int16_t oslec_hpf_tx(struct oslec_state * ec, int16_t tx)
 
 	return tx;
 }
-
 EXPORT_SYMBOL_GPL(oslec_hpf_tx);
 
 MODULE_LICENSE("GPL");

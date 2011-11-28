@@ -37,7 +37,7 @@
 #include <plat/dma.h>
 #include <plat/gpmc.h>
 #include <video/omapdss.h>
-#include <video/omap-panel-generic-dpi.h>
+#include <video/omap-panel-dvi.h>
 
 #include <plat/gpmc-smc91x.h>
 
@@ -186,8 +186,7 @@ static struct omap_dss_device sdp3430_lcd_device = {
 	.platform_disable	= sdp3430_panel_disable_lcd,
 };
 
-static struct panel_generic_dpi_data dvi_panel = {
-	.name			= "generic",
+static struct panel_dvi_platform_data dvi_panel = {
 	.platform_enable	= sdp3430_panel_enable_dvi,
 	.platform_disable	= sdp3430_panel_disable_dvi,
 };
@@ -195,7 +194,7 @@ static struct panel_generic_dpi_data dvi_panel = {
 static struct omap_dss_device sdp3430_dvi_device = {
 	.name			= "dvi",
 	.type			= OMAP_DISPLAY_TYPE_DPI,
-	.driver_name		= "generic_dpi_panel",
+	.driver_name		= "dvi",
 	.data			= &dvi_panel,
 	.phy.dpi.data_lines	= 24,
 };
@@ -223,28 +222,6 @@ static struct omap_dss_board_info sdp3430_dss_data = {
 };
 
 static struct omap_board_config_kernel sdp3430_config[] __initdata = {
-};
-
-static void __init omap_3430sdp_init_early(void)
-{
-	omap2_init_common_infrastructure();
-	omap2_init_common_devices(hyb18m512160af6_sdrc_params, NULL);
-}
-
-static int sdp3430_batt_table[] = {
-/* 0 C*/
-30800, 29500, 28300, 27100,
-26000, 24900, 23900, 22900, 22000, 21100, 20300, 19400, 18700, 17900,
-17200, 16500, 15900, 15300, 14700, 14100, 13600, 13100, 12600, 12100,
-11600, 11200, 10800, 10400, 10000, 9630,   9280,   8950,   8620,   8310,
-8020,   7730,   7460,   7200,   6950,   6710,   6470,   6250,   6040,   5830,
-5640,   5450,   5260,   5090,   4920,   4760,   4600,   4450,   4310,   4170,
-4040,   3910,   3790,   3670,   3550
-};
-
-static struct twl4030_bci_platform_data sdp3430_bci_data = {
-	.battery_tmp_tbl	= sdp3430_batt_table,
-	.tblsize		= ARRAY_SIZE(sdp3430_batt_table),
 };
 
 static struct omap2_hsmmc_info mmc[] = {
@@ -292,29 +269,11 @@ static struct twl4030_gpio_platform_data sdp3430_gpio_data = {
 	.setup		= sdp3430_twl_gpio_setup,
 };
 
-static struct twl4030_usb_data sdp3430_usb_data = {
-	.usb_mode	= T2_USB_MODE_ULPI,
-};
-
-static struct twl4030_madc_platform_data sdp3430_madc_data = {
-	.irq_line	= 1,
-};
-
 /* regulator consumer mappings */
 
 /* ads7846 on SPI */
 static struct regulator_consumer_supply sdp3430_vaux3_supplies[] = {
 	REGULATOR_SUPPLY("vcc", "spi1.0"),
-};
-
-static struct regulator_consumer_supply sdp3430_vdda_dac_supplies[] = {
-	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc"),
-};
-
-/* VPLL2 for digital video outputs */
-static struct regulator_consumer_supply sdp3430_vpll2_supplies[] = {
-	REGULATOR_SUPPLY("vdds_dsi", "omapdss"),
-	REGULATOR_SUPPLY("vdds_dsi", "omapdss_dsi1"),
 };
 
 static struct regulator_consumer_supply sdp3430_vmmc1_supplies[] = {
@@ -433,54 +392,10 @@ static struct regulator_init_data sdp3430_vsim = {
 	.consumer_supplies	= sdp3430_vsim_supplies,
 };
 
-/* VDAC for DSS driving S-Video */
-static struct regulator_init_data sdp3430_vdac = {
-	.constraints = {
-		.min_uV			= 1800000,
-		.max_uV			= 1800000,
-		.apply_uV		= true,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask		= REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-	.num_consumer_supplies	= ARRAY_SIZE(sdp3430_vdda_dac_supplies),
-	.consumer_supplies	= sdp3430_vdda_dac_supplies,
-};
-
-static struct regulator_init_data sdp3430_vpll2 = {
-	.constraints = {
-		.name			= "VDVI",
-		.min_uV			= 1800000,
-		.max_uV			= 1800000,
-		.apply_uV		= true,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask		= REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-	.num_consumer_supplies	= ARRAY_SIZE(sdp3430_vpll2_supplies),
-	.consumer_supplies	= sdp3430_vpll2_supplies,
-};
-
-static struct twl4030_codec_audio_data sdp3430_audio;
-
-static struct twl4030_codec_data sdp3430_codec = {
-	.audio_mclk = 26000000,
-	.audio = &sdp3430_audio,
-};
-
 static struct twl4030_platform_data sdp3430_twldata = {
-	.irq_base	= TWL4030_IRQ_BASE,
-	.irq_end	= TWL4030_IRQ_END,
-
 	/* platform_data for children goes here */
-	.bci		= &sdp3430_bci_data,
 	.gpio		= &sdp3430_gpio_data,
-	.madc		= &sdp3430_madc_data,
 	.keypad		= &sdp3430_kp_data,
-	.usb		= &sdp3430_usb_data,
-	.codec		= &sdp3430_codec,
 
 	.vaux1		= &sdp3430_vaux1,
 	.vaux2		= &sdp3430_vaux2,
@@ -489,14 +404,21 @@ static struct twl4030_platform_data sdp3430_twldata = {
 	.vmmc1		= &sdp3430_vmmc1,
 	.vmmc2		= &sdp3430_vmmc2,
 	.vsim		= &sdp3430_vsim,
-	.vdac		= &sdp3430_vdac,
-	.vpll2		= &sdp3430_vpll2,
 };
 
 static int __init omap3430_i2c_init(void)
 {
 	/* i2c1 for PMIC only */
+	omap3_pmic_get_config(&sdp3430_twldata,
+			TWL_COMMON_PDATA_USB | TWL_COMMON_PDATA_BCI |
+			TWL_COMMON_PDATA_MADC | TWL_COMMON_PDATA_AUDIO,
+			TWL_COMMON_REGULATOR_VDAC | TWL_COMMON_REGULATOR_VPLL2);
+	sdp3430_twldata.vdac->constraints.apply_uV = true;
+	sdp3430_twldata.vpll2->constraints.apply_uV = true;
+	sdp3430_twldata.vpll2->constraints.name = "VDVI";
+
 	omap3_pmic_init("twl4030", &sdp3430_twldata);
+
 	/* i2c2 on camera connector (for sensor control) and optional isp1301 */
 	omap_register_i2c_bus(2, 400, NULL, 0);
 	/* i2c3 on display connector (for DVI, tfp410) */
@@ -790,6 +712,7 @@ static void __init omap_3430sdp_init(void)
 		gpio_pendown = SDP3430_TS_GPIO_IRQ_SDPV1;
 	omap_ads7846_init(1, gpio_pendown, 310, NULL);
 	board_serial_init();
+	omap_sdrc_init(hyb18m512160af6_sdrc_params, NULL);
 	usb_musb_init(NULL);
 	board_smc91x_init();
 	board_flash_init(sdp_flash_partitions, chip_sel_3430, 0);
@@ -800,11 +723,11 @@ static void __init omap_3430sdp_init(void)
 
 MACHINE_START(OMAP_3430SDP, "OMAP3430 3430SDP board")
 	/* Maintainer: Syed Khasim - Texas Instruments Inc */
-	.boot_params	= 0x80000100,
+	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
-	.init_early	= omap_3430sdp_init_early,
-	.init_irq	= omap_init_irq,
+	.init_early	= omap3430_init_early,
+	.init_irq	= omap3_init_irq,
 	.init_machine	= omap_3430sdp_init,
-	.timer		= &omap_timer,
+	.timer		= &omap3_timer,
 MACHINE_END

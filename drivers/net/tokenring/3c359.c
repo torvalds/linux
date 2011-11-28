@@ -282,7 +282,7 @@ static const struct net_device_ops xl_netdev_ops = {
 	.ndo_stop		= xl_close,
 	.ndo_start_xmit		= xl_xmit,
 	.ndo_change_mtu		= xl_change_mtu,
-	.ndo_set_multicast_list = xl_set_rx_mode,
+	.ndo_set_rx_mode	= xl_set_rx_mode,
 	.ndo_set_mac_address	= xl_set_mac_address,
 };
  
@@ -304,7 +304,7 @@ static int __devinit xl_probe(struct pci_dev *pdev,
 
 	if ((i = pci_request_regions(pdev,"3c359"))) { 
 		return i ; 
-	} ; 
+	}
 
 	/* 
 	 * Allowing init_trdev to allocate the private data will align
@@ -1773,7 +1773,9 @@ static void xl_wait_misr_flags(struct net_device *dev)
 	if (readb(xl_mmio + MMIO_MACDATA) != 0) {  /* Misr not clear */
 		for (i=0; i<6; i++) { 
 			writel(MEM_BYTE_READ | 0xDFFE0 | i, xl_mmio + MMIO_MAC_ACCESS_CMD) ; 
-			while (readb(xl_mmio + MMIO_MACDATA) != 0 ) {} ; /* Empty Loop */
+			while (readb(xl_mmio + MMIO_MACDATA) != 0) {
+				;	/* Empty Loop */
+			}
 		} 
 	}
 

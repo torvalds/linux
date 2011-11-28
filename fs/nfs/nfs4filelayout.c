@@ -31,6 +31,7 @@
 
 #include <linux/nfs_fs.h>
 #include <linux/nfs_page.h>
+#include <linux/module.h>
 
 #include "internal.h"
 #include "nfs4filelayout.h"
@@ -75,19 +76,6 @@ filelayout_get_dserver_offset(struct pnfs_layout_segment *lseg, loff_t offset)
 	}
 
 	BUG();
-}
-
-/* For data server errors we don't recover from */
-static void
-filelayout_set_lo_fail(struct pnfs_layout_segment *lseg)
-{
-	if (lseg->pls_range.iomode == IOMODE_RW) {
-		dprintk("%s Setting layout IOMODE_RW fail bit\n", __func__);
-		set_bit(lo_fail_bit(IOMODE_RW), &lseg->pls_layout->plh_flags);
-	} else {
-		dprintk("%s Setting layout IOMODE_READ fail bit\n", __func__);
-		set_bit(lo_fail_bit(IOMODE_READ), &lseg->pls_layout->plh_flags);
-	}
 }
 
 static int filelayout_async_handle_error(struct rpc_task *task,
@@ -135,7 +123,6 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 static int filelayout_read_done_cb(struct rpc_task *task,
 				struct nfs_read_data *data)
 {
-	struct nfs_client *clp = data->ds_clp;
 	int reset = 0;
 
 	dprintk("%s DS read\n", __func__);
@@ -145,11 +132,10 @@ static int filelayout_read_done_cb(struct rpc_task *task,
 		dprintk("%s calling restart ds_clp %p ds_clp->cl_session %p\n",
 			__func__, data->ds_clp, data->ds_clp->cl_session);
 		if (reset) {
-			filelayout_set_lo_fail(data->lseg);
+			pnfs_set_lo_fail(data->lseg);
 			nfs4_reset_read(task, data);
-			clp = NFS_SERVER(data->inode)->nfs_client;
 		}
-		nfs_restart_rpc(task, clp);
+		rpc_restart_call_prepare(task);
 		return -EAGAIN;
 	}
 
@@ -170,7 +156,7 @@ filelayout_set_layoutcommit(struct nfs_write_data *wdata)
 
 	pnfs_set_layoutcommit(wdata);
 	dprintk("%s ionde %lu pls_end_pos %lu\n", __func__, wdata->inode->i_ino,
-		(unsigned long) wdata->lseg->pls_end_pos);
+		(unsigned long) NFS_I(wdata->inode)->layout->plh_lwb);
 }
 
 /*
@@ -216,17 +202,13 @@ static int filelayout_write_done_cb(struct rpc_task *task,
 
 	if (filelayout_async_handle_error(task, data->args.context->state,
 					  data->ds_clp, &reset) == -EAGAIN) {
-		struct nfs_client *clp;
-
 		dprintk("%s calling restart ds_clp %p ds_clp->cl_session %p\n",
 			__func__, data->ds_clp, data->ds_clp->cl_session);
 		if (reset) {
-			filelayout_set_lo_fail(data->lseg);
+			pnfs_set_lo_fail(data->lseg);
 			nfs4_reset_write(task, data);
-			clp = NFS_SERVER(data->inode)->nfs_client;
-		} else
-			clp = data->ds_clp;
-		nfs_restart_rpc(task, clp);
+		}
+		rpc_restart_call_prepare(task);
 		return -EAGAIN;
 	}
 
@@ -256,9 +238,9 @@ static int filelayout_commit_done_cb(struct rpc_task *task,
 			__func__, data->ds_clp, data->ds_clp->cl_session);
 		if (reset) {
 			prepare_to_resend_writes(data);
-			filelayout_set_lo_fail(data->lseg);
+			pnfs_set_lo_fail(data->lseg);
 		} else
-			nfs_restart_rpc(task, data->ds_clp);
+			rpc_restart_call_prepare(task);
 		return -EAGAIN;
 	}
 
@@ -334,6 +316,9 @@ filelayout_read_pagelist(struct nfs_read_data *data)
 		__func__, data->inode->i_ino,
 		data->args.pgbase, (size_t)data->args.count, offset);
 
+	if (test_bit(NFS_DEVICEID_INVALID, &FILELAYOUT_DEVID_NODE(lseg)->flags))
+		return PNFS_NOT_ATTEMPTED;
+
 	/* Retrieve the correct rpc_client for the byte range */
 	j = nfs4_fl_calc_j_index(lseg, offset);
 	idx = nfs4_fl_calc_ds_index(lseg, j);
@@ -344,8 +329,7 @@ filelayout_read_pagelist(struct nfs_read_data *data)
 		set_bit(lo_fail_bit(IOMODE_READ), &lseg->pls_layout->plh_flags);
 		return PNFS_NOT_ATTEMPTED;
 	}
-	dprintk("%s USE DS:ip %x %hu\n", __func__,
-		ntohl(ds->ds_ip_addr), ntohs(ds->ds_port));
+	dprintk("%s USE DS: %s\n", __func__, ds->ds_remotestr);
 
 	/* No multipath support. Use first DS */
 	data->ds_clp = ds->ds_clp;
@@ -374,6 +358,9 @@ filelayout_write_pagelist(struct nfs_write_data *data, int sync)
 	struct nfs_fh *fh;
 	int status;
 
+	if (test_bit(NFS_DEVICEID_INVALID, &FILELAYOUT_DEVID_NODE(lseg)->flags))
+		return PNFS_NOT_ATTEMPTED;
+
 	/* Retrieve the correct rpc_client for the byte range */
 	j = nfs4_fl_calc_j_index(lseg, offset);
 	idx = nfs4_fl_calc_ds_index(lseg, j);
@@ -384,9 +371,9 @@ filelayout_write_pagelist(struct nfs_write_data *data, int sync)
 		set_bit(lo_fail_bit(IOMODE_READ), &lseg->pls_layout->plh_flags);
 		return PNFS_NOT_ATTEMPTED;
 	}
-	dprintk("%s ino %lu sync %d req %Zu@%llu DS:%x:%hu\n", __func__,
+	dprintk("%s ino %lu sync %d req %Zu@%llu DS: %s\n", __func__,
 		data->inode->i_ino, sync, (size_t) data->args.count, offset,
-		ntohl(ds->ds_ip_addr), ntohs(ds->ds_port));
+		ds->ds_remotestr);
 
 	data->write_done_cb = filelayout_write_done_cb;
 	data->ds_clp = ds->ds_clp;
@@ -398,7 +385,6 @@ filelayout_write_pagelist(struct nfs_write_data *data, int sync)
 	 * this offset and save the original offset.
 	 */
 	data->args.offset = filelayout_get_dserver_offset(lseg, offset);
-	data->mds_offset = offset;
 
 	/* Perform an asynchronous write */
 	status = nfs_initiate_write(data, ds->ds_clp->cl_rpcclient,
@@ -429,6 +415,14 @@ filelayout_check_layout(struct pnfs_layout_hdr *lo,
 
 	dprintk("--> %s\n", __func__);
 
+	/* FIXME: remove this check when layout segment support is added */
+	if (lgr->range.offset != 0 ||
+	    lgr->range.length != NFS4_MAX_UINT64) {
+		dprintk("%s Only whole file layouts supported. Use MDS i/o\n",
+			__func__);
+		goto out;
+	}
+
 	if (fl->pattern_offset > lgr->range.offset) {
 		dprintk("%s pattern_offset %lld too large\n",
 				__func__, fl->pattern_offset);
@@ -450,11 +444,14 @@ filelayout_check_layout(struct pnfs_layout_hdr *lo,
 			goto out;
 	} else
 		dsaddr = container_of(d, struct nfs4_file_layout_dsaddr, id_node);
+	/* Found deviceid is being reaped */
+	if (test_bit(NFS_DEVICEID_INVALID, &dsaddr->id_node.flags))
+			goto out_put;
+
 	fl->dsaddr = dsaddr;
 
-	if (fl->first_stripe_index < 0 ||
-	    fl->first_stripe_index >= dsaddr->stripe_count) {
-		dprintk("%s Bad first_stripe_index %d\n",
+	if (fl->first_stripe_index >= dsaddr->stripe_count) {
+		dprintk("%s Bad first_stripe_index %u\n",
 				__func__, fl->first_stripe_index);
 		goto out_put;
 	}
@@ -555,7 +552,7 @@ filelayout_decode_layout(struct pnfs_layout_hdr *flo,
 
 	/* Note that a zero value for num_fh is legal for STRIPE_SPARSE.
 	 * Futher checking is done in filelayout_check_layout */
-	if (fl->num_fh < 0 || fl->num_fh >
+	if (fl->num_fh >
 	    max(NFS4_PNFS_MAX_STRIPE_CNT, NFS4_PNFS_MAX_MULTI_CNT))
 		goto out_err;
 
@@ -660,7 +657,7 @@ filelayout_alloc_lseg(struct pnfs_layout_hdr *layoutid,
  * return true  : coalesce page
  * return false : don't coalesce page
  */
-bool
+static bool
 filelayout_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 		   struct nfs_page *req)
 {
@@ -671,8 +668,6 @@ filelayout_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 	    !nfs_generic_pg_test(pgio, prev, req))
 		return false;
 
-	if (!pgio->pg_lseg)
-		return 1;
 	p_stripe = (u64)prev->wb_index << PAGE_CACHE_SHIFT;
 	r_stripe = (u64)req->wb_index << PAGE_CACHE_SHIFT;
 	stripe_unit = FILELAYOUT_LSEG(pgio->pg_lseg)->stripe_unit;
@@ -682,6 +677,52 @@ filelayout_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 
 	return (p_stripe == r_stripe);
 }
+
+void
+filelayout_pg_init_read(struct nfs_pageio_descriptor *pgio,
+			struct nfs_page *req)
+{
+	BUG_ON(pgio->pg_lseg != NULL);
+
+	pgio->pg_lseg = pnfs_update_layout(pgio->pg_inode,
+					   req->wb_context,
+					   0,
+					   NFS4_MAX_UINT64,
+					   IOMODE_READ,
+					   GFP_KERNEL);
+	/* If no lseg, fall back to read through mds */
+	if (pgio->pg_lseg == NULL)
+		nfs_pageio_reset_read_mds(pgio);
+}
+
+void
+filelayout_pg_init_write(struct nfs_pageio_descriptor *pgio,
+			 struct nfs_page *req)
+{
+	BUG_ON(pgio->pg_lseg != NULL);
+
+	pgio->pg_lseg = pnfs_update_layout(pgio->pg_inode,
+					   req->wb_context,
+					   0,
+					   NFS4_MAX_UINT64,
+					   IOMODE_RW,
+					   GFP_NOFS);
+	/* If no lseg, fall back to write through mds */
+	if (pgio->pg_lseg == NULL)
+		nfs_pageio_reset_write_mds(pgio);
+}
+
+static const struct nfs_pageio_ops filelayout_pg_read_ops = {
+	.pg_init = filelayout_pg_init_read,
+	.pg_test = filelayout_pg_test,
+	.pg_doio = pnfs_generic_pg_readpages,
+};
+
+static const struct nfs_pageio_ops filelayout_pg_write_ops = {
+	.pg_init = filelayout_pg_init_write,
+	.pg_test = filelayout_pg_test,
+	.pg_doio = pnfs_generic_pg_writepages,
+};
 
 static bool filelayout_mark_pnfs_commit(struct pnfs_layout_segment *lseg)
 {
@@ -880,7 +921,8 @@ static struct pnfs_layoutdriver_type filelayout_type = {
 	.owner			= THIS_MODULE,
 	.alloc_lseg		= filelayout_alloc_lseg,
 	.free_lseg		= filelayout_free_lseg,
-	.pg_test		= filelayout_pg_test,
+	.pg_read_ops		= &filelayout_pg_read_ops,
+	.pg_write_ops		= &filelayout_pg_write_ops,
 	.mark_pnfs_commit	= filelayout_mark_pnfs_commit,
 	.choose_commit_list	= filelayout_choose_commit_list,
 	.commit_pagelist	= filelayout_commit_pagelist,
@@ -902,6 +944,8 @@ static void __exit nfs4filelayout_exit(void)
 	       __func__);
 	pnfs_unregister_layoutdriver(&filelayout_type);
 }
+
+MODULE_ALIAS("nfs-layouttype4-1");
 
 module_init(nfs4filelayout_init);
 module_exit(nfs4filelayout_exit);

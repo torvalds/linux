@@ -4,7 +4,7 @@
  *
  *  Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>
  *  Copyright (c) 2005-2008 Stefano Brivio <stefano.brivio@polimi.it>
- *  Copyright (c) 2005, 2006 Michael Buesch <mb@bu3sch.de>
+ *  Copyright (c) 2005, 2006 Michael Buesch <m@bues.ch>
  *  Copyright (c) 2005 Danny van Dyk <kugelfang@gentoo.org>
  *  Copyright (c) 2005 Andreas Jaggi <andreas.jaggi@waterwave.ch>
  *  Copyright (c) 2007 Larry Finger <Larry.Finger@lwfinger.net>
@@ -31,11 +31,10 @@
 
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
 #include <linux/firmware.h>
-#include <linux/wireless.h>
 #include <linux/workqueue.h>
 #include <linux/sched.h>
 #include <linux/skbuff.h>
@@ -61,7 +60,6 @@ MODULE_AUTHOR("Stefano Brivio");
 MODULE_AUTHOR("Michael Buesch");
 MODULE_LICENSE("GPL");
 
-MODULE_FIRMWARE(B43legacy_SUPPORTED_FIRMWARE_ID);
 MODULE_FIRMWARE("b43legacy/ucode2.fw");
 MODULE_FIRMWARE("b43legacy/ucode4.fw");
 
@@ -1564,10 +1562,10 @@ static int b43legacy_request_firmware(struct b43legacy_wldev *dev)
 	struct b43legacy_firmware *fw = &dev->fw;
 	const u8 rev = dev->dev->id.revision;
 	const char *filename;
-	u32 tmshigh;
 	int err;
 
-	tmshigh = ssb_read32(dev->dev, SSB_TMSHIGH);
+	/* do dummy read */
+	ssb_read32(dev->dev, SSB_TMSHIGH);
 	if (!fw->ucode) {
 		if (rev == 2)
 			filename = "ucode2";
@@ -2468,7 +2466,8 @@ out:
 	}
 }
 
-static int b43legacy_op_conf_tx(struct ieee80211_hw *hw, u16 queue,
+static int b43legacy_op_conf_tx(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif, u16 queue,
 				const struct ieee80211_tx_queue_params *params)
 {
 	return 0;
@@ -2634,11 +2633,9 @@ static int b43legacy_op_dev_config(struct ieee80211_hw *hw,
 	unsigned long flags;
 	unsigned int new_phymode = 0xFFFF;
 	int antenna_tx;
-	int antenna_rx;
 	int err = 0;
 
 	antenna_tx = B43legacy_ANTENNA_DEFAULT;
-	antenna_rx = B43legacy_ANTENNA_DEFAULT;
 
 	mutex_lock(&wl->mutex);
 	dev = wl->current_dev;
@@ -2775,14 +2772,12 @@ static void b43legacy_op_bss_info_changed(struct ieee80211_hw *hw,
 {
 	struct b43legacy_wl *wl = hw_to_b43legacy_wl(hw);
 	struct b43legacy_wldev *dev;
-	struct b43legacy_phy *phy;
 	unsigned long flags;
 
 	mutex_lock(&wl->mutex);
 	B43legacy_WARN_ON(wl->vif != vif);
 
 	dev = wl->current_dev;
-	phy = &dev->phy;
 
 	/* Disable IRQs while reconfiguring the device.
 	 * This makes it possible to drop the spinlock throughout
@@ -2974,7 +2969,7 @@ static int b43legacy_phy_versioning(struct b43legacy_wldev *dev)
 		break;
 	default:
 		unsupported = 1;
-	};
+	}
 	if (unsupported) {
 		b43legacyerr(dev->wl, "FOUND UNSUPPORTED PHY "
 		       "(Analog %u, Type %u, Revision %u)\n",
@@ -3789,7 +3784,8 @@ static int b43legacy_wireless_init(struct ssb_device *dev)
 	INIT_WORK(&wl->beacon_update_trigger, b43legacy_beacon_update_trigger_work);
 
 	ssb_set_devtypedata(dev, wl);
-	b43legacyinfo(wl, "Broadcom %04X WLAN found\n", dev->bus->chip_id);
+	b43legacyinfo(wl, "Broadcom %04X WLAN found (core revision %u)\n",
+		      dev->bus->chip_id, dev->id.revision);
 	err = 0;
 out:
 	return err;
@@ -3951,8 +3947,7 @@ static void b43legacy_print_driverinfo(void)
 	feat_dma = "D";
 #endif
 	printk(KERN_INFO "Broadcom 43xx-legacy driver loaded "
-	       "[ Features: %s%s%s%s, Firmware-ID: "
-	       B43legacy_SUPPORTED_FIRMWARE_ID " ]\n",
+	       "[ Features: %s%s%s%s ]\n",
 	       feat_pci, feat_leds, feat_pio, feat_dma);
 }
 

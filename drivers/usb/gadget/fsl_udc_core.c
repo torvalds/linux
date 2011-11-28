@@ -559,7 +559,7 @@ static int fsl_ep_enable(struct usb_ep *_ep,
 	if (!udc->driver || (udc->gadget.speed == USB_SPEED_UNKNOWN))
 		return -ESHUTDOWN;
 
-	max = le16_to_cpu(desc->wMaxPacketSize);
+	max = usb_endpoint_maxp(desc);
 
 	/* Disable automatic zlp generation.  Driver is responsible to indicate
 	 * explicitly through req->req.zero.  This is needed to enable multi-td
@@ -1244,6 +1244,9 @@ static int fsl_pullup(struct usb_gadget *gadget, int is_on)
 	return 0;
 }
 
+static int fsl_start(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *));
+static int fsl_stop(struct usb_gadget_driver *driver);
 /* defined in gadget.h */
 static struct usb_gadget_ops fsl_gadget_ops = {
 	.get_frame = fsl_get_frame,
@@ -1252,6 +1255,8 @@ static struct usb_gadget_ops fsl_gadget_ops = {
 	.vbus_session = fsl_vbus_session,
 	.vbus_draw = fsl_vbus_draw,
 	.pullup = fsl_pullup,
+	.start = fsl_start,
+	.stop = fsl_stop,
 };
 
 /* Set protocol stall on ep0, protocol stall will automatically be cleared
@@ -1710,34 +1715,31 @@ static void dtd_complete_irq(struct fsl_udc *udc)
 	}
 }
 
+static inline enum usb_device_speed portscx_device_speed(u32 reg)
+{
+	switch (reg & PORTSCX_PORT_SPEED_MASK) {
+	case PORTSCX_PORT_SPEED_HIGH:
+		return USB_SPEED_HIGH;
+	case PORTSCX_PORT_SPEED_FULL:
+		return USB_SPEED_FULL;
+	case PORTSCX_PORT_SPEED_LOW:
+		return USB_SPEED_LOW;
+	default:
+		return USB_SPEED_UNKNOWN;
+	}
+}
+
 /* Process a port change interrupt */
 static void port_change_irq(struct fsl_udc *udc)
 {
-	u32 speed;
-
 	if (udc->bus_reset)
 		udc->bus_reset = 0;
 
 	/* Bus resetting is finished */
-	if (!(fsl_readl(&dr_regs->portsc1) & PORTSCX_PORT_RESET)) {
+	if (!(fsl_readl(&dr_regs->portsc1) & PORTSCX_PORT_RESET))
 		/* Get the speed */
-		speed = (fsl_readl(&dr_regs->portsc1)
-				& PORTSCX_PORT_SPEED_MASK);
-		switch (speed) {
-		case PORTSCX_PORT_SPEED_HIGH:
-			udc->gadget.speed = USB_SPEED_HIGH;
-			break;
-		case PORTSCX_PORT_SPEED_FULL:
-			udc->gadget.speed = USB_SPEED_FULL;
-			break;
-		case PORTSCX_PORT_SPEED_LOW:
-			udc->gadget.speed = USB_SPEED_LOW;
-			break;
-		default:
-			udc->gadget.speed = USB_SPEED_UNKNOWN;
-			break;
-		}
-	}
+		udc->gadget.speed =
+			portscx_device_speed(fsl_readl(&dr_regs->portsc1));
 
 	/* Update USB state */
 	if (!udc->resume_state)
@@ -1927,7 +1929,7 @@ static irqreturn_t fsl_udc_irq(int irq, void *_udc)
  * Hook to gadget drivers
  * Called by initialization code of gadget drivers
 *----------------------------------------------------------------*/
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+static int fsl_start(struct usb_gadget_driver *driver,
 		int (*bind)(struct usb_gadget *))
 {
 	int retval = -ENODEV;
@@ -1995,10 +1997,9 @@ out:
 		       retval);
 	return retval;
 }
-EXPORT_SYMBOL(usb_gadget_probe_driver);
 
 /* Disconnect from gadget driver */
-int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
+static int fsl_stop(struct usb_gadget_driver *driver)
 {
 	struct fsl_ep *loop_ep;
 	unsigned long flags;
@@ -2041,7 +2042,6 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	       driver->driver.name);
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_unregister_driver);
 
 /*-------------------------------------------------------------------------
 		PROC File System Support
@@ -2164,20 +2164,8 @@ static int fsl_proc_read(char *page, char **start, off_t off, int count,
 			default:
 				s = "None"; break;
 			}
-			s;} ), ( {
-			char *s;
-			switch (tmp_reg & PORTSCX_PORT_SPEED_UNDEF) {
-			case PORTSCX_PORT_SPEED_FULL:
-				s = "Full Speed"; break;
-			case PORTSCX_PORT_SPEED_LOW:
-				s = "Low Speed"; break;
-			case PORTSCX_PORT_SPEED_HIGH:
-				s = "High Speed"; break;
-			default:
-				s = "Undefined"; break;
-			}
-			s;
-		} ),
+			s;} ),
+		usb_speed_string(portscx_device_speed(tmp_reg)),
 		(tmp_reg & PORTSCX_PHY_LOW_POWER_SPD) ?
 		"Normal PHY mode" : "Low power mode",
 		(tmp_reg & PORTSCX_PORT_RESET) ? "In Reset" :
@@ -2463,7 +2451,7 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 	}
 
 	if (pdata->operating_mode == FSL_USB2_DR_DEVICE) {
-		if (!request_mem_region(res->start, res->end - res->start + 1,
+		if (!request_mem_region(res->start, resource_size(res),
 					driver_name)) {
 			ERR("request mem region for %s failed\n", pdev->name);
 			ret = -EBUSY;
@@ -2492,8 +2480,7 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 
 #ifndef CONFIG_ARCH_MXC
 	if (pdata->have_sysif_regs)
-		usb_sys_regs = (struct usb_sys_interface *)
-				((u32)dr_regs + USB_DR_SYS_OFFSET);
+		usb_sys_regs = (void *)dr_regs + USB_DR_SYS_OFFSET;
 #endif
 
 	/* Initialize USB clocks */
@@ -2590,9 +2577,16 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err_unregister;
 	}
+
+	ret = usb_add_gadget_udc(&pdev->dev, &udc_controller->gadget);
+	if (ret)
+		goto err_del_udc;
+
 	create_proc_file();
 	return 0;
 
+err_del_udc:
+	dma_pool_destroy(udc_controller->td_pool);
 err_unregister:
 	device_unregister(&udc_controller->gadget.dev);
 err_free_irq:
@@ -2605,7 +2599,7 @@ err_iounmap_noclk:
 	iounmap(dr_regs);
 err_release_mem_region:
 	if (pdata->operating_mode == FSL_USB2_DR_DEVICE)
-		release_mem_region(res->start, res->end - res->start + 1);
+		release_mem_region(res->start, resource_size(res));
 err_kfree:
 	kfree(udc_controller);
 	udc_controller = NULL;
@@ -2624,6 +2618,8 @@ static int __exit fsl_udc_remove(struct platform_device *pdev)
 
 	if (!udc_controller)
 		return -ENODEV;
+
+	usb_del_gadget_udc(&udc_controller->gadget);
 	udc_controller->done = &done;
 
 	fsl_udc_clk_release();
@@ -2640,7 +2636,7 @@ static int __exit fsl_udc_remove(struct platform_device *pdev)
 	free_irq(udc_controller->irq, udc_controller);
 	iounmap(dr_regs);
 	if (pdata->operating_mode == FSL_USB2_DR_DEVICE)
-		release_mem_region(res->start, res->end - res->start + 1);
+		release_mem_region(res->start, resource_size(res));
 
 	device_unregister(&udc_controller->gadget.dev);
 	/* free udc --wait for the release() finished */

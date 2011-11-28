@@ -66,6 +66,8 @@
 #include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-agn-calib.h"
+#include "iwl-trans.h"
+#include "iwl-agn.h"
 
 /*****************************************************************************
  * INIT calibrations framework
@@ -87,15 +89,16 @@ int iwl_send_calib_results(struct iwl_priv *priv)
 
 	struct iwl_host_cmd hcmd = {
 		.id = REPLY_PHY_CALIBRATION_CMD,
+		.flags = CMD_SYNC,
 	};
 
 	for (i = 0; i < IWL_CALIB_MAX; i++) {
-		if ((BIT(i) & priv->hw_params.calib_init_cfg) &&
+		if ((BIT(i) & hw_params(priv).calib_init_cfg) &&
 		    priv->calib_results[i].buf) {
 			hcmd.len[0] = priv->calib_results[i].buf_len;
 			hcmd.data[0] = priv->calib_results[i].buf;
 			hcmd.dataflags[0] = IWL_HCMD_DFL_NOCOPY;
-			ret = iwl_send_cmd_sync(priv, &hcmd);
+			ret = iwl_trans_send_cmd(trans(priv), &hcmd);
 			if (ret) {
 				IWL_ERR(priv, "Error %d iteration %d\n",
 					ret, i);
@@ -171,7 +174,7 @@ static int iwl_sens_energy_cck(struct iwl_priv *priv,
 	u32 max_false_alarms = MAX_FA_CCK * rx_enable_time;
 	u32 min_false_alarms = MIN_FA_CCK * rx_enable_time;
 	struct iwl_sensitivity_data *data = NULL;
-	const struct iwl_sensitivity_ranges *ranges = priv->hw_params.sens;
+	const struct iwl_sensitivity_ranges *ranges = hw_params(priv).sens;
 
 	data = &(priv->sensitivity_data);
 
@@ -354,7 +357,7 @@ static int iwl_sens_auto_corr_ofdm(struct iwl_priv *priv,
 	u32 max_false_alarms = MAX_FA_OFDM * rx_enable_time;
 	u32 min_false_alarms = MIN_FA_OFDM * rx_enable_time;
 	struct iwl_sensitivity_data *data = NULL;
-	const struct iwl_sensitivity_ranges *ranges = priv->hw_params.sens;
+	const struct iwl_sensitivity_ranges *ranges = hw_params(priv).sens;
 
 	data = &(priv->sensitivity_data);
 
@@ -481,7 +484,7 @@ static int iwl_sensitivity_write(struct iwl_priv *priv)
 	memcpy(&(priv->sensitivity_tbl[0]), &(cmd.table[0]),
 	       sizeof(u16)*HD_TABLE_SIZE);
 
-	return iwl_send_cmd(priv, &cmd_out);
+	return iwl_trans_send_cmd(trans(priv), &cmd_out);
 }
 
 /* Prepare a SENSITIVITY_CMD, send to uCode if values have changed */
@@ -502,28 +505,53 @@ static int iwl_enhance_sensitivity_write(struct iwl_priv *priv)
 
 	iwl_prepare_legacy_sensitivity_tbl(priv, data, &cmd.enhance_table[0]);
 
-	cmd.enhance_table[HD_INA_NON_SQUARE_DET_OFDM_INDEX] =
-		HD_INA_NON_SQUARE_DET_OFDM_DATA;
-	cmd.enhance_table[HD_INA_NON_SQUARE_DET_CCK_INDEX] =
-		HD_INA_NON_SQUARE_DET_CCK_DATA;
-	cmd.enhance_table[HD_CORR_11_INSTEAD_OF_CORR_9_EN_INDEX] =
-		HD_CORR_11_INSTEAD_OF_CORR_9_EN_DATA;
-	cmd.enhance_table[HD_OFDM_NON_SQUARE_DET_SLOPE_MRC_INDEX] =
-		HD_OFDM_NON_SQUARE_DET_SLOPE_MRC_DATA;
-	cmd.enhance_table[HD_OFDM_NON_SQUARE_DET_INTERCEPT_MRC_INDEX] =
-		HD_OFDM_NON_SQUARE_DET_INTERCEPT_MRC_DATA;
-	cmd.enhance_table[HD_OFDM_NON_SQUARE_DET_SLOPE_INDEX] =
-		HD_OFDM_NON_SQUARE_DET_SLOPE_DATA;
-	cmd.enhance_table[HD_OFDM_NON_SQUARE_DET_INTERCEPT_INDEX] =
-		HD_OFDM_NON_SQUARE_DET_INTERCEPT_DATA;
-	cmd.enhance_table[HD_CCK_NON_SQUARE_DET_SLOPE_MRC_INDEX] =
-		HD_CCK_NON_SQUARE_DET_SLOPE_MRC_DATA;
-	cmd.enhance_table[HD_CCK_NON_SQUARE_DET_INTERCEPT_MRC_INDEX] =
-		HD_CCK_NON_SQUARE_DET_INTERCEPT_MRC_DATA;
-	cmd.enhance_table[HD_CCK_NON_SQUARE_DET_SLOPE_INDEX] =
-		HD_CCK_NON_SQUARE_DET_SLOPE_DATA;
-	cmd.enhance_table[HD_CCK_NON_SQUARE_DET_INTERCEPT_INDEX] =
-		HD_CCK_NON_SQUARE_DET_INTERCEPT_DATA;
+	if (priv->cfg->base_params->hd_v2) {
+		cmd.enhance_table[HD_INA_NON_SQUARE_DET_OFDM_INDEX] =
+			HD_INA_NON_SQUARE_DET_OFDM_DATA_V2;
+		cmd.enhance_table[HD_INA_NON_SQUARE_DET_CCK_INDEX] =
+			HD_INA_NON_SQUARE_DET_CCK_DATA_V2;
+		cmd.enhance_table[HD_CORR_11_INSTEAD_OF_CORR_9_EN_INDEX] =
+			HD_CORR_11_INSTEAD_OF_CORR_9_EN_DATA_V2;
+		cmd.enhance_table[HD_OFDM_NON_SQUARE_DET_SLOPE_MRC_INDEX] =
+			HD_OFDM_NON_SQUARE_DET_SLOPE_MRC_DATA_V2;
+		cmd.enhance_table[HD_OFDM_NON_SQUARE_DET_INTERCEPT_MRC_INDEX] =
+			HD_OFDM_NON_SQUARE_DET_INTERCEPT_MRC_DATA_V2;
+		cmd.enhance_table[HD_OFDM_NON_SQUARE_DET_SLOPE_INDEX] =
+			HD_OFDM_NON_SQUARE_DET_SLOPE_DATA_V2;
+		cmd.enhance_table[HD_OFDM_NON_SQUARE_DET_INTERCEPT_INDEX] =
+			HD_OFDM_NON_SQUARE_DET_INTERCEPT_DATA_V2;
+		cmd.enhance_table[HD_CCK_NON_SQUARE_DET_SLOPE_MRC_INDEX] =
+			HD_CCK_NON_SQUARE_DET_SLOPE_MRC_DATA_V2;
+		cmd.enhance_table[HD_CCK_NON_SQUARE_DET_INTERCEPT_MRC_INDEX] =
+			HD_CCK_NON_SQUARE_DET_INTERCEPT_MRC_DATA_V2;
+		cmd.enhance_table[HD_CCK_NON_SQUARE_DET_SLOPE_INDEX] =
+			HD_CCK_NON_SQUARE_DET_SLOPE_DATA_V2;
+		cmd.enhance_table[HD_CCK_NON_SQUARE_DET_INTERCEPT_INDEX] =
+			HD_CCK_NON_SQUARE_DET_INTERCEPT_DATA_V2;
+	} else {
+		cmd.enhance_table[HD_INA_NON_SQUARE_DET_OFDM_INDEX] =
+			HD_INA_NON_SQUARE_DET_OFDM_DATA_V1;
+		cmd.enhance_table[HD_INA_NON_SQUARE_DET_CCK_INDEX] =
+			HD_INA_NON_SQUARE_DET_CCK_DATA_V1;
+		cmd.enhance_table[HD_CORR_11_INSTEAD_OF_CORR_9_EN_INDEX] =
+			HD_CORR_11_INSTEAD_OF_CORR_9_EN_DATA_V1;
+		cmd.enhance_table[HD_OFDM_NON_SQUARE_DET_SLOPE_MRC_INDEX] =
+			HD_OFDM_NON_SQUARE_DET_SLOPE_MRC_DATA_V1;
+		cmd.enhance_table[HD_OFDM_NON_SQUARE_DET_INTERCEPT_MRC_INDEX] =
+			HD_OFDM_NON_SQUARE_DET_INTERCEPT_MRC_DATA_V1;
+		cmd.enhance_table[HD_OFDM_NON_SQUARE_DET_SLOPE_INDEX] =
+			HD_OFDM_NON_SQUARE_DET_SLOPE_DATA_V1;
+		cmd.enhance_table[HD_OFDM_NON_SQUARE_DET_INTERCEPT_INDEX] =
+			HD_OFDM_NON_SQUARE_DET_INTERCEPT_DATA_V1;
+		cmd.enhance_table[HD_CCK_NON_SQUARE_DET_SLOPE_MRC_INDEX] =
+			HD_CCK_NON_SQUARE_DET_SLOPE_MRC_DATA_V1;
+		cmd.enhance_table[HD_CCK_NON_SQUARE_DET_INTERCEPT_MRC_INDEX] =
+			HD_CCK_NON_SQUARE_DET_INTERCEPT_MRC_DATA_V1;
+		cmd.enhance_table[HD_CCK_NON_SQUARE_DET_SLOPE_INDEX] =
+			HD_CCK_NON_SQUARE_DET_SLOPE_DATA_V1;
+		cmd.enhance_table[HD_CCK_NON_SQUARE_DET_INTERCEPT_INDEX] =
+			HD_CCK_NON_SQUARE_DET_INTERCEPT_DATA_V1;
+	}
 
 	/* Update uCode's "work" table, and copy it to DSP */
 	cmd.control = SENSITIVITY_CMD_CONTROL_WORK_TABLE;
@@ -545,7 +573,7 @@ static int iwl_enhance_sensitivity_write(struct iwl_priv *priv)
 	       &(cmd.enhance_table[HD_INA_NON_SQUARE_DET_OFDM_INDEX]),
 	       sizeof(u16)*ENHANCE_HD_TABLE_ENTRIES);
 
-	return iwl_send_cmd(priv, &cmd_out);
+	return iwl_trans_send_cmd(trans(priv), &cmd_out);
 }
 
 void iwl_init_sensitivity(struct iwl_priv *priv)
@@ -553,7 +581,7 @@ void iwl_init_sensitivity(struct iwl_priv *priv)
 	int ret = 0;
 	int i;
 	struct iwl_sensitivity_data *data = NULL;
-	const struct iwl_sensitivity_ranges *ranges = priv->hw_params.sens;
+	const struct iwl_sensitivity_ranges *ranges = hw_params(priv).sens;
 
 	if (priv->disable_sens_cal)
 		return;
@@ -630,13 +658,13 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv)
 		return;
 	}
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->shrd->lock, flags);
 	rx_info = &priv->statistics.rx_non_phy;
 	ofdm = &priv->statistics.rx_ofdm;
 	cck = &priv->statistics.rx_cck;
 	if (rx_info->interference_data_flag != INTERFERENCE_DATA_AVAILABLE) {
 		IWL_DEBUG_CALIB(priv, "<< invalid data.\n");
-		spin_unlock_irqrestore(&priv->lock, flags);
+		spin_unlock_irqrestore(&priv->shrd->lock, flags);
 		return;
 	}
 
@@ -660,7 +688,7 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv)
 	statis.beacon_energy_c =
 			le32_to_cpu(rx_info->beacon_energy_c);
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 
 	IWL_DEBUG_CALIB(priv, "rx_enable_time = %u usecs\n", rx_enable_time);
 
@@ -738,12 +766,9 @@ static void iwl_find_disconn_antenna(struct iwl_priv *priv, u32* average_sig,
 	u8 first_chain;
 	u16 i = 0;
 
-	average_sig[0] = data->chain_signal_a /
-			 priv->cfg->base_params->chain_noise_num_beacons;
-	average_sig[1] = data->chain_signal_b /
-			 priv->cfg->base_params->chain_noise_num_beacons;
-	average_sig[2] = data->chain_signal_c /
-			 priv->cfg->base_params->chain_noise_num_beacons;
+	average_sig[0] = data->chain_signal_a / IWL_CAL_NUM_BEACONS;
+	average_sig[1] = data->chain_signal_b / IWL_CAL_NUM_BEACONS;
+	average_sig[2] = data->chain_signal_c / IWL_CAL_NUM_BEACONS;
 
 	if (average_sig[0] >= average_sig[1]) {
 		max_average_sig = average_sig[0];
@@ -793,21 +818,21 @@ static void iwl_find_disconn_antenna(struct iwl_priv *priv, u32* average_sig,
 	 * To be safe, simply mask out any chains that we know
 	 * are not on the device.
 	 */
-	active_chains &= priv->hw_params.valid_rx_ant;
+	active_chains &= hw_params(priv).valid_rx_ant;
 
 	num_tx_chains = 0;
 	for (i = 0; i < NUM_RX_CHAINS; i++) {
 		/* loops on all the bits of
 		 * priv->hw_setting.valid_tx_ant */
 		u8 ant_msk = (1 << i);
-		if (!(priv->hw_params.valid_tx_ant & ant_msk))
+		if (!(hw_params(priv).valid_tx_ant & ant_msk))
 			continue;
 
 		num_tx_chains++;
 		if (data->disconn_array[i] == 0)
 			/* there is a Tx antenna connected */
 			break;
-		if (num_tx_chains == priv->hw_params.tx_chains_num &&
+		if (num_tx_chains == hw_params(priv).tx_chains_num &&
 		    data->disconn_array[i]) {
 			/*
 			 * If all chains are disconnected
@@ -824,12 +849,13 @@ static void iwl_find_disconn_antenna(struct iwl_priv *priv, u32* average_sig,
 		}
 	}
 
-	if (active_chains != priv->hw_params.valid_rx_ant &&
+	if (active_chains != hw_params(priv).valid_rx_ant &&
 	    active_chains != priv->chain_noise_data.active_chains)
 		IWL_DEBUG_CALIB(priv,
 				"Detected that not all antennas are connected! "
 				"Connected: %#x, valid: %#x.\n",
-				active_chains, priv->hw_params.valid_rx_ant);
+				active_chains,
+				hw_params(priv).valid_rx_ant);
 
 	/* Save for use within RXON, TX, SCAN commands, etc. */
 	data->active_chains = active_chains;
@@ -837,6 +863,65 @@ static void iwl_find_disconn_antenna(struct iwl_priv *priv, u32* average_sig,
 			active_chains);
 }
 
+static void iwlagn_gain_computation(struct iwl_priv *priv,
+		u32 average_noise[NUM_RX_CHAINS],
+		u16 min_average_noise_antenna_i,
+		u32 min_average_noise,
+		u8 default_chain)
+{
+	int i;
+	s32 delta_g;
+	struct iwl_chain_noise_data *data = &priv->chain_noise_data;
+
+	/*
+	 * Find Gain Code for the chains based on "default chain"
+	 */
+	for (i = default_chain + 1; i < NUM_RX_CHAINS; i++) {
+		if ((data->disconn_array[i])) {
+			data->delta_gain_code[i] = 0;
+			continue;
+		}
+
+		delta_g = (priv->cfg->base_params->chain_noise_scale *
+			((s32)average_noise[default_chain] -
+			(s32)average_noise[i])) / 1500;
+
+		/* bound gain by 2 bits value max, 3rd bit is sign */
+		data->delta_gain_code[i] =
+			min(abs(delta_g),
+			(long) CHAIN_NOISE_MAX_DELTA_GAIN_CODE);
+
+		if (delta_g < 0)
+			/*
+			 * set negative sign ...
+			 * note to Intel developers:  This is uCode API format,
+			 *   not the format of any internal device registers.
+			 *   Do not change this format for e.g. 6050 or similar
+			 *   devices.  Change format only if more resolution
+			 *   (i.e. more than 2 bits magnitude) is needed.
+			 */
+			data->delta_gain_code[i] |= (1 << 2);
+	}
+
+	IWL_DEBUG_CALIB(priv, "Delta gains: ANT_B = %d  ANT_C = %d\n",
+			data->delta_gain_code[1], data->delta_gain_code[2]);
+
+	if (!data->radio_write) {
+		struct iwl_calib_chain_noise_gain_cmd cmd;
+
+		memset(&cmd, 0, sizeof(cmd));
+
+		iwl_set_calib_hdr(&cmd.hdr,
+			priv->phy_calib_chain_noise_gain_cmd);
+		cmd.delta_gain_1 = data->delta_gain_code[1];
+		cmd.delta_gain_2 = data->delta_gain_code[2];
+		iwl_trans_send_cmd_pdu(trans(priv), REPLY_PHY_CALIBRATION_CMD,
+			CMD_ASYNC, sizeof(cmd), &cmd);
+
+		data->radio_write = 1;
+		data->state = IWL_CHAIN_NOISE_CALIBRATED;
+	}
+}
 
 /*
  * Accumulate 16 beacons of signal and noise statistics for each of
@@ -888,13 +973,13 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 		return;
 	}
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->shrd->lock, flags);
 
 	rx_info = &priv->statistics.rx_non_phy;
 
 	if (rx_info->interference_data_flag != INTERFERENCE_DATA_AVAILABLE) {
 		IWL_DEBUG_CALIB(priv, " << Interference data unavailable\n");
-		spin_unlock_irqrestore(&priv->lock, flags);
+		spin_unlock_irqrestore(&priv->shrd->lock, flags);
 		return;
 	}
 
@@ -909,7 +994,7 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 	if ((rxon_chnum != stat_chnum) || (rxon_band24 != stat_band24)) {
 		IWL_DEBUG_CALIB(priv, "Stats not from chan=%d, band24=%d\n",
 				rxon_chnum, rxon_band24);
-		spin_unlock_irqrestore(&priv->lock, flags);
+		spin_unlock_irqrestore(&priv->shrd->lock, flags);
 		return;
 	}
 
@@ -928,7 +1013,7 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 	chain_sig_b = le32_to_cpu(rx_info->beacon_rssi_b) & IN_BAND_FILTER;
 	chain_sig_c = le32_to_cpu(rx_info->beacon_rssi_c) & IN_BAND_FILTER;
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 
 	data->beacon_count++;
 
@@ -950,8 +1035,7 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 	/* If this is the "chain_noise_num_beacons", determine:
 	 * 1)  Disconnected antennas (using signal strengths)
 	 * 2)  Differential gain (using silence noise) to balance receivers */
-	if (data->beacon_count !=
-		priv->cfg->base_params->chain_noise_num_beacons)
+	if (data->beacon_count != IWL_CAL_NUM_BEACONS)
 		return;
 
 	/* Analyze signal for disconnected antenna */
@@ -959,7 +1043,7 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 	    priv->cfg->bt_params->advanced_bt_coexist) {
 		/* Disable disconnected antenna algorithm for advanced
 		   bt coex, assuming valid antennas are connected */
-		data->active_chains = priv->hw_params.valid_rx_ant;
+		data->active_chains = hw_params(priv).valid_rx_ant;
 		for (i = 0; i < NUM_RX_CHAINS; i++)
 			if (!(data->active_chains & (1<<i)))
 				data->disconn_array[i] = 1;
@@ -967,12 +1051,9 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 		iwl_find_disconn_antenna(priv, average_sig, data);
 
 	/* Analyze noise for rx balance */
-	average_noise[0] = data->chain_noise_a /
-			   priv->cfg->base_params->chain_noise_num_beacons;
-	average_noise[1] = data->chain_noise_b /
-			   priv->cfg->base_params->chain_noise_num_beacons;
-	average_noise[2] = data->chain_noise_c /
-			   priv->cfg->base_params->chain_noise_num_beacons;
+	average_noise[0] = data->chain_noise_a / IWL_CAL_NUM_BEACONS;
+	average_noise[1] = data->chain_noise_b / IWL_CAL_NUM_BEACONS;
+	average_noise[2] = data->chain_noise_c / IWL_CAL_NUM_BEACONS;
 
 	for (i = 0; i < NUM_RX_CHAINS; i++) {
 		if (!(data->disconn_array[i]) &&
@@ -991,16 +1072,14 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 	IWL_DEBUG_CALIB(priv, "min_average_noise = %d, antenna %d\n",
 			min_average_noise, min_average_noise_antenna_i);
 
-	if (priv->cfg->ops->utils->gain_computation)
-		priv->cfg->ops->utils->gain_computation(priv, average_noise,
+	iwlagn_gain_computation(priv, average_noise,
 				min_average_noise_antenna_i, min_average_noise,
 				find_first_chain(priv->cfg->valid_rx_ant));
 
 	/* Some power changes may have been made during the calibration.
 	 * Update and commit the RXON
 	 */
-	if (priv->cfg->ops->lib->update_chain_flags)
-		priv->cfg->ops->lib->update_chain_flags(priv);
+	iwl_update_chain_flags(priv);
 
 	data->state = IWL_CHAIN_NOISE_DONE;
 	iwl_power_update_mode(priv, false);

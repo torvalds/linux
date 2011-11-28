@@ -143,8 +143,7 @@ struct iwl_lib_ops {
 	int (*is_valid_rtc_data_addr)(u32 addr);
 	/* 1st ucode load */
 	int (*load_ucode)(struct iwl_priv *priv);
-	int (*dump_nic_event_log)(struct iwl_priv *priv,
-				  bool full_log, char **buf, bool display);
+
 	void (*dump_nic_error_log)(struct iwl_priv *priv);
 	int (*dump_fh)(struct iwl_priv *priv, char **buf, bool display);
 	int (*set_channel_switch)(struct iwl_priv *priv,
@@ -161,9 +160,6 @@ struct iwl_lib_ops {
 
 	/* temperature */
 	struct iwl_temp_ops temp_ops;
-	/* check for plcp health */
-	bool (*check_plcp_health)(struct iwl_priv *priv,
-					struct iwl_rx_packet *pkt);
 
 	struct iwl_debugfs_ops debugfs_ops;
 
@@ -207,11 +203,8 @@ struct iwl_mod_params {
  *	to the deviation to achieve the desired led frequency.
  *	The detail algorithm is described in iwl-led.c
  * @chain_noise_num_beacons: number of beacons used to compute chain noise
- * @plcp_delta_threshold: plcp error rate threshold used to trigger
- *	radio tuning when there is a high receiving plcp error rate
  * @wd_timeout: TX queues watchdog timeout
  * @temperature_kelvin: temperature report by uCode in kelvin
- * @max_event_log_size: size of event log buffer size for ucode event logging
  * @ucode_tracing: support ucode continuous tracing
  * @sensitivity_calib_by_driver: driver has the capability to perform
  *	sensitivity calibration operation
@@ -229,10 +222,8 @@ struct iwl_base_params {
 
 	u16 led_compensation;
 	int chain_noise_num_beacons;
-	u8 plcp_delta_threshold;
 	unsigned int wd_timeout;
 	bool temperature_kelvin;
-	u32 max_event_log_size;
 	const bool ucode_tracing;
 	const bool sensitivity_calib_by_driver;
 	const bool chain_noise_calib_by_driver;
@@ -295,7 +286,8 @@ struct iwl_cfg {
  ***************************/
 
 struct ieee80211_hw *iwl_legacy_alloc_all(struct iwl_cfg *cfg);
-int iwl_legacy_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
+int iwl_legacy_mac_conf_tx(struct ieee80211_hw *hw,
+		    struct ieee80211_vif *vif, u16 queue,
 		    const struct ieee80211_tx_queue_params *params);
 int iwl_legacy_mac_tx_last_beacon(struct ieee80211_hw *hw);
 void iwl_legacy_set_rxon_hwcrypto(struct iwl_priv *priv,
@@ -441,7 +433,7 @@ int iwl_legacy_mac_hw_scan(struct ieee80211_hw *hw,
 		    struct ieee80211_vif *vif,
 		    struct cfg80211_scan_request *req);
 void iwl_legacy_internal_short_hw_scan(struct iwl_priv *priv);
-int iwl_legacy_force_reset(struct iwl_priv *priv, int mode, bool external);
+int iwl_legacy_force_reset(struct iwl_priv *priv, bool external);
 u16 iwl_legacy_fill_probe_req(struct iwl_priv *priv,
 			struct ieee80211_mgmt *frame,
 		       const u8 *ta, const u8 *ie, int ie_len, int left);
@@ -493,7 +485,7 @@ static inline u16 iwl_legacy_pcie_link_ctl(struct iwl_priv *priv)
 {
 	int pos;
 	u16 pci_lnk_ctl;
-	pos = pci_find_capability(priv->pci_dev, PCI_CAP_ID_EXP);
+	pos = pci_pcie_cap(priv->pci_dev);
 	pci_read_config_word(priv->pci_dev, pos + PCI_EXP_LNKCTL, &pci_lnk_ctl);
 	return pci_lnk_ctl;
 }
@@ -521,8 +513,6 @@ extern const struct dev_pm_ops iwl_legacy_pm_ops;
 *  Error Handling Debugging
 ******************************************************/
 void iwl4965_dump_nic_error_log(struct iwl_priv *priv);
-int iwl4965_dump_nic_event_log(struct iwl_priv *priv,
-			   bool full_log, char **buf, bool display);
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
 void iwl_legacy_print_rx_config_cmd(struct iwl_priv *priv,
 			     struct iwl_rxon_context *ctx);
@@ -631,7 +621,8 @@ static inline const struct ieee80211_supported_band *iwl_get_hw_mode(
 
 /* mac80211 handlers */
 int iwl_legacy_mac_config(struct ieee80211_hw *hw, u32 changed);
-void iwl_legacy_mac_reset_tsf(struct ieee80211_hw *hw);
+void iwl_legacy_mac_reset_tsf(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif);
 void iwl_legacy_mac_bss_info_changed(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif,
 				     struct ieee80211_bss_conf *bss_conf,

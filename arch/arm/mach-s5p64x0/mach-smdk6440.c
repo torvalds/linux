@@ -23,6 +23,9 @@
 #include <linux/clk.h>
 #include <linux/gpio.h>
 #include <linux/pwm_backlight.h>
+#include <linux/fb.h>
+
+#include <video/platform_lcd.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -46,6 +49,9 @@
 #include <plat/adc.h>
 #include <plat/ts.h>
 #include <plat/s5p-time.h>
+#include <plat/backlight.h>
+#include <plat/fb.h>
+#include <plat/regs-fb.h>
 
 #define SMDK6440_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
 				S3C2410_UCON_RXILEVEL |		\
@@ -91,43 +97,57 @@ static struct s3c2410_uartcfg smdk6440_uartcfgs[] __initdata = {
 	},
 };
 
-static int smdk6440_backlight_init(struct device *dev)
-{
-	int ret;
-
-	ret = gpio_request(S5P6440_GPF(15), "Backlight");
-	if (ret) {
-		printk(KERN_ERR "failed to request GPF for PWM-OUT1\n");
-		return ret;
-	}
-
-	/* Configure GPIO pin with S5P6440_GPF15_PWM_TOUT1 */
-	s3c_gpio_cfgpin(S5P6440_GPF(15), S3C_GPIO_SFN(2));
-
-	return 0;
-}
-
-static void smdk6440_backlight_exit(struct device *dev)
-{
-	s3c_gpio_cfgpin(S5P6440_GPF(15), S3C_GPIO_OUTPUT);
-	gpio_free(S5P6440_GPF(15));
-}
-
-static struct platform_pwm_backlight_data smdk6440_backlight_data = {
-	.pwm_id		= 1,
-	.max_brightness	= 255,
-	.dft_brightness	= 255,
-	.pwm_period_ns	= 78770,
-	.init		= smdk6440_backlight_init,
-	.exit		= smdk6440_backlight_exit,
+/* Frame Buffer */
+static struct s3c_fb_pd_win smdk6440_fb_win0 = {
+	.win_mode = {
+		.left_margin	= 8,
+		.right_margin	= 13,
+		.upper_margin	= 7,
+		.lower_margin	= 5,
+		.hsync_len	= 3,
+		.vsync_len	= 1,
+		.xres		= 800,
+		.yres		= 480,
+	},
+	.max_bpp	= 32,
+	.default_bpp	= 24,
 };
 
-static struct platform_device smdk6440_backlight_device = {
-	.name		= "pwm-backlight",
-	.dev		= {
-		.parent		= &s3c_device_timer[1].dev,
-		.platform_data	= &smdk6440_backlight_data,
-	},
+static struct s3c_fb_platdata smdk6440_lcd_pdata __initdata = {
+	.win[0]		= &smdk6440_fb_win0,
+	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB,
+	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
+	.setup_gpio	= s5p64x0_fb_gpio_setup_24bpp,
+};
+
+/* LCD power controller */
+static void smdk6440_lte480_reset_power(struct plat_lcd_data *pd,
+					 unsigned int power)
+{
+	int err;
+
+	if (power) {
+		err = gpio_request(S5P6440_GPN(5), "GPN");
+		if (err) {
+			printk(KERN_ERR "failed to request GPN for lcd reset\n");
+			return;
+		}
+
+		gpio_direction_output(S5P6440_GPN(5), 1);
+		gpio_set_value(S5P6440_GPN(5), 0);
+		gpio_set_value(S5P6440_GPN(5), 1);
+		gpio_free(S5P6440_GPN(5));
+	}
+}
+
+static struct plat_lcd_data smdk6440_lcd_power_data = {
+	.set_power	= smdk6440_lte480_reset_power,
+};
+
+static struct platform_device smdk6440_lcd_lte480wv = {
+	.name			= "platform-lcd",
+	.dev.parent		= &s3c_device_fb.dev,
+	.dev.platform_data	= &smdk6440_lcd_power_data,
 };
 
 static struct platform_device *smdk6440_devices[] __initdata = {
@@ -139,8 +159,8 @@ static struct platform_device *smdk6440_devices[] __initdata = {
 	&s3c_device_wdt,
 	&samsung_asoc_dma,
 	&s5p6440_device_iis,
-	&s3c_device_timer[1],
-	&smdk6440_backlight_device,
+	&s3c_device_fb,
+	&smdk6440_lcd_lte480wv,
 };
 
 static struct s3c2410_platform_i2c s5p6440_i2c0_data __initdata = {
@@ -169,10 +189,14 @@ static struct i2c_board_info smdk6440_i2c_devs1[] __initdata = {
 	/* To be populated */
 };
 
-static struct s3c2410_ts_mach_info s3c_ts_platform __initdata = {
-	.delay			= 10000,
-	.presc			= 49,
-	.oversampling_shift	= 2,
+/* LCD Backlight data */
+static struct samsung_bl_gpio_info smdk6440_bl_gpio_info = {
+	.no = S5P6440_GPF(15),
+	.func = S3C_GPIO_SFN(2),
+};
+
+static struct platform_pwm_backlight_data smdk6440_bl_data = {
+	.pwm_id = 1,
 };
 
 static void __init smdk6440_map_io(void)
@@ -183,9 +207,20 @@ static void __init smdk6440_map_io(void)
 	s5p_set_timer_source(S5P_PWM3, S5P_PWM4);
 }
 
+static void s5p6440_set_lcd_interface(void)
+{
+	unsigned int cfg;
+
+	/* select TFT LCD type (RGB I/F) */
+	cfg = __raw_readl(S5P64X0_SPCON0);
+	cfg &= ~S5P64X0_SPCON0_LCD_SEL_MASK;
+	cfg |= S5P64X0_SPCON0_LCD_SEL_RGB;
+	__raw_writel(cfg, S5P64X0_SPCON0);
+}
+
 static void __init smdk6440_machine_init(void)
 {
-	s3c24xx_ts_set_platdata(&s3c_ts_platform);
+	s3c24xx_ts_set_platdata(NULL);
 
 	s3c_i2c0_set_platdata(&s5p6440_i2c0_data);
 	s3c_i2c1_set_platdata(&s5p6440_i2c1_data);
@@ -194,12 +229,17 @@ static void __init smdk6440_machine_init(void)
 	i2c_register_board_info(1, smdk6440_i2c_devs1,
 			ARRAY_SIZE(smdk6440_i2c_devs1));
 
+	samsung_bl_set(&smdk6440_bl_gpio_info, &smdk6440_bl_data);
+
+	s5p6440_set_lcd_interface();
+	s3c_fb_set_platdata(&smdk6440_lcd_pdata);
+
 	platform_add_devices(smdk6440_devices, ARRAY_SIZE(smdk6440_devices));
 }
 
 MACHINE_START(SMDK6440, "SMDK6440")
 	/* Maintainer: Kukjin Kim <kgene.kim@samsung.com> */
-	.boot_params	= S5P64X0_PA_SDRAM + 0x100,
+	.atag_offset	= 0x100,
 
 	.init_irq	= s5p6440_init_irq,
 	.map_io		= smdk6440_map_io,

@@ -1,0 +1,374 @@
+/*
+ * P1010si Device Tree Source
+ *
+ * Copyright 2011 Freescale Semiconductor Inc.
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
+
+/dts-v1/;
+/ {
+	compatible = "fsl,P1010";
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		PowerPC,P1010@0 {
+			device_type = "cpu";
+			reg = <0x0>;
+			next-level-cache = <&L2>;
+		};
+	};
+
+	ifc@ffe1e000 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		compatible = "fsl,ifc", "simple-bus";
+		reg = <0x0 0xffe1e000 0 0x2000>;
+		interrupts = <16 2 19 2>;
+		interrupt-parent = <&mpic>;
+	};
+
+	soc@ffe00000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		device_type = "soc";
+		compatible = "fsl,p1010-immr", "simple-bus";
+		ranges = <0x0  0x0 0xffe00000 0x100000>;
+		bus-frequency = <0>;		// Filled out by uboot.
+
+		ecm-law@0 {
+			compatible = "fsl,ecm-law";
+			reg = <0x0 0x1000>;
+			fsl,num-laws = <12>;
+		};
+
+		ecm@1000 {
+			compatible = "fsl,p1010-ecm", "fsl,ecm";
+			reg = <0x1000 0x1000>;
+			interrupts = <16 2>;
+			interrupt-parent = <&mpic>;
+		};
+
+		memory-controller@2000 {
+			compatible = "fsl,p1010-memory-controller";
+			reg = <0x2000 0x1000>;
+			interrupt-parent = <&mpic>;
+			interrupts = <16 2>;
+		};
+
+		i2c@3000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <0>;
+			compatible = "fsl-i2c";
+			reg = <0x3000 0x100>;
+			interrupts = <43 2>;
+			interrupt-parent = <&mpic>;
+			dfsrr;
+		};
+
+		i2c@3100 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <1>;
+			compatible = "fsl-i2c";
+			reg = <0x3100 0x100>;
+			interrupts = <43 2>;
+			interrupt-parent = <&mpic>;
+			dfsrr;
+		};
+
+		serial0: serial@4500 {
+			cell-index = <0>;
+			device_type = "serial";
+			compatible = "ns16550";
+			reg = <0x4500 0x100>;
+			clock-frequency = <0>;
+			interrupts = <42 2>;
+			interrupt-parent = <&mpic>;
+		};
+
+		serial1: serial@4600 {
+			cell-index = <1>;
+			device_type = "serial";
+			compatible = "ns16550";
+			reg = <0x4600 0x100>;
+			clock-frequency = <0>;
+			interrupts = <42 2>;
+			interrupt-parent = <&mpic>;
+		};
+
+		spi@7000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "fsl,mpc8536-espi";
+			reg = <0x7000 0x1000>;
+			interrupts = <59 0x2>;
+			interrupt-parent = <&mpic>;
+			fsl,espi-num-chipselects = <1>;
+		};
+
+		gpio: gpio-controller@f000 {
+			#gpio-cells = <2>;
+			compatible = "fsl,mpc8572-gpio";
+			reg = <0xf000 0x100>;
+			interrupts = <47 0x2>;
+			interrupt-parent = <&mpic>;
+			gpio-controller;
+		};
+
+		sata@18000 {
+			compatible = "fsl,pq-sata-v2";
+			reg = <0x18000 0x1000>;
+			cell-index = <1>;
+			interrupts = <74 0x2>;
+			interrupt-parent = <&mpic>;
+		};
+
+		sata@19000 {
+			compatible = "fsl,pq-sata-v2";
+			reg = <0x19000 0x1000>;
+			cell-index = <2>;
+			interrupts = <41 0x2>;
+			interrupt-parent = <&mpic>;
+		};
+
+		can0: can@1c000 {
+			compatible = "fsl,p1010-flexcan";
+			reg = <0x1c000 0x1000>;
+			interrupts = <48 0x2>;
+			interrupt-parent = <&mpic>;
+		};
+
+		can1: can@1d000 {
+			compatible = "fsl,p1010-flexcan";
+			reg = <0x1d000 0x1000>;
+			interrupts = <61 0x2>;
+			interrupt-parent = <&mpic>;
+		};
+
+		L2: l2-cache-controller@20000 {
+			compatible = "fsl,p1010-l2-cache-controller",
+					"fsl,p1014-l2-cache-controller";
+			reg = <0x20000 0x1000>;
+			cache-line-size = <32>;	// 32 bytes
+			cache-size = <0x40000>; // L2,256K
+			interrupt-parent = <&mpic>;
+			interrupts = <16 2>;
+		};
+
+		dma@21300 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,p1010-dma", "fsl,eloplus-dma";
+			reg = <0x21300 0x4>;
+			ranges = <0x0 0x21100 0x200>;
+			cell-index = <0>;
+			dma-channel@0 {
+				compatible = "fsl,p1010-dma-channel", "fsl,eloplus-dma-channel";
+				reg = <0x0 0x80>;
+				cell-index = <0>;
+				interrupt-parent = <&mpic>;
+				interrupts = <20 2>;
+			};
+			dma-channel@80 {
+				compatible = "fsl,p1010-dma-channel", "fsl,eloplus-dma-channel";
+				reg = <0x80 0x80>;
+				cell-index = <1>;
+				interrupt-parent = <&mpic>;
+				interrupts = <21 2>;
+			};
+			dma-channel@100 {
+				compatible = "fsl,p1010-dma-channel", "fsl,eloplus-dma-channel";
+				reg = <0x100 0x80>;
+				cell-index = <2>;
+				interrupt-parent = <&mpic>;
+				interrupts = <22 2>;
+			};
+			dma-channel@180 {
+				compatible = "fsl,p1010-dma-channel", "fsl,eloplus-dma-channel";
+				reg = <0x180 0x80>;
+				cell-index = <3>;
+				interrupt-parent = <&mpic>;
+				interrupts = <23 2>;
+			};
+		};
+
+		usb@22000 {
+			compatible = "fsl-usb2-dr";
+			reg = <0x22000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupt-parent = <&mpic>;
+			interrupts = <28 0x2>;
+			dr_mode = "host";
+		};
+
+		mdio@24000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "fsl,etsec2-mdio";
+			reg = <0x24000 0x1000 0xb0030 0x4>;
+		};
+
+		mdio@25000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "fsl,etsec2-tbi";
+			reg = <0x25000 0x1000 0xb1030 0x4>;
+			tbi0: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
+		};
+
+		mdio@26000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "fsl,etsec2-tbi";
+			reg = <0x26000 0x1000 0xb1030 0x4>;
+			tbi1: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
+		};
+
+		sdhci@2e000 {
+			compatible = "fsl,esdhc";
+			reg = <0x2e000 0x1000>;
+			interrupts = <72 0x8>;
+			interrupt-parent = <&mpic>;
+			/* Filled in by U-Boot */
+			clock-frequency = <0>;
+			fsl,sdhci-auto-cmd12;
+		};
+
+		enet0: ethernet@b0000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			device_type = "network";
+			model = "eTSEC";
+			compatible = "fsl,etsec2";
+			fsl,num_rx_queues = <0x8>;
+			fsl,num_tx_queues = <0x8>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			interrupt-parent = <&mpic>;
+
+			queue-group@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0xb0000 0x1000>;
+				fsl,rx-bit-map = <0xff>;
+				fsl,tx-bit-map = <0xff>;
+				interrupts = <29 2 30 2 34 2>;
+			};
+
+		};
+
+		enet1: ethernet@b1000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			device_type = "network";
+			model = "eTSEC";
+			compatible = "fsl,etsec2";
+			fsl,num_rx_queues = <0x8>;
+			fsl,num_tx_queues = <0x8>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			interrupt-parent = <&mpic>;
+
+			queue-group@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0xb1000 0x1000>;
+				fsl,rx-bit-map = <0xff>;
+				fsl,tx-bit-map = <0xff>;
+				interrupts = <35 2 36 2 40 2>;
+			};
+
+		};
+
+		enet2: ethernet@b2000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			device_type = "network";
+			model = "eTSEC";
+			compatible = "fsl,etsec2";
+			fsl,num_rx_queues = <0x8>;
+			fsl,num_tx_queues = <0x8>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			interrupt-parent = <&mpic>;
+
+			queue-group@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0xb2000 0x1000>;
+				fsl,rx-bit-map = <0xff>;
+				fsl,tx-bit-map = <0xff>;
+				interrupts = <31 2 32 2 33 2>;
+			};
+
+		};
+
+		mpic: pic@40000 {
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <2>;
+			reg = <0x40000 0x40000>;
+			compatible = "chrp,open-pic";
+			device_type = "open-pic";
+		};
+
+		msi@41600 {
+			compatible = "fsl,p1010-msi", "fsl,mpic-msi";
+			reg = <0x41600 0x80>;
+			msi-available-ranges = <0 0x100>;
+			interrupts = <
+				0xe0 0
+				0xe1 0
+				0xe2 0
+				0xe3 0
+				0xe4 0
+				0xe5 0
+				0xe6 0
+				0xe7 0>;
+			interrupt-parent = <&mpic>;
+		};
+
+		global-utilities@e0000 {	//global utilities block
+			compatible = "fsl,p1010-guts";
+			reg = <0xe0000 0x1000>;
+			fsl,has-rstcr;
+		};
+	};
+
+	pci0: pcie@ffe09000 {
+		compatible = "fsl,p1010-pcie", "fsl,qoriq-pcie-v2.3", "fsl,qoriq-pcie-v2.2";
+		device_type = "pci";
+		#size-cells = <2>;
+		#address-cells = <3>;
+		reg = <0 0xffe09000 0 0x1000>;
+		bus-range = <0 255>;
+		clock-frequency = <33333333>;
+		interrupt-parent = <&mpic>;
+		interrupts = <16 2>;
+	};
+
+	pci1: pcie@ffe0a000 {
+		compatible = "fsl,p1010-pcie", "fsl,qoriq-pcie-v2.3", "fsl,qoriq-pcie-v2.2";
+		device_type = "pci";
+		#size-cells = <2>;
+		#address-cells = <3>;
+		reg = <0 0xffe0a000 0 0x1000>;
+		bus-range = <0 255>;
+		clock-frequency = <33333333>;
+		interrupt-parent = <&mpic>;
+		interrupts = <16 2>;
+	};
+};

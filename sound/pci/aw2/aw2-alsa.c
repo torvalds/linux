@@ -27,6 +27,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/initval.h>
 #include <sound/pcm.h>
@@ -171,7 +172,7 @@ MODULE_DEVICE_TABLE(pci, snd_aw2_ids);
 
 /* pci_driver definition */
 static struct pci_driver driver = {
-	.name = "Emagic Audiowerk 2",
+	.name = KBUILD_MODNAME,
 	.id_table = snd_aw2_ids,
 	.probe = snd_aw2_probe,
 	.remove = __devexit_p(snd_aw2_remove),
@@ -317,7 +318,7 @@ static int __devinit snd_aw2_create(struct snd_card *card,
 	snd_aw2_saa7146_setup(&chip->saa7146, chip->iobase_virt);
 
 	if (request_irq(pci->irq, snd_aw2_saa7146_interrupt,
-			IRQF_SHARED, "Audiowerk2", chip)) {
+			IRQF_SHARED, KBUILD_MODNAME, chip)) {
 		printk(KERN_ERR "aw2: Cannot grab irq %d\n", pci->irq);
 
 		iounmap(chip->iobase_virt);

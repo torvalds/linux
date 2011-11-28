@@ -27,7 +27,6 @@
 #include <linux/init.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
-#include <linux/wireless.h>
 #include <net/mac80211.h>
 
 #include <linux/netdevice.h>
@@ -2273,6 +2272,9 @@ iwl4965_rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
 
 	/* Send management frames and NO_ACK data using lowest rate. */
 	if (rate_control_send_low(sta, priv_sta, txrc))
+		return;
+
+	if (!lq_sta)
 		return;
 
 	rate_idx  = lq_sta->last_txrate_idx;

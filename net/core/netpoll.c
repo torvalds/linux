@@ -23,6 +23,7 @@
 #include <linux/rcupdate.h>
 #include <linux/workqueue.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <net/tcp.h>
 #include <net/udp.h>
 #include <asm/unaligned.h>
@@ -177,7 +178,7 @@ static void service_arp_queue(struct netpoll_info *npi)
 	}
 }
 
-void netpoll_poll_dev(struct net_device *dev)
+static void netpoll_poll_dev(struct net_device *dev)
 {
 	const struct net_device_ops *ops;
 
@@ -208,13 +209,6 @@ void netpoll_poll_dev(struct net_device *dev)
 
 	zap_completion_queue();
 }
-EXPORT_SYMBOL(netpoll_poll_dev);
-
-void netpoll_poll(struct netpoll *np)
-{
-	netpoll_poll_dev(np->dev);
-}
-EXPORT_SYMBOL(netpoll_poll);
 
 static void refill_skbs(void)
 {
@@ -275,7 +269,7 @@ repeat:
 
 	if (!skb) {
 		if (++count < 10) {
-			netpoll_poll(np);
+			netpoll_poll_dev(np->dev);
 			goto repeat;
 		}
 		return NULL;
@@ -336,7 +330,7 @@ void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
 			}
 
 			/* tickle device maybe there is some cleanup */
-			netpoll_poll(np);
+			netpoll_poll_dev(np->dev);
 
 			udelay(USEC_PER_POLL);
 		}
@@ -565,13 +559,14 @@ int __netpoll_rx(struct sk_buff *skb)
 	if (skb_shared(skb))
 		goto out;
 
-	iph = (struct iphdr *)skb->data;
 	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
 		goto out;
+	iph = (struct iphdr *)skb->data;
 	if (iph->ihl < 5 || iph->version != 4)
 		goto out;
 	if (!pskb_may_pull(skb, iph->ihl*4))
 		goto out;
+	iph = (struct iphdr *)skb->data;
 	if (ip_fast_csum((u8 *)iph, iph->ihl) != 0)
 		goto out;
 
@@ -586,6 +581,7 @@ int __netpoll_rx(struct sk_buff *skb)
 	if (pskb_trim_rcsum(skb, len))
 		goto out;
 
+	iph = (struct iphdr *)skb->data;
 	if (iph->protocol != IPPROTO_UDP)
 		goto out;
 
@@ -767,7 +763,7 @@ int __netpoll_setup(struct netpoll *np)
 	}
 
 	/* last thing to do is link it to the net device structure */
-	rcu_assign_pointer(ndev->npinfo, npinfo);
+	RCU_INIT_POINTER(ndev->npinfo, npinfo);
 
 	return 0;
 
@@ -908,7 +904,7 @@ void __netpoll_cleanup(struct netpoll *np)
 		if (ops->ndo_netpoll_cleanup)
 			ops->ndo_netpoll_cleanup(np->dev);
 
-		rcu_assign_pointer(np->dev->npinfo, NULL);
+		RCU_INIT_POINTER(np->dev->npinfo, NULL);
 
 		/* avoid racing with NAPI reading npinfo */
 		synchronize_rcu_bh();

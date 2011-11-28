@@ -80,15 +80,24 @@ OPTIONS
 --dump-raw-trace::
         Dump raw trace in ASCII.
 
--g [type,min]::
+-g [type,min,order]::
 --call-graph::
-        Display call chains using type and min percent threshold.
+        Display call chains using type, min percent threshold and order.
 	type can be either:
 	- flat: single column, linear exposure of call chains.
 	- graph: use a graph tree, displaying absolute overhead rates.
 	- fractal: like graph, but displays relative rates. Each branch of
 		 the tree is considered as a new profiled object. +
-	Default: fractal,0.5.
+
+	order can be either:
+	- callee: callee based call graph.
+	- caller: inverted caller based call graph.
+
+	Default: fractal,0.5,callee.
+
+-G::
+--inverted::
+        alias for inverted caller based call graph.
 
 --pretty=<key>::
         Pretty printing style.  key: normal, raw
@@ -119,6 +128,30 @@ OPTIONS
 --symfs=<directory>::
         Look for files with symbols relative to this directory.
 
+-c::
+--cpu:: Only report samples for the list of CPUs provided. Multiple CPUs can
+	be provided as a comma-separated list with no space: 0,1. Ranges of
+	CPUs are specified with -: 0-2. Default is to report samples on all
+	CPUs.
+
+-M::
+--disassembler-style=:: Set disassembler style for objdump.
+
+--source::
+	Interleave source code with assembly code. Enabled by default,
+	disable with --no-source.
+
+--asm-raw::
+	Show raw instruction encoding of assembly instructions.
+
+--show-total-period:: Show a column with the sum of periods.
+
+-I::
+--show-info::
+	Display extended information about the perf.data file. This adds
+	information which may be very large and thus may clutter the display.
+	It currently includes: cpu and numa topology of the host system.
+
 SEE ALSO
 --------
-linkperf:perf-stat[1]
+linkperf:perf-stat[1], linkperf:perf-annotate[1]

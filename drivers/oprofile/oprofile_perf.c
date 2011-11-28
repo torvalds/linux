@@ -31,7 +31,7 @@ static int num_counters;
 /*
  * Overflow callback for oprofile.
  */
-static void op_overflow_handler(struct perf_event *event, int unused,
+static void op_overflow_handler(struct perf_event *event,
 			struct perf_sample_data *data, struct pt_regs *regs)
 {
 	int id;
@@ -79,7 +79,7 @@ static int op_create_counter(int cpu, int event)
 
 	pevent = perf_event_create_kernel_counter(&counter_config[event].attr,
 						  cpu, NULL,
-						  op_overflow_handler);
+						  op_overflow_handler, NULL);
 
 	if (IS_ERR(pevent))
 		return PTR_ERR(pevent);
@@ -160,9 +160,9 @@ static int oprofile_perf_create_files(struct super_block *sb, struct dentry *roo
 
 static int oprofile_perf_setup(void)
 {
-	spin_lock(&oprofilefs_lock);
+	raw_spin_lock(&oprofilefs_lock);
 	op_perf_setup();
-	spin_unlock(&oprofilefs_lock);
+	raw_spin_unlock(&oprofilefs_lock);
 	return 0;
 }
 

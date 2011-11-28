@@ -25,7 +25,7 @@
 #include <linux/pci.h>
 #include <linux/time.h>
 #include <linux/slab.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <sound/core.h>
@@ -1234,8 +1234,8 @@ static int sis_resume(struct pci_dev *pci)
 		goto error;
 	}
 
-	if (request_irq(pci->irq, sis_interrupt, IRQF_DISABLED|IRQF_SHARED,
-				card->shortname, sis)) {
+	if (request_irq(pci->irq, sis_interrupt, IRQF_SHARED,
+			KBUILD_MODNAME, sis)) {
 		printk(KERN_ERR "sis7019: unable to regain IRQ %d\n", pci->irq);
 		goto error;
 	}
@@ -1340,8 +1340,8 @@ static int __devinit sis_chip_create(struct snd_card *card,
 	if (rc)
 		goto error_out_cleanup;
 
-	if (request_irq(pci->irq, sis_interrupt, IRQF_DISABLED|IRQF_SHARED,
-				card->shortname, sis)) {
+	if (request_irq(pci->irq, sis_interrupt, IRQF_SHARED,
+			KBUILD_MODNAME, sis)) {
 		printk(KERN_ERR "unable to allocate irq %d\n", sis->irq);
 		goto error_out_cleanup;
 	}
@@ -1436,7 +1436,7 @@ static void __devexit snd_sis7019_remove(struct pci_dev *pci)
 }
 
 static struct pci_driver sis7019_driver = {
-	.name = "SiS7019",
+	.name = KBUILD_MODNAME,
 	.id_table = snd_sis7019_ids,
 	.probe = snd_sis7019_probe,
 	.remove = __devexit_p(snd_sis7019_remove),

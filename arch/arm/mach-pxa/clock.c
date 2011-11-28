@@ -53,6 +53,21 @@ unsigned long clk_get_rate(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_get_rate);
 
+int clk_set_rate(struct clk *clk, unsigned long rate)
+{
+	unsigned long flags;
+	int ret = -EINVAL;
+
+	if (clk->ops->setrate) {
+		spin_lock_irqsave(&clocks_lock, flags);
+		ret = clk->ops->setrate(clk, rate);
+		spin_unlock_irqrestore(&clocks_lock, flags);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(clk_set_rate);
+
 void clk_dummy_enable(struct clk *clk)
 {
 }

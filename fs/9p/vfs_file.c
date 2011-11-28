@@ -65,7 +65,7 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 	v9inode = V9FS_I(inode);
 	v9ses = v9fs_inode2v9ses(inode);
 	if (v9fs_proto_dotl(v9ses))
-		omode = file->f_flags;
+		omode = v9fs_open_to_dotl_flags(file->f_flags);
 	else
 		omode = v9fs_uflags2omode(file->f_flags,
 					v9fs_proto_dotu(v9ses));
@@ -169,7 +169,18 @@ static int v9fs_file_do_lock(struct file *filp, int cmd, struct file_lock *fl)
 
 	/* convert posix lock to p9 tlock args */
 	memset(&flock, 0, sizeof(flock));
-	flock.type = fl->fl_type;
+	/* map the lock type */
+	switch (fl->fl_type) {
+	case F_RDLCK:
+		flock.type = P9_LOCK_TYPE_RDLCK;
+		break;
+	case F_WRLCK:
+		flock.type = P9_LOCK_TYPE_WRLCK;
+		break;
+	case F_UNLCK:
+		flock.type = P9_LOCK_TYPE_UNLCK;
+		break;
+	}
 	flock.start = fl->fl_start;
 	if (fl->fl_end == OFFSET_MAX)
 		flock.length = 0;
@@ -245,7 +256,7 @@ static int v9fs_file_getlock(struct file *filp, struct file_lock *fl)
 
 	/* convert posix lock to p9 tgetlock args */
 	memset(&glock, 0, sizeof(glock));
-	glock.type = fl->fl_type;
+	glock.type  = P9_LOCK_TYPE_UNLCK;
 	glock.start = fl->fl_start;
 	if (fl->fl_end == OFFSET_MAX)
 		glock.length = 0;
@@ -257,17 +268,26 @@ static int v9fs_file_getlock(struct file *filp, struct file_lock *fl)
 	res = p9_client_getlock_dotl(fid, &glock);
 	if (res < 0)
 		return res;
-	if (glock.type != F_UNLCK) {
-		fl->fl_type = glock.type;
+	/* map 9p lock type to os lock type */
+	switch (glock.type) {
+	case P9_LOCK_TYPE_RDLCK:
+		fl->fl_type = F_RDLCK;
+		break;
+	case P9_LOCK_TYPE_WRLCK:
+		fl->fl_type = F_WRLCK;
+		break;
+	case P9_LOCK_TYPE_UNLCK:
+		fl->fl_type = F_UNLCK;
+		break;
+	}
+	if (glock.type != P9_LOCK_TYPE_UNLCK) {
 		fl->fl_start = glock.start;
 		if (glock.length == 0)
 			fl->fl_end = OFFSET_MAX;
 		else
 			fl->fl_end = glock.start + glock.length - 1;
 		fl->fl_pid = glock.proc_id;
-	} else
-		fl->fl_type = F_UNLCK;
-
+	}
 	return res;
 }
 
@@ -519,32 +539,50 @@ out:
 }
 
 
-static int v9fs_file_fsync(struct file *filp, int datasync)
+static int v9fs_file_fsync(struct file *filp, loff_t start, loff_t end,
+			   int datasync)
 {
 	struct p9_fid *fid;
+	struct inode *inode = filp->f_mapping->host;
 	struct p9_wstat wstat;
 	int retval;
 
+	retval = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	if (retval)
+		return retval;
+
+	mutex_lock(&inode->i_mutex);
 	P9_DPRINTK(P9_DEBUG_VFS, "filp %p datasync %x\n", filp, datasync);
 
 	fid = filp->private_data;
 	v9fs_blank_wstat(&wstat);
 
 	retval = p9_client_wstat(fid, &wstat);
+	mutex_unlock(&inode->i_mutex);
+
 	return retval;
 }
 
-int v9fs_file_fsync_dotl(struct file *filp, int datasync)
+int v9fs_file_fsync_dotl(struct file *filp, loff_t start, loff_t end,
+			 int datasync)
 {
 	struct p9_fid *fid;
+	struct inode *inode = filp->f_mapping->host;
 	int retval;
 
+	retval = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	if (retval)
+		return retval;
+
+	mutex_lock(&inode->i_mutex);
 	P9_DPRINTK(P9_DEBUG_VFS, "v9fs_file_fsync_dotl: filp %p datasync %x\n",
 			filp, datasync);
 
 	fid = filp->private_data;
 
 	retval = p9_client_fsync(fid, datasync);
+	mutex_unlock(&inode->i_mutex);
+
 	return retval;
 }
 

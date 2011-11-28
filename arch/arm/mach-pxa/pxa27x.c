@@ -11,6 +11,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -20,12 +21,13 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/i2c/pxa-i2c.h>
+#include <linux/gpio.h>
 
 #include <asm/mach/map.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
+#include <asm/suspend.h>
 #include <mach/irqs.h>
-#include <mach/gpio.h>
 #include <mach/pxa27x.h>
 #include <mach/reset.h>
 #include <mach/ohci.h>
@@ -284,6 +286,11 @@ void pxa27x_cpu_pm_restore(unsigned long *sleep_save)
 void pxa27x_cpu_pm_enter(suspend_state_t state)
 {
 	extern void pxa_cpu_standby(void);
+#ifndef CONFIG_IWMMXT
+	u64 acc0;
+
+	asm volatile("mra %Q0, %R0, acc0" : "=r" (acc0));
+#endif
 
 	/* ensure voltage-change sequencer not initiated, which hangs */
 	PCFR &= ~PCFR_FVC;
@@ -299,7 +306,10 @@ void pxa27x_cpu_pm_enter(suspend_state_t state)
 		pxa_cpu_standby();
 		break;
 	case PM_SUSPEND_MEM:
-		pxa27x_cpu_suspend(pwrmode, PLAT_PHYS_OFFSET - PAGE_OFFSET);
+		cpu_suspend(pwrmode, pxa27x_finish_suspend);
+#ifndef CONFIG_IWMMXT
+		asm volatile("mar acc0, %Q0, %R0" : "=r" (acc0));
+#endif
 		break;
 	}
 }
@@ -381,7 +391,7 @@ void __init pxa27x_init_irq(void)
 
 static struct map_desc pxa27x_io_desc[] __initdata = {
 	{	/* Mem Ctl */
-		.virtual	= SMEMC_VIRT,
+		.virtual	= (unsigned long)SMEMC_VIRT,
 		.pfn		= __phys_to_pfn(PXA2XX_SMEMC_BASE),
 		.length		= 0x00200000,
 		.type		= MT_DEVICE

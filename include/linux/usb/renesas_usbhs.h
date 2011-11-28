@@ -82,6 +82,13 @@ struct renesas_usbhs_platform_callback {
 	 * get VBUS status function.
 	 */
 	int (*get_vbus)(struct platform_device *pdev);
+
+	/*
+	 * option:
+	 *
+	 * VBUS control is needed for Host
+	 */
+	int (*set_vbus)(struct platform_device *pdev, int enable);
 };
 
 /*
@@ -101,6 +108,8 @@ struct renesas_usbhs_driver_param {
 	 * option:
 	 *
 	 * for BUSWAIT :: BWAIT
+	 * see
+	 *	renesas_usbhs/common.c :: usbhsc_set_buswait()
 	 * */
 	int buswait_bwait;
 
@@ -110,6 +119,28 @@ struct renesas_usbhs_driver_param {
 	 * delay time from notify_hotplug callback
 	 */
 	int detection_delay;
+
+	/*
+	 * option:
+	 *
+	 * dma id for dmaengine
+	 */
+	int d0_tx_id;
+	int d0_rx_id;
+	int d1_tx_id;
+	int d1_rx_id;
+
+	/*
+	 * option:
+	 *
+	 * pio <--> dma border.
+	 */
+	int pio_dma_border; /* default is 64byte */
+
+	/*
+	 * option:
+	 */
+	u32 has_otg:1; /* for controlling PWEN/EXTLP */
 };
 
 /*

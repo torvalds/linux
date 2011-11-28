@@ -9,7 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <asm/io.h>
 #include <asm/leon.h>
 #include <asm/vaddrs.h>
@@ -215,7 +215,7 @@ struct grpci2_priv {
 DEFINE_SPINLOCK(grpci2_dev_lock);
 struct grpci2_priv *grpci2priv;
 
-int grpci2_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+int grpci2_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	struct grpci2_priv *priv = dev->bus->sysdata;
 	int irq_group;

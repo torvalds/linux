@@ -46,6 +46,7 @@
 #include <plat/common.h>
 #include <video/omapdss.h>
 #include <video/omap-panel-generic-dpi.h>
+#include <video/omap-panel-dvi.h>
 #include <plat/gpmc.h>
 #include <mach/hardware.h>
 #include <plat/nand.h>
@@ -74,15 +75,16 @@
 	defined(CONFIG_TOUCHSCREEN_ADS7846_MODULE)
 
 /* fixed regulator for ads7846 */
-static struct regulator_consumer_supply ads7846_supply =
-	REGULATOR_SUPPLY("vcc", "spi1.0");
+static struct regulator_consumer_supply ads7846_supply[] = {
+	REGULATOR_SUPPLY("vcc", "spi1.0"),
+};
 
 static struct regulator_init_data vads7846_regulator = {
 	.constraints = {
 		.valid_ops_mask		= REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &ads7846_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(ads7846_supply),
+	.consumer_supplies	= ads7846_supply,
 };
 
 static struct fixed_voltage_config vads7846 = {
@@ -181,16 +183,16 @@ static void overo_panel_disable_dvi(struct omap_dss_device *dssdev)
 	dvi_enabled = 0;
 }
 
-static struct panel_generic_dpi_data dvi_panel = {
-	.name			= "generic",
+static struct panel_dvi_platform_data dvi_panel = {
 	.platform_enable	= overo_panel_enable_dvi,
 	.platform_disable	= overo_panel_disable_dvi,
+	.i2c_bus_num		= 3,
 };
 
 static struct omap_dss_device overo_dvi_device = {
 	.name			= "dvi",
 	.type			= OMAP_DISPLAY_TYPE_DPI,
-	.driver_name		= "generic_dpi_panel",
+	.driver_name		= "dvi",
 	.data			= &dvi_panel,
 	.phy.dpi.data_lines	= 24,
 };
@@ -264,14 +266,6 @@ static struct omap_dss_board_info overo_dss_data = {
 	.default_device	= &overo_dvi_device,
 };
 
-static struct regulator_consumer_supply overo_vdda_dac_supply =
-	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc");
-
-static struct regulator_consumer_supply overo_vdds_dsi_supply[] = {
-	REGULATOR_SUPPLY("vdds_dsi", "omapdss"),
-	REGULATOR_SUPPLY("vdds_dsi", "omapdss_dsi1"),
-};
-
 static struct mtd_partition overo_nand_partitions[] = {
 	{
 		.name           = "xloader",
@@ -319,8 +313,8 @@ static struct omap2_hsmmc_info mmc[] = {
 	{}	/* Terminator */
 };
 
-static struct regulator_consumer_supply overo_vmmc1_supply = {
-	.supply			= "vmmc",
+static struct regulator_consumer_supply overo_vmmc1_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
 };
 
 #if defined(CONFIG_LEDS_GPIO) || defined(CONFIG_LEDS_GPIO_MODULE)
@@ -415,8 +409,6 @@ static int overo_twl_gpio_setup(struct device *dev,
 {
 	omap2_hsmmc_init(mmc);
 
-	overo_vmmc1_supply.dev = mmc[0].dev;
-
 #if defined(CONFIG_LEDS_GPIO) || defined(CONFIG_LEDS_GPIO_MODULE)
 	/* TWL4030_GPIO_MAX + 1 == ledB, PMU_STAT (out, active low LED) */
 	gpio_leds[2].gpio = gpio + TWL4030_GPIO_MAX + 1;
@@ -433,10 +425,6 @@ static struct twl4030_gpio_platform_data overo_gpio_data = {
 	.setup		= overo_twl_gpio_setup,
 };
 
-static struct twl4030_usb_data overo_usb_data = {
-	.usb_mode	= T2_USB_MODE_ULPI,
-};
-
 static struct regulator_init_data overo_vmmc1 = {
 	.constraints = {
 		.min_uV			= 1850000,
@@ -447,59 +435,23 @@ static struct regulator_init_data overo_vmmc1 = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &overo_vmmc1_supply,
-};
-
-/* VDAC for DSS driving S-Video (8 mA unloaded, max 65 mA) */
-static struct regulator_init_data overo_vdac = {
-	.constraints = {
-		.min_uV			= 1800000,
-		.max_uV			= 1800000,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask		= REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &overo_vdda_dac_supply,
-};
-
-/* VPLL2 for digital video outputs */
-static struct regulator_init_data overo_vpll2 = {
-	.constraints = {
-		.name			= "VDVI",
-		.min_uV			= 1800000,
-		.max_uV			= 1800000,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask		= REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-	.num_consumer_supplies	= ARRAY_SIZE(overo_vdds_dsi_supply),
-	.consumer_supplies	= overo_vdds_dsi_supply,
-};
-
-static struct twl4030_codec_audio_data overo_audio_data;
-
-static struct twl4030_codec_data overo_codec_data = {
-	.audio_mclk = 26000000,
-	.audio = &overo_audio_data,
+	.num_consumer_supplies	= ARRAY_SIZE(overo_vmmc1_supply),
+	.consumer_supplies	= overo_vmmc1_supply,
 };
 
 static struct twl4030_platform_data overo_twldata = {
-	.irq_base	= TWL4030_IRQ_BASE,
-	.irq_end	= TWL4030_IRQ_END,
 	.gpio		= &overo_gpio_data,
-	.usb		= &overo_usb_data,
-	.codec		= &overo_codec_data,
 	.vmmc1		= &overo_vmmc1,
-	.vdac		= &overo_vdac,
-	.vpll2		= &overo_vpll2,
 };
 
 static int __init overo_i2c_init(void)
 {
+	omap3_pmic_get_config(&overo_twldata,
+			TWL_COMMON_PDATA_USB | TWL_COMMON_PDATA_AUDIO,
+			TWL_COMMON_REGULATOR_VDAC | TWL_COMMON_REGULATOR_VPLL2);
+
+	overo_twldata.vpll2->constraints.name = "VDVI";
+
 	omap3_pmic_init("tps65950", &overo_twldata);
 	/* i2c2 pins are used for gpio */
 	omap_register_i2c_bus(3, 400, NULL, 0);
@@ -525,13 +477,6 @@ static int __init overo_spi_init(void)
 	spi_register_board_info(overo_spi_board_info,
 			ARRAY_SIZE(overo_spi_board_info));
 	return 0;
-}
-
-static void __init overo_init_early(void)
-{
-	omap2_init_common_infrastructure();
-	omap2_init_common_devices(mt46h32m32lf6_sdrc_params,
-				  mt46h32m32lf6_sdrc_params);
 }
 
 static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
@@ -563,12 +508,13 @@ static void __init overo_init(void)
 	overo_i2c_init();
 	omap_display_init(&overo_dss_data);
 	omap_serial_init();
+	omap_sdrc_init(mt46h32m32lf6_sdrc_params,
+				  mt46h32m32lf6_sdrc_params);
 	omap_nand_flash_init(0, overo_nand_partitions,
 			     ARRAY_SIZE(overo_nand_partitions));
 	usb_musb_init(NULL);
 	usbhs_init(&usbhs_bdata);
 	overo_spi_init();
-	overo_ads7846_init();
 	overo_init_smsc911x();
 	overo_display_init();
 	overo_init_led();
@@ -611,11 +557,11 @@ static void __init overo_init(void)
 }
 
 MACHINE_START(OVERO, "Gumstix Overo")
-	.boot_params	= 0x80000100,
+	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
-	.init_early	= overo_init_early,
-	.init_irq	= omap_init_irq,
+	.init_early	= omap35xx_init_early,
+	.init_irq	= omap3_init_irq,
 	.init_machine	= overo_init,
-	.timer		= &omap_timer,
+	.timer		= &omap3_timer,
 MACHINE_END

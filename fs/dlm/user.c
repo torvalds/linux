@@ -213,9 +213,9 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, uint32_t flags, int mode,
 		goto out;
 	}
 
-	if (list_empty(&lkb->lkb_astqueue)) {
+	if (list_empty(&lkb->lkb_cb_list)) {
 		kref_get(&lkb->lkb_ref);
-		list_add_tail(&lkb->lkb_astqueue, &proc->asts);
+		list_add_tail(&lkb->lkb_cb_list, &proc->asts);
 		wake_up_interruptible(&proc->wait);
 	}
 	spin_unlock(&proc->asts_spin);
@@ -832,24 +832,24 @@ static ssize_t device_read(struct file *file, char __user *buf, size_t count,
 	}
 
 	/* if we empty lkb_callbacks, we don't want to unlock the spinlock
-	   without removing lkb_astqueue; so empty lkb_astqueue is always
+	   without removing lkb_cb_list; so empty lkb_cb_list is always
 	   consistent with empty lkb_callbacks */
 
-	lkb = list_entry(proc->asts.next, struct dlm_lkb, lkb_astqueue);
+	lkb = list_entry(proc->asts.next, struct dlm_lkb, lkb_cb_list);
 
 	rv = dlm_rem_lkb_callback(lkb->lkb_resource->res_ls, lkb, &cb, &resid);
 	if (rv < 0) {
 		/* this shouldn't happen; lkb should have been removed from
 		   list when resid was zero */
 		log_print("dlm_rem_lkb_callback empty %x", lkb->lkb_id);
-		list_del_init(&lkb->lkb_astqueue);
+		list_del_init(&lkb->lkb_cb_list);
 		spin_unlock(&proc->asts_spin);
 		/* removes ref for proc->asts, may cause lkb to be freed */
 		dlm_put_lkb(lkb);
 		goto try_another;
 	}
 	if (!resid)
-		list_del_init(&lkb->lkb_astqueue);
+		list_del_init(&lkb->lkb_cb_list);
 	spin_unlock(&proc->asts_spin);
 
 	if (cb.flags & DLM_CB_SKIP) {

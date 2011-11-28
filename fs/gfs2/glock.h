@@ -113,6 +113,12 @@ enum {
 
 #define GLR_TRYFAILED		13
 
+#define GL_GLOCK_MAX_HOLD        (long)(HZ / 5)
+#define GL_GLOCK_DFT_HOLD        (long)(HZ / 5)
+#define GL_GLOCK_MIN_HOLD        (long)(10)
+#define GL_GLOCK_HOLD_INCR       (long)(HZ / 20)
+#define GL_GLOCK_HOLD_DECR       (long)(HZ / 40)
+
 struct lm_lockops {
 	const char *lm_proto_name;
 	int (*lm_mount) (struct gfs2_sbd *sdp, const char *fsname);
@@ -195,7 +201,7 @@ int gfs2_glock_nq_m(unsigned int num_gh, struct gfs2_holder *ghs);
 void gfs2_glock_dq_m(unsigned int num_gh, struct gfs2_holder *ghs);
 void gfs2_glock_dq_uninit_m(unsigned int num_gh, struct gfs2_holder *ghs);
 
-__attribute__ ((format(printf, 2, 3)))
+__printf(2, 3)
 void gfs2_print_dbg(struct seq_file *seq, const char *fmt, ...);
 
 /**

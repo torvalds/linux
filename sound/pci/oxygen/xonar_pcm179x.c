@@ -327,8 +327,10 @@ static void pcm1796_init(struct oxygen *chip)
 {
 	struct xonar_pcm179x *data = chip->model_data;
 
-	data->pcm1796_regs[0][18 - PCM1796_REG_BASE] = PCM1796_MUTE |
+	data->pcm1796_regs[0][18 - PCM1796_REG_BASE] =
 		PCM1796_DMF_DISABLED | PCM1796_FMT_24_I2S | PCM1796_ATLD;
+	if (!data->broken_i2c)
+		data->pcm1796_regs[0][18 - PCM1796_REG_BASE] |= PCM1796_MUTE;
 	data->pcm1796_regs[0][19 - PCM1796_REG_BASE] =
 		PCM1796_FLT_SHARP | PCM1796_ATS_1;
 	data->pcm1796_regs[0][20 - PCM1796_REG_BASE] =
@@ -1072,6 +1074,7 @@ static const struct oxygen_model model_xonar_st = {
 	.device_config = PLAYBACK_0_TO_I2S |
 			 PLAYBACK_1_TO_SPDIF |
 			 CAPTURE_0_FROM_I2S_2 |
+			 CAPTURE_1_FROM_SPDIF |
 			 AC97_FMIC_SWITCH,
 	.dac_channels_pcm = 2,
 	.dac_channels_mixer = 2,
@@ -1123,6 +1126,7 @@ int __devinit get_xonar_pcm179x_model(struct oxygen *chip,
 			chip->model.control_filter = xonar_st_h6_control_filter;
 			chip->model.dac_channels_pcm = 8;
 			chip->model.dac_channels_mixer = 8;
+			chip->model.dac_volume_min = 255;
 			chip->model.dac_mclks = OXYGEN_MCLKS(256, 128, 128);
 			break;
 		}

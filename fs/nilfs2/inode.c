@@ -259,8 +259,8 @@ nilfs_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 		return 0;
 
 	/* Needs synchronization with the cleaner */
-	size = blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov,
-				  offset, nr_segs, nilfs_get_block, NULL);
+	size = blockdev_direct_IO(rw, iocb, inode, iov, offset, nr_segs,
+				  nilfs_get_block);
 
 	/*
 	 * In case of error extending write may have instantiated a few
@@ -354,7 +354,7 @@ struct inode *nilfs_new_inode(struct inode *dir, int mode)
 
  failed_acl:
  failed_bmap:
-	inode->i_nlink = 0;
+	clear_nlink(inode);
 	iput(inode);  /* raw_inode will be deleted through
 			 generic_delete_inode() */
 	goto failed;
@@ -396,7 +396,7 @@ int nilfs_read_inode_common(struct inode *inode,
 	inode->i_mode = le16_to_cpu(raw_inode->i_mode);
 	inode->i_uid = (uid_t)le32_to_cpu(raw_inode->i_uid);
 	inode->i_gid = (gid_t)le32_to_cpu(raw_inode->i_gid);
-	inode->i_nlink = le16_to_cpu(raw_inode->i_links_count);
+	set_nlink(inode, le16_to_cpu(raw_inode->i_links_count));
 	inode->i_size = le64_to_cpu(raw_inode->i_size);
 	inode->i_atime.tv_sec = le64_to_cpu(raw_inode->i_mtime);
 	inode->i_ctime.tv_sec = le64_to_cpu(raw_inode->i_ctime);
@@ -778,6 +778,8 @@ int nilfs_setattr(struct dentry *dentry, struct iattr *iattr)
 
 	if ((iattr->ia_valid & ATTR_SIZE) &&
 	    iattr->ia_size != i_size_read(inode)) {
+		inode_dio_wait(inode);
+
 		err = vmtruncate(inode, iattr->ia_size);
 		if (unlikely(err))
 			goto out_err;
@@ -799,14 +801,14 @@ out_err:
 	return err;
 }
 
-int nilfs_permission(struct inode *inode, int mask, unsigned int flags)
+int nilfs_permission(struct inode *inode, int mask)
 {
 	struct nilfs_root *root = NILFS_I(inode)->i_root;
 	if ((mask & MAY_WRITE) && root &&
 	    root->cno != NILFS_CPTREE_CURRENT_CNO)
 		return -EROFS; /* snapshot is not writable */
 
-	return generic_permission(inode, mask, flags, NULL);
+	return generic_permission(inode, mask);
 }
 
 int nilfs_load_inode_block(struct inode *inode, struct buffer_head **pbh)

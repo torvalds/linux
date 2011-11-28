@@ -128,6 +128,7 @@ struct hd_struct {
 #define GENHD_FL_EXT_DEVT			64 /* allow extended devt */
 #define GENHD_FL_NATIVE_CAPACITY		128
 #define GENHD_FL_BLOCK_EVENTS_ON_EXCL_WRITE	256
+#define GENHD_FL_NO_PART_SCAN			512
 
 enum {
 	DISK_EVENT_MEDIA_CHANGE			= 1 << 0, /* media changed */
@@ -234,9 +235,10 @@ static inline int disk_max_parts(struct gendisk *disk)
 	return disk->minors;
 }
 
-static inline bool disk_partitionable(struct gendisk *disk)
+static inline bool disk_part_scan_enabled(struct gendisk *disk)
 {
-	return disk_max_parts(disk) > 1;
+	return disk_max_parts(disk) > 1 &&
+		!(disk->flags & GENHD_FL_NO_PART_SCAN);
 }
 
 static inline dev_t disk_devt(struct gendisk *disk)
@@ -420,7 +422,7 @@ static inline int get_disk_ro(struct gendisk *disk)
 
 extern void disk_block_events(struct gendisk *disk);
 extern void disk_unblock_events(struct gendisk *disk);
-extern void disk_check_events(struct gendisk *disk);
+extern void disk_flush_events(struct gendisk *disk, unsigned int mask);
 extern unsigned int disk_clear_events(struct gendisk *disk, unsigned int mask);
 
 /* drivers/char/random.c */

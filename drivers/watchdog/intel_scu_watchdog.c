@@ -43,7 +43,7 @@
 #include <linux/signal.h>
 #include <linux/sfi.h>
 #include <asm/irq.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/intel_scu_ipc.h>
 #include <asm/apb_timer.h>
 #include <asm/mrst.h>

@@ -240,8 +240,7 @@ static void iwl4965_tx_cmd_build_hwcrypto(struct iwl_priv *priv,
 
 	case WLAN_CIPHER_SUITE_TKIP:
 		tx_cmd->sec_ctl = TX_CMD_SEC_TKIP;
-		ieee80211_get_tkip_key(keyconf, skb_frag,
-			IEEE80211_TKIP_P2_KEY, tx_cmd->key);
+		ieee80211_get_tkip_p2k(keyconf, skb_frag, tx_cmd->key);
 		IWL_DEBUG_TX(priv, "tx_cmd with tkip hwcrypto\n");
 		break;
 
@@ -336,7 +335,7 @@ int iwl4965_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		sta_priv = (void *)sta->drv_priv;
 
 	if (sta_priv && sta_priv->asleep &&
-	    (info->flags & IEEE80211_TX_CTL_PSPOLL_RESPONSE)) {
+	    (info->flags & IEEE80211_TX_CTL_POLL_RESPONSE)) {
 		/*
 		 * This sends an asynchronous command to the device,
 		 * but we can rely on it being processed before the

@@ -6,7 +6,7 @@
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
-#include "chan_kern.h"
+#include "chan.h"
 #include "os.h"
 
 #ifdef CONFIG_NOCONFIG_CHAN
@@ -358,11 +358,11 @@ int chan_window_size(struct list_head *chans, unsigned short *rows_out,
 	return 0;
 }
 
-static void free_one_chan(struct chan *chan, int delay_free_irq)
+static void free_one_chan(struct chan *chan)
 {
 	list_del(&chan->list);
 
-	close_one_chan(chan, delay_free_irq);
+	close_one_chan(chan, 0);
 
 	if (chan->ops->free != NULL)
 		(*chan->ops->free)(chan->data);
@@ -372,14 +372,14 @@ static void free_one_chan(struct chan *chan, int delay_free_irq)
 	kfree(chan);
 }
 
-static void free_chan(struct list_head *chans, int delay_free_irq)
+static void free_chan(struct list_head *chans)
 {
 	struct list_head *ele, *next;
 	struct chan *chan;
 
 	list_for_each_safe(ele, next, chans) {
 		chan = list_entry(ele, struct chan, list);
-		free_one_chan(chan, delay_free_irq);
+		free_one_chan(chan);
 	}
 }
 
@@ -543,12 +543,11 @@ int parse_chan_pair(char *str, struct line *line, int device,
 		    const struct chan_opts *opts, char **error_out)
 {
 	struct list_head *chans = &line->chan_list;
-	struct chan *new, *chan;
+	struct chan *new;
 	char *in, *out;
 
 	if (!list_empty(chans)) {
-		chan = list_entry(chans->next, struct chan, list);
-		free_chan(chans, 0);
+		free_chan(chans);
 		INIT_LIST_HEAD(chans);
 	}
 

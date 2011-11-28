@@ -505,7 +505,7 @@ static void pnpbios_encode_mem(struct pnp_dev *dev, unsigned char *p,
 
 	if (pnp_resource_enabled(res)) {
 		base = res->start;
-		len = res->end - res->start + 1;
+		len = resource_size(res);
 	} else {
 		base = 0;
 		len = 0;
@@ -529,7 +529,7 @@ static void pnpbios_encode_mem32(struct pnp_dev *dev, unsigned char *p,
 
 	if (pnp_resource_enabled(res)) {
 		base = res->start;
-		len = res->end - res->start + 1;
+		len = resource_size(res);
 	} else {
 		base = 0;
 		len = 0;
@@ -559,7 +559,7 @@ static void pnpbios_encode_fixed_mem32(struct pnp_dev *dev, unsigned char *p,
 
 	if (pnp_resource_enabled(res)) {
 		base = res->start;
-		len = res->end - res->start + 1;
+		len = resource_size(res);
 	} else {
 		base = 0;
 		len = 0;
@@ -617,7 +617,7 @@ static void pnpbios_encode_port(struct pnp_dev *dev, unsigned char *p,
 
 	if (pnp_resource_enabled(res)) {
 		base = res->start;
-		len = res->end - res->start + 1;
+		len = resource_size(res);
 	} else {
 		base = 0;
 		len = 0;
@@ -636,11 +636,11 @@ static void pnpbios_encode_fixed_port(struct pnp_dev *dev, unsigned char *p,
 				      struct resource *res)
 {
 	unsigned long base = res->start;
-	unsigned long len = res->end - res->start + 1;
+	unsigned long len = resource_size(res);
 
 	if (pnp_resource_enabled(res)) {
 		base = res->start;
-		len = res->end - res->start + 1;
+		len = resource_size(res);
 	} else {
 		base = 0;
 		len = 0;

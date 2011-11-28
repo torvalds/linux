@@ -16,7 +16,7 @@
 
 #include <linux/bitops.h>
 #include <linux/compiler.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include <linux/netfilter/nf_conntrack_tcp.h>
 #include <linux/netfilter/nf_conntrack_dccp.h>
@@ -312,6 +312,8 @@ static inline bool nf_is_loopback_packet(const struct sk_buff *skb)
 {
 	return skb->dev && skb->skb_iif && skb->dev->flags & IFF_LOOPBACK;
 }
+
+struct kernel_param;
 
 extern int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp);
 extern unsigned int nf_conntrack_htable_size;

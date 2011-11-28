@@ -202,18 +202,6 @@ static inline void set_inode_attr(struct inode * inode, struct iattr * iattr)
 	inode->i_ctime = iattr->ia_ctime;
 }
 
-static int sysfs_count_nlink(struct sysfs_dirent *sd)
-{
-	struct sysfs_dirent *child;
-	int nr = 0;
-
-	for (child = sd->s_dir.children; child; child = child->s_sibling)
-		if (sysfs_type(child) == SYSFS_DIR)
-			nr++;
-
-	return nr + 2;
-}
-
 static void sysfs_refresh_inode(struct sysfs_dirent *sd, struct inode *inode)
 {
 	struct sysfs_inode_attrs *iattrs = sd->s_iattr;
@@ -230,7 +218,7 @@ static void sysfs_refresh_inode(struct sysfs_dirent *sd, struct inode *inode)
 	}
 
 	if (sysfs_type(sd) == SYSFS_DIR)
-		inode->i_nlink = sysfs_count_nlink(sd);
+		set_nlink(inode, sd->s_dir.subdirs + 2);
 }
 
 int sysfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
@@ -336,8 +324,6 @@ int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const void *ns, const cha
 	sysfs_addrm_start(&acxt, dir_sd);
 
 	sd = sysfs_find_dirent(dir_sd, ns, name);
-	if (sd && (sd->s_ns != ns))
-		sd = NULL;
 	if (sd)
 		sysfs_remove_one(&acxt, sd);
 
@@ -349,11 +335,11 @@ int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const void *ns, const cha
 		return -ENOENT;
 }
 
-int sysfs_permission(struct inode *inode, int mask, unsigned int flags)
+int sysfs_permission(struct inode *inode, int mask)
 {
 	struct sysfs_dirent *sd;
 
-	if (flags & IPERM_FLAG_RCU)
+	if (mask & MAY_NOT_BLOCK)
 		return -ECHILD;
 
 	sd = inode->i_private;
@@ -362,5 +348,5 @@ int sysfs_permission(struct inode *inode, int mask, unsigned int flags)
 	sysfs_refresh_inode(sd, inode);
 	mutex_unlock(&sysfs_mutex);
 
-	return generic_permission(inode, mask, flags, NULL);
+	return generic_permission(inode, mask);
 }

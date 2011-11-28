@@ -1,4 +1,4 @@
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/threads.h>
 #include <linux/smp.h>
 #include <linux/sched.h>
@@ -18,7 +18,7 @@
 #include <asm/cacheflush.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/checksum.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>

@@ -14,8 +14,6 @@
  *
  */
 
-
-
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -30,7 +28,6 @@
 #include <linux/init.h>
 #include <linux/ioctl.h>
 #include <linux/cdev.h>
-#include <linux/version.h>
 #include <linux/sched.h>
 #include <linux/uuid.h>
 #include <linux/compat.h>
@@ -61,7 +58,7 @@ static struct cdev mei_cdev;
 static int mei_major;
 /* The device pointer */
 /* Currently this driver works as long as there is only a single AMT device. */
-static struct pci_dev *mei_device;
+struct pci_dev *mei_device;
 
 static struct class *mei_class;
 
@@ -142,7 +139,7 @@ static int __devinit mei_probe(struct pci_dev *pdev,
 		goto disable_device;
 	}
 	/* allocates and initializes the mei dev structure */
-	dev = init_mei_device(pdev);
+	dev = mei_device_init(pdev);
 	if (!dev) {
 		err = -ENOMEM;
 		goto release_regions;
@@ -154,17 +151,26 @@ static int __devinit mei_probe(struct pci_dev *pdev,
 		err = -ENOMEM;
 		goto free_device;
 	}
-	/* request and enable interrupt   */
-	err = request_threaded_irq(pdev->irq,
+	pci_enable_msi(pdev);
+
+	 /* request and enable interrupt */
+	if (pci_dev_msi_enabled(pdev))
+		err = request_threaded_irq(pdev->irq,
+			NULL,
+			mei_interrupt_thread_handler,
+			0, mei_driver_name, dev);
+	else
+		err = request_threaded_irq(pdev->irq,
 			mei_interrupt_quick_handler,
 			mei_interrupt_thread_handler,
 			IRQF_SHARED, mei_driver_name, dev);
+
 	if (err) {
 		printk(KERN_ERR "mei: request_threaded_irq failure. irq = %d\n",
 		       pdev->irq);
 		goto unmap_memory;
 	}
-	INIT_DELAYED_WORK(&dev->wd_work, mei_wd_timer);
+	INIT_DELAYED_WORK(&dev->timer_work, mei_timer);
 	if (mei_hw_init(dev)) {
 		printk(KERN_ERR "mei: Init hw failure.\n");
 		err = -ENODEV;
@@ -172,7 +178,7 @@ static int __devinit mei_probe(struct pci_dev *pdev,
 	}
 	mei_device = pdev;
 	pci_set_drvdata(pdev, dev);
-	schedule_delayed_work(&dev->wd_work, HZ);
+	schedule_delayed_work(&dev->timer_work, HZ);
 
 	mutex_unlock(&mei_mutex);
 
@@ -186,6 +192,7 @@ release_irq:
 	mei_disable_interrupts(dev);
 	flush_scheduled_work();
 	free_irq(pdev->irq, dev);
+	pci_disable_msi(pdev);
 unmap_memory:
 	pci_iounmap(pdev, dev->mem_addr);
 free_device:
@@ -234,13 +241,17 @@ static void __devexit mei_remove(struct pci_dev *pdev)
 		mei_disconnect_host_client(dev, &dev->wd_cl);
 	}
 
+	/* Unregistering watchdog device */
+	if (dev->wd_interface_reg)
+		watchdog_unregister_device(&amt_wd_dev);
+
 	/* remove entry if already in list */
 	dev_dbg(&pdev->dev, "list del iamthif and wd file list.\n");
 	mei_remove_client_from_file_list(dev, dev->wd_cl.host_client_id);
 	mei_remove_client_from_file_list(dev, dev->iamthif_cl.host_client_id);
 
 	dev->iamthif_current_cb = NULL;
-	dev->num_mei_me_clients = 0;
+	dev->me_clients_num = 0;
 
 	mutex_unlock(&dev->device_lock);
 
@@ -250,6 +261,7 @@ static void __devexit mei_remove(struct pci_dev *pdev)
 	mei_disable_interrupts(dev);
 
 	free_irq(pdev->irq, dev);
+	pci_disable_msi(pdev);
 	pci_set_drvdata(pdev, NULL);
 
 	if (dev->mem_addr)
@@ -362,7 +374,6 @@ static struct mei_cl_cb *find_read_list_entry(
 {
 	struct mei_cl_cb *cb_pos = NULL;
 	struct mei_cl_cb *cb_next = NULL;
-	struct mei_cl *cl_list_temp;
 
 	if (!dev->read_list.status &&
 	    !list_empty(&dev->read_list.mei_cb.cb_list)) {
@@ -370,14 +381,11 @@ static struct mei_cl_cb *find_read_list_entry(
 		dev_dbg(&dev->pdev->dev, "remove read_list CB\n");
 		list_for_each_entry_safe(cb_pos, cb_next,
 				&dev->read_list.mei_cb.cb_list, cb_list) {
+			struct mei_cl *cl_temp;
+			cl_temp = (struct mei_cl *)cb_pos->file_private;
 
-			cl_list_temp = (struct mei_cl *)
-				cb_pos->file_private;
-
-			if (cl_list_temp &&
-			    mei_fe_same_id(cl, cl_list_temp))
+			if (mei_cl_cmp_id(cl, cl_temp))
 				return cb_pos;
-
 		}
 	}
 	return NULL;
@@ -407,9 +415,9 @@ static int mei_open(struct inode *inode, struct file *file)
 
 	mutex_lock(&dev->device_lock);
 	err = -ENOMEM;
-	cl = mei_alloc_file_private(dev);
+	cl = mei_cl_allocate(dev);
 	if (!cl)
-		goto out;
+		goto out_unlock;
 
 	err = -ENODEV;
 	if (dev->mei_state != MEI_ENABLED) {
@@ -478,7 +486,7 @@ static int mei_release(struct inode *inode, struct file *file)
 			    cl->me_client_id);
 			rets = mei_disconnect_host_client(dev, cl);
 		}
-		mei_flush_queues(dev, cl);
+		mei_cl_flush_queues(cl);
 		dev_dbg(&dev->pdev->dev, "remove client host client = %d, ME client = %d\n",
 		    cl->host_client_id,
 		    cl->me_client_id);
@@ -519,10 +527,10 @@ static int mei_release(struct inode *inode, struct file *file)
 
 			dev_dbg(&dev->pdev->dev, "amthi canceled iamthif state %d\n",
 			    dev->iamthif_state);
-			dev->iamthif_canceled = 1;
+			dev->iamthif_canceled = true;
 			if (dev->iamthif_state == MEI_IAMTHIF_READ_COMPLETE) {
 				dev_dbg(&dev->pdev->dev, "run next amthi iamthif cb\n");
-				run_next_iamthif_cmd(dev);
+				mei_run_next_iamthif_cmd(dev);
 			}
 		}
 
@@ -800,7 +808,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 			rets = -ENODEV;
 			goto unlock_dev;
 		}
-		for (i = 0; i < dev->num_mei_me_clients; i++) {
+		for (i = 0; i < dev->me_clients_num; i++) {
 			if (dev->me_clients[i].client_id ==
 				dev->iamthif_cl.me_client_id)
 				break;
@@ -810,7 +818,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 			rets = -ENODEV;
 			goto unlock_dev;
 		}
-		if (i == dev->num_mei_me_clients ||
+		if (i == dev->me_clients_num ||
 		    (dev->me_clients[i].client_id !=
 		      dev->iamthif_cl.me_client_id)) {
 			rets = -ENODEV;
@@ -868,7 +876,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 		    cl->me_client_id);
 		goto unlock_dev;
 	}
-	for (i = 0; i < dev->num_mei_me_clients; i++) {
+	for (i = 0; i < dev->me_clients_num; i++) {
 		if (dev->me_clients[i].client_id ==
 		    cl->me_client_id)
 			break;
@@ -877,7 +885,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 		rets = -ENODEV;
 		goto unlock_dev;
 	}
-	if (i == dev->num_mei_me_clients) {
+	if (i == dev->me_clients_num) {
 		rets = -ENODEV;
 		goto unlock_dev;
 	}
@@ -893,7 +901,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 
 	if (rets && dev->mei_host_buffer_is_empty) {
 		rets = 0;
-		dev->mei_host_buffer_is_empty = 0;
+		dev->mei_host_buffer_is_empty = false;
 		if (length > ((((dev->host_hw_state & H_CBD) >> 24) *
 			sizeof(u32)) - sizeof(struct mei_msg_hdr))) {
 
@@ -1066,7 +1074,7 @@ static unsigned int mei_poll(struct file *file, poll_table *wait)
 			dev->iamthif_file_object == file) {
 			mask |= (POLLIN | POLLRDNORM);
 			dev_dbg(&dev->pdev->dev, "run next amthi cb\n");
-			run_next_iamthif_cmd(dev);
+			mei_run_next_iamthif_cmd(dev);
 		}
 		goto out;
 	}
@@ -1103,7 +1111,7 @@ static int mei_pci_suspend(struct device *device)
 	mutex_unlock(&dev->device_lock);
 
 	free_irq(pdev->irq, dev);
-
+	pci_disable_msi(pdev);
 
 	return err;
 }
@@ -1118,11 +1126,20 @@ static int mei_pci_resume(struct device *device)
 	if (!dev)
 		return -ENODEV;
 
-	/* request and enable interrupt   */
-	err = request_threaded_irq(pdev->irq,
+	pci_enable_msi(pdev);
+
+	/* request and enable interrupt */
+	if (pci_dev_msi_enabled(pdev))
+		err = request_threaded_irq(pdev->irq,
+			NULL,
+			mei_interrupt_thread_handler,
+			0, mei_driver_name, dev);
+	else
+		err = request_threaded_irq(pdev->irq,
 			mei_interrupt_quick_handler,
 			mei_interrupt_thread_handler,
 			IRQF_SHARED, mei_driver_name, dev);
+
 	if (err) {
 		printk(KERN_ERR "mei: Request_irq failure. irq = %d\n",
 		       pdev->irq);
@@ -1134,12 +1151,9 @@ static int mei_pci_resume(struct device *device)
 	mei_reset(dev, 1);
 	mutex_unlock(&dev->device_lock);
 
-	/* Start watchdog if stopped in suspend */
-	if (dev->wd_timeout) {
-		mei_wd_start_setup(dev);
-		dev->wd_due_counter = 1;
-		schedule_delayed_work(&dev->wd_work, HZ);
-	}
+	/* Start timer if stopped in suspend */
+	schedule_delayed_work(&dev->timer_work, HZ);
+
 	return err;
 }
 static SIMPLE_DEV_PM_OPS(mei_pm_ops, mei_pci_suspend, mei_pci_resume);
@@ -1333,9 +1347,9 @@ module_init(mei_init_module);
  */
 static void __exit mei_exit_module(void)
 {
-	pci_unregister_driver(&mei_driver);
 	mei_sysfs_device_remove();
 	mei_unregister_cdev();
+	pci_unregister_driver(&mei_driver);
 
 	pr_debug("mei: Driver unloaded successfully.\n");
 }

@@ -444,6 +444,7 @@ struct radeon_connector {
 	struct edid *edid;
 	void *con_priv;
 	bool dac_load_detect;
+	bool detected_by_load; /* if the connection status was determined by load */
 	uint16_t connector_object_id;
 	struct radeon_hpd hpd;
 	struct radeon_router router;
@@ -455,6 +456,8 @@ struct radeon_framebuffer {
 	struct drm_gem_object *obj;
 };
 
+#define ENCODER_MODE_IS_DP(em) (((em) == ATOM_ENCODER_MODE_DP) || \
+				((em) == ATOM_ENCODER_MODE_DP_MST))
 
 extern enum radeon_tv_std
 radeon_combios_get_tv_info(struct radeon_device *rdev);
@@ -464,8 +467,8 @@ radeon_atombios_get_tv_info(struct radeon_device *rdev);
 extern struct drm_connector *
 radeon_get_connector_for_encoder(struct drm_encoder *encoder);
 
-extern bool radeon_encoder_is_dp_bridge(struct drm_encoder *encoder);
-extern bool radeon_connector_encoder_is_dp_bridge(struct drm_connector *connector);
+extern u16 radeon_encoder_get_dp_bridge_encoder_id(struct drm_encoder *encoder);
+extern u16 radeon_connector_encoder_get_dp_bridge_encoder_id(struct drm_connector *connector);
 extern bool radeon_connector_encoder_is_hbr2(struct drm_connector *connector);
 extern bool radeon_connector_is_dp12_capable(struct drm_connector *connector);
 
@@ -476,6 +479,7 @@ extern void radeon_dp_set_link_config(struct drm_connector *connector,
 				      struct drm_display_mode *mode);
 extern void radeon_dp_link_train(struct drm_encoder *encoder,
 				 struct drm_connector *connector);
+extern bool radeon_dp_needs_link_train(struct radeon_connector *radeon_connector);
 extern u8 radeon_dp_getsinktype(struct radeon_connector *radeon_connector);
 extern bool radeon_dp_getdpcd(struct radeon_connector *radeon_connector);
 extern void atombios_dig_encoder_setup(struct drm_encoder *encoder, int action, int panel_mode);
@@ -484,7 +488,7 @@ extern void atombios_dig_transmitter_setup(struct drm_encoder *encoder,
 					   int action, uint8_t lane_num,
 					   uint8_t lane_set);
 extern void radeon_atom_ext_encoder_setup_ddc(struct drm_encoder *encoder);
-extern struct drm_encoder *radeon_atom_get_external_encoder(struct drm_encoder *encoder);
+extern struct drm_encoder *radeon_get_external_encoder(struct drm_encoder *encoder);
 extern int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 				u8 write_byte, u8 *read_byte);
 

@@ -192,8 +192,15 @@ enum {
  *    NLA_NUL_STRING       Maximum length of string (excluding NUL)
  *    NLA_FLAG             Unused
  *    NLA_BINARY           Maximum length of attribute payload
- *    NLA_NESTED_COMPAT    Exact length of structure payload
- *    All other            Exact length of attribute payload
+ *    NLA_NESTED           Don't use `len' field -- length verification is
+ *                         done by checking len of nested header (or empty)
+ *    NLA_NESTED_COMPAT    Minimum length of structure payload
+ *    NLA_U8, NLA_U16,
+ *    NLA_U32, NLA_U64,
+ *    NLA_MSECS            Leaving the length field zero will verify the
+ *                         given type fits, using it verifies minimum length
+ *                         just like "All other"
+ *    All other            Minimum length of attribute payload
  *
  * Example:
  * static const struct nla_policy my_policy[ATTR_MAX+1] = {
@@ -637,6 +644,30 @@ static inline int nlmsg_unicast(struct sock *sk, struct sk_buff *skb, u32 pid)
 	for (pos = head, rem = len; \
 	     nlmsg_ok(pos, rem); \
 	     pos = nlmsg_next(pos, &(rem)))
+
+/**
+ * nl_dump_check_consistent - check if sequence is consistent and advertise if not
+ * @cb: netlink callback structure that stores the sequence number
+ * @nlh: netlink message header to write the flag to
+ *
+ * This function checks if the sequence (generation) number changed during dump
+ * and if it did, advertises it in the netlink message header.
+ *
+ * The correct way to use it is to set cb->seq to the generation counter when
+ * all locks for dumping have been acquired, and then call this function for
+ * each message that is generated.
+ *
+ * Note that due to initialisation concerns, 0 is an invalid sequence number
+ * and must not be used by code that uses this functionality.
+ */
+static inline void
+nl_dump_check_consistent(struct netlink_callback *cb,
+			 struct nlmsghdr *nlh)
+{
+	if (cb->prev_seq && cb->seq != cb->prev_seq)
+		nlh->nlmsg_flags |= NLM_F_DUMP_INTR;
+	cb->prev_seq = cb->seq;
+}
 
 /**************************************************************************
  * Netlink Attributes

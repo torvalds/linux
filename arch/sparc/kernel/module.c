@@ -17,6 +17,8 @@
 #include <asm/processor.h>
 #include <asm/spitfire.h>
 
+#include "entry.h"
+
 #ifdef CONFIG_SPARC64
 
 #include <linux/jump_label.h>
@@ -68,12 +70,6 @@ void *module_alloc(unsigned long size)
 	return ret;
 }
 
-/* Free memory returned from module_core_alloc/module_init_alloc */
-void module_free(struct module *mod, void *module_region)
-{
-	vfree(module_region);
-}
-
 /* Make generic code ignore STT_REGISTER dummy undefined symbols.  */
 int module_frob_arch_sections(Elf_Ehdr *hdr,
 			      Elf_Shdr *sechdrs,
@@ -105,17 +101,6 @@ int module_frob_arch_sections(Elf_Ehdr *hdr,
 		}
 	}
 	return 0;
-}
-
-int apply_relocate(Elf_Shdr *sechdrs,
-		   const char *strtab,
-		   unsigned int symindex,
-		   unsigned int relsec,
-		   struct module *me)
-{
-	printk(KERN_ERR "module %s: non-ADD RELOCATION unsupported\n",
-	       me->name);
-	return -ENOEXEC;
 }
 
 int apply_relocate_add(Elf_Shdr *sechdrs,
@@ -220,12 +205,37 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 }
 
 #ifdef CONFIG_SPARC64
+static void do_patch_sections(const Elf_Ehdr *hdr,
+			      const Elf_Shdr *sechdrs)
+{
+	const Elf_Shdr *s, *sun4v_1insn = NULL, *sun4v_2insn = NULL;
+	char *secstrings = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
+
+	for (s = sechdrs; s < sechdrs + hdr->e_shnum; s++) {
+		if (!strcmp(".sun4v_1insn_patch", secstrings + s->sh_name))
+			sun4v_1insn = s;
+		if (!strcmp(".sun4v_2insn_patch", secstrings + s->sh_name))
+			sun4v_2insn = s;
+	}
+
+	if (sun4v_1insn && tlb_type == hypervisor) {
+		void *p = (void *) sun4v_1insn->sh_addr;
+		sun4v_patch_1insn_range(p, p + sun4v_1insn->sh_size);
+	}
+	if (sun4v_2insn && tlb_type == hypervisor) {
+		void *p = (void *) sun4v_2insn->sh_addr;
+		sun4v_patch_2insn_range(p, p + sun4v_2insn->sh_size);
+	}
+}
+
 int module_finalize(const Elf_Ehdr *hdr,
 		    const Elf_Shdr *sechdrs,
 		    struct module *me)
 {
 	/* make jump label nops */
 	jump_label_apply_nops(me);
+
+	do_patch_sections(hdr, sechdrs);
 
 	/* Cheetah's I-cache is fully coherent.  */
 	if (tlb_type == spitfire) {
@@ -239,15 +249,4 @@ int module_finalize(const Elf_Ehdr *hdr,
 
 	return 0;
 }
-#else
-int module_finalize(const Elf_Ehdr *hdr,
-                    const Elf_Shdr *sechdrs,
-                    struct module *me)
-{
-        return 0;
-}
 #endif /* CONFIG_SPARC64 */
-
-void module_arch_cleanup(struct module *mod)
-{
-}

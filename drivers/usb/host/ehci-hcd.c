@@ -94,7 +94,8 @@ static const char	hcd_name [] = "ehci_hcd";
 #define EHCI_IAA_MSECS		10		/* arbitrary */
 #define EHCI_IO_JIFFIES		(HZ/10)		/* io watchdog > irq_thresh */
 #define EHCI_ASYNC_JIFFIES	(HZ/20)		/* async idle timeout */
-#define EHCI_SHRINK_FRAMES	5		/* async qh unlink delay */
+#define EHCI_SHRINK_JIFFIES	(DIV_ROUND_UP(HZ, 200) + 1)
+						/* 5-ms async qh unlink delay */
 
 /* Initial IRQ latency:  faster than hw default */
 static int log2_irq_thresh = 0;		// 0 to 6
@@ -114,7 +115,7 @@ MODULE_PARM_DESC (ignore_oc, "ignore bogus hardware overcurrent indications");
 /* for link power management(LPM) feature */
 static unsigned int hird;
 module_param(hird, int, S_IRUGO);
-MODULE_PARM_DESC(hird, "host initiated resume duration, +1 for each 75us\n");
+MODULE_PARM_DESC(hird, "host initiated resume duration, +1 for each 75us");
 
 #define	INTR_MASK (STS_IAA | STS_FATAL | STS_PCD | STS_ERR | STS_INT)
 
@@ -152,10 +153,7 @@ timer_action(struct ehci_hcd *ehci, enum ehci_timer_action action)
 			break;
 		/* case TIMER_ASYNC_SHRINK: */
 		default:
-			/* add a jiffie since we synch against the
-			 * 8 KHz uframe counter.
-			 */
-			t = DIV_ROUND_UP(EHCI_SHRINK_FRAMES * HZ, 1000) + 1;
+			t = EHCI_SHRINK_JIFFIES;
 			break;
 		}
 		mod_timer(&ehci->watchdog, t + jiffies);
@@ -240,7 +238,7 @@ static int handshake_on_error_set_halt(struct ehci_hcd *ehci, void __iomem *ptr,
 	error = handshake(ehci, ptr, mask, done, usec);
 	if (error) {
 		ehci_halt(ehci);
-		ehci_to_hcd(ehci)->state = HC_STATE_HALT;
+		ehci->rh_state = EHCI_RH_HALTED;
 		ehci_err(ehci, "force halt; handshake %p %08x %08x -> %d\n",
 			ptr, mask, done, error);
 	}
@@ -280,7 +278,7 @@ static int ehci_reset (struct ehci_hcd *ehci)
 	command |= CMD_RESET;
 	dbg_cmd (ehci, "reset", command);
 	ehci_writel(ehci, command, &ehci->regs->command);
-	ehci_to_hcd(ehci)->state = HC_STATE_HALT;
+	ehci->rh_state = EHCI_RH_HALTED;
 	ehci->next_statechange = jiffies;
 	retval = handshake (ehci, &ehci->regs->command,
 			    CMD_RESET, 0, 250 * 1000);
@@ -309,7 +307,7 @@ static void ehci_quiesce (struct ehci_hcd *ehci)
 	u32	temp;
 
 #ifdef DEBUG
-	if (!HC_IS_RUNNING (ehci_to_hcd(ehci)->state))
+	if (ehci->rh_state != EHCI_RH_RUNNING)
 		BUG ();
 #endif
 
@@ -340,6 +338,7 @@ static void ehci_work(struct ehci_hcd *ehci);
 #include "ehci-mem.c"
 #include "ehci-q.c"
 #include "ehci-sched.c"
+#include "ehci-sysfs.c"
 
 /*-------------------------------------------------------------------------*/
 
@@ -357,7 +356,7 @@ static void ehci_iaa_watchdog(unsigned long param)
 	 */
 	if (ehci->reclaim
 			&& !timer_pending(&ehci->iaa_watchdog)
-			&& HC_IS_RUNNING(ehci_to_hcd(ehci)->state)) {
+			&& ehci->rh_state == EHCI_RH_RUNNING) {
 		u32 cmd, status;
 
 		/* If we get here, IAA is *REALLY* late.  It's barely
@@ -497,7 +496,7 @@ static void ehci_work (struct ehci_hcd *ehci)
 	 * misplace IRQs, and should let us run completely without IRQs.
 	 * such lossage has been observed on both VT6202 and VT8235.
 	 */
-	if (HC_IS_RUNNING (ehci_to_hcd(ehci)->state) &&
+	if (ehci->rh_state == EHCI_RH_RUNNING &&
 			(ehci->async->qh_next.ptr != NULL ||
 			 ehci->periodic_sched != 0))
 		timer_action (ehci, TIMER_IO_WATCHDOG);
@@ -517,14 +516,14 @@ static void ehci_stop (struct usb_hcd *hcd)
 	del_timer_sync(&ehci->iaa_watchdog);
 
 	spin_lock_irq(&ehci->lock);
-	if (HC_IS_RUNNING (hcd->state))
+	if (ehci->rh_state == EHCI_RH_RUNNING)
 		ehci_quiesce (ehci);
 
 	ehci_silence_controller(ehci);
 	ehci_reset (ehci);
 	spin_unlock_irq(&ehci->lock);
 
-	remove_companion_file(ehci);
+	remove_sysfs_files(ehci);
 	remove_debug_files (ehci);
 
 	/* root hub is shut down separately (first, when possible) */
@@ -573,6 +572,12 @@ static int ehci_init(struct usb_hcd *hcd)
 	ehci->iaa_watchdog.data = (unsigned long) ehci;
 
 	hcc_params = ehci_readl(ehci, &ehci->caps->hcc_params);
+
+	/*
+	 * by default set standard 80% (== 100 usec/uframe) max periodic
+	 * bandwidth as required by USB 2.0
+	 */
+	ehci->uframe_periodic_max = 100;
 
 	/*
 	 * hw default: 1K periodic list heads, one per frame.
@@ -736,7 +741,7 @@ static int ehci_run (struct usb_hcd *hcd)
 	 * be started before the port switching actions could complete.
 	 */
 	down_write(&ehci_cf_port_reset_rwsem);
-	hcd->state = HC_STATE_RUNNING;
+	ehci->rh_state = EHCI_RH_RUNNING;
 	ehci_writel(ehci, FLAG_CF, &ehci->regs->configured_flag);
 	ehci_readl(ehci, &ehci->regs->command);	/* unblock posted writes */
 	msleep(5);
@@ -758,7 +763,36 @@ static int ehci_run (struct usb_hcd *hcd)
 	 * since the class device isn't created that early.
 	 */
 	create_debug_files(ehci);
-	create_companion_file(ehci);
+	create_sysfs_files(ehci);
+
+	return 0;
+}
+
+static int __maybe_unused ehci_setup (struct usb_hcd *hcd)
+{
+	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+	int retval;
+
+	ehci->regs = (void __iomem *)ehci->caps +
+	    HC_LENGTH(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
+	dbg_hcs_params(ehci, "reset");
+	dbg_hcc_params(ehci, "reset");
+
+	/* cache this readonly data; minimize chip reads */
+	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
+
+	ehci->sbrn = HCD_USB2;
+
+	retval = ehci_halt(ehci);
+	if (retval)
+		return retval;
+
+	/* data structure init */
+	retval = ehci_init(hcd);
+	if (retval)
+		return retval;
+
+	ehci_reset(ehci);
 
 	return 0;
 }
@@ -783,7 +817,7 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 
 	/* Shared IRQ? */
 	masked_status = status & INTR_MASK;
-	if (!masked_status || unlikely(hcd->state == HC_STATE_HALT)) {
+	if (!masked_status || unlikely(ehci->rh_state == EHCI_RH_HALTED)) {
 		spin_unlock(&ehci->lock);
 		return IRQ_NONE;
 	}
@@ -947,7 +981,7 @@ static int ehci_urb_enqueue (
 static void unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 {
 	/* failfast */
-	if (!HC_IS_RUNNING(ehci_to_hcd(ehci)->state) && ehci->reclaim)
+	if (ehci->rh_state != EHCI_RH_RUNNING && ehci->reclaim)
 		end_unlink_async(ehci);
 
 	/* If the QH isn't linked then there's nothing we can do
@@ -1074,7 +1108,7 @@ rescan:
 		goto idle_timeout;
 	}
 
-	if (!HC_IS_RUNNING (hcd->state))
+	if (ehci->rh_state != EHCI_RH_RUNNING)
 		qh->qh_state = QH_STATE_IDLE;
 	switch (qh->qh_state) {
 	case QH_STATE_LINKED:
@@ -1161,8 +1195,7 @@ ehci_endpoint_reset(struct usb_hcd *hcd, struct usb_host_endpoint *ep)
 static int ehci_get_frame (struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
-	return (ehci_readl(ehci, &ehci->regs->frame_index) >> 3) %
-		ehci->periodic_size;
+	return (ehci_read_frame_index(ehci) >> 3) % ehci->periodic_size;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1191,7 +1224,7 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ehci_hcd_sh_driver
 #endif
 
-#ifdef CONFIG_SOC_AU1200
+#ifdef CONFIG_MIPS_ALCHEMY
 #include "ehci-au1xxx.c"
 #define	PLATFORM_DRIVER		ehci_hcd_au1xxx_driver
 #endif
@@ -1284,6 +1317,16 @@ MODULE_LICENSE ("GPL");
 #ifdef CONFIG_SPARC_LEON
 #include "ehci-grlib.c"
 #define PLATFORM_DRIVER		ehci_grlib_driver
+#endif
+
+#ifdef CONFIG_USB_PXA168_EHCI
+#include "ehci-pxa168.c"
+#define PLATFORM_DRIVER		ehci_pxa168_driver
+#endif
+
+#ifdef CONFIG_NLM_XLR
+#include "ehci-xls.c"
+#define PLATFORM_DRIVER		ehci_xls_driver
 #endif
 
 #if !defined(PCI_DRIVER) && !defined(PLATFORM_DRIVER) && \

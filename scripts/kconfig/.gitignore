@@ -2,7 +2,7 @@
 # Generated files
 #
 config*
-lex.*.c
+*.lex.c
 *.tab.c
 *.tab.h
 zconf.hash.c

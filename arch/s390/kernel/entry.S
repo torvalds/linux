@@ -9,8 +9,8 @@
  *		 Heiko Carstens <heiko.carstens@de.ibm.com>
  */
 
-#include <linux/linkage.h>
 #include <linux/init.h>
+#include <linux/linkage.h>
 #include <asm/cache.h>
 #include <asm/errno.h>
 #include <asm/ptrace.h>
@@ -43,16 +43,15 @@ SP_R13	     =	STACK_FRAME_OVERHEAD + __PT_GPRS + 52
 SP_R14	     =	STACK_FRAME_OVERHEAD + __PT_GPRS + 56
 SP_R15	     =	STACK_FRAME_OVERHEAD + __PT_GPRS + 60
 SP_ORIG_R2   =	STACK_FRAME_OVERHEAD + __PT_ORIG_GPR2
-SP_ILC	     =	STACK_FRAME_OVERHEAD + __PT_ILC
-SP_SVCNR     =	STACK_FRAME_OVERHEAD + __PT_SVCNR
+SP_SVC_CODE  =	STACK_FRAME_OVERHEAD + __PT_SVC_CODE
 SP_SIZE      =	STACK_FRAME_OVERHEAD + __PT_SIZE
 
 _TIF_WORK_SVC = (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | \
-		 _TIF_MCCK_PENDING | _TIF_RESTART_SVC | _TIF_PER_TRAP )
+		 _TIF_MCCK_PENDING | _TIF_PER_TRAP )
 _TIF_WORK_INT = (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | \
 		 _TIF_MCCK_PENDING)
-_TIF_SYSCALL = (_TIF_SYSCALL_TRACE>>8 | _TIF_SYSCALL_AUDIT>>8 | \
-		_TIF_SECCOMP>>8 | _TIF_SYSCALL_TRACEPOINT>>8)
+_TIF_TRACE    = (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | _TIF_SECCOMP | \
+		 _TIF_SYSCALL_TRACEPOINT)
 
 STACK_SHIFT = PAGE_SHIFT + THREAD_ORDER
 STACK_SIZE  = 1 << STACK_SHIFT
@@ -197,8 +196,7 @@ STACK_SIZE  = 1 << STACK_SHIFT
  * Returns:
  *  gpr2 = prev
  */
-	.globl	__switch_to
-__switch_to:
+ENTRY(__switch_to)
 	basr	%r1,0
 0:	l	%r4,__THREAD_info(%r2)		# get thread_info of prev
 	l	%r5,__THREAD_info(%r3)		# get thread_info of next
@@ -224,15 +222,15 @@ __critical_start:
  * are executed with interrupts enabled.
  */
 
-	.globl	system_call
-system_call:
+ENTRY(system_call)
 	stpt	__LC_SYNC_ENTER_TIMER
 sysc_saveall:
 	SAVE_ALL_SVC __LC_SVC_OLD_PSW,__LC_SAVE_AREA
 	CREATE_STACK_FRAME __LC_SAVE_AREA
-	mvc	SP_PSW(8,%r15),__LC_SVC_OLD_PSW
-	mvc	SP_ILC(4,%r15),__LC_SVC_ILC
 	l	%r12,__LC_THREAD_INFO	# load pointer to thread_info struct
+	mvc	SP_PSW(8,%r15),__LC_SVC_OLD_PSW
+	mvc	SP_SVC_CODE(4,%r15),__LC_SVC_ILC
+	oi	__TI_flags+3(%r12),_TIF_SYSCALL
 sysc_vtime:
 	UPDATE_VTIME __LC_EXIT_TIMER,__LC_SYNC_ENTER_TIMER,__LC_USER_TIMER
 sysc_stime:
@@ -241,17 +239,17 @@ sysc_update:
 	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_SYNC_ENTER_TIMER
 sysc_do_svc:
 	xr	%r7,%r7
-	icm	%r7,3,SP_SVCNR(%r15)	# load svc number and test for svc 0
+	icm	%r7,3,SP_SVC_CODE+2(%r15)# load svc number and test for svc 0
 	bnz	BASED(sysc_nr_ok)	# svc number > 0
 	# svc 0: system call number in %r1
 	cl	%r1,BASED(.Lnr_syscalls)
 	bnl	BASED(sysc_nr_ok)
-	sth	%r1,SP_SVCNR(%r15)
+	sth	%r1,SP_SVC_CODE+2(%r15)
 	lr	%r7,%r1 	  # copy svc number to %r7
 sysc_nr_ok:
 	sll	%r7,2		  # svc number *4
 	l	%r10,BASED(.Lsysc_table)
-	tm	__TI_flags+2(%r12),_TIF_SYSCALL
+	tm	__TI_flags+2(%r12),_TIF_TRACE >> 8
 	mvc	SP_ARGS(4,%r15),SP_R7(%r15)
 	l	%r8,0(%r7,%r10)	  # get system call addr.
 	bnz	BASED(sysc_tracesys)
@@ -261,23 +259,19 @@ sysc_nr_ok:
 sysc_return:
 	LOCKDEP_SYS_EXIT
 sysc_tif:
+	tm	SP_PSW+1(%r15),0x01	# returning to user ?
+	bno	BASED(sysc_restore)
 	tm	__TI_flags+3(%r12),_TIF_WORK_SVC
 	bnz	BASED(sysc_work)  # there is work to do (signals etc.)
+	ni	__TI_flags+3(%r12),255-_TIF_SYSCALL
 sysc_restore:
 	RESTORE_ALL __LC_RETURN_PSW,1
 sysc_done:
 
 #
-# There is work to do, but first we need to check if we return to userspace.
-#
-sysc_work:
-	tm	SP_PSW+1(%r15),0x01	# returning to user ?
-	bno	BASED(sysc_restore)
-
-#
 # One of the work bits is on. Find out which one.
 #
-sysc_work_tif:
+sysc_work:
 	tm	__TI_flags+3(%r12),_TIF_MCCK_PENDING
 	bo	BASED(sysc_mcck_pending)
 	tm	__TI_flags+3(%r12),_TIF_NEED_RESCHED
@@ -286,8 +280,6 @@ sysc_work_tif:
 	bo	BASED(sysc_sigpending)
 	tm	__TI_flags+3(%r12),_TIF_NOTIFY_RESUME
 	bo	BASED(sysc_notify_resume)
-	tm	__TI_flags+3(%r12),_TIF_RESTART_SVC
-	bo	BASED(sysc_restart)
 	tm	__TI_flags+3(%r12),_TIF_PER_TRAP
 	bo	BASED(sysc_singlestep)
 	b	BASED(sysc_return)	# beware of critical section cleanup
@@ -316,11 +308,14 @@ sysc_sigpending:
 	la	%r2,SP_PTREGS(%r15)	# load pt_regs
 	l	%r1,BASED(.Ldo_signal)
 	basr	%r14,%r1		# call do_signal
-	tm	__TI_flags+3(%r12),_TIF_RESTART_SVC
-	bo	BASED(sysc_restart)
-	tm	__TI_flags+3(%r12),_TIF_PER_TRAP
-	bo	BASED(sysc_singlestep)
-	b	BASED(sysc_return)
+	tm	__TI_flags+3(%r12),_TIF_SYSCALL
+	bno	BASED(sysc_return)
+	lm	%r2,%r6,SP_R2(%r15)	# load svc arguments
+	xr	%r7,%r7			# svc 0 returns -ENOSYS
+	clc	SP_SVC_CODE+2(2,%r15),BASED(.Lnr_syscalls+2)
+	bnl	BASED(sysc_nr_ok)	# invalid svc number -> do svc 0
+	icm	%r7,3,SP_SVC_CODE+2(%r15)# load new svc number
+	b	BASED(sysc_nr_ok)	# restart svc
 
 #
 # _TIF_NOTIFY_RESUME is set, call do_notify_resume
@@ -331,24 +326,11 @@ sysc_notify_resume:
 	la	%r14,BASED(sysc_return)
 	br	%r1			# call do_notify_resume
 
-
-#
-# _TIF_RESTART_SVC is set, set up registers and restart svc
-#
-sysc_restart:
-	ni	__TI_flags+3(%r12),255-_TIF_RESTART_SVC # clear TIF_RESTART_SVC
-	l	%r7,SP_R2(%r15) 	# load new svc number
-	mvc	SP_R2(4,%r15),SP_ORIG_R2(%r15) # restore first argument
-	lm	%r2,%r6,SP_R2(%r15)	# load svc arguments
-	sth	%r7,SP_SVCNR(%r15)
-	b	BASED(sysc_nr_ok)	# restart svc
-
 #
 # _TIF_PER_TRAP is set, call do_per_trap
 #
 sysc_singlestep:
-	ni	__TI_flags+3(%r12),255-_TIF_PER_TRAP # clear TIF_PER_TRAP
-	xc	SP_SVCNR(2,%r15),SP_SVCNR(%r15)		# clear svc number
+	ni	__TI_flags+3(%r12),255-(_TIF_SYSCALL | _TIF_PER_TRAP)
 	la	%r2,SP_PTREGS(%r15)	# address of register-save area
 	l	%r1,BASED(.Lhandle_per)	# load adr. of per handler
 	la	%r14,BASED(sysc_return)	# load adr. of system return
@@ -363,7 +345,7 @@ sysc_tracesys:
 	la	%r2,SP_PTREGS(%r15)	# load pt_regs
 	la	%r3,0
 	xr	%r0,%r0
-	icm	%r0,3,SP_SVCNR(%r15)
+	icm	%r0,3,SP_SVC_CODE(%r15)
 	st	%r0,SP_R2(%r15)
 	basr	%r14,%r1
 	cl	%r2,BASED(.Lnr_syscalls)
@@ -378,7 +360,7 @@ sysc_tracego:
 	basr	%r14,%r8		# call sys_xxx
 	st	%r2,SP_R2(%r15)		# store return value
 sysc_tracenogo:
-	tm	__TI_flags+2(%r12),_TIF_SYSCALL
+	tm	__TI_flags+2(%r12),_TIF_TRACE >> 8
 	bz	BASED(sysc_return)
 	l	%r1,BASED(.Ltrace_exit)
 	la	%r2,SP_PTREGS(%r15)	# load pt_regs
@@ -388,8 +370,7 @@ sysc_tracenogo:
 #
 # a new process exits the kernel with ret_from_fork
 #
-	.globl	ret_from_fork
-ret_from_fork:
+ENTRY(ret_from_fork)
 	l	%r13,__LC_SVC_NEW_PSW+4
 	l	%r12,__LC_THREAD_INFO	# load pointer to thread_info struct
 	tm	SP_PSW+1(%r15),0x01	# forking a kernel thread ?
@@ -405,8 +386,7 @@ ret_from_fork:
 # kernel_execve function needs to deal with pt_regs that is not
 # at the usual place
 #
-	.globl	kernel_execve
-kernel_execve:
+ENTRY(kernel_execve)
 	stm	%r12,%r15,48(%r15)
 	lr	%r14,%r15
 	l	%r13,__LC_SVC_NEW_PSW+4
@@ -438,8 +418,7 @@ kernel_execve:
  * Program check handler routine
  */
 
-	.globl	pgm_check_handler
-pgm_check_handler:
+ENTRY(pgm_check_handler)
 /*
  * First we need to check for a special case:
  * Single stepping an instruction that disables the PER event mask will
@@ -459,7 +438,6 @@ pgm_check_handler:
 	bnz	BASED(pgm_per)		# got per exception -> special case
 	SAVE_ALL_PGM __LC_PGM_OLD_PSW,__LC_SAVE_AREA
 	CREATE_STACK_FRAME __LC_SAVE_AREA
-	xc	SP_ILC(4,%r15),SP_ILC(%r15)
 	mvc	SP_PSW(8,%r15),__LC_PGM_OLD_PSW
 	l	%r12,__LC_THREAD_INFO	# load pointer to thread_info struct
 	tm	SP_PSW+1(%r15),0x01	# interrupting from user ?
@@ -535,9 +513,10 @@ pgm_exit2:
 pgm_svcper:
 	SAVE_ALL_PGM __LC_SVC_OLD_PSW,__LC_SAVE_AREA
 	CREATE_STACK_FRAME __LC_SAVE_AREA
-	mvc	SP_PSW(8,%r15),__LC_SVC_OLD_PSW
-	mvc	SP_ILC(4,%r15),__LC_SVC_ILC
 	l	%r12,__LC_THREAD_INFO	# load pointer to thread_info struct
+	mvc	SP_PSW(8,%r15),__LC_SVC_OLD_PSW
+	mvc	SP_SVC_CODE(4,%r15),__LC_SVC_ILC
+	oi	__TI_flags+3(%r12),(_TIF_SYSCALL | _TIF_PER_TRAP)
 	UPDATE_VTIME __LC_EXIT_TIMER,__LC_SYNC_ENTER_TIMER,__LC_USER_TIMER
 	UPDATE_VTIME __LC_LAST_UPDATE_TIMER,__LC_EXIT_TIMER,__LC_SYSTEM_TIMER
 	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_SYNC_ENTER_TIMER
@@ -545,7 +524,6 @@ pgm_svcper:
 	mvc	__THREAD_per_cause(2,%r8),__LC_PER_CAUSE
 	mvc	__THREAD_per_address(4,%r8),__LC_PER_ADDRESS
 	mvc	__THREAD_per_paid(1,%r8),__LC_PER_PAID
-	oi	__TI_flags+3(%r12),_TIF_PER_TRAP # set TIF_PER_TRAP
 	stosm	__SF_EMPTY(%r15),0x03	# reenable interrupts
 	lm	%r2,%r6,SP_R2(%r15)	# load svc arguments
 	b	BASED(sysc_do_svc)
@@ -555,7 +533,6 @@ pgm_svcper:
 #
 kernel_per:
 	REENABLE_IRQS
-	xc	SP_SVCNR(2,%r15),SP_SVCNR(%r15)
 	la	%r2,SP_PTREGS(%r15)	# address of register-save area
 	l	%r1,BASED(.Lhandle_per)	# load adr. of per handler
 	basr	%r14,%r1		# branch to do_single_step
@@ -565,8 +542,7 @@ kernel_per:
  * IO interrupt handler routine
  */
 
-	.globl io_int_handler
-io_int_handler:
+ENTRY(io_int_handler)
 	stck	__LC_INT_CLOCK
 	stpt	__LC_ASYNC_ENTER_TIMER
 	SAVE_ALL_ASYNC __LC_IO_OLD_PSW,__LC_SAVE_AREA+16
@@ -703,8 +679,7 @@ io_notify_resume:
  * External interrupt handler routine
  */
 
-	.globl	ext_int_handler
-ext_int_handler:
+ENTRY(ext_int_handler)
 	stck	__LC_INT_CLOCK
 	stpt	__LC_ASYNC_ENTER_TIMER
 	SAVE_ALL_ASYNC __LC_EXT_OLD_PSW,__LC_SAVE_AREA+16
@@ -731,8 +706,7 @@ __critical_end:
  * Machine check handler routines
  */
 
-	.globl mcck_int_handler
-mcck_int_handler:
+ENTRY(mcck_int_handler)
 	stck	__LC_MCCK_CLOCK
 	spt	__LC_CPU_TIMER_SAVE_AREA	# revalidate cpu timer
 	lm	%r0,%r15,__LC_GPREGS_SAVE_AREA	# revalidate gprs
@@ -818,8 +792,7 @@ mcck_return:
  */
 #ifdef CONFIG_SMP
 	__CPUINIT
-	.globl restart_int_handler
-restart_int_handler:
+ENTRY(restart_int_handler)
 	basr	%r1,0
 restart_base:
 	spt	restart_vtime-restart_base(%r1)
@@ -848,8 +821,7 @@ restart_vtime:
 /*
  * If we do not run with SMP enabled, let the new CPU crash ...
  */
-	.globl restart_int_handler
-restart_int_handler:
+ENTRY(restart_int_handler)
 	basr	%r1,0
 restart_base:
 	lpsw	restart_crash-restart_base(%r1)
@@ -858,6 +830,34 @@ restart_crash:
 	.long	0x000a0000,0x00000000
 restart_go:
 #endif
+
+#
+# PSW restart interrupt handler
+#
+ENTRY(psw_restart_int_handler)
+	st	%r15,__LC_SAVE_AREA+48(%r0)	# save r15
+	basr	%r15,0
+0:	l	%r15,.Lrestart_stack-0b(%r15)	# load restart stack
+	l	%r15,0(%r15)
+	ahi	%r15,-SP_SIZE			# make room for pt_regs
+	stm	%r0,%r14,SP_R0(%r15)		# store gprs %r0-%r14 to stack
+	mvc	SP_R15(4,%r15),__LC_SAVE_AREA+48(%r0)# store saved %r15 to stack
+	mvc	SP_PSW(8,%r15),__LC_RST_OLD_PSW(%r0) # store restart old psw
+	xc	__SF_BACKCHAIN(4,%r15),__SF_BACKCHAIN(%r15) # set backchain to 0
+	basr	%r14,0
+1:	l	%r14,.Ldo_restart-1b(%r14)
+	basr	%r14,%r14
+
+	basr	%r14,0				# load disabled wait PSW if
+2:	lpsw	restart_psw_crash-2b(%r14)	# do_restart returns
+	.align 4
+.Ldo_restart:
+	.long	do_restart
+.Lrestart_stack:
+	.long	restart_stack
+	.align 8
+restart_psw_crash:
+	.long	0x000a0000,0x00000000 + restart_psw_crash
 
 	.section .kprobes.text, "ax"
 
@@ -947,9 +947,11 @@ cleanup_system_call:
 	s	%r15,BASED(.Lc_spsize)	# make room for registers & psw
 	st	%r15,12(%r12)
 	CREATE_STACK_FRAME __LC_SAVE_AREA
-	mvc	SP_PSW(8,%r15),__LC_SVC_OLD_PSW
-	mvc	SP_ILC(4,%r15),__LC_SVC_ILC
 	mvc	0(4,%r12),__LC_THREAD_INFO
+	l	%r12,__LC_THREAD_INFO
+	mvc	SP_PSW(8,%r15),__LC_SVC_OLD_PSW
+	mvc	SP_SVC_CODE(4,%r15),__LC_SVC_ILC
+	oi	__TI_flags+3(%r12),_TIF_SYSCALL
 cleanup_vtime:
 	clc	__LC_RETURN_PSW+4(4),BASED(cleanup_system_call_insn+12)
 	bhe	BASED(cleanup_stime)

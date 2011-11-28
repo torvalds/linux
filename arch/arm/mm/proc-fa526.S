@@ -180,42 +180,14 @@ fa526_cr1_set:
 
 	__INITDATA
 
-/*
- * Purpose : Function pointers used to access above functions - all calls
- *	     come through these
- */
-	.type	fa526_processor_functions, #object
-fa526_processor_functions:
-	.word	v4_early_abort
-	.word	legacy_pabort
-	.word	cpu_fa526_proc_init
-	.word	cpu_fa526_proc_fin
-	.word	cpu_fa526_reset
-	.word   cpu_fa526_do_idle
-	.word	cpu_fa526_dcache_clean_area
-	.word	cpu_fa526_switch_mm
-	.word	cpu_fa526_set_pte_ext
-	.word	0
-	.word	0
-	.word	0
-	.size	fa526_processor_functions, . - fa526_processor_functions
+	@ define struct processor (see <asm/proc-fns.h> and proc-macros.S)
+	define_processor_functions fa526, dabort=v4_early_abort, pabort=legacy_pabort
 
 	.section ".rodata"
 
-	.type	cpu_arch_name, #object
-cpu_arch_name:
-	.asciz	"armv4"
-	.size	cpu_arch_name, . - cpu_arch_name
-
-	.type	cpu_elf_name, #object
-cpu_elf_name:
-	.asciz	"v4"
-	.size	cpu_elf_name, . - cpu_elf_name
-
-	.type	cpu_fa526_name, #object
-cpu_fa526_name:
-	.asciz	"FA526"
-	.size	cpu_fa526_name, . - cpu_fa526_name
+	string	cpu_arch_name, "armv4"
+	string	cpu_elf_name, "v4"
+	string	cpu_fa526_name, "FA526"
 
 	.align
 

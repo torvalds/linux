@@ -129,9 +129,8 @@ static struct platform_device *vstms_devices[] __initdata = {
 	&s3c_device_nand,
 };
 
-static void __init vstms_fixup(struct machine_desc *desc,
-				  struct tag *tags, char **cmdline,
-				  struct meminfo *mi)
+static void __init vstms_fixup(struct tag *tags, char **cmdline,
+			       struct meminfo *mi)
 {
 	if (tags != phys_to_virt(S3C2410_SDRAM_PA + 0x100)) {
 		mi->nr_banks=1;
@@ -156,7 +155,7 @@ static void __init vstms_init(void)
 }
 
 MACHINE_START(VSTMS, "VSTMS")
-	.boot_params	= S3C2410_SDRAM_PA + 0x100,
+	.atag_offset	= 0x100,
 
 	.fixup		= vstms_fixup,
 	.init_irq	= s3c24xx_init_irq,

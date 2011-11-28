@@ -64,7 +64,6 @@ struct loop_device {
 
 	struct request_queue	*lo_queue;
 	struct gendisk		*lo_disk;
-	struct list_head	lo_list;
 };
 
 #endif /* __KERNEL__ */
@@ -74,8 +73,8 @@ struct loop_device {
  */
 enum {
 	LO_FLAGS_READ_ONLY	= 1,
-	LO_FLAGS_USE_AOPS	= 2,
 	LO_FLAGS_AUTOCLEAR	= 4,
+	LO_FLAGS_PARTSCAN	= 8,
 };
 
 #include <asm/posix_types.h>	/* for __kernel_old_dev_t */
@@ -161,4 +160,8 @@ int loop_unregister_transfer(int number);
 #define LOOP_CHANGE_FD		0x4C06
 #define LOOP_SET_CAPACITY	0x4C07
 
+/* /dev/loop-control interface */
+#define LOOP_CTL_ADD		0x4C80
+#define LOOP_CTL_REMOVE		0x4C81
+#define LOOP_CTL_GET_FREE	0x4C82
 #endif

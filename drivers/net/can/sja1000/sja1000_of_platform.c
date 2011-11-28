@@ -29,7 +29,7 @@
  *           nxp,external-clock-frequency = <16000000>;
  *   };
  *
- * See "Documentation/powerpc/dts-bindings/can/sja1000.txt" for further
+ * See "Documentation/devicetree/bindings/net/can/sja1000.txt" for further
  * information.
  */
 
@@ -38,6 +38,7 @@
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 #include <linux/can/dev.h>
 
 #include <linux/of_platform.h>

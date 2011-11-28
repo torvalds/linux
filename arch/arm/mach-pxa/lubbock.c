@@ -11,6 +11,7 @@
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  */
+#include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -42,7 +43,6 @@
 #include <asm/hardware/sa1111.h>
 
 #include <mach/pxa25x.h>
-#include <mach/gpio.h>
 #include <mach/audio.h>
 #include <mach/lubbock.h>
 #include <mach/udc.h>
@@ -553,6 +553,7 @@ MACHINE_START(LUBBOCK, "Intel DBPXA250 Development Platform (aka Lubbock)")
 	.map_io		= lubbock_map_io,
 	.nr_irqs	= LUBBOCK_NR_IRQS,
 	.init_irq	= lubbock_init_irq,
+	.handle_irq	= pxa25x_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= lubbock_init,
 MACHINE_END

@@ -51,7 +51,7 @@ IRQ is assigned but not used.
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
 
-static struct pcmcia_device *pcmcia_cur_dev = NULL;
+static struct pcmcia_device *pcmcia_cur_dev;
 
 #define DIO700_SIZE 8		/*  size of io region used by board */
 
@@ -381,11 +381,11 @@ static int dio700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 #endif
 		break;
 	default:
-		printk("bug! couldn't determine board type\n");
+		printk(KERN_ERR "bug! couldn't determine board type\n");
 		return -EINVAL;
 		break;
 	}
-	printk("comedi%d: ni_daq_700: %s, io 0x%lx", dev->minor,
+	printk(KERN_ERR "comedi%d: ni_daq_700: %s, io 0x%lx", dev->minor,
 	       thisboard->name, iobase);
 #ifdef incomplete
 	if (irq)
@@ -396,7 +396,7 @@ static int dio700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	printk("\n");
 
 	if (iobase == 0) {
-		printk("io base address is zero!\n");
+		printk(KERN_ERR "io base address is zero!\n");
 		return -EINVAL;
 	}
 
@@ -421,7 +421,7 @@ static int dio700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static int dio700_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: ni_daq_700: cs-remove\n", dev->minor);
+	printk(KERN_ERR "comedi%d: ni_daq_700: cs-remove\n", dev->minor);
 
 	if (dev->subdevices)
 		subdev_700_cleanup(dev, dev->subdevices + 0);

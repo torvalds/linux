@@ -39,7 +39,6 @@
 #include <mach/regs-clock.h>
 #include <mach/regs-ldm.h>
 #include <mach/fb.h>
-#include <mach/clkdev.h>
 
 #include "nuc900fb.h"
 
@@ -551,7 +550,7 @@ static int __devinit nuc900fb_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	size = (res->end - res->start) + 1;
+	size = resource_size(res);
 	fbi->mem = request_mem_region(res->start, size, pdev->name);
 	if (fbi->mem == NULL) {
 		dev_err(&pdev->dev, "failed to alloc memory region\n");
@@ -588,7 +587,7 @@ static int __devinit nuc900fb_probe(struct platform_device *pdev)
 	fbinfo->flags			= FBINFO_FLAG_DEFAULT;
 	fbinfo->pseudo_palette		= &fbi->pseudo_pal;
 
-	ret = request_irq(irq, nuc900fb_irqhandler, IRQF_DISABLED,
+	ret = request_irq(irq, nuc900fb_irqhandler, 0,
 			  pdev->name, fbinfo);
 	if (ret) {
 		dev_err(&pdev->dev, "cannot register irq handler %d -err %d\n",

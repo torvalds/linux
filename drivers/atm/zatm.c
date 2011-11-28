@@ -16,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/uio.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
 #include <linux/atm_zatm.h>
 #include <linux/capability.h>
@@ -26,7 +27,7 @@
 #include <asm/system.h>
 #include <asm/string.h>
 #include <asm/io.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/uaccess.h>
 
 #include "uPD98401.h"

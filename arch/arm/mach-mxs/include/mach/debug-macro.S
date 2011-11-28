@@ -14,23 +14,15 @@
 #include <mach/mx23.h>
 #include <mach/mx28.h>
 
-#ifdef CONFIG_SOC_IMX23
-#ifdef UART_PADDR
-#error "CONFIG_DEBUG_LL is incompatible with multiple archs"
-#endif
+#ifdef CONFIG_DEBUG_IMX23_UART
 #define UART_PADDR	MX23_DUART_BASE_ADDR
-#endif
-
-#ifdef CONFIG_SOC_IMX28
-#ifdef UART_PADDR
-#error "CONFIG_DEBUG_LL is incompatible with multiple archs"
-#endif
+#elif defined (CONFIG_DEBUG_IMX28_UART)
 #define UART_PADDR	MX28_DUART_BASE_ADDR
 #endif
 
 #define UART_VADDR	MXS_IO_ADDRESS(UART_PADDR)
 
-		.macro	addruart, rp, rv
+		.macro	addruart, rp, rv, tmp
 		ldr	\rp, =UART_PADDR	@ physical
 		ldr	\rv, =UART_VADDR	@ virtual
 		.endm

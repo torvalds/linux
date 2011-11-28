@@ -10,6 +10,7 @@
 #include <linux/pwm.h>
 #include <linux/mfd/ab8500.h>
 #include <linux/mfd/abx500.h>
+#include <linux/module.h>
 
 /*
  * PWM Out generators
@@ -164,5 +165,5 @@ subsys_initcall(ab8500_pwm_init);
 module_exit(ab8500_pwm_exit);
 MODULE_AUTHOR("Arun MURTHY <arun.murthy@stericsson.com>");
 MODULE_DESCRIPTION("AB8500 Pulse Width Modulation Driver");
-MODULE_ALIAS("AB8500 PWM driver");
+MODULE_ALIAS("platform:ab8500-pwm");
 MODULE_LICENSE("GPL v2");

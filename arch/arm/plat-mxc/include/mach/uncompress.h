@@ -117,6 +117,7 @@ static __inline__ void __arch_decomp_setup(unsigned long arch_id)
 	case MACH_TYPE_MX53_EVK:
 	case MACH_TYPE_MX53_LOCO:
 	case MACH_TYPE_MX53_SMD:
+	case MACH_TYPE_MX53_ARD:
 		uart_base = MX53_UART1_BASE_ADDR;
 		break;
 	default:

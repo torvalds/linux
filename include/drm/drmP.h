@@ -42,7 +42,6 @@
  * can build the DRM (part of PI DRI). 4/21/2000 S + B */
 #include <asm/current.h>
 #endif				/* __alpha__ */
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
@@ -79,6 +78,8 @@
 
 #define __OS_HAS_AGP (defined(CONFIG_AGP) || (defined(CONFIG_AGP_MODULE) && defined(MODULE)))
 #define __OS_HAS_MTRR (defined(CONFIG_MTRR))
+
+struct module;
 
 struct drm_file;
 struct drm_device;
@@ -122,12 +123,12 @@ struct drm_device;
  * using the DRM_DEBUG_KMS and DRM_DEBUG.
  */
 
-extern __attribute__((format (printf, 4, 5)))
+extern __printf(4, 5)
 void drm_ut_debug_printk(unsigned int request_level,
-				const char *prefix,
-				const char *function_name,
-				const char *format, ...);
-extern __attribute__((format (printf, 2, 3)))
+			 const char *prefix,
+			 const char *function_name,
+			 const char *format, ...);
+extern __printf(2, 3)
 int drm_err(const char *func, const char *format, ...);
 
 /***********************************************************************/
@@ -886,6 +887,8 @@ struct drm_driver {
 	 */
 	int (*gem_init_object) (struct drm_gem_object *obj);
 	void (*gem_free_object) (struct drm_gem_object *obj);
+	int (*gem_open_object) (struct drm_gem_object *, struct drm_file *);
+	void (*gem_close_object) (struct drm_gem_object *, struct drm_file *);
 
 	/* vga arb irq handler */
 	void (*vgaarb_irq)(struct drm_device *dev, bool state);
@@ -987,7 +990,9 @@ struct drm_minor {
 	struct proc_dir_entry *proc_root;  /**< proc directory entry */
 	struct drm_info_node proc_nodes;
 	struct dentry *debugfs_root;
-	struct drm_info_node debugfs_nodes;
+
+	struct list_head debugfs_list;
+	struct mutex debugfs_lock; /* Protects debugfs_list. */
 
 	struct drm_master *master; /* currently active master for this node */
 	struct list_head master_list;
@@ -1539,6 +1544,8 @@ struct drm_gem_object *drm_gem_object_alloc(struct drm_device *dev,
 					    size_t size);
 int drm_gem_object_init(struct drm_device *dev,
 			struct drm_gem_object *obj, size_t size);
+int drm_gem_private_object_init(struct drm_device *dev,
+			struct drm_gem_object *obj, size_t size);
 void drm_gem_object_handle_free(struct drm_gem_object *obj);
 void drm_gem_vm_open(struct vm_area_struct *vma);
 void drm_gem_vm_close(struct vm_area_struct *vma);
@@ -1620,6 +1627,9 @@ drm_gem_object_handle_unreference_unlocked(struct drm_gem_object *obj)
 	drm_gem_object_unreference_unlocked(obj);
 }
 
+void drm_gem_free_mmap_offset(struct drm_gem_object *obj);
+int drm_gem_create_mmap_offset(struct drm_gem_object *obj);
+
 struct drm_gem_object *drm_gem_object_lookup(struct drm_device *dev,
 					     struct drm_file *filp,
 					     u32 handle);
@@ -1671,13 +1681,6 @@ static __inline__ int drm_pci_device_is_agp(struct drm_device *dev)
 
 	return pci_find_capability(dev->pdev, PCI_CAP_ID_AGP);
 }
-
-
-static __inline__ int drm_pci_device_is_pcie(struct drm_device *dev)
-{
-	return pci_find_capability(dev->pdev, PCI_CAP_ID_EXP);
-}
-
 
 extern int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver);
 extern void drm_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver);

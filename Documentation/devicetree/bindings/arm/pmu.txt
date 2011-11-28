@@ -1,0 +1,21 @@
+* ARM Performance Monitor Units
+
+ARM cores often have a PMU for counting cpu and cache events like cache misses
+and hits. The interface to the PMU is part of the ARM ARM. The ARM PMU
+representation in the device tree should be done as under:-
+
+Required properties:
+
+- compatible : should be one of
+	"arm,cortex-a9-pmu"
+	"arm,cortex-a8-pmu"
+	"arm,arm1176-pmu"
+	"arm,arm1136-pmu"
+- interrupts : 1 combined interrupt or 1 per core.
+
+Example:
+
+pmu {
+        compatible = "arm,cortex-a9-pmu";
+        interrupts = <100 101>;
+};

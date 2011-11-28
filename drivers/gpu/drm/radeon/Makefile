@@ -5,6 +5,7 @@
 ccflags-y := -Iinclude/drm
 
 hostprogs-y := mkregtable
+clean-files := rn50_reg_safe.h r100_reg_safe.h r200_reg_safe.h rv515_reg_safe.h r300_reg_safe.h r420_reg_safe.h rs600_reg_safe.h r600_reg_safe.h evergreen_reg_safe.h cayman_reg_safe.h
 
 quiet_cmd_mkregtable = MKREGTABLE $@
       cmd_mkregtable = $(obj)/mkregtable $< > $@
@@ -69,7 +70,7 @@ radeon-y += radeon_device.o radeon_asic.o radeon_kms.o \
 	r200.o radeon_legacy_tv.o r600_cs.o r600_blit.o r600_blit_shaders.o \
 	r600_blit_kms.o radeon_pm.o atombios_dp.o r600_audio.o r600_hdmi.o \
 	evergreen.o evergreen_cs.o evergreen_blit_shaders.o evergreen_blit_kms.o \
-	radeon_trace_points.o ni.o cayman_blit_shaders.o
+	radeon_trace_points.o ni.o cayman_blit_shaders.o atombios_encoders.o
 
 radeon-$(CONFIG_COMPAT) += radeon_ioc32.o
 radeon-$(CONFIG_VGA_SWITCHEROO) += radeon_atpx_handler.o

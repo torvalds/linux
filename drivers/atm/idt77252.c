@@ -37,6 +37,7 @@
 #include <linux/atm.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/bitops.h>
 #include <linux/wait.h>
 #include <linux/jiffies.h>
@@ -45,7 +46,7 @@
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/byteorder.h>
 
 #ifdef CONFIG_ATM_IDT77252_USE_SUNI
@@ -3415,27 +3416,28 @@ init_card(struct atm_dev *dev)
 
 	size = sizeof(struct vc_map *) * card->tct_size;
 	IPRINTK("%s: allocate %d byte for VC map.\n", card->name, size);
-	if (NULL == (card->vcs = vmalloc(size))) {
+	card->vcs = vzalloc(size);
+	if (!card->vcs) {
 		printk("%s: memory allocation failure.\n", card->name);
 		deinit_card(card);
 		return -1;
 	}
-	memset(card->vcs, 0, size);
 
 	size = sizeof(struct vc_map *) * card->scd_size;
 	IPRINTK("%s: allocate %d byte for SCD to VC mapping.\n",
 	        card->name, size);
-	if (NULL == (card->scd2vc = vmalloc(size))) {
+	card->scd2vc = vzalloc(size);
+	if (!card->scd2vc) {
 		printk("%s: memory allocation failure.\n", card->name);
 		deinit_card(card);
 		return -1;
 	}
-	memset(card->scd2vc, 0, size);
 
 	size = sizeof(struct tst_info) * (card->tst_size - 2);
 	IPRINTK("%s: allocate %d byte for TST to VC mapping.\n",
 		card->name, size);
-	if (NULL == (card->soft_tst = vmalloc(size))) {
+	card->soft_tst = vmalloc(size);
+	if (!card->soft_tst) {
 		printk("%s: memory allocation failure.\n", card->name);
 		deinit_card(card);
 		return -1;

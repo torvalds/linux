@@ -33,8 +33,8 @@ int noioapicreroute = 1;
 int pcibios_last_bus = -1;
 unsigned long pirq_table_addr;
 struct pci_bus *pci_root_bus;
-struct pci_raw_ops *raw_pci_ops;
-struct pci_raw_ops *raw_pci_ext_ops;
+const struct pci_raw_ops *__read_mostly raw_pci_ops;
+const struct pci_raw_ops *__read_mostly raw_pci_ext_ops;
 
 int raw_pci_read(unsigned int domain, unsigned int bus, unsigned int devfn,
 						int reg, int len, u32 *val)
@@ -247,13 +247,6 @@ static const struct dmi_system_id __devinitconst pciprobe_dmi_table[] = {
 	},
 #endif		/* __i386__ */
 	{
-		.callback = find_sort_method,
-		.ident = "Dell System",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc"),
-		},
-	},
-	{
 		.callback = set_bf_sort,
 		.ident = "Dell PowerEdge 1950",
 		.matches = {
@@ -291,6 +284,13 @@ static const struct dmi_system_id __devinitconst pciprobe_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "PowerEdge R900"),
+		},
+	},
+	{
+		.callback = find_sort_method,
+		.ident = "Dell System",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc"),
 		},
 	},
 	{

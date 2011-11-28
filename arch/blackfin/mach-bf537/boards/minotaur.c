@@ -159,14 +159,12 @@ static struct flash_platform_data bfin_spi_flash_data = {
 /* SPI flash chip (m25p64) */
 static struct bfin5xx_spi_chip spi_flash_chip_info = {
 	.enable_dma = 0,         /* use dma transfer with this chip*/
-	.bits_per_word = 8,
 };
 #endif
 
 #if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
 static struct bfin5xx_spi_chip mmc_spi_chip_info = {
 	.enable_dma = 0,
-	.bits_per_word = 8,
 };
 #endif
 
@@ -242,8 +240,13 @@ static struct resource bfin_uart0_resources[] = {
 		.flags = IORESOURCE_MEM,
 	},
 	{
+		.start = IRQ_UART0_TX,
+		.end = IRQ_UART0_TX,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
 		.start = IRQ_UART0_RX,
-		.end = IRQ_UART0_RX+1,
+		.end = IRQ_UART0_RX,
 		.flags = IORESOURCE_IRQ,
 	},
 	{
@@ -285,8 +288,13 @@ static struct resource bfin_uart1_resources[] = {
 		.flags = IORESOURCE_MEM,
 	},
 	{
+		.start = IRQ_UART1_TX,
+		.end = IRQ_UART1_TX,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
 		.start = IRQ_UART1_RX,
-		.end = IRQ_UART1_RX+1,
+		.end = IRQ_UART1_RX,
 		.flags = IORESOURCE_IRQ,
 	},
 	{

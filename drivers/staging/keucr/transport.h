@@ -95,7 +95,6 @@ extern void usb_stor_set_xfer_buf(struct us_data*, unsigned char *buffer,
  */
 extern void ENE_stor_invoke_transport(struct scsi_cmnd *, struct us_data *);
 extern int ENE_InitMedia(struct us_data *);
-extern int ENE_MSInit(struct us_data *);
 extern int ENE_SMInit(struct us_data *);
 extern int ENE_SendScsiCmd(struct us_data*, BYTE, void*, int);
 extern int ENE_LoadBinCode(struct us_data*, BYTE);
@@ -107,51 +106,6 @@ extern void BuildSenseBuffer(struct scsi_cmnd *, int);
 /*
  * ENE scsi function
  */
-extern int MS_SCSIIrp(struct us_data *us, struct scsi_cmnd *srb);
 extern int SM_SCSIIrp(struct us_data *us, struct scsi_cmnd *srb);
-
-/*
- * ENE MS function
- */
-extern int	MS_CardInit(struct us_data *us);
-extern void	MS_LibFreeAllocatedArea(struct us_data *us);
-extern void	MS_LibFreeWriteBuf(struct us_data *us);
-extern int	MS_LibFreeLogicalMap(struct us_data *us);
-extern int	MS_LibForceSetLogicalPair(struct us_data *us, WORD logblk,
-								WORD phyblk);
-extern int	MS_ReaderReadPage(struct us_data *us, DWORD PhyBlockAddr,
-					BYTE PageNum, DWORD *PageBuf,
-					MS_LibTypeExtdat *ExtraDat);
-extern int	MS_ReaderCopyBlock(struct us_data *us, WORD oldphy,
-					WORD newphy, WORD PhyBlockAddr,
-					BYTE PageNum, PBYTE buf, WORD len);
-extern int	MS_ReaderEraseBlock(struct us_data *us, DWORD PhyBlockAddr);
-extern int	MS_LibProcessBootBlock(struct us_data *us, WORD PhyBlock,
-							BYTE *PageData);
-extern int	MS_LibAllocLogicalMap(struct us_data *us);
-extern int	MS_LibSetBootBlockMark(struct us_data *us, WORD phyblk);
-extern int	MS_LibSetLogicalBlockMark(struct us_data *us, WORD phyblk,
-								WORD mark);
-extern int	MS_LibSetInitialErrorBlock(struct us_data *us, WORD phyblk);
-extern int	MS_LibScanLogicalBlockNumber(struct us_data *us, WORD phyblk);
-extern int	MS_LibAllocWriteBuf(struct us_data *us);
-void		MS_LibClearWriteBuf(struct us_data *us);
-void		MS_LibPhy2LogRange(WORD PhyBlock, WORD *LogStart,
-							WORD *LogEnde);
-extern int	MS_LibReadExtra(struct us_data *us, DWORD PhyBlock,
-				BYTE PageNum, MS_LibTypeExtdat *ExtraDat);
-extern int	MS_LibReadExtraBlock(struct us_data *us, DWORD PhyBlock,
-					BYTE PageNum, BYTE blen, void *buf);
-extern int	MS_LibSetAcquiredErrorBlock(struct us_data *us, WORD phyblk);
-extern int	MS_LibErasePhyBlock(struct us_data *us, WORD phyblk);
-extern int	MS_LibErrorPhyBlock(struct us_data *us, WORD phyblk);
-extern int	MS_LibOverwriteExtra(struct us_data *us, DWORD PhyBlockAddr,
-					BYTE PageNum, BYTE OverwriteFlag);
-extern int	MS_LibSetLogicalPair(struct us_data *us,
-					WORD logblk, WORD phyblk);
-extern int	MS_LibCheckDisableBlock(struct us_data *us, WORD PhyBlock);
-extern int	MS_CountFreeBlock(struct us_data *us, WORD PhyBlock);
-extern int	MS_LibSearchBlockFromLogical(struct us_data *us, WORD logblk);
-extern int	MS_LibSearchBlockFromPhysical(struct us_data *us, WORD phyblk);
 
 #endif

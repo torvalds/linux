@@ -13,6 +13,7 @@
 
 #include <linux/device.h>
 #include <linux/err.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
 
@@ -167,16 +168,13 @@ static int sdio_bus_remove(struct device *dev)
 	int ret = 0;
 
 	/* Make sure card is powered before invoking ->remove() */
-	if (func->card->host->caps & MMC_CAP_POWER_OFF_CARD) {
-		ret = pm_runtime_get_sync(dev);
-		if (ret < 0)
-			goto out;
-	}
+	if (func->card->host->caps & MMC_CAP_POWER_OFF_CARD)
+		pm_runtime_get_sync(dev);
 
 	drv->remove(func);
 
 	if (func->irq_handler) {
-		printk(KERN_WARNING "WARNING: driver %s did not remove "
+		pr_warning("WARNING: driver %s did not remove "
 			"its interrupt handler!\n", drv->name);
 		sdio_claim_host(func);
 		sdio_release_irq(func);
@@ -191,7 +189,6 @@ static int sdio_bus_remove(struct device *dev)
 	if (func->card->host->caps & MMC_CAP_POWER_OFF_CARD)
 		pm_runtime_put_sync(dev);
 
-out:
 	return ret;
 }
 

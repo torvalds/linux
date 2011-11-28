@@ -22,6 +22,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/module.h>
@@ -41,7 +42,6 @@
 #include <asm/mach/map.h>
 
 #include <mach/board.h>
-#include <mach/gpio.h>
 #include <mach/at91cap9_matrix.h>
 #include <mach/at91sam9_smc.h>
 #include <mach/system_rev.h>
@@ -53,7 +53,7 @@
 static void __init cap9adk_init_early(void)
 {
 	/* Initialize processor: 12 MHz crystal */
-	at91cap9_initialize(12000000);
+	at91_initialize(12000000);
 
 	/* Setup the LEDs: USER1 and USER2 LED for cpu/timer... */
 	at91_init_leds(AT91_PIN_PA10, AT91_PIN_PA11);
@@ -64,12 +64,6 @@ static void __init cap9adk_init_early(void)
 	at91_register_uart(0, 0, 0);		/* DBGU = ttyS0 */
 	at91_set_serial_console(0);
 }
-
-static void __init cap9adk_init_irq(void)
-{
-	at91cap9_init_interrupts(NULL);
-}
-
 
 /*
  * USB Host port
@@ -175,19 +169,14 @@ static struct mtd_partition __initdata cap9adk_nand_partitions[] = {
 	},
 };
 
-static struct mtd_partition * __init nand_partitions(int size, int *num_partitions)
-{
-	*num_partitions = ARRAY_SIZE(cap9adk_nand_partitions);
-	return cap9adk_nand_partitions;
-}
-
 static struct atmel_nand_data __initdata cap9adk_nand_data = {
 	.ale		= 21,
 	.cle		= 22,
 //	.det_pin	= ... not connected
 //	.rdy_pin	= ... not connected
 	.enable_pin	= AT91_PIN_PD15,
-	.partition_info	= nand_partitions,
+	.parts		= cap9adk_nand_partitions,
+	.num_parts	= ARRAY_SIZE(cap9adk_nand_partitions),
 };
 
 static struct sam9_smc_config __initdata cap9adk_nand_smc_config = {
@@ -397,8 +386,8 @@ static void __init cap9adk_board_init(void)
 MACHINE_START(AT91CAP9ADK, "Atmel AT91CAP9A-DK")
 	/* Maintainer: Stelian Pop <stelian.pop@leadtechdesign.com> */
 	.timer		= &at91sam926x_timer,
-	.map_io		= at91cap9_map_io,
+	.map_io		= at91_map_io,
 	.init_early	= cap9adk_init_early,
-	.init_irq	= cap9adk_init_irq,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= cap9adk_board_init,
 MACHINE_END

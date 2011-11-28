@@ -16,6 +16,7 @@
 #include <linux/suspend.h>
 #include <linux/serial_core.h>
 #include <linux/io.h>
+#include <linux/gpio.h>
 
 #include <mach/map.h>
 #include <mach/irqs.h>
@@ -28,6 +29,7 @@
 #include <mach/regs-clock.h>
 #include <mach/regs-syscon-power.h>
 #include <mach/regs-gpio-memport.h>
+#include <mach/regs-modem.h>
 
 #ifdef CONFIG_S3C_PM_DEBUG_LED_SMDK
 void s3c_pm_debug_smdkled(u32 set, u32 clear)
@@ -84,6 +86,9 @@ static struct sleep_save misc_save[] = {
 	SAVE_ITEM(S3C64XX_MEM0CONSLP0),
 	SAVE_ITEM(S3C64XX_MEM0CONSLP1),
 	SAVE_ITEM(S3C64XX_MEM1CONSLP),
+
+	SAVE_ITEM(S3C64XX_SDMA_SEL),
+	SAVE_ITEM(S3C64XX_MODEM_MIFPCON),
 };
 
 void s3c_pm_configure_extint(void)
@@ -112,7 +117,7 @@ void s3c_pm_save_core(void)
  * this.
  */
 
-static void s3c64xx_cpu_suspend(void)
+static int s3c64xx_cpu_suspend(unsigned long arg)
 {
 	unsigned long tmp;
 

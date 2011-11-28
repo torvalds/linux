@@ -414,7 +414,7 @@ __SYSCALL(__NR_query_module, sys_ni_syscall)
 __SYSCALL(__NR_quotactl, sys_quotactl)
 
 #define __NR_nfsservctl				180
-__SYSCALL(__NR_nfsservctl, sys_nfsservctl)
+__SYSCALL(__NR_nfsservctl, sys_ni_syscall)
 
 /* reserved for LiS/STREAMS */
 #define __NR_getpmsg				181
@@ -624,7 +624,6 @@ __SYSCALL(__NR_vmsplice, sys_vmsplice)
 __SYSCALL(__NR_move_pages, sys_move_pages)
 #define __NR_utimensat				280
 __SYSCALL(__NR_utimensat, sys_utimensat)
-#define __IGNORE_getcpu		/* implemented as a vsyscall */
 #define __NR_epoll_pwait			281
 __SYSCALL(__NR_epoll_pwait, sys_epoll_pwait)
 #define __NR_signalfd				282
@@ -681,6 +680,12 @@ __SYSCALL(__NR_syncfs, sys_syncfs)
 __SYSCALL(__NR_sendmmsg, sys_sendmmsg)
 #define __NR_setns				308
 __SYSCALL(__NR_setns, sys_setns)
+#define __NR_getcpu				309
+__SYSCALL(__NR_getcpu, sys_getcpu)
+#define __NR_process_vm_readv			310
+__SYSCALL(__NR_process_vm_readv, sys_process_vm_readv)
+#define __NR_process_vm_writev			311
+__SYSCALL(__NR_process_vm_writev, sys_process_vm_writev)
 
 #ifndef __NO_STUBS
 #define __ARCH_WANT_OLD_READDIR
