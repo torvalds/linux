@@ -12,10 +12,10 @@ static int uptime_proc_show(struct seq_file *m, void *v)
 	struct timespec uptime;
 	struct timespec idle;
 	int i;
-	cputime_t idletime = cputime_zero;
+	u64 idletime = 0;
 
 	for_each_possible_cpu(i)
-		idletime = cputime64_add(idletime, kstat_cpu(i).cpustat.idle);
+		idletime += kcpustat_cpu(i).cpustat[CPUTIME_IDLE];
 
 	do_posix_clock_monotonic_gettime(&uptime);
 	monotonic_to_bootbased(&uptime);

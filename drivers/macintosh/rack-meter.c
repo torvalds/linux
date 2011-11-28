@@ -81,13 +81,13 @@ static int rackmeter_ignore_nice;
  */
 static inline cputime64_t get_cpu_idle_time(unsigned int cpu)
 {
-	cputime64_t retval;
+	u64 retval;
 
-	retval = cputime64_add(kstat_cpu(cpu).cpustat.idle,
-			kstat_cpu(cpu).cpustat.iowait);
+	retval = kcpustat_cpu(cpu).cpustat[CPUTIME_IDLE] +
+		 kcpustat_cpu(cpu).cpustat[CPUTIME_IOWAIT];
 
 	if (rackmeter_ignore_nice)
-		retval = cputime64_add(retval, kstat_cpu(cpu).cpustat.nice);
+		retval += kcpustat_cpu(cpu).cpustat[CPUTIME_NICE];
 
 	return retval;
 }
