@@ -68,6 +68,12 @@ char *audit_point_name[] = {
 	"post sync"
 };
 
+#ifdef CONFIG_KVM_MMU_AUDIT
+static void kvm_mmu_audit(struct kvm_vcpu *vcpu, int point);
+#else
+static void kvm_mmu_audit(struct kvm_vcpu *vcpu, int point) { }
+#endif
+
 #undef MMU_DEBUG
 
 #ifdef MMU_DEBUG
@@ -2852,12 +2858,12 @@ static void mmu_sync_roots(struct kvm_vcpu *vcpu)
 		return;
 
 	vcpu_clear_mmio_info(vcpu, ~0ul);
-	trace_kvm_mmu_audit(vcpu, AUDIT_PRE_SYNC);
+	kvm_mmu_audit(vcpu, AUDIT_PRE_SYNC);
 	if (vcpu->arch.mmu.root_level == PT64_ROOT_LEVEL) {
 		hpa_t root = vcpu->arch.mmu.root_hpa;
 		sp = page_header(root);
 		mmu_sync_children(vcpu, sp);
-		trace_kvm_mmu_audit(vcpu, AUDIT_POST_SYNC);
+		kvm_mmu_audit(vcpu, AUDIT_POST_SYNC);
 		return;
 	}
 	for (i = 0; i < 4; ++i) {
@@ -2869,7 +2875,7 @@ static void mmu_sync_roots(struct kvm_vcpu *vcpu)
 			mmu_sync_children(vcpu, sp);
 		}
 	}
-	trace_kvm_mmu_audit(vcpu, AUDIT_POST_SYNC);
+	kvm_mmu_audit(vcpu, AUDIT_POST_SYNC);
 }
 
 void kvm_mmu_sync_roots(struct kvm_vcpu *vcpu)
@@ -3667,7 +3673,7 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 
 	spin_lock(&vcpu->kvm->mmu_lock);
 	++vcpu->kvm->stat.mmu_pte_write;
-	trace_kvm_mmu_audit(vcpu, AUDIT_PRE_PTE_WRITE);
+	kvm_mmu_audit(vcpu, AUDIT_PRE_PTE_WRITE);
 
 	mask.cr0_wp = mask.cr4_pae = mask.nxe = 1;
 	for_each_gfn_indirect_valid_sp(vcpu->kvm, sp, gfn, node) {
@@ -3700,7 +3706,7 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	}
 	mmu_pte_write_flush_tlb(vcpu, zap_page, remote_flush, local_flush);
 	kvm_mmu_commit_zap_page(vcpu->kvm, &invalid_list);
-	trace_kvm_mmu_audit(vcpu, AUDIT_POST_PTE_WRITE);
+	kvm_mmu_audit(vcpu, AUDIT_POST_PTE_WRITE);
 	spin_unlock(&vcpu->kvm->mmu_lock);
 }
 

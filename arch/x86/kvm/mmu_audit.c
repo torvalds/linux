@@ -224,30 +224,29 @@ static void audit_vcpu_spte(struct kvm_vcpu *vcpu)
 	mmu_spte_walk(vcpu, audit_spte);
 }
 
-static void kvm_mmu_audit(void *ignore, struct kvm_vcpu *vcpu, int point)
+static bool mmu_audit;
+static struct jump_label_key mmu_audit_key;
+
+static void kvm_mmu_audit(struct kvm_vcpu *vcpu, int point)
 {
 	static DEFINE_RATELIMIT_STATE(ratelimit_state, 5 * HZ, 10);
 
-	if (!__ratelimit(&ratelimit_state))
-		return;
+	if (static_branch((&mmu_audit_key))) {
+		if (!__ratelimit(&ratelimit_state))
+			return;
 
-	vcpu->kvm->arch.audit_point = point;
-	audit_all_active_sps(vcpu->kvm);
-	audit_vcpu_spte(vcpu);
+		vcpu->kvm->arch.audit_point = point;
+		audit_all_active_sps(vcpu->kvm);
+		audit_vcpu_spte(vcpu);
+	}
 }
-
-static bool mmu_audit;
 
 static void mmu_audit_enable(void)
 {
-	int ret;
-
 	if (mmu_audit)
 		return;
 
-	ret = register_trace_kvm_mmu_audit(kvm_mmu_audit, NULL);
-	WARN_ON(ret);
-
+	jump_label_inc(&mmu_audit_key);
 	mmu_audit = true;
 }
 
@@ -256,8 +255,7 @@ static void mmu_audit_disable(void)
 	if (!mmu_audit)
 		return;
 
-	unregister_trace_kvm_mmu_audit(kvm_mmu_audit, NULL);
-	tracepoint_synchronize_unregister();
+	jump_label_dec(&mmu_audit_key);
 	mmu_audit = false;
 }
 

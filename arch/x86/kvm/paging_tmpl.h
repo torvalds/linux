@@ -632,7 +632,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 	if (mmu_notifier_retry(vcpu, mmu_seq))
 		goto out_unlock;
 
-	trace_kvm_mmu_audit(vcpu, AUDIT_PRE_PAGE_FAULT);
+	kvm_mmu_audit(vcpu, AUDIT_PRE_PAGE_FAULT);
 	kvm_mmu_free_some_pages(vcpu);
 	if (!force_pt_level)
 		transparent_hugepage_adjust(vcpu, &walker.gfn, &pfn, &level);
@@ -643,7 +643,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 		 sptep, *sptep, emulate);
 
 	++vcpu->stat.pf_fixed;
-	trace_kvm_mmu_audit(vcpu, AUDIT_POST_PAGE_FAULT);
+	kvm_mmu_audit(vcpu, AUDIT_POST_PAGE_FAULT);
 	spin_unlock(&vcpu->kvm->mmu_lock);
 
 	return emulate;
