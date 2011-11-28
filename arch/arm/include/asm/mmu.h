@@ -39,6 +39,8 @@ typedef struct {
  * so enable interrupts over the context switch to avoid high
  * latency.
  */
+#ifndef CONFIG_CPU_HAS_ASID
 #define __ARCH_WANT_INTERRUPTS_ON_CTXSW
+#endif
 
 #endif

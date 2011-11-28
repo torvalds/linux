@@ -46,9 +46,6 @@ ENTRY(cpu_v7_switch_mm)
 #ifdef CONFIG_ARM_ERRATA_430973
 	mcr	p15, 0, r2, c7, c5, 6		@ flush BTAC/BTB
 #endif
-	mrc	p15, 0, r2, c2, c0, 1		@ load TTB 1
-	mcr	p15, 0, r2, c2, c0, 0		@ into TTB 0
-	isb
 #ifdef CONFIG_ARM_ERRATA_754322
 	dsb
 #endif
