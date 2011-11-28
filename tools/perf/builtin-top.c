@@ -258,11 +258,9 @@ out_unlock:
 
 static const char		CONSOLE_CLEAR[] = "[H[2J";
 
-static struct hist_entry *
-	perf_session__add_hist_entry(struct perf_session *session,
-				     struct addr_location *al,
-				     struct perf_sample *sample,
-				     struct perf_evsel *evsel)
+static struct hist_entry *perf_evsel__add_hist_entry(struct perf_evsel *evsel,
+						     struct addr_location *al,
+						     struct perf_sample *sample)
 {
 	struct hist_entry *he;
 
@@ -270,7 +268,7 @@ static struct hist_entry *
 	if (he == NULL)
 		return NULL;
 
-	session->hists.stats.total_period += sample->period;
+	evsel->hists.stats.total_period += sample->period;
 	hists__inc_nr_events(&evsel->hists, PERF_RECORD_SAMPLE);
 	return he;
 }
@@ -675,44 +673,12 @@ static int symbol_filter(struct map *map __used, struct symbol *sym)
 static void perf_event__process_sample(const union perf_event *event,
 				       struct perf_evsel *evsel,
 				       struct perf_sample *sample,
-				       struct perf_session *session)
+				       struct machine *machine)
 {
 	struct symbol *parent = NULL;
 	u64 ip = event->ip.ip;
 	struct addr_location al;
-	struct machine *machine;
 	int err;
-	u8 origin = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
-
-	++top.samples;
-
-	switch (origin) {
-	case PERF_RECORD_MISC_USER:
-		++top.us_samples;
-		if (top.hide_user_symbols)
-			return;
-		machine = perf_session__find_host_machine(session);
-		break;
-	case PERF_RECORD_MISC_KERNEL:
-		++top.kernel_samples;
-		if (top.hide_kernel_symbols)
-			return;
-		machine = perf_session__find_host_machine(session);
-		break;
-	case PERF_RECORD_MISC_GUEST_KERNEL:
-		++top.guest_kernel_samples;
-		machine = perf_session__find_machine(session, event->ip.pid);
-		break;
-	case PERF_RECORD_MISC_GUEST_USER:
-		++top.guest_us_samples;
-		/*
-		 * TODO: we don't process guest user from host side
-		 * except simple counting.
-		 */
-		return;
-	default:
-		return;
-	}
 
 	if (!machine && perf_guest) {
 		pr_err("Can't find guest [%d]'s kernel information\n",
@@ -723,7 +689,7 @@ static void perf_event__process_sample(const union perf_event *event,
 	if (event->header.misc & PERF_RECORD_MISC_EXACT_IP)
 		top.exact_samples++;
 
-	if (perf_event__preprocess_sample(event, session, &al, sample,
+	if (perf_event__preprocess_sample(event, machine, &al, sample,
 					  symbol_filter) < 0 ||
 	    al.filtered)
 		return;
@@ -777,13 +743,13 @@ static void perf_event__process_sample(const union perf_event *event,
 
 		if ((sort__has_parent || symbol_conf.use_callchain) &&
 		    sample->callchain) {
-			err = perf_session__resolve_callchain(session, evsel, al.thread,
-							      sample->callchain, &parent);
+			err = machine__resolve_callchain(machine, evsel, al.thread,
+							 sample->callchain, &parent);
 			if (err)
 				return;
 		}
 
-		he = perf_session__add_hist_entry(session, &al, sample, evsel);
+		he = perf_evsel__add_hist_entry(evsel, &al, sample);
 		if (he == NULL) {
 			pr_err("Problem incrementing symbol period, skipping event\n");
 			return;
@@ -808,6 +774,8 @@ static void perf_session__mmap_read_idx(struct perf_session *self, int idx)
 	struct perf_sample sample;
 	struct perf_evsel *evsel;
 	union perf_event *event;
+	struct machine *machine;
+	u8 origin;
 	int ret;
 
 	while ((event = perf_evlist__mmap_read(top.evlist, idx)) != NULL) {
@@ -820,11 +788,45 @@ static void perf_session__mmap_read_idx(struct perf_session *self, int idx)
 		evsel = perf_evlist__id2evsel(self->evlist, sample.id);
 		assert(evsel != NULL);
 
+		origin = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
+
 		if (event->header.type == PERF_RECORD_SAMPLE)
-			perf_event__process_sample(event, evsel, &sample, self);
+			++top.samples;
+
+		switch (origin) {
+		case PERF_RECORD_MISC_USER:
+			++top.us_samples;
+			if (top.hide_user_symbols)
+				continue;
+			machine = perf_session__find_host_machine(self);
+			break;
+		case PERF_RECORD_MISC_KERNEL:
+			++top.kernel_samples;
+			if (top.hide_kernel_symbols)
+				continue;
+			machine = perf_session__find_host_machine(self);
+			break;
+		case PERF_RECORD_MISC_GUEST_KERNEL:
+			++top.guest_kernel_samples;
+			machine = perf_session__find_machine(self, event->ip.pid);
+			break;
+		case PERF_RECORD_MISC_GUEST_USER:
+			++top.guest_us_samples;
+			/*
+			 * TODO: we don't process guest user from host side
+			 * except simple counting.
+			 */
+			/* Fall thru */
+		default:
+			continue;
+		}
+
+
+		if (event->header.type == PERF_RECORD_SAMPLE)
+			perf_event__process_sample(event, evsel, &sample, machine);
 		else if (event->header.type < PERF_RECORD_MAX) {
 			hists__inc_nr_events(&evsel->hists, event->header.type);
-			perf_event__process(&top.ops, event, &sample, self);
+			perf_event__process(&top.ops, event, &sample, machine);
 		} else
 			++self->hists.stats.nr_unknown_events;
 	}
@@ -967,10 +969,11 @@ static int __cmd_top(void)
 
 	if (top.target_tid != -1)
 		perf_event__synthesize_thread_map(&top.ops, top.evlist->threads,
-						  perf_event__process, top.session);
+						  perf_event__process,
+						  &top.session->host_machine);
 	else
-		perf_event__synthesize_threads(&top.ops, perf_event__process, top.session);
-
+		perf_event__synthesize_threads(&top.ops, perf_event__process,
+					       &top.session->host_machine);
 	start_counters(top.evlist);
 	top.session->evlist = top.evlist;
 	perf_session__update_sample_type(top.session);

@@ -99,8 +99,7 @@ int build_id_cache__remove_s(const char *sbuild_id, const char *debugdir);
 
 int perf_event__synthesize_attr(struct perf_event_ops *ops,
 				struct perf_event_attr *attr, u16 ids, u64 *id,
-				perf_event__handler_t process,
-				struct perf_session *session);
+				perf_event__handler_t process);
 int perf_event__synthesize_attrs(struct perf_event_ops *ops,
 				 struct perf_session *session,
 				 perf_event__handler_t process);
@@ -109,26 +108,23 @@ int perf_event__process_attr(union perf_event *event, struct perf_evlist **pevli
 int perf_event__synthesize_event_type(struct perf_event_ops *ops,
 				      u64 event_id, char *name,
 				      perf_event__handler_t process,
-				      struct perf_session *session);
+				      struct machine *machine);
 int perf_event__synthesize_event_types(struct perf_event_ops *ops,
 				       perf_event__handler_t process,
-				       struct perf_session *session);
+				       struct machine *machine);
 int perf_event__process_event_type(struct perf_event_ops *ops,
-				   union perf_event *event,
-				   struct perf_session *session);
+				   union perf_event *event);
 
 int perf_event__synthesize_tracing_data(struct perf_event_ops *ops,
 					int fd, struct perf_evlist *evlist,
-					perf_event__handler_t process,
-					struct perf_session *session);
+					perf_event__handler_t process);
 int perf_event__process_tracing_data(union perf_event *event,
 				     struct perf_session *session);
 
 int perf_event__synthesize_build_id(struct perf_event_ops *ops,
 				    struct dso *pos, u16 misc,
 				    perf_event__handler_t process,
-				    struct machine *machine,
-				    struct perf_session *session);
+				    struct machine *machine);
 int perf_event__process_build_id(struct perf_event_ops *ops,
 				 union perf_event *event,
 				 struct perf_session *session);

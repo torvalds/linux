@@ -52,18 +52,18 @@ struct perf_report {
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 };
 
-static int perf_session__add_hist_entry(struct perf_session *session,
-					struct addr_location *al,
-					struct perf_sample *sample,
-					struct perf_evsel *evsel)
+static int perf_evsel__add_hist_entry(struct perf_evsel *evsel,
+				      struct addr_location *al,
+				      struct perf_sample *sample,
+				      struct machine *machine)
 {
 	struct symbol *parent = NULL;
 	int err = 0;
 	struct hist_entry *he;
 
 	if ((sort__has_parent || symbol_conf.use_callchain) && sample->callchain) {
-		err = perf_session__resolve_callchain(session, evsel, al->thread,
-						      sample->callchain, &parent);
+		err = machine__resolve_callchain(machine, evsel, al->thread,
+						 sample->callchain, &parent);
 		if (err)
 			return err;
 	}
@@ -107,12 +107,12 @@ static int process_sample_event(struct perf_event_ops *ops,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel,
-				struct perf_session *session)
+				struct machine *machine)
 {
 	struct perf_report *rep = container_of(ops, struct perf_report, ops);
 	struct addr_location al;
 
-	if (perf_event__preprocess_sample(event, session, &al, sample,
+	if (perf_event__preprocess_sample(event, machine, &al, sample,
 					  rep->annotate_init) < 0) {
 		fprintf(stderr, "problem processing %d event, skipping it.\n",
 			event->header.type);
@@ -128,7 +128,7 @@ static int process_sample_event(struct perf_event_ops *ops,
 	if (al.map != NULL)
 		al.map->dso->hit = 1;
 
-	if (perf_session__add_hist_entry(session, &al, sample, evsel)) {
+	if (perf_evsel__add_hist_entry(evsel, &al, sample, machine)) {
 		pr_debug("problem incrementing symbol period, skipping event\n");
 		return -1;
 	}
@@ -139,11 +139,11 @@ static int process_sample_event(struct perf_event_ops *ops,
 static int process_read_event(struct perf_event_ops *ops,
 			      union perf_event *event,
 			      struct perf_sample *sample __used,
-			      struct perf_session *session)
+			      struct perf_evsel *evsel,
+			      struct machine *machine __used)
 {
 	struct perf_report *rep = container_of(ops, struct perf_report, ops);
-	struct perf_evsel *evsel = perf_evlist__id2evsel(session->evlist,
-							 event->read.id);
+
 	if (rep->show_threads) {
 		const char *name = evsel ? event_name(evsel) : "unknown";
 		perf_read_values_add_value(&rep->show_threads_values,

@@ -58,32 +58,34 @@ struct perf_event_ops;
 
 typedef int (*event_sample)(struct perf_event_ops *ops,
 			    union perf_event *event, struct perf_sample *sample,
-			    struct perf_evsel *evsel, struct perf_session *session);
+			    struct perf_evsel *evsel, struct machine *machine);
 typedef int (*event_op)(struct perf_event_ops *ops, union perf_event *event,
 			struct perf_sample *sample,
-			struct perf_session *session);
+			struct machine *machine);
 typedef int (*event_synth_op)(union perf_event *self,
 			      struct perf_session *session);
 typedef int (*event_attr_op)(union perf_event *event,
 			     struct perf_evlist **pevlist);
+typedef int (*event_simple_op)(struct perf_event_ops *ops,
+			       union perf_event *event);
 typedef int (*event_op2)(struct perf_event_ops *ops, union perf_event *event,
 			 struct perf_session *session);
 
 struct perf_event_ops {
-	event_sample	sample;
+	event_sample	sample,
+			read;
 	event_op	mmap,
 			comm,
 			fork,
 			exit,
 			lost,
-			read,
 			throttle,
 			unthrottle;
 	event_attr_op	attr;
 	event_synth_op	tracing_data;
-	event_op2	event_type,
-			build_id,
-			finished_round;
+	event_simple_op	event_type;
+	event_op2	finished_round,
+			build_id;
 	bool		ordered_samples;
 	bool		ordering_requires_timestamps;
 };
@@ -107,10 +109,6 @@ int perf_session__resolve_callchain(struct perf_session *self, struct perf_evsel
 				    struct symbol **parent);
 
 bool perf_session__has_traces(struct perf_session *self, const char *msg);
-
-int perf_session__set_kallsyms_ref_reloc_sym(struct map **maps,
-					     const char *symbol_name,
-					     u64 addr);
 
 void mem_bswap_64(void *src, int byte_size);
 void perf_event__attr_swap(struct perf_event_attr *attr);
@@ -151,6 +149,9 @@ void perf_session__process_machines(struct perf_session *self,
 	return machines__process(&self->machines, process, ops);
 }
 
+struct thread *perf_session__findnew(struct perf_session *self, pid_t pid);
+size_t perf_session__fprintf(struct perf_session *self, FILE *fp);
+
 size_t perf_session__fprintf_dsos(struct perf_session *self, FILE *fp);
 
 size_t perf_session__fprintf_dsos_buildid(struct perf_session *self,
@@ -171,10 +172,9 @@ static inline int perf_session__parse_sample(struct perf_session *session,
 struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 					    unsigned int type);
 
-void perf_session__print_ip(union perf_event *event, struct perf_evsel *evsel,
-				 struct perf_sample *sample,
-				 struct perf_session *session,
-				 int print_sym, int print_dso);
+void perf_event__print_ip(union perf_event *event, struct perf_sample *sample,
+			  struct machine *machine, struct perf_evsel *evsel,
+			  int print_sym, int print_dso);
 
 int perf_session__cpu_bitmap(struct perf_session *session,
 			     const char *cpu_list, unsigned long *cpu_bitmap);

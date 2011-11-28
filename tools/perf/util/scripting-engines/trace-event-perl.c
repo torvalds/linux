@@ -27,6 +27,8 @@
 
 #include "../../perf.h"
 #include "../util.h"
+#include "../thread.h"
+#include "../event.h"
 #include "../trace-event.h"
 
 #include <EXTERN.h>
@@ -248,7 +250,7 @@ static inline struct event *find_cache_event(int type)
 static void perl_process_event(union perf_event *pevent __unused,
 			       struct perf_sample *sample,
 			       struct perf_evsel *evsel,
-			       struct perf_session *session __unused,
+			       struct machine *machine __unused,
 			       struct thread *thread)
 {
 	struct format_field *field;

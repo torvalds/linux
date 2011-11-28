@@ -307,9 +307,9 @@ static int process_sample_event(struct perf_event_ops *ops __used,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel __used,
-				struct perf_session *session)
+				struct machine *machine)
 {
-	struct thread *thread = perf_session__findnew(session, event->ip.pid);
+	struct thread *thread = machine__findnew_thread(machine, event->ip.pid);
 
 	if (thread == NULL) {
 		pr_debug("problem processing %d event, skipping it.\n",

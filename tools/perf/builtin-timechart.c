@@ -277,7 +277,7 @@ static u64 cpus_pstate_state[MAX_CPUS];
 static int process_comm_event(struct perf_event_ops *ops __used,
 			      union perf_event *event,
 			      struct perf_sample *sample __used,
-			      struct perf_session *session __used)
+			      struct machine *machine __used)
 {
 	pid_set_comm(event->comm.tid, event->comm.comm);
 	return 0;
@@ -286,7 +286,7 @@ static int process_comm_event(struct perf_event_ops *ops __used,
 static int process_fork_event(struct perf_event_ops *ops __used,
 			      union perf_event *event,
 			      struct perf_sample *sample __used,
-			      struct perf_session *session __used)
+			      struct machine *machine __used)
 {
 	pid_fork(event->fork.pid, event->fork.ppid, event->fork.time);
 	return 0;
@@ -295,7 +295,7 @@ static int process_fork_event(struct perf_event_ops *ops __used,
 static int process_exit_event(struct perf_event_ops *ops __used,
 			      union perf_event *event,
 			      struct perf_sample *sample __used,
-			      struct perf_session *session __used)
+			      struct machine *machine __used)
 {
 	pid_exit(event->fork.pid, event->fork.time);
 	return 0;
@@ -494,7 +494,7 @@ static int process_sample_event(struct perf_event_ops *ops __used,
 				union perf_event *event __used,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel,
-				struct perf_session *session __used)
+				struct machine *machine __used)
 {
 	struct trace_entry *te;
 

@@ -84,6 +84,7 @@ void perf_session__update_sample_type(struct perf_session *self)
 	self->sample_size = __perf_evsel__sample_size(self->sample_type);
 	self->sample_id_all = perf_evlist__sample_id_all(self->evlist);
 	self->id_hdr_size = perf_evlist__id_hdr_size(self->evlist);
+	self->host_machine.id_hdr_size = self->id_hdr_size;
 }
 
 int perf_session__create_kernel_maps(struct perf_session *self)
@@ -216,10 +217,10 @@ static bool symbol__match_parent_regex(struct symbol *sym)
 	return 0;
 }
 
-int perf_session__resolve_callchain(struct perf_session *self, struct perf_evsel *evsel,
-				    struct thread *thread,
-				    struct ip_callchain *chain,
-				    struct symbol **parent)
+int machine__resolve_callchain(struct machine *self, struct perf_evsel *evsel,
+			       struct thread *thread,
+			       struct ip_callchain *chain,
+			       struct symbol **parent)
 {
 	u8 cpumode = PERF_RECORD_MISC_USER;
 	unsigned int i;
@@ -252,7 +253,7 @@ int perf_session__resolve_callchain(struct perf_session *self, struct perf_evsel
 
 		al.filtered = false;
 		thread__find_addr_location(thread, self, cpumode,
-				MAP__FUNCTION, thread->pid, ip, &al, NULL);
+					   MAP__FUNCTION, ip, &al, NULL);
 		if (al.sym != NULL) {
 			if (sort__has_parent && !*parent &&
 			    symbol__match_parent_regex(al.sym))
@@ -267,14 +268,6 @@ int perf_session__resolve_callchain(struct perf_session *self, struct perf_evsel
 			return err;
 	}
 
-	return 0;
-}
-
-static int process_event_synth_stub(struct perf_event_ops *ops __used,
-				    union perf_event *event __used,
-				    struct perf_session *session __used)
-{
-	dump_printf(": unhandled!\n");
 	return 0;
 }
 
@@ -296,7 +289,7 @@ static int process_event_sample_stub(struct perf_event_ops *ops __used,
 				     union perf_event *event __used,
 				     struct perf_sample *sample __used,
 				     struct perf_evsel *evsel __used,
-				     struct perf_session *session __used)
+				     struct machine *machine __used)
 {
 	dump_printf(": unhandled!\n");
 	return 0;
@@ -305,7 +298,7 @@ static int process_event_sample_stub(struct perf_event_ops *ops __used,
 static int process_event_stub(struct perf_event_ops *ops __used,
 			      union perf_event *event __used,
 			      struct perf_sample *sample __used,
-			      struct perf_session *session __used)
+			      struct machine *machine __used)
 {
 	dump_printf(": unhandled!\n");
 	return 0;
@@ -313,7 +306,14 @@ static int process_event_stub(struct perf_event_ops *ops __used,
 
 static int process_finished_round_stub(struct perf_event_ops *ops __used,
 				       union perf_event *event __used,
-				       struct perf_session *session __used)
+				       struct perf_session *perf_session __used)
+{
+	dump_printf(": unhandled!\n");
+	return 0;
+}
+
+static int process_event_type_stub(struct perf_event_ops *ops __used,
+				   union perf_event *event __used)
 {
 	dump_printf(": unhandled!\n");
 	return 0;
@@ -338,7 +338,7 @@ static void perf_event_ops__fill_defaults(struct perf_event_ops *handler)
 	if (handler->lost == NULL)
 		handler->lost = perf_event__process_lost;
 	if (handler->read == NULL)
-		handler->read = process_event_stub;
+		handler->read = process_event_sample_stub;
 	if (handler->throttle == NULL)
 		handler->throttle = process_event_stub;
 	if (handler->unthrottle == NULL)
@@ -346,11 +346,11 @@ static void perf_event_ops__fill_defaults(struct perf_event_ops *handler)
 	if (handler->attr == NULL)
 		handler->attr = process_event_synth_attr_stub;
 	if (handler->event_type == NULL)
-		handler->event_type = process_event_synth_stub;
+		handler->event_type = process_event_type_stub;
 	if (handler->tracing_data == NULL)
 		handler->tracing_data = process_event_synth_tracing_data_stub;
 	if (handler->build_id == NULL)
-		handler->build_id = process_event_synth_stub;
+		handler->build_id = process_finished_round_stub;
 	if (handler->finished_round == NULL) {
 		if (handler->ordered_samples)
 			handler->finished_round = process_finished_round;
@@ -734,6 +734,18 @@ static void dump_sample(struct perf_session *session, union perf_event *event,
 		callchain__printf(sample);
 }
 
+static struct machine *
+	perf_session__find_machine_for_cpumode(struct perf_session *session,
+					       union perf_event *event)
+{
+	const u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
+
+	if (cpumode == PERF_RECORD_MISC_GUEST_KERNEL && perf_guest)
+		return perf_session__find_machine(session, event->ip.pid);
+
+	return perf_session__find_host_machine(session);
+}
+
 static int perf_session_deliver_event(struct perf_session *session,
 				      union perf_event *event,
 				      struct perf_sample *sample,
@@ -741,6 +753,7 @@ static int perf_session_deliver_event(struct perf_session *session,
 				      u64 file_offset)
 {
 	struct perf_evsel *evsel;
+	struct machine *machine;
 
 	dump_event(session, event, file_offset, sample);
 
@@ -762,6 +775,8 @@ static int perf_session_deliver_event(struct perf_session *session,
 		hists__inc_nr_events(&evsel->hists, event->header.type);
 	}
 
+	machine = perf_session__find_machine_for_cpumode(session, event);
+
 	switch (event->header.type) {
 	case PERF_RECORD_SAMPLE:
 		dump_sample(session, event, sample);
@@ -769,23 +784,25 @@ static int perf_session_deliver_event(struct perf_session *session,
 			++session->hists.stats.nr_unknown_id;
 			return -1;
 		}
-		return ops->sample(ops, event, sample, evsel, session);
+		return ops->sample(ops, event, sample, evsel, machine);
 	case PERF_RECORD_MMAP:
-		return ops->mmap(ops, event, sample, session);
+		return ops->mmap(ops, event, sample, machine);
 	case PERF_RECORD_COMM:
-		return ops->comm(ops, event, sample, session);
+		return ops->comm(ops, event, sample, machine);
 	case PERF_RECORD_FORK:
-		return ops->fork(ops, event, sample, session);
+		return ops->fork(ops, event, sample, machine);
 	case PERF_RECORD_EXIT:
-		return ops->exit(ops, event, sample, session);
+		return ops->exit(ops, event, sample, machine);
 	case PERF_RECORD_LOST:
-		return ops->lost(ops, event, sample, session);
+		if (ops->lost == perf_event__process_lost)
+			session->hists.stats.total_lost += event->lost.lost;
+		return ops->lost(ops, event, sample, machine);
 	case PERF_RECORD_READ:
-		return ops->read(ops, event, sample, session);
+		return ops->read(ops, event, sample, evsel, machine);
 	case PERF_RECORD_THROTTLE:
-		return ops->throttle(ops, event, sample, session);
+		return ops->throttle(ops, event, sample, machine);
 	case PERF_RECORD_UNTHROTTLE:
-		return ops->unthrottle(ops, event, sample, session);
+		return ops->unthrottle(ops, event, sample, machine);
 	default:
 		++session->hists.stats.nr_unknown_events;
 		return -1;
@@ -823,7 +840,7 @@ static int perf_session__process_user_event(struct perf_session *session, union 
 			perf_session__update_sample_type(session);
 		return err;
 	case PERF_RECORD_HEADER_EVENT_TYPE:
-		return ops->event_type(ops, event, session);
+		return ops->event_type(ops, event);
 	case PERF_RECORD_HEADER_TRACING_DATA:
 		/* setup for reading amidst mmap */
 		lseek(session->fd, file_offset, SEEK_SET);
@@ -1170,9 +1187,8 @@ bool perf_session__has_traces(struct perf_session *self, const char *msg)
 	return true;
 }
 
-int perf_session__set_kallsyms_ref_reloc_sym(struct map **maps,
-					     const char *symbol_name,
-					     u64 addr)
+int maps__set_kallsyms_ref_reloc_sym(struct map **maps,
+				     const char *symbol_name, u64 addr)
 {
 	char *bracket;
 	enum map_type i;
@@ -1264,17 +1280,16 @@ struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 	return NULL;
 }
 
-void perf_session__print_ip(union perf_event *event, struct perf_evsel *evsel,
-			    struct perf_sample *sample,
-			    struct perf_session *session,
-			    int print_sym, int print_dso)
+void perf_event__print_ip(union perf_event *event, struct perf_sample *sample,
+			  struct machine *machine, struct perf_evsel *evsel,
+			  int print_sym, int print_dso)
 {
 	struct addr_location al;
 	const char *symname, *dsoname;
 	struct callchain_cursor *cursor = &evsel->hists.callchain_cursor;
 	struct callchain_cursor_node *node;
 
-	if (perf_event__preprocess_sample(event, session, &al, sample,
+	if (perf_event__preprocess_sample(event, machine, &al, sample,
 					  NULL) < 0) {
 		error("problem processing %d event, skipping it.\n",
 			event->header.type);
@@ -1283,7 +1298,7 @@ void perf_session__print_ip(union perf_event *event, struct perf_evsel *evsel,
 
 	if (symbol_conf.use_callchain && sample->callchain) {
 
-		if (perf_session__resolve_callchain(session, evsel, al.thread,
+		if (machine__resolve_callchain(machine, evsel, al.thread,
 						sample->callchain, NULL) != 0) {
 			if (verbose)
 				error("Failed to resolve callchain. Skipping\n");

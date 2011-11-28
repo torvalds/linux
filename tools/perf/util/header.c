@@ -2072,8 +2072,7 @@ out_delete_evlist:
 
 int perf_event__synthesize_attr(struct perf_event_ops *ops,
 				struct perf_event_attr *attr, u16 ids, u64 *id,
-				perf_event__handler_t process,
-				struct perf_session *session)
+				perf_event__handler_t process)
 {
 	union perf_event *ev;
 	size_t size;
@@ -2095,7 +2094,7 @@ int perf_event__synthesize_attr(struct perf_event_ops *ops,
 	ev->attr.header.type = PERF_RECORD_HEADER_ATTR;
 	ev->attr.header.size = size;
 
-	err = process(ops, ev, NULL, session);
+	err = process(ops, ev, NULL, NULL);
 
 	free(ev);
 
@@ -2111,7 +2110,7 @@ int perf_event__synthesize_attrs(struct perf_event_ops *ops,
 
 	list_for_each_entry(attr, &session->evlist->entries, node) {
 		err = perf_event__synthesize_attr(ops, &attr->attr, attr->ids,
-						  attr->id, process, session);
+						  attr->id, process);
 		if (err) {
 			pr_debug("failed to create perf header attribute\n");
 			return err;
@@ -2161,7 +2160,7 @@ int perf_event__process_attr(union perf_event *event,
 int perf_event__synthesize_event_type(struct perf_event_ops *ops,
 				      u64 event_id, char *name,
 				      perf_event__handler_t process,
-				      struct perf_session *session)
+				      struct machine *machine)
 {
 	union perf_event ev;
 	size_t size = 0;
@@ -2179,14 +2178,14 @@ int perf_event__synthesize_event_type(struct perf_event_ops *ops,
 	ev.event_type.header.size = sizeof(ev.event_type) -
 		(sizeof(ev.event_type.event_type.name) - size);
 
-	err = process(ops, &ev, NULL, session);
+	err = process(ops, &ev, NULL, machine);
 
 	return err;
 }
 
 int perf_event__synthesize_event_types(struct perf_event_ops *ops,
 				       perf_event__handler_t process,
-				       struct perf_session *session)
+				       struct machine *machine)
 {
 	struct perf_trace_event_type *type;
 	int i, err = 0;
@@ -2196,7 +2195,7 @@ int perf_event__synthesize_event_types(struct perf_event_ops *ops,
 
 		err = perf_event__synthesize_event_type(ops, type->event_id,
 							type->name, process,
-							session);
+							machine);
 		if (err) {
 			pr_debug("failed to create perf header event type\n");
 			return err;
@@ -2207,8 +2206,7 @@ int perf_event__synthesize_event_types(struct perf_event_ops *ops,
 }
 
 int perf_event__process_event_type(struct perf_event_ops *ops __unused,
-				   union perf_event *event,
-				   struct perf_session *session __unused)
+				   union perf_event *event)
 {
 	if (perf_header__push_event(event->event_type.event_type.event_id,
 				    event->event_type.event_type.name) < 0)
@@ -2219,8 +2217,7 @@ int perf_event__process_event_type(struct perf_event_ops *ops __unused,
 
 int perf_event__synthesize_tracing_data(struct perf_event_ops *ops, int fd,
 					struct perf_evlist *evlist,
-					 perf_event__handler_t process,
-				   struct perf_session *session __unused)
+					perf_event__handler_t process)
 {
 	union perf_event ev;
 	struct tracing_data *tdata;
@@ -2251,7 +2248,7 @@ int perf_event__synthesize_tracing_data(struct perf_event_ops *ops, int fd,
 	ev.tracing_data.header.size = sizeof(ev.tracing_data);
 	ev.tracing_data.size = aligned_size;
 
-	process(ops, &ev, NULL, session);
+	process(ops, &ev, NULL, NULL);
 
 	/*
 	 * The put function will copy all the tracing data
@@ -2296,8 +2293,7 @@ int perf_event__process_tracing_data(union perf_event *event,
 int perf_event__synthesize_build_id(struct perf_event_ops *ops,
 				    struct dso *pos, u16 misc,
 				    perf_event__handler_t process,
-				    struct machine *machine,
-				    struct perf_session *session)
+				    struct machine *machine)
 {
 	union perf_event ev;
 	size_t len;
@@ -2317,7 +2313,7 @@ int perf_event__synthesize_build_id(struct perf_event_ops *ops,
 	ev.build_id.header.size = sizeof(ev.build_id) + len;
 	memcpy(&ev.build_id.filename, pos->long_name, pos->long_name_len);
 
-	err = process(ops, &ev, NULL, session);
+	err = process(ops, &ev, NULL, machine);
 
 	return err;
 }

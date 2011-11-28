@@ -315,7 +315,7 @@ static bool sample_addr_correlates_sym(struct perf_event_attr *attr)
 
 static void print_sample_addr(union perf_event *event,
 			  struct perf_sample *sample,
-			  struct perf_session *session,
+			  struct machine *machine,
 			  struct thread *thread,
 			  struct perf_event_attr *attr)
 {
@@ -328,11 +328,11 @@ static void print_sample_addr(union perf_event *event,
 	if (!sample_addr_correlates_sym(attr))
 		return;
 
-	thread__find_addr_map(thread, session, cpumode, MAP__FUNCTION,
-			      event->ip.pid, sample->addr, &al);
+	thread__find_addr_map(thread, machine, cpumode, MAP__FUNCTION,
+			      sample->addr, &al);
 	if (!al.map)
-		thread__find_addr_map(thread, session, cpumode, MAP__VARIABLE,
-				      event->ip.pid, sample->addr, &al);
+		thread__find_addr_map(thread, machine, cpumode, MAP__VARIABLE,
+				      sample->addr, &al);
 
 	al.cpu = sample->cpu;
 	al.sym = NULL;
@@ -362,7 +362,7 @@ static void print_sample_addr(union perf_event *event,
 static void process_event(union perf_event *event __unused,
 			  struct perf_sample *sample,
 			  struct perf_evsel *evsel,
-			  struct perf_session *session,
+			  struct machine *machine,
 			  struct thread *thread)
 {
 	struct perf_event_attr *attr = &evsel->attr;
@@ -377,15 +377,15 @@ static void process_event(union perf_event *event __unused,
 				  sample->raw_size);
 
 	if (PRINT_FIELD(ADDR))
-		print_sample_addr(event, sample, session, thread, attr);
+		print_sample_addr(event, sample, machine, thread, attr);
 
 	if (PRINT_FIELD(IP)) {
 		if (!symbol_conf.use_callchain)
 			printf(" ");
 		else
 			printf("\n");
-		perf_session__print_ip(event, evsel, sample, session,
-					      PRINT_FIELD(SYM), PRINT_FIELD(DSO));
+		perf_event__print_ip(event, sample, machine, evsel,
+				     PRINT_FIELD(SYM), PRINT_FIELD(DSO));
 	}
 
 	printf("\n");
@@ -438,9 +438,9 @@ static int process_sample_event(struct perf_event_ops *ops __used,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel,
-				struct perf_session *session)
+				struct machine *machine)
 {
-	struct thread *thread = perf_session__findnew(session, event->ip.pid);
+	struct thread *thread = machine__findnew_thread(machine, event->ip.pid);
 
 	if (thread == NULL) {
 		pr_debug("problem processing %d event, skipping it.\n",
@@ -462,9 +462,9 @@ static int process_sample_event(struct perf_event_ops *ops __used,
 	if (cpu_list && !test_bit(sample->cpu, cpu_bitmap))
 		return 0;
 
-	scripting_ops->process_event(event, sample, evsel, session, thread);
+	scripting_ops->process_event(event, sample, evsel, machine, thread);
 
-	session->hists.stats.total_period += sample->period;
+	evsel->hists.stats.total_period += sample->period;
 	return 0;
 }
 

@@ -142,56 +142,53 @@ union perf_event {
 void perf_event__print_totals(void);
 
 struct perf_event_ops;
-struct perf_session;
 struct thread_map;
 
 typedef int (*perf_event__handler_t)(struct perf_event_ops *ops,
 				     union perf_event *event,
 				     struct perf_sample *sample,
-				      struct perf_session *session);
+				     struct machine *machine);
 
 int perf_event__synthesize_thread_map(struct perf_event_ops *ops,
 				      struct thread_map *threads,
 				      perf_event__handler_t process,
-				      struct perf_session *session);
+				      struct machine *machine);
 int perf_event__synthesize_threads(struct perf_event_ops *ops,
 				   perf_event__handler_t process,
-				   struct perf_session *session);
+				   struct machine *machine);
 int perf_event__synthesize_kernel_mmap(struct perf_event_ops *ops,
 				       perf_event__handler_t process,
-				       struct perf_session *session,
 				       struct machine *machine,
 				       const char *symbol_name);
 
 int perf_event__synthesize_modules(struct perf_event_ops *ops,
 				   perf_event__handler_t process,
-				   struct perf_session *session,
 				   struct machine *machine);
 
 int perf_event__process_comm(struct perf_event_ops *ops,
 			     union perf_event *event,
 			     struct perf_sample *sample,
-			     struct perf_session *session);
+			     struct machine *machine);
 int perf_event__process_lost(struct perf_event_ops *ops,
 			     union perf_event *event,
 			     struct perf_sample *sample,
-			     struct perf_session *session);
+			     struct machine *machine);
 int perf_event__process_mmap(struct perf_event_ops *ops,
 			     union perf_event *event,
 			     struct perf_sample *sample,
-			     struct perf_session *session);
+			     struct machine *machine);
 int perf_event__process_task(struct perf_event_ops *ops,
 			     union perf_event *event,
 			     struct perf_sample *sample,
-			     struct perf_session *session);
+			     struct machine *machine);
 int perf_event__process(struct perf_event_ops *ops,
 			union perf_event *event,
 			struct perf_sample *sample,
-			struct perf_session *session);
+			struct machine *machine);
 
 struct addr_location;
 int perf_event__preprocess_sample(const union perf_event *self,
-				  struct perf_session *session,
+				  struct machine *machine,
 				  struct addr_location *al,
 				  struct perf_sample *sample,
 				  symbol_filter_t filter);
