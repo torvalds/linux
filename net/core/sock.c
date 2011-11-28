@@ -276,14 +276,14 @@ static void sock_warn_obsolete_bsdism(const char *name)
 	}
 }
 
-static void sock_disable_timestamp(struct sock *sk, int flag)
+#define SK_FLAGS_TIMESTAMP ((1UL << SOCK_TIMESTAMP) | (1UL << SOCK_TIMESTAMPING_RX_SOFTWARE))
+
+static void sock_disable_timestamp(struct sock *sk, unsigned long flags)
 {
-	if (sock_flag(sk, flag)) {
-		sock_reset_flag(sk, flag);
-		if (!sock_flag(sk, SOCK_TIMESTAMP) &&
-		    !sock_flag(sk, SOCK_TIMESTAMPING_RX_SOFTWARE)) {
+	if (sk->sk_flags & flags) {
+		sk->sk_flags &= ~flags;
+		if (!(sk->sk_flags & SK_FLAGS_TIMESTAMP))
 			net_disable_timestamp();
-		}
 	}
 }
 
@@ -689,7 +689,7 @@ set_rcvbuf:
 					      SOCK_TIMESTAMPING_RX_SOFTWARE);
 		else
 			sock_disable_timestamp(sk,
-					       SOCK_TIMESTAMPING_RX_SOFTWARE);
+					       (1UL << SOCK_TIMESTAMPING_RX_SOFTWARE));
 		sock_valbool_flag(sk, SOCK_TIMESTAMPING_SOFTWARE,
 				  val & SOF_TIMESTAMPING_SOFTWARE);
 		sock_valbool_flag(sk, SOCK_TIMESTAMPING_SYS_HARDWARE,
@@ -1187,8 +1187,7 @@ static void __sk_free(struct sock *sk)
 		RCU_INIT_POINTER(sk->sk_filter, NULL);
 	}
 
-	sock_disable_timestamp(sk, SOCK_TIMESTAMP);
-	sock_disable_timestamp(sk, SOCK_TIMESTAMPING_RX_SOFTWARE);
+	sock_disable_timestamp(sk, SK_FLAGS_TIMESTAMP);
 
 	if (atomic_read(&sk->sk_omem_alloc))
 		printk(KERN_DEBUG "%s: optmem leakage (%d bytes) detected.\n",
@@ -1326,8 +1325,7 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 		if (newsk->sk_prot->sockets_allocated)
 			percpu_counter_inc(newsk->sk_prot->sockets_allocated);
 
-		if (sock_flag(newsk, SOCK_TIMESTAMP) ||
-		    sock_flag(newsk, SOCK_TIMESTAMPING_RX_SOFTWARE))
+		if (newsk->sk_flags & SK_FLAGS_TIMESTAMP)
 			net_enable_timestamp();
 	}
 out:
@@ -2165,16 +2163,15 @@ EXPORT_SYMBOL(sock_get_timestampns);
 void sock_enable_timestamp(struct sock *sk, int flag)
 {
 	if (!sock_flag(sk, flag)) {
+		unsigned long previous_flags = sk->sk_flags;
+
 		sock_set_flag(sk, flag);
 		/*
 		 * we just set one of the two flags which require net
 		 * time stamping, but time stamping might have been on
 		 * already because of the other one
 		 */
-		if (!sock_flag(sk,
-				flag == SOCK_TIMESTAMP ?
-				SOCK_TIMESTAMPING_RX_SOFTWARE :
-				SOCK_TIMESTAMP))
+		if (!(previous_flags & SK_FLAGS_TIMESTAMP))
 			net_enable_timestamp();
 	}
 }
