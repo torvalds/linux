@@ -2027,21 +2027,24 @@ static int __init docg3_probe(struct platform_device *pdev)
 	if (!docg3_bch)
 		goto nomem2;
 
-	ret = 0;
 	for (floor = 0; floor < DOC_MAX_NBFLOORS; floor++) {
 		mtd = doc_probe_device(base, floor, dev);
-		if (floor == 0 && !mtd)
-			goto notfound;
-		if (!IS_ERR_OR_NULL(mtd))
-			ret = mtd_device_parse_register(mtd, part_probes,
-							NULL, NULL, 0);
-		else
+		if (IS_ERR(mtd)) {
 			ret = PTR_ERR(mtd);
+			goto err_probe;
+		}
+		if (!mtd) {
+			if (floor == 0)
+				goto notfound;
+			else
+				continue;
+		}
 		docg3_floors[floor] = mtd;
+		ret = mtd_device_parse_register(mtd, part_probes, NULL, NULL,
+						0);
 		if (ret)
 			goto err_probe;
-		if (mtd)
-			found++;
+		found++;
 	}
 
 	ret = doc_register_sysfs(pdev, docg3_floors);
