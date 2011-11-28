@@ -1,7 +1,7 @@
 # WIFI
 obj-$(CONFIG_IWLWIFI)	+= iwlwifi.o
 iwlwifi-objs		:= iwl-agn.o iwl-agn-rs.o iwl-mac80211.o
-iwlwifi-objs		+= iwl-agn-ucode.o iwl-agn-tx.o
+iwlwifi-objs		+= iwl-ucode.o iwl-agn-tx.o
 iwlwifi-objs		+= iwl-agn-lib.o iwl-agn-calib.o iwl-io.o
 iwlwifi-objs		+= iwl-agn-tt.o iwl-agn-sta.o iwl-agn-rx.o
 
