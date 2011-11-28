@@ -32,15 +32,15 @@ its just seen as a special case of a regulator being a
 consumer itself.
 
 Example of a consumer device node (mmc) referencing two
-regulators (twl-reg1 and twl-reg2),
+regulators (twl_reg1 and twl_reg2),
 
-	twl-reg1: regulator@0 {
+	twl_reg1: regulator@0 {
 		...
 		...
 		...
 	};
 
-	twl-reg2: regulator@1 {
+	twl_reg2: regulator@1 {
 		...
 		...
 		...
@@ -49,6 +49,6 @@ regulators (twl-reg1 and twl-reg2),
 	mmc: mmc@0x0 {
 		...
 		...
-		vmmc-supply = <&twl-reg1>;
-		vmmcaux-supply = <&twl-reg2>;
+		vmmc-supply = <&twl_reg1>;
+		vmmcaux-supply = <&twl_reg2>;
 	};
