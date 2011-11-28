@@ -1402,7 +1402,8 @@ struct cfg80211_gtk_rekey_data {
  *	have changed. The actual parameter values are available in
  *	struct wiphy. If returning an error, no value should be changed.
  *
- * @set_tx_power: set the transmit power according to the parameters
+ * @set_tx_power: set the transmit power according to the parameters,
+ *	the power passed is in mBm, to get dBm use MBM_TO_DBM().
  * @get_tx_power: store the current TX power into the dbm variable;
  *	return 0 if successful
  *
