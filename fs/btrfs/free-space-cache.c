@@ -1470,6 +1470,7 @@ static void add_new_bitmap(struct btrfs_free_space_ctl *ctl,
 {
 	info->offset = offset_to_bitmap(ctl, offset);
 	info->bytes = 0;
+	INIT_LIST_HEAD(&info->list);
 	link_free_space(ctl, info);
 	ctl->total_bitmaps++;
 
