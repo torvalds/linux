@@ -752,6 +752,7 @@ void __kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu);
 int kvm_mmu_load(struct kvm_vcpu *vcpu);
 void kvm_mmu_unload(struct kvm_vcpu *vcpu);
 void kvm_mmu_sync_roots(struct kvm_vcpu *vcpu);
+gpa_t translate_nested_gpa(struct kvm_vcpu *vcpu, gpa_t gpa, u32 access);
 gpa_t kvm_mmu_gva_to_gpa_read(struct kvm_vcpu *vcpu, gva_t gva,
 			      struct x86_exception *exception);
 gpa_t kvm_mmu_gva_to_gpa_fetch(struct kvm_vcpu *vcpu, gva_t gva,
@@ -772,6 +773,11 @@ void kvm_disable_tdp(void);
 
 int complete_pio(struct kvm_vcpu *vcpu);
 bool kvm_check_iopl(struct kvm_vcpu *vcpu);
+
+static inline gpa_t translate_gpa(struct kvm_vcpu *vcpu, gpa_t gpa, u32 access)
+{
+	return gpa;
+}
 
 static inline struct kvm_mmu_page *page_header(hpa_t shadow_page)
 {
