@@ -1,0 +1,7 @@
+The workflow for updating patches from newer kernel:
+
+Diff mainline/ and lttng-module/ directories.
+
+Pull the new headers from mainline kernel to mainline/.
+Copy them into lttng-modules.
+Apply diff. Fix conflicts.
