@@ -160,8 +160,11 @@
 #define BRB1_REG_PAUSE_HIGH_THRESHOLD_1 			 0x6007c
 /* [RW 10] Write client 0: Assert pause threshold. */
 #define BRB1_REG_PAUSE_LOW_THRESHOLD_0				 0x60068
-#define BRB1_REG_PAUSE_LOW_THRESHOLD_1				 0x6006c
-/* [R 24] The number of full blocks occupied by port. */
+/* [RW 1] Indicates if to use per-class guaranty mode (new mode) or per-MAC
+ * guaranty mode (backwards-compatible mode). 0=per-MAC guaranty mode (BC
+ * mode). 1=per-class guaranty mode (new mode). */
+#define BRB1_REG_PER_CLASS_GUARANTY_MODE			 0x60268
+/* [R 24] The number of full blocks occpied by port. */
 #define BRB1_REG_PORT_NUM_OCC_BLOCKS_0				 0x60094
 /* [RW 1] Reset the design by software. */
 #define BRB1_REG_SOFT_RESET					 0x600dc

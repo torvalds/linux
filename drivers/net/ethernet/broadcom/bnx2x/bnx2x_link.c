@@ -163,6 +163,11 @@
 #define EDC_MODE_LIMITING				0x0044
 #define EDC_MODE_PASSIVE_DAC			0x0055
 
+/* BRB default for class 0 E2 */
+#define DEFAULT0_E2_BRB_MAC_PAUSE_XOFF_THR	170
+#define DEFAULT0_E2_BRB_MAC_PAUSE_XON_THR		250
+#define DEFAULT0_E2_BRB_MAC_FULL_XOFF_THR		10
+#define DEFAULT0_E2_BRB_MAC_FULL_XON_THR		50
 
 /* BRB thresholds for E2*/
 #define PFC_E2_BRB_MAC_PAUSE_XOFF_THR_PAUSE		170
@@ -177,6 +182,12 @@
 #define PFC_E2_BRB_MAC_FULL_XON_THR_PAUSE			50
 #define PFC_E2_BRB_MAC_FULL_XON_THR_NON_PAUSE		250
 
+/* BRB default for class 0 E3A0 */
+#define DEFAULT0_E3A0_BRB_MAC_PAUSE_XOFF_THR	290
+#define DEFAULT0_E3A0_BRB_MAC_PAUSE_XON_THR	410
+#define DEFAULT0_E3A0_BRB_MAC_FULL_XOFF_THR	10
+#define DEFAULT0_E3A0_BRB_MAC_FULL_XON_THR	50
+
 /* BRB thresholds for E3A0 */
 #define PFC_E3A0_BRB_MAC_PAUSE_XOFF_THR_PAUSE		290
 #define PFC_E3A0_BRB_MAC_PAUSE_XOFF_THR_NON_PAUSE		0
@@ -190,6 +201,11 @@
 #define PFC_E3A0_BRB_MAC_FULL_XON_THR_PAUSE		50
 #define PFC_E3A0_BRB_MAC_FULL_XON_THR_NON_PAUSE		410
 
+/* BRB default for E3B0 */
+#define DEFAULT0_E3B0_BRB_MAC_PAUSE_XOFF_THR	330
+#define DEFAULT0_E3B0_BRB_MAC_PAUSE_XON_THR	490
+#define DEFAULT0_E3B0_BRB_MAC_FULL_XOFF_THR	15
+#define DEFAULT0_E3B0_BRB_MAC_FULL_XON_THR	55
 
 /* BRB thresholds for E3B0 2 port mode*/
 #define PFC_E3B0_2P_BRB_MAC_PAUSE_XOFF_THR_PAUSE		1025
@@ -251,6 +267,18 @@
 #define PFC_E3B0_4P_BRB_MAC_1_CLASS_T_GUART		80
 #define PFC_E3B0_4P_BRB_MAC_1_CLASS_T_GUART_HYST		120
 
+/* Pause defines*/
+#define DEFAULT_E3B0_BRB_FULL_LB_XOFF_THR			330
+#define DEFAULT_E3B0_BRB_FULL_LB_XON_THR			490
+#define DEFAULT_E3B0_LB_GUART		40
+
+#define DEFAULT_E3B0_BRB_MAC_0_CLASS_T_GUART		40
+#define DEFAULT_E3B0_BRB_MAC_0_CLASS_T_GUART_HYST	0
+
+#define DEFAULT_E3B0_BRB_MAC_1_CLASS_T_GUART		40
+#define DEFAULT_E3B0_BRB_MAC_1_CLASS_T_GUART_HYST	0
+
+/* ETS defines*/
 #define DCBX_INVALID_COS					(0xFF)
 
 #define ETS_BW_LIMIT_CREDIT_UPPER_BOUND		(0x5000)
@@ -2009,6 +2037,8 @@ struct bnx2x_pfc_brb_threshold_val {
 };
 
 struct bnx2x_pfc_brb_e3b0_val {
+	u32 per_class_guaranty_mode;
+	u32 lb_guarantied_hyst;
 	u32 full_lb_xoff_th;
 	u32 full_lb_xon_threshold;
 	u32 lb_guarantied;
@@ -2021,6 +2051,9 @@ struct bnx2x_pfc_brb_e3b0_val {
 struct bnx2x_pfc_brb_th_val {
 	struct bnx2x_pfc_brb_threshold_val pauseable_th;
 	struct bnx2x_pfc_brb_threshold_val non_pauseable_th;
+	struct bnx2x_pfc_brb_threshold_val default_class0;
+	struct bnx2x_pfc_brb_threshold_val default_class1;
+
 };
 static int bnx2x_pfc_brb_get_config_params(
 				struct link_params *params,
@@ -2028,7 +2061,23 @@ static int bnx2x_pfc_brb_get_config_params(
 {
 	struct bnx2x *bp = params->bp;
 	DP(NETIF_MSG_LINK, "Setting PFC BRB configuration\n");
+
+	config_val->default_class1.pause_xoff = 0;
+	config_val->default_class1.pause_xon = 0;
+	config_val->default_class1.full_xoff = 0;
+	config_val->default_class1.full_xon = 0;
+
 	if (CHIP_IS_E2(bp)) {
+		/*  class0 defaults */
+		config_val->default_class0.pause_xoff =
+			DEFAULT0_E2_BRB_MAC_PAUSE_XOFF_THR;
+		config_val->default_class0.pause_xon =
+		    DEFAULT0_E2_BRB_MAC_PAUSE_XON_THR;
+		config_val->default_class0.full_xoff =
+		    DEFAULT0_E2_BRB_MAC_FULL_XOFF_THR;
+		config_val->default_class0.full_xon =
+		    DEFAULT0_E2_BRB_MAC_FULL_XON_THR;
+		/*  pause able*/
 		config_val->pauseable_th.pause_xoff =
 		    PFC_E2_BRB_MAC_PAUSE_XOFF_THR_PAUSE;
 		config_val->pauseable_th.pause_xon =
@@ -2047,6 +2096,16 @@ static int bnx2x_pfc_brb_get_config_params(
 		config_val->non_pauseable_th.full_xon =
 		    PFC_E2_BRB_MAC_FULL_XON_THR_NON_PAUSE;
 	} else if (CHIP_IS_E3A0(bp)) {
+		/*  class0 defaults */
+		config_val->default_class0.pause_xoff =
+			DEFAULT0_E3A0_BRB_MAC_PAUSE_XOFF_THR;
+		config_val->default_class0.pause_xon =
+		    DEFAULT0_E3A0_BRB_MAC_PAUSE_XON_THR;
+		config_val->default_class0.full_xoff =
+		    DEFAULT0_E3A0_BRB_MAC_FULL_XOFF_THR;
+		config_val->default_class0.full_xon =
+		    DEFAULT0_E3A0_BRB_MAC_FULL_XON_THR;
+		/*  pause able */
 		config_val->pauseable_th.pause_xoff =
 		    PFC_E3A0_BRB_MAC_PAUSE_XOFF_THR_PAUSE;
 		config_val->pauseable_th.pause_xon =
@@ -2065,29 +2124,39 @@ static int bnx2x_pfc_brb_get_config_params(
 		config_val->non_pauseable_th.full_xon =
 		    PFC_E3A0_BRB_MAC_FULL_XON_THR_NON_PAUSE;
 	} else if (CHIP_IS_E3B0(bp)) {
+		/*  class0 defaults */
+		config_val->default_class0.pause_xoff =
+			DEFAULT0_E3B0_BRB_MAC_PAUSE_XOFF_THR;
+		config_val->default_class0.pause_xon =
+		    DEFAULT0_E3B0_BRB_MAC_PAUSE_XON_THR;
+		config_val->default_class0.full_xoff =
+		    DEFAULT0_E3B0_BRB_MAC_FULL_XOFF_THR;
+		config_val->default_class0.full_xon =
+		    DEFAULT0_E3B0_BRB_MAC_FULL_XON_THR;
+
 		if (params->phy[INT_PHY].flags &
-		    FLAGS_4_PORT_MODE) {
+			FLAGS_4_PORT_MODE) {
 			config_val->pauseable_th.pause_xoff =
-			    PFC_E3B0_4P_BRB_MAC_PAUSE_XOFF_THR_PAUSE;
+				PFC_E3B0_4P_BRB_MAC_PAUSE_XOFF_THR_PAUSE;
 			config_val->pauseable_th.pause_xon =
-			    PFC_E3B0_4P_BRB_MAC_PAUSE_XON_THR_PAUSE;
+				PFC_E3B0_4P_BRB_MAC_PAUSE_XON_THR_PAUSE;
 			config_val->pauseable_th.full_xoff =
-			    PFC_E3B0_4P_BRB_MAC_FULL_XOFF_THR_PAUSE;
+				PFC_E3B0_4P_BRB_MAC_FULL_XOFF_THR_PAUSE;
 			config_val->pauseable_th.full_xon =
-			    PFC_E3B0_4P_BRB_MAC_FULL_XON_THR_PAUSE;
+				PFC_E3B0_4P_BRB_MAC_FULL_XON_THR_PAUSE;
 			/* non pause able*/
 			config_val->non_pauseable_th.pause_xoff =
-			    PFC_E3B0_4P_BRB_MAC_PAUSE_XOFF_THR_NON_PAUSE;
+			PFC_E3B0_4P_BRB_MAC_PAUSE_XOFF_THR_NON_PAUSE;
 			config_val->non_pauseable_th.pause_xon =
-			    PFC_E3B0_4P_BRB_MAC_PAUSE_XON_THR_NON_PAUSE;
+			PFC_E3B0_4P_BRB_MAC_PAUSE_XON_THR_NON_PAUSE;
 			config_val->non_pauseable_th.full_xoff =
-			    PFC_E3B0_4P_BRB_MAC_FULL_XOFF_THR_NON_PAUSE;
+			PFC_E3B0_4P_BRB_MAC_FULL_XOFF_THR_NON_PAUSE;
 			config_val->non_pauseable_th.full_xon =
-			    PFC_E3B0_4P_BRB_MAC_FULL_XON_THR_NON_PAUSE;
-	    } else {
-		config_val->pauseable_th.pause_xoff =
-		    PFC_E3B0_2P_BRB_MAC_PAUSE_XOFF_THR_PAUSE;
-		config_val->pauseable_th.pause_xon =
+			PFC_E3B0_4P_BRB_MAC_FULL_XON_THR_NON_PAUSE;
+		} else {
+			config_val->pauseable_th.pause_xoff =
+				PFC_E3B0_2P_BRB_MAC_PAUSE_XOFF_THR_PAUSE;
+			config_val->pauseable_th.pause_xon =
 		    PFC_E3B0_2P_BRB_MAC_PAUSE_XON_THR_PAUSE;
 		config_val->pauseable_th.full_xoff =
 		    PFC_E3B0_2P_BRB_MAC_FULL_XOFF_THR_PAUSE;
@@ -2109,59 +2178,83 @@ static int bnx2x_pfc_brb_get_config_params(
 	return 0;
 }
 
-
-static void bnx2x_pfc_brb_get_e3b0_config_params(struct link_params *params,
-						 struct bnx2x_pfc_brb_e3b0_val
-						 *e3b0_val,
-						 u32 cos0_pauseable,
-						 u32 cos1_pauseable)
+static void bnx2x_pfc_brb_get_e3b0_config_params(
+		struct link_params *params,
+		struct bnx2x_pfc_brb_e3b0_val
+		*e3b0_val,
+		struct bnx2x_nig_brb_pfc_port_params *pfc_params,
+		const u8 pfc_enabled)
 {
-	if (params->phy[INT_PHY].flags & FLAGS_4_PORT_MODE) {
-		e3b0_val->full_lb_xoff_th =
-		    PFC_E3B0_4P_BRB_FULL_LB_XOFF_THR;
-		e3b0_val->full_lb_xon_threshold =
-		    PFC_E3B0_4P_BRB_FULL_LB_XON_THR;
-		e3b0_val->lb_guarantied =
-		    PFC_E3B0_4P_LB_GUART;
-		e3b0_val->mac_0_class_t_guarantied =
-		    PFC_E3B0_4P_BRB_MAC_0_CLASS_T_GUART;
-		e3b0_val->mac_0_class_t_guarantied_hyst =
-		    PFC_E3B0_4P_BRB_MAC_0_CLASS_T_GUART_HYST;
-		e3b0_val->mac_1_class_t_guarantied =
-		    PFC_E3B0_4P_BRB_MAC_1_CLASS_T_GUART;
-		e3b0_val->mac_1_class_t_guarantied_hyst =
-		    PFC_E3B0_4P_BRB_MAC_1_CLASS_T_GUART_HYST;
-	} else {
-		e3b0_val->full_lb_xoff_th =
-		    PFC_E3B0_2P_BRB_FULL_LB_XOFF_THR;
-		e3b0_val->full_lb_xon_threshold =
-		    PFC_E3B0_2P_BRB_FULL_LB_XON_THR;
-		e3b0_val->mac_0_class_t_guarantied_hyst =
-		    PFC_E3B0_2P_BRB_MAC_0_CLASS_T_GUART_HYST;
-		e3b0_val->mac_1_class_t_guarantied =
-		    PFC_E3B0_2P_BRB_MAC_1_CLASS_T_GUART;
-		e3b0_val->mac_1_class_t_guarantied_hyst =
-		    PFC_E3B0_2P_BRB_MAC_1_CLASS_T_GUART_HYST;
+	if (pfc_enabled && pfc_params) {
+		e3b0_val->per_class_guaranty_mode = 1;
+		e3b0_val->lb_guarantied_hyst = 80;
 
-		if (cos0_pauseable != cos1_pauseable) {
-			/* nonpauseable= Lossy + pauseable = Lossless*/
+		if (params->phy[INT_PHY].flags &
+		    FLAGS_4_PORT_MODE) {
+			e3b0_val->full_lb_xoff_th =
+				PFC_E3B0_4P_BRB_FULL_LB_XOFF_THR;
+			e3b0_val->full_lb_xon_threshold =
+				PFC_E3B0_4P_BRB_FULL_LB_XON_THR;
 			e3b0_val->lb_guarantied =
-			    PFC_E3B0_2P_MIX_PAUSE_LB_GUART;
+				PFC_E3B0_4P_LB_GUART;
 			e3b0_val->mac_0_class_t_guarantied =
-			    PFC_E3B0_2P_MIX_PAUSE_MAC_0_CLASS_T_GUART;
-		} else if (cos0_pauseable) {
-			/* Lossless +Lossless*/
-			e3b0_val->lb_guarantied =
-			    PFC_E3B0_2P_PAUSE_LB_GUART;
-			e3b0_val->mac_0_class_t_guarantied =
-			    PFC_E3B0_2P_PAUSE_MAC_0_CLASS_T_GUART;
+				PFC_E3B0_4P_BRB_MAC_0_CLASS_T_GUART;
+			e3b0_val->mac_0_class_t_guarantied_hyst =
+				PFC_E3B0_4P_BRB_MAC_0_CLASS_T_GUART_HYST;
+			e3b0_val->mac_1_class_t_guarantied =
+				PFC_E3B0_4P_BRB_MAC_1_CLASS_T_GUART;
+			e3b0_val->mac_1_class_t_guarantied_hyst =
+				PFC_E3B0_4P_BRB_MAC_1_CLASS_T_GUART_HYST;
 		} else {
-			/* Lossy +Lossy*/
-			e3b0_val->lb_guarantied =
-			    PFC_E3B0_2P_NON_PAUSE_LB_GUART;
-			e3b0_val->mac_0_class_t_guarantied =
-			    PFC_E3B0_2P_NON_PAUSE_MAC_0_CLASS_T_GUART;
+			e3b0_val->full_lb_xoff_th =
+				PFC_E3B0_2P_BRB_FULL_LB_XOFF_THR;
+			e3b0_val->full_lb_xon_threshold =
+				PFC_E3B0_2P_BRB_FULL_LB_XON_THR;
+			e3b0_val->mac_0_class_t_guarantied_hyst =
+				PFC_E3B0_2P_BRB_MAC_0_CLASS_T_GUART_HYST;
+			e3b0_val->mac_1_class_t_guarantied =
+				PFC_E3B0_2P_BRB_MAC_1_CLASS_T_GUART;
+			e3b0_val->mac_1_class_t_guarantied_hyst =
+				PFC_E3B0_2P_BRB_MAC_1_CLASS_T_GUART_HYST;
+
+			if (pfc_params->cos0_pauseable !=
+				pfc_params->cos1_pauseable) {
+				/* nonpauseable= Lossy + pauseable = Lossless*/
+				e3b0_val->lb_guarantied =
+					PFC_E3B0_2P_MIX_PAUSE_LB_GUART;
+				e3b0_val->mac_0_class_t_guarantied =
+			       PFC_E3B0_2P_MIX_PAUSE_MAC_0_CLASS_T_GUART;
+			} else if (pfc_params->cos0_pauseable) {
+				/* Lossless +Lossless*/
+				e3b0_val->lb_guarantied =
+					PFC_E3B0_2P_PAUSE_LB_GUART;
+				e3b0_val->mac_0_class_t_guarantied =
+				   PFC_E3B0_2P_PAUSE_MAC_0_CLASS_T_GUART;
+			} else {
+				/* Lossy +Lossy*/
+				e3b0_val->lb_guarantied =
+					PFC_E3B0_2P_NON_PAUSE_LB_GUART;
+				e3b0_val->mac_0_class_t_guarantied =
+			       PFC_E3B0_2P_NON_PAUSE_MAC_0_CLASS_T_GUART;
+			}
 		}
+	} else {
+		e3b0_val->per_class_guaranty_mode = 0;
+		e3b0_val->lb_guarantied_hyst = 0;
+		e3b0_val->full_lb_xoff_th =
+			DEFAULT_E3B0_BRB_FULL_LB_XOFF_THR;
+		e3b0_val->full_lb_xon_threshold =
+			DEFAULT_E3B0_BRB_FULL_LB_XON_THR;
+		e3b0_val->lb_guarantied =
+			DEFAULT_E3B0_LB_GUART;
+		e3b0_val->mac_0_class_t_guarantied =
+			DEFAULT_E3B0_BRB_MAC_0_CLASS_T_GUART;
+		e3b0_val->mac_0_class_t_guarantied_hyst =
+			DEFAULT_E3B0_BRB_MAC_0_CLASS_T_GUART_HYST;
+		e3b0_val->mac_1_class_t_guarantied =
+			DEFAULT_E3B0_BRB_MAC_1_CLASS_T_GUART;
+		e3b0_val->mac_1_class_t_guarantied_hyst =
+			DEFAULT_E3B0_BRB_MAC_1_CLASS_T_GUART_HYST;
 	}
 }
 static int bnx2x_update_pfc_brb(struct link_params *params,
@@ -2174,8 +2267,9 @@ static int bnx2x_update_pfc_brb(struct link_params *params,
 	struct bnx2x_pfc_brb_threshold_val *reg_th_config =
 	    &config_val.pauseable_th;
 	struct bnx2x_pfc_brb_e3b0_val e3b0_val = {0};
-	int set_pfc = params->feature_config_flags &
+	const int set_pfc = params->feature_config_flags &
 		FEATURE_CONFIG_PFC_ENABLED;
+	const u8 pfc_enabled = (set_pfc && pfc_params);
 	int bnx2x_status = 0;
 	u8 port = params->port;
 
@@ -2185,10 +2279,14 @@ static int bnx2x_update_pfc_brb(struct link_params *params,
 	if (0 != bnx2x_status)
 		return bnx2x_status;
 
-	if (set_pfc && pfc_params)
+	if (pfc_enabled) {
 		/* First COS */
-		if (!pfc_params->cos0_pauseable)
+		if (pfc_params->cos0_pauseable)
+			reg_th_config = &config_val.pauseable_th;
+		else
 			reg_th_config = &config_val.non_pauseable_th;
+	} else
+		reg_th_config = &config_val.default_class0;
 	/*
 	 * The number of free blocks below which the pause signal to class 0
 	 * of MAC #n is asserted. n=0,1
@@ -2215,12 +2313,14 @@ static int bnx2x_update_pfc_brb(struct link_params *params,
 	REG_WR(bp, (port) ? BRB1_REG_FULL_0_XON_THRESHOLD_1 :
 	       BRB1_REG_FULL_0_XON_THRESHOLD_0 , reg_th_config->full_xon);
 
-	if (set_pfc && pfc_params) {
+	if (pfc_enabled) {
 		/* Second COS */
 		if (pfc_params->cos1_pauseable)
 			reg_th_config = &config_val.pauseable_th;
 		else
 			reg_th_config = &config_val.non_pauseable_th;
+	} else
+		reg_th_config = &config_val.default_class1;
 		/*
 		 * The number of free blocks below which the pause signal to
 		 * class 1 of MAC #n is asserted. n=0,1
@@ -2250,32 +2350,34 @@ static int bnx2x_update_pfc_brb(struct link_params *params,
 		       BRB1_REG_FULL_1_XON_THRESHOLD_0,
 		       reg_th_config->full_xon);
 
+	if (CHIP_IS_E3B0(bp)) {
+		bnx2x_pfc_brb_get_e3b0_config_params(
+			params,
+			&e3b0_val,
+			pfc_params,
+			pfc_enabled);
 
-		if (CHIP_IS_E3B0(bp)) {
 			/*Should be done by init tool */
 			/*
 			* BRB_empty_for_dup = BRB1_REG_BRB_EMPTY_THRESHOLD
 			* reset value
 			* 944
 			*/
+		REG_WR(bp, BRB1_REG_PER_CLASS_GUARANTY_MODE,
+			   e3b0_val.per_class_guaranty_mode);
 
 			/**
 			 * The hysteresis on the guarantied buffer space for the Lb port
 			 * before signaling XON.
 			 **/
-			REG_WR(bp, BRB1_REG_LB_GUARANTIED_HYST, 80);
-
-			bnx2x_pfc_brb_get_e3b0_config_params(
-			    params,
-			    &e3b0_val,
-			    pfc_params->cos0_pauseable,
-			    pfc_params->cos1_pauseable);
+		REG_WR(bp, BRB1_REG_LB_GUARANTIED_HYST,
+			   e3b0_val.lb_guarantied_hyst);
 			/**
 			 * The number of free blocks below which the full signal to the
 			 * LB port is asserted.
 			*/
-			REG_WR(bp, BRB1_REG_FULL_LB_XOFF_THRESHOLD,
-				   e3b0_val.full_lb_xoff_th);
+		REG_WR(bp, BRB1_REG_FULL_LB_XOFF_THRESHOLD,
+			e3b0_val.full_lb_xoff_th);
 			/**
 			 * The number of free blocks above which the full signal to the
 			 * LB port is de-asserted.
@@ -2330,8 +2432,6 @@ static int bnx2x_update_pfc_brb(struct link_params *params,
 			       e3b0_val.mac_1_class_t_guarantied_hyst);
 
 	    }
-
-	}
 
 	return bnx2x_status;
 }
