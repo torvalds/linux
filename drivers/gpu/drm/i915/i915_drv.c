@@ -603,7 +603,7 @@ static int gen6_do_reset(struct drm_device *dev, u8 flags)
 }
 
 /**
- * i965_reset - reset chip after a hang
+ * i915_reset - reset chip after a hang
  * @dev: drm device to reset
  * @flags: reset domains
  *
