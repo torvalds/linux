@@ -23,7 +23,7 @@ DEFINE_PER_CPU(struct mm_struct *, current_mm);
 #endif
 
 #ifdef CONFIG_ARM_LPAE
-static void cpu_set_reserved_ttbr0(void)
+void cpu_set_reserved_ttbr0(void)
 {
 	unsigned long ttbl = __pa(swapper_pg_dir);
 	unsigned long ttbh = 0;
@@ -39,7 +39,7 @@ static void cpu_set_reserved_ttbr0(void)
 	isb();
 }
 #else
-static void cpu_set_reserved_ttbr0(void)
+void cpu_set_reserved_ttbr0(void)
 {
 	u32 ttb;
 	/* Copy TTBR1 into TTBR0 */
