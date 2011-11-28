@@ -345,7 +345,6 @@ static struct snd_soc_dai_driver ad193x_dai = {
 static int ad193x_probe(struct snd_soc_codec *codec)
 {
 	struct ad193x_priv *ad193x = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
 
 	codec->control_data = ad193x->regmap;
@@ -371,17 +370,17 @@ static int ad193x_probe(struct snd_soc_codec *codec)
 	snd_soc_write(codec, AD193X_PLL_CLK_CTRL0, 0x99); /* mclk=24.576Mhz: 0x9D; mclk=12.288Mhz: 0x99 */
 	snd_soc_write(codec, AD193X_PLL_CLK_CTRL1, 0x04);
 
-	snd_soc_add_controls(codec, ad193x_snd_controls,
-			     ARRAY_SIZE(ad193x_snd_controls));
-	snd_soc_dapm_new_controls(dapm, ad193x_dapm_widgets,
-				  ARRAY_SIZE(ad193x_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, audio_paths, ARRAY_SIZE(audio_paths));
-
 	return ret;
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_ad193x = {
 	.probe = 	ad193x_probe,
+	.controls = ad193x_snd_controls,
+	.num_controls = ARRAY_SIZE(ad193x_snd_controls),
+	.dapm_widgets = ad193x_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(ad193x_dapm_widgets),
+	.dapm_routes = audio_paths,
+	.num_dapm_routes = ARRAY_SIZE(audio_paths),
 };
 
 #if defined(CONFIG_SPI_MASTER)
