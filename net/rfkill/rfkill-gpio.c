@@ -220,18 +220,7 @@ static struct platform_driver rfkill_gpio_driver = {
 	},
 };
 
-static int __init rfkill_gpio_init(void)
-{
-	return platform_driver_register(&rfkill_gpio_driver);
-}
-
-static void __exit rfkill_gpio_exit(void)
-{
-	platform_driver_unregister(&rfkill_gpio_driver);
-}
-
-module_init(rfkill_gpio_init);
-module_exit(rfkill_gpio_exit);
+module_platform_driver(rfkill_gpio_driver);
 
 MODULE_DESCRIPTION("gpio rfkill");
 MODULE_AUTHOR("NVIDIA");
