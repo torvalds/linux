@@ -41,6 +41,7 @@ snd-soc-smdk-wm8994pcm-objs := smdk_wm8994pcm.o
 snd-soc-speyside-objs := speyside.o
 snd-soc-speyside-wm8962-objs := speyside_wm8962.o
 snd-soc-lowland-objs := lowland.o
+snd-soc-littlemill-objs := littlemill.o
 
 obj-$(CONFIG_SND_SOC_SAMSUNG_JIVE_WM8750) += snd-soc-jive-wm8750.o
 obj-$(CONFIG_SND_SOC_SAMSUNG_NEO1973_WM8753) += snd-soc-neo1973-wm8753.o
@@ -63,3 +64,4 @@ obj-$(CONFIG_SND_SOC_SMDK_WM8994_PCM) += snd-soc-smdk-wm8994pcm.o
 obj-$(CONFIG_SND_SOC_SPEYSIDE) += snd-soc-speyside.o
 obj-$(CONFIG_SND_SOC_SPEYSIDE_WM8962) += snd-soc-speyside-wm8962.o
 obj-$(CONFIG_SND_SOC_LOWLAND) += snd-soc-lowland.o
+obj-$(CONFIG_SND_SOC_LITTLEMILL) += snd-soc-littlemill.o

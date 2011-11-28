@@ -205,3 +205,9 @@ config SND_SOC_LOWLAND
 	select SND_SAMSUNG_I2S
 	select SND_SOC_WM5100
 	select SND_SOC_WM9081
+
+config SND_SOC_LITTLEMILL
+	tristate "Audio support for Wolfson Littlemill"
+	depends on SND_SOC_SAMSUNG && MACH_WLF_CRAGG_6410
+	select SND_SAMSUNG_I2S
+	select SND_SOC_WM8994
