@@ -756,8 +756,7 @@ cntrlEnd:
 	}
 
 	case IOCTL_BCM_BUFFER_DOWNLOAD_START: {
-		INT NVMAccess = down_trylock(&Adapter->NVMRdmWrmLock);
-		if (NVMAccess) {
+		if (down_trylock(&Adapter->NVMRdmWrmLock)) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
 					"IOCTL_BCM_CHIP_RESET not allowed as EEPROM Read/Write is in progress\n");
 			return -EACCES;
@@ -862,9 +861,7 @@ cntrlEnd:
 	}
 
 	case IOCTL_BCM_BUFFER_DOWNLOAD_STOP: {
-		INT NVMAccess = down_trylock(&Adapter->NVMRdmWrmLock);
-
-		if (NVMAccess) {
+		if (down_trylock(&Adapter->NVMRdmWrmLock)) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
 					"FW download blocked as EEPROM Read/Write is in progress\n");
 			up(&Adapter->fw_download_sema);
