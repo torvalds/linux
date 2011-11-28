@@ -90,12 +90,12 @@ static const struct snd_soc_dapm_route audio_paths[] = {
 	{ "ADC", NULL, "PLL_PWR" },
 	{ "DAC", NULL, "ADC_PWR" },
 	{ "ADC", NULL, "ADC_PWR" },
-	{ "DAC1OUT", "DAC1 Switch", "DAC" },
-	{ "DAC2OUT", "DAC2 Switch", "DAC" },
-	{ "DAC3OUT", "DAC3 Switch", "DAC" },
-	{ "DAC4OUT", "DAC4 Switch", "DAC" },
-	{ "ADC", "ADC1 Switch", "ADC1IN" },
-	{ "ADC", "ADC2 Switch", "ADC2IN" },
+	{ "DAC1OUT", NULL, "DAC" },
+	{ "DAC2OUT", NULL, "DAC" },
+	{ "DAC3OUT", NULL, "DAC" },
+	{ "DAC4OUT", NULL, "DAC" },
+	{ "ADC", NULL, "ADC1IN" },
+	{ "ADC", NULL, "ADC2IN" },
 };
 
 /*
