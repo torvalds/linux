@@ -338,6 +338,31 @@ static int it913x_rc_query(struct dvb_usb_device *d)
 	return ret;
 }
 
+static int ite_firmware_select(struct usb_device *udev,
+	struct dvb_usb_device_properties *props)
+{
+	int sw;
+	/* auto switch */
+	if (le16_to_cpu(udev->descriptor.idProduct) ==
+			USB_PID_ITETECH_IT9135)
+		sw = IT9135_V1_FW;
+	else
+		sw = IT9137_FW;
+
+	switch (sw) {
+	case IT9135_V1_FW:
+		it913x_config.firmware_ver = 0;
+		it913x_config.adc_x2 = 1;
+		break;
+	case IT9137_FW:
+	default:
+		it913x_config.firmware_ver = 0;
+		it913x_config.adc_x2 = 0;
+	}
+
+	return 0;
+}
+
 #define TS_MPEG_PKT_SIZE	188
 #define EP_LOW			21
 #define TS_BUFFER_SIZE_PID	(EP_LOW*TS_MPEG_PKT_SIZE)
@@ -392,6 +417,8 @@ static int it913x_identify_state(struct usb_device *udev,
 		props->adapter[1].fe[0].stream.u.bulk.buffersize =
 			props->adapter[0].fe[0].stream.u.bulk.buffersize;
 
+	ret = ite_firmware_select(udev, props);
+
 	if (firm_no > 0) {
 		*cold = 0;
 		return 0;
@@ -421,10 +448,16 @@ static int it913x_identify_state(struct usb_device *udev,
 
 	if (it913x_config.dual_mode) {
 		ret |= it913x_wr_reg(udev, DEV_0, 0x4bfb, CHIP2_I2C_ADDR);
-		ret |= it913x_wr_reg(udev, DEV_0,  CLK_O_EN, 0x1);
+		if (it913x_config.firmware_ver == 1)
+			ret |= it913x_wr_reg(udev, DEV_0,  0xcfff, 0x1);
+		else
+			ret |= it913x_wr_reg(udev, DEV_0,  CLK_O_EN, 0x1);
 	} else {
 		ret |= it913x_wr_reg(udev, DEV_0, 0x4bfb, 0x0);
-		ret |= it913x_wr_reg(udev, DEV_0,  CLK_O_EN, 0x0);
+		if (it913x_config.firmware_ver == 1)
+			ret |= it913x_wr_reg(udev, DEV_0,  0xcfff, 0x0);
+		else
+			ret |= it913x_wr_reg(udev, DEV_0,  CLK_O_EN, 0x0);
 	}
 
 	*cold = 1;

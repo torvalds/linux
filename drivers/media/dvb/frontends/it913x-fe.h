@@ -28,6 +28,8 @@ struct ite_config {
 	u8 chip_ver;
 	u16 chip_type;
 	u32 firmware;
+	u8 firmware_ver;
+	u8 adc_x2;
 	u8 tuner_id_0;
 	u8 tuner_id_1;
 	u8 dual_mode;
@@ -209,6 +211,13 @@ enum {
 	READ_DATA,
 	WRITE_DATA,
 	WRITE_CMD,
+};
+
+enum {
+	IT9135_AUTO = 0,
+	IT9137_FW,
+	IT9135_V1_FW,
+	IT9135_V2_FW,
 };
 
 #endif /* IT913X_FE_H */

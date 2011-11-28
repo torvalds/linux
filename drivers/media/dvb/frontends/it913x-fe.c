@@ -245,6 +245,11 @@ static int it9137_set_tuner(struct it913x_fe_state *state,
 	u8 lna_band;
 	u8 bw;
 
+	if (state->config->firmware_ver == 1)
+		set_tuner = set_it9135_template;
+	else
+		set_tuner = set_it9137_template;
+
 	deb_info("Tuner Frequency %d Bandwidth %d", frequency, bandwidth);
 
 	if (frequency >= 51000 && frequency <= 440000) {
@@ -774,8 +779,16 @@ static int it913x_fe_start(struct it913x_fe_state *state)
 	b[2] = (adc >> 16) & 0xff;
 	ret |= it913x_write(state, PRO_DMOD, ADC_FREQ, b, 3);
 
-	info("Crystal Frequency :%d Adc Frequency :%d",
-		state->crystalFrequency, state->adcFrequency);
+	if (state->config->adc_x2)
+		ret |= it913x_write_reg(state, PRO_DMOD, ADC_X_2, 0x01);
+	b[0] = 0;
+	b[1] = 0;
+	b[2] = 0;
+	ret |= it913x_write(state, PRO_DMOD, 0x0029, b, 3);
+
+	info("Crystal Frequency :%d Adc Frequency :%d ADC X2: %02x",
+		state->crystalFrequency, state->adcFrequency,
+			state->config->adc_x2);
 	deb_info("Xtal value :%04x Adc value :%04x", xtal, adc);
 
 	if (ret < 0)
@@ -840,9 +853,9 @@ static int it913x_fe_init(struct dvb_frontend *fe)
 	/* Power Up Tuner - common all versions */
 	ret = it913x_write_reg(state, PRO_DMOD, 0xec40, 0x1);
 
-	ret |= it913x_write_reg(state, PRO_DMOD, AFE_MEM0, 0x0);
-
 	ret |= it913x_fe_script_loader(state, init_1);
+
+	ret |= it913x_write_reg(state, PRO_DMOD, AFE_MEM0, 0x0);
 
 	ret |= it913x_write_reg(state, PRO_DMOD, 0xfba8, 0x0);
 
@@ -938,5 +951,5 @@ static struct dvb_frontend_ops it913x_fe_ofdm_ops = {
 
 MODULE_DESCRIPTION("it913x Frontend and it9137 tuner");
 MODULE_AUTHOR("Malcolm Priestley tvboxspy@gmail.com");
-MODULE_VERSION("1.10");
+MODULE_VERSION("1.12");
 MODULE_LICENSE("GPL");
