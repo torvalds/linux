@@ -1135,9 +1135,7 @@ _out_:
                 if (readl(SDXC_REG_STAS) & SDXC_DataFSMBusy)
                     if (readl(SDXC_REG_STAS) & SDXC_DataFSMBusy)
                         if (readl(SDXC_REG_STAS) & SDXC_DataFSMBusy)
-                            if (readl(SDXC_REG_STAS) & SDXC_DataFSMBusy)
-                                if (readl(SDXC_REG_STAS) & SDXC_DataFSMBusy)
-                                    SMC_ERR("data fsm busy %08x, len %d\n", readl(SDXC_REG_STAS), req->data->blksz * req->data->blocks);
+                            SMC_MSG("mmc %d fsm busy 0x%x len %d\n", smc_host->pdev->id, readl(SDXC_REG_STAS), req->data->blksz * req->data->blocks);
         }
         if (smc_host->dodma)
         {
