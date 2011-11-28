@@ -133,7 +133,7 @@ int process_sigma_firmware(struct i2c_client *client, const char *name)
 	crc = crc32(0, fw->data + sizeof(*ssfw_head),
 			fw->size - sizeof(*ssfw_head));
 	pr_debug("%s: crc=%x\n", __func__, crc);
-	if (crc != ssfw_head->crc)
+	if (crc != le32_to_cpu(ssfw_head->crc))
 		goto done;
 
 	ssfw.pos = sizeof(*ssfw_head);
