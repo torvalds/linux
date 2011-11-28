@@ -328,11 +328,13 @@ static int it913x_rc_query(struct dvb_usb_device *d)
 
 	if ((ibuf[2] + ibuf[3]) == 0xff) {
 		key = ibuf[2];
-		key += ibuf[0] << 8;
-		deb_info(1, "INT Key =%08x", key);
+		key += ibuf[0] << 16;
+		key += ibuf[1] << 8;
+		deb_info(1, "NEC Extended Key =%08x", key);
 		if (d->rc_dev != NULL)
 			rc_keydown(d->rc_dev, key, 0);
 	}
+
 	mutex_unlock(&d->i2c_mutex);
 
 	return ret;
@@ -701,7 +703,7 @@ static struct dvb_usb_device_properties it913x_properties = {
 		.rc_query	= it913x_rc_query,
 		.rc_interval	= IT913X_POLL,
 		.allowed_protos	= RC_TYPE_NEC,
-		.rc_codes	= RC_MAP_KWORLD_315U,
+		.rc_codes	= RC_MAP_MSI_DIGIVOX_III,
 	},
 	.i2c_algo         = &it913x_i2c_algo,
 	.num_device_descs = 3,
@@ -748,5 +750,5 @@ module_exit(it913x_module_exit);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("it913x USB 2 Driver");
-MODULE_VERSION("1.09");
+MODULE_VERSION("1.11");
 MODULE_LICENSE("GPL");
