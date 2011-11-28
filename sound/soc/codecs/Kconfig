@@ -141,7 +141,7 @@ config SND_SOC_AD73311
 	tristate
 
 config SND_SOC_ADAU1701
-	select SIGMA
+	select SND_SOC_SIGMADSP
 	tristate
 
 config SND_SOC_ADAU1373
@@ -233,6 +233,10 @@ config SND_SOC_RT5631
 #Freescale sgtl5000 codec
 config SND_SOC_SGTL5000
 	tristate
+
+config SND_SOC_SIGMADSP
+	tristate
+	select CRC32
 
 config SND_SOC_SN95031
 	tristate
