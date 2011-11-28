@@ -23,7 +23,7 @@ struct wm8994_ldo_pdata {
 	int enable;
 
 	const char *supply;
-	struct regulator_init_data *init_data;
+	const struct regulator_init_data *init_data;
 };
 
 #define WM8994_CONFIGURE_GPIO 0x10000
