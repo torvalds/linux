@@ -29,6 +29,7 @@
 #include "gateway_client.h"
 #include "hard-interface.h"
 #include "send.h"
+#include "bat_algo.h"
 
 void bat_ogm_init(struct hard_iface *hard_iface)
 {
@@ -1171,4 +1172,13 @@ void bat_ogm_receive(struct hard_iface *if_incoming, struct sk_buff *skb)
 						(packet_buff + buff_pos);
 	} while (bat_ogm_aggr_packet(buff_pos, packet_len,
 				     batman_ogm_packet->tt_num_changes));
+}
+
+static struct bat_algo_ops batman_iv __read_mostly = {
+	.name = "BATMAN IV",
+};
+
+int __init bat_iv_init(void)
+{
+	return bat_algo_register(&batman_iv);
 }

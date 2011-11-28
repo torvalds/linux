@@ -206,6 +206,7 @@ struct bat_priv {
 	atomic_t gw_reselect;
 	struct hard_iface __rcu *primary_if;  /* rcu protected pointer */
 	struct vis_info *my_vis_info;
+	struct bat_algo_ops *bat_algo_ops;
 };
 
 struct socket_client {
@@ -342,6 +343,11 @@ struct softif_neigh {
 	unsigned long last_seen;
 	atomic_t refcount;
 	struct rcu_head rcu;
+};
+
+struct bat_algo_ops {
+	struct hlist_node list;
+	char *name;
 };
 
 #endif /* _NET_BATMAN_ADV_TYPES_H_ */

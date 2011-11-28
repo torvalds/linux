@@ -32,11 +32,14 @@
 #include "gateway_client.h"
 #include "vis.h"
 #include "hash.h"
+#include "bat_algo.h"
 
 
 /* List manipulations on hardif_list have to be rtnl_lock()'ed,
  * list traversals just rcu-locked */
 struct list_head hardif_list;
+char bat_routing_algo[20] = "BATMAN IV";
+static struct hlist_head bat_algo_list;
 
 unsigned char broadcast_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
@@ -45,6 +48,9 @@ struct workqueue_struct *bat_event_workqueue;
 static int __init batman_init(void)
 {
 	INIT_LIST_HEAD(&hardif_list);
+	INIT_HLIST_HEAD(&bat_algo_list);
+
+	bat_iv_init();
 
 	/* the name should not be longer than 10 chars - see
 	 * http://lwn.net/Articles/23634/ */
@@ -169,6 +175,72 @@ int is_my_mac(const uint8_t *addr)
 		}
 	}
 	rcu_read_unlock();
+	return 0;
+}
+
+static struct bat_algo_ops *bat_algo_get(char *name)
+{
+	struct bat_algo_ops *bat_algo_ops = NULL, *bat_algo_ops_tmp;
+	struct hlist_node *node;
+
+	hlist_for_each_entry(bat_algo_ops_tmp, node, &bat_algo_list, list) {
+		if (strcmp(bat_algo_ops_tmp->name, name) != 0)
+			continue;
+
+		bat_algo_ops = bat_algo_ops_tmp;
+		break;
+	}
+
+	return bat_algo_ops;
+}
+
+int bat_algo_register(struct bat_algo_ops *bat_algo_ops)
+{
+	struct bat_algo_ops *bat_algo_ops_tmp;
+	int ret = -1;
+
+	bat_algo_ops_tmp = bat_algo_get(bat_algo_ops->name);
+	if (bat_algo_ops_tmp) {
+		pr_info("Trying to register already registered routing "
+			"algorithm: %s\n", bat_algo_ops->name);
+		goto out;
+	}
+
+	INIT_HLIST_NODE(&bat_algo_ops->list);
+	hlist_add_head(&bat_algo_ops->list, &bat_algo_list);
+	ret = 0;
+
+out:
+	return ret;
+}
+
+int bat_algo_select(struct bat_priv *bat_priv, char *name)
+{
+	struct bat_algo_ops *bat_algo_ops;
+	int ret = -1;
+
+	bat_algo_ops = bat_algo_get(name);
+	if (!bat_algo_ops)
+		goto out;
+
+	bat_priv->bat_algo_ops = bat_algo_ops;
+	ret = 0;
+
+out:
+	return ret;
+}
+
+int bat_algo_seq_print_text(struct seq_file *seq, void *offset)
+{
+	struct bat_algo_ops *bat_algo_ops;
+	struct hlist_node *node;
+
+	seq_printf(seq, "Available routing algorithms:\n");
+
+	hlist_for_each_entry(bat_algo_ops, node, &bat_algo_list, list) {
+		seq_printf(seq, "%s\n", bat_algo_ops->name);
+	}
+
 	return 0;
 }
 

@@ -855,6 +855,10 @@ struct net_device *softif_create(const char *name)
 	bat_priv->primary_if = NULL;
 	bat_priv->num_ifaces = 0;
 
+	ret = bat_algo_select(bat_priv, bat_routing_algo);
+	if (ret < 0)
+		goto unreg_soft_iface;
+
 	ret = sysfs_add_meshif(soft_iface);
 	if (ret < 0)
 		goto unreg_soft_iface;
