@@ -63,7 +63,7 @@ static int aat2870_ldo_set_voltage_sel(struct regulator_dev *rdev,
 	struct aat2870_data *aat2870 = dev_get_drvdata(ri->pdev->dev.parent);
 
 	return aat2870->update(aat2870, ri->voltage_addr, ri->voltage_mask,
-			(selector << ri->voltage_shift) & ri->voltage_mask);
+			       selector << ri->voltage_shift);
 }
 
 static int aat2870_ldo_get_voltage_sel(struct regulator_dev *rdev)
