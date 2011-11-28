@@ -321,6 +321,7 @@ struct seg_buf {
 static void xen_blkbk_unmap(struct pending_req *req)
 {
 	struct gnttab_unmap_grant_ref unmap[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	struct page *pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	unsigned int i, invcount = 0;
 	grant_handle_t handle;
 	int ret;
@@ -332,25 +333,12 @@ static void xen_blkbk_unmap(struct pending_req *req)
 		gnttab_set_unmap_op(&unmap[invcount], vaddr(req, i),
 				    GNTMAP_host_map, handle);
 		pending_handle(req, i) = BLKBACK_INVALID_HANDLE;
+		pages[invcount] = virt_to_page(vaddr(req, i));
 		invcount++;
 	}
 
-	ret = HYPERVISOR_grant_table_op(
-		GNTTABOP_unmap_grant_ref, unmap, invcount);
+	ret = gnttab_unmap_refs(unmap, pages, invcount, false);
 	BUG_ON(ret);
-	/*
-	 * Note, we use invcount, so nr->pages, so we can't index
-	 * using vaddr(req, i).
-	 */
-	for (i = 0; i < invcount; i++) {
-		ret = m2p_remove_override(
-			virt_to_page(unmap[i].host_addr), false);
-		if (ret) {
-			pr_alert(DRV_PFX "Failed to remove M2P override for %lx\n",
-				 (unsigned long)unmap[i].host_addr);
-			continue;
-		}
-	}
 }
 
 static int xen_blkbk_map(struct blkif_request *req,
@@ -378,7 +366,7 @@ static int xen_blkbk_map(struct blkif_request *req,
 				  pending_req->blkif->domid);
 	}
 
-	ret = HYPERVISOR_grant_table_op(GNTTABOP_map_grant_ref, map, nseg);
+	ret = gnttab_map_refs(map, NULL, &blkbk->pending_page(pending_req, 0), nseg);
 	BUG_ON(ret);
 
 	/*
@@ -397,15 +385,6 @@ static int xen_blkbk_map(struct blkif_request *req,
 
 		if (ret)
 			continue;
-
-		ret = m2p_add_override(PFN_DOWN(map[i].dev_bus_addr),
-			blkbk->pending_page(pending_req, i), NULL);
-		if (ret) {
-			pr_alert(DRV_PFX "Failed to install M2P override for %lx (ret: %d)\n",
-				 (unsigned long)map[i].dev_bus_addr, ret);
-			/* We could switch over to GNTTABOP_copy */
-			continue;
-		}
 
 		seg[i].buf  = map[i].dev_bus_addr |
 			(req->u.rw.seg[i].first_sect << 9);
