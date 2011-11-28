@@ -35,16 +35,18 @@ static const char *ad193x_deemp[] = {"None", "48kHz", "44.1kHz", "32kHz"};
 static const struct soc_enum ad193x_deemp_enum =
 	SOC_ENUM_SINGLE(AD193X_DAC_CTRL2, 1, 4, ad193x_deemp);
 
+static const DECLARE_TLV_DB_MINMAX(adau193x_tlv, -9563, 0);
+
 static const struct snd_kcontrol_new ad193x_snd_controls[] = {
 	/* DAC volume control */
-	SOC_DOUBLE_R("DAC1 Volume", AD193X_DAC_L1_VOL,
-			AD193X_DAC_R1_VOL, 0, 0xFF, 1),
-	SOC_DOUBLE_R("DAC2 Volume", AD193X_DAC_L2_VOL,
-			AD193X_DAC_R2_VOL, 0, 0xFF, 1),
-	SOC_DOUBLE_R("DAC3 Volume", AD193X_DAC_L3_VOL,
-			AD193X_DAC_R3_VOL, 0, 0xFF, 1),
-	SOC_DOUBLE_R("DAC4 Volume", AD193X_DAC_L4_VOL,
-			AD193X_DAC_R4_VOL, 0, 0xFF, 1),
+	SOC_DOUBLE_R_TLV("DAC1 Volume", AD193X_DAC_L1_VOL,
+			AD193X_DAC_R1_VOL, 0, 0xFF, 1, adau193x_tlv),
+	SOC_DOUBLE_R_TLV("DAC2 Volume", AD193X_DAC_L2_VOL,
+			AD193X_DAC_R2_VOL, 0, 0xFF, 1, adau193x_tlv),
+	SOC_DOUBLE_R_TLV("DAC3 Volume", AD193X_DAC_L3_VOL,
+			AD193X_DAC_R3_VOL, 0, 0xFF, 1, adau193x_tlv),
+	SOC_DOUBLE_R_TLV("DAC4 Volume", AD193X_DAC_L4_VOL,
+			AD193X_DAC_R4_VOL, 0, 0xFF, 1, adau193x_tlv),
 
 	/* ADC switch control */
 	SOC_DOUBLE("ADC1 Switch", AD193X_ADC_CTRL0, AD193X_ADCL1_MUTE,
