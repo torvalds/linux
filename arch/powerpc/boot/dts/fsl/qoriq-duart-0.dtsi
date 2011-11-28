@@ -35,7 +35,7 @@
 serial0: serial@11c500 {
 	cell-index = <0>;
 	device_type = "serial";
-	compatible = "ns16550";
+	compatible = "fsl,ns16550", "ns16550";
 	reg = <0x11c500 0x100>;
 	clock-frequency = <0>;
 	interrupts = <36 2 0 0>;
@@ -44,7 +44,7 @@ serial0: serial@11c500 {
 serial1: serial@11c600 {
 	cell-index = <1>;
 	device_type = "serial";
-	compatible = "ns16550";
+	compatible = "fsl,ns16550", "ns16550";
 	reg = <0x11c600 0x100>;
 	clock-frequency = <0>;
 	interrupts = <36 2 0 0>;
