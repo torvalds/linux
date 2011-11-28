@@ -183,9 +183,10 @@ static bool supported_xcr0_bit(unsigned bit)
 
 #define F(x) bit(X86_FEATURE_##x)
 
-static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
+static int do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 			 u32 index, int *nent, int maxnent)
 {
+	int r;
 	unsigned f_nx = is_efer_nx() ? F(NX) : 0;
 #ifdef CONFIG_X86_64
 	unsigned f_gbpages = (kvm_x86_ops->get_lpage_level() == PT_PDPE_LEVEL)
@@ -246,6 +247,12 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 
 	/* all calls to cpuid_count() should be made on the same cpu */
 	get_cpu();
+
+	r = -E2BIG;
+
+	if (*nent >= maxnent)
+		goto out;
+
 	do_cpuid_1_ent(entry, function, index);
 	++*nent;
 
@@ -271,7 +278,10 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 
 		entry->flags |= KVM_CPUID_FLAG_STATEFUL_FUNC;
 		entry->flags |= KVM_CPUID_FLAG_STATE_READ_NEXT;
-		for (t = 1; t < times && *nent < maxnent; ++t) {
+		for (t = 1; t < times; ++t) {
+			if (*nent >= maxnent)
+				goto out;
+
 			do_cpuid_1_ent(&entry[t], function, 0);
 			entry[t].flags |= KVM_CPUID_FLAG_STATEFUL_FUNC;
 			++*nent;
@@ -284,7 +294,10 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 
 		entry->flags |= KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
 		/* read more entries until cache_type is zero */
-		for (i = 1; *nent < maxnent; ++i) {
+		for (i = 1; ; ++i) {
+			if (*nent >= maxnent)
+				goto out;
+
 			cache_type = entry[i - 1].eax & 0x1f;
 			if (!cache_type)
 				break;
@@ -316,7 +329,10 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 
 		entry->flags |= KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
 		/* read more entries until level_type is zero */
-		for (i = 1; *nent < maxnent; ++i) {
+		for (i = 1; ; ++i) {
+			if (*nent >= maxnent)
+				goto out;
+
 			level_type = entry[i - 1].ecx & 0xff00;
 			if (!level_type)
 				break;
@@ -331,7 +347,10 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		int idx, i;
 
 		entry->flags |= KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
-		for (idx = 1, i = 1; *nent < maxnent && idx < 64; ++idx) {
+		for (idx = 1, i = 1; idx < 64; ++idx) {
+			if (*nent >= maxnent)
+				goto out;
+
 			do_cpuid_1_ent(&entry[i], function, idx);
 			if (entry[i].eax == 0 || !supported_xcr0_bit(idx))
 				continue;
@@ -416,17 +435,41 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 
 	kvm_x86_ops->set_supported_cpuid(function, entry);
 
+	r = 0;
+
+out:
 	put_cpu();
+
+	return r;
 }
 
 #undef F
+
+struct kvm_cpuid_param {
+	u32 func;
+	u32 idx;
+	bool has_leaf_count;
+	bool (*qualifier)(struct kvm_cpuid_param *param);
+};
+
+static bool is_centaur_cpu(struct kvm_cpuid_param *param)
+{
+	return boot_cpu_data.x86_vendor == X86_VENDOR_CENTAUR;
+}
 
 int kvm_dev_ioctl_get_supported_cpuid(struct kvm_cpuid2 *cpuid,
 				      struct kvm_cpuid_entry2 __user *entries)
 {
 	struct kvm_cpuid_entry2 *cpuid_entries;
-	int limit, nent = 0, r = -E2BIG;
+	int limit, nent = 0, r = -E2BIG, i;
 	u32 func;
+	static struct kvm_cpuid_param param[] = {
+		{ .func = 0, .has_leaf_count = true },
+		{ .func = 0x80000000, .has_leaf_count = true },
+		{ .func = 0xC0000000, .qualifier = is_centaur_cpu, .has_leaf_count = true },
+		{ .func = KVM_CPUID_SIGNATURE },
+		{ .func = KVM_CPUID_FEATURES },
+	};
 
 	if (cpuid->nent < 1)
 		goto out;
@@ -437,60 +480,30 @@ int kvm_dev_ioctl_get_supported_cpuid(struct kvm_cpuid2 *cpuid,
 	if (!cpuid_entries)
 		goto out;
 
-	do_cpuid_ent(&cpuid_entries[0], 0, 0, &nent, cpuid->nent);
-	limit = cpuid_entries[0].eax;
-	for (func = 1; func <= limit && nent < cpuid->nent; ++func)
-		do_cpuid_ent(&cpuid_entries[nent], func, 0,
-			     &nent, cpuid->nent);
-	r = -E2BIG;
-	if (nent >= cpuid->nent)
-		goto out_free;
+	r = 0;
+	for (i = 0; i < ARRAY_SIZE(param); i++) {
+		struct kvm_cpuid_param *ent = &param[i];
 
-	do_cpuid_ent(&cpuid_entries[nent], 0x80000000, 0, &nent, cpuid->nent);
-	limit = cpuid_entries[nent - 1].eax;
-	for (func = 0x80000001; func <= limit && nent < cpuid->nent; ++func)
-		do_cpuid_ent(&cpuid_entries[nent], func, 0,
-			     &nent, cpuid->nent);
+		if (ent->qualifier && !ent->qualifier(ent))
+			continue;
 
-
-
-	r = -E2BIG;
-	if (nent >= cpuid->nent)
-		goto out_free;
-
-	/* Add support for Centaur's CPUID instruction. */
-	if (boot_cpu_data.x86_vendor == X86_VENDOR_CENTAUR) {
-		do_cpuid_ent(&cpuid_entries[nent], 0xC0000000, 0,
+		r = do_cpuid_ent(&cpuid_entries[nent], ent->func, ent->idx,
 				&nent, cpuid->nent);
 
-		r = -E2BIG;
-		if (nent >= cpuid->nent)
+		if (r)
 			goto out_free;
+
+		if (!ent->has_leaf_count)
+			continue;
 
 		limit = cpuid_entries[nent - 1].eax;
-		for (func = 0xC0000001;
-			func <= limit && nent < cpuid->nent; ++func)
-			do_cpuid_ent(&cpuid_entries[nent], func, 0,
-					&nent, cpuid->nent);
+		for (func = ent->func + 1; func <= limit && nent < cpuid->nent && r == 0; ++func)
+			r = do_cpuid_ent(&cpuid_entries[nent], func, ent->idx,
+				     &nent, cpuid->nent);
 
-		r = -E2BIG;
-		if (nent >= cpuid->nent)
+		if (r)
 			goto out_free;
 	}
-
-	do_cpuid_ent(&cpuid_entries[nent], KVM_CPUID_SIGNATURE, 0, &nent,
-		     cpuid->nent);
-
-	r = -E2BIG;
-	if (nent >= cpuid->nent)
-		goto out_free;
-
-	do_cpuid_ent(&cpuid_entries[nent], KVM_CPUID_FEATURES, 0, &nent,
-		     cpuid->nent);
-
-	r = -E2BIG;
-	if (nent >= cpuid->nent)
-		goto out_free;
 
 	r = -EFAULT;
 	if (copy_to_user(entries, cpuid_entries,
