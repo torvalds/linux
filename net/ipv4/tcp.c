@@ -897,9 +897,12 @@ static inline int select_size(const struct sock *sk, bool sg)
 	int tmp = tp->mss_cache;
 
 	if (sg) {
-		if (sk_can_gso(sk))
-			tmp = 0;
-		else {
+		if (sk_can_gso(sk)) {
+			/* Small frames wont use a full page:
+			 * Payload will immediately follow tcp header.
+			 */
+			tmp = SKB_WITH_OVERHEAD(2048 - MAX_TCP_HEADER);
+		} else {
 			int pgbreak = SKB_MAX_HEAD(MAX_TCP_HEADER);
 
 			if (tmp >= pgbreak &&
