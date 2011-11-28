@@ -125,14 +125,14 @@ int tm6000_set_reg_mask(struct tm6000_core *dev, u8 req, u16 value,
 	u8 new_index;
 
 	rc = tm6000_read_write_usb(dev, USB_DIR_IN | USB_TYPE_VENDOR, req,
-					value, index, buf, 1);
+					value, 0, buf, 1);
 
 	if (rc < 0)
 		return rc;
 
 	new_index = (buf[0] & ~mask) | (index & mask);
 
-	if (new_index == index)
+	if (new_index == buf[0])
 		return 0;
 
 	return tm6000_read_write_usb(dev, USB_DIR_OUT | USB_TYPE_VENDOR,
