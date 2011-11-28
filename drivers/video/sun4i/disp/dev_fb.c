@@ -1368,7 +1368,7 @@ __s32 Fb_Init(__u32 from)
             }
             Display_Fb_Request(i, &fb_para);
 
-            fb_draw_colorbar((__u32)g_fbi.fbinfo[i]->screen_base, fb_para.width, fb_para.height*fb_para.buffer_num, &(g_fbi.fbinfo[i]->var));
+            //fb_draw_colorbar((__u32)g_fbi.fbinfo[i]->screen_base, fb_para.width, fb_para.height*fb_para.buffer_num, &(g_fbi.fbinfo[i]->var));
         }
 
         if(g_fbi.disp_init.scaler_mode[0])
