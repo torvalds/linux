@@ -34,6 +34,8 @@
 #include <mach/nand.h>
 #include <mach/fsmc.h>
 
+#include "cpu-8815.h"
+
 /* Initial value for SRC control register: all timers use MXTAL/8 source */
 #define SRC_CR_INIT_MASK	0x00007fff
 #define SRC_CR_INIT_VAL		0x2aaa8000
