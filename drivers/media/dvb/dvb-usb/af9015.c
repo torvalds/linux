@@ -50,14 +50,14 @@ static int af9015_properties_count = ARRAY_SIZE(af9015_properties);
 
 static struct af9013_config af9015_af9013_config[] = {
 	{
-		.demod_address = AF9015_I2C_DEMOD,
-		.output_mode = AF9013_OUTPUT_MODE_USB,
+		.i2c_addr = AF9015_I2C_DEMOD,
+		.ts_mode = AF9013_TS_USB,
 		.api_version = { 0, 1, 9, 0 },
 		.gpio[0] = AF9013_GPIO_HI,
 		.gpio[3] = AF9013_GPIO_TUNER_ON,
 
 	}, {
-		.output_mode = AF9013_OUTPUT_MODE_SERIAL,
+		.ts_mode = AF9013_TS_SERIAL,
 		.api_version = { 0, 1, 9, 0 },
 		.gpio[0] = AF9013_GPIO_TUNER_ON,
 		.gpio[1] = AF9013_GPIO_LO,
@@ -216,8 +216,8 @@ static int af9015_write_reg_i2c(struct dvb_usb_device *d, u8 addr, u16 reg,
 {
 	struct req_t req = {WRITE_I2C, addr, reg, 1, 1, 1, &val};
 
-	if (addr == af9015_af9013_config[0].demod_address ||
-	    addr == af9015_af9013_config[1].demod_address)
+	if (addr == af9015_af9013_config[0].i2c_addr ||
+	    addr == af9015_af9013_config[1].i2c_addr)
 		req.addr_len = 3;
 
 	return af9015_ctrl_msg(d, &req);
@@ -228,8 +228,8 @@ static int af9015_read_reg_i2c(struct dvb_usb_device *d, u8 addr, u16 reg,
 {
 	struct req_t req = {READ_I2C, addr, reg, 0, 1, 1, val};
 
-	if (addr == af9015_af9013_config[0].demod_address ||
-	    addr == af9015_af9013_config[1].demod_address)
+	if (addr == af9015_af9013_config[0].i2c_addr ||
+	    addr == af9015_af9013_config[1].i2c_addr)
 		req.addr_len = 3;
 
 	return af9015_ctrl_msg(d, &req);
@@ -271,8 +271,8 @@ Due to that the only way to select correct tuner is use demodulator I2C-gate.
 		return -EAGAIN;
 
 	while (i < num) {
-		if (msg[i].addr == af9015_af9013_config[0].demod_address ||
-		    msg[i].addr == af9015_af9013_config[1].demod_address) {
+		if (msg[i].addr == af9015_af9013_config[0].i2c_addr ||
+		    msg[i].addr == af9015_af9013_config[1].i2c_addr) {
 			addr = msg[i].buf[0] << 8;
 			addr += msg[i].buf[1];
 			mbox = msg[i].buf[2];
@@ -288,8 +288,7 @@ Due to that the only way to select correct tuner is use demodulator I2C-gate.
 				ret = -EOPNOTSUPP;
 				goto error;
 			}
-			if (msg[i].addr ==
-				af9015_af9013_config[0].demod_address)
+			if (msg[i].addr == af9015_af9013_config[0].i2c_addr)
 				req.cmd = READ_MEMORY;
 			else
 				req.cmd = READ_I2C;
@@ -307,7 +306,7 @@ Due to that the only way to select correct tuner is use demodulator I2C-gate.
 				goto error;
 			}
 			if (msg[i].addr ==
-				af9015_af9013_config[0].demod_address) {
+				af9015_af9013_config[0].i2c_addr) {
 				ret = -EINVAL;
 				goto error;
 			}
@@ -325,8 +324,7 @@ Due to that the only way to select correct tuner is use demodulator I2C-gate.
 				ret = -EOPNOTSUPP;
 				goto error;
 			}
-			if (msg[i].addr ==
-				af9015_af9013_config[0].demod_address)
+			if (msg[i].addr == af9015_af9013_config[0].i2c_addr)
 				req.cmd = WRITE_MEMORY;
 			else
 				req.cmd = WRITE_I2C;
@@ -508,7 +506,7 @@ static int af9015_copy_firmware(struct dvb_usb_device *d)
 	msleep(100);
 
 	ret = af9015_read_reg_i2c(d,
-		af9015_af9013_config[1].demod_address, 0x98be, &val);
+		af9015_af9013_config[1].i2c_addr, 0x98be, &val);
 	if (ret)
 		goto error;
 	else
@@ -536,7 +534,7 @@ static int af9015_copy_firmware(struct dvb_usb_device *d)
 		goto error;
 
 	/* request boot firmware */
-	ret = af9015_write_reg_i2c(d, af9015_af9013_config[1].demod_address,
+	ret = af9015_write_reg_i2c(d, af9015_af9013_config[1].i2c_addr,
 		0xe205, 1);
 	deb_info("%s: firmware boot cmd status:%d\n", __func__, ret);
 	if (ret)
@@ -547,7 +545,7 @@ static int af9015_copy_firmware(struct dvb_usb_device *d)
 
 		/* check firmware status */
 		ret = af9015_read_reg_i2c(d,
-			af9015_af9013_config[1].demod_address, 0x98be, &val);
+			af9015_af9013_config[1].i2c_addr, 0x98be, &val);
 		deb_info("%s: firmware status cmd status:%d fw status:%02x\n",
 			__func__, ret, val);
 		if (ret)
@@ -840,7 +838,7 @@ static int af9015_read_config(struct usb_device *udev)
 	if (ret)
 		goto error;
 
-	deb_info("%s: IR mode:%d\n", __func__, val);
+	deb_info("%s: IR mode=%d\n", __func__, val);
 	for (i = 0; i < af9015_properties_count; i++) {
 		if (val == AF9015_IR_MODE_DISABLED)
 			af9015_properties[i].rc.core.rc_codes = NULL;
@@ -854,7 +852,7 @@ static int af9015_read_config(struct usb_device *udev)
 	if (ret)
 		goto error;
 	af9015_config.dual_mode = val;
-	deb_info("%s: TS mode:%d\n", __func__, af9015_config.dual_mode);
+	deb_info("%s: TS mode=%d\n", __func__, af9015_config.dual_mode);
 
 	/* Set adapter0 buffer size according to USB port speed, adapter1 buffer
 	   size can be static because it is enabled only USB2.0 */
@@ -878,7 +876,7 @@ static int af9015_read_config(struct usb_device *udev)
 		ret = af9015_rw_udev(udev, &req);
 		if (ret)
 			goto error;
-		af9015_af9013_config[1].demod_address = val;
+		af9015_af9013_config[1].i2c_addr = val;
 
 		/* enable 2nd adapter */
 		for (i = 0; i < af9015_properties_count; i++)
@@ -900,34 +898,38 @@ static int af9015_read_config(struct usb_device *udev)
 			goto error;
 		switch (val) {
 		case 0:
-			af9015_af9013_config[i].adc_clock = 28800;
+			af9015_af9013_config[i].clock = 28800000;
 			break;
 		case 1:
-			af9015_af9013_config[i].adc_clock = 20480;
+			af9015_af9013_config[i].clock = 20480000;
 			break;
 		case 2:
-			af9015_af9013_config[i].adc_clock = 28000;
+			af9015_af9013_config[i].clock = 28000000;
 			break;
 		case 3:
-			af9015_af9013_config[i].adc_clock = 25000;
+			af9015_af9013_config[i].clock = 25000000;
 			break;
 		};
-		deb_info("%s: [%d] xtal:%d set adc_clock:%d\n", __func__, i,
-			val, af9015_af9013_config[i].adc_clock);
+		deb_info("%s: [%d] xtal=%d set clock=%d\n", __func__, i,
+			val, af9015_af9013_config[i].clock);
 
-		/* tuner IF */
+		/* IF frequency */
 		req.addr = AF9015_EEPROM_IF1H + offset;
 		ret = af9015_rw_udev(udev, &req);
 		if (ret)
 			goto error;
-		af9015_af9013_config[i].tuner_if = val << 8;
+
+		af9015_af9013_config[i].if_frequency = val << 8;
+
 		req.addr = AF9015_EEPROM_IF1L + offset;
 		ret = af9015_rw_udev(udev, &req);
 		if (ret)
 			goto error;
-		af9015_af9013_config[i].tuner_if += val;
-		deb_info("%s: [%d] IF1:%d\n", __func__, i,
-			af9015_af9013_config[0].tuner_if);
+
+		af9015_af9013_config[i].if_frequency += val;
+		af9015_af9013_config[i].if_frequency *= 1000;
+		deb_info("%s: [%d] IF frequency=%d\n", __func__, i,
+			af9015_af9013_config[0].if_frequency);
 
 		/* MT2060 IF1 */
 		req.addr = AF9015_EEPROM_MT2060_IF1H  + offset;
@@ -940,7 +942,7 @@ static int af9015_read_config(struct usb_device *udev)
 		if (ret)
 			goto error;
 		af9015_config.mt2060_if1[i] += val;
-		deb_info("%s: [%d] MT2060 IF1:%d\n", __func__, i,
+		deb_info("%s: [%d] MT2060 IF1=%d\n", __func__, i,
 			af9015_config.mt2060_if1[i]);
 
 		/* tuner */
@@ -957,30 +959,30 @@ static int af9015_read_config(struct usb_device *udev)
 		case AF9013_TUNER_TDA18271:
 		case AF9013_TUNER_QT1010A:
 		case AF9013_TUNER_TDA18218:
-			af9015_af9013_config[i].rf_spec_inv = 1;
+			af9015_af9013_config[i].spec_inv = 1;
 			break;
 		case AF9013_TUNER_MXL5003D:
 		case AF9013_TUNER_MXL5005D:
 		case AF9013_TUNER_MXL5005R:
 		case AF9013_TUNER_MXL5007T:
-			af9015_af9013_config[i].rf_spec_inv = 0;
+			af9015_af9013_config[i].spec_inv = 0;
 			break;
 		case AF9013_TUNER_MC44S803:
 			af9015_af9013_config[i].gpio[1] = AF9013_GPIO_LO;
-			af9015_af9013_config[i].rf_spec_inv = 1;
+			af9015_af9013_config[i].spec_inv = 1;
 			break;
 		default:
-			warn("tuner id:%d not supported, please report!", val);
+			warn("tuner id=%d not supported, please report!", val);
 			return -ENODEV;
 		};
 
 		af9015_af9013_config[i].tuner = val;
-		deb_info("%s: [%d] tuner id:%d\n", __func__, i, val);
+		deb_info("%s: [%d] tuner id=%d\n", __func__, i, val);
 	}
 
 error:
 	if (ret)
-		err("eeprom read failed:%d", ret);
+		err("eeprom read failed=%d", ret);
 
 	/* AverMedia AVerTV Volar Black HD (A850) device have bad EEPROM
 	   content :-( Override some wrong values here. Ditto for the
@@ -998,7 +1000,7 @@ error:
 			af9015_properties[i].num_adapters = 1;
 
 		/* set correct IF */
-		af9015_af9013_config[0].tuner_if = 4570;
+		af9015_af9013_config[0].if_frequency = 4570000;
 	}
 
 	return ret;
@@ -1156,7 +1158,7 @@ static int af9015_af9013_sleep(struct dvb_frontend *fe)
 	if (mutex_lock_interruptible(&adap->dev->usb_mutex))
 		return -EAGAIN;
 
-	ret = priv->init[adap->id](fe);
+	ret = priv->sleep[adap->id](fe);
 
 	mutex_unlock(&adap->dev->usb_mutex);
 
