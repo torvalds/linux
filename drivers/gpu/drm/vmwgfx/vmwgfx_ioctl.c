@@ -172,13 +172,7 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 		ret = -EINVAL;
 		goto out_no_fb;
 	}
-
 	vfb = vmw_framebuffer_to_vfb(obj_to_fb(obj));
-	if (!vfb->dmabuf) {
-		DRM_ERROR("Framebuffer not dmabuf backed.\n");
-		ret = -EINVAL;
-		goto out_no_fb;
-	}
 
 	ret = ttm_read_lock(&vmaster->lock, true);
 	if (unlikely(ret != 0))
