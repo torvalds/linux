@@ -99,6 +99,12 @@ struct gntalloc_file_private_data {
 	uint64_t index;
 };
 
+struct gntalloc_vma_private_data {
+	struct gntalloc_gref *gref;
+	int users;
+	int count;
+};
+
 static void __del_gref(struct gntalloc_gref *gref);
 
 static void do_cleanup(void)
@@ -451,25 +457,39 @@ static long gntalloc_ioctl(struct file *filp, unsigned int cmd,
 
 static void gntalloc_vma_open(struct vm_area_struct *vma)
 {
-	struct gntalloc_gref *gref = vma->vm_private_data;
-	if (!gref)
+	struct gntalloc_vma_private_data *priv = vma->vm_private_data;
+
+	if (!priv)
 		return;
 
 	mutex_lock(&gref_mutex);
-	gref->users++;
+	priv->users++;
 	mutex_unlock(&gref_mutex);
 }
 
 static void gntalloc_vma_close(struct vm_area_struct *vma)
 {
-	struct gntalloc_gref *gref = vma->vm_private_data;
-	if (!gref)
+	struct gntalloc_vma_private_data *priv = vma->vm_private_data;
+	struct gntalloc_gref *gref, *next;
+	int i;
+
+	if (!priv)
 		return;
 
 	mutex_lock(&gref_mutex);
-	gref->users--;
-	if (gref->users == 0)
-		__del_gref(gref);
+	priv->users--;
+	if (priv->users == 0) {
+		gref = priv->gref;
+		for (i = 0; i < priv->count; i++) {
+			gref->users--;
+			next = list_entry(gref->next_gref.next,
+					  struct gntalloc_gref, next_gref);
+			if (gref->users == 0)
+				__del_gref(gref);
+			gref = next;
+		}
+		kfree(priv);
+	}
 	mutex_unlock(&gref_mutex);
 }
 
@@ -481,19 +501,25 @@ static struct vm_operations_struct gntalloc_vmops = {
 static int gntalloc_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct gntalloc_file_private_data *priv = filp->private_data;
+	struct gntalloc_vma_private_data *vm_priv;
 	struct gntalloc_gref *gref;
 	int count = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
 	int rv, i;
-
-	pr_debug("%s: priv %p, page %lu+%d\n", __func__,
-		       priv, vma->vm_pgoff, count);
 
 	if (!(vma->vm_flags & VM_SHARED)) {
 		printk(KERN_ERR "%s: Mapping must be shared.\n", __func__);
 		return -EINVAL;
 	}
 
+	vm_priv = kmalloc(sizeof(*vm_priv), GFP_KERNEL);
+	if (!vm_priv)
+		return -ENOMEM;
+
 	mutex_lock(&gref_mutex);
+
+	pr_debug("%s: priv %p,%p, page %lu+%d\n", __func__,
+		       priv, vm_priv, vma->vm_pgoff, count);
+
 	gref = find_grefs(priv, vma->vm_pgoff << PAGE_SHIFT, count);
 	if (gref == NULL) {
 		rv = -ENOENT;
@@ -502,9 +528,13 @@ static int gntalloc_mmap(struct file *filp, struct vm_area_struct *vma)
 		goto out_unlock;
 	}
 
-	vma->vm_private_data = gref;
+	vm_priv->gref = gref;
+	vm_priv->users = 1;
+	vm_priv->count = count;
 
-	vma->vm_flags |= VM_RESERVED;
+	vma->vm_private_data = vm_priv;
+
+	vma->vm_flags |= VM_RESERVED | VM_DONTEXPAND;
 
 	vma->vm_ops = &gntalloc_vmops;
 
