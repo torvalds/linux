@@ -765,27 +765,26 @@ cntrlEnd:
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
 				"Starting the firmware download PID =0x%x!!!!\n", current->pid);
 
-		if (!down_trylock(&Adapter->fw_download_sema)) {
-			Adapter->bBinDownloaded = FALSE;
-			Adapter->fw_download_process_pid = current->pid;
-			Adapter->bCfgDownloaded = FALSE;
-			Adapter->fw_download_done = FALSE;
-			netif_carrier_off(Adapter->dev);
-			netif_stop_queue(Adapter->dev);
-			Status = reset_card_proc(Adapter);
-			if (Status) {
-				pr_err(PFX "%s: reset_card_proc Failed!\n", Adapter->dev->name);
-				up(&Adapter->fw_download_sema);
-				up(&Adapter->NVMRdmWrmLock);
-				break;
-			}
-			mdelay(10);
-		} else {
-			Status = -EBUSY;
+		if (down_trylock(&Adapter->fw_download_sema))
+			return -EBUSY;
+
+		Adapter->bBinDownloaded = FALSE;
+		Adapter->fw_download_process_pid = current->pid;
+		Adapter->bCfgDownloaded = FALSE;
+		Adapter->fw_download_done = FALSE;
+		netif_carrier_off(Adapter->dev);
+		netif_stop_queue(Adapter->dev);
+		Status = reset_card_proc(Adapter);
+		if (Status) {
+			pr_err(PFX "%s: reset_card_proc Failed!\n", Adapter->dev->name);
+			up(&Adapter->fw_download_sema);
+			up(&Adapter->NVMRdmWrmLock);
+			return Status;
 		}
+		mdelay(10);
 
 		up(&Adapter->NVMRdmWrmLock);
-		break;
+		return Status;
 	}
 
 	case IOCTL_BCM_BUFFER_DOWNLOAD: {
@@ -797,7 +796,7 @@ cntrlEnd:
 					"Invalid way to download buffer. Use Start and then call this!!!\n");
 			up(&Adapter->fw_download_sema);
 			Status = -EINVAL;
-			break;
+			return Status;
 		}
 
 		/* Copy Ioctl Buffer structure */
@@ -832,7 +831,7 @@ cntrlEnd:
 					psFwInfo->u32FirmwareLength);
 			up(&Adapter->fw_download_sema);
 			Status = -EINVAL;
-			break;
+			return Status;
 		}
 
 		Status = bcm_ioctl_fw_download(Adapter, psFwInfo);
@@ -857,7 +856,7 @@ cntrlEnd:
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, OSAL_DBG, DBG_LVL_ALL, "IOCTL: Firmware File Uploaded\n");
 		kfree(psFwInfo);
-		break;
+		return Status;
 	}
 
 	case IOCTL_BCM_BUFFER_DOWNLOAD_STOP: {
@@ -868,59 +867,60 @@ cntrlEnd:
 			return -EACCES;
 		}
 
-		if (down_trylock(&Adapter->fw_download_sema)) {
-			Adapter->bBinDownloaded = TRUE;
-			Adapter->bCfgDownloaded = TRUE;
-			atomic_set(&Adapter->CurrNumFreeTxDesc, 0);
-			Adapter->CurrNumRecvDescs = 0;
-			Adapter->downloadDDR = 0;
-
-			/* setting the Mips to Run */
-			Status = run_card_proc(Adapter);
-
-			if (Status) {
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Firm Download Failed\n");
-				up(&Adapter->fw_download_sema);
-				up(&Adapter->NVMRdmWrmLock);
-				break;
-			} else {
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG,
-						DBG_LVL_ALL, "Firm Download Over...\n");
-			}
-
-			mdelay(10);
-
-			/* Wait for MailBox Interrupt */
-			if (StartInterruptUrb((PS_INTERFACE_ADAPTER)Adapter->pvInterfaceAdapter))
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Unable to send interrupt...\n");
-
-			timeout = 5*HZ;
-			Adapter->waiting_to_fw_download_done = FALSE;
-			wait_event_timeout(Adapter->ioctl_fw_dnld_wait_queue,
-					Adapter->waiting_to_fw_download_done, timeout);
-			Adapter->fw_download_process_pid = INVALID_PID;
-			Adapter->fw_download_done = TRUE;
-			atomic_set(&Adapter->CurrNumFreeTxDesc, 0);
-			Adapter->CurrNumRecvDescs = 0;
-			Adapter->PrevNumRecvDescs = 0;
-			atomic_set(&Adapter->cntrlpktCnt, 0);
-			Adapter->LinkUpStatus = 0;
-			Adapter->LinkStatus = 0;
-
-			if (Adapter->LEDInfo.led_thread_running & BCM_LED_THREAD_RUNNING_ACTIVELY) {
-				Adapter->DriverState = FW_DOWNLOAD_DONE;
-				wake_up(&Adapter->LEDInfo.notify_led_event);
-			}
-
-			if (!timeout)
-				Status = -ENODEV;
-		} else {
-			Status = -EINVAL;
+		if (!down_trylock(&Adapter->fw_download_sema)) {
+			up(&Adapter->fw_download_sema);
+			return -EINVAL;
 		}
+
+		Adapter->bBinDownloaded = TRUE;
+		Adapter->bCfgDownloaded = TRUE;
+		atomic_set(&Adapter->CurrNumFreeTxDesc, 0);
+		Adapter->CurrNumRecvDescs = 0;
+		Adapter->downloadDDR = 0;
+
+		/* setting the Mips to Run */
+		Status = run_card_proc(Adapter);
+
+		if (Status) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Firm Download Failed\n");
+			up(&Adapter->fw_download_sema);
+			up(&Adapter->NVMRdmWrmLock);
+			return Status;
+		} else {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG,
+					DBG_LVL_ALL, "Firm Download Over...\n");
+		}
+
+		mdelay(10);
+
+		/* Wait for MailBox Interrupt */
+		if (StartInterruptUrb((PS_INTERFACE_ADAPTER)Adapter->pvInterfaceAdapter))
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Unable to send interrupt...\n");
+
+		timeout = 5*HZ;
+		Adapter->waiting_to_fw_download_done = FALSE;
+		wait_event_timeout(Adapter->ioctl_fw_dnld_wait_queue,
+				Adapter->waiting_to_fw_download_done, timeout);
+		Adapter->fw_download_process_pid = INVALID_PID;
+		Adapter->fw_download_done = TRUE;
+		atomic_set(&Adapter->CurrNumFreeTxDesc, 0);
+		Adapter->CurrNumRecvDescs = 0;
+		Adapter->PrevNumRecvDescs = 0;
+		atomic_set(&Adapter->cntrlpktCnt, 0);
+		Adapter->LinkUpStatus = 0;
+		Adapter->LinkStatus = 0;
+
+		if (Adapter->LEDInfo.led_thread_running & BCM_LED_THREAD_RUNNING_ACTIVELY) {
+			Adapter->DriverState = FW_DOWNLOAD_DONE;
+			wake_up(&Adapter->LEDInfo.notify_led_event);
+		}
+
+		if (!timeout)
+			Status = -ENODEV;
 
 		up(&Adapter->fw_download_sema);
 		up(&Adapter->NVMRdmWrmLock);
-		break;
+		return Status;
 	}
 
 	case IOCTL_BE_BUCKET_SIZE:
