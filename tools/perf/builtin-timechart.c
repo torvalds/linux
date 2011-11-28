@@ -32,6 +32,7 @@
 #include "util/event.h"
 #include "util/session.h"
 #include "util/svghelper.h"
+#include "util/tool.h"
 
 #define SUPPORT_OLD_POWER_EVENTS 1
 #define PWR_EVENT_EXIT -1
@@ -274,7 +275,7 @@ static int cpus_cstate_state[MAX_CPUS];
 static u64 cpus_pstate_start_times[MAX_CPUS];
 static u64 cpus_pstate_state[MAX_CPUS];
 
-static int process_comm_event(struct perf_event_ops *ops __used,
+static int process_comm_event(struct perf_tool *tool __used,
 			      union perf_event *event,
 			      struct perf_sample *sample __used,
 			      struct machine *machine __used)
@@ -283,7 +284,7 @@ static int process_comm_event(struct perf_event_ops *ops __used,
 	return 0;
 }
 
-static int process_fork_event(struct perf_event_ops *ops __used,
+static int process_fork_event(struct perf_tool *tool __used,
 			      union perf_event *event,
 			      struct perf_sample *sample __used,
 			      struct machine *machine __used)
@@ -292,7 +293,7 @@ static int process_fork_event(struct perf_event_ops *ops __used,
 	return 0;
 }
 
-static int process_exit_event(struct perf_event_ops *ops __used,
+static int process_exit_event(struct perf_tool *tool __used,
 			      union perf_event *event,
 			      struct perf_sample *sample __used,
 			      struct machine *machine __used)
@@ -490,7 +491,7 @@ static void sched_switch(int cpu, u64 timestamp, struct trace_entry *te)
 }
 
 
-static int process_sample_event(struct perf_event_ops *ops __used,
+static int process_sample_event(struct perf_tool *tool __used,
 				union perf_event *event __used,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel,
@@ -979,7 +980,7 @@ static void write_svg_file(const char *filename)
 	svg_close();
 }
 
-static struct perf_event_ops event_ops = {
+static struct perf_tool perf_timechart = {
 	.comm			= process_comm_event,
 	.fork			= process_fork_event,
 	.exit			= process_exit_event,
@@ -990,7 +991,7 @@ static struct perf_event_ops event_ops = {
 static int __cmd_timechart(void)
 {
 	struct perf_session *session = perf_session__new(input_name, O_RDONLY,
-							 0, false, &event_ops);
+							 0, false, &perf_timechart);
 	int ret = -EINVAL;
 
 	if (session == NULL)
@@ -999,7 +1000,7 @@ static int __cmd_timechart(void)
 	if (!perf_session__has_traces(session, "timechart record"))
 		goto out_delete;
 
-	ret = perf_session__process_events(session, &event_ops);
+	ret = perf_session__process_events(session, &perf_timechart);
 	if (ret)
 		goto out_delete;
 

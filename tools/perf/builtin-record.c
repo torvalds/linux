@@ -22,6 +22,7 @@
 #include "util/evsel.h"
 #include "util/debug.h"
 #include "util/session.h"
+#include "util/tool.h"
 #include "util/symbol.h"
 #include "util/cpumap.h"
 #include "util/thread_map.h"
@@ -36,7 +37,7 @@ enum write_mode_t {
 };
 
 struct perf_record {
-	struct perf_event_ops	ops;
+	struct perf_tool	tool;
 	struct perf_record_opts	opts;
 	u64			bytes_written;
 	const char		*output_name;
@@ -76,12 +77,12 @@ static void write_output(struct perf_record *rec, void *buf, size_t size)
 	}
 }
 
-static int process_synthesized_event(struct perf_event_ops *ops,
+static int process_synthesized_event(struct perf_tool *tool,
 				     union perf_event *event,
 				     struct perf_sample *sample __used,
 				     struct machine *machine __used)
 {
-	struct perf_record *rec = container_of(ops, struct perf_record, ops);
+	struct perf_record *rec = container_of(tool, struct perf_record, tool);
 	write_output(rec, event, event->header.size);
 	return 0;
 }
@@ -319,7 +320,7 @@ static void perf_record__exit(int status __used, void *arg)
 static void perf_event__synthesize_guest_os(struct machine *machine, void *data)
 {
 	int err;
-	struct perf_event_ops *ops = data;
+	struct perf_tool *tool = data;
 
 	if (machine__is_host(machine))
 		return;
@@ -332,7 +333,7 @@ static void perf_event__synthesize_guest_os(struct machine *machine, void *data)
 	 *method is used to avoid symbol missing when the first addr is
 	 *in module instead of in guest kernel.
 	 */
-	err = perf_event__synthesize_modules(ops, process_synthesized_event,
+	err = perf_event__synthesize_modules(tool, process_synthesized_event,
 					     machine);
 	if (err < 0)
 		pr_err("Couldn't record guest kernel [%d]'s reference"
@@ -342,10 +343,10 @@ static void perf_event__synthesize_guest_os(struct machine *machine, void *data)
 	 * We use _stext for guest kernel because guest kernel's /proc/kallsyms
 	 * have no _text sometimes.
 	 */
-	err = perf_event__synthesize_kernel_mmap(ops, process_synthesized_event,
+	err = perf_event__synthesize_kernel_mmap(tool, process_synthesized_event,
 						 machine, "_text");
 	if (err < 0)
-		err = perf_event__synthesize_kernel_mmap(ops, process_synthesized_event,
+		err = perf_event__synthesize_kernel_mmap(tool, process_synthesized_event,
 							 machine, "_stext");
 	if (err < 0)
 		pr_err("Couldn't record guest kernel [%d]'s reference"
@@ -378,7 +379,7 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 	unsigned long waking = 0;
 	const bool forks = argc > 0;
 	struct machine *machine;
-	struct perf_event_ops *ops = &rec->ops;
+	struct perf_tool *tool = &rec->tool;
 	struct perf_record_opts *opts = &rec->opts;
 	struct perf_evlist *evsel_list = rec->evlist;
 	const char *output_name = rec->output_name;
@@ -501,14 +502,14 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 	}
 
 	if (opts->pipe_output) {
-		err = perf_event__synthesize_attrs(ops, session,
+		err = perf_event__synthesize_attrs(tool, session,
 						   process_synthesized_event);
 		if (err < 0) {
 			pr_err("Couldn't synthesize attrs.\n");
 			return err;
 		}
 
-		err = perf_event__synthesize_event_types(ops, process_synthesized_event,
+		err = perf_event__synthesize_event_types(tool, process_synthesized_event,
 							 machine);
 		if (err < 0) {
 			pr_err("Couldn't synthesize event_types.\n");
@@ -524,7 +525,7 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 			 * return this more properly and also
 			 * propagate errors that now are calling die()
 			 */
-			err = perf_event__synthesize_tracing_data(ops, output, evsel_list,
+			err = perf_event__synthesize_tracing_data(tool, output, evsel_list,
 								  process_synthesized_event);
 			if (err <= 0) {
 				pr_err("Couldn't record tracing data.\n");
@@ -534,17 +535,17 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 		}
 	}
 
-	err = perf_event__synthesize_kernel_mmap(ops, process_synthesized_event,
+	err = perf_event__synthesize_kernel_mmap(tool, process_synthesized_event,
 						 machine, "_text");
 	if (err < 0)
-		err = perf_event__synthesize_kernel_mmap(ops, process_synthesized_event,
+		err = perf_event__synthesize_kernel_mmap(tool, process_synthesized_event,
 							 machine, "_stext");
 	if (err < 0)
 		pr_err("Couldn't record kernel reference relocation symbol\n"
 		       "Symbol resolution may be skewed if relocation was used (e.g. kexec).\n"
 		       "Check /proc/kallsyms permission or run as root.\n");
 
-	err = perf_event__synthesize_modules(ops, process_synthesized_event,
+	err = perf_event__synthesize_modules(tool, process_synthesized_event,
 					     machine);
 	if (err < 0)
 		pr_err("Couldn't record kernel module information.\n"
@@ -552,15 +553,15 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 		       "Check /proc/modules permission or run as root.\n");
 
 	if (perf_guest)
-		perf_session__process_machines(session, ops,
+		perf_session__process_machines(session, tool,
 					       perf_event__synthesize_guest_os);
 
 	if (!opts->system_wide)
-		perf_event__synthesize_thread_map(ops, evsel_list->threads,
+		perf_event__synthesize_thread_map(tool, evsel_list->threads,
 						  process_synthesized_event,
 						  machine);
 	else
-		perf_event__synthesize_threads(ops, process_synthesized_event,
+		perf_event__synthesize_threads(tool, process_synthesized_event,
 					       machine);
 
 	if (rec->realtime_prio) {

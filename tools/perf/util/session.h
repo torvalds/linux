@@ -53,55 +53,20 @@ struct perf_session {
 	char			filename[0];
 };
 
-struct perf_evsel;
-struct perf_event_ops;
-
-typedef int (*event_sample)(struct perf_event_ops *ops,
-			    union perf_event *event, struct perf_sample *sample,
-			    struct perf_evsel *evsel, struct machine *machine);
-typedef int (*event_op)(struct perf_event_ops *ops, union perf_event *event,
-			struct perf_sample *sample,
-			struct machine *machine);
-typedef int (*event_synth_op)(union perf_event *self,
-			      struct perf_session *session);
-typedef int (*event_attr_op)(union perf_event *event,
-			     struct perf_evlist **pevlist);
-typedef int (*event_simple_op)(struct perf_event_ops *ops,
-			       union perf_event *event);
-typedef int (*event_op2)(struct perf_event_ops *ops, union perf_event *event,
-			 struct perf_session *session);
-
-struct perf_event_ops {
-	event_sample	sample,
-			read;
-	event_op	mmap,
-			comm,
-			fork,
-			exit,
-			lost,
-			throttle,
-			unthrottle;
-	event_attr_op	attr;
-	event_synth_op	tracing_data;
-	event_simple_op	event_type;
-	event_op2	finished_round,
-			build_id;
-	bool		ordered_samples;
-	bool		ordering_requires_timestamps;
-};
+struct perf_tool;
 
 struct perf_session *perf_session__new(const char *filename, int mode,
 				       bool force, bool repipe,
-				       struct perf_event_ops *ops);
+				       struct perf_tool *tool);
 void perf_session__delete(struct perf_session *self);
 
 void perf_event_header__bswap(struct perf_event_header *self);
 
 int __perf_session__process_events(struct perf_session *self,
 				   u64 data_offset, u64 data_size, u64 size,
-				   struct perf_event_ops *ops);
+				   struct perf_tool *tool);
 int perf_session__process_events(struct perf_session *self,
-				 struct perf_event_ops *event_ops);
+				 struct perf_tool *tool);
 
 int perf_session__resolve_callchain(struct perf_session *self, struct perf_evsel *evsel,
 				    struct thread *thread,
@@ -142,11 +107,11 @@ struct machine *perf_session__findnew_machine(struct perf_session *self, pid_t p
 
 static inline
 void perf_session__process_machines(struct perf_session *self,
-				    struct perf_event_ops *ops,
+				    struct perf_tool *tool,
 				    machine__process_t process)
 {
-	process(&self->host_machine, ops);
-	return machines__process(&self->machines, process, ops);
+	process(&self->host_machine, tool);
+	return machines__process(&self->machines, process, tool);
 }
 
 struct thread *perf_session__findnew(struct perf_session *self, pid_t pid);

@@ -25,6 +25,7 @@
 #include "util/evsel.h"
 #include "util/header.h"
 #include "util/session.h"
+#include "util/tool.h"
 
 #include "util/parse-options.h"
 #include "util/parse-events.h"
@@ -36,7 +37,7 @@
 #include <linux/bitmap.h>
 
 struct perf_report {
-	struct perf_event_ops	ops;
+	struct perf_tool	tool;
 	struct perf_session	*session;
 	char const		*input_name;
 	bool			force, use_tui, use_stdio;
@@ -103,13 +104,13 @@ out:
 }
 
 
-static int process_sample_event(struct perf_event_ops *ops,
+static int process_sample_event(struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel,
 				struct machine *machine)
 {
-	struct perf_report *rep = container_of(ops, struct perf_report, ops);
+	struct perf_report *rep = container_of(tool, struct perf_report, tool);
 	struct addr_location al;
 
 	if (perf_event__preprocess_sample(event, machine, &al, sample,
@@ -136,13 +137,13 @@ static int process_sample_event(struct perf_event_ops *ops,
 	return 0;
 }
 
-static int process_read_event(struct perf_event_ops *ops,
+static int process_read_event(struct perf_tool *tool,
 			      union perf_event *event,
 			      struct perf_sample *sample __used,
 			      struct perf_evsel *evsel,
 			      struct machine *machine __used)
 {
-	struct perf_report *rep = container_of(ops, struct perf_report, ops);
+	struct perf_report *rep = container_of(tool, struct perf_report, tool);
 
 	if (rep->show_threads) {
 		const char *name = evsel ? event_name(evsel) : "unknown";
@@ -254,7 +255,7 @@ static int __cmd_report(struct perf_report *rep)
 	signal(SIGINT, sig_handler);
 
 	session = perf_session__new(rep->input_name, O_RDONLY,
-				    rep->force, false, &rep->ops);
+				    rep->force, false, &rep->tool);
 	if (session == NULL)
 		return -ENOMEM;
 
@@ -277,7 +278,7 @@ static int __cmd_report(struct perf_report *rep)
 	if (ret)
 		goto out_delete;
 
-	ret = perf_session__process_events(session, &rep->ops);
+	ret = perf_session__process_events(session, &rep->tool);
 	if (ret)
 		goto out_delete;
 
@@ -435,7 +436,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 		NULL
 	};
 	struct perf_report report = {
-		.ops = {
+		.tool = {
 			.sample		 = process_sample_event,
 			.mmap		 = perf_event__process_mmap,
 			.comm		 = perf_event__process_comm,

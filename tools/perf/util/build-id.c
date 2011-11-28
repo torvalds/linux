@@ -14,8 +14,9 @@
 #include <linux/kernel.h>
 #include "debug.h"
 #include "session.h"
+#include "tool.h"
 
-static int build_id__mark_dso_hit(struct perf_event_ops *ops __used,
+static int build_id__mark_dso_hit(struct perf_tool *tool __used,
 				  union perf_event *event,
 				  struct perf_sample *sample __used,
 				  struct perf_evsel *evsel __used,
@@ -40,7 +41,7 @@ static int build_id__mark_dso_hit(struct perf_event_ops *ops __used,
 	return 0;
 }
 
-static int perf_event__exit_del_thread(struct perf_event_ops *ops __used,
+static int perf_event__exit_del_thread(struct perf_tool *tool __used,
 				       union perf_event *event,
 				       struct perf_sample *sample __used,
 				       struct machine *machine)
@@ -59,7 +60,7 @@ static int perf_event__exit_del_thread(struct perf_event_ops *ops __used,
 	return 0;
 }
 
-struct perf_event_ops build_id__mark_dso_hit_ops = {
+struct perf_tool build_id__mark_dso_hit_ops = {
 	.sample	= build_id__mark_dso_hit,
 	.mmap	= perf_event__process_mmap,
 	.fork	= perf_event__process_task,

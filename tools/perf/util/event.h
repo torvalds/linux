@@ -141,47 +141,47 @@ union perf_event {
 
 void perf_event__print_totals(void);
 
-struct perf_event_ops;
+struct perf_tool;
 struct thread_map;
 
-typedef int (*perf_event__handler_t)(struct perf_event_ops *ops,
+typedef int (*perf_event__handler_t)(struct perf_tool *tool,
 				     union perf_event *event,
 				     struct perf_sample *sample,
 				     struct machine *machine);
 
-int perf_event__synthesize_thread_map(struct perf_event_ops *ops,
+int perf_event__synthesize_thread_map(struct perf_tool *tool,
 				      struct thread_map *threads,
 				      perf_event__handler_t process,
 				      struct machine *machine);
-int perf_event__synthesize_threads(struct perf_event_ops *ops,
+int perf_event__synthesize_threads(struct perf_tool *tool,
 				   perf_event__handler_t process,
 				   struct machine *machine);
-int perf_event__synthesize_kernel_mmap(struct perf_event_ops *ops,
+int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 				       perf_event__handler_t process,
 				       struct machine *machine,
 				       const char *symbol_name);
 
-int perf_event__synthesize_modules(struct perf_event_ops *ops,
+int perf_event__synthesize_modules(struct perf_tool *tool,
 				   perf_event__handler_t process,
 				   struct machine *machine);
 
-int perf_event__process_comm(struct perf_event_ops *ops,
+int perf_event__process_comm(struct perf_tool *tool,
 			     union perf_event *event,
 			     struct perf_sample *sample,
 			     struct machine *machine);
-int perf_event__process_lost(struct perf_event_ops *ops,
+int perf_event__process_lost(struct perf_tool *tool,
 			     union perf_event *event,
 			     struct perf_sample *sample,
 			     struct machine *machine);
-int perf_event__process_mmap(struct perf_event_ops *ops,
+int perf_event__process_mmap(struct perf_tool *tool,
 			     union perf_event *event,
 			     struct perf_sample *sample,
 			     struct machine *machine);
-int perf_event__process_task(struct perf_event_ops *ops,
+int perf_event__process_task(struct perf_tool *tool,
 			     union perf_event *event,
 			     struct perf_sample *sample,
 			     struct machine *machine);
-int perf_event__process(struct perf_event_ops *ops,
+int perf_event__process(struct perf_tool *tool,
 			union perf_event *event,
 			struct perf_sample *sample,
 			struct machine *machine);

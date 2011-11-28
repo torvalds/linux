@@ -43,7 +43,7 @@ static struct perf_sample synth_sample = {
 	.period	   = 1,
 };
 
-static pid_t perf_event__synthesize_comm(struct perf_event_ops *ops,
+static pid_t perf_event__synthesize_comm(struct perf_tool *tool,
 					 union perf_event *event, pid_t pid,
 					 int full, perf_event__handler_t process,
 					 struct machine *machine)
@@ -99,7 +99,7 @@ out_race:
 	if (!full) {
 		event->comm.tid = pid;
 
-		process(ops, event, &synth_sample, machine);
+		process(tool, event, &synth_sample, machine);
 		goto out;
 	}
 
@@ -117,7 +117,7 @@ out_race:
 
 		event->comm.tid = pid;
 
-		process(ops, event, &synth_sample, machine);
+		process(tool, event, &synth_sample, machine);
 	}
 
 	closedir(tasks);
@@ -127,7 +127,7 @@ out:
 	return tgid;
 }
 
-static int perf_event__synthesize_mmap_events(struct perf_event_ops *ops,
+static int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 					      union perf_event *event,
 					      pid_t pid, pid_t tgid,
 					      perf_event__handler_t process,
@@ -199,7 +199,7 @@ static int perf_event__synthesize_mmap_events(struct perf_event_ops *ops,
 			event->mmap.pid = tgid;
 			event->mmap.tid = pid;
 
-			process(ops, event, &synth_sample, machine);
+			process(tool, event, &synth_sample, machine);
 		}
 	}
 
@@ -207,7 +207,7 @@ static int perf_event__synthesize_mmap_events(struct perf_event_ops *ops,
 	return 0;
 }
 
-int perf_event__synthesize_modules(struct perf_event_ops *ops,
+int perf_event__synthesize_modules(struct perf_tool *tool,
 				   perf_event__handler_t process,
 				   struct machine *machine)
 {
@@ -252,7 +252,7 @@ int perf_event__synthesize_modules(struct perf_event_ops *ops,
 
 		memcpy(event->mmap.filename, pos->dso->long_name,
 		       pos->dso->long_name_len + 1);
-		process(ops, event, &synth_sample, machine);
+		process(tool, event, &synth_sample, machine);
 	}
 
 	free(event);
@@ -262,18 +262,18 @@ int perf_event__synthesize_modules(struct perf_event_ops *ops,
 static int __event__synthesize_thread(union perf_event *comm_event,
 				      union perf_event *mmap_event,
 				      pid_t pid, perf_event__handler_t process,
-				      struct perf_event_ops *ops,
+				      struct perf_tool *tool,
 				      struct machine *machine)
 {
-	pid_t tgid = perf_event__synthesize_comm(ops, comm_event, pid, 1,
+	pid_t tgid = perf_event__synthesize_comm(tool, comm_event, pid, 1,
 						 process, machine);
 	if (tgid == -1)
 		return -1;
-	return perf_event__synthesize_mmap_events(ops, mmap_event, pid, tgid,
+	return perf_event__synthesize_mmap_events(tool, mmap_event, pid, tgid,
 						  process, machine);
 }
 
-int perf_event__synthesize_thread_map(struct perf_event_ops *ops,
+int perf_event__synthesize_thread_map(struct perf_tool *tool,
 				      struct thread_map *threads,
 				      perf_event__handler_t process,
 				      struct machine *machine)
@@ -293,7 +293,7 @@ int perf_event__synthesize_thread_map(struct perf_event_ops *ops,
 	for (thread = 0; thread < threads->nr; ++thread) {
 		if (__event__synthesize_thread(comm_event, mmap_event,
 					       threads->map[thread],
-					       process, ops, machine)) {
+					       process, tool, machine)) {
 			err = -1;
 			break;
 		}
@@ -305,7 +305,7 @@ out:
 	return err;
 }
 
-int perf_event__synthesize_threads(struct perf_event_ops *ops,
+int perf_event__synthesize_threads(struct perf_tool *tool,
 				   perf_event__handler_t process,
 				   struct machine *machine)
 {
@@ -334,7 +334,7 @@ int perf_event__synthesize_threads(struct perf_event_ops *ops,
 			continue;
 
 		__event__synthesize_thread(comm_event, mmap_event, pid,
-					   process, ops, machine);
+					   process, tool, machine);
 	}
 
 	closedir(proc);
@@ -369,7 +369,7 @@ static int find_symbol_cb(void *arg, const char *name, char type,
 	return 1;
 }
 
-int perf_event__synthesize_kernel_mmap(struct perf_event_ops *ops,
+int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 				       perf_event__handler_t process,
 				       struct machine *machine,
 				       const char *symbol_name)
@@ -427,13 +427,13 @@ int perf_event__synthesize_kernel_mmap(struct perf_event_ops *ops,
 	event->mmap.len   = map->end - event->mmap.start;
 	event->mmap.pid   = machine->pid;
 
-	err = process(ops, event, &synth_sample, machine);
+	err = process(tool, event, &synth_sample, machine);
 	free(event);
 
 	return err;
 }
 
-int perf_event__process_comm(struct perf_event_ops *ops __used,
+int perf_event__process_comm(struct perf_tool *tool __used,
 			     union perf_event *event,
 			     struct perf_sample *sample __used,
 			     struct machine *machine)
@@ -450,7 +450,7 @@ int perf_event__process_comm(struct perf_event_ops *ops __used,
 	return 0;
 }
 
-int perf_event__process_lost(struct perf_event_ops *ops __used,
+int perf_event__process_lost(struct perf_tool *tool __used,
 			     union perf_event *event,
 			     struct perf_sample *sample __used,
 			     struct machine *machine __used)
@@ -473,7 +473,7 @@ static void perf_event__set_kernel_mmap_len(union perf_event *event,
 		maps[MAP__FUNCTION]->end = ~0ULL;
 }
 
-static int perf_event__process_kernel_mmap(struct perf_event_ops *ops __used,
+static int perf_event__process_kernel_mmap(struct perf_tool *tool __used,
 					   union perf_event *event,
 					   struct machine *machine)
 {
@@ -566,7 +566,7 @@ out_problem:
 	return -1;
 }
 
-int perf_event__process_mmap(struct perf_event_ops *ops,
+int perf_event__process_mmap(struct perf_tool *tool,
 			     union perf_event *event,
 			     struct perf_sample *sample __used,
 			     struct machine *machine)
@@ -582,7 +582,7 @@ int perf_event__process_mmap(struct perf_event_ops *ops,
 
 	if (cpumode == PERF_RECORD_MISC_GUEST_KERNEL ||
 	    cpumode == PERF_RECORD_MISC_KERNEL) {
-		ret = perf_event__process_kernel_mmap(ops, event, machine);
+		ret = perf_event__process_kernel_mmap(tool, event, machine);
 		if (ret < 0)
 			goto out_problem;
 		return 0;
@@ -606,7 +606,7 @@ out_problem:
 	return 0;
 }
 
-int perf_event__process_task(struct perf_event_ops *ops __used,
+int perf_event__process_task(struct perf_tool *tool __used,
 			     union perf_event *event,
 			     struct perf_sample *sample __used,
 			      struct machine *machine)
@@ -631,22 +631,22 @@ int perf_event__process_task(struct perf_event_ops *ops __used,
 	return 0;
 }
 
-int perf_event__process(struct perf_event_ops *ops, union perf_event *event,
+int perf_event__process(struct perf_tool *tool, union perf_event *event,
 			struct perf_sample *sample, struct machine *machine)
 {
 	switch (event->header.type) {
 	case PERF_RECORD_COMM:
-		perf_event__process_comm(ops, event, sample, machine);
+		perf_event__process_comm(tool, event, sample, machine);
 		break;
 	case PERF_RECORD_MMAP:
-		perf_event__process_mmap(ops, event, sample, machine);
+		perf_event__process_mmap(tool, event, sample, machine);
 		break;
 	case PERF_RECORD_FORK:
 	case PERF_RECORD_EXIT:
-		perf_event__process_task(ops, event, sample, machine);
+		perf_event__process_task(tool, event, sample, machine);
 		break;
 	case PERF_RECORD_LOST:
-		perf_event__process_lost(ops, event, sample, machine);
+		perf_event__process_lost(tool, event, sample, machine);
 	default:
 		break;
 	}

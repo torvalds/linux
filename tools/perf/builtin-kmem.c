@@ -7,6 +7,7 @@
 #include "util/thread.h"
 #include "util/header.h"
 #include "util/session.h"
+#include "util/tool.h"
 
 #include "util/parse-options.h"
 #include "util/trace-event.h"
@@ -303,7 +304,7 @@ static void process_raw_event(union perf_event *raw_event __used, void *data,
 	}
 }
 
-static int process_sample_event(struct perf_event_ops *ops __used,
+static int process_sample_event(struct perf_tool *tool __used,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel __used,
@@ -325,7 +326,7 @@ static int process_sample_event(struct perf_event_ops *ops __used,
 	return 0;
 }
 
-static struct perf_event_ops event_ops = {
+static struct perf_tool perf_kmem = {
 	.sample			= process_sample_event,
 	.comm			= perf_event__process_comm,
 	.ordered_samples	= true,
@@ -484,7 +485,7 @@ static int __cmd_kmem(void)
 {
 	int err = -EINVAL;
 	struct perf_session *session = perf_session__new(input_name, O_RDONLY,
-							 0, false, &event_ops);
+							 0, false, &perf_kmem);
 	if (session == NULL)
 		return -ENOMEM;
 
@@ -495,7 +496,7 @@ static int __cmd_kmem(void)
 		goto out_delete;
 
 	setup_pager();
-	err = perf_session__process_events(session, &event_ops);
+	err = perf_session__process_events(session, &perf_kmem);
 	if (err != 0)
 		goto out_delete;
 	sort_result();

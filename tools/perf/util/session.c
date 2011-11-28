@@ -10,6 +10,7 @@
 #include "evlist.h"
 #include "evsel.h"
 #include "session.h"
+#include "tool.h"
 #include "sort.h"
 #include "util.h"
 #include "cpumap.h"
@@ -104,7 +105,7 @@ static void perf_session__destroy_kernel_maps(struct perf_session *self)
 
 struct perf_session *perf_session__new(const char *filename, int mode,
 				       bool force, bool repipe,
-				       struct perf_event_ops *ops)
+				       struct perf_tool *tool)
 {
 	size_t len = filename ? strlen(filename) + 1 : 0;
 	struct perf_session *self = zalloc(sizeof(*self) + len);
@@ -142,10 +143,10 @@ struct perf_session *perf_session__new(const char *filename, int mode,
 			goto out_delete;
 	}
 
-	if (ops && ops->ordering_requires_timestamps &&
-	    ops->ordered_samples && !self->sample_id_all) {
+	if (tool && tool->ordering_requires_timestamps &&
+	    tool->ordered_samples && !self->sample_id_all) {
 		dump_printf("WARNING: No sample_id_all support, falling back to unordered processing\n");
-		ops->ordered_samples = false;
+		tool->ordered_samples = false;
 	}
 
 out:
@@ -285,7 +286,7 @@ static int process_event_synth_attr_stub(union perf_event *event __used,
 	return 0;
 }
 
-static int process_event_sample_stub(struct perf_event_ops *ops __used,
+static int process_event_sample_stub(struct perf_tool *tool __used,
 				     union perf_event *event __used,
 				     struct perf_sample *sample __used,
 				     struct perf_evsel *evsel __used,
@@ -295,7 +296,7 @@ static int process_event_sample_stub(struct perf_event_ops *ops __used,
 	return 0;
 }
 
-static int process_event_stub(struct perf_event_ops *ops __used,
+static int process_event_stub(struct perf_tool *tool __used,
 			      union perf_event *event __used,
 			      struct perf_sample *sample __used,
 			      struct machine *machine __used)
@@ -304,7 +305,7 @@ static int process_event_stub(struct perf_event_ops *ops __used,
 	return 0;
 }
 
-static int process_finished_round_stub(struct perf_event_ops *ops __used,
+static int process_finished_round_stub(struct perf_tool *tool __used,
 				       union perf_event *event __used,
 				       struct perf_session *perf_session __used)
 {
@@ -312,50 +313,50 @@ static int process_finished_round_stub(struct perf_event_ops *ops __used,
 	return 0;
 }
 
-static int process_event_type_stub(struct perf_event_ops *ops __used,
+static int process_event_type_stub(struct perf_tool *tool __used,
 				   union perf_event *event __used)
 {
 	dump_printf(": unhandled!\n");
 	return 0;
 }
 
-static int process_finished_round(struct perf_event_ops *ops,
+static int process_finished_round(struct perf_tool *tool,
 				  union perf_event *event,
 				  struct perf_session *session);
 
-static void perf_event_ops__fill_defaults(struct perf_event_ops *handler)
+static void perf_tool__fill_defaults(struct perf_tool *tool)
 {
-	if (handler->sample == NULL)
-		handler->sample = process_event_sample_stub;
-	if (handler->mmap == NULL)
-		handler->mmap = process_event_stub;
-	if (handler->comm == NULL)
-		handler->comm = process_event_stub;
-	if (handler->fork == NULL)
-		handler->fork = process_event_stub;
-	if (handler->exit == NULL)
-		handler->exit = process_event_stub;
-	if (handler->lost == NULL)
-		handler->lost = perf_event__process_lost;
-	if (handler->read == NULL)
-		handler->read = process_event_sample_stub;
-	if (handler->throttle == NULL)
-		handler->throttle = process_event_stub;
-	if (handler->unthrottle == NULL)
-		handler->unthrottle = process_event_stub;
-	if (handler->attr == NULL)
-		handler->attr = process_event_synth_attr_stub;
-	if (handler->event_type == NULL)
-		handler->event_type = process_event_type_stub;
-	if (handler->tracing_data == NULL)
-		handler->tracing_data = process_event_synth_tracing_data_stub;
-	if (handler->build_id == NULL)
-		handler->build_id = process_finished_round_stub;
-	if (handler->finished_round == NULL) {
-		if (handler->ordered_samples)
-			handler->finished_round = process_finished_round;
+	if (tool->sample == NULL)
+		tool->sample = process_event_sample_stub;
+	if (tool->mmap == NULL)
+		tool->mmap = process_event_stub;
+	if (tool->comm == NULL)
+		tool->comm = process_event_stub;
+	if (tool->fork == NULL)
+		tool->fork = process_event_stub;
+	if (tool->exit == NULL)
+		tool->exit = process_event_stub;
+	if (tool->lost == NULL)
+		tool->lost = perf_event__process_lost;
+	if (tool->read == NULL)
+		tool->read = process_event_sample_stub;
+	if (tool->throttle == NULL)
+		tool->throttle = process_event_stub;
+	if (tool->unthrottle == NULL)
+		tool->unthrottle = process_event_stub;
+	if (tool->attr == NULL)
+		tool->attr = process_event_synth_attr_stub;
+	if (tool->event_type == NULL)
+		tool->event_type = process_event_type_stub;
+	if (tool->tracing_data == NULL)
+		tool->tracing_data = process_event_synth_tracing_data_stub;
+	if (tool->build_id == NULL)
+		tool->build_id = process_finished_round_stub;
+	if (tool->finished_round == NULL) {
+		if (tool->ordered_samples)
+			tool->finished_round = process_finished_round;
 		else
-			handler->finished_round = process_finished_round_stub;
+			tool->finished_round = process_finished_round_stub;
 	}
 }
 
@@ -487,11 +488,11 @@ static void perf_session_free_sample_buffers(struct perf_session *session)
 static int perf_session_deliver_event(struct perf_session *session,
 				      union perf_event *event,
 				      struct perf_sample *sample,
-				      struct perf_event_ops *ops,
+				      struct perf_tool *tool,
 				      u64 file_offset);
 
 static void flush_sample_queue(struct perf_session *s,
-			       struct perf_event_ops *ops)
+			       struct perf_tool *tool)
 {
 	struct ordered_samples *os = &s->ordered_samples;
 	struct list_head *head = &os->samples;
@@ -502,7 +503,7 @@ static void flush_sample_queue(struct perf_session *s,
 	unsigned idx = 0, progress_next = os->nr_samples / 16;
 	int ret;
 
-	if (!ops->ordered_samples || !limit)
+	if (!tool->ordered_samples || !limit)
 		return;
 
 	list_for_each_entry_safe(iter, tmp, head, list) {
@@ -513,7 +514,7 @@ static void flush_sample_queue(struct perf_session *s,
 		if (ret)
 			pr_err("Can't parse sample, err = %d\n", ret);
 		else
-			perf_session_deliver_event(s, iter->event, &sample, ops,
+			perf_session_deliver_event(s, iter->event, &sample, tool,
 						   iter->file_offset);
 
 		os->last_flush = iter->timestamp;
@@ -575,11 +576,11 @@ static void flush_sample_queue(struct perf_session *s,
  *      Flush every events below timestamp 7
  *      etc...
  */
-static int process_finished_round(struct perf_event_ops *ops,
+static int process_finished_round(struct perf_tool *tool,
 				  union perf_event *event __used,
 				  struct perf_session *session)
 {
-	flush_sample_queue(session, ops);
+	flush_sample_queue(session, tool);
 	session->ordered_samples.next_flush = session->ordered_samples.max_timestamp;
 
 	return 0;
@@ -749,7 +750,7 @@ static struct machine *
 static int perf_session_deliver_event(struct perf_session *session,
 				      union perf_event *event,
 				      struct perf_sample *sample,
-				      struct perf_event_ops *ops,
+				      struct perf_tool *tool,
 				      u64 file_offset)
 {
 	struct perf_evsel *evsel;
@@ -784,25 +785,25 @@ static int perf_session_deliver_event(struct perf_session *session,
 			++session->hists.stats.nr_unknown_id;
 			return -1;
 		}
-		return ops->sample(ops, event, sample, evsel, machine);
+		return tool->sample(tool, event, sample, evsel, machine);
 	case PERF_RECORD_MMAP:
-		return ops->mmap(ops, event, sample, machine);
+		return tool->mmap(tool, event, sample, machine);
 	case PERF_RECORD_COMM:
-		return ops->comm(ops, event, sample, machine);
+		return tool->comm(tool, event, sample, machine);
 	case PERF_RECORD_FORK:
-		return ops->fork(ops, event, sample, machine);
+		return tool->fork(tool, event, sample, machine);
 	case PERF_RECORD_EXIT:
-		return ops->exit(ops, event, sample, machine);
+		return tool->exit(tool, event, sample, machine);
 	case PERF_RECORD_LOST:
-		if (ops->lost == perf_event__process_lost)
+		if (tool->lost == perf_event__process_lost)
 			session->hists.stats.total_lost += event->lost.lost;
-		return ops->lost(ops, event, sample, machine);
+		return tool->lost(tool, event, sample, machine);
 	case PERF_RECORD_READ:
-		return ops->read(ops, event, sample, evsel, machine);
+		return tool->read(tool, event, sample, evsel, machine);
 	case PERF_RECORD_THROTTLE:
-		return ops->throttle(ops, event, sample, machine);
+		return tool->throttle(tool, event, sample, machine);
 	case PERF_RECORD_UNTHROTTLE:
-		return ops->unthrottle(ops, event, sample, machine);
+		return tool->unthrottle(tool, event, sample, machine);
 	default:
 		++session->hists.stats.nr_unknown_events;
 		return -1;
@@ -826,7 +827,7 @@ static int perf_session__preprocess_sample(struct perf_session *session,
 }
 
 static int perf_session__process_user_event(struct perf_session *session, union perf_event *event,
-					    struct perf_event_ops *ops, u64 file_offset)
+					    struct perf_tool *tool, u64 file_offset)
 {
 	int err;
 
@@ -835,20 +836,20 @@ static int perf_session__process_user_event(struct perf_session *session, union 
 	/* These events are processed right away */
 	switch (event->header.type) {
 	case PERF_RECORD_HEADER_ATTR:
-		err = ops->attr(event, &session->evlist);
+		err = tool->attr(event, &session->evlist);
 		if (err == 0)
 			perf_session__update_sample_type(session);
 		return err;
 	case PERF_RECORD_HEADER_EVENT_TYPE:
-		return ops->event_type(ops, event);
+		return tool->event_type(tool, event);
 	case PERF_RECORD_HEADER_TRACING_DATA:
 		/* setup for reading amidst mmap */
 		lseek(session->fd, file_offset, SEEK_SET);
-		return ops->tracing_data(event, session);
+		return tool->tracing_data(event, session);
 	case PERF_RECORD_HEADER_BUILD_ID:
-		return ops->build_id(ops, event, session);
+		return tool->build_id(tool, event, session);
 	case PERF_RECORD_FINISHED_ROUND:
-		return ops->finished_round(ops, event, session);
+		return tool->finished_round(tool, event, session);
 	default:
 		return -EINVAL;
 	}
@@ -856,7 +857,7 @@ static int perf_session__process_user_event(struct perf_session *session, union 
 
 static int perf_session__process_event(struct perf_session *session,
 				       union perf_event *event,
-				       struct perf_event_ops *ops,
+				       struct perf_tool *tool,
 				       u64 file_offset)
 {
 	struct perf_sample sample;
@@ -872,7 +873,7 @@ static int perf_session__process_event(struct perf_session *session,
 	hists__inc_nr_events(&session->hists, event->header.type);
 
 	if (event->header.type >= PERF_RECORD_USER_TYPE_START)
-		return perf_session__process_user_event(session, event, ops, file_offset);
+		return perf_session__process_user_event(session, event, tool, file_offset);
 
 	/*
 	 * For all kernel events we get the sample data
@@ -885,14 +886,14 @@ static int perf_session__process_event(struct perf_session *session,
 	if (perf_session__preprocess_sample(session, event, &sample))
 		return 0;
 
-	if (ops->ordered_samples) {
+	if (tool->ordered_samples) {
 		ret = perf_session_queue_event(session, event, &sample,
 					       file_offset);
 		if (ret != -ETIME)
 			return ret;
 	}
 
-	return perf_session_deliver_event(session, event, &sample, ops,
+	return perf_session_deliver_event(session, event, &sample, tool,
 					  file_offset);
 }
 
@@ -921,9 +922,9 @@ static struct thread *perf_session__register_idle_thread(struct perf_session *se
 }
 
 static void perf_session__warn_about_errors(const struct perf_session *session,
-					    const struct perf_event_ops *ops)
+					    const struct perf_tool *tool)
 {
-	if (ops->lost == perf_event__process_lost &&
+	if (tool->lost == perf_event__process_lost &&
 	    session->hists.stats.nr_events[PERF_RECORD_LOST] != 0) {
 		ui__warning("Processed %d events and lost %d chunks!\n\n"
 			    "Check IO/CPU overload!\n\n",
@@ -958,7 +959,7 @@ static void perf_session__warn_about_errors(const struct perf_session *session,
 volatile int session_done;
 
 static int __perf_session__process_pipe_events(struct perf_session *self,
-					       struct perf_event_ops *ops)
+					       struct perf_tool *tool)
 {
 	union perf_event event;
 	uint32_t size;
@@ -967,7 +968,7 @@ static int __perf_session__process_pipe_events(struct perf_session *self,
 	int err;
 	void *p;
 
-	perf_event_ops__fill_defaults(ops);
+	perf_tool__fill_defaults(tool);
 
 	head = 0;
 more:
@@ -1004,7 +1005,7 @@ more:
 	}
 
 	if (size == 0 ||
-	    (skip = perf_session__process_event(self, &event, ops, head)) < 0) {
+	    (skip = perf_session__process_event(self, &event, tool, head)) < 0) {
 		dump_printf("%#" PRIx64 " [%#x]: skipping unknown header type: %d\n",
 			    head, event.header.size, event.header.type);
 		/*
@@ -1027,7 +1028,7 @@ more:
 done:
 	err = 0;
 out_err:
-	perf_session__warn_about_errors(self, ops);
+	perf_session__warn_about_errors(self, tool);
 	perf_session_free_sample_buffers(self);
 	return err;
 }
@@ -1058,7 +1059,7 @@ fetch_mmaped_event(struct perf_session *session,
 
 int __perf_session__process_events(struct perf_session *session,
 				   u64 data_offset, u64 data_size,
-				   u64 file_size, struct perf_event_ops *ops)
+				   u64 file_size, struct perf_tool *tool)
 {
 	u64 head, page_offset, file_offset, file_pos, progress_next;
 	int err, mmap_prot, mmap_flags, map_idx = 0;
@@ -1067,7 +1068,7 @@ int __perf_session__process_events(struct perf_session *session,
 	union perf_event *event;
 	uint32_t size;
 
-	perf_event_ops__fill_defaults(ops);
+	perf_tool__fill_defaults(tool);
 
 	page_size = sysconf(_SC_PAGESIZE);
 
@@ -1122,7 +1123,7 @@ more:
 	size = event->header.size;
 
 	if (size == 0 ||
-	    perf_session__process_event(session, event, ops, file_pos) < 0) {
+	    perf_session__process_event(session, event, tool, file_pos) < 0) {
 		dump_printf("%#" PRIx64 " [%#x]: skipping unknown header type: %d\n",
 			    file_offset + head, event->header.size,
 			    event->header.type);
@@ -1151,15 +1152,15 @@ more:
 	err = 0;
 	/* do the final flush for ordered samples */
 	session->ordered_samples.next_flush = ULLONG_MAX;
-	flush_sample_queue(session, ops);
+	flush_sample_queue(session, tool);
 out_err:
-	perf_session__warn_about_errors(session, ops);
+	perf_session__warn_about_errors(session, tool);
 	perf_session_free_sample_buffers(session);
 	return err;
 }
 
 int perf_session__process_events(struct perf_session *self,
-				 struct perf_event_ops *ops)
+				 struct perf_tool *tool)
 {
 	int err;
 
@@ -1170,9 +1171,9 @@ int perf_session__process_events(struct perf_session *self,
 		err = __perf_session__process_events(self,
 						     self->header.data_offset,
 						     self->header.data_size,
-						     self->size, ops);
+						     self->size, tool);
 	else
-		err = __perf_session__process_pipe_events(self, ops);
+		err = __perf_session__process_pipe_events(self, tool);
 
 	return err;
 }

@@ -27,11 +27,12 @@
 #include "util/sort.h"
 #include "util/hist.h"
 #include "util/session.h"
+#include "util/tool.h"
 
 #include <linux/bitmap.h>
 
 struct perf_annotate {
-	struct perf_event_ops ops;
+	struct perf_tool tool;
 	char const *input_name;
 	bool	   force, use_tui, use_stdio;
 	bool	   full_paths;
@@ -79,13 +80,13 @@ static int perf_evsel__add_sample(struct perf_evsel *evsel,
 	return ret;
 }
 
-static int process_sample_event(struct perf_event_ops *ops,
+static int process_sample_event(struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel,
 				struct machine *machine)
 {
-	struct perf_annotate *ann = container_of(ops, struct perf_annotate, ops);
+	struct perf_annotate *ann = container_of(tool, struct perf_annotate, tool);
 	struct addr_location al;
 
 	if (perf_event__preprocess_sample(event, machine, &al, sample,
@@ -174,7 +175,7 @@ static int __cmd_annotate(struct perf_annotate *ann)
 	u64 total_nr_samples;
 
 	session = perf_session__new(ann->input_name, O_RDONLY,
-				    ann->force, false, &ann->ops);
+				    ann->force, false, &ann->tool);
 	if (session == NULL)
 		return -ENOMEM;
 
@@ -185,7 +186,7 @@ static int __cmd_annotate(struct perf_annotate *ann)
 			goto out_delete;
 	}
 
-	ret = perf_session__process_events(session, &ann->ops);
+	ret = perf_session__process_events(session, &ann->tool);
 	if (ret)
 		goto out_delete;
 
@@ -241,7 +242,7 @@ static const char * const annotate_usage[] = {
 int cmd_annotate(int argc, const char **argv, const char *prefix __used)
 {
 	struct perf_annotate annotate = {
-		.ops = {
+		.tool = {
 			.sample	= process_sample_event,
 			.mmap	= perf_event__process_mmap,
 			.comm	= perf_event__process_comm,

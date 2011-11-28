@@ -8,6 +8,7 @@
 #include "util/thread.h"
 #include "util/header.h"
 #include "util/session.h"
+#include "util/tool.h"
 
 #include "util/parse-options.h"
 #include "util/trace-event.h"
@@ -1602,7 +1603,7 @@ static void process_raw_event(union perf_event *raw_event __used,
 		process_sched_migrate_task_event(data, machine, event, cpu, timestamp, thread);
 }
 
-static int process_sample_event(struct perf_event_ops *ops __used,
+static int process_sample_event(struct perf_tool *tool __used,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel,
@@ -1631,7 +1632,7 @@ static int process_sample_event(struct perf_event_ops *ops __used,
 	return 0;
 }
 
-static struct perf_event_ops event_ops = {
+static struct perf_tool perf_sched = {
 	.sample			= process_sample_event,
 	.comm			= perf_event__process_comm,
 	.lost			= perf_event__process_lost,
@@ -1643,12 +1644,12 @@ static void read_events(bool destroy, struct perf_session **psession)
 {
 	int err = -EINVAL;
 	struct perf_session *session = perf_session__new(input_name, O_RDONLY,
-							 0, false, &event_ops);
+							 0, false, &perf_sched);
 	if (session == NULL)
 		die("No Memory");
 
 	if (perf_session__has_traces(session, "record -R")) {
-		err = perf_session__process_events(session, &event_ops);
+		err = perf_session__process_events(session, &perf_sched);
 		if (err)
 			die("Failed to process events, error %d", err);
 
