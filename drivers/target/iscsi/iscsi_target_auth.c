@@ -165,7 +165,8 @@ static int chap_server_compute_md5(
 	unsigned int *nr_out_len)
 {
 	char *endptr;
-	unsigned char id, digest[MD5_SIGNATURE_SIZE];
+	unsigned long id;
+	unsigned char digest[MD5_SIGNATURE_SIZE];
 	unsigned char type, response[MD5_SIGNATURE_SIZE * 2 + 2];
 	unsigned char identifier[10], *challenge = NULL;
 	unsigned char *challenge_binhex = NULL;
@@ -304,15 +305,18 @@ static int chap_server_compute_md5(
 		goto out;
 	}
 
-	/* FIXME: What happens when simple_strtoul() return 256, 257, etc.? */
 	if (type == HEX)
 		id = simple_strtoul(&identifier[2], &endptr, 0);
 	else
 		id = simple_strtoul(identifier, &endptr, 0);
+	if (id > 255) {
+		pr_err("chap identifier: %lu greater than 255\n", id);
+		goto out;
+	}
 	/*
 	 * RFC 1994 says Identifier is no more than octet (8 bits).
 	 */
-	pr_debug("[server] Got CHAP_I=%d\n", id);
+	pr_debug("[server] Got CHAP_I=%lu\n", id);
 	/*
 	 * Get CHAP_C.
 	 */
