@@ -8216,7 +8216,15 @@ static void bnx2x_warpcore_power_module(struct link_params *params,
 static void bnx2x_warpcore_hw_reset(struct bnx2x_phy *phy,
 				    struct link_params *params)
 {
+	struct bnx2x *bp = params->bp;
 	bnx2x_warpcore_power_module(params, phy, 0);
+	/* Put Warpcore in low power mode */
+	REG_WR(bp, MISC_REG_WC0_RESET, 0x0c0e);
+
+	/* Put LCPLL in low power mode */
+	REG_WR(bp, MISC_REG_LCPLL_E40_PWRDWN, 1);
+	REG_WR(bp, MISC_REG_LCPLL_E40_RESETB_ANA, 0);
+	REG_WR(bp, MISC_REG_LCPLL_E40_RESETB_DIG, 0);
 }
 
 static void bnx2x_power_sfp_module(struct link_params *params,

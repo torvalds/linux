@@ -1622,6 +1622,14 @@
    register bits. */
 #define MISC_REG_LCPLL_CTRL_1					 0xa2a4
 #define MISC_REG_LCPLL_CTRL_REG_2				 0xa2a8
+/* [RW 1] LCPLL power down. Global register. Active High. Reset on POR
+ * reset. */
+#define MISC_REG_LCPLL_E40_PWRDWN				 0xaa74
+/* [RW 1] LCPLL VCO reset. Global register. Active Low Reset on POR reset. */
+#define MISC_REG_LCPLL_E40_RESETB_ANA				 0xaa78
+/* [RW 1] LCPLL post-divider reset. Global register. Active Low Reset on POR
+ * reset. */
+#define MISC_REG_LCPLL_E40_RESETB_DIG				 0xaa7c
 /* [RW 4] Interrupt mask register #0 read/write */
 #define MISC_REG_MISC_INT_MASK					 0xa388
 /* [RW 1] Parity mask register #0 read/write */
@@ -1757,6 +1765,7 @@
  * is compared to the value on ctrl_md_devad. Drives output
  * misc_xgxs0_phy_addr. Global register. */
 #define MISC_REG_WC0_CTRL_PHY_ADDR				 0xa9cc
+#define MISC_REG_WC0_RESET					 0xac30
 /* [RW 2] XMAC Core port mode. Indicates the number of ports on the system
    side. This should be less than or equal to phy_port_mode; if some of the
    ports are not used. This enables reduction of frequency on the core side.
