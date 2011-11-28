@@ -61,6 +61,10 @@ struct perf_evsel {
 		off_t		id_offset;
 	};
 	struct cgroup_sel	*cgrp;
+	struct {
+		void		*func;
+		void		*data;
+	} handler;
 	bool 			supported;
 };
 

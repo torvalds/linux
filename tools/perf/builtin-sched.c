@@ -2,6 +2,7 @@
 #include "perf.h"
 
 #include "util/util.h"
+#include "util/evlist.h"
 #include "util/cache.h"
 #include "util/evsel.h"
 #include "util/symbol.h"
@@ -1358,12 +1359,13 @@ static void sort_lat(void)
 static struct trace_sched_handler *trace_handler;
 
 static void
-process_sched_wakeup_event(void *data, struct machine *machine,
+process_sched_wakeup_event(struct perf_tool *tool __used,
 			   struct event *event,
-			   int cpu __used,
-			   u64 timestamp __used,
-			   struct thread *thread __used)
+			   struct perf_sample *sample,
+			   struct machine *machine,
+			   struct thread *thread)
 {
+	void *data = sample->raw_data;
 	struct trace_wakeup_event wakeup_event;
 
 	FILL_COMMON_FIELDS(wakeup_event, event, data);
@@ -1376,7 +1378,7 @@ process_sched_wakeup_event(void *data, struct machine *machine,
 
 	if (trace_handler->wakeup_event)
 		trace_handler->wakeup_event(&wakeup_event, machine, event,
-					    cpu, timestamp, thread);
+					    sample->cpu, sample->time, thread);
 }
 
 /*
@@ -1471,14 +1473,15 @@ map_switch_event(struct trace_switch_event *switch_event,
 	}
 }
 
-
 static void
-process_sched_switch_event(void *data, struct machine *machine,
+process_sched_switch_event(struct perf_tool *tool __used,
 			   struct event *event,
-			   int this_cpu,
-			   u64 timestamp __used,
-			   struct thread *thread __used)
+			   struct perf_sample *sample,
+			   struct machine *machine,
+			   struct thread *thread)
 {
+	int this_cpu = sample->cpu;
+	void *data = sample->raw_data;
 	struct trace_switch_event switch_event;
 
 	FILL_COMMON_FIELDS(switch_event, event, data);
@@ -1501,18 +1504,19 @@ process_sched_switch_event(void *data, struct machine *machine,
 	}
 	if (trace_handler->switch_event)
 		trace_handler->switch_event(&switch_event, machine, event,
-					    this_cpu, timestamp, thread);
+					    this_cpu, sample->time, thread);
 
 	curr_pid[this_cpu] = switch_event.next_pid;
 }
 
 static void
-process_sched_runtime_event(void *data, struct machine *machine,
-			   struct event *event,
-			   int cpu __used,
-			   u64 timestamp __used,
-			   struct thread *thread __used)
+process_sched_runtime_event(struct perf_tool *tool __used,
+			    struct event *event,
+			    struct perf_sample *sample,
+			    struct machine *machine,
+			    struct thread *thread)
 {
+	void *data = sample->raw_data;
 	struct trace_runtime_event runtime_event;
 
 	FILL_ARRAY(runtime_event, comm, event, data);
@@ -1521,16 +1525,18 @@ process_sched_runtime_event(void *data, struct machine *machine,
 	FILL_FIELD(runtime_event, vruntime, event, data);
 
 	if (trace_handler->runtime_event)
-		trace_handler->runtime_event(&runtime_event, machine, event, cpu, timestamp, thread);
+		trace_handler->runtime_event(&runtime_event, machine, event,
+					     sample->cpu, sample->time, thread);
 }
 
 static void
-process_sched_fork_event(void *data,
+process_sched_fork_event(struct perf_tool *tool __used,
 			 struct event *event,
-			 int cpu __used,
-			 u64 timestamp __used,
-			 struct thread *thread __used)
+			 struct perf_sample *sample,
+			 struct machine *machine __used,
+			 struct thread *thread)
 {
+	void *data = sample->raw_data;
 	struct trace_fork_event fork_event;
 
 	FILL_COMMON_FIELDS(fork_event, event, data);
@@ -1542,13 +1548,14 @@ process_sched_fork_event(void *data,
 
 	if (trace_handler->fork_event)
 		trace_handler->fork_event(&fork_event, event,
-					  cpu, timestamp, thread);
+					  sample->cpu, sample->time, thread);
 }
 
 static void
-process_sched_exit_event(struct event *event,
-			 int cpu __used,
-			 u64 timestamp __used,
+process_sched_exit_event(struct perf_tool *tool __used,
+			 struct event *event,
+			 struct perf_sample *sample __used,
+			 struct machine *machine __used,
 			 struct thread *thread __used)
 {
 	if (verbose)
@@ -1556,12 +1563,13 @@ process_sched_exit_event(struct event *event,
 }
 
 static void
-process_sched_migrate_task_event(void *data, struct machine *machine,
-			   struct event *event,
-			   int cpu __used,
-			   u64 timestamp __used,
-			   struct thread *thread __used)
+process_sched_migrate_task_event(struct perf_tool *tool __used,
+				 struct event *event,
+				 struct perf_sample *sample,
+				 struct machine *machine,
+				 struct thread *thread)
 {
+	void *data = sample->raw_data;
 	struct trace_migrate_task_event migrate_task_event;
 
 	FILL_COMMON_FIELDS(migrate_task_event, event, data);
@@ -1573,67 +1581,46 @@ process_sched_migrate_task_event(void *data, struct machine *machine,
 
 	if (trace_handler->migrate_task_event)
 		trace_handler->migrate_task_event(&migrate_task_event, machine,
-						 event, cpu, timestamp, thread);
+						  event, sample->cpu,
+						  sample->time, thread);
 }
 
-static void process_raw_event(union perf_event *raw_event __used,
-			      struct machine *machine, void *data, int cpu,
-			      u64 timestamp, struct thread *thread)
+typedef void (*tracepoint_handler)(struct perf_tool *tool, struct event *event,
+				   struct perf_sample *sample,
+				   struct machine *machine,
+				   struct thread *thread);
+
+static int perf_sched__process_tracepoint_sample(struct perf_tool *tool,
+						 union perf_event *event __used,
+						 struct perf_sample *sample,
+						 struct perf_evsel *evsel,
+						 struct machine *machine)
 {
-	struct event *event;
-	int type;
+	struct thread *thread = machine__findnew_thread(machine, sample->pid);
 
-
-	type = trace_parse_common_type(data);
-	event = trace_find_event(type);
-
-	if (!strcmp(event->name, "sched_switch"))
-		process_sched_switch_event(data, machine, event, cpu, timestamp, thread);
-	if (!strcmp(event->name, "sched_stat_runtime"))
-		process_sched_runtime_event(data, machine, event, cpu, timestamp, thread);
-	if (!strcmp(event->name, "sched_wakeup"))
-		process_sched_wakeup_event(data, machine, event, cpu, timestamp, thread);
-	if (!strcmp(event->name, "sched_wakeup_new"))
-		process_sched_wakeup_event(data, machine, event, cpu, timestamp, thread);
-	if (!strcmp(event->name, "sched_process_fork"))
-		process_sched_fork_event(data, event, cpu, timestamp, thread);
-	if (!strcmp(event->name, "sched_process_exit"))
-		process_sched_exit_event(event, cpu, timestamp, thread);
-	if (!strcmp(event->name, "sched_migrate_task"))
-		process_sched_migrate_task_event(data, machine, event, cpu, timestamp, thread);
-}
-
-static int process_sample_event(struct perf_tool *tool __used,
-				union perf_event *event,
-				struct perf_sample *sample,
-				struct perf_evsel *evsel,
-				struct machine *machine)
-{
-	struct thread *thread;
-
-	if (!(evsel->attr.sample_type & PERF_SAMPLE_RAW))
-		return 0;
-
-	thread = machine__findnew_thread(machine, sample->pid);
 	if (thread == NULL) {
-		pr_debug("problem processing %d event, skipping it.\n",
-			 event->header.type);
+		pr_debug("problem processing %s event, skipping it.\n",
+			 evsel->name);
 		return -1;
 	}
 
-	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
+	evsel->hists.stats.total_period += sample->period;
+	hists__inc_nr_events(&evsel->hists, PERF_RECORD_SAMPLE);
 
-	if (profile_cpu != -1 && profile_cpu != (int)sample->cpu)
-		return 0;
+	if (evsel->handler.func != NULL) {
+		tracepoint_handler f = evsel->handler.func;
 
-	process_raw_event(event, machine, sample->raw_data, sample->cpu,
-			  sample->time, thread);
+		if (evsel->handler.data == NULL)
+			evsel->handler.data = trace_find_event(evsel->attr.config);
+
+		f(tool, evsel->handler.data, sample, machine, thread);
+	}
 
 	return 0;
 }
 
 static struct perf_tool perf_sched = {
-	.sample			= process_sample_event,
+	.sample			= perf_sched__process_tracepoint_sample,
 	.comm			= perf_event__process_comm,
 	.lost			= perf_event__process_lost,
 	.fork			= perf_event__process_task,
@@ -1643,10 +1630,22 @@ static struct perf_tool perf_sched = {
 static void read_events(bool destroy, struct perf_session **psession)
 {
 	int err = -EINVAL;
+	const struct perf_evsel_str_handler handlers[] = {
+		{ "sched:sched_switch",	      process_sched_switch_event, },
+		{ "sched:sched_stat_runtime", process_sched_runtime_event, },
+		{ "sched:sched_wakeup",	      process_sched_wakeup_event, },
+		{ "sched:sched_wakeup_new",   process_sched_wakeup_event, },
+		{ "sched:sched_process_fork", process_sched_fork_event, },
+		{ "sched:sched_process_exit", process_sched_exit_event, },
+		{ "sched:sched_migrate_task", process_sched_migrate_task_event, },
+	};
 	struct perf_session *session = perf_session__new(input_name, O_RDONLY,
 							 0, false, &perf_sched);
 	if (session == NULL)
 		die("No Memory");
+
+	err = perf_evlist__set_tracepoints_handlers_array(session->evlist, handlers);
+	assert(err == 0);
 
 	if (perf_session__has_traces(session, "record -R")) {
 		err = perf_session__process_events(session, &perf_sched);

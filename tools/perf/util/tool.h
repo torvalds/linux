@@ -1,8 +1,13 @@
 #ifndef __PERF_TOOL_H
 #define __PERF_TOOL_H
 
+#include <stdbool.h>
+
 struct perf_session;
+union perf_event;
+struct perf_evlist;
 struct perf_evsel;
+struct perf_sample;
 struct perf_tool;
 struct machine;
 

@@ -207,6 +207,48 @@ out_free_attrs:
 	return err;
 }
 
+static struct perf_evsel *
+	perf_evlist__find_tracepoint_by_id(struct perf_evlist *evlist, int id)
+{
+	struct perf_evsel *evsel;
+
+	list_for_each_entry(evsel, &evlist->entries, node) {
+		if (evsel->attr.type   == PERF_TYPE_TRACEPOINT &&
+		    (int)evsel->attr.config == id)
+			return evsel;
+	}
+
+	return NULL;
+}
+
+int perf_evlist__set_tracepoints_handlers(struct perf_evlist *evlist,
+					  const struct perf_evsel_str_handler *assocs,
+					  size_t nr_assocs)
+{
+	struct perf_evsel *evsel;
+	int err;
+	size_t i;
+
+	for (i = 0; i < nr_assocs; i++) {
+		err = trace_event__id(assocs[i].name);
+		if (err < 0)
+			goto out;
+
+		evsel = perf_evlist__find_tracepoint_by_id(evlist, err);
+		if (evsel == NULL)
+			continue;
+
+		err = -EEXIST;
+		if (evsel->handler.func != NULL)
+			goto out;
+		evsel->handler.func = assocs[i].handler;
+	}
+
+	err = 0;
+out:
+	return err;
+}
+
 void perf_evlist__disable(struct perf_evlist *evlist)
 {
 	int cpu, thread;

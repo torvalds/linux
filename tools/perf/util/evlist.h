@@ -36,6 +36,11 @@ struct perf_evlist {
 	struct perf_evsel *selected;
 };
 
+struct perf_evsel_str_handler {
+	const char *name;
+	void	   *handler;
+};
+
 struct perf_evsel;
 
 struct perf_evlist *perf_evlist__new(struct cpu_map *cpus,
@@ -51,12 +56,18 @@ int perf_evlist__add_attrs(struct perf_evlist *evlist,
 			   struct perf_event_attr *attrs, size_t nr_attrs);
 int perf_evlist__add_tracepoints(struct perf_evlist *evlist,
 				 const char *tracepoints[], size_t nr_tracepoints);
+int perf_evlist__set_tracepoints_handlers(struct perf_evlist *evlist,
+					  const struct perf_evsel_str_handler *assocs,
+					  size_t nr_assocs);
 
 #define perf_evlist__add_attrs_array(evlist, array) \
 	perf_evlist__add_attrs(evlist, array, ARRAY_SIZE(array))
 
 #define perf_evlist__add_tracepoints_array(evlist, array) \
 	perf_evlist__add_tracepoints(evlist, array, ARRAY_SIZE(array))
+
+#define perf_evlist__set_tracepoints_handlers_array(evlist, array) \
+	perf_evlist__set_tracepoints_handlers(evlist, array, ARRAY_SIZE(array))
 
 void perf_evlist__id_add(struct perf_evlist *evlist, struct perf_evsel *evsel,
 			 int cpu, int thread, u64 id);
