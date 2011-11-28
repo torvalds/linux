@@ -32,6 +32,7 @@
 #include <drm/drmP.h>
 #include <drm/drm.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_fb_helper.h>
 
 #include "psb_drv.h"
 #include "psb_intel_reg.h"
@@ -240,14 +241,17 @@ static struct fb_ops psbfb_unaccel_ops = {
  */
 static int psb_framebuffer_init(struct drm_device *dev,
 					struct psb_framebuffer *fb,
-					struct drm_mode_fb_cmd *mode_cmd,
+					struct drm_mode_fb_cmd2 *mode_cmd,
 					struct gtt_range *gt)
 {
+	u32 bpp, depth;
 	int ret;
 
-	if (mode_cmd->pitch & 63)
+	drm_helper_get_fb_bpp_depth(mode_cmd->pixel_format, &depth, &bpp);
+
+	if (mode_cmd->pitches[0] & 63)
 		return -EINVAL;
-	switch (mode_cmd->bpp) {
+	switch (bpp) {
 	case 8:
 	case 16:
 	case 24:
@@ -280,7 +284,7 @@ static int psb_framebuffer_init(struct drm_device *dev,
 
 static struct drm_framebuffer *psb_framebuffer_create
 			(struct drm_device *dev,
-			 struct drm_mode_fb_cmd *mode_cmd,
+			 struct drm_mode_fb_cmd2 *mode_cmd,
 			 struct gtt_range *gt)
 {
 	struct psb_framebuffer *fb;
@@ -352,25 +356,26 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	struct fb_info *info;
 	struct drm_framebuffer *fb;
 	struct psb_framebuffer *psbfb = &fbdev->pfb;
-	struct drm_mode_fb_cmd mode_cmd;
+	struct drm_mode_fb_cmd2 mode_cmd;
 	struct device *device = &dev->pdev->dev;
 	int size;
 	int ret;
 	struct gtt_range *backing;
+	u32 bpp, depth;
 
 	mode_cmd.width = sizes->surface_width;
 	mode_cmd.height = sizes->surface_height;
-	mode_cmd.bpp = sizes->surface_bpp;
+	bpp = sizes->surface_bpp;
 
 	/* No 24bit packed */
-	if (mode_cmd.bpp == 24)
-		mode_cmd.bpp = 32;
+	if (bpp == 24)
+		bpp = 32;
 
 	/* HW requires pitch to be 64 byte aligned */
-	mode_cmd.pitch =  ALIGN(mode_cmd.width * ((mode_cmd.bpp + 7) / 8), 64);
-	mode_cmd.depth = sizes->surface_depth;
+	mode_cmd.pitches[0] =  ALIGN(mode_cmd.width * ((bpp + 7) / 8), 64);
+	depth = sizes->surface_depth;
 
-	size = mode_cmd.pitch * mode_cmd.height;
+	size = mode_cmd.pitches[0] * mode_cmd.height;
 	size = ALIGN(size, PAGE_SIZE);
 
 	/* Allocate the framebuffer in the GTT with stolen page backing */
@@ -386,6 +391,8 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 		goto out_err1;
 	}
 	info->par = fbdev;
+
+	mode_cmd.pixel_format = drm_mode_legacy_fb_format(bpp, depth);
 
 	ret = psb_framebuffer_init(dev, psbfb, &mode_cmd, backing);
 	if (ret)
@@ -485,7 +492,7 @@ out_err1:
  */
 static struct drm_framebuffer *psb_user_framebuffer_create
 			(struct drm_device *dev, struct drm_file *filp,
-			 struct drm_mode_fb_cmd *cmd)
+			 struct drm_mode_fb_cmd2 *cmd)
 {
 	struct gtt_range *r;
 	struct drm_gem_object *obj;
@@ -494,7 +501,7 @@ static struct drm_framebuffer *psb_user_framebuffer_create
 	 *	Find the GEM object and thus the gtt range object that is
 	 *	to back this space
 	 */
-	obj = drm_gem_object_lookup(dev, filp, cmd->handle);
+	obj = drm_gem_object_lookup(dev, filp, cmd->handles[0]);
 	if (obj == NULL)
 		return ERR_PTR(-ENOENT);
 
