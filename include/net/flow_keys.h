@@ -2,6 +2,7 @@
 #define _NET_FLOW_KEYS_H
 
 struct flow_keys {
+	/* (src,dst) must be grouped, in the same way than in IP header */
 	__be32 src;
 	__be32 dst;
 	union {
