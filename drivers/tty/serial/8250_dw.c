@@ -177,17 +177,7 @@ static struct platform_driver dw8250_platform_driver = {
 	.remove			= __devexit_p(dw8250_remove),
 };
 
-static int __init dw8250_init(void)
-{
-	return platform_driver_register(&dw8250_platform_driver);
-}
-module_init(dw8250_init);
-
-static void __exit dw8250_exit(void)
-{
-	platform_driver_unregister(&dw8250_platform_driver);
-}
-module_exit(dw8250_exit);
+module_platform_driver(dw8250_platform_driver);
 
 MODULE_AUTHOR("Jamie Iles");
 MODULE_LICENSE("GPL");
