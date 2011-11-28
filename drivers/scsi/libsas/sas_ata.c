@@ -93,21 +93,30 @@ static enum ata_completion_errors sas_to_ata_err(struct task_status_struct *ts)
 static void sas_ata_task_done(struct sas_task *task)
 {
 	struct ata_queued_cmd *qc = task->uldd_task;
-	struct domain_device *dev;
+	struct domain_device *dev = task->dev;
 	struct task_status_struct *stat = &task->task_status;
 	struct ata_task_resp *resp = (struct ata_task_resp *)stat->buf;
-	struct sas_ha_struct *sas_ha;
+	struct sas_ha_struct *sas_ha = dev->port->ha;
 	enum ata_completion_errors ac;
 	unsigned long flags;
 	struct ata_link *link;
 	struct ata_port *ap;
 
+	spin_lock_irqsave(&dev->done_lock, flags);
+	if (test_bit(SAS_HA_FROZEN, &sas_ha->state))
+		task = NULL;
+	else if (qc && qc->scsicmd)
+		ASSIGN_SAS_TASK(qc->scsicmd, NULL);
+	spin_unlock_irqrestore(&dev->done_lock, flags);
+
+	/* check if libsas-eh got to the task before us */
+	if (unlikely(!task))
+		return;
+
 	if (!qc)
 		goto qc_already_gone;
 
 	ap = qc->ap;
-	dev = ap->private_data;
-	sas_ha = dev->port->ha;
 	link = &ap->link;
 
 	spin_lock_irqsave(ap->lock, flags);
@@ -156,8 +165,6 @@ static void sas_ata_task_done(struct sas_task *task)
 	}
 
 	qc->lldd_task = NULL;
-	if (qc->scsicmd)
-		ASSIGN_SAS_TASK(qc->scsicmd, NULL);
 	ata_qc_complete(qc);
 	spin_unlock_irqrestore(ap->lock, flags);
 
@@ -631,22 +638,6 @@ void sas_ata_strategy_handler(struct Scsi_Host *shost)
 	}
 
 	sas_enable_revalidation(sas_ha);
-}
-
-int sas_ata_timed_out(struct scsi_cmnd *cmd, struct sas_task *task,
-		      enum blk_eh_timer_return *rtn)
-{
-	struct domain_device *ddev = cmd_to_domain_dev(cmd);
-
-	if (!dev_is_sata(ddev) || task)
-		return 0;
-
-	/* we're a sata device with no task, so this must be a libata
-	 * eh timeout.  Ideally should hook into libata timeout
-	 * handling, but there's no point, it just wants to activate
-	 * the eh thread */
-	*rtn = BLK_EH_NOT_HANDLED;
-	return 1;
 }
 
 int sas_ata_eh(struct Scsi_Host *shost, struct list_head *work_q,

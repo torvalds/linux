@@ -142,6 +142,7 @@ static inline struct domain_device *sas_alloc_device(void)
 		INIT_LIST_HEAD(&dev->dev_list_node);
 		INIT_LIST_HEAD(&dev->disco_list_node);
 		kref_init(&dev->kref);
+		spin_lock_init(&dev->done_lock);
 	}
 	return dev;
 }

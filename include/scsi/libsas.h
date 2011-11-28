@@ -178,6 +178,7 @@ enum {
 };
 
 struct domain_device {
+	spinlock_t done_lock;
         enum sas_dev_type dev_type;
 
         enum sas_linkrate linkrate;
@@ -321,6 +322,7 @@ struct asd_sas_phy {
 struct scsi_core {
 	struct Scsi_Host *shost;
 
+	struct mutex	  task_queue_flush;
 	spinlock_t        task_queue_lock;
 	struct list_head  task_queue;
 	int               task_queue_size;
@@ -337,6 +339,7 @@ enum sas_ha_state {
 	SAS_HA_REGISTERED,
 	SAS_HA_DRAINING,
 	SAS_HA_ATA_EH_ACTIVE,
+	SAS_HA_FROZEN,
 };
 
 struct sas_ha_struct {
