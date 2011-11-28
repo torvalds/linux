@@ -25,9 +25,8 @@
 #include <linux/irq.h>
 #include <linux/slab.h>
 
-static DEFINE_MUTEX(bat_lock);
 static struct work_struct bat_work;
-static struct mutex work_lock;
+static DEFINE_MUTEX(work_lock);
 static int bat_status = POWER_SUPPLY_STATUS_UNKNOWN;
 static enum power_supply_property *prop;
 
@@ -180,8 +179,6 @@ static int __devinit wm97xx_bat_probe(struct platform_device *dev)
 
 	if (dev->id != -1)
 		return -EINVAL;
-
-	mutex_init(&work_lock);
 
 	if (!pdata) {
 		dev_err(&dev->dev, "No platform_data supplied\n");
