@@ -118,6 +118,7 @@
  *	commands from user applicaiton to read data in sram
  *
  * @IWL_TM_CMD_APP2DEV_LOAD_WOWLAN_FW: load Weak On Wireless LAN uCode image
+ * @IWL_TM_CMD_APP2DEV_GET_FW_VERSION: retrieve uCode version
  *
  */
 enum iwl_tm_cmd_t {
@@ -143,7 +144,8 @@ enum iwl_tm_cmd_t {
 	IWL_TM_CMD_APP2DEV_READ_SRAM		= 20,
 	IWL_TM_CMD_APP2DEV_DUMP_SRAM		= 21,
 	IWL_TM_CMD_APP2DEV_LOAD_WOWLAN_FW	= 22,
-	IWL_TM_CMD_MAX				= 23,
+	IWL_TM_CMD_APP2DEV_GET_FW_VERSION	= 23,
+	IWL_TM_CMD_MAX				= 24,
 };
 
 /*
@@ -225,6 +227,10 @@ enum iwl_tm_cmd_t {
  *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_DUMP_SRAM,
  *	IWL_TM_ATTR_SRAM_DUMP for the data in sram
  *
+ * @IWL_TM_ATTR_FW_VERSION:
+ *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_GET_FW_VERSION,
+ *	IWL_TM_ATTR_FW_VERSION for the uCode version
+ *
  */
 enum iwl_tm_attr_t {
 	IWL_TM_ATTR_NOT_APPLICABLE		= 0,
@@ -245,7 +251,8 @@ enum iwl_tm_attr_t {
 	IWL_TM_ATTR_SRAM_ADDR			= 15,
 	IWL_TM_ATTR_SRAM_SIZE			= 16,
 	IWL_TM_ATTR_SRAM_DUMP			= 17,
-	IWL_TM_ATTR_MAX				= 18,
+	IWL_TM_ATTR_FW_VERSION			= 18,
+	IWL_TM_ATTR_MAX				= 19,
 };
 
 /* uCode trace buffer */
