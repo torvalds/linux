@@ -77,6 +77,7 @@ static const struct snd_soc_dapm_widget ad193x_dapm_widgets[] = {
 	SND_SOC_DAPM_ADC("ADC", "Capture", SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_SUPPLY("PLL_PWR", AD193X_PLL_CLK_CTRL0, 0, 1, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("ADC_PWR", AD193X_ADC_CTRL0, 0, 1, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("SYSCLK", AD193X_PLL_CLK_CTRL0, 7, 0, NULL, 0),
 	SND_SOC_DAPM_OUTPUT("DAC1OUT"),
 	SND_SOC_DAPM_OUTPUT("DAC2OUT"),
 	SND_SOC_DAPM_OUTPUT("DAC3OUT"),
@@ -86,8 +87,8 @@ static const struct snd_soc_dapm_widget ad193x_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route audio_paths[] = {
-	{ "DAC", NULL, "PLL_PWR" },
-	{ "ADC", NULL, "PLL_PWR" },
+	{ "DAC", NULL, "SYSCLK" },
+	{ "ADC", NULL, "SYSCLK" },
 	{ "DAC", NULL, "ADC_PWR" },
 	{ "ADC", NULL, "ADC_PWR" },
 	{ "DAC1OUT", NULL, "DAC" },
@@ -96,6 +97,7 @@ static const struct snd_soc_dapm_route audio_paths[] = {
 	{ "DAC4OUT", NULL, "DAC" },
 	{ "ADC", NULL, "ADC1IN" },
 	{ "ADC", NULL, "ADC2IN" },
+	{ "SYSCLK", NULL, "PLL_PWR" },
 };
 
 /*
