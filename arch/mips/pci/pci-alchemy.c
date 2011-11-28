@@ -17,6 +17,7 @@
 #include <linux/vmalloc.h>
 
 #include <asm/mach-au1x00/au1000.h>
+#include <asm/tlbmisc.h>
 
 #ifdef CONFIG_DEBUG_PCI
 #define DBG(x...) printk(KERN_DEBUG x)
