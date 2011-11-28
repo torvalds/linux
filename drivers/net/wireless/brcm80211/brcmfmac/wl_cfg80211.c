@@ -1447,12 +1447,6 @@ brcmf_cfg80211_set_tx_power(struct wiphy *wiphy,
 	case NL80211_TX_POWER_AUTOMATIC:
 		break;
 	case NL80211_TX_POWER_LIMITED:
-		if (dbm < 0) {
-			WL_ERR("TX_POWER_LIMITED - dbm is negative\n");
-			err = -EINVAL;
-			goto done;
-		}
-		break;
 	case NL80211_TX_POWER_FIXED:
 		if (dbm < 0) {
 			WL_ERR("TX_POWER_FIXED - dbm is negative\n");
