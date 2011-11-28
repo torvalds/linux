@@ -3130,6 +3130,7 @@ static int iscsit_send_task_mgt_rsp(
 	hdr			= (struct iscsi_tm_rsp *) cmd->pdu;
 	memset(hdr, 0, ISCSI_HDR_LEN);
 	hdr->opcode		= ISCSI_OP_SCSI_TMFUNC_RSP;
+	hdr->flags		= ISCSI_FLAG_CMD_FINAL;
 	hdr->response		= iscsit_convert_tcm_tmr_rsp(se_tmr);
 	hdr->itt		= cpu_to_be32(cmd->init_task_tag);
 	cmd->stat_sn		= conn->stat_sn++;
