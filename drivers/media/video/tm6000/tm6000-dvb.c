@@ -89,9 +89,19 @@ static void tm6000_urb_received(struct urb *urb)
 	int ret;
 	struct tm6000_core *dev = urb->context;
 
-	if (urb->status != 0)
+	switch (urb->status) {
+	case 0:
+	case -ETIMEDOUT:
+		break;
+	case -ENOENT:
+	case -ECONNRESET:
+	case -ESHUTDOWN:
+		return;
+	default:
 		print_err_status(dev, 0, urb->status);
-	else if (urb->actual_length > 0)
+	}
+
+	if (urb->actual_length > 0)
 		dvb_dmx_swfilter(&dev->dvb->demux, urb->transfer_buffer,
 						   urb->actual_length);
 
@@ -151,7 +161,7 @@ static int tm6000_start_stream(struct tm6000_core *dev)
 		printk(KERN_ERR "tm6000: pipe resetted\n");
 
 /*	mutex_lock(&tm6000_driver.open_close_mutex); */
-	ret = usb_submit_urb(dvb->bulk_urb, GFP_KERNEL);
+	ret = usb_submit_urb(dvb->bulk_urb, GFP_ATOMIC);
 
 /*	mutex_unlock(&tm6000_driver.open_close_mutex); */
 	if (ret) {
