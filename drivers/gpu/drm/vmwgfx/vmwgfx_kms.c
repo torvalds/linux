@@ -82,6 +82,43 @@ int vmw_cursor_update_image(struct vmw_private *dev_priv,
 	return 0;
 }
 
+int vmw_cursor_update_dmabuf(struct vmw_private *dev_priv,
+			     struct vmw_dma_buffer *dmabuf,
+			     u32 width, u32 height,
+			     u32 hotspotX, u32 hotspotY)
+{
+	struct ttm_bo_kmap_obj map;
+	unsigned long kmap_offset;
+	unsigned long kmap_num;
+	void *virtual;
+	bool dummy;
+	int ret;
+
+	kmap_offset = 0;
+	kmap_num = (width*height*4 + PAGE_SIZE - 1) >> PAGE_SHIFT;
+
+	ret = ttm_bo_reserve(&dmabuf->base, true, false, false, 0);
+	if (unlikely(ret != 0)) {
+		DRM_ERROR("reserve failed\n");
+		return -EINVAL;
+	}
+
+	ret = ttm_bo_kmap(&dmabuf->base, kmap_offset, kmap_num, &map);
+	if (unlikely(ret != 0))
+		goto err_unreserve;
+
+	virtual = ttm_kmap_obj_virtual(&map, &dummy);
+	ret = vmw_cursor_update_image(dev_priv, virtual, width, height,
+				      hotspotX, hotspotY);
+
+	ttm_bo_kunmap(&map);
+err_unreserve:
+	ttm_bo_unreserve(&dmabuf->base);
+
+	return ret;
+}
+
+
 void vmw_cursor_update_position(struct vmw_private *dev_priv,
 				bool show, int x, int y)
 {
@@ -146,36 +183,11 @@ int vmw_du_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 		vmw_cursor_update_image(dev_priv, surface->snooper.image,
 					64, 64, du->hotspot_x, du->hotspot_y);
 	} else if (dmabuf) {
-		struct ttm_bo_kmap_obj map;
-		unsigned long kmap_offset;
-		unsigned long kmap_num;
-		void *virtual;
-		bool dummy;
-
 		/* vmw_user_surface_lookup takes one reference */
 		du->cursor_dmabuf = dmabuf;
 
-		kmap_offset = 0;
-		kmap_num = (64*64*4) >> PAGE_SHIFT;
-
-		ret = ttm_bo_reserve(&dmabuf->base, true, false, false, 0);
-		if (unlikely(ret != 0)) {
-			DRM_ERROR("reserve failed\n");
-			return -EINVAL;
-		}
-
-		ret = ttm_bo_kmap(&dmabuf->base, kmap_offset, kmap_num, &map);
-		if (unlikely(ret != 0))
-			goto err_unreserve;
-
-		virtual = ttm_kmap_obj_virtual(&map, &dummy);
-		vmw_cursor_update_image(dev_priv, virtual, 64, 64,
-					du->hotspot_x, du->hotspot_y);
-
-		ttm_bo_kunmap(&map);
-err_unreserve:
-		ttm_bo_unreserve(&dmabuf->base);
-
+		ret = vmw_cursor_update_dmabuf(dev_priv, dmabuf, width, height,
+					       du->hotspot_x, du->hotspot_y);
 	} else {
 		vmw_cursor_update_position(dev_priv, false, 0, 0);
 		return 0;
