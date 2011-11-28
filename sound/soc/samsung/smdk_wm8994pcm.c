@@ -158,19 +158,7 @@ static struct platform_driver snd_smdk_driver = {
 	.remove = __devexit_p(snd_smdk_remove),
 };
 
-static int __init smdk_audio_init(void)
-{
-	return platform_driver_register(&snd_smdk_driver);
-}
-
-module_init(smdk_audio_init);
-
-static void __exit smdk_audio_exit(void)
-{
-	platform_driver_unregister(&snd_smdk_driver);
-}
-
-module_exit(smdk_audio_exit);
+module_platform_driver(snd_smdk_driver);
 
 MODULE_AUTHOR("Sangbeom Kim, <sbkim73@samsung.com>");
 MODULE_DESCRIPTION("ALSA SoC SMDK WM8994 for PCM");
