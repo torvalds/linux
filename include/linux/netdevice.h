@@ -1859,6 +1859,34 @@ static inline int netif_xmit_frozen_or_stopped(const struct netdev_queue *dev_qu
 	return dev_queue->state & QUEUE_STATE_ANY_XOFF_OR_FROZEN;
 }
 
+static inline void netdev_tx_sent_queue(struct netdev_queue *dev_queue,
+					unsigned int bytes)
+{
+}
+
+static inline void netdev_sent_queue(struct net_device *dev, unsigned int bytes)
+{
+	netdev_tx_sent_queue(netdev_get_tx_queue(dev, 0), bytes);
+}
+
+static inline void netdev_tx_completed_queue(struct netdev_queue *dev_queue,
+					     unsigned pkts, unsigned bytes)
+{
+}
+
+static inline void netdev_completed_queue(struct net_device *dev,
+					  unsigned pkts, unsigned bytes)
+{
+	netdev_tx_completed_queue(netdev_get_tx_queue(dev, 0), pkts, bytes);
+}
+
+static inline void netdev_tx_reset_queue(struct netdev_queue *q)
+{
+}
+
+static inline void netdev_reset_queue(struct net_device *dev_queue)
+{
+	netdev_tx_reset_queue(netdev_get_tx_queue(dev_queue, 0));
 }
 
 /**
