@@ -245,5 +245,13 @@
 #define SW_G2D_MEM_BASE                   0x58000000
 #define SW_G2D_MEM_MAX                    0x1000000
 
+/**
+*@name DRAM controller register address
+*@{
+*/
+#define SW_DRAM_SDR_CTL_REG               (SW_VA_DRAM_IO_BASE + 0x0C)
+#define SW_DRAM_SDR_DCR                   (SW_VA_DRAM_IO_BASE + 0x04)
+
+
 #endif
 
