@@ -342,7 +342,7 @@ static void sunximmc_finalize_request(struct sunxi_mmc_host *smc_host)
 static s32 sunximmc_get_ro(struct mmc_host *mmc)
 {
     struct sunxi_mmc_host *smc_host = mmc_priv(mmc);
-    char mmc_para[4] = {0};
+    char mmc_para[16] = {0};
     int card_wp = 0;
     int ret;
     u32 gpio_val;
