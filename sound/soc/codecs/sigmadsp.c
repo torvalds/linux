@@ -124,18 +124,25 @@ int process_sigma_firmware(struct i2c_client *client, const char *name)
 	 * purposes and having the limit makes it easier to avoid integer
 	 * overflows later in the loading process.
 	 */
-	if (fw->size < sizeof(*ssfw_head) || fw->size >= 0x4000000)
+	if (fw->size < sizeof(*ssfw_head) || fw->size >= 0x4000000) {
+		dev_err(&client->dev, "Failed to load firmware: Invalid size\n");
 		goto done;
+	}
 
 	ssfw_head = (void *)fw->data;
-	if (memcmp(ssfw_head->magic, SIGMA_MAGIC, ARRAY_SIZE(ssfw_head->magic)))
+	if (memcmp(ssfw_head->magic, SIGMA_MAGIC, ARRAY_SIZE(ssfw_head->magic))) {
+		dev_err(&client->dev, "Failed to load firmware: Invalid magic\n");
 		goto done;
+	}
 
 	crc = crc32(0, fw->data + sizeof(*ssfw_head),
 			fw->size - sizeof(*ssfw_head));
 	pr_debug("%s: crc=%x\n", __func__, crc);
-	if (crc != le32_to_cpu(ssfw_head->crc))
+	if (crc != le32_to_cpu(ssfw_head->crc)) {
+		dev_err(&client->dev, "Failed to load firmware: Wrong crc checksum: expected %x got %x\n",
+			le32_to_cpu(ssfw_head->crc), crc);
 		goto done;
+	}
 
 	ssfw.pos = sizeof(*ssfw_head);
 
