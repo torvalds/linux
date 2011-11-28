@@ -316,6 +316,7 @@ acpi_ex_access_region(union acpi_operand_object *obj_desc,
 static u8
 acpi_ex_register_overflow(union acpi_operand_object *obj_desc, u64 value)
 {
+	ACPI_FUNCTION_NAME(ex_register_overflow);
 
 	if (obj_desc->common_field.bit_length >= ACPI_INTEGER_BIT_SIZE) {
 		/*
@@ -330,6 +331,11 @@ acpi_ex_register_overflow(union acpi_operand_object *obj_desc, u64 value)
 		 * The Value is larger than the maximum value that can fit into
 		 * the register.
 		 */
+		ACPI_ERROR((AE_INFO,
+			    "Index value 0x%8.8X%8.8X overflows field width 0x%X",
+			    ACPI_FORMAT_UINT64(value),
+			    obj_desc->common_field.bit_length));
+
 		return (TRUE);
 	}
 
