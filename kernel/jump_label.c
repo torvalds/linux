@@ -71,6 +71,7 @@ void jump_label_inc(struct jump_label_key *key)
 	atomic_inc(&key->enabled);
 	jump_label_unlock();
 }
+EXPORT_SYMBOL_GPL(jump_label_inc);
 
 void jump_label_dec(struct jump_label_key *key)
 {
@@ -80,6 +81,7 @@ void jump_label_dec(struct jump_label_key *key)
 	jump_label_update(key, JUMP_LABEL_DISABLE);
 	jump_label_unlock();
 }
+EXPORT_SYMBOL_GPL(jump_label_dec);
 
 static int addr_conflict(struct jump_entry *entry, void *start, void *end)
 {
