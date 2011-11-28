@@ -1098,6 +1098,7 @@ int vmw_kms_present(struct vmw_private *dev_priv,
 	size_t fifo_size;
 	int i, k, num_units;
 	int ret = 0; /* silence warning */
+	int left, right, top, bottom;
 
 	struct {
 		SVGA3dCmdHeader header;
@@ -1122,30 +1123,42 @@ int vmw_kms_present(struct vmw_private *dev_priv,
 		return -ENOMEM;
 	}
 
+	left = clips->x;
+	right = clips->x + clips->w;
+	top = clips->y;
+	bottom = clips->y + clips->h;
+
+	for (i = 1; i < num_clips; i++) {
+		left = min_t(int, left, (int)clips[i].x);
+		right = max_t(int, right, (int)clips[i].x + clips[i].w);
+		top = min_t(int, top, (int)clips[i].y);
+		bottom = max_t(int, bottom, (int)clips[i].y + clips[i].h);
+	}
+
 	/* only need to do this once */
 	memset(cmd, 0, fifo_size);
 	cmd->header.id = cpu_to_le32(SVGA_3D_CMD_BLIT_SURFACE_TO_SCREEN);
 	cmd->header.size = cpu_to_le32(fifo_size - sizeof(cmd->header));
 
-	cmd->body.srcRect.left = 0;
-	cmd->body.srcRect.right = surface->sizes[0].width;
-	cmd->body.srcRect.top = 0;
-	cmd->body.srcRect.bottom = surface->sizes[0].height;
+	cmd->body.srcRect.left = left;
+	cmd->body.srcRect.right = right;
+	cmd->body.srcRect.top = top;
+	cmd->body.srcRect.bottom = bottom;
 
 	blits = (SVGASignedRect *)&cmd[1];
 	for (i = 0; i < num_clips; i++) {
-		blits[i].left   = clips[i].x;
-		blits[i].right  = clips[i].x + clips[i].w;
-		blits[i].top    = clips[i].y;
-		blits[i].bottom = clips[i].y + clips[i].h;
+		blits[i].left   = clips[i].x - left;
+		blits[i].right  = clips[i].x + clips[i].w - left;
+		blits[i].top    = clips[i].y - top;
+		blits[i].bottom = clips[i].y + clips[i].h - top;
 	}
 
 	for (k = 0; k < num_units; k++) {
 		struct vmw_display_unit *unit = units[k];
-		int clip_x1 = destX - unit->crtc.x;
-		int clip_y1 = destY - unit->crtc.y;
-		int clip_x2 = clip_x1 + surface->sizes[0].width;
-		int clip_y2 = clip_y1 + surface->sizes[0].height;
+		int clip_x1 = left + destX - unit->crtc.x;
+		int clip_y1 = top + destY - unit->crtc.y;
+		int clip_x2 = right + destX - unit->crtc.x;
+		int clip_y2 = bottom + destY - unit->crtc.y;
 
 		/* skip any crtcs that misses the clip region */
 		if (clip_x1 >= unit->crtc.mode.hdisplay ||
