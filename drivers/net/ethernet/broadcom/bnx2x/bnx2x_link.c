@@ -11308,7 +11308,9 @@ static int bnx2x_populate_int_phy(struct bnx2x *bp, u32 shmem_base, u8 port,
 				       offsetof(struct shmem_region,
 			dev_info.port_feature_config[port].link_config)) &
 			  PORT_FEATURE_CONNECTED_SWITCH_MASK);
-	chip_id = REG_RD(bp, MISC_REG_CHIP_NUM) << 16;
+	chip_id = (REG_RD(bp, MISC_REG_CHIP_NUM) << 16) |
+		((REG_RD(bp, MISC_REG_CHIP_REV) & 0xf) << 12);
+
 	DP(NETIF_MSG_LINK, ":chip_id = 0x%x\n", chip_id);
 	if (USES_WARPCORE(bp)) {
 		u32 serdes_net_if;
