@@ -7017,6 +7017,13 @@ int bnx2x_set_eth_mac(struct bnx2x *bp, bool set)
 {
 	unsigned long ramrod_flags = 0;
 
+#ifdef BCM_CNIC
+	if (is_zero_ether_addr(bp->dev->dev_addr) && IS_MF_ISCSI_SD(bp)) {
+		DP(NETIF_MSG_IFUP, "Ignoring Zero MAC for iSCSI SD mode\n");
+		return 0;
+	}
+#endif
+
 	DP(NETIF_MSG_IFUP, "Adding Eth MAC\n");
 
 	__set_bit(RAMROD_COMP_WAIT, &ramrod_flags);
@@ -9400,7 +9407,8 @@ static void __devinit bnx2x_get_mac_hwinfo(struct bnx2x *bp)
 			bnx2x_set_mac_buf(bp->dev->dev_addr, val, val2);
 
 #ifdef BCM_CNIC
-		/* iSCSI and FCoE NPAR MACs: if there is no either iSCSI or
+		/*
+		 * iSCSI and FCoE NPAR MACs: if there is no either iSCSI or
 		 * FCoE MAC then the appropriate feature should be disabled.
 		 */
 		if (IS_MF_SI(bp)) {
@@ -9422,11 +9430,22 @@ static void __devinit bnx2x_get_mac_hwinfo(struct bnx2x *bp)
 				val = MF_CFG_RD(bp, func_ext_config[func].
 						    fcoe_mac_addr_lower);
 				bnx2x_set_mac_buf(fip_mac, val, val2);
-				BNX2X_DEV_INFO("Read FCoE L2 MAC to %pM\n",
+				BNX2X_DEV_INFO("Read FCoE L2 MAC: %pM\n",
 					       fip_mac);
 
 			} else
 				bp->flags |= NO_FCOE_FLAG;
+		} else { /* SD mode */
+			if (BNX2X_IS_MF_PROTOCOL_ISCSI(bp)) {
+				/* use primary mac as iscsi mac */
+				memcpy(iscsi_mac, bp->dev->dev_addr, ETH_ALEN);
+				/* Zero primary MAC configuration */
+				memset(bp->dev->dev_addr, 0, ETH_ALEN);
+
+				BNX2X_DEV_INFO("SD ISCSI MODE\n");
+				BNX2X_DEV_INFO("Read iSCSI MAC: %pM\n",
+					       iscsi_mac);
+			}
 		}
 #endif
 	} else {
@@ -9475,7 +9494,7 @@ static void __devinit bnx2x_get_mac_hwinfo(struct bnx2x *bp)
 	}
 #endif
 
-	if (!is_valid_ether_addr(bp->dev->dev_addr))
+	if (!bnx2x_is_valid_ether_addr(bp, bp->dev->dev_addr))
 		dev_err(&bp->pdev->dev,
 			"bad Ethernet MAC address configuration: "
 			"%pM, change it manually before bringing up "
@@ -9866,15 +9885,20 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 
 	bp->multi_mode = multi_mode;
 
+	bp->disable_tpa = disable_tpa;
+
+#ifdef BCM_CNIC
+	bp->disable_tpa |= IS_MF_ISCSI_SD(bp);
+#endif
+
 	/* Set TPA flags */
-	if (disable_tpa) {
+	if (bp->disable_tpa) {
 		bp->flags &= ~TPA_ENABLE_FLAG;
 		bp->dev->features &= ~NETIF_F_LRO;
 	} else {
 		bp->flags |= TPA_ENABLE_FLAG;
 		bp->dev->features |= NETIF_F_LRO;
 	}
-	bp->disable_tpa = disable_tpa;
 
 	if (CHIP_IS_E1(bp))
 		bp->dropless_fc = 0;
@@ -10145,6 +10169,11 @@ void bnx2x_set_rx_mode(struct net_device *dev)
 	}
 
 	bp->rx_mode = rx_mode;
+#ifdef BCM_CNIC
+	/* handle ISCSI SD mode */
+	if (IS_MF_ISCSI_SD(bp))
+		bp->rx_mode = BNX2X_RX_MODE_NONE;
+#endif
 
 	/* Schedule the rx_mode command */
 	if (test_bit(BNX2X_FILTER_RX_MODE_PENDING, &bp->sp_state)) {
@@ -10224,6 +10253,15 @@ static void poll_bnx2x(struct net_device *dev)
 }
 #endif
 
+static int bnx2x_validate_addr(struct net_device *dev)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+
+	if (!bnx2x_is_valid_ether_addr(bp, dev->dev_addr))
+		return -EADDRNOTAVAIL;
+	return 0;
+}
+
 static const struct net_device_ops bnx2x_netdev_ops = {
 	.ndo_open		= bnx2x_open,
 	.ndo_stop		= bnx2x_close,
@@ -10231,7 +10269,7 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 	.ndo_select_queue	= bnx2x_select_queue,
 	.ndo_set_rx_mode	= bnx2x_set_rx_mode,
 	.ndo_set_mac_address	= bnx2x_change_mac_addr,
-	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_validate_addr	= bnx2x_validate_addr,
 	.ndo_do_ioctl		= bnx2x_ioctl,
 	.ndo_change_mtu		= bnx2x_change_mtu,
 	.ndo_fix_features	= bnx2x_fix_features,

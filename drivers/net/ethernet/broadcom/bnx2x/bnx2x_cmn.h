@@ -20,6 +20,7 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
+#include <linux/etherdevice.h>
 
 
 #include "bnx2x.h"
@@ -1552,6 +1553,17 @@ static inline void bnx2x_update_drv_flags(struct bnx2x *bp, u32 flags, u32 set)
 		DP(NETIF_MSG_HW, "drv_flags 0x%08x\n", drv_flags);
 		bnx2x_release_hw_lock(bp, HW_LOCK_DRV_FLAGS);
 	}
+}
+
+static inline bool bnx2x_is_valid_ether_addr(struct bnx2x *bp, u8 *addr)
+{
+	if (is_valid_ether_addr(addr))
+		return true;
+#ifdef BCM_CNIC
+	if (is_zero_ether_addr(addr) && IS_MF_ISCSI_SD(bp))
+		return true;
+#endif
+	return false;
 }
 
 #endif /* BNX2X_CMN_H */

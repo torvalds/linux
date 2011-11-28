@@ -1441,6 +1441,11 @@ void bnx2x_set_num_queues(struct bnx2x *bp)
 		break;
 	}
 
+#ifdef BCM_CNIC
+	/* override in ISCSI SD mod */
+	if (IS_MF_ISCSI_SD(bp))
+		bp->num_queues = 1;
+#endif
 	/* Add special queues */
 	bp->num_queues += NON_ETH_CONTEXT_USE;
 }
@@ -2988,8 +2993,13 @@ int bnx2x_change_mac_addr(struct net_device *dev, void *p)
 	struct bnx2x *bp = netdev_priv(dev);
 	int rc = 0;
 
-	if (!is_valid_ether_addr((u8 *)(addr->sa_data)))
+	if (!bnx2x_is_valid_ether_addr(bp, addr->sa_data))
 		return -EINVAL;
+
+#ifdef BCM_CNIC
+	if (IS_MF_ISCSI_SD(bp) && !is_zero_ether_addr(addr->sa_data))
+		return -EINVAL;
+#endif
 
 	if (netif_running(dev))  {
 		rc = bnx2x_set_eth_mac(bp, false);
@@ -3105,7 +3115,12 @@ static int bnx2x_alloc_fp_mem_at(struct bnx2x *bp, int index)
 	u8 cos;
 	int rx_ring_size = 0;
 
-	/* if rx_ring_size specified - use it */
+#ifdef BCM_CNIC
+	if (IS_MF_ISCSI_SD(bp)) {
+		rx_ring_size = MIN_RX_SIZE_NONTPA;
+		bp->rx_ring_size = rx_ring_size;
+	} else
+#endif
 	if (!bp->rx_ring_size) {
 
 		rx_ring_size = MAX_RX_AVAIL/BNX2X_NUM_RX_QUEUES(bp);
@@ -3115,7 +3130,7 @@ static int bnx2x_alloc_fp_mem_at(struct bnx2x *bp, int index)
 				     MIN_RX_SIZE_TPA, rx_ring_size);
 
 		bp->rx_ring_size = rx_ring_size;
-	} else
+	} else /* if rx_ring_size specified - use it */
 		rx_ring_size = bp->rx_ring_size;
 
 	/* Common */
