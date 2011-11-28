@@ -178,9 +178,21 @@ static int default_polling_getkey(struct tm6000_IR *ir,
 			poll_result->rc_data = ir->urb_data[0];
 			break;
 		case RC_TYPE_NEC:
-			if (ir->urb_data[1] == ((ir->key_addr >> 8) & 0xff)) {
+			switch (dev->model) {
+			case 10:
+			case 11:
+			case 14:
+			case 15:
+				if (ir->urb_data[1] ==
+					((ir->key_addr >> 8) & 0xff)) {
+					poll_result->rc_data =
+					ir->urb_data[0]
+					| ir->urb_data[1] << 8;
+				}
+				break;
+			default:
 				poll_result->rc_data = ir->urb_data[0]
-							| ir->urb_data[1] << 8;
+					| ir->urb_data[1] << 8;
 			}
 			break;
 		default:
@@ -238,8 +250,6 @@ static void tm6000_ir_handle_key(struct tm6000_IR *ir)
 		return;
 	}
 
-	dprintk("ir->get_key result data=%04x\n", poll_result.rc_data);
-
 	if (ir->pwled) {
 		if (ir->pwledcnt >= PWLED_OFF) {
 			ir->pwled = 0;
@@ -250,6 +260,7 @@ static void tm6000_ir_handle_key(struct tm6000_IR *ir)
 	}
 
 	if (ir->key) {
+		dprintk("ir->get_key result data=%04x\n", poll_result.rc_data);
 		rc_keydown(ir->rc, poll_result.rc_data, 0);
 		ir->key = 0;
 		ir->pwled = 1;
@@ -333,7 +344,7 @@ int tm6000_ir_int_start(struct tm6000_core *dev)
 		ir->int_urb->transfer_buffer, size,
 		tm6000_ir_urb_received, dev,
 		dev->int_in.endp->desc.bInterval);
-	err = usb_submit_urb(ir->int_urb, GFP_KERNEL);
+	err = usb_submit_urb(ir->int_urb, GFP_ATOMIC);
 	if (err) {
 		kfree(ir->int_urb->transfer_buffer);
 		usb_free_urb(ir->int_urb);
