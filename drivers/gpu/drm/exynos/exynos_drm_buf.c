@@ -27,82 +27,84 @@
 #include "drm.h"
 
 #include "exynos_drm_drv.h"
+#include "exynos_drm_gem.h"
 #include "exynos_drm_buf.h"
 
-static DEFINE_MUTEX(exynos_drm_buf_lock);
-
 static int lowlevel_buffer_allocate(struct drm_device *dev,
-		struct exynos_drm_buf_entry *entry)
+		struct exynos_drm_gem_buf *buffer)
 {
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	entry->vaddr = dma_alloc_writecombine(dev->dev, entry->size,
-			(dma_addr_t *)&entry->paddr, GFP_KERNEL);
-	if (!entry->paddr) {
+	buffer->kvaddr = dma_alloc_writecombine(dev->dev, buffer->size,
+			&buffer->dma_addr, GFP_KERNEL);
+	if (!buffer->kvaddr) {
 		DRM_ERROR("failed to allocate buffer.\n");
 		return -ENOMEM;
 	}
 
-	DRM_DEBUG_KMS("allocated : vaddr(0x%x), paddr(0x%x), size(0x%x)\n",
-			(unsigned int)entry->vaddr, entry->paddr, entry->size);
+	DRM_DEBUG_KMS("vaddr(0x%lx), dma_addr(0x%lx), size(0x%lx)\n",
+			(unsigned long)buffer->kvaddr,
+			(unsigned long)buffer->dma_addr,
+			buffer->size);
 
 	return 0;
 }
 
 static void lowlevel_buffer_deallocate(struct drm_device *dev,
-		struct exynos_drm_buf_entry *entry)
+		struct exynos_drm_gem_buf *buffer)
 {
 	DRM_DEBUG_KMS("%s.\n", __FILE__);
 
-	if (entry->paddr && entry->vaddr && entry->size)
-		dma_free_writecombine(dev->dev, entry->size, entry->vaddr,
-				entry->paddr);
+	if (buffer->dma_addr && buffer->size)
+		dma_free_writecombine(dev->dev, buffer->size, buffer->kvaddr,
+				(dma_addr_t)buffer->dma_addr);
 	else
-		DRM_DEBUG_KMS("entry data is null.\n");
+		DRM_DEBUG_KMS("buffer data are invalid.\n");
 }
 
-struct exynos_drm_buf_entry *exynos_drm_buf_create(struct drm_device *dev,
+struct exynos_drm_gem_buf *exynos_drm_buf_create(struct drm_device *dev,
 		unsigned int size)
 {
-	struct exynos_drm_buf_entry *entry;
+	struct exynos_drm_gem_buf *buffer;
 
 	DRM_DEBUG_KMS("%s.\n", __FILE__);
+	DRM_DEBUG_KMS("desired size = 0x%x\n", size);
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry) {
-		DRM_ERROR("failed to allocate exynos_drm_buf_entry.\n");
+	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
+	if (!buffer) {
+		DRM_ERROR("failed to allocate exynos_drm_gem_buf.\n");
 		return ERR_PTR(-ENOMEM);
 	}
 
-	entry->size = size;
+	buffer->size = size;
 
 	/*
 	 * allocate memory region with size and set the memory information
-	 * to vaddr and paddr of a entry object.
+	 * to vaddr and dma_addr of a buffer object.
 	 */
-	if (lowlevel_buffer_allocate(dev, entry) < 0) {
-		kfree(entry);
-		entry = NULL;
+	if (lowlevel_buffer_allocate(dev, buffer) < 0) {
+		kfree(buffer);
+		buffer = NULL;
 		return ERR_PTR(-ENOMEM);
 	}
 
-	return entry;
+	return buffer;
 }
 
 void exynos_drm_buf_destroy(struct drm_device *dev,
-		struct exynos_drm_buf_entry *entry)
+		struct exynos_drm_gem_buf *buffer)
 {
 	DRM_DEBUG_KMS("%s.\n", __FILE__);
 
-	if (!entry) {
-		DRM_DEBUG_KMS("entry is null.\n");
+	if (!buffer) {
+		DRM_DEBUG_KMS("buffer is null.\n");
 		return;
 	}
 
-	lowlevel_buffer_deallocate(dev, entry);
+	lowlevel_buffer_deallocate(dev, buffer);
 
-	kfree(entry);
-	entry = NULL;
+	kfree(buffer);
+	buffer = NULL;
 }
 
 MODULE_AUTHOR("Inki Dae <inki.dae@samsung.com>");

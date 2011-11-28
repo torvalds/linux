@@ -64,7 +64,7 @@ struct fimd_win_data {
 	unsigned int		fb_width;
 	unsigned int		fb_height;
 	unsigned int		bpp;
-	dma_addr_t		paddr;
+	dma_addr_t		dma_addr;
 	void __iomem		*vaddr;
 	unsigned int		buf_offsize;
 	unsigned int		line_size;	/* bytes */
@@ -124,7 +124,7 @@ static int fimd_display_power_on(struct device *dev, int mode)
 	return 0;
 }
 
-static struct exynos_drm_display fimd_display = {
+static struct exynos_drm_display_ops fimd_display_ops = {
 	.type = EXYNOS_DISPLAY_TYPE_LCD,
 	.is_connected = fimd_display_is_connected,
 	.get_timing = fimd_get_timing,
@@ -177,6 +177,40 @@ static void fimd_commit(struct device *dev)
 	writel(val, ctx->regs + VIDCON0);
 }
 
+static void fimd_disable(struct device *dev)
+{
+	struct fimd_context *ctx = get_fimd_context(dev);
+	struct exynos_drm_subdrv *subdrv = &ctx->subdrv;
+	struct drm_device *drm_dev = subdrv->drm_dev;
+	struct exynos_drm_manager *manager = &subdrv->manager;
+	u32 val;
+
+	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	/* fimd dma off */
+	val = readl(ctx->regs + VIDCON0);
+	val &= ~(VIDCON0_ENVID | VIDCON0_ENVID_F);
+	writel(val, ctx->regs + VIDCON0);
+
+	/*
+	 * if vblank is enabled status with dma off then
+	 * it disables vsync interrupt.
+	 */
+	if (drm_dev->vblank_enabled[manager->pipe] &&
+		atomic_read(&drm_dev->vblank_refcount[manager->pipe])) {
+		drm_vblank_put(drm_dev, manager->pipe);
+
+		/*
+		 * if vblank_disable_allowed is 0 then disable
+		 * vsync interrupt right now else the vsync interrupt
+		 * would be disabled by drm timer once a current process
+		 * gives up ownershop of vblank event.
+		 */
+		if (!drm_dev->vblank_disable_allowed)
+			drm_vblank_off(drm_dev, manager->pipe);
+	}
+}
+
 static int fimd_enable_vblank(struct device *dev)
 {
 	struct fimd_context *ctx = get_fimd_context(dev);
@@ -220,6 +254,7 @@ static void fimd_disable_vblank(struct device *dev)
 
 static struct exynos_drm_manager_ops fimd_manager_ops = {
 	.commit = fimd_commit,
+	.disable = fimd_disable,
 	.enable_vblank = fimd_enable_vblank,
 	.disable_vblank = fimd_disable_vblank,
 };
@@ -251,7 +286,7 @@ static void fimd_win_mode_set(struct device *dev,
 	win_data->ovl_height = overlay->crtc_height;
 	win_data->fb_width = overlay->fb_width;
 	win_data->fb_height = overlay->fb_height;
-	win_data->paddr = overlay->paddr + offset;
+	win_data->dma_addr = overlay->dma_addr + offset;
 	win_data->vaddr = overlay->vaddr + offset;
 	win_data->bpp = overlay->bpp;
 	win_data->buf_offsize = (overlay->fb_width - overlay->crtc_width) *
@@ -263,7 +298,7 @@ static void fimd_win_mode_set(struct device *dev,
 	DRM_DEBUG_KMS("ovl_width = %d, ovl_height = %d\n",
 			win_data->ovl_width, win_data->ovl_height);
 	DRM_DEBUG_KMS("paddr = 0x%lx, vaddr = 0x%lx\n",
-			(unsigned long)win_data->paddr,
+			(unsigned long)win_data->dma_addr,
 			(unsigned long)win_data->vaddr);
 	DRM_DEBUG_KMS("fb_width = %d, crtc_width = %d\n",
 			overlay->fb_width, overlay->crtc_width);
@@ -376,16 +411,16 @@ static void fimd_win_commit(struct device *dev)
 	writel(val, ctx->regs + SHADOWCON);
 
 	/* buffer start address */
-	val = win_data->paddr;
+	val = (unsigned long)win_data->dma_addr;
 	writel(val, ctx->regs + VIDWx_BUF_START(win, 0));
 
 	/* buffer end address */
 	size = win_data->fb_width * win_data->ovl_height * (win_data->bpp >> 3);
-	val = win_data->paddr + size;
+	val = (unsigned long)(win_data->dma_addr + size);
 	writel(val, ctx->regs + VIDWx_BUF_END(win, 0));
 
 	DRM_DEBUG_KMS("start addr = 0x%lx, end addr = 0x%lx, size = 0x%lx\n",
-			(unsigned long)win_data->paddr, val, size);
+			(unsigned long)win_data->dma_addr, val, size);
 	DRM_DEBUG_KMS("ovl_width = %d, ovl_height = %d\n",
 			win_data->ovl_width, win_data->ovl_height);
 
@@ -447,7 +482,6 @@ static void fimd_win_commit(struct device *dev)
 static void fimd_win_disable(struct device *dev)
 {
 	struct fimd_context *ctx = get_fimd_context(dev);
-	struct fimd_win_data *win_data;
 	int win = ctx->default_win;
 	u32 val;
 
@@ -455,8 +489,6 @@ static void fimd_win_disable(struct device *dev)
 
 	if (win < 0 || win > WINDOWS_NR)
 		return;
-
-	win_data = &ctx->win_data[win];
 
 	/* protect windows */
 	val = readl(ctx->regs + SHADOWCON);
@@ -528,6 +560,16 @@ static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 		/* VSYNC interrupt */
 		writel(VIDINTCON1_INT_FRAME, ctx->regs + VIDINTCON1);
 
+	/*
+	 * in case that vblank_disable_allowed is 1, it could induce
+	 * the problem that manager->pipe could be -1 because with
+	 * disable callback, vsync interrupt isn't disabled and at this moment,
+	 * vsync interrupt could occur. the vsync interrupt would be disabled
+	 * by timer handler later.
+	 */
+	if (manager->pipe == -1)
+		return IRQ_HANDLED;
+
 	drm_handle_vblank(drm_dev, manager->pipe);
 	fimd_finish_pageflip(drm_dev, manager->pipe);
 
@@ -547,13 +589,6 @@ static int fimd_subdrv_probe(struct drm_device *drm_dev, struct device *dev)
 	 *	drm framework supports only one irq handler.
 	 */
 	drm_dev->irq_enabled = 1;
-
-	/*
-	 * with vblank_disable_allowed = 1, vblank interrupt will be disabled
-	 * by drm timer once a current process gives up ownership of
-	 * vblank event.(drm_vblank_put function was called)
-	 */
-	drm_dev->vblank_disable_allowed = 1;
 
 	return 0;
 }
@@ -731,7 +766,7 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 	subdrv->manager.pipe = -1;
 	subdrv->manager.ops = &fimd_manager_ops;
 	subdrv->manager.overlay_ops = &fimd_overlay_ops;
-	subdrv->manager.display = &fimd_display;
+	subdrv->manager.display_ops = &fimd_display_ops;
 	subdrv->manager.dev = dev;
 
 	platform_set_drvdata(pdev, ctx);
