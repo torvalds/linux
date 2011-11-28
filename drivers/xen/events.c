@@ -1104,6 +1104,9 @@ int evtchn_get(unsigned int evtchn)
 	struct irq_info *info;
 	int err = -ENOENT;
 
+	if (evtchn >= NR_EVENT_CHANNELS)
+		return -EINVAL;
+
 	mutex_lock(&irq_mapping_update_lock);
 
 	irq = evtchn_to_irq[evtchn];
