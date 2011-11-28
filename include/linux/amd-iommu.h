@@ -28,9 +28,6 @@ struct task_struct;
 struct pci_dev;
 
 extern int amd_iommu_detect(void);
-extern int amd_iommu_bind_pasid(struct pci_dev *pdev, int pasid,
-				struct task_struct *task);
-extern void amd_iommu_unbind_pasid(struct pci_dev *pdev, int pasid);
 
 
 /**
@@ -90,6 +87,37 @@ extern int amd_iommu_bind_pasid(struct pci_dev *pdev, int pasid,
  * and the PASID is no longer bound to its task.
  */
 extern void amd_iommu_unbind_pasid(struct pci_dev *pdev, int pasid);
+
+/**
+ * amd_iommu_set_invalid_ppr_cb() - Register a call-back for failed
+ *				    PRI requests
+ * @pdev: The PCI device the call-back should be registered for
+ * @cb: The call-back function
+ *
+ * The IOMMUv2 driver invokes this call-back when it is unable to
+ * successfully handle a PRI request. The device driver can then decide
+ * which PRI response the device should see. Possible return values for
+ * the call-back are:
+ *
+ * - AMD_IOMMU_INV_PRI_RSP_SUCCESS - Send SUCCESS back to the device
+ * - AMD_IOMMU_INV_PRI_RSP_INVALID - Send INVALID back to the device
+ * - AMD_IOMMU_INV_PRI_RSP_FAIL    - Send Failure back to the device,
+ *				     the device is required to disable
+ *				     PRI when it receives this response
+ *
+ * The function returns 0 on success or negative value on error.
+ */
+#define AMD_IOMMU_INV_PRI_RSP_SUCCESS	0
+#define AMD_IOMMU_INV_PRI_RSP_INVALID	1
+#define AMD_IOMMU_INV_PRI_RSP_FAIL	2
+
+typedef int (*amd_iommu_invalid_ppr_cb)(struct pci_dev *pdev,
+					int pasid,
+					unsigned long address,
+					u16);
+
+extern int amd_iommu_set_invalid_ppr_cb(struct pci_dev *pdev,
+					amd_iommu_invalid_ppr_cb cb);
 
 #else
 

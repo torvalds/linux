@@ -62,6 +62,7 @@ struct device_state {
 	struct iommu_domain *domain;
 	int pasid_levels;
 	int max_pasids;
+	amd_iommu_invalid_ppr_cb inv_ppr_cb;
 	spinlock_t lock;
 	wait_queue_head_t wq;
 };
@@ -505,10 +506,31 @@ static void do_fault(struct work_struct *work)
 	npages = get_user_pages(fault->state->task, fault->state->mm,
 				fault->address, 1, write, 0, &page, NULL);
 
-	if (npages == 1)
+	if (npages == 1) {
 		put_page(page);
-	else
+	} else if (fault->dev_state->inv_ppr_cb) {
+		int status;
+
+		status = fault->dev_state->inv_ppr_cb(fault->dev_state->pdev,
+						      fault->pasid,
+						      fault->address,
+						      fault->flags);
+		switch (status) {
+		case AMD_IOMMU_INV_PRI_RSP_SUCCESS:
+			set_pri_tag_status(fault->state, fault->tag, PPR_SUCCESS);
+			break;
+		case AMD_IOMMU_INV_PRI_RSP_INVALID:
+			set_pri_tag_status(fault->state, fault->tag, PPR_INVALID);
+			break;
+		case AMD_IOMMU_INV_PRI_RSP_FAIL:
+			set_pri_tag_status(fault->state, fault->tag, PPR_FAILURE);
+			break;
+		default:
+			BUG();
+		}
+	} else {
 		set_pri_tag_status(fault->state, fault->tag, PPR_INVALID);
+	}
 
 	finish_pri_tag(fault->dev_state, fault->state, fault->tag);
 
@@ -827,6 +849,37 @@ void amd_iommu_free_device(struct pci_dev *pdev)
 	put_device_state_wait(dev_state);
 }
 EXPORT_SYMBOL(amd_iommu_free_device);
+
+int amd_iommu_set_invalid_ppr_cb(struct pci_dev *pdev,
+				 amd_iommu_invalid_ppr_cb cb)
+{
+	struct device_state *dev_state;
+	unsigned long flags;
+	u16 devid;
+	int ret;
+
+	if (!amd_iommu_v2_supported())
+		return -ENODEV;
+
+	devid = device_id(pdev);
+
+	spin_lock_irqsave(&state_lock, flags);
+
+	ret = -EINVAL;
+	dev_state = state_table[devid];
+	if (dev_state == NULL)
+		goto out_unlock;
+
+	dev_state->inv_ppr_cb = cb;
+
+	ret = 0;
+
+out_unlock:
+	spin_unlock_irqrestore(&state_lock, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL(amd_iommu_set_invalid_ppr_cb);
 
 static int __init amd_iommu_v2_init(void)
 {
