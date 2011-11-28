@@ -2270,7 +2270,7 @@ gso:
 			return rc;
 		}
 		txq_trans_update(txq);
-		if (unlikely(netif_tx_queue_stopped(txq) && skb->next))
+		if (unlikely(netif_xmit_stopped(txq) && skb->next))
 			return NETDEV_TX_BUSY;
 	} while (skb->next);
 
@@ -2558,7 +2558,7 @@ int dev_queue_xmit(struct sk_buff *skb)
 
 			HARD_TX_LOCK(dev, txq, cpu);
 
-			if (!netif_tx_queue_stopped(txq)) {
+			if (!netif_xmit_stopped(txq)) {
 				__this_cpu_inc(xmit_recursion);
 				rc = dev_hard_start_xmit(skb, dev, txq);
 				__this_cpu_dec(xmit_recursion);
