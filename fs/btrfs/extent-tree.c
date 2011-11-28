@@ -5441,9 +5441,6 @@ checks:
 			goto loop;
 		}
 
-		ins->objectid = search_start;
-		ins->offset = num_bytes;
-
 		if (offset < search_start)
 			btrfs_add_free_space(used_block_group, offset,
 					     search_start - offset);
