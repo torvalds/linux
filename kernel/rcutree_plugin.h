@@ -1947,13 +1947,27 @@ EXPORT_SYMBOL_GPL(synchronize_sched_expedited);
  * 1 if so.  This function is part of the RCU implementation; it is -not-
  * an exported member of the RCU API.
  *
- * Because we have preemptible RCU, just check whether this CPU needs
- * any flavor of RCU.  Do not chew up lots of CPU cycles with preemption
- * disabled in a most-likely vain attempt to cause RCU not to need this CPU.
+ * Because we not have RCU_FAST_NO_HZ, just check whether this CPU needs
+ * any flavor of RCU.
  */
 int rcu_needs_cpu(int cpu)
 {
 	return rcu_cpu_has_callbacks(cpu);
+}
+
+/*
+ * Because we do not have RCU_FAST_NO_HZ, don't bother initializing for it.
+ */
+static void rcu_prepare_for_idle_init(int cpu)
+{
+}
+
+/*
+ * Because we do not have RCU_FAST_NO_HZ, don't bother cleaning up
+ * after it.
+ */
+static void rcu_cleanup_after_idle(int cpu)
+{
 }
 
 /*
@@ -1966,9 +1980,12 @@ static void rcu_prepare_for_idle(int cpu)
 
 #else /* #if !defined(CONFIG_RCU_FAST_NO_HZ) */
 
-#define RCU_NEEDS_CPU_FLUSHES 5
+#define RCU_NEEDS_CPU_FLUSHES 5		/* Allow for callback self-repost. */
+#define RCU_IDLE_GP_DELAY 6		/* Roughly one grace period. */
 static DEFINE_PER_CPU(int, rcu_dyntick_drain);
 static DEFINE_PER_CPU(unsigned long, rcu_dyntick_holdoff);
+static DEFINE_PER_CPU(struct hrtimer, rcu_idle_gp_timer);
+static ktime_t rcu_idle_gp_wait;
 
 /*
  * Allow the CPU to enter dyntick-idle mode if either: (1) There are no
@@ -1986,6 +2003,47 @@ int rcu_needs_cpu(int cpu)
 		return 0;
 	/* Otherwise, RCU needs the CPU only if it recently tried and failed. */
 	return per_cpu(rcu_dyntick_holdoff, cpu) == jiffies;
+}
+
+/*
+ * Timer handler used to force CPU to start pushing its remaining RCU
+ * callbacks in the case where it entered dyntick-idle mode with callbacks
+ * pending.  The hander doesn't really need to do anything because the
+ * real work is done upon re-entry to idle, or by the next scheduling-clock
+ * interrupt should idle not be re-entered.
+ */
+static enum hrtimer_restart rcu_idle_gp_timer_func(struct hrtimer *hrtp)
+{
+	trace_rcu_prep_idle("Timer");
+	return HRTIMER_NORESTART;
+}
+
+/*
+ * Initialize the timer used to pull CPUs out of dyntick-idle mode.
+ */
+static void rcu_prepare_for_idle_init(int cpu)
+{
+	static int firsttime = 1;
+	struct hrtimer *hrtp = &per_cpu(rcu_idle_gp_timer, cpu);
+
+	hrtimer_init(hrtp, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtp->function = rcu_idle_gp_timer_func;
+	if (firsttime) {
+		unsigned int upj = jiffies_to_usecs(RCU_IDLE_GP_DELAY);
+
+		rcu_idle_gp_wait = ns_to_ktime(upj * (u64)1000);
+		firsttime = 0;
+	}
+}
+
+/*
+ * Clean up for exit from idle.  Because we are exiting from idle, there
+ * is no longer any point to rcu_idle_gp_timer, so cancel it.  This will
+ * do nothing if this timer is not active, so just cancel it unconditionally.
+ */
+static void rcu_cleanup_after_idle(int cpu)
+{
+	hrtimer_cancel(&per_cpu(rcu_idle_gp_timer, cpu));
 }
 
 /*
@@ -2040,6 +2098,15 @@ static void rcu_prepare_for_idle(int cpu)
 		/* First time through, initialize the counter. */
 		per_cpu(rcu_dyntick_drain, cpu) = RCU_NEEDS_CPU_FLUSHES;
 	} else if (--per_cpu(rcu_dyntick_drain, cpu) <= 0) {
+		/* Can we go dyntick-idle despite still having callbacks? */
+		if (!rcu_pending(cpu)) {
+			trace_rcu_prep_idle("Dyntick with callbacks");
+			per_cpu(rcu_dyntick_holdoff, cpu) = jiffies - 1;
+			hrtimer_start(&per_cpu(rcu_idle_gp_timer, cpu),
+				      rcu_idle_gp_wait, HRTIMER_MODE_REL);
+			return; /* Nothing more to do immediately. */
+		}
+
 		/* We have hit the limit, so time to give up. */
 		per_cpu(rcu_dyntick_holdoff, cpu) = jiffies;
 		local_irq_restore(flags);
