@@ -3183,6 +3183,8 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 		switch (wm8994->revision) {
 		case 0:
 		case 1:
+		case 2:
+		case 3:
 			wm8994->hubs.dcs_codes_l = -9;
 			wm8994->hubs.dcs_codes_r = -5;
 			break;
