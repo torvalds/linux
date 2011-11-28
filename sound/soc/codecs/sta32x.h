@@ -19,6 +19,7 @@
 /* STA326 register addresses */
 
 #define STA32X_REGISTER_COUNT	0x2d
+#define STA32X_COEF_COUNT 62
 
 #define STA32X_CONFA	0x00
 #define STA32X_CONFB    0x01
