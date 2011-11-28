@@ -284,4 +284,5 @@ MACHINE_START(NOMADIK, "NHK8815")
 	.init_irq	= cpu8815_init_irq,
 	.timer		= &nomadik_timer,
 	.init_machine	= nhk8815_platform_init,
+	.restart	= cpu8815_restart,
 MACHINE_END

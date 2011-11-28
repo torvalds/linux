@@ -21,6 +21,7 @@
 #include <linux/device.h>
 #include <linux/amba/bus.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 
 #include <plat/gpio-nomadik.h>
 #include <mach/hardware.h>
@@ -164,4 +165,14 @@ void __init cpu8815_init_irq(void)
 	l2x0_init(io_p2v(NOMADIK_L2CC_BASE), 0x00730249, 0xfe000fff);
 #endif
 	 return;
+}
+
+void cpu8815_restart(char mode, const char *cmd)
+{
+	void __iomem *src_rstsr = io_p2v(NOMADIK_SRC_BASE + 0x18);
+
+	/* FIXME: use egpio when implemented */
+
+	/* Write anything to Reset status register */
+	writel(1, src_rstsr);
 }
