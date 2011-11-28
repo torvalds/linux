@@ -874,23 +874,36 @@ static int bnx2x_ets_e3b0_set_cos_bw(struct bnx2x *bp,
 ******************************************************************************/
 static int bnx2x_ets_e3b0_get_total_bw(
 	const struct link_params *params,
-	const struct bnx2x_ets_params *ets_params,
+	struct bnx2x_ets_params *ets_params,
 	u16 *total_bw)
 {
 	struct bnx2x *bp = params->bp;
 	u8 cos_idx = 0;
+	u8 is_bw_cos_exist = 0;
 
 	*total_bw = 0 ;
+
 	/* Calculate total BW requested */
 	for (cos_idx = 0; cos_idx < ets_params->num_of_cos; cos_idx++) {
 		if (bnx2x_cos_state_bw == ets_params->cos[cos_idx].state) {
+			is_bw_cos_exist = 1;
+			if (!ets_params->cos[cos_idx].params.bw_params.bw) {
+				DP(NETIF_MSG_LINK, "bnx2x_ets_E3B0_config BW"
+						   "was set to 0\n");
+				/*
+				 * This is to prevent a state when ramrods
+				 * can't be sent
+				*/
+				ets_params->cos[cos_idx].params.bw_params.bw
+					 = 1;
+			}
 			*total_bw +=
 				ets_params->cos[cos_idx].params.bw_params.bw;
 		}
 	}
 
 	/* Check total BW is valid */
-	if ((100 != *total_bw) || (0 == *total_bw)) {
+	if ((1 == is_bw_cos_exist) && (100 != *total_bw)) {
 		if (0 == *total_bw) {
 			DP(NETIF_MSG_LINK,
 			   "bnx2x_ets_E3B0_config toatl BW shouldn't be 0\n");
@@ -1100,7 +1113,7 @@ static int bnx2x_ets_e3b0_sp_set_pri_cli_reg(const struct link_params *params,
 ******************************************************************************/
 int bnx2x_ets_e3b0_config(const struct link_params *params,
 			 const struct link_vars *vars,
-			 const struct bnx2x_ets_params *ets_params)
+			 struct bnx2x_ets_params *ets_params)
 {
 	struct bnx2x *bp = params->bp;
 	int bnx2x_status = 0;
