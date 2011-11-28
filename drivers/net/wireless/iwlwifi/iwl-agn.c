@@ -1232,14 +1232,14 @@ int iwl_alive_start(struct iwl_priv *priv)
 		priv->bt_valid = IWLAGN_BT_VALID_ENABLE_FLAGS;
 		priv->cur_rssi_ctx = NULL;
 
-		iwlagn_send_prio_tbl(priv);
+		iwl_send_prio_tbl(trans(priv));
 
 		/* FIXME: w/a to force change uCode BT state machine */
-		ret = iwlagn_send_bt_env(priv, IWL_BT_COEX_ENV_OPEN,
+		ret = iwl_send_bt_env(trans(priv), IWL_BT_COEX_ENV_OPEN,
 					 BT_COEX_PRIO_TBL_EVT_INIT_CALIB2);
 		if (ret)
 			return ret;
-		ret = iwlagn_send_bt_env(priv, IWL_BT_COEX_ENV_CLOSE,
+		ret = iwl_send_bt_env(trans(priv), IWL_BT_COEX_ENV_CLOSE,
 					 BT_COEX_PRIO_TBL_EVT_INIT_CALIB2);
 		if (ret)
 			return ret;
