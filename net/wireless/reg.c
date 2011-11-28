@@ -57,8 +57,17 @@
 #define REG_DBG_PRINT(args...)
 #endif
 
+static struct regulatory_request core_request_world = {
+	.initiator = NL80211_REGDOM_SET_BY_CORE,
+	.alpha2[0] = '0',
+	.alpha2[1] = '0',
+	.intersect = false,
+	.processed = true,
+	.country_ie_env = ENVIRON_ANY,
+};
+
 /* Receipt of information from last regulatory request */
-static struct regulatory_request *last_request;
+static struct regulatory_request *last_request = &core_request_world;
 
 /* To trigger userspace events */
 static struct platform_device *reg_pdev;
@@ -150,7 +159,7 @@ static char user_alpha2[2];
 module_param(ieee80211_regdom, charp, 0444);
 MODULE_PARM_DESC(ieee80211_regdom, "IEEE 802.11 regulatory domain code");
 
-static void reset_regdomains(void)
+static void reset_regdomains(bool full_reset)
 {
 	/* avoid freeing static information or freeing something twice */
 	if (cfg80211_regdomain == cfg80211_world_regdom)
@@ -165,6 +174,13 @@ static void reset_regdomains(void)
 
 	cfg80211_world_regdom = &world_regdom;
 	cfg80211_regdomain = NULL;
+
+	if (!full_reset)
+		return;
+
+	if (last_request != &core_request_world)
+		kfree(last_request);
+	last_request = &core_request_world;
 }
 
 /*
@@ -175,7 +191,7 @@ static void update_world_regdomain(const struct ieee80211_regdomain *rd)
 {
 	BUG_ON(!last_request);
 
-	reset_regdomains();
+	reset_regdomains(false);
 
 	cfg80211_world_regdom = rd;
 	cfg80211_regdomain = rd;
@@ -1396,7 +1412,8 @@ static int __regulatory_hint(struct wiphy *wiphy,
 	}
 
 new_request:
-	kfree(last_request);
+	if (last_request != &core_request_world)
+		kfree(last_request);
 
 	last_request = pending_request;
 	last_request->intersect = intersect;
@@ -1565,9 +1582,6 @@ static void queue_regulatory_request(struct regulatory_request *request)
 static int regulatory_hint_core(const char *alpha2)
 {
 	struct regulatory_request *request;
-
-	kfree(last_request);
-	last_request = NULL;
 
 	request = kzalloc(sizeof(struct regulatory_request),
 			  GFP_KERNEL);
@@ -1766,7 +1780,7 @@ static void restore_regulatory_settings(bool reset_user)
 	mutex_lock(&cfg80211_mutex);
 	mutex_lock(&reg_mutex);
 
-	reset_regdomains();
+	reset_regdomains(true);
 	restore_alpha2(alpha2, reset_user);
 
 	/*
@@ -2035,7 +2049,7 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 		int r;
 
 		if (last_request->initiator != NL80211_REGDOM_SET_BY_DRIVER) {
-			reset_regdomains();
+			reset_regdomains(false);
 			cfg80211_regdomain = rd;
 			return 0;
 		}
@@ -2056,7 +2070,7 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 		if (r)
 			return r;
 
-		reset_regdomains();
+		reset_regdomains(false);
 		cfg80211_regdomain = rd;
 		return 0;
 	}
@@ -2081,7 +2095,7 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 
 		rd = NULL;
 
-		reset_regdomains();
+		reset_regdomains(false);
 		cfg80211_regdomain = intersected_rd;
 
 		return 0;
@@ -2101,7 +2115,7 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 	kfree(rd);
 	rd = NULL;
 
-	reset_regdomains();
+	reset_regdomains(false);
 	cfg80211_regdomain = intersected_rd;
 
 	return 0;
@@ -2254,11 +2268,8 @@ void /* __init_or_exit */ regulatory_exit(void)
 	mutex_lock(&cfg80211_mutex);
 	mutex_lock(&reg_mutex);
 
-	reset_regdomains();
+	reset_regdomains(true);
 
-	kfree(last_request);
-
-	last_request = NULL;
 	dev_set_uevent_suppress(&reg_pdev->dev, true);
 
 	platform_device_unregister(reg_pdev);
