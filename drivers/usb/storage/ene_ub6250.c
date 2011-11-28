@@ -1762,10 +1762,9 @@ static int ms_scsi_write(struct us_data *us, struct scsi_cmnd *srb)
 		result = ene_send_scsi_cmd(us, FDIR_WRITE, scsi_sglist(srb), 1);
 	} else {
 		void *buf;
-		int offset;
+		int offset = 0;
 		u16 PhyBlockAddr;
 		u8 PageNum;
-		u32 result;
 		u16 len, oldphy, newphy;
 
 		buf = kmalloc(blenByte, GFP_KERNEL);
