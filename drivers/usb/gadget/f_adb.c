@@ -466,15 +466,19 @@ adb_function_bind(struct usb_configuration *c, struct usb_function *f)
 
 	/* allocate interface ID(s) */
 	id = usb_interface_id(c, f);
-	if (id < 0)
+	if (id < 0) {
+        printk(KERN_ERR "usb_interface_id failed\n");
 		return id;
+	}
 	adb_interface_desc.bInterfaceNumber = id;
 
 	/* allocate endpoints */
 	ret = adb_create_bulk_endpoints(dev, &adb_fullspeed_in_desc,
 			&adb_fullspeed_out_desc);
-	if (ret)
+	if (ret) {
+        printk(KERN_ERR "adb_create_bulk_endpoints failed\n");
 		return ret;
+	}
 
 	/* support high speed hardware */
 	if (gadget_is_dualspeed(c->cdev->gadget)) {

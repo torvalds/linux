@@ -645,8 +645,9 @@ static int sw_ehci_hcd_suspend(struct device *dev)
 
 	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 
-	sw_stop_ehci(sw_ehci);
 	spin_unlock_irqrestore(&ehci->lock, flags);
+
+	sw_stop_ehci(sw_ehci);
 
 	return 0;
 }

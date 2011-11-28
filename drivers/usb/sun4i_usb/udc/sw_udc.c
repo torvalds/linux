@@ -2700,12 +2700,12 @@ static int sw_udc_set_pullup(struct sw_udc *udc, int is_on)
 {
 	DMSG_DBG_UDC("sw_udc_set_pullup\n");
 
+    is_udc_enable = is_on;
+
 	if(!is_peripheral_active()){
 		DMSG_PANIC("ERR: usb device is not active\n");
 		return 0;
 	}
-
-    is_udc_enable = is_on;
 
 	if(is_on){
 		sw_udc_enable(udc);

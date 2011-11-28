@@ -788,7 +788,11 @@ static int mass_storage_function_init(struct android_usb_function *f,
 
         memset(name, 0, 32);
 
-        snprintf(name, 5, "lun%d\n", i);
+        if(i){
+            snprintf(name, 5, "lun%d\n", i);
+        }else{
+            strcpy(name, "lun");
+        }
 
         printk("lun name: %s\n", name);
 

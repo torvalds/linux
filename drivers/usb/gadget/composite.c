@@ -585,6 +585,9 @@ static int remove_config(struct usb_composite_dev *cdev,
 		config->unbind(config);
 			/* may free memory for "c" */
 	}
+
+    usb_ep_autoconfig_reset(cdev->gadget);
+
 	return 0;
 }
 
