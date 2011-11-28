@@ -289,9 +289,9 @@ static int fd_do_readv(struct se_task *task)
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < task->task_sg_nents; i++) {
-		iov[i].iov_len = sg[i].length;
-		iov[i].iov_base = sg_virt(&sg[i]);
+	for_each_sg(task->task_sg, sg, task->task_sg_nents, i) {
+		iov[i].iov_len = sg->length;
+		iov[i].iov_base = sg_virt(sg);
 	}
 
 	old_fs = get_fs();
@@ -342,9 +342,9 @@ static int fd_do_writev(struct se_task *task)
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < task->task_sg_nents; i++) {
-		iov[i].iov_len = sg[i].length;
-		iov[i].iov_base = sg_virt(&sg[i]);
+	for_each_sg(task->task_sg, sg, task->task_sg_nents, i) {
+		iov[i].iov_len = sg->length;
+		iov[i].iov_base = sg_virt(sg);
 	}
 
 	old_fs = get_fs();
