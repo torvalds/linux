@@ -414,6 +414,9 @@ struct amd_iommu {
 	/* Extended features */
 	u64 features;
 
+	/* IOMMUv2 */
+	bool is_iommu_v2;
+
 	/*
 	 * Capability pointer. There could be more than one IOMMU per PCI
 	 * device function if there are more than one AMD IOMMU capability
@@ -569,6 +572,8 @@ extern bool amd_iommu_unmap_flush;
 
 /* Smallest number of PASIDs supported by any IOMMU in the system */
 extern u32 amd_iommu_max_pasids;
+
+extern bool amd_iommu_v2_present;
 
 /* takes bus and device/function and returns the device id
  * FIXME: should that be in generic PCI code? */

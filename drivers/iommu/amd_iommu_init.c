@@ -25,6 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/msi.h>
 #include <linux/amd-iommu.h>
+#include <linux/export.h>
 #include <asm/pci-direct.h>
 #include <asm/iommu.h>
 #include <asm/gart.h>
@@ -142,6 +143,8 @@ bool amd_iommu_np_cache __read_mostly;
 bool amd_iommu_iotlb_sup __read_mostly = true;
 
 u32 amd_iommu_max_pasids __read_mostly = ~0;
+
+bool amd_iommu_v2_present __read_mostly;
 
 /*
  * The ACPI table parsing functions set this variable on an error
@@ -758,6 +761,12 @@ static void __init init_iommu_from_pci(struct amd_iommu *iommu)
 		pasids  = (1 << shift);
 
 		amd_iommu_max_pasids = min(amd_iommu_max_pasids, pasids);
+	}
+
+	if (iommu_feature(iommu, FEATURE_GT) &&
+	    iommu_feature(iommu, FEATURE_PPR)) {
+		iommu->is_iommu_v2   = true;
+		amd_iommu_v2_present = true;
 	}
 
 	if (!is_rd890_iommu(iommu->dev))
@@ -1645,3 +1654,9 @@ IOMMU_INIT_FINISH(amd_iommu_detect,
 		  gart_iommu_hole_init,
 		  0,
 		  0);
+
+bool amd_iommu_v2_supported(void)
+{
+	return amd_iommu_v2_present;
+}
+EXPORT_SYMBOL(amd_iommu_v2_supported);
