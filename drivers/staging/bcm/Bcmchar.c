@@ -860,16 +860,16 @@ cntrlEnd:
 	}
 
 	case IOCTL_BCM_BUFFER_DOWNLOAD_STOP: {
+		if (!down_trylock(&Adapter->fw_download_sema)) {
+			up(&Adapter->fw_download_sema);
+			return -EINVAL;
+		}
+
 		if (down_trylock(&Adapter->NVMRdmWrmLock)) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
 					"FW download blocked as EEPROM Read/Write is in progress\n");
 			up(&Adapter->fw_download_sema);
 			return -EACCES;
-		}
-
-		if (!down_trylock(&Adapter->fw_download_sema)) {
-			up(&Adapter->fw_download_sema);
-			return -EINVAL;
 		}
 
 		Adapter->bBinDownloaded = TRUE;
