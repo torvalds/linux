@@ -581,7 +581,8 @@ static int efi_pstore_close(struct pstore_info *psi)
 }
 
 static ssize_t efi_pstore_read(u64 *id, enum pstore_type_id *type,
-			       struct timespec *time, struct pstore_info *psi)
+			       struct timespec *timespec,
+			       char **buf, struct pstore_info *psi)
 {
 	return -1;
 }
