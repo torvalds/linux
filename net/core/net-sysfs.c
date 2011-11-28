@@ -21,6 +21,7 @@
 #include <linux/wireless.h>
 #include <linux/vmalloc.h>
 #include <linux/export.h>
+#include <linux/jiffies.h>
 #include <net/wext.h>
 
 #include "net-sysfs.h"
@@ -845,6 +846,116 @@ static ssize_t show_trans_timeout(struct netdev_queue *queue,
 static struct netdev_queue_attribute queue_trans_timeout =
 	__ATTR(tx_timeout, S_IRUGO, show_trans_timeout, NULL);
 
+#ifdef CONFIG_BQL
+/*
+ * Byte queue limits sysfs structures and functions.
+ */
+static ssize_t bql_show(char *buf, unsigned int value)
+{
+	return sprintf(buf, "%u\n", value);
+}
+
+static ssize_t bql_set(const char *buf, const size_t count,
+		       unsigned int *pvalue)
+{
+	unsigned int value;
+	int err;
+
+	if (!strcmp(buf, "max") || !strcmp(buf, "max\n"))
+		value = DQL_MAX_LIMIT;
+	else {
+		err = kstrtouint(buf, 10, &value);
+		if (err < 0)
+			return err;
+		if (value > DQL_MAX_LIMIT)
+			return -EINVAL;
+	}
+
+	*pvalue = value;
+
+	return count;
+}
+
+static ssize_t bql_show_hold_time(struct netdev_queue *queue,
+				  struct netdev_queue_attribute *attr,
+				  char *buf)
+{
+	struct dql *dql = &queue->dql;
+
+	return sprintf(buf, "%u\n", jiffies_to_msecs(dql->slack_hold_time));
+}
+
+static ssize_t bql_set_hold_time(struct netdev_queue *queue,
+				 struct netdev_queue_attribute *attribute,
+				 const char *buf, size_t len)
+{
+	struct dql *dql = &queue->dql;
+	unsigned value;
+	int err;
+
+	err = kstrtouint(buf, 10, &value);
+	if (err < 0)
+		return err;
+
+	dql->slack_hold_time = msecs_to_jiffies(value);
+
+	return len;
+}
+
+static struct netdev_queue_attribute bql_hold_time_attribute =
+	__ATTR(hold_time, S_IRUGO | S_IWUSR, bql_show_hold_time,
+	    bql_set_hold_time);
+
+static ssize_t bql_show_inflight(struct netdev_queue *queue,
+				 struct netdev_queue_attribute *attr,
+				 char *buf)
+{
+	struct dql *dql = &queue->dql;
+
+	return sprintf(buf, "%u\n", dql->num_queued - dql->num_completed);
+}
+
+static struct netdev_queue_attribute bql_inflight_attribute =
+	__ATTR(inflight, S_IRUGO | S_IWUSR, bql_show_inflight, NULL);
+
+#define BQL_ATTR(NAME, FIELD)						\
+static ssize_t bql_show_ ## NAME(struct netdev_queue *queue,		\
+				 struct netdev_queue_attribute *attr,	\
+				 char *buf)				\
+{									\
+	return bql_show(buf, queue->dql.FIELD);				\
+}									\
+									\
+static ssize_t bql_set_ ## NAME(struct netdev_queue *queue,		\
+				struct netdev_queue_attribute *attr,	\
+				const char *buf, size_t len)		\
+{									\
+	return bql_set(buf, len, &queue->dql.FIELD);			\
+}									\
+									\
+static struct netdev_queue_attribute bql_ ## NAME ## _attribute =	\
+	__ATTR(NAME, S_IRUGO | S_IWUSR, bql_show_ ## NAME,		\
+	    bql_set_ ## NAME);
+
+BQL_ATTR(limit, limit)
+BQL_ATTR(limit_max, max_limit)
+BQL_ATTR(limit_min, min_limit)
+
+static struct attribute *dql_attrs[] = {
+	&bql_limit_attribute.attr,
+	&bql_limit_max_attribute.attr,
+	&bql_limit_min_attribute.attr,
+	&bql_hold_time_attribute.attr,
+	&bql_inflight_attribute.attr,
+	NULL
+};
+
+static struct attribute_group dql_group = {
+	.name  = "byte_queue_limits",
+	.attrs  = dql_attrs,
+};
+#endif /* CONFIG_BQL */
+
 #ifdef CONFIG_XPS
 static inline unsigned int get_netdev_queue_index(struct netdev_queue *queue)
 {
@@ -1096,17 +1207,17 @@ static struct attribute *netdev_queue_default_attrs[] = {
 	NULL
 };
 
-#ifdef CONFIG_XPS
 static void netdev_queue_release(struct kobject *kobj)
 {
 	struct netdev_queue *queue = to_netdev_queue(kobj);
 
+#ifdef CONFIG_XPS
 	xps_queue_release(queue);
+#endif
 
 	memset(kobj, 0, sizeof(*kobj));
 	dev_put(queue->dev);
 }
-#endif /* CONFIG_XPS */
 
 static struct kobj_type netdev_queue_ktype = {
 	.sysfs_ops = &netdev_queue_sysfs_ops,
@@ -1125,14 +1236,21 @@ static int netdev_queue_add_kobject(struct net_device *net, int index)
 	kobj->kset = net->queues_kset;
 	error = kobject_init_and_add(kobj, &netdev_queue_ktype, NULL,
 	    "tx-%u", index);
-	if (error) {
-		kobject_put(kobj);
-		return error;
-	}
+	if (error)
+		goto exit;
+
+#ifdef CONFIG_BQL
+	error = sysfs_create_group(kobj, &dql_group);
+	if (error)
+		goto exit;
+#endif
 
 	kobject_uevent(kobj, KOBJ_ADD);
 	dev_hold(queue->dev);
 
+	return 0;
+exit:
+	kobject_put(kobj);
 	return error;
 }
 #endif /* CONFIG_SYSFS */
@@ -1152,8 +1270,14 @@ netdev_queue_update_kobjects(struct net_device *net, int old_num, int new_num)
 		}
 	}
 
-	while (--i >= new_num)
-		kobject_put(&net->_tx[i].kobj);
+	while (--i >= new_num) {
+		struct netdev_queue *queue = net->_tx + i;
+
+#ifdef CONFIG_BQL
+		sysfs_remove_group(&queue->kobj, &dql_group);
+#endif
+		kobject_put(&queue->kobj);
+	}
 
 	return error;
 #else

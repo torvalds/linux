@@ -5470,6 +5470,9 @@ static void netdev_init_one_queue(struct net_device *dev,
 	queue->xmit_lock_owner = -1;
 	netdev_queue_numa_node_write(queue, NUMA_NO_NODE);
 	queue->dev = dev;
+#ifdef CONFIG_BQL
+	dql_init(&queue->dql, HZ);
+#endif
 }
 
 static int netif_alloc_netdev_queues(struct net_device *dev)

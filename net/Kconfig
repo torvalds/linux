@@ -239,6 +239,12 @@ config NETPRIO_CGROUP
 	  Cgroup subsystem for use in assigning processes to network priorities on
 	  a per-interface basis
 
+config BQL
+	boolean
+	depends on SYSFS
+	select DQL
+	default y
+
 config HAVE_BPF_JIT
 	bool
 
