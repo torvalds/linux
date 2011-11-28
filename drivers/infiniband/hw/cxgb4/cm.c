@@ -542,8 +542,10 @@ static void send_mpa_req(struct c4iw_ep *ep, struct sk_buff *skb,
 		     (mpa_rev_to_use == 2 ? MPA_ENHANCED_RDMA_CONN : 0);
 	mpa->private_data_size = htons(ep->plen);
 	mpa->revision = mpa_rev_to_use;
-	if (mpa_rev_to_use == 1)
+	if (mpa_rev_to_use == 1) {
 		ep->tried_with_mpa_v1 = 1;
+		ep->retry_with_mpa_v1 = 0;
+	}
 
 	if (mpa_rev_to_use == 2) {
 		mpa->private_data_size +=
