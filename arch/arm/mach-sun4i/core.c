@@ -64,14 +64,58 @@ void __init sw_core_map_io(void)
 	iotable_init(sw_io_desc, ARRAY_SIZE(sw_io_desc));
 }
 
+static u32 DRAMC_get_dram_size(void)
+{
+	u32 reg_val;
+	u32 dram_size;
+	u32 chip_den;
+
+	reg_val = readl(SW_DRAM_SDR_DCR);
+	chip_den = (reg_val >> 3) & 0x7;
+	if(chip_den == 0)
+		dram_size = 32;
+	else if(chip_den == 1)
+		dram_size = 64;
+	else if(chip_den == 2)
+		dram_size = 128;
+	else if(chip_den == 3)
+		dram_size = 256;
+	else if(chip_den == 4)
+		dram_size = 512;
+	else
+		dram_size = 1024;
+
+	if( ((reg_val>>1)&0x3) == 0x1)
+		dram_size<<=1;
+	if( ((reg_val>>6)&0x7) == 0x3)
+		dram_size<<=1;
+	if( ((reg_val>>10)&0x3) == 0x1)
+		dram_size<<=1;
+
+	return dram_size;
+}
+
 static void __init sw_core_fixup(struct machine_desc *desc,
                   struct tag *tags, char **cmdline,
                   struct meminfo *mi)
 {
-	early_printk("[%s] enter", __FUNCTION__);
-	mi->nr_banks = 1;
-	mi->bank[0].start = 0x40000000;
-	mi->bank[0].size = SZ_1M * (512 - 64);
+	u32 size;
+
+	size = DRAMC_get_dram_size();
+
+	if (size <= 512) {
+		mi->nr_banks = 1;
+		mi->bank[0].start = 0x40000000;
+		mi->bank[0].size = SZ_1M * (size - 64);
+	} else {
+		mi->nr_banks = 2;
+		mi->bank[0].start = 0x40000000;
+		mi->bank[0].size = SZ_1M * (512 - 64);
+		mi->bank[1].start = 0x60000000;
+		mi->bank[1].size = SZ_1M * (size - 512);
+	}
+
+	pr_info("Total Detected Memory: %uMB with %d banks\n", size, mi->nr_banks);
 }
 
 unsigned long fb_start = (PLAT_PHYS_OFFSET + SZ_512M - SZ_64M - SZ_32M);
@@ -94,7 +138,7 @@ static void __init sw_core_reserve(void)
 	memblock_reserve(SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE);
 	memblock_reserve(fb_start, fb_size);
 	memblock_reserve(ve_start, ve_size);
-	pr_info("BENN: try3\n");
+
 #if 0
         int g2d_used = 0;
         char *script_base = (char *)(PAGE_OFFSET + 0x3000000);
@@ -193,7 +237,6 @@ static struct irq_chip sw_vic_chip = {
 void __init sw_core_init_irq(void)
 {
 	u32 i = 0;
-	early_printk("[%s] enter", __FUNCTION__);
 
 	/* Disable & clear all interrupts */
 	writel(0, SW_INT_ENABLE_REG0);
@@ -348,7 +391,6 @@ struct sys_timer sw_sys_timer = {
 extern void __init sw_pdev_init(void);
 void __init sw_core_init(void)
 {
-	early_printk("[%s] enter", __FUNCTION__);
 	sw_pdev_init();
 }
 enum sw_ic_ver sw_get_ic_ver(void)
