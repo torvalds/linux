@@ -352,7 +352,7 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		DP(NETIF_MSG_LINK, "Unsupported port type\n");
 		return -EINVAL;
 	}
-	/* Save new config in case command complete successuly */
+	/* Save new config in case command complete successully */
 	new_multi_phy_config = bp->link_params.multi_phy_config;
 	/* Get the new cfg_idx */
 	cfg_idx = bnx2x_get_link_cfg_idx(bp);
