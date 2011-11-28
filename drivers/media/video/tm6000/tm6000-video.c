@@ -1609,12 +1609,25 @@ static int tm6000_release(struct file *file)
 
 		tm6000_uninit_isoc(dev);
 
+		/* Stop interrupt USB pipe */
+		tm6000_ir_int_stop(dev);
+
+		usb_reset_configuration(dev->udev);
+
+		if (&dev->int_in)
+			usb_set_interface(dev->udev,
+			dev->isoc_in.bInterfaceNumber,
+			2);
+		else
+			usb_set_interface(dev->udev,
+			dev->isoc_in.bInterfaceNumber,
+			0);
+
+		/* Start interrupt USB pipe */
+		tm6000_ir_int_start(dev);
+
 		if (!fh->radio)
 			videobuf_mmap_free(&fh->vb_vidq);
-
-		err = tm6000_reset(dev);
-		if (err < 0)
-			dev_err(&vdev->dev, "reset failed: %d\n", err);
 	}
 
 	kfree(fh);

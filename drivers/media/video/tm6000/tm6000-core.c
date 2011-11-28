@@ -599,55 +599,6 @@ int tm6000_init(struct tm6000_core *dev)
 	return rc;
 }
 
-int tm6000_reset(struct tm6000_core *dev)
-{
-	int pipe;
-	int err;
-
-	msleep(500);
-
-	err = usb_set_interface(dev->udev, dev->isoc_in.bInterfaceNumber, 0);
-	if (err < 0) {
-		tm6000_err("failed to select interface %d, alt. setting 0\n",
-				dev->isoc_in.bInterfaceNumber);
-		return err;
-	}
-
-	err = usb_reset_configuration(dev->udev);
-	if (err < 0) {
-		tm6000_err("failed to reset configuration\n");
-		return err;
-	}
-
-	if ((dev->quirks & TM6000_QUIRK_NO_USB_DELAY) == 0)
-		msleep(5);
-
-	/*
-	 * Not all devices have int_in defined
-	 */
-	if (!dev->int_in.endp)
-		return 0;
-
-	err = usb_set_interface(dev->udev, dev->isoc_in.bInterfaceNumber, 2);
-	if (err < 0) {
-		tm6000_err("failed to select interface %d, alt. setting 2\n",
-				dev->isoc_in.bInterfaceNumber);
-		return err;
-	}
-
-	msleep(5);
-
-	pipe = usb_rcvintpipe(dev->udev,
-			dev->int_in.endp->desc.bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
-
-	err = usb_clear_halt(dev->udev, pipe);
-	if (err < 0) {
-		tm6000_err("usb_clear_halt failed: %d\n", err);
-		return err;
-	}
-
-	return 0;
-}
 
 int tm6000_set_audio_bitrate(struct tm6000_core *dev, int bitrate)
 {
