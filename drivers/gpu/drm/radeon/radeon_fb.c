@@ -141,7 +141,7 @@ static int radeonfb_create_pinned_object(struct radeon_fbdev *rfbdev,
 		tiling_flags = RADEON_TILING_MACRO;
 
 #ifdef __BIG_ENDIAN
-	switch (mode_cmd->bpp) {
+	switch (bpp) {
 	case 32:
 		tiling_flags |= RADEON_TILING_SWAP_32BIT;
 		break;
