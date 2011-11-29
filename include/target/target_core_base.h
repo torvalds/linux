@@ -669,7 +669,6 @@ struct se_subsystem_dev {
 	struct t10_reservation t10_pr;
 	spinlock_t      se_dev_lock;
 	void            *se_dev_su_ptr;
-	struct list_head se_dev_node;
 	struct config_group se_dev_group;
 	/* For T10 Reservations */
 	struct config_group se_dev_pr_group;
