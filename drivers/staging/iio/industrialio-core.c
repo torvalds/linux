@@ -669,10 +669,9 @@ static int iio_device_register_sysfs(struct iio_dev *indio_dev)
 	if (indio_dev->name)
 		attrcount++;
 
-	indio_dev->chan_attr_group.attrs
-		= kzalloc(sizeof(indio_dev->chan_attr_group.attrs[0])*
-			  (attrcount + 1),
-			  GFP_KERNEL);
+	indio_dev->chan_attr_group.attrs = kcalloc(attrcount + 1,
+						   sizeof(indio_dev->chan_attr_group.attrs[0]),
+						   GFP_KERNEL);
 	if (indio_dev->chan_attr_group.attrs == NULL) {
 		ret = -ENOMEM;
 		goto error_clear_attrs;
@@ -965,10 +964,9 @@ static int iio_device_register_eventset(struct iio_dev *indio_dev)
 	}
 
 	indio_dev->event_interface->group.name = iio_event_group_name;
-	indio_dev->event_interface->group.attrs =
-		kzalloc(sizeof(indio_dev->event_interface->group.attrs[0])
-			*(attrcount + 1),
-			GFP_KERNEL);
+	indio_dev->event_interface->group.attrs = kcalloc(attrcount + 1,
+							  sizeof(indio_dev->event_interface->group.attrs[0]),
+							  GFP_KERNEL);
 	if (indio_dev->event_interface->group.attrs == NULL) {
 		ret = -ENOMEM;
 		goto error_free_setup_event_lines;

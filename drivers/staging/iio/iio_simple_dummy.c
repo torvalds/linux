@@ -518,7 +518,8 @@ static __init int iio_dummy_init(void)
 		return -EINVAL;
 	}
 	/* Fake a bus */
-	iio_dummy_devs = kzalloc(sizeof(*iio_dummy_devs)*instances, GFP_KERNEL);
+	iio_dummy_devs = kcalloc(instances, sizeof(*iio_dummy_devs),
+				 GFP_KERNEL);
 	/* Here we have no actual device so call probe */
 	for (i = 0; i < instances; i++) {
 		ret = iio_dummy_probe(i);

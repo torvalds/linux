@@ -315,10 +315,9 @@ int iio_buffer_register(struct iio_dev *indio_dev,
 			attrcount += ret;
 		}
 		if (indio_dev->masklength && buffer->scan_mask == NULL) {
-			buffer->scan_mask
-				= kzalloc(sizeof(*buffer->scan_mask)*
-					  BITS_TO_LONGS(indio_dev->masklength),
-					  GFP_KERNEL);
+			buffer->scan_mask = kcalloc(BITS_TO_LONGS(indio_dev->masklength),
+						    sizeof(*buffer->scan_mask),
+						    GFP_KERNEL);
 			if (buffer->scan_mask == NULL) {
 				ret = -ENOMEM;
 				goto error_cleanup_dynamic;
@@ -328,10 +327,9 @@ int iio_buffer_register(struct iio_dev *indio_dev,
 
 	buffer->scan_el_group.name = iio_scan_elements_group_name;
 
-	buffer->scan_el_group.attrs
-		= kzalloc(sizeof(buffer->scan_el_group.attrs[0])*
-			  (attrcount + 1),
-			  GFP_KERNEL);
+	buffer->scan_el_group.attrs = kcalloc(attrcount + 1,
+					      sizeof(buffer->scan_el_group.attrs[0]),
+					      GFP_KERNEL);
 	if (buffer->scan_el_group.attrs == NULL) {
 		ret = -ENOMEM;
 		goto error_free_scan_mask;

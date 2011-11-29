@@ -746,12 +746,12 @@ static int __devinit ade7758_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, indio_dev);
 
 	/* Allocate the comms buffers */
-	st->rx = kzalloc(sizeof(*st->rx)*ADE7758_MAX_RX, GFP_KERNEL);
+	st->rx = kcalloc(ADE7758_MAX_RX, sizeof(*st->rx), GFP_KERNEL);
 	if (st->rx == NULL) {
 		ret = -ENOMEM;
 		goto error_free_dev;
 	}
-	st->tx = kzalloc(sizeof(*st->tx)*ADE7758_MAX_TX, GFP_KERNEL);
+	st->tx = kcalloc(ADE7758_MAX_TX, sizeof(*st->tx), GFP_KERNEL);
 	if (st->tx == NULL) {
 		ret = -ENOMEM;
 		goto error_free_rx;

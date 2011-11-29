@@ -93,8 +93,7 @@ static int lis3l02dq_read_all(struct iio_dev *indio_dev, u8 *rx_array)
 	struct spi_message msg;
 	int ret, i, j = 0;
 
-	xfers = kzalloc((buffer->scan_count) * 2
-			* sizeof(*xfers), GFP_KERNEL);
+	xfers = kcalloc((buffer->scan_count) * 2, sizeof(*xfers), GFP_KERNEL);
 	if (!xfers)
 		return -ENOMEM;
 

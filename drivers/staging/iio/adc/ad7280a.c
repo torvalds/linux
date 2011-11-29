@@ -488,8 +488,8 @@ static int ad7280_channel_init(struct ad7280_state *st)
 {
 	int dev, ch, cnt;
 
-	st->channels = kzalloc(sizeof(*st->channels) *
-				((st->slave_num + 1) * 12 + 2), GFP_KERNEL);
+	st->channels = kcalloc((st->slave_num + 1) * 12 + 2,
+			       sizeof(*st->channels), GFP_KERNEL);
 	if (st->channels == NULL)
 		return -ENOMEM;
 
@@ -683,7 +683,7 @@ static irqreturn_t ad7280_event_handler(int irq, void *private)
 	unsigned *channels;
 	int i, ret;
 
-	channels = kzalloc(sizeof(*channels) * st->scan_cnt, GFP_KERNEL);
+	channels = kcalloc(st->scan_cnt, sizeof(*channels), GFP_KERNEL);
 	if (channels == NULL)
 		return IRQ_HANDLED;
 
