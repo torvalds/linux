@@ -213,10 +213,8 @@ static int __devinit wm831x_wdt_probe(struct platform_device *pdev)
 
 	wm831x_wdt->info = &wm831x_wdt_info;
 	wm831x_wdt->ops = &wm831x_wdt_ops;
+	watchdog_set_nowayout(wm831x_wdt, nowayout);
 	watchdog_set_drvdata(wm831x_wdt, driver_data);
-
-	if (nowayout)
-		wm831x_wdt->status |= WDOG_NO_WAY_OUT;
 
 	reg = wm831x_reg_read(wm831x, WM831X_WATCHDOG);
 	reg &= WM831X_WDOG_TO_MASK;
