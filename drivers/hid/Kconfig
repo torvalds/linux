@@ -350,6 +350,7 @@ config HID_MULTITOUCH
 	  - MosArt dual-touch panels
 	  - PenMount dual touch panels
 	  - Pixcir dual touch panels
+	  - Quanta panels
 	  - eGalax dual-touch panels, including the Joojoo and Wetab tablets
 	  - Stantum multitouch panels
 	  - Touch International Panels
@@ -465,12 +466,6 @@ config HID_PRIMAX
 	---help---
 	Support for Primax devices that are not fully compliant with the
 	HID standard.
-
-config HID_QUANTA
-	tristate "Quanta Optical Touch panels"
-	depends on USB_HID
-	---help---
-	Support for Quanta Optical Touch dual-touch panels.
 
 config HID_ROCCAT
 	tristate "Roccat special event support"
