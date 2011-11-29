@@ -252,7 +252,7 @@ enum tcm_tmrsp_table {
 
 struct se_obj {
 	atomic_t obj_access_count;
-} ____cacheline_aligned;
+};
 
 /*
  * Used by TCM Core internally to signal if ALUA emulation is enabled or
@@ -299,7 +299,7 @@ struct t10_alua {
 	struct config_group alua_tg_pt_gps_group;
 	int (*alua_state_check)(struct se_cmd *, unsigned char *, u8 *);
 	struct list_head tg_pt_gps_list;
-} ____cacheline_aligned;
+};
 
 struct t10_alua_lu_gp {
 	u16	lu_gp_id;
@@ -310,7 +310,7 @@ struct t10_alua_lu_gp {
 	struct config_group lu_gp_group;
 	struct list_head lu_gp_node;
 	struct list_head lu_gp_mem_list;
-} ____cacheline_aligned;
+};
 
 struct t10_alua_lu_gp_member {
 	bool lu_gp_assoc;
@@ -319,7 +319,7 @@ struct t10_alua_lu_gp_member {
 	struct t10_alua_lu_gp *lu_gp;
 	struct se_device *lu_gp_mem_dev;
 	struct list_head lu_gp_mem_list;
-} ____cacheline_aligned;
+};
 
 struct t10_alua_tg_pt_gp {
 	u16	tg_pt_gp_id;
@@ -342,7 +342,7 @@ struct t10_alua_tg_pt_gp {
 	struct config_group tg_pt_gp_group;
 	struct list_head tg_pt_gp_list;
 	struct list_head tg_pt_gp_mem_list;
-} ____cacheline_aligned;
+};
 
 struct t10_alua_tg_pt_gp_member {
 	bool tg_pt_gp_assoc;
@@ -351,7 +351,7 @@ struct t10_alua_tg_pt_gp_member {
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
 	struct se_port *tg_pt;
 	struct list_head tg_pt_gp_mem_list;
-} ____cacheline_aligned;
+};
 
 struct t10_vpd {
 	unsigned char device_identifier[INQUIRY_VPD_DEVICE_IDENTIFIER_LEN];
@@ -361,7 +361,7 @@ struct t10_vpd {
 	u32 association;
 	u32 device_identifier_type;
 	struct list_head vpd_list;
-} ____cacheline_aligned;
+};
 
 struct t10_wwn {
 	char vendor[8];
@@ -372,7 +372,7 @@ struct t10_wwn {
 	struct se_subsystem_dev *t10_sub_dev;
 	struct config_group t10_wwn_group;
 	struct list_head t10_vpd_list;
-} ____cacheline_aligned;
+};
 
 
 /*
@@ -425,7 +425,7 @@ struct t10_pr_registration {
 	struct list_head pr_reg_aptpl_list;
 	struct list_head pr_reg_atp_list;
 	struct list_head pr_reg_atp_mem_list;
-} ____cacheline_aligned;
+};
 
 /*
  * This set of function pointer ops is set based upon SPC3_PERSISTENT_RESERVATIONS,
@@ -466,20 +466,20 @@ struct t10_reservation {
 	struct list_head registration_list;
 	struct list_head aptpl_reg_list;
 	struct t10_reservation_ops pr_ops;
-} ____cacheline_aligned;
+};
 
 struct se_queue_req {
 	int			state;
 	struct se_cmd		*cmd;
 	struct list_head	qr_list;
-} ____cacheline_aligned;
+};
 
 struct se_queue_obj {
 	atomic_t		queue_cnt;
 	spinlock_t		cmd_queue_lock;
 	struct list_head	qobj_list;
 	wait_queue_head_t	thread_wq;
-} ____cacheline_aligned;
+};
 
 struct se_task {
 	unsigned long long	task_lba;
@@ -496,7 +496,7 @@ struct se_task {
 	struct list_head	t_state_list;
 	bool			t_state_active;
 	struct completion	task_stop_comp;
-} ____cacheline_aligned;
+};
 
 struct se_cmd {
 	/* SAM response code being sent to initiator */
@@ -582,7 +582,7 @@ struct se_cmd {
 	struct list_head	t_task_list;
 	u32			t_task_list_num;
 
-} ____cacheline_aligned;
+};
 
 struct se_tmr_req {
 	/* Task Management function to be preformed */
@@ -600,7 +600,7 @@ struct se_tmr_req {
 	struct se_device	*tmr_dev;
 	struct se_lun		*tmr_lun;
 	struct list_head	tmr_list;
-} ____cacheline_aligned;
+};
 
 struct se_ua {
 	u8			ua_asc;
@@ -608,7 +608,7 @@ struct se_ua {
 	struct se_node_acl	*ua_nacl;
 	struct list_head	ua_dev_list;
 	struct list_head	ua_nacl_list;
-} ____cacheline_aligned;
+};
 
 struct se_node_acl {
 	char			initiatorname[TRANSPORT_IQN_LEN];
@@ -635,7 +635,7 @@ struct se_node_acl {
 	struct config_group	*acl_default_groups[5];
 	struct list_head	acl_list;
 	struct list_head	acl_sess_list;
-} ____cacheline_aligned;
+};
 
 struct se_session {
 	unsigned		sess_tearing_down:1;
@@ -648,7 +648,7 @@ struct se_session {
 	struct list_head	sess_cmd_list;
 	struct list_head	sess_wait_list;
 	spinlock_t		sess_cmd_lock;
-} ____cacheline_aligned;
+};
 
 struct se_device;
 struct se_transform_info;
@@ -668,7 +668,7 @@ struct se_lun_acl {
 	struct list_head	lacl_list;
 	struct config_group	se_lun_group;
 	struct se_ml_stat_grps	ml_stat_grps;
-}  ____cacheline_aligned;
+};
 
 struct se_dev_entry {
 	bool			def_pr_registered;
@@ -693,7 +693,7 @@ struct se_dev_entry {
 	struct se_lun		*se_lun;
 	struct list_head	alua_port_list;
 	struct list_head	ua_list;
-}  ____cacheline_aligned;
+};
 
 struct se_dev_limits {
 	/* Max supported HW queue depth */
@@ -702,7 +702,7 @@ struct se_dev_limits {
 	u32		queue_depth;
 	/* From include/linux/blkdev.h for the other HW/SW limits. */
 	struct queue_limits limits;
-} ____cacheline_aligned;
+};
 
 struct se_dev_attrib {
 	int		emulate_dpo;
@@ -731,7 +731,7 @@ struct se_dev_attrib {
 	u32		unmap_granularity_alignment;
 	struct se_subsystem_dev *da_sub_dev;
 	struct config_group da_group;
-} ____cacheline_aligned;
+};
 
 struct se_dev_stat_grps {
 	struct config_group stat_group;
@@ -764,7 +764,7 @@ struct se_subsystem_dev {
 	struct config_group se_dev_pr_group;
 	/* For target_core_stat.c groups */
 	struct se_dev_stat_grps dev_stat_grps;
-} ____cacheline_aligned;
+};
 
 struct se_device {
 	/* RELATIVE TARGET PORT IDENTIFER Counter */
@@ -830,7 +830,7 @@ struct se_device {
 	struct se_subsystem_api *transport;
 	/* Linked list for struct se_hba struct se_device list */
 	struct list_head	dev_list;
-}  ____cacheline_aligned;
+};
 
 struct se_hba {
 	u16			hba_tpgt;
@@ -849,7 +849,7 @@ struct se_hba {
 	struct config_group	hba_group;
 	struct mutex		hba_access_mutex;
 	struct se_subsystem_api *transport;
-}  ____cacheline_aligned;
+};
 
 struct se_port_stat_grps {
 	struct config_group stat_group;
@@ -875,13 +875,13 @@ struct se_lun {
 	struct se_port		*lun_sep;
 	struct config_group	lun_group;
 	struct se_port_stat_grps port_stat_grps;
-} ____cacheline_aligned;
+};
 
 struct scsi_port_stats {
        u64     cmd_pdus;
        u64     tx_data_octets;
        u64     rx_data_octets;
-} ____cacheline_aligned;
+};
 
 struct se_port {
 	/* RELATIVE TARGET PORT IDENTIFER */
@@ -901,12 +901,12 @@ struct se_port {
 	struct se_portal_group *sep_tpg;
 	struct list_head sep_alua_list;
 	struct list_head sep_list;
-} ____cacheline_aligned;
+};
 
 struct se_tpg_np {
 	struct se_portal_group *tpg_np_parent;
 	struct config_group	tpg_np_group;
-} ____cacheline_aligned;
+};
 
 struct se_portal_group {
 	/* Type of target portal group, see transport_tpg_type_table */
@@ -939,13 +939,13 @@ struct se_portal_group {
 	struct config_group	tpg_acl_group;
 	struct config_group	tpg_attrib_group;
 	struct config_group	tpg_param_group;
-} ____cacheline_aligned;
+};
 
 struct se_wwn {
 	struct target_fabric_configfs *wwn_tf;
 	struct config_group	wwn_group;
 	struct config_group	*wwn_default_groups[2];
 	struct config_group	fabric_stat_group;
-} ____cacheline_aligned;
+};
 
 #endif /* TARGET_CORE_BASE_H */
