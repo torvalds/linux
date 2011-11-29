@@ -302,7 +302,7 @@ int psb_runtime_suspend(struct device *dev)
 
 int psb_runtime_resume(struct device *dev)
 {
-	return 0;
+	return gma_power_resume(dev);;
 }
 
 int psb_runtime_idle(struct device *dev)
