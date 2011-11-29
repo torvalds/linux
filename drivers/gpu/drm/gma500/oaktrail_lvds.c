@@ -228,17 +228,20 @@ static struct drm_display_mode lvds_configuration_modes[] = {
 
 /* Returns the panel fixed mode from configuration. */
 
-static struct drm_display_mode *
-oaktrail_lvds_get_configuration_mode(struct drm_device *dev)
+static void oaktrail_lvds_get_configuration_mode(struct drm_device *dev,
+					struct psb_intel_mode_device *mode_dev)
 {
 	struct drm_display_mode *mode = NULL;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct oaktrail_timing_info *ti = &dev_priv->gct_data.DTD;
 
+	mode_dev->panel_fixed_mode = NULL;
+
+	/* Use the firmware provided data on Moorestown */
 	if (dev_priv->vbt_data.size != 0x00) { /*if non-zero, then use vbt*/
 		mode = kzalloc(sizeof(*mode), GFP_KERNEL);
 		if (!mode)
-			return NULL;
+			return;
 
 		mode->hdisplay = (ti->hactive_hi << 8) | ti->hactive_lo;
 		mode->vdisplay = (ti->vactive_hi << 8) | ti->vactive_lo;
@@ -270,13 +273,27 @@ oaktrail_lvds_get_configuration_mode(struct drm_device *dev)
 		printk(KERN_INFO "vtotal is %d\n", mode->vtotal);
 		printk(KERN_INFO "clock is %d\n", mode->clock);
 #endif
-	} else
-		mode = drm_mode_duplicate(dev, &lvds_configuration_modes[2]);
+		mode_dev->panel_fixed_mode = mode;
+	}
 
-	drm_mode_set_name(mode);
-	drm_mode_set_crtcinfo(mode, 0);
+	/* Use the BIOS VBT mode if available */
+	if (mode_dev->panel_fixed_mode == NULL && mode_dev->vbt_mode)
+		mode_dev->panel_fixed_mode = drm_mode_duplicate(dev,
+						mode_dev->vbt_mode);
 
-	return mode;
+	/* Then try the LVDS VBT mode */
+	if (mode_dev->panel_fixed_mode == NULL)
+		if (dev_priv->lfp_lvds_vbt_mode)
+			mode_dev->panel_fixed_mode =
+				drm_mode_duplicate(dev,
+					dev_priv->lfp_lvds_vbt_mode);
+	/* Then guess */
+	if (mode_dev->panel_fixed_mode == NULL)
+		mode_dev->panel_fixed_mode
+			= drm_mode_duplicate(dev, &lvds_configuration_modes[2]);
+
+	drm_mode_set_name(mode_dev->panel_fixed_mode);
+	drm_mode_set_crtcinfo(mode_dev->panel_fixed_mode, 0);
 }
 
 /**
@@ -375,7 +392,7 @@ void oaktrail_lvds_init(struct drm_device *dev,
 	 * If we didn't get EDID, try geting panel timing
 	 * from configuration data
 	 */
-	mode_dev->panel_fixed_mode = oaktrail_lvds_get_configuration_mode(dev);
+	oaktrail_lvds_get_configuration_mode(dev, mode_dev);
 
 	if (mode_dev->panel_fixed_mode) {
 		mode_dev->panel_fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
