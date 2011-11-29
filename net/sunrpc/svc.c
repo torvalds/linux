@@ -476,15 +476,10 @@ svc_destroy(struct svc_serv *serv)
 
 	del_timer_sync(&serv->sv_temptimer);
 
-	svc_close_all(&serv->sv_tempsocks);
+	svc_close_all(serv);
 
 	if (serv->sv_shutdown)
 		serv->sv_shutdown(serv);
-
-	svc_close_all(&serv->sv_permsocks);
-
-	BUG_ON(!list_empty(&serv->sv_permsocks));
-	BUG_ON(!list_empty(&serv->sv_tempsocks));
 
 	cache_clean_deferred(serv);
 
