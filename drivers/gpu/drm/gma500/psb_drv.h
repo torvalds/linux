@@ -606,7 +606,7 @@ struct drm_psb_private {
 	void *fbdev;
 
 	/* 2D acceleration */
-	struct mutex mutex_2d;
+	spinlock_t lock_2d;
 };
 
 
