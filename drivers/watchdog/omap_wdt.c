@@ -437,18 +437,7 @@ static struct platform_driver omap_wdt_driver = {
 	},
 };
 
-static int __init omap_wdt_init(void)
-{
-	return platform_driver_register(&omap_wdt_driver);
-}
-
-static void __exit omap_wdt_exit(void)
-{
-	platform_driver_unregister(&omap_wdt_driver);
-}
-
-module_init(omap_wdt_init);
-module_exit(omap_wdt_exit);
+module_platform_driver(omap_wdt_driver);
 
 MODULE_AUTHOR("George G. Davis");
 MODULE_LICENSE("GPL");

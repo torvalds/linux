@@ -353,15 +353,4 @@ static struct platform_driver ar7_wdt_driver = {
 	},
 };
 
-static int __init ar7_wdt_init(void)
-{
-	return platform_driver_register(&ar7_wdt_driver);
-}
-
-static void __exit ar7_wdt_cleanup(void)
-{
-	platform_driver_unregister(&ar7_wdt_driver);
-}
-
-module_init(ar7_wdt_init);
-module_exit(ar7_wdt_cleanup);
+module_platform_driver(ar7_wdt_driver);

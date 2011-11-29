@@ -334,18 +334,7 @@ static struct platform_driver nuc900wdt_driver = {
 	},
 };
 
-static int __init nuc900_wdt_init(void)
-{
-	return platform_driver_register(&nuc900wdt_driver);
-}
-
-static void __exit nuc900_wdt_exit(void)
-{
-	platform_driver_unregister(&nuc900wdt_driver);
-}
-
-module_init(nuc900_wdt_init);
-module_exit(nuc900_wdt_exit);
+module_platform_driver(nuc900wdt_driver);
 
 MODULE_AUTHOR("Wan ZongShun <mcuos.com@gmail.com>");
 MODULE_DESCRIPTION("Watchdog driver for NUC900");

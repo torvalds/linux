@@ -294,18 +294,7 @@ static struct platform_driver orion_wdt_driver = {
 	},
 };
 
-static int __init orion_wdt_init(void)
-{
-	return platform_driver_register(&orion_wdt_driver);
-}
-
-static void __exit orion_wdt_exit(void)
-{
-	platform_driver_unregister(&orion_wdt_driver);
-}
-
-module_init(orion_wdt_init);
-module_exit(orion_wdt_exit);
+module_platform_driver(orion_wdt_driver);
 
 MODULE_AUTHOR("Sylver Bruneau <sylver.bruneau@googlemail.com>");
 MODULE_DESCRIPTION("Orion Processor Watchdog");
