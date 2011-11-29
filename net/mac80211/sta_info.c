@@ -1354,12 +1354,12 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 			 * Use MoreData flag to indicate whether there are
 			 * more buffered frames for this STA
 			 */
-			if (!more_data)
-				hdr->frame_control &=
-					cpu_to_le16(~IEEE80211_FCTL_MOREDATA);
-			else
+			if (more_data || !skb_queue_empty(&frames))
 				hdr->frame_control |=
 					cpu_to_le16(IEEE80211_FCTL_MOREDATA);
+			else
+				hdr->frame_control &=
+					cpu_to_le16(~IEEE80211_FCTL_MOREDATA);
 
 			if (ieee80211_is_data_qos(hdr->frame_control) ||
 			    ieee80211_is_qos_nullfunc(hdr->frame_control))

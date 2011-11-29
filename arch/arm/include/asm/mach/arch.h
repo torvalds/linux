@@ -13,6 +13,7 @@
 struct tag;
 struct meminfo;
 struct sys_timer;
+struct pt_regs;
 
 struct machine_desc {
 	unsigned int		nr;		/* architecture number	*/

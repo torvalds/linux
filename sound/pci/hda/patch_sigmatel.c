@@ -227,7 +227,6 @@ struct sigmatel_spec {
 
 	/* power management */
 	unsigned int num_pwrs;
-	const unsigned int *pwr_mapping;
 	const hda_nid_t *pwr_nids;
 	const hda_nid_t *dac_list;
 
@@ -374,16 +373,13 @@ static const unsigned long stac92hd73xx_capvols[] = {
 
 #define STAC92HD83_DAC_COUNT 3
 
-static const hda_nid_t stac92hd83xxx_pwr_nids[4] = {
-	0xa, 0xb, 0xd, 0xe,
+static const hda_nid_t stac92hd83xxx_pwr_nids[7] = {
+	0x0a, 0x0b, 0x0c, 0xd, 0x0e,
+	0x0f, 0x10
 };
 
 static const hda_nid_t stac92hd83xxx_slave_dig_outs[2] = {
 	0x1e, 0,
-};
-
-static const unsigned int stac92hd83xxx_pwr_mapping[4] = {
-	0x03, 0x0c, 0x20, 0x40,
 };
 
 static const hda_nid_t stac92hd83xxx_dmic_nids[] = {
@@ -4470,8 +4466,12 @@ static int stac92xx_init(struct hda_codec *codec)
 				stac_toggle_power_map(codec, nid, 1);
 			continue;
 		}
-		if (enable_pin_detect(codec, nid, STAC_PWR_EVENT))
+		if (enable_pin_detect(codec, nid, STAC_PWR_EVENT)) {
 			stac_issue_unsol_event(codec, nid);
+			continue;
+		}
+		/* none of the above, turn the port OFF */
+		stac_toggle_power_map(codec, nid, 0);
 	}
 
 	/* sync mute LED */
@@ -4727,11 +4727,7 @@ static void stac_toggle_power_map(struct hda_codec *codec, hda_nid_t nid,
 	if (idx >= spec->num_pwrs)
 		return;
 
-	/* several codecs have two power down bits */
-	if (spec->pwr_mapping)
-		idx = spec->pwr_mapping[idx];
-	else
-		idx = 1 << idx;
+	idx = 1 << idx;
 
 	val = snd_hda_codec_read(codec, codec->afg, 0, 0x0fec, 0x0) & 0xff;
 	if (enable)
@@ -5629,9 +5625,6 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 		snd_hda_codec_set_pincfg(codec, 0xf, 0x2181205e);
 	}
 
-	/* reset pin power-down; Windows may leave these bits after reboot */
-	snd_hda_codec_write_cache(codec, codec->afg, 0, 0x7EC, 0);
-	snd_hda_codec_write_cache(codec, codec->afg, 0, 0x7ED, 0);
 	codec->no_trigger_sense = 1;
 	codec->spec = spec;
 
@@ -5641,7 +5634,6 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 	codec->slave_dig_outs = stac92hd83xxx_slave_dig_outs;
 	spec->digbeep_nid = 0x21;
 	spec->pwr_nids = stac92hd83xxx_pwr_nids;
-	spec->pwr_mapping = stac92hd83xxx_pwr_mapping;
 	spec->num_pwrs = ARRAY_SIZE(stac92hd83xxx_pwr_nids);
 	spec->multiout.dac_nids = spec->dac_nids;
 	spec->init = stac92hd83xxx_core_init;
@@ -5657,9 +5649,6 @@ again:
 	else
 		stac92xx_set_config_regs(codec,
 				stac92hd83xxx_brd_tbl[spec->board_config]);
-
-	if (spec->board_config != STAC_92HD83XXX_PWR_REF)
-		spec->num_pwrs = 0;
 
 	codec->patch_ops = stac92xx_patch_ops;
 
@@ -5869,8 +5858,6 @@ again:
 		    (codec->revision_id & 0xf) == 1)
 			spec->stream_delay = 40; /* 40 milliseconds */
 
-		/* no output amps */
-		spec->num_pwrs = 0;
 		/* disable VSW */
 		spec->init = stac92hd71bxx_core_init;
 		unmute_init++;
@@ -5885,8 +5872,6 @@ again:
 		if ((codec->revision_id & 0xf) == 1)
 			spec->stream_delay = 40; /* 40 milliseconds */
 
-		/* no output amps */
-		spec->num_pwrs = 0;
 		/* fallthru */
 	default:
 		spec->init = stac92hd71bxx_core_init;

@@ -747,6 +747,18 @@ sub __eval_option {
     # Add space to evaluate the character before $
     $option = " $option";
     my $retval = "";
+    my $repeated = 0;
+    my $parent = 0;
+
+    foreach my $test (keys %repeat_tests) {
+	if ($i >= $test &&
+	    $i < $test + $repeat_tests{$test}) {
+
+	    $repeated = 1;
+	    $parent = $test;
+	    last;
+	}
+    }
 
     while ($option =~ /(.*?[^\\])\$\{(.*?)\}(.*)/) {
 	my $start = $1;
@@ -760,9 +772,13 @@ sub __eval_option {
 	# otherwise see if the default OPT (without [$i]) exists.
 
 	my $o = "$var\[$i\]";
+	my $parento = "$var\[$parent\]";
 
 	if (defined($opt{$o})) {
 	    $o = $opt{$o};
+	    $retval = "$retval$o";
+	} elsif ($repeated && defined($opt{$parento})) {
+	    $o = $opt{$parento};
 	    $retval = "$retval$o";
 	} elsif (defined($opt{$var})) {
 	    $o = $opt{$var};

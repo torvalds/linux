@@ -738,7 +738,7 @@ relocate_new_kernel:
 	mr      r5, r31
 
 	li	r0, 0
-#elif defined(CONFIG_44x)  && !defined(CONFIG_47x)
+#elif defined(CONFIG_44x)  && !defined(CONFIG_PPC_47x)
 
 /*
  * Code for setting up 1:1 mapping for PPC440x for KEXEC

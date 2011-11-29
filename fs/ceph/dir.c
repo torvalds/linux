@@ -1143,7 +1143,7 @@ static void ceph_d_prune(struct dentry *dentry)
 {
 	struct ceph_dentry_info *di;
 
-	dout("d_release %p\n", dentry);
+	dout("ceph_d_prune %p\n", dentry);
 
 	/* do we have a valid parent? */
 	if (!dentry->d_parent || IS_ROOT(dentry))

@@ -254,6 +254,8 @@ ath_reg_apply_active_scan_flags(struct wiphy *wiphy,
 	int r;
 
 	sband = wiphy->bands[IEEE80211_BAND_2GHZ];
+	if (!sband)
+		return;
 
 	/*
 	 * If no country IE has been received always enable active scan

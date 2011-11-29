@@ -572,6 +572,7 @@ config KEXEC
 config CRASH_DUMP
 	bool "kernel crash dumps"
 	depends on 64BIT
+	select KEXEC
 	help
 	  Generate crash dump after being started by kexec.
 	  Crash dump kernels are loaded in the main kernel with kexec-tools

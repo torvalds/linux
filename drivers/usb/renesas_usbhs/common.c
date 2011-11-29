@@ -405,7 +405,7 @@ int usbhsc_drvcllbck_notify_hotplug(struct platform_device *pdev)
 /*
  *		platform functions
  */
-static int __devinit usbhs_probe(struct platform_device *pdev)
+static int usbhs_probe(struct platform_device *pdev)
 {
 	struct renesas_usbhs_platform_info *info = pdev->dev.platform_data;
 	struct renesas_usbhs_driver_callback *dfunc;

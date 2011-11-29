@@ -701,16 +701,21 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 			return r;
 		}
 
-		if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
-			tile_flags |= R300_TXO_MACRO_TILE;
-		if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
-			tile_flags |= R300_TXO_MICRO_TILE;
-		else if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO_SQUARE)
-			tile_flags |= R300_TXO_MICRO_TILE_SQUARE;
+		if (p->keep_tiling_flags) {
+			ib[idx] = (idx_value & 31) | /* keep the 1st 5 bits */
+				  ((idx_value & ~31) + (u32)reloc->lobj.gpu_offset);
+		} else {
+			if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+				tile_flags |= R300_TXO_MACRO_TILE;
+			if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
+				tile_flags |= R300_TXO_MICRO_TILE;
+			else if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO_SQUARE)
+				tile_flags |= R300_TXO_MICRO_TILE_SQUARE;
 
-		tmp = idx_value + ((u32)reloc->lobj.gpu_offset);
-		tmp |= tile_flags;
-		ib[idx] = tmp;
+			tmp = idx_value + ((u32)reloc->lobj.gpu_offset);
+			tmp |= tile_flags;
+			ib[idx] = tmp;
+		}
 		track->textures[i].robj = reloc->robj;
 		track->tex_dirty = true;
 		break;
@@ -760,24 +765,26 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		/* RB3D_COLORPITCH1 */
 		/* RB3D_COLORPITCH2 */
 		/* RB3D_COLORPITCH3 */
-		r = r100_cs_packet_next_reloc(p, &reloc);
-		if (r) {
-			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
-				  idx, reg);
-			r100_cs_dump_packet(p, pkt);
-			return r;
+		if (!p->keep_tiling_flags) {
+			r = r100_cs_packet_next_reloc(p, &reloc);
+			if (r) {
+				DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+					  idx, reg);
+				r100_cs_dump_packet(p, pkt);
+				return r;
+			}
+
+			if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+				tile_flags |= R300_COLOR_TILE_ENABLE;
+			if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
+				tile_flags |= R300_COLOR_MICROTILE_ENABLE;
+			else if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO_SQUARE)
+				tile_flags |= R300_COLOR_MICROTILE_SQUARE_ENABLE;
+
+			tmp = idx_value & ~(0x7 << 16);
+			tmp |= tile_flags;
+			ib[idx] = tmp;
 		}
-
-		if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
-			tile_flags |= R300_COLOR_TILE_ENABLE;
-		if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
-			tile_flags |= R300_COLOR_MICROTILE_ENABLE;
-		else if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO_SQUARE)
-			tile_flags |= R300_COLOR_MICROTILE_SQUARE_ENABLE;
-
-		tmp = idx_value & ~(0x7 << 16);
-		tmp |= tile_flags;
-		ib[idx] = tmp;
 		i = (reg - 0x4E38) >> 2;
 		track->cb[i].pitch = idx_value & 0x3FFE;
 		switch (((idx_value >> 21) & 0xF)) {
@@ -843,25 +850,26 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		break;
 	case 0x4F24:
 		/* ZB_DEPTHPITCH */
-		r = r100_cs_packet_next_reloc(p, &reloc);
-		if (r) {
-			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
-				  idx, reg);
-			r100_cs_dump_packet(p, pkt);
-			return r;
+		if (!p->keep_tiling_flags) {
+			r = r100_cs_packet_next_reloc(p, &reloc);
+			if (r) {
+				DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
+					  idx, reg);
+				r100_cs_dump_packet(p, pkt);
+				return r;
+			}
+
+			if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+				tile_flags |= R300_DEPTHMACROTILE_ENABLE;
+			if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
+				tile_flags |= R300_DEPTHMICROTILE_TILED;
+			else if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO_SQUARE)
+				tile_flags |= R300_DEPTHMICROTILE_TILED_SQUARE;
+
+			tmp = idx_value & ~(0x7 << 16);
+			tmp |= tile_flags;
+			ib[idx] = tmp;
 		}
-
-		if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
-			tile_flags |= R300_DEPTHMACROTILE_ENABLE;
-		if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
-			tile_flags |= R300_DEPTHMICROTILE_TILED;
-		else if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO_SQUARE)
-			tile_flags |= R300_DEPTHMICROTILE_TILED_SQUARE;
-
-		tmp = idx_value & ~(0x7 << 16);
-		tmp |= tile_flags;
-		ib[idx] = tmp;
-
 		track->zb.pitch = idx_value & 0x3FFC;
 		track->zb_dirty = true;
 		break;
