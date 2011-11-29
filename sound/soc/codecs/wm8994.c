@@ -3016,6 +3016,8 @@ int wm8958_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 			cb_data = codec;
 		}
 
+		snd_soc_dapm_force_enable_pin(&codec->dapm, "CLK_SYS");
+
 		wm8994->micdet[0].jack = jack;
 		wm8994->jack_cb = cb;
 		wm8994->jack_cb_data = cb_data;
@@ -3025,6 +3027,7 @@ int wm8958_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 	} else {
 		snd_soc_update_bits(codec, WM8958_MIC_DETECT_1,
 				    WM8958_MICD_ENA, 0);
+		snd_soc_dapm_disable_pin(&codec->dapm, "CLK_SYS");
 	}
 
 	return 0;
