@@ -116,8 +116,6 @@ extern bool drm_helper_encoder_in_use(struct drm_encoder *encoder);
 
 extern void drm_helper_connector_dpms(struct drm_connector *connector, int mode);
 
-extern void drm_helper_get_fb_bpp_depth(uint32_t format, unsigned int *depth,
-					int *bpp);
 extern int drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,
 					  struct drm_mode_fb_cmd2 *mode_cmd);
 

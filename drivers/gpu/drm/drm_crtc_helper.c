@@ -811,54 +811,13 @@ void drm_helper_connector_dpms(struct drm_connector *connector, int mode)
 }
 EXPORT_SYMBOL(drm_helper_connector_dpms);
 
-/*
- * Just need to support RGB formats here for compat with code that doesn't
- * use pixel formats directly yet.
- */
-void drm_helper_get_fb_bpp_depth(uint32_t format, unsigned int *depth,
-				 int *bpp)
-{
-	switch (format) {
-	case DRM_FOURCC_RGB332:
-		*depth = 8;
-		*bpp = 8;
-		break;
-	case DRM_FOURCC_RGB555:
-		*depth = 15;
-		*bpp = 16;
-		break;
-	case DRM_FOURCC_RGB565:
-		*depth = 16;
-		*bpp = 16;
-		break;
-	case DRM_FOURCC_RGB24:
-		*depth = 24;
-		*bpp = 32;
-		break;
-	case DRM_INTEL_RGB30:
-		*depth = 30;
-		*bpp = 32;
-		break;
-	case DRM_FOURCC_RGB32:
-		*depth = 32;
-		*bpp = 32;
-		break;
-	default:
-		DRM_DEBUG_KMS("unsupported pixel format\n");
-		*depth = 0;
-		*bpp = 0;
-		break;
-	}
-}
-EXPORT_SYMBOL(drm_helper_get_fb_bpp_depth);
-
 int drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,
 				   struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	fb->width = mode_cmd->width;
 	fb->height = mode_cmd->height;
 	fb->pitch = mode_cmd->pitches[0];
-	drm_helper_get_fb_bpp_depth(mode_cmd->pixel_format, &fb->depth,
+	drm_fb_get_bpp_depth(mode_cmd->pixel_format, &fb->depth,
 				    &fb->bits_per_pixel);
 	fb->pixel_format = mode_cmd->pixel_format;
 

@@ -116,7 +116,7 @@ static int radeonfb_create_pinned_object(struct radeon_fbdev *rfbdev,
 	int height = mode_cmd->height;
 	u32 bpp, depth;
 
-	drm_helper_get_fb_bpp_depth(mode_cmd->pixel_format, &depth, &bpp);
+	drm_fb_get_bpp_depth(mode_cmd->pixel_format, &depth, &bpp);
 
 	/* need to align pitch with crtc limits */
 	mode_cmd->pitches[0] = radeon_align_pitch(rdev, mode_cmd->width, bpp,

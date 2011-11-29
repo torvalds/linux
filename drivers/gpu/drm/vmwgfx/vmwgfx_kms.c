@@ -1006,7 +1006,7 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 	mode_cmd.height = mode_cmd2->height;
 	mode_cmd.pitch = mode_cmd2->pitches[0];
 	mode_cmd.handle = mode_cmd2->handles[0];
-	drm_helper_get_fb_bpp_depth(mode_cmd2->pixel_format, &mode_cmd.depth,
+	drm_fb_get_bpp_depth(mode_cmd2->pixel_format, &mode_cmd.depth,
 				    &mode_cmd.bpp);
 
 	/**

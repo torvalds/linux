@@ -3136,3 +3136,44 @@ int drm_mode_destroy_dumb_ioctl(struct drm_device *dev,
 
 	return dev->driver->dumb_destroy(file_priv, dev, args->handle);
 }
+
+/*
+ * Just need to support RGB formats here for compat with code that doesn't
+ * use pixel formats directly yet.
+ */
+void drm_fb_get_bpp_depth(uint32_t format, unsigned int *depth,
+			  int *bpp)
+{
+	switch (format) {
+	case DRM_FOURCC_RGB332:
+		*depth = 8;
+		*bpp = 8;
+		break;
+	case DRM_FOURCC_RGB555:
+		*depth = 15;
+		*bpp = 16;
+		break;
+	case DRM_FOURCC_RGB565:
+		*depth = 16;
+		*bpp = 16;
+		break;
+	case DRM_FOURCC_RGB24:
+		*depth = 24;
+		*bpp = 32;
+		break;
+	case DRM_INTEL_RGB30:
+		*depth = 30;
+		*bpp = 32;
+		break;
+	case DRM_FOURCC_RGB32:
+		*depth = 32;
+		*bpp = 32;
+		break;
+	default:
+		DRM_DEBUG_KMS("unsupported pixel format\n");
+		*depth = 0;
+		*bpp = 0;
+		break;
+	}
+}
+EXPORT_SYMBOL(drm_fb_get_bpp_depth);

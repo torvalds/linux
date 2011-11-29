@@ -902,4 +902,7 @@ extern int drm_mode_mmap_dumb_ioctl(struct drm_device *dev,
 				    void *data, struct drm_file *file_priv);
 extern int drm_mode_destroy_dumb_ioctl(struct drm_device *dev,
 				      void *data, struct drm_file *file_priv);
+
+extern void drm_fb_get_bpp_depth(uint32_t format, unsigned int *depth,
+				 int *bpp);
 #endif /* __DRM_CRTC_H__ */

@@ -280,7 +280,7 @@ static int psb_framebuffer_init(struct drm_device *dev,
 	u32 bpp, depth;
 	int ret;
 
-	drm_helper_get_fb_bpp_depth(mode_cmd->pixel_format, &depth, &bpp);
+	drm_fb_get_bpp_depth(mode_cmd->pixel_format, &depth, &bpp);
 
 	if (mode_cmd->pitches[0] & 63)
 		return -EINVAL;
