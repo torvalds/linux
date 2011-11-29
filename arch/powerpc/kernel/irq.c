@@ -186,8 +186,8 @@ notrace void arch_local_irq_restore(unsigned long en)
 	 * Any HV call will have this side effect.
 	 */
 	if (firmware_has_feature(FW_FEATURE_PS3_LV1)) {
-		u64 tmp;
-		lv1_get_version_info(&tmp);
+		u64 tmp, tmp2;
+		lv1_get_version_info(&tmp, &tmp2);
 	}
 
 	__hard_irq_enable();
