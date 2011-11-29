@@ -47,3 +47,12 @@ config RFKILL_GPIO
 	  If you say yes here you get support of a generic gpio RFKILL
 	  driver. The platform should fill in the appropriate fields in the
 	  rfkill_gpio_platform_data structure and pass that to the driver.
+
+
+config SUNXI_RFKILL
+	bool "Winner's GPIO RFKILL driver"
+	depends on RFKILL
+    depends on ARCH_SUN4I || ARCH_SUN5I
+    default y if ARCH_SUN4I
+    default y if ARCH_SUN5I
+
