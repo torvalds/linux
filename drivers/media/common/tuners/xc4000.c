@@ -758,7 +758,7 @@ static int xc4000_fwupload(struct dvb_frontend *fe)
 		n_array, fname, name,
 		priv->firm_version >> 8, priv->firm_version & 0xff);
 
-	priv->firm = kzalloc(sizeof(*priv->firm) * n_array, GFP_KERNEL);
+	priv->firm = kcalloc(n_array, sizeof(*priv->firm), GFP_KERNEL);
 	if (priv->firm == NULL) {
 		printk(KERN_ERR "Not enough memory to load firmware file.\n");
 		rc = -ENOMEM;
