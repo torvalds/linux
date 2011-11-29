@@ -1,5 +1,4 @@
 #ifndef ARCH_X86_CPU_H
-
 #define ARCH_X86_CPU_H
 
 struct cpu_model_info {
@@ -35,6 +34,4 @@ extern const struct cpu_dev *const __x86_cpu_dev_start[],
 
 extern void get_cpu_cap(struct cpuinfo_x86 *c);
 extern void cpu_detect_cache_sizes(struct cpuinfo_x86 *c);
-extern void get_cpu_cap(struct cpuinfo_x86 *c);
-
-#endif
+#endif /* ARCH_X86_CPU_H */
