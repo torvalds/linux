@@ -853,7 +853,6 @@ static SIMPLE_DEV_PM_OPS(ad7877_pm, ad7877_suspend, ad7877_resume);
 static struct spi_driver ad7877_driver = {
 	.driver = {
 		.name	= "ad7877",
-		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
 		.pm	= &ad7877_pm,
 	},

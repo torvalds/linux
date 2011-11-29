@@ -1426,7 +1426,6 @@ static int __devexit ads7846_remove(struct spi_device *spi)
 static struct spi_driver ads7846_driver = {
 	.driver = {
 		.name	= "ads7846",
-		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
 		.pm	= &ads7846_pm,
 	},
