@@ -891,7 +891,7 @@ static int xc2028_signal(struct dvb_frontend *fe, u16 *strength)
 
 	/* Frequency is locked */
 	if (frq_lock == 1)
-		signal = 32768;
+		signal = 1 << 11;
 
 	/* Get SNR of the video signal */
 	rc = xc2028_get_reg(priv, 0x0040, &signal);
