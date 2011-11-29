@@ -21,6 +21,8 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -500,7 +502,7 @@ static int __init nfc_init(void)
 {
 	int rc;
 
-	nfc_info("NFC Core ver %s", VERSION);
+	pr_info("NFC Core ver %s\n", VERSION);
 
 	rc = class_register(&nfc_class);
 	if (rc)

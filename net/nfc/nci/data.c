@@ -21,6 +21,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/wait.h>
@@ -49,7 +51,7 @@ void nci_data_exchange_complete(struct nci_dev *ndev,
 		/* forward skb to nfc core */
 		cb(cb_context, skb, err);
 	} else if (skb) {
-		nfc_err("no rx callback, dropping rx data...");
+		pr_err("no rx callback, dropping rx data...\n");
 
 		/* no waiting callback, free skb */
 		kfree_skb(skb);
@@ -161,7 +163,7 @@ int nci_send_data(struct nci_dev *ndev, __u8 conn_id, struct sk_buff *skb)
 		/* fragment packet and queue the fragments */
 		rc = nci_queue_tx_data_frags(ndev, conn_id, skb);
 		if (rc) {
-			nfc_err("failed to fragment tx data packet");
+			pr_err("failed to fragment tx data packet\n");
 			goto free_exit;
 		}
 	}
@@ -191,7 +193,7 @@ static void nci_add_rx_data_frag(struct nci_dev *ndev,
 
 		/* first, make enough room for the already accumulated data */
 		if (skb_cow_head(skb, reassembly_len)) {
-			nfc_err("error adding room for accumulated rx data");
+			pr_err("error adding room for accumulated rx data\n");
 
 			kfree_skb(skb);
 			skb = 0;

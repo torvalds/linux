@@ -21,6 +21,8 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <net/tcp_states.h>
 #include <linux/nfc.h>
 #include <linux/export.h>
@@ -294,7 +296,7 @@ static void rawsock_destruct(struct sock *sk)
 	skb_queue_purge(&sk->sk_receive_queue);
 
 	if (!sock_flag(sk, SOCK_DEAD)) {
-		nfc_err("Freeing alive NFC raw socket %p", sk);
+		pr_err("Freeing alive NFC raw socket %p\n", sk);
 		return;
 	}
 }

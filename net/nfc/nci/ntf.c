@@ -25,6 +25,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/bitops.h>
@@ -114,8 +116,8 @@ static int nci_extract_activation_params_iso_dep(struct nci_dev *ndev,
 		break;
 
 	default:
-		nfc_err("unsupported activation_rf_tech_and_mode 0x%x",
-			ntf->activation_rf_tech_and_mode);
+		pr_err("unsupported activation_rf_tech_and_mode 0x%x\n",
+		       ntf->activation_rf_tech_and_mode);
 		return -EPROTO;
 	}
 
@@ -182,8 +184,8 @@ static void nci_rf_intf_activated_ntf_packet(struct nci_dev *ndev,
 			break;
 
 		default:
-			nfc_err("unsupported activation_rf_tech_and_mode 0x%x",
-				ntf.activation_rf_tech_and_mode);
+			pr_err("unsupported activation_rf_tech_and_mode 0x%x\n",
+			       ntf.activation_rf_tech_and_mode);
 			return;
 		}
 	}
@@ -214,8 +216,8 @@ static void nci_rf_intf_activated_ntf_packet(struct nci_dev *ndev,
 			break;
 
 		default:
-			nfc_err("unsupported rf_interface_type 0x%x",
-				ntf.rf_interface_type);
+			pr_err("unsupported rf_interface_type 0x%x\n",
+			       ntf.rf_interface_type);
 			return;
 		}
 	}
@@ -278,7 +280,7 @@ void nci_ntf_packet(struct nci_dev *ndev, struct sk_buff *skb)
 		break;
 
 	default:
-		nfc_err("unknown ntf opcode 0x%x", ntf_opcode);
+		pr_err("unknown ntf opcode 0x%x\n", ntf_opcode);
 		break;
 	}
 

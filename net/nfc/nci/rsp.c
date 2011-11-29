@@ -25,6 +25,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/bitops.h>
@@ -200,7 +202,7 @@ void nci_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 		break;
 
 	default:
-		nfc_err("unknown rsp opcode 0x%x", rsp_opcode);
+		pr_err("unknown rsp opcode 0x%x\n", rsp_opcode);
 		break;
 	}
 
