@@ -45,16 +45,16 @@ static void nci_core_conn_credits_ntf_packet(struct nci_dev *ndev,
 	struct nci_core_conn_credit_ntf *ntf = (void *) skb->data;
 	int i;
 
-	nfc_dbg("entry, num_entries %d", ntf->num_entries);
+	pr_debug("entry, num_entries %d\n", ntf->num_entries);
 
 	if (ntf->num_entries > NCI_MAX_NUM_CONN)
 		ntf->num_entries = NCI_MAX_NUM_CONN;
 
 	/* update the credits */
 	for (i = 0; i < ntf->num_entries; i++) {
-		nfc_dbg("entry[%d]: conn_id %d, credits %d", i,
-			ntf->conn_entries[i].conn_id,
-			ntf->conn_entries[i].credits);
+		pr_debug("entry[%d]: conn_id %d, credits %d\n",
+			 i, ntf->conn_entries[i].conn_id,
+			 ntf->conn_entries[i].credits);
 
 		if (ntf->conn_entries[i].conn_id == NCI_STATIC_RF_CONN_ID) {
 			/* found static rf connection */
@@ -80,9 +80,8 @@ static __u8 *nci_extract_rf_params_nfca_passive_poll(struct nci_dev *ndev,
 
 	nfca_poll->nfcid1_len = *data++;
 
-	nfc_dbg("sens_res 0x%x, nfcid1_len %d",
-		nfca_poll->sens_res,
-		nfca_poll->nfcid1_len);
+	pr_debug("sens_res 0x%x, nfcid1_len %d\n",
+		 nfca_poll->sens_res, nfca_poll->nfcid1_len);
 
 	memcpy(nfca_poll->nfcid1, data, nfca_poll->nfcid1_len);
 	data += nfca_poll->nfcid1_len;
@@ -92,9 +91,9 @@ static __u8 *nci_extract_rf_params_nfca_passive_poll(struct nci_dev *ndev,
 	if (nfca_poll->sel_res_len != 0)
 		nfca_poll->sel_res = *data++;
 
-	nfc_dbg("sel_res_len %d, sel_res 0x%x",
-		nfca_poll->sel_res_len,
-		nfca_poll->sel_res);
+	pr_debug("sel_res_len %d, sel_res 0x%x\n",
+		 nfca_poll->sel_res_len,
+		 nfca_poll->sel_res);
 
 	return data;
 }
@@ -140,12 +139,12 @@ static void nci_target_found(struct nci_dev *ndev,
 	nfc_tgt.sel_res = ntf->rf_tech_specific_params.nfca_poll.sel_res;
 
 	if (!(nfc_tgt.supported_protocols & ndev->poll_prots)) {
-		nfc_dbg("the target found does not have the desired protocol");
+		pr_debug("the target found does not have the desired protocol\n");
 		return;
 	}
 
-	nfc_dbg("new target found,  supported_protocols 0x%x",
-		nfc_tgt.supported_protocols);
+	pr_debug("new target found,  supported_protocols 0x%x\n",
+		 nfc_tgt.supported_protocols);
 
 	ndev->target_available_prots = nfc_tgt.supported_protocols;
 
@@ -168,13 +167,13 @@ static void nci_rf_intf_activated_ntf_packet(struct nci_dev *ndev,
 	ntf.activation_rf_tech_and_mode = *data++;
 	ntf.rf_tech_specific_params_len = *data++;
 
-	nfc_dbg("rf_discovery_id %d", ntf.rf_discovery_id);
-	nfc_dbg("rf_interface_type 0x%x", ntf.rf_interface_type);
-	nfc_dbg("rf_protocol 0x%x", ntf.rf_protocol);
-	nfc_dbg("activation_rf_tech_and_mode 0x%x",
-		ntf.activation_rf_tech_and_mode);
-	nfc_dbg("rf_tech_specific_params_len %d",
-		ntf.rf_tech_specific_params_len);
+	pr_debug("rf_discovery_id %d\n", ntf.rf_discovery_id);
+	pr_debug("rf_interface_type 0x%x\n", ntf.rf_interface_type);
+	pr_debug("rf_protocol 0x%x\n", ntf.rf_protocol);
+	pr_debug("activation_rf_tech_and_mode 0x%x\n",
+		 ntf.activation_rf_tech_and_mode);
+	pr_debug("rf_tech_specific_params_len %d\n",
+		 ntf.rf_tech_specific_params_len);
 
 	if (ntf.rf_tech_specific_params_len > 0) {
 		switch (ntf.activation_rf_tech_and_mode) {
@@ -195,14 +194,14 @@ static void nci_rf_intf_activated_ntf_packet(struct nci_dev *ndev,
 	ntf.data_exch_rx_bit_rate = *data++;
 	ntf.activation_params_len = *data++;
 
-	nfc_dbg("data_exch_rf_tech_and_mode 0x%x",
-		ntf.data_exch_rf_tech_and_mode);
-	nfc_dbg("data_exch_tx_bit_rate 0x%x",
-		ntf.data_exch_tx_bit_rate);
-	nfc_dbg("data_exch_rx_bit_rate 0x%x",
-		ntf.data_exch_rx_bit_rate);
-	nfc_dbg("activation_params_len %d",
-		ntf.activation_params_len);
+	pr_debug("data_exch_rf_tech_and_mode 0x%x\n",
+		 ntf.data_exch_rf_tech_and_mode);
+	pr_debug("data_exch_tx_bit_rate 0x%x\n",
+		 ntf.data_exch_tx_bit_rate);
+	pr_debug("data_exch_rx_bit_rate 0x%x\n",
+		 ntf.data_exch_rx_bit_rate);
+	pr_debug("activation_params_len %d\n",
+		 ntf.activation_params_len);
 
 	if (ntf.activation_params_len > 0) {
 		switch (ntf.rf_interface_type) {
@@ -231,7 +230,7 @@ static void nci_rf_deactivate_ntf_packet(struct nci_dev *ndev,
 {
 	struct nci_rf_deactivate_ntf *ntf = (void *) skb->data;
 
-	nfc_dbg("entry, type 0x%x, reason 0x%x", ntf->type, ntf->reason);
+	pr_debug("entry, type 0x%x, reason 0x%x\n", ntf->type, ntf->reason);
 
 	clear_bit(NCI_POLL_ACTIVE, &ndev->flags);
 	ndev->target_active_prot = 0;
@@ -257,11 +256,11 @@ void nci_ntf_packet(struct nci_dev *ndev, struct sk_buff *skb)
 {
 	__u16 ntf_opcode = nci_opcode(skb->data);
 
-	nfc_dbg("NCI RX: MT=ntf, PBF=%d, GID=0x%x, OID=0x%x, plen=%d",
-			nci_pbf(skb->data),
-			nci_opcode_gid(ntf_opcode),
-			nci_opcode_oid(ntf_opcode),
-			nci_plen(skb->data));
+	pr_debug("NCI RX: MT=ntf, PBF=%d, GID=0x%x, OID=0x%x, plen=%d\n",
+		 nci_pbf(skb->data),
+		 nci_opcode_gid(ntf_opcode),
+		 nci_opcode_oid(ntf_opcode),
+		 nci_plen(skb->data));
 
 	/* strip the nci control header */
 	skb_pull(skb, NCI_CTRL_HDR_SIZE);

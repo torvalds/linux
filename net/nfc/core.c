@@ -65,7 +65,7 @@ int nfc_dev_up(struct nfc_dev *dev)
 {
 	int rc = 0;
 
-	nfc_dbg("dev_name=%s", dev_name(&dev->dev));
+	pr_debug("dev_name=%s\n", dev_name(&dev->dev));
 
 	device_lock(&dev->dev);
 
@@ -99,7 +99,7 @@ int nfc_dev_down(struct nfc_dev *dev)
 {
 	int rc = 0;
 
-	nfc_dbg("dev_name=%s", dev_name(&dev->dev));
+	pr_debug("dev_name=%s\n", dev_name(&dev->dev));
 
 	device_lock(&dev->dev);
 
@@ -141,7 +141,8 @@ int nfc_start_poll(struct nfc_dev *dev, u32 protocols)
 {
 	int rc;
 
-	nfc_dbg("dev_name=%s protocols=0x%x", dev_name(&dev->dev), protocols);
+	pr_debug("dev_name=%s protocols=0x%x\n",
+		 dev_name(&dev->dev), protocols);
 
 	if (!protocols)
 		return -EINVAL;
@@ -176,7 +177,7 @@ int nfc_stop_poll(struct nfc_dev *dev)
 {
 	int rc = 0;
 
-	nfc_dbg("dev_name=%s", dev_name(&dev->dev));
+	pr_debug("dev_name=%s\n", dev_name(&dev->dev));
 
 	device_lock(&dev->dev);
 
@@ -209,8 +210,8 @@ int nfc_activate_target(struct nfc_dev *dev, u32 target_idx, u32 protocol)
 {
 	int rc;
 
-	nfc_dbg("dev_name=%s target_idx=%u protocol=%u", dev_name(&dev->dev),
-							target_idx, protocol);
+	pr_debug("dev_name=%s target_idx=%u protocol=%u\n",
+		 dev_name(&dev->dev), target_idx, protocol);
 
 	device_lock(&dev->dev);
 
@@ -238,7 +239,8 @@ int nfc_deactivate_target(struct nfc_dev *dev, u32 target_idx)
 {
 	int rc = 0;
 
-	nfc_dbg("dev_name=%s target_idx=%u", dev_name(&dev->dev), target_idx);
+	pr_debug("dev_name=%s target_idx=%u\n",
+		 dev_name(&dev->dev), target_idx);
 
 	device_lock(&dev->dev);
 
@@ -273,8 +275,8 @@ int nfc_data_exchange(struct nfc_dev *dev, u32 target_idx,
 {
 	int rc;
 
-	nfc_dbg("dev_name=%s target_idx=%u skb->len=%u", dev_name(&dev->dev),
-							target_idx, skb->len);
+	pr_debug("dev_name=%s target_idx=%u skb->len=%u\n",
+		 dev_name(&dev->dev), target_idx, skb->len);
 
 	device_lock(&dev->dev);
 
@@ -328,7 +330,7 @@ int nfc_targets_found(struct nfc_dev *dev, struct nfc_target *targets,
 {
 	int i;
 
-	nfc_dbg("dev_name=%s n_targets=%d", dev_name(&dev->dev), n_targets);
+	pr_debug("dev_name=%s n_targets=%d\n", dev_name(&dev->dev), n_targets);
 
 	dev->polling = false;
 
@@ -362,7 +364,7 @@ static void nfc_release(struct device *d)
 {
 	struct nfc_dev *dev = to_nfc_dev(d);
 
-	nfc_dbg("dev_name=%s", dev_name(&dev->dev));
+	pr_debug("dev_name=%s\n", dev_name(&dev->dev));
 
 	nfc_genl_data_exit(&dev->genl_data);
 	kfree(dev->targets);
@@ -448,7 +450,7 @@ int nfc_register_device(struct nfc_dev *dev)
 {
 	int rc;
 
-	nfc_dbg("dev_name=%s", dev_name(&dev->dev));
+	pr_debug("dev_name=%s\n", dev_name(&dev->dev));
 
 	mutex_lock(&nfc_devlist_mutex);
 	nfc_devlist_generation++;
@@ -460,9 +462,8 @@ int nfc_register_device(struct nfc_dev *dev)
 
 	rc = nfc_genl_device_added(dev);
 	if (rc)
-		nfc_dbg("The userspace won't be notified that the device %s was"
-						" added", dev_name(&dev->dev));
-
+		pr_debug("The userspace won't be notified that the device %s was added\n",
+			 dev_name(&dev->dev));
 
 	return 0;
 }
@@ -477,7 +478,7 @@ void nfc_unregister_device(struct nfc_dev *dev)
 {
 	int rc;
 
-	nfc_dbg("dev_name=%s", dev_name(&dev->dev));
+	pr_debug("dev_name=%s\n", dev_name(&dev->dev));
 
 	mutex_lock(&nfc_devlist_mutex);
 	nfc_devlist_generation++;
@@ -492,8 +493,8 @@ void nfc_unregister_device(struct nfc_dev *dev)
 
 	rc = nfc_genl_device_removed(dev);
 	if (rc)
-		nfc_dbg("The userspace won't be notified that the device %s"
-					" was removed", dev_name(&dev->dev));
+		pr_debug("The userspace won't be notified that the device %s was removed\n",
+			 dev_name(&dev->dev));
 
 }
 EXPORT_SYMBOL(nfc_unregister_device);
