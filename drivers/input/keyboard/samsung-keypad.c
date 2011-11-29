@@ -467,18 +467,7 @@ static struct platform_driver samsung_keypad_driver = {
 	},
 	.id_table	= samsung_keypad_driver_ids,
 };
-
-static int __init samsung_keypad_init(void)
-{
-	return platform_driver_register(&samsung_keypad_driver);
-}
-module_init(samsung_keypad_init);
-
-static void __exit samsung_keypad_exit(void)
-{
-	platform_driver_unregister(&samsung_keypad_driver);
-}
-module_exit(samsung_keypad_exit);
+module_platform_driver(samsung_keypad_driver);
 
 MODULE_DESCRIPTION("Samsung keypad driver");
 MODULE_AUTHOR("Joonyoung Shim <jy0922.shim@samsung.com>");

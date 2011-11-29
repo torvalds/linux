@@ -802,18 +802,7 @@ static struct platform_driver tegra_kbc_driver = {
 		.pm	= &tegra_kbc_pm_ops,
 	},
 };
-
-static void __exit tegra_kbc_exit(void)
-{
-	platform_driver_unregister(&tegra_kbc_driver);
-}
-module_exit(tegra_kbc_exit);
-
-static int __init tegra_kbc_init(void)
-{
-	return platform_driver_register(&tegra_kbc_driver);
-}
-module_init(tegra_kbc_init);
+module_platform_driver(tegra_kbc_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Rakesh Iyer <riyer@nvidia.com>");

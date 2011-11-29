@@ -453,18 +453,7 @@ static struct platform_driver tc3589x_keypad_driver = {
 	.probe	= tc3589x_keypad_probe,
 	.remove	= __devexit_p(tc3589x_keypad_remove),
 };
-
-static int __init tc3589x_keypad_init(void)
-{
-	return platform_driver_register(&tc3589x_keypad_driver);
-}
-module_init(tc3589x_keypad_init);
-
-static void __exit tc3589x_keypad_exit(void)
-{
-	return platform_driver_unregister(&tc3589x_keypad_driver);
-}
-module_exit(tc3589x_keypad_exit);
+module_platform_driver(tc3589x_keypad_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Jayeeta Banerjee/Sundar Iyer");
