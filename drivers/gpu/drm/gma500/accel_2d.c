@@ -118,7 +118,7 @@ static int psbfb_2d_submit(struct drm_psb_private *dev_priv, uint32_t *cmdbuf,
 		size -= submit_size;
 		ret = psb_2d_wait_available(dev_priv, submit_size);
 		if (ret)
-		        break;
+			break;
 
 		submit_size <<= 2;
 
