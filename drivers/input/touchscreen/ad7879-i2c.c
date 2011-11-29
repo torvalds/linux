@@ -23,7 +23,7 @@ static int ad7879_i2c_read(struct device *dev, u8 reg)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
-	return swab16(i2c_smbus_read_word_data(client, reg));
+	return i2c_smbus_read_word_swapped(client, reg);
 }
 
 static int ad7879_i2c_multi_read(struct device *dev,
@@ -44,7 +44,7 @@ static int ad7879_i2c_write(struct device *dev, u8 reg, u16 val)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
-	return i2c_smbus_write_word_data(client, reg, swab16(val));
+	return i2c_smbus_write_word_swapped(client, reg, val);
 }
 
 static const struct ad7879_bus_ops ad7879_i2c_bus_ops = {
