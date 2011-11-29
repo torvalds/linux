@@ -159,9 +159,14 @@ int pio2_gpio_reset(struct pio2_card *card)
 	}
 
 	/* Set input interrupt masks */
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < 4; i++) {
 		retval = vme_master_write(card->window, &data, 1,
-			PIO2_REGS_INT_MASK[i]);
+			PIO2_REGS_INT_MASK[i * 2]);
+		if (retval < 0)
+			return retval;
+
+		retval = vme_master_write(card->window, &data, 1,
+			PIO2_REGS_INT_MASK[(i * 2) + 1]);
 		if (retval < 0)
 			return retval;
 
