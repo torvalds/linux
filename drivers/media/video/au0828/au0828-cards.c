@@ -162,11 +162,14 @@ static void hauppauge_eeprom(struct au0828_dev *dev, u8 *eeprom_data)
 	switch (tv.model) {
 	case 72000: /* WinTV-HVR950q (Retail, IR, ATSC/QAM */
 	case 72001: /* WinTV-HVR950q (Retail, IR, ATSC/QAM and analog video */
+	case 72101: /* WinTV-HVR950q (Retail, IR, ATSC/QAM and analog video */
+	case 72201: /* WinTV-HVR950q (OEM, IR, ATSC/QAM and analog video */
 	case 72211: /* WinTV-HVR950q (OEM, IR, ATSC/QAM and analog video */
 	case 72221: /* WinTV-HVR950q (OEM, IR, ATSC/QAM and analog video */
 	case 72231: /* WinTV-HVR950q (OEM, IR, ATSC/QAM and analog video */
 	case 72241: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM and analog video */
 	case 72251: /* WinTV-HVR950q (Retail, IR, ATSC/QAM and analog video */
+	case 72261: /* WinTV-HVR950q (OEM, IR, ATSC/QAM and analog video */
 	case 72301: /* WinTV-HVR850 (Retail, IR, ATSC and analog video */
 	case 72500: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM */
 		break;
