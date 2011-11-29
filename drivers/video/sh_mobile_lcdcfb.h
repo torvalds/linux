@@ -64,6 +64,8 @@ struct sh_mobile_lcdc_chan {
 	struct mutex open_lock;		/* protects the use counter */
 	int use_count;
 
+	void *fb_mem;
+	unsigned long fb_size;
 	dma_addr_t dma_handle;
 	unsigned long pan_offset;
 
