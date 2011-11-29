@@ -1094,7 +1094,7 @@ static void ieee80211_work_work(struct work_struct *work)
 		local->tmp_channel = NULL;
 		/* If tmp_channel wasn't operating channel, then
 		 * we need to go back on-channel.
-		 * NOTE:  If we can ever be here while scannning,
+		 * NOTE:  If we can ever be here while scanning,
 		 * or if the hw_config() channel config logic changes,
 		 * then we may need to do a more thorough check to see if
 		 * we still need to do a hardware config.  Currently,

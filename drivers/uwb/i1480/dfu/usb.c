@@ -104,7 +104,7 @@ void i1480_usb_destroy(struct i1480_usb *i1480_usb)
  *
  * Data buffers to USB cannot be on the stack or in vmalloc'ed areas,
  * so we copy it to the local i1480 buffer before proceeding. In any
- * case, we have a max size we can send, soooo.
+ * case, we have a max size we can send.
  */
 static
 int i1480_usb_write(struct i1480 *i1480, u32 memory_address,

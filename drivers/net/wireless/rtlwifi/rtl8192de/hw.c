@@ -466,8 +466,8 @@ void rtl92de_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		bool int_migration = *(bool *) (val);
 
 		if (int_migration) {
-			/* Set interrrupt migration timer and
-			 * corresponging Tx/Rx counter.
+			/* Set interrupt migration timer and
+			 * corresponding Tx/Rx counter.
 			 * timer 25ns*0xfa0=100us for 0xf packets.
 			 * 0x306:Rx, 0x307:Tx */
 			rtl_write_dword(rtlpriv, REG_INT_MIG, 0xfe000fa0);

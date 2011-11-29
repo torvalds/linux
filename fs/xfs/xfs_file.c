@@ -209,10 +209,10 @@ xfs_file_fsync(
 
 	/*
 	 * First check if the VFS inode is marked dirty.  All the dirtying
-	 * of non-transactional updates no goes through mark_inode_dirty*,
-	 * which allows us to distinguish beteeen pure timestamp updates
+	 * of non-transactional updates do not go through mark_inode_dirty*,
+	 * which allows us to distinguish between pure timestamp updates
 	 * and i_size updates which need to be caught for fdatasync.
-	 * After that also theck for the dirty state in the XFS inode, which
+	 * After that also check for the dirty state in the XFS inode, which
 	 * might gets cleared when the inode gets written out via the AIL
 	 * or xfs_iflush_cluster.
 	 */

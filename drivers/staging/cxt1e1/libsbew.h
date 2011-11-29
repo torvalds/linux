@@ -323,7 +323,7 @@ struct sbecom_port_param
 #define CFG_CH_DINV_TX      0x02
 
 
-/* Posssible resettable chipsets/functions */
+/* Possible resettable chipsets/functions */
 #define RESET_DEV_TEMUX     1
 #define RESET_DEV_TECT3     RESET_DEV_TEMUX
 #define RESET_DEV_PLL       2
