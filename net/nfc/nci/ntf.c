@@ -45,7 +45,7 @@ static void nci_core_conn_credits_ntf_packet(struct nci_dev *ndev,
 	struct nci_core_conn_credit_ntf *ntf = (void *) skb->data;
 	int i;
 
-	pr_debug("entry, num_entries %d\n", ntf->num_entries);
+	pr_debug("num_entries %d\n", ntf->num_entries);
 
 	if (ntf->num_entries > NCI_MAX_NUM_CONN)
 		ntf->num_entries = NCI_MAX_NUM_CONN;

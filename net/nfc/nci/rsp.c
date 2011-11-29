@@ -42,7 +42,7 @@ static void nci_core_reset_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 {
 	struct nci_core_reset_rsp *rsp = (void *) skb->data;
 
-	pr_debug("entry, status 0x%x\n", rsp->status);
+	pr_debug("status 0x%x\n", rsp->status);
 
 	if (rsp->status == NCI_STATUS_OK) {
 		ndev->nci_ver = rsp->nci_ver;
@@ -58,7 +58,7 @@ static void nci_core_init_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 	struct nci_core_init_rsp_1 *rsp_1 = (void *) skb->data;
 	struct nci_core_init_rsp_2 *rsp_2;
 
-	pr_debug("entry, status 0x%x\n", rsp_1->status);
+	pr_debug("status 0x%x\n", rsp_1->status);
 
 	if (rsp_1->status != NCI_STATUS_OK)
 		goto exit;
@@ -135,7 +135,7 @@ static void nci_rf_disc_map_rsp_packet(struct nci_dev *ndev,
 {
 	__u8 status = skb->data[0];
 
-	pr_debug("entry, status 0x%x\n", status);
+	pr_debug("status 0x%x\n", status);
 
 	nci_req_complete(ndev, status);
 }
@@ -144,7 +144,7 @@ static void nci_rf_disc_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 {
 	__u8 status = skb->data[0];
 
-	pr_debug("entry, status 0x%x\n", status);
+	pr_debug("status 0x%x\n", status);
 
 	if (status == NCI_STATUS_OK)
 		set_bit(NCI_DISCOVERY, &ndev->flags);
@@ -157,7 +157,7 @@ static void nci_rf_deactivate_rsp_packet(struct nci_dev *ndev,
 {
 	__u8 status = skb->data[0];
 
-	pr_debug("entry, status 0x%x\n", status);
+	pr_debug("status 0x%x\n", status);
 
 	clear_bit(NCI_DISCOVERY, &ndev->flags);
 
