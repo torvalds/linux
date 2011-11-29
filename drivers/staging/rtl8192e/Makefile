@@ -17,24 +17,6 @@ obj-$(CONFIG_RTLLIB_CRYPTO_CCMP) += rtllib_crypt_ccmp.o
 obj-$(CONFIG_RTLLIB_CRYPTO_TKIP) += rtllib_crypt_tkip.o
 obj-$(CONFIG_RTLLIB_CRYPTO_WEP) += rtllib_crypt_wep.o
 
-r8192e_pci-objs :=		\
-	r8192E_dev.o		\
-	r8192E_phy.o		\
-	r8192E_firmware.o	\
-	r8192E_cmdpkt.o		\
-	r8192E_hwimg.o		\
-	r8190P_rtl8256.o	\
-	rtl_cam.o		\
-	rtl_core.o		\
-	rtl_debug.o		\
-	rtl_dm.o		\
-	rtl_eeprom.o		\
-	rtl_ethtool.o		\
-	rtl_pci.o		\
-	rtl_pm.o		\
-	rtl_ps.o		\
-	rtl_wx.o		\
-
-obj-$(CONFIG_RTL8192E) += r8192e_pci.o
+obj-$(CONFIG_RTL8192E) += rtl8192e/
 
 ccflags-y += -D__CHECK_ENDIAN__

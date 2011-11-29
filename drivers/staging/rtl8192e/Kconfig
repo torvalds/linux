@@ -8,6 +8,8 @@ config RTLLIB
 
 	  If unsure, say N.
 
+if RTLLIB
+
 config RTLLIB_CRYPTO
 	tristate "Support for rtllib crypto support"
 	depends on RTLLIB
@@ -44,12 +46,6 @@ config RTLLIB_CRYPTO_WEP
 
 	  If you enabled RTLLIB, you want this.
 
-config RTL8192E
-	tristate "RealTek RTL8192E Wireless LAN NIC driver"
-	depends on PCI && WLAN && RTLLIB
-	depends on m
-	select WIRELESS_EXT
-	select WEXT_PRIV
-	select CRYPTO
-	default N
-	---help---
+source "drivers/staging/rtl8192e/rtl8192e/Kconfig"
+
+endif

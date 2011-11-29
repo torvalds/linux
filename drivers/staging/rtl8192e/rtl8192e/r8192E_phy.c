@@ -23,7 +23,6 @@
 #include "r8190P_rtl8256.h"
 #include "r8192E_phy.h"
 #include "rtl_dm.h"
-#include "dot11d.h"
 
 #include "r8192E_hwimg.h"
 

@@ -50,9 +50,9 @@
 /* Need this defined before including local include files */
 #define DRV_NAME "rtl819xE"
 
-#include "rtllib.h"
+#include "../rtllib.h"
 
-#include "dot11d.h"
+#include "../dot11d.h"
 
 #include "r8192E_firmware.h"
 #include "r8192E_hw.h"

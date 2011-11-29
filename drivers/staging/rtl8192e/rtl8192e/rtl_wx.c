@@ -19,7 +19,6 @@
 
 #include <linux/string.h>
 #include "rtl_core.h"
-#include "dot11d.h"
 
 #define RATE_COUNT 12
 static u32 rtl8192_rates[] = {
