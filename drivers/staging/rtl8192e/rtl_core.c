@@ -1303,7 +1303,6 @@ static short rtl8192_init(struct net_device *dev)
 
 	memset(&(priv->stats), 0, sizeof(struct rt_stats));
 
-	rtl8192_dbgp_flag_init(dev);
 	rtl8192_init_priv_handler(dev);
 	rtl8192_init_priv_constant(dev);
 	rtl8192_init_priv_variable(dev);
@@ -2960,10 +2959,7 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 
 	register_netdev(dev);
 	RT_TRACE(COMP_INIT, "dev name: %s\n", dev->name);
-	err = rtl_debug_module_init(priv, dev->name);
-	if (err)
-		RT_TRACE(COMP_DBG, "failed to create debugfs files. Ignoring "
-			 "error: %d\n", err);
+
 	rtl8192_proc_init_one(dev);
 
 	if (priv->polling_timer_on == 0)
@@ -3001,7 +2997,6 @@ static void __devexit rtl8192_pci_disconnect(struct pci_dev *pdev)
 		del_timer_sync(&priv->gpio_polling_timer);
 		cancel_delayed_work(&priv->gpio_change_rf_wq);
 		priv->polling_timer_on = 0;
-		rtl_debug_module_remove(priv);
 		rtl8192_proc_remove_one(dev);
 		rtl8192_down(dev, true);
 		deinit_hal_dm(dev);
@@ -3090,7 +3085,6 @@ bool NicIFDisableNIC(struct net_device *dev)
 static int __init rtl8192_pci_module_init(void)
 {
 	int ret;
-	int error;
 
 	ret = rtllib_init();
 	if (ret) {
@@ -3120,12 +3114,6 @@ static int __init rtl8192_pci_module_init(void)
 	printk(KERN_INFO "\nLinux kernel driver for RTL8192E WLAN cards\n");
 	printk(KERN_INFO "Copyright (c) 2007-2008, Realsil Wlan Driver\n");
 
-	error = rtl_create_debugfs_root();
-	if (error) {
-		RT_TRACE(COMP_DBG, "Create debugfs root fail: %d\n", error);
-		goto err_out;
-	}
-
 	rtl8192_proc_module_init();
 	if (0 != pci_register_driver(&rtl8192_pci_driver)) {
 		DMESG("No device found");
@@ -3133,9 +3121,6 @@ static int __init rtl8192_pci_module_init(void)
 		return -ENODEV;
 	}
 	return 0;
-err_out:
-	return error;
-
 }
 
 static void __exit rtl8192_pci_module_exit(void)
@@ -3144,7 +3129,6 @@ static void __exit rtl8192_pci_module_exit(void)
 
 	RT_TRACE(COMP_DOWN, "Exiting");
 	rtl8192_proc_module_remove();
-	rtl_remove_debugfs_root();
 	rtllib_crypto_tkip_exit();
 	rtllib_crypto_ccmp_exit();
 	rtllib_crypto_wep_exit();

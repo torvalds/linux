@@ -22,7 +22,6 @@
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
 ******************************************************************************/
-#include "rtl_debug.h"
 #include "rtl_core.h"
 #include "r8192E_phy.h"
 #include "r8192E_phyreg.h"
@@ -31,81 +30,6 @@
 
 u32 rt_global_debug_component = \
 				COMP_ERR ;
-
-/*------------------Declare variable-----------------------*/
-u32	DBGP_Type[DBGP_TYPE_MAX];
-
-/*-----------------------------------------------------------------------------
- * Function:    DBGP_Flag_Init
- *
- * Overview:    Refresh all debug print control flag content to zero.
- *
- * Input:       NONE
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Revised History:
- *  When		Who		Remark
- *  10/20/2006	MHC		Create Version 0.
- *
- *---------------------------------------------------------------------------*/
-void	rtl8192_dbgp_flag_init(struct net_device *dev)
-{
-	u8 i;
-
-	for (i = 0; i < DBGP_TYPE_MAX; i++)
-		DBGP_Type[i] = 0;
-
-
-}	/* DBGP_Flag_Init */
-
-/* this is only for debugging */
-void print_buffer(u32 *buffer, int len)
-{
-	int i;
-	u8 *buf = (u8 *)buffer;
-
-	printk(KERN_INFO "ASCII BUFFER DUMP (len: %x):\n", len);
-
-	for (i = 0; i < len; i++)
-		printk(KERN_INFO "%c", buf[i]);
-
-	printk(KERN_INFO "\nBINARY BUFFER DUMP (len: %x):\n", len);
-
-	for (i = 0; i < len; i++)
-		printk(KERN_INFO "%x", buf[i]);
-
-	printk(KERN_INFO "\n");
-}
-
-/* this is only for debug */
-void dump_eprom(struct net_device *dev)
-{
-	int i;
-
-	for (i = 0; i < 0xff; i++)
-		RT_TRACE(COMP_INIT, "EEPROM addr %x : %x", i,
-			 eprom_read(dev, i));
-}
-
-/* this is only for debug */
-void rtl8192_dump_reg(struct net_device *dev)
-{
-	int i;
-	int n;
-	int max = 0x5ff;
-
-	RT_TRACE(COMP_INIT, "Dumping NIC register map");
-
-	for (n = 0; n <= max; ) {
-		printk(KERN_INFO "\nD: %2x> ", n);
-		for (i = 0; i < 16 && n <= max; i++, n++)
-			printk(KERN_INFO "%2x ", read_nic_byte(dev, n));
-	}
-	printk(KERN_INFO "\n");
-}
 
 /****************************************************************************
    -----------------------------PROCFS STUFF-------------------------
