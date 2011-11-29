@@ -69,12 +69,12 @@ enum rrrr_ids {
 	R4_SNOOP,
 };
 
-extern const char *tt_msgs[];
-extern const char *ll_msgs[];
-extern const char *rrrr_msgs[];
-extern const char *pp_msgs[];
-extern const char *to_msgs[];
-extern const char *ii_msgs[];
+extern const char * const tt_msgs[];
+extern const char * const ll_msgs[];
+extern const char * const rrrr_msgs[];
+extern const char * const pp_msgs[];
+extern const char * const to_msgs[];
+extern const char * const ii_msgs[];
 
 /*
  * per-family decoder ops

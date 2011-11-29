@@ -39,29 +39,29 @@ EXPORT_SYMBOL_GPL(amd_unregister_ecc_decoder);
  */
 
 /* transaction type */
-const char *tt_msgs[] = { "INSN", "DATA", "GEN", "RESV" };
+const char * const tt_msgs[] = { "INSN", "DATA", "GEN", "RESV" };
 EXPORT_SYMBOL_GPL(tt_msgs);
 
 /* cache level */
-const char *ll_msgs[] = { "RESV", "L1", "L2", "L3/GEN" };
+const char * const ll_msgs[] = { "RESV", "L1", "L2", "L3/GEN" };
 EXPORT_SYMBOL_GPL(ll_msgs);
 
 /* memory transaction type */
-const char *rrrr_msgs[] = {
+const char * const rrrr_msgs[] = {
        "GEN", "RD", "WR", "DRD", "DWR", "IRD", "PRF", "EV", "SNP"
 };
 EXPORT_SYMBOL_GPL(rrrr_msgs);
 
 /* participating processor */
-const char *pp_msgs[] = { "SRC", "RES", "OBS", "GEN" };
+const char * const pp_msgs[] = { "SRC", "RES", "OBS", "GEN" };
 EXPORT_SYMBOL_GPL(pp_msgs);
 
 /* request timeout */
-const char *to_msgs[] = { "no timeout",	"timed out" };
+const char * const to_msgs[] = { "no timeout", "timed out" };
 EXPORT_SYMBOL_GPL(to_msgs);
 
 /* memory or i/o */
-const char *ii_msgs[] = { "MEM", "RESV", "IO", "GEN" };
+const char * const ii_msgs[] = { "MEM", "RESV", "IO", "GEN" };
 EXPORT_SYMBOL_GPL(ii_msgs);
 
 static const char * const f15h_ic_mce_desc[] = {
@@ -101,7 +101,7 @@ static const char * const f15h_cu_mce_desc[] = {
 	"PRB address parity error"
 };
 
-static const char *nb_mce_desc[] = {
+static const char * const nb_mce_desc[] = {
 	"DRAM ECC error detected on the NB",
 	"CRC error detected on HT link",
 	"Link-defined sync error packets detected on HT link",
