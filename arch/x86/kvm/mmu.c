@@ -1391,11 +1391,6 @@ struct kvm_mmu_pages {
 	unsigned int nr;
 };
 
-#define for_each_unsync_children(bitmap, idx)		\
-	for (idx = find_first_bit(bitmap, 512);		\
-	     idx < 512;					\
-	     idx = find_next_bit(bitmap, 512, idx+1))
-
 static int mmu_pages_add(struct kvm_mmu_pages *pvec, struct kvm_mmu_page *sp,
 			 int idx)
 {
@@ -1417,7 +1412,7 @@ static int __mmu_unsync_walk(struct kvm_mmu_page *sp,
 {
 	int i, ret, nr_unsync_leaf = 0;
 
-	for_each_unsync_children(sp->unsync_child_bitmap, i) {
+	for_each_set_bit(i, sp->unsync_child_bitmap, 512) {
 		struct kvm_mmu_page *child;
 		u64 ent = sp->spt[i];
 
