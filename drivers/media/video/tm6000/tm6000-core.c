@@ -541,7 +541,7 @@ static struct reg_init tm6010_init_tab[] = {
 	{ TM6010_REQ07_RDE_IR_PULSE_CNT1, 0x20 },
 	{ TM6010_REQ07_RDF_IR_PULSE_CNT0, 0xd0 },
 	{ REQ_04_EN_DISABLE_MCU_INT, 0x02, 0x00 },
-	{ TM6010_REQ07_RD8_IR, 0x2f },
+	{ TM6010_REQ07_RD8_IR, 0x0f },
 
 	/* set remote wakeup key:any key wakeup */
 	{ TM6010_REQ07_RE5_REMOTE_WAKEUP,  0xfe },
