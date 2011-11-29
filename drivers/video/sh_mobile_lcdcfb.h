@@ -53,30 +53,22 @@ struct sh_mobile_lcdc_entity {
 struct sh_mobile_lcdc_chan {
 	struct sh_mobile_lcdc_priv *lcdc;
 	struct sh_mobile_lcdc_entity *tx_dev;
+	struct sh_mobile_lcdc_chan_cfg cfg;
 
 	unsigned long *reg_offs;
 	unsigned long ldmt1r_value;
 	unsigned long enabled; /* ME and SE in LDCNT2R */
-	struct sh_mobile_lcdc_chan_cfg cfg;
-	u32 pseudo_palette[PALETTE_NR];
-	struct fb_info *info;
-	struct backlight_device *bl;
+	int meram_enabled;
+
+	struct mutex open_lock;		/* protects the use counter */
+	int use_count;
+
 	dma_addr_t dma_handle;
-	struct fb_deferred_io defio;
-	struct scatterlist *sglist;
-	unsigned long frame_end;
 	unsigned long pan_offset;
+
+	unsigned long frame_end;
 	wait_queue_head_t frame_end_wait;
 	struct completion vsync_completion;
-	struct {
-		unsigned int width;
-		unsigned int height;
-		struct fb_videomode mode;
-	} display;
-	int use_count;
-	int blank_status;
-	struct mutex open_lock;		/* protects the use counter */
-	int meram_enabled;
 
 	unsigned long base_addr_y;
 	unsigned long base_addr_c;
@@ -86,6 +78,21 @@ struct sh_mobile_lcdc_chan {
 		      enum sh_mobile_lcdc_entity_event event,
 		      const struct fb_videomode *mode,
 		      const struct fb_monspecs *monspec);
+
+	/* Backlight */
+	struct backlight_device *bl;
+
+	/* FB */
+	struct fb_info *info;
+	u32 pseudo_palette[PALETTE_NR];
+	struct {
+		unsigned int width;
+		unsigned int height;
+		struct fb_videomode mode;
+	} display;
+	struct fb_deferred_io defio;
+	struct scatterlist *sglist;
+	int blank_status;
 };
 
 #endif
