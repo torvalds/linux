@@ -579,27 +579,28 @@ int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 {
 	struct iwl_notification_wait alive_wait;
 	struct iwlagn_alive_data alive_data;
+	struct iwl_trans *trans = trans(priv);
 	int ret;
 	enum iwl_ucode_type old_type;
 
-	ret = iwl_trans_start_device(trans(priv));
+	ret = iwl_trans_start_device(trans);
 	if (ret)
 		return ret;
 
 	iwlagn_init_notification_wait(priv, &alive_wait, REPLY_ALIVE,
 				      iwl_alive_fn, &alive_data);
 
-	old_type = priv->ucode_type;
-	priv->ucode_type = ucode_type;
+	old_type = trans->shrd->ucode_type;
+	trans->shrd->ucode_type = ucode_type;
 
-	ret = iwl_load_given_ucode(trans(priv), ucode_type);
+	ret = iwl_load_given_ucode(trans, ucode_type);
 	if (ret) {
-		priv->ucode_type = old_type;
+		trans->shrd->ucode_type = old_type;
 		iwlagn_remove_notification(priv, &alive_wait);
 		return ret;
 	}
 
-	iwl_trans_kick_nic(trans(priv));
+	iwl_trans_kick_nic(trans);
 
 	/*
 	 * Some things may run in the background now, but we
@@ -607,13 +608,13 @@ int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 	 */
 	ret = iwlagn_wait_notification(priv, &alive_wait, UCODE_ALIVE_TIMEOUT);
 	if (ret) {
-		priv->ucode_type = old_type;
+		trans->shrd->ucode_type = old_type;
 		return ret;
 	}
 
 	if (!alive_data.valid) {
 		IWL_ERR(priv, "Loaded ucode is not valid!\n");
-		priv->ucode_type = old_type;
+		trans->shrd->ucode_type = old_type;
 		return -EIO;
 	}
 
@@ -623,9 +624,9 @@ int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 	 * skip it for WoWLAN.
 	 */
 	if (ucode_type != IWL_UCODE_WOWLAN) {
-		ret = iwl_verify_ucode(trans(priv), ucode_type);
+		ret = iwl_verify_ucode(trans, ucode_type);
 		if (ret) {
-			priv->ucode_type = old_type;
+			trans->shrd->ucode_type = old_type;
 			return ret;
 		}
 
@@ -637,7 +638,7 @@ int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 	if (ret) {
 		IWL_WARN(priv,
 			"Could not complete ALIVE transition: %d\n", ret);
-		priv->ucode_type = old_type;
+		trans->shrd->ucode_type = old_type;
 		return ret;
 	}
 
@@ -655,7 +656,7 @@ int iwlagn_run_init_ucode(struct iwl_priv *priv)
 	if (!trans(priv)->ucode_init.code.len)
 		return 0;
 
-	if (priv->ucode_type != IWL_UCODE_NONE)
+	if (priv->shrd->ucode_type != IWL_UCODE_NONE)
 		return 0;
 
 	iwlagn_init_notification_wait(priv, &calib_wait,

@@ -710,7 +710,7 @@ static int iwl_testmode_sram(struct ieee80211_hw *hw, struct nlattr **tb)
 		return -ENOMSG;
 	}
 	size = nla_get_u32(tb[IWL_TM_ATTR_SRAM_SIZE]);
-	switch (priv->ucode_type) {
+	switch (priv->shrd->ucode_type) {
 	case IWL_UCODE_REGULAR:
 		maxsize = trans(priv)->ucode_rt.data.len;
 		break;

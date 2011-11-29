@@ -257,6 +257,23 @@ struct iwl_tid_data {
 };
 
 /**
+ * enum iwl_ucode_type
+ *
+ * The type of ucode currently loaded on the hardware.
+ *
+ * @IWL_UCODE_NONE: No ucode loaded
+ * @IWL_UCODE_REGULAR: Normal runtime ucode
+ * @IWL_UCODE_INIT: Initial ucode
+ * @IWL_UCODE_WOWLAN: Wake on Wireless enabled ucode
+ */
+enum iwl_ucode_type {
+	IWL_UCODE_NONE,
+	IWL_UCODE_REGULAR,
+	IWL_UCODE_INIT,
+	IWL_UCODE_WOWLAN,
+};
+
+/**
  * struct iwl_shared - shared fields for all the layers of the driver
  *
  * @dbg_level_dev: dbg level set per device. Prevails on
@@ -300,6 +317,9 @@ struct iwl_shared {
 	struct iwl_tid_data tid_data[IWLAGN_STATION_COUNT][IWL_MAX_TID_COUNT];
 
 	wait_queue_head_t wait_command_queue;
+
+	/* ucode related variables */
+	enum iwl_ucode_type ucode_type;
 };
 
 /*Whatever _m is (iwl_trans, iwl_priv, iwl_bus, these macros will work */

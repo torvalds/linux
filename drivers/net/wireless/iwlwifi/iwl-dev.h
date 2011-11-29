@@ -889,7 +889,6 @@ struct iwl_priv {
 	u32 ucode_ver;			/* version of ucode, copy of
 					   iwl_ucode.ver */
 
-	enum iwl_ucode_type ucode_type;
 	char firmware_name[25];
 
 	struct iwl_rxon_context contexts[NUM_IWL_RXON_CTX];

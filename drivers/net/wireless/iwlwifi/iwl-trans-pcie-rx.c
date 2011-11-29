@@ -595,7 +595,7 @@ static void iwl_dump_nic_error_log(struct iwl_trans *trans)
 		IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	base = priv->device_pointers.error_event_table;
-	if (priv->ucode_type == IWL_UCODE_INIT) {
+	if (trans->shrd->ucode_type == IWL_UCODE_INIT) {
 		if (!base)
 			base = priv->init_errlog_ptr;
 	} else {
@@ -607,7 +607,7 @@ static void iwl_dump_nic_error_log(struct iwl_trans *trans)
 		IWL_ERR(trans,
 			"Not valid error log pointer 0x%08X for %s uCode\n",
 			base,
-			(priv->ucode_type == IWL_UCODE_INIT)
+			(trans->shrd->ucode_type == IWL_UCODE_INIT)
 					? "Init" : "RT");
 		return;
 	}
@@ -710,7 +710,7 @@ static int iwl_print_event_log(struct iwl_trans *trans, u32 start_idx,
 		return pos;
 
 	base = priv->device_pointers.log_event_table;
-	if (priv->ucode_type == IWL_UCODE_INIT) {
+	if (trans->shrd->ucode_type == IWL_UCODE_INIT) {
 		if (!base)
 			base = priv->init_evtlog_ptr;
 	} else {
@@ -824,7 +824,7 @@ int iwl_dump_nic_event_log(struct iwl_trans *trans, bool full_log,
 	struct iwl_priv *priv = priv(trans);
 
 	base = priv->device_pointers.log_event_table;
-	if (priv->ucode_type == IWL_UCODE_INIT) {
+	if (trans->shrd->ucode_type == IWL_UCODE_INIT) {
 		logsize = priv->init_evtlog_size;
 		if (!base)
 			base = priv->init_evtlog_ptr;
@@ -838,7 +838,7 @@ int iwl_dump_nic_event_log(struct iwl_trans *trans, bool full_log,
 		IWL_ERR(trans,
 			"Invalid event log pointer 0x%08X for %s uCode\n",
 			base,
-			(priv->ucode_type == IWL_UCODE_INIT)
+			(trans->shrd->ucode_type == IWL_UCODE_INIT)
 					? "Init" : "RT");
 		return -EINVAL;
 	}
