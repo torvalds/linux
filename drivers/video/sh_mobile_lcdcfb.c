@@ -368,21 +368,17 @@ static bool
 sh_mobile_lcdc_must_reconfigure(struct sh_mobile_lcdc_chan *ch,
 				const struct fb_videomode *new_mode)
 {
-	struct fb_var_screeninfo *old_var = &ch->display_var;
-	struct fb_videomode old_mode;
-
-	fb_var_to_videomode(&old_mode, old_var);
-
 	dev_dbg(ch->info->dev, "Old %ux%u, new %ux%u\n",
-		old_mode.xres, old_mode.yres, new_mode->xres, new_mode->yres);
+		ch->display.mode.xres, ch->display.mode.yres,
+		new_mode->xres, new_mode->yres);
 
 	/* It can be a different monitor with an equal video-mode */
-	if (fb_mode_is_equal(&old_mode, new_mode))
+	if (fb_mode_is_equal(&ch->display.mode, new_mode))
 		return false;
 
 	dev_dbg(ch->info->dev, "Switching %u -> %u lines\n",
-		old_mode.yres, new_mode->yres);
-	fb_videomode_to_var(old_var, new_mode);
+		ch->display.mode.yres, new_mode->yres);
+	ch->display.mode = *new_mode;
 
 	return true;
 }
@@ -405,8 +401,8 @@ static int sh_mobile_lcdc_display_notify(struct sh_mobile_lcdc_chan *ch,
 		if (lock_fb_info(info)) {
 			console_lock();
 
-			ch->display_var.width = monspec->max_x * 10;
-			ch->display_var.height = monspec->max_y * 10;
+			ch->display.width = monspec->max_x * 10;
+			ch->display.height = monspec->max_y * 10;
 
 			if (!sh_mobile_lcdc_must_reconfigure(ch, mode) &&
 			    info->state == FBINFO_STATE_RUNNING) {
@@ -569,7 +565,8 @@ static void sh_mobile_lcdc_start_stop(struct sh_mobile_lcdc_priv *priv,
 
 static void sh_mobile_lcdc_geometry(struct sh_mobile_lcdc_chan *ch)
 {
-	struct fb_var_screeninfo *var = &ch->info->var, *display_var = &ch->display_var;
+	const struct fb_var_screeninfo *var = &ch->info->var;
+	const struct fb_videomode *mode = &ch->display.mode;
 	unsigned long h_total, hsync_pos, display_h_total;
 	u32 tmp;
 
@@ -588,34 +585,32 @@ static void sh_mobile_lcdc_geometry(struct sh_mobile_lcdc_chan *ch)
 	lcdc_write_chan(ch, LDMT3R, ch->cfg.sys_bus_cfg.ldmt3r);
 
 	/* horizontal configuration */
-	h_total = display_var->xres + display_var->hsync_len +
-		display_var->left_margin + display_var->right_margin;
+	h_total = mode->xres + mode->hsync_len + mode->left_margin
+		+ mode->right_margin;
 	tmp = h_total / 8; /* HTCN */
-	tmp |= (min(display_var->xres, var->xres) / 8) << 16; /* HDCN */
+	tmp |= (min(mode->xres, var->xres) / 8) << 16; /* HDCN */
 	lcdc_write_chan(ch, LDHCNR, tmp);
 
-	hsync_pos = display_var->xres + display_var->right_margin;
+	hsync_pos = mode->xres + mode->right_margin;
 	tmp = hsync_pos / 8; /* HSYNP */
-	tmp |= (display_var->hsync_len / 8) << 16; /* HSYNW */
+	tmp |= (mode->hsync_len / 8) << 16; /* HSYNW */
 	lcdc_write_chan(ch, LDHSYNR, tmp);
 
 	/* vertical configuration */
-	tmp = display_var->yres + display_var->vsync_len +
-		display_var->upper_margin + display_var->lower_margin; /* VTLN */
-	tmp |= min(display_var->yres, var->yres) << 16; /* VDLN */
+	tmp = mode->yres + mode->vsync_len + mode->upper_margin
+	    + mode->lower_margin; /* VTLN */
+	tmp |= min(mode->yres, var->yres) << 16; /* VDLN */
 	lcdc_write_chan(ch, LDVLNR, tmp);
 
-	tmp = display_var->yres + display_var->lower_margin; /* VSYNP */
-	tmp |= display_var->vsync_len << 16; /* VSYNW */
+	tmp = mode->yres + mode->lower_margin; /* VSYNP */
+	tmp |= mode->vsync_len << 16; /* VSYNW */
 	lcdc_write_chan(ch, LDVSYNR, tmp);
 
 	/* Adjust horizontal synchronisation for HDMI */
-	display_h_total = display_var->xres + display_var->hsync_len +
-		display_var->left_margin + display_var->right_margin;
-	tmp = ((display_var->xres & 7) << 24) |
-		((display_h_total & 7) << 16) |
-		((display_var->hsync_len & 7) << 8) |
-		(hsync_pos & 7);
+	display_h_total = mode->xres + mode->hsync_len + mode->left_margin
+			+ mode->right_margin;
+	tmp = ((mode->xres & 7) << 24) | ((display_h_total & 7) << 16)
+	    | ((mode->hsync_len & 7) << 8) | (hsync_pos & 7);
 	lcdc_write_chan(ch, LDHAJR, tmp);
 }
 
@@ -1106,7 +1101,8 @@ static int sh_mobile_ioctl(struct fb_info *info, unsigned int cmd,
 static void sh_mobile_fb_reconfig(struct fb_info *info)
 {
 	struct sh_mobile_lcdc_chan *ch = info->par;
-	struct fb_videomode mode1, mode2;
+	struct fb_var_screeninfo var;
+	struct fb_videomode mode;
 	struct fb_event event;
 	int evnt = FB_EVENT_MODE_CHANGE_ALL;
 
@@ -1114,14 +1110,19 @@ static void sh_mobile_fb_reconfig(struct fb_info *info)
 		/* More framebuffer users are active */
 		return;
 
-	fb_var_to_videomode(&mode1, &ch->display_var);
-	fb_var_to_videomode(&mode2, &info->var);
+	fb_var_to_videomode(&mode, &info->var);
 
-	if (fb_mode_is_equal(&mode1, &mode2))
+	if (fb_mode_is_equal(&ch->display.mode, &mode))
 		return;
 
 	/* Display has been re-plugged, framebuffer is free now, reconfigure */
-	if (fb_set_var(info, &ch->display_var) < 0)
+	var = info->var;
+	fb_videomode_to_var(&var, &ch->display.mode);
+	var.width = ch->display.width;
+	var.height = ch->display.height;
+	var.activate = FB_ACTIVATE_NOW;
+
+	if (fb_set_var(info, &var) < 0)
 		/* Couldn't reconfigure, hopefully, can continue as before */
 		return;
 
@@ -1131,7 +1132,7 @@ static void sh_mobile_fb_reconfig(struct fb_info *info)
 	 * user event, we have to call the chain ourselves.
 	 */
 	event.info = info;
-	event.data = &mode1;
+	event.data = &ch->display.mode;
 	fb_notifier_call_chain(evnt, &event);
 }
 
@@ -1815,7 +1816,10 @@ sh_mobile_lcdc_channel_init(struct sh_mobile_lcdc_priv *priv,
 
 	info->screen_base = buf;
 	info->device = priv->dev;
-	ch->display_var = *var;
+
+	ch->display.width = cfg->panel_cfg.width;
+	ch->display.height = cfg->panel_cfg.height;
+	ch->display.mode = *mode;
 
 	return 0;
 }

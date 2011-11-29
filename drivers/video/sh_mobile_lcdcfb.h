@@ -68,7 +68,11 @@ struct sh_mobile_lcdc_chan {
 	unsigned long pan_offset;
 	wait_queue_head_t frame_end_wait;
 	struct completion vsync_completion;
-	struct fb_var_screeninfo display_var;
+	struct {
+		unsigned int width;
+		unsigned int height;
+		struct fb_videomode mode;
+	} display;
 	int use_count;
 	int blank_status;
 	struct mutex open_lock;		/* protects the use counter */
