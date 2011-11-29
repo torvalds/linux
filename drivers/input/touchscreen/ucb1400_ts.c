@@ -456,16 +456,7 @@ static struct platform_driver ucb1400_ts_driver = {
 		.name	= "ucb1400_ts",
 	},
 };
-
-static int __init ucb1400_ts_init(void)
-{
-	return platform_driver_register(&ucb1400_ts_driver);
-}
-
-static void __exit ucb1400_ts_exit(void)
-{
-	platform_driver_unregister(&ucb1400_ts_driver);
-}
+module_platform_driver(ucb1400_ts_driver);
 
 module_param(adcsync, bool, 0444);
 MODULE_PARM_DESC(adcsync, "Synchronize touch readings with ADCSYNC pin.");
@@ -478,9 +469,6 @@ module_param(ts_delay_pressure, int, 0444);
 MODULE_PARM_DESC(ts_delay_pressure,
 		"delay between panel setup and pressure read."
 		"  Default = 0us.");
-
-module_init(ucb1400_ts_init);
-module_exit(ucb1400_ts_exit);
 
 MODULE_DESCRIPTION("Philips UCB1400 touchscreen driver");
 MODULE_LICENSE("GPL");
