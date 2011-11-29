@@ -215,41 +215,6 @@ enum RTL819x_PHY_PARAM {
 	RTL819X_EFUSE_MAP			= 19,
 };
 
-enum RTL_DEBUG {
-	COMP_TRACE		= BIT0,
-	COMP_DBG		= BIT1,
-	COMP_INIT		= BIT2,
-	COMP_RECV		= BIT3,
-	COMP_SEND		= BIT4,
-	COMP_CMD		= BIT5,
-	COMP_POWER		= BIT6,
-	COMP_EPROM		= BIT7,
-	COMP_SWBW		= BIT8,
-	COMP_SEC		= BIT9,
-	COMP_LPS		= BIT10,
-	COMP_QOS		= BIT11,
-	COMP_RATE		= BIT12,
-	COMP_RXDESC		= BIT13,
-	COMP_PHY		= BIT14,
-	COMP_DIG		= BIT15,
-	COMP_TXAGC		= BIT16,
-	COMP_HALDM		= BIT17,
-	COMP_POWER_TRACKING	= BIT18,
-	COMP_CH			= BIT19,
-	COMP_RF			= BIT20,
-	COMP_FIRMWARE		= BIT21,
-	COMP_HT			= BIT22,
-	COMP_RESET		= BIT23,
-	COMP_CMDPKT		= BIT24,
-	COMP_SCAN		= BIT25,
-	COMP_PS			= BIT26,
-	COMP_DOWN		= BIT27,
-	COMP_INTR		= BIT28,
-	COMP_LED		= BIT29,
-	COMP_MLME		= BIT30,
-	COMP_ERR		= BIT31
-};
-
 enum nic_t {
 	NIC_UNKNOWN     = 0,
 	NIC_8192E       = 1,
@@ -1120,5 +1085,11 @@ bool MgntActSet_RF_State(struct net_device *dev,
 void ActUpdateChannelAccessSetting(struct net_device *dev,
 			   enum wireless_mode WirelessMode,
 			   struct channel_access_setting *ChnlAccessSetting);
+
+/* proc stuff from rtl_debug.c */
+void rtl8192_proc_init_one(struct net_device *dev);
+void rtl8192_proc_remove_one(struct net_device *dev);
+void rtl8192_proc_module_init(void);
+void rtl8192_proc_module_remove(void);
 
 #endif
