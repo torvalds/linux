@@ -103,7 +103,7 @@ static struct workqueue_struct *goodix_wq;
 ///////////////////////////////////////////////
 //specific tp related macro: need be configured for specific tp
 #define CTP_IRQ_NO			(IRQ_EINT21)
-#define CTP_IRQ_MODE			(NEGETIVE_EDGE)
+#define CTP_IRQ_MODE			(NEGATIVE_EDGE)
 #define CTP_NAME			GOODIX_I2C_NAME
 #define TS_RESET_LOW_PERIOD		(15)
 #define TS_INITIAL_HIGH_PERIOD		(15)
