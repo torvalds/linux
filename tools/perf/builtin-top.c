@@ -1034,9 +1034,7 @@ parse_callchain_opt(const struct option *opt, const char *arg, int unset)
 		symbol_conf.use_callchain = false;
 
 		return 0;
-	}
-
-	else
+	} else
 		return -1;
 
 	/* get the min percentage */
@@ -1225,21 +1223,12 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 	}
 
 	list_for_each_entry(pos, &top.evlist->entries, node) {
-		if (perf_evsel__alloc_fd(pos, top.evlist->cpus->nr,
-					 top.evlist->threads->nr) < 0)
-			goto out_free_fd;
 		/*
 		 * Fill in the ones not specifically initialized via -c:
 		 */
-		if (pos->attr.sample_period)
-			continue;
-
-		pos->attr.sample_period = top.default_interval;
+		if (!pos->attr.sample_period)
+			pos->attr.sample_period = top.default_interval;
 	}
-
-	if (perf_evlist__alloc_pollfd(top.evlist) < 0 ||
-	    perf_evlist__alloc_mmap(top.evlist) < 0)
-		goto out_free_fd;
 
 	top.sym_evsel = list_entry(top.evlist->entries.next, struct perf_evsel, node);
 
@@ -1270,7 +1259,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 	}
 
 	status = __cmd_top(&top);
-out_free_fd:
+
 	perf_evlist__delete(top.evlist);
 
 	return status;

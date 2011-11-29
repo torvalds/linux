@@ -72,7 +72,6 @@ int perf_evlist__set_tracepoints_handlers(struct perf_evlist *evlist,
 void perf_evlist__id_add(struct perf_evlist *evlist, struct perf_evsel *evsel,
 			 int cpu, int thread, u64 id);
 
-int perf_evlist__alloc_pollfd(struct perf_evlist *evlist);
 void perf_evlist__add_pollfd(struct perf_evlist *evlist, int fd);
 
 struct perf_evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id);
@@ -89,7 +88,6 @@ int perf_evlist__prepare_workload(struct perf_evlist *evlist,
 				  const char *argv[]);
 int perf_evlist__start_workload(struct perf_evlist *evlist);
 
-int perf_evlist__alloc_mmap(struct perf_evlist *evlist);
 int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages,
 		      bool overwrite);
 void perf_evlist__munmap(struct perf_evlist *evlist);

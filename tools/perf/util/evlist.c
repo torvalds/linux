@@ -275,7 +275,7 @@ void perf_evlist__enable(struct perf_evlist *evlist)
 	}
 }
 
-int perf_evlist__alloc_pollfd(struct perf_evlist *evlist)
+static int perf_evlist__alloc_pollfd(struct perf_evlist *evlist)
 {
 	int nfds = evlist->cpus->nr * evlist->threads->nr * evlist->nr_entries;
 	evlist->pollfd = malloc(sizeof(struct pollfd) * nfds);
@@ -431,7 +431,7 @@ void perf_evlist__munmap(struct perf_evlist *evlist)
 	evlist->mmap = NULL;
 }
 
-int perf_evlist__alloc_mmap(struct perf_evlist *evlist)
+static int perf_evlist__alloc_mmap(struct perf_evlist *evlist)
 {
 	evlist->nr_mmaps = evlist->cpus->nr;
 	if (evlist->cpus->map[0] == -1)

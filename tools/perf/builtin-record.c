@@ -778,15 +778,9 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 		usage_with_options(record_usage, record_options);
 
 	list_for_each_entry(pos, &evsel_list->entries, node) {
-		if (perf_evsel__alloc_fd(pos, evsel_list->cpus->nr,
-					 evsel_list->threads->nr) < 0)
-			goto out_free_fd;
 		if (perf_header__push_event(pos->attr.config, event_name(pos)))
 			goto out_free_fd;
 	}
-
-	if (perf_evlist__alloc_pollfd(evsel_list) < 0)
-		goto out_free_fd;
 
 	if (rec->opts.user_interval != ULLONG_MAX)
 		rec->opts.default_interval = rec->opts.user_interval;
