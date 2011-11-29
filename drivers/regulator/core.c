@@ -912,8 +912,12 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 	int ret = 0;
 	struct regulator_ops *ops = rdev->desc->ops;
 
-	rdev->constraints = kmemdup(constraints, sizeof(*constraints),
-				    GFP_KERNEL);
+	if (constraints)
+		rdev->constraints = kmemdup(constraints, sizeof(*constraints),
+					    GFP_KERNEL);
+	else
+		rdev->constraints = kzalloc(sizeof(*constraints),
+					    GFP_KERNEL);
 	if (!rdev->constraints)
 		return -ENOMEM;
 
@@ -922,7 +926,7 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		goto out;
 
 	/* do we need to setup our suspend state */
-	if (constraints->initial_state) {
+	if (rdev->constraints->initial_state) {
 		ret = suspend_prepare(rdev, rdev->constraints->initial_state);
 		if (ret < 0) {
 			rdev_err(rdev, "failed to set suspend state\n");
@@ -930,7 +934,7 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		}
 	}
 
-	if (constraints->initial_mode) {
+	if (rdev->constraints->initial_mode) {
 		if (!ops->set_mode) {
 			rdev_err(rdev, "no set_mode operation\n");
 			ret = -EINVAL;
@@ -2697,6 +2701,7 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 	struct device *dev, const struct regulator_init_data *init_data,
 	void *driver_data, struct device_node *of_node)
 {
+	const struct regulation_constraints *constraints = NULL;
 	static atomic_t regulator_no = ATOMIC_INIT(0);
 	struct regulator_dev *rdev;
 	int ret, i;
@@ -2710,9 +2715,6 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 
 	if (regulator_desc->type != REGULATOR_VOLTAGE &&
 	    regulator_desc->type != REGULATOR_CURRENT)
-		return ERR_PTR(-EINVAL);
-
-	if (!init_data)
 		return ERR_PTR(-EINVAL);
 
 	/* Only one of each should be implemented */
@@ -2747,7 +2749,7 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 	INIT_DELAYED_WORK(&rdev->disable_work, regulator_disable_work);
 
 	/* preform any regulator specific init */
-	if (init_data->regulator_init) {
+	if (init_data && init_data->regulator_init) {
 		ret = init_data->regulator_init(rdev->reg_data);
 		if (ret < 0)
 			goto clean;
@@ -2768,7 +2770,10 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 	dev_set_drvdata(&rdev->dev, rdev);
 
 	/* set regulator constraints */
-	ret = set_machine_constraints(rdev, &init_data->constraints);
+	if (init_data)
+		constraints = &init_data->constraints;
+
+	ret = set_machine_constraints(rdev, constraints);
 	if (ret < 0)
 		goto scrub;
 
@@ -2777,7 +2782,7 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 	if (ret < 0)
 		goto scrub;
 
-	if (init_data->supply_regulator)
+	if (init_data && init_data->supply_regulator)
 		supply = init_data->supply_regulator;
 	else if (regulator_desc->supply_name)
 		supply = regulator_desc->supply_name;
@@ -2799,15 +2804,17 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 	}
 
 	/* add consumers devices */
-	for (i = 0; i < init_data->num_consumer_supplies; i++) {
-		ret = set_consumer_device_supply(rdev,
-			init_data->consumer_supplies[i].dev,
-			init_data->consumer_supplies[i].dev_name,
-			init_data->consumer_supplies[i].supply);
-		if (ret < 0) {
-			dev_err(dev, "Failed to set supply %s\n",
+	if (init_data) {
+		for (i = 0; i < init_data->num_consumer_supplies; i++) {
+			ret = set_consumer_device_supply(rdev,
+				init_data->consumer_supplies[i].dev,
+				init_data->consumer_supplies[i].dev_name,
 				init_data->consumer_supplies[i].supply);
-			goto unset_supplies;
+			if (ret < 0) {
+				dev_err(dev, "Failed to set supply %s\n",
+					init_data->consumer_supplies[i].supply);
+				goto unset_supplies;
+			}
 		}
 	}
 
