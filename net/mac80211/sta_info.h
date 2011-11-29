@@ -499,7 +499,6 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
  */
 int sta_info_insert(struct sta_info *sta);
 int sta_info_insert_rcu(struct sta_info *sta) __acquires(RCU);
-int sta_info_insert_atomic(struct sta_info *sta);
 int sta_info_reinsert(struct sta_info *sta);
 
 int sta_info_destroy_addr(struct ieee80211_sub_if_data *sdata,
