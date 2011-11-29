@@ -82,7 +82,7 @@ static void __init cpuat91_init_early(void)
 	at91_set_serial_console(0);
 }
 
-static struct at91_eth_data __initdata cpuat91_eth_data = {
+static struct macb_platform_data __initdata cpuat91_eth_data = {
 	.is_rmii	= 1,
 };
 

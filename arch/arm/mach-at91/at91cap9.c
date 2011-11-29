@@ -136,7 +136,7 @@ static struct clk pwm_clk = {
 	.type		= CLK_TYPE_PERIPHERAL,
 };
 static struct clk macb_clk = {
-	.name		= "macb_clk",
+	.name		= "pclk",
 	.pmc_mask	= 1 << AT91CAP9_ID_EMAC,
 	.type		= CLK_TYPE_PERIPHERAL,
 };
@@ -209,6 +209,8 @@ static struct clk *periph_clocks[] __initdata = {
 };
 
 static struct clk_lookup periph_clocks_lookups[] = {
+	/* One additional fake clock for macb_hclk */
+	CLKDEV_CON_ID("hclk", &macb_clk),
 	CLKDEV_CON_DEV_ID("hclk", "atmel_usba_udc", &utmi_clk),
 	CLKDEV_CON_DEV_ID("pclk", "atmel_usba_udc", &udphs_clk),
 	CLKDEV_CON_DEV_ID("mci_clk", "at91_mci.0", &mmc0_clk),

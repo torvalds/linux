@@ -69,7 +69,7 @@ static void __init kb9202_init_early(void)
 	at91_set_serial_console(0);
 }
 
-static struct at91_eth_data __initdata kb9202_eth_data = {
+static struct macb_platform_data __initdata kb9202_eth_data = {
 	.phy_irq_pin	= AT91_PIN_PB29,
 	.is_rmii	= 0,
 };

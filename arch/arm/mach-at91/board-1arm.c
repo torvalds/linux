@@ -63,7 +63,7 @@ static void __init onearm_init_early(void)
 	at91_set_serial_console(0);
 }
 
-static struct at91_eth_data __initdata onearm_eth_data = {
+static struct macb_platform_data __initdata onearm_eth_data = {
 	.phy_irq_pin	= AT91_PIN_PC4,
 	.is_rmii	= 1,
 };
