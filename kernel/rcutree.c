@@ -1403,7 +1403,10 @@ static void rcu_do_batch(struct rcu_state *rsp, struct rcu_data *rdp)
 		debug_rcu_head_unqueue(list);
 		__rcu_reclaim(rsp->name, list);
 		list = next;
-		if (++count >= bl)
+		/* Stop only if limit reached and CPU has something to do. */
+		if (++count >= bl &&
+		    (need_resched() ||
+		     (!is_idle_task(current) && !rcu_is_callbacks_kthread())))
 			break;
 	}
 

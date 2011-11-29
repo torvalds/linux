@@ -1337,6 +1337,15 @@ static void invoke_rcu_callbacks_kthread(void)
 }
 
 /*
+ * Is the current CPU running the RCU-callbacks kthread?
+ * Caller must have preemption disabled.
+ */
+static bool rcu_is_callbacks_kthread(void)
+{
+	return __get_cpu_var(rcu_cpu_kthread_task) == current;
+}
+
+/*
  * Set the affinity of the boost kthread.  The CPU-hotplug locks are
  * held, so no one should be messing with the existence of the boost
  * kthread.
@@ -1778,6 +1787,11 @@ static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags)
 static void invoke_rcu_callbacks_kthread(void)
 {
 	WARN_ON_ONCE(1);
+}
+
+static bool rcu_is_callbacks_kthread(void)
+{
+	return false;
 }
 
 static void rcu_preempt_boost_start_gp(struct rcu_node *rnp)
