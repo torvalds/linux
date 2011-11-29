@@ -200,6 +200,7 @@ struct uvc_xu_control {
 
 /* Maximum allowed number of control mappings per device */
 #define UVC_MAX_CONTROL_MAPPINGS	1024
+#define UVC_MAX_CONTROL_MENU_ENTRIES	32
 
 /* Devices quirks */
 #define UVC_QUIRK_STATUS_INTERVAL	0x00000001
