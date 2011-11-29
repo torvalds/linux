@@ -417,9 +417,13 @@ static int rt_cache_seq_show(struct seq_file *seq, void *v)
 	else {
 		struct rtable *r = v;
 		struct neighbour *n;
-		int len;
+		int len, HHUptod;
 
+		rcu_read_lock();
 		n = dst_get_neighbour(&r->dst);
+		HHUptod = (n && (n->nud_state & NUD_CONNECTED)) ? 1 : 0;
+		rcu_read_unlock();
+
 		seq_printf(seq, "%s\t%08X\t%08X\t%8X\t%d\t%u\t%d\t"
 			      "%08X\t%d\t%u\t%u\t%02X\t%d\t%1d\t%08X%n",
 			r->dst.dev ? r->dst.dev->name : "*",
@@ -433,7 +437,7 @@ static int rt_cache_seq_show(struct seq_file *seq, void *v)
 			      dst_metric(&r->dst, RTAX_RTTVAR)),
 			r->rt_key_tos,
 			-1,
-			(n && (n->nud_state & NUD_CONNECTED)) ? 1 : 0,
+			HHUptod,
 			r->rt_spec_dst, &len);
 
 		seq_printf(seq, "%*s\n", 127 - len, "");
