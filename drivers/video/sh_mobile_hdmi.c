@@ -220,7 +220,7 @@ struct sh_hdmi {
 	struct clk *hdmi_clk;
 	struct device *dev;
 	struct delayed_work edid_work;
-	struct fb_var_screeninfo var;
+	struct fb_videomode mode;
 	struct fb_monspecs monspec;
 };
 
@@ -291,24 +291,24 @@ static struct snd_soc_codec_driver soc_codec_dev_sh_hdmi = {
 /* External video parameter settings */
 static void sh_hdmi_external_video_param(struct sh_hdmi *hdmi)
 {
-	struct fb_var_screeninfo *var = &hdmi->var;
+	struct fb_videomode *mode = &hdmi->mode;
 	u16 htotal, hblank, hdelay, vtotal, vblank, vdelay, voffset;
 	u8 sync = 0;
 
-	htotal = var->xres + var->right_margin + var->left_margin + var->hsync_len;
-
-	hdelay = var->hsync_len + var->left_margin;
-	hblank = var->right_margin + hdelay;
+	htotal = mode->xres + mode->right_margin + mode->left_margin
+	       + mode->hsync_len;
+	hdelay = mode->hsync_len + mode->left_margin;
+	hblank = mode->right_margin + hdelay;
 
 	/*
 	 * Vertical timing looks a bit different in Figure 18,
 	 * but let's try the same first by setting offset = 0
 	 */
-	vtotal = var->yres + var->upper_margin + var->lower_margin + var->vsync_len;
-
-	vdelay = var->vsync_len + var->upper_margin;
-	vblank = var->lower_margin + vdelay;
-	voffset = min(var->upper_margin / 2, 6U);
+	vtotal = mode->yres + mode->upper_margin + mode->lower_margin
+	       + mode->vsync_len;
+	vdelay = mode->vsync_len + mode->upper_margin;
+	vblank = mode->lower_margin + vdelay;
+	voffset = min(mode->upper_margin / 2, 6U);
 
 	/*
 	 * [3]: VSYNC polarity: Positive
@@ -316,14 +316,14 @@ static void sh_hdmi_external_video_param(struct sh_hdmi *hdmi)
 	 * [1]: Interlace/Progressive: Progressive
 	 * [0]: External video settings enable: used.
 	 */
-	if (var->sync & FB_SYNC_HOR_HIGH_ACT)
+	if (mode->sync & FB_SYNC_HOR_HIGH_ACT)
 		sync |= 4;
-	if (var->sync & FB_SYNC_VERT_HIGH_ACT)
+	if (mode->sync & FB_SYNC_VERT_HIGH_ACT)
 		sync |= 8;
 
 	dev_dbg(hdmi->dev, "H: %u, %u, %u, %u; V: %u, %u, %u, %u; sync 0x%x\n",
-		htotal, hblank, hdelay, var->hsync_len,
-		vtotal, vblank, vdelay, var->vsync_len, sync);
+		htotal, hblank, hdelay, mode->hsync_len,
+		vtotal, vblank, vdelay, mode->vsync_len, sync);
 
 	hdmi_write(hdmi, sync | (voffset << 4), HDMI_EXTERNAL_VIDEO_PARAM_SETTINGS);
 
@@ -336,8 +336,8 @@ static void sh_hdmi_external_video_param(struct sh_hdmi *hdmi)
 	hdmi_write(hdmi, hdelay, HDMI_EXTERNAL_H_DELAY_7_0);
 	hdmi_write(hdmi, hdelay >> 8, HDMI_EXTERNAL_H_DELAY_9_8);
 
-	hdmi_write(hdmi, var->hsync_len, HDMI_EXTERNAL_H_DURATION_7_0);
-	hdmi_write(hdmi, var->hsync_len >> 8, HDMI_EXTERNAL_H_DURATION_9_8);
+	hdmi_write(hdmi, mode->hsync_len, HDMI_EXTERNAL_H_DURATION_7_0);
+	hdmi_write(hdmi, mode->hsync_len >> 8, HDMI_EXTERNAL_H_DURATION_9_8);
 
 	hdmi_write(hdmi, vtotal, HDMI_EXTERNAL_V_TOTAL_7_0);
 	hdmi_write(hdmi, vtotal >> 8, HDMI_EXTERNAL_V_TOTAL_9_8);
@@ -346,7 +346,7 @@ static void sh_hdmi_external_video_param(struct sh_hdmi *hdmi)
 
 	hdmi_write(hdmi, vdelay, HDMI_EXTERNAL_V_DELAY);
 
-	hdmi_write(hdmi, var->vsync_len, HDMI_EXTERNAL_V_DURATION);
+	hdmi_write(hdmi, mode->vsync_len, HDMI_EXTERNAL_V_DURATION);
 
 	/* Set bit 0 of HDMI_EXTERNAL_VIDEO_PARAM_SETTINGS here for external mode */
 	if (!hdmi->preprogrammed_vic)
@@ -473,7 +473,7 @@ static void sh_hdmi_audio_config(struct sh_hdmi *hdmi)
  */
 static void sh_hdmi_phy_config(struct sh_hdmi *hdmi)
 {
-	if (hdmi->var.pixclock < 10000) {
+	if (hdmi->mode.pixclock < 10000) {
 		/* for 1080p8bit 148MHz */
 		hdmi_write(hdmi, 0x1d, HDMI_SLIPHDMIT_PARAM_SETTINGS_1);
 		hdmi_write(hdmi, 0x00, HDMI_SLIPHDMIT_PARAM_SETTINGS_2);
@@ -484,7 +484,7 @@ static void sh_hdmi_phy_config(struct sh_hdmi *hdmi)
 		hdmi_write(hdmi, 0x0e, HDMI_SLIPHDMIT_PARAM_SETTINGS_8);
 		hdmi_write(hdmi, 0x25, HDMI_SLIPHDMIT_PARAM_SETTINGS_9);
 		hdmi_write(hdmi, 0x04, HDMI_SLIPHDMIT_PARAM_SETTINGS_10);
-	} else if (hdmi->var.pixclock < 30000) {
+	} else if (hdmi->mode.pixclock < 30000) {
 		/* 720p, 8bit, 74.25MHz. Might need to be adjusted for other formats */
 		/*
 		 * [1:0]	Speed_A
@@ -735,7 +735,6 @@ static int sh_hdmi_read_edid(struct sh_hdmi *hdmi, unsigned long *hdmi_rate,
 {
 	struct sh_mobile_lcdc_chan *ch = hdmi->entity.lcdc;
 	struct fb_info *info = ch ? ch->info : NULL;
-	struct fb_var_screeninfo var;
 	const struct fb_videomode *mode, *found = NULL;
 	const struct fb_modelist *modelist = NULL;
 	unsigned int f_width = 0, f_height = 0, f_refresh = 0;
@@ -855,10 +854,9 @@ static int sh_hdmi_read_edid(struct sh_hdmi *hdmi, unsigned long *hdmi_rate,
 		}
 
 		/* Check if supported: sufficient fb memory, supported clock-rate */
-		fb_videomode_to_var(&var, mode);
-
 		if (ch && ch->notify &&
-		    ch->notify(ch, SH_MOBILE_LCDC_EVENT_DISPLAY_MODE, &var)) {
+		    ch->notify(ch, SH_MOBILE_LCDC_EVENT_DISPLAY_MODE, mode,
+			       NULL)) {
 			scanning = true;
 			preferred_bad = true;
 			continue;
@@ -867,9 +865,6 @@ static int sh_hdmi_read_edid(struct sh_hdmi *hdmi, unsigned long *hdmi_rate,
 		found = mode;
 		found_rate_error = rate_error;
 	}
-
-	hdmi->var.width = hdmi->monspec.max_x * 10;
-	hdmi->var.height = hdmi->monspec.max_y * 10;
 
 	/*
 	 * TODO 1: if no ->info is present, postpone running the config until
@@ -916,7 +911,7 @@ static int sh_hdmi_read_edid(struct sh_hdmi *hdmi, unsigned long *hdmi_rate,
 		found->xres, found->yres, found->refresh,
 		PICOS2KHZ(found->pixclock) * 1000, found_rate_error);
 
-	fb_videomode_to_var(&hdmi->var, found);
+	hdmi->mode = *found;
 	sh_hdmi_external_video_param(hdmi);
 
 	return 0;
@@ -1017,9 +1012,9 @@ static int sh_hdmi_display_on(struct sh_mobile_lcdc_entity *entity)
 		hdmi_write(hdmi, 0x80, HDMI_SYSTEM_CTRL);
 		dev_dbg(hdmi->dev, "HDMI running\n");
 		break;
-	case HDMI_HOTPLUG_DISCONNECTED:
 	default:
-		hdmi->var = ch->display_var;
+		fb_var_to_videomode(&hdmi->mode, &ch->display_var);
+		break;
 	}
 
 	return hdmi->hp_state == HDMI_HOTPLUG_DISCONNECTED
@@ -1107,7 +1102,7 @@ static void sh_hdmi_edid_work_fn(struct work_struct *work)
 
 		if (ch && ch->notify)
 			ch->notify(ch, SH_MOBILE_LCDC_EVENT_DISPLAY_CONNECT,
-				   &hdmi->var);
+				   &hdmi->mode, &hdmi->monspec);
 	} else {
 		hdmi->monspec.modedb_len = 0;
 		fb_destroy_modedb(hdmi->monspec.modedb);
@@ -1115,7 +1110,7 @@ static void sh_hdmi_edid_work_fn(struct work_struct *work)
 
 		if (ch && ch->notify)
 			ch->notify(ch, SH_MOBILE_LCDC_EVENT_DISPLAY_DISCONNECT,
-				   NULL);
+				   NULL, NULL);
 
 		ret = 0;
 	}

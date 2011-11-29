@@ -79,7 +79,8 @@ struct sh_mobile_lcdc_chan {
 
 	int (*notify)(struct sh_mobile_lcdc_chan *ch,
 		      enum sh_mobile_lcdc_entity_event event,
-		      struct fb_var_screeninfo *var);
+		      const struct fb_videomode *mode,
+		      const struct fb_monspecs *monspec);
 };
 
 #endif

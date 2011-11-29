@@ -366,28 +366,23 @@ static void sh_mobile_lcdc_display_off(struct sh_mobile_lcdc_chan *ch)
 
 static bool
 sh_mobile_lcdc_must_reconfigure(struct sh_mobile_lcdc_chan *ch,
-				const struct fb_var_screeninfo *new_var)
+				const struct fb_videomode *new_mode)
 {
 	struct fb_var_screeninfo *old_var = &ch->display_var;
 	struct fb_videomode old_mode;
-	struct fb_videomode new_mode;
 
 	fb_var_to_videomode(&old_mode, old_var);
-	fb_var_to_videomode(&new_mode, new_var);
 
 	dev_dbg(ch->info->dev, "Old %ux%u, new %ux%u\n",
-		old_mode.xres, old_mode.yres, new_mode.xres, new_mode.yres);
+		old_mode.xres, old_mode.yres, new_mode->xres, new_mode->yres);
 
-	if (fb_mode_is_equal(&old_mode, &new_mode)) {
-		/* It can be a different monitor with an equal video-mode */
-		old_var->width = new_var->width;
-		old_var->height = new_var->height;
+	/* It can be a different monitor with an equal video-mode */
+	if (fb_mode_is_equal(&old_mode, new_mode))
 		return false;
-	}
 
 	dev_dbg(ch->info->dev, "Switching %u -> %u lines\n",
-		old_mode.yres, new_mode.yres);
-	*old_var = *new_var;
+		old_mode.yres, new_mode->yres);
+	fb_videomode_to_var(old_var, new_mode);
 
 	return true;
 }
@@ -397,9 +392,11 @@ static int sh_mobile_check_var(struct fb_var_screeninfo *var,
 
 static int sh_mobile_lcdc_display_notify(struct sh_mobile_lcdc_chan *ch,
 					 enum sh_mobile_lcdc_entity_event event,
-					 struct fb_var_screeninfo *var)
+					 const struct fb_videomode *mode,
+					 const struct fb_monspecs *monspec)
 {
 	struct fb_info *info = ch->info;
+	struct fb_var_screeninfo var;
 	int ret = 0;
 
 	switch (event) {
@@ -408,14 +405,17 @@ static int sh_mobile_lcdc_display_notify(struct sh_mobile_lcdc_chan *ch,
 		if (lock_fb_info(info)) {
 			console_lock();
 
-			if (!sh_mobile_lcdc_must_reconfigure(ch, var) &&
+			ch->display_var.width = monspec->max_x * 10;
+			ch->display_var.height = monspec->max_y * 10;
+
+			if (!sh_mobile_lcdc_must_reconfigure(ch, mode) &&
 			    info->state == FBINFO_STATE_RUNNING) {
 				/* First activation with the default monitor.
 				 * Just turn on, if we run a resume here, the
 				 * logo disappears.
 				 */
-				info->var.width = var->width;
-				info->var.height = var->height;
+				info->var.width = monspec->max_x * 10;
+				info->var.height = monspec->max_y * 10;
 				sh_mobile_lcdc_display_on(ch);
 			} else {
 				/* New monitor or have to wake up */
@@ -439,8 +439,10 @@ static int sh_mobile_lcdc_display_notify(struct sh_mobile_lcdc_chan *ch,
 
 	case SH_MOBILE_LCDC_EVENT_DISPLAY_MODE:
 		/* Validate a proposed new mode */
-		var->bits_per_pixel = info->var.bits_per_pixel;
-		ret = sh_mobile_check_var(var, info);
+		fb_videomode_to_var(&var, mode);
+		var.bits_per_pixel = info->var.bits_per_pixel;
+		var.grayscale = info->var.grayscale;
+		ret = sh_mobile_check_var(&var, info);
 		break;
 	}
 
