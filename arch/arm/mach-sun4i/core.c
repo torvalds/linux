@@ -131,7 +131,7 @@ EXPORT_SYMBOL(g2d_start);
 EXPORT_SYMBOL(g2d_size);
 
 unsigned long ve_start = (PLAT_PHYS_OFFSET + SZ_64M);
-unsigned long ve_size = SZ_64M;
+unsigned long ve_size = (SZ_64M + SZ_16M);
 EXPORT_SYMBOL(ve_start);
 EXPORT_SYMBOL(ve_size);
 
@@ -139,7 +139,8 @@ static void __init sw_core_reserve(void)
 {
 	memblock_reserve(SYS_CONFIG_MEMBASE, SYS_CONFIG_MEMSIZE);
 	memblock_reserve(fb_start, fb_size);
-	memblock_reserve(ve_start, ve_size);
+	memblock_reserve(ve_start, SZ_64M);
+	memblock_reserve(ve_start + SZ_64M, SZ_16M);
 
 #if 0
         int g2d_used = 0;
