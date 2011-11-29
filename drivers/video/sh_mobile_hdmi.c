@@ -995,7 +995,6 @@ static irqreturn_t sh_hdmi_hotplug(int irq, void *dev_id)
 static int sh_hdmi_display_on(struct sh_mobile_lcdc_entity *entity)
 {
 	struct sh_hdmi *hdmi = entity_to_sh_hdmi(entity);
-	struct sh_mobile_lcdc_chan *ch = entity->lcdc;
 
 	dev_dbg(hdmi->dev, "%s(%p): state %x\n", __func__, hdmi,
 		hdmi->hp_state);
@@ -1006,15 +1005,10 @@ static int sh_hdmi_display_on(struct sh_mobile_lcdc_entity *entity)
 	 * HDMI_HOTPLUG_CONNECTED:	on monitor plug-in
 	 * HDMI_HOTPLUG_EDID_DONE:	on EDID read completion
 	 */
-	switch (hdmi->hp_state) {
-	case HDMI_HOTPLUG_EDID_DONE:
+	if (hdmi->hp_state == HDMI_HOTPLUG_EDID_DONE) {
 		/* PS mode d->e. All functions are active */
 		hdmi_write(hdmi, 0x80, HDMI_SYSTEM_CTRL);
 		dev_dbg(hdmi->dev, "HDMI running\n");
-		break;
-	default:
-		fb_var_to_videomode(&hdmi->mode, &ch->display_var);
-		break;
 	}
 
 	return hdmi->hp_state == HDMI_HOTPLUG_DISCONNECTED
