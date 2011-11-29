@@ -297,7 +297,7 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted,
 	if (!was_hw_scan) {
 		ieee80211_configure_filter(local);
 		drv_sw_scan_complete(local);
-		ieee80211_offchannel_return(local, true, true);
+		ieee80211_offchannel_return(local, true);
 	}
 
 	ieee80211_recalc_idle(local);
@@ -602,7 +602,7 @@ static void ieee80211_scan_state_suspend(struct ieee80211_local *local,
 	 * in off-channel state..will put that back
 	 * on-channel at the end of scanning.
 	 */
-	ieee80211_offchannel_return(local, true, false);
+	ieee80211_offchannel_return(local, false);
 
 	*next_delay = HZ / 5;
 	/* afterwards, resume scan & go to next channel */
