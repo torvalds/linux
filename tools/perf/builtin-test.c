@@ -15,8 +15,6 @@
 #include "util/thread_map.h"
 #include "../../include/linux/hw_breakpoint.h"
 
-static long page_size;
-
 static int vmlinux_matches_kallsyms_filter(struct map *map __used, struct symbol *sym)
 {
 	bool *visited = symbol__priv(sym);
@@ -32,6 +30,7 @@ static int test__vmlinux_matches_kallsyms(void)
 	struct map *kallsyms_map, *vmlinux_map;
 	struct machine kallsyms, vmlinux;
 	enum map_type type = MAP__FUNCTION;
+	long page_size = sysconf(_SC_PAGE_SIZE);
 	struct ref_reloc_sym ref_reloc_sym = { .name = "_stext", };
 
 	/*
@@ -871,41 +870,81 @@ static struct test {
 	},
 };
 
-static int __cmd_test(void)
+static bool perf_test__matches(int curr, int argc, const char *argv[])
+{
+	int i;
+
+	if (argc == 0)
+		return true;
+
+	for (i = 0; i < argc; ++i) {
+		char *end;
+		long nr = strtoul(argv[i], &end, 10);
+
+		if (*end == '\0') {
+			if (nr == curr + 1)
+				return true;
+			continue;
+		}
+
+		if (strstr(tests[curr].desc, argv[i]))
+			return true;
+	}
+
+	return false;
+}
+
+static int __cmd_test(int argc, const char *argv[])
 {
 	int i = 0;
 
-	page_size = sysconf(_SC_PAGE_SIZE);
-
 	while (tests[i].func) {
-		int err;
-		pr_info("%2d: %s:", i + 1, tests[i].desc);
+		int curr = i++, err;
+
+		if (!perf_test__matches(curr, argc, argv))
+			continue;
+
+		pr_info("%2d: %s:", i, tests[curr].desc);
 		pr_debug("\n--- start ---\n");
-		err = tests[i].func();
-		pr_debug("---- end ----\n%s:", tests[i].desc);
+		err = tests[curr].func();
+		pr_debug("---- end ----\n%s:", tests[curr].desc);
 		pr_info(" %s\n", err ? "FAILED!\n" : "Ok");
-		++i;
 	}
 
 	return 0;
 }
 
-static const char * const test_usage[] = {
-	"perf test [<options>]",
-	NULL,
-};
+static int perf_test__list(int argc, const char **argv)
+{
+	int i = 0;
 
-static const struct option test_options[] = {
-	OPT_INTEGER('v', "verbose", &verbose,
-		    "be more verbose (show symbol address, etc)"),
-	OPT_END()
-};
+	while (tests[i].func) {
+		int curr = i++;
+
+		if (argc > 1 && !strstr(tests[curr].desc, argv[1]))
+			continue;
+
+		pr_info("%2d: %s\n", i, tests[curr].desc);
+	}
+
+	return 0;
+}
 
 int cmd_test(int argc, const char **argv, const char *prefix __used)
 {
+	const char * const test_usage[] = {
+	"perf test [<options>] [{list <test-name-fragment>|[<test-name-fragments>|<test-numbers>]}]",
+	NULL,
+	};
+	const struct option test_options[] = {
+	OPT_INTEGER('v', "verbose", &verbose,
+		    "be more verbose (show symbol address, etc)"),
+	OPT_END()
+	};
+
 	argc = parse_options(argc, argv, test_options, test_usage, 0);
-	if (argc)
-		usage_with_options(test_usage, test_options);
+	if (argc >= 1 && !strcmp(argv[0], "list"))
+		return perf_test__list(argc, argv);
 
 	symbol_conf.priv_size = sizeof(int);
 	symbol_conf.sort_by_name = true;
@@ -916,5 +955,5 @@ int cmd_test(int argc, const char **argv, const char *prefix __used)
 
 	setup_pager();
 
-	return __cmd_test();
+	return __cmd_test(argc, argv);
 }
