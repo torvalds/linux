@@ -348,6 +348,7 @@ struct dwc3_ep {
 	u32			free_slot;
 	u32			busy_slot;
 	const struct usb_endpoint_descriptor *desc;
+	const struct usb_ss_ep_comp_descriptor *comp_desc;
 	struct dwc3		*dwc;
 
 	unsigned		flags;
