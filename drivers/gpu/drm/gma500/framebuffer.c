@@ -385,7 +385,8 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	int ret;
 	struct gtt_range *backing;
 	u32 bpp, depth;
-	int gtt_roll = 1;
+	int gtt_roll = 0;
+	int pitch_lines = 0;
 
 	mode_cmd.width = sizes->surface_width;
 	mode_cmd.height = sizes->surface_height;
@@ -395,27 +396,40 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	if (bpp == 24)
 		bpp = 32;
 
-	/* Acceleration via the GTT requires pitch to be 4096 byte aligned 
-	   (ie 1024 or 2048 pixels in normal use) */
-	mode_cmd.pitches[0] =  ALIGN(mode_cmd.width * ((bpp + 7) / 8), 4096);
-	depth = sizes->surface_depth;
+	do {
+		/*
+		 * Acceleration via the GTT requires pitch to be
+		 * power of two aligned. Preferably page but less
+		 * is ok with some fonts
+		 */
+        	mode_cmd.pitches[0] =  ALIGN(mode_cmd.width * ((bpp + 7) / 8), 4096 >> pitch_lines);
+        	depth = sizes->surface_depth;
 
-	size = mode_cmd.pitches[0] * mode_cmd.height;
-	size = ALIGN(size, PAGE_SIZE);
+        	size = mode_cmd.pitches[0] * mode_cmd.height;
+        	size = ALIGN(size, PAGE_SIZE);
 
-	/* Try and allocate with the alignment we need */
-	backing = psbfb_alloc(dev, size);
+		/* Allocate the fb in the GTT with stolen page backing */
+		backing = psbfb_alloc(dev, size);
+
+		if (pitch_lines)
+			pitch_lines *= 2;
+		else
+			pitch_lines = 1;
+		gtt_roll++;
+	} while (backing == NULL && pitch_lines <= 16);
+
+	/* The final pitch we accepted if we succeeded */
+	pitch_lines /= 2;
+
 	if (backing == NULL) {
 		/*
 		 *	We couldn't get the space we wanted, fall back to the
 		 *	display engine requirement instead.  The HW requires
 		 *	the pitch to be 64 byte aligned
-		 *
-		 *	FIXME: We could try alignments in a loop so that we can still
-		 *	accelerate power of two font sizes.
 		 */
 
 		gtt_roll = 0;	/* Don't use GTT accelerated scrolling */
+		pitch_lines = 64;
 
 		mode_cmd.pitches[0] =  ALIGN(mode_cmd.width * ((bpp + 7) / 8), 64);
 
@@ -452,12 +466,12 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	strcpy(info->fix.id, "psbfb");
 
 	info->flags = FBINFO_DEFAULT;
-	if (gtt_roll) {	/* GTT rolling seems best */
+	if (dev_priv->ops->accel_2d && pitch_lines > 8)	/* 2D engine */
+		info->fbops = &psbfb_ops;
+	else if (gtt_roll) {	/* GTT rolling seems best */
 		info->fbops = &psbfb_roll_ops;
 		info->flags |= FBINFO_HWACCEL_YPAN;
-        } else if (dev_priv->ops->accel_2d)	/* 2D engine */
-		info->fbops = &psbfb_ops;
-	else	/* Software */
+	} else	/* Software */
 		info->fbops = &psbfb_unaccel_ops;
 
 	ret = fb_alloc_cmap(&info->cmap, 256, 0);
