@@ -2025,6 +2025,18 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_PREPARE:
+		/* MICBIAS into regulating mode */
+		switch (control->type) {
+		case WM8958:
+		case WM1811:
+			snd_soc_update_bits(codec, WM8958_MICBIAS1,
+					    WM8958_MICB1_MODE, 0);
+			snd_soc_update_bits(codec, WM8958_MICBIAS2,
+					    WM8958_MICB2_MODE, 0);
+			break;
+		default:
+			break;
+		}
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
@@ -2077,7 +2089,20 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 					    WM8994_LINEOUT2_DISCH);
 		}
 
-
+		/* MICBIAS into bypass mode on newer devices */
+		switch (control->type) {
+		case WM8958:
+		case WM1811:
+			snd_soc_update_bits(codec, WM8958_MICBIAS1,
+					    WM8958_MICB1_MODE,
+					    WM8958_MICB1_MODE);
+			snd_soc_update_bits(codec, WM8958_MICBIAS2,
+					    WM8958_MICB2_MODE,
+					    WM8958_MICB2_MODE);
+			break;
+		default:
+			break;
+		}
 		break;
 
 	case SND_SOC_BIAS_OFF:
@@ -3366,6 +3391,19 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 	case WM8958:
 		snd_soc_update_bits(codec, WM8994_AIF1_CONTROL_1,
 				    WM8994_AIF1ADC_TDM, WM8994_AIF1ADC_TDM);
+		break;
+	default:
+		break;
+	}
+
+	/* Put MICBIAS into bypass mode by default on newer devices */
+	switch (control->type) {
+	case WM8958:
+	case WM1811:
+		snd_soc_update_bits(codec, WM8958_MICBIAS1,
+				    WM8958_MICB1_MODE, WM8958_MICB1_MODE);
+		snd_soc_update_bits(codec, WM8958_MICBIAS2,
+				    WM8958_MICB2_MODE, WM8958_MICB2_MODE);
 		break;
 	default:
 		break;
