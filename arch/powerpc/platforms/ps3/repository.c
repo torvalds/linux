@@ -131,11 +131,11 @@ static int read_node(unsigned int lpar_id, u64 n1, u64 n2, u64 n3, u64 n4,
 		lpar_id = id;
 	}
 
-	result = lv1_get_repository_node_value(lpar_id, n1, n2, n3, n4, &v1,
+	result = lv1_read_repository_node(lpar_id, n1, n2, n3, n4, &v1,
 		&v2);
 
 	if (result) {
-		pr_debug("%s:%d: lv1_get_repository_node_value failed: %s\n",
+		pr_debug("%s:%d: lv1_read_repository_node failed: %s\n",
 			__func__, __LINE__, ps3_result(result));
 		dump_node_name(lpar_id, n1, n2, n3, n4);
 		return -ENOENT;
