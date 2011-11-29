@@ -142,6 +142,12 @@ static void mid_get_vbt_data(struct drm_psb_private *dev_priv)
 	memcpy(vbt, vbt_virtual, sizeof(*vbt));
 	iounmap(vbt_virtual); /* Free virtual address space */
 
+	/* No matching signature don't process the data */
+	if (memcmp(vbt->signature, "$GCT", 4)) {
+		vbt->size = 0;
+		return;
+	}
+
 	dev_dbg(dev->dev, "GCT revision is %x\n", vbt->revision);
 
 	switch (vbt->revision) {
