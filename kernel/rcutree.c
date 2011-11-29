@@ -350,12 +350,11 @@ static int rcu_implicit_offline_qs(struct rcu_data *rdp)
  */
 static void rcu_idle_enter_common(struct rcu_dynticks *rdtp, long long oldval)
 {
-	trace_rcu_dyntick("Start", oldval, rdtp->dynticks_nesting);
+	trace_rcu_dyntick("Start", oldval, 0);
 	if (!is_idle_task(current)) {
 		struct task_struct *idle = idle_task(smp_processor_id());
 
-		trace_rcu_dyntick("Error on entry: not idle task",
-				   oldval, rdtp->dynticks_nesting);
+		trace_rcu_dyntick("Error on entry: not idle task", oldval, 0);
 		ftrace_dump(DUMP_ALL);
 		WARN_ONCE(1, "Current pid: %d comm: %s / Idle pid: %d comm: %s",
 			  current->pid, current->comm,
