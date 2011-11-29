@@ -35,25 +35,6 @@
 int nfc_devlist_generation;
 DEFINE_MUTEX(nfc_devlist_mutex);
 
-int nfc_printk(const char *level, const char *format, ...)
-{
-	struct va_format vaf;
-	va_list args;
-	int r;
-
-	va_start(args, format);
-
-	vaf.fmt = format;
-	vaf.va = &args;
-
-	r = printk("%sNFC: %pV\n", level, &vaf);
-
-	va_end(args);
-
-	return r;
-}
-EXPORT_SYMBOL(nfc_printk);
-
 /**
  * nfc_dev_up - turn on the NFC device
  *
