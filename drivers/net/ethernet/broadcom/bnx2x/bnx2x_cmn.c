@@ -3300,14 +3300,14 @@ int __devinit bnx2x_alloc_mem_bp(struct bnx2x *bp)
 	msix_table_size = bp->igu_sb_cnt + 1;
 
 	/* fp array: RSS plus CNIC related L2 queues */
-	fp = kzalloc((BNX2X_MAX_RSS_COUNT(bp) + NON_ETH_CONTEXT_USE) *
+	fp = kcalloc(BNX2X_MAX_RSS_COUNT(bp) + NON_ETH_CONTEXT_USE,
 		     sizeof(*fp), GFP_KERNEL);
 	if (!fp)
 		goto alloc_err;
 	bp->fp = fp;
 
 	/* msix table */
-	tbl = kzalloc(msix_table_size * sizeof(*tbl), GFP_KERNEL);
+	tbl = kcalloc(msix_table_size, sizeof(*tbl), GFP_KERNEL);
 	if (!tbl)
 		goto alloc_err;
 	bp->msix_table = tbl;

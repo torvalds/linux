@@ -3342,7 +3342,7 @@ static inline int bnx2x_mcast_refresh_registry_e1(struct bnx2x *bp,
 		if (!list_empty(&o->registry.exact_match.macs))
 			return 0;
 
-		elem = kzalloc(sizeof(*elem)*len, GFP_ATOMIC);
+		elem = kcalloc(len, sizeof(*elem), GFP_ATOMIC);
 		if (!elem) {
 			BNX2X_ERR("Failed to allocate registry memory\n");
 			return -ENOMEM;
