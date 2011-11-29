@@ -734,12 +734,11 @@ static int sh_hdmi_read_edid(struct sh_hdmi *hdmi, unsigned long *hdmi_rate,
 			     unsigned long *parent_rate)
 {
 	struct sh_mobile_lcdc_chan *ch = hdmi->entity.lcdc;
-	struct fb_info *info = ch ? ch->info : NULL;
 	const struct fb_videomode *mode, *found = NULL;
-	const struct fb_modelist *modelist = NULL;
 	unsigned int f_width = 0, f_height = 0, f_refresh = 0;
 	unsigned long found_rate_error = ULONG_MAX; /* silly compiler... */
 	bool scanning = false, preferred_bad = false;
+	bool use_edid_mode = false;
 	u8 edid[128];
 	char *forced;
 	int i;
@@ -864,25 +863,19 @@ static int sh_hdmi_read_edid(struct sh_hdmi *hdmi, unsigned long *hdmi_rate,
 
 		found = mode;
 		found_rate_error = rate_error;
+		use_edid_mode = true;
 	}
 
 	/*
-	 * TODO 1: if no ->info is present, postpone running the config until
-	 * after ->info first gets registered.
+	 * TODO 1: if no default mode is present, postpone running the config
+	 * until after the LCDC channel is initialized.
 	 * TODO 2: consider registering the HDMI platform device from the LCDC
-	 * driver, and passing ->info with HDMI platform data.
+	 * driver.
 	 */
-	if (info && !found) {
-		modelist = info->modelist.next &&
-			!list_empty(&info->modelist) ?
-			list_entry(info->modelist.next,
-				   struct fb_modelist, list) :
-			NULL;
-
-		if (modelist) {
-			found = &modelist->mode;
-			found_rate_error = sh_hdmi_rate_error(hdmi, found, hdmi_rate, parent_rate);
-		}
+	if (!found && hdmi->entity.def_mode.xres != 0) {
+		found = &hdmi->entity.def_mode;
+		found_rate_error = sh_hdmi_rate_error(hdmi, found, hdmi_rate,
+						      parent_rate);
 	}
 
 	/* No cookie today */
@@ -906,10 +899,11 @@ static int sh_hdmi_read_edid(struct sh_hdmi *hdmi, unsigned long *hdmi_rate,
 	else
 		hdmi->preprogrammed_vic = 0;
 
-	dev_dbg(hdmi->dev, "Using %s %s mode %ux%u@%uHz (%luHz), clock error %luHz\n",
-		modelist ? "default" : "EDID", hdmi->preprogrammed_vic ? "VIC" : "external",
-		found->xres, found->yres, found->refresh,
-		PICOS2KHZ(found->pixclock) * 1000, found_rate_error);
+	dev_dbg(hdmi->dev, "Using %s %s mode %ux%u@%uHz (%luHz), "
+		"clock error %luHz\n", use_edid_mode ? "EDID" : "default",
+		hdmi->preprogrammed_vic ? "VIC" : "external", found->xres,
+		found->yres, found->refresh, PICOS2KHZ(found->pixclock) * 1000,
+		found_rate_error);
 
 	hdmi->mode = *found;
 	sh_hdmi_external_video_param(hdmi);

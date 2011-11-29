@@ -1691,17 +1691,6 @@ sh_mobile_lcdc_channel_init(struct sh_mobile_lcdc_priv *priv,
 	info->pseudo_palette = &ch->pseudo_palette;
 	info->flags = FBINFO_FLAG_DEFAULT;
 
-	if (cfg->tx_dev) {
-		if (!cfg->tx_dev->dev.driver ||
-		    !try_module_get(cfg->tx_dev->dev.driver->owner)) {
-			dev_warn(priv->dev,
-				 "unable to get transmitter device\n");
-			return -EINVAL;
-		}
-		ch->tx_dev = platform_get_drvdata(cfg->tx_dev);
-		ch->tx_dev->lcdc = ch;
-	}
-
 	/* Iterate through the modes to validate them and find the highest
 	 * resolution.
 	 */
@@ -1741,6 +1730,19 @@ sh_mobile_lcdc_channel_init(struct sh_mobile_lcdc_priv *priv,
 	}
 
 	fb_videomode_to_modelist(mode, num_cfg, &info->modelist);
+
+	/* Initialize the transmitter device if present. */
+	if (cfg->tx_dev) {
+		if (!cfg->tx_dev->dev.driver ||
+		    !try_module_get(cfg->tx_dev->dev.driver->owner)) {
+			dev_warn(priv->dev,
+				 "unable to get transmitter device\n");
+			return -EINVAL;
+		}
+		ch->tx_dev = platform_get_drvdata(cfg->tx_dev);
+		ch->tx_dev->lcdc = ch;
+		ch->tx_dev->def_mode = *mode;
+	}
 
 	/* Initialize variable screen information using the first mode as
 	 * default. The default Y virtual resolution is twice the panel size to

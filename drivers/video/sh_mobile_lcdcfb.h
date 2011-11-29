@@ -40,6 +40,7 @@ struct sh_mobile_lcdc_entity {
 	struct module *owner;
 	const struct sh_mobile_lcdc_entity_ops *ops;
 	struct sh_mobile_lcdc_chan *lcdc;
+	struct fb_videomode def_mode;
 };
 
 /*
