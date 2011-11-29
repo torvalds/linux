@@ -36,18 +36,22 @@
 #define ATH_BT_CNT_THRESHOLD	       3
 #define ATH_BT_CNT_SCAN_THRESHOLD      15
 
+#define AR9300_NUM_BT_WEIGHTS   4
+#define AR9300_NUM_WLAN_WEIGHTS 4
 /* Defines the BT AR_BT_COEX_WGHT used */
 enum ath_stomp_type {
-	ATH_BTCOEX_NO_STOMP,
 	ATH_BTCOEX_STOMP_ALL,
 	ATH_BTCOEX_STOMP_LOW,
-	ATH_BTCOEX_STOMP_NONE
+	ATH_BTCOEX_STOMP_NONE,
+	ATH_BTCOEX_STOMP_LOW_FTP,
+	ATH_BTCOEX_STOMP_MAX
 };
 
 enum ath_btcoex_scheme {
 	ATH_BTCOEX_CFG_NONE,
 	ATH_BTCOEX_CFG_2WIRE,
 	ATH_BTCOEX_CFG_3WIRE,
+	ATH_BTCOEX_CFG_MCI,
 };
 
 struct ath_btcoex_hw {
@@ -59,6 +63,8 @@ struct ath_btcoex_hw {
 	u32 bt_coex_mode; 	/* Register setting for AR_BT_COEX_MODE */
 	u32 bt_coex_weights; 	/* Register setting for AR_BT_COEX_WEIGHT */
 	u32 bt_coex_mode2; 	/* Register setting for AR_BT_COEX_MODE2 */
+	u32 bt_weight[AR9300_NUM_BT_WEIGHTS];
+	u32 wlan_weight[AR9300_NUM_WLAN_WEIGHTS];
 };
 
 void ath9k_hw_btcoex_init_2wire(struct ath_hw *ah);

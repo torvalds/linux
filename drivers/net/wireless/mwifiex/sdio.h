@@ -29,6 +29,7 @@
 #include "main.h"
 
 #define SD8787_DEFAULT_FW_NAME "mrvl/sd8787_uapsta.bin"
+#define SD8797_DEFAULT_FW_NAME "mrvl/sd8797_uapsta.bin"
 
 #define BLOCK_MODE	1
 #define BYTE_MODE	0

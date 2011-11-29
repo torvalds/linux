@@ -143,7 +143,7 @@ u32 iwl_read_direct32(struct iwl_bus *bus, u32 reg)
 
 	spin_lock_irqsave(&bus->reg_lock, flags);
 	iwl_grab_nic_access(bus);
-	value = iwl_read32(bus(bus), reg);
+	value = iwl_read32(bus, reg);
 	iwl_release_nic_access(bus);
 	spin_unlock_irqrestore(&bus->reg_lock, flags);
 

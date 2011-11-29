@@ -345,9 +345,9 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 	if (is_valid_ether_addr(rtlefuse->dev_addr)) {
 		SET_IEEE80211_PERM_ADDR(hw, rtlefuse->dev_addr);
 	} else {
-		u8 rtlmac[] = { 0x00, 0xe0, 0x4c, 0x81, 0x92, 0x00 };
-		get_random_bytes((rtlmac + (ETH_ALEN - 1)), 1);
-		SET_IEEE80211_PERM_ADDR(hw, rtlmac);
+		u8 rtlmac1[] = { 0x00, 0xe0, 0x4c, 0x81, 0x92, 0x00 };
+		get_random_bytes((rtlmac1 + (ETH_ALEN - 1)), 1);
+		SET_IEEE80211_PERM_ADDR(hw, rtlmac1);
 	}
 
 }

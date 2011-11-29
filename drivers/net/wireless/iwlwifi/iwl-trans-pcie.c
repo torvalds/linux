@@ -1351,9 +1351,9 @@ static void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int sta_id, int tid,
 	}
 
 	if (txq->q.read_ptr != tfd_num) {
-		IWL_DEBUG_TX_REPLY(trans, "Retry scheduler reclaim "
-				"scd_ssn=%d idx=%d txq=%d swq=%d\n",
-				ssn , tfd_num, txq_id, txq->swq_id);
+		IWL_DEBUG_TX_REPLY(trans, "[Q %d | AC %d] %d -> %d (%d)\n",
+				txq_id, iwl_get_queue_ac(txq), txq->q.read_ptr,
+				tfd_num, ssn);
 		freed = iwl_tx_queue_reclaim(trans, txq_id, tfd_num, skbs);
 		if (iwl_queue_space(&txq->q) > txq->q.low_mark && cond)
 			iwl_wake_queue(trans, txq, "Packets reclaimed");
@@ -1516,8 +1516,12 @@ static int iwl_trans_pcie_check_stuck_queue(struct iwl_trans *trans, int cnt)
 	if (time_after(jiffies, timeout)) {
 		IWL_ERR(trans, "Queue %d stuck for %u ms.\n", q->id,
 			hw_params(trans).wd_timeout);
-		IWL_ERR(trans, "Current read_ptr %d write_ptr %d\n",
+		IWL_ERR(trans, "Current SW read_ptr %d write_ptr %d\n",
 			q->read_ptr, q->write_ptr);
+		IWL_ERR(trans, "Current HW read_ptr %d write_ptr %d\n",
+			iwl_read_prph(bus(trans), SCD_QUEUE_RDPTR(cnt))
+				& (TFD_QUEUE_SIZE_MAX - 1),
+			iwl_read_prph(bus(trans), SCD_QUEUE_WRPTR(cnt)));
 		return 1;
 	}
 
