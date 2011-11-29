@@ -232,6 +232,12 @@ static inline struct thread_info *current_thread_info(void)
 	movq PER_CPU_VAR(kernel_stack),reg ; \
 	subq $(THREAD_SIZE-KERNEL_STACK_OFFSET),reg
 
+/*
+ * Same if PER_CPU_VAR(kernel_stack) is, perhaps with some offset, already in
+ * a certain register (to be used in assembler memory operands).
+ */
+#define THREAD_INFO(reg, off) KERNEL_STACK_OFFSET+(off)-THREAD_SIZE(reg)
+
 #endif
 
 #endif /* !X86_32 */
