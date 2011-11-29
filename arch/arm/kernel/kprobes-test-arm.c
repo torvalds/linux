@@ -427,18 +427,25 @@ void kprobe_arm_test_cases(void)
 
 	TEST_GROUP("Synchronization primitives")
 
-	/*
-	 * Use hard coded constants for SWP instructions to avoid warnings
-	 * about deprecated instructions.
-	 */
-	TEST_RP( ".word 0xe108e097 @ swp	lr, r",7,VAL2,", [r",8,0,"]")
-	TEST_R(  ".word 0x610d0091 @ swpvs	r0, r",1,VAL1,", [sp]")
-	TEST_RP( ".word 0xe10cd09e @ swp	sp, r",14,VAL2,", [r",12,13*4,"]")
+#if __LINUX_ARM_ARCH__ < 6
+	TEST_RP("swp	lr, r",7,VAL2,", [r",8,0,"]")
+	TEST_R( "swpvs	r0, r",1,VAL1,", [sp]")
+	TEST_RP("swp	sp, r",14,VAL2,", [r",12,13*4,"]")
+#else
+	TEST_UNSUPPORTED(".word 0xe108e097 @ swp	lr, r7, [r8]")
+	TEST_UNSUPPORTED(".word 0x610d0091 @ swpvs	r0, r1, [sp]")
+	TEST_UNSUPPORTED(".word 0xe10cd09e @ swp	sp, r14 [r12]")
+#endif
 	TEST_UNSUPPORTED(".word 0xe102f091 @ swp pc, r1, [r2]")
 	TEST_UNSUPPORTED(".word 0xe102009f @ swp r0, pc, [r2]")
 	TEST_UNSUPPORTED(".word 0xe10f0091 @ swp r0, r1, [pc]")
-	TEST_RP( ".word 0xe148e097 @ swpb	lr, r",7,VAL2,", [r",8,0,"]")
-	TEST_R(  ".word 0x614d0091 @ swpvsb	r0, r",1,VAL1,", [sp]")
+#if __LINUX_ARM_ARCH__ < 6
+	TEST_RP("swpb	lr, r",7,VAL2,", [r",8,0,"]")
+	TEST_R( "swpvsb	r0, r",1,VAL1,", [sp]")
+#else
+	TEST_UNSUPPORTED(".word 0xe148e097 @ swpb	lr, r7, [r8]")
+	TEST_UNSUPPORTED(".word 0x614d0091 @ swpvsb	r0, r1, [sp]")
+#endif
 	TEST_UNSUPPORTED(".word 0xe142f091 @ swpb pc, r1, [r2]")
 
 	TEST_UNSUPPORTED(".word	0xe1100090") /* Unallocated space */
