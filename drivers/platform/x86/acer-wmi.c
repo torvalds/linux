@@ -1006,7 +1006,7 @@ static acpi_status wmid3_set_device_status(u32 value, u16 device)
 		return AE_ERROR;
 	}
 	if (obj->buffer.length != 8) {
-		pr_warning("Unknown buffer length %d\n", obj->buffer.length);
+		pr_warn("Unknown buffer length %d\n", obj->buffer.length);
 		kfree(obj);
 		return AE_ERROR;
 	}
@@ -1015,8 +1015,8 @@ static acpi_status wmid3_set_device_status(u32 value, u16 device)
 	kfree(obj);
 
 	if (return_value.error_code || return_value.ec_return_value) {
-		pr_warning("Get Current Device Status failed: "
-			"0x%x - 0x%x\n", return_value.error_code,
+		pr_warn("Get Current Device Status failed: 0x%x - 0x%x\n",
+			return_value.error_code,
 			return_value.ec_return_value);
 		return status;
 	}
@@ -1039,7 +1039,7 @@ static acpi_status wmid3_set_device_status(u32 value, u16 device)
 		return AE_ERROR;
 	}
 	if (obj->buffer.length != 4) {
-		pr_warning("Unknown buffer length %d\n", obj->buffer.length);
+		pr_warn("Unknown buffer length %d\n", obj->buffer.length);
 		kfree(obj);
 		return AE_ERROR;
 	}
@@ -1048,8 +1048,8 @@ static acpi_status wmid3_set_device_status(u32 value, u16 device)
 	kfree(obj);
 
 	if (return_value.error_code || return_value.ec_return_value)
-		pr_warning("Set Device Status failed: "
-			"0x%x - 0x%x\n", return_value.error_code,
+		pr_warn("Set Device Status failed: 0x%x - 0x%x\n",
+			return_value.error_code,
 			return_value.ec_return_value);
 
 	return status;
@@ -1488,8 +1488,8 @@ static ssize_t show_bool_threeg(struct device *dev,
 	u32 result; \
 	acpi_status status;
 
-	pr_info("This threeg sysfs will be removed in 2012"
-		" - used by: %s\n", current->comm);
+	pr_info("This threeg sysfs will be removed in 2012 - used by: %s\n",
+		current->comm);
 	status = get_u32(&result, ACER_CAP_THREEG);
 	if (ACPI_SUCCESS(status))
 		return sprintf(buf, "%u\n", result);
@@ -1501,8 +1501,8 @@ static ssize_t set_bool_threeg(struct device *dev,
 {
 	u32 tmp = simple_strtoul(buf, NULL, 10);
 	acpi_status status = set_u32(tmp, ACER_CAP_THREEG);
-	pr_info("This threeg sysfs will be removed in 2012"
-		" - used by: %s\n", current->comm);
+	pr_info("This threeg sysfs will be removed in 2012 - used by: %s\n",
+		current->comm);
 	if (ACPI_FAILURE(status))
 		return -EINVAL;
 	return count;
@@ -1513,8 +1513,8 @@ static DEVICE_ATTR(threeg, S_IRUGO | S_IWUSR, show_bool_threeg,
 static ssize_t show_interface(struct device *dev, struct device_attribute *attr,
 	char *buf)
 {
-	pr_info("This interface sysfs will be removed in 2012"
-		" - used by: %s\n", current->comm);
+	pr_info("This interface sysfs will be removed in 2012 - used by: %s\n",
+		current->comm);
 	switch (interface->type) {
 	case ACER_AMW0:
 		return sprintf(buf, "AMW0\n");
@@ -1982,8 +1982,7 @@ static int __init acer_wmi_init(void)
 
 	if (acpi_video_backlight_support()) {
 		interface->capability &= ~ACER_CAP_BRIGHTNESS;
-		pr_info("Brightness must be controlled by "
-		       "generic video driver\n");
+		pr_info("Brightness must be controlled by generic video driver\n");
 	}
 
 	if (wmi_has_guid(WMID_GUID3)) {
@@ -2008,7 +2007,7 @@ static int __init acer_wmi_init(void)
 
 	err = platform_driver_register(&acer_platform_driver);
 	if (err) {
-		pr_err("Unable to register platform driver.\n");
+		pr_err("Unable to register platform driver\n");
 		goto error_platform_register;
 	}
 
