@@ -1114,8 +1114,8 @@ static int __init arch_setup(void)
 		/* DVI */
 		lcdc_info.clock_source			= LCDC_CLK_EXTERNAL;
 		lcdc_info.ch[0].clock_divider		= 1;
-		lcdc_info.ch[0].lcd_cfg			= ecovec_dvi_modes;
-		lcdc_info.ch[0].num_cfg			= ARRAY_SIZE(ecovec_dvi_modes);
+		lcdc_info.ch[0].lcd_modes		= ecovec_dvi_modes;
+		lcdc_info.ch[0].num_modes		= ARRAY_SIZE(ecovec_dvi_modes);
 
 		gpio_set_value(GPIO_PTA2, 1);
 		gpio_set_value(GPIO_PTU1, 1);
@@ -1123,8 +1123,8 @@ static int __init arch_setup(void)
 		/* Panel */
 		lcdc_info.clock_source			= LCDC_CLK_PERIPHERAL;
 		lcdc_info.ch[0].clock_divider		= 2;
-		lcdc_info.ch[0].lcd_cfg			= ecovec_lcd_modes;
-		lcdc_info.ch[0].num_cfg			= ARRAY_SIZE(ecovec_lcd_modes);
+		lcdc_info.ch[0].lcd_modes		= ecovec_lcd_modes;
+		lcdc_info.ch[0].num_modes		= ARRAY_SIZE(ecovec_lcd_modes);
 
 		gpio_set_value(GPIO_PTR1, 1);
 

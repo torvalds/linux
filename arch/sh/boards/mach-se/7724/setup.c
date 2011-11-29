@@ -886,12 +886,12 @@ static int __init devices_setup(void)
 
 	if (sw & SW41_B) {
 		/* 720p */
-		lcdc_info.ch[0].lcd_cfg	= lcdc_720p_modes;
-		lcdc_info.ch[0].num_cfg	= ARRAY_SIZE(lcdc_720p_modes);
+		lcdc_info.ch[0].lcd_modes = lcdc_720p_modes;
+		lcdc_info.ch[0].num_modes = ARRAY_SIZE(lcdc_720p_modes);
 	} else {
 		/* VGA */
-		lcdc_info.ch[0].lcd_cfg	= lcdc_vga_modes;
-		lcdc_info.ch[0].num_cfg	= ARRAY_SIZE(lcdc_vga_modes);
+		lcdc_info.ch[0].lcd_modes = lcdc_vga_modes;
+		lcdc_info.ch[0].num_modes = ARRAY_SIZE(lcdc_vga_modes);
 	}
 
 	if (sw & SW41_A) {

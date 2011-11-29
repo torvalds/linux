@@ -1191,8 +1191,8 @@ static int sh_mobile_check_var(struct fb_var_screeninfo *var, struct fb_info *in
 	 * distance between two modes is defined as the size of the
 	 * non-overlapping parts of the two rectangles.
 	 */
-	for (i = 0; i < ch->cfg.num_cfg; ++i) {
-		const struct fb_videomode *mode = &ch->cfg.lcd_cfg[i];
+	for (i = 0; i < ch->cfg.num_modes; ++i) {
+		const struct fb_videomode *mode = &ch->cfg.lcd_modes[i];
 		unsigned int dist;
 
 		/* We can only round up. */
@@ -1211,7 +1211,7 @@ static int sh_mobile_check_var(struct fb_var_screeninfo *var, struct fb_info *in
 	}
 
 	/* If no available mode can be used, return an error. */
-	if (ch->cfg.num_cfg != 0) {
+	if (ch->cfg.num_modes != 0) {
 		if (best_dist == (unsigned int)-1)
 			return -EINVAL;
 
@@ -1671,7 +1671,7 @@ sh_mobile_lcdc_channel_init(struct sh_mobile_lcdc_priv *priv,
 	struct fb_var_screeninfo *var;
 	struct fb_info *info;
 	unsigned int max_size;
-	int num_cfg;
+	int num_modes;
 	void *buf;
 	int ret;
 	int i;
@@ -1698,7 +1698,7 @@ sh_mobile_lcdc_channel_init(struct sh_mobile_lcdc_priv *priv,
 	max_mode = NULL;
 	max_size = 0;
 
-	for (i = 0, mode = cfg->lcd_cfg; i < cfg->num_cfg; i++, mode++) {
+	for (i = 0, mode = cfg->lcd_modes; i < cfg->num_modes; i++, mode++) {
 		unsigned int size = mode->yres * mode->xres;
 
 		/* NV12/NV21 buffers must have even number of lines */
@@ -1722,15 +1722,15 @@ sh_mobile_lcdc_channel_init(struct sh_mobile_lcdc_priv *priv,
 			max_mode->xres, max_mode->yres);
 
 	/* Create the mode list. */
-	if (cfg->lcd_cfg == NULL) {
+	if (cfg->lcd_modes == NULL) {
 		mode = &default_720p;
-		num_cfg = 1;
+		num_modes = 1;
 	} else {
-		mode = cfg->lcd_cfg;
-		num_cfg = cfg->num_cfg;
+		mode = cfg->lcd_modes;
+		num_modes = cfg->num_modes;
 	}
 
-	fb_videomode_to_modelist(mode, num_cfg, &info->modelist);
+	fb_videomode_to_modelist(mode, num_modes, &info->modelist);
 
 	/* Initialize the transmitter device if present. */
 	if (cfg->tx_dev) {

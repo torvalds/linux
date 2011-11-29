@@ -147,77 +147,77 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 		pctype = 0;
 		datatype = MIPI_DSI_PACKED_PIXEL_STREAM_24;
 		pixfmt = MIPI_DCS_PIXEL_FMT_24BIT;
-		linelength = ch->lcd_cfg[0].xres * 3;
+		linelength = ch->lcd_modes[0].xres * 3;
 		yuv = false;
 		break;
 	case MIPI_RGB565:
 		pctype = 1;
 		datatype = MIPI_DSI_PACKED_PIXEL_STREAM_16;
 		pixfmt = MIPI_DCS_PIXEL_FMT_16BIT;
-		linelength = ch->lcd_cfg[0].xres * 2;
+		linelength = ch->lcd_modes[0].xres * 2;
 		yuv = false;
 		break;
 	case MIPI_RGB666_LP:
 		pctype = 2;
 		datatype = MIPI_DSI_PIXEL_STREAM_3BYTE_18;
 		pixfmt = MIPI_DCS_PIXEL_FMT_24BIT;
-		linelength = ch->lcd_cfg[0].xres * 3;
+		linelength = ch->lcd_modes[0].xres * 3;
 		yuv = false;
 		break;
 	case MIPI_RGB666:
 		pctype = 3;
 		datatype = MIPI_DSI_PACKED_PIXEL_STREAM_18;
 		pixfmt = MIPI_DCS_PIXEL_FMT_18BIT;
-		linelength = (ch->lcd_cfg[0].xres * 18 + 7) / 8;
+		linelength = (ch->lcd_modes[0].xres * 18 + 7) / 8;
 		yuv = false;
 		break;
 	case MIPI_BGR888:
 		pctype = 8;
 		datatype = MIPI_DSI_PACKED_PIXEL_STREAM_24;
 		pixfmt = MIPI_DCS_PIXEL_FMT_24BIT;
-		linelength = ch->lcd_cfg[0].xres * 3;
+		linelength = ch->lcd_modes[0].xres * 3;
 		yuv = false;
 		break;
 	case MIPI_BGR565:
 		pctype = 9;
 		datatype = MIPI_DSI_PACKED_PIXEL_STREAM_16;
 		pixfmt = MIPI_DCS_PIXEL_FMT_16BIT;
-		linelength = ch->lcd_cfg[0].xres * 2;
+		linelength = ch->lcd_modes[0].xres * 2;
 		yuv = false;
 		break;
 	case MIPI_BGR666_LP:
 		pctype = 0xa;
 		datatype = MIPI_DSI_PIXEL_STREAM_3BYTE_18;
 		pixfmt = MIPI_DCS_PIXEL_FMT_24BIT;
-		linelength = ch->lcd_cfg[0].xres * 3;
+		linelength = ch->lcd_modes[0].xres * 3;
 		yuv = false;
 		break;
 	case MIPI_BGR666:
 		pctype = 0xb;
 		datatype = MIPI_DSI_PACKED_PIXEL_STREAM_18;
 		pixfmt = MIPI_DCS_PIXEL_FMT_18BIT;
-		linelength = (ch->lcd_cfg[0].xres * 18 + 7) / 8;
+		linelength = (ch->lcd_modes[0].xres * 18 + 7) / 8;
 		yuv = false;
 		break;
 	case MIPI_YUYV:
 		pctype = 4;
 		datatype = MIPI_DSI_PACKED_PIXEL_STREAM_YCBCR16;
 		pixfmt = MIPI_DCS_PIXEL_FMT_16BIT;
-		linelength = ch->lcd_cfg[0].xres * 2;
+		linelength = ch->lcd_modes[0].xres * 2;
 		yuv = true;
 		break;
 	case MIPI_UYVY:
 		pctype = 5;
 		datatype = MIPI_DSI_PACKED_PIXEL_STREAM_YCBCR16;
 		pixfmt = MIPI_DCS_PIXEL_FMT_16BIT;
-		linelength = ch->lcd_cfg[0].xres * 2;
+		linelength = ch->lcd_modes[0].xres * 2;
 		yuv = true;
 		break;
 	case MIPI_YUV420_L:
 		pctype = 6;
 		datatype = MIPI_DSI_PACKED_PIXEL_STREAM_YCBCR12;
 		pixfmt = MIPI_DCS_PIXEL_FMT_12BIT;
-		linelength = (ch->lcd_cfg[0].xres * 12 + 7) / 8;
+		linelength = (ch->lcd_modes[0].xres * 12 + 7) / 8;
 		yuv = true;
 		break;
 	case MIPI_YUV420:
@@ -225,7 +225,7 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 		datatype = MIPI_DSI_PACKED_PIXEL_STREAM_YCBCR12;
 		pixfmt = MIPI_DCS_PIXEL_FMT_12BIT;
 		/* Length of U/V line */
-		linelength = (ch->lcd_cfg[0].xres + 1) / 2;
+		linelength = (ch->lcd_modes[0].xres + 1) / 2;
 		yuv = true;
 		break;
 	default:
@@ -294,7 +294,7 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 	 */
 	iowrite32(0x00000006, mipi->linkbase + DTCTR);
 	/* VSYNC width = 2 (<< 17) */
-	iowrite32((ch->lcd_cfg[0].vsync_len << pdata->vsynw_offset) |
+	iowrite32((ch->lcd_modes[0].vsync_len << pdata->vsynw_offset) |
 		  (pdata->clksrc << 16) | (pctype << 12) | datatype,
 		  mipi->linkbase + VMCTR1);
 
@@ -328,7 +328,7 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 	top = linelength << 16; /* RGBLEN */
 	bottom = 0x00000001;
 	if (pdata->flags & SH_MIPI_DSI_HSABM) /* HSALEN */
-		bottom = (pdata->lane * ch->lcd_cfg[0].hsync_len) - 10;
+		bottom = (pdata->lane * ch->lcd_modes[0].hsync_len) - 10;
 	iowrite32(top | bottom , mipi->linkbase + VMLEN1);
 
 	/*
@@ -348,18 +348,18 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 		div = 2;
 
 	if (pdata->flags & SH_MIPI_DSI_HFPBM) {	/* HBPLEN */
-		top = ch->lcd_cfg[0].hsync_len + ch->lcd_cfg[0].left_margin;
+		top = ch->lcd_modes[0].hsync_len + ch->lcd_modes[0].left_margin;
 		top = ((pdata->lane * top / div) - 10) << 16;
 	}
 	if (pdata->flags & SH_MIPI_DSI_HBPBM) { /* HFPLEN */
-		bottom = ch->lcd_cfg[0].right_margin;
+		bottom = ch->lcd_modes[0].right_margin;
 		bottom = (pdata->lane * bottom / div) - 12;
 	}
 
-	bpp = linelength / ch->lcd_cfg[0].xres; /* byte / pixel */
+	bpp = linelength / ch->lcd_modes[0].xres; /* byte / pixel */
 	if ((pdata->lane / div) > bpp) {
-		tmp = ch->lcd_cfg[0].xres / bpp; /* output cycle */
-		tmp = ch->lcd_cfg[0].xres - tmp; /* (input - output) cycle */
+		tmp = ch->lcd_modes[0].xres / bpp; /* output cycle */
+		tmp = ch->lcd_modes[0].xres - tmp; /* (input - output) cycle */
 		delay = (pdata->lane * tmp);
 	}
 
