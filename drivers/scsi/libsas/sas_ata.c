@@ -145,20 +145,6 @@ static void sas_ata_task_done(struct sas_task *task)
 	ata_qc_complete(qc);
 	spin_unlock_irqrestore(dev->sata_dev.ap->lock, flags);
 
-	/*
-	 * If the sas_task has an ata qc, a scsi_cmnd and the aborted
-	 * flag is set, then we must have come in via the libsas EH
-	 * functions.  When we exit this function, we need to put the
-	 * scsi_cmnd on the list of finished errors.  The ata_qc_complete
-	 * call cleans up the libata side of things but we're protected
-	 * from the scsi_cmnd going away because the scsi_cmnd is owned
-	 * by the EH, making libata's call to scsi_done a NOP.
-	 */
-	spin_lock_irqsave(&task->task_state_lock, flags);
-	if (qc->scsicmd && task->task_state_flags & SAS_TASK_STATE_ABORTED)
-		scsi_eh_finish_cmd(qc->scsicmd, &sas_ha->eh_done_q);
-	spin_unlock_irqrestore(&task->task_state_lock, flags);
-
 qc_already_gone:
 	list_del_init(&task->list);
 	sas_free_task(task);
