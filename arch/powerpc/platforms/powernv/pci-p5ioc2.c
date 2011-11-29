@@ -137,6 +137,7 @@ static void __init pnv_pci_init_p5ioc2_phb(struct device_node *np,
 	phb->hose->private_data = phb;
 	phb->opal_id = phb_id;
 	phb->type = PNV_PHB_P5IOC2;
+	phb->model = PNV_PHB_MODEL_P5IOC2;
 
 	phb->regs = of_iomap(np, 0);
 

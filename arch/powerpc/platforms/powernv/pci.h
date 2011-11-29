@@ -9,6 +9,15 @@ enum pnv_phb_type {
 	PNV_PHB_IODA2,
 };
 
+/* Precise PHB model for error management */
+enum pnv_phb_model {
+	PNV_PHB_MODEL_UNKNOWN,
+	PNV_PHB_MODEL_P5IOC2,
+	PNV_PHB_MODEL_P7IOC,
+};
+
+#define PNV_PCI_DIAG_BUF_SIZE	4096
+
 /* Data associated with a PE, including IOMMU tracking etc.. */
 struct pnv_ioda_pe {
 	/* A PE can be associated with a single device or an
@@ -56,6 +65,7 @@ struct pnv_ioda_pe {
 struct pnv_phb {
 	struct pci_controller	*hose;
 	enum pnv_phb_type	type;
+	enum pnv_phb_model	model;
 	u64			opal_id;
 	void __iomem		*regs;
 	spinlock_t		lock;
@@ -118,6 +128,12 @@ struct pnv_phb {
 			struct list_head	pe_list;
 		} ioda;
 	};
+
+	/* PHB status structure */
+	union {
+		unsigned char			blob[PNV_PCI_DIAG_BUF_SIZE];
+		struct OpalIoP7IOCPhbErrorData	p7ioc;
+	} diag;
 };
 
 extern struct pci_ops pnv_pci_ops;

@@ -9,7 +9,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#define DEBUG
+#undef DEBUG
 
 #include <linux/kernel.h>
 #include <linux/pci.h>
@@ -467,14 +467,13 @@ static void __devinit pnv_ioda_update_resources(struct pci_bus *bus)
 	struct pci_bus *cbus;
 	struct pci_dev *cdev;
 	unsigned int i;
-	u16 cmd;
 
-	/* Clear all device enables  */
-	list_for_each_entry(cdev, &bus->devices, bus_list) {
-		pci_read_config_word(cdev, PCI_COMMAND, &cmd);
-		cmd &= ~(PCI_COMMAND_IO|PCI_COMMAND_MEMORY|PCI_COMMAND_MASTER);
-		pci_write_config_word(cdev, PCI_COMMAND, cmd);
-	}
+	/* We used to clear all device enables here. However it looks like
+	 * clearing MEM enable causes Obsidian (IPR SCS) to go bonkers,
+	 * and shoot fatal errors to the PHB which in turns fences itself
+	 * and we can't recover from that ... yet. So for now, let's leave
+	 * the enables as-is and hope for the best.
+	 */
 
 	/* Check if bus resources fit in our IO or M32 range */
 	for (i = 0; bus->self && (i < 2); i++) {
@@ -618,7 +617,7 @@ static int __devinit pnv_ioda_configure_pe(struct pnv_phb *phb,
 		struct pci_dn *pdn = pnv_ioda_get_pdn(parent);
 		if (pdn && pdn->pe_number != IODA_INVALID_PE) {
 			rc = opal_pci_set_peltv(phb->opal_id, pdn->pe_number,
-						pe->pe_number, 1);
+						pe->pe_number, OPAL_ADD_PE_TO_DOMAIN);
 			/* XXX What to do in case of error ? */
 		}
 		parent = parent->bus->self;
@@ -638,7 +637,7 @@ static int __devinit pnv_ioda_configure_pe(struct pnv_phb *phb,
 			pe->mve_number = -1;
 		} else {
 			rc = opal_pci_set_mve_enable(phb->opal_id,
-						     pe->mve_number, 1);
+						     pe->mve_number, OPAL_ENABLE_MVE);
 			if (rc) {
 				pe_err(pe, "OPAL error %ld enabling MVE %d\n",
 				       rc, pe->mve_number);
@@ -1186,6 +1185,12 @@ void __init pnv_pci_init_ioda1_phb(struct device_node *np)
 	hose->private_data = phb;
 	phb->opal_id = phb_id;
 	phb->type = PNV_PHB_IODA1;
+
+	/* Detect specific models for error handling */
+	if (of_device_is_compatible(np, "ibm,p7ioc-pciex"))
+		phb->model = PNV_PHB_MODEL_P7IOC;
+	else
+		phb->model = PNV_PHB_MODEL_UNKNOWN;
 
 	/* We parse "ranges" now since we need to deduce the register base
 	 * from the IO base

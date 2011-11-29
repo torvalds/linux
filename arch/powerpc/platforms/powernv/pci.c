@@ -144,6 +144,112 @@ static void pnv_teardown_msi_irqs(struct pci_dev *pdev)
 }
 #endif /* CONFIG_PCI_MSI */
 
+static void pnv_pci_dump_p7ioc_diag_data(struct pnv_phb *phb)
+{
+	struct OpalIoP7IOCPhbErrorData *data = &phb->diag.p7ioc;
+	int i;
+
+	pr_info("PHB %d diagnostic data:\n", phb->hose->global_number);
+
+	pr_info("  brdgCtl              = 0x%08x\n", data->brdgCtl);
+
+	pr_info("  portStatusReg        = 0x%08x\n", data->portStatusReg);
+	pr_info("  rootCmplxStatus      = 0x%08x\n", data->rootCmplxStatus);
+	pr_info("  busAgentStatus       = 0x%08x\n", data->busAgentStatus);
+
+	pr_info("  deviceStatus         = 0x%08x\n", data->deviceStatus);
+	pr_info("  slotStatus           = 0x%08x\n", data->slotStatus);
+	pr_info("  linkStatus           = 0x%08x\n", data->linkStatus);
+	pr_info("  devCmdStatus         = 0x%08x\n", data->devCmdStatus);
+	pr_info("  devSecStatus         = 0x%08x\n", data->devSecStatus);
+
+	pr_info("  rootErrorStatus      = 0x%08x\n", data->rootErrorStatus);
+	pr_info("  uncorrErrorStatus    = 0x%08x\n", data->uncorrErrorStatus);
+	pr_info("  corrErrorStatus      = 0x%08x\n", data->corrErrorStatus);
+	pr_info("  tlpHdr1              = 0x%08x\n", data->tlpHdr1);
+	pr_info("  tlpHdr2              = 0x%08x\n", data->tlpHdr2);
+	pr_info("  tlpHdr3              = 0x%08x\n", data->tlpHdr3);
+	pr_info("  tlpHdr4              = 0x%08x\n", data->tlpHdr4);
+	pr_info("  sourceId             = 0x%08x\n", data->sourceId);
+
+	pr_info("  errorClass           = 0x%016llx\n", data->errorClass);
+	pr_info("  correlator           = 0x%016llx\n", data->correlator);
+
+	pr_info("  p7iocPlssr           = 0x%016llx\n", data->p7iocPlssr);
+	pr_info("  p7iocCsr             = 0x%016llx\n", data->p7iocCsr);
+	pr_info("  lemFir               = 0x%016llx\n", data->lemFir);
+	pr_info("  lemErrorMask         = 0x%016llx\n", data->lemErrorMask);
+	pr_info("  lemWOF               = 0x%016llx\n", data->lemWOF);
+	pr_info("  phbErrorStatus       = 0x%016llx\n", data->phbErrorStatus);
+	pr_info("  phbFirstErrorStatus  = 0x%016llx\n", data->phbFirstErrorStatus);
+	pr_info("  phbErrorLog0         = 0x%016llx\n", data->phbErrorLog0);
+	pr_info("  phbErrorLog1         = 0x%016llx\n", data->phbErrorLog1);
+	pr_info("  mmioErrorStatus      = 0x%016llx\n", data->mmioErrorStatus);
+	pr_info("  mmioFirstErrorStatus = 0x%016llx\n", data->mmioFirstErrorStatus);
+	pr_info("  mmioErrorLog0        = 0x%016llx\n", data->mmioErrorLog0);
+	pr_info("  mmioErrorLog1        = 0x%016llx\n", data->mmioErrorLog1);
+	pr_info("  dma0ErrorStatus      = 0x%016llx\n", data->dma0ErrorStatus);
+	pr_info("  dma0FirstErrorStatus = 0x%016llx\n", data->dma0FirstErrorStatus);
+	pr_info("  dma0ErrorLog0        = 0x%016llx\n", data->dma0ErrorLog0);
+	pr_info("  dma0ErrorLog1        = 0x%016llx\n", data->dma0ErrorLog1);
+	pr_info("  dma1ErrorStatus      = 0x%016llx\n", data->dma1ErrorStatus);
+	pr_info("  dma1FirstErrorStatus = 0x%016llx\n", data->dma1FirstErrorStatus);
+	pr_info("  dma1ErrorLog0        = 0x%016llx\n", data->dma1ErrorLog0);
+	pr_info("  dma1ErrorLog1        = 0x%016llx\n", data->dma1ErrorLog1);
+
+	for (i = 0; i < OPAL_P7IOC_NUM_PEST_REGS; i++) {
+		if ((data->pestA[i] >> 63) == 0 &&
+		    (data->pestB[i] >> 63) == 0)
+			continue;
+		pr_info("  PE[%3d] PESTA        = 0x%016llx\n", i, data->pestA[i]);
+		pr_info("          PESTB        = 0x%016llx\n", data->pestB[i]);
+	}
+}
+
+static void pnv_pci_dump_phb_diag_data(struct pnv_phb *phb)
+{
+	switch(phb->model) {
+	case PNV_PHB_MODEL_P7IOC:
+		pnv_pci_dump_p7ioc_diag_data(phb);
+		break;
+	default:
+		pr_warning("PCI %d: Can't decode this PHB diag data\n",
+			   phb->hose->global_number);
+	}
+}
+
+static void pnv_pci_handle_eeh_config(struct pnv_phb *phb, u32 pe_no)
+{
+	unsigned long flags, rc;
+	int has_diag;
+
+	spin_lock_irqsave(&phb->lock, flags);
+
+	rc = opal_pci_get_phb_diag_data(phb->opal_id, phb->diag.blob, PNV_PCI_DIAG_BUF_SIZE);
+	has_diag = (rc == OPAL_SUCCESS);
+
+	rc = opal_pci_eeh_freeze_clear(phb->opal_id, pe_no,
+				       OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
+	if (rc) {
+		pr_warning("PCI %d: Failed to clear EEH freeze state"
+			   " for PE#%d, err %ld\n",
+			   phb->hose->global_number, pe_no, rc);
+
+		/* For now, let's only display the diag buffer when we fail to clear
+		 * the EEH status. We'll do more sensible things later when we have
+		 * proper EEH support. We need to make sure we don't pollute ourselves
+		 * with the normal errors generated when probing empty slots
+		 */
+		if (has_diag)
+			pnv_pci_dump_phb_diag_data(phb);
+		else
+			pr_warning("PCI %d: No diag data available\n",
+				   phb->hose->global_number);
+	}
+
+	spin_unlock_irqrestore(&phb->lock, flags);
+}
+
 static void pnv_pci_config_check_eeh(struct pnv_phb *phb, struct pci_bus *bus,
 				     u32 bdfn)
 {
@@ -165,15 +271,8 @@ static void pnv_pci_config_check_eeh(struct pnv_phb *phb, struct pci_bus *bus,
 	}
 	cfg_dbg(" -> EEH check, bdfn=%04x PE%d fstate=%x\n",
 		bdfn, pe_no, fstate);
-	if (fstate != 0) {
-		rc = opal_pci_eeh_freeze_clear(phb->opal_id, pe_no,
-					      OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
-		if (rc) {
-			pr_warning("PCI %d: Failed to clear EEH freeze state"
-				   " for PE#%d, err %lld\n",
-				   phb->hose->global_number, pe_no, rc);
-		}
-	}
+	if (fstate != 0)
+		pnv_pci_handle_eeh_config(phb, pe_no);
 }
 
 static int pnv_pci_read_config(struct pci_bus *bus,
