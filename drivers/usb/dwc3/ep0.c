@@ -302,11 +302,14 @@ static int dwc3_ep0_handle_status(struct dwc3 *dwc,
 
 	response_pkt = (__le16 *) dwc->setup_buf;
 	*response_pkt = cpu_to_le16(usb_status);
+
+	dep = dwc->eps[0];
+	dwc->ep0_usb_req.dep = dep;
 	dwc->ep0_usb_req.request.length = sizeof(*response_pkt);
 	dwc->ep0_usb_req.request.dma = dwc->setup_buf_addr;
 	dwc->ep0_usb_req.request.complete = dwc3_ep0_status_cmpl;
-	return usb_ep_queue(&dwc->eps[0]->endpoint, &dwc->ep0_usb_req.request,
-			GFP_ATOMIC);
+
+	return __dwc3_gadget_ep0_queue(dep, &dwc->ep0_usb_req);
 }
 
 static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
