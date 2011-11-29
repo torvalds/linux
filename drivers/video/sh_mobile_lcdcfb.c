@@ -728,20 +728,15 @@ static void __sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 
 	/* Setup geometry, format, frame buffer memory and operation mode. */
 	for (k = 0; k < ARRAY_SIZE(priv->ch); k++) {
-		const struct sh_mobile_lcdc_format_info *format;
-		u32 fourcc;
-
 		ch = &priv->ch[k];
 		if (!ch->enabled)
 			continue;
 
 		sh_mobile_lcdc_geometry(ch);
 
-		fourcc = sh_mobile_format_fourcc(&ch->info->var);
-		format = sh_mobile_format_info(fourcc);
-		tmp = format->lddfr;
+		tmp = ch->format->lddfr;
 
-		if (format->yuv) {
+		if (ch->format->yuv) {
 			switch (ch->info->var.colorspace) {
 			case V4L2_COLORSPACE_REC709:
 				tmp |= LDDFR_CF1;
@@ -755,7 +750,7 @@ static void __sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 		lcdc_write_chan(ch, LDDFR, tmp);
 		lcdc_write_chan(ch, LDMLSR, ch->pitch);
 		lcdc_write_chan(ch, LDSA1R, ch->base_addr_y);
-		if (format->yuv)
+		if (ch->format->yuv)
 			lcdc_write_chan(ch, LDSA2R, ch->base_addr_c);
 
 		/* When using deferred I/O mode, configure the LCDC for one-shot
@@ -772,7 +767,7 @@ static void __sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 	}
 
 	/* Word and long word swap. */
-	switch (sh_mobile_format_fourcc(&priv->ch[0].info->var)) {
+	switch (priv->ch[0].format->fourcc) {
 	case V4L2_PIX_FMT_RGB565:
 	case V4L2_PIX_FMT_NV21:
 	case V4L2_PIX_FMT_NV61:
@@ -859,7 +854,7 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 			ch->meram_enabled = 0;
 		}
 
-		switch (sh_mobile_format_fourcc(&ch->info->var)) {
+		switch (ch->format->fourcc) {
 		case V4L2_PIX_FMT_NV12:
 		case V4L2_PIX_FMT_NV21:
 		case V4L2_PIX_FMT_NV16:
@@ -1065,7 +1060,7 @@ static int sh_mobile_fb_pan_display(struct fb_var_screeninfo *var,
 			    + info->var.xres * info->var.yres_virtual
 			    + c_offset;
 		/* Set x offset */
-		if (sh_mobile_format_fourcc(&info->var) == V4L2_PIX_FMT_NV24)
+		if (ch->format->fourcc == V4L2_PIX_FMT_NV24)
 			base_addr_c += 2 * var->xoffset;
 		else
 			base_addr_c += var->xoffset;
@@ -1352,6 +1347,8 @@ static int sh_mobile_set_par(struct fb_info *info)
 	else
 		info->fix.line_length = info->var.xres
 				      * info->var.bits_per_pixel / 8;
+
+	ch->format = sh_mobile_format_info(sh_mobile_format_fourcc(&info->var));
 
 	ret = sh_mobile_lcdc_start(ch->lcdc);
 	if (ret < 0) {
@@ -1715,6 +1712,8 @@ sh_mobile_lcdc_channel_init(struct sh_mobile_lcdc_priv *priv,
 		dev_err(priv->dev, "Invalid FOURCC %08x.\n", cfg->fourcc);
 		return -EINVAL;
 	}
+
+	ch->format = format;
 
 	/* Allocate the frame buffer device. */
 	ch->info = framebuffer_alloc(0, priv->dev);

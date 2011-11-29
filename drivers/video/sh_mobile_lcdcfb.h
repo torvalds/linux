@@ -17,9 +17,10 @@ enum { LDDCKPAT1R, LDDCKPAT2R, LDMT1R, LDMT2R, LDMT3R, LDDFR, LDSM1R,
 struct backlight_device;
 struct fb_info;
 struct module;
-struct sh_mobile_lcdc_entity;
-struct sh_mobile_lcdc_priv;
 struct sh_mobile_lcdc_chan;
+struct sh_mobile_lcdc_entity;
+struct sh_mobile_lcdc_format_info;
+struct sh_mobile_lcdc_priv;
 
 #define SH_MOBILE_LCDC_DISPLAY_DISCONNECTED	0
 #define SH_MOBILE_LCDC_DISPLAY_CONNECTED	1
@@ -70,6 +71,7 @@ struct sh_mobile_lcdc_chan {
 	wait_queue_head_t frame_end_wait;
 	struct completion vsync_completion;
 
+	const struct sh_mobile_lcdc_format_info *format;
 	unsigned long base_addr_y;
 	unsigned long base_addr_c;
 	unsigned int pitch;
