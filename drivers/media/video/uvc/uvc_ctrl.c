@@ -1874,7 +1874,7 @@ int uvc_ctrl_init_device(struct uvc_device *dev)
 		if (ncontrols == 0)
 			continue;
 
-		entity->controls = kzalloc(ncontrols * sizeof(*ctrl),
+		entity->controls = kcalloc(ncontrols, sizeof(*ctrl),
 					   GFP_KERNEL);
 		if (entity->controls == NULL)
 			return -ENOMEM;
