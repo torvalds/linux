@@ -309,13 +309,10 @@ static struct drm_framebuffer *psb_framebuffer_create
  *
  *	Allocate the frame buffer. In the usual case we get a GTT range that
  *	is stolen memory backed and life is simple. If there isn't sufficient
- *	stolen memory or the system has no stolen memory we allocate a range
- *	and back it with a GEM object.
+ *	we fail as we don't have the virtual mapping space to really vmap it
+ *	and the kernel console code can't handle non linear framebuffers.
  *
- *	In this case the GEM object has no handle.
- *
- *	FIXME: console speed up - allocate twice the space if room and use
- *	hardware scrolling for acceleration.
+ *	Re-address this as and if the framebuffer layer grows this ability.
  */
 static struct gtt_range *psbfb_alloc(struct drm_device *dev, int aligned_size)
 {
@@ -328,17 +325,7 @@ static struct gtt_range *psbfb_alloc(struct drm_device *dev, int aligned_size)
 			return backing;
 		psb_gtt_free_range(dev, backing);
 	}
-	/* Next try using GEM host memory */
-	backing = psb_gtt_alloc_range(dev, aligned_size, "fb(gem)", 0);
-	if (backing == NULL)
-		return NULL;
-
-	/* Now back it with an object */
-	if (drm_gem_object_init(dev, &backing->gem, aligned_size) != 0) {
-		psb_gtt_free_range(dev, backing);
-		return NULL;
-	}
-	return backing;
+	return NULL;
 }
 
 /**
@@ -422,22 +409,9 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	info->fix.smem_start = dev->mode_config.fb_base;
 	info->fix.smem_len = size;
 
-	if (backing->stolen) {
-		/* Accessed stolen memory directly */
-		info->screen_base = (char *)dev_priv->vram_addr +
+	/* Accessed stolen memory directly */
+	info->screen_base = (char *)dev_priv->vram_addr +
 							backing->offset;
-	} else {
-		/* Pin the pages into the GTT and create a mapping to them */
-		psb_gtt_pin(backing);
-		info->screen_base = vm_map_ram(backing->pages, backing->npage,
-				-1, PAGE_KERNEL);
-		if (info->screen_base == NULL) {
-			psb_gtt_unpin(backing);
-			ret = -ENOMEM;
-			goto out_unref;
-		}
-		psbfb->vm_map = 1;
-	}
 	info->screen_size = size;
 
 	if (dev_priv->gtt.stolen_size) {
@@ -471,11 +445,8 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 out_unref:
 	if (backing->stolen)
 		psb_gtt_free_range(dev, backing);
-	else {
-		if (psbfb->vm_map)
-			vm_unmap_ram(info->screen_base, backing->npage);
+	else
 		drm_gem_object_unreference(&backing->gem);
-	}
 out_err1:
 	mutex_unlock(&dev->struct_mutex);
 	psb_gtt_free_range(dev, backing);
@@ -549,13 +520,6 @@ int psb_fbdev_destroy(struct drm_device *dev, struct psb_fbdev *fbdev)
 
 	if (fbdev->psb_fb_helper.fbdev) {
 		info = fbdev->psb_fb_helper.fbdev;
-
-		/* If this is our base framebuffer then kill any virtual map
-		   for the framebuffer layer and unpin it */
-		if (psbfb->vm_map) {
-			vm_unmap_ram(info->screen_base, psbfb->gtt->npage);
-			psb_gtt_unpin(psbfb->gtt);
-		}
 		unregister_framebuffer(info);
 		if (info->cmap.len)
 			fb_dealloc_cmap(&info->cmap);
@@ -765,7 +729,7 @@ void psb_modeset_init(struct drm_device *dev)
 	dev->mode_config.funcs = (void *) &psb_mode_funcs;
 
 	/* set memory base */
-	/* MRST and PSB should use BAR 2*/
+	/* Oaktrail and Poulsbo should use BAR 2*/
 	pci_read_config_dword(dev->pdev, PSB_BSM, (u32 *)
 					&(dev->mode_config.fb_base));
 
