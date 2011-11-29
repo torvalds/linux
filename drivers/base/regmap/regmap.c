@@ -569,18 +569,9 @@ int regmap_bulk_read(struct regmap *map, unsigned int reg, void *val,
 }
 EXPORT_SYMBOL_GPL(regmap_bulk_read);
 
-/**
- * regmap_update_bits: Perform a read/modify/write cycle on the register map
- *
- * @map: Register map to update
- * @reg: Register to update
- * @mask: Bitmask to change
- * @val: New value for bitmask
- *
- * Returns zero for success, a negative number on error.
- */
-int regmap_update_bits(struct regmap *map, unsigned int reg,
-		       unsigned int mask, unsigned int val)
+static int _regmap_update_bits(struct regmap *map, unsigned int reg,
+			       unsigned int mask, unsigned int val,
+			       bool *change)
 {
 	int ret;
 	unsigned int tmp, orig;
@@ -594,15 +585,56 @@ int regmap_update_bits(struct regmap *map, unsigned int reg,
 	tmp = orig & ~mask;
 	tmp |= val & mask;
 
-	if (tmp != orig)
+	if (tmp != orig) {
 		ret = _regmap_write(map, reg, tmp);
+		*change = true;
+	} else {
+		*change = false;
+	}
 
 out:
 	mutex_unlock(&map->lock);
 
 	return ret;
 }
+
+/**
+ * regmap_update_bits: Perform a read/modify/write cycle on the register map
+ *
+ * @map: Register map to update
+ * @reg: Register to update
+ * @mask: Bitmask to change
+ * @val: New value for bitmask
+ *
+ * Returns zero for success, a negative number on error.
+ */
+int regmap_update_bits(struct regmap *map, unsigned int reg,
+		       unsigned int mask, unsigned int val)
+{
+	bool change;
+	return _regmap_update_bits(map, reg, mask, val, &change);
+}
 EXPORT_SYMBOL_GPL(regmap_update_bits);
+
+/**
+ * regmap_update_bits_check: Perform a read/modify/write cycle on the
+ *                           register map and report if updated
+ *
+ * @map: Register map to update
+ * @reg: Register to update
+ * @mask: Bitmask to change
+ * @val: New value for bitmask
+ * @change: Boolean indicating if a write was done
+ *
+ * Returns zero for success, a negative number on error.
+ */
+int regmap_update_bits_check(struct regmap *map, unsigned int reg,
+			     unsigned int mask, unsigned int val,
+			     bool *change)
+{
+	return _regmap_update_bits(map, reg, mask, val, change);
+}
+EXPORT_SYMBOL_GPL(regmap_update_bits_check);
 
 static int __init regmap_initcall(void)
 {
