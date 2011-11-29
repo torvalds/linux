@@ -21,6 +21,7 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
+#include <linux/string.h>
 #include <linux/sysfs.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -33,7 +34,7 @@ static DEFINE_MUTEX(pinmux_list_mutex);
 static LIST_HEAD(pinmux_list);
 
 /* Global pinmux maps, we allow one set only */
-static struct pinmux_map const *pinmux_maps;
+static struct pinmux_map *pinmux_maps;
 static unsigned pinmux_maps_num;
 
 /**
@@ -333,7 +334,9 @@ EXPORT_SYMBOL_GPL(pinmux_gpio_direction_output);
 
 /**
  * pinmux_register_mappings() - register a set of pinmux mappings
- * @maps: the pinmux mappings table to register
+ * @maps: the pinmux mappings table to register, this should be marked with
+ *	__initdata so it can be discarded after boot, this function will
+ *	perform a shallow copy for the mapping entries.
  * @num_maps: the number of maps in the mapping table
  *
  * Only call this once during initialization of your machine, the function is
@@ -344,32 +347,48 @@ EXPORT_SYMBOL_GPL(pinmux_gpio_direction_output);
 int __init pinmux_register_mappings(struct pinmux_map const *maps,
 				    unsigned num_maps)
 {
+	int ret = 0;
 	int i;
 
-	if (pinmux_maps != NULL) {
+	if (pinmux_maps_num != 0) {
 		pr_err("pinmux mappings already registered, you can only "
 		       "register one set of maps\n");
 		return -EINVAL;
 	}
 
 	pr_debug("add %d pinmux maps\n", num_maps);
+
+	/*
+	 * Make a copy of the map array - string pointers will end up in the
+	 * kernel const section anyway so these do not need to be deep copied.
+	 */
+	pinmux_maps = kmemdup(maps, sizeof(struct pinmux_map) * num_maps,
+			      GFP_KERNEL);
+	if (!pinmux_maps)
+		return -ENOMEM;
+
 	for (i = 0; i < num_maps; i++) {
-		/* Sanity check the mapping */
+		/* Sanity check the mapping while copying it */
 		if (!maps[i].name) {
 			pr_err("failed to register map %d: "
 			       "no map name given\n", i);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto err_out_free;
 		}
+
 		if (!maps[i].ctrl_dev && !maps[i].ctrl_dev_name) {
 			pr_err("failed to register map %s (%d): "
 			       "no pin control device given\n",
 			       maps[i].name, i);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto err_out_free;
 		}
+
 		if (!maps[i].function) {
 			pr_err("failed to register map %s (%d): "
 			       "no function ID given\n", maps[i].name, i);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto err_out_free;
 		}
 
 		if (!maps[i].dev && !maps[i].dev_name)
@@ -380,12 +399,17 @@ int __init pinmux_register_mappings(struct pinmux_map const *maps,
 			pr_debug("register map %s, function %s\n",
 				 maps[i].name,
 				 maps[i].function);
+
+		pinmux_maps_num++;
 	}
 
-	pinmux_maps = maps;
-	pinmux_maps_num = num_maps;
-
 	return 0;
+
+err_out_free:
+	kfree(pinmux_maps);
+	pinmux_maps = NULL;
+	pinmux_maps_num = 0;
+	return ret;
 }
 
 /**

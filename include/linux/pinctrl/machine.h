@@ -48,7 +48,7 @@ struct pinmux_map {
 	const char *group;
 	struct device *dev;
 	const char *dev_name;
-	const bool hog_on_boot;
+	bool hog_on_boot;
 };
 
 /*

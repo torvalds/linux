@@ -1605,7 +1605,7 @@ static struct platform_device pinmux_device = {
 };
 
 /* Pinmux settings */
-static struct pinmux_map u300_pinmux_map[] = {
+static struct pinmux_map __initdata u300_pinmux_map[] = {
 	/* anonymous maps for chip power and EMIFs */
 	PINMUX_MAP_PRIMARY_SYS_HOG("POWER", "power"),
 	PINMUX_MAP_PRIMARY_SYS_HOG("EMIF0", "emif0"),

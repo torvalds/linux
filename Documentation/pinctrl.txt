@@ -697,7 +697,7 @@ spi on the second function mapping:
 
 #include <linux/pinctrl/machine.h>
 
-static const struct pinmux_map pmx_mapping[] = {
+static const struct pinmux_map __initdata pmx_mapping[] = {
 	{
 		.ctrl_dev_name = "pinctrl.0",
 		.function = "spi0",
@@ -734,7 +734,7 @@ Since the above construct is pretty common there is a helper macro to make
 it even more compact which assumes you want to use pinctrl.0 and position
 0 for mapping, for example:
 
-static struct pinmux_map pmx_mapping[] = {
+static struct pinmux_map __initdata pmx_mapping[] = {
        PINMUX_MAP_PRIMARY("I2CMAP", "i2c0", "foo-i2c.0"),
 };
 
