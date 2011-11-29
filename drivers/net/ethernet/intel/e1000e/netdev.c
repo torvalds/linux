@@ -3516,7 +3516,6 @@ int e1000e_up(struct e1000_adapter *adapter)
 
 	clear_bit(__E1000_DOWN, &adapter->state);
 
-	napi_enable(&adapter->napi);
 	if (adapter->msix_entries)
 		e1000_configure_msix(adapter);
 	e1000_irq_enable(adapter);
@@ -3578,7 +3577,6 @@ void e1000e_down(struct e1000_adapter *adapter)
 	e1e_flush();
 	usleep_range(10000, 20000);
 
-	napi_disable(&adapter->napi);
 	e1000_irq_disable(adapter);
 
 	del_timer_sync(&adapter->watchdog_timer);
@@ -3900,6 +3898,8 @@ static int e1000_close(struct net_device *netdev)
 	WARN_ON(test_bit(__E1000_RESETTING, &adapter->state));
 
 	pm_runtime_get_sync(&pdev->dev);
+
+	napi_disable(&adapter->napi);
 
 	if (!test_bit(__E1000_DOWN, &adapter->state)) {
 		e1000e_down(adapter);
