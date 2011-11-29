@@ -1798,6 +1798,7 @@ static void drop_large_spte(struct kvm_vcpu *vcpu, u64 *sptep)
 {
 	if (is_large_pte(*sptep)) {
 		drop_spte(vcpu->kvm, sptep);
+		--vcpu->kvm->stat.lpages;
 		kvm_flush_remote_tlbs(vcpu->kvm);
 	}
 }
