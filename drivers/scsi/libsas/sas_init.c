@@ -146,6 +146,7 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 	}
 
 	INIT_LIST_HEAD(&sas_ha->eh_done_q);
+	INIT_LIST_HEAD(&sas_ha->eh_ata_q);
 
 	return 0;
 

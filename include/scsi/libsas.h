@@ -382,7 +382,8 @@ struct sas_ha_struct {
 
 	void *lldd_ha;		  /* not touched by sas class code */
 
-	struct list_head eh_done_q;
+	struct list_head eh_done_q;  /* complete via scsi_eh_flush_done_q */
+	struct list_head eh_ata_q; /* scmds to promote from sas to ata eh */
 };
 
 #define SHOST_TO_SAS_HA(_shost) (*(struct sas_ha_struct **)(_shost)->hostdata)
