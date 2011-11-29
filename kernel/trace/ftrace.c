@@ -1129,7 +1129,7 @@ static struct ftrace_hash *alloc_ftrace_hash(int size_bits)
 		return NULL;
 
 	size = 1 << size_bits;
-	hash->buckets = kzalloc(sizeof(*hash->buckets) * size, GFP_KERNEL);
+	hash->buckets = kcalloc(size, sizeof(*hash->buckets), GFP_KERNEL);
 
 	if (!hash->buckets) {
 		kfree(hash);
