@@ -550,7 +550,7 @@ void kprobe_arm_test_cases(void)
 	TEST_RPR(  "strccd	r",8, VAL2,", [r",13,0, ", r",12,48,"]")
 	TEST_RPR(  "strd	r",4, VAL1,", [r",2, 24,", r",3, 48,"]!")
 	TEST_RPR(  "strcsd	r",12,VAL2,", [r",11,48,", -r",10,24,"]!")
-	TEST_RPR(  "strd	r",2, VAL1,", [r",3, 24,"], r",4,48,"")
+	TEST_RPR(  "strd	r",2, VAL1,", [r",5, 24,"], r",4,48,"")
 	TEST_RPR(  "strd	r",10,VAL2,", [r",9, 48,"], -r",7,24,"")
 	TEST_UNSUPPORTED(".word 0xe1afc0fa	@ strd r12, [pc, r10]!")
 
