@@ -453,8 +453,8 @@ quiet_ni_syscall:
 	CFI_ENDPROC
 	
 	.macro PTREGSCALL label, func, arg
-	.globl \label
-\label:
+	ALIGN
+GLOBAL(\label)
 	leaq \func(%rip),%rax
 	leaq -ARGOFFSET+8(%rsp),\arg	/* 8 for return address */
 	jmp  ia32_ptregs_common	
@@ -471,7 +471,8 @@ quiet_ni_syscall:
 	PTREGSCALL stub32_vfork, sys_vfork, %rdi
 	PTREGSCALL stub32_iopl, sys_iopl, %rsi
 
-ENTRY(ia32_ptregs_common)
+	ALIGN
+ia32_ptregs_common:
 	popq %r11
 	CFI_ENDPROC
 	CFI_STARTPROC32	simple
