@@ -41,7 +41,7 @@ static int heartbeat = -1;		/* module parameter (seconds) */
 static unsigned int wdt_max_duration;	/* (seconds) */
 static unsigned int wdt_tclk;
 static unsigned long wdt_status;
-static spinlock_t wdt_lock;
+static DEFINE_SPINLOCK(wdt_lock);
 
 static void orion_wdt_ping(void)
 {
@@ -296,7 +296,6 @@ static struct platform_driver orion_wdt_driver = {
 
 static int __init orion_wdt_init(void)
 {
-	spin_lock_init(&wdt_lock);
 	return platform_driver_register(&orion_wdt_driver);
 }
 

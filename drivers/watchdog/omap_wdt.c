@@ -55,7 +55,7 @@ module_param(timer_margin, uint, 0);
 MODULE_PARM_DESC(timer_margin, "initial watchdog timeout (in seconds)");
 
 static unsigned int wdt_trgr_pattern = 0x1234;
-static spinlock_t wdt_lock;
+static DEFINE_SPINLOCK(wdt_lock);
 
 struct omap_wdt_dev {
 	void __iomem    *base;          /* physical */
@@ -439,7 +439,6 @@ static struct platform_driver omap_wdt_driver = {
 
 static int __init omap_wdt_init(void)
 {
-	spin_lock_init(&wdt_lock);
 	return platform_driver_register(&omap_wdt_driver);
 }
 

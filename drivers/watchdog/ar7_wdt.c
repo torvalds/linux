@@ -70,8 +70,8 @@ struct ar7_wdt {
 };
 
 static unsigned long wdt_is_open;
-static spinlock_t wdt_lock;
 static unsigned expect_close;
+static DEFINE_SPINLOCK(wdt_lock);
 
 /* XXX currently fixed, allows max margin ~68.72 secs */
 #define prescale_value 0xffff
@@ -279,8 +279,6 @@ static struct miscdevice ar7_wdt_miscdev = {
 static int __devinit ar7_wdt_probe(struct platform_device *pdev)
 {
 	int rc;
-
-	spin_lock_init(&wdt_lock);
 
 	ar7_regs_wdt =
 		platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs");
