@@ -296,17 +296,41 @@ static inline void __write_host_tlbe(struct kvm_book3e_206_tlb_entry *stlbe,
 	local_irq_restore(flags);
 }
 
-/* esel is index into set, not whole array */
-static inline void write_host_tlbe(struct kvmppc_vcpu_e500 *vcpu_e500,
-		int tlbsel, int esel, struct kvm_book3e_206_tlb_entry *stlbe)
+/*
+ * Acquire a mas0 with victim hint, as if we just took a TLB miss.
+ *
+ * We don't care about the address we're searching for, other than that it's
+ * in the right set and is not present in the TLB.  Using a zero PID and a
+ * userspace address means we don't have to set and then restore MAS5, or
+ * calculate a proper MAS6 value.
+ */
+static u32 get_host_mas0(unsigned long eaddr)
 {
+	unsigned long flags;
+	u32 mas0;
+
+	local_irq_save(flags);
+	mtspr(SPRN_MAS6, 0);
+	asm volatile("tlbsx 0, %0" : : "b" (eaddr & ~CONFIG_PAGE_OFFSET));
+	mas0 = mfspr(SPRN_MAS0);
+	local_irq_restore(flags);
+
+	return mas0;
+}
+
+/* sesel is for tlb1 only */
+static inline void write_host_tlbe(struct kvmppc_vcpu_e500 *vcpu_e500,
+		int tlbsel, int sesel, struct kvm_book3e_206_tlb_entry *stlbe)
+{
+	u32 mas0;
+
 	if (tlbsel == 0) {
-		int way = esel & (vcpu_e500->gtlb_params[0].ways - 1);
-		__write_host_tlbe(stlbe, MAS0_TLBSEL(0) | MAS0_ESEL(way));
+		mas0 = get_host_mas0(stlbe->mas2);
+		__write_host_tlbe(stlbe, mas0);
 	} else {
 		__write_host_tlbe(stlbe,
 				  MAS0_TLBSEL(1) |
-				  MAS0_ESEL(to_htlb1_esel(esel)));
+				  MAS0_ESEL(to_htlb1_esel(sesel)));
 	}
 	trace_kvm_stlb_write(index_of(tlbsel, esel), stlbe->mas1, stlbe->mas2,
 			     (u32)stlbe->mas7_3, (u32)(stlbe->mas7_3 >> 32));
@@ -420,12 +444,6 @@ static int gtlb0_set_base(struct kvmppc_vcpu_e500 *vcpu_e500, gva_t addr)
 {
 	return tlb0_set_base(addr, vcpu_e500->gtlb_params[0].sets,
 			     vcpu_e500->gtlb_params[0].ways);
-}
-
-static int htlb0_set_base(gva_t addr)
-{
-	return tlb0_set_base(addr, host_tlb_params[0].sets,
-			     host_tlb_params[0].ways);
 }
 
 static unsigned int get_tlb_esel(struct kvm_vcpu *vcpu, int tlbsel)
@@ -585,10 +603,9 @@ static inline void kvmppc_e500_setup_stlbe(
 				vcpu_e500->vcpu.arch.shared->msr & MSR_PR);
 }
 
-/* sesel is an index into the entire array, not just the set */
 static inline void kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 	u64 gvaddr, gfn_t gfn, struct kvm_book3e_206_tlb_entry *gtlbe,
-	int tlbsel, int sesel, struct kvm_book3e_206_tlb_entry *stlbe,
+	int tlbsel, struct kvm_book3e_206_tlb_entry *stlbe,
 	struct tlbe_ref *ref)
 {
 	struct kvm_memory_slot *slot;
@@ -721,27 +738,19 @@ static inline void kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 }
 
 /* XXX only map the one-one case, for now use TLB0 */
-static int kvmppc_e500_tlb0_map(struct kvmppc_vcpu_e500 *vcpu_e500,
-				int esel,
-				struct kvm_book3e_206_tlb_entry *stlbe)
+static void kvmppc_e500_tlb0_map(struct kvmppc_vcpu_e500 *vcpu_e500,
+				 int esel,
+				 struct kvm_book3e_206_tlb_entry *stlbe)
 {
 	struct kvm_book3e_206_tlb_entry *gtlbe;
 	struct tlbe_ref *ref;
-	int sesel = esel & (host_tlb_params[0].ways - 1);
-	int sesel_base;
-	gva_t ea;
 
 	gtlbe = get_entry(vcpu_e500, 0, esel);
 	ref = &vcpu_e500->gtlb_priv[0][esel].ref;
 
-	ea = get_tlb_eaddr(gtlbe);
-	sesel_base = htlb0_set_base(ea);
-
 	kvmppc_e500_shadow_map(vcpu_e500, get_tlb_eaddr(gtlbe),
 			get_tlb_raddr(gtlbe) >> PAGE_SHIFT,
-			gtlbe, 0, sesel_base + sesel, stlbe, ref);
-
-	return sesel;
+			gtlbe, 0, stlbe, ref);
 }
 
 /* Caller must ensure that the specified guest TLB entry is safe to insert into
@@ -760,8 +769,7 @@ static int kvmppc_e500_tlb1_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 		vcpu_e500->host_tlb1_nv = 0;
 
 	ref = &vcpu_e500->tlb_refs[1][victim];
-	kvmppc_e500_shadow_map(vcpu_e500, gvaddr, gfn, gtlbe, 1,
-			       victim, stlbe, ref);
+	kvmppc_e500_shadow_map(vcpu_e500, gvaddr, gfn, gtlbe, 1, stlbe, ref);
 
 	return victim;
 }
@@ -910,7 +918,7 @@ int kvmppc_e500_emul_tlbsx(struct kvm_vcpu *vcpu, int rb)
 	return EMULATE_DONE;
 }
 
-/* sesel is index into the set, not the whole array */
+/* sesel is for tlb1 only */
 static void write_stlbe(struct kvmppc_vcpu_e500 *vcpu_e500,
 			struct kvm_book3e_206_tlb_entry *gtlbe,
 			struct kvm_book3e_206_tlb_entry *stlbe,
@@ -963,7 +971,8 @@ int kvmppc_e500_emul_tlbwe(struct kvm_vcpu *vcpu)
 			gtlbe->mas1 |= MAS1_TSIZE(BOOK3E_PAGESZ_4K);
 
 			stlbsel = 0;
-			sesel = kvmppc_e500_tlb0_map(vcpu_e500, esel, &stlbe);
+			kvmppc_e500_tlb0_map(vcpu_e500, esel, &stlbe);
+			sesel = 0; /* unused */
 
 			break;
 
@@ -1052,7 +1061,7 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 eaddr, gpa_t gpaddr,
 	switch (tlbsel) {
 	case 0:
 		stlbsel = 0;
-		sesel = esel & (host_tlb_params[0].ways - 1);
+		sesel = 0; /* unused */
 		priv = &vcpu_e500->gtlb_priv[tlbsel][esel];
 
 		kvmppc_e500_setup_stlbe(vcpu_e500, gtlbe, BOOK3E_PAGESZ_4K,
