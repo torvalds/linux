@@ -447,7 +447,6 @@ b12-b0 - Supported Rate indicator bits as defined below.
 #define CLK_REQ_OUTN_SEL       0x700
 
 #define WU_COUNTER_PAUSE_VAL 0x3FF
-#define WELP_ARM_COMMAND_VAL 0x4
 
 /* PLL configuration algorithm for wl128x */
 #define SYS_CLK_CFG_REG              0x2200

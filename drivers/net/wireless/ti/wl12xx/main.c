@@ -29,9 +29,6 @@
 
 #include "reg.h"
 
-static struct wlcore_ops wl12xx_ops = {
-};
-
 static struct wlcore_partition_set wl12xx_ptable[PART_TABLE_LEN] = {
 	[PART_DOWN] = {
 		.mem = {
@@ -131,6 +128,62 @@ static const int wl12xx_rtable[REG_TABLE_LEN] = {
 	[REG_RAW_FW_STATUS_ADDR]	= FW_STATUS_ADDR,
 };
 
+/* TODO: maybe move to a new header file? */
+#define WL127X_FW_NAME_MULTI	"ti-connectivity/wl127x-fw-4-mr.bin"
+#define WL127X_FW_NAME_SINGLE	"ti-connectivity/wl127x-fw-4-sr.bin"
+#define WL127X_PLT_FW_NAME	"ti-connectivity/wl127x-fw-4-plt.bin"
+
+#define WL128X_FW_NAME_MULTI	"ti-connectivity/wl128x-fw-4-mr.bin"
+#define WL128X_FW_NAME_SINGLE	"ti-connectivity/wl128x-fw-4-sr.bin"
+#define WL128X_PLT_FW_NAME	"ti-connectivity/wl128x-fw-4-plt.bin"
+
+static int wl12xx_identify_chip(struct wl1271 *wl)
+{
+	int ret = 0;
+
+	switch (wl->chip.id) {
+	case CHIP_ID_1271_PG10:
+		wl1271_warning("chip id 0x%x (1271 PG10) support is obsolete",
+			       wl->chip.id);
+
+		wl->quirks |= WLCORE_QUIRK_NO_BLOCKSIZE_ALIGNMENT;
+		wl->plt_fw_name = WL127X_PLT_FW_NAME;
+		wl->sr_fw_name = WL127X_FW_NAME_SINGLE;
+		wl->mr_fw_name = WL127X_FW_NAME_MULTI;
+		break;
+
+	case CHIP_ID_1271_PG20:
+		wl1271_debug(DEBUG_BOOT, "chip id 0x%x (1271 PG20)",
+			     wl->chip.id);
+
+		wl->quirks |= WLCORE_QUIRK_NO_BLOCKSIZE_ALIGNMENT;
+		wl->plt_fw_name = WL127X_PLT_FW_NAME;
+		wl->sr_fw_name = WL127X_FW_NAME_SINGLE;
+		wl->mr_fw_name = WL127X_FW_NAME_MULTI;
+		break;
+
+	case CHIP_ID_1283_PG20:
+		wl1271_debug(DEBUG_BOOT, "chip id 0x%x (1283 PG20)",
+			     wl->chip.id);
+		wl->plt_fw_name = WL128X_PLT_FW_NAME;
+		wl->sr_fw_name = WL128X_FW_NAME_SINGLE;
+		wl->mr_fw_name = WL128X_FW_NAME_MULTI;
+		break;
+	case CHIP_ID_1283_PG10:
+	default:
+		wl1271_warning("unsupported chip id: 0x%x", wl->chip.id);
+		ret = -ENODEV;
+		goto out;
+	}
+
+out:
+	return ret;
+}
+
+static struct wlcore_ops wl12xx_ops = {
+	.identify_chip = wl12xx_identify_chip,
+};
+
 static int __devinit wl12xx_probe(struct platform_device *pdev)
 {
 	struct wl1271 *wl;
@@ -180,3 +233,9 @@ module_exit(wl12xx_exit);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
+MODULE_FIRMWARE(WL127X_FW_NAME_SINGLE);
+MODULE_FIRMWARE(WL127X_FW_NAME_MULTI);
+MODULE_FIRMWARE(WL127X_PLT_FW_NAME);
+MODULE_FIRMWARE(WL128X_FW_NAME_SINGLE);
+MODULE_FIRMWARE(WL128X_FW_NAME_MULTI);
+MODULE_FIRMWARE(WL128X_PLT_FW_NAME);

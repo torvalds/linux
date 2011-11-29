@@ -175,7 +175,7 @@ u8 wl12xx_tx_get_hlid(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 static unsigned int wl12xx_calc_packet_alignment(struct wl1271 *wl,
 						unsigned int packet_length)
 {
-	if (wl->quirks & WL12XX_QUIRK_NO_BLOCKSIZE_ALIGNMENT)
+	if (wl->quirks & WLCORE_QUIRK_NO_BLOCKSIZE_ALIGNMENT)
 		return ALIGN(packet_length, WL1271_TX_ALIGN_TO);
 	else
 		return ALIGN(packet_length, WL12XX_BUS_BLOCK_SIZE);
@@ -767,7 +767,7 @@ out_ack:
 		 * Interrupt the firmware with the new packets. This is only
 		 * required for older hardware revisions
 		 */
-		if (wl->quirks & WL12XX_QUIRK_END_OF_TRANSACTION)
+		if (wl->quirks & WLCORE_QUIRK_END_OF_TRANSACTION)
 			wl1271_write32(wl, WL12XX_HOST_WR_ACCESS,
 				       wl->tx_packets_count);
 

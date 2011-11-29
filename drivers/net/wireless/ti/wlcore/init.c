@@ -318,7 +318,7 @@ static int wl12xx_init_fwlog(struct wl1271 *wl)
 {
 	int ret;
 
-	if (wl->quirks & WL12XX_QUIRK_FWLOG_NOT_IMPLEMENTED)
+	if (wl->quirks & WLCORE_QUIRK_FWLOG_NOT_IMPLEMENTED)
 		return 0;
 
 	ret = wl12xx_cmd_config_fwlog(wl);
@@ -500,7 +500,7 @@ int wl1271_chip_specific_init(struct wl1271 *wl)
 	if (wl->chip.id == CHIP_ID_1283_PG20) {
 		u32 host_cfg_bitmap = HOST_IF_CFG_RX_FIFO_ENABLE;
 
-		if (!(wl->quirks & WL12XX_QUIRK_NO_BLOCKSIZE_ALIGNMENT))
+		if (!(wl->quirks & WLCORE_QUIRK_NO_BLOCKSIZE_ALIGNMENT))
 			/* Enable SDIO padding */
 			host_cfg_bitmap |= HOST_IF_CFG_TX_PAD_TO_SDIO_BLK;
 

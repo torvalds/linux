@@ -28,6 +28,7 @@
 #include "event.h"
 
 struct wlcore_ops {
+	int (*identify_chip)(struct wl1271 *wl);
 };
 
 enum wlcore_partitions {
@@ -291,6 +292,10 @@ struct wl1271 {
 	const struct wlcore_partition_set *ptable;
 	/* pointer to the lower driver register table */
 	const int *rtable;
+	/* name of the firmwares to load - for PLT, single role, multi-role */
+	const char *plt_fw_name;
+	const char *sr_fw_name;
+	const char *mr_fw_name;
 };
 
 int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev);
@@ -300,6 +305,17 @@ int wlcore_free_hw(struct wl1271 *wl);
 
 /* Firmware image load chunk size */
 #define CHUNK_SIZE	16384
+
+/* Quirks */
+
+/* Each RX/TX transaction requires an end-of-transaction transfer */
+#define WLCORE_QUIRK_END_OF_TRANSACTION		BIT(0)
+
+/* wl127x and SPI don't support SDIO block size alignment */
+#define WLCORE_QUIRK_NO_BLOCKSIZE_ALIGNMENT	BIT(2)
+
+/* Older firmwares did not implement the FW logger over bus feature */
+#define WLCORE_QUIRK_FWLOG_NOT_IMPLEMENTED	BIT(4)
 
 /* TODO: move to the lower drivers when all usages are abstracted */
 #define CHIP_ID_1271_PG10              (0x4030101)
@@ -380,5 +396,7 @@ int wlcore_free_hw(struct wl1271 *wl);
 #define SOFT_RESET_STALL_TIME	1000
 
 #define ECPU_CONTROL_HALT	0x00000101
+
+#define WELP_ARM_COMMAND_VAL	0x4
 
 #endif /* __WLCORE_H__ */

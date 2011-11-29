@@ -58,11 +58,11 @@ static unsigned int wl12xx_get_fw_ver_quirks(struct wl1271 *wl)
 	/* Only new station firmwares support routing fw logs to the host */
 	if ((fw_ver[FW_VER_IF_TYPE] == FW_VER_IF_TYPE_STA) &&
 	    (fw_ver[FW_VER_MINOR] < FW_VER_MINOR_FWLOG_STA_MIN))
-		quirks |= WL12XX_QUIRK_FWLOG_NOT_IMPLEMENTED;
+		quirks |= WLCORE_QUIRK_FWLOG_NOT_IMPLEMENTED;
 
 	/* This feature is not yet supported for AP mode */
 	if (fw_ver[FW_VER_IF_TYPE] == FW_VER_IF_TYPE_AP)
-		quirks |= WL12XX_QUIRK_FWLOG_NOT_IMPLEMENTED;
+		quirks |= WLCORE_QUIRK_FWLOG_NOT_IMPLEMENTED;
 
 	return quirks;
 }
@@ -641,7 +641,7 @@ static int wl127x_boot_clk(struct wl1271 *wl)
 	u32 clk;
 
 	if (WL127X_PG_GET_MAJOR(wl->hw_pg_ver) < 3)
-		wl->quirks |= WL12XX_QUIRK_END_OF_TRANSACTION;
+		wl->quirks |= WLCORE_QUIRK_END_OF_TRANSACTION;
 
 	if (wl->ref_clock == CONF_REF_CLK_19_2_E ||
 	    wl->ref_clock == CONF_REF_CLK_38_4_E ||

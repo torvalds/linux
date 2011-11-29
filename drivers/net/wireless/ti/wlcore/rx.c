@@ -282,7 +282,7 @@ void wl12xx_rx(struct wl1271 *wl, struct wl12xx_fw_status *status)
 	 * Write the driver's packet counter to the FW. This is only required
 	 * for older hardware revisions
 	 */
-	if (wl->quirks & WL12XX_QUIRK_END_OF_TRANSACTION)
+	if (wl->quirks & WLCORE_QUIRK_END_OF_TRANSACTION)
 		wl1271_write32(wl, WL12XX_REG_RX_DRIVER_COUNTER,
 			       wl->rx_counter);
 

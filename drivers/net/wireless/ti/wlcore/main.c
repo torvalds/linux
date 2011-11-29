@@ -1055,10 +1055,7 @@ static int wl12xx_fetch_firmware(struct wl1271 *wl, bool plt)
 
 	if (plt) {
 		fw_type = WL12XX_FW_TYPE_PLT;
-		if (wl->chip.id == CHIP_ID_1283_PG20)
-			fw_name = WL128X_PLT_FW_NAME;
-		else
-			fw_name	= WL127X_PLT_FW_NAME;
+		fw_name = wl->plt_fw_name;
 	} else {
 		/*
 		 * we can't call wl12xx_get_vif_count() here because
@@ -1066,16 +1063,10 @@ static int wl12xx_fetch_firmware(struct wl1271 *wl, bool plt)
 		 */
 		if (wl->last_vif_count > 1) {
 			fw_type = WL12XX_FW_TYPE_MULTI;
-			if (wl->chip.id == CHIP_ID_1283_PG20)
-				fw_name = WL128X_FW_NAME_MULTI;
-			else
-				fw_name = WL127X_FW_NAME_MULTI;
+			fw_name = wl->mr_fw_name;
 		} else {
 			fw_type = WL12XX_FW_TYPE_NORMAL;
-			if (wl->chip.id == CHIP_ID_1283_PG20)
-				fw_name = WL128X_FW_NAME_SINGLE;
-			else
-				fw_name = WL127X_FW_NAME_SINGLE;
+			fw_name = wl->sr_fw_name;
 		}
 	}
 
@@ -1182,7 +1173,7 @@ static void wl12xx_read_fwlog_panic(struct wl1271 *wl)
 	u32 first_addr;
 	u8 *block;
 
-	if ((wl->quirks & WL12XX_QUIRK_FWLOG_NOT_IMPLEMENTED) ||
+	if ((wl->quirks & WLCORE_QUIRK_FWLOG_NOT_IMPLEMENTED) ||
 	    (wl->conf.fwlog.mode != WL12XX_FWLOG_ON_DEMAND) ||
 	    (wl->conf.fwlog.mem_blocks == 0))
 		return;
@@ -1356,43 +1347,17 @@ static int wl12xx_chip_wakeup(struct wl1271 *wl, bool plt)
 	 * chip types.
 	 */
 	if (!wl1271_set_block_size(wl))
-		wl->quirks |= WL12XX_QUIRK_NO_BLOCKSIZE_ALIGNMENT;
+		wl->quirks |= WLCORE_QUIRK_NO_BLOCKSIZE_ALIGNMENT;
 
-	switch (wl->chip.id) {
-	case CHIP_ID_1271_PG10:
-		wl1271_warning("chip id 0x%x (1271 PG10) support is obsolete",
-			       wl->chip.id);
-
-		ret = wl1271_setup(wl);
-		if (ret < 0)
-			goto out;
-		wl->quirks |= WL12XX_QUIRK_NO_BLOCKSIZE_ALIGNMENT;
-		break;
-
-	case CHIP_ID_1271_PG20:
-		wl1271_debug(DEBUG_BOOT, "chip id 0x%x (1271 PG20)",
-			     wl->chip.id);
-
-		ret = wl1271_setup(wl);
-		if (ret < 0)
-			goto out;
-		wl->quirks |= WL12XX_QUIRK_NO_BLOCKSIZE_ALIGNMENT;
-		break;
-
-	case CHIP_ID_1283_PG20:
-		wl1271_debug(DEBUG_BOOT, "chip id 0x%x (1283 PG20)",
-			     wl->chip.id);
-
-		ret = wl1271_setup(wl);
-		if (ret < 0)
-			goto out;
-		break;
-	case CHIP_ID_1283_PG10:
-	default:
-		wl1271_warning("unsupported chip id: 0x%x", wl->chip.id);
-		ret = -ENODEV;
+	ret = wl->ops->identify_chip(wl);
+	if (ret < 0)
 		goto out;
-	}
+
+	/* TODO: make sure the lower driver has set things up correctly */
+
+	ret = wl1271_setup(wl);
+	if (ret < 0)
+		goto out;
 
 	ret = wl12xx_fetch_firmware(wl, plt);
 	if (ret < 0)

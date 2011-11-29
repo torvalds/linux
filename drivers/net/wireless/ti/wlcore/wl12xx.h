@@ -451,17 +451,6 @@ size_t wl12xx_copy_fwlog(struct wl1271 *wl, u8 *memblock, size_t maxlen);
 #define HW_BG_RATES_MASK	0xffff
 #define HW_HT_RATES_OFFSET	16
 
-/* Quirks */
-
-/* Each RX/TX transaction requires an end-of-transaction transfer */
-#define WL12XX_QUIRK_END_OF_TRANSACTION		BIT(0)
-
-/* wl127x and SPI don't support SDIO block size alignment */
-#define WL12XX_QUIRK_NO_BLOCKSIZE_ALIGNMENT	BIT(2)
-
-/* Older firmwares did not implement the FW logger over bus feature */
-#define WL12XX_QUIRK_FWLOG_NOT_IMPLEMENTED	BIT(4)
-
 #define WL12XX_HW_BLOCK_SIZE	256
 
 #endif
