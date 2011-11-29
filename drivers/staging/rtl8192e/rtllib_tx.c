@@ -965,3 +965,4 @@ int rtllib_xmit(struct sk_buff *skb, struct net_device *dev)
 	memset(skb->cb, 0, sizeof(skb->cb));
 	return rtllib_xmit_inter(skb, dev);
 }
+EXPORT_SYMBOL(rtllib_xmit);

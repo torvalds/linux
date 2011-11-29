@@ -186,6 +186,7 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 		free_netdev(dev);
 	return NULL;
 }
+EXPORT_SYMBOL(alloc_rtllib);
 
 void free_rtllib(struct net_device *dev)
 {
@@ -212,6 +213,7 @@ void free_rtllib(struct net_device *dev)
 	rtllib_networks_free(ieee);
 	free_netdev(dev);
 }
+EXPORT_SYMBOL(free_rtllib);
 
 u32 rtllib_debug_level;
 static int debug = \

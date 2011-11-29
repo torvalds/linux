@@ -955,6 +955,7 @@ void HTUpdateSelfAndPeerSetting(struct rtllib_device *ieee,
 			pHTInfo->CurrentOpMode = pPeerHTInfo->OptMode;
 	}
 }
+EXPORT_SYMBOL(HTUpdateSelfAndPeerSetting);
 
 void HTUseDefaultSetting(struct rtllib_device *ieee)
 {

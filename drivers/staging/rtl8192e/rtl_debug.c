@@ -30,6 +30,7 @@
 
 u32 rt_global_debug_component = \
 				COMP_ERR ;
+EXPORT_SYMBOL(rt_global_debug_component);
 
 /****************************************************************************
    -----------------------------PROCFS STUFF-------------------------
