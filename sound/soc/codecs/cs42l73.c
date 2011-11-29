@@ -1024,7 +1024,8 @@ static int cs42l73_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	}
 
 	if (spc & SPDIF_PCM) {
-		spc &= (31 << 3);	/* Clear PCM mode, set MSB->LSB */
+		/* Clear PCM mode, clear PCM_BIT_ORDER bit for MSB->LSB */
+		spc &= ~(PCM_MODE_MASK | PCM_BIT_ORDER);
 		switch (format) {
 		case SND_SOC_DAIFMT_DSP_B:
 			if (inv == SND_SOC_DAIFMT_IB_IF)
