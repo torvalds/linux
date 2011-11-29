@@ -838,8 +838,8 @@ static int hdmi_resources_init(struct hdmi_device *hdev)
 		dev_err(dev, "failed to get clock 'hdmiphy'\n");
 		goto fail;
 	}
-	res->regul_bulk = kzalloc(ARRAY_SIZE(supply) *
-		sizeof res->regul_bulk[0], GFP_KERNEL);
+	res->regul_bulk = kcalloc(ARRAY_SIZE(supply),
+				  sizeof(res->regul_bulk[0]), GFP_KERNEL);
 	if (!res->regul_bulk) {
 		dev_err(dev, "failed to get memory for regulators\n");
 		goto fail;
