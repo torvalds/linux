@@ -689,35 +689,6 @@ struct iwl_force_reset {
  */
 #define IWLAGN_EXT_BEACON_TIME_POS	22
 
-/**
- * struct iwl_notification_wait - notification wait entry
- * @list: list head for global list
- * @fn: function called with the notification
- * @cmd: command ID
- *
- * This structure is not used directly, to wait for a
- * notification declare it on the stack, and call
- * iwlagn_init_notification_wait() with appropriate
- * parameters. Then do whatever will cause the ucode
- * to notify the driver, and to wait for that then
- * call iwlagn_wait_notification().
- *
- * Each notification is one-shot. If at some point we
- * need to support multi-shot notifications (which
- * can't be allocated on the stack) we need to modify
- * the code for them.
- */
-struct iwl_notification_wait {
-	struct list_head list;
-
-	void (*fn)(struct iwl_priv *priv, struct iwl_rx_packet *pkt,
-		   void *data);
-	void *fn_data;
-
-	u8 cmd;
-	bool triggered, aborted;
-};
-
 struct iwl_rxon_context {
 	struct ieee80211_vif *vif;
 
@@ -992,10 +963,6 @@ struct iwl_priv {
 	/* counts reply_tx error */
 	struct reply_tx_error_statistics reply_tx_stats;
 	struct reply_agg_tx_error_statistics reply_agg_tx_stats;
-	/* notification wait support */
-	struct list_head notif_waits;
-	spinlock_t notif_wait_lock;
-	wait_queue_head_t notif_waitq;
 
 	/* remain-on-channel offload support */
 	struct ieee80211_channel *hw_roc_channel;

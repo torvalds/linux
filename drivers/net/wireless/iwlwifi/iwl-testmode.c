@@ -373,7 +373,7 @@ static int iwl_testmode_cfg_init_calib(struct iwl_priv *priv)
 	struct iwl_notification_wait calib_wait;
 	int ret;
 
-	iwlagn_init_notification_wait(priv, &calib_wait,
+	iwl_init_notification_wait(priv->shrd, &calib_wait,
 				      CALIBRATION_COMPLETE_NOTIFICATION,
 				      NULL, NULL);
 	ret = iwlagn_init_alive_start(priv);
@@ -383,14 +383,14 @@ static int iwl_testmode_cfg_init_calib(struct iwl_priv *priv)
 		goto cfg_init_calib_error;
 	}
 
-	ret = iwlagn_wait_notification(priv, &calib_wait, 2 * HZ);
+	ret = iwl_wait_notification(priv->shrd, &calib_wait, 2 * HZ);
 	if (ret)
 		IWL_DEBUG_INFO(priv, "Error detecting"
 			" CALIBRATION_COMPLETE_NOTIFICATION: %d\n", ret);
 	return ret;
 
 cfg_init_calib_error:
-	iwlagn_remove_notification(priv, &calib_wait);
+	iwl_remove_notification(priv->shrd, &calib_wait);
 	return ret;
 }
 

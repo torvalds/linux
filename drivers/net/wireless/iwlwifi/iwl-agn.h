@@ -356,22 +356,6 @@ static inline __le32 iwl_hw_set_rate_n_flags(u8 rate, u32 flags)
 void iwl_eeprom_enhanced_txpower(struct iwl_priv *priv);
 void iwl_eeprom_get_mac(const struct iwl_priv *priv, u8 *mac);
 
-/* notification wait support */
-void __acquires(wait_entry)
-iwlagn_init_notification_wait(struct iwl_priv *priv,
-			      struct iwl_notification_wait *wait_entry,
-			      u8 cmd,
-			      void (*fn)(struct iwl_priv *priv,
-					 struct iwl_rx_packet *pkt,
-					 void *data),
-			      void *fn_data);
-int __must_check __releases(wait_entry)
-iwlagn_wait_notification(struct iwl_priv *priv,
-			 struct iwl_notification_wait *wait_entry,
-			 unsigned long timeout);
-void __releases(wait_entry)
-iwlagn_remove_notification(struct iwl_priv *priv,
-			   struct iwl_notification_wait *wait_entry);
 extern int iwlagn_init_alive_start(struct iwl_priv *priv);
 extern int iwl_alive_start(struct iwl_priv *priv);
 /* svtool */
