@@ -615,13 +615,13 @@ int mc13xxx_adc_do_conversion(struct mc13xxx *mc13xxx, unsigned int mode,
 		break;
 
 	case MC13XXX_ADC_MODE_SINGLE_CHAN:
-		adc0 |= old_adc0 & MC13XXX_ADC0_TSMOD_MASK;
+		adc0 |= old_adc0 & MC13XXX_ADC0_CONFIG_MASK;
 		adc1 |= (channel & 0x7) << MC13XXX_ADC1_CHAN0_SHIFT;
 		adc1 |= MC13XXX_ADC1_RAND;
 		break;
 
 	case MC13XXX_ADC_MODE_MULT_CHAN:
-		adc0 |= old_adc0 & MC13XXX_ADC0_TSMOD_MASK;
+		adc0 |= old_adc0 & MC13XXX_ADC0_CONFIG_MASK;
 		adc1 |= 4 << MC13XXX_ADC1_CHAN1_SHIFT;
 		break;
 
