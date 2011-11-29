@@ -893,6 +893,13 @@ static int __devinit pch_i2c_probe(struct pci_dev *pdev,
 	/* Set the number of I2C channel instance */
 	adap_info->ch_num = id->driver_data;
 
+	ret = request_irq(pdev->irq, pch_i2c_handler, IRQF_SHARED,
+		  KBUILD_MODNAME, adap_info);
+	if (ret) {
+		pch_pci_err(pdev, "request_irq FAILED\n");
+		goto err_request_irq;
+	}
+
 	for (i = 0; i < adap_info->ch_num; i++) {
 		pch_adap = &adap_info->pch_data[i].pch_adapter;
 		adap_info->pch_i2c_suspended = false;
@@ -910,28 +917,23 @@ static int __devinit pch_i2c_probe(struct pci_dev *pdev,
 
 		pch_adap->dev.parent = &pdev->dev;
 
+		pch_i2c_init(&adap_info->pch_data[i]);
 		ret = i2c_add_adapter(pch_adap);
 		if (ret) {
 			pch_pci_err(pdev, "i2c_add_adapter[ch:%d] FAILED\n", i);
-			goto err_i2c_add_adapter;
+			goto err_add_adapter;
 		}
-
-		pch_i2c_init(&adap_info->pch_data[i]);
-	}
-	ret = request_irq(pdev->irq, pch_i2c_handler, IRQF_SHARED,
-		  KBUILD_MODNAME, adap_info);
-	if (ret) {
-		pch_pci_err(pdev, "request_irq FAILED\n");
-		goto err_i2c_add_adapter;
 	}
 
 	pci_set_drvdata(pdev, adap_info);
 	pch_pci_dbg(pdev, "returns %d.\n", ret);
 	return 0;
 
-err_i2c_add_adapter:
+err_add_adapter:
 	for (j = 0; j < i; j++)
 		i2c_del_adapter(&adap_info->pch_data[j].pch_adapter);
+	free_irq(pdev->irq, adap_info);
+err_request_irq:
 	pci_iounmap(pdev, base_addr);
 err_pci_iomap:
 	pci_release_regions(pdev);
