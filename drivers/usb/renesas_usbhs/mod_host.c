@@ -1268,7 +1268,7 @@ int usbhs_mod_host_probe(struct usbhs_priv *priv)
 		return -ENOMEM;
 	}
 
-	pipe_info = kzalloc(sizeof(*pipe_info) * pipe_size, GFP_KERNEL);
+	pipe_info = kcalloc(pipe_size, sizeof(*pipe_info), GFP_KERNEL);
 	if (!pipe_info) {
 		dev_err(dev, "Could not allocate pipe_info\n");
 		goto usbhs_mod_host_probe_err;
