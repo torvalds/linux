@@ -100,17 +100,17 @@ static int tm6000_ir_config(struct tm6000_IR *ir)
 	case RC_TYPE_NEC:
 		/* Setup IR decoder for NEC standard 12MHz system clock */
 		/* IR_LEADER_CNT = 0.9ms             */
-		tm6000_set_reg(dev, TM6010_REQ07_RD8_IR_LEADER1, 0xaa);
-		tm6000_set_reg(dev, TM6010_REQ07_RD8_IR_LEADER0, 0x30);
+		tm6000_set_reg(dev, TM6010_REQ07_RDC_IR_LEADER1, 0xaa);
+		tm6000_set_reg(dev, TM6010_REQ07_RDD_IR_LEADER0, 0x30);
 		/* IR_PULSE_CNT = 0.7ms              */
-		tm6000_set_reg(dev, TM6010_REQ07_RD8_IR_PULSE_CNT1, 0x20);
-		tm6000_set_reg(dev, TM6010_REQ07_RD8_IR_PULSE_CNT0, 0xd0);
+		tm6000_set_reg(dev, TM6010_REQ07_RDE_IR_PULSE_CNT1, 0x20);
+		tm6000_set_reg(dev, TM6010_REQ07_RDF_IR_PULSE_CNT0, 0xd0);
 		/* Remote WAKEUP = enable */
 		tm6000_set_reg(dev, TM6010_REQ07_RE5_REMOTE_WAKEUP, 0xfe);
 		/* IR_WKUP_SEL = Low byte in decoded IR data */
-		tm6000_set_reg(dev, TM6010_REQ07_RD8_IR_WAKEUP_SEL, 0xff);
+		tm6000_set_reg(dev, TM6010_REQ07_RDA_IR_WAKEUP_SEL, 0xff);
 		/* IR_WKU_ADD code */
-		tm6000_set_reg(dev, TM6010_REQ07_RD8_IR_WAKEUP_ADD, 0xff);
+		tm6000_set_reg(dev, TM6010_REQ07_RDB_IR_WAKEUP_ADD, 0xff);
 		tm6000_flash_led(dev, 0);
 		msleep(100);
 		tm6000_flash_led(dev, 1);

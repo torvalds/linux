@@ -536,16 +536,16 @@ static struct reg_init tm6010_init_tab[] = {
 
 	{ TM6010_REQ05_R18_IMASK7, 0x00 },
 
-	{ TM6010_REQ07_RD8_IR_LEADER1, 0xaa },
-	{ TM6010_REQ07_RD8_IR_LEADER0, 0x30 },
-	{ TM6010_REQ07_RD8_IR_PULSE_CNT1, 0x20 },
-	{ TM6010_REQ07_RD8_IR_PULSE_CNT0, 0xd0 },
+	{ TM6010_REQ07_RDC_IR_LEADER1, 0xaa },
+	{ TM6010_REQ07_RDD_IR_LEADER0, 0x30 },
+	{ TM6010_REQ07_RDE_IR_PULSE_CNT1, 0x20 },
+	{ TM6010_REQ07_RDF_IR_PULSE_CNT0, 0xd0 },
 	{ REQ_04_EN_DISABLE_MCU_INT, 0x02, 0x00 },
 	{ TM6010_REQ07_RD8_IR, 0x2f },
 
 	/* set remote wakeup key:any key wakeup */
 	{ TM6010_REQ07_RE5_REMOTE_WAKEUP,  0xfe },
-	{ TM6010_REQ07_RD8_IR_WAKEUP_SEL,  0xff },
+	{ TM6010_REQ07_RDA_IR_WAKEUP_SEL,  0xff },
 };
 
 int tm6000_init(struct tm6000_core *dev)
