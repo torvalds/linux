@@ -36,6 +36,7 @@
 #include <linux/delay.h>
 #include <linux/wireless.h>
 
+#include "rtllib_debug.h"
 #include "rtl819x_HT.h"
 #include "rtl819x_BA.h"
 #include "rtl819x_TS.h"

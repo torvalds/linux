@@ -54,8 +54,6 @@
 #include "rtllib.h"
 
 
-#define DRV_NAME "rtllib_92e"
-
 void _setup_timer(struct timer_list *ptimer, void *fun, unsigned long data)
 {
 	ptimer->function = fun;

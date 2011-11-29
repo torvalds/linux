@@ -25,6 +25,11 @@
 #ifndef _RTL_DEBUG_H
 #define _RTL_DEBUG_H
 
+/* Allow files to override DRV_NAME */
+#ifndef DRV_NAME
+#define DRV_NAME "rtllib_92e"
+#endif
+
 #define DMESG(x, a...)
 
 extern u32 rt_global_debug_component;

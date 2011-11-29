@@ -15,7 +15,6 @@
 
 
 #include "rtllib.h"
-#include "rtl_core.h"
 #include "dot11d.h"
 /* FIXME: add A freqs */
 

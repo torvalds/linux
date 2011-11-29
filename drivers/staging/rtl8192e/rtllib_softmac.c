@@ -15,7 +15,6 @@
 
 
 #include "rtllib.h"
-#include "rtl_core.h"
 
 #include <linux/random.h>
 #include <linux/delay.h>

@@ -27,7 +27,6 @@
 
 #include <linux/types.h>
 #include <linux/pci.h>
-#include "rtllib.h"
 
 static inline void NdisRawWritePortUlong(u32 port,  u32 val)
 {

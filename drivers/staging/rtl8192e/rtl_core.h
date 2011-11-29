@@ -46,6 +46,10 @@
 #include <linux/random.h>
 #include <linux/version.h>
 #include <linux/io.h>
+
+/* Need this defined before including local include files */
+#define DRV_NAME "rtl819xE"
+
 #include "rtllib.h"
 
 #include "dot11d.h"
@@ -56,7 +60,6 @@
 #include "r8190P_def.h"
 #include "r8192E_dev.h"
 
-#include "rtl_debug.h"
 #include "rtl_eeprom.h"
 #include "rtl_ps.h"
 #include "rtl_pci.h"
@@ -66,8 +69,6 @@
 	"Copyright(c) 2008 - 2010 Realsil Semiconductor Corporation"
 #define DRV_AUTHOR  "<wlanfae@realtek.com>"
 #define DRV_VERSION  "0014.0401.2010"
-
-#define DRV_NAME "rtl819xE"
 
 #define IS_HARDWARE_TYPE_819xP(_priv)		\
 	((((struct r8192_priv *)rtllib_priv(dev))->card_8192 == NIC_8190P) || \

@@ -26,7 +26,7 @@
 #define _RTL_PS_H
 
 #include <linux/types.h>
-#include "rtllib.h"
+
 struct net_device;
 
 #define RT_CHECK_FOR_HANG_PERIOD 2
