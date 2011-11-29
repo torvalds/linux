@@ -514,10 +514,25 @@ static inline int should_cow_block(struct btrfs_trans_handle *trans,
 				   struct btrfs_root *root,
 				   struct extent_buffer *buf)
 {
+	/* ensure we can see the force_cow */
+	smp_rmb();
+
+	/*
+	 * We do not need to cow a block if
+	 * 1) this block is not created or changed in this transaction;
+	 * 2) this block does not belong to TREE_RELOC tree;
+	 * 3) the root is not forced COW.
+	 *
+	 * What is forced COW:
+	 *    when we create snapshot during commiting the transaction,
+	 *    after we've finished coping src root, we must COW the shared
+	 *    block to ensure the metadata consistency.
+	 */
 	if (btrfs_header_generation(buf) == trans->transid &&
 	    !btrfs_header_flag(buf, BTRFS_HEADER_FLAG_WRITTEN) &&
 	    !(root->root_key.objectid != BTRFS_TREE_RELOC_OBJECTID &&
-	      btrfs_header_flag(buf, BTRFS_HEADER_FLAG_RELOC)))
+	      btrfs_header_flag(buf, BTRFS_HEADER_FLAG_RELOC)) &&
+	    !root->force_cow)
 		return 0;
 	return 1;
 }
@@ -902,9 +917,10 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 
 	orig_ptr = btrfs_node_blockptr(mid, orig_slot);
 
-	if (level < BTRFS_MAX_LEVEL - 1)
+	if (level < BTRFS_MAX_LEVEL - 1) {
 		parent = path->nodes[level + 1];
-	pslot = path->slots[level + 1];
+		pslot = path->slots[level + 1];
+	}
 
 	/*
 	 * deal with the case where there is only one pointer in the root
@@ -1107,9 +1123,10 @@ static noinline int push_nodes_for_insert(struct btrfs_trans_handle *trans,
 	mid = path->nodes[level];
 	WARN_ON(btrfs_header_generation(mid) != trans->transid);
 
-	if (level < BTRFS_MAX_LEVEL - 1)
+	if (level < BTRFS_MAX_LEVEL - 1) {
 		parent = path->nodes[level + 1];
-	pslot = path->slots[level + 1];
+		pslot = path->slots[level + 1];
+	}
 
 	if (!parent)
 		return 1;

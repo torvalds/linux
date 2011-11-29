@@ -6,6 +6,7 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/hardirq.h>
+#include <linux/module.h>
 #include <asm/current.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
@@ -14,7 +15,6 @@
 #include "kern_util.h"
 #include "os.h"
 #include "skas.h"
-#include "sysdep/sigcontext.h"
 
 /*
  * Note this is constrained to return 0, -EFAULT, -EACCESS, -ENOMEM by
@@ -112,6 +112,7 @@ out_of_memory:
 	pagefault_out_of_memory();
 	return 0;
 }
+EXPORT_SYMBOL(handle_page_fault);
 
 static void show_segv_info(struct uml_pt_regs *regs)
 {

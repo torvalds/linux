@@ -315,13 +315,6 @@ static int wacom_parse_hid(struct usb_interface *intf,
 							get_unaligned_le16(&report[i + 3]);
 						i += 4;
 					}
-				} else if (usage == WCM_DIGITIZER) {
-					/* max pressure isn't reported
-					features->pressure_max = (unsigned short)
-							(report[i+4] << 8  | report[i + 3]);
-					*/
-					features->pressure_max = 255;
-					i += 4;
 				}
 				break;
 
@@ -379,13 +372,6 @@ static int wacom_parse_hid(struct usb_interface *intf,
 			case HID_USAGE_STYLUS:
 				pen = 1;
 				i++;
-				break;
-
-			case HID_USAGE_UNDEFINED:
-				if (usage == WCM_DESKTOP && finger) /* capacity */
-					features->pressure_max =
-						get_unaligned_le16(&report[i + 3]);
-				i += 4;
 				break;
 			}
 			break;

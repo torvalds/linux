@@ -27,7 +27,7 @@
 #include <linux/time.h>
 #include <linux/wait.h>
 #include <linux/mutex.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/delay.h>
 #include <sound/rawmidi.h>
 #include <sound/info.h>

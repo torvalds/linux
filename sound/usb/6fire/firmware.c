@@ -15,7 +15,9 @@
  */
 
 #include <linux/firmware.h>
+#include <linux/module.h>
 #include <linux/bitrev.h>
+#include <linux/kernel.h>
 
 #include "firmware.h"
 #include "chip.h"
@@ -59,21 +61,19 @@ struct ihex_record {
 	unsigned int txt_offset; /* current position in txt_data */
 };
 
-static u8 usb6fire_fw_ihex_nibble(const u8 n)
-{
-	if (n >= '0' && n <= '9')
-		return n - '0';
-	else if (n >= 'A' && n <= 'F')
-		return n - ('A' - 10);
-	else if (n >= 'a' && n <= 'f')
-		return n - ('a' - 10);
-	return 0;
-}
-
 static u8 usb6fire_fw_ihex_hex(const u8 *data, u8 *crc)
 {
-	u8 val = (usb6fire_fw_ihex_nibble(data[0]) << 4) |
-			usb6fire_fw_ihex_nibble(data[1]);
+	u8 val = 0;
+	int hval;
+
+	hval = hex_to_bin(data[0]);
+	if (hval >= 0)
+		val |= (hval << 4);
+
+	hval = hex_to_bin(data[1]);
+	if (hval >= 0)
+		val |= hval;
+
 	*crc += val;
 	return val;
 }

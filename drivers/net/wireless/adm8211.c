@@ -25,6 +25,7 @@
 #include <linux/delay.h>
 #include <linux/crc32.h>
 #include <linux/eeprom_93cx6.h>
+#include <linux/module.h>
 #include <net/mac80211.h>
 
 #include "adm8211.h"
@@ -1249,7 +1250,8 @@ static int adm8211_hw_reset(struct ieee80211_hw *dev)
 	return 0;
 }
 
-static u64 adm8211_get_tsft(struct ieee80211_hw *dev)
+static u64 adm8211_get_tsft(struct ieee80211_hw *dev,
+			    struct ieee80211_vif *vif)
 {
 	struct adm8211_priv *priv = dev->priv;
 	u32 tsftl;

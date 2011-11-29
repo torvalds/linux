@@ -151,28 +151,17 @@ union _cpuid4_leaf_ecx {
 	u32 full;
 };
 
-struct amd_l3_cache {
-	struct	 amd_northbridge *nb;
-	unsigned indices;
-	u8	 subcaches[4];
-};
-
-struct _cpuid4_info {
-	union _cpuid4_leaf_eax eax;
-	union _cpuid4_leaf_ebx ebx;
-	union _cpuid4_leaf_ecx ecx;
-	unsigned long size;
-	struct amd_l3_cache *l3;
-	DECLARE_BITMAP(shared_cpu_map, NR_CPUS);
-};
-
-/* subset of above _cpuid4_info w/o shared_cpu_map */
 struct _cpuid4_info_regs {
 	union _cpuid4_leaf_eax eax;
 	union _cpuid4_leaf_ebx ebx;
 	union _cpuid4_leaf_ecx ecx;
 	unsigned long size;
-	struct amd_l3_cache *l3;
+	struct amd_northbridge *nb;
+};
+
+struct _cpuid4_info {
+	struct _cpuid4_info_regs base;
+	DECLARE_BITMAP(shared_cpu_map, NR_CPUS);
 };
 
 unsigned short			num_cache_leaves;
@@ -314,16 +303,23 @@ struct _cache_attr {
 /*
  * L3 cache descriptors
  */
-static void __cpuinit amd_calc_l3_indices(struct amd_l3_cache *l3)
+static void __cpuinit amd_calc_l3_indices(struct amd_northbridge *nb)
 {
+	struct amd_l3_cache *l3 = &nb->l3_cache;
 	unsigned int sc0, sc1, sc2, sc3;
 	u32 val = 0;
 
-	pci_read_config_dword(l3->nb->misc, 0x1C4, &val);
+	pci_read_config_dword(nb->misc, 0x1C4, &val);
 
 	/* calculate subcache sizes */
 	l3->subcaches[0] = sc0 = !(val & BIT(0));
 	l3->subcaches[1] = sc1 = !(val & BIT(4));
+
+	if (boot_cpu_data.x86 == 0x15) {
+		l3->subcaches[0] = sc0 += !(val & BIT(1));
+		l3->subcaches[1] = sc1 += !(val & BIT(5));
+	}
+
 	l3->subcaches[2] = sc2 = !(val & BIT(8))  + !(val & BIT(9));
 	l3->subcaches[3] = sc3 = !(val & BIT(12)) + !(val & BIT(13));
 
@@ -333,33 +329,16 @@ static void __cpuinit amd_calc_l3_indices(struct amd_l3_cache *l3)
 static void __cpuinit amd_init_l3_cache(struct _cpuid4_info_regs *this_leaf,
 					int index)
 {
-	static struct amd_l3_cache *__cpuinitdata l3_caches;
 	int node;
 
 	/* only for L3, and not in virtualized environments */
-	if (index < 3 || amd_nb_num() == 0)
+	if (index < 3)
 		return;
 
-	/*
-	 * Strictly speaking, the amount in @size below is leaked since it is
-	 * never freed but this is done only on shutdown so it doesn't matter.
-	 */
-	if (!l3_caches) {
-		int size = amd_nb_num() * sizeof(struct amd_l3_cache);
-
-		l3_caches = kzalloc(size, GFP_ATOMIC);
-		if (!l3_caches)
-			return;
-	}
-
 	node = amd_get_nb_id(smp_processor_id());
-
-	if (!l3_caches[node].nb) {
-		l3_caches[node].nb = node_to_amd_nb(node);
-		amd_calc_l3_indices(&l3_caches[node]);
-	}
-
-	this_leaf->l3 = &l3_caches[node];
+	this_leaf->nb = node_to_amd_nb(node);
+	if (this_leaf->nb && !this_leaf->nb->l3_cache.indices)
+		amd_calc_l3_indices(this_leaf->nb);
 }
 
 /*
@@ -369,11 +348,11 @@ static void __cpuinit amd_init_l3_cache(struct _cpuid4_info_regs *this_leaf,
  *
  * @returns: the disabled index if used or negative value if slot free.
  */
-int amd_get_l3_disable_slot(struct amd_l3_cache *l3, unsigned slot)
+int amd_get_l3_disable_slot(struct amd_northbridge *nb, unsigned slot)
 {
 	unsigned int reg = 0;
 
-	pci_read_config_dword(l3->nb->misc, 0x1BC + slot * 4, &reg);
+	pci_read_config_dword(nb->misc, 0x1BC + slot * 4, &reg);
 
 	/* check whether this slot is activated already */
 	if (reg & (3UL << 30))
@@ -387,11 +366,10 @@ static ssize_t show_cache_disable(struct _cpuid4_info *this_leaf, char *buf,
 {
 	int index;
 
-	if (!this_leaf->l3 ||
-	    !amd_nb_has_feature(AMD_NB_L3_INDEX_DISABLE))
+	if (!this_leaf->base.nb || !amd_nb_has_feature(AMD_NB_L3_INDEX_DISABLE))
 		return -EINVAL;
 
-	index = amd_get_l3_disable_slot(this_leaf->l3, slot);
+	index = amd_get_l3_disable_slot(this_leaf->base.nb, slot);
 	if (index >= 0)
 		return sprintf(buf, "%d\n", index);
 
@@ -408,7 +386,7 @@ show_cache_disable_##slot(struct _cpuid4_info *this_leaf, char *buf,	\
 SHOW_CACHE_DISABLE(0)
 SHOW_CACHE_DISABLE(1)
 
-static void amd_l3_disable_index(struct amd_l3_cache *l3, int cpu,
+static void amd_l3_disable_index(struct amd_northbridge *nb, int cpu,
 				 unsigned slot, unsigned long idx)
 {
 	int i;
@@ -421,10 +399,10 @@ static void amd_l3_disable_index(struct amd_l3_cache *l3, int cpu,
 	for (i = 0; i < 4; i++) {
 		u32 reg = idx | (i << 20);
 
-		if (!l3->subcaches[i])
+		if (!nb->l3_cache.subcaches[i])
 			continue;
 
-		pci_write_config_dword(l3->nb->misc, 0x1BC + slot * 4, reg);
+		pci_write_config_dword(nb->misc, 0x1BC + slot * 4, reg);
 
 		/*
 		 * We need to WBINVD on a core on the node containing the L3
@@ -434,7 +412,7 @@ static void amd_l3_disable_index(struct amd_l3_cache *l3, int cpu,
 		wbinvd_on_cpu(cpu);
 
 		reg |= BIT(31);
-		pci_write_config_dword(l3->nb->misc, 0x1BC + slot * 4, reg);
+		pci_write_config_dword(nb->misc, 0x1BC + slot * 4, reg);
 	}
 }
 
@@ -448,24 +426,24 @@ static void amd_l3_disable_index(struct amd_l3_cache *l3, int cpu,
  *
  * @return: 0 on success, error status on failure
  */
-int amd_set_l3_disable_slot(struct amd_l3_cache *l3, int cpu, unsigned slot,
+int amd_set_l3_disable_slot(struct amd_northbridge *nb, int cpu, unsigned slot,
 			    unsigned long index)
 {
 	int ret = 0;
 
 	/*  check if @slot is already used or the index is already disabled */
-	ret = amd_get_l3_disable_slot(l3, slot);
+	ret = amd_get_l3_disable_slot(nb, slot);
 	if (ret >= 0)
 		return -EINVAL;
 
-	if (index > l3->indices)
+	if (index > nb->l3_cache.indices)
 		return -EINVAL;
 
 	/* check whether the other slot has disabled the same index already */
-	if (index == amd_get_l3_disable_slot(l3, !slot))
+	if (index == amd_get_l3_disable_slot(nb, !slot))
 		return -EINVAL;
 
-	amd_l3_disable_index(l3, cpu, slot, index);
+	amd_l3_disable_index(nb, cpu, slot, index);
 
 	return 0;
 }
@@ -480,8 +458,7 @@ static ssize_t store_cache_disable(struct _cpuid4_info *this_leaf,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (!this_leaf->l3 ||
-	    !amd_nb_has_feature(AMD_NB_L3_INDEX_DISABLE))
+	if (!this_leaf->base.nb || !amd_nb_has_feature(AMD_NB_L3_INDEX_DISABLE))
 		return -EINVAL;
 
 	cpu = cpumask_first(to_cpumask(this_leaf->shared_cpu_map));
@@ -489,7 +466,7 @@ static ssize_t store_cache_disable(struct _cpuid4_info *this_leaf,
 	if (strict_strtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 
-	err = amd_set_l3_disable_slot(this_leaf->l3, cpu, slot, val);
+	err = amd_set_l3_disable_slot(this_leaf->base.nb, cpu, slot, val);
 	if (err) {
 		if (err == -EEXIST)
 			printk(KERN_WARNING "L3 disable slot %d in use!\n",
@@ -518,7 +495,7 @@ static struct _cache_attr cache_disable_1 = __ATTR(cache_disable_1, 0644,
 static ssize_t
 show_subcaches(struct _cpuid4_info *this_leaf, char *buf, unsigned int cpu)
 {
-	if (!this_leaf->l3 || !amd_nb_has_feature(AMD_NB_L3_PARTITIONING))
+	if (!this_leaf->base.nb || !amd_nb_has_feature(AMD_NB_L3_PARTITIONING))
 		return -EINVAL;
 
 	return sprintf(buf, "%x\n", amd_get_subcaches(cpu));
@@ -533,7 +510,7 @@ store_subcaches(struct _cpuid4_info *this_leaf, const char *buf, size_t count,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (!this_leaf->l3 || !amd_nb_has_feature(AMD_NB_L3_PARTITIONING))
+	if (!this_leaf->base.nb || !amd_nb_has_feature(AMD_NB_L3_PARTITIONING))
 		return -EINVAL;
 
 	if (strict_strtoul(buf, 16, &val) < 0)
@@ -769,7 +746,7 @@ static void __cpuinit cache_shared_cpu_map_setup(unsigned int cpu, int index)
 		return;
 	}
 	this_leaf = CPUID4_INFO_IDX(cpu, index);
-	num_threads_sharing = 1 + this_leaf->eax.split.num_threads_sharing;
+	num_threads_sharing = 1 + this_leaf->base.eax.split.num_threads_sharing;
 
 	if (num_threads_sharing == 1)
 		cpumask_set_cpu(cpu, to_cpumask(this_leaf->shared_cpu_map));
@@ -820,18 +797,8 @@ static void __cpuinit free_cache_attributes(unsigned int cpu)
 	for (i = 0; i < num_cache_leaves; i++)
 		cache_remove_shared_cpu_map(cpu, i);
 
-	kfree(per_cpu(ici_cpuid4_info, cpu)->l3);
 	kfree(per_cpu(ici_cpuid4_info, cpu));
 	per_cpu(ici_cpuid4_info, cpu) = NULL;
-}
-
-static int
-__cpuinit cpuid4_cache_lookup(int index, struct _cpuid4_info *this_leaf)
-{
-	struct _cpuid4_info_regs *leaf_regs =
-		(struct _cpuid4_info_regs *)this_leaf;
-
-	return cpuid4_cache_lookup_regs(index, leaf_regs);
 }
 
 static void __cpuinit get_cpu_leaves(void *_retval)
@@ -840,9 +807,9 @@ static void __cpuinit get_cpu_leaves(void *_retval)
 
 	/* Do cpuid and store the results */
 	for (j = 0; j < num_cache_leaves; j++) {
-		struct _cpuid4_info *this_leaf;
-		this_leaf = CPUID4_INFO_IDX(cpu, j);
-		*retval = cpuid4_cache_lookup(j, this_leaf);
+		struct _cpuid4_info *this_leaf = CPUID4_INFO_IDX(cpu, j);
+
+		*retval = cpuid4_cache_lookup_regs(j, &this_leaf->base);
 		if (unlikely(*retval < 0)) {
 			int i;
 
@@ -900,16 +867,16 @@ static ssize_t show_##file_name(struct _cpuid4_info *this_leaf, char *buf, \
 	return sprintf(buf, "%lu\n", (unsigned long)this_leaf->object + val); \
 }
 
-show_one_plus(level, eax.split.level, 0);
-show_one_plus(coherency_line_size, ebx.split.coherency_line_size, 1);
-show_one_plus(physical_line_partition, ebx.split.physical_line_partition, 1);
-show_one_plus(ways_of_associativity, ebx.split.ways_of_associativity, 1);
-show_one_plus(number_of_sets, ecx.split.number_of_sets, 1);
+show_one_plus(level, base.eax.split.level, 0);
+show_one_plus(coherency_line_size, base.ebx.split.coherency_line_size, 1);
+show_one_plus(physical_line_partition, base.ebx.split.physical_line_partition, 1);
+show_one_plus(ways_of_associativity, base.ebx.split.ways_of_associativity, 1);
+show_one_plus(number_of_sets, base.ecx.split.number_of_sets, 1);
 
 static ssize_t show_size(struct _cpuid4_info *this_leaf, char *buf,
 			 unsigned int cpu)
 {
-	return sprintf(buf, "%luK\n", this_leaf->size / 1024);
+	return sprintf(buf, "%luK\n", this_leaf->base.size / 1024);
 }
 
 static ssize_t show_shared_cpu_map_func(struct _cpuid4_info *this_leaf,
@@ -946,7 +913,7 @@ static inline ssize_t show_shared_cpu_list(struct _cpuid4_info *leaf, char *buf,
 static ssize_t show_type(struct _cpuid4_info *this_leaf, char *buf,
 			 unsigned int cpu)
 {
-	switch (this_leaf->eax.split.type) {
+	switch (this_leaf->base.eax.split.type) {
 	case CACHE_TYPE_DATA:
 		return sprintf(buf, "Data\n");
 	case CACHE_TYPE_INST:
@@ -1135,7 +1102,7 @@ static int __cpuinit cache_add_dev(struct sys_device * sys_dev)
 
 		ktype_cache.default_attrs = default_attrs;
 #ifdef CONFIG_AMD_NB
-		if (this_leaf->l3)
+		if (this_leaf->base.nb)
 			ktype_cache.default_attrs = amd_l3_attrs();
 #endif
 		retval = kobject_init_and_add(&(this_object->kobj),

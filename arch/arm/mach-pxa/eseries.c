@@ -41,8 +41,7 @@
 #include "clock.h"
 
 /* Only e800 has 128MB RAM */
-void __init eseries_fixup(struct machine_desc *desc,
-	struct tag *tags, char **cmdline, struct meminfo *mi)
+void __init eseries_fixup(struct tag *tags, char **cmdline, struct meminfo *mi)
 {
 	mi->nr_banks=1;
 	mi->bank[0].start = 0xa0000000;
@@ -145,7 +144,7 @@ static struct clk_lookup eseries_clkregs[] = {
 	INIT_CLKREG(&tmio_dummy_clk, NULL, "CLK_CK32K"),
 };
 
-void eseries_register_clks(void)
+static void __init eseries_register_clks(void)
 {
 	clkdev_add_table(eseries_clkregs, ARRAY_SIZE(eseries_clkregs));
 }
@@ -189,7 +188,7 @@ static void __init e330_init(void)
 
 MACHINE_START(E330, "Toshiba e330")
 	/* Maintainer: Ian Molton (spyro@f2s.com) */
-	.boot_params	= 0xa0000100,
+	.atag_offset	= 0x100,
 	.map_io		= pxa25x_map_io,
 	.nr_irqs	= ESERIES_NR_IRQS,
 	.init_irq	= pxa25x_init_irq,
@@ -239,7 +238,7 @@ static void __init e350_init(void)
 
 MACHINE_START(E350, "Toshiba e350")
 	/* Maintainer: Ian Molton (spyro@f2s.com) */
-	.boot_params	= 0xa0000100,
+	.atag_offset	= 0x100,
 	.map_io		= pxa25x_map_io,
 	.nr_irqs	= ESERIES_NR_IRQS,
 	.init_irq	= pxa25x_init_irq,
@@ -362,7 +361,7 @@ static void __init e400_init(void)
 
 MACHINE_START(E400, "Toshiba e400")
 	/* Maintainer: Ian Molton (spyro@f2s.com) */
-	.boot_params	= 0xa0000100,
+	.atag_offset	= 0x100,
 	.map_io		= pxa25x_map_io,
 	.nr_irqs	= ESERIES_NR_IRQS,
 	.init_irq	= pxa25x_init_irq,
@@ -551,7 +550,7 @@ static void __init e740_init(void)
 
 MACHINE_START(E740, "Toshiba e740")
 	/* Maintainer: Ian Molton (spyro@f2s.com) */
-	.boot_params	= 0xa0000100,
+	.atag_offset	= 0x100,
 	.map_io		= pxa25x_map_io,
 	.nr_irqs	= ESERIES_NR_IRQS,
 	.init_irq	= pxa25x_init_irq,
@@ -743,7 +742,7 @@ static void __init e750_init(void)
 
 MACHINE_START(E750, "Toshiba e750")
 	/* Maintainer: Ian Molton (spyro@f2s.com) */
-	.boot_params	= 0xa0000100,
+	.atag_offset	= 0x100,
 	.map_io		= pxa25x_map_io,
 	.nr_irqs	= ESERIES_NR_IRQS,
 	.init_irq	= pxa25x_init_irq,
@@ -948,7 +947,7 @@ static void __init e800_init(void)
 
 MACHINE_START(E800, "Toshiba e800")
 	/* Maintainer: Ian Molton (spyro@f2s.com) */
-	.boot_params	= 0xa0000100,
+	.atag_offset	= 0x100,
 	.map_io		= pxa25x_map_io,
 	.nr_irqs	= ESERIES_NR_IRQS,
 	.init_irq	= pxa25x_init_irq,

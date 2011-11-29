@@ -81,8 +81,10 @@ static int parse_features(struct dm_arg_set *as, struct flakey_c *fc,
 		 * corrupt_bio_byte <Nth_byte> <direction> <value> <bio_flags>
 		 */
 		if (!strcasecmp(arg_name, "corrupt_bio_byte")) {
-			if (!argc)
+			if (!argc) {
 				ti->error = "Feature corrupt_bio_byte requires parameters";
+				return -EINVAL;
+			}
 
 			r = dm_read_arg(_args + 1, as, &fc->corrupt_bio_byte, &ti->error);
 			if (r)

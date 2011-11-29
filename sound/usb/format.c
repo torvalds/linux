@@ -286,7 +286,7 @@ static int parse_audio_format_rates_v2(struct snd_usb_audio *chip,
 			      USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
 			      UAC2_CS_CONTROL_SAM_FREQ << 8,
 			      snd_usb_ctrl_intf(chip) | (clock << 8),
-			      tmp, sizeof(tmp), 1000);
+			      tmp, sizeof(tmp));
 
 	if (ret < 0) {
 		snd_printk(KERN_ERR "%s(): unable to retrieve number of sample rates (clock %d)\n",
@@ -307,7 +307,7 @@ static int parse_audio_format_rates_v2(struct snd_usb_audio *chip,
 			      USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
 			      UAC2_CS_CONTROL_SAM_FREQ << 8,
 			      snd_usb_ctrl_intf(chip) | (clock << 8),
-			      data, data_size, 1000);
+			      data, data_size);
 
 	if (ret < 0) {
 		snd_printk(KERN_ERR "%s(): unable to retrieve sample rate range (clock %d)\n",

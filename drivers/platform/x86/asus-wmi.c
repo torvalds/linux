@@ -453,7 +453,9 @@ static enum led_brightness kbd_led_get(struct led_classdev *led_cdev)
 
 static void asus_wmi_led_exit(struct asus_wmi *asus)
 {
-	if (asus->tpd_led.dev)
+	if (!IS_ERR_OR_NULL(asus->kbd_led.dev))
+		led_classdev_unregister(&asus->kbd_led);
+	if (!IS_ERR_OR_NULL(asus->tpd_led.dev))
 		led_classdev_unregister(&asus->tpd_led);
 	if (asus->led_workqueue)
 		destroy_workqueue(asus->led_workqueue);

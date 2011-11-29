@@ -72,8 +72,8 @@ void __init s3c2410_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 
 void __init s3c2410_map_io(void)
 {
-	s3c24xx_gpiocfg_default.set_pull = s3c_gpio_setpull_1up;
-	s3c24xx_gpiocfg_default.get_pull = s3c_gpio_getpull_1up;
+	s3c24xx_gpiocfg_default.set_pull = s3c24xx_gpio_setpull_1up;
+	s3c24xx_gpiocfg_default.get_pull = s3c24xx_gpio_getpull_1up;
 
 	iotable_init(s3c2410_iodesc, ARRAY_SIZE(s3c2410_iodesc));
 }
@@ -170,7 +170,9 @@ int __init s3c2410_init(void)
 {
 	printk("S3C2410: Initialising architecture\n");
 
+#ifdef CONFIG_PM
 	register_syscore_ops(&s3c2410_pm_syscore_ops);
+#endif
 	register_syscore_ops(&s3c24xx_irq_syscore_ops);
 
 	return sysdev_register(&s3c2410_sysdev);

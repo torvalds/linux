@@ -886,6 +886,12 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 		disable)
     power_save_controller - Reset HD-audio controller in power-saving mode
 		(default = on)
+    align_buffer_size - Force rounding of buffer/period sizes to multiples
+    		      of 128 bytes. This is more efficient in terms of memory
+		      access but isn't required by the HDA spec and prevents
+		      users from specifying exact period/buffer sizes.
+		      (default = on)
+    snoop	- Enable/disable snooping (default = on)
 
     This module supports multiple cards and autoprobe.
     

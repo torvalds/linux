@@ -33,7 +33,7 @@
 
 #include <plat/board.h>
 #include <plat/mmc.h>
-#include <mach/gpio.h>
+#include <asm/gpio.h>
 #include <plat/dma.h>
 #include <plat/mux.h>
 #include <plat/fpga.h>

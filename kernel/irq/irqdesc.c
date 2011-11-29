@@ -9,7 +9,7 @@
  */
 #include <linux/irq.h>
 #include <linux/slab.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
 #include <linux/radix-tree.h>
@@ -424,11 +424,22 @@ unsigned int irq_get_next_irq(unsigned int offset)
 }
 
 struct irq_desc *
-__irq_get_desc_lock(unsigned int irq, unsigned long *flags, bool bus)
+__irq_get_desc_lock(unsigned int irq, unsigned long *flags, bool bus,
+		    unsigned int check)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 
 	if (desc) {
+		if (check & _IRQ_DESC_CHECK) {
+			if ((check & _IRQ_DESC_PERCPU) &&
+			    !irq_settings_is_per_cpu_devid(desc))
+				return NULL;
+
+			if (!(check & _IRQ_DESC_PERCPU) &&
+			    irq_settings_is_per_cpu_devid(desc))
+				return NULL;
+		}
+
 		if (bus)
 			chip_bus_lock(desc);
 		raw_spin_lock_irqsave(&desc->lock, *flags);
@@ -441,6 +452,25 @@ void __irq_put_desc_unlock(struct irq_desc *desc, unsigned long flags, bool bus)
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 	if (bus)
 		chip_bus_sync_unlock(desc);
+}
+
+int irq_set_percpu_devid(unsigned int irq)
+{
+	struct irq_desc *desc = irq_to_desc(irq);
+
+	if (!desc)
+		return -EINVAL;
+
+	if (desc->percpu_enabled)
+		return -EINVAL;
+
+	desc->percpu_enabled = kzalloc(sizeof(*desc->percpu_enabled), GFP_KERNEL);
+
+	if (!desc->percpu_enabled)
+		return -ENOMEM;
+
+	irq_set_percpu_devid_flags(irq);
+	return 0;
 }
 
 /**

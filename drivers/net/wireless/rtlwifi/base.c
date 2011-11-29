@@ -30,6 +30,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/ip.h>
+#include <linux/module.h>
 #include "wifi.h"
 #include "rc.h"
 #include "base.h"
@@ -311,6 +312,8 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 	    IEEE80211_HW_RX_INCLUDES_FCS |
 	    IEEE80211_HW_BEACON_FILTER |
 	    IEEE80211_HW_AMPDU_AGGREGATION |
+	    IEEE80211_HW_CONNECTION_MONITOR |
+	    /* IEEE80211_HW_SUPPORTS_CQM_RSSI | */
 	    IEEE80211_HW_REPORTS_TX_ACK_STATUS | 0;
 
 	/* swlps or hwlps has been set in diff chip in init_sw_vars */
@@ -664,6 +667,167 @@ static u8 _rtl_get_highest_n_rate(struct ieee80211_hw *hw)
 	return hw_rate;
 }
 
+/* mac80211's rate_idx is like this:
+ *
+ * 2.4G band:rx_status->band == IEEE80211_BAND_2GHZ
+ *
+ * B/G rate:
+ * (rx_status->flag & RX_FLAG_HT) = 0,
+ * DESC92_RATE1M-->DESC92_RATE54M ==> idx is 0-->11,
+ *
+ * N rate:
+ * (rx_status->flag & RX_FLAG_HT) = 1,
+ * DESC92_RATEMCS0-->DESC92_RATEMCS15 ==> idx is 0-->15
+ *
+ * 5G band:rx_status->band == IEEE80211_BAND_5GHZ
+ * A rate:
+ * (rx_status->flag & RX_FLAG_HT) = 0,
+ * DESC92_RATE6M-->DESC92_RATE54M ==> idx is 0-->7,
+ *
+ * N rate:
+ * (rx_status->flag & RX_FLAG_HT) = 1,
+ * DESC92_RATEMCS0-->DESC92_RATEMCS15 ==> idx is 0-->15
+ */
+int rtlwifi_rate_mapping(struct ieee80211_hw *hw,
+			 bool isht, u8 desc_rate, bool first_ampdu)
+{
+	int rate_idx;
+
+	if (false == isht) {
+		if (IEEE80211_BAND_2GHZ == hw->conf.channel->band) {
+			switch (desc_rate) {
+			case DESC92_RATE1M:
+				rate_idx = 0;
+				break;
+			case DESC92_RATE2M:
+				rate_idx = 1;
+				break;
+			case DESC92_RATE5_5M:
+				rate_idx = 2;
+				break;
+			case DESC92_RATE11M:
+				rate_idx = 3;
+				break;
+			case DESC92_RATE6M:
+				rate_idx = 4;
+				break;
+			case DESC92_RATE9M:
+				rate_idx = 5;
+				break;
+			case DESC92_RATE12M:
+				rate_idx = 6;
+				break;
+			case DESC92_RATE18M:
+				rate_idx = 7;
+				break;
+			case DESC92_RATE24M:
+				rate_idx = 8;
+				break;
+			case DESC92_RATE36M:
+				rate_idx = 9;
+				break;
+			case DESC92_RATE48M:
+				rate_idx = 10;
+				break;
+			case DESC92_RATE54M:
+				rate_idx = 11;
+				break;
+			default:
+				rate_idx = 0;
+				break;
+			}
+		} else {
+			switch (desc_rate) {
+			case DESC92_RATE6M:
+				rate_idx = 0;
+				break;
+			case DESC92_RATE9M:
+				rate_idx = 1;
+				break;
+			case DESC92_RATE12M:
+				rate_idx = 2;
+				break;
+			case DESC92_RATE18M:
+				rate_idx = 3;
+				break;
+			case DESC92_RATE24M:
+				rate_idx = 4;
+				break;
+			case DESC92_RATE36M:
+				rate_idx = 5;
+				break;
+			case DESC92_RATE48M:
+				rate_idx = 6;
+				break;
+			case DESC92_RATE54M:
+				rate_idx = 7;
+				break;
+			default:
+				rate_idx = 0;
+				break;
+			}
+		}
+
+	} else {
+
+		switch (desc_rate) {
+		case DESC92_RATEMCS0:
+			rate_idx = 0;
+			break;
+		case DESC92_RATEMCS1:
+			rate_idx = 1;
+			break;
+		case DESC92_RATEMCS2:
+			rate_idx = 2;
+			break;
+		case DESC92_RATEMCS3:
+			rate_idx = 3;
+			break;
+		case DESC92_RATEMCS4:
+			rate_idx = 4;
+			break;
+		case DESC92_RATEMCS5:
+			rate_idx = 5;
+			break;
+		case DESC92_RATEMCS6:
+			rate_idx = 6;
+			break;
+		case DESC92_RATEMCS7:
+			rate_idx = 7;
+			break;
+		case DESC92_RATEMCS8:
+			rate_idx = 8;
+			break;
+		case DESC92_RATEMCS9:
+			rate_idx = 9;
+			break;
+		case DESC92_RATEMCS10:
+			rate_idx = 10;
+			break;
+		case DESC92_RATEMCS11:
+			rate_idx = 11;
+			break;
+		case DESC92_RATEMCS12:
+			rate_idx = 12;
+			break;
+		case DESC92_RATEMCS13:
+			rate_idx = 13;
+			break;
+		case DESC92_RATEMCS14:
+			rate_idx = 14;
+			break;
+		case DESC92_RATEMCS15:
+			rate_idx = 15;
+			break;
+		default:
+			rate_idx = 0;
+			break;
+		}
+	}
+	return rate_idx;
+}
+EXPORT_SYMBOL(rtlwifi_rate_mapping);
+
 void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 		      struct ieee80211_tx_info *info,
 		      struct ieee80211_sta *sta,
@@ -689,7 +853,7 @@ void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 		 *So tcb_desc->hw_rate is just used for
 		 *special data and mgt frames
 		 */
-		if (info->control.rates[0].idx == 0 &&
+		if (info->control.rates[0].idx == 0 ||
 				ieee80211_is_nullfunc(fc)) {
 			tcb_desc->use_driver_rate = true;
 			tcb_desc->ratr_index = RATR_INX_WIRELESS_MC;
@@ -977,7 +1141,7 @@ void rtl_watchdog_wq_callback(void *data)
 	}
 
 	/*
-	 *<3> to check if traffic busy, if
+	 *<2> to check if traffic busy, if
 	 * busytraffic we don't change channel
 	 */
 	if (mac->link_state >= MAC80211_LINKED) {

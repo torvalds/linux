@@ -114,7 +114,7 @@ int udf_CS0toUTF8(struct ustr *utf_o, const struct ustr *ocu_i)
 	cmp_id = ocu_i->u_cmpID;
 	if (cmp_id != 8 && cmp_id != 16) {
 		memset(utf_o, 0, sizeof(struct ustr));
-		printk(KERN_ERR "udf: unknown compression code (%d) stri=%s\n",
+		pr_err("unknown compression code (%d) stri=%s\n",
 		       cmp_id, ocu_i->u_name);
 		return 0;
 	}
@@ -242,7 +242,7 @@ try_again:
 	if (utf_cnt) {
 error_out:
 		ocu[++u_len] = '?';
-		printk(KERN_DEBUG "udf: bad UTF-8 character\n");
+		printk(KERN_DEBUG pr_fmt("bad UTF-8 character\n"));
 	}
 
 	ocu[length - 1] = (uint8_t)u_len + 1;
@@ -267,7 +267,7 @@ static int udf_CS0toNLS(struct nls_table *nls, struct ustr *utf_o,
 	cmp_id = ocu_i->u_cmpID;
 	if (cmp_id != 8 && cmp_id != 16) {
 		memset(utf_o, 0, sizeof(struct ustr));
-		printk(KERN_ERR "udf: unknown compression code (%d) stri=%s\n",
+		pr_err("unknown compression code (%d) stri=%s\n",
 		       cmp_id, ocu_i->u_name);
 		return 0;
 	}

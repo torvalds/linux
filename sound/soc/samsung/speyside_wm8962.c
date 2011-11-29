@@ -13,8 +13,11 @@
 #include <sound/soc-dapm.h>
 #include <sound/jack.h>
 #include <linux/gpio.h>
+#include <linux/module.h>
 
 #include "../codecs/wm8962.h"
+
+static int sample_rate = 44100;
 
 static int speyside_wm8962_set_bias_level(struct snd_soc_card *card,
 					  struct snd_soc_dapm_context *dapm,
@@ -31,13 +34,13 @@ static int speyside_wm8962_set_bias_level(struct snd_soc_card *card,
 		if (dapm->bias_level == SND_SOC_BIAS_STANDBY) {
 			ret = snd_soc_dai_set_pll(codec_dai, WM8962_FLL,
 						  WM8962_FLL_MCLK, 32768,
-						  44100 * 256);
+						  sample_rate * 512);
 			if (ret < 0)
 				pr_err("Failed to start FLL: %d\n", ret);
 
 			ret = snd_soc_dai_set_sysclk(codec_dai,
 						     WM8962_SYSCLK_FLL,
-						     44100 * 256,
+						     sample_rate * 512,
 						     SND_SOC_CLOCK_IN);
 			if (ret < 0) {
 				pr_err("Failed to set SYSCLK: %d\n", ret);
@@ -92,22 +95,7 @@ static int speyside_wm8962_set_bias_level_post(struct snd_soc_card *card,
 static int speyside_wm8962_hw_params(struct snd_pcm_substream *substream,
 			      struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	int ret;
-
-	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S
-					 | SND_SOC_DAIFMT_NB_NF
-					 | SND_SOC_DAIFMT_CBM_CFM);
-	if (ret < 0)
-		return ret;
-
-	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S
-					 | SND_SOC_DAIFMT_NB_NF
-					 | SND_SOC_DAIFMT_CBM_CFM);
-	if (ret < 0)
-		return ret;
+	sample_rate = params_rate(params);
 
 	return 0;
 }
@@ -124,12 +112,15 @@ static struct snd_soc_dai_link speyside_wm8962_dai[] = {
 		.codec_dai_name = "wm8962",
 		.platform_name = "samsung-audio",
 		.codec_name = "wm8962.1-001a",
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
+				| SND_SOC_DAIFMT_CBM_CFM,
 		.ops = &speyside_wm8962_ops,
 	},
 };
 
 static const struct snd_kcontrol_new controls[] = {
 	SOC_DAPM_PIN_SWITCH("Main Speaker"),
+	SOC_DAPM_PIN_SWITCH("DMIC"),
 };
 
 static struct snd_soc_dapm_widget widgets[] = {
@@ -137,6 +128,7 @@ static struct snd_soc_dapm_widget widgets[] = {
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 
 	SND_SOC_DAPM_MIC("DMIC", NULL),
+	SND_SOC_DAPM_MIC("AMIC", NULL),
 
 	SND_SOC_DAPM_SPK("Main Speaker", NULL),
 };
@@ -148,12 +140,16 @@ static struct snd_soc_dapm_route audio_paths[] = {
 	{ "Main Speaker", NULL, "SPKOUTL" },
 	{ "Main Speaker", NULL, "SPKOUTR" },
 
-	{ "MICBIAS", NULL, "Headset Mic" },
-	{ "IN4L", NULL, "MICBIAS" },
-	{ "IN4R", NULL, "MICBIAS" },
+	{ "Headset Mic", NULL, "MICBIAS" },
+	{ "IN4L", NULL, "Headset Mic" },
+	{ "IN4R", NULL, "Headset Mic" },
 
-	{ "MICBIAS", NULL, "DMIC" },
-	{ "DMICDAT", NULL, "MICBIAS" },
+	{ "AMIC", NULL, "MICBIAS" },
+	{ "IN1L", NULL, "AMIC" },
+	{ "IN1R", NULL, "AMIC" },
+
+	{ "DMIC", NULL, "MICBIAS" },
+	{ "DMICDAT", NULL, "DMIC" },
 };
 
 static struct snd_soc_jack speyside_wm8962_headset;

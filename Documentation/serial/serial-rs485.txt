@@ -28,6 +28,10 @@
    RS485 communications. This data structure is used to set and configure RS485
    parameters in the platform data and in ioctls.
 
+   The device tree can also provide RS485 boot time parameters (see [2]
+   for bindings). The driver is in charge of filling this data structure from
+   the values given by the device tree.
+
    Any driver for devices capable of working both as RS232 and RS485 should
    provide at least the following ioctls:
 
@@ -93,16 +97,27 @@
 
 	struct serial_rs485 rs485conf;
 
-	/* Set RS485 mode: */
+	/* Enable RS485 mode: */
 	rs485conf.flags |= SER_RS485_ENABLED;
 
+	/* Set logical level for RTS pin equal to 1 when sending: */
+	rs485conf.flags |= SER_RS485_RTS_ON_SEND;
+	/* or, set logical level for RTS pin equal to 0 when sending: */
+	rs485conf.flags &= ~(SER_RS485_RTS_ON_SEND);
+
+	/* Set logical level for RTS pin equal to 1 after sending: */
+	rs485conf.flags |= SER_RS485_RTS_AFTER_SEND;
+	/* or, set logical level for RTS pin equal to 0 after sending: */
+	rs485conf.flags &= ~(SER_RS485_RTS_AFTER_SEND);
+
 	/* Set rts delay before send, if needed: */
-	rs485conf.flags |= SER_RS485_RTS_BEFORE_SEND;
 	rs485conf.delay_rts_before_send = ...;
 
 	/* Set rts delay after send, if needed: */
-	rs485conf.flags |= SER_RS485_RTS_AFTER_SEND;
 	rs485conf.delay_rts_after_send = ...;
+
+	/* Set this flag if you want to receive data even whilst sending data */
+	rs485conf.flags |= SER_RS485_RX_DURING_TX;
 
 	if (ioctl (fd, TIOCSRS485, &rs485conf) < 0) {
 		/* Error handling. See errno. */
@@ -118,3 +133,4 @@
 5. REFERENCES
 
  [1]	include/linux/serial.h
+ [2]	Documentation/devicetree/bindings/serial/rs485.txt

@@ -12,6 +12,7 @@
 
 #include <linux/module.h>
 #include <linux/pm.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
@@ -51,6 +52,11 @@ static struct clk pioC_clk = {
 static struct clk pioDE_clk = {
 	.name		= "pioDE_clk",
 	.pmc_mask	= 1 << AT91SAM9G45_ID_PIODE,
+	.type		= CLK_TYPE_PERIPHERAL,
+};
+static struct clk trng_clk = {
+	.name		= "trng_clk",
+	.pmc_mask	= 1 << AT91SAM9G45_ID_TRNG,
 	.type		= CLK_TYPE_PERIPHERAL,
 };
 static struct clk usart0_clk = {
@@ -176,6 +182,7 @@ static struct clk *periph_clocks[] __initdata = {
 	&pioB_clk,
 	&pioC_clk,
 	&pioDE_clk,
+	&trng_clk,
 	&usart0_clk,
 	&usart1_clk,
 	&usart2_clk,
@@ -215,6 +222,15 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_DEV_ID("t0_clk", "atmel_tcb.1", &tcb0_clk),
 	CLKDEV_CON_DEV_ID("pclk", "ssc.0", &ssc0_clk),
 	CLKDEV_CON_DEV_ID("pclk", "ssc.1", &ssc1_clk),
+	CLKDEV_CON_DEV_ID(NULL, "atmel-trng", &trng_clk),
+	/* more usart lookup table for DT entries */
+	CLKDEV_CON_DEV_ID("usart", "ffffee00.serial", &mck),
+	CLKDEV_CON_DEV_ID("usart", "fff8c000.serial", &usart0_clk),
+	CLKDEV_CON_DEV_ID("usart", "fff90000.serial", &usart1_clk),
+	CLKDEV_CON_DEV_ID("usart", "fff94000.serial", &usart2_clk),
+	CLKDEV_CON_DEV_ID("usart", "fff98000.serial", &usart3_clk),
+	/* fake hclk clock */
+	CLKDEV_CON_DEV_ID("hclk", "at91_ohci", &uhphs_clk),
 };
 
 static struct clk_lookup usart_clocks_lookups[] = {
@@ -319,6 +335,7 @@ static void at91sam9g45_poweroff(void)
 static void __init at91sam9g45_map_io(void)
 {
 	at91_init_sram(0, AT91SAM9G45_SRAM_BASE, AT91SAM9G45_SRAM_SIZE);
+	init_consistent_dma_size(SZ_4M);
 }
 
 static void __init at91sam9g45_initialize(void)

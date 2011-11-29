@@ -12,6 +12,7 @@
 #include <linux/etherdevice.h>
 #include <net/arp.h>
 #include <net/cfg80211.h>
+#include <net/cfg80211-wext.h>
 #include <net/iw_handler.h>
 #include "core.h"
 #include "nl80211.h"
@@ -227,21 +228,51 @@ const u8 *cfg80211_find_ie(u8 eid, const u8 *ies, int len)
 }
 EXPORT_SYMBOL(cfg80211_find_ie);
 
+const u8 *cfg80211_find_vendor_ie(unsigned int oui, u8 oui_type,
+				  const u8 *ies, int len)
+{
+	struct ieee80211_vendor_ie *ie;
+	const u8 *pos = ies, *end = ies + len;
+	int ie_oui;
+
+	while (pos < end) {
+		pos = cfg80211_find_ie(WLAN_EID_VENDOR_SPECIFIC, pos,
+				       end - pos);
+		if (!pos)
+			return NULL;
+
+		if (end - pos < sizeof(*ie))
+			return NULL;
+
+		ie = (struct ieee80211_vendor_ie *)pos;
+		ie_oui = ie->oui[0] << 16 | ie->oui[1] << 8 | ie->oui[2];
+		if (ie_oui == oui && ie->oui_type == oui_type)
+			return pos;
+
+		pos += 2 + ie->len;
+	}
+	return NULL;
+}
+EXPORT_SYMBOL(cfg80211_find_vendor_ie);
+
 static int cmp_ies(u8 num, u8 *ies1, size_t len1, u8 *ies2, size_t len2)
 {
 	const u8 *ie1 = cfg80211_find_ie(num, ies1, len1);
 	const u8 *ie2 = cfg80211_find_ie(num, ies2, len2);
-	int r;
 
+	/* equal if both missing */
 	if (!ie1 && !ie2)
 		return 0;
-	if (!ie1 || !ie2)
+	/* sort missing IE before (left of) present IE */
+	if (!ie1)
 		return -1;
+	if (!ie2)
+		return 1;
 
-	r = memcmp(ie1 + 2, ie2 + 2, min(ie1[1], ie2[1]));
-	if (r == 0 && ie1[1] != ie2[1])
+	/* sort by length first, then by contents */
+	if (ie1[1] != ie2[1])
 		return ie2[1] - ie1[1];
-	return r;
+	return memcmp(ie1 + 2, ie2 + 2, ie1[1]);
 }
 
 static bool is_bss(struct cfg80211_bss *a,

@@ -43,6 +43,17 @@ static const struct dmi_system_id pci_use_crs_table[] __initconst = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "ALiveSATA2-GLAN"),
                 },
         },
+	/* https://bugzilla.kernel.org/show_bug.cgi?id=30552 */
+	/* 2006 AMD HT/VIA system with two host bridges */
+	{
+		.callback = set_use_crs,
+		.ident = "ASUS M2V-MX SE",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
+			DMI_MATCH(DMI_BOARD_NAME, "M2V-MX SE"),
+			DMI_MATCH(DMI_BIOS_VENDOR, "American Megatrends Inc."),
+		},
+	},
 	{}
 };
 
@@ -365,8 +376,13 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_pci_root *root)
 	 */
 	if (bus) {
 		struct pci_bus *child;
-		list_for_each_entry(child, &bus->children, node)
-			pcie_bus_configure_settings(child, child->self->pcie_mpss);
+		list_for_each_entry(child, &bus->children, node) {
+			struct pci_dev *self = child->self;
+			if (!self)
+				continue;
+
+			pcie_bus_configure_settings(child, self->pcie_mpss);
+		}
 	}
 
 	if (!bus)

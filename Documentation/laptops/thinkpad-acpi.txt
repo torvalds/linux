@@ -411,9 +411,9 @@ event	code	Key		Notes
 
 0x1004	0x03	FN+F4		Sleep button (ACPI sleep button
 				semantics, i.e. sleep-to-RAM).
-				It is always generate some kind
+				It always generates some kind
 				of event, either the hot key
-				event or a ACPI sleep button
+				event or an ACPI sleep button
 				event. The firmware may
 				refuse to generate further FN+F4
 				key presses until a S3 or S4 ACPI
@@ -736,7 +736,7 @@ status as "unknown". The available commands are:
 sysfs notes:
 
 The ThinkLight sysfs interface is documented by the LED class
-documentation, in Documentation/leds-class.txt.  The ThinkLight LED name
+documentation, in Documentation/leds/leds-class.txt.  The ThinkLight LED name
 is "tpacpi::thinklight".
 
 Due to limitations in the sysfs LED class, if the status of the ThinkLight
@@ -833,7 +833,7 @@ All of the above can be turned on and off and can be made to blink.
 sysfs notes:
 
 The ThinkPad LED sysfs interface is described in detail by the LED class
-documentation, in Documentation/leds-class.txt.
+documentation, in Documentation/leds/leds-class.txt.
 
 The LEDs are named (in LED ID order, from 0 to 12):
 "tpacpi::power", "tpacpi:orange:batt", "tpacpi:green:batt",

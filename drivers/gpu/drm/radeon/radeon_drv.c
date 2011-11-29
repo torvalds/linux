@@ -36,6 +36,7 @@
 
 #include "drm_pciids.h"
 #include <linux/console.h>
+#include <linux/module.h>
 
 
 /*
@@ -52,9 +53,10 @@
  *   2.9.0 - r600 tiling (s3tc,rgtc) working, SET_PREDICATION packet 3 on r600 + eg, backend query
  *   2.10.0 - fusion 2D tiling
  *   2.11.0 - backend map, initial compute support for the CS checker
+ *   2.12.0 - RADEON_CS_KEEP_TILING_FLAGS
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	11
+#define KMS_DRIVER_MINOR	12
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);
@@ -118,6 +120,7 @@ int radeon_audio = 0;
 int radeon_disp_priority = 0;
 int radeon_hw_i2c = 0;
 int radeon_pcie_gen2 = 0;
+int radeon_msi = -1;
 
 MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers");
 module_param_named(no_wb, radeon_no_wb, int, 0444);
@@ -163,6 +166,9 @@ module_param_named(hw_i2c, radeon_hw_i2c, int, 0444);
 
 MODULE_PARM_DESC(pcie_gen2, "PCIE Gen2 mode (1 = enable)");
 module_param_named(pcie_gen2, radeon_pcie_gen2, int, 0444);
+
+MODULE_PARM_DESC(msi, "MSI support (1 = enable, 0 = disable, -1 = auto)");
+module_param_named(msi, radeon_msi, int, 0444);
 
 static int radeon_suspend(struct drm_device *dev, pm_message_t state)
 {

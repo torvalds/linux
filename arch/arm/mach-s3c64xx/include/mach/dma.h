@@ -58,11 +58,15 @@ enum dma_ch {
 	DMACH_MAX		/* the end */
 };
 
-static __inline__ bool s3c_dma_has_circular(void)
+static inline bool samsung_dma_has_circular(void)
 {
 	return true;
 }
 
+static inline bool samsung_dma_is_dmadev(void)
+{
+	return false;
+}
 #define S3C2410_DMAF_CIRCULAR		(1 << 0)
 
 #include <plat/dma.h>
@@ -95,7 +99,7 @@ struct s3c2410_dma_chan {
 	unsigned char		 peripheral;
 
 	unsigned int		 flags;
-	enum s3c2410_dmasrc	 source;
+	enum dma_data_direction	 source;
 
 
 	dma_addr_t		dev_addr;

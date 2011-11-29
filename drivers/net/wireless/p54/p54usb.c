@@ -20,6 +20,7 @@
 #include <linux/etherdevice.h>
 #include <linux/delay.h>
 #include <linux/crc32.h>
+#include <linux/module.h>
 #include <net/mac80211.h>
 
 #include "p54.h"

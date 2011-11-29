@@ -1729,7 +1729,7 @@ sl811h_probe(struct platform_device *dev)
 	 * Use resource IRQ flags if set by platform device setup.
 	 */
 	irqflags |= IRQF_SHARED;
-	retval = usb_add_hcd(hcd, irq, IRQF_DISABLED | irqflags);
+	retval = usb_add_hcd(hcd, irq, irqflags);
 	if (retval != 0)
 		goto err6;
 

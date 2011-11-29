@@ -20,6 +20,7 @@
 #include <linux/memblock.h>
 #include <linux/sort.h>
 #include <linux/dma-mapping.h>
+#include <linux/export.h>
 
 #include <asm/sections.h>
 #include <asm/setup.h>

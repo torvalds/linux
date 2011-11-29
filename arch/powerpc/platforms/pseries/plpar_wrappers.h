@@ -1,7 +1,10 @@
 #ifndef _PSERIES_PLPAR_WRAPPERS_H
 #define _PSERIES_PLPAR_WRAPPERS_H
 
+#include <linux/string.h>
+
 #include <asm/hvcall.h>
+#include <asm/paca.h>
 #include <asm/page.h>
 
 /* Get state of physical CPU from query_cpu_stopped */

@@ -24,6 +24,7 @@
  *
  */
 
+#include <linux/module.h>
 #include <net/ip6_checksum.h>
 
 #include "vmxnet3_int.h"
@@ -654,10 +655,11 @@ vmxnet3_append_frag(struct sk_buff *skb, struct Vmxnet3_RxCompDesc *rcd,
 
 	BUG_ON(skb_shinfo(skb)->nr_frags >= MAX_SKB_FRAGS);
 
-	frag->page = rbi->page;
+	__skb_frag_set_page(frag, rbi->page);
 	frag->page_offset = 0;
-	frag->size = rcd->len;
-	skb->data_len += frag->size;
+	skb_frag_size_set(frag, rcd->len);
+	skb->data_len += rcd->len;
+	skb->truesize += PAGE_SIZE;
 	skb_shinfo(skb)->nr_frags++;
 }
 
@@ -744,21 +746,21 @@ vmxnet3_map_pkt(struct sk_buff *skb, struct vmxnet3_tx_ctx *ctx,
 	}
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i];
+		const struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i];
 
 		tbi = tq->buf_info + tq->tx_ring.next2fill;
 		tbi->map_type = VMXNET3_MAP_PAGE;
-		tbi->dma_addr = pci_map_page(adapter->pdev, frag->page,
-					     frag->page_offset, frag->size,
-					     PCI_DMA_TODEVICE);
+		tbi->dma_addr = skb_frag_dma_map(&adapter->pdev->dev, frag,
+						 0, skb_frag_size(frag),
+						 DMA_TO_DEVICE);
 
-		tbi->len = frag->size;
+		tbi->len = skb_frag_size(frag);
 
 		gdesc = tq->tx_ring.base + tq->tx_ring.next2fill;
 		BUG_ON(gdesc->txd.gen == tq->tx_ring.gen);
 
 		gdesc->txd.addr = cpu_to_le64(tbi->dma_addr);
-		gdesc->dword[2] = cpu_to_le32(dw2 | frag->size);
+		gdesc->dword[2] = cpu_to_le32(dw2 | skb_frag_size(frag));
 		gdesc->dword[3] = 0;
 
 		dev_dbg(&adapter->netdev->dev,
@@ -1277,7 +1279,6 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 		skb = ctx->skb;
 		if (rcd->eop) {
 			skb->len += skb->data_len;
-			skb->truesize += skb->data_len;
 
 			vmxnet3_rx_csum(adapter, skb,
 					(union Vmxnet3_GenericDesc *)rcd);
@@ -2876,7 +2877,7 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 		.ndo_set_features = vmxnet3_set_features,
 		.ndo_get_stats64 = vmxnet3_get_stats64,
 		.ndo_tx_timeout = vmxnet3_tx_timeout,
-		.ndo_set_multicast_list = vmxnet3_set_mc,
+		.ndo_set_rx_mode = vmxnet3_set_mc,
 		.ndo_vlan_rx_add_vid = vmxnet3_vlan_rx_add_vid,
 		.ndo_vlan_rx_kill_vid = vmxnet3_vlan_rx_kill_vid,
 #ifdef CONFIG_NET_POLL_CONTROLLER

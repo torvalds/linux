@@ -23,6 +23,7 @@
 #include <linux/list.h>
 #include <linux/sched.h>	/* schedule_timeout() */
 #include <linux/delay.h>
+#include <linux/export.h>
 
 #include "w1_family.h"
 #include "w1.h"

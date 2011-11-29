@@ -551,7 +551,7 @@ static void ircomm_tty_close(struct tty_struct *tty, struct file *filp)
 	 */
 	tty->closing = 1;
 	if (self->closing_wait != ASYNC_CLOSING_WAIT_NONE)
-		tty_wait_until_sent(tty, self->closing_wait);
+		tty_wait_until_sent_from_close(tty, self->closing_wait);
 
 	ircomm_tty_shutdown(self);
 

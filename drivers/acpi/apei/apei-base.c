@@ -618,7 +618,7 @@ int apei_osc_setup(void)
 	};
 
 	capbuf[OSC_QUERY_TYPE] = OSC_QUERY_ENABLE;
-	capbuf[OSC_SUPPORT_TYPE] = 0;
+	capbuf[OSC_SUPPORT_TYPE] = 1;
 	capbuf[OSC_CONTROL_TYPE] = 0;
 
 	if (ACPI_FAILURE(acpi_get_handle(NULL, "\\_SB", &handle))

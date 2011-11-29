@@ -72,7 +72,22 @@
 
 #define DP_MAIN_LINK_CHANNEL_CODING         0x006
 
+#define DP_EDP_CONFIGURATION_CAP            0x00d
 #define DP_TRAINING_AUX_RD_INTERVAL         0x00e
+
+#define DP_PSR_SUPPORT                      0x070
+# define DP_PSR_IS_SUPPORTED                1
+#define DP_PSR_CAPS                         0x071
+# define DP_PSR_NO_TRAIN_ON_EXIT            1
+# define DP_PSR_SETUP_TIME_330              (0 << 1)
+# define DP_PSR_SETUP_TIME_275              (1 << 1)
+# define DP_PSR_SETUP_TIME_220              (2 << 1)
+# define DP_PSR_SETUP_TIME_165              (3 << 1)
+# define DP_PSR_SETUP_TIME_110              (4 << 1)
+# define DP_PSR_SETUP_TIME_55               (5 << 1)
+# define DP_PSR_SETUP_TIME_0                (6 << 1)
+# define DP_PSR_SETUP_TIME_MASK             (7 << 1)
+# define DP_PSR_SETUP_TIME_SHIFT            1
 
 /* link configuration */
 #define	DP_LINK_BW_SET		            0x100
@@ -133,6 +148,20 @@
 #define DP_MAIN_LINK_CHANNEL_CODING_SET	    0x108
 # define DP_SET_ANSI_8B10B		    (1 << 0)
 
+#define DP_PSR_EN_CFG			    0x170
+# define DP_PSR_ENABLE			    (1 << 0)
+# define DP_PSR_MAIN_LINK_ACTIVE	    (1 << 1)
+# define DP_PSR_CRC_VERIFICATION	    (1 << 2)
+# define DP_PSR_FRAME_CAPTURE		    (1 << 3)
+
+#define DP_DEVICE_SERVICE_IRQ_VECTOR	    0x201
+# define DP_REMOTE_CONTROL_COMMAND_PENDING  (1 << 0)
+# define DP_AUTOMATED_TEST_REQUEST	    (1 << 1)
+# define DP_CP_IRQ			    (1 << 2)
+# define DP_SINK_SPECIFIC_IRQ		    (1 << 6)
+
+#define DP_EDP_CONFIGURATION_SET            0x10a
+
 #define DP_LANE0_1_STATUS		    0x202
 #define DP_LANE2_3_STATUS		    0x203
 # define DP_LANE_CR_DONE		    (1 << 0)
@@ -165,9 +194,44 @@
 # define DP_ADJUST_PRE_EMPHASIS_LANE1_MASK   0xc0
 # define DP_ADJUST_PRE_EMPHASIS_LANE1_SHIFT  6
 
+#define DP_TEST_REQUEST			    0x218
+# define DP_TEST_LINK_TRAINING		    (1 << 0)
+# define DP_TEST_LINK_PATTERN		    (1 << 1)
+# define DP_TEST_LINK_EDID_READ		    (1 << 2)
+# define DP_TEST_LINK_PHY_TEST_PATTERN	    (1 << 3) /* DPCD >= 1.1 */
+
+#define DP_TEST_LINK_RATE		    0x219
+# define DP_LINK_RATE_162		    (0x6)
+# define DP_LINK_RATE_27		    (0xa)
+
+#define DP_TEST_LANE_COUNT		    0x220
+
+#define DP_TEST_PATTERN			    0x221
+
+#define DP_TEST_RESPONSE		    0x260
+# define DP_TEST_ACK			    (1 << 0)
+# define DP_TEST_NAK			    (1 << 1)
+# define DP_TEST_EDID_CHECKSUM_WRITE	    (1 << 2)
+
 #define DP_SET_POWER                        0x600
 # define DP_SET_POWER_D0                    0x1
 # define DP_SET_POWER_D3                    0x2
+
+#define DP_PSR_ERROR_STATUS                 0x2006
+# define DP_PSR_LINK_CRC_ERROR              (1 << 0)
+# define DP_PSR_RFB_STORAGE_ERROR           (1 << 1)
+
+#define DP_PSR_ESI                          0x2007
+# define DP_PSR_CAPS_CHANGE                 (1 << 0)
+
+#define DP_PSR_STATUS                       0x2008
+# define DP_PSR_SINK_INACTIVE               0
+# define DP_PSR_SINK_ACTIVE_SRC_SYNCED      1
+# define DP_PSR_SINK_ACTIVE_RFB             2
+# define DP_PSR_SINK_ACTIVE_SINK_SYNCED     3
+# define DP_PSR_SINK_ACTIVE_RESYNC          4
+# define DP_PSR_SINK_INTERNAL_ERROR         7
+# define DP_PSR_SINK_STATE_MASK             0x07
 
 #define MODE_I2C_START	1
 #define MODE_I2C_WRITE	2

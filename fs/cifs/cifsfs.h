@@ -121,9 +121,9 @@ extern ssize_t	cifs_getxattr(struct dentry *, const char *, void *, size_t);
 extern ssize_t	cifs_listxattr(struct dentry *, char *, size_t);
 extern long cifs_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
 
-#ifdef CIFS_NFSD_EXPORT
+#ifdef CONFIG_CIFS_NFSD_EXPORT
 extern const struct export_operations cifs_export_ops;
-#endif /* CIFS_NFSD_EXPORT */
+#endif /* CONFIG_CIFS_NFSD_EXPORT */
 
-#define CIFS_VERSION   "1.75"
+#define CIFS_VERSION   "1.76"
 #endif				/* _CIFSFS_H */

@@ -10,6 +10,7 @@
 #include <linux/sched.h>
 #include <asm/vdso.h>
 #include <asm/sigp.h>
+#include <asm/pgtable.h>
 
 /*
  * Make sure that the compiler is new enough. We want a compiler that
@@ -44,8 +45,7 @@ int main(void)
 	DEFINE(__PT_PSW, offsetof(struct pt_regs, psw));
 	DEFINE(__PT_GPRS, offsetof(struct pt_regs, gprs));
 	DEFINE(__PT_ORIG_GPR2, offsetof(struct pt_regs, orig_gpr2));
-	DEFINE(__PT_ILC, offsetof(struct pt_regs, ilc));
-	DEFINE(__PT_SVCNR, offsetof(struct pt_regs, svcnr));
+	DEFINE(__PT_SVC_CODE, offsetof(struct pt_regs, svc_code));
 	DEFINE(__PT_SIZE, sizeof(struct pt_regs));
 	BLANK();
 	DEFINE(__SF_BACKCHAIN, offsetof(struct stack_frame, back_chain));
@@ -126,6 +126,7 @@ int main(void)
 	DEFINE(__LC_KERNEL_STACK, offsetof(struct _lowcore, kernel_stack));
 	DEFINE(__LC_ASYNC_STACK, offsetof(struct _lowcore, async_stack));
 	DEFINE(__LC_PANIC_STACK, offsetof(struct _lowcore, panic_stack));
+	DEFINE(__LC_USER_ASCE, offsetof(struct _lowcore, user_asce));
 	DEFINE(__LC_INT_CLOCK, offsetof(struct _lowcore, int_clock));
 	DEFINE(__LC_MCCK_CLOCK, offsetof(struct _lowcore, mcck_clock));
 	DEFINE(__LC_MACHINE_FLAGS, offsetof(struct _lowcore, machine_flags));
@@ -139,7 +140,6 @@ int main(void)
 	DEFINE(__LC_FPREGS_SAVE_AREA, offsetof(struct _lowcore, floating_pt_save_area));
 	DEFINE(__LC_GPREGS_SAVE_AREA, offsetof(struct _lowcore, gpregs_save_area));
 	DEFINE(__LC_CREGS_SAVE_AREA, offsetof(struct _lowcore, cregs_save_area));
-	DEFINE(__LC_SAVE_AREA_64, offsetof(struct _lowcore, save_area_64));
 #ifdef CONFIG_32BIT
 	DEFINE(SAVE_AREA_BASE, offsetof(struct _lowcore, extended_save_area_addr));
 #else /* CONFIG_32BIT */
@@ -151,6 +151,7 @@ int main(void)
 	DEFINE(__LC_VDSO_PER_CPU, offsetof(struct _lowcore, vdso_per_cpu_data));
 	DEFINE(__LC_GMAP, offsetof(struct _lowcore, gmap));
 	DEFINE(__LC_CMF_HPP, offsetof(struct _lowcore, cmf_hpp));
+	DEFINE(__GMAP_ASCE, offsetof(struct gmap, asce));
 #endif /* CONFIG_32BIT */
 	return 0;
 }

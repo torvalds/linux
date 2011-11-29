@@ -26,6 +26,7 @@
 #include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/jack.h>
 #include <sound/pcm.h>
@@ -115,24 +116,6 @@ static int rx51_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	int err;
-
-	/* Set codec DAI configuration */
-	err = snd_soc_dai_set_fmt(codec_dai,
-				  SND_SOC_DAIFMT_DSP_A |
-				  SND_SOC_DAIFMT_IB_NF |
-				  SND_SOC_DAIFMT_CBM_CFM);
-	if (err < 0)
-		return err;
-
-	/* Set cpu DAI configuration */
-	err = snd_soc_dai_set_fmt(cpu_dai,
-				  SND_SOC_DAIFMT_DSP_A |
-				  SND_SOC_DAIFMT_IB_NF |
-				  SND_SOC_DAIFMT_CBM_CFM);
-	if (err < 0)
-		return err;
 
 	/* Set the codec system clock for DAC and ADC */
 	return snd_soc_dai_set_sysclk(codec_dai, 0, 19200000,
@@ -335,8 +318,6 @@ static int rx51_aic34_init(struct snd_soc_pcm_runtime *rtd)
 	if (err < 0)
 		return err;
 
-	snd_soc_dapm_sync(dapm);
-
 	/* AV jack detection */
 	err = snd_soc_jack_new(codec, "AV Jack",
 			       SND_JACK_HEADSET | SND_JACK_VIDEOOUT,
@@ -377,6 +358,8 @@ static struct snd_soc_dai_link rx51_dai[] = {
 		.codec_dai_name = "tlv320aic3x-hifi",
 		.platform_name = "omap-pcm-audio",
 		.codec_name = "tlv320aic3x-codec.2-0018",
+		.dai_fmt = SND_SOC_DAIFMT_DSP_A | SND_SOC_DAIFMT_IB_NF |
+			   SND_SOC_DAIFMT_CBM_CFM,
 		.init = rx51_aic34_init,
 		.ops = &rx51_ops,
 	},

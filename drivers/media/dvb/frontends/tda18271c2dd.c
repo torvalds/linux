@@ -1195,7 +1195,7 @@ static int GetSignalStrength(s32 *pSignalStrength, u32 RFAgc, u32 IFAgc)
 }
 #endif
 
-static int get_frequency(struct dvb_frontend *fe, u32 *frequency)
+static int get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 {
 	struct tda_state *state = fe->tuner_priv;
 
@@ -1222,7 +1222,7 @@ static struct dvb_tuner_ops tuner_ops = {
 	.sleep             = sleep,
 	.set_params        = set_params,
 	.release           = release,
-	.get_frequency     = get_frequency,
+	.get_if_frequency  = get_if_frequency,
 	.get_bandwidth     = get_bandwidth,
 };
 

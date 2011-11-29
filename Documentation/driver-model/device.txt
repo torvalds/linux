@@ -45,11 +45,14 @@ struct device_attribute {
 			 const char *buf, size_t count);
 };
 
-Attributes of devices can be exported via drivers using a simple
-procfs-like interface. 
+Attributes of devices can be exported by a device driver through sysfs.
 
 Please see Documentation/filesystems/sysfs.txt for more information
 on how sysfs works.
+
+As explained in Documentation/kobject.txt, device attributes must be be
+created before the KOBJ_ADD uevent is generated. The only way to realize
+that is by defining an attribute group.
 
 Attributes are declared using a macro called DEVICE_ATTR:
 
@@ -57,21 +60,37 @@ Attributes are declared using a macro called DEVICE_ATTR:
 
 Example:
 
-DEVICE_ATTR(power,0644,show_power,store_power);
+static DEVICE_ATTR(type, 0444, show_type, NULL);
+static DEVICE_ATTR(power, 0644, show_power, store_power);
 
-This declares a structure of type struct device_attribute named
-'dev_attr_power'. This can then be added and removed to the device's
-directory using:
+This declares two structures of type struct device_attribute with respective
+names 'dev_attr_type' and 'dev_attr_power'. These two attributes can be
+organized as follows into a group:
 
-int device_create_file(struct device *device, struct device_attribute * entry);
-void device_remove_file(struct device * dev, struct device_attribute * attr);
+static struct attribute *dev_attrs[] = {
+	&dev_attr_type.attr,
+	&dev_attr_power.attr,
+	NULL,
+};
 
-Example:
+static struct attribute_group dev_attr_group = {
+	.attrs = dev_attrs,
+};
 
-device_create_file(dev,&dev_attr_power);
-device_remove_file(dev,&dev_attr_power);
+static const struct attribute_group *dev_attr_groups[] = {
+	&dev_attr_group,
+	NULL,
+};
 
-The file name will be 'power' with a mode of 0644 (-rw-r--r--).
+This array of groups can then be associated with a device by setting the
+group pointer in struct device before device_register() is invoked:
+
+      dev->groups = dev_attr_groups;
+      device_register(dev);
+
+The device_register() function will use the 'groups' pointer to create the
+device attributes and the device_unregister() function will use this pointer
+to remove the device attributes.
 
 Word of warning:  While the kernel allows device_create_file() and
 device_remove_file() to be called on a device at any time, userspace has
@@ -84,24 +103,4 @@ not know about the new attributes.
 This is important for device driver that need to publish additional
 attributes for a device at driver probe time.  If the device driver simply
 calls device_create_file() on the device structure passed to it, then
-userspace will never be notified of the new attributes.  Instead, it should
-probably use class_create() and class->dev_attrs to set up a list of
-desired attributes in the modules_init function, and then in the .probe()
-hook, and then use device_create() to create a new device as a child
-of the probed device.  The new device will generate a new uevent and
-properly advertise the new attributes to userspace.
-
-For example, if a driver wanted to add the following attributes:
-struct device_attribute mydriver_attribs[] = {
-	__ATTR(port_count, 0444, port_count_show),
-	__ATTR(serial_number, 0444, serial_number_show),
-	NULL
-};
-
-Then in the module init function is would do:
-	mydriver_class = class_create(THIS_MODULE, "my_attrs");
-	mydriver_class.dev_attr = mydriver_attribs;
-
-And assuming 'dev' is the struct device passed into the probe hook, the driver
-probe function would do something like:
-	device_create(&mydriver_class, dev, chrdev, &private_data, "my_name");
+userspace will never be notified of the new attributes.

@@ -23,7 +23,6 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/version.h>
 #include <generated/utsrelease.h>
 #include <linux/utsname.h>
 #include <linux/init.h>
@@ -132,14 +131,6 @@ static struct config_group *target_core_register_fabric(
 
 	pr_debug("Target_Core_ConfigFS: REGISTER -> group: %p name:"
 			" %s\n", group, name);
-	/*
-	 * Ensure that TCM subsystem plugins are loaded at this point for
-	 * using the RAMDISK_DR virtual LUN 0 and all other struct se_port
-	 * LUN symlinks.
-	 */
-	if (transport_subsystem_check_init() < 0)
-		return ERR_PTR(-EINVAL);
-
 	/*
 	 * Below are some hardcoded request_module() calls to automatically
 	 * local fabric modules when the following is called:
@@ -725,9 +716,6 @@ SE_DEV_ATTR_RO(hw_queue_depth);
 DEF_DEV_ATTRIB(queue_depth);
 SE_DEV_ATTR(queue_depth, S_IRUGO | S_IWUSR);
 
-DEF_DEV_ATTRIB(task_timeout);
-SE_DEV_ATTR(task_timeout, S_IRUGO | S_IWUSR);
-
 DEF_DEV_ATTRIB(max_unmap_lba_count);
 SE_DEV_ATTR(max_unmap_lba_count, S_IRUGO | S_IWUSR);
 
@@ -761,7 +749,6 @@ static struct configfs_attribute *target_core_dev_attrib_attrs[] = {
 	&target_core_dev_attrib_optimal_sectors.attr,
 	&target_core_dev_attrib_hw_queue_depth.attr,
 	&target_core_dev_attrib_queue_depth.attr,
-	&target_core_dev_attrib_task_timeout.attr,
 	&target_core_dev_attrib_max_unmap_lba_count.attr,
 	&target_core_dev_attrib_max_unmap_block_desc_count.attr,
 	&target_core_dev_attrib_unmap_granularity.attr,
@@ -3080,8 +3067,7 @@ static struct config_group *target_core_call_addhbatotarget(
 	/*
 	 * Load up TCM subsystem plugins if they have not already been loaded.
 	 */
-	if (transport_subsystem_check_init() < 0)
-		return ERR_PTR(-EINVAL);
+	transport_subsystem_check_init();
 
 	hba = core_alloc_hba(se_plugin_str, plugin_dep_id, 0);
 	if (IS_ERR(hba))

@@ -50,6 +50,7 @@ static int sg_version_num = 30534;	/* 2 digits for each component */
 #include <linux/delay.h>
 #include <linux/blktrace_api.h>
 #include <linux/mutex.h>
+#include <linux/ratelimit.h>
 
 #include "scsi.h"
 #include <scsi/scsi_dbg.h>
@@ -626,14 +627,15 @@ sg_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 	 */
 	if (hp->dxfer_direction == SG_DXFER_TO_FROM_DEV) {
 		static char cmd[TASK_COMM_LEN];
-		if (strcmp(current->comm, cmd) && printk_ratelimit()) {
-			printk(KERN_WARNING
-			       "sg_write: data in/out %d/%d bytes for SCSI command 0x%x--"
-			       "guessing data in;\n   "
-			       "program %s not setting count and/or reply_len properly\n",
-			       old_hdr.reply_len - (int)SZ_SG_HEADER,
-			       input_size, (unsigned int) cmnd[0],
-			       current->comm);
+		if (strcmp(current->comm, cmd)) {
+			printk_ratelimited(KERN_WARNING
+					   "sg_write: data in/out %d/%d bytes "
+					   "for SCSI command 0x%x-- guessing "
+					   "data in;\n   program %s not setting "
+					   "count and/or reply_len properly\n",
+					   old_hdr.reply_len - (int)SZ_SG_HEADER,
+					   input_size, (unsigned int) cmnd[0],
+					   current->comm);
 			strcpy(cmd, current->comm);
 		}
 	}

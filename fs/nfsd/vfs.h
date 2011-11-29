@@ -10,21 +10,22 @@
 /*
  * Flags for nfsd_permission
  */
-#define NFSD_MAY_NOP		0
-#define NFSD_MAY_EXEC		1 /* == MAY_EXEC */
-#define NFSD_MAY_WRITE		2 /* == MAY_WRITE */
-#define NFSD_MAY_READ		4 /* == MAY_READ */
-#define NFSD_MAY_SATTR		8
-#define NFSD_MAY_TRUNC		16
-#define NFSD_MAY_LOCK		32
-#define NFSD_MAY_MASK		63
+#define NFSD_MAY_NOP			0
+#define NFSD_MAY_EXEC			0x001 /* == MAY_EXEC */
+#define NFSD_MAY_WRITE			0x002 /* == MAY_WRITE */
+#define NFSD_MAY_READ			0x004 /* == MAY_READ */
+#define NFSD_MAY_SATTR			0x008
+#define NFSD_MAY_TRUNC			0x010
+#define NFSD_MAY_LOCK			0x020
+#define NFSD_MAY_MASK			0x03f
 
 /* extra hints to permission and open routines: */
-#define NFSD_MAY_OWNER_OVERRIDE	64
-#define NFSD_MAY_LOCAL_ACCESS	128 /* IRIX doing local access check on device special file*/
-#define NFSD_MAY_BYPASS_GSS_ON_ROOT 256
-#define NFSD_MAY_NOT_BREAK_LEASE 512
-#define NFSD_MAY_BYPASS_GSS	1024
+#define NFSD_MAY_OWNER_OVERRIDE		0x040
+#define NFSD_MAY_LOCAL_ACCESS		0x080 /* for device special files */
+#define NFSD_MAY_BYPASS_GSS_ON_ROOT	0x100
+#define NFSD_MAY_NOT_BREAK_LEASE	0x200
+#define NFSD_MAY_BYPASS_GSS		0x400
+#define NFSD_MAY_READ_IF_EXEC		0x800
 
 #define NFSD_MAY_CREATE		(NFSD_MAY_EXEC|NFSD_MAY_WRITE)
 #define NFSD_MAY_REMOVE		(NFSD_MAY_EXEC|NFSD_MAY_WRITE|NFSD_MAY_TRUNC)
@@ -61,7 +62,7 @@ __be32		nfsd_access(struct svc_rqst *, struct svc_fh *, u32 *, u32 *);
 __be32		do_nfsd_create(struct svc_rqst *, struct svc_fh *,
 				char *name, int len, struct iattr *attrs,
 				struct svc_fh *res, int createmode,
-				u32 *verifier, int *truncp, int *created);
+				u32 *verifier, bool *truncp, bool *created);
 __be32		nfsd_commit(struct svc_rqst *, struct svc_fh *,
 				loff_t, unsigned long);
 #endif /* CONFIG_NFSD_V3 */

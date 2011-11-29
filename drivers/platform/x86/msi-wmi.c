@@ -28,6 +28,7 @@
 #include <linux/acpi.h>
 #include <linux/backlight.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 MODULE_AUTHOR("Thomas Renninger <trenn@suse.de>");
 MODULE_DESCRIPTION("MSI laptop WMI hotkeys driver");

@@ -2,7 +2,7 @@ PXA2xx SPI on SSP driver HOWTO
 ===================================================
 This a mini howto on the pxa2xx_spi driver.  The driver turns a PXA2xx
 synchronous serial port into a SPI master controller
-(see Documentation/spi/spi_summary). The driver has the following features
+(see Documentation/spi/spi-summary). The driver has the following features
 
 - Support for any PXA2xx SSP
 - SSP PIO and SSP DMA data transfers.
@@ -85,7 +85,7 @@ Declaring Slave Devices
 -----------------------
 Typically each SPI slave (chip) is defined in the arch/.../mach-*/board-*.c
 using the "spi_board_info" structure found in "linux/spi/spi.h". See
-"Documentation/spi/spi_summary" for additional information.
+"Documentation/spi/spi-summary" for additional information.
 
 Each slave device attached to the PXA must provide slave specific configuration
 information via the structure "pxa2xx_spi_chip" found in

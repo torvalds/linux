@@ -23,8 +23,6 @@
 #define PCIO_SIZE       0x00100000
 #define PCIO_BASE       MMU_IO(0xff000000, 0x7c000000)
 
-#define IO_SPACE_LIMIT 0xffff
-
 /*
  * Translation of various region addresses to virtual addresses
  */

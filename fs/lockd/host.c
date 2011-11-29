@@ -316,14 +316,8 @@ struct nlm_host *nlmsvc_lookup_host(const struct svc_rqst *rqstp,
 	struct hlist_node *pos;
 	struct nlm_host	*host = NULL;
 	struct nsm_handle *nsm = NULL;
-	struct sockaddr_in sin = {
-		.sin_family	= AF_INET,
-	};
-	struct sockaddr_in6 sin6 = {
-		.sin6_family	= AF_INET6,
-	};
-	struct sockaddr *src_sap;
-	size_t src_len = rqstp->rq_addrlen;
+	struct sockaddr *src_sap = svc_daddr(rqstp);
+	size_t src_len = rqstp->rq_daddrlen;
 	struct nlm_lookup_host_info ni = {
 		.server		= 1,
 		.sap		= svc_addr(rqstp),
@@ -339,21 +333,6 @@ struct nlm_host *nlmsvc_lookup_host(const struct svc_rqst *rqstp,
 			(rqstp->rq_prot == IPPROTO_UDP ? "udp" : "tcp"));
 
 	mutex_lock(&nlm_host_mutex);
-
-	switch (ni.sap->sa_family) {
-	case AF_INET:
-		sin.sin_addr.s_addr = rqstp->rq_daddr.addr.s_addr;
-		src_sap = (struct sockaddr *)&sin;
-		break;
-	case AF_INET6:
-		ipv6_addr_copy(&sin6.sin6_addr, &rqstp->rq_daddr.addr6);
-		src_sap = (struct sockaddr *)&sin6;
-		break;
-	default:
-		dprintk("lockd: %s failed; unrecognized address family\n",
-			__func__);
-		goto out;
-	}
 
 	if (time_after_eq(jiffies, next_gc))
 		nlm_gc_hosts();

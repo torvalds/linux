@@ -369,6 +369,9 @@ static inline struct isci_host *dev_to_ihost(struct domain_device *dev)
 #define ISCI_TAG_SEQ(tag) (((tag) >> 12) & (SCI_MAX_SEQ-1))
 #define ISCI_TAG_TCI(tag) ((tag) & (SCI_MAX_IO_REQUESTS-1))
 
+/* interrupt coalescing baseline: 9 == 3 to 5us interrupt delay per command */
+#define ISCI_COALESCE_BASE 9
+
 /* expander attached sata devices require 3 rnc slots */
 static inline int sci_remote_device_node_count(struct isci_remote_device *idev)
 {
@@ -435,6 +438,18 @@ static inline bool is_c0(struct pci_dev *pdev)
 	if (pdev->revision >= 5)
 		return true;
 	return false;
+}
+
+/* set hw control for 'activity', even though active enclosures seem to drive
+ * the activity led on their own.  Skip setting FSENG control on 'status' due
+ * to unexpected operation and 'error' due to not being a supported automatic
+ * FSENG output
+ */
+#define SGPIO_HW_CONTROL 0x00000443
+
+static inline int isci_gpio_count(struct isci_host *ihost)
+{
+	return ARRAY_SIZE(ihost->scu_registers->peg0.sgpio.output_data_select);
 }
 
 void sci_controller_post_request(struct isci_host *ihost,
@@ -539,4 +554,7 @@ void sci_port_configuration_agent_construct(
 enum sci_status sci_port_configuration_agent_initialize(
 	struct isci_host *ihost,
 	struct sci_port_configuration_agent *port_agent);
+
+int isci_gpio_write(struct sas_ha_struct *, u8 reg_type, u8 reg_index,
+		    u8 reg_count, u8 *write_data);
 #endif

@@ -8,7 +8,7 @@
  * as published by the Free Software Foundation; either version
  * 2 of the Licence, or (at your option) any later version.
  */
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/cred.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
@@ -644,12 +644,23 @@ void __init cred_init(void)
  */
 struct cred *prepare_kernel_cred(struct task_struct *daemon)
 {
+#ifdef CONFIG_KEYS
+	struct thread_group_cred *tgcred;
+#endif
 	const struct cred *old;
 	struct cred *new;
 
 	new = kmem_cache_alloc(cred_jar, GFP_KERNEL);
 	if (!new)
 		return NULL;
+
+#ifdef CONFIG_KEYS
+	tgcred = kmalloc(sizeof(*tgcred), GFP_KERNEL);
+	if (!tgcred) {
+		kmem_cache_free(cred_jar, new);
+		return NULL;
+	}
+#endif
 
 	kdebug("prepare_kernel_cred() alloc %p", new);
 
@@ -667,8 +678,11 @@ struct cred *prepare_kernel_cred(struct task_struct *daemon)
 	get_group_info(new->group_info);
 
 #ifdef CONFIG_KEYS
-	atomic_inc(&init_tgcred.usage);
-	new->tgcred = &init_tgcred;
+	atomic_set(&tgcred->usage, 1);
+	spin_lock_init(&tgcred->lock);
+	tgcred->process_keyring = NULL;
+	tgcred->session_keyring = NULL;
+	new->tgcred = tgcred;
 	new->request_key_auth = NULL;
 	new->thread_keyring = NULL;
 	new->jit_keyring = KEY_REQKEY_DEFL_THREAD_KEYRING;

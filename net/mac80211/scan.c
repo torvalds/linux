@@ -14,9 +14,10 @@
 
 #include <linux/if_arp.h>
 #include <linux/rtnetlink.h>
-#include <linux/pm_qos_params.h>
+#include <linux/pm_qos.h>
 #include <net/sch_generic.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <net/mac80211.h>
 
 #include "ieee80211_i.h"
@@ -254,6 +255,7 @@ static bool ieee80211_prep_hw_scan(struct ieee80211_local *local)
 					 req->ie, req->ie_len, band,
 					 req->rates[band], 0);
 	local->hw_scan_req->ie_len = ielen;
+	local->hw_scan_req->no_cck = req->no_cck;
 
 	return true;
 }
@@ -660,7 +662,8 @@ static void ieee80211_scan_state_send_probe(struct ieee80211_local *local,
 			local->scan_req->ssids[i].ssid,
 			local->scan_req->ssids[i].ssid_len,
 			local->scan_req->ie, local->scan_req->ie_len,
-			local->scan_req->rates[band], false);
+			local->scan_req->rates[band], false,
+			local->scan_req->no_cck);
 
 	/*
 	 * After sending probe requests, wait for probe responses

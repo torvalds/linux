@@ -106,7 +106,7 @@ static void __init process_switch(char c)
 		prom_halt();
 		break;
 	case 'p':
-		/* Just ignore, this behavior is now the default.  */
+		prom_early_console.flags &= ~CON_BOOT;
 		break;
 	case 'P':
 		/* Force UltraSPARC-III P-Cache on. */
@@ -234,40 +234,50 @@ void __init per_cpu_patch(void)
 	}
 }
 
+void sun4v_patch_1insn_range(struct sun4v_1insn_patch_entry *start,
+			     struct sun4v_1insn_patch_entry *end)
+{
+	while (start < end) {
+		unsigned long addr = start->addr;
+
+		*(unsigned int *) (addr +  0) = start->insn;
+		wmb();
+		__asm__ __volatile__("flush	%0" : : "r" (addr +  0));
+
+		start++;
+	}
+}
+
+void sun4v_patch_2insn_range(struct sun4v_2insn_patch_entry *start,
+			     struct sun4v_2insn_patch_entry *end)
+{
+	while (start < end) {
+		unsigned long addr = start->addr;
+
+		*(unsigned int *) (addr +  0) = start->insns[0];
+		wmb();
+		__asm__ __volatile__("flush	%0" : : "r" (addr +  0));
+
+		*(unsigned int *) (addr +  4) = start->insns[1];
+		wmb();
+		__asm__ __volatile__("flush	%0" : : "r" (addr +  4));
+
+		start++;
+	}
+}
+
 void __init sun4v_patch(void)
 {
 	extern void sun4v_hvapi_init(void);
-	struct sun4v_1insn_patch_entry *p1;
-	struct sun4v_2insn_patch_entry *p2;
 
 	if (tlb_type != hypervisor)
 		return;
 
-	p1 = &__sun4v_1insn_patch;
-	while (p1 < &__sun4v_1insn_patch_end) {
-		unsigned long addr = p1->addr;
+	sun4v_patch_1insn_range(&__sun4v_1insn_patch,
+				&__sun4v_1insn_patch_end);
 
-		*(unsigned int *) (addr +  0) = p1->insn;
-		wmb();
-		__asm__ __volatile__("flush	%0" : : "r" (addr +  0));
-
-		p1++;
-	}
-
-	p2 = &__sun4v_2insn_patch;
-	while (p2 < &__sun4v_2insn_patch_end) {
-		unsigned long addr = p2->addr;
-
-		*(unsigned int *) (addr +  0) = p2->insns[0];
-		wmb();
-		__asm__ __volatile__("flush	%0" : : "r" (addr +  0));
-
-		*(unsigned int *) (addr +  4) = p2->insns[1];
-		wmb();
-		__asm__ __volatile__("flush	%0" : : "r" (addr +  4));
-
-		p2++;
-	}
+	sun4v_patch_2insn_range(&__sun4v_2insn_patch,
+				&__sun4v_2insn_patch_end);
 
 	sun4v_hvapi_init();
 }
@@ -425,10 +435,14 @@ static void __init init_sparc64_elf_hwcap(void)
 	else if (tlb_type == hypervisor) {
 		if (sun4v_chip_type == SUN4V_CHIP_NIAGARA1 ||
 		    sun4v_chip_type == SUN4V_CHIP_NIAGARA2 ||
-		    sun4v_chip_type == SUN4V_CHIP_NIAGARA3)
+		    sun4v_chip_type == SUN4V_CHIP_NIAGARA3 ||
+		    sun4v_chip_type == SUN4V_CHIP_NIAGARA4 ||
+		    sun4v_chip_type == SUN4V_CHIP_NIAGARA5)
 			cap |= HWCAP_SPARC_BLKINIT;
 		if (sun4v_chip_type == SUN4V_CHIP_NIAGARA2 ||
-		    sun4v_chip_type == SUN4V_CHIP_NIAGARA3)
+		    sun4v_chip_type == SUN4V_CHIP_NIAGARA3 ||
+		    sun4v_chip_type == SUN4V_CHIP_NIAGARA4 ||
+		    sun4v_chip_type == SUN4V_CHIP_NIAGARA5)
 			cap |= HWCAP_SPARC_N2;
 	}
 
@@ -440,17 +454,27 @@ static void __init init_sparc64_elf_hwcap(void)
 			cap |= AV_SPARC_VIS;
 		if (tlb_type == cheetah || tlb_type == cheetah_plus)
 			cap |= AV_SPARC_VIS | AV_SPARC_VIS2;
-		if (tlb_type == cheetah_plus)
-			cap |= AV_SPARC_POPC;
+		if (tlb_type == cheetah_plus) {
+			unsigned long impl, ver;
+
+			__asm__ __volatile__("rdpr %%ver, %0" : "=r" (ver));
+			impl = ((ver >> 32) & 0xffff);
+			if (impl == PANTHER_IMPL)
+				cap |= AV_SPARC_POPC;
+		}
 		if (tlb_type == hypervisor) {
 			if (sun4v_chip_type == SUN4V_CHIP_NIAGARA1)
 				cap |= AV_SPARC_ASI_BLK_INIT;
 			if (sun4v_chip_type == SUN4V_CHIP_NIAGARA2 ||
-			    sun4v_chip_type == SUN4V_CHIP_NIAGARA3)
+			    sun4v_chip_type == SUN4V_CHIP_NIAGARA3 ||
+			    sun4v_chip_type == SUN4V_CHIP_NIAGARA4 ||
+			    sun4v_chip_type == SUN4V_CHIP_NIAGARA5)
 				cap |= (AV_SPARC_VIS | AV_SPARC_VIS2 |
 					AV_SPARC_ASI_BLK_INIT |
 					AV_SPARC_POPC);
-			if (sun4v_chip_type == SUN4V_CHIP_NIAGARA3)
+			if (sun4v_chip_type == SUN4V_CHIP_NIAGARA3 ||
+			    sun4v_chip_type == SUN4V_CHIP_NIAGARA4 ||
+			    sun4v_chip_type == SUN4V_CHIP_NIAGARA5)
 				cap |= (AV_SPARC_VIS3 | AV_SPARC_HPC |
 					AV_SPARC_FMAF);
 		}

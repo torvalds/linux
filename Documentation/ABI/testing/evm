@@ -1,0 +1,23 @@
+What:		security/evm
+Date:		March 2011
+Contact:	Mimi Zohar <zohar@us.ibm.com>
+Description:
+		EVM protects a file's security extended attributes(xattrs)
+		against integrity attacks. The initial method maintains an
+		HMAC-sha1 value across the extended attributes, storing the
+		value as the extended attribute 'security.evm'.
+
+		EVM depends on the Kernel Key Retention System to provide it
+		with a trusted/encrypted key for the HMAC-sha1 operation.
+		The key is loaded onto the root's keyring using keyctl.  Until
+		EVM receives notification that the key has been successfully
+		loaded onto the keyring (echo 1 > <securityfs>/evm), EVM
+		can not create or validate the 'security.evm' xattr, but
+		returns INTEGRITY_UNKNOWN.  Loading the key and signaling EVM
+		should be done as early as possible.  Normally this is done
+		in the initramfs, which has already been measured as part
+		of the trusted boot.  For more information on creating and
+		loading existing trusted/encrypted keys, refer to:
+		Documentation/keys-trusted-encrypted.txt.  (A sample dracut
+		patch, which loads the trusted/encrypted key and enables
+		EVM, is available from http://linux-ima.sourceforge.net/#EVM.)

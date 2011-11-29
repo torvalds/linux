@@ -330,14 +330,12 @@ l1oip_4bit_alloc(int ulaw)
 		return 0;
 
 	/* alloc conversion tables */
-	table_com = vmalloc(65536);
-	table_dec = vmalloc(512);
+	table_com = vzalloc(65536);
+	table_dec = vzalloc(512);
 	if (!table_com || !table_dec) {
 		l1oip_4bit_free();
 		return -ENOMEM;
 	}
-	memset(table_com, 0, 65536);
-	memset(table_dec, 0, 512);
 	/* generate compression table */
 	i1 = 0;
 	while (i1 < 256) {

@@ -33,6 +33,7 @@
 #include <linux/gpio.h>
 
 #include <linux/spi/ad7879.h>
+#include <linux/module.h>
 #include "ad7879.h"
 
 #define AD7879_REG_ZEROS		0

@@ -1,0 +1,13 @@
+What:		/sys/class/scsi_host/hostX/isci_id
+Date:		June 2011
+Contact:	Dave Jiang <dave.jiang@intel.com>
+Description:
+		This file contains the enumerated host ID for the Intel
+		SCU controller. The Intel(R) C600 Series Chipset SATA/SAS
+		Storage Control Unit embeds up to two 4-port controllers in
+		a single PCI device.  The controllers are enumerated in order
+		which usually means the lowest number scsi_host corresponds
+		with the first controller, but this association is not
+		guaranteed.  The 'isci_id' attribute unambiguously identifies
+		the controller index: '0' for the first controller,
+		'1' for the second.

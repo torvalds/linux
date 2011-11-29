@@ -6211,6 +6211,14 @@ static int drxk_set_parameters(struct dvb_frontend *fe,
 	u32 IF;
 
 	dprintk(1, "\n");
+
+	if (!fe->ops.tuner_ops.get_if_frequency) {
+		printk(KERN_ERR
+		       "drxk: Error: get_if_frequency() not defined at tuner. Can't work without it!\n");
+		return -EINVAL;
+	}
+
+
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (fe->ops.tuner_ops.set_params)
@@ -6218,7 +6226,7 @@ static int drxk_set_parameters(struct dvb_frontend *fe,
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
 	state->param = *p;
-	fe->ops.tuner_ops.get_frequency(fe, &IF);
+	fe->ops.tuner_ops.get_if_frequency(fe, &IF);
 	Start(state, 0, IF);
 
 	/* printk(KERN_DEBUG "drxk: %s IF=%d done\n", __func__, IF); */

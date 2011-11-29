@@ -96,6 +96,11 @@ static void iio_prtc_trigger_poll(void *private_data)
 	iio_trigger_poll(private_data, 0);
 }
 
+static const struct iio_trigger_ops iio_prtc_trigger_ops = {
+	.owner = THIS_MODULE,
+	.set_trigger_state = &iio_trig_periodic_rtc_set_state,
+};
+
 static int iio_trig_periodic_rtc_probe(struct platform_device *dev)
 {
 	char **pdata = dev->dev.platform_data;
@@ -121,7 +126,7 @@ static int iio_trig_periodic_rtc_probe(struct platform_device *dev)
 		}
 		trig->private_data = trig_info;
 		trig->owner = THIS_MODULE;
-		trig->set_trigger_state = &iio_trig_periodic_rtc_set_state;
+		trig->ops = &iio_prtc_trigger_ops;
 		/* RTC access */
 		trig_info->rtc
 			= rtc_class_open(pdata[i]);

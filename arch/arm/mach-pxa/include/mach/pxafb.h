@@ -158,5 +158,18 @@ struct pxafb_mach_info {
 void pxa_set_fb_info(struct device *, struct pxafb_mach_info *);
 unsigned long pxafb_get_hsync_time(struct device *dev);
 
+#ifdef CONFIG_FB_PXA_SMARTPANEL
 extern int pxafb_smart_queue(struct fb_info *info, uint16_t *cmds, int);
 extern int pxafb_smart_flush(struct fb_info *info);
+#else
+static inline int pxafb_smart_queue(struct fb_info *info,
+				    uint16_t *cmds, int n)
+{
+	return 0;
+}
+
+static inline int pxafb_smart_flush(struct fb_info *info)
+{
+	return 0;
+}
+#endif

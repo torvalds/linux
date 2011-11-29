@@ -145,11 +145,6 @@ struct f_owner_ex {
 #define F_SHLCK		8	/* or 4 */
 #endif
 
-/* for leases */
-#ifndef F_INPROGRESS
-#define F_INPROGRESS	16
-#endif
-
 /* operations for bsd flock(), also used by the kernel implementation */
 #define LOCK_SH		1	/* shared lock */
 #define LOCK_EX		2	/* exclusive lock */

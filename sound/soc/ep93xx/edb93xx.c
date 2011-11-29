@@ -21,18 +21,13 @@
 
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
 #include "ep93xx-pcm.h"
-
-#define edb93xx_has_audio() (machine_is_edb9301() ||	\
-			     machine_is_edb9302() ||	\
-			     machine_is_edb9302a() ||	\
-			     machine_is_edb9307a() ||	\
-			     machine_is_edb9315a())
 
 static int edb93xx_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params)
@@ -94,14 +89,10 @@ static struct snd_soc_card snd_soc_edb93xx = {
 	.num_links	= 1,
 };
 
-static struct platform_device *edb93xx_snd_device;
-
-static int __init edb93xx_init(void)
+static int __devinit edb93xx_probe(struct platform_device *pdev)
 {
+	struct snd_soc_card *card = &snd_soc_edb93xx;
 	int ret;
-
-	if (!edb93xx_has_audio())
-		return -ENODEV;
 
 	ret = ep93xx_i2s_acquire(EP93XX_SYSCON_DEVCFG_I2SONAC97,
 				 EP93XX_SYSCON_I2SCLKDIV_ORIDE |
@@ -109,34 +100,50 @@ static int __init edb93xx_init(void)
 	if (ret)
 		return ret;
 
-	edb93xx_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!edb93xx_snd_device) {
-		ret = -ENOMEM;
-		goto free_i2s;
+	card->dev = &pdev->dev;
+
+	ret = snd_soc_register_card(card);
+	if (ret) {
+		dev_err(&pdev->dev, "snd_soc_register_card() failed: %d\n",
+			ret);
+		ep93xx_i2s_release();
 	}
 
-	platform_set_drvdata(edb93xx_snd_device, &snd_soc_edb93xx);
-	ret = platform_device_add(edb93xx_snd_device);
-	if (ret)
-		goto device_put;
+	return ret;
+}
+
+static int __devexit edb93xx_remove(struct platform_device *pdev)
+{
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+
+	snd_soc_unregister_card(card);
+	ep93xx_i2s_release();
 
 	return 0;
+}
 
-device_put:
-	platform_device_put(edb93xx_snd_device);
-free_i2s:
-	ep93xx_i2s_release();
-	return ret;
+static struct platform_driver edb93xx_driver = {
+	.driver		= {
+		.name	= "edb93xx-audio",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= edb93xx_probe,
+	.remove		= __devexit_p(edb93xx_remove),
+};
+
+static int __init edb93xx_init(void)
+{
+	return platform_driver_register(&edb93xx_driver);
 }
 module_init(edb93xx_init);
 
 static void __exit edb93xx_exit(void)
 {
-	platform_device_unregister(edb93xx_snd_device);
-	ep93xx_i2s_release();
+	platform_driver_unregister(&edb93xx_driver);
 }
 module_exit(edb93xx_exit);
 
 MODULE_AUTHOR("Alexander Sverdlin <subaparts@yandex.ru>");
 MODULE_DESCRIPTION("ALSA SoC EDB93xx");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:edb93xx-audio");

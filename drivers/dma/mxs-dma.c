@@ -130,6 +130,23 @@ struct mxs_dma_engine {
 	struct mxs_dma_chan		mxs_chans[MXS_DMA_CHANNELS];
 };
 
+static inline void mxs_dma_clkgate(struct mxs_dma_chan *mxs_chan, int enable)
+{
+	struct mxs_dma_engine *mxs_dma = mxs_chan->mxs_dma;
+	int chan_id = mxs_chan->chan.chan_id;
+	int set_clr = enable ? MXS_CLR_ADDR : MXS_SET_ADDR;
+
+	/* enable apbh channel clock */
+	if (dma_is_apbh()) {
+		if (apbh_is_old())
+			writel(1 << (chan_id + BP_APBH_CTRL0_CLKGATE_CHANNEL),
+				mxs_dma->base + HW_APBHX_CTRL0 + set_clr);
+		else
+			writel(1 << chan_id,
+				mxs_dma->base + HW_APBHX_CTRL0 + set_clr);
+	}
+}
+
 static void mxs_dma_reset_chan(struct mxs_dma_chan *mxs_chan)
 {
 	struct mxs_dma_engine *mxs_dma = mxs_chan->mxs_dma;
@@ -148,19 +165,12 @@ static void mxs_dma_enable_chan(struct mxs_dma_chan *mxs_chan)
 	struct mxs_dma_engine *mxs_dma = mxs_chan->mxs_dma;
 	int chan_id = mxs_chan->chan.chan_id;
 
+	/* clkgate needs to be enabled before writing other registers */
+	mxs_dma_clkgate(mxs_chan, 1);
+
 	/* set cmd_addr up */
 	writel(mxs_chan->ccw_phys,
 		mxs_dma->base + HW_APBHX_CHn_NXTCMDAR(chan_id));
-
-	/* enable apbh channel clock */
-	if (dma_is_apbh()) {
-		if (apbh_is_old())
-			writel(1 << (chan_id + BP_APBH_CTRL0_CLKGATE_CHANNEL),
-				mxs_dma->base + HW_APBHX_CTRL0 + MXS_CLR_ADDR);
-		else
-			writel(1 << chan_id,
-				mxs_dma->base + HW_APBHX_CTRL0 + MXS_CLR_ADDR);
-	}
 
 	/* write 1 to SEMA to kick off the channel */
 	writel(1, mxs_dma->base + HW_APBHX_CHn_SEMA(chan_id));
@@ -168,18 +178,8 @@ static void mxs_dma_enable_chan(struct mxs_dma_chan *mxs_chan)
 
 static void mxs_dma_disable_chan(struct mxs_dma_chan *mxs_chan)
 {
-	struct mxs_dma_engine *mxs_dma = mxs_chan->mxs_dma;
-	int chan_id = mxs_chan->chan.chan_id;
-
 	/* disable apbh channel clock */
-	if (dma_is_apbh()) {
-		if (apbh_is_old())
-			writel(1 << (chan_id + BP_APBH_CTRL0_CLKGATE_CHANNEL),
-				mxs_dma->base + HW_APBHX_CTRL0 + MXS_SET_ADDR);
-		else
-			writel(1 << chan_id,
-				mxs_dma->base + HW_APBHX_CTRL0 + MXS_SET_ADDR);
-	}
+	mxs_dma_clkgate(mxs_chan, 0);
 
 	mxs_chan->status = DMA_SUCCESS;
 }
@@ -338,7 +338,10 @@ static int mxs_dma_alloc_chan_resources(struct dma_chan *chan)
 	if (ret)
 		goto err_clk;
 
+	/* clkgate needs to be enabled for reset to finish */
+	mxs_dma_clkgate(mxs_chan, 1);
 	mxs_dma_reset_chan(mxs_chan);
+	mxs_dma_clkgate(mxs_chan, 0);
 
 	dma_async_tx_descriptor_init(&mxs_chan->desc, chan);
 	mxs_chan->desc.tx_submit = mxs_dma_tx_submit;

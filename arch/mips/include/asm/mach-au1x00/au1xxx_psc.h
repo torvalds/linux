@@ -33,19 +33,6 @@
 #ifndef _AU1000_PSC_H_
 #define _AU1000_PSC_H_
 
-/* The PSC base addresses.  */
-#ifdef CONFIG_SOC_AU1550
-#define PSC0_BASE_ADDR		0xb1a00000
-#define PSC1_BASE_ADDR		0xb1b00000
-#define PSC2_BASE_ADDR		0xb0a00000
-#define PSC3_BASE_ADDR		0xb0b00000
-#endif
-
-#ifdef CONFIG_SOC_AU1200
-#define PSC0_BASE_ADDR		0xb1a00000
-#define PSC1_BASE_ADDR		0xb1b00000
-#endif
-
 /*
  * The PSC select and control registers are common to all protocols.
  */
@@ -79,19 +66,6 @@
 #define PSC_AC97RST_OFFSET	0x00000024
 #define PSC_AC97GPO_OFFSET	0x00000028
 #define PSC_AC97GPI_OFFSET	0x0000002c
-
-#define AC97_PSC_SEL		(AC97_PSC_BASE + PSC_SEL_OFFSET)
-#define AC97_PSC_CTRL		(AC97_PSC_BASE + PSC_CTRL_OFFSET)
-#define PSC_AC97CFG		(AC97_PSC_BASE + PSC_AC97CFG_OFFSET)
-#define PSC_AC97MSK		(AC97_PSC_BASE + PSC_AC97MSK_OFFSET)
-#define PSC_AC97PCR		(AC97_PSC_BASE + PSC_AC97PCR_OFFSET)
-#define PSC_AC97STAT		(AC97_PSC_BASE + PSC_AC97STAT_OFFSET)
-#define PSC_AC97EVNT		(AC97_PSC_BASE + PSC_AC97EVNT_OFFSET)
-#define PSC_AC97TXRX		(AC97_PSC_BASE + PSC_AC97TXRX_OFFSET)
-#define PSC_AC97CDC		(AC97_PSC_BASE + PSC_AC97CDC_OFFSET)
-#define PSC_AC97RST		(AC97_PSC_BASE + PSC_AC97RST_OFFSET)
-#define PSC_AC97GPO		(AC97_PSC_BASE + PSC_AC97GPO_OFFSET)
-#define PSC_AC97GPI		(AC97_PSC_BASE + PSC_AC97GPI_OFFSET)
 
 /* AC97 Config Register. */
 #define PSC_AC97CFG_RT_MASK	(3 << 30)
@@ -393,19 +367,6 @@ typedef struct	psc_spi {
 /* Transmit register control. */
 #define PSC_SPITXRX_LC		(1 << 29)
 #define PSC_SPITXRX_SR		(1 << 28)
-
-/* PSC in SMBus (I2C) Mode. */
-typedef struct	psc_smb {
-	u32	psc_sel;
-	u32	psc_ctrl;
-	u32	psc_smbcfg;
-	u32	psc_smbmsk;
-	u32	psc_smbpcr;
-	u32	psc_smbstat;
-	u32	psc_smbevnt;
-	u32	psc_smbtxrx;
-	u32	psc_smbtmr;
-} psc_smb_t;
 
 /* SMBus Config Register. */
 #define PSC_SMBCFG_RT_MASK	(3 << 30)

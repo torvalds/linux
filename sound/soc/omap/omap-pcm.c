@@ -24,6 +24,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -198,6 +199,14 @@ static int omap_pcm_prepare(struct snd_pcm_substream *substream)
 			      OMAP_DMA_LAST_IRQ | OMAP_DMA_BLOCK_IRQ);
 	else if (!substream->runtime->no_period_wakeup)
 		omap_enable_dma_irq(prtd->dma_ch, OMAP_DMA_FRAME_IRQ);
+	else {
+		/*
+		 * No period wakeup:
+		 * we need to disable BLOCK_IRQ, which is enabled by the omap
+		 * dma core at request dma time.
+		 */
+		omap_disable_dma_irq(prtd->dma_ch, OMAP_DMA_BLOCK_IRQ);
+	}
 
 	if (!(cpu_class_is_omap1())) {
 		omap_set_dma_src_burst_mode(prtd->dma_ch,

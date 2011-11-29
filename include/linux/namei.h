@@ -48,11 +48,12 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT, LAST_BIND};
  */
 #define LOOKUP_FOLLOW		0x0001
 #define LOOKUP_DIRECTORY	0x0002
+#define LOOKUP_AUTOMOUNT	0x0004
 
 #define LOOKUP_PARENT		0x0010
 #define LOOKUP_REVAL		0x0020
 #define LOOKUP_RCU		0x0040
-#define LOOKUP_NO_AUTOMOUNT	0x0080
+
 /*
  * Intent data
  */
@@ -66,6 +67,7 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT, LAST_BIND};
 #define LOOKUP_EMPTY		0x4000
 
 extern int user_path_at(int, const char __user *, unsigned, struct path *);
+extern int user_path_at_empty(int, const char __user *, unsigned, struct path *, int *empty);
 
 #define user_path(name, path) user_path_at(AT_FDCWD, name, LOOKUP_FOLLOW, path)
 #define user_lpath(name, path) user_path_at(AT_FDCWD, name, 0, path)

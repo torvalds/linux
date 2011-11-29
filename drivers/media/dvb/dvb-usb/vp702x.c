@@ -320,7 +320,7 @@ static int vp702x_frontend_attach(struct dvb_usb_adapter *adap)
 
 	vp702x_init_pid_filter(adap);
 
-	adap->fe = vp702x_fe_attach(adap->dev);
+	adap->fe_adap[0].fe = vp702x_fe_attach(adap->dev);
 	vp702x_usb_out_op(adap->dev, SET_TUNER_POWER_REQ, 1, 7, NULL, 0);
 
 	return 0;
@@ -383,6 +383,8 @@ static struct dvb_usb_device_properties vp702x_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+		.num_frontends = 1,
+		.fe = {{
 			.caps             = DVB_USB_ADAP_RECEIVES_204_BYTE_TS,
 
 			.streaming_ctrl   = vp702x_streaming_ctrl,
@@ -399,6 +401,7 @@ static struct dvb_usb_device_properties vp702x_properties = {
 					}
 				}
 			},
+		}},
 			.size_of_priv     = sizeof(struct vp702x_adapter_state),
 		}
 	},

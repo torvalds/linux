@@ -436,7 +436,7 @@ static unsigned long load_bzimage(int fd)
 
 	/*
 	 * Go back to the start of the file and read the header.  It should be
-	 * a Linux boot header (see Documentation/x86/i386/boot.txt)
+	 * a Linux boot header (see Documentation/x86/boot.txt)
 	 */
 	lseek(fd, 0, SEEK_SET);
 	read(fd, &boot, sizeof(boot));

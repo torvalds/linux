@@ -5,24 +5,16 @@
  *
  * Licensed under the GPL-2.
  */
+#include <linux/export.h>
 #include <linux/interrupt.h>
-#include <linux/irq.h>
-#include <linux/gpio.h>
-#include <linux/workqueue.h>
-#include <linux/mutex.h>
-#include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
-#include <linux/sysfs.h>
-#include <linux/list.h>
 #include <asm/unaligned.h>
 
 #include "../iio.h"
-#include "../sysfs.h"
 #include "../ring_sw.h"
-#include "../accel/accel.h"
-#include "../trigger.h"
+#include "../trigger_consumer.h"
 #include "ade7758.h"
 
 /**
@@ -69,8 +61,8 @@ out:
 static irqreturn_t ade7758_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
-	struct iio_dev *indio_dev = pf->private_data;
-	struct iio_ring_buffer *ring = indio_dev->ring;
+	struct iio_dev *indio_dev = pf->indio_dev;
+	struct iio_buffer *ring = indio_dev->buffer;
 	struct ade7758_state *st = iio_priv(indio_dev);
 	s64 dat64[2];
 	u32 *dat32 = (u32 *)dat64;
@@ -100,14 +92,14 @@ static irqreturn_t ade7758_trigger_handler(int irq, void *p)
 static int ade7758_ring_preenable(struct iio_dev *indio_dev)
 {
 	struct ade7758_state *st = iio_priv(indio_dev);
-	struct iio_ring_buffer *ring = indio_dev->ring;
+	struct iio_buffer *ring = indio_dev->buffer;
 	size_t d_size;
 	unsigned channel;
 
 	if (!ring->scan_count)
 		return -EINVAL;
 
-	channel = __ffs(ring->scan_mask);
+	channel = find_first_bit(ring->scan_mask, indio_dev->masklength);
 
 	d_size = st->ade7758_ring_channels[channel].scan_type.storagebits / 8;
 
@@ -118,9 +110,9 @@ static int ade7758_ring_preenable(struct iio_dev *indio_dev)
 			d_size += sizeof(s64) - (d_size % sizeof(s64));
 	}
 
-	if (indio_dev->ring->access->set_bytes_per_datum)
-		indio_dev->ring->access->set_bytes_per_datum(indio_dev->ring,
-							    d_size);
+	if (indio_dev->buffer->access->set_bytes_per_datum)
+		indio_dev->buffer->access->
+			set_bytes_per_datum(indio_dev->buffer, d_size);
 
 	ade7758_write_waveform_type(&indio_dev->dev,
 		st->ade7758_ring_channels[channel].address);
@@ -128,22 +120,16 @@ static int ade7758_ring_preenable(struct iio_dev *indio_dev)
 	return 0;
 }
 
-static const struct iio_ring_setup_ops ade7758_ring_setup_ops = {
+static const struct iio_buffer_setup_ops ade7758_ring_setup_ops = {
 	.preenable = &ade7758_ring_preenable,
-	.postenable = &iio_triggered_ring_postenable,
-	.predisable = &iio_triggered_ring_predisable,
+	.postenable = &iio_triggered_buffer_postenable,
+	.predisable = &iio_triggered_buffer_predisable,
 };
 
 void ade7758_unconfigure_ring(struct iio_dev *indio_dev)
 {
-	/* ensure that the trigger has been detached */
-	if (indio_dev->trig) {
-		iio_put_trigger(indio_dev->trig);
-		iio_trigger_dettach_poll_func(indio_dev->trig,
-					      indio_dev->pollfunc);
-	}
 	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_sw_rb_free(indio_dev->ring);
+	iio_sw_rb_free(indio_dev->buffer);
 }
 
 int ade7758_configure_ring(struct iio_dev *indio_dev)
@@ -151,16 +137,16 @@ int ade7758_configure_ring(struct iio_dev *indio_dev)
 	struct ade7758_state *st = iio_priv(indio_dev);
 	int ret = 0;
 
-	indio_dev->ring = iio_sw_rb_allocate(indio_dev);
-	if (!indio_dev->ring) {
+	indio_dev->buffer = iio_sw_rb_allocate(indio_dev);
+	if (!indio_dev->buffer) {
 		ret = -ENOMEM;
 		return ret;
 	}
 
 	/* Effectively select the ring buffer implementation */
-	indio_dev->ring->access = &ring_sw_access_funcs;
-	indio_dev->ring->setup_ops = &ade7758_ring_setup_ops;
-	indio_dev->ring->owner = THIS_MODULE;
+	indio_dev->buffer->access = &ring_sw_access_funcs;
+	indio_dev->buffer->setup_ops = &ade7758_ring_setup_ops;
+	indio_dev->buffer->owner = THIS_MODULE;
 
 	indio_dev->pollfunc = iio_alloc_pollfunc(&iio_pollfunc_store_time,
 						 &ade7758_trigger_handler,
@@ -173,7 +159,7 @@ int ade7758_configure_ring(struct iio_dev *indio_dev)
 		goto error_iio_sw_rb_free;
 	}
 
-	indio_dev->modes |= INDIO_RING_TRIGGERED;
+	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
 
 	st->tx_buf[0] = ADE7758_READ_REG(ADE7758_RSTATUS);
 	st->tx_buf[1] = 0;
@@ -211,11 +197,11 @@ int ade7758_configure_ring(struct iio_dev *indio_dev)
 	return 0;
 
 error_iio_sw_rb_free:
-	iio_sw_rb_free(indio_dev->ring);
+	iio_sw_rb_free(indio_dev->buffer);
 	return ret;
 }
 
-void ade7758_uninitialize_ring(struct iio_ring_buffer *ring)
+void ade7758_uninitialize_ring(struct iio_dev *indio_dev)
 {
-	iio_ring_buffer_unregister(ring);
+	iio_buffer_unregister(indio_dev);
 }

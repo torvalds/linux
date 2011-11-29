@@ -26,6 +26,7 @@
 #include <linux/list.h>
 #include <linux/sort.h>
 #include <linux/string.h>
+#include <linux/module.h>
 
 #include <media/v4l2-int-device.h>
 

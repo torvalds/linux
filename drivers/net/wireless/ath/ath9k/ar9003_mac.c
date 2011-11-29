@@ -13,12 +13,139 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+#include <linux/export.h>
 #include "hw.h"
 #include "ar9003_mac.h"
 
 static void ar9003_hw_rx_enable(struct ath_hw *hw)
 {
 	REG_WRITE(hw, AR_CR, 0);
+}
+
+static void
+ar9003_set_txdesc(struct ath_hw *ah, void *ds, struct ath_tx_info *i)
+{
+	struct ar9003_txc *ads = ds;
+	int checksum = 0;
+	u32 val, ctl12, ctl17;
+
+	val = (ATHEROS_VENDOR_ID << AR_DescId_S) |
+	      (1 << AR_TxRxDesc_S) |
+	      (1 << AR_CtrlStat_S) |
+	      (i->qcu << AR_TxQcuNum_S) | 0x17;
+
+	checksum += val;
+	ACCESS_ONCE(ads->info) = val;
+
+	checksum += i->link;
+	ACCESS_ONCE(ads->link) = i->link;
+
+	checksum += i->buf_addr[0];
+	ACCESS_ONCE(ads->data0) = i->buf_addr[0];
+	checksum += i->buf_addr[1];
+	ACCESS_ONCE(ads->data1) = i->buf_addr[1];
+	checksum += i->buf_addr[2];
+	ACCESS_ONCE(ads->data2) = i->buf_addr[2];
+	checksum += i->buf_addr[3];
+	ACCESS_ONCE(ads->data3) = i->buf_addr[3];
+
+	checksum += (val = (i->buf_len[0] << AR_BufLen_S) & AR_BufLen);
+	ACCESS_ONCE(ads->ctl3) = val;
+	checksum += (val = (i->buf_len[1] << AR_BufLen_S) & AR_BufLen);
+	ACCESS_ONCE(ads->ctl5) = val;
+	checksum += (val = (i->buf_len[2] << AR_BufLen_S) & AR_BufLen);
+	ACCESS_ONCE(ads->ctl7) = val;
+	checksum += (val = (i->buf_len[3] << AR_BufLen_S) & AR_BufLen);
+	ACCESS_ONCE(ads->ctl9) = val;
+
+	checksum = (u16) (((checksum & 0xffff) + (checksum >> 16)) & 0xffff);
+	ACCESS_ONCE(ads->ctl10) = checksum;
+
+	if (i->is_first || i->is_last) {
+		ACCESS_ONCE(ads->ctl13) = set11nTries(i->rates, 0)
+			| set11nTries(i->rates, 1)
+			| set11nTries(i->rates, 2)
+			| set11nTries(i->rates, 3)
+			| (i->dur_update ? AR_DurUpdateEna : 0)
+			| SM(0, AR_BurstDur);
+
+		ACCESS_ONCE(ads->ctl14) = set11nRate(i->rates, 0)
+			| set11nRate(i->rates, 1)
+			| set11nRate(i->rates, 2)
+			| set11nRate(i->rates, 3);
+	} else {
+		ACCESS_ONCE(ads->ctl13) = 0;
+		ACCESS_ONCE(ads->ctl14) = 0;
+	}
+
+	ads->ctl20 = 0;
+	ads->ctl21 = 0;
+	ads->ctl22 = 0;
+
+	ctl17 = SM(i->keytype, AR_EncrType);
+	if (!i->is_first) {
+		ACCESS_ONCE(ads->ctl11) = 0;
+		ACCESS_ONCE(ads->ctl12) = i->is_last ? 0 : AR_TxMore;
+		ACCESS_ONCE(ads->ctl15) = 0;
+		ACCESS_ONCE(ads->ctl16) = 0;
+		ACCESS_ONCE(ads->ctl17) = ctl17;
+		ACCESS_ONCE(ads->ctl18) = 0;
+		ACCESS_ONCE(ads->ctl19) = 0;
+		return;
+	}
+
+	ACCESS_ONCE(ads->ctl11) = (i->pkt_len & AR_FrameLen)
+		| (i->flags & ATH9K_TXDESC_VMF ? AR_VirtMoreFrag : 0)
+		| SM(i->txpower, AR_XmitPower)
+		| (i->flags & ATH9K_TXDESC_VEOL ? AR_VEOL : 0)
+		| (i->keyix != ATH9K_TXKEYIX_INVALID ? AR_DestIdxValid : 0)
+		| (i->flags & ATH9K_TXDESC_LOWRXCHAIN ? AR_LowRxChain : 0)
+		| (i->flags & ATH9K_TXDESC_CLRDMASK ? AR_ClrDestMask : 0)
+		| (i->flags & ATH9K_TXDESC_RTSENA ? AR_RTSEnable :
+		   (i->flags & ATH9K_TXDESC_CTSENA ? AR_CTSEnable : 0));
+
+	ctl12 = (i->keyix != ATH9K_TXKEYIX_INVALID ?
+		 SM(i->keyix, AR_DestIdx) : 0)
+		| SM(i->type, AR_FrameType)
+		| (i->flags & ATH9K_TXDESC_NOACK ? AR_NoAck : 0)
+		| (i->flags & ATH9K_TXDESC_EXT_ONLY ? AR_ExtOnly : 0)
+		| (i->flags & ATH9K_TXDESC_EXT_AND_CTL ? AR_ExtAndCtl : 0);
+
+	ctl17 |= (i->flags & ATH9K_TXDESC_LDPC ? AR_LDPC : 0);
+	switch (i->aggr) {
+	case AGGR_BUF_FIRST:
+		ctl17 |= SM(i->aggr_len, AR_AggrLen);
+		/* fall through */
+	case AGGR_BUF_MIDDLE:
+		ctl12 |= AR_IsAggr | AR_MoreAggr;
+		ctl17 |= SM(i->ndelim, AR_PadDelim);
+		break;
+	case AGGR_BUF_LAST:
+		ctl12 |= AR_IsAggr;
+		break;
+	case AGGR_BUF_NONE:
+		break;
+	}
+
+	val = (i->flags & ATH9K_TXDESC_PAPRD) >> ATH9K_TXDESC_PAPRD_S;
+	ctl12 |= SM(val, AR_PAPRDChainMask);
+
+	ACCESS_ONCE(ads->ctl12) = ctl12;
+	ACCESS_ONCE(ads->ctl17) = ctl17;
+
+	ACCESS_ONCE(ads->ctl15) = set11nPktDurRTSCTS(i->rates, 0)
+		| set11nPktDurRTSCTS(i->rates, 1);
+
+	ACCESS_ONCE(ads->ctl16) = set11nPktDurRTSCTS(i->rates, 2)
+		| set11nPktDurRTSCTS(i->rates, 3);
+
+	ACCESS_ONCE(ads->ctl18) = set11nRateFlags(i->rates, 0)
+		| set11nRateFlags(i->rates, 1)
+		| set11nRateFlags(i->rates, 2)
+		| set11nRateFlags(i->rates, 3)
+		| SM(i->rtscts_rate, AR_RTSCTSRate);
+
+	ACCESS_ONCE(ads->ctl19) = AR_Not_Sounding;
 }
 
 static u16 ar9003_calc_ptr_chksum(struct ar9003_txc *ads)
@@ -185,47 +312,6 @@ static bool ar9003_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
 	return true;
 }
 
-static void ar9003_hw_fill_txdesc(struct ath_hw *ah, void *ds, u32 seglen,
-				  bool is_firstseg, bool is_lastseg,
-				  const void *ds0, dma_addr_t buf_addr,
-				  unsigned int qcu)
-{
-	struct ar9003_txc *ads = (struct ar9003_txc *) ds;
-	unsigned int descid = 0;
-
-	ads->info = (ATHEROS_VENDOR_ID << AR_DescId_S) |
-				     (1 << AR_TxRxDesc_S) |
-				     (1 << AR_CtrlStat_S) |
-				     (qcu << AR_TxQcuNum_S) | 0x17;
-
-	ads->data0 = buf_addr;
-	ads->data1 = 0;
-	ads->data2 = 0;
-	ads->data3 = 0;
-
-	ads->ctl3 = (seglen << AR_BufLen_S);
-	ads->ctl3 &= AR_BufLen;
-
-	/* Fill in pointer checksum and descriptor id */
-	ads->ctl10 = ar9003_calc_ptr_chksum(ads);
-	ads->ctl10 |= (descid << AR_TxDescId_S);
-
-	if (is_firstseg) {
-		ads->ctl12 |= (is_lastseg ? 0 : AR_TxMore);
-	} else if (is_lastseg) {
-		ads->ctl11 = 0;
-		ads->ctl12 = 0;
-		ads->ctl13 = AR9003TXC_CONST(ds0)->ctl13;
-		ads->ctl14 = AR9003TXC_CONST(ds0)->ctl14;
-	} else {
-		/* XXX Intermediate descriptor in a multi-descriptor frame.*/
-		ads->ctl11 = 0;
-		ads->ctl12 = AR_TxMore;
-		ads->ctl13 = 0;
-		ads->ctl14 = 0;
-	}
-}
-
 static int ar9003_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 				 struct ath_tx_status *ts)
 {
@@ -253,8 +339,6 @@ static int ar9003_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 		return -EIO;
 	}
 
-	if (status & AR_TxOpExceeded)
-		ts->ts_status |= ATH9K_TXERR_XTXOP;
 	ts->ts_rateindex = MS(status, AR_FinalTxIdx);
 	ts->ts_seqnum = MS(status, AR_SeqNum);
 	ts->tid = MS(status, AR_TxTid);
@@ -264,6 +348,8 @@ static int ar9003_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 	ts->ts_status = 0;
 	ts->ts_flags  = 0;
 
+	if (status & AR_TxOpExceeded)
+		ts->ts_status |= ATH9K_TXERR_XTXOP;
 	status = ACCESS_ONCE(ads->status2);
 	ts->ts_rssi_ctl0 = MS(status, AR_TxRSSIAnt00);
 	ts->ts_rssi_ctl1 = MS(status, AR_TxRSSIAnt01);
@@ -310,185 +396,6 @@ static int ar9003_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 	return 0;
 }
 
-static void ar9003_hw_set11n_txdesc(struct ath_hw *ah, void *ds,
-		u32 pktlen, enum ath9k_pkt_type type, u32 txpower,
-		u32 keyIx, enum ath9k_key_type keyType, u32 flags)
-{
-	struct ar9003_txc *ads = (struct ar9003_txc *) ds;
-
-	if (txpower > ah->txpower_limit)
-		txpower = ah->txpower_limit;
-
-	if (txpower > 63)
-		txpower = 63;
-
-	ads->ctl11 = (pktlen & AR_FrameLen)
-		| (flags & ATH9K_TXDESC_VMF ? AR_VirtMoreFrag : 0)
-		| SM(txpower, AR_XmitPower)
-		| (flags & ATH9K_TXDESC_VEOL ? AR_VEOL : 0)
-		| (keyIx != ATH9K_TXKEYIX_INVALID ? AR_DestIdxValid : 0)
-		| (flags & ATH9K_TXDESC_LOWRXCHAIN ? AR_LowRxChain : 0);
-
-	ads->ctl12 =
-		(keyIx != ATH9K_TXKEYIX_INVALID ? SM(keyIx, AR_DestIdx) : 0)
-		| SM(type, AR_FrameType)
-		| (flags & ATH9K_TXDESC_NOACK ? AR_NoAck : 0)
-		| (flags & ATH9K_TXDESC_EXT_ONLY ? AR_ExtOnly : 0)
-		| (flags & ATH9K_TXDESC_EXT_AND_CTL ? AR_ExtAndCtl : 0);
-
-	ads->ctl17 = SM(keyType, AR_EncrType) |
-		     (flags & ATH9K_TXDESC_LDPC ? AR_LDPC : 0);
-	ads->ctl18 = 0;
-	ads->ctl19 = AR_Not_Sounding;
-
-	ads->ctl20 = 0;
-	ads->ctl21 = 0;
-	ads->ctl22 = 0;
-}
-
-static void ar9003_hw_set_clrdmask(struct ath_hw *ah, void *ds, bool val)
-{
-	struct ar9003_txc *ads = (struct ar9003_txc *) ds;
-
-	if (val)
-		ads->ctl11 |= AR_ClrDestMask;
-	else
-		ads->ctl11 &= ~AR_ClrDestMask;
-}
-
-static void ar9003_hw_set11n_ratescenario(struct ath_hw *ah, void *ds,
-					  void *lastds,
-					  u32 durUpdateEn, u32 rtsctsRate,
-					  u32 rtsctsDuration,
-					  struct ath9k_11n_rate_series series[],
-					  u32 nseries, u32 flags)
-{
-	struct ar9003_txc *ads = (struct ar9003_txc *) ds;
-	struct ar9003_txc *last_ads = (struct ar9003_txc *) lastds;
-	u_int32_t ctl11;
-
-	if (flags & (ATH9K_TXDESC_RTSENA | ATH9K_TXDESC_CTSENA)) {
-		ctl11 = ads->ctl11;
-
-		if (flags & ATH9K_TXDESC_RTSENA) {
-			ctl11 &= ~AR_CTSEnable;
-			ctl11 |= AR_RTSEnable;
-		} else {
-			ctl11 &= ~AR_RTSEnable;
-			ctl11 |= AR_CTSEnable;
-		}
-
-		ads->ctl11 = ctl11;
-	} else {
-		ads->ctl11 = (ads->ctl11 & ~(AR_RTSEnable | AR_CTSEnable));
-	}
-
-	ads->ctl13 = set11nTries(series, 0)
-		|  set11nTries(series, 1)
-		|  set11nTries(series, 2)
-		|  set11nTries(series, 3)
-		|  (durUpdateEn ? AR_DurUpdateEna : 0)
-		|  SM(0, AR_BurstDur);
-
-	ads->ctl14 = set11nRate(series, 0)
-		|  set11nRate(series, 1)
-		|  set11nRate(series, 2)
-		|  set11nRate(series, 3);
-
-	ads->ctl15 = set11nPktDurRTSCTS(series, 0)
-		|  set11nPktDurRTSCTS(series, 1);
-
-	ads->ctl16 = set11nPktDurRTSCTS(series, 2)
-		|  set11nPktDurRTSCTS(series, 3);
-
-	ads->ctl18 = set11nRateFlags(series, 0)
-		|  set11nRateFlags(series, 1)
-		|  set11nRateFlags(series, 2)
-		|  set11nRateFlags(series, 3)
-		| SM(rtsctsRate, AR_RTSCTSRate);
-	ads->ctl19 = AR_Not_Sounding;
-
-	last_ads->ctl13 = ads->ctl13;
-	last_ads->ctl14 = ads->ctl14;
-}
-
-static void ar9003_hw_set11n_aggr_first(struct ath_hw *ah, void *ds,
-					u32 aggrLen)
-{
-#define FIRST_DESC_NDELIMS 60
-	struct ar9003_txc *ads = (struct ar9003_txc *) ds;
-
-	ads->ctl12 |= (AR_IsAggr | AR_MoreAggr);
-
-	if (ah->ent_mode & AR_ENT_OTP_MPSD) {
-		u32 ctl17, ndelim;
-		/*
-		 * Add delimiter when using RTS/CTS with aggregation
-		 * and non enterprise AR9003 card
-		 */
-		ctl17 = ads->ctl17;
-		ndelim = MS(ctl17, AR_PadDelim);
-
-		if (ndelim < FIRST_DESC_NDELIMS) {
-			aggrLen += (FIRST_DESC_NDELIMS - ndelim) * 4;
-			ndelim = FIRST_DESC_NDELIMS;
-		}
-
-		ctl17 &= ~AR_AggrLen;
-		ctl17 |= SM(aggrLen, AR_AggrLen);
-
-		ctl17 &= ~AR_PadDelim;
-		ctl17 |= SM(ndelim, AR_PadDelim);
-
-		ads->ctl17 = ctl17;
-	} else {
-		ads->ctl17 &= ~AR_AggrLen;
-		ads->ctl17 |= SM(aggrLen, AR_AggrLen);
-	}
-}
-
-static void ar9003_hw_set11n_aggr_middle(struct ath_hw *ah, void *ds,
-					 u32 numDelims)
-{
-	struct ar9003_txc *ads = (struct ar9003_txc *) ds;
-	unsigned int ctl17;
-
-	ads->ctl12 |= (AR_IsAggr | AR_MoreAggr);
-
-	/*
-	 * We use a stack variable to manipulate ctl6 to reduce uncached
-	 * read modify, modfiy, write.
-	 */
-	ctl17 = ads->ctl17;
-	ctl17 &= ~AR_PadDelim;
-	ctl17 |= SM(numDelims, AR_PadDelim);
-	ads->ctl17 = ctl17;
-}
-
-static void ar9003_hw_set11n_aggr_last(struct ath_hw *ah, void *ds)
-{
-	struct ar9003_txc *ads = (struct ar9003_txc *) ds;
-
-	ads->ctl12 |= AR_IsAggr;
-	ads->ctl12 &= ~AR_MoreAggr;
-	ads->ctl17 &= ~AR_PadDelim;
-}
-
-static void ar9003_hw_clr11n_aggr(struct ath_hw *ah, void *ds)
-{
-	struct ar9003_txc *ads = (struct ar9003_txc *) ds;
-
-	ads->ctl12 &= (~AR_IsAggr & ~AR_MoreAggr);
-}
-
-void ar9003_hw_set_paprd_txdesc(struct ath_hw *ah, void *ds, u8 chains)
-{
-	struct ar9003_txc *ads = ds;
-
-	ads->ctl12 |= SM(chains, AR_PAPRDChainMask);
-}
-EXPORT_SYMBOL(ar9003_hw_set_paprd_txdesc);
-
 void ar9003_hw_attach_mac_ops(struct ath_hw *hw)
 {
 	struct ath_hw_ops *ops = ath9k_hw_ops(hw);
@@ -496,15 +403,8 @@ void ar9003_hw_attach_mac_ops(struct ath_hw *hw)
 	ops->rx_enable = ar9003_hw_rx_enable;
 	ops->set_desc_link = ar9003_hw_set_desc_link;
 	ops->get_isr = ar9003_hw_get_isr;
-	ops->fill_txdesc = ar9003_hw_fill_txdesc;
+	ops->set_txdesc = ar9003_set_txdesc;
 	ops->proc_txdesc = ar9003_hw_proc_txdesc;
-	ops->set11n_txdesc = ar9003_hw_set11n_txdesc;
-	ops->set11n_ratescenario = ar9003_hw_set11n_ratescenario;
-	ops->set11n_aggr_first = ar9003_hw_set11n_aggr_first;
-	ops->set11n_aggr_middle = ar9003_hw_set11n_aggr_middle;
-	ops->set11n_aggr_last = ar9003_hw_set11n_aggr_last;
-	ops->clr11n_aggr = ar9003_hw_clr11n_aggr;
-	ops->set_clrdmask = ar9003_hw_set_clrdmask;
 }
 
 void ath9k_hw_set_rx_bufsize(struct ath_hw *ah, u16 buf_size)
@@ -531,17 +431,18 @@ int ath9k_hw_process_rxdesc_edma(struct ath_hw *ah, struct ath_rx_status *rxs,
 
 	/* TODO: byte swap on big endian for ar9300_10 */
 
-	if ((rxsp->status11 & AR_RxDone) == 0)
-		return -EINPROGRESS;
+	if (!rxs) {
+		if ((rxsp->status11 & AR_RxDone) == 0)
+			return -EINPROGRESS;
 
-	if (MS(rxsp->ds_info, AR_DescId) != 0x168c)
-		return -EINVAL;
+		if (MS(rxsp->ds_info, AR_DescId) != 0x168c)
+			return -EINVAL;
 
-	if ((rxsp->ds_info & (AR_TxRxDesc | AR_CtrlStat)) != 0)
-		return -EINPROGRESS;
+		if ((rxsp->ds_info & (AR_TxRxDesc | AR_CtrlStat)) != 0)
+			return -EINPROGRESS;
 
-	if (!rxs)
 		return 0;
+	}
 
 	rxs->rs_status = 0;
 	rxs->rs_flags =  0;
@@ -625,8 +526,8 @@ int ath9k_hw_process_rxdesc_edma(struct ath_hw *ah, struct ath_rx_status *rxs,
 			rxs->rs_status |= ATH9K_RXERR_DECRYPT;
 		else if (rxsp->status11 & AR_MichaelErr)
 			rxs->rs_status |= ATH9K_RXERR_MIC;
-		else if (rxsp->status11 & AR_KeyMiss)
-			rxs->rs_status |= ATH9K_RXERR_DECRYPT;
+		if (rxsp->status11 & AR_KeyMiss)
+			rxs->rs_status |= ATH9K_RXERR_KEYMISS;
 	}
 
 	return 0;

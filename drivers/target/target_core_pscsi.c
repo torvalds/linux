@@ -26,7 +26,6 @@
  *
  ******************************************************************************/
 
-#include <linux/version.h>
 #include <linux/string.h>
 #include <linux/parser.h>
 #include <linux/timer.h>
@@ -37,6 +36,7 @@
 #include <linux/genhd.h>
 #include <linux/cdrom.h>
 #include <linux/file.h>
+#include <linux/module.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_cmnd.h>
@@ -567,7 +567,7 @@ static struct se_device *pscsi_create_virtdevice(
 			if (IS_ERR(sh)) {
 				pr_err("pSCSI: Unable to locate"
 					" pdv_host_id: %d\n", pdv->pdv_host_id);
-				return (struct se_device *) sh;
+				return ERR_CAST(sh);
 			}
 		}
 	} else {
@@ -677,7 +677,7 @@ static inline struct pscsi_plugin_task *PSCSI_TASK(struct se_task *task)
  */
 static int pscsi_transport_complete(struct se_task *task)
 {
-	struct pscsi_dev_virt *pdv = task->se_dev->dev_ptr;
+	struct pscsi_dev_virt *pdv = task->task_se_cmd->se_dev->dev_ptr;
 	struct scsi_device *sd = pdv->pdv_sd;
 	int result;
 	struct pscsi_plugin_task *pt = PSCSI_TASK(task);
@@ -775,95 +775,6 @@ pscsi_alloc_task(unsigned char *cdb)
 	}
 
 	return &pt->pscsi_task;
-}
-
-static inline void pscsi_blk_init_request(
-	struct se_task *task,
-	struct pscsi_plugin_task *pt,
-	struct request *req,
-	int bidi_read)
-{
-	/*
-	 * Defined as "scsi command" in include/linux/blkdev.h.
-	 */
-	req->cmd_type = REQ_TYPE_BLOCK_PC;
-	/*
-	 * For the extra BIDI-COMMAND READ struct request we do not
-	 * need to setup the remaining structure members
-	 */
-	if (bidi_read)
-		return;
-	/*
-	 * Setup the done function pointer for struct request,
-	 * also set the end_io_data pointer.to struct se_task.
-	 */
-	req->end_io = pscsi_req_done;
-	req->end_io_data = task;
-	/*
-	 * Load the referenced struct se_task's SCSI CDB into
-	 * include/linux/blkdev.h:struct request->cmd
-	 */
-	req->cmd_len = scsi_command_size(pt->pscsi_cdb);
-	req->cmd = &pt->pscsi_cdb[0];
-	/*
-	 * Setup pointer for outgoing sense data.
-	 */
-	req->sense = &pt->pscsi_sense[0];
-	req->sense_len = 0;
-}
-
-/*
- * Used for pSCSI data payloads for all *NON* SCF_SCSI_DATA_SG_IO_CDB
-*/
-static int pscsi_blk_get_request(struct se_task *task)
-{
-	struct pscsi_plugin_task *pt = PSCSI_TASK(task);
-	struct pscsi_dev_virt *pdv = task->se_dev->dev_ptr;
-
-	pt->pscsi_req = blk_get_request(pdv->pdv_sd->request_queue,
-			(task->task_data_direction == DMA_TO_DEVICE),
-			GFP_KERNEL);
-	if (!pt->pscsi_req || IS_ERR(pt->pscsi_req)) {
-		pr_err("PSCSI: blk_get_request() failed: %ld\n",
-				IS_ERR(pt->pscsi_req));
-		return PYX_TRANSPORT_LU_COMM_FAILURE;
-	}
-	/*
-	 * Setup the newly allocated struct request for REQ_TYPE_BLOCK_PC,
-	 * and setup rq callback, CDB and sense.
-	 */
-	pscsi_blk_init_request(task, pt, pt->pscsi_req, 0);
-	return 0;
-}
-
-/*      pscsi_do_task(): (Part of se_subsystem_api_t template)
- *
- *
- */
-static int pscsi_do_task(struct se_task *task)
-{
-	struct pscsi_plugin_task *pt = PSCSI_TASK(task);
-	struct pscsi_dev_virt *pdv = task->se_dev->dev_ptr;
-	/*
-	 * Set the struct request->timeout value based on peripheral
-	 * device type from SCSI.
-	 */
-	if (pdv->pdv_sd->type == TYPE_DISK)
-		pt->pscsi_req->timeout = PS_TIMEOUT_DISK;
-	else
-		pt->pscsi_req->timeout = PS_TIMEOUT_OTHER;
-
-	pt->pscsi_req->retries = PS_RETRY;
-	/*
-	 * Queue the struct request into the struct scsi_device->request_queue.
-	 * Also check for HEAD_OF_QUEUE SAM TASK attr from received se_cmd
-	 * descriptor
-	 */
-	blk_execute_rq_nowait(pdv->pdv_sd->request_queue, NULL, pt->pscsi_req,
-			(task->task_se_cmd->sam_task_attr == MSG_HEAD_TAG),
-			pscsi_req_done);
-
-	return PYX_TRANSPORT_SENT_TO_TRANSPORT;
 }
 
 static void pscsi_free_task(struct se_task *task)
@@ -1049,15 +960,12 @@ static inline struct bio *pscsi_get_bio(int sg_num)
 	return bio;
 }
 
-static int __pscsi_map_SG(
-	struct se_task *task,
-	struct scatterlist *task_sg,
-	u32 task_sg_num,
-	int bidi_read)
+static int pscsi_map_sg(struct se_task *task, struct scatterlist *task_sg,
+		struct bio **hbio)
 {
-	struct pscsi_plugin_task *pt = PSCSI_TASK(task);
-	struct pscsi_dev_virt *pdv = task->se_dev->dev_ptr;
-	struct bio *bio = NULL, *hbio = NULL, *tbio = NULL;
+	struct pscsi_dev_virt *pdv = task->task_se_cmd->se_dev->dev_ptr;
+	u32 task_sg_num = task->task_sg_nents;
+	struct bio *bio = NULL, *tbio = NULL;
 	struct page *page;
 	struct scatterlist *sg;
 	u32 data_len = task->task_size, i, len, bytes, off;
@@ -1066,19 +974,8 @@ static int __pscsi_map_SG(
 	int nr_vecs = 0, rc, ret = PYX_TRANSPORT_OUT_OF_MEMORY_RESOURCES;
 	int rw = (task->task_data_direction == DMA_TO_DEVICE);
 
-	if (!task->task_size)
-		return 0;
-	/*
-	 * For SCF_SCSI_DATA_SG_IO_CDB, Use fs/bio.c:bio_add_page() to setup
-	 * the bio_vec maplist from task->task_sg ->
-	 * struct scatterlist memory.  The struct se_task->task_sg[] currently needs
-	 * to be attached to struct bios for submission to Linux/SCSI using
-	 * struct request to struct scsi_device->request_queue.
-	 *
-	 * Note that this will be changing post v2.6.28 as Target_Core_Mod/pSCSI
-	 * is ported to upstream SCSI passthrough functionality that accepts
-	 * struct scatterlist->page_link or struct page as a paraemeter.
-	 */
+	*hbio = NULL;
+
 	pr_debug("PSCSI: nr_pages: %d\n", nr_pages);
 
 	for_each_sg(task_sg, sg, task_sg_num, i) {
@@ -1115,8 +1012,8 @@ static int __pscsi_map_SG(
 				 * bios need to be added to complete a given
 				 * struct se_task
 				 */
-				if (!hbio)
-					hbio = tbio = bio;
+				if (!*hbio)
+					*hbio = tbio = bio;
 				else
 					tbio = tbio->bi_next = bio;
 			}
@@ -1152,92 +1049,82 @@ static int __pscsi_map_SG(
 			off = 0;
 		}
 	}
-	/*
-	 * Setup the primary pt->pscsi_req used for non BIDI and BIDI-COMMAND
-	 * primary SCSI WRITE poayload mapped for struct se_task->task_sg[]
-	 */
-	if (!bidi_read) {
-		/*
-		 * Starting with v2.6.31, call blk_make_request() passing in *hbio to
-		 * allocate the pSCSI task a struct request.
-		 */
-		pt->pscsi_req = blk_make_request(pdv->pdv_sd->request_queue,
-					hbio, GFP_KERNEL);
-		if (!pt->pscsi_req) {
-			pr_err("pSCSI: blk_make_request() failed\n");
-			goto fail;
-		}
-		/*
-		 * Setup the newly allocated struct request for REQ_TYPE_BLOCK_PC,
-		 * and setup rq callback, CDB and sense.
-		 */
-		pscsi_blk_init_request(task, pt, pt->pscsi_req, 0);
-
-		return task->task_sg_nents;
-	}
-	/*
-	 * Setup the secondary pt->pscsi_req->next_rq used for the extra BIDI-COMMAND
-	 * SCSI READ paylaod mapped for struct se_task->task_sg_bidi[]
-	 */
-	pt->pscsi_req->next_rq = blk_make_request(pdv->pdv_sd->request_queue,
-					hbio, GFP_KERNEL);
-	if (!pt->pscsi_req->next_rq) {
-		pr_err("pSCSI: blk_make_request() failed for BIDI\n");
-		goto fail;
-	}
-	pscsi_blk_init_request(task, pt, pt->pscsi_req->next_rq, 1);
 
 	return task->task_sg_nents;
 fail:
-	while (hbio) {
-		bio = hbio;
-		hbio = hbio->bi_next;
+	while (*hbio) {
+		bio = *hbio;
+		*hbio = (*hbio)->bi_next;
 		bio->bi_next = NULL;
-		bio_endio(bio, 0);
+		bio_endio(bio, 0);	/* XXX: should be error */
 	}
 	return ret;
 }
 
-/*
- * pSCSI maps both ->map_control_SG() and ->map_data_SG() to a single call.
- */
-static int pscsi_map_SG(struct se_task *task)
+static int pscsi_do_task(struct se_task *task)
 {
+	struct pscsi_dev_virt *pdv = task->task_se_cmd->se_dev->dev_ptr;
+	struct pscsi_plugin_task *pt = PSCSI_TASK(task);
+	struct request *req;
+	struct bio *hbio;
 	int ret;
 
-	/*
-	 * Setup the main struct request for the task->task_sg[] payload
-	 */
+	target_get_task_cdb(task, pt->pscsi_cdb);
 
-	ret = __pscsi_map_SG(task, task->task_sg, task->task_sg_nents, 0);
-	if (ret >= 0 && task->task_sg_bidi) {
+	if (task->task_se_cmd->se_cmd_flags & SCF_SCSI_NON_DATA_CDB) {
+		req = blk_get_request(pdv->pdv_sd->request_queue,
+				(task->task_data_direction == DMA_TO_DEVICE),
+				GFP_KERNEL);
+		if (!req || IS_ERR(req)) {
+			pr_err("PSCSI: blk_get_request() failed: %ld\n",
+					req ? IS_ERR(req) : -ENOMEM);
+			return PYX_TRANSPORT_LU_COMM_FAILURE;
+		}
+	} else {
+		BUG_ON(!task->task_size);
+
 		/*
-		 * If present, set up the extra BIDI-COMMAND SCSI READ
-		 * struct request and payload.
+		 * Setup the main struct request for the task->task_sg[] payload
 		 */
-		ret = __pscsi_map_SG(task, task->task_sg_bidi,
-					task->task_sg_nents, 1);
+		ret = pscsi_map_sg(task, task->task_sg, &hbio);
+		if (ret < 0)
+			return PYX_TRANSPORT_LU_COMM_FAILURE;
+
+		req = blk_make_request(pdv->pdv_sd->request_queue, hbio,
+				       GFP_KERNEL);
+		if (IS_ERR(req)) {
+			pr_err("pSCSI: blk_make_request() failed\n");
+			goto fail;
+		}
 	}
 
-	if (ret < 0)
-		return PYX_TRANSPORT_LU_COMM_FAILURE;
-	return 0;
-}
+	req->cmd_type = REQ_TYPE_BLOCK_PC;
+	req->end_io = pscsi_req_done;
+	req->end_io_data = task;
+	req->cmd_len = scsi_command_size(pt->pscsi_cdb);
+	req->cmd = &pt->pscsi_cdb[0];
+	req->sense = &pt->pscsi_sense[0];
+	req->sense_len = 0;
+	if (pdv->pdv_sd->type == TYPE_DISK)
+		req->timeout = PS_TIMEOUT_DISK;
+	else
+		req->timeout = PS_TIMEOUT_OTHER;
+	req->retries = PS_RETRY;
 
-static int pscsi_CDB_none(struct se_task *task)
-{
-	return pscsi_blk_get_request(task);
-}
+	blk_execute_rq_nowait(pdv->pdv_sd->request_queue, NULL, req,
+			(task->task_se_cmd->sam_task_attr == MSG_HEAD_TAG),
+			pscsi_req_done);
 
-/*	pscsi_get_cdb():
- *
- *
- */
-static unsigned char *pscsi_get_cdb(struct se_task *task)
-{
-	struct pscsi_plugin_task *pt = PSCSI_TASK(task);
+	return PYX_TRANSPORT_SENT_TO_TRANSPORT;
 
-	return pt->pscsi_cdb;
+fail:
+	while (hbio) {
+		struct bio *bio = hbio;
+		hbio = hbio->bi_next;
+		bio->bi_next = NULL;
+		bio_endio(bio, 0);	/* XXX: should be error */
+	}
+	return PYX_TRANSPORT_OUT_OF_MEMORY_RESOURCES;
 }
 
 /*	pscsi_get_sense_buffer():
@@ -1328,23 +1215,13 @@ static void pscsi_req_done(struct request *req, int uptodate)
 	pt->pscsi_resid = req->resid_len;
 
 	pscsi_process_SAM_status(task, pt);
-	/*
-	 * Release BIDI-READ if present
-	 */
-	if (req->next_rq != NULL)
-		__blk_put_request(req->q, req->next_rq);
-
 	__blk_put_request(req->q, req);
-	pt->pscsi_req = NULL;
 }
 
 static struct se_subsystem_api pscsi_template = {
 	.name			= "pscsi",
 	.owner			= THIS_MODULE,
 	.transport_type		= TRANSPORT_PLUGIN_PHBA_PDEV,
-	.cdb_none		= pscsi_CDB_none,
-	.map_control_SG		= pscsi_map_SG,
-	.map_data_SG		= pscsi_map_SG,
 	.attach_hba		= pscsi_attach_hba,
 	.detach_hba		= pscsi_detach_hba,
 	.pmode_enable_hba	= pscsi_pmode_enable_hba,
@@ -1358,7 +1235,6 @@ static struct se_subsystem_api pscsi_template = {
 	.check_configfs_dev_params = pscsi_check_configfs_dev_params,
 	.set_configfs_dev_params = pscsi_set_configfs_dev_params,
 	.show_configfs_dev_params = pscsi_show_configfs_dev_params,
-	.get_cdb		= pscsi_get_cdb,
 	.get_sense_buffer	= pscsi_get_sense_buffer,
 	.get_device_rev		= pscsi_get_device_rev,
 	.get_device_type	= pscsi_get_device_type,

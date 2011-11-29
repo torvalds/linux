@@ -267,6 +267,13 @@ config SERIAL_8250_RM9K
 	  port hardware found on MIPS RM9122 and similar processors.
 	  If unsure, say N.
 
+config SERIAL_8250_DW
+	tristate "Support for Synopsys DesignWare 8250 quirks"
+	depends on SERIAL_8250 && OF
+	help
+	  Selecting this option will enable handling of the extra features
+	  present in the Synopsys DesignWare APB UART.
+
 comment "Non-8250 serial port support"
 
 config SERIAL_AMBA_PL010
@@ -522,8 +529,8 @@ config SERIAL_S3C6400
 
 config SERIAL_S5PV210
 	tristate "Samsung S5PV210 Serial port support"
-	depends on SERIAL_SAMSUNG && (CPU_S5PV210 || CPU_EXYNOS4210)
-	select SERIAL_SAMSUNG_UARTS_4 if (CPU_S5PV210 || CPU_EXYNOS4210)
+	depends on SERIAL_SAMSUNG && (CPU_S5PV210 || CPU_EXYNOS4210 || SOC_EXYNOS4212)
+	select SERIAL_SAMSUNG_UARTS_4 if (CPU_S5PV210 || CPU_EXYNOS4210 || SOC_EXYNOS4212)
 	default y
 	help
 	  Serial port support for Samsung's S5P Family of SoC's
@@ -722,7 +729,7 @@ config SERIAL_BFIN
 	  Add support for the built-in UARTs on the Blackfin.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called bfin_5xx.
+	  module is named bfin_uart.ko.
 
 config SERIAL_BFIN_CONSOLE
 	bool "Console on Blackfin serial port"
@@ -1034,23 +1041,6 @@ config SERIAL_MCF_CONSOLE
 	select SERIAL_CORE_CONSOLE
 	help
 	  Enable a ColdFire internal serial port to be the system console.
-
-config SERIAL_68360_SMC
-	bool "68360 SMC uart support"
-	depends on M68360
-	help
-	  This driver supports the SMC serial ports of the Motorola 68360 CPU.
-
-config SERIAL_68360_SCC
-	bool "68360 SCC uart support"
-	depends on M68360
-	help
-	  This driver supports the SCC serial ports of the Motorola 68360 CPU.
-
-config SERIAL_68360
-	bool
-	depends on SERIAL_68360_SMC || SERIAL_68360_SCC
-	default y
 
 config SERIAL_PMACZILOG
 	tristate "Mac or PowerMac z85c30 ESCC support"
@@ -1570,7 +1560,7 @@ config SERIAL_IFX6X60
 	  Support for the IFX6x60 modem devices on Intel MID platforms.
 
 config SERIAL_PCH_UART
-	tristate "Intel EG20T PCH / OKI SEMICONDUCTOR IOH(ML7213/ML7223) UART"
+	tristate "Intel EG20T PCH/LAPIS Semicon IOH(ML7213/ML7223/ML7831) UART"
 	depends on PCI
 	select SERIAL_CORE
 	help
@@ -1578,12 +1568,12 @@ config SERIAL_PCH_UART
 	  which is an IOH(Input/Output Hub) for x86 embedded processor.
 	  Enabling PCH_DMA, this PCH UART works as DMA mode.
 
-	  This driver also can be used for OKI SEMICONDUCTOR IOH(Input/
-	  Output Hub), ML7213 and ML7223.
-	  ML7213 IOH is for IVI(In-Vehicle Infotainment) use and ML7223 IOH is
-	  for MP(Media Phone) use.
-	  ML7213/ML7223 is companion chip for Intel Atom E6xx series.
-	  ML7213/ML7223 is completely compatible for Intel EG20T PCH.
+	  This driver also can be used for LAPIS Semiconductor IOH(Input/
+	  Output Hub), ML7213, ML7223 and ML7831.
+	  ML7213 IOH is for IVI(In-Vehicle Infotainment) use, ML7223 IOH is
+	  for MP(Media Phone) use and ML7831 IOH is for general purpose use.
+	  ML7213/ML7223/ML7831 is companion chip for Intel Atom E6xx series.
+	  ML7213/ML7223/ML7831 is completely compatible for Intel EG20T PCH.
 
 config SERIAL_MSM_SMD
 	bool "Enable tty device interface for some SMD ports"

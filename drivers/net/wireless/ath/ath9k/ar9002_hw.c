@@ -14,6 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/moduleparam.h>
 #include "hw.h"
 #include "ar5008_initvals.h"
 #include "ar9001_initvals.h"
@@ -30,7 +31,7 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 {
 	if (AR_SREV_9271(ah)) {
 		INIT_INI_ARRAY(&ah->iniModes, ar9271Modes_9271,
-			       ARRAY_SIZE(ar9271Modes_9271), 6);
+			       ARRAY_SIZE(ar9271Modes_9271), 5);
 		INIT_INI_ARRAY(&ah->iniCommon, ar9271Common_9271,
 			       ARRAY_SIZE(ar9271Common_9271), 2);
 		INIT_INI_ARRAY(&ah->iniCommon_normal_cck_fir_coeff_9271,
@@ -41,21 +42,21 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 			       ARRAY_SIZE(ar9271Common_japan_2484_cck_fir_coeff_9271), 2);
 		INIT_INI_ARRAY(&ah->iniModes_9271_1_0_only,
 			       ar9271Modes_9271_1_0_only,
-			       ARRAY_SIZE(ar9271Modes_9271_1_0_only), 6);
+			       ARRAY_SIZE(ar9271Modes_9271_1_0_only), 5);
 		INIT_INI_ARRAY(&ah->iniModes_9271_ANI_reg, ar9271Modes_9271_ANI_reg,
-			       ARRAY_SIZE(ar9271Modes_9271_ANI_reg), 6);
+			       ARRAY_SIZE(ar9271Modes_9271_ANI_reg), 5);
 		INIT_INI_ARRAY(&ah->iniModes_high_power_tx_gain_9271,
 			       ar9271Modes_high_power_tx_gain_9271,
-			       ARRAY_SIZE(ar9271Modes_high_power_tx_gain_9271), 6);
+			       ARRAY_SIZE(ar9271Modes_high_power_tx_gain_9271), 5);
 		INIT_INI_ARRAY(&ah->iniModes_normal_power_tx_gain_9271,
 			       ar9271Modes_normal_power_tx_gain_9271,
-			       ARRAY_SIZE(ar9271Modes_normal_power_tx_gain_9271), 6);
+			       ARRAY_SIZE(ar9271Modes_normal_power_tx_gain_9271), 5);
 		return;
 	}
 
 	if (AR_SREV_9287_11_OR_LATER(ah)) {
 		INIT_INI_ARRAY(&ah->iniModes, ar9287Modes_9287_1_1,
-				ARRAY_SIZE(ar9287Modes_9287_1_1), 6);
+				ARRAY_SIZE(ar9287Modes_9287_1_1), 5);
 		INIT_INI_ARRAY(&ah->iniCommon, ar9287Common_9287_1_1,
 				ARRAY_SIZE(ar9287Common_9287_1_1), 2);
 		if (ah->config.pcie_clock_req)
@@ -71,7 +72,7 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 
 
 		INIT_INI_ARRAY(&ah->iniModes, ar9285Modes_9285_1_2,
-			       ARRAY_SIZE(ar9285Modes_9285_1_2), 6);
+			       ARRAY_SIZE(ar9285Modes_9285_1_2), 5);
 		INIT_INI_ARRAY(&ah->iniCommon, ar9285Common_9285_1_2,
 			       ARRAY_SIZE(ar9285Common_9285_1_2), 2);
 
@@ -87,7 +88,7 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 		}
 	} else if (AR_SREV_9280_20_OR_LATER(ah)) {
 		INIT_INI_ARRAY(&ah->iniModes, ar9280Modes_9280_2,
-			       ARRAY_SIZE(ar9280Modes_9280_2), 6);
+			       ARRAY_SIZE(ar9280Modes_9280_2), 5);
 		INIT_INI_ARRAY(&ah->iniCommon, ar9280Common_9280_2,
 			       ARRAY_SIZE(ar9280Common_9280_2), 2);
 
@@ -105,7 +106,7 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 			       ARRAY_SIZE(ar9280Modes_fast_clock_9280_2), 3);
 	} else if (AR_SREV_9160_10_OR_LATER(ah)) {
 		INIT_INI_ARRAY(&ah->iniModes, ar5416Modes_9160,
-			       ARRAY_SIZE(ar5416Modes_9160), 6);
+			       ARRAY_SIZE(ar5416Modes_9160), 5);
 		INIT_INI_ARRAY(&ah->iniCommon, ar5416Common_9160,
 			       ARRAY_SIZE(ar5416Common_9160), 2);
 		INIT_INI_ARRAY(&ah->iniBank0, ar5416Bank0_9160,
@@ -134,7 +135,7 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 		}
 	} else if (AR_SREV_9100_OR_LATER(ah)) {
 		INIT_INI_ARRAY(&ah->iniModes, ar5416Modes_9100,
-			       ARRAY_SIZE(ar5416Modes_9100), 6);
+			       ARRAY_SIZE(ar5416Modes_9100), 5);
 		INIT_INI_ARRAY(&ah->iniCommon, ar5416Common_9100,
 			       ARRAY_SIZE(ar5416Common_9100), 2);
 		INIT_INI_ARRAY(&ah->iniBank0, ar5416Bank0_9100,
@@ -157,7 +158,7 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 			       ARRAY_SIZE(ar5416Addac_9100), 2);
 	} else {
 		INIT_INI_ARRAY(&ah->iniModes, ar5416Modes,
-			       ARRAY_SIZE(ar5416Modes), 6);
+			       ARRAY_SIZE(ar5416Modes), 5);
 		INIT_INI_ARRAY(&ah->iniCommon, ar5416Common,
 			       ARRAY_SIZE(ar5416Common), 2);
 		INIT_INI_ARRAY(&ah->iniBank0, ar5416Bank0,
@@ -207,19 +208,19 @@ static void ar9280_20_hw_init_rxgain_ini(struct ath_hw *ah)
 		if (rxgain_type == AR5416_EEP_RXGAIN_13DB_BACKOFF)
 			INIT_INI_ARRAY(&ah->iniModesRxGain,
 			ar9280Modes_backoff_13db_rxgain_9280_2,
-			ARRAY_SIZE(ar9280Modes_backoff_13db_rxgain_9280_2), 6);
+			ARRAY_SIZE(ar9280Modes_backoff_13db_rxgain_9280_2), 5);
 		else if (rxgain_type == AR5416_EEP_RXGAIN_23DB_BACKOFF)
 			INIT_INI_ARRAY(&ah->iniModesRxGain,
 			ar9280Modes_backoff_23db_rxgain_9280_2,
-			ARRAY_SIZE(ar9280Modes_backoff_23db_rxgain_9280_2), 6);
+			ARRAY_SIZE(ar9280Modes_backoff_23db_rxgain_9280_2), 5);
 		else
 			INIT_INI_ARRAY(&ah->iniModesRxGain,
 			ar9280Modes_original_rxgain_9280_2,
-			ARRAY_SIZE(ar9280Modes_original_rxgain_9280_2), 6);
+			ARRAY_SIZE(ar9280Modes_original_rxgain_9280_2), 5);
 	} else {
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
 			ar9280Modes_original_rxgain_9280_2,
-			ARRAY_SIZE(ar9280Modes_original_rxgain_9280_2), 6);
+			ARRAY_SIZE(ar9280Modes_original_rxgain_9280_2), 5);
 	}
 }
 
@@ -234,15 +235,15 @@ static void ar9280_20_hw_init_txgain_ini(struct ath_hw *ah)
 		if (txgain_type == AR5416_EEP_TXGAIN_HIGH_POWER)
 			INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar9280Modes_high_power_tx_gain_9280_2,
-			ARRAY_SIZE(ar9280Modes_high_power_tx_gain_9280_2), 6);
+			ARRAY_SIZE(ar9280Modes_high_power_tx_gain_9280_2), 5);
 		else
 			INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar9280Modes_original_tx_gain_9280_2,
-			ARRAY_SIZE(ar9280Modes_original_tx_gain_9280_2), 6);
+			ARRAY_SIZE(ar9280Modes_original_tx_gain_9280_2), 5);
 	} else {
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 		ar9280Modes_original_tx_gain_9280_2,
-		ARRAY_SIZE(ar9280Modes_original_tx_gain_9280_2), 6);
+		ARRAY_SIZE(ar9280Modes_original_tx_gain_9280_2), 5);
 	}
 }
 
@@ -251,14 +252,14 @@ static void ar9002_hw_init_mode_gain_regs(struct ath_hw *ah)
 	if (AR_SREV_9287_11_OR_LATER(ah))
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
 		ar9287Modes_rx_gain_9287_1_1,
-		ARRAY_SIZE(ar9287Modes_rx_gain_9287_1_1), 6);
+		ARRAY_SIZE(ar9287Modes_rx_gain_9287_1_1), 5);
 	else if (AR_SREV_9280_20(ah))
 		ar9280_20_hw_init_rxgain_ini(ah);
 
 	if (AR_SREV_9287_11_OR_LATER(ah)) {
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 		ar9287Modes_tx_gain_9287_1_1,
-		ARRAY_SIZE(ar9287Modes_tx_gain_9287_1_1), 6);
+		ARRAY_SIZE(ar9287Modes_tx_gain_9287_1_1), 5);
 	} else if (AR_SREV_9280_20(ah)) {
 		ar9280_20_hw_init_txgain_ini(ah);
 	} else if (AR_SREV_9285_12_OR_LATER(ah)) {
@@ -270,24 +271,24 @@ static void ar9002_hw_init_mode_gain_regs(struct ath_hw *ah)
 				INIT_INI_ARRAY(&ah->iniModesTxGain,
 				ar9285Modes_XE2_0_high_power,
 				ARRAY_SIZE(
-				  ar9285Modes_XE2_0_high_power), 6);
+				  ar9285Modes_XE2_0_high_power), 5);
 			} else {
 				INIT_INI_ARRAY(&ah->iniModesTxGain,
 				ar9285Modes_high_power_tx_gain_9285_1_2,
 				ARRAY_SIZE(
-				  ar9285Modes_high_power_tx_gain_9285_1_2), 6);
+				  ar9285Modes_high_power_tx_gain_9285_1_2), 5);
 			}
 		} else {
 			if (AR_SREV_9285E_20(ah)) {
 				INIT_INI_ARRAY(&ah->iniModesTxGain,
 				ar9285Modes_XE2_0_normal_power,
 				ARRAY_SIZE(
-				  ar9285Modes_XE2_0_normal_power), 6);
+				  ar9285Modes_XE2_0_normal_power), 5);
 			} else {
 				INIT_INI_ARRAY(&ah->iniModesTxGain,
 				ar9285Modes_original_tx_gain_9285_1_2,
 				ARRAY_SIZE(
-				  ar9285Modes_original_tx_gain_9285_1_2), 6);
+				  ar9285Modes_original_tx_gain_9285_1_2), 5);
 			}
 		}
 	}
@@ -303,17 +304,13 @@ static void ar9002_hw_init_mode_gain_regs(struct ath_hw *ah)
  * register as the other analog registers.  Hence the 9 writes.
  */
 static void ar9002_hw_configpcipowersave(struct ath_hw *ah,
-					 int restore,
-					 int power_off)
+					 bool power_off)
 {
 	u8 i;
 	u32 val;
 
-	if (ah->is_pciexpress != true || ah->aspm_enabled != true)
-		return;
-
 	/* Nothing to do on restore for 11N */
-	if (!restore) {
+	if (!power_off /* !restore */) {
 		if (AR_SREV_9280_20_OR_LATER(ah)) {
 			/*
 			 * AR9280 2.0 or later chips use SerDes values from the
