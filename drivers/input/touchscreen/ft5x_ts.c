@@ -50,6 +50,7 @@
 //#define DEBUG
 //#define TOUCH_KEY_SUPPORT
 #ifdef TOUCH_KEY_SUPPORT
+//#define TOUCH_KEY_LIGHT_SUPPORT
 //#define TOUCH_KEY_FOR_EVB13
 //#define TOUCH_KEY_FOR_ANGDA
 #ifdef TOUCH_KEY_FOR_ANGDA
@@ -63,7 +64,7 @@
 #endif
 #endif
 
-//#define TOUCH_KEY_LIGHT_SUPPORT
+
 #define FT5X_NAME	"ft5x_ts"//"synaptics_i2c_rmi"//"synaptics-rmi-ts"//
 
 static struct i2c_client *this_client;
@@ -98,8 +99,8 @@ static int key_val = 0;
 #define CTP_IRQ_MODE			(NEGEGIVE_EDGE)
 #define CTP_NAME			FT5X_NAME
 #define TS_RESET_LOW_PERIOD		(20)
-#define TS_INITIAL_HIGH_PERIOD		(10)
-#define TS_WAKEUP_LOW_PERIOD	(15)
+#define TS_INITIAL_HIGH_PERIOD		(15)
+#define TS_WAKEUP_LOW_PERIOD	(20)
 #define TS_WAKEUP_HIGH_PERIOD	(15)
 #define TS_POLL_DELAY			(10)	/* ms delay between samples */
 #define TS_POLL_PERIOD			(10)	/* ms delay between samples */
@@ -436,8 +437,8 @@ script_parser_fetch_err:
  */
 static void ctp_reset(void)
 {
-	printk("%s. \n", __func__);
 	if(gpio_reset_enable){
+		printk("%s. \n", __func__);
 		if(EGPIO_SUCCESS != gpio_write_one_pin_value(gpio_reset_hdle, 0, "ctp_reset")){
 			printk("%s: err when operate gpio. \n", __func__);
 		}
@@ -455,8 +456,8 @@ static void ctp_reset(void)
  */
 static void ctp_wakeup(void)
 {
-	printk("%s. \n", __func__);
 	if(1 == gpio_wakeup_enable){
+		printk("%s. \n", __func__);
 		if(EGPIO_SUCCESS != gpio_write_one_pin_value(gpio_wakeup_hdle, 0, "ctp_wakeup")){
 			printk("%s: err when operate gpio. \n", __func__);
 		}
@@ -1264,9 +1265,9 @@ static int ft5x_read_data(void)
     return 0;
 }
 
+#ifdef TOUCH_KEY_LIGHT_SUPPORT
 static void ft5x_lighting(void)
 {
-#ifdef TOUCH_KEY_LIGHT_SUPPORT
 	if(EGPIO_SUCCESS != gpio_write_one_pin_value(gpio_light_hdle, 1, "ctp_light")){
 		printk("ft5x_ts_light: err when operate gpio. \n");
 	}
@@ -1274,9 +1275,10 @@ static void ft5x_lighting(void)
 	if(EGPIO_SUCCESS != gpio_write_one_pin_value(gpio_light_hdle, 0, "ctp_light")){
 		printk("ft5x_ts_light: err when operate gpio. \n");
 	}
-#endif
+
 	return;
 }
+#endif
 
 static void ft5x_report_multitouch(void)
 {
@@ -1362,9 +1364,9 @@ static void ft5x_report_singletouch(void)
 }
 #endif
 
+#ifdef TOUCH_KEY_SUPPORT
 static void ft5x_report_touchkey(void)
 {
-#ifdef TOUCH_KEY_SUPPORT
 	struct ft5x_ts_data *data = i2c_get_clientdata(this_client);
 	struct ts_event *event = &data->event;
 	//print_point_info("x=%d===Y=%d\n",event->x1,event->y1);
@@ -1420,16 +1422,22 @@ static void ft5x_report_touchkey(void)
 		key_tp = 0;
 	}
 #endif
-#endif
+
+#ifdef TOUCH_KEY_LIGHT_SUPPORT
 	ft5x_lighting();
+#endif
 	return;
 }
+#endif
 
 static void ft5x_report_value(void)
 {
 
 	//printk("==ft5x_report_value =\n");
+#ifdef TOUCH_KEY_SUPPORT
 	ft5x_report_touchkey();
+#endif
+
 #ifdef CONFIG_FT5X0X_MULTITOUCH
 	ft5x_report_multitouch();
 #else	/* CONFIG_FT5X0X_MULTITOUCH*/
