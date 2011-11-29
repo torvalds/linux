@@ -41,6 +41,8 @@
 #define WM8994_NUM_DRC 3
 #define WM8994_NUM_EQ  3
 
+struct wm8994 *wm8994_control;
+
 static int wm8994_drc_base[] = {
 	WM8994_AIF1_DRC1_1,
 	WM8994_AIF1_DRC2_1,
@@ -2329,6 +2331,32 @@ static int wm8994_set_tristate(struct snd_soc_dai *codec_dai, int tristate)
 	return snd_soc_update_bits(codec, reg, mask, val);
 }
 
+struct snd_soc_codec *wm8994_regshow_codec;
+
+static ssize_t wm8994_index_reg_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	#define IDX_REG_FMT "reg 0x%04x value 0x%04x\n"
+	unsigned int val;
+	int cnt = 0, i;
+
+	cnt += sprintf(buf, "WM8994 index register\n");
+	for (i = 0; i < WM8994_CACHE_SIZE; i++) {
+		if (!wm8994_readable(wm8994_regshow_codec, i) || wm8994_volatile(wm8994_regshow_codec, i))
+			continue;
+		val = wm8994_reg_read(wm8994_control, i);
+		if (!val)
+			continue;
+		cnt += sprintf(buf + cnt, IDX_REG_FMT, i, val);
+	}
+
+	if (cnt >= PAGE_SIZE)
+		cnt = PAGE_SIZE - 1;
+
+	return cnt;
+}
+static DEVICE_ATTR(index_reg, 0444, wm8994_index_reg_show, NULL);
+
 #define WM8994_RATES SNDRV_PCM_RATE_8000_96000
 
 #define WM8994_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
@@ -2418,7 +2446,7 @@ static struct snd_soc_dai_driver wm8994_dai[] = {
 };
 
 #ifdef CONFIG_PM
-static int wm8994_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int wm8994_codec_suspend(struct snd_soc_codec *codec, pm_message_t state)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	struct wm8994 *control = codec->control_data;
@@ -2445,15 +2473,19 @@ static int wm8994_suspend(struct snd_soc_codec *codec, pm_message_t state)
 
 	wm8994_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
+	wm8994_suspend(control);
+
 	return 0;
 }
 
-static int wm8994_resume(struct snd_soc_codec *codec)
+static int wm8994_codec_resume(struct snd_soc_codec *codec)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	struct wm8994 *control = codec->control_data;
 	int i, ret;
 	unsigned int val, mask;
+
+	wm8994_resume(control);
 
 	if (wm8994->revision < 4) {
 		/* force a HW read */
@@ -2857,15 +2889,22 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret, i;
 
-	codec->control_data = dev_get_drvdata(codec->dev->parent);
+	if (wm8994_control == NULL) {
+		pr_err("wm8994_codec_probe:wm8994_control is NULL!");
+		return -EIO;
+	}
+
+	codec->control_data = wm8994_control;//dev_get_drvdata(codec->dev->parent);
 	control = codec->control_data;
+
+	wm8994_regshow_codec = codec;
 
 	wm8994 = kzalloc(sizeof(struct wm8994_priv), GFP_KERNEL);
 	if (wm8994 == NULL)
 		return -ENOMEM;
 	snd_soc_codec_set_drvdata(codec, wm8994);
 
-	wm8994->pdata = dev_get_platdata(codec->dev->parent);
+	wm8994->pdata = wm8994_control->dev->platform_data;//dev_get_platdata(codec->dev->parent);
 	wm8994->codec = codec;
 
 	if (wm8994->pdata && wm8994->pdata->micdet_irq)
@@ -3145,6 +3184,13 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 		break;
 	}
 
+	ret = device_create_file(codec->dev, &dev_attr_index_reg);
+	if (ret != 0) {
+		dev_err(codec->dev,
+			"Failed to create index_reg sysfs files: %d\n", ret);
+		return ret;
+	}
+
 	return 0;
 
 err_irq:
@@ -3200,8 +3246,8 @@ static int  wm8994_codec_remove(struct snd_soc_codec *codec)
 static struct snd_soc_codec_driver soc_codec_dev_wm8994 = {
 	.probe =	wm8994_codec_probe,
 	.remove =	wm8994_codec_remove,
-	.suspend =	wm8994_suspend,
-	.resume =	wm8994_resume,
+	.suspend =	wm8994_codec_suspend,
+	.resume =	wm8994_codec_resume,
 	.read =		wm8994_read,
 	.write =	wm8994_write,
 	.readable_register = wm8994_readable,
@@ -3214,39 +3260,69 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8994 = {
 	.compress_type = SND_SOC_RBTREE_COMPRESSION,
 };
 
-static int __devinit wm8994_probe(struct platform_device *pdev)
+static int wm8994_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
-	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_wm8994,
-			wm8994_dai, ARRAY_SIZE(wm8994_dai));
+	int ret;
+
+	ret = wm8994_probe(i2c, id);
+	if (ret < 0) {
+		pr_err("wm8994_i2c_probe error!");
+		return ret;
+	}
+
+	wm8994_control = i2c_get_clientdata(i2c);
+
+	return snd_soc_register_codec(&i2c->dev, &soc_codec_dev_wm8994,
+		wm8994_dai, ARRAY_SIZE(wm8994_dai));
 }
 
-static int __devexit wm8994_remove(struct platform_device *pdev)
+static int wm8994_i2c_remove(struct i2c_client *i2c)
 {
-	snd_soc_unregister_codec(&pdev->dev);
+	wm8994_remove(i2c);
+	snd_soc_unregister_codec(&i2c->dev);
+
 	return 0;
 }
 
-static struct platform_driver wm8994_codec_driver = {
+static const struct i2c_device_id wm8994_i2c_id[] = {
+	{ "wm8994", WM8994 },
+//	{ "wm8958", WM8958 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, wm8994_i2c_id);
+
+//static UNIVERSAL_DEV_PM_OPS(wm8994_pm_ops, wm8994_suspend, wm8994_resume,
+//			    NULL);
+
+static struct i2c_driver wm8994_i2c_driver = {
 	.driver = {
-		   .name = "WM8994",
-		   .owner = THIS_MODULE,
-		   },
-	.probe = wm8994_probe,
-	.remove = __devexit_p(wm8994_remove),
+		.name = "WM8994",
+		.owner = THIS_MODULE,
+		//.pm = &wm8994_pm_ops,
+	},
+	.probe = wm8994_i2c_probe,
+	.remove = wm8994_i2c_remove,
+	.id_table = wm8994_i2c_id,
 };
 
-static __init int wm8994_init(void)
+static int __init wm8994_i2c_init(void)
 {
-	return platform_driver_register(&wm8994_codec_driver);
-}
-module_init(wm8994_init);
+	int ret;
 
-static __exit void wm8994_exit(void)
+	ret = i2c_add_driver(&wm8994_i2c_driver);
+	if (ret != 0)
+		pr_err("Failed to register wm8994 I2C driver: %d\n", ret);
+
+	return ret;
+}
+module_init(wm8994_i2c_init);
+
+static void __exit wm8994_i2c_exit(void)
 {
-	platform_driver_unregister(&wm8994_codec_driver);
+	i2c_del_driver(&wm8994_i2c_driver);
 }
-module_exit(wm8994_exit);
-
+module_exit(wm8994_i2c_exit);
 
 MODULE_DESCRIPTION("ASoC WM8994 driver");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");

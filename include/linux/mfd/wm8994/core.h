@@ -16,6 +16,7 @@
 #define __MFD_WM8994_CORE_H__
 
 #include <linux/interrupt.h>
+#include <linux/i2c.h>
 
 enum wm8994_type {
 	WM8994 = 0,
@@ -112,5 +113,11 @@ static inline void wm8994_free_irq(struct wm8994 *wm8994, int irq, void *data)
 
 int wm8994_irq_init(struct wm8994 *wm8994);
 void wm8994_irq_exit(struct wm8994 *wm8994);
+
+int wm8994_suspend(struct wm8994 *wm8994);
+int wm8994_resume(struct wm8994 *wm8994);
+
+int wm8994_probe(struct i2c_client *i2c, const struct i2c_device_id *id);
+int wm8994_remove(struct i2c_client *i2c);
 
 #endif

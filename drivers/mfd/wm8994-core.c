@@ -25,6 +25,9 @@
 #include <linux/mfd/wm8994/core.h>
 #include <linux/mfd/wm8994/pdata.h>
 #include <linux/mfd/wm8994/registers.h>
+#include <mach/gpio.h>
+
+#define WM_PW_EN RK29_PIN5_PA1
 
 static int wm8994_read(struct wm8994 *wm8994, unsigned short reg,
 		       int bytes, void *dest)
@@ -43,7 +46,6 @@ static int wm8994_read(struct wm8994 *wm8994, unsigned short reg,
 		dev_vdbg(wm8994->dev, "Read %04x from R%d(0x%x)\n",
 			 be16_to_cpu(buf[i]), reg + i, reg + i);
 	}
-
 	return 0;
 }
 
@@ -107,7 +109,6 @@ static int wm8994_write(struct wm8994 *wm8994, unsigned short reg,
 		dev_vdbg(wm8994->dev, "Write %04x to R%d(0x%x)\n",
 			 be16_to_cpu(buf[i]), reg + i, reg + i);
 	}
-
 	return wm8994->write_dev(wm8994, reg, bytes, src);
 }
 
@@ -266,18 +267,17 @@ static const char *wm8958_main_supplies[] = {
 };
 
 #ifdef CONFIG_PM
-static int wm8994_suspend(struct device *dev)
+int wm8994_suspend(struct wm8994 *wm8994)
 {
-	struct wm8994 *wm8994 = dev_get_drvdata(dev);
 	int ret;
 
 	/* Don't actually go through with the suspend if the CODEC is
 	 * still active (eg, for audio passthrough from CP. */
 	ret = wm8994_reg_read(wm8994, WM8994_POWER_MANAGEMENT_1);
 	if (ret < 0) {
-		dev_err(dev, "Failed to read power status: %d\n", ret);
+		dev_err(wm8994->dev, "Failed to read power status: %d\n", ret);
 	} else if (ret & WM8994_VMID_SEL_MASK) {
-		dev_dbg(dev, "CODEC still active, ignoring suspend\n");
+		dev_dbg(wm8994->dev, "CODEC still active, ignoring suspend\n");
 		return 0;
 	}
 
@@ -288,13 +288,13 @@ static int wm8994_suspend(struct device *dev)
 	ret = wm8994_read(wm8994, WM8994_GPIO_1, WM8994_NUM_GPIO_REGS * 2,
 			  &wm8994->gpio_regs);
 	if (ret < 0)
-		dev_err(dev, "Failed to save GPIO registers: %d\n", ret);
+		dev_err(wm8994->dev, "Failed to save GPIO registers: %d\n", ret);
 
 	/* For similar reasons we also stash the regulator states */
 	ret = wm8994_read(wm8994, WM8994_LDO_1, WM8994_NUM_LDO_REGS * 2,
 			  &wm8994->ldo_regs);
 	if (ret < 0)
-		dev_err(dev, "Failed to save LDO registers: %d\n", ret);
+		dev_err(wm8994->dev, "Failed to save LDO registers: %d\n", ret);
 
 	/* Explicitly put the device into reset in case regulators
 	 * don't get disabled in order to ensure consistent restart.
@@ -303,46 +303,51 @@ static int wm8994_suspend(struct device *dev)
 
 	wm8994->suspended = true;
 
-	ret = regulator_bulk_disable(wm8994->num_supplies,
+/*	ret = regulator_bulk_disable(wm8994->num_supplies,
 				     wm8994->supplies);
 	if (ret != 0) {
 		dev_err(dev, "Failed to disable supplies: %d\n", ret);
 		return ret;
 	}
+*/
+
+	gpio_set_value(WM_PW_EN, GPIO_LOW);
 
 	return 0;
 }
 
-static int wm8994_resume(struct device *dev)
+int wm8994_resume(struct wm8994 *wm8994)
 {
-	struct wm8994 *wm8994 = dev_get_drvdata(dev);
 	int ret;
 
 	/* We may have lied to the PM core about suspending */
 	if (!wm8994->suspended)
 		return 0;
 
-	ret = regulator_bulk_enable(wm8994->num_supplies,
+	gpio_set_value(WM_PW_EN, GPIO_HIGH);
+	msleep(50);
+
+/*	ret = regulator_bulk_enable(wm8994->num_supplies,
 				    wm8994->supplies);
 	if (ret != 0) {
 		dev_err(dev, "Failed to enable supplies: %d\n", ret);
 		return ret;
 	}
-
+*/
 	ret = wm8994_write(wm8994, WM8994_INTERRUPT_STATUS_1_MASK,
 			   WM8994_NUM_IRQ_REGS * 2, &wm8994->irq_masks_cur);
 	if (ret < 0)
-		dev_err(dev, "Failed to restore interrupt masks: %d\n", ret);
+		dev_err(wm8994->dev, "Failed to restore interrupt masks: %d\n", ret);
 
 	ret = wm8994_write(wm8994, WM8994_LDO_1, WM8994_NUM_LDO_REGS * 2,
 			   &wm8994->ldo_regs);
 	if (ret < 0)
-		dev_err(dev, "Failed to restore LDO registers: %d\n", ret);
+		dev_err(wm8994->dev, "Failed to restore LDO registers: %d\n", ret);
 
 	ret = wm8994_write(wm8994, WM8994_GPIO_1, WM8994_NUM_GPIO_REGS * 2,
 			   &wm8994->gpio_regs);
 	if (ret < 0)
-		dev_err(dev, "Failed to restore GPIO registers: %d\n", ret);
+		dev_err(wm8994->dev, "Failed to restore GPIO registers: %d\n", ret);
 
 	wm8994->suspended = false;
 
@@ -394,7 +399,7 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		goto err;
 	}
 
-	switch (wm8994->type) {
+/*	switch (wm8994->type) {
 	case WM8994:
 		wm8994->num_supplies = ARRAY_SIZE(wm8994_main_supplies);
 		break;
@@ -441,7 +446,7 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		dev_err(wm8994->dev, "Failed to enable supplies: %d\n", ret);
 		goto err_get;
 	}
-
+*/
 	ret = wm8994_reg_read(wm8994, WM8994_SOFTWARE_RESET);
 	if (ret < 0) {
 		dev_err(wm8994->dev, "Failed to read ID register\n");
@@ -537,12 +542,12 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 err_irq:
 	wm8994_irq_exit(wm8994);
 err_enable:
-	regulator_bulk_disable(wm8994->num_supplies,
-			       wm8994->supplies);
+//	regulator_bulk_disable(wm8994->num_supplies,
+//			       wm8994->supplies);
 err_get:
-	regulator_bulk_free(wm8994->num_supplies, wm8994->supplies);
+//	regulator_bulk_free(wm8994->num_supplies, wm8994->supplies);
 err_supplies:
-	kfree(wm8994->supplies);
+//	kfree(wm8994->supplies);
 err:
 	mfd_remove_devices(wm8994->dev);
 	kfree(wm8994);
@@ -554,10 +559,10 @@ static void wm8994_device_exit(struct wm8994 *wm8994)
 	pm_runtime_disable(wm8994->dev);
 	mfd_remove_devices(wm8994->dev);
 	wm8994_irq_exit(wm8994);
-	regulator_bulk_disable(wm8994->num_supplies,
-			       wm8994->supplies);
-	regulator_bulk_free(wm8994->num_supplies, wm8994->supplies);
-	kfree(wm8994->supplies);
+//	regulator_bulk_disable(wm8994->num_supplies,
+//			       wm8994->supplies);
+//	regulator_bulk_free(wm8994->num_supplies, wm8994->supplies);
+//	kfree(wm8994->supplies);
 	kfree(wm8994);
 }
 
@@ -595,11 +600,13 @@ static int wm8994_i2c_write_device(struct wm8994 *wm8994, unsigned short reg,
 	xfer[0].flags = 0;
 	xfer[0].len = 2;
 	xfer[0].buf = (char *)&reg;
+	xfer[0].scl_rate = 100 * 1000;
 
 	xfer[1].addr = i2c->addr;
 	xfer[1].flags = I2C_M_NOSTART;
 	xfer[1].len = bytes;
 	xfer[1].buf = (char *)src;
+	xfer[1].scl_rate = 100 * 1000;
 
 	ret = i2c_transfer(i2c->adapter, xfer, 2);
 	if (ret < 0)
@@ -610,10 +617,15 @@ static int wm8994_i2c_write_device(struct wm8994 *wm8994, unsigned short reg,
 	return 0;
 }
 
-static int wm8994_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+int wm8994_probe(struct i2c_client *i2c,
+		    const struct i2c_device_id *id)
 {
 	struct wm8994 *wm8994;
+
+	gpio_request(WM_PW_EN, NULL);
+	gpio_direction_output(WM_PW_EN, GPIO_HIGH);
+
+	msleep(50);
 
 	wm8994 = kzalloc(sizeof(struct wm8994), GFP_KERNEL);
 	if (wm8994 == NULL)
@@ -630,7 +642,7 @@ static int wm8994_i2c_probe(struct i2c_client *i2c,
 	return wm8994_device_init(wm8994, i2c->irq);
 }
 
-static int wm8994_i2c_remove(struct i2c_client *i2c)
+int wm8994_remove(struct i2c_client *i2c)
 {
 	struct wm8994 *wm8994 = i2c_get_clientdata(i2c);
 
@@ -638,46 +650,6 @@ static int wm8994_i2c_remove(struct i2c_client *i2c)
 
 	return 0;
 }
-
-static const struct i2c_device_id wm8994_i2c_id[] = {
-	{ "wm8994", WM8994 },
-	{ "wm8958", WM8958 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, wm8994_i2c_id);
-
-static UNIVERSAL_DEV_PM_OPS(wm8994_pm_ops, wm8994_suspend, wm8994_resume,
-			    NULL);
-
-static struct i2c_driver wm8994_i2c_driver = {
-	.driver = {
-		.name = "WM8994",
-		.owner = THIS_MODULE,
-		.pm = &wm8994_pm_ops,
-	},
-	.probe = wm8994_i2c_probe,
-	.remove = wm8994_i2c_remove,
-	.id_table = wm8994_i2c_id,
-};
-
-static int __init wm8994_i2c_init(void)
-{
-	int ret;
-
-	ret = i2c_add_driver(&wm8994_i2c_driver);
-	if (ret != 0)
-		pr_err("Failed to register wm8994 I2C driver: %d\n", ret);
-
-	return ret;
-}
-module_init(wm8994_i2c_init);
-
-static void __exit wm8994_i2c_exit(void)
-{
-	i2c_del_driver(&wm8994_i2c_driver);
-}
-module_exit(wm8994_i2c_exit);
-
 MODULE_DESCRIPTION("Core support for the WM8994 audio CODEC");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
