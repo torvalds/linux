@@ -411,18 +411,12 @@ static void sas_ata_post_internal(struct ata_queued_cmd *qc)
 		 *  ourselves.
 		 */
 		struct sas_task *task = qc->lldd_task;
-		unsigned long flags;
 
 		qc->lldd_task = NULL;
-		if (task) {
-			/* Should this be a AT(API) device reset? */
-			spin_lock_irqsave(&task->task_state_lock, flags);
-			task->task_state_flags |= SAS_TASK_NEED_DEV_RESET;
-			spin_unlock_irqrestore(&task->task_state_lock, flags);
-
-			task->uldd_task = NULL;
-			sas_ata_internal_abort(task);
-		}
+		if (!task)
+			return;
+		task->uldd_task = NULL;
+		sas_ata_internal_abort(task);
 	}
 }
 
