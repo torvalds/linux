@@ -313,11 +313,12 @@ static void sh_mobile_lcdc_deferred_io(struct fb_info *info,
 		unsigned int nr_pages = sh_mobile_lcdc_sginit(info, pagelist);
 
 		/* trigger panel update */
-		dma_map_sg(info->dev, ch->sglist, nr_pages, DMA_TO_DEVICE);
+		dma_map_sg(ch->lcdc->dev, ch->sglist, nr_pages, DMA_TO_DEVICE);
 		if (panel->start_transfer)
 			panel->start_transfer(ch, &sh_mobile_lcdc_sys_bus_ops);
 		lcdc_write_chan(ch, LDSM2R, LDSM2R_OSTRG);
-		dma_unmap_sg(info->dev, ch->sglist, nr_pages, DMA_TO_DEVICE);
+		dma_unmap_sg(ch->lcdc->dev, ch->sglist, nr_pages,
+			     DMA_TO_DEVICE);
 	} else {
 		if (panel->start_transfer)
 			panel->start_transfer(ch, &sh_mobile_lcdc_sys_bus_ops);
