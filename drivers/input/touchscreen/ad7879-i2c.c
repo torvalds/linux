@@ -117,4 +117,3 @@ module_exit(ad7879_i2c_exit);
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("AD7879(-1) touchscreen I2C bus driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("i2c:ad7879");
