@@ -258,6 +258,13 @@ extern int mmu_vmemmap_psize;
 
 #ifdef CONFIG_PPC64
 extern unsigned long linear_map_top;
+
+/*
+ * 64-bit booke platforms don't load the tlb in the tlb miss handler code.
+ * HUGETLB_NEED_PRELOAD handles this - it causes huge_ptep_set_access_flags to
+ * return 1, indicating that the tlb requires preloading.
+ */
+#define HUGETLB_NEED_PRELOAD
 #endif
 
 #endif /* !__ASSEMBLY__ */

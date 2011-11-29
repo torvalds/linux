@@ -124,8 +124,7 @@ static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 					     unsigned long addr, pte_t *ptep,
 					     pte_t pte, int dirty)
 {
-#if defined(CONFIG_PPC_MMU_NOHASH) && \
-	!(defined(CONFIG_PPC_FSL_BOOK3E) && defined(CONFIG_PPC32))
+#ifdef HUGETLB_NEED_PRELOAD
 	/*
 	 * The "return 1" forces a call of update_mmu_cache, which will write a
 	 * TLB entry.  Without this, platforms that don't do a write of the TLB
