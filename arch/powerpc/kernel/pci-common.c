@@ -214,7 +214,7 @@ char __devinit *pcibios_setup(char *str)
  * If the interrupt is used, then gets the interrupt line from the
  * openfirmware and sets it in the pci_dev and pci_config line.
  */
-int pci_read_irq_line(struct pci_dev *pci_dev)
+static int pci_read_irq_line(struct pci_dev *pci_dev)
 {
 	struct of_irq oirq;
 	unsigned int virq;
@@ -283,7 +283,6 @@ int pci_read_irq_line(struct pci_dev *pci_dev)
 
 	return 0;
 }
-EXPORT_SYMBOL(pci_read_irq_line);
 
 /*
  * Platform support for /proc/bus/pci/X/Y mmap()s,
