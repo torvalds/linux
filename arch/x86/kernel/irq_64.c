@@ -46,10 +46,9 @@ static inline void stack_overflow_check(struct pt_regs *regs)
 	if (user_mode_vm(regs))
 		return;
 
-	if (regs->sp >= curbase &&
-	    regs->sp <= curbase + THREAD_SIZE &&
-	    regs->sp >= curbase + sizeof(struct thread_info) +
-				  sizeof(struct pt_regs) + 128)
+	if (regs->sp >= curbase + sizeof(struct thread_info) +
+				  sizeof(struct pt_regs) + 128 &&
+	    regs->sp <= curbase + THREAD_SIZE)
 		return;
 
 	irq_stack_top = (u64)__get_cpu_var(irq_stack_union.irq_stack);
