@@ -96,12 +96,12 @@ static int key_val = 0;
 ///////////////////////////////////////////////
 //specific tp related macro: need be configured for specific tp
 #define CTP_IRQ_NO			(IRQ_EINT21)
-#define CTP_IRQ_MODE			(NEGEGIVE_EDGE)
+#define CTP_IRQ_MODE			(NEGETIVE_EDGE)
 #define CTP_NAME			FT5X_NAME
 #define TS_RESET_LOW_PERIOD		(20)
-#define TS_INITIAL_HIGH_PERIOD		(15)
+#define TS_INITIAL_HIGH_PERIOD		(20)
 #define TS_WAKEUP_LOW_PERIOD	(20)
-#define TS_WAKEUP_HIGH_PERIOD	(15)
+#define TS_WAKEUP_HIGH_PERIOD	(20)
 #define TS_POLL_DELAY			(10)	/* ms delay between samples */
 #define TS_POLL_PERIOD			(10)	/* ms delay between samples */
 #define SCREEN_MAX_X			(screen_max_x)

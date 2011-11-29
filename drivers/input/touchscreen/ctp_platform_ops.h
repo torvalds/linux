@@ -96,7 +96,7 @@ typedef enum{
 
 typedef enum{
 	POSITIVE_EDGE = 0x0,
-	NEGEGIVE_EDGE = 0x1,
+	NEGETIVE_EDGE = 0x1,
 	HIGH_LEVEL = 0x2,
 	LOW_LEVEL = 0x3,
 	DOUBLE_EDGE = 0x4
