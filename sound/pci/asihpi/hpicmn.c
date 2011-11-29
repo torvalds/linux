@@ -631,7 +631,7 @@ struct hpi_control_cache *hpi_alloc_control_cache(const u32 control_count,
 	if (!p_cache)
 		return NULL;
 
-	p_cache->p_info = kzalloc(sizeof(*p_cache->p_info) * control_count,
+	p_cache->p_info = kcalloc(control_count, sizeof(*p_cache->p_info),
 				  GFP_KERNEL);
 	if (!p_cache->p_info) {
 		kfree(p_cache);
