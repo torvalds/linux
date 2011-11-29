@@ -103,9 +103,9 @@ config IWLWIFI_DEVICE_TRACING
 endmenu
 
 config IWLWIFI_DEVICE_SVTOOL
-	bool "iwlwifi device svtool support"
+	def_bool y
 	depends on IWLWIFI
-	select NL80211_TESTMODE
+	depends on NL80211_TESTMODE
 	help
 	  This option enables the svtool support for iwlwifi device through
 	  NL80211_TESTMODE. svtool is a software validation tool that runs in
