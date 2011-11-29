@@ -854,8 +854,10 @@ static int prep_phy_channel(struct pl08x_dma_chan *plchan,
 	int ret;
 
 	/* Check if we already have a channel */
-	if (plchan->phychan)
-		return 0;
+	if (plchan->phychan) {
+		ch = plchan->phychan;
+		goto got_channel;
+	}
 
 	ch = pl08x_get_phy_channel(pl08x, plchan);
 	if (!ch) {
@@ -880,21 +882,22 @@ static int prep_phy_channel(struct pl08x_dma_chan *plchan,
 			return -EBUSY;
 		}
 		ch->signal = ret;
-
-		/* Assign the flow control signal to this channel */
-		if (txd->direction == DMA_MEM_TO_DEV)
-			txd->ccfg |= ch->signal << PL080_CONFIG_DST_SEL_SHIFT;
-		else if (txd->direction == DMA_DEV_TO_MEM)
-			txd->ccfg |= ch->signal << PL080_CONFIG_SRC_SEL_SHIFT;
 	}
 
+	plchan->phychan = ch;
 	dev_dbg(&pl08x->adev->dev, "allocated physical channel %d and signal %d for xfer on %s\n",
 		 ch->id,
 		 ch->signal,
 		 plchan->name);
 
+got_channel:
+	/* Assign the flow control signal to this channel */
+	if (txd->direction == DMA_MEM_TO_DEV)
+		txd->ccfg |= ch->signal << PL080_CONFIG_DST_SEL_SHIFT;
+	else if (txd->direction == DMA_DEV_TO_MEM)
+		txd->ccfg |= ch->signal << PL080_CONFIG_SRC_SEL_SHIFT;
+
 	plchan->phychan_hold++;
-	plchan->phychan = ch;
 
 	return 0;
 }
