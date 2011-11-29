@@ -243,3 +243,8 @@ void __exit rtllib_crypto_deinit(void)
 
 	kfree(hcrypt);
 }
+
+module_init(rtllib_crypto_init);
+module_exit(rtllib_crypto_deinit);
+
+MODULE_LICENSE("GPL");

@@ -28,10 +28,6 @@
 #include "r8190P_rtl8256.h" /* RTL8225 Radio frontend */
 #include "r8192E_cmdpkt.h"
 
-u32 rt_global_debug_component = \
-				COMP_ERR ;
-EXPORT_SYMBOL(rt_global_debug_component);
-
 /****************************************************************************
    -----------------------------PROCFS STUFF-------------------------
 *****************************************************************************/

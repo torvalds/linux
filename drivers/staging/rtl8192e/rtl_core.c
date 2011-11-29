@@ -3084,33 +3084,6 @@ bool NicIFDisableNIC(struct net_device *dev)
 
 static int __init rtl8192_pci_module_init(void)
 {
-	int ret;
-
-	ret = rtllib_init();
-	if (ret) {
-		printk(KERN_ERR "rtllib_init() failed %d\n", ret);
-		return ret;
-	}
-	ret = rtllib_crypto_init();
-	if (ret) {
-		printk(KERN_ERR "rtllib_crypto_init() failed %d\n", ret);
-		return ret;
-	}
-	ret = rtllib_crypto_tkip_init();
-	if (ret) {
-		printk(KERN_ERR "rtllib_crypto_tkip_init() failed %d\n", ret);
-		return ret;
-	}
-	ret = rtllib_crypto_ccmp_init();
-	if (ret) {
-		printk(KERN_ERR "rtllib_crypto_ccmp_init() failed %d\n", ret);
-		return ret;
-	}
-	ret = rtllib_crypto_wep_init();
-	if (ret) {
-		printk(KERN_ERR "rtllib_crypto_wep_init() failed %d\n", ret);
-		return ret;
-	}
 	printk(KERN_INFO "\nLinux kernel driver for RTL8192E WLAN cards\n");
 	printk(KERN_INFO "Copyright (c) 2007-2008, Realsil Wlan Driver\n");
 
@@ -3129,11 +3102,6 @@ static void __exit rtl8192_pci_module_exit(void)
 
 	RT_TRACE(COMP_DOWN, "Exiting");
 	rtl8192_proc_module_remove();
-	rtllib_crypto_tkip_exit();
-	rtllib_crypto_ccmp_exit();
-	rtllib_crypto_wep_exit();
-	rtllib_crypto_deinit();
-	rtllib_exit();
 }
 
 void check_rfctrl_gpio_timer(unsigned long data)

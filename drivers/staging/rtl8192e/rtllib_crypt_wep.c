@@ -256,7 +256,6 @@ static char *prism2_wep_print_stats(char *p, void *priv)
 	return p;
 }
 
-
 static struct rtllib_crypto_ops rtllib_crypt_wep = {
 	.name			= "WEP",
 	.init			= prism2_wep_init,
@@ -285,7 +284,7 @@ void __exit rtllib_crypto_wep_exit(void)
 	rtllib_unregister_crypto_ops(&rtllib_crypt_wep);
 }
 
-void rtllib_wep_null(void)
-{
-	return;
-}
+module_init(rtllib_crypto_wep_init);
+module_exit(rtllib_crypto_wep_exit);
+
+MODULE_LICENSE("GPL");

@@ -54,6 +54,10 @@
 #include "rtllib.h"
 
 
+u32 rt_global_debug_component = COMP_ERR;
+EXPORT_SYMBOL(rt_global_debug_component);
+
+
 void _setup_timer(struct timer_list *ptimer, void *fun, unsigned long data)
 {
 	ptimer->function = fun;
@@ -175,10 +179,6 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 		ieee->last_packet_time[i] = 0;
 	}
 
-	rtllib_tkip_null();
-	rtllib_wep_null();
-	rtllib_ccmp_null();
-
 	return dev;
 
  failed:
@@ -287,3 +287,8 @@ void __exit rtllib_exit(void)
 		rtllib_proc = NULL;
 	}
 }
+
+module_init(rtllib_init);
+module_exit(rtllib_exit);
+
+MODULE_LICENSE("GPL");

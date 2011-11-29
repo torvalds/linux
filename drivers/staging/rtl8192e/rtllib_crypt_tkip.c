@@ -739,7 +739,6 @@ static char *rtllib_tkip_print_stats(char *p, void *priv)
 	return p;
 }
 
-
 static struct rtllib_crypto_ops rtllib_crypt_tkip = {
 	.name			= "TKIP",
 	.init			= rtllib_tkip_init,
@@ -768,7 +767,7 @@ void __exit rtllib_crypto_tkip_exit(void)
 	rtllib_unregister_crypto_ops(&rtllib_crypt_tkip);
 }
 
-void rtllib_tkip_null(void)
-{
-	return;
-}
+module_init(rtllib_crypto_tkip_init);
+module_exit(rtllib_crypto_tkip_exit);
+
+MODULE_LICENSE("GPL");
