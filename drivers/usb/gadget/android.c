@@ -837,6 +837,8 @@ static ssize_t enable_store(struct device *pdev, struct device_attribute *attr,
 		dev->enabled = true;
 	} else if (!enabled && dev->enabled) {
 		usb_gadget_disconnect(cdev->gadget);
+		/* Cancel pending control requests */
+		usb_ep_dequeue(cdev->gadget->ep0, cdev->req);
 		usb_remove_config(cdev, &android_config_driver);
 		dev->enabled = false;
 	} else {
