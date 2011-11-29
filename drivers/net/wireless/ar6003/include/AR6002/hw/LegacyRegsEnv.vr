@@ -1,0 +1,58 @@
+#include <rvm_std_lib.vrh>
+#include <ave_defines.vrh>
+#include "AveStdLib.vri"
+
+#ifndef SYNOPSYS_NTB
+  #include "MercuryEnv.vrh"
+  #include "LegacyRegsEnvConfig.vrh"
+  #include "LegacyRegsTop.vrh"
+#endif
+
+class LegacyRegsEnv extends MercuryEnv {
+  LegacyRegsEnvConfig envConfig;
+  LegacyRegsTop regsTop;
+
+  task new(string name = "LegacyRegsEnv", LegacyRegsEnvConfig envConfig = null);
+  virtual function AveEnvConfig GetEnvConfig();
+  virtual task build();
+  virtual task directed_test_t();
+}
+
+
+task LegacyRegsEnv::new(string name = "LegacyRegsEnv", LegacyRegsEnvConfig envConfig = null) {
+  MercuryTopConfig mercuryTopConfig;
+  LegacyRegsTopConfig legacyRegsTopConfig;
+
+  super.new();
+  this.envConfig = envConfig;
+  if (this.envConfig == null) this.envConfig = new();
+  cast_assign(mercuryTopConfig, this.envConfig.GetTopConfig());
+
+  // build and register LegacyRegsTopConfig
+  legacyRegsTopConfig = new(*, *, "legacyRegsTopConfig");
+  mercuryTopConfig.RegisterConfig(legacyRegsTopConfig);
+}
+
+function AveEnvConfig LegacyRegsEnv::GetEnvConfig() {
+  GetEnvConfig = this.envConfig;
+}
+
+task LegacyRegsEnv::build() {
+  MercuryTopConfig mercuryTopConfig;
+  LegacyRegsTopConfig legacyRegsTopConfig;
+  super.build();
+
+  // build and register MercuryTop
+  cast_assign(mercuryTopConfig, this.envConfig.GetTopConfig());
+  this.mercuryTop = new(mercuryTopConfig);
+  this.RegisterTop(this.mercuryTop);
+
+  // build and register LegacyRegsTop.
+  cast_assign(legacyRegsTopConfig, mercuryTopConfig.GetConfigInstanceByName("legacyRegsTopConfig"));
+  this.regsTop = new("LegacyRegsTop", "regsTop", 0, legacyRegsTopConfig);
+  void = this.mercuryTop.RegisterXactor(this.regsTop, AVE_TOP_NO_WAIT_FOR_DONE);
+}
+
+task LegacyRegsEnv::directed_test_t() {
+}
+

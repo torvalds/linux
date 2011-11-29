@@ -1,0 +1,351 @@
+#!/system/bin/sh
+#------------------------------------------------------------------------------
+# <copyright file="makefile" company="Atheros">
+#    Copyright (c) 2005-2010 Atheros Corporation.  All rights reserved.
+# $ATH_LICENSE_HOSTSDK0_C$
+#------------------------------------------------------------------------------
+#==============================================================================
+# Author(s): ="Atheros"
+#==============================================================================
+CLK_HELPER=0
+#WMODE="bg"
+IFNAME=`getprop wifi.interface wlan0`
+ARGS=`getprop wlan.driver.args "\"ifname=$IFNAME\""`
+# for HotSpot +
+AP_IF=`getprop wifi.ap.interface softap0`
+AP_ARGS=`getprop wlan.driver.args "ifname=$AP_IF devmode=ap"`
+AP_WLAN_ENABLE_CHECK="wmiconfig -i $AP_IF --getRTS"
+# for HotSpot -
+MODE_TCMD="insmod_tcmd"
+MODE_WLAN="insmod"
+TAGS="wlan_tool"
+MODULE_CHECK="ls /sys/bus/sdio/drivers/ar6k_wlan"
+WLAN_ENABLE_CHECK="wmiconfig -i $IFNAME --getRTS"
+DRIVER_PROP_NAME="wlan.driver.status"
+APMODE_PROP_NAME="wlan.driver.apmode"
+WIFI_STATUS="`getprop $DRIVER_PROP_NAME failed`"
+BT_ENABLED="" # To be define
+#SYSLOG="echo "
+SYSLOG="log -p i -t $TAGS "
+
+strcmp() {
+    case $1 in
+        $2)
+        return 0;
+        ;;
+        *)
+        return 1;
+        ;;
+    esac
+}
+
+wmode() {
+    case $WMODE in
+        bg)
+        $SYSLOG "Running in 11bg mode"
+        wmiconfig -i $IFNAME --wmode g
+        wmiconfig -i $IFNAME --set_ht_cap g 0 0 1 1 0 1
+        ;;
+        ag)
+        $SYSLOG "Running in 11ag mode"
+        wmiconfig -i $IFNAME --wmode ag
+        wmiconfig -i $IFNAME --set_ht_cap g 0 0 1 1 0 1
+        wmiconfig -i $IFNAME --set_ht_cap a 0 1 1 1 0 1
+        ;;
+        *)
+        $SYSLOG "Running in 11bgn mode"
+        ;;
+    esac
+}
+
+do_setprop() {
+    setprop $1 $2
+    for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+        if strcmp `getprop $1` $2; then
+            break
+        fi
+        setprop $1 $2
+    done
+}
+
+do_rmmod() {
+    if ! rmmod ar6000; then
+        $SYSLOG "Fallback to use on property:wlan.driver.status=rmmod which will exec /system/bin/rmmod"
+        do_setprop $DRIVER_PROP_NAME rmmod
+        for i in 1 2 3 4 5 6 7 8 9 10; do
+            if ! $MODULE_CHECK; then
+                break;
+            fi
+            sleep 1
+        done
+    fi
+}
+
+do_insmod() {
+    case $1 in
+    $MODE_TCMD)
+    MOD_ARGS="testmode=1"
+    ;;
+    *)
+    MOD_ARGS=$ARGS
+    ;;
+    esac      
+    if ! insmod /system/wifi/ar6000.ko $MOD_ARGS; then
+        $SYSLOG "Fallback to use on property:wlan.driver.status=insmod which will insmod"
+        do_setprop $DRIVER_PROP_NAME $1
+        for i in 1 2 3 4 5 6 7 8 9 10; do
+            if $MODULE_CHECK; then
+                break;
+            fi
+            sleep 1
+        done
+    fi
+}
+
+reload() {
+    if $MODULE_CHECK; then
+        do_rmmod
+    fi
+    $SYSLOG "Try to load driver with $@"
+    do_insmod $@
+    
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+        if $WLAN_ENABLE_CHECK; then
+            break;
+        fi
+        sleep 1
+    done
+#    wmode
+    if exp $CLK_HELPER == 1; then
+        if exp $BT_ENABLED == 1; then
+            $SYSLOG "Setup bt on"
+            wmiconfig -i $IFNAME --bt on
+        else
+            $SYSLOG "Setup bt off"
+            wmiconfig -i $IFNAME --bt off
+        fi
+    fi
+}
+
+# for HotSpot +
+ap_reload() {
+    if $MODULE_CHECK; then
+        rmmod ar6000
+    fi
+    $SYSLOG "Try to load AP driver with $@"
+    insmod /system/wifi/ar6000.ko $@
+
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+        if $AP_WLAN_ENABLE_CHECK; then
+            break;
+        fi
+        sleep 1
+    done
+}
+# for HotSpot -
+init() {
+    setprop wifi.interface wlan0
+    do_setprop $APMODE_PROP_NAME "unloaded"
+    mkdir /data/misc/wifi/wpa_supplicant
+    mkdir /data/misc/wifi/hostapd
+    mkdir /data/system/wpa_supplicant /data/system/hostapd  
+    chmod 770 /data/misc/wifi/wpa_supplicant /data/misc/wifi/hostapd
+    chown wifi.wifi /data/misc/wifi/wpa_supplicant /data/misc/wifi/hostapd
+    chown wifi.wifi /data/system/wpa_supplicant /data/system/hostapd
+    chown system.system /sys/devices/platform/msm_sdcc.1/detect_change
+    chown system.system /sys/devices/platform/msm_sdcc.2/detect_change
+    if exp $CLK_HELPER == 1; then
+        reload $MODE_WLAN
+        wmiconfig -i $IFNAME --wlan disable
+    fi
+}
+
+checkapmode() {
+    if strcmp `getprop $APMODE_PROP_NAME unloaded` "ok"; then
+        return 0
+    else 
+        return 1
+    fi
+}
+
+# for HotSpot +
+loadAPdriver() {
+    $SYSLOG "AP wifi loading"
+    setprop $DRIVER_PROP_NAME ""
+    if $MODULE_CHECK; then
+        $SYSLOG "AP Driver is initialized. load it"
+        wmiconfig -i $AP_IF --wlan disable
+        sleep 1
+        wmiconfig -i $AP_IF --wlan enable
+    else
+        ap_reload $AP_ARGS
+    fi
+    if $AP_WLAN_ENABLE_CHECK; then
+        $SYSLOG "ar6000 AP driver loaded"
+        setprop $DRIVER_PROP_NAME "ok"
+    else
+        $SYSLOG "ar6000 AP driver fails to load"
+        setprop $DRIVER_PROP_NAME "failed"
+    fi
+}
+# for HotSpot -
+
+loaddriver() {
+    $SYSLOG "wifi loading"
+    if checkapmode; then
+        $SYSLOG "Ap mode is running!"
+        do_setprop $DRIVER_PROP_NAME "failed"
+        return
+    fi
+    do_setprop $DRIVER_PROP_NAME "x"
+    if $MODULE_CHECK; then
+        $SYSLOG "Driver is initialized. load it"
+        wmiconfig -i $IFNAME --wlan enable
+    else
+        reload $MODE_WLAN
+    fi   
+    if $WLAN_ENABLE_CHECK; then
+        ifconfig $IFNAME up
+        $SYSLOG "ar6000 driver loaded"
+        do_setprop $DRIVER_PROP_NAME "ok"
+    else
+        $SYSLOG "ar6000 driver fails to load"
+        do_setprop $DRIVER_PROP_NAME "failed"
+    fi
+}
+
+unloaddriver() {
+    $SYSLOG "wifi unloading"
+    if checkapmode; then
+        $SYSLOG "Ap mode is running!"
+        do_setprop $DRIVER_PROP_NAME "failed"
+        return
+    fi
+    if exp $CLK_HELPER == 1; then
+        wmiconfig -i $IFNAME --wlan disable        
+    else
+        do_rmmod
+    fi
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+        if ! $WLAN_ENABLE_CHECK; then
+            break;
+        fi
+        sleep 1
+    done
+    do_setprop $DRIVER_PROP_NAME "unloaded"
+}
+
+testmodeup() {
+    do_setprop $DRIVER_PROP_NAME "x"
+    reload $MODE_TCMD
+    if $WLAN_ENABLE_CHECK; then
+        $SYSLOG "ar6000 driver loaded"
+        do_setprop $DRIVER_PROP_NAME "ok"
+    else
+        $SYSLOG "ar6000 driver fails to load"
+        do_setprop $DRIVER_PROP_NAME "failed"
+    fi
+}
+
+testmodedown() {
+    if $MODULE_CHECK; then
+        do_rmmod
+    fi
+    if exp $CLK_HELPER == 1; then
+        reload $MODE_WLAN
+        wmiconfig -i $IFNAME --wlan disable
+    fi
+    do_setprop $DRIVER_PROP_NAME "unloaded"
+}
+
+apmodedown() {
+    $SYSLOG "Shutting down Ap mode"
+    iwconfig $IFNAME mode managed
+    iwconfig $IFNAME essid off
+    do_setprop $APMODE_PROP_NAME "unloaded"
+    unloaddriver
+}
+
+apmodeup() {
+    $SYSLOG "Running for AP mode"
+    if strcmp $WIFI_STATUS "ok"; then
+        $SYSLOG "Station mode is running. exit"
+        return
+    fi
+    if checkapmode; then
+        apmodedown
+    fi
+    if $MODULE_CHECK; then
+        wmiconfig -i $IFNAME --wlan enable
+    else
+        reload $MODE_WLAN
+        wmiconfig -i $IFNAME --connect dummy
+    fi 
+}
+
+if ! ls /system/bin/wmiconfig; then
+    $SYSLOG "Cannot find wmiconfig!!!!"
+fi 
+
+case $1 in 
+    dhcpcd)
+    /system/bin/dhcpcd -B $IFNAME
+    ;;
+    wpa_supplicant)
+    /system/bin/wpa_supplicant -Dwext -i$IFNAME -c/data/misc/wifi/wpa_supplicant.conf
+    ;;
+    hostapd)
+    /system/bin/hostapd /data/misc/wifi/hostapd.conf
+    ;;
+    abtfilt)
+    /system/bin/abtfilt -d -z -n -v -s
+    ;;
+    bton)
+    if ! $MODULE_CHECK && exp $CLK_HELPER == 1; then
+        $SYSLOG "Run BT clock helper"
+        init
+    fi
+    do_setprop wlan.driver.btcoex ok
+    ;;
+    btoff)
+    if ! strcmp $WIFI_STATUS "ok"; then
+        if $MODULE_CHECK && exp $CLK_HELPER == 1; then
+            $SYSLOG "Stop BT clock helper"
+            do_rmmod
+        fi
+    fi
+    do_setprop wlan.driver.btcoex ok
+    ;;
+    unload)    
+    unloaddriver
+    ;;
+    load)
+    loaddriver
+    ;;
+# for HotSpot +
+    load_ap)
+    $SYSLOG "loadAPdriver+"
+    loadAPdriver
+    $SYSLOG "loadAPdriver-"
+    ;;
+# for HotSpot -
+    testmodeup)
+    testmodeup
+    ;;
+    testmodedown)
+    testmodedown
+    ;;
+    apmodeup)
+    apmodeup
+    ;;
+    apmodedown)
+    apmodedown
+    ;;
+    recEvent)
+    mv /data/ar6k.log /data/ar6k.previous.log
+    recEvent --logfile=/data/ar6k.log --binary --reclimit=10000
+    ;;
+    *) 
+    init
+    ;;
+esac

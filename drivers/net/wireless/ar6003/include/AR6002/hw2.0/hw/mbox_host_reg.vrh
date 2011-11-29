@@ -1,0 +1,563 @@
+#ifndef _MBOX_HOST_REG_VRH_
+#define _MBOX_HOST_REG_VRH_
+
+#define HOST_INT_STATUS_ADDRESS                  'h00000400
+#define HOST_INT_STATUS_ERROR_MSB                7
+#define HOST_INT_STATUS_ERROR_LSB                7
+#define HOST_INT_STATUS_ERROR_MASK               'h00000080
+#define HOST_INT_STATUS_ERROR_GET(x)             (((x) & HOST_INT_STATUS_ERROR_MASK) >> HOST_INT_STATUS_ERROR_LSB)
+#define HOST_INT_STATUS_ERROR_SET(x)             (((8'd0 | (x)) << HOST_INT_STATUS_ERROR_LSB) & HOST_INT_STATUS_ERROR_MASK)
+#define HOST_INT_STATUS_ERROR_RESET              1'h0
+#define HOST_INT_STATUS_CPU_MSB                  6
+#define HOST_INT_STATUS_CPU_LSB                  6
+#define HOST_INT_STATUS_CPU_MASK                 'h00000040
+#define HOST_INT_STATUS_CPU_GET(x)               (((x) & HOST_INT_STATUS_CPU_MASK) >> HOST_INT_STATUS_CPU_LSB)
+#define HOST_INT_STATUS_CPU_SET(x)               (((8'd0 | (x)) << HOST_INT_STATUS_CPU_LSB) & HOST_INT_STATUS_CPU_MASK)
+#define HOST_INT_STATUS_CPU_RESET                1'h0
+#define HOST_INT_STATUS_DRAGON_INT_MSB           5
+#define HOST_INT_STATUS_DRAGON_INT_LSB           5
+#define HOST_INT_STATUS_DRAGON_INT_MASK          'h00000020
+#define HOST_INT_STATUS_DRAGON_INT_GET(x)        (((x) & HOST_INT_STATUS_DRAGON_INT_MASK) >> HOST_INT_STATUS_DRAGON_INT_LSB)
+#define HOST_INT_STATUS_DRAGON_INT_SET(x)        (((8'd0 | (x)) << HOST_INT_STATUS_DRAGON_INT_LSB) & HOST_INT_STATUS_DRAGON_INT_MASK)
+#define HOST_INT_STATUS_DRAGON_INT_RESET         1'h0
+#define HOST_INT_STATUS_COUNTER_MSB              4
+#define HOST_INT_STATUS_COUNTER_LSB              4
+#define HOST_INT_STATUS_COUNTER_MASK             'h00000010
+#define HOST_INT_STATUS_COUNTER_GET(x)           (((x) & HOST_INT_STATUS_COUNTER_MASK) >> HOST_INT_STATUS_COUNTER_LSB)
+#define HOST_INT_STATUS_COUNTER_SET(x)           (((8'd0 | (x)) << HOST_INT_STATUS_COUNTER_LSB) & HOST_INT_STATUS_COUNTER_MASK)
+#define HOST_INT_STATUS_COUNTER_RESET            1'h0
+#define HOST_INT_STATUS_MBOX_DATA_MSB            3
+#define HOST_INT_STATUS_MBOX_DATA_LSB            0
+#define HOST_INT_STATUS_MBOX_DATA_MASK           'h0000000f
+#define HOST_INT_STATUS_MBOX_DATA_GET(x)         (((x) & HOST_INT_STATUS_MBOX_DATA_MASK) >> HOST_INT_STATUS_MBOX_DATA_LSB)
+#define HOST_INT_STATUS_MBOX_DATA_SET(x)         (((8'd0 | (x)) << HOST_INT_STATUS_MBOX_DATA_LSB) & HOST_INT_STATUS_MBOX_DATA_MASK)
+#define HOST_INT_STATUS_MBOX_DATA_RESET          4'h0
+#define HOST_INT_STATUS_RESET                    (8'h0 | \
+                                                  HOST_INT_STATUS_ERROR_SET(HOST_INT_STATUS_ERROR_RESET) | \
+                                                  HOST_INT_STATUS_CPU_SET(HOST_INT_STATUS_CPU_RESET) | \
+                                                  HOST_INT_STATUS_DRAGON_INT_SET(HOST_INT_STATUS_DRAGON_INT_RESET) | \
+                                                  HOST_INT_STATUS_COUNTER_SET(HOST_INT_STATUS_COUNTER_RESET) | \
+                                                  HOST_INT_STATUS_MBOX_DATA_SET(HOST_INT_STATUS_MBOX_DATA_RESET))
+#define HOST_INT_STATUS_HW_MASK                  (8'h0 | \
+                                                  HOST_INT_STATUS_ERROR_MASK | \
+                                                  HOST_INT_STATUS_CPU_MASK | \
+                                                  HOST_INT_STATUS_DRAGON_INT_MASK | \
+                                                  HOST_INT_STATUS_COUNTER_MASK | \
+                                                  HOST_INT_STATUS_MBOX_DATA_MASK)
+#define HOST_INT_STATUS_SW_MASK                  (8'h0)
+
+#define CPU_INT_STATUS_ADDRESS                   'h00000401
+#define CPU_INT_STATUS_BIT_MSB                   7
+#define CPU_INT_STATUS_BIT_LSB                   0
+#define CPU_INT_STATUS_BIT_MASK                  'h000000ff
+#define CPU_INT_STATUS_BIT_GET(x)                (((x) & CPU_INT_STATUS_BIT_MASK) >> CPU_INT_STATUS_BIT_LSB)
+#define CPU_INT_STATUS_BIT_SET(x)                (((8'd0 | (x)) << CPU_INT_STATUS_BIT_LSB) & CPU_INT_STATUS_BIT_MASK)
+#define CPU_INT_STATUS_BIT_RESET                 8'h0
+#define CPU_INT_STATUS_RESET                     (8'h0 | \
+                                                  CPU_INT_STATUS_BIT_SET(CPU_INT_STATUS_BIT_RESET))
+#define CPU_INT_STATUS_HW_MASK                   (8'h0 | \
+                                                  CPU_INT_STATUS_BIT_MASK)
+#define CPU_INT_STATUS_SW_MASK                   (8'h0 | \
+                                                  CPU_INT_STATUS_BIT_MASK)
+
+#define ERROR_INT_STATUS_ADDRESS                 'h00000402
+#define ERROR_INT_STATUS_SPI_MSB                 3
+#define ERROR_INT_STATUS_SPI_LSB                 3
+#define ERROR_INT_STATUS_SPI_MASK                'h00000008
+#define ERROR_INT_STATUS_SPI_GET(x)              (((x) & ERROR_INT_STATUS_SPI_MASK) >> ERROR_INT_STATUS_SPI_LSB)
+#define ERROR_INT_STATUS_SPI_SET(x)              (((8'd0 | (x)) << ERROR_INT_STATUS_SPI_LSB) & ERROR_INT_STATUS_SPI_MASK)
+#define ERROR_INT_STATUS_SPI_RESET               1'h0
+#define ERROR_INT_STATUS_WAKEUP_MSB              2
+#define ERROR_INT_STATUS_WAKEUP_LSB              2
+#define ERROR_INT_STATUS_WAKEUP_MASK             'h00000004
+#define ERROR_INT_STATUS_WAKEUP_GET(x)           (((x) & ERROR_INT_STATUS_WAKEUP_MASK) >> ERROR_INT_STATUS_WAKEUP_LSB)
+#define ERROR_INT_STATUS_WAKEUP_SET(x)           (((8'd0 | (x)) << ERROR_INT_STATUS_WAKEUP_LSB) & ERROR_INT_STATUS_WAKEUP_MASK)
+#define ERROR_INT_STATUS_WAKEUP_RESET            1'h0
+#define ERROR_INT_STATUS_RX_UNDERFLOW_MSB        1
+#define ERROR_INT_STATUS_RX_UNDERFLOW_LSB        1
+#define ERROR_INT_STATUS_RX_UNDERFLOW_MASK       'h00000002
+#define ERROR_INT_STATUS_RX_UNDERFLOW_GET(x)     (((x) & ERROR_INT_STATUS_RX_UNDERFLOW_MASK) >> ERROR_INT_STATUS_RX_UNDERFLOW_LSB)
+#define ERROR_INT_STATUS_RX_UNDERFLOW_SET(x)     (((8'd0 | (x)) << ERROR_INT_STATUS_RX_UNDERFLOW_LSB) & ERROR_INT_STATUS_RX_UNDERFLOW_MASK)
+#define ERROR_INT_STATUS_RX_UNDERFLOW_RESET      1'h0
+#define ERROR_INT_STATUS_TX_OVERFLOW_MSB         0
+#define ERROR_INT_STATUS_TX_OVERFLOW_LSB         0
+#define ERROR_INT_STATUS_TX_OVERFLOW_MASK        'h00000001
+#define ERROR_INT_STATUS_TX_OVERFLOW_GET(x)      (((x) & ERROR_INT_STATUS_TX_OVERFLOW_MASK) >> ERROR_INT_STATUS_TX_OVERFLOW_LSB)
+#define ERROR_INT_STATUS_TX_OVERFLOW_SET(x)      (((8'd0 | (x)) << ERROR_INT_STATUS_TX_OVERFLOW_LSB) & ERROR_INT_STATUS_TX_OVERFLOW_MASK)
+#define ERROR_INT_STATUS_TX_OVERFLOW_RESET       1'h0
+#define ERROR_INT_STATUS_RESET                   (8'h0 | \
+                                                  ERROR_INT_STATUS_SPI_SET(ERROR_INT_STATUS_SPI_RESET) | \
+                                                  ERROR_INT_STATUS_WAKEUP_SET(ERROR_INT_STATUS_WAKEUP_RESET) | \
+                                                  ERROR_INT_STATUS_RX_UNDERFLOW_SET(ERROR_INT_STATUS_RX_UNDERFLOW_RESET) | \
+                                                  ERROR_INT_STATUS_TX_OVERFLOW_SET(ERROR_INT_STATUS_TX_OVERFLOW_RESET))
+#define ERROR_INT_STATUS_HW_MASK                 (8'h0 | \
+                                                  ERROR_INT_STATUS_SPI_MASK | \
+                                                  ERROR_INT_STATUS_WAKEUP_MASK | \
+                                                  ERROR_INT_STATUS_RX_UNDERFLOW_MASK | \
+                                                  ERROR_INT_STATUS_TX_OVERFLOW_MASK)
+#define ERROR_INT_STATUS_SW_MASK                 (8'h0 | \
+                                                  ERROR_INT_STATUS_WAKEUP_MASK | \
+                                                  ERROR_INT_STATUS_RX_UNDERFLOW_MASK | \
+                                                  ERROR_INT_STATUS_TX_OVERFLOW_MASK)
+
+#define COUNTER_INT_STATUS_ADDRESS               'h00000403
+#define COUNTER_INT_STATUS_COUNTER_MSB           7
+#define COUNTER_INT_STATUS_COUNTER_LSB           0
+#define COUNTER_INT_STATUS_COUNTER_MASK          'h000000ff
+#define COUNTER_INT_STATUS_COUNTER_GET(x)        (((x) & COUNTER_INT_STATUS_COUNTER_MASK) >> COUNTER_INT_STATUS_COUNTER_LSB)
+#define COUNTER_INT_STATUS_COUNTER_SET(x)        (((8'd0 | (x)) << COUNTER_INT_STATUS_COUNTER_LSB) & COUNTER_INT_STATUS_COUNTER_MASK)
+#define COUNTER_INT_STATUS_COUNTER_RESET         8'h0
+#define COUNTER_INT_STATUS_RESET                 (8'h0 | \
+                                                  COUNTER_INT_STATUS_COUNTER_SET(COUNTER_INT_STATUS_COUNTER_RESET))
+#define COUNTER_INT_STATUS_HW_MASK               (8'h0 | \
+                                                  COUNTER_INT_STATUS_COUNTER_MASK)
+#define COUNTER_INT_STATUS_SW_MASK               (8'h0)
+
+#define MBOX_FRAME_ADDRESS                       'h00000404
+#define MBOX_FRAME_RX_EOM_MSB                    7
+#define MBOX_FRAME_RX_EOM_LSB                    4
+#define MBOX_FRAME_RX_EOM_MASK                   'h000000f0
+#define MBOX_FRAME_RX_EOM_GET(x)                 (((x) & MBOX_FRAME_RX_EOM_MASK) >> MBOX_FRAME_RX_EOM_LSB)
+#define MBOX_FRAME_RX_EOM_SET(x)                 (((8'd0 | (x)) << MBOX_FRAME_RX_EOM_LSB) & MBOX_FRAME_RX_EOM_MASK)
+#define MBOX_FRAME_RX_EOM_RESET                  4'h0
+#define MBOX_FRAME_RX_SOM_MSB                    3
+#define MBOX_FRAME_RX_SOM_LSB                    0
+#define MBOX_FRAME_RX_SOM_MASK                   'h0000000f
+#define MBOX_FRAME_RX_SOM_GET(x)                 (((x) & MBOX_FRAME_RX_SOM_MASK) >> MBOX_FRAME_RX_SOM_LSB)
+#define MBOX_FRAME_RX_SOM_SET(x)                 (((8'd0 | (x)) << MBOX_FRAME_RX_SOM_LSB) & MBOX_FRAME_RX_SOM_MASK)
+#define MBOX_FRAME_RX_SOM_RESET                  4'hf
+#define MBOX_FRAME_RESET                         (8'h0 | \
+                                                  MBOX_FRAME_RX_EOM_SET(MBOX_FRAME_RX_EOM_RESET) | \
+                                                  MBOX_FRAME_RX_SOM_SET(MBOX_FRAME_RX_SOM_RESET))
+#define MBOX_FRAME_HW_MASK                       (8'h0 | \
+                                                  MBOX_FRAME_RX_EOM_MASK | \
+                                                  MBOX_FRAME_RX_SOM_MASK)
+#define MBOX_FRAME_SW_MASK                       (8'h0)
+
+#define RX_LOOKAHEAD_VALID_ADDRESS               'h00000405
+#define RX_LOOKAHEAD_VALID_MBOX_MSB              3
+#define RX_LOOKAHEAD_VALID_MBOX_LSB              0
+#define RX_LOOKAHEAD_VALID_MBOX_MASK             'h0000000f
+#define RX_LOOKAHEAD_VALID_MBOX_GET(x)           (((x) & RX_LOOKAHEAD_VALID_MBOX_MASK) >> RX_LOOKAHEAD_VALID_MBOX_LSB)
+#define RX_LOOKAHEAD_VALID_MBOX_SET(x)           (((8'd0 | (x)) << RX_LOOKAHEAD_VALID_MBOX_LSB) & RX_LOOKAHEAD_VALID_MBOX_MASK)
+#define RX_LOOKAHEAD_VALID_MBOX_RESET            4'h0
+#define RX_LOOKAHEAD_VALID_RESET                 (8'h0 | \
+                                                  RX_LOOKAHEAD_VALID_MBOX_SET(RX_LOOKAHEAD_VALID_MBOX_RESET))
+#define RX_LOOKAHEAD_VALID_HW_MASK               (8'h0 | \
+                                                  RX_LOOKAHEAD_VALID_MBOX_MASK)
+#define RX_LOOKAHEAD_VALID_SW_MASK               (8'h0)
+
+#define RX_LOOKAHEAD0_ADDRESS                    'h00000408
+#define RX_LOOKAHEAD0_DATA_MSB                   7
+#define RX_LOOKAHEAD0_DATA_LSB                   0
+#define RX_LOOKAHEAD0_DATA_MASK                  'h000000ff
+#define RX_LOOKAHEAD0_DATA_GET(x)                (((x) & RX_LOOKAHEAD0_DATA_MASK) >> RX_LOOKAHEAD0_DATA_LSB)
+#define RX_LOOKAHEAD0_DATA_SET(x)                (((8'd0 | (x)) << RX_LOOKAHEAD0_DATA_LSB) & RX_LOOKAHEAD0_DATA_MASK)
+#define RX_LOOKAHEAD0_DATA_RESET                 8'h0
+#define RX_LOOKAHEAD0_RESET                      (8'h0 | \
+                                                  RX_LOOKAHEAD0_DATA_SET(RX_LOOKAHEAD0_DATA_RESET))
+#define RX_LOOKAHEAD0_HW_MASK                    (8'h0 | \
+                                                  RX_LOOKAHEAD0_DATA_MASK)
+#define RX_LOOKAHEAD0_SW_MASK                    (8'h0)
+
+#define RX_LOOKAHEAD1_ADDRESS                    'h0000040c
+#define RX_LOOKAHEAD1_DATA_MSB                   7
+#define RX_LOOKAHEAD1_DATA_LSB                   0
+#define RX_LOOKAHEAD1_DATA_MASK                  'h000000ff
+#define RX_LOOKAHEAD1_DATA_GET(x)                (((x) & RX_LOOKAHEAD1_DATA_MASK) >> RX_LOOKAHEAD1_DATA_LSB)
+#define RX_LOOKAHEAD1_DATA_SET(x)                (((8'd0 | (x)) << RX_LOOKAHEAD1_DATA_LSB) & RX_LOOKAHEAD1_DATA_MASK)
+#define RX_LOOKAHEAD1_DATA_RESET                 8'h0
+#define RX_LOOKAHEAD1_RESET                      (8'h0 | \
+                                                  RX_LOOKAHEAD1_DATA_SET(RX_LOOKAHEAD1_DATA_RESET))
+#define RX_LOOKAHEAD1_HW_MASK                    (8'h0 | \
+                                                  RX_LOOKAHEAD1_DATA_MASK)
+#define RX_LOOKAHEAD1_SW_MASK                    (8'h0)
+
+#define RX_LOOKAHEAD2_ADDRESS                    'h00000410
+#define RX_LOOKAHEAD2_DATA_MSB                   7
+#define RX_LOOKAHEAD2_DATA_LSB                   0
+#define RX_LOOKAHEAD2_DATA_MASK                  'h000000ff
+#define RX_LOOKAHEAD2_DATA_GET(x)                (((x) & RX_LOOKAHEAD2_DATA_MASK) >> RX_LOOKAHEAD2_DATA_LSB)
+#define RX_LOOKAHEAD2_DATA_SET(x)                (((8'd0 | (x)) << RX_LOOKAHEAD2_DATA_LSB) & RX_LOOKAHEAD2_DATA_MASK)
+#define RX_LOOKAHEAD2_DATA_RESET                 8'h0
+#define RX_LOOKAHEAD2_RESET                      (8'h0 | \
+                                                  RX_LOOKAHEAD2_DATA_SET(RX_LOOKAHEAD2_DATA_RESET))
+#define RX_LOOKAHEAD2_HW_MASK                    (8'h0 | \
+                                                  RX_LOOKAHEAD2_DATA_MASK)
+#define RX_LOOKAHEAD2_SW_MASK                    (8'h0)
+
+#define RX_LOOKAHEAD3_ADDRESS                    'h00000414
+#define RX_LOOKAHEAD3_DATA_MSB                   7
+#define RX_LOOKAHEAD3_DATA_LSB                   0
+#define RX_LOOKAHEAD3_DATA_MASK                  'h000000ff
+#define RX_LOOKAHEAD3_DATA_GET(x)                (((x) & RX_LOOKAHEAD3_DATA_MASK) >> RX_LOOKAHEAD3_DATA_LSB)
+#define RX_LOOKAHEAD3_DATA_SET(x)                (((8'd0 | (x)) << RX_LOOKAHEAD3_DATA_LSB) & RX_LOOKAHEAD3_DATA_MASK)
+#define RX_LOOKAHEAD3_DATA_RESET                 8'h0
+#define RX_LOOKAHEAD3_RESET                      (8'h0 | \
+                                                  RX_LOOKAHEAD3_DATA_SET(RX_LOOKAHEAD3_DATA_RESET))
+#define RX_LOOKAHEAD3_HW_MASK                    (8'h0 | \
+                                                  RX_LOOKAHEAD3_DATA_MASK)
+#define RX_LOOKAHEAD3_SW_MASK                    (8'h0)
+
+#define INT_STATUS_ENABLE_ADDRESS                'h00000418
+#define INT_STATUS_ENABLE_ERROR_MSB              7
+#define INT_STATUS_ENABLE_ERROR_LSB              7
+#define INT_STATUS_ENABLE_ERROR_MASK             'h00000080
+#define INT_STATUS_ENABLE_ERROR_GET(x)           (((x) & INT_STATUS_ENABLE_ERROR_MASK) >> INT_STATUS_ENABLE_ERROR_LSB)
+#define INT_STATUS_ENABLE_ERROR_SET(x)           (((8'd0 | (x)) << INT_STATUS_ENABLE_ERROR_LSB) & INT_STATUS_ENABLE_ERROR_MASK)
+#define INT_STATUS_ENABLE_ERROR_RESET            1'h1
+#define INT_STATUS_ENABLE_CPU_MSB                6
+#define INT_STATUS_ENABLE_CPU_LSB                6
+#define INT_STATUS_ENABLE_CPU_MASK               'h00000040
+#define INT_STATUS_ENABLE_CPU_GET(x)             (((x) & INT_STATUS_ENABLE_CPU_MASK) >> INT_STATUS_ENABLE_CPU_LSB)
+#define INT_STATUS_ENABLE_CPU_SET(x)             (((8'd0 | (x)) << INT_STATUS_ENABLE_CPU_LSB) & INT_STATUS_ENABLE_CPU_MASK)
+#define INT_STATUS_ENABLE_CPU_RESET              1'h1
+#define INT_STATUS_ENABLE_DRAGON_INT_MSB         5
+#define INT_STATUS_ENABLE_DRAGON_INT_LSB         5
+#define INT_STATUS_ENABLE_DRAGON_INT_MASK        'h00000020
+#define INT_STATUS_ENABLE_DRAGON_INT_GET(x)      (((x) & INT_STATUS_ENABLE_DRAGON_INT_MASK) >> INT_STATUS_ENABLE_DRAGON_INT_LSB)
+#define INT_STATUS_ENABLE_DRAGON_INT_SET(x)      (((8'd0 | (x)) << INT_STATUS_ENABLE_DRAGON_INT_LSB) & INT_STATUS_ENABLE_DRAGON_INT_MASK)
+#define INT_STATUS_ENABLE_DRAGON_INT_RESET       1'h0
+#define INT_STATUS_ENABLE_COUNTER_MSB            4
+#define INT_STATUS_ENABLE_COUNTER_LSB            4
+#define INT_STATUS_ENABLE_COUNTER_MASK           'h00000010
+#define INT_STATUS_ENABLE_COUNTER_GET(x)         (((x) & INT_STATUS_ENABLE_COUNTER_MASK) >> INT_STATUS_ENABLE_COUNTER_LSB)
+#define INT_STATUS_ENABLE_COUNTER_SET(x)         (((8'd0 | (x)) << INT_STATUS_ENABLE_COUNTER_LSB) & INT_STATUS_ENABLE_COUNTER_MASK)
+#define INT_STATUS_ENABLE_COUNTER_RESET          1'h0
+#define INT_STATUS_ENABLE_MBOX_DATA_MSB          3
+#define INT_STATUS_ENABLE_MBOX_DATA_LSB          0
+#define INT_STATUS_ENABLE_MBOX_DATA_MASK         'h0000000f
+#define INT_STATUS_ENABLE_MBOX_DATA_GET(x)       (((x) & INT_STATUS_ENABLE_MBOX_DATA_MASK) >> INT_STATUS_ENABLE_MBOX_DATA_LSB)
+#define INT_STATUS_ENABLE_MBOX_DATA_SET(x)       (((8'd0 | (x)) << INT_STATUS_ENABLE_MBOX_DATA_LSB) & INT_STATUS_ENABLE_MBOX_DATA_MASK)
+#define INT_STATUS_ENABLE_MBOX_DATA_RESET        4'hf
+#define INT_STATUS_ENABLE_RESET                  (8'h0 | \
+                                                  INT_STATUS_ENABLE_ERROR_SET(INT_STATUS_ENABLE_ERROR_RESET) | \
+                                                  INT_STATUS_ENABLE_CPU_SET(INT_STATUS_ENABLE_CPU_RESET) | \
+                                                  INT_STATUS_ENABLE_DRAGON_INT_SET(INT_STATUS_ENABLE_DRAGON_INT_RESET) | \
+                                                  INT_STATUS_ENABLE_COUNTER_SET(INT_STATUS_ENABLE_COUNTER_RESET) | \
+                                                  INT_STATUS_ENABLE_MBOX_DATA_SET(INT_STATUS_ENABLE_MBOX_DATA_RESET))
+#define INT_STATUS_ENABLE_HW_MASK                (8'h0)
+#define INT_STATUS_ENABLE_SW_MASK                (8'h0 | \
+                                                  INT_STATUS_ENABLE_ERROR_MASK | \
+                                                  INT_STATUS_ENABLE_CPU_MASK | \
+                                                  INT_STATUS_ENABLE_DRAGON_INT_MASK | \
+                                                  INT_STATUS_ENABLE_COUNTER_MASK | \
+                                                  INT_STATUS_ENABLE_MBOX_DATA_MASK)
+
+#define CPU_INT_STATUS_ENABLE_ADDRESS            'h00000419
+#define CPU_INT_STATUS_ENABLE_BIT_MSB            7
+#define CPU_INT_STATUS_ENABLE_BIT_LSB            0
+#define CPU_INT_STATUS_ENABLE_BIT_MASK           'h000000ff
+#define CPU_INT_STATUS_ENABLE_BIT_GET(x)         (((x) & CPU_INT_STATUS_ENABLE_BIT_MASK) >> CPU_INT_STATUS_ENABLE_BIT_LSB)
+#define CPU_INT_STATUS_ENABLE_BIT_SET(x)         (((8'd0 | (x)) << CPU_INT_STATUS_ENABLE_BIT_LSB) & CPU_INT_STATUS_ENABLE_BIT_MASK)
+#define CPU_INT_STATUS_ENABLE_BIT_RESET          8'hff
+#define CPU_INT_STATUS_ENABLE_RESET              (8'h0 | \
+                                                  CPU_INT_STATUS_ENABLE_BIT_SET(CPU_INT_STATUS_ENABLE_BIT_RESET))
+#define CPU_INT_STATUS_ENABLE_HW_MASK            (8'h0)
+#define CPU_INT_STATUS_ENABLE_SW_MASK            (8'h0 | \
+                                                  CPU_INT_STATUS_ENABLE_BIT_MASK)
+
+#define ERROR_STATUS_ENABLE_ADDRESS              'h0000041a
+#define ERROR_STATUS_ENABLE_WAKEUP_MSB           2
+#define ERROR_STATUS_ENABLE_WAKEUP_LSB           2
+#define ERROR_STATUS_ENABLE_WAKEUP_MASK          'h00000004
+#define ERROR_STATUS_ENABLE_WAKEUP_GET(x)        (((x) & ERROR_STATUS_ENABLE_WAKEUP_MASK) >> ERROR_STATUS_ENABLE_WAKEUP_LSB)
+#define ERROR_STATUS_ENABLE_WAKEUP_SET(x)        (((8'd0 | (x)) << ERROR_STATUS_ENABLE_WAKEUP_LSB) & ERROR_STATUS_ENABLE_WAKEUP_MASK)
+#define ERROR_STATUS_ENABLE_WAKEUP_RESET         1'h0
+#define ERROR_STATUS_ENABLE_RX_UNDERFLOW_MSB     1
+#define ERROR_STATUS_ENABLE_RX_UNDERFLOW_LSB     1
+#define ERROR_STATUS_ENABLE_RX_UNDERFLOW_MASK    'h00000002
+#define ERROR_STATUS_ENABLE_RX_UNDERFLOW_GET(x)  (((x) & ERROR_STATUS_ENABLE_RX_UNDERFLOW_MASK) >> ERROR_STATUS_ENABLE_RX_UNDERFLOW_LSB)
+#define ERROR_STATUS_ENABLE_RX_UNDERFLOW_SET(x)  (((8'd0 | (x)) << ERROR_STATUS_ENABLE_RX_UNDERFLOW_LSB) & ERROR_STATUS_ENABLE_RX_UNDERFLOW_MASK)
+#define ERROR_STATUS_ENABLE_RX_UNDERFLOW_RESET   1'h0
+#define ERROR_STATUS_ENABLE_TX_OVERFLOW_MSB      0
+#define ERROR_STATUS_ENABLE_TX_OVERFLOW_LSB      0
+#define ERROR_STATUS_ENABLE_TX_OVERFLOW_MASK     'h00000001
+#define ERROR_STATUS_ENABLE_TX_OVERFLOW_GET(x)   (((x) & ERROR_STATUS_ENABLE_TX_OVERFLOW_MASK) >> ERROR_STATUS_ENABLE_TX_OVERFLOW_LSB)
+#define ERROR_STATUS_ENABLE_TX_OVERFLOW_SET(x)   (((8'd0 | (x)) << ERROR_STATUS_ENABLE_TX_OVERFLOW_LSB) & ERROR_STATUS_ENABLE_TX_OVERFLOW_MASK)
+#define ERROR_STATUS_ENABLE_TX_OVERFLOW_RESET    1'h0
+#define ERROR_STATUS_ENABLE_RESET                (8'h0 | \
+                                                  ERROR_STATUS_ENABLE_WAKEUP_SET(ERROR_STATUS_ENABLE_WAKEUP_RESET) | \
+                                                  ERROR_STATUS_ENABLE_RX_UNDERFLOW_SET(ERROR_STATUS_ENABLE_RX_UNDERFLOW_RESET) | \
+                                                  ERROR_STATUS_ENABLE_TX_OVERFLOW_SET(ERROR_STATUS_ENABLE_TX_OVERFLOW_RESET))
+#define ERROR_STATUS_ENABLE_HW_MASK              (8'h0)
+#define ERROR_STATUS_ENABLE_SW_MASK              (8'h0 | \
+                                                  ERROR_STATUS_ENABLE_WAKEUP_MASK | \
+                                                  ERROR_STATUS_ENABLE_RX_UNDERFLOW_MASK | \
+                                                  ERROR_STATUS_ENABLE_TX_OVERFLOW_MASK)
+
+#define COUNTER_INT_STATUS_ENABLE_ADDRESS        'h0000041b
+#define COUNTER_INT_STATUS_ENABLE_BIT_MSB        7
+#define COUNTER_INT_STATUS_ENABLE_BIT_LSB        0
+#define COUNTER_INT_STATUS_ENABLE_BIT_MASK       'h000000ff
+#define COUNTER_INT_STATUS_ENABLE_BIT_GET(x)     (((x) & COUNTER_INT_STATUS_ENABLE_BIT_MASK) >> COUNTER_INT_STATUS_ENABLE_BIT_LSB)
+#define COUNTER_INT_STATUS_ENABLE_BIT_SET(x)     (((8'd0 | (x)) << COUNTER_INT_STATUS_ENABLE_BIT_LSB) & COUNTER_INT_STATUS_ENABLE_BIT_MASK)
+#define COUNTER_INT_STATUS_ENABLE_BIT_RESET      8'hff
+#define COUNTER_INT_STATUS_ENABLE_RESET          (8'h0 | \
+                                                  COUNTER_INT_STATUS_ENABLE_BIT_SET(COUNTER_INT_STATUS_ENABLE_BIT_RESET))
+#define COUNTER_INT_STATUS_ENABLE_HW_MASK        (8'h0)
+#define COUNTER_INT_STATUS_ENABLE_SW_MASK        (8'h0 | \
+                                                  COUNTER_INT_STATUS_ENABLE_BIT_MASK)
+
+#define COUNT_ADDRESS                            'h00000420
+#define COUNT_VALUE_MSB                          7
+#define COUNT_VALUE_LSB                          0
+#define COUNT_VALUE_MASK                         'h000000ff
+#define COUNT_VALUE_GET(x)                       (((x) & COUNT_VALUE_MASK) >> COUNT_VALUE_LSB)
+#define COUNT_VALUE_SET(x)                       (((8'd0 | (x)) << COUNT_VALUE_LSB) & COUNT_VALUE_MASK)
+#define COUNT_VALUE_RESET                        8'h0
+#define COUNT_RESET                              (8'h0 | \
+                                                  COUNT_VALUE_SET(COUNT_VALUE_RESET))
+#define COUNT_HW_MASK                            (8'h0 | \
+                                                  COUNT_VALUE_MASK)
+#define COUNT_SW_MASK                            (8'h0 | \
+                                                  COUNT_VALUE_MASK)
+
+#define COUNT_DEC_ADDRESS                        'h00000440
+#define COUNT_DEC_VALUE_MSB                      7
+#define COUNT_DEC_VALUE_LSB                      0
+#define COUNT_DEC_VALUE_MASK                     'h000000ff
+#define COUNT_DEC_VALUE_GET(x)                   (((x) & COUNT_DEC_VALUE_MASK) >> COUNT_DEC_VALUE_LSB)
+#define COUNT_DEC_VALUE_SET(x)                   (((8'd0 | (x)) << COUNT_DEC_VALUE_LSB) & COUNT_DEC_VALUE_MASK)
+#define COUNT_DEC_VALUE_RESET                    8'h0
+#define COUNT_DEC_RESET                          (8'h0 | \
+                                                  COUNT_DEC_VALUE_SET(COUNT_DEC_VALUE_RESET))
+#define COUNT_DEC_HW_MASK                        (8'h0 | \
+                                                  COUNT_DEC_VALUE_MASK)
+#define COUNT_DEC_SW_MASK                        (8'h0 | \
+                                                  COUNT_DEC_VALUE_MASK)
+
+#define SCRATCH_ADDRESS                          'h00000460
+#define SCRATCH_VALUE_MSB                        7
+#define SCRATCH_VALUE_LSB                        0
+#define SCRATCH_VALUE_MASK                       'h000000ff
+#define SCRATCH_VALUE_GET(x)                     (((x) & SCRATCH_VALUE_MASK) >> SCRATCH_VALUE_LSB)
+#define SCRATCH_VALUE_SET(x)                     (((8'd0 | (x)) << SCRATCH_VALUE_LSB) & SCRATCH_VALUE_MASK)
+#define SCRATCH_VALUE_RESET                      8'h0
+#define SCRATCH_RESET                            (8'h0 | \
+                                                  SCRATCH_VALUE_SET(SCRATCH_VALUE_RESET))
+#define SCRATCH_HW_MASK                          (8'h0 | \
+                                                  SCRATCH_VALUE_MASK)
+#define SCRATCH_SW_MASK                          (8'h0 | \
+                                                  SCRATCH_VALUE_MASK)
+
+#define FIFO_TIMEOUT_ADDRESS                     'h00000468
+#define FIFO_TIMEOUT_VALUE_MSB                   7
+#define FIFO_TIMEOUT_VALUE_LSB                   0
+#define FIFO_TIMEOUT_VALUE_MASK                  'h000000ff
+#define FIFO_TIMEOUT_VALUE_GET(x)                (((x) & FIFO_TIMEOUT_VALUE_MASK) >> FIFO_TIMEOUT_VALUE_LSB)
+#define FIFO_TIMEOUT_VALUE_SET(x)                (((8'd0 | (x)) << FIFO_TIMEOUT_VALUE_LSB) & FIFO_TIMEOUT_VALUE_MASK)
+#define FIFO_TIMEOUT_VALUE_RESET                 8'hff
+#define FIFO_TIMEOUT_RESET                       (8'h0 | \
+                                                  FIFO_TIMEOUT_VALUE_SET(FIFO_TIMEOUT_VALUE_RESET))
+#define FIFO_TIMEOUT_HW_MASK                     (8'h0)
+#define FIFO_TIMEOUT_SW_MASK                     (8'h0 | \
+                                                  FIFO_TIMEOUT_VALUE_MASK)
+
+#define FIFO_TIMEOUT_ENABLE_ADDRESS              'h00000469
+#define FIFO_TIMEOUT_ENABLE_SET_MSB              0
+#define FIFO_TIMEOUT_ENABLE_SET_LSB              0
+#define FIFO_TIMEOUT_ENABLE_SET_MASK             'h00000001
+#define FIFO_TIMEOUT_ENABLE_SET_GET(x)           (((x) & FIFO_TIMEOUT_ENABLE_SET_MASK) >> FIFO_TIMEOUT_ENABLE_SET_LSB)
+#define FIFO_TIMEOUT_ENABLE_SET_SET(x)           (((8'd0 | (x)) << FIFO_TIMEOUT_ENABLE_SET_LSB) & FIFO_TIMEOUT_ENABLE_SET_MASK)
+#define FIFO_TIMEOUT_ENABLE_SET_RESET            1'h1
+#define FIFO_TIMEOUT_ENABLE_RESET                (8'h0 | \
+                                                  FIFO_TIMEOUT_ENABLE_SET_SET(FIFO_TIMEOUT_ENABLE_SET_RESET))
+#define FIFO_TIMEOUT_ENABLE_HW_MASK              (8'h0)
+#define FIFO_TIMEOUT_ENABLE_SW_MASK              (8'h0 | \
+                                                  FIFO_TIMEOUT_ENABLE_SET_MASK)
+
+#define DISABLE_SLEEP_ADDRESS                    'h0000046a
+#define DISABLE_SLEEP_FOR_INT_MSB                1
+#define DISABLE_SLEEP_FOR_INT_LSB                1
+#define DISABLE_SLEEP_FOR_INT_MASK               'h00000002
+#define DISABLE_SLEEP_FOR_INT_GET(x)             (((x) & DISABLE_SLEEP_FOR_INT_MASK) >> DISABLE_SLEEP_FOR_INT_LSB)
+#define DISABLE_SLEEP_FOR_INT_SET(x)             (((8'd0 | (x)) << DISABLE_SLEEP_FOR_INT_LSB) & DISABLE_SLEEP_FOR_INT_MASK)
+#define DISABLE_SLEEP_FOR_INT_RESET              1'h0
+#define DISABLE_SLEEP_ON_MSB                     0
+#define DISABLE_SLEEP_ON_LSB                     0
+#define DISABLE_SLEEP_ON_MASK                    'h00000001
+#define DISABLE_SLEEP_ON_GET(x)                  (((x) & DISABLE_SLEEP_ON_MASK) >> DISABLE_SLEEP_ON_LSB)
+#define DISABLE_SLEEP_ON_SET(x)                  (((8'd0 | (x)) << DISABLE_SLEEP_ON_LSB) & DISABLE_SLEEP_ON_MASK)
+#define DISABLE_SLEEP_ON_RESET                   1'h0
+#define DISABLE_SLEEP_RESET                      (8'h0 | \
+                                                  DISABLE_SLEEP_FOR_INT_SET(DISABLE_SLEEP_FOR_INT_RESET) | \
+                                                  DISABLE_SLEEP_ON_SET(DISABLE_SLEEP_ON_RESET))
+#define DISABLE_SLEEP_HW_MASK                    (8'h0)
+#define DISABLE_SLEEP_SW_MASK                    (8'h0 | \
+                                                  DISABLE_SLEEP_FOR_INT_MASK | \
+                                                  DISABLE_SLEEP_ON_MASK)
+
+#define LOCAL_BUS_ADDRESS                        'h00000470
+#define LOCAL_BUS_STATE_MSB                      1
+#define LOCAL_BUS_STATE_LSB                      0
+#define LOCAL_BUS_STATE_MASK                     'h00000003
+#define LOCAL_BUS_STATE_GET(x)                   (((x) & LOCAL_BUS_STATE_MASK) >> LOCAL_BUS_STATE_LSB)
+#define LOCAL_BUS_STATE_SET(x)                   (((8'd0 | (x)) << LOCAL_BUS_STATE_LSB) & LOCAL_BUS_STATE_MASK)
+#define LOCAL_BUS_STATE_RESET                    2'h0
+#define LOCAL_BUS_RESET                          (8'h0 | \
+                                                  LOCAL_BUS_STATE_SET(LOCAL_BUS_STATE_RESET))
+#define LOCAL_BUS_HW_MASK                        (8'h0 | \
+                                                  LOCAL_BUS_STATE_MASK)
+#define LOCAL_BUS_SW_MASK                        (8'h0)
+
+#define INT_WLAN_ADDRESS                         'h00000472
+#define INT_WLAN_VECTOR_MSB                      7
+#define INT_WLAN_VECTOR_LSB                      0
+#define INT_WLAN_VECTOR_MASK                     'h000000ff
+#define INT_WLAN_VECTOR_GET(x)                   (((x) & INT_WLAN_VECTOR_MASK) >> INT_WLAN_VECTOR_LSB)
+#define INT_WLAN_VECTOR_SET(x)                   (((8'd0 | (x)) << INT_WLAN_VECTOR_LSB) & INT_WLAN_VECTOR_MASK)
+#define INT_WLAN_VECTOR_RESET                    8'h0
+#define INT_WLAN_RESET                           (8'h0 | \
+                                                  INT_WLAN_VECTOR_SET(INT_WLAN_VECTOR_RESET))
+#define INT_WLAN_HW_MASK                         (8'h0 | \
+                                                  INT_WLAN_VECTOR_MASK)
+#define INT_WLAN_SW_MASK                         (8'h0 | \
+                                                  INT_WLAN_VECTOR_MASK)
+
+#define WINDOW_DATA_ADDRESS                      'h00000474
+#define WINDOW_DATA_DATA_MSB                     7
+#define WINDOW_DATA_DATA_LSB                     0
+#define WINDOW_DATA_DATA_MASK                    'h000000ff
+#define WINDOW_DATA_DATA_GET(x)                  (((x) & WINDOW_DATA_DATA_MASK) >> WINDOW_DATA_DATA_LSB)
+#define WINDOW_DATA_DATA_SET(x)                  (((8'd0 | (x)) << WINDOW_DATA_DATA_LSB) & WINDOW_DATA_DATA_MASK)
+#define WINDOW_DATA_DATA_RESET                   8'h0
+#define WINDOW_DATA_RESET                        (8'h0 | \
+                                                  WINDOW_DATA_DATA_SET(WINDOW_DATA_DATA_RESET))
+#define WINDOW_DATA_HW_MASK                      (8'h0 | \
+                                                  WINDOW_DATA_DATA_MASK)
+#define WINDOW_DATA_SW_MASK                      (8'h0 | \
+                                                  WINDOW_DATA_DATA_MASK)
+
+#define WINDOW_WRITE_ADDR_ADDRESS                'h00000478
+#define WINDOW_WRITE_ADDR_ADDR_MSB               7
+#define WINDOW_WRITE_ADDR_ADDR_LSB               0
+#define WINDOW_WRITE_ADDR_ADDR_MASK              'h000000ff
+#define WINDOW_WRITE_ADDR_ADDR_GET(x)            (((x) & WINDOW_WRITE_ADDR_ADDR_MASK) >> WINDOW_WRITE_ADDR_ADDR_LSB)
+#define WINDOW_WRITE_ADDR_ADDR_SET(x)            (((8'd0 | (x)) << WINDOW_WRITE_ADDR_ADDR_LSB) & WINDOW_WRITE_ADDR_ADDR_MASK)
+#define WINDOW_WRITE_ADDR_ADDR_RESET             8'h0
+#define WINDOW_WRITE_ADDR_RESET                  (8'h0 | \
+                                                  WINDOW_WRITE_ADDR_ADDR_SET(WINDOW_WRITE_ADDR_ADDR_RESET))
+#define WINDOW_WRITE_ADDR_HW_MASK                (8'h0)
+#define WINDOW_WRITE_ADDR_SW_MASK                (8'h0 | \
+                                                  WINDOW_WRITE_ADDR_ADDR_MASK)
+
+#define WINDOW_READ_ADDR_ADDRESS                 'h0000047c
+#define WINDOW_READ_ADDR_ADDR_MSB                7
+#define WINDOW_READ_ADDR_ADDR_LSB                0
+#define WINDOW_READ_ADDR_ADDR_MASK               'h000000ff
+#define WINDOW_READ_ADDR_ADDR_GET(x)             (((x) & WINDOW_READ_ADDR_ADDR_MASK) >> WINDOW_READ_ADDR_ADDR_LSB)
+#define WINDOW_READ_ADDR_ADDR_SET(x)             (((8'd0 | (x)) << WINDOW_READ_ADDR_ADDR_LSB) & WINDOW_READ_ADDR_ADDR_MASK)
+#define WINDOW_READ_ADDR_ADDR_RESET              8'h0
+#define WINDOW_READ_ADDR_RESET                   (8'h0 | \
+                                                  WINDOW_READ_ADDR_ADDR_SET(WINDOW_READ_ADDR_ADDR_RESET))
+#define WINDOW_READ_ADDR_HW_MASK                 (8'h0)
+#define WINDOW_READ_ADDR_SW_MASK                 (8'h0 | \
+                                                  WINDOW_READ_ADDR_ADDR_MASK)
+
+#define SPI_CONFIG_ADDRESS                       'h00000480
+#define SPI_CONFIG_SPI_RESET_MSB                 4
+#define SPI_CONFIG_SPI_RESET_LSB                 4
+#define SPI_CONFIG_SPI_RESET_MASK                'h00000010
+#define SPI_CONFIG_SPI_RESET_GET(x)              (((x) & SPI_CONFIG_SPI_RESET_MASK) >> SPI_CONFIG_SPI_RESET_LSB)
+#define SPI_CONFIG_SPI_RESET_SET(x)              (((8'd0 | (x)) << SPI_CONFIG_SPI_RESET_LSB) & SPI_CONFIG_SPI_RESET_MASK)
+#define SPI_CONFIG_SPI_RESET_RESET               1'h0
+#define SPI_CONFIG_INTERRUPT_ENABLE_MSB          3
+#define SPI_CONFIG_INTERRUPT_ENABLE_LSB          3
+#define SPI_CONFIG_INTERRUPT_ENABLE_MASK         'h00000008
+#define SPI_CONFIG_INTERRUPT_ENABLE_GET(x)       (((x) & SPI_CONFIG_INTERRUPT_ENABLE_MASK) >> SPI_CONFIG_INTERRUPT_ENABLE_LSB)
+#define SPI_CONFIG_INTERRUPT_ENABLE_SET(x)       (((8'd0 | (x)) << SPI_CONFIG_INTERRUPT_ENABLE_LSB) & SPI_CONFIG_INTERRUPT_ENABLE_MASK)
+#define SPI_CONFIG_INTERRUPT_ENABLE_RESET        1'h0
+#define SPI_CONFIG_TEST_MODE_MSB                 2
+#define SPI_CONFIG_TEST_MODE_LSB                 2
+#define SPI_CONFIG_TEST_MODE_MASK                'h00000004
+#define SPI_CONFIG_TEST_MODE_GET(x)              (((x) & SPI_CONFIG_TEST_MODE_MASK) >> SPI_CONFIG_TEST_MODE_LSB)
+#define SPI_CONFIG_TEST_MODE_SET(x)              (((8'd0 | (x)) << SPI_CONFIG_TEST_MODE_LSB) & SPI_CONFIG_TEST_MODE_MASK)
+#define SPI_CONFIG_TEST_MODE_RESET               1'h0
+#define SPI_CONFIG_DATA_SIZE_MSB                 1
+#define SPI_CONFIG_DATA_SIZE_LSB                 0
+#define SPI_CONFIG_DATA_SIZE_MASK                'h00000003
+#define SPI_CONFIG_DATA_SIZE_GET(x)              (((x) & SPI_CONFIG_DATA_SIZE_MASK) >> SPI_CONFIG_DATA_SIZE_LSB)
+#define SPI_CONFIG_DATA_SIZE_SET(x)              (((8'd0 | (x)) << SPI_CONFIG_DATA_SIZE_LSB) & SPI_CONFIG_DATA_SIZE_MASK)
+#define SPI_CONFIG_DATA_SIZE_RESET               2'h2
+#define SPI_CONFIG_RESET                         (8'h0 | \
+                                                  SPI_CONFIG_SPI_RESET_SET(SPI_CONFIG_SPI_RESET_RESET) | \
+                                                  SPI_CONFIG_INTERRUPT_ENABLE_SET(SPI_CONFIG_INTERRUPT_ENABLE_RESET) | \
+                                                  SPI_CONFIG_TEST_MODE_SET(SPI_CONFIG_TEST_MODE_RESET) | \
+                                                  SPI_CONFIG_DATA_SIZE_SET(SPI_CONFIG_DATA_SIZE_RESET))
+#define SPI_CONFIG_HW_MASK                       (8'h0)
+#define SPI_CONFIG_SW_MASK                       (8'h0 | \
+                                                  SPI_CONFIG_SPI_RESET_MASK | \
+                                                  SPI_CONFIG_INTERRUPT_ENABLE_MASK | \
+                                                  SPI_CONFIG_TEST_MODE_MASK | \
+                                                  SPI_CONFIG_DATA_SIZE_MASK)
+
+#define SPI_STATUS_ADDRESS                       'h00000481
+#define SPI_STATUS_ADDR_ERR_MSB                  3
+#define SPI_STATUS_ADDR_ERR_LSB                  3
+#define SPI_STATUS_ADDR_ERR_MASK                 'h00000008
+#define SPI_STATUS_ADDR_ERR_GET(x)               (((x) & SPI_STATUS_ADDR_ERR_MASK) >> SPI_STATUS_ADDR_ERR_LSB)
+#define SPI_STATUS_ADDR_ERR_SET(x)               (((8'd0 | (x)) << SPI_STATUS_ADDR_ERR_LSB) & SPI_STATUS_ADDR_ERR_MASK)
+#define SPI_STATUS_ADDR_ERR_RESET                1'h0
+#define SPI_STATUS_RD_ERR_MSB                    2
+#define SPI_STATUS_RD_ERR_LSB                    2
+#define SPI_STATUS_RD_ERR_MASK                   'h00000004
+#define SPI_STATUS_RD_ERR_GET(x)                 (((x) & SPI_STATUS_RD_ERR_MASK) >> SPI_STATUS_RD_ERR_LSB)
+#define SPI_STATUS_RD_ERR_SET(x)                 (((8'd0 | (x)) << SPI_STATUS_RD_ERR_LSB) & SPI_STATUS_RD_ERR_MASK)
+#define SPI_STATUS_RD_ERR_RESET                  1'h0
+#define SPI_STATUS_WR_ERR_MSB                    1
+#define SPI_STATUS_WR_ERR_LSB                    1
+#define SPI_STATUS_WR_ERR_MASK                   'h00000002
+#define SPI_STATUS_WR_ERR_GET(x)                 (((x) & SPI_STATUS_WR_ERR_MASK) >> SPI_STATUS_WR_ERR_LSB)
+#define SPI_STATUS_WR_ERR_SET(x)                 (((8'd0 | (x)) << SPI_STATUS_WR_ERR_LSB) & SPI_STATUS_WR_ERR_MASK)
+#define SPI_STATUS_WR_ERR_RESET                  1'h0
+#define SPI_STATUS_READY_MSB                     0
+#define SPI_STATUS_READY_LSB                     0
+#define SPI_STATUS_READY_MASK                    'h00000001
+#define SPI_STATUS_READY_GET(x)                  (((x) & SPI_STATUS_READY_MASK) >> SPI_STATUS_READY_LSB)
+#define SPI_STATUS_READY_SET(x)                  (((8'd0 | (x)) << SPI_STATUS_READY_LSB) & SPI_STATUS_READY_MASK)
+#define SPI_STATUS_READY_RESET                   1'h1
+#define SPI_STATUS_RESET                         (8'h0 | \
+                                                  SPI_STATUS_ADDR_ERR_SET(SPI_STATUS_ADDR_ERR_RESET) | \
+                                                  SPI_STATUS_RD_ERR_SET(SPI_STATUS_RD_ERR_RESET) | \
+                                                  SPI_STATUS_WR_ERR_SET(SPI_STATUS_WR_ERR_RESET) | \
+                                                  SPI_STATUS_READY_SET(SPI_STATUS_READY_RESET))
+#define SPI_STATUS_HW_MASK                       (8'h0 | \
+                                                  SPI_STATUS_ADDR_ERR_MASK | \
+                                                  SPI_STATUS_RD_ERR_MASK | \
+                                                  SPI_STATUS_WR_ERR_MASK | \
+                                                  SPI_STATUS_READY_MASK)
+#define SPI_STATUS_SW_MASK                       (8'h0 | \
+                                                  SPI_STATUS_ADDR_ERR_MASK | \
+                                                  SPI_STATUS_RD_ERR_MASK | \
+                                                  SPI_STATUS_WR_ERR_MASK)
+
+#define NON_ASSOC_SLEEP_EN_ADDRESS               'h00000482
+#define NON_ASSOC_SLEEP_EN_BIT_MSB               0
+#define NON_ASSOC_SLEEP_EN_BIT_LSB               0
+#define NON_ASSOC_SLEEP_EN_BIT_MASK              'h00000001
+#define NON_ASSOC_SLEEP_EN_BIT_GET(x)            (((x) & NON_ASSOC_SLEEP_EN_BIT_MASK) >> NON_ASSOC_SLEEP_EN_BIT_LSB)
+#define NON_ASSOC_SLEEP_EN_BIT_SET(x)            (((8'd0 | (x)) << NON_ASSOC_SLEEP_EN_BIT_LSB) & NON_ASSOC_SLEEP_EN_BIT_MASK)
+#define NON_ASSOC_SLEEP_EN_BIT_RESET             1'h0
+#define NON_ASSOC_SLEEP_EN_RESET                 (8'h0 | \
+                                                  NON_ASSOC_SLEEP_EN_BIT_SET(NON_ASSOC_SLEEP_EN_BIT_RESET))
+#define NON_ASSOC_SLEEP_EN_HW_MASK               (8'h0)
+#define NON_ASSOC_SLEEP_EN_SW_MASK               (8'h0 | \
+                                                  NON_ASSOC_SLEEP_EN_BIT_MASK)
+
+#define CIS_WINDOW_ADDRESS                       'h00000600
+#define CIS_WINDOW_DATA_MSB                      7
+#define CIS_WINDOW_DATA_LSB                      0
+#define CIS_WINDOW_DATA_MASK                     'h000000ff
+#define CIS_WINDOW_DATA_GET(x)                   (((x) & CIS_WINDOW_DATA_MASK) >> CIS_WINDOW_DATA_LSB)
+#define CIS_WINDOW_DATA_SET(x)                   (((8'd0 | (x)) << CIS_WINDOW_DATA_LSB) & CIS_WINDOW_DATA_MASK)
+#define CIS_WINDOW_DATA_RESET                    8'h0
+#define CIS_WINDOW_RESET                         (8'h0 | \
+                                                  CIS_WINDOW_DATA_SET(CIS_WINDOW_DATA_RESET))
+#define CIS_WINDOW_HW_MASK                       (8'h0)
+#define CIS_WINDOW_SW_MASK                       (8'h0 | \
+                                                  CIS_WINDOW_DATA_MASK)
+
+#define MBOX_HOST_REG_ADDRESS_MSB                10
+
+#endif /* _MBOX_HOST_REG_VRH_ */
