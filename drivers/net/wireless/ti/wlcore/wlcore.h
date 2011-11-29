@@ -53,6 +53,29 @@ struct wlcore_partition_set {
 	struct wlcore_partition mem3;
 };
 
+enum wlcore_registers {
+	/* register addresses, used with partition translation */
+	REG_ECPU_CONTROL,
+	REG_INTERRUPT_NO_CLEAR,
+	REG_INTERRUPT_ACK,
+	REG_COMMAND_MAILBOX_PTR,
+	REG_EVENT_MAILBOX_PTR,
+	REG_INTERRUPT_TRIG,
+	REG_INTERRUPT_MASK,
+	REG_PC_ON_RECOVERY,
+	REG_CHIP_ID_B,
+	REG_CMD_MBOX_ADDRESS,
+
+	/* data access memory addresses, used with partition translation */
+	REG_SLV_MEM_DATA,
+	REG_SLV_REG_DATA,
+
+	/* raw data access memory addresses */
+	REG_RAW_FW_STATUS_ADDR,
+
+	REG_TABLE_LEN,
+};
+
 struct wl1271 {
 	struct ieee80211_hw *hw;
 	bool mac80211_registered;
@@ -266,6 +289,8 @@ struct wl1271 {
 	struct wlcore_ops *ops;
 	/* pointer to the lower driver partition table */
 	const struct wlcore_partition_set *ptable;
+	/* pointer to the lower driver register table */
+	const int *rtable;
 };
 
 int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev);
@@ -273,5 +298,87 @@ int __devexit wlcore_remove(struct platform_device *pdev);
 struct ieee80211_hw *wlcore_alloc_hw(void);
 int wlcore_free_hw(struct wl1271 *wl);
 
+/* Firmware image load chunk size */
+#define CHUNK_SIZE	16384
+
+/* TODO: move to the lower drivers when all usages are abstracted */
+#define CHIP_ID_1271_PG10              (0x4030101)
+#define CHIP_ID_1271_PG20              (0x4030111)
+#define CHIP_ID_1283_PG10              (0x05030101)
+#define CHIP_ID_1283_PG20              (0x05030111)
+
+/* TODO: move all these common registers and values elsewhere */
+#define HW_ACCESS_ELP_CTRL_REG		0x1FFFC
+
+/* ELP register commands */
+#define ELPCTRL_WAKE_UP             0x1
+#define ELPCTRL_WAKE_UP_WLAN_READY  0x5
+#define ELPCTRL_SLEEP               0x0
+/* ELP WLAN_READY bit */
+#define ELPCTRL_WLAN_READY          0x2
+
+/*************************************************************************
+
+    Interrupt Trigger Register (Host -> WiLink)
+
+**************************************************************************/
+
+/* Hardware to Embedded CPU Interrupts - first 32-bit register set */
+
+/*
+ * Host Command Interrupt. Setting this bit masks
+ * the interrupt that the host issues to inform
+ * the FW that it has sent a command
+ * to the Wlan hardware Command Mailbox.
+ */
+#define INTR_TRIG_CMD       BIT(0)
+
+/*
+ * Host Event Acknowlegde Interrupt. The host
+ * sets this bit to acknowledge that it received
+ * the unsolicited information from the event
+ * mailbox.
+ */
+#define INTR_TRIG_EVENT_ACK BIT(1)
+
+/*
+ * The host sets this bit to inform the Wlan
+ * FW that a TX packet is in the XFER
+ * Buffer #0.
+ */
+#define INTR_TRIG_TX_PROC0 BIT(2)
+
+/*
+ * The host sets this bit to inform the FW
+ * that it read a packet from RX XFER
+ * Buffer #0.
+ */
+#define INTR_TRIG_RX_PROC0 BIT(3)
+
+#define INTR_TRIG_DEBUG_ACK BIT(4)
+
+#define INTR_TRIG_STATE_CHANGED BIT(5)
+
+/* Hardware to Embedded CPU Interrupts - second 32-bit register set */
+
+/*
+ * The host sets this bit to inform the FW
+ * that it read a packet from RX XFER
+ * Buffer #1.
+ */
+#define INTR_TRIG_RX_PROC1 BIT(17)
+
+/*
+ * The host sets this bit to inform the Wlan
+ * hardware that a TX packet is in the XFER
+ * Buffer #1.
+ */
+#define INTR_TRIG_TX_PROC1 BIT(18)
+
+#define ACX_SLV_SOFT_RESET_BIT	BIT(1)
+#define SOFT_RESET_MAX_TIME	1000000
+#define SOFT_RESET_STALL_TIME	1000
+
+#define ECPU_CONTROL_HALT	0x00000101
 
 #endif /* __WLCORE_H__ */

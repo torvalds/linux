@@ -76,7 +76,7 @@ static void wl12xx_sdio_raw_read(struct device *child, int addr, void *buf,
 
 	sdio_claim_host(func);
 
-	if (unlikely(addr == HW_ACCESS_ELP_CTRL_REG_ADDR)) {
+	if (unlikely(addr == HW_ACCESS_ELP_CTRL_REG)) {
 		((u8 *)buf)[0] = sdio_f0_readb(func, addr, &ret);
 		dev_dbg(child->parent, "sdio read 52 addr 0x%x, byte 0x%02x\n",
 			addr, ((u8 *)buf)[0]);
@@ -105,7 +105,7 @@ static void wl12xx_sdio_raw_write(struct device *child, int addr, void *buf,
 
 	sdio_claim_host(func);
 
-	if (unlikely(addr == HW_ACCESS_ELP_CTRL_REG_ADDR)) {
+	if (unlikely(addr == HW_ACCESS_ELP_CTRL_REG)) {
 		sdio_f0_writeb(func, ((u8 *)buf)[0], addr, &ret);
 		dev_dbg(child->parent, "sdio write 52 addr 0x%x, byte 0x%02x\n",
 			addr, ((u8 *)buf)[0]);

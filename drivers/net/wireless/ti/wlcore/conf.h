@@ -1320,7 +1320,6 @@ struct conf_drv_settings {
 	struct conf_fwlog fwlog;
 	struct conf_rate_policy_settings rate;
 	struct conf_hangover_settings hangover;
-	u8 hci_io_ds;
 };
 
 #endif

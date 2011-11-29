@@ -23,7 +23,6 @@
 
 #include "wlcore.h"
 #include "debug.h"
-#include "reg.h"
 #include "io.h"
 #include "event.h"
 #include "ps.h"
@@ -281,7 +280,7 @@ int wl1271_event_unmask(struct wl1271 *wl)
 
 void wl1271_event_mbox_config(struct wl1271 *wl)
 {
-	wl->mbox_ptr[0] = wl1271_read32(wl, REG_EVENT_MAILBOX_PTR);
+	wl->mbox_ptr[0] = wlcore_read_reg(wl, REG_EVENT_MAILBOX_PTR);
 	wl->mbox_ptr[1] = wl->mbox_ptr[0] + sizeof(struct event_mailbox);
 
 	wl1271_debug(DEBUG_EVENT, "MBOX ptrs: 0x%x 0x%x",
@@ -307,7 +306,7 @@ int wl1271_event_handle(struct wl1271 *wl, u8 mbox_num)
 		return ret;
 
 	/* then we let the firmware know it can go on...*/
-	wl1271_write32(wl, ACX_REG_INTERRUPT_TRIG, INTR_TRIG_EVENT_ACK);
+	wlcore_write_reg(wl, REG_INTERRUPT_TRIG, INTR_TRIG_EVENT_ACK);
 
 	return 0;
 }

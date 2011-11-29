@@ -27,7 +27,7 @@
 #include "../wlcore/wlcore.h"
 #include "../wlcore/debug.h"
 
-#include "../wlcore/reg.h"
+#include "reg.h"
 
 static struct wlcore_ops wl12xx_ops = {
 };
@@ -37,6 +37,26 @@ static struct wlcore_partition_set wl12xx_ptable[PART_TABLE_LEN] = {
 		.mem = {
 			.start = 0x00000000,
 			.size  = 0x000177c0
+		},
+		.reg = {
+			.start = REGISTERS_BASE,
+			.size  = 0x00008800
+		},
+		.mem2 = {
+			.start = 0x00000000,
+			.size  = 0x00000000
+		},
+		.mem3 = {
+			.start = 0x00000000,
+			.size  = 0x00000000
+		},
+	},
+
+	[PART_BOOT] = { /* in wl12xx we can use a mix of work and down
+			 * partition here */
+		.mem = {
+			.start = 0x00040000,
+			.size  = 0x00014fc0
 		},
 		.reg = {
 			.start = REGISTERS_BASE,
@@ -91,6 +111,26 @@ static struct wlcore_partition_set wl12xx_ptable[PART_TABLE_LEN] = {
 	}
 };
 
+static const int wl12xx_rtable[REG_TABLE_LEN] = {
+	[REG_ECPU_CONTROL]		= WL12XX_REG_ECPU_CONTROL,
+	[REG_INTERRUPT_NO_CLEAR]	= WL12XX_REG_INTERRUPT_NO_CLEAR,
+	[REG_INTERRUPT_ACK]		= WL12XX_REG_INTERRUPT_ACK,
+	[REG_COMMAND_MAILBOX_PTR]	= WL12XX_REG_COMMAND_MAILBOX_PTR,
+	[REG_EVENT_MAILBOX_PTR]		= WL12XX_REG_EVENT_MAILBOX_PTR,
+	[REG_INTERRUPT_TRIG]		= WL12XX_REG_INTERRUPT_TRIG,
+	[REG_INTERRUPT_MASK]		= WL12XX_REG_INTERRUPT_MASK,
+	[REG_PC_ON_RECOVERY]		= WL12XX_SCR_PAD4,
+	[REG_CHIP_ID_B]			= WL12XX_CHIP_ID_B,
+	[REG_CMD_MBOX_ADDRESS]		= WL12XX_CMD_MBOX_ADDRESS,
+
+	/* data access memory addresses, used with partition translation */
+	[REG_SLV_MEM_DATA]		= WL1271_SLV_MEM_DATA,
+	[REG_SLV_REG_DATA]		= WL1271_SLV_REG_DATA,
+
+	/* raw data access memory addresses */
+	[REG_RAW_FW_STATUS_ADDR]	= FW_STATUS_ADDR,
+};
+
 static int __devinit wl12xx_probe(struct platform_device *pdev)
 {
 	struct wl1271 *wl;
@@ -105,6 +145,7 @@ static int __devinit wl12xx_probe(struct platform_device *pdev)
 	wl = hw->priv;
 	wl->ops = &wl12xx_ops;
 	wl->ptable = wl12xx_ptable;
+	wl->rtable = wl12xx_rtable;
 
 	return wlcore_probe(wl, pdev);
 }

@@ -21,7 +21,6 @@
  *
  */
 
-#include "reg.h"
 #include "ps.h"
 #include "io.h"
 #include "tx.h"
@@ -62,7 +61,7 @@ void wl1271_elp_work(struct work_struct *work)
 	}
 
 	wl1271_debug(DEBUG_PSM, "chip to elp");
-	wl1271_raw_write32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, ELPCTRL_SLEEP);
+	wl1271_raw_write32(wl, HW_ACCESS_ELP_CTRL_REG, ELPCTRL_SLEEP);
 	set_bit(WL1271_FLAG_IN_ELP, &wl->flags);
 
 out:
@@ -125,7 +124,7 @@ int wl1271_ps_elp_wakeup(struct wl1271 *wl)
 		wl->elp_compl = &compl;
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
-	wl1271_raw_write32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, ELPCTRL_WAKE_UP);
+	wl1271_raw_write32(wl, HW_ACCESS_ELP_CTRL_REG, ELPCTRL_WAKE_UP);
 
 	if (!pending) {
 		ret = wait_for_completion_timeout(

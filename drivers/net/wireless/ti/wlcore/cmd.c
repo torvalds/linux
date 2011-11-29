@@ -30,7 +30,6 @@
 
 #include "wlcore.h"
 #include "debug.h"
-#include "reg.h"
 #include "io.h"
 #include "acx.h"
 #include "wl12xx_80211.h"
@@ -67,11 +66,11 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 
 	wl1271_write(wl, wl->cmd_box_addr, buf, len, false);
 
-	wl1271_write32(wl, ACX_REG_INTERRUPT_TRIG, INTR_TRIG_CMD);
+	wlcore_write_reg(wl, REG_INTERRUPT_TRIG, INTR_TRIG_CMD);
 
 	timeout = jiffies + msecs_to_jiffies(WL1271_COMMAND_TIMEOUT);
 
-	intr = wl1271_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
+	intr = wlcore_read_reg(wl, REG_INTERRUPT_NO_CLEAR);
 	while (!(intr & WL1271_ACX_INTR_CMD_COMPLETE)) {
 		if (time_after(jiffies, timeout)) {
 			wl1271_error("command complete timeout");
@@ -85,7 +84,7 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 		else
 			msleep(1);
 
-		intr = wl1271_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
+		intr = wlcore_read_reg(wl, REG_INTERRUPT_NO_CLEAR);
 	}
 
 	/* read back the status code of the command */
@@ -100,8 +99,7 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 		goto fail;
 	}
 
-	wl1271_write32(wl, ACX_REG_INTERRUPT_ACK,
-		       WL1271_ACX_INTR_CMD_COMPLETE);
+	wlcore_write_reg(wl, REG_INTERRUPT_ACK, WL1271_ACX_INTR_CMD_COMPLETE);
 	return 0;
 
 fail:
@@ -529,7 +527,7 @@ static int wl12xx_cmd_role_start_dev(struct wl1271 *wl,
 
 	cmd->role_id = wlvif->dev_role_id;
 	if (wlvif->band == IEEE80211_BAND_5GHZ)
-		cmd->band = WL12XX_BAND_5GHZ;
+		cmd->band = WLCORE_BAND_5GHZ;
 	cmd->channel = wlvif->channel;
 
 	if (wlvif->dev_hlid == WL12XX_INVALID_LINK_ID) {
@@ -620,7 +618,7 @@ int wl12xx_cmd_role_start_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 
 	cmd->role_id = wlvif->role_id;
 	if (wlvif->band == IEEE80211_BAND_5GHZ)
-		cmd->band = WL12XX_BAND_5GHZ;
+		cmd->band = WLCORE_BAND_5GHZ;
 	cmd->channel = wlvif->channel;
 	cmd->sta.basic_rate_set = cpu_to_le32(wlvif->basic_rate_set);
 	cmd->sta.beacon_interval = cpu_to_le16(wlvif->beacon_int);
@@ -757,14 +755,14 @@ int wl12xx_cmd_role_start_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 
 	switch (wlvif->band) {
 	case IEEE80211_BAND_2GHZ:
-		cmd->band = RADIO_BAND_2_4GHZ;
+		cmd->band = WLCORE_BAND_2_4GHZ;
 		break;
 	case IEEE80211_BAND_5GHZ:
-		cmd->band = RADIO_BAND_5GHZ;
+		cmd->band = WLCORE_BAND_5GHZ;
 		break;
 	default:
 		wl1271_warning("ap start - unknown band: %d", (int)wlvif->band);
-		cmd->band = RADIO_BAND_2_4GHZ;
+		cmd->band = WLCORE_BAND_2_4GHZ;
 		break;
 	}
 
@@ -837,7 +835,7 @@ int wl12xx_cmd_role_start_ibss(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 
 	cmd->role_id = wlvif->role_id;
 	if (wlvif->band == IEEE80211_BAND_5GHZ)
-		cmd->band = WL12XX_BAND_5GHZ;
+		cmd->band = WLCORE_BAND_5GHZ;
 	cmd->channel = wlvif->channel;
 	cmd->ibss.basic_rate_set = cpu_to_le32(wlvif->basic_rate_set);
 	cmd->ibss.beacon_interval = cpu_to_le16(wlvif->beacon_int);
@@ -1737,10 +1735,10 @@ static int wl12xx_cmd_roc(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	cmd->channel = wlvif->channel;
 	switch (wlvif->band) {
 	case IEEE80211_BAND_2GHZ:
-		cmd->band = RADIO_BAND_2_4GHZ;
+		cmd->band = WLCORE_BAND_2_4GHZ;
 		break;
 	case IEEE80211_BAND_5GHZ:
-		cmd->band = RADIO_BAND_5GHZ;
+		cmd->band = WLCORE_BAND_5GHZ;
 		break;
 	default:
 		wl1271_error("roc - unknown band: %d", (int)wlvif->band);

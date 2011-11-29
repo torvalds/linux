@@ -262,13 +262,13 @@ struct wl12xx_cmd_role_disable {
 	u8 padding[3];
 } __packed;
 
-enum wl12xx_band {
-	WL12XX_BAND_2_4GHZ		= 0,
-	WL12XX_BAND_5GHZ		= 1,
-	WL12XX_BAND_JAPAN_4_9_GHZ	= 2,
-	WL12XX_BAND_DEFAULT		= WL12XX_BAND_2_4GHZ,
-	WL12XX_BAND_INVALID		= 0x7E,
-	WL12XX_BAND_MAX_RADIO		= 0x7F,
+enum wlcore_band {
+	WLCORE_BAND_2_4GHZ		= 0,
+	WLCORE_BAND_5GHZ		= 1,
+	WLCORE_BAND_JAPAN_4_9_GHZ	= 2,
+	WLCORE_BAND_DEFAULT		= WLCORE_BAND_2_4GHZ,
+	WLCORE_BAND_INVALID		= 0x7E,
+	WLCORE_BAND_MAX_RADIO		= 0x7F,
 };
 
 struct wl12xx_cmd_role_start {

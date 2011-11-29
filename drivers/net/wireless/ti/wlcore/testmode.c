@@ -28,7 +28,6 @@
 #include "wlcore.h"
 #include "debug.h"
 #include "acx.h"
-#include "reg.h"
 #include "ps.h"
 #include "io.h"
 

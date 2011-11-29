@@ -30,7 +30,6 @@
 #include "wl12xx_80211.h"
 #include "acx.h"
 #include "cmd.h"
-#include "reg.h"
 #include "tx.h"
 #include "io.h"
 

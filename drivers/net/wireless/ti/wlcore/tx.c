@@ -28,10 +28,15 @@
 #include "wlcore.h"
 #include "debug.h"
 #include "io.h"
-#include "reg.h"
 #include "ps.h"
 #include "tx.h"
 #include "event.h"
+
+/*
+ * TODO: this is here just for now, it must be removed when the data
+ * operations are in place.
+ */
+#include "../wl12xx/reg.h"
 
 static int wl1271_set_default_wep_key(struct wl1271 *wl,
 				      struct wl12xx_vif *wlvif, u8 id)
@@ -718,8 +723,8 @@ void wl1271_tx_work_locked(struct wl1271 *wl)
 			 * Flush buffer and try again.
 			 */
 			wl1271_skb_queue_head(wl, wlvif, skb);
-			wl1271_write(wl, WL1271_SLV_MEM_DATA, wl->aggr_buf,
-				     buf_offset, true);
+			wlcore_write_data(wl, REG_SLV_MEM_DATA, wl->aggr_buf,
+					  buf_offset, true);
 			sent_packets = true;
 			buf_offset = 0;
 			continue;
@@ -753,8 +758,8 @@ void wl1271_tx_work_locked(struct wl1271 *wl)
 
 out_ack:
 	if (buf_offset) {
-		wl1271_write(wl, WL1271_SLV_MEM_DATA, wl->aggr_buf,
-				buf_offset, true);
+		wlcore_write_data(wl, REG_SLV_MEM_DATA, wl->aggr_buf,
+				  buf_offset, true);
 		sent_packets = true;
 	}
 	if (sent_packets) {
@@ -763,7 +768,7 @@ out_ack:
 		 * required for older hardware revisions
 		 */
 		if (wl->quirks & WL12XX_QUIRK_END_OF_TRANSACTION)
-			wl1271_write32(wl, WL1271_HOST_WR_ACCESS,
+			wl1271_write32(wl, WL12XX_HOST_WR_ACCESS,
 				       wl->tx_packets_count);
 
 		wl1271_handle_tx_low_watermark(wl);

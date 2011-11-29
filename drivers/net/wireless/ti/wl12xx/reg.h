@@ -33,15 +33,7 @@
 #define REGISTERS_DOWN_SIZE 0x00008800
 #define REGISTERS_WORK_SIZE 0x0000b000
 
-#define HW_ACCESS_ELP_CTRL_REG_ADDR         0x1FFFC
 #define FW_STATUS_ADDR                      (0x14FC0 + 0xA000)
-
-/* ELP register commands */
-#define ELPCTRL_WAKE_UP             0x1
-#define ELPCTRL_WAKE_UP_WLAN_READY  0x5
-#define ELPCTRL_SLEEP               0x0
-/* ELP WLAN_READY bit */
-#define ELPCTRL_WLAN_READY          0x2
 
 /*===============================================
    Host Software Reset - 32bit RW
@@ -57,14 +49,14 @@
     (not self-clearing), the Wlan hardware
     exits the software reset state.
 ===============================================*/
-#define ACX_REG_SLV_SOFT_RESET         (REGISTERS_BASE + 0x0000)
+#define WL12XX_SLV_SOFT_RESET		(REGISTERS_BASE + 0x0000)
 
 #define WL1271_SLV_REG_DATA            (REGISTERS_BASE + 0x0008)
 #define WL1271_SLV_REG_ADATA           (REGISTERS_BASE + 0x000c)
 #define WL1271_SLV_MEM_DATA            (REGISTERS_BASE + 0x0018)
 
-#define ACX_REG_INTERRUPT_TRIG         (REGISTERS_BASE + 0x0474)
-#define ACX_REG_INTERRUPT_TRIG_H       (REGISTERS_BASE + 0x0478)
+#define WL12XX_REG_INTERRUPT_TRIG         (REGISTERS_BASE + 0x0474)
+#define WL12XX_REG_INTERRUPT_TRIG_H       (REGISTERS_BASE + 0x0478)
 
 /*=============================================
   Host Interrupt Mask Register - 32bit (RW)
@@ -94,7 +86,7 @@
  21-			-
  Default: 0x0001
 *==============================================*/
-#define ACX_REG_INTERRUPT_MASK         (REGISTERS_BASE + 0x04DC)
+#define WL12XX_REG_INTERRUPT_MASK         (REGISTERS_BASE + 0x04DC)
 
 /*=============================================
   Host Interrupt Mask Set 16bit, (Write only)
@@ -125,7 +117,7 @@
  Reading this register doesn't
  effect its content.
 =============================================*/
-#define ACX_REG_INTERRUPT_NO_CLEAR     (REGISTERS_BASE + 0x04E8)
+#define WL12XX_REG_INTERRUPT_NO_CLEAR     (REGISTERS_BASE + 0x04E8)
 
 /*=============================================
   Host Interrupt Status Clear on Read  Register
@@ -148,9 +140,9 @@
  HINT_STS_ND registers, thus making the
  assotiated interrupt inactive. (0-no effect)
 ==============================================*/
-#define ACX_REG_INTERRUPT_ACK          (REGISTERS_BASE + 0x04F0)
+#define WL12XX_REG_INTERRUPT_ACK          (REGISTERS_BASE + 0x04F0)
 
-#define RX_DRIVER_COUNTER_ADDRESS      (REGISTERS_BASE + 0x0538)
+#define WL12XX_REG_RX_DRIVER_COUNTER	(REGISTERS_BASE + 0x0538)
 
 /* Device Configuration registers*/
 #define SOR_CFG                        (REGISTERS_BASE + 0x0800)
@@ -175,9 +167,9 @@
  1 halt eCPU
  0 enable eCPU
  ===============================================*/
-#define ACX_REG_ECPU_CONTROL           (REGISTERS_BASE + 0x0804)
+#define WL12XX_REG_ECPU_CONTROL           (REGISTERS_BASE + 0x0804)
 
-#define HI_CFG                         (REGISTERS_BASE + 0x0808)
+#define WL12XX_HI_CFG			(REGISTERS_BASE + 0x0808)
 
 /*===============================================
  EEPROM Burst Read Start  - 32bit RW
@@ -196,72 +188,67 @@
 *================================================*/
 #define ACX_REG_EE_START               (REGISTERS_BASE + 0x080C)
 
-#define OCP_POR_CTR                    (REGISTERS_BASE + 0x09B4)
-#define OCP_DATA_WRITE                 (REGISTERS_BASE + 0x09B8)
-#define OCP_DATA_READ                  (REGISTERS_BASE + 0x09BC)
-#define OCP_CMD                        (REGISTERS_BASE + 0x09C0)
+#define WL12XX_OCP_POR_CTR		(REGISTERS_BASE + 0x09B4)
+#define WL12XX_OCP_DATA_WRITE		(REGISTERS_BASE + 0x09B8)
+#define WL12XX_OCP_DATA_READ		(REGISTERS_BASE + 0x09BC)
+#define WL12XX_OCP_CMD			(REGISTERS_BASE + 0x09C0)
 
-#define WL1271_HOST_WR_ACCESS          (REGISTERS_BASE + 0x09F8)
+#define WL12XX_HOST_WR_ACCESS		(REGISTERS_BASE + 0x09F8)
 
-#define CHIP_ID_B                      (REGISTERS_BASE + 0x5674)
+#define WL12XX_CHIP_ID_B		(REGISTERS_BASE + 0x5674)
 
-#define CHIP_ID_1271_PG10              (0x4030101)
-#define CHIP_ID_1271_PG20              (0x4030111)
-#define CHIP_ID_1283_PG10              (0x05030101)
-#define CHIP_ID_1283_PG20              (0x05030111)
-
-#define ENABLE                         (REGISTERS_BASE + 0x5450)
+#define WL12XX_ENABLE			(REGISTERS_BASE + 0x5450)
 
 /* Power Management registers */
-#define ELP_CFG_MODE                   (REGISTERS_BASE + 0x5804)
-#define ELP_CMD                        (REGISTERS_BASE + 0x5808)
-#define PLL_CAL_TIME                   (REGISTERS_BASE + 0x5810)
-#define CLK_REQ_TIME                   (REGISTERS_BASE + 0x5814)
-#define CLK_BUF_TIME                   (REGISTERS_BASE + 0x5818)
+#define WL12XX_ELP_CFG_MODE		(REGISTERS_BASE + 0x5804)
+#define WL12XX_ELP_CMD			(REGISTERS_BASE + 0x5808)
+#define WL12XX_PLL_CAL_TIME		(REGISTERS_BASE + 0x5810)
+#define WL12XX_CLK_REQ_TIME		(REGISTERS_BASE + 0x5814)
+#define WL12XX_CLK_BUF_TIME		(REGISTERS_BASE + 0x5818)
 
-#define CFG_PLL_SYNC_CNT               (REGISTERS_BASE + 0x5820)
+#define WL12XX_CFG_PLL_SYNC_CNT		(REGISTERS_BASE + 0x5820)
 
 /* Scratch Pad registers*/
-#define SCR_PAD0                       (REGISTERS_BASE + 0x5608)
-#define SCR_PAD1                       (REGISTERS_BASE + 0x560C)
-#define SCR_PAD2                       (REGISTERS_BASE + 0x5610)
-#define SCR_PAD3                       (REGISTERS_BASE + 0x5614)
-#define SCR_PAD4                       (REGISTERS_BASE + 0x5618)
-#define SCR_PAD4_SET                   (REGISTERS_BASE + 0x561C)
-#define SCR_PAD4_CLR                   (REGISTERS_BASE + 0x5620)
-#define SCR_PAD5                       (REGISTERS_BASE + 0x5624)
-#define SCR_PAD5_SET                   (REGISTERS_BASE + 0x5628)
-#define SCR_PAD5_CLR                   (REGISTERS_BASE + 0x562C)
-#define SCR_PAD6                       (REGISTERS_BASE + 0x5630)
-#define SCR_PAD7                       (REGISTERS_BASE + 0x5634)
-#define SCR_PAD8                       (REGISTERS_BASE + 0x5638)
-#define SCR_PAD9                       (REGISTERS_BASE + 0x563C)
+#define WL12XX_SCR_PAD0			(REGISTERS_BASE + 0x5608)
+#define WL12XX_SCR_PAD1			(REGISTERS_BASE + 0x560C)
+#define WL12XX_SCR_PAD2			(REGISTERS_BASE + 0x5610)
+#define WL12XX_SCR_PAD3			(REGISTERS_BASE + 0x5614)
+#define WL12XX_SCR_PAD4			(REGISTERS_BASE + 0x5618)
+#define WL12XX_SCR_PAD4_SET		(REGISTERS_BASE + 0x561C)
+#define WL12XX_SCR_PAD4_CLR		(REGISTERS_BASE + 0x5620)
+#define WL12XX_SCR_PAD5			(REGISTERS_BASE + 0x5624)
+#define WL12XX_SCR_PAD5_SET		(REGISTERS_BASE + 0x5628)
+#define WL12XX_SCR_PAD5_CLR		(REGISTERS_BASE + 0x562C)
+#define WL12XX_SCR_PAD6			(REGISTERS_BASE + 0x5630)
+#define WL12XX_SCR_PAD7			(REGISTERS_BASE + 0x5634)
+#define WL12XX_SCR_PAD8			(REGISTERS_BASE + 0x5638)
+#define WL12XX_SCR_PAD9			(REGISTERS_BASE + 0x563C)
 
 /* Spare registers*/
-#define SPARE_A1                       (REGISTERS_BASE + 0x0994)
-#define SPARE_A2                       (REGISTERS_BASE + 0x0998)
-#define SPARE_A3                       (REGISTERS_BASE + 0x099C)
-#define SPARE_A4                       (REGISTERS_BASE + 0x09A0)
-#define SPARE_A5                       (REGISTERS_BASE + 0x09A4)
-#define SPARE_A6                       (REGISTERS_BASE + 0x09A8)
-#define SPARE_A7                       (REGISTERS_BASE + 0x09AC)
-#define SPARE_A8                       (REGISTERS_BASE + 0x09B0)
-#define SPARE_B1                       (REGISTERS_BASE + 0x5420)
-#define SPARE_B2                       (REGISTERS_BASE + 0x5424)
-#define SPARE_B3                       (REGISTERS_BASE + 0x5428)
-#define SPARE_B4                       (REGISTERS_BASE + 0x542C)
-#define SPARE_B5                       (REGISTERS_BASE + 0x5430)
-#define SPARE_B6                       (REGISTERS_BASE + 0x5434)
-#define SPARE_B7                       (REGISTERS_BASE + 0x5438)
-#define SPARE_B8                       (REGISTERS_BASE + 0x543C)
+#define WL12XX_SPARE_A1			(REGISTERS_BASE + 0x0994)
+#define WL12XX_SPARE_A2			(REGISTERS_BASE + 0x0998)
+#define WL12XX_SPARE_A3			(REGISTERS_BASE + 0x099C)
+#define WL12XX_SPARE_A4			(REGISTERS_BASE + 0x09A0)
+#define WL12XX_SPARE_A5			(REGISTERS_BASE + 0x09A4)
+#define WL12XX_SPARE_A6			(REGISTERS_BASE + 0x09A8)
+#define WL12XX_SPARE_A7			(REGISTERS_BASE + 0x09AC)
+#define WL12XX_SPARE_A8			(REGISTERS_BASE + 0x09B0)
+#define WL12XX_SPARE_B1			(REGISTERS_BASE + 0x5420)
+#define WL12XX_SPARE_B2			(REGISTERS_BASE + 0x5424)
+#define WL12XX_SPARE_B3			(REGISTERS_BASE + 0x5428)
+#define WL12XX_SPARE_B4			(REGISTERS_BASE + 0x542C)
+#define WL12XX_SPARE_B5			(REGISTERS_BASE + 0x5430)
+#define WL12XX_SPARE_B6			(REGISTERS_BASE + 0x5434)
+#define WL12XX_SPARE_B7			(REGISTERS_BASE + 0x5438)
+#define WL12XX_SPARE_B8			(REGISTERS_BASE + 0x543C)
 
-#define PLL_PARAMETERS                 (REGISTERS_BASE + 0x6040)
-#define WU_COUNTER_PAUSE               (REGISTERS_BASE + 0x6008)
-#define WELP_ARM_COMMAND               (REGISTERS_BASE + 0x6100)
-#define DRPW_SCRATCH_START             (DRPW_BASE + 0x002C)
+#define WL12XX_PLL_PARAMETERS		(REGISTERS_BASE + 0x6040)
+#define WL12XX_WU_COUNTER_PAUSE		(REGISTERS_BASE + 0x6008)
+#define WL12XX_WELP_ARM_COMMAND		(REGISTERS_BASE + 0x6100)
+#define WL12XX_DRPW_SCRATCH_START	(DRPW_BASE + 0x002C)
 
+#define WL12XX_CMD_MBOX_ADDRESS		0x407B4
 
-#define ACX_SLV_SOFT_RESET_BIT   BIT(1)
 #define ACX_REG_EEPROM_START_BIT BIT(1)
 
 /* Command/Information Mailbox Pointers */
@@ -279,7 +266,7 @@
  the host receives the Init Complete interrupt from
  the Wlan hardware.
  ===============================================*/
-#define REG_COMMAND_MAILBOX_PTR				(SCR_PAD0)
+#define WL12XX_REG_COMMAND_MAILBOX_PTR		(WL12XX_SCR_PAD0)
 
 /*===============================================
   Information Mailbox Pointer - 32bit RW
@@ -294,7 +281,7 @@
  until after the host receives the Init Complete interrupt from
  the Wlan hardware.
  ===============================================*/
-#define REG_EVENT_MAILBOX_PTR				(SCR_PAD1)
+#define WL12XX_REG_EVENT_MAILBOX_PTR		(WL12XX_SCR_PAD1)
 
 /*===============================================
  EEPROM Read/Write Request 32bit RW
@@ -365,26 +352,6 @@
 #define ACX_CONT_WIND_MIN_MASK   0x0000007f
 #define ACX_CONT_WIND_MAX        0x03ff0000
 
-/*===============================================
-  HI_CFG Interface Configuration Register Values
-  ------------------------------------------
-  ===============================================*/
-#define HI_CFG_UART_ENABLE          0x00000004
-#define HI_CFG_RST232_ENABLE        0x00000008
-#define HI_CFG_CLOCK_REQ_SELECT     0x00000010
-#define HI_CFG_HOST_INT_ENABLE      0x00000020
-#define HI_CFG_VLYNQ_OUTPUT_ENABLE  0x00000040
-#define HI_CFG_HOST_INT_ACTIVE_LOW  0x00000080
-#define HI_CFG_UART_TX_OUT_GPIO_15  0x00000100
-#define HI_CFG_UART_TX_OUT_GPIO_14  0x00000200
-#define HI_CFG_UART_TX_OUT_GPIO_7   0x00000400
-
-#define HI_CFG_DEF_VAL              \
-	(HI_CFG_UART_ENABLE |        \
-	HI_CFG_RST232_ENABLE |      \
-	HI_CFG_CLOCK_REQ_SELECT |   \
-	HI_CFG_HOST_INT_ENABLE)
-
 #define REF_FREQ_19_2                       0
 #define REF_FREQ_26_0                       1
 #define REF_FREQ_38_4                       2
@@ -400,37 +367,18 @@
 #define LUT_PARAM_BB_PLL_LOOP_FILTER        5
 #define LUT_PARAM_NUM                       6
 
-#define ACX_EEPROMLESS_IND_REG              (SCR_PAD4)
+#define WL12XX_EEPROMLESS_IND		(WL12XX_SCR_PAD4)
 #define USE_EEPROM                          0
-#define SOFT_RESET_MAX_TIME                 1000000
-#define SOFT_RESET_STALL_TIME               1000
 #define NVS_DATA_BUNDARY_ALIGNMENT          4
-
-
-/* Firmware image load chunk size */
-#define CHUNK_SIZE	16384
 
 /* Firmware image header size */
 #define FW_HDR_SIZE 8
-
-#define ECPU_CONTROL_HALT					0x00000101
-
 
 /******************************************************************************
 
     CHANNELS, BAND & REG DOMAINS definitions
 
 ******************************************************************************/
-
-
-enum {
-	RADIO_BAND_2_4GHZ = 0,  /* 2.4 Ghz band */
-	RADIO_BAND_5GHZ = 1,    /* 5 Ghz band */
-	RADIO_BAND_JAPAN_4_9_GHZ = 2,
-	DEFAULT_BAND = RADIO_BAND_2_4GHZ,
-	INVALID_BAND = 0xFE,
-	MAX_RADIO_BANDS = 0xFF
-};
 
 #define SHORT_PREAMBLE_BIT   BIT(0) /* CCK or Barker depending on the rate */
 #define OFDM_RATE_BIT        BIT(6)
@@ -465,65 +413,113 @@ b12-b0 - Supported Rate indicator bits as defined below.
 
 ******************************************************************************/
 
+#define OCP_CMD_LOOP		32
+#define OCP_CMD_WRITE		0x1
+#define OCP_CMD_READ		0x2
+#define OCP_READY_MASK		BIT(18)
+#define OCP_STATUS_MASK		(BIT(16) | BIT(17))
+#define OCP_STATUS_NO_RESP	0x00000
+#define OCP_STATUS_OK		0x10000
+#define OCP_STATUS_REQ_FAILED	0x20000
+#define OCP_STATUS_RESP_ERROR	0x30000
 
-/*************************************************************************
+#define OCP_REG_POLARITY     0x0064
+#define OCP_REG_CLK_TYPE     0x0448
+#define OCP_REG_CLK_POLARITY 0x0cb2
+#define OCP_REG_CLK_PULL     0x0cb4
 
-    Interrupt Trigger Register (Host -> WiLink)
+#define WL127X_REG_FUSE_DATA_2_1    0x050a
+#define WL128X_REG_FUSE_DATA_2_1    0x2152
+#define PG_VER_MASK          0x3c
+#define PG_VER_OFFSET        2
 
-**************************************************************************/
+#define PG_MAJOR_VER_MASK    0x3
+#define PG_MAJOR_VER_OFFSET  0x0
+#define PG_MINOR_VER_MASK    0xc
+#define PG_MINOR_VER_OFFSET  0x2
 
-/* Hardware to Embedded CPU Interrupts - first 32-bit register set */
+#define POLARITY_LOW         BIT(1)
+#define NO_PULL              (BIT(14) | BIT(15))
 
-/*
- * Host Command Interrupt. Setting this bit masks
- * the interrupt that the host issues to inform
- * the FW that it has sent a command
- * to the Wlan hardware Command Mailbox.
- */
-#define INTR_TRIG_CMD       BIT(0)
+#define FREF_CLK_TYPE_BITS     0xfffffe7f
+#define CLK_REQ_PRCM           0x100
+#define FREF_CLK_POLARITY_BITS 0xfffff8ff
+#define CLK_REQ_OUTN_SEL       0x700
 
-/*
- * Host Event Acknowlegde Interrupt. The host
- * sets this bit to acknowledge that it received
- * the unsolicited information from the event
- * mailbox.
- */
-#define INTR_TRIG_EVENT_ACK BIT(1)
+#define WU_COUNTER_PAUSE_VAL 0x3FF
+#define WELP_ARM_COMMAND_VAL 0x4
 
-/*
- * The host sets this bit to inform the Wlan
- * FW that a TX packet is in the XFER
- * Buffer #0.
- */
-#define INTR_TRIG_TX_PROC0 BIT(2)
+/* PLL configuration algorithm for wl128x */
+#define SYS_CLK_CFG_REG              0x2200
+/* Bit[0]   -  0-TCXO,  1-FREF */
+#define MCS_PLL_CLK_SEL_FREF         BIT(0)
+/* Bit[3:2] - 01-TCXO, 10-FREF */
+#define WL_CLK_REQ_TYPE_FREF         BIT(3)
+#define WL_CLK_REQ_TYPE_PG2          (BIT(3) | BIT(2))
+/* Bit[4]   -  0-TCXO,  1-FREF */
+#define PRCM_CM_EN_MUX_WLAN_FREF     BIT(4)
 
-/*
- * The host sets this bit to inform the FW
- * that it read a packet from RX XFER
- * Buffer #0.
- */
-#define INTR_TRIG_RX_PROC0 BIT(3)
+#define TCXO_ILOAD_INT_REG           0x2264
+#define TCXO_CLK_DETECT_REG          0x2266
 
-#define INTR_TRIG_DEBUG_ACK BIT(4)
+#define TCXO_DET_FAILED              BIT(4)
 
-#define INTR_TRIG_STATE_CHANGED BIT(5)
+#define FREF_ILOAD_INT_REG           0x2084
+#define FREF_CLK_DETECT_REG          0x2086
+#define FREF_CLK_DETECT_FAIL         BIT(4)
 
+/* Use this reg for masking during driver access */
+#define WL_SPARE_REG                 0x2320
+#define WL_SPARE_VAL                 BIT(2)
+/* Bit[6:5:3] -  mask wl write SYS_CLK_CFG[8:5:2:4] */
+#define WL_SPARE_MASK_8526           (BIT(6) | BIT(5) | BIT(3))
 
-/* Hardware to Embedded CPU Interrupts - second 32-bit register set */
+#define PLL_LOCK_COUNTERS_REG        0xD8C
+#define PLL_LOCK_COUNTERS_COEX       0x0F
+#define PLL_LOCK_COUNTERS_MCS        0xF0
+#define MCS_PLL_OVERRIDE_REG         0xD90
+#define MCS_PLL_CONFIG_REG           0xD92
+#define MCS_SEL_IN_FREQ_MASK         0x0070
+#define MCS_SEL_IN_FREQ_SHIFT        4
+#define MCS_PLL_CONFIG_REG_VAL       0x73
+#define MCS_PLL_ENABLE_HP            (BIT(0) | BIT(1))
 
-/*
- * The host sets this bit to inform the FW
- * that it read a packet from RX XFER
- * Buffer #1.
- */
-#define INTR_TRIG_RX_PROC1 BIT(17)
+#define MCS_PLL_M_REG                0xD94
+#define MCS_PLL_N_REG                0xD96
+#define MCS_PLL_M_REG_VAL            0xC8
+#define MCS_PLL_N_REG_VAL            0x07
 
-/*
- * The host sets this bit to inform the Wlan
- * hardware that a TX packet is in the XFER
- * Buffer #1.
- */
-#define INTR_TRIG_TX_PROC1 BIT(18)
+#define SDIO_IO_DS                   0xd14
+
+/* SDIO/wSPI DS configuration values */
+enum {
+	HCI_IO_DS_8MA = 0,
+	HCI_IO_DS_4MA = 1, /* default */
+	HCI_IO_DS_6MA = 2,
+	HCI_IO_DS_2MA = 3,
+};
+
+/* end PLL configuration algorithm for wl128x */
+
+/*===============================================
+  HI_CFG Interface Configuration Register Values
+  ------------------------------------------
+  ===============================================*/
+#define HI_CFG_UART_ENABLE          0x00000004
+#define HI_CFG_RST232_ENABLE        0x00000008
+#define HI_CFG_CLOCK_REQ_SELECT     0x00000010
+#define HI_CFG_HOST_INT_ENABLE      0x00000020
+#define HI_CFG_VLYNQ_OUTPUT_ENABLE  0x00000040
+#define HI_CFG_HOST_INT_ACTIVE_LOW  0x00000080
+#define HI_CFG_UART_TX_OUT_GPIO_15  0x00000100
+#define HI_CFG_UART_TX_OUT_GPIO_14  0x00000200
+#define HI_CFG_UART_TX_OUT_GPIO_7   0x00000400
+
+#define HI_CFG_DEF_VAL              \
+	(HI_CFG_UART_ENABLE |        \
+	HI_CFG_RST232_ENABLE |      \
+	HI_CFG_CLOCK_REQ_SELECT |   \
+	HI_CFG_HOST_INT_ENABLE)
 
 #define WL127X_REG_FUSE_DATA_2_1	0x050a
 #define WL128X_REG_FUSE_DATA_2_1	0x2152

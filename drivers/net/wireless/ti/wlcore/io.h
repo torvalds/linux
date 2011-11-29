@@ -26,7 +26,6 @@
 #define __IO_H__
 
 #include <linux/irqreturn.h>
-#include "reg.h"
 
 #define HW_ACCESS_MEMORY_MAX_RANGE	0x1FFC0
 
@@ -65,6 +64,18 @@ static inline void wl1271_raw_read(struct wl1271 *wl, int addr, void *buf,
 	wl->if_ops->read(wl->dev, addr, buf, len, fixed);
 }
 
+static inline void wlcore_raw_read_data(struct wl1271 *wl, int reg, void *buf,
+					size_t len, bool fixed)
+{
+	wl1271_raw_read(wl, wl->rtable[reg], buf, len, fixed);
+}
+
+static inline void wlcore_raw_write_data(struct wl1271 *wl, int reg, void *buf,
+					 size_t len, bool fixed)
+{
+	wl1271_raw_write(wl, wl->rtable[reg], buf, len, fixed);
+}
+
 static inline u32 wl1271_raw_read32(struct wl1271 *wl, int addr)
 {
 	wl1271_raw_read(wl, addr, &wl->buffer_32,
@@ -100,6 +111,18 @@ static inline void wl1271_write(struct wl1271 *wl, int addr, void *buf,
 	wl1271_raw_write(wl, physical, buf, len, fixed);
 }
 
+static inline void wlcore_write_data(struct wl1271 *wl, int reg, void *buf,
+				     size_t len, bool fixed)
+{
+	wl1271_write(wl, wl->rtable[reg], buf, len, fixed);
+}
+
+static inline void wlcore_read_data(struct wl1271 *wl, int reg, void *buf,
+				    size_t len, bool fixed)
+{
+	wl1271_read(wl, wl->rtable[reg], buf, len, fixed);
+}
+
 static inline void wl1271_read_hwaddr(struct wl1271 *wl, int hwaddr,
 				      void *buf, size_t len, bool fixed)
 {
@@ -122,6 +145,17 @@ static inline u32 wl1271_read32(struct wl1271 *wl, int addr)
 static inline void wl1271_write32(struct wl1271 *wl, int addr, u32 val)
 {
 	wl1271_raw_write32(wl, wlcore_translate_addr(wl, addr), val);
+}
+
+static inline u32 wlcore_read_reg(struct wl1271 *wl, int reg)
+{
+	return wl1271_raw_read32(wl,
+				 wlcore_translate_addr(wl, wl->rtable[reg]));
+}
+
+static inline void wlcore_write_reg(struct wl1271 *wl, int reg, u32 val)
+{
+	wl1271_raw_write32(wl, wlcore_translate_addr(wl, wl->rtable[reg]), val);
 }
 
 static inline void wl1271_power_off(struct wl1271 *wl)

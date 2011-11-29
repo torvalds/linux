@@ -34,8 +34,6 @@
 #include "wl12xx_80211.h"
 #include "io.h"
 
-#include "reg.h"
-
 #define WSPI_CMD_READ                 0x40000000
 #define WSPI_CMD_WRITE                0x00000000
 #define WSPI_CMD_FIXED                0x20000000

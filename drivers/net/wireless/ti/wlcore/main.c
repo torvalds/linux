@@ -38,7 +38,6 @@
 #include "wlcore.h"
 #include "debug.h"
 #include "wl12xx_80211.h"
-#include "reg.h"
 #include "io.h"
 #include "event.h"
 #include "tx.h"
@@ -50,6 +49,9 @@
 #include "boot.h"
 #include "testmode.h"
 #include "scan.h"
+
+/* TODO: remove this once the FUSE definitions are separated */
+#include "../wl12xx/reg.h"
 
 #define WL1271_BOOT_RETRIES 3
 
@@ -354,7 +356,6 @@ static struct conf_drv_settings default_conf = {
 		.output                       = WL12XX_FWLOG_OUTPUT_HOST,
 		.threshold                    = 0,
 	},
-	.hci_io_ds = HCI_IO_DS_6MA,
 	.rate = {
 		.rate_retry_score = 32000,
 		.per_add = 8192,
@@ -796,7 +797,8 @@ static void wl12xx_fw_status(struct wl1271 *wl,
 	int avail, freed_blocks;
 	int i;
 
-	wl1271_raw_read(wl, FW_STATUS_ADDR, status, sizeof(*status), false);
+	wlcore_raw_read_data(wl, REG_RAW_FW_STATUS_ADDR, status,
+			     sizeof(*status), false);
 
 	wl1271_debug(DEBUG_IRQ, "intr: 0x%x (fw_rx_counter = %d, "
 		     "drv_rx_counter = %d, tx_results_counter = %d)",
@@ -1246,7 +1248,8 @@ static void wl1271_recovery_work(struct work_struct *work)
 	wl12xx_read_fwlog_panic(wl);
 
 	wl1271_info("Hardware recovery in progress. FW ver: %s pc: 0x%x",
-		    wl->chip.fw_ver_str, wl1271_read32(wl, SCR_PAD4));
+		    wl->chip.fw_ver_str,
+		    wlcore_read_reg(wl, REG_PC_ON_RECOVERY));
 
 	BUG_ON(bug_on_recovery &&
 	       !test_bit(WL1271_FLAG_INTENDED_FW_RECOVERY, &wl->flags));
@@ -1297,10 +1300,7 @@ out_unlock:
 
 static void wl1271_fw_wakeup(struct wl1271 *wl)
 {
-	u32 elp_reg;
-
-	elp_reg = ELPCTRL_WAKE_UP;
-	wl1271_raw_write32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, elp_reg);
+	wl1271_raw_write32(wl, HW_ACCESS_ELP_CTRL_REG, ELPCTRL_WAKE_UP);
 }
 
 static int wl1271_setup(struct wl1271 *wl)
@@ -1330,7 +1330,7 @@ static int wl12xx_set_power_on(struct wl1271 *wl)
 	wl1271_io_reset(wl);
 	wl1271_io_init(wl);
 
-	wlcore_set_partition(wl, &wl->ptable[PART_DOWN]);
+	wlcore_set_partition(wl, &wl->ptable[PART_BOOT]);
 
 	/* ELP module wake up */
 	wl1271_fw_wakeup(wl);
@@ -5107,22 +5107,25 @@ static int wl12xx_get_hw_info(struct wl1271 *wl)
 	if (ret < 0)
 		goto out;
 
-	wl->chip.id = wl1271_read32(wl, CHIP_ID_B);
+	wl->chip.id = wlcore_read_reg(wl, REG_CHIP_ID_B);
 
+	wl->fuse_oui_addr = 0;
+	wl->fuse_nic_addr = 0;
+
+	/* TODO: properly detect PG ver and read MAC addr in other families */
 	if (wl->chip.id == CHIP_ID_1283_PG20)
 		die_info = wl1271_top_reg_read(wl, WL128X_REG_FUSE_DATA_2_1);
-	else
+	else if (wl->chip.id < CHIP_ID_1283_PG20)
 		die_info = wl1271_top_reg_read(wl, WL127X_REG_FUSE_DATA_2_1);
+	else
+		goto skip_mac;
 
 	wl->hw_pg_ver = (s8) (die_info & PG_VER_MASK) >> PG_VER_OFFSET;
 
-	if (!wl12xx_mac_in_fuse(wl)) {
-		wl->fuse_oui_addr = 0;
-		wl->fuse_nic_addr = 0;
-	} else {
+	if (wl12xx_mac_in_fuse(wl))
 		wl12xx_get_fuse_mac(wl);
-	}
 
+skip_mac:
 	wl1271_power_off(wl);
 out:
 	return ret;

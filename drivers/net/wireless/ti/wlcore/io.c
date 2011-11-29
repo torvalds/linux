@@ -32,18 +32,11 @@
 #include "io.h"
 #include "tx.h"
 
-#define OCP_CMD_LOOP  32
-
-#define OCP_CMD_WRITE 0x1
-#define OCP_CMD_READ  0x2
-
-#define OCP_READY_MASK  BIT(18)
-#define OCP_STATUS_MASK (BIT(16) | BIT(17))
-
-#define OCP_STATUS_NO_RESP    0x00000
-#define OCP_STATUS_OK         0x10000
-#define OCP_STATUS_REQ_FAILED 0x20000
-#define OCP_STATUS_RESP_ERROR 0x30000
+/*
+ * TODO: this is here just for now, it will be removed when we move
+ * the top_reg stuff to wl12xx
+ */
+#include "../wl12xx/reg.h"
 
 bool wl1271_set_block_size(struct wl1271 *wl)
 {
@@ -187,13 +180,13 @@ void wl1271_top_reg_write(struct wl1271 *wl, int addr, u16 val)
 {
 	/* write address >> 1 + 0x30000 to OCP_POR_CTR */
 	addr = (addr >> 1) + 0x30000;
-	wl1271_write32(wl, OCP_POR_CTR, addr);
+	wl1271_write32(wl, WL12XX_OCP_POR_CTR, addr);
 
 	/* write value to OCP_POR_WDATA */
-	wl1271_write32(wl, OCP_DATA_WRITE, val);
+	wl1271_write32(wl, WL12XX_OCP_DATA_WRITE, val);
 
 	/* write 1 to OCP_CMD */
-	wl1271_write32(wl, OCP_CMD, OCP_CMD_WRITE);
+	wl1271_write32(wl, WL12XX_OCP_CMD, OCP_CMD_WRITE);
 }
 
 u16 wl1271_top_reg_read(struct wl1271 *wl, int addr)
@@ -203,14 +196,14 @@ u16 wl1271_top_reg_read(struct wl1271 *wl, int addr)
 
 	/* write address >> 1 + 0x30000 to OCP_POR_CTR */
 	addr = (addr >> 1) + 0x30000;
-	wl1271_write32(wl, OCP_POR_CTR, addr);
+	wl1271_write32(wl, WL12XX_OCP_POR_CTR, addr);
 
 	/* write 2 to OCP_CMD */
-	wl1271_write32(wl, OCP_CMD, OCP_CMD_READ);
+	wl1271_write32(wl, WL12XX_OCP_CMD, OCP_CMD_READ);
 
 	/* poll for data ready */
 	do {
-		val = wl1271_read32(wl, OCP_DATA_READ);
+		val = wl1271_read32(wl, WL12XX_OCP_DATA_READ);
 	} while (!(val & OCP_READY_MASK) && --timeout);
 
 	if (!timeout) {
