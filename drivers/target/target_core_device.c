@@ -954,8 +954,12 @@ int se_dev_set_emulate_dpo(struct se_device *dev, int flag)
 		return -EINVAL;
 	}
 
-	pr_err("dpo_emulated not supported\n");
-	return -EINVAL;
+	if (flag) {
+		pr_err("dpo_emulated not supported\n");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 int se_dev_set_emulate_fua_write(struct se_device *dev, int flag)
@@ -965,7 +969,7 @@ int se_dev_set_emulate_fua_write(struct se_device *dev, int flag)
 		return -EINVAL;
 	}
 
-	if (dev->transport->fua_write_emulated == 0) {
+	if (flag && dev->transport->fua_write_emulated == 0) {
 		pr_err("fua_write_emulated not supported\n");
 		return -EINVAL;
 	}
@@ -982,8 +986,12 @@ int se_dev_set_emulate_fua_read(struct se_device *dev, int flag)
 		return -EINVAL;
 	}
 
-	pr_err("ua read emulated not supported\n");
-	return -EINVAL;
+	if (flag) {
+		pr_err("ua read emulated not supported\n");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 int se_dev_set_emulate_write_cache(struct se_device *dev, int flag)
@@ -992,7 +1000,7 @@ int se_dev_set_emulate_write_cache(struct se_device *dev, int flag)
 		pr_err("Illegal value %d\n", flag);
 		return -EINVAL;
 	}
-	if (dev->transport->write_cache_emulated == 0) {
+	if (flag && dev->transport->write_cache_emulated == 0) {
 		pr_err("write_cache_emulated not supported\n");
 		return -EINVAL;
 	}
@@ -1053,7 +1061,7 @@ int se_dev_set_emulate_tpu(struct se_device *dev, int flag)
 	 * We expect this value to be non-zero when generic Block Layer
 	 * Discard supported is detected iblock_create_virtdevice().
 	 */
-	if (!dev->se_sub_dev->se_dev_attrib.max_unmap_block_desc_count) {
+	if (flag && !dev->se_sub_dev->se_dev_attrib.max_unmap_block_desc_count) {
 		pr_err("Generic Block Discard not supported\n");
 		return -ENOSYS;
 	}
@@ -1074,7 +1082,7 @@ int se_dev_set_emulate_tpws(struct se_device *dev, int flag)
 	 * We expect this value to be non-zero when generic Block Layer
 	 * Discard supported is detected iblock_create_virtdevice().
 	 */
-	if (!dev->se_sub_dev->se_dev_attrib.max_unmap_block_desc_count) {
+	if (flag && !dev->se_sub_dev->se_dev_attrib.max_unmap_block_desc_count) {
 		pr_err("Generic Block Discard not supported\n");
 		return -ENOSYS;
 	}
