@@ -35,7 +35,8 @@ static int radeon_atif_call(acpi_handle handle)
 
 	/* Fail only if calling the method fails and ATIF is supported */
 	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
-		printk(KERN_DEBUG "failed to evaluate ATIF got %s\n", acpi_format_exception(status));
+		DRM_DEBUG_DRIVER("failed to evaluate ATIF got %s\n",
+				 acpi_format_exception(status));
 		kfree(buffer.pointer);
 		return 1;
 	}
