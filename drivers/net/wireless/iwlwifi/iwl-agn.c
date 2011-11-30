@@ -1703,8 +1703,8 @@ static void iwl_debug_config(struct iwl_priv *priv)
 		"disabled\n");
 #endif
 
-	dev_printk(KERN_INFO, bus(priv)->dev, "CONFIG_IWLWIFI_DEVICE_SVTOOL "
-#ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
+	dev_printk(KERN_INFO, bus(priv)->dev, "CONFIG_IWLWIFI_DEVICE_TESTMODE "
+#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
 		"enabled\n");
 #else
 		"disabled\n");

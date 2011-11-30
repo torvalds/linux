@@ -148,7 +148,7 @@ static void iwlagn_tx_cmd_build_rate(struct iwl_priv *priv,
 	if (ieee80211_is_data(fc)) {
 		tx_cmd->initial_rate_index = 0;
 		tx_cmd->tx_flags |= TX_CMD_FLG_STA_RATE_MSK;
-#ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
+#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
 		if (priv->tm_fixed_rate) {
 			/*
 			 * rate overwrite by testmode

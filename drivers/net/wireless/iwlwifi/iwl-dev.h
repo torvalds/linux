@@ -750,7 +750,7 @@ enum iwl_scan_type {
 	IWL_SCAN_ROC,
 };
 
-#ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
+#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
 struct iwl_testmode_trace {
 	u32 buff_size;
 	u32 total_size;
@@ -1039,7 +1039,7 @@ struct iwl_priv {
 	struct led_classdev led;
 	unsigned long blink_on, blink_off;
 	bool led_registered;
-#ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
+#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
 	struct iwl_testmode_trace testmode_trace;
 	struct iwl_testmode_sram testmode_sram;
 	u32 tm_fixed_rate;

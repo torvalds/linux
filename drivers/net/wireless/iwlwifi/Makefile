@@ -18,7 +18,7 @@ iwlwifi-objs		+= iwl-trans-pcie.o iwl-trans-pcie-rx.o iwl-trans-pcie-tx.o
 
 iwlwifi-$(CONFIG_IWLWIFI_DEBUGFS) += iwl-debugfs.o
 iwlwifi-$(CONFIG_IWLWIFI_DEVICE_TRACING) += iwl-devtrace.o
-iwlwifi-$(CONFIG_IWLWIFI_DEVICE_SVTOOL) += iwl-testmode.o
+iwlwifi-$(CONFIG_IWLWIFI_DEVICE_TESTMODE) += iwl-testmode.o
 
 CFLAGS_iwl-devtrace.o := -I$(src)
 

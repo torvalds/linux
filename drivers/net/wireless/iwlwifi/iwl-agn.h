@@ -359,7 +359,7 @@ void iwl_eeprom_get_mac(const struct iwl_priv *priv, u8 *mac);
 extern int iwlagn_init_alive_start(struct iwl_priv *priv);
 extern int iwl_alive_start(struct iwl_priv *priv);
 /* svtool */
-#ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
+#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
 extern int iwlagn_mac_testmode_cmd(struct ieee80211_hw *hw, void *data,
 				   int len);
 extern int iwlagn_mac_testmode_dump(struct ieee80211_hw *hw,
