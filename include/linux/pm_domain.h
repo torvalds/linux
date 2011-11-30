@@ -21,6 +21,7 @@ enum gpd_status {
 
 struct dev_power_governor {
 	bool (*power_down_ok)(struct dev_pm_domain *domain);
+	bool (*stop_ok)(struct device *dev);
 };
 
 struct gpd_dev_ops {
@@ -76,9 +77,16 @@ struct gpd_link {
 	struct list_head slave_node;
 };
 
+struct gpd_timing_data {
+	s64 stop_latency_ns;
+	s64 start_latency_ns;
+	s64 break_even_ns;
+};
+
 struct generic_pm_domain_data {
 	struct pm_domain_data base;
 	struct gpd_dev_ops ops;
+	struct gpd_timing_data td;
 	bool need_restore;
 };
 
@@ -93,20 +101,48 @@ static inline struct generic_pm_domain_data *dev_gpd_data(struct device *dev)
 	return to_gpd_data(dev->power.subsys_data->domain_data);
 }
 
-extern int pm_genpd_add_device(struct generic_pm_domain *genpd,
-			       struct device *dev);
+extern struct dev_power_governor simple_qos_governor;
+
+extern struct generic_pm_domain *dev_to_genpd(struct device *dev);
+extern int __pm_genpd_add_device(struct generic_pm_domain *genpd,
+				 struct device *dev,
+				 struct gpd_timing_data *td);
+
+static inline int pm_genpd_add_device(struct generic_pm_domain *genpd,
+				      struct device *dev)
+{
+	return __pm_genpd_add_device(genpd, dev, NULL);
+}
+
 extern int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 				  struct device *dev);
 extern int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
 				  struct generic_pm_domain *new_subdomain);
 extern int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
 				     struct generic_pm_domain *target);
-extern int pm_genpd_add_callbacks(struct device *dev, struct gpd_dev_ops *ops);
-extern int pm_genpd_remove_callbacks(struct device *dev);
+extern int pm_genpd_add_callbacks(struct device *dev,
+				  struct gpd_dev_ops *ops,
+				  struct gpd_timing_data *td);
+extern int __pm_genpd_remove_callbacks(struct device *dev, bool clear_td);
 extern void pm_genpd_init(struct generic_pm_domain *genpd,
 			  struct dev_power_governor *gov, bool is_off);
+
 extern int pm_genpd_poweron(struct generic_pm_domain *genpd);
+
+extern bool default_stop_ok(struct device *dev);
+
 #else
+
+static inline struct generic_pm_domain *dev_to_genpd(struct device *dev)
+{
+	return ERR_PTR(-ENOSYS);
+}
+static inline int __pm_genpd_add_device(struct generic_pm_domain *genpd,
+					struct device *dev,
+					struct gpd_timing_data *td)
+{
+	return -ENOSYS;
+}
 static inline int pm_genpd_add_device(struct generic_pm_domain *genpd,
 				      struct device *dev)
 {
@@ -128,21 +164,32 @@ static inline int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
 	return -ENOSYS;
 }
 static inline int pm_genpd_add_callbacks(struct device *dev,
-					 struct gpd_dev_ops *ops)
+					 struct gpd_dev_ops *ops,
+					 struct gpd_timing_data *td)
 {
 	return -ENOSYS;
 }
-static inline int pm_genpd_remove_callbacks(struct device *dev)
+static inline int __pm_genpd_remove_callbacks(struct device *dev, bool clear_td)
 {
 	return -ENOSYS;
 }
-static inline void pm_genpd_init(struct generic_pm_domain *genpd,
-				 struct dev_power_governor *gov, bool is_off) {}
+static inline void pm_genpd_init(struct generic_pm_domain *genpd, bool is_off)
+{
+}
 static inline int pm_genpd_poweron(struct generic_pm_domain *genpd)
 {
 	return -ENOSYS;
 }
+static inline bool default_stop_ok(struct device *dev)
+{
+	return false;
+}
 #endif
+
+static inline int pm_genpd_remove_callbacks(struct device *dev)
+{
+	return __pm_genpd_remove_callbacks(dev, true);
+}
 
 #ifdef CONFIG_PM_GENERIC_DOMAINS_RUNTIME
 extern void genpd_queue_power_off_work(struct generic_pm_domain *genpd);
