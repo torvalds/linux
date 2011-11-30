@@ -477,8 +477,10 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 		if (!bus_if)
 			return -ENOMEM;
 		sdiodev = kzalloc(sizeof(struct brcmf_sdio_dev), GFP_KERNEL);
-		if (!sdiodev)
+		if (!sdiodev) {
+			kfree(bus_if);
 			return -ENOMEM;
+		}
 		sdiodev->dev = &func->card->dev;
 		sdiodev->func[0] = func->card->sdio_func[0];
 		sdiodev->func[1] = func;
