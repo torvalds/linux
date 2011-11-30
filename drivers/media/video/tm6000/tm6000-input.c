@@ -416,6 +416,8 @@ int tm6000_ir_init(struct tm6000_core *dev)
 
 	/* input setup */
 	rc->allowed_protos = RC_TYPE_RC5 | RC_TYPE_NEC;
+	/* Neded, in order to support NEC remotes with 24 or 32 bits */
+	rc->scanmask = 0xffff;
 	rc->priv = ir;
 	rc->change_protocol = tm6000_ir_change_protocol;
 	if (&dev->int_in) {
