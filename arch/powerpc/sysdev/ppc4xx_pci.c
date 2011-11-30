@@ -185,9 +185,15 @@ static int __init ppc4xx_parse_dma_ranges(struct pci_controller *hose,
  out:
 	dma_offset_set = 1;
 	pci_dram_offset = res->start;
+	hose->dma_window_base_cur = res->start;
+	hose->dma_window_size = resource_size(res);
 
 	printk(KERN_INFO "4xx PCI DMA offset set to 0x%08lx\n",
 	       pci_dram_offset);
+	printk(KERN_INFO "4xx PCI DMA window base to 0x%016llx\n",
+	       (unsigned long long)hose->dma_window_base_cur);
+	printk(KERN_INFO "DMA window size 0x%016llx\n",
+	       (unsigned long long)hose->dma_window_size);
 	return 0;
 }
 
