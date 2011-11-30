@@ -410,7 +410,6 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 		if (err)
 			goto remove;
 
-#if !defined(CONFIG_SDMMC_RK29) || defined(CONFIG_SDMMC_RK29_OLD)
 		/*
 		 * Update oldcard with the new RCA received from the SDIO
 		 * device -- we're doing this so that it's updated in the
@@ -418,7 +417,6 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 		 */
 		if (oldcard)
 			oldcard->rca = card->rca;
-#endif
 
 		mmc_set_bus_mode(host, MMC_BUSMODE_PUSHPULL);
 	}
@@ -793,9 +791,17 @@ int mmc_attach_sdio(struct mmc_host *host)
 	WARN_ON(!host->claimed);
 
 	err = mmc_send_io_op_cond(host, 0, &ocr);
+	
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)	
 	if (err)
+		return 0xFF;//return err; //Modifyed by xbw at 2011-11-17
+		
+    printk("\n%s..%d..  ===== Begin to identify card as SDIO-card===xbw[%s]===\n",\
+        __FUNCTION__, __LINE__, mmc_hostname(host));
+#else
+    if (err)
 		return err;
-
+#endif        
 	mmc_attach_bus(host, &mmc_sdio_ops);
 	if (host->ocr_avail_sdio)
 		host->ocr_avail = host->ocr_avail_sdio;

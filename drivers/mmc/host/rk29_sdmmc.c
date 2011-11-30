@@ -74,7 +74,7 @@ int debug_level = 5;
 #define RK29_SDMMC_WAIT_DTO_INTERNVAL   4500  //The time interval from the CMD_DONE_INT to DTO_INT
 #define RK29_SDMMC_REMOVAL_DELAY        2000  //The time interval from the CD_INT to detect_timer react.
 
-#define RK29_SDMMC_VERSION "Ver.2.13 The last modify date is 2011-10-19,modifyed by XBW." 
+#define RK29_SDMMC_VERSION "Ver.2.14 The last modify date is 2011-11-17,modifyed by XBW." 
 
 #if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)	
 #define RK29_CTRL_SDMMC_ID   0  //mainly used by SDMMC
@@ -3150,7 +3150,9 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	}
 
     mmc->ops = &rk29_sdmmc_ops[pdev->id];
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))    
 	mmc->pm_flags |= MMC_PM_IGNORE_PM_NOTIFY;
+#endif	
 	mmc->f_min = FOD_FREQ;
 	
 #if RK29_SDMMC_DEFAULT_SDIO_FREQ

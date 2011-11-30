@@ -213,8 +213,10 @@ static void mmc_wait_done(struct mmc_request *mrq)
  */
 void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
 {
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
 	unsigned long datasize, waittime = 0xFFFF;
 	u32 multi, unit;
+#endif
 
 	DECLARE_COMPLETION_ONSTACK(complete);
 
@@ -1086,8 +1088,12 @@ static void mmc_power_up(struct mmc_host *host)
 	 * to reach the minimum voltage.
 	 */
 	mmc_delay(10);
-
+	
+#if defined(CONFIG_SDMMC_RK29) || !defined(CONFIG_SDMMC_RK29_OLD)   //Modifyed by xbw at 2011-11-17
+    host->ios.clock = host->f_min;
+#else
 	host->ios.clock = host->f_init;
+#endif
 
 	host->ios.power_mode = MMC_POWER_ON;
 	mmc_set_ios(host);
@@ -1636,6 +1642,10 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 {
 	host->f_init = freq;
 
+#if defined(CONFIG_SDMMC_RK29) || !defined(CONFIG_SDMMC_RK29_OLD)   //Modifyed by xbw at 2011-11-17		
+	int init_ret=0;
+#endif
+
 #ifdef CONFIG_MMC_DEBUG
 	pr_info("%s: %s: trying to init card at %u Hz\n",
 		mmc_hostname(host), __func__, host->f_init);
@@ -1647,7 +1657,104 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 	 * if the card is being re-initialized, just send it.  CMD52
 	 * should be ignored by SD/eMMC cards.
 	 */
-	sdio_reset(host);
+#if defined(CONFIG_SDMMC_RK29) || !defined(CONFIG_SDMMC_RK29_OLD)   //Modifyed by xbw at 2011-11-17	
+//the process is default for rockchip SDK. noted by xbw at 2011-11-17
+
+/* Order's important: probe SDIO, then SD, then MMC */
+
+#if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)
+    if( strncmp( mmc_hostname(host) ,"mmc0" , strlen("mmc0")) )
+    {
+	    sdio_reset(host);
+    	mmc_go_idle(host);
+
+    	if (!(init_ret=mmc_attach_sdio(host)))
+    	{
+    	    printk("%s..%d..  ===== Initialize SDIO successfully. ===xbw[%s]===\n",\
+    	        __FUNCTION__,  __LINE__, mmc_hostname(host));
+    		return 0;
+    	}
+    	else
+    	{
+    	    if(0xFF!=init_ret)
+    	    {
+    	         printk("\n=====\n %s..%d..  ===== Initialize SDIO-card unsuccessfully!!! ===xbw[%s]===\n=====\n",\
+    		        __FUNCTION__,  __LINE__, mmc_hostname(host));
+
+    		     goto freq_out;   
+    	    }
+    	}
+    }
+    else
+    {
+        mmc_go_idle(host);
+    }
+#else
+    sdio_reset(host);
+	mmc_go_idle(host);
+
+	if (!(init_ret=mmc_attach_sdio(host)))
+	{
+	    printk("%s..%d..  ===== Initialize SDIO successfully. ===xbw[%s]===\n",\
+	        __FUNCTION__,  __LINE__, mmc_hostname(host));
+		return 0;
+	}
+	else
+	{
+	    if(0xFF!=init_ret)
+	    {
+	         printk("\n=====\n %s..%d..  ===== Initialize SDIO-card unsuccessfully!!! ===xbw[%s]===\n=====\n",\
+		        __FUNCTION__,  __LINE__, mmc_hostname(host));
+
+		     goto freq_out;   
+	    }
+	}
+#endif // #end--#if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)
+
+    if (!(init_ret=mmc_attach_sd(host)))
+    {
+        printk("%s..%d..  ===== Initialize SD-card successfully. ===xbw[%s]===\n",\
+            __FUNCTION__,  __LINE__, mmc_hostname(host));
+            
+	    return 0;
+	}
+	else
+	{
+	    if(0xFF!=init_ret)
+	    {
+	          printk("\n=====\n%s..%d..  ===== Initialize SD-card unsuccessfully!!! ===xbw[%s]===\n====\n",\
+	                __FUNCTION__,  __LINE__, mmc_hostname(host));
+
+		     goto freq_out;   
+	    }
+	}
+
+
+	if (!(init_ret=mmc_attach_mmc(host)))
+	{
+	    printk("%s...%d..  ===== Initialize MMC-card successfully. ===xbw[%s]===\n",\
+	        __FUNCTION__,  __LINE__, mmc_hostname(host));
+
+	    return 0;
+	}
+	else
+	{
+	    if(0xFF!=init_ret)
+	    {
+	         printk("\n =====\n%s..%d..  ===== Initialize MMC-card unsuccessfully!!! ===xbw[%s]===\n======\n",\
+	            __FUNCTION__,  __LINE__, mmc_hostname(host));
+	            
+		     goto freq_out;   
+	    }
+	}		
+    	
+freq_out:
+	mmc_power_off(host);
+	return -EIO;
+
+#else  // the default process in ICS.
+
+    sdio_reset(host);
 	mmc_go_idle(host);
 
 	mmc_send_if_cond(host, host->ocr_avail);
@@ -1662,6 +1769,8 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 
 	mmc_power_off(host);
 	return -EIO;
+#endif 
+
 }
 
 void mmc_rescan(struct work_struct *work)
@@ -1710,10 +1819,27 @@ void mmc_rescan(struct work_struct *work)
 	 */
 	mmc_bus_put(host);
 
+#if defined(CONFIG_SDMMC_RK29) || !defined(CONFIG_SDMMC_RK29_OLD)   //Modifyed by xbw at 2011-11-17
+    printk("\n%s...%d..  ===== mmc_rescan Begin....======xbw[%s]=====\n",__FILE__, __LINE__, mmc_hostname(host));
+#endif
+
 	if (host->ops->get_cd && host->ops->get_cd(host) == 0)
+	{
+#if defined(CONFIG_SDMMC_RK29) || !defined(CONFIG_SDMMC_RK29_OLD)   //Modifyed by xbw at 2011-11-17
+    	 printk("\n=================\n%s..%d..  ====find no SDMMC host.====xbw[%s]=====\n", \
+    	        __FUNCTION__, __LINE__, mmc_hostname(host));
+#endif
+
 		goto out;
+	}
 
 	mmc_claim_host(host);
+
+#if defined(CONFIG_SDMMC_RK29) || !defined(CONFIG_SDMMC_RK29_OLD)   //Modifyed by xbw at 2011-11-17
+    if (!mmc_rescan_try_freq(host, host->f_min)) 
+        extend_wakelock = true;
+
+#else	
 	for (i = 0; i < ARRAY_SIZE(freqs); i++) {
 		if (!mmc_rescan_try_freq(host, max(freqs[i], host->f_min))) {
 			extend_wakelock = true;
@@ -1722,6 +1848,8 @@ void mmc_rescan(struct work_struct *work)
 		if (freqs[i] <= host->f_min)
 			break;
 	}
+#endif
+
 	mmc_release_host(host);
 
  out:

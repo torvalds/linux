@@ -1208,9 +1208,16 @@ int mmc_attach_sd(struct mmc_host *host)
 		host->ops->enable_preset_value(host, false);
 
 	err = mmc_send_app_op_cond(host, 0, &ocr);
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)	
+	if (err)
+		return 0xFF;//return err; Modifyed by xbw at 2011-11-17
+		
+    printk("\n%s..%d..  ===== Begin to identify card as SD-card ===xbw[%s]===\n",\
+        __FUNCTION__, __LINE__, mmc_hostname(host));
+#else
 	if (err)
 		return err;
-
+#endif
 	mmc_sd_attach_bus_ops(host);
 	if (host->ocr_avail_sd)
 		host->ocr_avail = host->ocr_avail_sd;
