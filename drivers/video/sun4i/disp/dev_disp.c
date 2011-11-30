@@ -2006,7 +2006,7 @@ EXPORT_SYMBOL(disp_set_hdmi_func);
 EXPORT_SYMBOL(DRV_DISP_Init);
 
 
-module_init(disp_module_init);
+late_initcall(disp_module_init);
 module_exit(disp_module_exit);
 
 MODULE_AUTHOR("danling_xiao");
