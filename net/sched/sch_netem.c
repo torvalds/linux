@@ -301,7 +301,10 @@ static psched_tdiff_t tabledist(psched_tdiff_t mu, psched_tdiff_t sigma,
 
 static psched_time_t packet_len_2_sched_time(unsigned int len, u32 rate)
 {
-	return PSCHED_NS2TICKS((u64)len * NSEC_PER_SEC / rate);
+	u64 ticks = (u64)len * NSEC_PER_SEC;
+
+	do_div(ticks, rate);
+	return PSCHED_NS2TICKS(ticks);
 }
 
 /*
