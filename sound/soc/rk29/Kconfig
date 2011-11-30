@@ -95,7 +95,16 @@ config SND_RK29_SOC_CS42L52
 	help
 	  Say Y if you want to add support for SoC audio on rockchip
 	  with the CS42L52.
-	  
+
+config SND_RK29_SOC_AIC3111
+	tristate "SoC I2S Audio support for rockchip - AIC3111"
+	depends on SND_RK29_SOC && I2C_RK29
+	select SND_RK29_SOC_I2S
+	select SND_SOC_TLV320AIC3111
+	help
+	  Say Y if you want to add support for SoC audio on rockchip
+	  with the AIC3111.
+  
 config SND_RK29_SOC_RK1000
 	tristate "SoC I2S Audio support for rockchip - RK1000"
 	depends on SND_RK29_SOC && RK1000_CONTROL && I2C_RK29
@@ -105,7 +114,7 @@ config SND_RK29_SOC_RK1000
 	  Say Y if you want to add support for SoC audio on rockchip
 	  with the RK1000.	 
 	   
-if SND_RK29_SOC_WM8988 || SND_RK29_SOC_RK1000 || SND_RK29_SOC_WM8994 || SND_RK29_SOC_WM8900 || SND_RK29_SOC_RT5621 || SND_RK29_SOC_RT5631 || SND_RK29_SOC_RT5625 || SND_RK29_SOC_CS42L52
+if SND_RK29_SOC_WM8988 || SND_RK29_SOC_RK1000 || SND_RK29_SOC_WM8994 || SND_RK29_SOC_WM8900 || SND_RK29_SOC_RT5621 || SND_RK29_SOC_RT5631 || SND_RK29_SOC_RT5625 || SND_RK29_SOC_CS42L52 || SND_RK29_SOC_AIC3111
 choice
   prompt "Set i2s type"
 	config SND_RK29_CODEC_SOC_MASTER
