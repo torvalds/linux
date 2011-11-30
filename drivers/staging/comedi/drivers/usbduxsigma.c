@@ -2691,6 +2691,7 @@ static int usbduxsigma_attach(struct comedi_device *dev,
 	if (ret < 0) {
 		dev_err(&udev->interface->dev,
 			"comedi%d: no space for subdev\n", dev->minor);
+		up(&udev->sem);
 		up(&start_stop_sem);
 		return ret;
 	}
