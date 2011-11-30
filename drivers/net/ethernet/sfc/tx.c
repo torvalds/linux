@@ -1173,10 +1173,10 @@ static int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 			goto mem_err;
 	}
 
+	netdev_tx_sent_queue(tx_queue->core_txq, skb->len);
+
 	/* Pass off to hardware */
 	efx_nic_push_buffers(tx_queue);
-
-	netdev_tx_sent_queue(tx_queue->core_txq, skb->len);
 
 	tx_queue->tso_bursts++;
 	return NETDEV_TX_OK;
