@@ -61,8 +61,13 @@ struct generic_pm_domain {
 	bool suspend_power_off;	/* Power status before system suspend */
 	bool dev_irq_safe;	/* Device callbacks are IRQ-safe */
 	int (*power_off)(struct generic_pm_domain *domain);
+	s64 power_off_latency_ns;
 	int (*power_on)(struct generic_pm_domain *domain);
+	s64 power_on_latency_ns;
 	struct gpd_dev_ops dev_ops;
+	s64 break_even_ns;	/* Power break even for the entire domain. */
+	s64 max_off_time_ns;	/* Maximum allowed "suspended" time. */
+	ktime_t power_off_time;
 };
 
 static inline struct generic_pm_domain *pd_to_genpd(struct dev_pm_domain *pd)
@@ -80,6 +85,8 @@ struct gpd_link {
 struct gpd_timing_data {
 	s64 stop_latency_ns;
 	s64 start_latency_ns;
+	s64 save_state_latency_ns;
+	s64 restore_state_latency_ns;
 	s64 break_even_ns;
 };
 
