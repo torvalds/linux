@@ -475,7 +475,6 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 
 	return rfilt;
 
-#undef RX_FILTER_PRESERVE
 }
 
 int ath_startrecv(struct ath_softc *sc)
