@@ -3043,6 +3043,7 @@ static void wm8958_default_micdet(u16 status, void *data)
 {
 	struct snd_soc_codec *codec = data;
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+	int report;
 
 	dev_dbg(codec->dev, "MICDET %x\n", status);
 
@@ -3055,7 +3056,7 @@ static void wm8958_default_micdet(u16 status, void *data)
 		wm8958_micd_set_rate(codec);
 
 		snd_soc_jack_report(wm8994->micdet[0].jack, 0,
-				    SND_JACK_BTN_0 | SND_JACK_HEADSET);
+				    wm8994->btn_mask | SND_JACK_HEADSET);
 
 		return;
 	}
@@ -3088,12 +3089,27 @@ static void wm8958_default_micdet(u16 status, void *data)
 
 	/* Report short circuit as a button */
 	if (wm8994->jack_mic) {
+		report = 0;
 		if (status & 0x4)
-			snd_soc_jack_report(wm8994->micdet[0].jack,
-					    SND_JACK_BTN_0, SND_JACK_BTN_0);
-		else
-			snd_soc_jack_report(wm8994->micdet[0].jack,
-					    0, SND_JACK_BTN_0);
+			report |= SND_JACK_BTN_0;
+
+		if (status & 0x8)
+			report |= SND_JACK_BTN_1;
+
+		if (status & 0x10)
+			report |= SND_JACK_BTN_2;
+
+		if (status & 0x20)
+			report |= SND_JACK_BTN_3;
+
+		if (status & 0x40)
+			report |= SND_JACK_BTN_4;
+
+		if (status & 0x80)
+			report |= SND_JACK_BTN_5;
+
+		snd_soc_jack_report(wm8994->micdet[0].jack, report,
+				    wm8994->btn_mask);
 	}
 }
 
@@ -3118,6 +3134,7 @@ int wm8958_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	struct wm8994 *control = wm8994->wm8994;
+	u16 micd_lvl_sel;
 
 	switch (control->type) {
 	case WM1811:
@@ -3145,9 +3162,18 @@ int wm8958_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 
 		wm8958_micd_set_rate(codec);
 
-		/* Detect microphones and short circuits */
+		/* Detect microphones and short circuits by default */
+		if (wm8994->pdata->micd_lvl_sel)
+			micd_lvl_sel = wm8994->pdata->micd_lvl_sel;
+		else
+			micd_lvl_sel = 0x41;
+
+		wm8994->btn_mask = SND_JACK_BTN_0 | SND_JACK_BTN_1 |
+			SND_JACK_BTN_2 | SND_JACK_BTN_3 |
+			SND_JACK_BTN_4 | SND_JACK_BTN_5;
+
 		snd_soc_update_bits(codec, WM8958_MIC_DETECT_2,
-				    WM8958_MICD_LVL_SEL_MASK, 0x41);
+				    WM8958_MICD_LVL_SEL_MASK, micd_lvl_sel);
 
 		snd_soc_update_bits(codec, WM8958_MIC_DETECT_1,
 				    WM8958_MICD_ENA, WM8958_MICD_ENA);
