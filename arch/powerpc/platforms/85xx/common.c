@@ -21,6 +21,12 @@ static struct of_device_id __initdata mpc85xx_common_ids[] = {
 	{ .compatible = "fsl,qe", },
 	{ .compatible = "fsl,cpm2", },
 	{ .compatible = "fsl,srio", },
+	/* So that the DMA channel nodes can be probed individually: */
+	{ .compatible = "fsl,eloplus-dma", },
+	/* For the PMC driver */
+	{ .compatible = "fsl,mpc8548-guts", },
+	/* Probably unnecessary? */
+	{ .compatible = "gpio-leds", },
 	{},
 };
 
