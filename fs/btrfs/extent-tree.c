@@ -5299,9 +5299,9 @@ alloc:
 			 * people trying to start a new cluster
 			 */
 			spin_lock(&last_ptr->refill_lock);
-			if (last_ptr->block_group &&
-			    (last_ptr->block_group->ro ||
-			    !block_group_bits(last_ptr->block_group, data)))
+			if (!last_ptr->block_group ||
+			    last_ptr->block_group->ro ||
+			    !block_group_bits(last_ptr->block_group, data))
 				goto refill_cluster;
 
 			offset = btrfs_alloc_from_cluster(block_group, last_ptr,
