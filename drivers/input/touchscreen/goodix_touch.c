@@ -487,11 +487,16 @@ int ctp_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
 
-	pr_info("%s: Detected chip %s at adapter %d, address 0x%02x\n",
-		 __func__, CTP_NAME, i2c_adapter_id(adapter), client->addr);
+	if(twi_id == adapter->nr)
+	{
+		pr_info("%s: Detected chip %s at adapter %d, address 0x%02x\n",
+			 __func__, CTP_NAME, i2c_adapter_id(adapter), client->addr);
 
-	strlcpy(info->type, CTP_NAME, I2C_NAME_SIZE);
-	return 0;
+		strlcpy(info->type, CTP_NAME, I2C_NAME_SIZE);
+		return 0;
+	}else{
+		return -ENODEV;
+	}
 }
 ////////////////////////////////////////////////////////////////
 

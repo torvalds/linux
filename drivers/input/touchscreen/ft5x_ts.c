@@ -128,6 +128,7 @@ static union{
 	unsigned short dirty_addr_buf[2];
 	const unsigned short normal_i2c[2];
 }u_i2c_addr = {{0x00},};
+static __u32 twi_id = 0;
 
 /*
  * ctp_get_pendown_state  : get the int_line data state,
@@ -351,7 +352,7 @@ static int ctp_fetch_sysconfig_para(void)
 	int ctp_used = -1;
 	char name[I2C_NAME_SIZE];
 	__u32 twi_addr = 0;
-	__u32 twi_id = 0;
+	//__u32 twi_id = 0;
 	script_parser_value_type_t type = SCIRPT_PARSER_VALUE_TYPE_STRING;
 
 	printk("%s. \n", __func__);
@@ -480,11 +481,16 @@ int ctp_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
 
-	pr_info("%s: Detected chip %s at adapter %d, address 0x%02x\n",
-		 __func__, CTP_NAME, i2c_adapter_id(adapter), client->addr);
+	if(twi_id == adapter->nr)
+	{
+		pr_info("%s: Detected chip %s at adapter %d, address 0x%02x\n",
+			 __func__, CTP_NAME, i2c_adapter_id(adapter), client->addr);
 
-	strlcpy(info->type, CTP_NAME, I2C_NAME_SIZE);
-	return 0;
+		strlcpy(info->type, CTP_NAME, I2C_NAME_SIZE);
+		return 0;
+	}else{
+		return -ENODEV;
+	}
 }
 ////////////////////////////////////////////////////////////////
 

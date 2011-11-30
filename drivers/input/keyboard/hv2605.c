@@ -80,6 +80,7 @@ static union{
 	unsigned short dirty_addr_buf[2];
 	const unsigned short normal_i2c[2];
 }u_i2c_addr = {{0x00},};
+static __u32 twi_id = 0;
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 struct hv2605_keyboard_data {
@@ -102,6 +103,7 @@ static int tkey_fetch_sysconfig_para(void)
 	int ret = -1;
 	int device_used = -1;
 	__u32 twi_addr = 0;
+
 	char name[I2C_NAME_SIZE];
 	script_parser_value_type_t type = SCIRPT_PARSER_VALUE_TYPE_STRING;
 	
@@ -132,6 +134,12 @@ static int tkey_fetch_sysconfig_para(void)
 		printk("%s: after: tkey_twi_addr is 0x%x, dirty_addr_buf: 0x%hx. dirty_addr_buf[1]: 0x%hx \n", \
 		__func__, twi_addr, u_i2c_addr.dirty_addr_buf[0], u_i2c_addr.dirty_addr_buf[1]);
 		
+		if(SCRIPT_PARSER_OK != script_parser_fetch("tkey_para", "tkey_twi_id", &twi_id, 1)){
+			pr_err("%s: script_parser_fetch err. \n", name);
+			goto script_parser_fetch_err;
+		}
+		printk("%s: tkey_twi_id is %d. \n", __func__, twi_id);
+		
 	}else{
 		pr_err("%s: tkey_unused. \n",  __func__);
 		ret = -1;
@@ -155,11 +163,16 @@ int tkey_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
 
-	pr_info("%s: Detected chip %s at adapter %d, address 0x%02x\n",
-		 __func__, HV_NAME, i2c_adapter_id(adapter), client->addr);
+	if(twi_id == adapter->nr)
+	{
+		pr_info("%s: Detected chip %s at adapter %d, address 0x%02x\n",
+			 __func__, HV_NAME, i2c_adapter_id(adapter), client->addr);
 
-	strlcpy(info->type, HV_NAME, I2C_NAME_SIZE);
-	return 0;
+		strlcpy(info->type, HV_NAME, I2C_NAME_SIZE);
+		return 0;
+	}else{
+		return -ENODEV;
+	}
 }
 
 #ifdef CONFIG_HAS_EARLYSUSPEND

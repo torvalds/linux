@@ -234,6 +234,7 @@ static union{
 	unsigned short dirty_addr_buf[2];
 	const unsigned short normal_i2c[2];
 }u_i2c_addr = {{0x00},};
+static __u32 twi_id = 0;
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void bma250_early_suspend(struct early_suspend *h);
@@ -280,6 +281,12 @@ static int gsensor_fetch_sysconfig_para(void)
 		printk("%s: after: gsensor_twi_addr is 0x%x, dirty_addr_buf: 0x%hx. dirty_addr_buf[1]: 0x%hx \n", \
 			__func__, twi_addr, u_i2c_addr.dirty_addr_buf[0], u_i2c_addr.dirty_addr_buf[1]);
 
+		if(SCRIPT_PARSER_OK != script_parser_fetch("gsensor_para", "gsensor_twi_id", &twi_id, 1)){
+			pr_err("%s: script_parser_fetch err. \n", name);
+			goto script_parser_fetch_err;
+		}
+		printk("%s: twi_id is %d. \n", __func__, twi_id);
+		
 		ret = 0;
 		
 	}else{
@@ -305,11 +312,15 @@ int gsensor_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
 
-	pr_info("%s: Detected chip %s at adapter %d, address 0x%02x\n",
-		 __func__, SENSOR_NAME, i2c_adapter_id(adapter), client->addr);
+	if(twi_id == adapter->nr){
+		pr_info("%s: Detected chip %s at adapter %d, address 0x%02x\n",
+			 __func__, SENSOR_NAME, i2c_adapter_id(adapter), client->addr);
 
-	strlcpy(info->type, SENSOR_NAME, I2C_NAME_SIZE);
-	return 0;
+		strlcpy(info->type, SENSOR_NAME, I2C_NAME_SIZE);
+		return 0;
+	}else{
+		return -ENODEV;
+	}
 }
 
 static int bma250_smbus_read_byte(struct i2c_client *client,
