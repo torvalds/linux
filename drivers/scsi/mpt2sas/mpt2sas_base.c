@@ -92,19 +92,6 @@ static int disable_discovery = -1;
 module_param(disable_discovery, int, 0);
 MODULE_PARM_DESC(disable_discovery, " disable discovery ");
 
-
-/* diag_buffer_enable is bitwise
- * bit 0 set = TRACE
- * bit 1 set = SNAPSHOT
- * bit 2 set = EXTENDED
- *
- * Either bit can be set, or both
- */
-static int diag_buffer_enable;
-module_param(diag_buffer_enable, int, 0);
-MODULE_PARM_DESC(diag_buffer_enable, " post diag buffers "
-    "(TRACE=1/SNAPSHOT=2/EXTENDED=4/default=0)");
-
 /**
  * _scsih_set_fwfault_debug - global setting of ioc->fwfault_debug.
  *
