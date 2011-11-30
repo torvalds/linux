@@ -858,7 +858,7 @@ static u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel,
 	RT_TRACE(COMP_TRACE, "====>%s()====stage:%d, step:%d, channel:%d\n",
 		  __func__, *stage, *step, channel);
 
-	if (!IsLegalChannel(priv->rtllib, channel)) {
+	if (!rtllib_legal_channel(priv->rtllib, channel)) {
 		RT_TRACE(COMP_ERR, "=============>set to illegal channel:%d\n",
 			 channel);
 		return true;

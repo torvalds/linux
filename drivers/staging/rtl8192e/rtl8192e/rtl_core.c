@@ -579,7 +579,7 @@ static void rtl8192_update_beacon(void *data)
 	struct rtllib_network *net = &ieee->current_network;
 
 	if (ieee->pHTInfo->bCurrentHTSupport)
-		HTUpdateSelfAndPeerSetting(ieee, net);
+		HT_update_self_and_peer_setting(ieee, net);
 	ieee->pHTInfo->bCurrentRT2RTLongSlotTime =
 		 net->bssht.bdRT2RTLongSlotTime;
 	ieee->pHTInfo->RT2RT_HT_Mode = net->bssht.RT2RT_HT_Mode;
@@ -1287,7 +1287,7 @@ static short rtl8192_get_channel_map(struct net_device *dev)
 		priv->ChannelPlan = COUNTRY_CODE_FCC;
 	}
 	RT_TRACE(COMP_INIT, "Channel plan is %d\n", priv->ChannelPlan);
-	Dot11d_Init(priv->rtllib);
+	dot11d_init(priv->rtllib);
 	Dot11d_Channelmap(priv->ChannelPlan, priv->rtllib);
 	for (i = 1; i <= 11; i++)
 		(priv->rtllib->active_channel_map)[i] = 1;

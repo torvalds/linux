@@ -93,7 +93,7 @@ static inline void cpMacAddr(unsigned char *des, unsigned char *src)
 #define IS_DOT11D_STATE_DONE(__pIeeeDev)			\
 	(GET_DOT11D_INFO(__pIeeeDev)->State == DOT11D_STATE_DONE)
 
-void Dot11d_Init(struct rtllib_device *dev);
+void dot11d_init(struct rtllib_device *dev);
 void Dot11d_Channelmap(u8 channel_plan, struct rtllib_device *ieee);
 void Dot11d_Reset(struct rtllib_device *dev);
 void Dot11d_UpdateCountryIe(struct rtllib_device *dev, u8 *pTaddr,

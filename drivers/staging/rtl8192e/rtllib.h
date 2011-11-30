@@ -2775,7 +2775,7 @@ extern void rtllib_rx_mgt(struct rtllib_device *ieee,
 			     struct rtllib_rx_stats *stats);
 extern void rtllib_rx_probe_rq(struct rtllib_device *ieee,
 			   struct sk_buff *skb);
-extern int IsLegalChannel(struct rtllib_device *rtllib, u8 channel);
+extern int rtllib_legal_channel(struct rtllib_device *rtllib, u8 channel);
 
 /* rtllib_wx.c */
 extern int rtllib_wx_get_scan(struct rtllib_device *ieee,
@@ -2972,8 +2972,8 @@ extern void HTInitializeHTInfo(struct rtllib_device *ieee);
 extern void HTInitializeBssDesc(struct bss_ht *pBssHT);
 extern void HTResetSelfAndSavePeerSetting(struct rtllib_device *ieee,
 					  struct rtllib_network *pNetwork);
-extern void HTUpdateSelfAndPeerSetting(struct rtllib_device *ieee,
-				       struct rtllib_network *pNetwork);
+extern void HT_update_self_and_peer_setting(struct rtllib_device *ieee,
+					    struct rtllib_network *pNetwork);
 extern u8 HTGetHighestMCSRate(struct rtllib_device *ieee, u8 *pMCSRateSet,
 			      u8 *pMCSFilter);
 extern u8 MCS_FILTER_ALL[];

@@ -2493,7 +2493,7 @@ static int IsPassiveChannel(struct rtllib_device *rtllib, u8 channel)
 	return 0;
 }
 
-int IsLegalChannel(struct rtllib_device *rtllib, u8 channel)
+int rtllib_legal_channel(struct rtllib_device *rtllib, u8 channel)
 {
 	if (MAX_CHANNEL_NUMBER < channel) {
 		printk(KERN_INFO "%s(): Invalid Channel\n", __func__);
@@ -2504,7 +2504,7 @@ int IsLegalChannel(struct rtllib_device *rtllib, u8 channel)
 
 	return 0;
 }
-EXPORT_SYMBOL(IsLegalChannel);
+EXPORT_SYMBOL(rtllib_legal_channel);
 
 static inline void rtllib_process_probe_response(
 	struct rtllib_device *ieee,
@@ -2555,7 +2555,7 @@ static inline void rtllib_process_probe_response(
 	}
 
 
-	if (!IsLegalChannel(ieee, network->channel))
+	if (!rtllib_legal_channel(ieee, network->channel))
 		goto free_network;
 
 	if (WLAN_FC_GET_STYPE(beacon->header.frame_ctl) ==
