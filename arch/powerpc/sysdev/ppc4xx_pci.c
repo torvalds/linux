@@ -1739,7 +1739,7 @@ static void __init ppc4xx_configure_pciex_PIMs(struct ppc4xx_pciex_port *port,
 		/* Calculate window size */
 		sa = (0xffffffffffffffffull << ilog2(size));
 		if (res->flags & IORESOURCE_PREFETCH)
-			sa |= 0x8;
+			sa |= PCI_BASE_ADDRESS_MEM_PREFETCH;
 
 		if (of_device_is_compatible(port->node, "ibm,plb-pciex-460sx"))
 			sa |= PCI_BASE_ADDRESS_MEM_TYPE_64;
