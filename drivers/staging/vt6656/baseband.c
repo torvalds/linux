@@ -1558,7 +1558,6 @@ void TimerSQ3CallBack(void *hDeviceContext)
 
 
     spin_unlock_irq(&pDevice->lock);
-    return;
 }
 
 
@@ -1606,7 +1605,6 @@ void TimerSQ3Tmax3CallBack(void *hDeviceContext)
     add_timer(&pDevice->TimerSQ3Tmax1);
 
     spin_unlock_irq(&pDevice->lock);
-    return;
 }
 
 void
