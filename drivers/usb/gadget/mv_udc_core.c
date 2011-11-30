@@ -1138,11 +1138,11 @@ static int udc_reset(struct mv_udc *udc)
 	return 0;
 }
 
-static int mv_udc_enable(struct mv_udc *udc)
+static int mv_udc_enable_internal(struct mv_udc *udc)
 {
 	int retval;
 
-	if (udc->clock_gating == 0 || udc->active)
+	if (udc->active)
 		return 0;
 
 	dev_dbg(&udc->dev->dev, "enable udc\n");
@@ -1161,15 +1161,29 @@ static int mv_udc_enable(struct mv_udc *udc)
 	return 0;
 }
 
-static void mv_udc_disable(struct mv_udc *udc)
+static int mv_udc_enable(struct mv_udc *udc)
 {
-	if (udc->clock_gating && udc->active) {
+	if (udc->clock_gating)
+		return mv_udc_enable_internal(udc);
+
+	return 0;
+}
+
+static void mv_udc_disable_internal(struct mv_udc *udc)
+{
+	if (udc->active) {
 		dev_dbg(&udc->dev->dev, "disable udc\n");
 		if (udc->pdata->phy_deinit)
 			udc->pdata->phy_deinit(udc->phy_regs);
 		udc_clock_disable(udc);
 		udc->active = 0;
 	}
+}
+
+static void mv_udc_disable(struct mv_udc *udc)
+{
+	if (udc->clock_gating)
+		mv_udc_disable_internal(udc);
 }
 
 static int mv_udc_get_frame(struct usb_gadget *gadget)
@@ -2253,14 +2267,9 @@ static int __devinit mv_udc_probe(struct platform_device *dev)
 	}
 
 	/* we will acces controller register, so enable the clk */
-	udc_clock_enable(udc);
-	if (pdata->phy_init) {
-		retval = pdata->phy_init(udc->phy_regs);
-		if (retval) {
-			dev_err(&dev->dev, "phy init error %d\n", retval);
-			goto err_iounmap_phyreg;
-		}
-	}
+	retval = mv_udc_enable_internal(udc);
+	if (retval)
+		goto err_iounmap_phyreg;
 
 	udc->op_regs = (struct mv_op_regs __iomem *)((u32)udc->cap_regs
 		+ (readl(&udc->cap_regs->caplength_hciversion)
@@ -2388,11 +2397,9 @@ static int __devinit mv_udc_probe(struct platform_device *dev)
 	 * If not, it means that VBUS detection is not supported, we
 	 * have to enable vbus active all the time to let controller work.
 	 */
-	if (udc->clock_gating) {
-		if (udc->pdata->phy_deinit)
-			udc->pdata->phy_deinit(udc->phy_regs);
-		udc_clock_disable(udc);
-	} else
+	if (udc->clock_gating)
+		mv_udc_disable_internal(udc);
+	else
 		udc->vbus_active = 1;
 
 	retval = usb_add_gadget_udc(&dev->dev, &udc->gadget);
@@ -2422,9 +2429,7 @@ err_free_dma:
 	dma_free_coherent(&dev->dev, udc->ep_dqh_size,
 			udc->ep_dqh, udc->ep_dqh_dma);
 err_disable_clock:
-	if (udc->pdata->phy_deinit)
-		udc->pdata->phy_deinit(udc->phy_regs);
-	udc_clock_disable(udc);
+	mv_udc_disable_internal(udc);
 err_iounmap_phyreg:
 	iounmap((void *)udc->phy_regs);
 err_iounmap_capreg:
