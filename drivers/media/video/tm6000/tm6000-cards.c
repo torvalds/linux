@@ -640,6 +640,7 @@ static struct usb_device_id tm6000_id_table[] = {
 	{ USB_DEVICE(0x6000, 0xdec3), .driver_info = TM6010_BOARD_BEHOLD_VOYAGER_LITE },
 	{ }
 };
+MODULE_DEVICE_TABLE(usb, tm6000_id_table);
 
 /* Control power led for show some activity */
 void tm6000_flash_led(struct tm6000_core *dev, u8 state)
