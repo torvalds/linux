@@ -121,6 +121,7 @@ enum {
  *                     PEB
  * MOVE_CANCEL_BITFLIPS: canceled because a bit-flip was detected in the
  *                       target PEB
+ * MOVE_RETRY: retry scrubbing the PEB
  */
 enum {
 	MOVE_CANCEL_RACE = 1,
@@ -128,6 +129,7 @@ enum {
 	MOVE_TARGET_RD_ERR,
 	MOVE_TARGET_WR_ERR,
 	MOVE_CANCEL_BITFLIPS,
+	MOVE_RETRY,
 };
 
 /**
