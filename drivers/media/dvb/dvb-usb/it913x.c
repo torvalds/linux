@@ -52,6 +52,11 @@ static int pid_filter;
 module_param_named(pid, pid_filter, int, 0644);
 MODULE_PARM_DESC(pid, "set default 0=on 1=off");
 
+static int dvb_usb_it913x_firmware;
+module_param_named(firmware, dvb_usb_it913x_firmware, int, 0644);
+MODULE_PARM_DESC(firmware, "set firmware 0=auto 1=IT9137 2=IT9135V1");
+
+
 int cmd_counter;
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
@@ -340,6 +345,10 @@ static int it913x_rc_query(struct dvb_usb_device *d)
 	return ret;
 }
 
+/* Firmware sets raw */
+const char fw_it9135_v1[] = "dvb-usb-it9135-01.fw";
+const char fw_it9137[] = "dvb-usb-it9137-01.fw";
+
 static int ite_firmware_select(struct usb_device *udev,
 	struct dvb_usb_device_properties *props)
 {
@@ -348,18 +357,27 @@ static int ite_firmware_select(struct usb_device *udev,
 	if (le16_to_cpu(udev->descriptor.idProduct) ==
 			USB_PID_ITETECH_IT9135)
 		sw = IT9135_V1_FW;
+	else if (le16_to_cpu(udev->descriptor.idProduct) ==
+			USB_PID_ITETECH_IT9135_9005)
+		sw = IT9135_V1_FW;
 	else
 		sw = IT9137_FW;
 
+	/* force switch */
+	if (dvb_usb_it913x_firmware != IT9135_AUTO)
+		sw = dvb_usb_it913x_firmware;
+
 	switch (sw) {
 	case IT9135_V1_FW:
-		it913x_config.firmware_ver = 0;
+		it913x_config.firmware_ver = 1;
 		it913x_config.adc_x2 = 1;
+		props->firmware = fw_it9135_v1;
 		break;
 	case IT9137_FW:
 	default:
 		it913x_config.firmware_ver = 0;
 		it913x_config.adc_x2 = 0;
+		props->firmware = fw_it9137;
 	}
 
 	return 0;
@@ -636,6 +654,7 @@ static struct usb_device_id it913x_table[] = {
 	{ USB_DEVICE(USB_VID_KWORLD_2, USB_PID_KWORLD_UB499_2T_T09) },
 	{ USB_DEVICE(USB_VID_ITETECH, USB_PID_ITETECH_IT9135) },
 	{ USB_DEVICE(USB_VID_KWORLD_2, USB_PID_SVEON_STV22_IT9137) },
+	{ USB_DEVICE(USB_VID_ITETECH, USB_PID_ITETECH_IT9135_9005) },
 	{}		/* Terminating entry */
 };
 
@@ -722,6 +741,9 @@ static struct dvb_usb_device_properties it913x_properties = {
 		{   "Sveon STV22 Dual DVB-T HDTV(IT9137)",
 			{ &it913x_table[2], NULL },
 			},
+		{   "ITE 9135(9005) Generic",
+			{ &it913x_table[3], NULL },
+			},
 	}
 };
 
@@ -755,5 +777,5 @@ module_exit(it913x_module_exit);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("it913x USB 2 Driver");
-MODULE_VERSION("1.11");
+MODULE_VERSION("1.14");
 MODULE_LICENSE("GPL");
