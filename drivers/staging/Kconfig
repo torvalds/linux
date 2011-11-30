@@ -134,4 +134,6 @@ source "drivers/staging/media/Kconfig"
 
 source "drivers/staging/omapdrm/Kconfig"
 
+source "drivers/staging/android/Kconfig"
+
 endif # STAGING
