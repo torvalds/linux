@@ -1052,6 +1052,33 @@ static void use_alternative_detection_method(struct tm6000_core *dev)
 	       tm6000_boards[model].name, model);
 }
 
+#if defined(CONFIG_MODULES) && defined(MODULE)
+static void request_module_async(struct work_struct *work)
+{
+	struct tm6000_core *dev = container_of(work, struct tm6000_core,
+					       request_module_wk);
+
+	request_module("tm6000-alsa");
+
+	if (dev->caps.has_dvb)
+		request_module("tm6000-dvb");
+}
+
+static void request_modules(struct tm6000_core *dev)
+{
+	INIT_WORK(&dev->request_module_wk, request_module_async);
+	schedule_work(&dev->request_module_wk);
+}
+
+static void flush_request_modules(struct tm6000_core *dev)
+{
+	flush_work_sync(&dev->request_module_wk);
+}
+#else
+#define request_modules(dev)
+#define flush_request_modules(dev)
+#endif /* CONFIG_MODULES */
+
 static int tm6000_init_dev(struct tm6000_core *dev)
 {
 	struct v4l2_frequency f;
@@ -1113,6 +1140,8 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 	tm6000_init_extension(dev);
 
 	tm6000_ir_init(dev);
+
+	request_modules(dev);
 
 	mutex_unlock(&dev->lock);
 	return 0;
@@ -1325,6 +1354,8 @@ static void tm6000_usb_disconnect(struct usb_interface *interface)
 		return;
 
 	printk(KERN_INFO "tm6000: disconnecting %s\n", dev->name);
+
+	flush_request_modules(dev);
 
 	tm6000_ir_fini(dev);
 
