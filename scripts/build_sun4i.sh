@@ -76,6 +76,12 @@ build_kernel()
 	cp .config output/
 	cp rootfs/sun4i_rootfs.cpio.gz output/
 
+	mkbootimg --kernel output/bImage \
+			--ramdisk output/sun4i_rootfs.cpio.gz \
+			--board 'sun4i' \
+			--base 0x40000000 \
+			-o output/boot.img
+
 
 	for file in $(find drivers sound crypto block fs security net -name "*.ko"); do
 		cp $file ${LICHEE_MOD_DIR}
@@ -176,7 +182,7 @@ clean_modules()
 #####################################################################
 
 LICHEE_ROOT=`(cd ${LICHEE_KDIR}/..; pwd)`
-export PATH=${LICHEE_ROOT}/buildroot/output/external-toolchain/bin:$PATH
+export PATH=${LICHEE_ROOT}/buildroot/output/external-toolchain/bin:${LICHEE_ROOT}/tools/pack/pctools/linux/android:$PATH
 
 case "$1" in
 kernel)
