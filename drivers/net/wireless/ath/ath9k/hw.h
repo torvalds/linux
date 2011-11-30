@@ -126,6 +126,16 @@
 #define AR_GPIO_OUTPUT_MUX_AS_RX_CLEAR_EXTERNAL  4
 #define AR_GPIO_OUTPUT_MUX_AS_MAC_NETWORK_LED    5
 #define AR_GPIO_OUTPUT_MUX_AS_MAC_POWER_LED      6
+#define AR_GPIO_OUTPUT_MUX_AS_MCI_WLAN_DATA      0x16
+#define AR_GPIO_OUTPUT_MUX_AS_MCI_WLAN_CLK       0x17
+#define AR_GPIO_OUTPUT_MUX_AS_MCI_BT_DATA        0x18
+#define AR_GPIO_OUTPUT_MUX_AS_MCI_BT_CLK         0x19
+#define AR_GPIO_OUTPUT_MUX_AS_WL_IN_TX           0x14
+#define AR_GPIO_OUTPUT_MUX_AS_WL_IN_RX           0x13
+#define AR_GPIO_OUTPUT_MUX_AS_BT_IN_TX           9
+#define AR_GPIO_OUTPUT_MUX_AS_BT_IN_RX           8
+#define AR_GPIO_OUTPUT_MUX_AS_RUCKUS_STROBE      0x1d
+#define AR_GPIO_OUTPUT_MUX_AS_RUCKUS_DATA        0x1e
 
 #define AR_GPIOD_MASK               0x00001FFF
 #define AR_GPIO_BIT(_gpio)          (1 << (_gpio))
