@@ -2258,6 +2258,12 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 		goto fail_sb_buffer;
 	}
 
+	if (sectorsize < PAGE_SIZE) {
+		printk(KERN_WARNING "btrfs: Incompatible sector size "
+		       "found on %s\n", sb->s_id);
+		goto fail_sb_buffer;
+	}
+
 	mutex_lock(&fs_info->chunk_mutex);
 	ret = btrfs_read_sys_array(tree_root);
 	mutex_unlock(&fs_info->chunk_mutex);
