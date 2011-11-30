@@ -1203,6 +1203,32 @@ void ath9k_ani_reset(struct ath_hw *ah, bool is_scanning);
 void ath9k_hw_proc_mib_event(struct ath_hw *ah);
 void ath9k_hw_ani_monitor(struct ath_hw *ah, struct ath9k_channel *chan);
 
+bool ar9003_mci_send_message(struct ath_hw *ah, u8 header, u32 flag,
+			     u32 *payload, u8 len, bool wait_done,
+			     bool check_bt);
+void ar9003_mci_mute_bt(struct ath_hw *ah);
+u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data);
+void ar9003_mci_setup(struct ath_hw *ah, u32 gpm_addr, void *gpm_buf,
+		      u16 len, u32 sched_addr);
+void ar9003_mci_cleanup(struct ath_hw *ah);
+void ar9003_mci_send_coex_halt_bt_gpm(struct ath_hw *ah, bool halt,
+				      bool wait_done);
+u32 ar9003_mci_wait_for_gpm(struct ath_hw *ah, u8 gpm_type,
+			    u8 gpm_opcode, int time_out);
+void ar9003_mci_2g5g_changed(struct ath_hw *ah, bool is_2g);
+void ar9003_mci_disable_interrupt(struct ath_hw *ah);
+void ar9003_mci_enable_interrupt(struct ath_hw *ah);
+void ar9003_mci_2g5g_switch(struct ath_hw *ah, bool wait_done);
+void ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
+		      bool is_full_sleep);
+bool ar9003_mci_check_int(struct ath_hw *ah, u32 ints);
+void ar9003_mci_remote_reset(struct ath_hw *ah, bool wait_done);
+void ar9003_mci_send_sys_waking(struct ath_hw *ah, bool wait_done);
+void ar9003_mci_send_lna_transfer(struct ath_hw *ah, bool wait_done);
+void ar9003_mci_sync_bt_state(struct ath_hw *ah);
+void ar9003_mci_get_interrupt(struct ath_hw *ah, u32 *raw_intr,
+			      u32 *rx_msg_intr);
+
 #define ATH9K_CLOCK_RATE_CCK		22
 #define ATH9K_CLOCK_RATE_5GHZ_OFDM	40
 #define ATH9K_CLOCK_RATE_2GHZ_OFDM	44
