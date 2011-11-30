@@ -1055,7 +1055,7 @@ static int wl1271_fetch_firmware(struct wl1271 *wl)
 	ret = request_firmware(&fw, fw_name, wl->dev);
 
 	if (ret < 0) {
-		wl1271_error("could not get firmware: %d", ret);
+		wl1271_error("could not get firmware %s: %d", fw_name, ret);
 		return ret;
 	}
 
@@ -1093,7 +1093,8 @@ static int wl1271_fetch_nvs(struct wl1271 *wl)
 	ret = request_firmware(&fw, WL12XX_NVS_NAME, wl->dev);
 
 	if (ret < 0) {
-		wl1271_error("could not get nvs file: %d", ret);
+		wl1271_error("could not get nvs file %s: %d", WL12XX_NVS_NAME,
+			     ret);
 		return ret;
 	}
 
