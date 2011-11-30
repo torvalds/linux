@@ -47,7 +47,6 @@
 /* This keeps a track of which one is crashing cpu. */
 int crashing_cpu = -1;
 static cpumask_t cpus_in_crash = CPU_MASK_NONE;
-cpumask_t cpus_in_sr = CPU_MASK_NONE;
 
 #define CRASH_HANDLER_MAX 3
 /* NULL terminated list of shutdown handles */
@@ -55,7 +54,6 @@ static crash_shutdown_t crash_shutdown_handles[CRASH_HANDLER_MAX+1];
 static DEFINE_SPINLOCK(crash_handlers_lock);
 
 #ifdef CONFIG_SMP
-static atomic_t enter_on_soft_reset = ATOMIC_INIT(0);
 
 void crash_ipi_callback(struct pt_regs *regs)
 {
@@ -70,23 +68,8 @@ void crash_ipi_callback(struct pt_regs *regs)
 	cpumask_set_cpu(cpu, &cpus_in_crash);
 
 	/*
-	 * Entered via soft-reset - could be the kdump
-	 * process is invoked using soft-reset or user activated
-	 * it if some CPU did not respond to an IPI.
-	 * For soft-reset, the secondary CPU can enter this func
-	 * twice. 1 - using IPI, and 2. soft-reset.
-	 * Tell the kexec CPU that entered via soft-reset and ready
-	 * to go down.
-	 */
-	if (cpumask_test_cpu(cpu, &cpus_in_sr)) {
-		cpumask_clear_cpu(cpu, &cpus_in_sr);
-		atomic_inc(&enter_on_soft_reset);
-	}
-
-	/*
 	 * Starting the kdump boot.
 	 * This barrier is needed to make sure that all CPUs are stopped.
-	 * If not, soft-reset will be invoked to bring other CPUs.
 	 */
 	while (!cpumask_test_cpu(crashing_cpu, &cpus_in_crash))
 		cpu_relax();
@@ -103,24 +86,13 @@ void crash_ipi_callback(struct pt_regs *regs)
 	/* NOTREACHED */
 }
 
-/*
- * Wait until all CPUs are entered via soft-reset.
- */
-static void crash_soft_reset_check(int cpu)
-{
-	unsigned int ncpus = num_online_cpus() - 1;/* Excluding the panic cpu */
-
-	cpumask_clear_cpu(cpu, &cpus_in_sr);
-	while (atomic_read(&enter_on_soft_reset) != ncpus)
-		cpu_relax();
-}
-
-
 static void crash_kexec_prepare_cpus(int cpu)
 {
 	unsigned int msecs;
 
 	unsigned int ncpus = num_online_cpus() - 1;/* Excluding the panic cpu */
+
+	printk(KERN_EMERG "Sending IPI to other CPUs\n");
 
 	crash_send_ipi(crash_ipi_callback);
 	smp_wmb();
@@ -131,7 +103,6 @@ static void crash_kexec_prepare_cpus(int cpu)
 	 * respond.
 	 * Delay of at least 10 seconds.
 	 */
-	printk(KERN_EMERG "Sending IPI to other cpus...\n");
 	msecs = 10000;
 	while ((cpumask_weight(&cpus_in_crash) < ncpus) && (--msecs > 0)) {
 		cpu_relax();
@@ -140,69 +111,36 @@ static void crash_kexec_prepare_cpus(int cpu)
 
 	/* Would it be better to replace the trap vector here? */
 
-	/*
-	 * FIXME: In case if we do not get all CPUs, one possibility: ask the
-	 * user to do soft reset such that we get all.
-	 * Soft-reset will be used until better mechanism is implemented.
-	 */
 	if (cpumask_weight(&cpus_in_crash) < ncpus) {
-		printk(KERN_EMERG "done waiting: %d cpu(s) not responding\n",
+		printk(KERN_EMERG "ERROR: %d CPU(s) not responding\n",
 			ncpus - cpumask_weight(&cpus_in_crash));
-		printk(KERN_EMERG "Activate soft-reset to stop other cpu(s)\n");
-		cpumask_clear(&cpus_in_sr);
-		atomic_set(&enter_on_soft_reset, 0);
-		while (cpumask_weight(&cpus_in_crash) < ncpus)
-			cpu_relax();
 	}
-	/*
-	 * Make sure all CPUs are entered via soft-reset if the kdump is
-	 * invoked using soft-reset.
-	 */
-	if (cpumask_test_cpu(cpu, &cpus_in_sr))
-		crash_soft_reset_check(cpu);
-	/* Leave the IPI callback set */
+
+	printk(KERN_EMERG "IPI complete\n");
 }
 
 /*
- * This function will be called by secondary cpus or by kexec cpu
- * if soft-reset is activated to stop some CPUs.
+ * This function will be called by secondary cpus.
  */
 void crash_kexec_secondary(struct pt_regs *regs)
 {
-	int cpu = smp_processor_id();
 	unsigned long flags;
-	int msecs = 5;
+	int msecs = 500;
 
 	local_irq_save(flags);
-	/* Wait 5ms if the kexec CPU is not entered yet. */
+
+	/* Wait 500ms for the primary crash CPU to signal its progress */
 	while (crashing_cpu < 0) {
 		if (--msecs < 0) {
-			/*
-			 * Either kdump image is not loaded or
-			 * kdump process is not started - Probably xmon
-			 * exited using 'x'(exit and recover) or
-			 * kexec_should_crash() failed for all running tasks.
-			 */
-			cpumask_clear_cpu(cpu, &cpus_in_sr);
+			/* No response, kdump image may not have been loaded */
 			local_irq_restore(flags);
 			return;
 		}
+
 		mdelay(1);
 		cpu_relax();
 	}
-	if (cpu == crashing_cpu) {
-		/*
-		 * Panic CPU will enter this func only via soft-reset.
-		 * Wait until all secondary CPUs entered and
-		 * then start kexec boot.
-		 */
-		crash_soft_reset_check(cpu);
-		cpumask_set_cpu(crashing_cpu, &cpus_in_crash);
-		if (ppc_md.kexec_cpu_down)
-			ppc_md.kexec_cpu_down(1, 0);
-		machine_kexec(kexec_crash_image);
-		/* NOTREACHED */
-	}
+
 	crash_ipi_callback(regs);
 }
 
@@ -225,7 +163,6 @@ static void crash_kexec_prepare_cpus(int cpu)
 
 void crash_kexec_secondary(struct pt_regs *regs)
 {
-	cpumask_clear(&cpus_in_sr);
 }
 #endif	/* CONFIG_SMP */
 

@@ -162,10 +162,20 @@ int die(const char *str, struct pt_regs *regs, long err)
 	printk("\n");
 	raw_spin_unlock_irqrestore(&die.lock, flags);
 
-	if (kexec_should_crash(current) ||
-		kexec_sr_activated(smp_processor_id()))
+	/*
+	 * A system reset (0x100) is a request to dump, so we always send
+	 * it through the crashdump code.
+	 */
+	if (kexec_should_crash(current) || (TRAP(regs) == 0x100)) {
 		crash_kexec(regs);
-	crash_kexec_secondary(regs);
+
+		/*
+		 * We aren't the primary crash CPU. We need to send it
+		 * to a holding pattern to avoid it ending up in the panic
+		 * code.
+		 */
+		crash_kexec_secondary(regs);
+	}
 
 	/*
 	 * While our oops output is serialised by a spinlock, output
@@ -232,24 +242,7 @@ void system_reset_exception(struct pt_regs *regs)
 			return;
 	}
 
-#ifdef CONFIG_KEXEC
-	cpumask_set_cpu(smp_processor_id(), &cpus_in_sr);
-#endif
-
 	die("System Reset", regs, SIGABRT);
-
-	/*
-	 * Some CPUs when released from the debugger will execute this path.
-	 * These CPUs entered the debugger via a soft-reset. If the CPU was
-	 * hung before entering the debugger it will return to the hung
-	 * state when exiting this function.  This causes a problem in
-	 * kdump since the hung CPU(s) will not respond to the IPI sent
-	 * from kdump. To prevent the problem we call crash_kexec_secondary()
-	 * here. If a kdump had not been initiated or we exit the debugger
-	 * with the "exit and recover" command (x) crash_kexec_secondary()
-	 * will return after 5ms and the CPU returns to its previous state.
-	 */
-	crash_kexec_secondary(regs);
 
 	/* Must die if the interrupt is not recoverable */
 	if (!(regs->msr & MSR_RI))
