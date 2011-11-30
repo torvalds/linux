@@ -1296,6 +1296,52 @@ static struct ppc4xx_pciex_hwops ppc405ex_pcie_hwops __initdata =
 
 #endif /* CONFIG_40x */
 
+#ifdef CONFIG_476FPE
+static int __init ppc_476fpe_pciex_core_init(struct device_node *np)
+{
+	return 4;
+}
+
+static void __init ppc_476fpe_pciex_check_link(struct ppc4xx_pciex_port *port)
+{
+	u32 timeout_ms = 20;
+	u32 val = 0, mask = (PECFG_TLDLP_LNKUP|PECFG_TLDLP_PRESENT);
+	void __iomem *mbase = ioremap(port->cfg_space.start + 0x10000000,
+	                              0x1000);
+
+	printk(KERN_INFO "PCIE%d: Checking link...\n", port->index);
+
+	if (mbase == NULL) {
+		printk(KERN_WARNING "PCIE%d: failed to get cfg space\n",
+		                    port->index);
+		return;
+	}
+		
+	while (timeout_ms--) {
+		val = in_le32(mbase + PECFG_TLDLP);
+
+		if ((val & mask) == mask)
+			break;
+		msleep(10);
+	}
+
+	if (val & PECFG_TLDLP_PRESENT) {
+		printk(KERN_INFO "PCIE%d: link is up !\n", port->index);
+		port->link = 1;
+	} else
+		printk(KERN_WARNING "PCIE%d: Link up failed\n", port->index);
+
+	iounmap(mbase);
+	return;
+}
+
+static struct ppc4xx_pciex_hwops ppc_476fpe_pcie_hwops __initdata =
+{
+	.core_init	= ppc_476fpe_pciex_core_init,
+	.check_link	= ppc_476fpe_pciex_check_link,
+};
+#endif /* CONFIG_476FPE */
+
 /* Check that the core has been initied and if not, do it */
 static int __init ppc4xx_pciex_check_core_init(struct device_node *np)
 {
@@ -1320,6 +1366,10 @@ static int __init ppc4xx_pciex_check_core_init(struct device_node *np)
 #ifdef CONFIG_40x
 	if (of_device_is_compatible(np, "ibm,plb-pciex-405ex"))
 		ppc4xx_pciex_hwops = &ppc405ex_pcie_hwops;
+#endif
+#ifdef CONFIG_476FPE
+	if (of_device_is_compatible(np, "ibm,plb-pciex-476fpe"))
+		ppc4xx_pciex_hwops = &ppc_476fpe_pcie_hwops;
 #endif
 	if (ppc4xx_pciex_hwops == NULL) {
 		printk(KERN_WARNING "PCIE: unknown host type %s\n",
@@ -1629,6 +1679,10 @@ static int __init ppc4xx_setup_one_pciex_POM(struct ppc4xx_pciex_port	*port,
 			dcr_write(port->dcrs, DCRO_PEGPL_OMR1MSKL,
 				sa | DCRO_PEGPL_460SX_OMR1MSKL_UOT
 					| DCRO_PEGPL_OMRxMSKL_VAL);
+		else if (of_device_is_compatible(port->node, "ibm,plb-pciex-476fpe"))
+			dcr_write(port->dcrs, DCRO_PEGPL_OMR1MSKL,
+				sa | DCRO_PEGPL_476FPE_OMR1MSKL_UOT
+					| DCRO_PEGPL_OMRxMSKL_VAL);
 		else
 			dcr_write(port->dcrs, DCRO_PEGPL_OMR1MSKL,
 				sa | DCRO_PEGPL_OMR1MSKL_UOT
@@ -1753,7 +1807,8 @@ static void __init ppc4xx_configure_pciex_PIMs(struct ppc4xx_pciex_port *port,
 		if (res->flags & IORESOURCE_PREFETCH)
 			sa |= PCI_BASE_ADDRESS_MEM_PREFETCH;
 
-		if (of_device_is_compatible(port->node, "ibm,plb-pciex-460sx"))
+		if (of_device_is_compatible(port->node, "ibm,plb-pciex-460sx") ||
+		    of_device_is_compatible(port->node, "ibm,plb-pciex-476fpe"))
 			sa |= PCI_BASE_ADDRESS_MEM_TYPE_64;
 
 		out_le32(mbase + PECFG_BAR0HMPA, RES_TO_U32_HIGH(sa));

@@ -308,6 +308,10 @@ config 460SX
 	select IBM_EMAC_ZMII
 	select IBM_EMAC_TAH
 
+config 476FPE
+	bool
+	select PPC_FPU
+
 config APM821xx
 	bool
 	select PPC_FPU
