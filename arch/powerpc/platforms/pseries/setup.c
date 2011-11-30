@@ -353,6 +353,8 @@ early_initcall(alloc_dispatch_log_kmem_cache);
 
 static void __init pSeries_setup_arch(void)
 {
+	panic_timeout = 10;
+
 	/* Discover PIC type and setup ppc_md accordingly */
 	pseries_discover_pic();
 
