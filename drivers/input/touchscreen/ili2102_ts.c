@@ -364,12 +364,8 @@ static void ili2102_ts_work_func(struct work_struct *work)
 		printk("%s:i2c_transfer fail, ret=%d\n",__FUNCTION__,ret);
 		goto out;
 	}
-	if((buf[0]&0x02) == 0x02)
-		num = 2;
-	else
-		num = 1;
 	
-	for(i=0; i<num; i++)
+	for(i=0; i<TOUCH_NUMBER; i++)
 	{
 
 		if(!((buf[0]>>i)&0x01))
@@ -409,7 +405,7 @@ static void ili2102_ts_work_func(struct work_struct *work)
 				input_mt_slot(ts->input_dev, i);
 				input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, true);
 				input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 1);
-				input_report_abs(ts->input_dev, ABS_MT_PRESSURE, 100);
+				//input_report_abs(ts->input_dev, ABS_MT_PRESSURE, 100);
 				input_report_abs(ts->input_dev, ABS_MT_POSITION_X, x);
 				input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, y);
 	
@@ -852,15 +848,6 @@ static void ili2102_ts_resume_work_func(struct work_struct *work)
 	struct ili2102_ts_data *ts = container_of(work, struct ili2102_ts_data, work);
 	int ret,i;
 
-	//report touch up to android
-	for(i=0; i<TOUCH_NUMBER; i++)
-	{
-		input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
-		input_report_abs(ts->input_dev, ABS_MT_PRESSURE, 0);
-		input_mt_slot(ts->input_dev, i);
-		input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, false);
-	}
-	
 	PREPARE_DELAYED_WORK(&ts->work, ili2102_ts_work_func);
 	mdelay(100); //wait for 100ms before i2c operation
 	
