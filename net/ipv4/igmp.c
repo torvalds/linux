@@ -1579,7 +1579,7 @@ out_unlock:
  * Add multicast single-source filter to the interface list
  */
 static int ip_mc_add1_src(struct ip_mc_list *pmc, int sfmode,
-	__be32 *psfsrc, int delta)
+	__be32 *psfsrc)
 {
 	struct ip_sf_list *psf, *psf_prev;
 
@@ -1714,7 +1714,7 @@ static int ip_mc_add_src(struct in_device *in_dev, __be32 *pmca, int sfmode,
 		pmc->sfcount[sfmode]++;
 	err = 0;
 	for (i=0; i<sfcount; i++) {
-		err = ip_mc_add1_src(pmc, sfmode, &psfsrc[i], delta);
+		err = ip_mc_add1_src(pmc, sfmode, &psfsrc[i]);
 		if (err)
 			break;
 	}
