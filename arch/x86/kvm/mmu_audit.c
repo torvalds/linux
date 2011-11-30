@@ -19,6 +19,15 @@
 
 #include <linux/ratelimit.h>
 
+char const *audit_point_name[] = {
+	"pre page fault",
+	"post page fault",
+	"pre pte write",
+	"post pte write",
+	"pre sync",
+	"post sync"
+};
+
 #define audit_printk(kvm, fmt, args...)		\
 	printk(KERN_ERR "audit: (%s) error: "	\
 		fmt, audit_point_name[kvm->arch.audit_point], ##args)
@@ -227,18 +236,22 @@ static void audit_vcpu_spte(struct kvm_vcpu *vcpu)
 static bool mmu_audit;
 static struct jump_label_key mmu_audit_key;
 
-static void kvm_mmu_audit(struct kvm_vcpu *vcpu, int point)
+static void __kvm_mmu_audit(struct kvm_vcpu *vcpu, int point)
 {
 	static DEFINE_RATELIMIT_STATE(ratelimit_state, 5 * HZ, 10);
 
-	if (static_branch((&mmu_audit_key))) {
-		if (!__ratelimit(&ratelimit_state))
-			return;
+	if (!__ratelimit(&ratelimit_state))
+		return;
 
-		vcpu->kvm->arch.audit_point = point;
-		audit_all_active_sps(vcpu->kvm);
-		audit_vcpu_spte(vcpu);
-	}
+	vcpu->kvm->arch.audit_point = point;
+	audit_all_active_sps(vcpu->kvm);
+	audit_vcpu_spte(vcpu);
+}
+
+static inline void kvm_mmu_audit(struct kvm_vcpu *vcpu, int point)
+{
+	if (static_branch((&mmu_audit_key)))
+		__kvm_mmu_audit(vcpu, point);
 }
 
 static void mmu_audit_enable(void)

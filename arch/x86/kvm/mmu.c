@@ -59,21 +59,6 @@ enum {
 	AUDIT_POST_SYNC
 };
 
-char *audit_point_name[] = {
-	"pre page fault",
-	"post page fault",
-	"pre pte write",
-	"post pte write",
-	"pre sync",
-	"post sync"
-};
-
-#ifdef CONFIG_KVM_MMU_AUDIT
-static void kvm_mmu_audit(struct kvm_vcpu *vcpu, int point);
-#else
-static void kvm_mmu_audit(struct kvm_vcpu *vcpu, int point) { }
-#endif
-
 #undef MMU_DEBUG
 
 #ifdef MMU_DEBUG
@@ -1538,6 +1523,13 @@ static int kvm_sync_page_transient(struct kvm_vcpu *vcpu,
 
 	return ret;
 }
+
+#ifdef CONFIG_KVM_MMU_AUDIT
+#include "mmu_audit.c"
+#else
+static void kvm_mmu_audit(struct kvm_vcpu *vcpu, int point) { }
+static void mmu_audit_disable(void) { }
+#endif
 
 static int kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 			 struct list_head *invalid_list)
@@ -4034,12 +4026,6 @@ void kvm_mmu_destroy(struct kvm_vcpu *vcpu)
 	free_mmu_pages(vcpu);
 	mmu_free_memory_caches(vcpu);
 }
-
-#ifdef CONFIG_KVM_MMU_AUDIT
-#include "mmu_audit.c"
-#else
-static void mmu_audit_disable(void) { }
-#endif
 
 void kvm_mmu_module_exit(void)
 {
