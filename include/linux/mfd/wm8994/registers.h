@@ -242,6 +242,7 @@
 #define WM8994_GPIO_4                           0x703
 #define WM8994_GPIO_5                           0x704
 #define WM8994_GPIO_6                           0x705
+#define WM1811_JACKDET_CTRL			0x705
 #define WM8994_GPIO_7                           0x706
 #define WM8994_GPIO_8                           0x707
 #define WM8994_GPIO_9                           0x708
@@ -1852,6 +1853,9 @@
 /*
  * R57 (0x39) - AntiPOP (2)
  */
+#define WM1811_JACKDET_MODE_MASK                0x0180  /* JACKDET_MODE - [8:7] */
+#define WM1811_JACKDET_MODE_SHIFT                    7  /* JACKDET_MODE - [8:7] */
+#define WM1811_JACKDET_MODE_WIDTH                    2  /* JACKDET_MODE - [8:7] */
 #define WM8994_MICB2_DISCH                      0x0100  /* MICB2_DISCH */
 #define WM8994_MICB2_DISCH_MASK                 0x0100  /* MICB2_DISCH */
 #define WM8994_MICB2_DISCH_SHIFT                     8  /* MICB2_DISCH */
@@ -4185,6 +4189,18 @@
 #define WM8994_STL_SEL_MASK                     0x0001  /* STL_SEL */
 #define WM8994_STL_SEL_SHIFT                         0  /* STL_SEL */
 #define WM8994_STL_SEL_WIDTH                         1  /* STL_SEL */
+
+/*
+ * R1797 (0x705) - JACKDET Ctrl
+ */
+#define WM1811_JACKDET_DB                       0x0100  /* JACKDET_DB */
+#define WM1811_JACKDET_DB_MASK                  0x0100  /* JACKDET_DB */
+#define WM1811_JACKDET_DB_SHIFT                      8  /* JACKDET_DB */
+#define WM1811_JACKDET_DB_WIDTH                      1  /* JACKDET_DB */
+#define WM1811_JACKDET_LVL                      0x0040  /* JACKDET_LVL */
+#define WM1811_JACKDET_LVL_MASK                 0x0040  /* JACKDET_LVL */
+#define WM1811_JACKDET_LVL_SHIFT                     6  /* JACKDET_LVL */
+#define WM1811_JACKDET_LVL_WIDTH                     1  /* JACKDET_LVL */
 
 /*
  * R1824 (0x720) - Pull Control (1)
