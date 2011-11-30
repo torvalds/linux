@@ -399,14 +399,19 @@ int wlcore_boot_run_firmware(struct wl1271 *wl)
 	/* get hardware config command mail box */
 	wl->cmd_box_addr = wlcore_read_reg(wl, REG_COMMAND_MAILBOX_PTR);
 
+	wl1271_debug(DEBUG_MAILBOX, "cmd_box_addr 0x%x", wl->cmd_box_addr);
+
 	/* get hardware config event mail box */
-	wl->event_box_addr = wlcore_read_reg(wl, REG_EVENT_MAILBOX_PTR);
+	wl->mbox_ptr[0] = wlcore_read_reg(wl, REG_EVENT_MAILBOX_PTR);
+	wl->mbox_ptr[1] = wl->mbox_ptr[0] + sizeof(struct event_mailbox);
 
-	/* set the working partition to its "running" mode offset */
-	wlcore_set_partition(wl, &wl->ptable[PART_WORK]);
+	wl1271_debug(DEBUG_MAILBOX, "MBOX ptrs: 0x%x 0x%x",
+		     wl->mbox_ptr[0], wl->mbox_ptr[1]);
 
-	wl1271_debug(DEBUG_MAILBOX, "cmd_box_addr 0x%x event_box_addr 0x%x",
-		     wl->cmd_box_addr, wl->event_box_addr);
+	/*
+	 * TODO: wl12xx used to set the partition here, but it seems
+	 * that it can be done later.  Make sure this is okay.
+	 */
 
 	wl1271_boot_fw_version(wl);
 
@@ -438,7 +443,8 @@ int wlcore_boot_run_firmware(struct wl1271 *wl)
 		return ret;
 	}
 
-	wl1271_event_mbox_config(wl);
+	/* set the working partition to its "running" mode offset */
+	wlcore_set_partition(wl, &wl->ptable[PART_WORK]);
 
 	/* firmware startup completed */
 	return 0;

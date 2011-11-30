@@ -111,7 +111,6 @@ struct wl1271 {
 	struct wl1271_chip chip;
 
 	int cmd_box_addr;
-	int event_box_addr;
 
 	u8 *fw;
 	size_t fw_len;

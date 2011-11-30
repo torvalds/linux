@@ -278,15 +278,6 @@ int wl1271_event_unmask(struct wl1271 *wl)
 	return 0;
 }
 
-void wl1271_event_mbox_config(struct wl1271 *wl)
-{
-	wl->mbox_ptr[0] = wlcore_read_reg(wl, REG_EVENT_MAILBOX_PTR);
-	wl->mbox_ptr[1] = wl->mbox_ptr[0] + sizeof(struct event_mailbox);
-
-	wl1271_debug(DEBUG_EVENT, "MBOX ptrs: 0x%x 0x%x",
-		     wl->mbox_ptr[0], wl->mbox_ptr[1]);
-}
-
 int wl1271_event_handle(struct wl1271 *wl, u8 mbox_num)
 {
 	int ret;
