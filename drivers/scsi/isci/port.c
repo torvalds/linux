@@ -305,7 +305,9 @@ static void port_state_machine_change(struct isci_port *iport,
 static void isci_port_hard_reset_complete(struct isci_port *isci_port,
 					  enum sci_status completion_status)
 {
-	dev_dbg(&isci_port->isci_host->pdev->dev,
+	struct isci_host *ihost = isci_port->owning_controller;
+
+	dev_dbg(&ihost->pdev->dev,
 		"%s: isci_port = %p, completion_status=%x\n",
 		     __func__, isci_port, completion_status);
 
@@ -316,23 +318,24 @@ static void isci_port_hard_reset_complete(struct isci_port *isci_port,
 
 		/* The reset failed.  The port state is now SCI_PORT_FAILED. */
 		if (isci_port->active_phy_mask == 0) {
+			int phy_idx = isci_port->last_active_phy;
+			struct isci_phy *iphy = &ihost->phys[phy_idx];
 
 			/* Generate the link down now to the host, since it
 			 * was intercepted by the hard reset state machine when
 			 * it really happened.
 			 */
-			isci_port_link_down(isci_port->isci_host,
-					    &isci_port->isci_host->phys[
-						   isci_port->last_active_phy],
-					    isci_port);
+			isci_port_link_down(ihost, iphy, isci_port);
 		}
 		/* Advance the port state so that link state changes will be
-		* noticed.
-		*/
+		 * noticed.
+		 */
 		port_state_machine_change(isci_port, SCI_PORT_SUB_WAITING);
 
 	}
-	complete_all(&isci_port->hard_reset_complete);
+	clear_bit(IPORT_RESET_PENDING, &isci_port->state);
+	wake_up(&ihost->eventq);
+
 }
 
 /* This method will return a true value if the specified phy can be assigned to
@@ -1610,6 +1613,11 @@ void sci_port_broadcast_change_received(struct isci_port *iport, struct isci_phy
 	isci_port_bc_change_received(ihost, iport, iphy);
 }
 
+static void wait_port_reset(struct isci_host *ihost, struct isci_port *iport)
+{
+	wait_event(ihost->eventq, !test_bit(IPORT_RESET_PENDING, &iport->state));
+}
+
 int isci_port_perform_hard_reset(struct isci_host *ihost, struct isci_port *iport,
 				 struct isci_phy *iphy)
 {
@@ -1620,9 +1628,8 @@ int isci_port_perform_hard_reset(struct isci_host *ihost, struct isci_port *ipor
 	dev_dbg(&ihost->pdev->dev, "%s: iport = %p\n",
 		__func__, iport);
 
-	init_completion(&iport->hard_reset_complete);
-
 	spin_lock_irqsave(&ihost->scic_lock, flags);
+	set_bit(IPORT_RESET_PENDING, &iport->state);
 
 	#define ISCI_PORT_RESET_TIMEOUT SCIC_SDS_SIGNATURE_FIS_TIMEOUT
 	status = sci_port_hard_reset(iport, ISCI_PORT_RESET_TIMEOUT);
@@ -1630,7 +1637,7 @@ int isci_port_perform_hard_reset(struct isci_host *ihost, struct isci_port *ipor
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
 	if (status == SCI_SUCCESS) {
-		wait_for_completion(&iport->hard_reset_complete);
+		wait_port_reset(ihost, iport);
 
 		dev_dbg(&ihost->pdev->dev,
 			"%s: iport = %p; hard reset completion\n",
@@ -1644,6 +1651,8 @@ int isci_port_perform_hard_reset(struct isci_host *ihost, struct isci_port *ipor
 				__func__, iport, iport->hard_reset_status);
 		}
 	} else {
+		clear_bit(IPORT_RESET_PENDING, &iport->state);
+		wake_up(&ihost->eventq);
 		ret = TMF_RESP_FUNC_FAILED;
 
 		dev_err(&ihost->pdev->dev,

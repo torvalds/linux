@@ -1330,29 +1330,35 @@ isci_task_request_complete(struct isci_host *ihost,
 }
 
 static int isci_reset_device(struct isci_host *ihost,
+			     struct domain_device *dev,
 			     struct isci_remote_device *idev)
 {
-	struct sas_phy *phy = sas_get_local_phy(idev->domain_dev);
-	enum sci_status status;
-	unsigned long flags;
 	int rc;
+	unsigned long flags;
+	enum sci_status status;
+	struct sas_phy *phy = sas_get_local_phy(dev);
+	struct isci_port *iport = dev->port->lldd_port;
 
 	dev_dbg(&ihost->pdev->dev, "%s: idev %p\n", __func__, idev);
 
 	spin_lock_irqsave(&ihost->scic_lock, flags);
 	status = sci_remote_device_reset(idev);
-	if (status != SCI_SUCCESS) {
-		spin_unlock_irqrestore(&ihost->scic_lock, flags);
+	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
+	if (status != SCI_SUCCESS) {
 		dev_dbg(&ihost->pdev->dev,
 			 "%s: sci_remote_device_reset(%p) returned %d!\n",
 			 __func__, idev, status);
 		rc = TMF_RESP_FUNC_FAILED;
 		goto out;
 	}
-	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
-	rc = sas_phy_reset(phy, true);
+	if (scsi_is_sas_phy_local(phy)) {
+		struct isci_phy *iphy = &ihost->phys[phy->number];
+
+		rc = isci_port_perform_hard_reset(ihost, iport, iphy);
+	} else
+		rc = sas_phy_reset(phy, !dev_is_sata(dev));
 
 	/* Terminate in-progress I/O now. */
 	isci_remote_device_nuke_requests(ihost, idev);
@@ -1390,7 +1396,7 @@ int isci_task_I_T_nexus_reset(struct domain_device *dev)
 		goto out;
 	}
 
-	ret = isci_reset_device(ihost, idev);
+	ret = isci_reset_device(ihost, dev, idev);
  out:
 	isci_put_device(idev);
 	return ret;
@@ -1413,7 +1419,7 @@ int isci_bus_reset_handler(struct scsi_cmnd *cmd)
 		goto out;
 	}
 
-	ret = isci_reset_device(ihost, idev);
+	ret = isci_reset_device(ihost, dev, idev);
  out:
 	isci_put_device(idev);
 	return ret;
