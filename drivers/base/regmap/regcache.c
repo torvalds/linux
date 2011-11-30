@@ -193,13 +193,21 @@ void regcache_exit(struct regmap *map)
 int regcache_read(struct regmap *map,
 		  unsigned int reg, unsigned int *value)
 {
+	int ret;
+
 	if (map->cache_type == REGCACHE_NONE)
 		return -ENOSYS;
 
 	BUG_ON(!map->cache_ops);
 
-	if (!regmap_volatile(map, reg))
-		return map->cache_ops->read(map, reg, value);
+	if (!regmap_volatile(map, reg)) {
+		ret = map->cache_ops->read(map, reg, value);
+
+		if (ret == 0)
+			trace_regmap_reg_read_cache(map->dev, reg, *value);
+
+		return ret;
+	}
 
 	return -EINVAL;
 }
