@@ -295,7 +295,7 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 		if (caifdev->use_frag) {
 			head_room = 1;
 			link_support = cfserl_create(dev->ifindex,
-					CFPHYTYPE_FRAG, caifdev->use_stx);
+							caifdev->use_stx);
 			if (!link_support) {
 				pr_warn("Out of memory\n");
 				break;
