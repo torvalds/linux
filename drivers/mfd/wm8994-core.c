@@ -627,6 +627,7 @@ static int wm8994_i2c_remove(struct i2c_client *i2c)
 
 static const struct i2c_device_id wm8994_i2c_id[] = {
 	{ "wm1811", WM1811 },
+	{ "wm1811a", WM1811 },
 	{ "wm8994", WM8994 },
 	{ "wm8958", WM8958 },
 	{ }
