@@ -1779,10 +1779,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->ag_cnt = -1;
 	sd->quality = QUALITY_DEF;
 
-	/* if USB 1.1, let some bandwidth for the audio device */
-	if (gspca_dev->audio && gspca_dev->dev->speed < USB_SPEED_HIGH)
-		gspca_dev->nbalt--;
-
 	INIT_WORK(&sd->work, qual_upd);
 
 	return 0;

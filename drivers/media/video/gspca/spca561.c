@@ -451,7 +451,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	}
 
 	cam = &gspca_dev->cam;
-	gspca_dev->nbalt = 7 + 1;	/* choose alternate 7 first */
 
 	sd->chip_revision = id->driver_info;
 	if (sd->chip_revision == Rev012A) {

@@ -376,7 +376,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam->bulk_size = BULK_SIZE;
 	cam->bulk_nurbs = 4;
 	cam->ctrls = sd->ctrls;
-	gspca_dev->nbalt = 1;  /* Ignore the bogus isoc alt settings */
 	sd->resetlevel = 0x2d; /* Set initial resetlevel */
 
 	/* See if the camera supports brightness */
@@ -393,6 +392,14 @@ static int sd_config(struct gspca_dev *gspca_dev,
 static int sd_init(struct gspca_dev *gspca_dev)
 {
 	return 0;
+}
+
+/* function called at start time before URB creation */
+static int sd_isoc_init(struct gspca_dev *gspca_dev)
+{
+	gspca_dev->alt = 1;	/* Ignore the bogus isoc alt settings */
+
+	return gspca_dev->usb_err;
 }
 
 /* -- start the camera -- */
@@ -714,6 +721,7 @@ static const struct sd_desc sd_desc = {
 	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
 	.init = sd_init,
+	.isoc_init = sd_isoc_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
 	.dq_callback = sd_dq_callback,

@@ -880,7 +880,7 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 	for (;;) {
 		if (alt != gspca_dev->alt) {
 			alt = gspca_dev->alt;
-			if (gspca_dev->nbalt > 1) {
+			if (intf->num_altsetting > 1) {
 				ret = usb_set_interface(gspca_dev->dev,
 							gspca_dev->iface,
 							alt);
@@ -2300,7 +2300,6 @@ int gspca_dev_probe2(struct usb_interface *intf,
 	}
 	gspca_dev->dev = dev;
 	gspca_dev->iface = intf->cur_altsetting->desc.bInterfaceNumber;
-	gspca_dev->nbalt = intf->num_altsetting;
 
 	/* check if any audio device */
 	if (dev->config->desc.bNumInterfaces != 1) {

@@ -6426,10 +6426,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	gspca_dev->cam.ctrls = sd->ctrls;
 	sd->quality = QUALITY_DEF;
 
-	/* if USB 1.1, let some bandwidth for the audio device */
-	if (gspca_dev->audio && gspca_dev->dev->speed < USB_SPEED_HIGH)
-		gspca_dev->nbalt--;
-
 	return 0;
 }
 
