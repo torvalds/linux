@@ -764,7 +764,8 @@ irqreturn_t ath_isr(int irq, void *dev)
 		ATH9K_INT_BMISS |		\
 		ATH9K_INT_CST |			\
 		ATH9K_INT_TSFOOR |		\
-		ATH9K_INT_GENTIMER)
+		ATH9K_INT_GENTIMER |		\
+		ATH9K_INT_MCI)
 
 	struct ath_softc *sc = dev;
 	struct ath_hw *ah = sc->sc_ah;
@@ -1118,6 +1119,9 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_HT)
 		ah->imask |= ATH9K_INT_CST;
+
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_MCI)
+		ah->imask |= ATH9K_INT_MCI;
 
 	sc->sc_flags &= ~SC_OP_INVALID;
 	sc->sc_ah->is_monitoring = false;
