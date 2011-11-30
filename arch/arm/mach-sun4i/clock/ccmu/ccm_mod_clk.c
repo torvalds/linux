@@ -1242,16 +1242,16 @@ static __s32 mod_clk_set_parent(__aw_ccu_mod_clk_e id, __aw_ccu_sys_clk_e parent
             switch(parent)
             {
                 case AW_SYS_CLK_PLL3:
-                    aw_ccu_reg->Lcd0Ch0Clk.ClkSrc = 0;
+                    aw_ccu_reg->Lcd1Ch0Clk.ClkSrc = 0;
                     return 0;
                 case AW_SYS_CLK_PLL3X2:
-                    aw_ccu_reg->Lcd0Ch0Clk.ClkSrc = 2;
+                    aw_ccu_reg->Lcd1Ch0Clk.ClkSrc = 2;
                     return 0;
                 case AW_SYS_CLK_PLL7:
-                    aw_ccu_reg->Lcd0Ch0Clk.ClkSrc = 1;
+                    aw_ccu_reg->Lcd1Ch0Clk.ClkSrc = 1;
                     return 0;
                 case AW_SYS_CLK_PLL7X2:
-                    aw_ccu_reg->Lcd0Ch0Clk.ClkSrc = 3;
+                    aw_ccu_reg->Lcd1Ch0Clk.ClkSrc = 3;
                     return 0;
                 default:
                     return -1;
