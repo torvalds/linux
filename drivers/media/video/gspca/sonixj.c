@@ -2393,7 +2393,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, 0x17, reg17);
 	reg01 &= ~S_PWR_DN;		/* sensor power on */
 	reg_w1(gspca_dev, 0x01, reg01);
-	reg01 &= ~SYS_SEL_48M;
+	reg01 &= ~SCL_SEL_OD;		/* remove open-drain mode */
 	reg_w1(gspca_dev, 0x01, reg01);
 
 	switch (sd->sensor) {
