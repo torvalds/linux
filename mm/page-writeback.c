@@ -962,25 +962,11 @@ static unsigned long dirty_poll_interval(unsigned long dirty,
 	return 1;
 }
 
-static unsigned long bdi_max_pause(struct backing_dev_info *bdi,
-				   unsigned long bdi_dirty)
+static long bdi_max_pause(struct backing_dev_info *bdi,
+			  unsigned long bdi_dirty)
 {
-	unsigned long bw = bdi->avg_write_bandwidth;
-	unsigned long hi = ilog2(bw);
-	unsigned long lo = ilog2(bdi->dirty_ratelimit);
-	unsigned long t;
-
-	/* target for 20ms max pause on 1-dd case */
-	t = HZ / 50;
-
-	/*
-	 * Scale up pause time for concurrent dirtiers in order to reduce CPU
-	 * overheads.
-	 *
-	 * (N * 20ms) on 2^N concurrent tasks.
-	 */
-	if (hi > lo)
-		t += (hi - lo) * (20 * HZ) / 1024;
+	long bw = bdi->avg_write_bandwidth;
+	long t;
 
 	/*
 	 * Limit pause time for small memory systems. If sleeping for too long
@@ -989,13 +975,68 @@ static unsigned long bdi_max_pause(struct backing_dev_info *bdi,
 	 *
 	 * 8 serves as the safety ratio.
 	 */
-	t = min(t, bdi_dirty * HZ / (8 * bw + 1));
+	t = bdi_dirty / (1 + bw / roundup_pow_of_two(1 + HZ / 8));
+	t++;
+
+	return min_t(long, t, MAX_PAUSE);
+}
+
+static long bdi_min_pause(struct backing_dev_info *bdi,
+			  long max_pause,
+			  unsigned long task_ratelimit,
+			  unsigned long dirty_ratelimit,
+			  int *nr_dirtied_pause)
+{
+	long hi = ilog2(bdi->avg_write_bandwidth);
+	long lo = ilog2(bdi->dirty_ratelimit);
+	long t;		/* target pause */
+	long pause;	/* estimated next pause */
+	int pages;	/* target nr_dirtied_pause */
+
+	/* target for 10ms pause on 1-dd case */
+	t = max(1, HZ / 100);
 
 	/*
-	 * The pause time will be settled within range (max_pause/4, max_pause).
-	 * Apply a minimal value of 4 to get a non-zero max_pause/4.
+	 * Scale up pause time for concurrent dirtiers in order to reduce CPU
+	 * overheads.
+	 *
+	 * (N * 10ms) on 2^N concurrent tasks.
 	 */
-	return clamp_val(t, 4, MAX_PAUSE);
+	if (hi > lo)
+		t += (hi - lo) * (10 * HZ) / 1024;
+
+	/*
+	 * This is a bit convoluted. We try to base the next nr_dirtied_pause
+	 * on the much more stable dirty_ratelimit. However the next pause time
+	 * will be computed based on task_ratelimit and the two rate limits may
+	 * depart considerably at some time. Especially if task_ratelimit goes
+	 * below dirty_ratelimit/2 and the target pause is max_pause, the next
+	 * pause time will be max_pause*2 _trimmed down_ to max_pause.  As a
+	 * result task_ratelimit won't be executed faithfully, which could
+	 * eventually bring down dirty_ratelimit.
+	 *
+	 * We apply two rules to fix it up:
+	 * 1) try to estimate the next pause time and if necessary, use a lower
+	 *    nr_dirtied_pause so as not to exceed max_pause. When this happens,
+	 *    nr_dirtied_pause will be "dancing" with task_ratelimit.
+	 * 2) limit the target pause time to max_pause/2, so that the normal
+	 *    small fluctuations of task_ratelimit won't trigger rule (1) and
+	 *    nr_dirtied_pause will remain as stable as dirty_ratelimit.
+	 */
+	t = min(t, 1 + max_pause / 2);
+	pages = dirty_ratelimit * t / roundup_pow_of_two(HZ);
+
+	pause = HZ * pages / (task_ratelimit + 1);
+	if (pause > max_pause) {
+		t = max_pause;
+		pages = task_ratelimit * t / roundup_pow_of_two(HZ);
+	}
+
+	*nr_dirtied_pause = pages;
+	/*
+	 * The minimal pause time will normally be half the target pause time.
+	 */
+	return 1 + t / 2;
 }
 
 /*
@@ -1017,11 +1058,13 @@ static void balance_dirty_pages(struct address_space *mapping,
 	unsigned long dirty_thresh;
 	unsigned long bdi_thresh;
 	long period;
-	long pause = 0;
-	long uninitialized_var(max_pause);
+	long pause;
+	long max_pause;
+	long min_pause;
+	int nr_dirtied_pause;
 	bool dirty_exceeded = false;
 	unsigned long task_ratelimit;
-	unsigned long uninitialized_var(dirty_ratelimit);
+	unsigned long dirty_ratelimit;
 	unsigned long pos_ratio;
 	struct backing_dev_info *bdi = mapping->backing_dev_info;
 	unsigned long start_time = jiffies;
@@ -1051,6 +1094,8 @@ static void balance_dirty_pages(struct address_space *mapping,
 		if (nr_dirty <= freerun) {
 			current->dirty_paused_when = now;
 			current->nr_dirtied = 0;
+			current->nr_dirtied_pause =
+				dirty_poll_interval(nr_dirty, dirty_thresh);
 			break;
 		}
 
@@ -1101,14 +1146,17 @@ static void balance_dirty_pages(struct address_space *mapping,
 				     nr_dirty, bdi_thresh, bdi_dirty,
 				     start_time);
 
-		max_pause = bdi_max_pause(bdi, bdi_dirty);
-
 		dirty_ratelimit = bdi->dirty_ratelimit;
 		pos_ratio = bdi_position_ratio(bdi, dirty_thresh,
 					       background_thresh, nr_dirty,
 					       bdi_thresh, bdi_dirty);
 		task_ratelimit = ((u64)dirty_ratelimit * pos_ratio) >>
 							RATELIMIT_CALC_SHIFT;
+		max_pause = bdi_max_pause(bdi, bdi_dirty);
+		min_pause = bdi_min_pause(bdi, max_pause,
+					  task_ratelimit, dirty_ratelimit,
+					  &nr_dirtied_pause);
+
 		if (unlikely(task_ratelimit == 0)) {
 			period = max_pause;
 			pause = max_pause;
@@ -1125,7 +1173,7 @@ static void balance_dirty_pages(struct address_space *mapping,
 		 * future periods by updating the virtual time; otherwise just
 		 * do a reset, as it may be a light dirtier.
 		 */
-		if (unlikely(pause <= 0)) {
+		if (pause < min_pause) {
 			trace_balance_dirty_pages(bdi,
 						  dirty_thresh,
 						  background_thresh,
@@ -1136,7 +1184,7 @@ static void balance_dirty_pages(struct address_space *mapping,
 						  task_ratelimit,
 						  pages_dirtied,
 						  period,
-						  pause,
+						  min(pause, 0L),
 						  start_time);
 			if (pause < -HZ) {
 				current->dirty_paused_when = now;
@@ -1144,11 +1192,15 @@ static void balance_dirty_pages(struct address_space *mapping,
 			} else if (period) {
 				current->dirty_paused_when += period;
 				current->nr_dirtied = 0;
-			}
-			pause = 1; /* avoid resetting nr_dirtied_pause below */
+			} else if (current->nr_dirtied_pause <= pages_dirtied)
+				current->nr_dirtied_pause += pages_dirtied;
 			break;
 		}
-		pause = min(pause, max_pause);
+		if (unlikely(pause > max_pause)) {
+			/* for occasional dropped task_ratelimit */
+			now += min(pause - max_pause, max_pause);
+			pause = max_pause;
+		}
 
 pause:
 		trace_balance_dirty_pages(bdi,
@@ -1168,6 +1220,7 @@ pause:
 
 		current->dirty_paused_when = now + pause;
 		current->nr_dirtied = 0;
+		current->nr_dirtied_pause = nr_dirtied_pause;
 
 		/*
 		 * This is typically equal to (nr_dirty < dirty_thresh) and can
@@ -1195,22 +1248,6 @@ pause:
 
 	if (!dirty_exceeded && bdi->dirty_exceeded)
 		bdi->dirty_exceeded = 0;
-
-	if (pause == 0) { /* in freerun area */
-		current->nr_dirtied_pause =
-				dirty_poll_interval(nr_dirty, dirty_thresh);
-	} else if (period <= max_pause / 4 &&
-		   pages_dirtied >= current->nr_dirtied_pause) {
-		current->nr_dirtied_pause = clamp_val(
-					dirty_ratelimit * (max_pause / 2) / HZ,
-					pages_dirtied + pages_dirtied / 8,
-					pages_dirtied * 4);
-	} else if (pause >= max_pause) {
-		current->nr_dirtied_pause = 1 | clamp_val(
-					dirty_ratelimit * (max_pause / 2) / HZ,
-					pages_dirtied / 4,
-					pages_dirtied - pages_dirtied / 8);
-	}
 
 	if (writeback_in_progress(bdi))
 		return;
