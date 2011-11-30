@@ -36,7 +36,6 @@
 
 #ifdef CONFIG_ARCH_PXA
 #include <mach/regs-rtc.h>
-#include <mach/regs-ost.h>
 #endif
 
 #define RTC_DEF_DIVIDER		(32768 - 1)
@@ -188,8 +187,6 @@ static void sa1100_rtc_release(struct device *dev)
 {
 	spin_lock_irq(&sa1100_rtc_lock);
 	RTSR = 0;
-	OIER &= ~OIER_E1;
-	OSSR = OSSR_M1;
 	spin_unlock_irq(&sa1100_rtc_lock);
 
 	free_irq(IRQ_RTCAlrm, dev);
