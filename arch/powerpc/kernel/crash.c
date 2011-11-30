@@ -10,41 +10,27 @@
  *
  */
 
-#undef DEBUG
-
 #include <linux/kernel.h>
 #include <linux/smp.h>
 #include <linux/reboot.h>
 #include <linux/kexec.h>
-#include <linux/bootmem.h>
 #include <linux/export.h>
 #include <linux/crash_dump.h>
 #include <linux/delay.h>
-#include <linux/elf.h>
-#include <linux/elfcore.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/types.h>
-#include <linux/memblock.h>
 
 #include <asm/processor.h>
 #include <asm/machdep.h>
 #include <asm/kexec.h>
 #include <asm/kdump.h>
 #include <asm/prom.h>
-#include <asm/firmware.h>
 #include <asm/smp.h>
 #include <asm/system.h>
 #include <asm/setjmp.h>
 
-#ifdef DEBUG
-#include <asm/udbg.h>
-#define DBG(fmt...) udbg_printf(fmt)
-#else
-#define DBG(fmt...)
-#endif
-
-/* This keeps a track of which one is crashing cpu. */
+/* This keeps a track of which one is the crashing cpu. */
 int crashing_cpu = -1;
 static cpumask_t cpus_in_crash = CPU_MASK_NONE;
 
@@ -201,7 +187,7 @@ void crash_kexec_secondary(struct pt_regs *regs)
 static void crash_kexec_prepare_cpus(int cpu)
 {
 	/*
-	 * move the secondarys to us so that we can copy
+	 * move the secondaries to us so that we can copy
 	 * the new kernel 0-0x100 safely
 	 *
 	 * do this if kexec in setup.c ?
@@ -302,7 +288,6 @@ void default_machine_crash_shutdown(struct pt_regs *regs)
 	unsigned int i;
 	int (*old_handler)(struct pt_regs *regs);
 
-
 	/*
 	 * This function is only called after the system
 	 * has panicked or is otherwise in a critical state.
@@ -328,7 +313,7 @@ void default_machine_crash_shutdown(struct pt_regs *regs)
 	machine_kexec_mask_interrupts();
 
 	/*
-	 * Call registered shutdown routines savely.  Swap out
+	 * Call registered shutdown routines safely.  Swap out
 	 * __debugger_fault_handler, and replace on exit.
 	 */
 	old_handler = __debugger_fault_handler;

@@ -49,7 +49,6 @@
 #define KEXEC_STATE_REAL_MODE 2
 
 #ifndef __ASSEMBLY__
-#include <linux/cpumask.h>
 #include <asm/reg.h>
 
 typedef void (*crash_shutdown_t)(void);
