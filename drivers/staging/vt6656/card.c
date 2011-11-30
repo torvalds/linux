@@ -607,7 +607,7 @@ BYTE ii;
  * Return Value: TRUE if succeeded; FALSE if failed.
  *
  */
-BOOL CARDbAddBasicRate(void *pDeviceHandler, WORD wRateIdx)
+void CARDbAddBasicRate(void *pDeviceHandler, WORD wRateIdx)
 {
 PSDevice    pDevice = (PSDevice) pDeviceHandler;
 WORD wRate = (WORD)(1<<wRateIdx);
@@ -616,8 +616,6 @@ WORD wRate = (WORD)(1<<wRateIdx);
 
     //Determines the highest basic rate.
     CARDvUpdateBasicTopRate(pDevice);
-
-    return(TRUE);
 }
 
 BOOL CARDbIsOFDMinBasicRate(void *pDeviceHandler)
