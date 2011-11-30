@@ -3042,6 +3042,8 @@ static void wm8958_default_micdet(u16 status, void *data)
 	struct snd_soc_codec *codec = data;
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 
+	dev_dbg(codec->dev, "MICDET %x\n", status);
+
 	/* If nothing present then clear our statuses */
 	if (!(status & WM8958_MICD_STS)) {
 		dev_dbg(codec->dev, "Detected open circuit\n");
