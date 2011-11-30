@@ -430,6 +430,27 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 		return -EINVAL;
 	}
 
+	/*
+	 * 802.11n-2009 11.5.1.1: If the initiating STA is an HT STA, is a
+	 * member of an IBSS, and has no other existing Block Ack agreement
+	 * with the recipient STA, then the initiating STA shall transmit a
+	 * Probe Request frame to the recipient STA and shall not transmit an
+	 * ADDBA Request frame unless it receives a Probe Response frame
+	 * from the recipient within dot11ADDBAFailureTimeout.
+	 *
+	 * The probe request mechanism for ADDBA is currently not implemented,
+	 * but we only build up Block Ack session with HT STAs. This information
+	 * is set when we receive a bss info from a probe response or a beacon.
+	 */
+	if (sta->sdata->vif.type == NL80211_IFTYPE_ADHOC &&
+	    !sta->sta.ht_cap.ht_supported) {
+#ifdef CONFIG_MAC80211_HT_DEBUG
+		printk(KERN_DEBUG "BA request denied - IBSS STA %pM"
+		       "does not advertise HT support\n", pubsta->addr);
+#endif /* CONFIG_MAC80211_HT_DEBUG */
+		return -EINVAL;
+	}
+
 	spin_lock_bh(&sta->lock);
 
 	/* we have tried too many times, receiver does not want A-MPDU */

@@ -1587,6 +1587,11 @@ u8 *ieee80211_ie_build_ht_info(u8 *pos,
 	}
 	if (ht_cap->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40)
 		ht_info->ht_param |= IEEE80211_HT_PARAM_CHAN_WIDTH_ANY;
+
+	/*
+	 * Note: According to 802.11n-2009 9.13.3.1, HT Protection field and
+	 * RIFS Mode are reserved in IBSS mode, therefore keep them at 0
+	 */
 	ht_info->operation_mode = 0x0000;
 	ht_info->stbc_param = 0x0000;
 

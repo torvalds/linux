@@ -896,6 +896,7 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 			struct cfg80211_ibss_params *params)
 {
 	struct sk_buff *skb;
+	u32 changed = 0;
 
 	skb = dev_alloc_skb(sdata->local->hw.extra_tx_headroom +
 			    36 /* bitrates */ +
@@ -950,6 +951,23 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 	mutex_lock(&sdata->local->mtx);
 	ieee80211_recalc_idle(sdata->local);
 	mutex_unlock(&sdata->local->mtx);
+
+	/*
+	 * 802.11n-2009 9.13.3.1: In an IBSS, the HT Protection field is
+	 * reserved, but an HT STA shall protect HT transmissions as though
+	 * the HT Protection field were set to non-HT mixed mode.
+	 *
+	 * In an IBSS, the RIFS Mode field of the HT Operation element is
+	 * also reserved, but an HT STA shall operate as though this field
+	 * were set to 1.
+	 */
+
+	sdata->vif.bss_conf.ht_operation_mode |=
+		  IEEE80211_HT_OP_MODE_PROTECTION_NONHT_MIXED
+		| IEEE80211_HT_PARAM_RIFS_MODE;
+
+	changed |= BSS_CHANGED_HT;
+	ieee80211_bss_info_change_notify(sdata, changed);
 
 	ieee80211_queue_work(&sdata->local->hw, &sdata->work);
 
