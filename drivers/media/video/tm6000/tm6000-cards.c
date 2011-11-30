@@ -351,6 +351,7 @@ static struct tm6000_board tm6000_boards[] = {
 		.tuner_addr   = 0xc2 >> 1,
 		.demod_addr   = 0x1e >> 1,
 		.type         = TM6010,
+		.ir_codes = RC_MAP_HAUPPAUGE,
 		.caps = {
 			.has_tuner    = 1,
 			.has_dvb      = 1,
