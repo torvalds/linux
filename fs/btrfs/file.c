@@ -1387,7 +1387,11 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 		goto out;
 	}
 
-	file_update_time(file);
+	err = btrfs_update_time(file);
+	if (err) {
+		mutex_unlock(&inode->i_mutex);
+		goto out;
+	}
 	BTRFS_I(inode)->sequence++;
 
 	start_pos = round_down(pos, root->sectorsize);
