@@ -51,12 +51,12 @@ int radeon_acpi_init(struct radeon_device *rdev)
 	acpi_handle handle;
 	int ret;
 
-	/* No need to proceed if we're sure that ATIF is not supported */
-	if (!ASIC_IS_AVIVO(rdev) || !rdev->bios)
-		return 0;
-
 	/* Get the device handle */
 	handle = DEVICE_ACPI_HANDLE(&rdev->pdev->dev);
+
+	/* No need to proceed if we're sure that ATIF is not supported */
+	if (!ASIC_IS_AVIVO(rdev) || !rdev->bios || !handle)
+		return 0;
 
 	/* Call the ATIF method */
 	ret = radeon_atif_call(handle);
