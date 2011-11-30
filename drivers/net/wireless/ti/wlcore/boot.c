@@ -408,11 +408,6 @@ int wlcore_boot_run_firmware(struct wl1271 *wl)
 	wl1271_debug(DEBUG_MAILBOX, "MBOX ptrs: 0x%x 0x%x",
 		     wl->mbox_ptr[0], wl->mbox_ptr[1]);
 
-	/*
-	 * TODO: wl12xx used to set the partition here, but it seems
-	 * that it can be done later.  Make sure this is okay.
-	 */
-
 	wl1271_boot_fw_version(wl);
 
 	/*

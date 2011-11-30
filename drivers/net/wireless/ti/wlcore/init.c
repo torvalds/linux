@@ -581,10 +581,17 @@ int wl1271_init_vif_specific(struct wl1271 *wl, struct ieee80211_vif *vif)
 			if (ret < 0)
 				return ret;
 		} else if (!wl->sta_count) {
-			/* Configure for ELP power saving */
-			ret = wl1271_acx_sleep_auth(wl, WL1271_PSM_ELP);
-			if (ret < 0)
-				return ret;
+			if (wl->quirks & WLCORE_QUIRK_NO_ELP) {
+				/* Configure for power always on */
+				ret = wl1271_acx_sleep_auth(wl, WL1271_PSM_CAM);
+				if (ret < 0)
+					return ret;
+			} else {
+				/* Configure for ELP power saving */
+				ret = wl1271_acx_sleep_auth(wl, WL1271_PSM_ELP);
+				if (ret < 0)
+					return ret;
+			}
 		}
 	}
 

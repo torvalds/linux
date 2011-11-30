@@ -73,6 +73,9 @@ void wl1271_ps_elp_sleep(struct wl1271 *wl)
 {
 	struct wl12xx_vif *wlvif;
 
+	if (wl->quirks & WLCORE_QUIRK_NO_ELP)
+		return;
+
 	/* we shouldn't get consecutive sleep requests */
 	if (WARN_ON(test_and_set_bit(WL1271_FLAG_ELP_REQUESTED, &wl->flags)))
 		return;
