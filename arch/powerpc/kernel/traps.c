@@ -158,6 +158,8 @@ int die(const char *str, struct pt_regs *regs, long err)
 	bust_spinlocks(0);
 	die.lock_owner = -1;
 	add_taint(TAINT_DIE);
+	oops_exit();
+	printk("\n");
 	raw_spin_unlock_irqrestore(&die.lock, flags);
 
 	if (kexec_should_crash(current) ||
@@ -165,13 +167,23 @@ int die(const char *str, struct pt_regs *regs, long err)
 		crash_kexec(regs);
 	crash_kexec_secondary(regs);
 
+	/*
+	 * While our oops output is serialised by a spinlock, output
+	 * from panic() called below can race and corrupt it. If we
+	 * know we are going to panic, delay for 1 second so we have a
+	 * chance to get clean backtraces from all CPUs that are oopsing.
+	 */
+	if (in_interrupt() || panic_on_oops || !current->pid ||
+	    is_global_init(current)) {
+		mdelay(MSEC_PER_SEC);
+	}
+
 	if (in_interrupt())
 		panic("Fatal exception in interrupt");
 
 	if (panic_on_oops)
 		panic("Fatal exception");
 
-	oops_exit();
 	do_exit(err);
 
 	return 0;
