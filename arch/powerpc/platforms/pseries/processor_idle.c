@@ -269,6 +269,9 @@ static int pseries_idle_probe(void)
 	if (!firmware_has_feature(FW_FEATURE_SPLPAR))
 		return -ENODEV;
 
+	if (cpuidle_disable != IDLE_NO_OVERRIDE)
+		return -ENODEV;
+
 	if (max_idle_state == 0) {
 		printk(KERN_DEBUG "pseries processor idle disabled.\n");
 		return -EPERM;
