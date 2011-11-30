@@ -84,7 +84,7 @@ void __init at91_add_device_usbh(struct at91_usbh_data *data) {}
  *  USB Device (Gadget)
  * -------------------------------------------------------------------- */
 
-#ifdef CONFIG_USB_GADGET_AT91
+#ifdef CONFIG_USB_AT91
 static struct at91_udc_data udc_data;
 
 static struct resource udc_resources[] = {
