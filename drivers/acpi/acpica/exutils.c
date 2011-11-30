@@ -435,4 +435,29 @@ void acpi_ex_integer_to_string(char *out_string, u64 value)
 	}
 }
 
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_is_valid_space_id
+ *
+ * PARAMETERS:  space_id            - ID to be validated
+ *
+ * RETURN:      TRUE if valid/supported ID.
+ *
+ * DESCRIPTION: Validate an operation region space_iD.
+ *
+ ******************************************************************************/
+
+u8 acpi_is_valid_space_id(u8 space_id)
+{
+
+	if ((space_id >= ACPI_NUM_PREDEFINED_REGIONS) &&
+	    (space_id < ACPI_USER_REGION_BEGIN) &&
+	    (space_id != ACPI_ADR_SPACE_DATA_TABLE) &&
+	    (space_id != ACPI_ADR_SPACE_FIXED_HARDWARE)) {
+		return (FALSE);
+	}
+
+	return (TRUE);
+}
+
 #endif
