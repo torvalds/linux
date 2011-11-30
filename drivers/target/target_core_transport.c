@@ -691,12 +691,6 @@ void transport_complete_task(struct se_task *task, int success)
 	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
 	unsigned long flags;
-#if 0
-	pr_debug("task: %p CDB: 0x%02x obj_ptr: %p\n", task,
-			cmd->t_task_cdb[0], dev);
-#endif
-	if (dev)
-		atomic_inc(&dev->depth_left);
 
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
 	task->task_flags &= ~TF_ACTIVE;
@@ -971,9 +965,8 @@ void transport_dump_dev_state(
 		break;
 	}
 
-	*bl += sprintf(b + *bl, "  Execute/Left/Max Queue Depth: %d/%d/%d",
-		atomic_read(&dev->execute_tasks), atomic_read(&dev->depth_left),
-		dev->queue_depth);
+	*bl += sprintf(b + *bl, "  Execute/Max Queue Depth: %d/%d",
+		atomic_read(&dev->execute_tasks), dev->queue_depth);
 	*bl += sprintf(b + *bl, "  SectorSize: %u  MaxSectors: %u\n",
 		dev->se_sub_dev->se_dev_attrib.block_size, dev->se_sub_dev->se_dev_attrib.max_sectors);
 	*bl += sprintf(b + *bl, "        ");
@@ -1328,9 +1321,6 @@ struct se_device *transport_add_device_to_core_hba(
 	spin_lock_init(&dev->se_port_lock);
 	spin_lock_init(&dev->se_tmr_lock);
 	spin_lock_init(&dev->qf_cmd_lock);
-
-	dev->queue_depth	= dev_limits->queue_depth;
-	atomic_set(&dev->depth_left, dev->queue_depth);
 	atomic_set(&dev->dev_ordered_id, 0);
 
 	se_dev_set_default_attribs(dev, dev_limits);
@@ -1982,18 +1972,6 @@ static void transport_set_supported_SAM_opcode(struct se_cmd *se_cmd)
 	spin_unlock_irqrestore(&se_cmd->t_state_lock, flags);
 }
 
-static inline int transport_tcq_window_closed(struct se_device *dev)
-{
-	if (dev->dev_tcq_window_closed++ <
-			PYX_TRANSPORT_WINDOW_CLOSED_THRESHOLD) {
-		msleep(PYX_TRANSPORT_WINDOW_CLOSED_WAIT_SHORT);
-	} else
-		msleep(PYX_TRANSPORT_WINDOW_CLOSED_WAIT_LONG);
-
-	wake_up_interruptible(&dev->dev_queue_obj.thread_wq);
-	return 0;
-}
-
 /*
  * Called from Fabric Module context from transport_execute_tasks()
  *
@@ -2126,16 +2104,7 @@ static int __transport_execute_tasks(struct se_device *dev)
 	struct se_task *task = NULL;
 	unsigned long flags;
 
-	/*
-	 * Check if there is enough room in the device and HBA queue to send
-	 * struct se_tasks to the selected transport.
-	 */
 check_depth:
-	if (!atomic_read(&dev->depth_left))
-		return transport_tcq_window_closed(dev);
-
-	dev->dev_tcq_window_closed = 0;
-
 	spin_lock_irq(&dev->execute_task_lock);
 	if (list_empty(&dev->execute_task_list)) {
 		spin_unlock_irq(&dev->execute_task_lock);
@@ -2146,10 +2115,7 @@ check_depth:
 	__transport_remove_task_from_execute_queue(task, dev);
 	spin_unlock_irq(&dev->execute_task_lock);
 
-	atomic_dec(&dev->depth_left);
-
 	cmd = task->task_se_cmd;
-
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
 	task->task_flags |= (TF_ACTIVE | TF_SENT);
 	atomic_inc(&cmd->t_task_cdbs_sent);
@@ -2170,7 +2136,6 @@ check_depth:
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 		atomic_set(&cmd->t_transport_sent, 0);
 		transport_stop_tasks_for_cmd(cmd);
-		atomic_inc(&dev->depth_left);
 		transport_generic_request_failure(cmd);
 	}
 

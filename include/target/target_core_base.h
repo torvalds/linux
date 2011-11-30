@@ -798,7 +798,6 @@ struct se_device {
 	spinlock_t		stats_lock;
 	/* Active commands on this virtual SE device */
 	atomic_t		simple_cmds;
-	atomic_t		depth_left;
 	atomic_t		dev_ordered_id;
 	atomic_t		execute_tasks;
 	atomic_t		dev_ordered_sync;

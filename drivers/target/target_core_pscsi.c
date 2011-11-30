@@ -350,7 +350,6 @@ static struct se_device *pscsi_add_device_to_list(
 	 * scsi_device_put() and the pdv->pdv_sd cleared.
 	 */
 	pdv->pdv_sd = sd;
-
 	dev = transport_add_device_to_core_hba(hba, &pscsi_template,
 				se_dev, dev_flags, pdv,
 				&dev_limits, NULL, NULL);
