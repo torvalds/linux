@@ -42,6 +42,9 @@ int lib_ring_buffer_open(struct inode *inode, struct file *file)
 	struct lib_ring_buffer *buf = inode->i_private;
 	int ret;
 
+	if (!buf)
+		return -EINVAL;
+
 	ret = lib_ring_buffer_open_read(buf);
 	if (ret)
 		return ret;

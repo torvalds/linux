@@ -80,9 +80,6 @@ static int lib_ring_buffer_mmap_buf(struct lib_ring_buffer *buf,
 	if (config->output != RING_BUFFER_MMAP)
 		return -EINVAL;
 
-	if (!buf)
-		return -EBADF;
-
 	mmap_buf_len = chan->backend.buf_size;
 	if (chan->backend.extra_reader_sb)
 		mmap_buf_len += chan->backend.subbuf_size;
