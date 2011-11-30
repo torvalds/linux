@@ -211,7 +211,8 @@ struct mv_udc {
 				softconnected:1,
 				force_fs:1,
 				clock_gating:1,
-				active:1;
+				active:1,
+				stopped:1;      /* stop bit is setted */
 
 	struct work_struct	vbus_work;
 	struct workqueue_struct *qwork;

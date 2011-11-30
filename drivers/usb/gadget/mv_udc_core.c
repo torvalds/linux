@@ -1056,6 +1056,8 @@ static void udc_stop(struct mv_udc *udc)
 		USBINTR_PORT_CHANGE_DETECT_EN | USBINTR_RESET_EN);
 	writel(tmp, &udc->op_regs->usbintr);
 
+	udc->stopped = 1;
+
 	/* Reset the Run the bit in the command register to stop VUSB */
 	tmp = readl(&udc->op_regs->usbcmd);
 	tmp &= ~USBCMD_RUN_STOP;
@@ -1071,6 +1073,8 @@ static void udc_start(struct mv_udc *udc)
 		| USBINTR_RESET_EN | USBINTR_DEVICE_SUSPEND;
 	/* Enable interrupts */
 	writel(usbintr, &udc->op_regs->usbintr);
+
+	udc->stopped = 0;
 
 	/* Set the Run bit in the command register */
 	writel(USBCMD_RUN_STOP, &udc->op_regs->usbcmd);
@@ -2039,6 +2043,10 @@ static irqreturn_t mv_udc_irq(int irq, void *dev)
 {
 	struct mv_udc *udc = (struct mv_udc *)dev;
 	u32 status, intr;
+
+	/* Disable ISR when stopped bit is set */
+	if (udc->stopped)
+		return IRQ_NONE;
 
 	spin_lock(&udc->lock);
 
