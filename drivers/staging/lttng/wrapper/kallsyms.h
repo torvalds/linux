@@ -1,6 +1,8 @@
 #ifndef _LTT_WRAPPER_KALLSYMS_H
 #define _LTT_WRAPPER_KALLSYMS_H
 
+#include <linux/kallsyms.h>
+
 /*
  * Copyright (C) 2011 Avik Sil (avik.sil@linaro.org)
  *
