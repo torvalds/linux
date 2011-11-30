@@ -30,9 +30,6 @@ static int lib_ring_buffer_fault(struct vm_area_struct *vma, struct vm_fault *vm
 	void **virt;
 	unsigned long offset, sb_bindex;
 
-	if (!buf)
-		return VM_FAULT_OOM;
-
 	/*
 	 * Verify that faults are only done on the range of pages owned by the
 	 * reader.
