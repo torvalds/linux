@@ -1545,11 +1545,16 @@ static int d40_validate_conf(struct d40_chan *d40c,
 	return res;
 }
 
-static bool d40_alloc_mask_set(struct d40_phy_res *phy, bool is_src,
-			       int log_event_line, bool is_log)
+static bool d40_alloc_mask_set(struct d40_phy_res *phy,
+			       bool is_src, int log_event_line, bool is_log,
+			       bool *first_user)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&phy->lock, flags);
+
+	*first_user = ((phy->allocated_src | phy->allocated_dst)
+			== D40_ALLOC_FREE);
+
 	if (!is_log) {
 		/* Physical interrupts are masked per physical full channel */
 		if (phy->allocated_src == D40_ALLOC_FREE &&
@@ -1630,7 +1635,7 @@ out:
 	return is_free;
 }
 
-static int d40_allocate_channel(struct d40_chan *d40c)
+static int d40_allocate_channel(struct d40_chan *d40c, bool *first_phy_user)
 {
 	int dev_type;
 	int event_group;
@@ -1666,7 +1671,8 @@ static int d40_allocate_channel(struct d40_chan *d40c)
 			for (i = 0; i < d40c->base->num_phy_chans; i++) {
 
 				if (d40_alloc_mask_set(&phys[i], is_src,
-						       0, is_log))
+						       0, is_log,
+						       first_phy_user))
 					goto found_phy;
 			}
 		} else
@@ -1676,7 +1682,8 @@ static int d40_allocate_channel(struct d40_chan *d40c)
 					if (d40_alloc_mask_set(&phys[i],
 							       is_src,
 							       0,
-							       is_log))
+							       is_log,
+							       first_phy_user))
 						goto found_phy;
 				}
 			}
@@ -1692,6 +1699,25 @@ found_phy:
 	/* Find logical channel */
 	for (j = 0; j < d40c->base->num_phy_chans; j += 8) {
 		int phy_num = j + event_group * 2;
+
+		if (d40c->dma_cfg.use_fixed_channel) {
+			i = d40c->dma_cfg.phy_channel;
+
+			if ((i != phy_num) && (i != phy_num + 1)) {
+				dev_err(chan2dev(d40c),
+					"invalid fixed phy channel %d\n", i);
+				return -EINVAL;
+			}
+
+			if (d40_alloc_mask_set(&phys[i], is_src, event_line,
+					       is_log, first_phy_user))
+				goto found_log;
+
+			dev_err(chan2dev(d40c),
+				"could not allocate fixed phy channel %d\n", i);
+			return -EINVAL;
+		}
+
 		/*
 		 * Spread logical channels across all available physical rather
 		 * than pack every logical channel at the first available phy
@@ -1700,13 +1726,15 @@ found_phy:
 		if (is_src) {
 			for (i = phy_num; i < phy_num + 2; i++) {
 				if (d40_alloc_mask_set(&phys[i], is_src,
-						       event_line, is_log))
+						       event_line, is_log,
+						       first_phy_user))
 					goto found_log;
 			}
 		} else {
 			for (i = phy_num + 1; i >= phy_num; i--) {
 				if (d40_alloc_mask_set(&phys[i], is_src,
-						       event_line, is_log))
+						       event_line, is_log,
+						       first_phy_user))
 					goto found_log;
 			}
 		}
@@ -2160,9 +2188,8 @@ static int d40_alloc_chan_resources(struct dma_chan *chan)
 			goto fail;
 		}
 	}
-	is_free_phy = (d40c->phy_chan == NULL);
 
-	err = d40_allocate_channel(d40c);
+	err = d40_allocate_channel(d40c, &is_free_phy);
 	if (err) {
 		chan_err(d40c, "Failed to allocate channel\n");
 		d40c->configured = false;
@@ -2188,6 +2215,12 @@ static int d40_alloc_chan_resources(struct dma_chan *chan)
 			  d40c->dma_cfg.dst_dev_type *
 			  D40_LCPA_CHAN_SIZE + D40_LCPA_CHAN_DST_DELTA;
 	}
+
+	dev_dbg(chan2dev(d40c), "allocated %s channel (phy %d%s)\n",
+		 chan_is_logical(d40c) ? "logical" : "physical",
+		 d40c->phy_chan->num,
+		 d40c->dma_cfg.use_fixed_channel ? ", fixed" : "");
+
 
 	/*
 	 * Only write channel configuration to the DMA if the physical

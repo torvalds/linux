@@ -113,7 +113,8 @@ struct stedma40_half_channel_info {
  * @dst_dev_type: Dst device type
  * @src_info: Parameters for dst half channel
  * @dst_info: Parameters for dst half channel
- *
+ * @use_fixed_channel: if true, use physical channel specified by phy_channel
+ * @phy_channel: physical channel to use, only if use_fixed_channel is true
  *
  * This structure has to be filled by the client drivers.
  * It is recommended to do all dma configurations for clients in the machine.
@@ -129,6 +130,9 @@ struct stedma40_chan_cfg {
 	int					 dst_dev_type;
 	struct stedma40_half_channel_info	 src_info;
 	struct stedma40_half_channel_info	 dst_info;
+
+	bool					 use_fixed_channel;
+	int					 phy_channel;
 };
 
 /**
