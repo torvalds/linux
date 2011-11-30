@@ -466,23 +466,27 @@ struct iwl_error_event_table {
 	u32 frame_ptr;		/* frame pointer */
 	u32 stack_ptr;		/* stack pointer */
 	u32 hcmd;		/* last host command header */
-#if 0
-	/* no need to read the remainder, we don't use the values */
-	u32 isr0;		/* isr status register LMPM_NIC_ISR0: rxtx_flag */
-	u32 isr1;		/* isr status register LMPM_NIC_ISR1: host_flag */
-	u32 isr2;		/* isr status register LMPM_NIC_ISR2: enc_flag */
-	u32 isr3;		/* isr status register LMPM_NIC_ISR3: time_flag */
-	u32 isr4;		/* isr status register LMPM_NIC_ISR4: wico interrupt */
+	u32 isr0;		/* isr status register LMPM_NIC_ISR0:
+				 * rxtx_flag */
+	u32 isr1;		/* isr status register LMPM_NIC_ISR1:
+				 * host_flag */
+	u32 isr2;		/* isr status register LMPM_NIC_ISR2:
+				 * enc_flag */
+	u32 isr3;		/* isr status register LMPM_NIC_ISR3:
+				 * time_flag */
+	u32 isr4;		/* isr status register LMPM_NIC_ISR4:
+				 * wico interrupt */
 	u32 isr_pref;		/* isr status register LMPM_NIC_PREF_STAT */
 	u32 wait_event;		/* wait event() caller address */
 	u32 l2p_control;	/* L2pControlField */
 	u32 l2p_duration;	/* L2pDurationField */
 	u32 l2p_mhvalid;	/* L2pMhValidBits */
 	u32 l2p_addr_match;	/* L2pAddrMatchStat */
-	u32 lmpm_pmg_sel;	/* indicate which clocks are turned on (LMPM_PMG_SEL) */
-	u32 u_timestamp;	/* indicate when the date and time of the compilation */
+	u32 lmpm_pmg_sel;	/* indicate which clocks are turned on
+				 * (LMPM_PMG_SEL) */
+	u32 u_timestamp;	/* indicate when the date and time of the
+				 * compilation */
 	u32 flow_handler;	/* FH read/write pointers, RX credit */
-#endif
 } __packed;
 
 struct iwl_alive_resp {

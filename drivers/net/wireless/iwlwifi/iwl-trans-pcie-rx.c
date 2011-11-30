@@ -648,6 +648,21 @@ static void iwl_dump_nic_error_log(struct iwl_trans *trans)
 	IWL_ERR(trans, "0x%08X | hw version\n", table.hw_ver);
 	IWL_ERR(trans, "0x%08X | board version\n", table.brd_ver);
 	IWL_ERR(trans, "0x%08X | hcmd\n", table.hcmd);
+
+	IWL_ERR(trans, "0x%08X | isr0\n", table.isr0);
+	IWL_ERR(trans, "0x%08X | isr1\n", table.isr1);
+	IWL_ERR(trans, "0x%08X | isr2\n", table.isr2);
+	IWL_ERR(trans, "0x%08X | isr3\n", table.isr3);
+	IWL_ERR(trans, "0x%08X | isr4\n", table.isr4);
+	IWL_ERR(trans, "0x%08X | isr_pref\n", table.isr_pref);
+	IWL_ERR(trans, "0x%08X | wait_event\n", table.wait_event);
+	IWL_ERR(trans, "0x%08X | l2p_control\n", table.l2p_control);
+	IWL_ERR(trans, "0x%08X | l2p_duration\n", table.l2p_duration);
+	IWL_ERR(trans, "0x%08X | l2p_mhvalid\n", table.l2p_mhvalid);
+	IWL_ERR(trans, "0x%08X | l2p_addr_match\n", table.l2p_addr_match);
+	IWL_ERR(trans, "0x%08X | lmpm_pmg_sel\n", table.lmpm_pmg_sel);
+	IWL_ERR(trans, "0x%08X | timestamp\n", table.u_timestamp);
+	IWL_ERR(trans, "0x%08X | flow_handler\n", table.flow_handler);
 }
 
 /**
