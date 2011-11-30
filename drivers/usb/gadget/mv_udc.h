@@ -216,6 +216,8 @@ struct mv_udc {
 	struct work_struct	vbus_work;
 	struct workqueue_struct *qwork;
 
+	struct otg_transceiver	*transceiver;
+
 	struct mv_usb_platform_data     *pdata;
 
 	/* some SOC has mutiple clock sources for USB*/
