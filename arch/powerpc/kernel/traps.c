@@ -98,18 +98,14 @@ static void pmac_backlight_unblank(void)
 static inline void pmac_backlight_unblank(void) { }
 #endif
 
-int die(const char *str, struct pt_regs *regs, long err)
+static arch_spinlock_t die_lock = __ARCH_SPIN_LOCK_UNLOCKED;
+static int die_owner = -1;
+static unsigned int die_nest_count;
+static int die_counter;
+
+static unsigned __kprobes long oops_begin(struct pt_regs *regs)
 {
-	static struct {
-		raw_spinlock_t lock;
-		u32 lock_owner;
-		int lock_owner_depth;
-	} die = {
-		.lock =			__RAW_SPIN_LOCK_UNLOCKED(die.lock),
-		.lock_owner =		-1,
-		.lock_owner_depth =	0
-	};
-	static int die_counter;
+	int cpu;
 	unsigned long flags;
 
 	if (debugger(regs))
@@ -117,50 +113,37 @@ int die(const char *str, struct pt_regs *regs, long err)
 
 	oops_enter();
 
-	if (die.lock_owner != raw_smp_processor_id()) {
-		console_verbose();
-		raw_spin_lock_irqsave(&die.lock, flags);
-		die.lock_owner = smp_processor_id();
-		die.lock_owner_depth = 0;
-		bust_spinlocks(1);
-		if (machine_is(powermac))
-			pmac_backlight_unblank();
-	} else {
-		local_save_flags(flags);
+	/* racy, but better than risking deadlock. */
+	raw_local_irq_save(flags);
+	cpu = smp_processor_id();
+	if (!arch_spin_trylock(&die_lock)) {
+		if (cpu == die_owner)
+			/* nested oops. should stop eventually */;
+		else
+			arch_spin_lock(&die_lock);
 	}
+	die_nest_count++;
+	die_owner = cpu;
+	console_verbose();
+	bust_spinlocks(1);
+	if (machine_is(powermac))
+		pmac_backlight_unblank();
+	return flags;
+}
 
-	if (++die.lock_owner_depth < 3) {
-		printk("Oops: %s, sig: %ld [#%d]\n", str, err, ++die_counter);
-#ifdef CONFIG_PREEMPT
-		printk("PREEMPT ");
-#endif
-#ifdef CONFIG_SMP
-		printk("SMP NR_CPUS=%d ", NR_CPUS);
-#endif
-#ifdef CONFIG_DEBUG_PAGEALLOC
-		printk("DEBUG_PAGEALLOC ");
-#endif
-#ifdef CONFIG_NUMA
-		printk("NUMA ");
-#endif
-		printk("%s\n", ppc_md.name ? ppc_md.name : "");
-
-		if (notify_die(DIE_OOPS, str, regs, err, 255,
-			       SIGSEGV) == NOTIFY_STOP)
-			return 1;
-
-		print_modules();
-		show_regs(regs);
-	} else {
-		printk("Recursive die() failure, output suppressed\n");
-	}
-
+static void __kprobes oops_end(unsigned long flags, struct pt_regs *regs,
+			       int signr)
+{
 	bust_spinlocks(0);
-	die.lock_owner = -1;
+	die_owner = -1;
 	add_taint(TAINT_DIE);
+	die_nest_count--;
 	oops_exit();
 	printk("\n");
-	raw_spin_unlock_irqrestore(&die.lock, flags);
+	if (!die_nest_count)
+		/* Nest count reaches zero, release the lock. */
+		arch_spin_unlock(&die_lock);
+	raw_local_irq_restore(flags);
 
 	/*
 	 * A system reset (0x100) is a request to dump, so we always send
@@ -177,6 +160,9 @@ int die(const char *str, struct pt_regs *regs, long err)
 		crash_kexec_secondary(regs);
 	}
 
+	if (!signr)
+		return;
+
 	/*
 	 * While our oops output is serialised by a spinlock, output
 	 * from panic() called below can race and corrupt it. If we
@@ -190,13 +176,44 @@ int die(const char *str, struct pt_regs *regs, long err)
 
 	if (in_interrupt())
 		panic("Fatal exception in interrupt");
-
 	if (panic_on_oops)
 		panic("Fatal exception");
+	do_exit(signr);
+}
 
-	do_exit(err);
+static int __kprobes __die(const char *str, struct pt_regs *regs, long err)
+{
+	printk("Oops: %s, sig: %ld [#%d]\n", str, err, ++die_counter);
+#ifdef CONFIG_PREEMPT
+	printk("PREEMPT ");
+#endif
+#ifdef CONFIG_SMP
+	printk("SMP NR_CPUS=%d ", NR_CPUS);
+#endif
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	printk("DEBUG_PAGEALLOC ");
+#endif
+#ifdef CONFIG_NUMA
+	printk("NUMA ");
+#endif
+	printk("%s\n", ppc_md.name ? ppc_md.name : "");
+
+	if (notify_die(DIE_OOPS, str, regs, err, 255, SIGSEGV) == NOTIFY_STOP)
+		return 1;
+
+	print_modules();
+	show_regs(regs);
 
 	return 0;
+}
+
+void die(const char *str, struct pt_regs *regs, long err)
+{
+	unsigned long flags = oops_begin(regs);
+
+	if (__die(str, regs, err))
+		err = 0;
+	oops_end(flags, regs, err);
 }
 
 void user_single_step_siginfo(struct task_struct *tsk,
@@ -217,10 +234,11 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
 			"at %016lx nip %016lx lr %016lx code %x\n";
 
 	if (!user_mode(regs)) {
-		if (die("Exception in kernel mode", regs, signr))
-			return;
-	} else if (show_unhandled_signals &&
-		   unhandled_signal(current, signr)) {
+		die("Exception in kernel mode", regs, signr);
+		return;
+	}
+
+	if (show_unhandled_signals && unhandled_signal(current, signr)) {
 		printk_ratelimited(regs->msr & MSR_64BIT ? fmt64 : fmt32,
 				   current->comm, current->pid, signr,
 				   addr, regs->nip, regs->link, code);
