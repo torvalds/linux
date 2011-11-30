@@ -322,6 +322,9 @@ int wlcore_free_hw(struct wl1271 *wl);
 /* Older firmwares did not implement the FW logger over bus feature */
 #define WLCORE_QUIRK_FWLOG_NOT_IMPLEMENTED	BIT(4)
 
+/* Older firmwares use an old NVS format */
+#define WLCORE_QUIRK_LEGACY_NVS			BIT(5)
+
 /* TODO: move to the lower drivers when all usages are abstracted */
 #define CHIP_ID_1271_PG10              (0x4030101)
 #define CHIP_ID_1271_PG20              (0x4030111)

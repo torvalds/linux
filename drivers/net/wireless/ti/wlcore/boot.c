@@ -215,27 +215,7 @@ int wlcore_boot_upload_nvs(struct wl1271 *wl)
 	if (wl->nvs == NULL)
 		return -ENODEV;
 
-	if (wl->chip.id == CHIP_ID_1283_PG20) {
-		struct wl128x_nvs_file *nvs = (struct wl128x_nvs_file *)wl->nvs;
-
-		if (wl->nvs_len == sizeof(struct wl128x_nvs_file)) {
-			if (nvs->general_params.dual_mode_select)
-				wl->enable_11a = true;
-		} else {
-			wl1271_error("nvs size is not as expected: %zu != %zu",
-				     wl->nvs_len,
-				     sizeof(struct wl128x_nvs_file));
-			kfree(wl->nvs);
-			wl->nvs = NULL;
-			wl->nvs_len = 0;
-			return -EILSEQ;
-		}
-
-		/* only the first part of the NVS needs to be uploaded */
-		nvs_len = sizeof(nvs->nvs);
-		nvs_ptr = (u8 *)nvs->nvs;
-
-	} else {
+	if (wl->quirks & WLCORE_QUIRK_LEGACY_NVS) {
 		struct wl1271_nvs_file *nvs =
 			(struct wl1271_nvs_file *)wl->nvs;
 		/*
@@ -263,6 +243,25 @@ int wlcore_boot_upload_nvs(struct wl1271 *wl)
 		/* only the first part of the NVS needs to be uploaded */
 		nvs_len = sizeof(nvs->nvs);
 		nvs_ptr = (u8 *) nvs->nvs;
+	} else {
+		struct wl128x_nvs_file *nvs = (struct wl128x_nvs_file *)wl->nvs;
+
+		if (wl->nvs_len == sizeof(struct wl128x_nvs_file)) {
+			if (nvs->general_params.dual_mode_select)
+				wl->enable_11a = true;
+		} else {
+			wl1271_error("nvs size is not as expected: %zu != %zu",
+				     wl->nvs_len,
+				     sizeof(struct wl128x_nvs_file));
+			kfree(wl->nvs);
+			wl->nvs = NULL;
+			wl->nvs_len = 0;
+			return -EILSEQ;
+		}
+
+		/* only the first part of the NVS needs to be uploaded */
+		nvs_len = sizeof(nvs->nvs);
+		nvs_ptr = (u8 *)nvs->nvs;
 	}
 
 	/* update current MAC address to NVS */
