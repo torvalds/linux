@@ -3348,7 +3348,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	case BRIDGE_W9968CF:
 		cam->cam_mode = w9968cf_vga_mode;
 		cam->nmodes = ARRAY_SIZE(w9968cf_vga_mode);
-		cam->reverse_alts = 1;
 		break;
 	}
 

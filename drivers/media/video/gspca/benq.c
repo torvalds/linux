@@ -76,7 +76,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	gspca_dev->cam.cam_mode = vga_mode;
 	gspca_dev->cam.nmodes = ARRAY_SIZE(vga_mode);
 	gspca_dev->cam.no_urb_create = 1;
-	gspca_dev->cam.reverse_alts = 1;
 	return 0;
 }
 

@@ -69,7 +69,6 @@ struct cam {
 	u8 bulk;		/* image transfer by 0:isoc / 1:bulk */
 	u8 npkt;		/* number of packets in an ISOC message
 				 * 0 is the default value: 32 packets */
-	u8 reverse_alts;	/* Alt settings are in high to low order */
 };
 
 struct gspca_dev;

@@ -995,14 +995,12 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	case CIT_MODEL0:
 		cam->cam_mode = model0_mode;
 		cam->nmodes = ARRAY_SIZE(model0_mode);
-		cam->reverse_alts = 1;
 		gspca_dev->ctrl_dis = ~((1 << SD_CONTRAST) | (1 << SD_HFLIP));
 		sd->sof_len = 4;
 		break;
 	case CIT_MODEL1:
 		cam->cam_mode = cif_yuv_mode;
 		cam->nmodes = ARRAY_SIZE(cif_yuv_mode);
-		cam->reverse_alts = 1;
 		gspca_dev->ctrl_dis = (1 << SD_HUE) | (1 << SD_HFLIP);
 		sd->sof_len = 4;
 		break;

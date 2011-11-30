@@ -1763,7 +1763,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	if ((unsigned) webcam >= NWEBCAMS)
 		webcam = 0;
 	sd->webcam = webcam;
-	gspca_dev->cam.reverse_alts = 1;
 	gspca_dev->cam.ctrls = sd->ctrls;
 	sd->ag_cnt = -1;
 
