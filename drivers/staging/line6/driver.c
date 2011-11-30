@@ -726,8 +726,8 @@ static int line6_probe(struct usb_interface *interface,
 		       const struct usb_device_id *id)
 {
 	int devtype;
-	struct usb_device *usbdev = NULL;
-	struct usb_line6 *line6 = NULL;
+	struct usb_device *usbdev;
+	struct usb_line6 *line6;
 	const struct line6_properties *properties;
 	int devnum;
 	int interface_number, alternate = 0;
@@ -936,7 +936,7 @@ static int line6_probe(struct usb_interface *interface,
 	}
 
 	if (size == 0) {
-		dev_err(line6->ifcdev,
+		dev_err(&interface->dev,
 			"driver bug: interface data size not set\n");
 		ret = -ENODEV;
 		goto err_put;
