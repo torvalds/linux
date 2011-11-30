@@ -56,11 +56,51 @@ static int ring_size = 128;
 module_param(ring_size, int, S_IRUGO);
 MODULE_PARM_DESC(ring_size, "Ring buffer size (# of pages)");
 
-/* no-op so the netdev core doesn't return -EINVAL when modifying the the
- * multicast address list in SIOCADDMULTI. hv is setup to get all multicast
- * when it calls RndisFilterOnOpen() */
+struct set_multicast_work {
+	struct work_struct work;
+	struct net_device *net;
+};
+
+static void do_set_multicast(struct work_struct *w)
+{
+	struct set_multicast_work *swk =
+		container_of(w, struct set_multicast_work, work);
+	struct net_device *net = swk->net;
+
+	struct net_device_context *ndevctx = netdev_priv(net);
+	struct netvsc_device *nvdev;
+	struct rndis_device *rdev;
+
+	nvdev = hv_get_drvdata(ndevctx->device_ctx);
+	if (nvdev == NULL)
+		return;
+
+	rdev = nvdev->extension;
+	if (rdev == NULL)
+		return;
+
+	if (net->flags & IFF_PROMISC)
+		rndis_filter_set_packet_filter(rdev,
+			NDIS_PACKET_TYPE_PROMISCUOUS);
+	else
+		rndis_filter_set_packet_filter(rdev,
+			NDIS_PACKET_TYPE_BROADCAST |
+			NDIS_PACKET_TYPE_ALL_MULTICAST |
+			NDIS_PACKET_TYPE_DIRECTED);
+
+	kfree(w);
+}
+
 static void netvsc_set_multicast_list(struct net_device *net)
 {
+	struct set_multicast_work *swk =
+		kmalloc(sizeof(struct set_multicast_work), GFP_ATOMIC);
+	if (swk == NULL)
+		return;
+
+	swk->net = net;
+	INIT_WORK(&swk->work, do_set_multicast);
+	schedule_work(&swk->work);
 }
 
 static int netvsc_open(struct net_device *net)

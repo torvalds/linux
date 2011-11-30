@@ -87,6 +87,27 @@ struct netvsc_device_info {
 	int  ring_size;
 };
 
+enum rndis_device_state {
+	RNDIS_DEV_UNINITIALIZED = 0,
+	RNDIS_DEV_INITIALIZING,
+	RNDIS_DEV_INITIALIZED,
+	RNDIS_DEV_DATAINITIALIZED,
+};
+
+struct rndis_device {
+	struct netvsc_device *net_dev;
+
+	enum rndis_device_state state;
+	bool link_state;
+	atomic_t new_req_id;
+
+	spinlock_t request_lock;
+	struct list_head req_list;
+
+	unsigned char hw_mac_adr[ETH_ALEN];
+};
+
+
 /* Interface */
 int netvsc_device_add(struct hv_device *device, void *additional_info);
 int netvsc_device_remove(struct hv_device *device);
@@ -108,6 +129,9 @@ int rndis_filter_receive(struct hv_device *dev,
 
 int rndis_filter_send(struct hv_device *dev,
 			struct hv_netvsc_packet *pkt);
+
+int rndis_filter_set_packet_filter(struct rndis_device *dev, u32 new_filter);
+
 
 #define NVSP_INVALID_PROTOCOL_VERSION	((u32)0xFFFFFFFF)
 

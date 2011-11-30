@@ -30,26 +30,6 @@
 #include "hyperv_net.h"
 
 
-enum rndis_device_state {
-	RNDIS_DEV_UNINITIALIZED = 0,
-	RNDIS_DEV_INITIALIZING,
-	RNDIS_DEV_INITIALIZED,
-	RNDIS_DEV_DATAINITIALIZED,
-};
-
-struct rndis_device {
-	struct netvsc_device *net_dev;
-
-	enum rndis_device_state state;
-	bool link_state;
-	atomic_t new_req_id;
-
-	spinlock_t request_lock;
-	struct list_head req_list;
-
-	unsigned char hw_mac_adr[ETH_ALEN];
-};
-
 struct rndis_request {
 	struct list_head list_ent;
 	struct completion  wait_event;
@@ -522,8 +502,7 @@ static int rndis_filter_query_device_link_status(struct rndis_device *dev)
 	return ret;
 }
 
-static int rndis_filter_set_packet_filter(struct rndis_device *dev,
-				      u32 new_filter)
+int rndis_filter_set_packet_filter(struct rndis_device *dev, u32 new_filter)
 {
 	struct rndis_request *request;
 	struct rndis_set_request *set;
