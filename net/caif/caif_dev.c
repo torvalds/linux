@@ -24,6 +24,7 @@
 #include <net/caif/caif_layer.h>
 #include <net/caif/cfpkt.h>
 #include <net/caif/cfcnfg.h>
+#include <net/caif/cfserl.h>
 
 MODULE_LICENSE("GPL");
 
@@ -53,7 +54,8 @@ struct cfcnfg *get_cfcnfg(struct net *net)
 	struct caif_net *caifn;
 	BUG_ON(!net);
 	caifn = net_generic(net, caif_net_id);
-	BUG_ON(!caifn);
+	if (!caifn)
+		return NULL;
 	return caifn->cfg;
 }
 EXPORT_SYMBOL(get_cfcnfg);
@@ -63,7 +65,8 @@ static struct caif_device_entry_list *caif_device_list(struct net *net)
 	struct caif_net *caifn;
 	BUG_ON(!net);
 	caifn = net_generic(net, caif_net_id);
-	BUG_ON(!caifn);
+	if (!caifn)
+		return NULL;
 	return &caifn->caifdevs;
 }
 
@@ -92,7 +95,8 @@ static struct caif_device_entry *caif_device_alloc(struct net_device *dev)
 	struct caif_device_entry *caifd;
 
 	caifdevs = caif_device_list(dev_net(dev));
-	BUG_ON(!caifdevs);
+	if (!caifdevs)
+		return NULL;
 
 	caifd = kzalloc(sizeof(*caifd), GFP_KERNEL);
 	if (!caifd)
@@ -112,7 +116,9 @@ static struct caif_device_entry *caif_get(struct net_device *dev)
 	struct caif_device_entry_list *caifdevs =
 	    caif_device_list(dev_net(dev));
 	struct caif_device_entry *caifd;
-	BUG_ON(!caifdevs);
+	if (!caifdevs)
+		return NULL;
+
 	list_for_each_entry_rcu(caifd, &caifdevs->list, list) {
 		if (caifd->netdev == dev)
 			return caifd;
@@ -129,6 +135,8 @@ static int transmit(struct cflayer *layer, struct cfpkt *pkt)
 
 	skb = cfpkt_tonative(pkt);
 	skb->dev = caifd->netdev;
+	skb_reset_network_header(skb);
+	skb->protocol = htons(ETH_P_CAIF);
 
 	err = dev_queue_xmit(skb);
 	if (err > 0)
@@ -172,7 +180,10 @@ static int receive(struct sk_buff *skb, struct net_device *dev,
 
 	/* Release reference to stack upwards */
 	caifd_put(caifd);
-	return 0;
+
+	if (err != 0)
+		err = NET_RX_DROP;
+	return err;
 }
 
 static struct packet_type caif_packet_type __read_mostly = {
@@ -203,6 +214,55 @@ static void dev_flowctrl(struct net_device *dev, int on)
 	caifd_put(caifd);
 }
 
+void caif_enroll_dev(struct net_device *dev, struct caif_dev_common *caifdev,
+			struct cflayer *link_support, int head_room,
+			struct cflayer **layer, int (**rcv_func)(
+				struct sk_buff *, struct net_device *,
+				struct packet_type *, struct net_device *))
+{
+	struct caif_device_entry *caifd;
+	enum cfcnfg_phy_preference pref;
+	struct cfcnfg *cfg = get_cfcnfg(dev_net(dev));
+	struct caif_device_entry_list *caifdevs;
+
+	caifdevs = caif_device_list(dev_net(dev));
+	if (!cfg || !caifdevs)
+		return;
+	caifd = caif_device_alloc(dev);
+	if (!caifd)
+		return;
+	*layer = &caifd->layer;
+
+	switch (caifdev->link_select) {
+	case CAIF_LINK_HIGH_BANDW:
+		pref = CFPHYPREF_HIGH_BW;
+		break;
+	case CAIF_LINK_LOW_LATENCY:
+		pref = CFPHYPREF_LOW_LAT;
+		break;
+	default:
+		pref = CFPHYPREF_HIGH_BW;
+		break;
+	}
+	mutex_lock(&caifdevs->lock);
+	list_add_rcu(&caifd->list, &caifdevs->list);
+
+	strncpy(caifd->layer.name, dev->name,
+		sizeof(caifd->layer.name) - 1);
+	caifd->layer.name[sizeof(caifd->layer.name) - 1] = 0;
+	caifd->layer.transmit = transmit;
+	cfcnfg_add_phy_layer(cfg,
+				dev,
+				&caifd->layer,
+				pref,
+				link_support,
+				caifdev->use_fcs,
+				head_room);
+	mutex_unlock(&caifdevs->lock);
+	if (rcv_func)
+		*rcv_func = receive;
+}
+
 /* notify Caif of device events */
 static int caif_device_notify(struct notifier_block *me, unsigned long what,
 			      void *arg)
@@ -210,62 +270,40 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 	struct net_device *dev = arg;
 	struct caif_device_entry *caifd = NULL;
 	struct caif_dev_common *caifdev;
-	enum cfcnfg_phy_preference pref;
-	enum cfcnfg_phy_type phy_type;
 	struct cfcnfg *cfg;
+	struct cflayer *layer, *link_support;
+	int head_room = 0;
 	struct caif_device_entry_list *caifdevs;
 
-	if (dev->type != ARPHRD_CAIF)
-		return 0;
-
 	cfg = get_cfcnfg(dev_net(dev));
-	if (cfg == NULL)
+	caifdevs = caif_device_list(dev_net(dev));
+	if (!cfg || !caifdevs)
 		return 0;
 
-	caifdevs = caif_device_list(dev_net(dev));
+	caifd = caif_get(dev);
+	if (caifd == NULL && dev->type != ARPHRD_CAIF)
+		return 0;
 
 	switch (what) {
 	case NETDEV_REGISTER:
-		caifd = caif_device_alloc(dev);
-		if (!caifd)
-			return 0;
+		if (caifd != NULL)
+			break;
 
 		caifdev = netdev_priv(dev);
-		caifdev->flowctrl = dev_flowctrl;
 
-		caifd->layer.transmit = transmit;
-
-		if (caifdev->use_frag)
-			phy_type = CFPHYTYPE_FRAG;
-		else
-			phy_type = CFPHYTYPE_CAIF;
-
-		switch (caifdev->link_select) {
-		case CAIF_LINK_HIGH_BANDW:
-			pref = CFPHYPREF_HIGH_BW;
-			break;
-		case CAIF_LINK_LOW_LATENCY:
-			pref = CFPHYPREF_LOW_LAT;
-			break;
-		default:
-			pref = CFPHYPREF_HIGH_BW;
-			break;
+		link_support = NULL;
+		if (caifdev->use_frag) {
+			head_room = 1;
+			link_support = cfserl_create(dev->ifindex,
+					CFPHYTYPE_FRAG, caifdev->use_stx);
+			if (!link_support) {
+				pr_warn("Out of memory\n");
+				break;
+			}
 		}
-		strncpy(caifd->layer.name, dev->name,
-			sizeof(caifd->layer.name) - 1);
-		caifd->layer.name[sizeof(caifd->layer.name) - 1] = 0;
-
-		mutex_lock(&caifdevs->lock);
-		list_add_rcu(&caifd->list, &caifdevs->list);
-
-		cfcnfg_add_phy_layer(cfg,
-				     phy_type,
-				     dev,
-				     &caifd->layer,
-				     pref,
-				     caifdev->use_fcs,
-				     caifdev->use_stx);
-		mutex_unlock(&caifdevs->lock);
+		caif_enroll_dev(dev, caifdev, link_support, head_room,
+				&layer, NULL);
+		caifdev->flowctrl = dev_flowctrl;
 		break;
 
 	case NETDEV_UP:
@@ -371,16 +409,13 @@ static void caif_exit_net(struct net *net)
 	struct caif_device_entry *caifd, *tmp;
 	struct caif_device_entry_list *caifdevs =
 	    caif_device_list(net);
-	struct cfcnfg *cfg;
+	struct cfcnfg *cfg =  get_cfcnfg(net);
+
+	if (!cfg || !caifdevs)
+		return;
 
 	rtnl_lock();
 	mutex_lock(&caifdevs->lock);
-
-	cfg = get_cfcnfg(net);
-	if (cfg == NULL) {
-		mutex_unlock(&caifdevs->lock);
-		return;
-	}
 
 	list_for_each_entry_safe(caifd, tmp, &caifdevs->list, list) {
 		int i = 0;

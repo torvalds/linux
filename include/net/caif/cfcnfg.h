@@ -72,15 +72,16 @@ void cfcnfg_remove(struct cfcnfg *cfg);
  * @phy_layer:	Specify the physical layer. The transmit function
  *		MUST be set in the structure.
  * @pref:	The phy (link layer) preference.
+ * @link_support: Protocol implementation for link layer specific protocol.
  * @fcs:	Specify if checksum is used in CAIF Framing Layer.
- * @stx:	Specify if Start Of Frame eXtention is used.
+ * @head_room:	Head space needed by link specific protocol.
  */
-
 void
-cfcnfg_add_phy_layer(struct cfcnfg *cnfg, enum cfcnfg_phy_type phy_type,
+cfcnfg_add_phy_layer(struct cfcnfg *cnfg,
 		     struct net_device *dev, struct cflayer *phy_layer,
 		     enum cfcnfg_phy_preference pref,
-		     bool fcs, bool stx);
+		     struct cflayer *link_support,
+		     bool fcs, int head_room);
 
 /**
  * cfcnfg_del_phy_layer - Deletes an phy layer from the CAIF stack.
