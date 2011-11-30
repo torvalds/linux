@@ -2397,7 +2397,9 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		pCap->hw_caps |= ATH9K_HW_CAP_4KB_SPLITTRANS;
 
 	if (common->btcoex_enabled) {
-		if (AR_SREV_9300_20_OR_LATER(ah)) {
+		if (AR_SREV_9462(ah))
+			btcoex_hw->scheme = ATH_BTCOEX_CFG_MCI;
+		else if (AR_SREV_9300_20_OR_LATER(ah)) {
 			btcoex_hw->scheme = ATH_BTCOEX_CFG_3WIRE;
 			btcoex_hw->btactive_gpio = ATH_BTACTIVE_GPIO_9300;
 			btcoex_hw->wlanactive_gpio = ATH_WLANACTIVE_GPIO_9300;

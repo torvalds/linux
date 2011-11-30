@@ -742,6 +742,9 @@ void ath9k_tasklet(unsigned long data)
 		if (status & ATH9K_INT_GENTIMER)
 			ath_gen_timer_isr(sc->sc_ah);
 
+	if (status & ATH9K_INT_MCI)
+		ath_mci_intr(sc);
+
 out:
 	/* re-enable hardware interrupt */
 	ath9k_hw_enable_interrupts(ah);

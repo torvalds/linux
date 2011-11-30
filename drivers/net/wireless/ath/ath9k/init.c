@@ -425,8 +425,16 @@ static int ath9k_init_btcoex(struct ath_softc *sc)
 		txq = sc->tx.txq_map[WME_AC_BE];
 		ath9k_hw_init_btcoex_hw(sc->sc_ah, txq->axq_qnum);
 		sc->btcoex.bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
+		break;
+	case ATH_BTCOEX_CFG_MCI:
+		sc->btcoex.bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
 		sc->btcoex.duty_cycle = ATH_BTCOEX_DEF_DUTY_CYCLE;
 		INIT_LIST_HEAD(&sc->btcoex.mci.info);
+
+		r = ath_mci_setup(sc);
+		if (r)
+			return r;
+
 		if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_MCI) {
 			ah->btcoex_hw.mci.ready = false;
 			ah->btcoex_hw.mci.bt_state = 0;
@@ -860,6 +868,9 @@ static void ath9k_deinit_softc(struct ath_softc *sc)
         if ((sc->btcoex.no_stomp_timer) &&
 	    sc->sc_ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
 		ath_gen_timer_free(sc->sc_ah, sc->btcoex.no_stomp_timer);
+
+	if (sc->sc_ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_MCI)
+		ath_mci_cleanup(sc);
 
 	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++)
 		if (ATH_TXQ_SETUP(sc, i))
