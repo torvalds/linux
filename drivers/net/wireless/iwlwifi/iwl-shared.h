@@ -351,6 +351,9 @@ struct iwl_shared {
 
 	wait_queue_head_t wait_command_queue;
 
+	/* eeprom -- this is in the card's little endian byte order */
+	u8 *eeprom;
+
 	/* ucode related variables */
 	enum iwl_ucode_type ucode_type;
 

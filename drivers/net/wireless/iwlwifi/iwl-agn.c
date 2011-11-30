@@ -1822,11 +1822,11 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 		goto out_free_eeprom;
 
 	/* extract MAC Address */
-	iwl_eeprom_get_mac(priv, priv->addresses[0].addr);
+	iwl_eeprom_get_mac(priv->shrd, priv->addresses[0].addr);
 	IWL_DEBUG_INFO(priv, "MAC address: %pM\n", priv->addresses[0].addr);
 	priv->hw->wiphy->addresses = priv->addresses;
 	priv->hw->wiphy->n_addresses = 1;
-	num_mac = iwl_eeprom_query16(priv, EEPROM_NUM_MAC_ADDRESS);
+	num_mac = iwl_eeprom_query16(priv->shrd, EEPROM_NUM_MAC_ADDRESS);
 	if (num_mac > 1) {
 		memcpy(priv->addresses[1].addr, priv->addresses[0].addr,
 		       ETH_ALEN);
@@ -1891,7 +1891,7 @@ out_destroy_workqueue:
 	priv->shrd->workqueue = NULL;
 	iwl_uninit_drv(priv);
 out_free_eeprom:
-	iwl_eeprom_free(priv);
+	iwl_eeprom_free(priv->shrd);
 out_free_trans:
 	iwl_trans_free(trans(priv));
 out_free_traffic_mem:
@@ -1930,7 +1930,7 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 
 	iwl_dealloc_ucode(trans(priv));
 
-	iwl_eeprom_free(priv);
+	iwl_eeprom_free(priv->shrd);
 
 	/*netif_stop_queue(dev); */
 	flush_workqueue(priv->shrd->workqueue);

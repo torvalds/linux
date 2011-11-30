@@ -416,7 +416,7 @@ static ssize_t iwl_dbgfs_nvm_read(struct file *file,
 		return -ENODATA;
 	}
 
-	ptr = priv->eeprom;
+	ptr = priv->shrd->eeprom;
 	if (!ptr) {
 		IWL_ERR(priv, "Invalid EEPROM/OTP memory\n");
 		return -ENOMEM;
@@ -428,7 +428,7 @@ static ssize_t iwl_dbgfs_nvm_read(struct file *file,
 		IWL_ERR(priv, "Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
-	eeprom_ver = iwl_eeprom_query16(priv, EEPROM_VERSION);
+	eeprom_ver = iwl_eeprom_query16(priv->shrd, EEPROM_VERSION);
 	pos += scnprintf(buf + pos, buf_size - pos, "NVM Type: %s, "
 			"version: 0x%x\n",
 			(trans(priv)->nvm_device_type == NVM_DEVICE_TYPE_OTP)

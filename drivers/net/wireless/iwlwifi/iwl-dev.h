@@ -903,10 +903,6 @@ struct iwl_priv {
 	/* Indication if ieee80211_ops->open has been called */
 	u8 is_open;
 
-	/* eeprom -- this is in the card's little endian byte order */
-	u8 *eeprom;
-	struct iwl_eeprom_calib_info *calib_info;
-
 	enum nl80211_iftype iw_mode;
 
 	/* Last Rx'd beacon timestamp */

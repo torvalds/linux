@@ -117,7 +117,7 @@ int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 /* lib */
 int iwlagn_send_tx_power(struct iwl_priv *priv);
 void iwlagn_temperature(struct iwl_priv *priv);
-u16 iwlagn_eeprom_calib_version(struct iwl_priv *priv);
+u16 iwl_eeprom_calib_version(struct iwl_shared *shrd);
 int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
 void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
 int iwlagn_send_beacon_cmd(struct iwl_priv *priv);
@@ -354,7 +354,7 @@ static inline __le32 iwl_hw_set_rate_n_flags(u8 rate, u32 flags)
 
 /* eeprom */
 void iwl_eeprom_enhanced_txpower(struct iwl_priv *priv);
-void iwl_eeprom_get_mac(const struct iwl_priv *priv, u8 *mac);
+void iwl_eeprom_get_mac(const struct iwl_shared *shrd, u8 *mac);
 
 extern int iwlagn_init_alive_start(struct iwl_priv *priv);
 extern int iwl_alive_start(struct iwl_priv *priv);

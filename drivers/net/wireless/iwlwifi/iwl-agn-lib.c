@@ -92,11 +92,11 @@ void iwlagn_temperature(struct iwl_priv *priv)
 	iwl_tt_handler(priv);
 }
 
-u16 iwlagn_eeprom_calib_version(struct iwl_priv *priv)
+u16 iwl_eeprom_calib_version(struct iwl_shared *shrd)
 {
 	struct iwl_eeprom_calib_hdr *hdr;
 
-	hdr = (struct iwl_eeprom_calib_hdr *)iwl_eeprom_query_addr(priv,
+	hdr = (struct iwl_eeprom_calib_hdr *)iwl_eeprom_query_addr(shrd,
 							EEPROM_CALIB_ALL);
 	return hdr->version;
 
@@ -105,7 +105,7 @@ u16 iwlagn_eeprom_calib_version(struct iwl_priv *priv)
 /*
  * EEPROM
  */
-static u32 eeprom_indirect_address(const struct iwl_priv *priv, u32 address)
+static u32 eeprom_indirect_address(const struct iwl_shared *shrd, u32 address)
 {
 	u16 offset = 0;
 
@@ -114,31 +114,31 @@ static u32 eeprom_indirect_address(const struct iwl_priv *priv, u32 address)
 
 	switch (address & INDIRECT_TYPE_MSK) {
 	case INDIRECT_HOST:
-		offset = iwl_eeprom_query16(priv, EEPROM_LINK_HOST);
+		offset = iwl_eeprom_query16(shrd, EEPROM_LINK_HOST);
 		break;
 	case INDIRECT_GENERAL:
-		offset = iwl_eeprom_query16(priv, EEPROM_LINK_GENERAL);
+		offset = iwl_eeprom_query16(shrd, EEPROM_LINK_GENERAL);
 		break;
 	case INDIRECT_REGULATORY:
-		offset = iwl_eeprom_query16(priv, EEPROM_LINK_REGULATORY);
+		offset = iwl_eeprom_query16(shrd, EEPROM_LINK_REGULATORY);
 		break;
 	case INDIRECT_TXP_LIMIT:
-		offset = iwl_eeprom_query16(priv, EEPROM_LINK_TXP_LIMIT);
+		offset = iwl_eeprom_query16(shrd, EEPROM_LINK_TXP_LIMIT);
 		break;
 	case INDIRECT_TXP_LIMIT_SIZE:
-		offset = iwl_eeprom_query16(priv, EEPROM_LINK_TXP_LIMIT_SIZE);
+		offset = iwl_eeprom_query16(shrd, EEPROM_LINK_TXP_LIMIT_SIZE);
 		break;
 	case INDIRECT_CALIBRATION:
-		offset = iwl_eeprom_query16(priv, EEPROM_LINK_CALIBRATION);
+		offset = iwl_eeprom_query16(shrd, EEPROM_LINK_CALIBRATION);
 		break;
 	case INDIRECT_PROCESS_ADJST:
-		offset = iwl_eeprom_query16(priv, EEPROM_LINK_PROCESS_ADJST);
+		offset = iwl_eeprom_query16(shrd, EEPROM_LINK_PROCESS_ADJST);
 		break;
 	case INDIRECT_OTHERS:
-		offset = iwl_eeprom_query16(priv, EEPROM_LINK_OTHERS);
+		offset = iwl_eeprom_query16(shrd, EEPROM_LINK_OTHERS);
 		break;
 	default:
-		IWL_ERR(priv, "illegal indirect type: 0x%X\n",
+		IWL_ERR(shrd->trans, "illegal indirect type: 0x%X\n",
 		address & INDIRECT_TYPE_MSK);
 		break;
 	}
@@ -147,11 +147,11 @@ static u32 eeprom_indirect_address(const struct iwl_priv *priv, u32 address)
 	return (address & ADDRESS_MSK) + (offset << 1);
 }
 
-const u8 *iwl_eeprom_query_addr(const struct iwl_priv *priv, size_t offset)
+const u8 *iwl_eeprom_query_addr(const struct iwl_shared *shrd, size_t offset)
 {
-	u32 address = eeprom_indirect_address(priv, offset);
-	BUG_ON(address >= priv->cfg->base_params->eeprom_size);
-	return &priv->eeprom[address];
+	u32 address = eeprom_indirect_address(shrd, offset);
+	BUG_ON(address >= shrd->priv->cfg->base_params->eeprom_size);
+	return &shrd->eeprom[address];
 }
 
 struct iwl_mod_params iwlagn_mod_params = {
