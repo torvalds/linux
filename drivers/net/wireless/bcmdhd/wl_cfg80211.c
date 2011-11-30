@@ -1245,8 +1245,7 @@ wl_run_iscan(struct wl_iscan_ctrl *iscan, struct cfg80211_scan_request *request,
 	}
 	params = (struct wl_iscan_params *)kzalloc(params_size, GFP_KERNEL);
 	if (!params) {
-		err = -ENOMEM;
-		goto done;
+		return -ENOMEM;
 	}
 
 	if (request != NULL)
@@ -1270,8 +1269,8 @@ wl_run_iscan(struct wl_iscan_ctrl *iscan, struct cfg80211_scan_request *request,
 			WL_ERR(("error (%d)\n", err));
 		}
 	}
-	kfree(params);
 done:
+	kfree(params);
 	return err;
 }
 
@@ -1348,6 +1347,7 @@ wl_run_escan(struct wl_priv *wl, struct net_device *ndev,
 		params->sync_id = htod16(0x1234);
 		if (params_size + sizeof("escan") >= WLC_IOCTL_MEDLEN) {
 			WL_ERR(("ioctl buffer length not sufficient\n"));
+			kfree(params);
 			err = -ENOMEM;
 			goto exit;
 		}

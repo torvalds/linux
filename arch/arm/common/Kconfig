@@ -48,12 +48,11 @@ config FIQ_DEBUGGER
 	bool "FIQ Mode Serial Debugger"
 	select FIQ
 	select FIQ_GLUE
-	select KERNEL_DEBUGGER_CORE
 	default n
 	help
 	  The FIQ serial debugger can accept commands even when the
 	  kernel is unresponsive due to being stuck with interrupts
-	  disabled.  Depends on the kernel debugger core in drivers/misc.
+	  disabled.
 
 
 config FIQ_DEBUGGER_NO_SLEEP
