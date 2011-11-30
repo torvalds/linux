@@ -2312,6 +2312,8 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 
 	if (AR_SREV_9485(ah) || AR_SREV_9285(ah) || AR_SREV_9330(ah))
 		chip_chainmask = 1;
+	else if (AR_SREV_9462(ah))
+		chip_chainmask = 3;
 	else if (!AR_SREV_9280_20_OR_LATER(ah))
 		chip_chainmask = 7;
 	else if (!AR_SREV_9300_20_OR_LATER(ah) || AR_SREV_9340(ah))
