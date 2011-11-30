@@ -36,6 +36,7 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/io.h>
+#include <linux/of.h>
 #include <mach/iomap.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -331,6 +332,8 @@ static __devinit int tegra_i2s_platform_probe(struct platform_device *pdev)
 {
 	struct tegra_i2s * i2s;
 	struct resource *mem, *memregion, *dmareq;
+	u32 of_dma[2];
+	u32 dma_ch;
 	int ret;
 
 	i2s = devm_kzalloc(&pdev->dev, sizeof(struct tegra_i2s), GFP_KERNEL);
@@ -360,9 +363,16 @@ static __devinit int tegra_i2s_platform_probe(struct platform_device *pdev)
 
 	dmareq = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (!dmareq) {
-		dev_err(&pdev->dev, "No DMA resource\n");
-		ret = -ENODEV;
-		goto err_clk_put;
+		if (of_property_read_u32_array(pdev->dev.of_node,
+					"nvidia,dma-request-selector",
+					of_dma, 2) < 0) {
+			dev_err(&pdev->dev, "No DMA resource\n");
+			ret = -ENODEV;
+			goto err_clk_put;
+		}
+		dma_ch = of_dma[1];
+	} else {
+		dma_ch = dmareq->start;
 	}
 
 	memregion = devm_request_mem_region(&pdev->dev, mem->start,
@@ -383,12 +393,12 @@ static __devinit int tegra_i2s_platform_probe(struct platform_device *pdev)
 	i2s->capture_dma_data.addr = mem->start + TEGRA_I2S_FIFO2;
 	i2s->capture_dma_data.wrap = 4;
 	i2s->capture_dma_data.width = 32;
-	i2s->capture_dma_data.req_sel = dmareq->start;
+	i2s->capture_dma_data.req_sel = dma_ch;
 
 	i2s->playback_dma_data.addr = mem->start + TEGRA_I2S_FIFO1;
 	i2s->playback_dma_data.wrap = 4;
 	i2s->playback_dma_data.width = 32;
-	i2s->playback_dma_data.req_sel = dmareq->start;
+	i2s->playback_dma_data.req_sel = dma_ch;
 
 	i2s->reg_ctrl = TEGRA_I2S_CTRL_FIFO_FORMAT_PACKED;
 
@@ -422,10 +432,16 @@ static int __devexit tegra_i2s_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id tegra_i2s_of_match[] __devinitconst = {
+	{ .compatible = "nvidia,tegra20-i2s", },
+	{},
+};
+
 static struct platform_driver tegra_i2s_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,
+		.of_match_table = tegra_i2s_of_match,
 	},
 	.probe = tegra_i2s_platform_probe,
 	.remove = __devexit_p(tegra_i2s_platform_remove),
@@ -436,3 +452,4 @@ MODULE_AUTHOR("Stephen Warren <swarren@nvidia.com>");
 MODULE_DESCRIPTION("Tegra I2S ASoC driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRV_NAME);
+MODULE_DEVICE_TABLE(of, tegra_i2s_of_match);
