@@ -273,7 +273,7 @@ static int sh_mobile_lcdc_sginit(struct fb_info *info,
 				  struct list_head *pagelist)
 {
 	struct sh_mobile_lcdc_chan *ch = info->par;
-	unsigned int nr_pages_max = info->fix.smem_len >> PAGE_SHIFT;
+	unsigned int nr_pages_max = ch->fb_size >> PAGE_SHIFT;
 	struct page *page;
 	int nr_pages = 0;
 
@@ -541,17 +541,6 @@ static int sh_mobile_format_is_fourcc(const struct fb_var_screeninfo *var)
 	return var->grayscale > 1;
 }
 
-static bool sh_mobile_format_is_yuv(const struct fb_var_screeninfo *var)
-{
-	const struct sh_mobile_lcdc_format_info *format;
-
-	if (var->grayscale <= 1)
-		return false;
-
-	format = sh_mobile_format_info(var->grayscale);
-	return format ? format->yuv : false;
-}
-
 /* -----------------------------------------------------------------------------
  * Start, stop and IRQ
  */
@@ -650,7 +639,7 @@ static void sh_mobile_lcdc_geometry(struct sh_mobile_lcdc_chan *ch)
 	h_total = mode->xres + mode->hsync_len + mode->left_margin
 		+ mode->right_margin;
 	tmp = h_total / 8; /* HTCN */
-	tmp |= (min(mode->xres, var->xres) / 8) << 16; /* HDCN */
+	tmp |= (min(mode->xres, ch->xres) / 8) << 16; /* HDCN */
 	lcdc_write_chan(ch, LDHCNR, tmp);
 
 	hsync_pos = mode->xres + mode->right_margin;
@@ -661,7 +650,7 @@ static void sh_mobile_lcdc_geometry(struct sh_mobile_lcdc_chan *ch)
 	/* vertical configuration */
 	tmp = mode->yres + mode->vsync_len + mode->upper_margin
 	    + mode->lower_margin; /* VTLN */
-	tmp |= min(mode->yres, var->yres) << 16; /* VDLN */
+	tmp |= min(mode->yres, ch->yres) << 16; /* VDLN */
 	lcdc_write_chan(ch, LDVLNR, tmp);
 
 	tmp = mode->yres + mode->lower_margin; /* VSYNP */
@@ -738,7 +727,7 @@ static void __sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 		tmp = ch->format->lddfr;
 
 		if (ch->format->yuv) {
-			switch (ch->info->var.colorspace) {
+			switch (ch->colorspace) {
 			case V4L2_COLORSPACE_REC709:
 				tmp |= LDDFR_CF1;
 				break;
@@ -836,11 +825,8 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 		if (!ch->enabled)
 			continue;
 
-		ch->base_addr_y = ch->info->fix.smem_start;
-		ch->base_addr_c = ch->base_addr_y
-				+ ch->info->var.xres
-				* ch->info->var.yres_virtual;
-		ch->pitch = ch->info->fix.line_length;
+		ch->base_addr_y = ch->dma_handle;
+		ch->base_addr_c = ch->base_addr_y + ch->xres * ch->yres_virtual;
 
 		/* Enable MERAM if possible. */
 		cfg = ch->cfg.meram_cfg;
@@ -875,7 +861,7 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 		}
 
 		ret = mdev->ops->meram_register(mdev, cfg, ch->pitch,
-					ch->info->var.yres, pixelformat,
+					ch->yres, pixelformat,
 					ch->base_addr_y, ch->base_addr_c,
 					&ch->base_addr_y, &ch->base_addr_c,
 					&ch->pitch);
@@ -1037,14 +1023,12 @@ static int sh_mobile_fb_pan_display(struct fb_var_screeninfo *var,
 	unsigned long new_pan_offset;
 	unsigned long base_addr_y, base_addr_c;
 	unsigned long c_offset;
-	bool yuv = sh_mobile_format_is_yuv(&info->var);
 
-	if (!yuv)
-		new_pan_offset = var->yoffset * info->fix.line_length
-			       + var->xoffset * (info->var.bits_per_pixel / 8);
+	if (!ch->format->yuv)
+		new_pan_offset = var->yoffset * ch->pitch
+			       + var->xoffset * (ch->format->bpp / 8);
 	else
-		new_pan_offset = var->yoffset * info->fix.line_length
-			       + var->xoffset;
+		new_pan_offset = var->yoffset * ch->pitch + var->xoffset;
 
 	if (new_pan_offset == ch->pan_offset)
 		return 0;	/* No change, do nothing */
@@ -1053,12 +1037,11 @@ static int sh_mobile_fb_pan_display(struct fb_var_screeninfo *var,
 
 	/* Set the source address for the next refresh */
 	base_addr_y = ch->dma_handle + new_pan_offset;
-	if (yuv) {
+	if (ch->format->yuv) {
 		/* Set y offset */
-		c_offset = var->yoffset * info->fix.line_length
-			 * (info->var.bits_per_pixel - 8) / 8;
-		base_addr_c = ch->dma_handle
-			    + info->var.xres * info->var.yres_virtual
+		c_offset = var->yoffset * ch->pitch
+			 * (ch->format->bpp - 8) / 8;
+		base_addr_c = ch->dma_handle + ch->xres * ch->yres_virtual
 			    + c_offset;
 		/* Set x offset */
 		if (ch->format->fourcc == V4L2_PIX_FMT_NV24)
@@ -1085,7 +1068,7 @@ static int sh_mobile_fb_pan_display(struct fb_var_screeninfo *var,
 	ch->base_addr_c = base_addr_c;
 
 	lcdc_write_chan_mirror(ch, LDSA1R, base_addr_y);
-	if (yuv)
+	if (ch->format->yuv)
 		lcdc_write_chan_mirror(ch, LDSA2R, base_addr_c);
 
 	if (lcdc_chan_is_sublcd(ch))
@@ -1338,24 +1321,28 @@ static int sh_mobile_check_var(struct fb_var_screeninfo *var, struct fb_info *in
 static int sh_mobile_set_par(struct fb_info *info)
 {
 	struct sh_mobile_lcdc_chan *ch = info->par;
-	u32 line_length = info->fix.line_length;
 	int ret;
 
 	sh_mobile_lcdc_stop(ch->lcdc);
 
-	if (sh_mobile_format_is_yuv(&info->var))
-		info->fix.line_length = info->var.xres;
-	else
-		info->fix.line_length = info->var.xres
-				      * info->var.bits_per_pixel / 8;
-
 	ch->format = sh_mobile_format_info(sh_mobile_format_fourcc(&info->var));
+	ch->colorspace = info->var.colorspace;
+
+	ch->xres = info->var.xres;
+	ch->xres_virtual = info->var.xres_virtual;
+	ch->yres = info->var.yres;
+	ch->yres_virtual = info->var.yres_virtual;
+
+	if (ch->format->yuv)
+		ch->pitch = info->var.xres;
+	else
+		ch->pitch = info->var.xres * ch->format->bpp / 8;
 
 	ret = sh_mobile_lcdc_start(ch->lcdc);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(info->dev, "%s: unable to restart LCDC\n", __func__);
-		info->fix.line_length = line_length;
-	}
+
+	info->fix.line_length = ch->pitch;
 
 	if (sh_mobile_format_is_fourcc(&info->var)) {
 		info->fix.type = FB_TYPE_FOURCC;
@@ -1384,8 +1371,8 @@ static int sh_mobile_lcdc_blank(int blank, struct fb_info *info)
 	/* blank the screen? */
 	if (blank > FB_BLANK_UNBLANK && ch->blank_status == FB_BLANK_UNBLANK) {
 		struct fb_fillrect rect = {
-			.width = info->var.xres,
-			.height = info->var.yres,
+			.width = ch->xres,
+			.height = ch->yres,
 		};
 		sh_mobile_lcdc_fillrect(info, &rect);
 	}
@@ -1525,6 +1512,13 @@ sh_mobile_lcdc_channel_fb_init(struct sh_mobile_lcdc_chan *ch,
 	info->fix = sh_mobile_lcdc_fix;
 	info->fix.smem_start = ch->dma_handle;
 	info->fix.smem_len = ch->fb_size;
+	info->fix.line_length = ch->pitch;
+
+	if (ch->format->yuv)
+		info->fix.visual = FB_VISUAL_FOURCC;
+	else
+		info->fix.visual = FB_VISUAL_TRUECOLOR;
+
 	if (ch->format->fourcc == V4L2_PIX_FMT_NV12 ||
 	    ch->format->fourcc == V4L2_PIX_FMT_NV21)
 		info->fix.ypanstep = 2;
@@ -1551,14 +1545,6 @@ sh_mobile_lcdc_channel_fb_init(struct sh_mobile_lcdc_chan *ch,
 	ret = sh_mobile_check_var(var, info);
 	if (ret)
 		return ret;
-
-	if (ch->format->yuv) {
-		info->fix.line_length = var->xres;
-		info->fix.visual = FB_VISUAL_FOURCC;
-	} else {
-		info->fix.line_length = var->xres * ch->format->bpp / 8;
-		info->fix.visual = FB_VISUAL_TRUECOLOR;
-	}
 
 	return 0;
 }
@@ -1836,8 +1822,6 @@ sh_mobile_lcdc_channel_init(struct sh_mobile_lcdc_priv *priv,
 		return -EINVAL;
 	}
 
-	ch->format = format;
-
 	/* Iterate through the modes to validate them and find the highest
 	 * resolution.
 	 */
@@ -1873,6 +1857,21 @@ sh_mobile_lcdc_channel_init(struct sh_mobile_lcdc_priv *priv,
 	} else {
 		mode = cfg->lcd_modes;
 		num_modes = cfg->num_modes;
+	}
+
+	/* Use the first mode as default. */
+	ch->format = format;
+	ch->xres = mode->xres;
+	ch->xres_virtual = mode->xres;
+	ch->yres = mode->yres;
+	ch->yres_virtual = mode->yres * 2;
+
+	if (!format->yuv) {
+		ch->colorspace = V4L2_COLORSPACE_SRGB;
+		ch->pitch = ch->xres * format->bpp / 8;
+	} else {
+		ch->colorspace = V4L2_COLORSPACE_REC709;
+		ch->pitch = ch->xres;
 	}
 
 	ch->display.width = cfg->panel_cfg.width;

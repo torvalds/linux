@@ -74,9 +74,15 @@ struct sh_mobile_lcdc_chan {
 	struct completion vsync_completion;
 
 	const struct sh_mobile_lcdc_format_info *format;
+	u32 colorspace;
+	unsigned int xres;
+	unsigned int xres_virtual;
+	unsigned int yres;
+	unsigned int yres_virtual;
+	unsigned int pitch;
+
 	unsigned long base_addr_y;
 	unsigned long base_addr_c;
-	unsigned int pitch;
 
 	int (*notify)(struct sh_mobile_lcdc_chan *ch,
 		      enum sh_mobile_lcdc_entity_event event,
