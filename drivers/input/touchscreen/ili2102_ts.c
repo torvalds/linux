@@ -16,7 +16,7 @@
 #include <linux/cdev.h>
 #include <asm/uaccess.h>
 #include <linux/proc_fs.h>
-
+#include <linux/input/mt.h>
 #include "ili2102_ts.h"
 
 static int  ts_dbg_enable = 0;
@@ -201,7 +201,9 @@ static ssize_t ilitek_file_write(struct file *filp, const char *buf, size_t coun
 }
 
 
-static int ilitek_file_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
+//static int ilitek_file_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
+long ilitek_file_ioctl (struct file *filp, unsigned int cmd, unsigned long arg)
+
 {
 	static unsigned char buffer[64]={0};
 	static int len=0;
@@ -286,7 +288,7 @@ static int ilitek_file_close(struct inode *inode, struct file *filp)
 
 // declare file operations
 struct file_operations ilitek_fops = {
-	.ioctl = ilitek_file_ioctl,
+	.unlocked_ioctl = ilitek_file_ioctl,	
 	.read = ilitek_file_read,
 	.write = ilitek_file_write,
 	.open = ilitek_file_open,
@@ -362,7 +364,7 @@ static void ili2102_ts_work_func(struct work_struct *work)
 		printk("%s:i2c_transfer fail, ret=%d\n",__FUNCTION__,ret);
 		goto out;
 	}
-	if(buf[0]&0x02 == 0x02)
+	if((buf[0]&0x02) == 0x02)
 		num = 2;
 	else
 		num = 1;
@@ -375,9 +377,10 @@ static void ili2102_ts_work_func(struct work_struct *work)
 		  	if (touch_state[i] == TOUCH_DOWN)
 		  	{
 				DBG("ili2102_ts_work_func:buf[%d]=%d\n",i,buf[i]);
-				input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0); //Finger Size
-				input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0); //Touch Size
-				input_mt_sync(ts->input_dev);
+				//input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
+				//input_report_abs(ts->input_dev, ABS_MT_PRESSURE, 0);
+				input_mt_slot(ts->input_dev, i);
+				input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, false);
 				syn_flag = 1;
 				touch_state[i] = TOUCH_UP;
 				DBG("i=%d,touch_up \n",i);
@@ -400,18 +403,16 @@ static void ili2102_ts_work_func(struct work_struct *work)
 					x = g_x[i];
 					y = g_y[i];
 				}
-				#ifdef CONFIG_MACH_RK29_TD8801_V2
-				if( y >=80 ) y-=80;
-				if( x >= 50 ) x-=50;
-				#endif
 				g_x[i] = x;
-				g_y[i] = y;			
-				input_event(ts->input_dev, EV_ABS, ABS_MT_TRACKING_ID, i);
-		        input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 1); //Finger Size
-		        input_report_abs(ts->input_dev, ABS_MT_POSITION_X, x);
-		        input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, y);
-		        input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, 5); //Touch Size
-		        input_mt_sync(ts->input_dev);
+				g_y[i] = y;	
+				
+				input_mt_slot(ts->input_dev, i);
+				input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, true);
+				input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 1);
+				input_report_abs(ts->input_dev, ABS_MT_PRESSURE, 100);
+				input_report_abs(ts->input_dev, ABS_MT_POSITION_X, x);
+				input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, y);
+	
 				syn_flag = 1;
 				touch_state[i] = TOUCH_DOWN;
 				 ts->pendown = 1;
@@ -679,10 +680,14 @@ static int ili2102_ts_probe(struct i2c_client *client, const struct i2c_device_i
 	ts->pendown = 0;
 	ts->valid_i2c_register = 1;
 
-	ts->input_dev->evbit[0] = BIT_MASK(EV_SYN) | BIT_MASK(EV_ABS);
+	//ts->input_dev->evbit[0] = BIT_MASK(EV_SYN) | BIT_MASK(EV_ABS);
 	//ts->input_dev->absbit[0] = 
 		//BIT(ABS_MT_POSITION_X) | BIT(ABS_MT_POSITION_Y) | 
 		//BIT(ABS_MT_TOUCH_MAJOR) | BIT(ABS_MT_WIDTH_MAJOR);  // for android
+
+	__set_bit(INPUT_PROP_DIRECT, ts->input_dev->propbit);
+	__set_bit(EV_ABS, ts->input_dev->evbit);
+	
 	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X, 
 		    ts->x_min ? : 0,
 			ts->x_max ? : 480,
@@ -691,8 +696,9 @@ static int ili2102_ts_probe(struct i2c_client *client, const struct i2c_device_i
 			ts->y_min ? : 0,
 			ts->y_max ? : 800,
 			0, 0);
-	input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0, 1, 0, 0); //Finger Size
-	input_set_abs_params(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0, 10, 0, 0); //Touch Size
+	input_mt_init_slots(ts->input_dev, TOUCH_NUMBER);
+	input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
+	//input_set_abs_params(ts->input_dev, ABS_MT_PRESSURE, 0, 255, 0, 0);
 
 	/* ts->input_dev->name = ts->keypad_info->name; */
 	ret = input_register_device(ts->input_dev);
@@ -844,13 +850,16 @@ static int ili2102_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 static void ili2102_ts_resume_work_func(struct work_struct *work)
 {
 	struct ili2102_ts_data *ts = container_of(work, struct ili2102_ts_data, work);
-	int ret;
+	int ret,i;
 
 	//report touch up to android
-	input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0); //Finger Size
-	input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0); //Touch Size
-	input_mt_sync(ts->input_dev);
-	input_sync(ts->input_dev);
+	for(i=0; i<TOUCH_NUMBER; i++)
+	{
+		input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
+		input_report_abs(ts->input_dev, ABS_MT_PRESSURE, 0);
+		input_mt_slot(ts->input_dev, i);
+		input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, false);
+	}
 	
 	PREPARE_DELAYED_WORK(&ts->work, ili2102_ts_work_func);
 	mdelay(100); //wait for 100ms before i2c operation
