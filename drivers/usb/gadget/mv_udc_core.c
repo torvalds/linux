@@ -1230,10 +1230,11 @@ static int mv_udc_vbus_session(struct usb_gadget *gadget, int is_active)
 	udc = container_of(gadget, struct mv_udc, gadget);
 	spin_lock_irqsave(&udc->lock, flags);
 
+	udc->vbus_active = (is_active != 0);
+
 	dev_dbg(&udc->dev->dev, "%s: softconnect %d, vbus_active %d\n",
 		__func__, udc->softconnect, udc->vbus_active);
 
-	udc->vbus_active = (is_active != 0);
 	if (udc->driver && udc->softconnect && udc->vbus_active) {
 		retval = mv_udc_enable(udc);
 		if (retval == 0) {
@@ -1262,10 +1263,11 @@ static int mv_udc_pullup(struct usb_gadget *gadget, int is_on)
 	udc = container_of(gadget, struct mv_udc, gadget);
 	spin_lock_irqsave(&udc->lock, flags);
 
+	udc->softconnect = (is_on != 0);
+
 	dev_dbg(&udc->dev->dev, "%s: softconnect %d, vbus_active %d\n",
 			__func__, udc->softconnect, udc->vbus_active);
 
-	udc->softconnect = (is_on != 0);
 	if (udc->driver && udc->softconnect && udc->vbus_active) {
 		retval = mv_udc_enable(udc);
 		if (retval == 0) {
