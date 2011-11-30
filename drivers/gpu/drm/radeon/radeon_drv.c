@@ -145,7 +145,7 @@ module_param_named(vramlimit, radeon_vram_limit, int, 0600);
 MODULE_PARM_DESC(agpmode, "AGP Mode (-1 == PCI)");
 module_param_named(agpmode, radeon_agpmode, int, 0444);
 
-MODULE_PARM_DESC(gartsize, "Size of PCIE/IGP gart to setup in megabytes (32,64, etc)\n");
+MODULE_PARM_DESC(gartsize, "Size of PCIE/IGP gart to setup in megabytes (32, 64, etc)");
 module_param_named(gartsize, radeon_gart_size, int, 0600);
 
 MODULE_PARM_DESC(benchmark, "Run benchmark");
