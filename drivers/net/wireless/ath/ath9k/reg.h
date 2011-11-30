@@ -1279,6 +1279,8 @@ enum {
 #define AR_RTC_INTR_MASK \
 	((AR_SREV_9100(ah)) ? (AR_RTC_BASE + 0x0058) : 0x7058)
 
+#define AR_RTC_KEEP_AWAKE	0x7034
+
 /* RTC_DERIVED_* - only for AR9100 */
 
 #define AR_RTC_DERIVED_CLK \

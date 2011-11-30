@@ -1933,6 +1933,7 @@ static bool ath9k_hw_set_power_awake(struct ath_hw *ah, int setChip)
 bool ath9k_hw_setpower(struct ath_hw *ah, enum ath9k_power_mode mode)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
 	int status = true, setChip = true;
 	static const char *modes[] = {
 		"AWAKE",
@@ -1950,12 +1951,35 @@ bool ath9k_hw_setpower(struct ath_hw *ah, enum ath9k_power_mode mode)
 	switch (mode) {
 	case ATH9K_PM_AWAKE:
 		status = ath9k_hw_set_power_awake(ah, setChip);
+
+		if (ah->caps.hw_caps & ATH9K_HW_CAP_MCI)
+			REG_WRITE(ah, AR_RTC_KEEP_AWAKE, 0x2);
+
 		break;
 	case ATH9K_PM_FULL_SLEEP:
+
+		if (ah->caps.hw_caps & ATH9K_HW_CAP_MCI) {
+			if (ar9003_mci_state(ah, MCI_STATE_ENABLE, NULL) &&
+				(mci->bt_state != MCI_BT_SLEEP) &&
+				!mci->halted_bt_gpm) {
+				ath_dbg(common, ATH_DBG_MCI, "MCI halt BT GPM"
+						"(full_sleep)");
+				ar9003_mci_send_coex_halt_bt_gpm(ah,
+								 true, true);
+			}
+
+			mci->ready = false;
+			REG_WRITE(ah, AR_RTC_KEEP_AWAKE, 0x2);
+		}
+
 		ath9k_set_power_sleep(ah, setChip);
 		ah->chip_fullsleep = true;
 		break;
 	case ATH9K_PM_NETWORK_SLEEP:
+
+		if (ah->caps.hw_caps & ATH9K_HW_CAP_MCI)
+			REG_WRITE(ah, AR_RTC_KEEP_AWAKE, 0x2);
+
 		ath9k_set_power_network_sleep(ah, setChip);
 		break;
 	default:
