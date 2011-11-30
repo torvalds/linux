@@ -27,7 +27,7 @@
 		#size-cells = <0>;
 		compatible = "nvidia,nvec";
 		reg = <0x7000C500 0x100>;
-		interrupts = <124>;
+		interrupts = <0 92 0x04>;
 		clock-frequency = <80000>;
 		request-gpios = <&gpio 170 0>;
 		slave-addr = <138>;

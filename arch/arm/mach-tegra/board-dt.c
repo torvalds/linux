@@ -36,6 +36,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/setup.h>
+#include <asm/hardware/gic.h>
 
 #include <mach/iomap.h>
 #include <mach/irqs.h>
@@ -50,6 +51,17 @@ void paz00_pinmux_init(void);
 void seaboard_pinmux_init(void);
 void trimslice_pinmux_init(void);
 void ventana_pinmux_init(void);
+
+static const struct of_device_id tegra_dt_irq_match[] __initconst = {
+	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init },
+	{ }
+};
+
+void __init tegra_dt_init_irq(void)
+{
+	tegra_init_irq();
+	of_irq_init(tegra_dt_irq_match);
+}
 
 struct of_dev_auxdata tegra20_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("nvidia,tegra20-sdhci", TEGRA_SDMMC1_BASE, "sdhci-tegra.0", NULL),
@@ -91,11 +103,6 @@ static struct of_device_id tegra_dt_match_table[] __initdata = {
 	{}
 };
 
-static struct of_device_id tegra_dt_gic_match[] __initdata = {
-	{ .compatible = "nvidia,tegra20-gic", },
-	{}
-};
-
 static struct {
 	char *machine;
 	void (*init)(void);
@@ -109,13 +116,7 @@ static struct {
 
 static void __init tegra_dt_init(void)
 {
-	struct device_node *node;
 	int i;
-
-	node = of_find_matching_node_by_address(NULL, tegra_dt_gic_match,
-						TEGRA_ARM_INT_DIST_BASE);
-	if (node)
-		irq_domain_add_simple(node, INT_GIC_BASE);
 
 	tegra_clk_init_from_table(tegra_dt_clk_init_table);
 
@@ -149,7 +150,7 @@ static const char * tegra_dt_board_compat[] = {
 DT_MACHINE_START(TEGRA_DT, "nVidia Tegra (Flattened Device Tree)")
 	.map_io		= tegra_map_common_io,
 	.init_early	= tegra_init_early,
-	.init_irq	= tegra_init_irq,
+	.init_irq	= tegra_dt_init_irq,
 	.timer		= &tegra_timer,
 	.init_machine	= tegra_dt_init,
 	.dt_compat	= tegra_dt_board_compat,
