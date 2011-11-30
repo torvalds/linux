@@ -11,4 +11,11 @@ config CAN_CC770_ISA
 	  connected to the ISA bus using I/O port, memory mapped or
 	  indirect access.
 
+config CAN_CC770_PLATFORM
+	tristate "Generic Platform Bus based CC770 driver"
+	---help---
+	  This driver adds support for the CC770 and AN82527 chips
+	  connected to the "platform bus" (Linux abstraction for directly
+	  to the processor attached devices).
+
 endif
