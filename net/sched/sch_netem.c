@@ -79,6 +79,7 @@ struct netem_sched_data {
 	u32 duplicate;
 	u32 reorder;
 	u32 corrupt;
+	u32 rate;
 
 	struct crndstate {
 		u32 last;
@@ -298,6 +299,11 @@ static psched_tdiff_t tabledist(psched_tdiff_t mu, psched_tdiff_t sigma,
 	return  x / NETEM_DIST_SCALE + (sigma / NETEM_DIST_SCALE) * t + mu;
 }
 
+static psched_time_t packet_len_2_sched_time(unsigned int len, u32 rate)
+{
+	return PSCHED_NS2TICKS((u64)len * NSEC_PER_SEC / rate);
+}
+
 /*
  * Insert one skb into qdisc.
  * Note: parent depends on return value to account for queue length.
@@ -371,6 +377,24 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 				  &q->delay_cor, q->delay_dist);
 
 		now = psched_get_time();
+
+		if (q->rate) {
+			struct sk_buff_head *list = &q->qdisc->q;
+
+			delay += packet_len_2_sched_time(skb->len, q->rate);
+
+			if (!skb_queue_empty(list)) {
+				/*
+				 * Last packet in queue is reference point (now).
+				 * First packet in queue is already in flight,
+				 * calculate this time bonus and substract
+				 * from delay.
+				 */
+				delay -= now - netem_skb_cb(skb_peek(list))->time_to_send;
+				now = netem_skb_cb(skb_peek_tail(list))->time_to_send;
+			}
+		}
+
 		cb->time_to_send = now + delay;
 		++q->counter;
 		ret = qdisc_enqueue(skb, q->qdisc);
@@ -535,6 +559,14 @@ static void get_corrupt(struct Qdisc *sch, const struct nlattr *attr)
 	init_crandom(&q->corrupt_cor, r->correlation);
 }
 
+static void get_rate(struct Qdisc *sch, const struct nlattr *attr)
+{
+	struct netem_sched_data *q = qdisc_priv(sch);
+	const struct tc_netem_rate *r = nla_data(attr);
+
+	q->rate = r->rate;
+}
+
 static int get_loss_clg(struct Qdisc *sch, const struct nlattr *attr)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
@@ -594,6 +626,7 @@ static const struct nla_policy netem_policy[TCA_NETEM_MAX + 1] = {
 	[TCA_NETEM_CORR]	= { .len = sizeof(struct tc_netem_corr) },
 	[TCA_NETEM_REORDER]	= { .len = sizeof(struct tc_netem_reorder) },
 	[TCA_NETEM_CORRUPT]	= { .len = sizeof(struct tc_netem_corrupt) },
+	[TCA_NETEM_RATE]	= { .len = sizeof(struct tc_netem_rate) },
 	[TCA_NETEM_LOSS]	= { .type = NLA_NESTED },
 };
 
@@ -665,6 +698,9 @@ static int netem_change(struct Qdisc *sch, struct nlattr *opt)
 
 	if (tb[TCA_NETEM_CORRUPT])
 		get_corrupt(sch, tb[TCA_NETEM_CORRUPT]);
+
+	if (tb[TCA_NETEM_RATE])
+		get_rate(sch, tb[TCA_NETEM_RATE]);
 
 	q->loss_model = CLG_RANDOM;
 	if (tb[TCA_NETEM_LOSS])
@@ -846,6 +882,7 @@ static int netem_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct tc_netem_corr cor;
 	struct tc_netem_reorder reorder;
 	struct tc_netem_corrupt corrupt;
+	struct tc_netem_rate rate;
 
 	qopt.latency = q->latency;
 	qopt.jitter = q->jitter;
@@ -867,6 +904,9 @@ static int netem_dump(struct Qdisc *sch, struct sk_buff *skb)
 	corrupt.probability = q->corrupt;
 	corrupt.correlation = q->corrupt_cor.rho;
 	NLA_PUT(skb, TCA_NETEM_CORRUPT, sizeof(corrupt), &corrupt);
+
+	rate.rate = q->rate;
+	NLA_PUT(skb, TCA_NETEM_RATE, sizeof(rate), &rate);
 
 	if (dump_loss_model(q, skb) != 0)
 		goto nla_put_failure;
