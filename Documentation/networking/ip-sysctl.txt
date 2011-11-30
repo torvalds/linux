@@ -175,6 +175,9 @@ tcp_congestion_control - STRING
 	connections. The algorithm "reno" is always available, but
 	additional choices may be available based on kernel configuration.
 	Default is set as part of kernel configuration.
+	For passive connections, the listener congestion control choice
+	is inherited.
+	[see setsockopt(listenfd, SOL_TCP, TCP_CONGESTION, "name" ...) ]
 
 tcp_cookie_size - INTEGER
 	Default size of TCP Cookie Transactions (TCPCT) option, that may be
