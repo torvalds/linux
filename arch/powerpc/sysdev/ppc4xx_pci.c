@@ -647,6 +647,7 @@ static unsigned int ppc4xx_pciex_port_count;
 
 struct ppc4xx_pciex_hwops
 {
+	bool want_sdr;
 	int (*core_init)(struct device_node *np);
 	int (*port_init_hw)(struct ppc4xx_pciex_port *port);
 	int (*setup_utl)(struct ppc4xx_pciex_port *port);
@@ -916,6 +917,7 @@ static int ppc440speB_pciex_init_utl(struct ppc4xx_pciex_port *port)
 
 static struct ppc4xx_pciex_hwops ppc440speA_pcie_hwops __initdata =
 {
+	.want_sdr	= true,
 	.core_init	= ppc440spe_pciex_core_init,
 	.port_init_hw	= ppc440speA_pciex_init_port_hw,
 	.setup_utl	= ppc440speA_pciex_init_utl,
@@ -924,6 +926,7 @@ static struct ppc4xx_pciex_hwops ppc440speA_pcie_hwops __initdata =
 
 static struct ppc4xx_pciex_hwops ppc440speB_pcie_hwops __initdata =
 {
+	.want_sdr	= true,
 	.core_init	= ppc440spe_pciex_core_init,
 	.port_init_hw	= ppc440speB_pciex_init_port_hw,
 	.setup_utl	= ppc440speB_pciex_init_utl,
@@ -1034,6 +1037,7 @@ static int ppc460ex_pciex_init_utl(struct ppc4xx_pciex_port *port)
 
 static struct ppc4xx_pciex_hwops ppc460ex_pcie_hwops __initdata =
 {
+	.want_sdr	= true,
 	.core_init	= ppc460ex_pciex_core_init,
 	.port_init_hw	= ppc460ex_pciex_init_port_hw,
 	.setup_utl	= ppc460ex_pciex_init_utl,
@@ -1181,6 +1185,7 @@ done:
 }
 
 static struct ppc4xx_pciex_hwops ppc460sx_pcie_hwops __initdata = {
+	.want_sdr	= true,
 	.core_init	= ppc460sx_pciex_core_init,
 	.port_init_hw	= ppc460sx_pciex_init_port_hw,
 	.setup_utl	= ppc460sx_pciex_init_utl,
@@ -1276,6 +1281,7 @@ static int ppc405ex_pciex_init_utl(struct ppc4xx_pciex_port *port)
 
 static struct ppc4xx_pciex_hwops ppc405ex_pcie_hwops __initdata =
 {
+	.want_sdr	= true,
 	.core_init	= ppc405ex_pciex_core_init,
 	.port_init_hw	= ppc405ex_pciex_init_port_hw,
 	.setup_utl	= ppc405ex_pciex_init_utl,
@@ -1972,13 +1978,15 @@ static void __init ppc4xx_probe_pciex_bridge(struct device_node *np)
 	}
 
 	port->node = of_node_get(np);
-	pval = of_get_property(np, "sdr-base", NULL);
-	if (pval == NULL) {
-		printk(KERN_ERR "PCIE: missing sdr-base for %s\n",
-		       np->full_name);
-		return;
+	if (ppc4xx_pciex_hwops->want_sdr) {
+		pval = of_get_property(np, "sdr-base", NULL);
+		if (pval == NULL) {
+			printk(KERN_ERR "PCIE: missing sdr-base for %s\n",
+			       np->full_name);
+			return;
+		}
+		port->sdr_base = *pval;
 	}
-	port->sdr_base = *pval;
 
 	/* Check if device_type property is set to "pci" or "pci-endpoint".
 	 * Resulting from this setup this PCIe port will be configured
