@@ -377,12 +377,18 @@ int tm6000_ir_int_start(struct tm6000_core *dev)
 {
 	struct tm6000_IR *ir = dev->ir;
 
+	if (!ir)
+		return;
+
 	return __tm6000_ir_int_start(ir->rc);
 }
 
 void tm6000_ir_int_stop(struct tm6000_core *dev)
 {
 	struct tm6000_IR *ir = dev->ir;
+
+	if (!ir || !ir->rc)
+		return;
 
 	__tm6000_ir_int_stop(ir->rc);
 }
