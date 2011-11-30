@@ -127,7 +127,7 @@ struct wm8994_priv {
 	struct soc_enum enh_eq_enum;
 
 	struct wm8994_micdet micdet[2];
-	bool detecting;
+	bool mic_detecting;
 	bool jack_mic;
 	int btn_mask;
 

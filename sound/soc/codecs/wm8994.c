@@ -3051,7 +3051,7 @@ static void wm8958_default_micdet(u16 status, void *data)
 	if (!(status & WM8958_MICD_STS)) {
 		dev_dbg(codec->dev, "Detected open circuit\n");
 		wm8994->jack_mic = false;
-		wm8994->detecting = true;
+		wm8994->mic_detecting = true;
 
 		wm8958_micd_set_rate(codec);
 
@@ -3064,10 +3064,10 @@ static void wm8958_default_micdet(u16 status, void *data)
 	/* If the measurement is showing a high impedence we've got a
 	 * microphone.
 	 */
-	if (wm8994->detecting && (status & 0x600)) {
+	if (wm8994->mic_detecting && (status & 0x600)) {
 		dev_dbg(codec->dev, "Detected microphone\n");
 
-		wm8994->detecting = false;
+		wm8994->mic_detecting = false;
 		wm8994->jack_mic = true;
 
 		wm8958_micd_set_rate(codec);
@@ -3077,9 +3077,9 @@ static void wm8958_default_micdet(u16 status, void *data)
 	}
 
 
-	if (wm8994->detecting && status & 0x4) {
+	if (wm8994->mic_detecting && status & 0x4) {
 		dev_dbg(codec->dev, "Detected headphone\n");
-		wm8994->detecting = false;
+		wm8994->mic_detecting = false;
 
 		wm8958_micd_set_rate(codec);
 
@@ -3157,7 +3157,7 @@ int wm8958_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 		wm8994->jack_cb = cb;
 		wm8994->jack_cb_data = cb_data;
 
-		wm8994->detecting = true;
+		wm8994->mic_detecting = true;
 		wm8994->jack_mic = false;
 
 		wm8958_micd_set_rate(codec);
