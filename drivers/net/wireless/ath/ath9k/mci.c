@@ -14,6 +14,9 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/dma-mapping.h>
+#include <linux/slab.h>
+
 #include "ath9k.h"
 #include "mci.h"
 
@@ -251,4 +254,79 @@ void ath_mci_process_status(struct ath_softc *sc,
 
 	if (old_num_mgmt != mci->num_mgmt)
 		ath_mci_update_scheme(sc);
+}
+
+
+static int ath_mci_buf_alloc(struct ath_softc *sc, struct ath_mci_buf *buf)
+{
+	int error = 0;
+
+	buf->bf_addr = dma_alloc_coherent(sc->dev, buf->bf_len,
+					  &buf->bf_paddr, GFP_KERNEL);
+
+	if (buf->bf_addr == NULL) {
+		error = -ENOMEM;
+		goto fail;
+	}
+
+	return 0;
+
+fail:
+	memset(buf, 0, sizeof(*buf));
+	return error;
+}
+
+static void ath_mci_buf_free(struct ath_softc *sc, struct ath_mci_buf *buf)
+{
+	if (buf->bf_addr) {
+		dma_free_coherent(sc->dev, buf->bf_len, buf->bf_addr,
+							buf->bf_paddr);
+		memset(buf, 0, sizeof(*buf));
+	}
+}
+
+int ath_mci_setup(struct ath_softc *sc)
+{
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_mci_coex *mci = &sc->mci_coex;
+	int error = 0;
+
+	mci->sched_buf.bf_len = ATH_MCI_SCHED_BUF_SIZE + ATH_MCI_GPM_BUF_SIZE;
+
+	if (ath_mci_buf_alloc(sc, &mci->sched_buf)) {
+		ath_dbg(common, ATH_DBG_FATAL, "MCI buffer alloc failed\n");
+		error = -ENOMEM;
+		goto fail;
+	}
+
+	mci->sched_buf.bf_len = ATH_MCI_SCHED_BUF_SIZE;
+
+	memset(mci->sched_buf.bf_addr, MCI_GPM_RSVD_PATTERN,
+						mci->sched_buf.bf_len);
+
+	mci->gpm_buf.bf_len = ATH_MCI_GPM_BUF_SIZE;
+	mci->gpm_buf.bf_addr = (u8 *)mci->sched_buf.bf_addr +
+							mci->sched_buf.bf_len;
+	mci->gpm_buf.bf_paddr = mci->sched_buf.bf_paddr + mci->sched_buf.bf_len;
+
+	/* initialize the buffer */
+	memset(mci->gpm_buf.bf_addr, MCI_GPM_RSVD_PATTERN, mci->gpm_buf.bf_len);
+
+	ar9003_mci_setup(sc->sc_ah, mci->gpm_buf.bf_paddr,
+			 mci->gpm_buf.bf_addr, (mci->gpm_buf.bf_len >> 4),
+			 mci->sched_buf.bf_paddr);
+fail:
+	return error;
+}
+
+void ath_mci_cleanup(struct ath_softc *sc)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_mci_coex *mci = &sc->mci_coex;
+
+	/*
+	 * both schedule and gpm buffers will be released
+	 */
+	ath_mci_buf_free(sc, &mci->sched_buf);
+	ar9003_mci_cleanup(ah);
 }

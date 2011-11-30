@@ -132,4 +132,6 @@ void ath_mci_process_profile(struct ath_softc *sc,
 			     struct ath_mci_profile_info *info);
 void ath_mci_process_status(struct ath_softc *sc,
 			    struct ath_mci_profile_status *status);
+int ath_mci_setup(struct ath_softc *sc);
+void ath_mci_cleanup(struct ath_softc *sc);
 #endif
