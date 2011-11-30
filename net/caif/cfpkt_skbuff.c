@@ -144,7 +144,8 @@ int cfpkt_extr_head(struct cfpkt *pkt, void *data, u16 len)
 	}
 	from = skb_pull(skb, len);
 	from -= len;
-	memcpy(data, from, len);
+	if (data)
+		memcpy(data, from, len);
 	return 0;
 }
 
