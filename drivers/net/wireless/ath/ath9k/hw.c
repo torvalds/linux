@@ -1350,6 +1350,7 @@ static bool ath9k_hw_set_reset_power_on(struct ath_hw *ah)
 
 static bool ath9k_hw_set_reset_reg(struct ath_hw *ah, u32 type)
 {
+	bool ret = false;
 
 	if (AR_SREV_9300_20_OR_LATER(ah)) {
 		REG_WRITE(ah, AR_WA, ah->WARegVal);
@@ -1361,13 +1362,20 @@ static bool ath9k_hw_set_reset_reg(struct ath_hw *ah, u32 type)
 
 	switch (type) {
 	case ATH9K_RESET_POWER_ON:
-		return ath9k_hw_set_reset_power_on(ah);
+		ret = ath9k_hw_set_reset_power_on(ah);
+		break;
 	case ATH9K_RESET_WARM:
 	case ATH9K_RESET_COLD:
-		return ath9k_hw_set_reset(ah, type);
+		ret = ath9k_hw_set_reset(ah, type);
+		break;
 	default:
-		return false;
+		break;
 	}
+
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_MCI)
+		REG_WRITE(ah, AR_RTC_KEEP_AWAKE, 0x2);
+
+	return ret;
 }
 
 static bool ath9k_hw_chip_reset(struct ath_hw *ah,
