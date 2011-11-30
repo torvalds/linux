@@ -5301,10 +5301,8 @@ alloc:
 			spin_lock(&last_ptr->refill_lock);
 			if (last_ptr->block_group &&
 			    (last_ptr->block_group->ro ||
-			    !block_group_bits(last_ptr->block_group, data))) {
-				offset = 0;
+			    !block_group_bits(last_ptr->block_group, data)))
 				goto refill_cluster;
-			}
 
 			offset = btrfs_alloc_from_cluster(block_group, last_ptr,
 						 num_bytes, search_start);
@@ -5355,7 +5353,7 @@ refill_cluster:
 			/* allocate a cluster in this block group */
 			ret = btrfs_find_space_cluster(trans, root,
 					       block_group, last_ptr,
-					       offset, num_bytes,
+					       search_start, num_bytes,
 					       empty_cluster + empty_size);
 			if (ret == 0) {
 				/*
