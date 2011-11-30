@@ -490,6 +490,8 @@
 #define AR_PHY_TEST_CTL_TSTADC_EN_S       8
 #define AR_PHY_TEST_CTL_RX_OBS_SEL        0x3C00
 #define AR_PHY_TEST_CTL_RX_OBS_SEL_S      10
+#define AR_PHY_TEST_CTL_DEBUGPORT_SEL	  0xe0000000
+#define AR_PHY_TEST_CTL_DEBUGPORT_SEL_S	  29
 
 
 #define AR_PHY_TSTDAC            (AR_SM_BASE + 0x168)
@@ -1001,6 +1003,7 @@
 
 /* GLB Registers */
 #define AR_GLB_BASE	0x20000
+#define AR_GLB_GPIO_CONTROL	(AR_GLB_BASE)
 #define AR_PHY_GLB_CONTROL	(AR_GLB_BASE + 0x44)
 #define AR_GLB_SCRATCH(_ah)	(AR_GLB_BASE + \
 					(AR_SREV_9462_20(_ah) ? 0x4c : 0x50))

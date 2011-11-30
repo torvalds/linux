@@ -266,6 +266,7 @@ enum ath9k_int {
 	ATH9K_INT_TX = 0x00000040,
 	ATH9K_INT_TXDESC = 0x00000080,
 	ATH9K_INT_TIM_TIMER = 0x00000100,
+	ATH9K_INT_MCI = 0x00000200,
 	ATH9K_INT_BB_WATCHDOG = 0x00000400,
 	ATH9K_INT_TXURN = 0x00000800,
 	ATH9K_INT_MIB = 0x00001000,
@@ -417,6 +418,25 @@ enum ath9k_rx_qtype {
 	ATH9K_RX_QUEUE_MAX,
 };
 
+enum mci_message_header {		/* length of payload */
+	MCI_LNA_CTRL     = 0x10,        /* len = 0 */
+	MCI_CONT_NACK    = 0x20,        /* len = 0 */
+	MCI_CONT_INFO    = 0x30,        /* len = 4 */
+	MCI_CONT_RST     = 0x40,        /* len = 0 */
+	MCI_SCHD_INFO    = 0x50,        /* len = 16 */
+	MCI_CPU_INT      = 0x60,        /* len = 4 */
+	MCI_SYS_WAKING   = 0x70,        /* len = 0 */
+	MCI_GPM          = 0x80,        /* len = 16 */
+	MCI_LNA_INFO     = 0x90,        /* len = 1 */
+	MCI_LNA_STATE    = 0x94,
+	MCI_LNA_TAKE     = 0x98,
+	MCI_LNA_TRANS    = 0x9c,
+	MCI_SYS_SLEEPING = 0xa0,        /* len = 0 */
+	MCI_REQ_WAKE     = 0xc0,        /* len = 0 */
+	MCI_DEBUG_16     = 0xfe,        /* len = 2 */
+	MCI_REMOTE_RESET = 0xff         /* len = 16 */
+};
+
 enum ath_mci_gpm_coex_profile_type {
 	MCI_GPM_COEX_PROFILE_UNKNOWN,
 	MCI_GPM_COEX_PROFILE_RFCOMM,
@@ -426,6 +446,132 @@ enum ath_mci_gpm_coex_profile_type {
 	MCI_GPM_COEX_PROFILE_VOICE,
 	MCI_GPM_COEX_PROFILE_MAX
 };
+
+/* MCI GPM/Coex opcode/type definitions */
+enum {
+	MCI_GPM_COEX_W_GPM_PAYLOAD      = 1,
+	MCI_GPM_COEX_B_GPM_TYPE         = 4,
+	MCI_GPM_COEX_B_GPM_OPCODE       = 5,
+	/* MCI_GPM_WLAN_CAL_REQ, MCI_GPM_WLAN_CAL_DONE */
+	MCI_GPM_WLAN_CAL_W_SEQUENCE     = 2,
+
+	/* MCI_GPM_COEX_VERSION_QUERY */
+	/* MCI_GPM_COEX_VERSION_RESPONSE */
+	MCI_GPM_COEX_B_MAJOR_VERSION    = 6,
+	MCI_GPM_COEX_B_MINOR_VERSION    = 7,
+	/* MCI_GPM_COEX_STATUS_QUERY */
+	MCI_GPM_COEX_B_BT_BITMAP        = 6,
+	MCI_GPM_COEX_B_WLAN_BITMAP      = 7,
+	/* MCI_GPM_COEX_HALT_BT_GPM */
+	MCI_GPM_COEX_B_HALT_STATE       = 6,
+	/* MCI_GPM_COEX_WLAN_CHANNELS */
+	MCI_GPM_COEX_B_CHANNEL_MAP      = 6,
+	/* MCI_GPM_COEX_BT_PROFILE_INFO */
+	MCI_GPM_COEX_B_PROFILE_TYPE     = 6,
+	MCI_GPM_COEX_B_PROFILE_LINKID   = 7,
+	MCI_GPM_COEX_B_PROFILE_STATE    = 8,
+	MCI_GPM_COEX_B_PROFILE_ROLE     = 9,
+	MCI_GPM_COEX_B_PROFILE_RATE     = 10,
+	MCI_GPM_COEX_B_PROFILE_VOTYPE   = 11,
+	MCI_GPM_COEX_H_PROFILE_T        = 12,
+	MCI_GPM_COEX_B_PROFILE_W        = 14,
+	MCI_GPM_COEX_B_PROFILE_A        = 15,
+	/* MCI_GPM_COEX_BT_STATUS_UPDATE */
+	MCI_GPM_COEX_B_STATUS_TYPE      = 6,
+	MCI_GPM_COEX_B_STATUS_LINKID    = 7,
+	MCI_GPM_COEX_B_STATUS_STATE     = 8,
+	/* MCI_GPM_COEX_BT_UPDATE_FLAGS */
+	MCI_GPM_COEX_W_BT_FLAGS         = 6,
+	MCI_GPM_COEX_B_BT_FLAGS_OP      = 10
+};
+
+enum mci_gpm_subtype {
+	MCI_GPM_BT_CAL_REQ      = 0,
+	MCI_GPM_BT_CAL_GRANT    = 1,
+	MCI_GPM_BT_CAL_DONE     = 2,
+	MCI_GPM_WLAN_CAL_REQ    = 3,
+	MCI_GPM_WLAN_CAL_GRANT  = 4,
+	MCI_GPM_WLAN_CAL_DONE   = 5,
+	MCI_GPM_COEX_AGENT      = 0x0c,
+	MCI_GPM_RSVD_PATTERN    = 0xfe,
+	MCI_GPM_RSVD_PATTERN32  = 0xfefefefe,
+	MCI_GPM_BT_DEBUG        = 0xff
+};
+
+enum mci_bt_state {
+	MCI_BT_SLEEP,
+	MCI_BT_AWAKE,
+	MCI_BT_CAL_START,
+	MCI_BT_CAL
+};
+
+/* Type of state query */
+enum mci_state_type {
+	MCI_STATE_ENABLE,
+	MCI_STATE_INIT_GPM_OFFSET,
+	MCI_STATE_NEXT_GPM_OFFSET,
+	MCI_STATE_LAST_GPM_OFFSET,
+	MCI_STATE_BT,
+	MCI_STATE_SET_BT_SLEEP,
+	MCI_STATE_SET_BT_AWAKE,
+	MCI_STATE_SET_BT_CAL_START,
+	MCI_STATE_SET_BT_CAL,
+	MCI_STATE_LAST_SCHD_MSG_OFFSET,
+	MCI_STATE_REMOTE_SLEEP,
+	MCI_STATE_CONT_RSSI_POWER,
+	MCI_STATE_CONT_PRIORITY,
+	MCI_STATE_CONT_TXRX,
+	MCI_STATE_RESET_REQ_WAKE,
+	MCI_STATE_SEND_WLAN_COEX_VERSION,
+	MCI_STATE_SET_BT_COEX_VERSION,
+	MCI_STATE_SEND_WLAN_CHANNELS,
+	MCI_STATE_SEND_VERSION_QUERY,
+	MCI_STATE_SEND_STATUS_QUERY,
+	MCI_STATE_NEED_FLUSH_BT_INFO,
+	MCI_STATE_SET_CONCUR_TX_PRI,
+	MCI_STATE_RECOVER_RX,
+	MCI_STATE_NEED_FTP_STOMP,
+	MCI_STATE_NEED_TUNING,
+	MCI_STATE_DEBUG,
+	MCI_STATE_MAX
+};
+
+enum mci_gpm_coex_opcode {
+	MCI_GPM_COEX_VERSION_QUERY,
+	MCI_GPM_COEX_VERSION_RESPONSE,
+	MCI_GPM_COEX_STATUS_QUERY,
+	MCI_GPM_COEX_HALT_BT_GPM,
+	MCI_GPM_COEX_WLAN_CHANNELS,
+	MCI_GPM_COEX_BT_PROFILE_INFO,
+	MCI_GPM_COEX_BT_STATUS_UPDATE,
+	MCI_GPM_COEX_BT_UPDATE_FLAGS
+};
+
+#define MCI_GPM_NOMORE  0
+#define MCI_GPM_MORE    1
+#define MCI_GPM_INVALID 0xffffffff
+
+#define MCI_GPM_RECYCLE(_p_gpm)	do {			  \
+	*(((u32 *)_p_gpm) + MCI_GPM_COEX_W_GPM_PAYLOAD) = \
+				MCI_GPM_RSVD_PATTERN32;   \
+} while (0)
+
+#define MCI_GPM_TYPE(_p_gpm)	\
+	(*(((u8 *)(_p_gpm)) + MCI_GPM_COEX_B_GPM_TYPE) & 0xff)
+
+#define MCI_GPM_OPCODE(_p_gpm)	\
+	(*(((u8 *)(_p_gpm)) + MCI_GPM_COEX_B_GPM_OPCODE) & 0xff)
+
+#define MCI_GPM_SET_CAL_TYPE(_p_gpm, _cal_type)	do {			   \
+	*(((u8 *)(_p_gpm)) + MCI_GPM_COEX_B_GPM_TYPE) = (_cal_type) & 0xff;\
+} while (0)
+
+#define MCI_GPM_SET_TYPE_OPCODE(_p_gpm, _type, _opcode) do {		   \
+	*(((u8 *)(_p_gpm)) + MCI_GPM_COEX_B_GPM_TYPE) = (_type) & 0xff;	   \
+	*(((u8 *)(_p_gpm)) + MCI_GPM_COEX_B_GPM_OPCODE) = (_opcode) & 0xff;\
+} while (0)
+
+#define MCI_GPM_IS_CAL_TYPE(_type) ((_type) <= MCI_GPM_WLAN_CAL_DONE)
 
 struct ath9k_beacon_state {
 	u32 bs_nexttbtt;
