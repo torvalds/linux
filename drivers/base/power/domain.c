@@ -33,6 +33,20 @@
 	__ret;							\
 })
 
+#define GENPD_DEV_TIMED_CALLBACK(genpd, type, callback, dev, field, name)	\
+({										\
+	ktime_t __start = ktime_get();						\
+	type __retval = GENPD_DEV_CALLBACK(genpd, type, callback, dev);		\
+	s64 __elapsed = ktime_to_ns(ktime_sub(ktime_get(), __start));		\
+	struct generic_pm_domain_data *__gpd_data = dev_gpd_data(dev);		\
+	if (__elapsed > __gpd_data->td.field) {					\
+		__gpd_data->td.field = __elapsed;				\
+		dev_warn(dev, name " latency exceeded, new value %lld ns\n",	\
+			__elapsed);						\
+	}									\
+	__retval;								\
+})
+
 static LIST_HEAD(gpd_list);
 static DEFINE_MUTEX(gpd_list_lock);
 
@@ -48,22 +62,27 @@ struct generic_pm_domain *dev_to_genpd(struct device *dev)
 
 static int genpd_stop_dev(struct generic_pm_domain *genpd, struct device *dev)
 {
-	return GENPD_DEV_CALLBACK(genpd, int, stop, dev);
+	return GENPD_DEV_TIMED_CALLBACK(genpd, int, stop, dev,
+					stop_latency_ns, "stop");
 }
 
 static int genpd_start_dev(struct generic_pm_domain *genpd, struct device *dev)
 {
-	return GENPD_DEV_CALLBACK(genpd, int, start, dev);
+	return GENPD_DEV_TIMED_CALLBACK(genpd, int, start, dev,
+					start_latency_ns, "start");
 }
 
 static int genpd_save_dev(struct generic_pm_domain *genpd, struct device *dev)
 {
-	return GENPD_DEV_CALLBACK(genpd, int, save_state, dev);
+	return GENPD_DEV_TIMED_CALLBACK(genpd, int, save_state, dev,
+					save_state_latency_ns, "state save");
 }
 
 static int genpd_restore_dev(struct generic_pm_domain *genpd, struct device *dev)
 {
-	return GENPD_DEV_CALLBACK(genpd, int, restore_state, dev);
+	return GENPD_DEV_TIMED_CALLBACK(genpd, int, restore_state, dev,
+					restore_state_latency_ns,
+					"state restore");
 }
 
 static bool genpd_sd_counter_dec(struct generic_pm_domain *genpd)
@@ -182,9 +201,16 @@ int __pm_genpd_poweron(struct generic_pm_domain *genpd)
 	}
 
 	if (genpd->power_on) {
+		ktime_t time_start = ktime_get();
+		s64 elapsed_ns;
+
 		ret = genpd->power_on(genpd);
 		if (ret)
 			goto err;
+
+		elapsed_ns = ktime_to_ns(ktime_sub(ktime_get(), time_start));
+		if (elapsed_ns > genpd->power_on_latency_ns)
+			genpd->power_on_latency_ns = elapsed_ns;
 	}
 
 	genpd_set_active(genpd);
@@ -377,10 +403,15 @@ static int pm_genpd_poweroff(struct generic_pm_domain *genpd)
 	}
 
 	if (genpd->power_off) {
+		ktime_t time_start;
+		s64 elapsed_ns;
+
 		if (atomic_read(&genpd->sd_count) > 0) {
 			ret = -EBUSY;
 			goto out;
 		}
+
+		time_start = ktime_get();
 
 		/*
 		 * If sd_count > 0 at this point, one of the subdomains hasn't
@@ -395,6 +426,10 @@ static int pm_genpd_poweroff(struct generic_pm_domain *genpd)
 			genpd_set_active(genpd);
 			goto out;
 		}
+
+		elapsed_ns = ktime_to_ns(ktime_sub(ktime_get(), time_start));
+		if (elapsed_ns > genpd->power_off_latency_ns)
+			genpd->power_off_latency_ns = elapsed_ns;
 	}
 
 	genpd->status = GPD_STATE_POWER_OFF;
