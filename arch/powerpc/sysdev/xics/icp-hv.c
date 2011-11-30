@@ -41,16 +41,6 @@ static inline unsigned int icp_hv_get_xirr(unsigned char cppr)
 	return ret;
 }
 
-static inline void icp_hv_set_xirr(unsigned int value)
-{
-	long rc = plpar_hcall_norets(H_EOI, value);
-	if (rc != H_SUCCESS) {
-		pr_err("%s: bad return code eoi xirr=0x%x returned %ld\n",
-			__func__, value, rc);
-		WARN_ON_ONCE(1);
-	}
-}
-
 static inline void icp_hv_set_cppr(u8 value)
 {
 	long rc = plpar_hcall_norets(H_CPPR, value);
@@ -58,6 +48,17 @@ static inline void icp_hv_set_cppr(u8 value)
 		pr_err("%s: bad return code cppr cppr=0x%x returned %ld\n",
 			__func__, value, rc);
 		WARN_ON_ONCE(1);
+	}
+}
+
+static inline void icp_hv_set_xirr(unsigned int value)
+{
+	long rc = plpar_hcall_norets(H_EOI, value);
+	if (rc != H_SUCCESS) {
+		pr_err("%s: bad return code eoi xirr=0x%x returned %ld\n",
+			__func__, value, rc);
+		WARN_ON_ONCE(1);
+		icp_hv_set_cppr(value >> 24);
 	}
 }
 
