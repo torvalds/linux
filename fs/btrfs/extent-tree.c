@@ -5278,7 +5278,7 @@ alloc:
 		spin_lock(&block_group->free_space_ctl->tree_lock);
 		if (cached &&
 		    block_group->free_space_ctl->free_space <
-		    num_bytes + empty_size) {
+		    num_bytes + empty_cluster + empty_size) {
 			spin_unlock(&block_group->free_space_ctl->tree_lock);
 			goto loop;
 		}
