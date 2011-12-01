@@ -26,6 +26,11 @@
 #include <linux/mfd/wm8994/pdata.h>
 #include <linux/mfd/wm8994/registers.h>
 
+#if 0
+#define DBG(x...) printk(KERN_DEBUG x)
+#else
+#define DBG(x...) do { } while (0)
+#endif
 static int wm8994_read(struct wm8994 *wm8994, unsigned short reg,
 		       int bytes, void *dest)
 {
@@ -63,7 +68,7 @@ int wm8994_reg_read(struct wm8994 *wm8994, unsigned short reg)
 	ret = wm8994_read(wm8994, reg, 2, &val);
 
 	mutex_unlock(&wm8994->io_lock);
-
+	DBG("%s:0x%04x = 0x%04x\n",__FUNCTION__,reg,be16_to_cpu(val));
 	if (ret < 0)
 		return ret;
 	else
@@ -124,7 +129,7 @@ int wm8994_reg_write(struct wm8994 *wm8994, unsigned short reg,
 	int ret;
 
 	val = cpu_to_be16(val);
-
+	DBG("%s:0x%04x = 0x%04x\n",__FUNCTION__,reg,val);
 	mutex_lock(&wm8994->io_lock);
 
 	ret = wm8994_write(wm8994, reg, 2, &val);
@@ -244,13 +249,13 @@ static struct mfd_cell wm8994_devs[] = {
  * management.
  */
 static const char *wm8994_main_supplies[] = {
-	"DBVDD",
-	"DCVDD",
-	"AVDD1",
-	"AVDD2",
-	"CPVDD",
-	"SPKVDD1",
-	"SPKVDD2",
+//	"DBVDD",
+//	"DCVDD",
+//	"AVDD1",
+//	"AVDD2",
+//	"CPVDD",
+//	"SPKVDD1",
+//	"SPKVDD2",
 };
 
 static const char *wm8958_main_supplies[] = {
@@ -585,26 +590,28 @@ static int wm8994_i2c_read_device(struct wm8994 *wm8994, unsigned short reg,
 static int wm8994_i2c_write_device(struct wm8994 *wm8994, unsigned short reg,
 				   int bytes, const void *src)
 {
+
 	struct i2c_client *i2c = wm8994->control_data;
-	struct i2c_msg xfer[2];
+	struct i2c_msg xfer;	
+	unsigned char msg[bytes + 2];
 	int ret;
 
 	reg = cpu_to_be16(reg);
-
-	xfer[0].addr = i2c->addr;
-	xfer[0].flags = 0;
-	xfer[0].len = 2;
-	xfer[0].buf = (char *)&reg;
-
-	xfer[1].addr = i2c->addr;
-	xfer[1].flags = I2C_M_NOSTART;
-	xfer[1].len = bytes;
-	xfer[1].buf = (char *)src;
-
-	ret = i2c_transfer(i2c->adapter, xfer, 2);
+	memcpy(&msg[0], &reg, 2);
+	memcpy(&msg[2], src, bytes);
+	
+	xfer.addr = i2c->addr;
+	xfer.flags = i2c->flags;
+	xfer.len = bytes + 2;
+	xfer.buf = (char *)msg;
+	xfer.scl_rate = 100 * 1000;
+	xfer.udelay = i2c->udelay;
+	xfer.read_type = 0;
+	
+	ret = i2c_transfer(i2c->adapter, &xfer, 1);
 	if (ret < 0)
 		return ret;
-	if (ret != 2)
+	if (ret != 1)
 		return -EIO;
 
 	return 0;
@@ -614,7 +621,7 @@ static int wm8994_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct wm8994 *wm8994;
-
+	
 	wm8994 = kzalloc(sizeof(struct wm8994), GFP_KERNEL);
 	if (wm8994 == NULL)
 		return -ENOMEM;
@@ -651,7 +658,7 @@ static UNIVERSAL_DEV_PM_OPS(wm8994_pm_ops, wm8994_suspend, wm8994_resume,
 
 static struct i2c_driver wm8994_i2c_driver = {
 	.driver = {
-		.name = "WM8994",
+		.name = "wm8994",
 		.owner = THIS_MODULE,
 		.pm = &wm8994_pm_ops,
 	},

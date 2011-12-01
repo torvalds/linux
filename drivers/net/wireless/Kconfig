@@ -70,6 +70,7 @@ choice
 	      (4) Murata     SP-8HEP-P
 
 source "drivers/net/wireless/rtl8192c/Kconfig"
+source "drivers/net/wireless/ar6003/Kconfig"
 endchoice
 
 endif

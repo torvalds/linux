@@ -291,9 +291,9 @@ int modem_poweron_off(int on_off)
 static int power_on =1;
 static int mtk23d_open(struct inode *inode, struct file *file)
 {
-	//struct rk2818_23d_data *pdata = gpdata;
+	struct rk2818_23d_data *pdata = gpdata;
 	//struct rk2818_23d_data *pdata = gpdata = pdev->dev.platform_data;
-	//struct platform_data *pdev = container_of(pdata, struct device, platform_data);
+	struct platform_data *pdev = container_of(pdata, struct device, platform_data);
 
 	MODEMDBG("modem_open\n");
 
@@ -303,7 +303,7 @@ static int mtk23d_open(struct inode *inode, struct file *file)
 		power_on = 0;
 		modem_poweron_off(1);
 	}
-	device_init_wakeup(&pdev->dev, 1);
+	device_init_wakeup(&pdev, 1);
 
 	return 0;
 }

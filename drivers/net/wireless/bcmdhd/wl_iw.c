@@ -1667,8 +1667,8 @@ wl_control_wl_start(struct net_device *dev)
 #if defined(BCMLXSDMMC)
 		sdioh_start(NULL, 1);
 #endif
-
-		dhd_dev_init_ioctl(dev);
+		if (!ret)
+			dhd_dev_init_ioctl(dev);
 
 		g_onoff = G_WLAN_SET_ON;
 	}
@@ -1715,7 +1715,7 @@ wl_iw_control_wl_off(
 		g_iscan->iscan_state = ISCAN_STATE_IDLE;
 #endif 
 
-		dhd_dev_reset(dev, 1);
+		ret = dhd_dev_reset(dev, 1);
 
 #if defined(WL_IW_USE_ISCAN)
 #if !defined(CSCAN)
@@ -1737,9 +1737,6 @@ wl_iw_control_wl_off(
 #if defined(BCMLXSDMMC)
 		sdioh_stop(NULL);
 #endif
-
-		
-		net_os_set_dtim_skip(dev, 0);
 
 		dhd_customer_gpio_wlan_ctrl(WLAN_RESET_OFF);
 
@@ -8147,7 +8144,7 @@ wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void* data)
 	case WLC_E_ROAM:
 		if (status == WLC_E_STATUS_SUCCESS) {
 			WL_ASSOC((" WLC_E_ROAM : success \n"));
-			return;
+			goto wl_iw_event_end;
 		}
 	break;
 
@@ -8285,6 +8282,11 @@ wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void* data)
 
 	case WLC_E_SCAN_COMPLETE:
 #if defined(WL_IW_USE_ISCAN)
+		if (!g_iscan) {
+			WL_ERROR(("Event WLC_E_SCAN_COMPLETE on g_iscan NULL!"));
+			goto wl_iw_event_end;
+		}
+
 		if ((g_iscan) && (g_iscan->tsk_ctl.thr_pid >= 0) &&
 			(g_iscan->iscan_state != ISCAN_STATE_IDLE))
 		{

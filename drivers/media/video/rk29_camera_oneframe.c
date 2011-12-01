@@ -48,7 +48,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 	printk(KERN_WARNING"rk29xx_camera: " fmt , ## arg); } while (0)
 
 #define RK29CAMERA_TR(format, ...) printk(KERN_ERR format, ## __VA_ARGS__)
-#define RK29CAMERA_DG(format, ...) dprintk(0, format, ## __VA_ARGS__)
+#define RK29CAMERA_DG(format, ...) dprintk(1, format, ## __VA_ARGS__)
 
 // VIP Reg Offset
 #define RK29_VIP_AHBR_CTRL                0x00
@@ -1528,8 +1528,16 @@ static unsigned int rk29_camera_poll(struct file *file, poll_table *pt)
 static int rk29_camera_querycap(struct soc_camera_host *ici,
                                 struct v4l2_capability *cap)
 {
-    /* cap->name is set by the firendly caller:-> */
-    strlcpy(cap->card, rk29_cam_driver_description, sizeof(cap->card));
+    struct rk29_camera_dev *pcdev = ici->priv;
+    char orientation[5];
+
+    strlcpy(cap->card, dev_name(pcdev->icd->pdev), sizeof(cap->card));    
+    if (strcmp(dev_name(pcdev->icd->pdev), pcdev->pdata->gpio_res[0].dev_name) == 0) {
+        sprintf(orientation,"-%d",pcdev->pdata->gpio_res[0].orientation);
+    } else {
+        sprintf(orientation,"-%d",pcdev->pdata->gpio_res[1].orientation);
+    }
+    strcat(cap->card,orientation); 
     cap->version = RK29_CAM_VERSION_CODE;
     cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 

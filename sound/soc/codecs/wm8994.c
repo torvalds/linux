@@ -10,7 +10,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#define DEBUG
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -29,6 +29,7 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 #include <trace/events/asoc.h>
+#include <mach/gpio.h>
 
 #include <linux/mfd/wm8994/core.h>
 #include <linux/mfd/wm8994/registers.h>
@@ -38,8 +39,24 @@
 #include "wm8994.h"
 #include "wm_hubs.h"
 
+#define WM8994_PROC
+#ifdef WM8994_PROC
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
+#include <linux/vmalloc.h>
+char debug_write_read = 0;
+#endif
+
+#if 1
+#define DBG(x...) printk(KERN_INFO x)
+#else
+#define DBG(x...) do { } while (0)
+#endif
+
 #define WM8994_NUM_DRC 3
 #define WM8994_NUM_EQ  3
+
+static struct snd_soc_codec *wm8994_codec;
 
 static int wm8994_drc_base[] = {
 	WM8994_AIF1_DRC1_1,
@@ -119,12 +136,17 @@ static int wm8994_write(struct snd_soc_codec *codec, unsigned int reg,
 	int ret;
 
 	BUG_ON(reg > WM8994_MAX_REGISTER);
-
+#ifdef WM8994_PROC		
+	if(debug_write_read != 0)		
+		printk("%s:0x%04x = 0x%04x\n",__FUNCTION__,reg,value);
+#endif
 	if (!wm8994_volatile(codec, reg)) {
 		ret = snd_soc_cache_write(codec, reg, value);
 		if (ret != 0)
 			dev_err(codec->dev, "Cache write to %x failed: %d\n",
 				reg, ret);
+	//	else
+	//		DBG("snd_soc_cache_write:0x%04x = 0x%04x\n",reg,value);
 	}
 
 	return wm8994_reg_write(codec->control_data, reg, value);
@@ -137,18 +159,25 @@ static unsigned int wm8994_read(struct snd_soc_codec *codec,
 	int ret;
 
 	BUG_ON(reg > WM8994_MAX_REGISTER);
-
+		
 	if (!wm8994_volatile(codec, reg) && wm8994_readable(codec, reg) &&
 	    reg < codec->driver->reg_cache_size) {
 		ret = snd_soc_cache_read(codec, reg, &val);
 		if (ret >= 0)
+		{		
+		//	DBG("snd_soc_cache_read:0x%04x = 0x%04x\n",reg,val);
 			return val;
+		}	
 		else
 			dev_err(codec->dev, "Cache read from %x failed: %d\n",
 				reg, ret);
 	}
-
-	return wm8994_reg_read(codec->control_data, reg);
+	val = wm8994_reg_read(codec->control_data, reg);
+#ifdef WM8994_PROC			
+	if(debug_write_read != 0)			
+		printk("%s:0x%04x = 0x%04x",__FUNCTION__,reg,val);	
+#endif
+	return val;
 }
 
 static int configure_aif_clock(struct snd_soc_codec *codec, int aif)
@@ -2850,12 +2879,20 @@ out:
 	return IRQ_HANDLED;
 }
 
+#ifdef WM8994_PROC	
+static int wm8994_proc_init(void);
+#endif
+
 static int wm8994_codec_probe(struct snd_soc_codec *codec)
 {
 	struct wm8994 *control;
 	struct wm8994_priv *wm8994;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret, i;
+	
+#ifdef WM8994_PROC	
+	wm8994_proc_init();
+#endif
 
 	codec->control_data = dev_get_drvdata(codec->dev->parent);
 	control = codec->control_data;
@@ -2867,7 +2904,8 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 
 	wm8994->pdata = dev_get_platdata(codec->dev->parent);
 	wm8994->codec = codec;
-
+	wm8994_codec = codec;
+	
 	if (wm8994->pdata && wm8994->pdata->micdet_irq)
 		wm8994->micdet_irq = wm8994->pdata->micdet_irq;
 	else if (wm8994->pdata && wm8994->pdata->irq_base)
@@ -3110,7 +3148,7 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 	}
 		
 
-	wm_hubs_add_analogue_routes(codec, 0, 0);
+	wm_hubs_add_analogue_routes(codec, 1, 0);
 	snd_soc_dapm_add_routes(dapm, intercon, ARRAY_SIZE(intercon));
 
 	switch (control->type) {
@@ -3228,7 +3266,7 @@ static int __devexit wm8994_remove(struct platform_device *pdev)
 
 static struct platform_driver wm8994_codec_driver = {
 	.driver = {
-		   .name = "WM8994",
+		   .name = "wm8994-codec",
 		   .owner = THIS_MODULE,
 		   },
 	.probe = wm8994_probe,
@@ -3252,3 +3290,126 @@ MODULE_DESCRIPTION("ASoC WM8994 driver");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:wm8994-codec");
+
+//=====================================================================
+//Proc
+#ifdef WM8994_PROC
+static ssize_t wm8994_proc_write(struct file *file, const char __user *buffer,
+			   unsigned long len, void *data)
+{
+	char *cookie_pot; 
+	char *p;
+	int reg;
+	int value;
+	
+	cookie_pot = (char *)vmalloc( len );
+	if (!cookie_pot) 
+	{
+		return -ENOMEM;
+	} 
+	else 
+	{
+		if (copy_from_user( cookie_pot, buffer, len )) 
+			return -EFAULT;
+	}
+
+	switch(cookie_pot[0])
+	{
+	case 'd':
+	case 'D':
+		debug_write_read ++;
+		debug_write_read %= 2;
+		if(debug_write_read != 0)
+			printk("Debug read and write reg on\n");
+		else	
+			printk("Debug read and write reg off\n");	
+		break;	
+	case 'r':
+	case 'R':
+		printk("Read reg debug\n");		
+		if(cookie_pot[1] ==':')
+		{
+			debug_write_read = 1;
+			strsep(&cookie_pot,":");
+			while((p=strsep(&cookie_pot,",")))
+			{
+				reg = simple_strtol(p,NULL,16);
+				value = wm8994_reg_read(wm8994_codec->control_data,reg);
+				printk("wm8994_read:0x%04x = 0x%04x",reg,value);
+			}
+			debug_write_read = 0;
+			printk("\n");
+		}
+		else
+		{
+			printk("Error Read reg debug.\n");
+			printk("For example: echo 'r:22,23,24,25'>wm8994_ts\n");
+		}
+		break;
+	case 'w':
+	case 'W':
+		printk("Write reg debug\n");		
+		if(cookie_pot[1] ==':')
+		{
+			debug_write_read = 1;
+			strsep(&cookie_pot,":");
+			while((p=strsep(&cookie_pot,"=")))
+			{
+				reg = simple_strtol(p,NULL,16);
+				p=strsep(&cookie_pot,",");
+				value = simple_strtol(p,NULL,16);
+				wm8994_reg_write(wm8994_codec->control_data,reg,value);
+				printk("wm8994_write:0x%04x = 0x%04x",reg,value);
+			}
+			debug_write_read = 0;
+			printk("\n");
+		}
+		else
+		{
+			printk("Error Write reg debug.\n");
+			printk("For example: w:22=0,23=0,24=0,25=0\n");
+		}
+		break;
+	case 'p'://enable pa
+		gpio_request(RK29_PIN6_PD3, NULL);			 	
+		gpio_direction_output(RK29_PIN6_PD3,GPIO_HIGH); 			
+		gpio_free(RK29_PIN6_PD3);
+		break;
+	default:
+		printk("Help for wm8994_ts .\n-->The Cmd list: \n");
+		printk("-->'d&&D' Open or Off the debug\n");
+		printk("-->'r&&R' Read reg debug,Example: echo 'r:22,23,24,25'>wm8994_ts\n");
+		printk("-->'w&&W' Write reg debug,Example: echo 'w:22=0,23=0,24=0,25=0'>wm8994_ts\n");
+		break;
+	}
+
+	return len;
+}
+static const struct file_operations wm8994_proc_fops = {
+	.owner		= THIS_MODULE,
+	//.open		= snd_mem_proc_open,
+	//.read		= seq_read,
+//#ifdef CONFIG_PCI
+	.write		= wm8994_proc_write,
+//#endif
+	//.llseek	= seq_lseek,
+	//.release	= single_release,
+};
+
+static int wm8994_proc_init(void)
+{
+	struct proc_dir_entry *wm8994_proc_entry;
+	wm8994_proc_entry = create_proc_entry("driver/wm8994_ts", 0777, NULL);
+	if(wm8994_proc_entry != NULL)
+	{
+		wm8994_proc_entry->write_proc = wm8994_proc_write;
+		return -1;
+	}
+	else
+	{
+		printk("create proc error !\n");
+	}
+	return 0;
+}
+
+#endif

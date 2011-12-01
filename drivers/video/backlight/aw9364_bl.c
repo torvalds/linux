@@ -185,7 +185,7 @@ static int aw9364_backlight_probe(struct platform_device *pdev)
 
 
 	bl = backlight_device_register("wm831x", &pdev->dev, data,
-				       &aw9364_backlight_ops);
+				       &aw9364_backlight_ops, NULL);
 	if (IS_ERR(bl)) {
 		dev_err(&pdev->dev, "failed to register backlight\n");
 		kfree(data);

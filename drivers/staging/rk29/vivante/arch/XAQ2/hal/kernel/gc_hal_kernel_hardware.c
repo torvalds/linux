@@ -3112,7 +3112,19 @@ gckHARDWARE_SetPowerManagementState(
     default:
         break;
     }
-   
+    
+// dkm: gcdENABLE_LONG_IDLE_POWEROFF
+#if gcdENABLE_LONG_IDLE_POWEROFF
+    if(gcvPOWER_IDLE_BROADCAST==curState) {
+        cancel_delayed_work_sync(&poweroff_work);
+        schedule_delayed_work(&poweroff_work, 5*HZ);
+    } else if(gcvPOWER_OFF_BROADCAST==curState) {
+        // NULL
+    } else {
+        cancel_delayed_work_sync(&poweroff_work);
+    }
+#endif
+
     /* Get current process and thread IDs. */
     gcmkONERROR(gckOS_GetProcessID(&process));
     gcmkONERROR(gckOS_GetThreadID(&thread));
@@ -3168,18 +3180,6 @@ gckHARDWARE_SetPowerManagementState(
     /* Grab control flags and clock. */
     flag  = flags[Hardware->chipPowerState][State];
     clock = clocks[State];
-
-// dkm: gcdENABLE_LONG_IDLE_POWEROFF
-#if gcdENABLE_LONG_IDLE_POWEROFF
-    if(gcvPOWER_IDLE_BROADCAST==curState) {
-        cancel_delayed_work_sync(&poweroff_work);
-        schedule_delayed_work(&poweroff_work, 5*HZ);
-    } else if(gcvPOWER_OFF_BROADCAST==curState) {
-        // NULL
-    } else {
-        cancel_delayed_work_sync(&poweroff_work);
-    }
-#endif
 
     if ((flag == 0) || (Hardware->settingPowerState))
     {

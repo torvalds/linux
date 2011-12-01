@@ -47,12 +47,12 @@
 
 struct wifi_power
 {
-	u8 use_gpio;                  /* If uses GPIO to control wifi power supply. 0 - no, 1 - yes. */
-	u8 gpio_iomux;                /* If the GPIO is iomux. 0 - no, 1 - yes. */
+	u16 use_gpio;                  /* If uses GPIO to control wifi power supply. 0 - no, 1 - yes. */
+	u16 gpio_iomux;                /* If the GPIO is iomux. 0 - no, 1 - yes. */
 	char *iomux_name;             /* IOMUX name */
-	u8	iomux_value;              /* IOMUX value - which function is choosen. */
-	u8	gpio_id;                  /* GPIO number */
-	u8	sensi_level;              /* GPIO sensitive level. */
+	u16	iomux_value;              /* IOMUX value - which function is choosen. */
+	u16	gpio_id;                  /* GPIO number */
+	u16	sensi_level;              /* GPIO sensitive level. */
 };
 
 int wifi_turn_on_card(int module);

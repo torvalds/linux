@@ -97,6 +97,7 @@ static struct rk29camera_platform_data rk29_camera_platform_data = {
             .gpio_flash = CONFIG_SENSOR_FALSH_PIN_0,
             .gpio_flag = (CONFIG_SENSOR_POWERACTIVE_LEVEL_0|CONFIG_SENSOR_RESETACTIVE_LEVEL_0|CONFIG_SENSOR_POWERDNACTIVE_LEVEL_0|CONFIG_SENSOR_FLASHACTIVE_LEVEL_0),
             .gpio_init = 0,
+            .orientation = CONFIG_SENSOR_ORIENTATION_0,
             .dev_name = SENSOR_DEVICE_NAME_0,
         }, {
             .gpio_reset = CONFIG_SENSOR_RESET_PIN_1,
@@ -105,6 +106,7 @@ static struct rk29camera_platform_data rk29_camera_platform_data = {
             .gpio_flash = CONFIG_SENSOR_FALSH_PIN_1,
             .gpio_flag = (CONFIG_SENSOR_POWERACTIVE_LEVEL_1|CONFIG_SENSOR_RESETACTIVE_LEVEL_1|CONFIG_SENSOR_POWERDNACTIVE_LEVEL_1|CONFIG_SENSOR_FLASHACTIVE_LEVEL_1),
             .gpio_init = 0,
+            .orientation = CONFIG_SENSOR_ORIENTATION_1,
             .dev_name = SENSOR_DEVICE_NAME_1,
         }
     },
@@ -1432,7 +1434,6 @@ static int rk29_sensor_ioctrl(struct device *dev,enum rk29camera_ioctrl_cmd cmd,
 			}
 			break;
 		}
-
 		default:
 		{
 			printk("%s cmd(0x%x) is unknown!\n",__FUNCTION__, cmd);

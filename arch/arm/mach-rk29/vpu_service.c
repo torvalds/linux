@@ -486,13 +486,37 @@ static void try_set_reg(void)
 	// first get reg from reg list
 	spin_lock_irqsave(&service.lock, flag);
 	if (!list_empty(&service.waiting)) {
+		int can_set = 0;
 		vpu_reg *reg = list_entry(service.waiting.next, vpu_reg, status_link);
 
 		vpu_service_power_maintain();
-		if (((VPU_DEC_PP == reg->type) && (NULL == service.reg_codec) && (NULL == service.reg_pproc)) ||
-			((VPU_DEC == reg->type) && (NULL == service.reg_codec)) ||
-			((VPU_PP  == reg->type) && (NULL == service.reg_pproc)) ||
-			((VPU_ENC == reg->type) && (NULL == service.reg_codec))) {
+		switch (reg->type) {
+		case VPU_ENC : {
+			if ((NULL == service.reg_codec) &&  (NULL == service.reg_pproc))
+			can_set = 1;
+		} break;
+		case VPU_DEC : {
+			if (NULL == service.reg_codec)
+				can_set = 1;
+		} break;
+		case VPU_PP : {
+			if (NULL == service.reg_codec) {
+				if (NULL == service.reg_pproc)
+					can_set = 1;
+			} else {
+				if ((VPU_DEC == service.reg_codec->type) && (NULL == service.reg_pproc))
+					can_set = 1;
+			}
+		} break;
+		case VPU_DEC_PP : {
+			if ((NULL == service.reg_codec) && (NULL == service.reg_pproc))
+				can_set = 1;
+			} break;
+		default : {
+			printk("undefined reg type %d\n", reg->type);
+		} break;
+		}
+		if (can_set) {
 			reg_from_wait_to_run(reg);
 			reg_copy_to_hw(reg);
 		}

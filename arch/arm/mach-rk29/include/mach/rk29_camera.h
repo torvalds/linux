@@ -160,6 +160,7 @@ struct rk29camera_gpio_res {
 	unsigned int gpio_flash;
     unsigned int gpio_flag;
 	unsigned int gpio_init;
+    unsigned int orientation;
     const char *dev_name;
 };
 

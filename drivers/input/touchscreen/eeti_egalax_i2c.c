@@ -371,21 +371,20 @@ static void ProcessReport(unsigned char *buf, int buflen)
 	{
 		for(i=0; i<MAX_SUPPORT_POINT;i++)
 		{
-			if(PointBuf[i].Status >= 0)
+			if(PointBuf[i].Status > 0)
 			{
 				input_mt_slot(input_dev, i);
 				input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, true);
 				input_report_abs(input_dev, ABS_MT_TOUCH_MAJOR, PointBuf[i].Status);
 				input_report_abs(input_dev, ABS_MT_POSITION_X, PointBuf[i].X);
 				input_report_abs(input_dev, ABS_MT_POSITION_Y, PointBuf[i].Y);
-
-				if(PointBuf[i].Status == 0)
-					PointBuf[i].Status--;
+				PointBuf[i].Status = 0;
 			}
-			else
+			else if (PointBuf[i].Status == 0)
 			{
 				input_mt_slot(input_dev, i);
 				input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, false);
+				PointBuf[i].Status = -1;
 			}
 		}
 		input_sync(input_dev);
@@ -505,10 +504,11 @@ static void egalax_i2c_wq(struct work_struct *work)
 				input_report_abs(input_dev, ABS_MT_POSITION_Y, PointBuf[i].Y);
 				PointBuf[i].Status = 0;
 			}
-			else
+			else if (PointBuf[i].Status == 0)
 			{
 				input_mt_slot(input_dev, i);
 				input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, false);
+				PointBuf[i].Status = -1;
 			}
 		}
 		input_sync(input_dev);
