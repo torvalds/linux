@@ -194,7 +194,7 @@ static void headsetobserve_work(struct work_struct *work)
 		//	enable_irq(headset_info->irq[HOOK]);
 			headset_info->cur_headset_status = BIT_HEADSET;
 			headset_change_irqtype(HEADSET,IRQF_TRIGGER_FALLING);//
-			if (pdata->Headset_gpio != NULL) {
+			if (pdata->Hook_gpio != NULL) {
 				del_timer(&headset_info->headset_timer);//Start the timer, wait for switch to the headphone channel
 				headset_info->headset_timer.expires = jiffies + 500;
 				add_timer(&headset_info->headset_timer);
@@ -219,11 +219,11 @@ static void headsetobserve_work(struct work_struct *work)
 		//	DBG("---HEADSET_IN_LOW headset in LOW ---\n");
 			headset_info->cur_headset_status = BIT_HEADSET;
 			headset_change_irqtype(HEADSET,IRQF_TRIGGER_RISING);//
-			if (pdata->Headset_gpio != NULL) {			
+			if (pdata->Hook_gpio != NULL) {			
 				del_timer(&headset_info->headset_timer);//Start the timer, wait for switch to the headphone channel
 				headset_info->headset_timer.expires = jiffies + 500;
 				add_timer(&headset_info->headset_timer);
-			}	
+			}
 		}
 		else if(level > 0)
 		{//out--High level

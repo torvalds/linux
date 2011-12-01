@@ -120,7 +120,7 @@ static struct regulator_ops wm8994_ldo1_ops = {
 	.enable = wm8994_ldo_enable,
 	.disable = wm8994_ldo_disable,
 	.is_enabled = wm8994_ldo_is_enabled,
-//	.enable_time = wm8994_ldo_enable_time,
+	.enable_time = wm8994_ldo_enable_time,
 
 	.list_voltage = wm8994_ldo1_list_voltage,
 	.get_voltage_sel = wm8994_ldo1_get_voltage_sel,
@@ -189,7 +189,7 @@ static struct regulator_ops wm8994_ldo2_ops = {
 	.enable = wm8994_ldo_enable,
 	.disable = wm8994_ldo_disable,
 	.is_enabled = wm8994_ldo_is_enabled,
-//	.enable_time = wm8994_ldo_enable_time,
+	.enable_time = wm8994_ldo_enable_time,
 
 	.list_voltage = wm8994_ldo2_list_voltage,
 	.get_voltage_sel = wm8994_ldo2_get_voltage_sel,
@@ -238,6 +238,7 @@ static __devinit int wm8994_ldo_probe(struct platform_device *pdev)
 
 	if (pdata->ldo[id].enable && gpio_is_valid(pdata->ldo[id].enable)) {
 		ldo->enable = pdata->ldo[id].enable;
+		ldo->is_enabled = true;
 
 		ret = gpio_request(ldo->enable, "WM8994 LDO enable");
 		if (ret < 0) {

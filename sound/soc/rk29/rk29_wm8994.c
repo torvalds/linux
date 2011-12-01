@@ -46,16 +46,6 @@ static int rk29_aif1_hw_params(struct snd_pcm_substream *substream,
 
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 
-	if ((params->flags == HW_PARAMS_FLAG_EQVOL_ON)||(params->flags == HW_PARAMS_FLAG_EQVOL_OFF))
-	{
-		DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-
-		if (codec_dai->driver->ops->hw_params)
-			ret = codec_dai->driver->ops->hw_params(substream, params, codec_dai); //by Vincent
-
-		return 0;
-	}
-
 	/* set codec DAI configuration */
 #if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
 	DBG("Set codec_dai slave\n");
@@ -72,14 +62,14 @@ static int rk29_aif1_hw_params(struct snd_pcm_substream *substream,
 
 	/* set cpu DAI configuration */
 #if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
-	DBG("Set cpu_dai slave\n");
+	DBG("Set cpu_dai master\n");
 	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
 		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
 #endif	
 #if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER)  
 	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
 		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);	
-	DBG("Set cpu_dai master\n"); 
+	DBG("Set cpu_dai slave\n"); 
 #endif		
 	if (ret < 0)
 		return ret;
@@ -100,22 +90,23 @@ static int rk29_aif1_hw_params(struct snd_pcm_substream *substream,
 		default:
 			DBG("Enter:%s, %d, Error rate=%d\n",__FUNCTION__,__LINE__,params_rate(params));
 			return -EINVAL;
-			break;
 	}
 
-	DBG("Enter:%s, %d, rate=%d\n",__FUNCTION__,__LINE__,params_rate(params));
-
+	DBG("Enter:%s, %d, rate=%d,pll_out = %d\n",__FUNCTION__,__LINE__,params_rate(params),pll_out);
+#if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE)	
+	ret = snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
+	if(ret < 0)
+	{
+		DBG("rk29_hw_params_wm8994:failed to set the cpu sysclk for codec side\n"); 
+		return ret;
+	}
 	ret = snd_soc_dai_set_sysclk(codec_dai, WM8994_SYSCLK_MCLK1, pll_out, 0);
 	if (ret < 0) {
 		DBG("rk29_hw_params_wm8994:failed to set the sysclk for codec side\n"); 
 		return ret;
 	}
-
-	snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
-
-#if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE)
-	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK, (pll_out/4)/params_rate(params)-1);
-	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, 3);
+#else if
+	
 #endif
 
 	return 0;
@@ -278,7 +269,7 @@ static struct snd_soc_dai_link rk29_dai[] = {
 	{
 		.name = "WM8994 I2S1",
 		.stream_name = "WM8994 PCM",
-		.codec_name = "WM8994.0-001a",
+		.codec_name = "wm8994-codec",
 		.platform_name = "rockchip-audio",
         	.cpu_dai_name = "rk29_i2s.0",
 		.codec_dai_name = "wm8994-aif1",
@@ -287,7 +278,7 @@ static struct snd_soc_dai_link rk29_dai[] = {
 	{
 		.name = "WM8994 I2S2",
 		.stream_name = "WM8994 PCM",
-		.codec_name = "WM8994.0-001a",
+		.codec_name = "wm8994-codec",
 		.platform_name = "rockchip-audio",
         	.cpu_dai_name = "rk29_i2s.0",
 		.codec_dai_name = "wm8994-aif2",
@@ -296,7 +287,7 @@ static struct snd_soc_dai_link rk29_dai[] = {
 	{
 		.name = "WM8994 I2S3",
 		.stream_name = "WM8994 PCM",
-		.codec_name = "WM8994.0-001a",
+		.codec_name = "wm8994-codec",
 		.platform_name = "rockchip-audio",
         	.cpu_dai_name = "rk29_i2s.0",
 		.codec_dai_name = "wm8994-aif3",
@@ -307,7 +298,7 @@ static struct snd_soc_dai_link rk29_dai[] = {
 static struct snd_soc_card snd_soc_card_rk29 = {
 	.name = "RK29_WM8994",
 	.dai_link = rk29_dai,
-	.num_links = 3,
+	.num_links = ARRAY_SIZE(rk29_dai),
 };
 
 static struct platform_device *rk29_snd_device;
