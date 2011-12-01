@@ -43,8 +43,6 @@ int in_suspend __nosavedata;
 enum {
 	HIBERNATION_INVALID,
 	HIBERNATION_PLATFORM,
-	HIBERNATION_TEST,
-	HIBERNATION_TESTPROC,
 	HIBERNATION_SHUTDOWN,
 	HIBERNATION_REBOOT,
 	/* keep last */
@@ -96,15 +94,6 @@ static void hibernation_debug_sleep(void)
 	mdelay(5000);
 }
 
-static int hibernation_testmode(int mode)
-{
-	if (hibernation_mode == mode) {
-		hibernation_debug_sleep();
-		return 1;
-	}
-	return 0;
-}
-
 static int hibernation_test(int level)
 {
 	if (pm_test_level == level) {
@@ -114,7 +103,6 @@ static int hibernation_test(int level)
 	return 0;
 }
 #else /* !CONFIG_PM_DEBUG */
-static int hibernation_testmode(int mode) { return 0; }
 static int hibernation_test(int level) { return 0; }
 #endif /* !CONFIG_PM_DEBUG */
 
@@ -278,8 +266,7 @@ static int create_image(int platform_mode)
 		goto Platform_finish;
 
 	error = disable_nonboot_cpus();
-	if (error || hibernation_test(TEST_CPUS)
-	    || hibernation_testmode(HIBERNATION_TEST))
+	if (error || hibernation_test(TEST_CPUS))
 		goto Enable_cpus;
 
 	local_irq_disable();
@@ -349,8 +336,7 @@ int hibernation_snapshot(int platform_mode)
 	if (error)
 		goto Cleanup;
 
-	if (hibernation_test(TEST_FREEZER) ||
-		hibernation_testmode(HIBERNATION_TESTPROC)) {
+	if (hibernation_test(TEST_FREEZER)) {
 
 		/*
 		 * Indicate to the caller that we are returning due to a
@@ -586,9 +572,6 @@ int hibernation_platform_enter(void)
 static void power_down(void)
 {
 	switch (hibernation_mode) {
-	case HIBERNATION_TEST:
-	case HIBERNATION_TESTPROC:
-		break;
 	case HIBERNATION_REBOOT:
 		kernel_restart(NULL);
 		break;
@@ -853,8 +836,6 @@ static const char * const hibernation_modes[] = {
 	[HIBERNATION_PLATFORM]	= "platform",
 	[HIBERNATION_SHUTDOWN]	= "shutdown",
 	[HIBERNATION_REBOOT]	= "reboot",
-	[HIBERNATION_TEST]	= "test",
-	[HIBERNATION_TESTPROC]	= "testproc",
 };
 
 /*
@@ -863,17 +844,15 @@ static const char * const hibernation_modes[] = {
  * Hibernation can be handled in several ways.  There are a few different ways
  * to put the system into the sleep state: using the platform driver (e.g. ACPI
  * or other hibernation_ops), powering it off or rebooting it (for testing
- * mostly), or using one of the two available test modes.
+ * mostly).
  *
  * The sysfs file /sys/power/disk provides an interface for selecting the
  * hibernation mode to use.  Reading from this file causes the available modes
- * to be printed.  There are 5 modes that can be supported:
+ * to be printed.  There are 3 modes that can be supported:
  *
  *	'platform'
  *	'shutdown'
  *	'reboot'
- *	'test'
- *	'testproc'
  *
  * If a platform hibernation driver is in use, 'platform' will be supported
  * and will be used by default.  Otherwise, 'shutdown' will be used by default.
@@ -897,8 +876,6 @@ static ssize_t disk_show(struct kobject *kobj, struct kobj_attribute *attr,
 		switch (i) {
 		case HIBERNATION_SHUTDOWN:
 		case HIBERNATION_REBOOT:
-		case HIBERNATION_TEST:
-		case HIBERNATION_TESTPROC:
 			break;
 		case HIBERNATION_PLATFORM:
 			if (hibernation_ops)
@@ -939,8 +916,6 @@ static ssize_t disk_store(struct kobject *kobj, struct kobj_attribute *attr,
 		switch (mode) {
 		case HIBERNATION_SHUTDOWN:
 		case HIBERNATION_REBOOT:
-		case HIBERNATION_TEST:
-		case HIBERNATION_TESTPROC:
 			hibernation_mode = mode;
 			break;
 		case HIBERNATION_PLATFORM:
