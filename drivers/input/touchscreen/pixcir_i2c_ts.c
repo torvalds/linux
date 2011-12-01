@@ -66,10 +66,11 @@ static struct pixcir_i2c_ts_data *this_data;
 
 struct point_data{
 	unsigned char	brn;  //broken line number
-	unsigned char	brn_pre;
 	unsigned char	id;    //finger ID
 	int	posx;
 	int	posy;
+	unsigned char active;
+	unsigned char pre_active;
 };
 
 static struct point_data point[MAX_SUPPORT_POINT];
@@ -206,7 +207,7 @@ static void pixcir_ts_poscheck(struct pixcir_i2c_ts_data *data)
 	struct pixcir_i2c_ts_data *tsdata = data;
 	
 	u8 *p;
-	u8 touch, button;
+	u8 touch, button, pix_id;
 	u8 rdbuf[27], wrbuf[1] = { 0 };
 	int ret, i;
 	int ignore_cnt = 0;
@@ -230,81 +231,94 @@ static void pixcir_ts_poscheck(struct pixcir_i2c_ts_data *data)
 	touch = rdbuf[0] & 0x07;
 	button = rdbuf[1];
 	p = &rdbuf[2];
-	for (i = 0; i < touch; i++)	{
-		point[i].brn = (*(p + 4)) >> 3;		
-		point[i].id = (*(p + 4)) & 0x7;	
-		point[i].posx = (*(p + 1) << 8) + (*(p));	
-		point[i].posy = (*(p + 3) << 8) + (*(p + 2));
-		p+=5;
+
+	for (i = 0; i < MAX_SUPPORT_POINT; i++)	{
+		point[i].pre_active = point[i].active;
+		point[i].active = 0;
 	}
 
-	if (touch) {
-		for(i=0; i < touch; i++) {
-			if (point[i].posy < 40 || point[i].posy > 520 || point[i].posx < 40) {
-				ignore_cnt++;  //invalid point
-				continue;
-			}else {
-				point[i].posy -= 40;
-				point[i].posx -= 40;
+	for (i = 0; i < touch; i++) {
+		pix_id = (*(p + 4)) & 0x7;
 
-				if(point[i].posy < 0)
-					point[i].posy=1;
+		point[pix_id].brn = (*(p + 4)) >> 3;		
+		point[pix_id].id = (*(p + 4)) & 0x7;	
+		point[pix_id].posx = (*(p + 1) << 8) + (*(p));	
+		point[pix_id].posy = (*(p + 3) << 8) + (*(p + 2));
 
-				if(point[i].posx < 0)
-					point[i].posx=1;
+		if (point[pix_id].posy < 40 || point[pix_id].posy > 520 || point[pix_id].posx < 40) {
+			//point[i].active = 0;
+		} else {
+			point[pix_id].active = 1;
+			
+			point[pix_id].posy -= 40;
+			point[pix_id].posx -= 40;
 
-				input_mt_slot(tsdata->input, 0);
-				input_mt_report_slot_state(tsdata->input, MT_TOOL_FINGER, true);
-				input_report_abs(tsdata->input, ABS_MT_TOUCH_MAJOR, 1);
-				input_report_abs(tsdata->input, ABS_MT_POSITION_X, point[i].posy);
-				input_report_abs(tsdata->input, ABS_MT_POSITION_Y, point[i].posx);
+			if(point[pix_id].posy < 0)
+				point[pix_id].posy=1;
 
-				//input_sync(tsdata->input);
+			if(point[pix_id].posx < 0)
+				point[pix_id].posx=1;
+		}
+		p+=5;
 
-				DBG("brn%d=%2d id%d=%1d x=%5d y=%5d \n",
-					i,point[i].brn,i,point[i].id,point[i].posy,point[i].posx);
-			}			
-		}	       
+		DBG("[id = %d]x = %d y = %d\n", pix_id, point[pix_id].posy, point[pix_id].posx);
+	}
+	
 
-		if (touch == ignore_cnt)
-			return; //if all touchpoint are invalid, return
+	for (i = 0; i < MAX_SUPPORT_POINT; i++)	{
+		if (!point[i].active && point[i].pre_active) {
+			input_mt_slot(tsdata->input, point[i].id);
+			input_mt_report_slot_state(tsdata->input, MT_TOOL_FINGER, false);
+		}
 
-		input_sync(tsdata->input);
-	} 
+		if (point[i].active) {
+			input_mt_slot(tsdata->input, point[i].id);
+			input_mt_report_slot_state(tsdata->input, MT_TOOL_FINGER, true);
+			input_report_abs(tsdata->input, ABS_MT_TOUCH_MAJOR, 1);
+			input_report_abs(tsdata->input, ABS_MT_POSITION_X, point[i].posy);
+			input_report_abs(tsdata->input, ABS_MT_POSITION_Y, point[i].posx);
+		}
+
+		DBG("%d[id = %d] = %2d active= %d pre_active = %d x = %5d y = %5d \n",
+			i, point[i].id, point[i].brn, point[i].active, point[i].pre_active, point[i].posy, point[i].posx);
+	}
+
+	input_sync(tsdata->input);
+
 }
 
 static void pixcir_ts_work_func(struct work_struct *work)
 {
 	struct pixcir_i2c_ts_data *tsdata = this_data;
-	//DBG("%s\n",__FUNCTION__);
+	int i = 0;
 
 	while (!tsdata->exiting) {
 	
 		pixcir_ts_poscheck(tsdata);
-
 		if (attb_read_val()){
 			DBG("%s:  >>>>>touch release\n\n",__FUNCTION__);
+			for (i = 0; i < MAX_SUPPORT_POINT; i++)	{
+				point[i].pre_active = point[i].active;
+				point[i].active = 0;
+				if (!point[i].active && point[i].pre_active) {
+					input_mt_slot(tsdata->input, point[i].id);
+					input_mt_report_slot_state(tsdata->input, MT_TOOL_FINGER, false);
+				}
+			}
+			input_sync(tsdata->input);
 			enable_irq(tsdata->client->irq);
-			//input_report_key(tsdata->input, BTN_TOUCH, 0);
-			//input_report_abs(tsdata->input, ABS_MT_TOUCH_MAJOR, 0);
-			input_mt_slot(tsdata->input, 0);
-			input_mt_report_slot_state(tsdata->input, MT_TOOL_FINGER, false);
-			//input_report_key(tsdata->input, ABS_MT_WIDTH_MAJOR,0);
 			break;
 		}
 
 		msleep(1);
 	}
-
-	input_sync(tsdata->input);
-	return;
 }
 
 static irqreturn_t pixcir_ts_isr(int irq, void *dev_id)
 {
     struct pixcir_i2c_ts_data *ts = dev_id;
-    DBG("%s: >>>>>>>>>\n",__FUNCTION__);
-	
+    DBG("%s: >>>>>>>>>\n\n",__FUNCTION__);
+
 	if(ts->use_irq){
     	disable_irq_nosync(ts->client->irq);
 	}
