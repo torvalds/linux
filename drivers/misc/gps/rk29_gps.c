@@ -156,7 +156,7 @@ static void rk29_gps_delay_power_downup(struct work_struct *work)
 		return;
 	}
 
-	DBG("%s: suspend=%d\n", __func__, pdata->suspend);
+	//DBG("%s: suspend=%d\n", __func__, pdata->suspend);
 
 	down(&pdata->power_sem);
 	
@@ -192,16 +192,16 @@ ssize_t rk29_gps_read(struct file *filp, char __user *ptr, size_t size, loff_t *
 	return sizeof(int);
 }
 
-int rk29_gps_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
+long rk29_gps_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	int ret = 0;
+	long ret = 0;
 	struct rk29_gps_data *pdata = pgps;
 
-	DBG("rk29_gps_ioctl: cmd = %d\n",cmd);
+	DBG("rk29_gps_ioctl: cmd = %d arg = %ld\n",cmd, arg);
 
 	ret = down_interruptible(&pdata->power_sem);
 	if (ret < 0) {
-		printk("%s: down power_sem error ret = %d\n", __func__, ret);
+		printk("%s: down power_sem error ret = %ld\n", __func__, ret);
 		return ret;
 	}
 
