@@ -72,9 +72,4 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv);
 void iwl_init_sensitivity(struct iwl_priv *priv);
 void iwl_reset_run_time_calib(struct iwl_priv *priv);
 
-int iwl_send_calib_results(struct iwl_priv *priv);
-int iwl_calib_set(struct iwl_priv *priv,
-		  const struct iwl_calib_hdr *cmd, int len);
-void iwl_calib_free_results(struct iwl_priv *priv);
-
 #endif /* __iwl_calib_h__ */

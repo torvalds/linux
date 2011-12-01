@@ -1577,7 +1577,7 @@ static int iwl_init_drv(struct iwl_priv *priv)
 
 	mutex_init(&priv->shrd->mutex);
 
-	INIT_LIST_HEAD(&priv->calib_results);
+	INIT_LIST_HEAD(&trans(priv)->calib_results);
 
 	priv->ieee_channels = NULL;
 	priv->ieee_rates = NULL;
@@ -1635,7 +1635,6 @@ err:
 
 static void iwl_uninit_drv(struct iwl_priv *priv)
 {
-	iwl_calib_free_results(priv);
 	iwl_free_geos(priv);
 	iwl_free_channel_map(priv);
 	if (priv->tx_cmd_pool)

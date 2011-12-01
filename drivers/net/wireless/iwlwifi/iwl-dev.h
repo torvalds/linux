@@ -440,15 +440,6 @@ enum iwlagn_chain_noise_state {
 	IWL_CHAIN_NOISE_DONE,
 };
 
-
-/* Opaque calibration results */
-struct iwl_calib_result {
-	struct list_head list;
-	size_t cmd_len;
-	struct iwl_calib_hdr hdr;
-	/* data follows */
-};
-
 /* Sensitivity calib data */
 struct iwl_sensitivity_data {
 	u32 auto_corr_ofdm;
@@ -829,9 +820,6 @@ struct iwl_priv {
 	/* thermal calibration */
 	s32 temperature;	/* Celsius */
 	s32 last_temperature;
-
-	/* init calibration results */
-	struct list_head calib_results;
 
 	struct iwl_wipan_noa_data __rcu *noa_data;
 

@@ -222,7 +222,7 @@ static int iwl_set_Xtal_calib(struct iwl_priv *priv)
 	iwl_set_calib_hdr(&cmd.hdr, IWL_PHY_CALIBRATE_CRYSTAL_FRQ_CMD);
 	cmd.cap_pin1 = le16_to_cpu(xtal_calib[0]);
 	cmd.cap_pin2 = le16_to_cpu(xtal_calib[1]);
-	return iwl_calib_set(priv, (void *)&cmd, sizeof(cmd));
+	return iwl_calib_set(trans(priv), (void *)&cmd, sizeof(cmd));
 }
 
 static int iwl_set_temperature_offset_calib(struct iwl_priv *priv)
@@ -240,7 +240,7 @@ static int iwl_set_temperature_offset_calib(struct iwl_priv *priv)
 
 	IWL_DEBUG_CALIB(priv, "Radio sensor offset: %d\n",
 			le16_to_cpu(cmd.radio_sensor_offset));
-	return iwl_calib_set(priv, (void *)&cmd, sizeof(cmd));
+	return iwl_calib_set(trans(priv), (void *)&cmd, sizeof(cmd));
 }
 
 static int iwl_set_temperature_offset_calib_v2(struct iwl_priv *priv)
@@ -276,7 +276,7 @@ static int iwl_set_temperature_offset_calib_v2(struct iwl_priv *priv)
 	IWL_DEBUG_CALIB(priv, "Voltage Ref: %d\n",
 			le16_to_cpu(cmd.burntVoltageRef));
 
-	return iwl_calib_set(priv, (void *)&cmd, sizeof(cmd));
+	return iwl_calib_set(trans(priv), (void *)&cmd, sizeof(cmd));
 }
 
 static int iwl_send_calib_cfg(struct iwl_trans *trans)
@@ -309,7 +309,7 @@ int iwlagn_rx_calib_result(struct iwl_priv *priv,
 	/* reduce the size of the length field itself */
 	len -= 4;
 
-	if (iwl_calib_set(priv, hdr, len))
+	if (iwl_calib_set(trans(priv), hdr, len))
 		IWL_ERR(priv, "Failed to record calibration data %d\n",
 			hdr->op_code);
 
@@ -459,7 +459,7 @@ static int iwl_alive_notify(struct iwl_priv *priv)
 			return ret;
 	}
 
-	return iwl_send_calib_results(priv);
+	return iwl_send_calib_results(trans(priv));
 }
 
 
