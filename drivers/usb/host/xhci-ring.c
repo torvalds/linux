@@ -1933,6 +1933,15 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	xdev = xhci->devs[slot_id];
 	if (!xdev) {
 		xhci_err(xhci, "ERROR Transfer event pointed to bad slot\n");
+		xhci_err(xhci, "@%016llx %08x %08x %08x %08x\n",
+			 xhci_trb_virt_to_dma(xhci->event_ring->deq_seg,
+				 xhci->event_ring->dequeue),
+			 lower_32_bits(le64_to_cpu(event->buffer)),
+			 upper_32_bits(le64_to_cpu(event->buffer)),
+			 le32_to_cpu(event->transfer_len),
+			 le32_to_cpu(event->flags));
+		xhci_dbg(xhci, "Event ring:\n");
+		xhci_debug_segment(xhci, xhci->event_ring->deq_seg);
 		return -ENODEV;
 	}
 
@@ -1946,6 +1955,15 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	    EP_STATE_DISABLED) {
 		xhci_err(xhci, "ERROR Transfer event for disabled endpoint "
 				"or incorrect stream ring\n");
+		xhci_err(xhci, "@%016llx %08x %08x %08x %08x\n",
+			 xhci_trb_virt_to_dma(xhci->event_ring->deq_seg,
+				 xhci->event_ring->dequeue),
+			 lower_32_bits(le64_to_cpu(event->buffer)),
+			 upper_32_bits(le64_to_cpu(event->buffer)),
+			 le32_to_cpu(event->transfer_len),
+			 le32_to_cpu(event->flags));
+		xhci_dbg(xhci, "Event ring:\n");
+		xhci_debug_segment(xhci, xhci->event_ring->deq_seg);
 		return -ENODEV;
 	}
 
