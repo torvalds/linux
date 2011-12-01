@@ -6,7 +6,7 @@
  *          Title:  MPI Configuration messages and pages
  *  Creation Date:  November 10, 2006
  *
- *    mpi2_cnfg.h Version:  02.00.19
+ *    mpi2_cnfg.h Version:  02.00.20
  *
  *  Version History
  *  ---------------
@@ -140,6 +140,7 @@
  *                      Added SASNotifyPrimitiveMasks field to
  *                      MPI2_CONFIG_PAGE_IOC_7.
  *  03-09-11  02.00.19  Fixed IO Unit Page 10 (to match the spec).
+ *  05-25-11  02.00.20  Cleaned up a few comments.
  *  --------------------------------------------------------------------------
  */
 
@@ -2321,13 +2322,12 @@ typedef struct _MPI2_CONFIG_PAGE_EXPANDER_1
 
 /* use MPI2_SAS_NEG_LINK_RATE_ defines for the NegotiatedLinkRate field */
 
-/* use MPI2_SAS_APHYINFO_ defines for AttachedPhyInfo field */
-
 /* values for SAS Expander Page 1 DiscoveryInfo field */
 #define MPI2_SAS_EXPANDER1_DISCINFO_BAD_PHY_DISABLED    (0x04)
 #define MPI2_SAS_EXPANDER1_DISCINFO_LINK_STATUS_CHANGE  (0x02)
 #define MPI2_SAS_EXPANDER1_DISCINFO_NO_ROUTING_ENTRIES  (0x01)
 
+/* use MPI2_SAS_APHYINFO_ defines for AttachedPhyInfo field */
 
 /****************************************************************************
 *   SAS Device Config Pages
@@ -2447,6 +2447,8 @@ typedef struct _MPI2_CONFIG_PAGE_SAS_PHY_0
 
 #define MPI2_SASPHY0_PAGEVERSION            (0x03)
 
+/* use MPI2_SAS_APHYINFO_ defines for AttachedPhyInfo field */
+
 /* use MPI2_SAS_PRATE_ defines for the ProgrammedLinkRate field */
 
 /* use MPI2_SAS_HWRATE_ defines for the HwLinkRate field */
@@ -2454,11 +2456,9 @@ typedef struct _MPI2_CONFIG_PAGE_SAS_PHY_0
 /* values for SAS PHY Page 0 Flags field */
 #define MPI2_SAS_PHY0_FLAGS_SGPIO_DIRECT_ATTACH_ENC             (0x01)
 
-/* use MPI2_SAS_APHYINFO_ defines for AttachedPhyInfo field */
+/* use MPI2_SAS_PHYINFO_ for the PhyInfo field */
 
 /* use MPI2_SAS_NEG_LINK_RATE_ defines for the NegotiatedLinkRate field */
-
-/* use MPI2_SAS_PHYINFO_ for the PhyInfo field */
 
 
 /* SAS PHY Page 1 */

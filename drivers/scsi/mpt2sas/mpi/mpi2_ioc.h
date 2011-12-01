@@ -6,7 +6,7 @@
  *          Title:  MPI IOC, Port, Event, FW Download, and FW Upload messages
  *  Creation Date:  October 11, 2006
  *
- *  mpi2_ioc.h Version:  02.00.17
+ *  mpi2_ioc.h Version:  02.00.18
  *
  *  Version History
  *  ---------------
@@ -110,6 +110,10 @@
  *                      Added Temperature Threshold Event.
  *                      Added Host Message Event.
  *                      Added Send Host Message request and reply.
+ *  05-25-11  02.00.18  For Extended Image Header, added
+ *                      MPI2_EXT_IMAGE_TYPE_MIN_PRODUCT_SPECIFIC and
+ *                      MPI2_EXT_IMAGE_TYPE_MAX_PRODUCT_SPECIFIC defines.
+ *                      Deprecated MPI2_EXT_IMAGE_TYPE_MAX define.
  *  --------------------------------------------------------------------------
  */
 
@@ -1366,16 +1370,18 @@ typedef struct _MPI2_EXT_IMAGE_HEADER
 #define MPI2_EXT_IMAGE_HEADER_SIZE              (0x40)
 
 /* defines for the ImageType field */
-#define MPI2_EXT_IMAGE_TYPE_UNSPECIFIED         (0x00)
-#define MPI2_EXT_IMAGE_TYPE_FW                  (0x01)
-#define MPI2_EXT_IMAGE_TYPE_NVDATA              (0x03)
-#define MPI2_EXT_IMAGE_TYPE_BOOTLOADER          (0x04)
-#define MPI2_EXT_IMAGE_TYPE_INITIALIZATION      (0x05)
-#define MPI2_EXT_IMAGE_TYPE_FLASH_LAYOUT        (0x06)
-#define MPI2_EXT_IMAGE_TYPE_SUPPORTED_DEVICES   (0x07)
-#define MPI2_EXT_IMAGE_TYPE_MEGARAID            (0x08)
-
-#define MPI2_EXT_IMAGE_TYPE_MAX                 (MPI2_EXT_IMAGE_TYPE_MEGARAID)
+#define MPI2_EXT_IMAGE_TYPE_UNSPECIFIED				(0x00)
+#define MPI2_EXT_IMAGE_TYPE_FW						(0x01)
+#define MPI2_EXT_IMAGE_TYPE_NVDATA					(0x03)
+#define MPI2_EXT_IMAGE_TYPE_BOOTLOADER				(0x04)
+#define MPI2_EXT_IMAGE_TYPE_INITIALIZATION			(0x05)
+#define MPI2_EXT_IMAGE_TYPE_FLASH_LAYOUT			(0x06)
+#define MPI2_EXT_IMAGE_TYPE_SUPPORTED_DEVICES		(0x07)
+#define MPI2_EXT_IMAGE_TYPE_MEGARAID				(0x08)
+#define MPI2_EXT_IMAGE_TYPE_MIN_PRODUCT_SPECIFIC    (0x80)
+#define MPI2_EXT_IMAGE_TYPE_MAX_PRODUCT_SPECIFIC    (0xFF)
+#define MPI2_EXT_IMAGE_TYPE_MAX                   \
+	(MPI2_EXT_IMAGE_TYPE_MAX_PRODUCT_SPECIFIC)	/* deprecated */
 
 
 
