@@ -1693,12 +1693,8 @@ static void ip_rt_update_pmtu(struct dst_entry *dst, u32 mtu)
 }
 
 
-static struct dst_entry *ipv4_dst_check(struct dst_entry *dst, u32 cookie)
+static struct rtable *ipv4_validate_peer(struct rtable *rt)
 {
-	struct rtable *rt = (struct rtable *) dst;
-
-	if (rt_is_expired(rt))
-		return NULL;
 	if (rt->rt_peer_genid != rt_peer_genid()) {
 		struct inet_peer *peer;
 
@@ -1707,19 +1703,29 @@ static struct dst_entry *ipv4_dst_check(struct dst_entry *dst, u32 cookie)
 
 		peer = rt->peer;
 		if (peer) {
-			check_peer_pmtu(dst, peer);
+			check_peer_pmtu(&rt->dst, peer);
 
 			if (peer->redirect_genid != redirect_genid)
 				peer->redirect_learned.a4 = 0;
 			if (peer->redirect_learned.a4 &&
 			    peer->redirect_learned.a4 != rt->rt_gateway) {
-				if (check_peer_redir(dst, peer))
+				if (check_peer_redir(&rt->dst, peer))
 					return NULL;
 			}
 		}
 
 		rt->rt_peer_genid = rt_peer_genid();
 	}
+	return rt;
+}
+
+static struct dst_entry *ipv4_dst_check(struct dst_entry *dst, u32 cookie)
+{
+	struct rtable *rt = (struct rtable *) dst;
+
+	if (rt_is_expired(rt))
+		return NULL;
+	dst = (struct dst_entry *) ipv4_validate_peer(rt);
 	return dst;
 }
 
@@ -2374,6 +2380,9 @@ int ip_route_input_common(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		    rth->rt_mark == skb->mark &&
 		    net_eq(dev_net(rth->dst.dev), net) &&
 		    !rt_is_expired(rth)) {
+			rth = ipv4_validate_peer(rth);
+			if (!rth)
+				continue;
 			if (noref) {
 				dst_use_noref(&rth->dst, jiffies);
 				skb_dst_set_noref(skb, &rth->dst);
@@ -2749,6 +2758,9 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *flp4)
 			    (IPTOS_RT_MASK | RTO_ONLINK)) &&
 		    net_eq(dev_net(rth->dst.dev), net) &&
 		    !rt_is_expired(rth)) {
+			rth = ipv4_validate_peer(rth);
+			if (!rth)
+				continue;
 			dst_use(&rth->dst, jiffies);
 			RT_CACHE_STAT_INC(out_hit);
 			rcu_read_unlock_bh();
