@@ -69,18 +69,19 @@ static void of_get_regulation_constraints(struct device_node *np,
  * tree node, returns a pointer to the populated struture or NULL if memory
  * alloc fails.
  */
-struct regulator_init_data *of_get_regulator_init_data(struct device *dev)
+struct regulator_init_data *of_get_regulator_init_data(struct device *dev,
+						struct device_node *node)
 {
 	struct regulator_init_data *init_data;
 
-	if (!dev->of_node)
+	if (!node)
 		return NULL;
 
 	init_data = devm_kzalloc(dev, sizeof(*init_data), GFP_KERNEL);
 	if (!init_data)
 		return NULL; /* Out of memory? */
 
-	of_get_regulation_constraints(dev->of_node, &init_data);
+	of_get_regulation_constraints(node, &init_data);
 	return init_data;
 }
 EXPORT_SYMBOL_GPL(of_get_regulator_init_data);

@@ -64,7 +64,7 @@ of_get_fixed_voltage_config(struct device *dev)
 	if (!config)
 		return NULL;
 
-	config->init_data = of_get_regulator_init_data(dev);
+	config->init_data = of_get_regulator_init_data(dev, dev->of_node);
 	if (!config->init_data)
 		return NULL;
 
