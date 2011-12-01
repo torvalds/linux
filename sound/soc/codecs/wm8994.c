@@ -307,10 +307,8 @@ static int configure_clock(struct snd_soc_codec *codec)
 
 	change = snd_soc_update_bits(codec, WM8994_CLOCKING_1,
 				     WM8994_SYSCLK_SRC, new);
-	if (!change)
-		return 0;
-
-	snd_soc_dapm_sync(&codec->dapm);
+	if (change)
+		snd_soc_dapm_sync(&codec->dapm);
 
 	wm8958_micd_set_rate(codec);
 
