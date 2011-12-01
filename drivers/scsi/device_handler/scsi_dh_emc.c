@@ -629,6 +629,24 @@ static const struct scsi_dh_devlist clariion_dev_list[] = {
 	{NULL, NULL},
 };
 
+static bool clariion_match(struct scsi_device *sdev)
+{
+	int i;
+
+	if (scsi_device_tpgs(sdev))
+		return false;
+
+	for (i = 0; clariion_dev_list[i].vendor; i++) {
+		if (!strncmp(sdev->vendor, clariion_dev_list[i].vendor,
+			strlen(clariion_dev_list[i].vendor)) &&
+		    !strncmp(sdev->model, clariion_dev_list[i].model,
+			strlen(clariion_dev_list[i].model))) {
+			return true;
+		}
+	}
+	return false;
+}
+
 static int clariion_bus_attach(struct scsi_device *sdev);
 static void clariion_bus_detach(struct scsi_device *sdev);
 
@@ -642,6 +660,7 @@ static struct scsi_device_handler clariion_dh = {
 	.activate	= clariion_activate,
 	.prep_fn	= clariion_prep_fn,
 	.set_params	= clariion_set_params,
+	.match		= clariion_match,
 };
 
 static int clariion_bus_attach(struct scsi_device *sdev)
