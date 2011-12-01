@@ -1458,6 +1458,7 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 	const struct ipv6hdr *ip6h;
 	u8 icmp6_type;
 	u8 nexthdr;
+	__be16 frag_off;
 	unsigned len;
 	int offset;
 	int err;
@@ -1483,7 +1484,7 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 		return -EINVAL;
 
 	nexthdr = ip6h->nexthdr;
-	offset = ipv6_skip_exthdr(skb, sizeof(*ip6h), &nexthdr);
+	offset = ipv6_skip_exthdr(skb, sizeof(*ip6h), &nexthdr, &frag_off);
 
 	if (offset < 0 || nexthdr != IPPROTO_ICMPV6)
 		return 0;

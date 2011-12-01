@@ -87,9 +87,10 @@ tcpoptstrip_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 	struct ipv6hdr *ipv6h = ipv6_hdr(skb);
 	int tcphoff;
 	u_int8_t nexthdr;
+	__be16 frag_off;
 
 	nexthdr = ipv6h->nexthdr;
-	tcphoff = ipv6_skip_exthdr(skb, sizeof(*ipv6h), &nexthdr);
+	tcphoff = ipv6_skip_exthdr(skb, sizeof(*ipv6h), &nexthdr, &frag_off);
 	if (tcphoff < 0)
 		return NF_DROP;
 
