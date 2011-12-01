@@ -65,6 +65,30 @@ static int __init fsl_pcie_check_link(struct pci_controller *hose)
 }
 
 #if defined(CONFIG_FSL_SOC_BOOKE) || defined(CONFIG_PPC_86xx)
+
+#define MAX_PHYS_ADDR_BITS	40
+static u64 pci64_dma_offset = 1ull << MAX_PHYS_ADDR_BITS;
+
+static int fsl_pci_dma_set_mask(struct device *dev, u64 dma_mask)
+{
+	if (!dev->dma_mask || !dma_supported(dev, dma_mask))
+		return -EIO;
+
+	/*
+	 * Fixup PCI devices that are able to DMA to above the physical
+	 * address width of the SoC such that we can address any internal
+	 * SoC address from across PCI if needed
+	 */
+	if ((dev->bus == &pci_bus_type) &&
+	    dma_mask >= DMA_BIT_MASK(MAX_PHYS_ADDR_BITS)) {
+		set_dma_ops(dev, &dma_direct_ops);
+		set_dma_offset(dev, pci64_dma_offset);
+	}
+
+	*dev->dma_mask = dma_mask;
+	return 0;
+}
+
 static int __init setup_one_atmu(struct ccsr_pci __iomem *pci,
 	unsigned int index, const struct resource *res,
 	resource_size_t offset)
@@ -228,6 +252,37 @@ static void __init setup_pci_atmu(struct pci_controller *hose,
 
 		hose->dma_window_base_cur = 0x00000000;
 		hose->dma_window_size = (resource_size_t)sz;
+
+		/*
+		 * if we have >4G of memory setup second PCI inbound window to
+		 * let devices that are 64-bit address capable to work w/o
+		 * SWIOTLB and access the full range of memory
+		 */
+		if (sz != mem) {
+			mem_log = __ilog2_u64(mem);
+
+			/* Size window up if we dont fit in exact power-of-2 */
+			if ((1ull << mem_log) != mem)
+				mem_log++;
+
+			piwar = (piwar & ~PIWAR_SZ_MASK) | (mem_log - 1);
+
+			/* Setup inbound memory window */
+			out_be32(&pci->piw[win_idx].pitar,  0x00000000);
+			out_be32(&pci->piw[win_idx].piwbear,
+					pci64_dma_offset >> 44);
+			out_be32(&pci->piw[win_idx].piwbar,
+					pci64_dma_offset >> 12);
+			out_be32(&pci->piw[win_idx].piwar,  piwar);
+
+			/*
+			 * install our own dma_set_mask handler to fixup dma_ops
+			 * and dma_offset
+			 */
+			ppc_md.dma_set_mask = fsl_pci_dma_set_mask;
+
+			pr_info("%s: Setup 64-bit PCI DMA window\n", name);
+		}
 	} else {
 		u64 paddr = 0;
 
