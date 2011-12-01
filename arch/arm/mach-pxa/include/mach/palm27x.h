@@ -37,8 +37,8 @@ extern void __init palm27x_lcd_init(int power,
 #define palm27x_lcd_init(power, mode)	do {} while (0)
 #endif
 
-#if	defined(CONFIG_USB_GADGET_PXA27X) || \
-	defined(CONFIG_USB_GADGET_PXA27X_MODULE)
+#if	defined(CONFIG_USB_PXA27X) || \
+	defined(CONFIG_USB_PXA27X_MODULE)
 extern void __init palm27x_udc_init(int vbus, int pullup,
 					int vbus_inverted);
 #else

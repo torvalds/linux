@@ -269,7 +269,7 @@ static void update_hdmi_timings(struct hdmi_config *cfg,
 unsigned long hdmi_get_pixel_clock(void)
 {
 	/* HDMI Pixel Clock in Mhz */
-	return hdmi.ip_data.cfg.timings.timings.pixel_clock * 10000;
+	return hdmi.ip_data.cfg.timings.timings.pixel_clock * 1000;
 }
 
 static void hdmi_compute_pll(struct omap_dss_device *dssdev, int phy,

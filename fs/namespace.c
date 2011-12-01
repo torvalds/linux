@@ -2493,6 +2493,7 @@ EXPORT_SYMBOL(create_mnt_ns);
 struct dentry *mount_subtree(struct vfsmount *mnt, const char *name)
 {
 	struct mnt_namespace *ns;
+	struct super_block *s;
 	struct path path;
 	int err;
 
@@ -2509,10 +2510,11 @@ struct dentry *mount_subtree(struct vfsmount *mnt, const char *name)
 		return ERR_PTR(err);
 
 	/* trade a vfsmount reference for active sb one */
-	atomic_inc(&path.mnt->mnt_sb->s_active);
+	s = path.mnt->mnt_sb;
+	atomic_inc(&s->s_active);
 	mntput(path.mnt);
 	/* lock the sucker */
-	down_write(&path.mnt->mnt_sb->s_umount);
+	down_write(&s->s_umount);
 	/* ... and return the root of (sub)tree on it */
 	return path.dentry;
 }

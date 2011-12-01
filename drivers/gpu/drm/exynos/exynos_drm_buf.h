@@ -26,28 +26,15 @@
 #ifndef _EXYNOS_DRM_BUF_H_
 #define _EXYNOS_DRM_BUF_H_
 
-/*
- * exynos drm buffer entry structure.
- *
- * @paddr: physical address of allocated memory.
- * @vaddr: kernel virtual address of allocated memory.
- * @size: size of allocated memory.
- */
-struct exynos_drm_buf_entry {
-	dma_addr_t paddr;
-	void __iomem *vaddr;
-	unsigned int size;
-};
-
 /* allocate physical memory. */
-struct exynos_drm_buf_entry *exynos_drm_buf_create(struct drm_device *dev,
+struct exynos_drm_gem_buf *exynos_drm_buf_create(struct drm_device *dev,
 		unsigned int size);
 
-/* get physical memory information of a drm framebuffer. */
-struct exynos_drm_buf_entry *exynos_drm_fb_get_buf(struct drm_framebuffer *fb);
+/* get memory information of a drm framebuffer. */
+struct exynos_drm_gem_buf *exynos_drm_fb_get_buf(struct drm_framebuffer *fb);
 
 /* remove allocated physical memory. */
 void exynos_drm_buf_destroy(struct drm_device *dev,
-		struct exynos_drm_buf_entry *entry);
+		struct exynos_drm_gem_buf *buffer);
 
 #endif
