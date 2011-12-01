@@ -407,13 +407,13 @@ static int aat2870_i2c_probe(struct i2c_client *client,
 		aat2870->init(aat2870);
 
 	if (aat2870->en_pin >= 0) {
-		ret = gpio_request(aat2870->en_pin, "aat2870-en");
+		ret = gpio_request_one(aat2870->en_pin, GPIOF_OUT_INIT_HIGH,
+				       "aat2870-en");
 		if (ret < 0) {
 			dev_err(&client->dev,
 				"Failed to request GPIO %d\n", aat2870->en_pin);
 			goto out_kfree;
 		}
-		gpio_direction_output(aat2870->en_pin, 1);
 	}
 
 	aat2870_enable(aat2870);
