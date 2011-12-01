@@ -4655,8 +4655,6 @@ static int transport_processing_thread(void *param)
 			goto out;
 
 get_cmd:
-		__transport_execute_tasks(dev, NULL);
-
 		cmd = transport_get_cmd_from_queue(&dev->dev_queue_obj);
 		if (!cmd)
 			continue;
