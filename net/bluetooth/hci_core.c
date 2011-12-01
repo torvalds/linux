@@ -230,18 +230,6 @@ static void hci_init_req(struct hci_dev *hdev, unsigned long opt)
 	/* Read Buffer Size (ACL mtu, max pkt, etc.) */
 	hci_send_cmd(hdev, HCI_OP_READ_BUFFER_SIZE, 0, NULL);
 
-#if 0
-	/* Host buffer size */
-	{
-		struct hci_cp_host_buffer_size cp;
-		cp.acl_mtu = cpu_to_le16(HCI_MAX_ACL_SIZE);
-		cp.sco_mtu = HCI_MAX_SCO_SIZE;
-		cp.acl_max_pkt = cpu_to_le16(0xffff);
-		cp.sco_max_pkt = cpu_to_le16(0xffff);
-		hci_send_cmd(hdev, HCI_OP_HOST_BUFFER_SIZE, sizeof(cp), &cp);
-	}
-#endif
-
 	/* Read BD Address */
 	hci_send_cmd(hdev, HCI_OP_READ_BD_ADDR, 0, NULL);
 
