@@ -63,8 +63,8 @@ static const struct {
 } wm8958_micd_rates[] = {
 	{ 32768,       true,  1, 4 },
 	{ 32768,       false, 1, 1 },
-	{ 44100 * 256, true,  7, 6 },
-	{ 44100 * 256, false, 7, 6 },
+	{ 44100 * 256, true,  7, 10 },
+	{ 44100 * 256, false, 7, 10 },
 };
 
 static void wm8958_micd_set_rate(struct snd_soc_codec *codec)
