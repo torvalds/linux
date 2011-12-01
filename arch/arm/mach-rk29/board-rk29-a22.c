@@ -54,6 +54,7 @@
 #include <linux/mfd/wm831x/gpio.h>
 #include <linux/mfd/wm8994/pdata.h>
 #include <linux/mfd/wm8994/registers.h>
+#include <linux/regulator/fixed.h>
 
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
@@ -3110,6 +3111,11 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_SND_RK29_SOC_I2S_8CH
         &rk29_device_iis_8ch,
+#endif
+
+#ifdef CONFIG_MFD_WM8994
+	&wm8994_fixed_voltage0,
+	&wm8994_fixed_voltage1,
 #endif
 
 #ifdef CONFIG_KEYS_RK29

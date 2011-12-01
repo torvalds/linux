@@ -59,6 +59,8 @@
 #include <linux/mpu.h>
 #include "devices.h"
 
+#include <linux/regulator/fixed.h>
+#include <linux/mfd/wm8994/pdata.h>
 
 #if defined(CONFIG_TDSC8800)
 #include <linux/mtk23d.h>
@@ -3085,6 +3087,11 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_SND_RK29_SOC_I2S_8CH
         &rk29_device_iis_8ch,
 #endif
+
+#ifdef CONFIG_MFD_WM8994
+	&wm8994_fixed_voltage0,
+	&wm8994_fixed_voltage1,
+#endif	
 
 #ifdef CONFIG_KEYS_RK29
 	&rk29_device_keys,
