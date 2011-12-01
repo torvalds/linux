@@ -612,13 +612,17 @@ _scsih_sas_device_add(struct MPT2SAS_ADAPTER *ioc,
 	if (!mpt2sas_transport_port_add(ioc, sas_device->handle,
 	     sas_device->sas_address_parent)) {
 		_scsih_sas_device_remove(ioc, sas_device);
-		} else if (!sas_device->starget) {
-			if (!ioc->is_driver_loading)
-				mpt2sas_transport_port_remove(ioc,
-				sas_device->sas_address,
-			    sas_device->sas_address_parent);
-			_scsih_sas_device_remove(ioc, sas_device);
-		}
+	} else if (!sas_device->starget) {
+		/* When asyn scanning is enabled, its not possible to remove
+		 * devices while scanning is turned on due to an oops in
+		 * scsi_sysfs_add_sdev()->add_device()->sysfs_addrm_start()
+		 */
+		if (!ioc->is_driver_loading)
+			mpt2sas_transport_port_remove(ioc,
+			sas_device->sas_address,
+			sas_device->sas_address_parent);
+		_scsih_sas_device_remove(ioc, sas_device);
+	}
 }
 
 /**
@@ -1449,7 +1453,7 @@ _scsih_slave_destroy(struct scsi_device *sdev)
 		spin_lock_irqsave(&ioc->sas_device_lock, flags);
 		sas_device = mpt2sas_scsih_sas_device_find_by_sas_address(ioc,
 		   sas_target_priv_data->sas_address);
-		if (sas_device)
+		if (sas_device && !sas_target_priv_data->num_luns)
 			sas_device->starget = NULL;
 		spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 	}
