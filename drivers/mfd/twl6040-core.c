@@ -509,13 +509,10 @@ static int __devinit twl6040_probe(struct platform_device *pdev)
 		twl6040->audpwron = -EINVAL;
 
 	if (gpio_is_valid(twl6040->audpwron)) {
-		ret = gpio_request(twl6040->audpwron, "audpwron");
+		ret = gpio_request_one(twl6040->audpwron, GPIOF_OUT_INIT_LOW,
+				       "audpwron");
 		if (ret)
 			goto gpio1_err;
-
-		ret = gpio_direction_output(twl6040->audpwron, 0);
-		if (ret)
-			goto gpio2_err;
 	}
 
 	/* codec interrupt */
