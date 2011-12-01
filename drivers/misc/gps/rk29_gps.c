@@ -110,7 +110,7 @@ static int rk29_gps_gpio_to_uart(int uart_id)
 
 }
 
-int rk29_gps_suspend(struct platform_device *pdev,  pm_message_t state)
+static int rk29_gps_suspend(struct platform_device *pdev,  pm_message_t state)
 {
 	struct rk29_gps_data *pdata = pdev->dev.platform_data;
 
@@ -130,7 +130,7 @@ int rk29_gps_suspend(struct platform_device *pdev,  pm_message_t state)
 	return 0;	
 }
 
-int rk29_gps_resume(struct platform_device *pdev)
+static int rk29_gps_resume(struct platform_device *pdev)
 {
 	struct rk29_gps_data *pdata = pdev->dev.platform_data;
 
@@ -170,14 +170,14 @@ static void rk29_gps_delay_power_downup(struct work_struct *work)
 	up(&pdata->power_sem);
 }
 
-int rk29_gps_open(struct inode *inode, struct file *filp)
+static int rk29_gps_open(struct inode *inode, struct file *filp)
 {
     DBG("rk29_gps_open\n");
 
 	return 0;
 }
 
-ssize_t rk29_gps_read(struct file *filp, char __user *ptr, size_t size, loff_t *pos)
+static ssize_t rk29_gps_read(struct file *filp, char __user *ptr, size_t size, loff_t *pos)
 {
 	if (ptr == NULL)
 		printk("%s: user space address is NULL\n", __func__);
@@ -192,7 +192,7 @@ ssize_t rk29_gps_read(struct file *filp, char __user *ptr, size_t size, loff_t *
 	return sizeof(int);
 }
 
-long rk29_gps_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+static long rk29_gps_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	long ret = 0;
 	struct rk29_gps_data *pdata = pgps;
@@ -237,7 +237,7 @@ long rk29_gps_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 }
 
 
-int rk29_gps_release(struct inode *inode, struct file *filp)
+static int rk29_gps_release(struct inode *inode, struct file *filp)
 {
     DBG("rk29_gps_release\n");
     
