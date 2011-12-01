@@ -77,6 +77,7 @@
 #include "iwl-agn.h"
 #include "iwl-testmode.h"
 #include "iwl-trans.h"
+#include "iwl-bus.h"
 
 /* The TLVs used in the gnl message policy between the kernel module and
  * user space application. iwl_testmode_gnl_msg_policy is to be carried
@@ -112,6 +113,7 @@ struct nla_policy iwl_testmode_gnl_msg_policy[IWL_TM_ATTR_MAX] = {
 	[IWL_TM_ATTR_SRAM_DUMP] = { .type = NLA_UNSPEC, },
 
 	[IWL_TM_ATTR_FW_VERSION] = { .type = NLA_U32, },
+	[IWL_TM_ATTR_DEVICE_ID] = { .type = NLA_U32, },
 };
 
 /*
@@ -418,6 +420,8 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 	struct sk_buff *skb;
 	unsigned char *rsp_data_ptr = NULL;
 	int status = 0, rsp_data_len = 0;
+	char buf[32], *ptr = NULL;
+	unsigned int num, devid;
 
 	switch (nla_get_u32(tb[IWL_TM_ATTR_COMMAND])) {
 	case IWL_TM_CMD_APP2DEV_GET_DEVICENAME:
@@ -521,6 +525,28 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 			return -ENOMEM;
 		}
 		NLA_PUT_U32(skb, IWL_TM_ATTR_FW_VERSION, priv->ucode_ver);
+		status = cfg80211_testmode_reply(skb);
+		if (status < 0)
+			IWL_DEBUG_INFO(priv,
+					"Error sending msg : %d\n", status);
+		break;
+
+	case IWL_TM_CMD_APP2DEV_GET_DEVICE_ID:
+		bus_get_hw_id(bus(priv), buf, sizeof(buf));
+		ptr = buf;
+		strsep(&ptr, ":");
+		sscanf(strsep(&ptr, ":"), "%x", &num);
+		sscanf(strsep(&ptr, ":"), "%x", &devid);
+		IWL_INFO(priv, "Device ID = 0x%04x, SubDevice ID= 0x%04x\n",
+				num, devid);
+		devid |= (num << 16);
+
+		skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy, 20);
+		if (!skb) {
+			IWL_DEBUG_INFO(priv, "Error allocating memory\n");
+			return -ENOMEM;
+		}
+		NLA_PUT_U32(skb, IWL_TM_ATTR_DEVICE_ID, devid);
 		status = cfg80211_testmode_reply(skb);
 		if (status < 0)
 			IWL_DEBUG_INFO(priv,
@@ -860,6 +886,7 @@ int iwlagn_mac_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
 	case IWL_TM_CMD_APP2DEV_FIXRATE_REQ:
 	case IWL_TM_CMD_APP2DEV_LOAD_WOWLAN_FW:
 	case IWL_TM_CMD_APP2DEV_GET_FW_VERSION:
+	case IWL_TM_CMD_APP2DEV_GET_DEVICE_ID:
 		IWL_DEBUG_INFO(priv, "testmode cmd to driver\n");
 		result = iwl_testmode_driver(hw, tb);
 		break;
