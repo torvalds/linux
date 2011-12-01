@@ -213,9 +213,9 @@ int ccw_device_start_key(struct ccw_device *cdev, struct ccw1 *cpa,
 	ret = cio_set_options (sch, flags);
 	if (ret)
 		return ret;
-	/* Adjust requested path mask to excluded varied off paths. */
+	/* Adjust requested path mask to exclude unusable paths. */
 	if (lpm) {
-		lpm &= sch->opm;
+		lpm &= sch->lpm;
 		if (lpm == 0)
 			return -EACCES;
 	}
@@ -607,9 +607,9 @@ int ccw_device_tm_start_key(struct ccw_device *cdev, struct tcw *tcw,
 		return -EINVAL;
 	if (cdev->private->state != DEV_STATE_ONLINE)
 		return -EIO;
-	/* Adjust requested path mask to excluded varied off paths. */
+	/* Adjust requested path mask to exclude unusable paths. */
 	if (lpm) {
-		lpm &= sch->opm;
+		lpm &= sch->lpm;
 		if (lpm == 0)
 			return -EACCES;
 	}
