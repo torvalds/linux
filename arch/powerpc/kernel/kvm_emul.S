@@ -66,6 +66,9 @@ kvm_hypercall_start:
 	   shared->critical == r1 and r2 is always != r1 */		\
 	STL64(r2, KVM_MAGIC_PAGE + KVM_MAGIC_CRITICAL, 0);
 
+.global kvm_template_start
+kvm_template_start:
+
 .global kvm_emulate_mtmsrd
 kvm_emulate_mtmsrd:
 
@@ -350,3 +353,6 @@ kvm_emulate_mtsrin_orig_ins_offs:
 .global kvm_emulate_mtsrin_len
 kvm_emulate_mtsrin_len:
 	.long (kvm_emulate_mtsrin_end - kvm_emulate_mtsrin) / 4
+
+.global kvm_template_end
+kvm_template_end:
