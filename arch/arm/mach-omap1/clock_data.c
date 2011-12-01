@@ -16,6 +16,8 @@
 
 #include <linux/kernel.h>
 #include <linux/clk.h>
+#include <linux/cpufreq.h>
+#include <linux/delay.h>
 #include <linux/io.h>
 
 #include <asm/mach-types.h>  /* for machine_is_* */
@@ -927,7 +929,9 @@ int __init omap1_clk_init(void)
 
 void __init omap1_clk_late_init(void)
 {
-	if (ck_dpll1.rate >= OMAP1_DPLL1_SANE_VALUE)
+	unsigned long rate = ck_dpll1.rate;
+
+	if (rate >= OMAP1_DPLL1_SANE_VALUE)
 		return;
 
 	/* System booting at unusable rate, force reprogramming of DPLL1 */
@@ -942,4 +946,5 @@ void __init omap1_clk_late_init(void)
 	}
 	propagate_rate(&ck_dpll1);
 	omap1_show_rates();
+	loops_per_jiffy = cpufreq_scale(loops_per_jiffy, rate, ck_dpll1.rate);
 }
