@@ -2897,25 +2897,12 @@ static int __btrfs_map_block(struct btrfs_mapping_tree *map_tree, int rw,
 	u64 stripe_nr;
 	u64 stripe_nr_orig;
 	u64 stripe_nr_end;
-	int stripes_allocated = 8;
-	int stripes_required = 1;
 	int stripe_index;
 	int i;
+	int ret = 0;
 	int num_stripes;
 	int max_errors = 0;
 	struct btrfs_bio *bbio = NULL;
-
-	if (bbio_ret && !(rw & (REQ_WRITE | REQ_DISCARD)))
-		stripes_allocated = 1;
-again:
-	if (bbio_ret) {
-		bbio = kzalloc(btrfs_bio_size(stripes_allocated),
-				GFP_NOFS);
-		if (!bbio)
-			return -ENOMEM;
-
-		atomic_set(&bbio->error, 0);
-	}
 
 	read_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree, logical, *length);
@@ -2935,32 +2922,6 @@ again:
 	if (mirror_num > map->num_stripes)
 		mirror_num = 0;
 
-	/* if our btrfs_bio struct is too small, back off and try again */
-	if (rw & REQ_WRITE) {
-		if (map->type & (BTRFS_BLOCK_GROUP_RAID1 |
-				 BTRFS_BLOCK_GROUP_DUP)) {
-			stripes_required = map->num_stripes;
-			max_errors = 1;
-		} else if (map->type & BTRFS_BLOCK_GROUP_RAID10) {
-			stripes_required = map->sub_stripes;
-			max_errors = 1;
-		}
-	}
-	if (rw & REQ_DISCARD) {
-		if (map->type & (BTRFS_BLOCK_GROUP_RAID0 |
-				 BTRFS_BLOCK_GROUP_RAID1 |
-				 BTRFS_BLOCK_GROUP_DUP |
-				 BTRFS_BLOCK_GROUP_RAID10)) {
-			stripes_required = map->num_stripes;
-		}
-	}
-	if (bbio_ret && (rw & (REQ_WRITE | REQ_DISCARD)) &&
-	    stripes_allocated < stripes_required) {
-		stripes_allocated = map->num_stripes;
-		free_extent_map(em);
-		kfree(bbio);
-		goto again;
-	}
 	stripe_nr = offset;
 	/*
 	 * stripe_nr counts the total number of stripes we have to stride
@@ -3054,6 +3015,13 @@ again:
 		mirror_num = stripe_index + 1;
 	}
 	BUG_ON(stripe_index >= map->num_stripes);
+
+	bbio = kzalloc(btrfs_bio_size(num_stripes), GFP_NOFS);
+	if (!bbio) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	atomic_set(&bbio->error, 0);
 
 	if (rw & REQ_DISCARD) {
 		for (i = 0; i < num_stripes; i++) {
@@ -3151,15 +3119,22 @@ again:
 			stripe_index++;
 		}
 	}
-	if (bbio_ret) {
-		*bbio_ret = bbio;
-		bbio->num_stripes = num_stripes;
-		bbio->max_errors = max_errors;
-		bbio->mirror_num = mirror_num;
+
+	if (rw & REQ_WRITE) {
+		if (map->type & (BTRFS_BLOCK_GROUP_RAID1 |
+				 BTRFS_BLOCK_GROUP_RAID10 |
+				 BTRFS_BLOCK_GROUP_DUP)) {
+			max_errors = 1;
+		}
 	}
+
+	*bbio_ret = bbio;
+	bbio->num_stripes = num_stripes;
+	bbio->max_errors = max_errors;
+	bbio->mirror_num = mirror_num;
 out:
 	free_extent_map(em);
-	return 0;
+	return ret;
 }
 
 int btrfs_map_block(struct btrfs_mapping_tree *map_tree, int rw,
