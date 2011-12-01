@@ -137,21 +137,20 @@ static int migor_ts_probe(struct i2c_client *client,
 	int error;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(&client->dev, "failed to allocate driver data\n");
+	input = input_allocate_device();
+	if (!priv || !input) {
+		dev_err(&client->dev, "failed to allocate memory\n");
 		error = -ENOMEM;
-		goto err0;
+		goto err_free_mem;
 	}
 
-	input = input_allocate_device();
-	if (!input) {
-		dev_err(&client->dev, "Failed to allocate input device.\n");
-		error = -ENOMEM;
-		goto err1;
-	}
+	priv->client = client;
+	priv->input = input;
+	priv->irq = client->irq;
 
 	input->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
-	input->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
+
+	__set_bit(BTN_TOUCH, input->keybit);
 
 	input_set_abs_params(input, ABS_X, 95, 955, 0, 0);
 	input_set_abs_params(input, ABS_Y, 85, 935, 0, 0);
@@ -165,34 +164,28 @@ static int migor_ts_probe(struct i2c_client *client,
 
 	input_set_drvdata(input, priv);
 
-	priv->client = client;
-	priv->input = input;
-	priv->irq = client->irq;
-
-	error = input_register_device(input);
-	if (error)
-		goto err1;
-
 	error = request_threaded_irq(priv->irq, NULL, migor_ts_isr,
                                      IRQF_TRIGGER_LOW | IRQF_ONESHOT,
                                      client->name, priv);
 	if (error) {
 		dev_err(&client->dev, "Unable to request touchscreen IRQ.\n");
-		goto err2;
+		goto err_free_mem;
 	}
+
+	error = input_register_device(input);
+	if (error)
+		goto err_free_irq;
 
 	i2c_set_clientdata(client, priv);
 	device_init_wakeup(&client->dev, 1);
+
 	return 0;
 
- err2:
-	input_unregister_device(input);
-	input = NULL; /* so we dont try to free it below */
- err1:
+ err_free_irq:
+	free_irq(priv->irq, priv);
+ err_free_mem:
 	input_free_device(input);
 	kfree(priv);
- err0:
-	dev_set_drvdata(&client->dev, NULL);
 	return error;
 }
 
