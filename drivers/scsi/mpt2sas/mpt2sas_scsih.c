@@ -974,8 +974,8 @@ _scsih_get_chain_buffer_tracker(struct MPT2SAS_ADAPTER *ioc, u16 smid)
 	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
 	if (list_empty(&ioc->free_chain_list)) {
 		spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
-		printk(MPT2SAS_WARN_FMT "chain buffers not available\n",
-		    ioc->name);
+		dfailprintk(ioc, printk(MPT2SAS_WARN_FMT "chain buffers not "
+			"available\n", ioc->name));
 		return NULL;
 	}
 	chain_req = list_entry(ioc->free_chain_list.next,
