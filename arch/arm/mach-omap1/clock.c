@@ -218,12 +218,8 @@ int omap1_select_table_rate(struct clk *clk, unsigned long rate)
 	/*
 	 * In most cases we should not need to reprogram DPLL.
 	 * Reprogramming the DPLL is tricky, it must be done from SRAM.
-	 * (on 730, bit 13 must always be 1)
 	 */
-	if (cpu_is_omap7xx())
-		omap_sram_reprogram_clock(ptr->dpllctl_val, ptr->ckctl_val | 0x2000);
-	else
-		omap_sram_reprogram_clock(ptr->dpllctl_val, ptr->ckctl_val);
+	omap_sram_reprogram_clock(ptr->dpllctl_val, ptr->ckctl_val);
 
 	/* XXX Do we need to recalculate the tree below DPLL1 at this point? */
 	ck_dpll1_p->rate = ptr->pll_rate;

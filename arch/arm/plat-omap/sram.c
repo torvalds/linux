@@ -222,6 +222,9 @@ static void (*_omap_sram_reprogram_clock)(u32 dpllctl, u32 ckctl);
 void omap_sram_reprogram_clock(u32 dpllctl, u32 ckctl)
 {
 	BUG_ON(!_omap_sram_reprogram_clock);
+	/* On 730, bit 13 must always be 1 */
+	if (cpu_is_omap7xx())
+		ckctl |= 0x2000;
 	_omap_sram_reprogram_clock(dpllctl, ckctl);
 }
 

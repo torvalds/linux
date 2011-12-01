@@ -25,6 +25,7 @@
 #include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/clkdev_omap.h>
+#include <plat/sram.h>	/* for omap_sram_reprogram_clock() */
 #include <plat/usb.h>   /* for OTG_BASE */
 
 #include "clock.h"
@@ -944,8 +945,10 @@ void __init omap1_clk_late_init(void)
 	/* Find the highest supported frequency and enable it */
 	if (omap1_select_table_rate(&virtual_ck_mpu, ~0)) {
 		pr_err("System frequencies not set, using default. Check your config.\n");
-		omap_writew(0x2290, DPLL_CTL);
-		omap_writew(cpu_is_omap7xx() ? 0x2005 : 0x0005, ARM_CKCTL);
+		/*
+		 * Reprogramming the DPLL is tricky, it must be done from SRAM.
+		 */
+		omap_sram_reprogram_clock(0x2290, 0x0005);
 		ck_dpll1.rate = OMAP1_DPLL1_SANE_VALUE;
 	}
 	propagate_rate(&ck_dpll1);
