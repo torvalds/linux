@@ -256,6 +256,11 @@ static int scrub_print_warning_inode(u64 inum, u64 offset, u64 root, void *ctx)
 	btrfs_release_path(swarn->path);
 
 	ipath = init_ipath(4096, local_root, swarn->path);
+	if (IS_ERR(ipath)) {
+		ret = PTR_ERR(ipath);
+		ipath = NULL;
+		goto err;
+	}
 	ret = paths_from_inode(inum, ipath);
 
 	if (ret < 0)
