@@ -920,7 +920,7 @@ void sdxc_request(struct sunxi_mmc_host* smc_host, struct mmc_request* request)
         writel(byte_cnt, SDXC_REG_BCNTR);
 
         SMC_DBG("-> with data %d bytes, sg_len %d\n", byte_cnt, data->sg_len);
-        if (byte_cnt > 64)
+        if (byte_cnt > 0)
         {
 //            SMC_MSG("-> trans by dma\n");
             sdxc_sel_access_mode(smc_host, SDXC_ACCESS_BY_DMA);
@@ -1131,11 +1131,13 @@ _out_:
     {
         if (!(req->data->flags & MMC_DATA_WRITE) && (readl(SDXC_REG_STAS) & SDXC_DataFSMBusy))
         {
-            if (readl(SDXC_REG_STAS) & SDXC_DataFSMBusy)
-                if (readl(SDXC_REG_STAS) & SDXC_DataFSMBusy)
-                    if (readl(SDXC_REG_STAS) & SDXC_DataFSMBusy)
-                        if (readl(SDXC_REG_STAS) & SDXC_DataFSMBusy)
-                            SMC_MSG("mmc %d fsm busy 0x%x len %d\n", smc_host->pdev->id, readl(SDXC_REG_STAS), req->data->blksz * req->data->blocks);
+            if ((readl(SDXC_REG_STAS) & SDXC_DataFSMBusy)
+                && (readl(SDXC_REG_STAS) & SDXC_DataFSMBusy)
+                && (readl(SDXC_REG_STAS) & SDXC_DataFSMBusy)
+                && (readl(SDXC_REG_STAS) & SDXC_DataFSMBusy)
+                && (readl(SDXC_REG_STAS) & SDXC_DataFSMBusy))
+                    SMC_DBG("mmc %d fsm busy 0x%x len %d\n",
+                        smc_host->pdev->id, readl(SDXC_REG_STAS), req->data->blksz * req->data->blocks);
         }
         if (smc_host->dodma)
         {

@@ -579,9 +579,11 @@ static void sunximmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
     smc_host->mrq = mrq;
 
-    if (sunximmc_card_present(mmc) == 0 || smc_host->ferror)
+    if (sunximmc_card_present(mmc) == 0
+        || smc_host->ferror || !smc_host->power_on)
     {
-    	SMC_DBG("no medium present, ferr %d\n", smc_host->ferror);
+    	SMC_DBG("no medium present, ferr %d, pwd %d\n",
+    	        smc_host->ferror, smc_host->power_on);
     	smc_host->mrq->cmd->error = -ENOMEDIUM;
     	mmc_request_done(mmc, mrq);
     }
