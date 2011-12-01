@@ -53,7 +53,7 @@ struct lib_ring_buffer_backend {
 	struct channel *chan;		/* Associated channel */
 	int cpu;			/* This buffer's cpu. -1 if global. */
 	union v_atomic records_read;	/* Number of records read */
-	unsigned int allocated:1;	/* Bool: is buffer allocated ? */
+	uint allocated:1;		/* is buffer allocated ? */
 };
 
 struct channel_backend {
@@ -65,7 +65,7 @@ struct channel_backend {
 					 * for writer.
 					 */
 	unsigned int buf_size_order;	/* Order of buffer size */
-	int extra_reader_sb:1;		/* Bool: has extra reader subbuffer */
+	uint extra_reader_sb:1;		/* has extra reader subbuffer ? */
 	struct lib_ring_buffer *buf;	/* Channel per-cpu buffers */
 
 	unsigned long num_subbuf;	/* Number of sub-buffers for writer */

@@ -54,7 +54,7 @@
 struct switch_offsets {
 	unsigned long begin, end, old;
 	size_t pre_header_padding, size;
-	unsigned int switch_new_start:1, switch_new_end:1, switch_old_start:1,
+	uint switch_new_start:1, switch_new_end:1, switch_old_start:1,
 		     switch_old_end:1;
 };
 

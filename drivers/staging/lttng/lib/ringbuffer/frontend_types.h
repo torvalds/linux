@@ -60,8 +60,8 @@ struct channel {
 	struct notifier_block cpu_hp_notifier;	/* CPU hotplug notifier */
 	struct notifier_block tick_nohz_notifier; /* CPU nohz notifier */
 	struct notifier_block hp_iter_notifier;	/* hotplug iterator notifier */
-	int cpu_hp_enable:1;			/* Enable CPU hotplug notif. */
-	int hp_iter_enable:1;			/* Enable hp iter notif. */
+	uint cpu_hp_enable:1;			/* Enable CPU hotplug notif. */
+	uint hp_iter_enable:1;			/* Enable hp iter notif. */
 	wait_queue_head_t read_wait;		/* reader wait queue */
 	wait_queue_head_t hp_wait;		/* CPU hotplug wait queue */
 	int finalized;				/* Has channel been finalized */
@@ -94,8 +94,8 @@ struct lib_ring_buffer_iter {
 		ITER_NEXT_RECORD,
 		ITER_PUT_SUBBUF,
 	} state;
-	int allocated:1;
-	int read_open:1;		/* Opened for reading ? */
+	uint allocated:1;
+	uint read_open:1;		/* Opened for reading ? */
 };
 
 /* ring buffer state */
@@ -138,9 +138,9 @@ struct lib_ring_buffer {
 	unsigned long get_subbuf_consumed;	/* Read-side consumed */
 	unsigned long prod_snapshot;	/* Producer count snapshot */
 	unsigned long cons_snapshot;	/* Consumer count snapshot */
-	int get_subbuf:1;		/* Sub-buffer being held by reader */
-	int switch_timer_enabled:1;	/* Protected by ring_buffer_nohz_lock */
-	int read_timer_enabled:1;	/* Protected by ring_buffer_nohz_lock */
+	uint get_subbuf:1;		/* Sub-buffer being held by reader */
+	uint switch_timer_enabled:1;	/* Protected by ring_buffer_nohz_lock */
+	uint read_timer_enabled:1;	/* Protected by ring_buffer_nohz_lock */
 };
 
 static inline

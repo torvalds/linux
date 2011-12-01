@@ -67,8 +67,8 @@ struct lttng_enum_entry {
 struct lttng_integer_type {
 	unsigned int size;		/* in bits */
 	unsigned short alignment;	/* in bits */
-	unsigned int signedness:1;
-	unsigned int reverse_byte_order:1;
+	uint signedness:1;
+	uint reverse_byte_order:1;
 	unsigned int base;		/* 2, 8, 10, 16, for pretty print */
 	enum lttng_string_encodings encoding;
 };
@@ -191,7 +191,7 @@ struct ltt_event {
 		} ftrace;
 	} u;
 	struct list_head list;		/* Event list */
-	int metadata_dumped:1;
+	uint metadata_dumped:1;
 };
 
 struct ltt_channel_ops {
@@ -251,7 +251,7 @@ struct ltt_channel {
 	struct ltt_event *sc_compat_unknown;
 	struct ltt_event *sc_exit;	/* for syscall exit */
 	int header_type;		/* 0: unset, 1: compact, 2: large */
-	int metadata_dumped:1;
+	uint metadata_dumped:1;
 };
 
 struct ltt_session {
@@ -264,7 +264,7 @@ struct ltt_session {
 	struct list_head list;		/* Session list */
 	unsigned int free_chan_id;	/* Next chan ID to allocate */
 	uuid_le uuid;			/* Trace session unique ID */
-	int metadata_dumped:1;
+	uint metadata_dumped:1;
 };
 
 struct ltt_session *ltt_session_create(void);
