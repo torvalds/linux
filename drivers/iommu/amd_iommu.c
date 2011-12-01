@@ -359,6 +359,11 @@ DECLARE_STATS_COUNTER(domain_flush_single);
 DECLARE_STATS_COUNTER(domain_flush_all);
 DECLARE_STATS_COUNTER(alloced_io_mem);
 DECLARE_STATS_COUNTER(total_map_requests);
+DECLARE_STATS_COUNTER(complete_ppr);
+DECLARE_STATS_COUNTER(invalidate_iotlb);
+DECLARE_STATS_COUNTER(invalidate_iotlb_all);
+DECLARE_STATS_COUNTER(pri_requests);
+
 
 static struct dentry *stats_dir;
 static struct dentry *de_fflush;
@@ -393,6 +398,10 @@ static void amd_iommu_stats_init(void)
 	amd_iommu_stats_add(&domain_flush_all);
 	amd_iommu_stats_add(&alloced_io_mem);
 	amd_iommu_stats_add(&total_map_requests);
+	amd_iommu_stats_add(&complete_ppr);
+	amd_iommu_stats_add(&invalidate_iotlb);
+	amd_iommu_stats_add(&invalidate_iotlb_all);
+	amd_iommu_stats_add(&pri_requests);
 }
 
 #endif
@@ -508,6 +517,8 @@ static void iommu_handle_ppr_entry(struct amd_iommu *iommu, u32 head)
 	struct amd_iommu_fault fault;
 	volatile u64 *raw;
 	int i;
+
+	INC_STATS_COUNTER(pri_requests);
 
 	raw = (u64 *)(iommu->ppr_log + head);
 
@@ -3356,6 +3367,8 @@ out:
 static int __amd_iommu_flush_page(struct protection_domain *domain, int pasid,
 				  u64 address)
 {
+	INC_STATS_COUNTER(invalidate_iotlb);
+
 	return __flush_pasid(domain, pasid, address, false);
 }
 
@@ -3376,6 +3389,8 @@ EXPORT_SYMBOL(amd_iommu_flush_page);
 
 static int __amd_iommu_flush_tlb(struct protection_domain *domain, int pasid)
 {
+	INC_STATS_COUNTER(invalidate_iotlb_all);
+
 	return __flush_pasid(domain, pasid, CMD_INV_IOMMU_ALL_PAGES_ADDRESS,
 			     true);
 }
@@ -3494,6 +3509,8 @@ int amd_iommu_complete_ppr(struct pci_dev *pdev, int pasid,
 	struct iommu_dev_data *dev_data;
 	struct amd_iommu *iommu;
 	struct iommu_cmd cmd;
+
+	INC_STATS_COUNTER(complete_ppr);
 
 	dev_data = get_dev_data(&pdev->dev);
 	iommu    = amd_iommu_rlookup_table[dev_data->devid];
