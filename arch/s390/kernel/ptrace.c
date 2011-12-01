@@ -897,6 +897,14 @@ static int s390_last_break_get(struct task_struct *target,
 	return 0;
 }
 
+static int s390_last_break_set(struct task_struct *target,
+			       const struct user_regset *regset,
+			       unsigned int pos, unsigned int count,
+			       const void *kbuf, const void __user *ubuf)
+{
+	return 0;
+}
+
 #endif
 
 static const struct user_regset s390_regsets[] = {
@@ -923,6 +931,7 @@ static const struct user_regset s390_regsets[] = {
 		.size = sizeof(long),
 		.align = sizeof(long),
 		.get = s390_last_break_get,
+		.set = s390_last_break_set,
 	},
 #endif
 };
@@ -1080,6 +1089,14 @@ static int s390_compat_last_break_get(struct task_struct *target,
 	return 0;
 }
 
+static int s390_compat_last_break_set(struct task_struct *target,
+				      const struct user_regset *regset,
+				      unsigned int pos, unsigned int count,
+				      const void *kbuf, const void __user *ubuf)
+{
+	return 0;
+}
+
 static const struct user_regset s390_compat_regsets[] = {
 	[REGSET_GENERAL] = {
 		.core_note_type = NT_PRSTATUS,
@@ -1103,6 +1120,7 @@ static const struct user_regset s390_compat_regsets[] = {
 		.size = sizeof(long),
 		.align = sizeof(long),
 		.get = s390_compat_last_break_get,
+		.set = s390_compat_last_break_set,
 	},
 	[REGSET_GENERAL_EXTENDED] = {
 		.core_note_type = NT_S390_HIGH_GPRS,
