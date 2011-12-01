@@ -807,8 +807,10 @@ static int software_resume(void)
 		goto close_finish;
 
 	error = create_basic_memory_bitmaps();
-	if (error)
+	if (error) {
+		usermodehelper_enable();
 		goto close_finish;
+	}
 
 	pr_debug("PM: Preparing processes for restore.\n");
 	error = prepare_processes();
