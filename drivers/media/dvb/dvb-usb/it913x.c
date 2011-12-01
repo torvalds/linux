@@ -67,23 +67,43 @@ struct it913x_state {
 
 struct ite_config it913x_config;
 
+#define IT913X_RETRY	10
+#define IT913X_SND_TIMEOUT	100
+#define IT913X_RCV_TIMEOUT	200
+
 static int it913x_bulk_write(struct usb_device *dev,
 				u8 *snd, int len, u8 pipe)
 {
-	int ret, actual_l;
+	int ret, actual_l, i;
 
-	ret = usb_bulk_msg(dev, usb_sndbulkpipe(dev, pipe),
-				snd, len , &actual_l, 100);
+	for (i = 0; i < IT913X_RETRY; i++) {
+		ret = usb_bulk_msg(dev, usb_sndbulkpipe(dev, pipe),
+				snd, len , &actual_l, IT913X_SND_TIMEOUT);
+		if (ret == 0 || ret != -EBUSY || ret != -ETIMEDOUT)
+			break;
+	}
+
+	if (len != actual_l && ret == 0)
+		ret = -EAGAIN;
+
 	return ret;
 }
 
 static int it913x_bulk_read(struct usb_device *dev,
 				u8 *rev, int len, u8 pipe)
 {
-	int ret, actual_l;
+	int ret, actual_l, i;
 
-	ret = usb_bulk_msg(dev, usb_rcvbulkpipe(dev, pipe),
-				 rev, len , &actual_l, 200);
+	for (i = 0; i < IT913X_RETRY; i++) {
+		ret = usb_bulk_msg(dev, usb_rcvbulkpipe(dev, pipe),
+				 rev, len , &actual_l, IT913X_RCV_TIMEOUT);
+		if (ret == 0 || ret != -EBUSY || ret != -ETIMEDOUT)
+			break;
+	}
+
+	if (len != actual_l && ret == 0)
+		ret = -EAGAIN;
+
 	return ret;
 }
 
@@ -96,7 +116,7 @@ static u16 check_sum(u8 *p, u8 len)
 	return ~sum;
 }
 
-static int it913x_io(struct usb_device *udev, u8 mode, u8 pro,
+static int it913x_usb_talk(struct usb_device *udev, u8 mode, u8 pro,
 			u8 cmd, u32 reg, u8 addr, u8 *data, u8 len)
 {
 	int ret = 0, i, buf_size = 1;
@@ -155,22 +175,41 @@ static int it913x_io(struct usb_device *udev, u8 mode, u8 pro,
 	buff[buf_size++] = (chk_sum & 0xff);
 
 	ret = it913x_bulk_write(udev, buff, buf_size , 0x02);
+	if (ret < 0)
+		goto error;
 
-	ret |= it913x_bulk_read(udev, buff, (mode & 1) ?
+	ret = it913x_bulk_read(udev, buff, (mode & 1) ?
 			5 : len + 5 , 0x01);
+	if (ret < 0)
+		goto error;
 
 	rlen = (mode & 0x1) ? 0x1 : len;
 
 	if (mode & 1)
-		ret |= buff[2];
+		ret = buff[2];
 	else
 		memcpy(data, &buff[3], rlen);
 
 	cmd_counter++;
 
-	kfree(buff);
+error:	kfree(buff);
 
-	return (ret < 0) ? -ENODEV : 0;
+	return ret;
+}
+
+static int it913x_io(struct usb_device *udev, u8 mode, u8 pro,
+			u8 cmd, u32 reg, u8 addr, u8 *data, u8 len)
+{
+	int ret, i;
+
+	for (i = 0; i < IT913X_RETRY; i++) {
+		ret = it913x_usb_talk(udev, mode, pro,
+			cmd, reg, addr, data, len);
+		if (ret != -EAGAIN)
+			break;
+	}
+
+	return ret;
 }
 
 static int it913x_wr_reg(struct usb_device *udev, u8 pro, u32 reg , u8 data)
