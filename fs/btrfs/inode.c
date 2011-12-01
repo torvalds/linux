@@ -5022,7 +5022,7 @@ again:
 			}
 			flush_dcache_page(page);
 		} else if (create && PageUptodate(page)) {
-			WARN_ON(1);
+			BUG();
 			if (!trans) {
 				kunmap(page);
 				free_extent_map(em);
