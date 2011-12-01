@@ -143,8 +143,6 @@ static int migor_ts_probe(struct i2c_client *client,
 		goto err0;
 	}
 
-	dev_set_drvdata(&client->dev, priv);
-
 	input = input_allocate_device();
 	if (!input) {
 		dev_err(&client->dev, "Failed to allocate input device.\n");
@@ -183,6 +181,7 @@ static int migor_ts_probe(struct i2c_client *client,
 		goto err2;
 	}
 
+	i2c_set_clientdata(client, priv);
 	device_init_wakeup(&client->dev, 1);
 	return 0;
 
@@ -199,7 +198,7 @@ static int migor_ts_probe(struct i2c_client *client,
 
 static int migor_ts_remove(struct i2c_client *client)
 {
-	struct migor_ts_priv *priv = dev_get_drvdata(&client->dev);
+	struct migor_ts_priv *priv = i2c_get_clientdata(client);
 
 	free_irq(priv->irq, priv);
 	input_unregister_device(priv->input);
@@ -213,7 +212,7 @@ static int migor_ts_remove(struct i2c_client *client)
 static int migor_ts_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	struct migor_ts_priv *priv = dev_get_drvdata(&client->dev);
+	struct migor_ts_priv *priv = i2c_get_clientdata(client);
 
 	if (device_may_wakeup(&client->dev))
 		enable_irq_wake(priv->irq);
@@ -224,7 +223,7 @@ static int migor_ts_suspend(struct device *dev)
 static int migor_ts_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	struct migor_ts_priv *priv = dev_get_drvdata(&client->dev);
+	struct migor_ts_priv *priv = i2c_get_clientdata(client);
 
 	if (device_may_wakeup(&client->dev))
 		disable_irq_wake(priv->irq);
