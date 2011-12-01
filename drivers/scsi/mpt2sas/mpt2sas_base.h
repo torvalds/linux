@@ -623,6 +623,7 @@ enum mutex_type {
 	TM_MUTEX_ON = 1,
 };
 
+typedef void (*MPT2SAS_FLUSH_RUNNING_CMDS)(struct MPT2SAS_ADAPTER *ioc);
 /**
  * struct MPT2SAS_ADAPTER - per adapter struct
  * @list: ioc_list
@@ -665,6 +666,7 @@ enum mutex_type {
  * @msix_vector_count: number msix vectors
  * @cpu_msix_table: table for mapping cpus to msix index
  * @cpu_msix_table_sz: table size
+ * @schedule_dead_ioc_flush_running_cmds: callback to flush pending commands
  * @scsi_io_cb_idx: shost generated commands
  * @tm_cb_idx: task management commands
  * @scsih_cb_idx: scsih internal commands
@@ -816,6 +818,7 @@ struct MPT2SAS_ADAPTER {
 	resource_size_t	**reply_post_host_index;
 	u16		cpu_msix_table_sz;
 	u32		ioc_reset_count;
+	MPT2SAS_FLUSH_RUNNING_CMDS schedule_dead_ioc_flush_running_cmds;
 
 	/* internal commands, callback index */
 	u8		scsi_io_cb_idx;
