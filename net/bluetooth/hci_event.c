@@ -500,7 +500,7 @@ static void hci_setup_event_mask(struct hci_dev *hdev)
 
 	/* CSR 1.1 dongles does not accept any bitfield so don't try to set
 	 * any event mask for pre 1.2 devices */
-	if (hdev->lmp_ver <= BLUETOOTH_VER_1_1)
+	if (hdev->hci_ver < BLUETOOTH_VER_1_2)
 		return;
 
 	events[4] |= 0x01; /* Flow Specification Complete */
