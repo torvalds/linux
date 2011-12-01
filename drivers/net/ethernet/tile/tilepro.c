@@ -926,7 +926,7 @@ static int tile_net_poll(struct napi_struct *napi, int budget)
 		goto done;
 
 	/* Re-enable the ingress interrupt. */
-	enable_percpu_irq(priv->intr_id);
+	enable_percpu_irq(priv->intr_id, 0);
 
 	/* HACK: Avoid the "rotting packet" problem (see above). */
 	if (qup->__packet_receive_read !=
@@ -1296,7 +1296,7 @@ static void tile_net_open_enable(void *dev_ptr)
 	info->napi_enabled = true;
 
 	/* Enable the ingress interrupt. */
-	enable_percpu_irq(priv->intr_id);
+	enable_percpu_irq(priv->intr_id, 0);
 }
 
 
