@@ -36,6 +36,8 @@
 #include "../wlcore/boot.h"
 
 #include "reg.h"
+#include "cmd.h"
+#include "acx.h"
 
 #define WL12XX_TX_HW_BLOCK_SPARE_DEFAULT        1
 #define WL12XX_TX_HW_BLOCK_GEM_SPARE            2
@@ -800,6 +802,43 @@ static void wl12xx_tx_delayed_compl(struct wl1271 *wl)
 	wl1271_tx_complete(wl);
 }
 
+static int wl12xx_hw_init(struct wl1271 *wl)
+{
+	int ret;
+
+	if (wl->chip.id == CHIP_ID_1283_PG20) {
+		u32 host_cfg_bitmap = HOST_IF_CFG_RX_FIFO_ENABLE;
+
+		ret = wl128x_cmd_general_parms(wl);
+		if (ret < 0)
+			goto out;
+		ret = wl128x_cmd_radio_parms(wl);
+		if (ret < 0)
+			goto out;
+
+		if (wl->quirks & WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN)
+			/* Enable SDIO padding */
+			host_cfg_bitmap |= HOST_IF_CFG_TX_PAD_TO_SDIO_BLK;
+
+		/* Must be before wl1271_acx_init_mem_config() */
+		ret = wl1271_acx_host_if_cfg_bitmap(wl, host_cfg_bitmap);
+		if (ret < 0)
+			goto out;
+	} else {
+		ret = wl1271_cmd_general_parms(wl);
+		if (ret < 0)
+			goto out;
+		ret = wl1271_cmd_radio_parms(wl);
+		if (ret < 0)
+			goto out;
+		ret = wl1271_cmd_ext_radio_parms(wl);
+		if (ret < 0)
+			goto out;
+	}
+out:
+	return ret;
+}
+
 static bool wl12xx_mac_in_fuse(struct wl1271 *wl)
 {
 	bool supported = false;
@@ -875,6 +914,7 @@ static struct wlcore_ops wl12xx_ops = {
 	.get_rx_packet_len	= wl12xx_get_rx_packet_len,
 	.tx_immediate_compl	= NULL,
 	.tx_delayed_compl	= wl12xx_tx_delayed_compl,
+	.hw_init		= wl12xx_hw_init,
 	.get_pg_ver		= wl12xx_get_pg_ver,
 	.get_mac		= wl12xx_get_mac,
 };

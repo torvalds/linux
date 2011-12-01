@@ -53,6 +53,7 @@ struct wlcore_ops {
 				 u32 data_len);
 	void (*tx_delayed_compl)(struct wl1271 *wl);
 	void (*tx_immediate_compl)(struct wl1271 *wl);
+	int (*hw_init)(struct wl1271 *wl);
 	s8 (*get_pg_ver)(struct wl1271 *wl);
 	void (*get_mac)(struct wl1271 *wl);
 };

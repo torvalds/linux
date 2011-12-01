@@ -824,15 +824,10 @@ struct wl1271_acx_keep_alive_config {
 	__le32 period;
 } __packed;
 
+/* TODO: maybe this needs to be moved somewhere else? */
 #define HOST_IF_CFG_RX_FIFO_ENABLE     BIT(0)
 #define HOST_IF_CFG_TX_EXTRA_BLKS_SWAP BIT(1)
 #define HOST_IF_CFG_TX_PAD_TO_SDIO_BLK BIT(3)
-
-struct wl1271_acx_host_config_bitmap {
-	struct acx_header header;
-
-	__le32 host_cfg_bitmap;
-} __packed;
 
 enum {
 	WL1271_ACX_TRIG_TYPE_LEVEL = 0,
@@ -1274,7 +1269,6 @@ int wl1271_acx_frag_threshold(struct wl1271 *wl, u32 frag_threshold);
 int wl1271_acx_tx_config_options(struct wl1271 *wl);
 int wl12xx_acx_mem_cfg(struct wl1271 *wl);
 int wl1271_acx_init_mem_config(struct wl1271 *wl);
-int wl1271_acx_host_if_cfg_bitmap(struct wl1271 *wl, u32 host_cfg_bitmap);
 int wl1271_acx_init_rx_interrupt(struct wl1271 *wl);
 int wl1271_acx_smart_reflex(struct wl1271 *wl);
 int wl1271_acx_bet_enable(struct wl1271 *wl, struct wl12xx_vif *wlvif,

@@ -493,26 +493,6 @@ static int wl1271_set_ba_policies(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	return wl12xx_acx_set_ba_initiator_policy(wl, wlvif);
 }
 
-int wl1271_chip_specific_init(struct wl1271 *wl)
-{
-	int ret = 0;
-
-	if (wl->chip.id == CHIP_ID_1283_PG20) {
-		u32 host_cfg_bitmap = HOST_IF_CFG_RX_FIFO_ENABLE;
-
-		if (wl->quirks & WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN)
-			/* Enable SDIO padding */
-			host_cfg_bitmap |= HOST_IF_CFG_TX_PAD_TO_SDIO_BLK;
-
-		/* Must be before wl1271_acx_init_mem_config() */
-		ret = wl1271_acx_host_if_cfg_bitmap(wl, host_cfg_bitmap);
-		if (ret < 0)
-			goto out;
-	}
-out:
-	return ret;
-}
-
 /* vif-specifc initialization */
 static int wl12xx_init_sta_role(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
@@ -665,27 +645,8 @@ int wl1271_hw_init(struct wl1271 *wl)
 {
 	int ret;
 
-	if (wl->chip.id == CHIP_ID_1283_PG20) {
-		ret = wl128x_cmd_general_parms(wl);
-		if (ret < 0)
-			return ret;
-		ret = wl128x_cmd_radio_parms(wl);
-		if (ret < 0)
-			return ret;
-	} else {
-		ret = wl1271_cmd_general_parms(wl);
-		if (ret < 0)
-			return ret;
-		ret = wl1271_cmd_radio_parms(wl);
-		if (ret < 0)
-			return ret;
-		ret = wl1271_cmd_ext_radio_parms(wl);
-		if (ret < 0)
-			return ret;
-	}
-
-	/* Chip-specific init */
-	ret = wl1271_chip_specific_init(wl);
+	/* Chip-specific hw init */
+	ret = wl->ops->hw_init(wl);
 	if (ret < 0)
 		return ret;
 
