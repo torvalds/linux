@@ -15,6 +15,7 @@
 #ifndef __MFD_WM8994_CORE_H__
 #define __MFD_WM8994_CORE_H__
 
+#include <linux/mutex.h>
 #include <linux/interrupt.h>
 
 enum wm8994_type {
