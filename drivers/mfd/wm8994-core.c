@@ -446,15 +446,16 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 			ret);
 		goto err_enable;
 	}
+	wm8994->revision = ret;
 
 	switch (wm8994->type) {
 	case WM8994:
-		switch (ret) {
+		switch (wm8994->revision) {
 		case 0:
 		case 1:
 			dev_warn(wm8994->dev,
 				 "revision %c not fully supported\n",
-				 'A' + ret);
+				 'A' + wm8994->revision);
 			break;
 		default:
 			break;
@@ -462,14 +463,15 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		break;
 	case WM1811:
 		/* Revision C did not change the relevant layer */
-		if (ret > 1)
-			ret++;
+		if (wm8994->revision > 1)
+			wm8994->revision++;
 		break;
 	default:
 		break;
 	}
 
-	dev_info(wm8994->dev, "%s revision %c\n", devname, 'A' + ret);
+	dev_info(wm8994->dev, "%s revision %c\n", devname,
+		 'A' + wm8994->revision);
 
 	switch (wm8994->type) {
 	case WM1811:

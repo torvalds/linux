@@ -12,6 +12,7 @@
  *
  */
 
+#include <linux/mfd/wm8994/core.h>
 #include <linux/mfd/wm8994/registers.h>
 #include <linux/regmap.h>
 
@@ -210,7 +211,6 @@ static struct reg_default wm1811_defaults[] = {
 	{ 0x0702, 0xA101 },    /* R1794 - Pull Control (BCLK2) */
 	{ 0x0703, 0xA101 },    /* R1795 - Pull Control (DACLRCLK2) */
 	{ 0x0704, 0xA101 },    /* R1796 - Pull Control (DACDAT2) */
-	{ 0x0705, 0xA101 },    /* R1797 - GPIO 6 */
 	{ 0x0707, 0xA101 },    /* R1799 - GPIO 8 */
 	{ 0x0708, 0xA101 },    /* R1800 - GPIO 9 */
 	{ 0x0709, 0xA101 },    /* R1801 - GPIO 10 */
@@ -1145,6 +1145,21 @@ static bool wm8994_volatile_register(struct device *dev, unsigned int reg)
 	}
 }
 
+static bool wm1811_volatile_register(struct device *dev, unsigned int reg)
+{
+	struct wm8994 *wm8994 = dev_get_drvdata(dev);
+
+	switch (reg) {
+	case WM8994_GPIO_6:
+		if (wm8994->revision > 1)
+			return true;
+		else
+			return false;
+	default:
+		return wm8994_volatile_register(dev, reg);
+	}
+}
+
 static bool wm8958_volatile_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
@@ -1185,7 +1200,7 @@ struct regmap_config wm1811_regmap_config = {
 	.num_reg_defaults = ARRAY_SIZE(wm1811_defaults),
 
 	.max_register = WM8994_MAX_REGISTER,
-	.volatile_reg = wm8994_volatile_register,
+	.volatile_reg = wm1811_volatile_register,
 	.readable_reg = wm1811_readable_register,
 };
 
