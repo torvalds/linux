@@ -880,7 +880,8 @@ cleanup:
 /* Assume the original sgl has enough room */
 static unsigned int copy_from_bounce_buffer(struct scatterlist *orig_sgl,
 					    struct scatterlist *bounce_sgl,
-					    unsigned int orig_sgl_count)
+					    unsigned int orig_sgl_count,
+					    unsigned int bounce_sgl_count)
 {
 	int i;
 	int j = 0;
@@ -920,6 +921,24 @@ static unsigned int copy_from_bounce_buffer(struct scatterlist *orig_sgl,
 				/* full */
 				kunmap_atomic((void *)bounce_addr, KM_IRQ0);
 				j++;
+
+				/*
+				 * It is possible that the number of elements
+				 * in the bounce buffer may not be equal to
+				 * the number of elements in the original
+				 * scatter list. Handle this correctly.
+				 */
+
+				if (j == bounce_sgl_count) {
+					/*
+					 * We are done; cleanup and return.
+					 */
+					kunmap_atomic((void *)(dest_addr -
+							orig_sgl[i].offset),
+							KM_IRQ0);
+					local_irq_restore(flags);
+					return total_copied;
+				}
 
 				/* if we need to use another bounce buffer */
 				if (destlen || i != orig_sgl_count - 1)
@@ -1126,7 +1145,8 @@ static void storvsc_command_completion(struct hv_storvsc_request *request)
 		if (vm_srb->data_in == READ_TYPE)
 			copy_from_bounce_buffer(scsi_sglist(scmnd),
 					cmd_request->bounce_sgl,
-					scsi_sg_count(scmnd));
+					scsi_sg_count(scmnd),
+					cmd_request->bounce_sgl_count);
 		destroy_bounce_buffer(cmd_request->bounce_sgl,
 					cmd_request->bounce_sgl_count);
 	}
