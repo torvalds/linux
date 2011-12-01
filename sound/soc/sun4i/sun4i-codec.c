@@ -117,7 +117,7 @@ static struct snd_pcm_hardware sun4i_pcm_playback_hardware =
 	.channels_min		= 1,
 	.channels_max		= 2,
 	.buffer_bytes_max	= 128*1024,//最大的缓冲区大小
-	.period_bytes_min	= 1024*4,//最小周期大小
+	.period_bytes_min	= 1024*8,//最小周期大小
 	.period_bytes_max	= 1024*32,//最大周期大小
 	.periods_min		= 4,//最小周期数
 	.periods_max		= 8,//最大周期数
@@ -141,7 +141,7 @@ static struct snd_pcm_hardware sun4i_pcm_capture_hardware =
 	.channels_min		= 1,
 	.channels_max		= 2,
 	.buffer_bytes_max	= 128*1024,//最大的缓冲区大小
-	.period_bytes_min	= 1024*4,//最小周期大小
+	.period_bytes_min	= 1024*8,//最小周期大小
 	.period_bytes_max	= 1024*32,//最大周期大小
 	.periods_min		= 4,//最小周期数
 	.periods_max		= 8,//最大周期数
@@ -1246,7 +1246,7 @@ static int __init snd_card_sun4i_codec_pcm(struct sun4i_codec *sun4i_codec, int 
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 					      snd_dma_isa_data(),
-					      16*1024, 16*1024);
+					      32*1024, 32*1024);
 	/*
 	*	设置PCM操作，第1个参数是snd_pcm的指针，第2 个参数是SNDRV_PCM_STREAM_PLAYBACK
 	*	或SNDRV_ PCM_STREAM_CAPTURE，而第3 个参数是PCM 操作结构体snd_pcm_ops
