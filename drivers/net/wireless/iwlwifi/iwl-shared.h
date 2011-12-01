@@ -97,6 +97,7 @@
 struct iwl_cfg;
 struct iwl_bus;
 struct iwl_priv;
+struct iwl_trans;
 struct iwl_sensitivity_ranges;
 struct iwl_trans_ops;
 
@@ -294,7 +295,7 @@ enum iwl_ucode_type {
 struct iwl_notification_wait {
 	struct list_head list;
 
-	void (*fn)(struct iwl_priv *priv, struct iwl_rx_packet *pkt,
+	void (*fn)(struct iwl_trans *trans, struct iwl_rx_packet *pkt,
 		   void *data);
 	void *fn_data;
 
@@ -323,6 +324,7 @@ struct iwl_notification_wait {
  * @notif_waits: things waiting for notification
  * @notif_wait_lock: lock protecting notification
  * @notif_waitq: head of notification wait queue
+ * @device_pointers: pointers to ucode event tables
  */
 struct iwl_shared {
 #ifdef CONFIG_IWLWIFI_DEBUG
@@ -361,6 +363,12 @@ struct iwl_shared {
 	struct list_head notif_waits;
 	spinlock_t notif_wait_lock;
 	wait_queue_head_t notif_waitq;
+
+	struct {
+		u32 error_event_table;
+		u32 log_event_table;
+	} device_pointers;
+
 };
 
 /*Whatever _m is (iwl_trans, iwl_priv, iwl_bus, these macros will work */
@@ -510,7 +518,7 @@ void __acquires(wait_entry)
 iwl_init_notification_wait(struct iwl_shared *shrd,
 			      struct iwl_notification_wait *wait_entry,
 			      u8 cmd,
-			      void (*fn)(struct iwl_priv *priv,
+			      void (*fn)(struct iwl_trans *trans,
 					 struct iwl_rx_packet *pkt,
 					 void *data),
 			      void *fn_data);

@@ -550,7 +550,7 @@ struct iwlagn_alive_data {
 	u8 subtype;
 };
 
-static void iwl_alive_fn(struct iwl_priv *priv,
+static void iwl_alive_fn(struct iwl_trans *trans,
 			    struct iwl_rx_packet *pkt,
 			    void *data)
 {
@@ -559,14 +559,14 @@ static void iwl_alive_fn(struct iwl_priv *priv,
 
 	palive = &pkt->u.alive_frame;
 
-	IWL_DEBUG_FW(priv, "Alive ucode status 0x%08X revision "
+	IWL_DEBUG_FW(trans, "Alive ucode status 0x%08X revision "
 		       "0x%01X 0x%01X\n",
 		       palive->is_valid, palive->ver_type,
 		       palive->ver_subtype);
 
-	priv->device_pointers.error_event_table =
+	trans->shrd->device_pointers.error_event_table =
 		le32_to_cpu(palive->error_event_table_ptr);
-	priv->device_pointers.log_event_table =
+	trans->shrd->device_pointers.log_event_table =
 		le32_to_cpu(palive->log_event_table_ptr);
 
 	alive_data->subtype = palive->ver_subtype;
@@ -577,7 +577,7 @@ static void iwl_alive_fn(struct iwl_priv *priv,
 void iwl_init_notification_wait(struct iwl_shared *shrd,
 				   struct iwl_notification_wait *wait_entry,
 				   u8 cmd,
-				   void (*fn)(struct iwl_priv *priv,
+				   void (*fn)(struct iwl_trans *trans,
 					      struct iwl_rx_packet *pkt,
 					      void *data),
 				   void *fn_data)

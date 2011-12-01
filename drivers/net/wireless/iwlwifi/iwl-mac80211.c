@@ -427,7 +427,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 	iwl_write32(bus(priv), CSR_UCODE_DRV_GP1_CLR,
 			  CSR_UCODE_DRV_GP1_BIT_D3_CFG_COMPLETE);
 
-	base = priv->device_pointers.error_event_table;
+	base = priv->shrd->device_pointers.error_event_table;
 	if (iwlagn_hw_valid_rtc_data_addr(base)) {
 		spin_lock_irqsave(&bus(priv)->reg_lock, flags);
 		ret = iwl_grab_nic_access_silent(bus(priv));

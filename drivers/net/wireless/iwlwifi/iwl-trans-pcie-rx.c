@@ -594,7 +594,7 @@ static void iwl_dump_nic_error_log(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	base = priv->device_pointers.error_event_table;
+	base = trans->shrd->device_pointers.error_event_table;
 	if (trans->shrd->ucode_type == IWL_UCODE_INIT) {
 		if (!base)
 			base = priv->init_errlog_ptr;
@@ -724,7 +724,7 @@ static int iwl_print_event_log(struct iwl_trans *trans, u32 start_idx,
 	if (num_events == 0)
 		return pos;
 
-	base = priv->device_pointers.log_event_table;
+	base = trans->shrd->device_pointers.log_event_table;
 	if (trans->shrd->ucode_type == IWL_UCODE_INIT) {
 		if (!base)
 			base = priv->init_evtlog_ptr;
@@ -838,7 +838,7 @@ int iwl_dump_nic_event_log(struct iwl_trans *trans, bool full_log,
 	size_t bufsz = 0;
 	struct iwl_priv *priv = priv(trans);
 
-	base = priv->device_pointers.log_event_table;
+	base = trans->shrd->device_pointers.log_event_table;
 	if (trans->shrd->ucode_type == IWL_UCODE_INIT) {
 		logsize = priv->init_evtlog_size;
 		if (!base)

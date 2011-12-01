@@ -865,11 +865,6 @@ struct iwl_priv {
 
 	__le16 switch_channel;
 
-	struct {
-		u32 error_event_table;
-		u32 log_event_table;
-	} device_pointers;
-
 	u16 active_rate;
 
 	u8 start_calib;

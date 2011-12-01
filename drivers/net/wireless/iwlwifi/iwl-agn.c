@@ -366,7 +366,7 @@ static void iwl_continuous_event_trace(struct iwl_priv *priv)
 	u32 num_wraps;  /* # times uCode wrapped to top of log */
 	u32 next_entry; /* index of next entry to be written by uCode */
 
-	base = priv->device_pointers.error_event_table;
+	base = priv->shrd->device_pointers.error_event_table;
 	if (iwlagn_hw_valid_rtc_data_addr(base)) {
 		capacity = iwl_read_targ_mem(bus(priv), base);
 		num_wraps = iwl_read_targ_mem(bus(priv),
