@@ -15,6 +15,7 @@ obj-$(CONFIG_SERIAL_SUNSU) += sunsu.o
 obj-$(CONFIG_SERIAL_SUNSAB) += sunsab.o
 
 obj-$(CONFIG_SERIAL_8250) += 8250.o
+obj-$(CONFIG_SERIAL_8250_SUNXI) += 8250_sunxi.o
 obj-$(CONFIG_SERIAL_8250_PNP) += 8250_pnp.o
 obj-$(CONFIG_SERIAL_8250_GSC) += 8250_gsc.o
 obj-$(CONFIG_SERIAL_8250_PCI) += 8250_pci.o

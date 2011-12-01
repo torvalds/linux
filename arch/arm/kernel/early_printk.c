@@ -28,8 +28,6 @@ void sw_put_string(char *buf, int n)
 	for (i=0; i<len; i++) {
 		sw_put_char(buf[i]);
 	}
-	sw_put_char('\r');
-	sw_put_char('\n');
 }
 
 
