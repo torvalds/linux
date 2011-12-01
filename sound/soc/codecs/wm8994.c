@@ -3003,8 +3003,8 @@ static void wm8994_handle_pdata(struct wm8994_priv *wm8994)
 		};
 
 		/* We need an array of texts for the enum API */
-		wm8994->drc_texts = kmalloc(sizeof(char *)
-					    * pdata->num_drc_cfgs, GFP_KERNEL);
+		wm8994->drc_texts = devm_kzalloc(wm8994->codec->dev,
+			    sizeof(char *) * pdata->num_drc_cfgs, GFP_KERNEL);
 		if (!wm8994->drc_texts) {
 			dev_err(wm8994->codec->dev,
 				"Failed to allocate %d DRC config texts\n",
@@ -3468,7 +3468,8 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 	codec->control_data = dev_get_drvdata(codec->dev->parent);
 	control = codec->control_data;
 
-	wm8994 = kzalloc(sizeof(struct wm8994_priv), GFP_KERNEL);
+	wm8994 = devm_kzalloc(codec->dev, sizeof(struct wm8994_priv),
+			      GFP_KERNEL);
 	if (wm8994 == NULL)
 		return -ENOMEM;
 	snd_soc_codec_set_drvdata(codec, wm8994);
@@ -3880,8 +3881,6 @@ err_irq:
 	wm8994_free_irq(wm8994->wm8994, WM8994_IRQ_FIFOS_ERR, codec);
 	wm8994_free_irq(wm8994->wm8994, WM8994_IRQ_TEMP_SHUT, codec);
 	wm8994_free_irq(wm8994->wm8994, WM8994_IRQ_TEMP_WARN, codec);
-err:
-	kfree(wm8994);
 	return ret;
 }
 
@@ -3933,8 +3932,6 @@ static int  wm8994_codec_remove(struct snd_soc_codec *codec)
 	if (wm8994->enh_eq)
 		release_firmware(wm8994->enh_eq);
 	kfree(wm8994->retune_mobile_texts);
-	kfree(wm8994->drc_texts);
-	kfree(wm8994);
 
 	return 0;
 }
