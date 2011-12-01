@@ -539,6 +539,8 @@ static void coretemp_add_core(unsigned int cpu, int pkg_flag)
 		return;
 
 	pdata = platform_get_drvdata(pdev);
+	if (!pdata)
+		return;
 
 	err = create_core_data(pdata, pdev, cpu, pkg_flag);
 	if (err)
