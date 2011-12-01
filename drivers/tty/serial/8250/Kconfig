@@ -76,6 +76,11 @@ config SERIAL_8250_GSC
 	depends on SERIAL_8250 && GSC
 	default SERIAL_8250
 
+config SERIAL_8250_SUNXI
+	tristate
+	depends on SERIAL_8250 && (ARCH_SUN4I || ARCH_SUN5I)
+	default SERIAL_8250
+
 config SERIAL_8250_PCI
 	tristate "8250/16550 PCI device support" if EXPERT
 	depends on SERIAL_8250 && PCI
