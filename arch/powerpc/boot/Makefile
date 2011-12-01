@@ -199,6 +199,7 @@ image-$(CONFIG_EP405)			+= dtbImage.ep405
 image-$(CONFIG_HOTFOOT)			+= cuImage.hotfoot
 image-$(CONFIG_WALNUT)			+= treeImage.walnut
 image-$(CONFIG_ACADIA)			+= cuImage.acadia
+image-$(CONFIG_OBS600)			+= uImage.obs600
 
 # Board ports in arch/powerpc/platform/44x/Kconfig
 image-$(CONFIG_EBONY)			+= treeImage.ebony cuImage.ebony
@@ -315,6 +316,12 @@ $(obj)/zImage.iseries: vmlinux
 
 $(obj)/uImage: vmlinux $(wrapperbits)
 	$(call if_changed,wrap,uboot)
+
+$(obj)/uImage.initrd.%: vmlinux $(obj)/%.dtb $(wrapperbits)
+	$(call if_changed,wrap,uboot-$*,,$(obj)/$*.dtb,$(obj)/ramdisk.image.gz)
+
+$(obj)/uImage.%: vmlinux $(obj)/%.dtb $(wrapperbits)
+	$(call if_changed,wrap,uboot-$*,,$(obj)/$*.dtb)
 
 $(obj)/cuImage.initrd.%: vmlinux $(obj)/%.dtb $(wrapperbits)
 	$(call if_changed,wrap,cuboot-$*,,$(obj)/$*.dtb,$(obj)/ramdisk.image.gz)
