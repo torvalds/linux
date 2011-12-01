@@ -60,13 +60,6 @@ static int wm8994_retune_mobile_base[] = {
 
 static void wm8958_default_micdet(u16 status, void *data);
 
-struct wm8958_micd_rate {
-	int sysclk;
-	bool idle;
-	int start;
-	int rate;
-};
-
 static const struct wm8958_micd_rate micdet_rates[] = {
 	{ 32768,       true,  1, 4 },
 	{ 32768,       false, 1, 1 },
@@ -100,7 +93,10 @@ static void wm8958_micd_set_rate(struct snd_soc_codec *codec)
 	else
 		sysclk = wm8994->aifclk[0];
 
-	if (wm8994->jackdet) {
+	if (wm8994->pdata && wm8994->pdata->micd_rates) {
+		rates = wm8994->pdata->micd_rates;
+		num_rates = wm8994->pdata->num_micd_rates;
+	} else if (wm8994->jackdet) {
 		rates = jackdet_rates;
 		num_rates = ARRAY_SIZE(jackdet_rates);
 	} else {

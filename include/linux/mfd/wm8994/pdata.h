@@ -113,6 +113,23 @@ struct wm8958_enh_eq_cfg {
 	u16 regs[WM8958_ENH_EQ_REGS];
 };
 
+/**
+ * Microphone detection rates, used to tune response rates and power
+ * consumption for WM8958/WM1811 microphone detection.
+ *
+ * @sysclk: System clock rate to use this configuration for.
+ * @idle: True if this configuration should use when no accessory is detected,
+ *        false otherwise.
+ * @start: Value for MICD_BIAS_START_TIME register field (not shifted).
+ * @rate: Value for MICD_RATE register field (not shifted).
+ */
+struct wm8958_micd_rate {
+	int sysclk;
+	bool idle;
+	int start;
+	int rate;
+};
+
 struct wm8994_pdata {
 	int gpio_base;
 
@@ -143,6 +160,9 @@ struct wm8994_pdata {
 
 	int num_enh_eq_cfgs;
 	struct wm8958_enh_eq_cfg *enh_eq_cfgs;
+
+	int num_micd_rates;
+	struct wm8958_micd_rate *micd_rates;
 
         /* LINEOUT can be differential or single ended */
         unsigned int lineout1_diff:1;
