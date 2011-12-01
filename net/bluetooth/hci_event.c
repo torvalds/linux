@@ -500,7 +500,7 @@ static void hci_setup_event_mask(struct hci_dev *hdev)
 
 	/* CSR 1.1 dongles does not accept any bitfield so don't try to set
 	 * any event mask for pre 1.2 devices */
-	if (hdev->lmp_ver <= 1)
+	if (hdev->lmp_ver <= BLUETOOTH_VER_1_1)
 		return;
 
 	events[4] |= 0x01; /* Flow Specification Complete */
@@ -564,7 +564,7 @@ static void hci_setup(struct hci_dev *hdev)
 {
 	hci_setup_event_mask(hdev);
 
-	if (hdev->hci_ver > 1)
+	if (hdev->hci_ver > BLUETOOTH_VER_1_1)
 		hci_send_cmd(hdev, HCI_OP_READ_LOCAL_COMMANDS, 0, NULL);
 
 	if (hdev->features[6] & LMP_SIMPLE_PAIR) {
@@ -1558,7 +1558,7 @@ static inline void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 		}
 
 		/* Set packet type for incoming connection */
-		if (!conn->out && hdev->hci_ver < 3) {
+		if (!conn->out && hdev->hci_ver < BLUETOOTH_VER_2_0) {
 			struct hci_cp_change_conn_ptype cp;
 			cp.handle = ev->handle;
 			cp.pkt_type = cpu_to_le16(conn->pkt_type);

@@ -123,7 +123,7 @@ static void hci_acl_connect_cancel(struct hci_conn *conn)
 
 	BT_DBG("%p", conn);
 
-	if (conn->hdev->hci_ver < 2)
+	if (conn->hdev->hci_ver < BLUETOOTH_VER_1_2)
 		return;
 
 	bacpy(&cp.bdaddr, &conn->dst);
