@@ -146,6 +146,8 @@ u32 amd_iommu_max_pasids __read_mostly = ~0;
 
 bool amd_iommu_v2_present __read_mostly;
 
+bool amd_iommu_force_isolation __read_mostly;
+
 /*
  * The ACPI table parsing functions set this variable on an error
  */
@@ -1642,6 +1644,8 @@ static int __init parse_amd_iommu_options(char *str)
 			amd_iommu_unmap_flush = true;
 		if (strncmp(str, "off", 3) == 0)
 			amd_iommu_disabled = true;
+		if (strncmp(str, "force_isolation", 15) == 0)
+			amd_iommu_force_isolation = true;
 	}
 
 	return 1;

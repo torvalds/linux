@@ -67,6 +67,7 @@ struct iommu_cmd {
 };
 
 static void update_domain(struct protection_domain *domain);
+static int __init alloc_passthrough_domain(void);
 
 /****************************************************************************
  *
@@ -147,6 +148,24 @@ static struct iommu_dev_data *get_dev_data(struct device *dev)
 	return dev->archdata.iommu;
 }
 
+static bool pci_iommuv2_capable(struct pci_dev *pdev)
+{
+	static const int caps[] = {
+		PCI_EXT_CAP_ID_ATS,
+		PCI_PRI_CAP,
+		PCI_PASID_CAP,
+	};
+	int i, pos;
+
+	for (i = 0; i < 3; ++i) {
+		pos = pci_find_ext_capability(pdev, caps[i]);
+		if (pos == 0)
+			return false;
+	}
+
+	return true;
+}
+
 /*
  * In this function the list of preallocated protection domains is traversed to
  * find the domain for a specific device
@@ -204,6 +223,7 @@ static bool check_device(struct device *dev)
 
 static int iommu_init_device(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct iommu_dev_data *dev_data;
 	u16 alias;
 
@@ -226,6 +246,13 @@ static int iommu_init_device(struct device *dev)
 			return -ENOTSUPP;
 		}
 		dev_data->alias_data = alias_data;
+	}
+
+	if (pci_iommuv2_capable(pdev)) {
+		struct amd_iommu *iommu;
+
+		iommu              = amd_iommu_rlookup_table[dev_data->devid];
+		dev_data->iommu_v2 = iommu->is_iommu_v2;
 	}
 
 	dev->archdata.iommu = dev_data;
@@ -1762,7 +1789,7 @@ static void __detach_device(struct iommu_dev_data *dev_data)
 	 * passthrough domain if it is detached from any other domain.
 	 * Make sure we can deassign from the pt_domain itself.
 	 */
-	if (iommu_pass_through &&
+	if (dev_data->passthrough &&
 	    (dev_data->domain == NULL && domain != pt_domain))
 		__attach_device(dev_data, pt_domain);
 }
@@ -1820,18 +1847,20 @@ static struct protection_domain *domain_for_device(struct device *dev)
 static int device_change_notifier(struct notifier_block *nb,
 				  unsigned long action, void *data)
 {
-	struct device *dev = data;
-	u16 devid;
-	struct protection_domain *domain;
 	struct dma_ops_domain *dma_domain;
+	struct protection_domain *domain;
+	struct iommu_dev_data *dev_data;
+	struct device *dev = data;
 	struct amd_iommu *iommu;
 	unsigned long flags;
+	u16 devid;
 
 	if (!check_device(dev))
 		return 0;
 
-	devid  = get_device_id(dev);
-	iommu  = amd_iommu_rlookup_table[devid];
+	devid    = get_device_id(dev);
+	iommu    = amd_iommu_rlookup_table[devid];
+	dev_data = get_dev_data(dev);
 
 	switch (action) {
 	case BUS_NOTIFY_UNBOUND_DRIVER:
@@ -1840,7 +1869,7 @@ static int device_change_notifier(struct notifier_block *nb,
 
 		if (!domain)
 			goto out;
-		if (iommu_pass_through)
+		if (dev_data->passthrough)
 			break;
 		detach_device(dev);
 		break;
@@ -2436,8 +2465,9 @@ static int amd_iommu_dma_supported(struct device *dev, u64 mask)
  */
 static void prealloc_protection_domains(void)
 {
-	struct pci_dev *dev = NULL;
+	struct iommu_dev_data *dev_data;
 	struct dma_ops_domain *dma_dom;
+	struct pci_dev *dev = NULL;
 	u16 devid;
 
 	for_each_pci_dev(dev) {
@@ -2445,6 +2475,16 @@ static void prealloc_protection_domains(void)
 		/* Do we handle this device? */
 		if (!check_device(&dev->dev))
 			continue;
+
+		dev_data = get_dev_data(&dev->dev);
+		if (!amd_iommu_force_isolation && dev_data->iommu_v2) {
+			/* Make sure passthrough domain is allocated */
+			alloc_passthrough_domain();
+			dev_data->passthrough = true;
+			attach_device(&dev->dev, pt_domain);
+			pr_info("AMD-Vi: Using passthough domain for device %s\n",
+				dev_name(&dev->dev));
+		}
 
 		/* Is there already any domain for it? */
 		if (domain_for_device(&dev->dev))
@@ -2476,6 +2516,7 @@ static struct dma_map_ops amd_iommu_dma_ops = {
 
 static unsigned device_dma_ops_init(void)
 {
+	struct iommu_dev_data *dev_data;
 	struct pci_dev *pdev = NULL;
 	unsigned unhandled = 0;
 
@@ -2485,7 +2526,12 @@ static unsigned device_dma_ops_init(void)
 			continue;
 		}
 
-		pdev->dev.archdata.dma_ops = &amd_iommu_dma_ops;
+		dev_data = get_dev_data(&pdev->dev);
+
+		if (!dev_data->passthrough)
+			pdev->dev.archdata.dma_ops = &amd_iommu_dma_ops;
+		else
+			pdev->dev.archdata.dma_ops = &nommu_dma_ops;
 	}
 
 	return unhandled;
@@ -2612,6 +2658,20 @@ out_err:
 	return NULL;
 }
 
+static int __init alloc_passthrough_domain(void)
+{
+	if (pt_domain != NULL)
+		return 0;
+
+	/* allocate passthrough domain */
+	pt_domain = protection_domain_alloc();
+	if (!pt_domain)
+		return -ENOMEM;
+
+	pt_domain->mode = PAGE_MODE_NONE;
+
+	return 0;
+}
 static int amd_iommu_domain_init(struct iommu_domain *dom)
 {
 	struct protection_domain *domain;
@@ -2798,20 +2858,22 @@ static struct iommu_ops amd_iommu_ops = {
 
 int __init amd_iommu_init_passthrough(void)
 {
-	struct amd_iommu *iommu;
+	struct iommu_dev_data *dev_data;
 	struct pci_dev *dev = NULL;
+	struct amd_iommu *iommu;
 	u16 devid;
+	int ret;
 
-	/* allocate passthrough domain */
-	pt_domain = protection_domain_alloc();
-	if (!pt_domain)
-		return -ENOMEM;
-
-	pt_domain->mode |= PAGE_MODE_NONE;
+	ret = alloc_passthrough_domain();
+	if (ret)
+		return ret;
 
 	for_each_pci_dev(dev) {
 		if (!check_device(&dev->dev))
 			continue;
+
+		dev_data = get_dev_data(&dev->dev);
+		dev_data->passthrough = true;
 
 		devid = get_device_id(&dev->dev);
 
