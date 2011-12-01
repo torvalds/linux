@@ -8,7 +8,7 @@
  *                  scatter/gather formats.
  *  Creation Date:  June 21, 2006
  *
- *  mpi2.h Version:  02.00.21
+ *  mpi2.h Version:  02.00.22
  *
  *  Version History
  *  ---------------
@@ -70,6 +70,7 @@
  *                      Added MPI2_FUNCTION_SEND_HOST_MESSAGE.
  *  03-09-11  02.00.20  Bumped MPI2_HEADER_VERSION_UNIT.
  *  05-25-11  02.00.21  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  08-24-11  02.00.22  Bumped MPI2_HEADER_VERSION_UNIT.
  *  --------------------------------------------------------------------------
  */
 
@@ -95,7 +96,7 @@
 #define MPI2_VERSION_02_00                  (0x0200)
 
 /* versioning for this MPI header set */
-#define MPI2_HEADER_VERSION_UNIT            (0x15)
+#define MPI2_HEADER_VERSION_UNIT            (0x16)
 #define MPI2_HEADER_VERSION_DEV             (0x00)
 #define MPI2_HEADER_VERSION_UNIT_MASK       (0xFF00)
 #define MPI2_HEADER_VERSION_UNIT_SHIFT      (8)
