@@ -1123,13 +1123,12 @@ static void storvsc_command_completion(struct hv_storvsc_request *request)
 
 	vm_srb = &request->vstor_packet.vm_srb;
 	if (cmd_request->bounce_sgl_count) {
-		if (vm_srb->data_in == READ_TYPE) {
+		if (vm_srb->data_in == READ_TYPE)
 			copy_from_bounce_buffer(scsi_sglist(scmnd),
 					cmd_request->bounce_sgl,
 					scsi_sg_count(scmnd));
-			destroy_bounce_buffer(cmd_request->bounce_sgl,
+		destroy_bounce_buffer(cmd_request->bounce_sgl,
 					cmd_request->bounce_sgl_count);
-		}
 	}
 
 	/*
