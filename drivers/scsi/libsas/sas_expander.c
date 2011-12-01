@@ -28,6 +28,7 @@
 
 #include "sas_internal.h"
 
+#include <scsi/sas_ata.h>
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_sas.h>
 #include "../scsi_sas_internal.h"
@@ -226,12 +227,35 @@ static void sas_set_ex_phy(struct domain_device *dev, int phy_id,
 	return;
 }
 
+/* check if we have an existing attached ata device on this expander phy */
+static struct domain_device *sas_ex_to_ata(struct domain_device *ex_dev, int phy_id)
+{
+	struct ex_phy *ex_phy = &ex_dev->ex_dev.ex_phy[phy_id];
+	struct domain_device *dev;
+	struct sas_rphy *rphy;
+
+	if (!ex_phy->port)
+		return NULL;
+
+	rphy = ex_phy->port->rphy;
+	if (!rphy)
+		return NULL;
+
+	dev = sas_find_dev_by_rphy(rphy);
+
+	if (dev && dev_is_sata(dev))
+		return dev;
+
+	return NULL;
+}
+
 #define DISCOVER_REQ_SIZE  16
 #define DISCOVER_RESP_SIZE 56
 
 static int sas_ex_phy_discover_helper(struct domain_device *dev, u8 *disc_req,
 				      u8 *disc_resp, int single)
 {
+	struct domain_device *ata_dev = sas_ex_to_ata(dev, single);
 	int i, res;
 
 	disc_req[9] = single;
@@ -242,20 +266,30 @@ static int sas_ex_phy_discover_helper(struct domain_device *dev, u8 *disc_req,
 				       disc_resp, DISCOVER_RESP_SIZE);
 		if (res)
 			return res;
-		/* This is detecting a failure to transmit initial
-		 * dev to host FIS as described in section G.5 of
-		 * sas-2 r 04b */
 		dr = &((struct smp_resp *)disc_resp)->disc;
 		if (memcmp(dev->sas_addr, dr->attached_sas_addr,
 			  SAS_ADDR_SIZE) == 0) {
 			sas_printk("Found loopback topology, just ignore it!\n");
 			return 0;
 		}
+
+		/* This is detecting a failure to transmit initial
+		 * dev to host FIS as described in section J.5 of
+		 * sas-2 r16
+		 */
 		if (!(dr->attached_dev_type == 0 &&
 		      dr->attached_sata_dev))
 			break;
-		/* In order to generate the dev to host FIS, we
-		 * send a link reset to the expander port */
+
+		/* In order to generate the dev to host FIS, we send a
+		 * link reset to the expander port.  If a device was
+		 * previously detected on this port we ask libata to
+		 * manage the reset and link recovery.
+		 */
+		if (ata_dev) {
+			sas_ata_schedule_reset(ata_dev);
+			break;
+		}
 		sas_smp_phy_control(dev, single, PHY_FUNC_LINK_RESET, NULL);
 		/* Wait for the reset to trigger the negotiation */
 		msleep(500);
