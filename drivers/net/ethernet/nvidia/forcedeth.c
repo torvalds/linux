@@ -2561,13 +2561,14 @@ static int nv_tx_done_optimized(struct net_device *dev, int limit)
 				nv_tx_flip_ownership(dev);
 		}
 
-		netdev_completed_queue(np->dev, tx_work, bytes_cleaned);
-
 		if (unlikely(np->get_tx.ex++ == np->last_tx.ex))
 			np->get_tx.ex = np->first_tx.ex;
 		if (unlikely(np->get_tx_ctx++ == np->last_tx_ctx))
 			np->get_tx_ctx = np->first_tx_ctx;
 	}
+
+	netdev_completed_queue(np->dev, tx_work, bytes_cleaned);
+
 	if (unlikely((np->tx_stop == 1) && (np->get_tx.ex != orig_get_tx))) {
 		np->tx_stop = 0;
 		netif_wake_queue(dev);
