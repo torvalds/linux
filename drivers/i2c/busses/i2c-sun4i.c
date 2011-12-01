@@ -423,7 +423,7 @@ static int aw_twi_start(void *base_addr)
 
 static int aw_twi_restart(void  *base_addr)
 {
-	unsigned int timeout = 0x20;
+	unsigned int timeout = 0xff;
 	aw_twi_set_start(base_addr);
 	aw_twi_clear_irq_flag(base_addr);
 	while((1 == aw_twi_get_start(base_addr))&&(--timeout));
