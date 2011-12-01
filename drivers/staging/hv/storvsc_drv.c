@@ -798,21 +798,12 @@ static int storvsc_device_alloc(struct scsi_device *sdevice)
 	return 0;
 }
 
-static int storvsc_merge_bvec(struct request_queue *q,
-			      struct bvec_merge_data *bmd, struct bio_vec *bvec)
-{
-	/* checking done by caller. */
-	return bvec->bv_len;
-}
-
 static int storvsc_device_configure(struct scsi_device *sdevice)
 {
 	scsi_adjust_queue_depth(sdevice, MSG_SIMPLE_TAG,
 				STORVSC_MAX_IO_REQUESTS);
 
 	blk_queue_max_segment_size(sdevice->request_queue, PAGE_SIZE);
-
-	blk_queue_merge_bvec(sdevice->request_queue, storvsc_merge_bvec);
 
 	blk_queue_bounce_limit(sdevice->request_queue, BLK_BOUNCE_ANY);
 
@@ -1375,14 +1366,7 @@ static struct scsi_host_template scsi_driver = {
 	/* no use setting to 0 since ll_blk_rw reset it to 1 */
 	/* currently 32 */
 	.sg_tablesize =		MAX_MULTIPAGE_BUFFER_COUNT,
-	/*
-	 * ENABLE_CLUSTERING allows mutiple physically contig bio_vecs to merge
-	 * into 1 sg element. If set, we must limit the max_segment_size to
-	 * PAGE_SIZE, otherwise we may get 1 sg element that represents
-	 * multiple
-	 */
-	/* physically contig pfns (ie sg[x].length > PAGE_SIZE). */
-	.use_clustering =	ENABLE_CLUSTERING,
+	.use_clustering =	DISABLE_CLUSTERING,
 	/* Make sure we dont get a sg segment crosses a page boundary */
 	.dma_boundary =		PAGE_SIZE-1,
 };
