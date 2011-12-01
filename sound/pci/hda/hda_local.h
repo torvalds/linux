@@ -674,24 +674,4 @@ static inline void snd_hda_eld_proc_free(struct hda_codec *codec,
 #define SND_PRINT_CHANNEL_ALLOCATION_ADVISED_BUFSIZE 80
 void snd_print_channel_allocation(int spk_alloc, char *buf, int buflen);
 
-/*
- * Input-jack notification support
- */
-#ifdef CONFIG_SND_HDA_INPUT_JACK
-int snd_hda_input_jack_add(struct hda_codec *codec, hda_nid_t nid, int type,
-			   const char *name);
-void snd_hda_input_jack_report(struct hda_codec *codec, hda_nid_t nid);
-#else /* CONFIG_SND_HDA_INPUT_JACK */
-static inline int snd_hda_input_jack_add(struct hda_codec *codec,
-					 hda_nid_t nid, int type,
-					 const char *name)
-{
-	return 0;
-}
-static inline void snd_hda_input_jack_report(struct hda_codec *codec,
-					     hda_nid_t nid)
-{
-}
-#endif /* CONFIG_SND_HDA_INPUT_JACK */
-
 #endif /* __SOUND_HDA_LOCAL_H */

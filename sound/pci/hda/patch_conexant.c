@@ -416,40 +416,6 @@ static int conexant_mux_enum_put(struct snd_kcontrol *kcontrol,
 				     &spec->cur_mux[adc_idx]);
 }
 
-static int conexant_init_jacks(struct hda_codec *codec)
-{
-#ifdef CONFIG_SND_HDA_INPUT_JACK
-	struct conexant_spec *spec = codec->spec;
-	int i;
-
-	for (i = 0; i < spec->num_init_verbs; i++) {
-		const struct hda_verb *hv;
-
-		hv = spec->init_verbs[i];
-		while (hv->nid) {
-			int err = 0;
-			switch (hv->param ^ AC_USRSP_EN) {
-			case CONEXANT_HP_EVENT:
-				err = snd_hda_input_jack_add(codec, hv->nid,
-						SND_JACK_HEADPHONE, NULL);
-				snd_hda_input_jack_report(codec, hv->nid);
-				break;
-			case CXT5051_PORTC_EVENT:
-			case CONEXANT_MIC_EVENT:
-				err = snd_hda_input_jack_add(codec, hv->nid,
-						SND_JACK_MICROPHONE, NULL);
-				snd_hda_input_jack_report(codec, hv->nid);
-				break;
-			}
-			if (err < 0)
-				return err;
-			++hv;
-		}
-	}
-#endif /* CONFIG_SND_HDA_INPUT_JACK */
-	return 0;
-}
-
 static void conexant_set_power(struct hda_codec *codec, hda_nid_t fg,
 			       unsigned int power_state)
 {
@@ -1750,7 +1716,6 @@ static void cxt5051_hp_automute(struct hda_codec *codec)
 static void cxt5051_hp_unsol_event(struct hda_codec *codec,
 				   unsigned int res)
 {
-	int nid = (res & AC_UNSOL_RES_SUBTAG) >> 20;
 	switch (res >> 26) {
 	case CONEXANT_HP_EVENT:
 		cxt5051_hp_automute(codec);
@@ -1762,7 +1727,6 @@ static void cxt5051_hp_unsol_event(struct hda_codec *codec,
 		cxt5051_portc_automic(codec);
 		break;
 	}
-	snd_hda_input_jack_report(codec, nid);
 }
 
 static const struct snd_kcontrol_new cxt5051_playback_mixers[] = {
@@ -1901,8 +1865,6 @@ static void cxt5051_init_mic_port(struct hda_codec *codec, hda_nid_t nid,
 	snd_hda_codec_write(codec, nid, 0,
 			    AC_VERB_SET_UNSOLICITED_ENABLE,
 			    AC_USRSP_EN | event);
-	snd_hda_input_jack_add(codec, nid, SND_JACK_MICROPHONE, NULL);
-	snd_hda_input_jack_report(codec, nid);
 }
 
 static const struct hda_verb cxt5051_ideapad_init_verbs[] = {
@@ -1918,7 +1880,6 @@ static int cxt5051_init(struct hda_codec *codec)
 	struct conexant_spec *spec = codec->spec;
 
 	conexant_init(codec);
-	conexant_init_jacks(codec);
 
 	if (spec->auto_mic & AUTO_MIC_PORTB)
 		cxt5051_init_mic_port(codec, 0x17, CXT5051_PORTB_EVENT);
@@ -3450,7 +3411,6 @@ static int detect_jacks(struct hda_codec *codec, int num_pins, hda_nid_t *pins)
 		hda_nid_t nid = pins[i];
 		if (!nid || !is_jack_detectable(codec, nid))
 			break;
-		snd_hda_input_jack_report(codec, nid);
 		present |= snd_hda_jack_detect(codec, nid);
 	}
 	return present;
@@ -3755,8 +3715,6 @@ static void cx_auto_automic(struct hda_codec *codec)
 
 static void cx_auto_unsol_event(struct hda_codec *codec, unsigned int res)
 {
-	int nid = (res & AC_UNSOL_RES_SUBTAG) >> 20;
-
 	switch (snd_hda_jack_get_action(codec, res >> 26)) {
 	case CONEXANT_HP_EVENT:
 		cx_auto_hp_automute(codec);
@@ -3766,7 +3724,6 @@ static void cx_auto_unsol_event(struct hda_codec *codec, unsigned int res)
 		break;
 	case CONEXANT_MIC_EVENT:
 		cx_auto_automic(codec);
-		snd_hda_input_jack_report(codec, nid);
 		break;
 	}
 	snd_hda_jack_report_sync(codec);
@@ -4325,6 +4282,7 @@ static int cx_auto_build_input_controls(struct hda_codec *codec)
 
 static int cx_auto_build_controls(struct hda_codec *codec)
 {
+	struct conexant_spec *spec = codec->spec;
 	int err;
 
 	err = cx_auto_build_output_controls(codec);
@@ -4333,7 +4291,13 @@ static int cx_auto_build_controls(struct hda_codec *codec)
 	err = cx_auto_build_input_controls(codec);
 	if (err < 0)
 		return err;
-	return conexant_build_controls(codec);
+	err = conexant_build_controls(codec);
+	if (err < 0)
+		return err;
+	err = snd_hda_jack_add_kctls(codec, &spec->autocfg);
+	if (err < 0)
+		return err;
+	return 0;
 }
 
 static int cx_auto_search_adcs(struct hda_codec *codec)

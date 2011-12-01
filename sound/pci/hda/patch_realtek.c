@@ -461,46 +461,6 @@ static void alc_fix_pll_init(struct hda_codec *codec, hda_nid_t nid,
 }
 
 /*
- * Jack-reporting via input-jack layer
- */
-
-/* initialization of jacks; currently checks only a few known pins */
-static int alc_init_jacks(struct hda_codec *codec)
-{
-#ifdef CONFIG_SND_HDA_INPUT_JACK
-	struct alc_spec *spec = codec->spec;
-	int err;
-	unsigned int hp_nid = spec->autocfg.hp_pins[0];
-	unsigned int mic_nid = spec->ext_mic_pin;
-	unsigned int dock_nid = spec->dock_mic_pin;
-
-	if (hp_nid) {
-		err = snd_hda_input_jack_add(codec, hp_nid,
-					     SND_JACK_HEADPHONE, NULL);
-		if (err < 0)
-			return err;
-		snd_hda_input_jack_report(codec, hp_nid);
-	}
-
-	if (mic_nid) {
-		err = snd_hda_input_jack_add(codec, mic_nid,
-					     SND_JACK_MICROPHONE, NULL);
-		if (err < 0)
-			return err;
-		snd_hda_input_jack_report(codec, mic_nid);
-	}
-	if (dock_nid) {
-		err = snd_hda_input_jack_add(codec, dock_nid,
-					     SND_JACK_MICROPHONE, NULL);
-		if (err < 0)
-			return err;
-		snd_hda_input_jack_report(codec, dock_nid);
-	}
-#endif /* CONFIG_SND_HDA_INPUT_JACK */
-	return 0;
-}
-
-/*
  * Jack detections for HP auto-mute and mic-switch
  */
 
@@ -513,7 +473,6 @@ static bool detect_jacks(struct hda_codec *codec, int num_pins, hda_nid_t *pins)
 		hda_nid_t nid = pins[i];
 		if (!nid)
 			break;
-		snd_hda_input_jack_report(codec, nid);
 		present |= snd_hda_jack_detect(codec, nid);
 	}
 	return present;
@@ -653,10 +612,6 @@ static void alc_mic_automute(struct hda_codec *codec)
 		alc_mux_select(codec, 0, spec->dock_mic_idx, false);
 	else
 		alc_mux_select(codec, 0, spec->int_mic_idx, false);
-
-	snd_hda_input_jack_report(codec, pins[spec->ext_mic_idx]);
-	if (spec->dock_mic_idx >= 0)
-		snd_hda_input_jack_report(codec, pins[spec->dock_mic_idx]);
 }
 
 /* unsolicited event for HP jack sensing */
@@ -4686,7 +4641,6 @@ static int patch_alc882(struct hda_codec *codec)
 	if (board_config == ALC_MODEL_AUTO)
 		spec->init_hook = alc_auto_init_std;
 
-	alc_init_jacks(codec);
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (!spec->loopback.amplist)
 		spec->loopback.amplist = alc882_loopbacks;
@@ -4866,7 +4820,6 @@ static int patch_alc262(struct hda_codec *codec)
 	spec->init_hook = alc_auto_init_std;
 	spec->shutup = alc_eapd_shutup;
 
-	alc_init_jacks(codec);
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (!spec->loopback.amplist)
 		spec->loopback.amplist = alc262_loopbacks;
@@ -4978,8 +4931,6 @@ static int patch_alc268(struct hda_codec *codec)
 	codec->patch_ops = alc_patch_ops;
 	spec->init_hook = alc_auto_init_std;
 	spec->shutup = alc_eapd_shutup;
-
-	alc_init_jacks(codec);
 
 	return 0;
 
@@ -5538,7 +5489,6 @@ static int patch_alc269(struct hda_codec *codec)
 	spec->init_hook = alc_auto_init_std;
 	spec->shutup = alc269_shutup;
 
-	alc_init_jacks(codec);
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (!spec->loopback.amplist)
 		spec->loopback.amplist = alc269_loopbacks;
@@ -6152,8 +6102,6 @@ static int patch_alc662(struct hda_codec *codec)
 	codec->patch_ops = alc_patch_ops;
 	spec->init_hook = alc_auto_init_std;
 	spec->shutup = alc_eapd_shutup;
-
-	alc_init_jacks(codec);
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (!spec->loopback.amplist)

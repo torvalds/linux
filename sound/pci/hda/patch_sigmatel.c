@@ -1084,13 +1084,10 @@ static const char * const slave_sws[] = {
 };
 
 static void stac92xx_free_kctls(struct hda_codec *codec);
-static int stac92xx_add_jack(struct hda_codec *codec, hda_nid_t nid, int type);
 
 static int stac92xx_build_controls(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	struct auto_pin_cfg *cfg = &spec->autocfg;
-	hda_nid_t nid;
 	int err;
 	int i;
 
@@ -1175,32 +1172,6 @@ static int stac92xx_build_controls(struct hda_codec *codec)
 	}
 
 	stac92xx_free_kctls(codec); /* no longer needed */
-
-	/* create jack input elements */
-	if (spec->hp_detect) {
-		for (i = 0; i < cfg->hp_outs; i++) {
-			int type = SND_JACK_HEADPHONE;
-			nid = cfg->hp_pins[i];
-			/* jack detection */
-			if (cfg->hp_outs == i)
-				type |= SND_JACK_LINEOUT;
-			err = stac92xx_add_jack(codec, nid, type);
-			if (err < 0)
-				return err;
-		}
-	}
-	for (i = 0; i < cfg->line_outs; i++) {
-		err = stac92xx_add_jack(codec, cfg->line_out_pins[i],
-					SND_JACK_LINEOUT);
-		if (err < 0)
-			return err;
-	}
-	for (i = 0; i < cfg->num_inputs; i++) {
-		nid = cfg->inputs[i].pin;
-		err = stac92xx_add_jack(codec, nid, SND_JACK_MICROPHONE);
-		if (err < 0)
-			return err;
-	}
 
 	err = snd_hda_jack_add_kctls(codec, &spec->autocfg);
 	if (err < 0)
@@ -4158,22 +4129,6 @@ static void stac_gpio_set(struct hda_codec *codec, unsigned int mask,
 			   AC_VERB_SET_GPIO_DATA, gpiostate); /* sync */
 }
 
-static int stac92xx_add_jack(struct hda_codec *codec,
-		hda_nid_t nid, int type)
-{
-#ifdef CONFIG_SND_HDA_INPUT_JACK
-	int def_conf = snd_hda_codec_get_pincfg(codec, nid);
-	int connectivity = get_defcfg_connect(def_conf);
-
-	if (connectivity && connectivity != AC_JACK_PORT_FIXED)
-		return 0;
-
-	return snd_hda_input_jack_add(codec, nid, type, NULL);
-#else
-	return 0;
-#endif /* CONFIG_SND_HDA_INPUT_JACK */
-}
-
 static int stac_add_event(struct hda_codec *codec, hda_nid_t nid,
 			  unsigned char type, int data)
 {
@@ -4778,7 +4733,6 @@ static void handle_unsol_event(struct hda_codec *codec,
 	case STAC_PWR_EVENT:
 		if (spec->num_pwrs > 0)
 			stac92xx_pin_sense(codec, event->nid);
-		snd_hda_input_jack_report(codec, event->nid);
 
 		switch (codec->subsystem_id) {
 		case 0x103c308f:
