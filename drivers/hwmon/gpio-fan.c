@@ -539,18 +539,7 @@ static struct platform_driver gpio_fan_driver = {
 	},
 };
 
-static int __init gpio_fan_init(void)
-{
-	return platform_driver_register(&gpio_fan_driver);
-}
-
-static void __exit gpio_fan_exit(void)
-{
-	platform_driver_unregister(&gpio_fan_driver);
-}
-
-module_init(gpio_fan_init);
-module_exit(gpio_fan_exit);
+module_platform_driver(gpio_fan_driver);
 
 MODULE_AUTHOR("Simon Guinot <sguinot@lacie.com>");
 MODULE_DESCRIPTION("GPIO FAN driver");

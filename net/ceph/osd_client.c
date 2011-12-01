@@ -244,7 +244,7 @@ struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 		ceph_pagelist_init(req->r_trail);
 	}
 	/* create request message; allow space for oid */
-	msg_size += 40;
+	msg_size += MAX_OBJ_NAME_SIZE;
 	if (snapc)
 		msg_size += sizeof(u64) * snapc->num_snaps;
 	if (use_mempool)

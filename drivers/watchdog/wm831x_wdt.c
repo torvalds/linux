@@ -150,7 +150,7 @@ static int wm831x_wdt_set_timeout(struct watchdog_device *wdt_dev,
 		if (wm831x_wdt_cfgs[i].time == timeout)
 			break;
 	if (i == ARRAY_SIZE(wm831x_wdt_cfgs))
-		ret = -EINVAL;
+		return -EINVAL;
 
 	ret = wm831x_reg_unlock(wm831x);
 	if (ret == 0) {

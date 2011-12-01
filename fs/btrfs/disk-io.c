@@ -620,7 +620,7 @@ out:
 
 static int btree_io_failed_hook(struct bio *failed_bio,
 			 struct page *page, u64 start, u64 end,
-			 u64 mirror_num, struct extent_state *state)
+			 int mirror_num, struct extent_state *state)
 {
 	struct extent_io_tree *tree;
 	unsigned long len;
@@ -2573,21 +2573,9 @@ static int write_dev_supers(struct btrfs_device *device,
 	int errors = 0;
 	u32 crc;
 	u64 bytenr;
-	int last_barrier = 0;
 
 	if (max_mirrors == 0)
 		max_mirrors = BTRFS_SUPER_MIRROR_MAX;
-
-	/* make sure only the last submit_bh does a barrier */
-	if (do_barriers) {
-		for (i = 0; i < max_mirrors; i++) {
-			bytenr = btrfs_sb_offset(i);
-			if (bytenr + BTRFS_SUPER_INFO_SIZE >=
-			    device->total_bytes)
-				break;
-			last_barrier = i;
-		}
-	}
 
 	for (i = 0; i < max_mirrors; i++) {
 		bytenr = btrfs_sb_offset(i);
@@ -2634,15 +2622,134 @@ static int write_dev_supers(struct btrfs_device *device,
 			bh->b_end_io = btrfs_end_buffer_write_sync;
 		}
 
-		if (i == last_barrier && do_barriers)
-			ret = submit_bh(WRITE_FLUSH_FUA, bh);
-		else
-			ret = submit_bh(WRITE_SYNC, bh);
-
+		/*
+		 * we fua the first super.  The others we allow
+		 * to go down lazy.
+		 */
+		ret = submit_bh(WRITE_FUA, bh);
 		if (ret)
 			errors++;
 	}
 	return errors < i ? 0 : -1;
+}
+
+/*
+ * endio for the write_dev_flush, this will wake anyone waiting
+ * for the barrier when it is done
+ */
+static void btrfs_end_empty_barrier(struct bio *bio, int err)
+{
+	if (err) {
+		if (err == -EOPNOTSUPP)
+			set_bit(BIO_EOPNOTSUPP, &bio->bi_flags);
+		clear_bit(BIO_UPTODATE, &bio->bi_flags);
+	}
+	if (bio->bi_private)
+		complete(bio->bi_private);
+	bio_put(bio);
+}
+
+/*
+ * trigger flushes for one the devices.  If you pass wait == 0, the flushes are
+ * sent down.  With wait == 1, it waits for the previous flush.
+ *
+ * any device where the flush fails with eopnotsupp are flagged as not-barrier
+ * capable
+ */
+static int write_dev_flush(struct btrfs_device *device, int wait)
+{
+	struct bio *bio;
+	int ret = 0;
+
+	if (device->nobarriers)
+		return 0;
+
+	if (wait) {
+		bio = device->flush_bio;
+		if (!bio)
+			return 0;
+
+		wait_for_completion(&device->flush_wait);
+
+		if (bio_flagged(bio, BIO_EOPNOTSUPP)) {
+			printk("btrfs: disabling barriers on dev %s\n",
+			       device->name);
+			device->nobarriers = 1;
+		}
+		if (!bio_flagged(bio, BIO_UPTODATE)) {
+			ret = -EIO;
+		}
+
+		/* drop the reference from the wait == 0 run */
+		bio_put(bio);
+		device->flush_bio = NULL;
+
+		return ret;
+	}
+
+	/*
+	 * one reference for us, and we leave it for the
+	 * caller
+	 */
+	device->flush_bio = NULL;;
+	bio = bio_alloc(GFP_NOFS, 0);
+	if (!bio)
+		return -ENOMEM;
+
+	bio->bi_end_io = btrfs_end_empty_barrier;
+	bio->bi_bdev = device->bdev;
+	init_completion(&device->flush_wait);
+	bio->bi_private = &device->flush_wait;
+	device->flush_bio = bio;
+
+	bio_get(bio);
+	submit_bio(WRITE_FLUSH, bio);
+
+	return 0;
+}
+
+/*
+ * send an empty flush down to each device in parallel,
+ * then wait for them
+ */
+static int barrier_all_devices(struct btrfs_fs_info *info)
+{
+	struct list_head *head;
+	struct btrfs_device *dev;
+	int errors = 0;
+	int ret;
+
+	/* send down all the barriers */
+	head = &info->fs_devices->devices;
+	list_for_each_entry_rcu(dev, head, dev_list) {
+		if (!dev->bdev) {
+			errors++;
+			continue;
+		}
+		if (!dev->in_fs_metadata || !dev->writeable)
+			continue;
+
+		ret = write_dev_flush(dev, 0);
+		if (ret)
+			errors++;
+	}
+
+	/* wait for all the barriers */
+	list_for_each_entry_rcu(dev, head, dev_list) {
+		if (!dev->bdev) {
+			errors++;
+			continue;
+		}
+		if (!dev->in_fs_metadata || !dev->writeable)
+			continue;
+
+		ret = write_dev_flush(dev, 1);
+		if (ret)
+			errors++;
+	}
+	if (errors)
+		return -EIO;
+	return 0;
 }
 
 int write_all_supers(struct btrfs_root *root, int max_mirrors)
@@ -2666,6 +2773,10 @@ int write_all_supers(struct btrfs_root *root, int max_mirrors)
 
 	mutex_lock(&root->fs_info->fs_devices->device_list_mutex);
 	head = &root->fs_info->fs_devices->devices;
+
+	if (do_barriers)
+		barrier_all_devices(root->fs_info);
+
 	list_for_each_entry_rcu(dev, head, dev_list) {
 		if (!dev->bdev) {
 			total_errors++;

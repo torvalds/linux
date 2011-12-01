@@ -1953,13 +1953,16 @@ static struct map_desc imx6q_clock_desc[] = {
 	imx_map_entry(MX6Q, ANATOP, MT_DEVICE),
 };
 
+void __init imx6q_clock_map_io(void)
+{
+	iotable_init(imx6q_clock_desc, ARRAY_SIZE(imx6q_clock_desc));
+}
+
 int __init mx6q_clocks_init(void)
 {
 	struct device_node *np;
 	void __iomem *base;
 	int i, irq;
-
-	iotable_init(imx6q_clock_desc, ARRAY_SIZE(imx6q_clock_desc));
 
 	/* retrieve the freqency of fixed clocks from device tree */
 	for_each_compatible_node(np, NULL, "fixed-clock") {

@@ -60,27 +60,27 @@ EXPORT_SYMBOL_GPL(irq_of_parse_and_map);
  */
 struct device_node *of_irq_find_parent(struct device_node *child)
 {
-	struct device_node *p, *c = child;
+	struct device_node *p;
 	const __be32 *parp;
 
-	if (!of_node_get(c))
+	if (!of_node_get(child))
 		return NULL;
 
 	do {
-		parp = of_get_property(c, "interrupt-parent", NULL);
+		parp = of_get_property(child, "interrupt-parent", NULL);
 		if (parp == NULL)
-			p = of_get_parent(c);
+			p = of_get_parent(child);
 		else {
 			if (of_irq_workarounds & OF_IMAP_NO_PHANDLE)
 				p = of_node_get(of_irq_dflt_pic);
 			else
 				p = of_find_node_by_phandle(be32_to_cpup(parp));
 		}
-		of_node_put(c);
-		c = p;
+		of_node_put(child);
+		child = p;
 	} while (p && of_get_property(p, "#interrupt-cells", NULL) == NULL);
 
-	return (p == child) ? NULL : p;
+	return p;
 }
 
 /**
@@ -424,6 +424,8 @@ void __init of_irq_init(const struct of_device_id *matches)
 
 		desc->dev = np;
 		desc->interrupt_parent = of_irq_find_parent(np);
+		if (desc->interrupt_parent == np)
+			desc->interrupt_parent = NULL;
 		list_add_tail(&desc->list, &intc_desc_list);
 	}
 

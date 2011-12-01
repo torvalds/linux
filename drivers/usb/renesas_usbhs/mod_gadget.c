@@ -830,7 +830,7 @@ static int usbhsg_stop(struct usbhs_priv *priv)
 	return usbhsg_try_stop(priv, USBHSG_STATUS_STARTED);
 }
 
-int __devinit usbhs_mod_gadget_probe(struct usbhs_priv *priv)
+int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 {
 	struct usbhsg_gpriv *gpriv;
 	struct usbhsg_uep *uep;
@@ -927,7 +927,7 @@ usbhs_mod_gadget_probe_err_gpriv:
 	return ret;
 }
 
-void __devexit usbhs_mod_gadget_remove(struct usbhs_priv *priv)
+void usbhs_mod_gadget_remove(struct usbhs_priv *priv)
 {
 	struct usbhsg_gpriv *gpriv = usbhsg_priv_to_gpriv(priv);
 
