@@ -296,13 +296,6 @@ static int __poke_user(struct task_struct *child, addr_t addr, addr_t data)
 		     ((data & PSW_MASK_EA) && !(data & PSW_MASK_BA))))
 			/* Invalid psw mask. */
 			return -EINVAL;
-		if (addr == (addr_t) &dummy->regs.psw.addr)
-			/*
-			 * The debugger changed the instruction address,
-			 * reset system call restart, see signal.c:do_signal
-			 */
-			task_thread_info(child)->system_call = 0;
-
 		*(addr_t *)((addr_t) &task_pt_regs(child)->psw + addr) = data;
 
 	} else if (addr < (addr_t) (&dummy->regs.orig_gpr2)) {
@@ -614,11 +607,6 @@ static int __poke_user_compat(struct task_struct *child,
 			/* Transfer 31 bit amode bit to psw mask. */
 			regs->psw.mask = (regs->psw.mask & ~PSW_MASK_BA) |
 				(__u64)(tmp & PSW32_ADDR_AMODE);
-			/*
-			 * The debugger changed the instruction address,
-			 * reset system call restart, see signal.c:do_signal
-			 */
-			task_thread_info(child)->system_call = 0;
 		} else {
 			/* gpr 0-15 */
 			*(__u32*)((addr_t) &regs->psw + addr*2 + 4) = tmp;
