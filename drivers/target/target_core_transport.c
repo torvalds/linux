@@ -2062,13 +2062,6 @@ static int transport_execute_tasks(struct se_cmd *cmd)
 {
 	int add_tasks;
 	struct se_device *se_dev = cmd->se_dev;
-
-	if (se_dev_check_online(cmd->se_dev) != 0) {
-		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-		transport_generic_request_failure(cmd);
-		return 0;
-	}
-
 	/*
 	 * Call transport_cmd_check_stop() to see if a fabric exception
 	 * has occurred that prevents execution.
