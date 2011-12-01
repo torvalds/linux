@@ -71,9 +71,7 @@ struct ath_regulatory {
 	char alpha2[2];
 	u16 country_code;
 	u16 max_power_level;
-	u32 tp_scale;
 	u16 current_rd;
-	u16 current_rd_ext;
 	int16_t power_limit;
 	struct reg_dmn_pair_mapping *regpair;
 };
@@ -175,8 +173,7 @@ bool ath_hw_keyreset(struct ath_common *common, u16 entry);
 void ath_hw_cycle_counters_update(struct ath_common *common);
 int32_t ath_hw_get_listen_time(struct ath_common *common);
 
-extern __attribute__((format (printf, 2, 3)))
-void ath_printk(const char *level, const char *fmt, ...);
+extern __printf(2, 3) void ath_printk(const char *level, const char *fmt, ...);
 
 #define _ath_printk(level, common, fmt, ...)			\
 do {								\
@@ -242,6 +239,7 @@ enum ATH_DEBUG {
 	ATH_DBG_BTCOEX		= 0x00002000,
 	ATH_DBG_WMI		= 0x00004000,
 	ATH_DBG_BSTUCK		= 0x00008000,
+	ATH_DBG_MCI		= 0x00010000,
 	ATH_DBG_ANY		= 0xffffffff
 };
 
@@ -260,7 +258,7 @@ do {									\
 
 #else
 
-static inline  __attribute__((format (printf, 3, 4)))
+static inline  __attribute__ ((format (printf, 3, 4)))
 void ath_dbg(struct ath_common *common, enum ATH_DEBUG dbg_mask,
 	     const char *fmt, ...)
 {

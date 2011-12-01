@@ -41,33 +41,20 @@
 #define SPINLOCK_NOTTAKEN		(0)	/* free */
 #define SPINLOCK_TAKEN			(1)	/* locked */
 
-#define to_omap_hwspinlock(lock)	\
-	container_of(lock, struct omap_hwspinlock, lock)
-
-struct omap_hwspinlock {
-	struct hwspinlock lock;
-	void __iomem *addr;
-};
-
-struct omap_hwspinlock_state {
-	int num_locks;			/* Total number of locks in system */
-	void __iomem *io_base;		/* Mapped base address */
-};
-
 static int omap_hwspinlock_trylock(struct hwspinlock *lock)
 {
-	struct omap_hwspinlock *omap_lock = to_omap_hwspinlock(lock);
+	void __iomem *lock_addr = lock->priv;
 
 	/* attempt to acquire the lock by reading its value */
-	return (SPINLOCK_NOTTAKEN == readl(omap_lock->addr));
+	return (SPINLOCK_NOTTAKEN == readl(lock_addr));
 }
 
 static void omap_hwspinlock_unlock(struct hwspinlock *lock)
 {
-	struct omap_hwspinlock *omap_lock = to_omap_hwspinlock(lock);
+	void __iomem *lock_addr = lock->priv;
 
 	/* release the lock by writing 0 to it */
-	writel(SPINLOCK_NOTTAKEN, omap_lock->addr);
+	writel(SPINLOCK_NOTTAKEN, lock_addr);
 }
 
 /*
@@ -93,26 +80,23 @@ static const struct hwspinlock_ops omap_hwspinlock_ops = {
 
 static int __devinit omap_hwspinlock_probe(struct platform_device *pdev)
 {
-	struct omap_hwspinlock *omap_lock;
-	struct omap_hwspinlock_state *state;
-	struct hwspinlock *lock;
+	struct hwspinlock_pdata *pdata = pdev->dev.platform_data;
+	struct hwspinlock_device *bank;
+	struct hwspinlock *hwlock;
 	struct resource *res;
 	void __iomem *io_base;
-	int i, ret;
+	int num_locks, i, ret;
+
+	if (!pdata)
+		return -ENODEV;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -ENODEV;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	if (!state)
-		return -ENOMEM;
-
 	io_base = ioremap(res->start, resource_size(res));
-	if (!io_base) {
-		ret = -ENOMEM;
-		goto free_state;
-	}
+	if (!io_base)
+		return -ENOMEM;
 
 	/* Determine number of locks */
 	i = readl(io_base + SYSSTATUS_OFFSET);
@@ -124,10 +108,18 @@ static int __devinit omap_hwspinlock_probe(struct platform_device *pdev)
 		goto iounmap_base;
 	}
 
-	state->num_locks = i * 32;
-	state->io_base = io_base;
+	num_locks = i * 32; /* actual number of locks in this device */
 
-	platform_set_drvdata(pdev, state);
+	bank = kzalloc(sizeof(*bank) + num_locks * sizeof(*hwlock), GFP_KERNEL);
+	if (!bank) {
+		ret = -ENOMEM;
+		goto iounmap_base;
+	}
+
+	platform_set_drvdata(pdev, bank);
+
+	for (i = 0, hwlock = &bank->lock[0]; i < num_locks; i++, hwlock++)
+		hwlock->priv = io_base + LOCK_BASE_OFFSET + sizeof(u32) * i;
 
 	/*
 	 * runtime PM will make sure the clock of this module is
@@ -135,79 +127,46 @@ static int __devinit omap_hwspinlock_probe(struct platform_device *pdev)
 	 */
 	pm_runtime_enable(&pdev->dev);
 
-	for (i = 0; i < state->num_locks; i++) {
-		omap_lock = kzalloc(sizeof(*omap_lock), GFP_KERNEL);
-		if (!omap_lock) {
-			ret = -ENOMEM;
-			goto free_locks;
-		}
-
-		omap_lock->lock.dev = &pdev->dev;
-		omap_lock->lock.owner = THIS_MODULE;
-		omap_lock->lock.id = i;
-		omap_lock->lock.ops = &omap_hwspinlock_ops;
-		omap_lock->addr = io_base + LOCK_BASE_OFFSET + sizeof(u32) * i;
-
-		ret = hwspin_lock_register(&omap_lock->lock);
-		if (ret) {
-			kfree(omap_lock);
-			goto free_locks;
-		}
-	}
+	ret = hwspin_lock_register(bank, &pdev->dev, &omap_hwspinlock_ops,
+						pdata->base_id, num_locks);
+	if (ret)
+		goto reg_fail;
 
 	return 0;
 
-free_locks:
-	while (--i >= 0) {
-		lock = hwspin_lock_unregister(i);
-		/* this should't happen, but let's give our best effort */
-		if (!lock) {
-			dev_err(&pdev->dev, "%s: cleanups failed\n", __func__);
-			continue;
-		}
-		omap_lock = to_omap_hwspinlock(lock);
-		kfree(omap_lock);
-	}
+reg_fail:
 	pm_runtime_disable(&pdev->dev);
+	kfree(bank);
 iounmap_base:
 	iounmap(io_base);
-free_state:
-	kfree(state);
 	return ret;
 }
 
-static int omap_hwspinlock_remove(struct platform_device *pdev)
+static int __devexit omap_hwspinlock_remove(struct platform_device *pdev)
 {
-	struct omap_hwspinlock_state *state = platform_get_drvdata(pdev);
-	struct hwspinlock *lock;
-	struct omap_hwspinlock *omap_lock;
-	int i;
+	struct hwspinlock_device *bank = platform_get_drvdata(pdev);
+	void __iomem *io_base = bank->lock[0].priv - LOCK_BASE_OFFSET;
+	int ret;
 
-	for (i = 0; i < state->num_locks; i++) {
-		lock = hwspin_lock_unregister(i);
-		/* this shouldn't happen at this point. if it does, at least
-		 * don't continue with the remove */
-		if (!lock) {
-			dev_err(&pdev->dev, "%s: failed on %d\n", __func__, i);
-			return -EBUSY;
-		}
-
-		omap_lock = to_omap_hwspinlock(lock);
-		kfree(omap_lock);
+	ret = hwspin_lock_unregister(bank);
+	if (ret) {
+		dev_err(&pdev->dev, "%s failed: %d\n", __func__, ret);
+		return ret;
 	}
 
 	pm_runtime_disable(&pdev->dev);
-	iounmap(state->io_base);
-	kfree(state);
+	iounmap(io_base);
+	kfree(bank);
 
 	return 0;
 }
 
 static struct platform_driver omap_hwspinlock_driver = {
 	.probe		= omap_hwspinlock_probe,
-	.remove		= omap_hwspinlock_remove,
+	.remove		= __devexit_p(omap_hwspinlock_remove),
 	.driver		= {
 		.name	= "omap_hwspinlock",
+		.owner	= THIS_MODULE,
 	},
 };
 

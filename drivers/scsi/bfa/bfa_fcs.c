@@ -20,6 +20,7 @@
  */
 
 #include "bfad_drv.h"
+#include "bfad_im.h"
 #include "bfa_fcs.h"
 #include "bfa_fcbuild.h"
 
@@ -1327,6 +1328,29 @@ bfa_fcs_fabric_flogiacc_comp(void *fcsarg, struct bfa_fcxp_s *fcxp, void *cbarg,
 	bfa_trc(fabric->fcs, status);
 }
 
+
+/*
+ * Send AEN notification
+ */
+static void
+bfa_fcs_fabric_aen_post(struct bfa_fcs_lport_s *port,
+			enum bfa_port_aen_event event)
+{
+	struct bfad_s *bfad = (struct bfad_s *)port->fabric->fcs->bfad;
+	struct bfa_aen_entry_s  *aen_entry;
+
+	bfad_get_aen_entry(bfad, aen_entry);
+	if (!aen_entry)
+		return;
+
+	aen_entry->aen_data.port.pwwn = bfa_fcs_lport_get_pwwn(port);
+	aen_entry->aen_data.port.fwwn = bfa_fcs_lport_get_fabric_name(port);
+
+	/* Send the AEN notification */
+	bfad_im_post_vendor_event(aen_entry, bfad, ++port->fcs->fcs_aen_seq,
+				  BFA_AEN_CAT_PORT, event);
+}
+
 /*
  *
  * @param[in] fabric - fabric
@@ -1358,6 +1382,8 @@ bfa_fcs_fabric_set_fabric_name(struct bfa_fcs_fabric_s *fabric,
 		BFA_LOG(KERN_WARNING, bfad, bfa_log_level,
 			"Base port WWN = %s Fabric WWN = %s\n",
 			pwwn_ptr, fwwn_ptr);
+		bfa_fcs_fabric_aen_post(&fabric->bport,
+				BFA_PORT_AEN_FABRIC_NAME_CHANGE);
 	}
 }
 

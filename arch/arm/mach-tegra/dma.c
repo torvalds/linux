@@ -105,13 +105,17 @@
 
 #define NV_DMA_MAX_TRASFER_SIZE 0x10000
 
-const unsigned int ahb_addr_wrap_table[8] = {
+static const unsigned int ahb_addr_wrap_table[8] = {
 	0, 32, 64, 128, 256, 512, 1024, 2048
 };
 
-const unsigned int apb_addr_wrap_table[8] = {0, 1, 2, 4, 8, 16, 32, 64};
+static const unsigned int apb_addr_wrap_table[8] = {
+	0, 1, 2, 4, 8, 16, 32, 64
+};
 
-const unsigned int bus_width_table[5] = {8, 16, 32, 64, 128};
+static const unsigned int bus_width_table[5] = {
+	8, 16, 32, 64, 128
+};
 
 #define TEGRA_DMA_NAME_SIZE 16
 struct tegra_dma_channel {
@@ -157,7 +161,7 @@ void tegra_dma_dequeue(struct tegra_dma_channel *ch)
 	return;
 }
 
-void tegra_dma_stop(struct tegra_dma_channel *ch)
+static void tegra_dma_stop(struct tegra_dma_channel *ch)
 {
 	u32 csr;
 	u32 status;
@@ -174,7 +178,7 @@ void tegra_dma_stop(struct tegra_dma_channel *ch)
 		writel(status, ch->addr + APB_DMA_CHAN_STA);
 }
 
-int tegra_dma_cancel(struct tegra_dma_channel *ch)
+static int tegra_dma_cancel(struct tegra_dma_channel *ch)
 {
 	u32 csr;
 	unsigned long irq_flags;

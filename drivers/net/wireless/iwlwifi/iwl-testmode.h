@@ -76,9 +76,9 @@
  *	the actual uCode host command ID is carried with
  *	IWL_TM_ATTR_UCODE_CMD_ID
  *
- * @IWL_TM_CMD_APP2DEV_REG_READ32:
- * @IWL_TM_CMD_APP2DEV_REG_WRITE32:
- * @IWL_TM_CMD_APP2DEV_REG_WRITE8:
+ * @IWL_TM_CMD_APP2DEV_DIRECT_REG_READ32:
+ * @IWL_TM_CMD_APP2DEV_DIRECT_REG_WRITE32:
+ * @IWL_TM_CMD_APP2DEV_DIRECT_REG_WRITE8:
  *	commands from user applicaiton to access register
  *
  * @IWL_TM_CMD_APP2DEV_GET_DEVICENAME: retrieve device name
@@ -107,12 +107,16 @@
  *	commands from user application to own change the ownership of the uCode
  *	if application has the ownership, the only host command from
  *	testmode will deliver to uCode. Default owner is driver
+ * @IWL_TM_CMD_APP2DEV_INDIRECT_REG_READ32:
+ * @IWL_TM_CMD_APP2DEV_INDIRECT_REG_WRITE32:
+ *	commands from user applicaiton to indirectly access peripheral register
+ *
  */
 enum iwl_tm_cmd_t {
 	IWL_TM_CMD_APP2DEV_UCODE		= 1,
-	IWL_TM_CMD_APP2DEV_REG_READ32		= 2,
-	IWL_TM_CMD_APP2DEV_REG_WRITE32		= 3,
-	IWL_TM_CMD_APP2DEV_REG_WRITE8		= 4,
+	IWL_TM_CMD_APP2DEV_DIRECT_REG_READ32	= 2,
+	IWL_TM_CMD_APP2DEV_DIRECT_REG_WRITE32	= 3,
+	IWL_TM_CMD_APP2DEV_DIRECT_REG_WRITE8	= 4,
 	IWL_TM_CMD_APP2DEV_GET_DEVICENAME	= 5,
 	IWL_TM_CMD_APP2DEV_LOAD_INIT_FW		= 6,
 	IWL_TM_CMD_APP2DEV_CFG_INIT_CALIB	= 7,
@@ -126,7 +130,9 @@ enum iwl_tm_cmd_t {
 	IWL_TM_CMD_DEV2APP_UCODE_RX_PKT		= 15,
 	IWL_TM_CMD_DEV2APP_EEPROM_RSP		= 16,
 	IWL_TM_CMD_APP2DEV_OWNERSHIP		= 17,
-	IWL_TM_CMD_MAX				= 18,
+	IWL_TM_CMD_APP2DEV_INDIRECT_REG_READ32	= 18,
+	IWL_TM_CMD_APP2DEV_INDIRECT_REG_WRITE32	= 19,
+	IWL_TM_CMD_MAX				= 20,
 };
 
 /*

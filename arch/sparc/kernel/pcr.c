@@ -3,7 +3,7 @@
  * Copyright (C) 2009 David S. Miller (davem@davemloft.net)
  */
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 
@@ -13,6 +13,7 @@
 #include <asm/pil.h>
 #include <asm/pcr.h>
 #include <asm/nmi.h>
+#include <asm/spitfire.h>
 
 /* This code is shared between various users of the performance
  * counters.  Users will be oprofile, pseudo-NMI watchdog, and the
@@ -80,8 +81,11 @@ static void n2_pcr_write(u64 val)
 {
 	unsigned long ret;
 
-	ret = sun4v_niagara2_setperf(HV_N2_PERF_SPARC_CTL, val);
-	if (ret != HV_EOK)
+	if (val & PCR_N2_HTRACE) {
+		ret = sun4v_niagara2_setperf(HV_N2_PERF_SPARC_CTL, val);
+		if (ret != HV_EOK)
+			write_pcr(val);
+	} else
 		write_pcr(val);
 }
 
@@ -104,6 +108,10 @@ static int __init register_perf_hsvc(void)
 
 		case SUN4V_CHIP_NIAGARA2:
 			perf_hsvc_group = HV_GRP_N2_CPU;
+			break;
+
+		case SUN4V_CHIP_NIAGARA3:
+			perf_hsvc_group = HV_GRP_KT_CPU;
 			break;
 
 		default:

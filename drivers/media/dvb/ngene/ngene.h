@@ -641,8 +641,11 @@ struct ngene_channel {
 	int                   mode;
 	bool                  has_adapter;
 	bool                  has_demux;
+	int                   demod_type;
+	int (*gate_ctrl)(struct dvb_frontend *, int);
 
 	struct dvb_frontend  *fe;
+	struct dvb_frontend  *fe2;
 	struct dmxdev         dmxdev;
 	struct dvb_demux      demux;
 	struct dvb_net        dvbnet;
@@ -786,6 +789,8 @@ struct ngene {
 	u8                    uart_rbuf[UART_RBUF_LEN];
 	int                   uart_rp, uart_wp;
 
+#define TS_FILLER  0x6f
+
 	u8                   *tsout_buf;
 #define TSOUT_BUF_SIZE (512*188*8)
 	struct dvb_ringbuffer tsout_rbuf;
@@ -852,7 +857,7 @@ struct ngene_info {
 };
 
 #ifdef NGENE_V4L
-struct ngene_format{
+struct ngene_format {
 	char *name;
 	int   fourcc;          /* video4linux 2      */
 	int   btformat;        /* BT848_COLOR_FMT_*  */

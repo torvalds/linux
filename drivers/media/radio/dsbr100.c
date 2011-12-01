@@ -102,10 +102,7 @@
 /*
  * Version Information
  */
-#include <linux/version.h>	/* for KERNEL_VERSION MACRO	*/
-
-#define DRIVER_VERSION "v0.46"
-#define RADIO_VERSION KERNEL_VERSION(0, 4, 6)
+#define DRIVER_VERSION "0.4.7"
 
 #define DRIVER_AUTHOR "Markus Demleitner <msdemlei@tucana.harvard.edu>"
 #define DRIVER_DESC "D-Link DSB-R100 USB FM radio driver"
@@ -335,7 +332,6 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strlcpy(v->driver, "dsbr100", sizeof(v->driver));
 	strlcpy(v->card, "D-Link R-100 USB FM Radio", sizeof(v->card));
 	usb_make_path(radio->usbdev, v->bus_info, sizeof(v->bus_info));
-	v->version = RADIO_VERSION;
 	v->capabilities = V4L2_CAP_TUNER;
 	return 0;
 }
@@ -647,3 +643,4 @@ module_exit (dsbr100_exit);
 MODULE_AUTHOR( DRIVER_AUTHOR );
 MODULE_DESCRIPTION( DRIVER_DESC );
 MODULE_LICENSE("GPL");
+MODULE_VERSION(DRIVER_VERSION);

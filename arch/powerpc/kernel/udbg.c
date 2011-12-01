@@ -67,6 +67,14 @@ void __init udbg_early_init(void)
 	udbg_init_usbgecko();
 #elif defined(CONFIG_PPC_EARLY_DEBUG_WSP)
 	udbg_init_wsp();
+#elif defined(CONFIG_PPC_EARLY_DEBUG_EHV_BC)
+	udbg_init_ehv_bc();
+#elif defined(CONFIG_PPC_EARLY_DEBUG_PS3GELIC)
+	udbg_init_ps3gelic();
+#elif defined(CONFIG_PPC_EARLY_DEBUG_OPAL_RAW)
+	udbg_init_debug_opal_raw();
+#elif defined(CONFIG_PPC_EARLY_DEBUG_OPAL_HVSI)
+	udbg_init_debug_opal_hvsi();
 #endif
 
 #ifdef CONFIG_PPC_EARLY_DEBUG

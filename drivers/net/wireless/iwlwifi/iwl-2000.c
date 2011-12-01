@@ -39,11 +39,8 @@
 #include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-io.h"
-#include "iwl-sta.h"
 #include "iwl-agn.h"
-#include "iwl-helpers.h"
 #include "iwl-agn-hw.h"
-#include "iwl-6000-hw.h"
 #include "iwl-shared.h"
 #include "iwl-cfg.h"
 
@@ -127,7 +124,6 @@ static int iwl2000_hw_set_hw_params(struct iwl_priv *priv)
 			iwlagn_mod_params.num_of_queues;
 
 	hw_params(priv).max_txq_num = priv->cfg->base_params->num_of_queues;
-	hw_params(priv).max_stations = IWLAGN_STATION_COUNT;
 	priv->contexts[IWL_RXON_CTX_BSS].bcast_sta_id = IWLAGN_BROADCAST_ID;
 
 	hw_params(priv).max_data_size = IWL60_RTC_DATA_SIZE;
@@ -147,17 +143,7 @@ static int iwl2000_hw_set_hw_params(struct iwl_priv *priv)
 	iwl2000_set_ct_threshold(priv);
 
 	/* Set initial sensitivity parameters */
-	/* Set initial calibration set */
 	hw_params(priv).sens = &iwl2000_sensitivity;
-	hw_params(priv).calib_init_cfg =
-		BIT(IWL_CALIB_XTAL)             |
-		BIT(IWL_CALIB_LO)               |
-		BIT(IWL_CALIB_TX_IQ)            |
-		BIT(IWL_CALIB_BASE_BAND);
-	if (priv->cfg->need_dc_calib)
-		hw_params(priv).calib_rt_cfg |= IWL_CALIB_CFG_DC_IDX;
-	if (priv->cfg->need_temp_offset_calib)
-		hw_params(priv).calib_init_cfg |= BIT(IWL_CALIB_TEMP_OFFSET);
 
 	return 0;
 }
@@ -262,7 +248,6 @@ static struct iwl_bt_params iwl2030_bt_params = {
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
 	.lib = &iwl2000_lib,					\
 	.base_params = &iwl2000_base_params,			\
-	.need_dc_calib = true,					\
 	.need_temp_offset_calib = true,				\
 	.temp_offset_v2 = true,					\
 	.led_mode = IWL_LED_RF_STATE,				\
@@ -272,11 +257,6 @@ struct iwl_cfg iwl2000_2bgn_cfg = {
 	.name = "2000 Series 2x2 BGN",
 	IWL_DEVICE_2000,
 	.ht_params = &iwl2000_ht_params,
-};
-
-struct iwl_cfg iwl2000_2bg_cfg = {
-	.name = "2000 Series 2x2 BG",
-	IWL_DEVICE_2000,
 };
 
 struct iwl_cfg iwl2000_2bgn_d_cfg = {
@@ -295,7 +275,6 @@ struct iwl_cfg iwl2000_2bgn_d_cfg = {
 	.lib = &iwl2030_lib,					\
 	.base_params = &iwl2030_base_params,			\
 	.bt_params = &iwl2030_bt_params,			\
-	.need_dc_calib = true,					\
 	.need_temp_offset_calib = true,				\
 	.temp_offset_v2 = true,					\
 	.led_mode = IWL_LED_RF_STATE,				\
@@ -308,11 +287,6 @@ struct iwl_cfg iwl2030_2bgn_cfg = {
 	.ht_params = &iwl2000_ht_params,
 };
 
-struct iwl_cfg iwl2030_2bg_cfg = {
-	.name = "2000 Series 2x2 BG/BT",
-	IWL_DEVICE_2030,
-};
-
 #define IWL_DEVICE_105						\
 	.fw_name_pre = IWL105_FW_PRE,				\
 	.ucode_api_max = IWL105_UCODE_API_MAX,			\
@@ -322,7 +296,6 @@ struct iwl_cfg iwl2030_2bg_cfg = {
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
 	.lib = &iwl2000_lib,					\
 	.base_params = &iwl2000_base_params,			\
-	.need_dc_calib = true,					\
 	.need_temp_offset_calib = true,				\
 	.temp_offset_v2 = true,					\
 	.led_mode = IWL_LED_RF_STATE,				\
@@ -330,13 +303,14 @@ struct iwl_cfg iwl2030_2bg_cfg = {
 	.rx_with_siso_diversity = true,				\
 	.iq_invert = true					\
 
-struct iwl_cfg iwl105_bg_cfg = {
-	.name = "105 Series 1x1 BG",
-	IWL_DEVICE_105,
-};
-
 struct iwl_cfg iwl105_bgn_cfg = {
 	.name = "105 Series 1x1 BGN",
+	IWL_DEVICE_105,
+	.ht_params = &iwl2000_ht_params,
+};
+
+struct iwl_cfg iwl105_bgn_d_cfg = {
+	.name = "105D Series 1x1 BGN",
 	IWL_DEVICE_105,
 	.ht_params = &iwl2000_ht_params,
 };
@@ -351,18 +325,12 @@ struct iwl_cfg iwl105_bgn_cfg = {
 	.lib = &iwl2030_lib,					\
 	.base_params = &iwl2030_base_params,			\
 	.bt_params = &iwl2030_bt_params,			\
-	.need_dc_calib = true,					\
 	.need_temp_offset_calib = true,				\
 	.temp_offset_v2 = true,					\
 	.led_mode = IWL_LED_RF_STATE,				\
 	.adv_pm = true,						\
 	.rx_with_siso_diversity = true,				\
 	.iq_invert = true					\
-
-struct iwl_cfg iwl135_bg_cfg = {
-	.name = "135 Series 1x1 BG/BT",
-	IWL_DEVICE_135,
-};
 
 struct iwl_cfg iwl135_bgn_cfg = {
 	.name = "135 Series 1x1 BGN/BT",

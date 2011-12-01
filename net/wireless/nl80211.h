@@ -117,4 +117,9 @@ void nl80211_pmksa_candidate_notify(struct cfg80211_registered_device *rdev,
 				    struct net_device *netdev, int index,
 				    const u8 *bssid, bool preauth, gfp_t gfp);
 
+bool nl80211_unexpected_frame(struct net_device *dev,
+			      const u8 *addr, gfp_t gfp);
+bool nl80211_unexpected_4addr_frame(struct net_device *dev,
+				    const u8 *addr, gfp_t gfp);
+
 #endif /* __NET_WIRELESS_NL80211_H */

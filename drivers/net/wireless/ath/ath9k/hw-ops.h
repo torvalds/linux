@@ -205,4 +205,11 @@ static inline void ath9k_hw_setup_calibration(struct ath_hw *ah,
 	ath9k_hw_private_ops(ah)->setup_calibration(ah, currCal);
 }
 
+static inline int ath9k_hw_fast_chan_change(struct ath_hw *ah,
+					    struct ath9k_channel *chan,
+					    u8 *ini_reloaded)
+{
+	return ath9k_hw_private_ops(ah)->fast_chan_change(ah, chan,
+							  ini_reloaded);
+}
 #endif /* ATH9K_HW_OPS_H */

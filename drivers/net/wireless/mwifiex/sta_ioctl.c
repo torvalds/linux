@@ -55,7 +55,9 @@ int mwifiex_wait_queue_complete(struct mwifiex_adapter *adapter)
 {
 	bool cancel_flag = false;
 	int status = adapter->cmd_wait_q.status;
+	struct cmd_ctrl_node *cmd_queued = adapter->cmd_queued;
 
+	adapter->cmd_queued = NULL;
 	dev_dbg(adapter->dev, "cmd pending\n");
 	atomic_inc(&adapter->cmd_pending);
 
@@ -64,8 +66,8 @@ int mwifiex_wait_queue_complete(struct mwifiex_adapter *adapter)
 
 	/* Wait for completion */
 	wait_event_interruptible(adapter->cmd_wait_q.wait,
-					adapter->cmd_wait_q.condition);
-	if (!adapter->cmd_wait_q.condition)
+					*(cmd_queued->condition));
+	if (!*(cmd_queued->condition))
 		cancel_flag = true;
 
 	if (cancel_flag) {
@@ -291,8 +293,8 @@ done:
  * This function prepares the correct firmware command and
  * issues it.
  */
-int mwifiex_set_hs_params(struct mwifiex_private *priv, u16 action,
-			  int cmd_type, struct mwifiex_ds_hs_cfg *hs_cfg)
+static int mwifiex_set_hs_params(struct mwifiex_private *priv, u16 action,
+				 int cmd_type, struct mwifiex_ds_hs_cfg *hs_cfg)
 
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
@@ -763,7 +765,7 @@ static int mwifiex_rate_ioctl_set_rate_value(struct mwifiex_private *priv,
 			if ((rate[i] & 0x7f) == (rate_cfg->rate & 0x7f))
 				break;
 		}
-		if (!rate[i] || (i == MWIFIEX_SUPPORTED_RATES)) {
+		if ((i == MWIFIEX_SUPPORTED_RATES) || !rate[i]) {
 			dev_err(adapter->dev, "fixed data rate %#x is out "
 			       "of range\n", rate_cfg->rate);
 			return -1;
@@ -830,8 +832,8 @@ int mwifiex_drv_get_data_rate(struct mwifiex_private *priv,
 
 	if (!ret) {
 		if (rate->is_rate_auto)
-			rate->rate = mwifiex_index_to_data_rate(priv->tx_rate,
-							priv->tx_htinfo);
+			rate->rate = mwifiex_index_to_data_rate(priv,
+					priv->tx_rate, priv->tx_htinfo);
 		else
 			rate->rate = priv->data_rate;
 	} else {

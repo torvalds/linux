@@ -22,13 +22,14 @@
 
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/power_supply.h>
 #include <linux/platform_device.h>
 #include <linux/power/max8903_charger.h>
 
 struct max8903_data {
-	struct max8903_pdata *pdata;
+	struct max8903_pdata pdata;
 	struct device *dev;
 	struct power_supply psy;
 	bool fault;
@@ -52,8 +53,8 @@ static int max8903_get_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
 		val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
-		if (data->pdata->chg) {
-			if (gpio_get_value(data->pdata->chg) == 0)
+		if (data->pdata.chg) {
+			if (gpio_get_value(data->pdata.chg) == 0)
 				val->intval = POWER_SUPPLY_STATUS_CHARGING;
 			else if (data->usb_in || data->ta_in)
 				val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
@@ -80,7 +81,7 @@ static int max8903_get_property(struct power_supply *psy,
 static irqreturn_t max8903_dcin(int irq, void *_data)
 {
 	struct max8903_data *data = _data;
-	struct max8903_pdata *pdata = data->pdata;
+	struct max8903_pdata *pdata = &data->pdata;
 	bool ta_in;
 	enum power_supply_type old_type;
 
@@ -121,7 +122,7 @@ static irqreturn_t max8903_dcin(int irq, void *_data)
 static irqreturn_t max8903_usbin(int irq, void *_data)
 {
 	struct max8903_data *data = _data;
-	struct max8903_pdata *pdata = data->pdata;
+	struct max8903_pdata *pdata = &data->pdata;
 	bool usb_in;
 	enum power_supply_type old_type;
 
@@ -160,7 +161,7 @@ static irqreturn_t max8903_usbin(int irq, void *_data)
 static irqreturn_t max8903_fault(int irq, void *_data)
 {
 	struct max8903_data *data = _data;
-	struct max8903_pdata *pdata = data->pdata;
+	struct max8903_pdata *pdata = &data->pdata;
 	bool fault;
 
 	fault = gpio_get_value(pdata->flt) ? false : true;
@@ -193,7 +194,7 @@ static __devinit int max8903_probe(struct platform_device *pdev)
 		dev_err(dev, "Cannot allocate memory.\n");
 		return -ENOMEM;
 	}
-	data->pdata = pdata;
+	memcpy(&data->pdata, pdata, sizeof(struct max8903_pdata));
 	data->dev = dev;
 	platform_set_drvdata(pdev, data);
 
@@ -349,7 +350,7 @@ static __devexit int max8903_remove(struct platform_device *pdev)
 	struct max8903_data *data = platform_get_drvdata(pdev);
 
 	if (data) {
-		struct max8903_pdata *pdata = data->pdata;
+		struct max8903_pdata *pdata = &data->pdata;
 
 		if (pdata->flt)
 			free_irq(gpio_to_irq(pdata->flt), data);

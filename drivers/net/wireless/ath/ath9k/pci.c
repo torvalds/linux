@@ -18,6 +18,7 @@
 #include <linux/pci.h>
 #include <linux/pci-aspm.h>
 #include <linux/ath9k_platform.h>
+#include <linux/module.h>
 #include "ath9k.h"
 
 static DEFINE_PCI_DEVICE_TABLE(ath_pci_id_table) = {
@@ -33,7 +34,7 @@ static DEFINE_PCI_DEVICE_TABLE(ath_pci_id_table) = {
 	{ PCI_VDEVICE(ATHEROS, 0x0030) }, /* PCI-E  AR9300 */
 	{ PCI_VDEVICE(ATHEROS, 0x0032) }, /* PCI-E  AR9485 */
 	{ PCI_VDEVICE(ATHEROS, 0x0033) }, /* PCI-E  AR9580 */
-	{ PCI_VDEVICE(ATHEROS, 0x0034) }, /* PCI-E  AR9480 */
+	{ PCI_VDEVICE(ATHEROS, 0x0034) }, /* PCI-E  AR9462 */
 	{ 0 }
 };
 

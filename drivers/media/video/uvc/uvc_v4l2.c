@@ -32,7 +32,7 @@
  * UVC ioctls
  */
 static int uvc_ioctl_ctrl_map(struct uvc_video_chain *chain,
-	struct uvc_xu_control_mapping *xmap, int old)
+	struct uvc_xu_control_mapping *xmap)
 {
 	struct uvc_control_mapping *map;
 	unsigned int size;
@@ -58,13 +58,6 @@ static int uvc_ioctl_ctrl_map(struct uvc_video_chain *chain,
 		break;
 
 	case V4L2_CTRL_TYPE_MENU:
-		if (old) {
-			uvc_trace(UVC_TRACE_CONTROL, "V4L2_CTRL_TYPE_MENU not "
-				  "supported for UVCIOC_CTRL_MAP_OLD.\n");
-			ret = -EINVAL;
-			goto done;
-		}
-
 		size = xmap->menu_count * sizeof(*map->menu_info);
 		map->menu_info = kmalloc(size, GFP_KERNEL);
 		if (map->menu_info == NULL) {
@@ -83,7 +76,7 @@ static int uvc_ioctl_ctrl_map(struct uvc_video_chain *chain,
 	default:
 		uvc_trace(UVC_TRACE_CONTROL, "Unsupported V4L2 control type "
 			  "%u.\n", xmap->v4l2_type);
-		ret = -EINVAL;
+		ret = -ENOTTY;
 		goto done;
 	}
 
@@ -538,20 +531,6 @@ static int uvc_v4l2_release(struct file *file)
 	return 0;
 }
 
-static void uvc_v4l2_ioctl_warn(void)
-{
-	static int warned;
-
-	if (warned)
-		return;
-
-	uvc_printk(KERN_INFO, "Deprecated UVCIOC_CTRL_{ADD,MAP_OLD,GET,SET} "
-		   "ioctls will be removed in 2.6.42.\n");
-	uvc_printk(KERN_INFO, "See http://www.ideasonboard.org/uvc/upgrade/ "
-		   "for upgrade instructions.\n");
-	warned = 1;
-}
-
 static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *vdev = video_devdata(file);
@@ -571,7 +550,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		strlcpy(cap->card, vdev->name, sizeof cap->card);
 		usb_make_path(stream->dev->udev,
 			      cap->bus_info, sizeof(cap->bus_info));
-		cap->version = DRIVER_VERSION_NUMBER;
+		cap->version = LINUX_VERSION_CODE;
 		if (stream->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
 			cap->capabilities = V4L2_CAP_VIDEO_CAPTURE
 					  | V4L2_CAP_STREAMING;
@@ -1032,37 +1011,8 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		uvc_trace(UVC_TRACE_IOCTL, "Unsupported ioctl 0x%08x\n", cmd);
 		return -EINVAL;
 
-	/* Dynamic controls. UVCIOC_CTRL_ADD, UVCIOC_CTRL_MAP_OLD,
-	 * UVCIOC_CTRL_GET and UVCIOC_CTRL_SET are deprecated and scheduled for
-	 * removal in 2.6.42.
-	 */
-	case __UVCIOC_CTRL_ADD:
-		uvc_v4l2_ioctl_warn();
-		return -EEXIST;
-
-	case __UVCIOC_CTRL_MAP_OLD:
-		uvc_v4l2_ioctl_warn();
-	case __UVCIOC_CTRL_MAP:
 	case UVCIOC_CTRL_MAP:
-		return uvc_ioctl_ctrl_map(chain, arg,
-					  cmd == __UVCIOC_CTRL_MAP_OLD);
-
-	case __UVCIOC_CTRL_GET:
-	case __UVCIOC_CTRL_SET:
-	{
-		struct uvc_xu_control *xctrl = arg;
-		struct uvc_xu_control_query xqry = {
-			.unit		= xctrl->unit,
-			.selector	= xctrl->selector,
-			.query		= cmd == __UVCIOC_CTRL_GET
-					? UVC_GET_CUR : UVC_SET_CUR,
-			.size		= xctrl->size,
-			.data		= xctrl->data,
-		};
-
-		uvc_v4l2_ioctl_warn();
-		return uvc_xu_ctrl_query(chain, &xqry);
-	}
+		return uvc_ioctl_ctrl_map(chain, arg);
 
 	case UVCIOC_CTRL_QUERY:
 		return uvc_xu_ctrl_query(chain, arg);

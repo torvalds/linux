@@ -717,11 +717,13 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_neigh *neigh;
-	struct neighbour *n;
+	struct neighbour *n = NULL;
 	unsigned long flags;
 
-	n = dst_get_neighbour(skb_dst(skb));
-	if (likely(skb_dst(skb) && n)) {
+	if (likely(skb_dst(skb)))
+		n = dst_get_neighbour(skb_dst(skb));
+
+	if (likely(n)) {
 		if (unlikely(!*to_ipoib_neigh(n))) {
 			ipoib_path_lookup(skb, dev);
 			return NETDEV_TX_OK;
@@ -996,7 +998,7 @@ static const struct net_device_ops ipoib_netdev_ops = {
 	.ndo_fix_features	 = ipoib_fix_features,
 	.ndo_start_xmit	 	 = ipoib_start_xmit,
 	.ndo_tx_timeout		 = ipoib_timeout,
-	.ndo_set_multicast_list	 = ipoib_set_mcast_list,
+	.ndo_set_rx_mode	 = ipoib_set_mcast_list,
 	.ndo_neigh_setup	 = ipoib_neigh_setup_dev,
 };
 

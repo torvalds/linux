@@ -189,6 +189,7 @@ qla2x00_write_nvram_word(struct qla_hw_data *ha, uint32_t addr, uint16_t data)
 	uint16_t word;
 	uint32_t nv_cmd, wait_cnt;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
+	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
 
 	qla2x00_nv_write(ha, NVR_DATA_OUT);
 	qla2x00_nv_write(ha, 0);
@@ -220,8 +221,8 @@ qla2x00_write_nvram_word(struct qla_hw_data *ha, uint32_t addr, uint16_t data)
 	wait_cnt = NVR_WAIT_CNT;
 	do {
 		if (!--wait_cnt) {
-			DEBUG9_10(qla_printk(KERN_WARNING, ha,
-			    "NVRAM didn't go ready...\n"));
+			ql_dbg(ql_dbg_user, vha, 0x708d,
+			    "NVRAM didn't go ready...\n");
 			break;
 		}
 		NVRAM_DELAY();
@@ -308,6 +309,7 @@ qla2x00_clear_nvram_protection(struct qla_hw_data *ha)
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 	uint32_t word, wait_cnt;
 	uint16_t wprot, wprot_old;
+	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
 
 	/* Clear NVRAM write protection. */
 	ret = QLA_FUNCTION_FAILED;
@@ -350,8 +352,8 @@ qla2x00_clear_nvram_protection(struct qla_hw_data *ha)
 		wait_cnt = NVR_WAIT_CNT;
 		do {
 			if (!--wait_cnt) {
-				DEBUG9_10(qla_printk(KERN_WARNING, ha,
-				    "NVRAM didn't go ready...\n"));
+				ql_dbg(ql_dbg_user, vha, 0x708e,
+				    "NVRAM didn't go ready...\n");
 				break;
 			}
 			NVRAM_DELAY();
@@ -371,6 +373,7 @@ qla2x00_set_nvram_protection(struct qla_hw_data *ha, int stat)
 {
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 	uint32_t word, wait_cnt;
+	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
 
 	if (stat != QLA_SUCCESS)
 		return;
@@ -409,8 +412,8 @@ qla2x00_set_nvram_protection(struct qla_hw_data *ha, int stat)
 	wait_cnt = NVR_WAIT_CNT;
 	do {
 		if (!--wait_cnt) {
-			DEBUG9_10(qla_printk(KERN_WARNING, ha,
-			    "NVRAM didn't go ready...\n"));
+			ql_dbg(ql_dbg_user, vha, 0x708f,
+			    "NVRAM didn't go ready...\n");
 			break;
 		}
 		NVRAM_DELAY();
@@ -607,9 +610,10 @@ qla2xxx_find_flt_start(scsi_qla_host_t *vha, uint32_t *start)
 	for (chksum = 0; cnt; cnt--)
 		chksum += le16_to_cpu(*wptr++);
 	if (chksum) {
-		qla_printk(KERN_ERR, ha,
+		ql_log(ql_log_fatal, vha, 0x0045,
 		    "Inconsistent FLTL detected: checksum=0x%x.\n", chksum);
-		qla2x00_dump_buffer(buf, sizeof(struct qla_flt_location));
+		ql_dump_buffer(ql_dbg_init + ql_dbg_buffer, vha, 0x010e,
+		    buf, sizeof(struct qla_flt_location));
 		return QLA_FUNCTION_FAILED;
 	}
 
@@ -618,7 +622,9 @@ qla2xxx_find_flt_start(scsi_qla_host_t *vha, uint32_t *start)
 	*start = (le16_to_cpu(fltl->start_hi) << 16 |
 	    le16_to_cpu(fltl->start_lo)) >> 2;
 end:
-	DEBUG2(qla_printk(KERN_DEBUG, ha, "FLTL[%s] = 0x%x.\n", loc, *start));
+	ql_dbg(ql_dbg_init, vha, 0x0046,
+	    "FLTL[%s] = 0x%x.\n",
+	    loc, *start);
 	return QLA_SUCCESS;
 }
 
@@ -685,10 +691,10 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 	if (*wptr == __constant_cpu_to_le16(0xffff))
 		goto no_flash_data;
 	if (flt->version != __constant_cpu_to_le16(1)) {
-		DEBUG2(qla_printk(KERN_INFO, ha, "Unsupported FLT detected: "
-		    "version=0x%x length=0x%x checksum=0x%x.\n",
+		ql_log(ql_log_warn, vha, 0x0047,
+		    "Unsupported FLT detected: version=0x%x length=0x%x checksum=0x%x.\n",
 		    le16_to_cpu(flt->version), le16_to_cpu(flt->length),
-		    le16_to_cpu(flt->checksum)));
+		    le16_to_cpu(flt->checksum));
 		goto no_flash_data;
 	}
 
@@ -696,10 +702,10 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 	for (chksum = 0; cnt; cnt--)
 		chksum += le16_to_cpu(*wptr++);
 	if (chksum) {
-		DEBUG2(qla_printk(KERN_INFO, ha, "Inconsistent FLT detected: "
-		    "version=0x%x length=0x%x checksum=0x%x.\n",
+		ql_log(ql_log_fatal, vha, 0x0048,
+		    "Inconsistent FLT detected: version=0x%x length=0x%x checksum=0x%x.\n",
 		    le16_to_cpu(flt->version), le16_to_cpu(flt->length),
-		    chksum));
+		    le16_to_cpu(flt->checksum));
 		goto no_flash_data;
 	}
 
@@ -708,10 +714,11 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 	for ( ; cnt; cnt--, region++) {
 		/* Store addresses as DWORD offsets. */
 		start = le32_to_cpu(region->start) >> 2;
-
-		DEBUG3(qla_printk(KERN_DEBUG, ha, "FLT[%02x]: start=0x%x "
-		    "end=0x%x size=0x%x.\n", le32_to_cpu(region->code), start,
-		    le32_to_cpu(region->end) >> 2, le32_to_cpu(region->size)));
+		ql_dbg(ql_dbg_init, vha, 0x0049,
+		    "FLT[%02x]: start=0x%x "
+		    "end=0x%x size=0x%x.\n", le32_to_cpu(region->code),
+		    start, le32_to_cpu(region->end) >> 2,
+		    le32_to_cpu(region->size));
 
 		switch (le32_to_cpu(region->code) & 0xff) {
 		case FLT_REG_FW:
@@ -796,12 +803,16 @@ no_flash_data:
 	ha->flt_region_npiv_conf = ha->flags.port0 ?
 	    def_npiv_conf0[def] : def_npiv_conf1[def];
 done:
-	DEBUG2(qla_printk(KERN_DEBUG, ha, "FLT[%s]: boot=0x%x fw=0x%x "
-	    "vpd_nvram=0x%x vpd=0x%x nvram=0x%x fdt=0x%x flt=0x%x "
-	    "npiv=0x%x. fcp_prio_cfg=0x%x\n", loc, ha->flt_region_boot,
-	    ha->flt_region_fw, ha->flt_region_vpd_nvram, ha->flt_region_vpd,
-	    ha->flt_region_nvram, ha->flt_region_fdt, ha->flt_region_flt,
-	    ha->flt_region_npiv_conf, ha->flt_region_fcp_prio));
+	ql_dbg(ql_dbg_init, vha, 0x004a,
+	    "FLT[%s]: boot=0x%x fw=0x%x vpd_nvram=0x%x vpd=0x%x.\n",
+	    loc, ha->flt_region_boot,
+	    ha->flt_region_fw, ha->flt_region_vpd_nvram,
+	    ha->flt_region_vpd);
+	ql_dbg(ql_dbg_init, vha, 0x004b,
+	    "nvram=0x%x fdt=0x%x flt=0x%x npiv=0x%x fcp_prif_cfg=0x%x.\n",
+	    ha->flt_region_nvram,
+	    ha->flt_region_fdt, ha->flt_region_flt,
+	    ha->flt_region_npiv_conf, ha->flt_region_fcp_prio);
 }
 
 static void
@@ -833,10 +844,12 @@ qla2xxx_get_fdt_info(scsi_qla_host_t *vha)
 	    cnt++)
 		chksum += le16_to_cpu(*wptr++);
 	if (chksum) {
-		DEBUG2(qla_printk(KERN_INFO, ha, "Inconsistent FDT detected: "
-		    "checksum=0x%x id=%c version=0x%x.\n", chksum, fdt->sig[0],
-		    le16_to_cpu(fdt->version)));
-		DEBUG9(qla2x00_dump_buffer((uint8_t *)fdt, sizeof(*fdt)));
+		ql_dbg(ql_dbg_init, vha, 0x004c,
+		    "Inconsistent FDT detected:"
+		    " checksum=0x%x id=%c version0x%x.\n", chksum,
+		    fdt->sig[0], le16_to_cpu(fdt->version));
+		ql_dump_buffer(ql_dbg_init + ql_dbg_buffer, vha, 0x0113,
+		    (uint8_t *)fdt, sizeof(*fdt));
 		goto no_flash_data;
 	}
 
@@ -890,11 +903,12 @@ no_flash_data:
 		break;
 	}
 done:
-	DEBUG2(qla_printk(KERN_DEBUG, ha, "FDT[%s]: (0x%x/0x%x) erase=0x%x "
-	    "pro=%x upro=%x wrtd=0x%x blk=0x%x.\n", loc, mid, fid,
+	ql_dbg(ql_dbg_init, vha, 0x004d,
+	    "FDT[%x]: (0x%x/0x%x) erase=0x%x "
+	    "pr=%x upro=%x wrtd=0x%x blk=0x%x.\n", loc, mid, fid,
 	    ha->fdt_erase_cmd, ha->fdt_protect_sec_cmd,
-	    ha->fdt_unprotect_sec_cmd, ha->fdt_wrt_disable,
-	    ha->fdt_block_size));
+	    ha->fdt_wrt_disable, ha->fdt_block_size);
+
 }
 
 static void
@@ -919,6 +933,10 @@ qla2xxx_get_idc_param(scsi_qla_host_t *vha)
 		ha->nx_dev_init_timeout = le32_to_cpu(*wptr++);
 		ha->nx_reset_timeout = le32_to_cpu(*wptr);
 	}
+	ql_dbg(ql_dbg_init, vha, 0x004e,
+	    "nx_dev_init_timeout=%d "
+	    "nx_reset_timeout=%d.\n", ha->nx_dev_init_timeout,
+	    ha->nx_reset_timeout);
 	return;
 }
 
@@ -963,17 +981,18 @@ qla2xxx_flash_npiv_conf(scsi_qla_host_t *vha)
 	if (hdr.version == __constant_cpu_to_le16(0xffff))
 		return;
 	if (hdr.version != __constant_cpu_to_le16(1)) {
-		DEBUG2(qla_printk(KERN_INFO, ha, "Unsupported NPIV-Config "
+		ql_dbg(ql_dbg_user, vha, 0x7090,
+		    "Unsupported NPIV-Config "
 		    "detected: version=0x%x entries=0x%x checksum=0x%x.\n",
 		    le16_to_cpu(hdr.version), le16_to_cpu(hdr.entries),
-		    le16_to_cpu(hdr.checksum)));
+		    le16_to_cpu(hdr.checksum));
 		return;
 	}
 
 	data = kmalloc(NPIV_CONFIG_SIZE, GFP_KERNEL);
 	if (!data) {
-		DEBUG2(qla_printk(KERN_INFO, ha, "NPIV-Config: Unable to "
-		    "allocate memory.\n"));
+		ql_log(ql_log_warn, vha, 0x7091,
+		    "Unable to allocate memory for data.\n");
 		return;
 	}
 
@@ -985,10 +1004,11 @@ qla2xxx_flash_npiv_conf(scsi_qla_host_t *vha)
 	for (wptr = data, chksum = 0; cnt; cnt--)
 		chksum += le16_to_cpu(*wptr++);
 	if (chksum) {
-		DEBUG2(qla_printk(KERN_INFO, ha, "Inconsistent NPIV-Config "
+		ql_dbg(ql_dbg_user, vha, 0x7092,
+		    "Inconsistent NPIV-Config "
 		    "detected: version=0x%x entries=0x%x checksum=0x%x.\n",
 		    le16_to_cpu(hdr.version), le16_to_cpu(hdr.entries),
-		    chksum));
+		    le16_to_cpu(hdr.checksum));
 		goto done;
 	}
 
@@ -1014,21 +1034,22 @@ qla2xxx_flash_npiv_conf(scsi_qla_host_t *vha)
 		vid.port_name = wwn_to_u64(entry->port_name);
 		vid.node_name = wwn_to_u64(entry->node_name);
 
-		DEBUG2(qla_printk(KERN_INFO, ha, "NPIV[%02x]: wwpn=%llx "
-			"wwnn=%llx vf_id=0x%x Q_qos=0x%x F_qos=0x%x.\n", cnt,
-			(unsigned long long)vid.port_name,
-			(unsigned long long)vid.node_name,
-			le16_to_cpu(entry->vf_id),
-			entry->q_qos, entry->f_qos));
+		ql_dbg(ql_dbg_user, vha, 0x7093,
+		    "NPIV[%02x]: wwpn=%llx "
+		    "wwnn=%llx vf_id=0x%x Q_qos=0x%x F_qos=0x%x.\n", cnt,
+		    (unsigned long long)vid.port_name,
+		    (unsigned long long)vid.node_name,
+		    le16_to_cpu(entry->vf_id),
+		    entry->q_qos, entry->f_qos);
 
 		if (i < QLA_PRECONFIG_VPORTS) {
 			vport = fc_vport_create(vha->host, 0, &vid);
 			if (!vport)
-				qla_printk(KERN_INFO, ha,
-				"NPIV-Config: Failed to create vport [%02x]: "
-				"wwpn=%llx wwnn=%llx.\n", cnt,
-				(unsigned long long)vid.port_name,
-				(unsigned long long)vid.node_name);
+				ql_log(ql_log_warn, vha, 0x7094,
+				    "NPIV-Config Failed to create vport [%02x]: "
+				    "wwpn=%llx wwnn=%llx.\n", cnt,
+				    (unsigned long long)vid.port_name,
+				    (unsigned long long)vid.node_name);
 		}
 	}
 done:
@@ -1127,9 +1148,10 @@ qla24xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 		optrom = dma_alloc_coherent(&ha->pdev->dev, OPTROM_BURST_SIZE,
 		    &optrom_dma, GFP_KERNEL);
 		if (!optrom) {
-			qla_printk(KERN_DEBUG, ha,
-			    "Unable to allocate memory for optrom burst write "
-			    "(%x KB).\n", OPTROM_BURST_SIZE / 1024);
+			ql_log(ql_log_warn, vha, 0x7095,
+			    "Unable to allocate "
+			    "memory for optrom burst write (%x KB).\n",
+			    OPTROM_BURST_SIZE / 1024);
 		}
 	}
 
@@ -1138,7 +1160,7 @@ qla24xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 
 	ret = qla24xx_unprotect_flash(vha);
 	if (ret != QLA_SUCCESS) {
-		qla_printk(KERN_WARNING, ha,
+		ql_log(ql_log_warn, vha, 0x7096,
 		    "Unable to unprotect flash for update.\n");
 		goto done;
 	}
@@ -1156,9 +1178,9 @@ qla24xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 				    0xff0000) | ((fdata >> 16) & 0xff));
 			ret = qla24xx_erase_sector(vha, fdata);
 			if (ret != QLA_SUCCESS) {
-				DEBUG9(qla_printk(KERN_WARNING, ha,
-				    "Unable to erase sector: address=%x.\n",
-				    faddr));
+				ql_dbg(ql_dbg_user, vha, 0x7007,
+				    "Unable to erase erase sector: address=%x.\n",
+				    faddr);
 				break;
 			}
 		}
@@ -1172,12 +1194,12 @@ qla24xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 			    flash_data_addr(ha, faddr),
 			    OPTROM_BURST_DWORDS);
 			if (ret != QLA_SUCCESS) {
-				qla_printk(KERN_WARNING, ha,
+				ql_log(ql_log_warn, vha, 0x7097,
 				    "Unable to burst-write optrom segment "
 				    "(%x/%x/%llx).\n", ret,
 				    flash_data_addr(ha, faddr),
 				    (unsigned long long)optrom_dma);
-				qla_printk(KERN_WARNING, ha,
+				ql_log(ql_log_warn, vha, 0x7098,
 				    "Reverting to slow-write.\n");
 
 				dma_free_coherent(&ha->pdev->dev,
@@ -1194,9 +1216,9 @@ qla24xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 		ret = qla24xx_write_flash_dword(ha,
 		    flash_data_addr(ha, faddr), cpu_to_le32(*dwptr));
 		if (ret != QLA_SUCCESS) {
-			DEBUG9(printk("%s(%ld) Unable to program flash "
-			    "address=%x data=%x.\n", __func__,
-			    vha->host_no, faddr, *dwptr));
+			ql_dbg(ql_dbg_user, vha, 0x7006,
+			    "Unable to program flash address=%x data=%x.\n",
+			    faddr, *dwptr);
 			break;
 		}
 
@@ -1211,7 +1233,7 @@ qla24xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 
 	ret = qla24xx_protect_flash(vha);
 	if (ret != QLA_SUCCESS)
-		qla_printk(KERN_WARNING, ha,
+		ql_log(ql_log_warn, vha, 0x7099,
 		    "Unable to protect flash after update.\n");
 done:
 	if (optrom)
@@ -1324,9 +1346,9 @@ qla24xx_write_nvram_data(scsi_qla_host_t *vha, uint8_t *buf, uint32_t naddr,
 		ret = qla24xx_write_flash_dword(ha,
 		    nvram_data_addr(ha, naddr), cpu_to_le32(*dwptr));
 		if (ret != QLA_SUCCESS) {
-			DEBUG9(qla_printk(KERN_WARNING, ha,
+			ql_dbg(ql_dbg_user, vha, 0x709a,
 			    "Unable to program nvram address=%x data=%x.\n",
-			    naddr, *dwptr));
+			    naddr, *dwptr);
 			break;
 		}
 	}
@@ -1476,7 +1498,7 @@ qla2x00_beacon_on(struct scsi_qla_host *vha)
 	ha->fw_options[1] |= FO1_DISABLE_GPIO6_7;
 
 	if (qla2x00_set_fw_options(vha, ha->fw_options) != QLA_SUCCESS) {
-		qla_printk(KERN_WARNING, ha,
+		ql_log(ql_log_warn, vha, 0x709b,
 		    "Unable to update fw options (beacon on).\n");
 		return QLA_FUNCTION_FAILED;
 	}
@@ -1541,7 +1563,7 @@ qla2x00_beacon_off(struct scsi_qla_host *vha)
 
 	rval = qla2x00_set_fw_options(vha, ha->fw_options);
 	if (rval != QLA_SUCCESS)
-		qla_printk(KERN_WARNING, ha,
+		ql_log(ql_log_warn, vha, 0x709c,
 		    "Unable to update fw options (beacon off).\n");
 	return rval;
 }
@@ -1616,7 +1638,7 @@ qla24xx_beacon_on(struct scsi_qla_host *vha)
 
 		if (qla2x00_get_fw_options(vha, ha->fw_options) !=
 		    QLA_SUCCESS) {
-			qla_printk(KERN_WARNING, ha,
+			ql_log(ql_log_warn, vha, 0x7009,
 			    "Unable to update fw options (beacon on).\n");
 			return QLA_FUNCTION_FAILED;
 		}
@@ -1670,14 +1692,14 @@ qla24xx_beacon_off(struct scsi_qla_host *vha)
 	ha->fw_options[1] &= ~ADD_FO1_DISABLE_GPIO_LED_CTRL;
 
 	if (qla2x00_set_fw_options(vha, ha->fw_options) != QLA_SUCCESS) {
-		qla_printk(KERN_WARNING, ha,
-		    "Unable to update fw options (beacon off).\n");
+		ql_log(ql_log_warn, vha, 0x704d,
+		    "Unable to update fw options (beacon on).\n");
 		return QLA_FUNCTION_FAILED;
 	}
 
 	if (qla2x00_get_fw_options(vha, ha->fw_options) != QLA_SUCCESS) {
-		qla_printk(KERN_WARNING, ha,
-		    "Unable to get fw options (beacon off).\n");
+		ql_log(ql_log_warn, vha, 0x704e,
+		    "Unable to update fw options (beacon on).\n");
 		return QLA_FUNCTION_FAILED;
 	}
 
@@ -2389,10 +2411,9 @@ try_fast:
 	optrom = dma_alloc_coherent(&ha->pdev->dev, OPTROM_BURST_SIZE,
 	    &optrom_dma, GFP_KERNEL);
 	if (!optrom) {
-		qla_printk(KERN_DEBUG, ha,
-		    "Unable to allocate memory for optrom burst read "
-		    "(%x KB).\n", OPTROM_BURST_SIZE / 1024);
-
+		ql_log(ql_log_warn, vha, 0x00cc,
+		    "Unable to allocate memory for optrom burst read (%x KB).\n",
+		    OPTROM_BURST_SIZE / 1024);
 		goto slow_read;
 	}
 
@@ -2407,12 +2428,11 @@ try_fast:
 		rval = qla2x00_dump_ram(vha, optrom_dma,
 		    flash_data_addr(ha, faddr), burst);
 		if (rval) {
-			qla_printk(KERN_WARNING, ha,
-			    "Unable to burst-read optrom segment "
-			    "(%x/%x/%llx).\n", rval,
-			    flash_data_addr(ha, faddr),
+			ql_log(ql_log_warn, vha, 0x00f5,
+			    "Unable to burst-read optrom segment (%x/%x/%llx).\n",
+			    rval, flash_data_addr(ha, faddr),
 			    (unsigned long long)optrom_dma);
-			qla_printk(KERN_WARNING, ha,
+			ql_log(ql_log_warn, vha, 0x00f6,
 			    "Reverting to slow-read.\n");
 
 			dma_free_coherent(&ha->pdev->dev, OPTROM_BURST_SIZE,
@@ -2556,8 +2576,8 @@ qla2x00_get_flash_version(scsi_qla_host_t *vha, void *mbuf)
 		if (qla2x00_read_flash_byte(ha, pcihdr) != 0x55 ||
 		    qla2x00_read_flash_byte(ha, pcihdr + 0x01) != 0xaa) {
 			/* No signature */
-			DEBUG2(qla_printk(KERN_DEBUG, ha, "No matching ROM "
-			    "signature.\n"));
+			ql_log(ql_log_fatal, vha, 0x0050,
+			    "No matching ROM signature.\n");
 			ret = QLA_FUNCTION_FAILED;
 			break;
 		}
@@ -2573,8 +2593,8 @@ qla2x00_get_flash_version(scsi_qla_host_t *vha, void *mbuf)
 		    qla2x00_read_flash_byte(ha, pcids + 0x2) != 'I' ||
 		    qla2x00_read_flash_byte(ha, pcids + 0x3) != 'R') {
 			/* Incorrect header. */
-			DEBUG2(qla_printk(KERN_INFO, ha, "PCI data struct not "
-			    "found pcir_adr=%x.\n", pcids));
+			ql_log(ql_log_fatal, vha, 0x0051,
+			    "PCI data struct not found pcir_adr=%x.\n", pcids);
 			ret = QLA_FUNCTION_FAILED;
 			break;
 		}
@@ -2588,8 +2608,9 @@ qla2x00_get_flash_version(scsi_qla_host_t *vha, void *mbuf)
 			    qla2x00_read_flash_byte(ha, pcids + 0x12);
 			ha->bios_revision[1] =
 			    qla2x00_read_flash_byte(ha, pcids + 0x13);
-			DEBUG3(qla_printk(KERN_DEBUG, ha, "read BIOS %d.%d.\n",
-			    ha->bios_revision[1], ha->bios_revision[0]));
+			ql_dbg(ql_dbg_init, vha, 0x0052,
+			    "Read BIOS %d.%d.\n",
+			    ha->bios_revision[1], ha->bios_revision[0]);
 			break;
 		case ROM_CODE_TYPE_FCODE:
 			/* Open Firmware standard for PCI (FCode). */
@@ -2602,12 +2623,14 @@ qla2x00_get_flash_version(scsi_qla_host_t *vha, void *mbuf)
 			    qla2x00_read_flash_byte(ha, pcids + 0x12);
 			ha->efi_revision[1] =
 			    qla2x00_read_flash_byte(ha, pcids + 0x13);
-			DEBUG3(qla_printk(KERN_DEBUG, ha, "read EFI %d.%d.\n",
-			    ha->efi_revision[1], ha->efi_revision[0]));
+			ql_dbg(ql_dbg_init, vha, 0x0053,
+			    "Read EFI %d.%d.\n",
+			    ha->efi_revision[1], ha->efi_revision[0]);
 			break;
 		default:
-			DEBUG2(qla_printk(KERN_INFO, ha, "Unrecognized code "
-			    "type %x at pcids %x.\n", code_type, pcids));
+			ql_log(ql_log_warn, vha, 0x0054,
+			    "Unrecognized code type %x at pcids %x.\n",
+			    code_type, pcids);
 			break;
 		}
 
@@ -2627,21 +2650,28 @@ qla2x00_get_flash_version(scsi_qla_host_t *vha, void *mbuf)
 
 		qla2x00_read_flash_data(ha, dbyte, ha->flt_region_fw * 4 + 10,
 		    8);
-		DEBUG3(qla_printk(KERN_DEBUG, ha, "dumping fw ver from "
-		    "flash:\n"));
-		DEBUG3(qla2x00_dump_buffer((uint8_t *)dbyte, 8));
+		ql_dbg(ql_dbg_init + ql_dbg_buffer, vha, 0x010a,
+		    "Dumping fw "
+		    "ver from flash:.\n");
+		ql_dump_buffer(ql_dbg_init + ql_dbg_buffer, vha, 0x010b,
+		    (uint8_t *)dbyte, 8);
 
 		if ((dcode[0] == 0xffff && dcode[1] == 0xffff &&
 		    dcode[2] == 0xffff && dcode[3] == 0xffff) ||
 		    (dcode[0] == 0 && dcode[1] == 0 && dcode[2] == 0 &&
 		    dcode[3] == 0)) {
-			DEBUG2(qla_printk(KERN_INFO, ha, "Unrecognized fw "
-			    "revision at %x.\n", ha->flt_region_fw * 4));
+			ql_log(ql_log_warn, vha, 0x0057,
+			    "Unrecognized fw revision at %x.\n",
+			    ha->flt_region_fw * 4);
 		} else {
 			/* values are in big endian */
 			ha->fw_revision[0] = dbyte[0] << 16 | dbyte[1];
 			ha->fw_revision[1] = dbyte[2] << 16 | dbyte[3];
 			ha->fw_revision[2] = dbyte[4] << 16 | dbyte[5];
+			ql_dbg(ql_dbg_init, vha, 0x0058,
+			    "FW Version: "
+			    "%d.%d.%d.\n", ha->fw_revision[0],
+			    ha->fw_revision[1], ha->fw_revision[2]);
 		}
 	}
 
@@ -2683,8 +2713,8 @@ qla24xx_get_flash_version(scsi_qla_host_t *vha, void *mbuf)
 		bcode = mbuf + (pcihdr % 4);
 		if (bcode[0x0] != 0x55 || bcode[0x1] != 0xaa) {
 			/* No signature */
-			DEBUG2(qla_printk(KERN_DEBUG, ha, "No matching ROM "
-			    "signature.\n"));
+			ql_log(ql_log_fatal, vha, 0x0059,
+			    "No matching ROM signature.\n");
 			ret = QLA_FUNCTION_FAILED;
 			break;
 		}
@@ -2699,8 +2729,8 @@ qla24xx_get_flash_version(scsi_qla_host_t *vha, void *mbuf)
 		if (bcode[0x0] != 'P' || bcode[0x1] != 'C' ||
 		    bcode[0x2] != 'I' || bcode[0x3] != 'R') {
 			/* Incorrect header. */
-			DEBUG2(qla_printk(KERN_INFO, ha, "PCI data struct not "
-			    "found pcir_adr=%x.\n", pcids));
+			ql_log(ql_log_fatal, vha, 0x005a,
+			    "PCI data struct not found pcir_adr=%x.\n", pcids);
 			ret = QLA_FUNCTION_FAILED;
 			break;
 		}
@@ -2712,26 +2742,30 @@ qla24xx_get_flash_version(scsi_qla_host_t *vha, void *mbuf)
 			/* Intel x86, PC-AT compatible. */
 			ha->bios_revision[0] = bcode[0x12];
 			ha->bios_revision[1] = bcode[0x13];
-			DEBUG3(qla_printk(KERN_DEBUG, ha, "read BIOS %d.%d.\n",
-			    ha->bios_revision[1], ha->bios_revision[0]));
+			ql_dbg(ql_dbg_init, vha, 0x005b,
+			    "Read BIOS %d.%d.\n",
+			    ha->bios_revision[1], ha->bios_revision[0]);
 			break;
 		case ROM_CODE_TYPE_FCODE:
 			/* Open Firmware standard for PCI (FCode). */
 			ha->fcode_revision[0] = bcode[0x12];
 			ha->fcode_revision[1] = bcode[0x13];
-			DEBUG3(qla_printk(KERN_DEBUG, ha, "read FCODE %d.%d.\n",
-			    ha->fcode_revision[1], ha->fcode_revision[0]));
+			ql_dbg(ql_dbg_init, vha, 0x005c,
+			    "Read FCODE %d.%d.\n",
+			    ha->fcode_revision[1], ha->fcode_revision[0]);
 			break;
 		case ROM_CODE_TYPE_EFI:
 			/* Extensible Firmware Interface (EFI). */
 			ha->efi_revision[0] = bcode[0x12];
 			ha->efi_revision[1] = bcode[0x13];
-			DEBUG3(qla_printk(KERN_DEBUG, ha, "read EFI %d.%d.\n",
-			    ha->efi_revision[1], ha->efi_revision[0]));
+			ql_dbg(ql_dbg_init, vha, 0x005d,
+			    "Read EFI %d.%d.\n",
+			    ha->efi_revision[1], ha->efi_revision[0]);
 			break;
 		default:
-			DEBUG2(qla_printk(KERN_INFO, ha, "Unrecognized code "
-			    "type %x at pcids %x.\n", code_type, pcids));
+			ql_log(ql_log_warn, vha, 0x005e,
+			    "Unrecognized code type %x at pcids %x.\n",
+			    code_type, pcids);
 			break;
 		}
 
@@ -2753,13 +2787,18 @@ qla24xx_get_flash_version(scsi_qla_host_t *vha, void *mbuf)
 	    dcode[2] == 0xffffffff && dcode[3] == 0xffffffff) ||
 	    (dcode[0] == 0 && dcode[1] == 0 && dcode[2] == 0 &&
 	    dcode[3] == 0)) {
-		DEBUG2(qla_printk(KERN_INFO, ha, "Unrecognized fw "
-		    "revision at %x.\n", ha->flt_region_fw * 4));
+		ql_log(ql_log_warn, vha, 0x005f,
+		    "Unrecognized fw revision at %x.\n",
+		    ha->flt_region_fw * 4);
 	} else {
 		ha->fw_revision[0] = dcode[0];
 		ha->fw_revision[1] = dcode[1];
 		ha->fw_revision[2] = dcode[2];
 		ha->fw_revision[3] = dcode[3];
+		ql_dbg(ql_dbg_init, vha, 0x0060,
+		    "Firmware revision %d.%d.%d.%d.\n",
+		    ha->fw_revision[0], ha->fw_revision[1],
+		    ha->fw_revision[2], ha->fw_revision[3]);
 	}
 
 	/* Check for golden firmware and get version if available */
@@ -2775,9 +2814,9 @@ qla24xx_get_flash_version(scsi_qla_host_t *vha, void *mbuf)
 
 	if (dcode[4] == 0xFFFFFFFF && dcode[5] == 0xFFFFFFFF &&
 	    dcode[6] == 0xFFFFFFFF && dcode[7] == 0xFFFFFFFF) {
-		DEBUG2(qla_printk(KERN_INFO, ha,
-		    "%s(%ld): Unrecognized golden fw at 0x%x.\n",
-		    __func__, vha->host_no, ha->flt_region_gold_fw * 4));
+		ql_log(ql_log_warn, vha, 0x0056,
+		    "Unrecognized golden fw at 0x%x.\n",
+		    ha->flt_region_gold_fw * 4);
 		return ret;
 	}
 
@@ -2843,9 +2882,9 @@ qla24xx_read_fcp_prio_cfg(scsi_qla_host_t *vha)
 	if (!ha->fcp_prio_cfg) {
 		ha->fcp_prio_cfg = vmalloc(FCP_PRIO_CFG_SIZE);
 		if (!ha->fcp_prio_cfg) {
-			qla_printk(KERN_WARNING, ha,
-			"Unable to allocate memory for fcp priority data "
-					"(%x).\n", FCP_PRIO_CFG_SIZE);
+			ql_log(ql_log_warn, vha, 0x00d5,
+			    "Unable to allocate memory for fcp priorty data (%x).\n",
+			    FCP_PRIO_CFG_SIZE);
 			return QLA_FUNCTION_FAILED;
 		}
 	}
@@ -2857,7 +2896,7 @@ qla24xx_read_fcp_prio_cfg(scsi_qla_host_t *vha)
 	ha->isp_ops->read_optrom(vha, (uint8_t *)ha->fcp_prio_cfg,
 			fcp_prio_addr << 2, FCP_PRIO_CFG_HDR_SIZE);
 
-	if (!qla24xx_fcp_prio_cfg_valid(ha->fcp_prio_cfg, 0))
+	if (!qla24xx_fcp_prio_cfg_valid(vha, ha->fcp_prio_cfg, 0))
 		goto fail;
 
 	/* read remaining FCP CMD config data from flash */
@@ -2869,7 +2908,7 @@ qla24xx_read_fcp_prio_cfg(scsi_qla_host_t *vha)
 			fcp_prio_addr << 2, (len < max_len ? len : max_len));
 
 	/* revalidate the entire FCP priority config data, including entries */
-	if (!qla24xx_fcp_prio_cfg_valid(ha->fcp_prio_cfg, 1))
+	if (!qla24xx_fcp_prio_cfg_valid(vha, ha->fcp_prio_cfg, 1))
 		goto fail;
 
 	ha->flags.fcp_prio_enabled = 1;

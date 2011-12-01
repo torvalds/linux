@@ -5,6 +5,7 @@
 #include <linux/sched.h>
 #include <linux/ethtool.h>
 #include <linux/if_arp.h>
+#include <linux/module.h>
 #include <net/lib80211.h>
 
 #include "hostap_wlan.h"
@@ -3871,8 +3872,8 @@ static void prism2_get_drvinfo(struct net_device *dev,
 	iface = netdev_priv(dev);
 	local = iface->local;
 
-	strncpy(info->driver, "hostap", sizeof(info->driver) - 1);
-	snprintf(info->fw_version, sizeof(info->fw_version) - 1,
+	strlcpy(info->driver, "hostap", sizeof(info->driver));
+	snprintf(info->fw_version, sizeof(info->fw_version),
 		 "%d.%d.%d", (local->sta_fw_ver >> 16) & 0xff,
 		 (local->sta_fw_ver >> 8) & 0xff,
 		 local->sta_fw_ver & 0xff);

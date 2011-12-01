@@ -6,7 +6,7 @@
  * TS72xx memory map:
  *
  * virt		phys		size
- * febff000	22000000	4K	model number register
+ * febff000	22000000	4K	model number register (bits 0-2)
  * febfe000	22400000	4K	options register
  * febfd000	22800000	4K	options register #2
  * febf9000	10800000	4K	TS-5620 RTC index register
@@ -20,6 +20,9 @@
 #define TS72XX_MODEL_TS7200		0x00
 #define TS72XX_MODEL_TS7250		0x01
 #define TS72XX_MODEL_TS7260		0x02
+#define TS72XX_MODEL_TS7300		0x03
+#define TS72XX_MODEL_TS7400		0x04
+#define TS72XX_MODEL_MASK		0x07
 
 
 #define TS72XX_OPTIONS_PHYS_BASE	0x22400000
@@ -51,19 +54,34 @@
 
 #ifndef __ASSEMBLY__
 
+static inline int ts72xx_model(void)
+{
+	return __raw_readb(TS72XX_MODEL_VIRT_BASE) & TS72XX_MODEL_MASK;
+}
+
 static inline int board_is_ts7200(void)
 {
-	return __raw_readb(TS72XX_MODEL_VIRT_BASE) == TS72XX_MODEL_TS7200;
+	return ts72xx_model() == TS72XX_MODEL_TS7200;
 }
 
 static inline int board_is_ts7250(void)
 {
-	return __raw_readb(TS72XX_MODEL_VIRT_BASE) == TS72XX_MODEL_TS7250;
+	return ts72xx_model() == TS72XX_MODEL_TS7250;
 }
 
 static inline int board_is_ts7260(void)
 {
-	return __raw_readb(TS72XX_MODEL_VIRT_BASE) == TS72XX_MODEL_TS7260;
+	return ts72xx_model() == TS72XX_MODEL_TS7260;
+}
+
+static inline int board_is_ts7300(void)
+{
+	return ts72xx_model()  == TS72XX_MODEL_TS7300;
+}
+
+static inline int board_is_ts7400(void)
+{
+	return ts72xx_model() == TS72XX_MODEL_TS7400;
 }
 
 static inline int is_max197_installed(void)

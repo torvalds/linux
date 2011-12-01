@@ -1,0 +1,122 @@
+#
+# PMBus chip drivers configuration
+#
+
+menuconfig PMBUS
+	tristate "PMBus support"
+	depends on I2C && EXPERIMENTAL
+	default n
+	help
+	  Say yes here if you want to enable PMBus support.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called pmbus_core.
+
+if PMBUS
+
+config SENSORS_PMBUS
+	tristate "Generic PMBus devices"
+	default y
+	help
+	  If you say yes here you get hardware monitoring support for generic
+	  PMBus devices, including but not limited to ADP4000, BMR450, BMR451,
+	  BMR453, BMR454, NCP4200, and NCP4208.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called pmbus.
+
+config SENSORS_ADM1275
+	tristate "Analog Devices ADM1275 and compatibles"
+	default n
+	help
+	  If you say yes here you get hardware monitoring support for Analog
+	  Devices ADM1275 and ADM1276 Hot-Swap Controller and Digital Power
+	  Monitor.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called adm1275.
+
+config SENSORS_LM25066
+	tristate "National Semiconductor LM25066 and compatibles"
+	default n
+	help
+	  If you say yes here you get hardware monitoring support for National
+	  Semiconductor LM25066, LM5064, and LM5066.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called lm25066.
+
+config SENSORS_LTC2978
+	tristate "Linear Technologies LTC2978 and LTC3880"
+	default n
+	help
+	  If you say yes here you get hardware monitoring support for Linear
+	  Technology LTC2978 and LTC3880.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc2978.
+
+config SENSORS_MAX16064
+	tristate "Maxim MAX16064"
+	default n
+	help
+	  If you say yes here you get hardware monitoring support for Maxim
+	  MAX16064.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called max16064.
+
+config SENSORS_MAX34440
+	tristate "Maxim MAX34440/MAX34441"
+	default n
+	help
+	  If you say yes here you get hardware monitoring support for Maxim
+	  MAX34440 and MAX34441.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called max34440.
+
+config SENSORS_MAX8688
+	tristate "Maxim MAX8688"
+	default n
+	help
+	  If you say yes here you get hardware monitoring support for Maxim
+	  MAX8688.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called max8688.
+
+config SENSORS_UCD9000
+	tristate "TI UCD90120, UCD90124, UCD9090, UCD90910"
+	default n
+	help
+	  If you say yes here you get hardware monitoring support for TI
+	  UCD90120, UCD90124, UCD9090, UCD90910 Sequencer and System Health
+	  Controllers.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ucd9000.
+
+config SENSORS_UCD9200
+	tristate "TI UCD9220, UCD9222, UCD9224, UCD9240, UCD9244, UCD9246, UCD9248"
+	default n
+	help
+	  If you say yes here you get hardware monitoring support for TI
+	  UCD9220, UCD9222, UCD9224, UCD9240, UCD9244, UCD9246, and UCD9248
+	  Digital PWM System Controllers.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ucd9200.
+
+config SENSORS_ZL6100
+	tristate "Intersil ZL6100 and compatibles"
+	default n
+	help
+	  If you say yes here you get hardware monitoring support for Intersil
+	  ZL2004, ZL2006, ZL2008, ZL2105, ZL2106, ZL6100, and ZL6105 Digital
+	  DC/DC Controllers.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called zl6100.
+
+endif # PMBUS

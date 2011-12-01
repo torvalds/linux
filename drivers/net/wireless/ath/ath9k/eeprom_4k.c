@@ -322,8 +322,6 @@ static u32 ath9k_hw_4k_get_eeprom(struct ath_hw *ah,
 		return get_unaligned_be16(pBase->macAddr + 4);
 	case EEP_REG_0:
 		return pBase->regDmn[0];
-	case EEP_REG_1:
-		return pBase->regDmn[1];
 	case EEP_OP_CAP:
 		return pBase->deviceCap;
 	case EEP_OP_MODE:
@@ -350,6 +348,8 @@ static u32 ath9k_hw_4k_get_eeprom(struct ath_hw *ah,
 		return pModal->antdiv_ctl1;
 	case EEP_TXGAIN_TYPE:
 		return pBase->txGainType;
+	case EEP_ANTENNA_GAIN_2G:
+		return pModal->antennaGainCh[0];
 	default:
 		return 0;
 	}
@@ -462,8 +462,7 @@ static void ath9k_hw_set_4k_power_per_rate_table(struct ath_hw *ah,
 						 struct ath9k_channel *chan,
 						 int16_t *ratesArray,
 						 u16 cfgCtl,
-						 u16 AntennaReduction,
-						 u16 twiceMaxRegulatoryPower,
+						 u16 antenna_reduction,
 						 u16 powerLimit)
 {
 #define CMP_TEST_GRP \
@@ -472,20 +471,16 @@ static void ath9k_hw_set_4k_power_per_rate_table(struct ath_hw *ah,
 	|| (((cfgCtl & ~CTL_MODE_M) | (pCtlMode[ctlMode] & CTL_MODE_M)) == \
 	    ((pEepData->ctlIndex[i] & CTL_MODE_M) | SD_NO_CTL))
 
-	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	int i;
-	int16_t twiceLargestAntenna;
 	u16 twiceMinEdgePower;
-	u16 twiceMaxEdgePower = MAX_RATE_POWER;
-	u16 scaledPower = 0, minCtlPower, maxRegAllowedPower;
+	u16 twiceMaxEdgePower;
+	u16 scaledPower = 0, minCtlPower;
 	u16 numCtlModes;
 	const u16 *pCtlMode;
 	u16 ctlMode, freq;
 	struct chan_centers centers;
 	struct cal_ctl_data_4k *rep;
 	struct ar5416_eeprom_4k *pEepData = &ah->eeprom.map4k;
-	static const u16 tpScaleReductionTable[5] =
-		{ 0, 3, 6, 9, MAX_RATE_POWER };
 	struct cal_target_power_leg targetPowerOfdm, targetPowerCck = {
 		0, { 0, 0, 0, 0}
 	};
@@ -503,19 +498,7 @@ static void ath9k_hw_set_4k_power_per_rate_table(struct ath_hw *ah,
 
 	ath9k_hw_get_channel_centers(ah, chan, &centers);
 
-	twiceLargestAntenna = pEepData->modalHeader.antennaGainCh[0];
-	twiceLargestAntenna = (int16_t)min(AntennaReduction -
-					   twiceLargestAntenna, 0);
-
-	maxRegAllowedPower = twiceMaxRegulatoryPower + twiceLargestAntenna;
-	if (regulatory->tp_scale != ATH9K_TP_SCALE_MAX) {
-		maxRegAllowedPower -=
-			(tpScaleReductionTable[(regulatory->tp_scale)] * 2);
-	}
-
-	scaledPower = min(powerLimit, maxRegAllowedPower);
-	scaledPower = max((u16)0, scaledPower);
-
+	scaledPower = powerLimit - antenna_reduction;
 	numCtlModes = ARRAY_SIZE(ctlModesFor11g) - SUB_NUM_CTL_MODES_AT_2G_40;
 	pCtlMode = ctlModesFor11g;
 
@@ -559,9 +542,7 @@ static void ath9k_hw_set_4k_power_per_rate_table(struct ath_hw *ah,
 		else
 			freq = centers.ctl_center;
 
-		if (ah->eep_ops->get_eeprom_ver(ah) == 14 &&
-		    ah->eep_ops->get_eeprom_rev(ah) <= 2)
-			twiceMaxEdgePower = MAX_RATE_POWER;
+		twiceMaxEdgePower = MAX_RATE_POWER;
 
 		for (i = 0; (i < AR5416_EEP4K_NUM_CTLS) &&
 			     pEepData->ctlIndex[i]; i++) {
@@ -671,7 +652,6 @@ static void ath9k_hw_4k_set_txpower(struct ath_hw *ah,
 				    struct ath9k_channel *chan,
 				    u16 cfgCtl,
 				    u8 twiceAntennaReduction,
-				    u8 twiceMaxRegulatoryPower,
 				    u8 powerLimit, bool test)
 {
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
@@ -691,7 +671,6 @@ static void ath9k_hw_4k_set_txpower(struct ath_hw *ah,
 	ath9k_hw_set_4k_power_per_rate_table(ah, chan,
 					     &ratesArray[0], cfgCtl,
 					     twiceAntennaReduction,
-					     twiceMaxRegulatoryPower,
 					     powerLimit);
 
 	ath9k_hw_set_4k_power_cal_table(ah, chan);

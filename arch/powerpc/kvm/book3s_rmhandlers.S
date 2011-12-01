@@ -20,6 +20,7 @@
 #include <asm/ppc_asm.h>
 #include <asm/kvm_asm.h>
 #include <asm/reg.h>
+#include <asm/mmu.h>
 #include <asm/page.h>
 #include <asm/asm-offsets.h>
 
@@ -35,10 +36,10 @@
 
 #if defined(CONFIG_PPC_BOOK3S_64)
 
-#define LOAD_SHADOW_VCPU(reg)	GET_PACA(reg)					
-#define MSR_NOIRQ		MSR_KERNEL & ~(MSR_IR | MSR_DR)
 #define FUNC(name) 		GLUE(.,name)
+#define MTMSR_EERI(reg)		mtmsrd	(reg),1
 
+	.globl	kvmppc_skip_interrupt
 kvmppc_skip_interrupt:
 	/*
 	 * Here all GPRs are unchanged from when the interrupt happened
@@ -51,6 +52,7 @@ kvmppc_skip_interrupt:
 	rfid
 	b	.
 
+	.globl	kvmppc_skip_Hinterrupt
 kvmppc_skip_Hinterrupt:
 	/*
 	 * Here all GPRs are unchanged from when the interrupt happened
@@ -65,8 +67,8 @@ kvmppc_skip_Hinterrupt:
 
 #elif defined(CONFIG_PPC_BOOK3S_32)
 
-#define MSR_NOIRQ		MSR_KERNEL
 #define FUNC(name)		name
+#define MTMSR_EERI(reg)		mtmsr	(reg)
 
 .macro INTERRUPT_TRAMPOLINE intno
 
@@ -167,40 +169,24 @@ kvmppc_handler_skip_ins:
 #endif
 
 /*
- * This trampoline brings us back to a real mode handler
+ * Call kvmppc_handler_trampoline_enter in real mode
  *
- * Input Registers:
- *
- * R5 = SRR0
- * R6 = SRR1
- * LR = real-mode IP
- *
+ * On entry, r4 contains the guest shadow MSR
  */
-.global kvmppc_handler_lowmem_trampoline
-kvmppc_handler_lowmem_trampoline:
+_GLOBAL(kvmppc_entry_trampoline)
+	mfmsr	r5
+	LOAD_REG_ADDR(r7, kvmppc_handler_trampoline_enter)
+	toreal(r7)
 
-	mtsrr0	r5
+	li	r9, MSR_RI
+	ori	r9, r9, MSR_EE
+	andc	r9, r5, r9	/* Clear EE and RI in MSR value */
+	li	r6, MSR_IR | MSR_DR
+	ori	r6, r6, MSR_EE
+	andc	r6, r5, r6	/* Clear EE, DR and IR in MSR value */
+	MTMSR_EERI(r9)		/* Clear EE and RI in MSR */
+	mtsrr0	r7		/* before we set srr0/1 */
 	mtsrr1	r6
-	blr
-kvmppc_handler_lowmem_trampoline_end:
-
-/*
- * Call a function in real mode
- *
- * Input Registers:
- *
- * R3 = function
- * R4 = MSR
- * R5 = scratch register
- *
- */
-_GLOBAL(kvmppc_rmcall)
-	LOAD_REG_IMMEDIATE(r5, MSR_NOIRQ)
-	mtmsr	r5		/* Disable relocation and interrupts, so mtsrr
-				   doesn't get interrupted */
-	sync
-	mtsrr0	r3
-	mtsrr1	r4
 	RFI
 
 #if defined(CONFIG_PPC_BOOK3S_32)

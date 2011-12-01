@@ -65,12 +65,189 @@ config DEBUG_USER
 
 # These options are only for real kernel hackers who want to get their hands dirty.
 config DEBUG_LL
-	bool "Kernel low-level debugging functions"
+	bool "Kernel low-level debugging functions (read help!)"
 	depends on DEBUG_KERNEL
 	help
 	  Say Y here to include definitions of printascii, printch, printhex
 	  in the kernel.  This is helpful if you are debugging code that
 	  executes before the console is initialized.
+
+	  Note that selecting this option will limit the kernel to a single
+	  UART definition, as specified below. Attempting to boot the kernel
+	  image on a different platform *will not work*, so this option should
+	  not be enabled for kernels that are intended to be portable.
+
+choice
+	prompt "Kernel low-level debugging port"
+	depends on DEBUG_LL
+
+	config DEBUG_LL_UART_NONE
+		bool "No low-level debugging UART"
+		help
+		  Say Y here if your platform doesn't provide a UART option
+		  below. This relies on your platform choosing the right UART
+		  definition internally in order for low-level debugging to
+		  work.
+
+	config DEBUG_ICEDCC
+		bool "Kernel low-level debugging via EmbeddedICE DCC channel"
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to the EmbeddedICE macrocell's DCC channel using
+		  co-processor 14. This is known to work on the ARM9 style ICE
+		  channel and on the XScale with the PEEDI.
+
+		  Note that the system will appear to hang during boot if there
+		  is nothing connected to read from the DCC.
+
+	config DEBUG_FOOTBRIDGE_COM1
+		bool "Kernel low-level debugging messages via footbridge 8250 at PCI COM1"
+		depends on FOOTBRIDGE
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to the 8250 at PCI COM1.
+
+	config DEBUG_DC21285_PORT
+		bool "Kernel low-level debugging messages via footbridge serial port"
+		depends on FOOTBRIDGE
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to the serial port in the DC21285 (Footbridge).
+
+	config DEBUG_CLPS711X_UART1
+		bool "Kernel low-level debugging messages via UART1"
+		depends on ARCH_CLPS711X
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to the first serial port on these devices.
+
+	config DEBUG_CLPS711X_UART2
+		bool "Kernel low-level debugging messages via UART2"
+		depends on ARCH_CLPS711X
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to the second serial port on these devices.
+
+	config DEBUG_HIGHBANK_UART
+		bool "Kernel low-level debugging messages via Highbank UART"
+		depends on ARCH_HIGHBANK
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to the UART on Highbank based devices.
+
+	config DEBUG_IMX1_UART
+		bool "i.MX1 Debug UART"
+		depends on SOC_IMX1
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX1.
+
+	config DEBUG_IMX23_UART
+		bool "i.MX23 Debug UART"
+		depends on SOC_IMX23
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX23.
+
+	config DEBUG_IMX25_UART
+		bool "i.MX25 Debug UART"
+		depends on SOC_IMX25
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX25.
+
+	config DEBUG_IMX21_IMX27_UART
+		bool "i.MX21 and i.MX27 Debug UART"
+		depends on SOC_IMX21 || SOC_IMX27
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX21 or i.MX27.
+
+	config DEBUG_IMX28_UART
+		bool "i.MX28 Debug UART"
+		depends on SOC_IMX28
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX28.
+
+	config DEBUG_IMX31_IMX35_UART
+		bool "i.MX31 and i.MX35 Debug UART"
+		depends on SOC_IMX31 || SOC_IMX35
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX31 or i.MX35.
+
+	config DEBUG_IMX51_UART
+		bool "i.MX51 Debug UART"
+		depends on SOC_IMX51
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX51.
+
+	config DEBUG_IMX50_IMX53_UART
+		bool "i.MX50 and i.MX53 Debug UART"
+		depends on SOC_IMX50 || SOC_IMX53
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX50 or i.MX53.
+
+	config DEBUG_IMX6Q_UART
+		bool "i.MX6Q Debug UART"
+		depends on SOC_IMX6Q
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX6Q.
+
+	config DEBUG_S3C_UART0
+		depends on PLAT_SAMSUNG
+		bool "Use S3C UART 0 for low-level debug"
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to UART 0. The port must have been initialised
+		  by the boot-loader before use.
+
+		  The uncompressor code port configuration is now handled
+		  by CONFIG_S3C_LOWLEVEL_UART_PORT.
+
+	config DEBUG_S3C_UART1
+		depends on PLAT_SAMSUNG
+		bool "Use S3C UART 1 for low-level debug"
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to UART 1. The port must have been initialised
+		  by the boot-loader before use.
+
+		  The uncompressor code port configuration is now handled
+		  by CONFIG_S3C_LOWLEVEL_UART_PORT.
+
+	config DEBUG_S3C_UART2
+		depends on PLAT_SAMSUNG
+		bool "Use S3C UART 2 for low-level debug"
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to UART 2. The port must have been initialised
+		  by the boot-loader before use.
+
+		  The uncompressor code port configuration is now handled
+		  by CONFIG_S3C_LOWLEVEL_UART_PORT.
+
+	config DEBUG_REALVIEW_STD_PORT
+		bool "RealView Default UART"
+		depends on ARCH_REALVIEW
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to the serial port on RealView EB, PB11MP, PBA8
+		  and PBX platforms.
+
+	config DEBUG_REALVIEW_PB1176_PORT
+		bool "RealView PB1176 UART"
+		depends on MACH_REALVIEW_PB1176
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to the standard serial port on the RealView
+		  PB1176 platform.
+
+endchoice
 
 config EARLY_PRINTK
 	bool "Early printk"
@@ -80,53 +257,18 @@ config EARLY_PRINTK
 	  kernel low-level debugging functions. Add earlyprintk to your
 	  kernel parameters to enable this console.
 
-config DEBUG_ICEDCC
-	bool "Kernel low-level debugging via EmbeddedICE DCC channel"
-	depends on DEBUG_LL
-	help
-	  Say Y here if you want the debug print routines to direct their
-	  output to the EmbeddedICE macrocell's DCC channel using
-	  co-processor 14. This is known to work on the ARM9 style ICE
-	  channel and on the XScale with the PEEDI.
-
-	  It does include a timeout to ensure that the system does not
-	  totally freeze when there is nothing connected to read.
-
 config OC_ETM
 	bool "On-chip ETM and ETB"
-	select ARM_AMBA
+	depends on ARM_AMBA
 	help
 	  Enables the on-chip embedded trace macrocell and embedded trace
 	  buffer driver that will allow you to collect traces of the
 	  kernel code.
 
-config DEBUG_DC21285_PORT
-	bool "Kernel low-level debugging messages via footbridge serial port"
-	depends on DEBUG_LL && FOOTBRIDGE
+config ARM_KPROBES_TEST
+	tristate "Kprobes test module"
+	depends on KPROBES && MODULES
 	help
-	  Say Y here if you want the debug print routines to direct their
-	  output to the serial port in the DC21285 (Footbridge). Saying N
-	  will cause the debug messages to appear on the first 16550
-	  serial port.
-
-config DEBUG_CLPS711X_UART2
-	bool "Kernel low-level debugging messages via UART2"
-	depends on DEBUG_LL && ARCH_CLPS711X
-	help
-	  Say Y here if you want the debug print routines to direct their
-	  output to the second serial port on these devices.  Saying N will
-	  cause the debug messages to appear on the first serial port.
-
-config DEBUG_S3C_UART
-	depends on PLAT_SAMSUNG
-	int "S3C UART to use for low-level debug"
-	default "0"
-	help
-	  Choice for UART for kernel low-level using S3C UARTS,
-	  should be between zero and two. The port must have been
-	  initialised by the boot-loader before use.
-
-	  The uncompressor code port configuration is now handled
-	  by CONFIG_S3C_LOWLEVEL_UART_PORT.
+	  Perform tests of kprobes API and instruction set simulation.
 
 endmenu

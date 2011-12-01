@@ -1197,7 +1197,7 @@ const struct inode_operations pohmelfs_file_inode_operations = {
 void pohmelfs_fill_inode(struct inode *inode, struct netfs_inode_info *info)
 {
 	inode->i_mode = info->mode;
-	inode->i_nlink = info->nlink;
+	set_nlink(inode, info->nlink);
 	inode->i_uid = info->uid;
 	inode->i_gid = info->gid;
 	inode->i_blocks = info->blocks;

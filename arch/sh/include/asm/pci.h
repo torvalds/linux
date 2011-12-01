@@ -112,7 +112,7 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 #endif
 
 /* Board-specific fixup routines. */
-int pcibios_map_platform_irq(struct pci_dev *dev, u8 slot, u8 pin);
+int pcibios_map_platform_irq(const struct pci_dev *dev, u8 slot, u8 pin);
 
 extern void pcibios_resource_to_bus(struct pci_dev *dev,
 	struct pci_bus_region *region, struct resource *res);

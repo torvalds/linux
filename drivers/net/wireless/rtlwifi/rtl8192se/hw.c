@@ -1382,7 +1382,7 @@ static void _rtl92se_power_domain_init(struct ieee80211_hw *hw)
 	rtl_write_byte(rtlpriv, LDOA15_CTRL, 0x34);
 
 	/* Reset MAC-IO and CPU and Core Digital BIT10/11/15 */
-	tmpu1b = rtl_read_byte(rtlpriv, SYS_FUNC_EN + 1);
+	tmpu1b = rtl_read_byte(rtlpriv, REG_SYS_FUNC_EN + 1);
 
 	/* If IPS we need to turn LED on. So we not
 	 * not disable BIT 3/7 of reg3. */
@@ -1391,7 +1391,7 @@ static void _rtl92se_power_domain_init(struct ieee80211_hw *hw)
 	else
 		tmpu1b &= 0x73;
 
-	rtl_write_byte(rtlpriv, SYS_FUNC_EN + 1, tmpu1b);
+	rtl_write_byte(rtlpriv, REG_SYS_FUNC_EN + 1, tmpu1b);
 	/* wait for BIT 10/11/15 to pull high automatically!! */
 	mdelay(1);
 
@@ -1428,15 +1428,15 @@ static void _rtl92se_power_domain_init(struct ieee80211_hw *hw)
 	rtl_write_byte(rtlpriv, LDOA15_CTRL, (tmpu1b | BIT(0)));
 
 	/* Set Digital Vdd to Retention isolation Path. */
-	tmpu2b = rtl_read_word(rtlpriv, SYS_ISO_CTRL);
-	rtl_write_word(rtlpriv, SYS_ISO_CTRL, (tmpu2b | BIT(11)));
+	tmpu2b = rtl_read_word(rtlpriv, REG_SYS_ISO_CTRL);
+	rtl_write_word(rtlpriv, REG_SYS_ISO_CTRL, (tmpu2b | BIT(11)));
 
 
 	/* For warm reboot NIC disappera bug. */
-	tmpu2b = rtl_read_word(rtlpriv, SYS_FUNC_EN);
-	rtl_write_word(rtlpriv, SYS_FUNC_EN, (tmpu2b | BIT(13)));
+	tmpu2b = rtl_read_word(rtlpriv, REG_SYS_FUNC_EN);
+	rtl_write_word(rtlpriv, REG_SYS_FUNC_EN, (tmpu2b | BIT(13)));
 
-	rtl_write_byte(rtlpriv, SYS_ISO_CTRL + 1, 0x68);
+	rtl_write_byte(rtlpriv, REG_SYS_ISO_CTRL + 1, 0x68);
 
 	/* Enable AFE PLL Macro Block */
 	tmpu1b = rtl_read_byte(rtlpriv, AFE_PLL_CTRL);
@@ -1447,17 +1447,17 @@ static void _rtl92se_power_domain_init(struct ieee80211_hw *hw)
 	mdelay(1);
 
 	/* Release isolation AFE PLL & MD */
-	rtl_write_byte(rtlpriv, SYS_ISO_CTRL, 0xA6);
+	rtl_write_byte(rtlpriv, REG_SYS_ISO_CTRL, 0xA6);
 
 	/* Enable MAC clock */
 	tmpu2b = rtl_read_word(rtlpriv, SYS_CLKR);
 	rtl_write_word(rtlpriv, SYS_CLKR, (tmpu2b | BIT(12) | BIT(11)));
 
 	/* Enable Core digital and enable IOREG R/W */
-	tmpu2b = rtl_read_word(rtlpriv, SYS_FUNC_EN);
-	rtl_write_word(rtlpriv, SYS_FUNC_EN, (tmpu2b | BIT(11)));
+	tmpu2b = rtl_read_word(rtlpriv, REG_SYS_FUNC_EN);
+	rtl_write_word(rtlpriv, REG_SYS_FUNC_EN, (tmpu2b | BIT(11)));
 	/* enable REG_EN */
-	rtl_write_word(rtlpriv, SYS_FUNC_EN, (tmpu2b | BIT(11) | BIT(15)));
+	rtl_write_word(rtlpriv, REG_SYS_FUNC_EN, (tmpu2b | BIT(11) | BIT(15)));
 
 	/* Switch the control path. */
 	tmpu2b = rtl_read_word(rtlpriv, SYS_CLKR);

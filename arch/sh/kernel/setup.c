@@ -211,13 +211,16 @@ void __init __add_active_range(unsigned int nid, unsigned long start_pfn,
 	}
 
 	/*
-	 *  We don't know which RAM region contains kernel data,
-	 *  so we try it repeatedly and let the resource manager
-	 *  test it.
+	 * We don't know which RAM region contains kernel data or
+	 * the reserved crashkernel region, so try it repeatedly
+	 * and let the resource manager test it.
 	 */
 	request_resource(res, &code_resource);
 	request_resource(res, &data_resource);
 	request_resource(res, &bss_resource);
+#ifdef CONFIG_KEXEC
+	request_resource(res, &crashk_res);
+#endif
 
 	/*
 	 * Also make sure that there is a PMB mapping that covers this

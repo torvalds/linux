@@ -605,7 +605,9 @@ static void build_inv_all(struct iommu_cmd *cmd)
  * Writes the command to the IOMMUs command buffer and informs the
  * hardware about the new command.
  */
-static int iommu_queue_command(struct amd_iommu *iommu, struct iommu_cmd *cmd)
+static int iommu_queue_command_sync(struct amd_iommu *iommu,
+				    struct iommu_cmd *cmd,
+				    bool sync)
 {
 	u32 left, tail, head, next_tail;
 	unsigned long flags;
@@ -639,11 +641,16 @@ again:
 	copy_cmd_to_buffer(iommu, cmd, tail);
 
 	/* We need to sync now to make sure all commands are processed */
-	iommu->need_sync = true;
+	iommu->need_sync = sync;
 
 	spin_unlock_irqrestore(&iommu->lock, flags);
 
 	return 0;
+}
+
+static int iommu_queue_command(struct amd_iommu *iommu, struct iommu_cmd *cmd)
+{
+	return iommu_queue_command_sync(iommu, cmd, true);
 }
 
 /*
@@ -661,7 +668,7 @@ static int iommu_completion_wait(struct amd_iommu *iommu)
 
 	build_completion_wait(&cmd, (u64)&sem);
 
-	ret = iommu_queue_command(iommu, &cmd);
+	ret = iommu_queue_command_sync(iommu, &cmd, false);
 	if (ret)
 		return ret;
 
@@ -840,14 +847,9 @@ static void domain_flush_complete(struct protection_domain *domain)
 static void domain_flush_devices(struct protection_domain *domain)
 {
 	struct iommu_dev_data *dev_data;
-	unsigned long flags;
-
-	spin_lock_irqsave(&domain->lock, flags);
 
 	list_for_each_entry(dev_data, &domain->dev_list, list)
 		device_flush_dte(dev_data);
-
-	spin_unlock_irqrestore(&domain->lock, flags);
 }
 
 /****************************************************************************
@@ -1281,7 +1283,7 @@ static int alloc_new_range(struct dma_ops_domain *dma_dom,
 		if (!pte || !IOMMU_PTE_PRESENT(*pte))
 			continue;
 
-		dma_ops_reserve_addresses(dma_dom, i << PAGE_SHIFT, 1);
+		dma_ops_reserve_addresses(dma_dom, i >> PAGE_SHIFT, 1);
 	}
 
 	update_domain(&dma_dom->domain);
@@ -2493,7 +2495,7 @@ static unsigned device_dma_ops_init(void)
 
 void __init amd_iommu_init_api(void)
 {
-	register_iommu(&amd_iommu_ops);
+	bus_set_iommu(&pci_bus_type, &amd_iommu_ops);
 }
 
 int __init amd_iommu_init_dma_ops(void)

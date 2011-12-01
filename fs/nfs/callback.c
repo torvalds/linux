@@ -125,7 +125,7 @@ nfs4_callback_up(struct svc_serv *serv)
 	else
 		goto out_err;
 
-	return svc_prepare_thread(serv, &serv->sv_pools[0]);
+	return svc_prepare_thread(serv, &serv->sv_pools[0], NUMA_NO_NODE);
 
 out_err:
 	if (ret == 0)
@@ -199,7 +199,7 @@ nfs41_callback_up(struct svc_serv *serv, struct rpc_xprt *xprt)
 	INIT_LIST_HEAD(&serv->sv_cb_list);
 	spin_lock_init(&serv->sv_cb_lock);
 	init_waitqueue_head(&serv->sv_cb_waitq);
-	rqstp = svc_prepare_thread(serv, &serv->sv_pools[0]);
+	rqstp = svc_prepare_thread(serv, &serv->sv_pools[0], NUMA_NO_NODE);
 	if (IS_ERR(rqstp)) {
 		svc_xprt_put(serv->sv_bc_xprt);
 		serv->sv_bc_xprt = NULL;

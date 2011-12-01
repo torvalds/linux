@@ -111,14 +111,15 @@ static int psbfb_2d_submit(struct drm_psb_private *dev_priv, uint32_t *cmdbuf,
 	int ret = 0;
 	int i;
 	unsigned submit_size;
+	unsigned long flags;
 
-	mutex_lock(&dev_priv->mutex_2d);
+	spin_lock_irqsave(&dev_priv->lock_2d, flags);
 	while (size > 0) {
 		submit_size = (size < 0x60) ? size : 0x60;
 		size -= submit_size;
 		ret = psb_2d_wait_available(dev_priv, submit_size);
 		if (ret)
-		        break;
+			break;
 
 		submit_size <<= 2;
 
@@ -127,7 +128,7 @@ static int psbfb_2d_submit(struct drm_psb_private *dev_priv, uint32_t *cmdbuf,
 
 		(void)PSB_RSGX32(PSB_SGX_2D_SLAVE_PORT + i - 4);
 	}
-	mutex_unlock(&dev_priv->mutex_2d);
+	spin_unlock_irqrestore(&dev_priv->lock_2d, flags);
 	return ret;
 }
 
@@ -327,8 +328,9 @@ int psbfb_sync(struct fb_info *info)
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	unsigned long _end = jiffies + DRM_HZ;
 	int busy = 0;
+	unsigned long flags;
 
-	mutex_lock(&dev_priv->mutex_2d);
+	spin_lock_irqsave(&dev_priv->lock_2d, flags);
 	/*
 	 * First idle the 2D engine.
 	 */
@@ -357,7 +359,7 @@ int psbfb_sync(struct fb_info *info)
 					_PSB_C2B_STATUS_BUSY) != 0);
 
 out:
-	mutex_unlock(&dev_priv->mutex_2d);
+	spin_unlock_irqrestore(&dev_priv->lock_2d, flags);
 	return (busy) ? -EBUSY : 0;
 }
 
@@ -388,19 +390,19 @@ int psb_accel_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	for (i = 0; i < op->size; i++, op_ptr++) {
 		u32 r = *op_ptr & 0xF0000000;
 		/* Fill in the GTT offsets for the command buffer */
-        	if (r == PSB_2D_SRC_SURF_BH ||
-			r == PSB_2D_DST_SURF_BH || 
+		if (r == PSB_2D_SRC_SURF_BH ||
+			r == PSB_2D_DST_SURF_BH ||
 			r == PSB_2D_MASK_SURF_BH ||
 			r == PSB_2D_PAT_SURF_BH) {
 			i++;
 			op_ptr++;
 			if (i == op->size)
 				goto bad;
-                        if (*op_ptr)
+			if (*op_ptr)
 				goto bad;
-                        *op_ptr = gtt->offset;
-                        continue;
-                }
+			*op_ptr = gtt->offset;
+			continue;
+		}
 	}
 	psbfb_2d_submit(dev_priv, op->cmd, op->size);
 	err = 0;

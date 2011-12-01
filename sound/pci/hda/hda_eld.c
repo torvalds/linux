@@ -144,25 +144,17 @@ static int cea_sampling_frequencies[8] = {
 	SNDRV_PCM_RATE_192000,	/* 7: 192000Hz */
 };
 
-static unsigned char hdmi_get_eld_byte(struct hda_codec *codec, hda_nid_t nid,
+static unsigned int hdmi_get_eld_data(struct hda_codec *codec, hda_nid_t nid,
 					int byte_index)
 {
 	unsigned int val;
 
 	val = snd_hda_codec_read(codec, nid, 0,
 					AC_VERB_GET_HDMI_ELDD, byte_index);
-
 #ifdef BE_PARANOID
 	printk(KERN_INFO "HDMI: ELD data byte %d: 0x%x\n", byte_index, val);
 #endif
-
-	if ((val & AC_ELDD_ELD_VALID) == 0) {
-		snd_printd(KERN_INFO "HDMI: invalid ELD data byte %d\n",
-								byte_index);
-		val = 0;
-	}
-
-	return val & AC_ELDD_ELD_DATA;
+	return val;
 }
 
 #define GRAB_BITS(buf, byte, lowbit, bits) 		\
@@ -326,6 +318,11 @@ int snd_hdmi_get_eld(struct hdmi_eld *eld,
 	int size;
 	unsigned char *buf;
 
+	/*
+	 * ELD size is initialized to zero in caller function. If no errors and
+	 * ELD is valid, actual eld_size is assigned in hdmi_update_eld()
+	 */
+
 	if (!eld->eld_valid)
 		return -ENOENT;
 
@@ -335,23 +332,58 @@ int snd_hdmi_get_eld(struct hdmi_eld *eld,
 		snd_printd(KERN_INFO "HDMI: ELD buf size is 0, force 128\n");
 		size = 128;
 	}
-	if (size < ELD_FIXED_BYTES || size > PAGE_SIZE) {
+	if (size < ELD_FIXED_BYTES || size > ELD_MAX_SIZE) {
 		snd_printd(KERN_INFO "HDMI: invalid ELD buf size %d\n", size);
 		return -ERANGE;
 	}
 
-	buf = kmalloc(size, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
+	/* set ELD buffer */
+	buf = eld->eld_buffer;
 
-	for (i = 0; i < size; i++)
-		buf[i] = hdmi_get_eld_byte(codec, nid, i);
+	for (i = 0; i < size; i++) {
+		unsigned int val = hdmi_get_eld_data(codec, nid, i);
+		if (!(val & AC_ELDD_ELD_VALID)) {
+			if (!i) {
+				snd_printd(KERN_INFO
+					   "HDMI: invalid ELD data\n");
+				ret = -EINVAL;
+				goto error;
+			}
+			snd_printd(KERN_INFO
+				  "HDMI: invalid ELD data byte %d\n", i);
+			val = 0;
+		} else
+			val &= AC_ELDD_ELD_DATA;
+		buf[i] = val;
+	}
 
 	ret = hdmi_update_eld(eld, buf, size);
 
-	kfree(buf);
+error:
 	return ret;
 }
+
+/**
+ * SNDRV_PCM_RATE_* and AC_PAR_PCM values don't match, print correct rates with
+ * hdmi-specific routine.
+ */
+static void hdmi_print_pcm_rates(int pcm, char *buf, int buflen)
+{
+	static unsigned int alsa_rates[] = {
+		5512, 8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200,
+		96000, 176400, 192000, 384000
+	};
+	int i, j;
+
+	for (i = 0, j = 0; i < ARRAY_SIZE(alsa_rates); i++)
+		if (pcm & (1 << i))
+			j += snprintf(buf + j, buflen - j,  " %d",
+				alsa_rates[i]);
+
+	buf[j] = '\0'; /* necessary when j == 0 */
+}
+
+#define SND_PRINT_RATES_ADVISED_BUFSIZE	80
 
 static void hdmi_show_short_audio_desc(struct cea_sad *a)
 {
@@ -361,7 +393,7 @@ static void hdmi_show_short_audio_desc(struct cea_sad *a)
 	if (!a->format)
 		return;
 
-	snd_print_pcm_rates(a->rates, buf, sizeof(buf));
+	hdmi_print_pcm_rates(a->rates, buf, sizeof(buf));
 
 	if (a->format == AUDIO_CODING_TYPE_LPCM)
 		snd_print_pcm_bits(a->sample_bits, buf2 + 8, sizeof(buf2) - 8);
@@ -420,7 +452,7 @@ static void hdmi_print_sad_info(int i, struct cea_sad *a,
 			i, a->format, cea_audio_coding_type_names[a->format]);
 	snd_iprintf(buffer, "sad%d_channels\t\t%d\n", i, a->channels);
 
-	snd_print_pcm_rates(a->rates, buf, sizeof(buf));
+	hdmi_print_pcm_rates(a->rates, buf, sizeof(buf));
 	snd_iprintf(buffer, "sad%d_rates\t\t[0x%x]%s\n", i, a->rates, buf);
 
 	if (a->format == AUDIO_CODING_TYPE_LPCM) {

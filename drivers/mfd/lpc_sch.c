@@ -37,6 +37,9 @@
 #define GPIOBASE	0x44
 #define GPIO_IO_SIZE	64
 
+#define WDTBASE		0x84
+#define WDT_IO_SIZE	64
+
 static struct resource smbus_sch_resource = {
 		.flags = IORESOURCE_IO,
 };
@@ -59,6 +62,18 @@ static struct mfd_cell lpc_sch_cells[] = {
 	},
 };
 
+static struct resource wdt_sch_resource = {
+		.flags = IORESOURCE_IO,
+};
+
+static struct mfd_cell tunnelcreek_cells[] = {
+	{
+		.name = "tunnelcreek_wdt",
+		.num_resources = 1,
+		.resources = &wdt_sch_resource,
+	},
+};
+
 static struct pci_device_id lpc_sch_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SCH_LPC) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ITC_LPC) },
@@ -72,6 +87,7 @@ static int __devinit lpc_sch_probe(struct pci_dev *dev,
 	unsigned int base_addr_cfg;
 	unsigned short base_addr;
 	int i;
+	int ret;
 
 	pci_read_config_dword(dev, SMBASE, &base_addr_cfg);
 	if (!(base_addr_cfg & (1 << 31))) {
@@ -104,8 +120,39 @@ static int __devinit lpc_sch_probe(struct pci_dev *dev,
 	for (i=0; i < ARRAY_SIZE(lpc_sch_cells); i++)
 		lpc_sch_cells[i].id = id->device;
 
-	return mfd_add_devices(&dev->dev, 0,
+	ret = mfd_add_devices(&dev->dev, 0,
 			lpc_sch_cells, ARRAY_SIZE(lpc_sch_cells), NULL, 0);
+	if (ret)
+		goto out_dev;
+
+	if (id->device == PCI_DEVICE_ID_INTEL_ITC_LPC) {
+		pci_read_config_dword(dev, WDTBASE, &base_addr_cfg);
+		if (!(base_addr_cfg & (1 << 31))) {
+			dev_err(&dev->dev, "Decode of the WDT I/O range disabled\n");
+			ret = -ENODEV;
+			goto out_dev;
+		}
+		base_addr = (unsigned short)base_addr_cfg;
+		if (base_addr == 0) {
+			dev_err(&dev->dev, "I/O space for WDT uninitialized\n");
+			ret = -ENODEV;
+			goto out_dev;
+		}
+
+		wdt_sch_resource.start = base_addr;
+		wdt_sch_resource.end = base_addr + WDT_IO_SIZE - 1;
+
+		for (i = 0; i < ARRAY_SIZE(tunnelcreek_cells); i++)
+			tunnelcreek_cells[i].id = id->device;
+
+		ret = mfd_add_devices(&dev->dev, 0, tunnelcreek_cells,
+			ARRAY_SIZE(tunnelcreek_cells), NULL, 0);
+	}
+
+	return ret;
+out_dev:
+	mfd_remove_devices(&dev->dev);
+	return ret;
 }
 
 static void __devexit lpc_sch_remove(struct pci_dev *dev)

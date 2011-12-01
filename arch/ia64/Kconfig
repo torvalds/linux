@@ -27,6 +27,8 @@ config IA64
 	select GENERIC_PENDING_IRQ if SMP
 	select IRQ_PER_CPU
 	select GENERIC_IRQ_SHOW
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	default y
 	help
 	  The Itanium Processor Family is Intel's 64-bit successor to
@@ -88,6 +90,9 @@ config GENERIC_TIME_VSYSCALL
 
 config HAVE_SETUP_PER_CPU_AREA
 	def_bool y
+
+config GENERIC_GPIO
+	bool
 
 config DMI
 	bool
@@ -157,7 +162,6 @@ config IA64_GENERIC
 	select ACPI_NUMA
 	select SWIOTLB
 	select PCI_MSI
-	select DMAR
 	help
 	  This selects the system type of your hardware.  A "generic" kernel
 	  will run on any supported IA-64 system.  However, if you configure

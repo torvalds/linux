@@ -151,7 +151,7 @@ miata_init_irq(void)
  */
 
 static int __init
-miata_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+miata_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
         static char irq_tab[18][5] __initdata = {
 		/*INT    INTA   INTB   INTC   INTD */

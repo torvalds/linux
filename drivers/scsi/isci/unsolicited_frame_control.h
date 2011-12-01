@@ -214,7 +214,7 @@ struct sci_uf_address_table_array {
 	 * starting address of the UF address table.
 	 * 64-bit pointers are required by the hardware.
 	 */
-	dma_addr_t *array;
+	u64 *array;
 
 	/**
 	 * This field specifies the physical address location for the UF

@@ -104,15 +104,13 @@ static ssize_t store_mirror(struct device *dev,
 {
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct omapfb_info *ofbi = FB2OFB(fbi);
-	int mirror;
+	bool mirror;
 	int r;
 	struct fb_var_screeninfo new_var;
 
-	r = kstrtoint(buf, 0, &mirror);
+	r = strtobool(buf, &mirror);
 	if (r)
 		return r;
-
-	mirror = !!mirror;
 
 	if (!lock_fb_info(fbi))
 		return -ENODEV;
@@ -518,6 +516,39 @@ static ssize_t show_virt(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%p\n", ofbi->region->vaddr);
 }
 
+static ssize_t show_upd_mode(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	enum omapfb_update_mode mode;
+	int r;
+
+	r = omapfb_get_update_mode(fbi, &mode);
+
+	if (r)
+		return r;
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", (unsigned)mode);
+}
+
+static ssize_t store_upd_mode(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	unsigned mode;
+	int r;
+
+	r = kstrtouint(buf, 0, &mode);
+	if (r)
+		return r;
+
+	r = omapfb_set_update_mode(fbi, mode);
+	if (r)
+		return r;
+
+	return count;
+}
+
 static struct device_attribute omapfb_attrs[] = {
 	__ATTR(rotate_type, S_IRUGO | S_IWUSR, show_rotate_type,
 			store_rotate_type),
@@ -528,6 +559,7 @@ static struct device_attribute omapfb_attrs[] = {
 			store_overlays_rotate),
 	__ATTR(phys_addr, S_IRUGO, show_phys, NULL),
 	__ATTR(virt_addr, S_IRUGO, show_virt, NULL),
+	__ATTR(update_mode, S_IRUGO | S_IWUSR, show_upd_mode, store_upd_mode),
 };
 
 int omapfb_create_sysfs(struct omapfb2_device *fbdev)

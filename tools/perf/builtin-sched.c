@@ -1637,23 +1637,29 @@ static struct perf_event_ops event_ops = {
 	.ordered_samples	= true,
 };
 
-static int read_events(void)
+static void read_events(bool destroy, struct perf_session **psession)
 {
 	int err = -EINVAL;
 	struct perf_session *session = perf_session__new(input_name, O_RDONLY,
 							 0, false, &event_ops);
 	if (session == NULL)
-		return -ENOMEM;
+		die("No Memory");
 
 	if (perf_session__has_traces(session, "record -R")) {
 		err = perf_session__process_events(session, &event_ops);
+		if (err)
+			die("Failed to process events, error %d", err);
+
 		nr_events      = session->hists.stats.nr_events[0];
 		nr_lost_events = session->hists.stats.total_lost;
 		nr_lost_chunks = session->hists.stats.nr_events[PERF_RECORD_LOST];
 	}
 
-	perf_session__delete(session);
-	return err;
+	if (destroy)
+		perf_session__delete(session);
+
+	if (psession)
+		*psession = session;
 }
 
 static void print_bad_events(void)
@@ -1689,9 +1695,10 @@ static void print_bad_events(void)
 static void __cmd_lat(void)
 {
 	struct rb_node *next;
+	struct perf_session *session;
 
 	setup_pager();
-	read_events();
+	read_events(false, &session);
 	sort_lat();
 
 	printf("\n ---------------------------------------------------------------------------------------------------------------\n");
@@ -1717,6 +1724,7 @@ static void __cmd_lat(void)
 	print_bad_events();
 	printf("\n");
 
+	perf_session__delete(session);
 }
 
 static struct trace_sched_handler map_ops  = {
@@ -1731,7 +1739,7 @@ static void __cmd_map(void)
 	max_cpu = sysconf(_SC_NPROCESSORS_CONF);
 
 	setup_pager();
-	read_events();
+	read_events(true, NULL);
 	print_bad_events();
 }
 
@@ -1744,7 +1752,7 @@ static void __cmd_replay(void)
 
 	test_calibrations();
 
-	read_events();
+	read_events(true, NULL);
 
 	printf("nr_run_events:        %ld\n", nr_run_events);
 	printf("nr_sleep_events:      %ld\n", nr_sleep_events);
@@ -1769,7 +1777,7 @@ static void __cmd_replay(void)
 
 
 static const char * const sched_usage[] = {
-	"perf sched [<options>] {record|latency|map|replay|trace}",
+	"perf sched [<options>] {record|latency|map|replay|script}",
 	NULL
 };
 

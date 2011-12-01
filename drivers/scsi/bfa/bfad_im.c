@@ -19,6 +19,8 @@
  *  bfad_im.c Linux driver IM module.
  */
 
+#include <linux/export.h>
+
 #include "bfad_drv.h"
 #include "bfad_im.h"
 #include "bfa_fcs.h"
@@ -656,6 +658,31 @@ bfad_im_port_clean(struct bfad_im_port_s *im_port)
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 }
 
+static void bfad_aen_im_notify_handler(struct work_struct *work)
+{
+	struct bfad_im_s *im =
+		container_of(work, struct bfad_im_s, aen_im_notify_work);
+	struct bfa_aen_entry_s *aen_entry;
+	struct bfad_s *bfad = im->bfad;
+	struct Scsi_Host *shost = bfad->pport.im_port->shost;
+	void *event_data;
+	unsigned long flags;
+
+	while (!list_empty(&bfad->active_aen_q)) {
+		spin_lock_irqsave(&bfad->bfad_aen_spinlock, flags);
+		bfa_q_deq(&bfad->active_aen_q, &aen_entry);
+		spin_unlock_irqrestore(&bfad->bfad_aen_spinlock, flags);
+		event_data = (char *)aen_entry + sizeof(struct list_head);
+		fc_host_post_vendor_event(shost, fc_get_event_number(),
+				sizeof(struct bfa_aen_entry_s) -
+				sizeof(struct list_head),
+				(char *)event_data, BFAD_NL_VENDOR_ID);
+		spin_lock_irqsave(&bfad->bfad_aen_spinlock, flags);
+		list_add_tail(&aen_entry->qe, &bfad->free_aen_q);
+		spin_unlock_irqrestore(&bfad->bfad_aen_spinlock, flags);
+	}
+}
+
 bfa_status_t
 bfad_im_probe(struct bfad_s *bfad)
 {
@@ -676,6 +703,7 @@ bfad_im_probe(struct bfad_s *bfad)
 		rc = BFA_STATUS_FAILED;
 	}
 
+	INIT_WORK(&im->aen_im_notify_work, bfad_aen_im_notify_handler);
 ext:
 	return rc;
 }

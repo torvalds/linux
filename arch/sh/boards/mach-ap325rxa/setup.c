@@ -332,8 +332,8 @@ static int camera_set_capture(struct soc_camera_platform_info *info,
 	return ret;
 }
 
-static int ap325rxa_camera_add(struct soc_camera_link *icl, struct device *dev);
-static void ap325rxa_camera_del(struct soc_camera_link *icl);
+static int ap325rxa_camera_add(struct soc_camera_device *icd);
+static void ap325rxa_camera_del(struct soc_camera_device *icd);
 
 static struct soc_camera_platform_info camera_info = {
 	.format_name = "UYVY",
@@ -345,9 +345,10 @@ static struct soc_camera_platform_info camera_info = {
 		.width = 640,
 		.height = 480,
 	},
-	.bus_param = SOCAM_PCLK_SAMPLE_RISING | SOCAM_HSYNC_ACTIVE_HIGH |
-	SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_MASTER | SOCAM_DATAWIDTH_8 |
-	SOCAM_DATA_ACTIVE_HIGH,
+	.mbus_param = V4L2_MBUS_PCLK_SAMPLE_RISING | V4L2_MBUS_MASTER |
+	V4L2_MBUS_VSYNC_ACTIVE_HIGH | V4L2_MBUS_HSYNC_ACTIVE_HIGH |
+	V4L2_MBUS_DATA_ACTIVE_HIGH,
+	.mbus_type = V4L2_MBUS_PARALLEL,
 	.set_capture = camera_set_capture,
 };
 
@@ -366,24 +367,23 @@ static void ap325rxa_camera_release(struct device *dev)
 	soc_camera_platform_release(&camera_device);
 }
 
-static int ap325rxa_camera_add(struct soc_camera_link *icl,
-			       struct device *dev)
+static int ap325rxa_camera_add(struct soc_camera_device *icd)
 {
-	int ret = soc_camera_platform_add(icl, dev, &camera_device, &camera_link,
+	int ret = soc_camera_platform_add(icd, &camera_device, &camera_link,
 					  ap325rxa_camera_release, 0);
 	if (ret < 0)
 		return ret;
 
 	ret = camera_probe();
 	if (ret < 0)
-		soc_camera_platform_del(icl, camera_device, &camera_link);
+		soc_camera_platform_del(icd, camera_device, &camera_link);
 
 	return ret;
 }
 
-static void ap325rxa_camera_del(struct soc_camera_link *icl)
+static void ap325rxa_camera_del(struct soc_camera_device *icd)
 {
-	soc_camera_platform_del(icl, camera_device, &camera_link);
+	soc_camera_platform_del(icd, camera_device, &camera_link);
 }
 #endif /* CONFIG_I2C */
 
@@ -502,8 +502,7 @@ static struct i2c_board_info ap325rxa_i2c_camera[] = {
 };
 
 static struct ov772x_camera_info ov7725_info = {
-	.flags		= OV772X_FLAG_VFLIP | OV772X_FLAG_HFLIP | \
-			  OV772X_FLAG_8BIT,
+	.flags		= OV772X_FLAG_VFLIP | OV772X_FLAG_HFLIP,
 	.edgectrl	= OV772X_AUTO_EDGECTRL(0xf, 0),
 };
 

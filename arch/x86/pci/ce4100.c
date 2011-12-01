@@ -257,6 +257,7 @@ static int ce4100_conf_read(unsigned int seg, unsigned int bus,
 {
 	int i;
 
+	WARN_ON(seg);
 	if (bus == 1) {
 		for (i = 0; i < ARRAY_SIZE(bus1_fixups); i++) {
 			if (bus1_fixups[i].dev_func == devfn &&
@@ -282,6 +283,7 @@ static int ce4100_conf_write(unsigned int seg, unsigned int bus,
 {
 	int i;
 
+	WARN_ON(seg);
 	if (bus == 1) {
 		for (i = 0; i < ARRAY_SIZE(bus1_fixups); i++) {
 			if (bus1_fixups[i].dev_func == devfn &&
@@ -302,7 +304,7 @@ static int ce4100_conf_write(unsigned int seg, unsigned int bus,
 	return pci_direct_conf1.write(seg, bus, devfn, reg, len, value);
 }
 
-struct pci_raw_ops ce4100_pci_conf = {
+static const struct pci_raw_ops ce4100_pci_conf = {
 	.read =	ce4100_conf_read,
 	.write = ce4100_conf_write,
 };

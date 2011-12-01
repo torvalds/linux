@@ -49,6 +49,7 @@ extern int thaw_process(struct task_struct *p);
 
 extern void refrigerator(void);
 extern int freeze_processes(void);
+extern int freeze_kernel_threads(void);
 extern void thaw_processes(void);
 
 static inline int try_to_freeze(void)
@@ -134,9 +135,19 @@ static inline void set_freezable_with_signal(void)
 }
 
 /*
- * Freezer-friendly wrappers around wait_event_interruptible() and
- * wait_event_interruptible_timeout(), originally defined in <linux/wait.h>
+ * Freezer-friendly wrappers around wait_event_interruptible(),
+ * wait_event_killable() and wait_event_interruptible_timeout(), originally
+ * defined in <linux/wait.h>
  */
+
+#define wait_event_freezekillable(wq, condition)			\
+({									\
+	int __retval;							\
+	freezer_do_not_count();						\
+	__retval = wait_event_killable(wq, (condition));		\
+	freezer_count();						\
+	__retval;							\
+})
 
 #define wait_event_freezable(wq, condition)				\
 ({									\
@@ -171,7 +182,8 @@ static inline void clear_freeze_flag(struct task_struct *p) {}
 static inline int thaw_process(struct task_struct *p) { return 1; }
 
 static inline void refrigerator(void) {}
-static inline int freeze_processes(void) { BUG(); return 0; }
+static inline int freeze_processes(void) { return -ENOSYS; }
+static inline int freeze_kernel_threads(void) { return -ENOSYS; }
 static inline void thaw_processes(void) {}
 
 static inline int try_to_freeze(void) { return 0; }
@@ -187,6 +199,9 @@ static inline void set_freezable_with_signal(void) {}
 
 #define wait_event_freezable_timeout(wq, condition, timeout)		\
 		wait_event_interruptible_timeout(wq, condition, timeout)
+
+#define wait_event_freezekillable(wq, condition)		\
+		wait_event_killable(wq, condition)
 
 #endif /* !CONFIG_FREEZER */
 

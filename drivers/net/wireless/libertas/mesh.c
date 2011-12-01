@@ -978,7 +978,7 @@ static const struct net_device_ops mesh_netdev_ops = {
 	.ndo_stop 		= lbs_mesh_stop,
 	.ndo_start_xmit		= lbs_hard_start_xmit,
 	.ndo_set_mac_address	= lbs_set_mac_address,
-	.ndo_set_multicast_list = lbs_set_multicast_list,
+	.ndo_set_rx_mode	= lbs_set_multicast_list,
 };
 
 /**

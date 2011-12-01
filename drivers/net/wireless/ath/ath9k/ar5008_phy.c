@@ -763,10 +763,8 @@ static void ar5008_hw_set_channel_regs(struct ath_hw *ah,
 static int ar5008_hw_process_ini(struct ath_hw *ah,
 				 struct ath9k_channel *chan)
 {
-	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	struct ath_common *common = ath9k_hw_common(ah);
 	int i, regWrites = 0;
-	struct ieee80211_channel *channel = chan->chan;
 	u32 modesIndex, freqIndex;
 
 	switch (chan->chanmode) {
@@ -903,14 +901,7 @@ static int ar5008_hw_process_ini(struct ath_hw *ah,
 	ar5008_hw_set_channel_regs(ah, chan);
 	ar5008_hw_init_chain_masks(ah);
 	ath9k_olc_init(ah);
-
-	/* Set TX power */
-	ah->eep_ops->set_txpower(ah, chan,
-				 ath9k_regd_get_ctl(regulatory, chan),
-				 channel->max_antenna_gain * 2,
-				 channel->max_power * 2,
-				 min((u32) MAX_RATE_POWER,
-				 (u32) regulatory->power_limit), false);
+	ath9k_hw_apply_txpower(ah, chan);
 
 	/* Write analog registers */
 	if (!ath9k_hw_set_rf_regs(ah, chan, freqIndex)) {

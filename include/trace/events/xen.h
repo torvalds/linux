@@ -8,6 +8,8 @@
 #include <asm/paravirt_types.h>
 #include <asm/xen/trace_types.h>
 
+struct multicall_entry;
+
 /* Multicalls */
 DECLARE_EVENT_CLASS(xen_mc__batch,
 	    TP_PROTO(enum paravirt_lazy_mode mode),

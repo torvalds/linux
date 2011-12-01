@@ -137,7 +137,6 @@ void cmdline(int argc, char **argv)
 void validate_cpuid(void)
 {
 	unsigned int eax, ebx, ecx, edx, max_level;
-	char brand[16];
 	unsigned int fms, family, model, stepping;
 
 	eax = ebx = ecx = edx = 0;
@@ -160,8 +159,8 @@ void validate_cpuid(void)
 		model += ((fms >> 16) & 0xf) << 4;
 
 	if (verbose > 1)
-		printf("CPUID %s %d levels family:model:stepping "
-			"0x%x:%x:%x (%d:%d:%d)\n", brand, max_level,
+		printf("CPUID %d levels family:model:stepping "
+			"0x%x:%x:%x (%d:%d:%d)\n", max_level,
 			family, model, stepping, family, model, stepping);
 
 	if (!(edx & (1 << 5))) {

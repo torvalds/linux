@@ -19,12 +19,19 @@
  *   Hank Janssen  <hjanssen@microsoft.com>
  *   K. Y. Srinivasan <kys@microsoft.com>
  */
+
+#include <linux/kernel.h>
+#include <linux/wait.h>
+#include <linux/sched.h>
+#include <linux/completion.h>
+#include <linux/string.h>
+#include <linux/mm.h>
+#include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/device.h>
-#include <linux/blkdev.h>
-#include <linux/dmi.h>
+#include <linux/hyperv.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_host.h>
@@ -34,22 +41,247 @@
 #include <scsi/scsi_devinfo.h>
 #include <scsi/scsi_dbg.h>
 
-#include "hyperv.h"
-#include "hyperv_storage.h"
 
+#define STORVSC_RING_BUFFER_SIZE			(20*PAGE_SIZE)
 static int storvsc_ringbuffer_size = STORVSC_RING_BUFFER_SIZE;
 
 module_param(storvsc_ringbuffer_size, int, S_IRUGO);
 MODULE_PARM_DESC(storvsc_ringbuffer_size, "Ring buffer size (bytes)");
 
-static const char *driver_name = "storvsc";
+/* to alert the user that structure sizes may be mismatched even though the */
+/* protocol versions match. */
 
-/* {ba6163d9-04a1-4d29-b605-72e2ffb1dc7f} */
-static const struct hv_guid stor_vsci_device_type = {
-	.data = {
-		0xd9, 0x63, 0x61, 0xba, 0xa1, 0x04, 0x29, 0x4d,
-		0xb6, 0x05, 0x72, 0xe2, 0xff, 0xb1, 0xdc, 0x7f
-	}
+
+#define REVISION_STRING(REVISION_) #REVISION_
+#define FILL_VMSTOR_REVISION(RESULT_LVALUE_)				\
+	do {								\
+		char *revision_string					\
+			= REVISION_STRING($Rev : 6 $) + 6;		\
+		RESULT_LVALUE_ = 0;					\
+		while (*revision_string >= '0'				\
+			&& *revision_string <= '9') {			\
+			RESULT_LVALUE_ *= 10;				\
+			RESULT_LVALUE_ += *revision_string - '0';	\
+			revision_string++;				\
+		}							\
+	} while (0)
+
+/* Major/minor macros.  Minor version is in LSB, meaning that earlier flat */
+/* version numbers will be interpreted as "0.x" (i.e., 1 becomes 0.1). */
+#define VMSTOR_PROTOCOL_MAJOR(VERSION_)		(((VERSION_) >> 8) & 0xff)
+#define VMSTOR_PROTOCOL_MINOR(VERSION_)		(((VERSION_))      & 0xff)
+#define VMSTOR_PROTOCOL_VERSION(MAJOR_, MINOR_)	((((MAJOR_) & 0xff) << 8) | \
+						 (((MINOR_) & 0xff)))
+#define VMSTOR_INVALID_PROTOCOL_VERSION		(-1)
+
+/* Version history: */
+/* V1 Beta                    0.1 */
+/* V1 RC < 2008/1/31          1.0 */
+/* V1 RC > 2008/1/31          2.0 */
+#define VMSTOR_PROTOCOL_VERSION_CURRENT VMSTOR_PROTOCOL_VERSION(2, 0)
+
+
+
+
+/*  This will get replaced with the max transfer length that is possible on */
+/*  the host adapter. */
+/*  The max transfer length will be published when we offer a vmbus channel. */
+#define MAX_TRANSFER_LENGTH	0x40000
+#define DEFAULT_PACKET_SIZE (sizeof(struct vmdata_gpa_direct) +	\
+			sizeof(struct vstor_packet) +		\
+			sizesizeof(u64) * (MAX_TRANSFER_LENGTH / PAGE_SIZE)))
+
+
+/*  Packet structure describing virtual storage requests. */
+enum vstor_packet_operation {
+	VSTOR_OPERATION_COMPLETE_IO		= 1,
+	VSTOR_OPERATION_REMOVE_DEVICE		= 2,
+	VSTOR_OPERATION_EXECUTE_SRB		= 3,
+	VSTOR_OPERATION_RESET_LUN		= 4,
+	VSTOR_OPERATION_RESET_ADAPTER		= 5,
+	VSTOR_OPERATION_RESET_BUS		= 6,
+	VSTOR_OPERATION_BEGIN_INITIALIZATION	= 7,
+	VSTOR_OPERATION_END_INITIALIZATION	= 8,
+	VSTOR_OPERATION_QUERY_PROTOCOL_VERSION	= 9,
+	VSTOR_OPERATION_QUERY_PROPERTIES	= 10,
+	VSTOR_OPERATION_MAXIMUM			= 10
+};
+
+/*
+ * Platform neutral description of a scsi request -
+ * this remains the same across the write regardless of 32/64 bit
+ * note: it's patterned off the SCSI_PASS_THROUGH structure
+ */
+#define CDB16GENERIC_LENGTH			0x10
+
+#ifndef SENSE_BUFFER_SIZE
+#define SENSE_BUFFER_SIZE			0x12
+#endif
+
+#define MAX_DATA_BUF_LEN_WITH_PADDING		0x14
+
+struct vmscsi_request {
+	unsigned short length;
+	unsigned char srb_status;
+	unsigned char scsi_status;
+
+	unsigned char port_number;
+	unsigned char path_id;
+	unsigned char target_id;
+	unsigned char lun;
+
+	unsigned char cdb_length;
+	unsigned char sense_info_length;
+	unsigned char data_in;
+	unsigned char reserved;
+
+	unsigned int data_transfer_length;
+
+	union {
+		unsigned char cdb[CDB16GENERIC_LENGTH];
+		unsigned char sense_data[SENSE_BUFFER_SIZE];
+		unsigned char reserved_array[MAX_DATA_BUF_LEN_WITH_PADDING];
+	};
+} __attribute((packed));
+
+
+/*
+ * This structure is sent during the intialization phase to get the different
+ * properties of the channel.
+ */
+struct vmstorage_channel_properties {
+	unsigned short protocol_version;
+	unsigned char path_id;
+	unsigned char target_id;
+
+	/* Note: port number is only really known on the client side */
+	unsigned int port_number;
+	unsigned int flags;
+	unsigned int max_transfer_bytes;
+
+	/*  This id is unique for each channel and will correspond with */
+	/*  vendor specific data in the inquirydata */
+	unsigned long long unique_id;
+} __packed;
+
+/*  This structure is sent during the storage protocol negotiations. */
+struct vmstorage_protocol_version {
+	/* Major (MSW) and minor (LSW) version numbers. */
+	unsigned short major_minor;
+
+	/*
+	 * Revision number is auto-incremented whenever this file is changed
+	 * (See FILL_VMSTOR_REVISION macro above).  Mismatch does not
+	 * definitely indicate incompatibility--but it does indicate mismatched
+	 * builds.
+	 */
+	unsigned short revision;
+} __packed;
+
+/* Channel Property Flags */
+#define STORAGE_CHANNEL_REMOVABLE_FLAG		0x1
+#define STORAGE_CHANNEL_EMULATED_IDE_FLAG	0x2
+
+struct vstor_packet {
+	/* Requested operation type */
+	enum vstor_packet_operation operation;
+
+	/*  Flags - see below for values */
+	unsigned int flags;
+
+	/* Status of the request returned from the server side. */
+	unsigned int status;
+
+	/* Data payload area */
+	union {
+		/*
+		 * Structure used to forward SCSI commands from the
+		 * client to the server.
+		 */
+		struct vmscsi_request vm_srb;
+
+		/* Structure used to query channel properties. */
+		struct vmstorage_channel_properties storage_channel_properties;
+
+		/* Used during version negotiations. */
+		struct vmstorage_protocol_version version;
+	};
+} __packed;
+
+/* Packet flags */
+/*
+ * This flag indicates that the server should send back a completion for this
+ * packet.
+ */
+#define REQUEST_COMPLETION_FLAG	0x1
+
+/*  This is the set of flags that the vsc can set in any packets it sends */
+#define VSC_LEGAL_FLAGS		(REQUEST_COMPLETION_FLAG)
+
+
+/* Defines */
+
+#define STORVSC_MAX_IO_REQUESTS				128
+
+/*
+ * In Hyper-V, each port/path/target maps to 1 scsi host adapter.  In
+ * reality, the path/target is not used (ie always set to 0) so our
+ * scsi host adapter essentially has 1 bus with 1 target that contains
+ * up to 256 luns.
+ */
+#define STORVSC_MAX_LUNS_PER_TARGET			64
+#define STORVSC_MAX_TARGETS				1
+#define STORVSC_MAX_CHANNELS				1
+#define STORVSC_MAX_CMD_LEN				16
+
+struct hv_storvsc_request;
+
+/* Matches Windows-end */
+enum storvsc_request_type {
+	WRITE_TYPE,
+	READ_TYPE,
+	UNKNOWN_TYPE,
+};
+
+
+struct hv_storvsc_request {
+	struct hv_device *device;
+
+	/* Synchronize the request/response if needed */
+	struct completion wait_event;
+
+	unsigned char *sense_buffer;
+	void *context;
+	void (*on_io_completion)(struct hv_storvsc_request *request);
+	struct hv_multipage_buffer data_buffer;
+
+	struct vstor_packet vstor_packet;
+};
+
+
+/* A storvsc device is a device object that contains a vmbus channel */
+struct storvsc_device {
+	struct hv_device *device;
+
+	bool	 destroy;
+	bool	 drain_notify;
+	atomic_t num_outstanding_req;
+	struct Scsi_Host *host;
+
+	wait_queue_head_t waiting_to_drain;
+
+	/*
+	 * Each unique Port/Path/Target represents 1 channel ie scsi
+	 * controller. In reality, the pathid, targetid is always 0
+	 * and the port is set by us
+	 */
+	unsigned int port_number;
+	unsigned char path_id;
+	unsigned char target_id;
+
+	/* Used for vsc/vsp channel reset process */
+	struct hv_storvsc_request init_request;
+	struct hv_storvsc_request reset_request;
 };
 
 struct hv_host_device {
@@ -69,6 +301,430 @@ struct storvsc_cmd_request {
 
 	struct hv_storvsc_request request;
 };
+
+static inline struct storvsc_device *get_out_stor_device(
+					struct hv_device *device)
+{
+	struct storvsc_device *stor_device;
+
+	stor_device = hv_get_drvdata(device);
+
+	if (stor_device && stor_device->destroy)
+		stor_device = NULL;
+
+	return stor_device;
+}
+
+
+static inline void storvsc_wait_to_drain(struct storvsc_device *dev)
+{
+	dev->drain_notify = true;
+	wait_event(dev->waiting_to_drain,
+		   atomic_read(&dev->num_outstanding_req) == 0);
+	dev->drain_notify = false;
+}
+
+static inline struct storvsc_device *get_in_stor_device(
+					struct hv_device *device)
+{
+	struct storvsc_device *stor_device;
+
+	stor_device = hv_get_drvdata(device);
+
+	if (!stor_device)
+		goto get_in_err;
+
+	/*
+	 * If the device is being destroyed; allow incoming
+	 * traffic only to cleanup outstanding requests.
+	 */
+
+	if (stor_device->destroy  &&
+		(atomic_read(&stor_device->num_outstanding_req) == 0))
+		stor_device = NULL;
+
+get_in_err:
+	return stor_device;
+
+}
+
+static int storvsc_channel_init(struct hv_device *device)
+{
+	struct storvsc_device *stor_device;
+	struct hv_storvsc_request *request;
+	struct vstor_packet *vstor_packet;
+	int ret, t;
+
+	stor_device = get_out_stor_device(device);
+	if (!stor_device)
+		return -ENODEV;
+
+	request = &stor_device->init_request;
+	vstor_packet = &request->vstor_packet;
+
+	/*
+	 * Now, initiate the vsc/vsp initialization protocol on the open
+	 * channel
+	 */
+	memset(request, 0, sizeof(struct hv_storvsc_request));
+	init_completion(&request->wait_event);
+	vstor_packet->operation = VSTOR_OPERATION_BEGIN_INITIALIZATION;
+	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
+
+	ret = vmbus_sendpacket(device->channel, vstor_packet,
+			       sizeof(struct vstor_packet),
+			       (unsigned long)request,
+			       VM_PKT_DATA_INBAND,
+			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	if (ret != 0)
+		goto cleanup;
+
+	t = wait_for_completion_timeout(&request->wait_event, 5*HZ);
+	if (t == 0) {
+		ret = -ETIMEDOUT;
+		goto cleanup;
+	}
+
+	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETE_IO ||
+	    vstor_packet->status != 0)
+		goto cleanup;
+
+
+	/* reuse the packet for version range supported */
+	memset(vstor_packet, 0, sizeof(struct vstor_packet));
+	vstor_packet->operation = VSTOR_OPERATION_QUERY_PROTOCOL_VERSION;
+	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
+
+	vstor_packet->version.major_minor = VMSTOR_PROTOCOL_VERSION_CURRENT;
+	FILL_VMSTOR_REVISION(vstor_packet->version.revision);
+
+	ret = vmbus_sendpacket(device->channel, vstor_packet,
+			       sizeof(struct vstor_packet),
+			       (unsigned long)request,
+			       VM_PKT_DATA_INBAND,
+			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	if (ret != 0)
+		goto cleanup;
+
+	t = wait_for_completion_timeout(&request->wait_event, 5*HZ);
+	if (t == 0) {
+		ret = -ETIMEDOUT;
+		goto cleanup;
+	}
+
+	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETE_IO ||
+	    vstor_packet->status != 0)
+		goto cleanup;
+
+
+	memset(vstor_packet, 0, sizeof(struct vstor_packet));
+	vstor_packet->operation = VSTOR_OPERATION_QUERY_PROPERTIES;
+	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
+	vstor_packet->storage_channel_properties.port_number =
+					stor_device->port_number;
+
+	ret = vmbus_sendpacket(device->channel, vstor_packet,
+			       sizeof(struct vstor_packet),
+			       (unsigned long)request,
+			       VM_PKT_DATA_INBAND,
+			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+
+	if (ret != 0)
+		goto cleanup;
+
+	t = wait_for_completion_timeout(&request->wait_event, 5*HZ);
+	if (t == 0) {
+		ret = -ETIMEDOUT;
+		goto cleanup;
+	}
+
+	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETE_IO ||
+	    vstor_packet->status != 0)
+		goto cleanup;
+
+	stor_device->path_id = vstor_packet->storage_channel_properties.path_id;
+	stor_device->target_id
+		= vstor_packet->storage_channel_properties.target_id;
+
+	memset(vstor_packet, 0, sizeof(struct vstor_packet));
+	vstor_packet->operation = VSTOR_OPERATION_END_INITIALIZATION;
+	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
+
+	ret = vmbus_sendpacket(device->channel, vstor_packet,
+			       sizeof(struct vstor_packet),
+			       (unsigned long)request,
+			       VM_PKT_DATA_INBAND,
+			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+
+	if (ret != 0)
+		goto cleanup;
+
+	t = wait_for_completion_timeout(&request->wait_event, 5*HZ);
+	if (t == 0) {
+		ret = -ETIMEDOUT;
+		goto cleanup;
+	}
+
+	if (vstor_packet->operation != VSTOR_OPERATION_COMPLETE_IO ||
+	    vstor_packet->status != 0)
+		goto cleanup;
+
+
+cleanup:
+	return ret;
+}
+
+static void storvsc_on_io_completion(struct hv_device *device,
+				  struct vstor_packet *vstor_packet,
+				  struct hv_storvsc_request *request)
+{
+	struct storvsc_device *stor_device;
+	struct vstor_packet *stor_pkt;
+
+	stor_device = hv_get_drvdata(device);
+	stor_pkt = &request->vstor_packet;
+
+	/*
+	 * The current SCSI handling on the host side does
+	 * not correctly handle:
+	 * INQUIRY command with page code parameter set to 0x80
+	 * MODE_SENSE command with cmd[2] == 0x1c
+	 *
+	 * Setup srb and scsi status so this won't be fatal.
+	 * We do this so we can distinguish truly fatal failues
+	 * (srb status == 0x4) and off-line the device in that case.
+	 */
+
+	if ((stor_pkt->vm_srb.cdb[0] == INQUIRY) ||
+		(stor_pkt->vm_srb.cdb[0] == MODE_SENSE)) {
+		vstor_packet->vm_srb.scsi_status = 0;
+		vstor_packet->vm_srb.srb_status = 0x1;
+	}
+
+
+	/* Copy over the status...etc */
+	stor_pkt->vm_srb.scsi_status = vstor_packet->vm_srb.scsi_status;
+	stor_pkt->vm_srb.srb_status = vstor_packet->vm_srb.srb_status;
+	stor_pkt->vm_srb.sense_info_length =
+	vstor_packet->vm_srb.sense_info_length;
+
+	if (vstor_packet->vm_srb.scsi_status != 0 ||
+		vstor_packet->vm_srb.srb_status != 1){
+		dev_warn(&device->device,
+			 "cmd 0x%x scsi status 0x%x srb status 0x%x\n",
+			 stor_pkt->vm_srb.cdb[0],
+			 vstor_packet->vm_srb.scsi_status,
+			 vstor_packet->vm_srb.srb_status);
+	}
+
+	if ((vstor_packet->vm_srb.scsi_status & 0xFF) == 0x02) {
+		/* CHECK_CONDITION */
+		if (vstor_packet->vm_srb.srb_status & 0x80) {
+			/* autosense data available */
+			dev_warn(&device->device,
+				 "stor pkt %p autosense data valid - len %d\n",
+				 request,
+				 vstor_packet->vm_srb.sense_info_length);
+
+			memcpy(request->sense_buffer,
+			       vstor_packet->vm_srb.sense_data,
+			       vstor_packet->vm_srb.sense_info_length);
+
+		}
+	}
+
+	stor_pkt->vm_srb.data_transfer_length =
+	vstor_packet->vm_srb.data_transfer_length;
+
+	request->on_io_completion(request);
+
+	if (atomic_dec_and_test(&stor_device->num_outstanding_req) &&
+		stor_device->drain_notify)
+		wake_up(&stor_device->waiting_to_drain);
+
+
+}
+
+static void storvsc_on_receive(struct hv_device *device,
+			     struct vstor_packet *vstor_packet,
+			     struct hv_storvsc_request *request)
+{
+	switch (vstor_packet->operation) {
+	case VSTOR_OPERATION_COMPLETE_IO:
+		storvsc_on_io_completion(device, vstor_packet, request);
+		break;
+	case VSTOR_OPERATION_REMOVE_DEVICE:
+
+	default:
+		break;
+	}
+}
+
+static void storvsc_on_channel_callback(void *context)
+{
+	struct hv_device *device = (struct hv_device *)context;
+	struct storvsc_device *stor_device;
+	u32 bytes_recvd;
+	u64 request_id;
+	unsigned char packet[ALIGN(sizeof(struct vstor_packet), 8)];
+	struct hv_storvsc_request *request;
+	int ret;
+
+
+	stor_device = get_in_stor_device(device);
+	if (!stor_device)
+		return;
+
+	do {
+		ret = vmbus_recvpacket(device->channel, packet,
+				       ALIGN(sizeof(struct vstor_packet), 8),
+				       &bytes_recvd, &request_id);
+		if (ret == 0 && bytes_recvd > 0) {
+
+			request = (struct hv_storvsc_request *)
+					(unsigned long)request_id;
+
+			if ((request == &stor_device->init_request) ||
+			    (request == &stor_device->reset_request)) {
+
+				memcpy(&request->vstor_packet, packet,
+				       sizeof(struct vstor_packet));
+				complete(&request->wait_event);
+			} else {
+				storvsc_on_receive(device,
+						(struct vstor_packet *)packet,
+						request);
+			}
+		} else {
+			break;
+		}
+	} while (1);
+
+	return;
+}
+
+static int storvsc_connect_to_vsp(struct hv_device *device, u32 ring_size)
+{
+	struct vmstorage_channel_properties props;
+	int ret;
+
+	memset(&props, 0, sizeof(struct vmstorage_channel_properties));
+
+	/* Open the channel */
+	ret = vmbus_open(device->channel,
+			 ring_size,
+			 ring_size,
+			 (void *)&props,
+			 sizeof(struct vmstorage_channel_properties),
+			 storvsc_on_channel_callback, device);
+
+	if (ret != 0)
+		return ret;
+
+	ret = storvsc_channel_init(device);
+
+	return ret;
+}
+
+static int storvsc_dev_remove(struct hv_device *device)
+{
+	struct storvsc_device *stor_device;
+	unsigned long flags;
+
+	stor_device = hv_get_drvdata(device);
+
+	spin_lock_irqsave(&device->channel->inbound_lock, flags);
+	stor_device->destroy = true;
+	spin_unlock_irqrestore(&device->channel->inbound_lock, flags);
+
+	/*
+	 * At this point, all outbound traffic should be disable. We
+	 * only allow inbound traffic (responses) to proceed so that
+	 * outstanding requests can be completed.
+	 */
+
+	storvsc_wait_to_drain(stor_device);
+
+	/*
+	 * Since we have already drained, we don't need to busy wait
+	 * as was done in final_release_stor_device()
+	 * Note that we cannot set the ext pointer to NULL until
+	 * we have drained - to drain the outgoing packets, we need to
+	 * allow incoming packets.
+	 */
+	spin_lock_irqsave(&device->channel->inbound_lock, flags);
+	hv_set_drvdata(device, NULL);
+	spin_unlock_irqrestore(&device->channel->inbound_lock, flags);
+
+	/* Close the channel */
+	vmbus_close(device->channel);
+
+	kfree(stor_device);
+	return 0;
+}
+
+static int storvsc_do_io(struct hv_device *device,
+			      struct hv_storvsc_request *request)
+{
+	struct storvsc_device *stor_device;
+	struct vstor_packet *vstor_packet;
+	int ret = 0;
+
+	vstor_packet = &request->vstor_packet;
+	stor_device = get_out_stor_device(device);
+
+	if (!stor_device)
+		return -ENODEV;
+
+
+	request->device  = device;
+
+
+	vstor_packet->flags |= REQUEST_COMPLETION_FLAG;
+
+	vstor_packet->vm_srb.length = sizeof(struct vmscsi_request);
+
+
+	vstor_packet->vm_srb.sense_info_length = SENSE_BUFFER_SIZE;
+
+
+	vstor_packet->vm_srb.data_transfer_length =
+	request->data_buffer.len;
+
+	vstor_packet->operation = VSTOR_OPERATION_EXECUTE_SRB;
+
+	if (request->data_buffer.len) {
+		ret = vmbus_sendpacket_multipagebuffer(device->channel,
+				&request->data_buffer,
+				vstor_packet,
+				sizeof(struct vstor_packet),
+				(unsigned long)request);
+	} else {
+		ret = vmbus_sendpacket(device->channel, vstor_packet,
+			       sizeof(struct vstor_packet),
+			       (unsigned long)request,
+			       VM_PKT_DATA_INBAND,
+			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+	}
+
+	if (ret != 0)
+		return ret;
+
+	atomic_inc(&stor_device->num_outstanding_req);
+
+	return ret;
+}
+
+static void storvsc_get_ide_info(struct hv_device *dev, int *target, int *path)
+{
+	*target =
+		dev->dev_instance.b[5] << 8 | dev->dev_instance.b[4];
+
+	*path =
+		dev->dev_instance.b[3] << 24 |
+		dev->dev_instance.b[2] << 16 |
+		dev->dev_instance.b[1] << 8  | dev->dev_instance.b[0];
+}
 
 
 static int storvsc_device_alloc(struct scsi_device *sdevice)
@@ -307,7 +963,8 @@ static unsigned int copy_to_bounce_buffer(struct scatterlist *orig_sgl,
 
 static int storvsc_remove(struct hv_device *dev)
 {
-	struct Scsi_Host *host = dev_get_drvdata(&dev->device);
+	struct storvsc_device *stor_device = hv_get_drvdata(dev);
+	struct Scsi_Host *host = stor_device->host;
 	struct hv_host_device *host_dev =
 			(struct hv_host_device *)host->hostdata;
 
@@ -355,9 +1012,9 @@ static int storvsc_host_reset(struct hv_device *device)
 	int ret, t;
 
 
-	stor_device = get_stor_device(device);
+	stor_device = get_out_stor_device(device);
 	if (!stor_device)
-		return -1;
+		return -ENODEV;
 
 	request = &stor_device->reset_request;
 	vstor_packet = &request->vstor_packet;
@@ -389,7 +1046,6 @@ static int storvsc_host_reset(struct hv_device *device)
 	 */
 
 cleanup:
-	put_stor_device(device);
 	return ret;
 }
 
@@ -413,9 +1069,9 @@ static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
 
 
 /*
- * storvsc_commmand_completion - Command completion processing
+ * storvsc_command_completion - Command completion processing
  */
-static void storvsc_commmand_completion(struct hv_storvsc_request *request)
+static void storvsc_command_completion(struct hv_storvsc_request *request)
 {
 	struct storvsc_cmd_request *cmd_request =
 		(struct storvsc_cmd_request *)request->context;
@@ -426,18 +1082,26 @@ static void storvsc_commmand_completion(struct hv_storvsc_request *request)
 	struct scsi_sense_hdr sense_hdr;
 	struct vmscsi_request *vm_srb;
 
+	vm_srb = &request->vstor_packet.vm_srb;
 	if (cmd_request->bounce_sgl_count) {
-
-		/* FIXME: We can optimize on writes by just skipping this */
-		copy_from_bounce_buffer(scsi_sglist(scmnd),
+		if (vm_srb->data_in == READ_TYPE) {
+			copy_from_bounce_buffer(scsi_sglist(scmnd),
 					cmd_request->bounce_sgl,
 					scsi_sg_count(scmnd));
-		destroy_bounce_buffer(cmd_request->bounce_sgl,
-				      cmd_request->bounce_sgl_count);
+			destroy_bounce_buffer(cmd_request->bounce_sgl,
+					cmd_request->bounce_sgl_count);
+		}
 	}
 
-	vm_srb = &request->vstor_packet.vm_srb;
-	scmnd->result = vm_srb->scsi_status;
+	/*
+	 * If there is an error; offline the device since all
+	 * error recovery strategies would have already been
+	 * deployed on the host side.
+	 */
+	if (vm_srb->srb_status == 0x4)
+		scmnd->result = DID_TARGET_FAILURE << 16;
+	else
+		scmnd->result = vm_srb->scsi_status;
 
 	if (scmnd->result) {
 		if (scsi_normalize_sense(scmnd->sense_buffer,
@@ -459,6 +1123,22 @@ static void storvsc_commmand_completion(struct hv_storvsc_request *request)
 	kmem_cache_free(host_dev->request_pool, cmd_request);
 }
 
+static bool storvsc_check_scsi_cmd(struct scsi_cmnd *scmnd)
+{
+	bool allowed = true;
+	u8 scsi_op = scmnd->cmnd[0];
+
+	switch (scsi_op) {
+	/* smartd sends this command, which will offline the device */
+	case SET_WINDOW:
+		scmnd->result = DID_ERROR << 16;
+		allowed = false;
+		break;
+	default:
+		break;
+	}
+	return allowed;
+}
 
 /*
  * storvsc_queuecommand - Initiate command processing
@@ -478,6 +1158,10 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 	unsigned int sg_count = 0;
 	struct vmscsi_request *vm_srb;
 
+	if (storvsc_check_scsi_cmd(scmnd) == false) {
+		done(scmnd);
+		return 0;
+	}
 
 	/* If retrying, no need to prep the cmd */
 	if (scmnd->host_scribble) {
@@ -523,7 +1207,7 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 		break;
 	}
 
-	request->on_io_completion = storvsc_commmand_completion;
+	request->on_io_completion = storvsc_command_completion;
 	request->context = cmd_request;/* scmnd; */
 
 	vm_srb->port_number = host_dev->port;
@@ -561,12 +1245,10 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 				ALIGN(scsi_bufflen(scmnd), PAGE_SIZE) >>
 					PAGE_SHIFT;
 
-			/*
-			 * FIXME: We can optimize on reads by just skipping
-			 * this
-			 */
-			copy_to_bounce_buffer(sgl, cmd_request->bounce_sgl,
-					      scsi_sg_count(scmnd));
+			if (vm_srb->data_in == WRITE_TYPE)
+				copy_to_bounce_buffer(sgl,
+					cmd_request->bounce_sgl,
+					scsi_sg_count(scmnd));
 
 			sgl = cmd_request->bounce_sgl;
 			sg_count = cmd_request->bounce_sgl_count;
@@ -589,20 +1271,12 @@ retry_request:
 	/* Invokes the vsc to start an IO */
 	ret = storvsc_do_io(dev, &cmd_request->request);
 
-	if (ret == -1) {
+	if (ret == -EAGAIN) {
 		/* no more space */
 
-		if (cmd_request->bounce_sgl_count) {
-			/*
-			 * FIXME: We can optimize on writes by just skipping
-			 * this
-			 */
-			copy_from_bounce_buffer(scsi_sglist(scmnd),
-						cmd_request->bounce_sgl,
-						scsi_sg_count(scmnd));
+		if (cmd_request->bounce_sgl_count)
 			destroy_bounce_buffer(cmd_request->bounce_sgl,
-					      cmd_request->bounce_sgl_count);
-		}
+					cmd_request->bounce_sgl_count);
 
 		kmem_cache_free(host_dev->request_pool, cmd_request);
 
@@ -646,24 +1320,45 @@ static struct scsi_host_template scsi_driver = {
 	.dma_boundary =		PAGE_SIZE-1,
 };
 
+enum {
+	SCSI_GUID,
+	IDE_GUID,
+};
+
+static const struct hv_vmbus_device_id id_table[] = {
+	/* SCSI guid */
+	{ VMBUS_DEVICE(0xd9, 0x63, 0x61, 0xba, 0xa1, 0x04, 0x29, 0x4d,
+		       0xb6, 0x05, 0x72, 0xe2, 0xff, 0xb1, 0xdc, 0x7f)
+	  .driver_data = SCSI_GUID },
+	/* IDE guid */
+	{ VMBUS_DEVICE(0x32, 0x26, 0x41, 0x32, 0xcb, 0x86, 0xa2, 0x44,
+		       0x9b, 0x5c, 0x50, 0xd1, 0x41, 0x73, 0x54, 0xf5)
+	  .driver_data = IDE_GUID },
+	{ },
+};
+
+MODULE_DEVICE_TABLE(vmbus, id_table);
+
 
 /*
  * storvsc_probe - Add a new device for this driver
  */
 
-static int storvsc_probe(struct hv_device *device)
+static int storvsc_probe(struct hv_device *device,
+			const struct hv_vmbus_device_id *dev_id)
 {
 	int ret;
 	struct Scsi_Host *host;
 	struct hv_host_device *host_dev;
-	struct storvsc_device_info device_info;
+	bool dev_is_ide = ((dev_id->driver_data == IDE_GUID) ? true : false);
+	int path = 0;
+	int target = 0;
+	struct storvsc_device *stor_device;
 
 	host = scsi_host_alloc(&scsi_driver,
 			       sizeof(struct hv_host_device));
 	if (!host)
 		return -ENOMEM;
-
-	dev_set_drvdata(&device->device, host);
 
 	host_dev = (struct hv_host_device *)host->hostdata;
 	memset(host_dev, 0, sizeof(struct hv_host_device));
@@ -681,19 +1376,33 @@ static int storvsc_probe(struct hv_device *device)
 		return -ENOMEM;
 	}
 
-	device_info.port_number = host->host_no;
-	device_info.ring_buffer_size  = storvsc_ringbuffer_size;
-	/* Call to the vsc driver to add the device */
-	ret = storvsc_dev_add(device, (void *)&device_info);
-
-	if (ret != 0) {
+	stor_device = kzalloc(sizeof(struct storvsc_device), GFP_KERNEL);
+	if (!stor_device) {
 		kmem_cache_destroy(host_dev->request_pool);
 		scsi_host_put(host);
-		return -1;
+		return -ENOMEM;
 	}
 
-	host_dev->path = device_info.path_id;
-	host_dev->target = device_info.target_id;
+	stor_device->destroy = false;
+	init_waitqueue_head(&stor_device->waiting_to_drain);
+	stor_device->device = device;
+	stor_device->host = host;
+	hv_set_drvdata(device, stor_device);
+
+	stor_device->port_number = host->host_no;
+	ret = storvsc_connect_to_vsp(device, storvsc_ringbuffer_size);
+	if (ret) {
+		kmem_cache_destroy(host_dev->request_pool);
+		scsi_host_put(host);
+		kfree(stor_device);
+		return ret;
+	}
+
+	if (dev_is_ide)
+		storvsc_get_ide_info(device, &target, &path);
+
+	host_dev->path = stor_device->path_id;
+	host_dev->target = stor_device->target_id;
 
 	/* max # of devices per target */
 	host->max_lun = STORVSC_MAX_LUNS_PER_TARGET;
@@ -701,54 +1410,43 @@ static int storvsc_probe(struct hv_device *device)
 	host->max_id = STORVSC_MAX_TARGETS;
 	/* max # of channels */
 	host->max_channel = STORVSC_MAX_CHANNELS - 1;
+	/* max cmd length */
+	host->max_cmd_len = STORVSC_MAX_CMD_LEN;
 
 	/* Register the HBA and start the scsi bus scan */
 	ret = scsi_add_host(host, &device->device);
-	if (ret != 0) {
+	if (ret != 0)
+		goto err_out;
 
-		storvsc_dev_remove(device);
-
-		kmem_cache_destroy(host_dev->request_pool);
-		scsi_host_put(host);
-		return -1;
+	if (!dev_is_ide) {
+		scsi_scan_host(host);
+		return 0;
 	}
+	ret = scsi_add_device(host, 0, target, 0);
+	if (ret) {
+		scsi_remove_host(host);
+		goto err_out;
+	}
+	return 0;
 
-	scsi_scan_host(host);
-	return ret;
+err_out:
+	storvsc_dev_remove(device);
+	kmem_cache_destroy(host_dev->request_pool);
+	scsi_host_put(host);
+	return -ENODEV;
 }
 
 /* The one and only one */
 
 static struct hv_driver storvsc_drv = {
+	.name = "storvsc",
+	.id_table = id_table,
 	.probe = storvsc_probe,
 	.remove = storvsc_remove,
 };
 
-/*
- * We use a DMI table to determine if we should autoload this driver  This is
- * needed by distro tools to determine if the hyperv drivers should be
- * installed and/or configured.  We don't do anything else with the table, but
- * it needs to be present.
- */
-
-static const struct dmi_system_id __initconst
-hv_stor_dmi_table[] __maybe_unused  = {
-	{
-		.ident = "Hyper-V",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Virtual Machine"),
-			DMI_MATCH(DMI_BOARD_NAME, "Virtual Machine"),
-		},
-	},
-	{ },
-};
-MODULE_DEVICE_TABLE(dmi, hv_stor_dmi_table);
-
 static int __init storvsc_drv_init(void)
 {
-	int ret;
-	struct hv_driver *drv = &storvsc_drv;
 	u32 max_outstanding_req_per_channel;
 
 	/*
@@ -757,32 +1455,22 @@ static int __init storvsc_drv_init(void)
 	 * the ring buffer indices) by the max request size (which is
 	 * vmbus_channel_packet_multipage_buffer + struct vstor_packet + u64)
 	 */
-
 	max_outstanding_req_per_channel =
-	((storvsc_ringbuffer_size - PAGE_SIZE) /
-	ALIGN(MAX_MULTIPAGE_BUFFER_PACKET +
-	sizeof(struct vstor_packet) + sizeof(u64),
-	sizeof(u64)));
-
-	memcpy(&drv->dev_type, &stor_vsci_device_type,
-	       sizeof(struct hv_guid));
+		((storvsc_ringbuffer_size - PAGE_SIZE) /
+		ALIGN(MAX_MULTIPAGE_BUFFER_PACKET +
+		sizeof(struct vstor_packet) + sizeof(u64),
+		sizeof(u64)));
 
 	if (max_outstanding_req_per_channel <
 	    STORVSC_MAX_IO_REQUESTS)
-		return -1;
+		return -EINVAL;
 
-	drv->driver.name = driver_name;
-
-
-	/* The driver belongs to vmbus */
-	ret = vmbus_child_driver_register(&drv->driver);
-
-	return ret;
+	return vmbus_driver_register(&storvsc_drv);
 }
 
 static void __exit storvsc_drv_exit(void)
 {
-	vmbus_child_driver_unregister(&storvsc_drv.driver);
+	vmbus_driver_unregister(&storvsc_drv);
 }
 
 MODULE_LICENSE("GPL");

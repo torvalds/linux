@@ -11,10 +11,11 @@ if ARCH_S5PV210
 
 config CPU_S5PV210
 	bool
-	select S3C_PL330_DMA
+	select SAMSUNG_DMADEV
 	select S5P_EXT_INT
 	select S5P_HRT
-	select S5PV210_PM if PM
+	select S5P_PM if PM
+	select S5P_SLEEP if PM
 	help
 	  Enable S5PV210 CPU support
 
@@ -94,11 +95,13 @@ config MACH_GONI
 	select S3C_DEV_USB_HSOTG
 	select S5P_DEV_ONENAND
 	select SAMSUNG_DEV_KEYPAD
+	select S5P_DEV_TV
 	select S5PV210_SETUP_FB_24BPP
 	select S5PV210_SETUP_I2C1
 	select S5PV210_SETUP_I2C2
 	select S5PV210_SETUP_KEYPAD
 	select S5PV210_SETUP_SDHCI
+	select S5PV210_SETUP_FIMC
 	help
 	  Machine support for Samsung GONI board
 	  S5PC110(MCP) is one of package option of S5PV210
@@ -168,10 +171,5 @@ config MACH_TORBRECK
 	  Machine support for aESOP Torbreck
 
 endmenu
-
-config S5PV210_PM
-	bool
-	help
-	  Power Management code common to S5PV210
 
 endif

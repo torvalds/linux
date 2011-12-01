@@ -7,12 +7,131 @@
  */
 
 #include <linux/pfn.h>
+#include <linux/suspend.h>
+#include <linux/mm.h>
 #include <asm/system.h>
 
 /*
  * References to section boundaries
  */
 extern const void __nosave_begin, __nosave_end;
+
+/*
+ * The restore of the saved pages in an hibernation image will set
+ * the change and referenced bits in the storage key for each page.
+ * Overindication of the referenced bits after an hibernation cycle
+ * does not cause any harm but the overindication of the change bits
+ * would cause trouble.
+ * Use the ARCH_SAVE_PAGE_KEYS hooks to save the storage key of each
+ * page to the most significant byte of the associated page frame
+ * number in the hibernation image.
+ */
+
+/*
+ * Key storage is allocated as a linked list of pages.
+ * The size of the keys array is (PAGE_SIZE - sizeof(long))
+ */
+struct page_key_data {
+	struct page_key_data *next;
+	unsigned char data[];
+};
+
+#define PAGE_KEY_DATA_SIZE	(PAGE_SIZE - sizeof(struct page_key_data *))
+
+static struct page_key_data *page_key_data;
+static struct page_key_data *page_key_rp, *page_key_wp;
+static unsigned long page_key_rx, page_key_wx;
+
+/*
+ * For each page in the hibernation image one additional byte is
+ * stored in the most significant byte of the page frame number.
+ * On suspend no additional memory is required but on resume the
+ * keys need to be memorized until the page data has been restored.
+ * Only then can the storage keys be set to their old state.
+ */
+unsigned long page_key_additional_pages(unsigned long pages)
+{
+	return DIV_ROUND_UP(pages, PAGE_KEY_DATA_SIZE);
+}
+
+/*
+ * Free page_key_data list of arrays.
+ */
+void page_key_free(void)
+{
+	struct page_key_data *pkd;
+
+	while (page_key_data) {
+		pkd = page_key_data;
+		page_key_data = pkd->next;
+		free_page((unsigned long) pkd);
+	}
+}
+
+/*
+ * Allocate page_key_data list of arrays with enough room to store
+ * one byte for each page in the hibernation image.
+ */
+int page_key_alloc(unsigned long pages)
+{
+	struct page_key_data *pk;
+	unsigned long size;
+
+	size = DIV_ROUND_UP(pages, PAGE_KEY_DATA_SIZE);
+	while (size--) {
+		pk = (struct page_key_data *) get_zeroed_page(GFP_KERNEL);
+		if (!pk) {
+			page_key_free();
+			return -ENOMEM;
+		}
+		pk->next = page_key_data;
+		page_key_data = pk;
+	}
+	page_key_rp = page_key_wp = page_key_data;
+	page_key_rx = page_key_wx = 0;
+	return 0;
+}
+
+/*
+ * Save the storage key into the upper 8 bits of the page frame number.
+ */
+void page_key_read(unsigned long *pfn)
+{
+	unsigned long addr;
+
+	addr = (unsigned long) page_address(pfn_to_page(*pfn));
+	*(unsigned char *) pfn = (unsigned char) page_get_storage_key(addr);
+}
+
+/*
+ * Extract the storage key from the upper 8 bits of the page frame number
+ * and store it in the page_key_data list of arrays.
+ */
+void page_key_memorize(unsigned long *pfn)
+{
+	page_key_wp->data[page_key_wx] = *(unsigned char *) pfn;
+	*(unsigned char *) pfn = 0;
+	if (++page_key_wx < PAGE_KEY_DATA_SIZE)
+		return;
+	page_key_wp = page_key_wp->next;
+	page_key_wx = 0;
+}
+
+/*
+ * Get the next key from the page_key_data list of arrays and set the
+ * storage key of the page referred by @address. If @address refers to
+ * a "safe" page the swsusp_arch_resume code will transfer the storage
+ * key from the buffer page to the original page.
+ */
+void page_key_write(void *address)
+{
+	page_set_storage_key((unsigned long) address,
+			     page_key_rp->data[page_key_rx], 0);
+	if (++page_key_rx >= PAGE_KEY_DATA_SIZE)
+		return;
+	page_key_rp = page_key_rp->next;
+	page_key_rx = 0;
+}
 
 int pfn_is_nosave(unsigned long pfn)
 {

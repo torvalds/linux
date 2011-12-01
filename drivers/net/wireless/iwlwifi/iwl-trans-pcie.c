@@ -406,6 +406,8 @@ static void iwl_tx_queue_unmap(struct iwl_trans *trans, int txq_id)
 	struct iwl_tx_queue *txq = &trans_pcie->txq[txq_id];
 	struct iwl_queue *q = &txq->q;
 	enum dma_data_direction dma_dir;
+	unsigned long flags;
+	spinlock_t *lock;
 
 	if (!q->n_bd)
 		return;
@@ -413,17 +415,22 @@ static void iwl_tx_queue_unmap(struct iwl_trans *trans, int txq_id)
 	/* In the command queue, all the TBs are mapped as BIDI
 	 * so unmap them as such.
 	 */
-	if (txq_id == trans->shrd->cmd_queue)
+	if (txq_id == trans->shrd->cmd_queue) {
 		dma_dir = DMA_BIDIRECTIONAL;
-	else
+		lock = &trans->hcmd_lock;
+	} else {
 		dma_dir = DMA_TO_DEVICE;
+		lock = &trans->shrd->sta_lock;
+	}
 
+	spin_lock_irqsave(lock, flags);
 	while (q->write_ptr != q->read_ptr) {
 		/* The read_ptr needs to bound by q->n_window */
 		iwlagn_txq_free_tfd(trans, txq, get_cmd_index(q, q->read_ptr),
 				    dma_dir);
 		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd);
 	}
+	spin_unlock_irqrestore(lock, flags);
 }
 
 /**
@@ -1077,7 +1084,7 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		txq_id =
 		    trans_pcie->ac_to_queue[ctx][skb_get_queue_mapping(skb)];
 
-	if (ieee80211_is_data_qos(fc)) {
+	if (ieee80211_is_data_qos(fc) && !ieee80211_is_qos_nullfunc(fc)) {
 		u8 *qc = NULL;
 		struct iwl_tid_data *tid_data;
 		qc = ieee80211_get_qos_ctl(hdr);
@@ -1092,13 +1099,21 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		hdr->seq_ctrl = hdr->seq_ctrl &
 				cpu_to_le16(IEEE80211_SCTL_FRAG);
 		hdr->seq_ctrl |= cpu_to_le16(seq_number);
-		seq_number += 0x10;
 		/* aggregation is on for this <sta,tid> */
 		if (info->flags & IEEE80211_TX_CTL_AMPDU) {
-			WARN_ON(tid_data->agg.state != IWL_AGG_ON);
+			if (WARN_ON_ONCE(tid_data->agg.state != IWL_AGG_ON)) {
+				IWL_ERR(trans, "TX_CTL_AMPDU while not in AGG:"
+					" Tx flags = 0x%08x, agg.state = %d",
+					info->flags, tid_data->agg.state);
+				IWL_ERR(trans, "sta_id = %d, tid = %d "
+					"txq_id = %d, seq_num = %d", sta_id,
+					tid, tid_data->agg.txq_id,
+					seq_number >> 4);
+			}
 			txq_id = tid_data->agg.txq_id;
 			is_agg = true;
 		}
+		seq_number += 0x10;
 	}
 
 	/* Copy MAC header from skb into command buffer */
@@ -1206,7 +1221,7 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);
 	iwl_txq_update_write_ptr(trans, txq);
 
-	if (ieee80211_is_data_qos(fc)) {
+	if (ieee80211_is_data_qos(fc) && !ieee80211_is_qos_nullfunc(fc)) {
 		trans->shrd->tid_data[sta_id][tid].tfds_in_queue++;
 		if (!ieee80211_has_morefrags(fc))
 			trans->shrd->tid_data[sta_id][tid].seq_number =
@@ -1224,7 +1239,7 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 			txq->need_update = 1;
 			iwl_txq_update_write_ptr(trans, txq);
 		} else {
-			iwl_stop_queue(trans, txq);
+			iwl_stop_queue(trans, txq, "Queue is full");
 		}
 	}
 	return 0;
@@ -1276,20 +1291,21 @@ static int iwlagn_txq_check_empty(struct iwl_trans *trans,
 		/* aggregated HW queue */
 		if ((txq_id  == tid_data->agg.txq_id) &&
 		    (q->read_ptr == q->write_ptr)) {
-			IWL_DEBUG_HT(trans,
+			IWL_DEBUG_TX_QUEUES(trans,
 				"HW queue empty: continue DELBA flow\n");
 			iwl_trans_pcie_txq_agg_disable(trans, txq_id);
 			tid_data->agg.state = IWL_AGG_OFF;
 			iwl_stop_tx_ba_trans_ready(priv(trans),
 						   NUM_IWL_RXON_CTX,
 						   sta_id, tid);
-			iwl_wake_queue(trans, &trans_pcie->txq[txq_id]);
+			iwl_wake_queue(trans, &trans_pcie->txq[txq_id],
+				       "DELBA flow complete");
 		}
 		break;
 	case IWL_EMPTYING_HW_QUEUE_ADDBA:
 		/* We are reclaiming the last packet of the queue */
 		if (tid_data->tfds_in_queue == 0) {
-			IWL_DEBUG_HT(trans,
+			IWL_DEBUG_TX_QUEUES(trans,
 				"HW queue empty: continue ADDBA flow\n");
 			tid_data->agg.state = IWL_AGG_ON;
 			iwl_start_tx_ba_trans_ready(priv(trans),
@@ -1342,12 +1358,12 @@ static void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int sta_id, int tid,
 	}
 
 	if (txq->q.read_ptr != tfd_num) {
-		IWL_DEBUG_TX_REPLY(trans, "Retry scheduler reclaim "
-				"scd_ssn=%d idx=%d txq=%d swq=%d\n",
-				ssn , tfd_num, txq_id, txq->swq_id);
+		IWL_DEBUG_TX_REPLY(trans, "[Q %d | AC %d] %d -> %d (%d)\n",
+				txq_id, iwl_get_queue_ac(txq), txq->q.read_ptr,
+				tfd_num, ssn);
 		freed = iwl_tx_queue_reclaim(trans, txq_id, tfd_num, skbs);
 		if (iwl_queue_space(&txq->q) > txq->q.low_mark && cond)
-			iwl_wake_queue(trans, txq);
+			iwl_wake_queue(trans, txq, "Packets reclaimed");
 	}
 
 	iwl_free_tfds_in_queue(trans, sta_id, tid, freed);
@@ -1369,16 +1385,22 @@ static int iwl_trans_pcie_suspend(struct iwl_trans *trans)
 {
 	/*
 	 * This function is called when system goes into suspend state
-	 * mac80211 will call iwl_mac_stop() from the mac80211 suspend function
-	 * first but since iwl_mac_stop() has no knowledge of who the caller is,
+	 * mac80211 will call iwlagn_mac_stop() from the mac80211 suspend
+	 * function first but since iwlagn_mac_stop() has no knowledge of
+	 * who the caller is,
 	 * it will not call apm_ops.stop() to stop the DMA operation.
 	 * Calling apm_ops.stop here to make sure we stop the DMA.
 	 *
 	 * But of course ... if we have configured WoWLAN then we did other
 	 * things already :-)
 	 */
-	if (!trans->shrd->wowlan)
+	if (!trans->shrd->wowlan) {
 		iwl_apm_stop(priv(trans));
+	} else {
+		iwl_disable_interrupts(trans);
+		iwl_clear_bit(bus(trans), CSR_GP_CNTRL,
+			      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+	}
 
 	return 0;
 }
@@ -1405,7 +1427,8 @@ static int iwl_trans_pcie_resume(struct iwl_trans *trans)
 #endif /* CONFIG_PM_SLEEP */
 
 static void iwl_trans_pcie_wake_any_queue(struct iwl_trans *trans,
-					  enum iwl_rxon_context_id ctx)
+					  enum iwl_rxon_context_id ctx,
+					  const char *msg)
 {
 	u8 ac, txq_id;
 	struct iwl_trans_pcie *trans_pcie =
@@ -1413,11 +1436,11 @@ static void iwl_trans_pcie_wake_any_queue(struct iwl_trans *trans,
 
 	for (ac = 0; ac < AC_NUM; ac++) {
 		txq_id = trans_pcie->ac_to_queue[ctx][ac];
-		IWL_DEBUG_INFO(trans, "Queue Status: Q[%d] %s\n",
+		IWL_DEBUG_TX_QUEUES(trans, "Queue Status: Q[%d] %s\n",
 			ac,
 			(atomic_read(&trans_pcie->queue_stop_count[ac]) > 0)
 			      ? "stopped" : "awake");
-		iwl_wake_queue(trans, &trans_pcie->txq[txq_id]);
+		iwl_wake_queue(trans, &trans_pcie->txq[txq_id], msg);
 	}
 }
 
@@ -1440,11 +1463,12 @@ static struct iwl_trans *iwl_trans_pcie_alloc(struct iwl_shared *shrd)
 	return iwl_trans;
 }
 
-static void iwl_trans_pcie_stop_queue(struct iwl_trans *trans, int txq_id)
+static void iwl_trans_pcie_stop_queue(struct iwl_trans *trans, int txq_id,
+				      const char *msg)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	iwl_stop_queue(trans, &trans_pcie->txq[txq_id]);
+	iwl_stop_queue(trans, &trans_pcie->txq[txq_id], msg);
 }
 
 #define IWL_FLUSH_WAIT_MS	2000
@@ -1499,8 +1523,12 @@ static int iwl_trans_pcie_check_stuck_queue(struct iwl_trans *trans, int cnt)
 	if (time_after(jiffies, timeout)) {
 		IWL_ERR(trans, "Queue %d stuck for %u ms.\n", q->id,
 			hw_params(trans).wd_timeout);
-		IWL_ERR(trans, "Current read_ptr %d write_ptr %d\n",
+		IWL_ERR(trans, "Current SW read_ptr %d write_ptr %d\n",
 			q->read_ptr, q->write_ptr);
+		IWL_ERR(trans, "Current HW read_ptr %d write_ptr %d\n",
+			iwl_read_prph(bus(trans), SCD_QUEUE_RDPTR(cnt))
+				& (TFD_QUEUE_SIZE_MAX - 1),
+			iwl_read_prph(bus(trans), SCD_QUEUE_WRPTR(cnt)));
 		return 1;
 	}
 

@@ -72,7 +72,7 @@ struct posix_acl *gfs2_get_acl(struct inode *inode, int type)
 	return gfs2_acl_get(GFS2_I(inode), type);
 }
 
-static int gfs2_set_mode(struct inode *inode, mode_t mode)
+static int gfs2_set_mode(struct inode *inode, umode_t mode)
 {
 	int error = 0;
 
@@ -82,7 +82,7 @@ static int gfs2_set_mode(struct inode *inode, mode_t mode)
 		iattr.ia_valid = ATTR_MODE;
 		iattr.ia_mode = mode;
 
-		error = gfs2_setattr_simple(GFS2_I(inode), &iattr);
+		error = gfs2_setattr_simple(inode, &iattr);
 	}
 
 	return error;
@@ -117,7 +117,7 @@ int gfs2_acl_create(struct gfs2_inode *dip, struct inode *inode)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	struct posix_acl *acl;
-	mode_t mode = inode->i_mode;
+	umode_t mode = inode->i_mode;
 	int error = 0;
 
 	if (!sdp->sd_args.ar_posix_acl)
@@ -160,6 +160,7 @@ out:
 
 int gfs2_acl_chmod(struct gfs2_inode *ip, struct iattr *attr)
 {
+	struct inode *inode = &ip->i_inode;
 	struct posix_acl *acl;
 	char *data;
 	unsigned int len;
@@ -169,7 +170,7 @@ int gfs2_acl_chmod(struct gfs2_inode *ip, struct iattr *attr)
 	if (IS_ERR(acl))
 		return PTR_ERR(acl);
 	if (!acl)
-		return gfs2_setattr_simple(ip, attr);
+		return gfs2_setattr_simple(inode, attr);
 
 	error = posix_acl_chmod(&acl, GFP_NOFS, attr->ia_mode);
 	if (error)
@@ -276,7 +277,7 @@ static int gfs2_xattr_system_set(struct dentry *dentry, const char *name,
 		goto out_release;
 
 	if (type == ACL_TYPE_ACCESS) {
-		mode_t mode = inode->i_mode;
+		umode_t mode = inode->i_mode;
 		error = posix_acl_equiv_mode(acl, &mode);
 
 		if (error <= 0) {

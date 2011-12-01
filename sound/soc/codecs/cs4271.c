@@ -156,7 +156,6 @@ static const u8 cs4271_dflt_reg[CS4271_NR_REGS] = {
 struct cs4271_private {
 	/* SND_SOC_I2C or SND_SOC_SPI */
 	enum snd_soc_control_type	bus_type;
-	void				*control_data;
 	unsigned int			mclk;
 	bool				master;
 	bool				deemph;
@@ -466,8 +465,6 @@ static int cs4271_probe(struct snd_soc_codec *codec)
 	int ret;
 	int gpio_nreset = -EINVAL;
 
-	codec->control_data = cs4271->control_data;
-
 	if (cs4271plat && gpio_is_valid(cs4271plat->gpio_nreset))
 		gpio_nreset = cs4271plat->gpio_nreset;
 
@@ -555,7 +552,6 @@ static int __devinit cs4271_spi_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	spi_set_drvdata(spi, cs4271);
-	cs4271->control_data = spi;
 	cs4271->bus_type = SND_SOC_SPI;
 
 	return snd_soc_register_codec(&spi->dev, &soc_codec_dev_cs4271,
@@ -595,7 +591,6 @@ static int __devinit cs4271_i2c_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, cs4271);
-	cs4271->control_data = client;
 	cs4271->bus_type = SND_SOC_I2C;
 
 	return snd_soc_register_codec(&client->dev, &soc_codec_dev_cs4271,

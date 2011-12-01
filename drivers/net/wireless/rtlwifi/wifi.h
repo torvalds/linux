@@ -63,6 +63,7 @@
 #define AC_MAX					4
 #define QOS_QUEUE_NUM				4
 #define RTL_MAC80211_NUM_QUEUE			5
+#define REALTEK_USB_VENQT_MAX_BUF_SIZE		254
 
 #define QBSS_LOAD_SIZE				5
 #define MAX_WMMELE_LENGTH			64
@@ -450,6 +451,7 @@ enum rtl_var_map {
 	EFUSE_HWSET_MAX_SIZE,
 	EFUSE_MAX_SECTION_MAP,
 	EFUSE_REAL_CONTENT_SIZE,
+	EFUSE_OOB_PROTECT_BYTES_LEN,
 
 	/*CAM map */
 	RWCAM,
@@ -942,8 +944,10 @@ struct rtl_io {
 	unsigned long pci_base_addr;	/*device I/O address */
 
 	void (*write8_async) (struct rtl_priv *rtlpriv, u32 addr, u8 val);
-	void (*write16_async) (struct rtl_priv *rtlpriv, u32 addr, __le16 val);
-	void (*write32_async) (struct rtl_priv *rtlpriv, u32 addr, __le32 val);
+	void (*write16_async) (struct rtl_priv *rtlpriv, u32 addr, u16 val);
+	void (*write32_async) (struct rtl_priv *rtlpriv, u32 addr, u32 val);
+	void (*writeN_sync) (struct rtl_priv *rtlpriv, u32 addr, void *buf,
+			     u16 len);
 
 	u8(*read8_sync) (struct rtl_priv *rtlpriv, u32 addr);
 	u16(*read16_sync) (struct rtl_priv *rtlpriv, u32 addr);
@@ -1324,6 +1328,7 @@ struct rtl_stats {
 	s8 rx_mimo_signalquality[2];
 	bool packet_matchbssid;
 	bool is_cck;
+	bool is_ht;
 	bool packet_toself;
 	bool packet_beacon;	/*for rssi */
 	char cck_adc_pwdb[4];	/*for rx path selection */
@@ -1484,6 +1489,9 @@ struct rtl_intf_ops {
 struct rtl_mod_params {
 	/* default: 0 = using hardware encryption */
 	int sw_crypto;
+
+	/* default: 0 = DBG_EMERG (0)*/
+	int debug;
 
 	/* default: 1 = using no linked power save */
 	bool inactiveps;

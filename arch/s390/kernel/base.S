@@ -76,6 +76,48 @@ s390_base_pgm_handler_fn:
 	.quad	0
 	.previous
 
+#
+# Calls diag 308 subcode 1 and continues execution
+#
+# The following conditions must be ensured before calling this function:
+# * Prefix register = 0
+# * Lowcore protection is disabled
+#
+ENTRY(diag308_reset)
+	larl	%r4,.Lctlregs		# Save control registers
+	stctg	%c0,%c15,0(%r4)
+	larl	%r4,.Lfpctl		# Floating point control register
+	stfpc	0(%r4)
+	larl	%r4,.Lrestart_psw	# Setup restart PSW at absolute 0
+	lghi	%r3,0
+	lg	%r4,0(%r4)		# Save PSW
+	sturg	%r4,%r3			# Use sturg, because of large pages
+	lghi	%r1,1
+	diag	%r1,%r1,0x308
+.Lrestart_part2:
+	lhi	%r0,0			# Load r0 with zero
+	lhi	%r1,2			# Use mode 2 = ESAME (dump)
+	sigp	%r1,%r0,0x12		# Switch to ESAME mode
+	sam64				# Switch to 64 bit addressing mode
+	larl	%r4,.Lctlregs		# Restore control registers
+	lctlg	%c0,%c15,0(%r4)
+	larl	%r4,.Lfpctl		# Restore floating point ctl register
+	lfpc	0(%r4)
+	br	%r14
+.align 16
+.Lrestart_psw:
+	.long	0x00080000,0x80000000 + .Lrestart_part2
+
+	.section .bss
+.align 8
+.Lctlregs:
+	.rept	16
+	.quad	0
+	.endr
+.Lfpctl:
+	.long	0
+	.previous
+
 #else /* CONFIG_64BIT */
 
 ENTRY(s390_base_mcck_handler)

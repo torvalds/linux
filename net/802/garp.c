@@ -15,6 +15,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/llc.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <net/llc.h>
 #include <net/llc_pdu.h>
 #include <net/garp.h>
@@ -553,7 +554,7 @@ static void garp_release_port(struct net_device *dev)
 		if (rtnl_dereference(port->applicants[i]))
 			return;
 	}
-	rcu_assign_pointer(dev->garp_port, NULL);
+	RCU_INIT_POINTER(dev->garp_port, NULL);
 	kfree_rcu(port, rcu);
 }
 
@@ -605,7 +606,7 @@ void garp_uninit_applicant(struct net_device *dev, struct garp_application *appl
 
 	ASSERT_RTNL();
 
-	rcu_assign_pointer(port->applicants[appl->type], NULL);
+	RCU_INIT_POINTER(port->applicants[appl->type], NULL);
 
 	/* Delete timer and generate a final TRANSMIT_PDU event to flush out
 	 * all pending messages before the applicant is gone. */

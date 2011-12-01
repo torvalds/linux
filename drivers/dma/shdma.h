@@ -23,6 +23,12 @@
 
 struct device;
 
+enum dmae_pm_state {
+	DMAE_PM_ESTABLISHED,
+	DMAE_PM_BUSY,
+	DMAE_PM_PENDING,
+};
+
 struct sh_dmae_chan {
 	dma_cookie_t completed_cookie;	/* The maximum cookie completed */
 	spinlock_t desc_lock;		/* Descriptor operation lock */
@@ -38,6 +44,7 @@ struct sh_dmae_chan {
 	u32 __iomem *base;
 	char dev_id[16];		/* unique name per DMAC of channel */
 	int pm_error;
+	enum dmae_pm_state pm_state;
 };
 
 struct sh_dmae_device {
@@ -47,10 +54,14 @@ struct sh_dmae_device {
 	struct list_head node;
 	u32 __iomem *chan_reg;
 	u16 __iomem *dmars;
+	unsigned int chcr_offset;
+	u32 chcr_ie_bit;
 };
 
 #define to_sh_chan(chan) container_of(chan, struct sh_dmae_chan, common)
 #define to_sh_desc(lh) container_of(lh, struct sh_desc, node)
 #define tx_to_sh_desc(tx) container_of(tx, struct sh_desc, async_tx)
+#define to_sh_dev(chan) container_of(chan->common.device,\
+				     struct sh_dmae_device, common)
 
 #endif	/* __DMA_SHDMA_H */

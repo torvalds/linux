@@ -45,13 +45,13 @@ static int __init pci_eisa_init(struct pci_dev *pdev,
 	return 0;
 }
 
-static struct pci_device_id __initdata pci_eisa_pci_tbl[] = {
+static struct pci_device_id pci_eisa_pci_tbl[] = {
 	{ PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID,
 	  PCI_CLASS_BRIDGE_EISA << 8, 0xffff00, 0 },
 	{ 0, }
 };
 
-static struct pci_driver __initdata pci_eisa_driver = {
+static struct pci_driver __refdata pci_eisa_driver = {
 	.name		= "pci_eisa",
 	.id_table	= pci_eisa_pci_tbl,
 	.probe		= pci_eisa_init,

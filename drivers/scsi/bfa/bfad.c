@@ -1348,7 +1348,7 @@ int
 bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 {
 	struct bfad_s	*bfad;
-	int		error = -ENODEV, retval;
+	int		error = -ENODEV, retval, i;
 
 	/* For single port cards - only claim function 0 */
 	if ((pdev->device == BFA_PCI_DEVICE_ID_FC_8G1P) &&
@@ -1371,6 +1371,12 @@ bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 	/* TRACE INIT */
 	bfa_trc_init(bfad->trcmod);
 	bfa_trc(bfad, bfad_inst);
+
+	/* AEN INIT */
+	INIT_LIST_HEAD(&bfad->free_aen_q);
+	INIT_LIST_HEAD(&bfad->active_aen_q);
+	for (i = 0; i < BFA_AEN_MAX_ENTRY; i++)
+		list_add_tail(&bfad->aen_list[i].qe, &bfad->free_aen_q);
 
 	if (!(bfad_load_fwimg(pdev))) {
 		kfree(bfad->trcmod);

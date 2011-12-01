@@ -74,12 +74,12 @@ static irqreturn_t twl6040_vib_irq_handler(int irq, void *data)
 	if (status & TWL6040_VIBLOCDET) {
 		dev_warn(info->dev, "Left Vibrator overcurrent detected\n");
 		twl6040_clear_bits(twl6040, TWL6040_REG_VIBCTLL,
-				   TWL6040_VIBENAL);
+				   TWL6040_VIBENA);
 	}
 	if (status & TWL6040_VIBROCDET) {
 		dev_warn(info->dev, "Right Vibrator overcurrent detected\n");
 		twl6040_clear_bits(twl6040, TWL6040_REG_VIBCTLR,
-				   TWL6040_VIBENAR);
+				   TWL6040_VIBENA);
 	}
 
 	return IRQ_HANDLED;
@@ -97,23 +97,23 @@ static void twl6040_vibra_enable(struct vibra_info *info)
 	}
 
 	twl6040_power(info->twl6040, 1);
-	if (twl6040->rev <= TWL6040_REV_ES1_1) {
+	if (twl6040_get_revid(twl6040) <= TWL6040_REV_ES1_1) {
 		/*
 		 * ERRATA: Disable overcurrent protection for at least
 		 * 3ms when enabling vibrator drivers to avoid false
 		 * overcurrent detection
 		 */
 		twl6040_reg_write(twl6040, TWL6040_REG_VIBCTLL,
-				  TWL6040_VIBENAL | TWL6040_VIBCTRLL);
+				  TWL6040_VIBENA | TWL6040_VIBCTRL);
 		twl6040_reg_write(twl6040, TWL6040_REG_VIBCTLR,
-				  TWL6040_VIBENAR | TWL6040_VIBCTRLR);
+				  TWL6040_VIBENA | TWL6040_VIBCTRL);
 		usleep_range(3000, 3500);
 	}
 
 	twl6040_reg_write(twl6040, TWL6040_REG_VIBCTLL,
-			  TWL6040_VIBENAL);
+			  TWL6040_VIBENA);
 	twl6040_reg_write(twl6040, TWL6040_REG_VIBCTLR,
-			  TWL6040_VIBENAR);
+			  TWL6040_VIBENA);
 
 	info->enabled = true;
 }
@@ -201,6 +201,13 @@ static int vibra_play(struct input_dev *input, void *data,
 	struct vibra_info *info = input_get_drvdata(input);
 	int ret;
 
+	/* Do not allow effect, while the routing is set to use audio */
+	ret = twl6040_get_vibralr_status(info->twl6040);
+	if (ret & TWL6040_VIBSEL) {
+		dev_info(&input->dev, "Vibra is configured for audio\n");
+		return -EBUSY;
+	}
+
 	info->weak_speed = effect->u.rumble.weak_magnitude;
 	info->strong_speed = effect->u.rumble.strong_magnitude;
 	info->direction = effect->direction < EFFECT_DIR_180_DEG ? 1 : -1;
@@ -228,7 +235,7 @@ static void twl6040_vibra_close(struct input_dev *input)
 	mutex_unlock(&info->mutex);
 }
 
-#if CONFIG_PM_SLEEP
+#ifdef CONFIG_PM_SLEEP
 static int twl6040_vibra_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);

@@ -50,7 +50,18 @@ static inline u64 apei_exec_ctx_get_output(struct apei_exec_context *ctx)
 	return ctx->value;
 }
 
-int apei_exec_run(struct apei_exec_context *ctx, u8 action);
+int __apei_exec_run(struct apei_exec_context *ctx, u8 action, bool optional);
+
+static inline int apei_exec_run(struct apei_exec_context *ctx, u8 action)
+{
+	return __apei_exec_run(ctx, action, 0);
+}
+
+/* It is optional whether the firmware provides the action */
+static inline int apei_exec_run_optional(struct apei_exec_context *ctx, u8 action)
+{
+	return __apei_exec_run(ctx, action, 1);
+}
 
 /* Common instruction implementation */
 
@@ -113,4 +124,6 @@ void apei_estatus_print(const char *pfx,
 			const struct acpi_hest_generic_status *estatus);
 int apei_estatus_check_header(const struct acpi_hest_generic_status *estatus);
 int apei_estatus_check(const struct acpi_hest_generic_status *estatus);
+
+int apei_osc_setup(void);
 #endif

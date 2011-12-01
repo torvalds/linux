@@ -66,16 +66,8 @@ extern u32 libipw_debug_level;
 do { if (libipw_debug_level & (level)) \
   printk(KERN_DEBUG "libipw: %c %s " fmt, \
          in_interrupt() ? 'I' : 'U', __func__ , ## args); } while (0)
-static inline bool libipw_ratelimit_debug(u32 level)
-{
-	return (libipw_debug_level & level) && net_ratelimit();
-}
 #else
 #define LIBIPW_DEBUG(level, fmt, args...) do {} while (0)
-static inline bool libipw_ratelimit_debug(u32 level)
-{
-	return false;
-}
 #endif				/* CONFIG_LIBIPW_DEBUG */
 
 /*

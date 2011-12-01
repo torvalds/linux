@@ -98,6 +98,18 @@ static void omap_ehci_soft_phy_reset(struct platform_device *pdev, u8 port)
 	}
 }
 
+static void disable_put_regulator(
+		struct ehci_hcd_omap_platform_data *pdata)
+{
+	int i;
+
+	for (i = 0 ; i < OMAP3_HS_USB_PORTS ; i++) {
+		if (pdata->regulator[i]) {
+			regulator_disable(pdata->regulator[i]);
+			regulator_put(pdata->regulator[i]);
+		}
+	}
+}
 
 /* configure so an HC device and id are always provided */
 /* always called with process context; sleeping is OK */
@@ -216,7 +228,7 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 	/* cache this readonly data; minimize chip reads */
 	omap_ehci->hcs_params = readl(&omap_ehci->caps->hcs_params);
 
-	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED | IRQF_SHARED);
+	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (ret) {
 		dev_err(dev, "failed to add hcd with err %d\n", ret);
 		goto err_add_hcd;
@@ -231,9 +243,11 @@ err_add_hcd:
 	omap_usbhs_disable(dev);
 
 err_enable:
+	disable_put_regulator(pdata);
 	usb_put_hcd(hcd);
 
 err_io:
+	iounmap(regs);
 	return ret;
 }
 
@@ -253,6 +267,8 @@ static int ehci_hcd_omap_remove(struct platform_device *pdev)
 
 	usb_remove_hcd(hcd);
 	omap_usbhs_disable(dev);
+	disable_put_regulator(dev->platform_data);
+	iounmap(hcd->regs);
 	usb_put_hcd(hcd);
 	return 0;
 }

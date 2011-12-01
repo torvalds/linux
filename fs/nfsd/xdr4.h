@@ -81,7 +81,6 @@ struct nfsd4_access {
 struct nfsd4_close {
 	u32		cl_seqid;           /* request */
 	stateid_t	cl_stateid;         /* request+response */
-	struct nfs4_stateowner * cl_stateowner;	/* response */
 };
 
 struct nfsd4_commit {
@@ -131,7 +130,7 @@ struct nfsd4_link {
 
 struct nfsd4_lock_denied {
 	clientid_t	ld_clientid;
-	struct nfs4_stateowner   *ld_sop;
+	struct xdr_netobj	ld_owner;
 	u64             ld_start;
 	u64             ld_length;
 	u32             ld_type;
@@ -165,9 +164,6 @@ struct nfsd4_lock {
 		} ok;
 		struct nfsd4_lock_denied        denied;
 	} u;
-	/* The lk_replay_owner is the open owner in the open_to_lock_owner
-	 * case and the lock owner otherwise: */
-	struct nfs4_stateowner *lk_replay_owner;
 };
 #define lk_new_open_seqid       v.new.open_seqid
 #define lk_new_open_stateid     v.new.open_stateid
@@ -188,7 +184,6 @@ struct nfsd4_lockt {
 	struct xdr_netobj		lt_owner;
 	u64				lt_offset;
 	u64				lt_length;
-	struct nfs4_stateowner * 	lt_stateowner;
 	struct nfsd4_lock_denied  	lt_denied;
 };
 
@@ -199,7 +194,6 @@ struct nfsd4_locku {
 	stateid_t       lu_stateid;
 	u64             lu_offset;
 	u64             lu_length;
-	struct nfs4_stateowner  *lu_stateowner;
 };
 
 
@@ -232,8 +226,11 @@ struct nfsd4_open {
 	u32		op_recall;          /* recall */
 	struct nfsd4_change_info  op_cinfo; /* response */
 	u32		op_rflags;          /* response */
-	int		op_truncate;        /* used during processing */
-	struct nfs4_stateowner *op_stateowner; /* used during processing */
+	bool		op_truncate;        /* used during processing */
+	bool		op_created;         /* used during processing */
+	struct nfs4_openowner *op_openowner; /* used during processing */
+	struct nfs4_file *op_file;          /* used during processing */
+	struct nfs4_ol_stateid *op_stp;	    /* used during processing */
 	struct nfs4_acl *op_acl;
 };
 #define op_iattr	iattr
@@ -243,7 +240,6 @@ struct nfsd4_open_confirm {
 	stateid_t	oc_req_stateid		/* request */;
 	u32		oc_seqid    		/* request */;
 	stateid_t	oc_resp_stateid		/* response */;
-	struct nfs4_stateowner * oc_stateowner;	/* response */
 };
 
 struct nfsd4_open_downgrade {
@@ -251,7 +247,6 @@ struct nfsd4_open_downgrade {
 	u32             od_seqid;
 	u32             od_share_access;
 	u32             od_share_deny;
-	struct nfs4_stateowner *od_stateowner;
 };
 
 
@@ -325,8 +320,7 @@ struct nfsd4_setattr {
 
 struct nfsd4_setclientid {
 	nfs4_verifier	se_verf;            /* request */
-	u32		se_namelen;         /* request */
-	char *		se_name;            /* request */
+	struct xdr_netobj se_name;
 	u32		se_callback_prog;   /* request */
 	u32		se_callback_netid_len;  /* request */
 	char *		se_callback_netid_val;  /* request */
@@ -351,7 +345,6 @@ struct nfsd4_saved_compoundargs {
 
 struct nfsd4_test_stateid {
 	__be32		ts_num_ids;
-	__be32		ts_has_session;
 	struct nfsd4_compoundargs *ts_saved_args;
 	struct nfsd4_saved_compoundargs ts_savedp;
 };
@@ -403,6 +396,10 @@ struct nfsd4_sequence {
 
 struct nfsd4_destroy_session {
 	struct nfs4_sessionid	sessionid;
+};
+
+struct nfsd4_destroy_clientid {
+	clientid_t clientid;
 };
 
 struct nfsd4_reclaim_complete {
@@ -532,6 +529,7 @@ int nfs4svc_decode_compoundargs(struct svc_rqst *, __be32 *,
 		struct nfsd4_compoundargs *);
 int nfs4svc_encode_compoundres(struct svc_rqst *, __be32 *,
 		struct nfsd4_compoundres *);
+int nfsd4_check_resp_size(struct nfsd4_compoundres *, u32);
 void nfsd4_encode_operation(struct nfsd4_compoundres *, struct nfsd4_op *);
 void nfsd4_encode_replay(struct nfsd4_compoundres *resp, struct nfsd4_op *op);
 __be32 nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
@@ -558,11 +556,13 @@ extern __be32 nfsd4_sequence(struct svc_rqst *,
 extern __be32 nfsd4_destroy_session(struct svc_rqst *,
 		struct nfsd4_compound_state *,
 		struct nfsd4_destroy_session *);
+extern __be32 nfsd4_destroy_clientid(struct svc_rqst *, struct nfsd4_compound_state *, struct nfsd4_destroy_clientid *);
 __be32 nfsd4_reclaim_complete(struct svc_rqst *, struct nfsd4_compound_state *, struct nfsd4_reclaim_complete *);
 extern __be32 nfsd4_process_open1(struct nfsd4_compound_state *,
 		struct nfsd4_open *open);
 extern __be32 nfsd4_process_open2(struct svc_rqst *rqstp,
 		struct svc_fh *current_fh, struct nfsd4_open *open);
+extern void nfsd4_cleanup_open_state(struct nfsd4_open *open, __be32 status);
 extern __be32 nfsd4_open_confirm(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *, struct nfsd4_open_confirm *oc);
 extern __be32 nfsd4_close(struct svc_rqst *rqstp,

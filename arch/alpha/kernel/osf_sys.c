@@ -42,6 +42,7 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <asm/sysinfo.h>
+#include <asm/thread_info.h>
 #include <asm/hwrpb.h>
 #include <asm/processor.h>
 
@@ -633,9 +634,10 @@ SYSCALL_DEFINE5(osf_getsysinfo, unsigned long, op, void __user *, buffer,
  	case GSI_UACPROC:
 		if (nbytes < sizeof(unsigned int))
 			return -EINVAL;
- 		w = (current_thread_info()->flags >> UAC_SHIFT) & UAC_BITMASK;
- 		if (put_user(w, (unsigned int __user *)buffer))
- 			return -EFAULT;
+		w = (current_thread_info()->flags >> ALPHA_UAC_SHIFT) &
+			UAC_BITMASK;
+		if (put_user(w, (unsigned int __user *)buffer))
+			return -EFAULT;
  		return 1;
 
 	case GSI_PROC_TYPE:
@@ -756,8 +758,8 @@ SYSCALL_DEFINE5(osf_setsysinfo, unsigned long, op, void __user *, buffer,
  			case SSIN_UACPROC:
 			again:
 				old = current_thread_info()->flags;
-				new = old & ~(UAC_BITMASK << UAC_SHIFT);
-				new = new | (w & UAC_BITMASK) << UAC_SHIFT;
+				new = old & ~(UAC_BITMASK << ALPHA_UAC_SHIFT);
+				new = new | (w & UAC_BITMASK) << ALPHA_UAC_SHIFT;
 				if (cmpxchg(&current_thread_info()->flags,
 					    old, new) != old)
 					goto again;

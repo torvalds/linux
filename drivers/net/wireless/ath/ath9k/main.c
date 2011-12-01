@@ -273,7 +273,7 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 
 	ath9k_cmn_update_txpow(ah, sc->curtxpow,
 			       sc->config.txpowlimit, &sc->curtxpow);
-	ath9k_hw_set_interrupts(ah, ah->imask);
+	ath9k_hw_set_interrupts(ah);
 	ath9k_hw_enable_interrupts(ah);
 
 	if (!(sc->sc_flags & (SC_OP_OFFCHANNEL)) && start) {
@@ -630,7 +630,8 @@ set_timer:
 	}
 }
 
-static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta)
+static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta,
+			    struct ieee80211_vif *vif)
 {
 	struct ath_node *an;
 	an = (struct ath_node *)sta->drv_priv;
@@ -640,6 +641,7 @@ static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta)
 	list_add(&an->list, &sc->nodes);
 	spin_unlock(&sc->nodes_lock);
 	an->sta = sta;
+	an->vif = vif;
 #endif
 	if (sc->sc_flags & SC_OP_TXAGGR) {
 		ath_tx_node_init(sc, an);
@@ -679,6 +681,16 @@ void ath9k_tasklet(unsigned long data)
 
 	if ((status & ATH9K_INT_FATAL) ||
 	    (status & ATH9K_INT_BB_WATCHDOG)) {
+#ifdef CONFIG_ATH9K_DEBUGFS
+		enum ath_reset_type type;
+
+		if (status & ATH9K_INT_FATAL)
+			type = RESET_TYPE_FATAL_INT;
+		else
+			type = RESET_TYPE_BB_WATCHDOG;
+
+		RESET_STAT_INC(sc, type);
+#endif
 		ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
 		goto out;
 	}
@@ -730,6 +742,9 @@ void ath9k_tasklet(unsigned long data)
 		if (status & ATH9K_INT_GENTIMER)
 			ath_gen_timer_isr(sc->sc_ah);
 
+	if (status & ATH9K_INT_MCI)
+		ath_mci_intr(sc);
+
 out:
 	/* re-enable hardware interrupt */
 	ath9k_hw_enable_interrupts(ah);
@@ -752,7 +767,8 @@ irqreturn_t ath_isr(int irq, void *dev)
 		ATH9K_INT_BMISS |		\
 		ATH9K_INT_CST |			\
 		ATH9K_INT_TSFOOR |		\
-		ATH9K_INT_GENTIMER)
+		ATH9K_INT_GENTIMER |		\
+		ATH9K_INT_MCI)
 
 	struct ath_softc *sc = dev;
 	struct ath_hw *ah = sc->sc_ah;
@@ -823,7 +839,7 @@ irqreturn_t ath_isr(int irq, void *dev)
 
 	if (status & ATH9K_INT_RXEOL) {
 		ah->imask &= ~(ATH9K_INT_RXEOL | ATH9K_INT_RXORN);
-		ath9k_hw_set_interrupts(ah, ah->imask);
+		ath9k_hw_set_interrupts(ah);
 	}
 
 	if (status & ATH9K_INT_MIB) {
@@ -995,8 +1011,10 @@ void ath_hw_check(struct work_struct *work)
 	ath_dbg(common, ATH_DBG_RESET, "Possible baseband hang, "
 		"busy=%d (try %d)\n", busy, sc->hw_busy_count + 1);
 	if (busy >= 99) {
-		if (++sc->hw_busy_count >= 3)
+		if (++sc->hw_busy_count >= 3) {
+			RESET_STAT_INC(sc, RESET_TYPE_BB_HANG);
 			ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
+		}
 
 	} else if (busy >= 0)
 		sc->hw_busy_count = 0;
@@ -1016,6 +1034,7 @@ static void ath_hw_pll_rx_hang_check(struct ath_softc *sc, u32 pll_sqsum)
 			/* Rx is hung for more than 500ms. Reset it */
 			ath_dbg(common, ATH_DBG_RESET,
 				"Possible RX hang, resetting");
+			RESET_STAT_INC(sc, RESET_TYPE_PLL_HANG);
 			ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
 			count = 0;
 		}
@@ -1104,6 +1123,9 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_HT)
 		ah->imask |= ATH9K_INT_CST;
 
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_MCI)
+		ah->imask |= ATH9K_INT_MCI;
+
 	sc->sc_flags &= ~SC_OP_INVALID;
 	sc->sc_ah->is_monitoring = false;
 
@@ -1120,8 +1142,9 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	if ((ah->btcoex_hw.scheme != ATH_BTCOEX_CFG_NONE) &&
 	    !ah->btcoex_hw.enabled) {
-		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
-					   AR_STOMP_LOW_WLAN_WGHT);
+		if (!(sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_MCI))
+			ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
+						   AR_STOMP_LOW_WLAN_WGHT);
 		ath9k_hw_btcoex_enable(ah);
 
 		if (ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
@@ -1224,6 +1247,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 		ath9k_hw_btcoex_disable(ah);
 		if (ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
 			ath9k_btcoex_timer_pause(sc);
+		ath_mci_flush_profile(&sc->btcoex.mci);
 	}
 
 	spin_lock_bh(&sc->sc_pcu_lock);
@@ -1396,7 +1420,7 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 		ah->imask &= ~ATH9K_INT_TSFOOR;
 	}
 
-	ath9k_hw_set_interrupts(ah, ah->imask);
+	ath9k_hw_set_interrupts(ah);
 
 	/* Set up ANI */
 	if (iter_data.naps > 0) {
@@ -1571,7 +1595,7 @@ static void ath9k_enable_ps(struct ath_softc *sc)
 	if (!(ah->caps.hw_caps & ATH9K_HW_CAP_AUTOSLEEP)) {
 		if ((ah->imask & ATH9K_INT_TIM_TIMER) == 0) {
 			ah->imask |= ATH9K_INT_TIM_TIMER;
-			ath9k_hw_set_interrupts(ah, ah->imask);
+			ath9k_hw_set_interrupts(ah);
 		}
 		ath9k_hw_setrxabort(ah, 1);
 	}
@@ -1591,7 +1615,7 @@ static void ath9k_disable_ps(struct ath_softc *sc)
 				  PS_WAIT_FOR_TX_ACK);
 		if (ah->imask & ATH9K_INT_TIM_TIMER) {
 			ah->imask &= ~ATH9K_INT_TIM_TIMER;
-			ath9k_hw_set_interrupts(ah, ah->imask);
+			ath9k_hw_set_interrupts(ah);
 		}
 	}
 
@@ -1785,7 +1809,7 @@ static int ath9k_sta_add(struct ieee80211_hw *hw,
 	struct ath_node *an = (struct ath_node *) sta->drv_priv;
 	struct ieee80211_key_conf ps_key = { };
 
-	ath_node_attach(sc, sta);
+	ath_node_attach(sc, sta, vif);
 
 	if (vif->type != NL80211_IFTYPE_AP &&
 	    vif->type != NL80211_IFTYPE_AP_VLAN)

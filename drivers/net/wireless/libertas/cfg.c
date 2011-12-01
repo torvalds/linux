@@ -485,6 +485,7 @@ static int lbs_cfg_set_channel(struct wiphy *wiphy,
 static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 	struct cmd_header *resp)
 {
+	struct cfg80211_bss *bss;
 	struct cmd_ds_802_11_scan_rsp *scanresp = (void *)resp;
 	int bsssize;
 	const u8 *pos;
@@ -632,12 +633,14 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 				     LBS_SCAN_RSSI_TO_MBM(rssi)/100);
 
 			if (channel &&
-			    !(channel->flags & IEEE80211_CHAN_DISABLED))
-				cfg80211_inform_bss(wiphy, channel,
+			    !(channel->flags & IEEE80211_CHAN_DISABLED)) {
+				bss = cfg80211_inform_bss(wiphy, channel,
 					bssid, le64_to_cpu(*(__le64 *)tsfdesc),
 					capa, intvl, ie, ielen,
 					LBS_SCAN_RSSI_TO_MBM(rssi),
 					GFP_KERNEL);
+				cfg80211_put_bss(bss);
+			}
 		} else
 			lbs_deb_scan("scan response: missing BSS channel IE\n");
 
@@ -728,15 +731,9 @@ static void lbs_scan_worker(struct work_struct *work)
 		le16_to_cpu(scan_cmd->hdr.size),
 		lbs_ret_scan, 0);
 
-	if (priv->scan_channel >= priv->scan_req->n_channels) {
+	if (priv->scan_channel >= priv->scan_req->n_channels)
 		/* Mark scan done */
-		if (priv->internal_scan)
-			kfree(priv->scan_req);
-		else
-			cfg80211_scan_done(priv->scan_req, false);
-
-		priv->scan_req = NULL;
-	}
+		lbs_scan_done(priv);
 
 	/* Restart network */
 	if (carrier)
@@ -772,6 +769,21 @@ static void _internal_start_scan(struct lbs_private *priv, bool internal,
 	priv->internal_scan = internal;
 
 	lbs_deb_leave(LBS_DEB_CFG80211);
+}
+
+/*
+ * Clean up priv->scan_req.  Should be used to handle the allocation details.
+ */
+void lbs_scan_done(struct lbs_private *priv)
+{
+	WARN_ON(!priv->scan_req);
+
+	if (priv->internal_scan)
+		kfree(priv->scan_req);
+	else
+		cfg80211_scan_done(priv->scan_req, false);
+
+	priv->scan_req = NULL;
 }
 
 static int lbs_cfg_scan(struct wiphy *wiphy,
@@ -1666,27 +1678,19 @@ static int lbs_change_intf(struct wiphy *wiphy, struct net_device *dev,
 	if (dev == priv->mesh_dev)
 		return -EOPNOTSUPP;
 
-	lbs_deb_enter(LBS_DEB_CFG80211);
-
 	switch (type) {
 	case NL80211_IFTYPE_MONITOR:
-		ret = lbs_set_monitor_mode(priv, 1);
-		break;
 	case NL80211_IFTYPE_STATION:
-		if (priv->wdev->iftype == NL80211_IFTYPE_MONITOR)
-			ret = lbs_set_monitor_mode(priv, 0);
-		if (!ret)
-			ret = lbs_set_snmp_mib(priv, SNMP_MIB_OID_BSS_TYPE, 1);
-		break;
 	case NL80211_IFTYPE_ADHOC:
-		if (priv->wdev->iftype == NL80211_IFTYPE_MONITOR)
-			ret = lbs_set_monitor_mode(priv, 0);
-		if (!ret)
-			ret = lbs_set_snmp_mib(priv, SNMP_MIB_OID_BSS_TYPE, 2);
 		break;
 	default:
-		ret = -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
+
+	lbs_deb_enter(LBS_DEB_CFG80211);
+
+	if (priv->iface_running)
+		ret = lbs_set_iface_type(priv, type);
 
 	if (!ret)
 		priv->wdev->iftype = type;
@@ -1719,6 +1723,7 @@ static void lbs_join_post(struct lbs_private *priv,
 		   2 + 2 +                      /* atim */
 		   2 + 8];                      /* extended rates */
 	u8 *fake = fake_ie;
+	struct cfg80211_bss *bss;
 
 	lbs_deb_enter(LBS_DEB_CFG80211);
 
@@ -1762,14 +1767,15 @@ static void lbs_join_post(struct lbs_private *priv,
 	*fake++ = 0x6c;
 	lbs_deb_hex(LBS_DEB_CFG80211, "IE", fake_ie, fake - fake_ie);
 
-	cfg80211_inform_bss(priv->wdev->wiphy,
-			    params->channel,
-			    bssid,
-			    0,
-			    capability,
-			    params->beacon_interval,
-			    fake_ie, fake - fake_ie,
-			    0, GFP_KERNEL);
+	bss = cfg80211_inform_bss(priv->wdev->wiphy,
+				  params->channel,
+				  bssid,
+				  0,
+				  capability,
+				  params->beacon_interval,
+				  fake_ie, fake - fake_ie,
+				  0, GFP_KERNEL);
+	cfg80211_put_bss(bss);
 
 	memcpy(priv->wdev->ssid, params->ssid, params->ssid_len);
 	priv->wdev->ssid_len = params->ssid_len;

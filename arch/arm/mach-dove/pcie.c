@@ -193,7 +193,7 @@ dove_pcie_scan_bus(int nr, struct pci_sys_data *sys)
 	return bus;
 }
 
-static int __init dove_pcie_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int __init dove_pcie_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	struct pcie_port *pp = bus_to_port(dev->bus->number);
 

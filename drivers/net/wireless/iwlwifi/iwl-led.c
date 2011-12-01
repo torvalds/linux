@@ -202,8 +202,7 @@ void iwl_leds_init(struct iwl_priv *priv)
 		break;
 	}
 
-	ret = led_classdev_register(priv->bus->dev,
-				    &priv->led);
+	ret = led_classdev_register(bus(priv)->dev, &priv->led);
 	if (ret) {
 		kfree(priv->led.name);
 		return;

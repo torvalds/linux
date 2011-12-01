@@ -1,0 +1,19 @@
+* Freescale i.MX Universal Asynchronous Receiver/Transmitter (UART)
+
+Required properties:
+- compatible : Should be "fsl,<soc>-uart"
+- reg : Address and length of the register set for the device
+- interrupts : Should contain uart interrupt
+
+Optional properties:
+- fsl,uart-has-rtscts : Indicate the uart has rts and cts
+- fsl,irda-mode : Indicate the uart supports irda mode
+
+Example:
+
+uart@73fbc000 {
+	compatible = "fsl,imx51-uart", "fsl,imx21-uart";
+	reg = <0x73fbc000 0x4000>;
+	interrupts = <31>;
+	fsl,uart-has-rtscts;
+};

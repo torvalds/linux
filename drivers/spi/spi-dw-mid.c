@@ -116,13 +116,13 @@ static int mid_spi_dma_transfer(struct dw_spi *dws, int cs_change)
 	/* 1. setup DMA related registers */
 	if (cs_change) {
 		spi_enable_chip(dws, 0);
-		dw_writew(dws, dmardlr, 0xf);
-		dw_writew(dws, dmatdlr, 0x10);
+		dw_writew(dws, DW_SPI_DMARDLR, 0xf);
+		dw_writew(dws, DW_SPI_DMATDLR, 0x10);
 		if (dws->tx_dma)
 			dma_ctrl |= 0x2;
 		if (dws->rx_dma)
 			dma_ctrl |= 0x1;
-		dw_writew(dws, dmacr, dma_ctrl);
+		dw_writew(dws, DW_SPI_DMACR, dma_ctrl);
 		spi_enable_chip(dws, 1);
 	}
 
@@ -200,7 +200,8 @@ static struct dw_spi_dma_ops mid_dma_ops = {
 
 int dw_spi_mid_init(struct dw_spi *dws)
 {
-	u32 *clk_reg, clk_cdiv;
+	void __iomem *clk_reg;
+	u32 clk_cdiv;
 
 	clk_reg = ioremap_nocache(MRST_CLK_SPI0_REG, 16);
 	if (!clk_reg)

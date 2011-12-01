@@ -63,17 +63,30 @@ _ENTRY(_start);
 	 * of abatron_pteptrs
 	 */
 	nop
-/*
- * Save parameters we are passed
- */
-	mr	r31,r3
-	mr	r30,r4
-	mr	r29,r5
-	mr	r28,r6
-	mr	r27,r7
-	li	r25,0		/* phys kernel start (low) */
-	li	r24,0		/* CPU number */
-	li	r23,0		/* phys kernel start (high) */
+
+	/* Translate device tree address to physical, save in r30/r31 */
+	mfmsr	r16
+	mfspr	r17,SPRN_PID
+	rlwinm	r17,r17,16,0x3fff0000	/* turn PID into MAS6[SPID] */
+	rlwimi	r17,r16,28,0x00000001	/* turn MSR[DS] into MAS6[SAS] */
+	mtspr	SPRN_MAS6,r17
+
+	tlbsx	0,r3			/* must succeed */
+
+	mfspr	r16,SPRN_MAS1
+	mfspr	r20,SPRN_MAS3
+	rlwinm	r17,r16,25,0x1f		/* r17 = log2(page size) */
+	li	r18,1024
+	slw	r18,r18,r17		/* r18 = page size */
+	addi	r18,r18,-1
+	and	r19,r3,r18		/* r19 = page offset */
+	andc	r31,r20,r18		/* r31 = page base */
+	or	r31,r31,r19		/* r31 = devtree phys addr */
+	mfspr	r30,SPRN_MAS7
+
+	li	r25,0			/* phys kernel start (low) */
+	li	r24,0			/* CPU number */
+	li	r23,0			/* phys kernel start (high) */
 
 /* We try to not make any assumptions about how the boot loader
  * setup or used the TLBs.  We invalidate all mappings from the
@@ -198,11 +211,8 @@ _ENTRY(__early_start)
 /*
  * Decide what sort of machine this is and initialize the MMU.
  */
-	mr	r3,r31
-	mr	r4,r30
-	mr	r5,r29
-	mr	r6,r28
-	mr	r7,r27
+	mr	r3,r30
+	mr	r4,r31
 	bl	machine_init
 	bl	MMU_init
 
@@ -236,8 +246,24 @@ _ENTRY(__early_start)
  * if we find the pte (fall through):
  *   r11 is low pte word
  *   r12 is pointer to the pte
+ *   r10 is the pshift from the PGD, if we're a hugepage
  */
 #ifdef CONFIG_PTE_64BIT
+#ifdef CONFIG_HUGETLB_PAGE
+#define FIND_PTE	\
+	rlwinm	r12, r10, 13, 19, 29;	/* Compute pgdir/pmd offset */	\
+	lwzx	r11, r12, r11;		/* Get pgd/pmd entry */		\
+	rlwinm.	r12, r11, 0, 0, 20;	/* Extract pt base address */	\
+	blt	1000f;			/* Normal non-huge page */	\
+	beq	2f;			/* Bail if no table */		\
+	oris	r11, r11, PD_HUGE@h;	/* Put back address bit */	\
+	andi.	r10, r11, HUGEPD_SHIFT_MASK@l; /* extract size field */	\
+	xor	r12, r10, r11;		/* drop size bits from pointer */ \
+	b	1001f;							\
+1000:	rlwimi	r12, r10, 23, 20, 28;	/* Compute pte address */	\
+	li	r10, 0;			/* clear r10 */			\
+1001:	lwz	r11, 4(r12);		/* Get pte entry */
+#else
 #define FIND_PTE	\
 	rlwinm	r12, r10, 13, 19, 29;	/* Compute pgdir/pmd offset */	\
 	lwzx	r11, r12, r11;		/* Get pgd/pmd entry */		\
@@ -245,7 +271,8 @@ _ENTRY(__early_start)
 	beq	2f;			/* Bail if no table */		\
 	rlwimi	r12, r10, 23, 20, 28;	/* Compute pte address */	\
 	lwz	r11, 4(r12);		/* Get pte entry */
-#else
+#endif /* HUGEPAGE */
+#else /* !PTE_64BIT */
 #define FIND_PTE	\
 	rlwimi	r11, r10, 12, 20, 29;	/* Create L1 (pgdir/pmd) address */	\
 	lwz	r11, 0(r11);		/* Get L1 entry */			\
@@ -402,8 +429,8 @@ interrupt_base:
 
 #ifdef CONFIG_PTE_64BIT
 #ifdef CONFIG_SMP
-	subf	r10,r11,r12		/* create false data dep */
-	lwzx	r13,r11,r10		/* Get upper pte bits */
+	subf	r13,r11,r12		/* create false data dep */
+	lwzx	r13,r11,r13		/* Get upper pte bits */
 #else
 	lwz	r13,0(r12)		/* Get upper pte bits */
 #endif
@@ -483,8 +510,8 @@ interrupt_base:
 
 #ifdef CONFIG_PTE_64BIT
 #ifdef CONFIG_SMP
-	subf	r10,r11,r12		/* create false data dep */
-	lwzx	r13,r11,r10		/* Get upper pte bits */
+	subf	r13,r11,r12		/* create false data dep */
+	lwzx	r13,r11,r13		/* Get upper pte bits */
 #else
 	lwz	r13,0(r12)		/* Get upper pte bits */
 #endif
@@ -548,7 +575,7 @@ interrupt_base:
 /*
  * Both the instruction and data TLB miss get to this
  * point to load the TLB.
- *	r10 - available to use
+ *	r10 - tsize encoding (if HUGETLB_PAGE) or available to use
  *	r11 - TLB (info from Linux PTE)
  *	r12 - available to use
  *	r13 - upper bits of PTE (if PTE_64BIT) or available to use
@@ -558,21 +585,73 @@ interrupt_base:
  *	Upon exit, we reload everything and RFI.
  */
 finish_tlb_load:
+#ifdef CONFIG_HUGETLB_PAGE
+	cmpwi	6, r10, 0			/* check for huge page */
+	beq	6, finish_tlb_load_cont    	/* !huge */
+
+	/* Alas, we need more scratch registers for hugepages */
+	mfspr	r12, SPRN_SPRG_THREAD
+	stw	r14, THREAD_NORMSAVE(4)(r12)
+	stw	r15, THREAD_NORMSAVE(5)(r12)
+	stw	r16, THREAD_NORMSAVE(6)(r12)
+	stw	r17, THREAD_NORMSAVE(7)(r12)
+
+	/* Get the next_tlbcam_idx percpu var */
+#ifdef CONFIG_SMP
+	lwz	r12, THREAD_INFO-THREAD(r12)
+	lwz	r15, TI_CPU(r12)
+	lis     r14, __per_cpu_offset@h
+	ori     r14, r14, __per_cpu_offset@l
+	rlwinm  r15, r15, 2, 0, 29
+	lwzx    r16, r14, r15
+#else
+	li	r16, 0
+#endif
+	lis     r17, next_tlbcam_idx@h
+	ori	r17, r17, next_tlbcam_idx@l
+	add	r17, r17, r16			/* r17 = *next_tlbcam_idx */
+	lwz     r15, 0(r17)			/* r15 = next_tlbcam_idx */
+
+	lis	r14, MAS0_TLBSEL(1)@h		/* select TLB1 (TLBCAM) */
+	rlwimi	r14, r15, 16, 4, 15		/* next_tlbcam_idx entry */
+	mtspr	SPRN_MAS0, r14
+
+	/* Extract TLB1CFG(NENTRY) */
+	mfspr	r16, SPRN_TLB1CFG
+	andi.	r16, r16, 0xfff
+
+	/* Update next_tlbcam_idx, wrapping when necessary */
+	addi	r15, r15, 1
+	cmpw	r15, r16
+	blt 	100f
+	lis	r14, tlbcam_index@h
+	ori	r14, r14, tlbcam_index@l
+	lwz	r15, 0(r14)
+100:	stw	r15, 0(r17)
+
+	/*
+	 * Calc MAS1_TSIZE from r10 (which has pshift encoded)
+	 * tlb_enc = (pshift - 10).
+	 */
+	subi	r15, r10, 10
+	mfspr	r16, SPRN_MAS1
+	rlwimi	r16, r15, 7, 20, 24
+	mtspr	SPRN_MAS1, r16
+
+	/* copy the pshift for use later */
+	mr	r14, r10
+
+	/* fall through */
+
+#endif /* CONFIG_HUGETLB_PAGE */
+
 	/*
 	 * We set execute, because we don't have the granularity to
 	 * properly set this at the page level (Linux problem).
 	 * Many of these bits are software only.  Bits we don't set
 	 * here we (properly should) assume have the appropriate value.
 	 */
-
-	mfspr	r12, SPRN_MAS2
-#ifdef CONFIG_PTE_64BIT
-	rlwimi	r12, r11, 32-19, 27, 31	/* extract WIMGE from pte */
-#else
-	rlwimi	r12, r11, 26, 27, 31	/* extract WIMGE from pte */
-#endif
-	mtspr	SPRN_MAS2, r12
-
+finish_tlb_load_cont:
 #ifdef CONFIG_PTE_64BIT
 	rlwinm	r12, r11, 32-2, 26, 31	/* Move in perm bits */
 	andi.	r10, r11, _PAGE_DIRTY
@@ -581,22 +660,40 @@ finish_tlb_load:
 	andc	r12, r12, r10
 1:	rlwimi	r12, r13, 20, 0, 11	/* grab RPN[32:43] */
 	rlwimi	r12, r11, 20, 12, 19	/* grab RPN[44:51] */
-	mtspr	SPRN_MAS3, r12
+2:	mtspr	SPRN_MAS3, r12
 BEGIN_MMU_FTR_SECTION
 	srwi	r10, r13, 12		/* grab RPN[12:31] */
 	mtspr	SPRN_MAS7, r10
 END_MMU_FTR_SECTION_IFSET(MMU_FTR_BIG_PHYS)
 #else
 	li	r10, (_PAGE_EXEC | _PAGE_PRESENT)
+	mr	r13, r11
 	rlwimi	r10, r11, 31, 29, 29	/* extract _PAGE_DIRTY into SW */
 	and	r12, r11, r10
 	andi.	r10, r11, _PAGE_USER	/* Test for _PAGE_USER */
 	slwi	r10, r12, 1
 	or	r10, r10, r12
 	iseleq	r12, r12, r10
-	rlwimi	r11, r12, 0, 20, 31	/* Extract RPN from PTE and merge with perms */
-	mtspr	SPRN_MAS3, r11
+	rlwimi	r13, r12, 0, 20, 31	/* Get RPN from PTE, merge w/ perms */
+	mtspr	SPRN_MAS3, r13
 #endif
+
+	mfspr	r12, SPRN_MAS2
+#ifdef CONFIG_PTE_64BIT
+	rlwimi	r12, r11, 32-19, 27, 31	/* extract WIMGE from pte */
+#else
+	rlwimi	r12, r11, 26, 27, 31	/* extract WIMGE from pte */
+#endif
+#ifdef CONFIG_HUGETLB_PAGE
+	beq	6, 3f			/* don't mask if page isn't huge */
+	li	r13, 1
+	slw	r13, r13, r14
+	subi	r13, r13, 1
+	rlwinm	r13, r13, 0, 0, 19	/* bottom bits used for WIMGE/etc */
+	andc	r12, r12, r13		/* mask off ea bits within the page */
+#endif
+3:	mtspr	SPRN_MAS2, r12
+
 #ifdef CONFIG_E200
 	/* Round robin TLB1 entries assignment */
 	mfspr	r12, SPRN_MAS0
@@ -622,11 +719,19 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_BIG_PHYS)
 	mtspr	SPRN_MAS0,r12
 #endif /* CONFIG_E200 */
 
+tlb_write_entry:
 	tlbwe
 
 	/* Done...restore registers and get out of here.  */
 	mfspr	r10, SPRN_SPRG_THREAD
-	lwz	r11, THREAD_NORMSAVE(3)(r10)
+#ifdef CONFIG_HUGETLB_PAGE
+	beq	6, 8f /* skip restore for 4k page faults */
+	lwz	r14, THREAD_NORMSAVE(4)(r10)
+	lwz	r15, THREAD_NORMSAVE(5)(r10)
+	lwz	r16, THREAD_NORMSAVE(6)(r10)
+	lwz	r17, THREAD_NORMSAVE(7)(r10)
+#endif
+8:	lwz	r11, THREAD_NORMSAVE(3)(r10)
 	mtcr	r11
 	lwz	r13, THREAD_NORMSAVE(2)(r10)
 	lwz	r12, THREAD_NORMSAVE(1)(r10)

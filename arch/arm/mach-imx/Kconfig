@@ -1,10 +1,32 @@
 config IMX_HAVE_DMA_V1
 	bool
+
+config HAVE_IMX_GPC
+	bool
+
+config HAVE_IMX_MMDC
+	bool
+
+config HAVE_IMX_SRC
+	bool
+
 #
 # ARCH_MX31 and ARCH_MX35 are left for compatibility
 # Some usages assume that having one of them implies not having (e.g.) ARCH_MX2.
 # To easily distinguish good and reviewed from unreviewed usages new (and IMHO
 # more sensible) names are used: SOC_IMX31 and SOC_IMX35
+config ARCH_MX1
+	bool
+
+config MACH_MX21
+	bool
+
+config ARCH_MX25
+	bool
+
+config MACH_MX27
+	bool
+
 config ARCH_MX31
 	bool
 
@@ -13,6 +35,7 @@ config ARCH_MX35
 
 config SOC_IMX1
 	bool
+	select ARCH_MX1
 	select CPU_ARM920T
 	select IMX_HAVE_DMA_V1
 	select IMX_HAVE_IOMUX_V1
@@ -20,6 +43,7 @@ config SOC_IMX1
 
 config SOC_IMX21
 	bool
+	select MACH_MX21
 	select CPU_ARM926T
 	select ARCH_MXC_AUDMUX_V1
 	select IMX_HAVE_DMA_V1
@@ -28,6 +52,7 @@ config SOC_IMX21
 
 config SOC_IMX25
 	bool
+	select ARCH_MX25
 	select CPU_ARM926T
 	select ARCH_MXC_AUDMUX_V2
 	select ARCH_MXC_IOMUX_V3
@@ -35,6 +60,7 @@ config SOC_IMX25
 
 config SOC_IMX27
 	bool
+	select MACH_MX27
 	select CPU_ARM926T
 	select ARCH_MXC_AUDMUX_V1
 	select IMX_HAVE_DMA_V1
@@ -48,6 +74,7 @@ config SOC_IMX31
 	select ARCH_MXC_AUDMUX_V2
 	select ARCH_MX31
 	select MXC_AVIC
+	select SMP_ON_UP if SMP
 
 config SOC_IMX35
 	bool
@@ -57,9 +84,10 @@ config SOC_IMX35
 	select HAVE_EPIT
 	select ARCH_MX35
 	select MXC_AVIC
+	select SMP_ON_UP if SMP
 
 
-if ARCH_MX1
+if ARCH_IMX_V4_V5
 
 comment "MX1 platforms:"
 config MACH_MXLADS
@@ -87,30 +115,6 @@ config MACH_APF9328
 	help
 	  Say Yes here if you are using the Armadeus APF9328 development board
 
-endif
-
-if ARCH_MX2
-
-choice
-	prompt "CPUs:"
-	default MACH_MX21
-
-config MACH_MX21
-	bool "i.MX21 support"
-	help
-	  This enables support for Freescale's MX2 based i.MX21 processor.
-
-config MACH_MX27
-	bool "i.MX27 support"
-	help
-	  This enables support for Freescale's MX2 based i.MX27 processor.
-
-endchoice
-
-endif
-
-if MACH_MX21
-
 comment "MX21 platforms:"
 
 config MACH_MX21ADS
@@ -124,15 +128,12 @@ config MACH_MX21ADS
 	  Include support for MX21ADS platform. This includes specific
 	  configurations for the board and its peripherals.
 
-endif
-
-if ARCH_MX25
-
 comment "MX25 platforms:"
 
 config MACH_MX25_3DS
 	bool "Support MX25PDK (3DS) Platform"
 	select SOC_IMX25
+	select IMX_HAVE_PLATFORM_FLEXCAN
 	select IMX_HAVE_PLATFORM_FSL_USB2_UDC
 	select IMX_HAVE_PLATFORM_IMX2_WDT
 	select IMX_HAVE_PLATFORM_IMXDI_RTC
@@ -173,10 +174,6 @@ config MACH_EUKREA_MBIMXSD25_BASEBOARD
 	  MBIMXSD evaluation board.
 
 endchoice
-
-endif
-
-if MACH_MX27
 
 comment "MX27 platforms:"
 
@@ -356,7 +353,7 @@ config MACH_IMX27IPCAM
 
 endif
 
-if ARCH_MX3
+if ARCH_IMX_V6_V7
 
 comment "MX31 platforms:"
 
@@ -449,6 +446,7 @@ config MACH_MX31_3DS
 	select IMX_HAVE_PLATFORM_IMX_UART
 	select IMX_HAVE_PLATFORM_IPU_CORE
 	select IMX_HAVE_PLATFORM_MXC_EHCI
+	select IMX_HAVE_PLATFORM_MXC_MMC
 	select IMX_HAVE_PLATFORM_MXC_NAND
 	select IMX_HAVE_PLATFORM_SPI_IMX
 	select MXC_ULPI if USB_ULPI
@@ -485,6 +483,7 @@ config MACH_QONG
 	bool "Support Dave/DENX QongEVB-LITE platform"
 	select SOC_IMX31
 	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_IMX2_WDT
 	help
 	  Include support for Dave/DENX QongEVB-LITE platform. This includes
 	  specific configurations for the board and its peripherals.
@@ -604,5 +603,21 @@ config MACH_VPR200
 	help
 	  Include support for VPR200 platform. This includes specific
 	  configurations for the board and its peripherals.
+
+comment "i.MX6 family:"
+
+config SOC_IMX6Q
+	bool "i.MX6 Quad support"
+	select ARM_GIC
+	select CACHE_L2X0
+	select CPU_V7
+	select HAVE_ARM_SCU
+	select HAVE_IMX_GPC
+	select HAVE_IMX_MMDC
+	select HAVE_IMX_SRC
+	select USE_OF
+
+	help
+	  This enables support for Freescale i.MX6 Quad processor.
 
 endif

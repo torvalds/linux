@@ -3724,7 +3724,7 @@ static const struct net_device_ops slic_netdev_ops = {
 	.ndo_do_ioctl		= slic_ioctl,
 	.ndo_set_mac_address	= slic_mac_set_address,
 	.ndo_get_stats		= slic_get_stats,
-	.ndo_set_multicast_list	= slic_mcast_set_list,
+	.ndo_set_rx_mode	= slic_mcast_set_list,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= eth_change_mtu,
 };

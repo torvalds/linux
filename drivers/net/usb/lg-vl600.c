@@ -27,6 +27,7 @@
 #include <linux/if_ether.h>
 #include <linux/if_arp.h>
 #include <linux/inetdevice.h>
+#include <linux/module.h>
 
 /*
  * The device has a CDC ACM port for modem control (it claims to be
@@ -89,6 +90,8 @@ static int vl600_bind(struct usbnet *dev, struct usb_interface *intf)
 	 * addresses have no meaning, the destination and the source of every
 	 * packet depend only on whether it is on the IN or OUT endpoint.  */
 	dev->net->flags |= IFF_NOARP;
+	/* IPv6 NDP relies on multicast.  Enable it by default. */
+	dev->net->flags |= IFF_MULTICAST;
 
 	return ret;
 }
@@ -200,6 +203,14 @@ static int vl600_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		} else {
 			memset(ethhdr->h_source, 0, ETH_ALEN);
 			memcpy(ethhdr->h_dest, dev->net->dev_addr, ETH_ALEN);
+
+			/* Inbound IPv6 packets have an IPv4 ethertype (0x800)
+			 * for some reason.  Peek at the L3 header to check
+			 * for IPv6 packets, and set the ethertype to IPv6
+			 * (0x86dd) so Linux can understand it.
+			 */
+			if ((buf->data[sizeof(*ethhdr)] & 0xf0) == 0x60)
+				ethhdr->h_proto = __constant_htons(ETH_P_IPV6);
 		}
 
 		if (count) {
@@ -296,6 +307,15 @@ encapsulate:
 
 	if (skb->len < full_len) /* Pad */
 		skb_put(skb, full_len - skb->len);
+
+	/* The VL600 wants IPv6 packets to have an IPv4 ethertype
+	 * Check if this is an IPv6 packet, and set the ethertype
+	 * to 0x800
+	 */
+	if ((skb->data[sizeof(struct vl600_pkt_hdr *) + 0x22] & 0xf0) == 0x60) {
+		skb->data[sizeof(struct vl600_pkt_hdr *) + 0x20] = 0x08;
+		skb->data[sizeof(struct vl600_pkt_hdr *) + 0x21] = 0;
+	}
 
 	return skb;
 }

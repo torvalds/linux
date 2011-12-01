@@ -31,6 +31,8 @@
 #include "drmP.h"
 #include "vmwgfx_drv.h"
 
+#define VMWGFX_NUM_DISPLAY_UNITS 8
+
 
 #define vmw_framebuffer_to_vfb(x) \
 	container_of(x, struct vmw_framebuffer, base)
@@ -45,6 +47,9 @@ struct vmw_framebuffer {
 	struct drm_framebuffer base;
 	int (*pin)(struct vmw_framebuffer *fb);
 	int (*unpin)(struct vmw_framebuffer *fb);
+	bool dmabuf;
+	struct ttm_base_object *user_obj;
+	uint32_t user_handle;
 };
 
 
@@ -83,22 +88,65 @@ struct vmw_display_unit {
 	int hotspot_y;
 
 	unsigned unit;
+
+	/*
+	 * Prefered mode tracking.
+	 */
+	unsigned pref_width;
+	unsigned pref_height;
+	bool pref_active;
+	struct drm_display_mode *pref_mode;
+
+	/*
+	 * Gui positioning
+	 */
+	int gui_x;
+	int gui_y;
+	bool is_implicit;
 };
+
+#define vmw_crtc_to_du(x) \
+	container_of(x, struct vmw_display_unit, crtc)
+#define vmw_connector_to_du(x) \
+	container_of(x, struct vmw_display_unit, connector)
+
 
 /*
  * Shared display unit functions - vmwgfx_kms.c
  */
 void vmw_display_unit_cleanup(struct vmw_display_unit *du);
+void vmw_du_crtc_save(struct drm_crtc *crtc);
+void vmw_du_crtc_restore(struct drm_crtc *crtc);
+void vmw_du_crtc_gamma_set(struct drm_crtc *crtc,
+			   u16 *r, u16 *g, u16 *b,
+			   uint32_t start, uint32_t size);
 int vmw_du_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 			   uint32_t handle, uint32_t width, uint32_t height);
 int vmw_du_crtc_cursor_move(struct drm_crtc *crtc, int x, int y);
+void vmw_du_connector_dpms(struct drm_connector *connector, int mode);
+void vmw_du_connector_save(struct drm_connector *connector);
+void vmw_du_connector_restore(struct drm_connector *connector);
+enum drm_connector_status
+vmw_du_connector_detect(struct drm_connector *connector, bool force);
+int vmw_du_connector_fill_modes(struct drm_connector *connector,
+				uint32_t max_width, uint32_t max_height);
+int vmw_du_connector_set_property(struct drm_connector *connector,
+				  struct drm_property *property,
+				  uint64_t val);
+
 
 /*
  * Legacy display unit functions - vmwgfx_ldu.c
  */
 int vmw_kms_init_legacy_display_system(struct vmw_private *dev_priv);
 int vmw_kms_close_legacy_display_system(struct vmw_private *dev_priv);
-int vmw_kms_ldu_update_layout(struct vmw_private *dev_priv, unsigned num,
+
+/*
+ * Screen Objects display functions - vmwgfx_scrn.c
+ */
+int vmw_kms_init_screen_object_display(struct vmw_private *dev_priv);
+int vmw_kms_close_screen_object_display(struct vmw_private *dev_priv);
+int vmw_kms_sou_update_layout(struct vmw_private *dev_priv, unsigned num,
 			      struct drm_vmw_rect *rects);
 
 #endif

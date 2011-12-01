@@ -1339,7 +1339,7 @@ error:
 	return 0;
 }
 
-int pn533_data_exchange(struct nfc_dev *nfc_dev, u32 target_idx,
+static int pn533_data_exchange(struct nfc_dev *nfc_dev, u32 target_idx,
 						struct sk_buff *skb,
 						data_exchange_cb_t cb,
 						void *cb_context)

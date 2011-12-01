@@ -415,7 +415,7 @@ fail:
 }
 
 int nfs3_proc_set_default_acl(struct inode *dir, struct inode *inode,
-		mode_t mode)
+		umode_t mode)
 {
 	struct posix_acl *dfacl, *acl;
 	int error = 0;

@@ -504,7 +504,7 @@ static int iscsi_target_do_authentication(
 		break;
 	case 1:
 		pr_debug("iSCSI security negotiation"
-			" completed sucessfully.\n");
+			" completed successfully.\n");
 		login->auth_complete = 1;
 		if ((login_req->flags & ISCSI_FLAG_LOGIN_NEXT_STAGE1) &&
 		    (login_req->flags & ISCSI_FLAG_LOGIN_TRANSIT)) {
@@ -978,7 +978,7 @@ struct iscsi_login *iscsi_target_init_negotiation(
 		pr_err("Unable to allocate memory for struct iscsi_login.\n");
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
 				ISCSI_LOGIN_STATUS_NO_RESOURCES);
-		goto out;
+		return NULL;
 	}
 
 	login->req = kzalloc(ISCSI_HDR_LEN, GFP_KERNEL);

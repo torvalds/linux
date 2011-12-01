@@ -98,7 +98,6 @@ struct mwifiex_802_11_ssid {
 
 struct mwifiex_wait_queue {
 	wait_queue_head_t wait;
-	u16 condition;
 	int status;
 };
 

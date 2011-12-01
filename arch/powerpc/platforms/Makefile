@@ -14,6 +14,7 @@ obj-$(CONFIG_PPC_82xx)		+= 82xx/
 obj-$(CONFIG_PPC_83xx)		+= 83xx/
 obj-$(CONFIG_FSL_SOC_BOOKE)	+= 85xx/
 obj-$(CONFIG_PPC_86xx)		+= 86xx/
+obj-$(CONFIG_PPC_POWERNV)	+= powernv/
 obj-$(CONFIG_PPC_PSERIES)	+= pseries/
 obj-$(CONFIG_PPC_ISERIES)	+= iseries/
 obj-$(CONFIG_PPC_MAPLE)		+= maple/

@@ -43,7 +43,6 @@
 #include <xen/interface/grant_table.h>
 
 #include <asm/xen/hypervisor.h>
-#include <asm/xen/grant_table.h>
 
 #include <xen/features.h>
 
@@ -156,6 +155,7 @@ unsigned int gnttab_max_grant_frames(void);
 #define gnttab_map_vaddr(map) ((void *)(map.host_virt_addr))
 
 int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
+			struct gnttab_map_grant_ref *kmap_ops,
 		    struct page **pages, unsigned int count);
 int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
 		      struct page **pages, unsigned int count);

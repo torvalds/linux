@@ -498,7 +498,7 @@ static void _rtl92cu_read_adapter_info(struct ieee80211_hw *hw)
 	}
 	RT_PRINT_DATA(rtlpriv, COMP_INIT, DBG_LOUD, ("MAP\n"),
 		      hwinfo, HWSET_MAX_SIZE);
-	eeprom_id = *((u16 *)&hwinfo[0]);
+	eeprom_id = le16_to_cpu(*((__le16 *)&hwinfo[0]));
 	if (eeprom_id != RTL8190_EEPROM_ID) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 ("EEPROM ID(%#x) is invalid!!\n", eeprom_id));
@@ -516,13 +516,14 @@ static void _rtl92cu_read_adapter_info(struct ieee80211_hw *hw)
 	pr_info("MAC address: %pM\n", rtlefuse->dev_addr);
 	_rtl92cu_read_txpower_info_from_hwpg(hw,
 					   rtlefuse->autoload_failflag, hwinfo);
-	rtlefuse->eeprom_vid = *(u16 *)&hwinfo[EEPROM_VID];
-	rtlefuse->eeprom_did = *(u16 *)&hwinfo[EEPROM_DID];
+	rtlefuse->eeprom_vid = le16_to_cpu(*(__le16 *)&hwinfo[EEPROM_VID]);
+	rtlefuse->eeprom_did = le16_to_cpu(*(__le16 *)&hwinfo[EEPROM_DID]);
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
 		 (" VID = 0x%02x PID = 0x%02x\n",
 		 rtlefuse->eeprom_vid, rtlefuse->eeprom_did));
 	rtlefuse->eeprom_channelplan = *(u8 *)&hwinfo[EEPROM_CHANNELPLAN];
-	rtlefuse->eeprom_version = *(u16 *)&hwinfo[EEPROM_VERSION];
+	rtlefuse->eeprom_version =
+			 le16_to_cpu(*(__le16 *)&hwinfo[EEPROM_VERSION]);
 	rtlefuse->txpwr_fromeprom = true;
 	rtlefuse->eeprom_oemid = *(u8 *)&hwinfo[EEPROM_CUSTOMER_ID];
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,

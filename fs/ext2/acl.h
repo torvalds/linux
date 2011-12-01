@@ -61,7 +61,6 @@ extern int ext2_init_acl (struct inode *, struct inode *);
 #else
 #include <linux/sched.h>
 #define ext2_get_acl	NULL
-#define ext2_get_acl	NULL
 #define ext2_set_acl	NULL
 
 static inline int

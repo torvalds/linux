@@ -19,8 +19,7 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/version.h>
-#define SAA7134_VERSION_CODE KERNEL_VERSION(0, 2, 16)
+#define SAA7134_VERSION "0, 2, 17"
 
 #include <linux/pci.h>
 #include <linux/i2c.h>
@@ -844,10 +843,10 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev);
 int saa7134_ir_start(struct saa7134_dev *dev);
 void saa7134_ir_stop(struct saa7134_dev *dev);
 #else
-#define saa7134_input_init1(dev)	(0)
-#define saa7134_input_fini(dev)		(0)
-#define saa7134_input_irq(dev)		(0)
-#define saa7134_probe_i2c_ir(dev)	(0)
-#define saa7134_ir_start(dev)		(0)
-#define saa7134_ir_stop(dev)		(0)
+#define saa7134_input_init1(dev)	((void)0)
+#define saa7134_input_fini(dev)		((void)0)
+#define saa7134_input_irq(dev)		((void)0)
+#define saa7134_probe_i2c_ir(dev)	((void)0)
+#define saa7134_ir_start(dev)		((void)0)
+#define saa7134_ir_stop(dev)		((void)0)
 #endif

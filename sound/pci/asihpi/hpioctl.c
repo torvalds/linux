@@ -33,6 +33,7 @@ Common Linux HPI ioctl and module probe/remove functions
 #include <asm/uaccess.h>
 #include <linux/pci.h>
 #include <linux/stringify.h>
+#include <linux/module.h>
 
 #ifdef MODULE_FIRMWARE
 MODULE_FIRMWARE("asihpi/dsp5000.bin");
@@ -177,16 +178,21 @@ long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	} else {
 		u16 __user *ptr = NULL;
 		u32 size = 0;
-
+		u32 adapter_present;
 		/* -1=no data 0=read from user mem, 1=write to user mem */
 		int wrflag = -1;
-		u32 adapter = hm->h.adapter_index;
-		struct hpi_adapter *pa = &adapters[adapter];
+		struct hpi_adapter *pa;
 
-		if ((adapter >= HPI_MAX_ADAPTERS) || (!pa->type)) {
-			hpi_init_response(&hr->r0, HPI_OBJ_ADAPTER,
-				HPI_ADAPTER_OPEN,
-				HPI_ERROR_BAD_ADAPTER_NUMBER);
+		if (hm->h.adapter_index < HPI_MAX_ADAPTERS) {
+			pa = &adapters[hm->h.adapter_index];
+			adapter_present = pa->type;
+		} else {
+			adapter_present = 0;
+		}
+
+		if (!adapter_present) {
+			hpi_init_response(&hr->r0, hm->h.object,
+				hm->h.function, HPI_ERROR_BAD_ADAPTER_NUMBER);
 
 			uncopied_bytes =
 				copy_to_user(puhr, hr, sizeof(hr->h));

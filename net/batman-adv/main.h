@@ -28,7 +28,7 @@
 #define DRIVER_DEVICE "batman-adv"
 
 #ifndef SOURCE_VERSION
-#define SOURCE_VERSION "2011.3.0"
+#define SOURCE_VERSION "2011.4.0"
 #endif
 
 /* B.A.T.M.A.N. parameters */
@@ -44,7 +44,7 @@
 #define PURGE_TIMEOUT 200
 #define TT_LOCAL_TIMEOUT 3600 /* in seconds */
 #define TT_CLIENT_ROAM_TIMEOUT 600
-/* sliding packet range of received originator messages in squence numbers
+/* sliding packet range of received originator messages in sequence numbers
  * (should be a multiple of our word size) */
 #define TQ_LOCAL_WINDOW_SIZE 64
 #define TT_REQUEST_TIMEOUT 3 /* seconds we have to keep pending tt_req */
@@ -61,6 +61,8 @@
 #define ROAMING_MAX_COUNT 5
 
 #define NO_FLAGS 0
+
+#define NULL_IFINDEX 0 /* dummy ifindex used to avoid iface checks */
 
 #define NUM_WORDS (TQ_LOCAL_WINDOW_SIZE / WORD_BIT_SIZE)
 
@@ -133,7 +135,7 @@ enum dbg_level {
 #include <linux/mutex.h>	/* mutex */
 #include <linux/module.h>	/* needed by all modules */
 #include <linux/netdevice.h>	/* netdevice */
-#include <linux/etherdevice.h>  /* ethernet address classifaction */
+#include <linux/etherdevice.h>  /* ethernet address classification */
 #include <linux/if_ether.h>	/* ethernet header */
 #include <linux/poll.h>		/* poll_table */
 #include <linux/kthread.h>	/* kernel threads */

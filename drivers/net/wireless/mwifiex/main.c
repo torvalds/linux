@@ -555,7 +555,7 @@ static const struct net_device_ops mwifiex_netdev_ops = {
 	.ndo_set_mac_address = mwifiex_set_mac_address,
 	.ndo_tx_timeout = mwifiex_tx_timeout,
 	.ndo_get_stats = mwifiex_get_stats,
-	.ndo_set_multicast_list = mwifiex_set_multicast_list,
+	.ndo_set_rx_mode = mwifiex_set_multicast_list,
 };
 
 /*
@@ -661,7 +661,7 @@ mwifiex_terminate_workqueue(struct mwifiex_adapter *adapter)
  */
 int
 mwifiex_add_card(void *card, struct semaphore *sem,
-		 struct mwifiex_if_ops *if_ops)
+		 struct mwifiex_if_ops *if_ops, u8 iface_type)
 {
 	struct mwifiex_adapter *adapter;
 	char fmt[64];
@@ -675,6 +675,8 @@ mwifiex_add_card(void *card, struct semaphore *sem,
 		goto err_init_sw;
 	}
 
+	adapter->iface_type = iface_type;
+
 	adapter->hw_status = MWIFIEX_HW_STATUS_INITIALIZING;
 	adapter->surprise_removed = false;
 	init_waitqueue_head(&adapter->init_wait_q);
@@ -683,8 +685,8 @@ mwifiex_add_card(void *card, struct semaphore *sem,
 	init_waitqueue_head(&adapter->hs_activate_wait_q);
 	adapter->cmd_wait_q_required = false;
 	init_waitqueue_head(&adapter->cmd_wait_q.wait);
-	adapter->cmd_wait_q.condition = false;
 	adapter->cmd_wait_q.status = 0;
+	adapter->scan_wait_q_woken = false;
 
 	adapter->workqueue = create_workqueue("MWIFIEX_WORK_QUEUE");
 	if (!adapter->workqueue)
@@ -824,6 +826,10 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter, struct semaphore *sem)
 		mwifiex_del_virtual_intf(priv->wdev->wiphy, priv->netdev);
 		rtnl_unlock();
 	}
+
+	priv = adapter->priv[0];
+	if (!priv)
+		goto exit_remove;
 
 	wiphy_unregister(priv->wdev->wiphy);
 	wiphy_free(priv->wdev->wiphy);

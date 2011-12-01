@@ -174,6 +174,24 @@ static int tcm_loop_new_cmd_map(struct se_cmd *se_cmd)
 		sgl_bidi = sdb->table.sgl;
 		sgl_bidi_count = sdb->table.nents;
 	}
+	/*
+	 * Because some userspace code via scsi-generic do not memset their
+	 * associated read buffers, go ahead and do that here for type
+	 * SCF_SCSI_CONTROL_SG_IO_CDB.  Also note that this is currently
+	 * guaranteed to be a single SGL for SCF_SCSI_CONTROL_SG_IO_CDB
+	 * by target core in transport_generic_allocate_tasks() ->
+	 * transport_generic_cmd_sequencer().
+	 */
+	if (se_cmd->se_cmd_flags & SCF_SCSI_CONTROL_SG_IO_CDB &&
+	    se_cmd->data_direction == DMA_FROM_DEVICE) {
+		struct scatterlist *sg = scsi_sglist(sc);
+		unsigned char *buf = kmap(sg_page(sg)) + sg->offset;
+
+		if (buf != NULL) {
+			memset(buf, 0, sg->length);
+			kunmap(sg_page(sg));
+		}
+	}
 
 	/* Tell the core about our preallocated memory */
 	ret = transport_generic_map_mem_to_cmd(se_cmd, scsi_sglist(sc),
@@ -187,7 +205,7 @@ static int tcm_loop_new_cmd_map(struct se_cmd *se_cmd)
 /*
  * Called from struct target_core_fabric_ops->check_stop_free()
  */
-static void tcm_loop_check_stop_free(struct se_cmd *se_cmd)
+static int tcm_loop_check_stop_free(struct se_cmd *se_cmd)
 {
 	/*
 	 * Do not release struct se_cmd's containing a valid TMR
@@ -195,12 +213,13 @@ static void tcm_loop_check_stop_free(struct se_cmd *se_cmd)
 	 * with transport_generic_free_cmd().
 	 */
 	if (se_cmd->se_tmr_req)
-		return;
+		return 0;
 	/*
 	 * Release the struct se_cmd, which will make a callback to release
 	 * struct tcm_loop_cmd * in tcm_loop_deallocate_core_cmd()
 	 */
-	transport_generic_free_cmd(se_cmd, 0, 0);
+	transport_generic_free_cmd(se_cmd, 0);
+	return 1;
 }
 
 static void tcm_loop_release_cmd(struct se_cmd *se_cmd)
@@ -290,6 +309,15 @@ static int tcm_loop_queuecommand(
 	 */
 	tl_hba = *(struct tcm_loop_hba **)shost_priv(sc->device->host);
 	tl_tpg = &tl_hba->tl_hba_tpgs[sc->device->id];
+	/*
+	 * Ensure that this tl_tpg reference from the incoming sc->device->id
+	 * has already been configured via tcm_loop_make_naa_tpg().
+	 */
+	if (!tl_tpg->tl_hba) {
+		set_host_byte(sc, DID_NO_CONNECT);
+		sc->scsi_done(sc);
+		return 0;
+	}
 	se_tpg = &tl_tpg->tl_se_tpg;
 	/*
 	 * Determine the SAM Task Attribute and allocate tl_cmd and
@@ -366,7 +394,7 @@ static int tcm_loop_device_reset(struct scsi_cmnd *sc)
 	 * Allocate the LUN_RESET TMR
 	 */
 	se_cmd->se_tmr_req = core_tmr_alloc_req(se_cmd, tl_tmr,
-				TMR_LUN_RESET);
+						TMR_LUN_RESET, GFP_KERNEL);
 	if (IS_ERR(se_cmd->se_tmr_req))
 		goto release;
 	/*
@@ -388,7 +416,7 @@ static int tcm_loop_device_reset(struct scsi_cmnd *sc)
 		SUCCESS : FAILED;
 release:
 	if (se_cmd)
-		transport_generic_free_cmd(se_cmd, 1, 0);
+		transport_generic_free_cmd(se_cmd, 1);
 	else
 		kmem_cache_free(tcm_loop_cmd_cache, tl_cmd);
 	kfree(tl_tmr);
@@ -1244,6 +1272,9 @@ void tcm_loop_drop_naa_tpg(
 	 * Deregister the tl_tpg as a emulated SAS TCM Target Endpoint
 	 */
 	core_tpg_deregister(se_tpg);
+
+	tl_tpg->tl_hba = NULL;
+	tl_tpg->tl_tpgt = 0;
 
 	pr_debug("TCM_Loop_ConfigFS: Deallocated Emulated %s"
 		" Target Port %s,t,0x%04x\n", tcm_loop_dump_proto_id(tl_hba),

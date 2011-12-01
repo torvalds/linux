@@ -16,6 +16,7 @@
 
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/export.h>
 #include <asm/unaligned.h>
 
 #include "ath9k.h"
@@ -523,9 +524,22 @@ static ssize_t read_file_wiphy(struct file *file, char __user *user_buf,
 	if (tmp & ATH9K_RX_FILTER_PHYRADAR)
 		len += snprintf(buf + len, sizeof(buf) - len, " PHYRADAR");
 	if (tmp & ATH9K_RX_FILTER_MCAST_BCAST_ALL)
-		len += snprintf(buf + len, sizeof(buf) - len, " MCAST_BCAST_ALL\n");
-	else
-		len += snprintf(buf + len, sizeof(buf) - len, "\n");
+		len += snprintf(buf + len, sizeof(buf) - len, " MCAST_BCAST_ALL");
+
+	len += snprintf(buf + len, sizeof(buf) - len,
+		       "\n\nReset causes:\n"
+		       "  baseband hang: %d\n"
+		       "  baseband watchdog: %d\n"
+		       "  fatal hardware error interrupt: %d\n"
+		       "  tx hardware error: %d\n"
+		       "  tx path hang: %d\n"
+		       "  pll rx hang: %d\n",
+		       sc->debug.stats.reset[RESET_TYPE_BB_HANG],
+		       sc->debug.stats.reset[RESET_TYPE_BB_WATCHDOG],
+		       sc->debug.stats.reset[RESET_TYPE_FATAL_INT],
+		       sc->debug.stats.reset[RESET_TYPE_TX_ERROR],
+		       sc->debug.stats.reset[RESET_TYPE_TX_HANG],
+		       sc->debug.stats.reset[RESET_TYPE_PLL_HANG]);
 
 	if (len > sizeof(buf))
 		len = sizeof(buf);
@@ -695,24 +709,29 @@ static ssize_t read_file_stations(struct file *file, char __user *user_buf,
 
 	len += snprintf(buf + len, size - len,
 			"Stations:\n"
-			" tid: addr sched paused buf_q-empty an ac\n"
+			" tid: addr sched paused buf_q-empty an ac baw\n"
 			" ac: addr sched tid_q-empty txq\n");
 
 	spin_lock(&sc->nodes_lock);
 	list_for_each_entry(an, &sc->nodes, list) {
+		unsigned short ma = an->maxampdu;
+		if (ma == 0)
+			ma = 65535; /* see ath_lookup_rate */
 		len += snprintf(buf + len, size - len,
-				"%pM\n", an->sta->addr);
+				"iface: %pM  sta: %pM max-ampdu: %hu mpdu-density: %uus\n",
+				an->vif->addr, an->sta->addr, ma,
+				(unsigned int)(an->mpdudensity));
 		if (len >= size)
 			goto done;
 
 		for (q = 0; q < WME_NUM_TID; q++) {
 			struct ath_atx_tid *tid = &(an->tid[q]);
 			len += snprintf(buf + len, size - len,
-					" tid: %p %s %s %i %p %p\n",
+					" tid: %p %s %s %i %p %p %hu\n",
 					tid, tid->sched ? "sched" : "idle",
 					tid->paused ? "paused" : "running",
 					skb_queue_empty(&tid->buf_q),
-					tid->an, tid->ac);
+					tid->an, tid->ac, tid->baw_size);
 			if (len >= size)
 				goto done;
 		}

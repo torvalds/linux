@@ -23,7 +23,6 @@
 #define LPFC_XRI_EXCH_BUSY_WAIT_T1   		10
 #define LPFC_XRI_EXCH_BUSY_WAIT_T2              30000
 #define LPFC_RELEASE_NOTIFICATION_INTERVAL	32
-#define LPFC_GET_QE_REL_INT			32
 #define LPFC_RPI_LOW_WATER_MARK			10
 
 #define LPFC_UNREG_FCF                          1
@@ -81,6 +80,8 @@
 	 (fc_hdr)->fh_f_ctl[1] <<  8 | \
 	 (fc_hdr)->fh_f_ctl[2])
 
+#define LPFC_FW_RESET_MAXIMUM_WAIT_10MS_CNT 12000
+
 enum lpfc_sli4_queue_type {
 	LPFC_EQ,
 	LPFC_GCQ,
@@ -124,6 +125,8 @@ struct lpfc_queue {
 	struct list_head child_list;
 	uint32_t entry_count;	/* Number of entries to support on the queue */
 	uint32_t entry_size;	/* Size of each queue entry. */
+	uint32_t entry_repost;	/* Count of entries before doorbell is rung */
+#define LPFC_QUEUE_MIN_REPOST	8
 	uint32_t queue_id;	/* Queue ID assigned by the hardware */
 	uint32_t assoc_qid;     /* Queue ID associated with, for CQ/WQ/MQ */
 	struct list_head page_list;
@@ -157,6 +160,25 @@ struct lpfc_fcf_rec {
 #define RECORD_VALID	0x02
 };
 
+struct lpfc_fcf_pri_rec {
+	uint16_t fcf_index;
+#define LPFC_FCF_ON_PRI_LIST 0x0001
+#define LPFC_FCF_FLOGI_FAILED 0x0002
+	uint16_t flag;
+	uint32_t priority;
+};
+
+struct lpfc_fcf_pri {
+	struct list_head list;
+	struct lpfc_fcf_pri_rec fcf_rec;
+};
+
+/*
+ * Maximum FCF table index, it is for driver internal book keeping, it
+ * just needs to be no less than the supported HBA's FCF table size.
+ */
+#define LPFC_SLI4_FCF_TBL_INDX_MAX	32
+
 struct lpfc_fcf {
 	uint16_t fcfi;
 	uint32_t fcf_flag;
@@ -176,15 +198,13 @@ struct lpfc_fcf {
 	uint32_t eligible_fcf_cnt;
 	struct lpfc_fcf_rec current_rec;
 	struct lpfc_fcf_rec failover_rec;
+	struct list_head fcf_pri_list;
+	struct lpfc_fcf_pri fcf_pri[LPFC_SLI4_FCF_TBL_INDX_MAX];
+	uint32_t current_fcf_scan_pri;
 	struct timer_list redisc_wait;
 	unsigned long *fcf_rr_bmask; /* Eligible FCF indexes for RR failover */
 };
 
-/*
- * Maximum FCF table index, it is for driver internal book keeping, it
- * just needs to be no less than the supported HBA's FCF table size.
- */
-#define LPFC_SLI4_FCF_TBL_INDX_MAX	32
 
 #define LPFC_REGION23_SIGNATURE "RG23"
 #define LPFC_REGION23_VERSION	1
@@ -369,6 +389,16 @@ struct lpfc_iov {
 	uint32_t vf_number;
 };
 
+struct lpfc_sli4_lnk_info {
+	uint8_t lnk_dv;
+#define LPFC_LNK_DAT_INVAL	0
+#define LPFC_LNK_DAT_VAL	1
+	uint8_t lnk_tp;
+#define LPFC_LNK_GE	0x0 /* FCoE */
+#define LPFC_LNK_FC	0x1 /* FC   */
+	uint8_t lnk_no;
+};
+
 /* SLI4 HBA data structure entries */
 struct lpfc_sli4_hba {
 	void __iomem *conf_regs_memmap_p; /* Kernel memory mapped address for
@@ -484,6 +514,10 @@ struct lpfc_sli4_hba {
 	struct list_head sp_els_xri_aborted_work_queue;
 	struct list_head sp_unsol_work_queue;
 	struct lpfc_sli4_link link_state;
+	struct lpfc_sli4_lnk_info lnk_info;
+	uint32_t pport_name_sta;
+#define LPFC_SLI4_PPNAME_NON	0
+#define LPFC_SLI4_PPNAME_GET	1
 	struct lpfc_iov iov;
 	spinlock_t abts_scsi_buf_list_lock; /* list of aborted SCSI IOs */
 	spinlock_t abts_sgl_list_lock; /* list of aborted els IOs */
@@ -534,6 +568,7 @@ struct lpfc_rsrc_blks {
  * SLI4 specific function prototypes
  */
 int lpfc_pci_function_reset(struct lpfc_hba *);
+int lpfc_sli4_pdev_status_reg_wait(struct lpfc_hba *);
 int lpfc_sli4_hba_setup(struct lpfc_hba *);
 int lpfc_sli4_config(struct lpfc_hba *, struct lpfcMboxq *, uint8_t,
 		     uint8_t, uint32_t, bool);
@@ -557,6 +592,7 @@ uint32_t lpfc_wq_create(struct lpfc_hba *, struct lpfc_queue *,
 			struct lpfc_queue *, uint32_t);
 uint32_t lpfc_rq_create(struct lpfc_hba *, struct lpfc_queue *,
 			struct lpfc_queue *, struct lpfc_queue *, uint32_t);
+void lpfc_rq_adjust_repost(struct lpfc_hba *, struct lpfc_queue *, int);
 uint32_t lpfc_eq_destroy(struct lpfc_hba *, struct lpfc_queue *);
 uint32_t lpfc_cq_destroy(struct lpfc_hba *, struct lpfc_queue *);
 uint32_t lpfc_mq_destroy(struct lpfc_hba *, struct lpfc_queue *);
@@ -613,5 +649,5 @@ void lpfc_mbx_cmpl_fcf_rr_read_fcf_rec(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_mbx_cmpl_read_fcf_rec(struct lpfc_hba *, LPFC_MBOXQ_t *);
 int lpfc_sli4_unregister_fcf(struct lpfc_hba *);
 int lpfc_sli4_post_status_check(struct lpfc_hba *);
-uint8_t lpfc_sli4_mbox_opcode_get(struct lpfc_hba *, struct lpfcMboxq *);
-
+uint8_t lpfc_sli_config_mbox_subsys_get(struct lpfc_hba *, LPFC_MBOXQ_t *);
+uint8_t lpfc_sli_config_mbox_opcode_get(struct lpfc_hba *, LPFC_MBOXQ_t *);

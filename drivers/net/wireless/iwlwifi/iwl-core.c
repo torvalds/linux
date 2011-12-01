@@ -34,14 +34,11 @@
 #include <net/mac80211.h>
 
 #include "iwl-eeprom.h"
-#include "iwl-dev.h" /* FIXME: remove */
 #include "iwl-debug.h"
 #include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-power.h"
-#include "iwl-sta.h"
 #include "iwl-agn.h"
-#include "iwl-helpers.h"
 #include "iwl-shared.h"
 #include "iwl-agn.h"
 #include "iwl-trans.h"
@@ -211,7 +208,7 @@ int iwl_init_geos(struct iwl_priv *priv)
 	if ((priv->bands[IEEE80211_BAND_5GHZ].n_channels == 0) &&
 	     priv->cfg->sku & EEPROM_SKU_CAP_BAND_52GHZ) {
 		char buf[32];
-		bus_get_hw_id(priv->bus, buf, sizeof(buf));
+		bus_get_hw_id(bus(priv), buf, sizeof(buf));
 		IWL_INFO(priv, "Incorrectly detected BG card as ABG. "
 			"Please send your %s to maintainer.\n", buf);
 		priv->cfg->sku &= ~EEPROM_SKU_CAP_BAND_52GHZ;
@@ -323,7 +320,7 @@ int iwl_send_rxon_timing(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	u16 beacon_int;
 	struct ieee80211_vif *vif = ctx->vif;
 
-	conf = ieee80211_get_hw_conf(priv->hw);
+	conf = &priv->hw->conf;
 
 	lockdep_assert_held(&priv->shrd->mutex);
 
@@ -804,7 +801,7 @@ void iwl_chswitch_done(struct iwl_priv *priv, bool is_success)
 {
 	/*
 	 * MULTI-FIXME
-	 * See iwl_mac_channel_switch.
+	 * See iwlagn_mac_channel_switch.
 	 */
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 
@@ -979,7 +976,7 @@ int iwl_apm_init(struct iwl_priv *priv)
 	iwl_set_bit(bus(priv), CSR_HW_IF_CONFIG_REG,
 				    CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A);
 
-	bus_apm_config(priv->bus);
+	bus_apm_config(bus(priv));
 
 	/* Configure analog phase-lock-loop before activating to D0A */
 	if (priv->cfg->base_params->pll_cfg_val)
@@ -1123,228 +1120,8 @@ int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags, bool clear)
 					&statistics_cmd);
 }
 
-int iwl_mac_conf_tx(struct ieee80211_hw *hw,
-		    struct ieee80211_vif *vif, u16 queue,
-		    const struct ieee80211_tx_queue_params *params)
-{
-	struct iwl_priv *priv = hw->priv;
-	struct iwl_rxon_context *ctx;
-	unsigned long flags;
-	int q;
 
-	IWL_DEBUG_MAC80211(priv, "enter\n");
 
-	if (!iwl_is_ready_rf(priv->shrd)) {
-		IWL_DEBUG_MAC80211(priv, "leave - RF not ready\n");
-		return -EIO;
-	}
-
-	if (queue >= AC_NUM) {
-		IWL_DEBUG_MAC80211(priv, "leave - queue >= AC_NUM %d\n", queue);
-		return 0;
-	}
-
-	q = AC_NUM - 1 - queue;
-
-	spin_lock_irqsave(&priv->shrd->lock, flags);
-
-	/*
-	 * MULTI-FIXME
-	 * This may need to be done per interface in nl80211/cfg80211/mac80211.
-	 */
-	for_each_context(priv, ctx) {
-		ctx->qos_data.def_qos_parm.ac[q].cw_min =
-			cpu_to_le16(params->cw_min);
-		ctx->qos_data.def_qos_parm.ac[q].cw_max =
-			cpu_to_le16(params->cw_max);
-		ctx->qos_data.def_qos_parm.ac[q].aifsn = params->aifs;
-		ctx->qos_data.def_qos_parm.ac[q].edca_txop =
-				cpu_to_le16((params->txop * 32));
-
-		ctx->qos_data.def_qos_parm.ac[q].reserved1 = 0;
-	}
-
-	spin_unlock_irqrestore(&priv->shrd->lock, flags);
-
-	IWL_DEBUG_MAC80211(priv, "leave\n");
-	return 0;
-}
-
-int iwl_mac_tx_last_beacon(struct ieee80211_hw *hw)
-{
-	struct iwl_priv *priv = hw->priv;
-
-	return priv->ibss_manager == IWL_IBSS_MANAGER;
-}
-
-static int iwl_set_mode(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
-{
-	iwl_connection_init_rx_config(priv, ctx);
-
-	iwlagn_set_rxon_chain(priv, ctx);
-
-	return iwlagn_commit_rxon(priv, ctx);
-}
-
-static int iwl_setup_interface(struct iwl_priv *priv,
-			       struct iwl_rxon_context *ctx)
-{
-	struct ieee80211_vif *vif = ctx->vif;
-	int err;
-
-	lockdep_assert_held(&priv->shrd->mutex);
-
-	/*
-	 * This variable will be correct only when there's just
-	 * a single context, but all code using it is for hardware
-	 * that supports only one context.
-	 */
-	priv->iw_mode = vif->type;
-
-	ctx->is_active = true;
-
-	err = iwl_set_mode(priv, ctx);
-	if (err) {
-		if (!ctx->always_active)
-			ctx->is_active = false;
-		return err;
-	}
-
-	if (priv->cfg->bt_params && priv->cfg->bt_params->advanced_bt_coexist &&
-	    vif->type == NL80211_IFTYPE_ADHOC) {
-		/*
-		 * pretend to have high BT traffic as long as we
-		 * are operating in IBSS mode, as this will cause
-		 * the rate scaling etc. to behave as intended.
-		 */
-		priv->bt_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_HIGH;
-	}
-
-	return 0;
-}
-
-int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
-{
-	struct iwl_priv *priv = hw->priv;
-	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
-	struct iwl_rxon_context *tmp, *ctx = NULL;
-	int err;
-	enum nl80211_iftype viftype = ieee80211_vif_type_p2p(vif);
-
-	IWL_DEBUG_MAC80211(priv, "enter: type %d, addr %pM\n",
-			   viftype, vif->addr);
-
-	cancel_delayed_work_sync(&priv->hw_roc_disable_work);
-
-	mutex_lock(&priv->shrd->mutex);
-
-	iwlagn_disable_roc(priv);
-
-	if (!iwl_is_ready_rf(priv->shrd)) {
-		IWL_WARN(priv, "Try to add interface when device not ready\n");
-		err = -EINVAL;
-		goto out;
-	}
-
-	for_each_context(priv, tmp) {
-		u32 possible_modes =
-			tmp->interface_modes | tmp->exclusive_interface_modes;
-
-		if (tmp->vif) {
-			/* check if this busy context is exclusive */
-			if (tmp->exclusive_interface_modes &
-						BIT(tmp->vif->type)) {
-				err = -EINVAL;
-				goto out;
-			}
-			continue;
-		}
-
-		if (!(possible_modes & BIT(viftype)))
-			continue;
-
-		/* have maybe usable context w/o interface */
-		ctx = tmp;
-		break;
-	}
-
-	if (!ctx) {
-		err = -EOPNOTSUPP;
-		goto out;
-	}
-
-	vif_priv->ctx = ctx;
-	ctx->vif = vif;
-
-	err = iwl_setup_interface(priv, ctx);
-	if (!err)
-		goto out;
-
-	ctx->vif = NULL;
-	priv->iw_mode = NL80211_IFTYPE_STATION;
- out:
-	mutex_unlock(&priv->shrd->mutex);
-
-	IWL_DEBUG_MAC80211(priv, "leave\n");
-	return err;
-}
-
-static void iwl_teardown_interface(struct iwl_priv *priv,
-				   struct ieee80211_vif *vif,
-				   bool mode_change)
-{
-	struct iwl_rxon_context *ctx = iwl_rxon_ctx_from_vif(vif);
-
-	lockdep_assert_held(&priv->shrd->mutex);
-
-	if (priv->scan_vif == vif) {
-		iwl_scan_cancel_timeout(priv, 200);
-		iwl_force_scan_end(priv);
-	}
-
-	if (!mode_change) {
-		iwl_set_mode(priv, ctx);
-		if (!ctx->always_active)
-			ctx->is_active = false;
-	}
-
-	/*
-	 * When removing the IBSS interface, overwrite the
-	 * BT traffic load with the stored one from the last
-	 * notification, if any. If this is a device that
-	 * doesn't implement this, this has no effect since
-	 * both values are the same and zero.
-	 */
-	if (vif->type == NL80211_IFTYPE_ADHOC)
-		priv->bt_traffic_load = priv->last_bt_traffic_load;
-}
-
-void iwl_mac_remove_interface(struct ieee80211_hw *hw,
-			      struct ieee80211_vif *vif)
-{
-	struct iwl_priv *priv = hw->priv;
-	struct iwl_rxon_context *ctx = iwl_rxon_ctx_from_vif(vif);
-
-	IWL_DEBUG_MAC80211(priv, "enter\n");
-
-	mutex_lock(&priv->shrd->mutex);
-
-	if (WARN_ON(ctx->vif != vif)) {
-		struct iwl_rxon_context *tmp;
-		IWL_ERR(priv, "ctx->vif = %p, vif = %p\n", ctx->vif, vif);
-		for_each_context(priv, tmp)
-			IWL_ERR(priv, "\tID = %d:\tctx = %p\tctx->vif = %p\n",
-				tmp->ctxid, tmp, tmp->vif);
-	}
-	ctx->vif = NULL;
-
-	iwl_teardown_interface(priv, vif, false);
-
-	mutex_unlock(&priv->shrd->mutex);
-
-	IWL_DEBUG_MAC80211(priv, "leave\n");
-
-}
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 
@@ -1651,91 +1428,29 @@ int iwl_force_reset(struct iwl_priv *priv, int mode, bool external)
 	return 0;
 }
 
-int iwl_mac_change_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			     enum nl80211_iftype newtype, bool newp2p)
+
+int iwl_cmd_echo_test(struct iwl_priv *priv)
 {
-	struct iwl_priv *priv = hw->priv;
-	struct iwl_rxon_context *ctx = iwl_rxon_ctx_from_vif(vif);
-	struct iwl_rxon_context *bss_ctx = &priv->contexts[IWL_RXON_CTX_BSS];
-	struct iwl_rxon_context *tmp;
-	enum nl80211_iftype newviftype = newtype;
-	u32 interface_modes;
-	int err;
+	int ret;
+	struct iwl_host_cmd cmd = {
+		.id = REPLY_ECHO,
+		.len = { 0 },
+		.flags = CMD_SYNC,
+	};
 
-	newtype = ieee80211_iftype_p2p(newtype, newp2p);
-
-	mutex_lock(&priv->shrd->mutex);
-
-	if (!ctx->vif || !iwl_is_ready_rf(priv->shrd)) {
-		/*
-		 * Huh? But wait ... this can maybe happen when
-		 * we're in the middle of a firmware restart!
-		 */
-		err = -EBUSY;
-		goto out;
-	}
-
-	interface_modes = ctx->interface_modes | ctx->exclusive_interface_modes;
-
-	if (!(interface_modes & BIT(newtype))) {
-		err = -EBUSY;
-		goto out;
-	}
-
-	/*
-	 * Refuse a change that should be done by moving from the PAN
-	 * context to the BSS context instead, if the BSS context is
-	 * available and can support the new interface type.
-	 */
-	if (ctx->ctxid == IWL_RXON_CTX_PAN && !bss_ctx->vif &&
-	    (bss_ctx->interface_modes & BIT(newtype) ||
-	     bss_ctx->exclusive_interface_modes & BIT(newtype))) {
-		BUILD_BUG_ON(NUM_IWL_RXON_CTX != 2);
-		err = -EBUSY;
-		goto out;
-	}
-
-	if (ctx->exclusive_interface_modes & BIT(newtype)) {
-		for_each_context(priv, tmp) {
-			if (ctx == tmp)
-				continue;
-
-			if (!tmp->vif)
-				continue;
-
-			/*
-			 * The current mode switch would be exclusive, but
-			 * another context is active ... refuse the switch.
-			 */
-			err = -EBUSY;
-			goto out;
-		}
-	}
-
-	/* success */
-	iwl_teardown_interface(priv, vif, true);
-	vif->type = newviftype;
-	vif->p2p = newp2p;
-	err = iwl_setup_interface(priv, ctx);
-	WARN_ON(err);
-	/*
-	 * We've switched internally, but submitting to the
-	 * device may have failed for some reason. Mask this
-	 * error, because otherwise mac80211 will not switch
-	 * (and set the interface type back) and we'll be
-	 * out of sync with it.
-	 */
-	err = 0;
-
- out:
-	mutex_unlock(&priv->shrd->mutex);
-	return err;
+	ret = iwl_trans_send_cmd(trans(priv), &cmd);
+	if (ret)
+		IWL_ERR(priv, "echo testing fail: 0X%x\n", ret);
+	else
+		IWL_DEBUG_INFO(priv, "echo testing pass\n");
+	return ret;
 }
 
 static inline int iwl_check_stuck_queue(struct iwl_priv *priv, int txq)
 {
 	if (iwl_trans_check_stuck_queue(trans(priv), txq)) {
-		int ret = iwl_force_reset(priv, IWL_FW_RESET, false);
+		int ret;
+		ret = iwl_force_reset(priv, IWL_FW_RESET, false);
 		return (ret == -EAGAIN) ? 0 : 1;
 	}
 	return 0;
@@ -1758,6 +1473,9 @@ void iwl_bg_watchdog(unsigned long data)
 	unsigned long timeout;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
+		return;
+
+	if (iwl_is_rfkill(priv->shrd))
 		return;
 
 	timeout = priv->cfg->base_params->wd_timeout;
@@ -1792,6 +1510,28 @@ void iwl_setup_watchdog(struct iwl_priv *priv)
 			  jiffies + msecs_to_jiffies(IWL_WD_TICK(timeout)));
 	else
 		del_timer(&priv->watchdog);
+}
+
+/**
+ * iwl_beacon_time_mask_low - mask of lower 32 bit of beacon time
+ * @priv -- pointer to iwl_priv data structure
+ * @tsf_bits -- number of bits need to shift for masking)
+ */
+static inline u32 iwl_beacon_time_mask_low(struct iwl_priv *priv,
+					   u16 tsf_bits)
+{
+	return (1 << tsf_bits) - 1;
+}
+
+/**
+ * iwl_beacon_time_mask_high - mask of higher 32 bit of beacon time
+ * @priv -- pointer to iwl_priv data structure
+ * @tsf_bits -- number of bits need to shift for masking)
+ */
+static inline u32 iwl_beacon_time_mask_high(struct iwl_priv *priv,
+					    u16 tsf_bits)
+{
+	return ((1 << (32 - tsf_bits)) - 1) << tsf_bits;
 }
 
 /*

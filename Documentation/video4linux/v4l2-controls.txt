@@ -277,22 +277,19 @@ implement g_volatile_ctrl like this:
 	{
 		switch (ctrl->id) {
 		case V4L2_CID_BRIGHTNESS:
-			ctrl->cur.val = read_reg(0x123);
+			ctrl->val = read_reg(0x123);
 			break;
 		}
 	}
 
-The 'new value' union is not used in g_volatile_ctrl. In general controls
-that need to implement g_volatile_ctrl are read-only controls.
+Note that you use the 'new value' union as well in g_volatile_ctrl. In general
+controls that need to implement g_volatile_ctrl are read-only controls.
 
-Note that if one or more controls in a control cluster are marked as volatile,
-then all the controls in the cluster are seen as volatile.
-
-To mark a control as volatile you have to set the is_volatile flag:
+To mark a control as volatile you have to set V4L2_CTRL_FLAG_VOLATILE:
 
 	ctrl = v4l2_ctrl_new_std(&sd->ctrl_handler, ...);
 	if (ctrl)
-		ctrl->is_volatile = 1;
+		ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
 
 For try/s_ctrl the new values (i.e. as passed by the user) are filled in and
 you can modify them in try_ctrl or set them in s_ctrl. The 'cur' union
@@ -370,8 +367,7 @@ Driver specific controls can be created using v4l2_ctrl_new_custom():
 The last argument is the priv pointer which can be set to driver-specific
 private data.
 
-The v4l2_ctrl_config struct also has fields to set the is_private and is_volatile
-flags.
+The v4l2_ctrl_config struct also has a field to set the is_private flag.
 
 If the name field is not set, then the framework will assume this is a standard
 control and will fill in the name, type and flags fields accordingly.
@@ -453,6 +449,25 @@ In the example above the following are equivalent for the VOLUME case:
 	ctrl == ctrl->cluster[AUDIO_CL_VOLUME] == state->audio_cluster[AUDIO_CL_VOLUME]
 	ctrl->cluster[AUDIO_CL_MUTE] == state->audio_cluster[AUDIO_CL_MUTE]
 
+In practice using cluster arrays like this becomes very tiresome. So instead
+the following equivalent method is used:
+
+	struct {
+		/* audio cluster */
+		struct v4l2_ctrl *volume;
+		struct v4l2_ctrl *mute;
+	};
+
+The anonymous struct is used to clearly 'cluster' these two control pointers,
+but it serves no other purpose. The effect is the same as creating an
+array with two control pointers. So you can just do:
+
+	state->volume = v4l2_ctrl_new_std(&state->ctrl_handler, ...);
+	state->mute = v4l2_ctrl_new_std(&state->ctrl_handler, ...);
+	v4l2_ctrl_cluster(2, &state->volume);
+
+And in foo_s_ctrl you can use these pointers directly: state->mute->val.
+
 Note that controls in a cluster may be NULL. For example, if for some
 reason mute was never added (because the hardware doesn't support that
 particular feature), then mute will be NULL. So in that case we have a
@@ -473,6 +488,49 @@ mute only. If the user would call VIDIOC_S_EXT_CTRLS for both mute and volume
 controls, then the 'is_new' flag would be 1 for both controls.
 
 The 'is_new' flag is always 1 when called from v4l2_ctrl_handler_setup().
+
+
+Handling autogain/gain-type Controls with Auto Clusters
+=======================================================
+
+A common type of control cluster is one that handles 'auto-foo/foo'-type
+controls. Typical examples are autogain/gain, autoexposure/exposure,
+autowhitebalance/red balance/blue balance. In all cases you have one control
+that determines whether another control is handled automatically by the hardware,
+or whether it is under manual control from the user.
+
+If the cluster is in automatic mode, then the manual controls should be
+marked inactive and volatile. When the volatile controls are read the
+g_volatile_ctrl operation should return the value that the hardware's automatic
+mode set up automatically.
+
+If the cluster is put in manual mode, then the manual controls should become
+active again and the volatile flag is cleared (so g_volatile_ctrl is no longer
+called while in manual mode). In addition just before switching to manual mode
+the current values as determined by the auto mode are copied as the new manual
+values.
+
+Finally the V4L2_CTRL_FLAG_UPDATE should be set for the auto control since
+changing that control affects the control flags of the manual controls.
+
+In order to simplify this a special variation of v4l2_ctrl_cluster was
+introduced:
+
+void v4l2_ctrl_auto_cluster(unsigned ncontrols, struct v4l2_ctrl **controls,
+			u8 manual_val, bool set_volatile);
+
+The first two arguments are identical to v4l2_ctrl_cluster. The third argument
+tells the framework which value switches the cluster into manual mode. The
+last argument will optionally set V4L2_CTRL_FLAG_VOLATILE for the non-auto controls.
+If it is false, then the manual controls are never volatile. You would typically
+use that if the hardware does not give you the option to read back to values as
+determined by the auto mode (e.g. if autogain is on, the hardware doesn't allow
+you to obtain the current gain value).
+
+The first control of the cluster is assumed to be the 'auto' control.
+
+Using this function will ensure that you don't need to handle all the complex
+flag and volatile handling.
 
 
 VIDIOC_LOG_STATUS Support
@@ -628,18 +686,6 @@ if there are no controls at all.
 count if nothing was done yet. If it is less than count then only the controls
 up to error_idx-1 were successfully applied.
 
-3) When attempting to read a button control the framework will return -EACCES
-instead of -EINVAL as stated in the spec. It seems to make more sense since
-button controls are write-only controls.
-
-4) Attempting to write to a read-only control will return -EACCES instead of
--EINVAL as the spec says.
-
-5) The spec does not mention what should happen when you try to set/get a
-control class controls. ivtv currently returns -EINVAL (indicating that the
-control ID does not exist) while the framework will return -EACCES, which
-makes more sense.
-
 
 Proposals for Extensions
 ========================
@@ -652,9 +698,3 @@ decimal. Useful for e.g. video_mute_yuv.
 2) It is possible to mark in the controls array which controls have been
 successfully written and which failed by for example adding a bit to the
 control ID. Not sure if it is worth the effort, though.
-
-3) Trying to set volatile inactive controls should result in -EACCESS.
-
-4) Add a new flag to mark volatile controls. Any application that wants
-to store the state of the controls can then skip volatile inactive controls.
-Currently it is not possible to detect such controls.

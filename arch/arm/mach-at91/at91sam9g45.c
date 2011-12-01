@@ -12,6 +12,7 @@
 
 #include <linux/module.h>
 #include <linux/pm.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
@@ -22,22 +23,9 @@
 #include <mach/at91_shdwc.h>
 #include <mach/cpu.h>
 
+#include "soc.h"
 #include "generic.h"
 #include "clock.h"
-
-static struct map_desc at91sam9g45_io_desc[] __initdata = {
-	{
-		.virtual	= AT91_VA_BASE_SYS,
-		.pfn		= __phys_to_pfn(AT91_BASE_SYS),
-		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= AT91_IO_VIRT_BASE - AT91SAM9G45_SRAM_SIZE,
-		.pfn		= __phys_to_pfn(AT91SAM9G45_SRAM_BASE),
-		.length		= AT91SAM9G45_SRAM_SIZE,
-		.type		= MT_DEVICE,
-	}
-};
 
 /* --------------------------------------------------------------------
  *  Clocks
@@ -64,6 +52,11 @@ static struct clk pioC_clk = {
 static struct clk pioDE_clk = {
 	.name		= "pioDE_clk",
 	.pmc_mask	= 1 << AT91SAM9G45_ID_PIODE,
+	.type		= CLK_TYPE_PERIPHERAL,
+};
+static struct clk trng_clk = {
+	.name		= "trng_clk",
+	.pmc_mask	= 1 << AT91SAM9G45_ID_TRNG,
 	.type		= CLK_TYPE_PERIPHERAL,
 };
 static struct clk usart0_clk = {
@@ -189,6 +182,7 @@ static struct clk *periph_clocks[] __initdata = {
 	&pioB_clk,
 	&pioC_clk,
 	&pioDE_clk,
+	&trng_clk,
 	&usart0_clk,
 	&usart1_clk,
 	&usart2_clk,
@@ -228,6 +222,15 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_DEV_ID("t0_clk", "atmel_tcb.1", &tcb0_clk),
 	CLKDEV_CON_DEV_ID("pclk", "ssc.0", &ssc0_clk),
 	CLKDEV_CON_DEV_ID("pclk", "ssc.1", &ssc1_clk),
+	CLKDEV_CON_DEV_ID(NULL, "atmel-trng", &trng_clk),
+	/* more usart lookup table for DT entries */
+	CLKDEV_CON_DEV_ID("usart", "ffffee00.serial", &mck),
+	CLKDEV_CON_DEV_ID("usart", "fff8c000.serial", &usart0_clk),
+	CLKDEV_CON_DEV_ID("usart", "fff90000.serial", &usart1_clk),
+	CLKDEV_CON_DEV_ID("usart", "fff94000.serial", &usart2_clk),
+	CLKDEV_CON_DEV_ID("usart", "fff98000.serial", &usart3_clk),
+	/* fake hclk clock */
+	CLKDEV_CON_DEV_ID("hclk", "at91_ohci", &uhphs_clk),
 };
 
 static struct clk_lookup usart_clocks_lookups[] = {
@@ -329,23 +332,17 @@ static void at91sam9g45_poweroff(void)
  *  AT91SAM9G45 processor initialization
  * -------------------------------------------------------------------- */
 
-void __init at91sam9g45_map_io(void)
+static void __init at91sam9g45_map_io(void)
 {
-	/* Map peripherals */
-	iotable_init(at91sam9g45_io_desc, ARRAY_SIZE(at91sam9g45_io_desc));
+	at91_init_sram(0, AT91SAM9G45_SRAM_BASE, AT91SAM9G45_SRAM_SIZE);
+	init_consistent_dma_size(SZ_4M);
 }
 
-void __init at91sam9g45_initialize(unsigned long main_clock)
+static void __init at91sam9g45_initialize(void)
 {
 	at91_arch_reset = at91sam9g45_reset;
 	pm_power_off = at91sam9g45_poweroff;
 	at91_extern_irq = (1 << AT91SAM9G45_ID_IRQ0);
-
-	/* Init clock subsystem */
-	at91_clock_init(main_clock);
-
-	/* Register the processor-specific clocks */
-	at91sam9g45_register_clocks();
 
 	/* Register GPIO subsystem */
 	at91_gpio_init(at91sam9g45_gpio, 5);
@@ -393,14 +390,9 @@ static unsigned int at91sam9g45_default_irq_priority[NR_AIC_IRQS] __initdata = {
 	0,	/* Advanced Interrupt Controller (IRQ0) */
 };
 
-void __init at91sam9g45_init_interrupts(unsigned int priority[NR_AIC_IRQS])
-{
-	if (!priority)
-		priority = at91sam9g45_default_irq_priority;
-
-	/* Initialize the AIC interrupt controller */
-	at91_aic_init(priority);
-
-	/* Enable GPIO interrupts */
-	at91_gpio_irq_setup();
-}
+struct at91_init_soc __initdata at91sam9g45_soc = {
+	.map_io = at91sam9g45_map_io,
+	.default_irq_priority = at91sam9g45_default_irq_priority,
+	.register_clocks = at91sam9g45_register_clocks,
+	.init = at91sam9g45_initialize,
+};

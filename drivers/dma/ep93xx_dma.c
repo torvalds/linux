@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/dmaengine.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -902,7 +903,7 @@ static void ep93xx_dma_free_chan_resources(struct dma_chan *chan)
  *
  * Returns a valid DMA descriptor or %NULL in case of failure.
  */
-struct dma_async_tx_descriptor *
+static struct dma_async_tx_descriptor *
 ep93xx_dma_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest,
 			   dma_addr_t src, size_t len, unsigned long flags)
 {

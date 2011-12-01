@@ -73,7 +73,7 @@ static int sta_info_hash_del(struct ieee80211_local *local,
 	if (!s)
 		return -ENOENT;
 	if (s == sta) {
-		rcu_assign_pointer(local->sta_hash[STA_HASH(sta->sta.addr)],
+		RCU_INIT_POINTER(local->sta_hash[STA_HASH(sta->sta.addr)],
 				   s->hnext);
 		return 0;
 	}
@@ -83,7 +83,7 @@ static int sta_info_hash_del(struct ieee80211_local *local,
 		s = rcu_dereference_protected(s->hnext,
 					lockdep_is_held(&local->sta_lock));
 	if (rcu_access_pointer(s->hnext)) {
-		rcu_assign_pointer(s->hnext, sta->hnext);
+		RCU_INIT_POINTER(s->hnext, sta->hnext);
 		return 0;
 	}
 
@@ -232,7 +232,7 @@ static void sta_info_hash_add(struct ieee80211_local *local,
 			      struct sta_info *sta)
 {
 	sta->hnext = local->sta_hash[STA_HASH(sta->sta.addr)];
-	rcu_assign_pointer(local->sta_hash[STA_HASH(sta->sta.addr)], sta);
+	RCU_INIT_POINTER(local->sta_hash[STA_HASH(sta->sta.addr)], sta);
 }
 
 static void sta_unblock(struct work_struct *wk)
@@ -351,10 +351,6 @@ static int sta_info_finish_insert(struct sta_info *sta,
 
 	if (!sta->dummy || dummy_reinsert) {
 		/* notify driver */
-		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
-			sdata = container_of(sdata->bss,
-					     struct ieee80211_sub_if_data,
-					     u.ap);
 		err = drv_sta_add(local, sdata, &sta->sta);
 		if (err) {
 			if (!async)
@@ -906,7 +902,7 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 	local->sta_generation++;
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
-		rcu_assign_pointer(sdata->u.vlan.sta, NULL);
+		RCU_INIT_POINTER(sdata->u.vlan.sta, NULL);
 
 	if (sta->uploaded) {
 		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
@@ -1203,11 +1199,9 @@ static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 	memcpy(nullfunc->addr2, sdata->vif.addr, ETH_ALEN);
 	memcpy(nullfunc->addr3, sdata->vif.addr, ETH_ALEN);
 
+	skb->priority = tid;
+	skb_set_queue_mapping(skb, ieee802_1d_to_ac[tid]);
 	if (qos) {
-		skb->priority = tid;
-
-		skb_set_queue_mapping(skb, ieee802_1d_to_ac[tid]);
-
 		nullfunc->qos_ctrl = cpu_to_le16(tid);
 
 		if (reason == IEEE80211_FRAME_RELEASE_UAPSD)
@@ -1356,12 +1350,12 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 			 * Use MoreData flag to indicate whether there are
 			 * more buffered frames for this STA
 			 */
-			if (!more_data)
-				hdr->frame_control &=
-					cpu_to_le16(~IEEE80211_FCTL_MOREDATA);
-			else
+			if (more_data || !skb_queue_empty(&frames))
 				hdr->frame_control |=
 					cpu_to_le16(IEEE80211_FCTL_MOREDATA);
+			else
+				hdr->frame_control &=
+					cpu_to_le16(~IEEE80211_FCTL_MOREDATA);
 
 			if (ieee80211_is_data_qos(hdr->frame_control) ||
 			    ieee80211_is_qos_nullfunc(hdr->frame_control))

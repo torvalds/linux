@@ -35,7 +35,8 @@ void __init gateway7001_pci_preinit(void)
 	ixp4xx_pci_preinit();
 }
 
-static int __init gateway7001_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int __init gateway7001_map_irq(const struct pci_dev *dev, u8 slot,
+	u8 pin)
 {
 	if (slot == 1)
 		return IRQ_IXP4XX_GPIO11;

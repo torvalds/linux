@@ -60,7 +60,7 @@ static unsigned int card[]     = {[0 ... (EM28XX_MAXBOARDS - 1)] = UNSET };
 module_param_array(card,  int, NULL, 0444);
 MODULE_PARM_DESC(card,     "card type");
 
-/* Bitmask marking allocated devices from 0 to EM28XX_MAXBOARDS */
+/* Bitmask marking allocated devices from 0 to EM28XX_MAXBOARDS - 1 */
 static unsigned long em28xx_devused;
 
 struct em28xx_hash_table {
@@ -289,7 +289,7 @@ static struct em28xx_reg_seq leadership_reset[] = {
 	{	-1,		-1,	-1,	-1},
 };
 
-/* 2013:024f PCTV Systems nanoStick T2 290e
+/* 2013:024f PCTV nanoStick T2 290e
  * GPIO_6 - demod reset
  * GPIO_7 - LED
  */
@@ -298,6 +298,42 @@ static struct em28xx_reg_seq pctv_290e[] = {
 	{EM2874_R80_GPIO,	0x40,	0xff,		80}, /* GPIO_6 = 1 */
 	{EM2874_R80_GPIO,	0xc0,	0xff,		80}, /* GPIO_7 = 1 */
 	{-1,			-1,	-1,		-1},
+};
+
+#if 0
+static struct em28xx_reg_seq terratec_h5_gpio[] = {
+	{EM28XX_R08_GPIO,	0xff,	0xff,	10},
+	{EM2874_R80_GPIO,	0xf6,	0xff,	100},
+	{EM2874_R80_GPIO,	0xf2,	0xff,	50},
+	{EM2874_R80_GPIO,	0xf6,	0xff,	50},
+	{ -1,			-1,	-1,	-1},
+};
+
+static struct em28xx_reg_seq terratec_h5_digital[] = {
+	{EM2874_R80_GPIO,	0xf6,	0xff,	10},
+	{EM2874_R80_GPIO,	0xe6,	0xff,	100},
+	{EM2874_R80_GPIO,	0xa6,	0xff,	10},
+	{ -1,			-1,	-1,	-1},
+};
+#endif
+
+/* 2013:024f PCTV DVB-S2 Stick 460e
+ * GPIO_0 - POWER_ON
+ * GPIO_1 - BOOST
+ * GPIO_2 - VUV_LNB (red LED)
+ * GPIO_3 - EXT_12V
+ * GPIO_4 - INT_DEM (DEMOD GPIO_0)
+ * GPIO_5 - INT_LNB
+ * GPIO_6 - RESET_DEM
+ * GPIO_7 - LED (green LED)
+ */
+static struct em28xx_reg_seq pctv_460e[] = {
+	{EM2874_R80_GPIO, 0x01, 0xff,  50},
+	{0x0d,            0xff, 0xff,  50},
+	{EM2874_R80_GPIO, 0x41, 0xff,  50}, /* GPIO_6=1 */
+	{0x0d,            0x42, 0xff,  50},
+	{EM2874_R80_GPIO, 0x61, 0xff,  50}, /* GPIO_5=1 */
+	{             -1,   -1,   -1,  -1},
 };
 
 /*
@@ -843,6 +879,19 @@ struct em28xx_board em28xx_boards[] = {
 			.gpio     = terratec_cinergy_USB_XS_FR_analog,
 		} },
 	},
+	[EM2884_BOARD_TERRATEC_H5] = {
+		.name         = "Terratec Cinergy H5",
+		.has_dvb      = 1,
+#if 0
+		.tuner_type   = TUNER_PHILIPS_TDA8290,
+		.tuner_addr   = 0x41,
+		.dvb_gpio     = terratec_h5_digital, /* FIXME: probably wrong */
+		.tuner_gpio   = terratec_h5_gpio,
+#endif
+		.i2c_speed    = EM2874_I2C_SECONDARY_BUS_SELECT |
+				EM28XX_I2C_CLK_WAIT_ENABLE |
+				EM28XX_I2C_FREQ_400_KHZ,
+	},
 	[EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900] = {
 		.name         = "Hauppauge WinTV HVR 900",
 		.tda9887_conf = TDA9887_PRESENT,
@@ -1259,7 +1308,7 @@ struct em28xx_board em28xx_boards[] = {
 		} },
 	},
 
-	[EM2874_LEADERSHIP_ISDBT] = {
+	[EM2874_BOARD_LEADERSHIP_ISDBT] = {
 		.i2c_speed      = EM2874_I2C_SECONDARY_BUS_SELECT |
 				  EM28XX_I2C_CLK_WAIT_ENABLE |
 				  EM28XX_I2C_FREQ_100_KHZ,
@@ -1319,7 +1368,6 @@ struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2880_BOARD_KWORLD_DVB_305U] = {
 		.name	      = "KWorld DVB-T 305U",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.tuner_type   = TUNER_XC2028,
 		.tuner_gpio   = default_tuner_gpio,
 		.decoder      = EM28XX_TVP5150,
@@ -1770,16 +1818,27 @@ struct em28xx_board em28xx_boards[] = {
 		.dvb_gpio   = kworld_a340_digital,
 		.tuner_gpio = default_tuner_gpio,
 	},
-	/* 2013:024f PCTV Systems nanoStick T2 290e.
+	/* 2013:024f PCTV nanoStick T2 290e.
 	 * Empia EM28174, Sony CXD2820R and NXP TDA18271HD/C2 */
 	[EM28174_BOARD_PCTV_290E] = {
+		.name          = "PCTV nanoStick T2 290e",
 		.i2c_speed      = EM2874_I2C_SECONDARY_BUS_SELECT |
 			EM28XX_I2C_CLK_WAIT_ENABLE | EM28XX_I2C_FREQ_100_KHZ,
-		.xclk          = EM28XX_XCLK_FREQUENCY_12MHZ,
-		.name          = "PCTV Systems nanoStick T2 290e",
 		.tuner_type    = TUNER_ABSENT,
 		.tuner_gpio    = pctv_290e,
 		.has_dvb       = 1,
+		.ir_codes      = RC_MAP_PINNACLE_PCTV_HD,
+	},
+	/* 2013:024f PCTV DVB-S2 Stick 460e
+	 * Empia EM28174, NXP TDA10071, Conexant CX24118A and Allegro A8293 */
+	[EM28174_BOARD_PCTV_460E] = {
+		.i2c_speed     = EM2874_I2C_SECONDARY_BUS_SELECT |
+			EM28XX_I2C_CLK_WAIT_ENABLE | EM28XX_I2C_FREQ_400_KHZ,
+		.name          = "PCTV DVB-S2 Stick (460e)",
+		.tuner_type    = TUNER_ABSENT,
+		.tuner_gpio    = pctv_460e,
+		.has_dvb       = 1,
+		.ir_codes      = RC_MAP_PINNACLE_PCTV_HD,
 	},
 };
 const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
@@ -1855,12 +1914,16 @@ struct usb_device_id em28xx_id_table[] = {
 	{ USB_DEVICE(0x0ccd, 0x0042),
 			.driver_info = EM2882_BOARD_TERRATEC_HYBRID_XS },
 	{ USB_DEVICE(0x0ccd, 0x0043),
-			.driver_info = EM2870_BOARD_TERRATEC_XS },
-	{ USB_DEVICE(0x0ccd, 0x0047),
+			.driver_info = EM2884_BOARD_TERRATEC_H5 },
+	{ USB_DEVICE(0x0ccd, 0x10a2),	/* Rev. 1 */
+			.driver_info = EM2884_BOARD_TERRATEC_H5 },
+	{ USB_DEVICE(0x0ccd, 0x10ad),	/* Rev. 2 */
 			.driver_info = EM2880_BOARD_TERRATEC_PRODIGY_XS },
 	{ USB_DEVICE(0x0ccd, 0x0084),
 			.driver_info = EM2860_BOARD_TERRATEC_AV350 },
 	{ USB_DEVICE(0x0ccd, 0x0096),
+			.driver_info = EM2860_BOARD_TERRATEC_GRABBY },
+	{ USB_DEVICE(0x0ccd, 0x10AF),
 			.driver_info = EM2860_BOARD_TERRATEC_GRABBY },
 	{ USB_DEVICE(0x0fd9, 0x0033),
 			.driver_info = EM2860_BOARD_ELGATO_VIDEO_CAPTURE},
@@ -1910,6 +1973,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2870_BOARD_KWORLD_A340 },
 	{ USB_DEVICE(0x2013, 0x024f),
 			.driver_info = EM28174_BOARD_PCTV_290E },
+	{ USB_DEVICE(0x2013, 0x024c),
+			.driver_info = EM28174_BOARD_PCTV_460E },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, em28xx_id_table);
@@ -1937,7 +2002,7 @@ static struct em28xx_hash_table em28xx_i2c_hash[] = {
 	{0x77800080, EM2860_BOARD_TVP5150_REFERENCE_DESIGN, TUNER_ABSENT},
 	{0xc51200e3, EM2820_BOARD_GADMEI_TVR200, TUNER_LG_PAL_NEW_TAPC},
 	{0x4ba50080, EM2861_BOARD_GADMEI_UTV330PLUS, TUNER_TNF_5335MF},
-	{0x6b800080, EM2874_LEADERSHIP_ISDBT, TUNER_ABSENT},
+	{0x6b800080, EM2874_BOARD_LEADERSHIP_ISDBT, TUNER_ABSENT},
 };
 
 /* I2C possible address to saa7115, tvp5150, msp3400, tvaudio */
@@ -2660,10 +2725,9 @@ void em28xx_card_setup(struct em28xx *dev)
 			.addr = 0xba >> 1,
 			.platform_data = &pdata,
 		};
-		struct v4l2_subdev *sd;
 
 		pdata.xtal = dev->sensor_xtal;
-		sd = v4l2_i2c_new_subdev_board(&dev->v4l2_dev, &dev->i2c_adap,
+		v4l2_i2c_new_subdev_board(&dev->v4l2_dev, &dev->i2c_adap,
 				&mt9v011_info, NULL);
 	}
 
@@ -2738,9 +2802,9 @@ static void flush_request_modules(struct em28xx *dev)
 #endif /* CONFIG_MODULES */
 
 /*
- * em28xx_realease_resources()
+ * em28xx_release_resources()
  * unregisters the v4l2,i2c and usb devices
- * called when the device gets disconected or at module unload
+ * called when the device gets disconnected or at module unload
 */
 void em28xx_release_resources(struct em28xx *dev)
 {
@@ -2754,8 +2818,6 @@ void em28xx_release_resources(struct em28xx *dev)
 
 	em28xx_release_analog_resources(dev);
 
-	em28xx_remove_from_devlist(dev);
-
 	em28xx_i2c_unregister(dev);
 
 	v4l2_device_unregister(&dev->v4l2_dev);
@@ -2763,7 +2825,7 @@ void em28xx_release_resources(struct em28xx *dev)
 	usb_put_dev(dev->udev);
 
 	/* Mark device as unused */
-	em28xx_devused &= ~(1 << dev->devno);
+	clear_bit(dev->devno, &em28xx_devused);
 };
 
 /*
@@ -2776,7 +2838,6 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 {
 	struct em28xx *dev = *devhandle;
 	int retval;
-	int errCode;
 
 	dev->udev = udev;
 	mutex_init(&dev->ctrl_urb_lock);
@@ -2842,9 +2903,23 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 			em28xx_info("chip ID is em2882/em2883\n");
 			dev->wait_after_write = 0;
 			break;
+		case CHIP_ID_EM2884:
+			em28xx_info("chip ID is em2884\n");
+			dev->reg_gpio_num = EM2874_R80_GPIO;
+			dev->wait_after_write = 0;
+			break;
 		default:
 			em28xx_info("em28xx chip ID = %d\n", dev->chip_id);
 		}
+	}
+
+	if (dev->is_audio_only) {
+		retval = em28xx_audio_setup(dev);
+		if (retval)
+			return -ENODEV;
+		em28xx_init_extension(dev);
+
+		return 0;
 	}
 
 	/* Prepopulate cached GPO register content */
@@ -2858,7 +2933,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 		/* Resets I2C speed */
 		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, dev->board.i2c_speed);
 		if (retval < 0) {
-			em28xx_errdev("%s: em28xx_write_regs_req failed!"
+			em28xx_errdev("%s: em28xx_write_reg failed!"
 				      " retval [%d]\n",
 				      __func__, retval);
 			return retval;
@@ -2872,12 +2947,11 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	}
 
 	/* register i2c bus */
-	errCode = em28xx_i2c_register(dev);
-	if (errCode < 0) {
-		v4l2_device_unregister(&dev->v4l2_dev);
-		em28xx_errdev("%s: em28xx_i2c_register - errCode [%d]!\n",
-			__func__, errCode);
-		return errCode;
+	retval = em28xx_i2c_register(dev);
+	if (retval < 0) {
+		em28xx_errdev("%s: em28xx_i2c_register - error [%d]!\n",
+			__func__, retval);
+		goto unregister_dev;
 	}
 
 	/*
@@ -2891,11 +2965,11 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	em28xx_card_setup(dev);
 
 	/* Configure audio */
-	errCode = em28xx_audio_setup(dev);
-	if (errCode < 0) {
-		v4l2_device_unregister(&dev->v4l2_dev);
-		em28xx_errdev("%s: Error while setting audio - errCode [%d]!\n",
-			__func__, errCode);
+	retval = em28xx_audio_setup(dev);
+	if (retval < 0) {
+		em28xx_errdev("%s: Error while setting audio - error [%d]!\n",
+			__func__, retval);
+		goto fail;
 	}
 
 	/* wake i2c devices */
@@ -2909,43 +2983,46 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 
 	if (dev->board.has_msp34xx) {
 		/* Send a reset to other chips via gpio */
-		errCode = em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xf7);
-		if (errCode < 0) {
-			em28xx_errdev("%s: em28xx_write_regs_req - "
-				      "msp34xx(1) failed! errCode [%d]\n",
-				      __func__, errCode);
-			return errCode;
+		retval = em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xf7);
+		if (retval < 0) {
+			em28xx_errdev("%s: em28xx_write_reg - "
+				      "msp34xx(1) failed! error [%d]\n",
+				      __func__, retval);
+			goto fail;
 		}
 		msleep(3);
 
-		errCode = em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xff);
-		if (errCode < 0) {
-			em28xx_errdev("%s: em28xx_write_regs_req - "
-				      "msp34xx(2) failed! errCode [%d]\n",
-				      __func__, errCode);
-			return errCode;
+		retval = em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xff);
+		if (retval < 0) {
+			em28xx_errdev("%s: em28xx_write_reg - "
+				      "msp34xx(2) failed! error [%d]\n",
+				      __func__, retval);
+			goto fail;
 		}
 		msleep(3);
 	}
-
-	em28xx_add_into_devlist(dev);
 
 	retval = em28xx_register_analog_devices(dev);
 	if (retval < 0) {
-		em28xx_release_resources(dev);
-		goto fail_reg_devices;
+		goto fail;
 	}
-
-	em28xx_init_extension(dev);
 
 	/* Save some power by putting tuner to sleep */
 	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_power, 0);
 
 	return 0;
 
-fail_reg_devices:
+fail:
+	em28xx_i2c_unregister(dev);
+
+unregister_dev:
+	v4l2_device_unregister(&dev->v4l2_dev);
+
 	return retval;
 }
+
+/* high bandwidth multiplier, as encoded in highspeed endpoint descriptors */
+#define hb_mult(wMaxPacketSize) (1 + (((wMaxPacketSize) >> 11) & 0x03))
 
 /*
  * em28xx_usb_probe()
@@ -2956,19 +3033,27 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 {
 	const struct usb_endpoint_descriptor *endpoint;
 	struct usb_device *udev;
-	struct usb_interface *uif;
 	struct em28xx *dev = NULL;
 	int retval;
-	int i, nr, ifnum, isoc_pipe;
+	bool is_audio_only = false, has_audio = false;
+	int i, nr, isoc_pipe;
+	const int ifnum = interface->altsetting[0].desc.bInterfaceNumber;
 	char *speed;
 	char descr[255] = "";
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
-	ifnum = interface->altsetting[0].desc.bInterfaceNumber;
 
 	/* Check to see next free device and mark as used */
-	nr = find_first_zero_bit(&em28xx_devused, EM28XX_MAXBOARDS);
-	em28xx_devused |= 1<<nr;
+	do {
+		nr = find_first_zero_bit(&em28xx_devused, EM28XX_MAXBOARDS);
+		if (nr >= EM28XX_MAXBOARDS) {
+			/* No free device slots */
+			printk(DRIVER_NAME ": Supports only %i em28xx boards.\n",
+					EM28XX_MAXBOARDS);
+			retval = -ENOMEM;
+			goto err_no_slot;
+		}
+	} while (test_and_set_bit(nr, &em28xx_devused));
 
 	/* Don't register audio interfaces */
 	if (interface->altsetting[0].desc.bInterfaceClass == USB_CLASS_AUDIO) {
@@ -2979,9 +3064,21 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 			ifnum,
 			interface->altsetting[0].desc.bInterfaceClass);
 
-		em28xx_devused &= ~(1<<nr);
 		retval = -ENODEV;
 		goto err;
+	}
+
+	/* Get endpoints */
+	for (i = 0; i < interface->num_altsetting; i++) {
+		int ep;
+
+		for (ep = 0; ep < interface->altsetting[i].desc.bNumEndpoints; ep++) {
+			struct usb_host_endpoint	*e;
+			e = &interface->altsetting[i].endpoint[ep];
+
+			if (e->desc.bEndpointAddress == 0x83)
+				has_audio = true;
+		}
 	}
 
 	endpoint = &interface->cur_altsetting->endpoint[0].desc;
@@ -3003,19 +3100,21 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 			check_interface = 0;
 
 		if (!check_interface) {
-			em28xx_err(DRIVER_NAME " video device (%04x:%04x): "
-				"interface %i, class %i found.\n",
-				le16_to_cpu(udev->descriptor.idVendor),
-				le16_to_cpu(udev->descriptor.idProduct),
-				ifnum,
-				interface->altsetting[0].desc.bInterfaceClass);
+			if (has_audio) {
+				is_audio_only = true;
+			} else {
+				em28xx_err(DRIVER_NAME " video device (%04x:%04x): "
+					"interface %i, class %i found.\n",
+					le16_to_cpu(udev->descriptor.idVendor),
+					le16_to_cpu(udev->descriptor.idProduct),
+					ifnum,
+					interface->altsetting[0].desc.bInterfaceClass);
+				em28xx_err(DRIVER_NAME " This is an anciliary "
+					"interface not used by the driver\n");
 
-			em28xx_err(DRIVER_NAME " This is an anciliary "
-				"interface not used by the driver\n");
-
-			em28xx_devused &= ~(1<<nr);
-			retval = -ENODEV;
-			goto err;
+				retval = -ENODEV;
+				goto err;
+			}
 		}
 	}
 
@@ -3045,14 +3144,19 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	if (*descr)
 		strlcat(descr, " ", sizeof(descr));
 
-	printk(DRIVER_NAME ": New device %s@ %s Mbps "
-		"(%04x:%04x, interface %d, class %d)\n",
+	printk(KERN_INFO DRIVER_NAME
+		": New device %s@ %s Mbps (%04x:%04x, interface %d, class %d)\n",
 		descr,
 		speed,
 		le16_to_cpu(udev->descriptor.idVendor),
 		le16_to_cpu(udev->descriptor.idProduct),
 		ifnum,
 		interface->altsetting->desc.bInterfaceNumber);
+
+	if (has_audio)
+		printk(KERN_INFO DRIVER_NAME
+		       ": Audio Vendor Class interface %i found\n",
+		       ifnum);
 
 	/*
 	 * Make sure we have 480 Mbps of bandwidth, otherwise things like
@@ -3063,16 +3167,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		printk(DRIVER_NAME ": Device initialization failed.\n");
 		printk(DRIVER_NAME ": Device must be connected to a high-speed"
 		       " USB 2.0 port.\n");
-		em28xx_devused &= ~(1<<nr);
 		retval = -ENODEV;
-		goto err;
-	}
-
-	if (nr >= EM28XX_MAXBOARDS) {
-		printk(DRIVER_NAME ": Supports only %i em28xx boards.\n",
-				EM28XX_MAXBOARDS);
-		em28xx_devused &= ~(1<<nr);
-		retval = -ENOMEM;
 		goto err;
 	}
 
@@ -3080,19 +3175,21 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
 		em28xx_err(DRIVER_NAME ": out of memory!\n");
-		em28xx_devused &= ~(1<<nr);
 		retval = -ENOMEM;
 		goto err;
 	}
 
-	snprintf(dev->name, 29, "em28xx #%d", nr);
+	snprintf(dev->name, sizeof(dev->name), "em28xx #%d", nr);
 	dev->devno = nr;
 	dev->model = id->driver_info;
 	dev->alt   = -1;
+	dev->is_audio_only = is_audio_only;
+	dev->has_alsa_audio = has_audio;
+	dev->audio_ifnum = ifnum;
 
 	/* Checks if audio is provided by some interface */
 	for (i = 0; i < udev->config->desc.bNumInterfaces; i++) {
-		uif = udev->config->interface[i];
+		struct usb_interface *uif = udev->config->interface[i];
 		if (uif->altsetting[0].desc.bInterfaceClass == USB_CLASS_AUDIO) {
 			dev->has_audio_class = 1;
 			break;
@@ -3100,41 +3197,42 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	}
 
 	/* compute alternate max packet sizes */
-	uif = udev->actconfig->interface[0];
-
-	dev->num_alt = uif->num_altsetting;
+	dev->num_alt = interface->num_altsetting;
 	dev->alt_max_pkt_size = kmalloc(32 * dev->num_alt, GFP_KERNEL);
 
 	if (dev->alt_max_pkt_size == NULL) {
 		em28xx_errdev("out of memory!\n");
-		em28xx_devused &= ~(1<<nr);
 		kfree(dev);
 		retval = -ENOMEM;
 		goto err;
 	}
 
 	for (i = 0; i < dev->num_alt ; i++) {
-		u16 tmp = le16_to_cpu(uif->altsetting[i].endpoint[isoc_pipe].desc.wMaxPacketSize);
-		dev->alt_max_pkt_size[i] =
-		    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
+		u16 tmp = le16_to_cpu(interface->altsetting[i].endpoint[isoc_pipe].desc.wMaxPacketSize);
+		unsigned int size = tmp & 0x7ff;
+
+		if (udev->speed == USB_SPEED_HIGH)
+			size = size * hb_mult(tmp);
+
+		dev->alt_max_pkt_size[i] = size;
 	}
 
 	if ((card[nr] >= 0) && (card[nr] < em28xx_bcount))
 		dev->model = card[nr];
+
+	/* save our data pointer in this interface device */
+	usb_set_intfdata(interface, dev);
 
 	/* allocate device struct */
 	mutex_init(&dev->lock);
 	mutex_lock(&dev->lock);
 	retval = em28xx_init_dev(&dev, udev, interface, nr);
 	if (retval) {
-		em28xx_devused &= ~(1<<dev->devno);
 		mutex_unlock(&dev->lock);
+		kfree(dev->alt_max_pkt_size);
 		kfree(dev);
 		goto err;
 	}
-
-	/* save our data pointer in this interface device */
-	usb_set_intfdata(interface, dev);
 
 	request_modules(dev);
 
@@ -3143,15 +3241,26 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	 */
 	mutex_unlock(&dev->lock);
 
+	/*
+	 * These extensions can be modules. If the modules are already
+	 * loaded then we can initialise the device now, otherwise we
+	 * will initialise it when the modules load instead.
+	 */
+	em28xx_init_extension(dev);
+
 	return 0;
 
 err:
+	clear_bit(nr, &em28xx_devused);
+
+err_no_slot:
+	usb_put_dev(udev);
 	return retval;
 }
 
 /*
  * em28xx_usb_disconnect()
- * called when the device gets diconencted
+ * called when the device gets disconnected
  * video device will be unregistered on v4l2_close in case it is still open
  */
 static void em28xx_usb_disconnect(struct usb_interface *interface)
@@ -3163,6 +3272,13 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 
 	if (!dev)
 		return;
+
+	if (dev->is_audio_only) {
+		mutex_lock(&dev->lock);
+		em28xx_close_extension(dev);
+		mutex_unlock(&dev->lock);
+		return;
+	}
 
 	em28xx_info("disconnecting %s\n", dev->vdev->name);
 
@@ -3192,9 +3308,9 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 		em28xx_release_resources(dev);
 	}
 
-	em28xx_close_extension(dev);
-
 	mutex_unlock(&dev->lock);
+
+	em28xx_close_extension(dev);
 
 	if (!dev->users) {
 		kfree(dev->alt_max_pkt_size);

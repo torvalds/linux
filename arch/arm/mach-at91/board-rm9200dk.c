@@ -22,6 +22,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/module.h>
@@ -39,7 +40,6 @@
 
 #include <mach/hardware.h>
 #include <mach/board.h>
-#include <mach/gpio.h>
 #include <mach/at91rm9200_mc.h>
 
 #include "generic.h"
@@ -48,7 +48,7 @@
 static void __init dk_init_early(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
-	at91rm9200_initialize(18432000);
+	at91_initialize(18432000);
 
 	/* Setup the LEDs */
 	at91_init_leds(AT91_PIN_PB2, AT91_PIN_PB2);
@@ -63,11 +63,6 @@ static void __init dk_init_early(void)
 
 	/* set serial console to ttyS0 (ie, DBGU) */
 	at91_set_serial_console(0);
-}
-
-static void __init dk_init_irq(void)
-{
-	at91rm9200_init_interrupts(NULL);
 }
 
 static struct at91_eth_data __initdata dk_eth_data = {
@@ -143,19 +138,14 @@ static struct mtd_partition __initdata dk_nand_partition[] = {
 	},
 };
 
-static struct mtd_partition * __init nand_partitions(int size, int *num_partitions)
-{
-	*num_partitions = ARRAY_SIZE(dk_nand_partition);
-	return dk_nand_partition;
-}
-
 static struct atmel_nand_data __initdata dk_nand_data = {
 	.ale		= 22,
 	.cle		= 21,
 	.det_pin	= AT91_PIN_PB1,
 	.rdy_pin	= AT91_PIN_PC2,
 	// .enable_pin	= ... not there
-	.partition_info	= nand_partitions,
+	.parts		= dk_nand_partition,
+	.num_parts	= ARRAY_SIZE(dk_nand_partition),
 };
 
 #define DK_FLASH_BASE	AT91_CHIPSELECT_0
@@ -228,8 +218,8 @@ static void __init dk_board_init(void)
 MACHINE_START(AT91RM9200DK, "Atmel AT91RM9200-DK")
 	/* Maintainer: SAN People/Atmel */
 	.timer		= &at91rm9200_timer,
-	.map_io		= at91rm9200_map_io,
+	.map_io		= at91_map_io,
 	.init_early	= dk_init_early,
-	.init_irq	= dk_init_irq,
+	.init_irq	= at91_init_irq_default,
 	.init_machine	= dk_board_init,
 MACHINE_END

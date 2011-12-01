@@ -81,7 +81,7 @@ void __init em7210_map_io(void)
 #define INTD	IRQ_IOP32X_XINT3
 
 static int __init
-em7210_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+em7210_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	static int pci_irq_table[][4] = {
 		/*
@@ -203,7 +203,7 @@ static void __init em7210_init_machine(void)
 }
 
 MACHINE_START(EM7210, "Lanner EM7210")
-	.boot_params	= 0xa0000100,
+	.atag_offset	= 0x100,
 	.map_io		= em7210_map_io,
 	.init_irq	= iop32x_init_irq,
 	.timer		= &em7210_timer,

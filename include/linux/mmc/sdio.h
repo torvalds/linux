@@ -72,11 +72,13 @@
 #define  SDIO_CCCR_REV_1_00	0	/* CCCR/FBR Version 1.00 */
 #define  SDIO_CCCR_REV_1_10	1	/* CCCR/FBR Version 1.10 */
 #define  SDIO_CCCR_REV_1_20	2	/* CCCR/FBR Version 1.20 */
+#define  SDIO_CCCR_REV_3_00	3	/* CCCR/FBR Version 3.00 */
 
 #define  SDIO_SDIO_REV_1_00	0	/* SDIO Spec Version 1.00 */
 #define  SDIO_SDIO_REV_1_10	1	/* SDIO Spec Version 1.10 */
 #define  SDIO_SDIO_REV_1_20	2	/* SDIO Spec Version 1.20 */
 #define  SDIO_SDIO_REV_2_00	3	/* SDIO Spec Version 2.00 */
+#define  SDIO_SDIO_REV_3_00	4	/* SDIO Spec Version 3.00 */
 
 #define SDIO_CCCR_SD		0x01
 

@@ -8,21 +8,12 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
  */
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
@@ -220,7 +211,7 @@ static int config_ep(struct fusb300_ep *ep,
 
 	info.type = desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
 	info.dir_in = (desc->bEndpointAddress & USB_ENDPOINT_DIR_MASK) ? 1 : 0;
-	info.maxpacket = le16_to_cpu(desc->wMaxPacketSize);
+	info.maxpacket = usb_endpoint_maxp(desc);
 	info.epnum = desc->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK;
 
 	if ((info.type == USB_ENDPOINT_XFER_INT) ||
@@ -608,107 +599,6 @@ void fusb300_rdcxf(struct fusb300 *fusb300,
 		break;
 	}
 }
-
-#if 0
-static void fusb300_dbg_fifo(struct fusb300_ep *ep,
-				u8 entry, u16 length)
-{
-	u32 reg;
-	u32 i = 0;
-	u32 j = 0;
-
-	reg = ioread32(ep->fusb300->reg + FUSB300_OFFSET_GTM);
-	reg &= ~(FUSB300_GTM_TST_EP_ENTRY(0xF) |
-		FUSB300_GTM_TST_EP_NUM(0xF) | FUSB300_GTM_TST_FIFO_DEG);
-	reg |= (FUSB300_GTM_TST_EP_ENTRY(entry) |
-		FUSB300_GTM_TST_EP_NUM(ep->epnum) | FUSB300_GTM_TST_FIFO_DEG);
-	iowrite32(reg, ep->fusb300->reg + FUSB300_OFFSET_GTM);
-
-	for (i = 0; i < (length >> 2); i++) {
-		if (i * 4 == 1024)
-			break;
-		reg = ioread32(ep->fusb300->reg +
-			FUSB300_OFFSET_BUFDBG_START + i * 4);
-		printk(KERN_DEBUG"  0x%-8x", reg);
-		j++;
-		if ((j % 4)  == 0)
-			printk(KERN_DEBUG "\n");
-	}
-
-	if (length % 4) {
-		reg = ioread32(ep->fusb300->reg +
-			FUSB300_OFFSET_BUFDBG_START + i * 4);
-		printk(KERN_DEBUG "  0x%x\n", reg);
-	}
-
-	if ((j % 4)  != 0)
-		printk(KERN_DEBUG "\n");
-
-	fusb300_disable_bit(ep->fusb300, FUSB300_OFFSET_GTM,
-		FUSB300_GTM_TST_FIFO_DEG);
-}
-
-static void fusb300_cmp_dbg_fifo(struct fusb300_ep *ep,
-				u8 entry, u16 length, u8 *golden)
-{
-	u32 reg;
-	u32 i = 0;
-	u32 golden_value;
-	u8 *tmp;
-
-	tmp = golden;
-
-	printk(KERN_DEBUG "fusb300_cmp_dbg_fifo (entry %d) : start\n", entry);
-
-	reg = ioread32(ep->fusb300->reg + FUSB300_OFFSET_GTM);
-	reg &= ~(FUSB300_GTM_TST_EP_ENTRY(0xF) |
-		FUSB300_GTM_TST_EP_NUM(0xF) | FUSB300_GTM_TST_FIFO_DEG);
-	reg |= (FUSB300_GTM_TST_EP_ENTRY(entry) |
-		FUSB300_GTM_TST_EP_NUM(ep->epnum) | FUSB300_GTM_TST_FIFO_DEG);
-	iowrite32(reg, ep->fusb300->reg + FUSB300_OFFSET_GTM);
-
-	for (i = 0; i < (length >> 2); i++) {
-		if (i * 4 == 1024)
-			break;
-		golden_value = *tmp | *(tmp + 1) << 8 |
-				*(tmp + 2) << 16 | *(tmp + 3) << 24;
-
-		reg = ioread32(ep->fusb300->reg +
-			FUSB300_OFFSET_BUFDBG_START + i*4);
-
-		if (reg != golden_value) {
-			printk(KERN_DEBUG "0x%x  :  ", (u32)(ep->fusb300->reg +
-				FUSB300_OFFSET_BUFDBG_START + i*4));
-			printk(KERN_DEBUG "    golden = 0x%x, reg = 0x%x\n",
-				golden_value, reg);
-		}
-		tmp += 4;
-	}
-
-	switch (length % 4) {
-	case 1:
-		golden_value = *tmp;
-	case 2:
-		golden_value = *tmp | *(tmp + 1) << 8;
-	case 3:
-		golden_value = *tmp | *(tmp + 1) << 8 | *(tmp + 2) << 16;
-	default:
-		break;
-
-	reg = ioread32(ep->fusb300->reg + FUSB300_OFFSET_BUFDBG_START + i*4);
-	if (reg != golden_value) {
-		printk(KERN_DEBUG "0x%x:", (u32)(ep->fusb300->reg +
-			FUSB300_OFFSET_BUFDBG_START + i*4));
-		printk(KERN_DEBUG "  golden = 0x%x, reg = 0x%x\n",
-			golden_value, reg);
-	}
-	}
-
-	printk(KERN_DEBUG "fusb300_cmp_dbg_fifo : end\n");
-	fusb300_disable_bit(ep->fusb300, FUSB300_OFFSET_GTM,
-		FUSB300_GTM_TST_FIFO_DEG);
-}
-#endif
 
 static void fusb300_rdfifo(struct fusb300_ep *ep,
 			  struct fusb300_request *req,
@@ -1580,7 +1470,7 @@ static int __init fusb300_probe(struct platform_device *pdev)
 	fusb300->gadget.name = udc_name;
 	fusb300->reg = reg;
 
-	ret = request_irq(ires->start, fusb300_irq, IRQF_DISABLED | IRQF_SHARED,
+	ret = request_irq(ires->start, fusb300_irq, IRQF_SHARED,
 			  udc_name, fusb300);
 	if (ret < 0) {
 		pr_err("request_irq error (%d)\n", ret);
@@ -1588,7 +1478,7 @@ static int __init fusb300_probe(struct platform_device *pdev)
 	}
 
 	ret = request_irq(ires1->start, fusb300_irq,
-			IRQF_DISABLED | IRQF_SHARED, udc_name, fusb300);
+			IRQF_SHARED, udc_name, fusb300);
 	if (ret < 0) {
 		pr_err("request_irq1 error (%d)\n", ret);
 		goto clean_up;

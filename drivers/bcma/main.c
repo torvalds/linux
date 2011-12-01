@@ -6,6 +6,7 @@
  */
 
 #include "bcma_private.h"
+#include <linux/module.h>
 #include <linux/bcma/bcma.h>
 #include <linux/slab.h>
 

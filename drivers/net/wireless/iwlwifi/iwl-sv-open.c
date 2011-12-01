@@ -184,7 +184,7 @@ static void iwl_trace_cleanup(struct iwl_priv *priv)
 	if (priv->testmode_trace.trace_enabled) {
 		if (priv->testmode_trace.cpu_addr &&
 		    priv->testmode_trace.dma_addr)
-			dma_free_coherent(priv->bus->dev,
+			dma_free_coherent(bus(priv)->dev,
 					priv->testmode_trace.total_size,
 					priv->testmode_trace.cpu_addr,
 					priv->testmode_trace.dma_addr);
@@ -276,7 +276,7 @@ static int iwl_testmode_reg(struct ieee80211_hw *hw, struct nlattr **tb)
 	IWL_INFO(priv, "testmode register access command offset 0x%x\n", ofs);
 
 	switch (nla_get_u32(tb[IWL_TM_ATTR_COMMAND])) {
-	case IWL_TM_CMD_APP2DEV_REG_READ32:
+	case IWL_TM_CMD_APP2DEV_DIRECT_REG_READ32:
 		val32 = iwl_read32(bus(priv), ofs);
 		IWL_INFO(priv, "32bit value to read 0x%x\n", val32);
 
@@ -291,7 +291,7 @@ static int iwl_testmode_reg(struct ieee80211_hw *hw, struct nlattr **tb)
 			IWL_DEBUG_INFO(priv,
 				       "Error sending msg : %d\n", status);
 		break;
-	case IWL_TM_CMD_APP2DEV_REG_WRITE32:
+	case IWL_TM_CMD_APP2DEV_DIRECT_REG_WRITE32:
 		if (!tb[IWL_TM_ATTR_REG_VALUE32]) {
 			IWL_DEBUG_INFO(priv,
 				       "Error finding value to write\n");
@@ -302,7 +302,7 @@ static int iwl_testmode_reg(struct ieee80211_hw *hw, struct nlattr **tb)
 			iwl_write32(bus(priv), ofs, val32);
 		}
 		break;
-	case IWL_TM_CMD_APP2DEV_REG_WRITE8:
+	case IWL_TM_CMD_APP2DEV_DIRECT_REG_WRITE8:
 		if (!tb[IWL_TM_ATTR_REG_VALUE8]) {
 			IWL_DEBUG_INFO(priv, "Error finding value to write\n");
 			return -ENOMSG;
@@ -310,6 +310,32 @@ static int iwl_testmode_reg(struct ieee80211_hw *hw, struct nlattr **tb)
 			val8 = nla_get_u8(tb[IWL_TM_ATTR_REG_VALUE8]);
 			IWL_INFO(priv, "8bit value to write 0x%x\n", val8);
 			iwl_write8(bus(priv), ofs, val8);
+		}
+		break;
+	case IWL_TM_CMD_APP2DEV_INDIRECT_REG_READ32:
+		val32 = iwl_read_prph(bus(priv), ofs);
+		IWL_INFO(priv, "32bit value to read 0x%x\n", val32);
+
+		skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy, 20);
+		if (!skb) {
+			IWL_DEBUG_INFO(priv, "Error allocating memory\n");
+			return -ENOMEM;
+		}
+		NLA_PUT_U32(skb, IWL_TM_ATTR_REG_VALUE32, val32);
+		status = cfg80211_testmode_reply(skb);
+		if (status < 0)
+			IWL_DEBUG_INFO(priv,
+					"Error sending msg : %d\n", status);
+		break;
+	case IWL_TM_CMD_APP2DEV_INDIRECT_REG_WRITE32:
+		if (!tb[IWL_TM_ATTR_REG_VALUE32]) {
+			IWL_DEBUG_INFO(priv,
+					"Error finding value to write\n");
+			return -ENOMSG;
+		} else {
+			val32 = nla_get_u32(tb[IWL_TM_ATTR_REG_VALUE32]);
+			IWL_INFO(priv, "32bit value to write 0x%x\n", val32);
+			iwl_write_prph(bus(priv), ofs, val32);
 		}
 		break;
 	default:
@@ -396,8 +422,7 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 		break;
 
 	case IWL_TM_CMD_APP2DEV_LOAD_INIT_FW:
-		status = iwlagn_load_ucode_wait_alive(priv, &priv->ucode_init,
-						      IWL_UCODE_INIT);
+		status = iwlagn_load_ucode_wait_alive(priv, IWL_UCODE_INIT);
 		if (status)
 			IWL_DEBUG_INFO(priv,
 				"Error loading init ucode: %d\n", status);
@@ -409,9 +434,7 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 		break;
 
 	case IWL_TM_CMD_APP2DEV_LOAD_RUNTIME_FW:
-		status = iwlagn_load_ucode_wait_alive(priv,
-					   &priv->ucode_rt,
-					   IWL_UCODE_REGULAR);
+		status = iwlagn_load_ucode_wait_alive(priv, IWL_UCODE_REGULAR);
 		if (status) {
 			IWL_DEBUG_INFO(priv,
 				"Error loading runtime ucode: %d\n", status);
@@ -484,7 +507,7 @@ static int iwl_testmode_trace(struct ieee80211_hw *hw, struct nlattr **tb)
 	struct iwl_priv *priv = hw->priv;
 	struct sk_buff *skb;
 	int status = 0;
-	struct device *dev = priv->bus->dev;
+	struct device *dev = bus(priv)->dev;
 
 	switch (nla_get_u32(tb[IWL_TM_ATTR_COMMAND])) {
 	case IWL_TM_CMD_APP2DEV_BEGIN_TRACE:
@@ -641,7 +664,7 @@ static int iwl_testmode_ownership(struct ieee80211_hw *hw, struct nlattr **tb)
  * @data: pointer to user space message
  * @len: length in byte of @data
  */
-int iwl_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
+int iwlagn_mac_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
 {
 	struct nlattr *tb[IWL_TM_ATTR_MAX];
 	struct iwl_priv *priv = hw->priv;
@@ -668,9 +691,11 @@ int iwl_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
 		IWL_DEBUG_INFO(priv, "testmode cmd to uCode\n");
 		result = iwl_testmode_ucode(hw, tb);
 		break;
-	case IWL_TM_CMD_APP2DEV_REG_READ32:
-	case IWL_TM_CMD_APP2DEV_REG_WRITE32:
-	case IWL_TM_CMD_APP2DEV_REG_WRITE8:
+	case IWL_TM_CMD_APP2DEV_DIRECT_REG_READ32:
+	case IWL_TM_CMD_APP2DEV_DIRECT_REG_WRITE32:
+	case IWL_TM_CMD_APP2DEV_DIRECT_REG_WRITE8:
+	case IWL_TM_CMD_APP2DEV_INDIRECT_REG_READ32:
+	case IWL_TM_CMD_APP2DEV_INDIRECT_REG_WRITE32:
 		IWL_DEBUG_INFO(priv, "testmode cmd to register\n");
 		result = iwl_testmode_reg(hw, tb);
 		break;
@@ -706,7 +731,7 @@ int iwl_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
 	return result;
 }
 
-int iwl_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *skb,
+int iwlagn_mac_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *skb,
 		      struct netlink_callback *cb,
 		      void *data, int len)
 {

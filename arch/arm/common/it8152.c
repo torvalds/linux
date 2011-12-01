@@ -25,6 +25,7 @@
 #include <linux/ioport.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/export.h>
 
 #include <asm/mach/pci.h>
 #include <asm/hardware/it8152.h>
@@ -144,7 +145,7 @@ void it8152_irq_demux(unsigned int irq, struct irq_desc *desc)
 }
 
 /* mapping for on-chip devices */
-int __init it8152_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+int __init it8152_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	if ((dev->vendor == PCI_VENDOR_ID_ITE) &&
 	    (dev->device == PCI_DEVICE_ID_ITE_8152)) {

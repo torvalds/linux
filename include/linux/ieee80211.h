@@ -128,6 +128,7 @@
 #define IEEE80211_QOS_CTL_ACK_POLICY_NOACK	0x0020
 #define IEEE80211_QOS_CTL_ACK_POLICY_NO_EXPL	0x0040
 #define IEEE80211_QOS_CTL_ACK_POLICY_BLOCKACK	0x0060
+#define IEEE80211_QOS_CTL_ACK_POLICY_MASK	0x0060
 /* A-MSDU 802.11n */
 #define IEEE80211_QOS_CTL_A_MSDU_PRESENT	0x0080
 /* Mesh Control 802.11s */
@@ -769,6 +770,9 @@ struct ieee80211_mgmt {
 		} __attribute__ ((packed)) action;
 	} u;
 } __attribute__ ((packed));
+
+/* Supported Rates value encodings in 802.11n-2009 7.3.2.2 */
+#define BSS_MEMBERSHIP_SELECTOR_HT_PHY	127
 
 /* mgmt header + 1 byte category code */
 #define IEEE80211_MIN_ACTION_SIZE offsetof(struct ieee80211_mgmt, u.action.u)
@@ -1551,6 +1555,8 @@ enum ieee80211_sa_query_action {
 #define WLAN_CIPHER_SUITE_CCMP		0x000FAC04
 #define WLAN_CIPHER_SUITE_WEP104	0x000FAC05
 #define WLAN_CIPHER_SUITE_AES_CMAC	0x000FAC06
+
+#define WLAN_CIPHER_SUITE_SMS4		0x00147201
 
 /* AKM suite selectors */
 #define WLAN_AKM_SUITE_8021X		0x000FAC01

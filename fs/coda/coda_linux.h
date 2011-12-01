@@ -59,12 +59,11 @@ void coda_sysctl_clean(void);
 
 #define CODA_ALLOC(ptr, cast, size) do { \
     if (size < PAGE_SIZE) \
-        ptr = kmalloc((unsigned long) size, GFP_KERNEL); \
+        ptr = kzalloc((unsigned long) size, GFP_KERNEL); \
     else \
-        ptr = (cast)vmalloc((unsigned long) size); \
+        ptr = (cast)vzalloc((unsigned long) size); \
     if (!ptr) \
         printk("kernel malloc returns 0 at %s:%d\n", __FILE__, __LINE__); \
-    else memset( ptr, 0, size ); \
 } while (0)
 
 

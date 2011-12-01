@@ -13,6 +13,7 @@
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
 #include <linux/init.h>
+#include <linux/module.h>
 
 static int regmap_spi_write(struct device *dev, const void *data, size_t count)
 {
@@ -47,11 +48,9 @@ static int regmap_spi_read(struct device *dev,
 }
 
 static struct regmap_bus regmap_spi = {
-	.type = &spi_bus_type,
 	.write = regmap_spi_write,
 	.gather_write = regmap_spi_gather_write,
 	.read = regmap_spi_read,
-	.owner = THIS_MODULE,
 	.read_flag_mask = 0x80,
 };
 
@@ -70,3 +69,5 @@ struct regmap *regmap_init_spi(struct spi_device *spi,
 	return regmap_init(&spi->dev, &regmap_spi, config);
 }
 EXPORT_SYMBOL_GPL(regmap_init_spi);
+
+MODULE_LICENSE("GPL");

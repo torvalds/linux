@@ -26,7 +26,7 @@
 
 #include <asm/hardware/it8152.h>
 
-unsigned long it8152_base_address;
+void __iomem *it8152_base_address;
 static int cmx2xx_it8152_irq_gpio;
 
 static void cmx2xx_it8152_irq_demux(unsigned int irq, struct irq_desc *desc)
@@ -77,7 +77,7 @@ void cmx2xx_pci_resume(void) {}
 #endif
 
 /* PCI IRQ mapping*/
-static int __init cmx2xx_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int __init cmx2xx_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int irq;
 

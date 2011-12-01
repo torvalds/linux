@@ -20,6 +20,7 @@
  ****************************************************************************/
 
 #include <linux/configfs.h>
+#include <linux/export.h>
 #include <target/target_core_base.h>
 #include <target/target_core_transport.h>
 #include <target/target_core_fabric_ops.h>
@@ -181,7 +182,7 @@ struct se_tpg_np *lio_target_call_addnptotpg(
 		return ERR_PTR(-EOVERFLOW);
 	}
 	memset(buf, 0, MAX_PORTAL_LEN + 1);
-	snprintf(buf, MAX_PORTAL_LEN, "%s", name);
+	snprintf(buf, MAX_PORTAL_LEN + 1, "%s", name);
 
 	memset(&sockaddr, 0, sizeof(struct __kernel_sockaddr_storage));
 
@@ -268,7 +269,7 @@ struct se_tpg_np *lio_target_call_addnptotpg(
 				ISCSI_TCP);
 	if (IS_ERR(tpg_np)) {
 		iscsit_put_tpg(tpg);
-		return ERR_PTR(PTR_ERR(tpg_np));
+		return ERR_CAST(tpg_np);
 	}
 	pr_debug("LIO_Target_ConfigFS: addnptotpg done!\n");
 
@@ -1285,7 +1286,7 @@ struct se_wwn *lio_target_call_coreaddtiqn(
 
 	tiqn = iscsit_add_tiqn((unsigned char *)name);
 	if (IS_ERR(tiqn))
-		return ERR_PTR(PTR_ERR(tiqn));
+		return ERR_CAST(tiqn);
 	/*
 	 * Setup struct iscsi_wwn_stat_grps for se_wwn->fabric_stat_group.
 	 */

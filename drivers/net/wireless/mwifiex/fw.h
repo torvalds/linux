@@ -57,12 +57,6 @@ struct tx_packet_hdr {
 #define GET_FW_DEFAULT_BANDS(adapter)  \
 	((adapter->fw_cap_info >> 8) & ALL_802_11_BANDS)
 
-extern u8 supported_rates_b[B_SUPPORTED_RATES];
-extern u8 supported_rates_g[G_SUPPORTED_RATES];
-extern u8 supported_rates_bg[BG_SUPPORTED_RATES];
-extern u8 supported_rates_a[A_SUPPORTED_RATES];
-extern u8 supported_rates_n[N_SUPPORTED_RATES];
-
 #define HostCmd_WEP_KEY_INDEX_MASK              0x3fff
 
 #define KEY_INFO_ENABLED        0x01
@@ -84,7 +78,8 @@ enum KEY_TYPE_ID {
 
 #define MAX_FIRMWARE_POLL_TRIES			100
 
-#define FIRMWARE_READY				0xfedc
+#define FIRMWARE_READY_SDIO				0xfedc
+#define FIRMWARE_READY_PCIE				0xfedcba00
 
 enum MWIFIEX_802_11_PRIVACY_FILTER {
 	MWIFIEX_802_11_PRIV_FILTER_ACCEPT_ALL,
@@ -170,6 +165,7 @@ enum MWIFIEX_802_11_WEP_STATUS {
 
 #define GET_RXMCSSUPP(DevMCSSupported) (DevMCSSupported & 0x0f)
 #define SETHT_MCS32(x) (x[4] |= 1)
+#define HT_STREAM_2X2	0x22
 
 #define SET_SECONDARYCHAN(RadioType, SECCHAN) (RadioType |= (SECCHAN << 4))
 
@@ -221,7 +217,7 @@ enum MWIFIEX_802_11_WEP_STATUS {
 #define HostCmd_CMD_802_11_HS_CFG_ENH                 0x00e5
 #define HostCmd_CMD_CAU_REG_ACCESS                    0x00ed
 #define HostCmd_CMD_SET_BSS_MODE                      0x00f7
-
+#define HostCmd_CMD_PCIE_DESC_DETAILS                 0x00fa
 
 enum ENH_PS_MODES {
 	EN_PS = 1,
@@ -678,7 +674,7 @@ struct host_cmd_ds_802_11_ad_hoc_start {
 	union ieee_types_phy_param_set phy_param_set;
 	u16 reserved1;
 	__le16 cap_info_bitmap;
-	u8 DataRate[HOSTCMD_SUPPORTED_RATES];
+	u8 data_rate[HOSTCMD_SUPPORTED_RATES];
 } __packed;
 
 struct host_cmd_ds_802_11_ad_hoc_result {
@@ -1137,6 +1133,30 @@ struct host_cmd_ds_set_bss_mode {
 	u8 con_type;
 } __packed;
 
+struct host_cmd_ds_pcie_details {
+	/* TX buffer descriptor ring address */
+	u32 txbd_addr_lo;
+	u32 txbd_addr_hi;
+	/* TX buffer descriptor ring count */
+	u32 txbd_count;
+
+	/* RX buffer descriptor ring address */
+	u32 rxbd_addr_lo;
+	u32 rxbd_addr_hi;
+	/* RX buffer descriptor ring count */
+	u32 rxbd_count;
+
+	/* Event buffer descriptor ring address */
+	u32 evtbd_addr_lo;
+	u32 evtbd_addr_hi;
+	/* Event buffer descriptor ring count */
+	u32 evtbd_count;
+
+	/* Sleep cookie buffer physical address */
+	u32 sleep_cookie_addr_lo;
+	u32 sleep_cookie_addr_hi;
+} __packed;
+
 struct host_cmd_ds_command {
 	__le16 command;
 	__le16 size;
@@ -1184,6 +1204,7 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_rf_reg_access rf_reg;
 		struct host_cmd_ds_pmic_reg_access pmic_reg;
 		struct host_cmd_ds_set_bss_mode bss_mode;
+		struct host_cmd_ds_pcie_details pcie_host_spec;
 		struct host_cmd_ds_802_11_eeprom_access eeprom;
 	} params;
 } __packed;

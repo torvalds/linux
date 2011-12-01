@@ -113,6 +113,8 @@ MODULE_DESCRIPTION("ALSA driver module for cx2388x based TV cards");
 MODULE_AUTHOR("Ricardo Cerqueira");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(CX88_VERSION);
+
 MODULE_SUPPORTED_DEVICE("{{Conexant,23881},"
 			"{{Conexant,23882},"
 			"{{Conexant,23883}");
@@ -973,14 +975,8 @@ static struct pci_driver cx88_audio_pci_driver = {
  */
 static int __init cx88_audio_init(void)
 {
-	printk(KERN_INFO "cx2388x alsa driver version %d.%d.%d loaded\n",
-	       (CX88_VERSION_CODE >> 16) & 0xff,
-	       (CX88_VERSION_CODE >>  8) & 0xff,
-	       CX88_VERSION_CODE & 0xff);
-#ifdef SNAPSHOT
-	printk(KERN_INFO "cx2388x: snapshot date %04d-%02d-%02d\n",
-	       SNAPSHOT/10000, (SNAPSHOT/100)%100, SNAPSHOT%100);
-#endif
+	printk(KERN_INFO "cx2388x alsa driver version %s loaded\n",
+	       CX88_VERSION);
 	return pci_register_driver(&cx88_audio_pci_driver);
 }
 
@@ -994,10 +990,3 @@ static void __exit cx88_audio_fini(void)
 
 module_init(cx88_audio_init);
 module_exit(cx88_audio_fini);
-
-/* ----------------------------------------------------------- */
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

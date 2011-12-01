@@ -32,6 +32,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 
 #include "rds.h"
 

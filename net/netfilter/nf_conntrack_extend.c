@@ -169,7 +169,7 @@ int nf_ct_extend_register(struct nf_ct_ext_type *type)
 	   before updating alloc_size */
 	type->alloc_size = ALIGN(sizeof(struct nf_ct_ext), type->align)
 			   + type->len;
-	rcu_assign_pointer(nf_ct_ext_types[type->id], type);
+	RCU_INIT_POINTER(nf_ct_ext_types[type->id], type);
 	update_alloc_size(type);
 out:
 	mutex_unlock(&nf_ct_ext_type_mutex);
@@ -181,7 +181,7 @@ EXPORT_SYMBOL_GPL(nf_ct_extend_register);
 void nf_ct_extend_unregister(struct nf_ct_ext_type *type)
 {
 	mutex_lock(&nf_ct_ext_type_mutex);
-	rcu_assign_pointer(nf_ct_ext_types[type->id], NULL);
+	RCU_INIT_POINTER(nf_ct_ext_types[type->id], NULL);
 	update_alloc_size(type);
 	mutex_unlock(&nf_ct_ext_type_mutex);
 	rcu_barrier(); /* Wait for completion of call_rcu()'s */

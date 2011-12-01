@@ -173,7 +173,7 @@ static struct notifier_block epx_c3_notifier = {
 	.notifier_call = epx_c3_notify_sys,
 };
 
-static const char banner[] __initdata = KERN_INFO PFX
+static const char banner[] __initconst = KERN_INFO PFX
 	"Hardware Watchdog Timer for Winsystems EPX-C3 SBC: 0.1\n";
 
 static int __init watchdog_init(void)

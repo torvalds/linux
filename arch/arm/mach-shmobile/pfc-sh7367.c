@@ -21,68 +21,49 @@
 #include <linux/gpio.h>
 #include <mach/sh7367.h>
 
-#define _1(fn, pfx, sfx) fn(pfx, sfx)
-
-#define _10(fn, pfx, sfx)				\
-	_1(fn, pfx##0, sfx), _1(fn, pfx##1, sfx),	\
-	_1(fn, pfx##2, sfx), _1(fn, pfx##3, sfx),	\
-	_1(fn, pfx##4, sfx), _1(fn, pfx##5, sfx),	\
-	_1(fn, pfx##6, sfx), _1(fn, pfx##7, sfx),	\
-	_1(fn, pfx##8, sfx), _1(fn, pfx##9, sfx)
-
-#define _90(fn, pfx, sfx)				\
-	_10(fn, pfx##1, sfx), _10(fn, pfx##2, sfx),	\
-	_10(fn, pfx##3, sfx), _10(fn, pfx##4, sfx),	\
-	_10(fn, pfx##5, sfx), _10(fn, pfx##6, sfx),	\
-	_10(fn, pfx##7, sfx), _10(fn, pfx##8, sfx),	\
-	_10(fn, pfx##9, sfx)
-
-#define _273(fn, pfx, sfx)		\
-	_10(fn, pfx, sfx), _90(fn, pfx, sfx),		\
-	_10(fn, pfx##10, sfx), _90(fn, pfx##1, sfx),	\
-	_10(fn, pfx##20, sfx), _10(fn, pfx##21, sfx),	\
-	_10(fn, pfx##22, sfx), _10(fn, pfx##23, sfx),	\
-	_10(fn, pfx##24, sfx), _10(fn, pfx##25, sfx),	\
-	_10(fn, pfx##26, sfx), _1(fn, pfx##270, sfx),	\
-	_1(fn, pfx##271, sfx), _1(fn, pfx##272, sfx)
-
-#define _PORT(pfx, sfx) pfx##_##sfx
-#define PORT_273(str) _273(_PORT, PORT, str)
+#define CPU_ALL_PORT(fn, pfx, sfx)				\
+	PORT_10(fn, pfx, sfx), PORT_90(fn, pfx, sfx),		\
+	PORT_10(fn, pfx##10, sfx), PORT_90(fn, pfx##1, sfx),	\
+	PORT_10(fn, pfx##20, sfx), PORT_10(fn, pfx##21, sfx),	\
+	PORT_10(fn, pfx##22, sfx), PORT_10(fn, pfx##23, sfx),	\
+	PORT_10(fn, pfx##24, sfx), PORT_10(fn, pfx##25, sfx),	\
+	PORT_10(fn, pfx##26, sfx), PORT_1(fn, pfx##270, sfx),	\
+	PORT_1(fn, pfx##271, sfx), PORT_1(fn, pfx##272, sfx)
 
 enum {
 	PINMUX_RESERVED = 0,
 
 	PINMUX_DATA_BEGIN,
-	PORT_273(DATA), /* PORT0_DATA -> PORT272_DATA */
+	PORT_ALL(DATA), /* PORT0_DATA -> PORT272_DATA */
 	PINMUX_DATA_END,
 
 	PINMUX_INPUT_BEGIN,
-	PORT_273(IN), /* PORT0_IN -> PORT272_IN */
+	PORT_ALL(IN), /* PORT0_IN -> PORT272_IN */
 	PINMUX_INPUT_END,
 
 	PINMUX_INPUT_PULLUP_BEGIN,
-	PORT_273(IN_PU), /* PORT0_IN_PU -> PORT272_IN_PU */
+	PORT_ALL(IN_PU), /* PORT0_IN_PU -> PORT272_IN_PU */
 	PINMUX_INPUT_PULLUP_END,
 
 	PINMUX_INPUT_PULLDOWN_BEGIN,
-	PORT_273(IN_PD), /* PORT0_IN_PD -> PORT272_IN_PD */
+	PORT_ALL(IN_PD), /* PORT0_IN_PD -> PORT272_IN_PD */
 	PINMUX_INPUT_PULLDOWN_END,
 
 	PINMUX_OUTPUT_BEGIN,
-	PORT_273(OUT), /* PORT0_OUT -> PORT272_OUT */
+	PORT_ALL(OUT), /* PORT0_OUT -> PORT272_OUT */
 	PINMUX_OUTPUT_END,
 
 	PINMUX_FUNCTION_BEGIN,
-	PORT_273(FN_IN), /* PORT0_FN_IN -> PORT272_FN_IN */
-	PORT_273(FN_OUT), /* PORT0_FN_OUT -> PORT272_FN_OUT */
-	PORT_273(FN0), /* PORT0_FN0 -> PORT272_FN0 */
-	PORT_273(FN1), /* PORT0_FN1 -> PORT272_FN1 */
-	PORT_273(FN2), /* PORT0_FN2 -> PORT272_FN2 */
-	PORT_273(FN3), /* PORT0_FN3 -> PORT272_FN3 */
-	PORT_273(FN4), /* PORT0_FN4 -> PORT272_FN4 */
-	PORT_273(FN5), /* PORT0_FN5 -> PORT272_FN5 */
-	PORT_273(FN6), /* PORT0_FN6 -> PORT272_FN6 */
-	PORT_273(FN7), /* PORT0_FN7 -> PORT272_FN7 */
+	PORT_ALL(FN_IN), /* PORT0_FN_IN -> PORT272_FN_IN */
+	PORT_ALL(FN_OUT), /* PORT0_FN_OUT -> PORT272_FN_OUT */
+	PORT_ALL(FN0), /* PORT0_FN0 -> PORT272_FN0 */
+	PORT_ALL(FN1), /* PORT0_FN1 -> PORT272_FN1 */
+	PORT_ALL(FN2), /* PORT0_FN2 -> PORT272_FN2 */
+	PORT_ALL(FN3), /* PORT0_FN3 -> PORT272_FN3 */
+	PORT_ALL(FN4), /* PORT0_FN4 -> PORT272_FN4 */
+	PORT_ALL(FN5), /* PORT0_FN5 -> PORT272_FN5 */
+	PORT_ALL(FN6), /* PORT0_FN6 -> PORT272_FN6 */
+	PORT_ALL(FN7), /* PORT0_FN7 -> PORT272_FN7 */
 
 	MSELBCR_MSEL2_1, MSELBCR_MSEL2_0,
 	PINMUX_FUNCTION_END,
@@ -326,41 +307,6 @@ enum {
 	DIVLOCK_MARK,
 	PINMUX_MARK_END,
 };
-
-#define PORT_DATA_I(nr) \
-	PINMUX_DATA(PORT##nr##_DATA, PORT##nr##_FN0, PORT##nr##_IN)
-
-#define PORT_DATA_I_PD(nr) \
-	PINMUX_DATA(PORT##nr##_DATA, PORT##nr##_FN0, \
-		    PORT##nr##_IN, PORT##nr##_IN_PD)
-
-#define PORT_DATA_I_PU(nr) \
-	PINMUX_DATA(PORT##nr##_DATA, PORT##nr##_FN0, \
-		    PORT##nr##_IN, PORT##nr##_IN_PU)
-
-#define PORT_DATA_I_PU_PD(nr) \
-	PINMUX_DATA(PORT##nr##_DATA, PORT##nr##_FN0, \
-		    PORT##nr##_IN, PORT##nr##_IN_PD, PORT##nr##_IN_PU)
-
-#define PORT_DATA_O(nr) \
-	PINMUX_DATA(PORT##nr##_DATA, PORT##nr##_FN0, PORT##nr##_OUT)
-
-#define PORT_DATA_IO(nr) \
-	PINMUX_DATA(PORT##nr##_DATA, PORT##nr##_FN0, PORT##nr##_OUT, \
-		    PORT##nr##_IN)
-
-#define PORT_DATA_IO_PD(nr) \
-	PINMUX_DATA(PORT##nr##_DATA, PORT##nr##_FN0, PORT##nr##_OUT, \
-		    PORT##nr##_IN, PORT##nr##_IN_PD)
-
-#define PORT_DATA_IO_PU(nr) \
-	PINMUX_DATA(PORT##nr##_DATA, PORT##nr##_FN0, PORT##nr##_OUT, \
-		    PORT##nr##_IN, PORT##nr##_IN_PU)
-
-#define PORT_DATA_IO_PU_PD(nr) \
-	PINMUX_DATA(PORT##nr##_DATA, PORT##nr##_FN0, PORT##nr##_OUT, \
-		    PORT##nr##_IN, PORT##nr##_IN_PD, PORT##nr##_IN_PU)
-
 
 static pinmux_enum_t pinmux_data[] = {
 
@@ -1098,13 +1044,9 @@ static pinmux_enum_t pinmux_data[] = {
 	PINMUX_DATA(DIVLOCK_MARK, PORT272_FN1),
 };
 
-#define _GPIO_PORT(pfx, sfx) PINMUX_GPIO(GPIO_PORT##pfx, PORT##pfx##_DATA)
-#define GPIO_PORT_273() _273(_GPIO_PORT, , unused)
-#define GPIO_FN(str) PINMUX_GPIO(GPIO_FN_##str, str##_MARK)
-
 static struct pinmux_gpio pinmux_gpios[] = {
 	/* 49-1 -> 49-6 (GPIO) */
-	GPIO_PORT_273(),
+	GPIO_PORT_ALL(),
 
 	/* Special Pull-up / Pull-down Functions */
 	GPIO_FN(PORT48_KEYIN0_PU), GPIO_FN(PORT49_KEYIN1_PU),
@@ -1344,22 +1286,6 @@ static struct pinmux_gpio pinmux_gpios[] = {
 	GPIO_FN(RESETOUTS),
 	GPIO_FN(DIVLOCK),
 };
-
-/* helper for top 4 bits in PORTnCR */
-#define PCRH(in, in_pd, in_pu, out)		\
-	0, (out), (in), 0,			\
-	0, 0, 0, 0,				\
-	0, 0, (in_pd), 0,			\
-	0, 0, (in_pu), 0
-
-#define PORTCR(nr, reg)						\
-	{ PINMUX_CFG_REG("PORT" nr "CR", reg, 8, 4) {		\
-		PCRH(PORT##nr##_IN, PORT##nr##_IN_PD,		\
-		     PORT##nr##_IN_PU, PORT##nr##_OUT),		\
-		PORT##nr##_FN0, PORT##nr##_FN1, PORT##nr##_FN2,	\
-		PORT##nr##_FN3,	PORT##nr##_FN4, PORT##nr##_FN5,	\
-		PORT##nr##_FN6, PORT##nr##_FN7 }		\
-	}
 
 static struct pinmux_cfg_reg pinmux_config_regs[] = {
 	PORTCR(0, 0xe6050000), /* PORT0CR */

@@ -33,9 +33,7 @@
 #include "iwl-eeprom.h"
 #include "iwl-dev.h"
 #include "iwl-core.h"
-#include "iwl-sta.h"
 #include "iwl-io.h"
-#include "iwl-helpers.h"
 #include "iwl-agn.h"
 #include "iwl-trans.h"
 
@@ -418,6 +416,8 @@ static u16 iwl_limit_dwell(struct iwl_priv *priv, u16 dwell_time)
 
 		if (!iwl_is_associated_ctx(ctx))
 			continue;
+		if (ctx->staging.dev_type == RXON_DEV_TYPE_P2P)
+			continue;
 		value = ctx->beacon_int;
 		if (!value)
 			value = IWL_PASSIVE_DWELL_BASE;
@@ -680,7 +680,8 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 			priv->contexts[IWL_RXON_CTX_BSS].active.flags &
 						RXON_FLG_CHANNEL_MODE_MSK)
 				       >> RXON_FLG_CHANNEL_MODE_POS;
-		if (chan_mod == CHANNEL_MODE_PURE_40) {
+		if ((priv->scan_request && priv->scan_request->no_cck) ||
+		    chan_mod == CHANNEL_MODE_PURE_40) {
 			rate = IWL_RATE_6M_PLCP;
 		} else {
 			rate = IWL_RATE_1M_PLCP;
@@ -940,51 +941,6 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 	return 0;
 }
 
-int iwl_mac_hw_scan(struct ieee80211_hw *hw,
-		    struct ieee80211_vif *vif,
-		    struct cfg80211_scan_request *req)
-{
-	struct iwl_priv *priv = hw->priv;
-	int ret;
-
-	IWL_DEBUG_MAC80211(priv, "enter\n");
-
-	if (req->n_channels == 0)
-		return -EINVAL;
-
-	mutex_lock(&priv->shrd->mutex);
-
-	/*
-	 * If an internal scan is in progress, just set
-	 * up the scan_request as per above.
-	 */
-	if (priv->scan_type != IWL_SCAN_NORMAL) {
-		IWL_DEBUG_SCAN(priv,
-			       "SCAN request during internal scan - defer\n");
-		priv->scan_request = req;
-		priv->scan_vif = vif;
-		ret = 0;
-	} else {
-		priv->scan_request = req;
-		priv->scan_vif = vif;
-		/*
-		 * mac80211 will only ask for one band at a time
-		 * so using channels[0] here is ok
-		 */
-		ret = iwl_scan_initiate(priv, vif, IWL_SCAN_NORMAL,
-					req->channels[0]->band);
-		if (ret) {
-			priv->scan_request = NULL;
-			priv->scan_vif = NULL;
-		}
-	}
-
-	IWL_DEBUG_MAC80211(priv, "leave\n");
-
-	mutex_unlock(&priv->shrd->mutex);
-
-	return ret;
-}
 
 /*
  * internal short scan, this function should only been called while associated.

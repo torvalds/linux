@@ -91,3 +91,26 @@ config VIDEO_ISIF
 
 	   To compile this driver as a module, choose M here: the
 	   module will be called vpfe.
+
+config VIDEO_DM644X_VPBE
+	tristate "DM644X VPBE HW module"
+	depends on ARCH_DAVINCI_DM644x
+	select VIDEO_VPSS_SYSTEM
+	select VIDEOBUF_DMA_CONTIG
+	help
+	    Enables VPBE modules used for display on a DM644x
+	    SoC.
+
+	    To compile this driver as a module, choose M here: the
+	    module will be called vpbe.
+
+
+config VIDEO_VPBE_DISPLAY
+	tristate "VPBE V4L2 Display driver"
+	depends on ARCH_DAVINCI_DM644x
+	select VIDEO_DM644X_VPBE
+	help
+	    Enables VPBE V4L2 Display driver on a DM644x device
+
+	    To compile this driver as a module, choose M here: the
+	    module will be called vpbe_display.
