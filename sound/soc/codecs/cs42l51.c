@@ -555,7 +555,7 @@ static int cs42l51_probe(struct snd_soc_codec *codec)
 
 static struct snd_soc_codec_driver soc_codec_device_cs42l51 = {
 	.probe =	cs42l51_probe,
-	.reg_cache_size = CS42L51_NUMREGS,
+	.reg_cache_size = CS42L51_NUMREGS + 1,
 	.reg_word_size = sizeof(u8),
 };
 
