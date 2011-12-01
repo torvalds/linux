@@ -1780,11 +1780,9 @@ _scsih_init_warpdrive_properties(struct MPT2SAS_ADAPTER *ioc,
 	Mpi2ConfigReply_t mpi_reply;
 	u16 sz;
 	u8 num_pds, count;
-	u64 mb = 1024 * 1024;
-	u64 tb_2 = 2 * mb * mb;
-	u64 capacity;
-	u32 stripe_sz;
-	u8 i, stripe_exp;
+	unsigned long stripe_sz, block_sz;
+	u8 stripe_exp, block_exp;
+	u64 dev_max_lba;
 
 	if (!ioc->is_warpdrive)
 		return;
@@ -1848,51 +1846,57 @@ _scsih_init_warpdrive_properties(struct MPT2SAS_ADAPTER *ioc,
 			    vol_pg0->PhysDisk[count].PhysDiskNum);
 			goto out_error;
 		}
+		/* Disable direct I/O if member drive lba exceeds 4 bytes */
+		dev_max_lba = le64_to_cpu(pd_pg0.DeviceMaxLBA);
+		if (dev_max_lba >> 32) {
+			printk(MPT2SAS_INFO_FMT "WarpDrive : Direct IO is "
+			    "disabled for the drive with handle(0x%04x) member"
+			    "handle (0x%04x) unsupported max lba 0x%016llx\n",
+			    ioc->name, raid_device->handle,
+			    le16_to_cpu(pd_pg0.DevHandle),
+			    (unsigned long long)dev_max_lba);
+			goto out_error;
+		}
+
 		raid_device->pd_handle[count] = le16_to_cpu(pd_pg0.DevHandle);
 	}
 
 	/*
 	 * Assumption for WD: Direct I/O is not supported if the volume is
-	 * not RAID0, if the stripe size is not 64KB, if the block size is
-	 * not 512 and if the volume size is >2TB
+	 * not RAID0
 	 */
-	if (raid_device->volume_type != MPI2_RAID_VOL_TYPE_RAID0 ||
-	    le16_to_cpu(vol_pg0->BlockSize) != 512) {
+	if (raid_device->volume_type != MPI2_RAID_VOL_TYPE_RAID0) {
 		printk(MPT2SAS_INFO_FMT "WarpDrive : Direct IO is disabled "
 		    "for the drive with handle(0x%04x): type=%d, "
 		    "s_sz=%uK, blk_size=%u\n", ioc->name,
 		    raid_device->handle, raid_device->volume_type,
-		    le32_to_cpu(vol_pg0->StripeSize)/2,
+		    (le32_to_cpu(vol_pg0->StripeSize) *
+		    le16_to_cpu(vol_pg0->BlockSize)) / 1024,
 		    le16_to_cpu(vol_pg0->BlockSize));
 		goto out_error;
 	}
 
-	capacity = (u64) le16_to_cpu(vol_pg0->BlockSize) *
-	    (le64_to_cpu(vol_pg0->MaxLBA) + 1);
-
-	if (capacity > tb_2) {
-		printk(MPT2SAS_INFO_FMT "WarpDrive : Direct IO is disabled "
-		"for the drive with handle(0x%04x) since drive sz > 2TB\n",
-		ioc->name, raid_device->handle);
-		goto out_error;
-	}
-
 	stripe_sz = le32_to_cpu(vol_pg0->StripeSize);
-	stripe_exp = 0;
-	for (i = 0; i < 32; i++) {
-		if (stripe_sz & 1)
-			break;
-		stripe_exp++;
-		stripe_sz >>= 1;
-	}
-	if (i == 32) {
+	stripe_exp = find_first_bit(&stripe_sz, 32);
+	if (stripe_exp == 32) {
 		printk(MPT2SAS_INFO_FMT "WarpDrive : Direct IO is disabled "
-		    "for the drive with handle(0x%04x) invalid stripe sz %uK\n",
+		"for the drive with handle(0x%04x) invalid stripe sz %uK\n",
 		    ioc->name, raid_device->handle,
-		    le32_to_cpu(vol_pg0->StripeSize)/2);
+		    (le32_to_cpu(vol_pg0->StripeSize) *
+		    le16_to_cpu(vol_pg0->BlockSize)) / 1024);
 		goto out_error;
 	}
 	raid_device->stripe_exponent = stripe_exp;
+	block_sz = le16_to_cpu(vol_pg0->BlockSize);
+	block_exp = find_first_bit(&block_sz, 16);
+	if (block_exp == 16) {
+		printk(MPT2SAS_INFO_FMT "WarpDrive : Direct IO is disabled "
+		    "for the drive with handle(0x%04x) invalid block sz %u\n",
+		    ioc->name, raid_device->handle,
+		    le16_to_cpu(vol_pg0->BlockSize));
+		goto out_error;
+	}
+	raid_device->block_exponent = block_exp;
 	raid_device->direct_io_enabled = 1;
 
 	printk(MPT2SAS_INFO_FMT "WarpDrive : Direct IO is Enabled for the drive"
@@ -3808,8 +3812,9 @@ _scsih_setup_direct_io(struct MPT2SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 {
 	u32 v_lba, p_lba, stripe_off, stripe_unit, column, io_size;
 	u32 stripe_sz, stripe_exp;
-	u8 num_pds, *cdb_ptr, *tmp_ptr, *lba_ptr1, *lba_ptr2;
+	u8 num_pds, *cdb_ptr, i;
 	u8 cdb0 = scmd->cmnd[0];
+	u64 v_llba;
 
 	/*
 	 * Try Direct I/O to RAID memeber disks
@@ -3820,15 +3825,11 @@ _scsih_setup_direct_io(struct MPT2SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 
 		if ((cdb0 < READ_16) || !(cdb_ptr[2] | cdb_ptr[3] | cdb_ptr[4]
 			| cdb_ptr[5])) {
-			io_size = scsi_bufflen(scmd) >> 9;
+			io_size = scsi_bufflen(scmd) >>
+			    raid_device->block_exponent;
+			i = (cdb0 < READ_16) ? 2 : 6;
 			/* get virtual lba */
-			lba_ptr1 = lba_ptr2 = (cdb0 < READ_16) ? &cdb_ptr[2] :
-			    &cdb_ptr[6];
-			tmp_ptr = (u8 *)&v_lba + 3;
-			*tmp_ptr-- = *lba_ptr1++;
-			*tmp_ptr-- = *lba_ptr1++;
-			*tmp_ptr-- = *lba_ptr1++;
-			*tmp_ptr = *lba_ptr1;
+			v_lba = be32_to_cpu(*(__be32 *)(&cdb_ptr[i]));
 
 			if (((u64)v_lba + (u64)io_size - 1) <=
 			    (u32)raid_device->max_lba) {
@@ -3847,11 +3848,39 @@ _scsih_setup_direct_io(struct MPT2SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 					mpi_request->DevHandle =
 						cpu_to_le16(raid_device->
 						    pd_handle[column]);
-					tmp_ptr = (u8 *)&p_lba + 3;
-					*lba_ptr2++ = *tmp_ptr--;
-					*lba_ptr2++ = *tmp_ptr--;
-					*lba_ptr2++ = *tmp_ptr--;
-					*lba_ptr2 = *tmp_ptr;
+					(*(__be32 *)(&cdb_ptr[i])) =
+						cpu_to_be32(p_lba);
+					/*
+					* WD: To indicate this I/O is directI/O
+					*/
+					_scsih_scsi_direct_io_set(ioc, smid, 1);
+				}
+			}
+		} else {
+			io_size = scsi_bufflen(scmd) >>
+			    raid_device->block_exponent;
+			/* get virtual lba */
+			v_llba = be64_to_cpu(*(__be64 *)(&cdb_ptr[2]));
+
+			if ((v_llba + (u64)io_size - 1) <=
+			    raid_device->max_lba) {
+				stripe_sz = raid_device->stripe_sz;
+				stripe_exp = raid_device->stripe_exponent;
+				stripe_off = (u32) (v_llba & (stripe_sz - 1));
+
+				/* Check whether IO falls within a stripe */
+				if ((stripe_off + io_size) <= stripe_sz) {
+					num_pds = raid_device->num_pds;
+					p_lba = (u32)(v_llba >> stripe_exp);
+					stripe_unit = p_lba / num_pds;
+					column = p_lba % num_pds;
+					p_lba = (stripe_unit << stripe_exp) +
+					    stripe_off;
+					mpi_request->DevHandle =
+						cpu_to_le16(raid_device->
+						    pd_handle[column]);
+					(*(__be64 *)(&cdb_ptr[2])) =
+					    cpu_to_be64((u64)p_lba);
 					/*
 					* WD: To indicate this I/O is directI/O
 					*/

@@ -374,6 +374,7 @@ struct _sas_device {
  * @percent_complete: resync percent complete
  * @direct_io_enabled: Whether direct io to PDs are allowed or not
  * @stripe_exponent: X where 2powX is the stripe sz in blocks
+ * @block_exponent: X where 2powX is the block sz in bytes
  * @max_lba: Maximum number of LBA in the volume
  * @stripe_sz: Stripe Size of the volume
  * @device_info: Device info of the volume member disk
@@ -395,6 +396,7 @@ struct _raid_device {
 	u8	percent_complete;
 	u8	direct_io_enabled;
 	u8	stripe_exponent;
+	u8	block_exponent;
 	u64	max_lba;
 	u32	stripe_sz;
 	u32	device_info;
