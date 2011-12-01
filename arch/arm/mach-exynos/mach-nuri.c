@@ -436,7 +436,7 @@ static struct regulator_consumer_supply __initdata max8997_buck1_[] = {
 	REGULATOR_SUPPLY("vdd_arm", NULL), /* CPUFREQ */
 };
 static struct regulator_consumer_supply __initdata max8997_buck2_[] = {
-	REGULATOR_SUPPLY("vdd_int", NULL), /* CPUFREQ */
+	REGULATOR_SUPPLY("vdd_int", "exynos4210-busfreq.0"), /* CPUFREQ */
 };
 static struct regulator_consumer_supply __initdata max8997_buck3_[] = {
 	REGULATOR_SUPPLY("vdd", "mali_dev.0"), /* G3D of Exynos 4 */
@@ -749,7 +749,7 @@ static struct regulator_init_data __initdata max8997_buck2_data = {
 	.constraints	= {
 		.name		= "VINT_1.1V_C210",
 		.min_uV		= 900000,
-		.max_uV		= 1100000,
+		.max_uV		= 1200000,
 		.valid_ops_mask	= REGULATOR_CHANGE_VOLTAGE,
 		.always_on	= 1,
 		.state_mem	= {
@@ -964,7 +964,6 @@ static struct max8997_platform_data __initdata nuri_max8997_pdata = {
 	.regulators		= nuri_max8997_regulators,
 
 	.buck125_gpios = { EXYNOS4_GPX0(5), EXYNOS4_GPX0(6), EXYNOS4_GPL0(0) },
-	.buck2_gpiodvs = true,
 
 	.buck1_voltage[0] = 1350000, /* 1.35V */
 	.buck1_voltage[1] = 1300000, /* 1.3V */
@@ -1301,6 +1300,11 @@ static struct s3c2410_platform_i2c nuri_i2c0_platdata __initdata = {
 	.sda_delay	= 200,
 };
 
+/* DEVFREQ controlling memory/bus */
+static struct platform_device exynos4_bus_devfreq = {
+	.name			= "exynos4210-busfreq",
+};
+
 static struct platform_device *nuri_devices[] __initdata = {
 	/* Samsung Platform Devices */
 	&s3c_device_i2c5, /* PMIC should initialize first */
@@ -1342,6 +1346,7 @@ static struct platform_device *nuri_devices[] __initdata = {
 	&cam_vt_cam15_fixed_rdev,
 	&cam_vdda_fixed_rdev,
 	&cam_8m_12v_fixed_rdev,
+	&exynos4_bus_devfreq,
 };
 
 static void __init nuri_map_io(void)
