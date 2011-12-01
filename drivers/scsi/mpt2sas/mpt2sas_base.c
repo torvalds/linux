@@ -4256,7 +4256,7 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 
 	r = mpt2sas_base_map_resources(ioc);
 	if (r)
-		return r;
+		goto out_free_resources;
 
 	if (ioc->is_warpdrive) {
 		ioc->reply_post_host_index[0] =
