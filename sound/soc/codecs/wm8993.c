@@ -512,7 +512,7 @@ static const DECLARE_TLV_DB_SCALE(drc_comp_threash, -4500, 75, 0);
 static const DECLARE_TLV_DB_SCALE(drc_comp_amp, -2250, 75, 0);
 static const DECLARE_TLV_DB_SCALE(drc_min_tlv, -1800, 600, 0);
 static const unsigned int drc_max_tlv[] = {
-	TLV_DB_RANGE_HEAD(4),
+	TLV_DB_RANGE_HEAD(2),
 	0, 2, TLV_DB_SCALE_ITEM(1200, 600, 0),
 	3, 3, TLV_DB_SCALE_ITEM(3600, 0, 0),
 };

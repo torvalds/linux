@@ -1999,10 +1999,6 @@ static void stop_activity(struct musb *musb, struct usb_gadget_driver *driver)
 					nuke(&hw_ep->ep_out, -ESHUTDOWN);
 			}
 		}
-
-		spin_unlock(&musb->lock);
-		driver->disconnect(&musb->g);
-		spin_lock(&musb->lock);
 	}
 }
 

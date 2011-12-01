@@ -280,6 +280,14 @@ int pciehp_check_link_status(struct controller *ctrl)
         else
                 msleep(1000);
 
+	/*
+	 * Need to wait for 1000 ms after Data Link Layer Link Active
+	 * (DLLLA) bit reads 1b before sending configuration request.
+	 * We need it before checking Link Training (LT) bit becuase
+	 * LT is still set even after DLLLA bit is set on some platform.
+	 */
+	msleep(1000);
+
 	retval = pciehp_readw(ctrl, PCI_EXP_LNKSTA, &lnk_status);
 	if (retval) {
 		ctrl_err(ctrl, "Cannot read LNKSTATUS register\n");
@@ -293,6 +301,16 @@ int pciehp_check_link_status(struct controller *ctrl)
 		retval = -1;
 		return retval;
 	}
+
+	/*
+	 * If the port supports Link speeds greater than 5.0 GT/s, we
+	 * must wait for 100 ms after Link training completes before
+	 * sending configuration request.
+	 */
+	if (ctrl->pcie->port->subordinate->max_bus_speed > PCIE_SPEED_5_0GT)
+		msleep(100);
+
+	pcie_update_link_speed(ctrl->pcie->port->subordinate, lnk_status);
 
 	return retval;
 }
@@ -484,7 +502,6 @@ int pciehp_power_on_slot(struct slot * slot)
 	u16 slot_cmd;
 	u16 cmd_mask;
 	u16 slot_status;
-	u16 lnk_status;
 	int retval = 0;
 
 	/* Clear sticky power-fault bit from previous power failures */
@@ -515,14 +532,6 @@ int pciehp_power_on_slot(struct slot * slot)
 	}
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n", __func__,
 		 pci_pcie_cap(ctrl->pcie->port) + PCI_EXP_SLTCTL, slot_cmd);
-
-	retval = pciehp_readw(ctrl, PCI_EXP_LNKSTA, &lnk_status);
-	if (retval) {
-		ctrl_err(ctrl, "%s: Cannot read LNKSTA register\n",
-				__func__);
-		return retval;
-	}
-	pcie_update_link_speed(ctrl->pcie->port->subordinate, lnk_status);
 
 	return retval;
 }

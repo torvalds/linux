@@ -11,6 +11,7 @@ config USB_MUSB_HDRC
 	select TWL4030_USB if MACH_OMAP_3430SDP
 	select TWL6030_USB if MACH_OMAP_4430SDP || MACH_OMAP4_PANDA
 	select USB_OTG_UTILS
+	select USB_GADGET_DUALSPEED
 	tristate 'Inventra Highspeed Dual Role Controller (TI, ADI, ...)'
 	help
 	  Say Y here if your system has a dual role high speed USB
@@ -60,7 +61,7 @@ config USB_MUSB_BLACKFIN
 
 config USB_MUSB_UX500
 	tristate "U8500 and U5500"
-	depends on (ARCH_U8500 && AB8500_USB) || (ARCH_U5500)
+	depends on (ARCH_U8500 && AB8500_USB)
 
 endchoice
 

@@ -807,7 +807,6 @@ static int wm9081_set_bias_level(struct snd_soc_codec *codec,
 			mdelay(100);
 
 			/* Normal bias enable & soft start off */
-			reg |= WM9081_BIAS_ENA;
 			reg &= ~WM9081_VMID_RAMP;
 			snd_soc_write(codec, WM9081_VMID_CONTROL, reg);
 
@@ -818,7 +817,7 @@ static int wm9081_set_bias_level(struct snd_soc_codec *codec,
 		}
 
 		/* VMID 2*240k */
-		reg = snd_soc_read(codec, WM9081_BIAS_CONTROL_1);
+		reg = snd_soc_read(codec, WM9081_VMID_CONTROL);
 		reg &= ~WM9081_VMID_SEL_MASK;
 		reg |= 0x04;
 		snd_soc_write(codec, WM9081_VMID_CONTROL, reg);
@@ -830,14 +829,15 @@ static int wm9081_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_OFF:
-		/* Startup bias source */
+		/* Startup bias source and disable bias */
 		reg = snd_soc_read(codec, WM9081_BIAS_CONTROL_1);
 		reg |= WM9081_BIAS_SRC;
+		reg &= ~WM9081_BIAS_ENA;
 		snd_soc_write(codec, WM9081_BIAS_CONTROL_1, reg);
 
-		/* Disable VMID and biases with soft ramping */
+		/* Disable VMID with soft ramping */
 		reg = snd_soc_read(codec, WM9081_VMID_CONTROL);
-		reg &= ~(WM9081_VMID_SEL_MASK | WM9081_BIAS_ENA);
+		reg &= ~WM9081_VMID_SEL_MASK;
 		reg |= WM9081_VMID_RAMP;
 		snd_soc_write(codec, WM9081_VMID_CONTROL, reg);
 

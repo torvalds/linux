@@ -941,7 +941,8 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 		track->db_depth_control = radeon_get_ib_value(p, idx);
 		break;
 	case R_028010_DB_DEPTH_INFO:
-		if (r600_cs_packet_next_is_pkt3_nop(p)) {
+		if (!p->keep_tiling_flags &&
+		    r600_cs_packet_next_is_pkt3_nop(p)) {
 			r = r600_cs_packet_next_reloc(p, &reloc);
 			if (r) {
 				dev_warn(p->dev, "bad SET_CONTEXT_REG "
@@ -992,7 +993,8 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 	case R_0280B4_CB_COLOR5_INFO:
 	case R_0280B8_CB_COLOR6_INFO:
 	case R_0280BC_CB_COLOR7_INFO:
-		if (r600_cs_packet_next_is_pkt3_nop(p)) {
+		if (!p->keep_tiling_flags &&
+		     r600_cs_packet_next_is_pkt3_nop(p)) {
 			r = r600_cs_packet_next_reloc(p, &reloc);
 			if (r) {
 				dev_err(p->dev, "bad SET_CONTEXT_REG 0x%04X\n", reg);
@@ -1291,10 +1293,12 @@ static int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 idx,
 	mip_offset <<= 8;
 
 	word0 = radeon_get_ib_value(p, idx + 0);
-	if (tiling_flags & RADEON_TILING_MACRO)
-		word0 |= S_038000_TILE_MODE(V_038000_ARRAY_2D_TILED_THIN1);
-	else if (tiling_flags & RADEON_TILING_MICRO)
-		word0 |= S_038000_TILE_MODE(V_038000_ARRAY_1D_TILED_THIN1);
+	if (!p->keep_tiling_flags) {
+		if (tiling_flags & RADEON_TILING_MACRO)
+			word0 |= S_038000_TILE_MODE(V_038000_ARRAY_2D_TILED_THIN1);
+		else if (tiling_flags & RADEON_TILING_MICRO)
+			word0 |= S_038000_TILE_MODE(V_038000_ARRAY_1D_TILED_THIN1);
+	}
 	word1 = radeon_get_ib_value(p, idx + 1);
 	w0 = G_038000_TEX_WIDTH(word0) + 1;
 	h0 = G_038004_TEX_HEIGHT(word1) + 1;
@@ -1621,10 +1625,12 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 					return -EINVAL;
 				}
 				base_offset = (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
-				if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
-					ib[idx+1+(i*7)+0] |= S_038000_TILE_MODE(V_038000_ARRAY_2D_TILED_THIN1);
-				else if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
-					ib[idx+1+(i*7)+0] |= S_038000_TILE_MODE(V_038000_ARRAY_1D_TILED_THIN1);
+				if (!p->keep_tiling_flags) {
+					if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+						ib[idx+1+(i*7)+0] |= S_038000_TILE_MODE(V_038000_ARRAY_2D_TILED_THIN1);
+					else if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
+						ib[idx+1+(i*7)+0] |= S_038000_TILE_MODE(V_038000_ARRAY_1D_TILED_THIN1);
+				}
 				texture = reloc->robj;
 				/* tex mip base */
 				r = r600_cs_packet_next_reloc(p, &reloc);
