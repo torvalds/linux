@@ -68,7 +68,7 @@ struct kmem_cache *t10_alua_tg_pt_gp_mem_cache;
 
 static int transport_generic_write_pending(struct se_cmd *);
 static int transport_processing_thread(void *param);
-static int __transport_execute_tasks(struct se_device *dev);
+static int __transport_execute_tasks(struct se_device *dev, struct se_cmd *);
 static void transport_complete_task_attr(struct se_cmd *cmd);
 static void transport_handle_queue_full(struct se_cmd *cmd,
 		struct se_device *dev);
@@ -851,13 +851,11 @@ static void transport_add_tasks_to_state_queue(struct se_cmd *cmd)
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 }
 
-static void transport_add_tasks_from_cmd(struct se_cmd *cmd)
+static void __transport_add_tasks_from_cmd(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct se_task *task, *task_prev = NULL;
-	unsigned long flags;
 
-	spin_lock_irqsave(&dev->execute_task_lock, flags);
 	list_for_each_entry(task, &cmd->t_task_list, t_list) {
 		if (!list_empty(&task->t_execute_list))
 			continue;
@@ -868,6 +866,15 @@ static void transport_add_tasks_from_cmd(struct se_cmd *cmd)
 		__transport_add_task_to_execute_queue(task, task_prev, dev);
 		task_prev = task;
 	}
+}
+
+static void transport_add_tasks_from_cmd(struct se_cmd *cmd)
+{
+	unsigned long flags;
+	struct se_device *dev = cmd->se_dev;
+
+	spin_lock_irqsave(&dev->execute_task_lock, flags);
+	__transport_add_tasks_from_cmd(cmd);
 	spin_unlock_irqrestore(&dev->execute_task_lock, flags);
 }
 
@@ -2075,19 +2082,16 @@ static int transport_execute_tasks(struct se_cmd *cmd)
 		if (!add_tasks)
 			goto execute_tasks;
 		/*
-		 * This calls transport_add_tasks_from_cmd() to handle
-		 * HEAD_OF_QUEUE ordering for SAM Task Attribute emulation
-		 * (if enabled) in __transport_add_task_to_execute_queue() and
-		 * transport_add_task_check_sam_attr().
+		 * __transport_execute_tasks() -> __transport_add_tasks_from_cmd()
+		 * adds associated se_tasks while holding dev->execute_task_lock
+		 * before I/O dispath to avoid a double spinlock access.
 		 */
-		transport_add_tasks_from_cmd(cmd);
+		__transport_execute_tasks(se_dev, cmd);
+		return 0;
 	}
-	/*
-	 * Kick the execution queue for the cmd associated struct se_device
-	 * storage object.
-	 */
+
 execute_tasks:
-	__transport_execute_tasks(se_dev);
+	__transport_execute_tasks(se_dev, NULL);
 	return 0;
 }
 
@@ -2097,7 +2101,7 @@ execute_tasks:
  *
  * Called from transport_processing_thread()
  */
-static int __transport_execute_tasks(struct se_device *dev)
+static int __transport_execute_tasks(struct se_device *dev, struct se_cmd *new_cmd)
 {
 	int error;
 	struct se_cmd *cmd = NULL;
@@ -2106,6 +2110,9 @@ static int __transport_execute_tasks(struct se_device *dev)
 
 check_depth:
 	spin_lock_irq(&dev->execute_task_lock);
+	if (new_cmd != NULL)
+		__transport_add_tasks_from_cmd(new_cmd);
+
 	if (list_empty(&dev->execute_task_list)) {
 		spin_unlock_irq(&dev->execute_task_lock);
 		return 0;
@@ -2139,6 +2146,7 @@ check_depth:
 		transport_generic_request_failure(cmd);
 	}
 
+	new_cmd = NULL;
 	goto check_depth;
 
 	return 0;
@@ -4647,7 +4655,7 @@ static int transport_processing_thread(void *param)
 			goto out;
 
 get_cmd:
-		__transport_execute_tasks(dev);
+		__transport_execute_tasks(dev, NULL);
 
 		cmd = transport_get_cmd_from_queue(&dev->dev_queue_obj);
 		if (!cmd)

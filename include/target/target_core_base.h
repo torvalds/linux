@@ -781,7 +781,6 @@ struct se_device {
 	u32			dev_port_count;
 	/* See transport_device_status_table */
 	u32			dev_status;
-	u32			dev_tcq_window_closed;
 	/* Physical device queue depth */
 	u32			queue_depth;
 	/* Used for SPC-2 reservations enforce of ISIDs */
