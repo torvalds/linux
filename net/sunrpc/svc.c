@@ -686,8 +686,8 @@ found_pool:
  * Create or destroy enough new threads to make the number
  * of threads the given number.  If `pool' is non-NULL, applies
  * only to threads in that pool, otherwise round-robins between
- * all pools.  Must be called with a svc_get() reference and
- * the BKL or another lock to protect access to svc_serv fields.
+ * all pools.  Caller must ensure that mutual exclusion between this and
+ * server startup or shutdown.
  *
  * Destroying threads relies on the service threads filling in
  * rqstp->rq_task, which only the nfs ones do.  Assumes the serv
