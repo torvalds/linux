@@ -172,6 +172,15 @@ static bool pci_iommuv2_capable(struct pci_dev *pdev)
 	return true;
 }
 
+static bool pdev_pri_erratum(struct pci_dev *pdev, u32 erratum)
+{
+	struct iommu_dev_data *dev_data;
+
+	dev_data = get_dev_data(&pdev->dev);
+
+	return dev_data->errata & (1 << erratum) ? true : false;
+}
+
 /*
  * In this function the list of preallocated protection domains is traversed to
  * find the domain for a specific device
@@ -1934,9 +1943,33 @@ static void pdev_iommuv2_disable(struct pci_dev *pdev)
 	pci_disable_pasid(pdev);
 }
 
+/* FIXME: Change generic reset-function to do the same */
+static int pri_reset_while_enabled(struct pci_dev *pdev)
+{
+	u16 control;
+	int pos;
+
+	pos = pci_find_ext_capability(pdev, PCI_PRI_CAP);
+	if (!pos)
+		return -EINVAL;
+
+	pci_read_config_word(pdev, pos + PCI_PRI_CONTROL_OFF, &control);
+	control |= PCI_PRI_RESET;
+	pci_write_config_word(pdev, pos + PCI_PRI_CONTROL_OFF, control);
+
+	return 0;
+}
+
 static int pdev_iommuv2_enable(struct pci_dev *pdev)
 {
-	int ret;
+	bool reset_enable;
+	int reqs, ret;
+
+	/* FIXME: Hardcode number of outstanding requests for now */
+	reqs = 32;
+	if (pdev_pri_erratum(pdev, AMD_PRI_DEV_ERRATUM_LIMIT_REQ_ONE))
+		reqs = 1;
+	reset_enable = pdev_pri_erratum(pdev, AMD_PRI_DEV_ERRATUM_ENABLE_RESET);
 
 	/* Only allow access to user-accessible pages */
 	ret = pci_enable_pasid(pdev, 0);
@@ -1948,10 +1981,16 @@ static int pdev_iommuv2_enable(struct pci_dev *pdev)
 	if (ret)
 		goto out_err;
 
-	/* FIXME: Hardcode number of outstanding requests for now */
-	ret = pci_enable_pri(pdev, 32);
+	/* Enable PRI */
+	ret = pci_enable_pri(pdev, reqs);
 	if (ret)
 		goto out_err;
+
+	if (reset_enable) {
+		ret = pri_reset_while_enabled(pdev);
+		if (ret)
+			goto out_err;
+	}
 
 	ret = pci_enable_ats(pdev, PAGE_SHIFT);
 	if (ret)
@@ -3481,3 +3520,15 @@ struct iommu_domain *amd_iommu_get_v2_domain(struct pci_dev *pdev)
 	return domain->iommu_domain;
 }
 EXPORT_SYMBOL(amd_iommu_get_v2_domain);
+
+void amd_iommu_enable_device_erratum(struct pci_dev *pdev, u32 erratum)
+{
+	struct iommu_dev_data *dev_data;
+
+	if (!amd_iommu_v2_supported())
+		return;
+
+	dev_data = get_dev_data(&pdev->dev);
+	dev_data->errata |= (1 << erratum);
+}
+EXPORT_SYMBOL(amd_iommu_enable_device_erratum);
