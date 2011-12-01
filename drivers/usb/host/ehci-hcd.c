@@ -48,6 +48,10 @@
 #include <asm/system.h>
 #include <asm/unaligned.h>
 
+#if defined(CONFIG_PPC_PS3)
+#include <asm/firmware.h>
+#endif
+
 /*-------------------------------------------------------------------------*/
 
 /*
@@ -230,12 +234,58 @@ static int ehci_halt (struct ehci_hcd *ehci)
 			  STS_HALT, STS_HALT, 16 * 125);
 }
 
+#if defined(CONFIG_USB_SUSPEND) && defined(CONFIG_PPC_PS3)
+
+/*
+ * The EHCI controller of the Cell Super Companion Chip used in the
+ * PS3 will stop the root hub after all root hub ports are suspended.
+ * When in this condition handshake will return -ETIMEDOUT.  The
+ * STS_HLT bit will not be set, so inspection of the frame index is
+ * used here to test for the condition.  If the condition is found
+ * return success to allow the USB suspend to complete.
+ */
+
+static int handshake_for_broken_root_hub(struct ehci_hcd *ehci,
+					 void __iomem *ptr, u32 mask, u32 done,
+					 int usec)
+{
+	unsigned int old_index;
+	int error;
+
+	if (!firmware_has_feature(FW_FEATURE_PS3_LV1))
+		return -ETIMEDOUT;
+
+	old_index = ehci_read_frame_index(ehci);
+
+	error = handshake(ehci, ptr, mask, done, usec);
+
+	if (error == -ETIMEDOUT && ehci_read_frame_index(ehci) == old_index)
+		return 0;
+
+	return error;
+}
+
+#else
+
+static int handshake_for_broken_root_hub(struct ehci_hcd *ehci,
+					 void __iomem *ptr, u32 mask, u32 done,
+					 int usec)
+{
+	return -ETIMEDOUT;
+}
+
+#endif
+
 static int handshake_on_error_set_halt(struct ehci_hcd *ehci, void __iomem *ptr,
 				       u32 mask, u32 done, int usec)
 {
 	int error;
 
 	error = handshake(ehci, ptr, mask, done, usec);
+	if (error == -ETIMEDOUT)
+		error = handshake_for_broken_root_hub(ehci, ptr, mask, done,
+						      usec);
+
 	if (error) {
 		ehci_halt(ehci);
 		ehci->rh_state = EHCI_RH_HALTED;
