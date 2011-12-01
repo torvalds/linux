@@ -99,7 +99,7 @@ MODULE_PARM_DESC(logging_level, " bits for enabling additional logging info "
 
 static ushort max_sectors = 0xFFFF;
 module_param(max_sectors, ushort, 0);
-MODULE_PARM_DESC(max_sectors, "max sectors, range 64 to 8192  default=8192");
+MODULE_PARM_DESC(max_sectors, "max sectors, range 64 to 32767  default=32767");
 
 /* scsi-mid layer global parmeter is max_report_luns, which is 511 */
 #define MPT2SAS_MAX_LUN (16895)
@@ -7453,7 +7453,7 @@ static struct scsi_host_template scsih_driver_template = {
 	.can_queue			= 1,
 	.this_id			= -1,
 	.sg_tablesize			= MPT2SAS_SG_DEPTH,
-	.max_sectors			= 8192,
+	.max_sectors			= 32767,
 	.cmd_per_lun			= 7,
 	.use_clustering			= ENABLE_CLUSTERING,
 	.shost_attrs			= mpt2sas_host_attrs,
@@ -7994,11 +7994,11 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			printk(MPT2SAS_WARN_FMT "Invalid value %d passed "
 			    "for max_sectors, range is 64 to 8192. Assigning "
 			    "value of 64.\n", ioc->name, max_sectors);
-		} else if (max_sectors > 8192) {
-			shost->max_sectors = 8192;
+		} else if (max_sectors > 32767) {
+			shost->max_sectors = 32767;
 			printk(MPT2SAS_WARN_FMT "Invalid value %d passed "
 			    "for max_sectors, range is 64 to 8192. Assigning "
-			    "default value of 8192.\n", ioc->name,
+			    "default value of 32767.\n", ioc->name,
 			    max_sectors);
 		} else {
 			shost->max_sectors = max_sectors & 0xFFFE;
