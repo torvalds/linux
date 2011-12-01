@@ -3024,80 +3024,47 @@ static int __btrfs_map_block(struct btrfs_mapping_tree *map_tree, int rw,
 	atomic_set(&bbio->error, 0);
 
 	if (rw & REQ_DISCARD) {
+		int factor = 0;
+		int sub_stripes = 0;
+		u64 stripes_per_dev = 0;
+		u32 remaining_stripes = 0;
+
+		if (map->type &
+		    (BTRFS_BLOCK_GROUP_RAID0 | BTRFS_BLOCK_GROUP_RAID10)) {
+			if (map->type & BTRFS_BLOCK_GROUP_RAID0)
+				sub_stripes = 1;
+			else
+				sub_stripes = map->sub_stripes;
+
+			factor = map->num_stripes / sub_stripes;
+			stripes_per_dev = div_u64_rem(stripe_nr_end -
+						      stripe_nr_orig,
+						      factor,
+						      &remaining_stripes);
+		}
+
 		for (i = 0; i < num_stripes; i++) {
 			bbio->stripes[i].physical =
 				map->stripes[stripe_index].physical +
 				stripe_offset + stripe_nr * map->stripe_len;
 			bbio->stripes[i].dev = map->stripes[stripe_index].dev;
 
-			if (map->type & BTRFS_BLOCK_GROUP_RAID0) {
-				u64 stripes;
-				u32 last_stripe = 0;
-				int j;
-
-				div_u64_rem(stripe_nr_end - 1,
-					    map->num_stripes,
-					    &last_stripe);
-
-				for (j = 0; j < map->num_stripes; j++) {
-					u32 test;
-
-					div_u64_rem(stripe_nr_end - 1 - j,
-						    map->num_stripes, &test);
-					if (test == stripe_index)
-						break;
-				}
-				stripes = stripe_nr_end - 1 - j;
-				do_div(stripes, map->num_stripes);
-				bbio->stripes[i].length = map->stripe_len *
-					(stripes - stripe_nr + 1);
-
-				if (i == 0) {
+			if (map->type & (BTRFS_BLOCK_GROUP_RAID0 |
+					 BTRFS_BLOCK_GROUP_RAID10)) {
+				bbio->stripes[i].length = stripes_per_dev *
+							  map->stripe_len;
+				if (i / sub_stripes < remaining_stripes)
+					bbio->stripes[i].length +=
+						map->stripe_len;
+				if (i < sub_stripes)
 					bbio->stripes[i].length -=
 						stripe_offset;
+				if ((i / sub_stripes + 1) %
+				    sub_stripes == remaining_stripes)
+					bbio->stripes[i].length -=
+						stripe_end_offset;
+				if (i == sub_stripes - 1)
 					stripe_offset = 0;
-				}
-				if (stripe_index == last_stripe)
-					bbio->stripes[i].length -=
-						stripe_end_offset;
-			} else if (map->type & BTRFS_BLOCK_GROUP_RAID10) {
-				u64 stripes;
-				int j;
-				int factor = map->num_stripes /
-					     map->sub_stripes;
-				u32 last_stripe = 0;
-
-				div_u64_rem(stripe_nr_end - 1,
-					    factor, &last_stripe);
-				last_stripe *= map->sub_stripes;
-
-				for (j = 0; j < factor; j++) {
-					u32 test;
-
-					div_u64_rem(stripe_nr_end - 1 - j,
-						    factor, &test);
-
-					if (test ==
-					    stripe_index / map->sub_stripes)
-						break;
-				}
-				stripes = stripe_nr_end - 1 - j;
-				do_div(stripes, factor);
-				bbio->stripes[i].length = map->stripe_len *
-					(stripes - stripe_nr + 1);
-
-				if (i < map->sub_stripes) {
-					bbio->stripes[i].length -=
-						stripe_offset;
-					if (i == map->sub_stripes - 1)
-						stripe_offset = 0;
-				}
-				if (stripe_index >= last_stripe &&
-				    stripe_index <= (last_stripe +
-						     map->sub_stripes - 1)) {
-					bbio->stripes[i].length -=
-						stripe_end_offset;
-				}
 			} else
 				bbio->stripes[i].length = *length;
 
