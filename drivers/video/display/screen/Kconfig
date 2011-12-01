@@ -64,6 +64,8 @@ config LCD_AT070TN93
 	bool "RGB AT070TN93"
 config LCD_TX23D88VM
 	bool "HITACHI LVDS TX23D88VM (1200x800)"
+config LCD_A050VL01
+	bool "RGB A050VL01"
 endchoice
 
 
