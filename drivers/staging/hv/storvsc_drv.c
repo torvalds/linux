@@ -790,11 +790,6 @@ static void storvsc_get_ide_info(struct hv_device *dev, int *target, int *path)
 
 static int storvsc_device_alloc(struct scsi_device *sdevice)
 {
-	/*
-	 * This enables luns to be located sparsely. Otherwise, we may not
-	 * discovered them.
-	 */
-	sdevice->sdev_bflags |= BLIST_SPARSELUN | BLIST_LARGELUN;
 	return 0;
 }
 
