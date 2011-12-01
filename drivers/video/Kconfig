@@ -2118,6 +2118,10 @@ config CLOSE_WIN1_DYNAMIC
 	---help---
 		this function  can close win1 when video and it have no data in fb0
 
+config FB_WIMO
+	bool "WiMo support"
+	depends on FB_RK29
+
 config FB_NUC900
         bool "NUC900 LCD framebuffer support"
         depends on FB && ARCH_W90X900
