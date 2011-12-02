@@ -8579,9 +8579,11 @@ static int __devinit phy_record(struct niu_parent *parent,
 	if (dev_id_1 < 0 || dev_id_2 < 0)
 		return 0;
 	if (type == PHY_TYPE_PMA_PMD || type == PHY_TYPE_PCS) {
+		/* Becuase of the NIU_PHY_ID_MASK being applied, the 8704
+		 * test covers the 8706 as well.
+		 */
 		if (((id & NIU_PHY_ID_MASK) != NIU_PHY_ID_BCM8704) &&
-		    ((id & NIU_PHY_ID_MASK) != NIU_PHY_ID_MRVL88X2011) &&
-		    ((id & NIU_PHY_ID_MASK) != NIU_PHY_ID_BCM8706))
+		    ((id & NIU_PHY_ID_MASK) != NIU_PHY_ID_MRVL88X2011))
 			return 0;
 	} else {
 		if ((id & NIU_PHY_ID_MASK) != NIU_PHY_ID_BCM5464R)
