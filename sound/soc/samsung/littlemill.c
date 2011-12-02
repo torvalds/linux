@@ -154,8 +154,11 @@ static struct snd_soc_dapm_route audio_paths[] = {
 	{ "Headphone", NULL, "HPOUT1R" },
 };
 
+static struct snd_soc_jack littlemill_headset;
+
 static int littlemill_late_probe(struct snd_soc_card *card)
 {
+	struct snd_soc_codec *codec = card->rtd[0].codec;
 	struct snd_soc_dai *codec_dai = card->rtd[0].codec_dai;
 	int ret;
 
@@ -163,6 +166,18 @@ static int littlemill_late_probe(struct snd_soc_card *card)
 				     32768, SND_SOC_CLOCK_IN);
 	if (ret < 0)
 		return ret;
+
+	ret = snd_soc_jack_new(codec, "Headset",
+			       SND_JACK_HEADSET | SND_JACK_MECHANICAL |
+			       SND_JACK_BTN_0 | SND_JACK_BTN_1 |
+			       SND_JACK_BTN_2 | SND_JACK_BTN_3 |
+			       SND_JACK_BTN_4 | SND_JACK_BTN_5,
+			       &littlemill_headset);
+	if (ret)
+		return ret;
+
+	/* This will check device compatibility itself */
+	wm8958_mic_detect(codec, &littlemill_headset, NULL, NULL);
 
 	return 0;
 }
