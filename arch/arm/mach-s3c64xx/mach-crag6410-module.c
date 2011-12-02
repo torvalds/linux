@@ -15,11 +15,40 @@
 #include <linux/mfd/wm831x/irq.h>
 #include <linux/mfd/wm831x/gpio.h>
 
+#include <sound/wm5100.h>
 #include <sound/wm8996.h>
 #include <sound/wm8962.h>
 #include <sound/wm9081.h>
 
 #include <mach/crag6410.h>
+
+static struct wm5100_pdata wm5100_pdata = {
+	.ldo_ena = S3C64XX_GPN(7),
+	.irq_flags = IRQF_TRIGGER_HIGH,
+	.gpio_base = CODEC_GPIO_BASE,
+
+	.in_mode = {
+		WM5100_IN_DIFF,
+		WM5100_IN_DIFF,
+		WM5100_IN_DIFF,
+		WM5100_IN_SE,
+	},
+
+	.hp_pol = CODEC_GPIO_BASE + 3,
+	.jack_modes = {
+		{ WM5100_MICDET_MICBIAS3, 0, 0 },
+		{ WM5100_MICDET_MICBIAS2, 1, 1 },
+	},
+
+	.gpio_defaults = {
+		0,
+		0,
+		0,
+		0,
+		0x2, /* IRQ: CMOS output */
+		0x3, /* CLKOUT: CMOS output */
+	},
+};
 
 static struct wm8996_retune_mobile_config wm8996_retune[] = {
 	{
@@ -90,6 +119,7 @@ static const struct i2c_board_info wm1254_devs[] = {
 
 static const struct i2c_board_info wm1255_devs[] = {
 	{ I2C_BOARD_INFO("wm5100", 0x1a),
+	  .platform_data = &wm5100_pdata,
 	  .irq = GLENFARCLAS_PMIC_IRQ_BASE + WM831X_IRQ_GPIO_2,
 	},
 	{ I2C_BOARD_INFO("wm9081", 0x6c),
