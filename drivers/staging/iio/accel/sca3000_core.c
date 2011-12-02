@@ -382,7 +382,7 @@ sca3000_store_measurement_mode(struct device *dev,
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct sca3000_state *st = iio_priv(indio_dev);
 	int ret;
-	int mask = 0x03;
+	u8 mask = 0x03;
 	u8 val;
 
 	mutex_lock(&st->lock);
