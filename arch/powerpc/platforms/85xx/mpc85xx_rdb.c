@@ -29,6 +29,7 @@
 
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
+#include "smp.h"
 
 #include "mpc85xx.h"
 
@@ -84,9 +85,6 @@ void __init mpc85xx_rdb_pic_init(void)
 /*
  * Setup the architecture
  */
-#ifdef CONFIG_SMP
-extern void __init mpc85xx_smp_init(void);
-#endif
 static void __init mpc85xx_rdb_setup_arch(void)
 {
 #ifdef CONFIG_PCI
@@ -104,10 +102,7 @@ static void __init mpc85xx_rdb_setup_arch(void)
 
 #endif
 
-#ifdef CONFIG_SMP
 	mpc85xx_smp_init();
-#endif
-
 	printk(KERN_INFO "MPC85xx RDB board from Freescale Semiconductor\n");
 }
 

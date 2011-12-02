@@ -26,6 +26,7 @@
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
 #include <asm/fsl_guts.h>
+#include "smp.h"
 
 #include "mpc85xx.h"
 
@@ -268,10 +269,6 @@ void __init p1022_ds_pic_init(void)
 	mpic_init(mpic);
 }
 
-#ifdef CONFIG_SMP
-void __init mpc85xx_smp_init(void);
-#endif
-
 /*
  * Setup the architecture
  */
@@ -311,9 +308,7 @@ static void __init p1022_ds_setup_arch(void)
 	diu_ops.valid_monitor_port	= p1022ds_valid_monitor_port;
 #endif
 
-#ifdef CONFIG_SMP
 	mpc85xx_smp_init();
-#endif
 
 #ifdef CONFIG_SWIOTLB
 	if (memblock_end_of_DRAM() > max) {
