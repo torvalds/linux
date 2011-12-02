@@ -1893,7 +1893,8 @@ static int wm8903_probe(struct snd_soc_codec *codec)
 		bool mic_gpio = false;
 
 		for (i = 0; i < ARRAY_SIZE(pdata->gpio_cfg); i++) {
-			if (pdata->gpio_cfg[i] > 0x7fff)
+			if ((!pdata->gpio_cfg[i]) ||
+			    (pdata->gpio_cfg[i] > WM8903_GPIO_CONFIG_ZERO))
 				continue;
 
 			snd_soc_write(codec, WM8903_GPIO_CONTROL_1 + i,
