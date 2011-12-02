@@ -574,6 +574,7 @@ static int s3c_fb_set_par(struct fb_info *info)
 	}
 
 	data = WINCONx_ENWIN;
+	sfb->enabled |= (1 << win->index);
 
 	/* note, since we have to round up the bits-per-pixel, we end up
 	 * relying on the bitfield information for r/g/b/a to work out
