@@ -246,8 +246,10 @@ static void uas_stat_cmplt(struct urb *urb)
 		cmnd = sdev->current_cmnd;
 	else
 		cmnd = scsi_find_tag(sdev, tag);
-	if (!cmnd)
+	if (!cmnd) {
+		usb_free_urb(urb);
 		return;
+	}
 
 	switch (iu->iu_id) {
 	case IU_ID_STATUS:
