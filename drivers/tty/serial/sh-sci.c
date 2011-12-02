@@ -50,6 +50,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
+#include <linux/gpio.h>
 
 #ifdef CONFIG_SUPERH
 #include <asm/sh_bios.h>
@@ -73,6 +74,7 @@ struct sci_port {
 	struct clk		*fclk;
 
 	char			*irqstr[SCIx_NR_IRQS];
+	char			*gpiostr[SCIx_NR_FNS];
 
 	struct dma_chan			*chan_tx;
 	struct dma_chan			*chan_rx;
@@ -1105,6 +1107,67 @@ static void sci_free_irq(struct sci_port *port)
 	}
 }
 
+static const char *sci_gpio_names[SCIx_NR_FNS] = {
+	"sck", "rxd", "txd", "cts", "rts",
+};
+
+static const char *sci_gpio_str(unsigned int index)
+{
+	return sci_gpio_names[index];
+}
+
+static void __devinit sci_init_gpios(struct sci_port *port)
+{
+	struct uart_port *up = &port->port;
+	int i;
+
+	if (!port->cfg)
+		return;
+
+	for (i = 0; i < SCIx_NR_FNS; i++) {
+		const char *desc;
+		int ret;
+
+		if (!port->cfg->gpios[i])
+			continue;
+
+		desc = sci_gpio_str(i);
+
+		port->gpiostr[i] = kasprintf(GFP_KERNEL, "%s:%s",
+					     dev_name(up->dev), desc);
+
+		/*
+		 * If we've failed the allocation, we can still continue
+		 * on with a NULL string.
+		 */
+		if (!port->gpiostr[i])
+			dev_notice(up->dev, "%s string allocation failure\n",
+				   desc);
+
+		ret = gpio_request(port->cfg->gpios[i], port->gpiostr[i]);
+		if (unlikely(ret != 0)) {
+			dev_notice(up->dev, "failed %s gpio request\n", desc);
+
+			/*
+			 * If we can't get the GPIO for whatever reason,
+			 * no point in keeping the verbose string around.
+			 */
+			kfree(port->gpiostr[i]);
+		}
+	}
+}
+
+static void sci_free_gpios(struct sci_port *port)
+{
+	int i;
+
+	for (i = 0; i < SCIx_NR_FNS; i++)
+		if (port->cfg->gpios[i]) {
+			gpio_free(port->cfg->gpios[i]);
+			kfree(port->gpiostr[i]);
+		}
+}
+
 static unsigned int sci_tx_empty(struct uart_port *port)
 {
 	unsigned short status = sci_in(port, SCxSR);
@@ -1962,6 +2025,8 @@ static int __devinit sci_init_single(struct platform_device *dev,
 	struct uart_port *port = &sci_port->port;
 	int ret;
 
+	sci_port->cfg	= p;
+
 	port->ops	= &sci_uart_ops;
 	port->iotype	= UPIO_MEM;
 	port->line	= index;
@@ -2007,6 +2072,8 @@ static int __devinit sci_init_single(struct platform_device *dev,
 
 		port->dev = &dev->dev;
 
+		sci_init_gpios(sci_port);
+
 		pm_runtime_irq_safe(&dev->dev);
 		pm_runtime_enable(&dev->dev);
 	}
@@ -2040,8 +2107,6 @@ static int __devinit sci_init_single(struct platform_device *dev,
 		 */
 		p->error_mask |= (1 << p->overrun_bit);
 	}
-
-	sci_port->cfg		= p;
 
 	port->mapbase		= p->mapbase;
 	port->type		= p->type;
@@ -2248,6 +2313,8 @@ static int sci_remove(struct platform_device *dev)
 
 	cpufreq_unregister_notifier(&port->freq_transition,
 				    CPUFREQ_TRANSITION_NOTIFIER);
+
+	sci_free_gpios(port);
 
 	uart_remove_one_port(&sci_uart_driver, &port->port);
 
