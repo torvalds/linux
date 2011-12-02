@@ -234,11 +234,12 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 
 	/* default is to dump the entire data segment */
 	if (!priv->dbgfs_sram_offset && !priv->dbgfs_sram_len) {
+		struct iwl_trans *trans = trans(priv);
 		priv->dbgfs_sram_offset = 0x800000;
-		if (priv->ucode_type == IWL_UCODE_INIT)
-			priv->dbgfs_sram_len = trans(priv)->ucode_init.data.len;
+		if (trans->shrd->ucode_type == IWL_UCODE_INIT)
+			priv->dbgfs_sram_len = trans->ucode_init.data.len;
 		else
-			priv->dbgfs_sram_len = trans(priv)->ucode_rt.data.len;
+			priv->dbgfs_sram_len = trans->ucode_rt.data.len;
 	}
 	len = priv->dbgfs_sram_len;
 
