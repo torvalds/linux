@@ -298,7 +298,7 @@ static u8 rs_tl_add_packet(struct iwl_lq_sta *lq_data,
 	} else
 		return IWL_MAX_TID_COUNT;
 
-	if (unlikely(tid >= TID_MAX_LOAD_COUNT))
+	if (unlikely(tid >= IWL_MAX_TID_COUNT))
 		return IWL_MAX_TID_COUNT;
 
 	tl = &lq_data->load[tid];
@@ -379,7 +379,7 @@ static u32 rs_tl_get_load(struct iwl_lq_sta *lq_data, u8 tid)
 	s32 index;
 	struct iwl_traffic_load *tl = NULL;
 
-	if (tid >= TID_MAX_LOAD_COUNT)
+	if (tid >= IWL_MAX_TID_COUNT)
 		return 0;
 
 	tl = &(lq_data->load[tid]);
@@ -444,11 +444,11 @@ static void rs_tl_turn_on_agg(struct iwl_priv *priv, u8 tid,
 			      struct iwl_lq_sta *lq_data,
 			      struct ieee80211_sta *sta)
 {
-	if (tid < TID_MAX_LOAD_COUNT)
+	if (tid < IWL_MAX_TID_COUNT)
 		rs_tl_turn_on_agg_for_tid(priv, lq_data, tid, sta);
 	else
-		IWL_ERR(priv, "tid exceeds max load count: %d/%d\n",
-			tid, TID_MAX_LOAD_COUNT);
+		IWL_ERR(priv, "tid exceeds max TID count: %d/%d\n",
+			tid, IWL_MAX_TID_COUNT);
 }
 
 static inline int get_num_of_ant_from_rate(u32 rate_n_flags)
