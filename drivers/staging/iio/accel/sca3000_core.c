@@ -389,6 +389,10 @@ sca3000_store_measurement_mode(struct device *dev,
 	ret = kstrtou8(buf, 10, &val);
 	if (ret)
 		goto error_ret;
+	if (val > 3) {
+		ret = -EINVAL;
+		goto error_ret;
+	}
 	ret = sca3000_read_data_short(st, SCA3000_REG_ADDR_MODE, 1);
 	if (ret)
 		goto error_ret;
