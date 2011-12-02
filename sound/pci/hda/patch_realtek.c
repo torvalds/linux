@@ -297,6 +297,8 @@ static int alc_mux_select(struct hda_codec *codec, unsigned int adc_idx,
 	imux = &spec->input_mux[mux_idx];
 	if (!imux->num_items && mux_idx > 0)
 		imux = &spec->input_mux[0];
+	if (!imux->num_items)
+		return 0;
 
 	if (idx >= imux->num_items)
 		idx = imux->num_items - 1;
