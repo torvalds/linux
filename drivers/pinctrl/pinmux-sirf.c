@@ -463,7 +463,7 @@ static const struct sirfsoc_padmux spi1_padmux = {
 	.funcval = BIT(8),
 };
 
-static const unsigned spi1_pins[] = { 33, 34, 35, 36 };
+static const unsigned spi1_pins[] = { 43, 44, 45, 46 };
 
 static const struct sirfsoc_muxmask sdmmc1_muxmask[] = {
 	{
