@@ -44,6 +44,8 @@
 
 //#define KEY_DEBUG
 //#define PRINT_STATUS_INFO
+#define LOW_POWER_WORK_MODE
+//#define FULL_SPEED_WORK_MODE
 #define PRINT_SUSPEND_INFO
 
 static struct i2c_client *this_client;
@@ -209,7 +211,11 @@ static int hv_i2c_rxdata(char *rxdata, int length)
 	//printk("msg i2c read: 0x%x\n", this_client->addr);
 	//printk("HV IIC read data\n");
 	if (ret < 0){
+#ifdef LOW_POWER_WORK_MODE
+		;
+#elif defined(FULL_SPEED_WORK_MODE)
 		pr_info("msg %s i2c read error: 0x%x\n", __func__, this_client->addr);
+#endif
 	}
 
 	return ret;
@@ -233,12 +239,17 @@ static int hv_i2c_txdata(char *txdata, int length)
 
 static int hv_init(void)
 {
+#ifdef LOW_POWER_WORK_MODE
 	//low power work mode
 	u8 buf[12] = {0x88,0x05,0x40,0x40,0x40,0x40,0x40,0xf8,0x00,0x05,0x00,0x42};
+#elif defined(FULL_SPEED_WORK_MODE)
+	//full speed work mode
+	u8 buf[12] = {0x88,0x00,0x40,0x40,0x40,0x40,0x40,0xf8,0x00,0x05,0x00,0x3d};
+#endif
 	//u8 buf[12] =   {0x88,0x05,0x90,0x90,0x90,0x90,0x90,0xf8,0x00,0x40,0x00,0x0d};
 	//u8 buf[12] = {0x88,0x05,0x40,0x40,0x40,0x40,0xff,0xf8,0x00,0x00,0x00,0xfc};
-	//full speed work mode
-	//u8 buf[12] = {0x88,0x00,0x40,0x40,0x40,0x40,0x40,0xf8,0x00,0x05,0x00,0x3d};
+
+
 	int ret = -1;
 	struct hv_keypad_data *data = i2c_get_clientdata(this_client);
 	struct key_event *event = &data->event;
@@ -248,7 +259,7 @@ static int hv_init(void)
 	event->key_last = 0;
 	ret = hv_i2c_txdata(buf, 12);
 	if (ret > 1) {
-		printk("write reg failed! %#x ret: %d", buf[0], ret);
+		printk("%s: write reg failed! %#x ret: %d", __func__, buf[0], ret);
 		return -1;
 	}
 
