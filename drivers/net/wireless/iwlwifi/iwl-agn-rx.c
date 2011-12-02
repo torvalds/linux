@@ -1131,9 +1131,9 @@ void iwl_setup_rx_handlers(struct iwl_priv *priv)
 	priv->rx_handlers[REPLY_TX] = iwlagn_rx_reply_tx;
 
 	/* set up notification wait support */
-	spin_lock_init(&priv->notif_wait_lock);
-	INIT_LIST_HEAD(&priv->notif_waits);
-	init_waitqueue_head(&priv->notif_waitq);
+	spin_lock_init(&priv->shrd->notif_wait_lock);
+	INIT_LIST_HEAD(&priv->shrd->notif_waits);
+	init_waitqueue_head(&priv->shrd->notif_waitq);
 
 	/* Set up BT Rx handlers */
 	if (priv->cfg->lib->bt_rx_handler_setup)
@@ -1152,11 +1152,11 @@ int iwl_rx_dispatch(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
 	 * even if the RX handler consumes the RXB we have
 	 * access to it in the notification wait entry.
 	 */
-	if (!list_empty(&priv->notif_waits)) {
+	if (!list_empty(&priv->shrd->notif_waits)) {
 		struct iwl_notification_wait *w;
 
-		spin_lock(&priv->notif_wait_lock);
-		list_for_each_entry(w, &priv->notif_waits, list) {
+		spin_lock(&priv->shrd->notif_wait_lock);
+		list_for_each_entry(w, &priv->shrd->notif_waits, list) {
 			if (w->cmd != pkt->hdr.cmd)
 				continue;
 			IWL_DEBUG_RX(priv,
@@ -1167,9 +1167,9 @@ int iwl_rx_dispatch(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
 			if (w->fn)
 				w->fn(priv, pkt, w->fn_data);
 		}
-		spin_unlock(&priv->notif_wait_lock);
+		spin_unlock(&priv->shrd->notif_wait_lock);
 
-		wake_up_all(&priv->notif_waitq);
+		wake_up_all(&priv->shrd->notif_waitq);
 	}
 
 	if (priv->pre_rx_handler)

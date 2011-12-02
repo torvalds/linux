@@ -274,6 +274,35 @@ enum iwl_ucode_type {
 };
 
 /**
+ * struct iwl_notification_wait - notification wait entry
+ * @list: list head for global list
+ * @fn: function called with the notification
+ * @cmd: command ID
+ *
+ * This structure is not used directly, to wait for a
+ * notification declare it on the stack, and call
+ * iwlagn_init_notification_wait() with appropriate
+ * parameters. Then do whatever will cause the ucode
+ * to notify the driver, and to wait for that then
+ * call iwlagn_wait_notification().
+ *
+ * Each notification is one-shot. If at some point we
+ * need to support multi-shot notifications (which
+ * can't be allocated on the stack) we need to modify
+ * the code for them.
+ */
+struct iwl_notification_wait {
+	struct list_head list;
+
+	void (*fn)(struct iwl_priv *priv, struct iwl_rx_packet *pkt,
+		   void *data);
+	void *fn_data;
+
+	u8 cmd;
+	bool triggered, aborted;
+};
+
+/**
  * struct iwl_shared - shared fields for all the layers of the driver
  *
  * @dbg_level_dev: dbg level set per device. Prevails on
@@ -290,6 +319,10 @@ enum iwl_ucode_type {
  * @sta_lock: protects the station table.
  *	If lock and sta_lock are needed, lock must be acquired first.
  * @mutex:
+ * @ucode_type: indicator of loaded ucode image
+ * @notif_waits: things waiting for notification
+ * @notif_wait_lock: lock protecting notification
+ * @notif_waitq: head of notification wait queue
  */
 struct iwl_shared {
 #ifdef CONFIG_IWLWIFI_DEBUG
@@ -320,6 +353,11 @@ struct iwl_shared {
 
 	/* ucode related variables */
 	enum iwl_ucode_type ucode_type;
+
+	/* notification wait support */
+	struct list_head notif_waits;
+	spinlock_t notif_wait_lock;
+	wait_queue_head_t notif_waitq;
 };
 
 /*Whatever _m is (iwl_trans, iwl_priv, iwl_bus, these macros will work */
@@ -462,6 +500,24 @@ bool iwl_check_for_ct_kill(struct iwl_priv *priv);
 
 void iwl_stop_sw_queue(struct iwl_priv *priv, u8 ac);
 void iwl_wake_sw_queue(struct iwl_priv *priv, u8 ac);
+
+/* notification wait support */
+void iwl_abort_notification_waits(struct iwl_shared *shrd);
+void __acquires(wait_entry)
+iwl_init_notification_wait(struct iwl_shared *shrd,
+			      struct iwl_notification_wait *wait_entry,
+			      u8 cmd,
+			      void (*fn)(struct iwl_priv *priv,
+					 struct iwl_rx_packet *pkt,
+					 void *data),
+			      void *fn_data);
+int __must_check __releases(wait_entry)
+iwl_wait_notification(struct iwl_shared *shrd,
+			 struct iwl_notification_wait *wait_entry,
+			 unsigned long timeout);
+void __releases(wait_entry)
+iwl_remove_notification(struct iwl_shared *shrd,
+			   struct iwl_notification_wait *wait_entry);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 void iwl_reset_traffic_log(struct iwl_priv *priv);
