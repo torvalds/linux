@@ -10,7 +10,7 @@
 static struct rk29_keys_button key_button[] = {
 	{
 		.desc	= "menu",
-		.code	= KEY_MENU,
+		.code	= EV_MENU,
 		.gpio	= RK29_PIN6_PA0,
 		.active_low = PRESS_LEV_LOW,
 	},
