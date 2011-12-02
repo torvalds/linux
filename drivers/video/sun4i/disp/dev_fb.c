@@ -764,7 +764,7 @@ static int Fb_pan_display(struct fb_var_screeninfo *var,struct fb_info *info)
             {
                 buffer_num = 2;
             }
-            if((sel==1) && (g_fbi.fb_mode[info->node] == FB_MODE_DUAL_SAME_SCREEN_TB))
+            if((sel==0) && (g_fbi.fb_mode[info->node] == FB_MODE_DUAL_SAME_SCREEN_TB))
             {
                 y_offset = var->yres / 2;
             }
@@ -828,7 +828,7 @@ static int Fb_set_par(struct fb_info *info)//todo
             {
                 buffer_num = 2;
             }
-            if((sel==1) && (g_fbi.fb_mode[info->node] == FB_MODE_DUAL_SAME_SCREEN_TB))
+            if((sel==0) && (g_fbi.fb_mode[info->node] == FB_MODE_DUAL_SAME_SCREEN_TB))
             {
                 y_offset = var->yres / 2;
             }
@@ -1075,7 +1075,7 @@ __s32 Display_Fb_Request(__u32 fb_id, __disp_fb_create_para_t *fb_para)
             if(fb_para->fb_mode == FB_MODE_DUAL_SAME_SCREEN_TB)
             {
                 src_height = yres/ 2;
-                if(sel == 1)
+                if(sel == 0)
                 {
                     y_offset = yres / 2;
                 }

@@ -196,6 +196,8 @@ void TCON0_cfg(__u32 sel, __panel_para_t * info)
 {
 	__u32 vblank_len;
 	__u32 lcd_if_reg = 0;
+	__u32 lcd_hv_if_tmp	=0;
+	__u32 lcd_hv_smode_tmp = 0;
 
     vblank_len = info->lcd_vt/2 - info->lcd_y;
 
@@ -223,7 +225,21 @@ void TCON0_cfg(__u32 sel, __panel_para_t * info)
 			lcd_if_reg = 0;
 			break;
 	}
-
+	if(info->lcd_hv_if==0)
+	{
+		lcd_hv_if_tmp	 = 0;
+		lcd_hv_smode_tmp = 0;
+	}
+	else if(info->lcd_hv_if==1)
+	{
+		lcd_hv_if_tmp	 = 1;
+		lcd_hv_smode_tmp = 0;
+	}
+	else if(info->lcd_hv_if==2)
+	{
+		lcd_hv_if_tmp	 = 1;
+		lcd_hv_smode_tmp = 1;
+	}
 
 
 	LCDC_INIT_BIT(sel, LCDC_CTL_OFF,0x0ffffff0,(lcd_if_reg <<24) | (info->lcd_swap<< 23) | (0<<20) | (info->start_delay<<4));
@@ -247,8 +263,9 @@ void TCON0_cfg(__u32 sel, __panel_para_t * info)
 			vspw_tmp --;
 		LCDC_WUINT32(sel, LCDC_BASIC3_OFF,(hspw_tmp <<16) | vspw_tmp);
 
-		LCDC_WUINT32(sel, LCDC_HVIF_OFF,(info->lcd_hv_if<<31) | (info->lcd_hv_smode<<30) |(info->lcd_hv_s888_if<<24) |
-                                    (info->lcd_hv_syuv_if<<20));
+		LCDC_WUINT32(sel, LCDC_HVIF_OFF,(lcd_hv_if_tmp<<31)  | (lcd_hv_smode_tmp<<30) |
+							    (info->lcd_hv_srgb_seq0<<26) | (info->lcd_hv_srgb_seq1<<24) |
+                                (info->lcd_hv_syuv_seq<<22)  | (info->lcd_hv_syuv_fdly<<20));
 	}
 	else if(info->lcd_if == LCDC_LCDIF_TTL)
 	{
@@ -274,21 +291,8 @@ void TCON0_cfg(__u32 sel, __panel_para_t * info)
 		LCDC_WUINT32(sel, LCDC_LVDS_OFF,(info->lcd_lvds_ch<<30) |(0<<29) |
 							 (0<<28) | (info->lcd_lvds_mode<<27) | (info->lcd_lvds_bitwidth<<26) | (0<<23) );
 
-
-
-		LCDC_WUINT32(sel, LCDC_LVDS_ANA0,(0<<30) + (3<<28) + (3<<26) + (6<<23) +
-					                     (6<<19) + (0<<17) + (1<<16) + (0<<15) +
-					                     (0<<14) + (0<<12));
-
-		LCDC_SET_BIT(sel, LCDC_LVDS_ANA0,0x01<<22);		   					//mb
-
-
-		LCDC_WUINT32(sel, LCDC_LVDS_ANA1,	(0x1f<<26) + (0x1f<<10));	//pren
-
-		if(info->lcd_lvds_io_cross==0)
-	    	LCDC_WUINT32(sel, LCDC_LVDS_ANA1,	(0x1f<<26) + (0x1f<<10)+ (0x00<<21)+ (0x00<<5));
-	    else
-	    	LCDC_WUINT32(sel, LCDC_LVDS_ANA1,	(0x1f<<26) + (0x1f<<10)+ (0x1f<<21)+ (0x1f<<5));
+		if(info->lcd_lvds_io_cross != 0)
+	    	LCDC_SET_BIT(sel, LCDC_LVDS_ANA1,	(0x1f<<21) | (0x1f<<5));
 	}
 	else
 	{
@@ -383,6 +387,15 @@ __s32 TCON0_set_dclk_div(__u32 sel, __u8 div)
 {
 	LCDC_INIT_BIT(sel, LCDC_DCLK_OFF, 0xff, div);
 	return 0;
+}
+
+__u32 TCON0_get_dclk_div(__u32 sel)
+{
+	__u32  tmp;
+
+	tmp = LCDC_RUINT32(sel, LCDC_DCLK_OFF) & 0xff;
+
+	return tmp;
 }
 
 
@@ -1257,19 +1270,24 @@ void LCD_XY_SWAP(__u32 sel)
 
 __s32 LCD_LVDS_open(__u32 sel)
 {
-	__u32 reg_val;
+	__u32 i;
 	LCDC_SET_BIT(sel, LCDC_LVDS_OFF,(__u32)1<<31);
-
-	reg_val = LCDC_RUINT32(sel, LCDC_LVDS_ANA1);
-	reg_val |= (0x1f<<16)| (0x1f<<0);
-	LCDC_WUINT32(sel, LCDC_LVDS_ANA1,reg_val);
+	LCDC_SET_BIT(sel, LCDC_LVDS_ANA0,0x3F310000);
+	LCDC_SET_BIT(sel, LCDC_LVDS_ANA0,1<<22);
+	for(i=0;i<1200;i++);	//1200ns
+	LCDC_SET_BIT(sel, LCDC_LVDS_ANA1,0x1f<<26 | 0x1f<<10);
+	for(i=0;i<120;i++);		//120ns
+	LCDC_SET_BIT(sel, LCDC_LVDS_ANA1,0x1f<<16 | 0x1f<<00);
+	LCDC_SET_BIT(sel, LCDC_LVDS_ANA0,1<<22);
     return 0;
 }
 
 __s32 LCD_LVDS_close(__u32 sel)
 {
-	LCDC_WUINT32(sel, LCDC_LVDS_ANA0,0);
-	LCDC_WUINT32(sel, LCDC_LVDS_ANA1,0);
+	LCDC_CLR_BIT(sel, LCDC_LVDS_ANA1,0x1f<<16 | 0x1f<<00);
+	LCDC_CLR_BIT(sel, LCDC_LVDS_ANA1,0x1f<<26 | 0x1f<<10);
+	LCDC_CLR_BIT(sel, LCDC_LVDS_ANA0,1<<22);
+	LCDC_CLR_BIT(sel, LCDC_LVDS_ANA0,0x3F310000);
 	LCDC_CLR_BIT(sel, LCDC_LVDS_OFF,(__u32)1<<31);
 	return 0;
 }

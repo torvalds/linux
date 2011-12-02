@@ -46,9 +46,9 @@ static __inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
 
     	if(g_video[sel][id].video_cur.interlace == TRUE)
     	{
-    		g_video[sel][id].dit_enable = FALSE;//todo
+    		g_video[sel][id].dit_enable = TRUE;
 
-            g_video[sel][id].fetch_field = TRUE;
+            g_video[sel][id].fetch_field = FALSE;
         	if(g_video[sel][id].display_cnt == 0)
         	{
         	    g_video[sel][id].fetch_bot = (g_video[sel][id].video_cur.top_field_first)?0:1;
@@ -81,6 +81,12 @@ static __inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
     				g_video[sel][id].tempdiff_en = FALSE;
     			}
     			g_video[sel][id].diagintp_en = TRUE;
+
+                g_video[sel][id].fetch_field = FALSE;//todo
+                g_video[sel][id].fetch_bot = 0;//todo
+                g_video[sel][id].dit_mode = DIT_MODE_MAF_BOB;//todo
+                g_video[sel][id].tempdiff_en = FALSE;//todo
+                g_video[sel][id].diagintp_en = FALSE;//todo
     		}
     		else
     		{
@@ -103,6 +109,7 @@ static __inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
     	in_type.mod= Scaler_sw_para_to_reg(1,scaler->in_fb.mode);
     	in_type.ps= Scaler_sw_para_to_reg(2,scaler->in_fb.seq);
     	in_type.byte_seq = 0;
+    	in_type.sample_method = 0;
 
     	scal_addr.ch0_addr= (__u32)OSAL_VAtoPA((void*)(g_video[sel][id].video_cur.addr[0]));
     	scal_addr.ch1_addr= (__u32)OSAL_VAtoPA((void*)(g_video[sel][id].video_cur.addr[1]));
@@ -158,17 +165,17 @@ static __inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
     	    DE_SCAL_Config_Src(scaler_index,&scal_addr,&in_size,&in_type,FALSE,FALSE);
     	}
 
-    	if(g_video[sel][id].dit_enable == TRUE && gdisp.screen[sel].de_flicker_status == DE_FLICKER_USED)
-    	{
-    		Disp_de_flicker_enable(sel, FALSE);
-    	}
-    	DE_SCAL_Set_Init_Phase(scaler_index, &in_scan, &in_size, &in_type, &out_scan, &out_size, &out_type, FALSE);
+        if(g_video[sel][id].dit_enable == TRUE && gdisp.screen[sel].de_flicker_status == DE_FLICKER_USED)
+        {
+            Disp_de_flicker_enable(sel, FALSE);
+        }
+    	DE_SCAL_Set_Init_Phase(scaler_index, &in_scan, &in_size, &in_type, &out_scan, &out_size, &out_type, g_video[sel][id].dit_enable);
     	DE_SCAL_Set_Scaling_Factor(scaler_index, &in_scan, &in_size, &in_type, &out_scan, &out_size, &out_type);
     	DE_SCAL_Set_Scaling_Coef(scaler_index, &in_scan, &in_size, &in_type, &out_scan, &out_size, &out_type,  scaler->smooth_mode);
+    	DE_SCAL_Set_Out_Size(scaler_index, &out_scan,&out_type, &out_size);
     	DE_SCAL_Set_Di_Ctrl(scaler_index,g_video[sel][id].dit_enable,g_video[sel][id].dit_mode,g_video[sel][id].diagintp_en,g_video[sel][id].tempdiff_en);
     	DE_SCAL_Set_Di_PreFrame_Addr(scaler_index, pre_frame_addr);
     	DE_SCAL_Set_Di_MafFlag_Src(scaler_index, maf_flag_addr, maf_linestride);
-        DE_SCAL_Set_Out_Size(scaler_index, &out_scan,&out_type, &out_size);
 
         DE_SCAL_Set_Reg_Rdy(scaler_index);
     }

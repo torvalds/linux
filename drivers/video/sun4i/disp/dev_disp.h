@@ -46,8 +46,6 @@ typedef struct
 	__bool			    b_lcd_open[2];
 	wait_queue_head_t   my_queue[2][20];
 	__bool              b_cmd_finished[2][20];
-    wait_queue_head_t   scaler_queue[2];
-    __bool              b_scaler_finished[2];
 }__disp_drv_t;
 
 

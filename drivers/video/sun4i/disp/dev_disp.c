@@ -19,7 +19,6 @@ static struct info_mm  g_disp_mm[10];
 static int g_disp_mm_sel = 0;
 
 atomic_t cmd_index;
-//static __u32 cmd_index = 0;
 
 static struct cdev *my_cdev;
 static dev_t devid ;
@@ -212,34 +211,6 @@ __s32 DRV_lcd_close(__u32 sel)
     return 0;
 }
 
-__s32 DRV_scaler_begin(__u32 sel)
-{
-    long timeout = (100 * HZ)/1000;//100ms
-
-    g_disp_drv.b_scaler_finished[sel] = 1;
-    timeout = wait_event_interruptible_timeout(g_disp_drv.scaler_queue[sel], g_disp_drv.b_scaler_finished[sel] == 2, timeout);
-    g_disp_drv.b_scaler_finished[sel] = 0;
-    if(timeout == 0)
-    {
-        __wrn("wait scaler %d finished timeout\n", sel);
-        return -1;
-    }
-    return 0;
-}
-
-void DRV_scaler_finish(__u32 sel)
-{
-    if(g_disp_drv.b_scaler_finished[sel] == 1)
-    {
-        g_disp_drv.b_scaler_finished[sel] = 2;
-        wake_up_interruptible(&g_disp_drv.scaler_queue[sel]);
-    }
-    else
-    {
-        __wrn("not scaler %d begin in DRV_scaler_finish\n", sel);
-    }
-}
-
 
 void DRV_disp_wait_cmd_finish(__u32 sel)
 {
@@ -343,8 +314,6 @@ __s32 DRV_DISP_Init(void)
     para.base_sdram     = (__u32)g_fbi.base_sdram;
     para.base_pioc      = (__u32)g_fbi.base_pioc;
     para.base_pwm       = (__u32)g_fbi.base_pwm;
-    para.scaler_begin   		= DRV_scaler_begin;
-    para.scaler_finish  		= DRV_scaler_finish;
 	para.disp_int_process       = DRV_disp_int_process;
 
 	memset(&g_disp_drv, 0, sizeof(__disp_drv_t));
@@ -354,8 +323,6 @@ __s32 DRV_DISP_Init(void)
         init_waitqueue_head(&g_disp_drv.my_queue[0][i]);
         init_waitqueue_head(&g_disp_drv.my_queue[1][i]);
     }
-    init_waitqueue_head(&g_disp_drv.scaler_queue[0]);
-    init_waitqueue_head(&g_disp_drv.scaler_queue[1]);
 
     BSP_disp_init(&para);
     BSP_disp_open();
@@ -493,7 +460,6 @@ static int __init disp_probe(struct platform_device *pdev)//called when platform
 	__inf("disp_probe call\n");
 
 	info = &g_fbi;
-	atomic_set(&cmd_index, 0);
 
 	info->dev = &pdev->dev;
 	platform_set_drvdata(pdev,info);
@@ -909,7 +875,15 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
         return -1;
     }
 
-	//__inf("disp_ioctl,cmd:%x\n",cmd);
+#if 0
+    if(cmd!=DISP_CMD_TV_GET_INTERFACE && cmd!=DISP_CMD_HDMI_GET_HPD_STATUS && cmd!=DISP_CMD_GET_OUTPUT_TYPE
+    	&& cmd!=DISP_CMD_SCN_GET_WIDTH && cmd!=DISP_CMD_SCN_GET_HEIGHT
+    	&& cmd!=DISP_CMD_VIDEO_SET_FB && cmd!=DISP_CMD_VIDEO_GET_FRAME_ID)
+    {
+        OSAL_PRINTF("disp_ioctl,cmd:%x,%d,%d\n",cmd, ubuffer[0], ubuffer[1]);
+    }
+#endif
+
     switch(cmd)
     {
     //----disp global----
@@ -1947,10 +1921,11 @@ struct platform_device disp_device =
 
 int __init disp_module_init(void)
 {
-	int ret, err;
+    int ret, err;
 
-	__inf("disp_module_init\n");
+    __inf("disp_module_init\n");
 
+    atomic_set(&cmd_index, 0);
     alloc_chrdev_region(&devid, 0, 1, "disp");
     my_cdev = cdev_alloc();
     cdev_init(my_cdev, &disp_fops);
@@ -2006,7 +1981,7 @@ EXPORT_SYMBOL(disp_set_hdmi_func);
 EXPORT_SYMBOL(DRV_DISP_Init);
 
 
-late_initcall(disp_module_init);
+module_init(disp_module_init);
 module_exit(disp_module_exit);
 
 MODULE_AUTHOR("danling_xiao");

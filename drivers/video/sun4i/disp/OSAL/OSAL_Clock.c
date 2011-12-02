@@ -16,8 +16,6 @@
 #include "OSAL.h"
 #include "OSAL_Clock.h"
 
-extern int clk_reset(struct clk *clk, int reset);
-
 #if 1
 
 static char* _sysClkName[AW_SYS_CLK_CNT] =

@@ -37,6 +37,7 @@
 #include <mach/clock.h>
 #include <mach/aw_ccu.h>
 #include <mach/system.h>
+#include <linux/types.h>
 
 typedef unsigned int __hdle;
 
@@ -44,16 +45,16 @@ typedef unsigned int __hdle;
 #include "../OSAL/OSAL.h"
 
 #if 1
-#define OSAL_PRINTF(msg...)     {printk(KERN_WARNING msg);}
+#define OSAL_PRINTF(msg...) {printk(KERN_WARNING "[DISP] ");printk(msg);}
 #define __inf(msg...)
 #define __msg(msg...)
-#define __wrn(msg...)       {printk(KERN_WARNING "[DISP WRN] file:%s,line:%d:    ",__FILE__,__LINE__);  printk(msg);}
+#define __wrn(msg...)       {printk(KERN_WARNING "[DISP WRN] file:%s,line:%d:    ",__FILE__,__LINE__);printk(msg);}
 #define __here__
 #else
-#define OSAL_PRINTF(msg...) {printk(KERN_WARNING msg);}
-#define __inf(msg...)       {printk(KERN_WARNING "[DISP] ");                                            printk(msg);}
-#define __msg(msg...)       {printk(KERN_WARNING "[DISP] file:%s,line:%d:    ",__FILE__,__LINE__);      printk(msg);}
-#define __wrn(msg...)       {printk(KERN_WARNING "[DISP WRN] file:%s,line:%d:    ",__FILE__,__LINE__);  printk(msg);}
+#define OSAL_PRINTF(msg...) {printk(KERN_WARNING "[DISP] ");printk(msg);}
+#define __inf(msg...)       {printk(KERN_WARNING "[DISP] ");printk(msg);}
+#define __msg(msg...)       {printk(KERN_WARNING "[DISP] file:%s,line:%d:    ",__FILE__,__LINE__);printk(msg);}
+#define __wrn(msg...)       {printk(KERN_WARNING "[DISP WRN] file:%s,line:%d:    ",__FILE__,__LINE__);printk(msg);}
 #define __here__            {printk(KERN_WARNING "[DISP] file:%s,line:%d\n",__FILE__,__LINE__);}
 #endif
 
@@ -89,8 +90,6 @@ typedef struct
 	__u32 base_ccmu;
 	__u32 base_pwm;
 
-	__s32 (*scaler_begin) (__u32 sel);
-	void (*scaler_finish) (__u32 sel);
 	void (*tve_interrup) (__u32 sel);
 	__s32 (*hdmi_set_mode)(__disp_tv_mode_t mode);
 	__s32 (*Hdmi_open)(void);
@@ -133,7 +132,7 @@ extern __s32 BSP_disp_enhance_enable(__u32 sel, __bool enable);
 extern __s32 BSP_disp_get_enhance_enable(__u32 sel);
 extern __s32 BSP_disp_capture_screen(__u32 sel, __disp_capture_screen_para_t * para);
 extern __s32 BSP_disp_set_screen_size(__u32 sel, __disp_rectsz_t * size);
-extern __s32 BSP_disp_set_yuv_output(__u32 sel, __bool bout_yuv);
+extern __s32 BSP_disp_set_output_csc(__u32 sel, __disp_output_type_t type);
 extern __s32 BSP_disp_de_flicker_enable(__u32 sel, __bool b_en);
 
 extern __s32 BSP_disp_layer_request(__u32 sel, __disp_layer_work_mode_t mode);

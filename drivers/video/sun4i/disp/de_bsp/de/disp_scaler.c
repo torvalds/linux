@@ -259,7 +259,17 @@ __s32 Scaler_event_proc(void *parg)
     {
         DE_SCAL_ClearINT(sel,DE_WB_END_IE);
         DE_SCAL_DisableINT(sel,DE_FE_INTEN_ALL);
-        gdisp.init_para.scaler_finish(sel);
+#ifdef __LINUX_OSAL__
+        if(gdisp.scaler[sel].b_scaler_finished == 1 && (&gdisp.scaler[sel].scaler_queue != NULL))
+        {
+            gdisp.scaler[sel].b_scaler_finished = 2;
+            wake_up_interruptible(&(gdisp.scaler[sel].scaler_queue));
+        }
+        else
+        {
+            __wrn("not scaler %d begin in DRV_scaler_finish\n", sel);
+        }
+#endif
     }
 
     return OSAL_IRQ_RETURN;
@@ -284,7 +294,6 @@ __s32 Scaler_Init(__u32 sel)
         OSAL_InterruptEnable(INTC_IRQNO_SCALER1);
 #endif
     }
-
    	return DIS_SUCCESS;
 }
 
@@ -341,7 +350,7 @@ __s32 Scaler_Request(__u32 sel)
 {
     __s32 ret = DIS_NO_RES;
 
-    DE_INF("Scaler_Request\n");
+    DE_INF("Scaler_Request,%d\n", sel);
 
     if(sel == 0)//request scaler0
     {
@@ -385,10 +394,10 @@ __s32 Scaler_Request(__u32 sel)
 
 __s32 Scaler_Release(__u32 sel, __bool b_display)
 {
-    DE_INF("Scaler_Release\n");
+    DE_INF("Scaler_Release:%d\n", sel);
 
     DE_SCAL_Set_Di_Ctrl(sel, 0, 0, 0, 0);
-    if(b_display == FALSE)
+    if(b_display == FALSE || BSP_disp_get_output_type(sel)==DISP_OUTPUT_TYPE_NONE)
     {
         Scaler_close(sel);
     }
@@ -425,6 +434,7 @@ __s32 Scaler_Set_Framebuffer(__u32 sel, __disp_fb_t *pfb)//keep the source windo
 	in_type.mod= Scaler_sw_para_to_reg(1,scaler->in_fb.mode);
 	in_type.ps= Scaler_sw_para_to_reg(2,(__u8)scaler->in_fb.seq);
 	in_type.byte_seq = 0;
+	in_type.sample_method = 0;
 
 	scal_addr.ch0_addr= (__u32)OSAL_VAtoPA((void*)(scaler->in_fb.addr[0]));
 	scal_addr.ch1_addr= (__u32)OSAL_VAtoPA((void*)(scaler->in_fb.addr[1]));
@@ -537,6 +547,7 @@ __s32 Scaler_Set_Output_Size(__u32 sel, __disp_rectsz_t *size)
 	in_type.fmt = Scaler_sw_para_to_reg(0,scaler->in_fb.format);
 	in_type.ps = Scaler_sw_para_to_reg(2,(__u8)scaler->in_fb.seq);
 	in_type.byte_seq = 0;
+	in_type.sample_method = 0;
 
 	in_size.src_width = scaler->src_win.width;
 	in_size.src_height = scaler->in_fb.size.height;
@@ -595,6 +606,7 @@ __s32 Scaler_Set_SclRegn(__u32 sel, __disp_rect_t *scl_rect)
 	in_type.fmt = Scaler_sw_para_to_reg(0,scaler->in_fb.format);
 	in_type.ps = Scaler_sw_para_to_reg(2,(__u8)scaler->in_fb.seq);
 	in_type.byte_seq = 0;
+	in_type.sample_method = 0;
 
 	scal_addr.ch0_addr= (__u32)OSAL_VAtoPA((void*)(scaler->in_fb.addr[0]));
 	scal_addr.ch1_addr= (__u32)OSAL_VAtoPA((void*)(scaler->in_fb.addr[1]));
@@ -705,6 +717,7 @@ __s32 Scaler_Set_Para(__u32 sel, __disp_scaler_t *scl)
 	in_type.fmt = Scaler_sw_para_to_reg(0,scaler->in_fb.format);
 	in_type.ps = Scaler_sw_para_to_reg(2,(__u8)scaler->in_fb.seq);
 	in_type.byte_seq = 0;
+	in_type.sample_method = 0;
 
 	scal_addr.ch0_addr = (__u32)OSAL_VAtoPA((void*)(scaler->in_fb.addr[0]));
 	scal_addr.ch1_addr = (__u32)OSAL_VAtoPA((void*)(scaler->in_fb.addr[1]));
@@ -792,6 +805,7 @@ __s32 Scaler_Set_Outitl(__u32 sel,  __bool enable)
 	in_type.mod= Scaler_sw_para_to_reg(1,scaler->in_fb.mode);
 	in_type.ps= Scaler_sw_para_to_reg(2,scaler->in_fb.seq);
 	in_type.byte_seq = 0;
+	in_type.sample_method = 0;
 
 	in_size.src_width = scaler->in_fb.size.width;
 	in_size.src_height = scaler->in_fb.size.height;
@@ -838,6 +852,7 @@ __s32 BSP_disp_scaler_set_smooth(__u32 sel, __disp_video_smooth_t  mode)
 	in_type.fmt = Scaler_sw_para_to_reg(0,scaler->in_fb.format);
 	in_type.ps = Scaler_sw_para_to_reg(2,(__u8)scaler->in_fb.seq);
     in_type.byte_seq = 0;
+    in_type.sample_method = 0;
 
 	in_size.src_width = scaler->in_fb.size.width;
 	in_size.src_height = scaler->in_fb.size.height;
@@ -914,6 +929,7 @@ __s32 BSP_disp_scaler_start(__u32 handle,__disp_scaler_para_t *para)
 	in_type.fmt= Scaler_sw_para_to_reg(0,para->input_fb.format);
 	in_type.ps= Scaler_sw_para_to_reg(2,(__u8)para->input_fb.seq);
 	in_type.byte_seq = 0;
+	in_type.sample_method = 0;
 
 	if(get_fb_type(para->output_fb.format) == DISP_FB_TYPE_YUV)
 	{
@@ -1011,24 +1027,36 @@ __s32 BSP_disp_scaler_start(__u32 handle,__disp_scaler_para_t *para)
     DE_SCAL_EnableINT(sel,DE_WB_END_IE);
     DE_SCAL_Start(sel);
     DE_SCAL_Set_Reg_Rdy(sel);
+
+#ifndef __LINUX_OSAL__
     DE_SCAL_Writeback_Enable(sel);
-
-    ret = gdisp.init_para.scaler_begin(sel);
-    if(ret != 0)
+    while(!(DE_SCAL_QueryINT(sel) & DE_WB_END_IE) )
     {
-        DE_WRN("do scaler fail, scal_int_status:0x%x\n", DE_SCAL_QueryINT(sel));
     }
-    else
+#else
     {
-        DE_INF("scaler finished successfully\n");
-    }
+        long timeout = (100 * HZ)/1000;//100ms
 
+        init_waitqueue_head(&(gdisp.scaler[sel].scaler_queue));
+        gdisp.scaler[sel].b_scaler_finished = 1;
+        DE_SCAL_Writeback_Enable(sel);
+
+        timeout = wait_event_interruptible_timeout(gdisp.scaler[sel].scaler_queue, gdisp.scaler[sel].b_scaler_finished == 2, timeout);
+        gdisp.scaler[sel].b_scaler_finished = 0;
+        if(timeout == 0)
+        {
+            __wrn("wait scaler %d finished timeout\n", sel);
+            return -1;
+        }
+    }
+#endif
     DE_SCAL_Reset(sel);
     DE_SCAL_Writeback_Disable(sel);
 
     return ret;
 
 }
+
 
 __s32 BSP_disp_capture_screen(__u32 sel, __disp_capture_screen_para_t * para)
 {
@@ -1065,6 +1093,7 @@ __s32 BSP_disp_capture_screen(__u32 sel, __disp_capture_screen_para_t * para)
     in_type.fmt= Scaler_sw_para_to_reg(0,DISP_FORMAT_ARGB8888);
     in_type.ps= Scaler_sw_para_to_reg(2,DISP_SEQ_ARGB);
     in_type.byte_seq = 0;
+    in_type.sample_method = 0;
 
     if(get_fb_type(para->output_fb.format) == DISP_FB_TYPE_YUV)
     {
@@ -1166,36 +1195,27 @@ __s32 BSP_disp_capture_screen(__u32 sel, __disp_capture_screen_para_t * para)
     DE_SCAL_Start(scaler_idx);
 
     DE_INF("capture begin\n");
-    //while(!(DE_SCAL_QueryINT(scaler_idx) & DE_WB_END_IE) )
-    //{
-    //}
-    ret = gdisp.init_para.scaler_begin(scaler_idx);
-    if(ret != 0)
+#ifndef __LINUX_OSAL__
+    while(!(DE_SCAL_QueryINT(scaler_idx) & DE_WB_END_IE) )
     {
-        DE_WRN("do capture fail\n");
-        if(scaler_idx == 0)
+    }
+#else
+    {
+        long timeout = (100 * HZ)/1000;//100ms
+
+        init_waitqueue_head(&(gdisp.scaler[scaler_idx].scaler_queue));
+        gdisp.scaler[scaler_idx].b_scaler_finished = 1;
+        DE_SCAL_Writeback_Enable(scaler_idx);
+
+        timeout = wait_event_interruptible_timeout(gdisp.scaler[scaler_idx].scaler_queue, gdisp.scaler[scaler_idx].b_scaler_finished == 2, timeout);
+        gdisp.scaler[scaler_idx].b_scaler_finished = 0;
+        if(timeout == 0)
         {
-            BSP_disp_print_reg(0, DISP_REG_SCALER0);
-        }
-        else
-        {
-            BSP_disp_print_reg(0, DISP_REG_SCALER1);
-        }
-        if(sel == 0)
-        {
-            BSP_disp_print_reg(0, DISP_REG_IMAGE0);
-        }
-        else
-        {
-            BSP_disp_print_reg(0, DISP_REG_IMAGE1);
+            __wrn("wait scaler %d finished timeout\n", scaler_idx);
+            return -1;
         }
     }
-    else
-    {
-        DE_INF("capture finished successfully\n");
-    }
-
-
+#endif
     DE_SCAL_Reset(scaler_idx);
     Scaler_Release(scaler_idx, FALSE);
     if(BSP_disp_get_output_type(sel) == DISP_OUTPUT_TYPE_NONE)

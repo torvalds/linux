@@ -272,13 +272,21 @@ __s32 Parse_DTD_Block(__u8 *pbuf)
 
     return 0;
 }
+
 __s32 Parse_VideoData_Block(__u8 *pbuf,__u8 size)
 {
 	int i=0;
 	while(i<size)
 	{
 		Device_Support_VIC[pbuf[i] &0x7f] = 1;
-		__inf("Parse_VideoData_Block: VIC %d support\n", pbuf[i]);
+		if(pbuf[i] &0x80)
+		{
+		   __inf("Parse_VideoData_Block: VIC %d(native) support\n", pbuf[i]&0x7f);
+		}
+		else
+		{
+		   __inf("Parse_VideoData_Block: VIC %d support\n", pbuf[i]);
+		}
 		i++;
 	}
 	return 0;
@@ -301,11 +309,56 @@ __s32 Parse_AudioData_Block(__u8 *pbuf,__u8 size)
 	return 0;
 }
 
+__s32 Parse_HDMI_VSDB(__u8 * pbuf,__u8 size)
+{
+	__u8 index = 8;
 
+	if( (pbuf[0] ==0x03) &&	(pbuf[1] ==0x0c) &&	(pbuf[2] ==0x00) )	//check if it's HDMI VSDB
+	{
+		__inf("Find HDMI Vendor Specific DataBlock\n");
+	}
+	else
+	{
+		return 0;
+	}
+
+	if(size <=8)
+		return 0;
+
+	if((pbuf[7]&0x20) == 0 )
+		return 0;
+	if((pbuf[7]&0x40) == 1 )
+		index = index +2;
+	if((pbuf[7]&0x80) == 1 )
+		index = index +2;
+
+	if(pbuf[index]&0x80)		//mandatary format support
+	{
+		Device_Support_VIC[HDMI1080P_24_3D_FP] = 1;
+		__inf("3D_present\n");
+	}
+	else
+	{
+		return 0;
+	}
+
+	if( ((pbuf[index]&0x60) ==1) || ((pbuf[index]&0x60) ==2) )
+	{
+		__inf("3D_multi_present\n");
+	}
+
+	index += (pbuf[index+1]&0xe0) + 2;
+	if(index > (size+1) )
+	   	return 0;
+
+	__inf("3D_multi_present byte(%2.2x,%2.2x)\n",pbuf[index],pbuf[index+1]);
+
+	return 0;
+}
 
 __s32 ParseEDID(void)
 {
-    // collect the EDID ucdata of segment 0
+    //collect the EDID ucdata of segment 0
     __u8 BlockCount ;
     __u32 i,offset ;
 
@@ -323,10 +376,15 @@ __s32 ParseEDID(void)
 		return 0;
 	}
 
-	EDID_Header_Check(EDID_Buf);
+	if( EDID_Header_Check(EDID_Buf)!= 0)
+	{
+		return 0;
+	}
 
-	EDID_Version_Check(EDID_Buf);
-
+	if( EDID_Version_Check(EDID_Buf)!= 0)
+	{
+		return 0;
+	}
 	Parse_DTD_Block(EDID_Buf + 0x36);
 
 	Parse_DTD_Block(EDID_Buf + 0x48);
@@ -371,6 +429,10 @@ __s32 ParseEDID(void)
 							else if( tag == 2)	//VDB
 							{
 								Parse_VideoData_Block(EDID_Buf+0x80*i+bsum+1,len);
+							}
+							else if( tag == 3)	//vendor specific
+							{
+								Parse_HDMI_VSDB(EDID_Buf+0x80*i+bsum+1,len);
 							}
 						}
 

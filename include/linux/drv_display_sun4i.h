@@ -1,12 +1,7 @@
 #ifndef __DRV_DISPLAY_H__
 #define __DRV_DISPLAY_H__
 
-#include "types.h"
 #define __bool signed char
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef __BSP_DRV_DISPLAY_H__
-#define __BSP_DRV_DISPLAY_H__
 
 typedef struct {__u8  alpha;__u8 red;__u8 green; __u8 blue; }__disp_color_t;
 typedef struct {__s32 x; __s32 y; __u32 width; __u32 height;}__disp_rect_t;
@@ -105,14 +100,12 @@ typedef enum
 
 typedef enum
 {
-    //for lcd
     DISP_3D_OUT_MODE_CI_1 = 0x5,//column interlaved 1
     DISP_3D_OUT_MODE_CI_2 = 0x6,//column interlaved 2
     DISP_3D_OUT_MODE_CI_3 = 0x7,//column interlaved 3
     DISP_3D_OUT_MODE_CI_4 = 0x8,//column interlaved 4
     DISP_3D_OUT_MODE_LIRGB = 0x9,//line interleaved rgb
 
-    //for hdmi
     DISP_3D_OUT_MODE_TB = 0x0,//top bottom
     DISP_3D_OUT_MODE_FP = 0x1,//frame packing
     DISP_3D_OUT_MODE_SSF = 0x2,//side by side full
@@ -128,6 +121,13 @@ typedef enum
     DISP_YCC    = 2,
     DISP_VXYCC  = 3,
 }__disp_cs_mode_t;
+
+typedef enum
+{
+    DISP_COLOR_RANGE_16_255 = 0,
+    DISP_COLOR_RANGE_0_255 = 1,
+    DISP_COLOR_RANGE_16_235 = 2,
+}__disp_color_range_t;
 
 typedef enum
 {
@@ -277,6 +277,7 @@ typedef enum//only for debug!!!
     DISP_REG_PIOC = 9,
     DISP_REG_PWM = 10,
 }__disp_reg_index_t;
+
 
 typedef struct
 {
@@ -438,6 +439,11 @@ typedef struct
 	__u32   lcd_gamma_correction_en;
 	__u32   lcd_gamma_tbl[256];
 
+	__u32   lcd_hv_srgb_seq0;
+	__u32   lcd_hv_srgb_seq1;
+	__u32   lcd_hv_syuv_seq;
+	__u32   lcd_hv_syuv_fdly;
+
 	__u32   port_index;
 	__u32   start_delay;//not need to config for user
 	__u32   tcon_index; //not need to config for user
@@ -480,9 +486,6 @@ typedef struct
     __u32 duty_ns;
     __u32 period_ns;
 }__pwm_info_t;
-
-#endif
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 typedef enum

@@ -81,6 +81,7 @@ typedef struct
 	__bool                  bl_not_open;
 
 	__disp_lcd_bright_t     lcd_bright;
+	__disp_color_range_t    out_color_range;
 }__disp_screen_t;
 
 typedef struct

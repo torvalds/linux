@@ -336,18 +336,17 @@ __s32 video_config(__s32 vic)
     //vendor infoframe
     HDMI_WUINT8 (0x240,0x81);
     HDMI_WUINT8 (0x241,0x01);
-    HDMI_WUINT8 (0x242,15  );	//length
+    HDMI_WUINT8 (0x242,6    );	//length
 
-    HDMI_WUINT8 (0x243,0xa1);	//pb0:checksum
+    HDMI_WUINT8 (0x243,0x29);	//pb0:checksum
     HDMI_WUINT8 (0x244,0x03);	//pb1-3:24bit ieee id
-    HDMI_WUINT8 (0x245,0x0c);  	//length
+    HDMI_WUINT8 (0x245,0x0c);  	//
     HDMI_WUINT8 (0x246,0x00);
-
     HDMI_WUINT8 (0x247,0x40);   //pb4
-    HDMI_WUINT8 (0x248,0x08);	//pb5:3d present, frame packing
-    HDMI_WUINT8 (0x249,0x00);  	//pb6:extra data for 3d
-    HDMI_WUINT8 (0x24a,0x08);  	//pb7: matadata type=0,len=8
+    HDMI_WUINT8 (0x248,0x00);	//pb5:3d meta not present, frame packing
 
+    HDMI_WUINT8 (0x249,0x00);  	//pb6:extra data for 3d
+    HDMI_WUINT8 (0x24a,0x00);  	//pb7: matadata type=0,len=8
     HDMI_WUINT8 (0x24b,0x00);
     HDMI_WUINT8 (0x24c,0x00);
     HDMI_WUINT8 (0x24d,0x00);

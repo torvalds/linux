@@ -13,7 +13,7 @@ __s32 Image_init(__u32 sel)
 	DE_BE_Reg_Init(sel);
 
     BSP_disp_sprite_init(sel);
-    BSP_disp_set_yuv_output(sel, FALSE);
+    BSP_disp_set_output_csc(sel, DISP_OUTPUT_TYPE_LCD);
 
     Image_open(sel);
 
@@ -110,10 +110,35 @@ __s32 BSP_disp_set_screen_size(__u32 sel, __disp_rectsz_t * size)
     return DIS_SUCCESS;
 }
 
-
-__s32 BSP_disp_set_yuv_output(__u32 sel, __bool bout_yuv)
+__s32 BSP_disp_set_output_csc(__u32 sel, __disp_output_type_t type)
 {
-    DE_BE_Output_Cfg_Csc_Coeff(sel, bout_yuv);
+    __disp_color_range_t out_color_range = DISP_COLOR_RANGE_0_255;
+    __bool bout_yuv = FALSE;
+
+    if(type == DISP_OUTPUT_TYPE_HDMI)
+    {
+        __s32 ret = 0;
+        __s32 value = 0;
+
+        out_color_range = DISP_COLOR_RANGE_16_255;
+
+        ret = OSAL_Script_FetchParser_Data("disp_init", "screen0_out_color_range", &value, 1);
+        if(ret < 0)
+        {
+            DE_INF("fetch script data disp_init.screen0_out_color_range fail\n");
+        }
+        else
+        {
+            out_color_range = value;
+            DE_INF("screen0_out_color_range = %d\n", value);
+        }
+    }
+    else if(type == DISP_OUTPUT_TYPE_TV)
+    {
+        bout_yuv = TRUE;
+    }
+
+    DE_BE_Output_Cfg_Csc_Coeff(sel, bout_yuv, out_color_range);
 
     gdisp.screen[sel].bout_yuv = bout_yuv;
 
