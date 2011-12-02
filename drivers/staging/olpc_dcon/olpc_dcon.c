@@ -755,9 +755,9 @@ static int dcon_resume(struct i2c_client *client)
 irqreturn_t dcon_interrupt(int irq, void *id)
 {
 	struct dcon_priv *dcon = id;
-	int status = pdata->read_status();
+	u8 status;
 
-	if (status == -1)
+	if (pdata->read_status(&status))
 		return IRQ_NONE;
 
 	switch (status & 3) {
