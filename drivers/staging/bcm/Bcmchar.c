@@ -1336,7 +1336,7 @@ cntrlEnd:
 
 			if (copy_to_user(stNVMReadWrite.pBuffer, pReadData, stNVMReadWrite.uiNumBytes)) {
 				kfree(pReadData);
-				Status = -EFAULT;
+				return -EFAULT;
 			}
 		} else {
 			down(&Adapter->NVMRdmWrmLock);
