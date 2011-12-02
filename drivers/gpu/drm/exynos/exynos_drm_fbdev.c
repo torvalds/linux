@@ -33,6 +33,7 @@
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
+#include "exynos_drm_gem.h"
 #include "exynos_drm_buf.h"
 
 #define MAX_CONNECTOR		4
@@ -85,15 +86,13 @@ static struct fb_ops exynos_drm_fb_ops = {
 };
 
 static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
-				     struct drm_framebuffer *fb,
-				     unsigned int fb_width,
-				     unsigned int fb_height)
+				     struct drm_framebuffer *fb)
 {
 	struct fb_info *fbi = helper->fbdev;
 	struct drm_device *dev = helper->dev;
 	struct exynos_drm_fbdev *exynos_fb = to_exynos_fbdev(helper);
-	struct exynos_drm_buf_entry *entry;
-	unsigned int size = fb_width * fb_height * (fb->bits_per_pixel >> 3);
+	struct exynos_drm_gem_buf *buffer;
+	unsigned int size = fb->width * fb->height * (fb->bits_per_pixel >> 3);
 	unsigned long offset;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
@@ -101,20 +100,20 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 	exynos_fb->fb = fb;
 
 	drm_fb_helper_fill_fix(fbi, fb->pitch, fb->depth);
-	drm_fb_helper_fill_var(fbi, helper, fb_width, fb_height);
+	drm_fb_helper_fill_var(fbi, helper, fb->width, fb->height);
 
-	entry = exynos_drm_fb_get_buf(fb);
-	if (!entry) {
-		DRM_LOG_KMS("entry is null.\n");
+	buffer = exynos_drm_fb_get_buf(fb);
+	if (!buffer) {
+		DRM_LOG_KMS("buffer is null.\n");
 		return -EFAULT;
 	}
 
 	offset = fbi->var.xoffset * (fb->bits_per_pixel >> 3);
 	offset += fbi->var.yoffset * fb->pitch;
 
-	dev->mode_config.fb_base = entry->paddr;
-	fbi->screen_base = entry->vaddr + offset;
-	fbi->fix.smem_start = entry->paddr + offset;
+	dev->mode_config.fb_base = (resource_size_t)buffer->dma_addr;
+	fbi->screen_base = buffer->kvaddr + offset;
+	fbi->fix.smem_start = (unsigned long)(buffer->dma_addr + offset);
 	fbi->screen_size = size;
 	fbi->fix.smem_len = size;
 
@@ -171,8 +170,7 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 		goto out;
 	}
 
-	ret = exynos_drm_fbdev_update(helper, helper->fb, sizes->fb_width,
-			sizes->fb_height);
+	ret = exynos_drm_fbdev_update(helper, helper->fb);
 	if (ret < 0)
 		fb_dealloc_cmap(&fbi->cmap);
 
@@ -235,8 +233,7 @@ static int exynos_drm_fbdev_recreate(struct drm_fb_helper *helper,
 	}
 
 	helper->fb = exynos_fbdev->fb;
-	return exynos_drm_fbdev_update(helper, helper->fb, sizes->fb_width,
-			sizes->fb_height);
+	return exynos_drm_fbdev_update(helper, helper->fb);
 }
 
 static int exynos_drm_fbdev_probe(struct drm_fb_helper *helper,
@@ -405,6 +402,18 @@ int exynos_drm_fbdev_reinit(struct drm_device *dev)
 	fb_helper = private->fb_helper;
 
 	if (fb_helper) {
+		struct list_head temp_list;
+
+		INIT_LIST_HEAD(&temp_list);
+
+		/*
+		 * fb_helper is reintialized but kernel fb is reused
+		 * so kernel_fb_list need to be backuped and restored
+		 */
+		if (!list_empty(&fb_helper->kernel_fb_list))
+			list_replace_init(&fb_helper->kernel_fb_list,
+					&temp_list);
+
 		drm_fb_helper_fini(fb_helper);
 
 		ret = drm_fb_helper_init(dev, fb_helper,
@@ -413,6 +422,9 @@ int exynos_drm_fbdev_reinit(struct drm_device *dev)
 			DRM_ERROR("failed to initialize drm fb helper\n");
 			return ret;
 		}
+
+		if (!list_empty(&temp_list))
+			list_replace(&temp_list, &fb_helper->kernel_fb_list);
 
 		ret = drm_fb_helper_single_add_all_connectors(fb_helper);
 		if (ret < 0) {

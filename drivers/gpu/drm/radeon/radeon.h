@@ -611,7 +611,8 @@ struct radeon_cs_parser {
 	struct radeon_ib	*ib;
 	void			*track;
 	unsigned		family;
-	int parser_error;
+	int			parser_error;
+	bool			keep_tiling_flags;
 };
 
 extern int radeon_cs_update_pages(struct radeon_cs_parser *p, int pg_idx);

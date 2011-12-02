@@ -951,7 +951,7 @@ static void ocfs2_cleanup_delete_inode(struct inode *inode,
 	trace_ocfs2_cleanup_delete_inode(
 		(unsigned long long)OCFS2_I(inode)->ip_blkno, sync_data);
 	if (sync_data)
-		write_inode_now(inode, 1);
+		filemap_write_and_wait(inode->i_mapping);
 	truncate_inode_pages(&inode->i_data, 0);
 }
 

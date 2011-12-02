@@ -11,7 +11,7 @@
  * the Free Software Foundation; either version 2 of the License.
 */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>

@@ -130,6 +130,7 @@ static int ip_rt_mtu_expires __read_mostly	= 10 * 60 * HZ;
 static int ip_rt_min_pmtu __read_mostly		= 512 + 20 + 20;
 static int ip_rt_min_advmss __read_mostly	= 256;
 static int rt_chain_length_max __read_mostly	= 20;
+static int redirect_genid;
 
 /*
  *	Interface to generic destination cache.
@@ -415,9 +416,13 @@ static int rt_cache_seq_show(struct seq_file *seq, void *v)
 	else {
 		struct rtable *r = v;
 		struct neighbour *n;
-		int len;
+		int len, HHUptod;
 
+		rcu_read_lock();
 		n = dst_get_neighbour(&r->dst);
+		HHUptod = (n && (n->nud_state & NUD_CONNECTED)) ? 1 : 0;
+		rcu_read_unlock();
+
 		seq_printf(seq, "%s\t%08X\t%08X\t%8X\t%d\t%u\t%d\t"
 			      "%08X\t%d\t%u\t%u\t%02X\t%d\t%1d\t%08X%n",
 			r->dst.dev ? r->dst.dev->name : "*",
@@ -431,7 +436,7 @@ static int rt_cache_seq_show(struct seq_file *seq, void *v)
 			      dst_metric(&r->dst, RTAX_RTTVAR)),
 			r->rt_key_tos,
 			-1,
-			(n && (n->nud_state & NUD_CONNECTED)) ? 1 : 0,
+			HHUptod,
 			r->rt_spec_dst, &len);
 
 		seq_printf(seq, "%*s\n", 127 - len, "");
@@ -836,6 +841,7 @@ static void rt_cache_invalidate(struct net *net)
 
 	get_random_bytes(&shuffle, sizeof(shuffle));
 	atomic_add(shuffle + 1U, &net->ipv4.rt_genid);
+	redirect_genid++;
 }
 
 /*
@@ -1385,8 +1391,10 @@ void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 
 				peer = rt->peer;
 				if (peer) {
-					if (peer->redirect_learned.a4 != new_gw) {
+					if (peer->redirect_learned.a4 != new_gw ||
+					    peer->redirect_genid != redirect_genid) {
 						peer->redirect_learned.a4 = new_gw;
+						peer->redirect_genid = redirect_genid;
 						atomic_inc(&__rt_peer_genid);
 					}
 					check_peer_redir(&rt->dst, peer);
@@ -1679,12 +1687,8 @@ static void ip_rt_update_pmtu(struct dst_entry *dst, u32 mtu)
 }
 
 
-static struct dst_entry *ipv4_dst_check(struct dst_entry *dst, u32 cookie)
+static struct rtable *ipv4_validate_peer(struct rtable *rt)
 {
-	struct rtable *rt = (struct rtable *) dst;
-
-	if (rt_is_expired(rt))
-		return NULL;
 	if (rt->rt_peer_genid != rt_peer_genid()) {
 		struct inet_peer *peer;
 
@@ -1693,17 +1697,29 @@ static struct dst_entry *ipv4_dst_check(struct dst_entry *dst, u32 cookie)
 
 		peer = rt->peer;
 		if (peer) {
-			check_peer_pmtu(dst, peer);
+			check_peer_pmtu(&rt->dst, peer);
 
+			if (peer->redirect_genid != redirect_genid)
+				peer->redirect_learned.a4 = 0;
 			if (peer->redirect_learned.a4 &&
 			    peer->redirect_learned.a4 != rt->rt_gateway) {
-				if (check_peer_redir(dst, peer))
+				if (check_peer_redir(&rt->dst, peer))
 					return NULL;
 			}
 		}
 
 		rt->rt_peer_genid = rt_peer_genid();
 	}
+	return rt;
+}
+
+static struct dst_entry *ipv4_dst_check(struct dst_entry *dst, u32 cookie)
+{
+	struct rtable *rt = (struct rtable *) dst;
+
+	if (rt_is_expired(rt))
+		return NULL;
+	dst = (struct dst_entry *) ipv4_validate_peer(rt);
 	return dst;
 }
 
@@ -1851,6 +1867,8 @@ static void rt_init_metrics(struct rtable *rt, const struct flowi4 *fl4,
 		dst_init_metrics(&rt->dst, peer->metrics, false);
 
 		check_peer_pmtu(&rt->dst, peer);
+		if (peer->redirect_genid != redirect_genid)
+			peer->redirect_learned.a4 = 0;
 		if (peer->redirect_learned.a4 &&
 		    peer->redirect_learned.a4 != rt->rt_gateway) {
 			rt->rt_gateway = peer->redirect_learned.a4;
@@ -2356,6 +2374,9 @@ int ip_route_input_common(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		    rth->rt_mark == skb->mark &&
 		    net_eq(dev_net(rth->dst.dev), net) &&
 		    !rt_is_expired(rth)) {
+			rth = ipv4_validate_peer(rth);
+			if (!rth)
+				continue;
 			if (noref) {
 				dst_use_noref(&rth->dst, jiffies);
 				skb_dst_set_noref(skb, &rth->dst);
@@ -2731,6 +2752,9 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *flp4)
 			    (IPTOS_RT_MASK | RTO_ONLINK)) &&
 		    net_eq(dev_net(rth->dst.dev), net) &&
 		    !rt_is_expired(rth)) {
+			rth = ipv4_validate_peer(rth);
+			if (!rth)
+				continue;
 			dst_use(&rth->dst, jiffies);
 			RT_CACHE_STAT_INC(out_hit);
 			rcu_read_unlock_bh();

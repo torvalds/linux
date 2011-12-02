@@ -76,6 +76,8 @@ struct sta32x_priv {
 
 	unsigned int mclk;
 	unsigned int format;
+
+	u32 coef_shadow[STA32X_COEF_COUNT];
 };
 
 static const DECLARE_TLV_DB_SCALE(mvol_tlv, -12700, 50, 1);
@@ -227,6 +229,7 @@ static int sta32x_coefficient_put(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct sta32x_priv *sta32x = snd_soc_codec_get_drvdata(codec);
 	int numcoef = kcontrol->private_value >> 16;
 	int index = kcontrol->private_value & 0xffff;
 	unsigned int cfud;
@@ -239,6 +242,11 @@ static int sta32x_coefficient_put(struct snd_kcontrol *kcontrol,
 	snd_soc_write(codec, STA32X_CFUD, cfud);
 
 	snd_soc_write(codec, STA32X_CFADDR2, index);
+	for (i = 0; i < numcoef && (index + i < STA32X_COEF_COUNT); i++)
+		sta32x->coef_shadow[index + i] =
+			  (ucontrol->value.bytes.data[3 * i] << 16)
+			| (ucontrol->value.bytes.data[3 * i + 1] << 8)
+			| (ucontrol->value.bytes.data[3 * i + 2]);
 	for (i = 0; i < 3 * numcoef; i++)
 		snd_soc_write(codec, STA32X_B1CF1 + i,
 			      ucontrol->value.bytes.data[i]);
@@ -250,6 +258,48 @@ static int sta32x_coefficient_put(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 
 	return 0;
+}
+
+int sta32x_sync_coef_shadow(struct snd_soc_codec *codec)
+{
+	struct sta32x_priv *sta32x = snd_soc_codec_get_drvdata(codec);
+	unsigned int cfud;
+	int i;
+
+	/* preserve reserved bits in STA32X_CFUD */
+	cfud = snd_soc_read(codec, STA32X_CFUD) & 0xf0;
+
+	for (i = 0; i < STA32X_COEF_COUNT; i++) {
+		snd_soc_write(codec, STA32X_CFADDR2, i);
+		snd_soc_write(codec, STA32X_B1CF1,
+			      (sta32x->coef_shadow[i] >> 16) & 0xff);
+		snd_soc_write(codec, STA32X_B1CF2,
+			      (sta32x->coef_shadow[i] >> 8) & 0xff);
+		snd_soc_write(codec, STA32X_B1CF3,
+			      (sta32x->coef_shadow[i]) & 0xff);
+		/* chip documentation does not say if the bits are
+		 * self-clearing, so do it explicitly */
+		snd_soc_write(codec, STA32X_CFUD, cfud);
+		snd_soc_write(codec, STA32X_CFUD, cfud | 0x01);
+	}
+	return 0;
+}
+
+int sta32x_cache_sync(struct snd_soc_codec *codec)
+{
+	unsigned int mute;
+	int rc;
+
+	if (!codec->cache_sync)
+		return 0;
+
+	/* mute during register sync */
+	mute = snd_soc_read(codec, STA32X_MMUTE);
+	snd_soc_write(codec, STA32X_MMUTE, mute | STA32X_MMUTE_MMUTE);
+	sta32x_sync_coef_shadow(codec);
+	rc = snd_soc_cache_sync(codec);
+	snd_soc_write(codec, STA32X_MMUTE, mute);
+	return rc;
 }
 
 #define SINGLE_COEF(xname, index) \
@@ -661,7 +711,7 @@ static int sta32x_set_bias_level(struct snd_soc_codec *codec,
 				return ret;
 			}
 
-			snd_soc_cache_sync(codec);
+			sta32x_cache_sync(codec);
 		}
 
 		/* Power up to mute */
@@ -789,6 +839,17 @@ static int sta32x_probe(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, STA32X_C3CFG,
 			    STA32X_CxCFG_OM_MASK,
 			    2 << STA32X_CxCFG_OM_SHIFT);
+
+	/* initialize coefficient shadow RAM with reset values */
+	for (i = 4; i <= 49; i += 5)
+		sta32x->coef_shadow[i] = 0x400000;
+	for (i = 50; i <= 54; i++)
+		sta32x->coef_shadow[i] = 0x7fffff;
+	sta32x->coef_shadow[55] = 0x5a9df7;
+	sta32x->coef_shadow[56] = 0x7fffff;
+	sta32x->coef_shadow[59] = 0x7fffff;
+	sta32x->coef_shadow[60] = 0x400000;
+	sta32x->coef_shadow[61] = 0x400000;
 
 	sta32x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	/* Bias level configuration will have done an extra enable */
