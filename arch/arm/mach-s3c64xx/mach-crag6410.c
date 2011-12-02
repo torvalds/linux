@@ -634,6 +634,11 @@ static struct i2c_board_info i2c_devs1[] __initdata = {
 	{ I2C_BOARD_INFO("wm1250-ev1", 0x27) },
 };
 
+static struct s3c2410_platform_i2c i2c1_pdata = {
+	.frequency = 400000,
+	.bus_num = 1,
+};
+
 static void __init crag6410_map_io(void)
 {
 	s3c64xx_init_io(NULL, 0);
@@ -692,7 +697,7 @@ static void __init crag6410_machine_init(void)
 	s3c_sdhci2_set_platdata(&crag6410_hsmmc2_pdata);
 
 	s3c_i2c0_set_platdata(&i2c0_pdata);
-	s3c_i2c1_set_platdata(NULL);
+	s3c_i2c1_set_platdata(&i2c1_pdata);
 	s3c_fb_set_platdata(&crag6410_lcd_pdata);
 
 	i2c_register_board_info(0, i2c_devs0, ARRAY_SIZE(i2c_devs0));
