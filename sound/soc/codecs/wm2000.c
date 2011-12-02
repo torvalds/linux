@@ -740,7 +740,8 @@ static int __devinit wm2000_i2c_probe(struct i2c_client *i2c,
 		return -EINVAL;
 	}
 
-	wm2000 = kzalloc(sizeof(struct wm2000_priv), GFP_KERNEL);
+	wm2000 = devm_kzalloc(&i2c->dev, sizeof(struct wm2000_priv),
+			      GFP_KERNEL);
 	if (wm2000 == NULL) {
 		dev_err(&i2c->dev, "Unable to allocate private data\n");
 		return -ENOMEM;
@@ -779,7 +780,9 @@ static int __devinit wm2000_i2c_probe(struct i2c_client *i2c,
 
 	/* Pre-cook the concatenation of the register address onto the image */
 	wm2000->anc_download_size = fw->size + 2;
-	wm2000->anc_download = kmalloc(wm2000->anc_download_size, GFP_KERNEL);
+	wm2000->anc_download = devm_kzalloc(&i2c->dev,
+					    wm2000->anc_download_size,
+					    GFP_KERNEL);
 	if (wm2000->anc_download == NULL) {
 		dev_err(&i2c->dev, "Out of memory\n");
 		ret = -ENOMEM;
@@ -810,7 +813,6 @@ static int __devinit wm2000_i2c_probe(struct i2c_client *i2c,
 err_fw:
 	release_firmware(fw);
 err:
-	kfree(wm2000);
 	return ret;
 }
 
@@ -821,8 +823,6 @@ static __devexit int wm2000_i2c_remove(struct i2c_client *i2c)
 	wm2000_anc_transition(wm2000, ANC_OFF);
 
 	wm2000_i2c = NULL;
-	kfree(wm2000->anc_download);
-	kfree(wm2000);
 
 	return 0;
 }
