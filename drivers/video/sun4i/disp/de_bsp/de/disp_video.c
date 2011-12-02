@@ -208,11 +208,15 @@ static __inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
             layer_fb.format = fb.format;
             DE_BE_Layer_Set_Framebuffer(sel, id,&layer_fb);
         }
-        memcpy(&layer_man->para.fb,&fb,sizeof(__disp_fb_t));
     }
 
     g_video[sel][id].display_cnt++;
-
+    gdisp.screen[sel].layer_manage[id].para.fb.addr[0] = g_video[sel][id].video_cur.addr[0];
+    gdisp.screen[sel].layer_manage[id].para.fb.addr[1] = g_video[sel][id].video_cur.addr[1];
+    gdisp.screen[sel].layer_manage[id].para.fb.addr[2] = g_video[sel][id].video_cur.addr[2];
+    gdisp.screen[sel].layer_manage[id].para.fb.trd_right_addr[0] = g_video[sel][id].video_cur.addr_right[0];
+    gdisp.screen[sel].layer_manage[id].para.fb.trd_right_addr[1] = g_video[sel][id].video_cur.addr_right[1];
+    gdisp.screen[sel].layer_manage[id].para.fb.trd_right_addr[2] = g_video[sel][id].video_cur.addr_right[2];
 	return DIS_SUCCESS;
 }
 
