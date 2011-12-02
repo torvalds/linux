@@ -32,6 +32,8 @@
 #include <linux/hid.h>
 #include <linux/hid-debug.h>
 
+#include "hid-ids.h"
+
 #define unk	KEY_UNKNOWN
 
 static const unsigned char hid_keyboard[256] = {
@@ -280,6 +282,28 @@ static enum power_supply_property hidinput_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS
 };
 
+#define HID_BATTERY_QUIRK_PERCENT	(1 << 0) /* always reports percent */
+
+static const struct hid_device_id hid_battery_quirks[] = {
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_MAGICMOUSE),
+	  HID_BATTERY_QUIRK_PERCENT },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_MAGICTRACKPAD),
+	  HID_BATTERY_QUIRK_PERCENT },
+	{}
+};
+
+static unsigned find_battery_quirk(struct hid_device *hdev)
+{
+	unsigned quirks = 0;
+	const struct hid_device_id *match;
+
+	match = hid_match_id(hdev, hid_battery_quirks);
+	if (match != NULL)
+		quirks = match->driver_data;
+
+	return quirks;
+}
+
 static int hidinput_get_battery_property(struct power_supply *psy,
 					 enum power_supply_property prop,
 					 union power_supply_propval *val)
@@ -304,10 +328,11 @@ static int hidinput_get_battery_property(struct power_supply *psy,
 			break;
 		}
 
-		/* store the returned value */
-		/* I'm not calculating this using the logical_minimum and maximum */
-		/* because my device returns 0-100 even though the min and max are 0-255 */
-		val->intval = buf[1];
+		if (dev->battery_min < dev->battery_max &&
+		    buf[1] >= dev->battery_min &&
+		    buf[1] <= dev->battery_max)
+			val->intval = (100 * (buf[1] - dev->battery_min)) /
+				(dev->battery_max - dev->battery_min);
 		break;
 
 	case POWER_SUPPLY_PROP_MODEL_NAME:
@@ -330,6 +355,7 @@ static void hidinput_setup_battery(struct hid_device *dev, unsigned id, s32 min,
 {
 	struct power_supply *battery = &dev->battery;
 	int ret;
+	unsigned quirks;
 
 	if (battery->name != NULL)
 		return;		/* already initialized? */
@@ -343,6 +369,13 @@ static void hidinput_setup_battery(struct hid_device *dev, unsigned id, s32 min,
 	battery->num_properties = ARRAY_SIZE(hidinput_battery_props);
 	battery->use_for_apm = 0;
 	battery->get_property = hidinput_get_battery_property;
+
+	quirks = find_battery_quirk(dev);
+
+	if (quirks & HID_BATTERY_QUIRK_PERCENT) {
+		min = 0;
+		max = 100;
+	}
 
 	dev->battery_min = min;
 	dev->battery_max = max;

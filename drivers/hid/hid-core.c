@@ -1157,7 +1157,7 @@ static bool hid_match_one_id(struct hid_device *hdev,
 		(id->product == HID_ANY_ID || id->product == hdev->product);
 }
 
-static const struct hid_device_id *hid_match_id(struct hid_device *hdev,
+const struct hid_device_id *hid_match_id(struct hid_device *hdev,
 		const struct hid_device_id *id)
 {
 	for (; id->bus; id++)
