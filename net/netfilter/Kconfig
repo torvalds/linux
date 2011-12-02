@@ -201,7 +201,6 @@ config NF_CONNTRACK_BROADCAST
 
 config NF_CONNTRACK_NETBIOS_NS
 	tristate "NetBIOS name service protocol support"
-	depends on NETFILTER_ADVANCED
 	select NF_CONNTRACK_BROADCAST
 	help
 	  NetBIOS name service requests are sent as broadcast messages from an
