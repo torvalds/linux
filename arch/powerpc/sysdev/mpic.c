@@ -1143,8 +1143,24 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	const char *vers;
 	const u32 *psrc;
 
-	/* This code assumes that a non-NULL device node is passed in */
-	BUG_ON(!node);
+	/* Default MPIC search parameters */
+	static const struct of_device_id __initconst mpic_device_id[] = {
+		{ .type	      = "open-pic", },
+		{ .compatible = "open-pic", },
+		{},
+	};
+
+	/*
+	 * If we were not passed a device-tree node, then perform the default
+	 * search for standardized a standardized OpenPIC.
+	 */
+	if (node) {
+		node = of_node_get(node);
+	} else {
+		node = of_find_matching_node(NULL, mpic_device_id);
+		if (!node)
+			return NULL;
+	}
 
 	/* Pick the physical address from the device tree if unspecified */
 	if (!phys_addr) {
@@ -1154,14 +1170,14 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 		} else {
 			struct resource r;
 			if (of_address_to_resource(node, 0, &r))
-				return NULL;
+				goto err_of_node_put;
 			phys_addr = r.start;
 		}
 	}
 
 	mpic = kzalloc(sizeof(struct mpic), GFP_KERNEL);
 	if (mpic == NULL)
-		return NULL;
+		goto err_of_node_put;
 
 	mpic->name = name;
 	mpic->paddr = phys_addr;
@@ -1325,6 +1341,11 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 				       isu_size ? isu_size : mpic->num_sources,
 				       &mpic_host_ops,
 				       flags & MPIC_LARGE_VECTORS ? 2048 : 256);
+
+	/*
+	 * FIXME: The code leaks the MPIC object and mappings here; this
+	 * is very unlikely to fail but it ought to be fixed anyways.
+	 */
 	if (mpic->irqhost == NULL)
 		return NULL;
 
@@ -1359,7 +1380,12 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 		irq_set_default_host(mpic->irqhost);
 	}
 
+	of_node_put(node);
 	return mpic;
+
+err_of_node_put:
+	of_node_put(node);
+	return NULL;
 }
 
 void __init mpic_assign_isu(struct mpic *mpic, unsigned int isu_num,

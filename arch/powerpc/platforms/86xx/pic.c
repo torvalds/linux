@@ -31,24 +31,17 @@ static void mpc86xx_8259_cascade(unsigned int irq, struct irq_desc *desc)
 
 void __init mpc86xx_init_irq(void)
 {
-	struct mpic *mpic;
-	struct device_node *np;
 #ifdef CONFIG_PPC_I8259
+	struct device_node *np;
 	struct device_node *cascade_node = NULL;
 	int cascade_irq;
 #endif
 
-	/* Determine PIC address. */
-	np = of_find_node_by_type(NULL, "open-pic");
-	if (np == NULL)
-		return;
-
-	mpic = mpic_alloc(np, 0,
+	struct mpic *mpic = mpic_alloc(NULL, 0,
 			MPIC_PRIMARY | MPIC_WANTS_RESET |
 			MPIC_BIG_ENDIAN | MPIC_BROKEN_FRR_NIRQS |
 			MPIC_SINGLE_DEST_CPU,
 			0, 256, " MPIC     ");
-	of_node_put(np);
 	BUG_ON(mpic == NULL);
 
 	mpic_init(mpic);

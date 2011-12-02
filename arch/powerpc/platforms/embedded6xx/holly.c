@@ -148,20 +148,13 @@ static void __init holly_setup_arch(void)
 static void __init holly_init_IRQ(void)
 {
 	struct mpic *mpic;
-	struct device_node *tsi_pic;
 #ifdef CONFIG_PCI
 	unsigned int cascade_pci_irq;
 	struct device_node *tsi_pci;
 	struct device_node *cascade_node = NULL;
 #endif
 
-	tsi_pic = of_find_node_by_type(NULL, "open-pic");
-	if (!tsi_pic) {
-		printk(KERN_ERR "%s: No tsi108 PIC found !\n", __func__);
-		return;
-	}
-
-	mpic = mpic_alloc(tsi_pic, 0,
+	mpic = mpic_alloc(NULL, 0,
 			MPIC_PRIMARY | MPIC_BIG_ENDIAN | MPIC_WANTS_RESET |
 			MPIC_SPV_EOI | MPIC_NO_PTHROU_DIS | MPIC_REGSET_TSI108,
 			24,
@@ -195,7 +188,6 @@ static void __init holly_init_IRQ(void)
 #endif
 	/* Configure MPIC outputs to CPU0 */
 	tsi108_write_reg(TSI108_MPIC_OFFSET + 0x30c, 0);
-	of_node_put(tsi_pic);
 }
 
 void holly_show_cpuinfo(struct seq_file *m)
