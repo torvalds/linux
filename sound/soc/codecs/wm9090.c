@@ -647,7 +647,7 @@ static int wm9090_i2c_probe(struct i2c_client *i2c,
 	struct wm9090_priv *wm9090;
 	int ret;
 
-	wm9090 = kzalloc(sizeof(*wm9090), GFP_KERNEL);
+	wm9090 = devm_kzalloc(&i2c->dev, sizeof(*wm9090), GFP_KERNEL);
 	if (wm9090 == NULL) {
 		dev_err(&i2c->dev, "Can not allocate memory\n");
 		return -ENOMEM;
@@ -661,8 +661,6 @@ static int wm9090_i2c_probe(struct i2c_client *i2c,
 
 	ret =  snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm9090,  NULL, 0);
-	if (ret < 0)
-		kfree(wm9090);
 	return ret;
 }
 
@@ -671,7 +669,6 @@ static int __devexit wm9090_i2c_remove(struct i2c_client *i2c)
 	struct wm9090_priv *wm9090 = i2c_get_clientdata(i2c);
 
 	snd_soc_unregister_codec(&i2c->dev);
-	kfree(wm9090);
 
 	return 0;
 }
