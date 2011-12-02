@@ -1767,23 +1767,11 @@ static int wm8903_suspend(struct snd_soc_codec *codec)
 
 static int wm8903_resume(struct snd_soc_codec *codec)
 {
-	int i;
-	u16 *reg_cache = codec->reg_cache;
-	u16 *tmp_cache = kmemdup(reg_cache, sizeof(wm8903_reg_defaults),
-				 GFP_KERNEL);
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
 
-	/* Bring the codec back up to standby first to minimise pop/clicks */
+	snd_soc_cache_sync(codec);
+
 	wm8903_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	/* Sync back everything else */
-	if (tmp_cache) {
-		for (i = 2; i < ARRAY_SIZE(wm8903_reg_defaults); i++)
-			if (tmp_cache[i] != reg_cache[i])
-				snd_soc_write(codec, i, tmp_cache[i]);
-		kfree(tmp_cache);
-	} else {
-		dev_err(codec->dev, "Failed to allocate temporary cache\n");
-	}
 
 	return 0;
 }
