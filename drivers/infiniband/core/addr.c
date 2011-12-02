@@ -178,6 +178,25 @@ static void queue_req(struct addr_req *req)
 	mutex_unlock(&lock);
 }
 
+static int dst_fetch_ha(struct dst_entry *dst, struct rdma_dev_addr *addr)
+{
+	struct neighbour *n;
+	int ret;
+
+	rcu_read_lock();
+	n = dst_get_neighbour_noref(dst);
+	if (!n || !(n->nud_state & NUD_VALID)) {
+		if (n)
+			neigh_event_send(n, NULL);
+		ret = -ENODATA;
+	} else {
+		ret = rdma_copy_addr(addr, dst->dev, n->ha);
+	}
+	rcu_read_unlock();
+
+	return ret;
+}
+
 static int addr4_resolve(struct sockaddr_in *src_in,
 			 struct sockaddr_in *dst_in,
 			 struct rdma_dev_addr *addr)
@@ -185,7 +204,6 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 	__be32 src_ip = src_in->sin_addr.s_addr;
 	__be32 dst_ip = dst_in->sin_addr.s_addr;
 	struct rtable *rt;
-	struct neighbour *neigh;
 	struct flowi4 fl4;
 	int ret;
 
@@ -214,20 +232,7 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 		goto put;
 	}
 
-	neigh = neigh_lookup(&arp_tbl, &rt->rt_gateway, rt->dst.dev);
-	if (!neigh || !(neigh->nud_state & NUD_VALID)) {
-		rcu_read_lock();
-		neigh_event_send(dst_get_neighbour_noref(&rt->dst), NULL);
-		rcu_read_unlock();
-		ret = -ENODATA;
-		if (neigh)
-			goto release;
-		goto put;
-	}
-
-	ret = rdma_copy_addr(addr, neigh->dev, neigh->ha);
-release:
-	neigh_release(neigh);
+	ret = dst_fetch_ha(&rt->dst, addr);
 put:
 	ip_rt_put(rt);
 out:
@@ -240,7 +245,6 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 			 struct rdma_dev_addr *addr)
 {
 	struct flowi6 fl6;
-	struct neighbour *neigh;
 	struct dst_entry *dst;
 	int ret;
 
@@ -276,16 +280,7 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 		goto put;
 	}
 
-	rcu_read_lock();
-	neigh = dst_get_neighbour_noref(dst);
-	if (!neigh || !(neigh->nud_state & NUD_VALID)) {
-		if (neigh)
-			neigh_event_send(neigh, NULL);
-		ret = -ENODATA;
-	} else {
-		ret = rdma_copy_addr(addr, dst->dev, neigh->ha);
-	}
-	rcu_read_unlock();
+	ret = dst_fetch_ha(dst, addr);
 put:
 	dst_release(dst);
 	return ret;
