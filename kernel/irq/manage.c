@@ -759,6 +759,13 @@ static irqreturn_t irq_thread_fn(struct irq_desc *desc,
 	return ret;
 }
 
+static void wake_threads_waitq(struct irq_desc *desc)
+{
+	if (atomic_dec_and_test(&desc->threads_active) &&
+	    waitqueue_active(&desc->wait_for_threads))
+		wake_up(&desc->wait_for_threads);
+}
+
 /*
  * Interrupt handler thread
  */
@@ -771,7 +778,6 @@ static int irq_thread(void *data)
 	struct irq_desc *desc = irq_to_desc(action->irq);
 	irqreturn_t (*handler_fn)(struct irq_desc *desc,
 			struct irqaction *action);
-	int wake;
 
 	if (force_irqthreads && test_bit(IRQTF_FORCED_THREAD,
 					&action->thread_flags))
@@ -783,39 +789,30 @@ static int irq_thread(void *data)
 	current->irq_thread = 1;
 
 	while (!irq_wait_for_interrupt(action)) {
+		irqreturn_t action_ret;
 
 		irq_thread_check_affinity(desc, action);
 
-		atomic_inc(&desc->threads_active);
+		action_ret = handler_fn(desc, action);
+		if (!noirqdebug)
+			note_interrupt(action->irq, desc, action_ret);
 
-		raw_spin_lock_irq(&desc->lock);
-		if (unlikely(irqd_irq_disabled(&desc->irq_data))) {
-			/*
-			 * CHECKME: We might need a dedicated
-			 * IRQ_THREAD_PENDING flag here, which
-			 * retriggers the thread in check_irq_resend()
-			 * but AFAICT IRQS_PENDING should be fine as it
-			 * retriggers the interrupt itself --- tglx
-			 */
-			desc->istate |= IRQS_PENDING;
-			raw_spin_unlock_irq(&desc->lock);
-		} else {
-			irqreturn_t action_ret;
-
-			raw_spin_unlock_irq(&desc->lock);
-			action_ret = handler_fn(desc, action);
-			if (!noirqdebug)
-				note_interrupt(action->irq, desc, action_ret);
-		}
-
-		wake = atomic_dec_and_test(&desc->threads_active);
-
-		if (wake && waitqueue_active(&desc->wait_for_threads))
-			wake_up(&desc->wait_for_threads);
+		wake_threads_waitq(desc);
 	}
 
-	/* Prevent a stale desc->threads_oneshot */
-	irq_finalize_oneshot(desc, action, true);
+	/*
+	 * This is the regular exit path. __free_irq() is stopping the
+	 * thread via kthread_stop() after calling
+	 * synchronize_irq(). So neither IRQTF_RUNTHREAD nor the
+	 * oneshot mask bit should be set.
+	 *
+	 * Verify that this is true.
+	 */
+	if (WARN_ON(test_and_clear_bit(IRQTF_RUNTHREAD, &action->thread_flags)))
+		wake_threads_waitq(desc);
+
+	if (WARN_ON(desc->threads_oneshot & action->thread_mask))
+		irq_finalize_oneshot(desc, action, true);
 
 	/*
 	 * Clear irq_thread. Otherwise exit_irq_thread() would make
@@ -844,6 +841,13 @@ void exit_irq_thread(void)
 	       tsk->comm ? tsk->comm : "", tsk->pid, action->irq);
 
 	desc = irq_to_desc(action->irq);
+
+	/*
+	 * If IRQTF_RUNTHREAD is set, we need to decrement
+	 * desc->threads_active and wake possible waiters.
+	 */
+	if (test_and_clear_bit(IRQTF_RUNTHREAD, &action->thread_flags))
+		wake_threads_waitq(desc);
 
 	/* Prevent a stale desc->threads_oneshot */
 	irq_finalize_oneshot(desc, action, true);
