@@ -71,6 +71,9 @@ struct microcode_amd {
 
 static struct equiv_cpu_entry *equiv_cpu_table;
 
+/* page-sized ucode patch buffer */
+void *patch;
+
 static int collect_cpu_info_amd(int cpu, struct cpu_signature *csig)
 {
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
@@ -351,9 +354,14 @@ static struct microcode_ops microcode_amd_ops = {
 
 struct microcode_ops * __init init_amd_microcode(void)
 {
+	patch = (void *)get_zeroed_page(GFP_KERNEL);
+	if (!patch)
+		return NULL;
+
 	return &microcode_amd_ops;
 }
 
 void __exit exit_amd_microcode(void)
 {
+	free_page((unsigned long)patch);
 }
