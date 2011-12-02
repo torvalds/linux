@@ -474,8 +474,15 @@ static void sci_init_pins(struct uart_port *port, unsigned int cflag)
 	if (!reg->size)
 		return;
 
-	if (!(cflag & CRTSCTS))
-		sci_out(port, SCSPTR, 0x0080); /* Set RTS = 1 */
+	if ((s->cfg->capabilities & SCIx_HAVE_RTSCTS) &&
+	    ((!(cflag & CRTSCTS)))) {
+		unsigned short status;
+
+		status = sci_in(port, SCSPTR);
+		status &= ~SCSPTR_CTSIO;
+		status |= SCSPTR_RTSIO;
+		sci_out(port, SCSPTR, status); /* Set RTS = 1 */
+	}
 }
 
 static int sci_txfill(struct uart_port *port)
@@ -1764,16 +1771,18 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	sci_init_pins(port, termios->c_cflag);
 
-	reg = sci_getreg(port, SCFCR);
-	if (reg->size) {
-		unsigned short ctrl;
+	if (s->cfg->capabilities & SCIx_HAVE_RTSCTS) {
+		reg = sci_getreg(port, SCFCR);
+		if (reg->size) {
+			unsigned short ctrl;
 
-		ctrl = sci_in(port, SCFCR);
-		if (termios->c_cflag & CRTSCTS)
-			ctrl |= SCFCR_MCE;
-		else
-			ctrl &= ~SCFCR_MCE;
-		sci_out(port, SCFCR, ctrl);
+			ctrl = sci_in(port, SCFCR);
+			if (termios->c_cflag & CRTSCTS)
+				ctrl |= SCFCR_MCE;
+			else
+				ctrl &= ~SCFCR_MCE;
+			sci_out(port, SCFCR, ctrl);
+		}
 	}
 
 	sci_out(port, SCSCR, s->cfg->scscr);

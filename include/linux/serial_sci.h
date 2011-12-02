@@ -49,6 +49,10 @@ enum {
 
 #define SCIF_DEFAULT_ERROR_MASK (SCIF_PER | SCIF_FER | SCIF_ER | SCIF_BRK)
 
+/* SCSPTR, optional */
+#define SCSPTR_RTSIO	(1 << 7)
+#define SCSPTR_CTSIO	(1 << 5)
+
 /* Offsets into the sci_port->irqs array */
 enum {
 	SCIx_ERI_IRQ,
@@ -109,6 +113,11 @@ struct plat_sci_port_ops {
 };
 
 /*
+ * Port-specific capabilities
+ */
+#define SCIx_HAVE_RTSCTS	(1 << 0)
+
+/*
  * Platform device specific platform_data struct
  */
 struct plat_sci_port {
@@ -116,6 +125,7 @@ struct plat_sci_port {
 	unsigned int	irqs[SCIx_NR_IRQS];	/* ERI, RXI, TXI, BRI */
 	unsigned int	type;			/* SCI / SCIF / IRDA */
 	upf_t		flags;			/* UPF_* flags */
+	unsigned long	capabilities;		/* Port features/capabilities */
 
 	unsigned int	scbrr_algo_id;		/* SCBRR calculation algo */
 	unsigned int	scscr;			/* SCSCR initialization */
