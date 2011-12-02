@@ -3888,9 +3888,9 @@ int btrfs_block_rsv_check(struct btrfs_root *root,
 	return ret;
 }
 
-int btrfs_block_rsv_refill(struct btrfs_root *root,
-			  struct btrfs_block_rsv *block_rsv,
-			  u64 min_reserved)
+static inline int __btrfs_block_rsv_refill(struct btrfs_root *root,
+					   struct btrfs_block_rsv *block_rsv,
+					   u64 min_reserved, int flush)
 {
 	u64 num_bytes = 0;
 	int ret = -ENOSPC;
@@ -3909,13 +3909,27 @@ int btrfs_block_rsv_refill(struct btrfs_root *root,
 	if (!ret)
 		return 0;
 
-	ret = reserve_metadata_bytes(root, block_rsv, num_bytes, 1);
+	ret = reserve_metadata_bytes(root, block_rsv, num_bytes, flush);
 	if (!ret) {
 		block_rsv_add_bytes(block_rsv, num_bytes, 0);
 		return 0;
 	}
 
 	return ret;
+}
+
+int btrfs_block_rsv_refill(struct btrfs_root *root,
+			   struct btrfs_block_rsv *block_rsv,
+			   u64 min_reserved)
+{
+	return __btrfs_block_rsv_refill(root, block_rsv, min_reserved, 1);
+}
+
+int btrfs_block_rsv_refill_noflush(struct btrfs_root *root,
+				   struct btrfs_block_rsv *block_rsv,
+				   u64 min_reserved)
+{
+	return __btrfs_block_rsv_refill(root, block_rsv, min_reserved, 0);
 }
 
 int btrfs_block_rsv_migrate(struct btrfs_block_rsv *src_rsv,
@@ -5265,7 +5279,7 @@ alloc:
 		spin_lock(&block_group->free_space_ctl->tree_lock);
 		if (cached &&
 		    block_group->free_space_ctl->free_space <
-		    num_bytes + empty_size) {
+		    num_bytes + empty_cluster + empty_size) {
 			spin_unlock(&block_group->free_space_ctl->tree_lock);
 			goto loop;
 		}
@@ -5286,12 +5300,10 @@ alloc:
 			 * people trying to start a new cluster
 			 */
 			spin_lock(&last_ptr->refill_lock);
-			if (last_ptr->block_group &&
-			    (last_ptr->block_group->ro ||
-			    !block_group_bits(last_ptr->block_group, data))) {
-				offset = 0;
+			if (!last_ptr->block_group ||
+			    last_ptr->block_group->ro ||
+			    !block_group_bits(last_ptr->block_group, data))
 				goto refill_cluster;
-			}
 
 			offset = btrfs_alloc_from_cluster(block_group, last_ptr,
 						 num_bytes, search_start);
@@ -5342,7 +5354,7 @@ refill_cluster:
 			/* allocate a cluster in this block group */
 			ret = btrfs_find_space_cluster(trans, root,
 					       block_group, last_ptr,
-					       offset, num_bytes,
+					       search_start, num_bytes,
 					       empty_cluster + empty_size);
 			if (ret == 0) {
 				/*
