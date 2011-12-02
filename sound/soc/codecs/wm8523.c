@@ -384,7 +384,7 @@ static struct snd_soc_dai_driver wm8523_dai = {
 };
 
 #ifdef CONFIG_PM
-static int wm8523_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int wm8523_suspend(struct snd_soc_codec *codec)
 {
 	wm8523_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;

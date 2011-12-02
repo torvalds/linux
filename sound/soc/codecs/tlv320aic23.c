@@ -528,8 +528,7 @@ static struct snd_soc_dai_driver tlv320aic23_dai = {
 	.ops = &tlv320aic23_dai_ops,
 };
 
-static int tlv320aic23_suspend(struct snd_soc_codec *codec,
-			       pm_message_t state)
+static int tlv320aic23_suspend(struct snd_soc_codec *codec)
 {
 	tlv320aic23_set_bias_level(codec, SND_SOC_BIAS_OFF);
 

@@ -539,7 +539,7 @@ static struct snd_soc_dai_driver wm8737_dai = {
 };
 
 #ifdef CONFIG_PM
-static int wm8737_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int wm8737_suspend(struct snd_soc_codec *codec)
 {
 	wm8737_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;

@@ -118,7 +118,7 @@ static int pcm3008_soc_remove(struct snd_soc_codec *codec)
 }
 
 #ifdef CONFIG_PM
-static int pcm3008_soc_suspend(struct snd_soc_codec *codec, pm_message_t msg)
+static int pcm3008_soc_suspend(struct snd_soc_codec *codec)
 {
 	struct pcm3008_setup_data *setup = codec->dev->platform_data;
 

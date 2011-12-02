@@ -604,7 +604,7 @@ static int wm9090_probe(struct snd_soc_codec *codec)
 }
 
 #ifdef CONFIG_PM
-static int wm9090_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int wm9090_suspend(struct snd_soc_codec *codec)
 {
 	wm9090_set_bias_level(codec, SND_SOC_BIAS_OFF);
 

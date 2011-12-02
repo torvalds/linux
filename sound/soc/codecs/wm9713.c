@@ -1140,8 +1140,7 @@ static int wm9713_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static int wm9713_soc_suspend(struct snd_soc_codec *codec,
-	pm_message_t state)
+static int wm9713_soc_suspend(struct snd_soc_codec *codec)
 {
 	u16 reg;
 

@@ -99,7 +99,7 @@ static int ac97_soc_remove(struct snd_soc_codec *codec)
 }
 
 #ifdef CONFIG_PM
-static int ac97_soc_suspend(struct snd_soc_codec *codec, pm_message_t msg)
+static int ac97_soc_suspend(struct snd_soc_codec *codec)
 {
 	snd_ac97_suspend(codec->ac97);
 

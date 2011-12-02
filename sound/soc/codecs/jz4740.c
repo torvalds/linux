@@ -311,7 +311,7 @@ static int jz4740_codec_dev_remove(struct snd_soc_codec *codec)
 
 #ifdef CONFIG_PM_SLEEP
 
-static int jz4740_codec_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int jz4740_codec_suspend(struct snd_soc_codec *codec)
 {
 	return jz4740_codec_set_bias_level(codec, SND_SOC_BIAS_OFF);
 }

@@ -256,8 +256,7 @@ static int stac9766_reset(struct snd_soc_codec *codec, int try_warm)
 	return 0;
 }
 
-static int stac9766_codec_suspend(struct snd_soc_codec *codec,
-				  pm_message_t state)
+static int stac9766_codec_suspend(struct snd_soc_codec *codec)
 {
 	stac9766_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;

@@ -273,7 +273,7 @@ static struct snd_soc_dai_driver max9850_dai = {
 };
 
 #ifdef CONFIG_PM
-static int max9850_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int max9850_suspend(struct snd_soc_codec *codec)
 {
 	max9850_set_bias_level(codec, SND_SOC_BIAS_OFF);
 

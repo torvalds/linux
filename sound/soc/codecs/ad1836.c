@@ -223,7 +223,7 @@ static struct snd_soc_dai_driver ad183x_dais[] = {
 };
 
 #ifdef CONFIG_PM
-static int ad1836_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int ad1836_suspend(struct snd_soc_codec *codec)
 {
 	/* reset clock control mode */
 	return snd_soc_update_bits(codec, AD1836_ADC_CTRL2,

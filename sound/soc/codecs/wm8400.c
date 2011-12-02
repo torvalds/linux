@@ -1352,7 +1352,7 @@ static struct snd_soc_dai_driver wm8400_dai = {
 	.ops = &wm8400_dai_ops,
 };
 
-static int wm8400_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int wm8400_suspend(struct snd_soc_codec *codec)
 {
 	wm8400_set_bias_level(codec, SND_SOC_BIAS_OFF);
 

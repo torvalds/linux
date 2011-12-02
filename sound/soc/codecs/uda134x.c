@@ -571,8 +571,7 @@ static int uda134x_soc_remove(struct snd_soc_codec *codec)
 }
 
 #if defined(CONFIG_PM)
-static int uda134x_soc_suspend(struct snd_soc_codec *codec,
-						pm_message_t state)
+static int uda134x_soc_suspend(struct snd_soc_codec *codec)
 {
 	uda134x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	uda134x_set_bias_level(codec, SND_SOC_BIAS_OFF);

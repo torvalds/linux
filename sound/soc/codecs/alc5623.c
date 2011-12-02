@@ -868,7 +868,7 @@ static struct snd_soc_dai_driver alc5623_dai = {
 	.ops = &alc5623_dai_ops,
 };
 
-static int alc5623_suspend(struct snd_soc_codec *codec, pm_message_t mesg)
+static int alc5623_suspend(struct snd_soc_codec *codec)
 {
 	alc5623_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;

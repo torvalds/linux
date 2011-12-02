@@ -672,7 +672,7 @@ static struct snd_soc_dai_driver wm8940_dai = {
 	.symmetric_rates = 1,
 };
 
-static int wm8940_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int wm8940_suspend(struct snd_soc_codec *codec)
 {
 	return wm8940_set_bias_level(codec, SND_SOC_BIAS_OFF);
 }

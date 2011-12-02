@@ -306,7 +306,7 @@ static int wm9705_reset(struct snd_soc_codec *codec)
 }
 
 #ifdef CONFIG_PM
-static int wm9705_soc_suspend(struct snd_soc_codec *codec, pm_message_t msg)
+static int wm9705_soc_suspend(struct snd_soc_codec *codec)
 {
 	soc_ac97_ops.write(codec->ac97, AC97_POWERDOWN, 0xffff);
 

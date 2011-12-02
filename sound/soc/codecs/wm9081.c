@@ -1302,7 +1302,7 @@ static int wm9081_remove(struct snd_soc_codec *codec)
 }
 
 #ifdef CONFIG_PM
-static int wm9081_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int wm9081_suspend(struct snd_soc_codec *codec)
 {
 	wm9081_set_bias_level(codec, SND_SOC_BIAS_OFF);
 

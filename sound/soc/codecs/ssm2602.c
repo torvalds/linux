@@ -523,7 +523,7 @@ static struct snd_soc_dai_driver ssm2602_dai = {
 	.ops = &ssm2602_dai_ops,
 };
 
-static int ssm2602_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int ssm2602_suspend(struct snd_soc_codec *codec)
 {
 	ssm2602_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;

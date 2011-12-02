@@ -2202,7 +2202,7 @@ static struct snd_soc_dai_driver twl4030_dai[] = {
 },
 };
 
-static int twl4030_soc_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int twl4030_soc_suspend(struct snd_soc_codec *codec)
 {
 	twl4030_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;

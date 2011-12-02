@@ -498,7 +498,7 @@ static struct snd_soc_dai_driver ak4641_dai[] = {
 },
 };
 
-static int ak4641_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int ak4641_suspend(struct snd_soc_codec *codec)
 {
 	ak4641_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;

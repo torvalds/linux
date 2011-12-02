@@ -1321,7 +1321,7 @@ static int adau1373_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int adau1373_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int adau1373_suspend(struct snd_soc_codec *codec)
 {
 	return adau1373_set_bias_level(codec, SND_SOC_BIAS_OFF);
 }
