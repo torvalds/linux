@@ -251,6 +251,9 @@ struct mpic_irq_save {
 /* The instance data of a given MPIC */
 struct mpic
 {
+	/* The OpenFirmware dt node for this MPIC */
+	struct device_node *node;
+
 	/* The remapper for this MPIC */
 	struct irq_host		*irqhost;
 
