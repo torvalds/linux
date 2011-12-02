@@ -289,6 +289,11 @@ static struct platform_device speyside_wm8962_device = {
 	.id		= -1,
 };
 
+static struct platform_device littlemill_device = {
+	.name		= "littlemill",
+	.id		= -1,
+};
+
 static struct regulator_consumer_supply wallvdd_consumers[] = {
 	REGULATOR_SUPPLY("SPKVDD1", "1-001a"),
 	REGULATOR_SUPPLY("SPKVDD2", "1-001a"),
@@ -341,6 +346,7 @@ static struct platform_device *crag6410_devices[] __initdata = {
 	&crag6410_backlight_device,
 	&speyside_device,
 	&speyside_wm8962_device,
+	&littlemill_device,
 	&lowland_device,
 	&wallvdd_device,
 };

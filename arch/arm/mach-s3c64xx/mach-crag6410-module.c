@@ -14,6 +14,7 @@
 
 #include <linux/mfd/wm831x/irq.h>
 #include <linux/mfd/wm831x/gpio.h>
+#include <linux/mfd/wm8994/pdata.h>
 
 #include <sound/wm5100.h>
 #include <sound/wm8996.h>
@@ -133,6 +134,24 @@ static const struct i2c_board_info wm1259_devs[] = {
 	},
 };
 
+static struct wm8994_pdata wm8994_pdata = {
+	.gpio_base = CODEC_GPIO_BASE,
+	.gpio_defaults = {
+		0x3,          /* IRQ out, active high, CMOS */
+	},
+	.irq_base = CODEC_IRQ_BASE,
+	.ldo = {
+		{ .supply = "WALLVDD" },
+		{ .supply = "WALLVDD" },
+	},
+};
+
+static const struct i2c_board_info wm1277_devs[] = {
+	{ I2C_BOARD_INFO("wm8958", 0x1a),  /* WM8958 is the superset */
+	  .platform_data = &wm8994_pdata,
+	  .irq = GLENFARCLAS_PMIC_IRQ_BASE + WM831X_IRQ_GPIO_2,
+	},
+};
 
 static __devinitdata const struct {
 	u8 id;
@@ -154,6 +173,8 @@ static __devinitdata const struct {
 	{ .id = 0x3b, .name = "1255-EV1 Kilchoman",
 	  .i2c_devs = wm1255_devs, .num_i2c_devs = ARRAY_SIZE(wm1255_devs) },
 	{ .id = 0x3c, .name = "1273-EV1 Longmorn" },
+	{ .id = 0x3d, .name = "1277-EV1 Littlemill",
+	  .i2c_devs = wm1277_devs, .num_i2c_devs = ARRAY_SIZE(wm1277_devs) },
 };
 
 static __devinit int wlf_gf_module_probe(struct i2c_client *i2c,
