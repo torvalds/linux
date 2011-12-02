@@ -312,7 +312,6 @@ static int hidinput_get_battery_property(struct power_supply *psy,
 	int ret = 0;
 	int ret_rep;
 	__u8 buf[2] = {};
-	unsigned char report_number = dev->battery_report_id;
 
 	switch (prop) {
 	case POWER_SUPPLY_PROP_PRESENT:
@@ -321,8 +320,9 @@ static int hidinput_get_battery_property(struct power_supply *psy,
 		break;
 
 	case POWER_SUPPLY_PROP_CAPACITY:
-		ret_rep = dev->hid_get_raw_report(dev, report_number,
-						  buf, sizeof(buf), HID_FEATURE_REPORT);
+		ret_rep = dev->hid_get_raw_report(dev, dev->battery_report_id,
+						  buf, sizeof(buf),
+						  dev->battery_report_type);
 		if (ret_rep != 2) {
 			ret = -EINVAL;
 			break;
@@ -351,7 +351,9 @@ static int hidinput_get_battery_property(struct power_supply *psy,
 	return ret;
 }
 
-static void hidinput_setup_battery(struct hid_device *dev, unsigned id, s32 min, s32 max)
+static void hidinput_setup_battery(struct hid_device *dev,
+				   unsigned report_type, unsigned report_id,
+				   s32 min, s32 max)
 {
 	struct power_supply *battery = &dev->battery;
 	int ret;
@@ -379,7 +381,8 @@ static void hidinput_setup_battery(struct hid_device *dev, unsigned id, s32 min,
 
 	dev->battery_min = min;
 	dev->battery_max = max;
-	dev->battery_report_id = id;
+	dev->battery_report_type = report_type;
+	dev->battery_report_id = report_id;
 
 	ret = power_supply_register(&dev->dev, battery);
 	if (ret != 0) {
@@ -399,7 +402,9 @@ static void hidinput_cleanup_battery(struct hid_device *dev)
 	dev->battery.name = NULL;
 }
 #else  /* !CONFIG_HID_BATTERY_STRENGTH */
-static void hidinput_setup_battery(struct hid_device *dev, unsigned id, s32 min, s32 max)
+static void hidinput_setup_battery(struct hid_device *dev,
+				   unsigned report_type, unsigned report_id,
+				   s32 min, s32 max)
 {
 }
 
@@ -769,6 +774,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 	case HID_UP_GENDEVCTRLS:
 		if ((usage->hid & HID_USAGE) == 0x20) {	/* Battery Strength */
 			hidinput_setup_battery(device,
+					       HID_INPUT_REPORT,
 					       field->report->id,
 					       field->logical_minimum,
 					       field->logical_maximum);
@@ -1052,7 +1058,7 @@ static void report_features(struct hid_device *hid)
 				if (((rep->field[i]->usage + j)->hid & HID_USAGE_PAGE) == HID_UP_GENDEVCTRLS &&
 					((rep->field[i]->usage + j)->hid & HID_USAGE) == 0x20) {
 					hidinput_setup_battery(hid,
-							       rep->id,
+							       HID_FEATURE_REPORT, rep->id,
 							       rep->field[i]->logical_minimum,
 							       rep->field[i]->logical_maximum);
 				}
