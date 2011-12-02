@@ -1951,11 +1951,27 @@ enum btrfs_orphan_cleanup_state {
 void btrfs_orphan_commit_root(struct btrfs_trans_handle *trans,
 			      struct btrfs_root *root)
 {
+	struct btrfs_block_rsv *block_rsv;
 	int ret;
 
 	if (!list_empty(&root->orphan_list) ||
 	    root->orphan_cleanup_state != ORPHAN_CLEANUP_DONE)
 		return;
+
+	spin_lock(&root->orphan_lock);
+	if (!list_empty(&root->orphan_list)) {
+		spin_unlock(&root->orphan_lock);
+		return;
+	}
+
+	if (root->orphan_cleanup_state != ORPHAN_CLEANUP_DONE) {
+		spin_unlock(&root->orphan_lock);
+		return;
+	}
+
+	block_rsv = root->orphan_block_rsv;
+	root->orphan_block_rsv = NULL;
+	spin_unlock(&root->orphan_lock);
 
 	if (root->orphan_item_inserted &&
 	    btrfs_root_refs(&root->root_item) > 0) {
@@ -1965,10 +1981,9 @@ void btrfs_orphan_commit_root(struct btrfs_trans_handle *trans,
 		root->orphan_item_inserted = 0;
 	}
 
-	if (root->orphan_block_rsv) {
-		WARN_ON(root->orphan_block_rsv->size > 0);
-		btrfs_free_block_rsv(root, root->orphan_block_rsv);
-		root->orphan_block_rsv = NULL;
+	if (block_rsv) {
+		WARN_ON(block_rsv->size > 0);
+		btrfs_free_block_rsv(root, block_rsv);
 	}
 }
 
