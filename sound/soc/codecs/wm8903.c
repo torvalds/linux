@@ -114,6 +114,7 @@ static const struct reg_default wm8903_reg_defaults[] = {
 };
 
 struct wm8903_priv {
+	struct wm8903_platform_data *pdata;
 	struct snd_soc_codec *codec;
 	struct regmap *regmap;
 
@@ -1834,7 +1835,7 @@ static struct gpio_chip wm8903_template_chip = {
 static void wm8903_init_gpio(struct snd_soc_codec *codec)
 {
 	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
-	struct wm8903_platform_data *pdata = dev_get_platdata(codec->dev);
+	struct wm8903_platform_data *pdata = wm8903->pdata;
 	int ret;
 
 	wm8903->gpio_chip = wm8903_template_chip;
@@ -1872,8 +1873,8 @@ static void wm8903_free_gpio(struct snd_soc_codec *codec)
 
 static int wm8903_probe(struct snd_soc_codec *codec)
 {
-	struct wm8903_platform_data *pdata = dev_get_platdata(codec->dev);
 	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
+	struct wm8903_platform_data *pdata = wm8903->pdata;
 	int ret, i;
 	int trigger, irq_pol;
 	u16 val;
@@ -2039,6 +2040,7 @@ static const struct regmap_config wm8903_regmap = {
 static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
+	struct wm8903_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct wm8903_priv *wm8903;
 	unsigned int val;
 	int ret;
@@ -2058,6 +2060,19 @@ static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, wm8903);
 	wm8903->irq = i2c->irq;
+
+	/* If no platform data was supplied, create storage for defaults */
+	if (pdata) {
+		wm8903->pdata = pdata;
+	} else {
+		wm8903->pdata = devm_kzalloc(&i2c->dev,
+					sizeof(struct wm8903_platform_data),
+					GFP_KERNEL);
+		if (wm8903->pdata == NULL) {
+			dev_err(&i2c->dev, "Failed to allocate pdata\n");
+			return -ENOMEM;
+		}
+	}
 
 	ret = regmap_read(wm8903->regmap, WM8903_SW_RESET_AND_ID, &val);
 	if (ret != 0) {
