@@ -587,7 +587,7 @@ static struct spi_board_info mx51_efika_spi_board_info[] __initdata = {
 		.bus_num = 0,
 		.chip_select = 0,
 		.platform_data = &mx51_efika_mc13892_data,
-		.irq = IMX_GPIO_TO_IRQ(EFIKAMX_PMIC),
+		/* irq number is run-time assigned */
 	},
 };
 
@@ -620,6 +620,7 @@ void __init efika_board_common_init(void)
 
 	gpio_request(EFIKAMX_PMIC, "pmic irq");
 	gpio_direction_input(EFIKAMX_PMIC);
+	mx51_efika_spi_board_info[1].irq = gpio_to_irq(EFIKAMX_PMIC);
 	spi_register_board_info(mx51_efika_spi_board_info,
 		ARRAY_SIZE(mx51_efika_spi_board_info));
 	imx51_add_ecspi(0, &mx51_efika_spi_pdata);

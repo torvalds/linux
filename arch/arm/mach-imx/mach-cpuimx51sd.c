@@ -259,7 +259,7 @@ static struct spi_board_info cpuimx51sd_spi_device[] = {
 		.mode		= SPI_MODE_0,
 		.chip_select     = 0,
 		.platform_data   = &mcp251x_info,
-		.irq             = IMX_GPIO_TO_IRQ(CAN_IRQGPIO)
+		/* irq number is run-time assigned */
 	},
 };
 
@@ -310,6 +310,7 @@ static void __init eukrea_cpuimx51sd_init(void)
 	msleep(20);
 	gpio_set_value(CAN_RST, 1);
 	imx51_add_ecspi(0, &cpuimx51sd_ecspi1_pdata);
+	cpuimx51sd_spi_device[0].irq = gpio_to_irq(CAN_IRQGPIO);
 	spi_register_board_info(cpuimx51sd_spi_device,
 				ARRAY_SIZE(cpuimx51sd_spi_device));
 

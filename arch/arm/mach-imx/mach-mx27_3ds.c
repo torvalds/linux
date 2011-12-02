@@ -445,7 +445,7 @@ static struct spi_board_info mx27_3ds_spi_devs[] __initdata = {
 		.bus_num	= 1,
 		.chip_select	= 0, /* SS0 */
 		.platform_data	= &mc13783_pdata,
-		.irq = IMX_GPIO_TO_IRQ(PMIC_INT),
+		/* irq number is run-time assigned */
 		.mode = SPI_CS_HIGH,
 	}, {
 		.modalias	= "l4f00242t03",
@@ -496,6 +496,7 @@ static void __init mx27pdk_init(void)
 
 	imx27_add_spi_imx1(&spi2_pdata);
 	imx27_add_spi_imx0(&spi1_pdata);
+	mx27_3ds_spi_devs[0].irq = gpio_to_irq(PMIC_INT);
 	spi_register_board_info(mx27_3ds_spi_devs,
 						ARRAY_SIZE(mx27_3ds_spi_devs));
 

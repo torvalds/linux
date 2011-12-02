@@ -492,7 +492,7 @@ static struct i2c_board_info mx35_3ds_i2c_mc13892 = {
 
 	I2C_BOARD_INFO("mc13892", 0x08),
 	.platform_data = &mx35_3ds_mc13892_data,
-	.irq = IMX_GPIO_TO_IRQ(GPIO_PMIC_INT),
+	/* irq number is run-time assigned */
 };
 
 static void __init imx35_3ds_init_mc13892(void)
@@ -504,6 +504,7 @@ static void __init imx35_3ds_init_mc13892(void)
 		return;
 	}
 
+	mx35_3ds_i2c_mc13892.irq = gpio_to_irq(GPIO_PMIC_INT);
 	i2c_register_board_info(0, &mx35_3ds_i2c_mc13892, 1);
 }
 

@@ -162,7 +162,7 @@ static struct i2c_board_info vpr200_i2c_devices[] = {
 	}, {
 		I2C_BOARD_INFO("mc13892", 0x08),
 		.platform_data = &vpr200_pmic,
-		.irq = IMX_GPIO_TO_IRQ(GPIO_PMIC_INT),
+		/* irq number is run-time assigned */
 	}
 };
 
@@ -299,6 +299,7 @@ static void __init vpr200_board_init(void)
 	imx35_add_mxc_nand(&vpr200_nand_board_info);
 	imx35_add_sdhci_esdhc_imx(0, NULL);
 
+	vpr200_i2c_devices[1].irq = gpio_to_irq(GPIO_PMIC_INT);
 	i2c_register_board_info(0, vpr200_i2c_devices,
 			ARRAY_SIZE(vpr200_i2c_devices));
 
