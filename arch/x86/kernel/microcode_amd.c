@@ -1,14 +1,18 @@
 /*
  *  AMD CPU Microcode Update Driver for Linux
- *  Copyright (C) 2008 Advanced Micro Devices Inc.
+ *  Copyright (C) 2008-2011 Advanced Micro Devices Inc.
  *
  *  Author: Peter Oruba <peter.oruba@amd.com>
  *
  *  Based on work by:
  *  Tigran Aivazian <tigran@aivazian.fsnet.co.uk>
  *
- *  This driver allows to upgrade microcode on AMD
- *  family 0x10 and 0x11 processors.
+ *  Maintainers:
+ *  Andreas Herrmann <andreas.herrmann3@amd.com>
+ *  Borislav Petkov <borislav.petkov@amd.com>
+ *
+ *  This driver allows to upgrade microcode on F10h AMD
+ *  CPUs and later.
  *
  *  Licensed under the terms of the GNU General Public
  *  License version 2. See file COPYING for details.
