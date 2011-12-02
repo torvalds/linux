@@ -499,7 +499,7 @@ static struct mpic * __init pmac_setup_one_mpic(struct device_node *np,
 {
 	const char *name = master ? " MPIC 1   " : " MPIC 2   ";
 	struct mpic *mpic;
-	unsigned int flags = master ? MPIC_PRIMARY : 0;
+	unsigned int flags = master ? 0 : MPIC_SECONDARY;
 
 	pmac_call_feature(PMAC_FTR_ENABLE_MPIC, np, 0, 0);
 

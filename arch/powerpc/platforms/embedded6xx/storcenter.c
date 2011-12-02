@@ -84,7 +84,7 @@ static void __init storcenter_init_IRQ(void)
 {
 	struct mpic *mpic;
 
-	mpic = mpic_alloc(NULL, 0, MPIC_PRIMARY | MPIC_WANTS_RESET,
+	mpic = mpic_alloc(NULL, 0, MPIC_WANTS_RESET,
 			16, 32, " OpenPIC  ");
 	BUG_ON(mpic == NULL);
 

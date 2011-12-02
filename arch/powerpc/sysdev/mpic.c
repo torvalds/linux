@@ -154,7 +154,7 @@ static inline unsigned int mpic_processor_id(struct mpic *mpic)
 {
 	unsigned int cpu = 0;
 
-	if (mpic->flags & MPIC_PRIMARY)
+	if (!(mpic->flags & MPIC_SECONDARY))
 		cpu = hard_smp_processor_id();
 
 	return cpu;
@@ -990,7 +990,7 @@ static int mpic_host_map(struct irq_host *h, unsigned int virq,
 
 #ifdef CONFIG_SMP
 	else if (hw >= mpic->ipi_vecs[0]) {
-		WARN_ON(!(mpic->flags & MPIC_PRIMARY));
+		WARN_ON(mpic->flags & MPIC_SECONDARY);
 
 		DBG("mpic: mapping as IPI\n");
 		irq_set_chip_data(virq, mpic);
@@ -1001,7 +1001,7 @@ static int mpic_host_map(struct irq_host *h, unsigned int virq,
 #endif /* CONFIG_SMP */
 
 	if (hw >= mpic->timer_vecs[0] && hw <= mpic->timer_vecs[7]) {
-		WARN_ON(!(mpic->flags & MPIC_PRIMARY));
+		WARN_ON(mpic->flags & MPIC_SECONDARY);
 
 		DBG("mpic: mapping as timer\n");
 		irq_set_chip_data(virq, mpic);
@@ -1184,12 +1184,12 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 
 	mpic->hc_irq = mpic_irq_chip;
 	mpic->hc_irq.name = name;
-	if (flags & MPIC_PRIMARY)
+	if (!(flags & MPIC_SECONDARY))
 		mpic->hc_irq.irq_set_affinity = mpic_set_affinity;
 #ifdef CONFIG_MPIC_U3_HT_IRQS
 	mpic->hc_ht_irq = mpic_irq_ht_chip;
 	mpic->hc_ht_irq.name = name;
-	if (flags & MPIC_PRIMARY)
+	if (!(flags & MPIC_SECONDARY))
 		mpic->hc_ht_irq.irq_set_affinity = mpic_set_affinity;
 #endif /* CONFIG_MPIC_U3_HT_IRQS */
 
@@ -1375,7 +1375,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	mpic->next = mpics;
 	mpics = mpic;
 
-	if (flags & MPIC_PRIMARY) {
+	if (!(flags & MPIC_SECONDARY)) {
 		mpic_primary = mpic;
 		irq_set_default_host(mpic->irqhost);
 	}
@@ -1450,7 +1450,7 @@ void __init mpic_init(struct mpic *mpic)
 
 	/* Do the HT PIC fixups on U3 broken mpic */
 	DBG("MPIC flags: %x\n", mpic->flags);
-	if ((mpic->flags & MPIC_U3_HT_IRQS) && (mpic->flags & MPIC_PRIMARY)) {
+	if ((mpic->flags & MPIC_U3_HT_IRQS) && !(mpic->flags & MPIC_SECONDARY)) {
 		mpic_scan_ht_pics(mpic);
 		mpic_u3msi_init(mpic);
 	}
