@@ -955,8 +955,6 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 	brcms_c_txfifo_complete(wlc, queue, 1);
 
 	if (lastframe) {
-		p->next = NULL;
-		p->prev = NULL;
 		/* remove PLCP & Broadcom tx descriptor header */
 		skb_pull(p, D11_PHY_HDR_LEN);
 		skb_pull(p, D11_TXH_LEN);
@@ -3064,7 +3062,7 @@ static bool brcms_c_ps_allowed(struct brcms_c_info *wlc)
 		return false;
 
 	/* disallow PS when one of these meets when not scanning */
-	if (wlc->monitor)
+	if (wlc->filter_flags & FIF_PROMISC_IN_BSS)
 		return false;
 
 	if (cfg->associated) {
@@ -3584,29 +3582,31 @@ static void brcms_c_bandinit_ordered(struct brcms_c_info *wlc,
 }
 
 /*
- * Set or clear maccontrol bits MCTL_PROMISC, MCTL_BCNS_PROMISC and
- * MCTL_KEEPCONTROL
+ * Set or clear filtering related maccontrol bits based on
+ * specified filter flags
  */
-static void brcms_c_mac_promisc(struct brcms_c_info *wlc)
+void brcms_c_mac_promisc(struct brcms_c_info *wlc, uint filter_flags)
 {
 	u32 promisc_bits = 0;
 
-	if (wlc->bcnmisc_monitor)
+	wlc->filter_flags = filter_flags;
+
+	if (filter_flags & (FIF_PROMISC_IN_BSS | FIF_OTHER_BSS))
+		promisc_bits |= MCTL_PROMISC;
+
+	if (filter_flags & FIF_BCN_PRBRESP_PROMISC)
 		promisc_bits |= MCTL_BCNS_PROMISC;
 
-	if (wlc->monitor)
-		promisc_bits |=
-			MCTL_PROMISC | MCTL_BCNS_PROMISC | MCTL_KEEPCONTROL;
+	if (filter_flags & FIF_FCSFAIL)
+		promisc_bits |= MCTL_KEEPBADFCS;
+
+	if (filter_flags & (FIF_CONTROL | FIF_PSPOLL))
+		promisc_bits |= MCTL_KEEPCONTROL;
 
 	brcms_b_mctrl(wlc->hw,
-			MCTL_PROMISC | MCTL_BCNS_PROMISC | MCTL_KEEPCONTROL,
-			promisc_bits);
-}
-
-void brcms_c_mac_bcn_promisc_change(struct brcms_c_info *wlc, bool promisc)
-{
-	wlc->bcnmisc_monitor = promisc;
-	brcms_c_mac_promisc(wlc);
+		MCTL_PROMISC | MCTL_BCNS_PROMISC |
+		MCTL_KEEPCONTROL | MCTL_KEEPBADFCS,
+		promisc_bits);
 }
 
 /*
@@ -3636,9 +3636,6 @@ static void brcms_c_ucode_mac_upd(struct brcms_c_info *wlc)
 	} else {
 		/* disable an active IBSS if we are not on the home channel */
 	}
-
-	/* update the various promisc bits */
-	brcms_c_mac_promisc(wlc);
 }
 
 static void brcms_c_write_rate_shm(struct brcms_c_info *wlc, u8 rate,
@@ -8074,14 +8071,8 @@ static void brcms_c_recv(struct brcms_c_info *wlc, struct sk_buff *p)
 	len = p->len;
 
 	if (rxh->RxStatus1 & RXS_FCSERR) {
-		if (wlc->pub->mac80211_state & MAC80211_PROMISC_BCNS) {
-			wiphy_err(wlc->wiphy, "FCSERR while scanning******* -"
-				  " tossing\n");
+		if (!(wlc->filter_flags & FIF_FCSFAIL))
 			goto toss;
-		} else {
-			wiphy_err(wlc->wiphy, "RCSERR!!!\n");
-			goto toss;
-		}
 	}
 
 	/* check received pkt has at least frame control field */

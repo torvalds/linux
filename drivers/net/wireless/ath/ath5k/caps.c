@@ -85,12 +85,19 @@ int ath5k_hw_set_capabilities(struct ath5k_hw *ah)
 			caps->cap_range.range_2ghz_min = 2412;
 			caps->cap_range.range_2ghz_max = 2732;
 
-			if (AR5K_EEPROM_HDR_11B(ee_header))
-				__set_bit(AR5K_MODE_11B, caps->cap_mode);
+			/* Override 2GHz modes on SoCs that need it
+			 * NOTE: cap_needs_2GHz_ovr gets set from
+			 * ath_ahb_probe */
+			if (!caps->cap_needs_2GHz_ovr) {
+				if (AR5K_EEPROM_HDR_11B(ee_header))
+					__set_bit(AR5K_MODE_11B,
+							caps->cap_mode);
 
-			if (AR5K_EEPROM_HDR_11G(ee_header) &&
-			    ah->ah_version != AR5K_AR5211)
-				__set_bit(AR5K_MODE_11G, caps->cap_mode);
+				if (AR5K_EEPROM_HDR_11G(ee_header) &&
+				ah->ah_version != AR5K_AR5211)
+					__set_bit(AR5K_MODE_11G,
+							caps->cap_mode);
+			}
 		}
 	}
 
@@ -103,11 +110,17 @@ int ath5k_hw_set_capabilities(struct ath5k_hw *ah)
 	else
 		caps->cap_queues.q_tx_num = AR5K_NUM_TX_QUEUES;
 
-	/* newer hardware has PHY error counters */
+	/* Newer hardware has PHY error counters */
 	if (ah->ah_mac_srev >= AR5K_SREV_AR5213A)
 		caps->cap_has_phyerr_counters = true;
 	else
 		caps->cap_has_phyerr_counters = false;
+
+	/* MACs since AR5212 have MRR support */
+	if (ah->ah_version == AR5K_AR5212)
+		caps->cap_has_mrr_support = true;
+	else
+		caps->cap_has_mrr_support = false;
 
 	return 0;
 }

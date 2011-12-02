@@ -405,6 +405,8 @@ IEEE80211_IF_FILE(dot11MeshHWMPactivePathTimeout,
 		u.mesh.mshcfg.dot11MeshHWMPactivePathTimeout, DEC);
 IEEE80211_IF_FILE(dot11MeshHWMPpreqMinInterval,
 		u.mesh.mshcfg.dot11MeshHWMPpreqMinInterval, DEC);
+IEEE80211_IF_FILE(dot11MeshHWMPperrMinInterval,
+		u.mesh.mshcfg.dot11MeshHWMPperrMinInterval, DEC);
 IEEE80211_IF_FILE(dot11MeshHWMPnetDiameterTraversalTime,
 		u.mesh.mshcfg.dot11MeshHWMPnetDiameterTraversalTime, DEC);
 IEEE80211_IF_FILE(dot11MeshHWMPmaxPREQretries,
@@ -534,6 +536,7 @@ static void add_mesh_config(struct ieee80211_sub_if_data *sdata)
 	MESHPARAMS_ADD(dot11MeshMaxPeerLinks);
 	MESHPARAMS_ADD(dot11MeshHWMPactivePathTimeout);
 	MESHPARAMS_ADD(dot11MeshHWMPpreqMinInterval);
+	MESHPARAMS_ADD(dot11MeshHWMPperrMinInterval);
 	MESHPARAMS_ADD(dot11MeshHWMPnetDiameterTraversalTime);
 	MESHPARAMS_ADD(dot11MeshHWMPmaxPREQretries);
 	MESHPARAMS_ADD(path_refresh_time);

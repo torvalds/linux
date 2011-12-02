@@ -571,8 +571,14 @@ struct brcmf_dcmd {
 	uint needed;		/* bytes needed (optional) */
 };
 
+struct brcmf_bus {
+	u8 type;		/* bus type */
+	void *bus_priv;		/* pointer to bus private structure */
+	enum brcmf_bus_state state;
+};
+
 /* Forward decls for struct brcmf_pub (see below) */
-struct brcmf_bus;		/* device bus info */
+struct brcmf_sdio;		/* device bus info */
 struct brcmf_proto;	/* device communication protocol info */
 struct brcmf_info;	/* device driver info */
 struct brcmf_cfg80211_dev; /* cfg80211 device info */
@@ -580,15 +586,16 @@ struct brcmf_cfg80211_dev; /* cfg80211 device info */
 /* Common structure for module and instance linkage */
 struct brcmf_pub {
 	/* Linkage ponters */
-	struct brcmf_bus *bus;
+	struct brcmf_sdio *bus;
+	struct brcmf_bus *bus_if;
 	struct brcmf_proto *prot;
 	struct brcmf_info *info;
 	struct brcmf_cfg80211_dev *config;
+	struct device *dev;		/* fullmac dongle device pointer */
 
 	/* Internal brcmf items */
 	bool up;		/* Driver up/down (to OS) */
 	bool txoff;		/* Transmit flow-controlled */
-	enum brcmf_bus_state busstate;
 	uint hdrlen;		/* Total BRCMF header length (proto + bus) */
 	uint maxctl;		/* Max size rxctl request from proto to bus */
 	uint rxsz;		/* Rx buffer size bus module should use */
@@ -656,7 +663,6 @@ struct brcmf_pub {
 
 	u8 country_code[BRCM_CNTRY_BUF_SZ];
 	char eventmask[BRCMF_EVENTING_MASK_LEN];
-
 };
 
 struct brcmf_if_event {
@@ -681,8 +687,8 @@ extern uint brcmf_c_mkiovar(char *name, char *data, uint datalen,
  * Returned structure should have bus and prot pointers filled in.
  * bus_hdrlen specifies required headroom for bus module header.
  */
-extern struct brcmf_pub *brcmf_attach(struct brcmf_bus *bus,
-				      uint bus_hdrlen);
+extern struct brcmf_pub *brcmf_attach(struct brcmf_sdio *bus,
+				      uint bus_hdrlen, struct device *dev);
 extern int brcmf_net_attach(struct brcmf_pub *drvr, int idx);
 extern int brcmf_netdev_wait_pend8021x(struct net_device *ndev);
 
@@ -699,7 +705,16 @@ extern bool brcmf_c_prec_enq(struct brcmf_pub *drvr, struct pktq *q,
 
 /* Receive frame for delivery to OS.  Callee disposes of rxp. */
 extern void brcmf_rx_frame(struct brcmf_pub *drvr, int ifidx,
-			 struct sk_buff *rxp, int numpkt);
+			   struct sk_buff_head *rxlist);
+static inline void brcmf_rx_packet(struct brcmf_pub *drvr, int ifidx,
+				   struct sk_buff *pkt)
+{
+	struct sk_buff_head q;
+
+	skb_queue_head_init(&q);
+	skb_queue_tail(&q, pkt);
+	brcmf_rx_frame(drvr, ifidx, &q);
+}
 
 /* Return pointer to interface name */
 extern char *brcmf_ifname(struct brcmf_pub *drvr, int idx);
@@ -723,8 +738,6 @@ extern int brcmf_ifname2idx(struct brcmf_info *drvr_priv, char *name);
 extern int brcmf_c_host_event(struct brcmf_info *drvr_priv, int *idx,
 			      void *pktdata, struct brcmf_event_msg *,
 			      void **data_ptr);
-
-extern void brcmf_c_init(void);
 
 extern int brcmf_add_if(struct brcmf_info *drvr_priv, int ifidx,
 			char *name, u8 *mac_addr);

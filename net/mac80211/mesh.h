@@ -233,6 +233,8 @@ void ieee80211_mesh_root_setup(struct ieee80211_if_mesh *ifmsh);
 /* Mesh paths */
 int mesh_nexthop_lookup(struct sk_buff *skb,
 		struct ieee80211_sub_if_data *sdata);
+int mesh_nexthop_resolve(struct sk_buff *skb,
+			 struct ieee80211_sub_if_data *sdata);
 void mesh_path_start_discovery(struct ieee80211_sub_if_data *sdata);
 struct mesh_path *mesh_path_lookup(u8 *dst,
 		struct ieee80211_sub_if_data *sdata);

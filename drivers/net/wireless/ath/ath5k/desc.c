@@ -26,20 +26,61 @@
 #include "debug.h"
 
 
+/**
+ * DOC: Hardware descriptor functions
+ *
+ * Here we handle the processing of the low-level hw descriptors
+ * that hw reads and writes via DMA for each TX and RX attempt (that means
+ * we can also have descriptors for failed TX/RX tries). We have two kind of
+ * descriptors for RX and TX, control descriptors tell the hw how to send or
+ * receive a packet where to read/write it from/to etc and status descriptors
+ * that contain information about how the packet was sent or received (errors
+ * included).
+ *
+ * Descriptor format is not exactly the same for each MAC chip version so we
+ * have function pointers on &struct ath5k_hw we initialize at runtime based on
+ * the chip used.
+ */
+
+
 /************************\
 * TX Control descriptors *
 \************************/
 
-/*
- * Initialize the 2-word tx control descriptor on 5210/5211
+/**
+ * ath5k_hw_setup_2word_tx_desc() - Initialize a 2-word tx control descriptor
+ * @ah: The &struct ath5k_hw
+ * @desc: The &struct ath5k_desc
+ * @pkt_len: Frame length in bytes
+ * @hdr_len: Header length in bytes (only used on AR5210)
+ * @padsize: Any padding we've added to the frame length
+ * @type: One of enum ath5k_pkt_type
+ * @tx_power: Tx power in 0.5dB steps
+ * @tx_rate0: HW idx for transmission rate
+ * @tx_tries0: Max number of retransmissions
+ * @key_index: Index on key table to use for encryption
+ * @antenna_mode: Which antenna to use (0 for auto)
+ * @flags: One of AR5K_TXDESC_* flags (desc.h)
+ * @rtscts_rate: HW idx for RTS/CTS transmission rate
+ * @rtscts_duration: What to put on duration field on the header of RTS/CTS
+ *
+ * Internal function to initialize a 2-Word TX control descriptor
+ * found on AR5210 and AR5211 MACs chips.
+ *
+ * Returns 0 on success or -EINVAL on false input
  */
 static int
-ath5k_hw_setup_2word_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
-	unsigned int pkt_len, unsigned int hdr_len, int padsize,
-	enum ath5k_pkt_type type,
-	unsigned int tx_power, unsigned int tx_rate0, unsigned int tx_tries0,
-	unsigned int key_index, unsigned int antenna_mode, unsigned int flags,
-	unsigned int rtscts_rate, unsigned int rtscts_duration)
+ath5k_hw_setup_2word_tx_desc(struct ath5k_hw *ah,
+			struct ath5k_desc *desc,
+			unsigned int pkt_len, unsigned int hdr_len,
+			int padsize,
+			enum ath5k_pkt_type type,
+			unsigned int tx_power,
+			unsigned int tx_rate0, unsigned int tx_tries0,
+			unsigned int key_index,
+			unsigned int antenna_mode,
+			unsigned int flags,
+			unsigned int rtscts_rate, unsigned int rtscts_duration)
 {
 	u32 frame_type;
 	struct ath5k_hw_2w_tx_ctl *tx_ctl;
@@ -172,17 +213,40 @@ ath5k_hw_setup_2word_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 	return 0;
 }
 
-/*
- * Initialize the 4-word tx control descriptor on 5212
+/**
+ * ath5k_hw_setup_4word_tx_desc() - Initialize a 4-word tx control descriptor
+ * @ah: The &struct ath5k_hw
+ * @desc: The &struct ath5k_desc
+ * @pkt_len: Frame length in bytes
+ * @hdr_len: Header length in bytes (only used on AR5210)
+ * @padsize: Any padding we've added to the frame length
+ * @type: One of enum ath5k_pkt_type
+ * @tx_power: Tx power in 0.5dB steps
+ * @tx_rate0: HW idx for transmission rate
+ * @tx_tries0: Max number of retransmissions
+ * @key_index: Index on key table to use for encryption
+ * @antenna_mode: Which antenna to use (0 for auto)
+ * @flags: One of AR5K_TXDESC_* flags (desc.h)
+ * @rtscts_rate: HW idx for RTS/CTS transmission rate
+ * @rtscts_duration: What to put on duration field on the header of RTS/CTS
+ *
+ * Internal function to initialize a 4-Word TX control descriptor
+ * found on AR5212 and later MACs chips.
+ *
+ * Returns 0 on success or -EINVAL on false input
  */
-static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
-	struct ath5k_desc *desc, unsigned int pkt_len, unsigned int hdr_len,
-	int padsize,
-	enum ath5k_pkt_type type, unsigned int tx_power, unsigned int tx_rate0,
-	unsigned int tx_tries0, unsigned int key_index,
-	unsigned int antenna_mode, unsigned int flags,
-	unsigned int rtscts_rate,
-	unsigned int rtscts_duration)
+static int
+ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
+			struct ath5k_desc *desc,
+			unsigned int pkt_len, unsigned int hdr_len,
+			int padsize,
+			enum ath5k_pkt_type type,
+			unsigned int tx_power,
+			unsigned int tx_rate0, unsigned int tx_tries0,
+			unsigned int key_index,
+			unsigned int antenna_mode,
+			unsigned int flags,
+			unsigned int rtscts_rate, unsigned int rtscts_duration)
 {
 	struct ath5k_hw_4w_tx_ctl *tx_ctl;
 	unsigned int frame_len;
@@ -292,13 +356,29 @@ static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
 	return 0;
 }
 
-/*
- * Initialize a 4-word multi rate retry tx control descriptor on 5212
+/**
+ * ath5k_hw_setup_mrr_tx_desc() - Initialize an MRR tx control descriptor
+ * @ah: The &struct ath5k_hw
+ * @desc: The &struct ath5k_desc
+ * @tx_rate1: HW idx for rate used on transmission series 1
+ * @tx_tries1: Max number of retransmissions for transmission series 1
+ * @tx_rate2: HW idx for rate used on transmission series 2
+ * @tx_tries2: Max number of retransmissions for transmission series 2
+ * @tx_rate3: HW idx for rate used on transmission series 3
+ * @tx_tries3: Max number of retransmissions for transmission series 3
+ *
+ * Multi rate retry (MRR) tx control descriptors are available only on AR5212
+ * MACs, they are part of the normal 4-word tx control descriptor (see above)
+ * but we handle them through a separate function for better abstraction.
+ *
+ * Returns 0 on success or -EINVAL on invalid input
  */
 int
-ath5k_hw_setup_mrr_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
-	unsigned int tx_rate1, u_int tx_tries1, u_int tx_rate2,
-	u_int tx_tries2, unsigned int tx_rate3, u_int tx_tries3)
+ath5k_hw_setup_mrr_tx_desc(struct ath5k_hw *ah,
+			struct ath5k_desc *desc,
+			u_int tx_rate1, u_int tx_tries1,
+			u_int tx_rate2, u_int tx_tries2,
+			u_int tx_rate3, u_int tx_tries3)
 {
 	struct ath5k_hw_4w_tx_ctl *tx_ctl;
 
@@ -350,11 +430,16 @@ ath5k_hw_setup_mrr_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 * TX Status descriptors *
 \***********************/
 
-/*
- * Process the tx status descriptor on 5210/5211
+/**
+ * ath5k_hw_proc_2word_tx_status() - Process a tx status descriptor on 5210/1
+ * @ah: The &struct ath5k_hw
+ * @desc: The &struct ath5k_desc
+ * @ts: The &struct ath5k_tx_status
  */
-static int ath5k_hw_proc_2word_tx_status(struct ath5k_hw *ah,
-		struct ath5k_desc *desc, struct ath5k_tx_status *ts)
+static int
+ath5k_hw_proc_2word_tx_status(struct ath5k_hw *ah,
+				struct ath5k_desc *desc,
+				struct ath5k_tx_status *ts)
 {
 	struct ath5k_hw_2w_tx_ctl *tx_ctl;
 	struct ath5k_hw_tx_status *tx_status;
@@ -399,11 +484,16 @@ static int ath5k_hw_proc_2word_tx_status(struct ath5k_hw *ah,
 	return 0;
 }
 
-/*
- * Process a tx status descriptor on 5212
+/**
+ * ath5k_hw_proc_4word_tx_status() - Process a tx status descriptor on 5212
+ * @ah: The &struct ath5k_hw
+ * @desc: The &struct ath5k_desc
+ * @ts: The &struct ath5k_tx_status
  */
-static int ath5k_hw_proc_4word_tx_status(struct ath5k_hw *ah,
-		struct ath5k_desc *desc, struct ath5k_tx_status *ts)
+static int
+ath5k_hw_proc_4word_tx_status(struct ath5k_hw *ah,
+				struct ath5k_desc *desc,
+				struct ath5k_tx_status *ts)
 {
 	struct ath5k_hw_4w_tx_ctl *tx_ctl;
 	struct ath5k_hw_tx_status *tx_status;
@@ -460,11 +550,17 @@ static int ath5k_hw_proc_4word_tx_status(struct ath5k_hw *ah,
 * RX Descriptors *
 \****************/
 
-/*
- * Initialize an rx control descriptor
+/**
+ * ath5k_hw_setup_rx_desc() - Initialize an rx control descriptor
+ * @ah: The &struct ath5k_hw
+ * @desc: The &struct ath5k_desc
+ * @size: RX buffer length in bytes
+ * @flags: One of AR5K_RXDESC_* flags
  */
-int ath5k_hw_setup_rx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
-			   u32 size, unsigned int flags)
+int
+ath5k_hw_setup_rx_desc(struct ath5k_hw *ah,
+			struct ath5k_desc *desc,
+			u32 size, unsigned int flags)
 {
 	struct ath5k_hw_rx_ctl *rx_ctl;
 
@@ -491,11 +587,22 @@ int ath5k_hw_setup_rx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 	return 0;
 }
 
-/*
- * Process the rx status descriptor on 5210/5211
+/**
+ * ath5k_hw_proc_5210_rx_status() - Process the rx status descriptor on 5210/1
+ * @ah: The &struct ath5k_hw
+ * @desc: The &struct ath5k_desc
+ * @rs: The &struct ath5k_rx_status
+ *
+ * Internal function used to process an RX status descriptor
+ * on AR5210/5211 MAC.
+ *
+ * Returns 0 on success or -EINPROGRESS in case we haven't received the who;e
+ * frame yet.
  */
-static int ath5k_hw_proc_5210_rx_status(struct ath5k_hw *ah,
-		struct ath5k_desc *desc, struct ath5k_rx_status *rs)
+static int
+ath5k_hw_proc_5210_rx_status(struct ath5k_hw *ah,
+				struct ath5k_desc *desc,
+				struct ath5k_rx_status *rs)
 {
 	struct ath5k_hw_rx_status *rx_status;
 
@@ -574,12 +681,22 @@ static int ath5k_hw_proc_5210_rx_status(struct ath5k_hw *ah,
 	return 0;
 }
 
-/*
- * Process the rx status descriptor on 5212
+/**
+ * ath5k_hw_proc_5212_rx_status() - Process the rx status descriptor on 5212
+ * @ah: The &struct ath5k_hw
+ * @desc: The &struct ath5k_desc
+ * @rs: The &struct ath5k_rx_status
+ *
+ * Internal function used to process an RX status descriptor
+ * on AR5212 and later MAC.
+ *
+ * Returns 0 on success or -EINPROGRESS in case we haven't received the who;e
+ * frame yet.
  */
-static int ath5k_hw_proc_5212_rx_status(struct ath5k_hw *ah,
-					struct ath5k_desc *desc,
-					struct ath5k_rx_status *rs)
+static int
+ath5k_hw_proc_5212_rx_status(struct ath5k_hw *ah,
+				struct ath5k_desc *desc,
+				struct ath5k_rx_status *rs)
 {
 	struct ath5k_hw_rx_status *rx_status;
 	u32 rxstat0, rxstat1;
@@ -646,10 +763,16 @@ static int ath5k_hw_proc_5212_rx_status(struct ath5k_hw *ah,
 * Attach *
 \********/
 
-/*
- * Init function pointers inside ath5k_hw struct
+/**
+ * ath5k_hw_init_desc_functions() - Init function pointers inside ah
+ * @ah: The &struct ath5k_hw
+ *
+ * Maps the internal descriptor functions to the function pointers on ah, used
+ * from above. This is used as an abstraction layer to handle the various chips
+ * the same way.
  */
-int ath5k_hw_init_desc_functions(struct ath5k_hw *ah)
+int
+ath5k_hw_init_desc_functions(struct ath5k_hw *ah)
 {
 	if (ah->ah_version == AR5K_AR5212) {
 		ah->ah_setup_tx_desc = ath5k_hw_setup_4word_tx_desc;

@@ -221,6 +221,7 @@ void mesh_path_assign_nexthop(struct mesh_path *mpath, struct sta_info *sta)
 	while ((skb = __skb_dequeue(&mpath->frame_queue)) != NULL) {
 		hdr = (struct ieee80211_hdr *) skb->data;
 		memcpy(hdr->addr1, sta->sta.addr, ETH_ALEN);
+		memcpy(hdr->addr2, mpath->sdata->vif.addr, ETH_ALEN);
 		__skb_queue_tail(&tmpq, skb);
 	}
 
@@ -264,6 +265,7 @@ static void prepare_for_gate(struct sk_buff *skb, char *dst_addr,
 	next_hop = rcu_dereference(gate_mpath->next_hop)->sta.addr;
 	memcpy(hdr->addr1, next_hop, ETH_ALEN);
 	rcu_read_unlock();
+	memcpy(hdr->addr2, gate_mpath->sdata->vif.addr, ETH_ALEN);
 	memcpy(hdr->addr3, dst_addr, ETH_ALEN);
 }
 
@@ -971,38 +973,11 @@ int mesh_path_send_to_gates(struct mesh_path *mpath)
  * @skb: frame to discard
  * @sdata: network subif the frame was to be sent through
  *
- * If the frame was being forwarded from another MP, a PERR frame will be sent
- * to the precursor.  The precursor's address (i.e. the previous hop) was saved
- * in addr1 of the frame-to-be-forwarded, and would only be overwritten once
- * the destination is successfully resolved.
- *
  * Locking: the function must me called within a rcu_read_lock region
  */
 void mesh_path_discard_frame(struct sk_buff *skb,
 			     struct ieee80211_sub_if_data *sdata)
 {
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	struct mesh_path *mpath;
-	u32 sn = 0;
-	__le16 reason = cpu_to_le16(WLAN_REASON_MESH_PATH_NOFORWARD);
-
-	if (memcmp(hdr->addr4, sdata->vif.addr, ETH_ALEN) != 0) {
-		u8 *ra, *da;
-
-		da = hdr->addr3;
-		ra = hdr->addr1;
-		rcu_read_lock();
-		mpath = mesh_path_lookup(da, sdata);
-		if (mpath) {
-			spin_lock_bh(&mpath->state_lock);
-			sn = ++mpath->sn;
-			spin_unlock_bh(&mpath->state_lock);
-		}
-		rcu_read_unlock();
-		mesh_path_error_tx(sdata->u.mesh.mshcfg.element_ttl, skb->data,
-				   cpu_to_le32(sn), reason, ra, sdata);
-	}
-
 	kfree_skb(skb);
 	sdata->u.mesh.mshstats.dropped_frames_no_route++;
 }

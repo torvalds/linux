@@ -27,13 +27,6 @@
 #include <net/nfc/nfc.h>
 #include <net/sock.h>
 
-__printf(2, 3)
-int nfc_printk(const char *level, const char *fmt, ...);
-
-#define nfc_info(fmt, arg...) nfc_printk(KERN_INFO, fmt, ##arg)
-#define nfc_err(fmt, arg...) nfc_printk(KERN_ERR, fmt, ##arg)
-#define nfc_dbg(fmt, arg...) pr_debug(fmt "\n", ##arg)
-
 struct nfc_protocol {
 	int id;
 	struct proto *proto;

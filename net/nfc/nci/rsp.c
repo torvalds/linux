@@ -25,6 +25,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/bitops.h>
@@ -40,12 +42,12 @@ static void nci_core_reset_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 {
 	struct nci_core_reset_rsp *rsp = (void *) skb->data;
 
-	nfc_dbg("entry, status 0x%x", rsp->status);
+	pr_debug("status 0x%x\n", rsp->status);
 
 	if (rsp->status == NCI_STATUS_OK) {
 		ndev->nci_ver = rsp->nci_ver;
-		nfc_dbg("nci_ver 0x%x, config_status 0x%x",
-			rsp->nci_ver, rsp->config_status);
+		pr_debug("nci_ver 0x%x, config_status 0x%x\n",
+			 rsp->nci_ver, rsp->config_status);
 	}
 
 	nci_req_complete(ndev, rsp->status);
@@ -56,7 +58,7 @@ static void nci_core_init_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 	struct nci_core_init_rsp_1 *rsp_1 = (void *) skb->data;
 	struct nci_core_init_rsp_2 *rsp_2;
 
-	nfc_dbg("entry, status 0x%x", rsp_1->status);
+	pr_debug("status 0x%x\n", rsp_1->status);
 
 	if (rsp_1->status != NCI_STATUS_OK)
 		goto exit;
@@ -95,34 +97,34 @@ static void nci_core_init_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 
 	atomic_set(&ndev->credits_cnt, ndev->initial_num_credits);
 
-	nfc_dbg("nfcc_features 0x%x",
-		ndev->nfcc_features);
-	nfc_dbg("num_supported_rf_interfaces %d",
-		ndev->num_supported_rf_interfaces);
-	nfc_dbg("supported_rf_interfaces[0] 0x%x",
-		ndev->supported_rf_interfaces[0]);
-	nfc_dbg("supported_rf_interfaces[1] 0x%x",
-		ndev->supported_rf_interfaces[1]);
-	nfc_dbg("supported_rf_interfaces[2] 0x%x",
-		ndev->supported_rf_interfaces[2]);
-	nfc_dbg("supported_rf_interfaces[3] 0x%x",
-		ndev->supported_rf_interfaces[3]);
-	nfc_dbg("max_logical_connections %d",
-		ndev->max_logical_connections);
-	nfc_dbg("max_routing_table_size %d",
-		ndev->max_routing_table_size);
-	nfc_dbg("max_ctrl_pkt_payload_len %d",
-		ndev->max_ctrl_pkt_payload_len);
-	nfc_dbg("max_size_for_large_params %d",
-		ndev->max_size_for_large_params);
-	nfc_dbg("max_data_pkt_payload_size %d",
-		ndev->max_data_pkt_payload_size);
-	nfc_dbg("initial_num_credits %d",
-		ndev->initial_num_credits);
-	nfc_dbg("manufact_id 0x%x",
-		ndev->manufact_id);
-	nfc_dbg("manufact_specific_info 0x%x",
-		ndev->manufact_specific_info);
+	pr_debug("nfcc_features 0x%x\n",
+		 ndev->nfcc_features);
+	pr_debug("num_supported_rf_interfaces %d\n",
+		 ndev->num_supported_rf_interfaces);
+	pr_debug("supported_rf_interfaces[0] 0x%x\n",
+		 ndev->supported_rf_interfaces[0]);
+	pr_debug("supported_rf_interfaces[1] 0x%x\n",
+		 ndev->supported_rf_interfaces[1]);
+	pr_debug("supported_rf_interfaces[2] 0x%x\n",
+		 ndev->supported_rf_interfaces[2]);
+	pr_debug("supported_rf_interfaces[3] 0x%x\n",
+		 ndev->supported_rf_interfaces[3]);
+	pr_debug("max_logical_connections %d\n",
+		 ndev->max_logical_connections);
+	pr_debug("max_routing_table_size %d\n",
+		 ndev->max_routing_table_size);
+	pr_debug("max_ctrl_pkt_payload_len %d\n",
+		 ndev->max_ctrl_pkt_payload_len);
+	pr_debug("max_size_for_large_params %d\n",
+		 ndev->max_size_for_large_params);
+	pr_debug("max_data_pkt_payload_size %d\n",
+		 ndev->max_data_pkt_payload_size);
+	pr_debug("initial_num_credits %d\n",
+		 ndev->initial_num_credits);
+	pr_debug("manufact_id 0x%x\n",
+		 ndev->manufact_id);
+	pr_debug("manufact_specific_info 0x%x\n",
+		 ndev->manufact_specific_info);
 
 exit:
 	nci_req_complete(ndev, rsp_1->status);
@@ -133,7 +135,7 @@ static void nci_rf_disc_map_rsp_packet(struct nci_dev *ndev,
 {
 	__u8 status = skb->data[0];
 
-	nfc_dbg("entry, status 0x%x", status);
+	pr_debug("status 0x%x\n", status);
 
 	nci_req_complete(ndev, status);
 }
@@ -142,7 +144,7 @@ static void nci_rf_disc_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 {
 	__u8 status = skb->data[0];
 
-	nfc_dbg("entry, status 0x%x", status);
+	pr_debug("status 0x%x\n", status);
 
 	if (status == NCI_STATUS_OK)
 		set_bit(NCI_DISCOVERY, &ndev->flags);
@@ -155,7 +157,7 @@ static void nci_rf_deactivate_rsp_packet(struct nci_dev *ndev,
 {
 	__u8 status = skb->data[0];
 
-	nfc_dbg("entry, status 0x%x", status);
+	pr_debug("status 0x%x\n", status);
 
 	clear_bit(NCI_DISCOVERY, &ndev->flags);
 
@@ -169,11 +171,11 @@ void nci_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 	/* we got a rsp, stop the cmd timer */
 	del_timer(&ndev->cmd_timer);
 
-	nfc_dbg("NCI RX: MT=rsp, PBF=%d, GID=0x%x, OID=0x%x, plen=%d",
-			nci_pbf(skb->data),
-			nci_opcode_gid(rsp_opcode),
-			nci_opcode_oid(rsp_opcode),
-			nci_plen(skb->data));
+	pr_debug("NCI RX: MT=rsp, PBF=%d, GID=0x%x, OID=0x%x, plen=%d\n",
+		 nci_pbf(skb->data),
+		 nci_opcode_gid(rsp_opcode),
+		 nci_opcode_oid(rsp_opcode),
+		 nci_plen(skb->data));
 
 	/* strip the nci control header */
 	skb_pull(skb, NCI_CTRL_HDR_SIZE);
@@ -200,7 +202,7 @@ void nci_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 		break;
 
 	default:
-		nfc_err("unknown rsp opcode 0x%x", rsp_opcode);
+		pr_err("unknown rsp opcode 0x%x\n", rsp_opcode);
 		break;
 	}
 
