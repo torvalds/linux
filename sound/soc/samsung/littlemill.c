@@ -147,11 +147,21 @@ static struct snd_soc_dai_link littlemill_dai[] = {
 
 static struct snd_soc_dapm_widget widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),
+
+	SND_SOC_DAPM_MIC("AMIC", NULL),
+	SND_SOC_DAPM_MIC("DMIC", NULL),
 };
 
 static struct snd_soc_dapm_route audio_paths[] = {
 	{ "Headphone", NULL, "HPOUT1L" },
 	{ "Headphone", NULL, "HPOUT1R" },
+
+	{ "AMIC", NULL, "MICBIAS1" },   /* Default for AMICBIAS jumper */
+	{ "IN1LN", NULL, "AMIC" },
+
+	{ "DMIC", NULL, "MICBIAS2" },   /* Default for DMICBIAS jumper */
+	{ "DMIC1DAT", NULL, "DMIC" },
+	{ "DMIC2DAT", NULL, "DMIC" },
 };
 
 static struct snd_soc_jack littlemill_headset;
