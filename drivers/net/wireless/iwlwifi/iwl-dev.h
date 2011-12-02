@@ -790,6 +790,12 @@ struct iwl_testmode_trace {
 	dma_addr_t dma_addr;
 	bool trace_enabled;
 };
+struct iwl_testmode_sram {
+	u32 buff_size;
+	u32 num_chunks;
+	u8 *buff_addr;
+	bool sram_readed;
+};
 #endif
 
 struct iwl_wipan_noa_data {
@@ -1070,6 +1076,7 @@ struct iwl_priv {
 	bool led_registered;
 #ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
 	struct iwl_testmode_trace testmode_trace;
+	struct iwl_testmode_sram testmode_sram;
 	u32 tm_fixed_rate;
 #endif
 
