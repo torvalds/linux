@@ -903,7 +903,7 @@ static int test__PERF_RECORD(void)
 	     found_libc_mmap = false,
 	     found_vdso_mmap = false,
 	     found_ld_mmap = false;
-	int err = -1, i, wakeups = 0, sample_size;
+	int err = -1, errs = 0, i, wakeups = 0, sample_size;
 	u32 cpu;
 	int total_events = 0, nr_events[PERF_RECORD_MAX] = { 0, };
 
@@ -1012,8 +1012,6 @@ static int test__PERF_RECORD(void)
 	 */
 	perf_evlist__start_workload(evlist);
 
-	err = -1;
-
 	while (1) {
 		int before = total_events;
 
@@ -1028,9 +1026,10 @@ static int test__PERF_RECORD(void)
 				if (type < PERF_RECORD_MAX)
 					nr_events[type]++;
 
-				if (perf_event__parse_sample(event, sample_type,
-							     sample_size, true,
-							     &sample, false) < 0) {
+				err = perf_event__parse_sample(event, sample_type,
+							       sample_size, true,
+							       &sample, false);
+				if (err < 0) {
 					if (verbose)
 						perf_event__fprintf(event, stderr);
 					pr_debug("Couldn't parse sample\n");
@@ -1045,7 +1044,7 @@ static int test__PERF_RECORD(void)
 				if (prev_time > sample.time) {
 					pr_debug("%s going backwards in time, prev=%" PRIu64 ", curr=%" PRIu64 "\n",
 						 name, prev_time, sample.time);
-					goto out_err;
+					++errs;
 				}
 
 				prev_time = sample.time;
@@ -1053,19 +1052,19 @@ static int test__PERF_RECORD(void)
 				if (sample.cpu != cpu) {
 					pr_debug("%s with unexpected cpu, expected %d, got %d\n",
 						 name, cpu, sample.cpu);
-					goto out_err;
+					++errs;
 				}
 
 				if ((pid_t)sample.pid != evlist->workload.pid) {
 					pr_debug("%s with unexpected pid, expected %d, got %d\n",
 						 name, evlist->workload.pid, sample.pid);
-					goto out_err;
+					++errs;
 				}
 
 				if ((pid_t)sample.tid != evlist->workload.pid) {
 					pr_debug("%s with unexpected tid, expected %d, got %d\n",
 						 name, evlist->workload.pid, sample.tid);
-					goto out_err;
+					++errs;
 				}
 
 				if ((type == PERF_RECORD_COMM ||
@@ -1074,21 +1073,21 @@ static int test__PERF_RECORD(void)
 				     type == PERF_RECORD_EXIT) &&
 				     (pid_t)event->comm.pid != evlist->workload.pid) {
 					pr_debug("%s with unexpected pid/tid\n", name);
-					goto out_err;
+					++errs;
 				}
 
 				if ((type == PERF_RECORD_COMM ||
 				     type == PERF_RECORD_MMAP) &&
 				     event->comm.pid != event->comm.tid) {
 					pr_debug("%s with different pid/tid!\n", name);
-					goto out_err;
+					++errs;
 				}
 
 				switch (type) {
 				case PERF_RECORD_COMM:
 					if (strcmp(event->comm.comm, cmd)) {
 						pr_debug("%s with unexpected comm!\n", name);
-						goto out_err;
+						++errs;
 					}
 					break;
 				case PERF_RECORD_EXIT:
@@ -1112,7 +1111,7 @@ static int test__PERF_RECORD(void)
 				default:
 					pr_debug("Unexpected perf_event->header.type %d!\n",
 						 type);
-					goto out_err;
+					++errs;
 				}
 			}
 		}
@@ -1128,42 +1127,40 @@ static int test__PERF_RECORD(void)
 		sleep(1);
 		if (++wakeups > 5) {
 			pr_debug("No PERF_RECORD_EXIT event!\n");
-			goto out_err;
+			break;
 		}
 	}
 
 found_exit:
 	if (nr_events[PERF_RECORD_COMM] > 1) {
 		pr_debug("Excessive number of PERF_RECORD_COMM events!\n");
-		goto out_err;
+		++errs;
 	}
 
 	if (nr_events[PERF_RECORD_COMM] == 0) {
 		pr_debug("Missing PERF_RECORD_COMM for %s!\n", cmd);
-		goto out_err;
+		++errs;
 	}
 
 	if (!found_cmd_mmap) {
 		pr_debug("PERF_RECORD_MMAP for %s missing!\n", cmd);
-		goto out_err;
+		++errs;
 	}
 
 	if (!found_libc_mmap) {
 		pr_debug("PERF_RECORD_MMAP for %s missing!\n", "libc");
-		goto out_err;
+		++errs;
 	}
 
 	if (!found_ld_mmap) {
 		pr_debug("PERF_RECORD_MMAP for %s missing!\n", "ld");
-		goto out_err;
+		++errs;
 	}
 
 	if (!found_vdso_mmap) {
 		pr_debug("PERF_RECORD_MMAP for %s missing!\n", "[vdso]");
-		goto out_err;
+		++errs;
 	}
-
-	err = 0;
 out_err:
 	perf_evlist__munmap(evlist);
 out_free_cpu_mask:
@@ -1171,7 +1168,7 @@ out_free_cpu_mask:
 out_delete_evlist:
 	perf_evlist__delete(evlist);
 out:
-	return err;
+	return (err < 0 || errs > 0) ? -1 : 0;
 }
 
 static struct test {
