@@ -293,6 +293,9 @@ struct mpic
 	/* Register access method */
 	enum mpic_reg_type	reg_type;
 
+	/* The physical base address of the MPIC */
+	phys_addr_t paddr;
+
 	/* The various ioremap'ed bases */
 	struct mpic_reg_bank	gregs;
 	struct mpic_reg_bank	tmregs;

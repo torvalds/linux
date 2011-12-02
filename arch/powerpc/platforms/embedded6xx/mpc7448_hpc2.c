@@ -102,7 +102,6 @@ static void __init mpc7448_hpc2_setup_arch(void)
 static void __init mpc7448_hpc2_init_IRQ(void)
 {
 	struct mpic *mpic;
-	phys_addr_t mpic_paddr = 0;
 	struct device_node *tsi_pic;
 #ifdef CONFIG_PCI
 	unsigned int cascade_pci_irq;
@@ -111,21 +110,12 @@ static void __init mpc7448_hpc2_init_IRQ(void)
 #endif
 
 	tsi_pic = of_find_node_by_type(NULL, "open-pic");
-	if (tsi_pic) {
-		unsigned int size;
-		const void *prop = of_get_property(tsi_pic, "reg", &size);
-		mpic_paddr = of_translate_address(tsi_pic, prop);
-	}
-
-	if (mpic_paddr == 0) {
+	if (!tsi_pic) {
 		printk("%s: No tsi108 PIC found !\n", __func__);
 		return;
 	}
 
-	DBG("%s: tsi108 pic phys_addr = 0x%x\n", __func__,
-	    (u32) mpic_paddr);
-
-	mpic = mpic_alloc(tsi_pic, mpic_paddr,
+	mpic = mpic_alloc(tsi_pic, 0,
 			MPIC_PRIMARY | MPIC_BIG_ENDIAN | MPIC_WANTS_RESET |
 			MPIC_SPV_EOI | MPIC_NO_PTHROU_DIS | MPIC_REGSET_TSI108,
 			24,
@@ -134,7 +124,7 @@ static void __init mpc7448_hpc2_init_IRQ(void)
 
 	BUG_ON(mpic == NULL);
 
-	mpic_assign_isu(mpic, 0, mpic_paddr + 0x100);
+	mpic_assign_isu(mpic, 0, mpic->paddr + 0x100);
 
 	mpic_init(mpic);
 
