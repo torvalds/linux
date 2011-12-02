@@ -297,6 +297,15 @@ void tick_nohz_stop_sched_tick(int inidle)
 	ts = &per_cpu(tick_cpu_sched, cpu);
 
 	/*
+ 	 * Update the idle state in the scheduler domain hierarchy
+ 	 * when tick_nohz_stop_sched_tick() is called from the idle loop.
+ 	 * State will be updated to busy during the first busy tick after
+ 	 * exiting idle.
+ 	 */
+	if (inidle)
+		set_cpu_sd_state_idle();
+
+	/*
 	 * Call to tick_nohz_start_idle stops the last_update_time from being
 	 * updated. Thus, it must not be called in the event we are called from
 	 * irq_exit() with the prior state different than idle.

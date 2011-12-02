@@ -4901,6 +4901,36 @@ static void nohz_balancer_kick(int cpu)
 	return;
 }
 
+static inline void set_cpu_sd_state_busy(void)
+{
+	struct sched_domain *sd;
+	int cpu = smp_processor_id();
+
+	if (!test_bit(NOHZ_IDLE, nohz_flags(cpu)))
+		return;
+	clear_bit(NOHZ_IDLE, nohz_flags(cpu));
+
+	rcu_read_lock();
+	for_each_domain(cpu, sd)
+		atomic_inc(&sd->groups->sgp->nr_busy_cpus);
+	rcu_read_unlock();
+}
+
+void set_cpu_sd_state_idle(void)
+{
+	struct sched_domain *sd;
+	int cpu = smp_processor_id();
+
+	if (test_bit(NOHZ_IDLE, nohz_flags(cpu)))
+		return;
+	set_bit(NOHZ_IDLE, nohz_flags(cpu));
+
+	rcu_read_lock();
+	for_each_domain(cpu, sd)
+		atomic_dec(&sd->groups->sgp->nr_busy_cpus);
+	rcu_read_unlock();
+}
+
 /*
  * This routine will try to nominate the ilb (idle load balancing)
  * owner among the cpus whose ticks are stopped. ilb owner will do the idle
@@ -5135,6 +5165,7 @@ static inline int nohz_kick_needed(struct rq *rq, int cpu)
 	* We may be recently in ticked or tickless idle mode. At the first
 	* busy tick after returning from idle, we will update the busy stats.
 	*/
+	set_cpu_sd_state_busy();
 	if (unlikely(test_bit(NOHZ_TICK_STOPPED, nohz_flags(cpu))))
 		clear_bit(NOHZ_TICK_STOPPED, nohz_flags(cpu));
 
