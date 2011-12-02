@@ -61,7 +61,7 @@
  *
  */
 
-static unsigned int reliable_mode = 0;
+static unsigned int reliable_mode;
 module_param(reliable_mode, uint, 0);
 MODULE_PARM_DESC(reliable_mode, "Set the docg3 mode (0=normal MLC, 1=fast, "
 		 "2=reliable) : MLC normal operations are in normal mode");
@@ -546,7 +546,7 @@ out:
  * @len: the number of bytes covered by the ECC (BCH covered)
  *
  * The function does initialize the hardware ECC engine to compute the Hamming
- * ECC (on 1 byte) and the BCH Syndroms (on 7 bytes).
+ * ECC (on 1 byte) and the BCH hardware ECC (on 7 bytes).
  *
  * Return 0 if succeeded, -EIO on error
  */
@@ -567,13 +567,13 @@ static int doc_read_page_ecc_init(struct docg3 *docg3, int len)
  * @len: the number of bytes covered by the ECC (BCH covered)
  *
  * The function does initialize the hardware ECC engine to compute the Hamming
- * ECC (on 1 byte) and the BCH Syndroms (on 7 bytes).
+ * ECC (on 1 byte) and the BCH hardware ECC (on 7 bytes).
  *
  * Return 0 if succeeded, -EIO on error
  */
 static int doc_write_page_ecc_init(struct docg3 *docg3, int len)
 {
-	doc_writew(docg3, !DOC_ECCCONF0_READ_MODE
+	doc_writew(docg3, DOC_ECCCONF0_WRITE_MODE
 		   | DOC_ECCCONF0_BCH_ENABLE | DOC_ECCCONF0_HAMMING_ENABLE
 		   | (len & DOC_ECCCONF0_DATA_BYTES_MASK),
 		   DOC_ECCCONF0);
@@ -614,7 +614,7 @@ static void doc_hamming_ecc_init(struct docg3 *docg3, int nb_bytes)
 }
 
 /**
- * doc_correct_data - Fix if need be read data from flash
+ * doc_ecc_bch_fix_data - Fix if need be read data from flash
  * @docg3: the device
  * @buf: the buffer of read data (512 + 7 + 1 bytes)
  * @hwecc: the hardware calculated ECC.
@@ -761,16 +761,16 @@ static void doc_write_page_putbytes(struct docg3 *docg3, int len,
 }
 
 /**
- * doc_get_hw_bch_syndroms - Get hardware calculated BCH syndroms
+ * doc_get_bch_hw_ecc - Get hardware calculated BCH ECC
  * @docg3: the device
- * @syns:  the array of 7 integers where the syndroms will be stored
+ * @hwecc:  the array of 7 integers where the hardware ecc will be stored
  */
-static void doc_get_hw_bch_syndroms(struct docg3 *docg3, u8 *syns)
+static void doc_get_bch_hw_ecc(struct docg3 *docg3, u8 *hwecc)
 {
 	int i;
 
 	for (i = 0; i < DOC_ECC_BCH_SIZE; i++)
-		syns[i] = doc_register_readb(docg3, DOC_BCH_SYNDROM(i));
+		hwecc[i] = doc_register_readb(docg3, DOC_BCH_HW_ECC(i));
 }
 
 /**
@@ -904,7 +904,7 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 		doc_read_page_getbytes(docg3, DOC_LAYOUT_OOB_SIZE - nboob,
 				       NULL, 0);
 
-		doc_get_hw_bch_syndroms(docg3, hwecc);
+		doc_get_bch_hw_ecc(docg3, hwecc);
 		eccconf1 = doc_register_readb(docg3, DOC_ECCCONF1);
 
 		if (nboob >= DOC_LAYOUT_OOB_SIZE) {
@@ -1248,7 +1248,7 @@ static int doc_write_page(struct docg3 *docg3, loff_t to, const u_char *buf,
 			  const u_char *oob, int autoecc)
 {
 	int block0, block1, page, ret, ofs = 0;
-	u8 syn[DOC_ECC_BCH_SIZE], hamming;
+	u8 hwecc[DOC_ECC_BCH_SIZE], hamming;
 
 	doc_dbg("doc_write_page(to=%lld)\n", to);
 	calc_block_sector(to, &block0, &block1, &page, &ofs, docg3->reliable);
@@ -1278,8 +1278,8 @@ static int doc_write_page(struct docg3 *docg3, loff_t to, const u_char *buf,
 					&hamming);
 		doc_delay(docg3, 2);
 
-		doc_get_hw_bch_syndroms(docg3, syn);
-		doc_write_page_putbytes(docg3, DOC_LAYOUT_OOB_BCH_SZ, syn);
+		doc_get_bch_hw_ecc(docg3, hwecc);
+		doc_write_page_putbytes(docg3, DOC_LAYOUT_OOB_BCH_SZ, hwecc);
 		doc_delay(docg3, 2);
 
 		doc_write_page_putbytes(docg3, DOC_LAYOUT_OOB_UNUSED_SZ, oob);

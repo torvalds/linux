@@ -115,7 +115,7 @@
 #define DOC_ECCCONF1			0x1042
 #define DOC_ECCPRESET			0x1044
 #define DOC_HAMMINGPARITY		0x1046
-#define DOC_BCH_SYNDROM(idx)		(0x1048 + (idx << 0))
+#define DOC_BCH_HW_ECC(idx)		(0x1048 + idx)
 
 #define DOC_PROTECTION			0x1056
 #define DOC_DPS0_KEY			0x105c
@@ -193,6 +193,7 @@
 /*
  * Flash register : DOC_ECCCONF0
  */
+#define DOC_ECCCONF0_WRITE_MODE		0x0000
 #define DOC_ECCCONF0_READ_MODE		0x8000
 #define DOC_ECCCONF0_AUTO_ECC_ENABLE	0x4000
 #define DOC_ECCCONF0_HAMMING_ENABLE	0x1000
