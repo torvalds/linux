@@ -1269,8 +1269,7 @@ cntrlEnd:
 		memset(&tv1, 0, sizeof(struct timeval));
 		if ((Adapter->eNVMType == NVM_FLASH) && (Adapter->uiFlashLayoutMajorVersion == 0)) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "The Flash Control Section is Corrupted. Hence Rejection on NVM Read/Write\n");
-			Status = -EFAULT;
-			break;
+			return -EFAULT;
 		}
 
 		if (IsFlash2x(Adapter)) {
@@ -1279,7 +1278,7 @@ cntrlEnd:
 				(Adapter->eActiveDSD != DSD2)) {
 
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "No DSD is active..hence NVM Command is blocked");
-				return STATUS_FAILURE ;
+				return STATUS_FAILURE;
 			}
 		}
 
@@ -1298,8 +1297,7 @@ cntrlEnd:
 
 		if ((stNVMReadWrite.uiOffset + stNVMReadWrite.uiNumBytes) > Adapter->uiNVMDSDSize) {
 			/* BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Can't allow access beyond NVM Size: 0x%x 0x%x\n", stNVMReadWrite.uiOffset, stNVMReadWrite.uiNumBytes); */
-			Status = STATUS_FAILURE;
-			break;
+			return STATUS_FAILURE;
 		}
 
 		pReadData = kzalloc(stNVMReadWrite.uiNumBytes, GFP_KERNEL);
@@ -1307,9 +1305,8 @@ cntrlEnd:
 			return -ENOMEM;
 
 		if (copy_from_user(pReadData, stNVMReadWrite.pBuffer, stNVMReadWrite.uiNumBytes)) {
-			Status = -EFAULT;
 			kfree(pReadData);
-			break;
+			return -EFAULT;
 		}
 
 		do_gettimeofday(&tv0);
@@ -1404,9 +1401,8 @@ cntrlEnd:
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, " timetaken by Write/read :%ld msec\n", (tv1.tv_sec - tv0.tv_sec)*1000 + (tv1.tv_usec - tv0.tv_usec)/1000);
 
 		kfree(pReadData);
-		Status = STATUS_SUCCESS;
+		return STATUS_SUCCESS;
 	}
-	break;
 
 	case IOCTL_BCM_FLASH2X_SECTION_READ: {
 		FLASH2X_READWRITE sFlash2xRead = {0};
