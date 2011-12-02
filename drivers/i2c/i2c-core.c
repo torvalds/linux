@@ -379,7 +379,7 @@ static int i2c_check_addr_validity(unsigned short addr)
 	 *  0x78-0x7b  10-bit slave addressing
 	 *  0x7c-0x7f  Reserved for future purposes
 	 */
-	if (addr < 0x08 || addr > 0x77)
+	if (addr < 0x03 || addr > 0x77)
 		return -EINVAL;
 	return 0;
 }
