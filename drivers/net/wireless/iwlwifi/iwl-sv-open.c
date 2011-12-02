@@ -184,7 +184,7 @@ void iwl_testmode_init(struct iwl_priv *priv)
 	priv->testmode_sram.sram_readed = false;
 }
 
-void iwl_sram_cleanup(struct iwl_priv *priv)
+static void iwl_sram_cleanup(struct iwl_priv *priv)
 {
 	if (priv->testmode_sram.sram_readed) {
 		kfree(priv->testmode_sram.buff_addr);
