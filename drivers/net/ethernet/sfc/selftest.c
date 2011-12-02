@@ -503,8 +503,8 @@ efx_test_loopback(struct efx_tx_queue *tx_queue,
 		/* Determine how many packets to send */
 		state->packet_count = efx->txq_entries / 3;
 		state->packet_count = min(1 << (i << 2), state->packet_count);
-		state->skbs = kzalloc(sizeof(state->skbs[0]) *
-				      state->packet_count, GFP_KERNEL);
+		state->skbs = kcalloc(state->packet_count,
+				      sizeof(state->skbs[0]), GFP_KERNEL);
 		if (!state->skbs)
 			return -ENOMEM;
 		state->flush = false;
