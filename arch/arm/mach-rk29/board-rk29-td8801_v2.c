@@ -3585,7 +3585,7 @@ static ssize_t rk29xx_virtual_keys_show(struct kobject *kobj,
 	return sprintf(buf,
 		__stringify(EV_KEY) ":" __stringify(KEY_BACK)	     ":305:845:50:60"//":305:845:50:60"     //":50:830:98:50"  //":210:796:98:50"
 		":" __stringify(EV_KEY) ":" __stringify(KEY_MENU)   ":165:845:50:60"//":165:845:50:60"   // ":184:830:120:50"  // ":435:796:120:50"
-		":" __stringify(EV_KEY) ":" __stringify(KEY_HOME)   ":25:845:120:60"//":25:845:50:60"   //":315:830:100:50"  //":320:796:100:50"
+		":" __stringify(EV_KEY) ":" __stringify(KEY_HOMEPAGE)   ":25:845:120:60"//":25:845:50:60"   //":315:830:100:50"  //":320:796:100:50"
 		":" __stringify(EV_KEY) ":" __stringify(KEY_SEARCH) ":445:845:50:60"//":445:845:50:60"   //":50:815:98:50"    //   //":85:796:88:50"
 		"\n");
 #endif
@@ -3593,7 +3593,7 @@ static ssize_t rk29xx_virtual_keys_show(struct kobject *kobj,
 	return sprintf(buf,
 		__stringify(EV_KEY) ":" __stringify(KEY_BACK)	     ":305:875:60:60"//":305:845:50:60"     //":50:830:98:50"  //":210:796:98:50"
 		":" __stringify(EV_KEY) ":" __stringify(KEY_MENU)   ":165:875:60:60"//":165:845:50:60"   // ":184:830:120:50"  // ":435:796:120:50"
-		":" __stringify(EV_KEY) ":" __stringify(KEY_HOME)   ":30:875:60:60"//":25:845:50:60"   //":315:830:100:50"  //":320:796:100:50"
+		":" __stringify(EV_KEY) ":" __stringify(KEY_HOMEPAGE)   ":30:875:60:60"//":25:845:50:60"   //":315:830:100:50"  //":320:796:100:50"
 		":" __stringify(EV_KEY) ":" __stringify(KEY_SEARCH) ":445:875:60:60"//":445:845:50:60"   //":50:815:98:50"    //   //":85:796:88:50"
 		"\n");
 #endif

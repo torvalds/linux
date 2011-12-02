@@ -3482,7 +3482,7 @@ static ssize_t rk29xx_virtual_keys_show(struct kobject *kobj,
 	return sprintf(buf,
 		__stringify(EV_KEY) ":" __stringify(KEY_BACK)	    ":315:815:120:50"     //":50:830:98:50"  //":210:796:98:50"
 		":" __stringify(EV_KEY) ":" __stringify(KEY_MENU)   ":85:815:88:50"   // ":184:830:120:50"  // ":435:796:120:50"
-		":" __stringify(EV_KEY) ":" __stringify(KEY_HOME)   ":184:815:100:50"   //":315:830:100:50"  //":320:796:100:50"
+		":" __stringify(EV_KEY) ":" __stringify(KEY_HOMEPAGE)   ":184:815:100:50"   //":315:830:100:50"  //":320:796:100:50"
 		":" __stringify(EV_KEY) ":" __stringify(KEY_SEARCH) ":435:815:88:50"   //":50:815:98:50"    //   //":85:796:88:50"
 		"\n");
 #endif
