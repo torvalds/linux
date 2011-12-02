@@ -72,7 +72,6 @@ static struct wm8962_pdata wm8962_pdata __initdata = {
 		0x8000 | WM8962_GPIO_FN_DMICDAT,
 		WM8962_GPIO_FN_IRQ,    /* Open drain mode */
 	},
-	.irq_active_low = true,
 };
 
 static struct wm9081_pdata wm9081_pdata __initdata = {
