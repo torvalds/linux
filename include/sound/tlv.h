@@ -43,6 +43,11 @@
 #define TLV_LENGTH(...) \
 	((unsigned int)sizeof((const unsigned int[]) { __VA_ARGS__ }))
 
+#define TLV_CONTAINER_ITEM(...) \
+	TLV_ITEM(SNDRV_CTL_TLVT_CONTAINER, __VA_ARGS__)
+#define DECLARE_TLV_CONTAINER(name, ...) \
+	unsigned int name[] = { TLV_CONTAINER_ITEM(__VA_ARGS__) }
+
 #define TLV_DB_SCALE_MASK	0xffff
 #define TLV_DB_SCALE_MUTE	0x10000
 #define TLV_DB_SCALE_ITEM(min, step, mute)			\
