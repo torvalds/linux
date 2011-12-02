@@ -1148,6 +1148,19 @@ pause:
 		if (task_ratelimit)
 			break;
 
+		/*
+		 * In the case of an unresponding NFS server and the NFS dirty
+		 * pages exceeds dirty_thresh, give the other good bdi's a pipe
+		 * to go through, so that tasks on them still remain responsive.
+		 *
+		 * In theory 1 page is enough to keep the comsumer-producer
+		 * pipe going: the flusher cleans 1 page => the task dirties 1
+		 * more page. However bdi_dirty has accounting errors.  So use
+		 * the larger and more IO friendly bdi_stat_error.
+		 */
+		if (bdi_dirty <= bdi_stat_error(bdi))
+			break;
+
 		if (fatal_signal_pending(current))
 			break;
 	}
