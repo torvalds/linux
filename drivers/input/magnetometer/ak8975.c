@@ -86,6 +86,8 @@ static atomic_t suspend_flag = ATOMIC_INIT(0);
 
 //static struct akm8975_platform_data *pdata;
 
+#define AKM_I2C_RATE 100*1000
+
 static int AKI2C_RxData(char *rxData, int length)
 {
 	uint8_t loop_i;
@@ -95,12 +97,14 @@ static int AKI2C_RxData(char *rxData, int length)
 			.flags = 0,
 			.len = 1,
 			.buf = rxData,
+			.scl_rate = AKM_I2C_RATE,
 		},
 		{
 			.addr = this_client->addr,
 			.flags = I2C_M_RD,
 			.len = length,
 			.buf = rxData,
+			.scl_rate = AKM_I2C_RATE,
 		},
 	};
 #if AKM8975_DEBUG_DATA
@@ -143,6 +147,7 @@ static int AKI2C_TxData(char *txData, int length)
 			.flags = 0,
 			.len = length,
 			.buf = txData,
+			.scl_rate = AKM_I2C_RATE,
 		},
 	};
 #if AKM8975_DEBUG_DATA
@@ -407,7 +412,7 @@ static int akm_aot_release(struct inode *inode, struct file *file)
 //static int
 //akm_aot_ioctl(struct inode *inode, struct file *file,
 //			  unsigned int cmd, unsigned long arg)
-static int akm_aot_ioctl(struct file *file,unsigned int cmd, unsigned long arg)			  
+static long akm_aot_ioctl(struct file *file,unsigned int cmd, unsigned long arg)			  
 {
 	void __user *argp = (void __user *)arg;
 	short flag;
@@ -499,7 +504,7 @@ static int akmd_release(struct inode *inode, struct file *file)
 //static int akmd_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 //		   unsigned long arg)
 
-static int akmd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static long akmd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 	AKMDBG("enter %s\n", __func__);
