@@ -125,28 +125,37 @@ struct uas_cmd_info {
 /* I hate forward declarations, but I actually have a loop */
 static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 				struct uas_dev_info *devinfo, gfp_t gfp);
+static void uas_do_work(struct work_struct *work);
 
+static DECLARE_WORK(uas_work, uas_do_work);
 static DEFINE_SPINLOCK(uas_work_lock);
 static LIST_HEAD(uas_work_list);
 
 static void uas_do_work(struct work_struct *work)
 {
 	struct uas_cmd_info *cmdinfo;
+	struct uas_cmd_info *temp;
 	struct list_head list;
+	int err;
 
 	spin_lock_irq(&uas_work_lock);
 	list_replace_init(&uas_work_list, &list);
 	spin_unlock_irq(&uas_work_lock);
 
-	list_for_each_entry(cmdinfo, &list, list) {
+	list_for_each_entry_safe(cmdinfo, temp, &list, list) {
 		struct scsi_pointer *scp = (void *)cmdinfo;
 		struct scsi_cmnd *cmnd = container_of(scp,
 							struct scsi_cmnd, SCp);
-		uas_submit_urbs(cmnd, cmnd->device->hostdata, GFP_NOIO);
+		err = uas_submit_urbs(cmnd, cmnd->device->hostdata, GFP_NOIO);
+		if (err) {
+			list_del(&cmdinfo->list);
+			spin_lock_irq(&uas_work_lock);
+			list_add_tail(&cmdinfo->list, &uas_work_list);
+			spin_unlock_irq(&uas_work_lock);
+			schedule_work(&uas_work);
+		}
 	}
 }
-
-static DECLARE_WORK(uas_work, uas_do_work);
 
 static void uas_sense(struct urb *urb, struct scsi_cmnd *cmnd)
 {
