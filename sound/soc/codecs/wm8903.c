@@ -2070,6 +2070,49 @@ static int wm8903_set_pdata_irq_trigger(struct i2c_client *i2c,
 	return 0;
 }
 
+static int wm8903_set_pdata_from_of(struct i2c_client *i2c,
+				    struct wm8903_platform_data *pdata)
+{
+	const struct device_node *np = i2c->dev.of_node;
+	u32 val32;
+	int i;
+
+	if (of_property_read_u32(np, "micdet-cfg", &val32) >= 0)
+		pdata->micdet_cfg = val32;
+
+	if (of_property_read_u32(np, "micdet-delay", &val32) >= 0)
+		pdata->micdet_delay = val32;
+
+	if (of_property_read_u32_array(np, "gpio-cfg", pdata->gpio_cfg,
+				       ARRAY_SIZE(pdata->gpio_cfg)) >= 0) {
+		/*
+		 * In device tree: 0 means "write 0",
+		 * 0xffffffff means "don't touch".
+		 *
+		 * In platform data: 0 means "don't touch",
+		 * 0x8000 means "write 0".
+		 *
+		 * Note: WM8903_GPIO_CONFIG_ZERO == 0x8000.
+		 *
+		 *  Convert from DT to pdata representation here,
+		 * so no other code needs to change.
+		 */
+		for (i = 0; i < ARRAY_SIZE(pdata->gpio_cfg); i++) {
+			if (pdata->gpio_cfg[i] == 0) {
+				pdata->gpio_cfg[i] = WM8903_GPIO_CONFIG_ZERO;
+			} else if (pdata->gpio_cfg[i] == 0xffffffff) {
+				pdata->gpio_cfg[i] = 0;
+			} else if (pdata->gpio_cfg[i] > 0x7fff) {
+				dev_err(&i2c->dev, "Invalid gpio-cfg[%d] %x\n",
+					i, pdata->gpio_cfg[i]);
+				return -EINVAL;
+			}
+		}
+	}
+
+	return 0;
+}
+
 static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
@@ -2108,6 +2151,12 @@ static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
 
 		if (i2c->irq) {
 			ret = wm8903_set_pdata_irq_trigger(i2c, wm8903->pdata);
+			if (ret != 0)
+				return ret;
+		}
+
+		if (i2c->dev.of_node) {
+			ret = wm8903_set_pdata_from_of(i2c, wm8903->pdata);
 			if (ret != 0)
 				return ret;
 		}
