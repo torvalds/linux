@@ -1,0 +1,546 @@
+#
+#  Top level Makerules
+#  it uses Makerules.env for build env vars and optional branding.inc
+#
+# Copyright (C) 1999-2010, Broadcom Corporation
+# 
+#      Unless you and Broadcom execute a separate written software license
+# agreement governing use of this software, this software is licensed to you
+# under the terms of the GNU General Public License version 2 (the "GPL"),
+# available at http://www.broadcom.com/licenses/GPLv2.php, with the
+# following added to such license:
+# 
+#      As a special exception, the copyright holders of this software give you
+# permission to link this software with independent modules, and to copy and
+# distribute the resulting executable under terms of your choice, provided that
+# you also meet, for each linked independent module, the terms and conditions of
+# the license of that module.  An independent module is a module which is not
+# derived from this software.  The special exception does not apply to any
+# modifications of the software.
+# 
+#      Notwithstanding the above, under no circumstances may you combine this
+# software in any way with any other Broadcom software provided under a license
+# other than the GPL, without Broadcom's express prior written consent.
+#
+# $Id: Makerules,v 2.69.30.3.2.6 2009/05/15 23:06:59 Exp $
+
+# first rule (default)
+all:
+
+# SRCBASE should be set by the Makefile that includes this.
+ifndef	SRCBASE
+	SRCBASE = .
+endif
+
+# Set up the build environment variables
+include ${SRCBASE}/Makerules.env
+
+# Define space to be a single space character. Using " " gets the quotes
+# as well, which we don't want.
+empty :=
+space := $(empty) $(empty)
+
+ifeq ($(HOSTOS), Windows_NT)
+
+# force use of bash, otherwise you will get the broken sh.exe.
+SHELL=bash
+
+endif
+
+#
+# Setup make variables depending on target
+#
+
+ifeq ($(TARGETOS), unix)
+
+	# The environment for native unix builds
+
+	EXEEXT	= 
+	OBJEXT	= .o
+	GCINCS	= -I$(SRCBASE)/include
+	GCDEFS	= -DTARGETENV_$(TARGETENV) -DTARGETOS_$(TARGETOS) -DTARGETARCH_$(TARGETARCH)
+
+	ifeq ($(TARGETARCH), x86_mmx)
+		GCDEFS	:= $(GCDEFS) -D_X86_ -D_MMX_
+	endif
+	ifeq ($(TARGETARCH), x86)
+		GCDEFS	:= $(GCDEFS) -D_X86_
+	endif
+	ifeq ($(TARGETARCH), mips)
+		GCDEFS	:= $(GCDEFS) -D_MIPS_
+	endif
+	ifeq ($(TARGETARCH), mips_be)
+		GCDEFS	:= $(GCDEFS) -D_MIPS_ -DIL_BIGENDIAN
+	endif
+	ifeq ($(TARGETARCH), arm)
+		GCDEFS	:= $(GCDEFS) -D_ARM_ -DIL_BIGENDIAN
+	endif
+	ifeq ($(TARGETARCH), arm_le)
+		GCDEFS	:= $(GCDEFS) -D_ARM_
+	endif
+	ifeq ($(TARGETARCH), arm_android)
+		GCDEFS	:= $(GCDEFS) -D_ARM_
+	endif
+
+	ifeq ($(TARGETENV), freebsd)
+		GCINCS	:= $(GCINCS) -I/usr/local/include
+	endif
+	ifeq ($(TARGETENV), sun4)
+		GCDEFS	:= $(GCDEFS) -D_SPARC_
+	endif
+	ifeq ($(TARGETENV), macos)
+		MACOS_VER := $(shell sw_vers -productVersion)
+
+		ifneq (,$(findstring 10.5,$(MACOS_VER)))
+			SDK=/Developer/SDKs/MacOSX10.5.sdk
+		else
+			SDK=/Developer/SDKs/MacOSX10.4u.sdk
+		endif
+
+		GCDEFS	:= $(GCDEFS) -DMACOSX
+		GCDEFS	:= $(GCDEFS) -pipe -fpascal-strings -fasm-blocks -fmessage-length=0
+		GCDEFS	:= $(GCDEFS) -fvisibility=hidden -isysroot $(SDK)
+
+		ifeq ($(TARGETARCH), PPC)
+			GCDEFS	:= $(GCDEFS) -arch ppc -mtune=G4
+			GLDFLAGS = -arch ppc -Wl,-syslibroot,$(SDK)
+		endif
+		ifeq ($(TARGETARCH), x86)
+			GCDEFS	:= $(GCDEFS) -arch i386
+			GLDFLAGS = -arch i386 -Wl,-syslibroot,$(SDK)
+		endif
+	endif
+
+	GCOPTS	=
+	GCFLAGS	= -g -Wall
+
+	CC_TARGET	=-o $@
+	LINK_TARGET	=-o $@
+
+	ifeq ($(TARGETENV), linuxmips)
+		TARGET_PREFIX = mipsel-linux-
+	else
+	ifeq ($(TARGETENV), linuxmips_be)
+		TARGET_PREFIX = mips-linux-
+	else
+	ifeq ($(TARGETENV), linuxarm)
+		TARGET_PREFIX = armeb-linux-
+	else
+	ifeq ($(TARGETENV), linuxarm_le)
+		TARGET_PREFIX = arm-linux-
+	else
+	ifeq ($(TARGETENV), android)
+		TARGET_PREFIX = arm-eabi-
+        	GCFLAGS += -Dlinux
+        	GCFLAGS += -I/projects/hnd/tools/linux/hndtools-arm-eabi-4.2.1/arm-eabi/include/bionic/libc/include
+        	GCFLAGS += -I/projects/hnd/tools/linux/hndtools-arm-eabi-4.2.1/arm-eabi/include/bionic/libc/arch-arm/include/
+        	GCFLAGS += -I/tools/linux/src/linux-2.6.25-01843-gfea26b0/include/
+	else
+	ifeq ($(TARGETENV), linuxarm_omap)
+		TARGET_PREFIX = arm-none-linux-gnueabi-
+	else
+		TARGET_PREFIX =
+	endif
+	endif
+	endif
+	endif
+	endif
+	endif
+
+	CC = $(TARGET_PREFIX)gcc
+	AS = $(TARGET_PREFIX)as
+	LD = $(TARGET_PREFIX)ld
+	AR = $(TARGET_PREFIX)ar
+
+	INSTALL = install -c
+
+	TCFLAGS =
+
+	ifeq ($(TARGETENV), freebsd)
+		GLDFLAGS = -static
+	endif
+	ifeq ($(TARGETENV), linuxarm)
+		GLDFLAGS = -static
+	endif
+	ifeq ($(TARGETENV), linuxarm_le)
+		GLDFLAGS = -static
+	endif
+	ifeq ($(TARGETENV), android)
+		GLDFLAGS = -static
+	endif
+	ifeq ($(TARGETENV), linuxarm_omap)
+		GLDFLAGS = -static
+	endif
+
+	GLDLIBS = -lgcc
+
+endif	# $(TARGETOS) == unix
+
+ifeq ($(TARGETOS), Windows_NT)
+
+	# The environment for windows builds
+
+	EXEEXT = .exe
+
+	ifeq ($(TARGETENV), win32)
+		# standard win32 using MS compiler
+		OBJEXT	= .obj
+		GCINCS	= /I$(SRCBASE)/include
+		GCDEFS	= /DTARGETENV_$(TARGETENV) /DTARGETOS_$(TARGETOS) \
+			/DTARGETARCH_$(TARGETARCH) /D_X86_
+		ifeq ($(TARGETARCH), x86_mmx)
+			GCDEFS += /D_MMX_
+		endif
+		GCOPTS	= /nologo
+		GCFLAGS	= /GM /W3 /Z7
+
+		CC_TARGET	=-Fo$@
+		LINK_TARGET	=-out:$@
+
+		CC = cl
+		AS = cl
+		LD = cl
+
+		TCFLAGS =
+		GLDFLAGS = /nologo /link /nologo /INCREMENTAL:NO
+
+		GLDLIBS =
+	else
+		# cygwin32 based environment
+		OBJEXT	= .o
+		GCINCS	= -I$(SRCBASE)/include
+		GCDEFS	= -DTARGETENV_$(TARGETENV) -DTARGETOS_$(TARGETOS) \
+			-DTARGETARCH_$(TARGETARCH) -D_X86_
+		ifeq ($(TARGETARCH), x86_mmx)
+			GCDEFS += -D_MMX_
+		endif
+		GCOPTS	=
+		GCFLAGS	= -g -Wall
+
+		CC_TARGET	=-o $@
+		LINK_TARGET	=-o $@
+
+		CC = gcc
+		AS = gcc
+		LD = gcc
+		INSTALL = install -c
+
+		TCFLAGS =
+		GLDFLAGS =
+
+		GLDLIBS = -liberty -lgcc
+	endif
+
+	# Tools common to cygwin/win32
+
+	INSTALL = install -c
+	BUILD = build -ceZ
+
+	# RELEASE_TARGET is a the directory under RELEASE_DIR where
+	# target dependant files go. It is composed of the OS and
+	# the CPU, some examples are: winnt40/i386, win98 ...
+	#
+	# NEEDSWORK: For now only NT 4.0 stuff uses it.
+	ifneq ($(findstring $(TARGETPLATFORM), "Wdm wdm"), )
+		RELEASE_TARGET = wdm/i386
+	else
+		RELEASE_TARGET = winnt40/i386
+	endif
+
+	# RELEASE_TOOLS_DIR is a the directory under RELEASE_DIR where
+	# common tools go.
+	# For compatability with previous installs &test scripts, old
+	# tools still go in "yosemite".
+	RELEASE_YOS_DIR = yosemite
+	RELEASE_TOOLS_DIR = tools
+
+endif	# $(TARGETOS) == Windows_NT
+
+ifeq ($(TARGETOS), vxWorks)
+	WIND_REGISTRY = sol
+	ifndef WIND_BASE
+		ifeq ($(HOSTOS), unix)
+			WIND_BASE = /dfs/tools/vxWorks
+		else
+			WIND_BASE = z:/tools/vxWorks
+		endif
+	endif
+	include $(WIND_BASE)/target/h/make/defs.default
+
+	ifeq ($(HOSTENV), Windows_NT)
+		WIND_HOST_TYPE = x86-win32
+	else
+		ifeq ($(HOSTENV), sun4)
+			WIND_HOST_TYPE = sun4-solaris2
+		else
+			WIND_HOST_TYPE = i386-freebsd
+		endif
+	endif
+
+	ifeq ($(TARGETENV), vxsim)
+		CPU = SIMSPARCSOLARIS
+	else
+		ifeq ($(TARGETENV), vx386)
+			CPU = i386
+		else
+			CPU = R4650
+			VXFLAGS  = -DCPU_VAR=$(CPU)
+		endif
+	endif
+
+	include $(WIND_BASE)/target/h/make/make.$(CPU)$(TOOL)
+	include $(WIND_BASE)/target/h/make/defs.$(WIND_HOST_TYPE)
+
+	GCINCS	= -I$(WIND_BASE)/target/h -I$(SRCBASE)/include
+	GCDEFS	= $(DEFINE_CC) -DCPU=$(CPU) -DTARGETENV_$(TARGETENV) -DTARGETOS_$(TARGETOS) -DTARGETARCH_$(TARGETARCH)
+	GCOPTS	= -g -O2
+	GCFLAGS	= -Wall $(CC_ARCH_SPEC)
+	LDFLAGS	= $(GLDFLAGS) $(LLDFLAGS)
+	GLDLIBS	= $(LIBS)
+
+	WIND_BIN = $(WIND_BASE)/host/$(WIND_HOST_TYPE)/bin
+
+	AR	:= $(WIND_BIN)/$(AR)
+	AS	:= $(WIND_BIN)/$(AS)
+	BINHEX	:= $(WIND_BIN)/$(BINHEX)
+	CC	:= $(WIND_BIN)/$(CC)
+	CF	:= $(WIND_BIN)/$(CF)
+	LD	:= $(CC)
+	NM	:= $(WIND_BIN)/$(NM)
+	RANLIB	:= $(WIND_BIN)/$(RANLIB)
+	BINXSYM_NAME := $(WIND_BIN)/$(BINXSYM)
+
+endif	# $(TARGETOS) == vxWorks
+
+ifeq ($(TARGETENV), nucleusarm)
+
+	# The environment for nucleus builds
+	ifeq ($(BSP_BASE_DIR),)
+		BSP_BASE_DIR := $(SRCBASE)/../bsp
+	endif
+   
+	ifeq ($(NUCLEUS_INC_DIR),)
+		NUCLEUS_INC_DIR := $(BSP_BASE_DIR)/rtos/nucleus/inc
+	endif
+
+	EXEEXT	:= 
+	OBJEXT	:= .o
+	GCINCS	:= -I$(SRCBASE)/include -I$(NUCLEUS_INC_DIR)
+	GCDEFS	:= -DTARGETENV_$(TARGETENV) -DTARGETOS_$(TARGETOS) -DTARGETARCH_$(TARGETARCH)
+	GCOPTS	:=
+   
+	ifeq ($(OBJDIR),)
+		OBJDIR	:= $(TARGETENV)/
+	endif
+   
+	# --md:  This option compiles the source and writes make file dependency lines 
+	#        to a file. The output file is suitable for use by a make utility.
+	# -c:    Compiles but does not perform the link phase.
+	# -O2:   High optimization.
+	# ---memaccess -UL41: This option tells the compiler that the memory in the 
+	#        target system has slightly restricted or expanded capabilities.
+	#        Disables unaligned mode for code that uses pre-ARMv6 unaligned 
+	#        access behavior.
+	# "/adsabi" is added to "--apcs /interwork/$(SWST)" so that objects created
+	#	under ADS 1.2 can be linked with objects compiled under RVCT 2.2.
+	# --diag_suppress 2084,1658 = blocks the diagnostic warning "Warning: C2084W: support for --apcs /adsabi is deprecated"
+	#                 1293: Suppress "Assignment in condition" warning.
+	GCFLAGS	:= --md \
+			-c \
+			-O2 \
+			--memaccess -UL41 \
+			--apcs /adsabi/interwork/NOSWST \
+			--diag_suppress 2084,1658,1293 \
+			--li
+
+	# --cpu 'name': This option generates code for a specific ARM processor or architecture.
+	ifeq ($(TARGETCPU),2153)
+		GCFLAGS += --cpu ARM1136J-S
+	else
+      $(error "Unknown target CPU type!")
+	endif
+
+	#CPPFLAGS	:= -embeddedcplusplus
+
+	CC_TARGET	=-o $@
+	CPP_TARGET	=-o $@
+	LINK_TARGET	=-o $@
+
+	CC := tcc
+	CPP := tcpp
+	AS := armasm
+	LD := armlink
+	AR := armar -c -r --create
+
+	INSTALL := install -c
+
+	TCFLAGS :=
+
+	GLDFLAGS := 
+	GLDLIBS := --ELF --symbols --debug --map --info sizes,totals --errors link.err --list link.map --verbose
+
+	# Convert windows style directories to cygwin style.
+	# It should be used in situations where the host environment is cygwin, and
+	# the host compiler is a native Win32 app (non-cygwin). It will convert the 
+	# Windows style directories in the dependencies list to cygwin style. This is
+	# necessary for the dependency files to be included by cygwin make.
+	ifeq ($(HOSTOS),Windows_NT)
+		FILTER_DEPENDS_IN_C_TO_OBJ_RULE := 1
+	endif
+
+endif	# $(TARGETENV) == nucleusarm
+
+ifeq	($(TARGETENV), bcmmips)
+
+	OBJEXT	= .o
+	GCINCS	= -I$(SRCBASE)/include
+	GCDEFS	= -DTARGETENV_$(TARGETENV) -DTARGETOS_$(TARGETOS) \
+		-DTARGETARCH_$(TARGETARCH) -D__mips__
+	GCOPTS	= -g -O2
+	GCFLAGS	= -Wall 
+	GLDFLAGS = -Wl,-tidt.dld
+
+	AS		= bcmas
+	CC		= bcmgcc
+	LD		= $(CC)
+	NM		= bcmnm
+	RANLIB		= bcmranlib
+
+endif	# $(TARGETENV) == bcmmips
+
+ifeq	($(TARGETENV), klsi)
+
+	OBJEXT	= .obj
+	GCINCS	= -I$(SRCBASE)/include
+	GCDEFS	= -DTARGETENV_$(TARGETENV) -DTARGETOS_$(TARGETOS) \
+		-DTARGETARCH_$(TARGETARCH) -D__klsi__
+
+	AS		= qtasm
+	GASFLAGS	= -m20
+	CC		= qtcc
+	TCFLAGS		= -w asm=$(GASFLAGS) +c -Vcdv -w cc=+reginfo
+
+endif	# $(TARGETENV) == klsi
+
+CFLAGS = $(LCINCS) $(GCINCS) $(GCDEFS) $(GCOPTS) $(GCFLAGS) $(TCFLAGS) $(HCFLAGS) \
+$(LCDEFS) $(LCOPTS) $(LCFLAGS) $(CENV)
+
+ASFLAGS	= $(GASFLAGS) $(LASFLAGS) $(ASENV)
+LDFLAGS	= $(GLDFLAGS) $(LLDFLAGS) $(LDENV)
+LDLIBS	= $(LLDLIBS) $(GLDLIBS)
+
+# dependency files including the .d file itself.
+# note the example in GNU documentation seems to have a bug:
+# two backslashes where one is correct.
+%.d: %.c
+ifeq ($(findstring s, $(MAKEFLAGS) ),)
+	@ echo making $@
+endif
+	@ $(SHELL) -ec '$(CC) -MM $(CFLAGS) $(CPPFLAGS) $< \
+	| sed '\''s/$*\.o[ :]*/$@ &/g'\'' >$@'
+
+ifeq ($(TARGETENV), win32)
+
+# win32 needs different command line args 
+
+%.s: %.c
+	$(CC) /FAs $(CFLAGS) $(CPPFLAGS) /Fa$@ /c $<
+
+%.i: %.c
+	$(CC) /E $(CFLAGS) $(CPPFLAGS) $< > $@
+
+else # !win32
+
+%.s: %.c
+	$(CC) -S $(CFLAGS) $(CPPFLAGS) -o $@ $<
+
+%.i: %.c
+	$(CC) -o $@ -E -dD $(CFLAGS) $(CPPFLAGS) $<
+
+endif # win32
+
+ifeq	($(TARGETENV), klsi)
+
+%$(OBJEXT): %.c
+	$(CC) $(CFLAGS) $*.c
+
+%$(OBJEXT): %.asm
+	$(AS) $(ASFLAGS) $*.asm
+
+%.asm: %.c
+	$(CC) $(CFLAGS) -asm $*.c
+
+%.i: %.c
+	$(CC) $(CFLAGS) -cc -peep -asm $*.c
+	mv $*.pp $*.i
+
+else
+
+
+# This command sequence will:
+#  - Convert back-slashes to foward-slashes
+#  - Convert long filenames to 8.3 format (e.g. Program Files --> PROGRA~1)
+#  - Convert windows-style drive letters to cygwin style.
+#
+# It should be used in situations where the host environment is cygwin, and
+# the host compiler is a native Win32 app (non-cygwin). It will convert the 
+# Windows style directories in the dependencies list to cygwin style. This is
+# necessary for the dependency files to be included by cygwin make.
+define FILTER_DEPENDS
+	sed -e 's/\\/\//g'		\
+		-e 's/Program Files/PROGRA~1/g'	\
+		-e 's/\([A-Za-z]\):\//\/cygdrive\/\1\//' < $(notdir $(@:.o=.d)) > $(@:.o=.d) && \
+	rm -f $(notdir $(@:.o=.d))
+endef
+
+
+$(OBJDIR)%$(OBJEXT): %.c
+	$(CC) -c $(CFLAGS) $(CPPFLAGS) $(CC_TARGET) $<
+ifeq ($(FILTER_DEPENDS_IN_C_TO_OBJ_RULE),1)
+	${FILTER_DEPENDS}
+endif   
+
+$(OBJDIR)%$(OBJEXT): %.cpp
+	$(CPP) -c $(CFLAGS) $(CPPFLAGS) $(CPP_TARGET) $<
+ifeq ($(FILTER_DEPENDS_IN_C_TO_OBJ_RULE),1)
+	${FILTER_DEPENDS}
+endif   
+
+
+endif # klsi
+
+%.h: %.x
+	rpcgen -C -h $< > $@
+
+%_xdr.c: %.x
+	@ (if [ ! -f `basename $<` ] ; then ln -s $< . ; fi; true)
+	rpcgen -C -c -i 0 `basename $<` > $@
+
+# Makefile debugging rule
+env:
+	printenv
+
+# if the user mistakenly specified RELEASE_DIR in unix-style notation,
+# convert it to Win32 notation for them.
+#
+# RELEASE_DIR is assumed to be in windows-style notation if it has both 
+# backslashes ('\') and colons (':').
+#
+
+ifneq  ("$(subst \,,$(RELEASE_DIR))", "$(RELEASE_DIR)")
+ifneq  ("$(subst :,,$(RELEASE_DIR))", "$(RELEASE_DIR)")
+RELEASE_DIR := $(subst :,,$(RELEASE_DIR))
+RELEASE_DIR := $(subst \,/,$(RELEASE_DIR))
+RELEASE_DIR := //$(RELEASE_DIR)
+endif
+endif
+
+# all release rules depend on a valid RELEASE_DIR
+release: check_release_dir
+check_release_dir:
+	@if [ "x$(RELEASE_DIR)" = "x" ]; then \
+		echo "RELEASE_DIR is not set!"; \
+		exit 1; \
+	fi;
+
+include ${SRCBASE}/branding.inc
