@@ -260,8 +260,6 @@ static int wm8903_volatile_register(struct snd_soc_codec *codec, unsigned int re
 static void wm8903_reset(struct snd_soc_codec *codec)
 {
 	snd_soc_write(codec, WM8903_SW_RESET_AND_ID, 0);
-	memcpy(codec->reg_cache, wm8903_reg_defaults,
-	       sizeof(wm8903_reg_defaults));
 }
 
 static int wm8903_cp_event(struct snd_soc_dapm_widget *w,
