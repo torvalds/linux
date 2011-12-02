@@ -433,6 +433,11 @@ int perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 	return err;
 }
 
+size_t perf_event__fprintf_comm(union perf_event *event, FILE *fp)
+{
+	return fprintf(fp, ": %s:%d\n", event->comm.comm, event->comm.tid);
+}
+
 int perf_event__process_comm(struct perf_tool *tool __used,
 			     union perf_event *event,
 			     struct perf_sample *sample __used,
@@ -440,7 +445,8 @@ int perf_event__process_comm(struct perf_tool *tool __used,
 {
 	struct thread *thread = machine__findnew_thread(machine, event->comm.tid);
 
-	dump_printf(": %s:%d\n", event->comm.comm, event->comm.tid);
+	if (dump_trace)
+		perf_event__fprintf_comm(event, stdout);
 
 	if (thread == NULL || thread__set_comm(thread, event->comm.comm)) {
 		dump_printf("problem processing PERF_RECORD_COMM, skipping event.\n");
@@ -566,6 +572,13 @@ out_problem:
 	return -1;
 }
 
+size_t perf_event__fprintf_mmap(union perf_event *event, FILE *fp)
+{
+	return fprintf(fp, " %d/%d: [%#" PRIx64 "(%#" PRIx64 ") @ %#" PRIx64 "]: %s\n",
+		       event->mmap.pid, event->mmap.tid, event->mmap.start,
+		       event->mmap.len, event->mmap.pgoff, event->mmap.filename);
+}
+
 int perf_event__process_mmap(struct perf_tool *tool,
 			     union perf_event *event,
 			     struct perf_sample *sample __used,
@@ -576,9 +589,8 @@ int perf_event__process_mmap(struct perf_tool *tool,
 	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 	int ret = 0;
 
-	dump_printf(" %d/%d: [%#" PRIx64 "(%#" PRIx64 ") @ %#" PRIx64 "]: %s\n",
-			event->mmap.pid, event->mmap.tid, event->mmap.start,
-			event->mmap.len, event->mmap.pgoff, event->mmap.filename);
+	if (dump_trace)
+		perf_event__fprintf_mmap(event, stdout);
 
 	if (cpumode == PERF_RECORD_MISC_GUEST_KERNEL ||
 	    cpumode == PERF_RECORD_MISC_KERNEL) {
@@ -606,6 +618,13 @@ out_problem:
 	return 0;
 }
 
+size_t perf_event__fprintf_task(union perf_event *event, FILE *fp)
+{
+	return fprintf(fp, "(%d:%d):(%d:%d)\n",
+		       event->fork.pid, event->fork.tid,
+		       event->fork.ppid, event->fork.ptid);
+}
+
 int perf_event__process_task(struct perf_tool *tool __used,
 			     union perf_event *event,
 			     struct perf_sample *sample __used,
@@ -614,8 +633,8 @@ int perf_event__process_task(struct perf_tool *tool __used,
 	struct thread *thread = machine__findnew_thread(machine, event->fork.tid);
 	struct thread *parent = machine__findnew_thread(machine, event->fork.ptid);
 
-	dump_printf("(%d:%d):(%d:%d)\n", event->fork.pid, event->fork.tid,
-		    event->fork.ppid, event->fork.ptid);
+	if (dump_trace)
+		perf_event__fprintf_task(event, stdout);
 
 	if (event->header.type == PERF_RECORD_EXIT) {
 		machine__remove_thread(machine, thread);
@@ -629,6 +648,29 @@ int perf_event__process_task(struct perf_tool *tool __used,
 	}
 
 	return 0;
+}
+
+size_t perf_event__fprintf(union perf_event *event, FILE *fp)
+{
+	size_t ret = fprintf(fp, "PERF_RECORD_%s",
+			     perf_event__name(event->header.type));
+
+	switch (event->header.type) {
+	case PERF_RECORD_COMM:
+		ret += perf_event__fprintf_comm(event, fp);
+		break;
+	case PERF_RECORD_FORK:
+	case PERF_RECORD_EXIT:
+		ret += perf_event__fprintf_task(event, fp);
+		break;
+	case PERF_RECORD_MMAP:
+		ret += perf_event__fprintf_mmap(event, fp);
+		break;
+	default:
+		ret += fprintf(fp, "\n");
+	}
+
+	return ret;
 }
 
 int perf_event__process(struct perf_tool *tool, union perf_event *event,

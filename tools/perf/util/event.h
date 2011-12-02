@@ -2,6 +2,7 @@
 #define __PERF_RECORD_H
 
 #include <limits.h>
+#include <stdio.h>
 
 #include "../perf.h"
 #include "map.h"
@@ -198,5 +199,10 @@ const char *perf_event__name(unsigned int id);
 int perf_event__parse_sample(const union perf_event *event, u64 type,
 			     int sample_size, bool sample_id_all,
 			     struct perf_sample *sample, bool swapped);
+
+size_t perf_event__fprintf_comm(union perf_event *event, FILE *fp);
+size_t perf_event__fprintf_mmap(union perf_event *event, FILE *fp);
+size_t perf_event__fprintf_task(union perf_event *event, FILE *fp);
+size_t perf_event__fprintf(union perf_event *event, FILE *fp);
 
 #endif /* __PERF_RECORD_H */
