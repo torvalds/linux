@@ -65,6 +65,10 @@ static int __init last_log_init(void)
 	entry->proc_fops = &last_log_file_ops;
 	entry->size = LOG_BUF_LEN;
 
+#ifndef CONFIG_ANDROID_RAM_CONSOLE
+	proc_symlink("last_kmsg", NULL, "last_log");
+#endif
+
 	return 0;
 }
 
