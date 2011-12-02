@@ -137,13 +137,18 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 //Configure Macro
 /*
 *            Driver Version Note
-*v0.0.1 : this driver first support rk2918;
-*v0.0.2 : fix this driver support v4l2 format is V4L2_PIX_FMT_NV12 and V4L2_PIX_FMT_NV16,is not V4L2_PIX_FMT_YUV420 
+*
+*v0.0.x : this driver is 2.6.32 kernel driver;
+*v0.1.x : this driver is 3.0.8 kernel driver;
+*
+*v0.x.1 : this driver first support rk2918;
+*v0.x.2 : fix this driver support v4l2 format is V4L2_PIX_FMT_NV12 and V4L2_PIX_FMT_NV16,is not V4L2_PIX_FMT_YUV420 
 *         and V4L2_PIX_FMT_YUV422P;
-*v0.0.3 : this driver support VIDIOC_ENUM_FRAMEINTERVALS;
-*v0.0.4 : this driver support digital zoom;
+*v0.x.3 : this driver support VIDIOC_ENUM_FRAMEINTERVALS;
+*v0.x.4 : this driver support digital zoom;
+*v0.x.5 : this driver support test framerate and query framerate from board file configuration;
 */
-#define RK29_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 3)
+#define RK29_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 5)
 
 /* limit to rk29 hardware capabilities */
 #define RK29_CAM_BUS_PARAM   (SOCAM_MASTER |\
@@ -1532,10 +1537,10 @@ static int rk29_camera_querycap(struct soc_camera_host *ici,
     char orientation[5];
 
     strlcpy(cap->card, dev_name(pcdev->icd->pdev), sizeof(cap->card));    
-    if (strcmp(dev_name(pcdev->icd->pdev), pcdev->pdata->gpio_res[0].dev_name) == 0) {
-        sprintf(orientation,"-%d",pcdev->pdata->gpio_res[0].orientation);
+    if (strcmp(dev_name(pcdev->icd->pdev), pcdev->pdata->info[0].dev_name) == 0) {
+        sprintf(orientation,"-%d",pcdev->pdata->info[0].orientation);
     } else {
-        sprintf(orientation,"-%d",pcdev->pdata->gpio_res[1].orientation);
+        sprintf(orientation,"-%d",pcdev->pdata->info[1].orientation);
     }
     strcat(cap->card,orientation); 
     cap->version = RK29_CAM_VERSION_CODE;
@@ -1749,35 +1754,80 @@ int rk29_camera_enum_frameintervals(struct soc_camera_device *icd, struct v4l2_f
     struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
     struct rk29_camera_dev *pcdev = ici->priv;
     struct rk29_camera_frmivalenum *fival_list = NULL;
-    int i,ret = 0;
+    struct v4l2_frmivalenum *fival_head;
+    int i,ret = 0,index;
     
-    for (i=0; i<2; i++) {
-        if (pcdev->icd_frmival[i].icd == icd) {
-            fival_list = pcdev->icd_frmival[i].fival_list;            
-        }
-    }
-    
-    if (fival_list != NULL) {
-        i = 0;
-        while (fival_list != NULL) {
-            if ((fival->pixel_format == fival_list->fival.pixel_format)
-                && (fival->height == fival_list->fival.height) 
-                && (fival->width == fival_list->fival.width)) {
-                if (i == fival->index)
-                    break;
-                i++;
-            }                
-            fival_list = fival_list->nxt;                
+    index = fival->index & 0x00ffffff;
+    if ((fival->index & 0xff000000) == 0xff000000) {   /* ddl@rock-chips.com: detect framerate */ 
+        for (i=0; i<2; i++) {
+            if (pcdev->icd_frmival[i].icd == icd) {
+                fival_list = pcdev->icd_frmival[i].fival_list;            
+            }
         }
         
-        if ((i==fival->index) && (fival_list != NULL)) {
-            memcpy(fival, &fival_list->fival, sizeof(struct v4l2_frmivalenum));
+        if (fival_list != NULL) {
+            i = 0;
+            while (fival_list != NULL) {
+                if ((fival->pixel_format == fival_list->fival.pixel_format)
+                    && (fival->height == fival_list->fival.height) 
+                    && (fival->width == fival_list->fival.width)) {
+                    if (i == index)
+                        break;
+                    i++;
+                }                
+                fival_list = fival_list->nxt;                
+            }
+            
+            if ((i==index) && (fival_list != NULL)) {
+                memcpy(fival, &fival_list->fival, sizeof(struct v4l2_frmivalenum));
+            } else {
+                ret = -EINVAL;
+            }
         } else {
+            RK29CAMERA_TR("%s: fival_list is NULL\n",__FUNCTION__);
             ret = -EINVAL;
         }
     } else {
-        RK29CAMERA_TR("%s: fival_list is NULL\n",__FUNCTION__);
-        ret = -EINVAL;
+        if (strcmp(dev_name(pcdev->icd->pdev),pcdev->pdata->info[0].dev_name) == 0) {
+            fival_head = pcdev->pdata->info[0].fival;
+        } else {
+            fival_head = pcdev->pdata->info[1].fival;
+        }
+        i = 0;
+        while (fival_head->width && fival_head->height) {
+            if ((fival->pixel_format == fival_head->pixel_format)
+                && (fival->height == fival_head->height) 
+                && (fival->width == fival_head->width)) {
+                if (i == index) {
+                    break;
+                }
+                i++;
+            }
+            fival_head++;  
+        }
+
+        if ((i == index) && (fival->height == fival_head->height) && (fival->width == fival_head->width)) {
+            memcpy(fival, fival_head, sizeof(struct v4l2_frmivalenum));
+            RK29CAMERA_DG("%s %dx%d@%c%c%c%c framerate : %d/%d\n", dev_name(&rk29_camdev_info_ptr->icd->dev),
+                fival->width, fival->height,
+                fival->pixel_format & 0xFF, (fival->pixel_format >> 8) & 0xFF,
+			    (fival->pixel_format >> 16) & 0xFF, (fival->pixel_format >> 24),
+			     fival->discrete.denominator,fival->discrete.numerator);			    
+        } else {
+            if (index == 0)
+                RK29CAMERA_TR("%s have not catch %d%d@%c%c%c%c index(%d) framerate\n",dev_name(&rk29_camdev_info_ptr->icd->dev),
+                    fival->width,fival->height, 
+                    fival->pixel_format & 0xFF, (fival->pixel_format >> 8) & 0xFF,
+    			    (fival->pixel_format >> 16) & 0xFF, (fival->pixel_format >> 24),
+    			    index);
+            else
+                RK29CAMERA_DG("%s have not catch %d%d@%c%c%c%c index(%d) framerate\n",dev_name(&rk29_camdev_info_ptr->icd->dev),
+                    fival->width,fival->height, 
+                    fival->pixel_format & 0xFF, (fival->pixel_format >> 8) & 0xFF,
+    			    (fival->pixel_format >> 16) & 0xFF, (fival->pixel_format >> 24),
+    			    index);
+            ret = -EINVAL;
+        }
     }
 
     return ret;
