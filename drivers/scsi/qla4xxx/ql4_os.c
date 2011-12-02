@@ -935,7 +935,16 @@ qla4xxx_iface_set_param(struct Scsi_Host *shost, void *data, uint32_t len)
 		goto exit_init_fw_cb;
 	}
 
-	qla4xxx_disable_acb(ha);
+	rval = qla4xxx_disable_acb(ha);
+	if (rval != QLA_SUCCESS) {
+		ql4_printk(KERN_ERR, ha, "%s: disable acb mbx failed\n",
+			   __func__);
+		rval = -EIO;
+		goto exit_init_fw_cb;
+	}
+
+	wait_for_completion_timeout(&ha->disable_acb_comp,
+				    DISABLE_ACB_TOV * HZ);
 
 	qla4xxx_initcb_to_acb(init_fw_cb);
 
