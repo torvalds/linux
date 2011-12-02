@@ -140,6 +140,7 @@ __s32   TCON0_get_width(__u32 sel);
 __s32   TCON0_get_height(__u32 sel);
 __s32   TCON0_set_dclk_div(__u32 sel, __u8 div);
 __s32   TCON0_select_src(__u32 sel, __u8 src);
+__u32   TCON0_get_dclk_div(__u32 sel);
 
 
 __u32 	TCON1_open(__u32 sel);

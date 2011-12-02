@@ -1,9 +1,7 @@
 #ifndef __DRV_DISP_I_H__
 #define __DRV_DISP_I_H__
 
-#include <linux/drv_display.h>
 #include "de_bsp/bsp_display.h"
-
 
 typedef enum
 {

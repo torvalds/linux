@@ -478,7 +478,7 @@ __s32 BSP_disp_layer_open(__u32 sel, __u32 hid)
     }
     else
     {
-        DE_WRN("layer not inited!\n");
+        DE_WRN("layer %d in screen %d not inited!\n", hid, sel);
         return DIS_OBJ_NOT_INITED;
     }
 }
@@ -504,7 +504,7 @@ __s32 BSP_disp_layer_close(__u32 sel, __u32 hid)
     }
     else
     {
-        DE_WRN("layer not inited!\n");
+        DE_WRN("layer %d in screen %d not inited!\n", hid, sel);
         return DIS_OBJ_NOT_INITED;
     }
 }
@@ -582,7 +582,7 @@ __s32 BSP_disp_layer_set_framebuffer(__u32 sel, __u32 hid, __disp_fb_t * pfb)//k
     }
     else
     {
-        DE_WRN("layer not inited!\n");
+        DE_WRN("layer %d in screen %d not inited!\n", hid, sel);
         return DIS_OBJ_NOT_INITED;
     }
 }
@@ -614,7 +614,7 @@ __s32 BSP_disp_layer_get_framebuffer(__u32 sel, __u32 hid,__disp_fb_t * pfb)
     }
     else
     {
-        DE_WRN("layer not inited!\n");
+        DE_WRN("layer %d in screen %d not inited!\n", hid, sel);
         return DIS_OBJ_NOT_INITED;
     }
 }
@@ -687,7 +687,7 @@ __s32 BSP_disp_layer_set_src_window(__u32 sel, __u32 hid,__disp_rect_t *regn)//i
     }
     else
     {
-        DE_WRN("layer not inited!\n");
+        DE_WRN("layer %d in screen %d not inited!\n", hid, sel);
         return DIS_OBJ_NOT_INITED;
     }
 }
@@ -724,7 +724,7 @@ __s32 BSP_disp_layer_get_src_window(__u32 sel, __u32 hid,__disp_rect_t *regn)
     }
     else
     {
-        DE_WRN("layer not inited!\n");
+        DE_WRN("layer %d in screen %d not inited!\n", hid, sel);
         return DIS_OBJ_NOT_INITED;
     }
 }
@@ -794,7 +794,7 @@ __s32 BSP_disp_layer_set_screen_window(__u32 sel, __u32 hid,__disp_rect_t * regn
     }
     else
     {
-    	DE_WRN("layer not inited!\n");
+    	DE_WRN("layer %d in screen %d not inited!\n", hid, sel);
         return DIS_OBJ_NOT_INITED;
     }
 
@@ -825,7 +825,7 @@ __s32 BSP_disp_layer_get_screen_window(__u32 sel, __u32 hid,__disp_rect_t *regn)
     }
     else
     {
-        DE_WRN("layer not inited!\n");
+        DE_WRN("layer %d in screen %d not inited!\n", hid, sel);
         return DIS_OBJ_NOT_INITED;
     }
 }
@@ -1007,7 +1007,7 @@ __s32 BSP_disp_layer_set_para(__u32 sel, __u32 hid,__disp_layer_info_t *player)
     }
     else
     {
-        DE_WRN("layer not inited!\n");
+        DE_WRN("layer %d in screen %d not inited!\n", hid, sel);
         return DIS_OBJ_NOT_INITED;
     }
 }
@@ -1029,7 +1029,7 @@ __s32 BSP_disp_layer_get_para(__u32 sel, __u32 hid,__disp_layer_info_t *player)/
     }
     else
     {
-        DE_WRN("layer not inited!\n");
+        DE_WRN("layer %d in screen %d not inited!\n", hid, sel);
         return DIS_OBJ_NOT_INITED;
     }
 }
@@ -1057,7 +1057,7 @@ __s32 BSP_disp_layer_set_smooth(__u32 sel, __u32 hid, __disp_video_smooth_t  mod
     }
     else
     {
-        DE_WRN("layer not inited!\n");
+        DE_WRN("layer %d in screen %d not inited!\n", hid, sel);
         return DIS_OBJ_NOT_INITED;
     }
 }
@@ -1086,7 +1086,7 @@ __s32 BSP_disp_layer_get_smooth(__u32 sel, __u32 hid)
     }
     else
     {
-        DE_WRN("layer not inited!\n");
+        DE_WRN("layer %d in screen %d not inited!\n", hid, sel);
         return DIS_OBJ_NOT_INITED;
     }
 }

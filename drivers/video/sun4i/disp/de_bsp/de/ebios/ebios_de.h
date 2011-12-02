@@ -338,7 +338,7 @@ __s32 DE_BE_get_display_height(__u32 sel);
 __s32 DE_BE_deflicker_enable(__u32 sel, __bool enable);
 __s32 DE_BE_output_csc_enable(__u32 sel, __bool enable);
 __s32 DE_BE_Set_Outitl_enable(__u32 sel, __bool enable);
-__s32 DE_BE_Output_Cfg_Csc_Coeff(__u32 sel, __bool bout_yuv);
+__s32 DE_BE_Output_Cfg_Csc_Coeff(__u32 sel, __bool bout_yuv, __u32 out_color_range);
 //__s32 DE_BE_Output_Cfg_Csc_Coeff(__u32 sel, __u8 cs_mode);
 __s32 DE_BE_Format_To_Bpp(__u32 sel, __u8 format);
 __u32 DE_BE_Offset_To_Addr(__u32 src_addr,__u32 width,__u32 x,__u32 y,__u32 bpp);
