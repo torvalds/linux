@@ -151,6 +151,14 @@ struct _gckOS
     #else
         struct page *           pageCache[100];
     #endif
+
+    gctINT                      pageNum8;
+    #if USE_DMA_COHERENT
+        gctSTRING               addr8[100];
+        dma_addr_t              dmaHandle8[100];
+    #else
+        struct page *           pageCache8[100];
+    #endif
 #endif
 };
 
@@ -535,7 +543,7 @@ gckOS_Construct(
 #endif
 
 #if gcdkUSE_MAPED_NONPAGE_CACHE
-    for(os->pageNum=0; os->pageNum<50; os->pageNum++) {
+    for(os->pageNum=0; os->pageNum<60; os->pageNum++) {
     #if USE_DMA_COHERENT
         os->addr[os->pageNum] = 
         #if (2==gcdENABLE_MEM_CACHE)
@@ -545,6 +553,19 @@ gckOS_Construct(
         #endif
     #else
         os->pageCache[os->pageNum] = alloc_pages(GFP_KERNEL | GFP_DMA, get_order(5 * PAGE_SIZE));
+    #endif
+    }
+
+    for(os->pageNum8=0; os->pageNum8<40; os->pageNum8++) {
+    #if USE_DMA_COHERENT
+        os->addr8[os->pageNum8] = 
+        #if (2==gcdENABLE_MEM_CACHE)
+            dma_alloc_writecombine(NULL, 8 * PAGE_SIZE, &os->dmaHandle8[os->pageNum8], GFP_ATOMIC);
+        #else
+            dma_alloc_coherent(NULL, 8 * PAGE_SIZE, &os->dmaHandle8[os->pageNum8], GFP_ATOMIC);
+        #endif
+    #else
+        os->pageCache8[os->pageNum8] = alloc_pages(GFP_KERNEL | GFP_DMA, get_order(8 * PAGE_SIZE));
     #endif
     }
 #endif
@@ -630,6 +651,14 @@ gckOS_Destroy(
         if(Os->addr[i])    dma_free_coherent(gcvNULL, 5 * PAGE_SIZE, Os->addr[i], Os->dmaHandle[i]);
     #else
         if(Os->pageCache[i])    free_pages((unsigned long)page_address(Os->pageCache[i]), get_order(5 * PAGE_SIZE));
+    #endif
+    }
+
+    for(i=0; i<Os->pageNum8; i++) {
+    #if USE_DMA_COHERENT
+        if(Os->addr8[i])    dma_free_coherent(gcvNULL, 8 * PAGE_SIZE, Os->addr8[i], Os->dmaHandle8[i]);
+    #else
+        if(Os->pageCache8[i])    free_pages((unsigned long)page_address(Os->pageCache8[i]), get_order(8 * PAGE_SIZE));
     #endif
     }
 #endif
@@ -1531,7 +1560,14 @@ gckOS_AllocateNonPagedMemory(
             mdl->dmaHandle = Os->dmaHandle[Os->pageNum];
             Os->addr[Os->pageNum] = gcvNULL;
             Os->dmaHandle[Os->pageNum] = 0;
+        } else if(8==mdl->numPages && Os->pageNum8>0 && Os->addr8[Os->pageNum8-1]) {
+            Os->pageNum8--;
+            addr = Os->addr8[Os->pageNum8];
+            mdl->dmaHandle = Os->dmaHandle8[Os->pageNum8];
+            Os->addr8[Os->pageNum8] = gcvNULL;
+            Os->dmaHandle8[Os->pageNum8] = 0;
         } else {
+            printk("-----> dma_alloc_writecombine %d pages!\n", mdl->numPages);
         #if (2==gcdENABLE_MEM_CACHE)
             addr = dma_alloc_writecombine(NULL,
         #else
@@ -1560,7 +1596,10 @@ gckOS_AllocateNonPagedMemory(
         Os->pageNum--;
         page    = Os->pageCache[Os->pageNum];
         Os->pageCache[Os->pageNum] = gcvNULL;
-        //printk("pop pages, os->pageNum = %d\n", Os->pageNum);
+    } else if(8==mdl->numPages && Os->pageNum8>0 && Os->pageCache8[Os->pageNum8-1]) {
+        Os->pageNum8--;
+        page    = Os->pageCache8[Os->pageNum8];
+        Os->pageCache8[Os->pageNum8] = gcvNULL;
     } else {
         page    = alloc_pages(GFP_KERNEL | GFP_DMA, order);
     }
@@ -1898,7 +1937,12 @@ gceSTATUS gckOS_FreeNonPagedMemoryRealy(
             Os->addr[Os->pageNum] = mdl->addr;
             Os->dmaHandle[Os->pageNum] = mdl->dmaHandle;
             Os->pageNum ++;
+        } else if (8==mdl->numPages && Os->pageNum8<100 && !Os->addr8[Os->pageNum8]) {
+            Os->addr8[Os->pageNum8] = mdl->addr;
+            Os->dmaHandle8[Os->pageNum8] = mdl->dmaHandle;
+            Os->pageNum8 ++;
         } else {
+            printk("-----> dma_free_coherent %d pages!\n", mdl->numPages);
             dma_free_coherent(gcvNULL,
                             mdl->numPages * PAGE_SIZE,
                             mdl->addr,
@@ -1926,7 +1970,9 @@ gceSTATUS gckOS_FreeNonPagedMemoryRealy(
     if(5==mdl->numPages && Os->pageNum<100 && !Os->pageCache[Os->pageNum]) {
         Os->pageCache[Os->pageNum] = virt_to_page(mdl->kaddr);
         Os->pageNum ++;
-        //printk("push pages, os->pageNum = %d\n", Os->pageNum);
+    } else if(8==mdl->numPages && Os->pageNum8<100 && !Os->pageCache8[Os->pageNum8]) {
+        Os->pageCache8[Os->pageNum8] = virt_to_page(mdl->kaddr);
+        Os->pageNum8 ++;
     } else {
         free_pages((unsigned long)mdl->kaddr, get_order(mdl->numPages * PAGE_SIZE));
     }
