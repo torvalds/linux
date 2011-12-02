@@ -556,15 +556,13 @@ static int path_rec_start(struct net_device *dev,
 }
 
 /* called with rcu_read_lock */
-static void neigh_add_path(struct sk_buff *skb, struct net_device *dev)
+static void neigh_add_path(struct sk_buff *skb, struct neighbour *n, struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_path *path;
 	struct ipoib_neigh *neigh;
-	struct neighbour *n;
 	unsigned long flags;
 
-	n = dst_get_neighbour_noref(skb_dst(skb));
 	neigh = ipoib_neigh_alloc(n, skb->dev);
 	if (!neigh) {
 		++dev->stats.tx_dropped;
@@ -638,16 +636,13 @@ err_drop:
 }
 
 /* called with rcu_read_lock */
-static void ipoib_path_lookup(struct sk_buff *skb, struct net_device *dev)
+static void ipoib_path_lookup(struct sk_buff *skb, struct neighbour *n, struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(skb->dev);
-	struct dst_entry *dst = skb_dst(skb);
-	struct neighbour *n;
 
 	/* Look up path record for unicasts */
-	n = dst_get_neighbour_noref(dst);
 	if (n->ha[4] != 0xff) {
-		neigh_add_path(skb, dev);
+		neigh_add_path(skb, n, dev);
 		return;
 	}
 
@@ -723,12 +718,17 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned long flags;
 
 	rcu_read_lock();
-	if (likely(skb_dst(skb)))
+	if (likely(skb_dst(skb))) {
 		n = dst_get_neighbour_noref(skb_dst(skb));
-
+		if (!n) {
+			++dev->stats.tx_dropped;
+			dev_kfree_skb_any(skb);
+			goto unlock;
+		}
+	}
 	if (likely(n)) {
 		if (unlikely(!*to_ipoib_neigh(n))) {
-			ipoib_path_lookup(skb, dev);
+			ipoib_path_lookup(skb, n, dev);
 			goto unlock;
 		}
 
@@ -751,7 +751,7 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			list_del(&neigh->list);
 			ipoib_neigh_free(dev, neigh);
 			spin_unlock_irqrestore(&priv->lock, flags);
-			ipoib_path_lookup(skb, dev);
+			ipoib_path_lookup(skb, n, dev);
 			goto unlock;
 		}
 
