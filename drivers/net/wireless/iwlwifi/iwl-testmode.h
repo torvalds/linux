@@ -250,6 +250,8 @@ enum iwl_tm_attr_t {
 #define TRACE_BUFF_SIZE_MIN	0x20000
 #define TRACE_BUFF_SIZE_DEF	TRACE_BUFF_SIZE_MIN
 #define TRACE_BUFF_PADD		0x2000
-#define TRACE_CHUNK_SIZE	(PAGE_SIZE - 1024)
+
+/* Maximum data size of each dump it packet */
+#define DUMP_CHUNK_SIZE		(PAGE_SIZE - 1024)
 
 #endif
