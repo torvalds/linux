@@ -277,6 +277,7 @@ static enum power_supply_property hidinput_battery_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_MODEL_NAME,
+	POWER_SUPPLY_PROP_STATUS
 };
 
 static int hidinput_get_battery_property(struct power_supply *psy,
@@ -285,6 +286,9 @@ static int hidinput_get_battery_property(struct power_supply *psy,
 {
 	struct hid_device *dev = container_of(psy, struct hid_device, battery);
 	int ret = 0;
+	int ret_rep;
+	__u8 *buf = NULL;
+	unsigned char report_number = dev->battery_report_id;
 
 	switch (prop) {
 	case POWER_SUPPLY_PROP_PRESENT:
@@ -293,17 +297,31 @@ static int hidinput_get_battery_property(struct power_supply *psy,
 		break;
 
 	case POWER_SUPPLY_PROP_CAPACITY:
-		if (dev->battery_min < dev->battery_max &&
-		    dev->battery_val >= dev->battery_min &&
-		    dev->battery_val <= dev->battery_max)
-			val->intval = (100 * (dev->battery_val - dev->battery_min)) /
-				(dev->battery_max - dev->battery_min);
-		else
+		buf = kmalloc(2 * sizeof(__u8), GFP_KERNEL);
+		if (!buf) {
+			ret = -ENOMEM;
+			break;
+		}
+
+		memset(buf, 0, sizeof(buf));
+		ret_rep = dev->hid_get_raw_report(dev, report_number, buf, sizeof(buf), HID_FEATURE_REPORT);
+		if (ret_rep != 2) {
 			ret = -EINVAL;
+			break;
+		}
+
+		/* store the returned value */
+		/* I'm not calculating this using the logical_minimum and maximum */
+		/* because my device returns 0-100 even though the min and max are 0-255 */
+		val->intval = buf[1];
 		break;
 
 	case POWER_SUPPLY_PROP_MODEL_NAME:
 		val->strval = dev->name;
+		break;
+
+	case POWER_SUPPLY_PROP_STATUS:
+		val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
 		break;
 
 	default:
@@ -311,10 +329,13 @@ static int hidinput_get_battery_property(struct power_supply *psy,
 		break;
 	}
 
+	if (buf) {
+		kfree(buf);
+	}
 	return ret;
 }
 
-static void hidinput_setup_battery(struct hid_device *dev, s32 min, s32 max)
+static void hidinput_setup_battery(struct hid_device *dev, unsigned id, s32 min, s32 max)
 {
 	struct power_supply *battery = &dev->battery;
 	int ret;
@@ -326,7 +347,7 @@ static void hidinput_setup_battery(struct hid_device *dev, s32 min, s32 max)
 	if (battery->name == NULL)
 		return;
 
-	battery->type = POWER_SUPPLY_TYPE_BATTERY;
+	battery->type = POWER_SUPPLY_TYPE_USB;
 	battery->properties = hidinput_battery_props;
 	battery->num_properties = ARRAY_SIZE(hidinput_battery_props);
 	battery->use_for_apm = 0;
@@ -334,6 +355,7 @@ static void hidinput_setup_battery(struct hid_device *dev, s32 min, s32 max)
 
 	dev->battery_min = min;
 	dev->battery_max = max;
+	dev->battery_report_id = id;
 
 	ret = power_supply_register(&dev->dev, battery);
 	if (ret != 0) {
@@ -353,7 +375,7 @@ static void hidinput_cleanup_battery(struct hid_device *dev)
 	dev->battery.name = NULL;
 }
 #else  /* !CONFIG_HID_BATTERY_STRENGTH */
-static void hidinput_setup_battery(struct hid_device *dev, s32 min, s32 max)
+static void hidinput_setup_battery(struct hid_device *dev, unsigned id, s32 min, s32 max)
 {
 }
 
@@ -723,6 +745,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 	case HID_UP_GENDEVCTRLS:
 		if ((usage->hid & HID_USAGE) == 0x20) {	/* Battery Strength */
 			hidinput_setup_battery(device,
+					       field->report->id,
 					       field->logical_minimum,
 					       field->logical_maximum);
 			goto ignore;
@@ -997,15 +1020,23 @@ static void report_features(struct hid_device *hid)
 	struct hid_report *rep;
 	int i, j;
 
-	if (!drv->feature_mapping)
-		return;
-
 	rep_enum = &hid->report_enum[HID_FEATURE_REPORT];
 	list_for_each_entry(rep, &rep_enum->report_list, list)
 		for (i = 0; i < rep->maxfield; i++)
-			for (j = 0; j < rep->field[i]->maxusage; j++)
-				drv->feature_mapping(hid, rep->field[i],
-						     rep->field[i]->usage + j);
+			for (j = 0; j < rep->field[i]->maxusage; j++) {
+				/* Verify if Battery Strength feature is available */
+				if (((rep->field[i]->usage + j)->hid & HID_USAGE_PAGE) == HID_UP_GENDEVCTRLS &&
+					((rep->field[i]->usage + j)->hid & HID_USAGE) == 0x20) {
+					hidinput_setup_battery(hid,
+							       rep->id,
+							       rep->field[i]->logical_minimum,
+							       rep->field[i]->logical_maximum);
+				}
+
+				if (drv->feature_mapping)
+					drv->feature_mapping(hid, rep->field[i],
+							     rep->field[i]->usage + j);
+			}
 }
 
 /*
