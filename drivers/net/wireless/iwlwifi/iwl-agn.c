@@ -1036,6 +1036,9 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 		priv->inst_evtlog_size =
 			priv->cfg->base_params->max_event_log_size;
 	priv->inst_errlog_ptr = pieces.inst_errlog_ptr;
+#ifndef CONFIG_IWLWIFI_P2P
+	ucode_capa.flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
+#endif
 
 	priv->new_scan_threshold_behaviour =
 		!!(ucode_capa.flags & IWL_UCODE_TLV_FLAGS_NEWSCAN);
@@ -1057,7 +1060,6 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 		priv->sta_key_max_num = STA_KEY_MAX_NUM;
 		priv->shrd->cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
 	}
-
 	/*
 	 * figure out the offset of chain noise reset and gain commands
 	 * base on the size of standard phy calibration commands table size
@@ -1705,6 +1707,12 @@ static void iwl_debug_config(struct iwl_priv *priv)
 
 	dev_printk(KERN_INFO, bus(priv)->dev, "CONFIG_IWLWIFI_DEVICE_TESTMODE "
 #ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
+		"enabled\n");
+#else
+		"disabled\n");
+#endif
+	dev_printk(KERN_INFO, bus(priv)->dev, "CONFIG_IWLWIFI_P2P "
+#ifdef CONFIG_IWLWIFI_P2P
 		"enabled\n");
 #else
 		"disabled\n");
