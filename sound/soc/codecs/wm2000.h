@@ -9,8 +9,6 @@
 #ifndef _WM2000_H
 #define _WM2000_H
 
-extern int wm2000_add_controls(struct snd_soc_codec *codec);
-
 #define WM2000_REG_SYS_START	    0x8000
 #define WM2000_REG_SPEECH_CLARITY   0x8fef
 #define WM2000_REG_SYS_WATCHDOG     0x8ff6

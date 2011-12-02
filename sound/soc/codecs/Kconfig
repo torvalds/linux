@@ -289,6 +289,9 @@ config SND_SOC_WL1273
 config SND_SOC_WM1250_EV1
 	tristate
 
+config SND_SOC_WM2000
+	tristate
+
 config SND_SOC_WM5100
 	tristate
 
@@ -423,9 +426,6 @@ config SND_SOC_MAX9877
 	tristate
 
 config SND_SOC_TPA6130A2
-	tristate
-
-config SND_SOC_WM2000
 	tristate
 
 config SND_SOC_WM9090
