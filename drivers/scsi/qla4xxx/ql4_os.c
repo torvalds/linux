@@ -1975,9 +1975,10 @@ mem_alloc_error_exit:
  *
  * Context: Interrupt
  **/
-static void qla4_8xxx_check_fw_alive(struct scsi_qla_host *ha)
+static int qla4_8xxx_check_fw_alive(struct scsi_qla_host *ha)
 {
-	uint32_t fw_heartbeat_counter, halt_status;
+	uint32_t fw_heartbeat_counter;
+	int status = QLA_SUCCESS;
 
 	fw_heartbeat_counter = qla4_8xxx_rd_32(ha, QLA82XX_PEG_ALIVE_COUNTER);
 	/* If PEG_ALIVE_COUNTER is 0xffffffff, AER/EEH is in progress, ignore */
@@ -1985,7 +1986,7 @@ static void qla4_8xxx_check_fw_alive(struct scsi_qla_host *ha)
 		DEBUG2(printk(KERN_WARNING "scsi%ld: %s: Device in frozen "
 		    "state, QLA82XX_PEG_ALIVE_COUNTER is 0xffffffff\n",
 		    ha->host_no, __func__));
-		return;
+		return status;
 	}
 
 	if (ha->fw_heartbeat_counter == fw_heartbeat_counter) {
@@ -1993,8 +1994,6 @@ static void qla4_8xxx_check_fw_alive(struct scsi_qla_host *ha)
 		/* FW not alive after 2 seconds */
 		if (ha->seconds_since_last_heartbeat == 2) {
 			ha->seconds_since_last_heartbeat = 0;
-			halt_status = qla4_8xxx_rd_32(ha,
-						      QLA82XX_PEG_HALT_STATUS1);
 
 			ql4_printk(KERN_INFO, ha,
 				   "scsi(%ld): %s, Dumping hw/fw registers:\n "
@@ -2002,7 +2001,9 @@ static void qla4_8xxx_check_fw_alive(struct scsi_qla_host *ha)
 				   " 0x%x,\n PEG_NET_0_PC: 0x%x, PEG_NET_1_PC:"
 				   " 0x%x,\n PEG_NET_2_PC: 0x%x, PEG_NET_3_PC:"
 				   " 0x%x,\n PEG_NET_4_PC: 0x%x\n",
-				   ha->host_no, __func__, halt_status,
+				   ha->host_no, __func__,
+				   qla4_8xxx_rd_32(ha,
+						   QLA82XX_PEG_HALT_STATUS1),
 				   qla4_8xxx_rd_32(ha,
 						   QLA82XX_PEG_HALT_STATUS2),
 				   qla4_8xxx_rd_32(ha, QLA82XX_CRB_PEG_NET_0 +
@@ -2015,24 +2016,13 @@ static void qla4_8xxx_check_fw_alive(struct scsi_qla_host *ha)
 						   0x3c),
 				   qla4_8xxx_rd_32(ha, QLA82XX_CRB_PEG_NET_4 +
 						   0x3c));
-
-			/* Since we cannot change dev_state in interrupt
-			 * context, set appropriate DPC flag then wakeup
-			 * DPC */
-			if (halt_status & HALT_STATUS_UNRECOVERABLE)
-				set_bit(DPC_HA_UNRECOVERABLE, &ha->dpc_flags);
-			else {
-				printk("scsi%ld: %s: detect abort needed!\n",
-				    ha->host_no, __func__);
-				set_bit(DPC_RESET_HA, &ha->dpc_flags);
-			}
-			qla4xxx_wake_dpc(ha);
-			qla4xxx_mailbox_premature_completion(ha);
+			status = QLA_ERROR;
 		}
 	} else
 		ha->seconds_since_last_heartbeat = 0;
 
 	ha->fw_heartbeat_counter = fw_heartbeat_counter;
+	return status;
 }
 
 /**
@@ -2043,14 +2033,13 @@ static void qla4_8xxx_check_fw_alive(struct scsi_qla_host *ha)
  **/
 void qla4_8xxx_watchdog(struct scsi_qla_host *ha)
 {
-	uint32_t dev_state;
-
-	dev_state = qla4_8xxx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
+	uint32_t dev_state, halt_status;
 
 	/* don't poll if reset is going on */
 	if (!(test_bit(DPC_RESET_ACTIVE, &ha->dpc_flags) ||
 	    test_bit(DPC_RESET_HA, &ha->dpc_flags) ||
 	    test_bit(DPC_RETRY_RESET_HA, &ha->dpc_flags))) {
+		dev_state = qla4_8xxx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
 		if (dev_state == QLA82XX_DEV_NEED_RESET &&
 		    !test_bit(DPC_RESET_HA, &ha->dpc_flags)) {
 			if (!ql4xdontresethba) {
@@ -2058,7 +2047,6 @@ void qla4_8xxx_watchdog(struct scsi_qla_host *ha)
 				    "NEED RESET!\n", __func__);
 				set_bit(DPC_RESET_HA, &ha->dpc_flags);
 				qla4xxx_wake_dpc(ha);
-				qla4xxx_mailbox_premature_completion(ha);
 			}
 		} else if (dev_state == QLA82XX_DEV_NEED_QUIESCENT &&
 		    !test_bit(DPC_HA_NEED_QUIESCENT, &ha->dpc_flags)) {
@@ -2068,7 +2056,24 @@ void qla4_8xxx_watchdog(struct scsi_qla_host *ha)
 			qla4xxx_wake_dpc(ha);
 		} else  {
 			/* Check firmware health */
-			qla4_8xxx_check_fw_alive(ha);
+			if (qla4_8xxx_check_fw_alive(ha)) {
+				halt_status = qla4_8xxx_rd_32(ha,
+						QLA82XX_PEG_HALT_STATUS1);
+
+				/* Since we cannot change dev_state in interrupt
+				 * context, set appropriate DPC flag then wakeup
+				 * DPC */
+				if (halt_status & HALT_STATUS_UNRECOVERABLE)
+					set_bit(DPC_HA_UNRECOVERABLE,
+						&ha->dpc_flags);
+				else {
+					ql4_printk(KERN_INFO, ha, "%s: detect "
+						   "abort needed!\n", __func__);
+					set_bit(DPC_RESET_HA, &ha->dpc_flags);
+				}
+				qla4xxx_mailbox_premature_completion(ha);
+				qla4xxx_wake_dpc(ha);
+			}
 		}
 	}
 }
@@ -2424,6 +2429,7 @@ static int qla4xxx_recover_adapter(struct scsi_qla_host *ha)
 	int status = QLA_ERROR;
 	uint8_t reset_chip = 0;
 	uint32_t dev_state;
+	unsigned long wait;
 
 	/* Stall incoming I/O until we are done */
 	scsi_block_requests(ha->host);
@@ -2474,8 +2480,29 @@ static int qla4xxx_recover_adapter(struct scsi_qla_host *ha)
 	 * or if stop_firmware fails for ISP-82xx.
 	 * This is the default case for ISP-4xxx */
 	if (!is_qla8022(ha) || reset_chip) {
+		if (!is_qla8022(ha))
+			goto chip_reset;
+
+		/* Check if 82XX firmware is alive or not
+		 * We may have arrived here from NEED_RESET
+		 * detection only */
+		if (test_bit(AF_FW_RECOVERY, &ha->flags))
+			goto chip_reset;
+
+		wait = jiffies + (FW_ALIVE_WAIT_TOV * HZ);
+		while (time_before(jiffies, wait)) {
+			if (qla4_8xxx_check_fw_alive(ha)) {
+				qla4xxx_mailbox_premature_completion(ha);
+				break;
+			}
+
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			schedule_timeout(HZ);
+		}
+
 		if (!test_bit(AF_FW_RECOVERY, &ha->flags))
 			qla4xxx_cmd_wait(ha);
+chip_reset:
 		qla4xxx_process_aen(ha, FLUSH_DDB_CHANGED_AENS);
 		qla4xxx_abort_active_cmds(ha, DID_RESET << 16);
 		DEBUG2(ql4_printk(KERN_INFO, ha,
