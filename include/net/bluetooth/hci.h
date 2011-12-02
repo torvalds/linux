@@ -782,6 +782,15 @@ struct hci_rp_le_read_buffer_size {
 	__u8     le_max_pkt;
 } __packed;
 
+#define HCI_OP_LE_SET_SCAN_PARAM	0x200b
+struct hci_cp_le_set_scan_param {
+	__u8    type;
+	__le16  interval;
+	__le16  window;
+	__u8    own_address_type;
+	__u8    filter_policy;
+} __packed;
+
 #define HCI_OP_LE_SET_SCAN_ENABLE	0x200c
 struct hci_cp_le_set_scan_enable {
 	__u8     enable;

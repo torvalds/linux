@@ -992,6 +992,13 @@ static void hci_cc_read_local_oob_data_reply(struct hci_dev *hdev,
 	hci_dev_unlock(hdev);
 }
 
+static void hci_cc_le_set_scan_param(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	__u8 status = *((__u8 *) skb->data);
+
+	BT_DBG("%s status 0x%x", hdev->name, status);
+}
+
 static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 					struct sk_buff *skb)
 {
@@ -2077,6 +2084,9 @@ static inline void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *sk
 
 	case HCI_OP_USER_PASSKEY_NEG_REPLY:
 		hci_cc_user_passkey_neg_reply(hdev, skb);
+
+	case HCI_OP_LE_SET_SCAN_PARAM:
+		hci_cc_le_set_scan_param(hdev, skb);
 		break;
 
 	case HCI_OP_LE_SET_SCAN_ENABLE:
