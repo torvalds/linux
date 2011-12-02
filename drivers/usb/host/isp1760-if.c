@@ -47,9 +47,9 @@ static int of_isp1760_probe(struct platform_device *dev)
 	int virq;
 	resource_size_t res_len;
 	int ret;
-	const unsigned int *prop;
 	unsigned int devflags = 0;
 	enum of_gpio_flags gpio_flags;
+	u32 bus_width = 0;
 
 	drvdata = kzalloc(sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
@@ -77,8 +77,8 @@ static int of_isp1760_probe(struct platform_device *dev)
 		devflags |= ISP1760_FLAG_ISP1761;
 
 	/* Some systems wire up only 16 of the 32 data lines */
-	prop = of_get_property(dp, "bus-width", NULL);
-	if (prop && *prop == 16)
+	of_property_read_u32(dp, "bus-width", &bus_width);
+	if (bus_width == 16)
 		devflags |= ISP1760_FLAG_BUS_WIDTH_16;
 
 	if (of_get_property(dp, "port1-otg", NULL) != NULL)
