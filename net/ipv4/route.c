@@ -419,7 +419,7 @@ static int rt_cache_seq_show(struct seq_file *seq, void *v)
 		int len, HHUptod;
 
 		rcu_read_lock();
-		n = dst_get_neighbour(&r->dst);
+		n = dst_get_neighbour_noref(&r->dst);
 		HHUptod = (n && (n->nud_state & NUD_CONNECTED)) ? 1 : 0;
 		rcu_read_unlock();
 

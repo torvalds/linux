@@ -1376,7 +1376,7 @@ static int pass_accept_req(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	}
 	dst = &rt->dst;
 	rcu_read_lock();
-	neigh = dst_get_neighbour(dst);
+	neigh = dst_get_neighbour_noref(dst);
 	l2t = t3_l2t_get(tdev, neigh, neigh->dev);
 	rcu_read_unlock();
 	if (!l2t) {
@@ -1949,7 +1949,7 @@ int iwch_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	ep->dst = &rt->dst;
 
 	rcu_read_lock();
-	neigh = dst_get_neighbour(ep->dst);
+	neigh = dst_get_neighbour_noref(ep->dst);
 
 	/* get a l2t entry */
 	ep->l2t = t3_l2t_get(ep->com.tdev, neigh, neigh->dev);

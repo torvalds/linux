@@ -356,7 +356,7 @@ static int br_nf_pre_routing_finish_bridge(struct sk_buff *skb)
 	if (!skb->dev)
 		goto free_skb;
 	dst = skb_dst(skb);
-	neigh = dst_get_neighbour(dst);
+	neigh = dst_get_neighbour_noref(dst);
 	if (neigh->hh.hh_len) {
 		neigh_hh_bridge(&neigh->hh, skb);
 		skb->dev = nf_bridge->physindev;

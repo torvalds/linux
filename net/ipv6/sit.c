@@ -680,7 +680,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		struct neighbour *neigh = NULL;
 
 		if (skb_dst(skb))
-			neigh = dst_get_neighbour(skb_dst(skb));
+			neigh = dst_get_neighbour_noref(skb_dst(skb));
 
 		if (neigh == NULL) {
 			if (net_ratelimit())
@@ -705,7 +705,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		struct neighbour *neigh = NULL;
 
 		if (skb_dst(skb))
-			neigh = dst_get_neighbour(skb_dst(skb));
+			neigh = dst_get_neighbour_noref(skb_dst(skb));
 
 		if (neigh == NULL) {
 			if (net_ratelimit())

@@ -1190,7 +1190,7 @@ int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new,
 
 			rcu_read_lock();
 			/* On shaper/eql skb->dst->neighbour != neigh :( */
-			if (dst && (n2 = dst_get_neighbour(dst)) != NULL)
+			if (dst && (n2 = dst_get_neighbour_noref(dst)) != NULL)
 				n1 = n2;
 			n1->output(n1, skb);
 			rcu_read_unlock();

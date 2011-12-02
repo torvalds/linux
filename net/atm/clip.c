@@ -338,7 +338,7 @@ static netdev_tx_t clip_start_xmit(struct sk_buff *skb,
 		dev->stats.tx_dropped++;
 		return NETDEV_TX_OK;
 	}
-	n = dst_get_neighbour(dst);
+	n = dst_get_neighbour_noref(dst);
 	if (!n) {
 		pr_err("NO NEIGHBOUR !\n");
 		dev_kfree_skb(skb);

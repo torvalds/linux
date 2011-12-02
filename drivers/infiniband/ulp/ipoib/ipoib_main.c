@@ -564,7 +564,7 @@ static void neigh_add_path(struct sk_buff *skb, struct net_device *dev)
 	struct neighbour *n;
 	unsigned long flags;
 
-	n = dst_get_neighbour(skb_dst(skb));
+	n = dst_get_neighbour_noref(skb_dst(skb));
 	neigh = ipoib_neigh_alloc(n, skb->dev);
 	if (!neigh) {
 		++dev->stats.tx_dropped;
@@ -645,7 +645,7 @@ static void ipoib_path_lookup(struct sk_buff *skb, struct net_device *dev)
 	struct neighbour *n;
 
 	/* Look up path record for unicasts */
-	n = dst_get_neighbour(dst);
+	n = dst_get_neighbour_noref(dst);
 	if (n->ha[4] != 0xff) {
 		neigh_add_path(skb, dev);
 		return;
@@ -724,7 +724,7 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	rcu_read_lock();
 	if (likely(skb_dst(skb)))
-		n = dst_get_neighbour(skb_dst(skb));
+		n = dst_get_neighbour_noref(skb_dst(skb));
 
 	if (likely(n)) {
 		if (unlikely(!*to_ipoib_neigh(n))) {
@@ -841,7 +841,7 @@ static int ipoib_hard_header(struct sk_buff *skb,
 	dst = skb_dst(skb);
 	n = NULL;
 	if (dst)
-		n = dst_get_neighbour_raw(dst);
+		n = dst_get_neighbour_noref_raw(dst);
 	if ((!dst || !n) && daddr) {
 		struct ipoib_pseudoheader *phdr =
 			(struct ipoib_pseudoheader *) skb_push(skb, sizeof *phdr);

@@ -277,7 +277,7 @@ static inline int teql_resolve(struct sk_buff *skb,
 		return 0;
 
 	rcu_read_lock();
-	mn = dst_get_neighbour(dst);
+	mn = dst_get_neighbour_noref(dst);
 	res = mn ? __teql_resolve(skb, skb_res, dev, txq, mn) : 0;
 	rcu_read_unlock();
 
