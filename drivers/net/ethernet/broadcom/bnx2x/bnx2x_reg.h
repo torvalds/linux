@@ -6990,6 +6990,7 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_REG_INTR_MASK				0x1b
 #define MDIO_REG_INTR_MASK_LINK_STATUS			(0x1 << 1)
 #define MDIO_REG_GPHY_SHADOW				0x1c
+#define MDIO_REG_GPHY_SHADOW_LED_SEL1			(0x0d << 10)
 #define MDIO_REG_GPHY_SHADOW_LED_SEL2			(0x0e << 10)
 #define MDIO_REG_GPHY_SHADOW_WR_ENA			(0x1 << 15)
 #define MDIO_REG_GPHY_SHADOW_AUTO_DET_MED		(0x1e << 10)
