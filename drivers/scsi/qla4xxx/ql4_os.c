@@ -2414,6 +2414,7 @@ static int qla4xxx_recover_adapter(struct scsi_qla_host *ha)
 {
 	int status = QLA_ERROR;
 	uint8_t reset_chip = 0;
+	uint32_t dev_state;
 
 	/* Stall incoming I/O until we are done */
 	scsi_block_requests(ha->host);
@@ -2501,6 +2502,25 @@ recover_ha_init_adapter:
 		 * Since we don't want to block the DPC for too long
 		 * with multiple resets in the same thread,
 		 * utilize DPC to retry */
+		if (is_qla8022(ha)) {
+			qla4_8xxx_idc_lock(ha);
+			dev_state = qla4_8xxx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
+			qla4_8xxx_idc_unlock(ha);
+			if (dev_state == QLA82XX_DEV_FAILED) {
+				ql4_printk(KERN_INFO, ha, "%s: don't retry "
+					   "recover adapter. H/W is in Failed "
+					   "state\n", __func__);
+				qla4xxx_dead_adapter_cleanup(ha);
+				clear_bit(DPC_RETRY_RESET_HA, &ha->dpc_flags);
+				clear_bit(DPC_RESET_HA, &ha->dpc_flags);
+				clear_bit(DPC_RESET_HA_FW_CONTEXT,
+						&ha->dpc_flags);
+				status = QLA_ERROR;
+
+				goto exit_recover;
+			}
+		}
+
 		if (!test_bit(DPC_RETRY_RESET_HA, &ha->dpc_flags)) {
 			ha->retry_reset_ha_cnt = MAX_RESET_HA_RETRIES;
 			DEBUG2(printk("scsi%ld: recover adapter - retrying "
@@ -2539,6 +2559,7 @@ recover_ha_init_adapter:
 		clear_bit(DPC_RETRY_RESET_HA, &ha->dpc_flags);
 	}
 
+exit_recover:
 	ha->adapter_error_count++;
 
 	if (test_bit(AF_ONLINE, &ha->flags))
