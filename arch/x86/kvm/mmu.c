@@ -3890,14 +3890,14 @@ restart:
 	spin_unlock(&kvm->mmu_lock);
 }
 
-static int kvm_mmu_remove_some_alloc_mmu_pages(struct kvm *kvm,
-					       struct list_head *invalid_list)
+static void kvm_mmu_remove_some_alloc_mmu_pages(struct kvm *kvm,
+						struct list_head *invalid_list)
 {
 	struct kvm_mmu_page *page;
 
 	page = container_of(kvm->arch.active_mmu_pages.prev,
 			    struct kvm_mmu_page, link);
-	return kvm_mmu_prepare_zap_page(kvm, page, invalid_list);
+	kvm_mmu_prepare_zap_page(kvm, page, invalid_list);
 }
 
 static int mmu_shrink(struct shrinker *shrink, struct shrink_control *sc)
@@ -3912,15 +3912,15 @@ static int mmu_shrink(struct shrinker *shrink, struct shrink_control *sc)
 	raw_spin_lock(&kvm_lock);
 
 	list_for_each_entry(kvm, &vm_list, vm_list) {
-		int idx, freed_pages;
+		int idx;
 		LIST_HEAD(invalid_list);
 
 		idx = srcu_read_lock(&kvm->srcu);
 		spin_lock(&kvm->mmu_lock);
 		if (!kvm_freed && nr_to_scan > 0 &&
 		    kvm->arch.n_used_mmu_pages > 0) {
-			freed_pages = kvm_mmu_remove_some_alloc_mmu_pages(kvm,
-							  &invalid_list);
+			kvm_mmu_remove_some_alloc_mmu_pages(kvm,
+							    &invalid_list);
 			kvm_freed = kvm;
 		}
 		nr_to_scan--;
