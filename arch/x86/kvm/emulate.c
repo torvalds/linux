@@ -3028,9 +3028,6 @@ static int check_cr_write(struct x86_emulate_ctxt *ctxt)
 		break;
 		}
 	case 4: {
-		u64 cr4;
-
-		cr4 = ctxt->ops->get_cr(ctxt, 4);
 		ctxt->ops->get_msr(ctxt, MSR_EFER, &efer);
 
 		if ((efer & EFER_LMA) && !(new_val & X86_CR4_PAE))
