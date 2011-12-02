@@ -463,6 +463,21 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 				"Error starting the device: %d\n", status);
 		break;
 
+	case IWL_TM_CMD_APP2DEV_LOAD_WOWLAN_FW:
+		iwl_scan_cancel_timeout(priv, 200);
+		iwl_trans_stop_device(trans(priv));
+		status = iwlagn_load_ucode_wait_alive(priv, IWL_UCODE_WOWLAN);
+		if (status) {
+			IWL_DEBUG_INFO(priv,
+				"Error loading WOWLAN ucode: %d\n", status);
+			break;
+		}
+		status = iwl_alive_start(priv);
+		if (status)
+			IWL_DEBUG_INFO(priv,
+				"Error starting the device: %d\n", status);
+		break;
+
 	case IWL_TM_CMD_APP2DEV_GET_EEPROM:
 		if (priv->eeprom) {
 			skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy,
@@ -826,6 +841,7 @@ int iwlagn_mac_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
 	case IWL_TM_CMD_APP2DEV_LOAD_RUNTIME_FW:
 	case IWL_TM_CMD_APP2DEV_GET_EEPROM:
 	case IWL_TM_CMD_APP2DEV_FIXRATE_REQ:
+	case IWL_TM_CMD_APP2DEV_LOAD_WOWLAN_FW:
 		IWL_DEBUG_INFO(priv, "testmode cmd to driver\n");
 		result = iwl_testmode_driver(hw, tb);
 		break;

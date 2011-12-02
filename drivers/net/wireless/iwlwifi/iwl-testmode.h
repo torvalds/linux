@@ -117,6 +117,8 @@
  * @IWL_TM_CMD_APP2DEV_DUMP_SRAM:
  *	commands from user applicaiton to read data in sram
  *
+ * @IWL_TM_CMD_APP2DEV_LOAD_WOWLAN_FW: load Weak On Wireless LAN uCode image
+ *
  */
 enum iwl_tm_cmd_t {
 	IWL_TM_CMD_APP2DEV_UCODE		= 1,
@@ -140,7 +142,8 @@ enum iwl_tm_cmd_t {
 	IWL_TM_CMD_APP2DEV_INDIRECT_REG_WRITE32	= 19,
 	IWL_TM_CMD_APP2DEV_READ_SRAM		= 20,
 	IWL_TM_CMD_APP2DEV_DUMP_SRAM		= 21,
-	IWL_TM_CMD_MAX				= 22,
+	IWL_TM_CMD_APP2DEV_LOAD_WOWLAN_FW	= 22,
+	IWL_TM_CMD_MAX				= 23,
 };
 
 /*
