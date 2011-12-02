@@ -1842,7 +1842,7 @@ static void wm8903_init_gpio(struct snd_soc_codec *codec)
 	wm8903->gpio_chip.ngpio = WM8903_NUM_GPIO;
 	wm8903->gpio_chip.dev = codec->dev;
 
-	if (pdata && pdata->gpio_base)
+	if (pdata->gpio_base)
 		wm8903->gpio_chip.base = pdata->gpio_base;
 	else
 		wm8903->gpio_chip.base = -1;
@@ -1878,6 +1878,7 @@ static int wm8903_probe(struct snd_soc_codec *codec)
 	int ret, i;
 	int trigger, irq_pol;
 	u16 val;
+	bool mic_gpio = false;
 
 	wm8903->codec = codec;
 	codec->control_data = wm8903->regmap;
@@ -1888,52 +1889,49 @@ static int wm8903_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	/* Set up GPIOs and microphone detection */
-	if (pdata) {
-		bool mic_gpio = false;
+	/* Set up GPIOs, detect if any are MIC detect outputs */
+	for (i = 0; i < ARRAY_SIZE(pdata->gpio_cfg); i++) {
+		if ((!pdata->gpio_cfg[i]) ||
+		    (pdata->gpio_cfg[i] > WM8903_GPIO_CONFIG_ZERO))
+			continue;
 
-		for (i = 0; i < ARRAY_SIZE(pdata->gpio_cfg); i++) {
-			if ((!pdata->gpio_cfg[i]) ||
-			    (pdata->gpio_cfg[i] > WM8903_GPIO_CONFIG_ZERO))
-				continue;
+		snd_soc_write(codec, WM8903_GPIO_CONTROL_1 + i,
+				pdata->gpio_cfg[i] & 0x7fff);
 
-			snd_soc_write(codec, WM8903_GPIO_CONTROL_1 + i,
-				      pdata->gpio_cfg[i] & 0x7fff);
+		val = (pdata->gpio_cfg[i] & WM8903_GP1_FN_MASK)
+			>> WM8903_GP1_FN_SHIFT;
 
-			val = (pdata->gpio_cfg[i] & WM8903_GP1_FN_MASK)
-				>> WM8903_GP1_FN_SHIFT;
-
-			switch (val) {
-			case WM8903_GPn_FN_MICBIAS_CURRENT_DETECT:
-			case WM8903_GPn_FN_MICBIAS_SHORT_DETECT:
-				mic_gpio = true;
-				break;
-			default:
-				break;
-			}
+		switch (val) {
+		case WM8903_GPn_FN_MICBIAS_CURRENT_DETECT:
+		case WM8903_GPn_FN_MICBIAS_SHORT_DETECT:
+			mic_gpio = true;
+			break;
+		default:
+			break;
 		}
-
-		snd_soc_write(codec, WM8903_MIC_BIAS_CONTROL_0,
-			      pdata->micdet_cfg);
-
-		/* Microphone detection needs the WSEQ clock */
-		if (pdata->micdet_cfg)
-			snd_soc_update_bits(codec, WM8903_WRITE_SEQUENCER_0,
-					    WM8903_WSEQ_ENA, WM8903_WSEQ_ENA);
-
-		/* If microphone detection is enabled by pdata but
-		 * detected via IRQ then interrupts can be lost before
-		 * the machine driver has set up microphone detection
-		 * IRQs as the IRQs are clear on read.  The detection
-		 * will be enabled when the machine driver configures.
-		 */
-		WARN_ON(!mic_gpio && (pdata->micdet_cfg & WM8903_MICDET_ENA));
-
-		wm8903->mic_delay = pdata->micdet_delay;
 	}
-	
+
+	/* Set up microphone detection */
+	snd_soc_write(codec, WM8903_MIC_BIAS_CONTROL_0,
+			pdata->micdet_cfg);
+
+	/* Microphone detection needs the WSEQ clock */
+	if (pdata->micdet_cfg)
+		snd_soc_update_bits(codec, WM8903_WRITE_SEQUENCER_0,
+				    WM8903_WSEQ_ENA, WM8903_WSEQ_ENA);
+
+	/* If microphone detection is enabled by pdata but
+	    * detected via IRQ then interrupts can be lost before
+	    * the machine driver has set up microphone detection
+	    * IRQs as the IRQs are clear on read.  The detection
+	    * will be enabled when the machine driver configures.
+	    */
+	WARN_ON(!mic_gpio && (pdata->micdet_cfg & WM8903_MICDET_ENA));
+
+	wm8903->mic_delay = pdata->micdet_delay;
+
 	if (wm8903->irq) {
-		if (pdata && pdata->irq_active_low) {
+		if (pdata->irq_active_low) {
 			trigger = IRQF_TRIGGER_LOW;
 			irq_pol = WM8903_IRQ_POL;
 		} else {
