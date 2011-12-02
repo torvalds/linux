@@ -313,5 +313,17 @@ static inline u32 rtas_config_addr(int busno, int devfn, int reg)
 extern void __cpuinit rtas_give_timebase(void);
 extern void __cpuinit rtas_take_timebase(void);
 
+#ifdef CONFIG_PPC_RTAS
+static inline int page_is_rtas_user_buf(unsigned long pfn)
+{
+	unsigned long paddr = (pfn << PAGE_SHIFT);
+	if (paddr >= rtas_rmo_buf && paddr < (rtas_rmo_buf + RTAS_RMOBUF_MAX))
+		return 1;
+	return 0;
+}
+#else
+static inline int page_is_rtas_user_buf(unsigned long pfn) { return 0;}
+#endif
+
 #endif /* __KERNEL__ */
 #endif /* _POWERPC_RTAS_H */

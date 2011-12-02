@@ -51,6 +51,7 @@
 #include <asm/vdso.h>
 #include <asm/fixmap.h>
 #include <asm/swiotlb.h>
+#include <asm/rtas.h>
 
 #include "mmu_decl.h"
 
@@ -599,6 +600,8 @@ int devmem_is_allowed(unsigned long pfn)
 	if (iomem_is_exclusive(pfn << PAGE_SHIFT))
 		return 0;
 	if (!page_is_ram(pfn))
+		return 1;
+	if (page_is_rtas_user_buf(pfn))
 		return 1;
 	return 0;
 }
