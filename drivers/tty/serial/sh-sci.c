@@ -1771,18 +1771,25 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	sci_init_pins(port, termios->c_cflag);
 
-	if (s->cfg->capabilities & SCIx_HAVE_RTSCTS) {
-		reg = sci_getreg(port, SCFCR);
-		if (reg->size) {
-			unsigned short ctrl;
+	reg = sci_getreg(port, SCFCR);
+	if (reg->size) {
+		unsigned short ctrl = sci_in(port, SCFCR);
 
-			ctrl = sci_in(port, SCFCR);
+		if (s->cfg->capabilities & SCIx_HAVE_RTSCTS) {
 			if (termios->c_cflag & CRTSCTS)
 				ctrl |= SCFCR_MCE;
 			else
 				ctrl &= ~SCFCR_MCE;
-			sci_out(port, SCFCR, ctrl);
 		}
+
+		/*
+		 * As we've done a sci_reset() above, ensure we don't
+		 * interfere with the FIFOs while toggling MCE. As the
+		 * reset values could still be set, simply mask them out.
+		 */
+		ctrl &= ~(SCFCR_RFRST | SCFCR_TFRST);
+
+		sci_out(port, SCFCR, ctrl);
 	}
 
 	sci_out(port, SCSCR, s->cfg->scscr);
