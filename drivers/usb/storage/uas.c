@@ -343,7 +343,10 @@ static struct urb *uas_alloc_cmd_urb(struct uas_dev_info *devinfo, gfp_t gfp,
 		goto free;
 
 	iu->iu_id = IU_ID_COMMAND;
-	iu->tag = cpu_to_be16(stream_id);
+	if (blk_rq_tagged(cmnd->request))
+		iu->tag = cpu_to_be16(cmnd->request->tag + 1);
+	else
+		iu->tag = cpu_to_be16(1);
 	iu->prio_attr = UAS_SIMPLE_TAG;
 	iu->len = len;
 	int_to_scsilun(sdev->lun, &iu->lun);
