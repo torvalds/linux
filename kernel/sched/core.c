@@ -2561,8 +2561,8 @@ struct cgroup_subsys cpuacct_subsys;
 struct cpuacct root_cpuacct;
 #endif
 
-static inline void task_group_account_field(struct task_struct *p,
-					     u64 tmp, int index)
+static inline void task_group_account_field(struct task_struct *p, int index,
+					    u64 tmp)
 {
 #ifdef CONFIG_CGROUP_CPUACCT
 	struct kernel_cpustat *kcpustat;
