@@ -25,6 +25,7 @@
 #include <linux/i2c.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
+#include <linux/irq.h>
 #include <sound/core.h>
 #include <sound/jack.h>
 #include <sound/pcm.h>
@@ -2036,6 +2037,39 @@ static const struct regmap_config wm8903_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(wm8903_reg_defaults),
 };
 
+static int wm8903_set_pdata_irq_trigger(struct i2c_client *i2c,
+					struct wm8903_platform_data *pdata)
+{
+	struct irq_data *irq_data = irq_get_irq_data(i2c->irq);
+	if (!irq_data) {
+		dev_err(&i2c->dev, "Invalid IRQ: %d\n",
+			i2c->irq);
+		return -EINVAL;
+	}
+
+	switch (irqd_get_trigger_type(irq_data)) {
+	case IRQ_TYPE_NONE:
+		/*
+		* We assume the controller imposes no restrictions,
+		* so we are able to select active-high
+		*/
+		/* Fall-through */
+	case IRQ_TYPE_LEVEL_HIGH:
+		pdata->irq_active_low = false;
+		break;
+	case IRQ_TYPE_LEVEL_LOW:
+		pdata->irq_active_low = true;
+		break;
+	default:
+		dev_err(&i2c->dev,
+			"Unsupported IRQ_TYPE %x\n",
+			irqd_get_trigger_type(irq_data));
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
@@ -2070,6 +2104,12 @@ static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
 		if (wm8903->pdata == NULL) {
 			dev_err(&i2c->dev, "Failed to allocate pdata\n");
 			return -ENOMEM;
+		}
+
+		if (i2c->irq) {
+			ret = wm8903_set_pdata_irq_trigger(i2c, wm8903->pdata);
+			if (ret != 0)
+				return ret;
 		}
 	}
 
