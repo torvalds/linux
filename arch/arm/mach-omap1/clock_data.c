@@ -930,6 +930,9 @@ void __init omap1_clk_late_init(void)
 	if (ck_dpll1.rate >= OMAP1_DPLL1_SANE_VALUE)
 		return;
 
+	/* System booting at unusable rate, force reprogramming of DPLL1 */
+	ck_dpll1_p->rate = 0;
+
 	/* Find the highest supported frequency and enable it */
 	if (omap1_select_table_rate(&virtual_ck_mpu, ~0)) {
 		pr_err("System frequencies not set, using default. Check your config.\n");
