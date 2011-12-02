@@ -77,6 +77,9 @@ __s32 standby_power_exit(void)
 {
     __u8    reg_val;
 
+	twi_byte_rw(TWI_OP_RD, AXP_ADDR,AXP20_IRQ4, &reg_val);
+	twi_byte_rw(TWI_OP_WR, AXP_ADDR,0x0E, &reg_val);
+
     #if(AXP_WAKEUP & AXP_WAKEUP_KEY)
     /* disable pek long/short */
 	twi_byte_rw(TWI_OP_RD, AXP_ADDR,AXP20_IRQEN3, &reg_val);
