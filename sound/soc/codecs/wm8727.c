@@ -59,7 +59,7 @@ static int __devexit wm8727_remove(struct platform_device *pdev)
 
 static struct platform_driver wm8727_codec_driver = {
 	.driver = {
-			.name = "wm8727-codec",
+			.name = "wm8727",
 			.owner = THIS_MODULE,
 	},
 

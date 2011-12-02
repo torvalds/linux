@@ -1037,7 +1037,7 @@ MODULE_DEVICE_TABLE(i2c, wm8955_i2c_id);
 
 static struct i2c_driver wm8955_i2c_driver = {
 	.driver = {
-		.name = "wm8955-codec",
+		.name = "wm8955",
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8955_i2c_probe,
