@@ -841,6 +841,339 @@ static int test__parse_events(void)
 
 	return ret;
 }
+
+static int sched__get_first_possible_cpu(pid_t pid, cpu_set_t **maskp,
+					 size_t *sizep)
+{
+	cpu_set_t *mask;
+	size_t size;
+	int i, cpu = -1, nrcpus = 1024;
+realloc:
+	mask = CPU_ALLOC(nrcpus);
+	size = CPU_ALLOC_SIZE(nrcpus);
+	CPU_ZERO_S(size, mask);
+
+	if (sched_getaffinity(pid, size, mask) == -1) {
+		CPU_FREE(mask);
+		if (errno == EINVAL && nrcpus < (1024 << 8)) {
+			nrcpus = nrcpus << 2;
+			goto realloc;
+		}
+		perror("sched_getaffinity");
+			return -1;
+	}
+
+	for (i = 0; i < nrcpus; i++) {
+		if (CPU_ISSET_S(i, size, mask)) {
+			if (cpu == -1) {
+				cpu = i;
+				*maskp = mask;
+				*sizep = size;
+			} else
+				CPU_CLR_S(i, size, mask);
+		}
+	}
+
+	if (cpu == -1)
+		CPU_FREE(mask);
+
+	return cpu;
+}
+
+static int test__PERF_RECORD(void)
+{
+	struct perf_record_opts opts = {
+		.target_pid = -1,
+		.target_tid = -1,
+		.no_delay   = true,
+		.freq	    = 10,
+		.mmap_pages = 256,
+		.sample_id_all_avail = true,
+	};
+	cpu_set_t *cpu_mask = NULL;
+	size_t cpu_mask_size = 0;
+	struct perf_evlist *evlist = perf_evlist__new(NULL, NULL);
+	struct perf_evsel *evsel;
+	struct perf_sample sample;
+	const char *cmd = "sleep";
+	const char *argv[] = { cmd, "1", NULL, };
+	char *bname;
+	u64 sample_type, prev_time = 0;
+	bool found_cmd_mmap = false,
+	     found_libc_mmap = false,
+	     found_vdso_mmap = false,
+	     found_ld_mmap = false;
+	int err = -1, i, wakeups = 0, sample_size;
+	u32 cpu;
+	int total_events = 0, nr_events[PERF_RECORD_MAX] = { 0, };
+
+	if (evlist == NULL || argv == NULL) {
+		pr_debug("Not enough memory to create evlist\n");
+		goto out;
+	}
+
+	/*
+	 * We need at least one evsel in the evlist, use the default
+	 * one: "cycles".
+	 */
+	err = perf_evlist__add_default(evlist);
+	if (err < 0) {
+		pr_debug("Not enough memory to create evsel\n");
+		goto out_delete_evlist;
+	}
+
+	/*
+	 * Create maps of threads and cpus to monitor. In this case
+	 * we start with all threads and cpus (-1, -1) but then in
+	 * perf_evlist__prepare_workload we'll fill in the only thread
+	 * we're monitoring, the one forked there.
+	 */
+	err = perf_evlist__create_maps(evlist, opts.target_pid,
+				       opts.target_tid, opts.cpu_list);
+	if (err < 0) {
+		pr_debug("Not enough memory to create thread/cpu maps\n");
+		goto out_delete_evlist;
+	}
+
+	/*
+	 * Prepare the workload in argv[] to run, it'll fork it, and then wait
+	 * for perf_evlist__start_workload() to exec it. This is done this way
+	 * so that we have time to open the evlist (calling sys_perf_event_open
+	 * on all the fds) and then mmap them.
+	 */
+	err = perf_evlist__prepare_workload(evlist, &opts, argv);
+	if (err < 0) {
+		pr_debug("Couldn't run the workload!\n");
+		goto out_delete_evlist;
+	}
+
+	/*
+	 * Config the evsels, setting attr->comm on the first one, etc.
+	 */
+	evsel = list_entry(evlist->entries.next, struct perf_evsel, node);
+	evsel->attr.sample_type |= PERF_SAMPLE_CPU;
+	evsel->attr.sample_type |= PERF_SAMPLE_TID;
+	evsel->attr.sample_type |= PERF_SAMPLE_TIME;
+	perf_evlist__config_attrs(evlist, &opts);
+
+	err = sched__get_first_possible_cpu(evlist->workload.pid, &cpu_mask,
+					    &cpu_mask_size);
+	if (err < 0) {
+		pr_debug("sched__get_first_possible_cpu: %s\n", strerror(errno));
+		goto out_delete_evlist;
+	}
+
+	cpu = err;
+
+	/*
+	 * So that we can check perf_sample.cpu on all the samples.
+	 */
+	if (sched_setaffinity(evlist->workload.pid, cpu_mask_size, cpu_mask) < 0) {
+		pr_debug("sched_setaffinity: %s\n", strerror(errno));
+		goto out_free_cpu_mask;
+	}
+
+	/*
+	 * Call sys_perf_event_open on all the fds on all the evsels,
+	 * grouping them if asked to.
+	 */
+	err = perf_evlist__open(evlist, opts.group);
+	if (err < 0) {
+		pr_debug("perf_evlist__open: %s\n", strerror(errno));
+		goto out_delete_evlist;
+	}
+
+	/*
+	 * mmap the first fd on a given CPU and ask for events for the other
+	 * fds in the same CPU to be injected in the same mmap ring buffer
+	 * (using ioctl(PERF_EVENT_IOC_SET_OUTPUT)).
+	 */
+	err = perf_evlist__mmap(evlist, opts.mmap_pages, false);
+	if (err < 0) {
+		pr_debug("perf_evlist__mmap: %s\n", strerror(errno));
+		goto out_delete_evlist;
+	}
+
+	/*
+	 * We'll need these two to parse the PERF_SAMPLE_* fields in each
+	 * event.
+	 */
+	sample_type = perf_evlist__sample_type(evlist);
+	sample_size = __perf_evsel__sample_size(sample_type);
+
+	/*
+	 * Now that all is properly set up, enable the events, they will
+	 * count just on workload.pid, which will start...
+	 */
+	perf_evlist__enable(evlist);
+
+	/*
+	 * Now!
+	 */
+	perf_evlist__start_workload(evlist);
+
+	err = -1;
+
+	while (1) {
+		int before = total_events;
+
+		for (i = 0; i < evlist->nr_mmaps; i++) {
+			union perf_event *event;
+
+			while ((event = perf_evlist__mmap_read(evlist, i)) != NULL) {
+				const u32 type = event->header.type;
+				const char *name = perf_event__name(type);
+
+				++total_events;
+				if (type < PERF_RECORD_MAX)
+					nr_events[type]++;
+
+				if (perf_event__parse_sample(event, sample_type,
+							     sample_size, true,
+							     &sample, false) < 0) {
+					if (verbose)
+						perf_event__fprintf(event, stderr);
+					pr_debug("Couldn't parse sample\n");
+					goto out_err;
+				}
+
+				if (verbose) {
+					pr_info("%" PRIu64" %d ", sample.time, sample.cpu);
+					perf_event__fprintf(event, stderr);
+				}
+
+				if (prev_time > sample.time) {
+					pr_debug("%s going backwards in time, prev=%" PRIu64 ", curr=%" PRIu64 "\n",
+						 name, prev_time, sample.time);
+					goto out_err;
+				}
+
+				prev_time = sample.time;
+
+				if (sample.cpu != cpu) {
+					pr_debug("%s with unexpected cpu, expected %d, got %d\n",
+						 name, cpu, sample.cpu);
+					goto out_err;
+				}
+
+				if ((pid_t)sample.pid != evlist->workload.pid) {
+					pr_debug("%s with unexpected pid, expected %d, got %d\n",
+						 name, evlist->workload.pid, sample.pid);
+					goto out_err;
+				}
+
+				if ((pid_t)sample.tid != evlist->workload.pid) {
+					pr_debug("%s with unexpected tid, expected %d, got %d\n",
+						 name, evlist->workload.pid, sample.tid);
+					goto out_err;
+				}
+
+				if ((type == PERF_RECORD_COMM ||
+				     type == PERF_RECORD_MMAP ||
+				     type == PERF_RECORD_FORK ||
+				     type == PERF_RECORD_EXIT) &&
+				     (pid_t)event->comm.pid != evlist->workload.pid) {
+					pr_debug("%s with unexpected pid/tid\n", name);
+					goto out_err;
+				}
+
+				if ((type == PERF_RECORD_COMM ||
+				     type == PERF_RECORD_MMAP) &&
+				     event->comm.pid != event->comm.tid) {
+					pr_debug("%s with different pid/tid!\n", name);
+					goto out_err;
+				}
+
+				switch (type) {
+				case PERF_RECORD_COMM:
+					if (strcmp(event->comm.comm, cmd)) {
+						pr_debug("%s with unexpected comm!\n", name);
+						goto out_err;
+					}
+					break;
+				case PERF_RECORD_EXIT:
+					goto found_exit;
+				case PERF_RECORD_MMAP:
+					bname = strrchr(event->mmap.filename, '/');
+					if (bname != NULL) {
+						if (!found_cmd_mmap)
+							found_cmd_mmap = !strcmp(bname + 1, cmd);
+						if (!found_libc_mmap)
+							found_libc_mmap = !strncmp(bname + 1, "libc", 4);
+						if (!found_ld_mmap)
+							found_ld_mmap = !strncmp(bname + 1, "ld", 2);
+					} else if (!found_vdso_mmap)
+						found_vdso_mmap = !strcmp(event->mmap.filename, "[vdso]");
+					break;
+
+				case PERF_RECORD_SAMPLE:
+					/* Just ignore samples for now */
+					break;
+				default:
+					pr_debug("Unexpected perf_event->header.type %d!\n",
+						 type);
+					goto out_err;
+				}
+			}
+		}
+
+		/*
+		 * We don't use poll here because at least at 3.1 times the
+		 * PERF_RECORD_{!SAMPLE} events don't honour
+		 * perf_event_attr.wakeup_events, just PERF_EVENT_SAMPLE does.
+		 */
+		if (total_events == before && false)
+			poll(evlist->pollfd, evlist->nr_fds, -1);
+
+		sleep(1);
+		if (++wakeups > 5) {
+			pr_debug("No PERF_RECORD_EXIT event!\n");
+			goto out_err;
+		}
+	}
+
+found_exit:
+	if (nr_events[PERF_RECORD_COMM] > 1) {
+		pr_debug("Excessive number of PERF_RECORD_COMM events!\n");
+		goto out_err;
+	}
+
+	if (nr_events[PERF_RECORD_COMM] == 0) {
+		pr_debug("Missing PERF_RECORD_COMM for %s!\n", cmd);
+		goto out_err;
+	}
+
+	if (!found_cmd_mmap) {
+		pr_debug("PERF_RECORD_MMAP for %s missing!\n", cmd);
+		goto out_err;
+	}
+
+	if (!found_libc_mmap) {
+		pr_debug("PERF_RECORD_MMAP for %s missing!\n", "libc");
+		goto out_err;
+	}
+
+	if (!found_ld_mmap) {
+		pr_debug("PERF_RECORD_MMAP for %s missing!\n", "ld");
+		goto out_err;
+	}
+
+	if (!found_vdso_mmap) {
+		pr_debug("PERF_RECORD_MMAP for %s missing!\n", "[vdso]");
+		goto out_err;
+	}
+
+	err = 0;
+out_err:
+	perf_evlist__munmap(evlist);
+out_free_cpu_mask:
+	CPU_FREE(cpu_mask);
+out_delete_evlist:
+	perf_evlist__delete(evlist);
+out:
+	return err;
+}
+
 static struct test {
 	const char *desc;
 	int (*func)(void);
@@ -864,6 +1197,10 @@ static struct test {
 	{
 		.desc = "parse events tests",
 		.func = test__parse_events,
+	},
+	{
+		.desc = "Validate PERF_RECORD_* events & perf_sample fields",
+		.func = test__PERF_RECORD,
 	},
 	{
 		.func = NULL,
