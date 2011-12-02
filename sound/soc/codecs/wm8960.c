@@ -25,8 +25,6 @@
 
 #include "wm8960.h"
 
-#define AUDIO_NAME "wm8960"
-
 /* R25 - Power 1 */
 #define WM8960_VMID_MASK 0x180
 #define WM8960_VREF      0x40
