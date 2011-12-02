@@ -130,7 +130,8 @@ static int mxc_mmc1_init(struct device *dev,
 	gpio_direction_input(gpio_det);
 	gpio_direction_input(gpio_wp);
 
-	ret = request_irq(IOMUX_TO_IRQ(MX31_PIN_GPIO1_1), detect_irq,
+	ret = request_irq(gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_1)),
+			  detect_irq,
 			  IRQF_DISABLED | IRQF_TRIGGER_FALLING,
 			  "MMC detect", data);
 	if (ret)
@@ -151,7 +152,7 @@ static void mxc_mmc1_exit(struct device *dev, void *data)
 {
 	gpio_free(gpio_det);
 	gpio_free(gpio_wp);
-	free_irq(IOMUX_TO_IRQ(MX31_PIN_GPIO1_1), data);
+	free_irq(gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_1)), data);
 }
 
 static const struct imxmmc_platform_data mmc_pdata __initconst = {

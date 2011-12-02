@@ -65,8 +65,7 @@ static struct resource smsc91x_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.start	= IOMUX_TO_IRQ(MX31_PIN_GPIO1_0),
-		.end	= IOMUX_TO_IRQ(MX31_PIN_GPIO1_0),
+		/* irq number is run-time assigned */
 		.flags	= IORESOURCE_IRQ | IRQF_TRIGGER_FALLING,
 	}
 };
@@ -233,7 +232,7 @@ static struct spi_board_info mc13783_dev __initdata = {
 	.bus_num	= 1,
 	.chip_select	= 0,
 	.platform_data	= &mc13783_pdata,
-	.irq		= IOMUX_TO_IRQ(MX31_PIN_GPIO1_3),
+	/* irq number is run-time assigned */
 };
 
 static struct platform_device *devices[] __initdata = {
@@ -285,10 +284,15 @@ static void __init mx31lilly_board_init(void)
 
 	imx31_add_spi_imx0(&spi0_pdata);
 	imx31_add_spi_imx1(&spi1_pdata);
+	mc13783_dev.irq = gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_3));
 	spi_register_board_info(&mc13783_dev, 1);
 
 	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 
+	smsc91x_resources[1].start =
+			gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_0));
+	smsc91x_resources[1].end =
+			gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_0));
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	/* USB */

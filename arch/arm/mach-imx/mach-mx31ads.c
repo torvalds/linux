@@ -62,7 +62,6 @@
 #define PBC_INTSTATUS_REG	(PBC_INTSTATUS + PBC_BASE_ADDRESS)
 #define PBC_INTMASK_SET_REG	(PBC_INTMASK_SET + PBC_BASE_ADDRESS)
 #define PBC_INTMASK_CLEAR_REG	(PBC_INTMASK_CLEAR + PBC_BASE_ADDRESS)
-#define EXPIO_PARENT_INT	IOMUX_TO_IRQ(MX31_PIN_GPIO1_4)
 
 #define MXC_EXP_IO_BASE		MXC_BOARD_IRQ_START
 #define MXC_IRQ_TO_EXPIO(irq)	((irq) - MXC_EXP_IO_BASE)
@@ -209,7 +208,7 @@ static struct irq_chip expio_irq_chip = {
 
 static void __init mx31ads_init_expio(void)
 {
-	int i;
+	int i, irq;
 
 	printk(KERN_INFO "MX31ADS EXPIO(CPLD) hardware\n");
 
@@ -226,8 +225,9 @@ static void __init mx31ads_init_expio(void)
 		irq_set_chip_and_handler(i, &expio_irq_chip, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
-	irq_set_irq_type(EXPIO_PARENT_INT, IRQ_TYPE_LEVEL_HIGH);
-	irq_set_chained_handler(EXPIO_PARENT_INT, mx31ads_expio_irq_handler);
+	irq = gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_4));
+	irq_set_irq_type(irq, IRQ_TYPE_LEVEL_HIGH);
+	irq_set_chained_handler(irq, mx31ads_expio_irq_handler);
 }
 
 #ifdef CONFIG_MACH_MX31ADS_WM1133_EV1
@@ -488,13 +488,17 @@ static struct i2c_board_info __initdata mx31ads_i2c1_devices[] = {
 	{
 		I2C_BOARD_INFO("wm8350", 0x1a),
 		.platform_data = &mx31_wm8350_pdata,
-		.irq = IOMUX_TO_IRQ(MX31_PIN_GPIO1_3),
+		/* irq number is run-time assigned */
 	},
 #endif
 };
 
 static void __init mxc_init_i2c(void)
 {
+#ifdef CONFIG_MACH_MX31ADS_WM1133_EV1
+	mx31ads_i2c1_devices[0].irq =
+			gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_3));
+#endif
 	i2c_register_board_info(1, mx31ads_i2c1_devices,
 				ARRAY_SIZE(mx31ads_i2c1_devices));
 

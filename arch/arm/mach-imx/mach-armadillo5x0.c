@@ -408,7 +408,8 @@ static int armadillo5x0_sdhc1_init(struct device *dev,
 	gpio_direction_input(gpio_wp);
 
 	/* When supported the trigger type have to be BOTH */
-	ret = request_irq(IOMUX_TO_IRQ(MX31_PIN_ATA_DMACK), detect_irq,
+	ret = request_irq(gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_ATA_DMACK)),
+			  detect_irq,
 			  IRQF_DISABLED | IRQF_TRIGGER_FALLING,
 			  "sdhc-detect", data);
 
@@ -429,7 +430,7 @@ err_gpio_free:
 
 static void armadillo5x0_sdhc1_exit(struct device *dev, void *data)
 {
-	free_irq(IOMUX_TO_IRQ(MX31_PIN_ATA_DMACK), data);
+	free_irq(gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_ATA_DMACK)), data);
 	gpio_free(IOMUX_TO_GPIO(MX31_PIN_ATA_DMACK));
 	gpio_free(IOMUX_TO_GPIO(MX31_PIN_ATA_RESET_B));
 }
@@ -450,8 +451,7 @@ static struct resource armadillo5x0_smc911x_resources[] = {
 		.end	= MX31_CS3_BASE_ADDR + SZ_32M - 1,
 		.flags	= IORESOURCE_MEM,
 	}, {
-		.start	= IOMUX_TO_IRQ(MX31_PIN_GPIO1_0),
-		.end	= IOMUX_TO_IRQ(MX31_PIN_GPIO1_0),
+		/* irq number is run-time assigned */
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
 	},
 };
@@ -498,6 +498,10 @@ static void __init armadillo5x0_init(void)
 
 	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 
+	armadillo5x0_smc911x_resources[1].start =
+			gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_0));
+	armadillo5x0_smc911x_resources[1].end =
+			gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_0));
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	imx_add_gpio_keys(&armadillo5x0_button_data);
 	imx31_add_imx_i2c1(NULL);
