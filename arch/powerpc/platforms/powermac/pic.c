@@ -464,18 +464,6 @@ int of_irq_map_oldworld(struct device_node *device, int index,
 }
 #endif /* CONFIG_PPC32 */
 
-static void pmac_u3_cascade(unsigned int irq, struct irq_desc *desc)
-{
-	struct irq_chip *chip = irq_desc_get_chip(desc);
-	struct mpic *mpic = irq_desc_get_handler_data(desc);
-	unsigned int cascade_irq = mpic_get_one_irq(mpic);
-
-	if (cascade_irq != NO_IRQ)
-		generic_handle_irq(cascade_irq);
-
-	chip->irq_eoi(&desc->irq_data);
-}
-
 static void __init pmac_pic_setup_mpic_nmi(struct mpic *mpic)
 {
 #if defined(CONFIG_XMON) && defined(CONFIG_PPC32)
@@ -526,7 +514,6 @@ static int __init pmac_pic_probe_mpic(void)
 {
 	struct mpic *mpic1, *mpic2;
 	struct device_node *np, *master = NULL, *slave = NULL;
-	unsigned int cascade;
 
 	/* We can have up to 2 MPICs cascaded */
 	for (np = NULL; (np = of_find_node_by_type(np, "open-pic"))
@@ -562,27 +549,14 @@ static int __init pmac_pic_probe_mpic(void)
 
 	of_node_put(master);
 
-	/* No slave, let's go out */
-	if (slave == NULL)
-		return 0;
-
-	/* Get/Map slave interrupt */
-	cascade = irq_of_parse_and_map(slave, 0);
-	if (cascade == NO_IRQ) {
-		printk(KERN_ERR "Failed to map cascade IRQ\n");
-		return 0;
-	}
-
-	mpic2 = pmac_setup_one_mpic(slave, 0);
-	if (mpic2 == NULL) {
-		printk(KERN_ERR "Failed to setup slave MPIC\n");
+	/* Set up a cascaded controller, if present */
+	if (slave) {
+		mpic2 = pmac_setup_one_mpic(slave, 0);
+		if (mpic2 == NULL)
+			printk(KERN_ERR "Failed to setup slave MPIC\n");
 		of_node_put(slave);
-		return 0;
 	}
-	irq_set_handler_data(cascade, mpic2);
-	irq_set_chained_handler(cascade, pmac_u3_cascade);
 
-	of_node_put(slave);
 	return 0;
 }
 

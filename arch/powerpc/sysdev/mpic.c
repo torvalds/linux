@@ -1111,6 +1111,22 @@ static int mpic_host_xlate(struct irq_host *h, struct device_node *ct,
 	return 0;
 }
 
+/* IRQ handler for a secondary MPIC cascaded from another IRQ controller */
+static void mpic_cascade(unsigned int irq, struct irq_desc *desc)
+{
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	struct mpic *mpic = irq_desc_get_handler_data(desc);
+	unsigned int virq;
+
+	BUG_ON(!(mpic->flags & MPIC_SECONDARY));
+
+	virq = mpic_get_one_irq(mpic);
+	if (virq != NO_IRQ)
+		generic_handle_irq(virq);
+
+	chip->irq_eoi(&desc->irq_data);
+}
+
 static struct irq_host_ops mpic_host_ops = {
 	.match = mpic_host_match,
 	.map = mpic_host_map,
@@ -1402,8 +1418,7 @@ void __init mpic_set_default_senses(struct mpic *mpic, u8 *senses, int count)
 
 void __init mpic_init(struct mpic *mpic)
 {
-	int i;
-	int cpu;
+	int i, cpu;
 
 	BUG_ON(mpic->num_sources == 0);
 
@@ -1488,6 +1503,17 @@ void __init mpic_init(struct mpic *mpic)
 				  GFP_KERNEL);
 	BUG_ON(mpic->save_data == NULL);
 #endif
+
+	/* Check if this MPIC is chained from a parent interrupt controller */
+	if (mpic->flags & MPIC_SECONDARY) {
+		int virq = irq_of_parse_and_map(mpic->node, 0);
+		if (virq != NO_IRQ) {
+			printk(KERN_INFO "%s: hooking up to IRQ %d\n",
+					mpic->node->full_name, virq);
+			irq_set_handler_data(virq, mpic);
+			irq_set_chained_handler(virq, &mpic_cascade);
+		}
+	}
 }
 
 void __init mpic_set_clk_ratio(struct mpic *mpic, u32 clock_ratio)
