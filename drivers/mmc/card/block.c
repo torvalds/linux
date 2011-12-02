@@ -107,6 +107,8 @@ struct mmc_blk_data {
 	 */
 	unsigned int	part_curr;
 	struct device_attribute force_ro;
+	struct device_attribute power_ro_lock;
+	int	area_type;
 };
 
 static DEFINE_MUTEX(open_lock);
@@ -163,6 +165,70 @@ static void mmc_blk_put(struct mmc_blk_data *md)
 		kfree(md);
 	}
 	mutex_unlock(&open_lock);
+}
+
+static ssize_t power_ro_lock_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	int ret;
+	struct mmc_blk_data *md = mmc_blk_get(dev_to_disk(dev));
+	struct mmc_card *card = md->queue.card;
+	int locked = 0;
+
+	if (card->ext_csd.boot_ro_lock & EXT_CSD_BOOT_WP_B_PERM_WP_EN)
+		locked = 2;
+	else if (card->ext_csd.boot_ro_lock & EXT_CSD_BOOT_WP_B_PWR_WP_EN)
+		locked = 1;
+
+	ret = snprintf(buf, PAGE_SIZE, "%d\n", locked);
+
+	return ret;
+}
+
+static ssize_t power_ro_lock_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	struct mmc_blk_data *md, *part_md;
+	struct mmc_card *card;
+	unsigned long set;
+
+	if (kstrtoul(buf, 0, &set))
+		return -EINVAL;
+
+	if (set != 1)
+		return count;
+
+	md = mmc_blk_get(dev_to_disk(dev));
+	card = md->queue.card;
+
+	mmc_claim_host(card->host);
+
+	ret = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_BOOT_WP,
+				card->ext_csd.boot_ro_lock |
+				EXT_CSD_BOOT_WP_B_PWR_WP_EN,
+				card->ext_csd.part_time);
+	if (ret)
+		pr_err("%s: Locking boot partition ro until next power on failed: %d\n", md->disk->disk_name, ret);
+	else
+		card->ext_csd.boot_ro_lock |= EXT_CSD_BOOT_WP_B_PWR_WP_EN;
+
+	mmc_release_host(card->host);
+
+	if (!ret) {
+		pr_info("%s: Locking boot partition ro until next power on\n",
+			md->disk->disk_name);
+		set_disk_ro(md->disk, 1);
+
+		list_for_each_entry(part_md, &md->part, part)
+			if (part_md->area_type == MMC_BLK_DATA_AREA_BOOT) {
+				pr_info("%s: Locking boot partition ro until next power on\n", part_md->disk->disk_name);
+				set_disk_ro(part_md->disk, 1);
+			}
+	}
+
+	mmc_blk_put(md);
+	return count;
 }
 
 static ssize_t force_ro_show(struct device *dev, struct device_attribute *attr,
@@ -1347,7 +1413,8 @@ static struct mmc_blk_data *mmc_blk_alloc_req(struct mmc_card *card,
 					      struct device *parent,
 					      sector_t size,
 					      bool default_ro,
-					      const char *subname)
+					      const char *subname,
+					      int area_type)
 {
 	struct mmc_blk_data *md;
 	int devidx, ret;
@@ -1372,10 +1439,11 @@ static struct mmc_blk_data *mmc_blk_alloc_req(struct mmc_card *card,
 	if (!subname) {
 		md->name_idx = find_first_zero_bit(name_use, max_devices);
 		__set_bit(md->name_idx, name_use);
-	}
-	else
+	} else
 		md->name_idx = ((struct mmc_blk_data *)
 				dev_to_disk(parent)->private_data)->name_idx;
+
+	md->area_type = area_type;
 
 	/*
 	 * Set the read-only status based on the supported commands
@@ -1470,7 +1538,8 @@ static struct mmc_blk_data *mmc_blk_alloc(struct mmc_card *card)
 		size = card->csd.capacity << (card->csd.read_blkbits - 9);
 	}
 
-	md = mmc_blk_alloc_req(card, &card->dev, size, false, NULL);
+	md = mmc_blk_alloc_req(card, &card->dev, size, false, NULL,
+					MMC_BLK_DATA_AREA_MAIN);
 	return md;
 }
 
@@ -1479,13 +1548,14 @@ static int mmc_blk_alloc_part(struct mmc_card *card,
 			      unsigned int part_type,
 			      sector_t size,
 			      bool default_ro,
-			      const char *subname)
+			      const char *subname,
+			      int area_type)
 {
 	char cap_str[10];
 	struct mmc_blk_data *part_md;
 
 	part_md = mmc_blk_alloc_req(card, disk_to_dev(md->disk), size, default_ro,
-				    subname);
+				    subname, area_type);
 	if (IS_ERR(part_md))
 		return PTR_ERR(part_md);
 	part_md->part_type = part_type;
@@ -1518,7 +1588,8 @@ static int mmc_blk_alloc_parts(struct mmc_card *card, struct mmc_blk_data *md)
 				card->part[idx].part_cfg,
 				card->part[idx].size >> 9,
 				card->part[idx].force_ro,
-				card->part[idx].name);
+				card->part[idx].name,
+				card->part[idx].area_type);
 			if (ret)
 				return ret;
 		}
@@ -1547,9 +1618,16 @@ mmc_blk_set_blksize(struct mmc_blk_data *md, struct mmc_card *card)
 
 static void mmc_blk_remove_req(struct mmc_blk_data *md)
 {
+	struct mmc_card *card;
+
 	if (md) {
+		card = md->queue.card;
 		if (md->disk->flags & GENHD_FL_UP) {
 			device_remove_file(disk_to_dev(md->disk), &md->force_ro);
+			if ((md->area_type & MMC_BLK_DATA_AREA_BOOT) &&
+					card->ext_csd.boot_ro_lockable)
+				device_remove_file(disk_to_dev(md->disk),
+					&md->power_ro_lock);
 
 			/* Stop new requests from getting into the queue */
 			del_gendisk(md->disk);
@@ -1578,6 +1656,7 @@ static void mmc_blk_remove_parts(struct mmc_card *card,
 static int mmc_add_disk(struct mmc_blk_data *md)
 {
 	int ret;
+	struct mmc_card *card = md->queue.card;
 
 	add_disk(md->disk);
 	md->force_ro.show = force_ro_show;
@@ -1587,7 +1666,33 @@ static int mmc_add_disk(struct mmc_blk_data *md)
 	md->force_ro.attr.mode = S_IRUGO | S_IWUSR;
 	ret = device_create_file(disk_to_dev(md->disk), &md->force_ro);
 	if (ret)
-		del_gendisk(md->disk);
+		goto force_ro_fail;
+
+	if ((md->area_type & MMC_BLK_DATA_AREA_BOOT) &&
+	     card->ext_csd.boot_ro_lockable) {
+		mode_t mode;
+
+		if (card->ext_csd.boot_ro_lock & EXT_CSD_BOOT_WP_B_PWR_WP_DIS)
+			mode = S_IRUGO;
+		else
+			mode = S_IRUGO | S_IWUSR;
+
+		md->power_ro_lock.show = power_ro_lock_show;
+		md->power_ro_lock.store = power_ro_lock_store;
+		md->power_ro_lock.attr.mode = mode;
+		md->power_ro_lock.attr.name =
+					"ro_lock_until_next_power_on";
+		ret = device_create_file(disk_to_dev(md->disk),
+				&md->power_ro_lock);
+		if (ret)
+			goto power_ro_lock_fail;
+	}
+	return ret;
+
+power_ro_lock_fail:
+	device_remove_file(disk_to_dev(md->disk), &md->force_ro);
+force_ro_fail:
+	del_gendisk(md->disk);
 
 	return ret;
 }
