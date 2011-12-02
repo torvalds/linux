@@ -112,7 +112,7 @@
 #include <net/secure_seq.h>
 
 #define RT_FL_TOS(oldflp4) \
-    ((u32)(oldflp4->flowi4_tos & (IPTOS_RT_MASK | RTO_ONLINK)))
+	((oldflp4)->flowi4_tos & (IPTOS_RT_MASK | RTO_ONLINK))
 
 #define IP_MAX_MTU	0xFFF0
 
@@ -2441,11 +2441,11 @@ EXPORT_SYMBOL(ip_route_input_common);
 static struct rtable *__mkroute_output(const struct fib_result *res,
 				       const struct flowi4 *fl4,
 				       __be32 orig_daddr, __be32 orig_saddr,
-				       int orig_oif, struct net_device *dev_out,
+				       int orig_oif, __u8 orig_rtos,
+				       struct net_device *dev_out,
 				       unsigned int flags)
 {
 	struct fib_info *fi = res->fi;
-	u32 tos = RT_FL_TOS(fl4);
 	struct in_device *in_dev;
 	u16 type = res->type;
 	struct rtable *rth;
@@ -2496,7 +2496,7 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 	rth->rt_genid = rt_genid(dev_net(dev_out));
 	rth->rt_flags	= flags;
 	rth->rt_type	= type;
-	rth->rt_key_tos	= tos;
+	rth->rt_key_tos	= orig_rtos;
 	rth->rt_dst	= fl4->daddr;
 	rth->rt_src	= fl4->saddr;
 	rth->rt_route_iif = 0;
@@ -2546,7 +2546,7 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 static struct rtable *ip_route_output_slow(struct net *net, struct flowi4 *fl4)
 {
 	struct net_device *dev_out = NULL;
-	u32 tos	= RT_FL_TOS(fl4);
+	__u8 tos = RT_FL_TOS(fl4);
 	unsigned int flags = 0;
 	struct fib_result res;
 	struct rtable *rth;
@@ -2722,7 +2722,7 @@ static struct rtable *ip_route_output_slow(struct net *net, struct flowi4 *fl4)
 
 make_route:
 	rth = __mkroute_output(&res, fl4, orig_daddr, orig_saddr, orig_oif,
-			       dev_out, flags);
+			       tos, dev_out, flags);
 	if (!IS_ERR(rth)) {
 		unsigned int hash;
 
