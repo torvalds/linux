@@ -154,8 +154,8 @@ static __devinit int wlf_gf_module_probe(struct i2c_client *i2c,
 					"Failed to register dev: %d\n", ret);
 		}
 	} else {
-		dev_warn(&i2c->dev, "Unknown module ID %d revision %d\n",
-			 id, rev);
+		dev_warn(&i2c->dev, "Unknown module ID 0x%x revision %d\n",
+			 id, rev + 1);
 	}
 
 	return 0;
