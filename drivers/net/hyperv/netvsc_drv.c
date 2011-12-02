@@ -43,14 +43,9 @@
 struct net_device_context {
 	/* point back to our device context */
 	struct hv_device *device_ctx;
-	atomic_t avail;
 	struct delayed_work dwork;
 };
 
-
-#define PACKET_PAGES_LOWATER  8
-/* Need this many pages to handle worst case fragmented packet */
-#define PACKET_PAGES_HIWATER  (MAX_SKB_FRAGS + 2)
 
 static int ring_size = 128;
 module_param(ring_size, int, S_IRUGO);
@@ -144,18 +139,8 @@ static void netvsc_xmit_completion(void *context)
 
 	kfree(packet);
 
-	if (skb) {
-		struct net_device *net = skb->dev;
-		struct net_device_context *net_device_ctx = netdev_priv(net);
-		unsigned int num_pages = skb_shinfo(skb)->nr_frags + 2;
-
+	if (skb)
 		dev_kfree_skb_any(skb);
-
-		atomic_add(num_pages, &net_device_ctx->avail);
-		if (atomic_read(&net_device_ctx->avail) >=
-				PACKET_PAGES_HIWATER)
-			netif_wake_queue(net);
-	}
 }
 
 static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
@@ -167,8 +152,6 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 
 	/* Add 1 for skb->data and additional one for RNDIS */
 	num_pages = skb_shinfo(skb)->nr_frags + 1 + 1;
-	if (num_pages > atomic_read(&net_device_ctx->avail))
-		return NETDEV_TX_BUSY;
 
 	/* Allocate a netvsc packet based on # of frags. */
 	packet = kzalloc(sizeof(struct hv_netvsc_packet) +
@@ -218,10 +201,6 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	if (ret == 0) {
 		net->stats.tx_bytes += skb->len;
 		net->stats.tx_packets++;
-
-		atomic_sub(num_pages, &net_device_ctx->avail);
-		if (atomic_read(&net_device_ctx->avail) < PACKET_PAGES_LOWATER)
-			netif_stop_queue(net);
 	} else {
 		/* we are shutting down or bus overloaded, just drop packet */
 		net->stats.tx_dropped++;
@@ -391,7 +370,6 @@ static int netvsc_probe(struct hv_device *dev,
 
 	net_device_ctx = netdev_priv(net);
 	net_device_ctx->device_ctx = dev;
-	atomic_set(&net_device_ctx->avail, ring_size);
 	hv_set_drvdata(dev, net);
 	INIT_DELAYED_WORK(&net_device_ctx->dwork, netvsc_send_garp);
 

@@ -435,6 +435,9 @@ static void netvsc_send_completion(struct hv_device *device,
 			nvsc_packet->completion.send.send_completion_ctx);
 
 		atomic_dec(&net_device->num_outstanding_sends);
+
+		if (netif_queue_stopped(ndev))
+			netif_wake_queue(ndev);
 	} else {
 		netdev_err(ndev, "Unknown send completion packet type- "
 			   "%d received!!\n", nvsp_packet->hdr.msg_type);
@@ -485,11 +488,16 @@ int netvsc_send(struct hv_device *device,
 
 	}
 
-	if (ret != 0)
+	if (ret == 0) {
+		atomic_inc(&net_device->num_outstanding_sends);
+	} else if (ret == -EAGAIN) {
+		netif_stop_queue(ndev);
+		if (atomic_read(&net_device->num_outstanding_sends) < 1)
+			netif_wake_queue(ndev);
+	} else {
 		netdev_err(ndev, "Unable to send packet %p ret %d\n",
 			   packet, ret);
-	else
-		atomic_inc(&net_device->num_outstanding_sends);
+	}
 
 	return ret;
 }
