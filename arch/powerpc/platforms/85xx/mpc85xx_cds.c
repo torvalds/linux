@@ -188,7 +188,6 @@ static struct irqaction mpc85xxcds_8259_irqaction = {
 static void __init mpc85xx_cds_pic_init(void)
 {
 	struct mpic *mpic;
-	struct resource r;
 	struct device_node *np = NULL;
 
 	np = of_find_node_by_type(np, "open-pic");
@@ -198,13 +197,7 @@ static void __init mpc85xx_cds_pic_init(void)
 		return;
 	}
 
-	if (of_address_to_resource(np, 0, &r)) {
-		printk(KERN_ERR "Failed to map mpic register space\n");
-		of_node_put(np);
-		return;
-	}
-
-	mpic = mpic_alloc(np, r.start,
+	mpic = mpic_alloc(np, 0,
 			MPIC_PRIMARY | MPIC_WANTS_RESET | MPIC_BIG_ENDIAN,
 			0, 256, " OpenPIC  ");
 	BUG_ON(mpic == NULL);

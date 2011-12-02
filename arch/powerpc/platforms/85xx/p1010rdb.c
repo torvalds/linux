@@ -33,7 +33,6 @@
 void __init p1010_rdb_pic_init(void)
 {
 	struct mpic *mpic;
-	struct resource r;
 	struct device_node *np;
 
 	np = of_find_node_by_type(NULL, "open-pic");
@@ -42,13 +41,7 @@ void __init p1010_rdb_pic_init(void)
 		return;
 	}
 
-	if (of_address_to_resource(np, 0, &r)) {
-		printk(KERN_ERR "Failed to map mpic register space\n");
-		of_node_put(np);
-		return;
-	}
-
-	mpic = mpic_alloc(np, r.start, MPIC_PRIMARY | MPIC_WANTS_RESET |
+	mpic = mpic_alloc(np, 0, MPIC_PRIMARY | MPIC_WANTS_RESET |
 	  MPIC_BIG_ENDIAN | MPIC_BROKEN_FRR_NIRQS | MPIC_SINGLE_DEST_CPU,
 	  0, 256, " OpenPIC  ");
 

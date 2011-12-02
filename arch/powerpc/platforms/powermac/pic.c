@@ -498,14 +498,8 @@ static struct mpic * __init pmac_setup_one_mpic(struct device_node *np,
 						int master)
 {
 	const char *name = master ? " MPIC 1   " : " MPIC 2   ";
-	struct resource r;
 	struct mpic *mpic;
 	unsigned int flags = master ? MPIC_PRIMARY : 0;
-	int rc;
-
-	rc = of_address_to_resource(np, 0, &r);
-	if (rc)
-		return NULL;
 
 	pmac_call_feature(PMAC_FTR_ENABLE_MPIC, np, 0, 0);
 
@@ -519,7 +513,7 @@ static struct mpic * __init pmac_setup_one_mpic(struct device_node *np,
 	if (master && (flags & MPIC_BIG_ENDIAN))
 		flags |= MPIC_U3_HT_IRQS;
 
-	mpic = mpic_alloc(np, r.start, flags, 0, 0, name);
+	mpic = mpic_alloc(np, 0, flags, 0, 0, name);
 	if (mpic == NULL)
 		return NULL;
 

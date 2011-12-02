@@ -33,7 +33,6 @@ void __init mpc86xx_init_irq(void)
 {
 	struct mpic *mpic;
 	struct device_node *np;
-	struct resource res;
 #ifdef CONFIG_PPC_I8259
 	struct device_node *cascade_node = NULL;
 	int cascade_irq;
@@ -43,9 +42,8 @@ void __init mpc86xx_init_irq(void)
 	np = of_find_node_by_type(NULL, "open-pic");
 	if (np == NULL)
 		return;
-	of_address_to_resource(np, 0, &res);
 
-	mpic = mpic_alloc(np, res.start,
+	mpic = mpic_alloc(np, 0,
 			MPIC_PRIMARY | MPIC_WANTS_RESET |
 			MPIC_BIG_ENDIAN | MPIC_BROKEN_FRR_NIRQS |
 			MPIC_SINGLE_DEST_CPU,

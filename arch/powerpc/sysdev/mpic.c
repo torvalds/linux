@@ -1142,7 +1142,24 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	const char	*vers;
 	int		i;
 	int		intvec_top;
-	u64		paddr = phys_addr;
+
+	/*
+	 * If no phyiscal address was specified then all of the phyiscal
+	 * addressing parameters must come from the device-tree.
+	 */
+	if (!phys_addr) {
+		BUG_ON(!node);
+
+		/* Check if it is DCR-based */
+		if (of_get_property(node, "dcr-reg", NULL)) {
+			flags |= MPIC_USES_DCR;
+		} else {
+			struct resource r;
+			if (of_address_to_resource(node, 0, &r))
+				return NULL;
+			phys_addr = r.start;
+		}
+	}
 
 	mpic = kzalloc(sizeof(struct mpic), GFP_KERNEL);
 	if (mpic == NULL)
@@ -1224,35 +1241,25 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 #endif
 
 	/* default register type */
-	mpic->reg_type = (flags & MPIC_BIG_ENDIAN) ?
-		mpic_access_mmio_be : mpic_access_mmio_le;
+	if (flags & MPIC_BIG_ENDIAN)
+		mpic->reg_type = mpic_access_mmio_be;
+	else
+		mpic->reg_type = mpic_access_mmio_le;
 
-	/* If no physical address is passed in, a device-node is mandatory */
-	BUG_ON(paddr == 0 && node == NULL);
-
-	/* If no physical address passed in, check if it's dcr based */
-	if (paddr == 0 && of_get_property(node, "dcr-reg", NULL) != NULL) {
+	/*
+	 * An MPIC with a "dcr-reg" property must be accessed that way, but
+	 * only if the kernel includes DCR support.
+	 */
 #ifdef CONFIG_PPC_DCR
-		mpic->flags |= MPIC_USES_DCR;
+	if (flags & MPIC_USES_DCR)
 		mpic->reg_type = mpic_access_dcr;
 #else
-		BUG();
-#endif /* CONFIG_PPC_DCR */
-	}
-
-	/* If the MPIC is not DCR based, and no physical address was passed
-	 * in, try to obtain one
-	 */
-	if (paddr == 0 && !(mpic->flags & MPIC_USES_DCR)) {
-		const u32 *reg = of_get_property(node, "reg", NULL);
-		BUG_ON(reg == NULL);
-		paddr = of_translate_address(node, reg);
-		BUG_ON(paddr == OF_BAD_ADDR);
-	}
+	BUG_ON(flags & MPIC_USES_DCR);
+#endif
 
 	/* Map the global registers */
-	mpic_map(mpic, node, paddr, &mpic->gregs, MPIC_INFO(GREG_BASE), 0x1000);
-	mpic_map(mpic, node, paddr, &mpic->tmregs, MPIC_INFO(TIMER_BASE), 0x1000);
+	mpic_map(mpic, node, phys_addr, &mpic->gregs, MPIC_INFO(GREG_BASE), 0x1000);
+	mpic_map(mpic, node, phys_addr, &mpic->tmregs, MPIC_INFO(TIMER_BASE), 0x1000);
 
 	/* Reset */
 
@@ -1307,7 +1314,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	for_each_possible_cpu(i) {
 		unsigned int cpu = get_hard_smp_processor_id(i);
 
-		mpic_map(mpic, node, paddr, &mpic->cpuregs[cpu],
+		mpic_map(mpic, node, phys_addr, &mpic->cpuregs[cpu],
 			 MPIC_INFO(CPU_BASE) + cpu * MPIC_INFO(CPU_STRIDE),
 			 0x1000);
 	}
@@ -1315,7 +1322,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	/* Initialize main ISU if none provided */
 	if (mpic->isu_size == 0) {
 		mpic->isu_size = mpic->num_sources;
-		mpic_map(mpic, node, paddr, &mpic->isus[0],
+		mpic_map(mpic, node, phys_addr, &mpic->isus[0],
 			 MPIC_INFO(IRQ_BASE), MPIC_INFO(IRQ_STRIDE) * mpic->isu_size);
 	}
 	mpic->isu_shift = 1 + __ilog2(mpic->isu_size - 1);
@@ -1347,7 +1354,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	}
 	printk(KERN_INFO "mpic: Setting up MPIC \"%s\" version %s at %llx,"
 	       " max %d CPUs\n",
-	       name, vers, (unsigned long long)paddr, num_possible_cpus());
+	       name, vers, (unsigned long long)phys_addr, num_possible_cpus());
 	printk(KERN_INFO "mpic: ISU size: %d, shift: %d, mask: %x\n",
 	       mpic->isu_size, mpic->isu_shift, mpic->isu_mask);
 
