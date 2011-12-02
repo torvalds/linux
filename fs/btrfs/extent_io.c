@@ -2287,20 +2287,33 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 		if (!uptodate) {
 			int failed_mirror;
 			failed_mirror = (int)(unsigned long)bio->bi_bdev;
-			if (tree->ops && tree->ops->readpage_io_failed_hook)
-				ret = tree->ops->readpage_io_failed_hook(
-						bio, page, start, end,
-						failed_mirror, state);
-			else
-				ret = bio_readpage_error(bio, page, start, end,
-							 failed_mirror, NULL);
+			/*
+			 * The generic bio_readpage_error handles errors the
+			 * following way: If possible, new read requests are
+			 * created and submitted and will end up in
+			 * end_bio_extent_readpage as well (if we're lucky, not
+			 * in the !uptodate case). In that case it returns 0 and
+			 * we just go on with the next page in our bio. If it
+			 * can't handle the error it will return -EIO and we
+			 * remain responsible for that page.
+			 */
+			ret = bio_readpage_error(bio, page, start, end,
+							failed_mirror, NULL);
 			if (ret == 0) {
+error_handled:
 				uptodate =
 					test_bit(BIO_UPTODATE, &bio->bi_flags);
 				if (err)
 					uptodate = 0;
 				uncache_state(&cached);
 				continue;
+			}
+			if (tree->ops && tree->ops->readpage_io_failed_hook) {
+				ret = tree->ops->readpage_io_failed_hook(
+							bio, page, start, end,
+							failed_mirror, state);
+				if (ret == 0)
+					goto error_handled;
 			}
 		}
 
