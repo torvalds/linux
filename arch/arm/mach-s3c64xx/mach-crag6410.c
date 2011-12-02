@@ -501,6 +501,7 @@ static struct wm831x_pdata crag_pmic_pdata __initdata = {
 	.wm831x_num = 1,
 	.irq_base = BANFF_PMIC_IRQ_BASE,
 	.gpio_base = BANFF_PMIC_GPIO_BASE,
+	.soft_shutdown = true,
 
 	.backup = &banff_backup_pdata,
 
@@ -605,6 +606,7 @@ static struct wm831x_pdata glenfarclas_pmic_pdata __initdata = {
 	.wm831x_num = 2,
 	.irq_base = GLENFARCLAS_PMIC_IRQ_BASE,
 	.gpio_base = GLENFARCLAS_PMIC_GPIO_BASE,
+	.soft_shutdown = true,
 
 	.gpio_defaults = {
 		/* GPIO1-3: IRQ inputs, rising edge triggered, CMOS */
