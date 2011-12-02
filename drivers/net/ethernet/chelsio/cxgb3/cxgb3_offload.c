@@ -1072,8 +1072,11 @@ static int is_offloading(struct net_device *dev)
 
 static void cxgb_neigh_update(struct neighbour *neigh)
 {
-	struct net_device *dev = neigh->dev;
+	struct net_device *dev;
 
+	if (!neigh)
+		return;
+	dev = neigh->dev;
 	if (dev && (is_offloading(dev))) {
 		struct t3cdev *tdev = dev2t3cdev(dev);
 
@@ -1107,6 +1110,7 @@ static void set_l2t_ix(struct t3cdev *tdev, u32 tid, struct l2t_entry *e)
 static void cxgb_redirect(struct dst_entry *old, struct dst_entry *new)
 {
 	struct net_device *olddev, *newdev;
+	struct neighbour *n;
 	struct tid_info *ti;
 	struct t3cdev *tdev;
 	u32 tid;
@@ -1114,8 +1118,16 @@ static void cxgb_redirect(struct dst_entry *old, struct dst_entry *new)
 	struct l2t_entry *e;
 	struct t3c_tid_entry *te;
 
-	olddev = dst_get_neighbour_noref(old)->dev;
-	newdev = dst_get_neighbour_noref(new)->dev;
+	n = dst_get_neighbour_noref(old);
+	if (!n)
+		return;
+	olddev = n->dev;
+
+	n = dst_get_neighbour_noref(new);
+	if (!n)
+		return;
+	newdev = n->dev;
+
 	if (!is_offloading(olddev))
 		return;
 	if (!is_offloading(newdev)) {
