@@ -353,3 +353,7 @@ struct microcode_ops * __init init_amd_microcode(void)
 {
 	return &microcode_amd_ops;
 }
+
+void __exit exit_amd_microcode(void)
+{
+}
