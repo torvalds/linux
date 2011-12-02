@@ -161,7 +161,8 @@ static void iwlagn_tx_cmd_build_rate(struct iwl_priv *priv,
 		}
 #endif
 		return;
-	}
+	} else if (ieee80211_is_back_req(fc))
+		tx_cmd->tx_flags |= TX_CMD_FLG_STA_RATE_MSK;
 
 	/**
 	 * If the current TX rate stored in mac80211 has the MCS bit set, it's
