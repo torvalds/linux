@@ -287,7 +287,7 @@ static int hidinput_get_battery_property(struct power_supply *psy,
 	struct hid_device *dev = container_of(psy, struct hid_device, battery);
 	int ret = 0;
 	int ret_rep;
-	__u8 *buf = NULL;
+	__u8 buf[2] = {};
 	unsigned char report_number = dev->battery_report_id;
 
 	switch (prop) {
@@ -297,14 +297,8 @@ static int hidinput_get_battery_property(struct power_supply *psy,
 		break;
 
 	case POWER_SUPPLY_PROP_CAPACITY:
-		buf = kmalloc(2 * sizeof(__u8), GFP_KERNEL);
-		if (!buf) {
-			ret = -ENOMEM;
-			break;
-		}
-
-		memset(buf, 0, sizeof(buf));
-		ret_rep = dev->hid_get_raw_report(dev, report_number, buf, sizeof(buf), HID_FEATURE_REPORT);
+		ret_rep = dev->hid_get_raw_report(dev, report_number,
+						  buf, sizeof(buf), HID_FEATURE_REPORT);
 		if (ret_rep != 2) {
 			ret = -EINVAL;
 			break;
@@ -329,9 +323,6 @@ static int hidinput_get_battery_property(struct power_supply *psy,
 		break;
 	}
 
-	if (buf) {
-		kfree(buf);
-	}
 	return ret;
 }
 
