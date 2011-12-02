@@ -90,6 +90,7 @@ snd-soc-wm8993-objs := wm8993.o
 snd-soc-wm8994-objs := wm8994.o wm8994-tables.o wm8958-dsp2.o
 snd-soc-wm8995-objs := wm8995.o
 snd-soc-wm9081-objs := wm9081.o
+snd-soc-wm9090-objs := wm9090.o
 snd-soc-wm9705-objs := wm9705.o
 snd-soc-wm9712-objs := wm9712.o
 snd-soc-wm9713-objs := wm9713.o
@@ -98,7 +99,6 @@ snd-soc-wm-hubs-objs := wm_hubs.o
 # Amp
 snd-soc-max9877-objs := max9877.o
 snd-soc-tpa6130a2-objs := tpa6130a2.o
-snd-soc-wm9090-objs := wm9090.o
 
 obj-$(CONFIG_SND_SOC_88PM860X)	+= snd-soc-88pm860x.o
 obj-$(CONFIG_SND_SOC_AC97_CODEC)	+= snd-soc-ac97.o
@@ -192,6 +192,7 @@ obj-$(CONFIG_SND_SOC_WM8993)	+= snd-soc-wm8993.o
 obj-$(CONFIG_SND_SOC_WM8994)	+= snd-soc-wm8994.o
 obj-$(CONFIG_SND_SOC_WM8995)	+= snd-soc-wm8995.o
 obj-$(CONFIG_SND_SOC_WM9081)	+= snd-soc-wm9081.o
+obj-$(CONFIG_SND_SOC_WM9090)	+= snd-soc-wm9090.o
 obj-$(CONFIG_SND_SOC_WM9705)	+= snd-soc-wm9705.o
 obj-$(CONFIG_SND_SOC_WM9712)	+= snd-soc-wm9712.o
 obj-$(CONFIG_SND_SOC_WM9713)	+= snd-soc-wm9713.o
@@ -200,4 +201,3 @@ obj-$(CONFIG_SND_SOC_WM_HUBS)	+= snd-soc-wm-hubs.o
 # Amp
 obj-$(CONFIG_SND_SOC_MAX9877)	+= snd-soc-max9877.o
 obj-$(CONFIG_SND_SOC_TPA6130A2)	+= snd-soc-tpa6130a2.o
-obj-$(CONFIG_SND_SOC_WM9090)	+= snd-soc-wm9090.o

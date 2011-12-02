@@ -409,6 +409,9 @@ config SND_SOC_WM8996
 config SND_SOC_WM9081
 	tristate
 
+config SND_SOC_WM9090
+	tristate
+
 config SND_SOC_WM9705
 	tristate
 
@@ -426,7 +429,4 @@ config SND_SOC_MAX9877
 	tristate
 
 config SND_SOC_TPA6130A2
-	tristate
-
-config SND_SOC_WM9090
 	tristate
