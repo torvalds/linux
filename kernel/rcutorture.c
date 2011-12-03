@@ -1388,7 +1388,7 @@ rcu_torture_onoff(void *arg)
 	WARN_ON(maxcpu < 0);
 	while (!kthread_should_stop()) {
 		cpu = (rcu_random(&rand) >> 4) % (maxcpu + 1);
-		if (cpu_online(cpu)) {
+		if (cpu_online(cpu) && cpu_is_hotpluggable(cpu)) {
 			if (verbose)
 				printk(KERN_ALERT "%s" TORTURE_FLAG
 				       "rcu_torture_onoff task: offlining %d\n",
@@ -1402,7 +1402,7 @@ rcu_torture_onoff(void *arg)
 					       torture_type, cpu);
 				n_offline_successes++;
 			}
-		} else {
+		} else if (cpu_is_hotpluggable(cpu)) {
 			if (verbose)
 				printk(KERN_ALERT "%s" TORTURE_FLAG
 				       "rcu_torture_onoff task: onlining %d\n",
