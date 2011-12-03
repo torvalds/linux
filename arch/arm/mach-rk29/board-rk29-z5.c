@@ -2476,6 +2476,15 @@ struct platform_device rk2818_device_mtk23d = {
     };
 #endif
 
+#if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
+#define SDMMC0_WRITE_PROTECT_PIN		RK29_PIN6_PB0 //According to your own project to set the value of write-protect-pin.
+#endif
+
+
+#if defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
+#define SDMMC1_WRITE_PROTECT_PIN		RK29_PIN6_PB0 //According to your own project to set the value of write-protect-pin.
+#endif
+
 /*****************************************************************************************
  * SDMMC devices
 *****************************************************************************************/
@@ -2707,27 +2716,49 @@ static void rk29_sdmmc_set_iomux(int device_id, unsigned int bus_width)
             break;
     }    
 }
+
+#endif
+
+#ifdef CONFIG_WIFI_CONTROL_FUNC
+static int rk29sdk_wifi_status(struct device *dev);
+static int rk29sdk_wifi_status_register(void (*callback)(int card_presend, void *dev_id), void *dev_id);
 #endif
 
 #ifdef CONFIG_SDMMC0_RK29
 static int rk29_sdmmc0_cfg_gpio(void)
 {
-	rk29_mux_api_set(GPIO1D1_SDMMC0CMD_NAME, GPIO1H_SDMMC0_CMD);
+#ifdef CONFIG_SDMMC_RK29_OLD	
+    rk29_mux_api_set(GPIO1D1_SDMMC0CMD_NAME, GPIO1H_SDMMC0_CMD);
 	rk29_mux_api_set(GPIO1D0_SDMMC0CLKOUT_NAME, GPIO1H_SDMMC0_CLKOUT);
 	rk29_mux_api_set(GPIO1D2_SDMMC0DATA0_NAME, GPIO1H_SDMMC0_DATA0);
 	rk29_mux_api_set(GPIO1D3_SDMMC0DATA1_NAME, GPIO1H_SDMMC0_DATA1);
 	rk29_mux_api_set(GPIO1D4_SDMMC0DATA2_NAME, GPIO1H_SDMMC0_DATA2);
 	rk29_mux_api_set(GPIO1D5_SDMMC0DATA3_NAME, GPIO1H_SDMMC0_DATA3);
-#ifdef CONFIG_SDMMC_RK29_OLD	
+	
 	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_GPIO2A2);
-#else
-  rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N);//Modifyed by xbw.
-#endif	
-	rk29_mux_api_set(GPIO5D5_SDMMC0PWREN_NAME, GPIO5H_GPIO5D5);   ///GPIO5H_SDMMC0_PWR_EN);  ///GPIO5H_GPIO5D5);
+
+    rk29_mux_api_set(GPIO5D5_SDMMC0PWREN_NAME, GPIO5H_GPIO5D5);   ///GPIO5H_SDMMC0_PWR_EN);  ///GPIO5H_GPIO5D5);
 	gpio_request(RK29_PIN5_PD5,"sdmmc");
+#if 0
 	gpio_set_value(RK29_PIN5_PD5,GPIO_HIGH);
 	mdelay(100);
 	gpio_set_value(RK29_PIN5_PD5,GPIO_LOW);
+#else
+	gpio_direction_output(RK29_PIN5_PD5,GPIO_LOW);
+#endif
+
+#else
+    rk29_sdmmc_set_iomux(0, 0xFFFF);
+    
+	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N);//Modifyed by xbw.
+
+	#if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
+    gpio_request(SDMMC0_WRITE_PROTECT_PIN,"sdmmc-wp");
+    gpio_direction_input(SDMMC0_WRITE_PROTECT_PIN);	    
+    #endif
+
+#endif
+
 	return 0;
 }
 
@@ -2738,23 +2769,32 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 					   MMC_VDD_33_34|MMC_VDD_34_35| MMC_VDD_35_36),
 	.host_caps 	= (MMC_CAP_4_BIT_DATA|MMC_CAP_MMC_HIGHSPEED|MMC_CAP_SD_HIGHSPEED),
 	.io_init = rk29_sdmmc0_cfg_gpio,
+	
+#if !defined(CONFIG_SDMMC_RK29_OLD)		
+	.set_iomux = rk29_sdmmc_set_iomux,
+#endif
+
 	.dma_name = "sd_mmc",
 #ifdef CONFIG_SDMMC0_USE_DMA
 	.use_dma  = 1,
 #else
 	.use_dma = 0,
 #endif
-#if !defined(CONFIG_SDMMC_RK29_OLD)		
-	.set_iomux = rk29_sdmmc_set_iomux,
-#endif
 	.detect_irq = RK29_PIN2_PA2, // INVALID_GPIO
 	.enable_sd_wakeup = 0,
+
+#if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
+    .write_prt = SDMMC0_WRITE_PROTECT_PIN,
+#else
+    .write_prt = INVALID_GPIO,
+#endif
 };
 #endif
 #ifdef CONFIG_SDMMC1_RK29
 #define CONFIG_SDMMC1_USE_DMA
 static int rk29_sdmmc1_cfg_gpio(void)
 {
+#if defined(CONFIG_SDMMC_RK29_OLD)
 	rk29_mux_api_set(GPIO1C2_SDMMC1CMD_NAME, GPIO1H_SDMMC1_CMD);
 	rk29_mux_api_set(GPIO1C7_SDMMC1CLKOUT_NAME, GPIO1H_SDMMC1_CLKOUT);
 	rk29_mux_api_set(GPIO1C3_SDMMC1DATA0_NAME, GPIO1H_SDMMC1_DATA0);
@@ -2762,13 +2802,20 @@ static int rk29_sdmmc1_cfg_gpio(void)
 	rk29_mux_api_set(GPIO1C5_SDMMC1DATA2_NAME, GPIO1H_SDMMC1_DATA2);
 	rk29_mux_api_set(GPIO1C6_SDMMC1DATA3_NAME, GPIO1H_SDMMC1_DATA3);
 	//rk29_mux_api_set(GPIO1C0_UART0CTSN_SDMMC1DETECTN_NAME, GPIO1H_SDMMC1_DETECT_N);
+
+#else
+
+#if defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
+    gpio_request(SDMMC1_WRITE_PROTECT_PIN,"sdio-wp");
+    gpio_direction_input(SDMMC1_WRITE_PROTECT_PIN);	    
+#endif
+
+#endif
+
 	return 0;
 }
 
-#ifdef CONFIG_WIFI_CONTROL_FUNC
-static int rk29sdk_wifi_status(struct device *dev);
-static int rk29sdk_wifi_status_register(void (*callback)(int card_presend, void *dev_id), void *dev_id);
-#endif
+
 
 #define RK29SDK_WIFI_SDIO_CARD_DETECT_N    RK29_PIN1_PD6
 
@@ -2776,18 +2823,28 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 	.host_ocr_avail = (MMC_VDD_25_26|MMC_VDD_26_27|MMC_VDD_27_28|MMC_VDD_28_29|
 					   MMC_VDD_29_30|MMC_VDD_30_31|MMC_VDD_31_32|
 					   MMC_VDD_32_33|MMC_VDD_33_34),
+
+#if !defined(CONFIG_USE_SDMMC1_FOR_WIFI_DEVELOP_BOARD)					   
 	.host_caps 	= (MMC_CAP_4_BIT_DATA|MMC_CAP_SDIO_IRQ|
 				   MMC_CAP_MMC_HIGHSPEED|MMC_CAP_SD_HIGHSPEED),
-	.io_init = rk29_sdmmc1_cfg_gpio,
-	.dma_name = "sdio",
-#if !defined(CONFIG_SDMMC_RK29_OLD)
-	.set_iomux = rk29_sdmmc_set_iomux,
+#else
+    .host_caps 	= (MMC_CAP_4_BIT_DATA|MMC_CAP_MMC_HIGHSPEED|MMC_CAP_SD_HIGHSPEED),
 #endif
+
+	.io_init = rk29_sdmmc1_cfg_gpio,
+	
+#if !defined(CONFIG_SDMMC_RK29_OLD)		
+	.set_iomux = rk29_sdmmc_set_iomux,
+#endif	
+
+	.dma_name = "sdio",
 #ifdef CONFIG_SDMMC1_USE_DMA
 	.use_dma  = 1,
 #else
 	.use_dma = 0,
 #endif
+
+#if !defined(CONFIG_USE_SDMMC1_FOR_WIFI_DEVELOP_BOARD)
 #ifdef CONFIG_WIFI_CONTROL_FUNC
         .status = rk29sdk_wifi_status,
         .register_status_notify = rk29sdk_wifi_status_register,
@@ -2795,10 +2852,28 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 #if 0
         .detect_irq = RK29SDK_WIFI_SDIO_CARD_DETECT_N,
 #endif
-};
+
+#if defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
+    .write_prt = SDMMC1_WRITE_PROTECT_PIN,
+#else
+    .write_prt = INVALID_GPIO, 
+#endif  
+
+#else
+//for wifi develop board
+    .detect_irq = INVALID_GPIO,
+    .enable_sd_wakeup = 0,
 #endif
 
+}; 
+#endif ////endif--#ifdef CONFIG_SDMMC1_RK29
+
+
+int rk29sdk_wifi_power_state = 0;
+int rk29sdk_bt_power_state = 0;
+
 #ifdef CONFIG_WIFI_CONTROL_FUNC
+#define RK29SDK_WIFI_BT_GPIO_POWER_N       RK29_PIN5_PD6
 #define RK29SDK_WIFI_GPIO_RESET_N          RK29_PIN6_PC0
 #define RK29SDK_BT_GPIO_RESET_N            RK29_PIN6_PC7
 
@@ -2822,8 +2897,14 @@ static int rk29sdk_wifi_status_register(void (*callback)(int card_present, void 
 
 static int rk29sdk_wifi_bt_gpio_control_init(void)
 {
+    if (gpio_request(RK29SDK_WIFI_BT_GPIO_POWER_N, "wifi_bt_power")) {
+           pr_info("%s: request wifi_bt power gpio failed\n", __func__);
+           return -1;
+    }
+
     if (gpio_request(RK29SDK_WIFI_GPIO_RESET_N, "wifi reset")) {
            pr_info("%s: request wifi reset gpio failed\n", __func__);
+           gpio_free(RK29SDK_WIFI_BT_GPIO_POWER_N);
            return -1;
     }
 
@@ -2833,8 +2914,26 @@ static int rk29sdk_wifi_bt_gpio_control_init(void)
           return -1;
     }
 
+    gpio_direction_output(RK29SDK_WIFI_BT_GPIO_POWER_N, GPIO_LOW);
     gpio_direction_output(RK29SDK_WIFI_GPIO_RESET_N,    GPIO_LOW);
     gpio_direction_output(RK29SDK_BT_GPIO_RESET_N,      GPIO_LOW);
+
+    #if defined(CONFIG_SDMMC1_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
+    
+    rk29_mux_api_set(GPIO1C4_SDMMC1DATA1_NAME, GPIO1H_GPIO1C4);
+    gpio_request(RK29_PIN1_PC4, "mmc1-data1");
+    gpio_direction_output(RK29_PIN1_PC4,GPIO_LOW);//set mmc1-data1 to low.
+
+    rk29_mux_api_set(GPIO1C5_SDMMC1DATA2_NAME, GPIO1H_GPIO1C5);
+    gpio_request(RK29_PIN1_PC5, "mmc1-data2");
+    gpio_direction_output(RK29_PIN1_PC5,GPIO_LOW);//set mmc1-data2 to low.
+
+    rk29_mux_api_set(GPIO1C6_SDMMC1DATA3_NAME, GPIO1H_GPIO1C6);
+    gpio_request(RK29_PIN1_PC6, "mmc1-data3");
+    gpio_direction_output(RK29_PIN1_PC6,GPIO_LOW);//set mmc1-data3 to low.
+    
+    rk29_sdmmc_gpio_open(1, 0); //added by xbw at 2011-10-13
+    #endif    
     pr_info("%s: init finished\n",__func__);
 
     return 0;
@@ -2844,13 +2943,34 @@ static int rk29sdk_wifi_power(int on)
 {
         pr_info("%s: %d\n", __func__, on);
         if (on){
+                gpio_set_value(RK29SDK_WIFI_BT_GPIO_POWER_N, GPIO_HIGH);
+
+                #if defined(CONFIG_SDMMC1_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)	
+                rk29_sdmmc_gpio_open(1, 1); //added by xbw at 2011-10-13
+                #endif
+
                 gpio_set_value(RK29SDK_WIFI_GPIO_RESET_N, GPIO_HIGH);
                 mdelay(100);
                 pr_info("wifi turn on power\n");
         }else{
+                if (!rk29sdk_bt_power_state){
+                        gpio_set_value(RK29SDK_WIFI_BT_GPIO_POWER_N, GPIO_LOW);
+
+                        #if defined(CONFIG_SDMMC1_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)	
+                        rk29_sdmmc_gpio_open(1, 0); //added by xbw at 2011-10-13
+                        #endif
+                        
+                        mdelay(100);
+                        pr_info("wifi shut off power\n");
+                }else
+                {
+                        pr_info("wifi shouldn't shut off power, bt is using it!\n");
+                }
                 gpio_set_value(RK29SDK_WIFI_GPIO_RESET_N, GPIO_LOW);
-				pr_info("wifi shut off power\n");
+
         }
+
+        rk29sdk_wifi_power_state = on;
         return 0;
 }
 
@@ -2860,6 +2980,7 @@ static int rk29sdk_wifi_reset(int on)
         pr_info("%s: %d\n", __func__, on);
         gpio_set_value(RK29SDK_WIFI_GPIO_RESET_N, on);
         mdelay(100);
+        rk29sdk_wifi_reset_state = on;
         return 0;
 }
 
@@ -2919,14 +3040,14 @@ int __init rk29sdk_init_wifi_mem(void)
         }
         return 0;
 
- err_mem_alloc:
+err_mem_alloc:
         pr_err("Failed to mem_alloc for WLAN\n");
         for (j = 0 ; j < i ; j++)
-                kfree(wifi_mem_array[j].mem_ptr);
+               kfree(wifi_mem_array[j].mem_ptr);
 
         i = WLAN_SKB_BUF_NUM;
 
- err_skb_alloc:
+err_skb_alloc:
         pr_err("Failed to skb_alloc for WLAN\n");
         for (j = 0 ; j < i ; j++)
                 dev_kfree_skb(wlan_static_skb[j]);

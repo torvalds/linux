@@ -58,7 +58,8 @@ struct bt_ctrl
 #define BT_WAKE_LOCK_TIMEOUT    10 //s
 
 static const char bt_name[] = "bcm4329";
-
+extern int rk29sdk_bt_power_state;
+extern int rk29sdk_wifi_power_state;
 
 struct bt_ctrl gBtCtrl;
     
@@ -96,8 +97,8 @@ static void timer_hostSleep(unsigned long arg)
 
 #ifdef CONFIG_PM
 static int bcm4329_rfkill_suspend(struct platform_device *pdev, pm_message_t state)
-{   
-    DBG("%s\n",__FUNCTION__);  	
+{  
+	DBG("%s\n",__FUNCTION__);  	
 
 	//To prevent uart to receive bt data when suspended
 	IOMUX_UART_RTS_GPIO;
@@ -110,7 +111,7 @@ static int bcm4329_rfkill_suspend(struct platform_device *pdev, pm_message_t sta
 
 static int bcm4329_rfkill_resume(struct platform_device *pdev)
 {  
-    DBG("%s\n",__FUNCTION__);     
+    DBG("%s\n",__FUNCTION__);    
 	
     btWakeupHostLock();
     resetBtHostSleepTimer();
@@ -155,14 +156,13 @@ static int bcm4329_set_block(void *data, bool blocked)
         IOMUX_BT_GPIO_POWER;
 
     	if (false == blocked) { 
-			
-       		gpio_set_value(BT_GPIO_WAKE_UP, GPIO_HIGH); 
+       		gpio_set_value(BT_GPIO_POWER, GPIO_HIGH);  /* bt power on */
                 gpio_set_value(BT_GPIO_RESET, GPIO_LOW);
                 mdelay(200);
     		gpio_set_value(BT_GPIO_RESET, GPIO_HIGH);  /* bt reset deactive*/
     		mdelay(200);
-        	//gpio_set_value(BT_GPIO_WAKE_UP, GPIO_HIGH);
-#if BT_WAKE_HOST_SUPPORT     
+        
+#if BT_WAKE_HOST_SUPPORT      
             btWakeupHostLock();
 #endif         
         	pr_info("bt turn on power\n");
@@ -171,12 +171,19 @@ static int bcm4329_set_block(void *data, bool blocked)
 #if BT_WAKE_HOST_SUPPORT     
             btWakeupHostUnlock();
 #endif
-		gpio_set_value(BT_GPIO_WAKE_UP, GPIO_LOW); 
-    	pr_info("bt shut off power\n");
+		if (!rk29sdk_wifi_power_state) {
+			gpio_set_value(BT_GPIO_POWER, GPIO_LOW);  /* bt power off */
+    		mdelay(20);	
+    		pr_info("bt shut off power\n");
+		}else {
+			pr_info("bt shouldn't shut off power, wifi is using it!\n");
+		}
+
 		gpio_set_value(BT_GPIO_RESET, GPIO_LOW);  /* bt reset active*/
 		mdelay(20);
     	}
 
+    	rk29sdk_bt_power_state = !blocked;
     	return 0;
 }
 
@@ -246,7 +253,7 @@ static int __devinit bcm4329_rfkill_probe(struct platform_device *pdev)
 
 	printk(KERN_INFO "bcm4329 module has been initialized,rc=0x%x\n",rc);
  #endif
- 	//bcm4329_set_block(NULL, false);
+ 
 	return rc;
 
 	
