@@ -788,7 +788,8 @@ static int m5mols_fw_start(struct v4l2_subdev *sd)
 
 	ret = m5mols_write(sd, PARM_INTERFACE, REG_INTERFACE_MIPI);
 	if (!ret)
-		ret = m5mols_enable_interrupt(sd, REG_INT_AF);
+		ret = m5mols_enable_interrupt(sd,
+				REG_INT_AF | REG_INT_CAPTURE);
 
 	return ret;
 }
