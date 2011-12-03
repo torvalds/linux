@@ -66,6 +66,7 @@ static struct pixcir_i2c_ts_data *this_data;
 
 struct point_data{
 	unsigned char	brn;  //broken line number
+	unsigned char	brn_pre;
 	unsigned char	id;    //finger ID
 	int	posx;
 	int	posy;
@@ -828,8 +829,20 @@ static const struct file_operations pixcir_i2c_ts_fops =
 
 static int pixcir_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 {
+	u8 wrbuf[] = {0x33,0x03};
+	int ret = 0;
     struct pixcir_i2c_ts_data *ts = i2c_get_clientdata(client);
-	DBG("%s\n",__FUNCTION__);
+	DBG("%s\n", __FUNCTION__);
+
+	ret = i2c_master_send(ts->client, wrbuf, sizeof(wrbuf));
+	if (ret != sizeof(wrbuf)) {
+		dev_err(&ts->client->dev,
+			"%s: i2c_master_send failed(), ret=%d\n",
+			__func__, ret);
+		return 0;
+	}
+
+	ret = cancel_work_sync(&ts->work);
 
 	if (ts->use_irq)
 		disable_irq(client->irq);
@@ -839,8 +852,15 @@ static int pixcir_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 
 static int pixcir_ts_resume(struct i2c_client *client)
 {
+	int ret = 0;
     struct pixcir_i2c_ts_data *ts = i2c_get_clientdata(client);
-	DBG("%s\n",__FUNCTION__);
+    struct pixcir_platform_data	*pdata = client->dev.platform_data;
+	DBG("%s: \n", __FUNCTION__);
+
+    gpio_set_value(pdata->gpio_reset,GPIO_HIGH);//GPIO_LOW
+	msleep(10);
+    gpio_set_value(pdata->gpio_reset,GPIO_LOW);//GPIO_HIGH
+	msleep(120);
 
 	if (ts->use_irq)
 		enable_irq(client->irq);
