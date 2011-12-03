@@ -945,7 +945,7 @@ struct i2s_dai *i2s_alloc_dai(struct platform_device *pdev, bool sec)
 {
 	struct i2s_dai *i2s;
 
-	i2s = kzalloc(sizeof(struct i2s_dai), GFP_KERNEL);
+	i2s = devm_kzalloc(&pdev->dev, sizeof(struct i2s_dai), GFP_KERNEL);
 	if (i2s == NULL)
 		return NULL;
 
@@ -972,10 +972,8 @@ struct i2s_dai *i2s_alloc_dai(struct platform_device *pdev, bool sec)
 		i2s->pdev = platform_device_register_resndata(NULL,
 				pdev->name, pdev->id + SAMSUNG_I2S_SECOFF,
 				NULL, 0, NULL, 0);
-		if (IS_ERR(i2s->pdev)) {
-			kfree(i2s);
+		if (IS_ERR(i2s->pdev))
 			return NULL;
-		}
 	}
 
 	/* Pre-assign snd_soc_dai_set_drvdata */
@@ -1048,7 +1046,7 @@ static __devinit int samsung_i2s_probe(struct platform_device *pdev)
 	if (!pri_dai) {
 		dev_err(&pdev->dev, "Unable to alloc I2S_pri\n");
 		ret = -ENOMEM;
-		goto err1;
+		goto err;
 	}
 
 	pri_dai->dma_playback.dma_addr = regs_base + I2STXD;
@@ -1073,7 +1071,7 @@ static __devinit int samsung_i2s_probe(struct platform_device *pdev)
 		if (!sec_dai) {
 			dev_err(&pdev->dev, "Unable to alloc I2S_sec\n");
 			ret = -ENOMEM;
-			goto err2;
+			goto err;
 		}
 		sec_dai->dma_playback.dma_addr = regs_base + I2STXDS;
 		sec_dai->dma_playback.client =
@@ -1092,17 +1090,13 @@ static __devinit int samsung_i2s_probe(struct platform_device *pdev)
 	if (i2s_pdata->cfg_gpio && i2s_pdata->cfg_gpio(pdev)) {
 		dev_err(&pdev->dev, "Unable to configure gpio\n");
 		ret = -EINVAL;
-		goto err3;
+		goto err;
 	}
 
 	snd_soc_register_dai(&pri_dai->pdev->dev, &pri_dai->i2s_dai_drv);
 
 	return 0;
-err3:
-	kfree(sec_dai);
-err2:
-	kfree(pri_dai);
-err1:
+err:
 	release_mem_region(regs_base, resource_size(res));
 
 	return ret;
@@ -1127,8 +1121,6 @@ static __devexit int samsung_i2s_remove(struct platform_device *pdev)
 
 	i2s->pri_dai = NULL;
 	i2s->sec_dai = NULL;
-
-	kfree(i2s);
 
 	snd_soc_unregister_dai(&pdev->dev);
 
