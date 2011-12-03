@@ -334,6 +334,7 @@ static int wm8994_ldo_in_use(struct wm8994_pdata *pdata, int ldo)
 static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 {
 	struct wm8994_pdata *pdata = wm8994->dev->platform_data;
+	struct regmap_config *regmap_config;
 	const char *devname;
 	int ret, i;
 	int pulls = 0;
@@ -465,6 +466,28 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 
 	dev_info(wm8994->dev, "%s revision %c\n", devname, 'A' + ret);
 
+	switch (wm8994->type) {
+	case WM1811:
+		regmap_config = &wm1811_regmap_config;
+		break;
+	case WM8994:
+		regmap_config = &wm8994_regmap_config;
+		break;
+	case WM8958:
+		regmap_config = &wm8958_regmap_config;
+		break;
+	default:
+		dev_err(wm8994->dev, "Unknown device type %d\n", wm8994->type);
+		return -EINVAL;
+	}
+
+	ret = regmap_reinit_cache(wm8994->regmap, regmap_config);
+	if (ret != 0) {
+		dev_err(wm8994->dev, "Failed to reinit register cache: %d\n",
+			ret);
+		return ret;
+	}
+
 	if (pdata) {
 		wm8994->irq_base = pdata->irq_base;
 		wm8994->gpio_base = pdata->gpio_base;
@@ -556,7 +579,6 @@ static int wm8994_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct wm8994 *wm8994;
-	struct regmap_config *regmap_config;
 	int ret;
 
 	wm8994 = devm_kzalloc(&i2c->dev, sizeof(struct wm8994), GFP_KERNEL);
@@ -568,22 +590,7 @@ static int wm8994_i2c_probe(struct i2c_client *i2c,
 	wm8994->irq = i2c->irq;
 	wm8994->type = id->driver_data;
 
-	switch (wm8994->type) {
-	case WM1811:
-		regmap_config = &wm1811_regmap_config;
-		break;
-	case WM8994:
-		regmap_config = &wm8994_regmap_config;
-		break;
-	case WM8958:
-		regmap_config = &wm8958_regmap_config;
-		break;
-	default:
-		dev_err(wm8994->dev, "Unknown device type %d\n", wm8994->type);
-		return -EINVAL;
-	}
-
-	wm8994->regmap = regmap_init_i2c(i2c, regmap_config);
+	wm8994->regmap = regmap_init_i2c(i2c, &wm8994_base_regmap_config);
 	if (IS_ERR(wm8994->regmap)) {
 		ret = PTR_ERR(wm8994->regmap);
 		dev_err(wm8994->dev, "Failed to allocate register map: %d\n",

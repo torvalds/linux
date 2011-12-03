@@ -1216,3 +1216,8 @@ struct regmap_config wm8958_regmap_config = {
 	.volatile_reg = wm8958_volatile_register,
 	.readable_reg = wm8958_readable_register,
 };
+
+struct regmap_config wm8994_base_regmap_config = {
+	.reg_bits = 16,
+	.val_bits = 16,
+};
