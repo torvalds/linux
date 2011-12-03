@@ -181,7 +181,7 @@ SND_SOC_DAPM_OUTPUT("SPKOUTP"),
 SND_SOC_DAPM_OUTPUT("SPKOUTN"),
 };
 
-static const struct snd_soc_dapm_route audio_map[] = {
+static const struct snd_soc_dapm_route wm8510_dapm_routes[] = {
 	/* Mono output mixer */
 	{"Mono Mixer", "PCM Playback Switch", "DAC"},
 	{"Mono Mixer", "Aux Playback Switch", "Aux Input"},
@@ -212,17 +212,6 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 	{"ADC", NULL, "Boost Mixer"},
 };
-
-static int wm8510_add_widgets(struct snd_soc_codec *codec)
-{
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	snd_soc_dapm_new_controls(dapm, wm8510_dapm_widgets,
-				  ARRAY_SIZE(wm8510_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
-
-	return 0;
-}
 
 struct pll_ {
 	unsigned int pre_div:4; /* prescale - 1 */
@@ -561,9 +550,6 @@ static int wm8510_probe(struct snd_soc_codec *codec)
 
 	/* power on device */
 	wm8510_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	snd_soc_add_controls(codec, wm8510_snd_controls,
-				ARRAY_SIZE(wm8510_snd_controls));
-	wm8510_add_widgets(codec);
 
 	return ret;
 }
@@ -587,6 +573,13 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8510 = {
 	.reg_cache_size = ARRAY_SIZE(wm8510_reg),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default =wm8510_reg,
+
+	.controls = wm8510_snd_controls,
+	.num_controls = ARRAY_SIZE(wm8510_snd_controls),
+	.dapm_widgets = wm8510_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8510_dapm_widgets),
+	.dapm_routes = wm8510_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(wm8510_dapm_routes),
 };
 
 static const struct of_device_id wm8510_of_match[] = {
