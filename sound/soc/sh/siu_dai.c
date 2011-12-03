@@ -112,9 +112,6 @@ static void siu_dai_start(struct siu_port *port_info)
 
 	dev_dbg(port_info->pcm->card->dev, "%s\n", __func__);
 
-	/* Turn on SIU clock */
-	pm_runtime_get_sync(info->dev);
-
 	/* Issue software reset to siu */
 	siu_write32(base + SIU_SRCTL, 0);
 
@@ -158,9 +155,6 @@ static void siu_dai_stop(struct siu_port *port_info)
 
 	/* SIU software reset */
 	siu_write32(base + SIU_SRCTL, 0);
-
-	/* Turn off SIU clock */
-	pm_runtime_put_sync(info->dev);
 }
 
 static void siu_dai_spbAselect(struct siu_port *port_info)
