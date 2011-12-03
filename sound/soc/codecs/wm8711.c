@@ -374,9 +374,6 @@ static int wm8711_probe(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, WM8711_LOUT1V, 0x0100, 0x0100);
 	snd_soc_update_bits(codec, WM8711_ROUT1V, 0x0100, 0x0100);
 
-	snd_soc_add_controls(codec, wm8711_snd_controls,
-			     ARRAY_SIZE(wm8711_snd_controls));
-
 	return ret;
 
 }
@@ -397,6 +394,8 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8711 = {
 	.reg_cache_size = ARRAY_SIZE(wm8711_reg),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm8711_reg,
+	.controls = wm8711_snd_controls,
+	.num_controls = ARRAY_SIZE(wm8711_snd_controls),
 	.dapm_widgets = wm8711_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(wm8711_dapm_widgets),
 	.dapm_routes = wm8711_intercon,
