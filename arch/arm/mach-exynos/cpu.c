@@ -209,7 +209,7 @@ void __init exynos4_init_clocks(int xtal)
 void __init exynos4_init_irq(void)
 {
 	int irq;
-	unsigned int bank_offset;
+	unsigned int gic_bank_offset;
 
 	gic_bank_offset = soc_is_exynos4412() ? 0x4000 : 0x8000;
 

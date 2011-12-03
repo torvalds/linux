@@ -21,7 +21,7 @@
 #include <linux/mmc/host.h>
 #include <linux/i2c-gpio.h>
 #include <linux/i2c/mcs.h>
- <linux/i2c/atmel_mxt_ts.h>
+#include <linux/i2c/atmel_mxt_ts.h>
 
 #include <asm/mach/arch.h>
 #include <asm/hardware/gic.h>
