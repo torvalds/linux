@@ -228,7 +228,7 @@ static void sas_set_ex_phy(struct domain_device *dev, int phy_id,
 }
 
 /* check if we have an existing attached ata device on this expander phy */
-static struct domain_device *sas_ex_to_ata(struct domain_device *ex_dev, int phy_id)
+struct domain_device *sas_ex_to_ata(struct domain_device *ex_dev, int phy_id)
 {
 	struct ex_phy *ex_phy = &ex_dev->ex_dev.ex_phy[phy_id];
 	struct domain_device *dev;

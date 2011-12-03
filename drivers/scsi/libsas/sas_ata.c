@@ -698,3 +698,14 @@ void sas_ata_schedule_reset(struct domain_device *dev)
 	ata_port_schedule_eh(ap);
 	spin_unlock_irqrestore(ap->lock, flags);
 }
+
+void sas_ata_wait_eh(struct domain_device *dev)
+{
+	struct ata_port *ap;
+
+	if (!dev_is_sata(dev))
+		return;
+
+	ap = dev->sata_dev.ap;
+	ata_port_wait_eh(ap);
+}

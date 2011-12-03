@@ -85,6 +85,7 @@ int sas_smp_phy_control(struct domain_device *dev, int phy_id,
 int sas_smp_get_phy_events(struct sas_phy *phy);
 
 struct domain_device *sas_find_dev_by_rphy(struct sas_rphy *rphy);
+struct domain_device *sas_ex_to_ata(struct domain_device *ex_dev, int phy_id);
 
 void sas_hae_reset(struct work_struct *work);
 
