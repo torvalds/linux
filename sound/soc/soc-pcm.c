@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <sound/core.h>
@@ -76,6 +77,10 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	struct snd_soc_dai_driver *cpu_dai_drv = cpu_dai->driver;
 	struct snd_soc_dai_driver *codec_dai_drv = codec_dai->driver;
 	int ret = 0;
+
+	pm_runtime_get_sync(cpu_dai->dev);
+	pm_runtime_get_sync(codec_dai->dev);
+	pm_runtime_get_sync(platform->dev);
 
 	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
 
@@ -233,6 +238,11 @@ platform_err:
 		cpu_dai->driver->ops->shutdown(substream, cpu_dai);
 out:
 	mutex_unlock(&rtd->pcm_mutex);
+
+	pm_runtime_put(platform->dev);
+	pm_runtime_put(codec_dai->dev);
+	pm_runtime_put(cpu_dai->dev);
+
 	return ret;
 }
 
@@ -339,6 +349,11 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 	}
 
 	mutex_unlock(&rtd->pcm_mutex);
+
+	pm_runtime_put(platform->dev);
+	pm_runtime_put(codec_dai->dev);
+	pm_runtime_put(cpu_dai->dev);
+
 	return 0;
 }
 
