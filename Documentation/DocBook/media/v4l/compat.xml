@@ -1082,7 +1082,7 @@ until the time in the timestamp field has arrived. I would like to
 follow SGI's lead, and adopt a multimedia timestamping system like
 their UST (Unadjusted System Time). See
 http://web.archive.org/web/*/http://reality.sgi.com
-/cpirazzi_engr/lg/time/intro.html. 
+/cpirazzi_engr/lg/time/intro.html.
 UST uses timestamps that are 64-bit signed integers
 (not struct timeval's) and given in nanosecond units. The UST clock
 starts at zero when the system is booted and runs continuously and
@@ -2507,11 +2507,3 @@ interfaces and should not be implemented in new drivers.</para>
       </itemizedlist>
     </section>
   </section>
-
-  <!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
-  -->

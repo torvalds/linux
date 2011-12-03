@@ -369,11 +369,3 @@ reasons. <!-- video4linux-list@redhat.com on 22 Oct 2002 subject
     <para>To start or stop the frame buffer overlay applications call
 the &VIDIOC-OVERLAY; ioctl.</para>
   </section>
-
-  <!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
-  -->
