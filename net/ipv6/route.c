@@ -744,7 +744,8 @@ static struct rt6_info *rt6_alloc_cow(const struct rt6_info *ort,
 #endif
 
 	retry:
-		neigh = ndisc_get_neigh(rt->rt6i_dev, &rt->rt6i_gateway);
+		neigh = __neigh_lookup_errno(&nd_tbl, &rt->rt6i_gateway,
+					     rt->rt6i_dev);
 		if (IS_ERR(neigh)) {
 			struct net *net = dev_net(rt->rt6i_dev);
 			int saved_rt_min_interval =
@@ -1085,7 +1086,7 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 	if (neigh)
 		neigh_hold(neigh);
 	else {
-		neigh = ndisc_get_neigh(dev, addr);
+		neigh = __neigh_lookup_errno(&nd_tbl, addr, dev);
 		if (IS_ERR(neigh))
 			neigh = NULL;
 	}
@@ -2082,7 +2083,7 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 		rt->rt6i_flags |= RTF_ANYCAST;
 	else
 		rt->rt6i_flags |= RTF_LOCAL;
-	neigh = ndisc_get_neigh(rt->rt6i_dev, &rt->rt6i_gateway);
+	neigh = __neigh_lookup_errno(&nd_tbl, &rt->rt6i_gateway, rt->rt6i_dev);
 	if (IS_ERR(neigh)) {
 		dst_free(&rt->dst);
 

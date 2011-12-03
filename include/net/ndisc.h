@@ -145,13 +145,4 @@ int ndisc_ifinfo_sysctl_strategy(ctl_table *ctl,
 extern void 			inet6_ifinfo_notify(int event,
 						    struct inet6_dev *idev);
 
-static inline struct neighbour * ndisc_get_neigh(struct net_device *dev, const struct in6_addr *addr)
-{
-
-	if (dev)
-		return __neigh_lookup_errno(&nd_tbl, addr, dev);
-
-	return ERR_PTR(-ENODEV);
-}
-
 #endif
