@@ -197,21 +197,28 @@ static int soc_widget_write(struct snd_soc_dapm_widget *w, int reg, int val)
 static int soc_widget_update_bits(struct snd_soc_dapm_widget *w,
 	unsigned short reg, unsigned int mask, unsigned int value)
 {
-	int change;
+	bool change;
 	unsigned int old, new;
 	int ret;
 
-	ret = soc_widget_read(w, reg);
-	if (ret < 0)
-		return ret;
-
-	old = ret;
-	new = (old & ~mask) | (value & mask);
-	change = old != new;
-	if (change) {
-		ret = soc_widget_write(w, reg, new);
+	if (w->codec && w->codec->using_regmap) {
+		ret = regmap_update_bits_check(w->codec->control_data,
+					       reg, mask, value, &change);
+		if (ret != 0)
+			return ret;
+	} else {
+		ret = soc_widget_read(w, reg);
 		if (ret < 0)
 			return ret;
+
+		old = ret;
+		new = (old & ~mask) | (value & mask);
+		change = old != new;
+		if (change) {
+			ret = soc_widget_write(w, reg, new);
+			if (ret < 0)
+				return ret;
+		}
 	}
 
 	return change;

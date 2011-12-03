@@ -1869,22 +1869,27 @@ EXPORT_SYMBOL_GPL(snd_soc_bulk_write_raw);
 int snd_soc_update_bits(struct snd_soc_codec *codec, unsigned short reg,
 				unsigned int mask, unsigned int value)
 {
-	int change;
+	bool change;
 	unsigned int old, new;
 	int ret;
 
-	ret = snd_soc_read(codec, reg);
-	if (ret < 0)
-		return ret;
-
-	old = ret;
-	new = (old & ~mask) | (value & mask);
-	change = old != new;
-	if (change) {
-		ret = snd_soc_write(codec, reg, new);
+	if (codec->using_regmap) {
+		ret = regmap_update_bits_check(codec->control_data, reg,
+					       mask, value, &change);
+	} else {
+		ret = snd_soc_read(codec, reg);
 		if (ret < 0)
 			return ret;
+
+		old = ret;
+		new = (old & ~mask) | (value & mask);
+		change = old != new;
+		if (change)
+			ret = snd_soc_write(codec, reg, new);
 	}
+
+	if (ret < 0)
+		return ret;
 
 	return change;
 }
