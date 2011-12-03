@@ -989,8 +989,7 @@ static unsigned long bdi_max_pause(struct backing_dev_info *bdi,
 	 *
 	 * 8 serves as the safety ratio.
 	 */
-	if (bdi_dirty)
-		t = min(t, bdi_dirty * HZ / (8 * bw + 1));
+	t = min(t, bdi_dirty * HZ / (8 * bw + 1));
 
 	/*
 	 * The pause time will be settled within range (max_pause/4, max_pause).
