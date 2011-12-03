@@ -266,8 +266,6 @@ static int omap_mcpdm_dai_startup(struct snd_pcm_substream *substream,
 	mutex_lock(&mcpdm->mutex);
 
 	if (!dai->active) {
-		pm_runtime_get_sync(mcpdm->dev);
-
 		/* Enable watch dog for ES above ES 1.0 to avoid saturation */
 		if (omap_rev() != OMAP4430_REV_ES1_0) {
 			u32 ctrl = omap_mcpdm_read(mcpdm, MCPDM_REG_CTRL);
@@ -295,9 +293,6 @@ static void omap_mcpdm_dai_shutdown(struct snd_pcm_substream *substream,
 			omap_mcpdm_stop(mcpdm);
 			omap_mcpdm_close_streams(mcpdm);
 		}
-
-		if (!omap_mcpdm_active(mcpdm))
-			pm_runtime_put_sync(mcpdm->dev);
 	}
 
 	mutex_unlock(&mcpdm->mutex);
