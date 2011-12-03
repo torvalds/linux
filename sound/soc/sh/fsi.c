@@ -893,8 +893,6 @@ static int fsi_hw_startup(struct fsi_priv *fsi,
 	u32 flags = fsi_get_info_flags(fsi);
 	u32 data = 0;
 
-	pm_runtime_get_sync(dev);
-
 	/* clock setting */
 	if (fsi_is_clk_master(fsi))
 		data = DIMD | DOMD;
@@ -951,8 +949,6 @@ static void fsi_hw_shutdown(struct fsi_priv *fsi,
 {
 	if (fsi_is_clk_master(fsi))
 		fsi_set_master_clk(dev, fsi, fsi->rate, 0);
-
-	pm_runtime_put_sync(dev);
 }
 
 static int fsi_dai_startup(struct snd_pcm_substream *substream,
