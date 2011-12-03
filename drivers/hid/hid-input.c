@@ -351,20 +351,22 @@ static int hidinput_get_battery_property(struct power_supply *psy,
 	return ret;
 }
 
-static void hidinput_setup_battery(struct hid_device *dev,
-				   unsigned report_type, unsigned report_id,
-				   s32 min, s32 max)
+static bool hidinput_setup_battery(struct hid_device *dev, unsigned report_type, struct hid_field *field)
 {
 	struct power_supply *battery = &dev->battery;
 	int ret;
 	unsigned quirks;
+	s32 min, max;
+
+	if (field->usage->hid != HID_DC_BATTERYSTRENGTH)
+		return false;	/* no match */
 
 	if (battery->name != NULL)
-		return;		/* already initialized? */
+		goto out;	/* already initialized? */
 
 	battery->name = kasprintf(GFP_KERNEL, "hid-%s-battery", dev->uniq);
 	if (battery->name == NULL)
-		return;
+		goto out;
 
 	battery->type = POWER_SUPPLY_TYPE_USB;
 	battery->properties = hidinput_battery_props;
@@ -374,6 +376,9 @@ static void hidinput_setup_battery(struct hid_device *dev,
 
 	quirks = find_battery_quirk(dev);
 
+	min = field->logical_minimum;
+	max = field->logical_maximum;
+
 	if (quirks & HID_BATTERY_QUIRK_PERCENT) {
 		min = 0;
 		max = 100;
@@ -382,7 +387,7 @@ static void hidinput_setup_battery(struct hid_device *dev,
 	dev->battery_min = min;
 	dev->battery_max = max;
 	dev->battery_report_type = report_type;
-	dev->battery_report_id = report_id;
+	dev->battery_report_id = field->report->id;
 
 	ret = power_supply_register(&dev->dev, battery);
 	if (ret != 0) {
@@ -390,6 +395,9 @@ static void hidinput_setup_battery(struct hid_device *dev,
 		kfree(battery->name);
 		battery->name = NULL;
 	}
+
+out:
+	return true;
 }
 
 static void hidinput_cleanup_battery(struct hid_device *dev)
@@ -402,10 +410,10 @@ static void hidinput_cleanup_battery(struct hid_device *dev)
 	dev->battery.name = NULL;
 }
 #else  /* !CONFIG_HID_BATTERY_STRENGTH */
-static void hidinput_setup_battery(struct hid_device *dev,
-				   unsigned report_type, unsigned report_id,
-				   s32 min, s32 max)
+static bool hidinput_setup_battery(struct hid_device *dev, unsigned report_type,
+				   struct hid_field *field)
 {
+	return false;
 }
 
 static void hidinput_cleanup_battery(struct hid_device *dev)
@@ -772,14 +780,9 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		break;
 
 	case HID_UP_GENDEVCTRLS:
-		if ((usage->hid & HID_USAGE) == 0x20) {	/* Battery Strength */
-			hidinput_setup_battery(device,
-					       HID_INPUT_REPORT,
-					       field->report->id,
-					       field->logical_minimum,
-					       field->logical_maximum);
+		if (hidinput_setup_battery(device, HID_INPUT_REPORT, field))
 			goto ignore;
-		} else
+		else
 			goto unknown;
 		break;
 
@@ -1055,13 +1058,7 @@ static void report_features(struct hid_device *hid)
 		for (i = 0; i < rep->maxfield; i++)
 			for (j = 0; j < rep->field[i]->maxusage; j++) {
 				/* Verify if Battery Strength feature is available */
-				if (((rep->field[i]->usage + j)->hid & HID_USAGE_PAGE) == HID_UP_GENDEVCTRLS &&
-					((rep->field[i]->usage + j)->hid & HID_USAGE) == 0x20) {
-					hidinput_setup_battery(hid,
-							       HID_FEATURE_REPORT, rep->id,
-							       rep->field[i]->logical_minimum,
-							       rep->field[i]->logical_maximum);
-				}
+				hidinput_setup_battery(hid, HID_FEATURE_REPORT, rep->field[i]);
 
 				if (drv->feature_mapping)
 					drv->feature_mapping(hid, rep->field[i],
