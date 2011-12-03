@@ -347,7 +347,7 @@ static __used struct lttng_probe_desc TP_ID(__probe_desc___, TRACE_SYSTEM) = {
 #undef __string_from_user
 #define __string_from_user(_item, _src)					       \
 	__event_len += __dynamic_len[__dynamic_len_idx++] =		       \
-		min_t(size_t, strlen_user(_src), 1);
+		max_t(size_t, strlen_user(_src), 1);
 
 #undef TP_PROTO
 #define TP_PROTO(args...) args
@@ -557,7 +557,7 @@ __assign_##dest##_2:							\
 			(void) __typemap.dest;				\
 		lib_ring_buffer_align_ctx(&__ctx, ltt_alignof(__typemap.dest));\
 		__ustrlen = __get_dynamic_array_len(dest);		\
-		if (likely(__ustrlen) > 1) {				\
+		if (likely(__ustrlen > 1)) {				\
 			__chan->ops->event_write_from_user(&__ctx, src,	\
 				__ustrlen - 1);				\
 		}							\
