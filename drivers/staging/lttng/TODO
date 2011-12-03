@@ -35,12 +35,6 @@ A) Cleanup/Testing
 	   depend on the producer to push the reader position.
 	   Contact: Julien Desfossez <julien.desfossez@polymtl.ca>
 
-	4) Test latest -rt kernel support.
-	   There has been report of corrupted traces when tracing a
-	   3.0.10-rt27 in the area of access_ok() system call event.
-	   Still has to be investigated. Cannot be reproduced with
-	   mainline kernel.
-	   Contact: Yannick Brosseau <yannick.brosseau@polymtl.ca>
 
 B) Features
 
