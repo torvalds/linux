@@ -89,6 +89,8 @@ static struct sleep_save misc_save[] = {
 
 	SAVE_ITEM(S3C64XX_SDMA_SEL),
 	SAVE_ITEM(S3C64XX_MODEM_MIFPCON),
+
+	SAVE_ITEM(S3C64XX_NORMAL_CFG),
 };
 
 void s3c_pm_configure_extint(void)
@@ -181,9 +183,22 @@ static void s3c64xx_pm_prepare(void)
 
 static int s3c64xx_pm_init(void)
 {
+	u32 val;
+
 	pm_cpu_prep = s3c64xx_pm_prepare;
 	pm_cpu_sleep = s3c64xx_cpu_suspend;
 	pm_uart_udivslot = 1;
+
+	/*
+	 * Unconditionally disable power domains that contain only
+	 * blocks which have no mainline driver support.
+	 */
+	val = __raw_readl(S3C64XX_NORMAL_CFG);
+	val &= ~(S3C64XX_NORMALCFG_DOMAIN_G_ON |
+		 S3C64XX_NORMALCFG_DOMAIN_V_ON |
+		 S3C64XX_NORMALCFG_DOMAIN_I_ON |
+		 S3C64XX_NORMALCFG_DOMAIN_P_ON);
+	__raw_writel(val, S3C64XX_NORMAL_CFG);
 
 #ifdef CONFIG_S3C_PM_DEBUG_LED_SMDK
 	gpio_request(S3C64XX_GPN(12), "DEBUG_LED0");
