@@ -562,7 +562,6 @@ void ath_ani_calibrate(unsigned long data)
 	/* Long calibration runs independently of short calibration. */
 	if ((timestamp - common->ani.longcal_timer) >= long_cal_interval) {
 		longcal = true;
-		ath_dbg(common, ATH_DBG_ANI, "longcal @%lu\n", jiffies);
 		common->ani.longcal_timer = timestamp;
 	}
 
@@ -570,8 +569,6 @@ void ath_ani_calibrate(unsigned long data)
 	if (!common->ani.caldone) {
 		if ((timestamp - common->ani.shortcal_timer) >= short_cal_interval) {
 			shortcal = true;
-			ath_dbg(common, ATH_DBG_ANI,
-				"shortcal @%lu\n", jiffies);
 			common->ani.shortcal_timer = timestamp;
 			common->ani.resetcal_timer = timestamp;
 		}
@@ -605,6 +602,11 @@ void ath_ani_calibrate(unsigned long data)
 			ath9k_hw_calibrate(ah, ah->curchan,
 						ah->rxchainmask, longcal);
 	}
+
+	ath_dbg(common, ATH_DBG_ANI,
+		"Calibration @%lu finished: %s %s %s, caldone: %s\n", jiffies,
+		longcal ? "long" : "", shortcal ? "short" : "",
+		aniflag ? "ani" : "", common->ani.caldone ? "true" : "false");
 
 	ath9k_ps_restore(sc);
 
