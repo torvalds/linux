@@ -1553,7 +1553,8 @@ static  int wm8350_codec_probe(struct snd_soc_codec *codec)
 		return -EINVAL;
 	}
 
-	priv = kzalloc(sizeof(struct wm8350_data), GFP_KERNEL);
+	priv = devm_kzalloc(codec->dev, sizeof(struct wm8350_data),
+			    GFP_KERNEL);
 	if (priv == NULL)
 		return -ENOMEM;
 	snd_soc_codec_set_drvdata(codec, priv);
@@ -1564,7 +1565,7 @@ static  int wm8350_codec_probe(struct snd_soc_codec *codec)
 	ret = regulator_bulk_get(wm8350->dev, ARRAY_SIZE(priv->supplies),
 				 priv->supplies);
 	if (ret != 0)
-		goto err_priv;
+		return ret;
 
 	wm8350->codec.codec = codec;
 	codec->control_data = wm8350;
@@ -1640,10 +1641,6 @@ static  int wm8350_codec_probe(struct snd_soc_codec *codec)
 	wm8350_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	return 0;
-
-err_priv:
-	kfree(priv);
-	return ret;
 }
 
 static int  wm8350_codec_remove(struct snd_soc_codec *codec)
@@ -1676,7 +1673,7 @@ static int  wm8350_codec_remove(struct snd_soc_codec *codec)
 	wm8350_clear_bits(wm8350, WM8350_POWER_MGMT_5, WM8350_CODEC_ENA);
 
 	regulator_bulk_free(ARRAY_SIZE(priv->supplies), priv->supplies);
-	kfree(priv);
+
 	return 0;
 }
 
