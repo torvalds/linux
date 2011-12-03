@@ -685,16 +685,25 @@ static int m5mols_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_subdev *sd = to_sd(ctrl);
 	struct m5mols_info *info = to_m5mols(sd);
-	int isp_state = info->mode;
-	int ret = 0;
+	int ispstate = info->mode;
+	int ret;
+
+	/*
+	 * If needed, defer restoring the controls until
+	 * the device is fully initialized.
+	 */
+	if (!info->isp_ready) {
+		info->ctrl_sync = 0;
+		return 0;
+	}
 
 	ret = m5mols_mode(info, REG_PARAMETER);
-	if (!ret)
-		ret = m5mols_set_ctrl(ctrl);
-	if (!ret)
-		ret = m5mols_mode(info, isp_state);
-
-	return ret;
+	if (ret < 0)
+		return ret;
+	ret = m5mols_set_ctrl(ctrl);
+	if (ret < 0)
+		return ret;
+	return m5mols_mode(info, ispstate);
 }
 
 static const struct v4l2_ctrl_ops m5mols_ctrl_ops = {
@@ -855,8 +864,6 @@ static int m5mols_s_power(struct v4l2_subdev *sd, int on)
 		ret = m5mols_sensor_power(info, true);
 		if (!ret)
 			ret = m5mols_fw_start(sd);
-		if (!ret)
-			ret = m5mols_init_controls(info);
 		if (ret)
 			return ret;
 
@@ -881,10 +888,7 @@ static int m5mols_s_power(struct v4l2_subdev *sd, int on)
 	}
 
 	ret = m5mols_sensor_power(info, false);
-	if (!ret) {
-		v4l2_ctrl_handler_free(&info->handle);
-		info->ctrl_sync = 0;
-	}
+	info->ctrl_sync = 0;
 
 	return ret;
 }
@@ -908,6 +912,21 @@ static const struct v4l2_subdev_core_ops m5mols_core_ops = {
 	.try_ext_ctrls	= v4l2_subdev_try_ext_ctrls,
 	.s_ext_ctrls	= v4l2_subdev_s_ext_ctrls,
 	.log_status	= m5mols_log_status,
+};
+
+/*
+ * V4L2 subdev internal operations
+ */
+static int m5mols_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
+{
+	struct v4l2_mbus_framefmt *format = v4l2_subdev_get_try_format(fh, 0);
+
+	*format = m5mols_default_ffmt[0];
+	return 0;
+}
+
+static const struct v4l2_subdev_internal_ops m5mols_subdev_internal_ops = {
+	.open		= m5mols_open,
 };
 
 static const struct v4l2_subdev_ops m5mols_ops = {
@@ -973,6 +992,7 @@ static int __devinit m5mols_probe(struct i2c_client *client,
 	strlcpy(sd->name, MODULE_NAME, sizeof(sd->name));
 	v4l2_i2c_subdev_init(sd, client, &m5mols_ops);
 
+	sd->internal_ops = &m5mols_subdev_internal_ops;
 	info->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_init(&sd->entity, 1, &info->pad, 0);
 	if (ret < 0)
@@ -988,7 +1008,17 @@ static int __devinit m5mols_probe(struct i2c_client *client,
 	}
 	info->res_type = M5MOLS_RESTYPE_MONITOR;
 
-	return 0;
+	ret = m5mols_sensor_power(info, true);
+	if (ret)
+		goto out_me;
+
+	ret = m5mols_fw_start(sd);
+	if (!ret)
+		ret = m5mols_init_controls(info);
+
+	m5mols_sensor_power(info, false);
+	if (!ret)
+		return 0;
 out_me:
 	media_entity_cleanup(&sd->entity);
 out_reg:
@@ -1006,6 +1036,7 @@ static int __devexit m5mols_remove(struct i2c_client *client)
 	struct m5mols_info *info = to_m5mols(sd);
 
 	v4l2_device_unregister_subdev(sd);
+	v4l2_ctrl_handler_free(sd->ctrl_handler);
 	free_irq(client->irq, sd);
 
 	regulator_bulk_free(ARRAY_SIZE(supplies), supplies);
