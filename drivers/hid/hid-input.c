@@ -368,7 +368,7 @@ static bool hidinput_setup_battery(struct hid_device *dev, unsigned report_type,
 	if (battery->name == NULL)
 		goto out;
 
-	battery->type = POWER_SUPPLY_TYPE_USB;
+	battery->type = POWER_SUPPLY_TYPE_BATTERY;
 	battery->properties = hidinput_battery_props;
 	battery->num_properties = ARRAY_SIZE(hidinput_battery_props);
 	battery->use_for_apm = 0;
