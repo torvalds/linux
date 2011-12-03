@@ -355,6 +355,7 @@
 
 /* Starts internal ARM core booting after power-up */
 #define FLASH_CAM_START		I2C_REG(CAT_FLASH, 0x12, 1)
-#define REG_START_ARM_BOOT	0x01
+#define REG_START_ARM_BOOT	0x01	/* write value */
+#define REG_IN_FLASH_MODE	0x00	/* read value */
 
 #endif	/* M5MOLS_REG_H */

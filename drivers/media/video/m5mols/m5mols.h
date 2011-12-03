@@ -174,8 +174,8 @@ struct m5mols_version {
  * @ver: information of the version
  * @cap: the capture mode attributes
  * @power: current sensor's power status
- * @ctrl_sync: true means all controls of the sensor are initialized
- * @int_capture: true means the capture interrupt is issued once
+ * @isp_ready: 1 when the ISP controller has completed booting
+ * @ctrl_sync: 1 when the control handler state is restored in H/W
  * @lock_ae: true means the Auto Exposure is locked
  * @lock_awb: true means the Aut WhiteBalance is locked
  * @resolution:	register value for current resolution
@@ -204,8 +204,11 @@ struct m5mols_info {
 
 	struct m5mols_version ver;
 	struct m5mols_capture cap;
-	bool power;
-	bool ctrl_sync;
+
+	unsigned int isp_ready:1;
+	unsigned int power:1;
+	unsigned int ctrl_sync:1;
+
 	bool lock_ae;
 	bool lock_awb;
 	u8 resolution;
@@ -213,7 +216,6 @@ struct m5mols_info {
 	int (*set_power)(struct device *dev, int on);
 };
 
-#define is_powered(__info) (__info->power)
 #define is_ctrl_synced(__info) (__info->ctrl_sync)
 #define is_available_af(__info)	(__info->ver.af)
 #define is_code(__code, __type) (__code == m5mols_default_ffmt[__type].code)
