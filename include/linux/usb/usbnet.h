@@ -228,4 +228,22 @@ extern void usbnet_set_msglevel(struct net_device *, u32);
 extern void usbnet_get_drvinfo(struct net_device *, struct ethtool_drvinfo *);
 extern int usbnet_nway_reset(struct net_device *net);
 
+
+#ifdef DEBUG
+#define devdbg(usbnet, fmt, arg...) \
+        printk(KERN_DEBUG "%s: " fmt "\n" , (usbnet)->net->name , ## arg)
+#else
+#define devdbg(usbnet, fmt, arg...) \
+        ({ if (0) printk(KERN_DEBUG "%s: " fmt "\n" , (usbnet)->net->name , \
+                ## arg); 0; })
+#endif
+
+#define deverr(usbnet, fmt, arg...) \
+        printk(KERN_ERR "%s: " fmt "\n" , (usbnet)->net->name , ## arg)
+#define devwarn(usbnet, fmt, arg...) \
+        printk(KERN_WARNING "%s: " fmt "\n" , (usbnet)->net->name , ## arg)
+
+#define devinfo(usbnet, fmt, arg...) \
+        printk(KERN_INFO "%s: " fmt "\n" , (usbnet)->net->name , ## arg); 
+
 #endif /* __LINUX_USB_USBNET_H */
