@@ -85,23 +85,12 @@ SND_SOC_DAPM_OUTPUT("VOUTRP"),
 SND_SOC_DAPM_OUTPUT("VOUTRN"),
 };
 
-static const struct snd_soc_dapm_route intercon[] = {
+static const struct snd_soc_dapm_route wm8741_dapm_routes[] = {
 	{ "VOUTLP", NULL, "DACL" },
 	{ "VOUTLN", NULL, "DACL" },
 	{ "VOUTRP", NULL, "DACR" },
 	{ "VOUTRN", NULL, "DACR" },
 };
-
-static int wm8741_add_widgets(struct snd_soc_codec *codec)
-{
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	snd_soc_dapm_new_controls(dapm, wm8741_dapm_widgets,
-				  ARRAY_SIZE(wm8741_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, intercon, ARRAY_SIZE(intercon));
-
-	return 0;
-}
 
 static struct {
 	int value;
@@ -456,10 +445,6 @@ static int wm8741_probe(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, WM8741_DACRMSB_ATTENUATION,
 			    WM8741_UPDATERM, WM8741_UPDATERM);
 
-	snd_soc_add_controls(codec, wm8741_snd_controls,
-			     ARRAY_SIZE(wm8741_snd_controls));
-	wm8741_add_widgets(codec);
-
 	dev_dbg(codec->dev, "Successful registration\n");
 	return ret;
 
@@ -488,6 +473,13 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8741 = {
 	.reg_cache_size = ARRAY_SIZE(wm8741_reg_defaults),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm8741_reg_defaults,
+
+	.controls = wm8741_snd_controls,
+	.num_controls = ARRAY_SIZE(wm8741_snd_controls),
+	.dapm_widgets = wm8741_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8741_dapm_widgets),
+	.dapm_routes = wm8741_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(wm8741_dapm_routes),
 };
 
 static const struct of_device_id wm8741_of_match[] = {
