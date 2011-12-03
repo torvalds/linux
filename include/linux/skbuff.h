@@ -568,8 +568,9 @@ extern struct sk_buff *skb_clone(struct sk_buff *skb,
 				 gfp_t priority);
 extern struct sk_buff *skb_copy(const struct sk_buff *skb,
 				gfp_t priority);
-extern struct sk_buff *pskb_copy(struct sk_buff *skb,
-				 gfp_t gfp_mask);
+extern struct sk_buff *__pskb_copy(struct sk_buff *skb,
+				 int headroom, gfp_t gfp_mask);
+
 extern int	       pskb_expand_head(struct sk_buff *skb,
 					int nhead, int ntail,
 					gfp_t gfp_mask);
@@ -1797,6 +1798,12 @@ static inline dma_addr_t skb_frag_dma_map(struct device *dev,
 {
 	return dma_map_page(dev, skb_frag_page(frag),
 			    frag->page_offset + offset, size, dir);
+}
+
+static inline struct sk_buff *pskb_copy(struct sk_buff *skb,
+					gfp_t gfp_mask)
+{
+	return __pskb_copy(skb, skb_headroom(skb), gfp_mask);
 }
 
 /**
