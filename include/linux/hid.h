@@ -495,7 +495,6 @@ struct hid_device {							/* device report descriptor */
 	struct power_supply battery;
 	__s32 battery_min;
 	__s32 battery_max;
-	__s32 battery_val;
 	__s32 battery_report_type;
 	__s32 battery_report_id;
 #endif

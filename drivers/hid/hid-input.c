@@ -917,14 +917,6 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 
 	input = field->hidinput->input;
 
-#ifdef CONFIG_HID_BATTERY_STRENGTH
-	if (usage->hid == HID_DC_BATTERYSTRENGTH) {
-		hid->battery_val = value;
-		hid_dbg(hid, "battery value is %d (range %d-%d)\n",
-			value, hid->battery_min, hid->battery_max);
-		return;
-	}
-#endif
 	if (!usage->type)
 		return;
 
