@@ -29,22 +29,6 @@
 #include "m5mols.h"
 #include "m5mols_reg.h"
 
-static int m5mols_capture_error_handler(struct m5mols_info *info,
-					int timeout)
-{
-	int ret;
-
-	/* Disable all interrupts and clear relevant interrupt staus bits */
-	ret = m5mols_write(&info->sd, SYSTEM_INT_ENABLE,
-			   info->interrupt & ~(REG_INT_CAPTURE));
-	if (ret)
-		return ret;
-
-	if (timeout == 0)
-		return -ETIMEDOUT;
-
-	return 0;
-}
 /**
  * m5mols_read_rational - I2C read of a rational number
  *
@@ -121,7 +105,6 @@ int m5mols_start_capture(struct m5mols_info *info)
 {
 	struct v4l2_subdev *sd = &info->sd;
 	u8 resolution = info->resolution;
-	int timeout;
 	int ret;
 
 	/*
@@ -142,14 +125,9 @@ int m5mols_start_capture(struct m5mols_info *info)
 		ret = m5mols_enable_interrupt(sd, REG_INT_CAPTURE);
 	if (!ret)
 		ret = m5mols_mode(info, REG_CAPTURE);
-	if (!ret) {
+	if (!ret)
 		/* Wait for capture interrupt, after changing capture mode */
-		timeout = wait_event_interruptible_timeout(info->irq_waitq,
-					   test_bit(ST_CAPT_IRQ, &info->flags),
-					   msecs_to_jiffies(2000));
-		if (test_and_clear_bit(ST_CAPT_IRQ, &info->flags))
-			ret = m5mols_capture_error_handler(info, timeout);
-	}
+		ret = m5mols_wait_interrupt(sd, REG_INT_CAPTURE, 2000);
 	if (!ret)
 		ret = m5mols_lock_3a(info, false);
 	if (ret)
@@ -175,15 +153,13 @@ int m5mols_start_capture(struct m5mols_info *info)
 		ret = m5mols_write(sd, CAPC_START, REG_CAP_START_MAIN);
 	if (!ret) {
 		/* Wait for the capture completion interrupt */
-		timeout = wait_event_interruptible_timeout(info->irq_waitq,
-					   test_bit(ST_CAPT_IRQ, &info->flags),
-					   msecs_to_jiffies(2000));
-		if (test_and_clear_bit(ST_CAPT_IRQ, &info->flags)) {
+		ret = m5mols_wait_interrupt(sd, REG_INT_CAPTURE, 2000);
+		if (!ret) {
 			ret = m5mols_capture_info(info);
 			if (!ret)
 				v4l2_subdev_notify(sd, 0, &info->cap.total);
 		}
 	}
 
-	return m5mols_capture_error_handler(info, timeout);
+	return ret;
 }

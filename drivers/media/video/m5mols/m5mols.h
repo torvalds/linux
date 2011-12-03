@@ -163,7 +163,6 @@ struct m5mols_version {
  * @ffmt: current fmt according to resolution type
  * @res_type: current resolution type
  * @irq_waitq: waitqueue for the capture
- * @work_irq: workqueue for the IRQ
  * @flags: state variable for the interrupt handler
  * @handle: control handler
  * @autoexposure: Auto Exposure control
@@ -180,7 +179,6 @@ struct m5mols_version {
  * @lock_ae: true means the Auto Exposure is locked
  * @lock_awb: true means the Aut WhiteBalance is locked
  * @resolution:	register value for current resolution
- * @interrupt: register value for current interrupt status
  * @mode: register value for current operation mode
  * @mode_save: register value for current operation mode for saving
  * @set_power: optional power callback to the board code
@@ -192,8 +190,7 @@ struct m5mols_info {
 	struct v4l2_mbus_framefmt ffmt[M5MOLS_RESTYPE_MAX];
 	int res_type;
 	wait_queue_head_t irq_waitq;
-	struct work_struct work_irq;
-	unsigned long flags;
+	atomic_t irq_done;
 
 	struct v4l2_ctrl_handler handle;
 	/* Autoexposure/exposure control cluster */
@@ -213,13 +210,10 @@ struct m5mols_info {
 	bool lock_ae;
 	bool lock_awb;
 	u8 resolution;
-	u8 interrupt;
 	u8 mode;
 	u8 mode_save;
 	int (*set_power)(struct device *dev, int on);
 };
-
-#define ST_CAPT_IRQ 0
 
 #define is_powered(__info) (__info->power)
 #define is_ctrl_synced(__info) (__info->ctrl_sync)
@@ -290,6 +284,7 @@ int m5mols_busy_wait(struct v4l2_subdev *sd, u32 reg, u32 value, u32 mask,
 int m5mols_mode(struct m5mols_info *info, u8 mode);
 
 int m5mols_enable_interrupt(struct v4l2_subdev *sd, u8 reg);
+int m5mols_wait_interrupt(struct v4l2_subdev *sd, u8 condition, u32 timeout);
 int m5mols_sync_controls(struct m5mols_info *info);
 int m5mols_start_capture(struct m5mols_info *info);
 int m5mols_do_scenemode(struct m5mols_info *info, u8 mode);

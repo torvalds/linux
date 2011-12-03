@@ -323,6 +323,20 @@ int m5mols_enable_interrupt(struct v4l2_subdev *sd, u8 reg)
 	return ret;
 }
 
+int m5mols_wait_interrupt(struct v4l2_subdev *sd, u8 irq_mask, u32 timeout)
+{
+	struct m5mols_info *info = to_m5mols(sd);
+
+	int ret = wait_event_interruptible_timeout(info->irq_waitq,
+				atomic_add_unless(&info->irq_done, -1, 0),
+				msecs_to_jiffies(timeout));
+	if (ret <= 0)
+		return ret ? ret : -ETIMEDOUT;
+
+	return m5mols_busy_wait(sd, SYSTEM_INT_FACTOR, irq_mask,
+				M5MOLS_I2C_RDY_WAIT_FL | irq_mask, -1);
+}
+
 /**
  * m5mols_reg_mode - Write the mode and check busy status
  *
@@ -889,46 +903,12 @@ static const struct v4l2_subdev_ops m5mols_ops = {
 	.video		= &m5mols_video_ops,
 };
 
-static void m5mols_irq_work(struct work_struct *work)
-{
-	struct m5mols_info *info =
-		container_of(work, struct m5mols_info, work_irq);
-	struct v4l2_subdev *sd = &info->sd;
-	u8 reg;
-	int ret;
-
-	if (!is_powered(info) ||
-			m5mols_read_u8(sd, SYSTEM_INT_FACTOR, &info->interrupt))
-		return;
-
-	switch (info->interrupt & REG_INT_MASK) {
-	case REG_INT_AF:
-		if (!is_available_af(info))
-			break;
-		ret = m5mols_read_u8(sd, AF_STATUS, &reg);
-		v4l2_dbg(2, m5mols_debug, sd, "AF %s\n",
-			 reg == REG_AF_FAIL ? "Failed" :
-			 reg == REG_AF_SUCCESS ? "Success" :
-			 reg == REG_AF_IDLE ? "Idle" : "Busy");
-		break;
-	case REG_INT_CAPTURE:
-		if (!test_and_set_bit(ST_CAPT_IRQ, &info->flags))
-			wake_up_interruptible(&info->irq_waitq);
-
-		v4l2_dbg(2, m5mols_debug, sd, "CAPTURE\n");
-		break;
-	default:
-		v4l2_dbg(2, m5mols_debug, sd, "Undefined: %02x\n", reg);
-		break;
-	};
-}
-
 static irqreturn_t m5mols_irq_handler(int irq, void *data)
 {
-	struct v4l2_subdev *sd = data;
-	struct m5mols_info *info = to_m5mols(sd);
+	struct m5mols_info *info = to_m5mols(data);
 
-	schedule_work(&info->work_irq);
+	atomic_set(&info->irq_done, 1);
+	wake_up_interruptible(&info->irq_waitq);
 
 	return IRQ_HANDLED;
 }
@@ -987,7 +967,6 @@ static int __devinit m5mols_probe(struct i2c_client *client,
 	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
 
 	init_waitqueue_head(&info->irq_waitq);
-	INIT_WORK(&info->work_irq, m5mols_irq_work);
 	ret = request_irq(client->irq, m5mols_irq_handler,
 			  IRQF_TRIGGER_RISING, MODULE_NAME, sd);
 	if (ret) {
@@ -995,6 +974,7 @@ static int __devinit m5mols_probe(struct i2c_client *client,
 		goto out_me;
 	}
 	info->res_type = M5MOLS_RESTYPE_MONITOR;
+
 	return 0;
 out_me:
 	media_entity_cleanup(&sd->entity);
