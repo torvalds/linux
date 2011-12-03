@@ -114,7 +114,6 @@ static int omap_dmic_dai_startup(struct snd_pcm_substream *substream,
 	mutex_lock(&dmic->mutex);
 
 	if (!dai->active) {
-		pm_runtime_get_sync(dmic->dev);
 		snd_pcm_hw_constraint_msbits(substream->runtime, 0, 32, 24);
 		dmic->active = 1;
 	} else {
@@ -133,10 +132,8 @@ static void omap_dmic_dai_shutdown(struct snd_pcm_substream *substream,
 
 	mutex_lock(&dmic->mutex);
 
-	if (!dai->active) {
-		pm_runtime_put_sync(dmic->dev);
+	if (!dai->active)
 		dmic->active = 0;
-	}
 
 	mutex_unlock(&dmic->mutex);
 }
