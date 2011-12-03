@@ -370,13 +370,13 @@ int m5mols_mode(struct m5mols_info *info, u8 mode)
 		return ret;
 
 	ret = m5mols_read_u8(sd, SYSTEM_SYSMODE, &reg);
-	if ((!ret && reg == mode) || ret)
+	if (ret || reg == mode)
 		return ret;
 
 	switch (reg) {
 	case REG_PARAMETER:
 		ret = m5mols_reg_mode(sd, REG_MONITOR);
-		if (!ret && mode == REG_MONITOR)
+		if (mode == REG_MONITOR)
 			break;
 		if (!ret)
 			ret = m5mols_reg_mode(sd, REG_CAPTURE);
@@ -393,7 +393,7 @@ int m5mols_mode(struct m5mols_info *info, u8 mode)
 
 	case REG_CAPTURE:
 		ret = m5mols_reg_mode(sd, REG_MONITOR);
-		if (!ret && mode == REG_MONITOR)
+		if (mode == REG_MONITOR)
 			break;
 		if (!ret)
 			ret = m5mols_reg_mode(sd, REG_PARAMETER);
@@ -677,15 +677,14 @@ static int m5mols_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_subdev *sd = to_sd(ctrl);
 	struct m5mols_info *info = to_m5mols(sd);
-	int ret;
-
-	info->mode_save = info->mode;
+	int isp_state = info->mode;
+	int ret = 0;
 
 	ret = m5mols_mode(info, REG_PARAMETER);
 	if (!ret)
 		ret = m5mols_set_ctrl(ctrl);
 	if (!ret)
-		ret = m5mols_mode(info, info->mode_save);
+		ret = m5mols_mode(info, isp_state);
 
 	return ret;
 }

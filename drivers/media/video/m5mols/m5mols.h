@@ -180,7 +180,6 @@ struct m5mols_version {
  * @lock_awb: true means the Aut WhiteBalance is locked
  * @resolution:	register value for current resolution
  * @mode: register value for current operation mode
- * @mode_save: register value for current operation mode for saving
  * @set_power: optional power callback to the board code
  */
 struct m5mols_info {
@@ -211,7 +210,6 @@ struct m5mols_info {
 	bool lock_awb;
 	u8 resolution;
 	u8 mode;
-	u8 mode_save;
 	int (*set_power)(struct device *dev, int on);
 };
 
