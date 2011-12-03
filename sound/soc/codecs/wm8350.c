@@ -696,7 +696,7 @@ static const struct snd_soc_dapm_widget wm8350_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("IN3L"),
 };
 
-static const struct snd_soc_dapm_route audio_map[] = {
+static const struct snd_soc_dapm_route wm8350_dapm_routes[] = {
 
 	/* left playback mixer */
 	{"Left Playback Mixer", "Playback Switch", "Left DAC"},
@@ -776,29 +776,6 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	/* Beep */
 	{"Beep", NULL, "IN3R PGA"},
 };
-
-static int wm8350_add_widgets(struct snd_soc_codec *codec)
-{
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	int ret;
-
-	ret = snd_soc_dapm_new_controls(dapm,
-					wm8350_dapm_widgets,
-					ARRAY_SIZE(wm8350_dapm_widgets));
-	if (ret != 0) {
-		dev_err(codec->dev, "dapm control register failed\n");
-		return ret;
-	}
-
-	/* set up audio paths */
-	ret = snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
-	if (ret != 0) {
-		dev_err(codec->dev, "DAPM route register failed\n");
-		return ret;
-	}
-
-	return 0;
-}
 
 static int wm8350_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				 int clk_id, unsigned int freq, int dir)
@@ -1634,10 +1611,6 @@ static  int wm8350_codec_probe(struct snd_soc_codec *codec)
 			    wm8350_mic_handler, 0, "Microphone detect", priv);
 
 
-	snd_soc_add_controls(codec, wm8350_snd_controls,
-				ARRAY_SIZE(wm8350_snd_controls));
-	wm8350_add_widgets(codec);
-
 	wm8350_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	return 0;
@@ -1685,6 +1658,13 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8350 = {
 	.read = wm8350_codec_read,
 	.write = wm8350_codec_write,
 	.set_bias_level = wm8350_set_bias_level,
+
+	.controls = wm8350_snd_controls,
+	.num_controls = ARRAY_SIZE(wm8350_snd_controls),
+	.dapm_widgets = wm8350_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8350_dapm_widgets),
+	.dapm_routes = wm8350_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(wm8350_dapm_routes),
 };
 
 static int __devinit wm8350_probe(struct platform_device *pdev)
