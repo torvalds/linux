@@ -1383,7 +1383,8 @@ static int wm8400_codec_probe(struct snd_soc_codec *codec)
 	int ret;
 	u16 reg;
 
-	priv = kzalloc(sizeof(struct wm8400_priv), GFP_KERNEL);
+	priv = devm_kzalloc(codec->dev, sizeof(struct wm8400_priv),
+			    GFP_KERNEL);
 	if (priv == NULL)
 		return -ENOMEM;
 
@@ -1395,7 +1396,7 @@ static int wm8400_codec_probe(struct snd_soc_codec *codec)
 				 ARRAY_SIZE(power), &power[0]);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to get regulators: %d\n", ret);
-	        goto err;
+		return ret;
 	}
 
 	INIT_WORK(&priv->work, wm8400_probe_deferred);
@@ -1426,14 +1427,11 @@ static int wm8400_codec_probe(struct snd_soc_codec *codec)
 
 err_regulator:
 	regulator_bulk_free(ARRAY_SIZE(power), power);
-err:
-	kfree(priv);
 	return ret;
 }
 
 static int  wm8400_codec_remove(struct snd_soc_codec *codec)
 {
-	struct wm8400_priv *priv = snd_soc_codec_get_drvdata(codec);
 	u16 reg;
 
 	reg = wm8400_read(codec, WM8400_POWER_MANAGEMENT_1);
@@ -1441,7 +1439,6 @@ static int  wm8400_codec_remove(struct snd_soc_codec *codec)
 		     reg & (~WM8400_CODEC_ENA));
 
 	regulator_bulk_free(ARRAY_SIZE(power), power);
-	kfree(priv);
 
 	return 0;
 }
