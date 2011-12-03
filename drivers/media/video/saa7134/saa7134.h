@@ -818,6 +818,7 @@ void saa7134_tvaudio_init(struct saa7134_dev *dev);
 int saa7134_tvaudio_init2(struct saa7134_dev *dev);
 int saa7134_tvaudio_fini(struct saa7134_dev *dev);
 int saa7134_tvaudio_do_scan(struct saa7134_dev *dev);
+int saa7134_tvaudio_close(struct saa7134_dev *dev);
 
 int saa_dsp_writel(struct saa7134_dev *dev, int reg, u32 value);
 
