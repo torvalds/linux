@@ -301,7 +301,7 @@ static const struct snd_soc_dapm_widget wm8750_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("RINPUT3"),
 };
 
-static const struct snd_soc_dapm_route audio_map[] = {
+static const struct snd_soc_dapm_route wm8750_dapm_routes[] = {
 	/* left mixer */
 	{"Left Mixer", "Playback Switch", "Left DAC"},
 	{"Left Mixer", "Left Bypass Switch", "Left Line Mux"},
@@ -394,17 +394,6 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Left ADC", NULL, "Left ADC Mux"},
 	{"Right ADC", NULL, "Right ADC Mux"},
 };
-
-static int wm8750_add_widgets(struct snd_soc_codec *codec)
-{
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	snd_soc_dapm_new_controls(dapm, wm8750_dapm_widgets,
-				  ARRAY_SIZE(wm8750_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
-
-	return 0;
-}
 
 struct _coeff_div {
 	u32 mclk;
@@ -708,9 +697,6 @@ static int wm8750_probe(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, WM8750_LINVOL, 0x0100, 0x0100);
 	snd_soc_update_bits(codec, WM8750_RINVOL, 0x0100, 0x0100);
 
-	snd_soc_add_controls(codec, wm8750_snd_controls,
-				ARRAY_SIZE(wm8750_snd_controls));
-	wm8750_add_widgets(codec);
 	return ret;
 }
 
@@ -729,6 +715,13 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8750 = {
 	.reg_cache_size = ARRAY_SIZE(wm8750_reg),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm8750_reg,
+
+	.controls = wm8750_snd_controls,
+	.num_controls = ARRAY_SIZE(wm8750_snd_controls),
+	.dapm_widgets = wm8750_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8750_dapm_widgets),
+	.dapm_routes = wm8750_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(wm8750_dapm_routes),
 };
 
 static const struct of_device_id wm8750_of_match[] = {
