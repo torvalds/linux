@@ -48,11 +48,11 @@ void mei_io_list_init(struct mei_io_list *list)
  */
 void mei_io_list_flush(struct mei_io_list *list, struct mei_cl *cl)
 {
-	struct mei_cl_cb *pos = NULL;
-	struct mei_cl_cb *next = NULL;
+	struct mei_cl_cb *pos;
+	struct mei_cl_cb *next;
 
 	list_for_each_entry_safe(pos, next, &list->mei_cb.cb_list, cb_list) {
-		if (pos) {
+		if (pos->file_private) {
 			struct mei_cl *cl_tmp;
 			cl_tmp = (struct mei_cl *)pos->file_private;
 			if (mei_cl_cmp_id(cl, cl_tmp))
@@ -332,11 +332,8 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 	/* remove all waiting requests */
 	list_for_each_entry_safe(cb_pos, cb_next,
 			&dev->write_list.mei_cb.cb_list, cb_list) {
-		if (cb_pos) {
-			list_del(&cb_pos->cb_list);
-			mei_free_cb_private(cb_pos);
-			cb_pos = NULL;
-		}
+		list_del(&cb_pos->cb_list);
+		mei_free_cb_private(cb_pos);
 	}
 }
 
