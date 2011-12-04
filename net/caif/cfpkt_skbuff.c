@@ -63,7 +63,6 @@ static inline struct cfpkt *skb_to_pkt(struct sk_buff *skb)
 	return (struct cfpkt *) skb;
 }
 
-
 struct cfpkt *cfpkt_fromnative(enum caif_direction dir, void *nativepkt)
 {
 	struct cfpkt *pkt = skb_to_pkt(nativepkt);
@@ -105,13 +104,11 @@ void cfpkt_destroy(struct cfpkt *pkt)
 	kfree_skb(skb);
 }
 
-
 inline bool cfpkt_more(struct cfpkt *pkt)
 {
 	struct sk_buff *skb = pkt_to_skb(pkt);
 	return skb->len > 0;
 }
-
 
 int cfpkt_peek_head(struct cfpkt *pkt, void *data, u16 len)
 {
@@ -148,6 +145,7 @@ int cfpkt_extr_head(struct cfpkt *pkt, void *data, u16 len)
 		memcpy(data, from, len);
 	return 0;
 }
+EXPORT_SYMBOL(cfpkt_extr_head);
 
 int cfpkt_extr_trail(struct cfpkt *pkt, void *dta, u16 len)
 {
@@ -171,12 +169,10 @@ int cfpkt_extr_trail(struct cfpkt *pkt, void *dta, u16 len)
 	return 0;
 }
 
-
 int cfpkt_pad_trail(struct cfpkt *pkt, u16 len)
 {
 	return cfpkt_add_body(pkt, NULL, len);
 }
-
 
 int cfpkt_add_body(struct cfpkt *pkt, const void *data, u16 len)
 {
@@ -256,20 +252,18 @@ int cfpkt_add_head(struct cfpkt *pkt, const void *data2, u16 len)
 	memcpy(to, data, len);
 	return 0;
 }
-
+EXPORT_SYMBOL(cfpkt_add_head);
 
 inline int cfpkt_add_trail(struct cfpkt *pkt, const void *data, u16 len)
 {
 	return cfpkt_add_body(pkt, data, len);
 }
 
-
 inline u16 cfpkt_getlen(struct cfpkt *pkt)
 {
 	struct sk_buff *skb = pkt_to_skb(pkt);
 	return skb->len;
 }
-
 
 inline u16 cfpkt_iterate(struct cfpkt *pkt,
 			    u16 (*iter_func)(u16, void *, u16),
@@ -287,7 +281,6 @@ inline u16 cfpkt_iterate(struct cfpkt *pkt,
 	}
 	return iter_func(data, pkt->skb.data, cfpkt_getlen(pkt));
 }
-
 
 int cfpkt_setlen(struct cfpkt *pkt, u16 len)
 {
@@ -400,3 +393,4 @@ struct caif_payload_info *cfpkt_info(struct cfpkt *pkt)
 {
 	return (struct caif_payload_info *)&pkt_to_skb(pkt)->cb;
 }
+EXPORT_SYMBOL(cfpkt_info);

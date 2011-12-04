@@ -262,6 +262,7 @@ void caif_enroll_dev(struct net_device *dev, struct caif_dev_common *caifdev,
 	if (rcv_func)
 		*rcv_func = receive;
 }
+EXPORT_SYMBOL(caif_enroll_dev);
 
 /* notify Caif of device events */
 static int caif_device_notify(struct notifier_block *me, unsigned long what,
