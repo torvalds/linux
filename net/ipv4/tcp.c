@@ -1009,7 +1009,12 @@ new_segment:
 				int merge = 0;
 				int i = skb_shinfo(skb)->nr_frags;
 				struct page *page = TCP_PAGE(sk);
-				int off = TCP_OFF(sk);
+				int off;
+
+				if (page && page_count(page) == 1)
+					TCP_OFF(sk) = 0;
+
+				off = TCP_OFF(sk);
 
 				if (skb_can_coalesce(skb, i, page, off) &&
 				    off != PAGE_SIZE) {
