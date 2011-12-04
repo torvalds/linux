@@ -456,7 +456,7 @@ static ssize_t dcon_mono_store(struct device *dev,
 	unsigned long enable_mono;
 	int rc;
 
-	rc = strict_strtoul(buf, 10, &enable_mono);
+	rc = kstrtoul(buf, 10, &enable_mono);
 	if (rc)
 		return rc;
 
@@ -472,7 +472,7 @@ static ssize_t dcon_freeze_store(struct device *dev,
 	unsigned long output;
 	int ret;
 
-	ret = strict_strtoul(buf, 10, &output);
+	ret = kstrtoul(buf, 10, &output);
 	if (ret)
 		return ret;
 
@@ -517,7 +517,7 @@ static ssize_t dcon_sleep_store(struct device *dev,
 	unsigned long output;
 	int ret;
 
-	ret = strict_strtoul(buf, 10, &output);
+	ret = kstrtoul(buf, 10, &output);
 	if (ret)
 		return ret;
 
