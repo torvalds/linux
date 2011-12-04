@@ -1821,12 +1821,11 @@ out_free1:
 		struct kvm_regs *kvm_regs;
 
 		r = -ENOMEM;
-		kvm_regs = kzalloc(sizeof(struct kvm_regs), GFP_KERNEL);
-		if (!kvm_regs)
+		kvm_regs = memdup_user(argp, sizeof(*kvm_regs));
+		if (IS_ERR(kvm_regs)) {
+			r = PTR_ERR(kvm_regs);
 			goto out;
-		r = -EFAULT;
-		if (copy_from_user(kvm_regs, argp, sizeof(struct kvm_regs)))
-			goto out_free2;
+		}
 		r = kvm_arch_vcpu_ioctl_set_regs(vcpu, kvm_regs);
 		if (r)
 			goto out_free2;
@@ -1850,13 +1849,11 @@ out_free2:
 		break;
 	}
 	case KVM_SET_SREGS: {
-		kvm_sregs = kmalloc(sizeof(struct kvm_sregs), GFP_KERNEL);
-		r = -ENOMEM;
-		if (!kvm_sregs)
+		kvm_sregs = memdup_user(argp, sizeof(*kvm_sregs));
+		if (IS_ERR(kvm_sregs)) {
+			r = PTR_ERR(kvm_sregs);
 			goto out;
-		r = -EFAULT;
-		if (copy_from_user(kvm_sregs, argp, sizeof(struct kvm_sregs)))
-			goto out;
+		}
 		r = kvm_arch_vcpu_ioctl_set_sregs(vcpu, kvm_sregs);
 		if (r)
 			goto out;
@@ -1952,13 +1949,11 @@ out_free2:
 		break;
 	}
 	case KVM_SET_FPU: {
-		fpu = kmalloc(sizeof(struct kvm_fpu), GFP_KERNEL);
-		r = -ENOMEM;
-		if (!fpu)
+		fpu = memdup_user(argp, sizeof(*fpu));
+		if (IS_ERR(fpu)) {
+			r = PTR_ERR(fpu);
 			goto out;
-		r = -EFAULT;
-		if (copy_from_user(fpu, argp, sizeof(struct kvm_fpu)))
-			goto out;
+		}
 		r = kvm_arch_vcpu_ioctl_set_fpu(vcpu, fpu);
 		if (r)
 			goto out;

@@ -1309,12 +1309,11 @@ static int xen_hvm_config(struct kvm_vcpu *vcpu, u64 data)
 	if (page_num >= blob_size)
 		goto out;
 	r = -ENOMEM;
-	page = kzalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!page)
+	page = memdup_user(blob_addr + (page_num * PAGE_SIZE), PAGE_SIZE);
+	if (IS_ERR(page)) {
+		r = PTR_ERR(page);
 		goto out;
-	r = -EFAULT;
-	if (copy_from_user(page, blob_addr + (page_num * PAGE_SIZE), PAGE_SIZE))
-		goto out_free;
+	}
 	if (kvm_write_guest(kvm, page_addr, page, PAGE_SIZE))
 		goto out_free;
 	r = 0;
@@ -1988,15 +1987,12 @@ static int msr_io(struct kvm_vcpu *vcpu, struct kvm_msrs __user *user_msrs,
 	if (msrs.nmsrs >= MAX_IO_MSRS)
 		goto out;
 
-	r = -ENOMEM;
 	size = sizeof(struct kvm_msr_entry) * msrs.nmsrs;
-	entries = kmalloc(size, GFP_KERNEL);
-	if (!entries)
+	entries = memdup_user(user_msrs->entries, size);
+	if (IS_ERR(entries)) {
+		r = PTR_ERR(entries);
 		goto out;
-
-	r = -EFAULT;
-	if (copy_from_user(entries, user_msrs->entries, size))
-		goto out_free;
+	}
 
 	r = n = __msr_io(vcpu, &msrs, entries, do_msr);
 	if (r < 0)
@@ -2533,13 +2529,12 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		r = -EINVAL;
 		if (!vcpu->arch.apic)
 			goto out;
-		u.lapic = kmalloc(sizeof(struct kvm_lapic_state), GFP_KERNEL);
-		r = -ENOMEM;
-		if (!u.lapic)
+		u.lapic = memdup_user(argp, sizeof(*u.lapic));
+		if (IS_ERR(u.lapic)) {
+			r = PTR_ERR(u.lapic);
 			goto out;
-		r = -EFAULT;
-		if (copy_from_user(u.lapic, argp, sizeof(struct kvm_lapic_state)))
-			goto out;
+		}
+
 		r = kvm_vcpu_ioctl_set_lapic(vcpu, u.lapic);
 		if (r)
 			goto out;
@@ -2718,14 +2713,11 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		break;
 	}
 	case KVM_SET_XSAVE: {
-		u.xsave = kzalloc(sizeof(struct kvm_xsave), GFP_KERNEL);
-		r = -ENOMEM;
-		if (!u.xsave)
-			break;
-
-		r = -EFAULT;
-		if (copy_from_user(u.xsave, argp, sizeof(struct kvm_xsave)))
-			break;
+		u.xsave = memdup_user(argp, sizeof(*u.xsave));
+		if (IS_ERR(u.xsave)) {
+			r = PTR_ERR(u.xsave);
+			goto out;
+		}
 
 		r = kvm_vcpu_ioctl_x86_set_xsave(vcpu, u.xsave);
 		break;
@@ -2746,15 +2738,11 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		break;
 	}
 	case KVM_SET_XCRS: {
-		u.xcrs = kzalloc(sizeof(struct kvm_xcrs), GFP_KERNEL);
-		r = -ENOMEM;
-		if (!u.xcrs)
-			break;
-
-		r = -EFAULT;
-		if (copy_from_user(u.xcrs, argp,
-				   sizeof(struct kvm_xcrs)))
-			break;
+		u.xcrs = memdup_user(argp, sizeof(*u.xcrs));
+		if (IS_ERR(u.xcrs)) {
+			r = PTR_ERR(u.xcrs);
+			goto out;
+		}
 
 		r = kvm_vcpu_ioctl_x86_set_xcrs(vcpu, u.xcrs);
 		break;
@@ -3190,14 +3178,14 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	}
 	case KVM_GET_IRQCHIP: {
 		/* 0: PIC master, 1: PIC slave, 2: IOAPIC */
-		struct kvm_irqchip *chip = kmalloc(sizeof(*chip), GFP_KERNEL);
+		struct kvm_irqchip *chip;
 
-		r = -ENOMEM;
-		if (!chip)
+		chip = memdup_user(argp, sizeof(*chip));
+		if (IS_ERR(chip)) {
+			r = PTR_ERR(chip);
 			goto out;
-		r = -EFAULT;
-		if (copy_from_user(chip, argp, sizeof *chip))
-			goto get_irqchip_out;
+		}
+
 		r = -ENXIO;
 		if (!irqchip_in_kernel(kvm))
 			goto get_irqchip_out;
@@ -3216,14 +3204,14 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	}
 	case KVM_SET_IRQCHIP: {
 		/* 0: PIC master, 1: PIC slave, 2: IOAPIC */
-		struct kvm_irqchip *chip = kmalloc(sizeof(*chip), GFP_KERNEL);
+		struct kvm_irqchip *chip;
 
-		r = -ENOMEM;
-		if (!chip)
+		chip = memdup_user(argp, sizeof(*chip));
+		if (IS_ERR(chip)) {
+			r = PTR_ERR(chip);
 			goto out;
-		r = -EFAULT;
-		if (copy_from_user(chip, argp, sizeof *chip))
-			goto set_irqchip_out;
+		}
+
 		r = -ENXIO;
 		if (!irqchip_in_kernel(kvm))
 			goto set_irqchip_out;
