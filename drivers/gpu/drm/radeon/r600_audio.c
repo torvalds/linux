@@ -36,7 +36,7 @@
  */
 static int r600_audio_chipset_supported(struct radeon_device *rdev)
 {
-	return (rdev->family >= CHIP_R600 && rdev->family < CHIP_CEDAR)
+	return (rdev->family >= CHIP_R600 && !ASIC_IS_DCE4(rdev))
 		|| rdev->family == CHIP_RS600
 		|| rdev->family == CHIP_RS690
 		|| rdev->family == CHIP_RS740;
@@ -248,22 +248,27 @@ void r600_audio_set_clock(struct drm_encoder *encoder, int clock)
 		return;
 	}
 
-	switch (dig->dig_encoder) {
-	case 0:
-		WREG32(R600_AUDIO_PLL1_MUL, base_rate * 50);
-		WREG32(R600_AUDIO_PLL1_DIV, clock * 100);
-		WREG32(R600_AUDIO_CLK_SRCSEL, 0);
-		break;
+	if (ASIC_IS_DCE4(rdev)) {
+		/* TODO */
+	} else {
+		switch (dig->dig_encoder) {
+		case 0:
+			WREG32(R600_AUDIO_PLL1_MUL, base_rate * 50);
+			WREG32(R600_AUDIO_PLL1_DIV, clock * 100);
+			WREG32(R600_AUDIO_CLK_SRCSEL, 0);
+			break;
 
-	case 1:
-		WREG32(R600_AUDIO_PLL2_MUL, base_rate * 50);
-		WREG32(R600_AUDIO_PLL2_DIV, clock * 100);
-		WREG32(R600_AUDIO_CLK_SRCSEL, 1);
-		break;
-	default:
-		dev_err(rdev->dev, "Unsupported DIG on encoder 0x%02X\n",
-			  radeon_encoder->encoder_id);
-		return;
+		case 1:
+			WREG32(R600_AUDIO_PLL2_MUL, base_rate * 50);
+			WREG32(R600_AUDIO_PLL2_DIV, clock * 100);
+			WREG32(R600_AUDIO_CLK_SRCSEL, 1);
+			break;
+		default:
+			dev_err(rdev->dev,
+				"Unsupported DIG on encoder 0x%02X\n",
+				radeon_encoder->encoder_id);
+			return;
+		}
 	}
 }
 

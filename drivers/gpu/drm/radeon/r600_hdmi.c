@@ -460,7 +460,9 @@ static void r600_hdmi_assign_block(struct drm_encoder *encoder)
 		return;
 	}
 
-	if (ASIC_IS_DCE4(rdev)) {
+	if (ASIC_IS_DCE5(rdev)) {
+		/* TODO */
+	} else if (ASIC_IS_DCE4(rdev)) {
 		/* TODO */
 	} else if (ASIC_IS_DCE3(rdev)) {
 		radeon_encoder->hdmi_offset = dig->dig_encoder ?
@@ -497,9 +499,15 @@ void r600_hdmi_enable(struct drm_encoder *encoder)
 	}
 
 	offset = radeon_encoder->hdmi_offset;
-	if (ASIC_IS_DCE32(rdev) && !ASIC_IS_DCE4(rdev)) {
+	if (ASIC_IS_DCE5(rdev)) {
+		/* TODO */
+	} else if (ASIC_IS_DCE4(rdev)) {
+		/* TODO */
+	} else if (ASIC_IS_DCE32(rdev)) {
 		WREG32_P(radeon_encoder->hdmi_config_offset + 0x4, 0x1, ~0x1);
-	} else if (rdev->family >= CHIP_R600 && !ASIC_IS_DCE3(rdev)) {
+	} else if (ASIC_IS_DCE3(rdev)) {
+		/* TODO */
+	} else if (rdev->family >= CHIP_R600) {
 		switch (radeon_encoder->encoder_id) {
 		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
 			WREG32_P(AVIVO_TMDSA_CNTL, 0x4, ~0x4);
