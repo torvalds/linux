@@ -3935,8 +3935,6 @@ static void rtl_hw_reset(struct rtl8169_private *tp)
 			break;
 		udelay(100);
 	}
-
-	rtl8169_init_ring_indexes(tp);
 }
 
 static int __devinit
@@ -5395,14 +5393,16 @@ static void rtl8169_reset_task(struct work_struct *work)
 	if (!netif_running(dev))
 		goto out_unlock;
 
+	rtl8169_hw_reset(tp);
+
 	rtl8169_wait_for_quiescence(dev);
 
 	for (i = 0; i < NUM_RX_DESC; i++)
 		rtl8169_mark_to_asic(tp->RxDescArray + i, rx_buf_sz);
 
 	rtl8169_tx_clear(tp);
+	rtl8169_init_ring_indexes(tp);
 
-	rtl8169_hw_reset(tp);
 	rtl_hw_start(dev);
 	netif_wake_queue(dev);
 	rtl8169_check_link_status(dev, tp, tp->mmio_addr);
@@ -5413,11 +5413,6 @@ out_unlock:
 
 static void rtl8169_tx_timeout(struct net_device *dev)
 {
-	struct rtl8169_private *tp = netdev_priv(dev);
-
-	rtl8169_hw_reset(tp);
-
-	/* Let's wait a bit while any (async) irq lands on */
 	rtl8169_schedule_work(dev, rtl8169_reset_task);
 }
 
