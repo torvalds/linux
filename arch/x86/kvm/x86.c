@@ -3031,10 +3031,10 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 		memset(dirty_bitmap_head, 0, n);
 
 		r = -ENOMEM;
-		slots = kzalloc(sizeof(struct kvm_memslots), GFP_KERNEL);
+		slots = kmemdup(kvm->memslots, sizeof(*kvm->memslots), GFP_KERNEL);
 		if (!slots)
 			goto out;
-		memcpy(slots, kvm->memslots, sizeof(struct kvm_memslots));
+
 		memslot = id_to_memslot(slots, log->slot);
 		memslot->nr_dirty_pages = 0;
 		memslot->dirty_bitmap = dirty_bitmap_head;

@@ -2591,12 +2591,11 @@ int kvm_io_bus_unregister_dev(struct kvm *kvm, enum kvm_bus bus_idx,
 	int i, r;
 	struct kvm_io_bus *new_bus, *bus;
 
-	new_bus = kzalloc(sizeof(struct kvm_io_bus), GFP_KERNEL);
+	bus = kvm->buses[bus_idx];
+
+	new_bus = kmemdup(bus, sizeof(*bus), GFP_KERNEL);
 	if (!new_bus)
 		return -ENOMEM;
-
-	bus = kvm->buses[bus_idx];
-	memcpy(new_bus, bus, sizeof(struct kvm_io_bus));
 
 	r = -ENOENT;
 	for (i = 0; i < new_bus->dev_count; i++)
