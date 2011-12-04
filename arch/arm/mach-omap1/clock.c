@@ -203,10 +203,6 @@ int omap1_select_table_rate(struct clk *clk, unsigned long rate)
 		if (ptr->xtal != ref_rate)
 			continue;
 
-		/* DPLL1 cannot be reprogrammed without risking system crash */
-		if (likely(dpll1_rate != 0) && ptr->pll_rate != dpll1_rate)
-			continue;
-
 		/* Can check only after xtal frequency check */
 		if (ptr->rate <= rate)
 			break;
