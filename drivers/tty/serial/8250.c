@@ -1375,11 +1375,16 @@ static void clear_rx_fifo(struct uart_8250_port *up)
 	} while (1);
 }
 
-static void
-receive_chars(struct uart_8250_port *up, unsigned int *status)
+/*
+ * receive_chars: processes according to the passed in LSR
+ * value, and returns the remaining LSR bits not handled
+ * by this Rx routine.
+ */
+static unsigned char
+receive_chars(struct uart_8250_port *up, unsigned char lsr)
 {
 	struct tty_struct *tty = up->port.state->port.tty;
-	unsigned char ch, lsr = *status;
+	unsigned char ch;
 	int max_count = 256;
 	char flag;
 
@@ -1455,7 +1460,7 @@ ignore_char:
 	spin_unlock(&up->port.lock);
 	tty_flip_buffer_push(tty);
 	spin_lock(&up->port.lock);
-	*status = lsr;
+	return lsr;
 }
 
 static void transmit_chars(struct uart_8250_port *up)
@@ -1524,7 +1529,7 @@ static unsigned int check_modem_status(struct uart_8250_port *up)
  */
 static void serial8250_handle_port(struct uart_8250_port *up)
 {
-	unsigned int status;
+	unsigned char status;
 	unsigned long flags;
 
 	spin_lock_irqsave(&up->port.lock, flags);
@@ -1534,7 +1539,7 @@ static void serial8250_handle_port(struct uart_8250_port *up)
 	DEBUG_INTR("status = %x...", status);
 
 	if (status & (UART_LSR_DR | UART_LSR_BI))
-		receive_chars(up, &status);
+		status = receive_chars(up, status);
 	check_modem_status(up);
 	if (status & UART_LSR_THRE)
 		transmit_chars(up);
