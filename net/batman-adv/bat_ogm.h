@@ -29,7 +29,6 @@ void bat_ogm_init_primary(struct hard_iface *hard_iface);
 void bat_ogm_update_mac(struct hard_iface *hard_iface);
 void bat_ogm_schedule(struct hard_iface *hard_iface, int tt_num_changes);
 void bat_ogm_emit(struct forw_packet *forw_packet);
-void bat_ogm_receive(const struct ethhdr *ethhdr, unsigned char *packet_buff,
-		     int packet_len, struct hard_iface *if_incoming);
+void bat_ogm_receive(struct hard_iface *if_incoming, struct sk_buff *skb);
 
 #endif /* _NET_BATMAN_ADV_OGM_H_ */

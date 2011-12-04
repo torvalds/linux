@@ -1140,13 +1140,16 @@ out:
 	orig_node_free_ref(orig_node);
 }
 
-void bat_ogm_receive(const struct ethhdr *ethhdr, unsigned char *packet_buff,
-		     int packet_len, struct hard_iface *if_incoming)
+void bat_ogm_receive(struct hard_iface *if_incoming, struct sk_buff *skb)
 {
 	struct batman_ogm_packet *batman_ogm_packet;
-	int buff_pos = 0;
-	unsigned char *tt_buff;
+	struct ethhdr *ethhdr;
+	int buff_pos = 0, packet_len;
+	unsigned char *tt_buff, *packet_buff;
 
+	packet_len = skb_headlen(skb);
+	ethhdr = (struct ethhdr *)skb_mac_header(skb);
+	packet_buff = skb->data;
 	batman_ogm_packet = (struct batman_ogm_packet *)packet_buff;
 
 	/* unpack the aggregated packets and process them one by one */

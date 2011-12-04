@@ -272,9 +272,7 @@ int recv_bat_ogm_packet(struct sk_buff *skb, struct hard_iface *hard_iface)
 	if (skb_linearize(skb) < 0)
 		return NET_RX_DROP;
 
-	ethhdr = (struct ethhdr *)skb_mac_header(skb);
-
-	bat_ogm_receive(ethhdr, skb->data, skb_headlen(skb), hard_iface);
+	bat_ogm_receive(hard_iface, skb);
 
 	kfree_skb(skb);
 	return NET_RX_SUCCESS;
