@@ -36,6 +36,7 @@ struct dice {
 	struct mutex mutex;
 	unsigned int global_offset;
 	unsigned int rx_offset;
+	unsigned int clock_caps;
 	struct fw_address_handler notification_handler;
 	int owner_generation;
 	int dev_lock_count; /* > 0 driver, < 0 userspace */
@@ -830,9 +831,10 @@ static int dice_interface_check(struct fw_unit *unit)
 	return 0;
 }
 
-static int dice_init_offsets(struct dice *dice)
+static int dice_read_params(struct dice *dice)
 {
 	__be32 pointers[6];
+	__be32 value;
 	int err;
 
 	err = snd_fw_transaction(dice->unit, TCODE_READ_BLOCK_REQUEST,
@@ -843,6 +845,23 @@ static int dice_init_offsets(struct dice *dice)
 
 	dice->global_offset = be32_to_cpu(pointers[0]) * 4;
 	dice->rx_offset = be32_to_cpu(pointers[4]) * 4;
+
+	/* some very old firmwares don't tell about their clock support */
+	if (be32_to_cpu(pointers[1]) * 4 >= GLOBAL_CLOCK_CAPABILITIES + 4) {
+		err = snd_fw_transaction(
+				dice->unit, TCODE_READ_QUADLET_REQUEST,
+				global_address(dice, GLOBAL_CLOCK_CAPABILITIES),
+				&value, 4, 0);
+		if (err < 0)
+			return err;
+		dice->clock_caps = be32_to_cpu(value);
+	} else {
+		/* this should be supported by any device */
+		dice->clock_caps = CLOCK_CAP_RATE_44100 |
+				   CLOCK_CAP_RATE_48000 |
+				   CLOCK_CAP_SOURCE_ARX1 |
+				   CLOCK_CAP_SOURCE_INTERNAL;
+	}
 
 	return 0;
 }
@@ -905,7 +924,7 @@ static int dice_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 	dice->unit = unit;
 	init_waitqueue_head(&dice->hwdep_wait);
 
-	err = dice_init_offsets(dice);
+	err = dice_read_params(dice);
 	if (err < 0)
 		goto err_mutex;
 
