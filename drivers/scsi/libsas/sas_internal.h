@@ -45,6 +45,9 @@ struct sas_phy_data {
 	int hard_reset;
 	int reset_result;
 	struct work_struct reset_work;
+	int enable;
+	int enable_result;
+	struct work_struct enable_work;
 };
 
 void sas_scsi_recover_host(struct Scsi_Host *shost);

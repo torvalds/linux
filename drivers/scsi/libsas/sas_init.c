@@ -249,15 +249,15 @@ static int transport_sas_phy_reset(struct sas_phy *phy, int hard_reset)
 	return ret;
 }
 
-int sas_phy_enable(struct sas_phy *phy, int enable)
+static int sas_phy_enable(struct sas_phy *phy, int enable)
 {
 	int ret;
-	enum phy_func command;
+	enum phy_func cmd;
 
 	if (enable)
-		command = PHY_FUNC_LINK_RESET;
+		cmd = PHY_FUNC_LINK_RESET;
 	else
-		command = PHY_FUNC_DISABLE;
+		cmd = PHY_FUNC_DISABLE;
 
 	if (scsi_is_sas_phy_local(phy)) {
 		struct Scsi_Host *shost = dev_to_shost(phy->dev.parent);
@@ -266,15 +266,21 @@ int sas_phy_enable(struct sas_phy *phy, int enable)
 		struct sas_internal *i =
 			to_sas_internal(sas_ha->core.shost->transportt);
 
-		if (!enable) {
+		if (enable)
+			ret = transport_sas_phy_reset(phy, 0);
+		else {
 			sas_phy_disconnected(asd_phy);
 			sas_ha->notify_phy_event(asd_phy, PHYE_LOSS_OF_SIGNAL);
+			ret = i->dft->lldd_control_phy(asd_phy, cmd, NULL);
 		}
-		ret = i->dft->lldd_control_phy(asd_phy, command, NULL);
 	} else {
 		struct sas_rphy *rphy = dev_to_rphy(phy->dev.parent);
 		struct domain_device *ddev = sas_find_dev_by_rphy(rphy);
-		ret = sas_smp_phy_control(ddev, phy->number, command, NULL);
+
+		if (enable)
+			ret = transport_sas_phy_reset(phy, 0);
+		else
+			ret = sas_smp_phy_control(ddev, phy->number, cmd, NULL);
 	}
 	return ret;
 }
@@ -357,6 +363,13 @@ static void phy_reset_work(struct work_struct *work)
 	d->reset_result = transport_sas_phy_reset(d->phy, d->hard_reset);
 }
 
+static void phy_enable_work(struct work_struct *work)
+{
+	struct sas_phy_data *d = container_of(work, typeof(*d), enable_work);
+
+	d->enable_result = sas_phy_enable(d->phy, d->enable);
+}
+
 static int sas_phy_setup(struct sas_phy *phy)
 {
 	struct sas_phy_data *d = kzalloc(sizeof(*d), GFP_KERNEL);
@@ -366,6 +379,7 @@ static int sas_phy_setup(struct sas_phy *phy)
 
 	mutex_init(&d->event_lock);
 	INIT_WORK(&d->reset_work, phy_reset_work);
+	INIT_WORK(&d->enable_work, phy_enable_work);
 	d->phy = phy;
 	phy->hostdata = d;
 
@@ -399,8 +413,35 @@ static int queue_phy_reset(struct sas_phy *phy, int hard_reset)
 	return rc;
 }
 
+static int queue_phy_enable(struct sas_phy *phy, int enable)
+{
+	struct Scsi_Host *shost = dev_to_shost(phy->dev.parent);
+	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
+	struct sas_phy_data *d = phy->hostdata;
+	int rc;
+
+	if (!d)
+		return -ENOMEM;
+
+	/* libsas workqueue coordinates ata-eh reset with discovery */
+	mutex_lock(&d->event_lock);
+	d->enable_result = 0;
+	d->enable = enable;
+
+	spin_lock_irq(&ha->state_lock);
+	sas_queue_work(ha, &d->enable_work);
+	spin_unlock_irq(&ha->state_lock);
+
+	rc = sas_drain_work(ha);
+	if (rc == 0)
+		rc = d->enable_result;
+	mutex_unlock(&d->event_lock);
+
+	return rc;
+}
+
 static struct sas_function_template sft = {
-	.phy_enable = sas_phy_enable,
+	.phy_enable = queue_phy_enable,
 	.phy_reset = queue_phy_reset,
 	.phy_setup = sas_phy_setup,
 	.phy_release = sas_phy_release,
