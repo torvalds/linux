@@ -36,6 +36,8 @@ struct caif_device_entry {
 	struct net_device *netdev;
 	int __percpu *pcpu_refcnt;
 	spinlock_t flow_lock;
+	struct sk_buff *xoff_skb;
+	void (*xoff_skb_dtor)(struct sk_buff *skb);
 	bool xoff;
 };
 
@@ -133,6 +135,7 @@ static struct caif_device_entry *caif_get(struct net_device *dev)
 void caif_flow_cb(struct sk_buff *skb)
 {
 	struct caif_device_entry *caifd;
+	void (*dtor)(struct sk_buff *skb) = NULL;
 	bool send_xoff;
 
 	WARN_ON(skb->dev == NULL);
@@ -145,7 +148,16 @@ void caif_flow_cb(struct sk_buff *skb)
 	spin_lock_bh(&caifd->flow_lock);
 	send_xoff = caifd->xoff;
 	caifd->xoff = 0;
+	if (!WARN_ON(caifd->xoff_skb_dtor == NULL)) {
+		WARN_ON(caifd->xoff_skb != skb);
+		dtor = caifd->xoff_skb_dtor;
+		caifd->xoff_skb = NULL;
+		caifd->xoff_skb_dtor = NULL;
+	}
 	spin_unlock_bh(&caifd->flow_lock);
+
+	if (dtor)
+		dtor(skb);
 
 	if (send_xoff)
 		caifd->layer.up->
@@ -210,8 +222,10 @@ static int transmit(struct cflayer *layer, struct cfpkt *pkt)
 			netif_queue_stopped(caifd->netdev),
 			qlen, high);
 	caifd->xoff = 1;
+	caifd->xoff_skb = skb;
+	caifd->xoff_skb_dtor = skb->destructor;
+	skb->destructor = caif_flow_cb;
 	spin_unlock_bh(&caifd->flow_lock);
-	skb_orphan(skb);
 
 	caifd->layer.up->ctrlcmd(caifd->layer.up,
 					_CAIF_CTRLCMD_PHYIF_FLOW_OFF_IND,
@@ -420,6 +434,24 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 		caifd->layer.up->ctrlcmd(caifd->layer.up,
 					 _CAIF_CTRLCMD_PHYIF_DOWN_IND,
 					 caifd->layer.id);
+
+		spin_lock_bh(&caifd->flow_lock);
+
+		/*
+		 * Replace our xoff-destructor with original destructor.
+		 * We trust that skb->destructor *always* is called before
+		 * the skb reference is invalid. The hijacked SKB destructor
+		 * takes the flow_lock so manipulating the skb->destructor here
+		 * should be safe.
+		*/
+		if (caifd->xoff_skb_dtor != NULL && caifd->xoff_skb != NULL)
+			caifd->xoff_skb->destructor = caifd->xoff_skb_dtor;
+
+		caifd->xoff = 0;
+		caifd->xoff_skb_dtor = NULL;
+		caifd->xoff_skb = NULL;
+
+		spin_unlock_bh(&caifd->flow_lock);
 		caifd_put(caifd);
 		break;
 
