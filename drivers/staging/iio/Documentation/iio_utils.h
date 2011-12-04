@@ -74,6 +74,7 @@ struct iio_channel_info {
 	unsigned bits_used;
 	unsigned shift;
 	uint64_t mask;
+	unsigned be;
 	unsigned is_signed;
 	unsigned enabled;
 	unsigned location;
@@ -84,6 +85,7 @@ struct iio_channel_info {
  * @is_signed: output whether channel is signed
  * @bytes: output how many bytes the channel storage occupies
  * @mask: output a bit mask for the raw data
+ * @be: big endian
  * @device_dir: the iio device directory
  * @name: the channel name
  * @generic_name: the channel type name
@@ -93,6 +95,7 @@ inline int iioutils_get_type(unsigned *is_signed,
 			     unsigned *bits_used,
 			     unsigned *shift,
 			     uint64_t *mask,
+			     unsigned *be,
 			     const char *device_dir,
 			     const char *name,
 			     const char *generic_name)
@@ -101,7 +104,7 @@ inline int iioutils_get_type(unsigned *is_signed,
 	int ret;
 	DIR *dp;
 	char *scan_el_dir, *builtname, *builtname_generic, *filename = 0;
-	char signchar;
+	char signchar, endianchar;
 	unsigned padint;
 	const struct dirent *ent;
 
@@ -156,6 +159,7 @@ inline int iioutils_get_type(unsigned *is_signed,
 				printf("failed to pass scan type description\n");
 				return ret;
 			}
+			*be = (endianchar == 'b');
 			*bytes = padint / 8;
 			if (*bits_used == 64)
 				*mask = ~0;
@@ -399,6 +403,7 @@ inline int build_channel_array(const char *device_dir,
 						&current->bits_used,
 						&current->shift,
 						&current->mask,
+						&current->be,
 						device_dir,
 						current->name,
 						current->generic_name);
