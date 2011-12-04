@@ -145,9 +145,17 @@ inline int iioutils_get_type(unsigned *is_signed,
 				ret = -errno;
 				goto error_free_filename;
 			}
-			fscanf(sysfsfp,
-			       "%c%u/%u>>%u", &signchar, bits_used,
-			       &padint, shift);
+
+			ret = fscanf(sysfsfp,
+				     "%ce:%c%u/%u>>%u",
+				     &endianchar,
+				     &signchar,
+				     bits_used,
+				     &padint, shift);
+			if (ret < 0) {
+				printf("failed to pass scan type description\n");
+				return ret;
+			}
 			*bytes = padint / 8;
 			if (*bits_used == 64)
 				*mask = ~0;
@@ -157,6 +165,10 @@ inline int iioutils_get_type(unsigned *is_signed,
 				*is_signed = 1;
 			else
 				*is_signed = 0;
+			fclose(sysfsfp);
+			free(filename);
+
+			filename = 0;
 		}
 error_free_filename:
 	if (filename)
