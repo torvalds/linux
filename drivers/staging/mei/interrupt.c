@@ -1328,7 +1328,7 @@ static int mei_irq_thread_write_handler(struct mei_io_list *cmpl_list,
 			break;
 		case MEI_IOCTL:
 			/* connect message */
-			if (!mei_other_client_is_connecting(dev, cl))
+			if (mei_other_client_is_connecting(dev, cl))
 				continue;
 			ret = _mei_irq_thread_ioctl(dev, slots, pos, cl, cmpl_list);
 			if (ret)
