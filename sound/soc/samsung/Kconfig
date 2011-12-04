@@ -210,4 +210,5 @@ config SND_SOC_LITTLEMILL
 	tristate "Audio support for Wolfson Littlemill"
 	depends on SND_SOC_SAMSUNG && MACH_WLF_CRAGG_6410
 	select SND_SAMSUNG_I2S
+	select MFD_WM8994
 	select SND_SOC_WM8994
