@@ -63,6 +63,7 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 struct it913x_state {
 	u8 id;
+	struct ite_config it913x_config;
 };
 
 struct ite_config it913x_config;
@@ -624,6 +625,7 @@ static int it913x_name(struct dvb_usb_adapter *adap)
 static int it913x_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	struct usb_device *udev = adap->dev->udev;
+	struct it913x_state *st = adap->dev->priv;
 	int ret = 0;
 	u8 adap_addr = I2C_BASE_ADDR + (adap->id << 5);
 	u16 ep_size = adap->props.fe[0].stream.u.bulk.buffersize / 4;
@@ -634,8 +636,12 @@ static int it913x_frontend_attach(struct dvb_usb_adapter *adap)
 
 	it913x_config.adf = it913x_read_reg(udev, IO_MUX_POWER_CLK);
 
+	if (adap->id == 0)
+		memcpy(&st->it913x_config, &it913x_config,
+			sizeof(struct ite_config));
+
 	adap->fe_adap[0].fe = dvb_attach(it913x_fe_attach,
-		&adap->dev->i2c_adap, adap_addr, &it913x_config);
+		&adap->dev->i2c_adap, adap_addr, &st->it913x_config);
 
 	if (adap->id == 0 && adap->fe_adap[0].fe) {
 		ret = it913x_wr_reg(udev, DEV_0_DMOD, MP2_SW_RST, 0x1);
