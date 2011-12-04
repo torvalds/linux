@@ -23,6 +23,7 @@
 
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
+#include <linux/async.h>
 
 #include <scsi/sas_ata.h>
 #include "sas_internal.h"
@@ -605,10 +606,21 @@ int sas_discover_sata(struct domain_device *dev)
 	return 0;
 }
 
+static void async_sas_ata_eh(void *data, async_cookie_t cookie)
+{
+	struct domain_device *dev = data;
+	struct ata_port *ap = dev->sata_dev.ap;
+	struct sas_ha_struct *ha = dev->port->ha;
+
+	ata_port_printk(ap, KERN_DEBUG, "sas eh calling libata port error handler");
+	ata_scsi_port_error_handler(ha->core.shost, ap);
+}
+
 void sas_ata_strategy_handler(struct Scsi_Host *shost)
 {
 	struct scsi_device *sdev;
 	struct sas_ha_struct *sas_ha = SHOST_TO_SAS_HA(shost);
+	LIST_HEAD(async);
 
 	/* it's ok to defer revalidation events during ata eh, these
 	 * disks are in one of three states:
@@ -622,14 +634,13 @@ void sas_ata_strategy_handler(struct Scsi_Host *shost)
 
 	shost_for_each_device(sdev, shost) {
 		struct domain_device *ddev = sdev_to_domain_dev(sdev);
-		struct ata_port *ap = ddev->sata_dev.ap;
 
 		if (!dev_is_sata(ddev))
 			continue;
 
-		ata_port_printk(ap, KERN_DEBUG, "sas eh calling libata port error handler");
-		ata_scsi_port_error_handler(shost, ap);
+		async_schedule_domain(async_sas_ata_eh, ddev, &async);
 	}
+	async_synchronize_full_domain(&async);
 
 	sas_enable_revalidation(sas_ha);
 }
