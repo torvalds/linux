@@ -1183,11 +1183,13 @@ static u8 rtl8168d_efuse_read(void __iomem *ioaddr, int reg_addr)
 	return value;
 }
 
-static void rtl8169_irq_mask_and_ack(void __iomem *ioaddr)
+static void rtl8169_irq_mask_and_ack(struct rtl8169_private *tp)
 {
-	RTL_W16(IntrMask, 0x0000);
+	void __iomem *ioaddr = tp->mmio_addr;
 
-	RTL_W16(IntrStatus, 0xffff);
+	RTL_W16(IntrMask, 0x0000);
+	RTL_W16(IntrStatus, tp->intr_event);
+	RTL_R8(ChipCmd);
 }
 
 static unsigned int rtl8169_tbi_reset_pending(struct rtl8169_private *tp)
@@ -4339,7 +4341,7 @@ static void rtl8169_hw_reset(struct rtl8169_private *tp)
 	void __iomem *ioaddr = tp->mmio_addr;
 
 	/* Disable interrupts */
-	rtl8169_irq_mask_and_ack(ioaddr);
+	rtl8169_irq_mask_and_ack(tp);
 
 	rtl_rx_close(tp);
 
@@ -4885,8 +4887,7 @@ static void rtl_hw_start_8168(struct net_device *dev)
 	RTL_W16(IntrMitigate, 0x5151);
 
 	/* Work around for RxFIFO overflow. */
-	if (tp->mac_version == RTL_GIGA_MAC_VER_11 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_22) {
+	if (tp->mac_version == RTL_GIGA_MAC_VER_11) {
 		tp->intr_event |= RxFIFOOver | PCSTimeout;
 		tp->intr_event &= ~RxOverflow;
 	}
@@ -5075,6 +5076,11 @@ static void rtl_hw_start_8101(struct net_device *dev)
 	struct rtl8169_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->mmio_addr;
 	struct pci_dev *pdev = tp->pci_dev;
+
+	if (tp->mac_version >= RTL_GIGA_MAC_VER_30) {
+		tp->intr_event &= ~RxFIFOOver;
+		tp->napi_event &= ~RxFIFOOver;
+	}
 
 	if (tp->mac_version == RTL_GIGA_MAC_VER_13 ||
 	    tp->mac_version == RTL_GIGA_MAC_VER_16) {
@@ -5342,7 +5348,7 @@ static void rtl8169_wait_for_quiescence(struct net_device *dev)
 	/* Wait for any pending NAPI task to complete */
 	napi_disable(&tp->napi);
 
-	rtl8169_irq_mask_and_ack(ioaddr);
+	rtl8169_irq_mask_and_ack(tp);
 
 	tp->intr_mask = 0xffff;
 	RTL_W16(IntrMask, tp->intr_event);
@@ -5804,6 +5810,10 @@ static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance)
 	 */
 	status = RTL_R16(IntrStatus);
 	while (status && status != 0xffff) {
+		status &= tp->intr_event;
+		if (!status)
+			break;
+
 		handled = 1;
 
 		/* Handle all of the error cases first. These will reset
@@ -5818,27 +5828,9 @@ static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance)
 			switch (tp->mac_version) {
 			/* Work around for rx fifo overflow */
 			case RTL_GIGA_MAC_VER_11:
-			case RTL_GIGA_MAC_VER_22:
-			case RTL_GIGA_MAC_VER_26:
 				netif_stop_queue(dev);
 				rtl8169_tx_timeout(dev);
 				goto done;
-			/* Testers needed. */
-			case RTL_GIGA_MAC_VER_17:
-			case RTL_GIGA_MAC_VER_19:
-			case RTL_GIGA_MAC_VER_20:
-			case RTL_GIGA_MAC_VER_21:
-			case RTL_GIGA_MAC_VER_23:
-			case RTL_GIGA_MAC_VER_24:
-			case RTL_GIGA_MAC_VER_27:
-			case RTL_GIGA_MAC_VER_28:
-			case RTL_GIGA_MAC_VER_31:
-			/* Experimental science. Pktgen proof. */
-			case RTL_GIGA_MAC_VER_12:
-			case RTL_GIGA_MAC_VER_25:
-				if (status == RxFIFOOver)
-					goto done;
-				break;
 			default:
 				break;
 			}
