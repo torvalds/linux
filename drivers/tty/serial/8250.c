@@ -129,32 +129,6 @@ static unsigned long probe_rsa[PORT_RSA_MAX];
 static unsigned int probe_rsa_count;
 #endif /* CONFIG_SERIAL_8250_RSA  */
 
-struct uart_8250_port {
-	struct uart_port	port;
-	struct timer_list	timer;		/* "no irq" timer */
-	struct list_head	list;		/* ports on this IRQ */
-	unsigned short		capabilities;	/* port capabilities */
-	unsigned short		bugs;		/* port bugs */
-	unsigned int		tx_loadsz;	/* transmit fifo load size */
-	unsigned char		acr;
-	unsigned char		ier;
-	unsigned char		lcr;
-	unsigned char		mcr;
-	unsigned char		mcr_mask;	/* mask of user bits */
-	unsigned char		mcr_force;	/* mask of forced bits */
-	unsigned char		cur_iotype;	/* Running I/O type */
-
-	/*
-	 * Some bits in registers are cleared on a read, so they must
-	 * be saved whenever the register is read but the bits will not
-	 * be immediately processed.
-	 */
-#define LSR_SAVE_FLAGS UART_LSR_BRK_ERROR_BITS
-	unsigned char		lsr_saved_flags;
-#define MSR_SAVE_FLAGS UART_MSR_ANY_DELTA
-	unsigned char		msr_saved_flags;
-};
-
 struct irq_info {
 	struct			hlist_node node;
 	int			irq;
