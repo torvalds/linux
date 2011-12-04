@@ -138,9 +138,8 @@ static irqreturn_t max1363_trigger_handler(int irq, void *p)
 		goto done;
 
 	time_ns = iio_get_time_ns();
-
-	memcpy(rxbuf + d_size - sizeof(s64), &time_ns, sizeof(time_ns));
-
+	if (indio_dev->buffer->scan_timestamp)
+		memcpy(rxbuf + d_size - sizeof(s64), &time_ns, sizeof(time_ns));
 	indio_dev->buffer->access->store_to(indio_dev->buffer, rxbuf, time_ns);
 done:
 	iio_trigger_notify_done(indio_dev->trig);
