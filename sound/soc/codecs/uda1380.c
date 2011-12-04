@@ -732,27 +732,21 @@ static int uda1380_probe(struct snd_soc_codec *codec)
 		return -EINVAL;
 
 	if (gpio_is_valid(pdata->gpio_reset)) {
-		ret = gpio_request(pdata->gpio_reset, "uda1380 reset");
+		ret = gpio_request_one(pdata->gpio_reset, GPIOF_OUT_INIT_LOW,
+				       "uda1380 reset");
 		if (ret)
 			goto err_out;
-		ret = gpio_direction_output(pdata->gpio_reset, 0);
-		if (ret)
-			goto err_gpio_reset_conf;
 	}
 
 	if (gpio_is_valid(pdata->gpio_power)) {
-		ret = gpio_request(pdata->gpio_power, "uda1380 power");
+		ret = gpio_request_one(pdata->gpio_power, GPIOF_OUT_INIT_LOW,
+				   "uda1380 power");
 		if (ret)
-			goto err_gpio;
-		ret = gpio_direction_output(pdata->gpio_power, 0);
-		if (ret)
-			goto err_gpio_power_conf;
+			goto err_free_gpio;
 	} else {
 		ret = uda1380_reset(codec);
-		if (ret) {
-			dev_err(codec->dev, "Failed to issue reset\n");
-			goto err_reset;
-		}
+		if (ret)
+			goto err_free_gpio;
 	}
 
 	INIT_WORK(&uda1380->work, uda1380_flush_work);
@@ -776,13 +770,7 @@ static int uda1380_probe(struct snd_soc_codec *codec)
 
 	return 0;
 
-err_reset:
-err_gpio_power_conf:
-	if (gpio_is_valid(pdata->gpio_power))
-		gpio_free(pdata->gpio_power);
-
-err_gpio_reset_conf:
-err_gpio:
+err_free_gpio:
 	if (gpio_is_valid(pdata->gpio_reset))
 		gpio_free(pdata->gpio_reset);
 err_out:
