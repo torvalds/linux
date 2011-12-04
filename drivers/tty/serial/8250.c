@@ -1300,8 +1300,6 @@ static void serial8250_stop_tx(struct uart_port *port)
 	}
 }
 
-static void transmit_chars(struct uart_8250_port *up);
-
 static void serial8250_start_tx(struct uart_port *port)
 {
 	struct uart_8250_port *up =
@@ -1318,7 +1316,7 @@ static void serial8250_start_tx(struct uart_port *port)
 			if ((up->port.type == PORT_RM9000) ?
 				(lsr & UART_LSR_THRE) :
 				(lsr & UART_LSR_TEMT))
-				transmit_chars(up);
+				serial8250_tx_chars(up);
 		}
 	}
 
@@ -1376,12 +1374,12 @@ static void clear_rx_fifo(struct uart_8250_port *up)
 }
 
 /*
- * receive_chars: processes according to the passed in LSR
+ * serial8250_rx_chars: processes according to the passed in LSR
  * value, and returns the remaining LSR bits not handled
  * by this Rx routine.
  */
-static unsigned char
-receive_chars(struct uart_8250_port *up, unsigned char lsr)
+unsigned char
+serial8250_rx_chars(struct uart_8250_port *up, unsigned char lsr)
 {
 	struct tty_struct *tty = up->port.state->port.tty;
 	unsigned char ch;
@@ -1462,8 +1460,9 @@ ignore_char:
 	spin_lock(&up->port.lock);
 	return lsr;
 }
+EXPORT_SYMBOL_GPL(serial8250_rx_chars);
 
-static void transmit_chars(struct uart_8250_port *up)
+void serial8250_tx_chars(struct uart_8250_port *up)
 {
 	struct circ_buf *xmit = &up->port.state->xmit;
 	int count;
@@ -1500,8 +1499,9 @@ static void transmit_chars(struct uart_8250_port *up)
 	if (uart_circ_empty(xmit))
 		__stop_tx(up);
 }
+EXPORT_SYMBOL_GPL(serial8250_tx_chars);
 
-static unsigned int check_modem_status(struct uart_8250_port *up)
+unsigned int serial8250_modem_status(struct uart_8250_port *up)
 {
 	unsigned int status = serial_in(up, UART_MSR);
 
@@ -1523,6 +1523,7 @@ static unsigned int check_modem_status(struct uart_8250_port *up)
 
 	return status;
 }
+EXPORT_SYMBOL_GPL(serial8250_modem_status);
 
 /*
  * This handles the interrupt from one port.
@@ -1539,10 +1540,10 @@ static void serial8250_handle_port(struct uart_8250_port *up)
 	DEBUG_INTR("status = %x...", status);
 
 	if (status & (UART_LSR_DR | UART_LSR_BI))
-		status = receive_chars(up, status);
-	check_modem_status(up);
+		status = serial8250_rx_chars(up, status);
+	serial8250_modem_status(up);
 	if (status & UART_LSR_THRE)
-		transmit_chars(up);
+		serial8250_tx_chars(up);
 
 	spin_unlock_irqrestore(&up->port.lock, flags);
 }
@@ -1782,7 +1783,7 @@ static void serial8250_backup_timeout(unsigned long data)
 	}
 
 	if (!(iir & UART_IIR_NO_INT))
-		transmit_chars(up);
+		serial8250_tx_chars(up);
 
 	if (is_real_interrupt(up->port.irq))
 		serial_out(up, UART_IER, ier);
@@ -1816,7 +1817,7 @@ static unsigned int serial8250_get_mctrl(struct uart_port *port)
 	unsigned int status;
 	unsigned int ret;
 
-	status = check_modem_status(up);
+	status = serial8250_modem_status(up);
 
 	ret = 0;
 	if (status & UART_MSR_DCD)
@@ -2863,7 +2864,7 @@ serial8250_console_write(struct console *co, const char *s, unsigned int count)
 	 *	while processing with interrupts off.
 	 */
 	if (up->msr_saved_flags)
-		check_modem_status(up);
+		serial8250_modem_status(up);
 
 	if (locked)
 		spin_unlock(&up->port.lock);
