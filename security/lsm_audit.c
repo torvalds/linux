@@ -114,6 +114,7 @@ int ipv6_skb_to_auditdata(struct sk_buff *skb,
 	int offset, ret = 0;
 	struct ipv6hdr *ip6;
 	u8 nexthdr;
+	__be16 frag_off;
 
 	ip6 = ipv6_hdr(skb);
 	if (ip6 == NULL)
@@ -126,7 +127,7 @@ int ipv6_skb_to_auditdata(struct sk_buff *skb,
 	offset = skb_network_offset(skb);
 	offset += sizeof(*ip6);
 	nexthdr = ip6->nexthdr;
-	offset = ipv6_skip_exthdr(skb, offset, &nexthdr);
+	offset = ipv6_skip_exthdr(skb, offset, &nexthdr, &frag_off);
 	if (offset < 0)
 		return 0;
 	if (proto)
