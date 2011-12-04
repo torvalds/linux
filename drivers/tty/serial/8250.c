@@ -1528,10 +1528,15 @@ EXPORT_SYMBOL_GPL(serial8250_modem_status);
 /*
  * This handles the interrupt from one port.
  */
-static void serial8250_handle_port(struct uart_8250_port *up)
+int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 {
 	unsigned char status;
 	unsigned long flags;
+	struct uart_8250_port *up =
+		container_of(port, struct uart_8250_port, port);
+
+	if (iir & UART_IIR_NO_INT)
+		return 0;
 
 	spin_lock_irqsave(&up->port.lock, flags);
 
@@ -1546,19 +1551,7 @@ static void serial8250_handle_port(struct uart_8250_port *up)
 		serial8250_tx_chars(up);
 
 	spin_unlock_irqrestore(&up->port.lock, flags);
-}
-
-int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
-{
-	struct uart_8250_port *up =
-		container_of(port, struct uart_8250_port, port);
-
-	if (!(iir & UART_IIR_NO_INT)) {
-		serial8250_handle_port(up);
-		return 1;
-	}
-
-	return 0;
+	return 1;
 }
 EXPORT_SYMBOL_GPL(serial8250_handle_irq);
 
@@ -2827,7 +2820,7 @@ serial8250_console_write(struct console *co, const char *s, unsigned int count)
 
 	local_irq_save(flags);
 	if (up->port.sysrq) {
-		/* serial8250_handle_port() already took the lock */
+		/* serial8250_handle_irq() already took the lock */
 		locked = 0;
 	} else if (oops_in_progress) {
 		locked = spin_trylock(&up->port.lock);
