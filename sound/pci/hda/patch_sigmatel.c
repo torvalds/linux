@@ -215,6 +215,7 @@ struct sigmatel_spec {
 	unsigned int gpio_mute;
 	unsigned int gpio_led;
 	unsigned int gpio_led_polarity;
+	unsigned int vref_mute_led_nid; /* pin NID for mute-LED vref control */
 	unsigned int vref_led;
 
 	/* stream */
@@ -4318,12 +4319,10 @@ static void stac_store_hints(struct hda_codec *codec)
 		spec->eapd_switch = val;
 	get_int_hint(codec, "gpio_led_polarity", &spec->gpio_led_polarity);
 	if (get_int_hint(codec, "gpio_led", &spec->gpio_led)) {
-		if (spec->gpio_led <= 8) {
-			spec->gpio_mask |= spec->gpio_led;
-			spec->gpio_dir |= spec->gpio_led;
-			if (spec->gpio_led_polarity)
-				spec->gpio_data |= spec->gpio_led;
-		}
+		spec->gpio_mask |= spec->gpio_led;
+		spec->gpio_dir |= spec->gpio_led;
+		if (spec->gpio_led_polarity)
+			spec->gpio_data |= spec->gpio_led;
 	}
 }
 
@@ -4913,8 +4912,14 @@ static int find_mute_led_gpio(struct hda_codec *codec, int default_polarity)
 			if (sscanf(dev->name, "HP_Mute_LED_%d_%x",
 				  &spec->gpio_led_polarity,
 				  &spec->gpio_led) == 2) {
-				if (spec->gpio_led < 4)
+				unsigned int max_gpio;
+				max_gpio = snd_hda_param_read(codec, codec->afg,
+							      AC_PAR_GPIO_CAP);
+				max_gpio &= AC_GPIO_IO_COUNT;
+				if (spec->gpio_led < max_gpio)
 					spec->gpio_led = 1 << spec->gpio_led;
+				else
+					spec->vref_mute_led_nid = spec->gpio_led;
 				return 1;
 			}
 			if (sscanf(dev->name, "HP_Mute_LED_%d",
@@ -5043,15 +5048,12 @@ static int stac92xx_pre_resume(struct hda_codec *codec)
 	struct sigmatel_spec *spec = codec->spec;
 
 	/* sync mute LED */
-	if (spec->gpio_led) {
-		if (spec->gpio_led <= 8) {
-			stac_gpio_set(codec, spec->gpio_mask,
-					spec->gpio_dir, spec->gpio_data);
-		} else {
-			stac_vrefout_set(codec,
-					spec->gpio_led, spec->vref_led);
-		}
-	}
+	if (spec->vref_mute_led_nid)
+		stac_vrefout_set(codec, spec->vref_mute_led_nid,
+				 spec->vref_led);
+	else if (spec->gpio_led)
+		stac_gpio_set(codec, spec->gpio_mask,
+			      spec->gpio_dir, spec->gpio_data);
 	return 0;
 }
 
@@ -5076,7 +5078,7 @@ static void stac92xx_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 	struct sigmatel_spec *spec = codec->spec;
 
 	if (power_state == AC_PWRST_D3) {
-		if (spec->gpio_led > 8) {
+		if (spec->vref_mute_led_nid) {
 			/* with vref-out pin used for mute led control
 			 * codec AFG is prevented from D3 state
 			 */
@@ -5129,7 +5131,7 @@ static int stac92xx_update_led_status(struct hda_codec *codec)
 		}
 	}
 	/*polarity defines *not* muted state level*/
-	if (spec->gpio_led <= 8) {
+	if (!spec->vref_mute_led_nid) {
 		if (muted)
 			spec->gpio_data &= ~spec->gpio_led; /* orange */
 		else
@@ -5147,7 +5149,8 @@ static int stac92xx_update_led_status(struct hda_codec *codec)
 		muted_lvl = spec->gpio_led_polarity ?
 				AC_PINCTL_VREF_GRD : AC_PINCTL_VREF_HIZ;
 		spec->vref_led = muted ? muted_lvl : notmtd_lvl;
-		stac_vrefout_set(codec,	spec->gpio_led, spec->vref_led);
+		stac_vrefout_set(codec,	spec->vref_mute_led_nid,
+				 spec->vref_led);
 	}
 	return 0;
 }
@@ -5661,7 +5664,7 @@ again:
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (spec->gpio_led) {
-		if (spec->gpio_led <= 8) {
+		if (!spec->vref_mute_led_nid) {
 			spec->gpio_mask |= spec->gpio_led;
 			spec->gpio_dir |= spec->gpio_led;
 			spec->gpio_data |= spec->gpio_led;
@@ -5976,7 +5979,7 @@ again:
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (spec->gpio_led) {
-		if (spec->gpio_led <= 8) {
+		if (!spec->vref_mute_led_nid) {
 			spec->gpio_mask |= spec->gpio_led;
 			spec->gpio_dir |= spec->gpio_led;
 			spec->gpio_data |= spec->gpio_led;
