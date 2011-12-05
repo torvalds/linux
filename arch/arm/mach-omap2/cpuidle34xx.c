@@ -33,6 +33,7 @@
 
 #include "pm.h"
 #include "control.h"
+#include "common.h"
 
 #ifdef CONFIG_CPU_IDLE
 
