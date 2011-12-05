@@ -23,6 +23,8 @@
 #ifndef __WL12XX_CMD_H__
 #define __WL12XX_CMD_H__
 
+#include "conf.h"
+
 #define TEST_CMD_INI_FILE_RADIO_PARAM       0x19
 #define TEST_CMD_INI_FILE_GENERAL_PARAM     0x1E
 

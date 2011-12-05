@@ -23,12 +23,14 @@
 #include "../wlcore/cmd.h"
 #include "../wlcore/debug.h"
 
+#include "wl12xx.h"
 #include "cmd.h"
 
 int wl1271_cmd_ext_radio_parms(struct wl1271 *wl)
 {
 	struct wl1271_ext_radio_parms_cmd *ext_radio_parms;
-	struct conf_rf_settings *rf = &wl->conf.rf;
+	struct wl12xx_priv *priv = wl->priv;
+	struct wl12xx_conf_rf *rf = &priv->conf.rf;
 	int ret;
 
 	if (!wl->nvs)

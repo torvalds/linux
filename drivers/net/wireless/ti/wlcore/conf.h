@@ -1104,26 +1104,6 @@ struct conf_sched_scan_settings {
 	s8 snr_threshold;
 };
 
-/* these are number of channels on the band divided by two, rounded up */
-#define CONF_TX_PWR_COMPENSATION_LEN_2 7
-#define CONF_TX_PWR_COMPENSATION_LEN_5 18
-
-struct conf_rf_settings {
-	/*
-	 * Per channel power compensation for 2.4GHz
-	 *
-	 * Range: s8
-	 */
-	u8 tx_per_channel_power_compensation_2[CONF_TX_PWR_COMPENSATION_LEN_2];
-
-	/*
-	 * Per channel power compensation for 5GHz
-	 *
-	 * Range: s8
-	 */
-	u8 tx_per_channel_power_compensation_5[CONF_TX_PWR_COMPENSATION_LEN_5];
-};
-
 struct conf_ht_setting {
 	u8 rx_ba_win_size;
 	u8 tx_ba_win_size;
@@ -1282,7 +1262,6 @@ struct wlcore_conf {
 	struct conf_roam_trigger_settings roam_trigger;
 	struct conf_scan_settings scan;
 	struct conf_sched_scan_settings sched_scan;
-	struct conf_rf_settings rf;
 	struct conf_ht_setting ht;
 	struct conf_memory_settings mem_wl127x;
 	struct conf_memory_settings mem_wl128x;

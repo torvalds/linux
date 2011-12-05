@@ -35,6 +35,7 @@
 #include "../wlcore/io.h"
 #include "../wlcore/boot.h"
 
+#include "wl12xx.h"
 #include "reg.h"
 #include "cmd.h"
 #include "acx.h"
@@ -277,16 +278,6 @@ static struct wlcore_conf wl12xx_conf = {
 		.num_probe_reqs			= 2,
 		.rssi_threshold			= -90,
 		.snr_threshold			= 0,
-	},
-	.rf = {
-		.tx_per_channel_power_compensation_2 = {
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		},
-		.tx_per_channel_power_compensation_5 = {
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		},
 	},
 	.ht = {
 		.rx_ba_win_size = 8,
@@ -1264,9 +1255,6 @@ static struct wlcore_ops wl12xx_ops = {
 	.init_vif		= NULL,
 	.get_pg_ver		= wl12xx_get_pg_ver,
 	.get_mac		= wl12xx_get_mac,
-};
-
-struct wl12xx_priv {
 };
 
 static int __devinit wl12xx_probe(struct platform_device *pdev)
