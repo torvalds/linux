@@ -1014,6 +1014,7 @@ static void e1000_print_hw_hang(struct work_struct *work)
 	struct e1000_adapter *adapter = container_of(work,
 	                                             struct e1000_adapter,
 	                                             print_hang_task);
+	struct net_device *netdev = adapter->netdev;
 	struct e1000_ring *tx_ring = adapter->tx_ring;
 	unsigned int i = tx_ring->next_to_clean;
 	unsigned int eop = tx_ring->buffer_info[i].next_to_watch;
@@ -1024,6 +1025,21 @@ static void e1000_print_hw_hang(struct work_struct *work)
 
 	if (test_bit(__E1000_DOWN, &adapter->state))
 		return;
+
+	if (!adapter->tx_hang_recheck &&
+	    (adapter->flags2 & FLAG2_DMA_BURST)) {
+		/* May be block on write-back, flush and detect again
+		 * flush pending descriptor writebacks to memory
+		 */
+		ew32(TIDV, adapter->tx_int_delay | E1000_TIDV_FPD);
+		/* execute the writes immediately */
+		e1e_flush();
+		adapter->tx_hang_recheck = true;
+		return;
+	}
+	/* Real hang detected */
+	adapter->tx_hang_recheck = false;
+	netif_stop_queue(netdev);
 
 	e1e_rphy(hw, PHY_STATUS, &phy_status);
 	e1e_rphy(hw, PHY_1000T_STATUS, &phy_1000t_status);
@@ -1145,10 +1161,10 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter)
 		if (tx_ring->buffer_info[i].time_stamp &&
 		    time_after(jiffies, tx_ring->buffer_info[i].time_stamp
 			       + (adapter->tx_timeout_factor * HZ)) &&
-		    !(er32(STATUS) & E1000_STATUS_TXOFF)) {
+		    !(er32(STATUS) & E1000_STATUS_TXOFF))
 			schedule_work(&adapter->print_hang_task);
-			netif_stop_queue(netdev);
-		}
+		else
+			adapter->tx_hang_recheck = false;
 	}
 	adapter->total_tx_bytes += total_tx_bytes;
 	adapter->total_tx_packets += total_tx_packets;
@@ -3500,7 +3516,6 @@ int e1000e_up(struct e1000_adapter *adapter)
 
 	clear_bit(__E1000_DOWN, &adapter->state);
 
-	napi_enable(&adapter->napi);
 	if (adapter->msix_entries)
 		e1000_configure_msix(adapter);
 	e1000_irq_enable(adapter);
@@ -3562,7 +3577,6 @@ void e1000e_down(struct e1000_adapter *adapter)
 	e1e_flush();
 	usleep_range(10000, 20000);
 
-	napi_disable(&adapter->napi);
 	e1000_irq_disable(adapter);
 
 	del_timer_sync(&adapter->watchdog_timer);
@@ -3838,6 +3852,7 @@ static int e1000_open(struct net_device *netdev)
 
 	e1000_irq_enable(adapter);
 
+	adapter->tx_hang_recheck = false;
 	netif_start_queue(netdev);
 
 	adapter->idle_check = true;
@@ -3883,6 +3898,8 @@ static int e1000_close(struct net_device *netdev)
 	WARN_ON(test_bit(__E1000_RESETTING, &adapter->state));
 
 	pm_runtime_get_sync(&pdev->dev);
+
+	napi_disable(&adapter->napi);
 
 	if (!test_bit(__E1000_DOWN, &adapter->state)) {
 		e1000e_down(adapter);
