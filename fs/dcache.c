@@ -2487,16 +2487,14 @@ static int prepend_name(char **buffer, int *buflen, struct qstr *name)
 /**
  * prepend_path - Prepend path string to a buffer
  * @path: the dentry/vfsmount to report
- * @root: root vfsmnt/dentry (may be modified by this function)
+ * @root: root vfsmnt/dentry
  * @buffer: pointer to the end of the buffer
  * @buflen: pointer to buffer length
  *
  * Caller holds the rename_lock.
- *
- * If path is not reachable from the supplied root, then the value of
- * root is changed (without modifying refcounts).
  */
-static int prepend_path(const struct path *path, struct path *root,
+static int prepend_path(const struct path *path,
+			const struct path *root,
 			char **buffer, int *buflen)
 {
 	struct dentry *dentry = path->dentry;
@@ -2531,10 +2529,10 @@ static int prepend_path(const struct path *path, struct path *root,
 		dentry = parent;
 	}
 
-out:
 	if (!error && !slash)
 		error = prepend(buffer, buflen, "/", 1);
 
+out:
 	br_read_unlock(vfsmount_lock);
 	return error;
 
@@ -2548,15 +2546,17 @@ global_root:
 		WARN(1, "Root dentry has weird name <%.*s>\n",
 		     (int) dentry->d_name.len, dentry->d_name.name);
 	}
-	root->mnt = vfsmnt;
-	root->dentry = dentry;
+	if (!slash)
+		error = prepend(buffer, buflen, "/", 1);
+	if (!error)
+		error = vfsmnt->mnt_ns ? 1 : 2;
 	goto out;
 }
 
 /**
  * __d_path - return the path of a dentry
  * @path: the dentry/vfsmount to report
- * @root: root vfsmnt/dentry (may be modified by this function)
+ * @root: root vfsmnt/dentry
  * @buf: buffer to return value in
  * @buflen: buffer length
  *
@@ -2567,10 +2567,10 @@ global_root:
  *
  * "buflen" should be positive.
  *
- * If path is not reachable from the supplied root, then the value of
- * root is changed (without modifying refcounts).
+ * If the path is not reachable from the supplied root, return %NULL.
  */
-char *__d_path(const struct path *path, struct path *root,
+char *__d_path(const struct path *path,
+	       const struct path *root,
 	       char *buf, int buflen)
 {
 	char *res = buf + buflen;
@@ -2581,7 +2581,28 @@ char *__d_path(const struct path *path, struct path *root,
 	error = prepend_path(path, root, &res, &buflen);
 	write_sequnlock(&rename_lock);
 
-	if (error)
+	if (error < 0)
+		return ERR_PTR(error);
+	if (error > 0)
+		return NULL;
+	return res;
+}
+
+char *d_absolute_path(const struct path *path,
+	       char *buf, int buflen)
+{
+	struct path root = {};
+	char *res = buf + buflen;
+	int error;
+
+	prepend(&res, &buflen, "\0", 1);
+	write_seqlock(&rename_lock);
+	error = prepend_path(path, &root, &res, &buflen);
+	write_sequnlock(&rename_lock);
+
+	if (error > 1)
+		error = -EINVAL;
+	if (error < 0)
 		return ERR_PTR(error);
 	return res;
 }
@@ -2589,8 +2610,9 @@ char *__d_path(const struct path *path, struct path *root,
 /*
  * same as __d_path but appends "(deleted)" for unlinked files.
  */
-static int path_with_deleted(const struct path *path, struct path *root,
-				 char **buf, int *buflen)
+static int path_with_deleted(const struct path *path,
+			     const struct path *root,
+			     char **buf, int *buflen)
 {
 	prepend(buf, buflen, "\0", 1);
 	if (d_unlinked(path->dentry)) {
@@ -2627,7 +2649,6 @@ char *d_path(const struct path *path, char *buf, int buflen)
 {
 	char *res = buf + buflen;
 	struct path root;
-	struct path tmp;
 	int error;
 
 	/*
@@ -2642,9 +2663,8 @@ char *d_path(const struct path *path, char *buf, int buflen)
 
 	get_fs_root(current->fs, &root);
 	write_seqlock(&rename_lock);
-	tmp = root;
-	error = path_with_deleted(path, &tmp, &res, &buflen);
-	if (error)
+	error = path_with_deleted(path, &root, &res, &buflen);
+	if (error < 0)
 		res = ERR_PTR(error);
 	write_sequnlock(&rename_lock);
 	path_put(&root);
@@ -2665,7 +2685,6 @@ char *d_path_with_unreachable(const struct path *path, char *buf, int buflen)
 {
 	char *res = buf + buflen;
 	struct path root;
-	struct path tmp;
 	int error;
 
 	if (path->dentry->d_op && path->dentry->d_op->d_dname)
@@ -2673,9 +2692,8 @@ char *d_path_with_unreachable(const struct path *path, char *buf, int buflen)
 
 	get_fs_root(current->fs, &root);
 	write_seqlock(&rename_lock);
-	tmp = root;
-	error = path_with_deleted(path, &tmp, &res, &buflen);
-	if (!error && !path_equal(&tmp, &root))
+	error = path_with_deleted(path, &root, &res, &buflen);
+	if (error > 0)
 		error = prepend_unreachable(&res, &buflen);
 	write_sequnlock(&rename_lock);
 	path_put(&root);
@@ -2806,19 +2824,18 @@ SYSCALL_DEFINE2(getcwd, char __user *, buf, unsigned long, size)
 	write_seqlock(&rename_lock);
 	if (!d_unlinked(pwd.dentry)) {
 		unsigned long len;
-		struct path tmp = root;
 		char *cwd = page + PAGE_SIZE;
 		int buflen = PAGE_SIZE;
 
 		prepend(&cwd, &buflen, "\0", 1);
-		error = prepend_path(&pwd, &tmp, &cwd, &buflen);
+		error = prepend_path(&pwd, &root, &cwd, &buflen);
 		write_sequnlock(&rename_lock);
 
-		if (error)
+		if (error < 0)
 			goto out;
 
 		/* Unreachable from current root */
-		if (!path_equal(&tmp, &root)) {
+		if (error > 0) {
 			error = prepend_unreachable(&cwd, &buflen);
 			if (error)
 				goto out;

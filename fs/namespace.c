@@ -1048,15 +1048,12 @@ static int show_mountinfo(struct seq_file *m, void *v)
 	if (err)
 		goto out;
 	seq_putc(m, ' ');
-	seq_path_root(m, &mnt_path, &root, " \t\n\\");
-	if (root.mnt != p->root.mnt || root.dentry != p->root.dentry) {
-		/*
-		 * Mountpoint is outside root, discard that one.  Ugly,
-		 * but less so than trying to do that in iterator in a
-		 * race-free way (due to renames).
-		 */
-		return SEQ_SKIP;
-	}
+
+	/* mountpoints outside of chroot jail will give SEQ_SKIP on this */
+	err = seq_path_root(m, &mnt_path, &root, " \t\n\\");
+	if (err)
+		goto out;
+
 	seq_puts(m, mnt->mnt_flags & MNT_READONLY ? " ro" : " rw");
 	show_mnt_opts(m, mnt);
 
@@ -2725,3 +2722,8 @@ struct vfsmount *kern_mount_data(struct file_system_type *type, void *data)
 	return vfs_kern_mount(type, MS_KERNMOUNT, type->name, data);
 }
 EXPORT_SYMBOL_GPL(kern_mount_data);
+
+bool our_mnt(struct vfsmount *mnt)
+{
+	return check_mnt(mnt);
+}

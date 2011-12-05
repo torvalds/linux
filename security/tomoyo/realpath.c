@@ -95,7 +95,6 @@ char *tomoyo_realpath_from_path(struct path *path)
 		return NULL;
 	is_dir = dentry->d_inode && S_ISDIR(dentry->d_inode->i_mode);
 	while (1) {
-		struct path ns_root = { .mnt = NULL, .dentry = NULL };
 		char *pos;
 		buf_len <<= 1;
 		kfree(buf);
@@ -128,8 +127,12 @@ char *tomoyo_realpath_from_path(struct path *path)
 		/* If we don't have a vfsmount, we can't calculate. */
 		if (!path->mnt)
 			break;
-		/* go to whatever namespace root we are under */
-		pos = __d_path(path, &ns_root, buf, buf_len);
+		pos = d_absolute_path(path, buf, buf_len - 1);
+		/* If path is disconnected, use "[unknown]" instead. */
+		if (pos == ERR_PTR(-EINVAL)) {
+			name = tomoyo_encode("[unknown]");
+			break;
+		}
 		/* Prepend "/proc" prefix if using internal proc vfs mount. */
 		if (!IS_ERR(pos) && (path->mnt->mnt_flags & MNT_INTERNAL) &&
 		    (path->mnt->mnt_sb->s_magic == PROC_SUPER_MAGIC)) {
