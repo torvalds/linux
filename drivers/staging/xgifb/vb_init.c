@@ -1106,101 +1106,58 @@ static void ReadVBIOSTablData(unsigned char ChipType,
 			pVBInfo->IF_DEF_LVDS = 1;
 			i = pVideoMemory[0x316] | (pVideoMemory[0x317] << 8);
 			j = pVideoMemory[i - 1];
-			if (j != 0xff) {
-				k = 0;
-				do {
-					pVBInfo->XG21_LVDSCapList[k].
-						 LVDS_Capability
-						= pVideoMemory[i] |
-						 (pVideoMemory[i + 1] << 8);
-					pVBInfo->XG21_LVDSCapList[k].LVDSHT
-						= pVideoMemory[i + 2] |
-						  (pVideoMemory[i + 3] << 8);
-					pVBInfo->XG21_LVDSCapList[k].LVDSVT
-						= pVideoMemory[i + 4] |
-						  (pVideoMemory[i + 5] << 8);
-					pVBInfo->XG21_LVDSCapList[k].LVDSHDE
-						= pVideoMemory[i + 6] |
-						  (pVideoMemory[i + 7] << 8);
-					pVBInfo->XG21_LVDSCapList[k].LVDSVDE
-						= pVideoMemory[i + 8] |
-						  (pVideoMemory[i + 9] << 8);
-					pVBInfo->XG21_LVDSCapList[k].LVDSHFP
-						= pVideoMemory[i + 10] |
-						  (pVideoMemory[i + 11] << 8);
-					pVBInfo->XG21_LVDSCapList[k].LVDSVFP
-						= pVideoMemory[i + 12] |
-						  (pVideoMemory[i + 13] << 8);
-					pVBInfo->XG21_LVDSCapList[k].LVDSHSYNC
-						= pVideoMemory[i + 14] |
-						  (pVideoMemory[i + 15] << 8);
-					pVBInfo->XG21_LVDSCapList[k].LVDSVSYNC
-						= pVideoMemory[i + 16] |
-						  (pVideoMemory[i + 17] << 8);
-					pVBInfo->XG21_LVDSCapList[k].VCLKData1
-						= pVideoMemory[i + 18];
-					pVBInfo->XG21_LVDSCapList[k].VCLKData2
-						= pVideoMemory[i + 19];
-					pVBInfo->XG21_LVDSCapList[k].PSC_S1
-						= pVideoMemory[i + 20];
-					pVBInfo->XG21_LVDSCapList[k].PSC_S2
-						= pVideoMemory[i + 21];
-					pVBInfo->XG21_LVDSCapList[k].PSC_S3
-						= pVideoMemory[i + 22];
-					pVBInfo->XG21_LVDSCapList[k].PSC_S4
-						= pVideoMemory[i + 23];
-					pVBInfo->XG21_LVDSCapList[k].PSC_S5
-						= pVideoMemory[i + 24];
-					i += 25;
-					j--;
-					k++;
-				} while ((j > 0) &&
-					 (k < (sizeof(XGI21_LCDCapList) /
-					       sizeof(struct
-							XGI21_LVDSCapStruct))));
-			} else {
-				pVBInfo->XG21_LVDSCapList[0].LVDS_Capability
+			if (j == 0xff)
+				j = 1;
+			k = 0;
+			do {
+				pVBInfo->XG21_LVDSCapList[k].LVDS_Capability
 						= pVideoMemory[i] |
 						  (pVideoMemory[i + 1] << 8);
-				pVBInfo->XG21_LVDSCapList[0].LVDSHT
+				pVBInfo->XG21_LVDSCapList[k].LVDSHT
 						= pVideoMemory[i + 2] |
 						  (pVideoMemory[i + 3] << 8);
-				pVBInfo->XG21_LVDSCapList[0].LVDSVT
+				pVBInfo->XG21_LVDSCapList[k].LVDSVT
 						= pVideoMemory[i + 4] |
 						  (pVideoMemory[i + 5] << 8);
-				pVBInfo->XG21_LVDSCapList[0].LVDSHDE
+				pVBInfo->XG21_LVDSCapList[k].LVDSHDE
 						= pVideoMemory[i + 6] |
 						  (pVideoMemory[i + 7] << 8);
-				pVBInfo->XG21_LVDSCapList[0].LVDSVDE
+				pVBInfo->XG21_LVDSCapList[k].LVDSVDE
 						= pVideoMemory[i + 8] |
 						  (pVideoMemory[i + 9] << 8);
-				pVBInfo->XG21_LVDSCapList[0].LVDSHFP
+				pVBInfo->XG21_LVDSCapList[k].LVDSHFP
 						= pVideoMemory[i + 10] |
 						  (pVideoMemory[i + 11] << 8);
-				pVBInfo->XG21_LVDSCapList[0].LVDSVFP
+				pVBInfo->XG21_LVDSCapList[k].LVDSVFP
 						= pVideoMemory[i + 12] |
 						  (pVideoMemory[i + 13] << 8);
-				pVBInfo->XG21_LVDSCapList[0].LVDSHSYNC
+				pVBInfo->XG21_LVDSCapList[k].LVDSHSYNC
 						= pVideoMemory[i + 14] |
 						  (pVideoMemory[i + 15] << 8);
-				pVBInfo->XG21_LVDSCapList[0].LVDSVSYNC
+				pVBInfo->XG21_LVDSCapList[k].LVDSVSYNC
 						= pVideoMemory[i + 16] |
 						  (pVideoMemory[i + 17] << 8);
-				pVBInfo->XG21_LVDSCapList[0].VCLKData1
+				pVBInfo->XG21_LVDSCapList[k].VCLKData1
 						= pVideoMemory[i + 18];
-				pVBInfo->XG21_LVDSCapList[0].VCLKData2
+				pVBInfo->XG21_LVDSCapList[k].VCLKData2
 						= pVideoMemory[i + 19];
-				pVBInfo->XG21_LVDSCapList[0].PSC_S1
+				pVBInfo->XG21_LVDSCapList[k].PSC_S1
 						= pVideoMemory[i + 20];
-				pVBInfo->XG21_LVDSCapList[0].PSC_S2
+				pVBInfo->XG21_LVDSCapList[k].PSC_S2
 						= pVideoMemory[i + 21];
-				pVBInfo->XG21_LVDSCapList[0].PSC_S3
+				pVBInfo->XG21_LVDSCapList[k].PSC_S3
 						= pVideoMemory[i + 22];
-				pVBInfo->XG21_LVDSCapList[0].PSC_S4
+				pVBInfo->XG21_LVDSCapList[k].PSC_S4
 						= pVideoMemory[i + 23];
-				pVBInfo->XG21_LVDSCapList[0].PSC_S5
+				pVBInfo->XG21_LVDSCapList[k].PSC_S5
 						= pVideoMemory[i + 24];
-			}
+				i += 25;
+				j--;
+				k++;
+			} while ((j > 0) &&
+				 (k < (sizeof(XGI21_LCDCapList) /
+				       sizeof(struct
+						XGI21_LVDSCapStruct))));
 		}
 	}
 }
