@@ -1094,8 +1094,7 @@ static void XGINew_SetDRAMSize_340(struct xgi_hw_device_info *HwDeviceExtension,
 static void ReadVBIOSTablData(unsigned char ChipType,
 			      struct vb_device_info *pVBInfo)
 {
-	volatile unsigned char *pVideoMemory =
-		(unsigned char *) pVBInfo->ROMAddr;
+	unsigned char *vbios = pVBInfo->ROMAddr;
 	unsigned long i;
 	unsigned char j, k;
 	/* Volari customize data area end */
@@ -1103,48 +1102,40 @@ static void ReadVBIOSTablData(unsigned char ChipType,
 	if (ChipType != XG21)
 		return;
 	pVBInfo->IF_DEF_LVDS = 0;
-	if (!(pVideoMemory[0x65] & 0x1))
+	if (!(vbios[0x65] & 0x1))
 		return;
 	pVBInfo->IF_DEF_LVDS = 1;
-	i = pVideoMemory[0x316] | (pVideoMemory[0x317] << 8);
-	j = pVideoMemory[i - 1];
+	i = vbios[0x316] | (vbios[0x317] << 8);
+	j = vbios[i - 1];
 	if (j == 0xff)
 		j = 1;
 	k = 0;
 	do {
 		pVBInfo->XG21_LVDSCapList[k].LVDS_Capability
-				= pVideoMemory[i] | (pVideoMemory[i + 1] << 8);
+				= vbios[i] | (vbios[i + 1] << 8);
 		pVBInfo->XG21_LVDSCapList[k].LVDSHT
-				= pVideoMemory[i + 2] |
-				  (pVideoMemory[i + 3] << 8);
+				= vbios[i + 2] | (vbios[i + 3] << 8);
 		pVBInfo->XG21_LVDSCapList[k].LVDSVT
-				= pVideoMemory[i + 4] |
-				  (pVideoMemory[i + 5] << 8);
+				= vbios[i + 4] | (vbios[i + 5] << 8);
 		pVBInfo->XG21_LVDSCapList[k].LVDSHDE
-				= pVideoMemory[i + 6] |
-				  (pVideoMemory[i + 7] << 8);
+				= vbios[i + 6] | (vbios[i + 7] << 8);
 		pVBInfo->XG21_LVDSCapList[k].LVDSVDE
-				= pVideoMemory[i + 8] |
-				  (pVideoMemory[i + 9] << 8);
+				= vbios[i + 8] | (vbios[i + 9] << 8);
 		pVBInfo->XG21_LVDSCapList[k].LVDSHFP
-				= pVideoMemory[i + 10] |
-				  (pVideoMemory[i + 11] << 8);
+				= vbios[i + 10] | (vbios[i + 11] << 8);
 		pVBInfo->XG21_LVDSCapList[k].LVDSVFP
-				= pVideoMemory[i + 12] |
-				  (pVideoMemory[i + 13] << 8);
+				= vbios[i + 12] | (vbios[i + 13] << 8);
 		pVBInfo->XG21_LVDSCapList[k].LVDSHSYNC
-				= pVideoMemory[i + 14] |
-				  (pVideoMemory[i + 15] << 8);
+				= vbios[i + 14] | (vbios[i + 15] << 8);
 		pVBInfo->XG21_LVDSCapList[k].LVDSVSYNC
-				= pVideoMemory[i + 16] |
-				  (pVideoMemory[i + 17] << 8);
-		pVBInfo->XG21_LVDSCapList[k].VCLKData1 = pVideoMemory[i + 18];
-		pVBInfo->XG21_LVDSCapList[k].VCLKData2 = pVideoMemory[i + 19];
-		pVBInfo->XG21_LVDSCapList[k].PSC_S1 = pVideoMemory[i + 20];
-		pVBInfo->XG21_LVDSCapList[k].PSC_S2 = pVideoMemory[i + 21];
-		pVBInfo->XG21_LVDSCapList[k].PSC_S3 = pVideoMemory[i + 22];
-		pVBInfo->XG21_LVDSCapList[k].PSC_S4 = pVideoMemory[i + 23];
-		pVBInfo->XG21_LVDSCapList[k].PSC_S5 = pVideoMemory[i + 24];
+				= vbios[i + 16] | (vbios[i + 17] << 8);
+		pVBInfo->XG21_LVDSCapList[k].VCLKData1 = vbios[i + 18];
+		pVBInfo->XG21_LVDSCapList[k].VCLKData2 = vbios[i + 19];
+		pVBInfo->XG21_LVDSCapList[k].PSC_S1 = vbios[i + 20];
+		pVBInfo->XG21_LVDSCapList[k].PSC_S2 = vbios[i + 21];
+		pVBInfo->XG21_LVDSCapList[k].PSC_S3 = vbios[i + 22];
+		pVBInfo->XG21_LVDSCapList[k].PSC_S4 = vbios[i + 23];
+		pVBInfo->XG21_LVDSCapList[k].PSC_S5 = vbios[i + 24];
 		i += 25;
 		j--;
 		k++;
