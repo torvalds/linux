@@ -684,7 +684,7 @@ out:
 	/*
 	 * Update our accounting state to incorporate the new Free List
 	 * buffers, tell the hardware about them and return the number of
-	 * bufers which we were able to allocate.
+	 * buffers which we were able to allocate.
 	 */
 	cred = fl->avail - cred;
 	fl->pend_cred += cred;

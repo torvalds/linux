@@ -1878,7 +1878,7 @@ static void ext4_end_io_buffer_write(struct buffer_head *bh, int uptodate);
  * a[0] = 'a';
  * truncate(f, 4096);
  * we have in the page first buffer_head mapped via page_mkwrite call back
- * but other bufer_heads would be unmapped but dirty(dirty done via the
+ * but other buffer_heads would be unmapped but dirty (dirty done via the
  * do_wp_page). So writepage should write the first block. If we modify
  * the mmap area beyond 1024 we will again get a page_fault and the
  * page_mkwrite callback will do the block allocation and mark the

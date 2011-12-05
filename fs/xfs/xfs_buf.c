@@ -1370,7 +1370,7 @@ restart:
 			goto restart;
 		}
 		/*
-		 * clear the LRU reference count so the bufer doesn't get
+		 * clear the LRU reference count so the buffer doesn't get
 		 * ignored in xfs_buf_rele().
 		 */
 		atomic_set(&bp->b_lru_ref, 0);
