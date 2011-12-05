@@ -451,51 +451,6 @@ invalid:
 		printk(KERN_INFO "XGIfb: Invalid VESA mode 0x%x'\n", vesamode);
 }
 
-static int XGIfb_GetXG21LVDSData(struct xgifb_video_info *xgifb_info)
-{
-	u8 tmp;
-	void __iomem *data = xgifb_info->mmio_vbase + 0x20000;
-	int i, j, k;
-
-	tmp = xgifb_reg_get(XGISR, 0x1e);
-	xgifb_reg_set(XGISR, 0x1e, tmp | 4);
-
-	if ((readb(data) == 0x55) &&
-	    (readb(data + 1) == 0xAA) &&
-	    (readb(data + 0x65) & 0x1)) {
-		i = readw(data + 0x316);
-		j = readb(data + i - 1);
-		if (j == 0xff)
-			j = 1;
-
-		k = 0;
-		do {
-			XGI21_LCDCapList[k].LVDS_Capability = readw(data + i);
-			XGI21_LCDCapList[k].LVDSHT = readw(data + i + 2);
-			XGI21_LCDCapList[k].LVDSVT = readw(data + i + 4);
-			XGI21_LCDCapList[k].LVDSHDE = readw(data + i + 6);
-			XGI21_LCDCapList[k].LVDSVDE = readw(data + i + 8);
-			XGI21_LCDCapList[k].LVDSHFP = readw(data + i + 10);
-			XGI21_LCDCapList[k].LVDSVFP = readw(data + i + 12);
-			XGI21_LCDCapList[k].LVDSHSYNC = readw(data + i + 14);
-			XGI21_LCDCapList[k].LVDSVSYNC = readw(data + i + 16);
-			XGI21_LCDCapList[k].VCLKData1 = readb(data + i + 18);
-			XGI21_LCDCapList[k].VCLKData2 = readb(data + i + 19);
-			XGI21_LCDCapList[k].PSC_S1 = readb(data + i + 20);
-			XGI21_LCDCapList[k].PSC_S2 = readb(data + i + 21);
-			XGI21_LCDCapList[k].PSC_S3 = readb(data + i + 22);
-			XGI21_LCDCapList[k].PSC_S4 = readb(data + i + 23);
-			XGI21_LCDCapList[k].PSC_S5 = readb(data + i + 24);
-			i += 25;
-			j--;
-			k++;
-		} while ((j > 0) && (k < (sizeof(XGI21_LCDCapList)
-				/ sizeof(struct XGI21_LVDSCapStruct))));
-		return 1;
-	}
-	return 0;
-}
-
 static int XGIfb_validate_mode(struct xgifb_video_info *xgifb_info, int myindex)
 {
 	u16 xres, yres;
@@ -1935,7 +1890,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	u8 reg, reg1;
 	u8 CR48, CR38;
 	int ret;
-	bool xgi21_drvlcdcaplist = false;
 	struct fb_info *fb_info;
 	struct xgifb_video_info *xgifb_info;
 	struct xgi_hw_device_info *hw_info;
@@ -2078,8 +2032,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		CR38 = xgifb_reg_get(XGICR, 0x38);
 		if ((CR38&0xE0) == 0xC0) {
 			xgifb_info->display2 = XGIFB_DISP_LCD;
-			if (!XGIfb_GetXG21LVDSData(xgifb_info))
-				xgi21_drvlcdcaplist = true;
 		} else if ((CR38&0xE0) == 0x60) {
 			xgifb_info->hasVB = HASVB_CHRONTEL;
 		} else {
@@ -2223,21 +2175,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	if (xgifb_info->mode_idx < 0) {
 		dev_err(&pdev->dev, "no supported video mode found\n");
 		goto error_1;
-	}
-
-	if (xgi21_drvlcdcaplist) {
-		int m;
-
-		for (m = 0; m < ARRAY_SIZE(XGI21_LCDCapList); m++)
-			if ((XGI21_LCDCapList[m].LVDSHDE ==
-				XGIbios_mode[xgifb_info->mode_idx].xres) &&
-			    (XGI21_LCDCapList[m].LVDSVDE ==
-				XGIbios_mode[xgifb_info->mode_idx].yres)) {
-				xgifb_reg_set(xgifb_info->dev_info.P3d4,
-					      0x36,
-					      m);
-				break;
-			}
 	}
 
 	/* yilin set default refresh rate */
