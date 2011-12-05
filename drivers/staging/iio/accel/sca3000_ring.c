@@ -146,7 +146,6 @@ static int sca3000_ring_get_bytes_per_datum(struct iio_buffer *r)
 }
 
 static IIO_BUFFER_ENABLE_ATTR;
-static IIO_BUFFER_BYTES_PER_DATUM_ATTR;
 static IIO_BUFFER_LENGTH_ATTR;
 
 /**
@@ -243,7 +242,6 @@ static IIO_DEVICE_ATTR(in_accel_scale,
  */
 static struct attribute *sca3000_ring_attributes[] = {
 	&dev_attr_length.attr,
-	&dev_attr_bytes_per_datum.attr,
 	&dev_attr_enable.attr,
 	&iio_dev_attr_50_percent.dev_attr.attr,
 	&iio_dev_attr_75_percent.dev_attr.attr,

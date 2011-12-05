@@ -142,8 +142,6 @@ int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev)
 	/* Tell the core how to access the buffer */
 	buffer->access = &kfifo_access_funcs;
 
-	/* Number of bytes per element */
-	buffer->bpe = 2;
 	/* Enable timestamps by default */
 	buffer->scan_timestamp = true;
 

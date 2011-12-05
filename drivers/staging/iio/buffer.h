@@ -86,7 +86,6 @@ struct iio_buffer_setup_ops {
  * @owner:		module that owns the buffer (for ref counting)
  * @length:		[DEVICE] number of datums in buffer
  * @bytes_per_datum:	[DEVICE] size of individual datum including timestamp
- * @bpe:		[DEVICE] size of individual channel value
  * @scan_el_attrs:	[DRIVER] control of scan elements if that scan mode
  *			control method is used
  * @scan_count:	[INTERN] the number of elements in the current scan mode
@@ -103,7 +102,6 @@ struct iio_buffer {
 	struct module				*owner;
 	int					length;
 	int					bytes_per_datum;
-	int					bpe;
 	struct attribute_group			*scan_el_attrs;
 	int					scan_count;
 	long					*scan_mask;
