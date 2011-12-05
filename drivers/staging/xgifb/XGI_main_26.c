@@ -1875,8 +1875,6 @@ static int __init XGIfb_setup(char *options)
 			XGIfb_crt2type = XGIFB_DISP_LCD;
 		} else if (!strncmp(this_opt, "noypan", 6)) {
 			XGIfb_ypan = 0;
-		} else if (!strncmp(this_opt, "userom:", 7)) {
-			XGIfb_userom = xgifb_optval(this_opt, 7);
 		} else {
 			mode = this_opt;
 		}

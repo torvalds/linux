@@ -124,7 +124,6 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 /* display status */
 static int XGIfb_crt1off;
 static int XGIfb_forcecrt1 = -1;
-static int XGIfb_userom ;
 
 /* global flags */
 static int XGIfb_tvmode;
