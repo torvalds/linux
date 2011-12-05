@@ -4441,7 +4441,9 @@ static int stac92xx_init(struct hda_codec *codec)
 		int pinctl, def_conf;
 
 		/* power on when no jack detection is available */
-		if (!spec->hp_detect) {
+		/* or when the VREF is used for controlling LED */
+		if (!spec->hp_detect ||
+		    (spec->gpio_led > 8 && spec->gpio_led == nid)) {
 			stac_toggle_power_map(codec, nid, 1);
 			continue;
 		}
@@ -5055,20 +5057,6 @@ static int stac92xx_pre_resume(struct hda_codec *codec)
 	return 0;
 }
 
-static int stac92xx_post_suspend(struct hda_codec *codec)
-{
-	struct sigmatel_spec *spec = codec->spec;
-	if (spec->gpio_led > 8) {
-		/* with vref-out pin used for mute led control
-		 * codec AFG is prevented from D3 state, but on
-		 * system suspend it can (and should) be used
-		 */
-		snd_hda_codec_read(codec, codec->afg, 0,
-				AC_VERB_SET_POWER_STATE, AC_PWRST_D3);
-	}
-	return 0;
-}
-
 static void stac92xx_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 				unsigned int power_state)
 {
@@ -5668,8 +5656,6 @@ again:
 		} else {
 			codec->patch_ops.set_power_state =
 					stac92xx_set_power_state;
-			codec->patch_ops.post_suspend =
-					stac92xx_post_suspend;
 		}
 		codec->patch_ops.pre_resume = stac92xx_pre_resume;
 		codec->patch_ops.check_power_status =
@@ -5983,8 +5969,6 @@ again:
 		} else {
 			codec->patch_ops.set_power_state =
 					stac92xx_set_power_state;
-			codec->patch_ops.post_suspend =
-					stac92xx_post_suspend;
 		}
 		codec->patch_ops.pre_resume = stac92xx_pre_resume;
 		codec->patch_ops.check_power_status =
