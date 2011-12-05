@@ -895,8 +895,6 @@ void __init setup_arch(char **cmdline_p)
 {
 	struct machine_desc *mdesc;
 
-	unwind_init();
-
 	setup_processor();
 	mdesc = setup_machine_fdt(__atags_pointer);
 	if (!mdesc)
