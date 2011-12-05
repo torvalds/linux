@@ -63,11 +63,11 @@ static int __init sbc834x_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
 
-	return of_flat_dt_is_compatible(root, "SBC834x");
+	return of_flat_dt_is_compatible(root, "SBC834xE");
 }
 
 define_machine(sbc834x) {
-	.name			= "SBC834x",
+	.name			= "SBC834xE",
 	.probe			= sbc834x_probe,
 	.setup_arch		= sbc834x_setup_arch,
 	.init_IRQ		= mpc83xx_ipic_init_IRQ,
