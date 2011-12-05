@@ -339,10 +339,10 @@ static ssize_t midi_set_midi_mask_receive(struct device *dev,
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6 *line6 = usb_get_intfdata(interface);
-	unsigned long value;
+	unsigned short value;
 	int ret;
 
-	ret = strict_strtoul(buf, 10, &value);
+	ret = kstrtou16(buf, 10, &value);
 	if (ret)
 		return ret;
 
