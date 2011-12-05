@@ -1744,17 +1744,16 @@ static void XGIfb_detect_VB(struct xgifb_video_info *xgifb_info)
 			XGIfb_crt1off = 0;
 	}
 
-	if (XGIfb_crt2type != -1)
-		/* TW: Override with option */
-		xgifb_info->display2 = XGIfb_crt2type;
-	else if (cr32 & XGI_VB_TV)
-		xgifb_info->display2 = XGIFB_DISP_TV;
-	else if (cr32 & XGI_VB_LCD)
-		xgifb_info->display2 = XGIFB_DISP_LCD;
-	else if (cr32 & XGI_VB_CRT2)
-		xgifb_info->display2 = XGIFB_DISP_CRT;
-	else
-		xgifb_info->display2 = XGIFB_DISP_NONE;
+	if (!xgifb_info->display2_force) {
+		if (cr32 & XGI_VB_TV)
+			xgifb_info->display2 = XGIFB_DISP_TV;
+		else if (cr32 & XGI_VB_LCD)
+			xgifb_info->display2 = XGIFB_DISP_LCD;
+		else if (cr32 & XGI_VB_CRT2)
+			xgifb_info->display2 = XGIFB_DISP_CRT;
+		else
+			xgifb_info->display2 = XGIFB_DISP_NONE;
+	}
 
 	if (XGIfb_tvplug != -1)
 		/* PR/TW: Override with option */
@@ -1924,6 +1923,11 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	if (pci_enable_device(pdev)) {
 		ret = -EIO;
 		goto error;
+	}
+
+	if (XGIfb_crt2type != -1) {
+		xgifb_info->display2 = XGIfb_crt2type;
+		xgifb_info->display2_force = true;
 	}
 
 	XGIRegInit(&xgifb_info->dev_info, (unsigned long)hw_info->pjIOAddress);
@@ -2104,6 +2108,8 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 
 	if (xgifb_info->hasVB != HASVB_NONE)
 		XGIfb_detect_VB(xgifb_info);
+	else if (xgifb_info->chip != XG21)
+		xgifb_info->display2 = XGIFB_DISP_NONE;
 
 	if (xgifb_info->display2 == XGIFB_DISP_LCD) {
 		if (!enable_dstn) {

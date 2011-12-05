@@ -86,6 +86,7 @@ struct xgifb_video_info {
 	unsigned int refresh_rate;
 
 	enum xgifb_display_type display2; /* the second display output type */
+	bool display2_force;
 	unsigned char hasVB;
 	unsigned char TV_type;
 	unsigned char TV_plug;

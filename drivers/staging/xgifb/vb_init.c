@@ -1136,7 +1136,13 @@ static void xgifb_read_vbios(struct pci_dev *pdev,
 	}
 	if (vbios_size <= 0x65)
 		goto error;
-	if (!(vbios[0x65] & 0x1)) {
+	/*
+	 * The user can ignore the LVDS bit in the BIOS and force the display
+	 * type.
+	 */
+	if (!(vbios[0x65] & 0x1) &&
+	    (!xgifb_info->display2_force ||
+	     xgifb_info->display2 != XGIFB_DISP_LCD)) {
 		vfree(vbios);
 		return;
 	}
