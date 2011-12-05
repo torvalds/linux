@@ -148,7 +148,8 @@ static const struct max1363_mode max1363_mode_table[] = {
 };
 
 const struct max1363_mode
-*max1363_match_mode(unsigned long *mask, const struct max1363_chip_info *ci)
+*max1363_match_mode(const unsigned long *mask,
+const struct max1363_chip_info *ci)
 {
 	int i;
 	if (mask)
@@ -834,6 +835,7 @@ static const struct iio_info max1363_info = {
 	.read_event_config = &max1363_read_event_config,
 	.write_event_config = &max1363_write_event_config,
 	.read_raw = &max1363_read_raw,
+	.update_scan_mode = &max1363_update_scan_mode,
 	.driver_module = THIS_MODULE,
 	.event_attrs = &max1363_event_attribute_group,
 };
