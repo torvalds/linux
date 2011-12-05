@@ -1272,7 +1272,7 @@ struct conf_hangover_settings {
 	u8 window_size;
 };
 
-struct conf_drv_settings {
+struct wlcore_conf {
 	struct conf_sg_settings sg;
 	struct conf_rx_settings rx;
 	struct conf_tx_settings tx;

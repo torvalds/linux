@@ -261,7 +261,7 @@ struct wl1271 {
 	struct wl1271_tx_hw_res_if *tx_res_if;
 
 	/* Current chipset configuration */
-	struct conf_drv_settings conf;
+	struct wlcore_conf conf;
 
 	bool sg_enabled;
 
