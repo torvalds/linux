@@ -59,7 +59,7 @@ static void usage(const char *err)
 	fprintf(stderr, "Usage: %s [-y|-n|-v] [-s seed[,no]] [-m max] [-i input]\n", prog);
 	fprintf(stderr, "\t-y	64bit mode\n");
 	fprintf(stderr, "\t-n	32bit mode\n");
-	fprintf(stderr, "\t-v	Verbose mode\n");
+	fprintf(stderr, "\t-v	Verbosity(-vv dumps any decoded result)\n");
 	fprintf(stderr, "\t-s	Give a random seed (and iteration number)\n");
 	fprintf(stderr, "\t-m	Give a maximum iteration number\n");
 	fprintf(stderr, "\t-i	Give an input file with decoded binary\n");
@@ -188,7 +188,7 @@ static void parse_args(int argc, char **argv)
 			x86_64 = 0;
 			break;
 		case 'v':
-			verbose = 1;
+			verbose++;
 			break;
 		case 'i':
 			if (strcmp("-", optarg) == 0)
@@ -264,7 +264,8 @@ int main(int argc, char **argv)
 			errors++;
 		} else if (verbose && !insn_complete(&insn))
 			dump_stream(stdout, "Info: Found an undecodable input", i, insn_buf, &insn);
-
+		else if (verbose >= 2)
+			dump_insn(stdout, &insn);
 		insns++;
 	}
 
