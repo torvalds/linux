@@ -53,8 +53,8 @@
 #include <linux/mfd/wm831x/pdata.h>
 #include <linux/mfd/wm831x/core.h>
 #include <linux/mfd/wm831x/gpio.h>
+#include <linux/regulator/fixed.h>
 #include <linux/mfd/wm8994/pdata.h>
-#include <linux/mfd/wm8994/registers.h>
 
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
@@ -1848,37 +1848,121 @@ struct platform_device rk29_device_gps = {
  * wm8994  codec
  * author: qjb@rock-chips.com
  *****************************************************************************************/
-#if defined (CONFIG_SND_SOC_WM8994)
-struct wm8994_pdata wm8994_platdata = {	
-	.BB_input_diff = 0,
-	.BB_class = NO_PCM_BB,
-	
-	.no_earpiece = 0,
-	.sp_hp_same_channel = 0,
-
-	.PA_control_pin = 0,	
-	.Power_EN_Pin = RK29_PIN5_PA1,
-	
-	.speaker_incall_vol = 0,
-	.speaker_incall_mic_vol = -9,
-	.speaker_normal_vol = 6,
-	.earpiece_incall_vol = 0,
-	.headset_incall_vol = 6,
-	.headset_incall_mic_vol = -6,
-	.headset_normal_vol = -6,
-	.BT_incall_vol = 0,
-	.BT_incall_mic_vol = 0,
-	.recorder_vol = 30,
-		
+#if defined(CONFIG_MFD_WM8994)
+static struct regulator_consumer_supply wm8994_fixed_voltage0_supplies[] = {
+	REGULATOR_SUPPLY("DBVDD", "5-001a"),
+	REGULATOR_SUPPLY("AVDD2", "5-001a"),
+	REGULATOR_SUPPLY("CPVDD", "5-001a"),
 };
-#endif
+
+static struct regulator_consumer_supply wm8994_fixed_voltage1_supplies[] = {
+	REGULATOR_SUPPLY("SPKVDD1", "5-001a"),
+	REGULATOR_SUPPLY("SPKVDD2", "5-001a"),
+};
+
+static struct regulator_init_data wm8994_fixed_voltage0_init_data = {
+	.constraints = {
+		.always_on = 1,
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(wm8994_fixed_voltage0_supplies),
+	.consumer_supplies	= wm8994_fixed_voltage0_supplies,
+};
+
+static struct regulator_init_data wm8994_fixed_voltage1_init_data = {
+	.constraints = {
+		.always_on = 1,
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(wm8994_fixed_voltage1_supplies),
+	.consumer_supplies	= wm8994_fixed_voltage1_supplies,
+};
+
+static struct fixed_voltage_config wm8994_fixed_voltage0_config = {
+	.supply_name	= "VCC_1.8V_PDA",
+	.microvolts	= 1800000,
+	.gpio		= -EINVAL,
+	.init_data	= &wm8994_fixed_voltage0_init_data,
+};
+
+static struct fixed_voltage_config wm8994_fixed_voltage1_config = {
+	.supply_name	= "V_BAT",
+	.microvolts	= 3700000,
+	.gpio		= -EINVAL,
+	.init_data	= &wm8994_fixed_voltage1_init_data,
+};
+
+static struct platform_device wm8994_fixed_voltage0 = {
+	.name		= "reg-fixed-voltage",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &wm8994_fixed_voltage0_config,
+	},
+};
+
+static struct platform_device wm8994_fixed_voltage1 = {
+	.name		= "reg-fixed-voltage",
+	.id		= 1,
+	.dev		= {
+		.platform_data	= &wm8994_fixed_voltage1_config,
+	},
+};
+
+static struct regulator_consumer_supply wm8994_avdd1_supply =
+	REGULATOR_SUPPLY("AVDD1", "5-001a");
+
+static struct regulator_consumer_supply wm8994_dcvdd_supply =
+	REGULATOR_SUPPLY("DCVDD", "5-001a");
+
+
+
+static struct regulator_init_data wm8994_ldo1_data = {
+	.constraints	= {
+		.name		= "AVDD1_3.0V",
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies	= 1,
+	.consumer_supplies	= &wm8994_avdd1_supply,
+};
+
+static struct regulator_init_data wm8994_ldo2_data = {
+	.constraints	= {
+		.name		= "DCVDD_1.0V",
+	},
+	.num_consumer_supplies	= 1,
+	.consumer_supplies	= &wm8994_dcvdd_supply,
+};
+
+static struct wm8994_pdata wm8994_platform_data = {
+#if defined (CONFIG_GPIO_WM8994)	
+	.gpio_base = WM8994_GPIO_EXPANDER_BASE,
+	//Fill value to initialize the GPIO	
+	.gpio_defaults ={},
+#endif		
+	/* configure gpio1 function: 0x0001(Logic level input/output) */
+//	.gpio_defaults[0] = 0x0001,
+	/* configure gpio3/4/5/7 function for AIF2 voice */
+//	.gpio_defaults[2] = 0x8100,
+//	.gpio_defaults[3] = 0x8100,
+//	.gpio_defaults[4] = 0x8100,
+//	.gpio_defaults[6] = 0x0100,
+	/* configure gpio8/9/10/11 function for AIF3 BT */
+//	.gpio_defaults[7] = 0x8100,
+//	.gpio_defaults[8] = 0x0100,
+//	.gpio_defaults[9] = 0x0100,
+//	.gpio_defaults[10] = 0x0100,
+	.ldo[0]	= { RK29_PIN5_PA1, NULL, &wm8994_ldo1_data },	/* XM0FRNB_2 */
+	.ldo[1]	= { 0, NULL, &wm8994_ldo2_data },
+
+	.micdet_irq = 0,
+	.irq_base = 0,
+};
+#endif 
 
 #ifdef CONFIG_RK_HEADSET_DET
 #define HEADSET_GPIO RK29_PIN4_PD2
 struct rk_headset_pdata rk_headset_info = {
 	.Headset_gpio		= RK29_PIN4_PD2,
 	.headset_in_type= HEADSET_IN_HIGH,
-	.Hook_gpio = RK29_PIN4_PD1,//Detection Headset--Must be set
+//	.Hook_gpio = RK29_PIN4_PD1,//Detection Headset--Must be set
 	.hook_key_code = KEY_MEDIA,
 };
 
@@ -2077,9 +2161,9 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.type    		= "wm8994",
 		.addr           = 0x1a,
 		.flags			= 0,
-//	#if defined(CONFIG_MFD_WM8994)	
-		.platform_data  = &wm8994_platdata,	
-//	#endif	
+	#if defined(CONFIG_MFD_WM8994)			
+		.platform_data  = &wm8994_platform_data,	
+	#endif	
 	},
 #endif
 #if defined (CONFIG_BATTERY_STC3100)
@@ -3272,6 +3356,11 @@ static struct platform_device *devices[] __initdata = {
 	&rk29_device_i2c3,
 #endif
 
+#ifdef CONFIG_MFD_WM8994
+	&wm8994_fixed_voltage0,
+	&wm8994_fixed_voltage1,
+#endif	
+
 #ifdef CONFIG_SND_RK29_SOC_I2S_2CH
         &rk29_device_iis_2ch,
 #endif
@@ -3650,7 +3739,7 @@ static ssize_t rk29xx_virtual_keys_show(struct kobject *kobj,
 	return sprintf(buf,
 		__stringify(EV_KEY) ":" __stringify(KEY_BACK)		":300:860:120:60"//":315:815:120:50"	 //":50:830:98:50"	//":210:796:98:50"
 		":" __stringify(EV_KEY) ":" __stringify(KEY_MENU)	":60:860:120:60"//":85:815:88:50"	// ":184:830:120:50"  // ":435:796:120:50"
-		":" __stringify(EV_KEY) ":" __stringify(KEY_HOME)	":180:860:120:60"//":184:815:100:50"   //":315:830:100:50"	//":320:796:100:50"
+		":" __stringify(EV_KEY) ":" __stringify(KEY_HOMEPAGE)	":180:860:120:60"//":184:815:100:50"   //":315:830:100:50"	//":320:796:100:50"
 		":" __stringify(EV_KEY) ":" __stringify(KEY_SEARCH) ":420:860:120:60"//":435:815:88:50"   //":50:815:98:50"    //	//":85:796:88:50"
 		"\n");
 
@@ -3658,7 +3747,7 @@ static ssize_t rk29xx_virtual_keys_show(struct kobject *kobj,
 		return sprintf(buf,
 		__stringify(EV_KEY) ":" __stringify(KEY_BACK)			":400:830:120:60"//":315:815:120:50"	 //":50:830:98:50"	//":210:796:98:50"
 		":" __stringify(EV_KEY) ":" __stringify(KEY_MENU)		":80:830:120:60"//":85:815:88:50"	// ":184:830:120:50"  // ":435:796:120:50"
-		":" __stringify(EV_KEY) ":" __stringify(KEY_HOME)		":240:830:120:60"//":184:815:100:50"   //":315:830:100:50"	//":320:796:100:50"
+		":" __stringify(EV_KEY) ":" __stringify(KEY_HOMEPAGE)		":240:830:120:60"//":184:815:100:50"   //":315:830:100:50"	//":320:796:100:50"
 		"\n");
 #endif
 	return 0;
