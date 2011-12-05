@@ -119,12 +119,10 @@ static irqreturn_t bfin_serial_mctrl_cts_int(int irq, void *dev_id)
 	unsigned int status;
 
 	status = bfin_serial_get_mctrl(&uart->port);
-	uart_handle_cts_change(&uart->port, status & TIOCM_CTS);
 #ifdef CONFIG_SERIAL_BFIN_HARD_CTSRTS
-	uart->scts = 1;
 	UART_CLEAR_SCTS(uart);
-	UART_CLEAR_IER(uart, EDSSI);
 #endif
+	uart_handle_cts_change(&uart->port, status & TIOCM_CTS);
 
 	return IRQ_HANDLED;
 }
@@ -174,13 +172,6 @@ static void bfin_serial_start_tx(struct uart_port *port)
 {
 	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
 	struct tty_struct *tty = uart->port.state->port.tty;
-
-#ifdef CONFIG_SERIAL_BFIN_HARD_CTSRTS
-	if (uart->scts && !(bfin_serial_get_mctrl(&uart->port) & TIOCM_CTS)) {
-		uart->scts = 0;
-		uart_handle_cts_change(&uart->port, uart->scts);
-	}
-#endif
 
 	/*
 	 * To avoid losting RX interrupt, we reset IR function
@@ -380,12 +371,6 @@ static irqreturn_t bfin_serial_tx_int(int irq, void *dev_id)
 {
 	struct bfin_serial_port *uart = dev_id;
 
-#ifdef CONFIG_SERIAL_BFIN_HARD_CTSRTS
-	if (uart->scts && !(bfin_serial_get_mctrl(&uart->port) & TIOCM_CTS)) {
-		uart->scts = 0;
-		uart_handle_cts_change(&uart->port, uart->scts);
-	}
-#endif
 	spin_lock(&uart->port.lock);
 	if (UART_GET_LSR(uart) & THRE)
 		bfin_serial_tx_chars(uart);
@@ -530,13 +515,6 @@ static irqreturn_t bfin_serial_dma_tx_int(int irq, void *dev_id)
 {
 	struct bfin_serial_port *uart = dev_id;
 	struct circ_buf *xmit = &uart->port.state->xmit;
-
-#ifdef CONFIG_SERIAL_BFIN_HARD_CTSRTS
-	if (uart->scts && !(bfin_serial_get_mctrl(&uart->port)&TIOCM_CTS)) {
-		uart->scts = 0;
-		uart_handle_cts_change(&uart->port, uart->scts);
-	}
-#endif
 
 	spin_lock(&uart->port.lock);
 	if (!(get_dma_curr_irqstat(uart->tx_dma_channel)&DMA_RUN)) {
