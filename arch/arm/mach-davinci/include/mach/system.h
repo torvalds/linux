@@ -20,8 +20,6 @@ static inline void arch_idle(void)
 
 static inline void arch_reset(char mode, const char *cmd)
 {
-	if (davinci_soc_info.reset)
-		davinci_soc_info.reset(davinci_soc_info.reset_device);
 }
 
 #endif /* __ASM_ARCH_SYSTEM_H */
