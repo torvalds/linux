@@ -2188,8 +2188,6 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 
 	case SND_SOC_BIAS_STANDBY:
 		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
-			pm_runtime_get_sync(codec->dev);
-
 			switch (control->type) {
 			case WM8994:
 				if (wm8994->revision < 4) {
@@ -2256,11 +2254,8 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_OFF:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_STANDBY) {
+		if (codec->dapm.bias_level == SND_SOC_BIAS_STANDBY)
 			wm8994->cur_fw = NULL;
-
-			pm_runtime_put(codec->dev);
-		}
 		break;
 	}
 	codec->dapm.bias_level = level;
