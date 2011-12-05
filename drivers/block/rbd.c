@@ -1684,7 +1684,9 @@ static int rbd_header_add_snap(struct rbd_device *dev,
 	if (ret < 0)
 		return ret;
 
-	dev->header.snapc->seq =  new_snapid;
+	down_write(&dev->header_rwsem);
+	dev->header.snapc->seq = new_snapid;
+	up_write(&dev->header_rwsem);
 
 	return 0;
 bad:
