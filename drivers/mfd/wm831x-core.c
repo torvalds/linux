@@ -559,6 +559,8 @@ static int wm831x_write(struct wm831x *wm831x, unsigned short reg,
 		dev_vdbg(wm831x->dev, "Write %04x to R%d(0x%x)\n",
 			 buf[i], reg + i, reg + i);
 		ret = regmap_write(wm831x->regmap, reg + i, buf[i]);
+		if (ret != 0)
+			return ret;
 	}
 
 	return 0;
