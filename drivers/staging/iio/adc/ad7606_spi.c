@@ -102,7 +102,6 @@ MODULE_DEVICE_TABLE(spi, ad7606_id);
 static struct spi_driver ad7606_driver = {
 	.driver = {
 		.name = "ad7606",
-		.bus = &spi_bus_type,
 		.owner = THIS_MODULE,
 		.pm    = AD7606_SPI_PM_OPS,
 	},

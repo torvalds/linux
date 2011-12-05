@@ -151,7 +151,6 @@ static int adt7316_spi_resume(struct spi_device *spi_dev)
 static struct spi_driver adt7316_driver = {
 	.driver = {
 		.name = "adt7316",
-		.bus = &spi_bus_type,
 		.owner = THIS_MODULE,
 	},
 	.probe = adt7316_spi_probe,

@@ -251,7 +251,6 @@ MODULE_DEVICE_TABLE(spi, ad7887_id);
 static struct spi_driver ad7887_driver = {
 	.driver = {
 		.name	= "ad7887",
-		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ad7887_probe,
