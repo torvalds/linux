@@ -613,7 +613,7 @@ static void ft5306_queue_work(struct work_struct *work)
 		{
 			if(points_last_flag[i]!=0)
 			{
-				printk("Point UP event.id=%d\n",i);
+				FTprintk("Point UP event.id=%d\n",i);
 				input_mt_slot(data->input_dev, i);
 				input_mt_report_slot_state(data->input_dev, MT_TOOL_FINGER, false);					
 			}
