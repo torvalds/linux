@@ -287,3 +287,16 @@ void regmap_del_irq_chip(int irq, struct regmap_irq_chip_data *d)
 	kfree(d);
 }
 EXPORT_SYMBOL_GPL(regmap_del_irq_chip);
+
+/**
+ * regmap_irq_chip_get_base(): Retrieve interrupt base for a regmap IRQ chip
+ *
+ * Useful for drivers to request their own IRQs.
+ *
+ * @data: regmap_irq controller to operate on.
+ */
+int regmap_irq_chip_get_base(struct regmap_irq_chip_data *data)
+{
+	return data->irq_base;
+}
+EXPORT_SYMBOL_GPL(regmap_irq_chip_get_base);
