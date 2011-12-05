@@ -110,6 +110,10 @@ enum iio_endian {
  * @extend_name:	Allows labeling of channel attributes with an
  *			informative name. Note this has no effect codes etc,
  *			unlike modifiers.
+ * @datasheet_name:	A name used in in kernel mapping of channels. It should
+ *			corrspond to the first name that the channel is referred
+ *			to by in the datasheet (e.g. IND), or the nearest
+ *			possible compound name (e.g. IND-INC).
  * @processed_val:	Flag to specify the data access attribute should be
  *			*_input rather than *_raw.
  * @modified:		Does a modifier apply to this channel. What these are
@@ -138,6 +142,7 @@ struct iio_chan_spec {
 	long			info_mask;
 	long			event_mask;
 	char			*extend_name;
+	const char		*datasheet_name;
 	unsigned		processed_val:1;
 	unsigned		modified:1;
 	unsigned		indexed:1;
