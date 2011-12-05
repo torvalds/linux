@@ -34,8 +34,8 @@
 
 /* Module definitions */
 
-static int resumeline = 898;
-module_param(resumeline, int, 0444);
+static ushort resumeline = 898;
+module_param(resumeline, ushort, 0444);
 
 /* Default off since it doesn't work on DCON ASIC in B-test OLPC board */
 static int useaa = 1;
@@ -498,10 +498,10 @@ static ssize_t dcon_freeze_store(struct device *dev,
 static ssize_t dcon_resumeline_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	unsigned long rl;
+	unsigned short rl;
 	int rc;
 
-	rc = strict_strtoul(buf, 10, &rl);
+	rc = kstrtou16(buf, 10, &rl);
 	if (rc)
 		return rc;
 
