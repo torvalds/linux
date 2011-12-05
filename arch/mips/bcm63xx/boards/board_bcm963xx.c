@@ -834,10 +834,13 @@ static struct mtd_partition mtd_partitions[] = {
 	}
 };
 
+static const char *bcm63xx_part_types[] = { "bcm63xxpart", NULL };
+
 static struct physmap_flash_data flash_data = {
 	.width			= 2,
 	.nr_parts		= ARRAY_SIZE(mtd_partitions),
 	.parts			= mtd_partitions,
+	.part_probe_types	= bcm63xx_part_types,
 };
 
 static struct resource mtd_resources[] = {
