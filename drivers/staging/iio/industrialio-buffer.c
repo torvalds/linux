@@ -87,6 +87,7 @@ void iio_chrdev_buffer_release(struct iio_dev *indio_dev)
 
 void iio_buffer_init(struct iio_buffer *buffer, struct iio_dev *indio_dev)
 {
+	INIT_LIST_HEAD(&buffer->demux_list);
 	buffer->indio_dev = indio_dev;
 	init_waitqueue_head(&buffer->pollq);
 }
@@ -128,10 +129,9 @@ static ssize_t iio_scan_el_show(struct device *dev,
 	int ret;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 
-	ret = iio_scan_mask_query(indio_dev->buffer,
-				  to_iio_dev_attr(attr)->address);
-	if (ret < 0)
-		return ret;
+	ret = test_bit(to_iio_dev_attr(attr)->address,
+		       indio_dev->buffer->scan_mask);
+
 	return sprintf(buf, "%d\n", ret);
 }
 
@@ -579,6 +579,12 @@ int iio_sw_buffer_preenable(struct iio_dev *indio_dev)
 					    buffer->scan_mask);
 	else
 		indio_dev->active_scan_mask = buffer->scan_mask;
+	iio_update_demux(indio_dev);
+
+	if (indio_dev->info->update_scan_mode)
+		return indio_dev->info
+			->update_scan_mode(indio_dev,
+					   indio_dev->active_scan_mask);
 	return 0;
 }
 EXPORT_SYMBOL(iio_sw_buffer_preenable);
@@ -648,3 +654,135 @@ int iio_scan_mask_query(struct iio_buffer *buffer, int bit)
 	return test_bit(bit, mask);
 };
 EXPORT_SYMBOL_GPL(iio_scan_mask_query);
+
+/**
+ * struct iio_demux_table() - table describing demux memcpy ops
+ * @from:	index to copy from
+ * @to:	index to copy to
+ * @length:	how many bytes to copy
+ * @l:		list head used for management
+ */
+struct iio_demux_table {
+	unsigned from;
+	unsigned to;
+	unsigned length;
+	struct list_head l;
+};
+
+static unsigned char *iio_demux(struct iio_buffer *buffer,
+				 unsigned char *datain)
+{
+	struct iio_demux_table *t;
+
+	if (list_empty(&buffer->demux_list))
+		return datain;
+	list_for_each_entry(t, &buffer->demux_list, l)
+		memcpy(buffer->demux_bounce + t->to,
+		       datain + t->from, t->length);
+
+	return buffer->demux_bounce;
+}
+
+int iio_push_to_buffer(struct iio_buffer *buffer, unsigned char *data,
+		       s64 timestamp)
+{
+	unsigned char *dataout = iio_demux(buffer, data);
+
+	return buffer->access->store_to(buffer, dataout, timestamp);
+}
+EXPORT_SYMBOL_GPL(iio_push_to_buffer);
+
+int iio_update_demux(struct iio_dev *indio_dev)
+{
+	const struct iio_chan_spec *ch;
+	struct iio_buffer *buffer = indio_dev->buffer;
+	int ret, in_ind = -1, out_ind, length;
+	unsigned in_loc = 0, out_loc = 0;
+	struct iio_demux_table *p, *q;
+
+	/* Clear out any old demux */
+	list_for_each_entry_safe(p, q, &buffer->demux_list, l) {
+		list_del(&p->l);
+		kfree(p);
+	}
+	kfree(buffer->demux_bounce);
+	buffer->demux_bounce = NULL;
+
+	/* First work out which scan mode we will actually have */
+	if (bitmap_equal(indio_dev->active_scan_mask,
+			 buffer->scan_mask,
+			 indio_dev->masklength))
+		return 0;
+
+	/* Now we have the two masks, work from least sig and build up sizes */
+	for_each_set_bit(out_ind,
+			 indio_dev->active_scan_mask,
+			 indio_dev->masklength) {
+		in_ind = find_next_bit(indio_dev->active_scan_mask,
+				       indio_dev->masklength,
+				       in_ind + 1);
+		while (in_ind != out_ind) {
+			in_ind = find_next_bit(indio_dev->active_scan_mask,
+					       indio_dev->masklength,
+					       in_ind + 1);
+			ch = iio_find_channel_from_si(indio_dev, in_ind);
+			length = ch->scan_type.storagebits/8;
+			/* Make sure we are aligned */
+			in_loc += length;
+			if (in_loc % length)
+				in_loc += length - in_loc % length;
+		}
+		p = kmalloc(sizeof(*p), GFP_KERNEL);
+		if (p == NULL) {
+			ret = -ENOMEM;
+			goto error_clear_mux_table;
+		}
+		ch = iio_find_channel_from_si(indio_dev, in_ind);
+		length = ch->scan_type.storagebits/8;
+		if (out_loc % length)
+			out_loc += length - out_loc % length;
+		if (in_loc % length)
+			in_loc += length - in_loc % length;
+		p->from = in_loc;
+		p->to = out_loc;
+		p->length = length;
+		list_add_tail(&p->l, &buffer->demux_list);
+		out_loc += length;
+		in_loc += length;
+	}
+	/* Relies on scan_timestamp being last */
+	if (buffer->scan_timestamp) {
+		p = kmalloc(sizeof(*p), GFP_KERNEL);
+		if (p == NULL) {
+			ret = -ENOMEM;
+			goto error_clear_mux_table;
+		}
+		ch = iio_find_channel_from_si(indio_dev,
+			buffer->scan_index_timestamp);
+		length = ch->scan_type.storagebits/8;
+		if (out_loc % length)
+			out_loc += length - out_loc % length;
+		if (in_loc % length)
+			in_loc += length - in_loc % length;
+		p->from = in_loc;
+		p->to = out_loc;
+		p->length = length;
+		list_add_tail(&p->l, &buffer->demux_list);
+		out_loc += length;
+		in_loc += length;
+	}
+	buffer->demux_bounce = kzalloc(out_loc, GFP_KERNEL);
+	if (buffer->demux_bounce == NULL) {
+		ret = -ENOMEM;
+		goto error_clear_mux_table;
+	}
+	return 0;
+
+error_clear_mux_table:
+	list_for_each_entry_safe(p, q, &buffer->demux_list, l) {
+		list_del(&p->l);
+		kfree(p);
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(iio_update_demux);

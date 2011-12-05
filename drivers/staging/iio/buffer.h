@@ -95,6 +95,8 @@ struct iio_buffer_setup_ops {
  * @access:		[DRIVER] buffer access functions associated with the
  *			implementation.
  * @flags:		[INTERN] file ops related flags including busy flag.
+ * @demux_list:		[INTERN] list of operations required to demux the scan.
+ * @demux_bounce:	[INTERN] buffer for doing gather from incoming scan.
  **/
 struct iio_buffer {
 	struct iio_dev				*indio_dev;
@@ -115,6 +117,8 @@ struct iio_buffer {
 	bool					stufftoread;
 	unsigned long				flags;
 	const struct attribute_group *attrs;
+	struct list_head			demux_list;
+	unsigned char				*demux_bounce;
 };
 
 /**
@@ -151,6 +155,17 @@ int iio_scan_mask_set(struct iio_buffer *buffer, int bit);
 
 #define to_iio_buffer(d)				\
 	container_of(d, struct iio_buffer, dev)
+
+/**
+ * iio_push_to_buffer() - push to a registered buffer.
+ * @buffer:		IIO buffer structure for device
+ * @scan:		Full scan.
+ * @timestamp:
+ */
+int iio_push_to_buffer(struct iio_buffer *buffer, unsigned char *data,
+		       s64 timestamp);
+
+int iio_update_demux(struct iio_dev *indio_dev);
 
 /**
  * iio_buffer_register() - register the buffer with IIO core
