@@ -91,7 +91,7 @@ static int ad7606_read_raw(struct iio_dev *indio_dev,
 	case 0:
 		mutex_lock(&indio_dev->mlock);
 		if (iio_buffer_enabled(indio_dev))
-			ret = ad7606_scan_from_ring(indio_dev, chan->address);
+			ret = -EBUSY;
 		else
 			ret = ad7606_scan_direct(indio_dev, chan->address);
 		mutex_unlock(&indio_dev->mlock);
