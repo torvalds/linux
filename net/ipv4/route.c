@@ -1310,7 +1310,7 @@ static void rt_del(unsigned hash, struct rtable *rt)
 	spin_unlock_bh(rt_hash_lock_addr(hash));
 }
 
-static int check_peer_redir(struct dst_entry *dst, struct inet_peer *peer)
+static void check_peer_redir(struct dst_entry *dst, struct inet_peer *peer)
 {
 	struct rtable *rt = (struct rtable *) dst;
 	__be32 orig_gw = rt->rt_gateway;
@@ -1321,21 +1321,19 @@ static int check_peer_redir(struct dst_entry *dst, struct inet_peer *peer)
 	rt->rt_gateway = peer->redirect_learned.a4;
 
 	n = ipv4_neigh_lookup(&rt->dst, &rt->rt_gateway);
-	if (IS_ERR(n))
-		return PTR_ERR(n);
+	if (IS_ERR(n)) {
+		rt->rt_gateway = orig_gw;
+		return;
+	}
 	old_n = xchg(&rt->dst._neighbour, n);
 	if (old_n)
 		neigh_release(old_n);
-	if (!n || !(n->nud_state & NUD_VALID)) {
-		if (n)
-			neigh_event_send(n, NULL);
-		rt->rt_gateway = orig_gw;
-		return -EAGAIN;
+	if (!(n->nud_state & NUD_VALID)) {
+		neigh_event_send(n, NULL);
 	} else {
 		rt->rt_flags |= RTCF_REDIRECTED;
 		call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, n);
 	}
-	return 0;
 }
 
 /* called in rcu_read_lock() section */
@@ -1693,7 +1691,7 @@ static void ip_rt_update_pmtu(struct dst_entry *dst, u32 mtu)
 }
 
 
-static struct rtable *ipv4_validate_peer(struct rtable *rt)
+static void ipv4_validate_peer(struct rtable *rt)
 {
 	if (rt->rt_peer_genid != rt_peer_genid()) {
 		struct inet_peer *peer;
@@ -1708,15 +1706,12 @@ static struct rtable *ipv4_validate_peer(struct rtable *rt)
 			if (peer->redirect_genid != redirect_genid)
 				peer->redirect_learned.a4 = 0;
 			if (peer->redirect_learned.a4 &&
-			    peer->redirect_learned.a4 != rt->rt_gateway) {
-				if (check_peer_redir(&rt->dst, peer))
-					return NULL;
-			}
+			    peer->redirect_learned.a4 != rt->rt_gateway)
+				check_peer_redir(&rt->dst, peer);
 		}
 
 		rt->rt_peer_genid = rt_peer_genid();
 	}
-	return rt;
 }
 
 static struct dst_entry *ipv4_dst_check(struct dst_entry *dst, u32 cookie)
@@ -1725,7 +1720,7 @@ static struct dst_entry *ipv4_dst_check(struct dst_entry *dst, u32 cookie)
 
 	if (rt_is_expired(rt))
 		return NULL;
-	dst = (struct dst_entry *) ipv4_validate_peer(rt);
+	ipv4_validate_peer(rt);
 	return dst;
 }
 
@@ -2380,9 +2375,7 @@ int ip_route_input_common(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		    rth->rt_mark == skb->mark &&
 		    net_eq(dev_net(rth->dst.dev), net) &&
 		    !rt_is_expired(rth)) {
-			rth = ipv4_validate_peer(rth);
-			if (!rth)
-				continue;
+			ipv4_validate_peer(rth);
 			if (noref) {
 				dst_use_noref(&rth->dst, jiffies);
 				skb_dst_set_noref(skb, &rth->dst);
@@ -2758,9 +2751,7 @@ struct rtable *__ip_route_output_key(struct net *net, struct flowi4 *flp4)
 			    (IPTOS_RT_MASK | RTO_ONLINK)) &&
 		    net_eq(dev_net(rth->dst.dev), net) &&
 		    !rt_is_expired(rth)) {
-			rth = ipv4_validate_peer(rth);
-			if (!rth)
-				continue;
+			ipv4_validate_peer(rth);
 			dst_use(&rth->dst, jiffies);
 			RT_CACHE_STAT_INC(out_hit);
 			rcu_read_unlock_bh();
