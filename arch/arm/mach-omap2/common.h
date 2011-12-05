@@ -153,6 +153,8 @@ void omap_intc_restore_context(void);
 void omap3_intc_suspend(void);
 void omap3_intc_prepare_idle(void);
 void omap3_intc_resume_idle(void);
+void omap2_intc_handle_irq(struct pt_regs *regs);
+void omap3_intc_handle_irq(struct pt_regs *regs);
 
 /*
  * wfi used in low power code. Directly opcode is used instead
