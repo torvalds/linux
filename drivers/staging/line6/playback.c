@@ -223,18 +223,10 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 			} else
 				dev_err(line6pcm->line6->ifcdev, "driver bug: len = %d\n", len);	/* this is somewhat paranoid */
 		} else {
-#if LINE6_REUSE_DMA_AREA_FOR_PLAYBACK
-			/* set the buffer pointer */
-			urb_out->transfer_buffer =
-			    runtime->dma_area +
-			    line6pcm->pos_out * bytes_per_frame;
-#else
-			/* copy data */
 			memcpy(urb_out->transfer_buffer,
 			       runtime->dma_area +
 			       line6pcm->pos_out * bytes_per_frame,
 			       urb_out->transfer_buffer_length);
-#endif
 		}
 
 		line6pcm->pos_out += urb_frames;

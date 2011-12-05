@@ -244,11 +244,7 @@ static void audio_in_callback(struct urb *urb)
 		length += fsize;
 
 		/* the following assumes LINE6_ISO_PACKETS == 1: */
-#if LINE6_BACKUP_MONITOR_SIGNAL
-		memcpy(line6pcm->prev_fbuf, fbuf, fsize);
-#else
 		line6pcm->prev_fbuf = fbuf;
-#endif
 		line6pcm->prev_fsize = fsize;
 
 #ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
