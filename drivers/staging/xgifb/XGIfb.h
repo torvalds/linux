@@ -90,6 +90,8 @@ struct xgifb_video_info {
 	unsigned char TV_type;
 	unsigned char TV_plug;
 
+	struct XGI21_LVDSCapStruct lvds_data;
+
 	enum XGI_CHIP_TYPE chip;
 	unsigned char revision_id;
 

@@ -375,7 +375,6 @@ struct vb_device_info {
 	unsigned char   *pXGINew_CR97 ;
 
 	struct XGI330_LCDCapStruct  *LCDCapList;
-	struct XGI21_LVDSCapStruct  *XG21_LVDSCapList;
 
 	struct XGI_TimingHStruct  *TimingH;
 	struct XGI_TimingVStruct  *TimingV;

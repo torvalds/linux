@@ -382,7 +382,7 @@ static void XGIRegInit(struct vb_device_info *XGI_Pr, unsigned long BaseAddr)
 
 /* ------------------ Internal helper routines ----------------- */
 
-static int XGIfb_GetXG21DefaultLVDSModeIdx(void)
+static int XGIfb_GetXG21DefaultLVDSModeIdx(struct xgifb_video_info *xgifb_info)
 {
 
 	int found_mode = 0;
@@ -391,11 +391,11 @@ static int XGIfb_GetXG21DefaultLVDSModeIdx(void)
 	found_mode = 0;
 	while ((XGIbios_mode[XGIfb_mode_idx].mode_no != 0)
 			&& (XGIbios_mode[XGIfb_mode_idx].xres
-					<= XGI21_LCDCapList[0].LVDSHDE)) {
+					<= xgifb_info->lvds_data.LVDSHDE)) {
 		if ((XGIbios_mode[XGIfb_mode_idx].xres
-				== XGI21_LCDCapList[0].LVDSHDE)
+				== xgifb_info->lvds_data.LVDSHDE)
 				&& (XGIbios_mode[XGIfb_mode_idx].yres
-						== XGI21_LCDCapList[0].LVDSVDE)
+					== xgifb_info->lvds_data.LVDSVDE)
 				&& (XGIbios_mode[XGIfb_mode_idx].bpp == 8)) {
 			found_mode = 1;
 			break;
@@ -458,8 +458,8 @@ static int XGIfb_validate_mode(struct xgifb_video_info *xgifb_info, int myindex)
 
 	if (xgifb_info->chip == XG21) {
 		if (xgifb_info->display2 == XGIFB_DISP_LCD) {
-			xres = XGI21_LCDCapList[0].LVDSHDE;
-			yres = XGI21_LCDCapList[0].LVDSVDE;
+			xres = xgifb_info->lvds_data.LVDSHDE;
+			yres = xgifb_info->lvds_data.LVDSVDE;
 			if (XGIbios_mode[myindex].xres > xres)
 				return -1;
 			if (XGIbios_mode[myindex].yres > yres)
@@ -1173,7 +1173,7 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 	if (isactive) {
 
 		XGIfb_pre_setmode(xgifb_info);
-		if (XGISetModeNew(hw_info,
+		if (XGISetModeNew(xgifb_info, hw_info,
 				  XGIbios_mode[xgifb_info->mode_idx].mode_no)
 					== 0) {
 			printk(KERN_ERR "XGIfb: Setting mode[0x%x] failed\n",
@@ -2167,7 +2167,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		if (xgifb_info->display2 == XGIFB_DISP_LCD &&
 		    xgifb_info->chip == XG21)
 			xgifb_info->mode_idx =
-				XGIfb_GetXG21DefaultLVDSModeIdx();
+				XGIfb_GetXG21DefaultLVDSModeIdx(xgifb_info);
 		else
 			xgifb_info->mode_idx = DEFAULT_MODE;
 	}

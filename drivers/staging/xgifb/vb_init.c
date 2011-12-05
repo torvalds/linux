@@ -1070,19 +1070,20 @@ static int XGINew_DDRSizing340(struct xgi_hw_device_info *HwDeviceExtension,
 	return 0;
 }
 
-static void XGINew_SetDRAMSize_340(struct xgi_hw_device_info *HwDeviceExtension,
+static void XGINew_SetDRAMSize_340(struct xgifb_video_info *xgifb_info,
+		struct xgi_hw_device_info *HwDeviceExtension,
 		struct vb_device_info *pVBInfo)
 {
 	unsigned short data;
 
 	pVBInfo->FBAddr = HwDeviceExtension->pjVideoMemoryAddress;
 
-	XGISetModeNew(HwDeviceExtension, 0x2e);
+	XGISetModeNew(xgifb_info, HwDeviceExtension, 0x2e);
 
 	data = xgifb_reg_get(pVBInfo->P3c4, 0x21);
 	/* disable read cache */
 	xgifb_reg_set(pVBInfo->P3c4, 0x21, (unsigned short) (data & 0xDF));
-	XGI_DisplayOff(HwDeviceExtension, pVBInfo);
+	XGI_DisplayOff(xgifb_info, HwDeviceExtension, pVBInfo);
 
 	/* data = xgifb_reg_get(pVBInfo->P3c4, 0x1); */
 	/* data |= 0x20 ; */
@@ -1156,7 +1157,7 @@ static void xgifb_read_vbios(struct pci_dev *pdev,
 	if (entry >= j)
 		entry = 0;
 	i += entry * 25;
-	lvds = &pVBInfo->XG21_LVDSCapList[0];
+	lvds = &xgifb_info->lvds_data;
 	if (vbios_size <= i + 24)
 		goto error;
 	lvds->LVDS_Capability	= vbios[i]	| (vbios[i + 1] << 8);
@@ -1779,7 +1780,7 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 					 pVBInfo);
 
 	printk("20");
-	XGINew_SetDRAMSize_340(HwDeviceExtension, pVBInfo);
+	XGINew_SetDRAMSize_340(xgifb_info, HwDeviceExtension, pVBInfo);
 	printk("21");
 
 	printk("22");
