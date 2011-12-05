@@ -169,28 +169,28 @@ static struct i2c_board_info eukrea_cpuimx27_i2c_devices[] = {
 static struct plat_serial8250_port serial_platform_data[] = {
 	{
 		.mapbase = (unsigned long)(MX27_CS3_BASE_ADDR + 0x200000),
-		.irq = IRQ_GPIOB(23),
+		/* irq number is run-time assigned */
 		.uartclk = 14745600,
 		.regshift = 1,
 		.iotype = UPIO_MEM,
 		.flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST | UPF_IOREMAP,
 	}, {
 		.mapbase = (unsigned long)(MX27_CS3_BASE_ADDR + 0x400000),
-		.irq = IRQ_GPIOB(22),
+		/* irq number is run-time assigned */
 		.uartclk = 14745600,
 		.regshift = 1,
 		.iotype = UPIO_MEM,
 		.flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST | UPF_IOREMAP,
 	}, {
 		.mapbase = (unsigned long)(MX27_CS3_BASE_ADDR + 0x800000),
-		.irq = IRQ_GPIOB(27),
+		/* irq number is run-time assigned */
 		.uartclk = 14745600,
 		.regshift = 1,
 		.iotype = UPIO_MEM,
 		.flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST | UPF_IOREMAP,
 	}, {
 		.mapbase = (unsigned long)(MX27_CS3_BASE_ADDR + 0x1000000),
-		.irq = IRQ_GPIOB(30),
+		/* irq number is run-time assigned */
 		.uartclk = 14745600,
 		.regshift = 1,
 		.iotype = UPIO_MEM,
@@ -279,6 +279,10 @@ static void __init eukrea_cpuimx27_init(void)
 #endif
 
 #if defined(CONFIG_SERIAL_8250) || defined(CONFIG_SERIAL_8250_MODULE)
+	serial_platform_data[0].irq = IMX_GPIO_NR(2, 23);
+	serial_platform_data[1].irq = IMX_GPIO_NR(2, 22);
+	serial_platform_data[2].irq = IMX_GPIO_NR(2, 27);
+	serial_platform_data[3].irq = IMX_GPIO_NR(2, 30);
 	platform_device_register(&serial_device);
 #endif
 

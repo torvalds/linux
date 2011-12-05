@@ -246,25 +246,25 @@ static const struct imx_fb_platform_data mx27ads_fb_data __initconst = {
 static int mx27ads_sdhc1_init(struct device *dev, irq_handler_t detect_irq,
 			      void *data)
 {
-	return request_irq(IRQ_GPIOE(21), detect_irq, IRQF_TRIGGER_RISING,
-			   "sdhc1-card-detect", data);
+	return request_irq(gpio_to_irq(IMX_GPIO_NR(5, 21)), detect_irq,
+			   IRQF_TRIGGER_RISING, "sdhc1-card-detect", data);
 }
 
 static int mx27ads_sdhc2_init(struct device *dev, irq_handler_t detect_irq,
 			      void *data)
 {
-	return request_irq(IRQ_GPIOB(7), detect_irq, IRQF_TRIGGER_RISING,
-			   "sdhc2-card-detect", data);
+	return request_irq(gpio_to_irq(IMX_GPIO_NR(2, 7)), detect_irq,
+			   IRQF_TRIGGER_RISING, "sdhc2-card-detect", data);
 }
 
 static void mx27ads_sdhc1_exit(struct device *dev, void *data)
 {
-	free_irq(IRQ_GPIOE(21), data);
+	free_irq(gpio_to_irq(IMX_GPIO_NR(5, 21)), data);
 }
 
 static void mx27ads_sdhc2_exit(struct device *dev, void *data)
 {
-	free_irq(IRQ_GPIOB(7), data);
+	free_irq(gpio_to_irq(IMX_GPIO_NR(2, 7)), data);
 }
 
 static const struct imxmmc_platform_data sdhc1_pdata __initconst = {

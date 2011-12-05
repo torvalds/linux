@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/physmap.h>
 #include <linux/dm9000.h>
+#include <linux/gpio.h>
 #include <linux/i2c.h>
 
 #include <asm/mach-types.h>
@@ -87,8 +88,7 @@ static struct resource dm9000_resources[] = {
 		.end    = MX1_CS4_PHYS + 0x00C00003,
 		.flags  = IORESOURCE_MEM,
 	}, {
-		.start  = IRQ_GPIOB(14),
-		.end    = IRQ_GPIOB(14),
+		/* irq number is run-time assigned */
 		.flags  = IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
 	},
 };
@@ -129,6 +129,8 @@ static void __init apf9328_init(void)
 
 	imx1_add_imx_i2c(&apf9328_i2c_data);
 
+	dm9000_resources[2].start = gpio_to_irq(IMX_GPIO_NR(2, 14));
+	dm9000_resources[2].end = gpio_to_irq(IMX_GPIO_NR(2, 14));
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 

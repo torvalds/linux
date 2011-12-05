@@ -245,7 +245,7 @@ static int pca100_sdhc2_init(struct device *dev, irq_handler_t detect_irq,
 {
 	int ret;
 
-	ret = request_irq(IRQ_GPIOC(29), detect_irq,
+	ret = request_irq(gpio_to_irq(IMX_GPIO_NR(3, 29)), detect_irq,
 			  IRQF_DISABLED | IRQF_TRIGGER_FALLING,
 			  "imx-mmc-detect", data);
 	if (ret)
@@ -257,7 +257,7 @@ static int pca100_sdhc2_init(struct device *dev, irq_handler_t detect_irq,
 
 static void pca100_sdhc2_exit(struct device *dev, void *data)
 {
-	free_irq(IRQ_GPIOC(29), data);
+	free_irq(gpio_to_irq(IMX_GPIO_NR(3, 29)), data);
 }
 
 static const struct imxmmc_platform_data sdhc_pdata __initconst = {

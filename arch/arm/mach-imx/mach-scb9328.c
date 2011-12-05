@@ -14,6 +14,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/interrupt.h>
 #include <linux/dm9000.h>
+#include <linux/gpio.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -78,8 +79,7 @@ static struct resource dm9000x_resources[] = {
 		.end	= MX1_CS5_PHYS + 5,
 		.flags	= IORESOURCE_MEM,	/* data access */
 	}, {
-		.start	= IRQ_GPIOC(3),
-		.end	= IRQ_GPIOC(3),
+		/* irq number is run-time assigned */
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
 	},
 };
@@ -123,6 +123,8 @@ static void __init scb9328_init(void)
 	imx1_add_imx_uart0(&uart_pdata);
 
 	printk(KERN_INFO"Scb9328: Adding devices\n");
+	dm9000x_resources[2].start = gpio_to_irq(IMX_GPIO_NR(3, 3));
+	dm9000x_resources[2].end = gpio_to_irq(IMX_GPIO_NR(3, 3));
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
