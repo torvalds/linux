@@ -27,16 +27,10 @@
 #include <linux/mtd/map.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
-#include <linux/vmalloc.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
-#include <asm/mach-bcm63xx/bcm963xx_tag.h>
-
 #define BCM63XX_BUSWIDTH	2		/* Buswidth */
-#define BCM63XX_EXTENDED_SIZE	0xBFC00000	/* Extended flash address */
-
-static struct mtd_partition *parsed_parts;
 
 static struct mtd_info *bcm963xx_mtd_info;
 
@@ -45,134 +39,11 @@ static struct map_info bcm963xx_map = {
 	.bankwidth	= BCM63XX_BUSWIDTH,
 };
 
-static int parse_cfe_partitions(struct mtd_info *master,
-						struct mtd_partition **pparts)
-{
-	/* CFE, NVRAM and global Linux are always present */
-	int nrparts = 3, curpart = 0;
-	struct bcm_tag *buf;
-	struct mtd_partition *parts;
-	int ret;
-	size_t retlen;
-	unsigned int rootfsaddr, kerneladdr, spareaddr;
-	unsigned int rootfslen, kernellen, sparelen, totallen;
-	int namelen = 0;
-	int i;
-	char *boardid;
-	char *tagversion;
-
-	/* Allocate memory for buffer */
-	buf = vmalloc(sizeof(struct bcm_tag));
-	if (!buf)
-		return -ENOMEM;
-
-	/* Get the tag */
-	ret = master->read(master, master->erasesize, sizeof(struct bcm_tag),
-							&retlen, (void *)buf);
-	if (retlen != sizeof(struct bcm_tag)) {
-		vfree(buf);
-		return -EIO;
-	}
-
-	sscanf(buf->kernel_address, "%u", &kerneladdr);
-	sscanf(buf->kernel_length, "%u", &kernellen);
-	sscanf(buf->total_length, "%u", &totallen);
-	tagversion = &(buf->tag_version[0]);
-	boardid = &(buf->board_id[0]);
-
-	pr_info("CFE boot tag found with version %s and board type %s\n",
-		tagversion, boardid);
-
-	kerneladdr = kerneladdr - BCM63XX_EXTENDED_SIZE;
-	rootfsaddr = kerneladdr + kernellen;
-	spareaddr = roundup(totallen, master->erasesize) + master->erasesize;
-	sparelen = master->size - spareaddr - master->erasesize;
-	rootfslen = spareaddr - rootfsaddr;
-
-	/* Determine number of partitions */
-	namelen = 8;
-	if (rootfslen > 0) {
-		nrparts++;
-		namelen += 6;
-	}
-	if (kernellen > 0) {
-		nrparts++;
-		namelen += 6;
-	}
-
-	/* Ask kernel for more memory */
-	parts = kzalloc(sizeof(*parts) * nrparts + 10 * nrparts, GFP_KERNEL);
-	if (!parts) {
-		vfree(buf);
-		return -ENOMEM;
-	}
-
-	/* Start building partition list */
-	parts[curpart].name = "CFE";
-	parts[curpart].offset = 0;
-	parts[curpart].size = master->erasesize;
-	curpart++;
-
-	if (kernellen > 0) {
-		parts[curpart].name = "kernel";
-		parts[curpart].offset = kerneladdr;
-		parts[curpart].size = kernellen;
-		curpart++;
-	}
-
-	if (rootfslen > 0) {
-		parts[curpart].name = "rootfs";
-		parts[curpart].offset = rootfsaddr;
-		parts[curpart].size = rootfslen;
-		if (sparelen > 0)
-			parts[curpart].size += sparelen;
-		curpart++;
-	}
-
-	parts[curpart].name = "nvram";
-	parts[curpart].offset = master->size - master->erasesize;
-	parts[curpart].size = master->erasesize;
-
-	/* Global partition "linux" to make easy firmware upgrade */
-	curpart++;
-	parts[curpart].name = "linux";
-	parts[curpart].offset = parts[0].size;
-	parts[curpart].size = master->size - parts[0].size - parts[3].size;
-
-	for (i = 0; i < nrparts; i++)
-		pr_info("Partition %d is %s offset %lx and length %lx\n", i,
-			parts[i].name, (long unsigned int)(parts[i].offset),
-			(long unsigned int)(parts[i].size));
-
-	pr_info("Spare partition is offset %x and length %x\n",	spareaddr,
-		sparelen);
-
-	*pparts = parts;
-	vfree(buf);
-
-	return nrparts;
-};
-
-static int bcm963xx_detect_cfe(struct mtd_info *master)
-{
-	int idoffset = 0x4e0;
-	static char idstring[8] = "CFE1CFE1";
-	char buf[9];
-	int ret;
-	size_t retlen;
-
-	ret = master->read(master, idoffset, 8, &retlen, (void *)buf);
-	buf[retlen] = 0;
-	printk(KERN_INFO PFX "Read Signature value of %s\n", buf);
-
-	return strncmp(idstring, buf, 8);
-}
+static const char *part_types[] = { "bcm63xxpart", NULL };
 
 static int bcm963xx_probe(struct platform_device *pdev)
 {
 	int err = 0;
-	int parsed_nr_parts = 0;
-	char *part_type;
 	struct resource *r;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -208,26 +79,8 @@ static int bcm963xx_probe(struct platform_device *pdev)
 probe_ok:
 	bcm963xx_mtd_info->owner = THIS_MODULE;
 
-	/* This is mutually exclusive */
-	if (bcm963xx_detect_cfe(bcm963xx_mtd_info) == 0) {
-		dev_info(&pdev->dev, "CFE bootloader detected\n");
-		if (parsed_nr_parts == 0) {
-			int ret = parse_cfe_partitions(bcm963xx_mtd_info,
-							&parsed_parts);
-			if (ret > 0) {
-				part_type = "CFE";
-				parsed_nr_parts = ret;
-			}
-		}
-	} else {
-		dev_info(&pdev->dev, "unsupported bootloader\n");
-		err = -ENODEV;
-		goto err_probe;
-	}
-
-	return mtd_device_register(bcm963xx_mtd_info, parsed_parts,
-				   parsed_nr_parts);
-
+	return mtd_device_parse_register(bcm963xx_mtd_info, part_types, NULL,
+					 NULL, 0);
 err_probe:
 	iounmap(bcm963xx_map.virt);
 	return err;

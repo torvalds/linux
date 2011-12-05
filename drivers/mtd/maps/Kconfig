@@ -247,6 +247,7 @@ config MTD_BCM963XX
         depends on BCM63XX
 	select MTD_MAP_BANK_WIDTH_2
 	select MTD_CFI_I1
+	select MTD_BCM63XX_PARTS
         help
 	  Support for parsing CFE image tag and creating MTD partitions on
 	  Broadcom BCM63xx boards.
