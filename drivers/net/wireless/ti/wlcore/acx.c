@@ -968,10 +968,7 @@ int wl12xx_acx_mem_cfg(struct wl1271 *wl)
 		goto out;
 	}
 
-	if (wl->chip.id == CHIP_ID_1283_PG20)
-		mem = &wl->conf.mem_wl128x;
-	else
-		mem = &wl->conf.mem_wl127x;
+	mem = &wl->conf.mem;
 
 	/* memory config */
 	mem_conf->num_stations = mem->num_stations;

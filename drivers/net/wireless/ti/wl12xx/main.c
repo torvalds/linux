@@ -285,17 +285,12 @@ static struct wlcore_conf wl12xx_conf = {
 		.inactivity_timeout = 10000,
 		.tx_ba_tid_bitmap = CONF_TX_BA_ENABLED_TID_BITMAP,
 	},
-	.mem_wl127x = {
-		.num_stations                 = 1,
-		.ssid_profiles                = 1,
-		.rx_block_num                 = 70,
-		.tx_min_block_num             = 40,
-		.dynamic_memory               = 1,
-		.min_req_tx_blocks            = 100,
-		.min_req_rx_blocks            = 22,
-		.tx_min                       = 27,
-	},
-	.mem_wl128x = {
+	/*
+	 * Memory config for wl127x chips is given in the
+	 * wl12xx_default_priv_conf struct. The below configuration is
+	 * for wl128x chips.
+	 */
+	.mem = {
 		.num_stations                 = 1,
 		.ssid_profiles                = 1,
 		.rx_block_num                 = 40,
@@ -367,6 +362,29 @@ static struct wlcore_conf wl12xx_conf = {
 	},
 };
 
+static struct wl12xx_priv_conf wl12xx_default_priv_conf = {
+	.rf = {
+		.tx_per_channel_power_compensation_2 = {
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		},
+		.tx_per_channel_power_compensation_5 = {
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		},
+	},
+	.mem_wl127x = {
+		.num_stations                 = 1,
+		.ssid_profiles                = 1,
+		.rx_block_num                 = 70,
+		.tx_min_block_num             = 40,
+		.dynamic_memory               = 1,
+		.min_req_tx_blocks            = 100,
+		.min_req_rx_blocks            = 22,
+		.tx_min                       = 27,
+	},
+
+};
 
 #define WL12XX_TX_HW_BLOCK_SPARE_DEFAULT        1
 #define WL12XX_TX_HW_BLOCK_GEM_SPARE            2
@@ -609,6 +627,8 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 		wl->quirks |= WLCORE_QUIRK_LEGACY_NVS;
 		wl->sr_fw_name = WL127X_FW_NAME_SINGLE;
 		wl->mr_fw_name = WL127X_FW_NAME_MULTI;
+		memcpy(&wl->conf.mem, &wl12xx_default_priv_conf.mem_wl127x,
+		       sizeof(wl->conf.mem));
 
 		/* read data preparation is only needed by wl127x */
 		wl->ops->prepare_read = wl127x_prepare_read;
@@ -626,6 +646,8 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 		wl->plt_fw_name = WL127X_PLT_FW_NAME;
 		wl->sr_fw_name = WL127X_FW_NAME_SINGLE;
 		wl->mr_fw_name = WL127X_FW_NAME_MULTI;
+		memcpy(&wl->conf.mem, &wl12xx_default_priv_conf.mem_wl127x,
+		       sizeof(wl->conf.mem));
 
 		/* read data preparation is only needed by wl127x */
 		wl->ops->prepare_read = wl127x_prepare_read;
@@ -1172,8 +1194,13 @@ out:
 
 static void wl12xx_conf_init(struct wl1271 *wl)
 {
+	struct wl12xx_priv *priv = wl->priv;
+
 	/* apply driver default configuration */
 	memcpy(&wl->conf, &wl12xx_conf, sizeof(wl12xx_conf));
+
+	/* apply default private configuration */
+	memcpy(&priv->conf, &wl12xx_default_priv_conf, sizeof(priv->conf));
 }
 
 static bool wl12xx_mac_in_fuse(struct wl1271 *wl)

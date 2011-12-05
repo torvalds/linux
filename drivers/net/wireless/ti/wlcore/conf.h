@@ -1263,8 +1263,7 @@ struct wlcore_conf {
 	struct conf_scan_settings scan;
 	struct conf_sched_scan_settings sched_scan;
 	struct conf_ht_setting ht;
-	struct conf_memory_settings mem_wl127x;
-	struct conf_memory_settings mem_wl128x;
+	struct conf_memory_settings mem;
 	struct conf_fm_coex fm_coex;
 	struct conf_rx_streaming_settings rx_streaming;
 	struct conf_fwlog fwlog;

@@ -44,6 +44,7 @@ struct wl12xx_conf_rf {
 
 struct wl12xx_priv_conf {
 	struct wl12xx_conf_rf rf;
+	struct conf_memory_settings mem_wl127x;
 };
 
 #endif /* __WL12XX_CONF_H__ */
