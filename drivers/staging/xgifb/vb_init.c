@@ -1097,7 +1097,7 @@ static void ReadVBIOSTablData(unsigned char ChipType,
 	unsigned char *vbios = pVBInfo->ROMAddr;
 	unsigned long i;
 	unsigned char j, k;
-	/* Volari customize data area end */
+	struct XGI21_LVDSCapStruct *lvds;
 
 	if (ChipType != XG21)
 		return;
@@ -1110,35 +1110,28 @@ static void ReadVBIOSTablData(unsigned char ChipType,
 	if (j == 0xff)
 		j = 1;
 	k = 0;
+	lvds = &pVBInfo->XG21_LVDSCapList[0];
 	do {
-		pVBInfo->XG21_LVDSCapList[k].LVDS_Capability
-				= vbios[i] | (vbios[i + 1] << 8);
-		pVBInfo->XG21_LVDSCapList[k].LVDSHT
-				= vbios[i + 2] | (vbios[i + 3] << 8);
-		pVBInfo->XG21_LVDSCapList[k].LVDSVT
-				= vbios[i + 4] | (vbios[i + 5] << 8);
-		pVBInfo->XG21_LVDSCapList[k].LVDSHDE
-				= vbios[i + 6] | (vbios[i + 7] << 8);
-		pVBInfo->XG21_LVDSCapList[k].LVDSVDE
-				= vbios[i + 8] | (vbios[i + 9] << 8);
-		pVBInfo->XG21_LVDSCapList[k].LVDSHFP
-				= vbios[i + 10] | (vbios[i + 11] << 8);
-		pVBInfo->XG21_LVDSCapList[k].LVDSVFP
-				= vbios[i + 12] | (vbios[i + 13] << 8);
-		pVBInfo->XG21_LVDSCapList[k].LVDSHSYNC
-				= vbios[i + 14] | (vbios[i + 15] << 8);
-		pVBInfo->XG21_LVDSCapList[k].LVDSVSYNC
-				= vbios[i + 16] | (vbios[i + 17] << 8);
-		pVBInfo->XG21_LVDSCapList[k].VCLKData1 = vbios[i + 18];
-		pVBInfo->XG21_LVDSCapList[k].VCLKData2 = vbios[i + 19];
-		pVBInfo->XG21_LVDSCapList[k].PSC_S1 = vbios[i + 20];
-		pVBInfo->XG21_LVDSCapList[k].PSC_S2 = vbios[i + 21];
-		pVBInfo->XG21_LVDSCapList[k].PSC_S3 = vbios[i + 22];
-		pVBInfo->XG21_LVDSCapList[k].PSC_S4 = vbios[i + 23];
-		pVBInfo->XG21_LVDSCapList[k].PSC_S5 = vbios[i + 24];
+		lvds->LVDS_Capability	= vbios[i]	| (vbios[i + 1] << 8);
+		lvds->LVDSHT		= vbios[i + 2]	| (vbios[i + 3] << 8);
+		lvds->LVDSVT		= vbios[i + 4]	| (vbios[i + 5] << 8);
+		lvds->LVDSHDE		= vbios[i + 6]	| (vbios[i + 7] << 8);
+		lvds->LVDSVDE		= vbios[i + 8]	| (vbios[i + 9] << 8);
+		lvds->LVDSHFP		= vbios[i + 10]	| (vbios[i + 11] << 8);
+		lvds->LVDSVFP		= vbios[i + 12]	| (vbios[i + 13] << 8);
+		lvds->LVDSHSYNC		= vbios[i + 14]	| (vbios[i + 15] << 8);
+		lvds->LVDSVSYNC		= vbios[i + 16]	| (vbios[i + 17] << 8);
+		lvds->VCLKData1		= vbios[i + 18];
+		lvds->VCLKData2		= vbios[i + 19];
+		lvds->PSC_S1		= vbios[i + 20];
+		lvds->PSC_S2		= vbios[i + 21];
+		lvds->PSC_S3		= vbios[i + 22];
+		lvds->PSC_S4		= vbios[i + 23];
+		lvds->PSC_S5		= vbios[i + 24];
 		i += 25;
 		j--;
 		k++;
+		lvds++;
 	} while (j > 0 && k < ARRAY_SIZE(XGI21_LCDCapList));
 }
 
