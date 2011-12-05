@@ -385,7 +385,7 @@ struct iio_buffer *iio_sw_rb_allocate(struct iio_dev *indio_dev)
 		return NULL;
 	ring->update_needed = true;
 	buf = &ring->buf;
-	iio_buffer_init(buf, indio_dev);
+	iio_buffer_init(buf);
 	__iio_init_sw_ring_buffer(ring);
 	buf->attrs = &iio_ring_attribute_group;
 

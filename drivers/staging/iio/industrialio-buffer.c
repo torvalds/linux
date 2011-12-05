@@ -85,10 +85,9 @@ void iio_chrdev_buffer_release(struct iio_dev *indio_dev)
 		rb->access->unmark_in_use(rb);
 }
 
-void iio_buffer_init(struct iio_buffer *buffer, struct iio_dev *indio_dev)
+void iio_buffer_init(struct iio_buffer *buffer)
 {
 	INIT_LIST_HEAD(&buffer->demux_list);
-	buffer->indio_dev = indio_dev;
 	init_waitqueue_head(&buffer->pollq);
 }
 EXPORT_SYMBOL(iio_buffer_init);
@@ -158,7 +157,7 @@ static ssize_t iio_scan_el_store(struct device *dev,
 		ret = -EBUSY;
 		goto error_ret;
 	}
-	ret = iio_scan_mask_query(buffer, this_attr->address);
+	ret = iio_scan_mask_query(indio_dev, buffer, this_attr->address);
 	if (ret < 0)
 		goto error_ret;
 	if (!state && ret) {
@@ -166,7 +165,7 @@ static ssize_t iio_scan_el_store(struct device *dev,
 		if (ret)
 			goto error_ret;
 	} else if (state && !ret) {
-		ret = iio_scan_mask_set(buffer, this_attr->address);
+		ret = iio_scan_mask_set(indio_dev, buffer, this_attr->address);
 		if (ret)
 			goto error_ret;
 	}
@@ -578,9 +577,9 @@ EXPORT_SYMBOL(iio_sw_buffer_preenable);
  * @buffer: the buffer whose scan mask we are interested in
  * @bit: the bit to be set.
  **/
-int iio_scan_mask_set(struct iio_buffer *buffer, int bit)
+int iio_scan_mask_set(struct iio_dev *indio_dev,
+		      struct iio_buffer *buffer, int bit)
 {
-	struct iio_dev *indio_dev = buffer->indio_dev;
 	unsigned long *mask;
 	unsigned long *trialmask;
 
@@ -615,9 +614,9 @@ int iio_scan_mask_set(struct iio_buffer *buffer, int bit)
 };
 EXPORT_SYMBOL_GPL(iio_scan_mask_set);
 
-int iio_scan_mask_query(struct iio_buffer *buffer, int bit)
+int iio_scan_mask_query(struct iio_dev *indio_dev,
+			struct iio_buffer *buffer, int bit)
 {
-	struct iio_dev *indio_dev = buffer->indio_dev;
 	long *mask;
 
 	if (bit > indio_dev->masklength)

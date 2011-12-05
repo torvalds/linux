@@ -96,7 +96,7 @@ struct iio_buffer *iio_kfifo_allocate(struct iio_dev *indio_dev)
 	if (!kf)
 		return NULL;
 	kf->update_needed = true;
-	iio_buffer_init(&kf->buffer, indio_dev);
+	iio_buffer_init(&kf->buffer);
 	kf->buffer.attrs = &iio_kfifo_attribute_group;
 	__iio_init_kfifo(kf);
 

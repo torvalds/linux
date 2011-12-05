@@ -736,8 +736,8 @@ static int __devinit ad5933_probe(struct i2c_client *client,
 		goto error_unreg_ring;
 
 	/* enable both REAL and IMAG channels by default */
-	iio_scan_mask_set(indio_dev->buffer, 0);
-	iio_scan_mask_set(indio_dev->buffer, 1);
+	iio_scan_mask_set(indio_dev, indio_dev->buffer, 0);
+	iio_scan_mask_set(indio_dev, indio_dev->buffer, 1);
 
 	ret = ad5933_setup(st);
 	if (ret)

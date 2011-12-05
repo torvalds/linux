@@ -1166,9 +1166,9 @@ static int __devinit sca3000_probe(struct spi_device *spi)
 	if (ret < 0)
 		goto error_unregister_dev;
 	if (indio_dev->buffer) {
-		iio_scan_mask_set(indio_dev->buffer, 0);
-		iio_scan_mask_set(indio_dev->buffer, 1);
-		iio_scan_mask_set(indio_dev->buffer, 2);
+		iio_scan_mask_set(indio_dev, indio_dev->buffer, 0);
+		iio_scan_mask_set(indio_dev, indio_dev->buffer, 1);
+		iio_scan_mask_set(indio_dev, indio_dev->buffer, 2);
 	}
 
 	if (spi->irq) {

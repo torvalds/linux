@@ -632,11 +632,16 @@ static int __devinit adis16260_probe(struct spi_device *spi)
 	}
 	if (indio_dev->buffer) {
 		/* Set default scan mode */
-		iio_scan_mask_set(indio_dev->buffer, ADIS16260_SCAN_SUPPLY);
-		iio_scan_mask_set(indio_dev->buffer, ADIS16260_SCAN_GYRO);
-		iio_scan_mask_set(indio_dev->buffer, ADIS16260_SCAN_AUX_ADC);
-		iio_scan_mask_set(indio_dev->buffer, ADIS16260_SCAN_TEMP);
-		iio_scan_mask_set(indio_dev->buffer, ADIS16260_SCAN_ANGL);
+		iio_scan_mask_set(indio_dev, indio_dev->buffer,
+				  ADIS16260_SCAN_SUPPLY);
+		iio_scan_mask_set(indio_dev, indio_dev->buffer,
+				  ADIS16260_SCAN_GYRO);
+		iio_scan_mask_set(indio_dev, indio_dev->buffer,
+				  ADIS16260_SCAN_AUX_ADC);
+		iio_scan_mask_set(indio_dev, indio_dev->buffer,
+				  ADIS16260_SCAN_TEMP);
+		iio_scan_mask_set(indio_dev, indio_dev->buffer,
+				  ADIS16260_SCAN_ANGL);
 	}
 	if (spi->irq) {
 		ret = adis16260_probe_trigger(indio_dev);

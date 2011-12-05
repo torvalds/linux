@@ -65,7 +65,6 @@ struct iio_buffer_access_funcs {
 
 /**
  * struct iio_buffer - general buffer structure
- * @indio_dev:		industrial I/O device structure
  * @length:		[DEVICE] number of datums in buffer
  * @bytes_per_datum:	[DEVICE] size of individual datum including timestamp
  * @scan_el_attrs:	[DRIVER] control of scan elements if that scan mode
@@ -79,7 +78,6 @@ struct iio_buffer_access_funcs {
  * @demux_bounce:	[INTERN] buffer for doing gather from incoming scan.
  **/
 struct iio_buffer {
-	struct iio_dev				*indio_dev;
 	int					length;
 	int					bytes_per_datum;
 	struct attribute_group			*scan_el_attrs;
@@ -100,10 +98,8 @@ struct iio_buffer {
 /**
  * iio_buffer_init() - Initialize the buffer structure
  * @buffer: buffer to be initialized
- * @indio_dev: the iio device the buffer is assocated with
  **/
-void iio_buffer_init(struct iio_buffer *buffer,
-			  struct iio_dev *indio_dev);
+void iio_buffer_init(struct iio_buffer *buffer);
 
 void iio_buffer_deinit(struct iio_buffer *buffer);
 
@@ -120,14 +116,16 @@ static inline void __iio_update_buffer(struct iio_buffer *buffer,
 	buffer->length = length;
 }
 
-int iio_scan_mask_query(struct iio_buffer *buffer, int bit);
+int iio_scan_mask_query(struct iio_dev *indio_dev,
+			struct iio_buffer *buffer, int bit);
 
 /**
  * iio_scan_mask_set() - set particular bit in the scan mask
  * @buffer: the buffer whose scan mask we are interested in
  * @bit: the bit to be set.
  **/
-int iio_scan_mask_set(struct iio_buffer *buffer, int bit);
+int iio_scan_mask_set(struct iio_dev *indio_dev,
+		      struct iio_buffer *buffer, int bit);
 
 /**
  * iio_push_to_buffer() - push to a registered buffer.

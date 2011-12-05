@@ -157,8 +157,7 @@ static ssize_t sca3000_query_ring_int(struct device *dev,
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int ret, val;
-	struct iio_buffer *ring = dev_get_drvdata(dev);
-	struct iio_dev *indio_dev = ring->indio_dev;
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct sca3000_state *st = iio_priv(indio_dev);
 
 	mutex_lock(&st->lock);
@@ -179,8 +178,7 @@ static ssize_t sca3000_set_ring_int(struct device *dev,
 				      const char *buf,
 				      size_t len)
 {
-	struct iio_buffer *ring = dev_get_drvdata(dev);
-	struct iio_dev *indio_dev = ring->indio_dev;
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct sca3000_state *st = iio_priv(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	long val;
@@ -221,8 +219,7 @@ static ssize_t sca3000_show_buffer_scale(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	struct iio_buffer *ring = dev_get_drvdata(dev);
-	struct iio_dev *indio_dev = ring->indio_dev;
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct sca3000_state *st = iio_priv(indio_dev);
 
 	return sprintf(buf, "0.%06d\n", 4*st->info->scale);
@@ -267,7 +264,7 @@ static struct iio_buffer *sca3000_rb_allocate(struct iio_dev *indio_dev)
 	buf = &ring->buf;
 	buf->stufftoread = 0;
 	buf->attrs = &sca3000_ring_attr;
-	iio_buffer_init(buf, indio_dev);
+	iio_buffer_init(buf);
 
 	return buf;
 }
