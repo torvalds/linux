@@ -1093,13 +1093,12 @@ static void XGINew_SetDRAMSize_340(struct xgi_hw_device_info *HwDeviceExtension,
 	xgifb_reg_set(pVBInfo->P3c4, 0x21, (unsigned short) (data | 0x20));
 }
 
-static u8 *xgifb_copy_rom(struct pci_dev *dev)
+static u8 *xgifb_copy_rom(struct pci_dev *dev, size_t *rom_size)
 {
 	void __iomem *rom_address;
 	u8 *rom_copy;
-	size_t rom_size;
 
-	rom_address = pci_map_rom(dev, &rom_size);
+	rom_address = pci_map_rom(dev, rom_size);
 	if (rom_address == NULL)
 		return NULL;
 
@@ -1107,8 +1106,8 @@ static u8 *xgifb_copy_rom(struct pci_dev *dev)
 	if (rom_copy == NULL)
 		goto done;
 
-	rom_size = min_t(size_t, rom_size, XGIFB_ROM_SIZE);
-	memcpy_fromio(rom_copy, rom_address, rom_size);
+	*rom_size = min_t(size_t, *rom_size, XGIFB_ROM_SIZE);
+	memcpy_fromio(rom_copy, rom_address, *rom_size);
 
 done:
 	pci_unmap_rom(dev, rom_address);
@@ -1123,27 +1122,37 @@ static void ReadVBIOSTablData(struct pci_dev *pdev,
 	unsigned long i;
 	unsigned char j, k;
 	struct XGI21_LVDSCapStruct *lvds;
+	size_t vbios_size;
 
 	if (xgifb_info->chip != XG21)
 		return;
 	pVBInfo->IF_DEF_LVDS = 0;
-	vbios = xgifb_copy_rom(pdev);
+	vbios = xgifb_copy_rom(pdev, &vbios_size);
 	if (vbios == NULL) {
 		dev_err(&pdev->dev, "video BIOS not available\n");
 		return;
 	}
+	if (vbios_size <= 0x65)
+		goto error;
 	if (!(vbios[0x65] & 0x1)) {
 		vfree(vbios);
 		return;
 	}
-	pVBInfo->IF_DEF_LVDS = 1;
+	if (vbios_size <= 0x317)
+		goto error;
 	i = vbios[0x316] | (vbios[0x317] << 8);
+	if (vbios_size <= i - 1)
+		goto error;
 	j = vbios[i - 1];
+	if (j == 0)
+		goto error;
 	if (j == 0xff)
 		j = 1;
 	k = 0;
 	lvds = &pVBInfo->XG21_LVDSCapList[0];
 	do {
+		if (vbios_size <= i + 24)
+			goto error;
 		lvds->LVDS_Capability	= vbios[i]	| (vbios[i + 1] << 8);
 		lvds->LVDSHT		= vbios[i + 2]	| (vbios[i + 3] << 8);
 		lvds->LVDSVT		= vbios[i + 4]	| (vbios[i + 5] << 8);
@@ -1165,6 +1174,11 @@ static void ReadVBIOSTablData(struct pci_dev *pdev,
 		k++;
 		lvds++;
 	} while (j > 0 && k < ARRAY_SIZE(XGI21_LCDCapList));
+	vfree(vbios);
+	pVBInfo->IF_DEF_LVDS = 1;
+	return;
+error:
+	dev_err(&pdev->dev, "video BIOS corrupted\n");
 	vfree(vbios);
 }
 
