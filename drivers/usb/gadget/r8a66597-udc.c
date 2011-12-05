@@ -1746,7 +1746,7 @@ static int r8a66597_start(struct usb_gadget *gadget,
 	struct r8a66597 *r8a66597 = gadget_to_r8a66597(gadget);
 
 	if (!driver
-			|| driver->speed != USB_SPEED_HIGH
+			|| driver->speed < USB_SPEED_HIGH
 			|| !driver->setup)
 		return -EINVAL;
 	if (!r8a66597)
