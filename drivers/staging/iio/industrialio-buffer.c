@@ -313,6 +313,9 @@ int iio_buffer_register(struct iio_dev *indio_dev,
 			if (ret < 0)
 				goto error_cleanup_dynamic;
 			attrcount += ret;
+			if (channels[i].type == IIO_TIMESTAMP)
+				buffer->scan_index_timestamp =
+					channels[i].scan_index;
 		}
 		if (indio_dev->masklength && buffer->scan_mask == NULL) {
 			buffer->scan_mask = kcalloc(BITS_TO_LONGS(indio_dev->masklength),

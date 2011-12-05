@@ -106,6 +106,7 @@ struct iio_buffer {
 	int					scan_count;
 	long					*scan_mask;
 	bool					scan_timestamp;
+	unsigned				scan_index_timestamp;
 	const struct iio_buffer_access_funcs	*access;
 	const struct iio_buffer_setup_ops		*setup_ops;
 	struct list_head			scan_el_dev_attr_list;
