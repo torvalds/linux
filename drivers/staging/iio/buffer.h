@@ -21,7 +21,6 @@ struct iio_buffer;
  * @mark_in_use:	reference counting, typically to prevent module removal
  * @unmark_in_use:	reduce reference count when no longer using buffer
  * @store_to:		actually store stuff to the buffer
- * @read_last:		get the last element stored
  * @read_first_n:	try to get a specified number of elements (must exist)
  * @mark_param_change:	notify buffer that some relevant parameter has changed
  *			Often this means the underlying storage may need to
@@ -48,7 +47,6 @@ struct iio_buffer_access_funcs {
 	void (*unmark_in_use)(struct iio_buffer *buffer);
 
 	int (*store_to)(struct iio_buffer *buffer, u8 *data, s64 timestamp);
-	int (*read_last)(struct iio_buffer *buffer, u8 *data);
 	int (*read_first_n)(struct iio_buffer *buffer,
 			    size_t n,
 			    char __user *buf);
