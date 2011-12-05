@@ -830,6 +830,34 @@ static int late_disable_ev(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int wm8994_PA_event(struct snd_soc_dapm_widget *w,
+			  struct snd_kcontrol *control, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+	struct wm8994_pdata *pdata = wm8994->pdata;
+	DBG("Enter %s::%s---%d\n",__FILE__,__FUNCTION__,__LINE__);
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		DBG("PA enable\n");
+		gpio_set_value(pdata->PA_control_pin,GPIO_HIGH);	
+		break;
+
+	case SND_SOC_DAPM_PRE_PMD:
+		DBG("PA disable\n");
+		gpio_set_value(pdata->PA_control_pin,GPIO_LOW);
+	//	msleep(50);
+		break;
+
+	default:
+		BUG();
+		break;
+	}
+
+	return 0;
+}
+
 static int aif1clk_ev(struct snd_soc_dapm_widget *w,
 		      struct snd_kcontrol *kcontrol, int event)
 {
@@ -1562,6 +1590,24 @@ static const struct snd_soc_dapm_route wm8958_intercon[] = {
 
 	{ "AIF3ADC Mux", "Mono PCM", "Mono PCM Out Mux" },
 };
+
+static const struct snd_soc_dapm_route wm8998_PA_intercon[] = {
+
+	{ "PA Driver", NULL,"SPKL Driver"},
+	{ "PA Driver", NULL,"SPKR Driver"},	
+	
+	{ "SPKOUTLP", NULL, "PA Driver" },
+	{ "SPKOUTLN", NULL, "PA Driver" },
+	{ "SPKOUTRP", NULL, "PA Driver" },
+	{ "SPKOUTRN", NULL, "PA Driver" },	
+};
+
+static const struct snd_soc_dapm_widget wm8998_PA_dapm_widgets[] = {
+SND_SOC_DAPM_PGA_E("PA Driver", SND_SOC_NOPM, 0, 0,  NULL, 0, wm8994_PA_event,
+		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+
+};
+
 
 /* The size in bits of the FLL divide multiplied by 10
  * to allow rounding later */
@@ -2670,7 +2716,7 @@ static void wm8994_handle_pdata(struct wm8994_priv *wm8994)
 	else
 		snd_soc_add_controls(wm8994->codec, wm8994_eq_controls,
 				     ARRAY_SIZE(wm8994_eq_controls));
-
+	
 	for (i = 0; i < ARRAY_SIZE(pdata->micbias); i++) {
 		if (pdata->micbias[i]) {
 			snd_soc_write(codec, WM8958_MICBIAS1 + i,
@@ -2887,6 +2933,7 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 {
 	struct wm8994 *control;
 	struct wm8994_priv *wm8994;
+	struct wm8994_pdata *pdata;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret, i;
 	
@@ -2903,6 +2950,7 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 	snd_soc_codec_set_drvdata(codec, wm8994);
 
 	wm8994->pdata = dev_get_platdata(codec->dev->parent);
+	pdata = wm8994->pdata;
 	wm8994->codec = codec;
 	wm8994_codec = codec;
 	
@@ -3097,7 +3145,7 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 	wm8994_update_class_w(codec);
 
 	wm8994_handle_pdata(wm8994);
-
+	
 	wm_hubs_add_analogue_controls(codec);
 	snd_soc_add_controls(codec, wm8994_snd_controls,
 			     ARRAY_SIZE(wm8994_snd_controls));
@@ -3182,7 +3230,20 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 		wm8958_dsp2_init(codec);
 		break;
 	}
-
+	
+	if(pdata ->PA_control_pin)
+	{
+		dev_info(codec->dev,"Add the PA control route\n");
+		snd_soc_dapm_new_controls(dapm, wm8998_PA_dapm_widgets,
+				  ARRAY_SIZE(wm8998_PA_dapm_widgets));	
+		snd_soc_dapm_add_routes(dapm, wm8998_PA_intercon, 
+				ARRAY_SIZE(wm8998_PA_intercon));
+		gpio_request(pdata->PA_control_pin, "wm8994_PA_ctrl");				
+		gpio_direction_output(pdata->PA_control_pin,GPIO_LOW);
+	}
+	else
+		dev_warn(codec->dev, "have not pa control\n");
+	
 	return 0;
 
 err_irq:
@@ -3200,7 +3261,8 @@ static int  wm8994_codec_remove(struct snd_soc_codec *codec)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	struct wm8994 *control = codec->control_data;
-
+	struct wm8994_pdata *pdata = wm8994->pdata;
+	
 	wm8994_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	pm_runtime_disable(codec->dev);
@@ -3228,6 +3290,8 @@ static int  wm8994_codec_remove(struct snd_soc_codec *codec)
 		release_firmware(wm8994->mbc_vss);
 	if (wm8994->enh_eq)
 		release_firmware(wm8994->enh_eq);
+	if (gpio_is_valid(pdata->PA_control_pin))
+		gpio_free(pdata->PA_control_pin);
 	kfree(wm8994->retune_mobile_texts);
 	kfree(wm8994->drc_texts);
 	kfree(wm8994);

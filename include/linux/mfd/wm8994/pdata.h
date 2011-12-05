@@ -123,7 +123,10 @@ struct wm8994_pdata {
 	int gpio_defaults[WM8994_NUM_GPIO];
 
 	struct wm8994_ldo_pdata ldo[WM8994_NUM_LDO];
-
+	//wm8994 LDO1_ENA and LDO2_ENA
+	char	PowerEN_iomux_name[50];
+	int		PowerEN_iomux_mode;	
+	
 	int irq_base;  /** Base IRQ number for WM8994, required for IRQs */
 
         int num_drc_cfgs;
@@ -167,6 +170,10 @@ struct wm8994_pdata {
 
 	/* WM8958 microphone bias configuration */
 	int micbias[2];
+
+	//If an external amplifier speakers wm8994		enable>0 disable=0
+	unsigned int PA_control_pin;
+	
 };
 
 #endif

@@ -1738,7 +1738,7 @@ static struct wm8994_pdata wm8994_platform_data = {
 //	.BB_input_diff = 0,
 //	.BB_class = NO_PCM_BB,
 
-//	.PA_control_pin = RK29_PIN6_PD3,
+	.PA_control_pin = RK29_PIN6_PD3,
 };
 #endif 
 #ifdef CONFIG_RK_HEADSET_DET
