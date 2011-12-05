@@ -924,10 +924,6 @@ static int dice_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 	dice->unit = unit;
 	init_waitqueue_head(&dice->hwdep_wait);
 
-	err = dice_read_params(dice);
-	if (err < 0)
-		goto err_mutex;
-
 	dice->notification_handler.length = 4;
 	dice->notification_handler.address_callback = dice_notification;
 	dice->notification_handler.callback_data = dice;
@@ -936,19 +932,23 @@ static int dice_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 	if (err < 0)
 		goto err_mutex;
 
-	err = fw_iso_resources_init(&dice->resources, unit);
+	err = dice_owner_set(dice);
 	if (err < 0)
 		goto err_notification_handler;
+
+	err = dice_read_params(dice);
+	if (err < 0)
+		goto err_owner;
+
+	err = fw_iso_resources_init(&dice->resources, unit);
+	if (err < 0)
+		goto err_owner;
 	dice->resources.channels_mask = 0x00000000ffffffffuLL;
 
 	err = amdtp_out_stream_init(&dice->stream, unit,
 				    CIP_BLOCKING | CIP_HI_DUALWIRE);
 	if (err < 0)
 		goto err_resources;
-
-	err = dice_owner_set(dice);
-	if (err < 0)
-		goto err_stream;
 
 	card->private_free = dice_card_free;
 
@@ -983,10 +983,10 @@ static int dice_probe(struct fw_unit *unit, const struct ieee1394_device_id *id)
 
 	return 0;
 
-err_stream:
-	amdtp_out_stream_destroy(&dice->stream);
 err_resources:
 	fw_iso_resources_destroy(&dice->resources);
+err_owner:
+	dice_owner_clear(dice);
 err_notification_handler:
 	fw_core_remove_address_handler(&dice->notification_handler);
 err_mutex:
