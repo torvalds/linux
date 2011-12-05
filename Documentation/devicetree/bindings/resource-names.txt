@@ -32,6 +32,8 @@ l4-abe {
 		      <1 0x10 0x10>, <1 0x20 0x10>;
 		reg-names = "mpu", "dat",
 			    "dma", "dma_dat";
+		interrupts = <11>, <12>;
+		interrupt-names = "rx", "tx";
 	};
 
 	timer {
@@ -47,4 +49,6 @@ usb {
 	reg = <0x4a064000 0x800>, <0x4a064800 0x200>,
 	      <0x4a064c00 0x200>;
 	reg-names = "config", "ohci", "ehci";
+	interrupts = <14>, <15>;
+	interrupt-names = "ohci", "ehci";
 };
