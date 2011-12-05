@@ -146,28 +146,20 @@ static int __init e740_init(void)
 	if (!machine_is_e740())
 		return -ENODEV;
 
-	ret = gpio_request(GPIO_E740_MIC_ON,  "Mic amp");
+	/* Disable audio */
+	ret = gpio_request_one(GPIO_E740_MIC_ON, GPIOF_OUT_INIT_LOW, "Mic amp");
 	if (ret)
 		return ret;
 
-	ret = gpio_request(GPIO_E740_AMP_ON, "Output amp");
+	ret = gpio_request_one(GPIO_E740_AMP_ON, GPIOF_OUT_INIT_LOW,
+			       "Output amp");
 	if (ret)
 		goto free_mic_amp_gpio;
 
-	ret = gpio_request(GPIO_E740_WM9705_nAVDD2, "Audio power");
+	ret = gpio_request_one(GPIO_E740_WM9705_nAVDD2, GPIOF_OUT_INIT_HIGH,
+			   "Audio power");
 	if (ret)
 		goto free_op_amp_gpio;
-
-	/* Disable audio */
-	ret = gpio_direction_output(GPIO_E740_MIC_ON, 0);
-	if (ret)
-		goto free_apwr_gpio;
-	ret = gpio_direction_output(GPIO_E740_AMP_ON, 0);
-	if (ret)
-		goto free_apwr_gpio;
-	ret = gpio_direction_output(GPIO_E740_WM9705_nAVDD2, 1);
-	if (ret)
-		goto free_apwr_gpio;
 
 	e740_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!e740_snd_device) {
