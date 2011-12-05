@@ -257,15 +257,14 @@ int main(int argc, char **argv)
 		insn_init(&insn, insn_buf, x86_64);
 		insn_get_length(&insn);
 
-		if (verbose && !insn_complete(&insn))
-			dump_stream(stdout, "Info: Found an undecodable input", i, insn_buf, &insn);
-
 		if (insn.next_byte <= insn.kaddr ||
 		    insn.kaddr + MAX_INSN_SIZE < insn.next_byte) {
 			/* Access out-of-range memory */
 			dump_stream(stdout, "Error: Found an access violation", i, insn_buf, &insn);
 			errors++;
-		}
+		} else if (verbose && !insn_complete(&insn))
+			dump_stream(stdout, "Info: Found an undecodable input", i, insn_buf, &insn);
+
 		insns++;
 	}
 
