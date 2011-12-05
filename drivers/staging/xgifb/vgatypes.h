@@ -51,8 +51,6 @@ struct xgi_hw_device_info {
 	unsigned long ulExternalChip; /* NO VB or other video bridge*/
 				      /* if ujVBChipID = VB_CHIP_UNKNOWN, */
 
-	unsigned char *pjVirtualRomBase; /* ROM image */
-
 	void __iomem *pjVideoMemoryAddress;/* base virtual memory address */
 					    /* of Linear VGA memory */
 
