@@ -3619,10 +3619,6 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 			}
 			break;
 		case NES_AEQE_AEID_LLP_CLOSE_COMPLETE:
-			if (nesqp->term_flags) {
-				nes_terminate_done(nesqp, 0);
-				return;
-			}
 			spin_lock_irqsave(&nesqp->lock, flags);
 			nesqp->hw_iwarp_state = iwarp_state;
 			nesqp->hw_tcp_state = tcp_state;

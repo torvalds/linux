@@ -2838,6 +2838,7 @@ static int nes_cm_disconn_true(struct nes_qp *nesqp)
 		issue_disconn = 1;
 		issue_close = 1;
 		nesqp->cm_id = NULL;
+		del_timer(&nesqp->terminate_timer);
 		if (nesqp->flush_issued == 0) {
 			nesqp->flush_issued = 1;
 			issue_flush = 1;
