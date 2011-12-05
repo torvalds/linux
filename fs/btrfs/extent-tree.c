@@ -467,13 +467,59 @@ static int cache_block_group(struct btrfs_block_group_cache *cache,
 			     struct btrfs_root *root,
 			     int load_cache_only)
 {
+	DEFINE_WAIT(wait);
 	struct btrfs_fs_info *fs_info = cache->fs_info;
 	struct btrfs_caching_control *caching_ctl;
 	int ret = 0;
 
-	smp_mb();
-	if (cache->cached != BTRFS_CACHE_NO)
+	caching_ctl = kzalloc(sizeof(*caching_ctl), GFP_NOFS);
+	BUG_ON(!caching_ctl);
+
+	INIT_LIST_HEAD(&caching_ctl->list);
+	mutex_init(&caching_ctl->mutex);
+	init_waitqueue_head(&caching_ctl->wait);
+	caching_ctl->block_group = cache;
+	caching_ctl->progress = cache->key.objectid;
+	atomic_set(&caching_ctl->count, 1);
+	caching_ctl->work.func = caching_thread;
+
+	spin_lock(&cache->lock);
+	/*
+	 * This should be a rare occasion, but this could happen I think in the
+	 * case where one thread starts to load the space cache info, and then
+	 * some other thread starts a transaction commit which tries to do an
+	 * allocation while the other thread is still loading the space cache
+	 * info.  The previous loop should have kept us from choosing this block
+	 * group, but if we've moved to the state where we will wait on caching
+	 * block groups we need to first check if we're doing a fast load here,
+	 * so we can wait for it to finish, otherwise we could end up allocating
+	 * from a block group who's cache gets evicted for one reason or
+	 * another.
+	 */
+	while (cache->cached == BTRFS_CACHE_FAST) {
+		struct btrfs_caching_control *ctl;
+
+		ctl = cache->caching_ctl;
+		atomic_inc(&ctl->count);
+		prepare_to_wait(&ctl->wait, &wait, TASK_UNINTERRUPTIBLE);
+		spin_unlock(&cache->lock);
+
+		schedule();
+
+		finish_wait(&ctl->wait, &wait);
+		put_caching_control(ctl);
+		spin_lock(&cache->lock);
+	}
+
+	if (cache->cached != BTRFS_CACHE_NO) {
+		spin_unlock(&cache->lock);
+		kfree(caching_ctl);
 		return 0;
+	}
+	WARN_ON(cache->caching_ctl);
+	cache->caching_ctl = caching_ctl;
+	cache->cached = BTRFS_CACHE_FAST;
+	spin_unlock(&cache->lock);
 
 	/*
 	 * We can't do the read from on-disk cache during a commit since we need
@@ -484,56 +530,51 @@ static int cache_block_group(struct btrfs_block_group_cache *cache,
 	if (trans && (!trans->transaction->in_commit) &&
 	    (root && root != root->fs_info->tree_root) &&
 	    btrfs_test_opt(root, SPACE_CACHE)) {
-		spin_lock(&cache->lock);
-		if (cache->cached != BTRFS_CACHE_NO) {
-			spin_unlock(&cache->lock);
-			return 0;
-		}
-		cache->cached = BTRFS_CACHE_STARTED;
-		spin_unlock(&cache->lock);
-
 		ret = load_free_space_cache(fs_info, cache);
 
 		spin_lock(&cache->lock);
 		if (ret == 1) {
+			cache->caching_ctl = NULL;
 			cache->cached = BTRFS_CACHE_FINISHED;
 			cache->last_byte_to_unpin = (u64)-1;
 		} else {
-			cache->cached = BTRFS_CACHE_NO;
+			if (load_cache_only) {
+				cache->caching_ctl = NULL;
+				cache->cached = BTRFS_CACHE_NO;
+			} else {
+				cache->cached = BTRFS_CACHE_STARTED;
+			}
 		}
 		spin_unlock(&cache->lock);
+		wake_up(&caching_ctl->wait);
 		if (ret == 1) {
+			put_caching_control(caching_ctl);
 			free_excluded_extents(fs_info->extent_root, cache);
 			return 0;
 		}
-	}
-
-	if (load_cache_only)
-		return 0;
-
-	caching_ctl = kzalloc(sizeof(*caching_ctl), GFP_NOFS);
-	BUG_ON(!caching_ctl);
-
-	INIT_LIST_HEAD(&caching_ctl->list);
-	mutex_init(&caching_ctl->mutex);
-	init_waitqueue_head(&caching_ctl->wait);
-	caching_ctl->block_group = cache;
-	caching_ctl->progress = cache->key.objectid;
-	/* one for caching kthread, one for caching block group list */
-	atomic_set(&caching_ctl->count, 2);
-	caching_ctl->work.func = caching_thread;
-
-	spin_lock(&cache->lock);
-	if (cache->cached != BTRFS_CACHE_NO) {
+	} else {
+		/*
+		 * We are not going to do the fast caching, set cached to the
+		 * appropriate value and wakeup any waiters.
+		 */
+		spin_lock(&cache->lock);
+		if (load_cache_only) {
+			cache->caching_ctl = NULL;
+			cache->cached = BTRFS_CACHE_NO;
+		} else {
+			cache->cached = BTRFS_CACHE_STARTED;
+		}
 		spin_unlock(&cache->lock);
-		kfree(caching_ctl);
+		wake_up(&caching_ctl->wait);
+	}
+
+	if (load_cache_only) {
+		put_caching_control(caching_ctl);
 		return 0;
 	}
-	cache->caching_ctl = caching_ctl;
-	cache->cached = BTRFS_CACHE_STARTED;
-	spin_unlock(&cache->lock);
 
 	down_write(&fs_info->extent_commit_sem);
+	atomic_inc(&caching_ctl->count);
 	list_add_tail(&caching_ctl->list, &fs_info->caching_block_groups);
 	up_write(&fs_info->extent_commit_sem);
 
@@ -3847,9 +3888,9 @@ int btrfs_block_rsv_check(struct btrfs_root *root,
 	return ret;
 }
 
-int btrfs_block_rsv_refill(struct btrfs_root *root,
-			  struct btrfs_block_rsv *block_rsv,
-			  u64 min_reserved)
+static inline int __btrfs_block_rsv_refill(struct btrfs_root *root,
+					   struct btrfs_block_rsv *block_rsv,
+					   u64 min_reserved, int flush)
 {
 	u64 num_bytes = 0;
 	int ret = -ENOSPC;
@@ -3868,13 +3909,27 @@ int btrfs_block_rsv_refill(struct btrfs_root *root,
 	if (!ret)
 		return 0;
 
-	ret = reserve_metadata_bytes(root, block_rsv, num_bytes, 1);
+	ret = reserve_metadata_bytes(root, block_rsv, num_bytes, flush);
 	if (!ret) {
 		block_rsv_add_bytes(block_rsv, num_bytes, 0);
 		return 0;
 	}
 
 	return ret;
+}
+
+int btrfs_block_rsv_refill(struct btrfs_root *root,
+			   struct btrfs_block_rsv *block_rsv,
+			   u64 min_reserved)
+{
+	return __btrfs_block_rsv_refill(root, block_rsv, min_reserved, 1);
+}
+
+int btrfs_block_rsv_refill_noflush(struct btrfs_root *root,
+				   struct btrfs_block_rsv *block_rsv,
+				   u64 min_reserved)
+{
+	return __btrfs_block_rsv_refill(root, block_rsv, min_reserved, 0);
 }
 
 int btrfs_block_rsv_migrate(struct btrfs_block_rsv *src_rsv,
@@ -5178,13 +5233,15 @@ search:
 		}
 
 have_block_group:
-		if (unlikely(block_group->cached == BTRFS_CACHE_NO)) {
+		cached = block_group_cache_done(block_group);
+		if (unlikely(!cached)) {
 			u64 free_percent;
 
+			found_uncached_bg = true;
 			ret = cache_block_group(block_group, trans,
 						orig_root, 1);
 			if (block_group->cached == BTRFS_CACHE_FINISHED)
-				goto have_block_group;
+				goto alloc;
 
 			free_percent = btrfs_block_group_used(&block_group->item);
 			free_percent *= 100;
@@ -5206,7 +5263,6 @@ have_block_group:
 							orig_root, 0);
 				BUG_ON(ret);
 			}
-			found_uncached_bg = true;
 
 			/*
 			 * If loop is set for cached only, try the next block
@@ -5216,17 +5272,14 @@ have_block_group:
 				goto loop;
 		}
 
-		cached = block_group_cache_done(block_group);
-		if (unlikely(!cached))
-			found_uncached_bg = true;
-
+alloc:
 		if (unlikely(block_group->ro))
 			goto loop;
 
 		spin_lock(&block_group->free_space_ctl->tree_lock);
 		if (cached &&
 		    block_group->free_space_ctl->free_space <
-		    num_bytes + empty_size) {
+		    num_bytes + empty_cluster + empty_size) {
 			spin_unlock(&block_group->free_space_ctl->tree_lock);
 			goto loop;
 		}
@@ -5247,12 +5300,10 @@ have_block_group:
 			 * people trying to start a new cluster
 			 */
 			spin_lock(&last_ptr->refill_lock);
-			if (last_ptr->block_group &&
-			    (last_ptr->block_group->ro ||
-			    !block_group_bits(last_ptr->block_group, data))) {
-				offset = 0;
+			if (!last_ptr->block_group ||
+			    last_ptr->block_group->ro ||
+			    !block_group_bits(last_ptr->block_group, data))
 				goto refill_cluster;
-			}
 
 			offset = btrfs_alloc_from_cluster(block_group, last_ptr,
 						 num_bytes, search_start);
@@ -5303,7 +5354,7 @@ refill_cluster:
 			/* allocate a cluster in this block group */
 			ret = btrfs_find_space_cluster(trans, root,
 					       block_group, last_ptr,
-					       offset, num_bytes,
+					       search_start, num_bytes,
 					       empty_cluster + empty_size);
 			if (ret == 0) {
 				/*

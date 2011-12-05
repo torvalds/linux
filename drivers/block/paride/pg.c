@@ -630,6 +630,7 @@ static ssize_t pg_read(struct file *filp, char __user *buf, size_t count, loff_t
 		if (dev->status & 0x10)
 			return -ETIME;
 
+	memset(&hdr, 0, sizeof(hdr));
 	hdr.magic = PG_MAGIC;
 	hdr.dlen = dev->dlen;
 	copy = 0;

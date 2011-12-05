@@ -1210,18 +1210,28 @@ static int elantech_reconnect(struct psmouse *psmouse)
  */
 static int elantech_set_properties(struct elantech_data *etd)
 {
+	/* This represents the version of IC body. */
 	int ver = (etd->fw_version & 0x0f0000) >> 16;
 
+	/* Early version of Elan touchpads doesn't obey the rule. */
 	if (etd->fw_version < 0x020030 || etd->fw_version == 0x020600)
 		etd->hw_version = 1;
-	else if (etd->fw_version < 0x150600)
-		etd->hw_version = 2;
-	else if (ver == 5)
-		etd->hw_version = 3;
-	else if (ver == 6)
-		etd->hw_version = 4;
-	else
-		return -1;
+	else {
+		switch (ver) {
+		case 2:
+		case 4:
+			etd->hw_version = 2;
+			break;
+		case 5:
+			etd->hw_version = 3;
+			break;
+		case 6:
+			etd->hw_version = 4;
+			break;
+		default:
+			return -1;
+		}
+	}
 
 	/*
 	 * Turn on packet checking by default.

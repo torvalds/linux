@@ -136,8 +136,6 @@ static void ah_output_done(struct crypto_async_request *base, int err)
 		memcpy(top_iph+1, iph+1, top_iph->ihl*4 - sizeof(struct iphdr));
 	}
 
-	err = ah->nexthdr;
-
 	kfree(AH_SKB_CB(skb)->tmp);
 	xfrm_output_resume(skb, err);
 }
@@ -264,12 +262,12 @@ static void ah_input_done(struct crypto_async_request *base, int err)
 	if (err)
 		goto out;
 
+	err = ah->nexthdr;
+
 	skb->network_header += ah_hlen;
 	memcpy(skb_network_header(skb), work_iph, ihl);
 	__skb_pull(skb, ah_hlen + ihl);
 	skb_set_transport_header(skb, -ihl);
-
-	err = ah->nexthdr;
 out:
 	kfree(AH_SKB_CB(skb)->tmp);
 	xfrm_input_resume(skb, err);
@@ -371,8 +369,6 @@ static int ah_input(struct xfrm_state *x, struct sk_buff *skb)
 		if (err == -EINPROGRESS)
 			goto out;
 
-		if (err == -EBUSY)
-			err = NET_XMIT_DROP;
 		goto out_free;
 	}
 

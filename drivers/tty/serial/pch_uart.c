@@ -1,5 +1,5 @@
 /*
- *Copyright (C) 2010 OKI SEMICONDUCTOR CO., LTD.
+ *Copyright (C) 2011 LAPIS Semiconductor Co., Ltd.
  *
  *This program is free software; you can redistribute it and/or modify
  *it under the terms of the GNU General Public License as published by
@@ -46,8 +46,8 @@ enum {
 
 /* Set the max number of UART port
  * Intel EG20T PCH: 4 port
- * OKI SEMICONDUCTOR ML7213 IOH: 3 port
- * OKI SEMICONDUCTOR ML7223 IOH: 2 port
+ * LAPIS Semiconductor ML7213 IOH: 3 port
+ * LAPIS Semiconductor ML7223 IOH: 2 port
 */
 #define PCH_UART_NR	4
 
@@ -258,6 +258,8 @@ enum pch_uart_num_t {
 	pch_ml7213_uart2,
 	pch_ml7223_uart0,
 	pch_ml7223_uart1,
+	pch_ml7831_uart0,
+	pch_ml7831_uart1,
 };
 
 static struct pch_uart_driver_data drv_dat[] = {
@@ -270,6 +272,8 @@ static struct pch_uart_driver_data drv_dat[] = {
 	[pch_ml7213_uart2] = {PCH_UART_2LINE, 2},
 	[pch_ml7223_uart0] = {PCH_UART_8LINE, 0},
 	[pch_ml7223_uart1] = {PCH_UART_2LINE, 1},
+	[pch_ml7831_uart0] = {PCH_UART_8LINE, 0},
+	[pch_ml7831_uart1] = {PCH_UART_2LINE, 1},
 };
 
 static unsigned int default_baud = 9600;
@@ -628,6 +632,7 @@ static void pch_request_dma(struct uart_port *port)
 		dev_err(priv->port.dev, "%s:dma_request_channel FAILS(Rx)\n",
 			__func__);
 		dma_release_channel(priv->chan_tx);
+		priv->chan_tx = NULL;
 		return;
 	}
 
@@ -1215,8 +1220,7 @@ static void pch_uart_shutdown(struct uart_port *port)
 		dev_err(priv->port.dev,
 			"pch_uart_hal_set_fifo Failed(ret=%d)\n", ret);
 
-	if (priv->use_dma_flag)
-		pch_free_dma(port);
+	pch_free_dma(port);
 
 	free_irq(priv->port.irq, priv);
 }
@@ -1280,6 +1284,7 @@ static void pch_uart_set_termios(struct uart_port *port,
 	if (rtn)
 		goto out;
 
+	pch_uart_set_mctrl(&priv->port, priv->port.mctrl);
 	/* Don't rewrite B0 */
 	if (tty_termios_baud_rate(termios))
 		tty_termios_encode_baud_rate(termios, baud, baud);
@@ -1552,6 +1557,10 @@ static DEFINE_PCI_DEVICE_TABLE(pch_uart_pci_id) = {
 	 .driver_data = pch_ml7223_uart0},
 	{PCI_DEVICE(PCI_VENDOR_ID_ROHM, 0x800D),
 	 .driver_data = pch_ml7223_uart1},
+	{PCI_DEVICE(PCI_VENDOR_ID_ROHM, 0x8811),
+	 .driver_data = pch_ml7831_uart0},
+	{PCI_DEVICE(PCI_VENDOR_ID_ROHM, 0x8812),
+	 .driver_data = pch_ml7831_uart1},
 	{0,},
 };
 

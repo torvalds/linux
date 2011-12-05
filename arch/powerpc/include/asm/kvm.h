@@ -149,12 +149,6 @@ struct kvm_regs {
 #define KVM_SREGS_E_UPDATE_DBSR		(1 << 3)
 
 /*
- * Book3S special bits to indicate contents in the struct by maintaining
- * backwards compatibility with older structs. If adding a new field,
- * please make sure to add a flag for that new field */
-#define KVM_SREGS_S_HIOR		(1 << 0)
-
-/*
  * In KVM_SET_SREGS, reserved/pad fields must be left untouched from a
  * previous KVM_GET_REGS.
  *
@@ -179,8 +173,6 @@ struct kvm_sregs {
 				__u64 ibat[8]; 
 				__u64 dbat[8]; 
 			} ppc32;
-			__u64 flags; /* KVM_SREGS_S_ */
-			__u64 hior;
 		} s;
 		struct {
 			union {

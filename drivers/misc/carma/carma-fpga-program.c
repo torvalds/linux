@@ -945,8 +945,7 @@ static int fpga_of_remove(struct platform_device *op)
 /* CTL-CPLD Version Register */
 #define CTL_CPLD_VERSION	0x2000
 
-static int fpga_of_probe(struct platform_device *op,
-			 const struct of_device_id *match)
+static int fpga_of_probe(struct platform_device *op)
 {
 	struct device_node *of_node = op->dev.of_node;
 	struct device *this_device;
@@ -1107,7 +1106,7 @@ static struct of_device_id fpga_of_match[] = {
 	{},
 };
 
-static struct of_platform_driver fpga_of_driver = {
+static struct platform_driver fpga_of_driver = {
 	.probe		= fpga_of_probe,
 	.remove		= fpga_of_remove,
 	.driver		= {
@@ -1124,12 +1123,12 @@ static struct of_platform_driver fpga_of_driver = {
 static int __init fpga_init(void)
 {
 	led_trigger_register_simple("fpga", &ledtrig_fpga);
-	return of_register_platform_driver(&fpga_of_driver);
+	return platform_driver_register(&fpga_of_driver);
 }
 
 static void __exit fpga_exit(void)
 {
-	of_unregister_platform_driver(&fpga_of_driver);
+	platform_driver_unregister(&fpga_of_driver);
 	led_trigger_unregister_simple(ledtrig_fpga);
 }
 
