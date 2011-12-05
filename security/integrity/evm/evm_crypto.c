@@ -41,6 +41,12 @@ static struct shash_desc *init_desc(void)
 			hmac_tfm = NULL;
 			return ERR_PTR(rc);
 		}
+		rc = crypto_shash_setkey(hmac_tfm, evmkey, evmkey_len);
+		if (rc) {
+			crypto_free_shash(hmac_tfm);
+			hmac_tfm = NULL;
+			return ERR_PTR(rc);
+		}
 	}
 
 	desc = kmalloc(sizeof(*desc) + crypto_shash_descsize(hmac_tfm),
@@ -51,11 +57,7 @@ static struct shash_desc *init_desc(void)
 	desc->tfm = hmac_tfm;
 	desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
-	rc = crypto_shash_setkey(hmac_tfm, evmkey, evmkey_len);
-	if (rc)
-		goto out;
 	rc = crypto_shash_init(desc);
-out:
 	if (rc) {
 		kfree(desc);
 		return ERR_PTR(rc);
