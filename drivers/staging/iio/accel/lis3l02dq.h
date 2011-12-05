@@ -181,11 +181,6 @@ int lis3l02dq_disable_all_events(struct iio_dev *indio_dev);
 void lis3l02dq_remove_trigger(struct iio_dev *indio_dev);
 int lis3l02dq_probe_trigger(struct iio_dev *indio_dev);
 
-ssize_t lis3l02dq_read_accel_from_buffer(struct iio_buffer *buffer,
-				       int index,
-				       int *val);
-
-
 int lis3l02dq_configure_buffer(struct iio_dev *indio_dev);
 void lis3l02dq_unconfigure_buffer(struct iio_dev *indio_dev);
 
@@ -209,13 +204,6 @@ static inline void lis3l02dq_remove_trigger(struct iio_dev *indio_dev)
 {
 }
 static inline int lis3l02dq_probe_trigger(struct iio_dev *indio_dev)
-{
-	return 0;
-}
-static inline ssize_t
-lis3l02dq_read_accel_from_buffer(struct iio_buffer *buffer,
-				 int index,
-				 int *val)
 {
 	return 0;
 }

@@ -260,12 +260,9 @@ static int lis3l02dq_read_raw(struct iio_dev *indio_dev,
 	case 0:
 		/* Take the iio_dev status lock */
 		mutex_lock(&indio_dev->mlock);
-		if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED)
-			ret = lis3l02dq_read_accel_from_buffer(indio_dev->
-							       buffer,
-							       chan->scan_index,
-							       val);
-		else {
+		if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
+			ret = -EBUSY;
+		} else {
 			reg = lis3l02dq_axis_map
 				[LIS3L02DQ_ACCEL][chan->address];
 			ret = lis3l02dq_read_reg_s16(indio_dev, reg, val);

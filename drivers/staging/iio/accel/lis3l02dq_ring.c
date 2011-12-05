@@ -38,38 +38,6 @@ irqreturn_t lis3l02dq_data_rdy_trig_poll(int irq, void *private)
 		return IRQ_WAKE_THREAD;
 }
 
-/**
- * lis3l02dq_read_accel_from_buffer() individual acceleration read from buffer
- **/
-ssize_t lis3l02dq_read_accel_from_buffer(struct iio_buffer *buffer,
-					 int index,
-					 int *val)
-{
-	int ret;
-	s16 *data;
-
-	if (!iio_scan_mask_query(buffer, index))
-		return -EINVAL;
-
-	if (!buffer->access->read_last)
-		return -EBUSY;
-
-	data = kmalloc(buffer->access->get_bytes_per_datum(buffer),
-		       GFP_KERNEL);
-	if (data == NULL)
-		return -ENOMEM;
-
-	ret = buffer->access->read_last(buffer, (u8 *)data);
-	if (ret)
-		goto error_free_data;
-	*val = data[bitmap_weight(buffer->scan_mask, index)];
-error_free_data:
-
-	kfree(data);
-
-	return ret;
-}
-
 static const u8 read_all_tx_array[] = {
 	LIS3L02DQ_READ_REG(LIS3L02DQ_REG_OUT_X_L_ADDR), 0,
 	LIS3L02DQ_READ_REG(LIS3L02DQ_REG_OUT_X_H_ADDR), 0,
