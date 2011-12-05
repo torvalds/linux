@@ -71,6 +71,6 @@ SD/MMC/SDIO Clock Gating Attribute
 Read and write access is provided to following attribute.
 This attribute appears only if CONFIG_MMC_CLKGATE is enabled.
 
-	clkgate_delay	Tune the clock gating delay with desired value in milli seconds.
+	clkgate_delay	Tune the clock gating delay with desired value in milliseconds.
 
 echo <desired delay> > /sys/class/mmc_host/mmcX/clkgate_delay
