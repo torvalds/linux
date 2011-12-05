@@ -74,11 +74,11 @@ static irqreturn_t adis16201_trigger_handler(int irq, void *p)
 		return -ENOMEM;
 	}
 
-	if (ring->scan_count)
-		if (adis16201_read_ring_data(indio_dev, st->rx) >= 0)
-			for (; i < ring->scan_count; i++)
-				data[i] = be16_to_cpup(
-					(__be16 *)&(st->rx[i*2]));
+	if (!bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength)
+	    && adis16201_read_ring_data(indio_dev, st->rx) >= 0)
+		for (; i < bitmap_weight(indio_dev->active_scan_mask,
+					 indio_dev->masklength); i++)
+			data[i] = be16_to_cpup((__be16 *)&(st->rx[i*2]));
 
 	/* Guaranteed to be aligned with 8 byte boundary */
 	if (ring->scan_timestamp)

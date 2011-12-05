@@ -65,7 +65,8 @@ static int ad7887_ring_preenable(struct iio_dev *indio_dev)
 	struct ad7887_state *st = iio_priv(indio_dev);
 	struct iio_buffer *ring = indio_dev->buffer;
 
-	st->d_size = ring->scan_count *
+	st->d_size = bitmap_weight(indio_dev->active_scan_mask,
+				   indio_dev->masklength) *
 		st->chip_info->channel[0].scan_type.storagebits / 8;
 
 	if (ring->scan_timestamp) {
@@ -80,7 +81,7 @@ static int ad7887_ring_preenable(struct iio_dev *indio_dev)
 			set_bytes_per_datum(indio_dev->buffer, st->d_size);
 
 	/* We know this is a single long so can 'cheat' */
-	switch (*ring->scan_mask) {
+	switch (*indio_dev->active_scan_mask) {
 	case (1 << 0):
 		st->ring_msg = &st->msg[AD7887_CH0];
 		break;
@@ -121,7 +122,8 @@ static irqreturn_t ad7887_trigger_handler(int irq, void *p)
 	__u8 *buf;
 	int b_sent;
 
-	unsigned int bytes = ring->scan_count *
+	unsigned int bytes = bitmap_weight(indio_dev->active_scan_mask,
+					   indio_dev->masklength) *
 		st->chip_info->channel[0].scan_type.storagebits / 8;
 
 	buf = kzalloc(st->d_size, GFP_KERNEL);

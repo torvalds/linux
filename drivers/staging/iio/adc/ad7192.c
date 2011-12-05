@@ -479,12 +479,14 @@ static int ad7192_ring_preenable(struct iio_dev *indio_dev)
 	size_t d_size;
 	unsigned channel;
 
-	if (!ring->scan_count)
+	if (bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength))
 		return -EINVAL;
 
-	channel = find_first_bit(ring->scan_mask, indio_dev->masklength);
+	channel = find_first_bit(indio_dev->active_scan_mask,
+				 indio_dev->masklength);
 
-	d_size = ring->scan_count *
+	d_size = bitmap_weight(indio_dev->active_scan_mask,
+			       indio_dev->masklength) *
 		 indio_dev->channels[0].scan_type.storagebits / 8;
 
 	if (ring->scan_timestamp) {
@@ -544,7 +546,7 @@ static irqreturn_t ad7192_trigger_handler(int irq, void *p)
 	s64 dat64[2];
 	s32 *dat32 = (s32 *)dat64;
 
-	if (ring->scan_count)
+	if (!bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength))
 		__ad7192_read_reg(st, 1, 1, AD7192_REG_DATA,
 				  dat32,
 				  indio_dev->channels[0].scan_type.realbits/8);

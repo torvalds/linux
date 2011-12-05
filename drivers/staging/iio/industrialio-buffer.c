@@ -138,7 +138,6 @@ static ssize_t iio_scan_el_show(struct device *dev,
 static int iio_scan_mask_clear(struct iio_buffer *buffer, int bit)
 {
 	clear_bit(bit, buffer->scan_mask);
-	buffer->scan_count--;
 	return 0;
 }
 
@@ -609,7 +608,6 @@ int iio_scan_mask_set(struct iio_buffer *buffer, int bit)
 		}
 	}
 	bitmap_copy(buffer->scan_mask, trialmask, indio_dev->masklength);
-	buffer->scan_count++;
 
 	kfree(trialmask);
 

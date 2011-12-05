@@ -57,7 +57,7 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 	if (data == NULL)
 		return -ENOMEM;
 
-	if (buffer->scan_count) {
+	if (!bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength)) {
 		/*
 		 * Three common options here:
 		 * hardware scans: certain combinations of channels make
@@ -75,7 +75,10 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 		 * in the constant table fakedata.
 		 */
 		int i, j;
-		for (i = 0, j = 0; i < buffer->scan_count; i++) {
+		for (i = 0, j = 0;
+		     i < bitmap_weight(indio_dev->active_scan_mask,
+				       indio_dev->masklength);
+		     i++) {
 			j = find_next_bit(buffer->scan_mask,
 					  indio_dev->masklength, j + 1);
 			/* random access read form the 'device' */

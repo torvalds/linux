@@ -61,8 +61,9 @@ static int ad7298_ring_preenable(struct iio_dev *indio_dev)
 	size_t d_size;
 	int i, m;
 	unsigned short command;
-
-	d_size = ring->scan_count * (AD7298_STORAGE_BITS / 8);
+	int scan_count = bitmap_weight(indio_dev->active_scan_mask,
+				       indio_dev->masklength);
+	d_size = scan_count * (AD7298_STORAGE_BITS / 8);
 
 	if (ring->scan_timestamp) {
 		d_size += sizeof(s64);
@@ -79,7 +80,7 @@ static int ad7298_ring_preenable(struct iio_dev *indio_dev)
 	command = AD7298_WRITE | st->ext_ref;
 
 	for (i = 0, m = AD7298_CH(0); i < AD7298_MAX_CHAN; i++, m >>= 1)
-		if (test_bit(i, ring->scan_mask))
+		if (test_bit(i, indio_dev->active_scan_mask))
 			command |= m;
 
 	st->tx_buf[0] = cpu_to_be16(command);
@@ -96,7 +97,7 @@ static int ad7298_ring_preenable(struct iio_dev *indio_dev)
 	spi_message_add_tail(&st->ring_xfer[0], &st->ring_msg);
 	spi_message_add_tail(&st->ring_xfer[1], &st->ring_msg);
 
-	for (i = 0; i < ring->scan_count; i++) {
+	for (i = 0; i < scan_count; i++) {
 		st->ring_xfer[i + 2].rx_buf = &st->rx_buf[i];
 		st->ring_xfer[i + 2].len = 2;
 		st->ring_xfer[i + 2].cs_change = 1;
@@ -134,7 +135,8 @@ static irqreturn_t ad7298_trigger_handler(int irq, void *p)
 			&time_ns, sizeof(time_ns));
 	}
 
-	for (i = 0; i < ring->scan_count; i++)
+	for (i = 0; i < bitmap_weight(indio_dev->active_scan_mask,
+						 indio_dev->masklength); i++)
 		buf[i] = be16_to_cpu(st->rx_buf[i]);
 
 	indio_dev->buffer->access->store_to(ring, (u8 *)buf, time_ns);

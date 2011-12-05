@@ -56,7 +56,8 @@ static int ad7476_ring_preenable(struct iio_dev *indio_dev)
 	struct ad7476_state *st = iio_priv(indio_dev);
 	struct iio_buffer *ring = indio_dev->buffer;
 
-	st->d_size = ring->scan_count *
+	st->d_size = bitmap_weight(indio_dev->active_scan_mask,
+				   indio_dev->masklength) *
 		st->chip_info->channel[0].scan_type.storagebits / 8;
 
 	if (ring->scan_timestamp) {

@@ -73,7 +73,6 @@ struct iio_buffer_access_funcs {
  * @bytes_per_datum:	[DEVICE] size of individual datum including timestamp
  * @scan_el_attrs:	[DRIVER] control of scan elements if that scan mode
  *			control method is used
- * @scan_count:	[INTERN] the number of elements in the current scan mode
  * @scan_mask:		[INTERN] bitmask used in masking scan mode elements
  * @scan_timestamp:	[INTERN] does the scan mode include a timestamp
  * @access:		[DRIVER] buffer access functions associated with the
@@ -88,7 +87,6 @@ struct iio_buffer {
 	int					length;
 	int					bytes_per_datum;
 	struct attribute_group			*scan_el_attrs;
-	int					scan_count;
 	long					*scan_mask;
 	bool					scan_timestamp;
 	unsigned				scan_index_timestamp;

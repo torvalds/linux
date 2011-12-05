@@ -537,14 +537,14 @@ static const struct iio_info ad5933_info = {
 static int ad5933_ring_preenable(struct iio_dev *indio_dev)
 {
 	struct ad5933_state *st = iio_priv(indio_dev);
-	struct iio_buffer *ring = indio_dev->buffer;
 	size_t d_size;
 	int ret;
 
-	if (!ring->scan_count)
+	if (bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength))
 		return -EINVAL;
 
-	d_size = ring->scan_count *
+	d_size = bitmap_weight(indio_dev->active_scan_mask,
+			       indio_dev->masklength) *
 		 ad5933_channels[1].scan_type.storagebits / 8;
 
 	if (indio_dev->buffer->access->set_bytes_per_datum)
@@ -640,12 +640,14 @@ static void ad5933_work(struct work_struct *work)
 	ad5933_i2c_read(st->client, AD5933_REG_STATUS, 1, &status);
 
 	if (status & AD5933_STAT_DATA_VALID) {
+		int scan_count = bitmap_weight(indio_dev->active_scan_mask,
+					       indio_dev->masklength);
 		ad5933_i2c_read(st->client,
-				test_bit(1, ring->scan_mask) ?
+				test_bit(1, indio_dev->active_scan_mask) ?
 				AD5933_REG_REAL_DATA : AD5933_REG_IMAG_DATA,
-				ring->scan_count * 2, (u8 *)buf);
+				scan_count * 2, (u8 *)buf);
 
-		if (ring->scan_count == 2) {
+		if (scan_count == 2) {
 			buf[0] = be16_to_cpu(buf[0]);
 			buf[1] = be16_to_cpu(buf[1]);
 		} else {
