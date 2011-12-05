@@ -2624,15 +2624,6 @@ u32 bnx2x_fw_command(struct bnx2x *bp, u32 command, u32 param)
 	return rc;
 }
 
-static u8 stat_counter_valid(struct bnx2x *bp, struct bnx2x_fastpath *fp)
-{
-#ifdef BCM_CNIC
-	/* Statistics are not supported for CNIC Clients at the moment */
-	if (IS_FCOE_FP(fp))
-		return false;
-#endif
-	return true;
-}
 
 void bnx2x_func_init(struct bnx2x *bp, struct bnx2x_func_init_params *p)
 {
@@ -2676,11 +2667,11 @@ static inline unsigned long bnx2x_get_common_flags(struct bnx2x *bp,
 	 *  parent connection). The statistics are zeroed when the parent
 	 *  connection is initialized.
 	 */
-	if (stat_counter_valid(bp, fp)) {
-		__set_bit(BNX2X_Q_FLG_STATS, &flags);
-		if (zero_stats)
-			__set_bit(BNX2X_Q_FLG_ZERO_STATS, &flags);
-	}
+
+	__set_bit(BNX2X_Q_FLG_STATS, &flags);
+	if (zero_stats)
+		__set_bit(BNX2X_Q_FLG_ZERO_STATS, &flags);
+
 
 	return flags;
 }
@@ -6848,13 +6839,16 @@ void bnx2x_free_mem(struct bnx2x *bp)
 static inline int bnx2x_alloc_fw_stats_mem(struct bnx2x *bp)
 {
 	int num_groups;
+	int is_fcoe_stats = NO_FCOE(bp) ? 0 : 1;
 
-	/* number of eth_queues */
-	u8 num_queue_stats = BNX2X_NUM_ETH_QUEUES(bp);
+	/* number of queues for statistics is number of eth queues + FCoE */
+	u8 num_queue_stats = BNX2X_NUM_ETH_QUEUES(bp) + is_fcoe_stats;
 
 	/* Total number of FW statistics requests =
-	 * 1 for port stats + 1 for PF stats + num_eth_queues */
-	bp->fw_stats_num = 2 + num_queue_stats;
+	 * 1 for port stats + 1 for PF stats + potential 1 for FCoE stats +
+	 * num of queues
+	 */
+	bp->fw_stats_num = 2 + is_fcoe_stats + num_queue_stats;
 
 
 	/* Request is built from stats_query_header and an array of
@@ -6862,8 +6856,8 @@ static inline int bnx2x_alloc_fw_stats_mem(struct bnx2x *bp)
 	 * STATS_QUERY_CMD_COUNT rules. The real number or requests is
 	 * configured in the stats_query_header.
 	 */
-	num_groups = (2 + num_queue_stats) / STATS_QUERY_CMD_COUNT +
-		(((2 + num_queue_stats) % STATS_QUERY_CMD_COUNT) ? 1 : 0);
+	num_groups = ((bp->fw_stats_num) / STATS_QUERY_CMD_COUNT) +
+		     (((bp->fw_stats_num) % STATS_QUERY_CMD_COUNT) ? 1 : 0);
 
 	bp->fw_stats_req_sz = sizeof(struct stats_query_header) +
 			num_groups * sizeof(struct stats_query_cmd_group);
@@ -6872,9 +6866,13 @@ static inline int bnx2x_alloc_fw_stats_mem(struct bnx2x *bp)
 	 *
 	 * stats_counter holds per-STORM counters that are incremented
 	 * when STORM has finished with the current request.
+	 *
+	 * memory for FCoE offloaded statistics are counted anyway,
+	 * even if they will not be sent.
 	 */
 	bp->fw_stats_data_sz = sizeof(struct per_port_stats) +
 		sizeof(struct per_pf_stats) +
+		sizeof(struct fcoe_statistics_params) +
 		sizeof(struct per_queue_stats) * num_queue_stats +
 		sizeof(struct stats_counter);
 

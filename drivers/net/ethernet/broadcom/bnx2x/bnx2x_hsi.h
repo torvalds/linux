@@ -4166,8 +4166,62 @@ struct ustorm_eth_rx_producers {
 
 
 /*
- * cfc delete event data
+ * FCoE RX statistics parameters section#0
  */
+struct fcoe_rx_stat_params_section0 {
+	__le32 fcoe_rx_pkt_cnt;
+	__le32 fcoe_rx_byte_cnt;
+};
+
+
+/*
+ * FCoE RX statistics parameters section#1
+ */
+struct fcoe_rx_stat_params_section1 {
+	__le32 fcoe_ver_cnt;
+	__le32 fcoe_rx_drop_pkt_cnt;
+};
+
+
+/*
+ * FCoE RX statistics parameters section#2
+ */
+struct fcoe_rx_stat_params_section2 {
+	__le32 fc_crc_cnt;
+	__le32 eofa_del_cnt;
+	__le32 miss_frame_cnt;
+	__le32 seq_timeout_cnt;
+	__le32 drop_seq_cnt;
+	__le32 fcoe_rx_drop_pkt_cnt;
+	__le32 fcp_rx_pkt_cnt;
+	__le32 reserved0;
+};
+
+
+/*
+ * FCoE TX statistics parameters
+ */
+struct fcoe_tx_stat_params {
+	__le32 fcoe_tx_pkt_cnt;
+	__le32 fcoe_tx_byte_cnt;
+	__le32 fcp_tx_pkt_cnt;
+	__le32 reserved0;
+};
+
+/*
+ * FCoE statistics parameters
+ */
+struct fcoe_statistics_params {
+	struct fcoe_tx_stat_params tx_stat;
+	struct fcoe_rx_stat_params_section0 rx_stat0;
+	struct fcoe_rx_stat_params_section1 rx_stat1;
+	struct fcoe_rx_stat_params_section2 rx_stat2;
+};
+
+
+/*
+ * cfc delete event data
+*/
 struct cfc_del_event_data {
 	u32 cid;
 	u32 reserved0;

@@ -1128,18 +1128,21 @@ enum {
 enum {
 	BNX2X_PORT_QUERY_IDX,
 	BNX2X_PF_QUERY_IDX,
+	BNX2X_FCOE_QUERY_IDX,
 	BNX2X_FIRST_QUEUE_QUERY_IDX,
 };
 
 struct bnx2x_fw_stats_req {
 	struct stats_query_header hdr;
-	struct stats_query_entry query[STATS_QUERY_CMD_COUNT];
+	struct stats_query_entry query[FP_SB_MAX_E1x+
+		BNX2X_FIRST_QUEUE_QUERY_IDX];
 };
 
 struct bnx2x_fw_stats_data {
 	struct stats_counter	storm_counters;
 	struct per_port_stats	port;
 	struct per_pf_stats	pf;
+	struct fcoe_statistics_params	fcoe;
 	struct per_queue_stats  queue_stats[1];
 };
 

@@ -1501,6 +1501,7 @@ static void bnx2x_func_stats_base_update(struct bnx2x *bp)
 static inline void bnx2x_prep_fw_stats_req(struct bnx2x *bp)
 {
 	int i;
+	int first_queue_query_index;
 	struct stats_query_header *stats_hdr = &bp->fw_stats_req->hdr;
 
 	dma_addr_t cur_data_offset;
@@ -1556,14 +1557,40 @@ static inline void bnx2x_prep_fw_stats_req(struct bnx2x *bp)
 	cur_query_entry->address.hi = cpu_to_le32(U64_HI(cur_data_offset));
 	cur_query_entry->address.lo = cpu_to_le32(U64_LO(cur_data_offset));
 
+	/**** FCoE FW statistics data ****/
+	if (!NO_FCOE(bp)) {
+		cur_data_offset = bp->fw_stats_data_mapping +
+			offsetof(struct bnx2x_fw_stats_data, fcoe);
+
+		cur_query_entry =
+			&bp->fw_stats_req->query[BNX2X_FCOE_QUERY_IDX];
+
+		cur_query_entry->kind = STATS_TYPE_FCOE;
+		/* For FCoE query index is a DONT CARE */
+		cur_query_entry->index = BP_PORT(bp);
+		cur_query_entry->funcID = cpu_to_le16(BP_FUNC(bp));
+		cur_query_entry->address.hi =
+			cpu_to_le32(U64_HI(cur_data_offset));
+		cur_query_entry->address.lo =
+			cpu_to_le32(U64_LO(cur_data_offset));
+	}
+
 	/**** Clients' queries ****/
 	cur_data_offset = bp->fw_stats_data_mapping +
 		offsetof(struct bnx2x_fw_stats_data, queue_stats);
 
+	/* first queue query index depends whether FCoE offloaded request will
+	 * be included in the ramrod
+	 */
+	if (!NO_FCOE(bp))
+		first_queue_query_index = BNX2X_FIRST_QUEUE_QUERY_IDX;
+	else
+		first_queue_query_index = BNX2X_FIRST_QUEUE_QUERY_IDX - 1;
+
 	for_each_eth_queue(bp, i) {
 		cur_query_entry =
 			&bp->fw_stats_req->
-					query[BNX2X_FIRST_QUEUE_QUERY_IDX + i];
+					query[first_queue_query_index + i];
 
 		cur_query_entry->kind = STATS_TYPE_QUEUE;
 		cur_query_entry->index = bnx2x_stats_id(&bp->fp[i]);
@@ -1574,6 +1601,21 @@ static inline void bnx2x_prep_fw_stats_req(struct bnx2x *bp)
 			cpu_to_le32(U64_LO(cur_data_offset));
 
 		cur_data_offset += sizeof(struct per_queue_stats);
+	}
+
+	/* add FCoE queue query if needed */
+	if (!NO_FCOE(bp)) {
+		cur_query_entry =
+			&bp->fw_stats_req->
+					query[first_queue_query_index + i];
+
+		cur_query_entry->kind = STATS_TYPE_QUEUE;
+		cur_query_entry->index = bnx2x_stats_id(&bp->fp[FCOE_IDX]);
+		cur_query_entry->funcID = cpu_to_le16(BP_FUNC(bp));
+		cur_query_entry->address.hi =
+			cpu_to_le32(U64_HI(cur_data_offset));
+		cur_query_entry->address.lo =
+			cpu_to_le32(U64_LO(cur_data_offset));
 	}
 }
 
