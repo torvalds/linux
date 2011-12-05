@@ -57,7 +57,7 @@ struct snd_line6_midi {
 	/**
 		 Bit mask for output MIDI channels.
 	*/
-	int midi_mask_transmit;
+	unsigned short midi_mask_transmit;
 
 	/**
 		 Bit mask for input MIDI channels.
