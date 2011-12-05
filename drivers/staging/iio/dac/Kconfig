@@ -62,6 +62,16 @@ config AD5504
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad5504.
 
+config AD5764
+	tristate "Analog Devices AD5764/64R/44/44R DAC driver"
+	depends on SPI_MASTER
+	help
+	  Say yes here to build support for Analog Devices AD5764, AD5764R, AD5744,
+	  AD5744R Digital to Analog Converter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad5764.
+
 config AD5791
 	tristate "Analog Devices AD5760/AD5780/AD5781/AD5791 DAC SPI driver"
 	depends on SPI
