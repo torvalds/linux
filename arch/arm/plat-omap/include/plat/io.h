@@ -247,8 +247,6 @@
  * NOTE: Please use ioremap + __raw_read/write where possible instead of these
  */
 
-void omap_ioremap_init(void);
-
 extern u8 omap_readb(u32 pa);
 extern u16 omap_readw(u32 pa);
 extern u32 omap_readl(u32 pa);
@@ -259,12 +257,6 @@ extern void omap_writel(u32 v, u32 pa);
 struct omap_sdrc_params;
 extern void omap_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
 				      struct omap_sdrc_params *sdrc_cs1);
-
-#define __arch_ioremap	omap_ioremap
-#define __arch_iounmap	omap_iounmap
-
-void __iomem *omap_ioremap(unsigned long phys, size_t size, unsigned int type);
-void omap_iounmap(volatile void __iomem *addr);
 
 extern void __init omap_init_consistent_dma_size(void);
 

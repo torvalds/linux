@@ -319,7 +319,6 @@ static int _set_hwmod_postsetup_state(struct omap_hwmod *oh, void *data)
 static void __init omap_common_init_early(void)
 {
 	omap2_check_revision();
-	omap_ioremap_init();
 	omap_init_consistent_dma_size();
 }
 
