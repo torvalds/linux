@@ -752,7 +752,7 @@ int of_property_read_string_index(struct device_node *np, const char *propname,
 
 	for (i = 0; total < prop->length; total += l, p += l) {
 		l = strlen(p) + 1;
-		if ((*p != 0) && (i++ == index)) {
+		if (i++ == index) {
 			*output = p;
 			return 0;
 		}
@@ -790,11 +790,9 @@ int of_property_count_strings(struct device_node *np, const char *propname)
 
 	p = prop->value;
 
-	for (i = 0; total < prop->length; total += l, p += l) {
+	for (i = 0; total < prop->length; total += l, p += l, i++)
 		l = strlen(p) + 1;
-		if (*p != 0)
-			i++;
-	}
+
 	return i;
 }
 EXPORT_SYMBOL_GPL(of_property_count_strings);
