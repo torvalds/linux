@@ -32,6 +32,7 @@
 #include <linux/libata.h>
 #include <linux/hdreg.h>
 #include <linux/uaccess.h>
+#include <linux/pm_runtime.h>
 
 #include "libata.h"
 #include "libata-transport.h"
@@ -289,6 +290,9 @@ int ata_tport_add(struct device *parent,
 	if (error) {
 		goto tport_err;
 	}
+
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
 
 	transport_add_device(dev);
 	transport_configure_device(dev);
