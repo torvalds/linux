@@ -285,6 +285,19 @@ struct bnx2x_vlan_mac_obj {
 	/* RAMROD command to be used */
 	int				ramrod_cmd;
 
+	/* copy first n elements onto preallocated buffer
+	 *
+	 * @param n number of elements to get
+	 * @param buf buffer preallocated by caller into which elements
+	 *            will be copied. Note elements are 4-byte aligned
+	 *            so buffer size must be able to accomodate the
+	 *            aligned elements.
+	 *
+	 * @return number of copied bytes
+	 */
+	int (*get_n_elements)(struct bnx2x *bp, struct bnx2x_vlan_mac_obj *o,
+			      int n, u8 *buf);
+
 	/**
 	 * Checks if ADD-ramrod with the given params may be performed.
 	 *
