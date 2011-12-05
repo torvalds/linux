@@ -52,6 +52,14 @@ static struct shash_desc *init_desc(const char type)
 			*tfm = NULL;
 			return ERR_PTR(rc);
 		}
+		if (type == EVM_XATTR_HMAC) {
+			rc = crypto_shash_setkey(*tfm, evmkey, evmkey_len);
+			if (rc) {
+				crypto_free_shash(*tfm);
+				*tfm = NULL;
+				return ERR_PTR(rc);
+			}
+		}
 	}
 
 	desc = kmalloc(sizeof(*desc) + crypto_shash_descsize(*tfm),
@@ -62,14 +70,7 @@ static struct shash_desc *init_desc(const char type)
 	desc->tfm = *tfm;
 	desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
-	if (type == EVM_XATTR_HMAC) {
-		rc = crypto_shash_setkey(*tfm, evmkey, evmkey_len);
-		if (rc)
-			goto out;
-	}
-
 	rc = crypto_shash_init(desc);
-out:
 	if (rc) {
 		kfree(desc);
 		return ERR_PTR(rc);
