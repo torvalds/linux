@@ -1120,9 +1120,10 @@ static void ReadVBIOSTablData(struct pci_dev *pdev,
 	struct xgifb_video_info *xgifb_info = pci_get_drvdata(pdev);
 	u8 *vbios;
 	unsigned long i;
-	unsigned char j, k;
+	unsigned char j;
 	struct XGI21_LVDSCapStruct *lvds;
 	size_t vbios_size;
+	int entry;
 
 	if (xgifb_info->chip != XG21)
 		return;
@@ -1148,32 +1149,32 @@ static void ReadVBIOSTablData(struct pci_dev *pdev,
 		goto error;
 	if (j == 0xff)
 		j = 1;
-	k = 0;
+	/*
+	 * Read the LVDS table index scratch register set by the BIOS.
+	 */
+	entry = xgifb_reg_get(xgifb_info->dev_info.P3d4, 0x36);
+	if (entry >= j)
+		entry = 0;
+	i += entry * 25;
 	lvds = &pVBInfo->XG21_LVDSCapList[0];
-	do {
-		if (vbios_size <= i + 24)
-			goto error;
-		lvds->LVDS_Capability	= vbios[i]	| (vbios[i + 1] << 8);
-		lvds->LVDSHT		= vbios[i + 2]	| (vbios[i + 3] << 8);
-		lvds->LVDSVT		= vbios[i + 4]	| (vbios[i + 5] << 8);
-		lvds->LVDSHDE		= vbios[i + 6]	| (vbios[i + 7] << 8);
-		lvds->LVDSVDE		= vbios[i + 8]	| (vbios[i + 9] << 8);
-		lvds->LVDSHFP		= vbios[i + 10]	| (vbios[i + 11] << 8);
-		lvds->LVDSVFP		= vbios[i + 12]	| (vbios[i + 13] << 8);
-		lvds->LVDSHSYNC		= vbios[i + 14]	| (vbios[i + 15] << 8);
-		lvds->LVDSVSYNC		= vbios[i + 16]	| (vbios[i + 17] << 8);
-		lvds->VCLKData1		= vbios[i + 18];
-		lvds->VCLKData2		= vbios[i + 19];
-		lvds->PSC_S1		= vbios[i + 20];
-		lvds->PSC_S2		= vbios[i + 21];
-		lvds->PSC_S3		= vbios[i + 22];
-		lvds->PSC_S4		= vbios[i + 23];
-		lvds->PSC_S5		= vbios[i + 24];
-		i += 25;
-		j--;
-		k++;
-		lvds++;
-	} while (j > 0 && k < ARRAY_SIZE(XGI21_LCDCapList));
+	if (vbios_size <= i + 24)
+		goto error;
+	lvds->LVDS_Capability	= vbios[i]	| (vbios[i + 1] << 8);
+	lvds->LVDSHT		= vbios[i + 2]	| (vbios[i + 3] << 8);
+	lvds->LVDSVT		= vbios[i + 4]	| (vbios[i + 5] << 8);
+	lvds->LVDSHDE		= vbios[i + 6]	| (vbios[i + 7] << 8);
+	lvds->LVDSVDE		= vbios[i + 8]	| (vbios[i + 9] << 8);
+	lvds->LVDSHFP		= vbios[i + 10]	| (vbios[i + 11] << 8);
+	lvds->LVDSVFP		= vbios[i + 12]	| (vbios[i + 13] << 8);
+	lvds->LVDSHSYNC		= vbios[i + 14]	| (vbios[i + 15] << 8);
+	lvds->LVDSVSYNC		= vbios[i + 16]	| (vbios[i + 17] << 8);
+	lvds->VCLKData1		= vbios[i + 18];
+	lvds->VCLKData2		= vbios[i + 19];
+	lvds->PSC_S1		= vbios[i + 20];
+	lvds->PSC_S2		= vbios[i + 21];
+	lvds->PSC_S3		= vbios[i + 22];
+	lvds->PSC_S4		= vbios[i + 23];
+	lvds->PSC_S5		= vbios[i + 24];
 	vfree(vbios);
 	pVBInfo->IF_DEF_LVDS = 1;
 	return;

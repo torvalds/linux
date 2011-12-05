@@ -3650,12 +3650,6 @@ static void XGI_XG27BLSignalVDD(unsigned short tempbh, unsigned short tempbl,
 
 static unsigned short XGI_GetLVDSOEMTableIndex(struct vb_device_info *pVBInfo)
 {
-	unsigned short index;
-
-	index = xgifb_reg_get(pVBInfo->P3d4, 0x36);
-	if (index < sizeof(XGI21_LCDCapList)
-			/ sizeof(struct XGI21_LVDSCapStruct))
-		return index;
 	return 0;
 }
 
