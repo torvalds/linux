@@ -68,7 +68,6 @@ struct iio_buffer_access_funcs {
 /**
  * struct iio_buffer - general buffer structure
  * @indio_dev:		industrial I/O device structure
- * @owner:		module that owns the buffer (for ref counting)
  * @length:		[DEVICE] number of datums in buffer
  * @bytes_per_datum:	[DEVICE] size of individual datum including timestamp
  * @scan_el_attrs:	[DRIVER] control of scan elements if that scan mode
@@ -83,7 +82,6 @@ struct iio_buffer_access_funcs {
  **/
 struct iio_buffer {
 	struct iio_dev				*indio_dev;
-	struct module				*owner;
 	int					length;
 	int					bytes_per_datum;
 	struct attribute_group			*scan_el_attrs;

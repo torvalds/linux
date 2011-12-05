@@ -114,7 +114,6 @@ int adis16240_configure_ring(struct iio_dev *indio_dev)
 	ring->access = &ring_sw_access_funcs;
 	ring->scan_timestamp = true;
 	indio_dev->setup_ops = &adis16240_ring_setup_ops;
-	ring->owner = THIS_MODULE;
 
 	indio_dev->pollfunc = iio_alloc_pollfunc(&iio_pollfunc_store_time,
 						 &adis16240_trigger_handler,

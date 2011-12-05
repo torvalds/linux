@@ -153,7 +153,6 @@ int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev)
 	 * be run on either side of buffer capture enable / disable.
 	 */
 	indio_dev->setup_ops = &iio_simple_dummy_buffer_setup_ops;
-	buffer->owner = THIS_MODULE;
 
 	/*
 	 * Configure a polling function.

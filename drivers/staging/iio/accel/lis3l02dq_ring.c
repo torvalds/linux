@@ -443,7 +443,6 @@ int lis3l02dq_configure_buffer(struct iio_dev *indio_dev)
 
 	buffer->scan_timestamp = true;
 	indio_dev->setup_ops = &lis3l02dq_buffer_setup_ops;
-	buffer->owner = THIS_MODULE;
 
 	/* Functions are NULL as we set handler below */
 	indio_dev->pollfunc = iio_alloc_pollfunc(&iio_pollfunc_store_time,
