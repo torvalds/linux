@@ -102,7 +102,7 @@ static void dump_stream(FILE *fp, const char *msg, unsigned long nr_iter,
 
 	fprintf(fp, "%s:\n", msg);
 
-	dump_insn(stderr, insn);
+	dump_insn(fp, insn);
 
 	fprintf(fp, "You can reproduce this with below command(s);\n");
 
@@ -260,7 +260,7 @@ int main(int argc, char **argv)
 		if (insn.next_byte <= insn.kaddr ||
 		    insn.kaddr + MAX_INSN_SIZE < insn.next_byte) {
 			/* Access out-of-range memory */
-			dump_stream(stdout, "Error: Found an access violation", i, insn_buf, &insn);
+			dump_stream(stderr, "Error: Found an access violation", i, insn_buf, &insn);
 			errors++;
 		} else if (verbose && !insn_complete(&insn))
 			dump_stream(stdout, "Info: Found an undecodable input", i, insn_buf, &insn);
