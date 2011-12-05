@@ -128,6 +128,8 @@ struct regmap *regmap_init_spi(struct spi_device *dev,
 			       const struct regmap_config *config);
 
 void regmap_exit(struct regmap *map);
+int regmap_reinit_cache(struct regmap *map,
+			const struct regmap_config *config);
 int regmap_write(struct regmap *map, unsigned int reg, unsigned int val);
 int regmap_raw_write(struct regmap *map, unsigned int reg,
 		     const void *val, size_t val_len);
