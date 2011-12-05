@@ -739,8 +739,13 @@ static int bfin_serial_startup(struct uart_port *port)
 			pr_info("Unable to attach BlackFin UART CTS interrupt. So, disable it.\n");
 		}
 	}
-	if (uart->rts_pin >= 0)
-		gpio_direction_output(uart->rts_pin, 0);
+	if (uart->rts_pin >= 0) {
+		if (gpio_request(uart->rts_pin, DRIVER_NAME)) {
+			pr_info("fail to request RTS PIN at GPIO_%d\n", uart->rts_pin);
+			uart->rts_pin = -1;
+		} else
+			gpio_direction_output(uart->rts_pin, 0);
+	}
 #endif
 #ifdef CONFIG_SERIAL_BFIN_HARD_CTSRTS
 	if (uart->cts_pin >= 0 && request_irq(uart->status_irq,
@@ -792,6 +797,8 @@ static void bfin_serial_shutdown(struct uart_port *port)
 #ifdef CONFIG_SERIAL_BFIN_CTSRTS
 	if (uart->cts_pin >= 0)
 		free_irq(gpio_to_irq(uart->cts_pin), uart);
+	if (uart->rts_pin >= 0)
+		gpio_free(uart->rts_pin);
 #endif
 #ifdef CONFIG_SERIAL_BFIN_HARD_CTSRTS
 	if (uart->cts_pin >= 0)
@@ -1378,10 +1385,6 @@ static int bfin_serial_probe(struct platform_device *pdev)
 			uart->rts_pin = -1;
 		else
 			uart->rts_pin = res->start;
-# if defined(CONFIG_SERIAL_BFIN_CTSRTS)
-		if (uart->rts_pin >= 0)
-			gpio_request(uart->rts_pin, DRIVER_NAME);
-# endif
 #endif
 	}
 
@@ -1421,10 +1424,6 @@ static int __devexit bfin_serial_remove(struct platform_device *pdev)
 
 	if (uart) {
 		uart_remove_one_port(&bfin_serial_reg, &uart->port);
-#ifdef CONFIG_SERIAL_BFIN_CTSRTS
-		if (uart->rts_pin >= 0)
-			gpio_free(uart->rts_pin);
-#endif
 		iounmap(uart->port.membase);
 		peripheral_free_list(
 			(unsigned short *)pdev->dev.platform_data);
