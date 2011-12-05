@@ -531,32 +531,6 @@ ssize_t iio_buffer_show_enable(struct device *dev,
 }
 EXPORT_SYMBOL(iio_buffer_show_enable);
 
-int iio_sw_buffer_preenable(struct iio_dev *indio_dev)
-{
-	struct iio_buffer *buffer = indio_dev->buffer;
-	size_t size;
-	dev_dbg(&indio_dev->dev, "%s\n", __func__);
-	/* Check if there are any scan elements enabled, if not fail*/
-	if (!(buffer->scan_count || buffer->scan_timestamp))
-		return -EINVAL;
-	if (buffer->scan_timestamp)
-		if (buffer->scan_count)
-			/* Timestamp (aligned to s64) and data */
-			size = (((buffer->scan_count * buffer->bpe)
-					+ sizeof(s64) - 1)
-				& ~(sizeof(s64) - 1))
-				+ sizeof(s64);
-		else /* Timestamp only  */
-			size = sizeof(s64);
-	else /* Data only */
-		size = buffer->scan_count * buffer->bpe;
-	buffer->access->set_bytes_per_datum(buffer, size);
-
-	return 0;
-}
-EXPORT_SYMBOL(iio_sw_buffer_preenable);
-
-
 /* note NULL used as error indicator as it doesn't make sense. */
 static unsigned long *iio_scan_mask_match(unsigned long *av_masks,
 					  unsigned int masklength,
@@ -571,6 +545,43 @@ static unsigned long *iio_scan_mask_match(unsigned long *av_masks,
 	}
 	return NULL;
 }
+
+int iio_sw_buffer_preenable(struct iio_dev *indio_dev)
+{
+	struct iio_buffer *buffer = indio_dev->buffer;
+	const struct iio_chan_spec *ch;
+	unsigned bytes = 0;
+	int length, i;
+	dev_dbg(&indio_dev->dev, "%s\n", __func__);
+
+	/* How much space will the demuxed element take? */
+	for_each_set_bit(i, buffer->scan_mask,
+			 indio_dev->masklength) {
+		ch = iio_find_channel_from_si(indio_dev, i);
+		length = ch->scan_type.storagebits/8;
+		bytes = ALIGN(bytes, length);
+		bytes += length;
+	}
+	if (buffer->scan_timestamp) {
+		ch = iio_find_channel_from_si(indio_dev,
+					      buffer->scan_index_timestamp);
+		length = ch->scan_type.storagebits/8;
+		bytes = ALIGN(bytes, length);
+		bytes += length;
+	}
+	buffer->access->set_bytes_per_datum(buffer, bytes);
+
+	/* What scan mask do we actually have ?*/
+	if (indio_dev->available_scan_masks)
+		indio_dev->active_scan_mask =
+			iio_scan_mask_match(indio_dev->available_scan_masks,
+					    indio_dev->masklength,
+					    buffer->scan_mask);
+	else
+		indio_dev->active_scan_mask = buffer->scan_mask;
+	return 0;
+}
+EXPORT_SYMBOL(iio_sw_buffer_preenable);
 
 /**
  * iio_scan_mask_set() - set particular bit in the scan mask
