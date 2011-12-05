@@ -8,10 +8,12 @@
 
 #if defined(CONFIG_OF)
 extern struct regulator_init_data
-	*of_get_regulator_init_data(struct device *dev);
+	*of_get_regulator_init_data(struct device *dev,
+				    struct device_node *node);
 #else
 static inline struct regulator_init_data
-	*of_get_regulator_init_data(struct device *dev)
+	*of_get_regulator_init_data(struct device *dev,
+				    struct device_node *node)
 {
 	return NULL;
 }
