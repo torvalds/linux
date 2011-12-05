@@ -82,9 +82,16 @@ insn_attr_t inat_get_avx_attribute(insn_byte_t opcode, insn_byte_t vex_m,
 	const insn_attr_t *table;
 	if (vex_m > X86_VEX_M_MAX || vex_p > INAT_LSTPFX_MAX)
 		return 0;
-	table = inat_avx_tables[vex_m][vex_p];
+	/* At first, this checks the master table */
+	table = inat_avx_tables[vex_m][0];
 	if (!table)
 		return 0;
+	if (!inat_is_group(table[opcode]) && vex_p) {
+		/* If this is not a group, get attribute directly */
+		table = inat_avx_tables[vex_m][vex_p];
+		if (!table)
+			return 0;
+	}
 	return table[opcode];
 }
 
