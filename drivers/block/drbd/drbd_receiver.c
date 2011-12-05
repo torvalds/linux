@@ -3169,6 +3169,12 @@ static int receive_state(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 	os = ns = mdev->state;
 	spin_unlock_irq(&mdev->req_lock);
 
+	/* If some other part of the code (asender thread, timeout)
+	 * already decided to close the connection again,
+	 * we must not "re-establish" it here. */
+	if (os.conn <= C_TEAR_DOWN)
+		return false;
+
 	/* If this is the "end of sync" confirmation, usually the peer disk
 	 * transitions from D_INCONSISTENT to D_UP_TO_DATE. For empty (0 bits
 	 * set) resync started in PausedSyncT, or if the timing of pause-/
@@ -3781,6 +3787,13 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 
 	if (mdev->state.conn == C_STANDALONE)
 		return;
+
+	/* We are about to start the cleanup after connection loss.
+	 * Make sure drbd_make_request knows about that.
+	 * Usually we should be in some network failure state already,
+	 * but just in case we are not, we fix it up here.
+	 */
+	drbd_force_state(mdev, NS(conn, C_NETWORK_FAILURE));
 
 	/* asender does not clean up anything. it must not interfere, either */
 	drbd_thread_stop(&mdev->asender);
