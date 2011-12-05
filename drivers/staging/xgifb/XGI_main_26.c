@@ -45,6 +45,7 @@
 #define GPIOG_EN    (1<<6)
 #define GPIOG_READ  (1<<1)
 
+static char *forcecrt2type;
 static char *mode;
 static int vesa = -1;
 static unsigned int refresh_rate;
@@ -2358,6 +2359,8 @@ static int __init xgifb_init(void)
 {
 	char *option = NULL;
 
+	if (forcecrt2type != NULL)
+		XGIfb_search_crt2type(forcecrt2type);
 	if (fb_get_options("xgifb", &option))
 		return -ENODEV;
 	XGIfb_setup(option);
@@ -2380,6 +2383,11 @@ MODULE_AUTHOR("XGITECH , Others");
 module_param(mode, charp, 0);
 module_param(vesa, int, 0);
 module_param(filter, int, 0);
+module_param(forcecrt2type, charp, 0);
+
+MODULE_PARM_DESC(forcecrt2type,
+	"\nForce the second display output type. Possible values are NONE,\n"
+	"LCD, TV, VGA, SVIDEO or COMPOSITE.\n");
 
 MODULE_PARM_DESC(mode,
 	"\nSelects the desired default display mode in the format XxYxDepth,\n"
