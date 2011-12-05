@@ -1409,7 +1409,6 @@ static void XGINew_GetXG27Sense(struct xgi_hw_device_info *HwDeviceExtension,
 	xgifb_reg_set(pVBInfo->P3d4, 0x4A, bCR4A);
 
 	if (Temp <= 0x02) {
-		pVBInfo->IF_DEF_LVDS = 1;
 		/* LVDS setting */
 		xgifb_reg_and_or(pVBInfo->P3d4, 0x38, ~0xE0, 0xC0);
 		xgifb_reg_set(pVBInfo->P3d4, 0x30, 0x21);
