@@ -123,12 +123,8 @@ static int ad7298_read_raw(struct iio_dev *indio_dev,
 	switch (m) {
 	case 0:
 		mutex_lock(&indio_dev->mlock);
-		if (iio_buffer_enabled(indio_dev)) {
-			if (chan->address == AD7298_CH_TEMP)
-				ret = -ENODEV;
-			else
-				ret = ad7298_scan_from_ring(indio_dev,
-							    chan->address);
+		if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
+			ret = -EBUSY;
 		} else {
 			if (chan->address == AD7298_CH_TEMP)
 				ret = ad7298_scan_temp(st, val);

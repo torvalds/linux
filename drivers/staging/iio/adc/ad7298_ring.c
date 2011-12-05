@@ -18,35 +18,6 @@
 
 #include "ad7298.h"
 
-int ad7298_scan_from_ring(struct iio_dev *indio_dev, long ch)
-{
-	struct iio_buffer *ring = indio_dev->buffer;
-	int ret;
-	u16 *ring_data;
-
-	if (!(test_bit(ch, ring->scan_mask))) {
-		ret = -EBUSY;
-		goto error_ret;
-	}
-
-	ring_data = kmalloc(ring->access->get_bytes_per_datum(ring),
-			    GFP_KERNEL);
-	if (ring_data == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-	ret = ring->access->read_last(ring, (u8 *) ring_data);
-	if (ret)
-		goto error_free_ring_data;
-
-	ret = be16_to_cpu(ring_data[ch]);
-
-error_free_ring_data:
-	kfree(ring_data);
-error_ret:
-	return ret;
-}
-
 /**
  * ad7298_ring_preenable() setup the parameters of the ring before enabling
  *
