@@ -145,7 +145,7 @@ static int parse_cfe_partitions(struct mtd_info *master,
 					(long unsigned int)(parts[i].offset),
 					(long unsigned int)(parts[i].size));
 
-	printk(KERN_INFO PFX "Spare partition is %x offset and length %x\n",
+	printk(KERN_INFO PFX "Spare partition is offset %x and length %x\n",
 							spareaddr, sparelen);
 	*pparts = parts;
 	vfree(buf);
