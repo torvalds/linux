@@ -1093,10 +1093,10 @@ static void XGINew_SetDRAMSize_340(struct xgi_hw_device_info *HwDeviceExtension,
 	xgifb_reg_set(pVBInfo->P3c4, 0x21, (unsigned short) (data | 0x20));
 }
 
-static unsigned char *xgifb_copy_rom(struct pci_dev *dev)
+static u8 *xgifb_copy_rom(struct pci_dev *dev)
 {
 	void __iomem *rom_address;
-	unsigned char *rom_copy;
+	u8 *rom_copy;
 	size_t rom_size;
 
 	rom_address = pci_map_rom(dev, &rom_size);
@@ -1119,7 +1119,7 @@ static void ReadVBIOSTablData(struct pci_dev *pdev,
 			      struct vb_device_info *pVBInfo)
 {
 	struct xgifb_video_info *xgifb_info = pci_get_drvdata(pdev);
-	unsigned char *vbios;
+	u8 *vbios;
 	unsigned long i;
 	unsigned char j, k;
 	struct XGI21_LVDSCapStruct *lvds;
