@@ -403,7 +403,6 @@ static void __init pci_enable_pci_io_ecs(void)
 			++n;
 		}
 	}
-	pr_info("Extended Config Space enabled on %u nodes\n", n);
 #endif
 }
 
