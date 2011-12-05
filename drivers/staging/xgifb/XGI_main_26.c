@@ -21,7 +21,6 @@
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/pci.h>
-#include <linux/vmalloc.h>
 #include <linux/vt_kern.h>
 #include <linux/capability.h>
 #include <linux/fs.h>
@@ -45,8 +44,6 @@
 
 #define GPIOG_EN    (1<<6)
 #define GPIOG_READ  (1<<1)
-
-#define XGIFB_ROM_SIZE	65536
 
 static char *mode;
 static int vesa = -1;
@@ -1934,28 +1931,6 @@ static int __init XGIfb_setup(char *options)
 	return 0;
 }
 
-static unsigned char *xgifb_copy_rom(struct pci_dev *dev)
-{
-	void __iomem *rom_address;
-	unsigned char *rom_copy;
-	size_t rom_size;
-
-	rom_address = pci_map_rom(dev, &rom_size);
-	if (rom_address == NULL)
-		return NULL;
-
-	rom_copy = vzalloc(XGIFB_ROM_SIZE);
-	if (rom_copy == NULL)
-		goto done;
-
-	rom_size = min_t(size_t, rom_size, XGIFB_ROM_SIZE);
-	memcpy_fromio(rom_copy, rom_address, rom_size);
-
-done:
-	pci_unmap_rom(dev, rom_address);
-	return rom_copy;
-}
-
 static int __devinit xgifb_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent)
 {
@@ -2040,18 +2015,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 
 	printk("XGIfb:chipid = %x\n", xgifb_info->chip);
 	hw_info->jChipType = xgifb_info->chip;
-
-	if ((xgifb_info->chip == XG21) || (XGIfb_userom)) {
-		hw_info->pjVirtualRomBase = xgifb_copy_rom(pdev);
-		if (hw_info->pjVirtualRomBase)
-			printk(KERN_INFO "XGIfb: Video ROM found and mapped to %p\n",
-			       hw_info->pjVirtualRomBase);
-		else
-			printk(KERN_INFO "XGIfb: Video ROM not found\n");
-	} else {
-		hw_info->pjVirtualRomBase = NULL;
-		printk(KERN_INFO "XGIfb: Video ROM usage disabled\n");
-	}
 
 	if (XGIfb_get_dram_size(xgifb_info)) {
 		printk(KERN_INFO "XGIfb: Fatal error: Unable to determine RAM size.\n");
@@ -2418,7 +2381,6 @@ error_1:
 error_0:
 	release_mem_region(xgifb_info->video_base, xgifb_info->video_size);
 error:
-	vfree(hw_info->pjVirtualRomBase);
 	framebuffer_release(fb_info);
 	return ret;
 }
@@ -2442,7 +2404,6 @@ static void __devexit xgifb_remove(struct pci_dev *pdev)
 	iounmap(xgifb_info->video_vbase);
 	release_mem_region(xgifb_info->mmio_base, xgifb_info->mmio_size);
 	release_mem_region(xgifb_info->video_base, xgifb_info->video_size);
-	vfree(xgifb_info->hw_info.pjVirtualRomBase);
 	framebuffer_release(fb_info);
 	pci_set_drvdata(pdev, NULL);
 }

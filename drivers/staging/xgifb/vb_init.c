@@ -1,6 +1,7 @@
 #include <linux/types.h>
 #include <linux/delay.h> /* udelay */
 #include <linux/pci.h>
+#include <linux/vmalloc.h>
 
 #include "vgatypes.h"
 #include "XGIfb.h"
@@ -33,6 +34,8 @@ static const unsigned short XGINew_DDRDRAM_TYPE20[12][5] = {
 	{ 2, 13,  8,  8, 0x41},
 	{ 2, 12,  9,  8, 0x35},
 	{ 2, 12,  8,  4, 0x31} };
+
+#define XGIFB_ROM_SIZE	65536
 
 static unsigned char
 XGINew_GetXG20DRAMType(struct xgi_hw_device_info *HwDeviceExtension,
@@ -1091,19 +1094,49 @@ static void XGINew_SetDRAMSize_340(struct xgi_hw_device_info *HwDeviceExtension,
 	xgifb_reg_set(pVBInfo->P3c4, 0x21, (unsigned short) (data | 0x20));
 }
 
-static void ReadVBIOSTablData(unsigned char ChipType,
+static unsigned char *xgifb_copy_rom(struct pci_dev *dev)
+{
+	void __iomem *rom_address;
+	unsigned char *rom_copy;
+	size_t rom_size;
+
+	rom_address = pci_map_rom(dev, &rom_size);
+	if (rom_address == NULL)
+		return NULL;
+
+	rom_copy = vzalloc(XGIFB_ROM_SIZE);
+	if (rom_copy == NULL)
+		goto done;
+
+	rom_size = min_t(size_t, rom_size, XGIFB_ROM_SIZE);
+	memcpy_fromio(rom_copy, rom_address, rom_size);
+
+done:
+	pci_unmap_rom(dev, rom_address);
+	return rom_copy;
+}
+
+static void ReadVBIOSTablData(struct pci_dev *pdev,
 			      struct vb_device_info *pVBInfo)
 {
-	unsigned char *vbios = pVBInfo->ROMAddr;
+	struct xgifb_video_info *xgifb_info = pci_get_drvdata(pdev);
+	unsigned char *vbios;
 	unsigned long i;
 	unsigned char j, k;
 	struct XGI21_LVDSCapStruct *lvds;
 
-	if (ChipType != XG21)
+	if (xgifb_info->chip != XG21)
 		return;
 	pVBInfo->IF_DEF_LVDS = 0;
-	if (!(vbios[0x65] & 0x1))
+	vbios = xgifb_copy_rom(pdev);
+	if (vbios == NULL) {
+		dev_err(&pdev->dev, "video BIOS not available\n");
 		return;
+	}
+	if (!(vbios[0x65] & 0x1)) {
+		vfree(vbios);
+		return;
+	}
 	pVBInfo->IF_DEF_LVDS = 1;
 	i = vbios[0x316] | (vbios[0x317] << 8);
 	j = vbios[i - 1];
@@ -1133,6 +1166,7 @@ static void ReadVBIOSTablData(unsigned char ChipType,
 		k++;
 		lvds++;
 	} while (j > 0 && k < ARRAY_SIZE(XGI21_LCDCapList));
+	vfree(vbios);
 }
 
 static void XGINew_ChkSenseStatus(struct xgi_hw_device_info *HwDeviceExtension,
@@ -1485,7 +1519,7 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 	InitTo330Pointer(HwDeviceExtension->jChipType, pVBInfo);
 
 	/* ReadVBIOSData */
-	ReadVBIOSTablData(HwDeviceExtension->jChipType, pVBInfo);
+	ReadVBIOSTablData(pdev, pVBInfo);
 
 	/* 1.Openkey */
 	xgifb_reg_set(pVBInfo->P3c4, 0x05, 0x86);
