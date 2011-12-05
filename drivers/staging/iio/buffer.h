@@ -129,9 +129,6 @@ int iio_scan_mask_query(struct iio_buffer *buffer, int bit);
  **/
 int iio_scan_mask_set(struct iio_buffer *buffer, int bit);
 
-#define to_iio_buffer(d)				\
-	container_of(d, struct iio_buffer, dev)
-
 /**
  * iio_push_to_buffer() - push to a registered buffer.
  * @buffer:		IIO buffer structure for device
