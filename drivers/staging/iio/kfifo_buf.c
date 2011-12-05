@@ -75,12 +75,10 @@ static inline void __iio_init_kfifo(struct iio_kfifo *kf)
 }
 
 static IIO_BUFFER_ENABLE_ATTR;
-static IIO_BUFFER_BYTES_PER_DATUM_ATTR;
 static IIO_BUFFER_LENGTH_ATTR;
 
 static struct attribute *iio_kfifo_attributes[] = {
 	&dev_attr_length.attr,
-	&dev_attr_bytes_per_datum.attr,
 	&dev_attr_enable.attr,
 	NULL,
 };

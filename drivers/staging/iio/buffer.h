@@ -193,12 +193,6 @@ ssize_t iio_buffer_write_length(struct device *dev,
 			      const char *buf,
 			      size_t len);
 /**
- * iio_buffer_read_bytes_per_datum() - attr for number of bytes in whole datum
- **/
-ssize_t iio_buffer_read_bytes_per_datum(struct device *dev,
-					struct device_attribute *attr,
-					char *buf);
-/**
  * iio_buffer_store_enable() - attr to turn the buffer on
  **/
 ssize_t iio_buffer_store_enable(struct device *dev,
@@ -214,9 +208,6 @@ ssize_t iio_buffer_show_enable(struct device *dev,
 #define IIO_BUFFER_LENGTH_ATTR DEVICE_ATTR(length, S_IRUGO | S_IWUSR,	\
 					   iio_buffer_read_length,	\
 					   iio_buffer_write_length)
-#define IIO_BUFFER_BYTES_PER_DATUM_ATTR					\
-	DEVICE_ATTR(bytes_per_datum, S_IRUGO | S_IWUSR,			\
-		    iio_buffer_read_bytes_per_datum, NULL)
 
 #define IIO_BUFFER_ENABLE_ATTR DEVICE_ATTR(enable, S_IRUGO | S_IWUSR,	\
 					   iio_buffer_show_enable,	\

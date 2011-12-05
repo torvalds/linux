@@ -408,21 +408,6 @@ ssize_t iio_buffer_write_length(struct device *dev,
 }
 EXPORT_SYMBOL(iio_buffer_write_length);
 
-ssize_t iio_buffer_read_bytes_per_datum(struct device *dev,
-					struct device_attribute *attr,
-					char *buf)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct iio_buffer *buffer = indio_dev->buffer;
-
-	if (buffer->access->get_bytes_per_datum)
-		return sprintf(buf, "%d\n",
-			       buffer->access->get_bytes_per_datum(buffer));
-
-	return 0;
-}
-EXPORT_SYMBOL(iio_buffer_read_bytes_per_datum);
-
 ssize_t iio_buffer_store_enable(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf,
