@@ -53,7 +53,7 @@ static cycle_t i8253_read(struct clocksource *cs)
 	count |= inb_p(PIT_CH0) << 8;
 
 	/* VIA686a test code... reset the latch if count > max + 1 */
-	if (count > LATCH) {
+	if (count > PIT_LATCH) {
 		outb_p(0x34, PIT_MODE);
 		outb_p(PIT_LATCH & 0xff, PIT_CH0);
 		outb_p(PIT_LATCH >> 8, PIT_CH0);
@@ -114,8 +114,8 @@ static void init_pit_timer(enum clock_event_mode mode,
 	case CLOCK_EVT_MODE_PERIODIC:
 		/* binary, mode 2, LSB/MSB, ch 0 */
 		outb_p(0x34, PIT_MODE);
-		outb_p(LATCH & 0xff , PIT_CH0);	/* LSB */
-		outb_p(LATCH >> 8 , PIT_CH0);		/* MSB */
+		outb_p(PIT_LATCH & 0xff , PIT_CH0);	/* LSB */
+		outb_p(PIT_LATCH >> 8 , PIT_CH0);		/* MSB */
 		break;
 
 	case CLOCK_EVT_MODE_SHUTDOWN:
