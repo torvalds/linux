@@ -316,25 +316,6 @@ out:
 	return ret;
 }
 
-static int ad7793_scan_from_ring(struct ad7793_state *st, unsigned ch, int *val)
-{
-	struct iio_buffer *ring = iio_priv_to_dev(st)->buffer;
-	int ret;
-	s64 dat64[2];
-	u32 *dat32 = (u32 *)dat64;
-
-	if (!(test_bit(ch, ring->scan_mask)))
-		return  -EBUSY;
-
-	ret = ring->access->read_last(ring, (u8 *) &dat64);
-	if (ret)
-		return ret;
-
-	*val = *dat32;
-
-	return 0;
-}
-
 static int ad7793_ring_preenable(struct iio_dev *indio_dev)
 {
 	struct ad7793_state *st = iio_priv(indio_dev);
@@ -650,8 +631,7 @@ static int ad7793_read_raw(struct iio_dev *indio_dev,
 	case 0:
 		mutex_lock(&indio_dev->mlock);
 		if (iio_buffer_enabled(indio_dev))
-			ret = ad7793_scan_from_ring(st,
-					chan->scan_index, &smpl);
+			ret = -EBUSY;
 		else
 			ret = ad7793_read(st, chan->address,
 					chan->scan_type.realbits / 8, &smpl);
