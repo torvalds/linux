@@ -1114,7 +1114,7 @@ done:
 	return rom_copy;
 }
 
-static void ReadVBIOSTablData(struct pci_dev *pdev,
+static void xgifb_read_vbios(struct pci_dev *pdev,
 			      struct vb_device_info *pVBInfo)
 {
 	struct xgifb_video_info *xgifb_info = pci_get_drvdata(pdev);
@@ -1523,8 +1523,7 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 
 	InitTo330Pointer(HwDeviceExtension->jChipType, pVBInfo);
 
-	/* ReadVBIOSData */
-	ReadVBIOSTablData(pdev, pVBInfo);
+	xgifb_read_vbios(pdev, pVBInfo);
 
 	/* 1.Openkey */
 	xgifb_reg_set(pVBInfo->P3c4, 0x05, 0x86);
