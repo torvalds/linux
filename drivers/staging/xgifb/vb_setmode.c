@@ -7409,7 +7409,6 @@ unsigned char XGISetModeNew(struct xgi_hw_device_info *HwDeviceExtension,
 	unsigned short ModeIdIndex;
 	struct vb_device_info VBINF;
 	struct vb_device_info *pVBInfo = &VBINF;
-	pVBInfo->ROMAddr = HwDeviceExtension->pjVirtualRomBase;
 	pVBInfo->BaseAddr = (unsigned long) HwDeviceExtension->pjIOAddress;
 	pVBInfo->IF_DEF_LVDS = 0;
 	pVBInfo->IF_DEF_LCDA = 1;

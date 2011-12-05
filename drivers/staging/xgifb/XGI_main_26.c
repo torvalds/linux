@@ -156,7 +156,6 @@ static int XGIfb_mode_rate_to_dclock(struct vb_device_info *XGI_Pr,
 
 	/* unsigned long  temp = 0; */
 	int Clock;
-	XGI_Pr->ROMAddr = HwDeviceExtension->pjVirtualRomBase;
 	InitTo330Pointer(HwDeviceExtension->jChipType, XGI_Pr);
 
 	RefreshRateTableIndex = XGI_GetRatePtrCRT2(HwDeviceExtension, ModeNo,
@@ -196,7 +195,6 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	unsigned char sr_data, cr_data, cr_data2;
 	unsigned long cr_data3;
 	int A, B, C, D, E, F, temp, j;
-	XGI_Pr->ROMAddr = HwDeviceExtension->pjVirtualRomBase;
 	InitTo330Pointer(HwDeviceExtension->jChipType, XGI_Pr);
 	RefreshRateTableIndex = XGI_GetRatePtrCRT2(HwDeviceExtension, ModeNo,
 			ModeIdIndex, XGI_Pr);

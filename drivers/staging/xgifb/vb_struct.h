@@ -299,7 +299,6 @@ struct vb_device_info {
 	unsigned short   NewFlickerMode;
 	unsigned short   SelectCRT2Rate;
 
-	unsigned char *ROMAddr;
 	void __iomem *FBAddr;
 	unsigned long BaseAddr;
 	unsigned long RelIO;

@@ -1075,7 +1075,6 @@ static void XGINew_SetDRAMSize_340(struct xgi_hw_device_info *HwDeviceExtension,
 {
 	unsigned short data;
 
-	pVBInfo->ROMAddr = HwDeviceExtension->pjVirtualRomBase;
 	pVBInfo->FBAddr = HwDeviceExtension->pjVideoMemoryAddress;
 
 	XGISetModeNew(HwDeviceExtension, 0x2e);
@@ -1453,23 +1452,14 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 	struct vb_device_info *pVBInfo = &VBINF;
 	unsigned char i, temp = 0, temp1;
 	/* VBIOSVersion[5]; */
-	volatile unsigned char *pVideoMemory;
 
 	/* unsigned long j, k; */
-
-	pVBInfo->ROMAddr = HwDeviceExtension->pjVirtualRomBase;
 
 	pVBInfo->FBAddr = HwDeviceExtension->pjVideoMemoryAddress;
 
 	pVBInfo->BaseAddr = (unsigned long) HwDeviceExtension->pjIOAddress;
 
-	pVideoMemory = (unsigned char *) pVBInfo->ROMAddr;
-
 	/* Newdebugcode(0x99); */
-
-
-	/* if (pVBInfo->ROMAddr == 0) */
-	/* return(0); */
 
 	if (pVBInfo->FBAddr == NULL) {
 		printk("\n pVBInfo->FBAddr == 0 ");
