@@ -28,9 +28,11 @@ static int evmkey_len = MAX_KEY_SIZE;
 struct crypto_shash *hmac_tfm;
 struct crypto_shash *hash_tfm;
 
+static DEFINE_MUTEX(mutex);
+
 static struct shash_desc *init_desc(const char type)
 {
-	int rc;
+	long rc;
 	char *algo;
 	struct crypto_shash **tfm;
 	struct shash_desc *desc;
@@ -44,12 +46,15 @@ static struct shash_desc *init_desc(const char type)
 	}
 
 	if (*tfm == NULL) {
+		mutex_lock(&mutex);
+		if (*tfm)
+			goto out;
 		*tfm = crypto_alloc_shash(algo, 0, CRYPTO_ALG_ASYNC);
 		if (IS_ERR(*tfm)) {
-			pr_err("Can not allocate %s (reason: %ld)\n",
-			       algo, PTR_ERR(*tfm));
 			rc = PTR_ERR(*tfm);
+			pr_err("Can not allocate %s (reason: %ld)\n", algo, rc);
 			*tfm = NULL;
+			mutex_unlock(&mutex);
 			return ERR_PTR(rc);
 		}
 		if (type == EVM_XATTR_HMAC) {
@@ -57,9 +62,12 @@ static struct shash_desc *init_desc(const char type)
 			if (rc) {
 				crypto_free_shash(*tfm);
 				*tfm = NULL;
+				mutex_unlock(&mutex);
 				return ERR_PTR(rc);
 			}
 		}
+out:
+		mutex_unlock(&mutex);
 	}
 
 	desc = kmalloc(sizeof(*desc) + crypto_shash_descsize(*tfm),
