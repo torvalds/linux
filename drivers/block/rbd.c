@@ -1746,6 +1746,7 @@ static int __rbd_refresh_header(struct rbd_device *rbd_dev)
 	kfree(rbd_dev->header.snap_names);
 	kfree(rbd_dev->header.snapc);
 
+	rbd_dev->header.image_size = h.image_size;
 	rbd_dev->header.total_snaps = h.total_snaps;
 	rbd_dev->header.snapc = h.snapc;
 	rbd_dev->header.snap_names = h.snap_names;
