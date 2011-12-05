@@ -904,6 +904,12 @@ config SOC_CAMERA_OV2659
 	depends on SOC_CAMERA && I2C
 	help
 	  This is a ov2659 camera driver
+	  
+config SOC_CAMERA_OV7690
+	tristate "ov7690 camera support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a ov7690 camera driver	  
 
 config SOC_CAMERA_OV9650
 	tristate "ov9650 camera support"
