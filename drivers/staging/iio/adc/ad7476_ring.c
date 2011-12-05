@@ -20,30 +20,6 @@
 
 #include "ad7476.h"
 
-int ad7476_scan_from_ring(struct iio_dev *indio_dev)
-{
-	struct iio_buffer *ring = indio_dev->buffer;
-	int ret;
-	u8 *ring_data;
-
-	ring_data = kmalloc(ring->access->get_bytes_per_datum(ring),
-			    GFP_KERNEL);
-	if (ring_data == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-	ret = ring->access->read_last(ring, ring_data);
-	if (ret)
-		goto error_free_ring_data;
-
-	ret = (ring_data[0] << 8) | ring_data[1];
-
-error_free_ring_data:
-	kfree(ring_data);
-error_ret:
-	return ret;
-}
-
 /**
  * ad7476_ring_preenable() setup the parameters of the ring before enabling
  *
