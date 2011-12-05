@@ -19,40 +19,6 @@
 
 #include "ad7887.h"
 
-int ad7887_scan_from_ring(struct ad7887_state *st, int channum)
-{
-	struct iio_buffer *ring = iio_priv_to_dev(st)->buffer;
-	int count = 0, ret;
-	u16 *ring_data;
-
-	if (!(test_bit(channum, ring->scan_mask))) {
-		ret = -EBUSY;
-		goto error_ret;
-	}
-
-	ring_data = kmalloc(ring->access->get_bytes_per_datum(ring),
-			    GFP_KERNEL);
-	if (ring_data == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-	ret = ring->access->read_last(ring, (u8 *) ring_data);
-	if (ret)
-		goto error_free_ring_data;
-
-	/* for single channel scan the result is stored with zero offset */
-	if ((test_bit(1, ring->scan_mask) || test_bit(0, ring->scan_mask)) &&
-	    (channum == 1))
-		count = 1;
-
-	ret = be16_to_cpu(ring_data[count]);
-
-error_free_ring_data:
-	kfree(ring_data);
-error_ret:
-	return ret;
-}
-
 /**
  * ad7887_ring_preenable() setup the parameters of the ring before enabling
  *
