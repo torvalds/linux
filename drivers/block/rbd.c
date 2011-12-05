@@ -240,7 +240,7 @@ static void rbd_put_dev(struct rbd_device *rbd_dev)
 	put_device(&rbd_dev->dev);
 }
 
-static int __rbd_update_snaps(struct rbd_device *rbd_dev);
+static int __rbd_refresh_header(struct rbd_device *rbd_dev);
 
 static int rbd_open(struct block_device *bdev, fmode_t mode)
 {
@@ -1222,7 +1222,7 @@ static void rbd_watch_cb(u64 ver, u64 notify_id, u8 opcode, void *data)
 	dout("rbd_watch_cb %s notify_id=%lld opcode=%d\n", dev->obj_md_name,
 		notify_id, (int)opcode);
 	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
-	rc = __rbd_update_snaps(dev);
+	rc = __rbd_refresh_header(dev);
 	mutex_unlock(&ctl_mutex);
 	if (rc)
 		pr_warning(RBD_DRV_NAME "%d got notification but failed to "
@@ -1689,7 +1689,7 @@ static void __rbd_remove_all_snaps(struct rbd_device *rbd_dev)
 /*
  * only read the first part of the ondisk header, without the snaps info
  */
-static int __rbd_update_snaps(struct rbd_device *rbd_dev)
+static int __rbd_refresh_header(struct rbd_device *rbd_dev)
 {
 	int ret;
 	struct rbd_image_header h;
@@ -1876,7 +1876,7 @@ static ssize_t rbd_image_refresh(struct device *dev,
 
 	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
 
-	rc = __rbd_update_snaps(rbd_dev);
+	rc = __rbd_refresh_header(rbd_dev);
 	if (rc < 0)
 		ret = rc;
 
@@ -2159,7 +2159,7 @@ static int rbd_init_watch_dev(struct rbd_device *rbd_dev)
 					 rbd_dev->header.obj_version);
 		if (ret == -ERANGE) {
 			mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
-			rc = __rbd_update_snaps(rbd_dev);
+			rc = __rbd_refresh_header(rbd_dev);
 			mutex_unlock(&ctl_mutex);
 			if (rc < 0)
 				return rc;
@@ -2544,7 +2544,7 @@ static ssize_t rbd_snap_add(struct device *dev,
 	if (ret < 0)
 		goto err_unlock;
 
-	ret = __rbd_update_snaps(rbd_dev);
+	ret = __rbd_refresh_header(rbd_dev);
 	if (ret < 0)
 		goto err_unlock;
 
