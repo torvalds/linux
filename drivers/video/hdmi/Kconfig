@@ -9,6 +9,12 @@ config HDMI
 if HDMI
 source "drivers/video/hdmi/chips/Kconfig"
 
+
+config HDMI_SAVE_DATA
+	bool "enable hdmi save data"	
+	help 
+		Enable hdmi save data in rtc register
+
 #config HDMI_DUAL_DISP
 #	bool "hdmi support dual display"
 #	help

@@ -116,14 +116,34 @@ static int anx7150_set_param(struct hdmi *hdmi)
 	anx7150_param_chg(anx);
 	return 0;
 }
+
 static int anx7150_init(struct hdmi *hdmi)
 {
 	struct anx7150_pdata *anx = hdmi_priv(hdmi);
-
+#ifdef CONFIG_HDMI_SAVE_DATA
+    int hdmi_data = hdmi_get_data();
+    if(hdmi_data<0){
+    hdmi_set_data((hdmi->resolution&0x7)|((hdmi->scale&0x1f)<<3));
+    }
+    else{
+    hdmi->resolution = hdmi_data&0x7;
+    hdmi->scale_set= ((hdmi_data>>3)&0x1f) + MIN_SCALE;
+    hdmi->scale = hdmi->scale_set;
+    }
+#endif
 	anx->init = 0;
-	hdmi_changed(hdmi, 1);
+	hdmi_changed(hdmi,1);
 
 	return 0;
+}
+static void anx7150_init_work_func(struct work_struct *work)
+{
+    struct anx7150_pdata *anx = container_of(work, struct anx7150_pdata, work.work);
+
+    if(anx!=NULL)
+        anx7150_init(anx->hdmi);
+    else
+        printk("anx7150_init_work_func  err\n");
 }
 static struct hdmi_ops anx7150_ops = {
 	.set_param = anx7150_set_param,
@@ -172,7 +192,7 @@ static int anx7150_i2c_probe(struct i2c_client *client,const struct i2c_device_i
         return -ENOMEM;
     }
 	hdmi->ops = &anx7150_ops;
-	hdmi->display_on = HDMI_DISABLE;
+	hdmi->display_on = HDMI_DEFAULT_MODE;
 	hdmi->hdcp_on = HDMI_DISABLE;
 	hdmi->audio_fs = HDMI_I2S_DEFAULT_Fs;
 	hdmi->resolution = HDMI_DEFAULT_RESOLUTION;
@@ -209,6 +229,8 @@ static int anx7150_i2c_probe(struct i2c_client *client,const struct i2c_device_i
 	register_early_suspend(&anx->early_suspend);
 #endif
 	anx7150_unplug(anx->client);
+	INIT_DELAYED_WORK(&anx->work,anx7150_init_work_func);
+	schedule_delayed_work(&anx->work, msecs_to_jiffies(2000));
     dev_info(&client->dev, "anx7150 i2c probe ok\n");
     return 0;
 err_gpio_free:

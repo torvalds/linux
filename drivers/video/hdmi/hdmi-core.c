@@ -189,8 +189,10 @@ int hdmi_get_scale(void)
 	struct hdmi* hdmi = get_hdmi_struct(0);
 	if(!hdmi)
 		return 100;
-	else
+	else if(hdmi->mode == DISP_ON_HDMI)
 		return hdmi->scale;
+	else
+	    return 100;
 }
 
 int hdmi_set_scale(int event, char *data, int len)

@@ -119,4 +119,6 @@ extern int hdmi_get_scale(void);
 extern int hdmi_set_scale(int event, char *data, int len);
 extern int fb_get_video_mode(void);
 extern int display_on_hdmi(void);
+extern int hdmi_get_data(void);
+extern int hdmi_set_data(int data);
 #endif

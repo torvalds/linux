@@ -3,6 +3,18 @@
 #include <linux/string.h>
 
 int debug_en = 0;
+
+#ifndef CONFIG_HDMI_SAVE_DATA
+int hdmi_get_data(void)
+{
+return 0;
+}
+int hdmi_set_data(int data)
+{
+return 0;
+}
+#endif
+
 static ssize_t hdmi_show_state_attrs(struct device *dev,
 					      struct device_attribute *attr,
 					      char *buf) 
@@ -45,7 +57,9 @@ static ssize_t hdmi_restore_state_attrs(struct device *dev,
 	char *p;
 	const char *q;
 	int set_param = 0, tmp = 0;
-
+	#ifdef CONFIG_HDMI_SAVE_DATA
+    int hdmi_data=0;
+    #endif
 	if(hdmi->mode == DISP_ON_LCD)
 	{
 		dev_err(dev, "display on lcd, do not set parameter!\n");
@@ -107,6 +121,13 @@ static ssize_t hdmi_restore_state_attrs(struct device *dev,
 				hdmi->scale_set = tmp;
 				hdmi_dbg(dev, "set scale = %d\n", tmp);
 				hdmi->scale = tmp;
+				#ifdef CONFIG_HDMI_SAVE_DATA
+				hdmi_data = hdmi_get_data();
+				if(hdmi_data<0)
+				    hdmi->ops->init(hdmi);
+				hdmi_data = (((hdmi->scale-MIN_SCALE)&0x1f)<<3) | (hdmi_data & 0x7);
+				hdmi_set_data(hdmi_data);
+				#endif
 			}
 			else
 			{
@@ -125,6 +146,13 @@ static ssize_t hdmi_restore_state_attrs(struct device *dev,
 					set_param |= 1;
 					hdmi_dbg(dev, "set resolution = %d\n", tmp);
 					hdmi->resolution = tmp;
+					#ifdef CONFIG_HDMI_SAVE_DATA
+					hdmi_data = hdmi_get_data();
+					if(hdmi_data<0)
+				        hdmi->ops->init(hdmi);
+					hdmi_data = (hdmi->resolution&0x7) | (hdmi_data & 0xf8);
+					hdmi_set_data(hdmi_data);
+					#endif
 				}
 			}
 			else
@@ -194,6 +222,7 @@ static ssize_t hdmi_restore_debug_attrs(struct device *dev,
 		debug_en = tmp;
 	return size;
 }
+#if 0
 static ssize_t hdmi_restore_init_attrs(struct device *dev, 
 						struct device_attribute *attr,
 			 			const char *buf, size_t size)
@@ -217,13 +246,13 @@ static ssize_t hdmi_restore_init_attrs(struct device *dev,
 		hdmi->ops->init(hdmi);
 	return size;
 }
+#endif
 static struct device_attribute hdmi_attrs[] = {
 	__ATTR(state, 0777, hdmi_show_state_attrs, hdmi_restore_state_attrs),
 	__ATTR(enable, 0777, hdmi_show_switch_attrs, hdmi_restore_switch_attrs),
 	__ATTR(debug, 0777, hdmi_show_debug_attrs, hdmi_restore_debug_attrs),
-	__ATTR(init, 0777, NULL, hdmi_restore_init_attrs),
+	//__ATTR(init, 0777, NULL, hdmi_restore_init_attrs),
 };
-
 int hdmi_create_attrs(struct hdmi *hdmi)
 {
 	int rc = 0;

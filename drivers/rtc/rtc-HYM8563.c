@@ -38,7 +38,7 @@ struct hym8563 {
 	struct rtc_wkalrm alarm;
 	struct wake_lock wake_lock;
 };
-
+static struct i2c_client *gClient = NULL;
 static int hym8563_i2c_read_regs(struct i2c_client *client, u8 reg, u8 buf[], unsigned len)
 {
 	int ret; 
@@ -275,7 +275,40 @@ static int hym8563_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	mutex_unlock(&hym8563->mutex);
 	return 0;
 }
+#ifdef CONFIG_HDMI_SAVE_DATA
+int hdmi_get_data(void)
+{
+    u8 regs=0;
+    if(gClient)
+        hym8563_i2c_read_regs(gClient, RTC_T_COUNT, &regs, 1);
+    else 
+    {
+        printk("%s rtc has no init\n",__func__);
+        return -1;
+    }
+    if(regs==0 || regs==0xff){
+        printk("%s rtc has no hdmi data\n",__func__);
+        return -1;
+    }
+    return (regs-1);
+}
 
+int hdmi_set_data(int data)
+{
+    u8 regs = (data+1)&0xff;
+    if(gClient)
+        hym8563_i2c_set_regs(gClient, RTC_T_COUNT, &regs, 1);
+    else 
+    {
+        printk("%s rtc has no init\n",__func__);
+        return -1;
+    }   
+    return 0;
+}
+
+EXPORT_SYMBOL(hdmi_get_data);
+EXPORT_SYMBOL(hdmi_set_data);
+#endif
 #if defined(CONFIG_RTC_INTF_DEV) || defined(CONFIG_RTC_INTF_DEV_MODULE)
 static int hym8563_i2c_open_alarm(struct i2c_client *client)
 {
@@ -400,7 +433,7 @@ static int __devinit hym8563_probe(struct i2c_client *client, const struct i2c_d
 	if (!hym8563) {
 		return -ENOMEM;
 	}
-		
+	gClient = client;	
 	hym8563->client = client;
 	mutex_init(&hym8563->mutex);
 	wake_lock_init(&hym8563->wake_lock, WAKE_LOCK_SUSPEND, "rtc_hym8563");
