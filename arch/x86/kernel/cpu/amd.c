@@ -353,6 +353,13 @@ static void __cpuinit srat_detect_node(struct cpuinfo_x86 *c)
 	if (node == NUMA_NO_NODE)
 		node = per_cpu(cpu_llc_id, cpu);
 
+	/*
+	 * If core numbers are inconsistent, it's likely a multi-fabric platform,
+	 * so invoke platform-specific handler
+	 */
+	if (c->phys_proc_id != node)
+		x86_cpuinit.fixup_cpu_id(c, node);
+
 	if (!node_online(node)) {
 		/*
 		 * Two possibilities here:
