@@ -1148,9 +1148,7 @@ static void ReadVBIOSTablData(unsigned char ChipType,
 		i += 25;
 		j--;
 		k++;
-	} while ((j > 0) &&
-		 (k < (sizeof(XGI21_LCDCapList) /
-			       sizeof(struct XGI21_LVDSCapStruct))));
+	} while (j > 0 && k < ARRAY_SIZE(XGI21_LCDCapList));
 }
 
 static void XGINew_ChkSenseStatus(struct xgi_hw_device_info *HwDeviceExtension,
