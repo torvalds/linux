@@ -298,7 +298,12 @@ static const enum max1363_modes max1363_mode_list[] = {
 		.channel = num,						\
 		.address = addr,					\
 		.info_mask = MAX1363_INFO_MASK,				\
-		.scan_type = IIO_ST('u', bits, (bits > 8) ? 16 : 8, 0), \
+		.scan_type = {						\
+			.sign = 'u',					\
+			.realbits = bits,				\
+			.storagebits = (bits > 8) ? 16 : 8,		\
+			.endianness = IIO_BE,				\
+		},							\
 		.scan_index = si,					\
 		.event_mask = evmask,					\
 	}
@@ -313,7 +318,12 @@ static const enum max1363_modes max1363_mode_list[] = {
 		.channel2 = num2,					\
 		.address = addr,					\
 		.info_mask = MAX1363_INFO_MASK,				\
-		.scan_type = IIO_ST('u', bits, (bits > 8) ? 16 : 8, 0), \
+		.scan_type = {						\
+			.sign = 's',					\
+			.realbits = bits,				\
+			.storagebits = (bits > 8) ? 16 : 8,		\
+			.endianness = IIO_BE,				\
+		},							\
 		.scan_index = si,					\
 		.event_mask = evmask,					\
 	}
