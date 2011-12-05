@@ -1313,14 +1313,9 @@ static void XGINew_GetXG21Sense(struct xgi_hw_device_info *HwDeviceExtension,
 		struct vb_device_info *pVBInfo)
 {
 	unsigned char Temp;
-	volatile unsigned char *pVideoMemory =
-			(unsigned char *) pVBInfo->ROMAddr;
-
-	pVBInfo->IF_DEF_LVDS = 0;
 
 #if 1
-	if ((pVideoMemory[0x65] & 0x01)) { /* For XG21 LVDS */
-		pVBInfo->IF_DEF_LVDS = 1;
+	if (pVBInfo->IF_DEF_LVDS) { /* For XG21 LVDS */
 		xgifb_reg_or(pVBInfo->P3d4, 0x32, LCDSense);
 		/* LVDS on chip */
 		xgifb_reg_and_or(pVBInfo->P3d4, 0x38, ~0xE0, 0xC0);
