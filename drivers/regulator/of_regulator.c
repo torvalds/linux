@@ -34,6 +34,9 @@ static void of_get_regulation_constraints(struct device_node *np,
 	/* Voltage change possible? */
 	if (constraints->min_uV != constraints->max_uV)
 		constraints->valid_ops_mask |= REGULATOR_CHANGE_VOLTAGE;
+	/* Only one voltage?  Then make sure it's set. */
+	if (constraints->min_uV == constraints->max_uV)
+		constraints->apply_uV = true;
 
 	uV_offset = of_get_property(np, "regulator-microvolt-offset", NULL);
 	if (uV_offset)
