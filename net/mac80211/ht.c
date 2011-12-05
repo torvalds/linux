@@ -47,7 +47,9 @@ void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,
 	int i;
 
 	if (sdata->vif.type != NL80211_IFTYPE_STATION) {
-		WARN_ON_ONCE(sdata->vif.type != NL80211_IFTYPE_STATION);
+		/* AP interfaces call this code when adding new stations,
+		 * so just silently ignore non station interfaces.
+		 */
 		return;
 	}
 
