@@ -89,6 +89,17 @@ static const char * const iio_chan_info_postfix[] = {
 	= "filter_low_pass_3db_frequency",
 };
 
+const struct iio_chan_spec
+*iio_find_channel_from_si(struct iio_dev *indio_dev, int si)
+{
+	int i;
+
+	for (i = 0; i < indio_dev->num_channels; i++)
+		if (indio_dev->channels[i].scan_index == si)
+			return &indio_dev->channels[i];
+	return NULL;
+}
+
 /**
  * struct iio_detected_event_list - list element for events that have occurred
  * @list:		linked list header

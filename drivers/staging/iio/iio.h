@@ -323,6 +323,14 @@ struct iio_dev {
 };
 
 /**
+ * iio_find_channel_from_si() - get channel from its scan index
+ * @indio_dev:		device
+ * @si:			scan index to match
+ */
+const struct iio_chan_spec
+*iio_find_channel_from_si(struct iio_dev *indio_dev, int si);
+
+/**
  * iio_device_register() - register a device with the IIO subsystem
  * @indio_dev:		Device structure filled by the device driver
  **/
