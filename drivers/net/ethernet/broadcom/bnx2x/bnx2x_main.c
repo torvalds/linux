@@ -2912,6 +2912,143 @@ static void bnx2x_e1h_enable(struct bnx2x *bp)
 	 */
 }
 
+#define DRV_INFO_ETH_STAT_NUM_MACS_REQUIRED 3
+
+static void bnx2x_drv_info_ether_stat(struct bnx2x *bp)
+{
+	struct eth_stats_info *ether_stat =
+		&bp->slowpath->drv_info_to_mcp.ether_stat;
+
+	/* leave last char as NULL */
+	memcpy(ether_stat->version, DRV_MODULE_VERSION,
+	       ETH_STAT_INFO_VERSION_LEN - 1);
+
+	bp->fp[0].mac_obj.get_n_elements(bp, &bp->fp[0].mac_obj,
+					 DRV_INFO_ETH_STAT_NUM_MACS_REQUIRED,
+					 ether_stat->mac_local);
+
+	ether_stat->mtu_size = bp->dev->mtu;
+
+	if (bp->dev->features & NETIF_F_RXCSUM)
+		ether_stat->feature_flags |= FEATURE_ETH_CHKSUM_OFFLOAD_MASK;
+	if (bp->dev->features & NETIF_F_TSO)
+		ether_stat->feature_flags |= FEATURE_ETH_LSO_MASK;
+	ether_stat->feature_flags |= bp->common.boot_mode;
+
+	ether_stat->promiscuous_mode = (bp->dev->flags & IFF_PROMISC) ? 1 : 0;
+
+	ether_stat->txq_size = bp->tx_ring_size;
+	ether_stat->rxq_size = bp->rx_ring_size;
+}
+
+static void bnx2x_drv_info_fcoe_stat(struct bnx2x *bp)
+{
+	struct bnx2x_dcbx_app_params *app = &bp->dcbx_port_params.app;
+	struct fcoe_stats_info *fcoe_stat =
+		&bp->slowpath->drv_info_to_mcp.fcoe_stat;
+
+	memcpy(fcoe_stat->mac_local, bp->fip_mac, ETH_ALEN);
+
+	fcoe_stat->qos_priority =
+		app->traffic_type_priority[LLFC_TRAFFIC_TYPE_FCOE];
+
+	/* insert FCoE stats from ramrod response */
+	if (!NO_FCOE(bp)) {
+		struct tstorm_per_queue_stats *fcoe_q_tstorm_stats =
+			&bp->fw_stats_data->queue_stats[FCOE_IDX].
+			tstorm_queue_statistics;
+
+		struct xstorm_per_queue_stats *fcoe_q_xstorm_stats =
+			&bp->fw_stats_data->queue_stats[FCOE_IDX].
+			xstorm_queue_statistics;
+
+		struct fcoe_statistics_params *fw_fcoe_stat =
+			&bp->fw_stats_data->fcoe;
+
+		ADD_64(fcoe_stat->rx_bytes_hi, 0, fcoe_stat->rx_bytes_lo,
+		       fw_fcoe_stat->rx_stat0.fcoe_rx_byte_cnt);
+
+		ADD_64(fcoe_stat->rx_bytes_hi,
+		       fcoe_q_tstorm_stats->rcv_ucast_bytes.hi,
+		       fcoe_stat->rx_bytes_lo,
+		       fcoe_q_tstorm_stats->rcv_ucast_bytes.lo);
+
+		ADD_64(fcoe_stat->rx_bytes_hi,
+		       fcoe_q_tstorm_stats->rcv_bcast_bytes.hi,
+		       fcoe_stat->rx_bytes_lo,
+		       fcoe_q_tstorm_stats->rcv_bcast_bytes.lo);
+
+		ADD_64(fcoe_stat->rx_bytes_hi,
+		       fcoe_q_tstorm_stats->rcv_mcast_bytes.hi,
+		       fcoe_stat->rx_bytes_lo,
+		       fcoe_q_tstorm_stats->rcv_mcast_bytes.lo);
+
+		ADD_64(fcoe_stat->rx_frames_hi, 0, fcoe_stat->rx_frames_lo,
+		       fw_fcoe_stat->rx_stat0.fcoe_rx_pkt_cnt);
+
+		ADD_64(fcoe_stat->rx_frames_hi, 0, fcoe_stat->rx_frames_lo,
+		       fcoe_q_tstorm_stats->rcv_ucast_pkts);
+
+		ADD_64(fcoe_stat->rx_frames_hi, 0, fcoe_stat->rx_frames_lo,
+		       fcoe_q_tstorm_stats->rcv_bcast_pkts);
+
+		ADD_64(fcoe_stat->rx_frames_hi, 0, fcoe_stat->rx_frames_lo,
+		       fcoe_q_tstorm_stats->rcv_ucast_pkts);
+
+		ADD_64(fcoe_stat->tx_bytes_hi, 0, fcoe_stat->tx_bytes_lo,
+		       fw_fcoe_stat->tx_stat.fcoe_tx_byte_cnt);
+
+		ADD_64(fcoe_stat->tx_bytes_hi,
+		       fcoe_q_xstorm_stats->ucast_bytes_sent.hi,
+		       fcoe_stat->tx_bytes_lo,
+		       fcoe_q_xstorm_stats->ucast_bytes_sent.lo);
+
+		ADD_64(fcoe_stat->tx_bytes_hi,
+		       fcoe_q_xstorm_stats->bcast_bytes_sent.hi,
+		       fcoe_stat->tx_bytes_lo,
+		       fcoe_q_xstorm_stats->bcast_bytes_sent.lo);
+
+		ADD_64(fcoe_stat->tx_bytes_hi,
+		       fcoe_q_xstorm_stats->mcast_bytes_sent.hi,
+		       fcoe_stat->tx_bytes_lo,
+		       fcoe_q_xstorm_stats->mcast_bytes_sent.lo);
+
+		ADD_64(fcoe_stat->tx_frames_hi, 0, fcoe_stat->tx_frames_lo,
+		       fw_fcoe_stat->tx_stat.fcoe_tx_pkt_cnt);
+
+		ADD_64(fcoe_stat->tx_frames_hi, 0, fcoe_stat->tx_frames_lo,
+		       fcoe_q_xstorm_stats->ucast_pkts_sent);
+
+		ADD_64(fcoe_stat->tx_frames_hi, 0, fcoe_stat->tx_frames_lo,
+		       fcoe_q_xstorm_stats->bcast_pkts_sent);
+
+		ADD_64(fcoe_stat->tx_frames_hi, 0, fcoe_stat->tx_frames_lo,
+		       fcoe_q_xstorm_stats->mcast_pkts_sent);
+	}
+
+#ifdef BCM_CNIC
+	/* ask L5 driver to add data to the struct */
+	bnx2x_cnic_notify(bp, CNIC_CTL_FCOE_STATS_GET_CMD);
+#endif
+}
+
+static void bnx2x_drv_info_iscsi_stat(struct bnx2x *bp)
+{
+	struct bnx2x_dcbx_app_params *app = &bp->dcbx_port_params.app;
+	struct iscsi_stats_info *iscsi_stat =
+		&bp->slowpath->drv_info_to_mcp.iscsi_stat;
+
+	memcpy(iscsi_stat->mac_local, bp->cnic_eth_dev.iscsi_mac, ETH_ALEN);
+
+	iscsi_stat->qos_priority =
+		app->traffic_type_priority[LLFC_TRAFFIC_TYPE_ISCSI];
+
+#ifdef BCM_CNIC
+	/* ask L5 driver to add data to the struct */
+	bnx2x_cnic_notify(bp, CNIC_CTL_ISCSI_STATS_GET_CMD);
+#endif
+}
+
 /* called due to MCP event (on pmf):
  *	reread new bandwidth configuration
  *	configure FW
@@ -2930,6 +3067,50 @@ static inline void bnx2x_set_mf_bw(struct bnx2x *bp)
 {
 	bnx2x_config_mf_bw(bp);
 	bnx2x_fw_command(bp, DRV_MSG_CODE_SET_MF_BW_ACK, 0);
+}
+
+static void bnx2x_handle_drv_info_req(struct bnx2x *bp)
+{
+	enum drv_info_opcode op_code;
+	u32 drv_info_ctl = SHMEM2_RD(bp, drv_info_control);
+
+	/* if drv_info version supported by MFW doesn't match - send NACK */
+	if ((drv_info_ctl & DRV_INFO_CONTROL_VER_MASK) != DRV_INFO_CUR_VER) {
+		bnx2x_fw_command(bp, DRV_MSG_CODE_DRV_INFO_NACK, 0);
+		return;
+	}
+
+	op_code = (drv_info_ctl & DRV_INFO_CONTROL_OP_CODE_MASK) >>
+		  DRV_INFO_CONTROL_OP_CODE_SHIFT;
+
+	memset(&bp->slowpath->drv_info_to_mcp, 0,
+	       sizeof(union drv_info_to_mcp));
+
+	switch (op_code) {
+	case ETH_STATS_OPCODE:
+		bnx2x_drv_info_ether_stat(bp);
+		break;
+	case FCOE_STATS_OPCODE:
+		bnx2x_drv_info_fcoe_stat(bp);
+		break;
+	case ISCSI_STATS_OPCODE:
+		bnx2x_drv_info_iscsi_stat(bp);
+		break;
+	default:
+		/* if op code isn't supported - send NACK */
+		bnx2x_fw_command(bp, DRV_MSG_CODE_DRV_INFO_NACK, 0);
+		return;
+	}
+
+	/* if we got drv_info attn from MFW then these fields are defined in
+	 * shmem2 for sure
+	 */
+	SHMEM2_WR(bp, drv_info_host_addr_lo,
+		U64_LO(bnx2x_sp_mapping(bp, drv_info_to_mcp)));
+	SHMEM2_WR(bp, drv_info_host_addr_hi,
+		U64_HI(bnx2x_sp_mapping(bp, drv_info_to_mcp)));
+
+	bnx2x_fw_command(bp, DRV_MSG_CODE_DRV_INFO_ACK, 0);
 }
 
 static void bnx2x_dcc_event(struct bnx2x *bp, u32 dcc_event)
@@ -3439,6 +3620,8 @@ static inline void bnx2x_attn_int_deasserted3(struct bnx2x *bp, u32 attn)
 			if (val & DRV_STATUS_SET_MF_BW)
 				bnx2x_set_mf_bw(bp);
 
+			if (val & DRV_STATUS_DRV_INFO_REQ)
+				bnx2x_handle_drv_info_req(bp);
 			if ((bp->port.pmf == 0) && (val & DRV_STATUS_PMF))
 				bnx2x_pmf_update(bp);
 
@@ -8716,7 +8899,7 @@ static void __devinit bnx2x_undi_unload(struct bnx2x *bp)
 
 static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 {
-	u32 val, val2, val3, val4, id;
+	u32 val, val2, val3, val4, id, boot_mode;
 	u16 pmc;
 
 	/* Get the chip revision id and number. */
@@ -8827,6 +9010,24 @@ static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 		FEATURE_CONFIG_BC_SUPPORTS_SFP_TX_DISABLED : 0;
 	bp->flags |= (val >= REQ_BC_VER_4_PFC_STATS_SUPPORTED) ?
 			BC_SUPPORTS_PFC_STATS : 0;
+
+	boot_mode = SHMEM_RD(bp,
+			dev_info.port_feature_config[BP_PORT(bp)].mba_config) &
+			PORT_FEATURE_MBA_BOOT_AGENT_TYPE_MASK;
+	switch (boot_mode) {
+	case PORT_FEATURE_MBA_BOOT_AGENT_TYPE_PXE:
+		bp->common.boot_mode = FEATURE_ETH_BOOTMODE_PXE;
+		break;
+	case PORT_FEATURE_MBA_BOOT_AGENT_TYPE_ISCSIB:
+		bp->common.boot_mode = FEATURE_ETH_BOOTMODE_ISCSI;
+		break;
+	case PORT_FEATURE_MBA_BOOT_AGENT_TYPE_FCOE_BOOT:
+		bp->common.boot_mode = FEATURE_ETH_BOOTMODE_FCOE;
+		break;
+	case PORT_FEATURE_MBA_BOOT_AGENT_TYPE_NONE:
+		bp->common.boot_mode = FEATURE_ETH_BOOTMODE_NONE;
+		break;
+	}
 
 	pci_read_config_word(bp->pdev, bp->pm_cap + PCI_PM_PMC, &pmc);
 	bp->flags |= (pmc & PCI_PM_CAP_PME_D3cold) ? 0 : NO_WOL_FLAG;
@@ -11548,6 +11749,38 @@ static int bnx2x_drv_ctl(struct net_device *dev, struct drv_ctl_info *ctl)
 		smp_mb__before_atomic_inc();
 		atomic_add(count, &bp->cq_spq_left);
 		smp_mb__after_atomic_inc();
+		break;
+	}
+	case DRV_CTL_ULP_REGISTER_CMD: {
+		int ulp_type = ctl->data.ulp_type;
+
+		if (CHIP_IS_E3(bp)) {
+			int idx = BP_FW_MB_IDX(bp);
+			u32 cap;
+
+			cap = SHMEM2_RD(bp, drv_capabilities_flag[idx]);
+			if (ulp_type == CNIC_ULP_ISCSI)
+				cap |= DRV_FLAGS_CAPABILITIES_LOADED_ISCSI;
+			else if (ulp_type == CNIC_ULP_FCOE)
+				cap |= DRV_FLAGS_CAPABILITIES_LOADED_FCOE;
+			SHMEM2_WR(bp, drv_capabilities_flag[idx], cap);
+		}
+		break;
+	}
+	case DRV_CTL_ULP_UNREGISTER_CMD: {
+		int ulp_type = ctl->data.ulp_type;
+
+		if (CHIP_IS_E3(bp)) {
+			int idx = BP_FW_MB_IDX(bp);
+			u32 cap;
+
+			cap = SHMEM2_RD(bp, drv_capabilities_flag[idx]);
+			if (ulp_type == CNIC_ULP_ISCSI)
+				cap &= ~DRV_FLAGS_CAPABILITIES_LOADED_ISCSI;
+			else if (ulp_type == CNIC_ULP_FCOE)
+				cap &= ~DRV_FLAGS_CAPABILITIES_LOADED_FCOE;
+			SHMEM2_WR(bp, drv_capabilities_flag[idx], cap);
+		}
 		break;
 	}
 

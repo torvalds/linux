@@ -39,6 +39,17 @@ static inline long bnx2x_hilo(u32 *hiref)
 #endif
 }
 
+static u16 bnx2x_get_port_stats_dma_len(struct bnx2x *bp)
+{
+	u16 res = sizeof(struct host_port_stats) >> 2;
+
+	/* if PFC stats are not supported by the MFW, don't DMA them */
+	if (!(bp->flags &  BC_SUPPORTS_PFC_STATS))
+		res -= (sizeof(u32)*4) >> 2;
+
+	return res;
+}
+
 /*
  * Init service functions
  */
@@ -178,7 +189,8 @@ static void bnx2x_stats_pmf_update(struct bnx2x *bp)
 				   DMAE_LEN32_RD_MAX * 4);
 	dmae->dst_addr_hi = U64_HI(bnx2x_sp_mapping(bp, port_stats) +
 				   DMAE_LEN32_RD_MAX * 4);
-	dmae->len = (sizeof(struct host_port_stats) >> 2) - DMAE_LEN32_RD_MAX;
+	dmae->len = bnx2x_get_port_stats_dma_len(bp) - DMAE_LEN32_RD_MAX;
+
 	dmae->comp_addr_lo = U64_LO(bnx2x_sp_mapping(bp, stats_comp));
 	dmae->comp_addr_hi = U64_HI(bnx2x_sp_mapping(bp, stats_comp));
 	dmae->comp_val = DMAE_COMP_VAL;
@@ -217,7 +229,7 @@ static void bnx2x_port_stats_init(struct bnx2x *bp)
 		dmae->src_addr_hi = U64_HI(bnx2x_sp_mapping(bp, port_stats));
 		dmae->dst_addr_lo = bp->port.port_stx >> 2;
 		dmae->dst_addr_hi = 0;
-		dmae->len = sizeof(struct host_port_stats) >> 2;
+		dmae->len = bnx2x_get_port_stats_dma_len(bp);
 		dmae->comp_addr_lo = dmae_reg_go_c[loader_idx] >> 2;
 		dmae->comp_addr_hi = 0;
 		dmae->comp_val = 1;
@@ -1307,7 +1319,7 @@ static void bnx2x_port_stats_stop(struct bnx2x *bp)
 		dmae->src_addr_hi = U64_HI(bnx2x_sp_mapping(bp, port_stats));
 		dmae->dst_addr_lo = bp->port.port_stx >> 2;
 		dmae->dst_addr_hi = 0;
-		dmae->len = sizeof(struct host_port_stats) >> 2;
+		dmae->len = bnx2x_get_port_stats_dma_len(bp);
 		if (bp->func_stx) {
 			dmae->comp_addr_lo = dmae_reg_go_c[loader_idx] >> 2;
 			dmae->comp_addr_hi = 0;
@@ -1424,7 +1436,7 @@ static void bnx2x_port_stats_base_init(struct bnx2x *bp)
 	dmae->src_addr_hi = U64_HI(bnx2x_sp_mapping(bp, port_stats));
 	dmae->dst_addr_lo = bp->port.port_stx >> 2;
 	dmae->dst_addr_hi = 0;
-	dmae->len = sizeof(struct host_port_stats) >> 2;
+	dmae->len = bnx2x_get_port_stats_dma_len(bp);
 	dmae->comp_addr_lo = U64_LO(bnx2x_sp_mapping(bp, stats_comp));
 	dmae->comp_addr_hi = U64_HI(bnx2x_sp_mapping(bp, stats_comp));
 	dmae->comp_val = DMAE_COMP_VAL;

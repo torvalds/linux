@@ -887,6 +887,8 @@ struct bnx2x_common {
 #define CHIP_PORT_MODE_NONE			0x2
 #define CHIP_MODE(bp)			(bp->common.chip_port_mode)
 #define CHIP_MODE_IS_4_PORT(bp) (CHIP_MODE(bp) == CHIP_4_PORT_MODE)
+
+	u32			boot_mode;
 };
 
 /* IGU MSIX STATISTICS on 57712: 64 for VFs; 4 for PFs; 4 for Attentions */
@@ -1048,6 +1050,8 @@ struct bnx2x_slowpath {
 
 	u32				wb_comp;
 	u32				wb_data[4];
+
+	union drv_info_to_mcp		drv_info_to_mcp;
 };
 
 #define bnx2x_sp(bp, var)		(&bp->slowpath->var)

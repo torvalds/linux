@@ -250,6 +250,21 @@ static u32 cnic_reg_rd_ind(struct cnic_dev *dev, u32 off)
 	return io->data;
 }
 
+static void cnic_ulp_ctl(struct cnic_dev *dev, int ulp_type, bool reg)
+{
+	struct cnic_local *cp = dev->cnic_priv;
+	struct cnic_eth_dev *ethdev = cp->ethdev;
+	struct drv_ctl_info info;
+
+	if (reg)
+		info.cmd = DRV_CTL_ULP_REGISTER_CMD;
+	else
+		info.cmd = DRV_CTL_ULP_UNREGISTER_CMD;
+
+	info.data.ulp_type = ulp_type;
+	ethdev->drv_ctl(dev->netdev, &info);
+}
+
 static int cnic_in_use(struct cnic_sock *csk)
 {
 	return test_bit(SK_F_INUSE, &csk->flags);
@@ -563,6 +578,8 @@ static int cnic_register_device(struct cnic_dev *dev, int ulp_type,
 
 	mutex_unlock(&cnic_lock);
 
+	cnic_ulp_ctl(dev, ulp_type, true);
+
 	return 0;
 
 }
@@ -601,6 +618,8 @@ static int cnic_unregister_device(struct cnic_dev *dev, int ulp_type)
 	}
 	if (test_bit(ULP_F_CALL_PENDING, &cp->ulp_flags[ulp_type]))
 		netdev_warn(dev->netdev, "Failed waiting for ULP up call to complete\n");
+
+	cnic_ulp_ctl(dev, ulp_type, false);
 
 	return 0;
 }
@@ -3052,9 +3071,26 @@ static void cnic_ulp_start(struct cnic_dev *dev)
 	}
 }
 
+static int cnic_copy_ulp_stats(struct cnic_dev *dev, int ulp_type)
+{
+	struct cnic_local *cp = dev->cnic_priv;
+	struct cnic_ulp_ops *ulp_ops;
+	int rc;
+
+	mutex_lock(&cnic_lock);
+	ulp_ops = cnic_ulp_tbl_prot(ulp_type);
+	if (ulp_ops && ulp_ops->cnic_get_stats)
+		rc = ulp_ops->cnic_get_stats(cp->ulp_handle[ulp_type]);
+	else
+		rc = -ENODEV;
+	mutex_unlock(&cnic_lock);
+	return rc;
+}
+
 static int cnic_ctl(void *data, struct cnic_ctl_info *info)
 {
 	struct cnic_dev *dev = data;
+	int ulp_type = CNIC_ULP_ISCSI;
 
 	switch (info->cmd) {
 	case CNIC_CTL_STOP_CMD:
@@ -3100,6 +3136,15 @@ static int cnic_ctl(void *data, struct cnic_ctl_info *info)
 		}
 		break;
 	}
+	case CNIC_CTL_FCOE_STATS_GET_CMD:
+		ulp_type = CNIC_ULP_FCOE;
+		/* fall through */
+	case CNIC_CTL_ISCSI_STATS_GET_CMD:
+		cnic_hold(dev);
+		cnic_copy_ulp_stats(dev, ulp_type);
+		cnic_put(dev);
+		break;
+
 	default:
 		return -EINVAL;
 	}
@@ -5287,6 +5332,8 @@ static struct cnic_dev *init_bnx2x_cnic(struct net_device *dev)
 	cp->ethdev = ethdev;
 	cdev->pcidev = pdev;
 	cp->chip_id = ethdev->chip_id;
+
+	cdev->stats_addr = ethdev->addr_drv_info_to_mcp;
 
 	if (!(ethdev->drv_state & CNIC_DRV_STATE_NO_ISCSI))
 		cdev->max_iscsi_conn = ethdev->max_iscsi_conn;

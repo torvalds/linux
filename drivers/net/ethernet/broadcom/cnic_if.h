@@ -86,6 +86,8 @@ struct kcqe {
 #define CNIC_CTL_START_CMD		2
 #define CNIC_CTL_COMPLETION_CMD		3
 #define CNIC_CTL_STOP_ISCSI_CMD		4
+#define CNIC_CTL_FCOE_STATS_GET_CMD	5
+#define CNIC_CTL_ISCSI_STATS_GET_CMD	6
 
 #define DRV_CTL_IO_WR_CMD		0x101
 #define DRV_CTL_IO_RD_CMD		0x102
@@ -96,6 +98,8 @@ struct kcqe {
 #define DRV_CTL_STOP_L2_CMD		0x107
 #define DRV_CTL_RET_L2_SPQ_CREDIT_CMD	0x10c
 #define DRV_CTL_ISCSI_STOPPED_CMD	0x10d
+#define DRV_CTL_ULP_REGISTER_CMD	0x10e
+#define DRV_CTL_ULP_UNREGISTER_CMD	0x10f
 
 struct cnic_ctl_completion {
 	u32	cid;
@@ -133,6 +137,7 @@ struct drv_ctl_info {
 		struct drv_ctl_spq_credit credit;
 		struct drv_ctl_io io;
 		struct drv_ctl_l2_ring ring;
+		int ulp_type;
 		char bytes[MAX_DRV_CTL_DATA];
 	} data;
 };
@@ -201,6 +206,7 @@ struct cnic_eth_dev {
 					       struct kwqe_16 *[], u32);
 	int		(*drv_ctl)(struct net_device *, struct drv_ctl_info *);
 	unsigned long	reserved1[2];
+	union drv_info_to_mcp	*addr_drv_info_to_mcp;
 };
 
 struct cnic_sockaddr {
@@ -297,6 +303,8 @@ struct cnic_dev {
 	int		max_fcoe_conn;
 	int		max_rdma_conn;
 
+	union drv_info_to_mcp	*stats_addr;
+
 	void		*cnic_priv;
 };
 
@@ -326,6 +334,7 @@ struct cnic_ulp_ops {
 	void (*cm_remote_abort)(struct cnic_sock *);
 	int (*iscsi_nl_send_msg)(void *ulp_ctx, u32 msg_type,
 				  char *data, u16 data_size);
+	int (*cnic_get_stats)(void *ulp_ctx);
 	struct module *owner;
 	atomic_t ref_count;
 };
