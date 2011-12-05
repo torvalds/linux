@@ -176,7 +176,7 @@ int ad7887_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 		goto error_deallocate_sw_rb;
 	}
 	/* Ring buffer functions - here trigger setup related */
-	indio_dev->buffer->setup_ops = &ad7887_ring_setup_ops;
+	indio_dev->setup_ops = &ad7887_ring_setup_ops;
 
 	/* Flag that polled ring buffering is possible */
 	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;

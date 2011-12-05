@@ -348,7 +348,7 @@ static const struct iio_buffer_setup_ops sca3000_ring_setup_ops = {
 
 void sca3000_register_ring_funcs(struct iio_dev *indio_dev)
 {
-	indio_dev->buffer->setup_ops = &sca3000_ring_setup_ops;
+	indio_dev->setup_ops = &sca3000_ring_setup_ops;
 }
 
 /**

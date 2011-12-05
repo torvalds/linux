@@ -428,8 +428,8 @@ ssize_t iio_buffer_store_enable(struct device *dev,
 		goto done;
 	}
 	if (requested_state) {
-		if (buffer->setup_ops->preenable) {
-			ret = buffer->setup_ops->preenable(indio_dev);
+		if (indio_dev->setup_ops->preenable) {
+			ret = indio_dev->setup_ops->preenable(indio_dev);
 			if (ret) {
 				printk(KERN_ERR
 				       "Buffer not started:"
@@ -466,8 +466,8 @@ ssize_t iio_buffer_store_enable(struct device *dev,
 			goto error_ret;
 		}
 
-		if (buffer->setup_ops->postenable) {
-			ret = buffer->setup_ops->postenable(indio_dev);
+		if (indio_dev->setup_ops->postenable) {
+			ret = indio_dev->setup_ops->postenable(indio_dev);
 			if (ret) {
 				printk(KERN_INFO
 				       "Buffer not started:"
@@ -475,23 +475,23 @@ ssize_t iio_buffer_store_enable(struct device *dev,
 				if (buffer->access->unmark_in_use)
 					buffer->access->unmark_in_use(buffer);
 				indio_dev->currentmode = previous_mode;
-				if (buffer->setup_ops->postdisable)
-					buffer->setup_ops->
+				if (indio_dev->setup_ops->postdisable)
+					indio_dev->setup_ops->
 						postdisable(indio_dev);
 				goto error_ret;
 			}
 		}
 	} else {
-		if (buffer->setup_ops->predisable) {
-			ret = buffer->setup_ops->predisable(indio_dev);
+		if (indio_dev->setup_ops->predisable) {
+			ret = indio_dev->setup_ops->predisable(indio_dev);
 			if (ret)
 				goto error_ret;
 		}
 		if (buffer->access->unmark_in_use)
 			buffer->access->unmark_in_use(buffer);
 		indio_dev->currentmode = INDIO_DIRECT_MODE;
-		if (buffer->setup_ops->postdisable) {
-			ret = buffer->setup_ops->postdisable(indio_dev);
+		if (indio_dev->setup_ops->postdisable) {
+			ret = indio_dev->setup_ops->postdisable(indio_dev);
 			if (ret)
 				goto error_ret;
 		}

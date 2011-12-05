@@ -118,7 +118,7 @@ int adis16201_configure_ring(struct iio_dev *indio_dev)
 	/* Effectively select the ring buffer implementation */
 	ring->scan_timestamp = true;
 	ring->access = &ring_sw_access_funcs;
-	ring->setup_ops = &adis16201_ring_setup_ops;
+	indio_dev->setup_ops = &adis16201_ring_setup_ops;
 	ring->owner = THIS_MODULE;
 
 	indio_dev->pollfunc = iio_alloc_pollfunc(&iio_pollfunc_store_time,

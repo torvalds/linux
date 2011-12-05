@@ -438,7 +438,7 @@ int lis3l02dq_configure_buffer(struct iio_dev *indio_dev)
 	indio_dev->buffer->access = &lis3l02dq_access_funcs;
 
 	buffer->scan_timestamp = true;
-	buffer->setup_ops = &lis3l02dq_buffer_setup_ops;
+	indio_dev->setup_ops = &lis3l02dq_buffer_setup_ops;
 	buffer->owner = THIS_MODULE;
 
 	/* Functions are NULL as we set handler below */

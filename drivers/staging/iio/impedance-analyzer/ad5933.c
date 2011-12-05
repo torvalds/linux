@@ -611,7 +611,7 @@ static int ad5933_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	indio_dev->buffer->access = &ring_sw_access_funcs;
 
 	/* Ring buffer functions - here trigger setup related */
-	indio_dev->buffer->setup_ops = &ad5933_ring_setup_ops;
+	indio_dev->setup_ops = &ad5933_ring_setup_ops;
 
 	indio_dev->modes |= INDIO_BUFFER_HARDWARE;
 

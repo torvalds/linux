@@ -149,7 +149,7 @@ int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev)
 	 * Tell the core what device type specific functions should
 	 * be run on either side of buffer capture enable / disable.
 	 */
-	buffer->setup_ops = &iio_simple_dummy_buffer_setup_ops;
+	indio_dev->setup_ops = &iio_simple_dummy_buffer_setup_ops;
 	buffer->owner = THIS_MODULE;
 
 	/*

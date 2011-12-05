@@ -155,7 +155,7 @@ int max1363_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	/* Effectively select the ring buffer implementation */
 	indio_dev->buffer->access = &ring_sw_access_funcs;
 	/* Ring buffer functions - here trigger setup related */
-	indio_dev->buffer->setup_ops = &max1363_ring_setup_ops;
+	indio_dev->setup_ops = &max1363_ring_setup_ops;
 
 	/* Flag that polled ring buffering is possible */
 	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;

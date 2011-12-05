@@ -272,6 +272,21 @@ struct iio_info {
 };
 
 /**
+ * struct iio_buffer_setup_ops - buffer setup related callbacks
+ * @preenable:		[DRIVER] function to run prior to marking buffer enabled
+ * @postenable:		[DRIVER] function to run after marking buffer enabled
+ * @predisable:		[DRIVER] function to run prior to marking buffer
+ *			disabled
+ * @postdisable:	[DRIVER] function to run after marking buffer disabled
+ */
+struct iio_buffer_setup_ops {
+	int				(*preenable)(struct iio_dev *);
+	int				(*postenable)(struct iio_dev *);
+	int				(*predisable)(struct iio_dev *);
+	int				(*postdisable)(struct iio_dev *);
+};
+
+/**
  * struct iio_dev - industrial I/O device
  * @id:			[INTERN] used to identify device internally
  * @modes:		[DRIVER] operating modes supported by device
@@ -324,6 +339,7 @@ struct iio_dev {
 	struct attribute_group		chan_attr_group;
 	const char			*name;
 	const struct iio_info		*info;
+	const struct iio_buffer_setup_ops	*setup_ops;
 	struct cdev			chrdev;
 #define IIO_MAX_GROUPS 6
 	const struct attribute_group	*groups[IIO_MAX_GROUPS + 1];

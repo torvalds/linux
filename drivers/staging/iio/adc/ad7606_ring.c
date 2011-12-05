@@ -150,7 +150,7 @@ int ad7606_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 
 	/* Ring buffer functions - here trigger setup related */
 
-	indio_dev->buffer->setup_ops = &ad7606_ring_setup_ops;
+	indio_dev->setup_ops = &ad7606_ring_setup_ops;
 	indio_dev->buffer->scan_timestamp = true ;
 
 	INIT_WORK(&st->poll_work, &ad7606_poll_bh_to_ring);
