@@ -110,7 +110,7 @@ static int rk29_gps_gpio_to_uart(int uart_id)
 
 }
 
-int rk29_gps_suspend(struct platform_device *pdev,  pm_message_t state)
+static int rk29_gps_suspend(struct platform_device *pdev,  pm_message_t state)
 {
 	struct rk29_gps_data *pdata = pdev->dev.platform_data;
 
@@ -130,7 +130,7 @@ int rk29_gps_suspend(struct platform_device *pdev,  pm_message_t state)
 	return 0;	
 }
 
-int rk29_gps_resume(struct platform_device *pdev)
+static int rk29_gps_resume(struct platform_device *pdev)
 {
 	struct rk29_gps_data *pdata = pdev->dev.platform_data;
 
@@ -156,7 +156,7 @@ static void rk29_gps_delay_power_downup(struct work_struct *work)
 		return;
 	}
 
-	DBG("%s: suspend=%d\n", __func__, pdata->suspend);
+	//DBG("%s: suspend=%d\n", __func__, pdata->suspend);
 
 	down(&pdata->power_sem);
 	
@@ -170,14 +170,14 @@ static void rk29_gps_delay_power_downup(struct work_struct *work)
 	up(&pdata->power_sem);
 }
 
-int rk29_gps_open(struct inode *inode, struct file *filp)
+static int rk29_gps_open(struct inode *inode, struct file *filp)
 {
     DBG("rk29_gps_open\n");
 
 	return 0;
 }
 
-ssize_t rk29_gps_read(struct file *filp, char __user *ptr, size_t size, loff_t *pos)
+static ssize_t rk29_gps_read(struct file *filp, char __user *ptr, size_t size, loff_t *pos)
 {
 	if (ptr == NULL)
 		printk("%s: user space address is NULL\n", __func__);
@@ -192,16 +192,16 @@ ssize_t rk29_gps_read(struct file *filp, char __user *ptr, size_t size, loff_t *
 	return sizeof(int);
 }
 
-int rk29_gps_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
+static long rk29_gps_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	int ret = 0;
+	long ret = 0;
 	struct rk29_gps_data *pdata = pgps;
 
-	DBG("rk29_gps_ioctl: cmd = %d\n",cmd);
+	DBG("rk29_gps_ioctl: cmd = %d arg = %ld\n",cmd, arg);
 
 	ret = down_interruptible(&pdata->power_sem);
 	if (ret < 0) {
-		printk("%s: down power_sem error ret = %d\n", __func__, ret);
+		printk("%s: down power_sem error ret = %ld\n", __func__, ret);
 		return ret;
 	}
 
@@ -237,7 +237,7 @@ int rk29_gps_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, uns
 }
 
 
-int rk29_gps_release(struct inode *inode, struct file *filp)
+static int rk29_gps_release(struct inode *inode, struct file *filp)
 {
     DBG("rk29_gps_release\n");
     

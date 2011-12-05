@@ -22,6 +22,8 @@
 #ifndef __ASM_ARCH_CAMERA_H_
 #define __ASM_ARCH_CAMERA_H_
 
+#include <linux/videodev2.h>
+
 #define RK29_CAM_DRV_NAME "rk29xx-camera"
 #define RK29_CAM_PLATFORM_DEV_ID 33
 
@@ -160,7 +162,7 @@ struct rk29camera_gpio_res {
 	unsigned int gpio_flash;
     unsigned int gpio_flag;
 	unsigned int gpio_init;
-    unsigned int orientation;
+    
     const char *dev_name;
 };
 
@@ -169,12 +171,18 @@ struct rk29camera_mem_res {
 	unsigned int start;
 	unsigned int size;
 };
+struct rk29camera_info {
+    const char *dev_name;
+    unsigned int orientation;
+    struct v4l2_frmivalenum fival[10];
+};
 struct rk29camera_platform_data {
     int (*io_init)(void);
     int (*io_deinit)(int sensor);
 	int (*sensor_ioctrl)(struct device *dev,enum rk29camera_ioctrl_cmd cmd,int on);
     struct rk29camera_gpio_res gpio_res[2];
 	struct rk29camera_mem_res meminfo;
+    struct rk29camera_info info[2];
 };
 
 struct rk29camera_platform_ioctl_cb {

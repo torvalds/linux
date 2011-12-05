@@ -19,9 +19,9 @@
  * V1.5 - Support RK2818 (Debug the Register Function) 
  */
 
-//#define DEBUG
+#define DEBUG
 
-#define RK2818
+//#define RK2818
 
 
 #include <linux/module.h>
@@ -525,31 +525,31 @@ static struct ethtool_ops dm9620_ethtool_ops = {
 
 static void dm9620_set_multicast(struct net_device *net)
 {
-	struct usbnet *dev = netdev_priv(net);
-	/* We use the 20 byte dev->data for our 8 byte filter buffer
-	 * to avoid allocating memory that is tricky to free later */
-	u8 *hashes = (u8 *) & dev->data;
-	u8 rx_ctl = 0x31;
+        struct usbnet *dev = netdev_priv(net);
+        /* We use the 20 byte dev->data for our 8 byte filter buffer
+         * to avoid allocating memory that is tricky to free later */
+        u8 *hashes = (u8 *) & dev->data;
+        u8 rx_ctl = 0x31;
 
-	memset(hashes, 0x00, DM_MCAST_SIZE);
-	hashes[DM_MCAST_SIZE - 1] |= 0x80;	/* broadcast address */
+        memset(hashes, 0x00, DM_MCAST_SIZE);
+        hashes[DM_MCAST_SIZE - 1] |= 0x80;      /* broadcast address */
 
-	if (net->flags & IFF_PROMISC) {
-		rx_ctl |= 0x02;
-	} else if (net->flags & IFF_ALLMULTI || net->mc_count > DM_MAX_MCAST) {
-		rx_ctl |= 0x04;
-	} else if (net->mc_count) {
-		struct dev_mc_list *mc_list = net->mc_list;
-		int i;
+        if (net->flags & IFF_PROMISC) {
+                rx_ctl |= 0x02;
+        } else if (net->flags & IFF_ALLMULTI ||
+                   netdev_mc_count(net) > DM_MAX_MCAST) {
+                rx_ctl |= 0x04;
+        } else if (!netdev_mc_empty(net)) {
+                struct netdev_hw_addr *ha;
 
-		for (i = 0; i < net->mc_count; i++, mc_list = mc_list->next) {
-			u32 crc = ether_crc(ETH_ALEN, mc_list->dmi_addr) >> 26;
-			hashes[crc >> 3] |= 1 << (crc & 0x7);
-		}
-	}
+                netdev_for_each_mc_addr(ha, net) {
+                        u32 crc = ether_crc(ETH_ALEN, ha->addr) >> 26;
+                        hashes[crc >> 3] |= 1 << (crc & 0x7);
+                }
+        }
 
-	dm_write_async(dev, DM_MCAST_ADDR, DM_MCAST_SIZE, hashes);
-	dm_write_reg_async(dev, DM_RX_CTRL, rx_ctl);
+        dm_write_async(dev, DM_MCAST_ADDR, DM_MCAST_SIZE, hashes);
+        dm_write_reg_async(dev, DM_RX_CTRL, rx_ctl);
 }
 
  

@@ -9,7 +9,7 @@
  * kind, whether express or implied.
  */
 
-//#define DEBUG
+#define DEBUG
 
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -353,31 +353,31 @@ static const struct ethtool_ops sr9700_android_ethtool_ops = {
 
 static void sr9700_android_set_multicast(struct net_device *net)
 {
-	struct usbnet *dev = netdev_priv(net);
-	/* We use the 20 byte dev->data for our 8 byte filter buffer
-	 * to avoid allocating memory that is tricky to free later */
-	u8 *hashes = (u8 *) & dev->data;
-	u8 rx_ctl = 0x31;	// enable, disable_long, disable_crc
+        struct usbnet *dev = netdev_priv(net);
+        /* We use the 20 byte dev->data for our 8 byte filter buffer
+         * to avoid allocating memory that is tricky to free later */
+        u8 *hashes = (u8 *) & dev->data;
+        u8 rx_ctl = 0x31;
 
-	memset(hashes, 0x00, QF_MCAST_SIZE);
-	hashes[QF_MCAST_SIZE - 1] |= 0x80;	/* broadcast address */
+        memset(hashes, 0x00, QF_MCAST_SIZE);
+        hashes[QF_MCAST_SIZE - 1] |= 0x80;      /* broadcast address */
 
-	if (net->flags & IFF_PROMISC) {
-		rx_ctl |= 0x02;
-	} else if (net->flags & IFF_ALLMULTI || net->mc_count > QF_MCAST_MAX) {
-		rx_ctl |= 0x04;
-	} else if (net->mc_count) {
-		struct dev_mc_list *mc_list = net->mc_list;
-		int i;
+        if (net->flags & IFF_PROMISC) {
+                rx_ctl |= 0x02;
+        } else if (net->flags & IFF_ALLMULTI ||
+                   netdev_mc_count(net) > QF_MCAST_MAX) {
+                rx_ctl |= 0x04;
+        } else if (!netdev_mc_empty(net)) {
+                struct netdev_hw_addr *ha;
 
-		for (i = 0; i < net->mc_count; i++, mc_list = mc_list->next) {
-			u32 crc = ether_crc(ETH_ALEN, mc_list->dmi_addr) >> 26;
-			hashes[crc >> 3] |= 1 << (crc & 0x7);
-		}
-	}
+                netdev_for_each_mc_addr(ha, net) {
+                        u32 crc = ether_crc(ETH_ALEN, ha->addr) >> 26;
+                        hashes[crc >> 3] |= 1 << (crc & 0x7);
+                }
+        }
 
-	qf_write_async(dev, MAR, QF_MCAST_SIZE, hashes);
-	qf_write_reg_async(dev, RCR, rx_ctl);
+        qf_write_async(dev, MAR, QF_MCAST_SIZE, hashes);
+        qf_write_reg_async(dev, RCR, rx_ctl);
 }
 
 static int sr9700_android_set_mac_address(struct net_device *net, void *p)

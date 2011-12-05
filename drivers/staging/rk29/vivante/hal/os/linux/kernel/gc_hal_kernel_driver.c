@@ -950,7 +950,8 @@ static void drv_exit(void)
     unregister_chrdev(major, DRV_NAME);
 #endif
 
-    shutdown = 1;
+    // 去掉,避免关机的时候动态桌面报错
+    //shutdown = 1;   
 
     mdelay(50); 
     gckGALDEVICE_Stop(galDevice);
