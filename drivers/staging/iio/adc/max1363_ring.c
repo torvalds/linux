@@ -21,42 +21,6 @@
 
 #include "max1363.h"
 
-int max1363_single_channel_from_ring(const long *mask, struct max1363_state *st)
-{
-	struct iio_buffer *ring = iio_priv_to_dev(st)->buffer;
-	int count = 0, ret, index;
-	u8 *ring_data;
-	index = find_first_bit(mask, MAX1363_MAX_CHANNELS);
-
-	if (!(test_bit(index, st->current_mode->modemask))) {
-		ret = -EBUSY;
-		goto error_ret;
-	}
-
-	ring_data = kmalloc(ring->access->get_bytes_per_datum(ring),
-			    GFP_KERNEL);
-	if (ring_data == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-	ret = ring->access->read_last(ring, ring_data);
-	if (ret)
-		goto error_free_ring_data;
-	/* Need a count of channels prior to this one */
-
-	count = bitmap_weight(mask, index - 1);
-	if (st->chip_info->bits != 8)
-		ret = ((int)(ring_data[count*2 + 0] & 0x0F) << 8)
-			+ (int)(ring_data[count*2 + 1]);
-	else
-		ret = ring_data[count];
-
-error_free_ring_data:
-	kfree(ring_data);
-error_ret:
-	return ret;
-}
-
 int max1363_update_scan_mode(struct iio_dev *indio_dev,
 			     const unsigned long *scan_mask)
 {

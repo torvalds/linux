@@ -154,8 +154,6 @@ int max1363_set_scan_mode(struct max1363_state *st);
 #ifdef CONFIG_MAX1363_RING_BUFFER
 int max1363_update_scan_mode(struct iio_dev *indio_dev,
 			     const unsigned long *scan_mask);
-int max1363_single_channel_from_ring(const long *mask,
-				     struct max1363_state *st);
 int max1363_register_ring_funcs_and_init(struct iio_dev *indio_dev);
 void max1363_ring_cleanup(struct iio_dev *indio_dev);
 
@@ -164,11 +162,6 @@ int max1363_update_scan_mode(struct iio_dev *indio_dev,
 			     const long *scan_mask)
 {
 	return 0;
-}
-
-int max1363_single_channel_from_ring(long mask, struct max1363_state *st)
-{
-	return -EINVAL;
 }
 
 static inline int
