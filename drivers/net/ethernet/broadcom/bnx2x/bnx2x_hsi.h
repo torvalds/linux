@@ -1247,6 +1247,7 @@ struct drv_func_mb {
 	#define DRV_MSG_CODE_VRFY_SPECIFIC_PHY_OPT_MDL  0xa1000000
 	#define REQ_BC_VER_4_VRFY_SPECIFIC_PHY_OPT_MDL  0x00050234
 	#define REQ_BC_VER_4_SFP_TX_DISABLE_SUPPORTED   0x00070014
+	#define REQ_BC_VER_4_PFC_STATS_SUPPORTED        0x00070201
 
 	#define DRV_MSG_CODE_DCBX_ADMIN_PMF_MSG         0xb0000000
 	#define DRV_MSG_CODE_DCBX_PMF_DRV_OK            0xb2000000
@@ -2501,14 +2502,18 @@ struct mac_stx {
 #define MAC_STX_IDX_MAX                     2
 
 struct host_port_stats {
-	u32            host_port_stats_start;
+	u32            host_port_stats_counter;
 
 	struct mac_stx mac_stx[MAC_STX_IDX_MAX];
 
 	u32            brb_drop_hi;
 	u32            brb_drop_lo;
 
-	u32            host_port_stats_end;
+	u32            not_used; /* obsolete */
+	u32            pfc_frames_tx_hi;
+	u32            pfc_frames_tx_lo;
+	u32            pfc_frames_rx_hi;
+	u32            pfc_frames_rx_lo;
 };
 
 

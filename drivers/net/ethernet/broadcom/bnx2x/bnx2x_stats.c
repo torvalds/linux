@@ -540,6 +540,25 @@ static void bnx2x_bmac_stats_update(struct bnx2x *bp)
 		UPDATE_STAT64(tx_stat_gterr,
 				tx_stat_dot3statsinternalmactransmiterrors);
 		UPDATE_STAT64(tx_stat_gtufl, tx_stat_mac_ufl);
+
+		/* collect PFC stats */
+		DIFF_64(diff.hi, new->tx_stat_gtpp_hi,
+			pstats->pfc_frames_tx_hi,
+			diff.lo, new->tx_stat_gtpp_lo,
+			pstats->pfc_frames_tx_lo);
+		pstats->pfc_frames_tx_hi = new->tx_stat_gtpp_hi;
+		pstats->pfc_frames_tx_lo = new->tx_stat_gtpp_lo;
+		ADD_64(pstats->pfc_frames_tx_hi, diff.hi,
+			pstats->pfc_frames_tx_lo, diff.lo);
+
+		DIFF_64(diff.hi, new->rx_stat_grpp_hi,
+			pstats->pfc_frames_rx_hi,
+			diff.lo, new->rx_stat_grpp_lo,
+			pstats->pfc_frames_rx_lo);
+		pstats->pfc_frames_rx_hi = new->rx_stat_grpp_hi;
+		pstats->pfc_frames_rx_lo = new->rx_stat_grpp_lo;
+		ADD_64(pstats->pfc_frames_rx_hi, diff.hi,
+			pstats->pfc_frames_rx_lo, diff.lo);
 	}
 
 	estats->pause_frames_received_hi =
@@ -551,6 +570,15 @@ static void bnx2x_bmac_stats_update(struct bnx2x *bp)
 				pstats->mac_stx[1].tx_stat_outxoffsent_hi;
 	estats->pause_frames_sent_lo =
 				pstats->mac_stx[1].tx_stat_outxoffsent_lo;
+
+	estats->pfc_frames_received_hi =
+				pstats->pfc_frames_rx_hi;
+	estats->pfc_frames_received_lo =
+				pstats->pfc_frames_rx_lo;
+	estats->pfc_frames_sent_hi =
+				pstats->pfc_frames_tx_hi;
+	estats->pfc_frames_sent_lo =
+				pstats->pfc_frames_tx_lo;
 }
 
 static void bnx2x_mstat_stats_update(struct bnx2x *bp)
@@ -571,6 +599,11 @@ static void bnx2x_mstat_stats_update(struct bnx2x *bp)
 	ADD_STAT64(stats_tx.tx_gtxpf, tx_stat_outxoffsent);
 	ADD_STAT64(stats_tx.tx_gtxpf, tx_stat_flowcontroldone);
 
+	/* collect pfc stats */
+	ADD_64(pstats->pfc_frames_tx_hi, new->stats_tx.tx_gtxpp_hi,
+		pstats->pfc_frames_tx_lo, new->stats_tx.tx_gtxpp_lo);
+	ADD_64(pstats->pfc_frames_rx_hi, new->stats_rx.rx_grxpp_hi,
+		pstats->pfc_frames_rx_lo, new->stats_rx.rx_grxpp_lo);
 
 	ADD_STAT64(stats_tx.tx_gt64, tx_stat_etherstatspkts64octets);
 	ADD_STAT64(stats_tx.tx_gt127,
@@ -628,6 +661,15 @@ static void bnx2x_mstat_stats_update(struct bnx2x *bp)
 				pstats->mac_stx[1].tx_stat_outxoffsent_hi;
 	estats->pause_frames_sent_lo =
 				pstats->mac_stx[1].tx_stat_outxoffsent_lo;
+
+	estats->pfc_frames_received_hi =
+				pstats->pfc_frames_rx_hi;
+	estats->pfc_frames_received_lo =
+				pstats->pfc_frames_rx_lo;
+	estats->pfc_frames_sent_hi =
+				pstats->pfc_frames_tx_hi;
+	estats->pfc_frames_sent_lo =
+				pstats->pfc_frames_tx_lo;
 }
 
 static void bnx2x_emac_stats_update(struct bnx2x *bp)
@@ -740,7 +782,7 @@ static int bnx2x_hw_stats_update(struct bnx2x *bp)
 	estats->brb_drop_hi = pstats->brb_drop_hi;
 	estats->brb_drop_lo = pstats->brb_drop_lo;
 
-	pstats->host_port_stats_start = ++pstats->host_port_stats_end;
+	pstats->host_port_stats_counter++;
 
 	if (!BP_NOMCP(bp)) {
 		u32 nig_timer_max =
