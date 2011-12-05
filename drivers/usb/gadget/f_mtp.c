@@ -362,7 +362,7 @@ static void mtp_complete_out(struct usb_ep *ep, struct usb_request *req)
 	struct mtp_dev *dev = _mtp_dev;
 
 	dev->rx_done = 1;
-	if (req->status != 0)
+	if (req->status != 0 && dev->state != STATE_CANCELED)
 		dev->state = STATE_ERROR;
 
 	wake_up(&dev->read_wq);
