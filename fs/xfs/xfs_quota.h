@@ -326,7 +326,6 @@ extern int xfs_qm_dqattach_locked(struct xfs_inode *, uint);
 extern void xfs_qm_dqdetach(struct xfs_inode *);
 extern void xfs_qm_dqrele(struct xfs_dquot *);
 extern void xfs_qm_statvfs(struct xfs_inode *, struct kstatfs *);
-extern int xfs_qm_sync(struct xfs_mount *, int);
 extern int xfs_qm_newmount(struct xfs_mount *, uint *, uint *);
 extern void xfs_qm_mount_quotas(struct xfs_mount *);
 extern void xfs_qm_unmount(struct xfs_mount *);
@@ -366,10 +365,6 @@ static inline int xfs_trans_reserve_quota_bydquots(struct xfs_trans *tp,
 #define xfs_qm_dqdetach(ip)
 #define xfs_qm_dqrele(d)
 #define xfs_qm_statvfs(ip, s)
-static inline int xfs_qm_sync(struct xfs_mount *mp, int flags)
-{
-	return 0;
-}
 #define xfs_qm_newmount(mp, a, b)					(0)
 #define xfs_qm_mount_quotas(mp)
 #define xfs_qm_unmount(mp)

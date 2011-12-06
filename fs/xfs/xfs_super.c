@@ -1025,17 +1025,10 @@ xfs_fs_sync_fs(
 	int			error;
 
 	/*
-	 * Not much we can do for the first async pass.  Writing out the
-	 * superblock would be counter-productive as we are going to redirty
-	 * when writing out other data and metadata (and writing out a single
-	 * block is quite fast anyway).
-	 *
-	 * Try to asynchronously kick off quota syncing at least.
+	 * Doing anything during the async pass would be counterproductive.
 	 */
-	if (!wait) {
-		xfs_qm_sync(mp, SYNC_TRYLOCK);
+	if (!wait)
 		return 0;
-	}
 
 	error = xfs_quiesce_data(mp);
 	if (error)
