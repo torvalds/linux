@@ -88,7 +88,9 @@ int tm6000_read_write_usb(struct tm6000_core *dev, u8 req_type, u8 req,
 	}
 
 	kfree(data);
-	msleep(5);
+
+	if ((dev->quirks & TM6000_QUIRK_NO_USB_DELAY) == 0)
+		msleep(5);
 
 	mutex_unlock(&dev->usb_lock);
 	return ret;
