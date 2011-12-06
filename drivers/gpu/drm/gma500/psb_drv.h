@@ -25,7 +25,7 @@
 #include <drm/drmP.h>
 #include "drm_global.h"
 #include "gem_glue.h"
-#include "psb_drm.h"
+#include "gma_drm.h"
 #include "psb_reg.h"
 #include "psb_intel_drv.h"
 #include "gtt.h"
@@ -42,6 +42,7 @@ enum {
 	CHIP_MFLD_0130 = 3,		/* Medfield */
 };
 
+#define IS_PSB(dev) (((dev)->pci_device & 0xfffe) == 0x8108)
 #define IS_MRST(dev) (((dev)->pci_device & 0xfffc) == 0x4100)
 #define IS_MFLD(dev) (((dev)->pci_device & 0xfff8) == 0x0130)
 
@@ -132,6 +133,9 @@ enum {
 #define _PSB_IRQ_SGX_FLAG	  (1<<18)
 #define _PSB_IRQ_MSVDX_FLAG	  (1<<19)
 #define _LNC_IRQ_TOPAZ_FLAG	  (1<<20)
+
+#define _PSB_PIPE_EVENT_FLAG	(_PSB_VSYNC_PIPEA_FLAG | \
+				 _PSB_VSYNC_PIPEB_FLAG)
 
 /* This flag includes all the display IRQ bits excepts the vblank irqs. */
 #define _MDFLD_DISP_ALL_IRQ_FLAG (_MDFLD_PIPEC_EVENT_FLAG | \
@@ -258,6 +262,8 @@ struct psb_intel_opregion {
 
 struct psb_ops;
 
+#define PSB_NUM_PIPE		3
+
 struct drm_psb_private {
 	struct drm_device *dev;
 	const struct psb_ops *ops;
@@ -323,8 +329,6 @@ struct drm_psb_private {
 	/*
 	 * Sizes info
 	 */
-
-	struct drm_psb_sizes_arg sizes;
 
 	u32 fuse_reg_value;
 	u32 video_device_fuse;
@@ -602,7 +606,7 @@ struct drm_psb_private {
 	void *fbdev;
 
 	/* 2D acceleration */
-	struct mutex mutex_2d;
+	spinlock_t lock_2d;
 };
 
 

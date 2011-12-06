@@ -21,7 +21,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm.h>
-#include "psb_drm.h"
+#include "gma_drm.h"
 #include "psb_drv.h"
 #include "framebuffer.h"
 #include "psb_reg.h"
@@ -80,58 +80,36 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
  * Standard IOCTLs.
  */
 
-#define DRM_IOCTL_PSB_SIZES	\
-		DRM_IOR(DRM_PSB_SIZES + DRM_COMMAND_BASE, \
-			struct drm_psb_sizes_arg)
-#define DRM_IOCTL_PSB_FUSE_REG	\
-		DRM_IOWR(DRM_PSB_FUSE_REG + DRM_COMMAND_BASE, uint32_t)
-#define DRM_IOCTL_PSB_DC_STATE	\
-		DRM_IOW(DRM_PSB_DC_STATE + DRM_COMMAND_BASE, \
-			struct drm_psb_dc_state_arg)
 #define DRM_IOCTL_PSB_ADB	\
-		DRM_IOWR(DRM_PSB_ADB + DRM_COMMAND_BASE, uint32_t)
+		DRM_IOWR(DRM_GMA_ADB + DRM_COMMAND_BASE, uint32_t)
 #define DRM_IOCTL_PSB_MODE_OPERATION	\
-		DRM_IOWR(DRM_PSB_MODE_OPERATION + DRM_COMMAND_BASE, \
+		DRM_IOWR(DRM_GMA_MODE_OPERATION + DRM_COMMAND_BASE, \
 			 struct drm_psb_mode_operation_arg)
 #define DRM_IOCTL_PSB_STOLEN_MEMORY	\
-		DRM_IOWR(DRM_PSB_STOLEN_MEMORY + DRM_COMMAND_BASE, \
+		DRM_IOWR(DRM_GMA_STOLEN_MEMORY + DRM_COMMAND_BASE, \
 			 struct drm_psb_stolen_memory_arg)
-#define DRM_IOCTL_PSB_REGISTER_RW	\
-		DRM_IOWR(DRM_PSB_REGISTER_RW + DRM_COMMAND_BASE, \
-			 struct drm_psb_register_rw_arg)
-#define DRM_IOCTL_PSB_DPST	\
-		DRM_IOWR(DRM_PSB_DPST + DRM_COMMAND_BASE, \
-			 uint32_t)
 #define DRM_IOCTL_PSB_GAMMA	\
-		DRM_IOWR(DRM_PSB_GAMMA + DRM_COMMAND_BASE, \
+		DRM_IOWR(DRM_GMA_GAMMA + DRM_COMMAND_BASE, \
 			 struct drm_psb_dpst_lut_arg)
 #define DRM_IOCTL_PSB_DPST_BL	\
-		DRM_IOWR(DRM_PSB_DPST_BL + DRM_COMMAND_BASE, \
+		DRM_IOWR(DRM_GMA_DPST_BL + DRM_COMMAND_BASE, \
 			 uint32_t)
 #define DRM_IOCTL_PSB_GET_PIPE_FROM_CRTC_ID	\
-		DRM_IOWR(DRM_PSB_GET_PIPE_FROM_CRTC_ID + DRM_COMMAND_BASE, \
+		DRM_IOWR(DRM_GMA_GET_PIPE_FROM_CRTC_ID + DRM_COMMAND_BASE, \
 			 struct drm_psb_get_pipe_from_crtc_id_arg)
 #define DRM_IOCTL_PSB_GEM_CREATE	\
-		DRM_IOWR(DRM_PSB_GEM_CREATE + DRM_COMMAND_BASE, \
+		DRM_IOWR(DRM_GMA_GEM_CREATE + DRM_COMMAND_BASE, \
 			 struct drm_psb_gem_create)
 #define DRM_IOCTL_PSB_GEM_MMAP	\
-		DRM_IOWR(DRM_PSB_GEM_MMAP + DRM_COMMAND_BASE, \
+		DRM_IOWR(DRM_GMA_GEM_MMAP + DRM_COMMAND_BASE, \
 			 struct drm_psb_gem_mmap)
 
-static int psb_sizes_ioctl(struct drm_device *dev, void *data,
-			   struct drm_file *file_priv);
-static int psb_dc_state_ioctl(struct drm_device *dev, void * data,
-			      struct drm_file *file_priv);
 static int psb_adb_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 static int psb_mode_operation_ioctl(struct drm_device *dev, void *data,
 				    struct drm_file *file_priv);
 static int psb_stolen_memory_ioctl(struct drm_device *dev, void *data,
 				   struct drm_file *file_priv);
-static int psb_register_rw_ioctl(struct drm_device *dev, void *data,
-				 struct drm_file *file_priv);
-static int psb_dpst_ioctl(struct drm_device *dev, void *data,
-			  struct drm_file *file_priv);
 static int psb_gamma_ioctl(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv);
 static int psb_dpst_bl_ioctl(struct drm_device *dev, void *data,
@@ -141,16 +119,11 @@ static int psb_dpst_bl_ioctl(struct drm_device *dev, void *data,
 	[DRM_IOCTL_NR(ioctl) - DRM_COMMAND_BASE] = {ioctl, flags, func}
 
 static struct drm_ioctl_desc psb_ioctls[] = {
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_SIZES, psb_sizes_ioctl, DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_DC_STATE, psb_dc_state_ioctl, DRM_AUTH),
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_ADB, psb_adb_ioctl, DRM_AUTH),
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_MODE_OPERATION, psb_mode_operation_ioctl,
 		      DRM_AUTH),
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_STOLEN_MEMORY, psb_stolen_memory_ioctl,
 		      DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_REGISTER_RW, psb_register_rw_ioctl,
-		      DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_DPST, psb_dpst_ioctl, DRM_AUTH),
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_GAMMA, psb_gamma_ioctl, DRM_AUTH),
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_DPST_BL, psb_dpst_bl_ioctl, DRM_AUTH),
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_GET_PIPE_FROM_CRTC_ID,
@@ -168,7 +141,6 @@ static void psb_lastclose(struct drm_device *dev)
 
 static void psb_do_takedown(struct drm_device *dev)
 {
-	/* FIXME: do we need to clean up the gtt here ? */
 }
 
 static int psb_do_init(struct drm_device *dev)
@@ -214,7 +186,7 @@ static int psb_do_init(struct drm_device *dev)
 
 
 	spin_lock_init(&dev_priv->irqmask_lock);
-	mutex_init(&dev_priv->mutex_2d);
+	spin_lock_init(&dev_priv->lock_2d);
 
 	PSB_WSGX32(0x00000000, PSB_CR_BIF_BANK0);
 	PSB_WSGX32(0x00000000, PSB_CR_BIF_BANK1);
@@ -314,6 +286,11 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	dev_priv->dev = dev;
 	dev->dev_private = (void *) dev_priv;
 
+	if (!IS_PSB(dev)) {
+		if (pci_enable_msi(dev->pdev))
+			dev_warn(dev->dev, "Enabling MSI failed!\n");
+	}
+
 	dev_priv->num_pipe = dev_priv->ops->pipes;
 
 	resource_start = pci_resource_start(dev->pdev, PSB_MMIO_RESOURCE);
@@ -395,7 +372,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	PSB_WVDC32(0x00000000, PSB_INT_ENABLE_R);
 	PSB_WVDC32(0xFFFFFFFF, PSB_INT_MASK_R);
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
+	if (IS_PSB(dev) && drm_core_check_feature(dev, DRIVER_MODESET))
 		drm_irq_install(dev);
 
 	dev->vblank_disable_allowed = 1;
@@ -442,75 +419,6 @@ int psb_driver_device_is_agp(struct drm_device *dev)
 	return 0;
 }
 
-
-static int psb_sizes_ioctl(struct drm_device *dev, void *data,
-			   struct drm_file *file_priv)
-{
-	struct drm_psb_private *dev_priv = psb_priv(dev);
-	struct drm_psb_sizes_arg *arg =
-		(struct drm_psb_sizes_arg *) data;
-
-	*arg = dev_priv->sizes;
-	return 0;
-}
-
-static int psb_dc_state_ioctl(struct drm_device *dev, void * data,
-				struct drm_file *file_priv)
-{
-	uint32_t flags;
-	uint32_t obj_id;
-	struct drm_mode_object *obj;
-	struct drm_connector *connector;
-	struct drm_crtc *crtc;
-	struct drm_psb_dc_state_arg *arg = data;
-
-
-	/* Double check MRST case */
-	if (IS_MRST(dev) || IS_MFLD(dev))
-		return -EOPNOTSUPP;
-
-	flags = arg->flags;
-	obj_id = arg->obj_id;
-
-	if (flags & PSB_DC_CRTC_MASK) {
-		obj = drm_mode_object_find(dev, obj_id,
-				DRM_MODE_OBJECT_CRTC);
-		if (!obj) {
-			dev_dbg(dev->dev, "Invalid CRTC object.\n");
-			return -EINVAL;
-		}
-
-		crtc = obj_to_crtc(obj);
-
-		mutex_lock(&dev->mode_config.mutex);
-		if (drm_helper_crtc_in_use(crtc)) {
-			if (flags & PSB_DC_CRTC_SAVE)
-				crtc->funcs->save(crtc);
-			else
-				crtc->funcs->restore(crtc);
-		}
-		mutex_unlock(&dev->mode_config.mutex);
-
-		return 0;
-	} else if (flags & PSB_DC_OUTPUT_MASK) {
-		obj = drm_mode_object_find(dev, obj_id,
-				DRM_MODE_OBJECT_CONNECTOR);
-		if (!obj) {
-			dev_dbg(dev->dev, "Invalid connector id.\n");
-			return -EINVAL;
-		}
-
-		connector = obj_to_connector(obj);
-		if (flags & PSB_DC_OUTPUT_SAVE)
-			connector->funcs->save(connector);
-		else
-			connector->funcs->restore(connector);
-
-		return 0;
-	}
-	return -EINVAL;
-}
-
 static inline void get_brightness(struct backlight_device *bd)
 {
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
@@ -543,36 +451,6 @@ static int psb_adb_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-/* return the current mode to the dpst module */
-static int psb_dpst_ioctl(struct drm_device *dev, void *data,
-			  struct drm_file *file_priv)
-{
-	struct drm_psb_private *dev_priv = psb_priv(dev);
-	uint32_t *arg = data;
-	uint32_t x;
-	uint32_t y;
-	uint32_t reg;
-
-	if (!gma_power_begin(dev, 0))
-		return -EIO;
-
-	reg = PSB_RVDC32(PIPEASRC);
-
-	gma_power_end(dev);
-
-	/* horizontal is the left 16 bits */
-	x = reg >> 16;
-	/* vertical is the right 16 bits */
-	y = reg & 0x0000ffff;
-
-	/* the values are the image size minus one */
-	x++;
-	y++;
-
-	*arg = (x << 16) | y;
-
-	return 0;
-}
 static int psb_gamma_ioctl(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv)
 {
@@ -613,37 +491,15 @@ static int psb_mode_operation_ioctl(struct drm_device *dev, void *data,
 	struct drm_psb_mode_operation_arg *arg;
 	struct drm_mode_object *obj;
 	struct drm_connector *connector;
-	struct drm_framebuffer *drm_fb;
-	struct psb_framebuffer *psb_fb;
 	struct drm_connector_helper_funcs *connector_funcs;
 	int ret = 0;
 	int resp = MODE_OK;
-	struct drm_psb_private *dev_priv = psb_priv(dev);
 
 	arg = (struct drm_psb_mode_operation_arg *)data;
 	obj_id = arg->obj_id;
 	op = arg->operation;
 
 	switch (op) {
-	case PSB_MODE_OPERATION_SET_DC_BASE:
-		obj = drm_mode_object_find(dev, obj_id, DRM_MODE_OBJECT_FB);
-		if (!obj) {
-			dev_dbg(dev->dev, "Invalid FB id %d\n", obj_id);
-			return -EINVAL;
-		}
-
-		drm_fb = obj_to_fb(obj);
-		psb_fb = to_psb_fb(drm_fb);
-
-		if (gma_power_begin(dev, 0)) {
-			REG_WRITE(DSPASURF, psb_fb->gtt->offset);
-			REG_READ(DSPASURF);
-			gma_power_end(dev);
-		} else {
-			dev_priv->saveDSPASURF = psb_fb->gtt->offset;
-		}
-
-		return 0;
 	case PSB_MODE_OPERATION_MODE_VALID:
 		umode = &arg->mode;
 
@@ -689,7 +545,7 @@ static int psb_mode_operation_ioctl(struct drm_device *dev, void *data,
 
 		if (connector_funcs->mode_valid) {
 			resp = connector_funcs->mode_valid(connector, mode);
-			arg->data = (void *)resp;
+			arg->data = resp;
 		}
 
 		/*do some clean up work*/
@@ -715,363 +571,6 @@ static int psb_stolen_memory_ioctl(struct drm_device *dev, void *data,
 
 	arg->base = dev_priv->stolen_base;
 	arg->size = dev_priv->vram_stolen_size;
-
-	return 0;
-}
-
-/* FIXME: needs Medfield changes */
-static int psb_register_rw_ioctl(struct drm_device *dev, void *data,
-				 struct drm_file *file_priv)
-{
-	struct drm_psb_private *dev_priv = psb_priv(dev);
-	struct drm_psb_register_rw_arg *arg = data;
-	bool usage = arg->b_force_hw_on ? true : false;
-
-	if (arg->display_write_mask != 0) {
-		if (gma_power_begin(dev, usage)) {
-			if (arg->display_write_mask & REGRWBITS_PFIT_CONTROLS)
-				PSB_WVDC32(arg->display.pfit_controls,
-					   PFIT_CONTROL);
-			if (arg->display_write_mask &
-			    REGRWBITS_PFIT_AUTOSCALE_RATIOS)
-				PSB_WVDC32(arg->display.pfit_autoscale_ratios,
-					   PFIT_AUTO_RATIOS);
-			if (arg->display_write_mask &
-			    REGRWBITS_PFIT_PROGRAMMED_SCALE_RATIOS)
-				PSB_WVDC32(
-				   arg->display.pfit_programmed_scale_ratios,
-				   PFIT_PGM_RATIOS);
-			if (arg->display_write_mask & REGRWBITS_PIPEASRC)
-				PSB_WVDC32(arg->display.pipeasrc,
-					   PIPEASRC);
-			if (arg->display_write_mask & REGRWBITS_PIPEBSRC)
-				PSB_WVDC32(arg->display.pipebsrc,
-					   PIPEBSRC);
-			if (arg->display_write_mask & REGRWBITS_VTOTAL_A)
-				PSB_WVDC32(arg->display.vtotal_a,
-					   VTOTAL_A);
-			if (arg->display_write_mask & REGRWBITS_VTOTAL_B)
-				PSB_WVDC32(arg->display.vtotal_b,
-					   VTOTAL_B);
-			gma_power_end(dev);
-		} else {
-			if (arg->display_write_mask & REGRWBITS_PFIT_CONTROLS)
-				dev_priv->savePFIT_CONTROL =
-						arg->display.pfit_controls;
-			if (arg->display_write_mask &
-			    REGRWBITS_PFIT_AUTOSCALE_RATIOS)
-				dev_priv->savePFIT_AUTO_RATIOS =
-					arg->display.pfit_autoscale_ratios;
-			if (arg->display_write_mask &
-			    REGRWBITS_PFIT_PROGRAMMED_SCALE_RATIOS)
-				dev_priv->savePFIT_PGM_RATIOS =
-				   arg->display.pfit_programmed_scale_ratios;
-			if (arg->display_write_mask & REGRWBITS_PIPEASRC)
-				dev_priv->savePIPEASRC = arg->display.pipeasrc;
-			if (arg->display_write_mask & REGRWBITS_PIPEBSRC)
-				dev_priv->savePIPEBSRC = arg->display.pipebsrc;
-			if (arg->display_write_mask & REGRWBITS_VTOTAL_A)
-				dev_priv->saveVTOTAL_A = arg->display.vtotal_a;
-			if (arg->display_write_mask & REGRWBITS_VTOTAL_B)
-				dev_priv->saveVTOTAL_B = arg->display.vtotal_b;
-		}
-	}
-
-	if (arg->display_read_mask != 0) {
-		if (gma_power_begin(dev, usage)) {
-			if (arg->display_read_mask &
-			    REGRWBITS_PFIT_CONTROLS)
-				arg->display.pfit_controls =
-						PSB_RVDC32(PFIT_CONTROL);
-			if (arg->display_read_mask &
-			    REGRWBITS_PFIT_AUTOSCALE_RATIOS)
-				arg->display.pfit_autoscale_ratios =
-						PSB_RVDC32(PFIT_AUTO_RATIOS);
-			if (arg->display_read_mask &
-			    REGRWBITS_PFIT_PROGRAMMED_SCALE_RATIOS)
-				arg->display.pfit_programmed_scale_ratios =
-						PSB_RVDC32(PFIT_PGM_RATIOS);
-			if (arg->display_read_mask & REGRWBITS_PIPEASRC)
-				arg->display.pipeasrc = PSB_RVDC32(PIPEASRC);
-			if (arg->display_read_mask & REGRWBITS_PIPEBSRC)
-				arg->display.pipebsrc = PSB_RVDC32(PIPEBSRC);
-			if (arg->display_read_mask & REGRWBITS_VTOTAL_A)
-				arg->display.vtotal_a = PSB_RVDC32(VTOTAL_A);
-			if (arg->display_read_mask & REGRWBITS_VTOTAL_B)
-				arg->display.vtotal_b = PSB_RVDC32(VTOTAL_B);
-			gma_power_end(dev);
-		} else {
-			if (arg->display_read_mask &
-			    REGRWBITS_PFIT_CONTROLS)
-				arg->display.pfit_controls =
-						dev_priv->savePFIT_CONTROL;
-			if (arg->display_read_mask &
-			    REGRWBITS_PFIT_AUTOSCALE_RATIOS)
-				arg->display.pfit_autoscale_ratios =
-						dev_priv->savePFIT_AUTO_RATIOS;
-			if (arg->display_read_mask &
-			    REGRWBITS_PFIT_PROGRAMMED_SCALE_RATIOS)
-				arg->display.pfit_programmed_scale_ratios =
-						dev_priv->savePFIT_PGM_RATIOS;
-			if (arg->display_read_mask & REGRWBITS_PIPEASRC)
-				arg->display.pipeasrc = dev_priv->savePIPEASRC;
-			if (arg->display_read_mask & REGRWBITS_PIPEBSRC)
-				arg->display.pipebsrc = dev_priv->savePIPEBSRC;
-			if (arg->display_read_mask & REGRWBITS_VTOTAL_A)
-				arg->display.vtotal_a = dev_priv->saveVTOTAL_A;
-			if (arg->display_read_mask & REGRWBITS_VTOTAL_B)
-				arg->display.vtotal_b = dev_priv->saveVTOTAL_B;
-		}
-	}
-
-	if (arg->overlay_write_mask != 0) {
-		if (gma_power_begin(dev, usage)) {
-			if (arg->overlay_write_mask & OV_REGRWBITS_OGAM_ALL) {
-				PSB_WVDC32(arg->overlay.OGAMC5, OV_OGAMC5);
-				PSB_WVDC32(arg->overlay.OGAMC4, OV_OGAMC4);
-				PSB_WVDC32(arg->overlay.OGAMC3, OV_OGAMC3);
-				PSB_WVDC32(arg->overlay.OGAMC2, OV_OGAMC2);
-				PSB_WVDC32(arg->overlay.OGAMC1, OV_OGAMC1);
-				PSB_WVDC32(arg->overlay.OGAMC0, OV_OGAMC0);
-			}
-			if (arg->overlay_write_mask & OVC_REGRWBITS_OGAM_ALL) {
-				PSB_WVDC32(arg->overlay.OGAMC5, OVC_OGAMC5);
-				PSB_WVDC32(arg->overlay.OGAMC4, OVC_OGAMC4);
-				PSB_WVDC32(arg->overlay.OGAMC3, OVC_OGAMC3);
-				PSB_WVDC32(arg->overlay.OGAMC2, OVC_OGAMC2);
-				PSB_WVDC32(arg->overlay.OGAMC1, OVC_OGAMC1);
-				PSB_WVDC32(arg->overlay.OGAMC0, OVC_OGAMC0);
-			}
-
-			if (arg->overlay_write_mask & OV_REGRWBITS_OVADD) {
-				PSB_WVDC32(arg->overlay.OVADD, OV_OVADD);
-
-				if (arg->overlay.b_wait_vblank) {
-					/* Wait for 20ms.*/
-					unsigned long vblank_timeout = jiffies
-								+ HZ/50;
-					uint32_t temp;
-					while (time_before_eq(jiffies,
-							vblank_timeout)) {
-						temp = PSB_RVDC32(OV_DOVASTA);
-						if ((temp & (0x1 << 31)) != 0)
-							break;
-						cpu_relax();
-					}
-				}
-			}
-			if (arg->overlay_write_mask & OVC_REGRWBITS_OVADD) {
-				PSB_WVDC32(arg->overlay.OVADD, OVC_OVADD);
-				if (arg->overlay.b_wait_vblank) {
-					/* Wait for 20ms.*/
-					unsigned long vblank_timeout =
-							jiffies + HZ/50;
-					uint32_t temp;
-					while (time_before_eq(jiffies,
-							vblank_timeout)) {
-						temp = PSB_RVDC32(OVC_DOVCSTA);
-						if ((temp & (0x1 << 31)) != 0)
-							break;
-						cpu_relax();
-					}
-				}
-			}
-			gma_power_end(dev);
-		} else {
-			if (arg->overlay_write_mask & OV_REGRWBITS_OGAM_ALL) {
-				dev_priv->saveOV_OGAMC5 = arg->overlay.OGAMC5;
-				dev_priv->saveOV_OGAMC4 = arg->overlay.OGAMC4;
-				dev_priv->saveOV_OGAMC3 = arg->overlay.OGAMC3;
-				dev_priv->saveOV_OGAMC2 = arg->overlay.OGAMC2;
-				dev_priv->saveOV_OGAMC1 = arg->overlay.OGAMC1;
-				dev_priv->saveOV_OGAMC0 = arg->overlay.OGAMC0;
-			}
-			if (arg->overlay_write_mask & OVC_REGRWBITS_OGAM_ALL) {
-				dev_priv->saveOVC_OGAMC5 = arg->overlay.OGAMC5;
-				dev_priv->saveOVC_OGAMC4 = arg->overlay.OGAMC4;
-				dev_priv->saveOVC_OGAMC3 = arg->overlay.OGAMC3;
-				dev_priv->saveOVC_OGAMC2 = arg->overlay.OGAMC2;
-				dev_priv->saveOVC_OGAMC1 = arg->overlay.OGAMC1;
-				dev_priv->saveOVC_OGAMC0 = arg->overlay.OGAMC0;
-			}
-			if (arg->overlay_write_mask & OV_REGRWBITS_OVADD)
-				dev_priv->saveOV_OVADD = arg->overlay.OVADD;
-			if (arg->overlay_write_mask & OVC_REGRWBITS_OVADD)
-				dev_priv->saveOVC_OVADD = arg->overlay.OVADD;
-		}
-	}
-
-	if (arg->overlay_read_mask != 0) {
-		if (gma_power_begin(dev, usage)) {
-			if (arg->overlay_read_mask & OV_REGRWBITS_OGAM_ALL) {
-				arg->overlay.OGAMC5 = PSB_RVDC32(OV_OGAMC5);
-				arg->overlay.OGAMC4 = PSB_RVDC32(OV_OGAMC4);
-				arg->overlay.OGAMC3 = PSB_RVDC32(OV_OGAMC3);
-				arg->overlay.OGAMC2 = PSB_RVDC32(OV_OGAMC2);
-				arg->overlay.OGAMC1 = PSB_RVDC32(OV_OGAMC1);
-				arg->overlay.OGAMC0 = PSB_RVDC32(OV_OGAMC0);
-			}
-			if (arg->overlay_read_mask & OVC_REGRWBITS_OGAM_ALL) {
-				arg->overlay.OGAMC5 = PSB_RVDC32(OVC_OGAMC5);
-				arg->overlay.OGAMC4 = PSB_RVDC32(OVC_OGAMC4);
-				arg->overlay.OGAMC3 = PSB_RVDC32(OVC_OGAMC3);
-				arg->overlay.OGAMC2 = PSB_RVDC32(OVC_OGAMC2);
-				arg->overlay.OGAMC1 = PSB_RVDC32(OVC_OGAMC1);
-				arg->overlay.OGAMC0 = PSB_RVDC32(OVC_OGAMC0);
-			}
-			if (arg->overlay_read_mask & OV_REGRWBITS_OVADD)
-				arg->overlay.OVADD = PSB_RVDC32(OV_OVADD);
-			if (arg->overlay_read_mask & OVC_REGRWBITS_OVADD)
-				arg->overlay.OVADD = PSB_RVDC32(OVC_OVADD);
-			gma_power_end(dev);
-		} else {
-			if (arg->overlay_read_mask & OV_REGRWBITS_OGAM_ALL) {
-				arg->overlay.OGAMC5 = dev_priv->saveOV_OGAMC5;
-				arg->overlay.OGAMC4 = dev_priv->saveOV_OGAMC4;
-				arg->overlay.OGAMC3 = dev_priv->saveOV_OGAMC3;
-				arg->overlay.OGAMC2 = dev_priv->saveOV_OGAMC2;
-				arg->overlay.OGAMC1 = dev_priv->saveOV_OGAMC1;
-				arg->overlay.OGAMC0 = dev_priv->saveOV_OGAMC0;
-			}
-			if (arg->overlay_read_mask & OVC_REGRWBITS_OGAM_ALL) {
-				arg->overlay.OGAMC5 = dev_priv->saveOVC_OGAMC5;
-				arg->overlay.OGAMC4 = dev_priv->saveOVC_OGAMC4;
-				arg->overlay.OGAMC3 = dev_priv->saveOVC_OGAMC3;
-				arg->overlay.OGAMC2 = dev_priv->saveOVC_OGAMC2;
-				arg->overlay.OGAMC1 = dev_priv->saveOVC_OGAMC1;
-				arg->overlay.OGAMC0 = dev_priv->saveOVC_OGAMC0;
-			}
-			if (arg->overlay_read_mask & OV_REGRWBITS_OVADD)
-				arg->overlay.OVADD = dev_priv->saveOV_OVADD;
-			if (arg->overlay_read_mask & OVC_REGRWBITS_OVADD)
-				arg->overlay.OVADD = dev_priv->saveOVC_OVADD;
-		}
-	}
-
-	if (arg->sprite_enable_mask != 0) {
-		if (gma_power_begin(dev, usage)) {
-			PSB_WVDC32(0x1F3E, DSPARB);
-			PSB_WVDC32(arg->sprite.dspa_control
-					| PSB_RVDC32(DSPACNTR), DSPACNTR);
-			PSB_WVDC32(arg->sprite.dspa_key_value, DSPAKEYVAL);
-			PSB_WVDC32(arg->sprite.dspa_key_mask, DSPAKEYMASK);
-			PSB_WVDC32(PSB_RVDC32(DSPASURF), DSPASURF);
-			PSB_RVDC32(DSPASURF);
-			PSB_WVDC32(arg->sprite.dspc_control, DSPCCNTR);
-			PSB_WVDC32(arg->sprite.dspc_stride, DSPCSTRIDE);
-			PSB_WVDC32(arg->sprite.dspc_position, DSPCPOS);
-			PSB_WVDC32(arg->sprite.dspc_linear_offset, DSPCLINOFF);
-			PSB_WVDC32(arg->sprite.dspc_size, DSPCSIZE);
-			PSB_WVDC32(arg->sprite.dspc_surface, DSPCSURF);
-			PSB_RVDC32(DSPCSURF);
-			gma_power_end(dev);
-		}
-	}
-
-	if (arg->sprite_disable_mask != 0) {
-		if (gma_power_begin(dev, usage)) {
-			PSB_WVDC32(0x3F3E, DSPARB);
-			PSB_WVDC32(0x0, DSPCCNTR);
-			PSB_WVDC32(arg->sprite.dspc_surface, DSPCSURF);
-			PSB_RVDC32(DSPCSURF);
-			gma_power_end(dev);
-		}
-	}
-
-	if (arg->subpicture_enable_mask != 0) {
-		if (gma_power_begin(dev, usage)) {
-			uint32_t temp;
-			if (arg->subpicture_enable_mask & REGRWBITS_DSPACNTR) {
-				temp =  PSB_RVDC32(DSPACNTR);
-				temp &= ~DISPPLANE_PIXFORMAT_MASK;
-				temp &= ~DISPPLANE_BOTTOM;
-				temp |= DISPPLANE_32BPP;
-				PSB_WVDC32(temp, DSPACNTR);
-
-				temp =  PSB_RVDC32(DSPABASE);
-				PSB_WVDC32(temp, DSPABASE);
-				PSB_RVDC32(DSPABASE);
-				temp =  PSB_RVDC32(DSPASURF);
-				PSB_WVDC32(temp, DSPASURF);
-				PSB_RVDC32(DSPASURF);
-			}
-			if (arg->subpicture_enable_mask & REGRWBITS_DSPBCNTR) {
-				temp =  PSB_RVDC32(DSPBCNTR);
-				temp &= ~DISPPLANE_PIXFORMAT_MASK;
-				temp &= ~DISPPLANE_BOTTOM;
-				temp |= DISPPLANE_32BPP;
-				PSB_WVDC32(temp, DSPBCNTR);
-
-				temp =  PSB_RVDC32(DSPBBASE);
-				PSB_WVDC32(temp, DSPBBASE);
-				PSB_RVDC32(DSPBBASE);
-				temp =  PSB_RVDC32(DSPBSURF);
-				PSB_WVDC32(temp, DSPBSURF);
-				PSB_RVDC32(DSPBSURF);
-			}
-			if (arg->subpicture_enable_mask & REGRWBITS_DSPCCNTR) {
-				temp =  PSB_RVDC32(DSPCCNTR);
-				temp &= ~DISPPLANE_PIXFORMAT_MASK;
-				temp &= ~DISPPLANE_BOTTOM;
-				temp |= DISPPLANE_32BPP;
-				PSB_WVDC32(temp, DSPCCNTR);
-
-				temp =  PSB_RVDC32(DSPCBASE);
-				PSB_WVDC32(temp, DSPCBASE);
-				PSB_RVDC32(DSPCBASE);
-				temp =  PSB_RVDC32(DSPCSURF);
-				PSB_WVDC32(temp, DSPCSURF);
-				PSB_RVDC32(DSPCSURF);
-			}
-			gma_power_end(dev);
-		}
-	}
-
-	if (arg->subpicture_disable_mask != 0) {
-		if (gma_power_begin(dev, usage)) {
-			uint32_t temp;
-			if (arg->subpicture_disable_mask & REGRWBITS_DSPACNTR) {
-				temp =  PSB_RVDC32(DSPACNTR);
-				temp &= ~DISPPLANE_PIXFORMAT_MASK;
-				temp |= DISPPLANE_32BPP_NO_ALPHA;
-				PSB_WVDC32(temp, DSPACNTR);
-
-				temp =  PSB_RVDC32(DSPABASE);
-				PSB_WVDC32(temp, DSPABASE);
-				PSB_RVDC32(DSPABASE);
-				temp =  PSB_RVDC32(DSPASURF);
-				PSB_WVDC32(temp, DSPASURF);
-				PSB_RVDC32(DSPASURF);
-			}
-			if (arg->subpicture_disable_mask & REGRWBITS_DSPBCNTR) {
-				temp =  PSB_RVDC32(DSPBCNTR);
-				temp &= ~DISPPLANE_PIXFORMAT_MASK;
-				temp |= DISPPLANE_32BPP_NO_ALPHA;
-				PSB_WVDC32(temp, DSPBCNTR);
-
-				temp =  PSB_RVDC32(DSPBBASE);
-				PSB_WVDC32(temp, DSPBBASE);
-				PSB_RVDC32(DSPBBASE);
-				temp =  PSB_RVDC32(DSPBSURF);
-				PSB_WVDC32(temp, DSPBSURF);
-				PSB_RVDC32(DSPBSURF);
-			}
-			if (arg->subpicture_disable_mask & REGRWBITS_DSPCCNTR) {
-				temp =  PSB_RVDC32(DSPCCNTR);
-				temp &= ~DISPPLANE_PIXFORMAT_MASK;
-				temp |= DISPPLANE_32BPP_NO_ALPHA;
-				PSB_WVDC32(temp, DSPCCNTR);
-
-				temp =  PSB_RVDC32(DSPCBASE);
-				PSB_WVDC32(temp, DSPCBASE);
-				PSB_RVDC32(DSPCBASE);
-				temp =  PSB_RVDC32(DSPCSURF);
-				PSB_WVDC32(temp, DSPCSURF);
-				PSB_RVDC32(DSPCSURF);
-			}
-			gma_power_end(dev);
-		}
-	}
 
 	return 0;
 }
@@ -1188,9 +687,6 @@ static struct pci_driver psb_pci_driver = {
 
 static int psb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	/* MLD Added this from Inaky's patch */
-	if (pci_enable_msi(pdev))
-		dev_warn(&pdev->dev, "Enable MSI failed!\n");
 	return drm_get_pci_dev(pdev, ent, &driver);
 }
 

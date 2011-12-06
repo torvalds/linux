@@ -22,13 +22,14 @@
 #include <linux/dmi.h>
 #include <drm/drmP.h>
 #include <drm/drm.h>
-#include "psb_drm.h"
+#include "gma_drm.h"
 #include "psb_drv.h"
 #include "psb_reg.h"
 #include "psb_intel_reg.h"
 #include <asm/mrst.h>
 #include <asm/intel_scu_ipc.h>
 #include "mid_bios.h"
+#include "intel_bios.h"
 
 static int oaktrail_output_init(struct drm_device *dev)
 {
@@ -456,9 +457,31 @@ static int oaktrail_power_up(struct drm_device *dev)
 }
 
 
+static int oaktrail_chip_setup(struct drm_device *dev)
+{
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct oaktrail_vbt *vbt = &dev_priv->vbt_data;
+	int ret;
+	
+	ret = mid_chip_setup(dev);
+	if (ret < 0)
+		return ret;
+	if (vbt->size == 0) {
+		/* Now pull the BIOS data */
+		gma_intel_opregion_init(dev);
+		psb_intel_init_bios(dev);
+	}
+	return 0;
+}
+
 static void oaktrail_teardown(struct drm_device *dev)
 {
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct oaktrail_vbt *vbt = &dev_priv->vbt_data;
+
 	oaktrail_hdmi_teardown(dev);
+	if (vbt->size == 0)
+		psb_intel_destroy_bios(dev);
 }
 
 const struct psb_ops oaktrail_chip_ops = {
@@ -468,7 +491,7 @@ const struct psb_ops oaktrail_chip_ops = {
 	.crtcs = 2,
 	.sgx_offset = MRST_SGX_OFFSET,
 
-	.chip_setup = mid_chip_setup,
+	.chip_setup = oaktrail_chip_setup,
 	.chip_teardown = oaktrail_teardown,
 	.crtc_helper = &oaktrail_helper_funcs,
 	.crtc_funcs = &psb_intel_crtc_funcs,

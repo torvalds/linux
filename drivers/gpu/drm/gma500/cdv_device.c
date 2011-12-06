@@ -20,7 +20,7 @@
 #include <linux/backlight.h>
 #include <drm/drmP.h>
 #include <drm/drm.h>
-#include "psb_drm.h"
+#include "gma_drm.h"
 #include "psb_drv.h"
 #include "psb_reg.h"
 #include "psb_intel_reg.h"
@@ -30,7 +30,6 @@
 #define VGA_SR_INDEX		0x3c4
 #define VGA_SR_DATA		0x3c5
 
-/* FIXME: should check if we are the active VGA device ?? */
 static void cdv_disable_vga(struct drm_device *dev)
 {
 	u8 sr1;
