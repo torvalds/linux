@@ -3213,16 +3213,19 @@ static struct opcode group3[] = {
 };
 
 static struct opcode group4[] = {
-	D(ByteOp | DstMem | SrcNone | ModRM | Lock), D(ByteOp | DstMem | SrcNone | ModRM | Lock),
+	I(ByteOp | DstMem | SrcNone | ModRM | Lock, em_grp45),
+	I(ByteOp | DstMem | SrcNone | ModRM | Lock, em_grp45),
 	N, N, N, N, N, N,
 };
 
 static struct opcode group5[] = {
-	D(DstMem | SrcNone | ModRM | Lock), D(DstMem | SrcNone | ModRM | Lock),
-	D(SrcMem | ModRM | Stack),
+	I(DstMem | SrcNone | ModRM | Lock, em_grp45),
+	I(DstMem | SrcNone | ModRM | Lock, em_grp45),
+	I(SrcMem | ModRM | Stack, em_grp45),
 	I(SrcMemFAddr | ModRM | ImplicitOps | Stack, em_call_far),
-	D(SrcMem | ModRM | Stack), D(SrcMemFAddr | ModRM | ImplicitOps),
-	D(SrcMem | ModRM | Stack), N,
+	I(SrcMem | ModRM | Stack, em_grp45),
+	I(SrcMemFAddr | ModRM | ImplicitOps, em_grp45),
+	I(SrcMem | ModRM | Stack, em_grp45), N,
 };
 
 static struct opcode group6[] = {
@@ -4081,12 +4084,6 @@ special_insn:
 		break;
 	case 0xfd: /* std */
 		ctxt->eflags |= EFLG_DF;
-		break;
-	case 0xfe: /* Grp4 */
-		rc = em_grp45(ctxt);
-		break;
-	case 0xff: /* Grp5 */
-		rc = em_grp45(ctxt);
 		break;
 	default:
 		goto cannot_emulate;
