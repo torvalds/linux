@@ -449,7 +449,6 @@ xfs_qm_detach_gdquots(
 {
 	struct xfs_quotainfo	*q = mp->m_quotainfo;
 	struct xfs_dquot	*dqp, *gdqp;
-	int			nrecl;
 
  again:
 	ASSERT(mutex_is_locked(&q->qi_dqlist_lock));
@@ -462,25 +461,14 @@ xfs_qm_detach_gdquots(
 			mutex_lock(&q->qi_dqlist_lock);
 			goto again;
 		}
-		if ((gdqp = dqp->q_gdquot)) {
-			xfs_dqlock(gdqp);
+
+		gdqp = dqp->q_gdquot;
+		if (gdqp)
 			dqp->q_gdquot = NULL;
-		}
 		xfs_dqunlock(dqp);
 
-		if (gdqp) {
-			/*
-			 * Can't hold the mplist lock across a dqput.
-			 * XXXmust convert to marker based iterations here.
-			 */
-			nrecl = q->qi_dqreclaims;
-			mutex_unlock(&q->qi_dqlist_lock);
-			xfs_qm_dqput(gdqp);
-
-			mutex_lock(&q->qi_dqlist_lock);
-			if (nrecl != q->qi_dqreclaims)
-				goto again;
-		}
+		if (gdqp)
+			xfs_qm_dqrele(gdqp);
 	}
 }
 
