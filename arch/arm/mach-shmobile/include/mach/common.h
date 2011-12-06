@@ -47,6 +47,8 @@ extern void sh73a0_clock_init(void);
 extern void sh73a0_pinmux_init(void);
 extern struct clk sh73a0_extal1_clk;
 extern struct clk sh73a0_extal2_clk;
+extern struct clk sh73a0_extcki_clk;
+extern struct clk sh73a0_extalr_clk;
 
 extern unsigned int sh73a0_get_core_count(void);
 extern void sh73a0_secondary_init(unsigned int cpu);
