@@ -179,23 +179,24 @@ xlog_cil_prepare_log_vecs(
 		void	*ptr;
 		int	index;
 		int	len = 0;
+		uint	niovecs;
 
 		/* Skip items which aren't dirty in this transaction. */
 		if (!(lidp->lid_flags & XFS_LID_DIRTY))
 			continue;
 
 		/* Skip items that do not have any vectors for writing */
-		lidp->lid_size = IOP_SIZE(lidp->lid_item);
-		if (!lidp->lid_size)
+		niovecs = IOP_SIZE(lidp->lid_item);
+		if (!niovecs)
 			continue;
 
 		new_lv = kmem_zalloc(sizeof(*new_lv) +
-				lidp->lid_size * sizeof(struct xfs_log_iovec),
+				niovecs * sizeof(struct xfs_log_iovec),
 				KM_SLEEP);
 
 		/* The allocated iovec region lies beyond the log vector. */
 		new_lv->lv_iovecp = (struct xfs_log_iovec *)&new_lv[1];
-		new_lv->lv_niovecs = lidp->lid_size;
+		new_lv->lv_niovecs = niovecs;
 		new_lv->lv_item = lidp->lid_item;
 
 		/* build the vector array and calculate it's length */

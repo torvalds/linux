@@ -73,7 +73,6 @@ xfs_qm_dquot_logitem_format(
 	logvec->i_len  = sizeof(xfs_disk_dquot_t);
 	logvec->i_type = XLOG_REG_TYPE_DQUOT;
 
-	ASSERT(2 == lip->li_desc->lid_size);
 	qlip->qli_format.qlf_size = 2;
 
 }

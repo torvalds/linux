@@ -1158,7 +1158,6 @@ xfs_trans_add_item(
 
 	lidp->lid_item = lip;
 	lidp->lid_flags = 0;
-	lidp->lid_size = 0;
 	list_add_tail(&lidp->lid_trans, &tp->t_items);
 
 	lip->li_desc = lidp;
