@@ -858,18 +858,21 @@ xfs_qm_init_quotainfo(
 	/*
 	 * We try to get the limits from the superuser's limits fields.
 	 * This is quite hacky, but it is standard quota practice.
+	 *
 	 * We look at the USR dquot with id == 0 first, but if user quotas
 	 * are not enabled we goto the GRP dquot with id == 0.
 	 * We don't really care to keep separate default limits for user
 	 * and group quotas, at least not at this point.
+	 *
+	 * Since we may not have done a quotacheck by this point, just read
+	 * the dquot without attaching it to any hashtables or lists.
 	 */
-	error = xfs_qm_dqget(mp, NULL, (xfs_dqid_t)0,
-			     XFS_IS_UQUOTA_RUNNING(mp) ? XFS_DQ_USER : 
-			     (XFS_IS_GQUOTA_RUNNING(mp) ? XFS_DQ_GROUP :
-				XFS_DQ_PROJ),
-			     XFS_QMOPT_DQSUSER|XFS_QMOPT_DOWARN,
-			     &dqp);
-	if (! error) {
+	error = xfs_qm_dqread(mp, 0,
+			XFS_IS_UQUOTA_RUNNING(mp) ? XFS_DQ_USER :
+			 (XFS_IS_GQUOTA_RUNNING(mp) ? XFS_DQ_GROUP :
+			  XFS_DQ_PROJ),
+			XFS_QMOPT_DOWARN, &dqp);
+	if (!error) {
 		xfs_disk_dquot_t	*ddqp = &dqp->q_core;
 
 		/*
@@ -896,11 +899,6 @@ xfs_qm_init_quotainfo(
 		qinf->qi_rtbhardlimit = be64_to_cpu(ddqp->d_rtb_hardlimit);
 		qinf->qi_rtbsoftlimit = be64_to_cpu(ddqp->d_rtb_softlimit);
  
-		/*
-		 * We sent the XFS_QMOPT_DQSUSER flag to dqget because
-		 * we don't want this dquot cached. We haven't done a
-		 * quotacheck yet, and quotacheck doesn't like incore dquots.
-		 */
 		xfs_qm_dqdestroy(dqp);
 	} else {
 		qinf->qi_btimelimit = XFS_QM_BTIMELIMIT;

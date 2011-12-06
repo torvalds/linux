@@ -129,6 +129,8 @@ static inline void xfs_dqunlock_nonotify(struct xfs_dquot *dqp)
 				     (XFS_IS_UQUOTA_ON((d)->q_mount)) : \
 				     (XFS_IS_OQUOTA_ON((d)->q_mount))))
 
+extern int		xfs_qm_dqread(struct xfs_mount *, xfs_dqid_t, uint,
+					uint, struct xfs_dquot	**);
 extern void		xfs_qm_dqdestroy(xfs_dquot_t *);
 extern int		xfs_qm_dqflush(xfs_dquot_t *, uint);
 extern void		xfs_qm_dqpurge(xfs_dquot_t *);

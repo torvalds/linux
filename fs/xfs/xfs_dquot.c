@@ -552,7 +552,7 @@ xfs_qm_dqtobp(
  *
  * If XFS_QMOPT_DQALLOC is set, allocate a dquot on disk if it needed.
  */
-STATIC int
+int
 xfs_qm_dqread(
 	struct xfs_mount	*mp,
 	xfs_dqid_t		id,
@@ -804,32 +804,17 @@ restart:
 	mutex_unlock(&h->qh_lock);
 
 	error = xfs_qm_dqread(mp, id, type, flags, &dqp);
-	if (error) {
-		if (ip)
-			xfs_ilock(ip, XFS_ILOCK_EXCL);
-		return error;
-	}
 
-	/*
-	 * See if this is mount code calling to look at the overall quota limits
-	 * which are stored in the id == 0 user or group's dquot.
-	 * Since we may not have done a quotacheck by this point, just return
-	 * the dquot without attaching it to any hashtables, lists, etc, or even
-	 * taking a reference.
-	 * The caller must dqdestroy this once done.
-	 */
-	if (flags & XFS_QMOPT_DQSUSER) {
-		ASSERT(id == 0);
-		ASSERT(! ip);
-		goto dqret;
-	}
+	if (ip)
+		xfs_ilock(ip, XFS_ILOCK_EXCL);
+
+	if (error)
+		return error;
 
 	/*
 	 * Dquot lock comes after hashlock in the lock ordering
 	 */
 	if (ip) {
-		xfs_ilock(ip, XFS_ILOCK_EXCL);
-
 		/*
 		 * A dquot could be attached to this inode by now, since
 		 * we had dropped the ilock.
