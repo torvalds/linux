@@ -1661,7 +1661,7 @@ xfs_qm_quotacheck(
 	 * successfully.
 	 */
 	if (!error)
-		error = xfs_qm_dqflush_all(mp, 0);
+		error = xfs_qm_dqflush_all(mp, SYNC_TRYLOCK);
 
 	/*
 	 * We can get this error if we couldn't do a dquot allocation inside
@@ -1874,7 +1874,7 @@ again:
 			 * We flush it delayed write, so don't bother
 			 * releasing the freelist lock.
 			 */
-			error = xfs_qm_dqflush(dqp, 0);
+			error = xfs_qm_dqflush(dqp, SYNC_TRYLOCK);
 			if (error) {
 				xfs_warn(mp, "%s: dquot %p flush failed",
 					__func__, dqp);
