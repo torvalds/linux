@@ -176,6 +176,9 @@ static int wl1271_tm_cmd_interrogate(struct wl1271 *wl, struct nlattr *tb[])
 	}
 
 	NLA_PUT(skb, WL1271_TM_ATTR_DATA, sizeof(*cmd), cmd);
+	ret = cfg80211_testmode_reply(skb);
+	if (ret < 0)
+		goto out_free;
 
 out_free:
 	kfree(cmd);
