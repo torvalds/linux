@@ -24,6 +24,19 @@ config AD5360
 	  To compile this driver as module choose M here: the module will be called
 	  ad5360.
 
+config AD5380
+	tristate "Analog Devices AD5380/81/82/83/84/90/91/92 DAC driver"
+	depends on (SPI_MASTER || I2C)
+	select REGMAP_I2C if I2C
+	select REGMAP_SPI if SPI_MASTER
+	help
+	  Say yes here to build support for Analog Devices AD5380, AD5381,
+	  AD5382, AD5383, AD5384, AD5390, AD5391, AD5392 multi-channel
+	  Digital to Analog Converters (DAC).
+
+	  To compile this driver as module choose M here: the module will be called
+	  ad5380.
+
 config AD5421
 	tristate "Analog Devices AD5421 DAC driver"
 	depends on SPI
