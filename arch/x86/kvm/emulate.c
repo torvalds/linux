@@ -1784,7 +1784,7 @@ static int em_grp45(struct x86_emulate_ctxt *ctxt)
 	return rc;
 }
 
-static int em_grp9(struct x86_emulate_ctxt *ctxt)
+static int em_cmpxchg8b(struct x86_emulate_ctxt *ctxt)
 {
 	u64 old = ctxt->dst.orig_val64;
 
@@ -3261,7 +3261,7 @@ static struct opcode group8[] = {
 };
 
 static struct group_dual group9 = { {
-	N, D(DstMem64 | ModRM | Lock | PageTable), N, N, N, N, N, N,
+	N, I(DstMem64 | ModRM | Lock | PageTable, em_cmpxchg8b), N, N, N, N, N, N,
 }, {
 	N, N, N, N, N, N, N, N,
 } };
@@ -4201,9 +4201,6 @@ twobyte_insn:
 		ctxt->dst.bytes = ctxt->op_bytes;
 		ctxt->dst.val = (ctxt->op_bytes == 4) ? (u32) ctxt->src.val :
 							(u64) ctxt->src.val;
-		break;
-	case 0xc7:		/* Grp9 (cmpxchg8b) */
-		rc = em_grp9(ctxt);
 		break;
 	default:
 		goto cannot_emulate;
