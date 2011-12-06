@@ -95,6 +95,7 @@ int radeon_bo_create(struct radeon_device *rdev,
 	enum ttm_bo_type type;
 	unsigned long page_align = roundup(byte_align, PAGE_SIZE) >> PAGE_SHIFT;
 	unsigned long max_size = 0;
+	size_t acc_size;
 	int r;
 
 	size = ALIGN(size, PAGE_SIZE);
@@ -117,6 +118,9 @@ int radeon_bo_create(struct radeon_device *rdev,
 		return -ENOMEM;
 	}
 
+	acc_size = ttm_bo_dma_acc_size(&rdev->mman.bdev, size,
+				       sizeof(struct radeon_bo));
+
 retry:
 	bo = kzalloc(sizeof(struct radeon_bo), GFP_KERNEL);
 	if (bo == NULL)
@@ -134,8 +138,8 @@ retry:
 	/* Kernel allocation are uninterruptible */
 	mutex_lock(&rdev->vram_mutex);
 	r = ttm_bo_init(&rdev->mman.bdev, &bo->tbo, size, type,
-			&bo->placement, page_align, 0, !kernel, NULL, size,
-			&radeon_ttm_bo_destroy);
+			&bo->placement, page_align, 0, !kernel, NULL,
+			acc_size, &radeon_ttm_bo_destroy);
 	mutex_unlock(&rdev->vram_mutex);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS) {

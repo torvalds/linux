@@ -178,6 +178,7 @@ static struct drm_info_list nouveau_debugfs_list[] = {
 	{ "memory", nouveau_debugfs_memory_info, 0, NULL },
 	{ "vbios.rom", nouveau_debugfs_vbios_image, 0, NULL },
 	{ "ttm_page_pool", ttm_page_alloc_debugfs, 0, NULL },
+	{ "ttm_dma_page_pool", ttm_dma_page_alloc_debugfs, 0, NULL },
 };
 #define NOUVEAU_DEBUGFS_ENTRIES ARRAY_SIZE(nouveau_debugfs_list)
 

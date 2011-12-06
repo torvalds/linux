@@ -320,7 +320,6 @@ struct radeon_gart {
 	unsigned			table_size;
 	struct page			**pages;
 	dma_addr_t			*pages_addr;
-	bool				*ttm_alloced;
 	bool				ready;
 };
 
