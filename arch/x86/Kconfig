@@ -401,6 +401,9 @@ config X86_WANT_INTEL_MID
 
 if X86_WANT_INTEL_MID
 
+config X86_INTEL_MID
+	bool
+
 config X86_MRST
        bool "Moorestown MID platform"
 	depends on PCI
