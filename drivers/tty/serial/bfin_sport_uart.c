@@ -810,8 +810,10 @@ static int __devinit sport_uart_probe(struct platform_device *pdev)
 		res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 		if (res == NULL)
 			sport->cts_pin = -1;
-		else
+		else {
 			sport->cts_pin = res->start;
+			sport->port.flags |= ASYNC_CTS_FLOW;
+		}
 
 		res = platform_get_resource(pdev, IORESOURCE_IO, 1);
 		if (res == NULL)
