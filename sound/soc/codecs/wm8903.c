@@ -2049,6 +2049,7 @@ static int wm8903_set_pdata_irq_trigger(struct i2c_client *i2c,
 
 	switch (irqd_get_trigger_type(irq_data)) {
 	case IRQ_TYPE_NONE:
+	default:
 		/*
 		* We assume the controller imposes no restrictions,
 		* so we are able to select active-high
@@ -2060,11 +2061,6 @@ static int wm8903_set_pdata_irq_trigger(struct i2c_client *i2c,
 	case IRQ_TYPE_LEVEL_LOW:
 		pdata->irq_active_low = true;
 		break;
-	default:
-		dev_err(&i2c->dev,
-			"Unsupported IRQ_TYPE %x\n",
-			irqd_get_trigger_type(irq_data));
-		return -EINVAL;
 	}
 
 	return 0;
