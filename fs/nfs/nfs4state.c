@@ -377,31 +377,22 @@ nfs4_find_state_owner_locked(struct nfs_server *server, struct rpc_cred *cred)
 {
 	struct rb_node **p = &server->state_owners.rb_node,
 		       *parent = NULL;
-	struct nfs4_state_owner *sp, *res = NULL;
+	struct nfs4_state_owner *sp;
 
 	while (*p != NULL) {
 		parent = *p;
 		sp = rb_entry(parent, struct nfs4_state_owner, so_server_node);
 
-		if (server < sp->so_server) {
-			p = &parent->rb_left;
-			continue;
-		}
-		if (server > sp->so_server) {
-			p = &parent->rb_right;
-			continue;
-		}
 		if (cred < sp->so_cred)
 			p = &parent->rb_left;
 		else if (cred > sp->so_cred)
 			p = &parent->rb_right;
 		else {
 			atomic_inc(&sp->so_count);
-			res = sp;
-			break;
+			return sp;
 		}
 	}
-	return res;
+	return NULL;
 }
 
 static struct nfs4_state_owner *
