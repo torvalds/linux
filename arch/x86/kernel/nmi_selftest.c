@@ -90,7 +90,8 @@ static void remote_ipi(void)
 {
 	cpumask_copy(to_cpumask(nmi_ipi_mask), cpu_online_mask);
 	cpumask_clear_cpu(smp_processor_id(), to_cpumask(nmi_ipi_mask));
-	test_nmi_ipi(to_cpumask(nmi_ipi_mask));
+	if (!cpumask_empty(nmi_ipi_mask))
+		test_nmi_ipi(to_cpumask(nmi_ipi_mask));
 }
 
 static void local_ipi(void)
