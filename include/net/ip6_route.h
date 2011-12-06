@@ -102,7 +102,7 @@ extern void fib6_force_start_gc(struct net *net);
 
 extern struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 					   const struct in6_addr *addr,
-					   int anycast);
+					   bool anycast);
 
 extern int			ip6_dst_hoplimit(struct dst_entry *dst);
 

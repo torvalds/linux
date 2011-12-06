@@ -289,7 +289,7 @@ int ipv6_dev_ac_inc(struct net_device *dev, const struct in6_addr *addr)
 		goto out;
 	}
 
-	rt = addrconf_dst_alloc(idev, addr, 1);
+	rt = addrconf_dst_alloc(idev, addr, true);
 	if (IS_ERR(rt)) {
 		kfree(aca);
 		err = PTR_ERR(rt);
