@@ -241,18 +241,18 @@ rpc_proc_unregister(struct net *net, const char *name)
 EXPORT_SYMBOL_GPL(rpc_proc_unregister);
 
 struct proc_dir_entry *
-svc_proc_register(struct svc_stat *statp, const struct file_operations *fops)
+svc_proc_register(struct net *net, struct svc_stat *statp, const struct file_operations *fops)
 {
-	return do_register(&init_net, statp->program->pg_name, statp, fops);
+	return do_register(net, statp->program->pg_name, statp, fops);
 }
 EXPORT_SYMBOL_GPL(svc_proc_register);
 
 void
-svc_proc_unregister(const char *name)
+svc_proc_unregister(struct net *net, const char *name)
 {
 	struct sunrpc_net *sn;
 
-	sn = net_generic(&init_net, sunrpc_net_id);
+	sn = net_generic(net, sunrpc_net_id);
 	remove_proc_entry(name, sn->proc_net_rpc);
 }
 EXPORT_SYMBOL_GPL(svc_proc_unregister);
