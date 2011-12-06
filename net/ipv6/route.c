@@ -1068,8 +1068,9 @@ static DEFINE_SPINLOCK(icmp6_dst_lock);
 
 struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 				  struct neighbour *neigh,
-				  const struct in6_addr *addr)
+				  struct flowi6 *fl6)
 {
+	struct dst_entry *dst;
 	struct rt6_info *rt;
 	struct inet6_dev *idev = in6_dev_get(dev);
 	struct net *net = dev_net(dev);
@@ -1080,13 +1081,14 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 	rt = ip6_dst_alloc(&net->ipv6.ip6_dst_ops, dev, 0);
 	if (unlikely(!rt)) {
 		in6_dev_put(idev);
+		dst = ERR_PTR(-ENOMEM);
 		goto out;
 	}
 
 	if (neigh)
 		neigh_hold(neigh);
 	else {
-		neigh = __neigh_lookup_errno(&nd_tbl, addr, dev);
+		neigh = __neigh_lookup_errno(&nd_tbl, &fl6->daddr, dev);
 		if (IS_ERR(neigh))
 			neigh = NULL;
 	}
@@ -1095,7 +1097,7 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 	rt->dst.output  = ip6_output;
 	dst_set_neighbour(&rt->dst, neigh);
 	atomic_set(&rt->dst.__refcnt, 1);
-	rt->rt6i_dst.addr = *addr;
+	rt->rt6i_dst.addr = fl6->daddr;
 	rt->rt6i_dst.plen = 128;
 	rt->rt6i_idev     = idev;
 	dst_metric_set(&rt->dst, RTAX_HOPLIMIT, 255);
@@ -1107,8 +1109,10 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 
 	fib6_force_start_gc(net);
 
+	dst = xfrm_lookup(net, &rt->dst, flowi6_to_flowi(fl6), NULL, 0);
+
 out:
-	return &rt->dst;
+	return dst;
 }
 
 int icmp6_dst_gc(void)

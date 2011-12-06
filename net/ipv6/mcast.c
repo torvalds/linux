@@ -1410,18 +1410,11 @@ static void mld_sendpack(struct sk_buff *skb)
 					   csum_partial(skb_transport_header(skb),
 							mldlen, 0));
 
-	dst = icmp6_dst_alloc(skb->dev, NULL, &ipv6_hdr(skb)->daddr);
-
-	if (!dst) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-
 	icmpv6_flow_init(net->ipv6.igmp_sk, &fl6, ICMPV6_MLD2_REPORT,
 			 &ipv6_hdr(skb)->saddr, &ipv6_hdr(skb)->daddr,
 			 skb->dev->ifindex);
+	dst = icmp6_dst_alloc(skb->dev, NULL, &fl6);
 
-	dst = xfrm_lookup(net, dst, flowi6_to_flowi(&fl6), NULL, 0);
 	err = 0;
 	if (IS_ERR(dst)) {
 		err = PTR_ERR(dst);
@@ -1785,17 +1778,10 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 	rcu_read_lock();
 	idev = __in6_dev_get(skb->dev);
 
-	dst = icmp6_dst_alloc(skb->dev, NULL, &ipv6_hdr(skb)->daddr);
-	if (!dst) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-
 	icmpv6_flow_init(sk, &fl6, type,
 			 &ipv6_hdr(skb)->saddr, &ipv6_hdr(skb)->daddr,
 			 skb->dev->ifindex);
-
-	dst = xfrm_lookup(net, dst, flowi6_to_flowi(&fl6), NULL, 0);
+	dst = icmp6_dst_alloc(skb->dev, NULL, &fl6);
 	if (IS_ERR(dst)) {
 		err = PTR_ERR(dst);
 		goto err_out;

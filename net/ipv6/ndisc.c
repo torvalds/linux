@@ -516,14 +516,7 @@ void ndisc_send_skb(struct sk_buff *skb,
 	type = icmp6h->icmp6_type;
 
 	icmpv6_flow_init(sk, &fl6, type, saddr, daddr, dev->ifindex);
-
-	dst = icmp6_dst_alloc(dev, neigh, daddr);
-	if (!dst) {
-		kfree_skb(skb);
-		return;
-	}
-
-	dst = xfrm_lookup(net, dst, flowi6_to_flowi(&fl6), NULL, 0);
+	dst = icmp6_dst_alloc(dev, neigh, &fl6);
 	if (IS_ERR(dst)) {
 		kfree_skb(skb);
 		return;
