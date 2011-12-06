@@ -1257,38 +1257,15 @@ xfs_qm_dqflush(
 
 }
 
-int
-xfs_qm_dqlock_nowait(
-	xfs_dquot_t *dqp)
-{
-	return mutex_trylock(&dqp->q_qlock);
-}
-
-void
-xfs_dqlock(
-	xfs_dquot_t *dqp)
-{
-	mutex_lock(&dqp->q_qlock);
-}
-
 void
 xfs_dqunlock(
 	xfs_dquot_t *dqp)
 {
-	mutex_unlock(&(dqp->q_qlock));
+	xfs_dqunlock_nonotify(dqp);
 	if (dqp->q_logitem.qli_dquot == dqp) {
-		/* Once was dqp->q_mount, but might just have been cleared */
 		xfs_trans_unlocked_item(dqp->q_logitem.qli_item.li_ailp,
-					(xfs_log_item_t*)&(dqp->q_logitem));
+					&dqp->q_logitem.qli_item);
 	}
-}
-
-
-void
-xfs_dqunlock_nonotify(
-	xfs_dquot_t *dqp)
-{
-	mutex_unlock(&(dqp->q_qlock));
 }
 
 /*
@@ -1370,7 +1347,7 @@ xfs_qm_dqpurge(
 		 * Block on the flush lock after nudging dquot buffer,
 		 * if it is incore.
 		 */
-		xfs_qm_dqflock_pushbuf_wait(dqp);
+		xfs_dqflock_pushbuf_wait(dqp);
 	}
 
 	/*
@@ -1427,7 +1404,7 @@ xfs_qm_dqpurge(
  * wait on the flush lock.
  */
 void
-xfs_qm_dqflock_pushbuf_wait(
+xfs_dqflock_pushbuf_wait(
 	xfs_dquot_t	*dqp)
 {
 	xfs_mount_t	*mp = dqp->q_mount;

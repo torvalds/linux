@@ -443,7 +443,7 @@ again:
 			 * out immediately.  We'll be able to acquire
 			 * the flush lock when the I/O completes.
 			 */
-			xfs_qm_dqflock_pushbuf_wait(dqp);
+			xfs_dqflock_pushbuf_wait(dqp);
 		}
 		/*
 		 * Let go of the mplist lock. We don't want to hold it

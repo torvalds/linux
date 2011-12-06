@@ -236,7 +236,7 @@ xfs_qm_dquot_logitem_trylock(
 	if (atomic_read(&dqp->q_pincount) > 0)
 		return XFS_ITEM_PINNED;
 
-	if (!xfs_qm_dqlock_nowait(dqp))
+	if (!xfs_dqlock_nowait(dqp))
 		return XFS_ITEM_LOCKED;
 
 	if (!xfs_dqflock_nowait(dqp)) {
