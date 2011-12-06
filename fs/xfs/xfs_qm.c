@@ -517,13 +517,12 @@ xfs_qm_dqpurge_int(
 	 * get them off mplist and hashlist, but leave them on freelist.
 	 */
 	list_for_each_entry_safe(dqp, n, &q->qi_dqlist, q_mplist) {
-		/*
-		 * It's OK to look at the type without taking dqlock here.
-		 * We're holding the mplist lock here, and that's needed for
-		 * a dqreclaim.
-		 */
-		if ((dqp->dq_flags & dqtype) == 0)
+		xfs_dqlock(dqp);
+		if ((dqp->dq_flags & dqtype) == 0) {
+			xfs_dqunlock(dqp);
 			continue;
+		}
+		xfs_dqunlock(dqp);
 
 		if (!mutex_trylock(&dqp->q_hash->qh_lock)) {
 			nrecl = q->qi_dqreclaims;
@@ -1692,14 +1691,15 @@ again:
 		xfs_dqlock(dqp);
 
 		/*
-		 * We are racing with dqlookup here. Naturally we don't
-		 * want to reclaim a dquot that lookup wants. We release the
-		 * freelist lock and start over, so that lookup will grab
-		 * both the dquot and the freelistlock.
+		 * This dquot has already been grabbed by dqlookup.
+		 * Remove it from the freelist and try again.
 		 */
-		if (dqp->dq_flags & XFS_DQ_WANT) {
+		if (dqp->q_nrefs) {
 			trace_xfs_dqreclaim_want(dqp);
 			XQM_STATS_INC(xqmstats.xs_qm_dqwants);
+
+			list_del_init(&dqp->q_freelist);
+			xfs_Gqm->qm_dqfrlist_cnt--;
 			restarts++;
 			startagain = 1;
 			goto dqunlock;

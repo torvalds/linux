@@ -722,58 +722,25 @@ xfs_qm_dqlookup(
 		 * dqlock to look at the id field of the dquot, since the
 		 * id can't be modified without the hashlock anyway.
 		 */
-		if (be32_to_cpu(dqp->q_core.d_id) == id && dqp->q_mount == mp) {
-			trace_xfs_dqlookup_found(dqp);
+		if (be32_to_cpu(dqp->q_core.d_id) != id || dqp->q_mount != mp)
+			continue;
 
-			/*
-			 * All in core dquots must be on the dqlist of mp
-			 */
-			ASSERT(!list_empty(&dqp->q_mplist));
+		trace_xfs_dqlookup_found(dqp);
 
-			xfs_dqlock(dqp);
-			if (dqp->q_nrefs == 0) {
-				ASSERT(!list_empty(&dqp->q_freelist));
-				if (!mutex_trylock(&xfs_Gqm->qm_dqfrlist_lock)) {
-					trace_xfs_dqlookup_want(dqp);
+		xfs_dqlock(dqp);
+		XFS_DQHOLD(dqp);
 
-					/*
-					 * We may have raced with dqreclaim_one()
-					 * (and lost). So, flag that we don't
-					 * want the dquot to be reclaimed.
-					 */
-					dqp->dq_flags |= XFS_DQ_WANT;
-					xfs_dqunlock(dqp);
-					mutex_lock(&xfs_Gqm->qm_dqfrlist_lock);
-					xfs_dqlock(dqp);
-					dqp->dq_flags &= ~(XFS_DQ_WANT);
-				}
-
-				if (dqp->q_nrefs == 0) {
-					/* take it off the freelist */
-					trace_xfs_dqlookup_freelist(dqp);
-					list_del_init(&dqp->q_freelist);
-					xfs_Gqm->qm_dqfrlist_cnt--;
-				}
-				XFS_DQHOLD(dqp);
-				mutex_unlock(&xfs_Gqm->qm_dqfrlist_lock);
-			} else {
-				XFS_DQHOLD(dqp);
-			}
-
-			/*
-			 * move the dquot to the front of the hashchain
-			 */
-			ASSERT(mutex_is_locked(&qh->qh_lock));
-			list_move(&dqp->q_hashlist, &qh->qh_list);
-			trace_xfs_dqlookup_done(dqp);
-			*O_dqpp = dqp;
-			return 0;
-		}
+		/*
+		 * move the dquot to the front of the hashchain
+		 */
+		list_move(&dqp->q_hashlist, &qh->qh_list);
+		trace_xfs_dqlookup_done(dqp);
+		*O_dqpp = dqp;
+		return 0;
 	}
 
 	*O_dqpp = NULL;
-	ASSERT(mutex_is_locked(&qh->qh_lock));
-	return (1);
+	return 1;
 }
 
 /*
@@ -1033,8 +1000,10 @@ xfs_qm_dqput(
 		if (--dqp->q_nrefs == 0) {
 			trace_xfs_dqput_free(dqp);
 
-			list_add_tail(&dqp->q_freelist, &xfs_Gqm->qm_dqfrlist);
-			xfs_Gqm->qm_dqfrlist_cnt++;
+			if (list_empty(&dqp->q_freelist)) {
+				list_add_tail(&dqp->q_freelist, &xfs_Gqm->qm_dqfrlist);
+				xfs_Gqm->qm_dqfrlist_cnt++;
+			}
 
 			/*
 			 * If we just added a udquot to the freelist, then
