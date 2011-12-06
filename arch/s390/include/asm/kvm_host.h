@@ -47,7 +47,7 @@ struct sca_block {
 #define KVM_HPAGE_MASK(x)	(~(KVM_HPAGE_SIZE(x) - 1))
 #define KVM_PAGES_PER_HPAGE(x)	(KVM_HPAGE_SIZE(x) / PAGE_SIZE)
 
-#define CPUSTAT_HOST       0x80000000
+#define CPUSTAT_STOPPED    0x80000000
 #define CPUSTAT_WAIT       0x10000000
 #define CPUSTAT_ECALL_PEND 0x08000000
 #define CPUSTAT_STOP_INT   0x04000000
@@ -139,6 +139,7 @@ struct kvm_vcpu_stat {
 	u32 instruction_stfl;
 	u32 instruction_tprot;
 	u32 instruction_sigp_sense;
+	u32 instruction_sigp_sense_running;
 	u32 instruction_sigp_external_call;
 	u32 instruction_sigp_emergency;
 	u32 instruction_sigp_stop;

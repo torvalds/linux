@@ -457,7 +457,8 @@ static int efi_pstore_close(struct pstore_info *psi)
 }
 
 static ssize_t efi_pstore_read(u64 *id, enum pstore_type_id *type,
-			       struct timespec *timespec, struct pstore_info *psi)
+			       struct timespec *timespec,
+			       char **buf, struct pstore_info *psi)
 {
 	efi_guid_t vendor = LINUX_EFI_CRASH_GUID;
 	struct efivars *efivars = psi->data;
@@ -478,7 +479,11 @@ static ssize_t efi_pstore_read(u64 *id, enum pstore_type_id *type,
 				timespec->tv_nsec = 0;
 				get_var_data_locked(efivars, &efivars->walk_entry->var);
 				size = efivars->walk_entry->var.DataSize;
-				memcpy(psi->buf, efivars->walk_entry->var.Data, size);
+				*buf = kmalloc(size, GFP_KERNEL);
+				if (*buf == NULL)
+					return -ENOMEM;
+				memcpy(*buf, efivars->walk_entry->var.Data,
+				       size);
 				efivars->walk_entry = list_entry(efivars->walk_entry->list.next,
 					           struct efivar_entry, list);
 				return size;
@@ -576,7 +581,8 @@ static int efi_pstore_close(struct pstore_info *psi)
 }
 
 static ssize_t efi_pstore_read(u64 *id, enum pstore_type_id *type,
-			       struct timespec *time, struct pstore_info *psi)
+			       struct timespec *timespec,
+			       char **buf, struct pstore_info *psi)
 {
 	return -1;
 }

@@ -1579,10 +1579,8 @@ static void __init prom_instantiate_rtas(void)
 		return;
 
 	base = alloc_down(size, PAGE_SIZE, 0);
-	if (base == 0) {
-		prom_printf("RTAS allocation failed !\n");
-		return;
-	}
+	if (base == 0)
+		prom_panic("Could not allocate memory for RTAS\n");
 
 	rtas_inst = call_prom("open", 1, 1, ADDR("/rtas"));
 	if (!IHANDLE_VALID(rtas_inst)) {

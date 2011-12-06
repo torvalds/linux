@@ -69,7 +69,7 @@ extern void bus_remove_file(struct bus_type *, struct bus_attribute *);
  * @resume:	Called to bring a device on this bus out of sleep mode.
  * @pm:		Power management operations of this bus, callback the specific
  *		device driver's pm-ops.
- * @iommu_ops   IOMMU specific operations for this bus, used to attach IOMMU
+ * @iommu_ops:  IOMMU specific operations for this bus, used to attach IOMMU
  *              driver implementations to a bus and allow the driver to do
  *              bus-specific setup
  * @p:		The private data of the driver core, only the driver core can
@@ -680,6 +680,11 @@ static inline void device_disable_async_suspend(struct device *dev)
 static inline bool device_async_suspend_enabled(struct device *dev)
 {
 	return !!dev->power.async_suspend;
+}
+
+static inline void pm_suspend_ignore_children(struct device *dev, bool enable)
+{
+	dev->power.ignore_children = enable;
 }
 
 static inline void device_lock(struct device *dev)
