@@ -216,6 +216,18 @@ static void pmz_maybe_update_regs(struct uart_pmac_port *uap)
 	}
 }
 
+static void pmz_interrupt_control(struct uart_pmac_port *uap, int enable)
+{
+	if (enable) {
+		uap->curregs[1] |= INT_ALL_Rx | TxINT_ENAB;
+		if (!ZS_IS_EXTCLK(uap))
+			uap->curregs[1] |= EXT_INT_ENAB;
+	} else {
+		uap->curregs[1] &= ~(EXT_INT_ENAB | TxINT_ENAB | RxINT_MASK);
+	}
+	write_zsreg(uap, R1, uap->curregs[1]);
+}
+
 static struct tty_struct *pmz_receive_chars(struct uart_pmac_port *uap)
 {
 	struct tty_struct *tty = NULL;
@@ -339,9 +351,7 @@ static struct tty_struct *pmz_receive_chars(struct uart_pmac_port *uap)
 
 	return tty;
  flood:
-	uap->curregs[R1] &= ~(EXT_INT_ENAB | TxINT_ENAB | RxINT_MASK);
-	write_zsreg(uap, R1, uap->curregs[R1]);
-	zssync(uap);
+	pmz_interrupt_control(uap, 0);
 	pmz_error("pmz: rx irq flood !\n");
 	return tty;
 }
@@ -990,12 +1000,9 @@ static int pmz_startup(struct uart_port *port)
 	if (ZS_IS_IRDA(uap))
 		pmz_irda_reset(uap);
 
-	/* Enable interrupts emission from the chip */
+	/* Enable interrupt requests for the channel */
 	spin_lock_irqsave(&port->lock, flags);
-	uap->curregs[R1] |= INT_ALL_Rx | TxINT_ENAB;
-	if (!ZS_IS_EXTCLK(uap))
-		uap->curregs[R1] |= EXT_INT_ENAB;
-	write_zsreg(uap, R1, uap->curregs[R1]);
+	pmz_interrupt_control(uap, 1);
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	pmz_debug("pmz: startup() done.\n");
@@ -1015,6 +1022,25 @@ static void pmz_shutdown(struct uart_port *port)
 
 	mutex_lock(&pmz_irq_mutex);
 
+	spin_lock_irqsave(&port->lock, flags);
+
+	if (!ZS_IS_ASLEEP(uap)) {
+		/* Disable interrupt requests for the channel */
+		pmz_interrupt_control(uap, 0);
+
+		if (!ZS_IS_CONS(uap)) {
+			/* Disable receiver and transmitter */
+			uap->curregs[R3] &= ~RxENABLE;
+			uap->curregs[R5] &= ~TxENABLE;
+
+			/* Disable break assertion */
+			uap->curregs[R5] &= ~SND_BRK;
+			pmz_maybe_update_regs(uap);
+		}
+	}
+
+	spin_unlock_irqrestore(&port->lock, flags);
+
 	/* Release interrupt handler */
 	free_irq(uap->port.irq, uap);
 
@@ -1025,29 +1051,8 @@ static void pmz_shutdown(struct uart_port *port)
 	if (!ZS_IS_OPEN(uap->mate))
 		pmz_get_port_A(uap)->flags &= ~PMACZILOG_FLAG_IS_IRQ_ON;
 
-	/* Disable interrupts */
-	if (!ZS_IS_ASLEEP(uap)) {
-		uap->curregs[R1] &= ~(EXT_INT_ENAB | TxINT_ENAB | RxINT_MASK);
-		write_zsreg(uap, R1, uap->curregs[R1]);
-		zssync(uap);
-	}
-
-	if (ZS_IS_CONS(uap) || ZS_IS_ASLEEP(uap)) {
-		spin_unlock_irqrestore(&port->lock, flags);
-		mutex_unlock(&pmz_irq_mutex);
-		return;
-	}
-
-	/* Disable receiver and transmitter.  */
-	uap->curregs[R3] &= ~RxENABLE;
-	uap->curregs[R5] &= ~TxENABLE;
-
-	/* Disable all interrupts and BRK assertion.  */
-	uap->curregs[R5] &= ~SND_BRK;
-	pmz_maybe_update_regs(uap);
-
-	/* Shut the chip down */
-	pmz_set_scc_power(uap, 0);
+	if (!ZS_IS_ASLEEP(uap) && !ZS_IS_CONS(uap))
+		pmz_set_scc_power(uap, 0);	/* Shut the chip down */
 
 	spin_unlock_irqrestore(&port->lock, flags);
 
@@ -1352,19 +1357,15 @@ static void pmz_set_termios(struct uart_port *port, struct ktermios *termios,
 	spin_lock_irqsave(&port->lock, flags);	
 
 	/* Disable IRQs on the port */
-	uap->curregs[R1] &= ~(EXT_INT_ENAB | TxINT_ENAB | RxINT_MASK);
-	write_zsreg(uap, R1, uap->curregs[R1]);
+	pmz_interrupt_control(uap, 0);
 
 	/* Setup new port configuration */
 	__pmz_set_termios(port, termios, old);
 
 	/* Re-enable IRQs on the port */
-	if (ZS_IS_OPEN(uap)) {
-		uap->curregs[R1] |= INT_ALL_Rx | TxINT_ENAB;
-		if (!ZS_IS_EXTCLK(uap))
-			uap->curregs[R1] |= EXT_INT_ENAB;
-		write_zsreg(uap, R1, uap->curregs[R1]);
-	}
+	if (ZS_IS_OPEN(uap))
+		pmz_interrupt_control(uap, 1);
+
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
@@ -1671,14 +1672,17 @@ static int pmz_suspend(struct macio_dev *mdev, pm_message_t pm_state)
 	spin_lock_irqsave(&uap->port.lock, flags);
 
 	if (ZS_IS_OPEN(uap) || ZS_IS_CONS(uap)) {
-		/* Disable receiver and transmitter.  */
+		/* Disable interrupt requests for the channel */
+		pmz_interrupt_control(uap, 0);
+
+		/* Disable receiver and transmitter */
 		uap->curregs[R3] &= ~RxENABLE;
 		uap->curregs[R5] &= ~TxENABLE;
 
-		/* Disable all interrupts and BRK assertion.  */
-		uap->curregs[R1] &= ~(EXT_INT_ENAB | TxINT_ENAB | RxINT_MASK);
+		/* Disable break assertion */
 		uap->curregs[R5] &= ~SND_BRK;
 		pmz_load_zsregs(uap, uap->curregs);
+
 		uap->flags |= PMACZILOG_FLAG_IS_ASLEEP;
 		mb();
 	}
@@ -1738,14 +1742,6 @@ static int pmz_resume(struct macio_dev *mdev)
 	/* Take care of config that may have changed while asleep */
 	__pmz_set_termios(&uap->port, &uap->termios_cache, NULL);
 
-	if (ZS_IS_OPEN(uap)) {
-		/* Enable interrupts */		
-		uap->curregs[R1] |= INT_ALL_Rx | TxINT_ENAB;
-		if (!ZS_IS_EXTCLK(uap))
-			uap->curregs[R1] |= EXT_INT_ENAB;
-		write_zsreg(uap, R1, uap->curregs[R1]);
-	}
-
 	spin_unlock_irqrestore(&uap->port.lock, flags);
 
 	if (ZS_IS_CONS(uap))
@@ -1755,6 +1751,12 @@ static int pmz_resume(struct macio_dev *mdev)
 	if (ZS_IS_OPEN(uap) && !ZS_IS_IRQ_ON(pmz_get_port_A(uap))) {
 		pmz_get_port_A(uap)->flags |= PMACZILOG_FLAG_IS_IRQ_ON;
 		enable_irq(uap->port.irq);
+	}
+
+	if (ZS_IS_OPEN(uap)) {
+		spin_lock_irqsave(&uap->port.lock, flags);
+		pmz_interrupt_control(uap, 1);
+		spin_unlock_irqrestore(&uap->port.lock, flags);
 	}
 
  bail:
