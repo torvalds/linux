@@ -1675,11 +1675,6 @@ static int em_jmp_far(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
-static int em_grp1a(struct x86_emulate_ctxt *ctxt)
-{
-	return emulate_pop(ctxt, &ctxt->dst.val, ctxt->dst.bytes);
-}
-
 static int em_grp2(struct x86_emulate_ctxt *ctxt)
 {
 	switch (ctxt->modrm_reg) {
@@ -3203,7 +3198,7 @@ static struct opcode group1[] = {
 };
 
 static struct opcode group1A[] = {
-	D(DstMem | SrcNone | ModRM | Mov | Stack), N, N, N, N, N, N, N,
+	I(DstMem | SrcNone | ModRM | Mov | Stack, em_pop), N, N, N, N, N, N, N,
 };
 
 static struct opcode group3[] = {
@@ -4030,9 +4025,6 @@ special_insn:
 		break;
 	case 0x8d: /* lea r16/r32, m */
 		ctxt->dst.val = ctxt->src.addr.mem.ea;
-		break;
-	case 0x8f:		/* pop (sole member of Grp1a) */
-		rc = em_grp1a(ctxt);
 		break;
 	case 0x90 ... 0x97: /* nop / xchg reg, rax */
 		if (ctxt->dst.addr.reg == &ctxt->regs[VCPU_REGS_RAX])
