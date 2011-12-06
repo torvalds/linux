@@ -509,7 +509,7 @@ static int ioctl_gem_info(struct drm_device *dev, void *data,
 		return -ENOENT;
 	}
 
-	args->size = obj->size;  /* for now */
+	args->size = omap_gem_mmap_size(obj);
 	args->offset = omap_gem_mmap_offset(obj);
 
 	drm_gem_object_unreference_unlocked(obj);
@@ -557,6 +557,8 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 
 	dev->dev_private = priv;
 
+	omap_gem_init(dev);
+
 	ret = omap_modeset_init(dev);
 	if (ret) {
 		dev_err(dev->dev, "omap_modeset_init failed: ret=%d\n", ret);
@@ -589,8 +591,8 @@ static int dev_unload(struct drm_device *dev)
 	drm_kms_helper_poll_fini(dev);
 
 	omap_fbdev_free(dev);
-
 	omap_modeset_free(dev);
+	omap_gem_deinit(dev);
 
 	kfree(dev->dev_private);
 	dev->dev_private = NULL;

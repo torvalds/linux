@@ -84,6 +84,8 @@ struct drm_connector *omap_framebuffer_get_next_connector(
 void omap_framebuffer_flush(struct drm_framebuffer *fb,
 		int x, int y, int w, int h);
 
+void omap_gem_init(struct drm_device *dev);
+void omap_gem_deinit(struct drm_device *dev);
 
 struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		union omap_gem_size gsize, uint32_t flags);
@@ -109,6 +111,7 @@ int omap_gem_get_paddr(struct drm_gem_object *obj,
 		dma_addr_t *paddr, bool remap);
 int omap_gem_put_paddr(struct drm_gem_object *obj);
 uint64_t omap_gem_mmap_offset(struct drm_gem_object *obj);
+size_t omap_gem_mmap_size(struct drm_gem_object *obj);
 
 static inline int align_pitch(int pitch, int width, int bpp)
 {

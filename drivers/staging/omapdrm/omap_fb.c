@@ -102,7 +102,7 @@ int omap_framebuffer_get_buffer(struct drm_framebuffer *fb, int x, int y,
 		 * dma_alloc_coherent()).  But this should be ok because it
 		 * is only used by legacy fbdev
 		 */
-		BUG_ON(!bo_vaddr);
+		BUG_ON(IS_ERR_OR_NULL(bo_vaddr));
 		*vaddr = bo_vaddr + offset;
 	}
 
