@@ -1614,12 +1614,10 @@ static int tm6000_release(struct file *file)
 
 		if (&dev->int_in)
 			usb_set_interface(dev->udev,
-			dev->isoc_in.bInterfaceNumber,
-			2);
+					dev->isoc_in.bInterfaceNumber, 2);
 		else
 			usb_set_interface(dev->udev,
-			dev->isoc_in.bInterfaceNumber,
-			0);
+					dev->isoc_in.bInterfaceNumber, 0);
 
 		/* Start interrupt USB pipe */
 		tm6000_ir_int_start(dev);
