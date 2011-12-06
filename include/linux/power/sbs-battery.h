@@ -1,5 +1,5 @@
 /*
- * Gas Gauge driver for TI's BQ20Z75
+ * Gas Gauge driver for SBS Compliant Gas Gauges
  *
  * Copyright (c) 2010, NVIDIA Corporation.
  *
@@ -18,21 +18,21 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#ifndef __LINUX_POWER_BQ20Z75_H_
-#define __LINUX_POWER_BQ20Z75_H_
+#ifndef __LINUX_POWER_SBS_BATTERY_H_
+#define __LINUX_POWER_SBS_BATTERY_H_
 
 #include <linux/power_supply.h>
 #include <linux/types.h>
 
 /**
- * struct bq20z75_platform_data - platform data for bq20z75 devices
+ * struct sbs_platform_data - platform data for sbs devices
  * @battery_detect:		GPIO which is used to detect battery presence
  * @battery_detect_present:	gpio state when battery is present (0 / 1)
  * @i2c_retry_count:		# of times to retry on i2c IO failure
  * @poll_retry_count:		# of times to retry looking for new status after
  *				external change notification
  */
-struct bq20z75_platform_data {
+struct sbs_platform_data {
 	int battery_detect;
 	int battery_detect_present;
 	int i2c_retry_count;
