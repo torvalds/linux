@@ -58,8 +58,8 @@ void			rpc_modcount(struct inode *, int);
 #endif
 
 #ifdef CONFIG_PROC_FS
-struct proc_dir_entry *	rpc_proc_register(struct rpc_stat *);
-void			rpc_proc_unregister(const char *);
+struct proc_dir_entry *	rpc_proc_register(struct net *,struct rpc_stat *);
+void			rpc_proc_unregister(struct net *,const char *);
 void			rpc_proc_zero(struct rpc_program *);
 struct proc_dir_entry *	svc_proc_register(struct svc_stat *,
 					  const struct file_operations *);
@@ -69,8 +69,8 @@ void			svc_seq_show(struct seq_file *,
 				     const struct svc_stat *);
 #else
 
-static inline struct proc_dir_entry *rpc_proc_register(struct rpc_stat *s) { return NULL; }
-static inline void rpc_proc_unregister(const char *p) {}
+static inline struct proc_dir_entry *rpc_proc_register(struct net *, struct rpc_stat *s) { return NULL; }
+static inline void rpc_proc_unregisterstruct net *, (const char *p) {}
 static inline void rpc_proc_zero(struct rpc_program *p) {}
 
 static inline struct proc_dir_entry *svc_proc_register(struct svc_stat *s,

@@ -213,28 +213,29 @@ EXPORT_SYMBOL_GPL(rpc_print_iostats);
  * Register/unregister RPC proc files
  */
 static inline struct proc_dir_entry *
-do_register(const char *name, void *data, const struct file_operations *fops)
+do_register(struct net *net, const char *name, void *data,
+	    const struct file_operations *fops)
 {
 	struct sunrpc_net *sn;
 
 	dprintk("RPC:       registering /proc/net/rpc/%s\n", name);
-	sn = net_generic(&init_net, sunrpc_net_id);
+	sn = net_generic(net, sunrpc_net_id);
 	return proc_create_data(name, 0, sn->proc_net_rpc, fops, data);
 }
 
 struct proc_dir_entry *
-rpc_proc_register(struct rpc_stat *statp)
+rpc_proc_register(struct net *net, struct rpc_stat *statp)
 {
-	return do_register(statp->program->name, statp, &rpc_proc_fops);
+	return do_register(net, statp->program->name, statp, &rpc_proc_fops);
 }
 EXPORT_SYMBOL_GPL(rpc_proc_register);
 
 void
-rpc_proc_unregister(const char *name)
+rpc_proc_unregister(struct net *net, const char *name)
 {
 	struct sunrpc_net *sn;
 
-	sn = net_generic(&init_net, sunrpc_net_id);
+	sn = net_generic(net, sunrpc_net_id);
 	remove_proc_entry(name, sn->proc_net_rpc);
 }
 EXPORT_SYMBOL_GPL(rpc_proc_unregister);
@@ -242,7 +243,7 @@ EXPORT_SYMBOL_GPL(rpc_proc_unregister);
 struct proc_dir_entry *
 svc_proc_register(struct svc_stat *statp, const struct file_operations *fops)
 {
-	return do_register(statp->program->pg_name, statp, fops);
+	return do_register(&init_net, statp->program->pg_name, statp, fops);
 }
 EXPORT_SYMBOL_GPL(svc_proc_register);
 

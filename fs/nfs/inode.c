@@ -1625,14 +1625,14 @@ static int __init init_nfs_fs(void)
 		goto out0;
 
 #ifdef CONFIG_PROC_FS
-	rpc_proc_register(&nfs_rpcstat);
+	rpc_proc_register(&init_net, &nfs_rpcstat);
 #endif
 	if ((err = register_nfs_fs()) != 0)
 		goto out;
 	return 0;
 out:
 #ifdef CONFIG_PROC_FS
-	rpc_proc_unregister("nfs");
+	rpc_proc_unregister(&init_net, "nfs");
 #endif
 	nfs_destroy_directcache();
 out0:
@@ -1671,7 +1671,7 @@ static void __exit exit_nfs_fs(void)
 	nfs_dns_resolver_destroy();
 	nfs_idmap_quit();
 #ifdef CONFIG_PROC_FS
-	rpc_proc_unregister("nfs");
+	rpc_proc_unregister(&init_net, "nfs");
 #endif
 	nfs_cleanup_cb_ident_idr();
 	unregister_nfs_fs();
