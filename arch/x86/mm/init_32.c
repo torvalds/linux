@@ -744,6 +744,17 @@ void __init mem_init(void)
 #ifdef CONFIG_FLATMEM
 	BUG_ON(!mem_map);
 #endif
+	/*
+	 * With CONFIG_DEBUG_PAGEALLOC initialization of highmem pages has to
+	 * be done before free_all_bootmem(). Memblock use free low memory for
+	 * temporary data (see find_range_array()) and for this purpose can use
+	 * pages that was already passed to the buddy allocator, hence marked as
+	 * not accessible in the page tables when compiled with
+	 * CONFIG_DEBUG_PAGEALLOC. Otherwise order of initialization is not
+	 * important here.
+	 */
+	set_highmem_pages_init();
+
 	/* this will put all low memory onto the freelists */
 	totalram_pages += free_all_bootmem();
 
@@ -754,8 +765,6 @@ void __init mem_init(void)
 		 */
 		if (page_is_ram(tmp) && PageReserved(pfn_to_page(tmp)))
 			reservedpages++;
-
-	set_highmem_pages_init();
 
 	codesize =  (unsigned long) &_etext - (unsigned long) &_text;
 	datasize =  (unsigned long) &_edata - (unsigned long) &_etext;
