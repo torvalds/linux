@@ -743,6 +743,10 @@ static int __inet_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
 					continue;
 				}
 
+				if (r->sdiag_family != AF_UNSPEC &&
+						sk->sk_family != r->sdiag_family)
+					goto next_listen;
+
 				if (r->id.idiag_sport != inet->inet_sport &&
 				    r->id.idiag_sport)
 					goto next_listen;
@@ -808,6 +812,9 @@ skip_listen_ht:
 				goto next_normal;
 			if (!(r->idiag_states & (1 << sk->sk_state)))
 				goto next_normal;
+			if (r->sdiag_family != AF_UNSPEC &&
+					sk->sk_family != r->sdiag_family)
+				goto next_normal;
 			if (r->id.idiag_sport != inet->inet_sport &&
 			    r->id.idiag_sport)
 				goto next_normal;
@@ -829,6 +836,9 @@ next_normal:
 				    &head->twchain) {
 
 				if (num < s_num)
+					goto next_dying;
+				if (r->sdiag_family != AF_UNSPEC &&
+						tw->tw_family != r->sdiag_family)
 					goto next_dying;
 				if (r->id.idiag_sport != tw->tw_sport &&
 				    r->id.idiag_sport)
@@ -873,7 +883,7 @@ static int inet_diag_dump_compat(struct sk_buff *skb, struct netlink_callback *c
 	struct nlattr *bc = NULL;
 	int hdrlen = sizeof(struct inet_diag_req_compat);
 
-	req.sdiag_family = rc->idiag_family;
+	req.sdiag_family = AF_UNSPEC; /* compatibility */
 	req.sdiag_protocol = inet_diag_type2proto(cb->nlh->nlmsg_type);
 	req.idiag_ext = rc->idiag_ext;
 	req.idiag_states = rc->idiag_states;
