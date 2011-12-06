@@ -254,13 +254,13 @@ static struct iwl_bt_params iwl2030_bt_params = {
 	.iq_invert = true					\
 
 struct iwl_cfg iwl2000_2bgn_cfg = {
-	.name = "2000 Series 2x2 BGN",
+	.name = "Intel(R) Centrino(R) Wireless-N 2200 BGN",
 	IWL_DEVICE_2000,
 	.ht_params = &iwl2000_ht_params,
 };
 
 struct iwl_cfg iwl2000_2bgn_d_cfg = {
-	.name = "2000D Series 2x2 BGN",
+	.name = "Intel(R) Centrino(R) Wireless-N 2200D BGN",
 	IWL_DEVICE_2000,
 	.ht_params = &iwl2000_ht_params,
 };
@@ -282,7 +282,7 @@ struct iwl_cfg iwl2000_2bgn_d_cfg = {
 	.iq_invert = true					\
 
 struct iwl_cfg iwl2030_2bgn_cfg = {
-	.name = "2000 Series 2x2 BGN/BT",
+	.name = "Intel(R) Centrino(R) Wireless-N 2230 BGN",
 	IWL_DEVICE_2030,
 	.ht_params = &iwl2000_ht_params,
 };
@@ -304,13 +304,13 @@ struct iwl_cfg iwl2030_2bgn_cfg = {
 	.iq_invert = true					\
 
 struct iwl_cfg iwl105_bgn_cfg = {
-	.name = "105 Series 1x1 BGN",
+	.name = "Intel(R) Centrino(R) Wireless-N 105 BGN",
 	IWL_DEVICE_105,
 	.ht_params = &iwl2000_ht_params,
 };
 
 struct iwl_cfg iwl105_bgn_d_cfg = {
-	.name = "105D Series 1x1 BGN",
+	.name = "Intel(R) Centrino(R) Wireless-N 105D BGN",
 	IWL_DEVICE_105,
 	.ht_params = &iwl2000_ht_params,
 };
@@ -333,7 +333,7 @@ struct iwl_cfg iwl105_bgn_d_cfg = {
 	.iq_invert = true					\
 
 struct iwl_cfg iwl135_bgn_cfg = {
-	.name = "135 Series 1x1 BGN/BT",
+	.name = "Intel(R) Centrino(R) Wireless-N 135 BGN",
 	IWL_DEVICE_135,
 	.ht_params = &iwl2000_ht_params,
 };

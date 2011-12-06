@@ -423,7 +423,7 @@ struct iwl_cfg iwl6030_2bg_cfg = {
 };
 
 struct iwl_cfg iwl6035_2agn_cfg = {
-	.name = "6035 Series 2x2 AGN/BT",
+	.name = "Intel(R) Centrino(R) Advanced-N 6235 AGN",
 	IWL_DEVICE_6030,
 	.ht_params = &iwl6000_ht_params,
 };
