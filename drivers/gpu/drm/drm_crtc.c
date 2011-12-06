@@ -1877,10 +1877,8 @@ int drm_mode_cursor_ioctl(struct drm_device *dev,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	if (!req->flags) {
-		DRM_ERROR("no operation set\n");
+	if (!req->flags)
 		return -EINVAL;
-	}
 
 	mutex_lock(&dev->mode_config.mutex);
 	obj = drm_mode_object_find(dev, req->crtc_id, DRM_MODE_OBJECT_CRTC);
@@ -1893,7 +1891,6 @@ int drm_mode_cursor_ioctl(struct drm_device *dev,
 
 	if (req->flags & DRM_MODE_CURSOR_BO) {
 		if (!crtc->funcs->cursor_set) {
-			DRM_ERROR("crtc does not support cursor\n");
 			ret = -ENXIO;
 			goto out;
 		}
@@ -1906,7 +1903,6 @@ int drm_mode_cursor_ioctl(struct drm_device *dev,
 		if (crtc->funcs->cursor_move) {
 			ret = crtc->funcs->cursor_move(crtc, req->x, req->y);
 		} else {
-			DRM_ERROR("crtc does not support cursor\n");
 			ret = -EFAULT;
 			goto out;
 		}
@@ -1989,14 +1985,11 @@ int drm_mode_addfb(struct drm_device *dev,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	if ((config->min_width > r.width) || (r.width > config->max_width)) {
-		DRM_ERROR("mode new framebuffer width not within limits\n");
+	if ((config->min_width > r.width) || (r.width > config->max_width))
 		return -EINVAL;
-	}
-	if ((config->min_height > r.height) || (r.height > config->max_height)) {
-		DRM_ERROR("mode new framebuffer height not within limits\n");
+
+	if ((config->min_height > r.height) || (r.height > config->max_height))
 		return -EINVAL;
-	}
 
 	mutex_lock(&dev->mode_config.mutex);
 
@@ -2110,7 +2103,6 @@ int drm_mode_rmfb(struct drm_device *dev,
 	obj = drm_mode_object_find(dev, *id, DRM_MODE_OBJECT_FB);
 	/* TODO check that we really get a framebuffer back. */
 	if (!obj) {
-		DRM_ERROR("mode invalid framebuffer id\n");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -2121,7 +2113,6 @@ int drm_mode_rmfb(struct drm_device *dev,
 			found = 1;
 
 	if (!found) {
-		DRM_ERROR("tried to remove a fb that we didn't own\n");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -2168,7 +2159,6 @@ int drm_mode_getfb(struct drm_device *dev,
 	mutex_lock(&dev->mode_config.mutex);
 	obj = drm_mode_object_find(dev, r->fb_id, DRM_MODE_OBJECT_FB);
 	if (!obj) {
-		DRM_ERROR("invalid framebuffer id\n");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -2204,7 +2194,6 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 	mutex_lock(&dev->mode_config.mutex);
 	obj = drm_mode_object_find(dev, r->fb_id, DRM_MODE_OBJECT_FB);
 	if (!obj) {
-		DRM_ERROR("invalid framebuffer id\n");
 		ret = -EINVAL;
 		goto out_err1;
 	}
