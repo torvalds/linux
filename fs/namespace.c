@@ -2197,7 +2197,7 @@ static struct mnt_namespace *dup_mnt_ns(struct mnt_namespace *mnt_ns,
 	struct mnt_namespace *new_ns;
 	struct vfsmount *rootmnt = NULL, *pwdmnt = NULL;
 	struct mount *p, *q;
-	struct mount *old = real_mount(mnt_ns->root);
+	struct mount *old = mnt_ns->root;
 	struct mount *new;
 
 	new_ns = alloc_mnt_ns();
@@ -2212,7 +2212,7 @@ static struct mnt_namespace *dup_mnt_ns(struct mnt_namespace *mnt_ns,
 		kfree(new_ns);
 		return ERR_PTR(-ENOMEM);
 	}
-	new_ns->root = &new->mnt;
+	new_ns->root = new;
 	br_write_lock(vfsmount_lock);
 	list_add_tail(&new_ns->list, &new->mnt_list);
 	br_write_unlock(vfsmount_lock);
@@ -2282,7 +2282,7 @@ static struct mnt_namespace *create_mnt_ns(struct vfsmount *m)
 		struct mount *mnt = real_mount(m);
 		mnt->mnt_ns = new_ns;
 		__mnt_make_longterm(mnt);
-		new_ns->root = m;
+		new_ns->root = mnt;
 		list_add(&new_ns->list, &mnt->mnt_list);
 	} else {
 		mntput(m);
@@ -2512,8 +2512,8 @@ static void __init init_mount_tree(void)
 	init_task.nsproxy->mnt_ns = ns;
 	get_mnt_ns(ns);
 
-	root.mnt = ns->root;
-	root.dentry = ns->root->mnt_root;
+	root.mnt = mnt;
+	root.dentry = mnt->mnt_root;
 
 	set_fs_pwd(current->fs, &root);
 	set_fs_root(current->fs, &root);
@@ -2560,7 +2560,7 @@ void put_mnt_ns(struct mnt_namespace *ns)
 		return;
 	down_write(&namespace_sem);
 	br_write_lock(vfsmount_lock);
-	umount_tree(real_mount(ns->root), 0, &umount_list);
+	umount_tree(ns->root, 0, &umount_list);
 	br_write_unlock(vfsmount_lock);
 	up_write(&namespace_sem);
 	release_mounts(&umount_list);

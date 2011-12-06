@@ -4,7 +4,7 @@
 
 struct mnt_namespace {
 	atomic_t		count;
-	struct vfsmount *	root;
+	struct mount *	root;
 	struct list_head	list;
 	wait_queue_head_t poll;
 	int event;
