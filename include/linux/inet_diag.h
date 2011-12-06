@@ -6,6 +6,7 @@
 /* Just some random number */
 #define TCPDIAG_GETSOCK 18
 #define DCCPDIAG_GETSOCK 19
+#define SOCK_DIAG_BY_FAMILY 20
 
 #define INET_DIAG_GETSOCK_MAX 24
 

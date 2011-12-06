@@ -850,7 +850,7 @@ unlock:
 	return skb->len;
 }
 
-static int inet_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int inet_diag_rcv_msg_compat(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	int hdrlen = sizeof(struct inet_diag_req);
 
@@ -877,9 +877,22 @@ static int inet_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	return inet_diag_get_exact(skb, nlh);
 }
 
+static int __sock_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
+{
+	return -EOPNOTSUPP;
+}
+
 static int sock_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
-	return inet_diag_rcv_msg(skb, nlh);
+	switch (nlh->nlmsg_type) {
+	case TCPDIAG_GETSOCK:
+	case DCCPDIAG_GETSOCK:
+		return inet_diag_rcv_msg_compat(skb, nlh);
+	case SOCK_DIAG_BY_FAMILY:
+		return __sock_diag_rcv_msg(skb, nlh);
+	default:
+		return -EINVAL;
+	}
 }
 
 static DEFINE_MUTEX(sock_diag_mutex);
