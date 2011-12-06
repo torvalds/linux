@@ -898,10 +898,10 @@ void replace_mount_options(struct super_block *sb, char *options)
 EXPORT_SYMBOL(replace_mount_options);
 
 #ifdef CONFIG_PROC_FS
-/* iterator */
+/* iterator; we want it to have access to namespace_sem, thus here... */
 static void *m_start(struct seq_file *m, loff_t *pos)
 {
-	struct proc_mounts *p = m->private;
+	struct proc_mounts *p = container_of(m, struct proc_mounts, m);
 
 	down_read(&namespace_sem);
 	return seq_list_start(&p->ns->list, *pos);
@@ -909,7 +909,7 @@ static void *m_start(struct seq_file *m, loff_t *pos)
 
 static void *m_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	struct proc_mounts *p = m->private;
+	struct proc_mounts *p = container_of(m, struct proc_mounts, m);
 
 	return seq_list_next(v, &p->ns->list, pos);
 }
@@ -919,222 +919,18 @@ static void m_stop(struct seq_file *m, void *v)
 	up_read(&namespace_sem);
 }
 
-int mnt_had_events(struct proc_mounts *p)
+static int m_show(struct seq_file *m, void *v)
 {
-	struct mnt_namespace *ns = p->ns;
-	int res = 0;
-
-	br_read_lock(vfsmount_lock);
-	if (p->m.poll_event != ns->event) {
-		p->m.poll_event = ns->event;
-		res = 1;
-	}
-	br_read_unlock(vfsmount_lock);
-
-	return res;
-}
-
-struct proc_fs_info {
-	int flag;
-	const char *str;
-};
-
-static int show_sb_opts(struct seq_file *m, struct super_block *sb)
-{
-	static const struct proc_fs_info fs_info[] = {
-		{ MS_SYNCHRONOUS, ",sync" },
-		{ MS_DIRSYNC, ",dirsync" },
-		{ MS_MANDLOCK, ",mand" },
-		{ 0, NULL }
-	};
-	const struct proc_fs_info *fs_infop;
-
-	for (fs_infop = fs_info; fs_infop->flag; fs_infop++) {
-		if (sb->s_flags & fs_infop->flag)
-			seq_puts(m, fs_infop->str);
-	}
-
-	return security_sb_show_options(m, sb);
-}
-
-static void show_mnt_opts(struct seq_file *m, struct vfsmount *mnt)
-{
-	static const struct proc_fs_info mnt_info[] = {
-		{ MNT_NOSUID, ",nosuid" },
-		{ MNT_NODEV, ",nodev" },
-		{ MNT_NOEXEC, ",noexec" },
-		{ MNT_NOATIME, ",noatime" },
-		{ MNT_NODIRATIME, ",nodiratime" },
-		{ MNT_RELATIME, ",relatime" },
-		{ 0, NULL }
-	};
-	const struct proc_fs_info *fs_infop;
-
-	for (fs_infop = mnt_info; fs_infop->flag; fs_infop++) {
-		if (mnt->mnt_flags & fs_infop->flag)
-			seq_puts(m, fs_infop->str);
-	}
-}
-
-static void show_type(struct seq_file *m, struct super_block *sb)
-{
-	mangle(m, sb->s_type->name);
-	if (sb->s_subtype && sb->s_subtype[0]) {
-		seq_putc(m, '.');
-		mangle(m, sb->s_subtype);
-	}
-}
-
-static int show_vfsmnt(struct seq_file *m, void *v)
-{
+	struct proc_mounts *p = container_of(m, struct proc_mounts, m);
 	struct mount *r = list_entry(v, struct mount, mnt_list);
-	struct vfsmount *mnt = &r->mnt;
-	int err = 0;
-	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
-
-	if (mnt->mnt_sb->s_op->show_devname) {
-		err = mnt->mnt_sb->s_op->show_devname(m, mnt);
-		if (err)
-			goto out;
-	} else {
-		mangle(m, r->mnt_devname ? r->mnt_devname : "none");
-	}
-	seq_putc(m, ' ');
-	seq_path(m, &mnt_path, " \t\n\\");
-	seq_putc(m, ' ');
-	show_type(m, mnt->mnt_sb);
-	seq_puts(m, __mnt_is_readonly(mnt) ? " ro" : " rw");
-	err = show_sb_opts(m, mnt->mnt_sb);
-	if (err)
-		goto out;
-	show_mnt_opts(m, mnt);
-	if (mnt->mnt_sb->s_op->show_options)
-		err = mnt->mnt_sb->s_op->show_options(m, mnt);
-	seq_puts(m, " 0 0\n");
-out:
-	return err;
+	return p->show(m, &r->mnt);
 }
 
 const struct seq_operations mounts_op = {
 	.start	= m_start,
 	.next	= m_next,
 	.stop	= m_stop,
-	.show	= show_vfsmnt
-};
-
-static int show_mountinfo(struct seq_file *m, void *v)
-{
-	struct proc_mounts *p = m->private;
-	struct mount *r = list_entry(v, struct mount, mnt_list);
-	struct vfsmount *mnt = &r->mnt;
-	struct super_block *sb = mnt->mnt_sb;
-	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
-	struct path root = p->root;
-	int err = 0;
-
-	seq_printf(m, "%i %i %u:%u ", r->mnt_id, r->mnt_parent->mnt_id,
-		   MAJOR(sb->s_dev), MINOR(sb->s_dev));
-	if (sb->s_op->show_path)
-		err = sb->s_op->show_path(m, mnt);
-	else
-		seq_dentry(m, mnt->mnt_root, " \t\n\\");
-	if (err)
-		goto out;
-	seq_putc(m, ' ');
-
-	/* mountpoints outside of chroot jail will give SEQ_SKIP on this */
-	err = seq_path_root(m, &mnt_path, &root, " \t\n\\");
-	if (err)
-		goto out;
-
-	seq_puts(m, mnt->mnt_flags & MNT_READONLY ? " ro" : " rw");
-	show_mnt_opts(m, mnt);
-
-	/* Tagged fields ("foo:X" or "bar") */
-	if (IS_MNT_SHARED(r))
-		seq_printf(m, " shared:%i", r->mnt_group_id);
-	if (IS_MNT_SLAVE(r)) {
-		int master = r->mnt_master->mnt_group_id;
-		int dom = get_dominating_id(r, &p->root);
-		seq_printf(m, " master:%i", master);
-		if (dom && dom != master)
-			seq_printf(m, " propagate_from:%i", dom);
-	}
-	if (IS_MNT_UNBINDABLE(r))
-		seq_puts(m, " unbindable");
-
-	/* Filesystem specific data */
-	seq_puts(m, " - ");
-	show_type(m, sb);
-	seq_putc(m, ' ');
-	if (sb->s_op->show_devname)
-		err = sb->s_op->show_devname(m, mnt);
-	else
-		mangle(m, r->mnt_devname ? r->mnt_devname : "none");
-	if (err)
-		goto out;
-	seq_puts(m, sb->s_flags & MS_RDONLY ? " ro" : " rw");
-	err = show_sb_opts(m, sb);
-	if (err)
-		goto out;
-	if (sb->s_op->show_options)
-		err = sb->s_op->show_options(m, mnt);
-	seq_putc(m, '\n');
-out:
-	return err;
-}
-
-const struct seq_operations mountinfo_op = {
-	.start	= m_start,
-	.next	= m_next,
-	.stop	= m_stop,
-	.show	= show_mountinfo,
-};
-
-static int show_vfsstat(struct seq_file *m, void *v)
-{
-	struct mount *r = list_entry(v, struct mount, mnt_list);
-	struct vfsmount *mnt = &r->mnt;
-	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
-	int err = 0;
-
-	/* device */
-	if (mnt->mnt_sb->s_op->show_devname) {
-		seq_puts(m, "device ");
-		err = mnt->mnt_sb->s_op->show_devname(m, mnt);
-	} else {
-		if (r->mnt_devname) {
-			seq_puts(m, "device ");
-			mangle(m, r->mnt_devname);
-		} else
-			seq_puts(m, "no device");
-	}
-
-	/* mount point */
-	seq_puts(m, " mounted on ");
-	seq_path(m, &mnt_path, " \t\n\\");
-	seq_putc(m, ' ');
-
-	/* file system type */
-	seq_puts(m, "with fstype ");
-	show_type(m, mnt->mnt_sb);
-
-	/* optional statistics */
-	if (mnt->mnt_sb->s_op->show_stats) {
-		seq_putc(m, ' ');
-		if (!err)
-			err = mnt->mnt_sb->s_op->show_stats(m, mnt);
-	}
-
-	seq_putc(m, '\n');
-	return err;
-}
-
-const struct seq_operations mountstats_op = {
-	.start	= m_start,
-	.next	= m_next,
-	.stop	= m_stop,
-	.show	= show_vfsstat,
+	.show	= m_show,
 };
 #endif  /* CONFIG_PROC_FS */
 
