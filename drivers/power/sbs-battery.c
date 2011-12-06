@@ -682,15 +682,24 @@ static int __devinit sbs_probe(struct i2c_client *client,
 	struct sbs_platform_data *pdata = client->dev.platform_data;
 	int rc;
 	int irq;
+	char *name;
+
+	name = kasprintf(GFP_KERNEL, "sbs-%s", dev_name(&client->dev));
+	if (!name) {
+		dev_err(&client->dev, "Failed to allocate device name\n");
+		return -ENOMEM;
+	}
 
 	chip = kzalloc(sizeof(struct sbs_info), GFP_KERNEL);
-	if (!chip)
-		return -ENOMEM;
+	if (!chip) {
+		rc = -ENOMEM;
+		goto exit_free_name;
+	}
 
 	chip->client = client;
 	chip->enable_detection = false;
 	chip->gpio_detect = false;
-	chip->power_supply.name = "battery";
+	chip->power_supply.name = name;
 	chip->power_supply.type = POWER_SUPPLY_TYPE_BATTERY;
 	chip->power_supply.properties = sbs_properties;
 	chip->power_supply.num_properties = ARRAY_SIZE(sbs_properties);
@@ -775,6 +784,9 @@ exit_psupply:
 
 	kfree(chip);
 
+exit_free_name:
+	kfree(name);
+
 	return rc;
 }
 
@@ -791,6 +803,7 @@ static int __devexit sbs_remove(struct i2c_client *client)
 
 	cancel_delayed_work_sync(&chip->work);
 
+	kfree(chip->power_supply.name);
 	kfree(chip);
 	chip = NULL;
 
