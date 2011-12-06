@@ -13,7 +13,7 @@
 
 #include <linux/fs.h>
 
-#define LTTNG_SYM_NAME_LEN	128
+#define LTTNG_SYM_NAME_LEN	256
 
 enum lttng_kernel_instrumentation {
 	LTTNG_KERNEL_TRACEPOINT	= 0,
