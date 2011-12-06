@@ -277,7 +277,7 @@ extern void set_cpu_sd_state_idle(void);
 extern int get_nohz_timer_target(void);
 #else
 static inline void select_nohz_load_balancer(int stop_tick) { }
-static inline void set_cpu_sd_state_idle(void);
+static inline void set_cpu_sd_state_idle(void) { }
 #endif
 
 /*
