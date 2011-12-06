@@ -1668,7 +1668,9 @@ xfs_qm_dqreclaim_one(void)
 restart:
 	list_for_each_entry(dqp, &xfs_Gqm->qm_dqfrlist, q_freelist) {
 		struct xfs_mount *mp = dqp->q_mount;
-		xfs_dqlock(dqp);
+
+		if (!xfs_dqlock_nowait(dqp))
+			continue;
 
 		/*
 		 * This dquot has already been grabbed by dqlookup.
