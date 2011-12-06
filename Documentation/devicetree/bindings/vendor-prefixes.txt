@@ -32,6 +32,7 @@ powervr	Imagination Technologies
 qcom	Qualcomm, Inc.
 ramtron	Ramtron International
 samsung	Samsung Semiconductor
+sbs	Smart Battery System
 schindler	Schindler
 simtek
 sirf	SiRF Technology, Inc.
