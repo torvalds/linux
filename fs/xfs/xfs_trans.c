@@ -1325,82 +1325,6 @@ xfs_trans_committed_bulk(
 }
 
 /*
- * Walk the log items and allocate log vector structures for
- * each item large enough to fit all the vectors they require.
- * Note that this format differs from the old log vector format in
- * that there is no transaction header in these log vectors.
- */
-STATIC struct xfs_log_vec *
-xfs_trans_alloc_log_vecs(
-	xfs_trans_t	*tp)
-{
-	struct xfs_log_item_desc *lidp;
-	struct xfs_log_vec	*lv = NULL;
-	struct xfs_log_vec	*ret_lv = NULL;
-
-
-	/* Bail out if we didn't find a log item.  */
-	if (list_empty(&tp->t_items)) {
-		ASSERT(0);
-		return NULL;
-	}
-
-	list_for_each_entry(lidp, &tp->t_items, lid_trans) {
-		struct xfs_log_vec *new_lv;
-
-		/* Skip items which aren't dirty in this transaction. */
-		if (!(lidp->lid_flags & XFS_LID_DIRTY))
-			continue;
-
-		/* Skip items that do not have any vectors for writing */
-		lidp->lid_size = IOP_SIZE(lidp->lid_item);
-		if (!lidp->lid_size)
-			continue;
-
-		new_lv = kmem_zalloc(sizeof(*new_lv) +
-				lidp->lid_size * sizeof(struct xfs_log_iovec),
-				KM_SLEEP);
-
-		/* The allocated iovec region lies beyond the log vector. */
-		new_lv->lv_iovecp = (struct xfs_log_iovec *)&new_lv[1];
-		new_lv->lv_niovecs = lidp->lid_size;
-		new_lv->lv_item = lidp->lid_item;
-		if (!ret_lv)
-			ret_lv = new_lv;
-		else
-			lv->lv_next = new_lv;
-		lv = new_lv;
-	}
-
-	return ret_lv;
-}
-
-static int
-xfs_trans_commit_cil(
-	struct xfs_mount	*mp,
-	struct xfs_trans	*tp,
-	xfs_lsn_t		*commit_lsn,
-	int			flags)
-{
-	struct xfs_log_vec	*log_vector;
-
-	/*
-	 * Get each log item to allocate a vector structure for
-	 * the log item to to pass to the log write code. The
-	 * CIL commit code will format the vector and save it away.
-	 */
-	log_vector = xfs_trans_alloc_log_vecs(tp);
-	if (!log_vector)
-		return ENOMEM;
-
-	xfs_log_commit_cil(mp, tp, log_vector, commit_lsn, flags);
-
-	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
-	xfs_trans_free(tp);
-	return 0;
-}
-
-/*
  * Commit the given transaction to the log.
  *
  * XFS disk error handling mechanism is not based on a typical
@@ -1456,12 +1380,15 @@ xfs_trans_commit(
 		xfs_trans_apply_sb_deltas(tp);
 	xfs_trans_apply_dquot_deltas(tp);
 
-	error = xfs_trans_commit_cil(mp, tp, &commit_lsn, flags);
+	error = xfs_log_commit_cil(mp, tp, &commit_lsn, flags);
 	if (error == ENOMEM) {
 		xfs_force_shutdown(mp, SHUTDOWN_LOG_IO_ERROR);
 		error = XFS_ERROR(EIO);
 		goto out_unreserve;
 	}
+
+	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
+	xfs_trans_free(tp);
 
 	/*
 	 * If the transaction needs to be synchronous, then force the
