@@ -22,6 +22,7 @@ TODO
 . Review DSS vs KMS mismatches.  The omap_dss_device is sort of part encoder,
   part connector.  Which results in a bit of duct tape to fwd calls from
   encoder to connector.  Possibly this could be done a bit better.
+. Add debugfs information for DMM/TILER
 
 Userspace:
 . git://github.com/robclark/xf86-video-omap.git

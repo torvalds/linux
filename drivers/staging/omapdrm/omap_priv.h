@@ -30,13 +30,18 @@
  * detected devices.  This should be a good default behavior for most cases,
  * but yet there still might be times when you wish to do something different.
  */
-struct omap_drm_platform_data {
+struct omap_kms_platform_data {
 	int ovl_cnt;
 	const int *ovl_ids;
 	int mgr_cnt;
 	const int *mgr_ids;
 	int dev_cnt;
 	const char **dev_names;
+};
+
+struct omap_drm_platform_data {
+	struct omap_kms_platform_data *kms_pdata;
+	struct omap_dmm_platform_data *dmm_pdata;
 };
 
 #endif /* __OMAP_DRM_H__ */

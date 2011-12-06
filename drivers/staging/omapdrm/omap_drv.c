@@ -290,6 +290,7 @@ static unsigned int detect_connectors(struct drm_device *dev)
 static int omap_modeset_init(struct drm_device *dev)
 {
 	const struct omap_drm_platform_data *pdata = dev->dev->platform_data;
+	struct omap_kms_platform_data *kms_pdata = NULL;
 	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_dss_device *dssdev = NULL;
 	int i, j;
@@ -297,23 +298,27 @@ static int omap_modeset_init(struct drm_device *dev)
 
 	drm_mode_config_init(dev);
 
-	if (pdata) {
+	if (pdata && pdata->kms_pdata) {
+		kms_pdata = pdata->kms_pdata;
+
 		/* if platform data is provided by the board file, use it to
 		 * control which overlays, managers, and devices we own.
 		 */
-		for (i = 0; i < pdata->mgr_cnt; i++) {
+		for (i = 0; i < kms_pdata->mgr_cnt; i++) {
 			struct omap_overlay_manager *mgr =
-					omap_dss_get_overlay_manager(pdata->mgr_ids[i]);
+				omap_dss_get_overlay_manager(
+						kms_pdata->mgr_ids[i]);
 			create_encoder(dev, mgr);
 		}
 
-		for (i = 0; i < pdata->dev_cnt; i++) {
+		for (i = 0; i < kms_pdata->dev_cnt; i++) {
 			struct omap_dss_device *dssdev =
 				omap_dss_find_device(
-					(void *)pdata->dev_names[i], match_dev_name);
+					(void *)kms_pdata->dev_names[i],
+					match_dev_name);
 			if (!dssdev) {
 				dev_warn(dev->dev, "no such dssdev: %s\n",
-						pdata->dev_names[i]);
+						kms_pdata->dev_names[i]);
 				continue;
 			}
 			create_connector(dev, dssdev);
@@ -322,9 +327,9 @@ static int omap_modeset_init(struct drm_device *dev)
 		connected_connectors = detect_connectors(dev);
 
 		j = 0;
-		for (i = 0; i < pdata->ovl_cnt; i++) {
+		for (i = 0; i < kms_pdata->ovl_cnt; i++) {
 			struct omap_overlay *ovl =
-					omap_dss_get_overlay(pdata->ovl_ids[i]);
+				omap_dss_get_overlay(kms_pdata->ovl_ids[i]);
 			create_crtc(dev, ovl, &j, connected_connectors);
 		}
 	} else {
