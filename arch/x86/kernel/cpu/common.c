@@ -1146,7 +1146,9 @@ static void dbg_restore_debug_regs(void)
  */
 void __cpuinit x86_default_fixup_cpu_id(struct cpuinfo_x86 *c, int node)
 {
+#ifdef CONFIG_NUMA
 	pr_err("NUMA core number %d differs from configured core number %d\n", node, c->phys_proc_id);
+#endif
 }
 
 /*
