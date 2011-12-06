@@ -654,6 +654,8 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("mxs-dma-apbx", NULL, xbus_clk)
 	_REGISTER_CLOCK("mxs-mmc.0", NULL, ssp0_clk)
 	_REGISTER_CLOCK("mxs-mmc.1", NULL, ssp1_clk)
+	_REGISTER_CLOCK("mxs-mmc.2", NULL, ssp2_clk)
+	_REGISTER_CLOCK("mxs-mmc.3", NULL, ssp3_clk)
 	_REGISTER_CLOCK("flexcan.0", NULL, can0_clk)
 	_REGISTER_CLOCK("flexcan.1", NULL, can1_clk)
 	_REGISTER_CLOCK(NULL, "usb0", usb0_clk)
@@ -803,6 +805,8 @@ int __init mx28_clocks_init(void)
 	 */
 	clk_set_parent(&ssp0_clk, &ref_io0_clk);
 	clk_set_parent(&ssp1_clk, &ref_io0_clk);
+	clk_set_parent(&ssp2_clk, &ref_io1_clk);
+	clk_set_parent(&ssp3_clk, &ref_io1_clk);
 
 	clk_prepare_enable(&cpu_clk);
 	clk_prepare_enable(&hbus_clk);
