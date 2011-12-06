@@ -579,7 +579,7 @@ Development Tree
 ~~~~~~~~~~~~~~~~
 The latest development codes for HD-audio are found on sound git tree:
 
-- git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound-2.6.git
+- git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound.git
 
 The master branch or for-next branches can be used as the main
 development branches in general while the HD-audio specific patches
@@ -594,7 +594,7 @@ is, installed via the usual spells: configure, make and make
 install(-modules).  See INSTALL in the package.  The snapshot tarballs
 are found at:
 
-- ftp://ftp.kernel.org/pub/linux/kernel/people/tiwai/snapshot/
+- ftp://ftp.suse.com/pub/people/tiwai/snapshot/
 
 
 Sending a Bug Report
@@ -696,7 +696,7 @@ via hda-verb won't change the mixer value.
 
 The hda-verb program is found in the ftp directory:
 
-- ftp://ftp.kernel.org/pub/linux/kernel/people/tiwai/misc/
+- ftp://ftp.suse.com/pub/people/tiwai/misc/
 
 Also a git repository is available:
 
@@ -764,7 +764,7 @@ operation, the jack plugging simulation, etc.
 
 The package is found in:
 
-- ftp://ftp.kernel.org/pub/linux/kernel/people/tiwai/misc/
+- ftp://ftp.suse.com/pub/people/tiwai/misc/
 
 A git repository is available:
 

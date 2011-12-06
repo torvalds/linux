@@ -35,10 +35,12 @@ struct pstore_info {
 	spinlock_t	buf_lock;	/* serialize access to 'buf' */
 	char		*buf;
 	size_t		bufsize;
+	struct mutex	read_mutex;	/* serialize open/read/close */
 	int		(*open)(struct pstore_info *psi);
 	int		(*close)(struct pstore_info *psi);
 	ssize_t		(*read)(u64 *id, enum pstore_type_id *type,
-			struct timespec *time, struct pstore_info *psi);
+			struct timespec *time, char **buf,
+			struct pstore_info *psi);
 	int		(*write)(enum pstore_type_id type, u64 *id,
 			unsigned int part, size_t size, struct pstore_info *psi);
 	int		(*erase)(enum pstore_type_id type, u64 id,

@@ -76,6 +76,7 @@ config PCI_IOV
 
 config PCI_PRI
 	bool "PCI PRI support"
+	depends on PCI
 	select PCI_ATS
 	help
 	  PRI is the PCI Page Request Interface. It allows PCI devices that are

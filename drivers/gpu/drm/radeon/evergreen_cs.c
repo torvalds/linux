@@ -480,21 +480,23 @@ static int evergreen_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 		}
 		break;
 	case DB_Z_INFO:
-		r = evergreen_cs_packet_next_reloc(p, &reloc);
-		if (r) {
-			dev_warn(p->dev, "bad SET_CONTEXT_REG "
-					"0x%04X\n", reg);
-			return -EINVAL;
-		}
 		track->db_z_info = radeon_get_ib_value(p, idx);
-		ib[idx] &= ~Z_ARRAY_MODE(0xf);
-		track->db_z_info &= ~Z_ARRAY_MODE(0xf);
-		if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO) {
-			ib[idx] |= Z_ARRAY_MODE(ARRAY_2D_TILED_THIN1);
-			track->db_z_info |= Z_ARRAY_MODE(ARRAY_2D_TILED_THIN1);
-		} else {
-			ib[idx] |= Z_ARRAY_MODE(ARRAY_1D_TILED_THIN1);
-			track->db_z_info |= Z_ARRAY_MODE(ARRAY_1D_TILED_THIN1);
+		if (!p->keep_tiling_flags) {
+			r = evergreen_cs_packet_next_reloc(p, &reloc);
+			if (r) {
+				dev_warn(p->dev, "bad SET_CONTEXT_REG "
+						"0x%04X\n", reg);
+				return -EINVAL;
+			}
+			ib[idx] &= ~Z_ARRAY_MODE(0xf);
+			track->db_z_info &= ~Z_ARRAY_MODE(0xf);
+			if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO) {
+				ib[idx] |= Z_ARRAY_MODE(ARRAY_2D_TILED_THIN1);
+				track->db_z_info |= Z_ARRAY_MODE(ARRAY_2D_TILED_THIN1);
+			} else {
+				ib[idx] |= Z_ARRAY_MODE(ARRAY_1D_TILED_THIN1);
+				track->db_z_info |= Z_ARRAY_MODE(ARRAY_1D_TILED_THIN1);
+			}
 		}
 		break;
 	case DB_STENCIL_INFO:
@@ -607,40 +609,44 @@ static int evergreen_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 	case CB_COLOR5_INFO:
 	case CB_COLOR6_INFO:
 	case CB_COLOR7_INFO:
-		r = evergreen_cs_packet_next_reloc(p, &reloc);
-		if (r) {
-			dev_warn(p->dev, "bad SET_CONTEXT_REG "
-					"0x%04X\n", reg);
-			return -EINVAL;
-		}
 		tmp = (reg - CB_COLOR0_INFO) / 0x3c;
 		track->cb_color_info[tmp] = radeon_get_ib_value(p, idx);
-		if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO) {
-			ib[idx] |= CB_ARRAY_MODE(ARRAY_2D_TILED_THIN1);
-			track->cb_color_info[tmp] |= CB_ARRAY_MODE(ARRAY_2D_TILED_THIN1);
-		} else if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO) {
-			ib[idx] |= CB_ARRAY_MODE(ARRAY_1D_TILED_THIN1);
-			track->cb_color_info[tmp] |= CB_ARRAY_MODE(ARRAY_1D_TILED_THIN1);
+		if (!p->keep_tiling_flags) {
+			r = evergreen_cs_packet_next_reloc(p, &reloc);
+			if (r) {
+				dev_warn(p->dev, "bad SET_CONTEXT_REG "
+						"0x%04X\n", reg);
+				return -EINVAL;
+			}
+			if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO) {
+				ib[idx] |= CB_ARRAY_MODE(ARRAY_2D_TILED_THIN1);
+				track->cb_color_info[tmp] |= CB_ARRAY_MODE(ARRAY_2D_TILED_THIN1);
+			} else if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO) {
+				ib[idx] |= CB_ARRAY_MODE(ARRAY_1D_TILED_THIN1);
+				track->cb_color_info[tmp] |= CB_ARRAY_MODE(ARRAY_1D_TILED_THIN1);
+			}
 		}
 		break;
 	case CB_COLOR8_INFO:
 	case CB_COLOR9_INFO:
 	case CB_COLOR10_INFO:
 	case CB_COLOR11_INFO:
-		r = evergreen_cs_packet_next_reloc(p, &reloc);
-		if (r) {
-			dev_warn(p->dev, "bad SET_CONTEXT_REG "
-					"0x%04X\n", reg);
-			return -EINVAL;
-		}
 		tmp = ((reg - CB_COLOR8_INFO) / 0x1c) + 8;
 		track->cb_color_info[tmp] = radeon_get_ib_value(p, idx);
-		if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO) {
-			ib[idx] |= CB_ARRAY_MODE(ARRAY_2D_TILED_THIN1);
-			track->cb_color_info[tmp] |= CB_ARRAY_MODE(ARRAY_2D_TILED_THIN1);
-		} else if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO) {
-			ib[idx] |= CB_ARRAY_MODE(ARRAY_1D_TILED_THIN1);
-			track->cb_color_info[tmp] |= CB_ARRAY_MODE(ARRAY_1D_TILED_THIN1);
+		if (!p->keep_tiling_flags) {
+			r = evergreen_cs_packet_next_reloc(p, &reloc);
+			if (r) {
+				dev_warn(p->dev, "bad SET_CONTEXT_REG "
+						"0x%04X\n", reg);
+				return -EINVAL;
+			}
+			if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO) {
+				ib[idx] |= CB_ARRAY_MODE(ARRAY_2D_TILED_THIN1);
+				track->cb_color_info[tmp] |= CB_ARRAY_MODE(ARRAY_2D_TILED_THIN1);
+			} else if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO) {
+				ib[idx] |= CB_ARRAY_MODE(ARRAY_1D_TILED_THIN1);
+				track->cb_color_info[tmp] |= CB_ARRAY_MODE(ARRAY_1D_TILED_THIN1);
+			}
 		}
 		break;
 	case CB_COLOR0_PITCH:
@@ -1311,10 +1317,12 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 					return -EINVAL;
 				}
 				ib[idx+1+(i*8)+2] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
-				if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
-					ib[idx+1+(i*8)+1] |= TEX_ARRAY_MODE(ARRAY_2D_TILED_THIN1);
-				else if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
-					ib[idx+1+(i*8)+1] |= TEX_ARRAY_MODE(ARRAY_1D_TILED_THIN1);
+				if (!p->keep_tiling_flags) {
+					if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+						ib[idx+1+(i*8)+1] |= TEX_ARRAY_MODE(ARRAY_2D_TILED_THIN1);
+					else if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
+						ib[idx+1+(i*8)+1] |= TEX_ARRAY_MODE(ARRAY_1D_TILED_THIN1);
+				}
 				texture = reloc->robj;
 				/* tex mip base */
 				r = evergreen_cs_packet_next_reloc(p, &reloc);
