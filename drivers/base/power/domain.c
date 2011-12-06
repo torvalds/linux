@@ -1435,7 +1435,7 @@ static int pm_genpd_default_restore_state(struct device *dev)
  */
 static int pm_genpd_default_suspend(struct device *dev)
 {
-	int (*cb)(struct device *__dev) = dev_gpd_data(dev)->ops.freeze;
+	int (*cb)(struct device *__dev) = dev_gpd_data(dev)->ops.suspend;
 
 	return cb ? cb(dev) : pm_generic_suspend(dev);
 }
@@ -1446,7 +1446,7 @@ static int pm_genpd_default_suspend(struct device *dev)
  */
 static int pm_genpd_default_suspend_late(struct device *dev)
 {
-	int (*cb)(struct device *__dev) = dev_gpd_data(dev)->ops.freeze_late;
+	int (*cb)(struct device *__dev) = dev_gpd_data(dev)->ops.suspend_late;
 
 	return cb ? cb(dev) : pm_generic_suspend_noirq(dev);
 }
@@ -1457,7 +1457,7 @@ static int pm_genpd_default_suspend_late(struct device *dev)
  */
 static int pm_genpd_default_resume_early(struct device *dev)
 {
-	int (*cb)(struct device *__dev) = dev_gpd_data(dev)->ops.thaw_early;
+	int (*cb)(struct device *__dev) = dev_gpd_data(dev)->ops.resume_early;
 
 	return cb ? cb(dev) : pm_generic_resume_noirq(dev);
 }
@@ -1468,7 +1468,7 @@ static int pm_genpd_default_resume_early(struct device *dev)
  */
 static int pm_genpd_default_resume(struct device *dev)
 {
-	int (*cb)(struct device *__dev) = dev_gpd_data(dev)->ops.thaw;
+	int (*cb)(struct device *__dev) = dev_gpd_data(dev)->ops.resume;
 
 	return cb ? cb(dev) : pm_generic_resume(dev);
 }
@@ -1563,10 +1563,10 @@ void pm_genpd_init(struct generic_pm_domain *genpd,
 	genpd->domain.ops.complete = pm_genpd_complete;
 	genpd->dev_ops.save_state = pm_genpd_default_save_state;
 	genpd->dev_ops.restore_state = pm_genpd_default_restore_state;
-	genpd->dev_ops.freeze = pm_genpd_default_suspend;
-	genpd->dev_ops.freeze_late = pm_genpd_default_suspend_late;
-	genpd->dev_ops.thaw_early = pm_genpd_default_resume_early;
-	genpd->dev_ops.thaw = pm_genpd_default_resume;
+	genpd->dev_ops.suspend = pm_genpd_default_suspend;
+	genpd->dev_ops.suspend_late = pm_genpd_default_suspend_late;
+	genpd->dev_ops.resume_early = pm_genpd_default_resume_early;
+	genpd->dev_ops.resume = pm_genpd_default_resume;
 	genpd->dev_ops.freeze = pm_genpd_default_freeze;
 	genpd->dev_ops.freeze_late = pm_genpd_default_freeze_late;
 	genpd->dev_ops.thaw_early = pm_genpd_default_thaw_early;
