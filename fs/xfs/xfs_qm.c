@@ -398,7 +398,8 @@ again:
 	mutex_lock(&q->qi_dqlist_lock);
 	list_for_each_entry(dqp, &q->qi_dqlist, q_mplist) {
 		xfs_dqlock(dqp);
-		if (! XFS_DQ_IS_DIRTY(dqp)) {
+		if ((dqp->dq_flags & XFS_DQ_FREEING) ||
+		    !XFS_DQ_IS_DIRTY(dqp)) {
 			xfs_dqunlock(dqp);
 			continue;
 		}
@@ -437,6 +438,7 @@ again:
 	/* return ! busy */
 	return 0;
 }
+
 /*
  * Release the group dquot pointers the user dquots may be
  * carrying around as a hint. mplist is locked on entry and exit.
@@ -453,6 +455,13 @@ xfs_qm_detach_gdquots(
 	ASSERT(mutex_is_locked(&q->qi_dqlist_lock));
 	list_for_each_entry(dqp, &q->qi_dqlist, q_mplist) {
 		xfs_dqlock(dqp);
+		if (dqp->dq_flags & XFS_DQ_FREEING) {
+			xfs_dqunlock(dqp);
+			mutex_unlock(&q->qi_dqlist_lock);
+			delay(1);
+			mutex_lock(&q->qi_dqlist_lock);
+			goto again;
+		}
 		if ((gdqp = dqp->q_gdquot)) {
 			xfs_dqlock(gdqp);
 			dqp->q_gdquot = NULL;
@@ -489,8 +498,8 @@ xfs_qm_dqpurge_int(
 	struct xfs_quotainfo	*q = mp->m_quotainfo;
 	struct xfs_dquot	*dqp, *n;
 	uint			dqtype;
-	int			nrecl;
-	int			nmisses;
+	int			nmisses = 0;
+	LIST_HEAD		(dispose_list);
 
 	if (!q)
 		return 0;
@@ -509,46 +518,26 @@ xfs_qm_dqpurge_int(
 	 */
 	xfs_qm_detach_gdquots(mp);
 
-      again:
-	nmisses = 0;
-	ASSERT(mutex_is_locked(&q->qi_dqlist_lock));
 	/*
-	 * Try to get rid of all of the unwanted dquots. The idea is to
-	 * get them off mplist and hashlist, but leave them on freelist.
+	 * Try to get rid of all of the unwanted dquots.
 	 */
 	list_for_each_entry_safe(dqp, n, &q->qi_dqlist, q_mplist) {
 		xfs_dqlock(dqp);
-		if ((dqp->dq_flags & dqtype) == 0) {
-			xfs_dqunlock(dqp);
-			continue;
+		if ((dqp->dq_flags & dqtype) != 0 &&
+		    !(dqp->dq_flags & XFS_DQ_FREEING)) {
+			if (dqp->q_nrefs == 0) {
+				dqp->dq_flags |= XFS_DQ_FREEING;
+				list_move_tail(&dqp->q_mplist, &dispose_list);
+			} else
+				nmisses++;
 		}
 		xfs_dqunlock(dqp);
-
-		if (!mutex_trylock(&dqp->q_hash->qh_lock)) {
-			nrecl = q->qi_dqreclaims;
-			mutex_unlock(&q->qi_dqlist_lock);
-			mutex_lock(&dqp->q_hash->qh_lock);
-			mutex_lock(&q->qi_dqlist_lock);
-
-			/*
-			 * XXXTheoretically, we can get into a very long
-			 * ping pong game here.
-			 * No one can be adding dquots to the mplist at
-			 * this point, but somebody might be taking things off.
-			 */
-			if (nrecl != q->qi_dqreclaims) {
-				mutex_unlock(&dqp->q_hash->qh_lock);
-				goto again;
-			}
-		}
-
-		/*
-		 * Take the dquot off the mplist and hashlist. It may remain on
-		 * freelist in INACTIVE state.
-		 */
-		nmisses += xfs_qm_dqpurge(dqp);
 	}
 	mutex_unlock(&q->qi_dqlist_lock);
+
+	list_for_each_entry_safe(dqp, n, &dispose_list, q_mplist)
+		xfs_qm_dqpurge(dqp);
+
 	return nmisses;
 }
 
@@ -1667,25 +1656,16 @@ xfs_qm_init_quotainos(
 
 
 /*
- * Just pop the least recently used dquot off the freelist and
- * recycle it. The returned dquot is locked.
+ * Pop the least recently used dquot off the freelist and recycle it.
  */
-STATIC xfs_dquot_t *
+STATIC struct xfs_dquot *
 xfs_qm_dqreclaim_one(void)
 {
-	xfs_dquot_t	*dqpout;
-	xfs_dquot_t	*dqp;
-	int		restarts;
-	int		startagain;
+	struct xfs_dquot	*dqp;
+	int			restarts = 0;
 
-	restarts = 0;
-	dqpout = NULL;
-
-	/* lockorder: hashchainlock, freelistlock, mplistlock, dqlock, dqflock */
-again:
-	startagain = 0;
 	mutex_lock(&xfs_Gqm->qm_dqfrlist_lock);
-
+restart:
 	list_for_each_entry(dqp, &xfs_Gqm->qm_dqfrlist, q_freelist) {
 		struct xfs_mount *mp = dqp->q_mount;
 		xfs_dqlock(dqp);
@@ -1701,7 +1681,6 @@ again:
 			list_del_init(&dqp->q_freelist);
 			xfs_Gqm->qm_dqfrlist_cnt--;
 			restarts++;
-			startagain = 1;
 			goto dqunlock;
 		}
 
@@ -1737,57 +1716,42 @@ again:
 			}
 			goto dqunlock;
 		}
+		xfs_dqfunlock(dqp);
 
 		/*
-		 * We're trying to get the hashlock out of order. This races
-		 * with dqlookup; so, we giveup and goto the next dquot if
-		 * we couldn't get the hashlock. This way, we won't starve
-		 * a dqlookup process that holds the hashlock that is
-		 * waiting for the freelist lock.
+		 * Prevent lookup now that we are going to reclaim the dquot.
+		 * Once XFS_DQ_FREEING is set lookup won't touch the dquot,
+		 * thus we can drop the lock now.
 		 */
-		if (!mutex_trylock(&dqp->q_hash->qh_lock)) {
-			restarts++;
-			goto dqfunlock;
-		}
+		dqp->dq_flags |= XFS_DQ_FREEING;
+		xfs_dqunlock(dqp);
 
-		/*
-		 * This races with dquot allocation code as well as dqflush_all
-		 * and reclaim code. So, if we failed to grab the mplist lock,
-		 * giveup everything and start over.
-		 */
-		if (!mutex_trylock(&mp->m_quotainfo->qi_dqlist_lock)) {
-			restarts++;
-			startagain = 1;
-			goto qhunlock;
-		}
+		mutex_lock(&dqp->q_hash->qh_lock);
+		list_del_init(&dqp->q_hashlist);
+		dqp->q_hash->qh_version++;
+		mutex_unlock(&dqp->q_hash->qh_lock);
 
-		ASSERT(dqp->q_nrefs == 0);
+		mutex_lock(&mp->m_quotainfo->qi_dqlist_lock);
 		list_del_init(&dqp->q_mplist);
 		mp->m_quotainfo->qi_dquots--;
 		mp->m_quotainfo->qi_dqreclaims++;
-		list_del_init(&dqp->q_hashlist);
-		dqp->q_hash->qh_version++;
+		mutex_unlock(&mp->m_quotainfo->qi_dqlist_lock);
+
+		ASSERT(dqp->q_nrefs == 0);
 		list_del_init(&dqp->q_freelist);
 		xfs_Gqm->qm_dqfrlist_cnt--;
-		dqpout = dqp;
-		mutex_unlock(&mp->m_quotainfo->qi_dqlist_lock);
-qhunlock:
-		mutex_unlock(&dqp->q_hash->qh_lock);
-dqfunlock:
-		xfs_dqfunlock(dqp);
+
+		mutex_unlock(&xfs_Gqm->qm_dqfrlist_lock);
+		return dqp;
 dqunlock:
 		xfs_dqunlock(dqp);
-		if (dqpout)
-			break;
 		if (restarts >= XFS_QM_RECLAIM_MAX_RESTARTS)
 			break;
-		if (startagain) {
-			mutex_unlock(&xfs_Gqm->qm_dqfrlist_lock);
-			goto again;
-		}
+		goto restart;
 	}
+
 	mutex_unlock(&xfs_Gqm->qm_dqfrlist_lock);
-	return dqpout;
+	return NULL;
 }
 
 /*

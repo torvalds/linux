@@ -133,7 +133,7 @@ static inline void xfs_dqunlock_nonotify(struct xfs_dquot *dqp)
 
 extern void		xfs_qm_dqdestroy(xfs_dquot_t *);
 extern int		xfs_qm_dqflush(xfs_dquot_t *, uint);
-extern int		xfs_qm_dqpurge(xfs_dquot_t *);
+extern void		xfs_qm_dqpurge(xfs_dquot_t *);
 extern void		xfs_qm_dqunpin_wait(xfs_dquot_t *);
 extern void		xfs_qm_adjust_dqtimers(xfs_mount_t *,
 					xfs_disk_dquot_t *);

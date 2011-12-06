@@ -728,6 +728,12 @@ xfs_qm_dqlookup(
 		trace_xfs_dqlookup_found(dqp);
 
 		xfs_dqlock(dqp);
+		if (dqp->dq_flags & XFS_DQ_FREEING) {
+			*O_dqpp = NULL;
+			xfs_dqunlock(dqp);
+			return -1;
+		}
+
 		XFS_DQHOLD(dqp);
 
 		/*
@@ -781,11 +787,7 @@ xfs_qm_dqget(
 			return (EIO);
 		}
 	}
-#endif
 
- again:
-
-#ifdef DEBUG
 	ASSERT(type == XFS_DQ_USER ||
 	       type == XFS_DQ_PROJ ||
 	       type == XFS_DQ_GROUP);
@@ -797,13 +799,21 @@ xfs_qm_dqget(
 			ASSERT(ip->i_gdquot == NULL);
 	}
 #endif
+
+restart:
 	mutex_lock(&h->qh_lock);
 
 	/*
 	 * Look in the cache (hashtable).
 	 * The chain is kept locked during lookup.
 	 */
-	if (xfs_qm_dqlookup(mp, id, h, O_dqpp) == 0) {
+	switch (xfs_qm_dqlookup(mp, id, h, O_dqpp)) {
+	case -1:
+		XQM_STATS_INC(xqmstats.xs_qm_dquot_dups);
+		mutex_unlock(&h->qh_lock);
+		delay(1);
+		goto restart;
+	case 0:
 		XQM_STATS_INC(xqmstats.xs_qm_dqcachehits);
 		/*
 		 * The dquot was found, moved to the front of the chain,
@@ -814,9 +824,11 @@ xfs_qm_dqget(
 		ASSERT(XFS_DQ_IS_LOCKED(*O_dqpp));
 		mutex_unlock(&h->qh_lock);
 		trace_xfs_dqget_hit(*O_dqpp);
-		return (0);	/* success */
+		return 0;	/* success */
+	default:
+		XQM_STATS_INC(xqmstats.xs_qm_dqcachemisses);
+		break;
 	}
-	XQM_STATS_INC(xqmstats.xs_qm_dqcachemisses);
 
 	/*
 	 * Dquot cache miss. We don't want to keep the inode lock across
@@ -913,16 +925,21 @@ xfs_qm_dqget(
 		 * lock order between the two dquots here since dqp isn't
 		 * on any findable lists yet.
 		 */
-		if (xfs_qm_dqlookup(mp, id, h, &tmpdqp) == 0) {
+		switch (xfs_qm_dqlookup(mp, id, h, &tmpdqp)) {
+		case 0:
+		case -1:
 			/*
-			 * Duplicate found. Just throw away the new dquot
-			 * and start over.
+			 * Duplicate found, either in cache or on its way out.
+			 * Just throw away the new dquot and start over.
 			 */
-			xfs_qm_dqput(tmpdqp);
+			if (tmpdqp)
+				xfs_qm_dqput(tmpdqp);
 			mutex_unlock(&h->qh_lock);
 			xfs_qm_dqdestroy(dqp);
 			XQM_STATS_INC(xqmstats.xs_qm_dquot_dups);
-			goto again;
+			goto restart;
+		default:
+			break;
 		}
 	}
 
@@ -1250,51 +1267,18 @@ xfs_dqlock2(
 	}
 }
 
-
 /*
- * Take a dquot out of the mount's dqlist as well as the hashlist.
- * This is called via unmount as well as quotaoff, and the purge
- * will always succeed unless there are soft (temp) references
- * outstanding.
- *
- * This returns 0 if it was purged, 1 if it wasn't. It's not an error code
- * that we're returning! XXXsup - not cool.
+ * Take a dquot out of the mount's dqlist as well as the hashlist.  This is
+ * called via unmount as well as quotaoff, and the purge will always succeed.
  */
-/* ARGSUSED */
-int
+void
 xfs_qm_dqpurge(
-	xfs_dquot_t	*dqp)
+	struct xfs_dquot	*dqp)
 {
-	xfs_dqhash_t	*qh = dqp->q_hash;
-	xfs_mount_t	*mp = dqp->q_mount;
-
-	ASSERT(mutex_is_locked(&mp->m_quotainfo->qi_dqlist_lock));
-	ASSERT(mutex_is_locked(&dqp->q_hash->qh_lock));
-
-	/*
-	 * XXX(hch): horrible locking order, will get cleaned up ASAP.
-	 */
-	if (!mutex_trylock(&xfs_Gqm->qm_dqfrlist_lock)) {
-		mutex_unlock(&dqp->q_hash->qh_lock);
-		return 1;
-	}
+	struct xfs_mount	*mp = dqp->q_mount;
+	struct xfs_dqhash	*qh = dqp->q_hash;
 
 	xfs_dqlock(dqp);
-	/*
-	 * We really can't afford to purge a dquot that is
-	 * referenced, because these are hard refs.
-	 * It shouldn't happen in general because we went thru _all_ inodes in
-	 * dqrele_all_inodes before calling this and didn't let the mountlock go.
-	 * However it is possible that we have dquots with temporary
-	 * references that are not attached to an inode. e.g. see xfs_setattr().
-	 */
-	if (dqp->q_nrefs != 0) {
-		xfs_dqunlock(dqp);
-		mutex_unlock(&dqp->q_hash->qh_lock);
-		return (1);
-	}
-
-	ASSERT(!list_empty(&dqp->q_freelist));
 
 	/*
 	 * If we're turning off quotas, we have to make sure that, for
@@ -1313,19 +1297,14 @@ xfs_qm_dqpurge(
 	}
 
 	/*
-	 * XXXIf we're turning this type of quotas off, we don't care
+	 * If we are turning this type of quotas off, we don't care
 	 * about the dirty metadata sitting in this dquot. OTOH, if
 	 * we're unmounting, we do care, so we flush it and wait.
 	 */
 	if (XFS_DQ_IS_DIRTY(dqp)) {
 		int	error;
 
-		/* dqflush unlocks dqflock */
 		/*
-		 * Given that dqpurge is a very rare occurrence, it is OK
-		 * that we're holding the hashlist and mplist locks
-		 * across the disk write. But, ... XXXsup
-		 *
 		 * We don't care about getting disk errors here. We need
 		 * to purge this dquot anyway, so we go ahead regardless.
 		 */
@@ -1335,28 +1314,36 @@ xfs_qm_dqpurge(
 				__func__, dqp);
 		xfs_dqflock(dqp);
 	}
+
 	ASSERT(atomic_read(&dqp->q_pincount) == 0);
 	ASSERT(XFS_FORCED_SHUTDOWN(mp) ||
 	       !(dqp->q_logitem.qli_item.li_flags & XFS_LI_IN_AIL));
 
-	list_del_init(&dqp->q_hashlist);
-	qh->qh_version++;
-
-	list_del_init(&dqp->q_mplist);
-	mp->m_quotainfo->qi_dqreclaims++;
-	mp->m_quotainfo->qi_dquots--;
-
-	list_del_init(&dqp->q_freelist);
-	xfs_Gqm->qm_dqfrlist_cnt--;
-
 	xfs_dqfunlock(dqp);
 	xfs_dqunlock(dqp);
 
-	mutex_unlock(&xfs_Gqm->qm_dqfrlist_lock);
+	mutex_lock(&qh->qh_lock);
+	list_del_init(&dqp->q_hashlist);
+	qh->qh_version++;
 	mutex_unlock(&qh->qh_lock);
 
+	mutex_lock(&mp->m_quotainfo->qi_dqlist_lock);
+	list_del_init(&dqp->q_mplist);
+	mp->m_quotainfo->qi_dqreclaims++;
+	mp->m_quotainfo->qi_dquots--;
+	mutex_unlock(&mp->m_quotainfo->qi_dqlist_lock);
+
+	/*
+	 * We move dquots to the freelist as soon as their reference count
+	 * hits zero, so it really should be on the freelist here.
+	 */
+	mutex_lock(&xfs_Gqm->qm_dqfrlist_lock);
+	ASSERT(!list_empty(&dqp->q_freelist));
+	list_del_init(&dqp->q_freelist);
+	xfs_Gqm->qm_dqfrlist_cnt--;
+	mutex_unlock(&xfs_Gqm->qm_dqfrlist_lock);
+
 	xfs_qm_dqdestroy(dqp);
-	return 0;
 }
 
 /*
