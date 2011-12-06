@@ -116,12 +116,12 @@ config BATTERY_WM97XX
 	help
 	  Say Y to enable support for battery measured by WM97xx aux port.
 
-config BATTERY_BQ20Z75
-        tristate "TI BQ20z75 gas gauge"
+config BATTERY_SBS
+        tristate "SBS Compliant gas gauge"
         depends on I2C
         help
-         Say Y to include support for TI BQ20z75 SBS-compliant
-         gas gauge and protection IC.
+	  Say Y to include support for SBS battery driver for SBS-compliant
+	  gas gauges.
 
 config BATTERY_BQ27x00
 	tristate "BQ27x00 battery driver"
