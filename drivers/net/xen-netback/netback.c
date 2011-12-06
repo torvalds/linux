@@ -395,7 +395,7 @@ static void netbk_gop_frag_copy(struct xenvif *vif, struct sk_buff *skb,
 	struct gnttab_copy *copy_gop;
 	struct netbk_rx_meta *meta;
 	/*
-	 * These variables a used iff get_page_ext returns true,
+	 * These variables are used iff get_page_ext returns true,
 	 * in which case they are guaranteed to be initialized.
 	 */
 	unsigned int uninitialized_var(group), uninitialized_var(idx);
