@@ -284,7 +284,7 @@ static int alc_mux_select(struct hda_codec *codec, unsigned int adc_idx,
 	struct alc_spec *spec = codec->spec;
 	const struct hda_input_mux *imux;
 	unsigned int mux_idx;
-	int i, type;
+	int i, type, num_conns;
 	hda_nid_t nid;
 
 	mux_idx = adc_idx >= spec->num_mux_defs ? 0 : adc_idx;
@@ -307,16 +307,17 @@ static int alc_mux_select(struct hda_codec *codec, unsigned int adc_idx,
 		spec->capsrc_nids[adc_idx] : spec->adc_nids[adc_idx];
 
 	/* no selection? */
-	if (snd_hda_get_conn_list(codec, nid, NULL) <= 1)
+	num_conns = snd_hda_get_conn_list(codec, nid, NULL);
+	if (num_conns <= 1)
 		return 1;
 
 	type = get_wcaps_type(get_wcaps(codec, nid));
 	if (type == AC_WID_AUD_MIX) {
 		/* Matrix-mixer style (e.g. ALC882) */
-		for (i = 0; i < imux->num_items; i++) {
-			unsigned int v = (i == idx) ? 0 : HDA_AMP_MUTE;
-			snd_hda_codec_amp_stereo(codec, nid, HDA_INPUT,
-						 imux->items[i].index,
+		int active = imux->items[idx].index;
+		for (i = 0; i < num_conns; i++) {
+			unsigned int v = (i == active) ? 0 : HDA_AMP_MUTE;
+			snd_hda_codec_amp_stereo(codec, nid, HDA_INPUT, i,
 						 HDA_AMP_MUTE, v);
 		}
 	} else {

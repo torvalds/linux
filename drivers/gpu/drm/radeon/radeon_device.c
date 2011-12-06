@@ -716,7 +716,7 @@ int radeon_device_init(struct radeon_device *rdev,
 
 	/* mutex initialization are all done here so we
 	 * can recall function without having locking issues */
-	mutex_init(&rdev->cs_mutex);
+	radeon_mutex_init(&rdev->cs_mutex);
 	mutex_init(&rdev->ib_pool.mutex);
 	mutex_init(&rdev->cp.mutex);
 	mutex_init(&rdev->dc_hw_i2c_mutex);
@@ -955,6 +955,9 @@ int radeon_gpu_reset(struct radeon_device *rdev)
 	int r;
 	int resched;
 
+	/* Prevent CS ioctl from interfering */
+	radeon_mutex_lock(&rdev->cs_mutex);
+
 	radeon_save_bios_scratch_regs(rdev);
 	/* block TTM */
 	resched = ttm_bo_lock_delayed_workqueue(&rdev->mman.bdev);
@@ -967,10 +970,15 @@ int radeon_gpu_reset(struct radeon_device *rdev)
 		radeon_restore_bios_scratch_regs(rdev);
 		drm_helper_resume_force_mode(rdev->ddev);
 		ttm_bo_unlock_delayed_workqueue(&rdev->mman.bdev, resched);
-		return 0;
 	}
-	/* bad news, how to tell it to userspace ? */
-	dev_info(rdev->dev, "GPU reset failed\n");
+
+	radeon_mutex_unlock(&rdev->cs_mutex);
+
+	if (r) {
+		/* bad news, how to tell it to userspace ? */
+		dev_info(rdev->dev, "GPU reset failed\n");
+	}
+
 	return r;
 }
 

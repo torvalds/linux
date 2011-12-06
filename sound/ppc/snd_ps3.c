@@ -876,7 +876,7 @@ static void __devinit snd_ps3_audio_set_base_addr(uint64_t ioaddr_start)
 		(0x0fUL << 12) |
 		(PS3_AUDIO_IOID);
 
-	ret = lv1_gpu_attribute(0x100, 0x007, val, 0, 0);
+	ret = lv1_gpu_attribute(0x100, 0x007, val);
 	if (ret)
 		pr_info("%s: gpu_attribute failed %d\n", __func__,
 			ret);

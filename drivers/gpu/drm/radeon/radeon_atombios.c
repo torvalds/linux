@@ -1999,6 +1999,10 @@ static int radeon_atombios_parse_power_table_1_3(struct radeon_device *rdev)
 		rdev->pm.power_state[state_index].clock_info[0].voltage.type = VOLTAGE_NONE;
 		switch (frev) {
 		case 1:
+			rdev->pm.power_state[state_index].clock_info =
+				kzalloc(sizeof(struct radeon_pm_clock_info) * 1, GFP_KERNEL);
+			if (!rdev->pm.power_state[state_index].clock_info)
+				return state_index;
 			rdev->pm.power_state[state_index].num_clock_modes = 1;
 			rdev->pm.power_state[state_index].clock_info[0].mclk =
 				le16_to_cpu(power_info->info.asPowerPlayInfo[i].usMemoryClock);
@@ -2035,6 +2039,10 @@ static int radeon_atombios_parse_power_table_1_3(struct radeon_device *rdev)
 			state_index++;
 			break;
 		case 2:
+			rdev->pm.power_state[state_index].clock_info =
+				kzalloc(sizeof(struct radeon_pm_clock_info) * 1, GFP_KERNEL);
+			if (!rdev->pm.power_state[state_index].clock_info)
+				return state_index;
 			rdev->pm.power_state[state_index].num_clock_modes = 1;
 			rdev->pm.power_state[state_index].clock_info[0].mclk =
 				le32_to_cpu(power_info->info_2.asPowerPlayInfo[i].ulMemoryClock);
@@ -2072,6 +2080,10 @@ static int radeon_atombios_parse_power_table_1_3(struct radeon_device *rdev)
 			state_index++;
 			break;
 		case 3:
+			rdev->pm.power_state[state_index].clock_info =
+				kzalloc(sizeof(struct radeon_pm_clock_info) * 1, GFP_KERNEL);
+			if (!rdev->pm.power_state[state_index].clock_info)
+				return state_index;
 			rdev->pm.power_state[state_index].num_clock_modes = 1;
 			rdev->pm.power_state[state_index].clock_info[0].mclk =
 				le32_to_cpu(power_info->info_3.asPowerPlayInfo[i].ulMemoryClock);
@@ -2257,7 +2269,7 @@ static void radeon_atombios_parse_pplib_non_clock_info(struct radeon_device *rde
 		rdev->pm.default_power_state_index = state_index;
 		rdev->pm.power_state[state_index].default_clock_mode =
 			&rdev->pm.power_state[state_index].clock_info[mode_index - 1];
-		if (ASIC_IS_DCE5(rdev)) {
+		if (ASIC_IS_DCE5(rdev) && !(rdev->flags & RADEON_IS_IGP)) {
 			/* NI chips post without MC ucode, so default clocks are strobe mode only */
 			rdev->pm.default_sclk = rdev->pm.power_state[state_index].clock_info[0].sclk;
 			rdev->pm.default_mclk = rdev->pm.power_state[state_index].clock_info[0].mclk;
@@ -2377,17 +2389,31 @@ static int radeon_atombios_parse_power_table_4_5(struct radeon_device *rdev)
 			 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset) +
 			 (power_state->v1.ucNonClockStateIndex *
 			  power_info->pplib.ucNonClockSize));
-		for (j = 0; j < (power_info->pplib.ucStateEntrySize - 1); j++) {
-			clock_info = (union pplib_clock_info *)
-				(mode_info->atom_context->bios + data_offset +
-				 le16_to_cpu(power_info->pplib.usClockInfoArrayOffset) +
-				 (power_state->v1.ucClockStateIndices[j] *
-				  power_info->pplib.ucClockInfoSize));
-			valid = radeon_atombios_parse_pplib_clock_info(rdev,
-								       state_index, mode_index,
-								       clock_info);
-			if (valid)
-				mode_index++;
+		rdev->pm.power_state[i].clock_info = kzalloc(sizeof(struct radeon_pm_clock_info) *
+							     ((power_info->pplib.ucStateEntrySize - 1) ?
+							      (power_info->pplib.ucStateEntrySize - 1) : 1),
+							     GFP_KERNEL);
+		if (!rdev->pm.power_state[i].clock_info)
+			return state_index;
+		if (power_info->pplib.ucStateEntrySize - 1) {
+			for (j = 0; j < (power_info->pplib.ucStateEntrySize - 1); j++) {
+				clock_info = (union pplib_clock_info *)
+					(mode_info->atom_context->bios + data_offset +
+					 le16_to_cpu(power_info->pplib.usClockInfoArrayOffset) +
+					 (power_state->v1.ucClockStateIndices[j] *
+					  power_info->pplib.ucClockInfoSize));
+				valid = radeon_atombios_parse_pplib_clock_info(rdev,
+									       state_index, mode_index,
+									       clock_info);
+				if (valid)
+					mode_index++;
+			}
+		} else {
+			rdev->pm.power_state[state_index].clock_info[0].mclk =
+				rdev->clock.default_mclk;
+			rdev->pm.power_state[state_index].clock_info[0].sclk =
+				rdev->clock.default_sclk;
+			mode_index++;
 		}
 		rdev->pm.power_state[state_index].num_clock_modes = mode_index;
 		if (mode_index) {
@@ -2456,18 +2482,32 @@ static int radeon_atombios_parse_power_table_6(struct radeon_device *rdev)
 		non_clock_array_index = i; /* power_state->v2.nonClockInfoIndex */
 		non_clock_info = (struct _ATOM_PPLIB_NONCLOCK_INFO *)
 			&non_clock_info_array->nonClockInfo[non_clock_array_index];
-		for (j = 0; j < power_state->v2.ucNumDPMLevels; j++) {
-			clock_array_index = power_state->v2.clockInfoIndex[j];
-			/* XXX this might be an inagua bug... */
-			if (clock_array_index >= clock_info_array->ucNumEntries)
-				continue;
-			clock_info = (union pplib_clock_info *)
-				&clock_info_array->clockInfo[clock_array_index];
-			valid = radeon_atombios_parse_pplib_clock_info(rdev,
-								       state_index, mode_index,
-								       clock_info);
-			if (valid)
-				mode_index++;
+		rdev->pm.power_state[i].clock_info = kzalloc(sizeof(struct radeon_pm_clock_info) *
+							     (power_state->v2.ucNumDPMLevels ?
+							      power_state->v2.ucNumDPMLevels : 1),
+							     GFP_KERNEL);
+		if (!rdev->pm.power_state[i].clock_info)
+			return state_index;
+		if (power_state->v2.ucNumDPMLevels) {
+			for (j = 0; j < power_state->v2.ucNumDPMLevels; j++) {
+				clock_array_index = power_state->v2.clockInfoIndex[j];
+				/* XXX this might be an inagua bug... */
+				if (clock_array_index >= clock_info_array->ucNumEntries)
+					continue;
+				clock_info = (union pplib_clock_info *)
+					&clock_info_array->clockInfo[clock_array_index];
+				valid = radeon_atombios_parse_pplib_clock_info(rdev,
+									       state_index, mode_index,
+									       clock_info);
+				if (valid)
+					mode_index++;
+			}
+		} else {
+			rdev->pm.power_state[state_index].clock_info[0].mclk =
+				rdev->clock.default_mclk;
+			rdev->pm.power_state[state_index].clock_info[0].sclk =
+				rdev->clock.default_sclk;
+			mode_index++;
 		}
 		rdev->pm.power_state[state_index].num_clock_modes = mode_index;
 		if (mode_index) {
@@ -2524,19 +2564,23 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 	} else {
 		rdev->pm.power_state = kzalloc(sizeof(struct radeon_power_state), GFP_KERNEL);
 		if (rdev->pm.power_state) {
-			/* add the default mode */
-			rdev->pm.power_state[state_index].type =
-				POWER_STATE_TYPE_DEFAULT;
-			rdev->pm.power_state[state_index].num_clock_modes = 1;
-			rdev->pm.power_state[state_index].clock_info[0].mclk = rdev->clock.default_mclk;
-			rdev->pm.power_state[state_index].clock_info[0].sclk = rdev->clock.default_sclk;
-			rdev->pm.power_state[state_index].default_clock_mode =
-				&rdev->pm.power_state[state_index].clock_info[0];
-			rdev->pm.power_state[state_index].clock_info[0].voltage.type = VOLTAGE_NONE;
-			rdev->pm.power_state[state_index].pcie_lanes = 16;
-			rdev->pm.default_power_state_index = state_index;
-			rdev->pm.power_state[state_index].flags = 0;
-			state_index++;
+			rdev->pm.power_state[0].clock_info =
+				kzalloc(sizeof(struct radeon_pm_clock_info) * 1, GFP_KERNEL);
+			if (rdev->pm.power_state[0].clock_info) {
+				/* add the default mode */
+				rdev->pm.power_state[state_index].type =
+					POWER_STATE_TYPE_DEFAULT;
+				rdev->pm.power_state[state_index].num_clock_modes = 1;
+				rdev->pm.power_state[state_index].clock_info[0].mclk = rdev->clock.default_mclk;
+				rdev->pm.power_state[state_index].clock_info[0].sclk = rdev->clock.default_sclk;
+				rdev->pm.power_state[state_index].default_clock_mode =
+					&rdev->pm.power_state[state_index].clock_info[0];
+				rdev->pm.power_state[state_index].clock_info[0].voltage.type = VOLTAGE_NONE;
+				rdev->pm.power_state[state_index].pcie_lanes = 16;
+				rdev->pm.default_power_state_index = state_index;
+				rdev->pm.power_state[state_index].flags = 0;
+				state_index++;
+			}
 		}
 	}
 

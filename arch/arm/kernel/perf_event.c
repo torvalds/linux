@@ -347,15 +347,15 @@ validate_group(struct perf_event *event)
 	memset(&fake_pmu, 0, sizeof(fake_pmu));
 
 	if (!validate_event(&fake_pmu, leader))
-		return -ENOSPC;
+		return -EINVAL;
 
 	list_for_each_entry(sibling, &leader->sibling_list, group_entry) {
 		if (!validate_event(&fake_pmu, sibling))
-			return -ENOSPC;
+			return -EINVAL;
 	}
 
 	if (!validate_event(&fake_pmu, event))
-		return -ENOSPC;
+		return -EINVAL;
 
 	return 0;
 }

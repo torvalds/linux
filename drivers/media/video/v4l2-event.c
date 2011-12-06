@@ -216,6 +216,9 @@ int v4l2_event_subscribe(struct v4l2_fh *fh,
 	unsigned long flags;
 	unsigned i;
 
+	if (sub->type == V4L2_EVENT_ALL)
+		return -EINVAL;
+
 	if (elems < 1)
 		elems = 1;
 	if (sub->type == V4L2_EVENT_CTRL) {
@@ -283,6 +286,7 @@ int v4l2_event_unsubscribe(struct v4l2_fh *fh,
 {
 	struct v4l2_subscribed_event *sev;
 	unsigned long flags;
+	int i;
 
 	if (sub->type == V4L2_EVENT_ALL) {
 		v4l2_event_unsubscribe_all(fh);
@@ -293,8 +297,12 @@ int v4l2_event_unsubscribe(struct v4l2_fh *fh,
 
 	sev = v4l2_event_subscribed(fh, sub->type, sub->id);
 	if (sev != NULL) {
+		/* Remove any pending events for this subscription */
+		for (i = 0; i < sev->in_use; i++) {
+			list_del(&sev->events[sev_pos(sev, i)].list);
+			fh->navailable--;
+		}
 		list_del(&sev->list);
-		sev->fh = NULL;
 	}
 
 	spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);

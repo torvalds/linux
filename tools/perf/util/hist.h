@@ -63,8 +63,6 @@ struct hists {
 	struct callchain_cursor	callchain_cursor;
 };
 
-void hists__init(struct hists *hists);
-
 struct hist_entry *__hists__add_entry(struct hists *self,
 				      struct addr_location *al,
 				      struct symbol *parent, u64 period);

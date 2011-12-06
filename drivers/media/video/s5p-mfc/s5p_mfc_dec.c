@@ -220,8 +220,8 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strncpy(cap->card, dev->plat_dev->name, sizeof(cap->card) - 1);
 	cap->bus_info[0] = 0;
 	cap->version = KERNEL_VERSION(1, 0, 0);
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OUTPUT
-						    | V4L2_CAP_STREAMING;
+	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE_MPLANE |
+			V4L2_CAP_VIDEO_OUTPUT_MPLANE | V4L2_CAP_STREAMING;
 	return 0;
 }
 

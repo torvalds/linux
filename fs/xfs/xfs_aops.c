@@ -189,7 +189,7 @@ xfs_end_io(
 	int		error = 0;
 
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
-		error = -EIO;
+		ioend->io_error = -EIO;
 		goto done;
 	}
 	if (ioend->io_error)

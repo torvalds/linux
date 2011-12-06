@@ -594,11 +594,11 @@ static struct virtio_config_ops virtio_pci_config_ops = {
 
 static void virtio_pci_release_dev(struct device *_d)
 {
-	struct virtio_device *dev = container_of(_d, struct virtio_device,
-						 dev);
-	struct virtio_pci_device *vp_dev = to_vp_device(dev);
-
-	kfree(vp_dev);
+	/*
+	 * No need for a release method as we allocate/free
+	 * all devices together with the pci devices.
+	 * Provide an empty one to avoid getting a warning from core.
+	 */
 }
 
 /* the PCI probing function */
@@ -686,6 +686,7 @@ static void __devexit virtio_pci_remove(struct pci_dev *pci_dev)
 	pci_iounmap(pci_dev, vp_dev->ioaddr);
 	pci_release_regions(pci_dev);
 	pci_disable_device(pci_dev);
+	kfree(vp_dev);
 }
 
 #ifdef CONFIG_PM
