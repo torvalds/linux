@@ -820,17 +820,7 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 
 	amba_set_drvdata(adev, pdmac);
 
-#ifdef CONFIG_PM_RUNTIME
-	/* to use the runtime PM helper functions */
-	pm_runtime_enable(&adev->dev);
-
-	/* enable the power domain */
-	if (pm_runtime_get_sync(&adev->dev)) {
-		dev_err(&adev->dev, "failed to get runtime pm\n");
-		ret = -ENODEV;
-		goto probe_err1;
-	}
-#else
+#ifndef CONFIG_PM_RUNTIME
 	/* enable dma clk */
 	clk_enable(pdmac->clk);
 #endif
@@ -971,10 +961,7 @@ static int __devexit pl330_remove(struct amba_device *adev)
 	res = &adev->res;
 	release_mem_region(res->start, resource_size(res));
 
-#ifdef CONFIG_PM_RUNTIME
-	pm_runtime_put(&adev->dev);
-	pm_runtime_disable(&adev->dev);
-#else
+#ifndef CONFIG_PM_RUNTIME
 	clk_disable(pdmac->clk);
 #endif
 
