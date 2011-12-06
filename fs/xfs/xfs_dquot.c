@@ -710,11 +710,8 @@ xfs_qm_dqlookup(
 	xfs_dquot_t		**O_dqpp)
 {
 	xfs_dquot_t		*dqp;
-	uint			flist_locked;
 
 	ASSERT(mutex_is_locked(&qh->qh_lock));
-
-	flist_locked = B_FALSE;
 
 	/*
 	 * Traverse the hashchain looking for a match
@@ -750,31 +747,19 @@ xfs_qm_dqlookup(
 					xfs_dqlock(dqp);
 					dqp->dq_flags &= ~(XFS_DQ_WANT);
 				}
-				flist_locked = B_TRUE;
-			}
 
-			/*
-			 * id couldn't have changed; we had the hashlock all
-			 * along
-			 */
-			ASSERT(be32_to_cpu(dqp->q_core.d_id) == id);
-
-			if (flist_locked) {
-				if (dqp->q_nrefs != 0) {
-					mutex_unlock(&xfs_Gqm->qm_dqfrlist_lock);
-					flist_locked = B_FALSE;
-				} else {
+				if (dqp->q_nrefs == 0) {
 					/* take it off the freelist */
 					trace_xfs_dqlookup_freelist(dqp);
 					list_del_init(&dqp->q_freelist);
 					xfs_Gqm->qm_dqfrlist_cnt--;
 				}
+				XFS_DQHOLD(dqp);
+				mutex_unlock(&xfs_Gqm->qm_dqfrlist_lock);
+			} else {
+				XFS_DQHOLD(dqp);
 			}
 
-			XFS_DQHOLD(dqp);
-
-			if (flist_locked)
-				mutex_unlock(&xfs_Gqm->qm_dqfrlist_lock);
 			/*
 			 * move the dquot to the front of the hashchain
 			 */
