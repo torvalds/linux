@@ -5,17 +5,6 @@
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
 
-#if !defined(CONFIG_MAC80211_DRIVER_API_TRACER) || defined(__CHECKER__)
-#undef TRACE_EVENT
-#define TRACE_EVENT(name, proto, ...) \
-static inline void trace_ ## name(proto) {}
-#undef DECLARE_EVENT_CLASS
-#define DECLARE_EVENT_CLASS(...)
-#undef DEFINE_EVENT
-#define DEFINE_EVENT(evt_class, name, proto, ...) \
-static inline void trace_ ## name(proto) {}
-#endif
-
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM mac80211
 

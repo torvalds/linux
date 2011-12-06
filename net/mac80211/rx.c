@@ -1895,13 +1895,16 @@ ieee80211_rx_h_amsdu(struct ieee80211_rx_data *rx)
 static ieee80211_rx_result
 ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 {
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr *fwd_hdr, *hdr;
+	struct ieee80211_tx_info *info;
 	struct ieee80211s_hdr *mesh_hdr;
-	unsigned int hdrlen;
 	struct sk_buff *skb = rx->skb, *fwd_skb;
 	struct ieee80211_local *local = rx->local;
 	struct ieee80211_sub_if_data *sdata = rx->sdata;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	__le16 reason = cpu_to_le16(WLAN_REASON_MESH_PATH_NOFORWARD);
+	u16 q, hdrlen;
 
 	hdr = (struct ieee80211_hdr *) skb->data;
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
@@ -1917,14 +1920,7 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 		return RX_CONTINUE;
 
 	if (!mesh_hdr->ttl)
-		/* illegal frame */
 		return RX_DROP_MONITOR;
-
-	if (ieee80211_queue_stopped(&local->hw, skb_get_queue_mapping(skb))) {
-		IEEE80211_IFSTA_MESH_CTR_INC(&sdata->u.mesh,
-						dropped_frames_congestion);
-		return RX_DROP_MONITOR;
-	}
 
 	if (mesh_hdr->flags & MESH_FLAGS_AE) {
 		struct mesh_path *mppath;
@@ -1957,59 +1953,50 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 	    compare_ether_addr(sdata->vif.addr, hdr->addr3) == 0)
 		return RX_CONTINUE;
 
-	skb_set_queue_mapping(skb, ieee80211_select_queue(sdata, skb));
-	mesh_hdr->ttl--;
+	q = ieee80211_select_queue_80211(local, skb, hdr);
+	if (ieee80211_queue_stopped(&local->hw, q)) {
+		IEEE80211_IFSTA_MESH_CTR_INC(ifmsh, dropped_frames_congestion);
+		return RX_DROP_MONITOR;
+	}
+	skb_set_queue_mapping(skb, q);
 
-	if (status->rx_flags & IEEE80211_RX_RA_MATCH) {
-		if (!mesh_hdr->ttl)
-			IEEE80211_IFSTA_MESH_CTR_INC(&rx->sdata->u.mesh,
-						     dropped_frames_ttl);
-		else {
-			struct ieee80211_hdr *fwd_hdr;
-			struct ieee80211_tx_info *info;
+	if (!(status->rx_flags & IEEE80211_RX_RA_MATCH))
+		goto out;
 
-			fwd_skb = skb_copy(skb, GFP_ATOMIC);
-
-			if (!fwd_skb && net_ratelimit())
-				printk(KERN_DEBUG "%s: failed to clone mesh frame\n",
-						   sdata->name);
-			if (!fwd_skb)
-				goto out;
-
-			fwd_hdr =  (struct ieee80211_hdr *) fwd_skb->data;
-			memcpy(fwd_hdr->addr2, sdata->vif.addr, ETH_ALEN);
-			info = IEEE80211_SKB_CB(fwd_skb);
-			memset(info, 0, sizeof(*info));
-			info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
-			info->control.vif = &rx->sdata->vif;
-			info->control.jiffies = jiffies;
-			if (is_multicast_ether_addr(fwd_hdr->addr1)) {
-				IEEE80211_IFSTA_MESH_CTR_INC(&sdata->u.mesh,
-								fwded_mcast);
-			} else {
-				int err;
-				/*
-				 * Save TA to addr1 to send TA a path error if a
-				 * suitable next hop is not found
-				 */
-				memcpy(fwd_hdr->addr1, fwd_hdr->addr2,
-						ETH_ALEN);
-				err = mesh_nexthop_lookup(fwd_skb, sdata);
-				/* Failed to immediately resolve next hop:
-				 * fwded frame was dropped or will be added
-				 * later to the pending skb queue.  */
-				if (err)
-					return RX_DROP_MONITOR;
-
-				IEEE80211_IFSTA_MESH_CTR_INC(&sdata->u.mesh,
-								fwded_unicast);
-			}
-			IEEE80211_IFSTA_MESH_CTR_INC(&sdata->u.mesh,
-						     fwded_frames);
-			ieee80211_add_pending_skb(local, fwd_skb);
-		}
+	if (!--mesh_hdr->ttl) {
+		IEEE80211_IFSTA_MESH_CTR_INC(ifmsh, dropped_frames_ttl);
+		return RX_DROP_MONITOR;
 	}
 
+	fwd_skb = skb_copy(skb, GFP_ATOMIC);
+	if (!fwd_skb) {
+		if (net_ratelimit())
+			printk(KERN_DEBUG "%s: failed to clone mesh frame\n",
+					sdata->name);
+		goto out;
+	}
+
+	fwd_hdr =  (struct ieee80211_hdr *) fwd_skb->data;
+	info = IEEE80211_SKB_CB(fwd_skb);
+	memset(info, 0, sizeof(*info));
+	info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
+	info->control.vif = &rx->sdata->vif;
+	info->control.jiffies = jiffies;
+	if (is_multicast_ether_addr(fwd_hdr->addr1)) {
+		IEEE80211_IFSTA_MESH_CTR_INC(ifmsh, fwded_mcast);
+		memcpy(fwd_hdr->addr2, sdata->vif.addr, ETH_ALEN);
+	} else if (!mesh_nexthop_lookup(fwd_skb, sdata)) {
+		IEEE80211_IFSTA_MESH_CTR_INC(ifmsh, fwded_unicast);
+	} else {
+		/* unable to resolve next hop */
+		mesh_path_error_tx(ifmsh->mshcfg.element_ttl, fwd_hdr->addr3,
+				    0, reason, fwd_hdr->addr2, sdata);
+		IEEE80211_IFSTA_MESH_CTR_INC(ifmsh, dropped_frames_no_route);
+		return RX_DROP_MONITOR;
+	}
+
+	IEEE80211_IFSTA_MESH_CTR_INC(ifmsh, fwded_frames);
+	ieee80211_add_pending_skb(local, fwd_skb);
  out:
 	if (is_multicast_ether_addr(hdr->addr1) ||
 	    sdata->dev->flags & IFF_PROMISC)

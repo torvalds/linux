@@ -21,6 +21,8 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <net/genetlink.h>
 #include <linux/nfc.h>
 #include <linux/slab.h>
@@ -50,8 +52,6 @@ static int nfc_genl_send_target(struct sk_buff *msg, struct nfc_target *target,
 					struct netlink_callback *cb, int flags)
 {
 	void *hdr;
-
-	nfc_dbg("entry");
 
 	hdr = genlmsg_put(msg, NETLINK_CB(cb->skb).pid, cb->nlh->nlmsg_seq,
 				&nfc_genl_family, flags, NFC_CMD_GET_TARGET);
@@ -105,8 +105,6 @@ static int nfc_genl_dump_targets(struct sk_buff *skb,
 	struct nfc_dev *dev = (struct nfc_dev *) cb->args[1];
 	int rc;
 
-	nfc_dbg("entry");
-
 	if (!dev) {
 		dev = __get_device_from_cb(cb);
 		if (IS_ERR(dev))
@@ -139,8 +137,6 @@ static int nfc_genl_dump_targets_done(struct netlink_callback *cb)
 {
 	struct nfc_dev *dev = (struct nfc_dev *) cb->args[1];
 
-	nfc_dbg("entry");
-
 	if (dev)
 		nfc_put_device(dev);
 
@@ -151,8 +147,6 @@ int nfc_genl_targets_found(struct nfc_dev *dev)
 {
 	struct sk_buff *msg;
 	void *hdr;
-
-	nfc_dbg("entry");
 
 	dev->genl_data.poll_req_pid = 0;
 
@@ -182,8 +176,6 @@ int nfc_genl_device_added(struct nfc_dev *dev)
 {
 	struct sk_buff *msg;
 	void *hdr;
-
-	nfc_dbg("entry");
 
 	msg = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!msg)
@@ -216,8 +208,6 @@ int nfc_genl_device_removed(struct nfc_dev *dev)
 	struct sk_buff *msg;
 	void *hdr;
 
-	nfc_dbg("entry");
-
 	msg = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!msg)
 		return -ENOMEM;
@@ -249,8 +239,6 @@ static int nfc_genl_send_device(struct sk_buff *msg, struct nfc_dev *dev,
 {
 	void *hdr;
 
-	nfc_dbg("entry");
-
 	hdr = genlmsg_put(msg, pid, seq, &nfc_genl_family, flags,
 							NFC_CMD_GET_DEVICE);
 	if (!hdr)
@@ -276,8 +264,6 @@ static int nfc_genl_dump_devices(struct sk_buff *skb,
 	struct class_dev_iter *iter = (struct class_dev_iter *) cb->args[0];
 	struct nfc_dev *dev = (struct nfc_dev *) cb->args[1];
 	bool first_call = false;
-
-	nfc_dbg("entry");
 
 	if (!iter) {
 		first_call = true;
@@ -319,8 +305,6 @@ static int nfc_genl_dump_devices_done(struct netlink_callback *cb)
 {
 	struct class_dev_iter *iter = (struct class_dev_iter *) cb->args[0];
 
-	nfc_dbg("entry");
-
 	nfc_device_iter_exit(iter);
 	kfree(iter);
 
@@ -333,8 +317,6 @@ static int nfc_genl_get_device(struct sk_buff *skb, struct genl_info *info)
 	struct nfc_dev *dev;
 	u32 idx;
 	int rc = -ENOBUFS;
-
-	nfc_dbg("entry");
 
 	if (!info->attrs[NFC_ATTR_DEVICE_INDEX])
 		return -EINVAL;
@@ -373,8 +355,6 @@ static int nfc_genl_dev_up(struct sk_buff *skb, struct genl_info *info)
 	int rc;
 	u32 idx;
 
-	nfc_dbg("entry");
-
 	if (!info->attrs[NFC_ATTR_DEVICE_INDEX])
 		return -EINVAL;
 
@@ -395,8 +375,6 @@ static int nfc_genl_dev_down(struct sk_buff *skb, struct genl_info *info)
 	struct nfc_dev *dev;
 	int rc;
 	u32 idx;
-
-	nfc_dbg("entry");
 
 	if (!info->attrs[NFC_ATTR_DEVICE_INDEX])
 		return -EINVAL;
@@ -419,8 +397,6 @@ static int nfc_genl_start_poll(struct sk_buff *skb, struct genl_info *info)
 	int rc;
 	u32 idx;
 	u32 protocols;
-
-	nfc_dbg("entry");
 
 	if (!info->attrs[NFC_ATTR_DEVICE_INDEX] ||
 		!info->attrs[NFC_ATTR_PROTOCOLS])
@@ -450,8 +426,6 @@ static int nfc_genl_stop_poll(struct sk_buff *skb, struct genl_info *info)
 	struct nfc_dev *dev;
 	int rc;
 	u32 idx;
-
-	nfc_dbg("entry");
 
 	if (!info->attrs[NFC_ATTR_DEVICE_INDEX])
 		return -EINVAL;
@@ -524,7 +498,7 @@ static int nfc_genl_rcv_nl_event(struct notifier_block *this,
 	if (event != NETLINK_URELEASE || n->protocol != NETLINK_GENERIC)
 		goto out;
 
-	nfc_dbg("NETLINK_URELEASE event from id %d", n->pid);
+	pr_debug("NETLINK_URELEASE event from id %d\n", n->pid);
 
 	nfc_device_iter_init(&iter);
 	dev = nfc_device_iter_next(&iter);

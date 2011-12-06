@@ -43,7 +43,6 @@
 #include "dhd_proto.h"
 #include "dhd_dbg.h"
 #include "wl_cfg80211.h"
-#include "bcmchip.h"
 
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11n wireless LAN fullmac driver.");
@@ -77,6 +76,7 @@ struct brcmf_info {
 };
 
 /* Error bits */
+int brcmf_msg_level = BRCMF_ERROR_VAL;
 module_param(brcmf_msg_level, int, 0);
 
 int brcmf_ifname2idx(struct brcmf_info *drvr_priv, char *name)
@@ -292,7 +292,7 @@ int brcmf_sendpkt(struct brcmf_pub *drvr, int ifidx, struct sk_buff *pktbuf)
 	struct brcmf_info *drvr_priv = drvr->info;
 
 	/* Reject if down */
-	if (!drvr->up || (drvr->busstate == BRCMF_BUS_DOWN))
+	if (!drvr->up || (drvr->bus_if->state == BRCMF_BUS_DOWN))
 		return -ENODEV;
 
 	/* Update multicast statistic */
@@ -310,7 +310,7 @@ int brcmf_sendpkt(struct brcmf_pub *drvr, int ifidx, struct sk_buff *pktbuf)
 	brcmf_proto_hdrpush(drvr, ifidx, pktbuf);
 
 	/* Use bus module to send data frame */
-	return brcmf_sdbrcm_bus_txdata(drvr->bus, pktbuf);
+	return brcmf_sdbrcm_bus_txdata(drvr->dev, pktbuf);
 }
 
 static int brcmf_netdev_start_xmit(struct sk_buff *skb, struct net_device *ndev)
@@ -322,9 +322,11 @@ static int brcmf_netdev_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	brcmf_dbg(TRACE, "Enter\n");
 
 	/* Reject if down */
-	if (!drvr_priv->pub.up || (drvr_priv->pub.busstate == BRCMF_BUS_DOWN)) {
-		brcmf_dbg(ERROR, "xmit rejected pub.up=%d busstate=%d\n",
-			  drvr_priv->pub.up, drvr_priv->pub.busstate);
+	if (!drvr_priv->pub.up ||
+	    (drvr_priv->pub.bus_if->state == BRCMF_BUS_DOWN)) {
+		brcmf_dbg(ERROR, "xmit rejected pub.up=%d state=%d\n",
+			  drvr_priv->pub.up,
+			  drvr_priv->pub.bus_if->state);
 		netif_stop_queue(ndev);
 		return -ENODEV;
 	}
@@ -397,26 +399,21 @@ static int brcmf_host_event(struct brcmf_info *drvr_priv, int *ifidx,
 	return bcmerror;
 }
 
-void brcmf_rx_frame(struct brcmf_pub *drvr, int ifidx, struct sk_buff *skb,
-		  int numpkt)
+void brcmf_rx_frame(struct brcmf_pub *drvr, int ifidx,
+		    struct sk_buff_head *skb_list)
 {
 	struct brcmf_info *drvr_priv = drvr->info;
 	unsigned char *eth;
 	uint len;
 	void *data;
-	struct sk_buff *pnext, *save_pktbuf;
-	int i;
+	struct sk_buff *skb, *pnext;
 	struct brcmf_if *ifp;
 	struct brcmf_event_msg event;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	save_pktbuf = skb;
-
-	for (i = 0; skb && i < numpkt; i++, skb = pnext) {
-
-		pnext = skb->next;
-		skb->next = NULL;
+	skb_queue_walk_safe(skb_list, skb, pnext) {
+		skb_unlink(skb, skb_list);
 
 		/* Get the protocol, maintain skb around eth_type_trans()
 		 * The main reason for this hack is for the limitation of
@@ -436,6 +433,12 @@ void brcmf_rx_frame(struct brcmf_pub *drvr, int ifidx, struct sk_buff *skb,
 		ifp = drvr_priv->iflist[ifidx];
 		if (ifp == NULL)
 			ifp = drvr_priv->iflist[0];
+
+		if (!ifp || !ifp->ndev ||
+		    ifp->ndev->reg_state != NETREG_REGISTERED) {
+			brcmu_pkt_buf_free_skb(skb);
+			continue;
+		}
 
 		skb->dev = ifp->ndev;
 		skb->protocol = eth_type_trans(skb, skb->dev);
@@ -605,9 +608,7 @@ static void brcmf_ethtool_get_drvinfo(struct net_device *ndev,
 
 	sprintf(info->driver, KBUILD_MODNAME);
 	sprintf(info->version, "%lu", drvr_priv->pub.drv_version);
-	sprintf(info->fw_version, "%s", BCM4329_FW_NAME);
-	sprintf(info->bus_info, "%s",
-		dev_name(brcmf_bus_get_device(drvr_priv->pub.bus)));
+	sprintf(info->bus_info, "%s", dev_name(drvr_priv->pub.dev));
 }
 
 static struct ethtool_ops brcmf_ethtool_ops = {
@@ -761,7 +762,7 @@ s32 brcmf_exec_dcmd(struct net_device *ndev, u32 cmd, void *arg, u32 len)
 		buflen = min_t(uint, dcmd.len, BRCMF_DCMD_MAXLEN);
 
 	/* send to dongle (must be up, and wl) */
-	if ((drvr_priv->pub.busstate != BRCMF_BUS_DATA)) {
+	if ((drvr_priv->pub.bus_if->state != BRCMF_BUS_DATA)) {
 		brcmf_dbg(ERROR, "DONGLE_DOWN\n");
 		err = -EIO;
 		goto done;
@@ -940,7 +941,8 @@ void brcmf_del_if(struct brcmf_info *drvr_priv, int ifidx)
 	}
 }
 
-struct brcmf_pub *brcmf_attach(struct brcmf_bus *bus, uint bus_hdrlen)
+struct brcmf_pub *brcmf_attach(struct brcmf_sdio *bus, uint bus_hdrlen,
+			       struct device *dev)
 {
 	struct brcmf_info *drvr_priv = NULL;
 
@@ -959,6 +961,8 @@ struct brcmf_pub *brcmf_attach(struct brcmf_bus *bus, uint bus_hdrlen)
 	/* Link to bus module */
 	drvr_priv->pub.bus = bus;
 	drvr_priv->pub.hdrlen = bus_hdrlen;
+	drvr_priv->pub.bus_if = dev_get_drvdata(dev);
+	drvr_priv->pub.dev = dev;
 
 	/* Attach and link in the protocol */
 	if (brcmf_proto_attach(&drvr_priv->pub) != 0) {
@@ -988,14 +992,14 @@ int brcmf_bus_start(struct brcmf_pub *drvr)
 	brcmf_dbg(TRACE, "\n");
 
 	/* Bring up the bus */
-	ret = brcmf_sdbrcm_bus_init(&drvr_priv->pub);
+	ret = brcmf_sdbrcm_bus_init(drvr_priv->pub.dev);
 	if (ret != 0) {
 		brcmf_dbg(ERROR, "brcmf_sdbrcm_bus_init failed %d\n", ret);
 		return ret;
 	}
 
 	/* If bus is not ready, can't come up */
-	if (drvr_priv->pub.busstate != BRCMF_BUS_DATA) {
+	if (drvr_priv->pub.bus_if->state != BRCMF_BUS_DATA) {
 		brcmf_dbg(ERROR, "failed bus is not ready\n");
 		return -ENODEV;
 	}
@@ -1077,10 +1081,7 @@ int brcmf_net_attach(struct brcmf_pub *drvr, int ifidx)
 
 	/* attach to cfg80211 for primary interface */
 	if (!ifidx) {
-		drvr->config =
-			brcmf_cfg80211_attach(ndev,
-					      brcmf_bus_get_device(drvr->bus),
-					      drvr);
+		drvr->config = brcmf_cfg80211_attach(ndev, drvr->dev, drvr);
 		if (drvr->config == NULL) {
 			brcmf_dbg(ERROR, "wl_cfg80211_attach failed\n");
 			goto fail;
@@ -1114,7 +1115,7 @@ static void brcmf_bus_detach(struct brcmf_pub *drvr)
 			brcmf_proto_stop(&drvr_priv->pub);
 
 			/* Stop the bus module */
-			brcmf_sdbrcm_bus_stop(drvr_priv->pub.bus);
+			brcmf_sdbrcm_bus_stop(drvr_priv->pub.dev);
 		}
 	}
 }
@@ -1147,34 +1148,6 @@ void brcmf_detach(struct brcmf_pub *drvr)
 		}
 	}
 }
-
-static void __exit brcmf_module_cleanup(void)
-{
-	brcmf_dbg(TRACE, "Enter\n");
-
-	brcmf_bus_unregister();
-}
-
-static int __init brcmf_module_init(void)
-{
-	int error;
-
-	brcmf_dbg(TRACE, "Enter\n");
-
-	error = brcmf_bus_register();
-
-	if (error) {
-		brcmf_dbg(ERROR, "brcmf_bus_register failed\n");
-		goto failed;
-	}
-	return 0;
-
-failed:
-	return -EINVAL;
-}
-
-module_init(brcmf_module_init);
-module_exit(brcmf_module_cleanup);
 
 int brcmf_os_proto_block(struct brcmf_pub *drvr)
 {

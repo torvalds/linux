@@ -116,7 +116,7 @@ static int brcmf_proto_cdc_msg(struct brcmf_pub *drvr)
 		len = CDC_MAX_MSG_SIZE;
 
 	/* Send request */
-	return brcmf_sdbrcm_bus_txctl(drvr->bus, (unsigned char *)&prot->msg,
+	return brcmf_sdbrcm_bus_txctl(drvr->dev, (unsigned char *)&prot->msg,
 				      len);
 }
 
@@ -128,7 +128,7 @@ static int brcmf_proto_cdc_cmplt(struct brcmf_pub *drvr, u32 id, u32 len)
 	brcmf_dbg(TRACE, "Enter\n");
 
 	do {
-		ret = brcmf_sdbrcm_bus_rxctl(drvr->bus,
+		ret = brcmf_sdbrcm_bus_rxctl(drvr->dev,
 				(unsigned char *)&prot->msg,
 				len + sizeof(struct brcmf_proto_cdc_dcmd));
 		if (ret < 0)
@@ -280,7 +280,7 @@ brcmf_proto_dcmd(struct brcmf_pub *drvr, int ifidx, struct brcmf_dcmd *dcmd,
 	struct brcmf_proto *prot = drvr->prot;
 	int ret = -1;
 
-	if (drvr->busstate == BRCMF_BUS_DOWN) {
+	if (drvr->bus_if->state == BRCMF_BUS_DOWN) {
 		brcmf_dbg(ERROR, "bus is down. we have nothing to do.\n");
 		return ret;
 	}

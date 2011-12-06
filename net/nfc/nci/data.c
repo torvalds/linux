@@ -21,6 +21,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/wait.h>
@@ -40,7 +42,7 @@ void nci_data_exchange_complete(struct nci_dev *ndev,
 	data_exchange_cb_t cb = ndev->data_exchange_cb;
 	void *cb_context = ndev->data_exchange_cb_context;
 
-	nfc_dbg("entry, len %d, err %d", ((skb) ? (skb->len) : (0)), err);
+	pr_debug("len %d, err %d\n", skb ? skb->len : 0, err);
 
 	if (cb) {
 		ndev->data_exchange_cb = NULL;
@@ -49,7 +51,7 @@ void nci_data_exchange_complete(struct nci_dev *ndev,
 		/* forward skb to nfc core */
 		cb(cb_context, skb, err);
 	} else if (skb) {
-		nfc_err("no rx callback, dropping rx data...");
+		pr_err("no rx callback, dropping rx data...\n");
 
 		/* no waiting callback, free skb */
 		kfree_skb(skb);
@@ -90,7 +92,7 @@ static int nci_queue_tx_data_frags(struct nci_dev *ndev,
 	int frag_len;
 	int rc = 0;
 
-	nfc_dbg("entry, conn_id 0x%x, total_len %d", conn_id, total_len);
+	pr_debug("conn_id 0x%x, total_len %d\n", conn_id, total_len);
 
 	__skb_queue_head_init(&frags_q);
 
@@ -119,8 +121,8 @@ static int nci_queue_tx_data_frags(struct nci_dev *ndev,
 		data += frag_len;
 		total_len -= frag_len;
 
-		nfc_dbg("frag_len %d, remaining total_len %d",
-			frag_len, total_len);
+		pr_debug("frag_len %d, remaining total_len %d\n",
+			 frag_len, total_len);
 	}
 
 	/* queue all fragments atomically */
@@ -149,7 +151,7 @@ int nci_send_data(struct nci_dev *ndev, __u8 conn_id, struct sk_buff *skb)
 {
 	int rc = 0;
 
-	nfc_dbg("entry, conn_id 0x%x, plen %d", conn_id, skb->len);
+	pr_debug("conn_id 0x%x, plen %d\n", conn_id, skb->len);
 
 	/* check if the packet need to be fragmented */
 	if (skb->len <= ndev->max_data_pkt_payload_size) {
@@ -161,7 +163,7 @@ int nci_send_data(struct nci_dev *ndev, __u8 conn_id, struct sk_buff *skb)
 		/* fragment packet and queue the fragments */
 		rc = nci_queue_tx_data_frags(ndev, conn_id, skb);
 		if (rc) {
-			nfc_err("failed to fragment tx data packet");
+			pr_err("failed to fragment tx data packet\n");
 			goto free_exit;
 		}
 	}
@@ -191,7 +193,7 @@ static void nci_add_rx_data_frag(struct nci_dev *ndev,
 
 		/* first, make enough room for the already accumulated data */
 		if (skb_cow_head(skb, reassembly_len)) {
-			nfc_err("error adding room for accumulated rx data");
+			pr_err("error adding room for accumulated rx data\n");
 
 			kfree_skb(skb);
 			skb = 0;
@@ -228,19 +230,19 @@ void nci_rx_data_packet(struct nci_dev *ndev, struct sk_buff *skb)
 {
 	__u8 pbf = nci_pbf(skb->data);
 
-	nfc_dbg("entry, len %d", skb->len);
+	pr_debug("len %d\n", skb->len);
 
-	nfc_dbg("NCI RX: MT=data, PBF=%d, conn_id=%d, plen=%d",
-			nci_pbf(skb->data),
-			nci_conn_id(skb->data),
-			nci_plen(skb->data));
+	pr_debug("NCI RX: MT=data, PBF=%d, conn_id=%d, plen=%d\n",
+		 nci_pbf(skb->data),
+		 nci_conn_id(skb->data),
+		 nci_plen(skb->data));
 
 	/* strip the nci data header */
 	skb_pull(skb, NCI_DATA_HDR_SIZE);
 
 	if (ndev->target_active_prot == NFC_PROTO_MIFARE) {
 		/* frame I/F => remove the status byte */
-		nfc_dbg("NFC_PROTO_MIFARE => remove the status byte");
+		pr_debug("NFC_PROTO_MIFARE => remove the status byte\n");
 		skb_trim(skb, (skb->len - 1));
 	}
 

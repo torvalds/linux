@@ -1100,13 +1100,21 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		hdr->seq_ctrl = hdr->seq_ctrl &
 				cpu_to_le16(IEEE80211_SCTL_FRAG);
 		hdr->seq_ctrl |= cpu_to_le16(seq_number);
-		seq_number += 0x10;
 		/* aggregation is on for this <sta,tid> */
 		if (info->flags & IEEE80211_TX_CTL_AMPDU) {
-			WARN_ON_ONCE(tid_data->agg.state != IWL_AGG_ON);
+			if (WARN_ON_ONCE(tid_data->agg.state != IWL_AGG_ON)) {
+				IWL_ERR(trans, "TX_CTL_AMPDU while not in AGG:"
+					" Tx flags = 0x%08x, agg.state = %d",
+					info->flags, tid_data->agg.state);
+				IWL_ERR(trans, "sta_id = %d, tid = %d "
+					"txq_id = %d, seq_num = %d", sta_id,
+					tid, tid_data->agg.txq_id,
+					seq_number >> 4);
+			}
 			txq_id = tid_data->agg.txq_id;
 			is_agg = true;
 		}
+		seq_number += 0x10;
 	}
 
 	/* Copy MAC header from skb into command buffer */

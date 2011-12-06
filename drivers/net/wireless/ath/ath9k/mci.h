@@ -17,6 +17,9 @@
 #ifndef MCI_H
 #define MCI_H
 
+#define ATH_MCI_SCHED_BUF_SIZE		(16 * 16) /* 16 entries, 4 dword each */
+#define ATH_MCI_GPM_MAX_ENTRY		16
+#define ATH_MCI_GPM_BUF_SIZE		(ATH_MCI_GPM_MAX_ENTRY * 16)
 #define ATH_MCI_DEF_BT_PERIOD		40
 #define ATH_MCI_BDR_DUTY_CYCLE		20
 #define ATH_MCI_MAX_DUTY_CYCLE		90
@@ -110,9 +113,26 @@ struct ath_mci_profile {
 	u8 num_bdr;
 };
 
+
+struct ath_mci_buf {
+	void *bf_addr;		/* virtual addr of desc */
+	dma_addr_t bf_paddr;    /* physical addr of buffer */
+	u32 bf_len;		/* len of data */
+};
+
+struct ath_mci_coex {
+	atomic_t mci_cal_flag;
+	struct ath_mci_buf sched_buf;
+	struct ath_mci_buf gpm_buf;
+	u32 bt_cal_start;
+};
+
 void ath_mci_flush_profile(struct ath_mci_profile *mci);
 void ath_mci_process_profile(struct ath_softc *sc,
 			     struct ath_mci_profile_info *info);
 void ath_mci_process_status(struct ath_softc *sc,
 			    struct ath_mci_profile_status *status);
+int ath_mci_setup(struct ath_softc *sc);
+void ath_mci_cleanup(struct ath_softc *sc);
+void ath_mci_intr(struct ath_softc *sc);
 #endif
