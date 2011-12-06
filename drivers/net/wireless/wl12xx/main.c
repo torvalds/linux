@@ -641,9 +641,7 @@ static void wl1271_conf_init(struct wl1271 *wl)
 
 static int wl1271_plt_init(struct wl1271 *wl)
 {
-	struct conf_tx_ac_category *conf_ac;
-	struct conf_tx_tid *conf_tid;
-	int ret, i;
+	int ret;
 
 	if (wl->chip.id == CHIP_ID_1283_PG20)
 		ret = wl128x_cmd_general_parms(wl);
@@ -672,10 +670,6 @@ static int wl1271_plt_init(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
-	ret = wl1271_init_templates_config(wl);
-	if (ret < 0)
-		return ret;
-
 	ret = wl1271_acx_init_mem_config(wl);
 	if (ret < 0)
 		return ret;
@@ -685,62 +679,9 @@ static int wl1271_plt_init(struct wl1271 *wl)
 	if (ret < 0)
 		goto out_free_memmap;
 
-	ret = wl1271_acx_dco_itrim_params(wl);
-	if (ret < 0)
-		goto out_free_memmap;
-
-	/* Initialize connection monitoring thresholds */
-	ret = wl1271_acx_conn_monit_params(wl, NULL, false); /* TODO: fix */
-	if (ret < 0)
-		goto out_free_memmap;
-
-	/* Bluetooth WLAN coexistence */
-	ret = wl1271_init_pta(wl);
-	if (ret < 0)
-		goto out_free_memmap;
-
-	/* FM WLAN coexistence */
-	ret = wl1271_acx_fm_coex(wl);
-	if (ret < 0)
-		goto out_free_memmap;
-
-	/* Energy detection */
-	ret = wl1271_init_energy_detection(wl);
-	if (ret < 0)
-		goto out_free_memmap;
-
 	ret = wl12xx_acx_mem_cfg(wl);
 	if (ret < 0)
 		goto out_free_memmap;
-
-	/* Default fragmentation threshold */
-	ret = wl1271_acx_frag_threshold(wl, wl->conf.tx.frag_threshold);
-	if (ret < 0)
-		goto out_free_memmap;
-
-	/* Default TID/AC configuration */
-	BUG_ON(wl->conf.tx.tid_conf_count != wl->conf.tx.ac_conf_count);
-	for (i = 0; i < wl->conf.tx.tid_conf_count; i++) {
-		conf_ac = &wl->conf.tx.ac_conf[i];
-		/* TODO: fix */
-		ret = wl1271_acx_ac_cfg(wl, NULL, conf_ac->ac, conf_ac->cw_min,
-					conf_ac->cw_max, conf_ac->aifsn,
-					conf_ac->tx_op_limit);
-		if (ret < 0)
-			goto out_free_memmap;
-
-		conf_tid = &wl->conf.tx.tid_conf[i];
-		/* TODO: fix */
-		ret = wl1271_acx_tid_cfg(wl, NULL, conf_tid->queue_id,
-					 conf_tid->channel_type,
-					 conf_tid->tsid,
-					 conf_tid->ps_scheme,
-					 conf_tid->ack_policy,
-					 conf_tid->apsd_conf[0],
-					 conf_tid->apsd_conf[1]);
-		if (ret < 0)
-			goto out_free_memmap;
-	}
 
 	/* Enable data path */
 	ret = wl1271_cmd_data_path(wl, 1);
