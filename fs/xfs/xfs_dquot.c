@@ -733,7 +733,7 @@ xfs_qm_dqlookup(
 			return -1;
 		}
 
-		XFS_DQHOLD(dqp);
+		dqp->q_nrefs++;
 
 		/*
 		 * move the dquot to the front of the hashchain

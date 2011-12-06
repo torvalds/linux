@@ -80,8 +80,6 @@ enum {
 	XFS_QLOCK_NESTED,
 };
 
-#define XFS_DQHOLD(dqp)		((dqp)->q_nrefs++)
-
 /*
  * Manage the q_flush completion queue embedded in the dquot.  This completion
  * queue synchronizes processes attempting to flush the in-core dquot back to
@@ -146,5 +144,13 @@ extern void		xfs_qm_dqput(xfs_dquot_t *);
 extern void		xfs_dqlock2(struct xfs_dquot *, struct xfs_dquot *);
 extern void		xfs_dqunlock(struct xfs_dquot *);
 extern void		xfs_dqflock_pushbuf_wait(struct xfs_dquot *dqp);
+
+static inline struct xfs_dquot *xfs_qm_dqhold(struct xfs_dquot *dqp)
+{
+	xfs_dqlock(dqp);
+	dqp->q_nrefs++;
+	xfs_dqunlock(dqp);
+	return dqp;
+}
 
 #endif /* __XFS_DQUOT_H__ */

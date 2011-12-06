@@ -605,12 +605,9 @@ xfs_qm_dqattach_one(
 		 */
 		dqp = udqhint->q_gdquot;
 		if (dqp && be32_to_cpu(dqp->q_core.d_id) == id) {
-			xfs_dqlock(dqp);
-			XFS_DQHOLD(dqp);
 			ASSERT(*IO_idqpp == NULL);
-			*IO_idqpp = dqp;
 
-			xfs_dqunlock(dqp);
+			*IO_idqpp = xfs_qm_dqhold(dqp);
 			xfs_dqunlock(udqhint);
 			return 0;
 		}
@@ -670,11 +667,7 @@ xfs_qm_dqattach_grouphint(
 		xfs_qm_dqrele(tmp);
 	}
 
-	xfs_dqlock(gdq);
-	XFS_DQHOLD(gdq);
-	xfs_dqunlock(gdq);
-
-	udq->q_gdquot = gdq;
+	udq->q_gdquot = xfs_qm_dqhold(gdq);
 done:
 	xfs_dqunlock(udq);
 }
@@ -1941,10 +1934,7 @@ xfs_qm_vop_dqalloc(
 			 * this to caller
 			 */
 			ASSERT(ip->i_udquot);
-			uq = ip->i_udquot;
-			xfs_dqlock(uq);
-			XFS_DQHOLD(uq);
-			xfs_dqunlock(uq);
+			uq = xfs_qm_dqhold(ip->i_udquot);
 		}
 	}
 	if ((flags & XFS_QMOPT_GQUOTA) && XFS_IS_GQUOTA_ON(mp)) {
@@ -1965,10 +1955,7 @@ xfs_qm_vop_dqalloc(
 			xfs_ilock(ip, lockflags);
 		} else {
 			ASSERT(ip->i_gdquot);
-			gq = ip->i_gdquot;
-			xfs_dqlock(gq);
-			XFS_DQHOLD(gq);
-			xfs_dqunlock(gq);
+			gq = xfs_qm_dqhold(ip->i_gdquot);
 		}
 	} else if ((flags & XFS_QMOPT_PQUOTA) && XFS_IS_PQUOTA_ON(mp)) {
 		if (xfs_get_projid(ip) != prid) {
@@ -1988,10 +1975,7 @@ xfs_qm_vop_dqalloc(
 			xfs_ilock(ip, lockflags);
 		} else {
 			ASSERT(ip->i_gdquot);
-			gq = ip->i_gdquot;
-			xfs_dqlock(gq);
-			XFS_DQHOLD(gq);
-			xfs_dqunlock(gq);
+			gq = xfs_qm_dqhold(ip->i_gdquot);
 		}
 	}
 	if (uq)
@@ -2041,14 +2025,10 @@ xfs_qm_vop_chown(
 	xfs_trans_mod_dquot(tp, newdq, XFS_TRANS_DQ_ICOUNT, 1);
 
 	/*
-	 * Take an extra reference, because the inode
-	 * is going to keep this dquot pointer even
-	 * after the trans_commit.
+	 * Take an extra reference, because the inode is going to keep
+	 * this dquot pointer even after the trans_commit.
 	 */
-	xfs_dqlock(newdq);
-	XFS_DQHOLD(newdq);
-	xfs_dqunlock(newdq);
-	*IO_olddq = newdq;
+	*IO_olddq = xfs_qm_dqhold(newdq);
 
 	return prevdq;
 }
@@ -2180,25 +2160,21 @@ xfs_qm_vop_create_dqattach(
 	ASSERT(XFS_IS_QUOTA_RUNNING(mp));
 
 	if (udqp) {
-		xfs_dqlock(udqp);
-		XFS_DQHOLD(udqp);
-		xfs_dqunlock(udqp);
 		ASSERT(ip->i_udquot == NULL);
-		ip->i_udquot = udqp;
 		ASSERT(XFS_IS_UQUOTA_ON(mp));
 		ASSERT(ip->i_d.di_uid == be32_to_cpu(udqp->q_core.d_id));
+
+		ip->i_udquot = xfs_qm_dqhold(udqp);
 		xfs_trans_mod_dquot(tp, udqp, XFS_TRANS_DQ_ICOUNT, 1);
 	}
 	if (gdqp) {
-		xfs_dqlock(gdqp);
-		XFS_DQHOLD(gdqp);
-		xfs_dqunlock(gdqp);
 		ASSERT(ip->i_gdquot == NULL);
-		ip->i_gdquot = gdqp;
 		ASSERT(XFS_IS_OQUOTA_ON(mp));
 		ASSERT((XFS_IS_GQUOTA_ON(mp) ?
 			ip->i_d.di_gid : xfs_get_projid(ip)) ==
 				be32_to_cpu(gdqp->q_core.d_id));
+
+		ip->i_gdquot = xfs_qm_dqhold(gdqp);
 		xfs_trans_mod_dquot(tp, gdqp, XFS_TRANS_DQ_ICOUNT, 1);
 	}
 }
