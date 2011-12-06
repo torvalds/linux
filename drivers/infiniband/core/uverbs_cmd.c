@@ -2446,9 +2446,9 @@ out_put:
 	return ret ? ret : in_len;
 }
 
-int __uverbs_create_xsrq(struct ib_uverbs_file *file,
-			 struct ib_uverbs_create_xsrq *cmd,
-			 struct ib_udata *udata)
+static int __uverbs_create_xsrq(struct ib_uverbs_file *file,
+				struct ib_uverbs_create_xsrq *cmd,
+				struct ib_udata *udata)
 {
 	struct ib_uverbs_create_srq_resp resp;
 	struct ib_usrq_object           *obj;
