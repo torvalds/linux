@@ -120,7 +120,7 @@ extern struct iwl_mod_params iwlagn_mod_params;
  * @restart_fw: restart firmware, default = 1
  * @plcp_check: enable plcp health check, default = true
  * @ack_check: disable ack health check, default = false
- * @wd_disable: enable stuck queue check, default = false
+ * @wd_disable: enable stuck queue check, default = 0
  * @bt_coex_active: enable bt coex, default = true
  * @led_mode: system default, default = 0
  * @no_sleep_autoadjust: disable autoadjust, default = true
@@ -141,7 +141,7 @@ struct iwl_mod_params {
 	int restart_fw;
 	bool plcp_check;
 	bool ack_check;
-	bool wd_disable;
+	int  wd_disable;
 	bool bt_coex_active;
 	int led_mode;
 	bool no_sleep_autoadjust;
@@ -174,7 +174,6 @@ struct iwl_mod_params {
  * @ct_kill_exit_threshold: when to reeable the device - in hw dependent unit
  *	relevant for 1000, 6000 and up
  * @wd_timeout: TX queues watchdog timeout
- * @calib_init_cfg: setup initial calibrations for the hw
  * @calib_rt_cfg: setup runtime calibrations for the hw
  * @struct iwl_sensitivity_ranges: range of sensitivity values
  */
@@ -195,7 +194,6 @@ struct iwl_hw_params {
 	u32 ct_kill_exit_threshold;
 	unsigned int wd_timeout;
 
-	u32 calib_init_cfg;
 	u32 calib_rt_cfg;
 	const struct iwl_sensitivity_ranges *sens;
 };

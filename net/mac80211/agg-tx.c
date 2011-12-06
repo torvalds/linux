@@ -186,6 +186,7 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 
 	del_timer_sync(&tid_tx->addba_resp_timer);
+	del_timer_sync(&tid_tx->session_timer);
 
 	/*
 	 * After this packets are no longer handed right through
@@ -369,6 +370,28 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 				     tid_tx->timeout);
 }
 
+/*
+ * After accepting the AddBA Response we activated a timer,
+ * resetting it after each frame that we send.
+ */
+static void sta_tx_agg_session_timer_expired(unsigned long data)
+{
+	/* not an elegant detour, but there is no choice as the timer passes
+	 * only one argument, and various sta_info are needed here, so init
+	 * flow in sta_info_create gives the TID as data, while the timer_to_id
+	 * array gives the sta through container_of */
+	u8 *ptid = (u8 *)data;
+	u8 *timer_to_id = ptid - *ptid;
+	struct sta_info *sta = container_of(timer_to_id, struct sta_info,
+					 timer_to_tid[0]);
+
+#ifdef CONFIG_MAC80211_HT_DEBUG
+	printk(KERN_DEBUG "tx session timer expired on tid %d\n", (u16)*ptid);
+#endif
+
+	ieee80211_stop_tx_ba_session(&sta->sta, *ptid);
+}
+
 int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 				  u16 timeout)
 {
@@ -438,10 +461,15 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 
 	tid_tx->timeout = timeout;
 
-	/* Tx timer */
+	/* response timer */
 	tid_tx->addba_resp_timer.function = sta_addba_resp_timer_expired;
 	tid_tx->addba_resp_timer.data = (unsigned long)&sta->timer_to_tid[tid];
 	init_timer(&tid_tx->addba_resp_timer);
+
+	/* tx timer */
+	tid_tx->session_timer.function = sta_tx_agg_session_timer_expired;
+	tid_tx->session_timer.data = (unsigned long)&sta->timer_to_tid[tid];
+	init_timer(&tid_tx->session_timer);
 
 	/* assign a dialog token */
 	sta->ampdu_mlme.dialog_token_allocator++;
@@ -547,7 +575,7 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u16 tid)
 	}
 
 	mutex_lock(&local->sta_mtx);
-	sta = sta_info_get(sdata, ra);
+	sta = sta_info_get_bss(sdata, ra);
 	if (!sta) {
 		mutex_unlock(&local->sta_mtx);
 #ifdef CONFIG_MAC80211_HT_DEBUG
@@ -676,7 +704,7 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid)
 
 	mutex_lock(&local->sta_mtx);
 
-	sta = sta_info_get(sdata, ra);
+	sta = sta_info_get_bss(sdata, ra);
 	if (!sta) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "Could not find station: %pM\n", ra);
@@ -814,6 +842,11 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 			ieee80211_agg_tx_operational(local, sta, tid);
 
 		sta->ampdu_mlme.addba_req_num[tid] = 0;
+
+		if (tid_tx->timeout)
+			mod_timer(&tid_tx->session_timer,
+				  TU_TO_EXP_TIME(tid_tx->timeout));
+
 	} else {
 		___ieee80211_stop_tx_ba_session(sta, tid, WLAN_BACK_INITIATOR,
 						true);

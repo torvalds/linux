@@ -204,62 +204,75 @@ int brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev,
 	return err_ret;
 }
 
+/* precondition: host controller is claimed */
 static int
-brcmf_sdioh_request_packet(struct brcmf_sdio_dev *sdiodev, uint fix_inc,
-			   uint write, uint func, uint addr,
-			   struct sk_buff *pkt)
+brcmf_sdioh_request_data(struct brcmf_sdio_dev *sdiodev, uint write, bool fifo,
+			 uint func, uint addr, struct sk_buff *pkt, uint pktlen)
+{
+	int err_ret = 0;
+
+	if ((write) && (!fifo)) {
+		err_ret = sdio_memcpy_toio(sdiodev->func[func], addr,
+					   ((u8 *) (pkt->data)), pktlen);
+	} else if (write) {
+		err_ret = sdio_memcpy_toio(sdiodev->func[func], addr,
+					   ((u8 *) (pkt->data)), pktlen);
+	} else if (fifo) {
+		err_ret = sdio_readsb(sdiodev->func[func],
+				      ((u8 *) (pkt->data)), addr, pktlen);
+	} else {
+		err_ret = sdio_memcpy_fromio(sdiodev->func[func],
+					     ((u8 *) (pkt->data)),
+					     addr, pktlen);
+	}
+
+	return err_ret;
+}
+
+/*
+ * This function takes a queue of packets. The packets on the queue
+ * are assumed to be properly aligned by the caller.
+ */
+int
+brcmf_sdioh_request_chain(struct brcmf_sdio_dev *sdiodev, uint fix_inc,
+			  uint write, uint func, uint addr,
+			  struct sk_buff_head *pktq)
 {
 	bool fifo = (fix_inc == SDIOH_DATA_FIX);
 	u32 SGCount = 0;
 	int err_ret = 0;
 
-	struct sk_buff *pnext;
+	struct sk_buff *pkt;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	brcmf_pm_resume_wait(sdiodev, &sdiodev->request_packet_wait);
+	brcmf_pm_resume_wait(sdiodev, &sdiodev->request_chain_wait);
 	if (brcmf_pm_resume_error(sdiodev))
 		return -EIO;
 
 	/* Claim host controller */
 	sdio_claim_host(sdiodev->func[func]);
-	for (pnext = pkt; pnext; pnext = pnext->next) {
-		uint pkt_len = pnext->len;
+
+	skb_queue_walk(pktq, pkt) {
+		uint pkt_len = pkt->len;
 		pkt_len += 3;
 		pkt_len &= 0xFFFFFFFC;
 
-		if ((write) && (!fifo)) {
-			err_ret = sdio_memcpy_toio(sdiodev->func[func], addr,
-						   ((u8 *) (pnext->data)),
-						   pkt_len);
-		} else if (write) {
-			err_ret = sdio_memcpy_toio(sdiodev->func[func], addr,
-						   ((u8 *) (pnext->data)),
-						   pkt_len);
-		} else if (fifo) {
-			err_ret = sdio_readsb(sdiodev->func[func],
-					      ((u8 *) (pnext->data)),
-					      addr, pkt_len);
-		} else {
-			err_ret = sdio_memcpy_fromio(sdiodev->func[func],
-						     ((u8 *) (pnext->data)),
-						     addr, pkt_len);
-		}
-
+		err_ret = brcmf_sdioh_request_data(sdiodev, write, fifo, func,
+						   addr, pkt, pkt_len);
 		if (err_ret) {
 			brcmf_dbg(ERROR, "%s FAILED %p[%d], addr=0x%05x, pkt_len=%d, ERR=0x%08x\n",
-				  write ? "TX" : "RX", pnext, SGCount, addr,
+				  write ? "TX" : "RX", pkt, SGCount, addr,
 				  pkt_len, err_ret);
 		} else {
 			brcmf_dbg(TRACE, "%s xfr'd %p[%d], addr=0x%05x, len=%d\n",
-				  write ? "TX" : "RX", pnext, SGCount, addr,
+				  write ? "TX" : "RX", pkt, SGCount, addr,
 				  pkt_len);
 		}
-
 		if (!fifo)
 			addr += pkt_len;
-		SGCount++;
 
+		SGCount++;
 	}
 
 	/* Release host controller */
@@ -270,91 +283,45 @@ brcmf_sdioh_request_packet(struct brcmf_sdio_dev *sdiodev, uint fix_inc,
 }
 
 /*
- * This function takes a buffer or packet, and fixes everything up
- * so that in the end, a DMA-able packet is created.
- *
- * A buffer does not have an associated packet pointer,
- * and may or may not be aligned.
- * A packet may consist of a single packet, or a packet chain.
- * If it is a packet chain, then all the packets in the chain
- * must be properly aligned.
- *
- * If the packet data is not aligned, then there may only be
- * one packet, and in this case,  it is copied to a new
- * aligned packet.
- *
+ * This function takes a single DMA-able packet.
  */
 int brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev,
 			       uint fix_inc, uint write, uint func, uint addr,
-			       uint reg_width, uint buflen_u, u8 *buffer,
 			       struct sk_buff *pkt)
 {
-	int Status;
-	struct sk_buff *mypkt = NULL;
+	int status;
+	uint pkt_len = pkt->len;
+	bool fifo = (fix_inc == SDIOH_DATA_FIX);
 
 	brcmf_dbg(TRACE, "Enter\n");
+
+	if (pkt == NULL)
+		return -EINVAL;
 
 	brcmf_pm_resume_wait(sdiodev, &sdiodev->request_buffer_wait);
 	if (brcmf_pm_resume_error(sdiodev))
 		return -EIO;
-	/* Case 1: we don't have a packet. */
-	if (pkt == NULL) {
-		brcmf_dbg(DATA, "Creating new %s Packet, len=%d\n",
-			  write ? "TX" : "RX", buflen_u);
-		mypkt = brcmu_pkt_buf_get_skb(buflen_u);
-		if (!mypkt) {
-			brcmf_dbg(ERROR, "brcmu_pkt_buf_get_skb failed: len %d\n",
-				  buflen_u);
-			return -EIO;
-		}
 
-		/* For a write, copy the buffer data into the packet. */
-		if (write)
-			memcpy(mypkt->data, buffer, buflen_u);
+	/* Claim host controller */
+	sdio_claim_host(sdiodev->func[func]);
 
-		Status = brcmf_sdioh_request_packet(sdiodev, fix_inc, write,
-						    func, addr, mypkt);
+	pkt_len += 3;
+	pkt_len &= (uint)~3;
 
-		/* For a read, copy the packet data back to the buffer. */
-		if (!write)
-			memcpy(buffer, mypkt->data, buflen_u);
-
-		brcmu_pkt_buf_free_skb(mypkt);
-	} else if (((ulong) (pkt->data) & DMA_ALIGN_MASK) != 0) {
-		/*
-		 * Case 2: We have a packet, but it is unaligned.
-		 * In this case, we cannot have a chain (pkt->next == NULL)
-		 */
-		brcmf_dbg(DATA, "Creating aligned %s Packet, len=%d\n",
-			  write ? "TX" : "RX", pkt->len);
-		mypkt = brcmu_pkt_buf_get_skb(pkt->len);
-		if (!mypkt) {
-			brcmf_dbg(ERROR, "brcmu_pkt_buf_get_skb failed: len %d\n",
-				  pkt->len);
-			return -EIO;
-		}
-
-		/* For a write, copy the buffer data into the packet. */
-		if (write)
-			memcpy(mypkt->data, pkt->data, pkt->len);
-
-		Status = brcmf_sdioh_request_packet(sdiodev, fix_inc, write,
-						    func, addr, mypkt);
-
-		/* For a read, copy the packet data back to the buffer. */
-		if (!write)
-			memcpy(pkt->data, mypkt->data, mypkt->len);
-
-		brcmu_pkt_buf_free_skb(mypkt);
-	} else {		/* case 3: We have a packet and
-				 it is aligned. */
-		brcmf_dbg(DATA, "Aligned %s Packet, direct DMA\n",
-			  write ? "Tx" : "Rx");
-		Status = brcmf_sdioh_request_packet(sdiodev, fix_inc, write,
-						    func, addr, pkt);
+	status = brcmf_sdioh_request_data(sdiodev, write, fifo, func,
+					   addr, pkt, pkt_len);
+	if (status) {
+		brcmf_dbg(ERROR, "%s FAILED %p, addr=0x%05x, pkt_len=%d, ERR=0x%08x\n",
+			  write ? "TX" : "RX", pkt, addr, pkt_len, status);
+	} else {
+		brcmf_dbg(TRACE, "%s xfr'd %p, addr=0x%05x, len=%d\n",
+			  write ? "TX" : "RX", pkt, addr, pkt_len);
 	}
 
-	return Status;
+	/* Release host controller */
+	sdio_release_host(sdiodev->func[func]);
+
+	return status;
 }
 
 /* Read client card reg */
@@ -494,6 +461,7 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 {
 	int ret = 0;
 	struct brcmf_sdio_dev *sdiodev;
+	struct brcmf_bus *bus_if;
 	brcmf_dbg(TRACE, "Enter\n");
 	brcmf_dbg(TRACE, "func->class=%x\n", func->class);
 	brcmf_dbg(TRACE, "sdio_vendor: 0x%04x\n", func->vendor);
@@ -505,22 +473,31 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 			brcmf_dbg(ERROR, "card private drvdata occupied\n");
 			return -ENXIO;
 		}
-		sdiodev = kzalloc(sizeof(struct brcmf_sdio_dev), GFP_KERNEL);
-		if (!sdiodev)
+		bus_if = kzalloc(sizeof(struct brcmf_bus), GFP_KERNEL);
+		if (!bus_if)
 			return -ENOMEM;
+		sdiodev = kzalloc(sizeof(struct brcmf_sdio_dev), GFP_KERNEL);
+		if (!sdiodev) {
+			kfree(bus_if);
+			return -ENOMEM;
+		}
+		sdiodev->dev = &func->card->dev;
 		sdiodev->func[0] = func->card->sdio_func[0];
 		sdiodev->func[1] = func;
-		dev_set_drvdata(&func->card->dev, sdiodev);
+		bus_if->bus_priv = sdiodev;
+		bus_if->type = SDIO_BUS;
+		dev_set_drvdata(&func->card->dev, bus_if);
 
 		atomic_set(&sdiodev->suspend, false);
 		init_waitqueue_head(&sdiodev->request_byte_wait);
 		init_waitqueue_head(&sdiodev->request_word_wait);
-		init_waitqueue_head(&sdiodev->request_packet_wait);
+		init_waitqueue_head(&sdiodev->request_chain_wait);
 		init_waitqueue_head(&sdiodev->request_buffer_wait);
 	}
 
 	if (func->num == 2) {
-		sdiodev = dev_get_drvdata(&func->card->dev);
+		bus_if = dev_get_drvdata(&func->card->dev);
+		sdiodev = bus_if->bus_priv;
 		if ((!sdiodev) || (sdiodev->func[1]->card != func->card))
 			return -ENODEV;
 		sdiodev->func[2] = func;
@@ -534,6 +511,7 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 
 static void brcmf_ops_sdio_remove(struct sdio_func *func)
 {
+	struct brcmf_bus *bus_if;
 	struct brcmf_sdio_dev *sdiodev;
 	brcmf_dbg(TRACE, "Enter\n");
 	brcmf_dbg(INFO, "func->class=%x\n", func->class);
@@ -542,10 +520,12 @@ static void brcmf_ops_sdio_remove(struct sdio_func *func)
 	brcmf_dbg(INFO, "Function#: 0x%04x\n", func->num);
 
 	if (func->num == 2) {
-		sdiodev = dev_get_drvdata(&func->card->dev);
+		bus_if = dev_get_drvdata(&func->card->dev);
+		sdiodev = bus_if->bus_priv;
 		brcmf_dbg(TRACE, "F2 found, calling brcmf_sdio_remove...\n");
 		brcmf_sdio_remove(sdiodev);
 		dev_set_drvdata(&func->card->dev, NULL);
+		kfree(bus_if);
 		kfree(sdiodev);
 	}
 }
@@ -556,11 +536,12 @@ static int brcmf_sdio_suspend(struct device *dev)
 	mmc_pm_flag_t sdio_flags;
 	struct brcmf_sdio_dev *sdiodev;
 	struct sdio_func *func = dev_to_sdio_func(dev);
+	struct brcmf_bus *bus_if = dev_get_drvdata(&func->card->dev);
 	int ret = 0;
 
 	brcmf_dbg(TRACE, "\n");
 
-	sdiodev = dev_get_drvdata(&func->card->dev);
+	sdiodev = bus_if->bus_priv;
 
 	atomic_set(&sdiodev->suspend, true);
 
@@ -585,8 +566,9 @@ static int brcmf_sdio_resume(struct device *dev)
 {
 	struct brcmf_sdio_dev *sdiodev;
 	struct sdio_func *func = dev_to_sdio_func(dev);
+	struct brcmf_bus *bus_if = dev_get_drvdata(&func->card->dev);
 
-	sdiodev = dev_get_drvdata(&func->card->dev);
+	sdiodev = bus_if->bus_priv;
 	brcmf_sdio_wdtmr_enable(sdiodev, true);
 	atomic_set(&sdiodev->suspend, false);
 	return 0;
@@ -610,17 +592,26 @@ static struct sdio_driver brcmf_sdmmc_driver = {
 #endif	/* CONFIG_PM_SLEEP */
 };
 
-/* bus register interface */
-int brcmf_bus_register(void)
-{
-	brcmf_dbg(TRACE, "Enter\n");
-
-	return sdio_register_driver(&brcmf_sdmmc_driver);
-}
-
-void brcmf_bus_unregister(void)
+static void __exit brcmf_sdio_exit(void)
 {
 	brcmf_dbg(TRACE, "Enter\n");
 
 	sdio_unregister_driver(&brcmf_sdmmc_driver);
 }
+
+static int __init brcmf_sdio_init(void)
+{
+	int ret;
+
+	brcmf_dbg(TRACE, "Enter\n");
+
+	ret = sdio_register_driver(&brcmf_sdmmc_driver);
+
+	if (ret)
+		brcmf_dbg(ERROR, "sdio_register_driver failed: %d\n", ret);
+
+	return ret;
+}
+
+module_init(brcmf_sdio_init);
+module_exit(brcmf_sdio_exit);

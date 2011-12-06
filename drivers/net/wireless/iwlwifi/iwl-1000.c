@@ -147,16 +147,7 @@ static int iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 	iwl1000_set_ct_threshold(priv);
 
 	/* Set initial sensitivity parameters */
-	/* Set initial calibration set */
 	hw_params(priv).sens = &iwl1000_sensitivity;
-	hw_params(priv).calib_init_cfg =
-			BIT(IWL_CALIB_XTAL)		|
-			BIT(IWL_CALIB_LO)		|
-			BIT(IWL_CALIB_TX_IQ) 		|
-			BIT(IWL_CALIB_TX_IQ_PERD)	|
-			BIT(IWL_CALIB_BASE_BAND);
-	if (priv->cfg->need_dc_calib)
-		hw_params(priv).calib_init_cfg |= BIT(IWL_CALIB_DC);
 
 	return 0;
 }
@@ -191,6 +182,7 @@ static struct iwl_base_params iwl1000_base_params = {
 	.chain_noise_scale = 1000,
 	.wd_timeout = IWL_DEF_WD_TIMEOUT,
 	.max_event_log_size = 128,
+	.wd_disable = true,
 };
 static struct iwl_ht_params iwl1000_ht_params = {
 	.ht_greenfield_support = true,

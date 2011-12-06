@@ -462,7 +462,6 @@ static int __devexit wl1271_remove(struct spi_device *spi)
 static struct spi_driver wl1271_spi_driver = {
 	.driver = {
 		.name		= "wl1271_spi",
-		.bus		= &spi_bus_type,
 		.owner		= THIS_MODULE,
 	},
 

@@ -408,6 +408,7 @@ fail:
 static int ath9k_init_btcoex(struct ath_softc *sc)
 {
 	struct ath_txq *txq;
+	struct ath_hw *ah = sc->sc_ah;
 	int r;
 
 	switch (sc->sc_ah->btcoex_hw.scheme) {
@@ -424,8 +425,37 @@ static int ath9k_init_btcoex(struct ath_softc *sc)
 		txq = sc->tx.txq_map[WME_AC_BE];
 		ath9k_hw_init_btcoex_hw(sc->sc_ah, txq->axq_qnum);
 		sc->btcoex.bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
+		break;
+	case ATH_BTCOEX_CFG_MCI:
+		sc->btcoex.bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
 		sc->btcoex.duty_cycle = ATH_BTCOEX_DEF_DUTY_CYCLE;
 		INIT_LIST_HEAD(&sc->btcoex.mci.info);
+
+		r = ath_mci_setup(sc);
+		if (r)
+			return r;
+
+		if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_MCI) {
+			ah->btcoex_hw.mci.ready = false;
+			ah->btcoex_hw.mci.bt_state = 0;
+			ah->btcoex_hw.mci.bt_ver_major = 3;
+			ah->btcoex_hw.mci.bt_ver_minor = 0;
+			ah->btcoex_hw.mci.bt_version_known = false;
+			ah->btcoex_hw.mci.update_2g5g = true;
+			ah->btcoex_hw.mci.is_2g = true;
+			ah->btcoex_hw.mci.wlan_channels_update = false;
+			ah->btcoex_hw.mci.wlan_channels[0] = 0x00000000;
+			ah->btcoex_hw.mci.wlan_channels[1] = 0xffffffff;
+			ah->btcoex_hw.mci.wlan_channels[2] = 0xffffffff;
+			ah->btcoex_hw.mci.wlan_channels[3] = 0x7fffffff;
+			ah->btcoex_hw.mci.query_bt = true;
+			ah->btcoex_hw.mci.unhalt_bt_gpm = true;
+			ah->btcoex_hw.mci.halted_bt_gpm = false;
+			ah->btcoex_hw.mci.need_flush_btinfo = false;
+			ah->btcoex_hw.mci.wlan_cal_seq = 0;
+			ah->btcoex_hw.mci.wlan_cal_done = 0;
+			ah->btcoex_hw.mci.config = 0x2201;
+		}
 		break;
 	default:
 		WARN_ON(1);
@@ -838,6 +868,9 @@ static void ath9k_deinit_softc(struct ath_softc *sc)
         if ((sc->btcoex.no_stomp_timer) &&
 	    sc->sc_ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
 		ath_gen_timer_free(sc->sc_ah, sc->btcoex.no_stomp_timer);
+
+	if (sc->sc_ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_MCI)
+		ath_mci_cleanup(sc);
 
 	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++)
 		if (ATH_TXQ_SETUP(sc, i))

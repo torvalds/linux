@@ -241,10 +241,14 @@ int mesh_path_error_tx(u8 ttl, u8 *target, __le32 target_sn,
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct ieee80211_mgmt *mgmt;
 	u8 *pos, ie_len;
 	int hdr_len = offsetof(struct ieee80211_mgmt, u.action.u.mesh_action) +
 		      sizeof(mgmt->u.action.u.mesh_action);
+
+	if (time_before(jiffies, ifmsh->next_perr))
+		return -EAGAIN;
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom +
 			    hdr_len +
@@ -290,6 +294,8 @@ int mesh_path_error_tx(u8 ttl, u8 *target, __le32 target_sn,
 
 	/* see note in function header */
 	prepare_frame_for_deferred_tx(sdata, skb);
+	ifmsh->next_perr = TU_TO_EXP_TIME(
+				   ifmsh->mshcfg.dot11MeshHWMPperrMinInterval);
 	ieee80211_add_pending_skb(local, skb);
 	return 0;
 }
@@ -393,15 +399,13 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
 		orig_metric = PREQ_IE_METRIC(hwmp_ie);
 		break;
 	case MPATH_PREP:
-		/* Originator here refers to the MP that was the destination in
-		 * the Path Request. The draft refers to that MP as the
-		 * destination address, even though usually it is the origin of
-		 * the PREP frame. We divert from the nomenclature in the draft
+		/* Originator here refers to the MP that was the target in the
+		 * Path Request. We divert from the nomenclature in the draft
 		 * so that we can easily use a single function to gather path
 		 * information from both PREQ and PREP frames.
 		 */
-		orig_addr = PREP_IE_ORIG_ADDR(hwmp_ie);
-		orig_sn = PREP_IE_ORIG_SN(hwmp_ie);
+		orig_addr = PREP_IE_TARGET_ADDR(hwmp_ie);
+		orig_sn = PREP_IE_TARGET_SN(hwmp_ie);
 		orig_lifetime = PREP_IE_LIFETIME(hwmp_ie);
 		orig_metric = PREP_IE_METRIC(hwmp_ie);
 		break;
@@ -562,9 +566,9 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 		ttl = ifmsh->mshcfg.element_ttl;
 		if (ttl != 0) {
 			mhwmp_dbg("replying to the PREQ");
-			mesh_path_sel_frame_tx(MPATH_PREP, 0, target_addr,
-				cpu_to_le32(target_sn), 0, orig_addr,
-				cpu_to_le32(orig_sn), mgmt->sa, 0, ttl,
+			mesh_path_sel_frame_tx(MPATH_PREP, 0, orig_addr,
+				cpu_to_le32(orig_sn), 0, target_addr,
+				cpu_to_le32(target_sn), mgmt->sa, 0, ttl,
 				cpu_to_le32(lifetime), cpu_to_le32(metric),
 				0, sdata);
 		} else
@@ -618,14 +622,8 @@ static void hwmp_prep_frame_process(struct ieee80211_sub_if_data *sdata,
 
 	mhwmp_dbg("received PREP from %pM", PREP_IE_ORIG_ADDR(prep_elem));
 
-	/* Note that we divert from the draft nomenclature and denominate
-	 * destination to what the draft refers to as origininator. So in this
-	 * function destnation refers to the final destination of the PREP,
-	 * which corresponds with the originator of the PREQ which this PREP
-	 * replies
-	 */
-	target_addr = PREP_IE_TARGET_ADDR(prep_elem);
-	if (memcmp(target_addr, sdata->vif.addr, ETH_ALEN) == 0)
+	orig_addr = PREP_IE_ORIG_ADDR(prep_elem);
+	if (memcmp(orig_addr, sdata->vif.addr, ETH_ALEN) == 0)
 		/* destination, no forwarding required */
 		return;
 
@@ -636,7 +634,7 @@ static void hwmp_prep_frame_process(struct ieee80211_sub_if_data *sdata,
 	}
 
 	rcu_read_lock();
-	mpath = mesh_path_lookup(target_addr, sdata);
+	mpath = mesh_path_lookup(orig_addr, sdata);
 	if (mpath)
 		spin_lock_bh(&mpath->state_lock);
 	else
@@ -651,7 +649,7 @@ static void hwmp_prep_frame_process(struct ieee80211_sub_if_data *sdata,
 	flags = PREP_IE_FLAGS(prep_elem);
 	lifetime = PREP_IE_LIFETIME(prep_elem);
 	hopcount = PREP_IE_HOPCOUNT(prep_elem) + 1;
-	orig_addr = PREP_IE_ORIG_ADDR(prep_elem);
+	target_addr = PREP_IE_TARGET_ADDR(prep_elem);
 	target_sn = PREP_IE_TARGET_SN(prep_elem);
 	orig_sn = PREP_IE_ORIG_SN(prep_elem);
 
@@ -984,71 +982,97 @@ enddiscovery:
 	kfree(preq_node);
 }
 
-/**
- * mesh_nexthop_lookup - put the appropriate next hop on a mesh frame
+/* mesh_nexthop_resolve - lookup next hop for given skb and start path
+ * discovery if no forwarding information is found.
  *
  * @skb: 802.11 frame to be sent
  * @sdata: network subif the frame will be sent through
  *
- * Returns: 0 if the next hop was found. Nonzero otherwise. If no next hop is
- * found, the function will start a path discovery and queue the frame so it is
- * sent when the path is resolved. This means the caller must not free the skb
- * in this case.
+ * Returns: 0 if the next hop was found and -ENOENT if the frame was queued.
+ * skb is freeed here if no mpath could be allocated.
  */
-int mesh_nexthop_lookup(struct sk_buff *skb,
-			struct ieee80211_sub_if_data *sdata)
+int mesh_nexthop_resolve(struct sk_buff *skb,
+			 struct ieee80211_sub_if_data *sdata)
 {
-	struct sk_buff *skb_to_free = NULL;
-	struct mesh_path *mpath;
-	struct sta_info *next_hop;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct mesh_path *mpath;
+	struct sk_buff *skb_to_free = NULL;
 	u8 *target_addr = hdr->addr3;
 	int err = 0;
 
 	rcu_read_lock();
-	mpath = mesh_path_lookup(target_addr, sdata);
+	err = mesh_nexthop_lookup(skb, sdata);
+	if (!err)
+		goto endlookup;
 
+	/* no nexthop found, start resolving */
+	mpath = mesh_path_lookup(target_addr, sdata);
 	if (!mpath) {
 		mesh_path_add(target_addr, sdata);
 		mpath = mesh_path_lookup(target_addr, sdata);
 		if (!mpath) {
-			sdata->u.mesh.mshstats.dropped_frames_no_route++;
+			mesh_path_discard_frame(skb, sdata);
 			err = -ENOSPC;
 			goto endlookup;
 		}
 	}
 
-	if (mpath->flags & MESH_PATH_ACTIVE) {
-		if (time_after(jiffies,
-			       mpath->exp_time -
-			       msecs_to_jiffies(sdata->u.mesh.mshcfg.path_refresh_time)) &&
-		    !memcmp(sdata->vif.addr, hdr->addr4, ETH_ALEN) &&
-		    !(mpath->flags & MESH_PATH_RESOLVING) &&
-		    !(mpath->flags & MESH_PATH_FIXED)) {
-			mesh_queue_preq(mpath,
-					PREQ_Q_F_START | PREQ_Q_F_REFRESH);
-		}
-		next_hop = rcu_dereference(mpath->next_hop);
-		if (next_hop)
-			memcpy(hdr->addr1, next_hop->sta.addr, ETH_ALEN);
-		else
-			err = -ENOENT;
-	} else {
-		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-		if (!(mpath->flags & MESH_PATH_RESOLVING)) {
-			/* Start discovery only if it is not running yet */
-			mesh_queue_preq(mpath, PREQ_Q_F_START);
-		}
+	if (!(mpath->flags & MESH_PATH_RESOLVING))
+		mesh_queue_preq(mpath, PREQ_Q_F_START);
 
-		if (skb_queue_len(&mpath->frame_queue) >= MESH_FRAME_QUEUE_LEN)
-			skb_to_free = skb_dequeue(&mpath->frame_queue);
+	if (skb_queue_len(&mpath->frame_queue) >= MESH_FRAME_QUEUE_LEN)
+		skb_to_free = skb_dequeue(&mpath->frame_queue);
 
-		info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
-		ieee80211_set_qos_hdr(sdata, skb);
-		skb_queue_tail(&mpath->frame_queue, skb);
-		if (skb_to_free)
-			mesh_path_discard_frame(skb_to_free, sdata);
-		err = -ENOENT;
+	info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
+	ieee80211_set_qos_hdr(sdata, skb);
+	skb_queue_tail(&mpath->frame_queue, skb);
+	err = -ENOENT;
+	if (skb_to_free)
+		mesh_path_discard_frame(skb_to_free, sdata);
+
+endlookup:
+	rcu_read_unlock();
+	return err;
+}
+/**
+ * mesh_nexthop_lookup - put the appropriate next hop on a mesh frame. Calling
+ * this function is considered "using" the associated mpath, so preempt a path
+ * refresh if this mpath expires soon.
+ *
+ * @skb: 802.11 frame to be sent
+ * @sdata: network subif the frame will be sent through
+ *
+ * Returns: 0 if the next hop was found. Nonzero otherwise.
+ */
+int mesh_nexthop_lookup(struct sk_buff *skb,
+			struct ieee80211_sub_if_data *sdata)
+{
+	struct mesh_path *mpath;
+	struct sta_info *next_hop;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	u8 *target_addr = hdr->addr3;
+	int err = -ENOENT;
+
+	rcu_read_lock();
+	mpath = mesh_path_lookup(target_addr, sdata);
+
+	if (!mpath || !(mpath->flags & MESH_PATH_ACTIVE))
+		goto endlookup;
+
+	if (time_after(jiffies,
+		       mpath->exp_time -
+		       msecs_to_jiffies(sdata->u.mesh.mshcfg.path_refresh_time)) &&
+	    !memcmp(sdata->vif.addr, hdr->addr4, ETH_ALEN) &&
+	    !(mpath->flags & MESH_PATH_RESOLVING) &&
+	    !(mpath->flags & MESH_PATH_FIXED))
+		mesh_queue_preq(mpath, PREQ_Q_F_START | PREQ_Q_F_REFRESH);
+
+	next_hop = rcu_dereference(mpath->next_hop);
+	if (next_hop) {
+		memcpy(hdr->addr1, next_hop->sta.addr, ETH_ALEN);
+		memcpy(hdr->addr2, sdata->vif.addr, ETH_ALEN);
+		err = 0;
 	}
 
 endlookup:

@@ -700,7 +700,6 @@ static int __devexit p54spi_remove(struct spi_device *spi)
 static struct spi_driver p54spi_driver = {
 	.driver = {
 		.name		= "p54spi",
-		.bus		= &spi_bus_type,
 		.owner		= THIS_MODULE,
 	},
 

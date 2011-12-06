@@ -92,47 +92,6 @@ static void ieee80211_reconfig_filter(struct work_struct *work)
 	ieee80211_configure_filter(local);
 }
 
-/*
- * Returns true if we are logically configured to be on
- * the operating channel AND the hardware-conf is currently
- * configured on the operating channel.  Compares channel-type
- * as well.
- */
-bool ieee80211_cfg_on_oper_channel(struct ieee80211_local *local)
-{
-	struct ieee80211_channel *chan;
-	enum nl80211_channel_type channel_type;
-
-	/* This logic needs to match logic in ieee80211_hw_config */
-	if (local->scan_channel) {
-		chan = local->scan_channel;
-		/* If scanning on oper channel, use whatever channel-type
-		 * is currently in use.
-		 */
-		if (chan == local->oper_channel)
-			channel_type = local->_oper_channel_type;
-		else
-			channel_type = NL80211_CHAN_NO_HT;
-	} else if (local->tmp_channel) {
-		chan = local->tmp_channel;
-		channel_type = local->tmp_channel_type;
-	} else {
-		chan = local->oper_channel;
-		channel_type = local->_oper_channel_type;
-	}
-
-	if (chan != local->oper_channel ||
-	    channel_type != local->_oper_channel_type)
-		return false;
-
-	/* Check current hardware-config against oper_channel. */
-	if (local->oper_channel != local->hw.conf.channel ||
-	    local->_oper_channel_type != local->hw.conf.channel_type)
-		return false;
-
-	return true;
-}
-
 int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 {
 	struct ieee80211_channel *chan;
@@ -778,6 +737,12 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 				      sizeof(void *) * channels, GFP_KERNEL);
 	if (!local->int_scan_req)
 		return -ENOMEM;
+
+	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+		if (!local->hw.wiphy->bands[band])
+			continue;
+		local->int_scan_req->rates[band] = (u32) -1;
+	}
 
 	/* if low-level driver supports AP, we also support VLAN */
 	if (local->hw.wiphy->interface_modes & BIT(NL80211_IFTYPE_AP)) {

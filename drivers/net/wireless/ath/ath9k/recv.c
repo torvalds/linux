@@ -475,7 +475,6 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 
 	return rfilt;
 
-#undef RX_FILTER_PRESERVE
 }
 
 int ath_startrecv(struct ath_softc *sc)
@@ -1923,15 +1922,20 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 			skb = hdr_skb;
 		}
 
-		/*
-		 * change the default rx antenna if rx diversity chooses the
-		 * other antenna 3 times in a row.
-		 */
-		if (sc->rx.defant != rs.rs_antenna) {
-			if (++sc->rx.rxotherant >= 3)
-				ath_setdefantenna(sc, rs.rs_antenna);
-		} else {
-			sc->rx.rxotherant = 0;
+
+		if (ah->caps.hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB) {
+
+			/*
+			 * change the default rx antenna if rx diversity
+			 * chooses the other antenna 3 times in a row.
+			 */
+			if (sc->rx.defant != rs.rs_antenna) {
+				if (++sc->rx.rxotherant >= 3)
+					ath_setdefantenna(sc, rs.rs_antenna);
+			} else {
+				sc->rx.rxotherant = 0;
+			}
+
 		}
 
 		if (rxs->flag & RX_FLAG_MMIC_STRIPPED)

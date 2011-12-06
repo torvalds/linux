@@ -143,17 +143,7 @@ static int iwl2000_hw_set_hw_params(struct iwl_priv *priv)
 	iwl2000_set_ct_threshold(priv);
 
 	/* Set initial sensitivity parameters */
-	/* Set initial calibration set */
 	hw_params(priv).sens = &iwl2000_sensitivity;
-	hw_params(priv).calib_init_cfg =
-		BIT(IWL_CALIB_XTAL)             |
-		BIT(IWL_CALIB_LO)               |
-		BIT(IWL_CALIB_TX_IQ)            |
-		BIT(IWL_CALIB_BASE_BAND);
-	if (priv->cfg->need_dc_calib)
-		hw_params(priv).calib_rt_cfg |= IWL_CALIB_CFG_DC_IDX;
-	if (priv->cfg->need_temp_offset_calib)
-		hw_params(priv).calib_init_cfg |= BIT(IWL_CALIB_TEMP_OFFSET);
 
 	return 0;
 }
@@ -258,7 +248,6 @@ static struct iwl_bt_params iwl2030_bt_params = {
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
 	.lib = &iwl2000_lib,					\
 	.base_params = &iwl2000_base_params,			\
-	.need_dc_calib = true,					\
 	.need_temp_offset_calib = true,				\
 	.temp_offset_v2 = true,					\
 	.led_mode = IWL_LED_RF_STATE,				\
@@ -286,7 +275,6 @@ struct iwl_cfg iwl2000_2bgn_d_cfg = {
 	.lib = &iwl2030_lib,					\
 	.base_params = &iwl2030_base_params,			\
 	.bt_params = &iwl2030_bt_params,			\
-	.need_dc_calib = true,					\
 	.need_temp_offset_calib = true,				\
 	.temp_offset_v2 = true,					\
 	.led_mode = IWL_LED_RF_STATE,				\
@@ -308,7 +296,6 @@ struct iwl_cfg iwl2030_2bgn_cfg = {
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
 	.lib = &iwl2000_lib,					\
 	.base_params = &iwl2000_base_params,			\
-	.need_dc_calib = true,					\
 	.need_temp_offset_calib = true,				\
 	.temp_offset_v2 = true,					\
 	.led_mode = IWL_LED_RF_STATE,				\
@@ -338,7 +325,6 @@ struct iwl_cfg iwl105_bgn_d_cfg = {
 	.lib = &iwl2030_lib,					\
 	.base_params = &iwl2030_base_params,			\
 	.bt_params = &iwl2030_bt_params,			\
-	.need_dc_calib = true,					\
 	.need_temp_offset_calib = true,				\
 	.temp_offset_v2 = true,					\
 	.led_mode = IWL_LED_RF_STATE,				\

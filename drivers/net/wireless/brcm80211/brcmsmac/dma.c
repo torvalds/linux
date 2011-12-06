@@ -1239,10 +1239,9 @@ bool dma_rxreset(struct dma_pub *pub)
  *   the error(toss frames) could be fatal and cause many subsequent hard
  *   to debug problems
  */
-int dma_txfast(struct dma_pub *pub, struct sk_buff *p0, bool commit)
+int dma_txfast(struct dma_pub *pub, struct sk_buff *p, bool commit)
 {
 	struct dma_info *di = (struct dma_info *)pub;
-	struct sk_buff *p, *next;
 	unsigned char *data;
 	uint len;
 	u16 txout;
@@ -1254,50 +1253,37 @@ int dma_txfast(struct dma_pub *pub, struct sk_buff *p0, bool commit)
 	txout = di->txout;
 
 	/*
-	 * Walk the chain of packet buffers
-	 * allocating and initializing transmit descriptor entries.
+	 * obtain and initialize transmit descriptor entry.
 	 */
-	for (p = p0; p; p = next) {
-		data = p->data;
-		len = p->len;
-		next = p->next;
+	data = p->data;
+	len = p->len;
 
-		/* return nonzero if out of tx descriptors */
-		if (nexttxd(di, txout) == di->txin)
-			goto outoftxd;
+	/* no use to transmit a zero length packet */
+	if (len == 0)
+		return 0;
 
-		if (len == 0)
-			continue;
+	/* return nonzero if out of tx descriptors */
+	if (nexttxd(di, txout) == di->txin)
+		goto outoftxd;
 
-		/* get physical address of buffer start */
-		pa = pci_map_single(di->pbus, data, len, PCI_DMA_TODEVICE);
+	/* get physical address of buffer start */
+	pa = pci_map_single(di->pbus, data, len, PCI_DMA_TODEVICE);
 
-		flags = 0;
-		if (p == p0)
-			flags |= D64_CTRL1_SOF;
+	/* With a DMA segment list, Descriptor table is filled
+	 * using the segment list instead of looping over
+	 * buffers in multi-chain DMA. Therefore, EOF for SGLIST
+	 * is when end of segment list is reached.
+	 */
+	flags = D64_CTRL1_SOF | D64_CTRL1_IOC | D64_CTRL1_EOF;
+	if (txout == (di->ntxd - 1))
+		flags |= D64_CTRL1_EOT;
 
-		/* With a DMA segment list, Descriptor table is filled
-		 * using the segment list instead of looping over
-		 * buffers in multi-chain DMA. Therefore, EOF for SGLIST
-		 * is when end of segment list is reached.
-		 */
-		if (next == NULL)
-			flags |= (D64_CTRL1_IOC | D64_CTRL1_EOF);
-		if (txout == (di->ntxd - 1))
-			flags |= D64_CTRL1_EOT;
+	dma64_dd_upd(di, di->txd64, pa, txout, &flags, len);
 
-		dma64_dd_upd(di, di->txd64, pa, txout, &flags, len);
-
-		txout = nexttxd(di, txout);
-	}
-
-	/* if last txd eof not set, fix it */
-	if (!(flags & D64_CTRL1_EOF))
-		di->txd64[prevtxd(di, txout)].ctrl1 =
-		     cpu_to_le32(flags | D64_CTRL1_IOC | D64_CTRL1_EOF);
+	txout = nexttxd(di, txout);
 
 	/* save the packet */
-	di->txp[prevtxd(di, txout)] = p0;
+	di->txp[prevtxd(di, txout)] = p;
 
 	/* bump the tx descriptor index */
 	di->txout = txout;
@@ -1314,7 +1300,7 @@ int dma_txfast(struct dma_pub *pub, struct sk_buff *p0, bool commit)
 
  outoftxd:
 	DMA_ERROR("%s: out of txds !!!\n", di->name);
-	brcmu_pkt_buf_free_skb(p0);
+	brcmu_pkt_buf_free_skb(p);
 	di->dma.txavail = 0;
 	di->dma.txnobuf++;
 	return -1;

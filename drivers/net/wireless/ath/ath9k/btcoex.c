@@ -21,7 +21,7 @@ enum ath_bt_mode {
 	ATH_BT_COEX_MODE_LEGACY,        /* legacy rx_clear mode */
 	ATH_BT_COEX_MODE_UNSLOTTED,     /* untimed/unslotted mode */
 	ATH_BT_COEX_MODE_SLOTTED,       /* slotted mode */
-	ATH_BT_COEX_MODE_DISALBED,      /* coexistence disabled */
+	ATH_BT_COEX_MODE_DISABLED,      /* coexistence disabled */
 };
 
 struct ath_btcoex_config {
