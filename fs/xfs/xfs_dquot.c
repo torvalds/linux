@@ -1302,6 +1302,14 @@ xfs_qm_dqpurge(
 	ASSERT(mutex_is_locked(&mp->m_quotainfo->qi_dqlist_lock));
 	ASSERT(mutex_is_locked(&dqp->q_hash->qh_lock));
 
+	/*
+	 * XXX(hch): horrible locking order, will get cleaned up ASAP.
+	 */
+	if (!mutex_trylock(&xfs_Gqm->qm_dqfrlist_lock)) {
+		mutex_unlock(&dqp->q_hash->qh_lock);
+		return 1;
+	}
+
 	xfs_dqlock(dqp);
 	/*
 	 * We really can't afford to purge a dquot that is
@@ -1364,25 +1372,23 @@ xfs_qm_dqpurge(
 
 	list_del_init(&dqp->q_hashlist);
 	qh->qh_version++;
+
 	list_del_init(&dqp->q_mplist);
 	mp->m_quotainfo->qi_dqreclaims++;
 	mp->m_quotainfo->qi_dquots--;
-	/*
-	 * XXX Move this to the front of the freelist, if we can get the
-	 * freelist lock.
-	 */
-	ASSERT(!list_empty(&dqp->q_freelist));
 
-	dqp->q_mount = NULL;
-	dqp->q_hash = NULL;
-	dqp->dq_flags = XFS_DQ_INACTIVE;
-	memset(&dqp->q_core, 0, sizeof(dqp->q_core));
+	list_del_init(&dqp->q_freelist);
+	xfs_Gqm->qm_dqfrlist_cnt--;
+
 	xfs_dqfunlock(dqp);
 	xfs_dqunlock(dqp);
-	mutex_unlock(&qh->qh_lock);
-	return (0);
-}
 
+	mutex_unlock(&xfs_Gqm->qm_dqfrlist_lock);
+	mutex_unlock(&qh->qh_lock);
+
+	xfs_qm_dqdestroy(dqp);
+	return 0;
+}
 
 /*
  * Give the buffer a little push if it is incore and

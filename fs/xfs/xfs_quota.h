@@ -88,7 +88,6 @@ typedef struct xfs_dqblk {
 #define XFS_DQ_GROUP		0x0004		/* a group quota */
 #define XFS_DQ_DIRTY		0x0008		/* dquot is dirty */
 #define XFS_DQ_WANT		0x0010		/* for lookup/reclaim race */
-#define XFS_DQ_INACTIVE		0x0020		/* dq off mplist & hashlist */
 
 #define XFS_DQ_ALLTYPES		(XFS_DQ_USER|XFS_DQ_PROJ|XFS_DQ_GROUP)
 
@@ -97,8 +96,7 @@ typedef struct xfs_dqblk {
 	{ XFS_DQ_PROJ,		"PROJ" }, \
 	{ XFS_DQ_GROUP,		"GROUP" }, \
 	{ XFS_DQ_DIRTY,		"DIRTY" }, \
-	{ XFS_DQ_WANT,		"WANT" }, \
-	{ XFS_DQ_INACTIVE,	"INACTIVE" }
+	{ XFS_DQ_WANT,		"WANT" }
 
 /*
  * In the worst case, when both user and group quotas are on,
