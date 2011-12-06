@@ -32,10 +32,7 @@
 #include "xfs_discard.h"
 
 /*
- * Perform initial CIL structure initialisation. If the CIL is not
- * enabled in this filesystem, ensure the log->l_cilp is null so
- * we can check this conditional to determine if we are doing delayed
- * logging or not.
+ * Perform initial CIL structure initialisation.
  */
 int
 xlog_cil_init(
@@ -43,10 +40,6 @@ xlog_cil_init(
 {
 	struct xfs_cil	*cil;
 	struct xfs_cil_ctx *ctx;
-
-	log->l_cilp = NULL;
-	if (!(log->l_mp->m_flags & XFS_MOUNT_DELAYLOG))
-		return 0;
 
 	cil = kmem_zalloc(sizeof(*cil), KM_SLEEP|KM_MAYFAIL);
 	if (!cil)
@@ -80,9 +73,6 @@ void
 xlog_cil_destroy(
 	struct log	*log)
 {
-	if (!log->l_cilp)
-		return;
-
 	if (log->l_cilp->xc_ctx) {
 		if (log->l_cilp->xc_ctx->ticket)
 			xfs_log_ticket_put(log->l_cilp->xc_ctx->ticket);
@@ -137,9 +127,6 @@ void
 xlog_cil_init_post_recovery(
 	struct log	*log)
 {
-	if (!log->l_cilp)
-		return;
-
 	log->l_cilp->xc_ctx->ticket = xlog_cil_ticket_alloc(log);
 	log->l_cilp->xc_ctx->sequence = 1;
 	log->l_cilp->xc_ctx->commit_lsn = xlog_assign_lsn(log->l_curr_cycle,
@@ -786,8 +773,6 @@ xfs_log_item_in_current_chkpt(
 {
 	struct xfs_cil_ctx *ctx;
 
-	if (!(lip->li_mountp->m_flags & XFS_MOUNT_DELAYLOG))
-		return false;
 	if (list_empty(&lip->li_cil))
 		return false;
 

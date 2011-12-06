@@ -760,38 +760,6 @@ xfs_log_item_init(
 	INIT_LIST_HEAD(&item->li_cil);
 }
 
-/*
- * Write region vectors to log.  The write happens using the space reservation
- * of the ticket (tic).  It is not a requirement that all writes for a given
- * transaction occur with one call to xfs_log_write(). However, it is important
- * to note that the transaction reservation code makes an assumption about the
- * number of log headers a transaction requires that may be violated if you
- * don't pass all the transaction vectors in one call....
- */
-int
-xfs_log_write(
-	struct xfs_mount	*mp,
-	struct xfs_log_iovec	reg[],
-	int			nentries,
-	struct xlog_ticket	*tic,
-	xfs_lsn_t		*start_lsn)
-{
-	struct log		*log = mp->m_log;
-	int			error;
-	struct xfs_log_vec	vec = {
-		.lv_niovecs = nentries,
-		.lv_iovecp = reg,
-	};
-
-	if (XLOG_FORCED_SHUTDOWN(log))
-		return XFS_ERROR(EIO);
-
-	error = xlog_write(log, &vec, tic, start_lsn, NULL, 0);
-	if (error)
-		xfs_force_shutdown(mp, SHUTDOWN_LOG_IO_ERROR);
-	return error;
-}
-
 void
 xfs_log_move_tail(xfs_mount_t	*mp,
 		  xfs_lsn_t	tail_lsn)
@@ -1685,7 +1653,7 @@ xlog_print_tic_res(
 	};
 
 	xfs_warn(mp,
-		"xfs_log_write: reservation summary:\n"
+		"xlog_write: reservation summary:\n"
 		"  trans type  = %s (%u)\n"
 		"  unit res    = %d bytes\n"
 		"  current res = %d bytes\n"
@@ -1714,7 +1682,7 @@ xlog_print_tic_res(
 	}
 
 	xfs_alert_tag(mp, XFS_PTAG_LOGRES,
-		"xfs_log_write: reservation ran out. Need to up reservation");
+		"xlog_write: reservation ran out. Need to up reservation");
 	xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 }
 
@@ -1968,23 +1936,21 @@ xlog_write(
 	*start_lsn = 0;
 
 	len = xlog_write_calc_vec_length(ticket, log_vector);
-	if (log->l_cilp) {
-		/*
-		 * Region headers and bytes are already accounted for.
-		 * We only need to take into account start records and
-		 * split regions in this function.
-		 */
-		if (ticket->t_flags & XLOG_TIC_INITED)
-			ticket->t_curr_res -= sizeof(xlog_op_header_t);
 
-		/*
-		 * Commit record headers need to be accounted for. These
-		 * come in as separate writes so are easy to detect.
-		 */
-		if (flags & (XLOG_COMMIT_TRANS | XLOG_UNMOUNT_TRANS))
-			ticket->t_curr_res -= sizeof(xlog_op_header_t);
-	} else
-		ticket->t_curr_res -= len;
+	/*
+	 * Region headers and bytes are already accounted for.
+	 * We only need to take into account start records and
+	 * split regions in this function.
+	 */
+	if (ticket->t_flags & XLOG_TIC_INITED)
+		ticket->t_curr_res -= sizeof(xlog_op_header_t);
+
+	/*
+	 * Commit record headers need to be accounted for. These
+	 * come in as separate writes so are easy to detect.
+	 */
+	if (flags & (XLOG_COMMIT_TRANS | XLOG_UNMOUNT_TRANS))
+		ticket->t_curr_res -= sizeof(xlog_op_header_t);
 
 	if (ticket->t_curr_res < 0)
 		xlog_print_tic_res(log->l_mp, ticket);
@@ -2931,8 +2897,7 @@ _xfs_log_force(
 
 	XFS_STATS_INC(xs_log_force);
 
-	if (log->l_cilp)
-		xlog_cil_force(log);
+	xlog_cil_force(log);
 
 	spin_lock(&log->l_icloglock);
 
@@ -3081,11 +3046,9 @@ _xfs_log_force_lsn(
 
 	XFS_STATS_INC(xs_log_force);
 
-	if (log->l_cilp) {
-		lsn = xlog_cil_force_lsn(log, lsn);
-		if (lsn == NULLCOMMITLSN)
-			return 0;
-	}
+	lsn = xlog_cil_force_lsn(log, lsn);
+	if (lsn == NULLCOMMITLSN)
+		return 0;
 
 try_again:
 	spin_lock(&log->l_icloglock);
@@ -3653,7 +3616,7 @@ xfs_log_force_umount(
 	 * completed transactions are flushed to disk with the xfs_log_force()
 	 * call below.
 	 */
-	if (!logerror && (mp->m_flags & XFS_MOUNT_DELAYLOG))
+	if (!logerror)
 		xlog_cil_force(log);
 
 	/*
