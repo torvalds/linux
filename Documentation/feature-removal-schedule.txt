@@ -263,8 +263,7 @@ Who:	Ravikiran Thirumalai <kiran@scalex86.org>
 
 What:	Code that is now under CONFIG_WIRELESS_EXT_SYSFS
 	(in net/core/net-sysfs.c)
-When:	After the only user (hal) has seen a release with the patches
-	for enough time, probably some time in 2010.
+When:	3.5
 Why:	Over 1K .text/.data size reduction, data is available in other
 	ways (ioctls)
 Who:	Johannes Berg <johannes@sipsolutions.net>
