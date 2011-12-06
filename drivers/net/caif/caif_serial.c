@@ -261,7 +261,7 @@ static int handle_tx(struct ser_device *ser)
 		skb_pull(skb, tty_wr);
 		if (skb->len == 0) {
 			struct sk_buff *tmp = skb_dequeue(&ser->head);
-			BUG_ON(tmp != skb);
+			WARN_ON(tmp != skb);
 			if (in_interrupt())
 				dev_kfree_skb_irq(skb);
 			else
@@ -305,7 +305,7 @@ static void ldisc_tx_wakeup(struct tty_struct *tty)
 
 	ser = tty->disc_data;
 	BUG_ON(ser == NULL);
-	BUG_ON(ser->tty != tty);
+	WARN_ON(ser->tty != tty);
 	handle_tx(ser);
 }
 

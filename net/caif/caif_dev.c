@@ -58,7 +58,6 @@ static int q_high = 50; /* Percent */
 struct cfcnfg *get_cfcnfg(struct net *net)
 {
 	struct caif_net *caifn;
-	BUG_ON(!net);
 	caifn = net_generic(net, caif_net_id);
 	if (!caifn)
 		return NULL;
@@ -69,7 +68,6 @@ EXPORT_SYMBOL(get_cfcnfg);
 static struct caif_device_entry_list *caif_device_list(struct net *net)
 {
 	struct caif_net *caifn;
-	BUG_ON(!net);
 	caifn = net_generic(net, caif_net_id);
 	if (!caifn)
 		return NULL;
@@ -507,15 +505,15 @@ static struct notifier_block caif_device_notifier = {
 static int caif_init_net(struct net *net)
 {
 	struct caif_net *caifn = net_generic(net, caif_net_id);
-	BUG_ON(!caifn);
+	if (WARN_ON(!caifn))
+		return -EINVAL;
+
 	INIT_LIST_HEAD(&caifn->caifdevs.list);
 	mutex_init(&caifn->caifdevs.lock);
 
 	caifn->cfg = cfcnfg_create();
-	if (!caifn->cfg) {
-		pr_warn("can't create cfcnfg\n");
+	if (!caifn->cfg)
 		return -ENOMEM;
-	}
 
 	return 0;
 }

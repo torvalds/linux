@@ -933,7 +933,7 @@ static int cfhsi_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		/* Create HSI frame. */
 		len = cfhsi_tx_frm(desc, cfhsi);
-		BUG_ON(!len);
+		WARN_ON(!len);
 
 		/* Set up new transfer. */
 		res = cfhsi->dev->cfhsi_tx(cfhsi->tx_buf, len, cfhsi->dev);
