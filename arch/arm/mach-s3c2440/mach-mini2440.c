@@ -167,6 +167,24 @@ static struct s3c2410fb_display mini2440_lcd_cfg[] __initdata = {
 		.lcdcon5	= (S3C2410_LCDCON5_FRM565 |
 				   S3C2410_LCDCON5_HWSWP),
 	},
+	/* mini2440 + 3.5" TFT (LCD-W35i, LQ035Q1DG06 type) + touchscreen*/
+	[3] = {
+		_LCD_DECLARE(
+			/* clock */
+			7,
+			/* xres, margin_right, margin_left, hsync */
+			320, 68, 66, 4,
+			/* yres, margin_top, margin_bottom, vsync */
+			240, 4, 4, 9,
+			/* refresh rate */
+			60),
+		.lcdcon5	= (S3C2410_LCDCON5_FRM565 |
+				   S3C2410_LCDCON5_INVVDEN |
+				   S3C2410_LCDCON5_INVVFRAME |
+				   S3C2410_LCDCON5_INVVLINE |
+				   S3C2410_LCDCON5_INVVCLK |
+				   S3C2410_LCDCON5_HWSWP),
+	},
 };
 
 /* todo - put into gpio header */
