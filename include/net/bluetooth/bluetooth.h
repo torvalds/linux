@@ -36,6 +36,11 @@
 #define PF_BLUETOOTH	AF_BLUETOOTH
 #endif
 
+/* Bluetooth versions */
+#define BLUETOOTH_VER_1_1	1
+#define BLUETOOTH_VER_1_2	2
+#define BLUETOOTH_VER_2_0	3
+
 /* Reserv for core and drivers use */
 #define BT_SKB_RESERVE	8
 
