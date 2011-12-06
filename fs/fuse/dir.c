@@ -868,7 +868,7 @@ int fuse_update_attributes(struct inode *inode, struct kstat *stat,
 }
 
 int fuse_reverse_inval_entry(struct super_block *sb, u64 parent_nodeid,
-			     struct qstr *name)
+			     u64 child_nodeid, struct qstr *name)
 {
 	int err = -ENOTDIR;
 	struct inode *parent;
@@ -895,8 +895,36 @@ int fuse_reverse_inval_entry(struct super_block *sb, u64 parent_nodeid,
 
 	fuse_invalidate_attr(parent);
 	fuse_invalidate_entry(entry);
+
+	if (child_nodeid != 0 && entry->d_inode) {
+		mutex_lock(&entry->d_inode->i_mutex);
+		if (get_node_id(entry->d_inode) != child_nodeid) {
+			err = -ENOENT;
+			goto badentry;
+		}
+		if (d_mountpoint(entry)) {
+			err = -EBUSY;
+			goto badentry;
+		}
+		if (S_ISDIR(entry->d_inode->i_mode)) {
+			shrink_dcache_parent(entry);
+			if (!simple_empty(entry)) {
+				err = -ENOTEMPTY;
+				goto badentry;
+			}
+			entry->d_inode->i_flags |= S_DEAD;
+		}
+		dont_mount(entry);
+		clear_nlink(entry->d_inode);
+		err = 0;
+ badentry:
+		mutex_unlock(&entry->d_inode->i_mutex);
+		if (!err)
+			d_delete(entry);
+	} else {
+		err = 0;
+	}
 	dput(entry);
-	err = 0;
 
  unlock:
 	mutex_unlock(&parent->i_mutex);

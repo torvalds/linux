@@ -755,9 +755,15 @@ int fuse_reverse_inval_inode(struct super_block *sb, u64 nodeid,
 /**
  * File-system tells the kernel to invalidate parent attributes and
  * the dentry matching parent/name.
+ *
+ * If the child_nodeid is non-zero and:
+ *    - matches the inode number for the dentry matching parent/name,
+ *    - is not a mount point
+ *    - is a file or oan empty directory
+ * then the dentry is unhashed (d_delete()).
  */
 int fuse_reverse_inval_entry(struct super_block *sb, u64 parent_nodeid,
-			     struct qstr *name);
+			     u64 child_nodeid, struct qstr *name);
 
 int fuse_do_open(struct fuse_conn *fc, u64 nodeid, struct file *file,
 		 bool isdir);
