@@ -42,6 +42,12 @@
 #define MAX_PAUSE		max(HZ/5, 1)
 
 /*
+ * Try to keep balance_dirty_pages() call intervals higher than this many pages
+ * by raising pause time to max_pause when falls below it.
+ */
+#define DIRTY_POLL_THRESH	(128 >> (PAGE_SHIFT - 10))
+
+/*
  * Estimate write bandwidth at 200ms intervals.
  */
 #define BANDWIDTH_INTERVAL	max(HZ/5, 1)
@@ -1026,6 +1032,23 @@ static long bdi_min_pause(struct backing_dev_info *bdi,
 	t = min(t, 1 + max_pause / 2);
 	pages = dirty_ratelimit * t / roundup_pow_of_two(HZ);
 
+	/*
+	 * Tiny nr_dirtied_pause is found to hurt I/O performance in the test
+	 * case fio-mmap-randwrite-64k, which does 16*{sync read, async write}.
+	 * When the 16 consecutive reads are often interrupted by some dirty
+	 * throttling pause during the async writes, cfq will go into idles
+	 * (deadline is fine). So push nr_dirtied_pause as high as possible
+	 * until reaches DIRTY_POLL_THRESH=32 pages.
+	 */
+	if (pages < DIRTY_POLL_THRESH) {
+		t = max_pause;
+		pages = dirty_ratelimit * t / roundup_pow_of_two(HZ);
+		if (pages > DIRTY_POLL_THRESH) {
+			pages = DIRTY_POLL_THRESH;
+			t = HZ * DIRTY_POLL_THRESH / dirty_ratelimit;
+		}
+	}
+
 	pause = HZ * pages / (task_ratelimit + 1);
 	if (pause > max_pause) {
 		t = max_pause;
@@ -1036,7 +1059,7 @@ static long bdi_min_pause(struct backing_dev_info *bdi,
 	/*
 	 * The minimal pause time will normally be half the target pause time.
 	 */
-	return 1 + t / 2;
+	return pages >= DIRTY_POLL_THRESH ? 1 + t / 2 : t;
 }
 
 /*
