@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/dma-mapping.h>
 #include <linux/omapfb.h>
 
 #include <plat/common.h>
