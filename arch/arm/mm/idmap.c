@@ -1,8 +1,12 @@
 #include <linux/kernel.h>
 
 #include <asm/cputype.h>
+#include <asm/idmap.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
+#include <asm/sections.h>
+
+pgd_t *idmap_pgd;
 
 static void idmap_add_pmd(pud_t *pud, unsigned long addr, unsigned long end,
 	unsigned long prot)
@@ -28,7 +32,7 @@ static void idmap_add_pud(pgd_t *pgd, unsigned long addr, unsigned long end,
 	} while (pud++, addr = next, addr != end);
 }
 
-void identity_mapping_add(pgd_t *pgd, unsigned long addr, unsigned long end)
+static void identity_mapping_add(pgd_t *pgd, unsigned long addr, unsigned long end)
 {
 	unsigned long prot, next;
 
@@ -43,48 +47,41 @@ void identity_mapping_add(pgd_t *pgd, unsigned long addr, unsigned long end)
 	} while (pgd++, addr = next, addr != end);
 }
 
-#ifdef CONFIG_SMP
-static void idmap_del_pmd(pud_t *pud, unsigned long addr, unsigned long end)
+extern char  __idmap_text_start[], __idmap_text_end[];
+
+static int __init init_static_idmap(void)
 {
-	pmd_t *pmd = pmd_offset(pud, addr);
-	pmd_clear(pmd);
+	phys_addr_t idmap_start, idmap_end;
+
+	idmap_pgd = pgd_alloc(&init_mm);
+	if (!idmap_pgd)
+		return -ENOMEM;
+
+	/* Add an identity mapping for the physical address of the section. */
+	idmap_start = virt_to_phys((void *)__idmap_text_start);
+	idmap_end = virt_to_phys((void *)__idmap_text_end);
+
+	pr_info("Setting up static identity map for 0x%llx - 0x%llx\n",
+		(long long)idmap_start, (long long)idmap_end);
+	identity_mapping_add(idmap_pgd, idmap_start, idmap_end);
+
+	return 0;
 }
-
-static void idmap_del_pud(pgd_t *pgd, unsigned long addr, unsigned long end)
-{
-	pud_t *pud = pud_offset(pgd, addr);
-	unsigned long next;
-
-	do {
-		next = pud_addr_end(addr, end);
-		idmap_del_pmd(pud, addr, next);
-	} while (pud++, addr = next, addr != end);
-}
-
-void identity_mapping_del(pgd_t *pgd, unsigned long addr, unsigned long end)
-{
-	unsigned long next;
-
-	pgd += pgd_index(addr);
-	do {
-		next = pgd_addr_end(addr, end);
-		idmap_del_pud(pgd, addr, next);
-	} while (pgd++, addr = next, addr != end);
-}
-#endif
+early_initcall(init_static_idmap);
 
 /*
- * In order to soft-boot, we need to insert a 1:1 mapping in place of
- * the user-mode pages.  This will then ensure that we have predictable
- * results when turning the mmu off
+ * In order to soft-boot, we need to switch to a 1:1 mapping for the
+ * cpu_reset functions. This will then ensure that we have predictable
+ * results when turning off the mmu.
  */
 void setup_mm_for_reboot(void)
 {
-	/*
-	 * We need to access to user-mode page tables here. For kernel threads
-	 * we don't have any user-mode mappings so we use the context that we
-	 * "borrowed".
-	 */
-	identity_mapping_add(current->active_mm->pgd, 0, TASK_SIZE);
+	/* Clean and invalidate L1. */
+	flush_cache_all();
+
+	/* Switch to the identity mapping. */
+	cpu_switch_mm(idmap_pgd, &init_mm);
+
+	/* Flush the TLB. */
 	local_flush_tlb_all();
 }

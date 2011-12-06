@@ -54,6 +54,7 @@ ENDPROC(cpu_suspend_abort)
  * r0 = control register value
  */
 	.align	5
+	.pushsection	.idmap.text,"ax"
 ENTRY(cpu_resume_mmu)
 	ldr	r3, =cpu_resume_after_mmu
 	mcr	p15, 0, r0, c1, c0, 0	@ turn on MMU, I-cache, etc
@@ -62,6 +63,7 @@ ENTRY(cpu_resume_mmu)
 	mov	r0, r0
 	mov	pc, r3			@ jump to virtual address
 ENDPROC(cpu_resume_mmu)
+	.popsection
 cpu_resume_after_mmu:
 	bl	cpu_init		@ restore the und/abt/irq banked regs
 	mov	r0, #0			@ return zero on success
