@@ -940,8 +940,6 @@ static struct gnttab_copy *xen_netbk_get_requests(struct xen_netbk *netbk,
 		if (!page)
 			return NULL;
 
-		netbk->mmap_pages[pending_idx] = page;
-
 		gop->source.u.ref = txp->gref;
 		gop->source.domid = vif->domid;
 		gop->source.offset = txp->offset;
@@ -1335,8 +1333,6 @@ static unsigned xen_netbk_tx_build_gops(struct xen_netbk *netbk)
 			netbk_tx_err(vif, &txreq, idx);
 			continue;
 		}
-
-		netbk->mmap_pages[pending_idx] = page;
 
 		gop->source.u.ref = txreq.gref;
 		gop->source.domid = vif->domid;
