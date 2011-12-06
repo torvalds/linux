@@ -51,7 +51,7 @@ static void dccp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
 static const struct inet_diag_handler dccp_diag_handler = {
 	.idiag_hashinfo	 = &dccp_hashinfo,
 	.idiag_get_info	 = dccp_diag_get_info,
-	.idiag_type	 = DCCPDIAG_GETSOCK,
+	.idiag_type	 = IPPROTO_DCCP,
 	.idiag_info_size = sizeof(struct tcp_info),
 };
 
@@ -71,4 +71,4 @@ module_exit(dccp_diag_fini);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Arnaldo Carvalho de Melo <acme@mandriva.com>");
 MODULE_DESCRIPTION("DCCP inet_diag handler");
-MODULE_ALIAS_NET_PF_PROTO_TYPE(PF_NETLINK, NETLINK_SOCK_DIAG, DCCPDIAG_GETSOCK);
+MODULE_ALIAS_NET_PF_PROTO_TYPE(PF_NETLINK, NETLINK_SOCK_DIAG, 33);

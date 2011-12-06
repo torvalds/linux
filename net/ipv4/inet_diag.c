@@ -50,19 +50,31 @@ static struct sock *sdiagnl;
 #define INET_DIAG_PUT(skb, attrtype, attrlen) \
 	RTA_DATA(__RTA_PUT(skb, attrtype, attrlen))
 
+static inline int inet_diag_type2proto(int type)
+{
+	switch (type) {
+	case TCPDIAG_GETSOCK:
+		return IPPROTO_TCP;
+	case DCCPDIAG_GETSOCK:
+		return IPPROTO_DCCP;
+	default:
+		return 0;
+	}
+}
+
 static DEFINE_MUTEX(inet_diag_table_mutex);
 
-static const struct inet_diag_handler *inet_diag_lock_handler(int type)
+static const struct inet_diag_handler *inet_diag_lock_handler(int proto)
 {
-	if (!inet_diag_table[type])
+	if (!inet_diag_table[proto])
 		request_module("net-pf-%d-proto-%d-type-%d", PF_NETLINK,
-			       NETLINK_SOCK_DIAG, type);
+			       NETLINK_SOCK_DIAG, proto);
 
 	mutex_lock(&inet_diag_table_mutex);
-	if (!inet_diag_table[type])
+	if (!inet_diag_table[proto])
 		return ERR_PTR(-ENOENT);
 
-	return inet_diag_table[type];
+	return inet_diag_table[proto];
 }
 
 static inline void inet_diag_unlock_handler(
@@ -85,7 +97,7 @@ static int inet_csk_diag_fill(struct sock *sk,
 	unsigned char	 *b = skb_tail_pointer(skb);
 	const struct inet_diag_handler *handler;
 
-	handler = inet_diag_table[unlh->nlmsg_type];
+	handler = inet_diag_table[inet_diag_type2proto(unlh->nlmsg_type)];
 	BUG_ON(handler == NULL);
 
 	nlh = NLMSG_PUT(skb, pid, seq, unlh->nlmsg_type, sizeof(*r));
@@ -257,7 +269,7 @@ static int inet_diag_get_exact(struct sk_buff *in_skb,
 	struct inet_hashinfo *hashinfo;
 	const struct inet_diag_handler *handler;
 
-	handler = inet_diag_lock_handler(nlh->nlmsg_type);
+	handler = inet_diag_lock_handler(inet_diag_type2proto(nlh->nlmsg_type));
 	if (IS_ERR(handler)) {
 		err = PTR_ERR(handler);
 		goto unlock;
@@ -707,7 +719,7 @@ static int inet_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	if (nlmsg_attrlen(cb->nlh, sizeof(struct inet_diag_req)))
 		bc = nlmsg_find_attr(cb->nlh, sizeof(*r), INET_DIAG_REQ_BYTECODE);
 
-	handler = inet_diag_lock_handler(cb->nlh->nlmsg_type);
+	handler = inet_diag_lock_handler(inet_diag_type2proto(cb->nlh->nlmsg_type));
 	if (IS_ERR(handler))
 		goto unlock;
 
@@ -907,7 +919,7 @@ int inet_diag_register(const struct inet_diag_handler *h)
 	const __u16 type = h->idiag_type;
 	int err = -EINVAL;
 
-	if (type >= INET_DIAG_GETSOCK_MAX)
+	if (type >= IPPROTO_MAX)
 		goto out;
 
 	mutex_lock(&inet_diag_table_mutex);
@@ -926,7 +938,7 @@ void inet_diag_unregister(const struct inet_diag_handler *h)
 {
 	const __u16 type = h->idiag_type;
 
-	if (type >= INET_DIAG_GETSOCK_MAX)
+	if (type >= IPPROTO_MAX)
 		return;
 
 	mutex_lock(&inet_diag_table_mutex);
@@ -937,7 +949,7 @@ EXPORT_SYMBOL_GPL(inet_diag_unregister);
 
 static int __init inet_diag_init(void)
 {
-	const int inet_diag_table_size = (INET_DIAG_GETSOCK_MAX *
+	const int inet_diag_table_size = (IPPROTO_MAX *
 					  sizeof(struct inet_diag_handler *));
 	int err = -ENOMEM;
 
