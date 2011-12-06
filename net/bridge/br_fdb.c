@@ -347,7 +347,6 @@ static struct net_bridge_fdb_entry *fdb_create(struct hlist_head *head,
 		fdb->is_static = 0;
 		fdb->updated = fdb->used = jiffies;
 		hlist_add_head_rcu(&fdb->hlist, head);
-		fdb_notify(fdb, RTM_NEWNEIGH);
 	}
 	return fdb;
 }
@@ -379,6 +378,7 @@ static int fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
 		return -ENOMEM;
 
 	fdb->is_local = fdb->is_static = 1;
+	fdb_notify(fdb, RTM_NEWNEIGH);
 	return 0;
 }
 
@@ -424,9 +424,11 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 		}
 	} else {
 		spin_lock(&br->hash_lock);
-		if (likely(!fdb_find(head, addr)))
-			fdb_create(head, source, addr);
-
+		if (likely(!fdb_find(head, addr))) {
+			fdb = fdb_create(head, source, addr);
+			if (fdb)
+				fdb_notify(fdb, RTM_NEWNEIGH);
+		}
 		/* else  we lose race and someone else inserts
 		 * it first, don't bother updating
 		 */
@@ -572,6 +574,7 @@ static int fdb_add_entry(struct net_bridge_port *source, const __u8 *addr,
 		fdb = fdb_create(head, source, addr);
 		if (!fdb)
 			return -ENOMEM;
+		fdb_notify(fdb, RTM_NEWNEIGH);
 	} else {
 		if (flags & NLM_F_EXCL)
 			return -EEXIST;
