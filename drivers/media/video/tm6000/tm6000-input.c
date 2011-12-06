@@ -426,7 +426,7 @@ int tm6000_ir_init(struct tm6000_core *dev)
 	rc->scanmask = 0xffff;
 	rc->priv = ir;
 	rc->change_protocol = tm6000_ir_change_protocol;
-	if (&dev->int_in) {
+	if (dev->int_in.endp) {
 		rc->open    = __tm6000_ir_int_start;
 		rc->close   = __tm6000_ir_int_stop;
 		INIT_DELAYED_WORK(&ir->work, tm6000_ir_int_work);

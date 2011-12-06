@@ -1612,7 +1612,7 @@ static int tm6000_release(struct file *file)
 
 		usb_reset_configuration(dev->udev);
 
-		if (&dev->int_in)
+		if (dev->int_in.endp)
 			usb_set_interface(dev->udev,
 					dev->isoc_in.bInterfaceNumber, 2);
 		else
