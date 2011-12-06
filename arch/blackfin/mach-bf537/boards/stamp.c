@@ -1462,7 +1462,7 @@ static struct platform_device bfin_spi0_device = {
 
 /* SPORT SPI controller data */
 static struct bfin5xx_spi_master bfin_sport_spi0_info = {
-	.num_chipselect = 1, /* master only supports one device */
+	.num_chipselect = MAX_BLACKFIN_GPIOS,
 	.enable_dma = 0,  /* master don't support DMA */
 	.pin_req = {P_SPORT0_DTPRI, P_SPORT0_TSCLK, P_SPORT0_DRPRI,
 		P_SPORT0_RSCLK, P_SPORT0_TFS, P_SPORT0_RFS, 0},
@@ -1492,7 +1492,7 @@ static struct platform_device bfin_sport_spi0_device = {
 };
 
 static struct bfin5xx_spi_master bfin_sport_spi1_info = {
-	.num_chipselect = 1, /* master only supports one device */
+	.num_chipselect = MAX_BLACKFIN_GPIOS,
 	.enable_dma = 0,  /* master don't support DMA */
 	.pin_req = {P_SPORT1_DTPRI, P_SPORT1_TSCLK, P_SPORT1_DRPRI,
 		P_SPORT1_RSCLK, P_SPORT1_TFS, P_SPORT1_RFS, 0},
