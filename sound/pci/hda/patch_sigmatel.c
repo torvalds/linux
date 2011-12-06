@@ -4442,7 +4442,7 @@ static int stac92xx_init(struct hda_codec *codec)
 		/* power on when no jack detection is available */
 		/* or when the VREF is used for controlling LED */
 		if (!spec->hp_detect ||
-		    (spec->gpio_led > 8 && spec->gpio_led == nid)) {
+		    spec->vref_mute_led_nid == nid) {
 			stac_toggle_power_map(codec, nid, 1);
 			continue;
 		}
