@@ -1,5 +1,5 @@
 /*
- * System call table for UML/x86-64, copied from arch/x86/kernel/syscall_*.c
+ * System call table for UML/i386, copied from arch/x86/kernel/syscall_*.c
  * with some changes for UML.
  */
 
@@ -19,27 +19,25 @@
 #define stub_iopl sys_ni_syscall
 #define sys_ioperm sys_ni_syscall
 
-/*
- * The UML TLS problem. Note that x86_64 does not implement this, so the below
- * is needed only for the ia32 compatibility.
- */
+#define sys_vm86old sys_ni_syscall
+#define sys_vm86 sys_ni_syscall
 
-/* On UML we call it this way ("old" means it's not mmap2) */
-#define sys_mmap old_mmap
+#define old_mmap sys_old_mmap
 
-#define stub_clone sys_clone
-#define stub_fork sys_fork
-#define stub_vfork sys_vfork
-#define stub_execve sys_execve
-#define stub_rt_sigsuspend sys_rt_sigsuspend
-#define stub_sigaltstack sys_sigaltstack
-#define stub_rt_sigreturn sys_rt_sigreturn
+#define ptregs_fork sys_fork
+#define ptregs_execve sys_execve
+#define ptregs_iopl sys_iopl
+#define ptregs_vm86old sys_vm86old
+#define ptregs_clone sys_clone
+#define ptregs_vm86 sys_vm86
+#define ptregs_sigaltstack sys_sigaltstack
+#define ptregs_vfork sys_vfork
 
-#define __SYSCALL_64(nr, sym, compat) extern asmlinkage void sym(void) ;
-#include <asm/syscalls_64.h>
+#define __SYSCALL_I386(nr, sym, compat) extern asmlinkage void sym(void) ;
+#include <asm/syscalls_32.h>
 
-#undef __SYSCALL_64
-#define __SYSCALL_64(nr, sym, compat) [ nr ] = sym,
+#undef __SYSCALL_I386
+#define __SYSCALL_I386(nr, sym, compat) [ nr ] = sym,
 
 typedef void (*sys_call_ptr_t)(void);
 
@@ -51,7 +49,7 @@ sys_call_ptr_t sys_call_table[] __cacheline_aligned = {
 	 * when the & below is removed.
 	 */
 	[0 ... __NR_syscall_max] = &sys_ni_syscall,
-#include <asm/syscalls_64.h>
+#include <asm/syscalls_32.h>
 };
 
 int syscall_table_size = sizeof(sys_call_table);
