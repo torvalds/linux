@@ -111,4 +111,12 @@ wlcore_hw_sta_get_ap_rate_mask(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	return wl->ops->sta_get_ap_rate_mask(wl, wlvif);
 }
 
+static inline int wlcore_identify_fw(struct wl1271 *wl)
+{
+	if (wl->ops->identify_fw)
+		return wl->ops->identify_fw(wl);
+
+	return 0;
+}
+
 #endif

@@ -31,6 +31,7 @@
 #include "io.h"
 #include "event.h"
 #include "rx.h"
+#include "hw_ops.h"
 
 static void wl1271_boot_set_ecpu_ctrl(struct wl1271 *wl, u32 flag)
 {
@@ -44,24 +45,7 @@ static void wl1271_boot_set_ecpu_ctrl(struct wl1271 *wl, u32 flag)
 	wlcore_write_reg(wl, REG_ECPU_CONTROL, cpu_ctrl);
 }
 
-static unsigned int wl12xx_get_fw_ver_quirks(struct wl1271 *wl)
-{
-	unsigned int quirks = 0;
-	unsigned int *fw_ver = wl->chip.fw_ver;
-
-	/* Only new station firmwares support routing fw logs to the host */
-	if ((fw_ver[FW_VER_IF_TYPE] == FW_VER_IF_TYPE_STA) &&
-	    (fw_ver[FW_VER_MINOR] < FW_VER_MINOR_FWLOG_STA_MIN))
-		quirks |= WLCORE_QUIRK_FWLOG_NOT_IMPLEMENTED;
-
-	/* This feature is not yet supported for AP mode */
-	if (fw_ver[FW_VER_IF_TYPE] == FW_VER_IF_TYPE_AP)
-		quirks |= WLCORE_QUIRK_FWLOG_NOT_IMPLEMENTED;
-
-	return quirks;
-}
-
-static void wl1271_parse_fw_ver(struct wl1271 *wl)
+static int wlcore_parse_fw_ver(struct wl1271 *wl)
 {
 	int ret;
 
@@ -73,21 +57,25 @@ static void wl1271_parse_fw_ver(struct wl1271 *wl)
 	if (ret != 5) {
 		wl1271_warning("fw version incorrect value");
 		memset(wl->chip.fw_ver, 0, sizeof(wl->chip.fw_ver));
-		return;
+		return -EINVAL;
 	}
 
-	/* Check if any quirks are needed with older fw versions */
-	wl->quirks |= wl12xx_get_fw_ver_quirks(wl);
+	ret = wlcore_identify_fw(wl);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
-static void wl1271_boot_fw_version(struct wl1271 *wl)
+static int wlcore_boot_fw_version(struct wl1271 *wl)
 {
 	struct wl1271_static_data *static_data;
+	int ret;
 
 	static_data = kmalloc(sizeof(*static_data), GFP_DMA);
 	if (!static_data) {
-		__WARN();
-		return;
+		wl1271_error("Couldn't allocate memory for static data!");
+		return -ENOMEM;
 	}
 
 	wl1271_read(wl, wl->cmd_box_addr, static_data, sizeof(*static_data),
@@ -101,7 +89,11 @@ static void wl1271_boot_fw_version(struct wl1271 *wl)
 	/* make sure the string is NULL-terminated */
 	wl->chip.fw_ver_str[sizeof(wl->chip.fw_ver_str) - 1] = '\0';
 
-	wl1271_parse_fw_ver(wl);
+	ret = wlcore_parse_fw_ver(wl);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
@@ -408,7 +400,11 @@ int wlcore_boot_run_firmware(struct wl1271 *wl)
 	wl1271_debug(DEBUG_MAILBOX, "MBOX ptrs: 0x%x 0x%x",
 		     wl->mbox_ptr[0], wl->mbox_ptr[1]);
 
-	wl1271_boot_fw_version(wl);
+	ret = wlcore_boot_fw_version(wl);
+	if (ret < 0) {
+		wl1271_error("couldn't boot firmware");
+		return ret;
+	}
 
 	/*
 	 * in case of full asynchronous mode the firmware event must be
