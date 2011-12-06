@@ -265,7 +265,7 @@ static int inet_diag_get_exact(struct sk_buff *in_skb,
 {
 	int err;
 	struct sock *sk;
-	struct inet_diag_req *req = NLMSG_DATA(nlh);
+	struct inet_diag_req_compat *req = NLMSG_DATA(nlh);
 	struct sk_buff *rep;
 	struct inet_hashinfo *hashinfo;
 	const struct inet_diag_handler *handler;
@@ -504,7 +504,7 @@ static int inet_csk_diag_dump(struct sock *sk,
 			      struct netlink_callback *cb,
 			      const struct nlattr *bc)
 {
-	struct inet_diag_req *r = NLMSG_DATA(cb->nlh);
+	struct inet_diag_req_compat *r = NLMSG_DATA(cb->nlh);
 
 	if (bc != NULL) {
 		struct inet_diag_entry entry;
@@ -541,7 +541,7 @@ static int inet_twsk_diag_dump(struct inet_timewait_sock *tw,
 			       struct netlink_callback *cb,
 			       const struct nlattr *bc)
 {
-	struct inet_diag_req *r = NLMSG_DATA(cb->nlh);
+	struct inet_diag_req_compat *r = NLMSG_DATA(cb->nlh);
 
 	if (bc != NULL) {
 		struct inet_diag_entry entry;
@@ -629,7 +629,7 @@ static int inet_diag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 			       const struct nlattr *bc)
 {
 	struct inet_diag_entry entry;
-	struct inet_diag_req *r = NLMSG_DATA(cb->nlh);
+	struct inet_diag_req_compat *r = NLMSG_DATA(cb->nlh);
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct listen_sock *lopt;
 	struct inet_sock *inet = inet_sk(sk);
@@ -712,12 +712,12 @@ static int inet_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	int i, num;
 	int s_i, s_num;
-	struct inet_diag_req *r = NLMSG_DATA(cb->nlh);
+	struct inet_diag_req_compat *r = NLMSG_DATA(cb->nlh);
 	const struct inet_diag_handler *handler;
 	struct inet_hashinfo *hashinfo;
 	const struct nlattr *bc = NULL;
 
-	if (nlmsg_attrlen(cb->nlh, sizeof(struct inet_diag_req)))
+	if (nlmsg_attrlen(cb->nlh, sizeof(struct inet_diag_req_compat)))
 		bc = nlmsg_find_attr(cb->nlh, sizeof(*r), INET_DIAG_REQ_BYTECODE);
 
 	handler = inet_diag_lock_handler(inet_diag_type2proto(cb->nlh->nlmsg_type));
@@ -863,7 +863,7 @@ unlock:
 
 static int inet_diag_rcv_msg_compat(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
-	int hdrlen = sizeof(struct inet_diag_req);
+	int hdrlen = sizeof(struct inet_diag_req_compat);
 
 	if (nlh->nlmsg_type >= INET_DIAG_GETSOCK_MAX ||
 	    nlmsg_len(nlh) < hdrlen)

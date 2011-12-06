@@ -23,7 +23,7 @@ struct inet_diag_sockid {
 
 /* Request structure */
 
-struct inet_diag_req {
+struct inet_diag_req_compat {
 	__u8	idiag_family;		/* Family of addresses. */
 	__u8	idiag_src_len;
 	__u8	idiag_dst_len;
@@ -33,6 +33,15 @@ struct inet_diag_req {
 
 	__u32	idiag_states;		/* States to dump */
 	__u32	idiag_dbs;		/* Tables to dump (NI) */
+};
+
+struct inet_diag_req {
+	__u8	sdiag_family;
+	__u8	sdiag_protocol;
+	__u8	idiag_ext;
+	__u8	pad;
+	__u32	idiag_states;
+	struct inet_diag_sockid id;
 };
 
 enum {
