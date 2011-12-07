@@ -20,7 +20,6 @@ extern struct sys_timer orion5x_timer;
  * functions to map its interfaces and by the machine-setup to map its on-
  * board devices. Details in /mach-orion/addr-map.c
  */
-extern struct mbus_dram_target_info orion5x_mbus_dram_info;
 void orion5x_setup_cpu_mbus_bridge(void);
 void orion5x_setup_dev_boot_win(u32 base, u32 size);
 void orion5x_setup_dev0_win(u32 base, u32 size);

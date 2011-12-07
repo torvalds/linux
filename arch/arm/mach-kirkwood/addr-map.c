@@ -35,8 +35,6 @@
 #define ATTR_PCIE1_MEM		0xd8
 #define ATTR_SRAM		0x01
 
-struct mbus_dram_target_info kirkwood_mbus_dram_info;
-
 /*
  * Description of the windows needed by the platform code
  */
@@ -88,6 +86,5 @@ void __init kirkwood_setup_cpu_mbus(void)
 	/*
 	 * Setup MBUS dram target info.
 	 */
-	orion_setup_cpu_mbus_target(&addr_map_cfg, &kirkwood_mbus_dram_info,
-				    DDR_WINDOW_CPU_BASE);
+	orion_setup_cpu_mbus_target(&addr_map_cfg, DDR_WINDOW_CPU_BASE);
 }

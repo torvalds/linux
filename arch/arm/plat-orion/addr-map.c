@@ -14,6 +14,8 @@
 #include <linux/io.h>
 #include <plat/addr-map.h>
 
+struct mbus_dram_target_info orion_mbus_dram_info;
+
 /*
  * DDR target is the same on all Orion platforms.
  */
@@ -134,14 +136,13 @@ void __init orion_config_wins(struct orion_addr_map_cfg * cfg,
  * Setup MBUS dram target info.
  */
 void __init orion_setup_cpu_mbus_target(const struct orion_addr_map_cfg *cfg,
-					struct mbus_dram_target_info *info,
 					const u32 ddr_window_cpu_base)
 {
 	void __iomem *addr;
 	int i;
 	int cs;
 
-	info->mbus_dram_target_id = TARGET_DDR;
+	orion_mbus_dram_info.mbus_dram_target_id = TARGET_DDR;
 
 	addr = (void __iomem *)ddr_window_cpu_base;
 
@@ -155,12 +156,12 @@ void __init orion_setup_cpu_mbus_target(const struct orion_addr_map_cfg *cfg,
 		if (size & 1) {
 			struct mbus_dram_window *w;
 
-			w = &info->cs[cs++];
+			w = &orion_mbus_dram_info.cs[cs++];
 			w->cs_index = i;
 			w->mbus_attr = 0xf & ~(1 << i);
 			w->base = base & 0xffff0000;
 			w->size = (size | 0x0000ffff) + 1;
 		}
 	}
-	info->num_cs = cs;
+	orion_mbus_dram_info.num_cs = cs;
 }

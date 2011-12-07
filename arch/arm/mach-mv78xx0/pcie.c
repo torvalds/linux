@@ -15,6 +15,7 @@
 #include <asm/irq.h>
 #include <asm/mach/pci.h>
 #include <plat/pcie.h>
+#include <plat/addr-map.h>
 #include "common.h"
 
 struct pcie_port {
@@ -153,7 +154,7 @@ static int __init mv78xx0_pcie_setup(int nr, struct pci_sys_data *sys)
 	 * Generic PCIe unit setup.
 	 */
 	orion_pcie_set_local_bus_nr(pp->base, sys->busnr);
-	orion_pcie_setup(pp->base, &mv78xx0_mbus_dram_info);
+	orion_pcie_setup(pp->base, &orion_mbus_dram_info);
 
 	sys->resource[0] = &pp->res[0];
 	sys->resource[1] = &pp->res[1];

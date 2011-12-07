@@ -35,8 +35,6 @@
 #define ATTR_PCIE_MEM		0xe8
 #define ATTR_SCRATCHPAD		0x0
 
-struct mbus_dram_target_info dove_mbus_dram_info;
-
 static inline void __iomem *ddr_map_sc(int i)
 {
 	return (void __iomem *)(DOVE_MC_VIRT_BASE + 0x100 + ((i) << 4));
@@ -102,7 +100,7 @@ void __init dove_setup_cpu_mbus(void)
 	/*
 	 * Setup MBUS dram target info.
 	 */
-	dove_mbus_dram_info.mbus_dram_target_id = TARGET_DDR;
+	orion_mbus_dram_info.mbus_dram_target_id = TARGET_DDR;
 
 	for (i = 0, cs = 0; i < 2; i++) {
 		u32 map = readl(ddr_map_sc(i));
@@ -113,7 +111,7 @@ void __init dove_setup_cpu_mbus(void)
 		if (map & 1) {
 			struct mbus_dram_window *w;
 
-			w = &dove_mbus_dram_info.cs[cs++];
+			w = &orion_mbus_dram_info.cs[cs++];
 			w->cs_index = i;
 			w->mbus_attr = 0; /* CS address decoding done inside */
 					  /* the DDR controller, no need to  */
@@ -122,5 +120,5 @@ void __init dove_setup_cpu_mbus(void)
 			w->size = 0x100000 << (((map & 0x000f0000) >> 16) - 4);
 		}
 	}
-	dove_mbus_dram_info.num_cs = cs;
+	orion_mbus_dram_info.num_cs = cs;
 }

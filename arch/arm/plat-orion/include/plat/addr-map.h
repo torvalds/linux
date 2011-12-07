@@ -11,6 +11,8 @@
 #ifndef __PLAT_ADDR_MAP_H
 #define __PLAT_ADDR_MAP_H
 
+extern struct mbus_dram_target_info orion_mbus_dram_info;
+
 struct orion_addr_map_cfg {
 	const int num_wins;	/* Total number of windows */
 	const int remappable_wins;
@@ -47,6 +49,5 @@ void __init orion_setup_cpu_win(const struct orion_addr_map_cfg *cfg,
 				const u8 attr, const int remap);
 
 void __init orion_setup_cpu_mbus_target(const struct orion_addr_map_cfg *cfg,
-					struct mbus_dram_target_info *info,
 					const u32 ddr_window_cpu_base);
 #endif

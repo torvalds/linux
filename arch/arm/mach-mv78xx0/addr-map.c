@@ -37,8 +37,6 @@
 #define WIN0_OFF(n)		(BRIDGE_VIRT_BASE + 0x0000 + ((n) << 4))
 #define WIN8_OFF(n)		(BRIDGE_VIRT_BASE + 0x0900 + (((n) - 8) << 4))
 
-struct mbus_dram_target_info mv78xx0_mbus_dram_info;
-
 static void __init __iomem *win_cfg_base(int win)
 {
 	/*
@@ -73,11 +71,9 @@ void __init mv78xx0_setup_cpu_mbus(void)
 	 */
 	if (mv78xx0_core_index() == 0)
 		orion_setup_cpu_mbus_target(&addr_map_cfg,
-					    &mv78xx0_mbus_dram_info,
 					    DDR_WINDOW_CPU0_BASE);
 	else
 		orion_setup_cpu_mbus_target(&addr_map_cfg,
-					    &mv78xx0_mbus_dram_info,
 					    DDR_WINDOW_CPU1_BASE);
 }
 

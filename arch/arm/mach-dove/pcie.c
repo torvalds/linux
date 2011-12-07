@@ -19,6 +19,7 @@
 #include <plat/pcie.h>
 #include <mach/irqs.h>
 #include <mach/bridge-regs.h>
+#include <plat/addr-map.h>
 #include "common.h"
 
 struct pcie_port {
@@ -50,7 +51,7 @@ static int __init dove_pcie_setup(int nr, struct pci_sys_data *sys)
 	 */
 	orion_pcie_set_local_bus_nr(pp->base, sys->busnr);
 
-	orion_pcie_setup(pp->base, &dove_mbus_dram_info);
+	orion_pcie_setup(pp->base, &orion_mbus_dram_info);
 
 	/*
 	 * IORESOURCE_IO

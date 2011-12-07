@@ -56,7 +56,6 @@
 #define ATTR_DEV_BOOT		0xf
 #define ATTR_SRAM		0x0
 
-struct mbus_dram_target_info orion5x_mbus_dram_info;
 static int __initdata win_alloc_count;
 
 static int __init cpu_win_can_remap(const struct orion_addr_map_cfg *cfg,
@@ -114,8 +113,7 @@ void __init orion5x_setup_cpu_mbus_bridge(void)
 	/*
 	 * Setup MBUS dram target info.
 	 */
-	orion_setup_cpu_mbus_target(&addr_map_cfg, &orion5x_mbus_dram_info,
-				    ORION5X_DDR_WINDOW_CPU_BASE);
+	orion_setup_cpu_mbus_target(&addr_map_cfg, ORION5X_DDR_WINDOW_CPU_BASE);
 }
 
 void __init orion5x_setup_dev_boot_win(u32 base, u32 size)

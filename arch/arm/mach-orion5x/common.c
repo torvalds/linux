@@ -31,6 +31,7 @@
 #include <plat/orion_nand.h>
 #include <plat/time.h>
 #include <plat/common.h>
+#include <plat/addr-map.h>
 #include "common.h"
 
 /*****************************************************************************
@@ -71,7 +72,7 @@ void __init orion5x_map_io(void)
  ****************************************************************************/
 void __init orion5x_ehci0_init(void)
 {
-	orion_ehci_init(&orion5x_mbus_dram_info,
+	orion_ehci_init(&orion_mbus_dram_info,
 			ORION5X_USB0_PHYS_BASE, IRQ_ORION5X_USB0_CTRL);
 }
 
@@ -81,7 +82,7 @@ void __init orion5x_ehci0_init(void)
  ****************************************************************************/
 void __init orion5x_ehci1_init(void)
 {
-	orion_ehci_1_init(&orion5x_mbus_dram_info,
+	orion_ehci_1_init(&orion_mbus_dram_info,
 			  ORION5X_USB1_PHYS_BASE, IRQ_ORION5X_USB1_CTRL);
 }
 
@@ -91,7 +92,7 @@ void __init orion5x_ehci1_init(void)
  ****************************************************************************/
 void __init orion5x_eth_init(struct mv643xx_eth_platform_data *eth_data)
 {
-	orion_ge00_init(eth_data, &orion5x_mbus_dram_info,
+	orion_ge00_init(eth_data, &orion_mbus_dram_info,
 			ORION5X_ETH_PHYS_BASE, IRQ_ORION5X_ETH_SUM,
 			IRQ_ORION5X_ETH_ERR, orion5x_tclk);
 }
@@ -121,7 +122,7 @@ void __init orion5x_i2c_init(void)
  ****************************************************************************/
 void __init orion5x_sata_init(struct mv_sata_platform_data *sata_data)
 {
-	orion_sata_init(sata_data, &orion5x_mbus_dram_info,
+	orion_sata_init(sata_data, &orion_mbus_dram_info,
 			ORION5X_SATA_PHYS_BASE, IRQ_ORION5X_SATA);
 }
 
@@ -158,7 +159,7 @@ void __init orion5x_uart1_init(void)
  ****************************************************************************/
 void __init orion5x_xor_init(void)
 {
-	orion_xor0_init(&orion5x_mbus_dram_info,
+	orion_xor0_init(&orion_mbus_dram_info,
 			ORION5X_XOR_PHYS_BASE,
 			ORION5X_XOR_PHYS_BASE + 0x200,
 			IRQ_ORION5X_XOR0, IRQ_ORION5X_XOR1);

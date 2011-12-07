@@ -17,6 +17,7 @@
 #include <asm/mach/pci.h>
 #include <plat/pcie.h>
 #include <mach/bridge-regs.h>
+#include <plat/addr-map.h>
 #include "common.h"
 
 void kirkwood_enable_pcie(void)
@@ -208,7 +209,7 @@ static int __init kirkwood_pcie_setup(int nr, struct pci_sys_data *sys)
 	 */
 	orion_pcie_set_local_bus_nr(pp->base, sys->busnr);
 
-	orion_pcie_setup(pp->base, &kirkwood_mbus_dram_info);
+	orion_pcie_setup(pp->base, &orion_mbus_dram_info);
 
 	return 1;
 }
