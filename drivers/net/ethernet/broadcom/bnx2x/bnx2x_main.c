@@ -2994,7 +2994,7 @@ static void bnx2x_drv_info_fcoe_stat(struct bnx2x *bp)
 		       fcoe_q_tstorm_stats->rcv_bcast_pkts);
 
 		ADD_64(fcoe_stat->rx_frames_hi, 0, fcoe_stat->rx_frames_lo,
-		       fcoe_q_tstorm_stats->rcv_ucast_pkts);
+		       fcoe_q_tstorm_stats->rcv_mcast_pkts);
 
 		ADD_64(fcoe_stat->tx_bytes_hi, 0, fcoe_stat->tx_bytes_lo,
 		       fw_fcoe_stat->tx_stat.fcoe_tx_byte_cnt);
