@@ -300,11 +300,14 @@ struct wl1271 {
 	const char *plt_fw_name;
 	const char *sr_fw_name;
 	const char *mr_fw_name;
+
+	/* per-chip-family private structure */
+	void *priv;
 };
 
 int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev);
 int __devexit wlcore_remove(struct platform_device *pdev);
-struct ieee80211_hw *wlcore_alloc_hw(void);
+struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size);
 int wlcore_free_hw(struct wl1271 *wl);
 
 /* Firmware image load chunk size */

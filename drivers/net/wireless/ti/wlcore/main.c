@@ -5197,7 +5197,7 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 
 #define WL1271_DEFAULT_CHANNEL 0
 
-struct ieee80211_hw *wlcore_alloc_hw(void)
+struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size)
 {
 	struct ieee80211_hw *hw;
 	struct wl1271 *wl;
@@ -5215,6 +5215,13 @@ struct ieee80211_hw *wlcore_alloc_hw(void)
 
 	wl = hw->priv;
 	memset(wl, 0, sizeof(*wl));
+
+	wl->priv = kzalloc(priv_size, GFP_KERNEL);
+	if (!wl->priv) {
+		wl1271_error("could not alloc wl priv");
+		ret = -ENOMEM;
+		goto err_priv_alloc;
+	}
 
 	INIT_LIST_HEAD(&wl->wlvif_list);
 
@@ -5316,6 +5323,9 @@ err_wq:
 
 err_hw:
 	wl1271_debugfs_exit(wl);
+	kfree(wl->priv);
+
+err_priv_alloc:
 	ieee80211_free_hw(hw);
 
 err_hw_alloc:
@@ -5354,6 +5364,7 @@ int wlcore_free_hw(struct wl1271 *wl)
 	kfree(wl->tx_res_if);
 	destroy_workqueue(wl->freezable_wq);
 
+	kfree(wl->priv);
 	ieee80211_free_hw(wl->hw);
 
 	return 0;
