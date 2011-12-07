@@ -503,6 +503,13 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 			return err;
 	}
 
+	if (!!rec->no_buildid
+	    && !perf_header__has_feat(&session->header, HEADER_BUILD_ID)) {
+		pr_err("Couldn't generating buildids. "
+		       "Use --no-buildid to profile anyway.\n");
+		return -1;
+	}
+
 	rec->post_processing_offset = lseek(output, 0, SEEK_CUR);
 
 	machine = perf_session__find_host_machine(session);

@@ -445,6 +445,9 @@ static int write_build_id(int fd, struct perf_header *h,
 
 	session = container_of(h, struct perf_session, header);
 
+	if (!perf_session__read_build_ids(session, true))
+		return -1;
+
 	err = dsos__write_buildid_table(h, fd);
 	if (err < 0) {
 		pr_debug("failed to write buildid table\n");
@@ -1417,10 +1420,6 @@ static int perf_header__adds_write(struct perf_header *header,
 
 	session = container_of(header, struct perf_session, header);
 
-	if (perf_header__has_feat(header, HEADER_BUILD_ID &&
-	    !perf_session__read_build_ids(session, true)))
-		perf_header__clear_feat(header, HEADER_BUILD_ID);
-
 	nr_sections = bitmap_weight(header->adds_features, HEADER_FEAT_BITS);
 	if (!nr_sections)
 		return 0;
@@ -1436,13 +1435,11 @@ static int perf_header__adds_write(struct perf_header *header,
 
 	err = do_write_feat(fd, header, HEADER_TRACE_INFO, &p, evlist);
 	if (err)
-		goto out_free;
+		perf_header__clear_feat(header, HEADER_TRACE_INFO);
 
 	err = do_write_feat(fd, header, HEADER_BUILD_ID, &p, evlist);
-	if (err) {
+	if (err)
 		perf_header__clear_feat(header, HEADER_BUILD_ID);
-		goto out_free;
-	}
 
 	err = do_write_feat(fd, header, HEADER_HOSTNAME, &p, evlist);
 	if (err)
@@ -1500,7 +1497,6 @@ static int perf_header__adds_write(struct perf_header *header,
 	err = do_write(fd, feat_sec, sec_size);
 	if (err < 0)
 		pr_debug("failed to write feature section\n");
-out_free:
 	free(feat_sec);
 	return err;
 }
