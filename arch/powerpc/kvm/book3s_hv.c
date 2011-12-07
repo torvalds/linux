@@ -417,7 +417,7 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 		goto out;
 
 	err = -ENOMEM;
-	vcpu = kzalloc(sizeof(struct kvm_vcpu), GFP_KERNEL);
+	vcpu = kmem_cache_zalloc(kvm_vcpu_cache, GFP_KERNEL);
 	if (!vcpu)
 		goto out;
 
@@ -469,7 +469,7 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 	return vcpu;
 
 free_vcpu:
-	kfree(vcpu);
+	kmem_cache_free(kvm_vcpu_cache, vcpu);
 out:
 	return ERR_PTR(err);
 }
@@ -483,7 +483,7 @@ void kvmppc_core_vcpu_free(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.vpa)
 		kvmppc_unpin_guest_page(vcpu->kvm, vcpu->arch.vpa);
 	kvm_vcpu_uninit(vcpu);
-	kfree(vcpu);
+	kmem_cache_free(kvm_vcpu_cache, vcpu);
 }
 
 static void kvmppc_set_timer(struct kvm_vcpu *vcpu)
