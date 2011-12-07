@@ -746,6 +746,14 @@ struct hci_rp_read_bd_addr {
 	bdaddr_t bdaddr;
 } __packed;
 
+#define HCI_OP_READ_DATA_BLOCK_SIZE	0x100a
+struct hci_rp_read_data_block_size {
+	__u8     status;
+	__le16   max_acl_len;
+	__le16   block_len;
+	__le16   num_blocks;
+} __packed;
+
 #define HCI_OP_WRITE_PAGE_SCAN_ACTIVITY	0x0c1c
 struct hci_cp_write_page_scan_activity {
 	__le16   interval;

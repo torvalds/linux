@@ -767,6 +767,28 @@ static void hci_cc_read_bd_addr(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_req_complete(hdev, HCI_OP_READ_BD_ADDR, rp->status);
 }
 
+static void hci_cc_read_data_block_size(struct hci_dev *hdev,
+							struct sk_buff *skb)
+{
+	struct hci_rp_read_data_block_size *rp = (void *) skb->data;
+
+	BT_DBG("%s status 0x%x", hdev->name, rp->status);
+
+	if (rp->status)
+		return;
+
+	hdev->block_mtu = __le16_to_cpu(rp->max_acl_len);
+	hdev->block_len = __le16_to_cpu(rp->block_len);
+	hdev->num_blocks = __le16_to_cpu(rp->num_blocks);
+
+	hdev->block_cnt = hdev->num_blocks;
+
+	BT_DBG("%s blk mtu %d cnt %d len %d", hdev->name, hdev->block_mtu,
+					hdev->block_cnt, hdev->block_len);
+
+	hci_req_complete(hdev, HCI_OP_READ_DATA_BLOCK_SIZE, rp->status);
+}
+
 static void hci_cc_write_ca_timeout(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	__u8 status = *((__u8 *) skb->data);
@@ -2016,6 +2038,10 @@ static inline void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *sk
 
 	case HCI_OP_READ_BD_ADDR:
 		hci_cc_read_bd_addr(hdev, skb);
+		break;
+
+	case HCI_OP_READ_DATA_BLOCK_SIZE:
+		hci_cc_read_data_block_size(hdev, skb);
 		break;
 
 	case HCI_OP_WRITE_CA_TIMEOUT:
