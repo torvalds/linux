@@ -73,7 +73,7 @@ int mpi_mulpowm(MPI res, MPI *basearray, MPI *exparray, MPI m)
 
 	G = kzalloc((1 << k) * sizeof *G, GFP_KERNEL);
 	if (!G)
-		goto nomem;
+		goto err_out;
 
 	/* and calculate */
 	tmp = mpi_alloc(mpi_get_nlimbs(m) + 1);
@@ -129,5 +129,6 @@ nomem:
 	for (i = 0; i < (1 << k); i++)
 		mpi_free(G[i]);
 	kfree(G);
+err_out:
 	return rc;
 }
