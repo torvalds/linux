@@ -119,21 +119,15 @@ static int __init e800_init(void)
 	if (!machine_is_e800())
 		return -ENODEV;
 
-	ret = gpio_request(GPIO_E800_HP_AMP_OFF,  "Headphone amp");
+	ret = gpio_request_one(GPIO_E800_HP_AMP_OFF, GPIOF_OUT_INIT_HIGH,
+			       "Headphone amp");
 	if (ret)
 		return ret;
 
-	ret = gpio_request(GPIO_E800_SPK_AMP_ON, "Speaker amp");
+	ret = gpio_request_one(GPIO_E800_SPK_AMP_ON, GPIOF_OUT_INIT_HIGH,
+			       "Speaker amp");
 	if (ret)
 		goto free_hp_amp_gpio;
-
-	ret = gpio_direction_output(GPIO_E800_HP_AMP_OFF, 1);
-	if (ret)
-		goto free_spk_amp_gpio;
-
-	ret = gpio_direction_output(GPIO_E800_SPK_AMP_ON, 1);
-	if (ret)
-		goto free_spk_amp_gpio;
 
 	e800_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!e800_snd_device) {
