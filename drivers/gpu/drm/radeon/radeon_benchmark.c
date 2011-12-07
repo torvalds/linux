@@ -229,21 +229,21 @@ void radeon_benchmark(struct radeon_device *rdev, int test_number)
 		break;
 	case 6:
 		/* GTT to VRAM, buffer size sweep, common modes */
-		for (i = 1; i < RADEON_BENCHMARK_COMMON_MODES_N; i++)
+		for (i = 0; i < RADEON_BENCHMARK_COMMON_MODES_N; i++)
 			radeon_benchmark_move(rdev, common_modes[i],
 					      RADEON_GEM_DOMAIN_GTT,
 					      RADEON_GEM_DOMAIN_VRAM);
 		break;
 	case 7:
 		/* VRAM to GTT, buffer size sweep, common modes */
-		for (i = 1; i < RADEON_BENCHMARK_COMMON_MODES_N; i++)
+		for (i = 0; i < RADEON_BENCHMARK_COMMON_MODES_N; i++)
 			radeon_benchmark_move(rdev, common_modes[i],
 					      RADEON_GEM_DOMAIN_VRAM,
 					      RADEON_GEM_DOMAIN_GTT);
 		break;
 	case 8:
 		/* VRAM to VRAM, buffer size sweep, common modes */
-		for (i = 1; i < RADEON_BENCHMARK_COMMON_MODES_N; i++)
+		for (i = 0; i < RADEON_BENCHMARK_COMMON_MODES_N; i++)
 			radeon_benchmark_move(rdev, common_modes[i],
 					      RADEON_GEM_DOMAIN_VRAM,
 					      RADEON_GEM_DOMAIN_VRAM);
