@@ -347,16 +347,19 @@ struct iwl_cfg {
  * @ucode_owner: IWL_OWNERSHIP_*
  * @cmd_queue: command queue number
  * @status: STATUS_*
+ * @wowlan: are we running wowlan uCode
  * @valid_contexts: microcode/device supports multiple contexts
  * @bus: pointer to the bus layer data
  * @cfg: see struct iwl_cfg
  * @priv: pointer to the upper layer data
+ * @trans: pointer to the transport layer data
  * @hw_params: see struct iwl_hw_params
  * @workqueue: the workqueue used by all the layers of the driver
  * @lock: protect general shared data
  * @sta_lock: protects the station table.
  *	If lock and sta_lock are needed, lock must be acquired first.
  * @mutex:
+ * @wait_command_queue: the wait_queue for SYNC host command nad uCode load
  * @eeprom: pointer to the eeprom/OTP image
  * @ucode_type: indicator of loaded ucode image
  * @notif_waits: things waiting for notification
