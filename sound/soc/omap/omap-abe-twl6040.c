@@ -1,5 +1,6 @@
 /*
- * sdp4430.c  --  SoC audio for TI OMAP4430 SDP
+ * omap-abe-twl6040.c  --  SoC audio for TI OMAP based boards with ABE and
+ *			   twl6040 codec
  *
  * Author: Misael Lopez Cruz <misael.lopez@ti.com>
  *
@@ -38,7 +39,7 @@
 #include "omap-pcm.h"
 #include "../codecs/twl6040.h"
 
-static int sdp4430_hw_params(struct snd_pcm_substream *substream,
+static int omap_abe_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -64,11 +65,11 @@ static int sdp4430_hw_params(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static struct snd_soc_ops sdp4430_ops = {
-	.hw_params = sdp4430_hw_params,
+static struct snd_soc_ops omap_abe_ops = {
+	.hw_params = omap_abe_hw_params,
 };
 
-static int sdp4430_dmic_hw_params(struct snd_pcm_substream *substream,
+static int omap_abe_dmic_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -90,8 +91,8 @@ static int sdp4430_dmic_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops sdp4430_dmic_ops = {
-	.hw_params = sdp4430_dmic_hw_params,
+static struct snd_soc_ops omap_abe_dmic_ops = {
+	.hw_params = omap_abe_dmic_hw_params,
 };
 
 /* Headset jack */
@@ -110,7 +111,7 @@ static struct snd_soc_jack_pin hs_jack_pins[] = {
 };
 
 /* SDP4430 machine DAPM */
-static const struct snd_soc_dapm_widget sdp4430_twl6040_dapm_widgets[] = {
+static const struct snd_soc_dapm_widget twl6040_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Ext Mic", NULL),
 	SND_SOC_DAPM_SPK("Ext Spk", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
@@ -145,7 +146,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"AFMR", NULL, "FM Stereo In"},
 };
 
-static int sdp4430_twl6040_init(struct snd_soc_pcm_runtime *rtd)
+static int omap_abe_twl6040_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 	int ret, hs_trim;
@@ -175,7 +176,7 @@ static int sdp4430_twl6040_init(struct snd_soc_pcm_runtime *rtd)
 	return ret;
 }
 
-static const struct snd_soc_dapm_widget sdp4430_dmic_dapm_widgets[] = {
+static const struct snd_soc_dapm_widget dmic_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Digital Mic", NULL),
 };
 
@@ -184,14 +185,14 @@ static const struct snd_soc_dapm_route dmic_audio_map[] = {
 	{"Digital Mic1 Bias", NULL, "Digital Mic"},
 };
 
-static int sdp4430_dmic_init(struct snd_soc_pcm_runtime *rtd)
+static int omap_abe_dmic_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
 
-	ret = snd_soc_dapm_new_controls(dapm, sdp4430_dmic_dapm_widgets,
-				ARRAY_SIZE(sdp4430_dmic_dapm_widgets));
+	ret = snd_soc_dapm_new_controls(dapm, dmic_dapm_widgets,
+				ARRAY_SIZE(dmic_dapm_widgets));
 	if (ret)
 		return ret;
 
@@ -208,8 +209,8 @@ static struct snd_soc_dai_link sdp4430_dai[] = {
 		.codec_dai_name = "twl6040-legacy",
 		.platform_name = "omap-pcm-audio",
 		.codec_name = "twl6040-codec",
-		.init = sdp4430_twl6040_init,
-		.ops = &sdp4430_ops,
+		.init = omap_abe_twl6040_init,
+		.ops = &omap_abe_ops,
 	},
 	{
 		.name = "DMIC",
@@ -218,27 +219,27 @@ static struct snd_soc_dai_link sdp4430_dai[] = {
 		.codec_dai_name = "dmic-hifi",
 		.platform_name = "omap-pcm-audio",
 		.codec_name = "dmic-codec",
-		.init = sdp4430_dmic_init,
-		.ops = &sdp4430_dmic_ops,
+		.init = omap_abe_dmic_init,
+		.ops = &omap_abe_dmic_ops,
 	},
 };
 
 /* Audio machine driver */
-static struct snd_soc_card snd_soc_sdp4430 = {
+static struct snd_soc_card omap_abe_card = {
 	.name = "SDP4430",
 	.owner = THIS_MODULE,
 	.dai_link = sdp4430_dai,
 	.num_links = ARRAY_SIZE(sdp4430_dai),
 
-	.dapm_widgets = sdp4430_twl6040_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(sdp4430_twl6040_dapm_widgets),
+	.dapm_widgets = twl6040_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(twl6040_dapm_widgets),
 	.dapm_routes = audio_map,
 	.num_dapm_routes = ARRAY_SIZE(audio_map),
 };
 
-static struct platform_device *sdp4430_snd_device;
+static struct platform_device *omap_abe_snd_device;
 
-static int __init sdp4430_soc_init(void)
+static int __init omap_abe_soc_init(void)
 {
 	int ret;
 
@@ -246,15 +247,15 @@ static int __init sdp4430_soc_init(void)
 		return -ENODEV;
 	printk(KERN_INFO "SDP4430 SoC init\n");
 
-	sdp4430_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!sdp4430_snd_device) {
+	omap_abe_snd_device = platform_device_alloc("soc-audio", -1);
+	if (!omap_abe_snd_device) {
 		printk(KERN_ERR "Platform device allocation failed\n");
 		return -ENOMEM;
 	}
 
-	platform_set_drvdata(sdp4430_snd_device, &snd_soc_sdp4430);
+	platform_set_drvdata(omap_abe_snd_device, &omap_abe_card);
 
-	ret = platform_device_add(sdp4430_snd_device);
+	ret = platform_device_add(omap_abe_snd_device);
 	if (ret)
 		goto err;
 
@@ -262,18 +263,18 @@ static int __init sdp4430_soc_init(void)
 
 err:
 	printk(KERN_ERR "Unable to add platform device\n");
-	platform_device_put(sdp4430_snd_device);
+	platform_device_put(omap_abe_snd_device);
 	return ret;
 }
-module_init(sdp4430_soc_init);
+module_init(omap_abe_soc_init);
 
-static void __exit sdp4430_soc_exit(void)
+static void __exit omap_abe_soc_exit(void)
 {
-	platform_device_unregister(sdp4430_snd_device);
+	platform_device_unregister(omap_abe_snd_device);
 }
-module_exit(sdp4430_soc_exit);
+module_exit(omap_abe_soc_exit);
 
 MODULE_AUTHOR("Misael Lopez Cruz <misael.lopez@ti.com>");
-MODULE_DESCRIPTION("ALSA SoC SDP4430");
+MODULE_DESCRIPTION("ALSA SoC for OMAP boards with ABE and twl6040 codec");
 MODULE_LICENSE("GPL");
 
