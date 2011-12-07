@@ -556,7 +556,7 @@ static void ccp2_isr_buffer(struct isp_ccp2_device *ccp2)
 	struct isp_pipeline *pipe = to_isp_pipeline(&ccp2->subdev.entity);
 	struct isp_buffer *buffer;
 
-	buffer = omap3isp_video_buffer_next(&ccp2->video_in, ccp2->error);
+	buffer = omap3isp_video_buffer_next(&ccp2->video_in);
 	if (buffer != NULL)
 		ccp2_set_inaddr(ccp2, buffer->isp_addr);
 
@@ -567,8 +567,6 @@ static void ccp2_isr_buffer(struct isp_ccp2_device *ccp2)
 			omap3isp_pipeline_set_stream(pipe,
 						ISP_PIPELINE_STREAM_SINGLESHOT);
 	}
-
-	ccp2->error = 0;
 }
 
 /*
@@ -576,13 +574,11 @@ static void ccp2_isr_buffer(struct isp_ccp2_device *ccp2)
  * @ccp2: Pointer to ISP CCP2 device
  *
  * This will handle the CCP2 interrupts
- *
- * Returns -EIO in case of error, or 0 on success.
  */
-int omap3isp_ccp2_isr(struct isp_ccp2_device *ccp2)
+void omap3isp_ccp2_isr(struct isp_ccp2_device *ccp2)
 {
+	struct isp_pipeline *pipe = to_isp_pipeline(&ccp2->subdev.entity);
 	struct isp_device *isp = to_isp_device(ccp2);
-	int ret = 0;
 	static const u32 ISPCCP2_LC01_ERROR =
 		ISPCCP2_LC01_IRQSTATUS_LC0_FIFO_OVF_IRQ |
 		ISPCCP2_LC01_IRQSTATUS_LC0_CRC_IRQ |
@@ -604,19 +600,18 @@ int omap3isp_ccp2_isr(struct isp_ccp2_device *ccp2)
 		       ISPCCP2_LCM_IRQSTATUS);
 	/* Errors */
 	if (lcx_irqstatus & ISPCCP2_LC01_ERROR) {
-		ccp2->error = 1;
+		pipe->error = true;
 		dev_dbg(isp->dev, "CCP2 err:%x\n", lcx_irqstatus);
-		return -EIO;
+		return;
 	}
 
 	if (lcm_irqstatus & ISPCCP2_LCM_IRQSTATUS_OCPERROR_IRQ) {
-		ccp2->error = 1;
+		pipe->error = true;
 		dev_dbg(isp->dev, "CCP2 OCP err:%x\n", lcm_irqstatus);
-		ret = -EIO;
 	}
 
 	if (omap3isp_module_sync_is_stopping(&ccp2->wait, &ccp2->stopping))
-		return 0;
+		return;
 
 	/* Frame number propagation */
 	if (lcx_irqstatus & ISPCCP2_LC01_IRQSTATUS_LC0_FS_IRQ) {
@@ -629,8 +624,6 @@ int omap3isp_ccp2_isr(struct isp_ccp2_device *ccp2)
 	/* Handle queued buffers on frame end interrupts */
 	if (lcm_irqstatus & ISPCCP2_LCM_IRQSTATUS_EOF_IRQ)
 		ccp2_isr_buffer(ccp2);
-
-	return ret;
 }
 
 /* -----------------------------------------------------------------------------
@@ -867,7 +860,6 @@ static int ccp2_s_stream(struct v4l2_subdev *sd, int enable)
 		if (enable == ISP_PIPELINE_STREAM_STOPPED)
 			return 0;
 		atomic_set(&ccp2->stopping, 0);
-		ccp2->error = 0;
 	}
 
 	switch (enable) {

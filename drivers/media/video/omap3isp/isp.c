@@ -410,6 +410,7 @@ static inline void isp_isr_dbg(struct isp_device *isp, u32 irqstatus)
 static void isp_isr_sbl(struct isp_device *isp)
 {
 	struct device *dev = isp->dev;
+	struct isp_pipeline *pipe;
 	u32 sbl_pcr;
 
 	/*
@@ -423,27 +424,38 @@ static void isp_isr_sbl(struct isp_device *isp)
 	if (sbl_pcr)
 		dev_dbg(dev, "SBL overflow (PCR = 0x%08x)\n", sbl_pcr);
 
-	if (sbl_pcr & (ISPSBL_PCR_CCDC_WBL_OVF | ISPSBL_PCR_CSIA_WBL_OVF
-		     | ISPSBL_PCR_CSIB_WBL_OVF)) {
-		isp->isp_ccdc.error = 1;
-		if (isp->isp_ccdc.output & CCDC_OUTPUT_PREVIEW)
-			isp->isp_prev.error = 1;
-		if (isp->isp_ccdc.output & CCDC_OUTPUT_RESIZER)
-			isp->isp_res.error = 1;
+	if (sbl_pcr & ISPSBL_PCR_CSIB_WBL_OVF) {
+		pipe = to_isp_pipeline(&isp->isp_ccp2.subdev.entity);
+		if (pipe != NULL)
+			pipe->error = true;
+	}
+
+	if (sbl_pcr & ISPSBL_PCR_CSIA_WBL_OVF) {
+		pipe = to_isp_pipeline(&isp->isp_csi2a.subdev.entity);
+		if (pipe != NULL)
+			pipe->error = true;
+	}
+
+	if (sbl_pcr & ISPSBL_PCR_CCDC_WBL_OVF) {
+		pipe = to_isp_pipeline(&isp->isp_ccdc.subdev.entity);
+		if (pipe != NULL)
+			pipe->error = true;
 	}
 
 	if (sbl_pcr & ISPSBL_PCR_PRV_WBL_OVF) {
-		isp->isp_prev.error = 1;
-		if (isp->isp_res.input == RESIZER_INPUT_VP &&
-		    !(isp->isp_ccdc.output & CCDC_OUTPUT_RESIZER))
-			isp->isp_res.error = 1;
+		pipe = to_isp_pipeline(&isp->isp_prev.subdev.entity);
+		if (pipe != NULL)
+			pipe->error = true;
 	}
 
 	if (sbl_pcr & (ISPSBL_PCR_RSZ1_WBL_OVF
 		       | ISPSBL_PCR_RSZ2_WBL_OVF
 		       | ISPSBL_PCR_RSZ3_WBL_OVF
-		       | ISPSBL_PCR_RSZ4_WBL_OVF))
-		isp->isp_res.error = 1;
+		       | ISPSBL_PCR_RSZ4_WBL_OVF)) {
+		pipe = to_isp_pipeline(&isp->isp_res.subdev.entity);
+		if (pipe != NULL)
+			pipe->error = true;
+	}
 
 	if (sbl_pcr & ISPSBL_PCR_H3A_AF_WBL_OVF)
 		omap3isp_stat_sbl_overflow(&isp->isp_af);
@@ -471,24 +483,17 @@ static irqreturn_t isp_isr(int irq, void *_isp)
 				       IRQ0STATUS_HS_VS_IRQ;
 	struct isp_device *isp = _isp;
 	u32 irqstatus;
-	int ret;
 
 	irqstatus = isp_reg_readl(isp, OMAP3_ISP_IOMEM_MAIN, ISP_IRQ0STATUS);
 	isp_reg_writel(isp, irqstatus, OMAP3_ISP_IOMEM_MAIN, ISP_IRQ0STATUS);
 
 	isp_isr_sbl(isp);
 
-	if (irqstatus & IRQ0STATUS_CSIA_IRQ) {
-		ret = omap3isp_csi2_isr(&isp->isp_csi2a);
-		if (ret)
-			isp->isp_ccdc.error = 1;
-	}
+	if (irqstatus & IRQ0STATUS_CSIA_IRQ)
+		omap3isp_csi2_isr(&isp->isp_csi2a);
 
-	if (irqstatus & IRQ0STATUS_CSIB_IRQ) {
-		ret = omap3isp_ccp2_isr(&isp->isp_ccp2);
-		if (ret)
-			isp->isp_ccdc.error = 1;
-	}
+	if (irqstatus & IRQ0STATUS_CSIB_IRQ)
+		omap3isp_ccp2_isr(&isp->isp_ccp2);
 
 	if (irqstatus & IRQ0STATUS_CCDC_VD0_IRQ) {
 		if (isp->isp_ccdc.output & CCDC_OUTPUT_PREVIEW)
