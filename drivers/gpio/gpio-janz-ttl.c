@@ -237,20 +237,9 @@ static struct platform_driver ttl_driver = {
 	.remove		= __devexit_p(ttl_remove),
 };
 
-static int __init ttl_init(void)
-{
-	return platform_driver_register(&ttl_driver);
-}
-
-static void __exit ttl_exit(void)
-{
-	platform_driver_unregister(&ttl_driver);
-}
+module_platform_driver(ttl_driver);
 
 MODULE_AUTHOR("Ira W. Snyder <iws@ovro.caltech.edu>");
 MODULE_DESCRIPTION("Janz MODULbus VMOD-TTL Driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:janz-ttl");
-
-module_init(ttl_init);
-module_exit(ttl_exit);
