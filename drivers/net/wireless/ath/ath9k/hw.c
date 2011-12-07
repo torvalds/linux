@@ -610,8 +610,8 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	if (!AR_SREV_9300_20_OR_LATER(ah))
 		ah->ani_function &= ~ATH9K_ANI_MRC_CCK;
 
-	/* disable ANI for 9100 and 9340 */
-	if (AR_SREV_9100(ah) || AR_SREV_9340(ah))
+	/* disable ANI for 9340 */
+	if (AR_SREV_9340(ah))
 		ah->config.enable_ani = false;
 
 	ath9k_hw_init_mode_regs(ah);
