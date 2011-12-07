@@ -230,7 +230,7 @@ static int samsung_gpio_setcfg_2bit(struct samsung_gpio_chip *chip,
  * @chip: The gpio chip that is being configured.
  * @off: The offset for the GPIO being configured.
  *
- * The reverse of samsung_gpio_setcfg_2bit(). Will return a value whicg
+ * The reverse of samsung_gpio_setcfg_2bit(). Will return a value which
  * could be directly passed back to samsung_gpio_setcfg_2bit(), from the
  * S3C_GPIO_SPECIAL() macro.
  */
