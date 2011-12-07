@@ -122,6 +122,8 @@ static struct bfin_mii_bus_platform_data bfin_mii_bus_data = {
 #if defined(CONFIG_NET_DSA_KSZ8893M) || defined(CONFIG_NET_DSA_KSZ8893M_MODULE)
 	.phy_mask = 0xfff7, /* Only probe the port phy connect to the on chip MAC */
 #endif
+	.vlan1_mask = 1,
+	.vlan2_mask = 2,
 };
 
 static struct platform_device bfin_mii_bus = {
