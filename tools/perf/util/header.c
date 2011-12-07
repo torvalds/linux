@@ -1065,26 +1065,30 @@ struct feature_ops {
 	bool full_only;
 };
 
-#define FEAT_OPA(n, w, p) \
-	[n] = { .name = #n, .write = w, .print = p }
-#define FEAT_OPF(n, w, p) \
-	[n] = { .name = #n, .write = w, .print = p, .full_only = true }
+#define FEAT_OPA(n, func) \
+	[n] = { .name = #n, .write = write_##func, .print = print_##func }
+#define FEAT_OPF(n, func) \
+	[n] = { .name = #n, .write = write_##func, .print = print_##func, .full_only = true }
+
+/* feature_ops not implemented: */
+#define print_trace_info		NULL
+#define print_build_id			NULL
 
 static const struct feature_ops feat_ops[HEADER_LAST_FEATURE] = {
-	FEAT_OPA(HEADER_TRACE_INFO, write_trace_info, NULL),
-	FEAT_OPA(HEADER_BUILD_ID, write_build_id, NULL),
-	FEAT_OPA(HEADER_HOSTNAME, write_hostname, print_hostname),
-	FEAT_OPA(HEADER_OSRELEASE, write_osrelease, print_osrelease),
-	FEAT_OPA(HEADER_VERSION, write_version, print_version),
-	FEAT_OPA(HEADER_ARCH, write_arch, print_arch),
-	FEAT_OPA(HEADER_NRCPUS, write_nrcpus, print_nrcpus),
-	FEAT_OPA(HEADER_CPUDESC, write_cpudesc, print_cpudesc),
-	FEAT_OPA(HEADER_CPUID, write_cpuid, print_cpuid),
-	FEAT_OPA(HEADER_TOTAL_MEM, write_total_mem, print_total_mem),
-	FEAT_OPA(HEADER_EVENT_DESC, write_event_desc, print_event_desc),
-	FEAT_OPA(HEADER_CMDLINE, write_cmdline, print_cmdline),
-	FEAT_OPF(HEADER_CPU_TOPOLOGY, write_cpu_topology, print_cpu_topology),
-	FEAT_OPF(HEADER_NUMA_TOPOLOGY, write_numa_topology, print_numa_topology),
+	FEAT_OPA(HEADER_TRACE_INFO,	trace_info),
+	FEAT_OPA(HEADER_BUILD_ID,	build_id),
+	FEAT_OPA(HEADER_HOSTNAME,	hostname),
+	FEAT_OPA(HEADER_OSRELEASE,	osrelease),
+	FEAT_OPA(HEADER_VERSION,	version),
+	FEAT_OPA(HEADER_ARCH,		arch),
+	FEAT_OPA(HEADER_NRCPUS,		nrcpus),
+	FEAT_OPA(HEADER_CPUDESC,	cpudesc),
+	FEAT_OPA(HEADER_CPUID,		cpuid),
+	FEAT_OPA(HEADER_TOTAL_MEM,	total_mem),
+	FEAT_OPA(HEADER_EVENT_DESC,	event_desc),
+	FEAT_OPA(HEADER_CMDLINE,	cmdline),
+	FEAT_OPF(HEADER_CPU_TOPOLOGY,	cpu_topology),
+	FEAT_OPF(HEADER_NUMA_TOPOLOGY,	numa_topology),
 };
 
 struct header_print_data {
