@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <linux/list.h>
 #include <linux/kernel.h>
+#include <linux/bitops.h>
 #include <sys/utsname.h>
 
 #include "evlist.h"
@@ -1353,7 +1354,7 @@ static int perf_file_section__fprintf_info(struct perf_file_section *section,
 				"%d, continuing...\n", section->offset, feat);
 		return 0;
 	}
-	if (feat < HEADER_TRACE_INFO || feat >= HEADER_LAST_FEATURE) {
+	if (feat >= HEADER_LAST_FEATURE) {
 		pr_warning("unknown feature %d\n", feat);
 		return 0;
 	}
@@ -1390,6 +1391,8 @@ static int do_write_feat(int fd, struct perf_header *h, int type,
 	int ret = 0;
 
 	if (perf_header__has_feat(h, type)) {
+		if (!feat_ops[type].write)
+			return -1;
 
 		(*p)->offset = lseek(fd, 0, SEEK_CUR);
 
@@ -1416,6 +1419,7 @@ static int perf_header__adds_write(struct perf_header *header,
 	struct perf_file_section *feat_sec, *p;
 	int sec_size;
 	u64 sec_start;
+	int feat;
 	int err;
 
 	session = container_of(header, struct perf_session, header);
@@ -1433,61 +1437,10 @@ static int perf_header__adds_write(struct perf_header *header,
 	sec_start = header->data_offset + header->data_size;
 	lseek(fd, sec_start + sec_size, SEEK_SET);
 
-	err = do_write_feat(fd, header, HEADER_TRACE_INFO, &p, evlist);
-	if (err)
-		perf_header__clear_feat(header, HEADER_TRACE_INFO);
-
-	err = do_write_feat(fd, header, HEADER_BUILD_ID, &p, evlist);
-	if (err)
-		perf_header__clear_feat(header, HEADER_BUILD_ID);
-
-	err = do_write_feat(fd, header, HEADER_HOSTNAME, &p, evlist);
-	if (err)
-		perf_header__clear_feat(header, HEADER_HOSTNAME);
-
-	err = do_write_feat(fd, header, HEADER_OSRELEASE, &p, evlist);
-	if (err)
-		perf_header__clear_feat(header, HEADER_OSRELEASE);
-
-	err = do_write_feat(fd, header, HEADER_VERSION, &p, evlist);
-	if (err)
-		perf_header__clear_feat(header, HEADER_VERSION);
-
-	err = do_write_feat(fd, header, HEADER_ARCH, &p, evlist);
-	if (err)
-		perf_header__clear_feat(header, HEADER_ARCH);
-
-	err = do_write_feat(fd, header, HEADER_NRCPUS, &p, evlist);
-	if (err)
-		perf_header__clear_feat(header, HEADER_NRCPUS);
-
-	err = do_write_feat(fd, header, HEADER_CPUDESC, &p, evlist);
-	if (err)
-		perf_header__clear_feat(header, HEADER_CPUDESC);
-
-	err = do_write_feat(fd, header, HEADER_CPUID, &p, evlist);
-	if (err)
-		perf_header__clear_feat(header, HEADER_CPUID);
-
-	err = do_write_feat(fd, header, HEADER_TOTAL_MEM, &p, evlist);
-	if (err)
-		perf_header__clear_feat(header, HEADER_TOTAL_MEM);
-
-	err = do_write_feat(fd, header, HEADER_CMDLINE, &p, evlist);
-	if (err)
-		perf_header__clear_feat(header, HEADER_CMDLINE);
-
-	err = do_write_feat(fd, header, HEADER_EVENT_DESC, &p, evlist);
-	if (err)
-		perf_header__clear_feat(header, HEADER_EVENT_DESC);
-
-	err = do_write_feat(fd, header, HEADER_CPU_TOPOLOGY, &p, evlist);
-	if (err)
-		perf_header__clear_feat(header, HEADER_CPU_TOPOLOGY);
-
-	err = do_write_feat(fd, header, HEADER_NUMA_TOPOLOGY, &p, evlist);
-	if (err)
-		perf_header__clear_feat(header, HEADER_NUMA_TOPOLOGY);
+	for_each_set_bit(feat, header->adds_features, HEADER_FEAT_BITS) {
+		if (do_write_feat(fd, header, feat, &p, evlist))
+			perf_header__clear_feat(header, feat);
+	}
 
 	lseek(fd, sec_start, SEEK_SET);
 	/*
@@ -1634,20 +1587,20 @@ static int perf_header__getbuffer64(struct perf_header *header,
 int perf_header__process_sections(struct perf_header *header, int fd,
 				  void *data,
 				  int (*process)(struct perf_file_section *section,
-				  struct perf_header *ph,
-				  int feat, int fd, void *data))
+						 struct perf_header *ph,
+						 int feat, int fd, void *data))
 {
-	struct perf_file_section *feat_sec;
+	struct perf_file_section *feat_sec, *sec;
 	int nr_sections;
 	int sec_size;
-	int idx = 0;
-	int err = -1, feat = 1;
+	int feat;
+	int err;
 
 	nr_sections = bitmap_weight(header->adds_features, HEADER_FEAT_BITS);
 	if (!nr_sections)
 		return 0;
 
-	feat_sec = calloc(sizeof(*feat_sec), nr_sections);
+	feat_sec = sec = calloc(sizeof(*feat_sec), nr_sections);
 	if (!feat_sec)
 		return -1;
 
@@ -1655,20 +1608,16 @@ int perf_header__process_sections(struct perf_header *header, int fd,
 
 	lseek(fd, header->data_offset + header->data_size, SEEK_SET);
 
-	if (perf_header__getbuffer64(header, fd, feat_sec, sec_size))
+	err = perf_header__getbuffer64(header, fd, feat_sec, sec_size);
+	if (err < 0)
 		goto out_free;
 
-	err = 0;
-	while (idx < nr_sections && feat < HEADER_LAST_FEATURE) {
-		if (perf_header__has_feat(header, feat)) {
-			struct perf_file_section *sec = &feat_sec[idx++];
-
-			err = process(sec, header, feat, fd, data);
-			if (err < 0)
-				break;
-		}
-		++feat;
+	for_each_set_bit(feat, header->adds_features, HEADER_LAST_FEATURE) {
+		err = process(sec++, header, feat, fd, data);
+		if (err < 0)
+			goto out_free;
 	}
+	err = 0;
 out_free:
 	free(feat_sec);
 	return err;
@@ -1903,32 +1852,21 @@ static int perf_file_section__process(struct perf_file_section *section,
 		return 0;
 	}
 
+	if (feat >= HEADER_LAST_FEATURE) {
+		pr_debug("unknown feature %d, continuing...\n", feat);
+		return 0;
+	}
+
 	switch (feat) {
 	case HEADER_TRACE_INFO:
 		trace_report(fd, false);
 		break;
-
 	case HEADER_BUILD_ID:
 		if (perf_header__read_build_ids(ph, fd, section->offset, section->size))
 			pr_debug("Failed to read buildids, continuing...\n");
 		break;
-
-	case HEADER_HOSTNAME:
-	case HEADER_OSRELEASE:
-	case HEADER_VERSION:
-	case HEADER_ARCH:
-	case HEADER_NRCPUS:
-	case HEADER_CPUDESC:
-	case HEADER_CPUID:
-	case HEADER_TOTAL_MEM:
-	case HEADER_CMDLINE:
-	case HEADER_EVENT_DESC:
-	case HEADER_CPU_TOPOLOGY:
-	case HEADER_NUMA_TOPOLOGY:
-		break;
-
 	default:
-		pr_debug("unknown feature %d, continuing...\n", feat);
+		break;
 	}
 
 	return 0;
