@@ -388,6 +388,14 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 			goto drop_unlock_sta;
 		}
 
+		/* We can receive packets from the stack in IWL_AGG_{ON,OFF}
+		 * only. Check this here.
+		 */
+		if (WARN_ONCE(tid_data->agg.state != IWL_AGG_ON &&
+		    tid_data->agg.state != IWL_AGG_OFF,
+		    "Tx while agg.state = %d", tid_data->agg.state))
+			goto drop_unlock_sta;
+
 		seq_number = tid_data->seq_number;
 		seq_number &= IEEE80211_SCTL_SEQ;
 		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
