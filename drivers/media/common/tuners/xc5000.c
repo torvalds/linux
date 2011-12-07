@@ -1004,8 +1004,6 @@ static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe)
 	struct xc5000_priv *priv = fe->tuner_priv;
 	int ret = 0;
 
-	mutex_lock(&xc5000_list_mutex);
-
 	if (xc5000_is_firmware_loaded(fe) != XC_RESULT_SUCCESS) {
 		ret = xc5000_fwupload(fe);
 		if (ret != XC_RESULT_SUCCESS)
@@ -1024,8 +1022,6 @@ static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe)
 
 	/* Default to "CABLE" mode */
 	ret |= xc_write_reg(priv, XREG_SIGNALSOURCE, XC_RF_MODE_CABLE);
-
-	mutex_unlock(&xc5000_list_mutex);
 
 	return ret;
 }
