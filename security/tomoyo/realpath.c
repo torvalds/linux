@@ -5,6 +5,7 @@
  */
 
 #include "common.h"
+#include <linux/magic.h>
 
 /**
  * tomoyo_encode2 - Encode binary string to ascii string.
