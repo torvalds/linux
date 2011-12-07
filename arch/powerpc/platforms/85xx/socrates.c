@@ -46,28 +46,12 @@
 
 static void __init socrates_pic_init(void)
 {
-	struct mpic *mpic;
-	struct resource r;
 	struct device_node *np;
 
-	np = of_find_node_by_type(NULL, "open-pic");
-	if (!np) {
-		printk(KERN_ERR "Could not find open-pic node\n");
-		return;
-	}
-
-	if (of_address_to_resource(np, 0, &r)) {
-		printk(KERN_ERR "Could not map mpic register space\n");
-		of_node_put(np);
-		return;
-	}
-
-	mpic = mpic_alloc(np, r.start,
-			MPIC_PRIMARY | MPIC_WANTS_RESET | MPIC_BIG_ENDIAN,
+	struct mpic *mpic = mpic_alloc(NULL, 0,
+			MPIC_WANTS_RESET | MPIC_BIG_ENDIAN,
 			0, 256, " OpenPIC  ");
 	BUG_ON(mpic == NULL);
-	of_node_put(np);
-
 	mpic_init(mpic);
 
 	np = of_find_compatible_node(NULL, NULL, "abb,socrates-fpga-pic");

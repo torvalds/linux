@@ -29,6 +29,7 @@
 
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
+#include "smp.h"
 
 #include "mpc85xx.h"
 
@@ -44,49 +45,28 @@
 void __init mpc85xx_rdb_pic_init(void)
 {
 	struct mpic *mpic;
-	struct resource r;
-	struct device_node *np;
 	unsigned long root = of_get_flat_dt_root();
 
-	np = of_find_node_by_type(NULL, "open-pic");
-	if (np == NULL) {
-		printk(KERN_ERR "Could not find open-pic node\n");
-		return;
-	}
-
-	if (of_address_to_resource(np, 0, &r)) {
-		printk(KERN_ERR "Failed to map mpic register space\n");
-		of_node_put(np);
-		return;
-	}
-
 	if (of_flat_dt_is_compatible(root, "fsl,MPC85XXRDB-CAMP")) {
-		mpic = mpic_alloc(np, r.start,
-			MPIC_PRIMARY |
+		mpic = mpic_alloc(NULL, 0,
 			MPIC_BIG_ENDIAN | MPIC_BROKEN_FRR_NIRQS |
 			MPIC_SINGLE_DEST_CPU,
 			0, 256, " OpenPIC  ");
 	} else {
-		mpic = mpic_alloc(np, r.start,
-		  MPIC_PRIMARY | MPIC_WANTS_RESET |
+		mpic = mpic_alloc(NULL, 0,
+		  MPIC_WANTS_RESET |
 		  MPIC_BIG_ENDIAN | MPIC_BROKEN_FRR_NIRQS |
 		  MPIC_SINGLE_DEST_CPU,
 		  0, 256, " OpenPIC  ");
 	}
 
 	BUG_ON(mpic == NULL);
-	of_node_put(np);
-
 	mpic_init(mpic);
-
 }
 
 /*
  * Setup the architecture
  */
-#ifdef CONFIG_SMP
-extern void __init mpc85xx_smp_init(void);
-#endif
 static void __init mpc85xx_rdb_setup_arch(void)
 {
 #ifdef CONFIG_PCI
@@ -104,10 +84,7 @@ static void __init mpc85xx_rdb_setup_arch(void)
 
 #endif
 
-#ifdef CONFIG_SMP
 	mpc85xx_smp_init();
-#endif
-
 	printk(KERN_INFO "MPC85xx RDB board from Freescale Semiconductor\n");
 }
 

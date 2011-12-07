@@ -192,8 +192,7 @@ static void __init pseries_mpic_init_IRQ(void)
 	BUG_ON(openpic_addr == 0);
 
 	/* Setup the openpic driver */
-	mpic = mpic_alloc(pSeries_mpic_node, openpic_addr,
-			  MPIC_PRIMARY,
+	mpic = mpic_alloc(pSeries_mpic_node, openpic_addr, 0,
 			  16, 250, /* isu size, irq count */
 			  " MPIC     ");
 	BUG_ON(mpic == NULL);

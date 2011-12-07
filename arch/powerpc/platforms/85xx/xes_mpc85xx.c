@@ -32,6 +32,7 @@
 
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
+#include "smp.h"
 
 #include "mpc85xx.h"
 
@@ -42,29 +43,11 @@
 
 void __init xes_mpc85xx_pic_init(void)
 {
-	struct mpic *mpic;
-	struct resource r;
-	struct device_node *np;
-
-	np = of_find_node_by_type(NULL, "open-pic");
-	if (np == NULL) {
-		printk(KERN_ERR "Could not find open-pic node\n");
-		return;
-	}
-
-	if (of_address_to_resource(np, 0, &r)) {
-		printk(KERN_ERR "Failed to map mpic register space\n");
-		of_node_put(np);
-		return;
-	}
-
-	mpic = mpic_alloc(np, r.start,
-			  MPIC_PRIMARY | MPIC_WANTS_RESET |
+	struct mpic *mpic = mpic_alloc(NULL, 0,
+			  MPIC_WANTS_RESET |
 			  MPIC_BIG_ENDIAN | MPIC_BROKEN_FRR_NIRQS,
 			0, 256, " OpenPIC  ");
 	BUG_ON(mpic == NULL);
-	of_node_put(np);
-
 	mpic_init(mpic);
 }
 
@@ -138,9 +121,6 @@ static int primary_phb_addr;
 /*
  * Setup the architecture
  */
-#ifdef CONFIG_SMP
-extern void __init mpc85xx_smp_init(void);
-#endif
 static void __init xes_mpc85xx_setup_arch(void)
 {
 #ifdef CONFIG_PCI
@@ -174,9 +154,7 @@ static void __init xes_mpc85xx_setup_arch(void)
 	}
 #endif
 
-#ifdef CONFIG_SMP
 	mpc85xx_smp_init();
-#endif
 }
 
 machine_device_initcall(xes_mpc8572, mpc85xx_common_publish_devices);

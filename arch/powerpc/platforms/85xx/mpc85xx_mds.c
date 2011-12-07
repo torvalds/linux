@@ -51,6 +51,7 @@
 #include <asm/qe_ic.h>
 #include <asm/mpic.h>
 #include <asm/swiotlb.h>
+#include "smp.h"
 
 #include "mpc85xx.h"
 
@@ -155,10 +156,6 @@ static int mpc8568_mds_phy_fixups(struct phy_device *phydev)
  * Setup the architecture
  *
  */
-#ifdef CONFIG_SMP
-extern void __init mpc85xx_smp_init(void);
-#endif
-
 #ifdef CONFIG_QUICC_ENGINE
 static void __init mpc85xx_mds_reset_ucc_phys(void)
 {
@@ -363,9 +360,7 @@ static void __init mpc85xx_mds_setup_arch(void)
 	}
 #endif
 
-#ifdef CONFIG_SMP
 	mpc85xx_smp_init();
-#endif
 
 	mpc85xx_mds_qe_init();
 
@@ -439,26 +434,11 @@ machine_arch_initcall(p1021_mds, swiotlb_setup_bus_notifier);
 
 static void __init mpc85xx_mds_pic_init(void)
 {
-	struct mpic *mpic;
-	struct resource r;
-	struct device_node *np = NULL;
-
-	np = of_find_node_by_type(NULL, "open-pic");
-	if (!np)
-		return;
-
-	if (of_address_to_resource(np, 0, &r)) {
-		printk(KERN_ERR "Failed to map mpic register space\n");
-		of_node_put(np);
-		return;
-	}
-
-	mpic = mpic_alloc(np, r.start,
-			MPIC_PRIMARY | MPIC_WANTS_RESET | MPIC_BIG_ENDIAN |
+	struct mpic *mpic = mpic_alloc(NULL, 0,
+			MPIC_WANTS_RESET | MPIC_BIG_ENDIAN |
 			MPIC_BROKEN_FRR_NIRQS | MPIC_SINGLE_DEST_CPU,
 			0, 256, " OpenPIC  ");
 	BUG_ON(mpic == NULL);
-	of_node_put(np);
 
 	mpic_init(mpic);
 	mpc85xx_mds_qeic_init();

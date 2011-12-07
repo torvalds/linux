@@ -30,6 +30,7 @@
 #include <asm/prom.h>
 #include <asm/udbg.h>
 #include <asm/mpic.h>
+#include "smp.h"
 
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
@@ -41,10 +42,6 @@
  * Setup the architecture
  *
  */
-#ifdef CONFIG_SMP
-void __init mpc85xx_smp_init(void);
-#endif
-
 static void __init mpc85xx_rds_setup_arch(void)
 {
 	struct device_node *np;
@@ -89,33 +86,15 @@ static void __init mpc85xx_rds_setup_arch(void)
 		fsl_add_bridge(np, 0);
 #endif
 
-#ifdef CONFIG_SMP
 	mpc85xx_smp_init();
-#endif
 }
 
 machine_device_initcall(p1023_rds, mpc85xx_common_publish_devices);
 
 static void __init mpc85xx_rds_pic_init(void)
 {
-	struct mpic *mpic;
-	struct resource r;
-	struct device_node *np = NULL;
-
-	np = of_find_node_by_type(NULL, "open-pic");
-	if (!np) {
-		printk(KERN_ERR "Could not find open-pic node\n");
-		return;
-	}
-
-	if (of_address_to_resource(np, 0, &r)) {
-		printk(KERN_ERR "Failed to map mpic register space\n");
-		of_node_put(np);
-		return;
-	}
-
-	mpic = mpic_alloc(np, r.start,
-		MPIC_PRIMARY | MPIC_WANTS_RESET | MPIC_BIG_ENDIAN |
+	struct mpic *mpic = mpic_alloc(NULL, 0,
+		MPIC_WANTS_RESET | MPIC_BIG_ENDIAN |
 		MPIC_BROKEN_FRR_NIRQS | MPIC_SINGLE_DEST_CPU,
 		0, 256, " OpenPIC  ");
 
