@@ -7446,6 +7446,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 	ret = update_space_info(root->fs_info, cache->flags, size, bytes_used,
 				&cache->space_info);
 	BUG_ON(ret);
+	update_global_block_rsv(root->fs_info);
 
 	spin_lock(&cache->space_info->lock);
 	cache->space_info->bytes_readonly += cache->bytes_super;
