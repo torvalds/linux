@@ -146,7 +146,7 @@ static int __init pcie_setup(struct pci_sys_data *sys)
 	/*
 	 * Generic PCIe unit setup.
 	 */
-	orion_pcie_setup(PCIE_BASE, &orion_mbus_dram_info);
+	orion_pcie_setup(PCIE_BASE);
 
 	/*
 	 * Check whether to apply Orion-1/Orion-NAS PCIe config

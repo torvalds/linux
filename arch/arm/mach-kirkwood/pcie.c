@@ -11,7 +11,6 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
-#include <linux/mbus.h>
 #include <video/vga.h>
 #include <asm/irq.h>
 #include <asm/mach/pci.h>
@@ -209,7 +208,7 @@ static int __init kirkwood_pcie_setup(int nr, struct pci_sys_data *sys)
 	 */
 	orion_pcie_set_local_bus_nr(pp->base, sys->busnr);
 
-	orion_pcie_setup(pp->base, &orion_mbus_dram_info);
+	orion_pcie_setup(pp->base);
 
 	return 1;
 }

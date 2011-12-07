@@ -9,12 +9,19 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/mbus.h>
 #include <linux/io.h>
 #include <plat/addr-map.h>
 
 struct mbus_dram_target_info orion_mbus_dram_info;
+
+const struct mbus_dram_target_info *mv_mbus_dram_info(void)
+{
+	return &orion_mbus_dram_info;
+}
+EXPORT_SYMBOL_GPL(mv_mbus_dram_info);
 
 /*
  * DDR target is the same on all Orion platforms.
