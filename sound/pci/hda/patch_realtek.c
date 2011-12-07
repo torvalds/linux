@@ -2631,6 +2631,8 @@ static const char *alc_get_line_out_pfx(struct alc_spec *spec, int ch,
 	case AUTO_PIN_SPEAKER_OUT:
 		if (cfg->line_outs == 1)
 			return "Speaker";
+		if (cfg->line_outs == 2)
+			return ch ? "Bass Speaker" : "Speaker";
 		break;
 	case AUTO_PIN_HP_OUT:
 		/* for multi-io case, only the primary out */
