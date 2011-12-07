@@ -408,6 +408,7 @@ static void iwlagn_tx_queue_stop_scheduler(struct iwl_trans *trans, u16 txq_id)
 void iwl_trans_set_wr_ptrs(struct iwl_trans *trans,
 				int txq_id, u32 index)
 {
+	IWL_DEBUG_TX_QUEUES(trans, "Q %d  WrPtr: %d", txq_id, index & 0xff);
 	iwl_write_direct32(bus(trans), HBUS_TARG_WRPTR,
 			(index & 0xff) | (txq_id << 8));
 	iwl_write_prph(bus(trans), SCD_QUEUE_RDPTR(txq_id), index);
