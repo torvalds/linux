@@ -97,7 +97,7 @@ config SND_OMAP_SOC_SDP3430
 	  Say Y if you want to add support for SoC audio on Texas Instruments
 	  SDP3430.
 
-config SND_OMAP_SOC_SDP4430
+config SND_OMAP_SOC_OMAP_ABE_TWL6040
 	tristate "SoC Audio support for Texas Instruments SDP4430"
 	depends on TWL4030_CORE && SND_OMAP_SOC && MACH_OMAP_4430SDP
 	select SND_OMAP_SOC_DMIC
