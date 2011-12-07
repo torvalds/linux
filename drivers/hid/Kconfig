@@ -620,6 +620,7 @@ config HID_WIIMOTE
 	depends on BT_HIDP
 	depends on LEDS_CLASS
 	select POWER_SUPPLY
+	select INPUT_FF_MEMLESS
 	---help---
 	Support for the Nintendo Wii Remote bluetooth device.
 
