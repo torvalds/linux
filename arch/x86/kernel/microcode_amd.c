@@ -282,11 +282,11 @@ generic_load_microcode(int cpu, const u8 *data, size_t size)
 			mc_hdr  = patch;
 			new_mc  = patch;
 			new_rev = mc_hdr->patch_id;
-			leftover -= mc_size;
-		} else {
-			ucode_ptr += current_size;
-			leftover  -= current_size;
+			goto out_ok;
 		}
+
+		ucode_ptr += current_size;
+		leftover  -= current_size;
 	}
 
 	if (!new_mc) {
@@ -294,15 +294,11 @@ generic_load_microcode(int cpu, const u8 *data, size_t size)
 		goto free_table;
 	}
 
-	if (!leftover) {
-		uci->mc = new_mc;
-		state = UCODE_OK;
-		pr_debug("CPU%d update ucode (0x%08x -> 0x%08x)\n",
-			 cpu, uci->cpu_sig.rev, new_rev);
-	} else {
-		new_mc = NULL;
-		state = UCODE_ERROR;
-	}
+out_ok:
+	uci->mc = new_mc;
+	state = UCODE_OK;
+	pr_debug("CPU%d update ucode (0x%08x -> 0x%08x)\n",
+		 cpu, uci->cpu_sig.rev, new_rev);
 
 free_table:
 	free_equiv_cpu_table();
