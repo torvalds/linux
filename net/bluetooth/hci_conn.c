@@ -311,6 +311,42 @@ static void hci_conn_timeout(unsigned long arg)
 	hci_dev_unlock(hdev);
 }
 
+/* Enter sniff mode */
+static void hci_conn_enter_sniff_mode(struct hci_conn *conn)
+{
+	struct hci_dev *hdev = conn->hdev;
+
+	BT_DBG("conn %p mode %d", conn, conn->mode);
+
+	if (test_bit(HCI_RAW, &hdev->flags))
+		return;
+
+	if (!lmp_sniff_capable(hdev) || !lmp_sniff_capable(conn))
+		return;
+
+	if (conn->mode != HCI_CM_ACTIVE || !(conn->link_policy & HCI_LP_SNIFF))
+		return;
+
+	if (lmp_sniffsubr_capable(hdev) && lmp_sniffsubr_capable(conn)) {
+		struct hci_cp_sniff_subrate cp;
+		cp.handle             = cpu_to_le16(conn->handle);
+		cp.max_latency        = cpu_to_le16(0);
+		cp.min_remote_timeout = cpu_to_le16(0);
+		cp.min_local_timeout  = cpu_to_le16(0);
+		hci_send_cmd(hdev, HCI_OP_SNIFF_SUBRATE, sizeof(cp), &cp);
+	}
+
+	if (!test_and_set_bit(HCI_CONN_MODE_CHANGE_PEND, &conn->pend)) {
+		struct hci_cp_sniff_mode cp;
+		cp.handle       = cpu_to_le16(conn->handle);
+		cp.max_interval = cpu_to_le16(hdev->sniff_max_interval);
+		cp.min_interval = cpu_to_le16(hdev->sniff_min_interval);
+		cp.attempt      = cpu_to_le16(4);
+		cp.timeout      = cpu_to_le16(1);
+		hci_send_cmd(hdev, HCI_OP_SNIFF_MODE, sizeof(cp), &cp);
+	}
+}
+
 static void hci_conn_idle(unsigned long arg)
 {
 	struct hci_conn *conn = (void *) arg;
@@ -765,42 +801,6 @@ timer:
 	if (hdev->idle_timeout > 0)
 		mod_timer(&conn->idle_timer,
 			jiffies + msecs_to_jiffies(hdev->idle_timeout));
-}
-
-/* Enter sniff mode */
-void hci_conn_enter_sniff_mode(struct hci_conn *conn)
-{
-	struct hci_dev *hdev = conn->hdev;
-
-	BT_DBG("conn %p mode %d", conn, conn->mode);
-
-	if (test_bit(HCI_RAW, &hdev->flags))
-		return;
-
-	if (!lmp_sniff_capable(hdev) || !lmp_sniff_capable(conn))
-		return;
-
-	if (conn->mode != HCI_CM_ACTIVE || !(conn->link_policy & HCI_LP_SNIFF))
-		return;
-
-	if (lmp_sniffsubr_capable(hdev) && lmp_sniffsubr_capable(conn)) {
-		struct hci_cp_sniff_subrate cp;
-		cp.handle             = cpu_to_le16(conn->handle);
-		cp.max_latency        = cpu_to_le16(0);
-		cp.min_remote_timeout = cpu_to_le16(0);
-		cp.min_local_timeout  = cpu_to_le16(0);
-		hci_send_cmd(hdev, HCI_OP_SNIFF_SUBRATE, sizeof(cp), &cp);
-	}
-
-	if (!test_and_set_bit(HCI_CONN_MODE_CHANGE_PEND, &conn->pend)) {
-		struct hci_cp_sniff_mode cp;
-		cp.handle       = cpu_to_le16(conn->handle);
-		cp.max_interval = cpu_to_le16(hdev->sniff_max_interval);
-		cp.min_interval = cpu_to_le16(hdev->sniff_min_interval);
-		cp.attempt      = cpu_to_le16(4);
-		cp.timeout      = cpu_to_le16(1);
-		hci_send_cmd(hdev, HCI_OP_SNIFF_MODE, sizeof(cp), &cp);
-	}
 }
 
 /* Drop all connection on the device */
