@@ -289,7 +289,7 @@ config DEBUG_STRICT_USER_COPY_CHECKS
 
 config DEBUG_NMI_SELFTEST
 	bool "NMI Selftest"
-	depends on DEBUG_KERNEL
+	depends on DEBUG_KERNEL && X86_LOCAL_APIC
 	---help---
 	  Enabling this option turns on a quick NMI selftest to verify
 	  that the NMI behaves correctly.
