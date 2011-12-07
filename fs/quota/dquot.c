@@ -2198,7 +2198,7 @@ int dquot_quota_on(struct super_block *sb, int type, int format_id,
 	if (error)
 		return error;
 	/* Quota file not on the same filesystem? */
-	if (path->mnt->mnt_sb != sb)
+	if (path->dentry->d_sb != sb)
 		error = -EXDEV;
 	else
 		error = vfs_load_quota_inode(path->dentry->d_inode, type,
