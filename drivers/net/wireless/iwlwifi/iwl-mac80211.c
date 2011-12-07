@@ -44,6 +44,7 @@
 #include <asm/div64.h>
 
 #include "iwl-eeprom.h"
+#include "iwl-wifi.h"
 #include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-io.h"
@@ -274,13 +275,13 @@ static int __iwl_up(struct iwl_priv *priv)
 		}
 	}
 
-	ret = iwlagn_run_init_ucode(priv);
+	ret = iwl_run_init_ucode(trans(priv));
 	if (ret) {
 		IWL_ERR(priv, "Failed to run INIT ucode: %d\n", ret);
 		goto error;
 	}
 
-	ret = iwlagn_load_ucode_wait_alive(priv, IWL_UCODE_REGULAR);
+	ret = iwl_load_ucode_wait_alive(trans(priv), IWL_UCODE_REGULAR);
 	if (ret) {
 		IWL_ERR(priv, "Failed to start RT ucode: %d\n", ret);
 		goto error;
