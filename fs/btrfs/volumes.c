@@ -3506,7 +3506,7 @@ static int open_seed_devices(struct btrfs_root *root, u8 *fsid)
 	struct btrfs_fs_devices *fs_devices;
 	int ret;
 
-	mutex_lock(&uuid_mutex);
+	BUG_ON(!mutex_is_locked(&uuid_mutex));
 
 	fs_devices = root->fs_info->fs_devices->seed;
 	while (fs_devices) {
@@ -3544,7 +3544,6 @@ static int open_seed_devices(struct btrfs_root *root, u8 *fsid)
 	fs_devices->seed = root->fs_info->fs_devices->seed;
 	root->fs_info->fs_devices->seed = fs_devices;
 out:
-	mutex_unlock(&uuid_mutex);
 	return ret;
 }
 
@@ -3687,6 +3686,9 @@ int btrfs_read_chunk_tree(struct btrfs_root *root)
 	if (!path)
 		return -ENOMEM;
 
+	mutex_lock(&uuid_mutex);
+	lock_chunks(root);
+
 	/* first we search for all of the device items, and then we
 	 * read in all of the chunk items.  This way we can create chunk
 	 * mappings that reference all of the devices that are afound
@@ -3737,6 +3739,9 @@ again:
 	}
 	ret = 0;
 error:
+	unlock_chunks(root);
+	mutex_unlock(&uuid_mutex);
+
 	btrfs_free_path(path);
 	return ret;
 }

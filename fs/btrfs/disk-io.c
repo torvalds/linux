@@ -2270,9 +2270,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	   (unsigned long)btrfs_header_chunk_tree_uuid(chunk_root->node),
 	   BTRFS_UUID_SIZE);
 
-	mutex_lock(&fs_info->chunk_mutex);
 	ret = btrfs_read_chunk_tree(chunk_root);
-	mutex_unlock(&fs_info->chunk_mutex);
 	if (ret) {
 		printk(KERN_WARNING "btrfs: failed to read chunk tree on %s\n",
 		       sb->s_id);
