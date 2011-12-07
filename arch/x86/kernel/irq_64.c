@@ -38,6 +38,7 @@ int sysctl_panic_on_stackoverflow;
 static inline void stack_overflow_check(struct pt_regs *regs)
 {
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
+#define STACK_TOP_MARGIN	128
 	struct orig_ist *oist;
 	u64 irq_stack_top, irq_stack_bottom;
 	u64 estack_top, estack_bottom;
@@ -47,17 +48,18 @@ static inline void stack_overflow_check(struct pt_regs *regs)
 		return;
 
 	if (regs->sp >= curbase + sizeof(struct thread_info) +
-				  sizeof(struct pt_regs) + 128 &&
+				  sizeof(struct pt_regs) + STACK_TOP_MARGIN &&
 	    regs->sp <= curbase + THREAD_SIZE)
 		return;
 
-	irq_stack_top = (u64)__get_cpu_var(irq_stack_union.irq_stack);
+	irq_stack_top = (u64)__get_cpu_var(irq_stack_union.irq_stack) +
+			STACK_TOP_MARGIN;
 	irq_stack_bottom = (u64)__get_cpu_var(irq_stack_ptr);
 	if (regs->sp >= irq_stack_top && regs->sp <= irq_stack_bottom)
 		return;
 
 	oist = &__get_cpu_var(orig_ist);
-	estack_top = (u64)oist->ist[0] - EXCEPTION_STKSZ;
+	estack_top = (u64)oist->ist[0] - EXCEPTION_STKSZ + STACK_TOP_MARGIN;
 	estack_bottom = (u64)oist->ist[N_EXCEPTION_STACKS - 1];
 	if (regs->sp >= estack_top && regs->sp <= estack_bottom)
 		return;
