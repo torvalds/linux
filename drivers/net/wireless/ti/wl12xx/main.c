@@ -674,6 +674,7 @@ static int __devinit wl12xx_probe(struct platform_device *pdev)
 	wl->ops = &wl12xx_ops;
 	wl->ptable = wl12xx_ptable;
 	wl->rtable = wl12xx_rtable;
+	wl->num_tx_desc = 16;
 
 	return wlcore_probe(wl, pdev);
 }

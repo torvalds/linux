@@ -27,6 +27,9 @@
 #include "wl12xx.h"
 #include "event.h"
 
+/* The maximum number of Tx descriptors in all chip families */
+#define WLCORE_MAX_TX_DESCRIPTORS 32
+
 struct wlcore_ops {
 	int (*identify_chip)(struct wl1271 *wl);
 	int (*boot)(struct wl1271 *wl);
@@ -174,8 +177,8 @@ struct wl1271 {
 	struct workqueue_struct *freezable_wq;
 
 	/* Pending TX frames */
-	unsigned long tx_frames_map[BITS_TO_LONGS(ACX_TX_DESCRIPTORS)];
-	struct sk_buff *tx_frames[ACX_TX_DESCRIPTORS];
+	unsigned long tx_frames_map[BITS_TO_LONGS(WLCORE_MAX_TX_DESCRIPTORS)];
+	struct sk_buff *tx_frames[WLCORE_MAX_TX_DESCRIPTORS];
 	int tx_frames_cnt;
 
 	/* FW Rx counter */
@@ -303,6 +306,9 @@ struct wl1271 {
 
 	/* per-chip-family private structure */
 	void *priv;
+
+	/* number of TX descriptors the HW supports. */
+	u32 num_tx_desc;
 };
 
 int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev);

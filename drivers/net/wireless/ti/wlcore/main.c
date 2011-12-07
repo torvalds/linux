@@ -5269,7 +5269,7 @@ struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size)
 	__set_bit(WL12XX_SYSTEM_HLID, wl->links_map);
 
 	memset(wl->tx_frames_map, 0, sizeof(wl->tx_frames_map));
-	for (i = 0; i < ACX_TX_DESCRIPTORS; i++)
+	for (i = 0; i < wl->num_tx_desc; i++)
 		wl->tx_frames[i] = NULL;
 
 	spin_lock_init(&wl->wl_lock);
@@ -5410,6 +5410,8 @@ int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev)
 		ret = -EINVAL;
 		goto out_free_hw;
 	}
+
+	BUG_ON(wl->num_tx_desc > WLCORE_MAX_TX_DESCRIPTORS);
 
 	wl->irq = platform_get_irq(pdev, 0);
 	wl->ref_clock = pdata->board_ref_clock;

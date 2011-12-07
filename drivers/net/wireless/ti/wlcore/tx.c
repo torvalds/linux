@@ -61,8 +61,8 @@ static int wl1271_alloc_tx_id(struct wl1271 *wl, struct sk_buff *skb)
 {
 	int id;
 
-	id = find_first_zero_bit(wl->tx_frames_map, ACX_TX_DESCRIPTORS);
-	if (id >= ACX_TX_DESCRIPTORS)
+	id = find_first_zero_bit(wl->tx_frames_map, wl->num_tx_desc);
+	if (id >= wl->num_tx_desc)
 		return -EBUSY;
 
 	__set_bit(id, wl->tx_frames_map);
@@ -74,7 +74,7 @@ static int wl1271_alloc_tx_id(struct wl1271 *wl, struct sk_buff *skb)
 static void wl1271_free_tx_id(struct wl1271 *wl, int id)
 {
 	if (__test_and_clear_bit(id, wl->tx_frames_map)) {
-		if (unlikely(wl->tx_frames_cnt == ACX_TX_DESCRIPTORS))
+		if (unlikely(wl->tx_frames_cnt == wl->num_tx_desc))
 			clear_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags);
 
 		wl->tx_frames[id] = NULL;
@@ -818,7 +818,7 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 	u8 retries = 0;
 
 	/* check for id legality */
-	if (unlikely(id >= ACX_TX_DESCRIPTORS || wl->tx_frames[id] == NULL)) {
+	if (unlikely(id >= wl->num_tx_desc || wl->tx_frames[id] == NULL)) {
 		wl1271_warning("TX result illegal id: %d", id);
 		return;
 	}
@@ -1011,7 +1011,7 @@ void wl12xx_tx_reset(struct wl1271 *wl, bool reset_tx_queues)
 	if (reset_tx_queues)
 		wl1271_handle_tx_low_watermark(wl);
 
-	for (i = 0; i < ACX_TX_DESCRIPTORS; i++) {
+	for (i = 0; i < wl->num_tx_desc; i++) {
 		if (wl->tx_frames[i] == NULL)
 			continue;
 
