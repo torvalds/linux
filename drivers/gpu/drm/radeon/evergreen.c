@@ -3069,6 +3069,12 @@ static int evergreen_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
+	r = r600_audio_init(rdev);
+	if (r) {
+		DRM_ERROR("radeon: audio init failed\n");
+		return r;
+	}
+
 	return 0;
 }
 
@@ -3100,12 +3106,19 @@ int evergreen_resume(struct radeon_device *rdev)
 		return r;
 	}
 
+	r = r600_audio_init(rdev);
+	if (r) {
+		DRM_ERROR("radeon: audio resume failed\n");
+		return r;
+	}
+
 	return r;
 
 }
 
 int evergreen_suspend(struct radeon_device *rdev)
 {
+	r600_audio_fini(rdev);
 	/* FIXME: we should wait for ring to be empty */
 	r700_cp_stop(rdev);
 	rdev->cp.ready = false;
@@ -3225,6 +3238,7 @@ int evergreen_init(struct radeon_device *rdev)
 
 void evergreen_fini(struct radeon_device *rdev)
 {
+	r600_audio_fini(rdev);
 	r600_blit_fini(rdev);
 	r700_cp_fini(rdev);
 	r600_irq_fini(rdev);

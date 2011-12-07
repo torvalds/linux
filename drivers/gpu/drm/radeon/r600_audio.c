@@ -36,7 +36,7 @@
  */
 static int r600_audio_chipset_supported(struct radeon_device *rdev)
 {
-	return (rdev->family >= CHIP_R600 && !ASIC_IS_DCE4(rdev))
+	return (rdev->family >= CHIP_R600 && !ASIC_IS_DCE5(rdev))
 		|| rdev->family == CHIP_RS600
 		|| rdev->family == CHIP_RS690
 		|| rdev->family == CHIP_RS740;
@@ -161,8 +161,18 @@ static void r600_audio_update_hdmi(unsigned long param)
  */
 static void r600_audio_engine_enable(struct radeon_device *rdev, bool enable)
 {
+	u32 value = 0;
 	DRM_INFO("%s audio support\n", enable ? "Enabling" : "Disabling");
-	WREG32_P(R600_AUDIO_ENABLE, enable ? 0x81000000 : 0x0, ~0x81000000);
+	if (ASIC_IS_DCE4(rdev)) {
+		if (enable) {
+			value |= 0x81000000; /* Required to enable audio */
+			value |= 0x0e1000f0; /* fglrx sets that too */
+		}
+		WREG32(EVERGREEN_AUDIO_ENABLE, value);
+	} else {
+		WREG32_P(R600_AUDIO_ENABLE,
+			 enable ? 0x81000000 : 0x0, ~0x81000000);
+	}
 	rdev->audio_enabled = enable;
 }
 
@@ -249,7 +259,13 @@ void r600_audio_set_clock(struct drm_encoder *encoder, int clock)
 	}
 
 	if (ASIC_IS_DCE4(rdev)) {
-		/* TODO */
+		/* TODO: other PLLs? */
+		WREG32(EVERGREEN_AUDIO_PLL1_MUL, base_rate * 10);
+		WREG32(EVERGREEN_AUDIO_PLL1_DIV, clock * 10);
+		WREG32(EVERGREEN_AUDIO_PLL1_UNK, 0x00000071);
+
+		/* Some magic trigger or src sel? */
+		WREG32_P(0x5ac, 0x01, ~0x77);
 	} else {
 		switch (dig->dig_encoder) {
 		case 0:
