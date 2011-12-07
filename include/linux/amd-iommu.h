@@ -145,6 +145,23 @@ struct amd_iommu_device_info {
 extern int amd_iommu_device_info(struct pci_dev *pdev,
 				 struct amd_iommu_device_info *info);
 
+/**
+ * amd_iommu_set_invalidate_ctx_cb() - Register a call-back for invalidating
+ *				       a pasid context. This call-back is
+ *				       invoked when the IOMMUv2 driver needs to
+ *				       invalidate a PASID context, for example
+ *				       because the task that is bound to that
+ *				       context is about to exit.
+ *
+ * @pdev: The PCI device the call-back should be registered for
+ * @cb: The call-back function
+ */
+
+typedef void (*amd_iommu_invalidate_ctx)(struct pci_dev *pdev, int pasid);
+
+extern int amd_iommu_set_invalidate_ctx_cb(struct pci_dev *pdev,
+					   amd_iommu_invalidate_ctx cb);
+
 #else
 
 static inline int amd_iommu_detect(void) { return -ENODEV; }

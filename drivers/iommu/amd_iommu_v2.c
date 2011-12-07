@@ -63,6 +63,7 @@ struct device_state {
 	int pasid_levels;
 	int max_pasids;
 	amd_iommu_invalid_ppr_cb inv_ppr_cb;
+	amd_iommu_invalidate_ctx inv_ctx_cb;
 	spinlock_t lock;
 	wait_queue_head_t wq;
 };
@@ -637,6 +638,9 @@ again:
 		dev_state = pasid_state->device_state;
 		pasid     = pasid_state->pasid;
 
+		if (pasid_state->device_state->inv_ctx_cb)
+			dev_state->inv_ctx_cb(dev_state->pdev, pasid);
+
 		unbind_pasid(dev_state, pasid);
 
 		/* Task may be in the list multiple times */
@@ -880,6 +884,37 @@ out_unlock:
 	return ret;
 }
 EXPORT_SYMBOL(amd_iommu_set_invalid_ppr_cb);
+
+int amd_iommu_set_invalidate_ctx_cb(struct pci_dev *pdev,
+				    amd_iommu_invalidate_ctx cb)
+{
+	struct device_state *dev_state;
+	unsigned long flags;
+	u16 devid;
+	int ret;
+
+	if (!amd_iommu_v2_supported())
+		return -ENODEV;
+
+	devid = device_id(pdev);
+
+	spin_lock_irqsave(&state_lock, flags);
+
+	ret = -EINVAL;
+	dev_state = state_table[devid];
+	if (dev_state == NULL)
+		goto out_unlock;
+
+	dev_state->inv_ctx_cb = cb;
+
+	ret = 0;
+
+out_unlock:
+	spin_unlock_irqrestore(&state_lock, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL(amd_iommu_set_invalidate_ctx_cb);
 
 static int __init amd_iommu_v2_init(void)
 {
