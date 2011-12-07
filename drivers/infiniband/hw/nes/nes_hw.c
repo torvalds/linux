@@ -1529,7 +1529,7 @@ int nes_init_phy(struct nes_device *nesdev)
 	} else {
 		/* setup 10G MDIO operation */
 		tx_config &= 0xFFFFFFE3;
-		tx_config |= 0x15;
+		tx_config |= 0x1D;
 	}
 	nes_write_indexed(nesdev, NES_IDX_MAC_TX_CONFIG, tx_config);
 
