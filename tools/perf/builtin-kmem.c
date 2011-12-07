@@ -19,7 +19,7 @@
 struct alloc_stat;
 typedef int (*sort_fn_t)(struct alloc_stat *, struct alloc_stat *);
 
-static char const		*input_name = "perf.data";
+static const char		*input_name;
 
 static int			alloc_flag;
 static int			caller_flag;

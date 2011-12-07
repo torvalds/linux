@@ -215,7 +215,7 @@ static int __cmd_annotate(struct perf_annotate *ann)
 	}
 
 	if (total_nr_samples == 0) {
-		ui__warning("The %s file has no samples!\n", ann->input_name);
+		ui__warning("The %s file has no samples!\n", session->filename);
 		goto out_delete;
 	}
 out_delete:
@@ -250,7 +250,6 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __used)
 			.ordered_samples = true,
 			.ordering_requires_timestamps = true,
 		},
-		.input_name = "perf.data",
 	};
 	const struct option options[] = {
 	OPT_STRING('i', "input", &annotate.input_name, "file",

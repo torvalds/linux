@@ -107,8 +107,19 @@ struct perf_session *perf_session__new(const char *filename, int mode,
 				       bool force, bool repipe,
 				       struct perf_tool *tool)
 {
-	size_t len = filename ? strlen(filename) : 0;
-	struct perf_session *self = zalloc(sizeof(*self) + len);
+	struct perf_session *self;
+	struct stat st;
+	size_t len;
+
+	if (!filename || !strlen(filename)) {
+		if (!fstat(STDIN_FILENO, &st) && S_ISFIFO(st.st_mode))
+			filename = "-";
+		else
+			filename = "perf.data";
+	}
+
+	len = strlen(filename);
+	self = zalloc(sizeof(*self) + len);
 
 	if (self == NULL)
 		goto out;

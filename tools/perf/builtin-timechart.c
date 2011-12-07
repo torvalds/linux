@@ -38,8 +38,8 @@
 #define PWR_EVENT_EXIT -1
 
 
-static char		const *input_name = "perf.data";
-static char		const *output_name = "output.svg";
+static const char	*input_name;
+static const char	*output_name = "output.svg";
 
 static unsigned int	numcpus;
 static u64		min_freq;	/* Lowest CPU frequency seen */

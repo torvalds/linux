@@ -22,7 +22,7 @@ OPTIONS
 -------
 -i::
 --input=::
-        Input file name. (default: perf.data)
+        Input file name. (default: perf.data unless stdin is a fifo)
 
 -d::
 --dsos=<dso[,dso...]>::

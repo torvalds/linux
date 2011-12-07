@@ -434,7 +434,7 @@ static int cleanup_scripting(void)
 	return scripting_ops->stop_script();
 }
 
-static char const		*input_name = "perf.data";
+static const char *input_name;
 
 static int process_sample_event(struct perf_tool *tool __used,
 				union perf_event *event,
@@ -1316,7 +1316,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __used)
 			return -1;
 		}
 
-		input = open(input_name, O_RDONLY);
+		input = open(session->filename, O_RDONLY);	/* input_name */
 		if (input < 0) {
 			perror("failed to open file");
 			exit(-1);

@@ -22,7 +22,7 @@
 #include <pthread.h>
 #include <math.h>
 
-static char			const *input_name = "perf.data";
+static const char		*input_name;
 
 static char			default_sort_order[] = "avg, max, switch, runtime";
 static const char		*sort_order = default_sort_order;

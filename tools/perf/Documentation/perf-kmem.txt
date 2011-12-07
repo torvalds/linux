@@ -23,7 +23,7 @@ OPTIONS
 -------
 -i <file>::
 --input=<file>::
-	Select the input file (default: perf.data)
+	Select the input file (default: perf.data unless stdin is a fifo)
 
 --caller::
 	Show per-callsite statistics

@@ -27,7 +27,7 @@ OPTIONS
         Select the output file (default: output.svg)
 -i::
 --input=::
-        Select the input file (default: perf.data)
+        Select the input file (default: perf.data unless stdin is a fifo)
 -w::
 --width=::
         Select the width of the SVG file (default: 1000)

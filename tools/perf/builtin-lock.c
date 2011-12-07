@@ -326,7 +326,7 @@ alloc_failed:
 	die("memory allocation failed\n");
 }
 
-static char			const *input_name = "perf.data";
+static const char *input_name;
 
 struct raw_event_sample {
 	u32			size;

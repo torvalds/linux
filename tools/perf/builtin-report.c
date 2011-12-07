@@ -321,8 +321,7 @@ static int __cmd_report(struct perf_report *rep)
 	}
 
 	if (nr_samples == 0) {
-		ui__warning("The %s file has no samples!\n",
-			    rep->input_name);
+		ui__warning("The %s file has no samples!\n", session->filename);
 		goto out_delete;
 	}
 
@@ -430,6 +429,7 @@ setup:
 
 int cmd_report(int argc, const char **argv, const char *prefix __used)
 {
+	struct stat st;
 	char callchain_default_opt[] = "fractal,0.5,callee";
 	const char * const report_usage[] = {
 		"perf report [<options>]",
@@ -451,7 +451,6 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 			.ordered_samples = true,
 			.ordering_requires_timestamps = true,
 		},
-		.input_name		 = "perf.data",
 		.pretty_printing_style	 = "normal",
 	};
 	const struct option options[] = {
@@ -531,10 +530,18 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 	if (report.inverted_callchain)
 		callchain_param.order = ORDER_CALLER;
 
+	if (!report.input_name || !strlen(report.input_name)) {
+		if (!fstat(STDIN_FILENO, &st) && S_ISFIFO(st.st_mode))
+			report.input_name = "-";
+		else
+			report.input_name = "perf.data";
+	}
+
 	if (strcmp(report.input_name, "-") != 0)
 		setup_browser(true);
 	else
 		use_browser = 0;
+
 	/*
 	 * Only in the newt browser we are doing integrated annotation,
 	 * so don't allocate extra space that won't be used in the stdio
