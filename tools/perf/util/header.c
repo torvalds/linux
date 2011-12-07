@@ -1109,7 +1109,7 @@ static int perf_file_section__fprintf_info(struct perf_file_section *section,
 	}
 	if (feat < HEADER_TRACE_INFO || feat >= HEADER_LAST_FEATURE) {
 		pr_warning("unknown feature %d\n", feat);
-		return -1;
+		return 0;
 	}
 	if (!feat_ops[feat].print)
 		return 0;
