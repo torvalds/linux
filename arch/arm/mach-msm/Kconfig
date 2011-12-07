@@ -67,6 +67,7 @@ config MSM_SOC_REV_A
 	bool
 config  ARCH_MSM_SCORPIONMP
 	bool
+	select HAVE_SMP
 
 config  ARCH_MSM_ARM11
 	bool

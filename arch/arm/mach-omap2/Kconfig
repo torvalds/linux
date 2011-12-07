@@ -43,6 +43,7 @@ config ARCH_OMAP4
 	depends on ARCH_OMAP2PLUS
 	select CPU_V7
 	select ARM_GIC
+	select HAVE_SMP
 	select LOCAL_TIMERS if SMP
 	select MIGHT_HAVE_CACHE_L2X0
 	select PL310_ERRATA_588369

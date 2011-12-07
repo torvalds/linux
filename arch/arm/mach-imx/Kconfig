@@ -615,6 +615,7 @@ config SOC_IMX6Q
 	select HAVE_IMX_GPC
 	select HAVE_IMX_MMDC
 	select HAVE_IMX_SRC
+	select HAVE_SMP
 	select USE_OF
 
 	help
