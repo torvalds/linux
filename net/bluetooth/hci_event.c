@@ -2273,28 +2273,39 @@ static inline void hci_num_comp_pkts_evt(struct hci_dev *hdev, struct sk_buff *s
 		count  = get_unaligned_le16(ptr++);
 
 		conn = hci_conn_hash_lookup_handle(hdev, handle);
-		if (conn) {
-			conn->sent -= count;
+		if (!conn)
+			continue;
 
-			if (conn->type == ACL_LINK) {
+		conn->sent -= count;
+
+		switch (conn->type) {
+		case ACL_LINK:
+			hdev->acl_cnt += count;
+			if (hdev->acl_cnt > hdev->acl_pkts)
+				hdev->acl_cnt = hdev->acl_pkts;
+			break;
+
+		case LE_LINK:
+			if (hdev->le_pkts) {
+				hdev->le_cnt += count;
+				if (hdev->le_cnt > hdev->le_pkts)
+					hdev->le_cnt = hdev->le_pkts;
+			} else {
 				hdev->acl_cnt += count;
 				if (hdev->acl_cnt > hdev->acl_pkts)
 					hdev->acl_cnt = hdev->acl_pkts;
-			} else if (conn->type == LE_LINK) {
-				if (hdev->le_pkts) {
-					hdev->le_cnt += count;
-					if (hdev->le_cnt > hdev->le_pkts)
-						hdev->le_cnt = hdev->le_pkts;
-				} else {
-					hdev->acl_cnt += count;
-					if (hdev->acl_cnt > hdev->acl_pkts)
-						hdev->acl_cnt = hdev->acl_pkts;
-				}
-			} else {
-				hdev->sco_cnt += count;
-				if (hdev->sco_cnt > hdev->sco_pkts)
-					hdev->sco_cnt = hdev->sco_pkts;
 			}
+			break;
+
+		case SCO_LINK:
+			hdev->sco_cnt += count;
+			if (hdev->sco_cnt > hdev->sco_pkts)
+				hdev->sco_cnt = hdev->sco_pkts;
+			break;
+
+		default:
+			BT_ERR("Unknown type %d conn %p", conn->type, conn);
+			break;
 		}
 	}
 
