@@ -818,7 +818,7 @@ static void __inline__ fec_get_mac(struct net_device *ndev)
 			iap = (unsigned char *)FEC_FLASHMAC;
 #else
 		if (pdata)
-			memcpy(iap, pdata->mac, ETH_ALEN);
+			iap = (unsigned char *)&pdata->mac;
 #endif
 	}
 
