@@ -171,7 +171,6 @@ static int oprofile_hwsampler_init(struct oprofile_operations *ops)
 
 static void oprofile_hwsampler_exit(void)
 {
-	oprofile_timer_exit();
 	hwsampler_shutdown();
 }
 

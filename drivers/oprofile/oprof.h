@@ -35,7 +35,6 @@ struct dentry;
 
 void oprofile_create_files(struct super_block *sb, struct dentry *root);
 int oprofile_timer_init(struct oprofile_operations *ops);
-void oprofile_timer_exit(void);
 #ifdef CONFIG_OPROFILE_NMI_TIMER
 int op_nmi_timer_init(struct oprofile_operations *ops);
 #else
