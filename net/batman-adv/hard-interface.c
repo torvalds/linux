@@ -281,6 +281,14 @@ int hardif_enable_interface(struct hard_iface *hard_iface,
 	if (!atomic_inc_not_zero(&hard_iface->refcount))
 		goto out;
 
+	/* hard-interface is part of a bridge */
+	if (hard_iface->net_dev->priv_flags & IFF_BRIDGE_PORT)
+		pr_err("You are about to enable batman-adv on '%s' which "
+		       "already is part of a bridge. Unless you know exactly "
+		       "what you are doing this is probably wrong and won't "
+		       "work the way you think it would.\n",
+		       hard_iface->net_dev->name);
+
 	soft_iface = dev_get_by_name(&init_net, iface_name);
 
 	if (!soft_iface) {
