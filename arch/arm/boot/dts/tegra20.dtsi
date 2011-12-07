@@ -45,8 +45,6 @@
 	};
 
 	i2s@70002800 {
-		#address-cells = <1>;
-		#size-cells = <0>;
 		compatible = "nvidia,tegra20-i2s";
 		reg = <0x70002800 0x200>;
 		interrupts = < 45 >;
@@ -54,8 +52,6 @@
 	};
 
 	i2s@70002a00 {
-		#address-cells = <1>;
-		#size-cells = <0>;
 		compatible = "nvidia,tegra20-i2s";
 		reg = <0x70002a00 0x200>;
 		interrupts = < 35 >;
@@ -63,8 +59,6 @@
 	};
 
 	das@70000c00 {
-		#address-cells = <1>;
-		#size-cells = <0>;
 		compatible = "nvidia,tegra20-das";
 		reg = <0x70000c00 0x80>;
 	};
