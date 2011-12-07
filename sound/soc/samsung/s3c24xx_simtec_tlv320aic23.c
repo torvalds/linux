@@ -92,7 +92,7 @@ static int __devinit simtec_audio_tlv320aic23_probe(struct platform_device *pd)
 	return simtec_audio_core_probe(pd, &snd_soc_machine_simtec_aic23);
 }
 
-static struct platform_driver simtec_audio_tlv320aic23_platdrv = {
+static struct platform_driver simtec_audio_tlv320aic23_driver = {
 	.driver	= {
 		.owner	= THIS_MODULE,
 		.name	= "s3c24xx-simtec-tlv320aic23",
@@ -102,7 +102,7 @@ static struct platform_driver simtec_audio_tlv320aic23_platdrv = {
 	.remove	= __devexit_p(simtec_audio_remove),
 };
 
-module_platform_driver(simtec_audio_tlv320aic32_driver);
+module_platform_driver(simtec_audio_tlv320aic23_driver);
 
 MODULE_ALIAS("platform:s3c24xx-simtec-tlv320aic23");
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
