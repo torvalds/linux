@@ -169,12 +169,7 @@ void __init orion5x_xor_init(void)
  ****************************************************************************/
 static void __init orion5x_crypto_init(void)
 {
-	int ret;
-
-	ret = orion5x_setup_sram_win();
-	if (ret)
-		return;
-
+	orion5x_setup_sram_win();
 	orion_crypto_init(ORION5X_CRYPTO_PHYS_BASE, ORION5X_SRAM_PHYS_BASE,
 			  SZ_8K, IRQ_ORION5X_CESA);
 }
