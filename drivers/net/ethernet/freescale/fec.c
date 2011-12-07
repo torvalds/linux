@@ -259,6 +259,8 @@ struct fec_enet_private {
 /* Transmitter timeout */
 #define TX_TIMEOUT (2 * HZ)
 
+static int mii_cnt;
+
 static void *swap_buffer(void *bufaddr, int len)
 {
 	int i;
@@ -1040,8 +1042,12 @@ static int fec_enet_mii_init(struct platform_device *pdev)
 	 */
 	if ((id_entry->driver_data & FEC_QUIRK_ENET_MAC) && pdev->id > 0) {
 		/* fec1 uses fec0 mii_bus */
-		fep->mii_bus = fec0_mii_bus;
-		return 0;
+		if (mii_cnt && fec0_mii_bus) {
+			fep->mii_bus = fec0_mii_bus;
+			mii_cnt++;
+			return 0;
+		}
+		return -ENOENT;
 	}
 
 	fep->mii_timeout = 0;
@@ -1086,6 +1092,8 @@ static int fec_enet_mii_init(struct platform_device *pdev)
 	if (mdiobus_register(fep->mii_bus))
 		goto err_out_free_mdio_irq;
 
+	mii_cnt++;
+
 	/* save fec0 mii_bus */
 	if (id_entry->driver_data & FEC_QUIRK_ENET_MAC)
 		fec0_mii_bus = fep->mii_bus;
@@ -1102,11 +1110,11 @@ err_out:
 
 static void fec_enet_mii_remove(struct fec_enet_private *fep)
 {
-	if (fep->phy_dev)
-		phy_disconnect(fep->phy_dev);
-	mdiobus_unregister(fep->mii_bus);
-	kfree(fep->mii_bus->irq);
-	mdiobus_free(fep->mii_bus);
+	if (--mii_cnt == 0) {
+		mdiobus_unregister(fep->mii_bus);
+		kfree(fep->mii_bus->irq);
+		mdiobus_free(fep->mii_bus);
+	}
 }
 
 static int fec_enet_get_settings(struct net_device *ndev,
@@ -1646,13 +1654,18 @@ fec_drv_remove(struct platform_device *pdev)
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	struct resource *r;
+	int i;
 
-	fec_stop(ndev);
+	unregister_netdev(ndev);
 	fec_enet_mii_remove(fep);
+	for (i = 0; i < FEC_IRQ_NUM; i++) {
+		int irq = platform_get_irq(pdev, i);
+		if (irq > 0)
+			free_irq(irq, ndev);
+	}
 	clk_disable(fep->clk);
 	clk_put(fep->clk);
 	iounmap(fep->hwp);
-	unregister_netdev(ndev);
 	free_netdev(ndev);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
