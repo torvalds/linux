@@ -176,8 +176,8 @@ static bool pci_iommuv2_capable(struct pci_dev *pdev)
 {
 	static const int caps[] = {
 		PCI_EXT_CAP_ID_ATS,
-		PCI_PRI_CAP,
-		PCI_PASID_CAP,
+		PCI_EXT_CAP_ID_PRI,
+		PCI_EXT_CAP_ID_PASID,
 	};
 	int i, pos;
 
@@ -1978,13 +1978,13 @@ static int pri_reset_while_enabled(struct pci_dev *pdev)
 	u16 control;
 	int pos;
 
-	pos = pci_find_ext_capability(pdev, PCI_PRI_CAP);
+	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_PRI);
 	if (!pos)
 		return -EINVAL;
 
-	pci_read_config_word(pdev, pos + PCI_PRI_CONTROL_OFF, &control);
-	control |= PCI_PRI_RESET;
-	pci_write_config_word(pdev, pos + PCI_PRI_CONTROL_OFF, control);
+	pci_read_config_word(pdev, pos + PCI_PRI_CTRL, &control);
+	control |= PCI_PRI_CTRL_RESET;
+	pci_write_config_word(pdev, pos + PCI_PRI_CTRL, control);
 
 	return 0;
 }
@@ -2042,11 +2042,11 @@ bool pci_pri_tlp_required(struct pci_dev *pdev)
 	u16 control;
 	int pos;
 
-	pos = pci_find_ext_capability(pdev, PCI_PRI_CAP);
+	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_PRI);
 	if (!pos)
 		return false;
 
-	pci_read_config_word(pdev, pos + PCI_PRI_CONTROL_OFF, &control);
+	pci_read_config_word(pdev, pos + PCI_PRI_CTRL, &control);
 
 	return (control & PCI_PRI_TLP_OFF) ? true : false;
 }
