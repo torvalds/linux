@@ -4624,37 +4624,6 @@ static struct ieee80211_channel wl1271_channels[] = {
 	{ .hw_value = 14, .center_freq = 2484, .max_power = 25 },
 };
 
-/* mapping to indexes for wl1271_rates */
-static const u8 wl1271_rate_to_idx_2ghz[] = {
-	/* MCS rates are used only with 11n */
-	7,                            /* CONF_HW_RXTX_RATE_MCS7_SGI */
-	7,                            /* CONF_HW_RXTX_RATE_MCS7 */
-	6,                            /* CONF_HW_RXTX_RATE_MCS6 */
-	5,                            /* CONF_HW_RXTX_RATE_MCS5 */
-	4,                            /* CONF_HW_RXTX_RATE_MCS4 */
-	3,                            /* CONF_HW_RXTX_RATE_MCS3 */
-	2,                            /* CONF_HW_RXTX_RATE_MCS2 */
-	1,                            /* CONF_HW_RXTX_RATE_MCS1 */
-	0,                            /* CONF_HW_RXTX_RATE_MCS0 */
-
-	11,                            /* CONF_HW_RXTX_RATE_54   */
-	10,                            /* CONF_HW_RXTX_RATE_48   */
-	9,                             /* CONF_HW_RXTX_RATE_36   */
-	8,                             /* CONF_HW_RXTX_RATE_24   */
-
-	/* TI-specific rate */
-	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_22   */
-
-	7,                             /* CONF_HW_RXTX_RATE_18   */
-	6,                             /* CONF_HW_RXTX_RATE_12   */
-	3,                             /* CONF_HW_RXTX_RATE_11   */
-	5,                             /* CONF_HW_RXTX_RATE_9    */
-	4,                             /* CONF_HW_RXTX_RATE_6    */
-	2,                             /* CONF_HW_RXTX_RATE_5_5  */
-	1,                             /* CONF_HW_RXTX_RATE_2    */
-	0                              /* CONF_HW_RXTX_RATE_1    */
-};
-
 /* 11n STA capabilities */
 #define HW_RX_HIGHEST_RATE	72
 
@@ -4746,48 +4715,12 @@ static struct ieee80211_channel wl1271_channels_5ghz[] = {
 	{ .hw_value = 165, .center_freq = 5825, .max_power = 25 },
 };
 
-/* mapping to indexes for wl1271_rates_5ghz */
-static const u8 wl1271_rate_to_idx_5ghz[] = {
-	/* MCS rates are used only with 11n */
-	7,                            /* CONF_HW_RXTX_RATE_MCS7_SGI */
-	7,                            /* CONF_HW_RXTX_RATE_MCS7 */
-	6,                            /* CONF_HW_RXTX_RATE_MCS6 */
-	5,                            /* CONF_HW_RXTX_RATE_MCS5 */
-	4,                            /* CONF_HW_RXTX_RATE_MCS4 */
-	3,                            /* CONF_HW_RXTX_RATE_MCS3 */
-	2,                            /* CONF_HW_RXTX_RATE_MCS2 */
-	1,                            /* CONF_HW_RXTX_RATE_MCS1 */
-	0,                            /* CONF_HW_RXTX_RATE_MCS0 */
-
-	7,                             /* CONF_HW_RXTX_RATE_54   */
-	6,                             /* CONF_HW_RXTX_RATE_48   */
-	5,                             /* CONF_HW_RXTX_RATE_36   */
-	4,                             /* CONF_HW_RXTX_RATE_24   */
-
-	/* TI-specific rate */
-	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_22   */
-
-	3,                             /* CONF_HW_RXTX_RATE_18   */
-	2,                             /* CONF_HW_RXTX_RATE_12   */
-	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_11   */
-	1,                             /* CONF_HW_RXTX_RATE_9    */
-	0,                             /* CONF_HW_RXTX_RATE_6    */
-	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_5_5  */
-	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_2    */
-	CONF_HW_RXTX_RATE_UNSUPPORTED  /* CONF_HW_RXTX_RATE_1    */
-};
-
 static struct ieee80211_supported_band wl1271_band_5ghz = {
 	.channels = wl1271_channels_5ghz,
 	.n_channels = ARRAY_SIZE(wl1271_channels_5ghz),
 	.bitrates = wl1271_rates_5ghz,
 	.n_bitrates = ARRAY_SIZE(wl1271_rates_5ghz),
 	.ht_cap	= WL12XX_HT_CAP,
-};
-
-static const u8 *wl1271_band_rate_to_idx[] = {
-	[IEEE80211_BAND_2GHZ] = wl1271_rate_to_idx_2ghz,
-	[IEEE80211_BAND_5GHZ] = wl1271_rate_to_idx_5ghz
 };
 
 static const struct ieee80211_ops wl1271_ops = {
@@ -4824,18 +4757,18 @@ static const struct ieee80211_ops wl1271_ops = {
 };
 
 
-u8 wl1271_rate_to_idx(int rate, enum ieee80211_band band)
+u8 wlcore_rate_to_idx(struct wl1271 *wl, u8 rate, enum ieee80211_band band)
 {
 	u8 idx;
 
-	BUG_ON(band >= sizeof(wl1271_band_rate_to_idx)/sizeof(u8 *));
+	BUG_ON(band >= 2);
 
-	if (unlikely(rate >= CONF_HW_RXTX_RATE_MAX)) {
+	if (unlikely(rate >= wl->hw_tx_rate_tbl_size)) {
 		wl1271_error("Illegal RX rate from HW: %d", rate);
 		return 0;
 	}
 
-	idx = wl1271_band_rate_to_idx[band][rate];
+	idx = wl->band_rate_to_idx[band][rate];
 	if (unlikely(idx == CONF_HW_RXTX_RATE_UNSUPPORTED)) {
 		wl1271_error("Unsupported RX rate from HW: %d", rate);
 		return 0;

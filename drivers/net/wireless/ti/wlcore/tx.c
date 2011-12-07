@@ -759,11 +759,20 @@ static u8 wl1271_tx_get_rate_flags(u8 rate_class_index)
 {
 	u8 flags = 0;
 
-	if (rate_class_index >= CONF_HW_RXTX_RATE_MCS_MIN &&
-	    rate_class_index <= CONF_HW_RXTX_RATE_MCS_MAX)
+	/*
+	 * TODO: use wl12xx constants when this code is moved to wl12xx, as
+	 * only it uses Tx-completion.
+	 */
+	if (rate_class_index <= 8)
 		flags |= IEEE80211_TX_RC_MCS;
-	if (rate_class_index == CONF_HW_RXTX_RATE_MCS7_SGI)
+
+	/*
+	 * TODO: use wl12xx constants when this code is moved to wl12xx, as
+	 * only it uses Tx-completion.
+	 */
+	if (rate_class_index == 0)
 		flags |= IEEE80211_TX_RC_SHORT_GI;
+
 	return flags;
 }
 
@@ -801,7 +810,7 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 	if (result->status == TX_SUCCESS) {
 		if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
 			info->flags |= IEEE80211_TX_STAT_ACK;
-		rate = wl1271_rate_to_idx(result->rate_class_index,
+		rate = wlcore_rate_to_idx(wl, result->rate_class_index,
 					  wlvif->band);
 		rate_flags = wl1271_tx_get_rate_flags(result->rate_class_index);
 		retries = result->ack_failures;

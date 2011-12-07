@@ -71,10 +71,10 @@ static void wl1271_rx_status(struct wl1271 *wl,
 	else
 		status->band = IEEE80211_BAND_5GHZ;
 
-	status->rate_idx = wl1271_rate_to_idx(desc->rate, status->band);
+	status->rate_idx = wlcore_rate_to_idx(wl, desc->rate, status->band);
 
 	/* 11n support */
-	if (desc->rate <= CONF_HW_RXTX_RATE_MCS0)
+	if (desc->rate <= wl->hw_min_ht_rate)
 		status->flag |= RX_FLAG_HT;
 
 	status->signal = desc->rssi;
