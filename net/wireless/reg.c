@@ -1792,6 +1792,26 @@ static void restore_alpha2(char *alpha2, bool reset_user)
 		REG_DBG_PRINT("Restoring regulatory settings\n");
 }
 
+static void restore_custom_reg_settings(struct wiphy *wiphy)
+{
+	struct ieee80211_supported_band *sband;
+	enum ieee80211_band band;
+	struct ieee80211_channel *chan;
+	int i;
+
+	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+		sband = wiphy->bands[band];
+		if (!sband)
+			continue;
+		for (i = 0; i < sband->n_channels; i++) {
+			chan = &sband->channels[i];
+			chan->flags = chan->orig_flags;
+			chan->max_antenna_gain = chan->orig_mag;
+			chan->max_power = chan->orig_mpwr;
+		}
+	}
+}
+
 /*
  * Restoring regulatory settings involves ingoring any
  * possibly stale country IE information and user regulatory
@@ -1813,6 +1833,7 @@ static void restore_regulatory_settings(bool reset_user)
 	struct reg_beacon *reg_beacon, *btmp;
 	struct regulatory_request *reg_request, *tmp;
 	LIST_HEAD(tmp_reg_req_list);
+	struct cfg80211_registered_device *rdev;
 
 	mutex_lock(&cfg80211_mutex);
 	mutex_lock(&reg_mutex);
@@ -1860,6 +1881,11 @@ static void restore_regulatory_settings(bool reset_user)
 
 	/* First restore to the basic regulatory settings */
 	cfg80211_regdomain = cfg80211_world_regdom;
+
+	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
+		if (rdev->wiphy.flags & WIPHY_FLAG_CUSTOM_REGULATORY)
+			restore_custom_reg_settings(&rdev->wiphy);
+	}
 
 	mutex_unlock(&reg_mutex);
 	mutex_unlock(&cfg80211_mutex);
