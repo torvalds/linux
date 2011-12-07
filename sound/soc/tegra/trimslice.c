@@ -115,28 +115,6 @@ static const struct snd_soc_dapm_route trimslice_audio_map[] = {
 	{"RLINEIN", NULL, "Line In"},
 };
 
-static int trimslice_asoc_init(struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_card *card = codec->card;
-	int ret;
-
-	ret = tegra_das_connect_dap_to_dac(TEGRA_DAS_DAP_ID_1,
-					   TEGRA_DAS_DAP_SEL_DAC1);
-	if (ret) {
-		dev_err(card->dev, "Can't set up DAS DAP connection\n");
-		return ret;
-	}
-	ret = tegra_das_connect_dac_to_dap(TEGRA_DAS_DAC_ID_1,
-					   TEGRA_DAS_DAC_SEL_DAP1);
-	if (ret) {
-		dev_err(card->dev, "Can't set up DAS DAC connection\n");
-		return ret;
-	}
-
-	return 0;
-}
-
 static struct snd_soc_dai_link trimslice_tlv320aic23_dai = {
 	.name = "TLV320AIC23",
 	.stream_name = "AIC23",
@@ -144,7 +122,6 @@ static struct snd_soc_dai_link trimslice_tlv320aic23_dai = {
 	.platform_name = "tegra-pcm-audio",
 	.cpu_dai_name = "tegra-i2s.0",
 	.codec_dai_name = "tlv320aic23-hifi",
-	.init = trimslice_asoc_init,
 	.ops = &trimslice_asoc_ops,
 };
 

@@ -249,19 +249,6 @@ static int tegra_wm8903_init(struct snd_soc_pcm_runtime *rtd)
 	struct tegra_wm8903_platform_data *pdata = machine->pdata;
 	int ret;
 
-	ret = tegra_das_connect_dap_to_dac(TEGRA_DAS_DAP_ID_1,
-					   TEGRA_DAS_DAP_SEL_DAC1);
-	if (ret) {
-		dev_err(card->dev, "Can't set up DAS DAP connection\n");
-		return ret;
-	}
-	ret = tegra_das_connect_dac_to_dap(TEGRA_DAS_DAC_ID_1,
-					   TEGRA_DAS_DAC_SEL_DAP1);
-	if (ret) {
-		dev_err(card->dev, "Can't set up DAS DAC connection\n");
-		return ret;
-	}
-
 	if (gpio_is_valid(pdata->gpio_spkr_en)) {
 		ret = gpio_request(pdata->gpio_spkr_en, "spkr_en");
 		if (ret) {
