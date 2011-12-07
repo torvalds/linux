@@ -382,7 +382,7 @@ static bool dhd_readahead;
 
 /* To check if there's window offered */
 #define DATAOK(bus) \
-	(((uint8)(bus->tx_max - bus->tx_seq) > 2) && \
+	(((uint8)(bus->tx_max - bus->tx_seq) > 1) && \
 	(((uint8)(bus->tx_max - bus->tx_seq) & 0x80) == 0))
 
 /* To check if there's window offered for ctrl frame */
