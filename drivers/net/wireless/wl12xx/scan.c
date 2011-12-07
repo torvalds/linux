@@ -572,6 +572,9 @@ wl12xx_scan_sched_scan_ssid_list(struct wl1271 *wl,
 			 * so they're used in probe requests.
 			 */
 			for (i = 0; i < req->n_ssids; i++) {
+				if (!req->ssids[i].ssid_len)
+					continue;
+
 				for (j = 0; j < cmd->n_ssids; j++)
 					if (!memcmp(req->ssids[i].ssid,
 						   cmd->ssids[j].ssid,
