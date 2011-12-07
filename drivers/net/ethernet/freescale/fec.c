@@ -515,6 +515,7 @@ fec_stop(struct net_device *ndev)
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	const struct platform_device_id *id_entry =
 				platform_get_device_id(fep->pdev);
+	u32 rmii_mode = readl(fep->hwp + FEC_R_CNTRL) & (1 << 8);
 
 	/* We cannot expect a graceful transmit stop without link !!! */
 	if (fep->link) {
@@ -531,8 +532,10 @@ fec_stop(struct net_device *ndev)
 	writel(FEC_DEFAULT_IMASK, fep->hwp + FEC_IMASK);
 
 	/* We have to keep ENET enabled to have MII interrupt stay working */
-	if (id_entry->driver_data & FEC_QUIRK_ENET_MAC)
+	if (id_entry->driver_data & FEC_QUIRK_ENET_MAC) {
 		writel(2, fep->hwp + FEC_ECNTRL);
+		writel(rmii_mode, fep->hwp + FEC_R_CNTRL);
+	}
 }
 
 
