@@ -185,6 +185,9 @@ static void cpu_ctx_sched_in(struct perf_cpu_context *cpuctx,
 static void update_context_time(struct perf_event_context *ctx);
 static u64 perf_event_time(struct perf_event *event);
 
+static void ring_buffer_attach(struct perf_event *event,
+			       struct ring_buffer *rb);
+
 void __weak perf_event_print_debug(void)	{ }
 
 extern __weak const char *perf_pmu_name(void)
@@ -2173,7 +2176,8 @@ static void perf_event_context_sched_in(struct perf_event_context *ctx,
 
 	perf_event_sched_in(cpuctx, ctx, task);
 
-	cpuctx->task_ctx = ctx;
+	if (ctx->nr_events)
+		cpuctx->task_ctx = ctx;
 
 	perf_pmu_enable(ctx->pmu);
 	perf_ctx_unlock(cpuctx, ctx);
@@ -3190,11 +3194,32 @@ static unsigned int perf_poll(struct file *file, poll_table *wait)
 	struct ring_buffer *rb;
 	unsigned int events = POLL_HUP;
 
+	/*
+	 * Race between perf_event_set_output() and perf_poll(): perf_poll()
+	 * grabs the rb reference but perf_event_set_output() overrides it.
+	 * Here is the timeline for two threads T1, T2:
+	 * t0: T1, rb = rcu_dereference(event->rb)
+	 * t1: T2, old_rb = event->rb
+	 * t2: T2, event->rb = new rb
+	 * t3: T2, ring_buffer_detach(old_rb)
+	 * t4: T1, ring_buffer_attach(rb1)
+	 * t5: T1, poll_wait(event->waitq)
+	 *
+	 * To avoid this problem, we grab mmap_mutex in perf_poll()
+	 * thereby ensuring that the assignment of the new ring buffer
+	 * and the detachment of the old buffer appear atomic to perf_poll()
+	 */
+	mutex_lock(&event->mmap_mutex);
+
 	rcu_read_lock();
 	rb = rcu_dereference(event->rb);
-	if (rb)
+	if (rb) {
+		ring_buffer_attach(event, rb);
 		events = atomic_xchg(&rb->poll, 0);
+	}
 	rcu_read_unlock();
+
+	mutex_unlock(&event->mmap_mutex);
 
 	poll_wait(file, &event->waitq, wait);
 
@@ -3496,6 +3521,49 @@ unlock:
 	return ret;
 }
 
+static void ring_buffer_attach(struct perf_event *event,
+			       struct ring_buffer *rb)
+{
+	unsigned long flags;
+
+	if (!list_empty(&event->rb_entry))
+		return;
+
+	spin_lock_irqsave(&rb->event_lock, flags);
+	if (!list_empty(&event->rb_entry))
+		goto unlock;
+
+	list_add(&event->rb_entry, &rb->event_list);
+unlock:
+	spin_unlock_irqrestore(&rb->event_lock, flags);
+}
+
+static void ring_buffer_detach(struct perf_event *event,
+			       struct ring_buffer *rb)
+{
+	unsigned long flags;
+
+	if (list_empty(&event->rb_entry))
+		return;
+
+	spin_lock_irqsave(&rb->event_lock, flags);
+	list_del_init(&event->rb_entry);
+	wake_up_all(&event->waitq);
+	spin_unlock_irqrestore(&rb->event_lock, flags);
+}
+
+static void ring_buffer_wakeup(struct perf_event *event)
+{
+	struct ring_buffer *rb;
+
+	rcu_read_lock();
+	rb = rcu_dereference(event->rb);
+	list_for_each_entry_rcu(event, &rb->event_list, rb_entry) {
+		wake_up_all(&event->waitq);
+	}
+	rcu_read_unlock();
+}
+
 static void rb_free_rcu(struct rcu_head *rcu_head)
 {
 	struct ring_buffer *rb;
@@ -3521,8 +3589,18 @@ static struct ring_buffer *ring_buffer_get(struct perf_event *event)
 
 static void ring_buffer_put(struct ring_buffer *rb)
 {
+	struct perf_event *event, *n;
+	unsigned long flags;
+
 	if (!atomic_dec_and_test(&rb->refcount))
 		return;
+
+	spin_lock_irqsave(&rb->event_lock, flags);
+	list_for_each_entry_safe(event, n, &rb->event_list, rb_entry) {
+		list_del_init(&event->rb_entry);
+		wake_up_all(&event->waitq);
+	}
+	spin_unlock_irqrestore(&rb->event_lock, flags);
 
 	call_rcu(&rb->rcu_head, rb_free_rcu);
 }
@@ -3546,6 +3624,7 @@ static void perf_mmap_close(struct vm_area_struct *vma)
 		atomic_long_sub((size >> PAGE_SHIFT) + 1, &user->locked_vm);
 		vma->vm_mm->pinned_vm -= event->mmap_locked;
 		rcu_assign_pointer(event->rb, NULL);
+		ring_buffer_detach(event, rb);
 		mutex_unlock(&event->mmap_mutex);
 
 		ring_buffer_put(rb);
@@ -3700,7 +3779,7 @@ static const struct file_operations perf_fops = {
 
 void perf_event_wakeup(struct perf_event *event)
 {
-	wake_up_all(&event->waitq);
+	ring_buffer_wakeup(event);
 
 	if (event->pending_kill) {
 		kill_fasync(&event->fasync, SIGIO, event->pending_kill);
@@ -5822,6 +5901,8 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
 	INIT_LIST_HEAD(&event->group_entry);
 	INIT_LIST_HEAD(&event->event_entry);
 	INIT_LIST_HEAD(&event->sibling_list);
+	INIT_LIST_HEAD(&event->rb_entry);
+
 	init_waitqueue_head(&event->waitq);
 	init_irq_work(&event->pending, perf_pending_event);
 
@@ -6028,6 +6109,8 @@ set:
 
 	old_rb = event->rb;
 	rcu_assign_pointer(event->rb, rb);
+	if (old_rb)
+		ring_buffer_detach(event, old_rb);
 	ret = 0;
 unlock:
 	mutex_unlock(&event->mmap_mutex);

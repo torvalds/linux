@@ -315,8 +315,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			CPU-intensive style benchmark, and it can vary highly in
 			a microbenchmark depending on workload and compiler.
 
-			1: only for 32-bit processes
-			2: only for 64-bit processes
+			32: only for 32-bit processes
+			64: only for 64-bit processes
 			on: enable for both 32- and 64-bit processes
 			off: disable for both 32- and 64-bit processes
 
