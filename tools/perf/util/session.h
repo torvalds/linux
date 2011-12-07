@@ -50,7 +50,7 @@ struct perf_session {
 	int			cwdlen;
 	char			*cwd;
 	struct ordered_samples	ordered_samples;
-	char			filename[0];
+	char			filename[1];
 };
 
 struct perf_tool;
