@@ -532,12 +532,6 @@ int __must_check iwl_rx_dispatch(struct iwl_priv *priv,
 				 struct iwl_device_cmd *cmd);
 
 int iwlagn_hw_valid_rtc_data_addr(u32 addr);
-void iwl_start_tx_ba_trans_ready(struct iwl_priv *priv,
-				 enum iwl_rxon_context_id ctx,
-				 u8 sta_id, u8 tid);
-void iwl_stop_tx_ba_trans_ready(struct iwl_priv *priv,
-				enum iwl_rxon_context_id ctx,
-				u8 sta_id, u8 tid);
 void iwl_set_hw_rfkill_state(struct iwl_priv *priv, bool state);
 void iwl_nic_config(struct iwl_priv *priv);
 void iwl_free_skb(struct iwl_priv *priv, struct sk_buff *skb);

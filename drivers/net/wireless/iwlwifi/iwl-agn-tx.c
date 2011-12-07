@@ -432,7 +432,6 @@ drop_unlock_priv:
 int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, u16 tid)
 {
-	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
 	struct iwl_tid_data *tid_data;
 	unsigned long flags;
 	int sta_id;
@@ -495,7 +494,7 @@ turn_off:
 
 	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 
-	iwl_stop_tx_ba_trans_ready(priv, vif_priv->ctx->ctxid, sta_id, tid);
+	ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 
 	return 0;
 }
@@ -503,7 +502,6 @@ turn_off:
 int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, u16 tid, u16 *ssn)
 {
-	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
 	struct iwl_tid_data *tid_data;
 	unsigned long flags;
 	int sta_id;
@@ -546,8 +544,7 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		IWL_DEBUG_TX_QUEUES(priv, "Can proceed: ssn = next_recl = %d",
 				    tid_data->agg.ssn);
 		tid_data->agg.state = IWL_AGG_ON;
-		iwl_start_tx_ba_trans_ready(priv, vif_priv->ctx->ctxid, sta_id,
-					    tid);
+		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 	} else {
 		IWL_DEBUG_TX_QUEUES(priv, "Can't proceed: ssn %d, "
 				    "next_reclaimed = %d",
@@ -625,8 +622,15 @@ int iwlagn_tx_agg_oper(struct iwl_priv *priv, struct ieee80211_vif *vif,
 static void iwlagn_check_ratid_empty(struct iwl_priv *priv, int sta_id, u8 tid)
 {
 	struct iwl_tid_data *tid_data = &priv->tid_data[sta_id][tid];
+	enum iwl_rxon_context_id ctx;
+	struct ieee80211_vif *vif;
+	u8 *addr;
 
 	lockdep_assert_held(&priv->shrd->sta_lock);
+
+	addr = priv->stations[sta_id].sta.sta.addr;
+	ctx = priv->stations[sta_id].ctxid;
+	vif = priv->contexts[ctx].vif;
 
 	switch (priv->tid_data[sta_id][tid].agg.state) {
 	case IWL_EMPTYING_HW_QUEUE_DELBA:
@@ -637,9 +641,7 @@ static void iwlagn_check_ratid_empty(struct iwl_priv *priv, int sta_id, u8 tid)
 				" %d", tid_data->next_reclaimed);
 			iwl_trans_tx_agg_disable(trans(priv), sta_id, tid);
 			tid_data->agg.state = IWL_AGG_OFF;
-			iwl_stop_tx_ba_trans_ready(priv,
-						   NUM_IWL_RXON_CTX,
-						   sta_id, tid);
+			ieee80211_stop_tx_ba_cb_irqsafe(vif, addr, tid);
 		}
 		break;
 	case IWL_EMPTYING_HW_QUEUE_ADDBA:
@@ -649,9 +651,7 @@ static void iwlagn_check_ratid_empty(struct iwl_priv *priv, int sta_id, u8 tid)
 				"Can continue ADDBA flow ssn = next_recl ="
 				" %d", tid_data->next_reclaimed);
 			tid_data->agg.state = IWL_AGG_ON;
-			iwl_start_tx_ba_trans_ready(priv,
-						    NUM_IWL_RXON_CTX,
-						    sta_id, tid);
+			ieee80211_start_tx_ba_cb_irqsafe(vif, addr, tid);
 		}
 		break;
 	default:

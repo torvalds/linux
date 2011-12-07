@@ -1584,34 +1584,6 @@ __le32 iwl_add_beacon_time(struct iwl_priv *priv, u32 base,
 	return cpu_to_le32(res);
 }
 
-void iwl_start_tx_ba_trans_ready(struct iwl_priv *priv,
-				 enum iwl_rxon_context_id ctx,
-				 u8 sta_id, u8 tid)
-{
-	struct ieee80211_vif *vif;
-	u8 *addr = priv->stations[sta_id].sta.sta.addr;
-
-	if (ctx == NUM_IWL_RXON_CTX)
-		ctx = priv->stations[sta_id].ctxid;
-	vif = priv->contexts[ctx].vif;
-
-	ieee80211_start_tx_ba_cb_irqsafe(vif, addr, tid);
-}
-
-void iwl_stop_tx_ba_trans_ready(struct iwl_priv *priv,
-				enum iwl_rxon_context_id ctx,
-				u8 sta_id, u8 tid)
-{
-	struct ieee80211_vif *vif;
-	u8 *addr = priv->stations[sta_id].sta.sta.addr;
-
-	if (ctx == NUM_IWL_RXON_CTX)
-		ctx = priv->stations[sta_id].ctxid;
-	vif = priv->contexts[ctx].vif;
-
-	ieee80211_stop_tx_ba_cb_irqsafe(vif, addr, tid);
-}
-
 void iwl_set_hw_rfkill_state(struct iwl_priv *priv, bool state)
 {
 	wiphy_rfkill_set_hw_state(priv->hw->wiphy, state);
