@@ -2399,12 +2399,10 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	else
 		pCap->num_gpio_pins = AR_NUM_GPIO;
 
-	if (AR_SREV_9160_10_OR_LATER(ah) || AR_SREV_9100(ah)) {
-		pCap->hw_caps |= ATH9K_HW_CAP_CST;
+	if (AR_SREV_9160_10_OR_LATER(ah) || AR_SREV_9100(ah))
 		pCap->rts_aggr_limit = ATH_AMPDU_LIMIT_MAX;
-	} else {
+	else
 		pCap->rts_aggr_limit = (8 * 1024);
-	}
 
 #if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
 	ah->rfsilent = ah->eep_ops->get_eeprom(ah, EEP_RF_SILENT);
