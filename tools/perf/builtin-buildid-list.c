@@ -39,24 +39,6 @@ static const struct option options[] = {
 	OPT_END()
 };
 
-static int perf_session__list_build_ids(void)
-{
-	struct perf_session *session;
-
-	session = perf_session__new(input_name, O_RDONLY, force, false,
-				    &build_id__mark_dso_hit_ops);
-	if (session == NULL)
-		return -1;
-
-	if (with_hits)
-		perf_session__process_events(session, &build_id__mark_dso_hit_ops);
-
-	perf_session__fprintf_dsos_buildid(session, stdout, with_hits);
-
-	perf_session__delete(session);
-	return 0;
-}
-
 static int sysfs__fprintf_build_id(FILE *fp)
 {
 	u8 kallsyms_build_id[BUILD_ID_SIZE];
@@ -83,6 +65,24 @@ static int filename__fprintf_build_id(const char *name, FILE *fp)
 
 	build_id__sprintf(build_id, sizeof(build_id), sbuild_id);
 	return fprintf(fp, "%s\n", sbuild_id);
+}
+
+static int perf_session__list_build_ids(void)
+{
+	struct perf_session *session;
+
+	session = perf_session__new(input_name, O_RDONLY, force, false,
+				    &build_id__mark_dso_hit_ops);
+	if (session == NULL)
+		return -1;
+
+	if (with_hits)
+		perf_session__process_events(session, &build_id__mark_dso_hit_ops);
+
+	perf_session__fprintf_dsos_buildid(session, stdout, with_hits);
+
+	perf_session__delete(session);
+	return 0;
 }
 
 static int __cmd_buildid_list(void)
