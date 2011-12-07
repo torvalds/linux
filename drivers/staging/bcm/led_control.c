@@ -250,7 +250,7 @@ static INT LED_Proportional_Blink(PMINI_ADAPTER Adapter, UCHAR GPIO_Num_tx,
 static INT ValidateDSDParamsChecksum(PMINI_ADAPTER Adapter, ULONG  ulParamOffset, USHORT usParamLen)
 {
 	INT Status = STATUS_SUCCESS;
-	PUCHAR puBuffer	= NULL;
+	PUCHAR puBuffer = NULL;
 	USHORT usChksmOrg = 0;
 	USHORT usChecksumCalculated = 0;
 
@@ -418,37 +418,37 @@ static int ReadLEDInformationFromEEPROM(PMINI_ADAPTER Adapter, UCHAR GPIO_Array[
 	{
 
 		switch (ucGPIOInfo[ucIndex])
+		{
+		case RED_LED:
 			{
-				case RED_LED:
-				{
-					GPIO_Array[RED_LED] = ucIndex;
-					Adapter->gpioBitMap |= (1 << ucIndex);
-					break;
-				}
-				case BLUE_LED:
-				{
-					GPIO_Array[BLUE_LED] = ucIndex;
-					Adapter->gpioBitMap |= (1 << ucIndex);
-					break;
-				}
-				case YELLOW_LED:
-				{
-					GPIO_Array[YELLOW_LED] = ucIndex;
-					Adapter->gpioBitMap |= (1 << ucIndex);
-					break;
-				}
-				case GREEN_LED:
-				{
-					GPIO_Array[GREEN_LED] = ucIndex;
-					Adapter->gpioBitMap |= (1 << ucIndex);
-					break;
-				}
-				default:
-					break;
+			GPIO_Array[RED_LED] = ucIndex;
+			Adapter->gpioBitMap |= (1 << ucIndex);
+			break;
 			}
-
+		case BLUE_LED:
+			{
+			GPIO_Array[BLUE_LED] = ucIndex;
+			Adapter->gpioBitMap |= (1 << ucIndex);
+			break;
+			}
+		case YELLOW_LED:
+			{
+			GPIO_Array[YELLOW_LED] = ucIndex;
+			Adapter->gpioBitMap |= (1 << ucIndex);
+			break;
+			}
+		case GREEN_LED:
+			{
+			GPIO_Array[GREEN_LED] = ucIndex;
+			Adapter->gpioBitMap |= (1 << ucIndex);
+			break;
+			}
+		default:
+			break;
 		}
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO, DBG_LVL_ALL, "GPIO's bit map correspond to LED :0x%X", Adapter->gpioBitMap);
+
+	}
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO, DBG_LVL_ALL, "GPIO's bit map correspond to LED :0x%X", Adapter->gpioBitMap);
 	return Status;
 }
 
@@ -580,8 +580,8 @@ static INT BcmGetGPIOPinInfo(PMINI_ADAPTER Adapter, UCHAR *GPIO_num_tx, UCHAR *G
 	{
 
 		if ((currdriverstate == NORMAL_OPERATION) ||
-			(currdriverstate == IDLEMODE_EXIT) ||
-			(currdriverstate == FW_DOWNLOAD))
+				(currdriverstate == IDLEMODE_EXIT) ||
+				(currdriverstate == FW_DOWNLOAD))
 		{
 			if (Adapter->LEDInfo.LEDState[uiIndex].LED_Blink_State & currdriverstate)
 			{
@@ -642,11 +642,11 @@ static VOID LEDControlThread(PMINI_ADAPTER Adapter)
 		/*Wait till event is triggered*/
 		if ((GPIO_num == DISABLE_GPIO_NUM)
 						||
-			((currdriverstate != FW_DOWNLOAD) &&
-			 (currdriverstate != NORMAL_OPERATION) &&
-			 (currdriverstate != LOWPOWER_MODE_ENTER))
+				((currdriverstate != FW_DOWNLOAD) &&
+				 (currdriverstate != NORMAL_OPERATION) &&
+				 (currdriverstate != LOWPOWER_MODE_ENTER))
 						||
-			 (currdriverstate == LED_THREAD_INACTIVE))
+				(currdriverstate == LED_THREAD_INACTIVE))
 		{
 			Status = wait_event_interruptible(Adapter->LEDInfo.notify_led_event,
 				currdriverstate != Adapter->DriverState || kthread_should_stop());
@@ -673,159 +673,159 @@ static VOID LEDControlThread(PMINI_ADAPTER Adapter)
 
 		switch (Adapter->DriverState)
 		{
-			case DRIVER_INIT:
+		case DRIVER_INIT:
 			{
-				currdriverstate = DRIVER_INIT;//Adapter->DriverState;
-				BcmGetGPIOPinInfo(Adapter, &GPIO_num, &dummyGPIONum, &uiLedIndex, &dummyIndex, currdriverstate);
+			currdriverstate = DRIVER_INIT;//Adapter->DriverState;
+			BcmGetGPIOPinInfo(Adapter, &GPIO_num, &dummyGPIONum, &uiLedIndex, &dummyIndex, currdriverstate);
 
-				if (GPIO_num != DISABLE_GPIO_NUM)
-				{
-					TURN_ON_LED(1 << GPIO_num, uiLedIndex);
-				}
+			if (GPIO_num != DISABLE_GPIO_NUM)
+			{
+				TURN_ON_LED(1 << GPIO_num, uiLedIndex);
+			}
 			}
 			break;
-			case FW_DOWNLOAD:
+		case FW_DOWNLOAD:
 			{
-				//BCM_DEBUG_PRINT (Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO, DBG_LVL_ALL,"LED Thread: FW_DN_DONE called\n");
-				currdriverstate = FW_DOWNLOAD;
-				BcmGetGPIOPinInfo(Adapter, &GPIO_num, &dummyGPIONum, &uiLedIndex, &dummyIndex, currdriverstate);
+			//BCM_DEBUG_PRINT (Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO, DBG_LVL_ALL,"LED Thread: FW_DN_DONE called\n");
+			currdriverstate = FW_DOWNLOAD;
+			BcmGetGPIOPinInfo(Adapter, &GPIO_num, &dummyGPIONum, &uiLedIndex, &dummyIndex, currdriverstate);
 
-				if (GPIO_num != DISABLE_GPIO_NUM)
-				{
-					timeout = 50;
-					LED_Blink(Adapter, 1 << GPIO_num, uiLedIndex, timeout, -1, currdriverstate);
-				}
+			if (GPIO_num != DISABLE_GPIO_NUM)
+			{
+				timeout = 50;
+				LED_Blink(Adapter, 1 << GPIO_num, uiLedIndex, timeout, -1, currdriverstate);
+			}
 			}
 			break;
-			case FW_DOWNLOAD_DONE:
+		case FW_DOWNLOAD_DONE:
 			{
-				currdriverstate = FW_DOWNLOAD_DONE;
-				BcmGetGPIOPinInfo(Adapter, &GPIO_num, &dummyGPIONum, &uiLedIndex, &dummyIndex, currdriverstate);
-				if (GPIO_num != DISABLE_GPIO_NUM)
-				{
-					TURN_ON_LED(1 << GPIO_num, uiLedIndex);
-				}
+			currdriverstate = FW_DOWNLOAD_DONE;
+			BcmGetGPIOPinInfo(Adapter, &GPIO_num, &dummyGPIONum, &uiLedIndex, &dummyIndex, currdriverstate);
+			if (GPIO_num != DISABLE_GPIO_NUM)
+			{
+				TURN_ON_LED(1 << GPIO_num, uiLedIndex);
+			}
 			}
 			break;
 
-			case SHUTDOWN_EXIT:
+		case SHUTDOWN_EXIT:
 			//no break, continue to NO_NETWORK_ENTRY state as well.
 
-			case NO_NETWORK_ENTRY:
+		case NO_NETWORK_ENTRY:
 			{
-				currdriverstate = NO_NETWORK_ENTRY;
-				BcmGetGPIOPinInfo(Adapter, &GPIO_num, &dummyGPIONum, &uiLedIndex, &dummyGPIONum, currdriverstate);
-				if (GPIO_num != DISABLE_GPIO_NUM)
-				{
-					TURN_ON_LED(1 << GPIO_num, uiLedIndex);
-				}
+			currdriverstate = NO_NETWORK_ENTRY;
+			BcmGetGPIOPinInfo(Adapter, &GPIO_num, &dummyGPIONum, &uiLedIndex, &dummyGPIONum, currdriverstate);
+			if (GPIO_num != DISABLE_GPIO_NUM)
+			{
+				TURN_ON_LED(1 << GPIO_num, uiLedIndex);
+			}
 			}
 			break;
-			case NORMAL_OPERATION:
+		case NORMAL_OPERATION:
 			{
-				UCHAR GPIO_num_tx = DISABLE_GPIO_NUM;
-				UCHAR GPIO_num_rx = DISABLE_GPIO_NUM;
-				UCHAR uiLEDTx = 0;
-				UCHAR uiLEDRx = 0;
-				currdriverstate = NORMAL_OPERATION;
-				Adapter->LEDInfo.bIdle_led_off = FALSE;
+			UCHAR GPIO_num_tx = DISABLE_GPIO_NUM;
+			UCHAR GPIO_num_rx = DISABLE_GPIO_NUM;
+			UCHAR uiLEDTx = 0;
+			UCHAR uiLEDRx = 0;
+			currdriverstate = NORMAL_OPERATION;
+			Adapter->LEDInfo.bIdle_led_off = FALSE;
 
-				BcmGetGPIOPinInfo(Adapter, &GPIO_num_tx, &GPIO_num_rx, &uiLEDTx, &uiLEDRx, currdriverstate);
-				if ((GPIO_num_tx == DISABLE_GPIO_NUM) && (GPIO_num_rx == DISABLE_GPIO_NUM))
+			BcmGetGPIOPinInfo(Adapter, &GPIO_num_tx, &GPIO_num_rx, &uiLEDTx, &uiLEDRx, currdriverstate);
+			if ((GPIO_num_tx == DISABLE_GPIO_NUM) && (GPIO_num_rx == DISABLE_GPIO_NUM))
+			{
+				GPIO_num = DISABLE_GPIO_NUM;
+			}
+			else
+			{
+				/*If single LED is selected, use same for both Tx and Rx*/
+				if (GPIO_num_tx == DISABLE_GPIO_NUM)
 				{
-					GPIO_num = DISABLE_GPIO_NUM;
+					GPIO_num_tx = GPIO_num_rx;
+					uiLEDTx = uiLEDRx;
 				}
-				else
+				else if (GPIO_num_rx == DISABLE_GPIO_NUM)
 				{
-					/*If single LED is selected, use same for both Tx and Rx*/
-					if (GPIO_num_tx == DISABLE_GPIO_NUM)
-					{
-						GPIO_num_tx = GPIO_num_rx;
-						uiLEDTx = uiLEDRx;
-					}
-					else if (GPIO_num_rx == DISABLE_GPIO_NUM)
-					{
-						GPIO_num_rx = GPIO_num_tx;
-						uiLEDRx = uiLEDTx;
-					}
+					GPIO_num_rx = GPIO_num_tx;
+					uiLEDRx = uiLEDTx;
+				}
 				/*Blink the LED in proportionate to Tx and Rx transmissions.*/
-					LED_Proportional_Blink(Adapter, GPIO_num_tx, uiLEDTx, GPIO_num_rx, uiLEDRx, currdriverstate);
-				}
+				LED_Proportional_Blink(Adapter, GPIO_num_tx, uiLEDTx, GPIO_num_rx, uiLEDRx, currdriverstate);
+			}
 			}
 			break;
-			case LOWPOWER_MODE_ENTER:
+		case LOWPOWER_MODE_ENTER:
 			{
-				currdriverstate = LOWPOWER_MODE_ENTER;
-				if (DEVICE_POWERSAVE_MODE_AS_MANUAL_CLOCK_GATING == Adapter->ulPowerSaveMode)
-				{
-					/* Turn OFF all the LED */
-					uiResetValue = 0;
-					for (uiIndex = 0; uiIndex < NUM_OF_LEDS; uiIndex++)
-					{
-						if (Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num != DISABLE_GPIO_NUM)
-							TURN_OFF_LED((1 << Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num), uiIndex);
-					}
-
-				}
-				/* Turn off LED And WAKE-UP for Sendinf IDLE mode ACK */
-				Adapter->LEDInfo.bLedInitDone = FALSE;
-				Adapter->LEDInfo.bIdle_led_off = TRUE;
-				wake_up(&Adapter->LEDInfo.idleModeSyncEvent);
-				GPIO_num = DISABLE_GPIO_NUM;
-				break;
-			}
-			case IDLEMODE_CONTINUE:
+			currdriverstate = LOWPOWER_MODE_ENTER;
+			if (DEVICE_POWERSAVE_MODE_AS_MANUAL_CLOCK_GATING == Adapter->ulPowerSaveMode)
 			{
-				currdriverstate = IDLEMODE_CONTINUE;
-				GPIO_num = DISABLE_GPIO_NUM;
-			}
-			break;
-			case IDLEMODE_EXIT:
-			{
-			}
-			break;
-			case DRIVER_HALT:
-			{
-				currdriverstate = DRIVER_HALT;
-				GPIO_num = DISABLE_GPIO_NUM;
+				/* Turn OFF all the LED */
+				uiResetValue = 0;
 				for (uiIndex = 0; uiIndex < NUM_OF_LEDS; uiIndex++)
 				{
-					if (Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num !=
-						DISABLE_GPIO_NUM)
+					if (Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num != DISABLE_GPIO_NUM)
 						TURN_OFF_LED((1 << Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num), uiIndex);
 				}
-				//Adapter->DriverState = DRIVER_INIT;
-			}
-			break;
-			case LED_THREAD_INACTIVE:
-			{
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO, DBG_LVL_ALL, "InActivating LED thread...");
-				currdriverstate = LED_THREAD_INACTIVE;
-				Adapter->LEDInfo.led_thread_running = BCM_LED_THREAD_RUNNING_INACTIVELY;
-				Adapter->LEDInfo.bLedInitDone = FALSE;
-				//disable ALL LED
-				for (uiIndex = 0; uiIndex < NUM_OF_LEDS; uiIndex++)
-				{
-					if (Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num !=
-						DISABLE_GPIO_NUM)
-						TURN_OFF_LED((1 << Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num), uiIndex);
-				}
-			}
-			break;
-			case LED_THREAD_ACTIVE:
-			{
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO, DBG_LVL_ALL, "Activating LED thread again...");
-				if (Adapter->LinkUpStatus == FALSE)
-					Adapter->DriverState = NO_NETWORK_ENTRY;
-				else
-					Adapter->DriverState = NORMAL_OPERATION;
 
-				Adapter->LEDInfo.led_thread_running = BCM_LED_THREAD_RUNNING_ACTIVELY;
+			}
+			/* Turn off LED And WAKE-UP for Sendinf IDLE mode ACK */
+			Adapter->LEDInfo.bLedInitDone = FALSE;
+			Adapter->LEDInfo.bIdle_led_off = TRUE;
+			wake_up(&Adapter->LEDInfo.idleModeSyncEvent);
+			GPIO_num = DISABLE_GPIO_NUM;
+			break;
+			}
+		case IDLEMODE_CONTINUE:
+			{
+			currdriverstate = IDLEMODE_CONTINUE;
+			GPIO_num = DISABLE_GPIO_NUM;
+			}
+			break;
+		case IDLEMODE_EXIT:
+			{
+			}
+			break;
+		case DRIVER_HALT:
+			{
+			currdriverstate = DRIVER_HALT;
+			GPIO_num = DISABLE_GPIO_NUM;
+			for (uiIndex = 0; uiIndex < NUM_OF_LEDS; uiIndex++)
+			{
+				if (Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num !=
+						DISABLE_GPIO_NUM)
+					TURN_OFF_LED((1 << Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num), uiIndex);
+			}
+			//Adapter->DriverState = DRIVER_INIT;
+			}
+			break;
+		case LED_THREAD_INACTIVE:
+			{
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO, DBG_LVL_ALL, "InActivating LED thread...");
+			currdriverstate = LED_THREAD_INACTIVE;
+			Adapter->LEDInfo.led_thread_running = BCM_LED_THREAD_RUNNING_INACTIVELY;
+			Adapter->LEDInfo.bLedInitDone = FALSE;
+			//disable ALL LED
+			for (uiIndex = 0; uiIndex < NUM_OF_LEDS; uiIndex++)
+			{
+				if (Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num !=
+						DISABLE_GPIO_NUM)
+					TURN_OFF_LED((1 << Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num), uiIndex);
+			}
+			}
+			break;
+		case LED_THREAD_ACTIVE:
+			{
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO, DBG_LVL_ALL, "Activating LED thread again...");
+			if (Adapter->LinkUpStatus == FALSE)
+				Adapter->DriverState = NO_NETWORK_ENTRY;
+			else
+				Adapter->DriverState = NORMAL_OPERATION;
+
+			Adapter->LEDInfo.led_thread_running = BCM_LED_THREAD_RUNNING_ACTIVELY;
 			}
 			break;
 			//return;
-			default:
-				break;
+		default:
+			break;
 		}
 	}
 	Adapter->LEDInfo.led_thread_running = BCM_LED_THREAD_DISABLED;
@@ -875,11 +875,11 @@ int InitLedSettings(PMINI_ADAPTER Adapter)
 		Adapter->LEDInfo.led_cntrl_threadid = kthread_run((int (*)(void *))
 		LEDControlThread, Adapter, "led_control_thread");
 		if (IS_ERR(Adapter->LEDInfo.led_cntrl_threadid))
-	{
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO, DBG_LVL_ALL, "Not able to spawn Kernel Thread\n");
-			Adapter->LEDInfo.led_thread_running = BCM_LED_THREAD_DISABLED;
-		return PTR_ERR(Adapter->LEDInfo.led_cntrl_threadid);
-	}
+		{
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO, DBG_LVL_ALL, "Not able to spawn Kernel Thread\n");
+				Adapter->LEDInfo.led_thread_running = BCM_LED_THREAD_DISABLED;
+			return PTR_ERR(Adapter->LEDInfo.led_cntrl_threadid);
+		}
 	}
 	return Status;
 }
