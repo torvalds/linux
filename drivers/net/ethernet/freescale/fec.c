@@ -1585,7 +1585,7 @@ fec_probe(struct platform_device *pdev)
 		}
 	}
 
-	fep->clk = clk_get(&pdev->dev, "fec_clk");
+	fep->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(fep->clk)) {
 		ret = PTR_ERR(fep->clk);
 		goto failed_clk;
