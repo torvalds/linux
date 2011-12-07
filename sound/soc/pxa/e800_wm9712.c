@@ -136,8 +136,10 @@ static int __init e800_init(void)
 		goto free_spk_amp_gpio;
 
 	e800_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!e800_snd_device)
-		return -ENOMEM;
+	if (!e800_snd_device) {
+		ret = -ENOMEM;
+		goto free_spk_amp_gpio;
+	}
 
 	platform_set_drvdata(e800_snd_device, &e800);
 	ret = platform_device_add(e800_snd_device);
