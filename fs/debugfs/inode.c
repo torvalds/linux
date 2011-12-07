@@ -160,7 +160,7 @@ static int debugfs_create_by_name(const char *name, mode_t mode,
 	 * have around.
 	 */
 	if (!parent)
-		parent = debugfs_mount->mnt_sb->s_root;
+		parent = debugfs_mount->mnt_root;
 
 	*dentry = NULL;
 	mutex_lock(&parent->d_inode->i_mutex);

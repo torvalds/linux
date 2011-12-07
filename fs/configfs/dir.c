@@ -312,7 +312,7 @@ static int configfs_create_dir(struct config_item * item, struct dentry *dentry)
 	if (item->ci_parent)
 		parent = item->ci_parent->ci_dentry;
 	else if (configfs_mount && configfs_mount->mnt_sb)
-		parent = configfs_mount->mnt_sb->s_root;
+		parent = configfs_mount->mnt_root;
 	else
 		return -EFAULT;
 

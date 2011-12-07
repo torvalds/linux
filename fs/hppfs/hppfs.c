@@ -725,7 +725,7 @@ static int hppfs_fill_super(struct super_block *sb, void *d, int silent)
 	sb->s_fs_info = proc_mnt;
 
 	err = -ENOMEM;
-	root_inode = get_inode(sb, dget(proc_mnt->mnt_sb->s_root));
+	root_inode = get_inode(sb, dget(proc_mnt->mnt_root));
 	if (!root_inode)
 		goto out_mntput;
 
