@@ -1873,7 +1873,8 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 	if (ath9k_modparam_nohwcrypt)
 		return -ENOSPC;
 
-	if (vif->type == NL80211_IFTYPE_ADHOC &&
+	if ((vif->type == NL80211_IFTYPE_ADHOC ||
+	     vif->type == NL80211_IFTYPE_MESH_POINT) &&
 	    (key->cipher == WLAN_CIPHER_SUITE_TKIP ||
 	     key->cipher == WLAN_CIPHER_SUITE_CCMP) &&
 	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE)) {
