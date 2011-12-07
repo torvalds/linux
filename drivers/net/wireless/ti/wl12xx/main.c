@@ -34,6 +34,10 @@
 
 #include "reg.h"
 
+#define WL12XX_TX_HW_BLOCK_SPARE_DEFAULT        1
+#define WL12XX_TX_HW_BLOCK_GEM_SPARE            2
+
+
 static struct wlcore_partition_set wl12xx_ptable[PART_TABLE_LEN] = {
 	[PART_DOWN] = {
 		.mem = {
@@ -675,6 +679,8 @@ static int __devinit wl12xx_probe(struct platform_device *pdev)
 	wl->ptable = wl12xx_ptable;
 	wl->rtable = wl12xx_rtable;
 	wl->num_tx_desc = 16;
+	wl->normal_tx_spare = WL12XX_TX_HW_BLOCK_SPARE_DEFAULT;
+	wl->gem_tx_spare = WL12XX_TX_HW_BLOCK_GEM_SPARE;
 
 	return wlcore_probe(wl, pdev);
 }

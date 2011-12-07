@@ -190,7 +190,7 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	u32 len;
 	u32 total_blocks;
 	int id, ret = -EBUSY, ac;
-	u32 spare_blocks = wl->tx_spare_blocks;
+	u32 spare_blocks = wl->normal_tx_spare;
 	bool is_dummy = false;
 
 	if (buf_offset + total_len > WL1271_AGGR_BUFFER_SIZE)
@@ -205,11 +205,10 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	   in the firmware */
 	len = wl12xx_calc_packet_alignment(wl, total_len);
 
-	/* in case of a dummy packet, use default amount of spare mem blocks */
-	if (unlikely(wl12xx_is_dummy_packet(wl, skb))) {
+	if (unlikely(wl12xx_is_dummy_packet(wl, skb)))
 		is_dummy = true;
-		spare_blocks = TX_HW_BLOCK_SPARE_DEFAULT;
-	}
+	else if (wlvif->is_gem)
+		spare_blocks = wl->gem_tx_spare;
 
 	total_blocks = (len + TX_HW_BLOCK_SIZE - 1) / TX_HW_BLOCK_SIZE +
 		spare_blocks;

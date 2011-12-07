@@ -653,6 +653,7 @@ static ssize_t vifs_state_read(struct file *file, char __user *user_buf,
 		VIF_STATE_PRINT_INT(last_rssi_event);
 		VIF_STATE_PRINT_INT(ba_support);
 		VIF_STATE_PRINT_INT(ba_allowed);
+		VIF_STATE_PRINT_INT(is_gem);
 		VIF_STATE_PRINT_LLHEX(tx_security_seq);
 		VIF_STATE_PRINT_INT(tx_security_last_seq_lsb);
 	}
