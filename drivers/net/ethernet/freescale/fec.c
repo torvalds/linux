@@ -865,6 +865,8 @@ static void fec_enet_adjust_link(struct net_device *ndev)
 	if (phy_dev->link) {
 		if (fep->full_duplex != phy_dev->duplex) {
 			fec_restart(ndev, phy_dev->duplex);
+			/* prevent unnecessary second fec_restart() below */
+			fep->link = phy_dev->link;
 			status_change = 1;
 		}
 	}
