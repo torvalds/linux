@@ -452,7 +452,10 @@ enum service_response {
 };
 
 enum exec_status {
-	/* The SAM_STAT_.. codes fit in the lower 6 bits */
+	/* The SAM_STAT_.. codes fit in the lower 6 bits, alias some of
+	 * them here to silence 'case value not in enumerated type' warnings
+	 */
+	__SAM_STAT_CHECK_CONDITION = SAM_STAT_CHECK_CONDITION,
 
 	SAS_DEV_NO_RESPONSE = 0x80,
 	SAS_DATA_UNDERRUN,
