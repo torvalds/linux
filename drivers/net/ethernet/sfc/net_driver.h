@@ -624,6 +624,7 @@ struct efx_filter_state;
  * @membase_phys: Memory BAR value as physical address
  * @membase: Memory BAR value
  * @interrupt_mode: Interrupt mode
+ * @timer_quantum_ns: Interrupt timer quantum, in nanoseconds
  * @irq_rx_adaptive: Adaptive IRQ moderation enabled for RX event queues
  * @irq_rx_moderation: IRQ moderation time for RX event queues
  * @msg_enable: Log message enable flags
@@ -706,6 +707,7 @@ struct efx_nic {
 	void __iomem *membase;
 
 	enum efx_int_mode interrupt_mode;
+	unsigned int timer_quantum_ns;
 	bool irq_rx_adaptive;
 	unsigned int irq_rx_moderation;
 	u32 msg_enable;
@@ -845,6 +847,7 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
  *	from &enum efx_init_mode.
  * @phys_addr_channels: Number of channels with physically addressed
  *	descriptors
+ * @timer_period_max: Maximum period of interrupt timer (in ticks)
  * @tx_dc_base: Base address in SRAM of TX queue descriptor caches
  * @rx_dc_base: Base address in SRAM of RX queue descriptor caches
  * @offload_features: net_device feature flags for protocol offload
@@ -889,6 +892,7 @@ struct efx_nic_type {
 	unsigned int rx_buffer_padding;
 	unsigned int max_interrupt_mode;
 	unsigned int phys_addr_channels;
+	unsigned int timer_period_max;
 	unsigned int tx_dc_base;
 	unsigned int rx_dc_base;
 	netdev_features_t offload_features;

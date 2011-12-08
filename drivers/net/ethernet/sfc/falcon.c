@@ -103,8 +103,6 @@ static void falcon_push_irq_moderation(struct efx_channel *channel)
 	efx_dword_t timer_cmd;
 	struct efx_nic *efx = channel->efx;
 
-	BUILD_BUG_ON(EFX_IRQ_MOD_MAX > (1 << FRF_AB_TC_TIMER_VAL_WIDTH));
-
 	/* Set timer register */
 	if (channel->irq_moderation) {
 		EFX_POPULATE_DWORD_2(timer_cmd,
@@ -1471,6 +1469,8 @@ static int falcon_probe_nic(struct efx_nic *efx)
 		goto fail5;
 	}
 
+	efx->timer_quantum_ns = 4968; /* 621 cycles */
+
 	/* Initialise I2C adapter */
 	board = falcon_board(efx);
 	board->i2c_adap.owner = THIS_MODULE;
@@ -1785,6 +1785,7 @@ const struct efx_nic_type falcon_a1_nic_type = {
 	.rx_buffer_padding = 0x24,
 	.max_interrupt_mode = EFX_INT_MODE_MSI,
 	.phys_addr_channels = 4,
+	.timer_period_max =  1 << FRF_AB_TC_TIMER_VAL_WIDTH,
 	.tx_dc_base = 0x130000,
 	.rx_dc_base = 0x100000,
 	.offload_features = NETIF_F_IP_CSUM,
@@ -1836,6 +1837,7 @@ const struct efx_nic_type falcon_b0_nic_type = {
 	.phys_addr_channels = 32, /* Hardware limit is 64, but the legacy
 				   * interrupt handler only supports 32
 				   * channels */
+	.timer_period_max =  1 << FRF_AB_TC_TIMER_VAL_WIDTH,
 	.tx_dc_base = 0x130000,
 	.rx_dc_base = 0x100000,
 	.offload_features = NETIF_F_IP_CSUM | NETIF_F_RXHASH | NETIF_F_NTUPLE,

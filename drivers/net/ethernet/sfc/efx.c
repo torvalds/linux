@@ -1513,13 +1513,13 @@ static void efx_remove_all(struct efx_nic *efx)
  *
  **************************************************************************/
 
-static unsigned int irq_mod_ticks(unsigned int usecs, unsigned int resolution)
+static unsigned int irq_mod_ticks(unsigned int usecs, unsigned int quantum_ns)
 {
 	if (usecs == 0)
 		return 0;
-	if (usecs < resolution)
+	if (usecs * 1000 < quantum_ns)
 		return 1; /* never round down to 0 */
-	return usecs / resolution;
+	return usecs * 1000 / quantum_ns;
 }
 
 /* Set interrupt moderation parameters */
@@ -1528,13 +1528,19 @@ int efx_init_irq_moderation(struct efx_nic *efx, unsigned int tx_usecs,
 			    bool rx_may_override_tx)
 {
 	struct efx_channel *channel;
-	unsigned tx_ticks = irq_mod_ticks(tx_usecs, EFX_IRQ_MOD_RESOLUTION);
-	unsigned rx_ticks = irq_mod_ticks(rx_usecs, EFX_IRQ_MOD_RESOLUTION);
+	unsigned int irq_mod_max = DIV_ROUND_UP(efx->type->timer_period_max *
+						efx->timer_quantum_ns,
+						1000);
+	unsigned int tx_ticks;
+	unsigned int rx_ticks;
 
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
-	if (tx_ticks > EFX_IRQ_MOD_MAX || rx_ticks > EFX_IRQ_MOD_MAX)
+	if (tx_usecs > irq_mod_max || rx_usecs > irq_mod_max)
 		return -EINVAL;
+
+	tx_ticks = irq_mod_ticks(tx_usecs, efx->timer_quantum_ns);
+	rx_ticks = irq_mod_ticks(rx_usecs, efx->timer_quantum_ns);
 
 	if (tx_ticks != rx_ticks && efx->tx_channel_offset == 0 &&
 	    !rx_may_override_tx) {
@@ -1558,8 +1564,14 @@ int efx_init_irq_moderation(struct efx_nic *efx, unsigned int tx_usecs,
 void efx_get_irq_moderation(struct efx_nic *efx, unsigned int *tx_usecs,
 			    unsigned int *rx_usecs, bool *rx_adaptive)
 {
+	/* We must round up when converting ticks to microseconds
+	 * because we round down when converting the other way.
+	 */
+
 	*rx_adaptive = efx->irq_rx_adaptive;
-	*rx_usecs = efx->irq_rx_moderation * EFX_IRQ_MOD_RESOLUTION;
+	*rx_usecs = DIV_ROUND_UP(efx->irq_rx_moderation *
+				 efx->timer_quantum_ns,
+				 1000);
 
 	/* If channels are shared between RX and TX, so is IRQ
 	 * moderation.  Otherwise, IRQ moderation is the same for all
@@ -1568,9 +1580,10 @@ void efx_get_irq_moderation(struct efx_nic *efx, unsigned int *tx_usecs,
 	if (efx->tx_channel_offset == 0)
 		*tx_usecs = *rx_usecs;
 	else
-		*tx_usecs =
+		*tx_usecs = DIV_ROUND_UP(
 			efx->channel[efx->tx_channel_offset]->irq_moderation *
-			EFX_IRQ_MOD_RESOLUTION;
+			efx->timer_quantum_ns,
+			1000);
 }
 
 /**************************************************************************

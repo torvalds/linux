@@ -35,8 +35,6 @@ static void siena_push_irq_moderation(struct efx_channel *channel)
 {
 	efx_dword_t timer_cmd;
 
-	BUILD_BUG_ON(EFX_IRQ_MOD_MAX > (1 << FRF_CZ_TC_TIMER_VAL_WIDTH));
-
 	if (channel->irq_moderation)
 		EFX_POPULATE_DWORD_2(timer_cmd,
 				     FRF_CZ_TC_TIMER_MODE,
@@ -216,7 +214,15 @@ static int siena_reset_hw(struct efx_nic *efx, enum reset_type method)
 
 static int siena_probe_nvconfig(struct efx_nic *efx)
 {
-	return efx_mcdi_get_board_cfg(efx, efx->net_dev->perm_addr, NULL, NULL);
+	u32 caps = 0;
+	int rc;
+
+	rc = efx_mcdi_get_board_cfg(efx, efx->net_dev->perm_addr, NULL, &caps);
+
+	efx->timer_quantum_ns =
+		(caps & (1 << MC_CMD_CAPABILITIES_TURBO_ACTIVE_LBN)) ?
+		3072 : 6144; /* 768 cycles */
+	return rc;
 }
 
 static int siena_probe_nic(struct efx_nic *efx)
@@ -644,6 +650,7 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.phys_addr_channels = 32, /* Hardware limit is 64, but the legacy
 				   * interrupt handler only supports 32
 				   * channels */
+	.timer_period_max = 1 << FRF_CZ_TC_TIMER_VAL_WIDTH,
 	.tx_dc_base = 0x88000,
 	.rx_dc_base = 0x68000,
 	.offload_features = (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
