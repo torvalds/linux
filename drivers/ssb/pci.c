@@ -607,6 +607,29 @@ static void sprom_extract_r8(struct ssb_sprom *out, const u16 *in)
 	memcpy(&out->antenna_gain.ghz5, &out->antenna_gain.ghz24,
 	       sizeof(out->antenna_gain.ghz5));
 
+	/* Extract FEM info */
+	SPEX(fem.ghz2.tssipos, SSB_SPROM8_FEM2G,
+		SSB_SROM8_FEM_TSSIPOS, SSB_SROM8_FEM_TSSIPOS_SHIFT);
+	SPEX(fem.ghz2.extpa_gain, SSB_SPROM8_FEM2G,
+		SSB_SROM8_FEM_EXTPA_GAIN, SSB_SROM8_FEM_EXTPA_GAIN_SHIFT);
+	SPEX(fem.ghz2.pdet_range, SSB_SPROM8_FEM2G,
+		SSB_SROM8_FEM_PDET_RANGE, SSB_SROM8_FEM_PDET_RANGE_SHIFT);
+	SPEX(fem.ghz2.tr_iso, SSB_SPROM8_FEM2G,
+		SSB_SROM8_FEM_TR_ISO, SSB_SROM8_FEM_TR_ISO_SHIFT);
+	SPEX(fem.ghz2.antswlut, SSB_SPROM8_FEM2G,
+		SSB_SROM8_FEM_ANTSWLUT, SSB_SROM8_FEM_ANTSWLUT_SHIFT);
+
+	SPEX(fem.ghz5.tssipos, SSB_SPROM8_FEM5G,
+		SSB_SROM8_FEM_TSSIPOS, SSB_SROM8_FEM_TSSIPOS_SHIFT);
+	SPEX(fem.ghz5.extpa_gain, SSB_SPROM8_FEM5G,
+		SSB_SROM8_FEM_EXTPA_GAIN, SSB_SROM8_FEM_EXTPA_GAIN_SHIFT);
+	SPEX(fem.ghz5.pdet_range, SSB_SPROM8_FEM5G,
+		SSB_SROM8_FEM_PDET_RANGE, SSB_SROM8_FEM_PDET_RANGE_SHIFT);
+	SPEX(fem.ghz5.tr_iso, SSB_SPROM8_FEM5G,
+		SSB_SROM8_FEM_TR_ISO, SSB_SROM8_FEM_TR_ISO_SHIFT);
+	SPEX(fem.ghz5.antswlut, SSB_SPROM8_FEM5G,
+		SSB_SROM8_FEM_ANTSWLUT, SSB_SROM8_FEM_ANTSWLUT_SHIFT);
+
 	sprom_extract_r458(out, in);
 
 	/* TODO - get remaining rev 8 stuff needed */
