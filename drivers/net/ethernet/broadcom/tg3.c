@@ -3803,6 +3803,28 @@ static bool tg3_phy_copper_an_config_ok(struct tg3 *tp, u32 *lcladv)
 	return true;
 }
 
+static bool tg3_phy_copper_fetch_rmtadv(struct tg3 *tp, u32 *rmtadv)
+{
+	u32 lpeth = 0;
+
+	if (!(tp->phy_flags & TG3_PHYFLG_10_100_ONLY)) {
+		u32 val;
+
+		if (tg3_readphy(tp, MII_STAT1000, &val))
+			return false;
+
+		lpeth = mii_stat1000_to_ethtool_lpa_t(val);
+	}
+
+	if (tg3_readphy(tp, MII_LPA, rmtadv))
+		return false;
+
+	lpeth |= mii_lpa_to_ethtool_lpa_t(*rmtadv);
+	tp->link_config.rmt_adv = lpeth;
+
+	return true;
+}
+
 static int tg3_setup_copper_phy(struct tg3 *tp, int force_reset)
 {
 	int current_link_up;
@@ -3907,6 +3929,7 @@ static int tg3_setup_copper_phy(struct tg3 *tp, int force_reset)
 	current_speed = SPEED_INVALID;
 	current_duplex = DUPLEX_INVALID;
 	tp->phy_flags &= ~TG3_PHYFLG_MDIX_STATE;
+	tp->link_config.rmt_adv = 0;
 
 	if (tp->phy_flags & TG3_PHYFLG_CAPACITIVE_COUPLING) {
 		err = tg3_phy_auxctl_read(tp,
@@ -3963,8 +3986,7 @@ static int tg3_setup_copper_phy(struct tg3 *tp, int force_reset)
 		if (tp->link_config.autoneg == AUTONEG_ENABLE) {
 			if ((bmcr & BMCR_ANENABLE) &&
 			    tg3_phy_copper_an_config_ok(tp, &lcl_adv) &&
-			    (tg3_flag(tp, PAUSE_AUTONEG) &&
-			     !tg3_readphy(tp, MII_LPA, &rmt_adv)))
+			    tg3_phy_copper_fetch_rmtadv(tp, &rmt_adv))
 				current_link_up = 1;
 		} else {
 			if (!(bmcr & BMCR_ANENABLE) &&
@@ -4601,6 +4623,9 @@ restart_autoneg:
 			if (sg_dig_status & SG_DIG_PARTNER_ASYM_PAUSE)
 				remote_adv |= LPA_1000XPAUSE_ASYM;
 
+			tp->link_config.rmt_adv =
+					   mii_adv_to_ethtool_adv_x(remote_adv);
+
 			tg3_setup_flow_control(tp, local_adv, remote_adv);
 			current_link_up = 1;
 			tp->serdes_counter = 0;
@@ -4671,6 +4696,9 @@ static int tg3_setup_fiber_by_hand(struct tg3 *tp, u32 mac_status)
 				remote_adv |= LPA_1000XPAUSE;
 			if (rxflags & MR_LP_ADV_ASYM_PAUSE)
 				remote_adv |= LPA_1000XPAUSE_ASYM;
+
+			tp->link_config.rmt_adv =
+					   mii_adv_to_ethtool_adv_x(remote_adv);
 
 			tg3_setup_flow_control(tp, local_adv, remote_adv);
 
@@ -4754,6 +4782,7 @@ static int tg3_setup_fiber_phy(struct tg3 *tp, int force_reset)
 	udelay(40);
 
 	current_link_up = 0;
+	tp->link_config.rmt_adv = 0;
 	mac_status = tr32(MAC_STATUS);
 
 	if (tg3_flag(tp, HW_AUTONEG))
@@ -4845,6 +4874,7 @@ static int tg3_setup_fiber_mii_phy(struct tg3 *tp, int force_reset)
 	current_link_up = 0;
 	current_speed = SPEED_INVALID;
 	current_duplex = DUPLEX_INVALID;
+	tp->link_config.rmt_adv = 0;
 
 	err |= tg3_readphy(tp, MII_BMSR, &bmsr);
 	err |= tg3_readphy(tp, MII_BMSR, &bmsr);
@@ -4951,6 +4981,9 @@ static int tg3_setup_fiber_mii_phy(struct tg3 *tp, int force_reset)
 					current_duplex = DUPLEX_FULL;
 				else
 					current_duplex = DUPLEX_HALF;
+
+				tp->link_config.rmt_adv =
+					   mii_adv_to_ethtool_adv_x(remote_adv);
 			} else if (!tg3_flag(tp, 5780_CLASS)) {
 				/* Link is up via parallel detect */
 			} else {
@@ -10283,9 +10316,10 @@ static int tg3_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 			cmd->advertising |= ADVERTISED_Asym_Pause;
 		}
 	}
-	if (netif_running(dev)) {
+	if (netif_running(dev) && netif_carrier_ok(dev)) {
 		ethtool_cmd_speed_set(cmd, tp->link_config.active_speed);
 		cmd->duplex = tp->link_config.active_duplex;
+		cmd->lp_advertising = tp->link_config.rmt_adv;
 		if (!(tp->phy_flags & TG3_PHYFLG_ANY_SERDES)) {
 			if (tp->phy_flags & TG3_PHYFLG_MDIX_STATE)
 				cmd->eth_tp_mdix = ETH_TP_MDI_X;
