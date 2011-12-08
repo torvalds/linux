@@ -309,7 +309,7 @@ static int set_pwm_enable_direct(struct i2c_client *client, int nr, int val)
 	struct f75375_data *data = i2c_get_clientdata(client);
 	u8 fanmode;
 
-	if (val < 0 || val > 4)
+	if (val < 0 || val > 3)
 		return -EINVAL;
 
 	fanmode = f75375_read8(client, F75375_REG_FAN_TIMER);
