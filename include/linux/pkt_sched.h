@@ -181,6 +181,7 @@ enum {
 	TCA_RED_UNSPEC,
 	TCA_RED_PARMS,
 	TCA_RED_STAB,
+	TCA_RED_MAX_P,
 	__TCA_RED_MAX,
 };
 
@@ -194,8 +195,9 @@ struct tc_red_qopt {
 	unsigned char   Plog;		/* log(P_max/(qth_max-qth_min))	*/
 	unsigned char   Scell_log;	/* cell size for idle damping */
 	unsigned char	flags;
-#define TC_RED_ECN	1
-#define TC_RED_HARDDROP	2
+#define TC_RED_ECN		1
+#define TC_RED_HARDDROP		2
+#define TC_RED_ADAPTATIVE	4
 };
 
 struct tc_red_xstats {

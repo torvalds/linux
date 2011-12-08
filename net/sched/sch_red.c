@@ -39,6 +39,7 @@
 struct red_sched_data {
 	u32			limit;		/* HARD maximal queue length */
 	unsigned char		flags;
+	struct timer_list	adapt_timer;
 	struct red_parms	parms;
 	struct red_stats	stats;
 	struct Qdisc		*qdisc;
@@ -161,6 +162,8 @@ static void red_reset(struct Qdisc *sch)
 static void red_destroy(struct Qdisc *sch)
 {
 	struct red_sched_data *q = qdisc_priv(sch);
+
+	del_timer_sync(&q->adapt_timer);
 	qdisc_destroy(q->qdisc);
 }
 
@@ -209,6 +212,10 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt)
 				 ctl->Plog, ctl->Scell_log,
 				 nla_data(tb[TCA_RED_STAB]));
 
+	del_timer(&q->adapt_timer);
+	if (ctl->flags & TC_RED_ADAPTATIVE)
+		mod_timer(&q->adapt_timer, jiffies + HZ/2);
+
 	if (!q->qdisc->q.qlen)
 		red_start_of_idle_period(&q->parms);
 
@@ -216,11 +223,24 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt)
 	return 0;
 }
 
+static inline void red_adaptative_timer(unsigned long arg)
+{
+	struct Qdisc *sch = (struct Qdisc *)arg;
+	struct red_sched_data *q = qdisc_priv(sch);
+	spinlock_t *root_lock = qdisc_lock(qdisc_root_sleeping(sch));
+
+	spin_lock(root_lock);
+	red_adaptative_algo(&q->parms);
+	mod_timer(&q->adapt_timer, jiffies + HZ/2);
+	spin_unlock(root_lock);
+}
+
 static int red_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct red_sched_data *q = qdisc_priv(sch);
 
 	q->qdisc = &noop_qdisc;
+	setup_timer(&q->adapt_timer, red_adaptative_timer, (unsigned long)sch);
 	return red_change(sch, opt);
 }
 
@@ -243,6 +263,7 @@ static int red_dump(struct Qdisc *sch, struct sk_buff *skb)
 	if (opts == NULL)
 		goto nla_put_failure;
 	NLA_PUT(skb, TCA_RED_PARMS, sizeof(opt), &opt);
+	NLA_PUT_U32(skb, TCA_RED_MAX_P, q->parms.max_P);
 	return nla_nest_end(skb, opts);
 
 nla_put_failure:

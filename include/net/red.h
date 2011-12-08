@@ -5,6 +5,7 @@
 #include <net/pkt_sched.h>
 #include <net/inet_ecn.h>
 #include <net/dsfield.h>
+#include <linux/reciprocal_div.h>
 
 /*	Random Early Detection (RED) algorithm.
 	=======================================
@@ -87,6 +88,29 @@
 	etc.
  */
 
+/*
+ * Adaptative RED : An Algorithm for Increasing the Robustness of RED's AQM
+ * (Sally FLoyd, Ramakrishna Gummadi, and Scott Shenker) August 2001
+ *
+ * Every 500 ms:
+ *  if (avg > target and max_p <= 0.5)
+ *   increase max_p : max_p += alpha;
+ *  else if (avg < target and max_p >= 0.01)
+ *   decrease max_p : max_p *= beta;
+ *
+ * target :[qth_min + 0.4*(qth_min - qth_max),
+ *          qth_min + 0.6*(qth_min - qth_max)].
+ * alpha : min(0.01, max_p / 4)
+ * beta : 0.9
+ * max_P is a Q0.32 fixed point number (with 32 bits mantissa)
+ * max_P between 0.01 and 0.5 (1% - 50%) [ Its no longer a negative power of two ]
+ */
+#define RED_ONE_PERCENT ((u32)DIV_ROUND_CLOSEST(1ULL<<32, 100))
+
+#define MAX_P_MIN (1 * RED_ONE_PERCENT)
+#define MAX_P_MAX (50 * RED_ONE_PERCENT)
+#define MAX_P_ALPHA(val) min(MAX_P_MIN, val / 4)
+
 #define RED_STAB_SIZE	256
 #define RED_STAB_MASK	(RED_STAB_SIZE - 1)
 
@@ -101,10 +125,14 @@ struct red_stats {
 
 struct red_parms {
 	/* Parameters */
-	u32		qth_min;	/* Min avg length threshold: A scaled */
-	u32		qth_max;	/* Max avg length threshold: A scaled */
+	u32		qth_min;	/* Min avg length threshold: Wlog scaled */
+	u32		qth_max;	/* Max avg length threshold: Wlog scaled */
 	u32		Scell_max;
-	u32		Rmask;		/* Cached random mask, see red_rmask */
+	u32		max_P;		/* probability, [0 .. 1.0] 32 scaled */
+	u32		max_P_reciprocal; /* reciprocal_value(max_P / qth_delta) */
+	u32		qth_delta;	/* max_th - min_th */
+	u32		target_min;	/* min_th + 0.4*(max_th - min_th) */
+	u32		target_max;	/* min_th + 0.6*(max_th - min_th) */
 	u8		Scell_log;
 	u8		Wlog;		/* log(W)		*/
 	u8		Plog;		/* random number bits	*/
@@ -115,19 +143,22 @@ struct red_parms {
 					   number generation */
 	u32		qR;		/* Cached random number */
 
-	unsigned long	qavg;		/* Average queue length: A scaled */
+	unsigned long	qavg;		/* Average queue length: Wlog scaled */
 	ktime_t		qidlestart;	/* Start of current idle period */
 };
 
-static inline u32 red_rmask(u8 Plog)
+static inline u32 red_maxp(u8 Plog)
 {
-	return Plog < 32 ? ((1 << Plog) - 1) : ~0UL;
+	return Plog < 32 ? (~0U >> Plog) : ~0U;
 }
+
 
 static inline void red_set_parms(struct red_parms *p,
 				 u32 qth_min, u32 qth_max, u8 Wlog, u8 Plog,
 				 u8 Scell_log, u8 *stab)
 {
+	int delta = qth_max - qth_min;
+
 	/* Reset average queue length, the value is strictly bound
 	 * to the parameters below, reseting hurts a bit but leaving
 	 * it might result in an unreasonable qavg for a while. --TGR
@@ -139,14 +170,29 @@ static inline void red_set_parms(struct red_parms *p,
 	p->qth_max	= qth_max << Wlog;
 	p->Wlog		= Wlog;
 	p->Plog		= Plog;
-	p->Rmask	= red_rmask(Plog);
+	if (delta < 0)
+		delta = 1;
+	p->qth_delta	= delta;
+	p->max_P	= red_maxp(Plog);
+	p->max_P	*= delta; /* max_P = (qth_max-qth_min)/2^Plog */
+
+	p->max_P_reciprocal  = reciprocal_value(p->max_P / delta);
+
+	/* RED Adaptative target :
+	 * [min_th + 0.4*(min_th - max_th),
+	 *  min_th + 0.6*(min_th - max_th)].
+	 */
+	delta /= 5;
+	p->target_min = qth_min + 2*delta;
+	p->target_max = qth_min + 3*delta;
+
 	p->Scell_log	= Scell_log;
 	p->Scell_max	= (255 << Scell_log);
 
 	memcpy(p->Stab, stab, sizeof(p->Stab));
 }
 
-static inline int red_is_idling(struct red_parms *p)
+static inline int red_is_idling(const struct red_parms *p)
 {
 	return p->qidlestart.tv64 != 0;
 }
@@ -168,7 +214,7 @@ static inline void red_restart(struct red_parms *p)
 	p->qcount = -1;
 }
 
-static inline unsigned long red_calc_qavg_from_idle_time(struct red_parms *p)
+static inline unsigned long red_calc_qavg_from_idle_time(const struct red_parms *p)
 {
 	s64 delta = ktime_us_delta(ktime_get(), p->qidlestart);
 	long us_idle = min_t(s64, delta, p->Scell_max);
@@ -215,7 +261,7 @@ static inline unsigned long red_calc_qavg_from_idle_time(struct red_parms *p)
 	}
 }
 
-static inline unsigned long red_calc_qavg_no_idle_time(struct red_parms *p,
+static inline unsigned long red_calc_qavg_no_idle_time(const struct red_parms *p,
 						       unsigned int backlog)
 {
 	/*
@@ -230,7 +276,7 @@ static inline unsigned long red_calc_qavg_no_idle_time(struct red_parms *p,
 	return p->qavg + (backlog - (p->qavg >> p->Wlog));
 }
 
-static inline unsigned long red_calc_qavg(struct red_parms *p,
+static inline unsigned long red_calc_qavg(const struct red_parms *p,
 					  unsigned int backlog)
 {
 	if (!red_is_idling(p))
@@ -239,23 +285,24 @@ static inline unsigned long red_calc_qavg(struct red_parms *p,
 		return red_calc_qavg_from_idle_time(p);
 }
 
-static inline u32 red_random(struct red_parms *p)
+
+static inline u32 red_random(const struct red_parms *p)
 {
-	return net_random() & p->Rmask;
+	return reciprocal_divide(net_random(), p->max_P_reciprocal);
 }
 
-static inline int red_mark_probability(struct red_parms *p, unsigned long qavg)
+static inline int red_mark_probability(const struct red_parms *p, unsigned long qavg)
 {
 	/* The formula used below causes questions.
 
-	   OK. qR is random number in the interval 0..Rmask
+	   OK. qR is random number in the interval
+		(0..1/max_P)*(qth_max-qth_min)
 	   i.e. 0..(2^Plog). If we used floating point
 	   arithmetics, it would be: (2^Plog)*rnd_num,
 	   where rnd_num is less 1.
 
 	   Taking into account, that qavg have fixed
-	   point at Wlog, and Plog is related to max_P by
-	   max_P = (qth_max-qth_min)/2^Plog; two lines
+	   point at Wlog, two lines
 	   below have the following floating point equivalent:
 
 	   max_P*(qavg - qth_min)/(qth_max-qth_min) < rnd/qcount
@@ -315,4 +362,24 @@ static inline int red_action(struct red_parms *p, unsigned long qavg)
 	return RED_DONT_MARK;
 }
 
+static inline void red_adaptative_algo(struct red_parms *p)
+{
+	unsigned long qavg;
+	u32 max_p_delta;
+
+	qavg = p->qavg;
+	if (red_is_idling(p))
+		qavg = red_calc_qavg_from_idle_time(p);
+
+	/* p->qavg is fixed point number with point at Wlog */
+	qavg >>= p->Wlog;
+
+	if (qavg > p->target_max && p->max_P <= MAX_P_MAX)
+		p->max_P += MAX_P_ALPHA(p->max_P); /* maxp = maxp + alpha */
+	else if (qavg < p->target_min && p->max_P >= MAX_P_MIN)
+		p->max_P = (p->max_P/10)*9; /* maxp = maxp * Beta */
+
+	max_p_delta = DIV_ROUND_CLOSEST(p->max_P, p->qth_delta);
+	p->max_P_reciprocal = reciprocal_value(max_p_delta);
+}
 #endif
