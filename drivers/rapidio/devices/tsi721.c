@@ -2107,8 +2107,8 @@ static int __devinit tsi721_setup_mport(struct tsi721_device *priv)
 	INIT_LIST_HEAD(&mport->dbells);
 
 	rio_init_dbell_res(&mport->riores[RIO_DOORBELL_RESOURCE], 0, 0xffff);
-	rio_init_mbox_res(&mport->riores[RIO_INB_MBOX_RESOURCE], 0, 0);
-	rio_init_mbox_res(&mport->riores[RIO_OUTB_MBOX_RESOURCE], 0, 0);
+	rio_init_mbox_res(&mport->riores[RIO_INB_MBOX_RESOURCE], 0, 3);
+	rio_init_mbox_res(&mport->riores[RIO_OUTB_MBOX_RESOURCE], 0, 3);
 	strcpy(mport->name, "Tsi721 mport");
 
 	/* Hook up interrupt handler */
