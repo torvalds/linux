@@ -49,6 +49,12 @@ static inline const char *memblock_type_name(struct memblock_type *type)
 		return "unknown";
 }
 
+/* adjust *@size so that (@base + *@size) doesn't overflow, return new size */
+static inline phys_addr_t memblock_cap_size(phys_addr_t base, phys_addr_t *size)
+{
+	return *size = min(*size, (phys_addr_t)ULLONG_MAX - base);
+}
+
 /*
  * Address comparison utilities
  */
@@ -328,7 +334,8 @@ static int __init_memblock memblock_add_region(struct memblock_type *type,
 					       phys_addr_t base, phys_addr_t size)
 {
 	bool insert = false;
-	phys_addr_t obase = base, end = base + size;
+	phys_addr_t obase = base;
+	phys_addr_t end = base + memblock_cap_size(base, &size);
 	int i, nr_new;
 
 	/* special case for empty array */
@@ -420,7 +427,7 @@ static int __init_memblock memblock_isolate_range(struct memblock_type *type,
 					phys_addr_t base, phys_addr_t size,
 					int *start_rgn, int *end_rgn)
 {
-	phys_addr_t end = base + size;
+	phys_addr_t end = base + memblock_cap_size(base, &size);
 	int i;
 
 	*start_rgn = *end_rgn = 0;
@@ -868,16 +875,18 @@ int __init_memblock memblock_is_memory(phys_addr_t addr)
 int __init_memblock memblock_is_region_memory(phys_addr_t base, phys_addr_t size)
 {
 	int idx = memblock_search(&memblock.memory, base);
+	phys_addr_t end = base + memblock_cap_size(base, &size);
 
 	if (idx == -1)
 		return 0;
 	return memblock.memory.regions[idx].base <= base &&
 		(memblock.memory.regions[idx].base +
-		 memblock.memory.regions[idx].size) >= (base + size);
+		 memblock.memory.regions[idx].size) >= end;
 }
 
 int __init_memblock memblock_is_region_reserved(phys_addr_t base, phys_addr_t size)
 {
+	memblock_cap_size(base, &size);
 	return memblock_overlaps_region(&memblock.reserved, base, size) >= 0;
 }
 
