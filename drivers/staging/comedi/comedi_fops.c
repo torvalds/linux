@@ -2429,13 +2429,15 @@ static ssize_t store_max_read_buffer_kb(struct device *dev,
 					const char *buf, size_t count)
 {
 	struct comedi_device_file_info *info = dev_get_drvdata(dev);
-	unsigned long new_max_size_kb;
+	unsigned int new_max_size_kb;
 	uint64_t new_max_size;
+	int ret;
 	struct comedi_subdevice *const read_subdevice =
 	    comedi_get_read_subdevice(info);
 
-	if (strict_strtoul(buf, 10, &new_max_size_kb))
-		return -EINVAL;
+	ret = kstrtouint(buf, 10, &new_max_size_kb);
+	if (ret)
+		return ret;
 	if (new_max_size_kb != (uint32_t) new_max_size_kb)
 		return -EINVAL;
 	new_max_size = ((uint64_t) new_max_size_kb) * bytes_per_kibi;
@@ -2490,14 +2492,16 @@ static ssize_t store_read_buffer_kb(struct device *dev,
 				    const char *buf, size_t count)
 {
 	struct comedi_device_file_info *info = dev_get_drvdata(dev);
-	unsigned long new_size_kb;
+	unsigned int new_size_kb;
 	uint64_t new_size;
 	int retval;
+	int ret;
 	struct comedi_subdevice *const read_subdevice =
 	    comedi_get_read_subdevice(info);
 
-	if (strict_strtoul(buf, 10, &new_size_kb))
-		return -EINVAL;
+	ret = kstrtouint(buf, 10, &new_size_kb);
+	if (ret)
+		return ret;
 	if (new_size_kb != (uint32_t) new_size_kb)
 		return -EINVAL;
 	new_size = ((uint64_t) new_size_kb) * bytes_per_kibi;
@@ -2556,13 +2560,15 @@ static ssize_t store_max_write_buffer_kb(struct device *dev,
 					 const char *buf, size_t count)
 {
 	struct comedi_device_file_info *info = dev_get_drvdata(dev);
-	unsigned long new_max_size_kb;
+	unsigned int new_max_size_kb;
 	uint64_t new_max_size;
+	int ret;
 	struct comedi_subdevice *const write_subdevice =
 	    comedi_get_write_subdevice(info);
 
-	if (strict_strtoul(buf, 10, &new_max_size_kb))
-		return -EINVAL;
+	ret = kstrtouint(buf, 10, &new_max_size_kb);
+	if (ret)
+		return ret;
 	if (new_max_size_kb != (uint32_t) new_max_size_kb)
 		return -EINVAL;
 	new_max_size = ((uint64_t) new_max_size_kb) * bytes_per_kibi;
@@ -2617,14 +2623,16 @@ static ssize_t store_write_buffer_kb(struct device *dev,
 				     const char *buf, size_t count)
 {
 	struct comedi_device_file_info *info = dev_get_drvdata(dev);
-	unsigned long new_size_kb;
+	unsigned int new_size_kb;
 	uint64_t new_size;
 	int retval;
+	int ret;
 	struct comedi_subdevice *const write_subdevice =
 	    comedi_get_write_subdevice(info);
 
-	if (strict_strtoul(buf, 10, &new_size_kb))
-		return -EINVAL;
+	ret = kstrtouint(buf, 10, &new_size_kb);
+	if (ret)
+		return ret;
 	if (new_size_kb != (uint32_t) new_size_kb)
 		return -EINVAL;
 	new_size = ((uint64_t) new_size_kb) * bytes_per_kibi;
