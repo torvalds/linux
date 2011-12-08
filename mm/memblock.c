@@ -400,7 +400,6 @@ int __init_memblock memblock_add(phys_addr_t base, phys_addr_t size)
 	return memblock_add_region(&memblock.memory, base, size);
 }
 
-#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
 /**
  * memblock_isolate_range - isolate given range into disjoint memblocks
  * @type: memblock type to isolate range for
@@ -449,7 +448,7 @@ static int __init_memblock memblock_isolate_range(struct memblock_type *type,
 			rgn->base = base;
 			rgn->size = rend - rgn->base;
 			memblock_insert_region(type, i, rbase, base - rbase,
-					       rgn->nid);
+					       memblock_get_region_node(rgn));
 		} else if (rend > end) {
 			/*
 			 * @rgn intersects from above.  Split and redo the
@@ -458,7 +457,7 @@ static int __init_memblock memblock_isolate_range(struct memblock_type *type,
 			rgn->base = end;
 			rgn->size = rend - rgn->base;
 			memblock_insert_region(type, i--, rbase, end - rbase,
-					       rgn->nid);
+					       memblock_get_region_node(rgn));
 		} else {
 			/* @rgn is fully contained, record it */
 			if (!*end_rgn)
@@ -469,56 +468,19 @@ static int __init_memblock memblock_isolate_range(struct memblock_type *type,
 
 	return 0;
 }
-#endif
 
 static int __init_memblock __memblock_remove(struct memblock_type *type,
 					     phys_addr_t base, phys_addr_t size)
 {
-	phys_addr_t end = base + size;
-	int i;
+	int start_rgn, end_rgn;
+	int i, ret;
 
-	/* Walk through the array for collisions */
-	for (i = 0; i < type->cnt; i++) {
-		struct memblock_region *rgn = &type->regions[i];
-		phys_addr_t rend = rgn->base + rgn->size;
+	ret = memblock_isolate_range(type, base, size, &start_rgn, &end_rgn);
+	if (ret)
+		return ret;
 
-		/* Nothing more to do, exit */
-		if (rgn->base > end || rgn->size == 0)
-			break;
-
-		/* If we fully enclose the block, drop it */
-		if (base <= rgn->base && end >= rend) {
-			memblock_remove_region(type, i--);
-			continue;
-		}
-
-		/* If we are fully enclosed within a block
-		 * then we need to split it and we are done
-		 */
-		if (base > rgn->base && end < rend) {
-			rgn->size = base - rgn->base;
-			if (!memblock_add_region(type, end, rend - end))
-				return 0;
-			/* Failure to split is bad, we at least
-			 * restore the block before erroring
-			 */
-			rgn->size = rend - rgn->base;
-			WARN_ON(1);
-			return -1;
-		}
-
-		/* Check if we need to trim the bottom of a block */
-		if (rgn->base < end && rend > end) {
-			rgn->size -= end - rgn->base;
-			rgn->base = end;
-			break;
-		}
-
-		/* And check if we need to trim the top of a block */
-		if (base < rend)
-			rgn->size -= rend - base;
-
-	}
+	for (i = end_rgn - 1; i >= start_rgn; i--)
+		memblock_remove_region(type, i);
 	return 0;
 }
 
