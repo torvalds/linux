@@ -7588,8 +7588,6 @@ static int tg3_abort_hw(struct tg3 *tp, int silent)
 		if (tnapi->hw_status)
 			memset(tnapi->hw_status, 0, TG3_HW_STATUS_SIZE);
 	}
-	if (tp->hw_stats)
-		memset(tp->hw_stats, 0, sizeof(struct tg3_hw_stats));
 
 	return err;
 }
@@ -7905,6 +7903,11 @@ static int tg3_chip_reset(struct tg3 *tp)
 	return 0;
 }
 
+static struct rtnl_link_stats64 *tg3_get_stats64(struct net_device *,
+						 struct rtnl_link_stats64 *);
+static struct tg3_ethtool_stats *tg3_get_estats(struct tg3 *,
+						struct tg3_ethtool_stats *);
+
 /* tp->lock is held. */
 static int tg3_halt(struct tg3 *tp, int kind, int silent)
 {
@@ -7921,6 +7924,15 @@ static int tg3_halt(struct tg3 *tp, int kind, int silent)
 
 	tg3_write_sig_legacy(tp, kind);
 	tg3_write_sig_post_reset(tp, kind);
+
+	if (tp->hw_stats) {
+		/* Save the stats across chip resets... */
+		tg3_get_stats64(tp->dev, &tp->net_stats_prev),
+		tg3_get_estats(tp, &tp->estats_prev);
+
+		/* And make sure the next sample is new data */
+		memset(tp->hw_stats, 0, sizeof(struct tg3_hw_stats));
+	}
 
 	if (err)
 		return err;
@@ -9768,11 +9780,6 @@ err_out1:
 	return err;
 }
 
-static struct rtnl_link_stats64 *tg3_get_stats64(struct net_device *,
-						 struct rtnl_link_stats64 *);
-static struct tg3_ethtool_stats *tg3_get_estats(struct tg3 *,
-						struct tg3_ethtool_stats *);
-
 static int tg3_close(struct net_device *dev)
 {
 	int i;
@@ -9804,8 +9811,9 @@ static int tg3_close(struct net_device *dev)
 
 	tg3_ints_fini(tp);
 
-	tg3_get_stats64(tp->dev, &tp->net_stats_prev);
-	tg3_get_estats(tp, &tp->estats_prev);
+	/* Clear stats across close / open calls */
+	memset(&tp->net_stats_prev, 0, sizeof(tp->net_stats_prev));
+	memset(&tp->estats_prev, 0, sizeof(tp->estats_prev));
 
 	tg3_napi_fini(tp);
 
