@@ -293,8 +293,16 @@ char *tomoyo_realpath_from_path(struct path *path)
 			pos = tomoyo_get_local_path(path->dentry, buf,
 						    buf_len - 1);
 		/* Get absolute name for the rest. */
-		else
+		else {
 			pos = tomoyo_get_absolute_path(path, buf, buf_len - 1);
+			/*
+			 * Fall back to local name if absolute name is not
+			 * available.
+			 */
+			if (pos == ERR_PTR(-EINVAL))
+				pos = tomoyo_get_local_path(path->dentry, buf,
+							    buf_len - 1);
+		}
 encode:
 		if (IS_ERR(pos))
 			continue;
