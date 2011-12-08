@@ -268,7 +268,7 @@ static irqreturn_t mxs_dma_int_handler(int irq, void *dev_id)
 	/*
 	 * When both completion and error of termination bits set at the
 	 * same time, we do not take it as an error.  IOW, it only becomes
-	 * an error we need to handler here in case of ether it's (1) an bus
+	 * an error we need to handle here in case of either it's (1) a bus
 	 * error or (2) a termination error with no completion.
 	 */
 	stat2 = ((stat2 >> MXS_DMA_CHANNELS) & stat2) | /* (1) */
