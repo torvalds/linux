@@ -2666,6 +2666,19 @@ err:
 	return status;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void be_netpoll(struct net_device *netdev)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+	struct be_rx_obj *rxo;
+	int i;
+
+	event_handle(adapter, &adapter->tx_eq, false);
+	for_all_rx_queues(adapter, rxo, i)
+		event_handle(adapter, &rxo->rx_eq, true);
+}
+#endif
+
 #define FW_FILE_HDR_SIGN 	"ServerEngines Corp. "
 static bool be_flash_redboot(struct be_adapter *adapter,
 			const u8 *p, u32 img_start, int image_size,
@@ -3014,7 +3027,10 @@ static struct net_device_ops be_netdev_ops = {
 	.ndo_set_vf_mac		= be_set_vf_mac,
 	.ndo_set_vf_vlan	= be_set_vf_vlan,
 	.ndo_set_vf_tx_rate	= be_set_vf_tx_rate,
-	.ndo_get_vf_config	= be_get_vf_config
+	.ndo_get_vf_config	= be_get_vf_config,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= be_netpoll,
+#endif
 };
 
 static void be_netdev_init(struct net_device *netdev)
