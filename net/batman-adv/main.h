@@ -202,6 +202,17 @@ static inline int compare_eth(const void *data1, const void *data2)
 	return (memcmp(data1, data2, ETH_ALEN) == 0 ? 1 : 0);
 }
 
+/**
+ * has_timed_out - compares current time (jiffies) and timestamp + timeout
+ * @timestamp:		base value to compare with (in jiffies)
+ * @timeout:		added to base value before comparing (in milliseconds)
+ *
+ * Returns true if current time is after timestamp + timeout
+ */
+static inline bool has_timed_out(unsigned long timestamp, unsigned int timeout)
+{
+	return time_is_before_jiffies(timestamp + msecs_to_jiffies(timeout));
+}
 
 #define atomic_dec_not_zero(v)	atomic_add_unless((v), -1, 0)
 

@@ -108,14 +108,6 @@ static struct tt_global_entry *tt_global_hash_find(struct bat_priv *bat_priv,
 
 }
 
-static bool is_out_of_time(unsigned long starting_time, unsigned long timeout)
-{
-	unsigned long deadline;
-	deadline = starting_time + msecs_to_jiffies(timeout);
-
-	return time_after(jiffies, deadline);
-}
-
 static void tt_local_entry_free_ref(struct tt_local_entry *tt_local_entry)
 {
 	if (atomic_dec_and_test(&tt_local_entry->common.refcount))
@@ -420,8 +412,8 @@ static void tt_local_purge(struct bat_priv *bat_priv)
 			if (tt_local_entry->common.flags & TT_CLIENT_PENDING)
 				continue;
 
-			if (!is_out_of_time(tt_local_entry->last_seen,
-					    TT_LOCAL_TIMEOUT * 1000))
+			if (!has_timed_out(tt_local_entry->last_seen,
+					   TT_LOCAL_TIMEOUT * 1000))
 				continue;
 
 			tt_local_set_pending(bat_priv, tt_local_entry,
@@ -758,8 +750,8 @@ static void tt_global_roam_purge(struct bat_priv *bat_priv)
 						       common);
 			if (!(tt_global_entry->common.flags & TT_CLIENT_ROAM))
 				continue;
-			if (!is_out_of_time(tt_global_entry->roam_at,
-					    TT_CLIENT_ROAM_TIMEOUT * 1000))
+			if (!has_timed_out(tt_global_entry->roam_at,
+					   TT_CLIENT_ROAM_TIMEOUT * 1000))
 				continue;
 
 			bat_dbg(DBG_TT, bat_priv, "Deleting global "
@@ -978,8 +970,8 @@ static void tt_req_purge(struct bat_priv *bat_priv)
 
 	spin_lock_bh(&bat_priv->tt_req_list_lock);
 	list_for_each_entry_safe(node, safe, &bat_priv->tt_req_list, list) {
-		if (is_out_of_time(node->issued_at,
-		    TT_REQUEST_TIMEOUT * 1000)) {
+		if (has_timed_out(node->issued_at,
+				  TT_REQUEST_TIMEOUT * 1000)) {
 			list_del(&node->list);
 			kfree(node);
 		}
@@ -997,8 +989,8 @@ static struct tt_req_node *new_tt_req_node(struct bat_priv *bat_priv,
 	spin_lock_bh(&bat_priv->tt_req_list_lock);
 	list_for_each_entry(tt_req_node_tmp, &bat_priv->tt_req_list, list) {
 		if (compare_eth(tt_req_node_tmp, orig_node) &&
-		    !is_out_of_time(tt_req_node_tmp->issued_at,
-				    TT_REQUEST_TIMEOUT * 1000))
+		    !has_timed_out(tt_req_node_tmp->issued_at,
+				   TT_REQUEST_TIMEOUT * 1000))
 			goto unlock;
 	}
 
@@ -1591,8 +1583,8 @@ static void tt_roam_purge(struct bat_priv *bat_priv)
 
 	spin_lock_bh(&bat_priv->tt_roam_list_lock);
 	list_for_each_entry_safe(node, safe, &bat_priv->tt_roam_list, list) {
-		if (!is_out_of_time(node->first_time,
-				    ROAMING_MAX_TIME * 1000))
+		if (!has_timed_out(node->first_time,
+				   ROAMING_MAX_TIME * 1000))
 			continue;
 
 		list_del(&node->list);
@@ -1619,8 +1611,8 @@ static bool tt_check_roam_count(struct bat_priv *bat_priv,
 		if (!compare_eth(tt_roam_node->addr, client))
 			continue;
 
-		if (is_out_of_time(tt_roam_node->first_time,
-				   ROAMING_MAX_TIME * 1000))
+		if (has_timed_out(tt_roam_node->first_time,
+				  ROAMING_MAX_TIME * 1000))
 			continue;
 
 		if (!atomic_dec_not_zero(&tt_roam_node->counter))
