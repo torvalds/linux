@@ -73,6 +73,8 @@ int rtc_set_time(struct rtc_device *rtc, struct rtc_time *tm)
 		err = -EINVAL;
 
 	mutex_unlock(&rtc->ops_lock);
+	/* A timer might have just expired */
+	schedule_work(&rtc->irqwork);
 	return err;
 }
 EXPORT_SYMBOL_GPL(rtc_set_time);
@@ -112,6 +114,8 @@ int rtc_set_mmss(struct rtc_device *rtc, unsigned long secs)
 		err = -EINVAL;
 
 	mutex_unlock(&rtc->ops_lock);
+	/* A timer might have just expired */
+	schedule_work(&rtc->irqwork);
 
 	return err;
 }
