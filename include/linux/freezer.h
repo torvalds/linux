@@ -67,33 +67,27 @@ static inline bool cgroup_freezing(struct task_struct *task)
  * appropriately in case the child has exited before the freezing of tasks is
  * complete.  However, we don't want kernel threads to be frozen in unexpected
  * places, so we allow them to block freeze_processes() instead or to set
- * PF_NOFREEZE if needed and PF_FREEZER_SKIP is only set for userland vfork
- * parents.  Fortunately, in the ____call_usermodehelper() case the parent won't
- * really block freeze_processes(), since ____call_usermodehelper() (the child)
- * does a little before exec/exit and it can't be frozen before waking up the
- * parent.
+ * PF_NOFREEZE if needed. Fortunately, in the ____call_usermodehelper() case the
+ * parent won't really block freeze_processes(), since ____call_usermodehelper()
+ * (the child) does a little before exec/exit and it can't be frozen before
+ * waking up the parent.
  */
 
-/*
- * If the current task is a user space one, tell the freezer not to count it as
- * freezable.
- */
+
+/* Tell the freezer not to count the current task as freezable. */
 static inline void freezer_do_not_count(void)
 {
-	if (current->mm)
-		current->flags |= PF_FREEZER_SKIP;
+	current->flags |= PF_FREEZER_SKIP;
 }
 
 /*
- * If the current task is a user space one, tell the freezer to count it as
- * freezable again and try to freeze it.
+ * Tell the freezer to count the current task as freezable again and try to
+ * freeze it.
  */
 static inline void freezer_count(void)
 {
-	if (current->mm) {
-		current->flags &= ~PF_FREEZER_SKIP;
-		try_to_freeze();
-	}
+	current->flags &= ~PF_FREEZER_SKIP;
+	try_to_freeze();
 }
 
 /*
