@@ -285,7 +285,7 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	struct wl1271_tx_hw_descr *desc;
 	int aligned_len, ac, rate_idx;
 	s64 hosttime;
-	u16 tx_attr;
+	u16 tx_attr = 0;
 	bool is_dummy;
 
 	desc = (struct wl1271_tx_hw_descr *) skb->data;
