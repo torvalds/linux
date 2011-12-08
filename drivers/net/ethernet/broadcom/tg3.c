@@ -9770,7 +9770,8 @@ err_out1:
 
 static struct rtnl_link_stats64 *tg3_get_stats64(struct net_device *,
 						 struct rtnl_link_stats64 *);
-static struct tg3_ethtool_stats *tg3_get_estats(struct tg3 *);
+static struct tg3_ethtool_stats *tg3_get_estats(struct tg3 *,
+						struct tg3_ethtool_stats *);
 
 static int tg3_close(struct net_device *dev)
 {
@@ -9804,9 +9805,7 @@ static int tg3_close(struct net_device *dev)
 	tg3_ints_fini(tp);
 
 	tg3_get_stats64(tp->dev, &tp->net_stats_prev);
-
-	memcpy(&tp->estats_prev, tg3_get_estats(tp),
-	       sizeof(tp->estats_prev));
+	tg3_get_estats(tp, &tp->estats_prev);
 
 	tg3_napi_fini(tp);
 
@@ -9854,9 +9853,9 @@ static u64 calc_crc_errors(struct tg3 *tp)
 	estats->member =	old_estats->member + \
 				get_stat64(&hw_stats->member)
 
-static struct tg3_ethtool_stats *tg3_get_estats(struct tg3 *tp)
+static struct tg3_ethtool_stats *tg3_get_estats(struct tg3 *tp,
+					       struct tg3_ethtool_stats *estats)
 {
-	struct tg3_ethtool_stats *estats = &tp->estats;
 	struct tg3_ethtool_stats *old_estats = &tp->estats_prev;
 	struct tg3_hw_stats *hw_stats = tp->hw_stats;
 
@@ -10762,7 +10761,8 @@ static void tg3_get_ethtool_stats(struct net_device *dev,
 				   struct ethtool_stats *estats, u64 *tmp_stats)
 {
 	struct tg3 *tp = netdev_priv(dev);
-	memcpy(tmp_stats, tg3_get_estats(tp), sizeof(tp->estats));
+
+	tg3_get_estats(tp, (struct tg3_ethtool_stats *)tmp_stats);
 }
 
 static __be32 *tg3_vpd_readblock(struct tg3 *tp, u32 *vpdlen)
