@@ -422,9 +422,9 @@ static int __devexit msm_hs_remove(struct platform_device *pdev)
 		      msm_uport->rx.rbuffer);
 	dma_pool_destroy(msm_uport->rx.pool);
 
-	dma_unmap_single(dev, msm_uport->rx.cmdptr_dmaaddr, sizeof(u32 *),
+	dma_unmap_single(dev, msm_uport->rx.cmdptr_dmaaddr, sizeof(u32),
 			 DMA_TO_DEVICE);
-	dma_unmap_single(dev, msm_uport->tx.mapped_cmd_ptr_ptr, sizeof(u32 *),
+	dma_unmap_single(dev, msm_uport->tx.mapped_cmd_ptr_ptr, sizeof(u32),
 			 DMA_TO_DEVICE);
 	dma_unmap_single(dev, msm_uport->tx.mapped_cmd_ptr, sizeof(dmov_box),
 			 DMA_TO_DEVICE);
@@ -812,7 +812,7 @@ static void msm_hs_submit_tx_locked(struct uart_port *uport)
 	*tx->command_ptr_ptr = CMD_PTR_LP | DMOV_CMD_ADDR(tx->mapped_cmd_ptr);
 
 	dma_sync_single_for_device(uport->dev, tx->mapped_cmd_ptr_ptr,
-				   sizeof(u32 *), DMA_TO_DEVICE);
+				   sizeof(u32), DMA_TO_DEVICE);
 
 	/* Save tx_count to use in Callback */
 	tx->tx_count = tx_count;
@@ -1537,7 +1537,7 @@ static int __devinit uartdm_init_port(struct uart_port *uport)
 	if (!tx->command_ptr)
 		return -ENOMEM;
 
-	tx->command_ptr_ptr = kmalloc(sizeof(u32 *), GFP_KERNEL | __GFP_DMA);
+	tx->command_ptr_ptr = kmalloc(sizeof(u32), GFP_KERNEL | __GFP_DMA);
 	if (!tx->command_ptr_ptr) {
 		ret = -ENOMEM;
 		goto err_tx_command_ptr_ptr;
@@ -1547,7 +1547,7 @@ static int __devinit uartdm_init_port(struct uart_port *uport)
 					    sizeof(dmov_box), DMA_TO_DEVICE);
 	tx->mapped_cmd_ptr_ptr = dma_map_single(uport->dev,
 						tx->command_ptr_ptr,
-						sizeof(u32 *), DMA_TO_DEVICE);
+						sizeof(u32), DMA_TO_DEVICE);
 	tx->xfer.cmdptr = DMOV_CMD_ADDR(tx->mapped_cmd_ptr_ptr);
 
 	init_waitqueue_head(&rx->wait);
@@ -1575,7 +1575,7 @@ static int __devinit uartdm_init_port(struct uart_port *uport)
 		goto err_rx_command_ptr;
 	}
 
-	rx->command_ptr_ptr = kmalloc(sizeof(u32 *), GFP_KERNEL | __GFP_DMA);
+	rx->command_ptr_ptr = kmalloc(sizeof(u32), GFP_KERNEL | __GFP_DMA);
 	if (!rx->command_ptr_ptr) {
 		pr_err("%s(): cannot allocate rx->command_ptr_ptr", __func__);
 		ret = -ENOMEM;
@@ -1593,7 +1593,7 @@ static int __devinit uartdm_init_port(struct uart_port *uport)
 	*rx->command_ptr_ptr = CMD_PTR_LP | DMOV_CMD_ADDR(rx->mapped_cmd_ptr);
 
 	rx->cmdptr_dmaaddr = dma_map_single(uport->dev, rx->command_ptr_ptr,
-					    sizeof(u32 *), DMA_TO_DEVICE);
+					    sizeof(u32), DMA_TO_DEVICE);
 	rx->xfer.cmdptr = DMOV_CMD_ADDR(rx->cmdptr_dmaaddr);
 
 	INIT_WORK(&rx->tty_work, msm_hs_tty_flip_buffer_work);
@@ -1609,7 +1609,7 @@ err_dma_pool_alloc:
 	dma_pool_destroy(msm_uport->rx.pool);
 err_dma_pool_create:
 	dma_unmap_single(uport->dev, msm_uport->tx.mapped_cmd_ptr_ptr,
-				sizeof(u32 *), DMA_TO_DEVICE);
+				sizeof(u32), DMA_TO_DEVICE);
 	dma_unmap_single(uport->dev, msm_uport->tx.mapped_cmd_ptr,
 				sizeof(dmov_box), DMA_TO_DEVICE);
 	kfree(msm_uport->tx.command_ptr_ptr);
