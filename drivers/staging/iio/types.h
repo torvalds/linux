@@ -35,7 +35,7 @@ enum iio_modifier {
 	IIO_MOD_Y,
 	IIO_MOD_Z,
 	IIO_MOD_X_AND_Y,
-	IIO_MOD_X_ANX_Z,
+	IIO_MOD_X_AND_Z,
 	IIO_MOD_Y_AND_Z,
 	IIO_MOD_X_AND_Y_AND_Z,
 	IIO_MOD_X_OR_Y,
