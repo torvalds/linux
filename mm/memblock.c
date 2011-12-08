@@ -898,11 +898,8 @@ static void __init_memblock memblock_dump(struct memblock_type *type, char *name
 	}
 }
 
-void __init_memblock memblock_dump_all(void)
+void __init_memblock __memblock_dump_all(void)
 {
-	if (!memblock_debug)
-		return;
-
 	pr_info("MEMBLOCK configuration:\n");
 	pr_info(" memory size = 0x%llx\n", (unsigned long long)memblock.memory_size);
 

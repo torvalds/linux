@@ -129,7 +129,13 @@ int memblock_is_region_memory(phys_addr_t base, phys_addr_t size);
 int memblock_is_reserved(phys_addr_t addr);
 int memblock_is_region_reserved(phys_addr_t base, phys_addr_t size);
 
-void memblock_dump_all(void);
+extern void __memblock_dump_all(void);
+
+static inline void memblock_dump_all(void)
+{
+	if (memblock_debug)
+		__memblock_dump_all();
+}
 
 /**
  * memblock_set_current_limit - Set the current allocation limit to allow
