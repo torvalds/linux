@@ -2022,9 +2022,10 @@ MODULE_PARM_DESC(plcp_check, "Check plcp health (default: 1 [enabled])");
 module_param_named(ack_check, iwlagn_mod_params.ack_check, bool, S_IRUGO);
 MODULE_PARM_DESC(ack_check, "Check ack health (default: 0 [disabled])");
 
-module_param_named(wd_disable, iwlagn_mod_params.wd_disable, bool, S_IRUGO);
+module_param_named(wd_disable, iwlagn_mod_params.wd_disable, int, S_IRUGO);
 MODULE_PARM_DESC(wd_disable,
-		"Disable stuck queue watchdog timer (default: 0 [enabled])");
+		"Disable stuck queue watchdog timer 0=system default, "
+		"1=disable, 2=enable (default: 0)");
 
 /*
  * set bt_coex_active to true, uCode will do kill/defer

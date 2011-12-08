@@ -1034,6 +1034,8 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 	skb = ieee80211_probereq_get(&local->hw, &sdata->vif,
 				     ssid, ssid_len,
 				     buf, buf_len);
+	if (!skb)
+		goto out;
 
 	if (dst) {
 		mgmt = (struct ieee80211_mgmt *) skb->data;
@@ -1042,6 +1044,8 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 	}
 
 	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+
+ out:
 	kfree(buf);
 
 	return skb;
@@ -1188,7 +1192,6 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 					     struct ieee80211_sub_if_data,
 					     u.ap);
 
-			memset(&sta->sta.drv_priv, 0, hw->sta_data_size);
 			WARN_ON(drv_sta_add(local, sdata, &sta->sta));
 		}
 	}
@@ -1584,6 +1587,11 @@ u8 *ieee80211_ie_build_ht_info(u8 *pos,
 	}
 	if (ht_cap->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40)
 		ht_info->ht_param |= IEEE80211_HT_PARAM_CHAN_WIDTH_ANY;
+
+	/*
+	 * Note: According to 802.11n-2009 9.13.3.1, HT Protection field and
+	 * RIFS Mode are reserved in IBSS mode, therefore keep them at 0
+	 */
 	ht_info->operation_mode = 0x0000;
 	ht_info->stbc_param = 0x0000;
 

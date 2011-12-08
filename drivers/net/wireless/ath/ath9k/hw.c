@@ -504,7 +504,7 @@ static int ath9k_hw_post_init(struct ath_hw *ah)
 		return ecode;
 	}
 
-	if (!AR_SREV_9100(ah) && !AR_SREV_9340(ah)) {
+	if (ah->config.enable_ani) {
 		ath9k_hw_ani_setup(ah);
 		ath9k_hw_ani_init(ah);
 	}
@@ -609,6 +609,10 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 		ah->ani_function &= ~ATH9K_ANI_NOISE_IMMUNITY_LEVEL;
 	if (!AR_SREV_9300_20_OR_LATER(ah))
 		ah->ani_function &= ~ATH9K_ANI_MRC_CCK;
+
+	/* disable ANI for 9340 */
+	if (AR_SREV_9340(ah))
+		ah->config.enable_ani = false;
 
 	ath9k_hw_init_mode_regs(ah);
 
@@ -1967,7 +1971,8 @@ static void ath9k_set_power_sleep(struct ath_hw *ah, int setChip)
 	}
 
 	/* Clear Bit 14 of AR_WA after putting chip into Full Sleep mode. */
-	REG_WRITE(ah, AR_WA, ah->WARegVal & ~AR_WA_D3_L1_DISABLE);
+	if (AR_SREV_9300_20_OR_LATER(ah))
+		REG_WRITE(ah, AR_WA, ah->WARegVal & ~AR_WA_D3_L1_DISABLE);
 }
 
 /*

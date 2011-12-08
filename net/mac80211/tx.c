@@ -1332,8 +1332,11 @@ static int invoke_tx_handlers(struct ieee80211_tx_data *tx)
 	if (!(tx->local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL))
 		CALL_TXH(ieee80211_tx_h_rate_ctrl);
 
-	if (unlikely(info->flags & IEEE80211_TX_INTFL_RETRANSMISSION))
+	if (unlikely(info->flags & IEEE80211_TX_INTFL_RETRANSMISSION)) {
+		__skb_queue_tail(&tx->skbs, tx->skb);
+		tx->skb = NULL;
 		goto txh_done;
+	}
 
 	CALL_TXH(ieee80211_tx_h_michael_mic_add);
 	CALL_TXH(ieee80211_tx_h_sequence);

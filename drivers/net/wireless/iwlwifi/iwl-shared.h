@@ -120,7 +120,7 @@ extern struct iwl_mod_params iwlagn_mod_params;
  * @restart_fw: restart firmware, default = 1
  * @plcp_check: enable plcp health check, default = true
  * @ack_check: disable ack health check, default = false
- * @wd_disable: enable stuck queue check, default = false
+ * @wd_disable: enable stuck queue check, default = 0
  * @bt_coex_active: enable bt coex, default = true
  * @led_mode: system default, default = 0
  * @no_sleep_autoadjust: disable autoadjust, default = true
@@ -141,7 +141,7 @@ struct iwl_mod_params {
 	int restart_fw;
 	bool plcp_check;
 	bool ack_check;
-	bool wd_disable;
+	int  wd_disable;
 	bool bt_coex_active;
 	int led_mode;
 	bool no_sleep_autoadjust;

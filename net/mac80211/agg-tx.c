@@ -83,6 +83,8 @@ static void ieee80211_send_addba_request(struct ieee80211_sub_if_data *sdata,
 		memcpy(mgmt->bssid, sdata->vif.addr, ETH_ALEN);
 	else if (sdata->vif.type == NL80211_IFTYPE_STATION)
 		memcpy(mgmt->bssid, sdata->u.mgd.bssid, ETH_ALEN);
+	else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
+		memcpy(mgmt->bssid, sdata->u.ibss.bssid, ETH_ALEN);
 
 	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					  IEEE80211_STYPE_ACTION);
@@ -162,6 +164,12 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 		return -ENOENT;
 	}
 
+	/* if we're already stopping ignore any new requests to stop */
+	if (test_bit(HT_AGG_STATE_STOPPING, &tid_tx->state)) {
+		spin_unlock_bh(&sta->lock);
+		return -EALREADY;
+	}
+
 	if (test_bit(HT_AGG_STATE_WANT_START, &tid_tx->state)) {
 		/* not even started yet! */
 		ieee80211_assign_tid_tx(sta, tid, NULL);
@@ -170,14 +178,14 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 		return 0;
 	}
 
+	set_bit(HT_AGG_STATE_STOPPING, &tid_tx->state);
+
 	spin_unlock_bh(&sta->lock);
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
 	printk(KERN_DEBUG "Tx BA session stop requested for %pM tid %u\n",
 	       sta->sta.addr, tid);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
-
-	set_bit(HT_AGG_STATE_STOPPING, &tid_tx->state);
 
 	del_timer_sync(&tid_tx->addba_resp_timer);
 	del_timer_sync(&tid_tx->session_timer);
@@ -188,6 +196,20 @@ int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 	 * with locking to ensure proper access.
 	 */
 	clear_bit(HT_AGG_STATE_OPERATIONAL, &tid_tx->state);
+
+	/*
+	 * There might be a few packets being processed right now (on
+	 * another CPU) that have already gotten past the aggregation
+	 * check when it was still OPERATIONAL and consequently have
+	 * IEEE80211_TX_CTL_AMPDU set. In that case, this code might
+	 * call into the driver at the same time or even before the
+	 * TX paths calls into it, which could confuse the driver.
+	 *
+	 * Wait for all currently running TX paths to finish before
+	 * telling the driver. New packets will not go through since
+	 * the aggregation session is no longer OPERATIONAL.
+	 */
+	synchronize_net();
 
 	tid_tx->stop_initiator = initiator;
 	tid_tx->tx_stop = tx;
@@ -399,7 +421,8 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 	if (sdata->vif.type != NL80211_IFTYPE_STATION &&
 	    sdata->vif.type != NL80211_IFTYPE_MESH_POINT &&
 	    sdata->vif.type != NL80211_IFTYPE_AP_VLAN &&
-	    sdata->vif.type != NL80211_IFTYPE_AP)
+	    sdata->vif.type != NL80211_IFTYPE_AP &&
+	    sdata->vif.type != NL80211_IFTYPE_ADHOC)
 		return -EINVAL;
 
 	if (test_sta_flag(sta, WLAN_STA_BLOCK_BA)) {
@@ -407,6 +430,27 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 		printk(KERN_DEBUG "BA sessions blocked. "
 		       "Denying BA session request\n");
 #endif
+		return -EINVAL;
+	}
+
+	/*
+	 * 802.11n-2009 11.5.1.1: If the initiating STA is an HT STA, is a
+	 * member of an IBSS, and has no other existing Block Ack agreement
+	 * with the recipient STA, then the initiating STA shall transmit a
+	 * Probe Request frame to the recipient STA and shall not transmit an
+	 * ADDBA Request frame unless it receives a Probe Response frame
+	 * from the recipient within dot11ADDBAFailureTimeout.
+	 *
+	 * The probe request mechanism for ADDBA is currently not implemented,
+	 * but we only build up Block Ack session with HT STAs. This information
+	 * is set when we receive a bss info from a probe response or a beacon.
+	 */
+	if (sta->sdata->vif.type == NL80211_IFTYPE_ADHOC &&
+	    !sta->sta.ht_cap.ht_supported) {
+#ifdef CONFIG_MAC80211_HT_DEBUG
+		printk(KERN_DEBUG "BA request denied - IBSS STA %pM"
+		       "does not advertise HT support\n", pubsta->addr);
+#endif /* CONFIG_MAC80211_HT_DEBUG */
 		return -EINVAL;
 	}
 
@@ -781,11 +825,27 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 		goto out;
 	}
 
-	del_timer(&tid_tx->addba_resp_timer);
+	del_timer_sync(&tid_tx->addba_resp_timer);
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
 	printk(KERN_DEBUG "switched off addBA timer for tid %d\n", tid);
 #endif
+
+	/*
+	 * addba_resp_timer may have fired before we got here, and
+	 * caused WANT_STOP to be set. If the stop then was already
+	 * processed further, STOPPING might be set.
+	 */
+	if (test_bit(HT_AGG_STATE_WANT_STOP, &tid_tx->state) ||
+	    test_bit(HT_AGG_STATE_STOPPING, &tid_tx->state)) {
+#ifdef CONFIG_MAC80211_HT_DEBUG
+		printk(KERN_DEBUG
+		       "got addBA resp for tid %d but we already gave up\n",
+		       tid);
+#endif
+		goto out;
+	}
+
 	/*
 	 * IEEE 802.11-2007 7.3.1.14:
 	 * In an ADDBA Response frame, when the Status Code field

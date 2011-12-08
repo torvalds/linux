@@ -118,7 +118,7 @@ void ath9k_ps_restore(struct ath_softc *sc)
 	if (--sc->ps_usecount != 0)
 		goto unlock;
 
-	if (sc->ps_idle)
+	if (sc->ps_idle && (sc->ps_flags & PS_WAIT_FOR_TX_ACK))
 		mode = ATH9K_PM_FULL_SLEEP;
 	else if (sc->ps_enabled &&
 		 !(sc->ps_flags & (PS_WAIT_FOR_BEACON |
@@ -332,7 +332,8 @@ static int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan,
 		hchan = ah->curchan;
 	}
 
-	if (fastcc && !ath9k_hw_check_alive(ah))
+	if (fastcc && (ah->chip_fullsleep ||
+	    !ath9k_hw_check_alive(ah)))
 		fastcc = false;
 
 	if (!ath_prepare_reset(sc, retry_tx, flush))
@@ -561,7 +562,6 @@ void ath_ani_calibrate(unsigned long data)
 	/* Long calibration runs independently of short calibration. */
 	if ((timestamp - common->ani.longcal_timer) >= long_cal_interval) {
 		longcal = true;
-		ath_dbg(common, ATH_DBG_ANI, "longcal @%lu\n", jiffies);
 		common->ani.longcal_timer = timestamp;
 	}
 
@@ -569,8 +569,6 @@ void ath_ani_calibrate(unsigned long data)
 	if (!common->ani.caldone) {
 		if ((timestamp - common->ani.shortcal_timer) >= short_cal_interval) {
 			shortcal = true;
-			ath_dbg(common, ATH_DBG_ANI,
-				"shortcal @%lu\n", jiffies);
 			common->ani.shortcal_timer = timestamp;
 			common->ani.resetcal_timer = timestamp;
 		}
@@ -584,8 +582,9 @@ void ath_ani_calibrate(unsigned long data)
 	}
 
 	/* Verify whether we must check ANI */
-	if ((timestamp - common->ani.checkani_timer) >=
-	     ah->config.ani_poll_interval) {
+	if (sc->sc_ah->config.enable_ani
+	    && (timestamp - common->ani.checkani_timer) >=
+	    ah->config.ani_poll_interval) {
 		aniflag = true;
 		common->ani.checkani_timer = timestamp;
 	}
@@ -604,6 +603,11 @@ void ath_ani_calibrate(unsigned long data)
 			ath9k_hw_calibrate(ah, ah->curchan,
 						ah->rxchainmask, longcal);
 	}
+
+	ath_dbg(common, ATH_DBG_ANI,
+		"Calibration @%lu finished: %s %s %s, caldone: %s\n", jiffies,
+		longcal ? "long" : "", shortcal ? "short" : "",
+		aniflag ? "ani" : "", common->ani.caldone ? "true" : "false");
 
 	ath9k_ps_restore(sc);
 
@@ -886,82 +890,6 @@ chip_reset:
 #undef SCHED_INTR
 }
 
-static void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw)
-{
-	struct ath_hw *ah = sc->sc_ah;
-	struct ath_common *common = ath9k_hw_common(ah);
-	struct ieee80211_channel *channel = hw->conf.channel;
-	int r;
-
-	ath9k_ps_wakeup(sc);
-	spin_lock_bh(&sc->sc_pcu_lock);
-	atomic_set(&ah->intr_ref_cnt, -1);
-
-	ath9k_hw_configpcipowersave(ah, false);
-
-	if (!ah->curchan)
-		ah->curchan = ath9k_cmn_get_curchannel(sc->hw, ah);
-
-	r = ath9k_hw_reset(ah, ah->curchan, ah->caldata, false);
-	if (r) {
-		ath_err(common,
-			"Unable to reset channel (%u MHz), reset status %d\n",
-			channel->center_freq, r);
-	}
-
-	ath_complete_reset(sc, true);
-
-	/* Enable LED */
-	ath9k_hw_cfg_output(ah, ah->led_pin,
-			    AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
-	ath9k_hw_set_gpio(ah, ah->led_pin, 0);
-
-	spin_unlock_bh(&sc->sc_pcu_lock);
-
-	ath9k_ps_restore(sc);
-}
-
-void ath_radio_disable(struct ath_softc *sc, struct ieee80211_hw *hw)
-{
-	struct ath_hw *ah = sc->sc_ah;
-	struct ieee80211_channel *channel = hw->conf.channel;
-	int r;
-
-	ath9k_ps_wakeup(sc);
-
-	ath_cancel_work(sc);
-
-	spin_lock_bh(&sc->sc_pcu_lock);
-
-	/*
-	 * Keep the LED on when the radio is disabled
-	 * during idle unassociated state.
-	 */
-	if (!sc->ps_idle) {
-		ath9k_hw_set_gpio(ah, ah->led_pin, 1);
-		ath9k_hw_cfg_gpio_input(ah, ah->led_pin);
-	}
-
-	ath_prepare_reset(sc, false, true);
-
-	if (!ah->curchan)
-		ah->curchan = ath9k_cmn_get_curchannel(hw, ah);
-
-	r = ath9k_hw_reset(ah, ah->curchan, ah->caldata, false);
-	if (r) {
-		ath_err(ath9k_hw_common(sc->sc_ah),
-			"Unable to reset channel (%u MHz), reset status %d\n",
-			channel->center_freq, r);
-	}
-
-	ath9k_hw_phy_disable(ah);
-
-	ath9k_hw_configpcipowersave(ah, true);
-
-	spin_unlock_bh(&sc->sc_pcu_lock);
-	ath9k_ps_restore(sc);
-}
-
 static int ath_reset(struct ath_softc *sc, bool retry_tx)
 {
 	int r;
@@ -1097,6 +1025,9 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	 * and then setup of the interrupt mask.
 	 */
 	spin_lock_bh(&sc->sc_pcu_lock);
+
+	atomic_set(&ah->intr_ref_cnt, -1);
+
 	r = ath9k_hw_reset(ah, init_channel, ah->caldata, false);
 	if (r) {
 		ath_err(common,
@@ -1137,6 +1068,18 @@ static int ath9k_start(struct ieee80211_hw *hw)
 		spin_unlock_bh(&sc->sc_pcu_lock);
 		goto mutex_unlock;
 	}
+
+	if (ah->led_pin >= 0) {
+		ath9k_hw_cfg_output(ah, ah->led_pin,
+				    AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
+		ath9k_hw_set_gpio(ah, ah->led_pin, 0);
+	}
+
+	/*
+	 * Reset key cache to sane defaults (all entries cleared) instead of
+	 * semi-random values after suspend/resume.
+	 */
+	ath9k_cmn_init_crypto(sc->sc_ah);
 
 	spin_unlock_bh(&sc->sc_pcu_lock);
 
@@ -1182,6 +1125,13 @@ static void ath9k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 			hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PM);
 		}
 	}
+
+	/*
+	 * Cannot tx while the hardware is in full sleep, it first needs a full
+	 * chip reset to recover from that
+	 */
+	if (unlikely(sc->sc_ah->power_mode == ATH9K_PM_FULL_SLEEP))
+		goto exit;
 
 	if (unlikely(sc->sc_ah->power_mode != ATH9K_PM_AWAKE)) {
 		/*
@@ -1229,6 +1179,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
+	bool prev_idle;
 
 	mutex_lock(&sc->mutex);
 
@@ -1259,21 +1210,6 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	 * before setting the invalid flag. */
 	ath9k_hw_disable_interrupts(ah);
 
-	if (!(sc->sc_flags & SC_OP_INVALID)) {
-		ath_drain_all_txq(sc, false);
-		ath_stoprecv(sc);
-		ath9k_hw_phy_disable(ah);
-	} else
-		sc->rx.rxlink = NULL;
-
-	if (sc->rx.frag) {
-		dev_kfree_skb_any(sc->rx.frag);
-		sc->rx.frag = NULL;
-	}
-
-	/* disable HAL and put h/w to sleep */
-	ath9k_hw_disable(ah);
-
 	spin_unlock_bh(&sc->sc_pcu_lock);
 
 	/* we can now sync irq and kill any running tasklets, since we already
@@ -1282,12 +1218,37 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	tasklet_kill(&sc->intr_tq);
 	tasklet_kill(&sc->bcon_tasklet);
 
+	prev_idle = sc->ps_idle;
+	sc->ps_idle = true;
+
+	spin_lock_bh(&sc->sc_pcu_lock);
+
+	if (ah->led_pin >= 0) {
+		ath9k_hw_set_gpio(ah, ah->led_pin, 1);
+		ath9k_hw_cfg_gpio_input(ah, ah->led_pin);
+	}
+
+	ath_prepare_reset(sc, false, true);
+
+	if (sc->rx.frag) {
+		dev_kfree_skb_any(sc->rx.frag);
+		sc->rx.frag = NULL;
+	}
+
+	if (!ah->curchan)
+		ah->curchan = ath9k_cmn_get_curchannel(hw, ah);
+
+	ath9k_hw_reset(ah, ah->curchan, ah->caldata, false);
+	ath9k_hw_phy_disable(ah);
+
+	ath9k_hw_configpcipowersave(ah, true);
+
+	spin_unlock_bh(&sc->sc_pcu_lock);
+
 	ath9k_ps_restore(sc);
 
-	sc->ps_idle = true;
-	ath_radio_disable(sc, hw);
-
 	sc->sc_flags |= SC_OP_INVALID;
+	sc->ps_idle = prev_idle;
 
 	mutex_unlock(&sc->mutex);
 
@@ -1627,8 +1588,8 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_conf *conf = &hw->conf;
-	bool disable_radio = false;
 
+	ath9k_ps_wakeup(sc);
 	mutex_lock(&sc->mutex);
 
 	/*
@@ -1639,13 +1600,8 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	 */
 	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
 		sc->ps_idle = !!(conf->flags & IEEE80211_CONF_IDLE);
-		if (!sc->ps_idle) {
-			ath_radio_enable(sc, hw);
-			ath_dbg(common, ATH_DBG_CONFIG,
-				"not-idle: enabling radio\n");
-		} else {
-			disable_radio = true;
-		}
+		if (sc->ps_idle)
+			ath_cancel_work(sc);
 	}
 
 	/*
@@ -1752,18 +1708,12 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		ath_dbg(common, ATH_DBG_CONFIG,
 			"Set power: %d\n", conf->power_level);
 		sc->config.txpowlimit = 2 * conf->power_level;
-		ath9k_ps_wakeup(sc);
 		ath9k_cmn_update_txpow(ah, sc->curtxpow,
 				       sc->config.txpowlimit, &sc->curtxpow);
-		ath9k_ps_restore(sc);
-	}
-
-	if (disable_radio) {
-		ath_dbg(common, ATH_DBG_CONFIG, "idle: disabling radio\n");
-		ath_radio_disable(sc, hw);
 	}
 
 	mutex_unlock(&sc->mutex);
+	ath9k_ps_restore(sc);
 
 	return 0;
 }
@@ -2331,9 +2281,6 @@ static void ath9k_flush(struct ieee80211_hw *hw, bool drop)
 		return;
 	}
 
-	if (drop)
-		timeout = 1;
-
 	for (j = 0; j < timeout; j++) {
 		bool npend = false;
 
@@ -2351,21 +2298,22 @@ static void ath9k_flush(struct ieee80211_hw *hw, bool drop)
 		}
 
 		if (!npend)
-		    goto out;
+		    break;
 	}
 
-	ath9k_ps_wakeup(sc);
-	spin_lock_bh(&sc->sc_pcu_lock);
-	drain_txq = ath_drain_all_txq(sc, false);
-	spin_unlock_bh(&sc->sc_pcu_lock);
+	if (drop) {
+		ath9k_ps_wakeup(sc);
+		spin_lock_bh(&sc->sc_pcu_lock);
+		drain_txq = ath_drain_all_txq(sc, false);
+		spin_unlock_bh(&sc->sc_pcu_lock);
 
-	if (!drain_txq)
-		ath_reset(sc, false);
+		if (!drain_txq)
+			ath_reset(sc, false);
 
-	ath9k_ps_restore(sc);
-	ieee80211_wake_queues(hw);
+		ath9k_ps_restore(sc);
+		ieee80211_wake_queues(hw);
+	}
 
-out:
 	ieee80211_queue_delayed_work(hw, &sc->tx_complete_work, 0);
 	mutex_unlock(&sc->mutex);
 }
