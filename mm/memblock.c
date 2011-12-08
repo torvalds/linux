@@ -175,9 +175,6 @@ static void __init_memblock memblock_remove_region(struct memblock_type *type, u
 	}
 }
 
-/* Defined below but needed now */
-static int memblock_add_region(struct memblock_type *type, phys_addr_t base, phys_addr_t size);
-
 static int __init_memblock memblock_double_array(struct memblock_type *type)
 {
 	struct memblock_region *new_array, *old_array;
@@ -235,7 +232,7 @@ static int __init_memblock memblock_double_array(struct memblock_type *type)
 		return 0;
 
 	/* Add the new reserved region now. Should not fail ! */
-	BUG_ON(memblock_add_region(&memblock.reserved, addr, new_size));
+	BUG_ON(memblock_reserve(addr, new_size));
 
 	/* If the array wasn't our static init one, then free it. We only do
 	 * that before SLAB is available as later on, we don't know whether
@@ -652,7 +649,7 @@ phys_addr_t __init __memblock_alloc_base(phys_addr_t size, phys_addr_t align, ph
 	size = round_up(size, align);
 
 	found = memblock_find_in_range(0, max_addr, size, align);
-	if (found && !memblock_add_region(&memblock.reserved, found, size))
+	if (found && !memblock_reserve(found, size))
 		return found;
 
 	return 0;
@@ -748,7 +745,7 @@ phys_addr_t __init memblock_alloc_nid(phys_addr_t size, phys_addr_t align, int n
 
 	found = memblock_find_in_range_node(0, MEMBLOCK_ALLOC_ACCESSIBLE,
 					    size, align, nid);
-	if (found && !memblock_add_region(&memblock.reserved, found, size))
+	if (found && !memblock_reserve(found, size))
 		return found;
 
 	return 0;
