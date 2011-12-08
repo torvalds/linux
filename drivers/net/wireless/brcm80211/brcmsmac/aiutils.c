@@ -525,75 +525,6 @@ void __iomem *ai_setcoreidx(struct si_pub *sih, uint coreidx)
 	return sii->curmap;
 }
 
-/* Return the number of address spaces in current core */
-int ai_numaddrspaces(struct si_pub *sih)
-{
-	return 2;
-}
-
-/* Return the address of the nth address space in the current core */
-u32 ai_addrspace(struct si_pub *sih, uint asidx)
-{
-	struct si_info *sii;
-	uint cidx;
-
-	sii = (struct si_info *)sih;
-	cidx = sii->curidx;
-
-	if (asidx == 0)
-		return sii->coresba[cidx];
-	else if (asidx == 1)
-		return sii->coresba2[cidx];
-	else {
-		/* Need to parse the erom again to find addr space */
-		return 0;
-	}
-}
-
-/* Return the size of the nth address space in the current core */
-u32 ai_addrspacesize(struct si_pub *sih, uint asidx)
-{
-	struct si_info *sii;
-	uint cidx;
-
-	sii = (struct si_info *)sih;
-	cidx = sii->curidx;
-
-	if (asidx == 0)
-		return sii->coresba_size[cidx];
-	else if (asidx == 1)
-		return sii->coresba2_size[cidx];
-	else {
-		/* Need to parse the erom again to find addr */
-		return 0;
-	}
-}
-
-uint ai_flag(struct si_pub *sih)
-{
-	struct si_info *sii;
-	struct aidmp *ai;
-
-	sii = (struct si_info *)sih;
-	ai = sii->curwrap;
-
-	return R_REG(&ai->oobselouta30) & 0x1f;
-}
-
-void ai_setint(struct si_pub *sih, int siflag)
-{
-}
-
-uint ai_corevendor(struct si_pub *sih)
-{
-	struct si_info *sii;
-	u32 cia;
-
-	sii = (struct si_info *)sih;
-	cia = sii->cia[sii->curidx];
-	return (cia & CIA_MFG_MASK) >> CIA_MFG_SHIFT;
-}
-
 uint ai_corerev(struct si_pub *sih)
 {
 	struct si_info *sii;
@@ -615,22 +546,6 @@ bool ai_iscoreup(struct si_pub *sih)
 	return (((R_REG(&ai->ioctrl) & (SICF_FGC | SICF_CLOCK_EN)) ==
 		 SICF_CLOCK_EN)
 		&& ((R_REG(&ai->resetctrl) & AIRC_RESET) == 0));
-}
-
-void ai_core_cflags_wo(struct si_pub *sih, u32 mask, u32 val)
-{
-	struct si_info *sii;
-	struct aidmp *ai;
-	u32 w;
-
-	sii = (struct si_info *)sih;
-
-	ai = sii->curwrap;
-
-	if (mask || val) {
-		w = ((R_REG(&ai->ioctrl) & ~mask) | val);
-		W_REG(&ai->ioctrl, w);
-	}
 }
 
 u32 ai_core_cflags(struct si_pub *sih, u32 mask, u32 val)
@@ -1016,11 +931,6 @@ uint ai_coreidx(struct si_pub *sih)
 	return sii->curidx;
 }
 
-bool ai_backplane64(struct si_pub *sih)
-{
-	return (ai_get_cccaps(sih) & CC_CAP_BKPLN64) != 0;
-}
-
 /* return index of coreid or BADIDX if not found */
 uint ai_findcoreidx(struct si_pub *sih, uint coreid, uint coreunit)
 {
@@ -1083,14 +993,6 @@ void ai_restore_core(struct si_pub *sih, uint coreid, uint intr_val)
 
 	ai_setcoreidx(sih, coreid);
 	INTR_RESTORE(sii, intr_val);
-}
-
-void ai_write_wrapperreg(struct si_pub *sih, u32 offset, u32 val)
-{
-	struct si_info *sii = (struct si_info *)sih;
-	u32 *w = (u32 *) sii->curwrap;
-	W_REG(w + (offset / 4), val);
-	return;
 }
 
 /*
@@ -1514,27 +1416,6 @@ bool ai_clkctl_cc(struct si_pub *sih, uint mode)
 	return _ai_clkctl_cc(sii, mode);
 }
 
-/* Build device path */
-int ai_devpath(struct si_pub *sih, char *path, int size)
-{
-	int slen;
-
-	if (!path || size <= 0)
-		return -1;
-
-	slen = snprintf(path, (size_t) size, "pci/%u/%u/",
-		((struct si_info *)sih)->pcibus->bus->number,
-		PCI_SLOT(((struct pci_dev *)
-				(((struct si_info *)(sih))->pcibus))->devfn));
-
-	if (slen < 0 || slen >= size) {
-		path[0] = '\0';
-		return -1;
-	}
-
-	return 0;
-}
-
 void ai_pci_up(struct si_pub *sih)
 {
 	struct si_info *sii;
@@ -1581,7 +1462,7 @@ void ai_pci_setup(struct si_pub *sih, uint coremask)
 {
 	struct si_info *sii;
 	struct sbpciregs __iomem *regs = NULL;
-	u32 siflag = 0, w;
+	u32 w;
 	uint idx = 0;
 
 	sii = (struct si_info *)sih;
@@ -1589,9 +1470,6 @@ void ai_pci_setup(struct si_pub *sih, uint coremask)
 	if (PCI(sih)) {
 		/* get current core index */
 		idx = sii->curidx;
-
-		/* we interrupt on this backplane flag number */
-		siflag = ai_flag(sih);
 
 		/* switch over to pci core */
 		regs = ai_setcoreidx(sih, sii->buscoreidx);
@@ -1606,9 +1484,6 @@ void ai_pci_setup(struct si_pub *sih, uint coremask)
 		pci_read_config_dword(sii->pcibus, PCI_INT_MASK, &w);
 		w |= (coremask << PCI_SBIM_SHIFT);
 		pci_write_config_dword(sii->pcibus, PCI_INT_MASK, w);
-	} else {
-		/* set sbintvec bit for our flag number */
-		ai_setint(sih, siflag);
 	}
 
 	if (PCI(sih)) {

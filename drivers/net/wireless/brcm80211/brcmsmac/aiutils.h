@@ -219,21 +219,13 @@ struct si_info {
 
 
 /* AMBA Interconnect exported externs */
-extern uint ai_flag(struct si_pub *sih);
-extern void ai_setint(struct si_pub *sih, int siflag);
 extern uint ai_coreidx(struct si_pub *sih);
-extern uint ai_corevendor(struct si_pub *sih);
 extern uint ai_corerev(struct si_pub *sih);
 extern bool ai_iscoreup(struct si_pub *sih);
 extern u32 ai_core_cflags(struct si_pub *sih, u32 mask, u32 val);
-extern void ai_core_cflags_wo(struct si_pub *sih, u32 mask, u32 val);
 extern u32 ai_core_sflags(struct si_pub *sih, u32 mask, u32 val);
 extern void ai_core_reset(struct si_pub *sih, u32 bits, u32 resetbits);
 extern void ai_core_disable(struct si_pub *sih, u32 bits);
-extern int ai_numaddrspaces(struct si_pub *sih);
-extern u32 ai_addrspace(struct si_pub *sih, uint asidx);
-extern u32 ai_addrspacesize(struct si_pub *sih, uint asidx);
-extern void ai_write_wrap_reg(struct si_pub *sih, u32 offset, u32 val);
 
 /* === exported functions === */
 extern struct si_pub *ai_attach(struct bcma_bus *pbus);
@@ -241,23 +233,13 @@ extern void ai_detach(struct si_pub *sih);
 extern uint ai_coreid(struct si_pub *sih);
 extern uint ai_corerev(struct si_pub *sih);
 extern uint ai_cc_reg(struct si_pub *sih, uint regoff, u32 mask, u32 val);
-extern void ai_write_wrapperreg(struct si_pub *sih, u32 offset, u32 val);
-extern u32 ai_core_cflags(struct si_pub *sih, u32 mask, u32 val);
-extern u32 ai_core_sflags(struct si_pub *sih, u32 mask, u32 val);
-extern bool ai_iscoreup(struct si_pub *sih);
 extern uint ai_findcoreidx(struct si_pub *sih, uint coreid, uint coreunit);
 extern void __iomem *ai_setcoreidx(struct si_pub *sih, uint coreidx);
 extern void __iomem *ai_setcore(struct si_pub *sih, uint coreid, uint coreunit);
 extern void __iomem *ai_switch_core(struct si_pub *sih, uint coreid,
 				    uint *origidx, uint *intr_val);
 extern void ai_restore_core(struct si_pub *sih, uint coreid, uint intr_val);
-extern void ai_core_reset(struct si_pub *sih, u32 bits, u32 resetbits);
-extern void ai_core_disable(struct si_pub *sih, u32 bits);
-extern u32 ai_alp_clock(struct si_pub *sih);
-extern u32 ai_ilp_clock(struct si_pub *sih);
 extern void ai_pci_setup(struct si_pub *sih, uint coremask);
-extern void ai_setint(struct si_pub *sih, int siflag);
-extern bool ai_backplane64(struct si_pub *sih);
 extern void ai_register_intr_callback(struct si_pub *sih, void *intrsoff_fn,
 				      void *intrsrestore_fn,
 				      void *intrsenabled_fn, void *intr_arg);
@@ -275,13 +257,6 @@ extern bool ai_is_otp_disabled(struct si_pub *sih);
 
 /* SPROM availability */
 extern bool ai_is_sprom_available(struct si_pub *sih);
-
-/*
- * Build device path. Path size must be >= SI_DEVPATH_BUFSZ.
- * The returned path is NULL terminated and has trailing '/'.
- * Return 0 on success, nonzero otherwise.
- */
-extern int ai_devpath(struct si_pub *sih, char *path, int size);
 
 extern void ai_pci_sleep(struct si_pub *sih);
 extern void ai_pci_down(struct si_pub *sih);
