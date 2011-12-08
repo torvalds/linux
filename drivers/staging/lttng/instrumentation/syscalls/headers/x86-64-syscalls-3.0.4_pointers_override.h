@@ -1,5 +1,0 @@
-#ifndef CREATE_SYSCALL_TABLE
-
-#else	/* CREATE_SYSCALL_TABLE */
-
-#endif /* CREATE_SYSCALL_TABLE */
