@@ -336,7 +336,7 @@ void __init paging_init(void)
 		sh_mv.mv_mem_reserve();
 
 	memblock_enforce_memory_limit(memory_limit);
-	memblock_analyze();
+	memblock_allow_resize();
 
 	memblock_dump_all();
 

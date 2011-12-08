@@ -36,7 +36,7 @@ struct memblock memblock __initdata_memblock = {
 };
 
 int memblock_debug __initdata_memblock;
-int memblock_can_resize __initdata_memblock;
+static int memblock_can_resize __initdata_memblock;
 
 /* inline so we don't get a warning when pr_debug is compiled out */
 static inline const char *memblock_type_name(struct memblock_type *type)
@@ -918,9 +918,8 @@ void __init_memblock __memblock_dump_all(void)
 	memblock_dump(&memblock.reserved, "reserved");
 }
 
-void __init memblock_analyze(void)
+void __init memblock_allow_resize(void)
 {
-	/* We allow resizing from there */
 	memblock_can_resize = 1;
 }
 
