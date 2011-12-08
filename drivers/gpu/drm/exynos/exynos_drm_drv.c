@@ -165,6 +165,16 @@ static struct drm_ioctl_desc exynos_ioctls[] = {
 			exynos_drm_gem_mmap_ioctl, DRM_UNLOCKED | DRM_AUTH),
 };
 
+static const struct file_operations exynos_drm_driver_fops = {
+	.owner		= THIS_MODULE,
+	.open		= drm_open,
+	.mmap		= exynos_drm_gem_mmap,
+	.poll		= drm_poll,
+	.read		= drm_read,
+	.unlocked_ioctl	= drm_ioctl,
+	.release	= drm_release,
+};
+
 static struct drm_driver exynos_drm_driver = {
 	.driver_features	= DRIVER_HAVE_IRQ | DRIVER_BUS_PLATFORM |
 				  DRIVER_MODESET | DRIVER_GEM,
@@ -182,15 +192,7 @@ static struct drm_driver exynos_drm_driver = {
 	.dumb_map_offset	= exynos_drm_gem_dumb_map_offset,
 	.dumb_destroy		= exynos_drm_gem_dumb_destroy,
 	.ioctls			= exynos_ioctls,
-	.fops = {
-		.owner		= THIS_MODULE,
-		.open		= drm_open,
-		.mmap		= exynos_drm_gem_mmap,
-		.poll		= drm_poll,
-		.read		= drm_read,
-		.unlocked_ioctl	= drm_ioctl,
-		.release	= drm_release,
-	},
+	.fops			= &exynos_drm_driver_fops,
 	.name	= DRIVER_NAME,
 	.desc	= DRIVER_DESC,
 	.date	= DRIVER_DATE,
