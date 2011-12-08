@@ -933,10 +933,8 @@ static int ttm_dma_pool_get_num_unused_pages(void)
 	unsigned total = 0;
 
 	mutex_lock(&_manager->lock);
-	list_for_each_entry(p, &_manager->pools, pools) {
-		if (p)
-			total += p->pool->npages_free;
-	}
+	list_for_each_entry(p, &_manager->pools, pools)
+		total += p->pool->npages_free;
 	mutex_unlock(&_manager->lock);
 	return total;
 }
@@ -1031,7 +1029,7 @@ static int ttm_dma_pool_mm_shrink(struct shrinker *shrink,
 	list_for_each_entry(p, &_manager->pools, pools) {
 		unsigned nr_free;
 
-		if (!p && !p->dev)
+		if (!p->dev)
 			continue;
 		if (shrink_pages == 0)
 			break;
