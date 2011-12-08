@@ -3788,6 +3788,8 @@ array_state_store(struct mddev *mddev, const char *buf, size_t len)
 	if (err)
 		return err;
 	else {
+		if (mddev->hold_active == UNTIL_IOCTL)
+			mddev->hold_active = 0;
 		sysfs_notify_dirent_safe(mddev->sysfs_state);
 		return len;
 	}
@@ -4508,8 +4510,6 @@ md_attr_store(struct kobject *kobj, struct attribute *attr,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 	rv = mddev_lock(mddev);
-	if (mddev->hold_active == UNTIL_IOCTL)
-		mddev->hold_active = 0;
 	if (!rv) {
 		rv = entry->store(mddev, page, length);
 		mddev_unlock(mddev);
