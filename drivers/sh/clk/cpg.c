@@ -72,7 +72,7 @@ static unsigned long sh_clk_div6_recalc(struct clk *clk)
 	clk_rate_table_build(clk, clk->freq_table, table->nr_divisors,
 			     table, NULL);
 
-	idx = __raw_readl(clk->enable_reg) & 0x003f;
+	idx = ioread32(clk->mapped_reg) & 0x003f;
 
 	return clk->freq_table[idx].frequency;
 }
@@ -98,10 +98,10 @@ static int sh_clk_div6_set_parent(struct clk *clk, struct clk *parent)
 	if (ret < 0)
 		return ret;
 
-	value = __raw_readl(clk->enable_reg) &
+	value = ioread32(clk->mapped_reg) &
 		~(((1 << clk->src_width) - 1) << clk->src_shift);
 
-	__raw_writel(value | (i << clk->src_shift), clk->enable_reg);
+	iowrite32(value | (i << clk->src_shift), clk->mapped_reg);
 
 	/* Rebuild the frequency table */
 	clk_rate_table_build(clk, clk->freq_table, table->nr_divisors,
@@ -119,10 +119,10 @@ static int sh_clk_div6_set_rate(struct clk *clk, unsigned long rate)
 	if (idx < 0)
 		return idx;
 
-	value = __raw_readl(clk->enable_reg);
+	value = ioread32(clk->mapped_reg);
 	value &= ~0x3f;
 	value |= idx;
-	__raw_writel(value, clk->enable_reg);
+	iowrite32(value, clk->mapped_reg);
 	return 0;
 }
 
@@ -133,9 +133,9 @@ static int sh_clk_div6_enable(struct clk *clk)
 
 	ret = sh_clk_div6_set_rate(clk, clk->rate);
 	if (ret == 0) {
-		value = __raw_readl(clk->enable_reg);
+		value = ioread32(clk->mapped_reg);
 		value &= ~0x100; /* clear stop bit to enable clock */
-		__raw_writel(value, clk->enable_reg);
+		iowrite32(value, clk->mapped_reg);
 	}
 	return ret;
 }
@@ -144,10 +144,10 @@ static void sh_clk_div6_disable(struct clk *clk)
 {
 	unsigned long value;
 
-	value = __raw_readl(clk->enable_reg);
+	value = ioread32(clk->mapped_reg);
 	value |= 0x100; /* stop clock */
 	value |= 0x3f; /* VDIV bits must be non-zero, overwrite divider */
-	__raw_writel(value, clk->enable_reg);
+	iowrite32(value, clk->mapped_reg);
 }
 
 static struct clk_ops sh_clk_div6_clk_ops = {
@@ -182,7 +182,7 @@ static int __init sh_clk_init_parent(struct clk *clk)
 		return -EINVAL;
 	}
 
-	val  = (__raw_readl(clk->enable_reg) >> clk->src_shift);
+	val  = (ioread32(clk->mapped_reg) >> clk->src_shift);
 	val &= (1 << clk->src_width) - 1;
 
 	if (val >= clk->parent_num) {
