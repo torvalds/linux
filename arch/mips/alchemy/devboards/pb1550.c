@@ -24,6 +24,7 @@
 #include <linux/platform_device.h>
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/au1xxx_dbdma.h>
+#include <asm/mach-au1x00/au1550nd.h>
 #include <asm/mach-au1x00/gpio.h>
 #include <asm/mach-db1x00/bcsr.h>
 #include "platform.h"
@@ -131,6 +132,67 @@ static struct platform_device pb1550_i2c_dev = {
 	.resource	= au1550_psc2_res,
 };
 
+static struct mtd_partition pb1550_nand_parts[] = {
+	[0] = {
+		.name	= "NAND FS 0",
+		.offset	= 0,
+		.size	= 8 * 1024 * 1024,
+	},
+	[1] = {
+		.name	= "NAND FS 1",
+		.offset	= MTDPART_OFS_APPEND,
+		.size	= MTDPART_SIZ_FULL,
+	},
+};
+
+static struct au1550nd_platdata pb1550_nand_pd = {
+	.parts		= pb1550_nand_parts,
+	.num_parts	= ARRAY_SIZE(pb1550_nand_parts),
+	.devwidth	= 0,	/* x8 NAND default, needs fixing up */
+};
+
+static struct resource pb1550_nand_res[] = {
+	[0] = {
+		.start	= 0x20000000,
+		.end	= 0x20000fff,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device pb1550_nand_dev = {
+	.name		= "au1550-nand",
+	.id		= -1,
+	.resource	= pb1550_nand_res,
+	.num_resources	= ARRAY_SIZE(pb1550_nand_res),
+	.dev		= {
+		.platform_data	= &pb1550_nand_pd,
+	},
+};
+
+static void __init pb1550_nand_setup(void)
+{
+	int boot_swapboot = (au_readl(MEM_STSTAT) & (0x7 << 1)) |
+			    ((bcsr_read(BCSR_STATUS) >> 6) & 0x1);
+
+	switch (boot_swapboot) {
+	case 0:
+	case 2:
+	case 8:
+	case 0xC:
+	case 0xD:
+		/* x16 NAND Flash */
+		pb1550_nand_pd.devwidth = 1;
+		/* fallthrough */
+	case 1:
+	case 9:
+	case 3:
+	case 0xE:
+	case 0xF:
+		/* x8 NAND, already set up */
+		platform_device_register(&pb1550_nand_dev);
+	}
+}
+
 static int __init pb1550_dev_init(void)
 {
 	int swapped;
@@ -167,6 +229,10 @@ static int __init pb1550_dev_init(void)
 		AU1000_PCMCIA_IO_PHYS_ADDR   + 0x008000000,
 		AU1000_PCMCIA_IO_PHYS_ADDR   + 0x008010000 - 1,
 		AU1550_GPIO201_205_INT, AU1550_GPIO1_INT, 0, 0, 1);
+
+	/* NAND setup */
+	gpio_direction_input(206);	/* GPIO206 high */
+	pb1550_nand_setup();
 
 	swapped = bcsr_read(BCSR_STATUS) & BCSR_STATUS_PB1550_SWAPBOOT;
 	db1x_register_norflash(128 * 1024 * 1024, 4, swapped);
