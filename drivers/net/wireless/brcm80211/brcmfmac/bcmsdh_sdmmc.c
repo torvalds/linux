@@ -481,12 +481,12 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 			kfree(bus_if);
 			return -ENOMEM;
 		}
-		sdiodev->dev = &func->card->dev;
 		sdiodev->func[0] = func->card->sdio_func[0];
 		sdiodev->func[1] = func;
+		sdiodev->bus_if = bus_if;
 		bus_if->bus_priv = sdiodev;
 		bus_if->type = SDIO_BUS;
-		dev_set_drvdata(&func->card->dev, bus_if);
+		dev_set_drvdata(&func->card->dev, sdiodev);
 
 		atomic_set(&sdiodev->suspend, false);
 		init_waitqueue_head(&sdiodev->request_byte_wait);
@@ -496,11 +496,14 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 	}
 
 	if (func->num == 2) {
-		bus_if = dev_get_drvdata(&func->card->dev);
-		sdiodev = bus_if->bus_priv;
+		sdiodev = dev_get_drvdata(&func->card->dev);
 		if ((!sdiodev) || (sdiodev->func[1]->card != func->card))
 			return -ENODEV;
 		sdiodev->func[2] = func;
+
+		bus_if = sdiodev->bus_if;
+		sdiodev->dev = &func->dev;
+		dev_set_drvdata(&func->dev, bus_if);
 
 		brcmf_dbg(TRACE, "F2 found, calling brcmf_sdio_probe...\n");
 		ret = brcmf_sdio_probe(sdiodev);
@@ -520,11 +523,12 @@ static void brcmf_ops_sdio_remove(struct sdio_func *func)
 	brcmf_dbg(INFO, "Function#: 0x%04x\n", func->num);
 
 	if (func->num == 2) {
-		bus_if = dev_get_drvdata(&func->card->dev);
+		bus_if = dev_get_drvdata(&func->dev);
 		sdiodev = bus_if->bus_priv;
 		brcmf_dbg(TRACE, "F2 found, calling brcmf_sdio_remove...\n");
 		brcmf_sdio_remove(sdiodev);
 		dev_set_drvdata(&func->card->dev, NULL);
+		dev_set_drvdata(&func->dev, NULL);
 		kfree(bus_if);
 		kfree(sdiodev);
 	}
@@ -534,14 +538,11 @@ static void brcmf_ops_sdio_remove(struct sdio_func *func)
 static int brcmf_sdio_suspend(struct device *dev)
 {
 	mmc_pm_flag_t sdio_flags;
-	struct brcmf_sdio_dev *sdiodev;
 	struct sdio_func *func = dev_to_sdio_func(dev);
-	struct brcmf_bus *bus_if = dev_get_drvdata(&func->card->dev);
+	struct brcmf_sdio_dev *sdiodev = dev_get_drvdata(&func->card->dev);
 	int ret = 0;
 
 	brcmf_dbg(TRACE, "\n");
-
-	sdiodev = bus_if->bus_priv;
 
 	atomic_set(&sdiodev->suspend, true);
 
@@ -564,11 +565,9 @@ static int brcmf_sdio_suspend(struct device *dev)
 
 static int brcmf_sdio_resume(struct device *dev)
 {
-	struct brcmf_sdio_dev *sdiodev;
 	struct sdio_func *func = dev_to_sdio_func(dev);
-	struct brcmf_bus *bus_if = dev_get_drvdata(&func->card->dev);
+	struct brcmf_sdio_dev *sdiodev = dev_get_drvdata(&func->card->dev);
 
-	sdiodev = bus_if->bus_priv;
 	brcmf_sdio_wdtmr_enable(sdiodev, true);
 	atomic_set(&sdiodev->suspend, false);
 	return 0;
