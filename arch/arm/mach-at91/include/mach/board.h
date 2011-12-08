@@ -107,6 +107,8 @@ struct atmel_nand_data {
 	u8		ale;		/* address line number connected to ALE */
 	u8		cle;		/* address line number connected to CLE */
 	u8		bus_width_16;	/* buswidth is 16 bit */
+	u8		correction_cap; /* PMECC correction capability */
+	u16		sector_size;    /* Sector size for PMECC */
 	struct mtd_partition *parts;
 	unsigned int	num_parts;
 };
