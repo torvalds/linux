@@ -380,6 +380,10 @@ static struct regulator_init_data vddarm __initdata = {
 	.driver_data = &vddarm_pdata,
 };
 
+static struct regulator_consumer_supply vddint_consumers[] __initdata = {
+	REGULATOR_SUPPLY("vddint", NULL),
+};
+
 static struct regulator_init_data vddint __initdata = {
 	.constraints = {
 		.name = "VDDINT",
@@ -388,6 +392,9 @@ static struct regulator_init_data vddint __initdata = {
 		.always_on = 1,
 		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
 	},
+	.num_consumer_supplies = ARRAY_SIZE(vddint_consumers),
+	.consumer_supplies = vddint_consumers,
+	.supply_regulator = "WALLVDD",
 };
 
 static struct regulator_init_data vddmem __initdata = {
