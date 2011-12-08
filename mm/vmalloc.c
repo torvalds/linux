@@ -1648,6 +1648,8 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
 		return NULL;
 
 	addr = __vmalloc_area_node(area, gfp_mask, prot, node, caller);
+	if (!addr)
+		return NULL;
 
 	/*
 	 * In this function, newly allocated vm_struct is not added
