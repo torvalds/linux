@@ -348,9 +348,6 @@ config WARN_DYNAMIC_STACK
 
 	  Say N if you are unsure.
 
-config ARCH_POPULATES_NODE_MAP
-	def_bool y
-
 comment "Kernel preemption"
 
 source "kernel/Kconfig.preempt"

@@ -206,9 +206,6 @@ config ZONE_DMA32
 	bool
 	default X86_64
 
-config ARCH_POPULATES_NODE_MAP
-	def_bool y
-
 config AUDIT_ARCH
 	bool
 	default X86_64

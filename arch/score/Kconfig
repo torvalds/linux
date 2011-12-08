@@ -63,9 +63,6 @@ config 32BIT
 config ARCH_FLATMEM_ENABLE
 	def_bool y
 
-config ARCH_POPULATES_NODE_MAP
-	def_bool y
-
 source "mm/Kconfig"
 
 config MEMORY_START
