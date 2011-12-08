@@ -36,6 +36,7 @@
 #include "exynos_drm_fbdev.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_gem.h"
+#include "exynos_drm_plane.h"
 
 #define DRIVER_NAME	"exynos-drm"
 #define DRIVER_DESC	"Samsung SoC DRM"
@@ -73,6 +74,12 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	 */
 	for (nr = 0; nr < MAX_CRTC; nr++) {
 		ret = exynos_drm_crtc_create(dev, nr);
+		if (ret)
+			goto err_crtc;
+	}
+
+	for (nr = 0; nr < MAX_PLANE; nr++) {
+		ret = exynos_plane_init(dev, nr);
 		if (ret)
 			goto err_crtc;
 	}
@@ -163,6 +170,8 @@ static struct drm_ioctl_desc exynos_ioctls[] = {
 			DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(EXYNOS_GEM_MMAP,
 			exynos_drm_gem_mmap_ioctl, DRM_UNLOCKED | DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(EXYNOS_PLANE_SET_ZPOS, exynos_plane_set_zpos_ioctl,
+			DRM_UNLOCKED | DRM_AUTH),
 };
 
 static const struct file_operations exynos_drm_driver_fops = {

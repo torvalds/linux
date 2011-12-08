@@ -33,6 +33,8 @@
 #include "drm.h"
 
 #define MAX_CRTC	2
+#define MAX_PLANE	5
+#define DEFAULT_ZPOS	-1
 
 struct drm_device;
 struct exynos_drm_overlay;
@@ -57,8 +59,8 @@ enum exynos_drm_output_type {
 struct exynos_drm_overlay_ops {
 	void (*mode_set)(struct device *subdrv_dev,
 			 struct exynos_drm_overlay *overlay);
-	void (*commit)(struct device *subdrv_dev);
-	void (*disable)(struct device *subdrv_dev);
+	void (*commit)(struct device *subdrv_dev, int zpos);
+	void (*disable)(struct device *subdrv_dev, int zpos);
 };
 
 /*
@@ -83,6 +85,7 @@ struct exynos_drm_overlay_ops {
  * @dma_addr: bus(accessed by dma) address to the memory region allocated
  *	for a overlay.
  * @vaddr: virtual memory addresss to this overlay.
+ * @zpos: order of overlay layer(z position).
  * @default_win: a window to be enabled.
  * @color_key: color key on or off.
  * @index_color: if using color key feature then this value would be used
@@ -111,6 +114,7 @@ struct exynos_drm_overlay {
 	unsigned int pitch;
 	dma_addr_t dma_addr;
 	void __iomem *vaddr;
+	int zpos;
 
 	bool default_win;
 	bool color_key;

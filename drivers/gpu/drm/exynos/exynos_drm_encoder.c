@@ -294,12 +294,27 @@ void exynos_drm_disable_vblank(struct drm_encoder *encoder, void *data)
 		manager_ops->disable_vblank(manager->dev);
 }
 
-void exynos_drm_encoder_crtc_commit(struct drm_encoder *encoder, void *data)
+void exynos_drm_encoder_crtc_plane_commit(struct drm_encoder *encoder,
+					  void *data)
 {
 	struct exynos_drm_manager *manager =
 		to_exynos_encoder(encoder)->manager;
 	struct exynos_drm_overlay_ops *overlay_ops = manager->overlay_ops;
+	int zpos = DEFAULT_ZPOS;
+
+	if (data)
+		zpos = *(int *)data;
+
+	if (overlay_ops && overlay_ops->commit)
+		overlay_ops->commit(manager->dev, zpos);
+}
+
+void exynos_drm_encoder_crtc_commit(struct drm_encoder *encoder, void *data)
+{
+	struct exynos_drm_manager *manager =
+		to_exynos_encoder(encoder)->manager;
 	int crtc = *(int *)data;
+	int zpos = DEFAULT_ZPOS;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
@@ -309,8 +324,7 @@ void exynos_drm_encoder_crtc_commit(struct drm_encoder *encoder, void *data)
 	 */
 	manager->pipe = crtc;
 
-	if (overlay_ops && overlay_ops->commit)
-		overlay_ops->commit(manager->dev);
+	exynos_drm_encoder_crtc_plane_commit(encoder, &zpos);
 }
 
 void exynos_drm_encoder_dpms_from_crtc(struct drm_encoder *encoder, void *data)
@@ -375,11 +389,15 @@ void exynos_drm_encoder_crtc_disable(struct drm_encoder *encoder, void *data)
 	struct exynos_drm_manager *manager =
 		to_exynos_encoder(encoder)->manager;
 	struct exynos_drm_overlay_ops *overlay_ops = manager->overlay_ops;
+	int zpos = DEFAULT_ZPOS;
 
 	DRM_DEBUG_KMS("\n");
 
+	if (data)
+		zpos = *(int *)data;
+
 	if (overlay_ops && overlay_ops->disable)
-		overlay_ops->disable(manager->dev);
+		overlay_ops->disable(manager->dev, zpos);
 }
 
 MODULE_AUTHOR("Inki Dae <inki.dae@samsung.com>");

@@ -161,12 +161,15 @@ static void fimd_apply(struct device *subdrv_dev)
 	struct exynos_drm_manager_ops *mgr_ops = mgr->ops;
 	struct exynos_drm_overlay_ops *ovl_ops = mgr->overlay_ops;
 	struct fimd_win_data *win_data;
+	int i;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	win_data = &ctx->win_data[ctx->default_win];
-	if (win_data->enabled && (ovl_ops && ovl_ops->commit))
-		ovl_ops->commit(subdrv_dev);
+	for (i = 0; i < WINDOWS_NR; i++) {
+		win_data = &ctx->win_data[i];
+		if (win_data->enabled && (ovl_ops && ovl_ops->commit))
+			ovl_ops->commit(subdrv_dev, i);
+	}
 
 	if (mgr_ops && mgr_ops->commit)
 		mgr_ops->commit(subdrv_dev);
@@ -277,6 +280,7 @@ static void fimd_win_mode_set(struct device *dev,
 {
 	struct fimd_context *ctx = get_fimd_context(dev);
 	struct fimd_win_data *win_data;
+	int win;
 	unsigned long offset;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
@@ -286,12 +290,19 @@ static void fimd_win_mode_set(struct device *dev,
 		return;
 	}
 
+	win = overlay->zpos;
+	if (win == DEFAULT_ZPOS)
+		win = ctx->default_win;
+
+	if (win < 0 || win > WINDOWS_NR)
+		return;
+
 	offset = overlay->fb_x * (overlay->bpp >> 3);
 	offset += overlay->fb_y * overlay->pitch;
 
 	DRM_DEBUG_KMS("offset = 0x%lx, pitch = %x\n", offset, overlay->pitch);
 
-	win_data = &ctx->win_data[ctx->default_win];
+	win_data = &ctx->win_data[win];
 
 	win_data->offset_x = overlay->crtc_x;
 	win_data->offset_y = overlay->crtc_y;
@@ -394,14 +405,17 @@ static void fimd_win_set_colkey(struct device *dev, unsigned int win)
 	writel(keycon1, ctx->regs + WKEYCON1_BASE(win));
 }
 
-static void fimd_win_commit(struct device *dev)
+static void fimd_win_commit(struct device *dev, int zpos)
 {
 	struct fimd_context *ctx = get_fimd_context(dev);
 	struct fimd_win_data *win_data;
-	int win = ctx->default_win;
+	int win = zpos;
 	unsigned long val, alpha, size;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	if (win == DEFAULT_ZPOS)
+		win = ctx->default_win;
 
 	if (win < 0 || win > WINDOWS_NR)
 		return;
@@ -499,14 +513,17 @@ static void fimd_win_commit(struct device *dev)
 	win_data->enabled = true;
 }
 
-static void fimd_win_disable(struct device *dev)
+static void fimd_win_disable(struct device *dev, int zpos)
 {
 	struct fimd_context *ctx = get_fimd_context(dev);
 	struct fimd_win_data *win_data;
-	int win = ctx->default_win;
+	int win = zpos;
 	u32 val;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	if (win == DEFAULT_ZPOS)
+		win = ctx->default_win;
 
 	if (win < 0 || win > WINDOWS_NR)
 		return;

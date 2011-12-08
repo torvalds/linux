@@ -380,6 +380,7 @@ int exynos_drm_crtc_create(struct drm_device *dev, unsigned int nr)
 
 	exynos_crtc->pipe = nr;
 	exynos_crtc->dpms = DRM_MODE_DPMS_OFF;
+	exynos_crtc->overlay.zpos = DEFAULT_ZPOS;
 	crtc = &exynos_crtc->drm_crtc;
 
 	private->crtc[nr] = crtc;
