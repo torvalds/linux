@@ -428,9 +428,13 @@ int __cpuinit local_timer_setup(struct clock_event_device *evt)
 
 void local_timer_stop(struct clock_event_device *evt)
 {
+	unsigned int cpu = smp_processor_id();
 	evt->set_mode(CLOCK_EVT_MODE_UNUSED, evt);
 	if (mct_int_type == MCT_INT_SPI)
-		disable_irq(evt->irq);
+		if (cpu == 0)
+			remove_irq(evt->irq, &mct_tick0_event_irq);
+		else
+			remove_irq(evt->irq, &mct_tick1_event_irq);
 	else
 		disable_percpu_irq(IRQ_MCT_LOCALTIMER);
 }
