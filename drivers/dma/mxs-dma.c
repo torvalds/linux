@@ -580,7 +580,7 @@ static int __init mxs_dma_init(struct mxs_dma_engine *mxs_dma)
 
 	ret = clk_enable(mxs_dma->clk);
 	if (ret)
-		goto err_out;
+		return ret;
 
 	ret = mxs_reset_block(mxs_dma->base);
 	if (ret)
@@ -604,11 +604,8 @@ static int __init mxs_dma_init(struct mxs_dma_engine *mxs_dma)
 	writel(MXS_DMA_CHANNELS_MASK << MXS_DMA_CHANNELS,
 		mxs_dma->base + HW_APBHX_CTRL1 + MXS_SET_ADDR);
 
-	clk_disable(mxs_dma->clk);
-
-	return 0;
-
 err_out:
+	clk_disable(mxs_dma->clk);
 	return ret;
 }
 
