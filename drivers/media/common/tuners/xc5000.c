@@ -708,9 +708,9 @@ static int xc5000_set_params(struct dvb_frontend *fe,
 			 * is equal to 0.15 for Annex A, and 0.13 for annex C
 			 */
 			if (fe->dtv_property_cache.rolloff == ROLLOFF_13)
-				bw = (params->u.qam.symbol_rate * 13) / 10;
+				bw = (params->u.qam.symbol_rate * 113) / 100;
 			else
-				bw = (params->u.qam.symbol_rate * 15) / 10;
+				bw = (params->u.qam.symbol_rate * 115) / 100;
 			if (bw <= 6000000) {
 				priv->bandwidth = BANDWIDTH_6_MHZ;
 				priv->video_standard = DTV6;
@@ -720,6 +720,8 @@ static int xc5000_set_params(struct dvb_frontend *fe,
 				priv->video_standard = DTV7_8;
 				priv->freq_hz = params->frequency - 2750000;
 			}
+			dprintk(1, "%s() Bandwidth %dMHz (%d)\n", __func__,
+				BANDWIDTH_6_MHZ ? 6: 8, bw);
 			break;
 		default:
 			dprintk(1, "%s() Unsupported QAM type\n", __func__);

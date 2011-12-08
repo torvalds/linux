@@ -1158,9 +1158,9 @@ static int set_params(struct dvb_frontend *fe,
 		 * is equal to 0.15 for Annex A, and 0.13 for annex C
 		 */
 		if (fe->dtv_property_cache.rolloff == ROLLOFF_13)
-			bw = (params->u.qam.symbol_rate * 13) / 10;
+			bw = (params->u.qam.symbol_rate * 113) / 100;
 		else
-			bw = (params->u.qam.symbol_rate * 15) / 10;
+			bw = (params->u.qam.symbol_rate * 115) / 100;
 		if (bw <= 6000000)
 			Standard = HF_DVBC_6MHZ;
 		else if (bw <= 7000000)
