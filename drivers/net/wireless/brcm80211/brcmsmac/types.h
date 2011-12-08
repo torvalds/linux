@@ -300,8 +300,11 @@ do {						\
  * in the code. Older chips and the newer 5357 family don't require this fix.
  */
 #define W_REG_FLUSH(r, v)	({ W_REG((r), (v)); (void)R_REG(r); })
+#define bcma_wflush16(c, o, v) \
+	({ bcma_write16(c, o, v); (void)bcma_read16(c, o); })
 #else
 #define W_REG_FLUSH(r, v)	W_REG((r), (v))
+#define bcma_wflush16(c, o, v)	bcma_write16(c, o, v)
 #endif				/* CONFIG_BCM47XX */
 
 #define AND_REG(r, v)	W_REG((r), R_REG(r) & (v))

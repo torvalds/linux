@@ -4626,7 +4626,7 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 
 		/* Get a phy for this band */
 		wlc_hw->band->pi =
-			wlc_phy_attach(wlc_hw->phy_sh, core->bus->mmio,
+			wlc_phy_attach(wlc_hw->phy_sh, core,
 				       wlc_hw->band->bandtype,
 				       wlc->wiphy);
 		if (wlc_hw->band->pi == NULL) {
