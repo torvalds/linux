@@ -349,6 +349,12 @@ static struct syscore_ops alchemy_gpic_pmops = {
 	.resume		= alchemy_gpic_resume,
 };
 
+static void alchemy_gpic_dispatch(unsigned int irq, struct irq_desc *d)
+{
+	int i = __raw_readl(AU1300_GPIC_ADDR + AU1300_GPIC_PRIENC);
+	generic_handle_irq(ALCHEMY_GPIC_INT_BASE + i);
+}
+
 static void __init alchemy_gpic_init_irq(const struct gpic_devint_data *dints)
 {
 	int i;
@@ -383,7 +389,10 @@ static void __init alchemy_gpic_init_irq(const struct gpic_devint_data *dints)
 		dints++;
 	}
 
-	set_c0_status(IE_IRQ0 | IE_IRQ1 | IE_IRQ2 | IE_IRQ3);
+	irq_set_chained_handler(MIPS_CPU_IRQ_BASE + 2, alchemy_gpic_dispatch);
+	irq_set_chained_handler(MIPS_CPU_IRQ_BASE + 3, alchemy_gpic_dispatch);
+	irq_set_chained_handler(MIPS_CPU_IRQ_BASE + 4, alchemy_gpic_dispatch);
+	irq_set_chained_handler(MIPS_CPU_IRQ_BASE + 5, alchemy_gpic_dispatch);
 }
 
 /**********************************************************************/
@@ -397,17 +406,8 @@ void __init arch_init_irq(void)
 	}
 }
 
-#define CAUSEF_GPIC (CAUSEF_IP2 | CAUSEF_IP3 | CAUSEF_IP4 | CAUSEF_IP5)
-
-void plat_irq_dispatch(void)
+asmlinkage void plat_irq_dispatch(void)
 {
-	unsigned long i, c = read_c0_cause() & read_c0_status();
-
-	if (c & CAUSEF_IP7)				/* c0 timer */
-		do_IRQ(MIPS_CPU_IRQ_BASE + 7);
-	else if (likely(c & CAUSEF_GPIC)) {
-		i = __raw_readl(AU1300_GPIC_ADDR + AU1300_GPIC_PRIENC);
-		do_IRQ(i + ALCHEMY_GPIC_INT_BASE);
-	} else
-		spurious_interrupt();
+	unsigned long r = (read_c0_status() & read_c0_cause()) >> 8;
+	do_IRQ(MIPS_CPU_IRQ_BASE + __ffs(r & 0xff));
 }

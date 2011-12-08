@@ -459,41 +459,6 @@ static int au1x_ic_settype(struct irq_data *d, unsigned int flow_type)
 	return ret;
 }
 
-asmlinkage void plat_irq_dispatch(void)
-{
-	unsigned int pending = read_c0_status() & read_c0_cause();
-	unsigned long s, off;
-
-	if (pending & CAUSEF_IP7) {
-		off = MIPS_CPU_IRQ_BASE + 7;
-		goto handle;
-	} else if (pending & CAUSEF_IP2) {
-		s = KSEG1ADDR(AU1000_IC0_PHYS_ADDR) + IC_REQ0INT;
-		off = AU1000_INTC0_INT_BASE;
-	} else if (pending & CAUSEF_IP3) {
-		s = KSEG1ADDR(AU1000_IC0_PHYS_ADDR) + IC_REQ1INT;
-		off = AU1000_INTC0_INT_BASE;
-	} else if (pending & CAUSEF_IP4) {
-		s = KSEG1ADDR(AU1000_IC1_PHYS_ADDR) + IC_REQ0INT;
-		off = AU1000_INTC1_INT_BASE;
-	} else if (pending & CAUSEF_IP5) {
-		s = KSEG1ADDR(AU1000_IC1_PHYS_ADDR) + IC_REQ1INT;
-		off = AU1000_INTC1_INT_BASE;
-	} else
-		goto spurious;
-
-	s = __raw_readl((void __iomem *)s);
-	if (unlikely(!s)) {
-spurious:
-		spurious_interrupt();
-		return;
-	}
-	off += __ffs(s);
-handle:
-	do_IRQ(off);
-}
-
-
 static inline void ic_init(void __iomem *base)
 {
 	/* initialize interrupt controller to a safe state */
@@ -562,6 +527,22 @@ static struct syscore_ops alchemy_ic_syscore_ops = {
 	.resume		= alchemy_ic_resume,
 };
 
+/* create chained handlers for the 4 IC requests to the MIPS IRQ ctrl */
+#define DISP(name, base, addr)						      \
+static void au1000_##name##_dispatch(unsigned int irq, struct irq_desc *d)    \
+{									      \
+	unsigned long r = __raw_readl((void __iomem *)KSEG1ADDR(addr));	      \
+	if (likely(r))							      \
+		generic_handle_irq(base + __ffs(r));			      \
+	else								      \
+		spurious_interrupt();					      \
+}
+
+DISP(ic0r0, AU1000_INTC0_INT_BASE, AU1000_IC0_PHYS_ADDR + IC_REQ0INT)
+DISP(ic0r1, AU1000_INTC0_INT_BASE, AU1000_IC0_PHYS_ADDR + IC_REQ1INT)
+DISP(ic1r0, AU1000_INTC1_INT_BASE, AU1000_IC1_PHYS_ADDR + IC_REQ0INT)
+DISP(ic1r1, AU1000_INTC1_INT_BASE, AU1000_IC1_PHYS_ADDR + IC_REQ1INT)
+
 static void __init au1000_init_irq(struct au1xxx_irqmap *map)
 {
 	unsigned int bit, irq_nr;
@@ -603,7 +584,10 @@ static void __init au1000_init_irq(struct au1xxx_irqmap *map)
 		++map;
 	}
 
-	set_c0_status(IE_IRQ0 | IE_IRQ1 | IE_IRQ2 | IE_IRQ3);
+	irq_set_chained_handler(MIPS_CPU_IRQ_BASE + 2, au1000_ic0r0_dispatch);
+	irq_set_chained_handler(MIPS_CPU_IRQ_BASE + 3, au1000_ic0r1_dispatch);
+	irq_set_chained_handler(MIPS_CPU_IRQ_BASE + 4, au1000_ic1r0_dispatch);
+	irq_set_chained_handler(MIPS_CPU_IRQ_BASE + 5, au1000_ic1r1_dispatch);
 }
 
 void __init arch_init_irq(void)
@@ -625,4 +609,10 @@ void __init arch_init_irq(void)
 		au1000_init_irq(au1200_irqmap);
 		break;
 	}
+}
+
+asmlinkage void plat_irq_dispatch(void)
+{
+	unsigned long r = (read_c0_status() & read_c0_cause()) >> 8;
+	do_IRQ(MIPS_CPU_IRQ_BASE + __ffs(r & 0xff));
 }
