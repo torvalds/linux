@@ -372,6 +372,10 @@ static ssize_t set_pwm_mode(struct device *dev, struct device_attribute *attr,
 	if (!(val == 0 || val == 1))
 		return -EINVAL;
 
+	/* F75373 does not support DC (linear voltage) fan control mode */
+	if (data->kind == f75373 && val == 0)
+		return -EINVAL;
+
 	mutex_lock(&data->update_lock);
 	conf = f75375_read8(client, F75375_REG_CONFIG1);
 	conf &= ~(1 << FAN_CTRL_LINEAR(nr));
