@@ -97,6 +97,10 @@ extern struct sk_buff *vlan_untag(struct sk_buff *skb);
 extern int vlan_vid_add(struct net_device *dev, unsigned short vid);
 extern void vlan_vid_del(struct net_device *dev, unsigned short vid);
 
+extern int vlan_vids_add_by_dev(struct net_device *dev,
+				const struct net_device *by_dev);
+extern void vlan_vids_del_by_dev(struct net_device *dev,
+				 const struct net_device *by_dev);
 #else
 static inline struct net_device *
 __vlan_find_dev_deep(struct net_device *real_dev, u16 vlan_id)
@@ -134,6 +138,17 @@ static inline int vlan_vid_add(struct net_device *dev, unsigned short vid)
 }
 
 static inline void vlan_vid_del(struct net_device *dev, unsigned short vid)
+{
+}
+
+static inline int vlan_vids_add_by_dev(struct net_device *dev,
+				       const struct net_device *by_dev)
+{
+	return 0;
+}
+
+static inline void vlan_vids_del_by_dev(struct net_device *dev,
+					const struct net_device *by_dev)
 {
 }
 #endif
