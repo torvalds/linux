@@ -2154,7 +2154,7 @@ static int __devinit tsi721_probe(struct pci_dev *pdev,
 				  const struct pci_device_id *id)
 {
 	struct tsi721_device *priv;
-	int i;
+	int i, cap;
 	int err;
 	u32 regval;
 
@@ -2262,10 +2262,20 @@ static int __devinit tsi721_probe(struct pci_dev *pdev,
 			dev_info(&pdev->dev, "Unable to set consistent DMA mask\n");
 	}
 
-	/* Clear "no snoop" and "relaxed ordering" bits. */
-	pci_read_config_dword(pdev, 0x40 + PCI_EXP_DEVCTL, &regval);
-	regval &= ~(PCI_EXP_DEVCTL_RELAX_EN | PCI_EXP_DEVCTL_NOSNOOP_EN);
-	pci_write_config_dword(pdev, 0x40 + PCI_EXP_DEVCTL, regval);
+	cap = pci_pcie_cap(pdev);
+	BUG_ON(cap == 0);
+
+	/* Clear "no snoop" and "relaxed ordering" bits, use default MRRS. */
+	pci_read_config_dword(pdev, cap + PCI_EXP_DEVCTL, &regval);
+	regval &= ~(PCI_EXP_DEVCTL_READRQ | PCI_EXP_DEVCTL_RELAX_EN |
+		    PCI_EXP_DEVCTL_NOSNOOP_EN);
+	regval |= 0x2 << MAX_READ_REQUEST_SZ_SHIFT;
+	pci_write_config_dword(pdev, cap + PCI_EXP_DEVCTL, regval);
+
+	/* Adjust PCIe completion timeout. */
+	pci_read_config_dword(pdev, cap + PCI_EXP_DEVCTL2, &regval);
+	regval &= ~(0x0f);
+	pci_write_config_dword(pdev, cap + PCI_EXP_DEVCTL2, regval | 0x2);
 
 	/*
 	 * FIXUP: correct offsets of MSI-X tables in the MSI-X Capability Block
