@@ -49,6 +49,7 @@ struct clk {
 
 	void __iomem		*enable_reg;
 	unsigned int		enable_bit;
+	void __iomem		*mapped_reg;
 
 	unsigned long		arch_flags;
 	void			*priv;
