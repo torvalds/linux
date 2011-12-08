@@ -993,8 +993,10 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 	if (params->channel_fixed) {
 		sdata->local->oper_channel = params->channel;
 		if (!ieee80211_set_channel_type(sdata->local, sdata,
-					       params->channel_type))
+					       params->channel_type)) {
+			mutex_unlock(&sdata->u.ibss.mtx);
 			return -EINVAL;
+		}
 	}
 
 	if (params->ie) {
