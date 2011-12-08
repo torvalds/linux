@@ -74,22 +74,7 @@ static inline struct vlan_ethhdr *vlan_eth_hdr(const struct sk_buff *skb)
 /* found in socket.c */
 extern void vlan_ioctl_set(int (*hook)(struct net *, void __user *));
 
-/* if this changes, algorithm will have to be reworked because this
- * depends on completely exhausting the VLAN identifier space.  Thus
- * it gives constant time look-up, but in many cases it wastes memory.
- */
-#define VLAN_GROUP_ARRAY_SPLIT_PARTS  8
-#define VLAN_GROUP_ARRAY_PART_LEN     (VLAN_N_VID/VLAN_GROUP_ARRAY_SPLIT_PARTS)
-
-struct vlan_group {
-	struct net_device	*real_dev; /* The ethernet(like) device
-					    * the vlan is attached to.
-					    */
-	unsigned int		nr_vlans;
-	struct hlist_node	hlist;	/* linked list */
-	struct net_device **vlan_devices_arrays[VLAN_GROUP_ARRAY_SPLIT_PARTS];
-	struct rcu_head		rcu;
-};
+struct vlan_info;
 
 static inline int is_vlan_dev(struct net_device *dev)
 {

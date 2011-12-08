@@ -55,7 +55,6 @@
 
 #include <linux/netdev_features.h>
 
-struct vlan_group;
 struct netpoll_info;
 struct phy_device;
 /* 802.11 specific */
@@ -1096,7 +1095,7 @@ struct net_device {
 	/* Protocol specific pointers */
 
 #if IS_ENABLED(CONFIG_VLAN_8021Q)
-	struct vlan_group __rcu	*vlgrp;		/* VLAN group */
+	struct vlan_info __rcu	*vlan_info;	/* VLAN info */
 #endif
 #if IS_ENABLED(CONFIG_NET_DSA)
 	struct dsa_switch_tree	*dsa_ptr;	/* dsa specific data */

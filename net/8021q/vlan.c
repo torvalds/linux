@@ -51,27 +51,6 @@ const char vlan_version[] = DRV_VERSION;
 
 /* End of global variables definitions. */
 
-static void vlan_group_free(struct vlan_group *grp)
-{
-	int i;
-
-	for (i = 0; i < VLAN_GROUP_ARRAY_SPLIT_PARTS; i++)
-		kfree(grp->vlan_devices_arrays[i]);
-	kfree(grp);
-}
-
-static struct vlan_group *vlan_group_alloc(struct net_device *real_dev)
-{
-	struct vlan_group *grp;
-
-	grp = kzalloc(sizeof(struct vlan_group), GFP_KERNEL);
-	if (!grp)
-		return NULL;
-
-	grp->real_dev = real_dev;
-	return grp;
-}
-
 static int vlan_group_prealloc_vid(struct vlan_group *vg, u16 vlan_id)
 {
 	struct net_device **array;
@@ -92,22 +71,20 @@ static int vlan_group_prealloc_vid(struct vlan_group *vg, u16 vlan_id)
 	return 0;
 }
 
-static void vlan_rcu_free(struct rcu_head *rcu)
-{
-	vlan_group_free(container_of(rcu, struct vlan_group, rcu));
-}
-
 void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 {
 	struct vlan_dev_priv *vlan = vlan_dev_priv(dev);
 	struct net_device *real_dev = vlan->real_dev;
+	struct vlan_info *vlan_info;
 	struct vlan_group *grp;
 	u16 vlan_id = vlan->vlan_id;
 
 	ASSERT_RTNL();
 
-	grp = rtnl_dereference(real_dev->vlgrp);
-	BUG_ON(!grp);
+	vlan_info = rtnl_dereference(real_dev->vlan_info);
+	BUG_ON(!vlan_info);
+
+	grp = &vlan_info->grp;
 
 	/* Take it out of our own structures, but be sure to interlock with
 	 * HW accelerating devices or SW vlan input packet processing if
@@ -116,7 +93,7 @@ void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 	if (vlan_id)
 		vlan_vid_del(real_dev, vlan_id);
 
-	grp->nr_vlans--;
+	grp->nr_vlan_devs--;
 
 	if (vlan->flags & VLAN_FLAG_GVRP)
 		vlan_gvrp_request_leave(dev);
@@ -128,15 +105,8 @@ void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 	 */
 	unregister_netdevice_queue(dev, head);
 
-	/* If the group is now empty, kill off the group. */
-	if (grp->nr_vlans == 0) {
+	if (grp->nr_vlan_devs == 0)
 		vlan_gvrp_uninit_applicant(real_dev);
-
-		RCU_INIT_POINTER(real_dev->vlgrp, NULL);
-
-		/* Free the group, after all cpu's are done. */
-		call_rcu(&grp->rcu, vlan_rcu_free);
-	}
 
 	/* Get rid of the vlan's reference to real_dev */
 	dev_put(real_dev);
@@ -169,17 +139,23 @@ int register_vlan_dev(struct net_device *dev)
 	struct vlan_dev_priv *vlan = vlan_dev_priv(dev);
 	struct net_device *real_dev = vlan->real_dev;
 	u16 vlan_id = vlan->vlan_id;
-	struct vlan_group *grp, *ngrp = NULL;
+	struct vlan_info *vlan_info;
+	struct vlan_group *grp;
 	int err;
 
-	grp = rtnl_dereference(real_dev->vlgrp);
-	if (!grp) {
-		ngrp = grp = vlan_group_alloc(real_dev);
-		if (!grp)
-			return -ENOBUFS;
+	err = vlan_vid_add(real_dev, vlan_id);
+	if (err)
+		return err;
+
+	vlan_info = rtnl_dereference(real_dev->vlan_info);
+	/* vlan_info should be there now. vlan_vid_add took care of it */
+	BUG_ON(!vlan_info);
+
+	grp = &vlan_info->grp;
+	if (grp->nr_vlan_devs == 0) {
 		err = vlan_gvrp_init_applicant(real_dev);
 		if (err < 0)
-			goto out_free_group;
+			goto out_vid_del;
 	}
 
 	err = vlan_group_prealloc_vid(grp, vlan_id);
@@ -200,23 +176,15 @@ int register_vlan_dev(struct net_device *dev)
 	 * it into our local structure.
 	 */
 	vlan_group_set_device(grp, vlan_id, dev);
-	grp->nr_vlans++;
-
-	if (ngrp) {
-		rcu_assign_pointer(real_dev->vlgrp, ngrp);
-	}
-	vlan_vid_add(real_dev, vlan_id);
+	grp->nr_vlan_devs++;
 
 	return 0;
 
 out_uninit_applicant:
-	if (ngrp)
+	if (grp->nr_vlan_devs == 0)
 		vlan_gvrp_uninit_applicant(real_dev);
-out_free_group:
-	if (ngrp) {
-		/* Free the group, after all cpu's are done. */
-		call_rcu(&ngrp->rcu, vlan_rcu_free);
-	}
+out_vid_del:
+	vlan_vid_del(real_dev, vlan_id);
 	return err;
 }
 
@@ -357,6 +325,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 {
 	struct net_device *dev = ptr;
 	struct vlan_group *grp;
+	struct vlan_info *vlan_info;
 	int i, flgs;
 	struct net_device *vlandev;
 	struct vlan_dev_priv *vlan;
@@ -372,9 +341,10 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 		vlan_vid_add(dev, 0);
 	}
 
-	grp = rtnl_dereference(dev->vlgrp);
-	if (!grp)
+	vlan_info = rtnl_dereference(dev->vlan_info);
+	if (!vlan_info)
 		goto out;
+	grp = &vlan_info->grp;
 
 	/* It is OK that we do not hold the group lock right now,
 	 * as we run under the RTNL lock.
@@ -478,9 +448,9 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 			if (!vlandev)
 				continue;
 
-			/* unregistration of last vlan destroys group, abort
+			/* removal of last vid destroys vlan_info, abort
 			 * afterwards */
-			if (grp->nr_vlans == 1)
+			if (vlan_info->nr_vids == 1)
 				i = VLAN_N_VID;
 
 			unregister_vlan_dev(vlandev, &list);
