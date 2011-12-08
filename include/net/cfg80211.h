@@ -3064,6 +3064,32 @@ void cfg80211_roamed(struct net_device *dev,
 		     const u8 *resp_ie, size_t resp_ie_len, gfp_t gfp);
 
 /**
+ * cfg80211_roamed_bss - notify cfg80211 of roaming
+ *
+ * @dev: network device
+ * @bss: entry of bss to which STA got roamed
+ * @req_ie: association request IEs (maybe be %NULL)
+ * @req_ie_len: association request IEs length
+ * @resp_ie: association response IEs (may be %NULL)
+ * @resp_ie_len: assoc response IEs length
+ * @gfp: allocation flags
+ *
+ * This is just a wrapper to notify cfg80211 of roaming event with driver
+ * passing bss to avoid a race in timeout of the bss entry. It should be
+ * called by the underlying driver whenever it roamed from one AP to another
+ * while connected. Drivers which have roaming implemented in firmware
+ * may use this function to avoid a race in bss entry timeout where the bss
+ * entry of the new AP is seen in the driver, but gets timed out by the time
+ * it is accessed in __cfg80211_roamed() due to delay in scheduling
+ * rdev->event_work. In case of any failures, the reference is released
+ * either in cfg80211_roamed_bss() or in __cfg80211_romed(), Otherwise,
+ * it will be released while diconneting from the current bss.
+ */
+void cfg80211_roamed_bss(struct net_device *dev, struct cfg80211_bss *bss,
+			 const u8 *req_ie, size_t req_ie_len,
+			 const u8 *resp_ie, size_t resp_ie_len, gfp_t gfp);
+
+/**
  * cfg80211_disconnected - notify cfg80211 that connection was dropped
  *
  * @dev: network device
