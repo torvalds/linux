@@ -595,3 +595,45 @@ void dss_uninit_overlays(struct platform_device *pdev)
 	num_overlays = 0;
 }
 
+int dss_ovl_check(struct omap_overlay *ovl,
+		struct omap_overlay_info *info, struct omap_dss_device *dssdev)
+{
+	u16 outw, outh;
+	u16 dw, dh;
+
+	if (dssdev == NULL)
+		return 0;
+
+	dssdev->driver->get_resolution(dssdev, &dw, &dh);
+
+	if ((ovl->caps & OMAP_DSS_OVL_CAP_SCALE) == 0) {
+		outw = info->width;
+		outh = info->height;
+	} else {
+		if (info->out_width == 0)
+			outw = info->width;
+		else
+			outw = info->out_width;
+
+		if (info->out_height == 0)
+			outh = info->height;
+		else
+			outh = info->out_height;
+	}
+
+	if (dw < info->pos_x + outw) {
+		DSSERR("overlay %d horizontally not inside the display area "
+				"(%d + %d >= %d)\n",
+				ovl->id, info->pos_x, outw, dw);
+		return -EINVAL;
+	}
+
+	if (dh < info->pos_y + outh) {
+		DSSERR("overlay %d vertically not inside the display area "
+				"(%d + %d >= %d)\n",
+				ovl->id, info->pos_y, outh, dh);
+		return -EINVAL;
+	}
+
+	return 0;
+}

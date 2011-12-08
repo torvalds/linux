@@ -592,3 +592,66 @@ struct omap_overlay_manager *omap_dss_get_overlay_manager(int num)
 }
 EXPORT_SYMBOL(omap_dss_get_overlay_manager);
 
+static int dss_mgr_check_zorder(struct omap_overlay_manager *mgr,
+		struct omap_overlay_info **overlay_infos)
+{
+	struct omap_overlay *ovl1, *ovl2;
+	struct omap_overlay_info *info1, *info2;
+
+	list_for_each_entry(ovl1, &mgr->overlays, list) {
+		info1 = overlay_infos[ovl1->id];
+
+		if (info1 == NULL)
+			continue;
+
+		list_for_each_entry(ovl2, &mgr->overlays, list) {
+			if (ovl1 == ovl2)
+				continue;
+
+			info2 = overlay_infos[ovl2->id];
+
+			if (info2 == NULL)
+				continue;
+
+			if (info1->zorder == info2->zorder) {
+				DSSERR("overlays %d and %d have the same "
+						"zorder %d\n",
+					ovl1->id, ovl2->id, info1->zorder);
+				return -EINVAL;
+			}
+		}
+	}
+
+	return 0;
+}
+
+int dss_mgr_check(struct omap_overlay_manager *mgr,
+		struct omap_dss_device *dssdev,
+		struct omap_overlay_manager_info *info,
+		struct omap_overlay_info **overlay_infos)
+{
+	struct omap_overlay *ovl;
+	int r;
+
+	if (dss_has_feature(FEAT_ALPHA_FREE_ZORDER)) {
+		r = dss_mgr_check_zorder(mgr, overlay_infos);
+		if (r)
+			return r;
+	}
+
+	list_for_each_entry(ovl, &mgr->overlays, list) {
+		struct omap_overlay_info *oi;
+		int r;
+
+		oi = overlay_infos[ovl->id];
+
+		if (oi == NULL)
+			continue;
+
+		r = dss_ovl_check(ovl, oi, dssdev);
+		if (r)
+			return r;
+	}
+
+	return 0;
+}
