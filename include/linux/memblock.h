@@ -30,12 +30,12 @@ struct memblock_region {
 struct memblock_type {
 	unsigned long cnt;	/* number of regions */
 	unsigned long max;	/* size of the allocated array */
+	phys_addr_t total_size;	/* size of all regions */
 	struct memblock_region *regions;
 };
 
 struct memblock {
 	phys_addr_t current_limit;
-	phys_addr_t memory_size;	/* Updated by memblock_analyze() */
 	struct memblock_type memory;
 	struct memblock_type reserved;
 };

@@ -179,12 +179,14 @@ int __init_memblock memblock_reserve_reserved_regions(void)
 
 static void __init_memblock memblock_remove_region(struct memblock_type *type, unsigned long r)
 {
+	type->total_size -= type->regions[r].size;
 	memmove(&type->regions[r], &type->regions[r + 1],
 		(type->cnt - (r + 1)) * sizeof(type->regions[r]));
 	type->cnt--;
 
 	/* Special case for empty arrays */
 	if (type->cnt == 0) {
+		WARN_ON(type->total_size != 0);
 		type->cnt = 1;
 		type->regions[0].base = 0;
 		type->regions[0].size = 0;
@@ -314,6 +316,7 @@ static void __init_memblock memblock_insert_region(struct memblock_type *type,
 	rgn->size = size;
 	memblock_set_region_node(rgn, nid);
 	type->cnt++;
+	type->total_size += size;
 }
 
 /**
@@ -340,10 +343,11 @@ static int __init_memblock memblock_add_region(struct memblock_type *type,
 
 	/* special case for empty array */
 	if (type->regions[0].size == 0) {
-		WARN_ON(type->cnt != 1);
+		WARN_ON(type->cnt != 1 || type->total_size);
 		type->regions[0].base = base;
 		type->regions[0].size = size;
 		memblock_set_region_node(&type->regions[0], MAX_NUMNODES);
+		type->total_size = size;
 		return 0;
 	}
 repeat:
@@ -453,7 +457,8 @@ static int __init_memblock memblock_isolate_range(struct memblock_type *type,
 			 * to process the next region - the new top half.
 			 */
 			rgn->base = base;
-			rgn->size = rend - rgn->base;
+			rgn->size -= base - rbase;
+			type->total_size -= base - rbase;
 			memblock_insert_region(type, i, rbase, base - rbase,
 					       memblock_get_region_node(rgn));
 		} else if (rend > end) {
@@ -462,7 +467,8 @@ static int __init_memblock memblock_isolate_range(struct memblock_type *type,
 			 * current region - the new bottom half.
 			 */
 			rgn->base = end;
-			rgn->size = rend - rgn->base;
+			rgn->size -= end - rbase;
+			type->total_size -= end - rbase;
 			memblock_insert_region(type, i--, rbase, end - rbase,
 					       memblock_get_region_node(rgn));
 		} else {
@@ -784,10 +790,9 @@ phys_addr_t __init memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, i
  * Remaining API functions
  */
 
-/* You must call memblock_analyze() before this. */
 phys_addr_t __init memblock_phys_mem_size(void)
 {
-	return memblock.memory_size;
+	return memblock.memory.total_size;
 }
 
 /* lowest address */
@@ -803,7 +808,6 @@ phys_addr_t __init_memblock memblock_end_of_DRAM(void)
 	return (memblock.memory.regions[idx].base + memblock.memory.regions[idx].size);
 }
 
-/* You must call memblock_analyze() after this. */
 void __init memblock_enforce_memory_limit(phys_addr_t limit)
 {
 	unsigned long i;
@@ -906,7 +910,9 @@ static void __init_memblock memblock_dump(struct memblock_type *type, char *name
 void __init_memblock __memblock_dump_all(void)
 {
 	pr_info("MEMBLOCK configuration:\n");
-	pr_info(" memory size = 0x%llx\n", (unsigned long long)memblock.memory_size);
+	pr_info(" memory size = %#llx reserved size = %#llx\n",
+		(unsigned long long)memblock.memory.total_size,
+		(unsigned long long)memblock.reserved.total_size);
 
 	memblock_dump(&memblock.memory, "memory");
 	memblock_dump(&memblock.reserved, "reserved");
@@ -914,13 +920,6 @@ void __init_memblock __memblock_dump_all(void)
 
 void __init memblock_analyze(void)
 {
-	int i;
-
-	memblock.memory_size = 0;
-
-	for (i = 0; i < memblock.memory.cnt; i++)
-		memblock.memory_size += memblock.memory.regions[i].size;
-
 	/* We allow resizing from there */
 	memblock_can_resize = 1;
 }
