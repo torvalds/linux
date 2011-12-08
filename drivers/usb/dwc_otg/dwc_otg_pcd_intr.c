@@ -945,6 +945,8 @@ int32_t dwc_otg_pcd_handle_enum_done_intr(dwc_otg_pcd_t *_pcd)
 	depctl.b.eptype = 2;
     depctl.b.usbactep = 1;
     dwc_write_reg32( &GET_CORE_IF(_pcd)->dev_if->out_ep_regs[2]->doepctl, depctl.d32 );
+    dwc_write_reg32( &GET_CORE_IF(_pcd)->dev_if->out_ep_regs[4]->doepctl, depctl.d32 );
+    dwc_write_reg32( &GET_CORE_IF(_pcd)->dev_if->out_ep_regs[6]->doepctl, depctl.d32 );
 	return 1;
 }
 
@@ -1777,7 +1779,7 @@ static void complete_ep( dwc_otg_pcd_ep_t *_ep )
 			}
 			request_done(_ep, req, 0);
         } else {
-            DWC_PRINT("\n++++++FIND NULL req,ep=%s++++++++++\n" , _ep->ep.name );
+//            DWC_PRINT("\n++++++FIND NULL req,ep=%s++++++++++\n" , _ep->ep.name );
             _ep->pcd->request_pending = 0;
         }
 		_ep->dwc_ep.start_xfer_buff = 0;
