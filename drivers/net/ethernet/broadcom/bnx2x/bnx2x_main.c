@@ -9478,9 +9478,9 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 							bp->common.shmem2_base);
 }
 
-#ifdef BCM_CNIC
 void bnx2x_get_iscsi_info(struct bnx2x *bp)
 {
+#ifdef BCM_CNIC
 	int port = BP_PORT(bp);
 
 	u32 max_iscsi_conn = FW_ENCODE_32BIT_PATTERN ^ SHMEM_RD(bp,
@@ -9500,10 +9500,14 @@ void bnx2x_get_iscsi_info(struct bnx2x *bp)
 	 */
 	if (!bp->cnic_eth_dev.max_iscsi_conn)
 		bp->flags |= NO_ISCSI_FLAG;
+#else
+	bp->flags |= NO_ISCSI_FLAG;
+#endif
 }
 
 static void __devinit bnx2x_get_fcoe_info(struct bnx2x *bp)
 {
+#ifdef BCM_CNIC
 	int port = BP_PORT(bp);
 	int func = BP_ABS_FUNC(bp);
 
@@ -9570,6 +9574,9 @@ static void __devinit bnx2x_get_fcoe_info(struct bnx2x *bp)
 	 */
 	if (!bp->cnic_eth_dev.max_fcoe_conn)
 		bp->flags |= NO_FCOE_FLAG;
+#else
+	bp->flags |= NO_FCOE_FLAG;
+#endif
 }
 
 static void __devinit bnx2x_get_cnic_info(struct bnx2x *bp)
@@ -9582,7 +9589,6 @@ static void __devinit bnx2x_get_cnic_info(struct bnx2x *bp)
 	bnx2x_get_iscsi_info(bp);
 	bnx2x_get_fcoe_info(bp);
 }
-#endif
 
 static void __devinit bnx2x_get_mac_hwinfo(struct bnx2x *bp)
 {
@@ -9907,9 +9913,7 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 	/* Get MAC addresses */
 	bnx2x_get_mac_hwinfo(bp);
 
-#ifdef BCM_CNIC
 	bnx2x_get_cnic_info(bp);
-#endif
 
 	/* Get current FW pulse sequence */
 	if (!BP_NOMCP(bp)) {

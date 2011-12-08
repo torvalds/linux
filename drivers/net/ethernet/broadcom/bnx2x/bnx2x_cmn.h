@@ -1491,7 +1491,6 @@ static inline u16 bnx2x_extract_max_cfg(struct bnx2x *bp, u32 mf_cfg)
 	return max_cfg;
 }
 
-#ifdef BCM_CNIC
 /**
  * bnx2x_get_iscsi_info - update iSCSI params according to licensing info.
  *
@@ -1499,7 +1498,6 @@ static inline u16 bnx2x_extract_max_cfg(struct bnx2x *bp, u32 mf_cfg)
  *
  */
 void bnx2x_get_iscsi_info(struct bnx2x *bp);
-#endif
 
 /* returns func by VN for current port */
 static inline int func_by_vn(struct bnx2x *bp, int vn)
