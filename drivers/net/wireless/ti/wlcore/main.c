@@ -57,6 +57,7 @@
 
 static char *fwlog_param;
 static bool bug_on_recovery;
+static bool no_recovery;
 
 static void __wl1271_op_remove_interface(struct wl1271 *wl,
 					 struct ieee80211_vif *vif,
@@ -873,6 +874,14 @@ static void wl1271_recovery_work(struct work_struct *work)
 
 	BUG_ON(bug_on_recovery &&
 	       !test_bit(WL1271_FLAG_INTENDED_FW_RECOVERY, &wl->flags));
+
+	if (no_recovery) {
+		wl1271_info("No recovery (chosen on module load). Fw will remain stuck.");
+		clear_bit(WL1271_FLAG_RECOVERY_IN_PROGRESS, &wl->flags);
+		goto out_unlock;
+	}
+
+	BUG_ON(bug_on_recovery);
 
 	/*
 	 * Advance security sequence number to overcome potential progress
@@ -5070,6 +5079,9 @@ MODULE_PARM_DESC(fwlog,
 
 module_param(bug_on_recovery, bool, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(bug_on_recovery, "BUG() on fw recovery");
+
+module_param(no_recovery, bool, S_IRUSR | S_IWUSR);
+MODULE_PARM_DESC(no_recovery, "Prevent HW recovery. FW will remain stuck.");
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
