@@ -652,6 +652,31 @@ static void f75375_init(struct i2c_client *client, struct f75375_data *data,
 		struct f75375s_platform_data *f75375s_pdata)
 {
 	int nr;
+
+	if (!f75375s_pdata) {
+		u8 conf, mode;
+		int nr;
+
+		conf = f75375_read8(client, F75375_REG_CONFIG1);
+		mode = f75375_read8(client, F75375_REG_FAN_TIMER);
+		for (nr = 0; nr < 2; nr++) {
+			if (!(conf & (1 << FAN_CTRL_LINEAR(nr))))
+				data->pwm_mode[nr] = 1;
+			switch ((mode >> FAN_CTRL_MODE(nr)) & 3) {
+			case 0:		/* speed */
+				data->pwm_enable[nr] = 3;
+				break;
+			case 1:		/* automatic */
+				data->pwm_enable[nr] = 2;
+				break;
+			default:	/* manual */
+				data->pwm_enable[nr] = 1;
+				break;
+			}
+		}
+		return;
+	}
+
 	set_pwm_enable_direct(client, 0, f75375s_pdata->pwm_enable[0]);
 	set_pwm_enable_direct(client, 1, f75375s_pdata->pwm_enable[1]);
 	for (nr = 0; nr < 2; nr++) {
@@ -703,8 +728,7 @@ static int f75375_probe(struct i2c_client *client,
 		goto exit_remove;
 	}
 
-	if (f75375s_pdata != NULL)
-		f75375_init(client, data, f75375s_pdata);
+	f75375_init(client, data, f75375s_pdata);
 
 	return 0;
 
