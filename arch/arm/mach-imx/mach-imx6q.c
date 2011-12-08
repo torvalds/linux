@@ -93,7 +93,7 @@ static struct sys_timer imx6q_timer = {
 };
 
 static const char *imx6q_dt_compat[] __initdata = {
-	"fsl,imx6q-sabreauto",
+	"fsl,imx6q-arm2",
 	"fsl,imx6q-sabrelite",
 	NULL,
 };
