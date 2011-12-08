@@ -279,8 +279,7 @@ static int cap_path_truncate(struct path *path)
 	return 0;
 }
 
-static int cap_path_chmod(struct dentry *dentry, struct vfsmount *mnt,
-			  umode_t mode)
+static int cap_path_chmod(struct path *path, umode_t mode)
 {
 	return 0;
 }

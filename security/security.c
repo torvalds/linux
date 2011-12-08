@@ -454,12 +454,11 @@ int security_path_truncate(struct path *path)
 	return security_ops->path_truncate(path);
 }
 
-int security_path_chmod(struct dentry *dentry, struct vfsmount *mnt,
-			umode_t mode)
+int security_path_chmod(struct path *path, umode_t mode)
 {
-	if (unlikely(IS_PRIVATE(dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
 		return 0;
-	return security_ops->path_chmod(dentry, mnt, mode);
+	return security_ops->path_chmod(path, mode);
 }
 
 int security_path_chown(struct path *path, uid_t uid, gid_t gid)

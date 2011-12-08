@@ -353,17 +353,14 @@ static int tomoyo_file_ioctl(struct file *file, unsigned int cmd,
 /**
  * tomoyo_path_chmod - Target for security_path_chmod().
  *
- * @dentry: Pointer to "struct dentry".
- * @mnt:    Pointer to "struct vfsmount".
- * @mode:   DAC permission mode.
+ * @path: Pointer to "struct path".
+ * @mode: DAC permission mode.
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_path_chmod(struct dentry *dentry, struct vfsmount *mnt,
-			     umode_t mode)
+static int tomoyo_path_chmod(struct path *path, umode_t mode)
 {
-	struct path path = { mnt, dentry };
-	return tomoyo_path_number_perm(TOMOYO_TYPE_CHMOD, &path,
+	return tomoyo_path_number_perm(TOMOYO_TYPE_CHMOD, path,
 				       mode & S_IALLUGO);
 }
 

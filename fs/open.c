@@ -456,7 +456,7 @@ static int chmod_common(struct path *path, umode_t mode)
 	if (error)
 		return error;
 	mutex_lock(&inode->i_mutex);
-	error = security_path_chmod(path->dentry, path->mnt, mode);
+	error = security_path_chmod(path, mode);
 	if (error)
 		goto out_unlock;
 	newattrs.ia_mode = (mode & S_IALLUGO) | (inode->i_mode & ~S_IALLUGO);
