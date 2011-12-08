@@ -588,6 +588,13 @@ static int team_port_add(struct team *team, struct net_device *port_dev)
 		goto err_dev_open;
 	}
 
+	err = vlan_vids_add_by_dev(port_dev, dev);
+	if (err) {
+		netdev_err(dev, "Failed to add vlan ids to device %s\n",
+				portname);
+		goto err_vids_add;
+	}
+
 	err = netdev_set_master(port_dev, dev);
 	if (err) {
 		netdev_err(dev, "Device %s failed to set master\n", portname);
@@ -615,6 +622,9 @@ err_handler_register:
 	netdev_set_master(port_dev, NULL);
 
 err_set_master:
+	vlan_vids_del_by_dev(port_dev, dev);
+
+err_vids_add:
 	dev_close(port_dev);
 
 err_dev_open:
@@ -648,6 +658,7 @@ static int team_port_del(struct team *team, struct net_device *port_dev)
 	team_adjust_ops(team);
 	netdev_rx_handler_unregister(port_dev);
 	netdev_set_master(port_dev, NULL);
+	vlan_vids_del_by_dev(port_dev, dev);
 	dev_close(port_dev);
 	team_port_leave(team, port);
 	team_port_set_orig_mac(port);
