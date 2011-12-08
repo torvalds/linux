@@ -4469,7 +4469,7 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 	 * Do the hardware portion of the attach. Also initialize software
 	 * state that depends on the particular hardware we are running.
 	 */
-	wlc_hw->sih = ai_attach(core->bus->mmio, core->bus->host_pci);
+	wlc_hw->sih = ai_attach(core->bus);
 	if (wlc_hw->sih == NULL) {
 		wiphy_err(wiphy, "wl%d: brcms_b_attach: si_attach failed\n",
 			  unit);

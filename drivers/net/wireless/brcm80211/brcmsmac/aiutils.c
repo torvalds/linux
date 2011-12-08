@@ -1022,22 +1022,25 @@ static __used void ai_nvram_process(struct si_info *sii)
 }
 
 static struct si_info *ai_doattach(struct si_info *sii,
-				   void __iomem *regs, struct pci_dev *pbus)
+				   struct bcma_bus *pbus)
 {
+	void __iomem *regs = pbus->mmio;
 	struct si_pub *sih = &sii->pub;
 	u32 w, savewin;
 	struct chipcregs __iomem *cc;
 	uint socitype;
 	uint origidx;
 
+	/* assume the window is looking at chipcommon */
+	WARN_ON(pbus->mapped_core->id.id != BCMA_CORE_CHIPCOMMON);
 	memset((unsigned char *) sii, 0, sizeof(struct si_info));
 
 	savewin = 0;
 
+	sii->icbus = pbus;
 	sii->buscoreidx = BADIDX;
-
 	sii->curmap = regs;
-	sii->pcibus = pbus;
+	sii->pcibus = pbus->host_pci;
 
 	/* find Chipcommon address */
 	pci_read_config_dword(sii->pcibus, PCI_BAR0_WIN, &savewin);
@@ -1160,13 +1163,10 @@ static struct si_info *ai_doattach(struct si_info *sii,
 }
 
 /*
- * Allocate a si handle.
- * devid - pci device id (used to determine chip#)
- * osh - opaque OS handle
- * regs - virtual address of initial core registers
+ * Allocate a si handle and do the attach.
  */
 struct si_pub *
-ai_attach(void __iomem *regs, struct pci_dev *sdh)
+ai_attach(struct bcma_bus *pbus)
 {
 	struct si_info *sii;
 
@@ -1175,7 +1175,7 @@ ai_attach(void __iomem *regs, struct pci_dev *sdh)
 	if (sii == NULL)
 		return NULL;
 
-	if (ai_doattach(sii, regs, sdh) == NULL) {
+	if (ai_doattach(sii, pbus) == NULL) {
 		kfree(sii);
 		return NULL;
 	}

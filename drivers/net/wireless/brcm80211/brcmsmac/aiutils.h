@@ -17,6 +17,8 @@
 #ifndef	_BRCM_AIUTILS_H_
 #define	_BRCM_AIUTILS_H_
 
+#include <linux/bcma/bcma.h>
+
 #include "types.h"
 
 /*
@@ -170,6 +172,7 @@ struct gpioh_item {
 /* misc si info needed by some of the routines */
 struct si_info {
 	struct si_pub pub;	/* back plane public state (must be first) */
+	struct bcma_bus *icbus;	/* handle to soc interconnect bus */
 	struct pci_dev *pcibus;	/* handle to pci bus */
 	uint dev_coreid;	/* the core provides driver functions */
 	void *intr_arg;		/* interrupt callback function arg */
@@ -235,7 +238,7 @@ extern u32 ai_addrspacesize(struct si_pub *sih, uint asidx);
 extern void ai_write_wrap_reg(struct si_pub *sih, u32 offset, u32 val);
 
 /* === exported functions === */
-extern struct si_pub *ai_attach(void __iomem *regs, struct pci_dev *sdh);
+extern struct si_pub *ai_attach(struct bcma_bus *pbus);
 extern void ai_detach(struct si_pub *sih);
 extern uint ai_coreid(struct si_pub *sih);
 extern uint ai_corerev(struct si_pub *sih);
