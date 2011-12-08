@@ -594,7 +594,7 @@ struct dma_pub *dma_attach(char *name, struct si_pub *sih,
 	strncpy(di->name, name, MAXNAMEL);
 	di->name[MAXNAMEL - 1] = '\0';
 
-	di->pbus = ((struct si_info *)sih)->pbus;
+	di->pbus = ((struct si_info *)sih)->pcibus;
 
 	/* save tunables */
 	di->ntxd = (u16) ntxd;

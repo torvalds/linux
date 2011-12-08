@@ -564,7 +564,7 @@ static void ai_scan(struct si_pub *sih, struct chipcregs __iomem *cc)
 	sii->curwrap = (void *)((unsigned long)cc + SI_CORE_SIZE);
 
 	/* Now point the window at the erom */
-	pci_write_config_dword(sii->pbus, PCI_BAR0_WIN, erombase);
+	pci_write_config_dword(sii->pcibus, PCI_BAR0_WIN, erombase);
 	eromptr = regs;
 	eromlim = eromptr + (ER_REMAPCONTROL / sizeof(u32));
 
@@ -741,9 +741,9 @@ void __iomem *ai_setcoreidx(struct si_pub *sih, uint coreidx)
 		return NULL;
 
 	/* point bar0 window */
-	pci_write_config_dword(sii->pbus, PCI_BAR0_WIN, addr);
+	pci_write_config_dword(sii->pcibus, PCI_BAR0_WIN, addr);
 	/* point bar0 2nd 4KB window */
-	pci_write_config_dword(sii->pbus, PCI_BAR0_WIN2, wrap);
+	pci_write_config_dword(sii->pcibus, PCI_BAR0_WIN2, wrap);
 	sii->curidx = coreidx;
 
 	return sii->curmap;
@@ -880,7 +880,7 @@ static bool ai_ispcie(struct si_info *sii)
 	u8 cap_ptr;
 
 	cap_ptr =
-	    pcicore_find_pci_capability(sii->pbus, PCI_CAP_ID_EXP, NULL,
+	    pcicore_find_pci_capability(sii->pcibus, PCI_CAP_ID_EXP, NULL,
 					NULL);
 	if (!cap_ptr)
 		return false;
@@ -990,7 +990,7 @@ ai_buscore_setup(struct si_info *sii, u32 savewin, uint *origidx)
 	/* fixup necessary chip/core configurations */
 	if (SI_FAST(&sii->pub)) {
 		if (!sii->pch) {
-			sii->pch = pcicore_init(&sii->pub, sii->pbus,
+			sii->pch = pcicore_init(&sii->pub, sii->pcibus,
 						(__iomem void *)PCIEREGS(sii));
 			if (sii->pch == NULL)
 				return false;
@@ -1015,7 +1015,7 @@ static __used void ai_nvram_process(struct si_info *sii)
 	uint w = 0;
 
 	/* do a pci config read to get subsystem id and subvendor id */
-	pci_read_config_dword(sii->pbus, PCI_SUBSYSTEM_VENDOR_ID, &w);
+	pci_read_config_dword(sii->pcibus, PCI_SUBSYSTEM_VENDOR_ID, &w);
 
 	sii->pub.boardvendor = w & 0xffff;
 	sii->pub.boardtype = (w >> 16) & 0xffff;
@@ -1037,14 +1037,14 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	sii->buscoreidx = BADIDX;
 
 	sii->curmap = regs;
-	sii->pbus = pbus;
+	sii->pcibus = pbus;
 
 	/* find Chipcommon address */
-	pci_read_config_dword(sii->pbus, PCI_BAR0_WIN, &savewin);
+	pci_read_config_dword(sii->pcibus, PCI_BAR0_WIN, &savewin);
 	if (!GOODCOREADDR(savewin, SI_ENUM_BASE))
 		savewin = SI_ENUM_BASE;
 
-	pci_write_config_dword(sii->pbus, PCI_BAR0_WIN,
+	pci_write_config_dword(sii->pcibus, PCI_BAR0_WIN,
 			       SI_ENUM_BASE);
 	cc = (struct chipcregs __iomem *) regs;
 
@@ -1481,7 +1481,7 @@ static uint ai_slowclk_src(struct si_info *sii)
 	u32 val;
 
 	if (ai_get_ccrev(&sii->pub) < 6) {
-		pci_read_config_dword(sii->pbus, PCI_GPIO_OUT,
+		pci_read_config_dword(sii->pcibus, PCI_GPIO_OUT,
 				      &val);
 		if (val & PCI_CFG_GPIO_SCS)
 			return SCC_SS_PCI;
@@ -1663,9 +1663,9 @@ int ai_clkctl_xtal(struct si_pub *sih, uint what, bool on)
 	if (PCIE(sih))
 		return -1;
 
-	pci_read_config_dword(sii->pbus, PCI_GPIO_IN, &in);
-	pci_read_config_dword(sii->pbus, PCI_GPIO_OUT, &out);
-	pci_read_config_dword(sii->pbus, PCI_GPIO_OUTEN, &outen);
+	pci_read_config_dword(sii->pcibus, PCI_GPIO_IN, &in);
+	pci_read_config_dword(sii->pcibus, PCI_GPIO_OUT, &out);
+	pci_read_config_dword(sii->pcibus, PCI_GPIO_OUTEN, &outen);
 
 	/*
 	 * Avoid glitching the clock if GPRS is already using it.
@@ -1686,9 +1686,9 @@ int ai_clkctl_xtal(struct si_pub *sih, uint what, bool on)
 			out |= PCI_CFG_GPIO_XTAL;
 			if (what & PLL)
 				out |= PCI_CFG_GPIO_PLL;
-			pci_write_config_dword(sii->pbus,
+			pci_write_config_dword(sii->pcibus,
 					       PCI_GPIO_OUT, out);
-			pci_write_config_dword(sii->pbus,
+			pci_write_config_dword(sii->pcibus,
 					       PCI_GPIO_OUTEN, outen);
 			udelay(XTAL_ON_DELAY);
 		}
@@ -1696,7 +1696,7 @@ int ai_clkctl_xtal(struct si_pub *sih, uint what, bool on)
 		/* turn pll on */
 		if (what & PLL) {
 			out &= ~PCI_CFG_GPIO_PLL;
-			pci_write_config_dword(sii->pbus,
+			pci_write_config_dword(sii->pcibus,
 					       PCI_GPIO_OUT, out);
 			mdelay(2);
 		}
@@ -1705,9 +1705,9 @@ int ai_clkctl_xtal(struct si_pub *sih, uint what, bool on)
 			out &= ~PCI_CFG_GPIO_XTAL;
 		if (what & PLL)
 			out |= PCI_CFG_GPIO_PLL;
-		pci_write_config_dword(sii->pbus,
+		pci_write_config_dword(sii->pcibus,
 				       PCI_GPIO_OUT, out);
-		pci_write_config_dword(sii->pbus,
+		pci_write_config_dword(sii->pcibus,
 				       PCI_GPIO_OUTEN, outen);
 	}
 
@@ -1835,9 +1835,9 @@ int ai_devpath(struct si_pub *sih, char *path, int size)
 		return -1;
 
 	slen = snprintf(path, (size_t) size, "pci/%u/%u/",
-		((struct si_info *)sih)->pbus->bus->number,
+		((struct si_info *)sih)->pcibus->bus->number,
 		PCI_SLOT(((struct pci_dev *)
-				(((struct si_info *)(sih))->pbus))->devfn));
+				(((struct si_info *)(sih))->pcibus))->devfn));
 
 	if (slen < 0 || slen >= size) {
 		path[0] = '\0';
@@ -1915,9 +1915,9 @@ void ai_pci_setup(struct si_pub *sih, uint coremask)
 	 */
 	if (PCIE(sih) || (PCI(sih) && (ai_get_buscorerev(sih) >= 6))) {
 		/* pci config write to set this core bit in PCIIntMask */
-		pci_read_config_dword(sii->pbus, PCI_INT_MASK, &w);
+		pci_read_config_dword(sii->pcibus, PCI_INT_MASK, &w);
 		w |= (coremask << PCI_SBIM_SHIFT);
-		pci_write_config_dword(sii->pbus, PCI_INT_MASK, w);
+		pci_write_config_dword(sii->pcibus, PCI_INT_MASK, w);
 	} else {
 		/* set sbintvec bit for our flag number */
 		ai_setint(sih, siflag);
@@ -2028,7 +2028,7 @@ bool ai_deviceremoved(struct si_pub *sih)
 
 	sii = (struct si_info *)sih;
 
-	pci_read_config_dword(sii->pbus, PCI_VENDOR_ID, &w);
+	pci_read_config_dword(sii->pcibus, PCI_VENDOR_ID, &w);
 	if ((w & 0xFFFF) != PCI_VENDOR_ID_BROADCOM)
 		return true;
 

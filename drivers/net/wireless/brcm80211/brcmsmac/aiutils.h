@@ -170,7 +170,7 @@ struct gpioh_item {
 /* misc si info needed by some of the routines */
 struct si_info {
 	struct si_pub pub;	/* back plane public state (must be first) */
-	struct pci_dev *pbus;	/* handle to pci bus */
+	struct pci_dev *pcibus;	/* handle to pci bus */
 	uint dev_coreid;	/* the core provides driver functions */
 	void *intr_arg;		/* interrupt callback function arg */
 	u32 (*intrsoff_fn) (void *intr_arg); /* turns chip interrupts off */
