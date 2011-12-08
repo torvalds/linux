@@ -220,7 +220,8 @@ struct dma_info {
 	uint *msg_level;	/* message level pointer */
 	char name[MAXNAMEL];	/* callers name for diag msgs */
 
-	struct pci_dev *pbus;		/* bus handle */
+	struct bcma_device *d11core;
+	struct device *dmadev;
 
 	bool dma64;	/* this dma engine is operating in 64-bit mode */
 	bool addrext;	/* this dma engine supports DmaExtendedAddrChanges */
@@ -450,7 +451,7 @@ static bool _dma_descriptor_align(struct dma_info *di)
  * Descriptor table must start at the DMA hardware dictated alignment, so
  * allocated memory must be large enough to support this requirement.
  */
-static void *dma_alloc_consistent(struct pci_dev *pdev, uint size,
+static void *dma_alloc_consistent(struct dma_info *di, uint size,
 				  u16 align_bits, uint *alloced,
 				  dma_addr_t *pap)
 {
@@ -460,7 +461,7 @@ static void *dma_alloc_consistent(struct pci_dev *pdev, uint size,
 			size += align;
 		*alloced = size;
 	}
-	return pci_alloc_consistent(pdev, size, pap);
+	return dma_alloc_coherent(di->dmadev, size, pap, GFP_ATOMIC);
 }
 
 static
@@ -486,7 +487,7 @@ static void *dma_ringalloc(struct dma_info *di, u32 boundary, uint size,
 	u32 desc_strtaddr;
 	u32 alignbytes = 1 << *alignbits;
 
-	va = dma_alloc_consistent(di->pbus, size, *alignbits, alloced, descpa);
+	va = dma_alloc_consistent(di, size, *alignbits, alloced, descpa);
 
 	if (NULL == va)
 		return NULL;
@@ -495,8 +496,8 @@ static void *dma_ringalloc(struct dma_info *di, u32 boundary, uint size,
 	if (((desc_strtaddr + size - 1) & boundary) != (desc_strtaddr
 							& boundary)) {
 		*alignbits = dma_align_sizetobits(size);
-		pci_free_consistent(di->pbus, size, va, *descpa);
-		va = dma_alloc_consistent(di->pbus, size, *alignbits,
+		dma_free_coherent(di->dmadev, size, va, *descpa);
+		va = dma_alloc_consistent(di, size, *alignbits,
 			alloced, descpa);
 	}
 	return va;
@@ -556,10 +557,11 @@ static bool _dma_alloc(struct dma_info *di, uint direction)
 }
 
 struct dma_pub *dma_attach(char *name, struct si_pub *sih,
-		     void __iomem *dmaregstx, void __iomem *dmaregsrx,
-		     uint ntxd, uint nrxd,
-		     uint rxbufsize, int rxextheadroom,
-		     uint nrxpost, uint rxoffset, uint *msg_level)
+			   struct bcma_device *d11core,
+			   void __iomem *dmaregstx, void __iomem *dmaregsrx,
+			   uint ntxd, uint nrxd,
+			   uint rxbufsize, int rxextheadroom,
+			   uint nrxpost, uint rxoffset, uint *msg_level)
 {
 	struct dma_info *di;
 	uint size;
@@ -575,6 +577,7 @@ struct dma_pub *dma_attach(char *name, struct si_pub *sih,
 	di->dma64 = ((ai_core_sflags(sih, 0, 0) & SISF_DMA64) == SISF_DMA64);
 
 	/* init dma reg pointer */
+	di->d11core = d11core;
 	di->d64txregs = (struct dma64regs __iomem *) dmaregstx;
 	di->d64rxregs = (struct dma64regs __iomem *) dmaregsrx;
 
@@ -594,7 +597,7 @@ struct dma_pub *dma_attach(char *name, struct si_pub *sih,
 	strncpy(di->name, name, MAXNAMEL);
 	di->name[MAXNAMEL - 1] = '\0';
 
-	di->pbus = ((struct si_info *)sih)->pcibus;
+	di->dmadev = d11core->dma_dev;
 
 	/* save tunables */
 	di->ntxd = (u16) ntxd;
@@ -749,13 +752,13 @@ void dma_detach(struct dma_pub *pub)
 
 	/* free dma descriptor rings */
 	if (di->txd64)
-		pci_free_consistent(di->pbus, di->txdalloc,
-				    ((s8 *)di->txd64 - di->txdalign),
-				    (di->txdpaorig));
+		dma_free_coherent(di->dmadev, di->txdalloc,
+				  ((s8 *)di->txd64 - di->txdalign),
+				  (di->txdpaorig));
 	if (di->rxd64)
-		pci_free_consistent(di->pbus, di->rxdalloc,
-				    ((s8 *)di->rxd64 - di->rxdalign),
-				    (di->rxdpaorig));
+		dma_free_coherent(di->dmadev, di->rxdalloc,
+				  ((s8 *)di->rxd64 - di->rxdalign),
+				  (di->rxdpaorig));
 
 	/* free packet pointer vectors */
 	kfree(di->txp);
@@ -882,7 +885,7 @@ static struct sk_buff *dma64_getnextrxp(struct dma_info *di, bool forceall)
 	pa = le32_to_cpu(di->rxd64[i].addrlow) - di->dataoffsetlow;
 
 	/* clear this packet from the descriptor ring */
-	pci_unmap_single(di->pbus, pa, di->rxbufsize, PCI_DMA_FROMDEVICE);
+	dma_unmap_single(di->dmadev, pa, di->rxbufsize, DMA_FROM_DEVICE);
 
 	di->rxd64[i].addrlow = cpu_to_le32(0xdeadbeef);
 	di->rxd64[i].addrhigh = cpu_to_le32(0xdeadbeef);
@@ -1048,8 +1051,8 @@ bool dma_rxfill(struct dma_pub *pub)
 		 */
 		*(u32 *) (p->data) = 0;
 
-		pa = pci_map_single(di->pbus, p->data,
-			di->rxbufsize, PCI_DMA_FROMDEVICE);
+		pa = dma_map_single(di->dmadev, p->data, di->rxbufsize,
+				    DMA_FROM_DEVICE);
 
 		/* save the free packet pointer */
 		di->rxp[rxout] = p;
@@ -1267,7 +1270,7 @@ int dma_txfast(struct dma_pub *pub, struct sk_buff *p, bool commit)
 		goto outoftxd;
 
 	/* get physical address of buffer start */
-	pa = pci_map_single(di->pbus, data, len, PCI_DMA_TODEVICE);
+	pa = dma_map_single(di->dmadev, data, len, DMA_TO_DEVICE);
 
 	/* With a DMA segment list, Descriptor table is filled
 	 * using the segment list instead of looping over
@@ -1376,7 +1379,7 @@ struct sk_buff *dma_getnexttxp(struct dma_pub *pub, enum txd_range range)
 		txp = di->txp[i];
 		di->txp[i] = NULL;
 
-		pci_unmap_single(di->pbus, pa, size, PCI_DMA_TODEVICE);
+		dma_unmap_single(di->dmadev, pa, size, DMA_TO_DEVICE);
 	}
 
 	di->txin = i;

@@ -1098,7 +1098,7 @@ static bool brcms_b_attach_dmapio(struct brcms_c_info *wlc, uint j, bool wme)
 		 * TX: TX_AC_BK_FIFO (TX AC Background data packets)
 		 * RX: RX_FIFO (RX data packets)
 		 */
-		wlc_hw->di[0] = dma_attach(name, wlc_hw->sih,
+		wlc_hw->di[0] = dma_attach(name, wlc_hw->sih, wlc_hw->d11core,
 					   (wme ? dmareg(wlc_hw, DMA_TX, 0) :
 					    NULL), dmareg(wlc_hw, DMA_RX, 0),
 					   (wme ? NTXD : 0), NRXD,
@@ -1112,7 +1112,7 @@ static bool brcms_b_attach_dmapio(struct brcms_c_info *wlc, uint j, bool wme)
 		 *   (legacy) TX_DATA_FIFO (TX data packets)
 		 * RX: UNUSED
 		 */
-		wlc_hw->di[1] = dma_attach(name, wlc_hw->sih,
+		wlc_hw->di[1] = dma_attach(name, wlc_hw->sih, wlc_hw->d11core,
 					   dmareg(wlc_hw, DMA_TX, 1), NULL,
 					   NTXD, 0, 0, -1, 0, 0,
 					   &brcm_msg_level);
@@ -1123,7 +1123,7 @@ static bool brcms_b_attach_dmapio(struct brcms_c_info *wlc, uint j, bool wme)
 		 * TX: TX_AC_VI_FIFO (TX AC Video data packets)
 		 * RX: UNUSED
 		 */
-		wlc_hw->di[2] = dma_attach(name, wlc_hw->sih,
+		wlc_hw->di[2] = dma_attach(name, wlc_hw->sih, wlc_hw->d11core,
 					   dmareg(wlc_hw, DMA_TX, 2), NULL,
 					   NTXD, 0, 0, -1, 0, 0,
 					   &brcm_msg_level);
@@ -1133,7 +1133,7 @@ static bool brcms_b_attach_dmapio(struct brcms_c_info *wlc, uint j, bool wme)
 		 * TX: TX_AC_VO_FIFO (TX AC Voice data packets)
 		 *   (legacy) TX_CTL_FIFO (TX control & mgmt packets)
 		 */
-		wlc_hw->di[3] = dma_attach(name, wlc_hw->sih,
+		wlc_hw->di[3] = dma_attach(name, wlc_hw->sih, wlc_hw->d11core,
 					   dmareg(wlc_hw, DMA_TX, 3),
 					   NULL, NTXD, 0, 0, -1,
 					   0, 0, &brcm_msg_level);
