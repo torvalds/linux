@@ -10596,12 +10596,12 @@ static void tg3_get_pauseparam(struct net_device *dev, struct ethtool_pauseparam
 
 	epause->autoneg = !!tg3_flag(tp, PAUSE_AUTONEG);
 
-	if (tp->link_config.active_flowctrl & FLOW_CTRL_RX)
+	if (tp->link_config.flowctrl & FLOW_CTRL_RX)
 		epause->rx_pause = 1;
 	else
 		epause->rx_pause = 0;
 
-	if (tp->link_config.active_flowctrl & FLOW_CTRL_TX)
+	if (tp->link_config.flowctrl & FLOW_CTRL_TX)
 		epause->tx_pause = 1;
 	else
 		epause->tx_pause = 0;
