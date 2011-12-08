@@ -508,11 +508,7 @@ static void ath_regd_sanitize(struct ath_regulatory *reg)
 	reg->current_rd = 0x64;
 }
 
-int
-ath_regd_init(struct ath_regulatory *reg,
-	      struct wiphy *wiphy,
-	      int (*reg_notifier)(struct wiphy *wiphy,
-				  struct regulatory_request *request))
+static int __ath_regd_init(struct ath_regulatory *reg)
 {
 	struct country_code_to_enum_rd *country = NULL;
 	u16 regdmn;
@@ -583,7 +579,23 @@ ath_regd_init(struct ath_regulatory *reg,
 	printk(KERN_DEBUG "ath: Regpair used: 0x%0x\n",
 		reg->regpair->regDmnEnum);
 
+	return 0;
+}
+
+int
+ath_regd_init(struct ath_regulatory *reg,
+	      struct wiphy *wiphy,
+	      int (*reg_notifier)(struct wiphy *wiphy,
+				  struct regulatory_request *request))
+{
+	int r;
+
+	r = __ath_regd_init(reg);
+	if (r)
+		return r;
+
 	ath_regd_init_wiphy(reg, wiphy, reg_notifier);
+
 	return 0;
 }
 EXPORT_SYMBOL(ath_regd_init);
