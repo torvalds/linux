@@ -279,7 +279,8 @@ static enum power_supply_property hidinput_battery_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_MODEL_NAME,
-	POWER_SUPPLY_PROP_STATUS
+	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_SCOPE,
 };
 
 #define HID_BATTERY_QUIRK_PERCENT	(1 << 0) /* always reports percent */
@@ -344,6 +345,10 @@ static int hidinput_get_battery_property(struct power_supply *psy,
 		val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
 		break;
 
+	case POWER_SUPPLY_PROP_SCOPE:
+		val->intval = POWER_SUPPLY_SCOPE_DEVICE;
+		break;
+
 	default:
 		ret = -EINVAL;
 		break;
@@ -402,6 +407,8 @@ static bool hidinput_setup_battery(struct hid_device *dev, unsigned report_type,
 		kfree(battery->name);
 		battery->name = NULL;
 	}
+
+	power_supply_powers(battery, &dev->dev);
 
 out:
 	return true;
