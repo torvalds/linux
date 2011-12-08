@@ -146,7 +146,6 @@
 struct si_pub {
 	uint buscoretype;	/* PCI_CORE_ID, PCIE_CORE_ID, PCMCIA_CORE_ID */
 	uint buscorerev;	/* buscore rev */
-	uint buscoreidx;	/* buscore index */
 	int ccrev;		/* chip common core rev */
 	u32 cccaps;		/* chip common capabilities */
 	int pmurev;		/* pmu core rev */
@@ -156,7 +155,6 @@ struct si_pub {
 	uint chip;		/* chip number */
 	uint chiprev;		/* chip revision */
 	uint chippkg;		/* chip package option */
-	u32 chipst;		/* chip status */
 };
 
 struct pci_dev;
@@ -188,7 +186,9 @@ struct si_info {
 	void __iomem *curmap;			/* current regs va */
 	void __iomem *regs[SI_MAXCORES];	/* other regs va */
 
+	u32 chipst;		/* chip status */
 	uint curidx;		/* current core index */
+	uint buscoreidx;	/* buscore index */
 	uint numcores;		/* # discovered cores */
 	uint coreid[SI_MAXCORES]; /* id of each core */
 	u32 coresba[SI_MAXCORES]; /* backplane address of each core */

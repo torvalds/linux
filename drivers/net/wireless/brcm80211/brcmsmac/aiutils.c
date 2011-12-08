@@ -928,7 +928,7 @@ ai_buscore_setup(struct si_info *sii, u32 savewin, uint *origidx)
 
 	/* get chipcommon chipstatus */
 	if (sii->pub.ccrev >= 11)
-		sii->pub.chipst = R_REG(&cc->chipstatus);
+		sii->chipst = R_REG(&cc->chipstatus);
 
 	/* get chipcommon capabilites */
 	sii->pub.cccaps = R_REG(&cc->capabilities);
@@ -942,7 +942,7 @@ ai_buscore_setup(struct si_info *sii, u32 savewin, uint *origidx)
 	/* figure out bus/orignal core idx */
 	sii->pub.buscoretype = NODEV_CORE_ID;
 	sii->pub.buscorerev = NOREV;
-	sii->pub.buscoreidx = BADIDX;
+	sii->buscoreidx = BADIDX;
 
 	pci = pcie = false;
 	pcirev = pcierev = NOREV;
@@ -980,11 +980,11 @@ ai_buscore_setup(struct si_info *sii, u32 savewin, uint *origidx)
 	if (pci) {
 		sii->pub.buscoretype = PCI_CORE_ID;
 		sii->pub.buscorerev = pcirev;
-		sii->pub.buscoreidx = pciidx;
+		sii->buscoreidx = pciidx;
 	} else if (pcie) {
 		sii->pub.buscoretype = PCIE_CORE_ID;
 		sii->pub.buscorerev = pcierev;
-		sii->pub.buscoreidx = pcieidx;
+		sii->buscoreidx = pcieidx;
 	}
 
 	/* fixup necessary chip/core configurations */
@@ -1034,7 +1034,7 @@ static struct si_info *ai_doattach(struct si_info *sii,
 
 	savewin = 0;
 
-	sih->buscoreidx = BADIDX;
+	sii->buscoreidx = BADIDX;
 
 	sii->curmap = regs;
 	sii->pbus = pbus;
@@ -1372,7 +1372,7 @@ uint ai_corereg(struct si_pub *sih, uint coreidx, uint regoff, uint mask,
 		fast = true;
 		r = (u32 __iomem *)((__iomem char *)sii->curmap +
 				    PCI_16KB0_CCREGS_OFFSET + regoff);
-	} else if (sii->pub.buscoreidx == coreidx) {
+	} else if (sii->buscoreidx == coreidx) {
 		/*
 		 * pci registers are at either in the last 2KB of
 		 * an 8KB window or, in pcie and pci rev 13 at 8KB
@@ -1904,7 +1904,7 @@ void ai_pci_setup(struct si_pub *sih, uint coremask)
 		siflag = ai_flag(sih);
 
 		/* switch over to pci core */
-		regs = ai_setcoreidx(sih, sii->pub.buscoreidx);
+		regs = ai_setcoreidx(sih, sii->buscoreidx);
 	}
 
 	/*
@@ -2035,8 +2035,9 @@ bool ai_deviceremoved(struct si_pub *sih)
 
 bool ai_is_sprom_available(struct si_pub *sih)
 {
+	struct si_info *sii = (struct si_info *)sih;
+
 	if (sih->ccrev >= 31) {
-		struct si_info *sii;
 		uint origidx;
 		struct chipcregs __iomem *cc;
 		u32 sromctrl;
@@ -2044,7 +2045,6 @@ bool ai_is_sprom_available(struct si_pub *sih)
 		if ((sih->cccaps & CC_CAP_SROM) == 0)
 			return false;
 
-		sii = (struct si_info *)sih;
 		origidx = sii->curidx;
 		cc = ai_setcoreidx(sih, SI_CC_IDX);
 		sromctrl = R_REG(&cc->sromcontrol);
@@ -2054,7 +2054,7 @@ bool ai_is_sprom_available(struct si_pub *sih)
 
 	switch (sih->chip) {
 	case BCM4313_CHIP_ID:
-		return (sih->chipst & CST4313_SPROM_PRESENT) != 0;
+		return (sii->chipst & CST4313_SPROM_PRESENT) != 0;
 	default:
 		return true;
 	}
@@ -2062,9 +2062,11 @@ bool ai_is_sprom_available(struct si_pub *sih)
 
 bool ai_is_otp_disabled(struct si_pub *sih)
 {
+	struct si_info *sii = (struct si_info *)sih;
+
 	switch (sih->chip) {
 	case BCM4313_CHIP_ID:
-		return (sih->chipst & CST4313_OTP_PRESENT) == 0;
+		return (sii->chipst & CST4313_OTP_PRESENT) == 0;
 		/* These chips always have their OTP on */
 	case BCM43224_CHIP_ID:
 	case BCM43225_CHIP_ID:
