@@ -126,7 +126,7 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 	struct exynos_drm_fbdev *exynos_fbdev = to_exynos_fbdev(helper);
 	struct drm_device *dev = helper->dev;
 	struct fb_info *fbi;
-	struct drm_mode_fb_cmd mode_cmd = { 0 };
+	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
 	struct platform_device *pdev = dev->platformdev;
 	int ret;
 
@@ -138,8 +138,9 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 
 	mode_cmd.width = sizes->surface_width;
 	mode_cmd.height = sizes->surface_height;
-	mode_cmd.bpp = sizes->surface_bpp;
-	mode_cmd.depth = sizes->surface_depth;
+	mode_cmd.pitches[0] = sizes->surface_width * (sizes->surface_bpp >> 3);
+	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
+							  sizes->surface_depth);
 
 	mutex_lock(&dev->struct_mutex);
 
@@ -206,7 +207,7 @@ static int exynos_drm_fbdev_recreate(struct drm_fb_helper *helper,
 	struct drm_device *dev = helper->dev;
 	struct exynos_drm_fbdev *exynos_fbdev = to_exynos_fbdev(helper);
 	struct drm_framebuffer *fb = exynos_fbdev->fb;
-	struct drm_mode_fb_cmd mode_cmd = { 0 };
+	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
@@ -220,8 +221,9 @@ static int exynos_drm_fbdev_recreate(struct drm_fb_helper *helper,
 
 	mode_cmd.width = sizes->surface_width;
 	mode_cmd.height = sizes->surface_height;
-	mode_cmd.bpp = sizes->surface_bpp;
-	mode_cmd.depth = sizes->surface_depth;
+	mode_cmd.pitches[0] = sizes->surface_width * (sizes->surface_bpp >> 3);
+	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
+							  sizes->surface_depth);
 
 	if (fb->funcs->destroy)
 		fb->funcs->destroy(fb);
