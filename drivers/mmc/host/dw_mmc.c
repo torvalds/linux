@@ -2062,14 +2062,14 @@ static int __exit dw_mci_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 /*
  * TODO: we should probably disable the clock to the card in the suspend path.
  */
-static int dw_mci_suspend(struct platform_device *pdev, pm_message_t mesg)
+static int dw_mci_suspend(struct device *dev)
 {
 	int i, ret;
-	struct dw_mci *host = platform_get_drvdata(pdev);
+	struct dw_mci *host = dev_get_drvdata(dev);
 
 	for (i = 0; i < host->num_slots; i++) {
 		struct dw_mci_slot *slot = host->slot[i];
@@ -2092,10 +2092,10 @@ static int dw_mci_suspend(struct platform_device *pdev, pm_message_t mesg)
 	return 0;
 }
 
-static int dw_mci_resume(struct platform_device *pdev)
+static int dw_mci_resume(struct device *dev)
 {
 	int i, ret;
-	struct dw_mci *host = platform_get_drvdata(pdev);
+	struct dw_mci *host = dev_get_drvdata(dev);
 
 	if (host->vmmc)
 		regulator_enable(host->vmmc);
@@ -2103,7 +2103,7 @@ static int dw_mci_resume(struct platform_device *pdev)
 	if (host->dma_ops->init)
 		host->dma_ops->init(host);
 
-	if (!mci_wait_reset(&pdev->dev, host)) {
+	if (!mci_wait_reset(dev, host)) {
 		ret = -ENODEV;
 		return ret;
 	}
@@ -2131,14 +2131,15 @@ static int dw_mci_resume(struct platform_device *pdev)
 #else
 #define dw_mci_suspend	NULL
 #define dw_mci_resume	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
+
+static SIMPLE_DEV_PM_OPS(dw_mci_pmops, dw_mci_suspend, dw_mci_resume);
 
 static struct platform_driver dw_mci_driver = {
 	.remove		= __exit_p(dw_mci_remove),
-	.suspend	= dw_mci_suspend,
-	.resume		= dw_mci_resume,
 	.driver		= {
 		.name		= "dw_mmc",
+		.pm		= &dw_mci_pmops,
 	},
 };
 
