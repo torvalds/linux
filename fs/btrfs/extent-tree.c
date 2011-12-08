@@ -5285,15 +5285,10 @@ alloc:
 		spin_unlock(&block_group->free_space_ctl->tree_lock);
 
 		/*
-		 * Ok we want to try and use the cluster allocator, so lets look
-		 * there, unless we are on LOOP_NO_EMPTY_SIZE, since we will
-		 * have tried the cluster allocator plenty of times at this
-		 * point and not have found anything, so we are likely way too
-		 * fragmented for the clustering stuff to find anything, so lets
-		 * just skip it and let the allocator find whatever block it can
-		 * find
+		 * Ok we want to try and use the cluster allocator, so
+		 * lets look there
 		 */
-		if (last_ptr && loop < LOOP_NO_EMPTY_SIZE) {
+		if (last_ptr) {
 			/*
 			 * the refill lock keeps out other
 			 * people trying to start a new cluster
@@ -5342,6 +5337,20 @@ alloc:
 			}
 			spin_unlock(&last_ptr->lock);
 refill_cluster:
+			/* If we are on LOOP_NO_EMPTY_SIZE, we can't
+			 * set up a new clusters, so lets just skip it
+			 * and let the allocator find whatever block
+			 * it can find.  If we reach this point, we
+			 * will have tried the cluster allocator
+			 * plenty of times and not have found
+			 * anything, so we are likely way too
+			 * fragmented for the clustering stuff to find
+			 * anything.  */
+			if (loop >= LOOP_NO_EMPTY_SIZE) {
+				spin_unlock(&last_ptr->refill_lock);
+				goto unclustered_alloc;
+			}
+
 			/*
 			 * this cluster didn't work out, free it and
 			 * start over
@@ -5389,6 +5398,7 @@ refill_cluster:
 			goto loop;
 		}
 
+unclustered_alloc:
 		offset = btrfs_find_space_for_alloc(block_group, search_start,
 						    num_bytes, empty_size);
 		/*
