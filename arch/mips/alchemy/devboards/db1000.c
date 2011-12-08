@@ -66,23 +66,6 @@ void __init board_setup(void)
 		  DB1000_BCSR_PHYS_ADDR + DB1000_BCSR_HEXLED_OFS);
 
 	printk(KERN_INFO "AMD Alchemy %s Board\n", board_type_str());
-
-#if defined(CONFIG_IRDA) && defined(CONFIG_AU1000_FIR)
-	{
-		u32 pin_func;
-
-		/* Set IRFIRSEL instead of GPIO15 */
-		pin_func = au_readl(SYS_PINFUNC) | SYS_PF_IRF;
-		au_writel(pin_func, SYS_PINFUNC);
-		/* Power off until the driver is in use */
-		bcsr_mod(BCSR_RESETS, BCSR_RESETS_IRDA_MODE_MASK,
-			 BCSR_RESETS_IRDA_MODE_OFF);
-	}
-#endif
-	bcsr_write(BCSR_PCMCIA, 0);	/* turn off PCMCIA power */
-
-	/* Enable GPIO[31:0] inputs */
-	alchemy_gpio1_input_enable();
 }
 
 
@@ -389,6 +372,57 @@ static struct platform_device db1100_mmc1_dev = {
 	.resource	= au1100_mmc1_res,
 };
 
+/******************************************************************************/
+
+static void db1000_irda_set_phy_mode(int mode)
+{
+	unsigned short mask = BCSR_RESETS_IRDA_MODE_MASK | BCSR_RESETS_FIR_SEL;
+
+	switch (mode) {
+	case AU1000_IRDA_PHY_MODE_OFF:
+		bcsr_mod(BCSR_RESETS, mask, BCSR_RESETS_IRDA_MODE_OFF);
+		break;
+	case AU1000_IRDA_PHY_MODE_SIR:
+		bcsr_mod(BCSR_RESETS, mask, BCSR_RESETS_IRDA_MODE_FULL);
+		break;
+	case AU1000_IRDA_PHY_MODE_FIR:
+		bcsr_mod(BCSR_RESETS, mask, BCSR_RESETS_IRDA_MODE_FULL |
+					    BCSR_RESETS_FIR_SEL);
+		break;
+	}
+}
+
+static struct au1k_irda_platform_data db1000_irda_platdata = {
+	.set_phy_mode	= db1000_irda_set_phy_mode,
+};
+
+static struct resource au1000_irda_res[] = {
+	[0] = {
+		.start	= AU1000_IRDA_PHYS_ADDR,
+		.end	= AU1000_IRDA_PHYS_ADDR + 0x0fff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AU1000_IRDA_TX_INT,
+		.end	= AU1000_IRDA_TX_INT,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start	= AU1000_IRDA_RX_INT,
+		.end	= AU1000_IRDA_RX_INT,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device db1000_irda_dev = {
+	.name	= "au1000-irda",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &db1000_irda_platdata,
+	},
+	.resource	= au1000_irda_res,
+	.num_resources	= ARRAY_SIZE(au1000_irda_res),
+};
 
 static struct platform_device *db1x00_devs[] = {
 	&db1x00_codec_dev,
@@ -397,10 +431,15 @@ static struct platform_device *db1x00_devs[] = {
 	&db1x00_audio_dev,
 };
 
+static struct platform_device *db1000_devs[] = {
+	&db1000_irda_dev,
+};
+
 static struct platform_device *db1100_devs[] = {
 	&au1100_lcd_device,
 	&db1100_mmc0_dev,
 	&db1100_mmc1_dev,
+	&db1000_irda_dev,
 };
 
 static int __init db1000_dev_init(void)
@@ -434,6 +473,7 @@ static int __init db1000_dev_init(void)
 		d1 = AU1000_GPIO3_INT;
 		s0 = AU1000_GPIO1_INT;
 		s1 = AU1000_GPIO4_INT;
+		platform_add_devices(db1000_devs, ARRAY_SIZE(db1000_devs));
 	} else
 		return 0; /* unknown board, no further dev setup to do */
 
