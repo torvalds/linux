@@ -28,6 +28,9 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
+#include <linux/spi/spi.h>
+#include <linux/spi/spi_gpio.h>
+#include <linux/spi/ads7846.h>
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/au1000_dma.h>
 #include <asm/mach-au1x00/au1100_mmc.h>
@@ -424,6 +427,43 @@ static struct platform_device db1000_irda_dev = {
 	.num_resources	= ARRAY_SIZE(au1000_irda_res),
 };
 
+/******************************************************************************/
+
+static struct ads7846_platform_data db1100_touch_pd = {
+	.model		= 7846,
+	.vref_mv	= 3300,
+	.gpio_pendown	= 21,
+};
+
+static struct spi_gpio_platform_data db1100_spictl_pd = {
+	.sck		= 209,
+	.mosi		= 208,
+	.miso		= 207,
+	.num_chipselect = 1,
+};
+
+static struct spi_board_info db1100_spi_info[] __initdata = {
+	[0] = {
+		.modalias	 = "ads7846",
+		.max_speed_hz	 = 3250000,
+		.bus_num	 = 0,
+		.chip_select	 = 0,
+		.mode		 = 0,
+		.irq		 = AU1100_GPIO21_INT,
+		.platform_data	 = &db1100_touch_pd,
+		.controller_data = (void *)210,	/* for spi_gpio: CS# GPIO210 */
+	},
+};
+
+static struct platform_device db1100_spi_dev = {
+	.name		= "spi_gpio",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &db1100_spictl_pd,
+	},
+};
+
+
 static struct platform_device *db1x00_devs[] = {
 	&db1x00_codec_dev,
 	&alchemy_ac97c_dma_dev,
@@ -440,12 +480,14 @@ static struct platform_device *db1100_devs[] = {
 	&db1100_mmc0_dev,
 	&db1100_mmc1_dev,
 	&db1000_irda_dev,
+	&db1100_spi_dev,
 };
 
 static int __init db1000_dev_init(void)
 {
 	int board = BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI));
 	int c0, c1, d0, d1, s0, s1;
+	unsigned long pfc;
 
 	if (board == BCSR_WHOAMI_DB1500) {
 		c0 = AU1500_GPIO2_INT;
@@ -464,6 +506,20 @@ static int __init db1000_dev_init(void)
 
 		gpio_direction_input(19);	/* sd0 cd# */
 		gpio_direction_input(20);	/* sd1 cd# */
+		gpio_direction_input(21);	/* touch pendown# */
+		gpio_direction_input(207);	/* SPI MISO */
+		gpio_direction_output(208, 0);	/* SPI MOSI */
+		gpio_direction_output(209, 1);	/* SPI SCK */
+		gpio_direction_output(210, 1);	/* SPI CS# */
+
+		/* spi_gpio on SSI0 pins */
+		pfc = __raw_readl((void __iomem *)SYS_PINFUNC);
+		pfc |= (1 << 0);	/* SSI0 pins as GPIOs */
+		__raw_writel(pfc, (void __iomem *)SYS_PINFUNC);
+		wmb();
+
+		spi_register_board_info(db1100_spi_info,
+					ARRAY_SIZE(db1100_spi_info));
 
 		platform_add_devices(db1100_devs, ARRAY_SIZE(db1100_devs));
 	} else if (board == BCSR_WHOAMI_DB1000) {
