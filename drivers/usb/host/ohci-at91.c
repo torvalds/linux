@@ -139,8 +139,23 @@ static int usb_hcd_at91_probe(const struct hc_driver *driver,
 	}
 
 	iclk = clk_get(&pdev->dev, "ohci_clk");
+	if (IS_ERR(iclk)) {
+		dev_err(&pdev->dev, "failed to get ohci_clk\n");
+		retval = PTR_ERR(iclk);
+		goto err3;
+	}
 	fclk = clk_get(&pdev->dev, "uhpck");
+	if (IS_ERR(fclk)) {
+		dev_err(&pdev->dev, "failed to get uhpck\n");
+		retval = PTR_ERR(fclk);
+		goto err4;
+	}
 	hclk = clk_get(&pdev->dev, "hclk");
+	if (IS_ERR(hclk)) {
+		dev_err(&pdev->dev, "failed to get hclk\n");
+		retval = PTR_ERR(hclk);
+		goto err5;
+	}
 
 	at91_start_hc(pdev);
 	ohci_hcd_init(hcd_to_ohci(hcd));
@@ -153,9 +168,12 @@ static int usb_hcd_at91_probe(const struct hc_driver *driver,
 	at91_stop_hc(pdev);
 
 	clk_put(hclk);
+ err5:
 	clk_put(fclk);
+ err4:
 	clk_put(iclk);
 
+ err3:
 	iounmap(hcd->regs);
 
  err2:
