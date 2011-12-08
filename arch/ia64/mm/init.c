@@ -10,6 +10,7 @@
 #include <linux/bootmem.h>
 #include <linux/efi.h>
 #include <linux/elf.h>
+#include <linux/memblock.h>
 #include <linux/mm.h>
 #include <linux/mmzone.h>
 #include <linux/module.h>
@@ -557,8 +558,7 @@ int __init register_active_ranges(u64 start, u64 len, int nid)
 #endif
 
 	if (start < end)
-		add_active_range(nid, __pa(start) >> PAGE_SHIFT,
-			__pa(end) >> PAGE_SHIFT);
+		memblock_add_node(__pa(start), end - start, nid);
 	return 0;
 }
 
