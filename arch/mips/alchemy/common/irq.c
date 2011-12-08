@@ -510,6 +510,58 @@ static inline void ic_init(void __iomem *base)
 	wmb();
 }
 
+static unsigned long alchemy_ic_pmdata[7 * 2];
+
+static inline void alchemy_ic_suspend_one(void __iomem *base, unsigned long *d)
+{
+	d[0] = __raw_readl(base + IC_CFG0RD);
+	d[1] = __raw_readl(base + IC_CFG1RD);
+	d[2] = __raw_readl(base + IC_CFG2RD);
+	d[3] = __raw_readl(base + IC_SRCRD);
+	d[4] = __raw_readl(base + IC_ASSIGNRD);
+	d[5] = __raw_readl(base + IC_WAKERD);
+	d[6] = __raw_readl(base + IC_MASKRD);
+	ic_init(base);		/* shut it up too while at it */
+}
+
+static inline void alchemy_ic_resume_one(void __iomem *base, unsigned long *d)
+{
+	ic_init(base);
+
+	__raw_writel(d[0], base + IC_CFG0SET);
+	__raw_writel(d[1], base + IC_CFG1SET);
+	__raw_writel(d[2], base + IC_CFG2SET);
+	__raw_writel(d[3], base + IC_SRCSET);
+	__raw_writel(d[4], base + IC_ASSIGNSET);
+	__raw_writel(d[5], base + IC_WAKESET);
+	wmb();
+
+	__raw_writel(d[6], base + IC_MASKSET);
+	wmb();
+}
+
+static int alchemy_ic_suspend(void)
+{
+	alchemy_ic_suspend_one((void __iomem *)KSEG1ADDR(AU1000_IC0_PHYS_ADDR),
+			       alchemy_ic_pmdata);
+	alchemy_ic_suspend_one((void __iomem *)KSEG1ADDR(AU1000_IC1_PHYS_ADDR),
+			       &alchemy_ic_pmdata[7]);
+	return 0;
+}
+
+static void alchemy_ic_resume(void)
+{
+	alchemy_ic_resume_one((void __iomem *)KSEG1ADDR(AU1000_IC1_PHYS_ADDR),
+			      &alchemy_ic_pmdata[7]);
+	alchemy_ic_resume_one((void __iomem *)KSEG1ADDR(AU1000_IC0_PHYS_ADDR),
+			      alchemy_ic_pmdata);
+}
+
+static struct syscore_ops alchemy_ic_syscore_ops = {
+	.suspend	= alchemy_ic_suspend,
+	.resume		= alchemy_ic_resume,
+};
+
 static void __init au1000_init_irq(struct au1xxx_irqmap *map)
 {
 	unsigned int bit, irq_nr;
@@ -517,6 +569,7 @@ static void __init au1000_init_irq(struct au1xxx_irqmap *map)
 
 	ic_init((void __iomem *)KSEG1ADDR(AU1000_IC0_PHYS_ADDR));
 	ic_init((void __iomem *)KSEG1ADDR(AU1000_IC1_PHYS_ADDR));
+	register_syscore_ops(&alchemy_ic_syscore_ops);
 	mips_cpu_irq_init();
 
 	/* register all 64 possible IC0+IC1 irq sources as type "none".
@@ -573,63 +626,3 @@ void __init arch_init_irq(void)
 		break;
 	}
 }
-
-
-static unsigned long alchemy_ic_pmdata[7 * 2];
-
-static inline void alchemy_ic_suspend_one(void __iomem *base, unsigned long *d)
-{
-	d[0] = __raw_readl(base + IC_CFG0RD);
-	d[1] = __raw_readl(base + IC_CFG1RD);
-	d[2] = __raw_readl(base + IC_CFG2RD);
-	d[3] = __raw_readl(base + IC_SRCRD);
-	d[4] = __raw_readl(base + IC_ASSIGNRD);
-	d[5] = __raw_readl(base + IC_WAKERD);
-	d[6] = __raw_readl(base + IC_MASKRD);
-	ic_init(base);		/* shut it up too while at it */
-}
-
-static inline void alchemy_ic_resume_one(void __iomem *base, unsigned long *d)
-{
-	ic_init(base);
-
-	__raw_writel(d[0], base + IC_CFG0SET);
-	__raw_writel(d[1], base + IC_CFG1SET);
-	__raw_writel(d[2], base + IC_CFG2SET);
-	__raw_writel(d[3], base + IC_SRCSET);
-	__raw_writel(d[4], base + IC_ASSIGNSET);
-	__raw_writel(d[5], base + IC_WAKESET);
-	wmb();
-
-	__raw_writel(d[6], base + IC_MASKSET);
-	wmb();
-}
-
-static int alchemy_ic_suspend(void)
-{
-	alchemy_ic_suspend_one((void __iomem *)KSEG1ADDR(AU1000_IC0_PHYS_ADDR),
-			       alchemy_ic_pmdata);
-	alchemy_ic_suspend_one((void __iomem *)KSEG1ADDR(AU1000_IC1_PHYS_ADDR),
-			       &alchemy_ic_pmdata[7]);
-	return 0;
-}
-
-static void alchemy_ic_resume(void)
-{
-	alchemy_ic_resume_one((void __iomem *)KSEG1ADDR(AU1000_IC1_PHYS_ADDR),
-			      &alchemy_ic_pmdata[7]);
-	alchemy_ic_resume_one((void __iomem *)KSEG1ADDR(AU1000_IC0_PHYS_ADDR),
-			      alchemy_ic_pmdata);
-}
-
-static struct syscore_ops alchemy_ic_syscore_ops = {
-	.suspend	= alchemy_ic_suspend,
-	.resume		= alchemy_ic_resume,
-};
-
-static int __init alchemy_ic_pm_init(void)
-{
-	register_syscore_ops(&alchemy_ic_syscore_ops);
-	return 0;
-}
-device_initcall(alchemy_ic_pm_init);

@@ -278,41 +278,7 @@ static int au1300_gpic_settype(struct irq_data *d, unsigned int type)
 	return 0;
 }
 
-static void __init alchemy_gpic_init_irq(const struct gpic_devint_data *dints)
-{
-	int i;
-	void __iomem *bank_base;
-
-	mips_cpu_irq_init();
-
-	/* disable & ack all possible interrupt sources */
-	for (i = 0; i < 4; i++) {
-		bank_base = AU1300_GPIC_ADDR + (i * 4);
-		__raw_writel(~0UL, bank_base + AU1300_GPIC_IDIS);
-		wmb();
-		__raw_writel(~0UL, bank_base + AU1300_GPIC_IPEND);
-		wmb();
-	}
-
-	/* register an irq_chip for them, with 2nd highest priority */
-	for (i = ALCHEMY_GPIC_INT_BASE; i <= ALCHEMY_GPIC_INT_LAST; i++) {
-		au1300_set_irq_priority(i, 1);
-		au1300_gpic_settype(irq_get_irq_data(i), IRQ_TYPE_NONE);
-	}
-
-	/* setup known on-chip sources */
-	while ((i = dints->irq) != -1) {
-		au1300_gpic_settype(irq_get_irq_data(i), dints->type);
-		au1300_set_irq_priority(i, dints->prio);
-
-		if (dints->internal)
-			au1300_pinfunc_to_dev(i - ALCHEMY_GPIC_INT_BASE);
-
-		dints++;
-	}
-
-	set_c0_status(IE_IRQ0 | IE_IRQ1 | IE_IRQ2 | IE_IRQ3);
-}
+/******************************************************************************/
 
 static unsigned long alchemy_gpic_pmdata[ALCHEMY_GPIC_INT_NUM + 6];
 
@@ -383,6 +349,43 @@ static struct syscore_ops alchemy_gpic_pmops = {
 	.resume		= alchemy_gpic_resume,
 };
 
+static void __init alchemy_gpic_init_irq(const struct gpic_devint_data *dints)
+{
+	int i;
+	void __iomem *bank_base;
+
+	register_syscore_ops(&alchemy_gpic_pmops);
+	mips_cpu_irq_init();
+
+	/* disable & ack all possible interrupt sources */
+	for (i = 0; i < 4; i++) {
+		bank_base = AU1300_GPIC_ADDR + (i * 4);
+		__raw_writel(~0UL, bank_base + AU1300_GPIC_IDIS);
+		wmb();
+		__raw_writel(~0UL, bank_base + AU1300_GPIC_IPEND);
+		wmb();
+	}
+
+	/* register an irq_chip for them, with 2nd highest priority */
+	for (i = ALCHEMY_GPIC_INT_BASE; i <= ALCHEMY_GPIC_INT_LAST; i++) {
+		au1300_set_irq_priority(i, 1);
+		au1300_gpic_settype(irq_get_irq_data(i), IRQ_TYPE_NONE);
+	}
+
+	/* setup known on-chip sources */
+	while ((i = dints->irq) != -1) {
+		au1300_gpic_settype(irq_get_irq_data(i), dints->type);
+		au1300_set_irq_priority(i, dints->prio);
+
+		if (dints->internal)
+			au1300_pinfunc_to_dev(i - ALCHEMY_GPIC_INT_BASE);
+
+		dints++;
+	}
+
+	set_c0_status(IE_IRQ0 | IE_IRQ1 | IE_IRQ2 | IE_IRQ3);
+}
+
 /**********************************************************************/
 
 void __init arch_init_irq(void)
@@ -390,7 +393,6 @@ void __init arch_init_irq(void)
 	switch (alchemy_get_cputype()) {
 	case ALCHEMY_CPU_AU1300:
 		alchemy_gpic_init_irq(&au1300_devints[0]);
-		register_syscore_ops(&alchemy_gpic_pmops);
 		break;
 	}
 }
