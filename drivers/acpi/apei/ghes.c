@@ -740,26 +740,34 @@ static int ghes_notify_sci(struct notifier_block *this,
 	return ret;
 }
 
-static void ghes_proc_in_irq(struct irq_work *irq_work)
+static struct llist_node *llist_nodes_reverse(struct llist_node *llnode)
 {
-	struct llist_node *llnode, *next, *tail = NULL;
-	struct ghes_estatus_node *estatus_node;
-	struct acpi_hest_generic *generic;
-	struct acpi_hest_generic_status *estatus;
-	u32 len, node_len;
+	struct llist_node *next, *tail = NULL;
 
-	/*
-	 * Because the time order of estatus in list is reversed,
-	 * revert it back to proper order.
-	 */
-	llnode = llist_del_all(&ghes_estatus_llist);
 	while (llnode) {
 		next = llnode->next;
 		llnode->next = tail;
 		tail = llnode;
 		llnode = next;
 	}
-	llnode = tail;
+
+	return tail;
+}
+
+static void ghes_proc_in_irq(struct irq_work *irq_work)
+{
+	struct llist_node *llnode, *next;
+	struct ghes_estatus_node *estatus_node;
+	struct acpi_hest_generic *generic;
+	struct acpi_hest_generic_status *estatus;
+	u32 len, node_len;
+
+	llnode = llist_del_all(&ghes_estatus_llist);
+	/*
+	 * Because the time order of estatus in list is reversed,
+	 * revert it back to proper order.
+	 */
+	llnode = llist_nodes_reverse(llnode);
 	while (llnode) {
 		next = llnode->next;
 		estatus_node = llist_entry(llnode, struct ghes_estatus_node,
@@ -776,6 +784,32 @@ static void ghes_proc_in_irq(struct irq_work *irq_work)
 		gen_pool_free(ghes_estatus_pool, (unsigned long)estatus_node,
 			      node_len);
 		llnode = next;
+	}
+}
+
+static void ghes_print_queued_estatus(void)
+{
+	struct llist_node *llnode;
+	struct ghes_estatus_node *estatus_node;
+	struct acpi_hest_generic *generic;
+	struct acpi_hest_generic_status *estatus;
+	u32 len, node_len;
+
+	llnode = llist_del_all(&ghes_estatus_llist);
+	/*
+	 * Because the time order of estatus in list is reversed,
+	 * revert it back to proper order.
+	 */
+	llnode = llist_nodes_reverse(llnode);
+	while (llnode) {
+		estatus_node = llist_entry(llnode, struct ghes_estatus_node,
+					   llnode);
+		estatus = GHES_ESTATUS_FROM_NODE(estatus_node);
+		len = apei_estatus_len(estatus);
+		node_len = GHES_ESTATUS_NODE_LEN(len);
+		generic = estatus_node->generic;
+		ghes_print_estatus(NULL, generic, estatus);
+		llnode = llnode->next;
 	}
 }
 
@@ -804,6 +838,7 @@ static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
 
 	if (sev_global >= GHES_SEV_PANIC) {
 		oops_begin();
+		ghes_print_queued_estatus();
 		__ghes_print_estatus(KERN_EMERG, ghes_global->generic,
 				     ghes_global->estatus);
 		/* reboot to log the error! */
