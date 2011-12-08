@@ -999,7 +999,8 @@ static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		   key_usage, key->seq_len);
 
 	if (vif->nw_type == AP_NETWORK && !pairwise &&
-	    (key_type == TKIP_CRYPT || key_type == AES_CRYPT) && params) {
+	    (key_type == TKIP_CRYPT || key_type == AES_CRYPT ||
+	     key_type == WAPI_CRYPT) && params) {
 		ar->ap_mode_bkey.valid = true;
 		ar->ap_mode_bkey.key_index = key_index;
 		ar->ap_mode_bkey.key_type = key_type;

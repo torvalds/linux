@@ -397,7 +397,9 @@ void ath6kl_connect_ap_mode_bss(struct ath6kl_vif *vif, u16 channel)
 	case NONE_AUTH:
 		if (vif->prwise_crypto == WEP_CRYPT)
 			ath6kl_install_static_wep_keys(vif);
-		break;
+		if (!ik->valid || ik->key_type != WAPI_CRYPT)
+			break;
+		/* for WAPI, we need to set the delayed group key, continue: */
 	case WPA_PSK_AUTH:
 	case WPA2_PSK_AUTH:
 	case (WPA_PSK_AUTH | WPA2_PSK_AUTH):
