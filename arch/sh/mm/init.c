@@ -324,7 +324,6 @@ void __init paging_init(void)
 	unsigned long vaddr, end;
 	int nid;
 
-	memblock_init();
 	sh_mv.mv_mem_init();
 
 	early_reserve_mem();
