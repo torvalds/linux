@@ -1087,12 +1087,10 @@ static void msm_hs_config_port(struct uart_port *uport, int cfg_flags)
 }
 
 /*  Handle CTS changes (Called from interrupt handler) */
-static void msm_hs_handle_delta_cts(struct uart_port *uport)
+static void msm_hs_handle_delta_cts_locked(struct uart_port *uport)
 {
-	unsigned long flags;
 	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(uport);
 
-	spin_lock_irqsave(&uport->lock, flags);
 	clk_enable(msm_uport->clk);
 
 	/* clear interrupt */
@@ -1100,7 +1098,6 @@ static void msm_hs_handle_delta_cts(struct uart_port *uport)
 	uport->icount.cts++;
 
 	clk_disable(msm_uport->clk);
-	spin_unlock_irqrestore(&uport->lock, flags);
 
 	/* clear the IOCTL TIOCMIWAIT if called */
 	wake_up_interruptible(&uport->state->port.delta_msr_wait);
@@ -1248,7 +1245,7 @@ static irqreturn_t msm_hs_isr(int irq, void *dev)
 
 	/* Change in CTS interrupt */
 	if (isr_status & UARTDM_ISR_DELTA_CTS_BMSK)
-		msm_hs_handle_delta_cts(uport);
+		msm_hs_handle_delta_cts_locked(uport);
 
 	spin_unlock_irqrestore(&uport->lock, flags);
 
