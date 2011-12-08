@@ -134,7 +134,7 @@ void __init MMU_init(void)
 
 	if (memblock.memory.cnt > 1) {
 #ifndef CONFIG_WII
-		memblock.memory.cnt = 1;
+		memblock_enforce_memory_limit(memblock.memory.regions[0].size);
 		memblock_analyze();
 		printk(KERN_WARNING "Only using first contiguous memory region");
 #else
