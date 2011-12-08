@@ -166,7 +166,6 @@ struct shared_phy_params {
 	struct phy_shim_info *physhim;
 	uint unit;
 	uint corerev;
-	uint buscorerev;
 	u16 vid;
 	u16 did;
 	uint chip;
@@ -175,7 +174,6 @@ struct shared_phy_params {
 	uint sromrev;
 	uint boardtype;
 	uint boardrev;
-	uint boardvendor;
 	u32 boardflags;
 	u32 boardflags2;
 };

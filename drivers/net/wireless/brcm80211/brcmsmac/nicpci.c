@@ -224,9 +224,9 @@ struct pcicore_info {
 };
 
 #define PCIE_ASPM(sih)							\
-	(((sih)->buscoretype == PCIE_CORE_ID) &&			\
-	 (((sih)->buscorerev >= 3) &&					\
-	  ((sih)->buscorerev <= 5)))
+	((ai_get_buscoretype(sih) == PCIE_CORE_ID) &&			\
+	 ((ai_get_buscorerev(sih) >= 3) &&				\
+	  (ai_get_buscorerev(sih) <= 5)))
 
 
 /* delay needed between the mdio control/ mdiodata register data access */
@@ -251,7 +251,7 @@ struct pcicore_info *pcicore_init(struct si_pub *sih, struct pci_dev *pdev,
 	pi->sih = sih;
 	pi->dev = pdev;
 
-	if (sih->buscoretype == PCIE_CORE_ID) {
+	if (ai_get_buscoretype(sih) == PCIE_CORE_ID) {
 		u8 cap_ptr;
 		pi->regs.pcieregs = regs;
 		cap_ptr = pcicore_find_pci_capability(pi->dev, PCI_CAP_ID_EXP,
@@ -504,7 +504,8 @@ static void pcie_extendL1timer(struct pcicore_info *pi, bool extend)
 	struct si_pub *sih = pi->sih;
 	struct sbpcieregs __iomem *pcieregs = pi->regs.pcieregs;
 
-	if (sih->buscoretype != PCIE_CORE_ID || sih->buscorerev < 7)
+	if (ai_get_buscoretype(sih) != PCIE_CORE_ID ||
+	    ai_get_buscorerev(sih) < 7)
 		return;
 
 	w = pcie_readreg(pcieregs, PCIE_PCIEREGS, PCIE_DLLP_PMTHRESHREG);
@@ -527,7 +528,8 @@ static void pcie_clkreq_upd(struct pcicore_info *pi, uint state)
 			pcie_clkreq(pi, 1, 0);
 		break;
 	case SI_PCIDOWN:
-		if (sih->buscorerev == 6) {	/* turn on serdes PLL down */
+		/* turn on serdes PLL down */
+		if (ai_get_buscorerev(sih) == 6) {
 			ai_corereg(sih, SI_CC_IDX,
 				   offsetof(struct chipcregs, chipcontrol_addr),
 				   ~0, 0);
@@ -539,7 +541,8 @@ static void pcie_clkreq_upd(struct pcicore_info *pi, uint state)
 		}
 		break;
 	case SI_PCIUP:
-		if (sih->buscorerev == 6) {	/* turn off serdes PLL down */
+		/* turn off serdes PLL down */
+		if (ai_get_buscorerev(sih) == 6) {
 			ai_corereg(sih, SI_CC_IDX,
 				   offsetof(struct chipcregs, chipcontrol_addr),
 				   ~0, 0);
@@ -678,7 +681,7 @@ static void pcie_war_pci_setup(struct pcicore_info *pi)
 	struct sbpcieregs __iomem *pcieregs = pi->regs.pcieregs;
 	u32 w;
 
-	if (sih->buscorerev == 0 || sih->buscorerev == 1) {
+	if (ai_get_buscorerev(sih) == 0 || ai_get_buscorerev(sih) == 1) {
 		w = pcie_readreg(pcieregs, PCIE_PCIEREGS,
 				 PCIE_TLP_WORKAROUNDSREG);
 		w |= 0x8;
@@ -686,13 +689,13 @@ static void pcie_war_pci_setup(struct pcicore_info *pi)
 			      PCIE_TLP_WORKAROUNDSREG, w);
 	}
 
-	if (sih->buscorerev == 1) {
+	if (ai_get_buscorerev(sih) == 1) {
 		w = pcie_readreg(pcieregs, PCIE_PCIEREGS, PCIE_DLLP_LCREG);
 		w |= 0x40;
 		pcie_writereg(pcieregs, PCIE_PCIEREGS, PCIE_DLLP_LCREG, w);
 	}
 
-	if (sih->buscorerev == 0) {
+	if (ai_get_buscorerev(sih) == 0) {
 		pcie_mdiowrite(pi, MDIODATA_DEV_RX, SERDES_RX_TIMER1, 0x8128);
 		pcie_mdiowrite(pi, MDIODATA_DEV_RX, SERDES_RX_CDR, 0x0100);
 		pcie_mdiowrite(pi, MDIODATA_DEV_RX, SERDES_RX_CDRBW, 0x1466);
@@ -708,13 +711,13 @@ static void pcie_war_pci_setup(struct pcicore_info *pi)
 		pcie_war_serdes(pi);
 
 		pcie_war_aspm_clkreq(pi);
-	} else if (pi->sih->buscorerev == 7)
+	} else if (ai_get_buscorerev(pi->sih) == 7)
 		pcie_war_noplldown(pi);
 
 	/* Note that the fix is actually in the SROM,
 	 * that's why this is open-ended
 	 */
-	if (pi->sih->buscorerev >= 6)
+	if (ai_get_buscorerev(pi->sih) >= 6)
 		pcie_misc_config_fixup(pi);
 }
 
@@ -745,7 +748,7 @@ void pcicore_attach(struct pcicore_info *pi, int state)
 
 void pcicore_hwup(struct pcicore_info *pi)
 {
-	if (!pi || pi->sih->buscoretype != PCIE_CORE_ID)
+	if (!pi || ai_get_buscoretype(pi->sih) != PCIE_CORE_ID)
 		return;
 
 	pcie_war_pci_setup(pi);
@@ -753,7 +756,7 @@ void pcicore_hwup(struct pcicore_info *pi)
 
 void pcicore_up(struct pcicore_info *pi, int state)
 {
-	if (!pi || pi->sih->buscoretype != PCIE_CORE_ID)
+	if (!pi || ai_get_buscoretype(pi->sih) != PCIE_CORE_ID)
 		return;
 
 	/* Restore L1 timer for better performance */
@@ -781,7 +784,7 @@ void pcicore_sleep(struct pcicore_info *pi)
 
 void pcicore_down(struct pcicore_info *pi, int state)
 {
-	if (!pi || pi->sih->buscoretype != PCIE_CORE_ID)
+	if (!pi || ai_get_buscoretype(pi->sih) != PCIE_CORE_ID)
 		return;
 
 	pcie_clkreq_upd(pi, state);
@@ -826,7 +829,7 @@ pcicore_pci_setup(struct pcicore_info *pi, struct sbpciregs __iomem *pciregs)
 
 	OR_REG(&pciregs->sbtopci2, SBTOPCI_PREF | SBTOPCI_BURST);
 
-	if (((struct si_info *)(pi->sih))->pub.buscorerev >= 11) {
+	if (ai_get_buscorerev(pi->sih) >= 11) {
 		OR_REG(&pciregs->sbtopci2, SBTOPCI_RC_READMULTI);
 		w = R_REG(&pciregs->clkrun);
 		W_REG(&pciregs->clkrun, w | PCI_CLKRUN_DSBL);

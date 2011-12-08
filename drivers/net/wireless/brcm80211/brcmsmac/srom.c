@@ -589,9 +589,9 @@ static u8 brcms_srom_crc8_table[CRC8_TABLE_SIZE];
 static u8 __iomem *
 srom_window_address(struct si_pub *sih, u8 __iomem *curmap)
 {
-	if (sih->ccrev < 32)
+	if (ai_get_ccrev(sih) < 32)
 		return curmap + PCI_BAR0_SPROM_OFFSET;
-	if (sih->cccaps & CC_CAP_SROM)
+	if (ai_get_cccaps(sih) & CC_CAP_SROM)
 		return curmap + PCI_16KB0_CCREGS_OFFSET + CC_SROM_OTP;
 
 	return NULL;

@@ -115,10 +115,10 @@ static void si_pmu_res_masks(struct si_pub *sih, u32 * pmin, u32 * pmax)
 	uint rsrcs;
 
 	/* # resources */
-	rsrcs = (sih->pmucaps & PCAP_RC_MASK) >> PCAP_RC_SHIFT;
+	rsrcs = (ai_get_pmucaps(sih) & PCAP_RC_MASK) >> PCAP_RC_SHIFT;
 
 	/* determine min/max rsrc masks */
-	switch (sih->chip) {
+	switch (ai_get_chip_id(sih)) {
 	case BCM43224_CHIP_ID:
 	case BCM43225_CHIP_ID:
 		/* ??? */
@@ -145,7 +145,7 @@ si_pmu_spuravoid_pllupdate(struct si_pub *sih, struct chipcregs __iomem *cc,
 {
 	u32 tmp = 0;
 
-	switch (sih->chip) {
+	switch (ai_get_chip_id(sih)) {
 	case BCM43224_CHIP_ID:
 	case BCM43225_CHIP_ID:
 		if (spuravoid == 1) {
@@ -207,7 +207,7 @@ u16 si_pmu_fast_pwrup_delay(struct si_pub *sih)
 {
 	uint delay = PMU_MAX_TRANSITION_DLY;
 
-	switch (sih->chip) {
+	switch (ai_get_chip_id(sih)) {
 	case BCM43224_CHIP_ID:
 	case BCM43225_CHIP_ID:
 	case BCM4313_CHIP_ID:
@@ -276,10 +276,10 @@ u32 si_pmu_alp_clock(struct si_pub *sih)
 	u32 clock = ALP_CLOCK;
 
 	/* bail out with default */
-	if (!(sih->cccaps & CC_CAP_PMU))
+	if (!(ai_get_cccaps(sih) & CC_CAP_PMU))
 		return clock;
 
-	switch (sih->chip) {
+	switch (ai_get_chip_id(sih)) {
 	case BCM43224_CHIP_ID:
 	case BCM43225_CHIP_ID:
 	case BCM4313_CHIP_ID:
@@ -319,9 +319,9 @@ void si_pmu_init(struct si_pub *sih)
 	origidx = ai_coreidx(sih);
 	cc = ai_setcoreidx(sih, SI_CC_IDX);
 
-	if (sih->pmurev == 1)
+	if (ai_get_pmurev(sih) == 1)
 		AND_REG(&cc->pmucontrol, ~PCTL_NOILP_ON_WAIT);
-	else if (sih->pmurev >= 2)
+	else if (ai_get_pmurev(sih) >= 2)
 		OR_REG(&cc->pmucontrol, PCTL_NOILP_ON_WAIT);
 
 	/* Return to original core */
@@ -358,7 +358,7 @@ void si_pmu_pll_init(struct si_pub *sih, uint xtalfreq)
 	origidx = ai_coreidx(sih);
 	cc = ai_setcoreidx(sih, SI_CC_IDX);
 
-	switch (sih->chip) {
+	switch (ai_get_chip_id(sih)) {
 	case BCM4313_CHIP_ID:
 	case BCM43224_CHIP_ID:
 	case BCM43225_CHIP_ID:
@@ -411,7 +411,7 @@ u32 si_pmu_measure_alpclk(struct si_pub *sih)
 	uint origidx;
 	u32 alp_khz;
 
-	if (sih->pmurev < 10)
+	if (ai_get_pmurev(sih) < 10)
 		return 0;
 
 	/* Remember original core before switch to chipc */

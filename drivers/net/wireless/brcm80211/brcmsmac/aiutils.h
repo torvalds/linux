@@ -292,4 +292,50 @@ extern void ai_chipcontrl_epa4331(struct si_pub *sih, bool on);
 /* Enable Ex-PA for 4313 */
 extern void ai_epa_4313war(struct si_pub *sih);
 
+static inline uint ai_get_buscoretype(struct si_pub *sih)
+{
+	return sih->buscoretype;
+}
+
+static inline uint ai_get_buscorerev(struct si_pub *sih)
+{
+	return sih->buscorerev;
+}
+static inline int ai_get_ccrev(struct si_pub *sih)
+{
+	return sih->ccrev;
+}
+static inline u32 ai_get_cccaps(struct si_pub *sih)
+{
+	return sih->cccaps;
+}
+static inline int ai_get_pmurev(struct si_pub *sih)
+{
+	return sih->pmurev;
+}
+static inline u32 ai_get_pmucaps(struct si_pub *sih)
+{
+	return sih->pmucaps;
+}
+static inline uint ai_get_boardtype(struct si_pub *sih)
+{
+	return sih->boardtype;
+}
+static inline uint ai_get_boardvendor(struct si_pub *sih)
+{
+	return sih->boardvendor;
+}
+static inline uint ai_get_chip_id(struct si_pub *sih)
+{
+	return sih->chip;
+}
+static inline uint ai_get_chiprev(struct si_pub *sih)
+{
+	return sih->chiprev;
+}
+static inline uint ai_get_chippkg(struct si_pub *sih)
+{
+	return sih->chippkg;
+}
+
 #endif				/* _BRCM_AIUTILS_H_ */

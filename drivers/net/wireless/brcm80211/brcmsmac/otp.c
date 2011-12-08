@@ -146,7 +146,7 @@ static int ipxotp_max_rgnsz(struct si_pub *sih, int osizew)
 {
 	int ret = 0;
 
-	switch (sih->chip) {
+	switch (ai_get_chip_id(sih)) {
 	case BCM43224_CHIP_ID:
 	case BCM43225_CHIP_ID:
 		ret = osizew * 2 - OTP_SZ_FU_72 - OTP_SZ_CHECKSUM;
@@ -170,10 +170,10 @@ static void _ipxotp_init(struct otpinfo *oi, struct chipcregs __iomem *cc)
 	 * record word offset of General Use Region
 	 * for various chipcommon revs
 	 */
-	if (oi->sih->ccrev == 21 || oi->sih->ccrev == 24
-	    || oi->sih->ccrev == 27) {
+	if (oi->ccrev == 21 || oi->ccrev == 24
+	    || oi->ccrev == 27) {
 		oi->otpgu_base = REVA4_OTPGU_BASE;
-	} else if (oi->sih->ccrev == 36) {
+	} else if (oi->ccrev == 36) {
 		/*
 		 * OTP size greater than equal to 2KB (128 words),
 		 * otpgu_base is similar to rev23
@@ -182,7 +182,7 @@ static void _ipxotp_init(struct otpinfo *oi, struct chipcregs __iomem *cc)
 			oi->otpgu_base = REVB8_OTPGU_BASE;
 		else
 			oi->otpgu_base = REV36_OTPGU_BASE;
-	} else if (oi->sih->ccrev == 23 || oi->sih->ccrev >= 25) {
+	} else if (oi->ccrev == 23 || oi->ccrev >= 25) {
 		oi->otpgu_base = REVB8_OTPGU_BASE;
 	}
 
@@ -201,8 +201,8 @@ static void _ipxotp_init(struct otpinfo *oi, struct chipcregs __iomem *cc)
 	/* Read OTP lock bits and subregion programmed indication bits */
 	oi->status = R_REG(&cc->otpstatus);
 
-	if ((oi->sih->chip == BCM43224_CHIP_ID)
-	    || (oi->sih->chip == BCM43225_CHIP_ID)) {
+	if ((ai_get_chip_id(oi->sih) == BCM43224_CHIP_ID)
+	    || (ai_get_chip_id(oi->sih) == BCM43225_CHIP_ID)) {
 		u32 p_bits;
 		p_bits =
 		    (ipxotp_otpr(oi, cc, oi->otpgu_base + OTPGU_P_OFF) &
@@ -244,7 +244,7 @@ static int ipxotp_init(struct si_pub *sih, struct otpinfo *oi)
 	struct chipcregs __iomem *cc;
 
 	/* Make sure we're running IPX OTP */
-	if (!OTPTYPE_IPX(sih->ccrev))
+	if (!OTPTYPE_IPX(oi->ccrev))
 		return -EBADE;
 
 	/* Make sure OTP is not disabled */
@@ -252,7 +252,7 @@ static int ipxotp_init(struct si_pub *sih, struct otpinfo *oi)
 		return -EBADE;
 
 	/* Check for otp size */
-	switch ((sih->cccaps & CC_CAP_OTPSIZE) >> CC_CAP_OTPSIZE_SHIFT) {
+	switch ((ai_get_cccaps(sih) & CC_CAP_OTPSIZE) >> CC_CAP_OTPSIZE_SHIFT) {
 	case 0:
 		/* Nothing there */
 		return -EBADE;
@@ -389,7 +389,7 @@ static int otp_init(struct si_pub *sih, struct otpinfo *oi)
 
 	memset(oi, 0, sizeof(struct otpinfo));
 
-	oi->ccrev = sih->ccrev;
+	oi->ccrev = ai_get_ccrev(sih);
 
 	if (OTPTYPE_IPX(oi->ccrev))
 		oi->fn = &ipxotp_fn;

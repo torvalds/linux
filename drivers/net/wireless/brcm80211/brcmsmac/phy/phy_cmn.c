@@ -404,10 +404,8 @@ struct shared_phy *wlc_phy_shared_attach(struct shared_phy_params *shp)
 	sh->sromrev = shp->sromrev;
 	sh->boardtype = shp->boardtype;
 	sh->boardrev = shp->boardrev;
-	sh->boardvendor = shp->boardvendor;
 	sh->boardflags = shp->boardflags;
 	sh->boardflags2 = shp->boardflags2;
-	sh->buscorerev = shp->buscorerev;
 
 	sh->fast_timer = PHY_SW_TIMER_FAST;
 	sh->slow_timer = PHY_SW_TIMER_SLOW;

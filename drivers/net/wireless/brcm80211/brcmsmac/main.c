@@ -1205,7 +1205,7 @@ static void brcms_b_wait_for_wake(struct brcms_hardware *wlc_hw)
 /* control chip clock to save power, enable dynamic clock or force fast clock */
 static void brcms_b_clkctl_clk(struct brcms_hardware *wlc_hw, uint mode)
 {
-	if (wlc_hw->sih->cccaps & CC_CAP_PMU) {
+	if (ai_get_cccaps(wlc_hw->sih) & CC_CAP_PMU) {
 		/* new chips with PMU, CCS_FORCEHT will distribute the HT clock
 		 * on backplane, but mac core will still run on ALP(not HT) when
 		 * it enters powersave mode, which means the FCA bit may not be
@@ -1227,7 +1227,7 @@ static void brcms_b_clkctl_clk(struct brcms_hardware *wlc_hw, uint mode)
 					  (&wlc_hw->regs->
 					   clk_ctl_st) & CCS_HTAVAIL));
 			} else {
-				if ((wlc_hw->sih->pmurev == 0) &&
+				if ((ai_get_pmurev(wlc_hw->sih) == 0) &&
 				    (R_REG
 				     (&wlc_hw->regs->
 				      clk_ctl_st) & (CCS_FORCEHT | CCS_HTAREQ)))
@@ -1843,7 +1843,7 @@ static bool brcms_c_validboardtype(struct brcms_hardware *wlc_hw)
 	uint b2 = boardrev & 0xf;
 
 	/* voards from other vendors are always considered valid */
-	if (wlc_hw->sih->boardvendor != PCI_VENDOR_ID_BROADCOM)
+	if (ai_get_boardvendor(wlc_hw->sih) != PCI_VENDOR_ID_BROADCOM)
 		return true;
 
 	/* do some boardrev sanity checks when boardvendor is Broadcom */
@@ -1935,8 +1935,8 @@ static bool brcms_b_radio_read_hwdisabled(struct brcms_hardware *wlc_hw)
 		 * AI chip doesn't restore bar0win2 on
 		 * hibernation/resume, need sw fixup
 		 */
-		if ((wlc_hw->sih->chip == BCM43224_CHIP_ID) ||
-		    (wlc_hw->sih->chip == BCM43225_CHIP_ID))
+		if ((ai_get_chip_id(wlc_hw->sih) == BCM43224_CHIP_ID) ||
+		    (ai_get_chip_id(wlc_hw->sih) == BCM43225_CHIP_ID))
 			wlc_hw->regs = (struct d11regs __iomem *)
 					ai_setcore(wlc_hw->sih, D11_CORE_ID, 0);
 		ai_core_reset(wlc_hw->sih, flags, resetbits);
@@ -2034,7 +2034,7 @@ void brcms_b_corereset(struct brcms_hardware *wlc_hw, u32 flags)
 
 	brcms_c_mctrl_reset(wlc_hw);
 
-	if (wlc_hw->sih->cccaps & CC_CAP_PMU)
+	if (ai_get_cccaps(wlc_hw->sih) & CC_CAP_PMU)
 		brcms_b_clkctl_clk(wlc_hw, CLK_FAST);
 
 	brcms_b_phy_reset(wlc_hw);
@@ -2117,8 +2117,8 @@ void brcms_b_switch_macfreq(struct brcms_hardware *wlc_hw, u8 spurmode)
 {
 	struct d11regs __iomem *regs = wlc_hw->regs;
 
-	if ((wlc_hw->sih->chip == BCM43224_CHIP_ID) ||
-	    (wlc_hw->sih->chip == BCM43225_CHIP_ID)) {
+	if ((ai_get_chip_id(wlc_hw->sih) == BCM43224_CHIP_ID) ||
+	    (ai_get_chip_id(wlc_hw->sih) == BCM43225_CHIP_ID)) {
 		if (spurmode == WL_SPURAVOID_ON2) {	/* 126Mhz */
 			W_REG(&regs->tsf_clk_frac_l, 0x2082);
 			W_REG(&regs->tsf_clk_frac_h, 0x8);
@@ -2805,7 +2805,7 @@ void brcms_b_core_phypll_ctl(struct brcms_hardware *wlc_hw, bool on)
 	regs = wlc_hw->regs;
 
 	if (on) {
-		if ((wlc_hw->sih->chip == BCM4313_CHIP_ID)) {
+		if ((ai_get_chip_id(wlc_hw->sih) == BCM4313_CHIP_ID)) {
 			OR_REG(&regs->clk_ctl_st,
 			       (CCS_ERSRC_REQ_HT | CCS_ERSRC_REQ_D11PLL |
 				CCS_ERSRC_REQ_PHYPLL));
@@ -4530,8 +4530,9 @@ static int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device,
 	wlc_hw->boardrev = (u16) j;
 	if (!brcms_c_validboardtype(wlc_hw)) {
 		wiphy_err(wiphy, "wl%d: brcms_b_attach: Unsupported Broadcom "
-			"board type (0x%x)" " or revision level (0x%x)\n",
-			 unit, wlc_hw->sih->boardtype, wlc_hw->boardrev);
+			  "board type (0x%x)" " or revision level (0x%x)\n",
+			  unit, ai_get_boardtype(wlc_hw->sih),
+			  wlc_hw->boardrev);
 		err = 15;
 		goto fail;
 	}
@@ -4552,7 +4553,7 @@ static int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device,
 	else
 		wlc_hw->_nbands = 1;
 
-	if ((wlc_hw->sih->chip == BCM43225_CHIP_ID))
+	if ((ai_get_chip_id(wlc_hw->sih) == BCM43225_CHIP_ID))
 		wlc_hw->_nbands = 1;
 
 	/* BMAC_NOTE: remove init of pub values when brcms_c_attach()
@@ -4584,16 +4585,14 @@ static int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device,
 	sha_params.corerev = wlc_hw->corerev;
 	sha_params.vid = wlc_hw->vendorid;
 	sha_params.did = wlc_hw->deviceid;
-	sha_params.chip = wlc_hw->sih->chip;
-	sha_params.chiprev = wlc_hw->sih->chiprev;
-	sha_params.chippkg = wlc_hw->sih->chippkg;
+	sha_params.chip = ai_get_chip_id(wlc_hw->sih);
+	sha_params.chiprev = ai_get_chiprev(wlc_hw->sih);
+	sha_params.chippkg = ai_get_chippkg(wlc_hw->sih);
 	sha_params.sromrev = wlc_hw->sromrev;
-	sha_params.boardtype = wlc_hw->sih->boardtype;
+	sha_params.boardtype = ai_get_boardtype(wlc_hw->sih);
 	sha_params.boardrev = wlc_hw->boardrev;
-	sha_params.boardvendor = wlc_hw->sih->boardvendor;
 	sha_params.boardflags = wlc_hw->boardflags;
 	sha_params.boardflags2 = wlc_hw->boardflags2;
-	sha_params.buscorerev = wlc_hw->sih->buscorerev;
 
 	/* alloc and save pointer to shared phy state area */
 	wlc_hw->phy_sh = wlc_phy_shared_attach(&sha_params);
@@ -4734,10 +4733,9 @@ static int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device,
 		goto fail;
 	}
 
-	BCMMSG(wlc->wiphy,
-		 "deviceid 0x%x nbands %d board 0x%x macaddr: %s\n",
-		 wlc_hw->deviceid, wlc_hw->_nbands,
-		 wlc_hw->sih->boardtype, macaddr);
+	BCMMSG(wlc->wiphy, "deviceid 0x%x nbands %d board 0x%x macaddr: %s\n",
+	       wlc_hw->deviceid, wlc_hw->_nbands, ai_get_boardtype(wlc_hw->sih),
+	       macaddr);
 
 	return err;
 
@@ -5073,8 +5071,8 @@ static void brcms_b_hw_up(struct brcms_hardware *wlc_hw)
 	 * AI chip doesn't restore bar0win2 on
 	 * hibernation/resume, need sw fixup
 	 */
-	if ((wlc_hw->sih->chip == BCM43224_CHIP_ID) ||
-	    (wlc_hw->sih->chip == BCM43225_CHIP_ID))
+	if ((ai_get_chip_id(wlc_hw->sih) == BCM43224_CHIP_ID) ||
+	    (ai_get_chip_id(wlc_hw->sih) == BCM43225_CHIP_ID))
 		wlc_hw->regs = (struct d11regs __iomem *)
 				ai_setcore(wlc_hw->sih, D11_CORE_ID, 0);
 
@@ -5088,7 +5086,7 @@ static void brcms_b_hw_up(struct brcms_hardware *wlc_hw)
 	wlc_hw->wlc->pub->hw_up = true;
 
 	if ((wlc_hw->boardflags & BFL_FEM)
-	    && (wlc_hw->sih->chip == BCM4313_CHIP_ID)) {
+	    && (ai_get_chip_id(wlc_hw->sih) == BCM4313_CHIP_ID)) {
 		if (!
 		    (wlc_hw->boardrev >= 0x1250
 		     && (wlc_hw->boardflags & BFL_FEM_BT)))
@@ -5183,7 +5181,7 @@ int brcms_c_up(struct brcms_c_info *wlc)
 	}
 
 	if ((wlc->pub->boardflags & BFL_FEM)
-	    && (wlc->pub->sih->chip == BCM4313_CHIP_ID)) {
+	    && (ai_get_chip_id(wlc->hw->sih) == BCM4313_CHIP_ID)) {
 		if (wlc->pub->boardrev >= 0x1250
 		    && (wlc->pub->boardflags & BFL_FEM_BT))
 			brcms_b_mhf(wlc->hw, MHF5, MHF5_4313_GPIOCTRL,
@@ -8210,11 +8208,11 @@ bool brcms_c_dpc(struct brcms_c_info *wlc, bool bounded)
 
 	if (macintstatus & MI_GP0) {
 		wiphy_err(wiphy, "wl%d: PSM microcode watchdog fired at %d "
-			"(seconds). Resetting.\n", wlc_hw->unit, wlc_hw->now);
+			  "(seconds). Resetting.\n", wlc_hw->unit, wlc_hw->now);
 
 		printk_once("%s : PSM Watchdog, chipid 0x%x, chiprev 0x%x\n",
-					__func__, wlc_hw->sih->chip,
-					wlc_hw->sih->chiprev);
+			    __func__, ai_get_chip_id(wlc_hw->sih),
+			    ai_get_chiprev(wlc_hw->sih));
 		brcms_fatal_error(wlc_hw->wlc->wl);
 	}
 

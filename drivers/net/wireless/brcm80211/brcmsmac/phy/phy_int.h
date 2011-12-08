@@ -503,10 +503,8 @@ struct shared_phy {
 	uint sromrev;
 	uint boardtype;
 	uint boardrev;
-	uint boardvendor;
 	u32 boardflags;
 	u32 boardflags2;
-	uint buscorerev;
 	uint fast_timer;
 	uint slow_timer;
 	uint glacial_timer;
