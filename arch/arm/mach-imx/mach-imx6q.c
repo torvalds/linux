@@ -10,10 +10,13 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
+#include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <asm/hardware/cache-l2x0.h>
@@ -22,6 +25,36 @@
 #include <asm/mach/time.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
+
+void imx6q_restart(char mode, const char *cmd)
+{
+	struct device_node *np;
+	void __iomem *wdog_base;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-wdt");
+	wdog_base = of_iomap(np, 0);
+	if (!wdog_base)
+		goto soft;
+
+	imx_src_prepare_restart();
+
+	/* enable wdog */
+	writew_relaxed(1 << 2, wdog_base);
+	/* write twice to ensure the request will not get ignored */
+	writew_relaxed(1 << 2, wdog_base);
+
+	/* wait for reset to assert ... */
+	mdelay(500);
+
+	pr_err("Watchdog reset failed to assert reset\n");
+
+	/* delay to allow the serial port to show the message */
+	mdelay(50);
+
+soft:
+	/* we'll take a jump through zero as a poor second */
+	soft_restart(0);
+}
 
 static void __init imx6q_init_machine(void)
 {
@@ -83,5 +116,5 @@ DT_MACHINE_START(IMX6Q, "Freescale i.MX6 Quad (Device Tree)")
 	.timer		= &imx6q_timer,
 	.init_machine	= imx6q_init_machine,
 	.dt_compat	= imx6q_dt_compat,
-	.restart	= mxc_restart,
+	.restart	= imx6q_restart,
 MACHINE_END
