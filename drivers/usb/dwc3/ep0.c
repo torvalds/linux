@@ -165,10 +165,13 @@ static int __dwc3_gadget_ep0_queue(struct dwc3_ep *dep,
 				req->request.dma, req->request.length, type);
 		dep->flags &= ~(DWC3_EP_PENDING_REQUEST |
 				DWC3_EP0_DIR_IN);
-
-	} else if (dwc->delayed_status && (dwc->ep0state == EP0_STATUS_PHASE)) {
+	} else if (dwc->delayed_status) {
 		dwc->delayed_status = false;
-		dwc3_ep0_do_control_status(dwc, 1);
+
+		if (dwc->ep0state == EP0_STATUS_PHASE)
+			dwc3_ep0_do_control_status(dwc, 1);
+		else
+			dev_dbg(dwc->dev, "too early for delayed status\n");
 	}
 
 	return ret;
