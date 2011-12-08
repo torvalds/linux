@@ -220,11 +220,9 @@ static int dss_mgr_check_zorder(struct omap_overlay_manager *mgr,
 		struct omap_overlay_info **overlay_infos)
 {
 	struct omap_overlay *ovl1, *ovl2;
-	struct ovl_priv_data *op1, *op2;
 	struct omap_overlay_info *info1, *info2;
 
 	list_for_each_entry(ovl1, &mgr->overlays, list) {
-		op1 = get_ovl_priv(ovl1);
 		info1 = overlay_infos[ovl1->id];
 
 		if (info1 == NULL)
@@ -234,7 +232,6 @@ static int dss_mgr_check_zorder(struct omap_overlay_manager *mgr,
 			if (ovl1 == ovl2)
 				continue;
 
-			op2 = get_ovl_priv(ovl2);
 			info2 = overlay_infos[ovl2->id];
 
 			if (info2 == NULL)
