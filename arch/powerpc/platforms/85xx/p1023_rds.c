@@ -99,7 +99,6 @@ static void __init mpc85xx_rds_pic_init(void)
 		0, 256, " OpenPIC  ");
 
 	BUG_ON(mpic == NULL);
-	of_node_put(np);
 
 	mpic_init(mpic);
 }
