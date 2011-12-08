@@ -176,7 +176,7 @@ static void __init_memblock memblock_remove_region(struct memblock_type *type, u
 }
 
 /* Defined below but needed now */
-static long memblock_add_region(struct memblock_type *type, phys_addr_t base, phys_addr_t size);
+static int memblock_add_region(struct memblock_type *type, phys_addr_t base, phys_addr_t size);
 
 static int __init_memblock memblock_double_array(struct memblock_type *type)
 {
@@ -316,8 +316,8 @@ static void __init_memblock memblock_insert_region(struct memblock_type *type,
  * RETURNS:
  * 0 on success, -errno on failure.
  */
-static long __init_memblock memblock_add_region(struct memblock_type *type,
-						phys_addr_t base, phys_addr_t size)
+static int __init_memblock memblock_add_region(struct memblock_type *type,
+					       phys_addr_t base, phys_addr_t size)
 {
 	bool insert = false;
 	phys_addr_t obase = base, end = base + size;
@@ -387,13 +387,13 @@ repeat:
 	}
 }
 
-long __init_memblock memblock_add(phys_addr_t base, phys_addr_t size)
+int __init_memblock memblock_add(phys_addr_t base, phys_addr_t size)
 {
 	return memblock_add_region(&memblock.memory, base, size);
 }
 
-static long __init_memblock __memblock_remove(struct memblock_type *type,
-					      phys_addr_t base, phys_addr_t size)
+static int __init_memblock __memblock_remove(struct memblock_type *type,
+					     phys_addr_t base, phys_addr_t size)
 {
 	phys_addr_t end = base + size;
 	int i;
@@ -443,12 +443,12 @@ static long __init_memblock __memblock_remove(struct memblock_type *type,
 	return 0;
 }
 
-long __init_memblock memblock_remove(phys_addr_t base, phys_addr_t size)
+int __init_memblock memblock_remove(phys_addr_t base, phys_addr_t size)
 {
 	return __memblock_remove(&memblock.memory, base, size);
 }
 
-long __init_memblock memblock_free(phys_addr_t base, phys_addr_t size)
+int __init_memblock memblock_free(phys_addr_t base, phys_addr_t size)
 {
 	memblock_dbg("   memblock_free: [%#016llx-%#016llx] %pF\n",
 		     (unsigned long long)base,
@@ -458,7 +458,7 @@ long __init_memblock memblock_free(phys_addr_t base, phys_addr_t size)
 	return __memblock_remove(&memblock.reserved, base, size);
 }
 
-long __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
+int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
 {
 	struct memblock_type *_rgn = &memblock.reserved;
 

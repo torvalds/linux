@@ -52,15 +52,15 @@ phys_addr_t memblock_find_in_range(phys_addr_t start, phys_addr_t end,
 int memblock_free_reserved_regions(void);
 int memblock_reserve_reserved_regions(void);
 
-extern void memblock_init(void);
-extern void memblock_analyze(void);
-extern long memblock_add(phys_addr_t base, phys_addr_t size);
-extern long memblock_remove(phys_addr_t base, phys_addr_t size);
-extern long memblock_free(phys_addr_t base, phys_addr_t size);
-extern long memblock_reserve(phys_addr_t base, phys_addr_t size);
+void memblock_init(void);
+void memblock_analyze(void);
+int memblock_add(phys_addr_t base, phys_addr_t size);
+int memblock_remove(phys_addr_t base, phys_addr_t size);
+int memblock_free(phys_addr_t base, phys_addr_t size);
+int memblock_reserve(phys_addr_t base, phys_addr_t size);
 
-extern void __next_free_mem_range(u64 *idx, int nid, phys_addr_t *out_start,
-				  phys_addr_t *out_end, int *out_nid);
+void __next_free_mem_range(u64 *idx, int nid, phys_addr_t *out_start,
+			   phys_addr_t *out_end, int *out_nid);
 
 /**
  * for_each_free_mem_range - iterate through free memblock areas
@@ -80,7 +80,7 @@ extern void __next_free_mem_range(u64 *idx, int nid, phys_addr_t *out_start,
 	     __next_free_mem_range(&i, nid, p_start, p_end, p_nid))
 
 #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-extern int memblock_set_node(phys_addr_t base, phys_addr_t size, int nid);
+int memblock_set_node(phys_addr_t base, phys_addr_t size, int nid);
 
 static inline void memblock_set_region_node(struct memblock_region *r, int nid)
 {
@@ -105,37 +105,31 @@ static inline int memblock_get_region_node(const struct memblock_region *r)
 /* The numa aware allocator is only available if
  * CONFIG_ARCH_POPULATES_NODE_MAP is set
  */
-extern phys_addr_t memblock_find_in_range_node(phys_addr_t start,
-					       phys_addr_t end,
-					       phys_addr_t size,
-					       phys_addr_t align, int nid);
-extern phys_addr_t memblock_alloc_nid(phys_addr_t size, phys_addr_t align,
-					int nid);
-extern phys_addr_t memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align,
-					    int nid);
+phys_addr_t memblock_find_in_range_node(phys_addr_t start, phys_addr_t end,
+					phys_addr_t size, phys_addr_t align, int nid);
+phys_addr_t memblock_alloc_nid(phys_addr_t size, phys_addr_t align, int nid);
+phys_addr_t memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, int nid);
 
-extern phys_addr_t memblock_alloc(phys_addr_t size, phys_addr_t align);
+phys_addr_t memblock_alloc(phys_addr_t size, phys_addr_t align);
 
 /* Flags for memblock_alloc_base() amd __memblock_alloc_base() */
 #define MEMBLOCK_ALLOC_ANYWHERE	(~(phys_addr_t)0)
 #define MEMBLOCK_ALLOC_ACCESSIBLE	0
 
-extern phys_addr_t memblock_alloc_base(phys_addr_t size,
-					 phys_addr_t align,
-					 phys_addr_t max_addr);
-extern phys_addr_t __memblock_alloc_base(phys_addr_t size,
-					   phys_addr_t align,
-					   phys_addr_t max_addr);
-extern phys_addr_t memblock_phys_mem_size(void);
-extern phys_addr_t memblock_start_of_DRAM(void);
-extern phys_addr_t memblock_end_of_DRAM(void);
-extern void memblock_enforce_memory_limit(phys_addr_t memory_limit);
-extern int memblock_is_memory(phys_addr_t addr);
-extern int memblock_is_region_memory(phys_addr_t base, phys_addr_t size);
-extern int memblock_is_reserved(phys_addr_t addr);
-extern int memblock_is_region_reserved(phys_addr_t base, phys_addr_t size);
+phys_addr_t memblock_alloc_base(phys_addr_t size, phys_addr_t align,
+				phys_addr_t max_addr);
+phys_addr_t __memblock_alloc_base(phys_addr_t size, phys_addr_t align,
+				  phys_addr_t max_addr);
+phys_addr_t memblock_phys_mem_size(void);
+phys_addr_t memblock_start_of_DRAM(void);
+phys_addr_t memblock_end_of_DRAM(void);
+void memblock_enforce_memory_limit(phys_addr_t memory_limit);
+int memblock_is_memory(phys_addr_t addr);
+int memblock_is_region_memory(phys_addr_t base, phys_addr_t size);
+int memblock_is_reserved(phys_addr_t addr);
+int memblock_is_region_reserved(phys_addr_t base, phys_addr_t size);
 
-extern void memblock_dump_all(void);
+void memblock_dump_all(void);
 
 /**
  * memblock_set_current_limit - Set the current allocation limit to allow
@@ -143,7 +137,7 @@ extern void memblock_dump_all(void);
  *                         accessible during boot
  * @limit: New limit value (physical address)
  */
-extern void memblock_set_current_limit(phys_addr_t limit);
+void memblock_set_current_limit(phys_addr_t limit);
 
 
 /*
