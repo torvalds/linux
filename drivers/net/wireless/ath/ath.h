@@ -152,6 +152,7 @@ struct ath_common {
 	struct ath_cycle_counters cc_survey;
 
 	struct ath_regulatory regulatory;
+	struct ath_regulatory reg_world_copy;
 	const struct ath_ops *ops;
 	const struct ath_bus_ops *bus_ops;
 
