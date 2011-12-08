@@ -142,8 +142,6 @@ struct iwl_base_params {
  * @bt_init_traffic_load: specify initial bt traffic load
  * @bt_prio_boost: default bt priority boost value
  * @agg_time_limit: maximum number of uSec in aggregation
- * @ampdu_factor: Maximum A-MPDU length factor
- * @ampdu_density: Minimum A-MPDU spacing
  * @bt_sco_disable: uCode should not response to BT in SCO/ESCO mode
  */
 struct iwl_bt_params {
@@ -151,8 +149,6 @@ struct iwl_bt_params {
 	u8 bt_init_traffic_load;
 	u8 bt_prio_boost;
 	u16 agg_time_limit;
-	u8 ampdu_factor;
-	u8 ampdu_density;
 	bool bt_sco_disable;
 	bool bt_session_2;
 };

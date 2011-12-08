@@ -76,11 +76,7 @@ static void iwl_init_ht_hw_capab(const struct iwl_priv *priv,
 		ht_info->cap |= IEEE80211_HT_CAP_MAX_AMSDU;
 
 	ht_info->ampdu_factor = CFG_HT_RX_AMPDU_FACTOR_DEF;
-	if (cfg(priv)->bt_params && cfg(priv)->bt_params->ampdu_factor)
-		ht_info->ampdu_factor = cfg(priv)->bt_params->ampdu_factor;
 	ht_info->ampdu_density = CFG_HT_MPDU_DENSITY_DEF;
-	if (cfg(priv)->bt_params && cfg(priv)->bt_params->ampdu_density)
-		ht_info->ampdu_density = cfg(priv)->bt_params->ampdu_density;
 
 	ht_info->mcs.rx_mask[0] = 0xFF;
 	if (rx_chains_num >= 2)
