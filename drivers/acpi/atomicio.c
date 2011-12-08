@@ -260,6 +260,21 @@ int acpi_post_unmap_gar(struct acpi_generic_address *reg)
 }
 EXPORT_SYMBOL_GPL(acpi_post_unmap_gar);
 
+#ifdef readq
+static inline u64 read64(const volatile void __iomem *addr)
+{
+	return readq(addr);
+}
+#else
+static inline u64 read64(const volatile void __iomem *addr)
+{
+	u64 l, h;
+	l = readl(addr);
+	h = readl(addr+4);
+	return l | (h << 32);
+}
+#endif
+
 /*
  * Can be used in atomic (including NMI) or process context. RCU read
  * lock can only be released after the IO memory area accessing.
@@ -280,11 +295,9 @@ static int acpi_atomic_read_mem(u64 paddr, u64 *val, u32 width)
 	case 32:
 		*val = readl(addr);
 		break;
-#ifdef readq
 	case 64:
-		*val = readq(addr);
+		*val = read64(addr);
 		break;
-#endif
 	default:
 		return -EINVAL;
 	}
@@ -292,6 +305,19 @@ static int acpi_atomic_read_mem(u64 paddr, u64 *val, u32 width)
 
 	return 0;
 }
+
+#ifdef writeq
+static inline void write64(u64 val, volatile void __iomem *addr)
+{
+	writeq(val, addr);
+}
+#else
+static inline void write64(u64 val, volatile void __iomem *addr)
+{
+	writel(val, addr);
+	writel(val>>32, addr+4);
+}
+#endif
 
 static int acpi_atomic_write_mem(u64 paddr, u64 val, u32 width)
 {
@@ -309,11 +335,9 @@ static int acpi_atomic_write_mem(u64 paddr, u64 val, u32 width)
 	case 32:
 		writel(val, addr);
 		break;
-#ifdef writeq
 	case 64:
-		writeq(val, addr);
+		write64(val, addr);
 		break;
-#endif
 	default:
 		return -EINVAL;
 	}
