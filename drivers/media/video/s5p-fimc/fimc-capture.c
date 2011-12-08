@@ -1242,6 +1242,7 @@ static int fimc_subdev_set_fmt(struct v4l2_subdev *sd,
 
 	mutex_lock(&fimc->lock);
 	set_frame_bounds(ff, mf->width, mf->height);
+	fimc->vid_cap.mf = *mf;
 	ff->fmt = ffmt;
 
 	/* Reset the crop rectangle if required. */
