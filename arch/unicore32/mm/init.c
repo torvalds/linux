@@ -26,6 +26,7 @@
 #include <asm/setup.h>
 #include <asm/sizes.h>
 #include <asm/tlb.h>
+#include <asm/memblock.h>
 #include <mach/map.h>
 
 #include "mm.h"
