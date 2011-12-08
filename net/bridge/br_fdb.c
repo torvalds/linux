@@ -127,6 +127,18 @@ void br_fdb_changeaddr(struct net_bridge_port *p, const unsigned char *newaddr)
 	spin_unlock_bh(&br->hash_lock);
 }
 
+void br_fdb_change_mac_address(struct net_bridge *br, const u8 *newaddr)
+{
+	struct net_bridge_fdb_entry *f;
+
+	/* If old entry was unassociated with any port, then delete it. */
+	f = __br_fdb_get(br, br->dev->dev_addr);
+	if (f && f->is_local && !f->dst)
+		fdb_delete(br, f);
+
+	fdb_insert(br, NULL, newaddr);
+}
+
 void br_fdb_cleanup(unsigned long _data)
 {
 	struct net_bridge *br = (struct net_bridge *)_data;
@@ -250,7 +262,7 @@ int br_fdb_test_addr(struct net_device *dev, unsigned char *addr)
 		ret = 0;
 	else {
 		fdb = __br_fdb_get(port->br, addr);
-		ret = fdb && fdb->dst->dev != dev &&
+		ret = fdb && fdb->dst && fdb->dst->dev != dev &&
 			fdb->dst->state == BR_STATE_FORWARDING;
 	}
 	rcu_read_unlock();
@@ -280,6 +292,10 @@ int br_fdb_fillbuf(struct net_bridge *br, void *buf,
 				goto out;
 
 			if (has_expired(br, f))
+				continue;
+
+			/* ignore pseudo entry for local MAC address */
+			if (!f->dst)
 				continue;
 
 			if (skip) {
@@ -468,7 +484,7 @@ static int fdb_fill_info(struct sk_buff *skb, const struct net_bridge *br,
 	ndm->ndm_pad2    = 0;
 	ndm->ndm_flags	 = 0;
 	ndm->ndm_type	 = 0;
-	ndm->ndm_ifindex = fdb->dst->dev->ifindex;
+	ndm->ndm_ifindex = fdb->dst ? fdb->dst->dev->ifindex : br->dev->ifindex;
 	ndm->ndm_state   = fdb_to_nud(fdb);
 
 	NLA_PUT(skb, NDA_LLADDR, ETH_ALEN, &fdb->addr);
