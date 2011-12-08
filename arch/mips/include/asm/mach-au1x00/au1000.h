@@ -1265,44 +1265,20 @@ enum soc_au1200_ints {
 #define SSI_ENABLE_CD		(1 << 1)
 #define SSI_ENABLE_E		(1 << 0)
 
-/* IrDA Controller */
-#define IRDA_BASE		0xB0300000
-#define IR_RING_PTR_STATUS	(IRDA_BASE + 0x00)
-#define IR_RING_BASE_ADDR_H	(IRDA_BASE + 0x04)
-#define IR_RING_BASE_ADDR_L	(IRDA_BASE + 0x08)
-#define IR_RING_SIZE		(IRDA_BASE + 0x0C)
-#define IR_RING_PROMPT		(IRDA_BASE + 0x10)
-#define IR_RING_ADDR_CMPR	(IRDA_BASE + 0x14)
-#define IR_INT_CLEAR		(IRDA_BASE + 0x18)
-#define IR_CONFIG_1		(IRDA_BASE + 0x20)
-#  define IR_RX_INVERT_LED	(1 << 0)
-#  define IR_TX_INVERT_LED	(1 << 1)
-#  define IR_ST 		(1 << 2)
-#  define IR_SF 		(1 << 3)
-#  define IR_SIR		(1 << 4)
-#  define IR_MIR		(1 << 5)
-#  define IR_FIR		(1 << 6)
-#  define IR_16CRC		(1 << 7)
-#  define IR_TD 		(1 << 8)
-#  define IR_RX_ALL		(1 << 9)
-#  define IR_DMA_ENABLE 	(1 << 10)
-#  define IR_RX_ENABLE		(1 << 11)
-#  define IR_TX_ENABLE		(1 << 12)
-#  define IR_LOOPBACK		(1 << 14)
-#  define IR_SIR_MODE		(IR_SIR | IR_DMA_ENABLE | \
-				 IR_RX_ALL | IR_RX_ENABLE | IR_SF | IR_16CRC)
-#define IR_SIR_FLAGS		(IRDA_BASE + 0x24)
-#define IR_ENABLE		(IRDA_BASE + 0x28)
-#  define IR_RX_STATUS		(1 << 9)
-#  define IR_TX_STATUS		(1 << 10)
-#define IR_READ_PHY_CONFIG	(IRDA_BASE + 0x2C)
-#define IR_WRITE_PHY_CONFIG	(IRDA_BASE + 0x30)
-#define IR_MAX_PKT_LEN		(IRDA_BASE + 0x34)
-#define IR_RX_BYTE_CNT		(IRDA_BASE + 0x38)
-#define IR_CONFIG_2		(IRDA_BASE + 0x3C)
-#  define IR_MODE_INV		(1 << 0)
-#  define IR_ONE_PIN		(1 << 1)
-#define IR_INTERFACE_CONFIG	(IRDA_BASE + 0x40)
+
+/*
+ * The IrDA peripheral has an IRFIRSEL pin, but on the DB/PB boards it's not
+ * used to select FIR/SIR mode on the transceiver but as a GPIO.  Instead a
+ * CPLD has to be told about the mode.
+ */
+#define AU1000_IRDA_PHY_MODE_OFF	0
+#define AU1000_IRDA_PHY_MODE_SIR	1
+#define AU1000_IRDA_PHY_MODE_FIR	2
+
+struct au1k_irda_platform_data {
+	void(*set_phy_mode)(int mode);
+};
+
 
 /* GPIO */
 #define SYS_PINFUNC		0xB190002C
