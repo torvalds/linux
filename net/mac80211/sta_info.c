@@ -851,6 +851,7 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 	struct ieee80211_sub_if_data *sdata;
 	unsigned long flags;
 	int ret, i, ac;
+	struct tid_ampdu_tx *tid_tx;
 
 	might_sleep();
 
@@ -948,6 +949,30 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 		del_timer_sync(&sta->plink_timer);
 	}
 #endif
+
+	/* There could be some memory leaks because of ampdu tx pending queue
+	 * not being freed before destroying the station info.
+	 *
+	 * Make sure that such queues are purged before freeing the station
+	 * info.
+	 * TODO: We have to somehow postpone the full destruction
+	 * until the aggregation stop completes. Refer
+	 * http://thread.gmane.org/gmane.linux.kernel.wireless.general/81936
+	 */
+	for (i = 0; i < STA_TID_NUM; i++) {
+		if (!sta->ampdu_mlme.tid_tx[i])
+			continue;
+		tid_tx = sta->ampdu_mlme.tid_tx[i];
+		if (skb_queue_len(&tid_tx->pending)) {
+#ifdef CONFIG_MAC80211_HT_DEBUG
+			wiphy_debug(local->hw.wiphy, "TX A-MPDU  purging %d "
+				"packets for tid=%d\n",
+				skb_queue_len(&tid_tx->pending), i);
+#endif /* CONFIG_MAC80211_HT_DEBUG */
+			__skb_queue_purge(&tid_tx->pending);
+		}
+		kfree_rcu(tid_tx, rcu_head);
+	}
 
 	__sta_info_free(local, sta);
 

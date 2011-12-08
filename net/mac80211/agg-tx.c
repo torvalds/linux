@@ -55,6 +55,8 @@
  * @ampdu_action function will be called with the action
  * %IEEE80211_AMPDU_TX_STOP. In this case, the call must not fail,
  * and the driver must later call ieee80211_stop_tx_ba_cb_irqsafe().
+ * Note that the sta can get destroyed before the BA tear down is
+ * complete.
  */
 
 static void ieee80211_send_addba_request(struct ieee80211_sub_if_data *sdata,
