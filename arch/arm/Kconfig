@@ -1282,7 +1282,7 @@ config ARM_ERRATA_743622
 
 config ARM_ERRATA_751472
 	bool "ARM errata: Interrupted ICIALLUIS may prevent completion of broadcasted operation"
-	depends on CPU_V7 && SMP
+	depends on CPU_V7
 	help
 	  This option enables the workaround for the 751472 Cortex-A9 (prior
 	  to r3p0) erratum. An interrupted ICIALLUIS operation may prevent the

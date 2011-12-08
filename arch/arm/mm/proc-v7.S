@@ -363,11 +363,13 @@ __v7_setup:
 	orreq	r10, r10, #1 << 6		@ set bit #6
 	mcreq	p15, 0, r10, c15, c0, 1		@ write diagnostic register
 #endif
-#ifdef CONFIG_ARM_ERRATA_751472
-	cmp	r6, #0x30			@ present prior to r3p0
+#if defined(CONFIG_ARM_ERRATA_751472) && defined(CONFIG_SMP)
+	ALT_SMP(cmp r6, #0x30)			@ present prior to r3p0
+	ALT_UP_B(1f)
 	mrclt	p15, 0, r10, c15, c0, 1		@ read diagnostic register
 	orrlt	r10, r10, #1 << 11		@ set bit #11
 	mcrlt	p15, 0, r10, c15, c0, 1		@ write diagnostic register
+1:
 #endif
 
 3:	mov	r10, #0
