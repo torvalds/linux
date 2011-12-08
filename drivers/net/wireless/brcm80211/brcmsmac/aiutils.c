@@ -504,6 +504,17 @@ static void ai_scan(struct si_pub *sih, struct bcma_bus *bus)
 	}
 }
 
+static struct bcma_device *ai_find_bcma_core(struct si_pub *sih, uint coreidx)
+{
+	struct si_info *sii = (struct si_info *)sih;
+	struct bcma_device *core;
+
+	list_for_each_entry(core, &sii->icbus->cores, list) {
+		if (core->core_index == coreidx)
+			return core;
+	}
+	return NULL;
+}
 /*
  * This function changes the logical "focus" to the indicated core.
  * Return the current core's virtual address. Since each core starts with the
@@ -514,18 +525,16 @@ static void ai_scan(struct si_pub *sih, struct bcma_bus *bus)
 void __iomem *ai_setcoreidx(struct si_pub *sih, uint coreidx)
 {
 	struct si_info *sii = (struct si_info *)sih;
-	u32 addr = sii->coresba[coreidx];
-	u32 wrap = sii->wrapba[coreidx];
+	struct bcma_device *core;
 
-	if (coreidx >= sii->numcores)
-		return NULL;
+	if (sii->curidx != coreidx) {
+		core = ai_find_bcma_core(sih, coreidx);
+		if (core == NULL)
+			return NULL;
 
-	/* point bar0 window */
-	pci_write_config_dword(sii->pcibus, PCI_BAR0_WIN, addr);
-	/* point bar0 2nd 4KB window */
-	pci_write_config_dword(sii->pcibus, PCI_BAR0_WIN2, wrap);
-	sii->curidx = coreidx;
-
+		(void)bcma_aread32(core, BCMA_IOST);
+		sii->curidx = coreidx;
+	}
 	return sii->curmap;
 }
 
@@ -811,8 +820,6 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	uint socitype;
 	uint origidx;
 
-	/* assume the window is looking at chipcommon */
-	WARN_ON(pbus->mapped_core->id.id != BCMA_CORE_CHIPCOMMON);
 	memset((unsigned char *) sii, 0, sizeof(struct si_info));
 
 	savewin = 0;
@@ -823,13 +830,10 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	sii->curmap = regs;
 	sii->curwrap = sii->curmap + SI_CORE_SIZE;
 
-	/* find Chipcommon address */
-	pci_read_config_dword(sii->pcibus, PCI_BAR0_WIN, &savewin);
-	if (!GOODCOREADDR(savewin, SI_ENUM_BASE))
-		savewin = SI_ENUM_BASE;
+	/* switch to Chipcommon core */
+	bcma_read32(pbus->drv_cc.core, 0);
+	savewin = SI_ENUM_BASE;
 
-	pci_write_config_dword(sii->pcibus, PCI_BAR0_WIN,
-			       SI_ENUM_BASE);
 	cc = (struct chipcregs __iomem *) regs;
 
 	/* bus/core/clk setup for register access */
@@ -1036,18 +1040,18 @@ bool ai_backplane64(struct si_pub *sih)
 /* return index of coreid or BADIDX if not found */
 uint ai_findcoreidx(struct si_pub *sih, uint coreid, uint coreunit)
 {
+	struct bcma_device *core;
 	struct si_info *sii;
 	uint found;
-	uint i;
 
 	sii = (struct si_info *)sih;
 
 	found = 0;
 
-	for (i = 0; i < sii->numcores; i++)
-		if (sii->coreid[i] == coreid) {
+	list_for_each_entry(core, &sii->icbus->cores, list)
+		if (core->id.id == coreid) {
 			if (found == coreunit)
-				return i;
+				return core->core_index;
 			found++;
 		}
 
