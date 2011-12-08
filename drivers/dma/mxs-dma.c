@@ -111,6 +111,7 @@ struct mxs_dma_chan {
 	int				chan_irq;
 	struct mxs_dma_ccw		*ccw;
 	dma_addr_t			ccw_phys;
+	int				desc_count;
 	dma_cookie_t			last_completed;
 	enum dma_status			status;
 	unsigned int			flags;
@@ -386,7 +387,7 @@ static struct dma_async_tx_descriptor *mxs_dma_prep_slave_sg(
 	struct scatterlist *sg;
 	int i, j;
 	u32 *pio;
-	static int idx;
+	int idx = append ? mxs_chan->desc_count : 0;
 
 	if (mxs_chan->status == DMA_IN_PROGRESS && !append)
 		return NULL;
@@ -462,6 +463,7 @@ static struct dma_async_tx_descriptor *mxs_dma_prep_slave_sg(
 			}
 		}
 	}
+	mxs_chan->desc_count = idx;
 
 	return &mxs_chan->desc;
 
@@ -523,6 +525,7 @@ static struct dma_async_tx_descriptor *mxs_dma_prep_dma_cyclic(
 
 		i++;
 	}
+	mxs_chan->desc_count = i;
 
 	return &mxs_chan->desc;
 
