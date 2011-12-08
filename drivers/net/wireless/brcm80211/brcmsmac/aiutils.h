@@ -149,21 +149,14 @@ struct si_pub {
 	uint buscoreidx;	/* buscore index */
 	int ccrev;		/* chip common core rev */
 	u32 cccaps;		/* chip common capabilities */
-	u32 cccaps_ext;	/* chip common capabilities extension */
 	int pmurev;		/* pmu core rev */
 	u32 pmucaps;		/* pmu capabilities */
 	uint boardtype;		/* board type */
 	uint boardvendor;	/* board vendor */
-	uint boardflags;	/* board flags */
-	uint boardflags2;	/* board flags2 */
 	uint chip;		/* chip number */
 	uint chiprev;		/* chip revision */
 	uint chippkg;		/* chip package option */
 	u32 chipst;		/* chip status */
-	bool issim;		/* chip is in simulation or emulation */
-	uint socirev;		/* SOC interconnect rev */
-	bool pci_pr32414;
-
 };
 
 struct pci_dev;

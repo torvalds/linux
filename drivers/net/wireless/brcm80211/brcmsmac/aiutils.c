@@ -932,10 +932,6 @@ ai_buscore_setup(struct si_info *sii, u32 savewin, uint *origidx)
 
 	/* get chipcommon capabilites */
 	sii->pub.cccaps = R_REG(&cc->capabilities);
-	/* get chipcommon extended capabilities */
-
-	if (sii->pub.ccrev >= 35)
-		sii->pub.cccaps_ext = R_REG(&cc->capabilities_ext);
 
 	/* get pmu rev and caps */
 	if (sii->pub.cccaps & CC_CAP_PMU) {
@@ -1023,7 +1019,6 @@ static __used void ai_nvram_process(struct si_info *sii)
 
 	sii->pub.boardvendor = w & 0xffff;
 	sii->pub.boardtype = (w >> 16) & 0xffff;
-	sii->pub.boardflags = getintvar(&sii->pub, BRCMS_SROM_BOARDFLAGS);
 }
 
 static struct si_info *ai_doattach(struct si_info *sii,
@@ -1070,8 +1065,6 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	sih->chip = w & CID_ID_MASK;
 	sih->chiprev = (w & CID_REV_MASK) >> CID_REV_SHIFT;
 	sih->chippkg = (w & CID_PKG_MASK) >> CID_PKG_SHIFT;
-
-	sih->issim = false;
 
 	/* scan for cores */
 	if (socitype == SOCI_AI) {
