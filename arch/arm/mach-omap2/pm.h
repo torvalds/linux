@@ -21,6 +21,7 @@ extern void omap_sram_idle(void);
 extern int omap3_can_sleep(void);
 extern int omap_set_pwrdm_state(struct powerdomain *pwrdm, u32 state);
 extern int omap3_idle_init(void);
+extern int omap4_idle_init(void);
 
 #if defined(CONFIG_PM_OPP)
 extern int omap3_opp_init(void);
