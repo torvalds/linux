@@ -67,7 +67,7 @@ static irqreturn_t jz_battery_irq_handler(int irq, void *devid)
 
 static long jz_battery_read_voltage(struct jz_battery *battery)
 {
-	unsigned long t;
+	long t;
 	unsigned long val;
 	long voltage;
 
