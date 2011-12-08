@@ -2546,7 +2546,8 @@ state_show(struct md_rdev *rdev, char *page)
 		sep = ",";
 	}
 	if (test_bit(Blocked, &rdev->flags) ||
-	    rdev->badblocks.unacked_exist) {
+	    (rdev->badblocks.unacked_exist
+	     && !test_bit(Faulty, &rdev->flags))) {
 		len += sprintf(page+len, "%sblocked", sep);
 		sep = ",";
 	}
