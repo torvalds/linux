@@ -174,7 +174,7 @@ static ssize_t iio_scan_el_store(struct device *dev,
 error_ret:
 	mutex_unlock(&indio_dev->mlock);
 
-	return ret ? ret : len;
+	return ret < 0 ? ret : len;
 
 }
 
@@ -625,16 +625,8 @@ int iio_scan_mask_query(struct iio_buffer *buffer, int bit)
 
 	if (!buffer->scan_mask)
 		return 0;
-	if (indio_dev->available_scan_masks)
-		mask = iio_scan_mask_match(indio_dev->available_scan_masks,
-					   indio_dev->masklength,
-					   buffer->scan_mask);
-	else
-		mask = buffer->scan_mask;
-	if (!mask)
-		return 0;
 
-	return test_bit(bit, mask);
+	return test_bit(bit, buffer->scan_mask);
 };
 EXPORT_SYMBOL_GPL(iio_scan_mask_query);
 
