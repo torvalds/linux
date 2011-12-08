@@ -41,7 +41,7 @@ struct vlan_pcpu_stats {
 };
 
 /**
- *	struct vlan_dev_info - VLAN private device data
+ *	struct vlan_dev_priv - VLAN private device data
  *	@nr_ingress_mappings: number of ingress priority mappings
  *	@ingress_priority_map: ingress priority mappings
  *	@nr_egress_mappings: number of egress priority mappings
@@ -53,7 +53,7 @@ struct vlan_pcpu_stats {
  *	@dent: proc dir entry
  *	@vlan_pcpu_stats: ptr to percpu rx stats
  */
-struct vlan_dev_info {
+struct vlan_dev_priv {
 	unsigned int				nr_ingress_mappings;
 	u32					ingress_priority_map[8];
 	unsigned int				nr_egress_mappings;
@@ -69,7 +69,7 @@ struct vlan_dev_info {
 	struct vlan_pcpu_stats __percpu		*vlan_pcpu_stats;
 };
 
-static inline struct vlan_dev_info *vlan_dev_info(const struct net_device *dev)
+static inline struct vlan_dev_priv *vlan_dev_priv(const struct net_device *dev)
 {
 	return netdev_priv(dev);
 }
@@ -121,7 +121,7 @@ void unregister_vlan_dev(struct net_device *dev, struct list_head *head);
 static inline u32 vlan_get_ingress_priority(struct net_device *dev,
 					    u16 vlan_tci)
 {
-	struct vlan_dev_info *vip = vlan_dev_info(dev);
+	struct vlan_dev_priv *vip = vlan_dev_priv(dev);
 
 	return vip->ingress_priority_map[(vlan_tci >> VLAN_PRIO_SHIFT) & 0x7];
 }

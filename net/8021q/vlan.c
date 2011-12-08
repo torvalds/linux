@@ -99,7 +99,7 @@ static void vlan_rcu_free(struct rcu_head *rcu)
 
 void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 {
-	struct vlan_dev_info *vlan = vlan_dev_info(dev);
+	struct vlan_dev_priv *vlan = vlan_dev_priv(dev);
 	struct net_device *real_dev = vlan->real_dev;
 	const struct net_device_ops *ops = real_dev->netdev_ops;
 	struct vlan_group *grp;
@@ -167,7 +167,7 @@ int vlan_check_real_dev(struct net_device *real_dev, u16 vlan_id)
 
 int register_vlan_dev(struct net_device *dev)
 {
-	struct vlan_dev_info *vlan = vlan_dev_info(dev);
+	struct vlan_dev_priv *vlan = vlan_dev_priv(dev);
 	struct net_device *real_dev = vlan->real_dev;
 	const struct net_device_ops *ops = real_dev->netdev_ops;
 	u16 vlan_id = vlan->vlan_id;
@@ -192,7 +192,7 @@ int register_vlan_dev(struct net_device *dev)
 	if (err < 0)
 		goto out_uninit_applicant;
 
-	/* Account for reference in struct vlan_dev_info */
+	/* Account for reference in struct vlan_dev_priv */
 	dev_hold(real_dev);
 
 	netif_stacked_transfer_operstate(real_dev, dev);
@@ -267,7 +267,7 @@ static int register_vlan_device(struct net_device *real_dev, u16 vlan_id)
 		snprintf(name, IFNAMSIZ, "vlan%.4i", vlan_id);
 	}
 
-	new_dev = alloc_netdev(sizeof(struct vlan_dev_info), name, vlan_setup);
+	new_dev = alloc_netdev(sizeof(struct vlan_dev_priv), name, vlan_setup);
 
 	if (new_dev == NULL)
 		return -ENOBUFS;
@@ -278,10 +278,10 @@ static int register_vlan_device(struct net_device *real_dev, u16 vlan_id)
 	 */
 	new_dev->mtu = real_dev->mtu;
 
-	vlan_dev_info(new_dev)->vlan_id = vlan_id;
-	vlan_dev_info(new_dev)->real_dev = real_dev;
-	vlan_dev_info(new_dev)->dent = NULL;
-	vlan_dev_info(new_dev)->flags = VLAN_FLAG_REORDER_HDR;
+	vlan_dev_priv(new_dev)->vlan_id = vlan_id;
+	vlan_dev_priv(new_dev)->real_dev = real_dev;
+	vlan_dev_priv(new_dev)->dent = NULL;
+	vlan_dev_priv(new_dev)->flags = VLAN_FLAG_REORDER_HDR;
 
 	new_dev->rtnl_link_ops = &vlan_link_ops;
 	err = register_vlan_dev(new_dev);
@@ -298,7 +298,7 @@ out_free_newdev:
 static void vlan_sync_address(struct net_device *dev,
 			      struct net_device *vlandev)
 {
-	struct vlan_dev_info *vlan = vlan_dev_info(vlandev);
+	struct vlan_dev_priv *vlan = vlan_dev_priv(vlandev);
 
 	/* May be called without an actual change */
 	if (!compare_ether_addr(vlan->real_dev_addr, dev->dev_addr))
@@ -362,7 +362,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 	struct vlan_group *grp;
 	int i, flgs;
 	struct net_device *vlandev;
-	struct vlan_dev_info *vlan;
+	struct vlan_dev_priv *vlan;
 	LIST_HEAD(list);
 
 	if (is_vlan_dev(dev))
@@ -447,7 +447,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 			if (!(flgs & IFF_UP))
 				continue;
 
-			vlan = vlan_dev_info(vlandev);
+			vlan = vlan_dev_priv(vlandev);
 			if (!(vlan->flags & VLAN_FLAG_LOOSE_BINDING))
 				dev_change_flags(vlandev, flgs & ~IFF_UP);
 			netif_stacked_transfer_operstate(dev, vlandev);
@@ -465,7 +465,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 			if (flgs & IFF_UP)
 				continue;
 
-			vlan = vlan_dev_info(vlandev);
+			vlan = vlan_dev_priv(vlandev);
 			if (!(vlan->flags & VLAN_FLAG_LOOSE_BINDING))
 				dev_change_flags(vlandev, flgs | IFF_UP);
 			netif_stacked_transfer_operstate(dev, vlandev);

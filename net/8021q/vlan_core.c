@@ -36,7 +36,7 @@ bool vlan_do_receive(struct sk_buff **skbp, bool last_handler)
 			skb->pkt_type = PACKET_HOST;
 	}
 
-	if (!(vlan_dev_info(vlan_dev)->flags & VLAN_FLAG_REORDER_HDR)) {
+	if (!(vlan_dev_priv(vlan_dev)->flags & VLAN_FLAG_REORDER_HDR)) {
 		unsigned int offset = skb->data - skb_mac_header(skb);
 
 		/*
@@ -55,7 +55,7 @@ bool vlan_do_receive(struct sk_buff **skbp, bool last_handler)
 	skb->priority = vlan_get_ingress_priority(vlan_dev, skb->vlan_tci);
 	skb->vlan_tci = 0;
 
-	rx_stats = this_cpu_ptr(vlan_dev_info(vlan_dev)->vlan_pcpu_stats);
+	rx_stats = this_cpu_ptr(vlan_dev_priv(vlan_dev)->vlan_pcpu_stats);
 
 	u64_stats_update_begin(&rx_stats->syncp);
 	rx_stats->rx_packets++;
@@ -90,13 +90,13 @@ EXPORT_SYMBOL(__vlan_find_dev_deep);
 
 struct net_device *vlan_dev_real_dev(const struct net_device *dev)
 {
-	return vlan_dev_info(dev)->real_dev;
+	return vlan_dev_priv(dev)->real_dev;
 }
 EXPORT_SYMBOL(vlan_dev_real_dev);
 
 u16 vlan_dev_vlan_id(const struct net_device *dev)
 {
-	return vlan_dev_info(dev)->vlan_id;
+	return vlan_dev_priv(dev)->vlan_id;
 }
 EXPORT_SYMBOL(vlan_dev_vlan_id);
 
