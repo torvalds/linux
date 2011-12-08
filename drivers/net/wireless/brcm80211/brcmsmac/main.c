@@ -1065,14 +1065,12 @@ brcms_c_mhfdef(struct brcms_c_info *wlc, u16 *mhfs, u16 mhf2_init)
 	}
 }
 
-static struct dma64regs __iomem *
-dmareg(struct brcms_hardware *hw, uint direction, uint fifonum)
+static uint
+dmareg(uint direction, uint fifonum)
 {
-	struct d11regs __iomem *regs = hw->d11core->bus->mmio;
-
 	if (direction == DMA_TX)
-		return &(regs->fifo64regs[fifonum].dmaxmt);
-	return &(regs->fifo64regs[fifonum].dmarcv);
+		return offsetof(struct d11regs, fifo64regs[fifonum].dmaxmt);
+	return offsetof(struct d11regs, fifo64regs[fifonum].dmarcv);
 }
 
 static bool brcms_b_attach_dmapio(struct brcms_c_info *wlc, uint j, bool wme)
@@ -1099,8 +1097,8 @@ static bool brcms_b_attach_dmapio(struct brcms_c_info *wlc, uint j, bool wme)
 		 * RX: RX_FIFO (RX data packets)
 		 */
 		wlc_hw->di[0] = dma_attach(name, wlc_hw->sih, wlc_hw->d11core,
-					   (wme ? dmareg(wlc_hw, DMA_TX, 0) :
-					    NULL), dmareg(wlc_hw, DMA_RX, 0),
+					   (wme ? dmareg(DMA_TX, 0) : 0),
+					   dmareg(DMA_RX, 0),
 					   (wme ? NTXD : 0), NRXD,
 					   RXBUFSZ, -1, NRXBUFPOST,
 					   BRCMS_HWRXOFF, &brcm_msg_level);
@@ -1113,7 +1111,7 @@ static bool brcms_b_attach_dmapio(struct brcms_c_info *wlc, uint j, bool wme)
 		 * RX: UNUSED
 		 */
 		wlc_hw->di[1] = dma_attach(name, wlc_hw->sih, wlc_hw->d11core,
-					   dmareg(wlc_hw, DMA_TX, 1), NULL,
+					   dmareg(DMA_TX, 1), 0,
 					   NTXD, 0, 0, -1, 0, 0,
 					   &brcm_msg_level);
 		dma_attach_err |= (NULL == wlc_hw->di[1]);
@@ -1124,7 +1122,7 @@ static bool brcms_b_attach_dmapio(struct brcms_c_info *wlc, uint j, bool wme)
 		 * RX: UNUSED
 		 */
 		wlc_hw->di[2] = dma_attach(name, wlc_hw->sih, wlc_hw->d11core,
-					   dmareg(wlc_hw, DMA_TX, 2), NULL,
+					   dmareg(DMA_TX, 2), 0,
 					   NTXD, 0, 0, -1, 0, 0,
 					   &brcm_msg_level);
 		dma_attach_err |= (NULL == wlc_hw->di[2]);
@@ -1134,8 +1132,8 @@ static bool brcms_b_attach_dmapio(struct brcms_c_info *wlc, uint j, bool wme)
 		 *   (legacy) TX_CTL_FIFO (TX control & mgmt packets)
 		 */
 		wlc_hw->di[3] = dma_attach(name, wlc_hw->sih, wlc_hw->d11core,
-					   dmareg(wlc_hw, DMA_TX, 3),
-					   NULL, NTXD, 0, 0, -1,
+					   dmareg(DMA_TX, 3),
+					   0, NTXD, 0, 0, -1,
 					   0, 0, &brcm_msg_level);
 		dma_attach_err |= (NULL == wlc_hw->di[3]);
 /* Cleaner to leave this as if with AP defined */
