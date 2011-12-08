@@ -324,6 +324,7 @@ static void __init_memblock memblock_insert_region(struct memblock_type *type,
  * @type: memblock type to add new region into
  * @base: base address of the new region
  * @size: size of the new region
+ * @nid: nid of the new region
  *
  * Add new memblock region [@base,@base+@size) into @type.  The new region
  * is allowed to overlap with existing ones - overlaps don't affect already
@@ -334,7 +335,7 @@ static void __init_memblock memblock_insert_region(struct memblock_type *type,
  * 0 on success, -errno on failure.
  */
 static int __init_memblock memblock_add_region(struct memblock_type *type,
-					       phys_addr_t base, phys_addr_t size)
+				phys_addr_t base, phys_addr_t size, int nid)
 {
 	bool insert = false;
 	phys_addr_t obase = base;
@@ -346,7 +347,7 @@ static int __init_memblock memblock_add_region(struct memblock_type *type,
 		WARN_ON(type->cnt != 1 || type->total_size);
 		type->regions[0].base = base;
 		type->regions[0].size = size;
-		memblock_set_region_node(&type->regions[0], MAX_NUMNODES);
+		memblock_set_region_node(&type->regions[0], nid);
 		type->total_size = size;
 		return 0;
 	}
@@ -376,7 +377,7 @@ repeat:
 			nr_new++;
 			if (insert)
 				memblock_insert_region(type, i++, base,
-						rbase - base, MAX_NUMNODES);
+						       rbase - base, nid);
 		}
 		/* area below @rend is dealt with, forget about it */
 		base = min(rend, end);
@@ -386,8 +387,7 @@ repeat:
 	if (base < end) {
 		nr_new++;
 		if (insert)
-			memblock_insert_region(type, i, base, end - base,
-					       MAX_NUMNODES);
+			memblock_insert_region(type, i, base, end - base, nid);
 	}
 
 	/*
@@ -406,9 +406,15 @@ repeat:
 	}
 }
 
+int __init_memblock memblock_add_node(phys_addr_t base, phys_addr_t size,
+				       int nid)
+{
+	return memblock_add_region(&memblock.memory, base, size, nid);
+}
+
 int __init_memblock memblock_add(phys_addr_t base, phys_addr_t size)
 {
-	return memblock_add_region(&memblock.memory, base, size);
+	return memblock_add_region(&memblock.memory, base, size, MAX_NUMNODES);
 }
 
 /**
@@ -522,7 +528,7 @@ int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
 		     (void *)_RET_IP_);
 	BUG_ON(0 == size);
 
-	return memblock_add_region(_rgn, base, size);
+	return memblock_add_region(_rgn, base, size, MAX_NUMNODES);
 }
 
 /**

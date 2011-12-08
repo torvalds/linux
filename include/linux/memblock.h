@@ -52,6 +52,7 @@ int memblock_free_reserved_regions(void);
 int memblock_reserve_reserved_regions(void);
 
 void memblock_allow_resize(void);
+int memblock_add_node(phys_addr_t base, phys_addr_t size, int nid);
 int memblock_add(phys_addr_t base, phys_addr_t size);
 int memblock_remove(phys_addr_t base, phys_addr_t size);
 int memblock_free(phys_addr_t base, phys_addr_t size);
