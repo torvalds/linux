@@ -32,10 +32,6 @@
 static DEFINE_MUTEX(pinmux_list_mutex);
 static LIST_HEAD(pinmux_list);
 
-/* List of pinmux hogs */
-static DEFINE_MUTEX(pinmux_hoglist_mutex);
-static LIST_HEAD(pinmux_hoglist);
-
 /* Global pinmux maps, we allow one set only */
 static struct pinmux_map const *pinmux_maps;
 static unsigned pinmux_maps_num;
