@@ -1709,17 +1709,17 @@ void brcms_b_core_phypll_reset(struct brcms_hardware *wlc_hw)
 {
 	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
-	ai_corereg(wlc_hw->sih, SI_CC_IDX,
-		   offsetof(struct chipcregs, chipcontrol_addr), ~0, 0);
+	ai_cc_reg(wlc_hw->sih, offsetof(struct chipcregs, chipcontrol_addr),
+		  ~0, 0);
 	udelay(1);
-	ai_corereg(wlc_hw->sih, SI_CC_IDX,
-		   offsetof(struct chipcregs, chipcontrol_data), 0x4, 0);
+	ai_cc_reg(wlc_hw->sih, offsetof(struct chipcregs, chipcontrol_data),
+		  0x4, 0);
 	udelay(1);
-	ai_corereg(wlc_hw->sih, SI_CC_IDX,
-		   offsetof(struct chipcregs, chipcontrol_data), 0x4, 4);
+	ai_cc_reg(wlc_hw->sih, offsetof(struct chipcregs, chipcontrol_data),
+		  0x4, 4);
 	udelay(1);
-	ai_corereg(wlc_hw->sih, SI_CC_IDX,
-		   offsetof(struct chipcregs, chipcontrol_data), 0x4, 0);
+	ai_cc_reg(wlc_hw->sih, offsetof(struct chipcregs, chipcontrol_data),
+		  0x4, 0);
 	udelay(1);
 }
 

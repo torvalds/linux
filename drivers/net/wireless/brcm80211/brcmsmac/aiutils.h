@@ -228,8 +228,6 @@ extern bool ai_iscoreup(struct si_pub *sih);
 extern u32 ai_core_cflags(struct si_pub *sih, u32 mask, u32 val);
 extern void ai_core_cflags_wo(struct si_pub *sih, u32 mask, u32 val);
 extern u32 ai_core_sflags(struct si_pub *sih, u32 mask, u32 val);
-extern uint ai_corereg(struct si_pub *sih, uint coreidx, uint regoff, uint mask,
-		       uint val);
 extern void ai_core_reset(struct si_pub *sih, u32 bits, u32 resetbits);
 extern void ai_core_disable(struct si_pub *sih, u32 bits);
 extern int ai_numaddrspaces(struct si_pub *sih);
@@ -242,8 +240,7 @@ extern struct si_pub *ai_attach(struct bcma_bus *pbus);
 extern void ai_detach(struct si_pub *sih);
 extern uint ai_coreid(struct si_pub *sih);
 extern uint ai_corerev(struct si_pub *sih);
-extern uint ai_corereg(struct si_pub *sih, uint coreidx, uint regoff, uint mask,
-		uint val);
+extern uint ai_cc_reg(struct si_pub *sih, uint regoff, u32 mask, u32 val);
 extern void ai_write_wrapperreg(struct si_pub *sih, u32 offset, u32 val);
 extern u32 ai_core_cflags(struct si_pub *sih, u32 mask, u32 val);
 extern u32 ai_core_sflags(struct si_pub *sih, u32 mask, u32 val);

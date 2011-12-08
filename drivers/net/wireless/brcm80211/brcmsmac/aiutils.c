@@ -885,8 +885,8 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	w = getintvar(sih, BRCMS_SROM_LEDDC);
 	if (w == 0)
 		w = DEFAULT_GPIOTIMERVAL;
-	ai_corereg(sih, SI_CC_IDX, offsetof(struct chipcregs, gpiotimerval),
-		   ~0, w);
+	ai_cc_reg(sih, offsetof(struct chipcregs, gpiotimerval),
+		  ~0, w);
 
 	if (PCIE(sih))
 		pcicore_attach(sii->pch, SI_DOATTACH);
@@ -898,10 +898,9 @@ static struct si_info *ai_doattach(struct si_info *sii,
 		 */
 		if (ai_get_chiprev(sih) == 0) {
 			SI_MSG("Applying 43224A0 WARs\n");
-			ai_corereg(sih, SI_CC_IDX,
-				   offsetof(struct chipcregs, chipcontrol),
-				   CCTRL43224_GPIO_TOGGLE,
-				   CCTRL43224_GPIO_TOGGLE);
+			ai_cc_reg(sih, offsetof(struct chipcregs, chipcontrol),
+				  CCTRL43224_GPIO_TOGGLE,
+				  CCTRL43224_GPIO_TOGGLE);
 			si_pmu_chipcontrol(sih, 0, CCTRL_43224A0_12MA_LED_DRIVE,
 					   CCTRL_43224A0_12MA_LED_DRIVE);
 		}
@@ -1104,41 +1103,32 @@ void ai_write_wrapperreg(struct si_pub *sih, u32 offset, u32 val)
  * Also, when using pci/pcie, we can optimize away the core switching for pci
  * registers and (on newer pci cores) chipcommon registers.
  */
-uint ai_corereg(struct si_pub *sih, uint coreidx, uint regoff, uint mask,
-		uint val)
+uint ai_cc_reg(struct si_pub *sih, uint regoff, u32 mask, u32 val)
 {
+	struct bcma_device *cc;
 	uint origidx = 0;
-	u32 __iomem *r = NULL;
-	uint w;
+	u32 w;
 	uint intr_val = 0;
 	struct si_info *sii;
 
 	sii = (struct si_info *)sih;
-
-	if (coreidx >= SI_MAXCORES)
-		return 0;
+	cc = sii->icbus->drv_cc.core;
 
 	INTR_OFF(sii, intr_val);
 
 	/* save current core index */
 	origidx = ai_coreidx(&sii->pub);
 
-	/* switch core */
-	r = (u32 __iomem *) ((unsigned char __iomem *)
-		ai_setcoreidx(&sii->pub, coreidx) + regoff);
-
 	/* mask and set */
 	if (mask || val) {
-		w = (R_REG(r) & ~mask) | val;
-		W_REG(r, w);
+		bcma_maskset32(cc, regoff, ~mask, val);
 	}
 
 	/* readback */
-	w = R_REG(r);
+	w = bcma_read32(cc, regoff);
 
 	/* restore core index */
-	if (origidx != coreidx)
-		ai_setcoreidx(&sii->pub, origidx);
+	ai_setcoreidx(&sii->pub, origidx);
 
 	INTR_RESTORE(sii, intr_val);
 
@@ -1664,7 +1654,7 @@ u32 ai_gpiocontrol(struct si_pub *sih, u32 mask, u32 val, u8 priority)
 	uint regoff;
 
 	regoff = offsetof(struct chipcregs, gpiocontrol);
-	return ai_corereg(sih, SI_CC_IDX, regoff, mask, val);
+	return ai_cc_reg(sih, regoff, mask, val);
 }
 
 void ai_chipcontrl_epa4331(struct si_pub *sih, bool on)

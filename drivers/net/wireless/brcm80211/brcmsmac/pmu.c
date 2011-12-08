@@ -236,38 +236,32 @@ void si_pmu_sprom_enable(struct si_pub *sih, bool enable)
 /* Read/write a chipcontrol reg */
 u32 si_pmu_chipcontrol(struct si_pub *sih, uint reg, u32 mask, u32 val)
 {
-	ai_corereg(sih, SI_CC_IDX, offsetof(struct chipcregs, chipcontrol_addr),
-		   ~0, reg);
-	return ai_corereg(sih, SI_CC_IDX,
-			  offsetof(struct chipcregs, chipcontrol_data), mask,
-			  val);
+	ai_cc_reg(sih, offsetof(struct chipcregs, chipcontrol_addr), ~0, reg);
+	return ai_cc_reg(sih, offsetof(struct chipcregs, chipcontrol_data),
+			 mask, val);
 }
 
 /* Read/write a regcontrol reg */
 u32 si_pmu_regcontrol(struct si_pub *sih, uint reg, u32 mask, u32 val)
 {
-	ai_corereg(sih, SI_CC_IDX, offsetof(struct chipcregs, regcontrol_addr),
-		   ~0, reg);
-	return ai_corereg(sih, SI_CC_IDX,
-			  offsetof(struct chipcregs, regcontrol_data), mask,
-			  val);
+	ai_cc_reg(sih, offsetof(struct chipcregs, regcontrol_addr), ~0, reg);
+	return ai_cc_reg(sih, offsetof(struct chipcregs, regcontrol_data),
+			 mask, val);
 }
 
 /* Read/write a pllcontrol reg */
 u32 si_pmu_pllcontrol(struct si_pub *sih, uint reg, u32 mask, u32 val)
 {
-	ai_corereg(sih, SI_CC_IDX, offsetof(struct chipcregs, pllcontrol_addr),
-		   ~0, reg);
-	return ai_corereg(sih, SI_CC_IDX,
-			  offsetof(struct chipcregs, pllcontrol_data), mask,
-			  val);
+	ai_cc_reg(sih, offsetof(struct chipcregs, pllcontrol_addr), ~0, reg);
+	return ai_cc_reg(sih, offsetof(struct chipcregs, pllcontrol_data),
+			 mask, val);
 }
 
 /* PMU PLL update */
 void si_pmu_pllupd(struct si_pub *sih)
 {
-	ai_corereg(sih, SI_CC_IDX, offsetof(struct chipcregs, pmucontrol),
-		   PCTL_PLL_PLLCTL_UPD, PCTL_PLL_PLLCTL_UPD);
+	ai_cc_reg(sih, offsetof(struct chipcregs, pmucontrol),
+		  PCTL_PLL_PLLCTL_UPD, PCTL_PLL_PLLCTL_UPD);
 }
 
 /* query alp/xtal clock frequency */

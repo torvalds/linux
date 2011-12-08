@@ -2905,29 +2905,29 @@ void wlc_lcnphy_epa_switch(struct brcms_phy *pi, bool mode)
 				mod_phy_reg(pi, 0x44c, (0x1 << 2), (1) << 2);
 
 			}
-			ai_corereg(pi->sh->sih, SI_CC_IDX,
-				   offsetof(struct chipcregs, gpiocontrol),
-				   ~0x0, 0x0);
-			ai_corereg(pi->sh->sih, SI_CC_IDX,
-				   offsetof(struct chipcregs, gpioout), 0x40,
-				   0x40);
-			ai_corereg(pi->sh->sih, SI_CC_IDX,
-				   offsetof(struct chipcregs, gpioouten), 0x40,
-				   0x40);
+			ai_cc_reg(pi->sh->sih,
+				  offsetof(struct chipcregs, gpiocontrol),
+				  ~0x0, 0x0);
+			ai_cc_reg(pi->sh->sih,
+				  offsetof(struct chipcregs, gpioout),
+				  0x40, 0x40);
+			ai_cc_reg(pi->sh->sih,
+				  offsetof(struct chipcregs, gpioouten),
+				  0x40, 0x40);
 		} else {
 			mod_phy_reg(pi, 0x44c, (0x1 << 2), (0) << 2);
 
 			mod_phy_reg(pi, 0x44d, (0x1 << 2), (0) << 2);
 
-			ai_corereg(pi->sh->sih, SI_CC_IDX,
-				   offsetof(struct chipcregs, gpioout), 0x40,
-				   0x00);
-			ai_corereg(pi->sh->sih, SI_CC_IDX,
-				   offsetof(struct chipcregs, gpioouten), 0x40,
-				   0x0);
-			ai_corereg(pi->sh->sih, SI_CC_IDX,
-				   offsetof(struct chipcregs, gpiocontrol),
-				   ~0x0, 0x40);
+			ai_cc_reg(pi->sh->sih,
+				  offsetof(struct chipcregs, gpioout),
+				  0x40, 0x00);
+			ai_cc_reg(pi->sh->sih,
+				  offsetof(struct chipcregs, gpioouten),
+				  0x40, 0x0);
+			ai_cc_reg(pi->sh->sih,
+				  offsetof(struct chipcregs, gpiocontrol),
+				  ~0x0, 0x40);
 		}
 	}
 }
