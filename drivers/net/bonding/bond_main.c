@@ -431,17 +431,13 @@ int bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb,
 static int bond_vlan_rx_add_vid(struct net_device *bond_dev, uint16_t vid)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
-	struct slave *slave;
+	struct slave *slave, *stop_at;
 	int i, res;
 
 	bond_for_each_slave(bond, slave, i) {
-		struct net_device *slave_dev = slave->dev;
-		const struct net_device_ops *slave_ops = slave_dev->netdev_ops;
-
-		if ((slave_dev->features & NETIF_F_HW_VLAN_FILTER) &&
-		    slave_ops->ndo_vlan_rx_add_vid) {
-			slave_ops->ndo_vlan_rx_add_vid(slave_dev, vid);
-		}
+		res = vlan_vid_add(slave->dev, vid);
+		if (res)
+			goto unwind;
 	}
 
 	res = bond_add_vlan(bond, vid);
@@ -452,6 +448,14 @@ static int bond_vlan_rx_add_vid(struct net_device *bond_dev, uint16_t vid)
 	}
 
 	return 0;
+
+unwind:
+	/* unwind from head to the slave that failed */
+	stop_at = slave;
+	bond_for_each_slave_from_to(bond, slave, i, bond->first_slave, stop_at)
+		vlan_vid_del(slave->dev, vid);
+
+	return res;
 }
 
 /**
@@ -465,15 +469,8 @@ static int bond_vlan_rx_kill_vid(struct net_device *bond_dev, uint16_t vid)
 	struct slave *slave;
 	int i, res;
 
-	bond_for_each_slave(bond, slave, i) {
-		struct net_device *slave_dev = slave->dev;
-		const struct net_device_ops *slave_ops = slave_dev->netdev_ops;
-
-		if ((slave_dev->features & NETIF_F_HW_VLAN_FILTER) &&
-		    slave_ops->ndo_vlan_rx_kill_vid) {
-			slave_ops->ndo_vlan_rx_kill_vid(slave_dev, vid);
-		}
-	}
+	bond_for_each_slave(bond, slave, i)
+		vlan_vid_del(slave->dev, vid);
 
 	res = bond_del_vlan(bond, vid);
 	if (res) {
@@ -488,30 +485,26 @@ static int bond_vlan_rx_kill_vid(struct net_device *bond_dev, uint16_t vid)
 static void bond_add_vlans_on_slave(struct bonding *bond, struct net_device *slave_dev)
 {
 	struct vlan_entry *vlan;
-	const struct net_device_ops *slave_ops = slave_dev->netdev_ops;
+	int res;
 
-	if (!(slave_dev->features & NETIF_F_HW_VLAN_FILTER) ||
-	    !(slave_ops->ndo_vlan_rx_add_vid))
-		return;
-
-	list_for_each_entry(vlan, &bond->vlan_list, vlan_list)
-		slave_ops->ndo_vlan_rx_add_vid(slave_dev, vlan->vlan_id);
+	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
+		res = vlan_vid_add(slave_dev, vlan->vlan_id);
+		if (res)
+			pr_warning("%s: Failed to add vlan id %d to device %s\n",
+				   bond->dev->name, vlan->vlan_id,
+				   slave_dev->name);
+	}
 }
 
 static void bond_del_vlans_from_slave(struct bonding *bond,
 				      struct net_device *slave_dev)
 {
-	const struct net_device_ops *slave_ops = slave_dev->netdev_ops;
 	struct vlan_entry *vlan;
-
-	if (!(slave_dev->features & NETIF_F_HW_VLAN_FILTER) ||
-	    !(slave_ops->ndo_vlan_rx_kill_vid))
-		return;
 
 	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
 		if (!vlan->vlan_id)
 			continue;
-		slave_ops->ndo_vlan_rx_kill_vid(slave_dev, vlan->vlan_id);
+		vlan_vid_del(slave_dev, vlan->vlan_id);
 	}
 }
 

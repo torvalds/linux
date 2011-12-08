@@ -146,3 +146,26 @@ err_free:
 	kfree_skb(skb);
 	return NULL;
 }
+
+int vlan_vid_add(struct net_device *dev, unsigned short vid)
+{
+	const struct net_device_ops *ops = dev->netdev_ops;
+
+	if ((dev->features & NETIF_F_HW_VLAN_FILTER) &&
+	     ops->ndo_vlan_rx_add_vid) {
+		return ops->ndo_vlan_rx_add_vid(dev, vid);
+	}
+	return 0;
+}
+EXPORT_SYMBOL(vlan_vid_add);
+
+void vlan_vid_del(struct net_device *dev, unsigned short vid)
+{
+	const struct net_device_ops *ops = dev->netdev_ops;
+
+	if ((dev->features & NETIF_F_HW_VLAN_FILTER) &&
+	     ops->ndo_vlan_rx_kill_vid) {
+		ops->ndo_vlan_rx_kill_vid(dev, vid);
+	}
+}
+EXPORT_SYMBOL(vlan_vid_del);

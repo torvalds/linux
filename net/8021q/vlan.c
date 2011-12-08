@@ -101,7 +101,6 @@ void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 {
 	struct vlan_dev_priv *vlan = vlan_dev_priv(dev);
 	struct net_device *real_dev = vlan->real_dev;
-	const struct net_device_ops *ops = real_dev->netdev_ops;
 	struct vlan_group *grp;
 	u16 vlan_id = vlan->vlan_id;
 
@@ -114,8 +113,8 @@ void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 	 * HW accelerating devices or SW vlan input packet processing if
 	 * VLAN is not 0 (leave it there for 802.1p).
 	 */
-	if (vlan_id && (real_dev->features & NETIF_F_HW_VLAN_FILTER))
-		ops->ndo_vlan_rx_kill_vid(real_dev, vlan_id);
+	if (vlan_id)
+		vlan_vid_del(real_dev, vlan_id);
 
 	grp->nr_vlans--;
 
@@ -169,7 +168,6 @@ int register_vlan_dev(struct net_device *dev)
 {
 	struct vlan_dev_priv *vlan = vlan_dev_priv(dev);
 	struct net_device *real_dev = vlan->real_dev;
-	const struct net_device_ops *ops = real_dev->netdev_ops;
 	u16 vlan_id = vlan->vlan_id;
 	struct vlan_group *grp, *ngrp = NULL;
 	int err;
@@ -207,8 +205,7 @@ int register_vlan_dev(struct net_device *dev)
 	if (ngrp) {
 		rcu_assign_pointer(real_dev->vlgrp, ngrp);
 	}
-	if (real_dev->features & NETIF_F_HW_VLAN_FILTER)
-		ops->ndo_vlan_rx_add_vid(real_dev, vlan_id);
+	vlan_vid_add(real_dev, vlan_id);
 
 	return 0;
 
@@ -369,11 +366,10 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 		__vlan_device_event(dev, event);
 
 	if ((event == NETDEV_UP) &&
-	    (dev->features & NETIF_F_HW_VLAN_FILTER) &&
-	    dev->netdev_ops->ndo_vlan_rx_add_vid) {
+	    (dev->features & NETIF_F_HW_VLAN_FILTER)) {
 		pr_info("adding VLAN 0 to HW filter on device %s\n",
 			dev->name);
-		dev->netdev_ops->ndo_vlan_rx_add_vid(dev, 0);
+		vlan_vid_add(dev, 0);
 	}
 
 	grp = rtnl_dereference(dev->vlgrp);

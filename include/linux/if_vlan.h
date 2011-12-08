@@ -109,6 +109,9 @@ extern u16 vlan_dev_vlan_id(const struct net_device *dev);
 extern bool vlan_do_receive(struct sk_buff **skb, bool last_handler);
 extern struct sk_buff *vlan_untag(struct sk_buff *skb);
 
+extern int vlan_vid_add(struct net_device *dev, unsigned short vid);
+extern void vlan_vid_del(struct net_device *dev, unsigned short vid);
+
 #else
 static inline struct net_device *
 __vlan_find_dev_deep(struct net_device *real_dev, u16 vlan_id)
@@ -138,6 +141,15 @@ static inline bool vlan_do_receive(struct sk_buff **skb, bool last_handler)
 static inline struct sk_buff *vlan_untag(struct sk_buff *skb)
 {
 	return skb;
+}
+
+static inline int vlan_vid_add(struct net_device *dev, unsigned short vid)
+{
+	return 0;
+}
+
+static inline void vlan_vid_del(struct net_device *dev, unsigned short vid)
+{
 }
 #endif
 

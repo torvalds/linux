@@ -18,6 +18,7 @@
 #include <linux/ctype.h>
 #include <linux/notifier.h>
 #include <linux/netdevice.h>
+#include <linux/if_vlan.h>
 #include <linux/if_arp.h>
 #include <linux/socket.h>
 #include <linux/etherdevice.h>
@@ -906,17 +907,28 @@ static int team_vlan_rx_add_vid(struct net_device *dev, uint16_t vid)
 {
 	struct team *team = netdev_priv(dev);
 	struct team_port *port;
+	int err;
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(port, &team->port_list, list) {
-		const struct net_device_ops *ops = port->dev->netdev_ops;
-
-		if (ops->ndo_vlan_rx_add_vid)
-			ops->ndo_vlan_rx_add_vid(port->dev, vid);
+	/*
+	 * Alhough this is reader, it's guarded by team lock. It's not possible
+	 * to traverse list in reverse under rcu_read_lock
+	 */
+	mutex_lock(&team->lock);
+	list_for_each_entry(port, &team->port_list, list) {
+		err = vlan_vid_add(port->dev, vid);
+		if (err)
+			goto unwind;
 	}
-	rcu_read_unlock();
+	mutex_unlock(&team->lock);
 
 	return 0;
+
+unwind:
+	list_for_each_entry_continue_reverse(port, &team->port_list, list)
+		vlan_vid_del(port->dev, vid);
+	mutex_unlock(&team->lock);
+
+	return err;
 }
 
 static int team_vlan_rx_kill_vid(struct net_device *dev, uint16_t vid)
@@ -925,12 +937,8 @@ static int team_vlan_rx_kill_vid(struct net_device *dev, uint16_t vid)
 	struct team_port *port;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(port, &team->port_list, list) {
-		const struct net_device_ops *ops = port->dev->netdev_ops;
-
-		if (ops->ndo_vlan_rx_kill_vid)
-			ops->ndo_vlan_rx_kill_vid(port->dev, vid);
-	}
+	list_for_each_entry_rcu(port, &team->port_list, list)
+		vlan_vid_del(port->dev, vid);
 	rcu_read_unlock();
 
 	return 0;
