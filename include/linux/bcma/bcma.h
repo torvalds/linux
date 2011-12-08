@@ -254,12 +254,32 @@ void bcma_awrite32(struct bcma_device *core, u16 offset, u32 value)
 	core->bus->ops->awrite32(core, offset, value);
 }
 
-#define bcma_mask32(cc, offset, mask) \
-	bcma_write32(cc, offset, bcma_read32(cc, offset) & (mask))
-#define bcma_set32(cc, offset, set) \
-	bcma_write32(cc, offset, bcma_read32(cc, offset) | (set))
-#define bcma_maskset32(cc, offset, mask, set) \
-	bcma_write32(cc, offset, (bcma_read32(cc, offset) & (mask)) | (set))
+static inline void bcma_mask32(struct bcma_device *cc, u16 offset, u32 mask)
+{
+	bcma_write32(cc, offset, bcma_read32(cc, offset) & mask);
+}
+static inline void bcma_set32(struct bcma_device *cc, u16 offset, u32 set)
+{
+	bcma_write32(cc, offset, bcma_read32(cc, offset) | set);
+}
+static inline void bcma_maskset32(struct bcma_device *cc,
+				  u16 offset, u32 mask, u32 set)
+{
+	bcma_write32(cc, offset, (bcma_read32(cc, offset) & mask) | set);
+}
+static inline void bcma_mask16(struct bcma_device *cc, u16 offset, u16 mask)
+{
+	bcma_write16(cc, offset, bcma_read16(cc, offset) & mask);
+}
+static inline void bcma_set16(struct bcma_device *cc, u16 offset, u16 set)
+{
+	bcma_write16(cc, offset, bcma_read16(cc, offset) | set);
+}
+static inline void bcma_maskset16(struct bcma_device *cc,
+				  u16 offset, u16 mask, u16 set)
+{
+	bcma_write16(cc, offset, (bcma_read16(cc, offset) & mask) | set);
+}
 
 extern bool bcma_core_is_enabled(struct bcma_device *core);
 extern void bcma_core_disable(struct bcma_device *core, u32 flags);
