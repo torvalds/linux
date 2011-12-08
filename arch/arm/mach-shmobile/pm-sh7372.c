@@ -162,16 +162,6 @@ static bool pd_active_wakeup(struct device *dev)
 	return active_wakeup ? active_wakeup(dev) : true;
 }
 
-static bool sh7372_power_down_forbidden(struct dev_pm_domain *domain)
-{
-	return false;
-}
-
-struct dev_power_governor sh7372_always_on_gov = {
-	.power_down_ok = sh7372_power_down_forbidden,
-	.stop_ok = default_stop_ok,
-};
-
 static int sh7372_stop_dev(struct device *dev)
 {
 	int (*stop)(struct device *dev);
@@ -250,7 +240,7 @@ struct sh7372_pm_domain sh7372_d4 = {
 struct sh7372_pm_domain sh7372_a4r = {
 	.genpd.name = "A4R",
 	.bit_shift = 5,
-	.gov = &sh7372_always_on_gov,
+	.gov = &pm_domain_always_on_gov,
 	.suspend = sh7372_a4r_suspend,
 	.resume = sh7372_intcs_resume,
 	.stay_on = true,
@@ -269,7 +259,7 @@ struct sh7372_pm_domain sh7372_a3ri = {
 struct sh7372_pm_domain sh7372_a3sp = {
 	.genpd.name = "A3SP",
 	.bit_shift = 11,
-	.gov = &sh7372_always_on_gov,
+	.gov = &pm_domain_always_on_gov,
 	.no_debug = true,
 };
 
