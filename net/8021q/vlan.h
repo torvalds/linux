@@ -41,6 +41,8 @@ struct vlan_pcpu_stats {
 	u32			tx_dropped;
 };
 
+struct netpoll;
+
 /**
  *	struct vlan_dev_priv - VLAN private device data
  *	@nr_ingress_mappings: number of ingress priority mappings
@@ -68,6 +70,9 @@ struct vlan_dev_priv {
 
 	struct proc_dir_entry			*dent;
 	struct vlan_pcpu_stats __percpu		*vlan_pcpu_stats;
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	struct netpoll				*netpoll;
+#endif
 };
 
 static inline struct vlan_dev_priv *vlan_dev_priv(const struct net_device *dev)
