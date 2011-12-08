@@ -203,7 +203,7 @@ static int __devexit jz4740_hwmon_remove(struct platform_device *pdev)
 	return 0;
 }
 
-struct platform_driver jz4740_hwmon_driver = {
+static struct platform_driver jz4740_hwmon_driver = {
 	.probe	= jz4740_hwmon_probe,
 	.remove = __devexit_p(jz4740_hwmon_remove),
 	.driver = {
