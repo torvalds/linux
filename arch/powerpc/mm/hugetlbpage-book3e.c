@@ -37,31 +37,32 @@ static inline int book3e_tlb_exists(unsigned long ea, unsigned long pid)
 	return found;
 }
 
-void book3e_hugetlb_preload(struct mm_struct *mm, unsigned long ea, pte_t pte)
+void book3e_hugetlb_preload(struct vm_area_struct *vma, unsigned long ea,
+			    pte_t pte)
 {
 	unsigned long mas1, mas2;
 	u64 mas7_3;
 	unsigned long psize, tsize, shift;
 	unsigned long flags;
+	struct mm_struct *mm;
 
 #ifdef CONFIG_PPC_FSL_BOOK3E
-	int index, lz, ncams;
-	struct vm_area_struct *vma;
+	int index, ncams;
 #endif
 
 	if (unlikely(is_kernel_addr(ea)))
 		return;
 
+	mm = vma->vm_mm;
+
 #ifdef CONFIG_PPC_MM_SLICES
-	psize = mmu_get_tsize(get_slice_psize(mm, ea));
-	tsize = mmu_get_psize(psize);
+	psize = get_slice_psize(mm, ea);
+	tsize = mmu_get_tsize(psize);
 	shift = mmu_psize_defs[psize].shift;
 #else
-	vma = find_vma(mm, ea);
-	psize = vma_mmu_pagesize(vma);	/* returns actual size in bytes */
-	asm (PPC_CNTLZL "%0,%1" : "=r" (lz) : "r" (psize));
-	shift = 31 - lz;
-	tsize = 21 - lz;
+	psize = vma_mmu_pagesize(vma);
+	shift = __ilog2(psize);
+	tsize = shift - 10;
 #endif
 
 	/*
