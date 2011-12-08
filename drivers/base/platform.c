@@ -383,7 +383,7 @@ EXPORT_SYMBOL_GPL(platform_device_unregister);
  * Returns &struct platform_device pointer on success, or ERR_PTR() on error.
  */
 struct platform_device *platform_device_register_full(
-		struct platform_device_info *pdevinfo)
+		const struct platform_device_info *pdevinfo)
 {
 	int ret = -ENOMEM;
 	struct platform_device *pdev;

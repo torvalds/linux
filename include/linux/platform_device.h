@@ -63,7 +63,7 @@ struct platform_device_info {
 		u64 dma_mask;
 };
 extern struct platform_device *platform_device_register_full(
-		struct platform_device_info *pdevinfo);
+		const struct platform_device_info *pdevinfo);
 
 /**
  * platform_device_register_resndata - add a platform-level device with
