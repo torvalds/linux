@@ -421,6 +421,17 @@ static int apei_resources_merge(struct apei_resources *resources1,
 	return 0;
 }
 
+int apei_resources_add(struct apei_resources *resources,
+		       unsigned long start, unsigned long size,
+		       bool iomem)
+{
+	if (iomem)
+		return apei_res_add(&resources->iomem, start, size);
+	else
+		return apei_res_add(&resources->ioport, start, size);
+}
+EXPORT_SYMBOL_GPL(apei_resources_add);
+
 /*
  * EINJ has two groups of GARs (EINJ table entry and trigger table
  * entry), so common resources are subtracted from the trigger table

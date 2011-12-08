@@ -95,6 +95,9 @@ static inline void apei_resources_init(struct apei_resources *resources)
 }
 
 void apei_resources_fini(struct apei_resources *resources);
+int apei_resources_add(struct apei_resources *resources,
+		       unsigned long start, unsigned long size,
+		       bool iomem);
 int apei_resources_sub(struct apei_resources *resources1,
 		       struct apei_resources *resources2);
 int apei_resources_request(struct apei_resources *resources,
