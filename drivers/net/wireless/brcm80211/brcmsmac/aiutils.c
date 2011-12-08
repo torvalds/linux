@@ -535,36 +535,6 @@ uint ai_corerev(struct si_pub *sih)
 	return (cib & CIB_REV_MASK) >> CIB_REV_SHIFT;
 }
 
-bool ai_iscoreup(struct si_pub *sih)
-{
-	struct si_info *sii;
-	struct aidmp *ai;
-
-	sii = (struct si_info *)sih;
-	ai = sii->curwrap;
-
-	return (((R_REG(&ai->ioctrl) & (SICF_FGC | SICF_CLOCK_EN)) ==
-		 SICF_CLOCK_EN)
-		&& ((R_REG(&ai->resetctrl) & AIRC_RESET) == 0));
-}
-
-u32 ai_core_cflags(struct si_pub *sih, u32 mask, u32 val)
-{
-	struct si_info *sii;
-	struct aidmp *ai;
-	u32 w;
-
-	sii = (struct si_info *)sih;
-	ai = sii->curwrap;
-
-	if (mask || val) {
-		w = ((R_REG(&ai->ioctrl) & ~mask) | val);
-		W_REG(&ai->ioctrl, w);
-	}
-
-	return R_REG(&ai->ioctrl);
-}
-
 /* return true if PCIE capability exists in the pci config space */
 static bool ai_ispcie(struct si_info *sii)
 {
@@ -585,23 +555,6 @@ static bool ai_buscore_prep(struct si_info *sii)
 	if (!ai_ispcie(sii))
 		ai_clkctl_xtal(&sii->pub, XTAL | PLL, ON);
 	return true;
-}
-
-u32 ai_core_sflags(struct si_pub *sih, u32 mask, u32 val)
-{
-	struct si_info *sii;
-	struct aidmp *ai;
-	u32 w;
-
-	sii = (struct si_info *)sih;
-	ai = sii->curwrap;
-
-	if (mask || val) {
-		w = ((R_REG(&ai->iostatus) & ~mask) | val);
-		W_REG(&ai->iostatus, w);
-	}
-
-	return R_REG(&ai->iostatus);
 }
 
 static bool
@@ -1035,61 +988,6 @@ uint ai_cc_reg(struct si_pub *sih, uint regoff, u32 mask, u32 val)
 	INTR_RESTORE(sii, intr_val);
 
 	return w;
-}
-
-void ai_core_disable(struct si_pub *sih, u32 bits)
-{
-	struct si_info *sii;
-	u32 dummy;
-	struct aidmp *ai;
-
-	sii = (struct si_info *)sih;
-
-	ai = sii->curwrap;
-
-	/* if core is already in reset, just return */
-	if (R_REG(&ai->resetctrl) & AIRC_RESET)
-		return;
-
-	W_REG(&ai->ioctrl, bits);
-	dummy = R_REG(&ai->ioctrl);
-	udelay(10);
-
-	W_REG(&ai->resetctrl, AIRC_RESET);
-	udelay(1);
-}
-
-/* reset and re-enable a core
- * inputs:
- * bits - core specific bits that are set during and after reset sequence
- * resetbits - core specific bits that are set only during reset sequence
- */
-void ai_core_reset(struct si_pub *sih, u32 bits, u32 resetbits)
-{
-	struct si_info *sii;
-	struct aidmp *ai;
-	u32 dummy;
-
-	sii = (struct si_info *)sih;
-	ai = sii->curwrap;
-
-	/*
-	 * Must do the disable sequence first to work
-	 * for arbitrary current core state.
-	 */
-	ai_core_disable(sih, (bits | resetbits));
-
-	/*
-	 * Now do the initialization sequence.
-	 */
-	W_REG(&ai->ioctrl, (bits | SICF_FGC | SICF_CLOCK_EN));
-	dummy = R_REG(&ai->ioctrl);
-	W_REG(&ai->resetctrl, 0);
-	udelay(1);
-
-	W_REG(&ai->ioctrl, (bits | SICF_CLOCK_EN));
-	dummy = R_REG(&ai->ioctrl);
-	udelay(1);
 }
 
 /* return the slow clock source - LPO, XTAL, or PCI */

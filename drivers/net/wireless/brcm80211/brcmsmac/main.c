@@ -738,6 +738,14 @@ static void brcms_c_ucode_bsinit(struct brcms_hardware *wlc_hw)
 	}
 }
 
+static void brcms_b_core_ioctl(struct brcms_hardware *wlc_hw, u32 m, u32 v)
+{
+	struct bcma_device *core = wlc_hw->d11core;
+	u32 ioctl = bcma_aread32(core, BCMA_IOCTL) & ~m;
+
+	bcma_awrite32(core, BCMA_IOCTL, ioctl | v);
+}
+
 static void brcms_b_core_phy_clk(struct brcms_hardware *wlc_hw, bool clk)
 {
 	BCMMSG(wlc_hw->wlc->wiphy, "wl%d: clk %d\n", wlc_hw->unit, clk);
@@ -746,17 +754,17 @@ static void brcms_b_core_phy_clk(struct brcms_hardware *wlc_hw, bool clk)
 
 	if (OFF == clk) {	/* clear gmode bit, put phy into reset */
 
-		ai_core_cflags(wlc_hw->sih, (SICF_PRST | SICF_FGC | SICF_GMODE),
-			       (SICF_PRST | SICF_FGC));
+		brcms_b_core_ioctl(wlc_hw, (SICF_PRST | SICF_FGC | SICF_GMODE),
+				   (SICF_PRST | SICF_FGC));
 		udelay(1);
-		ai_core_cflags(wlc_hw->sih, (SICF_PRST | SICF_FGC), SICF_PRST);
+		brcms_b_core_ioctl(wlc_hw, (SICF_PRST | SICF_FGC), SICF_PRST);
 		udelay(1);
 
 	} else {		/* take phy out of reset */
 
-		ai_core_cflags(wlc_hw->sih, (SICF_PRST | SICF_FGC), SICF_FGC);
+		brcms_b_core_ioctl(wlc_hw, (SICF_PRST | SICF_FGC), SICF_FGC);
 		udelay(1);
-		ai_core_cflags(wlc_hw->sih, (SICF_FGC), 0);
+		brcms_b_core_ioctl(wlc_hw, SICF_FGC, 0);
 		udelay(1);
 
 	}
@@ -777,9 +785,14 @@ static void brcms_c_setxband(struct brcms_hardware *wlc_hw, uint bandunit)
 	wlc_hw->wlc->band = wlc_hw->wlc->bandstate[bandunit];
 
 	/* set gmode core flag */
-	if (wlc_hw->sbclk && !wlc_hw->noreset)
-		ai_core_cflags(wlc_hw->sih, SICF_GMODE,
-			       ((bandunit == 0) ? SICF_GMODE : 0));
+	if (wlc_hw->sbclk && !wlc_hw->noreset) {
+		u32 gmode = 0;
+
+		if (bandunit == 0)
+			gmode = SICF_GMODE;
+
+		brcms_b_core_ioctl(wlc_hw, SICF_GMODE, gmode);
+	}
 }
 
 /* switch to new band but leave it inactive */
@@ -1257,7 +1270,7 @@ static void brcms_b_clkctl_clk(struct brcms_hardware *wlc_hw, uint mode)
 
 		/* check fast clock is available (if core is not in reset) */
 		if (wlc_hw->forcefastclk && wlc_hw->clk)
-			WARN_ON(!(ai_core_sflags(wlc_hw->sih, 0, 0) &
+			WARN_ON(!(bcma_aread32(wlc_hw->d11core, BCMA_IOST) &
 				  SISF_FCLKA));
 
 		/*
@@ -1733,18 +1746,18 @@ void brcms_b_phyclk_fgc(struct brcms_hardware *wlc_hw, bool clk)
 		return;
 
 	if (ON == clk)
-		ai_core_cflags(wlc_hw->sih, SICF_FGC, SICF_FGC);
+		brcms_b_core_ioctl(wlc_hw, SICF_FGC, SICF_FGC);
 	else
-		ai_core_cflags(wlc_hw->sih, SICF_FGC, 0);
+		brcms_b_core_ioctl(wlc_hw, SICF_FGC, 0);
 
 }
 
 void brcms_b_macphyclk_set(struct brcms_hardware *wlc_hw, bool clk)
 {
 	if (ON == clk)
-		ai_core_cflags(wlc_hw->sih, SICF_MPCLKE, SICF_MPCLKE);
+		brcms_b_core_ioctl(wlc_hw, SICF_MPCLKE, SICF_MPCLKE);
 	else
-		ai_core_cflags(wlc_hw->sih, SICF_MPCLKE, 0);
+		brcms_b_core_ioctl(wlc_hw, SICF_MPCLKE, 0);
 }
 
 void brcms_b_phy_reset(struct brcms_hardware *wlc_hw)
@@ -1764,7 +1777,7 @@ void brcms_b_phy_reset(struct brcms_hardware *wlc_hw)
 	if (BRCMS_ISNPHY(wlc_hw->band) && NREV_GE(wlc_hw->band->phyrev, 3) &&
 	    NREV_LE(wlc_hw->band->phyrev, 4)) {
 		/* Set the PHY bandwidth */
-		ai_core_cflags(wlc_hw->sih, SICF_BWMASK, phy_bw_clkbits);
+		brcms_b_core_ioctl(wlc_hw, SICF_BWMASK, phy_bw_clkbits);
 
 		udelay(1);
 
@@ -1772,13 +1785,13 @@ void brcms_b_phy_reset(struct brcms_hardware *wlc_hw)
 		brcms_b_core_phypll_reset(wlc_hw);
 
 		/* reset the PHY */
-		ai_core_cflags(wlc_hw->sih, (SICF_PRST | SICF_PCLKE),
-			       (SICF_PRST | SICF_PCLKE));
+		brcms_b_core_ioctl(wlc_hw, (SICF_PRST | SICF_PCLKE),
+				   (SICF_PRST | SICF_PCLKE));
 		phy_in_reset = true;
 	} else {
-		ai_core_cflags(wlc_hw->sih,
-			       (SICF_PRST | SICF_PCLKE | SICF_BWMASK),
-			       (SICF_PRST | SICF_PCLKE | phy_bw_clkbits));
+		brcms_b_core_ioctl(wlc_hw,
+				   (SICF_PRST | SICF_PCLKE | SICF_BWMASK),
+				   (SICF_PRST | SICF_PCLKE | phy_bw_clkbits));
 	}
 
 	udelay(2);
@@ -1795,8 +1808,8 @@ static void brcms_b_setband(struct brcms_hardware *wlc_hw, uint bandunit,
 	u32 macintmask;
 
 	/* Enable the d11 core before accessing it */
-	if (!ai_iscoreup(wlc_hw->sih)) {
-		ai_core_reset(wlc_hw->sih, 0, 0);
+	if (!bcma_core_is_enabled(wlc_hw->d11core)) {
+		bcma_core_enable(wlc_hw->d11core, 0);
 		brcms_c_mctrl_reset(wlc_hw);
 	}
 
@@ -1923,7 +1936,7 @@ static void brcms_b_xtal(struct brcms_hardware *wlc_hw, bool want)
 static bool brcms_b_radio_read_hwdisabled(struct brcms_hardware *wlc_hw)
 {
 	bool v, clk, xtal;
-	u32 resetbits = 0, flags = 0;
+	u32 flags = 0;
 
 	xtal = wlc_hw->sbclk;
 	if (!xtal)
@@ -1947,7 +1960,7 @@ static bool brcms_b_radio_read_hwdisabled(struct brcms_hardware *wlc_hw)
 		    (ai_get_chip_id(wlc_hw->sih) == BCM43225_CHIP_ID))
 			(void)ai_setcore(wlc_hw->sih, D11_CORE_ID, 0);
 
-		ai_core_reset(wlc_hw->sih, flags, resetbits);
+		bcma_core_enable(wlc_hw->d11core, flags);
 		brcms_c_mctrl_reset(wlc_hw);
 	}
 
@@ -1956,7 +1969,7 @@ static bool brcms_b_radio_read_hwdisabled(struct brcms_hardware *wlc_hw)
 
 	/* put core back into reset */
 	if (!clk)
-		ai_core_disable(wlc_hw->sih, 0);
+		bcma_core_disable(wlc_hw->d11core, 0);
 
 	if (!xtal)
 		brcms_b_xtal(wlc_hw, OFF);
@@ -1982,7 +1995,6 @@ void brcms_b_corereset(struct brcms_hardware *wlc_hw, u32 flags)
 {
 	uint i;
 	bool fastclk;
-	u32 resetbits = 0;
 
 	if (flags == BRCMS_USE_COREFLAGS)
 		flags = (wlc_hw->band->pi ? wlc_hw->band->core_flags : 0);
@@ -1995,7 +2007,7 @@ void brcms_b_corereset(struct brcms_hardware *wlc_hw, u32 flags)
 		brcms_b_clkctl_clk(wlc_hw, CLK_FAST);
 
 	/* reset the dma engines except first time thru */
-	if (ai_iscoreup(wlc_hw->sih)) {
+	if (bcma_core_is_enabled(wlc_hw->d11core)) {
 		for (i = 0; i < NFIFO; i++)
 			if ((wlc_hw->di[i]) && (!dma_txreset(wlc_hw->di[i])))
 				wiphy_err(wlc_hw->wlc->wiphy, "wl%d: %s: "
@@ -2033,7 +2045,7 @@ void brcms_b_corereset(struct brcms_hardware *wlc_hw, u32 flags)
 	 * they may touch chipcommon as well.
 	 */
 	wlc_hw->clk = false;
-	ai_core_reset(wlc_hw->sih, flags, resetbits);
+	bcma_core_enable(wlc_hw->d11core, flags);
 	wlc_hw->clk = true;
 	if (wlc_hw->band && wlc_hw->band->pi)
 		wlc_phy_hw_clk_state_upd(wlc_hw->band->pi, true);
@@ -2876,7 +2888,7 @@ static void brcms_c_coredisable(struct brcms_hardware *wlc_hw)
 	brcms_b_core_phypll_ctl(wlc_hw, false);
 
 	wlc_hw->clk = false;
-	ai_core_disable(wlc_hw->sih, 0);
+	bcma_core_disable(wlc_hw->d11core, 0);
 	wlc_phy_hw_clk_state_upd(wlc_hw->band->pi, false);
 }
 
@@ -3234,7 +3246,7 @@ static void brcms_b_coreinit(struct brcms_c_info *wlc)
 
 	brcms_c_gpio_init(wlc);
 
-	sflags = ai_core_sflags(wlc_hw->sih, 0, 0);
+	sflags = bcma_aread32(core, BCMA_IOST);
 
 	if (D11REV_IS(wlc_hw->corerev, 23)) {
 		if (BRCMS_ISNPHY(wlc_hw->band))
@@ -5318,7 +5330,7 @@ static int brcms_b_down_finish(struct brcms_hardware *wlc_hw)
 	} else {
 
 		/* Reset and disable the core */
-		if (ai_iscoreup(wlc_hw->sih)) {
+		if (bcma_core_is_enabled(wlc_hw->d11core)) {
 			if (bcma_read32(wlc_hw->d11core,
 					D11REGOFFS(maccontrol)) & MCTL_EN_MAC)
 				brcms_c_suspend_mac_and_wait(wlc_hw->wlc);

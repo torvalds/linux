@@ -437,7 +437,7 @@ wlc_phy_attach(struct shared_phy *sh, struct bcma_device *d11core,
 	if (D11REV_IS(sh->corerev, 4))
 		sflags = SISF_2G_PHY | SISF_5G_PHY;
 	else
-		sflags = ai_core_sflags(sh->sih, 0, 0);
+		sflags = bcma_aread32(d11core, BCMA_IOST);
 
 	if (bandtype == BRCM_BAND_5G) {
 		if ((sflags & (SISF_5G_PHY | SISF_DB_PHY)) == 0)
@@ -761,7 +761,7 @@ void wlc_phy_init(struct brcms_phy_pub *pih, u16 chanspec)
 	if (!(pi->measure_hold & PHY_HOLD_FOR_SCAN))
 		pi->measure_hold |= PHY_HOLD_FOR_NOT_ASSOC;
 
-	if (WARN(!(ai_core_sflags(pi->sh->sih, 0, 0) & SISF_FCLKA),
+	if (WARN(!(bcma_aread32(pi->d11core, BCMA_IOST) & SISF_FCLKA),
 		 "HW error SISF_FCLKA\n"))
 		return;
 
