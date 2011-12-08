@@ -461,27 +461,46 @@ TRACE_EVENT(rcu_invoke_kfree_callback,
 
 /*
  * Tracepoint for exiting rcu_do_batch after RCU callbacks have been
- * invoked.  The first argument is the name of the RCU flavor and
- * the second argument is number of callbacks actually invoked.
+ * invoked.  The first argument is the name of the RCU flavor,
+ * the second argument is number of callbacks actually invoked,
+ * the third argument (cb) is whether or not any of the callbacks that
+ * were ready to invoke at the beginning of this batch are still
+ * queued, the fourth argument (nr) is the return value of need_resched(),
+ * the fifth argument (iit) is 1 if the current task is the idle task,
+ * and the sixth argument (risk) is the return value from
+ * rcu_is_callbacks_kthread().
  */
 TRACE_EVENT(rcu_batch_end,
 
-	TP_PROTO(char *rcuname, int callbacks_invoked),
+	TP_PROTO(char *rcuname, int callbacks_invoked,
+		 bool cb, bool nr, bool iit, bool risk),
 
-	TP_ARGS(rcuname, callbacks_invoked),
+	TP_ARGS(rcuname, callbacks_invoked, cb, nr, iit, risk),
 
 	TP_STRUCT__entry(
 		__field(char *, rcuname)
 		__field(int, callbacks_invoked)
+		__field(bool, cb)
+		__field(bool, nr)
+		__field(bool, iit)
+		__field(bool, risk)
 	),
 
 	TP_fast_assign(
 		__entry->rcuname = rcuname;
 		__entry->callbacks_invoked = callbacks_invoked;
+		__entry->cb = cb;
+		__entry->nr = nr;
+		__entry->iit = iit;
+		__entry->risk = risk;
 	),
 
-	TP_printk("%s CBs-invoked=%d",
-		  __entry->rcuname, __entry->callbacks_invoked)
+	TP_printk("%s CBs-invoked=%d idle=%c%c%c%c",
+		  __entry->rcuname, __entry->callbacks_invoked,
+		  __entry->cb ? 'C' : '.',
+		  __entry->nr ? 'S' : '.',
+		  __entry->iit ? 'I' : '.',
+		  __entry->risk ? 'R' : '.')
 );
 
 /*
@@ -524,7 +543,8 @@ TRACE_EVENT(rcu_torture_read,
 #define trace_rcu_batch_start(rcuname, qlen, blimit) do { } while (0)
 #define trace_rcu_invoke_callback(rcuname, rhp) do { } while (0)
 #define trace_rcu_invoke_kfree_callback(rcuname, rhp, offset) do { } while (0)
-#define trace_rcu_batch_end(rcuname, callbacks_invoked) do { } while (0)
+#define trace_rcu_batch_end(rcuname, callbacks_invoked, cb, nr, iit, risk) \
+	do { } while (0)
 #define trace_rcu_torture_read(rcutorturename, rhp) do { } while (0)
 
 #endif /* #else #ifdef CONFIG_RCU_TRACE */

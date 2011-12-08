@@ -1373,7 +1373,9 @@ static void rcu_do_batch(struct rcu_state *rsp, struct rcu_data *rdp)
 	/* If no callbacks are ready, just return.*/
 	if (!cpu_has_callbacks_ready_to_invoke(rdp)) {
 		trace_rcu_batch_start(rsp->name, 0, 0);
-		trace_rcu_batch_end(rsp->name, 0);
+		trace_rcu_batch_end(rsp->name, 0, !!ACCESS_ONCE(rdp->nxtlist),
+				    need_resched(), is_idle_task(current),
+				    rcu_is_callbacks_kthread());
 		return;
 	}
 
@@ -1409,7 +1411,9 @@ static void rcu_do_batch(struct rcu_state *rsp, struct rcu_data *rdp)
 	}
 
 	local_irq_save(flags);
-	trace_rcu_batch_end(rsp->name, count);
+	trace_rcu_batch_end(rsp->name, count, !!list, need_resched(),
+			    is_idle_task(current),
+			    rcu_is_callbacks_kthread());
 
 	/* Update count, and requeue any remaining callbacks. */
 	rdp->qlen -= count;

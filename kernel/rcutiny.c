@@ -259,7 +259,11 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp)
 	/* If no RCU callbacks ready to invoke, just return. */
 	if (&rcp->rcucblist == rcp->donetail) {
 		RCU_TRACE(trace_rcu_batch_start(rcp->name, 0, -1));
-		RCU_TRACE(trace_rcu_batch_end(rcp->name, 0));
+		RCU_TRACE(trace_rcu_batch_end(rcp->name, 0,
+					      ACCESS_ONCE(rcp->rcucblist),
+					      need_resched(),
+					      is_idle_task(current),
+					      rcu_is_callbacks_kthread()));
 		return;
 	}
 
@@ -288,7 +292,9 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp)
 		RCU_TRACE(cb_count++);
 	}
 	RCU_TRACE(rcu_trace_sub_qlen(rcp, cb_count));
-	RCU_TRACE(trace_rcu_batch_end(rcp->name, cb_count));
+	RCU_TRACE(trace_rcu_batch_end(rcp->name, cb_count, 0, need_resched(),
+				      is_idle_task(current),
+				      rcu_is_callbacks_kthread()));
 }
 
 static void rcu_process_callbacks(struct softirq_action *unused)
