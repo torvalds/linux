@@ -695,7 +695,8 @@ static int __devinit wm8770_spi_probe(struct spi_device *spi)
 	struct wm8770_priv *wm8770;
 	int ret;
 
-	wm8770 = kzalloc(sizeof(struct wm8770_priv), GFP_KERNEL);
+	wm8770 = devm_kzalloc(&spi->dev, sizeof(struct wm8770_priv),
+			      GFP_KERNEL);
 	if (!wm8770)
 		return -ENOMEM;
 
@@ -704,15 +705,13 @@ static int __devinit wm8770_spi_probe(struct spi_device *spi)
 
 	ret = snd_soc_register_codec(&spi->dev,
 				     &soc_codec_dev_wm8770, &wm8770_dai, 1);
-	if (ret < 0)
-		kfree(wm8770);
+
 	return ret;
 }
 
 static int __devexit wm8770_spi_remove(struct spi_device *spi)
 {
 	snd_soc_unregister_codec(&spi->dev);
-	kfree(spi_get_drvdata(spi));
 	return 0;
 }
 
