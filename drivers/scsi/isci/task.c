@@ -1322,26 +1322,3 @@ int isci_task_I_T_nexus_reset(struct domain_device *dev)
 	isci_put_device(idev);
 	return ret;
 }
-
-int isci_bus_reset_handler(struct scsi_cmnd *cmd)
-{
-	struct domain_device *dev = sdev_to_domain_dev(cmd->device);
-	struct isci_host *ihost = dev_to_ihost(dev);
-	struct isci_remote_device *idev;
-	unsigned long flags;
-	int ret;
-
-	spin_lock_irqsave(&ihost->scic_lock, flags);
-	idev = isci_lookup_device(dev);
-	spin_unlock_irqrestore(&ihost->scic_lock, flags);
-
-	if (!idev) {
-		ret = TMF_RESP_FUNC_COMPLETE;
-		goto out;
-	}
-
-	ret = isci_reset_device(ihost, dev, idev);
- out:
-	isci_put_device(idev);
-	return ret;
-}

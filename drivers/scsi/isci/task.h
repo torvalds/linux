@@ -208,8 +208,6 @@ int isci_queuecommand(
 	struct scsi_cmnd *scsi_cmd,
 	void (*donefunc)(struct scsi_cmnd *));
 
-int isci_bus_reset_handler(struct scsi_cmnd *cmd);
-
 /**
  * enum isci_completion_selection - This enum defines the possible actions to
  *    take with respect to a given request's notification back to libsas.
