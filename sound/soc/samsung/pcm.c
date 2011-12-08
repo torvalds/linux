@@ -14,6 +14,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
@@ -580,6 +581,8 @@ static __devinit int s3c_pcm_dev_probe(struct platform_device *pdev)
 	pcm->dma_capture = &s3c_pcm_stereo_in[pdev->id];
 	pcm->dma_playback = &s3c_pcm_stereo_out[pdev->id];
 
+	pm_runtime_enable(&pdev->dev);
+
 	ret = snd_soc_register_dai(&pdev->dev, &s3c_pcm_dai[pdev->id]);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "failed to get register DAI: %d\n", ret);
@@ -608,6 +611,8 @@ static __devexit int s3c_pcm_dev_remove(struct platform_device *pdev)
 	struct resource *mem_res;
 
 	snd_soc_unregister_dai(&pdev->dev);
+
+	pm_runtime_disable(&pdev->dev);
 
 	iounmap(pcm->regs);
 

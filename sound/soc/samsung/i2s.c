@@ -15,6 +15,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
@@ -1095,6 +1096,8 @@ static __devinit int samsung_i2s_probe(struct platform_device *pdev)
 
 	snd_soc_register_dai(&pri_dai->pdev->dev, &pri_dai->i2s_dai_drv);
 
+	pm_runtime_enable(&pdev->dev);
+
 	return 0;
 err:
 	release_mem_region(regs_base, resource_size(res));
@@ -1105,6 +1108,7 @@ err:
 static __devexit int samsung_i2s_remove(struct platform_device *pdev)
 {
 	struct i2s_dai *i2s, *other;
+	struct resource *res;
 
 	i2s = dev_get_drvdata(&pdev->dev);
 	other = i2s->pri_dai ? : i2s->sec_dai;
@@ -1113,7 +1117,7 @@ static __devexit int samsung_i2s_remove(struct platform_device *pdev)
 		other->pri_dai = NULL;
 		other->sec_dai = NULL;
 	} else {
-		struct resource *res;
+		pm_runtime_disable(&pdev->dev);
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		if (res)
 			release_mem_region(res->start, resource_size(res));
