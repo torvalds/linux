@@ -220,7 +220,7 @@ static bool ar9003_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
 
 	*masked = 0;
 
-	if (!isr && !sync_cause)
+	if (!isr && !sync_cause && !async_cause)
 		return false;
 
 	if (isr) {
