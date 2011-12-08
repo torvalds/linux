@@ -1,6 +1,6 @@
 # generic pinmux support
 
-ccflags-$(CONFIG_DEBUG_PINMUX)	+= -DDEBUG
+ccflags-$(CONFIG_DEBUG_PINCTRL)	+= -DDEBUG
 
 obj-$(CONFIG_PINCTRL)		+= core.o
 obj-$(CONFIG_PINMUX)		+= pinmux.o
