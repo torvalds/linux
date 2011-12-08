@@ -44,7 +44,6 @@
 #define HW_APBHX_CTRL0				0x000
 #define BM_APBH_CTRL0_APB_BURST8_EN		(1 << 29)
 #define BM_APBH_CTRL0_APB_BURST_EN		(1 << 28)
-#define BP_APBH_CTRL0_CLKGATE_CHANNEL		8
 #define BP_APBH_CTRL0_RESET_CHANNEL		16
 #define HW_APBHX_CTRL1				0x010
 #define HW_APBHX_CTRL2				0x020
@@ -131,23 +130,6 @@ struct mxs_dma_engine {
 	struct mxs_dma_chan		mxs_chans[MXS_DMA_CHANNELS];
 };
 
-static inline void mxs_dma_clkgate(struct mxs_dma_chan *mxs_chan, int enable)
-{
-	struct mxs_dma_engine *mxs_dma = mxs_chan->mxs_dma;
-	int chan_id = mxs_chan->chan.chan_id;
-	int set_clr = enable ? MXS_CLR_ADDR : MXS_SET_ADDR;
-
-	/* enable apbh channel clock */
-	if (dma_is_apbh()) {
-		if (apbh_is_old())
-			writel(1 << (chan_id + BP_APBH_CTRL0_CLKGATE_CHANNEL),
-				mxs_dma->base + HW_APBHX_CTRL0 + set_clr);
-		else
-			writel(1 << chan_id,
-				mxs_dma->base + HW_APBHX_CTRL0 + set_clr);
-	}
-}
-
 static void mxs_dma_reset_chan(struct mxs_dma_chan *mxs_chan)
 {
 	struct mxs_dma_engine *mxs_dma = mxs_chan->mxs_dma;
@@ -166,9 +148,6 @@ static void mxs_dma_enable_chan(struct mxs_dma_chan *mxs_chan)
 	struct mxs_dma_engine *mxs_dma = mxs_chan->mxs_dma;
 	int chan_id = mxs_chan->chan.chan_id;
 
-	/* clkgate needs to be enabled before writing other registers */
-	mxs_dma_clkgate(mxs_chan, 1);
-
 	/* set cmd_addr up */
 	writel(mxs_chan->ccw_phys,
 		mxs_dma->base + HW_APBHX_CHn_NXTCMDAR(chan_id));
@@ -179,9 +158,6 @@ static void mxs_dma_enable_chan(struct mxs_dma_chan *mxs_chan)
 
 static void mxs_dma_disable_chan(struct mxs_dma_chan *mxs_chan)
 {
-	/* disable apbh channel clock */
-	mxs_dma_clkgate(mxs_chan, 0);
-
 	mxs_chan->status = DMA_SUCCESS;
 }
 
@@ -339,10 +315,7 @@ static int mxs_dma_alloc_chan_resources(struct dma_chan *chan)
 	if (ret)
 		goto err_clk;
 
-	/* clkgate needs to be enabled for reset to finish */
-	mxs_dma_clkgate(mxs_chan, 1);
 	mxs_dma_reset_chan(mxs_chan);
-	mxs_dma_clkgate(mxs_chan, 0);
 
 	dma_async_tx_descriptor_init(&mxs_chan->desc, chan);
 	mxs_chan->desc.tx_submit = mxs_dma_tx_submit;
@@ -542,8 +515,8 @@ static int mxs_dma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 
 	switch (cmd) {
 	case DMA_TERMINATE_ALL:
-		mxs_dma_disable_chan(mxs_chan);
 		mxs_dma_reset_chan(mxs_chan);
+		mxs_dma_disable_chan(mxs_chan);
 		break;
 	case DMA_PAUSE:
 		mxs_dma_pause_chan(mxs_chan);
