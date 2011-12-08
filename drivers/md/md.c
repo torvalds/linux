@@ -570,7 +570,7 @@ static void mddev_put(struct mddev *mddev)
 	    mddev->ctime == 0 && !mddev->hold_active) {
 		/* Array is not configured at all, and not held active,
 		 * so destroy it */
-		list_del(&mddev->all_mddevs);
+		list_del_init(&mddev->all_mddevs);
 		bs = mddev->bio_set;
 		mddev->bio_set = NULL;
 		if (mddev->gendisk) {
@@ -4489,11 +4489,20 @@ md_attr_show(struct kobject *kobj, struct attribute *attr, char *page)
 
 	if (!entry->show)
 		return -EIO;
+	spin_lock(&all_mddevs_lock);
+	if (list_empty(&mddev->all_mddevs)) {
+		spin_unlock(&all_mddevs_lock);
+		return -EBUSY;
+	}
+	mddev_get(mddev);
+	spin_unlock(&all_mddevs_lock);
+
 	rv = mddev_lock(mddev);
 	if (!rv) {
 		rv = entry->show(mddev, page);
 		mddev_unlock(mddev);
 	}
+	mddev_put(mddev);
 	return rv;
 }
 
@@ -4509,11 +4518,19 @@ md_attr_store(struct kobject *kobj, struct attribute *attr,
 		return -EIO;
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
+	spin_lock(&all_mddevs_lock);
+	if (list_empty(&mddev->all_mddevs)) {
+		spin_unlock(&all_mddevs_lock);
+		return -EBUSY;
+	}
+	mddev_get(mddev);
+	spin_unlock(&all_mddevs_lock);
 	rv = mddev_lock(mddev);
 	if (!rv) {
 		rv = entry->store(mddev, page, length);
 		mddev_unlock(mddev);
 	}
+	mddev_put(mddev);
 	return rv;
 }
 
