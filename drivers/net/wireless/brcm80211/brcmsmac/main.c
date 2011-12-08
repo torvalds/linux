@@ -4437,9 +4437,8 @@ struct brcms_pub *brcms_c_pub(struct brcms_c_info *wlc)
  *    initialize software state for each core and band
  *    put the whole chip in reset(driver down state), no clock
  */
-static int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device,
-			  uint unit, bool piomode, void __iomem *regsva,
-			  struct pci_dev *btparam)
+static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
+			  uint unit, bool piomode)
 {
 	struct brcms_hardware *wlc_hw;
 	struct d11regs __iomem *regs;
@@ -4449,9 +4448,11 @@ static int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device,
 	bool wme = false;
 	struct shared_phy_params sha_params;
 	struct wiphy *wiphy = wlc->wiphy;
+	struct pci_dev *pcidev = core->bus->host_pci;
 
-	BCMMSG(wlc->wiphy, "wl%d: vendor 0x%x device 0x%x\n", unit, vendor,
-		device);
+	BCMMSG(wlc->wiphy, "wl%d: vendor 0x%x device 0x%x\n", unit,
+	       pcidev->vendor,
+	       pcidev->device);
 
 	wme = true;
 
@@ -4468,7 +4469,7 @@ static int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device,
 	 * Do the hardware portion of the attach. Also initialize software
 	 * state that depends on the particular hardware we are running.
 	 */
-	wlc_hw->sih = ai_attach(regsva, btparam);
+	wlc_hw->sih = ai_attach(core->bus->mmio, core->bus->host_pci);
 	if (wlc_hw->sih == NULL) {
 		wiphy_err(wiphy, "wl%d: brcms_b_attach: si_attach failed\n",
 			  unit);
@@ -4477,16 +4478,16 @@ static int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device,
 	}
 
 	/* verify again the device is supported */
-	if (!brcms_c_chipmatch(vendor, device)) {
+	if (!brcms_c_chipmatch(pcidev->vendor, pcidev->device)) {
 		wiphy_err(wiphy, "wl%d: brcms_b_attach: Unsupported "
 			"vendor/device (0x%x/0x%x)\n",
-			 unit, vendor, device);
+			 unit, pcidev->vendor, pcidev->device);
 		err = 12;
 		goto fail;
 	}
 
-	wlc_hw->vendorid = vendor;
-	wlc_hw->deviceid = device;
+	wlc_hw->vendorid = pcidev->vendor;
+	wlc_hw->deviceid = pcidev->device;
 
 	/* set bar0 window to point at D11 core */
 	wlc_hw->regs = (struct d11regs __iomem *)
@@ -8351,9 +8352,8 @@ void brcms_c_init(struct brcms_c_info *wlc, bool mute_tx)
  * The common driver entry routine. Error codes should be unique
  */
 struct brcms_c_info *
-brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
-	       bool piomode, void __iomem *regsva, struct pci_dev *btparam,
-	       uint *perr)
+brcms_c_attach(struct brcms_info *wl, struct bcma_device *core, uint unit,
+	       bool piomode, uint *perr)
 {
 	struct brcms_c_info *wlc;
 	uint err = 0;
@@ -8361,7 +8361,7 @@ brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 	struct brcms_pub *pub;
 
 	/* allocate struct brcms_c_info state and its substructures */
-	wlc = (struct brcms_c_info *) brcms_c_attach_malloc(unit, &err, device);
+	wlc = (struct brcms_c_info *) brcms_c_attach_malloc(unit, &err, 0);
 	if (wlc == NULL)
 		goto fail;
 	wlc->wiphy = wl->wiphy;
@@ -8388,8 +8388,7 @@ brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 	 * low level attach steps(all hw accesses go
 	 * inside, no more in rest of the attach)
 	 */
-	err = brcms_b_attach(wlc, vendor, device, unit, piomode, regsva,
-			     btparam);
+	err = brcms_b_attach(wlc, core, unit, piomode);
 	if (err)
 		goto fail;
 

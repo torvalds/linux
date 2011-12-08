@@ -1030,9 +1030,7 @@ static struct brcms_info *brcms_attach(struct bcma_device *pdev)
 	}
 
 	/* common load-time initialization */
-	wl->wlc = brcms_c_attach((void *)wl, pdev->bus->host_pci->vendor,
-				 pdev->bus->host_pci->device, unit, false,
-				 pdev->bus->mmio, pdev->bus->host_pci, &err);
+	wl->wlc = brcms_c_attach((void *)wl, pdev, unit, false, &err);
 	brcms_release_fw(wl);
 	if (!wl->wlc) {
 		wiphy_err(wl->wiphy, "%s: attach() failed with code %d\n",
