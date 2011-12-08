@@ -58,7 +58,7 @@ struct brcmf_proto_cdc_dcmd {
  * Used on data packets to convey priority across USB.
  */
 #define	BDC_HEADER_LEN		4
-#define BDC_PROTO_VER		1	/* Protocol version */
+#define BDC_PROTO_VER		2	/* Protocol version */
 #define BDC_FLAG_VER_MASK	0xf0	/* Protocol version mask */
 #define BDC_FLAG_VER_SHIFT	4	/* Protocol version shift */
 #define BDC_FLAG_SUM_GOOD	0x04	/* Good RX checksums */
@@ -77,7 +77,7 @@ struct brcmf_proto_bdc_header {
 	u8 flags;
 	u8 priority;	/* 802.1d Priority, 4:7 flow control info for usb */
 	u8 flags2;
-	u8 rssi;
+	u8 data_offset;
 };
 
 
@@ -372,7 +372,7 @@ void brcmf_proto_hdrpush(struct brcmf_pub *drvr, int ifidx,
 
 	h->priority = (pktbuf->priority & BDC_PRIORITY_MASK);
 	h->flags2 = 0;
-	h->rssi = 0;
+	h->data_offset = 0;
 	BDC_SET_IF_IDX(h, ifidx);
 }
 
