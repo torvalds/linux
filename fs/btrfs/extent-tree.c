@@ -5107,11 +5107,11 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 	struct btrfs_root *root = orig_root->fs_info->extent_root;
 	struct btrfs_free_cluster *last_ptr = NULL;
 	struct btrfs_block_group_cache *block_group = NULL;
+	struct btrfs_block_group_cache *used_block_group;
 	int empty_cluster = 2 * 1024 * 1024;
 	int allowed_chunk_alloc = 0;
 	int done_chunk_alloc = 0;
 	struct btrfs_space_info *space_info;
-	int last_ptr_loop = 0;
 	int loop = 0;
 	int index = 0;
 	int alloc_type = (data & BTRFS_BLOCK_GROUP_DATA) ?
@@ -5173,6 +5173,7 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 ideal_cache:
 		block_group = btrfs_lookup_block_group(root->fs_info,
 						       search_start);
+		used_block_group = block_group;
 		/*
 		 * we don't want to use the block group if it doesn't match our
 		 * allocation bits, or if its not cached.
@@ -5210,6 +5211,7 @@ search:
 		u64 offset;
 		int cached;
 
+		used_block_group = block_group;
 		btrfs_get_block_group(block_group);
 		search_start = block_group->key.objectid;
 
@@ -5286,70 +5288,61 @@ alloc:
 		spin_unlock(&block_group->free_space_ctl->tree_lock);
 
 		/*
-		 * Ok we want to try and use the cluster allocator, so lets look
-		 * there, unless we are on LOOP_NO_EMPTY_SIZE, since we will
-		 * have tried the cluster allocator plenty of times at this
-		 * point and not have found anything, so we are likely way too
-		 * fragmented for the clustering stuff to find anything, so lets
-		 * just skip it and let the allocator find whatever block it can
-		 * find
+		 * Ok we want to try and use the cluster allocator, so
+		 * lets look there
 		 */
-		if (last_ptr && loop < LOOP_NO_EMPTY_SIZE) {
+		if (last_ptr) {
 			/*
 			 * the refill lock keeps out other
 			 * people trying to start a new cluster
 			 */
 			spin_lock(&last_ptr->refill_lock);
-			if (!last_ptr->block_group ||
-			    last_ptr->block_group->ro ||
-			    !block_group_bits(last_ptr->block_group, data))
+			used_block_group = last_ptr->block_group;
+			if (used_block_group != block_group &&
+			    (!used_block_group ||
+			     used_block_group->ro ||
+			     !block_group_bits(used_block_group, data))) {
+				used_block_group = block_group;
 				goto refill_cluster;
+			}
 
-			offset = btrfs_alloc_from_cluster(block_group, last_ptr,
-						 num_bytes, search_start);
+			if (used_block_group != block_group)
+				btrfs_get_block_group(used_block_group);
+
+			offset = btrfs_alloc_from_cluster(used_block_group,
+			  last_ptr, num_bytes, used_block_group->key.objectid);
 			if (offset) {
 				/* we have a block, we're done */
 				spin_unlock(&last_ptr->refill_lock);
 				goto checks;
 			}
 
-			spin_lock(&last_ptr->lock);
-			/*
-			 * whoops, this cluster doesn't actually point to
-			 * this block group.  Get a ref on the block
-			 * group is does point to and try again
-			 */
-			if (!last_ptr_loop && last_ptr->block_group &&
-			    last_ptr->block_group != block_group &&
-			    index <=
-				 get_block_group_index(last_ptr->block_group)) {
-
-				btrfs_put_block_group(block_group);
-				block_group = last_ptr->block_group;
-				btrfs_get_block_group(block_group);
-				spin_unlock(&last_ptr->lock);
-				spin_unlock(&last_ptr->refill_lock);
-
-				last_ptr_loop = 1;
-				search_start = block_group->key.objectid;
-				/*
-				 * we know this block group is properly
-				 * in the list because
-				 * btrfs_remove_block_group, drops the
-				 * cluster before it removes the block
-				 * group from the list
-				 */
-				goto have_block_group;
+			WARN_ON(last_ptr->block_group != used_block_group);
+			if (used_block_group != block_group) {
+				btrfs_put_block_group(used_block_group);
+				used_block_group = block_group;
 			}
-			spin_unlock(&last_ptr->lock);
 refill_cluster:
+			BUG_ON(used_block_group != block_group);
+			/* If we are on LOOP_NO_EMPTY_SIZE, we can't
+			 * set up a new clusters, so lets just skip it
+			 * and let the allocator find whatever block
+			 * it can find.  If we reach this point, we
+			 * will have tried the cluster allocator
+			 * plenty of times and not have found
+			 * anything, so we are likely way too
+			 * fragmented for the clustering stuff to find
+			 * anything.  */
+			if (loop >= LOOP_NO_EMPTY_SIZE) {
+				spin_unlock(&last_ptr->refill_lock);
+				goto unclustered_alloc;
+			}
+
 			/*
 			 * this cluster didn't work out, free it and
 			 * start over
 			 */
 			btrfs_return_cluster_to_free_space(NULL, last_ptr);
-
-			last_ptr_loop = 0;
 
 			/* allocate a cluster in this block group */
 			ret = btrfs_find_space_cluster(trans, root,
@@ -5390,6 +5383,7 @@ refill_cluster:
 			goto loop;
 		}
 
+unclustered_alloc:
 		offset = btrfs_find_space_for_alloc(block_group, search_start,
 						    num_bytes, empty_size);
 		/*
@@ -5416,14 +5410,14 @@ checks:
 		search_start = stripe_align(root, offset);
 		/* move on to the next group */
 		if (search_start + num_bytes >= search_end) {
-			btrfs_add_free_space(block_group, offset, num_bytes);
+			btrfs_add_free_space(used_block_group, offset, num_bytes);
 			goto loop;
 		}
 
 		/* move on to the next group */
 		if (search_start + num_bytes >
-		    block_group->key.objectid + block_group->key.offset) {
-			btrfs_add_free_space(block_group, offset, num_bytes);
+		    used_block_group->key.objectid + used_block_group->key.offset) {
+			btrfs_add_free_space(used_block_group, offset, num_bytes);
 			goto loop;
 		}
 
@@ -5431,14 +5425,14 @@ checks:
 		ins->offset = num_bytes;
 
 		if (offset < search_start)
-			btrfs_add_free_space(block_group, offset,
+			btrfs_add_free_space(used_block_group, offset,
 					     search_start - offset);
 		BUG_ON(offset > search_start);
 
-		ret = btrfs_update_reserved_bytes(block_group, num_bytes,
+		ret = btrfs_update_reserved_bytes(used_block_group, num_bytes,
 						  alloc_type);
 		if (ret == -EAGAIN) {
-			btrfs_add_free_space(block_group, offset, num_bytes);
+			btrfs_add_free_space(used_block_group, offset, num_bytes);
 			goto loop;
 		}
 
@@ -5447,15 +5441,19 @@ checks:
 		ins->offset = num_bytes;
 
 		if (offset < search_start)
-			btrfs_add_free_space(block_group, offset,
+			btrfs_add_free_space(used_block_group, offset,
 					     search_start - offset);
 		BUG_ON(offset > search_start);
+		if (used_block_group != block_group)
+			btrfs_put_block_group(used_block_group);
 		btrfs_put_block_group(block_group);
 		break;
 loop:
 		failed_cluster_refill = false;
 		failed_alloc = false;
 		BUG_ON(index != get_block_group_index(block_group));
+		if (used_block_group != block_group)
+			btrfs_put_block_group(used_block_group);
 		btrfs_put_block_group(block_group);
 	}
 	up_read(&space_info->groups_sem);
