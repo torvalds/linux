@@ -174,6 +174,7 @@ static int iio_read_first_n_sw_rb(struct iio_buffer *r,
 	u8 *initial_read_p, *initial_write_p, *current_read_p, *end_read_p;
 	u8 *data;
 	int ret, max_copied, bytes_to_rip, dead_offset;
+	size_t data_available, buffer_size;
 
 	/* A userspace program has probably made an error if it tries to
 	 *  read something that is not a whole number of bpds.
@@ -186,9 +187,11 @@ static int iio_read_first_n_sw_rb(struct iio_buffer *r,
 		       n, ring->buf.bytes_per_datum);
 		goto error_ret;
 	}
+
+	buffer_size = ring->buf.bytes_per_datum*ring->buf.length;
+
 	/* Limit size to whole of ring buffer */
-	bytes_to_rip = min((size_t)(ring->buf.bytes_per_datum*ring->buf.length),
-			   n);
+	bytes_to_rip = min_t(size_t, buffer_size, n);
 
 	data = kmalloc(bytes_to_rip, GFP_KERNEL);
 	if (data == NULL) {
@@ -217,38 +220,24 @@ static int iio_read_first_n_sw_rb(struct iio_buffer *r,
 		goto error_free_data_cpy;
 	}
 
-	if (initial_write_p >= initial_read_p + bytes_to_rip) {
-		/* write_p is greater than necessary, all is easy */
-		max_copied = bytes_to_rip;
+	if (initial_write_p >= initial_read_p)
+		data_available = initial_write_p - initial_read_p;
+	else
+		data_available = buffer_size - (initial_read_p - initial_write_p);
+
+	if (data_available < bytes_to_rip)
+		bytes_to_rip = data_available;
+
+	if (initial_read_p + bytes_to_rip >= ring->data + buffer_size) {
+		max_copied = ring->data + buffer_size - initial_read_p;
 		memcpy(data, initial_read_p, max_copied);
-		end_read_p = initial_read_p + max_copied;
-	} else if (initial_write_p > initial_read_p) {
-		/*not enough data to cpy */
-		max_copied = initial_write_p - initial_read_p;
-		memcpy(data, initial_read_p, max_copied);
-		end_read_p = initial_write_p;
+		memcpy(data + max_copied, ring->data, bytes_to_rip - max_copied);
+		end_read_p = ring->data + bytes_to_rip - max_copied;
 	} else {
-		/* going through 'end' of ring buffer */
-		max_copied = ring->data
-			+ ring->buf.length*ring->buf.bytes_per_datum - initial_read_p;
-		memcpy(data, initial_read_p, max_copied);
-		/* possible we are done if we align precisely with end */
-		if (max_copied == bytes_to_rip)
-			end_read_p = ring->data;
-		else if (initial_write_p
-			 > ring->data + bytes_to_rip - max_copied) {
-			/* enough data to finish */
-			memcpy(data + max_copied, ring->data,
-			       bytes_to_rip - max_copied);
-			max_copied = bytes_to_rip;
-			end_read_p = ring->data + (bytes_to_rip - max_copied);
-		} else {  /* not enough data */
-			memcpy(data + max_copied, ring->data,
-			       initial_write_p - ring->data);
-			max_copied += initial_write_p - ring->data;
-			end_read_p = initial_write_p;
-		}
+		memcpy(data, initial_read_p, bytes_to_rip);
+		end_read_p = initial_read_p + bytes_to_rip;
 	}
+
 	/* Now to verify which section was cleanly copied - i.e. how far
 	 * read pointer has been pushed */
 	current_read_p = ring->read_p;
@@ -256,15 +245,14 @@ static int iio_read_first_n_sw_rb(struct iio_buffer *r,
 	if (initial_read_p <= current_read_p)
 		dead_offset = current_read_p - initial_read_p;
 	else
-		dead_offset = ring->buf.length*ring->buf.bytes_per_datum
-			- (initial_read_p - current_read_p);
+		dead_offset = buffer_size - (initial_read_p - current_read_p);
 
 	/* possible issue if the initial write has been lapped or indeed
 	 * the point we were reading to has been passed */
 	/* No valid data read.
 	 * In this case the read pointer is already correct having been
 	 * pushed further than we would look. */
-	if (max_copied - dead_offset < 0) {
+	if (bytes_to_rip - dead_offset < 0) {
 		ret = 0;
 		goto error_free_data_cpy;
 	}
@@ -280,7 +268,7 @@ static int iio_read_first_n_sw_rb(struct iio_buffer *r,
 	while (ring->read_p != end_read_p)
 		ring->read_p = end_read_p;
 
-	ret = max_copied - dead_offset;
+	ret = bytes_to_rip - dead_offset;
 
 	if (copy_to_user(buf, data + dead_offset, ret))  {
 		ret =  -EFAULT;
