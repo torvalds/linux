@@ -170,7 +170,6 @@ int is_my_mac(const uint8_t *addr)
 	}
 	rcu_read_unlock();
 	return 0;
-
 }
 
 module_init(batman_init);
