@@ -633,8 +633,7 @@ ai_buscore_setup(struct si_info *sii, u32 savewin, uint *origidx)
 
 	/* fixup necessary chip/core configurations */
 	if (!sii->pch) {
-		sii->pch = pcicore_init(&sii->pub, sii->pcibus,
-					sii->curmap + PCI_16KB0_PCIREGS_OFFSET);
+		sii->pch = pcicore_init(&sii->pub, sii->icbus->drv_pci.core);
 		if (sii->pch == NULL)
 			return false;
 	}
@@ -1385,7 +1384,7 @@ void ai_pci_setup(struct si_pub *sih, uint coremask)
 	}
 
 	if (PCI(sih)) {
-		pcicore_pci_setup(sii->pch, regs);
+		pcicore_pci_setup(sii->pch);
 
 		/* switch back to previous core */
 		ai_setcoreidx(sih, idx);
@@ -1408,11 +1407,7 @@ int ai_pci_fixcfg(struct si_pub *sih)
 
 	/* check 'pi' is correct and fix it if not */
 	regs = ai_setcore(&sii->pub, ai_get_buscoretype(sih), 0);
-	if (ai_get_buscoretype(sih) == PCIE_CORE_ID)
-		pcicore_fixcfg_pcie(sii->pch,
-				    (struct sbpcieregs __iomem *)regs);
-	else if (ai_get_buscoretype(sih) == PCI_CORE_ID)
-		pcicore_fixcfg_pci(sii->pch, (struct sbpciregs __iomem *)regs);
+	pcicore_fixcfg(sii->pch);
 
 	/* restore the original index */
 	ai_setcoreidx(&sii->pub, origidx);
