@@ -412,7 +412,7 @@ static void soc_init_card_debugfs(struct snd_soc_card *card)
 						     snd_soc_debugfs_root);
 	if (!card->debugfs_card_root) {
 		dev_warn(card->dev,
-			 "ASoC: Failed to create codec debugfs directory\n");
+			 "ASoC: Failed to create card debugfs directory\n");
 		return;
 	}
 
