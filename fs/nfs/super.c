@@ -265,7 +265,7 @@ static int  nfs_statfs(struct dentry *, struct kstatfs *);
 static int  nfs_show_options(struct seq_file *, struct vfsmount *);
 static int  nfs_show_devname(struct seq_file *, struct vfsmount *);
 static int  nfs_show_path(struct seq_file *, struct vfsmount *);
-static int  nfs_show_stats(struct seq_file *, struct vfsmount *);
+static int  nfs_show_stats(struct seq_file *, struct dentry *);
 static struct dentry *nfs_fs_mount(struct file_system_type *,
 		int, const char *, void *);
 static struct dentry *nfs_xdev_mount(struct file_system_type *fs_type,
@@ -785,10 +785,10 @@ static int nfs_show_path(struct seq_file *m, struct vfsmount *mnt)
 /*
  * Present statistical information for this VFS mountpoint
  */
-static int nfs_show_stats(struct seq_file *m, struct vfsmount *mnt)
+static int nfs_show_stats(struct seq_file *m, struct dentry *root)
 {
 	int i, cpu;
-	struct nfs_server *nfss = NFS_SB(mnt->mnt_sb);
+	struct nfs_server *nfss = NFS_SB(root->d_sb);
 	struct rpc_auth *auth = nfss->client->cl_auth;
 	struct nfs_iostats totals = { };
 
@@ -798,10 +798,10 @@ static int nfs_show_stats(struct seq_file *m, struct vfsmount *mnt)
 	 * Display all mount option settings
 	 */
 	seq_printf(m, "\n\topts:\t");
-	seq_puts(m, mnt->mnt_sb->s_flags & MS_RDONLY ? "ro" : "rw");
-	seq_puts(m, mnt->mnt_sb->s_flags & MS_SYNCHRONOUS ? ",sync" : "");
-	seq_puts(m, mnt->mnt_sb->s_flags & MS_NOATIME ? ",noatime" : "");
-	seq_puts(m, mnt->mnt_sb->s_flags & MS_NODIRATIME ? ",nodiratime" : "");
+	seq_puts(m, root->d_sb->s_flags & MS_RDONLY ? "ro" : "rw");
+	seq_puts(m, root->d_sb->s_flags & MS_SYNCHRONOUS ? ",sync" : "");
+	seq_puts(m, root->d_sb->s_flags & MS_NOATIME ? ",noatime" : "");
+	seq_puts(m, root->d_sb->s_flags & MS_NODIRATIME ? ",nodiratime" : "");
 	nfs_show_mount_options(m, nfss, 1);
 
 	seq_printf(m, "\n\tage:\t%lu", (jiffies - nfss->mount_time) / HZ);
