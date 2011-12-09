@@ -1266,8 +1266,16 @@ static void pch_spi_process_messages(struct work_struct *pwork)
 			char *save_rx_buf = data->cur_trans->rx_buf;
 			for (i = 0; i < cnt; i ++) {
 				pch_spi_handle_dma(data, &bpw);
-				if (!pch_spi_start_transfer(data))
+				if (!pch_spi_start_transfer(data)) {
+					data->transfer_complete = true;
+					data->current_msg->status = -EIO;
+					data->current_msg->complete
+						   (data->current_msg->context);
+					data->bcurrent_msg_processing = false;
+					data->current_msg = NULL;
+					data->cur_trans = NULL;
 					goto out;
+				}
 				pch_spi_copy_rx_data_for_dma(data, bpw);
 			}
 			data->cur_trans->rx_buf = save_rx_buf;
