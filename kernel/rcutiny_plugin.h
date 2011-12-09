@@ -312,8 +312,8 @@ static int rcu_boost(void)
 	rt_mutex_lock(&mtx);
 	rt_mutex_unlock(&mtx);  /* Keep lockdep happy. */
 
-	return rcu_preempt_ctrlblk.boost_tasks != NULL ||
-	       rcu_preempt_ctrlblk.exp_tasks != NULL;
+	return ACCESS_ONCE(rcu_preempt_ctrlblk.boost_tasks) != NULL ||
+	       ACCESS_ONCE(rcu_preempt_ctrlblk.exp_tasks) != NULL;
 }
 
 /*

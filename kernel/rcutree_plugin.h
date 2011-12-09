@@ -1232,7 +1232,8 @@ static int rcu_boost(struct rcu_node *rnp)
 	rt_mutex_lock(&mtx);  /* Side effect: boosts task t's priority. */
 	rt_mutex_unlock(&mtx);  /* Keep lockdep happy. */
 
-	return rnp->exp_tasks != NULL || rnp->boost_tasks != NULL;
+	return ACCESS_ONCE(rnp->exp_tasks) != NULL ||
+	       ACCESS_ONCE(rnp->boost_tasks) != NULL;
 }
 
 /*
