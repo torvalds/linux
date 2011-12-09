@@ -924,7 +924,8 @@ static void pch_spi_request_dma(struct pch_spi_data *data, int bpw)
 	dma_cap_set(DMA_SLAVE, mask);
 
 	/* Get DMA's dev information */
-	dma_dev = pci_get_bus_and_slot(2, PCI_DEVFN(12, 0));
+	dma_dev = pci_get_bus_and_slot(data->board_dat->pdev->bus->number,
+				       PCI_DEVFN(12, 0));
 
 	/* Set Tx DMA */
 	param = &dma->param_tx;
