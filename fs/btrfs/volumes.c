@@ -3258,7 +3258,7 @@ static void btrfs_end_bio(struct bio *bio, int err)
 		 */
 		if (atomic_read(&bbio->error) > bbio->max_errors) {
 			err = -EIO;
-		} else if (err) {
+		} else {
 			/*
 			 * this bio is actually up to date, we didn't
 			 * go over the max number of errors
