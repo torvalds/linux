@@ -800,8 +800,13 @@ static int usbhsh_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	struct usbhsh_hpriv *hpriv = usbhsh_hcd_to_hpriv(hcd);
 	struct usbhsh_request *ureq = usbhsh_urb_to_ureq(urb);
 
-	if (ureq)
-		usbhsh_ureq_free(hpriv, ureq);
+	if (ureq) {
+		struct usbhs_priv *priv = usbhsh_hpriv_to_priv(hpriv);
+		struct usbhs_pkt *pkt = &ureq->pkt;
+
+		usbhs_pkt_pop(pkt->pipe, pkt);
+		usbhsh_queue_done(priv, pkt);
+	}
 
 	return 0;
 }
