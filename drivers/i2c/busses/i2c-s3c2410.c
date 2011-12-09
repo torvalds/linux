@@ -787,7 +787,7 @@ static void s3c24xx_i2c_dt_gpio_free(struct s3c24xx_i2c *i2c)
 #else
 static int s3c24xx_i2c_parse_dt_gpio(struct s3c24xx_i2c *i2c)
 {
-	return -EINVAL;
+	return 0;
 }
 
 static void s3c24xx_i2c_dt_gpio_free(struct s3c24xx_i2c *i2c)
