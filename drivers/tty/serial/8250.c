@@ -2002,7 +2002,7 @@ static int serial8250_startup(struct uart_port *port)
 		serial_outp(up, UART_IER, 0);
 		serial_outp(up, UART_LCR, 0);
 		serial_icr_write(up, UART_CSR, 0); /* Reset the UART */
-		serial_outp(up, UART_LCR, 0xBF);
+		serial_outp(up, UART_LCR, UART_LCR_CONF_MODE_B);
 		serial_outp(up, UART_EFR, UART_EFR_ECB);
 		serial_outp(up, UART_LCR, 0);
 	}
