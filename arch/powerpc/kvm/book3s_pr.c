@@ -56,10 +56,12 @@ static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 void kvmppc_core_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 #ifdef CONFIG_PPC_BOOK3S_64
-	memcpy(to_svcpu(vcpu)->slb, to_book3s(vcpu)->slb_shadow, sizeof(to_svcpu(vcpu)->slb));
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	memcpy(svcpu->slb, to_book3s(vcpu)->slb_shadow, sizeof(svcpu->slb));
 	memcpy(&get_paca()->shadow_vcpu, to_book3s(vcpu)->shadow_vcpu,
 	       sizeof(get_paca()->shadow_vcpu));
-	to_svcpu(vcpu)->slb_max = to_book3s(vcpu)->slb_shadow_max;
+	svcpu->slb_max = to_book3s(vcpu)->slb_shadow_max;
+	svcpu_put(svcpu);
 #endif
 
 #ifdef CONFIG_PPC_BOOK3S_32
@@ -70,10 +72,12 @@ void kvmppc_core_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 void kvmppc_core_vcpu_put(struct kvm_vcpu *vcpu)
 {
 #ifdef CONFIG_PPC_BOOK3S_64
-	memcpy(to_book3s(vcpu)->slb_shadow, to_svcpu(vcpu)->slb, sizeof(to_svcpu(vcpu)->slb));
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	memcpy(to_book3s(vcpu)->slb_shadow, svcpu->slb, sizeof(svcpu->slb));
 	memcpy(to_book3s(vcpu)->shadow_vcpu, &get_paca()->shadow_vcpu,
 	       sizeof(get_paca()->shadow_vcpu));
-	to_book3s(vcpu)->slb_shadow_max = to_svcpu(vcpu)->slb_max;
+	to_book3s(vcpu)->slb_shadow_max = svcpu->slb_max;
+	svcpu_put(svcpu);
 #endif
 
 	kvmppc_giveup_ext(vcpu, MSR_FP);
@@ -308,19 +312,22 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	if (page_found == -ENOENT) {
 		/* Page not found in guest PTE entries */
+		struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
 		vcpu->arch.shared->dar = kvmppc_get_fault_dar(vcpu);
-		vcpu->arch.shared->dsisr = to_svcpu(vcpu)->fault_dsisr;
+		vcpu->arch.shared->dsisr = svcpu->fault_dsisr;
 		vcpu->arch.shared->msr |=
-			(to_svcpu(vcpu)->shadow_srr1 & 0x00000000f8000000ULL);
+			(svcpu->shadow_srr1 & 0x00000000f8000000ULL);
+		svcpu_put(svcpu);
 		kvmppc_book3s_queue_irqprio(vcpu, vec);
 	} else if (page_found == -EPERM) {
 		/* Storage protection */
+		struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
 		vcpu->arch.shared->dar = kvmppc_get_fault_dar(vcpu);
-		vcpu->arch.shared->dsisr =
-			to_svcpu(vcpu)->fault_dsisr & ~DSISR_NOHPTE;
+		vcpu->arch.shared->dsisr = svcpu->fault_dsisr & ~DSISR_NOHPTE;
 		vcpu->arch.shared->dsisr |= DSISR_PROTFAULT;
 		vcpu->arch.shared->msr |=
-			(to_svcpu(vcpu)->shadow_srr1 & 0x00000000f8000000ULL);
+			svcpu->shadow_srr1 & 0x00000000f8000000ULL;
+		svcpu_put(svcpu);
 		kvmppc_book3s_queue_irqprio(vcpu, vec);
 	} else if (page_found == -EINVAL) {
 		/* Page not found in guest SLB */
@@ -521,21 +528,25 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	kvm_resched(vcpu);
 	switch (exit_nr) {
 	case BOOK3S_INTERRUPT_INST_STORAGE:
+	{
+		struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+		ulong shadow_srr1 = svcpu->shadow_srr1;
 		vcpu->stat.pf_instruc++;
 
 #ifdef CONFIG_PPC_BOOK3S_32
 		/* We set segments as unused segments when invalidating them. So
 		 * treat the respective fault as segment fault. */
-		if (to_svcpu(vcpu)->sr[kvmppc_get_pc(vcpu) >> SID_SHIFT]
-		    == SR_INVALID) {
+		if (svcpu->sr[kvmppc_get_pc(vcpu) >> SID_SHIFT] == SR_INVALID) {
 			kvmppc_mmu_map_segment(vcpu, kvmppc_get_pc(vcpu));
 			r = RESUME_GUEST;
+			svcpu_put(svcpu);
 			break;
 		}
 #endif
+		svcpu_put(svcpu);
 
 		/* only care about PTEG not found errors, but leave NX alone */
-		if (to_svcpu(vcpu)->shadow_srr1 & 0x40000000) {
+		if (shadow_srr1 & 0x40000000) {
 			r = kvmppc_handle_pagefault(run, vcpu, kvmppc_get_pc(vcpu), exit_nr);
 			vcpu->stat.sp_instruc++;
 		} else if (vcpu->arch.mmu.is_dcbz32(vcpu) &&
@@ -548,33 +559,37 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			kvmppc_mmu_pte_flush(vcpu, kvmppc_get_pc(vcpu), ~0xFFFUL);
 			r = RESUME_GUEST;
 		} else {
-			vcpu->arch.shared->msr |=
-				to_svcpu(vcpu)->shadow_srr1 & 0x58000000;
+			vcpu->arch.shared->msr |= shadow_srr1 & 0x58000000;
 			kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
 			r = RESUME_GUEST;
 		}
 		break;
+	}
 	case BOOK3S_INTERRUPT_DATA_STORAGE:
 	{
 		ulong dar = kvmppc_get_fault_dar(vcpu);
+		struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+		u32 fault_dsisr = svcpu->fault_dsisr;
 		vcpu->stat.pf_storage++;
 
 #ifdef CONFIG_PPC_BOOK3S_32
 		/* We set segments as unused segments when invalidating them. So
 		 * treat the respective fault as segment fault. */
-		if ((to_svcpu(vcpu)->sr[dar >> SID_SHIFT]) == SR_INVALID) {
+		if ((svcpu->sr[dar >> SID_SHIFT]) == SR_INVALID) {
 			kvmppc_mmu_map_segment(vcpu, dar);
 			r = RESUME_GUEST;
+			svcpu_put(svcpu);
 			break;
 		}
 #endif
+		svcpu_put(svcpu);
 
 		/* The only case we need to handle is missing shadow PTEs */
-		if (to_svcpu(vcpu)->fault_dsisr & DSISR_NOHPTE) {
+		if (fault_dsisr & DSISR_NOHPTE) {
 			r = kvmppc_handle_pagefault(run, vcpu, dar, exit_nr);
 		} else {
 			vcpu->arch.shared->dar = dar;
-			vcpu->arch.shared->dsisr = to_svcpu(vcpu)->fault_dsisr;
+			vcpu->arch.shared->dsisr = fault_dsisr;
 			kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
 			r = RESUME_GUEST;
 		}
@@ -610,10 +625,13 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	case BOOK3S_INTERRUPT_PROGRAM:
 	{
 		enum emulation_result er;
+		struct kvmppc_book3s_shadow_vcpu *svcpu;
 		ulong flags;
 
 program_interrupt:
-		flags = to_svcpu(vcpu)->shadow_srr1 & 0x1f0000ull;
+		svcpu = svcpu_get(vcpu);
+		flags = svcpu->shadow_srr1 & 0x1f0000ull;
+		svcpu_put(svcpu);
 
 		if (vcpu->arch.shared->msr & MSR_PR) {
 #ifdef EXIT_DEBUG
@@ -741,14 +759,18 @@ program_interrupt:
 		r = RESUME_GUEST;
 		break;
 	default:
+	{
+		struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+		ulong shadow_srr1 = svcpu->shadow_srr1;
+		svcpu_put(svcpu);
 		/* Ugh - bork here! What did we get? */
 		printk(KERN_EMERG "exit_nr=0x%x | pc=0x%lx | msr=0x%lx\n",
-			exit_nr, kvmppc_get_pc(vcpu), to_svcpu(vcpu)->shadow_srr1);
+			exit_nr, kvmppc_get_pc(vcpu), shadow_srr1);
 		r = RESUME_HOST;
 		BUG();
 		break;
 	}
-
+	}
 
 	if (!(r & RESUME_HOST)) {
 		/* To avoid clobbering exit_reason, only check for signals if

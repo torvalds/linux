@@ -118,11 +118,14 @@ TRACE_EVENT(kvm_book3s_exit,
 	),
 
 	TP_fast_assign(
+		struct kvmppc_book3s_shadow_vcpu *svcpu;
 		__entry->exit_nr	= exit_nr;
 		__entry->pc		= kvmppc_get_pc(vcpu);
 		__entry->dar		= kvmppc_get_fault_dar(vcpu);
 		__entry->msr		= vcpu->arch.shared->msr;
-		__entry->srr1		= to_svcpu(vcpu)->shadow_srr1;
+		svcpu = svcpu_get(vcpu);
+		__entry->srr1		= svcpu->shadow_srr1;
+		svcpu_put(svcpu);
 	),
 
 	TP_printk("exit=0x%x | pc=0x%lx | msr=0x%lx | dar=0x%lx | srr1=0x%lx",

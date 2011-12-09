@@ -183,7 +183,9 @@ static inline void kvmppc_update_int_pending(struct kvm_vcpu *vcpu,
 static inline void kvmppc_set_gpr(struct kvm_vcpu *vcpu, int num, ulong val)
 {
 	if ( num < 14 ) {
-		to_svcpu(vcpu)->gpr[num] = val;
+		struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+		svcpu->gpr[num] = val;
+		svcpu_put(svcpu);
 		to_book3s(vcpu)->shadow_vcpu->gpr[num] = val;
 	} else
 		vcpu->arch.gpr[num] = val;
@@ -191,80 +193,120 @@ static inline void kvmppc_set_gpr(struct kvm_vcpu *vcpu, int num, ulong val)
 
 static inline ulong kvmppc_get_gpr(struct kvm_vcpu *vcpu, int num)
 {
-	if ( num < 14 )
-		return to_svcpu(vcpu)->gpr[num];
-	else
+	if ( num < 14 ) {
+		struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+		ulong r = svcpu->gpr[num];
+		svcpu_put(svcpu);
+		return r;
+	} else
 		return vcpu->arch.gpr[num];
 }
 
 static inline void kvmppc_set_cr(struct kvm_vcpu *vcpu, u32 val)
 {
-	to_svcpu(vcpu)->cr = val;
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	svcpu->cr = val;
+	svcpu_put(svcpu);
 	to_book3s(vcpu)->shadow_vcpu->cr = val;
 }
 
 static inline u32 kvmppc_get_cr(struct kvm_vcpu *vcpu)
 {
-	return to_svcpu(vcpu)->cr;
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	u32 r;
+	r = svcpu->cr;
+	svcpu_put(svcpu);
+	return r;
 }
 
 static inline void kvmppc_set_xer(struct kvm_vcpu *vcpu, u32 val)
 {
-	to_svcpu(vcpu)->xer = val;
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	svcpu->xer = val;
 	to_book3s(vcpu)->shadow_vcpu->xer = val;
+	svcpu_put(svcpu);
 }
 
 static inline u32 kvmppc_get_xer(struct kvm_vcpu *vcpu)
 {
-	return to_svcpu(vcpu)->xer;
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	u32 r;
+	r = svcpu->xer;
+	svcpu_put(svcpu);
+	return r;
 }
 
 static inline void kvmppc_set_ctr(struct kvm_vcpu *vcpu, ulong val)
 {
-	to_svcpu(vcpu)->ctr = val;
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	svcpu->ctr = val;
+	svcpu_put(svcpu);
 }
 
 static inline ulong kvmppc_get_ctr(struct kvm_vcpu *vcpu)
 {
-	return to_svcpu(vcpu)->ctr;
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	ulong r;
+	r = svcpu->ctr;
+	svcpu_put(svcpu);
+	return r;
 }
 
 static inline void kvmppc_set_lr(struct kvm_vcpu *vcpu, ulong val)
 {
-	to_svcpu(vcpu)->lr = val;
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	svcpu->lr = val;
+	svcpu_put(svcpu);
 }
 
 static inline ulong kvmppc_get_lr(struct kvm_vcpu *vcpu)
 {
-	return to_svcpu(vcpu)->lr;
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	ulong r;
+	r = svcpu->lr;
+	svcpu_put(svcpu);
+	return r;
 }
 
 static inline void kvmppc_set_pc(struct kvm_vcpu *vcpu, ulong val)
 {
-	to_svcpu(vcpu)->pc = val;
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	svcpu->pc = val;
+	svcpu_put(svcpu);
 }
 
 static inline ulong kvmppc_get_pc(struct kvm_vcpu *vcpu)
 {
-	return to_svcpu(vcpu)->pc;
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	ulong r;
+	r = svcpu->pc;
+	svcpu_put(svcpu);
+	return r;
 }
 
 static inline u32 kvmppc_get_last_inst(struct kvm_vcpu *vcpu)
 {
 	ulong pc = kvmppc_get_pc(vcpu);
-	struct kvmppc_book3s_shadow_vcpu *svcpu = to_svcpu(vcpu);
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	u32 r;
 
 	/* Load the instruction manually if it failed to do so in the
 	 * exit path */
 	if (svcpu->last_inst == KVM_INST_FETCH_FAILED)
 		kvmppc_ld(vcpu, &pc, sizeof(u32), &svcpu->last_inst, false);
 
-	return svcpu->last_inst;
+	r = svcpu->last_inst;
+	svcpu_put(svcpu);
+	return r;
 }
 
 static inline ulong kvmppc_get_fault_dar(struct kvm_vcpu *vcpu)
 {
-	return to_svcpu(vcpu)->fault_dar;
+	struct kvmppc_book3s_shadow_vcpu *svcpu = svcpu_get(vcpu);
+	ulong r;
+	r = svcpu->fault_dar;
+	svcpu_put(svcpu);
+	return r;
 }
 
 static inline bool kvmppc_critical_section(struct kvm_vcpu *vcpu)

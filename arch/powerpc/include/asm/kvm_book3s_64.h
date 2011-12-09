@@ -21,9 +21,15 @@
 #define __ASM_KVM_BOOK3S_64_H__
 
 #ifdef CONFIG_KVM_BOOK3S_PR
-static inline struct kvmppc_book3s_shadow_vcpu *to_svcpu(struct kvm_vcpu *vcpu)
+static inline struct kvmppc_book3s_shadow_vcpu *svcpu_get(struct kvm_vcpu *vcpu)
 {
+	preempt_disable();
 	return &get_paca()->shadow_vcpu;
+}
+
+static inline void svcpu_put(struct kvmppc_book3s_shadow_vcpu *svcpu)
+{
+	preempt_enable();
 }
 #endif
 

@@ -230,9 +230,12 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 			r = kvmppc_st(vcpu, &addr, 32, zeros, true);
 			if ((r == -ENOENT) || (r == -EPERM)) {
+				struct kvmppc_book3s_shadow_vcpu *svcpu;
+
+				svcpu = svcpu_get(vcpu);
 				*advance = 0;
 				vcpu->arch.shared->dar = vaddr;
-				to_svcpu(vcpu)->fault_dar = vaddr;
+				svcpu->fault_dar = vaddr;
 
 				dsisr = DSISR_ISSTORE;
 				if (r == -ENOENT)
@@ -241,7 +244,8 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 					dsisr |= DSISR_PROTFAULT;
 
 				vcpu->arch.shared->dsisr = dsisr;
-				to_svcpu(vcpu)->fault_dsisr = dsisr;
+				svcpu->fault_dsisr = dsisr;
+				svcpu_put(svcpu);
 
 				kvmppc_book3s_queue_irqprio(vcpu,
 					BOOK3S_INTERRUPT_DATA_STORAGE);
