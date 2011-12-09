@@ -145,8 +145,11 @@ static int wm8994_write(struct snd_soc_codec *codec, unsigned int reg,
 		if (ret != 0)
 			dev_err(codec->dev, "Cache write to %x failed: %d\n",
 				reg, ret);
-	//	else
-	//		DBG("snd_soc_cache_write:0x%04x = 0x%04x\n",reg,value);
+		else
+#ifdef WM8994_PROC		
+	if(debug_write_read != 0)				
+			DBG("snd_soc_cache_write:0x%04x = 0x%04x\n",reg,value);
+#endif	
 	}
 
 	return wm8994_reg_write(codec->control_data, reg, value);
@@ -164,8 +167,11 @@ static unsigned int wm8994_read(struct snd_soc_codec *codec,
 	    reg < codec->driver->reg_cache_size) {
 		ret = snd_soc_cache_read(codec, reg, &val);
 		if (ret >= 0)
-		{		
-		//	DBG("snd_soc_cache_read:0x%04x = 0x%04x\n",reg,val);
+		{	
+#ifdef WM8994_PROC			
+		if(debug_write_read != 0)			
+			DBG("snd_soc_cache_read:0x%04x = 0x%04x\n",reg,val);
+#endif	
 			return val;
 		}	
 		else
@@ -175,7 +181,7 @@ static unsigned int wm8994_read(struct snd_soc_codec *codec,
 	val = wm8994_reg_read(codec->control_data, reg);
 #ifdef WM8994_PROC			
 	if(debug_write_read != 0)			
-		printk("%s:0x%04x = 0x%04x",__FUNCTION__,reg,val);	
+		printk("%s:0x%04x = 0x%04x\n",__FUNCTION__,reg,val);	
 #endif
 	return val;
 }
@@ -655,7 +661,7 @@ SOC_SINGLE("AIF1DAC2 3D Stereo Switch", WM8994_AIF1_DAC2_FILTERS_2,
 SOC_SINGLE_TLV("AIF2DAC 3D Stereo Volume", WM8994_AIF2_DAC_FILTERS_2,
 	       10, 15, 0, wm8994_3d_tlv),
 SOC_SINGLE("AIF2DAC 3D Stereo Switch", WM8994_AIF2_DAC_FILTERS_2,
-	   8, 1, 0),
+	   8, 1, 0),	   
 };
 
 static const struct snd_kcontrol_new wm8994_eq_controls[] = {
@@ -836,7 +842,7 @@ static int wm8994_PA_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_codec *codec = w->codec;
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	struct wm8994_pdata *pdata = wm8994->pdata;
-	DBG("Enter %s::%s---%d\n",__FILE__,__FUNCTION__,__LINE__);
+//	DBG("Enter %s::%s---%d\n",__FILE__,__FUNCTION__,__LINE__);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -847,11 +853,10 @@ static int wm8994_PA_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_PRE_PMD:
 		DBG("PA disable\n");
 		gpio_set_value(pdata->PA_control_pin,GPIO_LOW);
-	//	msleep(50);
 		break;
 
 	default:
-		BUG();
+	//	BUG();
 		break;
 	}
 
@@ -1345,7 +1350,7 @@ SND_SOC_DAPM_MUX("Right Headphone Mux", SND_SOC_NOPM, 0, 0, &hpr_mux),
 SND_SOC_DAPM_MIXER("SPKL", WM8994_POWER_MANAGEMENT_3, 8, 0,
 		   left_speaker_mixer, ARRAY_SIZE(left_speaker_mixer)),
 SND_SOC_DAPM_MIXER("SPKR", WM8994_POWER_MANAGEMENT_3, 9, 0,
-		   right_speaker_mixer, ARRAY_SIZE(right_speaker_mixer)),
+		   right_speaker_mixer, ARRAY_SIZE(right_speaker_mixer)),		   
 
 SND_SOC_DAPM_POST("Debug log", post_ev),
 };
@@ -1540,6 +1545,14 @@ static const struct snd_soc_dapm_route intercon[] = {
 
 	{ "Left Headphone Mux", "DAC", "DAC1L" },
 	{ "Right Headphone Mux", "DAC", "DAC1R" },
+	
+	{ "IN1L PGA", NULL , "MICBIAS2" },
+	{ "IN1R PGA", NULL , "MICBIAS1" },
+	{ "MICBIAS2", NULL , "IN1LP"},
+	{ "MICBIAS2", NULL , "IN1LN"},
+	{ "MICBIAS1", NULL , "IN1RP"},
+	{ "MICBIAS1", NULL , "IN1RN"},
+	
 };
 
 static const struct snd_soc_dapm_route wm8994_lateclk_revd_intercon[] = {
@@ -1591,21 +1604,19 @@ static const struct snd_soc_dapm_route wm8958_intercon[] = {
 	{ "AIF3ADC Mux", "Mono PCM", "Mono PCM Out Mux" },
 };
 
-static const struct snd_soc_dapm_route wm8998_PA_intercon[] = {
+static const struct snd_soc_dapm_route wm8994_PA_intercon[] = {
 
 	{ "PA Driver", NULL,"SPKL Driver"},
-	{ "PA Driver", NULL,"SPKR Driver"},	
+//	{ "PA Driver", NULL,"SPKR Driver"},	
 	
 	{ "SPKOUTLP", NULL, "PA Driver" },
 	{ "SPKOUTLN", NULL, "PA Driver" },
-	{ "SPKOUTRP", NULL, "PA Driver" },
-	{ "SPKOUTRN", NULL, "PA Driver" },	
+//	{ "SPKOUTRP", NULL, "PA Driver" },
+//	{ "SPKOUTRN", NULL, "PA Driver" },	
 };
 
-static const struct snd_soc_dapm_widget wm8998_PA_dapm_widgets[] = {
-SND_SOC_DAPM_PGA_E("PA Driver", SND_SOC_NOPM, 0, 0,  NULL, 0, wm8994_PA_event,
-		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-
+static const struct snd_soc_dapm_widget wm8994_PA_dapm_widgets[] = {
+SND_SOC_DAPM_SPK("PA Driver", wm8994_PA_event),
 };
 
 
@@ -3234,10 +3245,10 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 	if(pdata ->PA_control_pin)
 	{
 		dev_info(codec->dev,"Add the PA control route\n");
-		snd_soc_dapm_new_controls(dapm, wm8998_PA_dapm_widgets,
-				  ARRAY_SIZE(wm8998_PA_dapm_widgets));	
-		snd_soc_dapm_add_routes(dapm, wm8998_PA_intercon, 
-				ARRAY_SIZE(wm8998_PA_intercon));
+		snd_soc_dapm_new_controls(dapm, wm8994_PA_dapm_widgets,
+				  ARRAY_SIZE(wm8994_PA_dapm_widgets));	
+		snd_soc_dapm_add_routes(dapm, wm8994_PA_intercon, 
+				ARRAY_SIZE(wm8994_PA_intercon));
 		gpio_request(pdata->PA_control_pin, "wm8994_PA_ctrl");				
 		gpio_direction_output(pdata->PA_control_pin,GPIO_LOW);
 	}
@@ -3399,7 +3410,7 @@ static ssize_t wm8994_proc_write(struct file *file, const char __user *buffer,
 			{
 				reg = simple_strtol(p,NULL,16);
 				value = wm8994_reg_read(wm8994_codec->control_data,reg);
-				printk("wm8994_read:0x%04x = 0x%04x",reg,value);
+				printk("wm8994_read:0x%04x = 0x%04x\n",reg,value);
 			}
 			debug_write_read = 0;
 			printk("\n");
@@ -3423,7 +3434,7 @@ static ssize_t wm8994_proc_write(struct file *file, const char __user *buffer,
 				p=strsep(&cookie_pot,",");
 				value = simple_strtol(p,NULL,16);
 				wm8994_reg_write(wm8994_codec->control_data,reg,value);
-				printk("wm8994_write:0x%04x = 0x%04x",reg,value);
+				printk("wm8994_write:0x%04x = 0x%04x\n",reg,value);
 			}
 			debug_write_read = 0;
 			printk("\n");

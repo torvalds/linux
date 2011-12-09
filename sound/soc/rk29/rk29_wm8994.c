@@ -271,10 +271,10 @@ static struct snd_soc_dai_link rk29_dai[] = {
 		.stream_name = "WM8994 PCM",
 		.codec_name = "wm8994-codec",
 		.platform_name = "rockchip-audio",
-#ifdef CONFIG_SND_RK29_SOC_I2S_2CH		
-        	.cpu_dai_name = "rk29_i2s.1",
-#else if  CONFIG_SND_RK29_SOC_I2S_8CH
-		.cpu_dai_name = "rk29_i2s.0",
+#if defined(CONFIG_SND_RK29_SOC_I2S_8CH)	
+        	.cpu_dai_name = "rk29_i2s.0",
+#elif defined(CONFIG_SND_RK29_SOC_I2S_2CH)
+		.cpu_dai_name = "rk29_i2s.1",
 #endif
 		.codec_dai_name = "wm8994-aif1",
 		.ops = &rk29_aif1_ops,
@@ -284,10 +284,10 @@ static struct snd_soc_dai_link rk29_dai[] = {
 		.stream_name = "WM8994 PCM",
 		.codec_name = "wm8994-codec",
 		.platform_name = "rockchip-audio",
-#ifdef CONFIG_SND_RK29_SOC_I2S_2CH		
-        	.cpu_dai_name = "rk29_i2s.1",
-#else if  CONFIG_SND_RK29_SOC_I2S_8CH
-		.cpu_dai_name = "rk29_i2s.0",
+#if defined(CONFIG_SND_RK29_SOC_I2S_8CH)	
+        	.cpu_dai_name = "rk29_i2s.0",
+#elif defined(CONFIG_SND_RK29_SOC_I2S_2CH)
+		.cpu_dai_name = "rk29_i2s.1",
 #endif
 		.codec_dai_name = "wm8994-aif2",
 		.ops = &rk29_aif2_ops,
@@ -297,10 +297,10 @@ static struct snd_soc_dai_link rk29_dai[] = {
 		.stream_name = "WM8994 PCM",
 		.codec_name = "wm8994-codec",
 		.platform_name = "rockchip-audio",
-#ifdef CONFIG_SND_RK29_SOC_I2S_2CH		
-        	.cpu_dai_name = "rk29_i2s.1",
-#else if  CONFIG_SND_RK29_SOC_I2S_8CH
-		.cpu_dai_name = "rk29_i2s.0",
+#if defined(CONFIG_SND_RK29_SOC_I2S_8CH)	
+        	.cpu_dai_name = "rk29_i2s.0",
+#elif defined(CONFIG_SND_RK29_SOC_I2S_2CH)
+		.cpu_dai_name = "rk29_i2s.1",
 #endif
 		.codec_dai_name = "wm8994-aif3",
 		.ops = &rk29_aif3_ops,
