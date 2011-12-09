@@ -122,7 +122,7 @@
 #else
 #define SDRAM_SIZE          SZ_512M
 #endif
-#define PMEM_GPU_SIZE       SZ_16M
+#define PMEM_GPU_SIZE       SZ_64M
 #define PMEM_UI_SIZE        (48 * SZ_1M) /* 1280x800: 64M 1024x768: 48M ... */
 #define PMEM_VPU_SIZE       SZ_64M
 #define PMEM_SKYPE_SIZE     0
