@@ -26,42 +26,42 @@ static VOID handle_rx_control_packet(PMINI_ADAPTER Adapter, struct sk_buff *skb)
 
 	switch (usStatus)
 	{
-		case CM_RESPONSES:               // 0xA0
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CP_CTRL_PKT, DBG_LVL_ALL, "MAC Version Seems to be Non Multi-Classifier, rejected by Driver");
-			HighPriorityMessage = TRUE;
-			break;
-		case CM_CONTROL_NEWDSX_MULTICLASSIFIER_RESP:
-			HighPriorityMessage = TRUE;
-			if (Adapter->LinkStatus == LINKUP_DONE)
-			{
-				CmControlResponseMessage(Adapter, (skb->data + sizeof(USHORT)));
-			}
-			break;
-		case LINK_CONTROL_RESP:          //0xA2
-		case STATUS_RSP:                 //0xA1
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CP_CTRL_PKT, DBG_LVL_ALL, "LINK_CONTROL_RESP");
-			HighPriorityMessage = TRUE;
-			LinkControlResponseMessage(Adapter, (skb->data + sizeof(USHORT)));
-			break;
-		case STATS_POINTER_RESP:         //0xA6
-			HighPriorityMessage = TRUE;
-			StatisticsResponse(Adapter, (skb->data + sizeof(USHORT)));
-			break;
-		case IDLE_MODE_STATUS:           //0xA3
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CP_CTRL_PKT, DBG_LVL_ALL, "IDLE_MODE_STATUS Type Message Got from F/W");
-			InterfaceIdleModeRespond(Adapter, (PUINT)(skb->data +
-						sizeof(USHORT)));
-			HighPriorityMessage = TRUE;
-			break;
+	case CM_RESPONSES:               // 0xA0
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CP_CTRL_PKT, DBG_LVL_ALL, "MAC Version Seems to be Non Multi-Classifier, rejected by Driver");
+		HighPriorityMessage = TRUE;
+		break;
+	case CM_CONTROL_NEWDSX_MULTICLASSIFIER_RESP:
+		HighPriorityMessage = TRUE;
+		if (Adapter->LinkStatus == LINKUP_DONE)
+		{
+			CmControlResponseMessage(Adapter, (skb->data + sizeof(USHORT)));
+		}
+		break;
+	case LINK_CONTROL_RESP:          //0xA2
+	case STATUS_RSP:                 //0xA1
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CP_CTRL_PKT, DBG_LVL_ALL, "LINK_CONTROL_RESP");
+		HighPriorityMessage = TRUE;
+		LinkControlResponseMessage(Adapter, (skb->data + sizeof(USHORT)));
+		break;
+	case STATS_POINTER_RESP:         //0xA6
+		HighPriorityMessage = TRUE;
+		StatisticsResponse(Adapter, (skb->data + sizeof(USHORT)));
+		break;
+	case IDLE_MODE_STATUS:           //0xA3
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CP_CTRL_PKT, DBG_LVL_ALL, "IDLE_MODE_STATUS Type Message Got from F/W");
+		InterfaceIdleModeRespond(Adapter, (PUINT)(skb->data +
+					sizeof(USHORT)));
+		HighPriorityMessage = TRUE;
+		break;
 
-		case AUTH_SS_HOST_MSG:
-			HighPriorityMessage = TRUE;
-			break;
+	case AUTH_SS_HOST_MSG:
+		HighPriorityMessage = TRUE;
+		break;
 
-		default:
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CP_CTRL_PKT, DBG_LVL_ALL, "Got Default Response");
-			/* Let the Application Deal with This Packet */
-			break;
+	default:
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CP_CTRL_PKT, DBG_LVL_ALL, "Got Default Response");
+		/* Let the Application Deal with This Packet */
+		break;
 	}
 
 	//Queue The Control Packet to The Application Queues
@@ -69,7 +69,7 @@ static VOID handle_rx_control_packet(PMINI_ADAPTER Adapter, struct sk_buff *skb)
 
 	for (pTarang = Adapter->pTarangs; pTarang; pTarang = pTarang->next)
 	{
-	if (Adapter->device_removed)
+		if (Adapter->device_removed)
 		{
 			break;
 		}
@@ -83,10 +83,10 @@ static VOID handle_rx_control_packet(PMINI_ADAPTER Adapter, struct sk_buff *skb)
 		cntrl_msg_mask_bit = (usStatus & 0x1F);
 		//printk("\ninew  msg  mask bit which is disable in mask:%X", cntrl_msg_mask_bit);
 		if (pTarang->RxCntrlMsgBitMask & (1 << cntrl_msg_mask_bit))
-				drop_pkt_flag = FALSE;
+			drop_pkt_flag = FALSE;
 
 		if ((drop_pkt_flag == TRUE)  || (pTarang->AppCtrlQueueLen > MAX_APP_QUEUE_LEN) ||
-					((pTarang->AppCtrlQueueLen > MAX_APP_QUEUE_LEN / 2) && (HighPriorityMessage == FALSE)))
+				((pTarang->AppCtrlQueueLen > MAX_APP_QUEUE_LEN / 2) && (HighPriorityMessage == FALSE)))
 		{
 			/*
 				Assumption:-
@@ -97,30 +97,30 @@ static VOID handle_rx_control_packet(PMINI_ADAPTER Adapter, struct sk_buff *skb)
 			*/
 			switch (*(PUSHORT)skb->data)
 			{
-				case CM_RESPONSES:
-					pTarang->stDroppedAppCntrlMsgs.cm_responses++;
-					break;
-				case CM_CONTROL_NEWDSX_MULTICLASSIFIER_RESP:
+			case CM_RESPONSES:
+				pTarang->stDroppedAppCntrlMsgs.cm_responses++;
+				break;
+			case CM_CONTROL_NEWDSX_MULTICLASSIFIER_RESP:
 				 pTarang->stDroppedAppCntrlMsgs.cm_control_newdsx_multiclassifier_resp++;
-					break;
-				case LINK_CONTROL_RESP:
-					pTarang->stDroppedAppCntrlMsgs.link_control_resp++;
-					break;
-				case STATUS_RSP:
-					pTarang->stDroppedAppCntrlMsgs.status_rsp++;
-					break;
-				case STATS_POINTER_RESP:
-					pTarang->stDroppedAppCntrlMsgs.stats_pointer_resp++;
-					break;
-				case IDLE_MODE_STATUS:
-					pTarang->stDroppedAppCntrlMsgs.idle_mode_status++;
-					break;
-				case AUTH_SS_HOST_MSG:
-					pTarang->stDroppedAppCntrlMsgs.auth_ss_host_msg++;
-					break;
+				break;
+			case LINK_CONTROL_RESP:
+				pTarang->stDroppedAppCntrlMsgs.link_control_resp++;
+				break;
+			case STATUS_RSP:
+				pTarang->stDroppedAppCntrlMsgs.status_rsp++;
+				break;
+			case STATS_POINTER_RESP:
+				pTarang->stDroppedAppCntrlMsgs.stats_pointer_resp++;
+				break;
+			case IDLE_MODE_STATUS:
+				pTarang->stDroppedAppCntrlMsgs.idle_mode_status++;
+				break;
+			case AUTH_SS_HOST_MSG:
+				pTarang->stDroppedAppCntrlMsgs.auth_ss_host_msg++;
+				break;
 			default:
-					pTarang->stDroppedAppCntrlMsgs.low_priority_message++;
-					break;
+				pTarang->stDroppedAppCntrlMsgs.low_priority_message++;
+				break;
 			}
 
 			continue;
@@ -154,10 +154,9 @@ int control_packet_handler(PMINI_ADAPTER Adapter  /**< pointer to adapter object
 	while (1)
 	{
 		wait_event_interruptible(Adapter->process_rx_cntrlpkt,
-								atomic_read(&Adapter->cntrlpktCnt) ||
-								Adapter->bWakeUpDevice ||
-								kthread_should_stop()
-								);
+				atomic_read(&Adapter->cntrlpktCnt) ||
+				Adapter->bWakeUpDevice ||
+				kthread_should_stop());
 
 
 		if (kthread_should_stop())
@@ -169,7 +168,7 @@ int control_packet_handler(PMINI_ADAPTER Adapter  /**< pointer to adapter object
 		{
 			Adapter->bWakeUpDevice = FALSE;
 			if ((FALSE == Adapter->bTriedToWakeUpFromlowPowerMode) &&
-				((TRUE == Adapter->IdleMode) || (TRUE == Adapter->bShutStatus)))
+					((TRUE == Adapter->IdleMode) || (TRUE == Adapter->bShutStatus)))
 			{
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CP_CTRL_PKT, DBG_LVL_ALL, "Calling InterfaceAbortIdlemode\n");
 	//			Adapter->bTriedToWakeUpFromlowPowerMode = TRUE;
