@@ -511,8 +511,8 @@ M:	Joerg Roedel <joerg.roedel@amd.com>
 L:	iommu@lists.linux-foundation.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/joro/linux-2.6-iommu.git
 S:	Supported
-F:	arch/x86/kernel/amd_iommu*.c
-F:	arch/x86/include/asm/amd_iommu*.h
+F:	drivers/iommu/amd_iommu*.[ch]
+F:	include/linux/amd-iommu.h
 
 AMD MICROCODE UPDATE SUPPORT
 M:	Andreas Herrmann <andreas.herrmann3@amd.com>
