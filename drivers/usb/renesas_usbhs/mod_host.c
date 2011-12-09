@@ -193,6 +193,48 @@ static void usbhsh_ureq_free(struct usbhsh_hpriv *hpriv,
 /*
  *		pipe control
  */
+static void usbhsh_endpoint_sequence_save(struct usbhsh_hpriv *hpriv,
+					  struct urb *urb,
+					  struct usbhs_pkt *pkt)
+{
+	int len = urb->actual_length;
+	int maxp = usb_endpoint_maxp(&urb->ep->desc);
+	int t = 0;
+
+	/* DCP is out of sequence control */
+	if (usb_pipecontrol(urb->pipe))
+		return;
+
+	/*
+	 * renesas_usbhs pipe has a limitation in a number.
+	 * So, driver should re-use the limited pipe for each device/endpoint.
+	 * DATA0/1 sequence should be saved for it.
+	 * see [image of mod_host]
+	 *     [HARDWARE LIMITATION]
+	 */
+
+	/*
+	 * next sequence depends on actual_length
+	 *
+	 * ex) actual_length = 1147, maxp = 512
+	 * data0 : 512
+	 * data1 : 512
+	 * data0 : 123
+	 * data1 is the next sequence
+	 */
+	t = len / maxp;
+	if (len % maxp)
+		t++;
+	if (pkt->zero)
+		t++;
+	t %= 2;
+
+	if (t)
+		usb_dotoggle(urb->dev,
+			     usb_pipeendpoint(urb->pipe),
+			     usb_pipeout(urb->pipe));
+}
+
 static struct usbhsh_device *usbhsh_device_get(struct usbhsh_hpriv *hpriv,
 					       struct urb *urb);
 
@@ -246,15 +288,6 @@ static int usbhsh_pipe_attach(struct usbhsh_hpriv *hpriv,
 		 */
 		usbhsh_uep_to_pipe(uep)		= pipe;
 		usbhsh_pipe_to_uep(pipe)	= uep;
-
-		if (!usb_gettoggle(urb->dev,
-				   usb_pipeendpoint(urb->pipe),
-				   usb_pipeout(urb->pipe))) {
-			usbhs_pipe_sequence_data0(pipe);
-			usb_settoggle(urb->dev,
-				      usb_pipeendpoint(urb->pipe),
-				      usb_pipeout(urb->pipe), 1);
-		}
 
 		usbhs_pipe_config_update(pipe,
 					 usbhsh_device_number(hpriv, udev),
@@ -598,10 +631,11 @@ static void usbhsh_queue_done(struct usbhs_priv *priv, struct usbhs_pkt *pkt)
 	urb->actual_length = pkt->actual;
 	usbhsh_ureq_free(hpriv, ureq);
 
+	usbhsh_endpoint_sequence_save(hpriv, urb, pkt);
+	usbhsh_pipe_detach(hpriv, uep);
+
 	usb_hcd_unlink_urb_from_ep(hcd, urb);
 	usb_hcd_giveback_urb(hcd, urb, 0);
-
-	usbhsh_pipe_detach(hpriv, uep);
 }
 
 static int usbhsh_queue_push(struct usb_hcd *hcd,
@@ -614,7 +648,7 @@ static int usbhsh_queue_push(struct usb_hcd *hcd,
 	struct device *dev = usbhsh_hcd_to_dev(hcd);
 	struct usbhsh_request *ureq;
 	void *buf;
-	int len;
+	int len, sequence;
 
 	if (usb_pipeisoc(urb->pipe)) {
 		dev_err(dev, "pipe iso is not supported now\n");
@@ -636,9 +670,15 @@ static int usbhsh_queue_push(struct usb_hcd *hcd,
 	buf = (void *)(urb->transfer_buffer + urb->actual_length);
 	len = urb->transfer_buffer_length - urb->actual_length;
 
+	sequence = usb_gettoggle(urb->dev,
+				 usb_pipeendpoint(urb->pipe),
+				 usb_pipeout(urb->pipe));
+
 	dev_dbg(dev, "%s\n", __func__);
 	usbhs_pkt_push(pipe, &ureq->pkt, usbhsh_queue_done,
-		       buf, len, (urb->transfer_flags & URB_ZERO_PACKET));
+		       buf, len, (urb->transfer_flags & URB_ZERO_PACKET),
+		       sequence);
+
 	usbhs_pkt_start(pipe);
 
 	return 0;
@@ -741,7 +781,8 @@ static int usbhsh_data_stage_packet_push(struct usbhsh_hpriv *hpriv,
 		       usbhsh_data_stage_packet_done,
 		       urb->transfer_buffer,
 		       urb->transfer_buffer_length,
-		       (urb->transfer_flags & URB_ZERO_PACKET));
+		       (urb->transfer_flags & URB_ZERO_PACKET),
+		       -1);
 
 	return 0;
 }
@@ -770,7 +811,7 @@ static int usbhsh_status_stage_packet_push(struct usbhsh_hpriv *hpriv,
 		       usbhsh_queue_done,
 		       NULL,
 		       urb->transfer_buffer_length,
-		       0);
+		       0, -1);
 
 	return 0;
 }
