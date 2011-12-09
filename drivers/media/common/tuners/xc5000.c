@@ -676,8 +676,10 @@ static int xc5000_set_params(struct dvb_frontend *fe,
 			priv->freq_hz = params->frequency - 1750000;
 			break;
 		case BANDWIDTH_7_MHZ:
-			printk(KERN_ERR "xc5000 bandwidth 7MHz not supported\n");
-			return -EINVAL;
+			priv->bandwidth = BANDWIDTH_7_MHZ;
+			priv->video_standard = DTV7;
+			priv->freq_hz = params->frequency - 2250000;
+			break;
 		case BANDWIDTH_8_MHZ:
 			priv->bandwidth = BANDWIDTH_8_MHZ;
 			priv->video_standard = DTV8;
@@ -715,6 +717,10 @@ static int xc5000_set_params(struct dvb_frontend *fe,
 				priv->bandwidth = BANDWIDTH_6_MHZ;
 				priv->video_standard = DTV6;
 				priv->freq_hz = params->frequency - 1750000;
+			} else if (bw <= 7000000) {
+				priv->bandwidth = BANDWIDTH_7_MHZ;
+				priv->video_standard = DTV7;
+				priv->freq_hz = params->frequency - 2250000;
 			} else {
 				priv->bandwidth = BANDWIDTH_8_MHZ;
 				priv->video_standard = DTV7_8;
