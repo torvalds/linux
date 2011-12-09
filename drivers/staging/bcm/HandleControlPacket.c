@@ -1,16 +1,16 @@
 /**
-@file HandleControlPacket.c
-This file contains the routines to deal with
-sending and receiving of control packets.
-*/
+ * @file HandleControlPacket.c
+ * This file contains the routines to deal with
+ * sending and receiving of control packets.
+ */
 #include "headers.h"
 
 /**
-When a control packet is received, analyze the
-"status" and call appropriate response function.
-Enqueue the control packet for Application.
-@return None
-*/
+ * When a control packet is received, analyze the
+ * "status" and call appropriate response function.
+ * Enqueue the control packet for Application.
+ * @return None
+ */
 static VOID handle_rx_control_packet(PMINI_ADAPTER Adapter, struct sk_buff *skb)
 {
 	PPER_TARANG_DATA pTarang = NULL;
@@ -26,7 +26,7 @@ static VOID handle_rx_control_packet(PMINI_ADAPTER Adapter, struct sk_buff *skb)
 
 	switch (usStatus)
 	{
-	case CM_RESPONSES:               // 0xA0
+	case CM_RESPONSES:               /* 0xA0 */
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CP_CTRL_PKT, DBG_LVL_ALL, "MAC Version Seems to be Non Multi-Classifier, rejected by Driver");
 		HighPriorityMessage = TRUE;
 		break;
@@ -37,17 +37,17 @@ static VOID handle_rx_control_packet(PMINI_ADAPTER Adapter, struct sk_buff *skb)
 			CmControlResponseMessage(Adapter, (skb->data + sizeof(USHORT)));
 		}
 		break;
-	case LINK_CONTROL_RESP:          //0xA2
-	case STATUS_RSP:                 //0xA1
+	case LINK_CONTROL_RESP:          /* 0xA2 */
+	case STATUS_RSP:                 /* 0xA1 */
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CP_CTRL_PKT, DBG_LVL_ALL, "LINK_CONTROL_RESP");
 		HighPriorityMessage = TRUE;
 		LinkControlResponseMessage(Adapter, (skb->data + sizeof(USHORT)));
 		break;
-	case STATS_POINTER_RESP:         //0xA6
+	case STATS_POINTER_RESP:         /* 0xA6 */
 		HighPriorityMessage = TRUE;
 		StatisticsResponse(Adapter, (skb->data + sizeof(USHORT)));
 		break;
-	case IDLE_MODE_STATUS:           //0xA3
+	case IDLE_MODE_STATUS:           /* 0xA3 */
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CP_CTRL_PKT, DBG_LVL_ALL, "IDLE_MODE_STATUS Type Message Got from F/W");
 		InterfaceIdleModeRespond(Adapter, (PUINT)(skb->data +
 					sizeof(USHORT)));
@@ -64,7 +64,7 @@ static VOID handle_rx_control_packet(PMINI_ADAPTER Adapter, struct sk_buff *skb)
 		break;
 	}
 
-	//Queue The Control Packet to The Application Queues
+	/* Queue The Control Packet to The Application Queues */
 	down(&Adapter->RxAppControlQueuelock);
 
 	for (pTarang = Adapter->pTarangs; pTarang; pTarang = pTarang->next)
@@ -76,12 +76,18 @@ static VOID handle_rx_control_packet(PMINI_ADAPTER Adapter, struct sk_buff *skb)
 
 		drop_pkt_flag = TRUE;
 		/*
-			There are cntrl msg from A0 to AC. It has been mapped to 0 to C bit in the cntrl mask.
-			Also, by default AD to BF has been masked to the rest of the bits... which wil be ON by default.
-			if mask bit is enable to particular pkt status, send it out to app else stop it.
-		*/
+		 * There are cntrl msg from A0 to AC. It has been mapped to 0 to
+		 * C bit in the cntrl mask.
+		 * Also, by default AD to BF has been masked to the rest of the
+		 * bits... which wil be ON by default.
+		 * if mask bit is enable to particular pkt status, send it out
+		 * to app else stop it.
+		 */
 		cntrl_msg_mask_bit = (usStatus & 0x1F);
-		//printk("\ninew  msg  mask bit which is disable in mask:%X", cntrl_msg_mask_bit);
+		/*
+		 * printk("\ninew  msg  mask bit which is disable in mask:%X",
+		 *	cntrl_msg_mask_bit);
+		 */
 		if (pTarang->RxCntrlMsgBitMask & (1 << cntrl_msg_mask_bit))
 			drop_pkt_flag = FALSE;
 
@@ -89,12 +95,13 @@ static VOID handle_rx_control_packet(PMINI_ADAPTER Adapter, struct sk_buff *skb)
 				((pTarang->AppCtrlQueueLen > MAX_APP_QUEUE_LEN / 2) && (HighPriorityMessage == FALSE)))
 		{
 			/*
-				Assumption:-
-				1. every tarang manages it own dropped pkt statitistics
-				2. Total packet dropped per tarang will be equal to the sum of all types of dropped
-					pkt by that tarang only.
-
-			*/
+			 * Assumption:-
+			 * 1. every tarang manages it own dropped pkt
+			 *    statitistics
+			 * 2. Total packet dropped per tarang will be equal to
+			 *    the sum of all types of dropped pkt by that
+			 *    tarang only.
+			 */
 			switch (*(PUSHORT)skb->data)
 			{
 			case CM_RESPONSES:
@@ -140,16 +147,15 @@ static VOID handle_rx_control_packet(PMINI_ADAPTER Adapter, struct sk_buff *skb)
 }
 
 /**
-@ingroup ctrl_pkt_functions
-Thread to handle control pkt reception
-*/
-int control_packet_handler(PMINI_ADAPTER Adapter  /**< pointer to adapter object*/
-						)
+ * @ingroup ctrl_pkt_functions
+ * Thread to handle control pkt reception
+ */
+int control_packet_handler(PMINI_ADAPTER Adapter /* pointer to adapter object*/)
 {
 	struct sk_buff *ctrl_packet = NULL;
 	unsigned long flags = 0;
-	//struct timeval tv;
-	//int *puiBuffer = NULL;
+	/* struct timeval tv; */
+	/* int *puiBuffer = NULL; */
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CP_CTRL_PKT, DBG_LVL_ALL, "Entering to make thread wait on control packet event!");
 	while (1)
 	{
@@ -171,7 +177,10 @@ int control_packet_handler(PMINI_ADAPTER Adapter  /**< pointer to adapter object
 					((TRUE == Adapter->IdleMode) || (TRUE == Adapter->bShutStatus)))
 			{
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CP_CTRL_PKT, DBG_LVL_ALL, "Calling InterfaceAbortIdlemode\n");
-	//			Adapter->bTriedToWakeUpFromlowPowerMode = TRUE;
+				/*
+				 * Adapter->bTriedToWakeUpFromlowPowerMode
+				 *					= TRUE;
+				 */
 				InterfaceIdleModeWakeup(Adapter);
 			}
 			continue;
@@ -184,7 +193,7 @@ int control_packet_handler(PMINI_ADAPTER Adapter  /**< pointer to adapter object
 			if (ctrl_packet)
 			{
 				DEQUEUEPACKET(Adapter->RxControlHead, Adapter->RxControlTail);
-//				Adapter->RxControlHead=ctrl_packet->next;
+				/* Adapter->RxControlHead=ctrl_packet->next; */
 			}
 
 			spin_unlock_irqrestore(&Adapter->control_queue_lock, flags);
@@ -211,7 +220,7 @@ INT flushAllAppQ(void)
 			dev_kfree_skb(PacketToDrop);
 		}
 		pTarang->AppCtrlQueueLen = 0;
-		//dropped contrl packet statistics also should be reset.
+		/* dropped contrl packet statistics also should be reset. */
 		memset((PVOID)&pTarang->stDroppedAppCntrlMsgs, 0, sizeof(S_MIBS_DROPPED_APP_CNTRL_MESSAGES));
 
 	}
