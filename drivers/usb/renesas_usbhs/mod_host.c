@@ -760,8 +760,10 @@ static int usbhsh_urb_enqueue(struct usb_hcd *hcd,
 	 */
 	if (!usbhsh_usbv_to_udev(usbv)) {
 		new_udev = usbhsh_device_attach(hpriv, urb);
-		if (!new_udev)
+		if (!new_udev) {
+			ret = -EIO;
 			goto usbhsh_urb_enqueue_error_not_linked;
+		}
 	}
 
 	/*
