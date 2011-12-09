@@ -911,7 +911,7 @@ long ocfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			return status;
 		status = ocfs2_set_inode_attr(inode, flags,
 			OCFS2_FL_MODIFIABLE);
-		mnt_drop_write(filp->f_path.mnt);
+		mnt_drop_write_file(filp);
 		return status;
 	case OCFS2_IOC_RESVSP:
 	case OCFS2_IOC_RESVSP64:

@@ -285,7 +285,7 @@ out_trans_end:
 out:
 	gfs2_glock_dq_uninit(&gh);
 out_drop_write:
-	mnt_drop_write(filp->f_path.mnt);
+	mnt_drop_write_file(filp);
 	return error;
 }
 

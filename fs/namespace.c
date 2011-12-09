@@ -392,6 +392,12 @@ void mnt_drop_write(struct vfsmount *mnt)
 }
 EXPORT_SYMBOL_GPL(mnt_drop_write);
 
+void mnt_drop_write_file(struct file *file)
+{
+	mnt_drop_write(file->f_path.mnt);
+}
+EXPORT_SYMBOL(mnt_drop_write_file);
+
 static int mnt_make_readonly(struct vfsmount *mnt)
 {
 	int ret = 0;

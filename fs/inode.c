@@ -1508,7 +1508,7 @@ void file_update_time(struct file *file)
 	if (sync_it & S_MTIME)
 		inode->i_mtime = now;
 	mark_inode_dirty_sync(inode);
-	mnt_drop_write(file->f_path.mnt);
+	mnt_drop_write_file(file);
 }
 EXPORT_SYMBOL(file_update_time);
 

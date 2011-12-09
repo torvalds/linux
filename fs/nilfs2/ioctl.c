@@ -27,7 +27,7 @@
 #include <linux/uaccess.h>	/* copy_from_user(), copy_to_user() */
 #include <linux/vmalloc.h>
 #include <linux/compat.h>	/* compat_ptr() */
-#include <linux/mount.h>	/* mnt_want_write_file(), mnt_drop_write() */
+#include <linux/mount.h>	/* mnt_want_write_file(), mnt_drop_write_file() */
 #include <linux/buffer_head.h>
 #include <linux/nilfs2_fs.h>
 #include "nilfs.h"
@@ -154,7 +154,7 @@ static int nilfs_ioctl_setflags(struct inode *inode, struct file *filp,
 	ret = nilfs_transaction_commit(inode->i_sb);
 out:
 	mutex_unlock(&inode->i_mutex);
-	mnt_drop_write(filp->f_path.mnt);
+	mnt_drop_write_file(filp);
 	return ret;
 }
 
@@ -194,7 +194,7 @@ static int nilfs_ioctl_change_cpmode(struct inode *inode, struct file *filp,
 
 	up_read(&inode->i_sb->s_umount);
 out:
-	mnt_drop_write(filp->f_path.mnt);
+	mnt_drop_write_file(filp);
 	return ret;
 }
 
@@ -225,7 +225,7 @@ nilfs_ioctl_delete_checkpoint(struct inode *inode, struct file *filp,
 	else
 		nilfs_transaction_commit(inode->i_sb); /* never fails */
 out:
-	mnt_drop_write(filp->f_path.mnt);
+	mnt_drop_write_file(filp);
 	return ret;
 }
 
@@ -675,7 +675,7 @@ out_free:
 		vfree(kbufs[n]);
 	kfree(kbufs[4]);
 out:
-	mnt_drop_write(filp->f_path.mnt);
+	mnt_drop_write_file(filp);
 	return ret;
 }
 
@@ -721,7 +721,7 @@ static int nilfs_ioctl_resize(struct inode *inode, struct file *filp,
 	ret = nilfs_resize_fs(inode->i_sb, newsize);
 
 out_drop_write:
-	mnt_drop_write(filp->f_path.mnt);
+	mnt_drop_write_file(filp);
 out:
 	return ret;
 }

@@ -1145,7 +1145,7 @@ out:
 
 	kfree(context);
 
-	mnt_drop_write(filp->f_path.mnt);
+	mnt_drop_write_file(filp);
 
 	return status;
 }

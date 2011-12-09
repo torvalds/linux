@@ -94,7 +94,7 @@ static int hfsplus_ioctl_setflags(struct file *file, int __user *user_flags)
 out_unlock_inode:
 	mutex_unlock(&inode->i_mutex);
 out_drop_write:
-	mnt_drop_write(file->f_path.mnt);
+	mnt_drop_write_file(file);
 out:
 	return err;
 }

@@ -178,7 +178,7 @@ long ubifs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			return err;
 		dbg_gen("set flags: %#x, i_flags %#x", flags, inode->i_flags);
 		err = setflags(inode, flags);
-		mnt_drop_write(file->f_path.mnt);
+		mnt_drop_write_file(file);
 		return err;
 	}
 

@@ -96,7 +96,7 @@ long reiserfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			inode->i_ctime = CURRENT_TIME_SEC;
 			mark_inode_dirty(inode);
 setflags_out:
-			mnt_drop_write(filp->f_path.mnt);
+			mnt_drop_write_file(filp);
 			break;
 		}
 	case REISERFS_IOC_GETVERSION:
@@ -117,7 +117,7 @@ setflags_out:
 		inode->i_ctime = CURRENT_TIME_SEC;
 		mark_inode_dirty(inode);
 setversion_out:
-		mnt_drop_write(filp->f_path.mnt);
+		mnt_drop_write_file(filp);
 		break;
 	default:
 		err = -ENOTTY;
