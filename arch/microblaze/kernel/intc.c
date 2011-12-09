@@ -99,7 +99,7 @@ unsigned int get_irq(struct pt_regs *regs)
 
 void __init init_IRQ(void)
 {
-	u32 i, intr_type;
+	u32 i, intr_mask;
 	struct device_node *intc = NULL;
 #ifdef CONFIG_SELFMOD_INTC
 	unsigned int intc_baseaddr = 0;
@@ -122,10 +122,9 @@ void __init init_IRQ(void)
 	nr_irq = be32_to_cpup(of_get_property(intc,
 						"xlnx,num-intr-inputs", NULL));
 
-	intr_type =
-		be32_to_cpup(of_get_property(intc,
-						"xlnx,kind-of-intr", NULL));
-	if (intr_type > (u32)((1ULL << nr_irq) - 1))
+	intr_mask =
+		be32_to_cpup(of_get_property(intc, "xlnx,kind-of-intr", NULL));
+	if (intr_mask > (u32)((1ULL << nr_irq) - 1))
 		printk(KERN_INFO " ERROR: Mismatch in kind-of-intr param\n");
 
 #ifdef CONFIG_SELFMOD_INTC
@@ -147,7 +146,7 @@ void __init init_IRQ(void)
 	out_be32(intc_baseaddr + MER, MER_HIE | MER_ME);
 
 	for (i = 0; i < nr_irq; ++i) {
-		if (intr_type & (0x00000001 << i)) {
+		if (intr_mask & (0x00000001 << i)) {
 			irq_set_chip_and_handler_name(i, &intc_dev,
 				handle_edge_irq, "edge");
 			irq_clear_status_flags(i, IRQ_LEVEL);
