@@ -98,7 +98,7 @@ endef
 KBUILD_KCONFIG := $(HOST_DIR)/um/Kconfig
 
 archheaders:
-	$(Q)$(MAKE) -C '$(KBUILD_SRC)' KBUILD_SRC= \
+	$(Q)$(MAKE) -C '$(srctree)' KBUILD_SRC= \
 		ARCH=$(SUBARCH) O='$(objtree)' archheaders
 
 archprepare: include/generated/user_constants.h
