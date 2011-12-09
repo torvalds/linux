@@ -353,7 +353,15 @@ static int __init omap_hsmmc_pdata_init(struct omap2_hsmmc_info *c,
 	 *
 	 * temporary HACK: ocr_mask instead of fixed supply
 	 */
-	mmc->slots[0].ocr_mask = c->ocr_mask;
+	if (cpu_is_omap3505() || cpu_is_omap3517())
+		mmc->slots[0].ocr_mask = MMC_VDD_165_195 |
+					 MMC_VDD_26_27 |
+					 MMC_VDD_27_28 |
+					 MMC_VDD_29_30 |
+					 MMC_VDD_30_31 |
+					 MMC_VDD_31_32;
+	else
+		mmc->slots[0].ocr_mask = c->ocr_mask;
 
 	if (!cpu_is_omap3517() && !cpu_is_omap3505())
 		mmc->slots[0].features |= HSMMC_HAS_PBIAS;
