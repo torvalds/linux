@@ -1281,6 +1281,8 @@ static irqreturn_t iwl_isr(int irq, void *data)
 	if (!trans)
 		return IRQ_NONE;
 
+	trace_iwlwifi_dev_irq(priv(trans));
+
 	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	spin_lock_irqsave(&trans->shrd->lock, flags);
@@ -1355,6 +1357,7 @@ irqreturn_t iwl_isr_ict(int irq, void *data)
 	struct iwl_trans_pcie *trans_pcie;
 	u32 inta, inta_mask;
 	u32 val = 0;
+	u32 read;
 	unsigned long flags;
 
 	if (!trans)
@@ -1367,6 +1370,8 @@ irqreturn_t iwl_isr_ict(int irq, void *data)
 	 */
 	if (!trans_pcie->use_ict)
 		return iwl_isr(irq, data);
+
+	trace_iwlwifi_dev_irq(priv(trans));
 
 	spin_lock_irqsave(&trans->shrd->lock, flags);
 
@@ -1382,24 +1387,29 @@ irqreturn_t iwl_isr_ict(int irq, void *data)
 	/* Ignore interrupt if there's nothing in NIC to service.
 	 * This may be due to IRQ shared with another device,
 	 * or due to sporadic interrupts thrown from our NIC. */
-	if (!trans_pcie->ict_tbl[trans_pcie->ict_index]) {
+	read = le32_to_cpu(trans_pcie->ict_tbl[trans_pcie->ict_index]);
+	trace_iwlwifi_dev_ict_read(priv(trans), trans_pcie->ict_index, read);
+	if (!read) {
 		IWL_DEBUG_ISR(trans, "Ignore interrupt, inta == 0\n");
 		goto none;
 	}
 
-	/* read all entries that not 0 start with ict_index */
-	while (trans_pcie->ict_tbl[trans_pcie->ict_index]) {
-
-		val |= le32_to_cpu(trans_pcie->ict_tbl[trans_pcie->ict_index]);
+	/*
+	 * Collect all entries up to the first 0, starting from ict_index;
+	 * note we already read at ict_index.
+	 */
+	do {
+		val |= read;
 		IWL_DEBUG_ISR(trans, "ICT index %d value 0x%08X\n",
-				trans_pcie->ict_index,
-				le32_to_cpu(
-				  trans_pcie->ict_tbl[trans_pcie->ict_index]));
+				trans_pcie->ict_index, read);
 		trans_pcie->ict_tbl[trans_pcie->ict_index] = 0;
 		trans_pcie->ict_index =
 			iwl_queue_inc_wrap(trans_pcie->ict_index, ICT_COUNT);
 
-	}
+		read = le32_to_cpu(trans_pcie->ict_tbl[trans_pcie->ict_index]);
+		trace_iwlwifi_dev_ict_read(priv(trans), trans_pcie->ict_index,
+					   read);
+	} while (read);
 
 	/* We should not get this value, just ignore it. */
 	if (val == 0xffffffff)
@@ -1426,7 +1436,7 @@ irqreturn_t iwl_isr_ict(int irq, void *data)
 	if (likely(inta))
 		tasklet_schedule(&trans_pcie->irq_tasklet);
 	else if (test_bit(STATUS_INT_ENABLED, &trans->shrd->status) &&
-			!trans_pcie->inta) {
+		 !trans_pcie->inta) {
 		/* Allow interrupt if was disabled by this handler and
 		 * no tasklet was schedules, We should not enable interrupt,
 		 * tasklet will enable it.
@@ -1442,7 +1452,7 @@ irqreturn_t iwl_isr_ict(int irq, void *data)
 	 * only Re-enable if disabled by irq.
 	 */
 	if (test_bit(STATUS_INT_ENABLED, &trans->shrd->status) &&
-		!trans_pcie->inta)
+	    !trans_pcie->inta)
 		iwl_enable_interrupts(trans);
 
 	spin_unlock_irqrestore(&trans->shrd->lock, flags);
