@@ -983,8 +983,6 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 	kvm_guest_exit();
 
-	local_irq_disable();
-
 	current->thread.regs->msr = ext_msr;
 
 	/* Make sure we save the guest FPU/Altivec/VSX state */
