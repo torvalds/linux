@@ -1589,7 +1589,7 @@ M:	Franky (Zhenhui) Lin <frankyl@broadcom.com>
 M:	Kan Yan	<kanyan@broadcom.com>
 L:	linux-wireless@vger.kernel.org
 S:	Supported
-F:	drivers/staging/brcm80211/
+F:	drivers/net/wireless/brcm80211/
 
 BROADCOM BNX2FC 10 GIGABIT FCOE DRIVER
 M:	Bhanu Prakash Gollapudi <bprakash@broadcom.com>
