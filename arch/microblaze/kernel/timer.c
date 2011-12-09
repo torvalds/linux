@@ -263,7 +263,7 @@ void __init time_init(void)
 
 	timer_baseaddr = be32_to_cpup(of_get_property(timer, "reg", NULL));
 	timer_baseaddr = (unsigned long) ioremap(timer_baseaddr, PAGE_SIZE);
-	irq = be32_to_cpup(of_get_property(timer, "interrupts", NULL));
+	irq = irq_of_parse_and_map(timer, 0);
 	timer_num = be32_to_cpup(of_get_property(timer,
 						"xlnx,one-timer-only", NULL));
 	if (timer_num) {
