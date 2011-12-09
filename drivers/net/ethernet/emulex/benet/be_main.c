@@ -552,11 +552,26 @@ static inline void wrb_fill(struct be_eth_wrb *wrb, u64 addr, int len)
 	wrb->frag_len = len & ETH_WRB_FRAG_LEN_MASK;
 }
 
+static inline u16 be_get_tx_vlan_tag(struct be_adapter *adapter,
+					struct sk_buff *skb)
+{
+	u8 vlan_prio;
+	u16 vlan_tag;
+
+	vlan_tag = vlan_tx_tag_get(skb);
+	vlan_prio = (vlan_tag & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
+	/* If vlan priority provided by OS is NOT in available bmap */
+	if (!(adapter->vlan_prio_bmap & (1 << vlan_prio)))
+		vlan_tag = (vlan_tag & ~VLAN_PRIO_MASK) |
+				adapter->recommended_prio;
+
+	return vlan_tag;
+}
+
 static void wrb_fill_hdr(struct be_adapter *adapter, struct be_eth_hdr_wrb *hdr,
 		struct sk_buff *skb, u32 wrb_cnt, u32 len)
 {
-	u8 vlan_prio = 0;
-	u16 vlan_tag = 0;
+	u16 vlan_tag;
 
 	memset(hdr, 0, sizeof(*hdr));
 
@@ -587,12 +602,7 @@ static void wrb_fill_hdr(struct be_adapter *adapter, struct be_eth_hdr_wrb *hdr,
 
 	if (vlan_tx_tag_present(skb)) {
 		AMAP_SET_BITS(struct amap_eth_hdr_wrb, vlan, hdr, 1);
-		vlan_tag = vlan_tx_tag_get(skb);
-		vlan_prio = (vlan_tag & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
-		/* If vlan priority provided by OS is NOT in available bmap */
-		if (!(adapter->vlan_prio_bmap & (1 << vlan_prio)))
-			vlan_tag = (vlan_tag & ~VLAN_PRIO_MASK) |
-					adapter->recommended_prio;
+		vlan_tag = be_get_tx_vlan_tag(adapter, skb);
 		AMAP_SET_BITS(struct amap_eth_hdr_wrb, vlan_tag, hdr, vlan_tag);
 	}
 
@@ -695,6 +705,25 @@ static netdev_tx_t be_xmit(struct sk_buff *skb,
 	u32 start = txq->head;
 	bool dummy_wrb, stopped = false;
 
+	/* For vlan tagged pkts, BE
+	 * 1) calculates checksum even when CSO is not requested
+	 * 2) calculates checksum wrongly for padded pkt less than
+	 * 60 bytes long.
+	 * As a workaround disable TX vlan offloading in such cases.
+	 */
+	if (unlikely(vlan_tx_tag_present(skb) &&
+		     (skb->ip_summed != CHECKSUM_PARTIAL || skb->len <= 60))) {
+		skb = skb_share_check(skb, GFP_ATOMIC);
+		if (unlikely(!skb))
+			goto tx_drop;
+
+		skb = __vlan_put_tag(skb, be_get_tx_vlan_tag(adapter, skb));
+		if (unlikely(!skb))
+			goto tx_drop;
+
+		skb->vlan_tci = 0;
+	}
+
 	wrb_cnt = wrb_cnt_for_skb(adapter, skb, &dummy_wrb);
 
 	copied = make_tx_wrbs(adapter, txq, skb, wrb_cnt, dummy_wrb);
@@ -722,6 +751,7 @@ static netdev_tx_t be_xmit(struct sk_buff *skb,
 		txq->head = start;
 		dev_kfree_skb_any(skb);
 	}
+tx_drop:
 	return NETDEV_TX_OK;
 }
 
