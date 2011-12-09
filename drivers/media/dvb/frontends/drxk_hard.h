@@ -263,6 +263,8 @@ struct drxk_state {
 	u8     m_TSDataStrength;
 	u8     m_TSClockkStrength;
 
+	bool   m_itut_annex_c;      /* If true, uses ITU-T DVB-C Annex C, instead of Annex A */
+
 	enum DRXMPEGStrWidth_t  m_widthSTR;    /**< MPEG start width */
 	u32    m_mpegTsStaticBitrate;          /**< Maximum bitrate in b/s in case
 						    static clockrate is selected */

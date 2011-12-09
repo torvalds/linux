@@ -899,6 +899,8 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		       &dvb->fe[0]->ops.tuner_ops,
 		       sizeof(dvb->fe[0]->ops.tuner_ops));
 
+		mfe_shared = 1;
+
 		break;
 	}
 	case EM2884_BOARD_TERRATEC_H5:
@@ -934,6 +936,8 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		memcpy(&dvb->fe[1]->ops.tuner_ops,
 		       &dvb->fe[0]->ops.tuner_ops,
 		       sizeof(dvb->fe[0]->ops.tuner_ops));
+
+		mfe_shared = 1;
 
 		break;
 	case EM28174_BOARD_PCTV_460E:
