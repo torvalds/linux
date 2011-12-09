@@ -53,7 +53,7 @@ struct pl061_gpio {
 	spinlock_t		irq_lock;	/* IRQ registers */
 
 	void __iomem		*base;
-	unsigned		irq_base;
+	int			irq_base;
 	struct gpio_chip	gc;
 };
 
@@ -119,7 +119,7 @@ static int pl061_to_irq(struct gpio_chip *gc, unsigned offset)
 {
 	struct pl061_gpio *chip = container_of(gc, struct pl061_gpio, gc);
 
-	if (chip->irq_base == NO_IRQ)
+	if (chip->irq_base <= 0)
 		return -EINVAL;
 
 	return chip->irq_base + offset;
@@ -250,7 +250,7 @@ static int pl061_probe(struct amba_device *dev, const struct amba_id *id)
 		chip->irq_base = pdata->irq_base;
 	} else if (dev->dev.of_node) {
 		chip->gc.base = -1;
-		chip->irq_base = NO_IRQ;
+		chip->irq_base = 0;
 	} else {
 		ret = -ENODEV;
 		goto free_mem;
@@ -290,7 +290,7 @@ static int pl061_probe(struct amba_device *dev, const struct amba_id *id)
 	 * irq_chip support
 	 */
 
-	if (chip->irq_base == NO_IRQ)
+	if (chip->irq_base <= 0)
 		return 0;
 
 	writeb(0, chip->base + GPIOIE); /* disable irqs */
