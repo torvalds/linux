@@ -52,7 +52,6 @@ static const struct inet_diag_handler dccp_diag_handler = {
 	.idiag_hashinfo	 = &dccp_hashinfo,
 	.idiag_get_info	 = dccp_diag_get_info,
 	.idiag_type	 = IPPROTO_DCCP,
-	.idiag_info_size = sizeof(struct tcp_info),
 };
 
 static int __init dccp_diag_init(void)

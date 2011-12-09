@@ -98,8 +98,7 @@ static int inet_csk_diag_fill(struct sock *sk,
 		minfo = INET_DIAG_PUT(skb, INET_DIAG_MEMINFO, sizeof(*minfo));
 
 	if (ext & (1 << (INET_DIAG_INFO - 1)))
-		info = INET_DIAG_PUT(skb, INET_DIAG_INFO,
-				     handler->idiag_info_size);
+		info = INET_DIAG_PUT(skb, INET_DIAG_INFO, sizeof(struct tcp_info));
 
 	if ((ext & (1 << (INET_DIAG_CONG - 1))) && icsk->icsk_ca_ops) {
 		const size_t len = strlen(icsk->icsk_ca_ops->name);
@@ -299,7 +298,7 @@ static int inet_diag_get_exact(struct sk_buff *in_skb,
 	err = -ENOMEM;
 	rep = alloc_skb(NLMSG_SPACE((sizeof(struct inet_diag_msg) +
 				     sizeof(struct inet_diag_meminfo) +
-				     handler->idiag_info_size + 64)),
+				     sizeof(struct tcp_info) + 64)),
 			GFP_KERNEL);
 	if (!rep)
 		goto out;

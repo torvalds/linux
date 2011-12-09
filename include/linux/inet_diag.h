@@ -141,7 +141,6 @@ struct inet_diag_handler {
 	void			(*idiag_get_info)(struct sock *sk,
 						  struct inet_diag_msg *r,
 						  void *info);
-	__u16                   idiag_info_size;
 	__u16                   idiag_type;
 };
 
