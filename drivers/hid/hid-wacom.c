@@ -397,6 +397,8 @@ static int wacom_probe(struct hid_device *hdev,
 	wdata->battery.type = POWER_SUPPLY_TYPE_BATTERY;
 	wdata->battery.use_for_apm = 0;
 
+	power_supply_powers(&wdata->battery, &hdev->dev);
+
 	ret = power_supply_register(&hdev->dev, &wdata->battery);
 	if (ret) {
 		hid_warn(hdev, "can't create sysfs battery attribute, err: %d\n",
@@ -410,6 +412,8 @@ static int wacom_probe(struct hid_device *hdev,
 	wdata->ac.name = "wacom_ac";
 	wdata->ac.type = POWER_SUPPLY_TYPE_MAINS;
 	wdata->ac.use_for_apm = 0;
+
+	power_supply_powers(&wdata->battery, &hdev->dev);
 
 	ret = power_supply_register(&hdev->dev, &wdata->ac);
 	if (ret) {
