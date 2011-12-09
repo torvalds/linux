@@ -536,7 +536,7 @@ struct l2cap_conn {
 	struct smp_chan *smp_chan;
 
 	struct list_head chan_l;
-	rwlock_t	chan_lock;
+	struct mutex	chan_lock;
 };
 
 #define L2CAP_INFO_CL_MTU_REQ_SENT	0x01
