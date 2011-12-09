@@ -1381,6 +1381,14 @@ void ieee80211_beacon_connection_loss_work(struct work_struct *work)
 	struct ieee80211_sub_if_data *sdata =
 		container_of(work, struct ieee80211_sub_if_data,
 			     u.mgd.beacon_connection_loss_work);
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	struct sta_info *sta;
+
+	if (ifmgd->associated) {
+		sta = sta_info_get(sdata, ifmgd->bssid);
+		if (sta)
+			sta->beacon_loss_count++;
+	}
 
 	if (sdata->local->hw.flags & IEEE80211_HW_CONNECTION_MONITOR)
 		__ieee80211_connection_loss(sdata);

@@ -275,6 +275,7 @@ struct sta_ampdu_mlme {
  *	EAP frames before association
  * @sta: station information we share with the driver
  * @sta_state: duplicates information about station state (for debug)
+ * @beacon_loss_count: number of times beacon loss has triggered
  */
 struct sta_info {
 	/* General information, mostly static */
@@ -367,6 +368,7 @@ struct sta_info {
 #endif
 
 	unsigned int lost_packets;
+	unsigned int beacon_loss_count;
 
 	/* should be right in front of sta to be in the same cache line */
 	bool dummy;
