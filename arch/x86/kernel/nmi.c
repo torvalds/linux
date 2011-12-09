@@ -408,6 +408,18 @@ static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 dotraplinkage notrace __kprobes void
 do_nmi(struct pt_regs *regs, long error_code)
 {
+	int update_debug_stack = 0;
+
+	/*
+	 * If we interrupted a breakpoint, it is possible that
+	 * the nmi handler will have breakpoints too. We need to
+	 * change the IDT such that breakpoints that happen here
+	 * continue to use the NMI stack.
+	 */
+	if (unlikely(is_debug_stack(regs->sp))) {
+		debug_stack_set_zero();
+		update_debug_stack = 1;
+	}
 	nmi_enter();
 
 	inc_irq_stat(__nmi_count);
@@ -416,6 +428,9 @@ do_nmi(struct pt_regs *regs, long error_code)
 		default_do_nmi(regs);
 
 	nmi_exit();
+
+	if (unlikely(update_debug_stack))
+		debug_stack_reset();
 }
 
 void stop_nmi(void)
