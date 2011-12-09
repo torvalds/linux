@@ -106,24 +106,24 @@ static int pin_request(struct pinctrl_dev *pctldev,
 	const struct pinmux_ops *ops = pctldev->desc->pmxops;
 	int status = -EINVAL;
 
-	dev_dbg(&pctldev->dev, "request pin %d for %s\n", pin, function);
+	dev_dbg(pctldev->dev, "request pin %d for %s\n", pin, function);
 
 	desc = pin_desc_get(pctldev, pin);
 	if (desc == NULL) {
-		dev_err(&pctldev->dev,
+		dev_err(pctldev->dev,
 			"pin is not registered so it cannot be requested\n");
 		goto out;
 	}
 
 	if (!function) {
-		dev_err(&pctldev->dev, "no function name given\n");
+		dev_err(pctldev->dev, "no function name given\n");
 		return -EINVAL;
 	}
 
 	spin_lock(&desc->lock);
 	if (desc->mux_function) {
 		spin_unlock(&desc->lock);
-		dev_err(&pctldev->dev,
+		dev_err(pctldev->dev,
 			"pin already requested\n");
 		goto out;
 	}
@@ -132,7 +132,7 @@ static int pin_request(struct pinctrl_dev *pctldev,
 
 	/* Let each pin increase references to this module */
 	if (!try_module_get(pctldev->owner)) {
-		dev_err(&pctldev->dev,
+		dev_err(pctldev->dev,
 			"could not increase module refcount for pin %d\n",
 			pin);
 		status = -EINVAL;
@@ -152,7 +152,7 @@ static int pin_request(struct pinctrl_dev *pctldev,
 		status = 0;
 
 	if (status)
-		dev_err(&pctldev->dev, "->request on device %s failed "
+		dev_err(pctldev->dev, "->request on device %s failed "
 		       "for pin %d\n",
 		       pctldev->desc->name, pin);
 out_free_pin:
@@ -163,7 +163,7 @@ out_free_pin:
 	}
 out:
 	if (status)
-		dev_err(&pctldev->dev, "pin-%d (%s) status %d\n",
+		dev_err(pctldev->dev, "pin-%d (%s) status %d\n",
 		       pin, function ? : "?", status);
 
 	return status;
@@ -189,7 +189,7 @@ static const char *pin_free(struct pinctrl_dev *pctldev, int pin,
 
 	desc = pin_desc_get(pctldev, pin);
 	if (desc == NULL) {
-		dev_err(&pctldev->dev,
+		dev_err(pctldev->dev,
 			"pin is not registered so it cannot be freed\n");
 		return NULL;
 	}
@@ -434,14 +434,14 @@ static int acquire_pins(struct pinctrl_dev *pctldev,
 	if (ret)
 		return ret;
 
-	dev_dbg(&pctldev->dev, "requesting the %u pins from group %u\n",
+	dev_dbg(pctldev->dev, "requesting the %u pins from group %u\n",
 		num_pins, group_selector);
 
 	/* Try to allocate all pins in this group, one by one */
 	for (i = 0; i < num_pins; i++) {
 		ret = pin_request(pctldev, pins[i], func, NULL);
 		if (ret) {
-			dev_err(&pctldev->dev,
+			dev_err(pctldev->dev,
 				"could not get pin %d for function %s "
 				"on device %s - conflicting mux mappings?\n",
 				pins[i], func ? : "(undefined)",
@@ -473,7 +473,7 @@ static void release_pins(struct pinctrl_dev *pctldev,
 	ret = pctlops->get_group_pins(pctldev, group_selector,
 				      &pins, &num_pins);
 	if (ret) {
-		dev_err(&pctldev->dev, "could not get pins to release for "
+		dev_err(pctldev->dev, "could not get pins to release for "
 			"group selector %d\n",
 			group_selector);
 		return;
@@ -525,7 +525,7 @@ static int pinmux_check_pin_group(struct pinctrl_dev *pctldev,
 			return -EINVAL;
 		ret = pinctrl_get_group_selector(pctldev, groups[0]);
 		if (ret < 0) {
-			dev_err(&pctldev->dev,
+			dev_err(pctldev->dev,
 				"function %s wants group %s but the pin "
 				"controller does not seem to have that group\n",
 				pmxops->get_function_name(pctldev, func_selector),
@@ -534,7 +534,7 @@ static int pinmux_check_pin_group(struct pinctrl_dev *pctldev,
 		}
 
 		if (num_groups > 1)
-			dev_dbg(&pctldev->dev,
+			dev_dbg(pctldev->dev,
 				"function %s support more than one group, "
 				"default-selecting first group %s (%d)\n",
 				pmxops->get_function_name(pctldev, func_selector),
@@ -544,13 +544,13 @@ static int pinmux_check_pin_group(struct pinctrl_dev *pctldev,
 		return ret;
 	}
 
-	dev_dbg(&pctldev->dev,
+	dev_dbg(pctldev->dev,
 		"check if we have pin group %s on controller %s\n",
 		pin_group, pinctrl_dev_get_name(pctldev));
 
 	ret = pinctrl_get_group_selector(pctldev, pin_group);
 	if (ret < 0) {
-		dev_dbg(&pctldev->dev,
+		dev_dbg(pctldev->dev,
 			"%s does not support pin group %s with function %s\n",
 			pinctrl_dev_get_name(pctldev),
 			pin_group,
@@ -627,7 +627,7 @@ static int pinmux_enable_muxmap(struct pinctrl_dev *pctldev,
 	 */
 
 	if (pmx->pctldev && pmx->pctldev != pctldev) {
-		dev_err(&pctldev->dev,
+		dev_err(pctldev->dev,
 			"different pin control devices given for device %s, "
 			"function %s\n",
 			devname,
@@ -650,7 +650,7 @@ static int pinmux_enable_muxmap(struct pinctrl_dev *pctldev,
 	 */
 	if (pmx->func_selector != UINT_MAX &&
 	    pmx->func_selector != func_selector) {
-		dev_err(&pctldev->dev,
+		dev_err(pctldev->dev,
 			"dual function defines in the map for device %s\n",
 		       devname);
 		return -EINVAL;
@@ -756,7 +756,7 @@ struct pinmux *pinmux_get(struct device *dev, const char *name)
 		}
 
 		pr_debug("in map, found pctldev %s to handle function %s",
-			 dev_name(&pctldev->dev), map->function);
+			 dev_name(pctldev->dev), map->function);
 
 
 		/*
@@ -932,7 +932,7 @@ static int pinmux_hog_map(struct pinctrl_dev *pctldev,
 		 * without any problems, so then we can hog pinmuxes for
 		 * all devices that just want a static pin mux at this point.
 		 */
-		dev_err(&pctldev->dev, "map %s wants to hog a non-system "
+		dev_err(pctldev->dev, "map %s wants to hog a non-system "
 			"pinmux, this is not going to work\n", map->name);
 		return -EINVAL;
 	}
@@ -944,7 +944,7 @@ static int pinmux_hog_map(struct pinctrl_dev *pctldev,
 	pmx = pinmux_get(NULL, map->name);
 	if (IS_ERR(pmx)) {
 		kfree(hog);
-		dev_err(&pctldev->dev,
+		dev_err(pctldev->dev,
 			"could not get the %s pinmux mapping for hogging\n",
 			map->name);
 		return PTR_ERR(pmx);
@@ -954,7 +954,7 @@ static int pinmux_hog_map(struct pinctrl_dev *pctldev,
 	if (ret) {
 		pinmux_put(pmx);
 		kfree(hog);
-		dev_err(&pctldev->dev,
+		dev_err(pctldev->dev,
 			"could not enable the %s pinmux mapping for hogging\n",
 			map->name);
 		return ret;
@@ -963,7 +963,7 @@ static int pinmux_hog_map(struct pinctrl_dev *pctldev,
 	hog->map = map;
 	hog->pmx = pmx;
 
-	dev_info(&pctldev->dev, "hogged map %s, function %s\n", map->name,
+	dev_info(pctldev->dev, "hogged map %s, function %s\n", map->name,
 		 map->function);
 	mutex_lock(&pctldev->pinmux_hogs_lock);
 	list_add(&hog->node, &pctldev->pinmux_hogs);
@@ -982,7 +982,7 @@ static int pinmux_hog_map(struct pinctrl_dev *pctldev,
  */
 int pinmux_hog_maps(struct pinctrl_dev *pctldev)
 {
-	struct device *dev = &pctldev->dev;
+	struct device *dev = pctldev->dev;
 	const char *devname = dev_name(dev);
 	int ret;
 	int i;

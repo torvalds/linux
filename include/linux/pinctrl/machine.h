@@ -73,31 +73,6 @@ struct pinmux_map {
 	{ .name = a, .ctrl_dev_name = b, .function = c, \
 	  .hog_on_boot = true }
 
-/*
- * Convenience macro to map a function onto the primary device pinctrl device
- * this is especially helpful on systems that have only one pin controller
- * or need to set up a lot of mappings on the primary controller.
- */
-#define PINMUX_MAP_PRIMARY(a, b, c) \
-	{ .name = a, .ctrl_dev_name = "pinctrl.0", .function = b, \
-	  .dev_name = c }
-
-/*
- * Convenience macro to map a system function onto the primary pinctrl device.
- * System functions are not assigned to a particular device.
- */
-#define PINMUX_MAP_PRIMARY_SYS(a, b) \
-	{ .name = a, .ctrl_dev_name = "pinctrl.0", .function = b }
-
-/*
- * Convenience macro to map a system function onto the primary pinctrl device,
- * to be hogged by the pinmux core until the system shuts down.
- */
-#define PINMUX_MAP_PRIMARY_SYS_HOG(a, b) \
-	{ .name = a, .ctrl_dev_name = "pinctrl.0", .function = b, \
-	  .hog_on_boot = true }
-
-
 #ifdef CONFIG_PINMUX
 
 extern int pinmux_register_mappings(struct pinmux_map const *map,

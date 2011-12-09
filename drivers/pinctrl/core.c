@@ -34,12 +34,6 @@
 static DEFINE_MUTEX(pinctrldev_list_mutex);
 static LIST_HEAD(pinctrldev_list);
 
-static void pinctrl_dev_release(struct device *dev)
-{
-	struct pinctrl_dev *pctldev = dev_get_drvdata(dev);
-	kfree(pctldev);
-}
-
 const char *pinctrl_dev_get_name(struct pinctrl_dev *pctldev)
 {
 	/* We're not allowed to register devices without name */
@@ -71,14 +65,14 @@ struct pinctrl_dev *get_pinctrl_dev_from_dev(struct device *dev,
 
 	mutex_lock(&pinctrldev_list_mutex);
 	list_for_each_entry(pctldev, &pinctrldev_list, node) {
-		if (dev &&  &pctldev->dev == dev) {
+		if (dev && pctldev->dev == dev) {
 			/* Matched on device pointer */
 			found = true;
 			break;
 		}
 
 		if (devname &&
-		    !strcmp(dev_name(&pctldev->dev), devname)) {
+		    !strcmp(dev_name(pctldev->dev), devname)) {
 			/* Matched on device name */
 			found = true;
 			break;
@@ -325,7 +319,7 @@ int pinctrl_get_group_selector(struct pinctrl_dev *pctldev,
 		const char *gname = pctlops->get_group_name(pctldev,
 							    group_selector);
 		if (!strcmp(gname, pin_group)) {
-			dev_dbg(&pctldev->dev,
+			dev_dbg(pctldev->dev,
 				"found group selector %u for %s\n",
 				group_selector,
 				pin_group);
@@ -335,7 +329,7 @@ int pinctrl_get_group_selector(struct pinctrl_dev *pctldev,
 		group_selector++;
 	}
 
-	dev_err(&pctldev->dev, "does not have pin group %s\n",
+	dev_err(pctldev->dev, "does not have pin group %s\n",
 		pin_group);
 
 	return -EINVAL;
@@ -508,11 +502,11 @@ static void pinctrl_init_device_debugfs(struct pinctrl_dev *pctldev)
 {
 	static struct dentry *device_root;
 
-	device_root = debugfs_create_dir(dev_name(&pctldev->dev),
+	device_root = debugfs_create_dir(dev_name(pctldev->dev),
 					 debugfs_root);
 	if (IS_ERR(device_root) || !device_root) {
 		pr_warn("failed to create debugfs directory for %s\n",
-			dev_name(&pctldev->dev));
+			dev_name(pctldev->dev));
 		return;
 	}
 	debugfs_create_file("pins", S_IFREG | S_IRUGO,
@@ -560,7 +554,6 @@ static void pinctrl_init_debugfs(void)
 struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 				    struct device *dev, void *driver_data)
 {
-	static atomic_t pinmux_no = ATOMIC_INIT(0);
 	struct pinctrl_dev *pctldev;
 	int ret;
 
@@ -601,18 +594,7 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 	spin_lock_init(&pctldev->pin_desc_tree_lock);
 	INIT_LIST_HEAD(&pctldev->gpio_ranges);
 	mutex_init(&pctldev->gpio_ranges_lock);
-
-	/* Register device */
-	pctldev->dev.parent = dev;
-	dev_set_name(&pctldev->dev, "pinctrl.%d",
-		     atomic_inc_return(&pinmux_no) - 1);
-	pctldev->dev.release = pinctrl_dev_release;
-	ret = device_register(&pctldev->dev);
-	if (ret != 0) {
-		pr_err("error in device registration\n");
-		goto out_reg_dev_err;
-	}
-	dev_set_drvdata(&pctldev->dev, pctldev);
+	pctldev->dev = dev;
 
 	/* Register all the pins */
 	pr_debug("try to register %d pins on %s...\n",
@@ -622,7 +604,7 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 		pr_err("error during pin registration\n");
 		pinctrl_free_pindescs(pctldev, pctldesc->pins,
 				      pctldesc->npins);
-		goto out_reg_pins_err;
+		goto out_err;
 	}
 
 	pinctrl_init_device_debugfs(pctldev);
@@ -632,10 +614,8 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 	pinmux_hog_maps(pctldev);
 	return pctldev;
 
-out_reg_pins_err:
-	device_del(&pctldev->dev);
-out_reg_dev_err:
-	put_device(&pctldev->dev);
+out_err:
+	kfree(pctldev);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(pinctrl_register);
@@ -659,7 +639,7 @@ void pinctrl_unregister(struct pinctrl_dev *pctldev)
 	/* Destroy descriptor tree */
 	pinctrl_free_pindescs(pctldev, pctldev->desc->pins,
 			      pctldev->desc->npins);
-	device_unregister(&pctldev->dev);
+	kfree(pctldev);
 }
 EXPORT_SYMBOL_GPL(pinctrl_unregister);
 

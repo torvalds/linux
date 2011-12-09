@@ -783,17 +783,17 @@ spi on the second function mapping:
 
 static const struct pinmux_map __initdata pmx_mapping[] = {
 	{
-		.ctrl_dev_name = "pinctrl.0",
+		.ctrl_dev_name = "pinctrl-foo",
 		.function = "spi0",
 		.dev_name = "foo-spi.0",
 	},
 	{
-		.ctrl_dev_name = "pinctrl.0",
+		.ctrl_dev_name = "pinctrl-foo",
 		.function = "i2c0",
 		.dev_name = "foo-i2c.0",
 	},
 	{
-		.ctrl_dev_name = "pinctrl.0",
+		.ctrl_dev_name = "pinctrl-foo",
 		.function = "mmc0",
 		.dev_name = "foo-mmc.0",
 	},
@@ -815,7 +815,7 @@ You register this pinmux mapping to the pinmux subsystem by simply:
        ret = pinmux_register_mappings(pmx_mapping, ARRAY_SIZE(pmx_mapping));
 
 Since the above construct is pretty common there is a helper macro to make
-it even more compact which assumes you want to use pinctrl.0 and position
+it even more compact which assumes you want to use pinctrl-foo and position
 0 for mapping, for example:
 
 static struct pinmux_map __initdata pmx_mapping[] = {
@@ -832,14 +832,14 @@ As it is possible to map a function to different groups of pins an optional
 ...
 {
 	.name = "spi0-pos-A",
-	.ctrl_dev_name = "pinctrl.0",
+	.ctrl_dev_name = "pinctrl-foo",
 	.function = "spi0",
 	.group = "spi0_0_grp",
 	.dev_name = "foo-spi.0",
 },
 {
 	.name = "spi0-pos-B",
-	.ctrl_dev_name = "pinctrl.0",
+	.ctrl_dev_name = "pinctrl-foo",
 	.function = "spi0",
 	.group = "spi0_1_grp",
 	.dev_name = "foo-spi.0",
@@ -858,42 +858,42 @@ case), we define a mapping like this:
 ...
 {
 	.name "2bit"
-	.ctrl_dev_name = "pinctrl.0",
+	.ctrl_dev_name = "pinctrl-foo",
 	.function = "mmc0",
 	.group = "mmc0_1_grp",
 	.dev_name = "foo-mmc.0",
 },
 {
 	.name "4bit"
-	.ctrl_dev_name = "pinctrl.0",
+	.ctrl_dev_name = "pinctrl-foo",
 	.function = "mmc0",
 	.group = "mmc0_1_grp",
 	.dev_name = "foo-mmc.0",
 },
 {
 	.name "4bit"
-	.ctrl_dev_name = "pinctrl.0",
+	.ctrl_dev_name = "pinctrl-foo",
 	.function = "mmc0",
 	.group = "mmc0_2_grp",
 	.dev_name = "foo-mmc.0",
 },
 {
 	.name "8bit"
-	.ctrl_dev_name = "pinctrl.0",
+	.ctrl_dev_name = "pinctrl-foo",
 	.function = "mmc0",
 	.group = "mmc0_1_grp",
 	.dev_name = "foo-mmc.0",
 },
 {
 	.name "8bit"
-	.ctrl_dev_name = "pinctrl.0",
+	.ctrl_dev_name = "pinctrl-foo",
 	.function = "mmc0",
 	.group = "mmc0_2_grp",
 	.dev_name = "foo-mmc.0",
 },
 {
 	.name "8bit"
-	.ctrl_dev_name = "pinctrl.0",
+	.ctrl_dev_name = "pinctrl-foo",
 	.function = "mmc0",
 	.group = "mmc0_3_grp",
 	.dev_name = "foo-mmc.0",
@@ -996,7 +996,7 @@ like this:
 
 {
 	.name "POWERMAP"
-	.ctrl_dev_name = "pinctrl.0",
+	.ctrl_dev_name = "pinctrl-foo",
 	.function = "power_func",
 	.hog_on_boot = true,
 },

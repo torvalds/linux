@@ -38,7 +38,7 @@ struct pinctrl_dev {
 	spinlock_t pin_desc_tree_lock;
 	struct list_head gpio_ranges;
 	struct mutex gpio_ranges_lock;
-	struct device dev;
+	struct device *dev;
 	struct module *owner;
 	void *driver_data;
 #ifdef CONFIG_PINMUX

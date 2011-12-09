@@ -29,7 +29,7 @@ int pin_config_get_for_pin(struct pinctrl_dev *pctldev, unsigned pin,
 	const struct pinconf_ops *ops = pctldev->desc->confops;
 
 	if (!ops || !ops->pin_config_get) {
-		dev_err(&pctldev->dev, "cannot get pin configuration, missing "
+		dev_err(pctldev->dev, "cannot get pin configuration, missing "
 			"pin_config_get() function in driver\n");
 		return -EINVAL;
 	}
@@ -65,14 +65,14 @@ int pin_config_set_for_pin(struct pinctrl_dev *pctldev, unsigned pin,
 	int ret;
 
 	if (!ops || !ops->pin_config_set) {
-		dev_err(&pctldev->dev, "cannot configure pin, missing "
+		dev_err(pctldev->dev, "cannot configure pin, missing "
 			"config function in driver\n");
 		return -EINVAL;
 	}
 
 	ret = ops->pin_config_set(pctldev, pin, config);
 	if (ret) {
-		dev_err(&pctldev->dev,
+		dev_err(pctldev->dev,
 			"unable to set pin configuration on pin %d\n", pin);
 		return ret;
 	}
@@ -108,7 +108,7 @@ int pin_config_group_get(struct pinctrl_dev *pctldev, const char *pin_group,
 	int selector;
 
 	if (!ops || !ops->pin_config_group_get) {
-		dev_err(&pctldev->dev, "cannot get configuration for pin "
+		dev_err(pctldev->dev, "cannot get configuration for pin "
 			"group, missing group config get function in "
 			"driver\n");
 		return -EINVAL;
@@ -135,7 +135,7 @@ int pin_config_group_set(struct pinctrl_dev *pctldev, const char *pin_group,
 	int i;
 
 	if (!ops || (!ops->pin_config_group_set && !ops->pin_config_set)) {
-		dev_err(&pctldev->dev, "cannot configure pin group, missing "
+		dev_err(pctldev->dev, "cannot configure pin group, missing "
 			"config function in driver\n");
 		return -EINVAL;
 	}
@@ -146,7 +146,7 @@ int pin_config_group_set(struct pinctrl_dev *pctldev, const char *pin_group,
 
 	ret = pctlops->get_group_pins(pctldev, selector, &pins, &num_pins);
 	if (ret) {
-		dev_err(&pctldev->dev, "cannot configure pin group, error "
+		dev_err(pctldev->dev, "cannot configure pin group, error "
 			"getting pins\n");
 		return ret;
 	}
