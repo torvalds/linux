@@ -176,7 +176,7 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr, int al
 	chan->psm = la.l2_psm;
 	chan->dcid = la.l2_cid;
 
-	err = l2cap_chan_connect(l2cap_pi(sk)->chan);
+	err = l2cap_chan_connect(chan);
 	if (err)
 		goto done;
 
