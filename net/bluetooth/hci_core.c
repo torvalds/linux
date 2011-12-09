@@ -60,7 +60,7 @@ static void hci_rx_work(struct work_struct *work);
 static void hci_cmd_task(unsigned long arg);
 static void hci_tx_task(unsigned long arg);
 
-static DEFINE_RWLOCK(hci_task_lock);
+static DEFINE_MUTEX(hci_task_lock);
 
 /* HCI device list */
 LIST_HEAD(hci_dev_list);
@@ -1808,14 +1808,14 @@ int hci_register_proto(struct hci_proto *hp)
 	if (hp->id >= HCI_MAX_PROTO)
 		return -EINVAL;
 
-	write_lock_bh(&hci_task_lock);
+	mutex_lock(&hci_task_lock);
 
 	if (!hci_proto[hp->id])
 		hci_proto[hp->id] = hp;
 	else
 		err = -EEXIST;
 
-	write_unlock_bh(&hci_task_lock);
+	mutex_unlock(&hci_task_lock);
 
 	return err;
 }
@@ -1830,14 +1830,14 @@ int hci_unregister_proto(struct hci_proto *hp)
 	if (hp->id >= HCI_MAX_PROTO)
 		return -EINVAL;
 
-	write_lock_bh(&hci_task_lock);
+	mutex_lock(&hci_task_lock);
 
 	if (hci_proto[hp->id])
 		hci_proto[hp->id] = NULL;
 	else
 		err = -ENOENT;
 
-	write_unlock_bh(&hci_task_lock);
+	mutex_unlock(&hci_task_lock);
 
 	return err;
 }
@@ -2386,7 +2386,7 @@ static void hci_tx_task(unsigned long arg)
 	struct hci_dev *hdev = (struct hci_dev *) arg;
 	struct sk_buff *skb;
 
-	read_lock(&hci_task_lock);
+	mutex_lock(&hci_task_lock);
 
 	BT_DBG("%s acl %d sco %d le %d", hdev->name, hdev->acl_cnt,
 		hdev->sco_cnt, hdev->le_cnt);
@@ -2405,7 +2405,7 @@ static void hci_tx_task(unsigned long arg)
 	while ((skb = skb_dequeue(&hdev->raw_q)))
 		hci_send_frame(skb);
 
-	read_unlock(&hci_task_lock);
+	mutex_unlock(&hci_task_lock);
 }
 
 /* ----- HCI RX task (incoming data processing) ----- */
@@ -2493,7 +2493,7 @@ static void hci_rx_work(struct work_struct *work)
 
 	BT_DBG("%s", hdev->name);
 
-	read_lock(&hci_task_lock);
+	mutex_lock(&hci_task_lock);
 
 	while ((skb = skb_dequeue(&hdev->rx_q))) {
 		if (atomic_read(&hdev->promisc)) {
@@ -2539,7 +2539,7 @@ static void hci_rx_work(struct work_struct *work)
 		}
 	}
 
-	read_unlock(&hci_task_lock);
+	mutex_unlock(&hci_task_lock);
 }
 
 static void hci_cmd_task(unsigned long arg)
