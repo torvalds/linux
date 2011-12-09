@@ -535,23 +535,20 @@ static void i5100_read_log(struct mem_ctl_info *mci, int chan,
 static void i5100_check_error(struct mem_ctl_info *mci)
 {
 	struct i5100_priv *priv = mci->pvt_info;
-	u32 dw;
-
+	u32 dw, dw2;
 
 	pci_read_config_dword(priv->mc, I5100_FERR_NF_MEM, &dw);
 	if (i5100_ferr_nf_mem_any(dw)) {
-		u32 dw2;
 
 		pci_read_config_dword(priv->mc, I5100_NERR_NF_MEM, &dw2);
-		if (dw2)
-			pci_write_config_dword(priv->mc, I5100_NERR_NF_MEM,
-					       dw2);
-		pci_write_config_dword(priv->mc, I5100_FERR_NF_MEM, dw);
 
 		i5100_read_log(mci, i5100_ferr_nf_mem_chan_indx(dw),
 			       i5100_ferr_nf_mem_any(dw),
 			       i5100_nerr_nf_mem_any(dw2));
+
+		pci_write_config_dword(priv->mc, I5100_NERR_NF_MEM, dw2);
 	}
+	pci_write_config_dword(priv->mc, I5100_FERR_NF_MEM, dw);
 }
 
 /* The i5100 chipset will scrub the entire memory once, then
