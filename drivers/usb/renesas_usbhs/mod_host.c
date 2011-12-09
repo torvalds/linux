@@ -220,10 +220,30 @@ static int usbhsh_device_has_endpoint(struct usbhsh_device *udev)
 	return !list_empty(&udev->ep_list_head);
 }
 
+static struct usbhsh_device *usbhsh_device_get(struct usbhsh_hpriv *hpriv,
+					       struct urb *urb)
+{
+	struct usb_device *usbv = usbhsh_urb_to_usbv(urb);
+	struct usbhsh_device *udev = usbhsh_usbv_to_udev(usbv);
+
+	/* usbhsh_device_attach() is still not called */
+	if (!udev)
+		return NULL;
+
+	/* if it is device0, return it */
+	if (0 == usb_pipedevice(urb->pipe))
+		return usbhsh_device0(hpriv);
+
+	/* return attached device */
+	return udev;
+}
+
 static struct usbhsh_device *usbhsh_device_attach(struct usbhsh_hpriv *hpriv,
 						 struct urb *urb)
 {
 	struct usbhsh_device *udev = NULL;
+	struct usbhsh_device *udev0 = usbhsh_device0(hpriv);
+	struct usbhsh_device *pos;
 	struct usb_hcd *hcd = usbhsh_hpriv_to_hcd(hpriv);
 	struct device *dev = usbhsh_hcd_to_dev(hcd);
 	struct usb_device *usbv = usbhsh_urb_to_usbv(urb);
@@ -232,31 +252,29 @@ static struct usbhsh_device *usbhsh_device_attach(struct usbhsh_hpriv *hpriv,
 	u16 upphub, hubport;
 	int i;
 
+	/*
+	 * This function should be called only while urb is pointing to device0.
+	 * It will attach unused usbhsh_device to urb (usbv),
+	 * and initialize device0.
+	 * You can use usbhsh_device_get() to get "current" udev,
+	 * and usbhsh_usbv_to_udev() is for "attached" udev.
+	 */
+	if (0 != usb_pipedevice(urb->pipe)) {
+		dev_err(dev, "%s fail: urb isn't pointing device0\n", __func__);
+		return NULL;
+	}
+
 	/********************  spin lock ********************/
 	usbhs_lock(priv, flags);
 
 	/*
-	 * find device
+	 * find unused device
 	 */
-	if (0 == usb_pipedevice(urb->pipe)) {
-		/*
-		 * device0 is special case
-		 */
-		udev = usbhsh_device0(hpriv);
-		if (usbhsh_udev_is_used(udev))
-			udev = NULL;
-	} else {
-		struct usbhsh_device *pos;
-
-		/*
-		 * find unused device
-		 */
-		usbhsh_for_each_udev(pos, hpriv, i) {
-			if (usbhsh_udev_is_used(pos))
-				continue;
-			udev = pos;
-			break;
-		}
+	usbhsh_for_each_udev(pos, hpriv, i) {
+		if (usbhsh_udev_is_used(pos))
+			continue;
+		udev = pos;
+		break;
 	}
 
 	if (udev) {
@@ -280,9 +298,22 @@ static struct usbhsh_device *usbhsh_device_attach(struct usbhsh_hpriv *hpriv,
 	if (usbhsh_device_has_endpoint(udev))
 		dev_warn(dev, "udev have old endpoint\n");
 
+	if (usbhsh_device_has_endpoint(udev0))
+		dev_warn(dev, "udev0 have old endpoint\n");
+
 	/* uep will be attached */
+	INIT_LIST_HEAD(&udev0->ep_list_head);
 	INIT_LIST_HEAD(&udev->ep_list_head);
 
+	/*
+	 * set device0 config
+	 */
+	usbhs_set_device_config(priv,
+				0, 0, 0, usbv->speed);
+
+	/*
+	 * set new device config
+	 */
 	upphub	= 0;
 	hubport	= 0;
 	if (!usbhsh_connected_to_rhdev(hcd, udev)) {
@@ -296,7 +327,6 @@ static struct usbhsh_device *usbhsh_device_attach(struct usbhsh_hpriv *hpriv,
 			upphub, hubport, parent);
 	}
 
-	/* set device config */
 	usbhs_set_device_config(priv,
 			       usbhsh_device_number(hpriv, udev),
 			       upphub, hubport, usbv->speed);
@@ -322,6 +352,15 @@ static void usbhsh_device_detach(struct usbhsh_hpriv *hpriv,
 	if (usbhsh_device_has_endpoint(udev))
 		dev_warn(dev, "udev still have endpoint\n");
 
+	/*
+	 * There is nothing to do if it is device0.
+	 * see
+	 *  usbhsh_device_attach()
+	 *  usbhsh_device_get()
+	 */
+	if (0 == usbhsh_device_number(hpriv, udev))
+		return;
+
 	/********************  spin lock ********************/
 	usbhs_lock(priv, flags);
 
@@ -345,8 +384,7 @@ static int usbhsh_endpoint_attach(struct usbhsh_hpriv *hpriv,
 				  gfp_t mem_flags)
 {
 	struct usbhs_priv *priv = usbhsh_hpriv_to_priv(hpriv);
-	struct usb_device *usbv = usbhsh_urb_to_usbv(urb);
-	struct usbhsh_device *udev = usbhsh_usbv_to_udev(usbv);
+	struct usbhsh_device *udev = usbhsh_device_get(hpriv, urb);
 	struct usb_host_endpoint *ep = urb->ep;
 	struct usbhsh_ep *uep;
 	struct usbhsh_pipe_info *info;
@@ -577,11 +615,15 @@ static void usbhsh_setup_stage_packet_push(struct usbhsh_hpriv *hpriv,
 	/*
 	 * renesas_usbhs can not use original usb address.
 	 * see HARDWARE LIMITATION.
-	 * modify usb address here.
+	 * modify usb address here to use attached device.
+	 * see usbhsh_device_attach()
 	 */
 	if (usbhsh_is_request_address(urb)) {
-		/* FIXME */
-		req.wValue = 1;
+		struct usb_device *usbv = usbhsh_urb_to_usbv(urb);
+		struct usbhsh_device *udev = usbhsh_usbv_to_udev(usbv);
+
+		/* udev is a attached device */
+		req.wValue = usbhsh_device_number(hpriv, udev);
 		dev_dbg(dev, "create new address - %d\n", req.wValue);
 	}
 
@@ -742,7 +784,6 @@ static int usbhsh_urb_enqueue(struct usb_hcd *hcd,
 	struct usbhsh_hpriv *hpriv = usbhsh_hcd_to_hpriv(hcd);
 	struct usbhs_priv *priv = usbhsh_hpriv_to_priv(hpriv);
 	struct device *dev = usbhs_priv_to_dev(priv);
-	struct usb_device *usbv = usbhsh_urb_to_usbv(urb);
 	struct usb_host_endpoint *ep = urb->ep;
 	struct usbhsh_device *new_udev = NULL;
 	int is_dir_in = usb_pipein(urb->pipe);
@@ -758,7 +799,7 @@ static int usbhsh_urb_enqueue(struct usb_hcd *hcd,
 	/*
 	 * attach udev if needed
 	 */
-	if (!usbhsh_usbv_to_udev(usbv)) {
+	if (!usbhsh_device_get(hpriv, urb)) {
 		new_udev = usbhsh_device_attach(hpriv, urb);
 		if (!new_udev) {
 			ret = -EIO;
