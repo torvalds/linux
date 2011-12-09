@@ -243,7 +243,7 @@ static int timer_initialized;
 
 void __init time_init(void)
 {
-	u32 irq, i = 0;
+	u32 irq;
 	u32 timer_num = 1;
 	struct device_node *timer = NULL;
 	const void *prop;
@@ -258,16 +258,7 @@ void __init time_init(void)
 				0
 			};
 #endif
-	const char * const timer_list[] = {
-		"xlnx,xps-timer-1.00.a",
-		NULL
-	};
-
-	for (i = 0; timer_list[i] != NULL; i++) {
-		timer = of_find_compatible_node(NULL, NULL, timer_list[i]);
-		if (timer)
-			break;
-	}
+	timer = of_find_compatible_node(NULL, NULL, "xlnx,xps-timer-1.00.a");
 	BUG_ON(!timer);
 
 	timer_baseaddr = be32_to_cpup(of_get_property(timer, "reg", NULL));
@@ -283,8 +274,8 @@ void __init time_init(void)
 #ifdef CONFIG_SELFMOD_TIMER
 	selfmod_function((int *) arr_func, timer_baseaddr);
 #endif
-	printk(KERN_INFO "%s #0 at 0x%08x, irq=%d\n",
-		timer_list[i], timer_baseaddr, irq);
+	printk(KERN_INFO "XPS timer #0 at 0x%08x, irq=%d\n",
+		timer_baseaddr, irq);
 
 	/* If there is clock-frequency property than use it */
 	prop = of_get_property(timer, "clock-frequency", NULL);
