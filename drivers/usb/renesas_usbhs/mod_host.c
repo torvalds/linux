@@ -635,6 +635,7 @@ static void usbhsh_queue_done(struct usbhs_priv *priv, struct usbhs_pkt *pkt)
 	struct urb *urb = ureq->urb;
 	struct usbhsh_ep *uep = usbhsh_ep_to_uep(urb->ep);
 	struct device *dev = usbhs_priv_to_dev(priv);
+	int status = 0;
 
 	dev_dbg(dev, "%s\n", __func__);
 
@@ -643,6 +644,9 @@ static void usbhsh_queue_done(struct usbhs_priv *priv, struct usbhs_pkt *pkt)
 		return;
 	}
 
+	if (!usbhsh_is_running(hpriv))
+		status = -ESHUTDOWN;
+
 	urb->actual_length = pkt->actual;
 	usbhsh_ureq_free(hpriv, ureq);
 
@@ -650,7 +654,7 @@ static void usbhsh_queue_done(struct usbhs_priv *priv, struct usbhs_pkt *pkt)
 	usbhsh_pipe_detach(hpriv, uep);
 
 	usb_hcd_unlink_urb_from_ep(hcd, urb);
-	usb_hcd_giveback_urb(hcd, urb, 0);
+	usb_hcd_giveback_urb(hcd, urb, status);
 }
 
 static int usbhsh_queue_push(struct usb_hcd *hcd,
