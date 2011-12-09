@@ -1915,12 +1915,7 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 	set_bit(STATUS_EXIT_PENDING, &priv->shrd->status);
 
 	iwl_testmode_cleanup(priv);
-	iwl_leds_exit(priv);
-
-	if (priv->mac80211_registered) {
-		ieee80211_unregister_hw(priv->hw);
-		priv->mac80211_registered = 0;
-	}
+	iwlagn_mac_unregister(priv);
 
 	iwl_tt_exit(priv);
 

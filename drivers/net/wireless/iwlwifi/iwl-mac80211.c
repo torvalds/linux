@@ -245,6 +245,15 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 	return 0;
 }
 
+void iwlagn_mac_unregister(struct iwl_priv *priv)
+{
+	if (!priv->mac80211_registered)
+		return;
+	iwl_leds_exit(priv);
+	ieee80211_unregister_hw(priv->hw);
+	priv->mac80211_registered = 0;
+}
+
 static int __iwl_up(struct iwl_priv *priv)
 {
 	struct iwl_rxon_context *ctx;

@@ -91,6 +91,7 @@ void iwlagn_prepare_restart(struct iwl_priv *priv);
 struct ieee80211_hw *iwl_alloc_all(void);
 int iwlagn_mac_setup_register(struct iwl_priv *priv,
 			      struct iwlagn_ucode_capabilities *capa);
+void iwlagn_mac_unregister(struct iwl_priv *priv);
 
 /* RXON */
 int iwlagn_set_pan_params(struct iwl_priv *priv);
