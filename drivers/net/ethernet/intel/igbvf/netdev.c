@@ -1176,18 +1176,20 @@ static void igbvf_set_rlpml(struct igbvf_adapter *adapter)
 	e1000_rlpml_set_vf(hw, max_frame_size);
 }
 
-static void igbvf_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
+static int igbvf_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 {
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 
-	if (hw->mac.ops.set_vfta(hw, vid, true))
+	if (hw->mac.ops.set_vfta(hw, vid, true)) {
 		dev_err(&adapter->pdev->dev, "Failed to add vlan id %d\n", vid);
-	else
-		set_bit(vid, adapter->active_vlans);
+		return -EINVAL;
+	}
+	set_bit(vid, adapter->active_vlans);
+	return 0;
 }
 
-static void igbvf_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
+static int igbvf_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 {
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
@@ -1197,11 +1199,13 @@ static void igbvf_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 	if (!test_bit(__IGBVF_DOWN, &adapter->state))
 		igbvf_irq_enable(adapter);
 
-	if (hw->mac.ops.set_vfta(hw, vid, false))
+	if (hw->mac.ops.set_vfta(hw, vid, false)) {
 		dev_err(&adapter->pdev->dev,
 		        "Failed to remove vlan id %d\n", vid);
-	else
-		clear_bit(vid, adapter->active_vlans);
+		return -EINVAL;
+	}
+	clear_bit(vid, adapter->active_vlans);
+	return 0;
 }
 
 static void igbvf_restore_vlan(struct igbvf_adapter *adapter)

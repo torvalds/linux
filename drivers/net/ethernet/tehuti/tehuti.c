@@ -727,9 +727,10 @@ static void __bdx_vlan_rx_vid(struct net_device *ndev, uint16_t vid, int enable)
  * @ndev network device
  * @vid  VLAN vid to add
  */
-static void bdx_vlan_rx_add_vid(struct net_device *ndev, uint16_t vid)
+static int bdx_vlan_rx_add_vid(struct net_device *ndev, uint16_t vid)
 {
 	__bdx_vlan_rx_vid(ndev, vid, 1);
+	return 0;
 }
 
 /*
@@ -737,9 +738,10 @@ static void bdx_vlan_rx_add_vid(struct net_device *ndev, uint16_t vid)
  * @ndev network device
  * @vid  VLAN vid to kill
  */
-static void bdx_vlan_rx_kill_vid(struct net_device *ndev, unsigned short vid)
+static int bdx_vlan_rx_kill_vid(struct net_device *ndev, unsigned short vid)
 {
 	__bdx_vlan_rx_vid(ndev, vid, 0);
+	return 0;
 }
 
 /**

@@ -522,7 +522,7 @@ static void velocity_init_cam_filter(struct velocity_info *vptr)
 	mac_set_vlan_cam_mask(regs, vptr->vCAMmask);
 }
 
-static void velocity_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
+static int velocity_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
 
@@ -530,9 +530,10 @@ static void velocity_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 	set_bit(vid, vptr->active_vlans);
 	velocity_init_cam_filter(vptr);
 	spin_unlock_irq(&vptr->lock);
+	return 0;
 }
 
-static void velocity_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
+static int velocity_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
 
@@ -540,6 +541,7 @@ static void velocity_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid
 	clear_bit(vid, vptr->active_vlans);
 	velocity_init_cam_filter(vptr);
 	spin_unlock_irq(&vptr->lock);
+	return 0;
 }
 
 static void velocity_init_rx_ring_indexes(struct velocity_info *vptr)

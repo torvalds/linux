@@ -520,7 +520,7 @@ static struct rtnl_link_stats64 *macvlan_dev_get_stats64(struct net_device *dev,
 	return stats;
 }
 
-static void macvlan_vlan_rx_add_vid(struct net_device *dev,
+static int macvlan_vlan_rx_add_vid(struct net_device *dev,
 				    unsigned short vid)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
@@ -528,10 +528,11 @@ static void macvlan_vlan_rx_add_vid(struct net_device *dev,
 	const struct net_device_ops *ops = lowerdev->netdev_ops;
 
 	if (ops->ndo_vlan_rx_add_vid)
-		ops->ndo_vlan_rx_add_vid(lowerdev, vid);
+		return ops->ndo_vlan_rx_add_vid(lowerdev, vid);
+	return 0;
 }
 
-static void macvlan_vlan_rx_kill_vid(struct net_device *dev,
+static int macvlan_vlan_rx_kill_vid(struct net_device *dev,
 				     unsigned short vid)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
@@ -539,7 +540,8 @@ static void macvlan_vlan_rx_kill_vid(struct net_device *dev,
 	const struct net_device_ops *ops = lowerdev->netdev_ops;
 
 	if (ops->ndo_vlan_rx_kill_vid)
-		ops->ndo_vlan_rx_kill_vid(lowerdev, vid);
+		return ops->ndo_vlan_rx_kill_vid(lowerdev, vid);
+	return 0;
 }
 
 static void macvlan_ethtool_get_drvinfo(struct net_device *dev,

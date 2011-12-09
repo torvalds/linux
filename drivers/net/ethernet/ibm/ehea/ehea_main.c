@@ -2114,17 +2114,19 @@ static int ehea_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-static void ehea_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
+static int ehea_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 {
 	struct ehea_port *port = netdev_priv(dev);
 	struct ehea_adapter *adapter = port->adapter;
 	struct hcp_ehea_port_cb1 *cb1;
 	int index;
 	u64 hret;
+	int err = 0;
 
 	cb1 = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!cb1) {
 		pr_err("no mem for cb1\n");
+		err = -ENOMEM;
 		goto out;
 	}
 
@@ -2132,6 +2134,7 @@ static void ehea_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 				      H_PORT_CB1, H_PORT_CB1_ALL, cb1);
 	if (hret != H_SUCCESS) {
 		pr_err("query_ehea_port failed\n");
+		err = -EINVAL;
 		goto out;
 	}
 
@@ -2140,24 +2143,28 @@ static void ehea_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 
 	hret = ehea_h_modify_ehea_port(adapter->handle, port->logical_port_id,
 				       H_PORT_CB1, H_PORT_CB1_ALL, cb1);
-	if (hret != H_SUCCESS)
+	if (hret != H_SUCCESS) {
 		pr_err("modify_ehea_port failed\n");
+		err = -EINVAL;
+	}
 out:
 	free_page((unsigned long)cb1);
-	return;
+	return err;
 }
 
-static void ehea_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
+static int ehea_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 {
 	struct ehea_port *port = netdev_priv(dev);
 	struct ehea_adapter *adapter = port->adapter;
 	struct hcp_ehea_port_cb1 *cb1;
 	int index;
 	u64 hret;
+	int err = 0;
 
 	cb1 = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!cb1) {
 		pr_err("no mem for cb1\n");
+		err = -ENOMEM;
 		goto out;
 	}
 
@@ -2165,6 +2172,7 @@ static void ehea_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 				      H_PORT_CB1, H_PORT_CB1_ALL, cb1);
 	if (hret != H_SUCCESS) {
 		pr_err("query_ehea_port failed\n");
+		err = -EINVAL;
 		goto out;
 	}
 
@@ -2173,10 +2181,13 @@ static void ehea_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 
 	hret = ehea_h_modify_ehea_port(adapter->handle, port->logical_port_id,
 				       H_PORT_CB1, H_PORT_CB1_ALL, cb1);
-	if (hret != H_SUCCESS)
+	if (hret != H_SUCCESS) {
 		pr_err("modify_ehea_port failed\n");
+		err = -EINVAL;
+	}
 out:
 	free_page((unsigned long)cb1);
+	return err;
 }
 
 int ehea_activate_qp(struct ehea_adapter *adapter, struct ehea_qp *qp)

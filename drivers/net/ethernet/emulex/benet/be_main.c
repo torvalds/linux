@@ -780,31 +780,35 @@ static int be_vid_config(struct be_adapter *adapter, bool vf, u32 vf_num)
 	return status;
 }
 
-static void be_vlan_add_vid(struct net_device *netdev, u16 vid)
+static int be_vlan_add_vid(struct net_device *netdev, u16 vid)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 
 	adapter->vlans_added++;
 	if (!be_physfn(adapter))
-		return;
+		return 0;
 
 	adapter->vlan_tag[vid] = 1;
 	if (adapter->vlans_added <= (adapter->max_vlans + 1))
 		be_vid_config(adapter, false, 0);
+
+	return 0;
 }
 
-static void be_vlan_rem_vid(struct net_device *netdev, u16 vid)
+static int be_vlan_rem_vid(struct net_device *netdev, u16 vid)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 
 	adapter->vlans_added--;
 
 	if (!be_physfn(adapter))
-		return;
+		return 0;
 
 	adapter->vlan_tag[vid] = 0;
 	if (adapter->vlans_added <= adapter->max_vlans)
 		be_vid_config(adapter, false, 0);
+
+	return 0;
 }
 
 static void be_set_rx_mode(struct net_device *netdev)

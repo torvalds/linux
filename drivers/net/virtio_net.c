@@ -855,7 +855,7 @@ static void virtnet_set_rx_mode(struct net_device *dev)
 	kfree(buf);
 }
 
-static void virtnet_vlan_rx_add_vid(struct net_device *dev, u16 vid)
+static int virtnet_vlan_rx_add_vid(struct net_device *dev, u16 vid)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
 	struct scatterlist sg;
@@ -865,9 +865,10 @@ static void virtnet_vlan_rx_add_vid(struct net_device *dev, u16 vid)
 	if (!virtnet_send_command(vi, VIRTIO_NET_CTRL_VLAN,
 				  VIRTIO_NET_CTRL_VLAN_ADD, &sg, 1, 0))
 		dev_warn(&dev->dev, "Failed to add VLAN ID %d.\n", vid);
+	return 0;
 }
 
-static void virtnet_vlan_rx_kill_vid(struct net_device *dev, u16 vid)
+static int virtnet_vlan_rx_kill_vid(struct net_device *dev, u16 vid)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
 	struct scatterlist sg;
@@ -877,6 +878,7 @@ static void virtnet_vlan_rx_kill_vid(struct net_device *dev, u16 vid)
 	if (!virtnet_send_command(vi, VIRTIO_NET_CTRL_VLAN,
 				  VIRTIO_NET_CTRL_VLAN_DEL, &sg, 1, 0))
 		dev_warn(&dev->dev, "Failed to kill VLAN ID %d.\n", vid);
+	return 0;
 }
 
 static void virtnet_get_ringparam(struct net_device *dev,

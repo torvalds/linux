@@ -148,8 +148,8 @@ static int igb_ioctl(struct net_device *, struct ifreq *, int cmd);
 static void igb_tx_timeout(struct net_device *);
 static void igb_reset_task(struct work_struct *);
 static void igb_vlan_mode(struct net_device *netdev, netdev_features_t features);
-static void igb_vlan_rx_add_vid(struct net_device *, u16);
-static void igb_vlan_rx_kill_vid(struct net_device *, u16);
+static int igb_vlan_rx_add_vid(struct net_device *, u16);
+static int igb_vlan_rx_kill_vid(struct net_device *, u16);
 static void igb_restore_vlan(struct igb_adapter *);
 static void igb_rar_set_qsel(struct igb_adapter *, u8 *, u32 , u8);
 static void igb_ping_all_vfs(struct igb_adapter *);
@@ -6491,7 +6491,7 @@ static void igb_vlan_mode(struct net_device *netdev, netdev_features_t features)
 	igb_rlpml_set(adapter);
 }
 
-static void igb_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
+static int igb_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
@@ -6504,9 +6504,11 @@ static void igb_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 	igb_vfta_set(hw, vid, true);
 
 	set_bit(vid, adapter->active_vlans);
+
+	return 0;
 }
 
-static void igb_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
+static int igb_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
@@ -6521,6 +6523,8 @@ static void igb_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 		igb_vfta_set(hw, vid, false);
 
 	clear_bit(vid, adapter->active_vlans);
+
+	return 0;
 }
 
 static void igb_restore_vlan(struct igb_adapter *adapter)

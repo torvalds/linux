@@ -488,8 +488,8 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static const struct ethtool_ops netdev_ethtool_ops;
 static int  rhine_close(struct net_device *dev);
 static void rhine_shutdown (struct pci_dev *pdev);
-static void rhine_vlan_rx_add_vid(struct net_device *dev, unsigned short vid);
-static void rhine_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid);
+static int rhine_vlan_rx_add_vid(struct net_device *dev, unsigned short vid);
+static int rhine_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid);
 static void rhine_set_cam(void __iomem *ioaddr, int idx, u8 *addr);
 static void rhine_set_vlan_cam(void __iomem *ioaddr, int idx, u8 *addr);
 static void rhine_set_cam_mask(void __iomem *ioaddr, u32 mask);
@@ -1261,7 +1261,7 @@ static void rhine_update_vcam(struct net_device *dev)
 	rhine_set_vlan_cam_mask(ioaddr, vCAMmask);
 }
 
-static void rhine_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
+static int rhine_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 {
 	struct rhine_private *rp = netdev_priv(dev);
 
@@ -1269,9 +1269,10 @@ static void rhine_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 	set_bit(vid, rp->active_vlans);
 	rhine_update_vcam(dev);
 	spin_unlock_irq(&rp->lock);
+	return 0;
 }
 
-static void rhine_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
+static int rhine_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 {
 	struct rhine_private *rp = netdev_priv(dev);
 
@@ -1279,6 +1280,7 @@ static void rhine_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 	clear_bit(vid, rp->active_vlans);
 	rhine_update_vcam(dev);
 	spin_unlock_irq(&rp->lock);
+	return 0;
 }
 
 static void init_registers(struct net_device *dev)

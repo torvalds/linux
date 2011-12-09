@@ -3305,7 +3305,7 @@ static void vxge_tx_watchdog(struct net_device *dev)
  *
  * Add the vlan id to the devices vlan id table
  */
-static void
+static int
 vxge_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 {
 	struct vxgedev *vdev = netdev_priv(dev);
@@ -3320,6 +3320,7 @@ vxge_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 		vxge_hw_vpath_vid_add(vpath->handle, vid);
 	}
 	set_bit(vid, vdev->active_vlans);
+	return 0;
 }
 
 /**
@@ -3329,7 +3330,7 @@ vxge_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
  *
  * Remove the vlan id from the device's vlan id table
  */
-static void
+static int
 vxge_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 {
 	struct vxgedev *vdev = netdev_priv(dev);
@@ -3348,6 +3349,7 @@ vxge_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 	vxge_debug_entryexit(VXGE_TRACE,
 		"%s:%d  Exiting...", __func__, __LINE__);
 	clear_bit(vid, vdev->active_vlans);
+	return 0;
 }
 
 static const struct net_device_ops vxge_netdev_ops = {

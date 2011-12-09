@@ -902,7 +902,7 @@ team_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	return stats;
 }
 
-static void team_vlan_rx_add_vid(struct net_device *dev, uint16_t vid)
+static int team_vlan_rx_add_vid(struct net_device *dev, uint16_t vid)
 {
 	struct team *team = netdev_priv(dev);
 	struct team_port *port;
@@ -915,9 +915,11 @@ static void team_vlan_rx_add_vid(struct net_device *dev, uint16_t vid)
 			ops->ndo_vlan_rx_add_vid(port->dev, vid);
 	}
 	rcu_read_unlock();
+
+	return 0;
 }
 
-static void team_vlan_rx_kill_vid(struct net_device *dev, uint16_t vid)
+static int team_vlan_rx_kill_vid(struct net_device *dev, uint16_t vid)
 {
 	struct team *team = netdev_priv(dev);
 	struct team_port *port;
@@ -930,6 +932,8 @@ static void team_vlan_rx_kill_vid(struct net_device *dev, uint16_t vid)
 			ops->ndo_vlan_rx_kill_vid(port->dev, vid);
 	}
 	rcu_read_unlock();
+
+	return 0;
 }
 
 static int team_add_slave(struct net_device *dev, struct net_device *port_dev)

@@ -2968,7 +2968,7 @@ bnad_change_mtu(struct net_device *netdev, int new_mtu)
 	return err;
 }
 
-static void
+static int
 bnad_vlan_rx_add_vid(struct net_device *netdev,
 				 unsigned short vid)
 {
@@ -2976,7 +2976,7 @@ bnad_vlan_rx_add_vid(struct net_device *netdev,
 	unsigned long flags;
 
 	if (!bnad->rx_info[0].rx)
-		return;
+		return 0;
 
 	mutex_lock(&bnad->conf_mutex);
 
@@ -2986,9 +2986,11 @@ bnad_vlan_rx_add_vid(struct net_device *netdev,
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 
 	mutex_unlock(&bnad->conf_mutex);
+
+	return 0;
 }
 
-static void
+static int
 bnad_vlan_rx_kill_vid(struct net_device *netdev,
 				  unsigned short vid)
 {
@@ -2996,7 +2998,7 @@ bnad_vlan_rx_kill_vid(struct net_device *netdev,
 	unsigned long flags;
 
 	if (!bnad->rx_info[0].rx)
-		return;
+		return 0;
 
 	mutex_lock(&bnad->conf_mutex);
 
@@ -3006,6 +3008,8 @@ bnad_vlan_rx_kill_vid(struct net_device *netdev,
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 
 	mutex_unlock(&bnad->conf_mutex);
+
+	return 0;
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER

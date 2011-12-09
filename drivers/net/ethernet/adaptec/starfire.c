@@ -607,7 +607,7 @@ static const struct ethtool_ops ethtool_ops;
 
 
 #ifdef VLAN_SUPPORT
-static void netdev_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
+static int netdev_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 {
 	struct netdev_private *np = netdev_priv(dev);
 
@@ -617,9 +617,11 @@ static void netdev_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 	set_bit(vid, np->active_vlans);
 	set_rx_mode(dev);
 	spin_unlock(&np->lock);
+
+	return 0;
 }
 
-static void netdev_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
+static int netdev_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 {
 	struct netdev_private *np = netdev_priv(dev);
 
@@ -629,6 +631,8 @@ static void netdev_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 	clear_bit(vid, np->active_vlans);
 	set_rx_mode(dev);
 	spin_unlock(&np->lock);
+
+	return 0;
 }
 #endif /* VLAN_SUPPORT */
 
