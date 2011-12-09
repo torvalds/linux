@@ -655,9 +655,18 @@ struct mwifiex_adapter {
 	struct mwifiex_wait_queue cmd_wait_q;
 	u8 scan_wait_q_woken;
 	struct cmd_ctrl_node *cmd_queued;
+	spinlock_t queue_lock;		/* lock for tx queues */
 };
 
 int mwifiex_init_lock_list(struct mwifiex_adapter *adapter);
+
+void mwifiex_set_trans_start(struct net_device *dev);
+
+void mwifiex_stop_net_dev_queue(struct net_device *netdev,
+		struct mwifiex_adapter *adapter);
+
+void mwifiex_wake_up_net_dev_queue(struct net_device *netdev,
+		struct mwifiex_adapter *adapter);
 
 int mwifiex_init_fw(struct mwifiex_adapter *adapter);
 
