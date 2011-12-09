@@ -5302,7 +5302,10 @@ F:	drivers/media/video/pvrusb2/
 PXA2xx/PXA3xx SUPPORT
 M:	Eric Miao <eric.y.miao@gmail.com>
 M:	Russell King <linux@arm.linux.org.uk>
+M:	Haojian Zhuang <haojian.zhuang@marvell.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+T:	git git://github.com/hzhuang1/linux.git
+T:	git git://git.linaro.org/people/ycmiao/pxa-linux.git
 S:	Maintained
 F:	arch/arm/mach-pxa/
 F:	drivers/pcmcia/pxa2xx*
@@ -5312,25 +5315,14 @@ F:	include/sound/pxa2xx-lib.h
 F:	sound/arm/pxa*
 F:	sound/soc/pxa
 
-PXA168 SUPPORT
+MMP SUPPORT
 M:	Eric Miao <eric.y.miao@gmail.com>
-M:	Jason Chagas <jason.chagas@marvell.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ycmiao/pxa-linux-2.6.git
-S:	Maintained
-
-PXA910 SUPPORT
-M:	Eric Miao <eric.y.miao@gmail.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ycmiao/pxa-linux-2.6.git
-S:	Maintained
-
-MMP2 SUPPORT (aka ARMADA610)
 M:	Haojian Zhuang <haojian.zhuang@marvell.com>
-M:	Eric Miao <eric.y.miao@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ycmiao/pxa-linux-2.6.git
+T:	git git://github.com/hzhuang1/linux.git
+T:	git git://git.linaro.org/people/ycmiao/pxa-linux.git
 S:	Maintained
+F:	arch/arm/mach-mmp/
 
 PXA MMCI DRIVER
 S:	Orphan
