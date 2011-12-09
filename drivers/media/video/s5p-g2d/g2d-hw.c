@@ -27,7 +27,6 @@ void g2d_reset(struct g2d_dev *d)
 void g2d_set_src_size(struct g2d_dev *d, struct g2d_frame *f)
 {
 	u32 n;
-	u32 stride;
 
 	w(f->stride & 0xFFFF, SRC_STRIDE_REG);
 
@@ -52,7 +51,6 @@ void g2d_set_src_addr(struct g2d_dev *d, dma_addr_t a)
 void g2d_set_dst_size(struct g2d_dev *d, struct g2d_frame *f)
 {
 	u32 n;
-	u32 stride;
 
 	w(f->stride & 0xFFFF, DST_STRIDE_REG);
 
