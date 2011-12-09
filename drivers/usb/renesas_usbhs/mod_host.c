@@ -1245,6 +1245,14 @@ static int usbhsh_irq_attch(struct usbhs_priv *priv,
 	usbhsh_port_stat_set(hpriv, USB_PORT_STAT_CONNECTION);
 	usbhsh_port_stat_set(hpriv, USB_PORT_STAT_C_CONNECTION << 16);
 
+	/*
+	 * attch interrupt might happen infinitely on some device
+	 * (on self power USB hub ?)
+	 * disable it here.
+	 */
+	hpriv->mod.irq_attch = NULL;
+	usbhs_irq_callback_update(priv, &hpriv->mod);
+
 	return 0;
 }
 
@@ -1258,6 +1266,12 @@ static int usbhsh_irq_dtch(struct usbhs_priv *priv,
 
 	usbhsh_port_stat_clear(hpriv, USB_PORT_STAT_CONNECTION);
 	usbhsh_port_stat_set(hpriv, USB_PORT_STAT_C_CONNECTION << 16);
+
+	/*
+	 * enable attch interrupt again
+	 */
+	hpriv->mod.irq_attch = usbhsh_irq_attch;
+	usbhs_irq_callback_update(priv, &hpriv->mod);
 
 	return 0;
 }
