@@ -127,16 +127,4 @@ static struct platform_driver osk_panel_driver = {
 	},
 };
 
-static int __init osk_panel_drv_init(void)
-{
-	return platform_driver_register(&osk_panel_driver);
-}
-
-static void __exit osk_panel_drv_cleanup(void)
-{
-	platform_driver_unregister(&osk_panel_driver);
-}
-
-module_init(osk_panel_drv_init);
-module_exit(osk_panel_drv_cleanup);
-
+module_platform_driver(osk_panel_driver);

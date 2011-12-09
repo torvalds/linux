@@ -133,16 +133,4 @@ static struct platform_driver innovator1610_panel_driver = {
 	},
 };
 
-static int __init innovator1610_panel_drv_init(void)
-{
-	return platform_driver_register(&innovator1610_panel_driver);
-}
-
-static void __exit innovator1610_panel_drv_cleanup(void)
-{
-	platform_driver_unregister(&innovator1610_panel_driver);
-}
-
-module_init(innovator1610_panel_drv_init);
-module_exit(innovator1610_panel_drv_cleanup);
-
+module_platform_driver(innovator1610_panel_driver);

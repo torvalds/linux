@@ -113,15 +113,4 @@ static struct platform_driver palmtt_panel_driver = {
 	},
 };
 
-static int __init palmtt_panel_drv_init(void)
-{
-	return platform_driver_register(&palmtt_panel_driver);
-}
-
-static void __exit palmtt_panel_drv_cleanup(void)
-{
-	platform_driver_unregister(&palmtt_panel_driver);
-}
-
-module_init(palmtt_panel_drv_init);
-module_exit(palmtt_panel_drv_cleanup);
+module_platform_driver(palmtt_panel_driver);
