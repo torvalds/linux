@@ -6289,11 +6289,6 @@ M:	Manu Abraham <abraham.manu@gmail.com>
 S:	Odd Fixes
 F:	drivers/staging/crystalhd/
 
-STAGING - CYPRESS WESTBRIDGE SUPPORT
-M:	David Cross <david.cross@cypress.com>
-S:	Odd Fixes
-F:	drivers/staging/westbridge/
-
 STAGING - ECHO CANCELLER
 M:	Steve Underwood <steveu@coppice.org>
 M:	David Rowe <david@rowetel.com>
