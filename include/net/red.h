@@ -155,9 +155,10 @@ static inline u32 red_maxp(u8 Plog)
 
 static inline void red_set_parms(struct red_parms *p,
 				 u32 qth_min, u32 qth_max, u8 Wlog, u8 Plog,
-				 u8 Scell_log, u8 *stab)
+				 u8 Scell_log, u8 *stab, u32 max_P)
 {
 	int delta = qth_max - qth_min;
+	u32 max_p_delta;
 
 	/* Reset average queue length, the value is strictly bound
 	 * to the parameters below, reseting hurts a bit but leaving
@@ -173,10 +174,14 @@ static inline void red_set_parms(struct red_parms *p,
 	if (delta < 0)
 		delta = 1;
 	p->qth_delta	= delta;
-	p->max_P	= red_maxp(Plog);
-	p->max_P	*= delta; /* max_P = (qth_max-qth_min)/2^Plog */
-
-	p->max_P_reciprocal  = reciprocal_value(p->max_P / delta);
+	if (!max_P) {
+		max_P = red_maxp(Plog);
+		max_P *= delta; /* max_P = (qth_max - qth_min)/2^Plog */
+	}
+	p->max_P = max_P;
+	max_p_delta = max_P / delta;
+	max_p_delta = max(max_p_delta, 1U);
+	p->max_P_reciprocal  = reciprocal_value(max_p_delta);
 
 	/* RED Adaptative target :
 	 * [min_th + 0.4*(min_th - max_th),
@@ -380,6 +385,7 @@ static inline void red_adaptative_algo(struct red_parms *p)
 		p->max_P = (p->max_P/10)*9; /* maxp = maxp * Beta */
 
 	max_p_delta = DIV_ROUND_CLOSEST(p->max_P, p->qth_delta);
+	max_p_delta = max(max_p_delta, 1U);
 	p->max_P_reciprocal = reciprocal_value(max_p_delta);
 }
 #endif

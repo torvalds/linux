@@ -216,6 +216,7 @@ enum {
        TCA_GRED_PARMS,
        TCA_GRED_STAB,
        TCA_GRED_DPS,
+       TCA_GRED_MAX_P,
 	   __TCA_GRED_MAX,
 };
 
@@ -255,6 +256,7 @@ enum {
 	TCA_CHOKE_UNSPEC,
 	TCA_CHOKE_PARMS,
 	TCA_CHOKE_STAB,
+	TCA_CHOKE_MAX_P,
 	__TCA_CHOKE_MAX,
 };
 

@@ -394,6 +394,7 @@ static void choke_reset(struct Qdisc *sch)
 static const struct nla_policy choke_policy[TCA_CHOKE_MAX + 1] = {
 	[TCA_CHOKE_PARMS]	= { .len = sizeof(struct tc_red_qopt) },
 	[TCA_CHOKE_STAB]	= { .len = RED_STAB_SIZE },
+	[TCA_CHOKE_MAX_P]	= { .type = NLA_U32 },
 };
 
 
@@ -415,6 +416,7 @@ static int choke_change(struct Qdisc *sch, struct nlattr *opt)
 	int err;
 	struct sk_buff **old = NULL;
 	unsigned int mask;
+	u32 max_P;
 
 	if (opt == NULL)
 		return -EINVAL;
@@ -426,6 +428,8 @@ static int choke_change(struct Qdisc *sch, struct nlattr *opt)
 	if (tb[TCA_CHOKE_PARMS] == NULL ||
 	    tb[TCA_CHOKE_STAB] == NULL)
 		return -EINVAL;
+
+	max_P = tb[TCA_CHOKE_MAX_P] ? nla_get_u32(tb[TCA_CHOKE_MAX_P]) : 0;
 
 	ctl = nla_data(tb[TCA_CHOKE_PARMS]);
 
@@ -476,7 +480,8 @@ static int choke_change(struct Qdisc *sch, struct nlattr *opt)
 
 	red_set_parms(&q->parms, ctl->qth_min, ctl->qth_max, ctl->Wlog,
 		      ctl->Plog, ctl->Scell_log,
-		      nla_data(tb[TCA_CHOKE_STAB]));
+		      nla_data(tb[TCA_CHOKE_STAB]),
+		      max_P);
 
 	if (q->head == q->tail)
 		red_end_of_idle_period(&q->parms);
@@ -510,6 +515,7 @@ static int choke_dump(struct Qdisc *sch, struct sk_buff *skb)
 		goto nla_put_failure;
 
 	NLA_PUT(skb, TCA_CHOKE_PARMS, sizeof(opt), &opt);
+	NLA_PUT_U32(skb, TCA_CHOKE_MAX_P, q->parms.max_P);
 	return nla_nest_end(skb, opts);
 
 nla_put_failure:

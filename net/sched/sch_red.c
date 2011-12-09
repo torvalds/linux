@@ -170,6 +170,7 @@ static void red_destroy(struct Qdisc *sch)
 static const struct nla_policy red_policy[TCA_RED_MAX + 1] = {
 	[TCA_RED_PARMS]	= { .len = sizeof(struct tc_red_qopt) },
 	[TCA_RED_STAB]	= { .len = RED_STAB_SIZE },
+	[TCA_RED_MAX_P] = { .type = NLA_U32 },
 };
 
 static int red_change(struct Qdisc *sch, struct nlattr *opt)
@@ -179,6 +180,7 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt)
 	struct tc_red_qopt *ctl;
 	struct Qdisc *child = NULL;
 	int err;
+	u32 max_P;
 
 	if (opt == NULL)
 		return -EINVAL;
@@ -190,6 +192,8 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt)
 	if (tb[TCA_RED_PARMS] == NULL ||
 	    tb[TCA_RED_STAB] == NULL)
 		return -EINVAL;
+
+	max_P = tb[TCA_RED_MAX_P] ? nla_get_u32(tb[TCA_RED_MAX_P]) : 0;
 
 	ctl = nla_data(tb[TCA_RED_PARMS]);
 
@@ -209,8 +213,9 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt)
 	}
 
 	red_set_parms(&q->parms, ctl->qth_min, ctl->qth_max, ctl->Wlog,
-				 ctl->Plog, ctl->Scell_log,
-				 nla_data(tb[TCA_RED_STAB]));
+		      ctl->Plog, ctl->Scell_log,
+		      nla_data(tb[TCA_RED_STAB]),
+		      max_P);
 
 	del_timer(&q->adapt_timer);
 	if (ctl->flags & TC_RED_ADAPTATIVE)
