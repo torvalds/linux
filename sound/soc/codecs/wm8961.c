@@ -422,11 +422,11 @@ static int wm8961_spk_event(struct snd_soc_dapm_widget *w,
 	}
 
 	if (event & SND_SOC_DAPM_PRE_PMD) {
-		/* Enable the amplifier */
+		/* Disable the amplifier */
 		spk_reg &= ~(WM8961_SPKL_ENA | WM8961_SPKR_ENA);
 		snd_soc_write(codec, WM8961_CLASS_D_CONTROL_1, spk_reg);
 
-		/* Enable the PGA */
+		/* Disable the PGA */
 		pwr_reg &= ~(WM8961_SPKL_PGA | WM8961_SPKR_PGA);
 		snd_soc_write(codec, WM8961_PWR_MGMT_2, pwr_reg);
 	}
