@@ -486,9 +486,36 @@ MACHINE_END
 
 #if defined(CONFIG_ARCH_VEXPRESS_DT)
 
+static struct map_desc v2m_rs1_io_desc __initdata = {
+	.virtual	= V2M_PERIPH,
+	.pfn		= __phys_to_pfn(0x1c000000),
+	.length		= SZ_2M,
+	.type		= MT_DEVICE,
+};
+
+static int __init v2m_dt_scan_memory_map(unsigned long node, const char *uname,
+		int depth, void *data)
+{
+	const char **map = data;
+
+	if (strcmp(uname, "motherboard") != 0)
+		return 0;
+
+	*map = of_get_flat_dt_prop(node, "arm,v2m-memory-map", NULL);
+
+	return 1;
+}
+
 void __init v2m_dt_map_io(void)
 {
-	iotable_init(v2m_io_desc, ARRAY_SIZE(v2m_io_desc));
+	const char *map = NULL;
+
+	of_scan_flat_dt(v2m_dt_scan_memory_map, &map);
+
+	if (map && strcmp(map, "rs1") == 0)
+		iotable_init(&v2m_rs1_io_desc, 1);
+	else
+		iotable_init(v2m_io_desc, ARRAY_SIZE(v2m_io_desc));
 
 #if defined(CONFIG_SMP)
 	vexpress_dt_smp_map_io();
@@ -533,6 +560,35 @@ static struct clk_lookup v2m_dt_lookups[] = {
 		.clk		= &v2m_ref_clk,
 	}, {	/* PL111 CLCD */
 		.dev_id		= "1001f000.clcd",
+		.clk		= &osc1_clk,
+	},
+	/* RS1 memory map */
+	{	/* PL180 MMCI */
+		.dev_id		= "mb:mmci", /* 1c050000.mmci */
+		.clk		= &osc2_clk,
+	}, {	/* PL050 KMI0 */
+		.dev_id		= "1c060000.kmi",
+		.clk		= &osc2_clk,
+	}, {	/* PL050 KMI1 */
+		.dev_id		= "1c070000.kmi",
+		.clk		= &osc2_clk,
+	}, {	/* PL011 UART0 */
+		.dev_id		= "1c090000.uart",
+		.clk		= &osc2_clk,
+	}, {	/* PL011 UART1 */
+		.dev_id		= "1c0a0000.uart",
+		.clk		= &osc2_clk,
+	}, {	/* PL011 UART2 */
+		.dev_id		= "1c0b0000.uart",
+		.clk		= &osc2_clk,
+	}, {	/* PL011 UART3 */
+		.dev_id		= "1c0c0000.uart",
+		.clk		= &osc2_clk,
+	}, {	/* SP805 WDT */
+		.dev_id		= "1c0f0000.wdt",
+		.clk		= &v2m_ref_clk,
+	}, {	/* PL111 CLCD */
+		.dev_id		= "1c1f0000.clcd",
 		.clk		= &osc1_clk,
 	},
 };
@@ -597,6 +653,10 @@ static struct of_dev_auxdata v2m_dt_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("arm,vexpress-flash", V2M_NOR0, "physmap-flash",
 			&v2m_flash_data),
 	OF_DEV_AUXDATA("arm,primecell", V2M_MMCI, "mb:mmci", &v2m_mmci_data),
+	/* RS1 memory map */
+	OF_DEV_AUXDATA("arm,vexpress-flash", 0x08000000, "physmap-flash",
+			&v2m_flash_data),
+	OF_DEV_AUXDATA("arm,primecell", 0x1c050000, "mb:mmci", &v2m_mmci_data),
 	{}
 };
 
