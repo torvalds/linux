@@ -94,9 +94,10 @@ static int show_vfsmnt(struct seq_file *m, struct vfsmount *mnt)
 	struct mount *r = real_mount(mnt);
 	int err = 0;
 	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
+	struct super_block *sb = mnt_path.dentry->d_sb;
 
-	if (mnt->mnt_sb->s_op->show_devname) {
-		err = mnt->mnt_sb->s_op->show_devname(m, mnt);
+	if (sb->s_op->show_devname) {
+		err = sb->s_op->show_devname(m, mnt_path.dentry);
 		if (err)
 			goto out;
 	} else {
@@ -105,14 +106,14 @@ static int show_vfsmnt(struct seq_file *m, struct vfsmount *mnt)
 	seq_putc(m, ' ');
 	seq_path(m, &mnt_path, " \t\n\\");
 	seq_putc(m, ' ');
-	show_type(m, mnt->mnt_sb);
+	show_type(m, sb);
 	seq_puts(m, __mnt_is_readonly(mnt) ? " ro" : " rw");
-	err = show_sb_opts(m, mnt->mnt_sb);
+	err = show_sb_opts(m, sb);
 	if (err)
 		goto out;
 	show_mnt_opts(m, mnt);
-	if (mnt->mnt_sb->s_op->show_options)
-		err = mnt->mnt_sb->s_op->show_options(m, mnt);
+	if (sb->s_op->show_options)
+		err = sb->s_op->show_options(m, mnt);
 	seq_puts(m, " 0 0\n");
 out:
 	return err;
@@ -163,7 +164,7 @@ static int show_mountinfo(struct seq_file *m, struct vfsmount *mnt)
 	show_type(m, sb);
 	seq_putc(m, ' ');
 	if (sb->s_op->show_devname)
-		err = sb->s_op->show_devname(m, mnt);
+		err = sb->s_op->show_devname(m, mnt->mnt_root);
 	else
 		mangle(m, r->mnt_devname ? r->mnt_devname : "none");
 	if (err)
@@ -189,7 +190,7 @@ static int show_vfsstat(struct seq_file *m, struct vfsmount *mnt)
 	/* device */
 	if (sb->s_op->show_devname) {
 		seq_puts(m, "device ");
-		err = sb->s_op->show_devname(m, mnt);
+		err = sb->s_op->show_devname(m, mnt_path.dentry);
 	} else {
 		if (r->mnt_devname) {
 			seq_puts(m, "device ");

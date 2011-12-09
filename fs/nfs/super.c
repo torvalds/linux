@@ -263,7 +263,7 @@ static match_table_t nfs_local_lock_tokens = {
 static void nfs_umount_begin(struct super_block *);
 static int  nfs_statfs(struct dentry *, struct kstatfs *);
 static int  nfs_show_options(struct seq_file *, struct vfsmount *);
-static int  nfs_show_devname(struct seq_file *, struct vfsmount *);
+static int  nfs_show_devname(struct seq_file *, struct dentry *);
 static int  nfs_show_path(struct seq_file *, struct vfsmount *);
 static int  nfs_show_stats(struct seq_file *, struct dentry *);
 static struct dentry *nfs_fs_mount(struct file_system_type *,
@@ -760,14 +760,14 @@ static void show_pnfs(struct seq_file *m, struct nfs_server *server) {}
 #endif
 #endif
 
-static int nfs_show_devname(struct seq_file *m, struct vfsmount *mnt)
+static int nfs_show_devname(struct seq_file *m, struct dentry *root)
 {
 	char *page = (char *) __get_free_page(GFP_KERNEL);
 	char *devname, *dummy;
 	int err = 0;
 	if (!page)
 		return -ENOMEM;
-	devname = nfs_path(&dummy, mnt->mnt_root, page, PAGE_SIZE);
+	devname = nfs_path(&dummy, root, page, PAGE_SIZE);
 	if (IS_ERR(devname))
 		err = PTR_ERR(devname);
 	else
