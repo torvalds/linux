@@ -703,6 +703,34 @@ static int usbhsh_queue_push(struct usb_hcd *hcd,
 	return 0;
 }
 
+static void usbhsh_queue_force_pop(struct usbhs_priv *priv,
+				   struct usbhs_pipe *pipe)
+{
+	struct usbhs_pkt *pkt;
+
+	while (1) {
+		pkt = usbhs_pkt_pop(pipe, NULL);
+		if (!pkt)
+			break;
+
+		/*
+		 * if all packet are gone, usbhsh_endpoint_disable()
+		 * will be called.
+		 * then, attached device/endpoint/pipe will be detached
+		 */
+		usbhsh_queue_done(priv, pkt);
+	}
+}
+
+static void usbhsh_queue_force_pop_all(struct usbhs_priv *priv)
+{
+	struct usbhs_pipe *pos;
+	int i;
+
+	usbhs_for_each_pipe_with_dcp(pos, priv, i)
+		usbhsh_queue_force_pop(priv, pos);
+}
+
 /*
  *		DCP setup stage
  */
@@ -1106,6 +1134,8 @@ static int __usbhsh_hub_port_feature(struct usbhsh_hpriv *hpriv,
 				       USB_PORT_STAT_HIGH_SPEED |
 				       USB_PORT_STAT_LOW_SPEED);
 
+		usbhsh_queue_force_pop_all(priv);
+
 		usbhs_bus_send_reset(priv);
 		msleep(20);
 		usbhs_bus_send_sof_enable(priv);
@@ -1308,6 +1338,12 @@ static int usbhsh_irq_dtch(struct usbhs_priv *priv,
 	 */
 	hpriv->mod.irq_attch = usbhsh_irq_attch;
 	usbhs_irq_callback_update(priv, &hpriv->mod);
+
+	/*
+	 * usbhsh_queue_force_pop_all() should be called
+	 * after usbhsh_is_running() becomes invalid.
+	 */
+	usbhsh_queue_force_pop_all(priv);
 
 	return 0;
 }
