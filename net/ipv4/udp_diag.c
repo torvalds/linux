@@ -21,7 +21,57 @@
 static int udp_dump_one(struct udp_table *tbl, struct sk_buff *in_skb,
 		const struct nlmsghdr *nlh, struct inet_diag_req *req)
 {
-	return 0;
+	int err = -EINVAL;
+	struct sock *sk;
+	struct sk_buff *rep;
+
+	if (req->sdiag_family == AF_INET)
+		sk = __udp4_lib_lookup(&init_net,
+				req->id.idiag_src[0], req->id.idiag_sport,
+				req->id.idiag_dst[0], req->id.idiag_dport,
+				req->id.idiag_if, tbl);
+	else if (req->sdiag_family == AF_INET6)
+		sk = __udp6_lib_lookup(&init_net,
+				(struct in6_addr *)req->id.idiag_src,
+				req->id.idiag_sport,
+				(struct in6_addr *)req->id.idiag_dst,
+				req->id.idiag_dport,
+				req->id.idiag_if, tbl);
+	else
+		goto out_nosk;
+
+	err = -ENOENT;
+	if (sk == NULL)
+		goto out_nosk;
+
+	err = inet_diag_check_cookie(sk, req);
+	if (err)
+		goto out;
+
+	err = -ENOMEM;
+	rep = alloc_skb(NLMSG_SPACE((sizeof(struct inet_diag_msg) +
+				     sizeof(struct inet_diag_meminfo) +
+				     64)), GFP_KERNEL);
+	if (!rep)
+		goto out;
+
+	err = inet_sk_diag_fill(sk, NULL, rep, req,
+			   NETLINK_CB(in_skb).pid,
+			   nlh->nlmsg_seq, 0, nlh);
+	if (err < 0) {
+		WARN_ON(err == -EMSGSIZE);
+		kfree_skb(rep);
+		goto out;
+	}
+	err = netlink_unicast(sock_diag_nlsk, rep, NETLINK_CB(in_skb).pid,
+			      MSG_DONTWAIT);
+	if (err > 0)
+		err = 0;
+out:
+	if (sk)
+		sock_put(sk);
+out_nosk:
+	return err;
 }
 
 static void udp_dump(struct udp_table *table, struct sk_buff *skb, struct netlink_callback *cb,
