@@ -6410,7 +6410,7 @@ S:	Odd Fixes
 F:	drivers/staging/winbond/
 
 STAGING - XGI Z7,Z9,Z11 PCI DISPLAY DRIVER
-M:	Arnaud Patard <apatard@mandriva.com>
+M:	Arnaud Patard <arnaud.patard@rtp-net.org>
 S:	Odd Fixes
 F:	drivers/staging/xgifb/
 
