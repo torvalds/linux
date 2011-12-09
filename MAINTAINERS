@@ -1894,12 +1894,6 @@ L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/compal-laptop.c
 
-COMPUTONE INTELLIPORT MULTIPORT CARD
-W:	http://www.wittsend.com/computone.html
-S:	Orphan
-F:	Documentation/serial/computone.txt
-F:	drivers/staging/tty/ip2/
-
 CONEXANT ACCESSRUNNER USB DRIVER
 M:	Simon Arlott <cxacru@fire.lp0.eu>
 L:	accessrunner-general@lists.sourceforge.net
@@ -2202,15 +2196,6 @@ F:	Documentation/device-mapper/
 F:	drivers/md/dm*
 F:	include/linux/device-mapper.h
 F:	include/linux/dm-*.h
-
-DIGI INTL. EPCA DRIVER
-M:	"Digi International, Inc" <Eng.Linux@digi.com>
-L:	Eng.Linux@digi.com
-W:	http://www.digi.com
-S:	Orphan
-F:	Documentation/serial/digiepca.txt
-F:	drivers/staging/tty/epca*
-F:	drivers/staging/tty/digi*
 
 DIOLAN U2C-12 I2C DRIVER
 M:	Guenter Roeck <guenter.roeck@ericsson.com>
@@ -5541,11 +5526,6 @@ M:	Maxim Levitsky <maximlevitsky@gmail.com>
 S:	Maintained
 F:	drivers/memstick/host/r592.*
 
-RISCOM8 DRIVER
-S:	Orphan
-F:	Documentation/serial/riscom8.txt
-F:	drivers/staging/tty/riscom8*
-
 ROCKETPORT DRIVER
 P:	Comtrol Corp.
 W:	http://www.comtrol.com
@@ -6206,11 +6186,6 @@ F:	arch/arm/mach-spear3xx/spear3*0.c
 F:	arch/arm/mach-spear3xx/spear3*0_evb.c
 F:	arch/arm/mach-spear6xx/spear600.c
 F:	arch/arm/mach-spear6xx/spear600_evb.c
-
-SPECIALIX IO8+ MULTIPORT SERIAL CARD DRIVER
-S:	Orphan
-F:	Documentation/serial/specialix.txt
-F:	drivers/staging/tty/specialix*
 
 SPI SUBSYSTEM
 M:	Grant Likely <grant.likely@secretlab.ca>
