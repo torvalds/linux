@@ -44,18 +44,4 @@ config DEBUG_OCD
 	  Say Y here if you want the debug print routines to direct their
 	  output to the UniCore On-Chip-Debugger channel using CP #1.
 
-config DEBUG_OCD_BREAKPOINT
-	bool "Breakpoint support via On-Chip-Debugger"
-	depends on DEBUG_OCD
-
-config DEBUG_UART
-	int "Kernel low-level debugging messages via serial port"
-	depends on DEBUG_LL
-	range 0 1
-	default "0"
-	help
-	  Choice for UART for kernel low-level using PKUnity UARTS,
-	  should be between zero and one. The port must have been
-	  initialised by the boot-loader before use.
-
 endmenu

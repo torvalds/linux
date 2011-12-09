@@ -991,14 +991,20 @@ static ssize_t vga_arb_write(struct file *file, const char __user * buf,
 				uc = &priv->cards[i];
 		}
 
-		if (!uc)
-			return -EINVAL;
+		if (!uc) {
+			ret_val = -EINVAL;
+			goto done;
+		}
 
-		if (io_state & VGA_RSRC_LEGACY_IO && uc->io_cnt == 0)
-			return -EINVAL;
+		if (io_state & VGA_RSRC_LEGACY_IO && uc->io_cnt == 0) {
+			ret_val = -EINVAL;
+			goto done;
+		}
 
-		if (io_state & VGA_RSRC_LEGACY_MEM && uc->mem_cnt == 0)
-			return -EINVAL;
+		if (io_state & VGA_RSRC_LEGACY_MEM && uc->mem_cnt == 0) {
+			ret_val = -EINVAL;
+			goto done;
+		}
 
 		vga_put(pdev, io_state);
 

@@ -432,9 +432,6 @@ void i2c_unlock_adapter(struct i2c_adapter *);
 /* Internal numbers to terminate lists */
 #define I2C_CLIENT_END		0xfffeU
 
-/* The numbers to use to set I2C bus address */
-#define ANY_I2C_BUS		0xffff
-
 /* Construct an I2C_CLIENT_END-terminated array of i2c addresses */
 #define I2C_ADDRS(addr, addrs...) \
 	((const unsigned short []){ addr, ## addrs, I2C_CLIENT_END })

@@ -19,6 +19,75 @@
 #include <linux/irq.h>
 #include <linux/bitops.h>
 #include <linux/gpio.h>
+#include <linux/slab.h>
+#include <linux/ioport.h>
+
+static void pfc_iounmap(struct pinmux_info *pip)
+{
+	int k;
+
+	for (k = 0; k < pip->num_resources; k++)
+		if (pip->window[k].virt)
+			iounmap(pip->window[k].virt);
+
+	kfree(pip->window);
+	pip->window = NULL;
+}
+
+static int pfc_ioremap(struct pinmux_info *pip)
+{
+	struct resource *res;
+	int k;
+
+	if (!pip->num_resources)
+		return 0;
+
+	pip->window = kzalloc(pip->num_resources * sizeof(*pip->window),
+			      GFP_NOWAIT);
+	if (!pip->window)
+		goto err1;
+
+	for (k = 0; k < pip->num_resources; k++) {
+		res = pip->resource + k;
+		WARN_ON(resource_type(res) != IORESOURCE_MEM);
+		pip->window[k].phys = res->start;
+		pip->window[k].size = resource_size(res);
+		pip->window[k].virt = ioremap_nocache(res->start,
+							 resource_size(res));
+		if (!pip->window[k].virt)
+			goto err2;
+	}
+
+	return 0;
+
+err2:
+	pfc_iounmap(pip);
+err1:
+	return -1;
+}
+
+static void __iomem *pfc_phys_to_virt(struct pinmux_info *pip,
+				      unsigned long address)
+{
+	struct pfc_window *window;
+	int k;
+
+	/* scan through physical windows and convert address */
+	for (k = 0; k < pip->num_resources; k++) {
+		window = pip->window + k;
+
+		if (address < window->phys)
+			continue;
+
+		if (address >= (window->phys + window->size))
+			continue;
+
+		return window->virt + (address - window->phys);
+	}
+
+	/* no windows defined, register must be 1:1 mapped virt:phys */
+	return (void __iomem *)address;
+}
 
 static int enum_in_range(pinmux_enum_t enum_id, struct pinmux_range *r)
 {
@@ -31,35 +100,35 @@ static int enum_in_range(pinmux_enum_t enum_id, struct pinmux_range *r)
 	return 1;
 }
 
-static unsigned long gpio_read_raw_reg(unsigned long reg,
+static unsigned long gpio_read_raw_reg(void __iomem *mapped_reg,
 				       unsigned long reg_width)
 {
 	switch (reg_width) {
 	case 8:
-		return __raw_readb(reg);
+		return ioread8(mapped_reg);
 	case 16:
-		return __raw_readw(reg);
+		return ioread16(mapped_reg);
 	case 32:
-		return __raw_readl(reg);
+		return ioread32(mapped_reg);
 	}
 
 	BUG();
 	return 0;
 }
 
-static void gpio_write_raw_reg(unsigned long reg,
+static void gpio_write_raw_reg(void __iomem *mapped_reg,
 			       unsigned long reg_width,
 			       unsigned long data)
 {
 	switch (reg_width) {
 	case 8:
-		__raw_writeb(data, reg);
+		iowrite8(data, mapped_reg);
 		return;
 	case 16:
-		__raw_writew(data, reg);
+		iowrite16(data, mapped_reg);
 		return;
 	case 32:
-		__raw_writel(data, reg);
+		iowrite32(data, mapped_reg);
 		return;
 	}
 
@@ -82,11 +151,12 @@ static void gpio_write_bit(struct pinmux_data_reg *dr,
 	else
 		clear_bit(pos, &dr->reg_shadow);
 
-	gpio_write_raw_reg(dr->reg, dr->reg_width, dr->reg_shadow);
+	gpio_write_raw_reg(dr->mapped_reg, dr->reg_width, dr->reg_shadow);
 }
 
-static int gpio_read_reg(unsigned long reg, unsigned long reg_width,
-			 unsigned long field_width, unsigned long in_pos)
+static int gpio_read_reg(void __iomem *mapped_reg, unsigned long reg_width,
+			 unsigned long field_width, unsigned long in_pos,
+			 unsigned long reg)
 {
 	unsigned long data, mask, pos;
 
@@ -98,13 +168,13 @@ static int gpio_read_reg(unsigned long reg, unsigned long reg_width,
 		 "r_width = %ld, f_width = %ld\n",
 		 reg, pos, reg_width, field_width);
 
-	data = gpio_read_raw_reg(reg, reg_width);
+	data = gpio_read_raw_reg(mapped_reg, reg_width);
 	return (data >> pos) & mask;
 }
 
-static void gpio_write_reg(unsigned long reg, unsigned long reg_width,
+static void gpio_write_reg(void __iomem *mapped_reg, unsigned long reg_width,
 			   unsigned long field_width, unsigned long in_pos,
-			   unsigned long value)
+			   unsigned long value, unsigned long reg)
 {
 	unsigned long mask, pos;
 
@@ -120,13 +190,13 @@ static void gpio_write_reg(unsigned long reg, unsigned long reg_width,
 
 	switch (reg_width) {
 	case 8:
-		__raw_writeb((__raw_readb(reg) & mask) | value, reg);
+		iowrite8((ioread8(mapped_reg) & mask) | value, mapped_reg);
 		break;
 	case 16:
-		__raw_writew((__raw_readw(reg) & mask) | value, reg);
+		iowrite16((ioread16(mapped_reg) & mask) | value, mapped_reg);
 		break;
 	case 32:
-		__raw_writel((__raw_readl(reg) & mask) | value, reg);
+		iowrite32((ioread32(mapped_reg) & mask) | value, mapped_reg);
 		break;
 	}
 }
@@ -146,6 +216,8 @@ static int setup_data_reg(struct pinmux_info *gpioc, unsigned gpio)
 
 		if (!data_reg->reg_width)
 			break;
+
+		data_reg->mapped_reg = pfc_phys_to_virt(gpioc, data_reg->reg);
 
 		for (n = 0; n < data_reg->reg_width; n++) {
 			if (data_reg->enum_ids[n] == gpiop->enum_id) {
@@ -179,7 +251,8 @@ static void setup_data_regs(struct pinmux_info *gpioc)
 		if (!drp->reg_width)
 			break;
 
-		drp->reg_shadow = gpio_read_raw_reg(drp->reg, drp->reg_width);
+		drp->reg_shadow = gpio_read_raw_reg(drp->mapped_reg,
+						    drp->reg_width);
 		k++;
 	}
 }
@@ -266,12 +339,16 @@ static void write_config_reg(struct pinmux_info *gpioc,
 			     int index)
 {
 	unsigned long ncomb, pos, value;
+	void __iomem *mapped_reg;
 
 	ncomb = 1 << crp->field_width;
 	pos = index / ncomb;
 	value = index % ncomb;
 
-	gpio_write_reg(crp->reg, crp->reg_width, crp->field_width, pos, value);
+	mapped_reg = pfc_phys_to_virt(gpioc, crp->reg);
+
+	gpio_write_reg(mapped_reg, crp->reg_width, crp->field_width,
+		       pos, value, crp->reg);
 }
 
 static int check_config_reg(struct pinmux_info *gpioc,
@@ -279,13 +356,16 @@ static int check_config_reg(struct pinmux_info *gpioc,
 			    int index)
 {
 	unsigned long ncomb, pos, value;
+	void __iomem *mapped_reg;
 
 	ncomb = 1 << crp->field_width;
 	pos = index / ncomb;
 	value = index % ncomb;
 
-	if (gpio_read_reg(crp->reg, crp->reg_width,
-			  crp->field_width, pos) == value)
+	mapped_reg = pfc_phys_to_virt(gpioc, crp->reg);
+
+	if (gpio_read_reg(mapped_reg, crp->reg_width,
+			  crp->field_width, pos, crp->reg) == value)
 		return 0;
 
 	return -1;
@@ -564,7 +644,7 @@ static int sh_gpio_get_value(struct pinmux_info *gpioc, unsigned gpio)
 	if (!gpioc || get_data_reg(gpioc, gpio, &dr, &bit) != 0)
 		return -EINVAL;
 
-	return gpio_read_reg(dr->reg, dr->reg_width, 1, bit);
+	return gpio_read_reg(dr->mapped_reg, dr->reg_width, 1, bit, dr->reg);
 }
 
 static int sh_gpio_get(struct gpio_chip *chip, unsigned offset)
@@ -606,9 +686,14 @@ static int sh_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 int register_pinmux(struct pinmux_info *pip)
 {
 	struct gpio_chip *chip = &pip->chip;
+	int ret;
 
 	pr_info("%s handling gpio %d -> %d\n",
 		pip->name, pip->first_gpio, pip->last_gpio);
+
+	ret = pfc_ioremap(pip);
+	if (ret < 0)
+		return ret;
 
 	setup_data_regs(pip);
 
@@ -627,12 +712,16 @@ int register_pinmux(struct pinmux_info *pip)
 	chip->base = pip->first_gpio;
 	chip->ngpio = (pip->last_gpio - pip->first_gpio) + 1;
 
-	return gpiochip_add(chip);
+	ret = gpiochip_add(chip);
+	if (ret < 0)
+		pfc_iounmap(pip);
+
+	return ret;
 }
 
 int unregister_pinmux(struct pinmux_info *pip)
 {
 	pr_info("%s deregistering\n", pip->name);
-
+	pfc_iounmap(pip);
 	return gpiochip_remove(&pip->chip);
 }

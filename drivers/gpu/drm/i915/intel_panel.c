@@ -326,7 +326,8 @@ static int intel_panel_update_status(struct backlight_device *bd)
 static int intel_panel_get_brightness(struct backlight_device *bd)
 {
 	struct drm_device *dev = bl_get_data(bd);
-	return intel_panel_get_backlight(dev);
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	return dev_priv->backlight_level;
 }
 
 static const struct backlight_ops intel_panel_bl_ops = {

@@ -799,7 +799,7 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 	u32			command, temp = 0;
 	struct usb_hcd		*hcd = xhci_to_hcd(xhci);
 	struct usb_hcd		*secondary_hcd;
-	int			retval;
+	int			retval = 0;
 
 	/* Wait a bit if either of the roothubs need to settle from the
 	 * transition into bus suspend.
@@ -808,6 +808,9 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 			time_before(jiffies,
 				xhci->bus_state[1].next_statechange))
 		msleep(100);
+
+	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+	set_bit(HCD_FLAG_HW_ACCESSIBLE, &xhci->shared_hcd->flags);
 
 	spin_lock_irq(&xhci->lock);
 	if (xhci->quirks & XHCI_RESET_ON_RESUME)
@@ -878,20 +881,13 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 			return retval;
 		xhci_dbg(xhci, "Start the primary HCD\n");
 		retval = xhci_run(hcd->primary_hcd);
-		if (retval)
-			goto failed_restart;
-
-		xhci_dbg(xhci, "Start the secondary HCD\n");
-		retval = xhci_run(secondary_hcd);
 		if (!retval) {
-			set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
-			set_bit(HCD_FLAG_HW_ACCESSIBLE,
-					&xhci->shared_hcd->flags);
+			xhci_dbg(xhci, "Start the secondary HCD\n");
+			retval = xhci_run(secondary_hcd);
 		}
-failed_restart:
 		hcd->state = HC_STATE_SUSPENDED;
 		xhci->shared_hcd->state = HC_STATE_SUSPENDED;
-		return retval;
+		goto done;
 	}
 
 	/* step 4: set Run/Stop bit */
@@ -910,11 +906,14 @@ failed_restart:
 	 * Running endpoints by ringing their doorbells
 	 */
 
-	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
-	set_bit(HCD_FLAG_HW_ACCESSIBLE, &xhci->shared_hcd->flags);
-
 	spin_unlock_irq(&xhci->lock);
-	return 0;
+
+ done:
+	if (retval == 0) {
+		usb_hcd_resume_root_hub(hcd);
+		usb_hcd_resume_root_hub(xhci->shared_hcd);
+	}
+	return retval;
 }
 #endif	/* CONFIG_PM */
 
@@ -3504,6 +3503,10 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	/* Otherwise, update the control endpoint ring enqueue pointer. */
 	else
 		xhci_copy_ep0_dequeue_into_input_ctx(xhci, udev);
+	ctrl_ctx = xhci_get_input_control_ctx(xhci, virt_dev->in_ctx);
+	ctrl_ctx->add_flags = cpu_to_le32(SLOT_FLAG | EP0_FLAG);
+	ctrl_ctx->drop_flags = 0;
+
 	xhci_dbg(xhci, "Slot ID %d Input Context:\n", udev->slot_id);
 	xhci_dbg_ctx(xhci, virt_dev->in_ctx, 2);
 
@@ -3585,7 +3588,6 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	virt_dev->address = (le32_to_cpu(slot_ctx->dev_state) & DEV_ADDR_MASK)
 		+ 1;
 	/* Zero the input context control for later use */
-	ctrl_ctx = xhci_get_input_control_ctx(xhci, virt_dev->in_ctx);
 	ctrl_ctx->add_flags = 0;
 	ctrl_ctx->drop_flags = 0;
 
