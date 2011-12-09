@@ -1,5 +1,6 @@
 /*
- * AD5760, AD5780, AD5781, AD5791 Voltage Output Digital to Analog Converter
+ * AD5760, AD5780, AD5781, AD5790, AD5791 Voltage Output Digital to Analog
+ * Converter
  *
  * Copyright 2011 Analog Devices Inc.
  *
@@ -397,6 +398,7 @@ static const struct spi_device_id ad5791_id[] = {
 	{"ad5760", ID_AD5760},
 	{"ad5780", ID_AD5780},
 	{"ad5781", ID_AD5781},
+	{"ad5790", ID_AD5791},
 	{"ad5791", ID_AD5791},
 	{}
 };
@@ -425,5 +427,5 @@ static __exit void ad5791_spi_exit(void)
 module_exit(ad5791_spi_exit);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
-MODULE_DESCRIPTION("Analog Devices AD5760/AD5780/AD5781/AD5791 DAC");
+MODULE_DESCRIPTION("Analog Devices AD5760/AD5780/AD5781/AD5790/AD5791 DAC");
 MODULE_LICENSE("GPL v2");
