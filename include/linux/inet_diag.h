@@ -136,6 +136,8 @@ struct tcpvegas_info {
 struct sock;
 struct inet_hashinfo;
 struct nlattr;
+struct nlmsghdr;
+struct sk_buff;
 
 struct inet_diag_handler {
 	struct inet_hashinfo    *idiag_hashinfo;
@@ -145,6 +147,11 @@ struct inet_diag_handler {
 	__u16                   idiag_type;
 };
 
+struct inet_connection_sock;
+int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
+			      struct sk_buff *skb, struct inet_diag_req *req,
+			      u32 pid, u32 seq, u16 nlmsg_flags,
+			      const struct nlmsghdr *unlh);
 int inet_diag_bc_sk(const struct nlattr *_bc, struct sock *sk);
 int inet_diag_check_cookie(struct sock *sk, struct inet_diag_req *req);
 
