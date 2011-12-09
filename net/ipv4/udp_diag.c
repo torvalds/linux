@@ -18,6 +18,17 @@
 #include <linux/inet_diag.h>
 #include <linux/sock_diag.h>
 
+static int sk_diag_dump(struct sock *sk, struct sk_buff *skb,
+		struct netlink_callback *cb, struct inet_diag_req *req,
+		struct nlattr *bc)
+{
+	if (!inet_diag_bc_sk(bc, sk))
+		return 0;
+
+	return inet_sk_diag_fill(sk, NULL, skb, req, NETLINK_CB(cb->skb).pid,
+			cb->nlh->nlmsg_seq, NLM_F_MULTI, cb->nlh);
+}
+
 static int udp_dump_one(struct udp_table *tbl, struct sk_buff *in_skb,
 		const struct nlmsghdr *nlh, struct inet_diag_req *req)
 {
@@ -77,6 +88,49 @@ out_nosk:
 static void udp_dump(struct udp_table *table, struct sk_buff *skb, struct netlink_callback *cb,
 		struct inet_diag_req *r, struct nlattr *bc)
 {
+	int num, s_num, slot, s_slot;
+
+	s_slot = cb->args[0];
+	num = s_num = cb->args[1];
+
+	for (slot = s_slot; slot <= table->mask; num = s_num = 0, slot++) {
+		struct sock *sk;
+		struct hlist_nulls_node *node;
+		struct udp_hslot *hslot = &table->hash[slot];
+
+		if (hlist_nulls_empty(&hslot->head))
+			continue;
+
+		spin_lock_bh(&hslot->lock);
+		sk_nulls_for_each(sk, node, &hslot->head) {
+			struct inet_sock *inet = inet_sk(sk);
+
+			if (num < s_num)
+				goto next;
+			if (!(r->idiag_states & (1 << sk->sk_state)))
+				goto next;
+			if (r->sdiag_family != AF_UNSPEC &&
+					sk->sk_family != r->sdiag_family)
+				goto next;
+			if (r->id.idiag_sport != inet->inet_sport &&
+			    r->id.idiag_sport)
+				goto next;
+			if (r->id.idiag_dport != inet->inet_dport &&
+			    r->id.idiag_dport)
+				goto next;
+
+			if (sk_diag_dump(sk, skb, cb, r, bc) < 0) {
+				spin_unlock_bh(&hslot->lock);
+				goto done;
+			}
+next:
+			num++;
+		}
+		spin_unlock_bh(&hslot->lock);
+	}
+done:
+	cb->args[0] = slot;
+	cb->args[1] = num;
 }
 
 static void udp_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
