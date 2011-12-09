@@ -184,11 +184,6 @@ S:	Maintained
 F:	Documentation/filesystems/9p.txt
 F:	fs/9p/
 
-A2232 SERIAL BOARD DRIVER
-L:	linux-m68k@lists.linux-m68k.org
-S:	Orphan
-F:	drivers/staging/generic_serial/ser_a2232*
-
 AACRAID SCSI RAID DRIVER
 M:	Adaptec OEM Raid Solutions <aacraid@adaptec.com>
 L:	linux-scsi@vger.kernel.org
