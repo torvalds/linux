@@ -517,6 +517,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	run->ready_for_interrupt_injection = 1;
 
 	trace_kvm_book3s_exit(exit_nr, vcpu);
+	preempt_enable();
 	kvm_resched(vcpu);
 	switch (exit_nr) {
 	case BOOK3S_INTERRUPT_INST_STORAGE:
@@ -761,6 +762,8 @@ program_interrupt:
 			run->exit_reason = KVM_EXIT_INTR;
 			r = -EINTR;
 		} else {
+			preempt_disable();
+
 			/* In case an interrupt came in that was triggered
 			 * from userspace (like DEC), we need to check what
 			 * to inject now! */
@@ -923,10 +926,13 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 #endif
 	ulong ext_msr;
 
+	preempt_disable();
+
 	/* Check if we can run the vcpu at all */
 	if (!vcpu->arch.sane) {
 		kvm_run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	kvmppc_core_prepare_to_enter(vcpu);
@@ -934,7 +940,8 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	/* No need to go into the guest when all we do is going out */
 	if (signal_pending(current)) {
 		kvm_run->exit_reason = KVM_EXIT_INTR;
-		return -EINTR;
+		ret = -EINTR;
+		goto out;
 	}
 
 	/* Save FPU state in stack */
@@ -1004,6 +1011,8 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	current->thread.used_vsr = used_vsr;
 #endif
 
+out:
+	preempt_enable();
 	return ret;
 }
 
