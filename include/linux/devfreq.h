@@ -124,6 +124,8 @@ struct devfreq_governor {
  *		touch this.
  * @being_removed	a flag to mark that this object is being removed in
  *			order to prevent trying to remove the object multiple times.
+ * @min_freq	Limit minimum frequency requested by user (0: none)
+ * @max_freq	Limit maximum frequency requested by user (0: none)
  *
  * This structure stores the devfreq information for a give device.
  *
@@ -149,6 +151,9 @@ struct devfreq {
 	void *data; /* private data for governors */
 
 	bool being_removed;
+
+	unsigned long min_freq;
+	unsigned long max_freq;
 };
 
 #if defined(CONFIG_PM_DEVFREQ)
