@@ -1681,6 +1681,12 @@ static int __init dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	else
 		mmc->caps = 0;
 
+	if (host->pdata->caps2)
+		mmc->caps2 = host->pdata->caps2;
+	else
+		mmc->caps2 = 0;
+
+
 	if (host->pdata->get_bus_wd)
 		if (host->pdata->get_bus_wd(slot->id) >= 4)
 			mmc->caps |= MMC_CAP_4_BIT_DATA;
