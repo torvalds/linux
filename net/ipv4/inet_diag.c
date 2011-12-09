@@ -246,6 +246,18 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
 	return inet_csk_diag_fill(sk, skb, r, pid, seq, nlmsg_flags, unlh);
 }
 
+int inet_diag_check_cookie(struct sock *sk, struct inet_diag_req *req)
+{
+	if ((req->id.idiag_cookie[0] != INET_DIAG_NOCOOKIE ||
+	     req->id.idiag_cookie[1] != INET_DIAG_NOCOOKIE) &&
+	    ((u32)(unsigned long)sk != req->id.idiag_cookie[0] ||
+	     (u32)((((unsigned long)sk) >> 31) >> 1) != req->id.idiag_cookie[1]))
+		return -ESTALE;
+	else
+		return 0;
+}
+EXPORT_SYMBOL_GPL(inet_diag_check_cookie);
+
 static int inet_diag_get_exact(struct sk_buff *in_skb,
 			       const struct nlmsghdr *nlh,
 			       struct inet_diag_req *req)
@@ -288,11 +300,8 @@ static int inet_diag_get_exact(struct sk_buff *in_skb,
 	if (sk == NULL)
 		goto unlock;
 
-	err = -ESTALE;
-	if ((req->id.idiag_cookie[0] != INET_DIAG_NOCOOKIE ||
-	     req->id.idiag_cookie[1] != INET_DIAG_NOCOOKIE) &&
-	    ((u32)(unsigned long)sk != req->id.idiag_cookie[0] ||
-	     (u32)((((unsigned long)sk) >> 31) >> 1) != req->id.idiag_cookie[1]))
+	err = inet_diag_check_cookie(sk, req);
+	if (err)
 		goto out;
 
 	err = -ENOMEM;

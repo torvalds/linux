@@ -144,6 +144,8 @@ struct inet_diag_handler {
 	__u16                   idiag_type;
 };
 
+int inet_diag_check_cookie(struct sock *sk, struct inet_diag_req *req);
+
 extern int  inet_diag_register(const struct inet_diag_handler *handler);
 extern void inet_diag_unregister(const struct inet_diag_handler *handler);
 #endif /* __KERNEL__ */
