@@ -273,7 +273,7 @@ int inet_diag_check_cookie(struct sock *sk, struct inet_diag_req *req)
 }
 EXPORT_SYMBOL_GPL(inet_diag_check_cookie);
 
-static int inet_diag_dump_one_icsk(struct inet_hashinfo *hashinfo, struct sk_buff *in_skb,
+int inet_diag_dump_one_icsk(struct inet_hashinfo *hashinfo, struct sk_buff *in_skb,
 		const struct nlmsghdr *nlh, struct inet_diag_req *req)
 {
 	int err;
@@ -339,6 +339,7 @@ out:
 out_nosk:
 	return err;
 }
+EXPORT_SYMBOL_GPL(inet_diag_dump_one_icsk);
 
 static int inet_diag_get_exact(struct sk_buff *in_skb,
 			       const struct nlmsghdr *nlh,
@@ -351,8 +352,7 @@ static int inet_diag_get_exact(struct sk_buff *in_skb,
 	if (IS_ERR(handler))
 		err = PTR_ERR(handler);
 	else
-		err = inet_diag_dump_one_icsk(handler->idiag_hashinfo,
-				in_skb, nlh, req);
+		err = handler->dump_one(in_skb, nlh, req);
 	inet_diag_unlock_handler(handler);
 
 	return err;
@@ -731,7 +731,7 @@ out:
 	return err;
 }
 
-static void inet_diag_dump_icsk(struct inet_hashinfo *hashinfo, struct sk_buff *skb,
+void inet_diag_dump_icsk(struct inet_hashinfo *hashinfo, struct sk_buff *skb,
 		struct netlink_callback *cb, struct inet_diag_req *r, struct nlattr *bc)
 {
 	int i, num;
@@ -880,6 +880,7 @@ done:
 out:
 	;
 }
+EXPORT_SYMBOL_GPL(inet_diag_dump_icsk);
 
 static int __inet_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
 		struct inet_diag_req *r, struct nlattr *bc)
@@ -888,7 +889,7 @@ static int __inet_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
 
 	handler = inet_diag_lock_handler(r->sdiag_protocol);
 	if (!IS_ERR(handler))
-		inet_diag_dump_icsk(handler->idiag_hashinfo, skb, cb, r, bc);
+		handler->dump(skb, cb, r, bc);
 	inet_diag_unlock_handler(handler);
 
 	return skb->len;

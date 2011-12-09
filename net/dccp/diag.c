@@ -48,8 +48,21 @@ static void dccp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
 		dccp_get_info(sk, _info);
 }
 
+static void dccp_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
+		struct inet_diag_req *r, struct nlattr *bc)
+{
+	inet_diag_dump_icsk(&dccp_hashinfo, skb, cb, r, bc);
+}
+
+static int dccp_diag_dump_one(struct sk_buff *in_skb, const struct nlmsghdr *nlh,
+		struct inet_diag_req *req)
+{
+	return inet_diag_dump_one_icsk(&dccp_hashinfo, in_skb, nlh, req);
+}
+
 static const struct inet_diag_handler dccp_diag_handler = {
-	.idiag_hashinfo	 = &dccp_hashinfo,
+	.dump		 = dccp_diag_dump,
+	.dump_one	 = dccp_diag_dump_one,
 	.idiag_get_info	 = dccp_diag_get_info,
 	.idiag_type	 = IPPROTO_DCCP,
 };

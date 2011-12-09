@@ -34,8 +34,21 @@ static void tcp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
 		tcp_get_info(sk, info);
 }
 
+static void tcp_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
+		struct inet_diag_req *r, struct nlattr *bc)
+{
+	inet_diag_dump_icsk(&tcp_hashinfo, skb, cb, r, bc);
+}
+
+static int tcp_diag_dump_one(struct sk_buff *in_skb, const struct nlmsghdr *nlh,
+		struct inet_diag_req *req)
+{
+	return inet_diag_dump_one_icsk(&tcp_hashinfo, in_skb, nlh, req);
+}
+
 static const struct inet_diag_handler tcp_diag_handler = {
-	.idiag_hashinfo	 = &tcp_hashinfo,
+	.dump		 = tcp_diag_dump,
+	.dump_one	 = tcp_diag_dump_one,
 	.idiag_get_info	 = tcp_diag_get_info,
 	.idiag_type	 = IPPROTO_TCP,
 };
