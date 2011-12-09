@@ -2975,6 +2975,7 @@ static void fsg_unbind(struct usb_configuration *c, struct usb_function *f)
 	fsg_common_put(common);
 	usb_free_descriptors(fsg->function.descriptors);
 	usb_free_descriptors(fsg->function.hs_descriptors);
+	usb_free_descriptors(fsg->function.ss_descriptors);
 	kfree(fsg);
 }
 
