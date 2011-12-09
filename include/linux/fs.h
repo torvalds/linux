@@ -1674,7 +1674,7 @@ struct super_operations {
 
 	int (*show_options)(struct seq_file *, struct vfsmount *);
 	int (*show_devname)(struct seq_file *, struct dentry *);
-	int (*show_path)(struct seq_file *, struct vfsmount *);
+	int (*show_path)(struct seq_file *, struct dentry *);
 	int (*show_stats)(struct seq_file *, struct dentry *);
 #ifdef CONFIG_QUOTA
 	ssize_t (*quota_read)(struct super_block *, int, char *, size_t, loff_t);

@@ -264,7 +264,7 @@ static void nfs_umount_begin(struct super_block *);
 static int  nfs_statfs(struct dentry *, struct kstatfs *);
 static int  nfs_show_options(struct seq_file *, struct vfsmount *);
 static int  nfs_show_devname(struct seq_file *, struct dentry *);
-static int  nfs_show_path(struct seq_file *, struct vfsmount *);
+static int  nfs_show_path(struct seq_file *, struct dentry *);
 static int  nfs_show_stats(struct seq_file *, struct dentry *);
 static struct dentry *nfs_fs_mount(struct file_system_type *,
 		int, const char *, void *);
@@ -776,7 +776,7 @@ static int nfs_show_devname(struct seq_file *m, struct dentry *root)
 	return err;
 }
 
-static int nfs_show_path(struct seq_file *m, struct vfsmount *mnt)
+static int nfs_show_path(struct seq_file *m, struct dentry *dentry)
 {
 	seq_puts(m, "/");
 	return 0;

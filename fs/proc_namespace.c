@@ -131,7 +131,7 @@ static int show_mountinfo(struct seq_file *m, struct vfsmount *mnt)
 	seq_printf(m, "%i %i %u:%u ", r->mnt_id, r->mnt_parent->mnt_id,
 		   MAJOR(sb->s_dev), MINOR(sb->s_dev));
 	if (sb->s_op->show_path)
-		err = sb->s_op->show_path(m, mnt);
+		err = sb->s_op->show_path(m, mnt->mnt_root);
 	else
 		seq_dentry(m, mnt->mnt_root, " \t\n\\");
 	if (err)
