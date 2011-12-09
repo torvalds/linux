@@ -1238,9 +1238,9 @@ xfs_fs_unfreeze(
 STATIC int
 xfs_fs_show_options(
 	struct seq_file		*m,
-	struct vfsmount		*mnt)
+	struct dentry		*root)
 {
-	return -xfs_showargs(XFS_M(mnt->mnt_sb), m);
+	return -xfs_showargs(XFS_M(root->d_sb), m);
 }
 
 /*

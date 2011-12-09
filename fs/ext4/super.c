@@ -1032,11 +1032,11 @@ static inline void ext4_show_quota_options(struct seq_file *seq,
  *  - it's set to a non-default value OR
  *  - if the per-sb default is different from the global default
  */
-static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
+static int ext4_show_options(struct seq_file *seq, struct dentry *root)
 {
 	int def_errors;
 	unsigned long def_mount_opts;
-	struct super_block *sb = vfs->mnt_sb;
+	struct super_block *sb = root->d_sb;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_super_block *es = sbi->s_es;
 

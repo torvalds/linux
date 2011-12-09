@@ -89,7 +89,7 @@ static void udf_open_lvid(struct super_block *);
 static void udf_close_lvid(struct super_block *);
 static unsigned int udf_count_free(struct super_block *);
 static int udf_statfs(struct dentry *, struct kstatfs *);
-static int udf_show_options(struct seq_file *, struct vfsmount *);
+static int udf_show_options(struct seq_file *, struct dentry *);
 
 struct logicalVolIntegrityDescImpUse *udf_sb_lvidiu(struct udf_sb_info *sbi)
 {
@@ -249,9 +249,9 @@ static int udf_sb_alloc_partition_maps(struct super_block *sb, u32 count)
 	return 0;
 }
 
-static int udf_show_options(struct seq_file *seq, struct vfsmount *mnt)
+static int udf_show_options(struct seq_file *seq, struct dentry *root)
 {
-	struct super_block *sb = mnt->mnt_sb;
+	struct super_block *sb = root->d_sb;
 	struct udf_sb_info *sbi = UDF_SB(sb);
 
 	if (!UDF_QUERY_FLAG(sb, UDF_FLAG_STRICT))

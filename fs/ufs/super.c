@@ -1351,9 +1351,9 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 	return 0;
 }
 
-static int ufs_show_options(struct seq_file *seq, struct vfsmount *vfs)
+static int ufs_show_options(struct seq_file *seq, struct dentry *root)
 {
-	struct ufs_sb_info *sbi = UFS_SB(vfs->mnt_sb);
+	struct ufs_sb_info *sbi = UFS_SB(root->d_sb);
 	unsigned mval = sbi->s_mount_opt & UFS_MOUNT_UFSTYPE;
 	const struct match_token *tp = tokens;
 

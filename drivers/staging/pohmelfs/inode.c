@@ -1369,9 +1369,9 @@ static int pohmelfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-static int pohmelfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
+static int pohmelfs_show_options(struct seq_file *seq, struct dentry *root)
 {
-	struct pohmelfs_sb *psb = POHMELFS_SB(vfs->mnt_sb);
+	struct pohmelfs_sb *psb = POHMELFS_SB(root->d_sb);
 
 	seq_printf(seq, ",idx=%u", psb->idx);
 	seq_printf(seq, ",trans_scan_timeout=%u", jiffies_to_msecs(psb->trans_scan_timeout));

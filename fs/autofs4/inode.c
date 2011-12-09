@@ -70,10 +70,10 @@ out_kill_sb:
 	kill_litter_super(sb);
 }
 
-static int autofs4_show_options(struct seq_file *m, struct vfsmount *mnt)
+static int autofs4_show_options(struct seq_file *m, struct dentry *root)
 {
-	struct autofs_sb_info *sbi = autofs4_sbi(mnt->mnt_sb);
-	struct inode *root_inode = mnt->mnt_sb->s_root->d_inode;
+	struct autofs_sb_info *sbi = autofs4_sbi(root->d_sb);
+	struct inode *root_inode = root->d_sb->s_root->d_inode;
 
 	if (!sbi)
 		return 0;

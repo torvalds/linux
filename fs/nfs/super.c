@@ -262,7 +262,7 @@ static match_table_t nfs_local_lock_tokens = {
 
 static void nfs_umount_begin(struct super_block *);
 static int  nfs_statfs(struct dentry *, struct kstatfs *);
-static int  nfs_show_options(struct seq_file *, struct vfsmount *);
+static int  nfs_show_options(struct seq_file *, struct dentry *);
 static int  nfs_show_devname(struct seq_file *, struct dentry *);
 static int  nfs_show_path(struct seq_file *, struct dentry *);
 static int  nfs_show_stats(struct seq_file *, struct dentry *);
@@ -720,9 +720,9 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 /*
  * Describe the mount options on this VFS mountpoint
  */
-static int nfs_show_options(struct seq_file *m, struct vfsmount *mnt)
+static int nfs_show_options(struct seq_file *m, struct dentry *root)
 {
-	struct nfs_server *nfss = NFS_SB(mnt->mnt_sb);
+	struct nfs_server *nfss = NFS_SB(root->d_sb);
 
 	nfs_show_mount_options(m, nfss, 0);
 

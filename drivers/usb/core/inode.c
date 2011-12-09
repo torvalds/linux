@@ -65,7 +65,7 @@ static umode_t devmode = USBFS_DEFAULT_DEVMODE;
 static umode_t busmode = USBFS_DEFAULT_BUSMODE;
 static umode_t listmode = USBFS_DEFAULT_LISTMODE;
 
-static int usbfs_show_options(struct seq_file *seq, struct vfsmount *mnt)
+static int usbfs_show_options(struct seq_file *seq, struct dentry *root)
 {
 	if (devuid != 0)
 		seq_printf(seq, ",devuid=%u", devuid);

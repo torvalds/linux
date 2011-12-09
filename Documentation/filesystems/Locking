@@ -117,7 +117,7 @@ prototypes:
 	int (*statfs) (struct dentry *, struct kstatfs *);
 	int (*remount_fs) (struct super_block *, int *, char *);
 	void (*umount_begin) (struct super_block *);
-	int (*show_options)(struct seq_file *, struct vfsmount *);
+	int (*show_options)(struct seq_file *, struct dentry *);
 	ssize_t (*quota_read)(struct super_block *, int, char *, size_t, loff_t);
 	ssize_t (*quota_write)(struct super_block *, int, const char *, size_t, loff_t);
 	int (*bdev_try_to_free_page)(struct super_block*, struct page*, gfp_t);

@@ -44,7 +44,7 @@
 static void ncp_evict_inode(struct inode *);
 static void ncp_put_super(struct super_block *);
 static int  ncp_statfs(struct dentry *, struct kstatfs *);
-static int  ncp_show_options(struct seq_file *, struct vfsmount *);
+static int  ncp_show_options(struct seq_file *, struct dentry *);
 
 static struct kmem_cache * ncp_inode_cachep;
 
@@ -322,9 +322,9 @@ static void ncp_stop_tasks(struct ncp_server *server) {
 		flush_work_sync(&server->timeout_tq);
 }
 
-static int  ncp_show_options(struct seq_file *seq, struct vfsmount *mnt)
+static int  ncp_show_options(struct seq_file *seq, struct dentry *root)
 {
-	struct ncp_server *server = NCP_SBP(mnt->mnt_sb);
+	struct ncp_server *server = NCP_SBP(root->d_sb);
 	unsigned int tmp;
 
 	if (server->m.uid != 0)

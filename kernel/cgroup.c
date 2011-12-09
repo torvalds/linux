@@ -1038,9 +1038,9 @@ static int rebind_subsystems(struct cgroupfs_root *root,
 	return 0;
 }
 
-static int cgroup_show_options(struct seq_file *seq, struct vfsmount *vfs)
+static int cgroup_show_options(struct seq_file *seq, struct dentry *dentry)
 {
-	struct cgroupfs_root *root = vfs->mnt_sb->s_fs_info;
+	struct cgroupfs_root *root = dentry->d_sb->s_fs_info;
 	struct cgroup_subsys *ss;
 
 	mutex_lock(&cgroup_mutex);

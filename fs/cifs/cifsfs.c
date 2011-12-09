@@ -343,9 +343,9 @@ cifs_show_security(struct seq_file *s, struct TCP_Server_Info *server)
  * ones are.
  */
 static int
-cifs_show_options(struct seq_file *s, struct vfsmount *m)
+cifs_show_options(struct seq_file *s, struct dentry *root)
 {
-	struct cifs_sb_info *cifs_sb = CIFS_SB(m->mnt_sb);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(root->d_sb);
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
 	struct sockaddr *srcaddr;
 	srcaddr = (struct sockaddr *)&tcon->ses->server->srcaddr;
@@ -430,7 +430,7 @@ cifs_show_options(struct seq_file *s, struct vfsmount *m)
 		seq_printf(s, ",cifsacl");
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DYNPERM)
 		seq_printf(s, ",dynperm");
-	if (m->mnt_sb->s_flags & MS_POSIXACL)
+	if (root->d_sb->s_flags & MS_POSIXACL)
 		seq_printf(s, ",acl");
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS)
 		seq_printf(s, ",mfsymlinks");

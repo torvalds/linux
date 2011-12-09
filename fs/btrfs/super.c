@@ -661,9 +661,9 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 	return ret;
 }
 
-static int btrfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
+static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 {
-	struct btrfs_root *root = btrfs_sb(vfs->mnt_sb);
+	struct btrfs_root *root = btrfs_sb(dentry->d_sb);
 	struct btrfs_fs_info *info = root->fs_info;
 	char *compress_type;
 
