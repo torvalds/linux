@@ -38,10 +38,8 @@ void __init p1010_rdb_pic_init(void)
 	  0, 256, " OpenPIC  ");
 
 	BUG_ON(mpic == NULL);
-	of_node_put(np);
 
 	mpic_init(mpic);
-
 }
 
 
