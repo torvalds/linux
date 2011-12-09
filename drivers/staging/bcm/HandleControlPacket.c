@@ -24,8 +24,7 @@ static VOID handle_rx_control_packet(PMINI_ADAPTER Adapter, struct sk_buff *skb)
 		print_hex_dump(KERN_DEBUG, PFX "rx control: ", DUMP_PREFIX_NONE,
 				16, 1, skb->data, skb->len, 0);
 
-	switch (usStatus)
-	{
+	switch (usStatus) {
 	case CM_RESPONSES:               /* 0xA0 */
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CP_CTRL_PKT, DBG_LVL_ALL, "MAC Version Seems to be Non Multi-Classifier, rejected by Driver");
 		HighPriorityMessage = TRUE;
@@ -33,9 +32,7 @@ static VOID handle_rx_control_packet(PMINI_ADAPTER Adapter, struct sk_buff *skb)
 	case CM_CONTROL_NEWDSX_MULTICLASSIFIER_RESP:
 		HighPriorityMessage = TRUE;
 		if (Adapter->LinkStatus == LINKUP_DONE)
-		{
 			CmControlResponseMessage(Adapter, (skb->data + sizeof(USHORT)));
-		}
 		break;
 	case LINK_CONTROL_RESP:          /* 0xA2 */
 	case STATUS_RSP:                 /* 0xA1 */
@@ -67,12 +64,9 @@ static VOID handle_rx_control_packet(PMINI_ADAPTER Adapter, struct sk_buff *skb)
 	/* Queue The Control Packet to The Application Queues */
 	down(&Adapter->RxAppControlQueuelock);
 
-	for (pTarang = Adapter->pTarangs; pTarang; pTarang = pTarang->next)
-	{
+	for (pTarang = Adapter->pTarangs; pTarang; pTarang = pTarang->next) {
 		if (Adapter->device_removed)
-		{
 			break;
-		}
 
 		drop_pkt_flag = TRUE;
 		/*
@@ -92,8 +86,7 @@ static VOID handle_rx_control_packet(PMINI_ADAPTER Adapter, struct sk_buff *skb)
 			drop_pkt_flag = FALSE;
 
 		if ((drop_pkt_flag == TRUE)  || (pTarang->AppCtrlQueueLen > MAX_APP_QUEUE_LEN) ||
-				((pTarang->AppCtrlQueueLen > MAX_APP_QUEUE_LEN / 2) && (HighPriorityMessage == FALSE)))
-		{
+				((pTarang->AppCtrlQueueLen > MAX_APP_QUEUE_LEN / 2) && (HighPriorityMessage == FALSE))) {
 			/*
 			 * Assumption:-
 			 * 1. every tarang manages it own dropped pkt
@@ -102,8 +95,7 @@ static VOID handle_rx_control_packet(PMINI_ADAPTER Adapter, struct sk_buff *skb)
 			 *    the sum of all types of dropped pkt by that
 			 *    tarang only.
 			 */
-			switch (*(PUSHORT)skb->data)
-			{
+			switch (*(PUSHORT)skb->data) {
 			case CM_RESPONSES:
 				pTarang->stDroppedAppCntrlMsgs.cm_responses++;
 				break;
@@ -157,25 +149,21 @@ int control_packet_handler(PMINI_ADAPTER Adapter /* pointer to adapter object*/)
 	/* struct timeval tv; */
 	/* int *puiBuffer = NULL; */
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CP_CTRL_PKT, DBG_LVL_ALL, "Entering to make thread wait on control packet event!");
-	while (1)
-	{
+	while (1) {
 		wait_event_interruptible(Adapter->process_rx_cntrlpkt,
 				atomic_read(&Adapter->cntrlpktCnt) ||
 				Adapter->bWakeUpDevice ||
 				kthread_should_stop());
 
 
-		if (kthread_should_stop())
-		{
+		if (kthread_should_stop()) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CP_CTRL_PKT, DBG_LVL_ALL, "Exiting\n");
 			return 0;
 		}
-		if (TRUE == Adapter->bWakeUpDevice)
-		{
+		if (TRUE == Adapter->bWakeUpDevice) {
 			Adapter->bWakeUpDevice = FALSE;
 			if ((FALSE == Adapter->bTriedToWakeUpFromlowPowerMode) &&
-					((TRUE == Adapter->IdleMode) || (TRUE == Adapter->bShutStatus)))
-			{
+					((TRUE == Adapter->IdleMode) || (TRUE == Adapter->bShutStatus))) {
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CP_CTRL_PKT, DBG_LVL_ALL, "Calling InterfaceAbortIdlemode\n");
 				/*
 				 * Adapter->bTriedToWakeUpFromlowPowerMode
@@ -186,12 +174,10 @@ int control_packet_handler(PMINI_ADAPTER Adapter /* pointer to adapter object*/)
 			continue;
 		}
 
-		while (atomic_read(&Adapter->cntrlpktCnt))
-		{
+		while (atomic_read(&Adapter->cntrlpktCnt)) {
 			spin_lock_irqsave(&Adapter->control_queue_lock, flags);
 			ctrl_packet = Adapter->RxControlHead;
-			if (ctrl_packet)
-			{
+			if (ctrl_packet) {
 				DEQUEUEPACKET(Adapter->RxControlHead, Adapter->RxControlTail);
 				/* Adapter->RxControlHead=ctrl_packet->next; */
 			}
@@ -211,10 +197,8 @@ INT flushAllAppQ(void)
 	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
 	PPER_TARANG_DATA pTarang = NULL;
 	struct sk_buff *PacketToDrop = NULL;
-	for (pTarang = Adapter->pTarangs; pTarang; pTarang = pTarang->next)
-	{
-		while (pTarang->RxAppControlHead != NULL)
-		{
+	for (pTarang = Adapter->pTarangs; pTarang; pTarang = pTarang->next) {
+		while (pTarang->RxAppControlHead != NULL) {
 			PacketToDrop = pTarang->RxAppControlHead;
 			DEQUEUEPACKET(pTarang->RxAppControlHead, pTarang->RxAppControlTail);
 			dev_kfree_skb(PacketToDrop);
