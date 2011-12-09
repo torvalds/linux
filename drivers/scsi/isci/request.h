@@ -211,10 +211,6 @@ enum sci_base_request_states {
 	SCI_REQ_STP_NON_DATA_WAIT_H2D,
 	SCI_REQ_STP_NON_DATA_WAIT_D2H,
 
-	SCI_REQ_STP_SOFT_RESET_WAIT_H2D_ASSERTED,
-	SCI_REQ_STP_SOFT_RESET_WAIT_H2D_DIAG,
-	SCI_REQ_STP_SOFT_RESET_WAIT_D2H,
-
 	/*
 	 * While in this state the IO request object is waiting for the TC
 	 * completion notification for the H2D Register FIS
@@ -446,10 +442,7 @@ sci_task_request_construct(struct isci_host *ihost,
 			    struct isci_remote_device *idev,
 			    u16 io_tag,
 			    struct isci_request *ireq);
-enum sci_status
-sci_task_request_construct_ssp(struct isci_request *ireq);
-enum sci_status
-sci_task_request_construct_sata(struct isci_request *ireq);
+enum sci_status sci_task_request_construct_ssp(struct isci_request *ireq);
 void sci_smp_request_copy_response(struct isci_request *ireq);
 
 static inline int isci_task_is_ncq_recovery(struct sas_task *task)

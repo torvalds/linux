@@ -86,8 +86,6 @@ enum isci_tmf_function_codes {
 	isci_tmf_func_none      = 0,
 	isci_tmf_ssp_task_abort = TMF_ABORT_TASK,
 	isci_tmf_ssp_lun_reset  = TMF_LU_RESET,
-	isci_tmf_sata_srst_high = TMF_LU_RESET + 0x100, /* Non SCSI */
-	isci_tmf_sata_srst_low  = TMF_LU_RESET + 0x101  /* Non SCSI */
 };
 /**
  * struct isci_tmf - This class represents the task management object which
