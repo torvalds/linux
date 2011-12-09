@@ -97,7 +97,7 @@ static int palmte_panel_resume(struct platform_device *pdev)
 	return 0;
 }
 
-struct platform_driver palmte_panel_driver = {
+static struct platform_driver palmte_panel_driver = {
 	.probe		= palmte_panel_probe,
 	.remove		= palmte_panel_remove,
 	.suspend	= palmte_panel_suspend,

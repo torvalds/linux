@@ -116,7 +116,7 @@ static int osk_panel_resume(struct platform_device *pdev)
 	return 0;
 }
 
-struct platform_driver osk_panel_driver = {
+static struct platform_driver osk_panel_driver = {
 	.probe		= osk_panel_probe,
 	.remove		= osk_panel_remove,
 	.suspend	= osk_panel_suspend,

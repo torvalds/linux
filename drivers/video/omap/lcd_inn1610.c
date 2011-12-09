@@ -122,7 +122,7 @@ static int innovator1610_panel_resume(struct platform_device *pdev)
 	return 0;
 }
 
-struct platform_driver innovator1610_panel_driver = {
+static struct platform_driver innovator1610_panel_driver = {
 	.probe		= innovator1610_panel_probe,
 	.remove		= innovator1610_panel_remove,
 	.suspend	= innovator1610_panel_suspend,

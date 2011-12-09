@@ -113,7 +113,7 @@ static int h3_panel_resume(struct platform_device *pdev)
 	return 0;
 }
 
-struct platform_driver h3_panel_driver = {
+static struct platform_driver h3_panel_driver = {
 	.probe		= h3_panel_probe,
 	.remove		= h3_panel_remove,
 	.suspend	= h3_panel_suspend,

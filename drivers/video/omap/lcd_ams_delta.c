@@ -198,7 +198,7 @@ static int ams_delta_panel_resume(struct platform_device *pdev)
 	return 0;
 }
 
-struct platform_driver ams_delta_panel_driver = {
+static struct platform_driver ams_delta_panel_driver = {
 	.probe		= ams_delta_panel_probe,
 	.remove		= ams_delta_panel_remove,
 	.suspend	= ams_delta_panel_suspend,
