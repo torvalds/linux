@@ -135,6 +135,7 @@ struct tcpvegas_info {
 #ifdef __KERNEL__
 struct sock;
 struct inet_hashinfo;
+struct nlattr;
 
 struct inet_diag_handler {
 	struct inet_hashinfo    *idiag_hashinfo;
@@ -144,6 +145,7 @@ struct inet_diag_handler {
 	__u16                   idiag_type;
 };
 
+int inet_diag_bc_sk(const struct nlattr *_bc, struct sock *sk);
 int inet_diag_check_cookie(struct sock *sk, struct inet_diag_req *req);
 
 extern int  inet_diag_register(const struct inet_diag_handler *handler);

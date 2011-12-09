@@ -449,6 +449,35 @@ static int inet_diag_bc_run(const struct nlattr *_bc,
 	return len == 0;
 }
 
+int inet_diag_bc_sk(const struct nlattr *bc, struct sock *sk)
+{
+	struct inet_diag_entry entry;
+	struct inet_sock *inet = inet_sk(sk);
+
+	if (bc == NULL)
+		return 1;
+
+	entry.family = sk->sk_family;
+#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
+	if (entry.family == AF_INET6) {
+		struct ipv6_pinfo *np = inet6_sk(sk);
+
+		entry.saddr = np->rcv_saddr.s6_addr32;
+		entry.daddr = np->daddr.s6_addr32;
+	} else
+#endif
+	{
+		entry.saddr = &inet->inet_rcv_saddr;
+		entry.daddr = &inet->inet_daddr;
+	}
+	entry.sport = inet->inet_num;
+	entry.dport = ntohs(inet->inet_dport);
+	entry.userlocks = sk->sk_userlocks;
+
+	return inet_diag_bc_run(bc, &entry);
+}
+EXPORT_SYMBOL_GPL(inet_diag_bc_sk);
+
 static int valid_cc(const void *bc, int len, int cc)
 {
 	while (len >= 0) {
@@ -509,30 +538,8 @@ static int inet_csk_diag_dump(struct sock *sk,
 			      struct inet_diag_req *r,
 			      const struct nlattr *bc)
 {
-	if (bc != NULL) {
-		struct inet_diag_entry entry;
-		struct inet_sock *inet = inet_sk(sk);
-
-		entry.family = sk->sk_family;
-#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
-		if (entry.family == AF_INET6) {
-			struct ipv6_pinfo *np = inet6_sk(sk);
-
-			entry.saddr = np->rcv_saddr.s6_addr32;
-			entry.daddr = np->daddr.s6_addr32;
-		} else
-#endif
-		{
-			entry.saddr = &inet->inet_rcv_saddr;
-			entry.daddr = &inet->inet_daddr;
-		}
-		entry.sport = inet->inet_num;
-		entry.dport = ntohs(inet->inet_dport);
-		entry.userlocks = sk->sk_userlocks;
-
-		if (!inet_diag_bc_run(bc, &entry))
-			return 0;
-	}
+	if (!inet_diag_bc_sk(bc, sk))
+		return 0;
 
 	return inet_csk_diag_fill(sk, skb, r,
 				  NETLINK_CB(cb->skb).pid,
