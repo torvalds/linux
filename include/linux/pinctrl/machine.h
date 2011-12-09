@@ -66,6 +66,14 @@ struct pinmux_map {
 	{ .name = a, .ctrl_dev_name = b, .function = c }
 
 /*
+ * Convenience macro to map a system function onto a certain pinctrl device,
+ * to be hogged by the pinmux core until the system shuts down.
+ */
+#define PINMUX_MAP_SYS_HOG(a, b, c) \
+	{ .name = a, .ctrl_dev_name = b, .function = c, \
+	  .hog_on_boot = true }
+
+/*
  * Convenience macro to map a function onto the primary device pinctrl device
  * this is especially helpful on systems that have only one pin controller
  * or need to set up a lot of mappings on the primary controller.
