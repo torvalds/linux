@@ -409,6 +409,10 @@ config INET_TCP_DIAG
 	depends on INET_DIAG
 	def_tristate INET_DIAG
 
+config INET_UDP_DIAG
+	depends on INET_DIAG
+	def_tristate INET_DIAG
+
 menuconfig TCP_CONG_ADVANCED
 	bool "TCP: advanced congestion control"
 	---help---
