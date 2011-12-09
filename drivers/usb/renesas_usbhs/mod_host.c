@@ -191,6 +191,21 @@ static void usbhsh_ureq_free(struct usbhsh_hpriv *hpriv,
 }
 
 /*
+ *		status
+ */
+static int usbhsh_is_running(struct usbhsh_hpriv *hpriv)
+{
+	/*
+	 * we can decide some device is attached or not
+	 * by checking mod.irq_attch
+	 * see
+	 *	usbhsh_irq_attch()
+	 *	usbhsh_irq_dtch()
+	 */
+	return (hpriv->mod.irq_attch == NULL);
+}
+
+/*
  *		pipe control
  */
 static void usbhsh_endpoint_sequence_save(struct usbhsh_hpriv *hpriv,
@@ -900,6 +915,11 @@ static int usbhsh_urb_enqueue(struct usb_hcd *hcd,
 
 	dev_dbg(dev, "%s (%s)\n", __func__, is_dir_in ? "in" : "out");
 
+	if (!usbhsh_is_running(hpriv)) {
+		ret = -EIO;
+		goto usbhsh_urb_enqueue_error_not_linked;
+	}
+
 	ret = usb_hcd_link_urb_to_ep(hcd, urb);
 	if (ret)
 		goto usbhsh_urb_enqueue_error_not_linked;
@@ -1249,6 +1269,12 @@ static int usbhsh_irq_attch(struct usbhs_priv *priv,
 	 * attch interrupt might happen infinitely on some device
 	 * (on self power USB hub ?)
 	 * disable it here.
+	 *
+	 * usbhsh_is_running() becomes effective
+	 * according to this process.
+	 * see
+	 *	usbhsh_is_running()
+	 *	usbhsh_urb_enqueue()
 	 */
 	hpriv->mod.irq_attch = NULL;
 	usbhs_irq_callback_update(priv, &hpriv->mod);
@@ -1269,6 +1295,12 @@ static int usbhsh_irq_dtch(struct usbhs_priv *priv,
 
 	/*
 	 * enable attch interrupt again
+	 *
+	 * usbhsh_is_running() becomes invalid
+	 * according to this process.
+	 * see
+	 *	usbhsh_is_running()
+	 *	usbhsh_urb_enqueue()
 	 */
 	hpriv->mod.irq_attch = usbhsh_irq_attch;
 	usbhs_irq_callback_update(priv, &hpriv->mod);
