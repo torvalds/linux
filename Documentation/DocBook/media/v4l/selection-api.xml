@@ -84,9 +84,7 @@ configure the cropping targets before to the composing targets.</para>
 areas that can be sampled is given by the <constant> V4L2_SEL_TGT_CROP_BOUNDS
 </constant> target. It is recommended for the driver developers to put the
 top/left corner at position <constant> (0,0) </constant>.  The rectangle's
-coordinates are expressed in driver dependant units, although the coordinate
-system guarantees that if sizes of the active cropping and the active composing
-rectangles are equal then no scaling is performed.  </para>
+coordinates are expressed in pixels.</para>
 
 <para>The top left corner, width and height of the source rectangle, that is
 the area actually sampled, is given by the <constant> V4L2_SEL_TGT_CROP_ACTIVE
@@ -103,10 +101,10 @@ not later.</para>
 
 <para>The composing targets refer to a memory buffer. The limits of composing
 coordinates are obtained using <constant> V4L2_SEL_TGT_COMPOSE_BOUNDS
-</constant>.  All coordinates are expressed in natural unit for given formats.
-Pixels are highly recommended.  The rectangle's top/left corner must be located
-at position <constant> (0,0) </constant>. The width and height are equal to the
-image size set by <constant> VIDIOC_S_FMT </constant>.</para>
+</constant>.  All coordinates are expressed in pixels. The rectangle's top/left
+corner must be located at position <constant> (0,0) </constant>. The width and
+height are equal to the image size set by <constant> VIDIOC_S_FMT </constant>.
+</para>
 
 <para>The part of a buffer into which the image is inserted by the hardware is
 controlled by the <constant> V4L2_SEL_TGT_COMPOSE_ACTIVE </constant> target.
@@ -145,10 +143,9 @@ the cropping targets.</para>
 <para>The cropping targets refer to the memory buffer that contains an image to
 be inserted into a video signal or graphical screen. The limits of cropping
 coordinates are obtained using <constant> V4L2_SEL_TGT_CROP_BOUNDS </constant>.
-All coordinates are expressed in natural units for a given format. Pixels are
-highly recommended.  The top/left corner is always point <constant> (0,0)
-</constant>.  The width and height is equal to the image size specified using
-<constant> VIDIOC_S_FMT </constant> ioctl.</para>
+All coordinates are expressed in pixels. The top/left corner is always point
+<constant> (0,0) </constant>.  The width and height is equal to the image size
+specified using <constant> VIDIOC_S_FMT </constant> ioctl.</para>
 
 <para>The top left corner, width and height of the source rectangle, that is
 the area from which image date are processed by the hardware, is given by the
@@ -163,13 +160,10 @@ limitations.</para>
 bounding rectangle.</para>
 
 <para>The part of a video signal or graphics display where the image is
-inserted by the hardware is controlled by <constant> V4L2_SEL_TGT_COMPOSE_ACTIVE
-</constant> target.  The rectangle's coordinates are expressed in driver
-dependant units. The only exception are digital outputs where the units are
-pixels. For other types of devices, the coordinate system guarantees that if
-sizes of the active cropping and the active composing rectangles are equal then
-no scaling is performed.  The composing rectangle must lie completely inside
-the bounds rectangle.  The driver must adjust the area to fit to the bounding
+inserted by the hardware is controlled by <constant>
+V4L2_SEL_TGT_COMPOSE_ACTIVE </constant> target.  The rectangle's coordinates
+are expressed in pixels. The composing rectangle must lie completely inside the
+bounds rectangle.  The driver must adjust the area to fit to the bounding
 limits.  Moreover, the driver can perform other adjustments according to
 hardware limitations. </para>
 
