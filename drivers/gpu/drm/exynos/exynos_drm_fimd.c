@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/pm_runtime.h>
 
 #include <drm/exynos_drm.h>
 #include <plat/regs-fb-v4.h>
@@ -85,6 +86,7 @@ struct fimd_context {
 	unsigned long			irq_flags;
 	u32				vidcon0;
 	u32				vidcon1;
+	bool				suspended;
 
 	struct fb_videomode		*timing;
 };
@@ -137,7 +139,19 @@ static void fimd_dpms(struct device *subdrv_dev, int mode)
 {
 	DRM_DEBUG_KMS("%s, %d\n", __FILE__, mode);
 
-	/* TODO */
+	switch (mode) {
+	case DRM_MODE_DPMS_ON:
+		pm_runtime_get_sync(subdrv_dev);
+		break;
+	case DRM_MODE_DPMS_STANDBY:
+	case DRM_MODE_DPMS_SUSPEND:
+	case DRM_MODE_DPMS_OFF:
+		pm_runtime_put_sync(subdrv_dev);
+		break;
+	default:
+		DRM_DEBUG_KMS("unspecified mode %d\n", mode);
+		break;
+	}
 }
 
 static void fimd_apply(struct device *subdrv_dev)
@@ -210,6 +224,9 @@ static int fimd_enable_vblank(struct device *dev)
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
+	if (ctx->suspended)
+		return -EPERM;
+
 	if (!test_and_set_bit(0, &ctx->irq_flags)) {
 		val = readl(ctx->regs + VIDINTCON0);
 
@@ -233,6 +250,9 @@ static void fimd_disable_vblank(struct device *dev)
 	u32 val;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	if (ctx->suspended)
+		return;
 
 	if (test_and_clear_bit(0, &ctx->irq_flags)) {
 		val = readl(ctx->regs + VIDINTCON0);
@@ -760,6 +780,10 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 		goto err_req_irq;
 	}
 
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+	pm_runtime_get_sync(dev);
+
 	for (win = 0; win < WINDOWS_NR; win++)
 		fimd_clear_win(ctx, win);
 
@@ -812,14 +836,25 @@ err_clk_get:
 
 static int __devexit fimd_remove(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct fimd_context *ctx = platform_get_drvdata(pdev);
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	exynos_drm_subdrv_unregister(&ctx->subdrv);
 
+	if (ctx->suspended)
+		goto out;
+
 	clk_disable(ctx->lcd_clk);
 	clk_disable(ctx->bus_clk);
+
+	pm_runtime_set_suspended(dev);
+	pm_runtime_put_sync(dev);
+
+out:
+	pm_runtime_disable(dev);
+
 	clk_put(ctx->lcd_clk);
 	clk_put(ctx->bus_clk);
 
@@ -833,12 +868,53 @@ static int __devexit fimd_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_RUNTIME
+static int fimd_runtime_suspend(struct device *dev)
+{
+	struct fimd_context *ctx = get_fimd_context(dev);
+
+	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	clk_disable(ctx->lcd_clk);
+	clk_disable(ctx->bus_clk);
+
+	ctx->suspended = true;
+	return 0;
+}
+
+static int fimd_runtime_resume(struct device *dev)
+{
+	struct fimd_context *ctx = get_fimd_context(dev);
+	int ret;
+
+	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	ret = clk_enable(ctx->bus_clk);
+	if (ret < 0)
+		return ret;
+
+	ret = clk_enable(ctx->lcd_clk);
+	if  (ret < 0) {
+		clk_disable(ctx->bus_clk);
+		return ret;
+	}
+
+	ctx->suspended = false;
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops fimd_pm_ops = {
+	SET_RUNTIME_PM_OPS(fimd_runtime_suspend, fimd_runtime_resume, NULL)
+};
+
 static struct platform_driver fimd_driver = {
 	.probe		= fimd_probe,
 	.remove		= __devexit_p(fimd_remove),
 	.driver		= {
 		.name	= "exynos4-fb",
 		.owner	= THIS_MODULE,
+		.pm	= &fimd_pm_ops,
 	},
 };
 
