@@ -949,12 +949,15 @@ static int usbhsh_urb_enqueue(struct usb_hcd *hcd,
 
 	if (!usbhsh_is_running(hpriv)) {
 		ret = -EIO;
+		dev_err(dev, "host is not running\n");
 		goto usbhsh_urb_enqueue_error_not_linked;
 	}
 
 	ret = usb_hcd_link_urb_to_ep(hcd, urb);
-	if (ret)
+	if (ret) {
+		dev_err(dev, "urb link failed\n");
 		goto usbhsh_urb_enqueue_error_not_linked;
+	}
 
 	/*
 	 * attach udev if needed
@@ -964,6 +967,7 @@ static int usbhsh_urb_enqueue(struct usb_hcd *hcd,
 		new_udev = usbhsh_device_attach(hpriv, urb);
 		if (!new_udev) {
 			ret = -EIO;
+			dev_err(dev, "device attach failed\n");
 			goto usbhsh_urb_enqueue_error_not_linked;
 		}
 	}
@@ -974,8 +978,10 @@ static int usbhsh_urb_enqueue(struct usb_hcd *hcd,
 	 */
 	if (!usbhsh_ep_to_uep(ep)) {
 		ret = usbhsh_endpoint_attach(hpriv, urb, mem_flags);
-		if (ret < 0)
+		if (ret < 0) {
+			dev_err(dev, "endpoint attach failed\n");
 			goto usbhsh_urb_enqueue_error_free_device;
+		}
 	}
 
 	/*
@@ -989,8 +995,10 @@ static int usbhsh_urb_enqueue(struct usb_hcd *hcd,
 		else
 			break;
 	}
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(dev, "pipe attach failed\n");
 		goto usbhsh_urb_enqueue_error_free_endpoint;
+	}
 
 	/*
 	 * push packet
