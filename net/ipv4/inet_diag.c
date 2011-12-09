@@ -258,25 +258,14 @@ int inet_diag_check_cookie(struct sock *sk, struct inet_diag_req *req)
 }
 EXPORT_SYMBOL_GPL(inet_diag_check_cookie);
 
-static int inet_diag_get_exact(struct sk_buff *in_skb,
-			       const struct nlmsghdr *nlh,
-			       struct inet_diag_req *req)
+static int inet_diag_dump_one_icsk(struct inet_hashinfo *hashinfo, struct sk_buff *in_skb,
+		const struct nlmsghdr *nlh, struct inet_diag_req *req)
 {
 	int err;
 	struct sock *sk;
 	struct sk_buff *rep;
-	struct inet_hashinfo *hashinfo;
-	const struct inet_diag_handler *handler;
 
-	handler = inet_diag_lock_handler(req->sdiag_protocol);
-	if (IS_ERR(handler)) {
-		err = PTR_ERR(handler);
-		goto unlock;
-	}
-
-	hashinfo = handler->idiag_hashinfo;
 	err = -EINVAL;
-
 	if (req->sdiag_family == AF_INET) {
 		sk = inet_lookup(&init_net, hashinfo, req->id.idiag_dst[0],
 				 req->id.idiag_dport, req->id.idiag_src[0],
@@ -293,12 +282,12 @@ static int inet_diag_get_exact(struct sk_buff *in_skb,
 	}
 #endif
 	else {
-		goto unlock;
+		goto out_nosk;
 	}
 
 	err = -ENOENT;
 	if (sk == NULL)
-		goto unlock;
+		goto out_nosk;
 
 	err = inet_diag_check_cookie(sk, req);
 	if (err)
@@ -332,8 +321,25 @@ out:
 		else
 			sock_put(sk);
 	}
-unlock:
+out_nosk:
+	return err;
+}
+
+static int inet_diag_get_exact(struct sk_buff *in_skb,
+			       const struct nlmsghdr *nlh,
+			       struct inet_diag_req *req)
+{
+	const struct inet_diag_handler *handler;
+	int err;
+
+	handler = inet_diag_lock_handler(req->sdiag_protocol);
+	if (IS_ERR(handler))
+		err = PTR_ERR(handler);
+	else
+		err = inet_diag_dump_one_icsk(handler->idiag_hashinfo,
+				in_skb, nlh, req);
 	inet_diag_unlock_handler(handler);
+
 	return err;
 }
 
