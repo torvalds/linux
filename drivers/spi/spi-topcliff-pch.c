@@ -196,6 +196,7 @@ struct pch_spi_data {
 	struct pch_spi_dma_ctrl dma;
 	int use_dma;
 	u8 irq_reg_sts;
+	int save_total_len;
 };
 
 /**
@@ -823,11 +824,13 @@ static void pch_spi_copy_rx_data_for_dma(struct pch_spi_data *data, int bpw)
 		rx_dma_buf = data->dma.rx_buf_virt;
 		for (j = 0; j < data->bpw_len; j++)
 			*rx_buf++ = *rx_dma_buf++ & 0xFF;
+		data->cur_trans->rx_buf = rx_buf;
 	} else {
 		rx_sbuf = data->cur_trans->rx_buf;
 		rx_dma_sbuf = data->dma.rx_buf_virt;
 		for (j = 0; j < data->bpw_len; j++)
 			*rx_sbuf++ = *rx_dma_sbuf++;
+		data->cur_trans->rx_buf = rx_sbuf;
 	}
 }
 
@@ -853,6 +856,9 @@ static int pch_spi_start_transfer(struct pch_spi_data *data)
 	rtn = wait_event_interruptible_timeout(data->wait,
 					       data->transfer_complete,
 					       msecs_to_jiffies(2 * HZ));
+	if (!rtn)
+		dev_err(&data->master->dev,
+			"%s wait-event timeout\n", __func__);
 
 	dma_sync_sg_for_cpu(&data->master->dev, dma->sg_rx_p, dma->nent,
 			    DMA_FROM_DEVICE);
@@ -989,6 +995,7 @@ static void pch_spi_handle_dma(struct pch_spi_data *data, int *bpw)
 	int i;
 	int size;
 	int rem;
+	int head;
 	unsigned long flags;
 	struct pch_spi_dma_ctrl *dma;
 
@@ -1017,6 +1024,11 @@ static void pch_spi_handle_dma(struct pch_spi_data *data, int *bpw)
 	}
 	data->bpw_len = data->cur_trans->len / (*bpw / 8);
 
+	if (data->bpw_len > PCH_BUF_SIZE) {
+		data->bpw_len = PCH_BUF_SIZE;
+		data->cur_trans->len -= PCH_BUF_SIZE;
+	}
+
 	/* copy Tx Data */
 	if (data->cur_trans->tx_buf != NULL) {
 		if (*bpw == 8) {
@@ -1031,10 +1043,17 @@ static void pch_spi_handle_dma(struct pch_spi_data *data, int *bpw)
 				*tx_dma_sbuf++ = *tx_sbuf++;
 		}
 	}
+
+	/* Calculate Rx parameter for DMA transmitting */
 	if (data->bpw_len > PCH_DMA_TRANS_SIZE) {
-		num = data->bpw_len / PCH_DMA_TRANS_SIZE + 1;
+		if (data->bpw_len % PCH_DMA_TRANS_SIZE) {
+			num = data->bpw_len / PCH_DMA_TRANS_SIZE + 1;
+			rem = data->bpw_len % PCH_DMA_TRANS_SIZE;
+		} else {
+			num = data->bpw_len / PCH_DMA_TRANS_SIZE;
+			rem = PCH_DMA_TRANS_SIZE;
+		}
 		size = PCH_DMA_TRANS_SIZE;
-		rem = data->bpw_len % PCH_DMA_TRANS_SIZE;
 	} else {
 		num = 1;
 		size = data->bpw_len;
@@ -1094,15 +1113,23 @@ static void pch_spi_handle_dma(struct pch_spi_data *data, int *bpw)
 	dma->nent = num;
 	dma->desc_rx = desc_rx;
 
-	/* TX */
-	if (data->bpw_len > PCH_DMA_TRANS_SIZE) {
-		num = data->bpw_len / PCH_DMA_TRANS_SIZE;
+	/* Calculate Tx parameter for DMA transmitting */
+	if (data->bpw_len > PCH_MAX_FIFO_DEPTH) {
+		head = PCH_MAX_FIFO_DEPTH - PCH_DMA_TRANS_SIZE;
+		if (data->bpw_len % PCH_DMA_TRANS_SIZE > 4) {
+			num = data->bpw_len / PCH_DMA_TRANS_SIZE + 1;
+			rem = data->bpw_len % PCH_DMA_TRANS_SIZE - head;
+		} else {
+			num = data->bpw_len / PCH_DMA_TRANS_SIZE;
+			rem = data->bpw_len % PCH_DMA_TRANS_SIZE +
+			      PCH_DMA_TRANS_SIZE - head;
+		}
 		size = PCH_DMA_TRANS_SIZE;
-		rem = 16;
 	} else {
 		num = 1;
 		size = data->bpw_len;
 		rem = data->bpw_len;
+		head = 0;
 	}
 
 	dma->sg_tx_p = kzalloc(sizeof(struct scatterlist)*num, GFP_ATOMIC);
@@ -1112,11 +1139,17 @@ static void pch_spi_handle_dma(struct pch_spi_data *data, int *bpw)
 	for (i = 0; i < num; i++, sg++) {
 		if (i == 0) {
 			sg->offset = 0;
+			sg_set_page(sg, virt_to_page(dma->tx_buf_virt), size + head,
+				    sg->offset);
+			sg_dma_len(sg) = size + head;
+		} else if (i == (num - 1)) {
+			sg->offset = head + size * i;
+			sg->offset = sg->offset * (*bpw / 8);
 			sg_set_page(sg, virt_to_page(dma->tx_buf_virt), rem,
 				    sg->offset);
 			sg_dma_len(sg) = rem;
 		} else {
-			sg->offset = rem + size * (i - 1);
+			sg->offset = head + size * i;
 			sg->offset = sg->offset * (*bpw / 8);
 			sg_set_page(sg, virt_to_page(dma->tx_buf_virt), size,
 				    sg->offset);
@@ -1204,6 +1237,7 @@ static void pch_spi_process_messages(struct work_struct *pwork)
 				    data->current_msg->spi->bits_per_word);
 	pch_spi_writereg(data->master, PCH_SSNXCR, SSN_NO_CONTROL);
 	do {
+		int cnt;
 		/* If we are already processing a message get the next
 		transfer structure from the message otherwise retrieve
 		the 1st transfer request from the message. */
@@ -1223,11 +1257,20 @@ static void pch_spi_process_messages(struct work_struct *pwork)
 		}
 		spin_unlock(&data->lock);
 
+		if (!data->cur_trans->len)
+			goto out;
+		cnt = (data->cur_trans->len - 1) / PCH_BUF_SIZE + 1;
+		data->save_total_len = data->cur_trans->len;
 		if (data->use_dma) {
-			pch_spi_handle_dma(data, &bpw);
-			if (!pch_spi_start_transfer(data))
-				goto out;
-			pch_spi_copy_rx_data_for_dma(data, bpw);
+			int i;
+			char *save_rx_buf = data->cur_trans->rx_buf;
+			for (i = 0; i < cnt; i ++) {
+				pch_spi_handle_dma(data, &bpw);
+				if (!pch_spi_start_transfer(data))
+					goto out;
+				pch_spi_copy_rx_data_for_dma(data, bpw);
+			}
+			data->cur_trans->rx_buf = save_rx_buf;
 		} else {
 			pch_spi_set_tx(data, &bpw);
 			pch_spi_set_ir(data);
@@ -1238,6 +1281,7 @@ static void pch_spi_process_messages(struct work_struct *pwork)
 			data->pkt_tx_buff = NULL;
 		}
 		/* increment message count */
+		data->cur_trans->len = data->save_total_len;
 		data->current_msg->actual_length += data->cur_trans->len;
 
 		dev_dbg(&data->master->dev,
