@@ -1554,6 +1554,7 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 			intel_wait_for_vblank(dev, to_intel_crtc(crtc)->pipe);
 	}
 
+	DP &= ~DP_AUDIO_OUTPUT_ENABLE;
 	I915_WRITE(intel_dp->output_reg, DP & ~DP_PORT_EN);
 	POSTING_READ(intel_dp->output_reg);
 }
