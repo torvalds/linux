@@ -283,12 +283,12 @@ static enum power_supply_property hidinput_battery_props[] = {
 };
 
 #define HID_BATTERY_QUIRK_PERCENT	(1 << 0) /* always reports percent */
+#define HID_BATTERY_QUIRK_FEATURE	(1 << 1) /* ask for feature report */
 
 static const struct hid_device_id hid_battery_quirks[] = {
-	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_MAGICMOUSE),
-	  HID_BATTERY_QUIRK_PERCENT },
-	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_MAGICTRACKPAD),
-	  HID_BATTERY_QUIRK_PERCENT },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_APPLE,
+			       USB_DEVICE_ID_APPLE_ALU_WIRELESS_2011_ANSI),
+	  HID_BATTERY_QUIRK_PERCENT | HID_BATTERY_QUIRK_FEATURE },
 	{}
 };
 
@@ -310,7 +310,6 @@ static int hidinput_get_battery_property(struct power_supply *psy,
 {
 	struct hid_device *dev = container_of(psy, struct hid_device, battery);
 	int ret = 0;
-	int ret_rep;
 	__u8 buf[2] = {};
 
 	switch (prop) {
@@ -320,11 +319,13 @@ static int hidinput_get_battery_property(struct power_supply *psy,
 		break;
 
 	case POWER_SUPPLY_PROP_CAPACITY:
-		ret_rep = dev->hid_get_raw_report(dev, dev->battery_report_id,
-						  buf, sizeof(buf),
-						  dev->battery_report_type);
-		if (ret_rep != 2) {
-			ret = -EINVAL;
+		ret = dev->hid_get_raw_report(dev, dev->battery_report_id,
+					      buf, sizeof(buf),
+					      dev->battery_report_type);
+
+		if (ret != 2) {
+			if (ret >= 0)
+				ret = -EINVAL;
 			break;
 		}
 
@@ -376,6 +377,9 @@ static bool hidinput_setup_battery(struct hid_device *dev, unsigned report_type,
 
 	quirks = find_battery_quirk(dev);
 
+	hid_dbg(dev, "device %x:%x:%x %d quirks %d\n",
+		dev->bus, dev->vendor, dev->product, dev->version, quirks);
+
 	min = field->logical_minimum;
 	max = field->logical_maximum;
 
@@ -383,6 +387,9 @@ static bool hidinput_setup_battery(struct hid_device *dev, unsigned report_type,
 		min = 0;
 		max = 100;
 	}
+
+	if (quirks & HID_BATTERY_QUIRK_FEATURE)
+		report_type = HID_FEATURE_REPORT;
 
 	dev->battery_min = min;
 	dev->battery_max = max;
