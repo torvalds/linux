@@ -60,8 +60,6 @@ static struct acm *acm_table[ACM_TTY_MINORS];
 
 static DEFINE_MUTEX(acm_table_lock);
 
-#define ACM_READY(acm)	(acm && acm->dev && acm->port.count)
-
 /*
  * acm_table accessors
  */
@@ -319,9 +317,6 @@ static void acm_ctrl_irq(struct urb *urb)
 		goto exit;
 	}
 
-	if (!ACM_READY(acm))
-		goto exit;
-
 	usb_mark_last_busy(acm->dev);
 
 	data = (unsigned char *)(dr + 1);
@@ -481,8 +476,7 @@ static void acm_write_bulk(struct urb *urb)
 	spin_lock_irqsave(&acm->write_lock, flags);
 	acm_write_done(acm, wb);
 	spin_unlock_irqrestore(&acm->write_lock, flags);
-	if (ACM_READY(acm))
-		schedule_work(&acm->work);
+	schedule_work(&acm->work);
 }
 
 static void acm_softint(struct work_struct *work)
@@ -492,8 +486,6 @@ static void acm_softint(struct work_struct *work)
 
 	dev_vdbg(&acm->data->dev, "%s\n", __func__);
 
-	if (!ACM_READY(acm))
-		return;
 	tty = tty_port_tty_get(&acm->port);
 	if (!tty)
 		return;
