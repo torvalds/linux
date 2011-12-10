@@ -52,12 +52,15 @@
 #include <linux/namei.h>
 #include <linux/string.h>
 #include <linux/slab.h>
+#include <linux/miscdevice.h>
+#include <linux/module.h>
 
-#include "xenfs.h"
-#include "../xenbus/xenbus_comms.h"
+#include "xenbus_comms.h"
 
 #include <xen/xenbus.h>
 #include <asm/xen/hypervisor.h>
+
+MODULE_LICENSE("GPL");
 
 /*
  * An element of a list of outstanding transactions, for which we're
@@ -583,7 +586,7 @@ static unsigned int xenbus_file_poll(struct file *file, poll_table *wait)
 	return 0;
 }
 
-const struct file_operations xenbus_file_ops = {
+const struct file_operations xen_xenbus_fops = {
 	.read = xenbus_file_read,
 	.write = xenbus_file_write,
 	.open = xenbus_file_open,
@@ -591,3 +594,31 @@ const struct file_operations xenbus_file_ops = {
 	.poll = xenbus_file_poll,
 	.llseek = no_llseek,
 };
+EXPORT_SYMBOL_GPL(xen_xenbus_fops);
+
+static struct miscdevice xenbus_dev = {
+	.minor = MISC_DYNAMIC_MINOR,
+	.name = "xen/xenbus",
+	.fops = &xen_xenbus_fops,
+};
+
+static int __init xenbus_init(void)
+{
+	int err;
+
+	if (!xen_domain())
+		return -ENODEV;
+
+	err = misc_register(&xenbus_dev);
+	if (err)
+		printk(KERN_ERR "Could not register xenbus device\n");
+	return err;
+}
+
+static void __exit xenbus_exit(void)
+{
+	misc_deregister(&xenbus_dev);
+}
+
+module_init(xenbus_init);
+module_exit(xenbus_exit);

@@ -1,4 +1,5 @@
 obj-y	+= xenbus.o
+obj-y	+= xenbus_dev_frontend.o
 
 xenbus-objs =
 xenbus-objs += xenbus_client.o
