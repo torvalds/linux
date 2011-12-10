@@ -295,14 +295,10 @@ static struct snd_kcontrol_new toneport_control_source = {
 static void toneport_destruct(struct usb_interface *interface)
 {
 	struct usb_line6_toneport *toneport = usb_get_intfdata(interface);
-	struct usb_line6 *line6;
 
 	if (toneport == NULL)
 		return;
-	line6 = &toneport->line6;
-	if (line6 == NULL)
-		return;
-	line6_cleanup_audio(line6);
+	line6_cleanup_audio(&toneport->line6);
 }
 
 /*

@@ -80,14 +80,10 @@ static struct line6_pcm_properties podhd_pcm_properties = {
 static void podhd_destruct(struct usb_interface *interface)
 {
 	struct usb_line6_podhd *podhd = usb_get_intfdata(interface);
-	struct usb_line6 *line6;
 
 	if (podhd == NULL)
 		return;
-	line6 = &podhd->line6;
-	if (line6 == NULL)
-		return;
-	line6_cleanup_audio(line6);
+	line6_cleanup_audio(&podhd->line6);
 }
 
 /*
