@@ -266,10 +266,10 @@ s32 ixgbe_clear_hw_cntrs_generic(struct ixgbe_hw *hw)
 	if (hw->mac.type == ixgbe_mac_X540) {
 		if (hw->phy.id == 0)
 			hw->phy.ops.identify(hw);
-		hw->phy.ops.read_reg(hw, 0x3, IXGBE_PCRC8ECL, &i);
-		hw->phy.ops.read_reg(hw, 0x3, IXGBE_PCRC8ECH, &i);
-		hw->phy.ops.read_reg(hw, 0x3, IXGBE_LDPCECL, &i);
-		hw->phy.ops.read_reg(hw, 0x3, IXGBE_LDPCECH, &i);
+		hw->phy.ops.read_reg(hw, IXGBE_PCRC8ECL, MDIO_MMD_PCS, &i);
+		hw->phy.ops.read_reg(hw, IXGBE_PCRC8ECH, MDIO_MMD_PCS, &i);
+		hw->phy.ops.read_reg(hw, IXGBE_LDPCECL, MDIO_MMD_PCS, &i);
+		hw->phy.ops.read_reg(hw, IXGBE_LDPCECH, MDIO_MMD_PCS, &i);
 	}
 
 	return 0;
