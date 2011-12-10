@@ -3,6 +3,41 @@
 #include "nouveau_drv.h"
 #include "nouveau_drm.h"
 
+int
+nv1a_fb_vram_init(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct pci_dev *bridge;
+	uint32_t mem, mib;
+
+	bridge = pci_get_bus_and_slot(0, PCI_DEVFN(0, 1));
+	if (!bridge) {
+		NV_ERROR(dev, "no bridge device\n");
+		return 0;
+	}
+
+	if (dev_priv->chipset == 0x1a) {
+		pci_read_config_dword(bridge, 0x7c, &mem);
+		mib = ((mem >> 6) & 31) + 1;
+	} else {
+		pci_read_config_dword(bridge, 0x84, &mem);
+		mib = ((mem >> 4) & 127) + 1;
+	}
+
+	dev_priv->vram_size = mib * 1024 * 1024;
+	return 0;
+}
+
+int
+nv10_fb_vram_init(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	u32 fifo_data = nv_rd32(dev, NV04_PFB_FIFO_DATA);
+
+	dev_priv->vram_size = fifo_data & NV10_PFB_FIFO_DATA_RAM_AMOUNT_MB_MASK;
+	return 0;
+}
+
 static struct drm_mm_node *
 nv20_fb_alloc_tag(struct drm_device *dev, uint32_t size)
 {

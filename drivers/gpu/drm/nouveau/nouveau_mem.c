@@ -192,75 +192,6 @@ nouveau_mem_gart_fini(struct drm_device *dev)
 	}
 }
 
-static uint32_t
-nouveau_mem_detect_nv04(struct drm_device *dev)
-{
-	uint32_t boot0 = nv_rd32(dev, NV04_PFB_BOOT_0);
-
-	if (boot0 & 0x00000100)
-		return (((boot0 >> 12) & 0xf) * 2 + 2) * 1024 * 1024;
-
-	switch (boot0 & NV04_PFB_BOOT_0_RAM_AMOUNT) {
-	case NV04_PFB_BOOT_0_RAM_AMOUNT_32MB:
-		return 32 * 1024 * 1024;
-	case NV04_PFB_BOOT_0_RAM_AMOUNT_16MB:
-		return 16 * 1024 * 1024;
-	case NV04_PFB_BOOT_0_RAM_AMOUNT_8MB:
-		return 8 * 1024 * 1024;
-	case NV04_PFB_BOOT_0_RAM_AMOUNT_4MB:
-		return 4 * 1024 * 1024;
-	}
-
-	return 0;
-}
-
-static uint32_t
-nouveau_mem_detect_nforce(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct pci_dev *bridge;
-	uint32_t mem;
-
-	bridge = pci_get_bus_and_slot(0, PCI_DEVFN(0, 1));
-	if (!bridge) {
-		NV_ERROR(dev, "no bridge device\n");
-		return 0;
-	}
-
-	if (dev_priv->flags & NV_NFORCE) {
-		pci_read_config_dword(bridge, 0x7C, &mem);
-		return (uint64_t)(((mem >> 6) & 31) + 1)*1024*1024;
-	} else
-	if (dev_priv->flags & NV_NFORCE2) {
-		pci_read_config_dword(bridge, 0x84, &mem);
-		return (uint64_t)(((mem >> 4) & 127) + 1)*1024*1024;
-	}
-
-	NV_ERROR(dev, "impossible!\n");
-	return 0;
-}
-
-int
-nouveau_mem_detect(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-
-	if (dev_priv->card_type == NV_04) {
-		dev_priv->vram_size = nouveau_mem_detect_nv04(dev);
-	} else
-	if (dev_priv->flags & (NV_NFORCE | NV_NFORCE2)) {
-		dev_priv->vram_size = nouveau_mem_detect_nforce(dev);
-	} else
-	if (dev_priv->card_type < NV_50) {
-		dev_priv->vram_size  = nv_rd32(dev, NV04_PFB_FIFO_DATA);
-		dev_priv->vram_size &= NV10_PFB_FIFO_DATA_RAM_AMOUNT_MB_MASK;
-	}
-
-	if (dev_priv->vram_size)
-		return 0;
-	return -ENOMEM;
-}
-
 bool
 nouveau_mem_flags_valid(struct drm_device *dev, u32 tile_flags)
 {
@@ -385,11 +316,29 @@ nouveau_mem_init_agp(struct drm_device *dev)
 	return 0;
 }
 
+static const struct vram_types {
+	int value;
+	const char *name;
+} vram_type_map[] = {
+	{ NV_MEM_TYPE_STOLEN , "stolen system memory" },
+	{ NV_MEM_TYPE_SGRAM  , "SGRAM" },
+	{ NV_MEM_TYPE_SDRAM  , "SDRAM" },
+	{ NV_MEM_TYPE_DDR1   , "DDR1" },
+	{ NV_MEM_TYPE_DDR2   , "DDR2" },
+	{ NV_MEM_TYPE_DDR3   , "DDR3" },
+	{ NV_MEM_TYPE_GDDR2  , "GDDR2" },
+	{ NV_MEM_TYPE_GDDR3  , "GDDR3" },
+	{ NV_MEM_TYPE_GDDR4  , "GDDR4" },
+	{ NV_MEM_TYPE_GDDR5  , "GDDR5" },
+	{ NV_MEM_TYPE_UNKNOWN, "unknown type" }
+};
+
 int
 nouveau_mem_vram_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct ttm_bo_device *bdev = &dev_priv->ttm.bdev;
+	const struct vram_types *vram_type;
 	int ret, dma_bits;
 
 	dma_bits = 32;
@@ -427,7 +376,21 @@ nouveau_mem_vram_init(struct drm_device *dev)
 		return ret;
 	}
 
-	NV_INFO(dev, "Detected %dMiB VRAM\n", (int)(dev_priv->vram_size >> 20));
+	vram_type = vram_type_map;
+	while (vram_type->value != NV_MEM_TYPE_UNKNOWN) {
+		if (nouveau_vram_type) {
+			if (!strcasecmp(nouveau_vram_type, vram_type->name))
+				break;
+			dev_priv->vram_type = vram_type->value;
+		} else {
+			if (vram_type->value == dev_priv->vram_type)
+				break;
+		}
+		vram_type++;
+	}
+
+	NV_INFO(dev, "Detected %dMiB VRAM (%s)\n",
+		(int)(dev_priv->vram_size >> 20), vram_type->name);
 	if (dev_priv->vram_sys_base) {
 		NV_INFO(dev, "Stolen system memory at: 0x%010llx\n",
 			dev_priv->vram_sys_base);

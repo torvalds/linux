@@ -772,6 +772,19 @@ struct drm_nouveau_private {
 	} tile;
 
 	/* VRAM/fb configuration */
+	enum {
+		NV_MEM_TYPE_UNKNOWN = 0,
+		NV_MEM_TYPE_STOLEN,
+		NV_MEM_TYPE_SGRAM,
+		NV_MEM_TYPE_SDRAM,
+		NV_MEM_TYPE_DDR1,
+		NV_MEM_TYPE_DDR2,
+		NV_MEM_TYPE_DDR3,
+		NV_MEM_TYPE_GDDR2,
+		NV_MEM_TYPE_GDDR3,
+		NV_MEM_TYPE_GDDR4,
+		NV_MEM_TYPE_GDDR5
+	} vram_type;
 	uint64_t vram_size;
 	uint64_t vram_sys_base;
 
@@ -846,6 +859,7 @@ extern int nouveau_uscript_lvds;
 extern int nouveau_uscript_tmds;
 extern int nouveau_vram_pushbuf;
 extern int nouveau_vram_notify;
+extern char *nouveau_vram_type;
 extern int nouveau_fbpercrtc;
 extern int nouveau_tv_disable;
 extern char *nouveau_tv_norm;
@@ -894,7 +908,6 @@ extern void nouveau_mem_gart_fini(struct drm_device *);
 extern int  nouveau_mem_init_agp(struct drm_device *);
 extern int  nouveau_mem_reset_agp(struct drm_device *);
 extern void nouveau_mem_close(struct drm_device *);
-extern int  nouveau_mem_detect(struct drm_device *);
 extern bool nouveau_mem_flags_valid(struct drm_device *, u32 tile_flags);
 extern struct nouveau_tile_reg *nv10_mem_set_tiling(
 	struct drm_device *dev, uint32_t addr, uint32_t size,
@@ -1126,10 +1139,13 @@ void nouveau_dp_tu_update(struct drm_device *, int, int, u32, u32);
 u8 *nouveau_dp_bios_data(struct drm_device *, struct dcb_entry *, u8 **);
 
 /* nv04_fb.c */
+extern int  nv04_fb_vram_init(struct drm_device *);
 extern int  nv04_fb_init(struct drm_device *);
 extern void nv04_fb_takedown(struct drm_device *);
 
 /* nv10_fb.c */
+extern int  nv10_fb_vram_init(struct drm_device *dev);
+extern int  nv1a_fb_vram_init(struct drm_device *dev);
 extern int  nv10_fb_init(struct drm_device *);
 extern void nv10_fb_takedown(struct drm_device *);
 extern void nv10_fb_init_tile_region(struct drm_device *dev, int i,
