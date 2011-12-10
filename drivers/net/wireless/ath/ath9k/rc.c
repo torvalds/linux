@@ -1252,7 +1252,9 @@ static void ath_rc_init(struct ath_softc *sc,
 
 	ath_rc_priv->max_valid_rate = k;
 	ath_rc_sort_validrates(rate_table, ath_rc_priv);
-	ath_rc_priv->rate_max_phy = ath_rc_priv->valid_rate_index[k-4];
+	ath_rc_priv->rate_max_phy = (k > 4) ?
+					ath_rc_priv->valid_rate_index[k-4] :
+					ath_rc_priv->valid_rate_index[k-1];
 	ath_rc_priv->rate_table = rate_table;
 
 	ath_dbg(common, ATH_DBG_CONFIG,
