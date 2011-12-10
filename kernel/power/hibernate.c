@@ -347,7 +347,7 @@ int hibernation_snapshot(int platform_mode)
 
 	error = freeze_kernel_threads();
 	if (error)
-		goto Close;
+		goto Cleanup;
 
 	if (hibernation_test(TEST_FREEZER) ||
 		hibernation_testmode(HIBERNATION_TESTPROC)) {
@@ -357,12 +357,14 @@ int hibernation_snapshot(int platform_mode)
 		 * successful freezer test.
 		 */
 		freezer_test_done = true;
-		goto Close;
+		goto Cleanup;
 	}
 
 	error = dpm_prepare(PMSG_FREEZE);
-	if (error)
-		goto Complete_devices;
+	if (error) {
+		dpm_complete(msg);
+		goto Cleanup;
+	}
 
 	suspend_console();
 	pm_restrict_gfp_mask();
@@ -391,8 +393,6 @@ int hibernation_snapshot(int platform_mode)
 		pm_restore_gfp_mask();
 
 	resume_console();
-
- Complete_devices:
 	dpm_complete(msg);
 
  Close:
@@ -402,6 +402,10 @@ int hibernation_snapshot(int platform_mode)
  Recover_platform:
 	platform_recover(platform_mode);
 	goto Resume_devices;
+
+ Cleanup:
+	swsusp_free();
+	goto Close;
 }
 
 /**

@@ -1057,7 +1057,7 @@ static int btrfs_calc_avail_data_space(struct btrfs_root *root, u64 *free_bytes)
 	int i = 0, nr_devices;
 	int ret;
 
-	nr_devices = fs_info->fs_devices->rw_devices;
+	nr_devices = fs_info->fs_devices->open_devices;
 	BUG_ON(!nr_devices);
 
 	devices_info = kmalloc(sizeof(*devices_info) * nr_devices,
@@ -1079,8 +1079,8 @@ static int btrfs_calc_avail_data_space(struct btrfs_root *root, u64 *free_bytes)
 	else
 		min_stripe_size = BTRFS_STRIPE_LEN;
 
-	list_for_each_entry(device, &fs_devices->alloc_list, dev_alloc_list) {
-		if (!device->in_fs_metadata)
+	list_for_each_entry(device, &fs_devices->devices, dev_list) {
+		if (!device->in_fs_metadata || !device->bdev)
 			continue;
 
 		avail_space = device->total_bytes - device->bytes_used;

@@ -424,6 +424,8 @@ void __init of_irq_init(const struct of_device_id *matches)
 
 		desc->dev = np;
 		desc->interrupt_parent = of_irq_find_parent(np);
+		if (desc->interrupt_parent == np)
+			desc->interrupt_parent = NULL;
 		list_add_tail(&desc->list, &intc_desc_list);
 	}
 

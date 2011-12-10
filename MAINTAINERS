@@ -789,6 +789,7 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 T:	git git://git.pengutronix.de/git/imx/linux-2.6.git
 F:	arch/arm/mach-mx*/
+F:	arch/arm/mach-imx/
 F:	arch/arm/plat-mxc/
 
 ARM/FREESCALE IMX51
@@ -803,6 +804,13 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 T:	git git://git.linaro.org/people/shawnguo/linux-2.6.git
 F:	arch/arm/mach-imx/*imx6*
+
+ARM/FREESCALE MXS ARM ARCHITECTURE
+M:	Shawn Guo <shawn.guo@linaro.org>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+T:	git git://git.linaro.org/people/shawnguo/linux-2.6.git
+F:	arch/arm/mach-mxs/
 
 ARM/GLOMATION GESBC9312SX MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
@@ -5667,7 +5675,6 @@ F:	drivers/media/video/*7146*
 F:	include/media/*7146*
 
 SAMSUNG AUDIO (ASoC) DRIVERS
-M:	Jassi Brar <jassisinghbrar@gmail.com>
 M:	Sangbeom Kim <sbkim73@samsung.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Supported

@@ -33,29 +33,32 @@
 static void imx3_idle(void)
 {
 	unsigned long reg = 0;
-	__asm__ __volatile__(
-		/* disable I and D cache */
-		"mrc p15, 0, %0, c1, c0, 0\n"
-		"bic %0, %0, #0x00001000\n"
-		"bic %0, %0, #0x00000004\n"
-		"mcr p15, 0, %0, c1, c0, 0\n"
-		/* invalidate I cache */
-		"mov %0, #0\n"
-		"mcr p15, 0, %0, c7, c5, 0\n"
-		/* clear and invalidate D cache */
-		"mov %0, #0\n"
-		"mcr p15, 0, %0, c7, c14, 0\n"
-		/* WFI */
-		"mov %0, #0\n"
-		"mcr p15, 0, %0, c7, c0, 4\n"
-		"nop\n" "nop\n" "nop\n" "nop\n"
-		"nop\n" "nop\n" "nop\n"
-		/* enable I and D cache */
-		"mrc p15, 0, %0, c1, c0, 0\n"
-		"orr %0, %0, #0x00001000\n"
-		"orr %0, %0, #0x00000004\n"
-		"mcr p15, 0, %0, c1, c0, 0\n"
-		: "=r" (reg));
+
+	if (!need_resched())
+		__asm__ __volatile__(
+			/* disable I and D cache */
+			"mrc p15, 0, %0, c1, c0, 0\n"
+			"bic %0, %0, #0x00001000\n"
+			"bic %0, %0, #0x00000004\n"
+			"mcr p15, 0, %0, c1, c0, 0\n"
+			/* invalidate I cache */
+			"mov %0, #0\n"
+			"mcr p15, 0, %0, c7, c5, 0\n"
+			/* clear and invalidate D cache */
+			"mov %0, #0\n"
+			"mcr p15, 0, %0, c7, c14, 0\n"
+			/* WFI */
+			"mov %0, #0\n"
+			"mcr p15, 0, %0, c7, c0, 4\n"
+			"nop\n" "nop\n" "nop\n" "nop\n"
+			"nop\n" "nop\n" "nop\n"
+			/* enable I and D cache */
+			"mrc p15, 0, %0, c1, c0, 0\n"
+			"orr %0, %0, #0x00001000\n"
+			"orr %0, %0, #0x00000004\n"
+			"mcr p15, 0, %0, c1, c0, 0\n"
+			: "=r" (reg));
+	local_irq_enable();
 }
 
 static void __iomem *imx3_ioremap(unsigned long phys_addr, size_t size,
@@ -108,6 +111,7 @@ void imx3_init_l2x0(void)
 	l2x0_init(l2x0_base, 0x00030024, 0x00000000);
 }
 
+#ifdef CONFIG_SOC_IMX31
 static struct map_desc mx31_io_desc[] __initdata = {
 	imx_map_entry(MX31, X_MEMC, MT_DEVICE),
 	imx_map_entry(MX31, AVIC, MT_DEVICE_NONSHARED),
@@ -126,44 +130,17 @@ void __init mx31_map_io(void)
 	iotable_init(mx31_io_desc, ARRAY_SIZE(mx31_io_desc));
 }
 
-static struct map_desc mx35_io_desc[] __initdata = {
-	imx_map_entry(MX35, X_MEMC, MT_DEVICE),
-	imx_map_entry(MX35, AVIC, MT_DEVICE_NONSHARED),
-	imx_map_entry(MX35, AIPS1, MT_DEVICE_NONSHARED),
-	imx_map_entry(MX35, AIPS2, MT_DEVICE_NONSHARED),
-	imx_map_entry(MX35, SPBA0, MT_DEVICE_NONSHARED),
-};
-
-void __init mx35_map_io(void)
-{
-	iotable_init(mx35_io_desc, ARRAY_SIZE(mx35_io_desc));
-}
-
 void __init imx31_init_early(void)
 {
 	mxc_set_cpu_type(MXC_CPU_MX31);
 	mxc_arch_reset_init(MX31_IO_ADDRESS(MX31_WDOG_BASE_ADDR));
-	imx_idle = imx3_idle;
-	imx_ioremap = imx3_ioremap;
-}
-
-void __init imx35_init_early(void)
-{
-	mxc_set_cpu_type(MXC_CPU_MX35);
-	mxc_iomux_v3_init(MX35_IO_ADDRESS(MX35_IOMUXC_BASE_ADDR));
-	mxc_arch_reset_init(MX35_IO_ADDRESS(MX35_WDOG_BASE_ADDR));
-	imx_idle = imx3_idle;
+	pm_idle = imx3_idle;
 	imx_ioremap = imx3_ioremap;
 }
 
 void __init mx31_init_irq(void)
 {
 	mxc_init_irq(MX31_IO_ADDRESS(MX31_AVIC_BASE_ADDR));
-}
-
-void __init mx35_init_irq(void)
-{
-	mxc_init_irq(MX35_IO_ADDRESS(MX35_AVIC_BASE_ADDR));
 }
 
 static struct sdma_script_start_addrs imx31_to1_sdma_script __initdata = {
@@ -198,6 +175,35 @@ void __init imx31_soc_init(void)
 	}
 
 	imx_add_imx_sdma("imx31-sdma", MX31_SDMA_BASE_ADDR, MX31_INT_SDMA, &imx31_sdma_pdata);
+}
+#endif /* ifdef CONFIG_SOC_IMX31 */
+
+#ifdef CONFIG_SOC_IMX35
+static struct map_desc mx35_io_desc[] __initdata = {
+	imx_map_entry(MX35, X_MEMC, MT_DEVICE),
+	imx_map_entry(MX35, AVIC, MT_DEVICE_NONSHARED),
+	imx_map_entry(MX35, AIPS1, MT_DEVICE_NONSHARED),
+	imx_map_entry(MX35, AIPS2, MT_DEVICE_NONSHARED),
+	imx_map_entry(MX35, SPBA0, MT_DEVICE_NONSHARED),
+};
+
+void __init mx35_map_io(void)
+{
+	iotable_init(mx35_io_desc, ARRAY_SIZE(mx35_io_desc));
+}
+
+void __init imx35_init_early(void)
+{
+	mxc_set_cpu_type(MXC_CPU_MX35);
+	mxc_iomux_v3_init(MX35_IO_ADDRESS(MX35_IOMUXC_BASE_ADDR));
+	mxc_arch_reset_init(MX35_IO_ADDRESS(MX35_WDOG_BASE_ADDR));
+	pm_idle = imx3_idle;
+	imx_ioremap = imx3_ioremap;
+}
+
+void __init mx35_init_irq(void)
+{
+	mxc_init_irq(MX35_IO_ADDRESS(MX35_AVIC_BASE_ADDR));
 }
 
 static struct sdma_script_start_addrs imx35_to1_sdma_script __initdata = {
@@ -254,3 +260,4 @@ void __init imx35_soc_init(void)
 
 	imx_add_imx_sdma("imx35-sdma", MX35_SDMA_BASE_ADDR, MX35_INT_SDMA, &imx35_sdma_pdata);
 }
+#endif /* ifdef CONFIG_SOC_IMX35 */

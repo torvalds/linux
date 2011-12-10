@@ -1278,7 +1278,7 @@ static noinline int btrfs_ioctl_resize(struct btrfs_root *root,
 		}
 		ret = btrfs_grow_device(trans, device, new_size);
 		btrfs_commit_transaction(trans, root);
-	} else {
+	} else if (new_size < old_size) {
 		ret = btrfs_shrink_device(device, new_size);
 	}
 

@@ -55,16 +55,6 @@ reserve_pmu(enum arm_pmu_type type);
 extern void
 release_pmu(enum arm_pmu_type type);
 
-/**
- * init_pmu() - Initialise the PMU.
- *
- * Initialise the system ready for PMU enabling. This should typically set the
- * IRQ affinity and nothing else. The users (oprofile/perf events etc) will do
- * the actual hardware initialisation.
- */
-extern int
-init_pmu(enum arm_pmu_type type);
-
 #else /* CONFIG_CPU_HAS_PMU */
 
 #include <linux/err.h>
