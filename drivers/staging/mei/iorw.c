@@ -228,18 +228,15 @@ struct mei_cl_cb *find_amthi_read_list_entry(
 		struct file *file)
 {
 	struct mei_cl *cl_temp;
-	struct mei_cl_cb *cb_pos = NULL;
-	struct mei_cl_cb *cb_next = NULL;
+	struct mei_cl_cb *pos = NULL;
+	struct mei_cl_cb *next = NULL;
 
-	if (!dev->amthi_read_complete_list.status &&
-	    !list_empty(&dev->amthi_read_complete_list.mei_cb.cb_list)) {
-		list_for_each_entry_safe(cb_pos, cb_next,
-		    &dev->amthi_read_complete_list.mei_cb.cb_list, cb_list) {
-			cl_temp = (struct mei_cl *)cb_pos->file_private;
-			if (cl_temp && cl_temp == &dev->iamthif_cl &&
-				cb_pos->file_object == file)
-				return cb_pos;
-		}
+	list_for_each_entry_safe(pos, next,
+	    &dev->amthi_read_complete_list.mei_cb.cb_list, cb_list) {
+		cl_temp = (struct mei_cl *)pos->file_private;
+		if (cl_temp && cl_temp == &dev->iamthif_cl &&
+			pos->file_object == file)
+			return pos;
 	}
 	return NULL;
 }
@@ -550,8 +547,8 @@ int amthi_write(struct mei_device *dev, struct mei_cl_cb *cb)
 void mei_run_next_iamthif_cmd(struct mei_device *dev)
 {
 	struct mei_cl *cl_tmp;
-	struct mei_cl_cb *cb_pos = NULL;
-	struct mei_cl_cb *cb_next = NULL;
+	struct mei_cl_cb *pos = NULL;
+	struct mei_cl_cb *next = NULL;
 	int status;
 
 	if (!dev)
@@ -565,25 +562,22 @@ void mei_run_next_iamthif_cmd(struct mei_device *dev)
 	dev->iamthif_timer = 0;
 	dev->iamthif_file_object = NULL;
 
-	if (dev->amthi_cmd_list.status == 0 &&
-	    !list_empty(&dev->amthi_cmd_list.mei_cb.cb_list)) {
-		dev_dbg(&dev->pdev->dev, "complete amthi cmd_list cb.\n");
+	dev_dbg(&dev->pdev->dev, "complete amthi cmd_list cb.\n");
 
-		list_for_each_entry_safe(cb_pos, cb_next,
-		    &dev->amthi_cmd_list.mei_cb.cb_list, cb_list) {
-			list_del(&cb_pos->cb_list);
-			cl_tmp = (struct mei_cl *)cb_pos->file_private;
+	list_for_each_entry_safe(pos, next,
+			&dev->amthi_cmd_list.mei_cb.cb_list, cb_list) {
+		list_del(&pos->cb_list);
+		cl_tmp = (struct mei_cl *)pos->file_private;
 
-			if (cl_tmp && cl_tmp == &dev->iamthif_cl) {
-				status = amthi_write(dev, cb_pos);
-				if (status) {
-					dev_dbg(&dev->pdev->dev,
-						"amthi write failed status = %d\n",
-							status);
-					return;
-				}
-				break;
+		if (cl_tmp && cl_tmp == &dev->iamthif_cl) {
+			status = amthi_write(dev, pos);
+			if (status) {
+				dev_dbg(&dev->pdev->dev,
+					"amthi write failed status = %d\n",
+						status);
+				return;
 			}
+			break;
 		}
 	}
 }

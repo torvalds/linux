@@ -54,7 +54,9 @@
 #include "rtllib.h"
 
 
-#define DRV_NAME "rtllib_92e"
+u32 rt_global_debug_component = COMP_ERR;
+EXPORT_SYMBOL(rt_global_debug_component);
+
 
 void _setup_timer(struct timer_list *ptimer, void *fun, unsigned long data)
 {
@@ -177,10 +179,6 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 		ieee->last_packet_time[i] = 0;
 	}
 
-	rtllib_tkip_null();
-	rtllib_wep_null();
-	rtllib_ccmp_null();
-
 	return dev;
 
  failed:
@@ -188,6 +186,7 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 		free_netdev(dev);
 	return NULL;
 }
+EXPORT_SYMBOL(alloc_rtllib);
 
 void free_rtllib(struct net_device *dev)
 {
@@ -214,6 +213,7 @@ void free_rtllib(struct net_device *dev)
 	rtllib_networks_free(ieee);
 	free_netdev(dev);
 }
+EXPORT_SYMBOL(free_rtllib);
 
 u32 rtllib_debug_level;
 static int debug = \
@@ -287,3 +287,8 @@ void __exit rtllib_exit(void)
 		rtllib_proc = NULL;
 	}
 }
+
+module_init(rtllib_init);
+module_exit(rtllib_exit);
+
+MODULE_LICENSE("GPL");

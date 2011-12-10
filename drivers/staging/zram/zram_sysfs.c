@@ -58,7 +58,7 @@ static ssize_t disksize_store(struct device *dev,
 	u64 disksize;
 	struct zram *zram = dev_to_zram(dev);
 
-	ret = strict_strtoull(buf, 10, &disksize);
+	ret = kstrtoull(buf, 10, &disksize);
 	if (ret)
 		return ret;
 
@@ -88,7 +88,7 @@ static ssize_t reset_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t len)
 {
 	int ret;
-	unsigned long do_reset;
+	unsigned short do_reset;
 	struct zram *zram;
 	struct block_device *bdev;
 
@@ -99,7 +99,7 @@ static ssize_t reset_store(struct device *dev,
 	if (bdev->bd_holders)
 		return -EBUSY;
 
-	ret = strict_strtoul(buf, 10, &do_reset);
+	ret = kstrtou16(buf, 10, &do_reset);
 	if (ret)
 		return ret;
 

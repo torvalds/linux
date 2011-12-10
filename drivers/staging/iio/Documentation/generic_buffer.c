@@ -28,6 +28,7 @@
 #include <linux/types.h>
 #include <string.h>
 #include <poll.h>
+#include <endian.h>
 #include "iio_utils.h"
 
 /**
@@ -56,6 +57,13 @@ int size_from_channelarray(struct iio_channel_info *channels, int num_channels)
 
 void print2byte(int input, struct iio_channel_info *info)
 {
+	/* First swap if incorrect endian */
+
+	if (info->be)
+		input = be16toh((uint_16t)input);
+	else
+		input = le16toh((uint_16t)input);
+
 	/* shift before conversion to avoid sign extension
 	   of left aligned data */
 	input = input >> info->shift;

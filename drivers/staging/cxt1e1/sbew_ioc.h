@@ -1,7 +1,3 @@
-/*
- * $Id: sbew_ioc.h,v 1.0 2005/09/28 00:10:10 rickd PMCC4_3_1B $
- */
-
 #ifndef _INC_SBEWIOC_H_
 #define _INC_SBEWIOC_H_
 
@@ -24,55 +20,9 @@
  * SBE, Inc.  San Ramon, California  U.S.A.
  *
  *-----------------------------------------------------------------------------
- * RCS info:
- * RCS revision: $Revision: 1.0 $
- * Last changed on $Date: 2005/09/28 00:10:10 $
- * Changed by $Author: rickd $
- *-----------------------------------------------------------------------------
- * $Log: sbew_ioc.h,v $
- * Revision 1.0  2005/09/28 00:10:10  rickd
- * Initial revision
- *
- * Revision 1.6  2005/01/11 18:41:01  rickd
- * Add BRDADDR_GET Ioctl.
- *
- * Revision 1.5  2004/09/16 18:55:59  rickd
- * Start setting up for generic framer configuration Ioctl by switch
- * from tect3_framer_param[] to sbecom_framer_param[].
- *
- * Revision 1.4  2004/06/28 17:58:15  rickd
- * Rename IOC_TSMAP_[GS] to IOC_TSIOC_[GS] to support need for
- * multiple formats of data when setting up TimeSlots.
- *
- * Revision 1.3  2004/06/22 21:18:13  rickd
- * read_vec now() ONLY handles a single common wrt_vec array.
- *
- * Revision 1.1  2004/06/10 18:11:34  rickd
- * Add IID_GET Ioctl reference.
- *
- * Revision 1.0  2004/06/08 22:59:38  rickd
- * Initial revision
- *
- * Revision 2.0  2004/06/07 17:49:47  rickd
- * Initial library release following merge of wanc1t3/wan256 into
- * common elements for lib.
- *
- *-----------------------------------------------------------------------------
  */
 
-#ifndef __KERNEL__
-#include <sys/types.h>
-#endif
-#ifdef SunOS
-#include <sys/ioccom.h>
-#else
 #include <linux/ioctl.h>
-#endif
-
-#ifdef __cplusplus
-extern      "C"
-{
-#endif
 
 #define SBE_LOCKFILE   "/tmp/.sbewan.LCK"
 
@@ -127,10 +77,5 @@ extern      "C"
  */
 
 #define SBE_IOC_MAXVEC    1
-
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif                          /*** _INC_SBEWIOC_H_ ***/

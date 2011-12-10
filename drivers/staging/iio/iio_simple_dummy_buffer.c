@@ -57,7 +57,7 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 	if (data == NULL)
 		return -ENOMEM;
 
-	if (buffer->scan_count) {
+	if (!bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength)) {
 		/*
 		 * Three common options here:
 		 * hardware scans: certain combinations of channels make
@@ -75,7 +75,10 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 		 * in the constant table fakedata.
 		 */
 		int i, j;
-		for (i = 0, j = 0; i < buffer->scan_count; i++) {
+		for (i = 0, j = 0;
+		     i < bitmap_weight(indio_dev->active_scan_mask,
+				       indio_dev->masklength);
+		     i++) {
 			j = find_next_bit(buffer->scan_mask,
 					  indio_dev->masklength, j + 1);
 			/* random access read form the 'device' */
@@ -142,8 +145,6 @@ int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev)
 	/* Tell the core how to access the buffer */
 	buffer->access = &kfifo_access_funcs;
 
-	/* Number of bytes per element */
-	buffer->bpe = 2;
 	/* Enable timestamps by default */
 	buffer->scan_timestamp = true;
 
@@ -151,8 +152,7 @@ int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev)
 	 * Tell the core what device type specific functions should
 	 * be run on either side of buffer capture enable / disable.
 	 */
-	buffer->setup_ops = &iio_simple_dummy_buffer_setup_ops;
-	buffer->owner = THIS_MODULE;
+	indio_dev->setup_ops = &iio_simple_dummy_buffer_setup_ops;
 
 	/*
 	 * Configure a polling function.

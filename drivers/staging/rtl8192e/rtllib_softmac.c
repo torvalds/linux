@@ -15,7 +15,6 @@
 
 
 #include "rtllib.h"
-#include "rtl_core.h"
 
 #include <linux/random.h>
 #include <linux/delay.h>
@@ -28,9 +27,9 @@ short rtllib_is_54g(struct rtllib_network *net)
 	return (net->rates_ex_len > 0) || (net->rates_len > 4);
 }
 
-short rtllib_is_shortslot(struct rtllib_network net)
+short rtllib_is_shortslot(const struct rtllib_network *net)
 {
-	return net.capability & WLAN_CAPABILITY_SHORT_SLOT_TIME;
+	return net->capability & WLAN_CAPABILITY_SHORT_SLOT_TIME;
 }
 
 /* returns the total length needed for pleacing the RATE MFIE
@@ -468,6 +467,7 @@ void rtllib_EnableIntelPromiscuousMode(struct net_device *dev,
 
 	ieee->bNetPromiscuousMode = true;
 }
+EXPORT_SYMBOL(rtllib_EnableIntelPromiscuousMode);
 
 
 /*
@@ -490,6 +490,7 @@ void rtllib_DisableIntelPromiscuousMode(struct net_device *dev,
 
 	ieee->bNetPromiscuousMode = false;
 }
+EXPORT_SYMBOL(rtllib_DisableIntelPromiscuousMode);
 
 static void rtllib_send_probe(struct rtllib_device *ieee, u8 is_mesh)
 {
@@ -685,6 +686,7 @@ void rtllib_stop_send_beacons(struct rtllib_device *ieee)
 	if (ieee->softmac_features & IEEE_SOFTMAC_BEACONS)
 		rtllib_beacons_stop(ieee);
 }
+EXPORT_SYMBOL(rtllib_stop_send_beacons);
 
 
 void rtllib_start_send_beacons(struct rtllib_device *ieee)
@@ -694,6 +696,7 @@ void rtllib_start_send_beacons(struct rtllib_device *ieee)
 	if (ieee->softmac_features & IEEE_SOFTMAC_BEACONS)
 		rtllib_beacons_start(ieee);
 }
+EXPORT_SYMBOL(rtllib_start_send_beacons);
 
 
 static void rtllib_softmac_stop_scan(struct rtllib_device *ieee)
@@ -719,6 +722,7 @@ void rtllib_stop_scan(struct rtllib_device *ieee)
 			ieee->rtllib_stop_hw_scan(ieee->dev);
 	}
 }
+EXPORT_SYMBOL(rtllib_stop_scan);
 
 void rtllib_stop_scan_syncro(struct rtllib_device *ieee)
 {
@@ -729,6 +733,7 @@ void rtllib_stop_scan_syncro(struct rtllib_device *ieee)
 			ieee->rtllib_stop_hw_scan(ieee->dev);
 	}
 }
+EXPORT_SYMBOL(rtllib_stop_scan_syncro);
 
 bool rtllib_act_scanning(struct rtllib_device *ieee, bool sync_scan)
 {
@@ -741,6 +746,7 @@ bool rtllib_act_scanning(struct rtllib_device *ieee, bool sync_scan)
 		return test_bit(STATUS_SCANNING, &ieee->status);
 	}
 }
+EXPORT_SYMBOL(rtllib_act_scanning);
 
 /* called with ieee->lock held */
 static void rtllib_start_scan(struct rtllib_device *ieee)
@@ -781,6 +787,7 @@ void rtllib_start_scan_syncro(struct rtllib_device *ieee, u8 is_mesh)
 			ieee->rtllib_start_hw_scan(ieee->dev);
 	}
 }
+EXPORT_SYMBOL(rtllib_start_scan_syncro);
 
 inline struct sk_buff *rtllib_authentication_req(struct rtllib_network *beacon,
 	struct rtllib_device *ieee, int challengelen, u8 *daddr)
@@ -1956,6 +1963,7 @@ void rtllib_sta_ps_send_null_frame(struct rtllib_device *ieee, short pwr)
 	if (buf)
 		softmac_ps_mgmt_xmit(buf, ieee);
 }
+EXPORT_SYMBOL(rtllib_sta_ps_send_null_frame);
 
 void rtllib_sta_ps_send_pspoll_frame(struct rtllib_device *ieee)
 {
@@ -2168,6 +2176,7 @@ void rtllib_ps_tx_ack(struct rtllib_device *ieee, short success)
 	}
 	spin_unlock_irqrestore(&ieee->lock, flags);
 }
+EXPORT_SYMBOL(rtllib_ps_tx_ack);
 
 static void rtllib_process_action(struct rtllib_device *ieee, struct sk_buff *skb)
 {
@@ -2540,6 +2549,7 @@ void rtllib_reset_queue(struct rtllib_device *ieee)
 	spin_unlock_irqrestore(&ieee->lock, flags);
 
 }
+EXPORT_SYMBOL(rtllib_reset_queue);
 
 void rtllib_wake_queue(struct rtllib_device *ieee)
 {
@@ -2928,6 +2938,7 @@ struct sk_buff *rtllib_get_beacon(struct rtllib_device *ieee)
 
 	return skb;
 }
+EXPORT_SYMBOL(rtllib_get_beacon);
 
 void rtllib_softmac_stop_protocol(struct rtllib_device *ieee, u8 mesh_flag,
 				  u8 shutdown)
@@ -2937,6 +2948,7 @@ void rtllib_softmac_stop_protocol(struct rtllib_device *ieee, u8 mesh_flag,
 	rtllib_stop_protocol(ieee, shutdown);
 	up(&ieee->wx_sem);
 }
+EXPORT_SYMBOL(rtllib_softmac_stop_protocol);
 
 
 void rtllib_stop_protocol(struct rtllib_device *ieee, u8 shutdown)
@@ -2985,6 +2997,7 @@ void rtllib_softmac_start_protocol(struct rtllib_device *ieee, u8 mesh_flag)
 	rtllib_start_protocol(ieee);
 	up(&ieee->wx_sem);
 }
+EXPORT_SYMBOL(rtllib_softmac_start_protocol);
 
 void rtllib_start_protocol(struct rtllib_device *ieee)
 {
@@ -3048,10 +3061,9 @@ void rtllib_softmac_init(struct rtllib_device *ieee)
 	ieee->state = RTLLIB_NOLINK;
 	for (i = 0; i < 5; i++)
 		ieee->seq_ctrl[i] = 0;
-	ieee->pDot11dInfo = kmalloc(sizeof(struct rt_dot11d_info), GFP_ATOMIC);
+	ieee->pDot11dInfo = kzalloc(sizeof(struct rt_dot11d_info), GFP_ATOMIC);
 	if (!ieee->pDot11dInfo)
 		RTLLIB_DEBUG(RTLLIB_DL_ERR, "can't alloc memory for DOT11D\n");
-	memset(ieee->pDot11dInfo, 0, sizeof(struct rt_dot11d_info));
 	ieee->LinkDetectInfo.SlotIndex = 0;
 	ieee->LinkDetectInfo.SlotNum = 2;
 	ieee->LinkDetectInfo.NumRecvBcnInPeriod = 0;
@@ -3207,11 +3219,11 @@ static int rtllib_wpa_set_wpa_ie(struct rtllib_device *ieee,
 		return -EINVAL;
 
 	if (param->u.wpa_ie.len) {
-		buf = kmalloc(param->u.wpa_ie.len, GFP_KERNEL);
+		buf = kmemdup(param->u.wpa_ie.data, param->u.wpa_ie.len,
+			      GFP_KERNEL);
 		if (buf == NULL)
 			return -ENOMEM;
 
-		memcpy(buf, param->u.wpa_ie.data, param->u.wpa_ie.len);
 		kfree(ieee->wpa_ie);
 		ieee->wpa_ie = buf;
 		ieee->wpa_ie_len = param->u.wpa_ie.len;
@@ -3634,6 +3646,7 @@ out:
 
 	return ret;
 }
+EXPORT_SYMBOL(rtllib_wpa_supplicant_ioctl);
 
 void rtllib_MgntDisconnectIBSS(struct rtllib_device *rtllib)
 {
@@ -3719,6 +3732,7 @@ bool rtllib_MgntDisconnect(struct rtllib_device *rtllib, u8 asRsn)
 
 	return true;
 }
+EXPORT_SYMBOL(rtllib_MgntDisconnect);
 
 void notify_wx_assoc_event(struct rtllib_device *ieee)
 {
@@ -3739,3 +3753,4 @@ void notify_wx_assoc_event(struct rtllib_device *ieee)
 	}
 	wireless_send_event(ieee->dev, SIOCGIWAP, &wrqu, NULL);
 }
+EXPORT_SYMBOL(notify_wx_assoc_event);

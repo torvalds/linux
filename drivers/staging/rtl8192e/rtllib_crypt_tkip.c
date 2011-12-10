@@ -60,10 +60,9 @@ static void *rtllib_tkip_init(int key_idx)
 {
 	struct rtllib_tkip_data *priv;
 
-	priv = kmalloc(sizeof(*priv), GFP_ATOMIC);
+	priv = kzalloc(sizeof(*priv), GFP_ATOMIC);
 	if (priv == NULL)
 		goto fail;
-	memset(priv, 0, sizeof(*priv));
 	priv->key_idx = key_idx;
 	priv->tx_tfm_arc4 = crypto_alloc_blkcipher("ecb(arc4)", 0,
 			CRYPTO_ALG_ASYNC);
@@ -740,7 +739,6 @@ static char *rtllib_tkip_print_stats(char *p, void *priv)
 	return p;
 }
 
-
 static struct rtllib_crypto_ops rtllib_crypt_tkip = {
 	.name			= "TKIP",
 	.init			= rtllib_tkip_init,
@@ -769,7 +767,7 @@ void __exit rtllib_crypto_tkip_exit(void)
 	rtllib_unregister_crypto_ops(&rtllib_crypt_tkip);
 }
 
-void rtllib_tkip_null(void)
-{
-	return;
-}
+module_init(rtllib_crypto_tkip_init);
+module_exit(rtllib_crypto_tkip_exit);
+
+MODULE_LICENSE("GPL");

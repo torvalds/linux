@@ -128,17 +128,6 @@ int iwctl_giwname(struct net_device *dev,
 	return 0;
 }
 
-int iwctl_giwnwid(struct net_device *dev,
-             struct iw_request_info *info,
-			 struct iw_param *wrq,
-                   char *extra)
-{
- 	//wrq->value = 0x100;
-	//wrq->disabled = 0;
-	//wrq->fixed = 1;
-	//return 0;
-  return -EOPNOTSUPP;
-}
 /*
  * Wireless Handler : set scan
  */
@@ -1939,7 +1928,6 @@ static const iw_handler		iwctl_handler[] =
 	(iw_handler) iwctl_commit,      // SIOCSIWCOMMIT
 	(iw_handler) iwctl_giwname,     // SIOCGIWNAME
 	(iw_handler) NULL,				// SIOCSIWNWID
-	(iw_handler) NULL,				// SIOCGIWNWID
 	(iw_handler) iwctl_siwfreq,		// SIOCSIWFREQ
 	(iw_handler) iwctl_giwfreq,		// SIOCGIWFREQ
 	(iw_handler) iwctl_siwmode,		// SIOCSIWMODE

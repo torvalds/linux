@@ -15,7 +15,7 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
-
+#include "../events.h"
 /*
  * AD7150 registers definition
  */
@@ -111,7 +111,7 @@ static int ad7150_read_raw(struct iio_dev *indio_dev,
 			return ret;
 		*val = swab16(ret);
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_AVERAGE_RAW_SEPARATE):
+	case IIO_CHAN_INFO_AVERAGE_RAW:
 		ret = i2c_smbus_read_word_data(chip->client,
 					ad7150_addresses[chan->channel][1]);
 		if (ret < 0)
@@ -429,7 +429,7 @@ static const struct iio_chan_spec ad7150_channels[] = {
 		.type = IIO_CAPACITANCE,
 		.indexed = 1,
 		.channel = 0,
-		.info_mask = (1 << IIO_CHAN_INFO_AVERAGE_RAW_SEPARATE),
+		.info_mask = IIO_CHAN_INFO_AVERAGE_RAW_SEPARATE_BIT,
 		.event_mask =
 		IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING) |
 		IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_FALLING) |
@@ -441,7 +441,7 @@ static const struct iio_chan_spec ad7150_channels[] = {
 		.type = IIO_CAPACITANCE,
 		.indexed = 1,
 		.channel = 1,
-		.info_mask = (1 << IIO_CHAN_INFO_AVERAGE_RAW_SEPARATE),
+		.info_mask = IIO_CHAN_INFO_AVERAGE_RAW_SEPARATE_BIT,
 		.event_mask =
 		IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING) |
 		IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_FALLING) |

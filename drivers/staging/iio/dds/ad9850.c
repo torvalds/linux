@@ -145,3 +145,4 @@ module_exit(ad9850_spi_exit);
 MODULE_AUTHOR("Cliff Cai");
 MODULE_DESCRIPTION("Analog Devices ad9850 driver");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("spi:" DRV_NAME);

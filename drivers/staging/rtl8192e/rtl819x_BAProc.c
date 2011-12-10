@@ -18,7 +18,6 @@
 ******************************************************************************/
 #include "rtllib.h"
 #include "rtl819x_BA.h"
-#include "rtl_core.h"
 
 static void ActivateBAEntry(struct rtllib_device *ieee, struct ba_record *pBA,
 			    u16 Time)

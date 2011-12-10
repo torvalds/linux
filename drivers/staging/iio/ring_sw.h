@@ -23,7 +23,7 @@
 
 #ifndef _IIO_RING_SW_H_
 #define _IIO_RING_SW_H_
-#include "buffer_generic.h"
+#include "buffer.h"
 
 /**
  * ring_sw_access_funcs - access functions for a software ring buffer

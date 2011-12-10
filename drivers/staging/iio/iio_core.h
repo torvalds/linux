@@ -49,7 +49,7 @@ ssize_t iio_buffer_read_first_n_outer(struct file *filp, char __user *buf,
 
 static inline int iio_chrdev_buffer_open(struct iio_dev *indio_dev)
 {
-	return -EINVAL;
+	return 0;
 }
 
 static inline void iio_chrdev_buffer_release(struct iio_dev *indio_dev)

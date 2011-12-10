@@ -17,7 +17,7 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
-
+#include "../events.h"
 /*
  * ADT7310 registers definition
  */
@@ -877,7 +877,6 @@ MODULE_DEVICE_TABLE(spi, adt7310_id);
 static struct spi_driver adt7310_driver = {
 	.driver = {
 		.name = "adt7310",
-		.bus = &spi_bus_type,
 		.owner = THIS_MODULE,
 	},
 	.probe = adt7310_probe,

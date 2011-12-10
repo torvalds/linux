@@ -943,8 +943,8 @@ void HTResetSelfAndSavePeerSetting(struct rtllib_device *ieee,
 	}
 }
 
-void HTUpdateSelfAndPeerSetting(struct rtllib_device *ieee,
-				struct rtllib_network *pNetwork)
+void HT_update_self_and_peer_setting(struct rtllib_device *ieee,
+				     struct rtllib_network *pNetwork)
 {
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 	struct ht_info_ele *pPeerHTInfo =
@@ -955,6 +955,7 @@ void HTUpdateSelfAndPeerSetting(struct rtllib_device *ieee,
 			pHTInfo->CurrentOpMode = pPeerHTInfo->OptMode;
 	}
 }
+EXPORT_SYMBOL(HT_update_self_and_peer_setting);
 
 void HTUseDefaultSetting(struct rtllib_device *ieee)
 {

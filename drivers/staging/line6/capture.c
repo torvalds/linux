@@ -9,6 +9,7 @@
  *
  */
 
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -243,11 +244,7 @@ static void audio_in_callback(struct urb *urb)
 		length += fsize;
 
 		/* the following assumes LINE6_ISO_PACKETS == 1: */
-#if LINE6_BACKUP_MONITOR_SIGNAL
-		memcpy(line6pcm->prev_fbuf, fbuf, fsize);
-#else
 		line6pcm->prev_fbuf = fbuf;
-#endif
 		line6pcm->prev_fsize = fsize;
 
 #ifdef CONFIG_LINE6_USB_IMPULSE_RESPONSE
@@ -319,6 +316,15 @@ static int snd_line6_capture_hw_params(struct snd_pcm_substream *substream,
 	}
 	/* -- [FD] end */
 
+	line6pcm->buffer_in = kmalloc(LINE6_ISO_BUFFERS * LINE6_ISO_PACKETS *
+				      line6pcm->max_packet_size, GFP_KERNEL);
+
+	if (!line6pcm->buffer_in) {
+		dev_err(line6pcm->line6->ifcdev,
+			"cannot malloc capture buffer\n");
+		return -ENOMEM;
+	}
+
 	ret = snd_pcm_lib_malloc_pages(substream,
 				       params_buffer_bytes(hw_params));
 	if (ret < 0)
@@ -331,6 +337,11 @@ static int snd_line6_capture_hw_params(struct snd_pcm_substream *substream,
 /* hw_free capture callback */
 static int snd_line6_capture_hw_free(struct snd_pcm_substream *substream)
 {
+	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
+
+	line6_unlink_wait_clear_audio_in_urbs(line6pcm);
+	kfree(line6pcm->buffer_in);
+	line6pcm->buffer_in = NULL;
 	return snd_pcm_lib_free_pages(substream);
 }
 

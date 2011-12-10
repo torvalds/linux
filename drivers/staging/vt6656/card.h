@@ -65,7 +65,7 @@ BOOL CARDbSetMediaChannel(void *pDeviceHandler,
 void CARDvSetRSPINF(void *pDeviceHandler, BYTE byBBType);
 void vUpdateIFS(void *pDeviceHandler);
 void CARDvUpdateBasicTopRate(void *pDeviceHandler);
-BOOL CARDbAddBasicRate(void *pDeviceHandler, WORD wRateIdx);
+void CARDbAddBasicRate(void *pDeviceHandler, WORD wRateIdx);
 BOOL CARDbIsOFDMinBasicRate(void *pDeviceHandler);
 void CARDvAdjustTSF(void *pDeviceHandler, BYTE byRxRate,
 		    QWORD qwBSSTimestamp, QWORD qwLocalTSF);

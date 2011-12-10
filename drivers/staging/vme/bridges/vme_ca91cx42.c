@@ -338,7 +338,7 @@ static int ca91cx42_irq_generate(struct vme_bridge *ca91cx42_bridge, int level,
 
 static int ca91cx42_slave_set(struct vme_slave_resource *image, int enabled,
 	unsigned long long vme_base, unsigned long long size,
-	dma_addr_t pci_base, vme_address_t aspace, vme_cycle_t cycle)
+	dma_addr_t pci_base, u32 aspace, u32 cycle)
 {
 	unsigned int i, addr = 0, granularity;
 	unsigned int temp_ctl = 0;
@@ -444,7 +444,7 @@ static int ca91cx42_slave_set(struct vme_slave_resource *image, int enabled,
 
 static int ca91cx42_slave_get(struct vme_slave_resource *image, int *enabled,
 	unsigned long long *vme_base, unsigned long long *size,
-	dma_addr_t *pci_base, vme_address_t *aspace, vme_cycle_t *cycle)
+	dma_addr_t *pci_base, u32 *aspace, u32 *cycle)
 {
 	unsigned int i, granularity = 0, ctl = 0;
 	unsigned long long vme_bound, pci_offset;
@@ -595,8 +595,8 @@ static void ca91cx42_free_resource(struct vme_master_resource *image)
 
 
 static int ca91cx42_master_set(struct vme_master_resource *image, int enabled,
-	unsigned long long vme_base, unsigned long long size,
-	vme_address_t aspace, vme_cycle_t cycle, vme_width_t dwidth)
+	unsigned long long vme_base, unsigned long long size, u32 aspace,
+	u32 cycle, u32 dwidth)
 {
 	int retval = 0;
 	unsigned int i, granularity = 0;
@@ -753,7 +753,7 @@ err_window:
 
 static int __ca91cx42_master_get(struct vme_master_resource *image,
 	int *enabled, unsigned long long *vme_base, unsigned long long *size,
-	vme_address_t *aspace, vme_cycle_t *cycle, vme_width_t *dwidth)
+	u32 *aspace, u32 *cycle, u32 *dwidth)
 {
 	unsigned int i, ctl;
 	unsigned long long pci_base, pci_bound, vme_offset;
@@ -839,8 +839,8 @@ static int __ca91cx42_master_get(struct vme_master_resource *image,
 }
 
 static int ca91cx42_master_get(struct vme_master_resource *image, int *enabled,
-	unsigned long long *vme_base, unsigned long long *size,
-	vme_address_t *aspace, vme_cycle_t *cycle, vme_width_t *dwidth)
+	unsigned long long *vme_base, unsigned long long *size, u32 *aspace,
+	u32 *cycle, u32 *dwidth)
 {
 	int retval;
 
@@ -876,13 +876,13 @@ static ssize_t ca91cx42_master_read(struct vme_master_resource *image,
 	 * maximal configured data cycle is used and splits it
 	 * automatically for non-aligned addresses.
 	 */
-	if ((int)addr & 0x1) {
+	if ((uintptr_t)addr & 0x1) {
 		*(u8 *)buf = ioread8(addr);
 		done += 1;
 		if (done == count)
 			goto out;
 	}
-	if ((int)addr & 0x2) {
+	if ((uintptr_t)addr & 0x2) {
 		if ((count - done) < 2) {
 			*(u8 *)(buf + done) = ioread8(addr + done);
 			done += 1;
@@ -930,13 +930,13 @@ static ssize_t ca91cx42_master_write(struct vme_master_resource *image,
 	/* Here we apply for the same strategy we do in master_read
 	 * function in order to assure D16 cycle when required.
 	 */
-	if ((int)addr & 0x1) {
+	if ((uintptr_t)addr & 0x1) {
 		iowrite8(*(u8 *)buf, addr);
 		done += 1;
 		if (done == count)
 			goto out;
 	}
-	if ((int)addr & 0x2) {
+	if ((uintptr_t)addr & 0x2) {
 		if ((count - done) < 2) {
 			iowrite8(*(u8 *)(buf + done), addr + done);
 			done += 1;
@@ -973,7 +973,8 @@ static unsigned int ca91cx42_master_rmw(struct vme_master_resource *image,
 	unsigned int mask, unsigned int compare, unsigned int swap,
 	loff_t offset)
 {
-	u32 pci_addr, result;
+	u32 result;
+	uintptr_t pci_addr;
 	int i;
 	struct ca91cx42_driver *bridge;
 	struct device *dev;
@@ -990,7 +991,7 @@ static unsigned int ca91cx42_master_rmw(struct vme_master_resource *image,
 	/* Lock image */
 	spin_lock(&image->lock);
 
-	pci_addr = (u32)image->kern_base + offset;
+	pci_addr = (uintptr_t)image->kern_base + offset;
 
 	/* Address must be 4-byte aligned */
 	if (pci_addr & 0x3) {
@@ -1291,7 +1292,7 @@ static int ca91cx42_dma_list_empty(struct vme_dma_list *list)
  * callback is attached and disabled when the last callback is removed.
  */
 static int ca91cx42_lm_set(struct vme_lm_resource *lm,
-	unsigned long long lm_base, vme_address_t aspace, vme_cycle_t cycle)
+	unsigned long long lm_base, u32 aspace, u32 cycle)
 {
 	u32 temp_base, lm_ctl = 0;
 	int i;
@@ -1359,7 +1360,7 @@ static int ca91cx42_lm_set(struct vme_lm_resource *lm,
  * or disabled.
  */
 static int ca91cx42_lm_get(struct vme_lm_resource *lm,
-	unsigned long long *lm_base, vme_address_t *aspace, vme_cycle_t *cycle)
+	unsigned long long *lm_base, u32 *aspace, u32 *cycle)
 {
 	u32 lm_ctl, enabled = 0;
 	struct ca91cx42_driver *bridge;

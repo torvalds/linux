@@ -75,12 +75,10 @@ static inline void __iio_init_kfifo(struct iio_kfifo *kf)
 }
 
 static IIO_BUFFER_ENABLE_ATTR;
-static IIO_BUFFER_BYTES_PER_DATUM_ATTR;
 static IIO_BUFFER_LENGTH_ATTR;
 
 static struct attribute *iio_kfifo_attributes[] = {
 	&dev_attr_length.attr,
-	&dev_attr_bytes_per_datum.attr,
 	&dev_attr_enable.attr,
 	NULL,
 };
@@ -98,7 +96,7 @@ struct iio_buffer *iio_kfifo_allocate(struct iio_dev *indio_dev)
 	if (!kf)
 		return NULL;
 	kf->update_needed = true;
-	iio_buffer_init(&kf->buffer, indio_dev);
+	iio_buffer_init(&kf->buffer);
 	kf->buffer.attrs = &iio_kfifo_attribute_group;
 	__iio_init_kfifo(kf);
 
@@ -150,16 +148,9 @@ static int iio_store_to_kfifo(struct iio_buffer *r,
 {
 	int ret;
 	struct iio_kfifo *kf = iio_to_kfifo(r);
-	u8 *datal = kmalloc(r->bytes_per_datum, GFP_KERNEL);
-	memcpy(datal, data, r->bytes_per_datum - sizeof(timestamp));
-	memcpy(datal + r->bytes_per_datum - sizeof(timestamp),
-		&timestamp, sizeof(timestamp));
 	ret = kfifo_in(&kf->kf, data, r->bytes_per_datum);
-	if (ret != r->bytes_per_datum) {
-		kfree(datal);
+	if (ret != r->bytes_per_datum)
 		return -EBUSY;
-	}
-	kfree(datal);
 	return 0;
 }
 

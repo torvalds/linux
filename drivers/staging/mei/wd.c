@@ -331,14 +331,14 @@ static int mei_wd_ops_set_timeout(struct watchdog_device *wd_dev, unsigned int t
 /*
  * Watchdog Device structs
  */
-const struct watchdog_ops wd_ops = {
+static const struct watchdog_ops wd_ops = {
 		.owner = THIS_MODULE,
 		.start = mei_wd_ops_start,
 		.stop = mei_wd_ops_stop,
 		.ping = mei_wd_ops_ping,
 		.set_timeout = mei_wd_ops_set_timeout,
 };
-const struct watchdog_info wd_info = {
+static const struct watchdog_info wd_info = {
 		.identity = INTEL_AMT_WATCHDOG_ID,
 		.options = WDIOF_KEEPALIVEPING,
 };

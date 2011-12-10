@@ -1,0 +1,9 @@
+NVIDIA compliant embedded controller
+
+Required properties:
+- compatible : should be "nvidia,nvec".
+- reg : the iomem of the i2c slave controller
+- interrupts : the interrupt line of the i2c slave controller
+- clock-frequency : the frequency of the i2c bus
+- gpios : the gpio used for ec request
+- slave-addr: the i2c address of the slave controller

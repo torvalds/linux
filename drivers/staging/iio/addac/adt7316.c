@@ -20,6 +20,7 @@
 #include <linux/module.h>
 
 #include "../iio.h"
+#include "../events.h"
 #include "../sysfs.h"
 #include "adt7316.h"
 

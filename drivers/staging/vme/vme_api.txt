@@ -86,26 +86,26 @@ driver allows a resource to be assigned based on the required attributes of the
 driver in question:
 
 	struct vme_resource * vme_master_request(struct vme_dev *dev,
-		vme_address_t aspace, vme_cycle_t cycle, vme_width_t width);
+		u32 aspace, u32 cycle, u32 width);
 
-	struct vme_resource * vme_slave_request(struct vme_dev *dev,
-		vme_address_t aspace, vme_cycle_t cycle);
+	struct vme_resource * vme_slave_request(struct vme_dev *dev, u32 aspace,
+		u32 cycle);
 
-	struct vme_resource *vme_dma_request(struct vme_dev *dev,
-		vme_dma_route_t route);
+	struct vme_resource *vme_dma_request(struct vme_dev *dev, u32 route);
 
-For slave windows these attributes are split into those of type 'vme_address_t'
-and 'vme_cycle_t'. Master windows add a further set of attributes
-'vme_cycle_t'.  These attributes are defined as bitmasks and as such any
-combination of the attributes can be requested for a single window, the core
-will assign a window that meets the requirements, returning a pointer of type
-vme_resource that should be used to identify the allocated resource when it is
-used. For DMA controllers, the request function requires the potential
-direction of any transfers to be provided in the route attributes. This is
-typically VME-to-MEM and/or MEM-to-VME, though some hardware can support
-VME-to-VME and MEM-to-MEM transfers as well as test pattern generation. If an
-unallocated window fitting the requirements can not be found a NULL pointer
-will be returned.
+For slave windows these attributes are split into the VME address spaces that
+need to be accessed in 'aspace' and VME bus cycle types required in 'cycle'.
+Master windows add a further set of attributes in 'width' specifying the
+required data transfer widths. These attributes are defined as bitmasks and as
+such any combination of the attributes can be requested for a single window,
+the core will assign a window that meets the requirements, returning a pointer
+of type vme_resource that should be used to identify the allocated resource
+when it is used. For DMA controllers, the request function requires the
+potential direction of any transfers to be provided in the route attributes.
+This is typically VME-to-MEM and/or MEM-to-VME, though some hardware can
+support VME-to-VME and MEM-to-MEM transfers as well as test pattern generation.
+If an unallocated window fitting the requirements can not be found a NULL
+pointer will be returned.
 
 Functions are also provided to free window allocations once they are no longer
 required. These functions should be passed the pointer to the resource provided
@@ -133,12 +133,12 @@ Once a master window has been assigned the following functions can be used to
 configure it and retrieve the current settings:
 
 	int vme_master_set (struct vme_resource *res, int enabled,
-		unsigned long long base, unsigned long long size,
-		vme_address_t aspace, vme_cycle_t cycle, vme_width_t width);
+		unsigned long long base, unsigned long long size, u32 aspace,
+		u32 cycle, u32 width);
 
 	int vme_master_get (struct vme_resource *res, int *enabled,
-		unsigned long long *base, unsigned long long *size,
-		vme_address_t *aspace, vme_cycle_t *cycle, vme_width_t *width);
+		unsigned long long *base, unsigned long long *size, u32 *aspace,
+		u32 *cycle, u32 *width);
 
 The address spaces, transfer widths and cycle types are the same as described
 under resource management, however some of the options are mutually exclusive.
@@ -189,11 +189,11 @@ configure it and retrieve the current settings:
 
 	int vme_slave_set (struct vme_resource *res, int enabled,
 		unsigned long long base, unsigned long long size,
-		dma_addr_t mem, vme_address_t aspace, vme_cycle_t cycle);
+		dma_addr_t mem, u32 aspace, u32 cycle);
 
 	int vme_slave_get (struct vme_resource *res, int *enabled,
 		unsigned long long *base, unsigned long long *size,
-		dma_addr_t *mem, vme_address_t *aspace, vme_cycle_t *cycle);
+		dma_addr_t *mem, u32 *aspace, u32 *cycle);
 
 The address spaces, transfer widths and cycle types are the same as described
 under resource management, however some of the options are mutually exclusive.
@@ -273,8 +273,7 @@ and pattern sources and destinations (where appropriate):
 
 Pattern source:
 
-	struct vme_dma_attr *vme_dma_pattern_attribute(u32 pattern,
-		vme_pattern_t type);
+	struct vme_dma_attr *vme_dma_pattern_attribute(u32 pattern, u32 type);
 
 PCI source or destination:
 
@@ -283,7 +282,7 @@ PCI source or destination:
 VME source or destination:
 
 	struct vme_dma_attr *vme_dma_vme_attribute(unsigned long long base,
-		vme_address_t aspace, vme_cycle_t cycle, vme_width_t width);
+		u32 aspace, u32 cycle, u32 width);
 
 The following function should be used to free an attribute:
 
@@ -366,10 +365,10 @@ Once a bank of location monitors has been allocated, the following functions
 are provided to configure the location and mode of the location monitor:
 
 	int vme_lm_set(struct vme_resource *res, unsigned long long base,
-		vme_address_t aspace, vme_cycle_t cycle);
+		u32 aspace, u32 cycle);
 
 	int vme_lm_get(struct vme_resource *res, unsigned long long *base,
-		vme_address_t *aspace, vme_cycle_t *cycle);
+		u32 *aspace, u32 *cycle);
 
 
 Location Monitor Use

@@ -243,7 +243,7 @@ static int adxrs450_write_raw(struct iio_dev *indio_dev,
 {
 	int ret;
 	switch (mask) {
-	case (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE):
+	case IIO_CHAN_INFO_CALIBBIAS:
 		ret = adxrs450_spi_write_reg_16(indio_dev,
 						ADXRS450_DNC1,
 						val & 0x3FF);
@@ -287,7 +287,7 @@ static int adxrs450_read_raw(struct iio_dev *indio_dev,
 			break;
 		}
 		break;
-	case (1 << IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SEPARATE):
+	case IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW:
 		ret = adxrs450_spi_read_reg_16(indio_dev, ADXRS450_QUAD1, &t);
 		if (ret)
 			break;
@@ -307,8 +307,8 @@ static const struct iio_chan_spec adxrs450_channels[] = {
 		.type = IIO_ANGL_VEL,
 		.modified = 1,
 		.channel2 = IIO_MOD_Z,
-		.info_mask = (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE) |
-		(1 << IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SEPARATE)
+		.info_mask = IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT |
+		IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SEPARATE_BIT,
 	}, {
 		.type = IIO_TEMP,
 		.indexed = 1,
@@ -397,3 +397,4 @@ module_exit(adxrs450_exit);
 MODULE_AUTHOR("Cliff Cai <cliff.cai@xxxxxxxxxx>");
 MODULE_DESCRIPTION("Analog Devices ADXRS450 Gyroscope SPI driver");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("spi:adxrs450");

@@ -295,6 +295,7 @@ int rtllib_wx_get_scan(struct rtllib_device *ieee,
 
 	return err;
 }
+EXPORT_SYMBOL(rtllib_wx_get_scan);
 
 int rtllib_wx_set_encode(struct rtllib_device *ieee,
 			    struct iw_request_info *info,
@@ -368,11 +369,10 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 		struct rtllib_crypt_data *new_crypt;
 
 		/* take WEP into use */
-		new_crypt = kmalloc(sizeof(struct rtllib_crypt_data),
+		new_crypt = kzalloc(sizeof(struct rtllib_crypt_data),
 				    GFP_KERNEL);
 		if (new_crypt == NULL)
 			return -ENOMEM;
-		memset(new_crypt, 0, sizeof(struct rtllib_crypt_data));
 		new_crypt->ops = rtllib_get_crypto_ops("WEP");
 		if (!new_crypt->ops) {
 			request_module("rtllib_crypt_wep");
@@ -470,6 +470,7 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 	}
 	return 0;
 }
+EXPORT_SYMBOL(rtllib_wx_set_encode);
 
 int rtllib_wx_get_encode(struct rtllib_device *ieee,
 			    struct iw_request_info *info,
@@ -513,6 +514,7 @@ int rtllib_wx_get_encode(struct rtllib_device *ieee,
 
 	return 0;
 }
+EXPORT_SYMBOL(rtllib_wx_get_encode);
 
 int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 			       struct iw_request_info *info,
@@ -674,6 +676,7 @@ done:
 	}
 	return ret;
 }
+EXPORT_SYMBOL(rtllib_wx_set_encode_ext);
 
 int rtllib_wx_get_encode_ext(struct rtllib_device *ieee,
 			       struct iw_request_info *info,
@@ -778,6 +781,7 @@ int rtllib_wx_set_mlme(struct rtllib_device *ieee,
 
 	return 0;
 }
+EXPORT_SYMBOL(rtllib_wx_set_mlme);
 
 int rtllib_wx_set_auth(struct rtllib_device *ieee,
 			       struct iw_request_info *info,
@@ -830,6 +834,7 @@ int rtllib_wx_set_auth(struct rtllib_device *ieee,
 	}
 	return 0;
 }
+EXPORT_SYMBOL(rtllib_wx_set_auth);
 
 int rtllib_wx_set_gen_ie(struct rtllib_device *ieee, u8 *ie, size_t len)
 {
@@ -846,10 +851,9 @@ int rtllib_wx_set_gen_ie(struct rtllib_device *ieee, u8 *ie, size_t len)
 
 			ieee->wps_ie_len = (len < MAX_WZC_IE_LEN) ? (len) :
 					   (MAX_WZC_IE_LEN);
-			buf = kmalloc(ieee->wps_ie_len, GFP_KERNEL);
+			buf = kmemdup(ie, ieee->wps_ie_len, GFP_KERNEL);
 			if (buf == NULL)
 				return -ENOMEM;
-			memcpy(buf, ie, ieee->wps_ie_len);
 			ieee->wps_ie = buf;
 			return 0;
 		}
@@ -860,10 +864,9 @@ int rtllib_wx_set_gen_ie(struct rtllib_device *ieee, u8 *ie, size_t len)
 	if (len) {
 		if (len != ie[1]+2)
 			return -EINVAL;
-		buf = kmalloc(len, GFP_KERNEL);
+		buf = kmemdup(ie, len, GFP_KERNEL);
 		if (buf == NULL)
 			return -ENOMEM;
-		memcpy(buf, ie, len);
 		kfree(ieee->wpa_ie);
 		ieee->wpa_ie = buf;
 		ieee->wpa_ie_len = len;
@@ -874,3 +877,4 @@ int rtllib_wx_set_gen_ie(struct rtllib_device *ieee, u8 *ie, size_t len)
 	}
 	return 0;
 }
+EXPORT_SYMBOL(rtllib_wx_set_gen_ie);

@@ -951,14 +951,13 @@ pcmuio_inttrig_start_intr(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	spin_lock_irqsave(&subpriv->intr.spinlock, flags);
 	s->async->inttrig = 0;
-	if (subpriv->intr.active) {
+	if (subpriv->intr.active)
 		event = pcmuio_start_intr(dev, s);
-	}
+
 	spin_unlock_irqrestore(&subpriv->intr.spinlock, flags);
 
-	if (event) {
+	if (event)
 		comedi_event(dev, s);
-	}
 
 	return 1;
 }
@@ -1000,9 +999,8 @@ static int pcmuio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 	spin_unlock_irqrestore(&subpriv->intr.spinlock, flags);
 
-	if (event) {
+	if (event)
 		comedi_event(dev, s);
-	}
 
 	return 0;
 }

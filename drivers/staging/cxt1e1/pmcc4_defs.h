@@ -1,7 +1,3 @@
-/*
- * $Id: pmcc4_defs.h,v 1.0 2005/09/28 00:10:09 rickd PMCC4_3_1B $
- */
-
 #ifndef _INC_PMCC4_DEFS_H_
 #define _INC_PMCC4_DEFS_H_
 
@@ -24,16 +20,6 @@
  *
  * For further information, contact via email: support@sbei.com
  * SBE, Inc.  San Ramon, California  U.S.A.
- *-----------------------------------------------------------------------------
- * RCS info:
- * RCS revision: $Revision: 1.0 $
- * Last changed on $Date: 2005/09/28 00:10:09 $
- * Changed by $Author: rickd $
- *-----------------------------------------------------------------------------
- * $Log: pmcc4_defs.h,v $
- * Revision 1.0  2005/09/28 00:10:09  rickd
- * Initial revision
- *
  *-----------------------------------------------------------------------------
  */
 

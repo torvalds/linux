@@ -88,7 +88,7 @@ static ssize_t ad9832_write(struct device *dev,
 		goto error_ret;
 
 	mutex_lock(&indio_dev->mlock);
-	switch (this_attr->address) {
+	switch ((u32) this_attr->address) {
 	case AD9832_FREQ0HM:
 	case AD9832_FREQ1HM:
 		ret = ad9832_write_frequency(st, this_attr->address, val);
@@ -344,11 +344,11 @@ static const struct spi_device_id ad9832_id[] = {
 	{"ad9835", 0},
 	{}
 };
+MODULE_DEVICE_TABLE(spi, ad9832_id);
 
 static struct spi_driver ad9832_driver = {
 	.driver = {
 		.name	= "ad9832",
-		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ad9832_probe,
@@ -371,4 +371,3 @@ module_exit(ad9832_exit);
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("Analog Devices AD9832/AD9835 DDS");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("spi:ad9832");
