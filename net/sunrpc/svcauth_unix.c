@@ -220,7 +220,7 @@ static int ip_map_parse(struct cache_detail *cd,
 		ipv6_addr_set_v4mapped(address.s4.sin_addr.s_addr,
 				&sin6.sin6_addr);
 		break;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
 		memcpy(&sin6, &address.s6, sizeof(sin6));
 		break;

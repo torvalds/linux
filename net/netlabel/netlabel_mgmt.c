@@ -184,7 +184,7 @@ static int netlbl_mgmt_add_common(struct genl_info *info,
 
 		entry->type = NETLBL_NLTYPE_ADDRSELECT;
 		entry->type_def.addrsel = addrmap;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	} else if (info->attrs[NLBL_MGMT_A_IPV6ADDR]) {
 		struct in6_addr *addr;
 		struct in6_addr *mask;
@@ -270,7 +270,7 @@ static int netlbl_mgmt_listentry(struct sk_buff *skb,
 	struct nlattr *nla_a;
 	struct nlattr *nla_b;
 	struct netlbl_af4list *iter4;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	struct netlbl_af6list *iter6;
 #endif
 
@@ -324,7 +324,7 @@ static int netlbl_mgmt_listentry(struct sk_buff *skb,
 
 			nla_nest_end(skb, nla_b);
 		}
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 		netlbl_af6list_foreach_rcu(iter6,
 					   &entry->type_def.addrsel->list6) {
 			struct netlbl_domaddr6_map *map6;

@@ -357,7 +357,7 @@ static inline int dccp_bad_service_code(const struct sock *sk,
 struct dccp_skb_cb {
 	union {
 		struct inet_skb_parm	h4;
-#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 		struct inet6_skb_parm	h6;
 #endif
 	} header;

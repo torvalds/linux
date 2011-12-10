@@ -29,9 +29,6 @@
 #	define WITH_CONNTRACK 1
 #	include <net/netfilter/nf_conntrack.h>
 #endif
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-#	define WITH_IPV6 1
-#endif
 
 struct xt_tee_priv {
 	struct notifier_block	notifier;
@@ -136,7 +133,7 @@ tee_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 	return XT_CONTINUE;
 }
 
-#ifdef WITH_IPV6
+#if IS_ENABLED(CONFIG_IPV6)
 static bool
 tee_tg_route6(struct sk_buff *skb, const struct xt_tee_tginfo *info)
 {
@@ -196,7 +193,7 @@ tee_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 	}
 	return XT_CONTINUE;
 }
-#endif /* WITH_IPV6 */
+#endif
 
 static int tee_netdev_event(struct notifier_block *this, unsigned long event,
 			    void *ptr)
@@ -276,7 +273,7 @@ static struct xt_target tee_tg_reg[] __read_mostly = {
 		.destroy    = tee_tg_destroy,
 		.me         = THIS_MODULE,
 	},
-#ifdef WITH_IPV6
+#if IS_ENABLED(CONFIG_IPV6)
 	{
 		.name       = "TEE",
 		.revision   = 1,

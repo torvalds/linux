@@ -41,7 +41,7 @@
 struct udp_skb_cb {
 	union {
 		struct inet_skb_parm	h4;
-#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 		struct inet6_skb_parm	h6;
 #endif
 	} header;
@@ -223,7 +223,7 @@ extern struct sock *__udp6_lib_lookup(struct net *net, const struct in6_addr *sa
 	else	    SNMP_INC_STATS_USER((net)->mib.udp_stats_in6, field);      \
 } while(0)
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 #define UDPX_INC_STATS_BH(sk, field) \
 	do { \
 		if ((sk)->sk_family == AF_INET) \

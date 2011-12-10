@@ -179,13 +179,13 @@ static struct svc_xprt *__svc_xpo_create(struct svc_xprt_class *xcl,
 		.sin_addr.s_addr	= htonl(INADDR_ANY),
 		.sin_port		= htons(port),
 	};
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	struct sockaddr_in6 sin6 = {
 		.sin6_family		= AF_INET6,
 		.sin6_addr		= IN6ADDR_ANY_INIT,
 		.sin6_port		= htons(port),
 	};
-#endif	/* defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE) */
+#endif
 	struct sockaddr *sap;
 	size_t len;
 
@@ -194,12 +194,12 @@ static struct svc_xprt *__svc_xpo_create(struct svc_xprt_class *xcl,
 		sap = (struct sockaddr *)&sin;
 		len = sizeof(sin);
 		break;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	case PF_INET6:
 		sap = (struct sockaddr *)&sin6;
 		len = sizeof(sin6);
 		break;
-#endif	/* defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE) */
+#endif
 	default:
 		return ERR_PTR(-EAFNOSUPPORT);
 	}

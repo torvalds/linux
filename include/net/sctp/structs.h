@@ -365,7 +365,7 @@ static inline struct sock *sctp_opt2sk(const struct sctp_sock *sp)
        return (struct sock *)sp;
 }
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 struct sctp6_sock {
        struct sctp_sock  sctp;
        struct ipv6_pinfo inet6;

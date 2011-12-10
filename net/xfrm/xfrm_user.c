@@ -28,7 +28,7 @@
 #include <net/netlink.h>
 #include <net/ah.h>
 #include <asm/uaccess.h>
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 #include <linux/in6.h>
 #endif
 
@@ -150,7 +150,7 @@ static int verify_newsa_info(struct xfrm_usersa_info *p,
 		break;
 
 	case AF_INET6:
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 		break;
 #else
 		err = -EAFNOSUPPORT;
@@ -201,7 +201,7 @@ static int verify_newsa_info(struct xfrm_usersa_info *p,
 			goto out;
 		break;
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	case IPPROTO_DSTOPTS:
 	case IPPROTO_ROUTING:
 		if (attrs[XFRMA_ALG_COMP]	||
@@ -1160,7 +1160,7 @@ static int verify_newpolicy_info(struct xfrm_userpolicy_info *p)
 		break;
 
 	case AF_INET6:
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 		break;
 #else
 		return  -EAFNOSUPPORT;
@@ -1231,7 +1231,7 @@ static int validate_tmpl(int nr, struct xfrm_user_tmpl *ut, u16 family)
 		switch (ut[i].family) {
 		case AF_INET:
 			break;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 		case AF_INET6:
 			break;
 #endif
@@ -2604,7 +2604,7 @@ static struct xfrm_policy *xfrm_compile_policy(struct sock *sk, int opt,
 			return NULL;
 		}
 		break;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
 		if (opt != IPV6_XFRM_POLICY) {
 			*dir = -EOPNOTSUPP;

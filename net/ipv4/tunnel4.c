@@ -105,7 +105,7 @@ drop:
 	return 0;
 }
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 static int tunnel64_rcv(struct sk_buff *skb)
 {
 	struct xfrm_tunnel *handler;
@@ -134,7 +134,7 @@ static void tunnel4_err(struct sk_buff *skb, u32 info)
 			break;
 }
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 static void tunnel64_err(struct sk_buff *skb, u32 info)
 {
 	struct xfrm_tunnel *handler;
@@ -152,7 +152,7 @@ static const struct net_protocol tunnel4_protocol = {
 	.netns_ok	=	1,
 };
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 static const struct net_protocol tunnel64_protocol = {
 	.handler	=	tunnel64_rcv,
 	.err_handler	=	tunnel64_err,
@@ -167,7 +167,7 @@ static int __init tunnel4_init(void)
 		printk(KERN_ERR "tunnel4 init: can't add protocol\n");
 		return -EAGAIN;
 	}
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	if (inet_add_protocol(&tunnel64_protocol, IPPROTO_IPV6)) {
 		printk(KERN_ERR "tunnel64 init: can't add protocol\n");
 		inet_del_protocol(&tunnel4_protocol, IPPROTO_IPIP);
@@ -179,7 +179,7 @@ static int __init tunnel4_init(void)
 
 static void __exit tunnel4_fini(void)
 {
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	if (inet_del_protocol(&tunnel64_protocol, IPPROTO_IPV6))
 		printk(KERN_ERR "tunnel64 close: can't remove protocol\n");
 #endif

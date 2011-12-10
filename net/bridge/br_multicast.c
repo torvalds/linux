@@ -24,7 +24,7 @@
 #include <linux/slab.h>
 #include <linux/timer.h>
 #include <net/ip.h>
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 #include <net/ipv6.h>
 #include <net/mld.h>
 #include <net/addrconf.h>
@@ -36,7 +36,7 @@
 #define mlock_dereference(X, br) \
 	rcu_dereference_protected(X, lockdep_is_held(&br->multicast_lock))
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 static inline int ipv6_is_transient_multicast(const struct in6_addr *addr)
 {
 	if (ipv6_addr_is_multicast(addr) && IPV6_ADDR_MC_FLAG_TRANSIENT(addr))
@@ -52,7 +52,7 @@ static inline int br_ip_equal(const struct br_ip *a, const struct br_ip *b)
 	switch (a->proto) {
 	case htons(ETH_P_IP):
 		return a->u.ip4 == b->u.ip4;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	case htons(ETH_P_IPV6):
 		return ipv6_addr_equal(&a->u.ip6, &b->u.ip6);
 #endif
@@ -65,7 +65,7 @@ static inline int __br_ip4_hash(struct net_bridge_mdb_htable *mdb, __be32 ip)
 	return jhash_1word(mdb->secret, (__force u32)ip) & (mdb->max - 1);
 }
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 static inline int __br_ip6_hash(struct net_bridge_mdb_htable *mdb,
 				const struct in6_addr *ip)
 {
@@ -79,7 +79,7 @@ static inline int br_ip_hash(struct net_bridge_mdb_htable *mdb,
 	switch (ip->proto) {
 	case htons(ETH_P_IP):
 		return __br_ip4_hash(mdb, ip->u.ip4);
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	case htons(ETH_P_IPV6):
 		return __br_ip6_hash(mdb, &ip->u.ip6);
 #endif
@@ -121,7 +121,7 @@ static struct net_bridge_mdb_entry *br_mdb_ip4_get(
 	return br_mdb_ip_get(mdb, &br_dst);
 }
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 static struct net_bridge_mdb_entry *br_mdb_ip6_get(
 	struct net_bridge_mdb_htable *mdb, const struct in6_addr *dst)
 {
@@ -152,7 +152,7 @@ struct net_bridge_mdb_entry *br_mdb_get(struct net_bridge *br,
 	case htons(ETH_P_IP):
 		ip.u.ip4 = ip_hdr(skb)->daddr;
 		break;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	case htons(ETH_P_IPV6):
 		ip.u.ip6 = ipv6_hdr(skb)->daddr;
 		break;
@@ -411,7 +411,7 @@ out:
 	return skb;
 }
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 static struct sk_buff *br_ip6_multicast_alloc_query(struct net_bridge *br,
 						    const struct in6_addr *group)
 {
@@ -496,7 +496,7 @@ static struct sk_buff *br_multicast_alloc_query(struct net_bridge *br,
 	switch (addr->proto) {
 	case htons(ETH_P_IP):
 		return br_ip4_multicast_alloc_query(br, addr->u.ip4);
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	case htons(ETH_P_IPV6):
 		return br_ip6_multicast_alloc_query(br, &addr->u.ip6);
 #endif
@@ -773,7 +773,7 @@ static int br_ip4_multicast_add_group(struct net_bridge *br,
 	return br_multicast_add_group(br, port, &br_group);
 }
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 static int br_ip6_multicast_add_group(struct net_bridge *br,
 				      struct net_bridge_port *port,
 				      const struct in6_addr *group)
@@ -845,7 +845,7 @@ static void br_multicast_send_query(struct net_bridge *br,
 	br_group.proto = htons(ETH_P_IP);
 	__br_multicast_send_query(br, port, &br_group);
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	br_group.proto = htons(ETH_P_IPV6);
 	__br_multicast_send_query(br, port, &br_group);
 #endif
@@ -989,7 +989,7 @@ static int br_ip4_multicast_igmp3_report(struct net_bridge *br,
 	return err;
 }
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 static int br_ip6_multicast_mld2_report(struct net_bridge *br,
 					struct net_bridge_port *port,
 					struct sk_buff *skb)
@@ -1185,7 +1185,7 @@ out:
 	return err;
 }
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 static int br_ip6_multicast_query(struct net_bridge *br,
 				  struct net_bridge_port *port,
 				  struct sk_buff *skb)
@@ -1334,7 +1334,7 @@ static void br_ip4_multicast_leave_group(struct net_bridge *br,
 	br_multicast_leave_group(br, port, &br_group);
 }
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 static void br_ip6_multicast_leave_group(struct net_bridge *br,
 					 struct net_bridge_port *port,
 					 const struct in6_addr *group)
@@ -1449,7 +1449,7 @@ err_out:
 	return err;
 }
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 static int br_multicast_ipv6_rcv(struct net_bridge *br,
 				 struct net_bridge_port *port,
 				 struct sk_buff *skb)
@@ -1596,7 +1596,7 @@ int br_multicast_rcv(struct net_bridge *br, struct net_bridge_port *port,
 	switch (skb->protocol) {
 	case htons(ETH_P_IP):
 		return br_multicast_ipv4_rcv(br, port, skb);
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	case htons(ETH_P_IPV6):
 		return br_multicast_ipv6_rcv(br, port, skb);
 #endif

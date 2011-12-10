@@ -1340,7 +1340,7 @@ static inline struct xfrm_dst *xfrm_alloc_dst(struct net *net, int family)
 	case AF_INET:
 		dst_ops = &net->xfrm.xfrm4_dst_ops;
 		break;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
 		dst_ops = &net->xfrm.xfrm6_dst_ops;
 		break;
@@ -2435,7 +2435,7 @@ int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
 		case AF_INET:
 			xfrm_dst_ops = &net->xfrm.xfrm4_dst_ops;
 			break;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 		case AF_INET6:
 			xfrm_dst_ops = &net->xfrm.xfrm6_dst_ops;
 			break;
@@ -2485,7 +2485,7 @@ static void __net_init xfrm_dst_ops_init(struct net *net)
 	afinfo = xfrm_policy_afinfo[AF_INET];
 	if (afinfo)
 		net->xfrm.xfrm4_dst_ops = *afinfo->dst_ops;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	afinfo = xfrm_policy_afinfo[AF_INET6];
 	if (afinfo)
 		net->xfrm.xfrm6_dst_ops = *afinfo->dst_ops;

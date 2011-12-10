@@ -116,7 +116,7 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 	if (ext & (1 << (INET_DIAG_TOS - 1)))
 		RTA_PUT_U8(skb, INET_DIAG_TOS, inet->tos);
 
-#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	if (r->idiag_family == AF_INET6) {
 		const struct ipv6_pinfo *np = inet6_sk(sk);
 
@@ -234,7 +234,7 @@ static int inet_twsk_diag_fill(struct inet_timewait_sock *tw,
 	r->idiag_wqueue	      = 0;
 	r->idiag_uid	      = 0;
 	r->idiag_inode	      = 0;
-#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	if (tw->tw_family == AF_INET6) {
 		const struct inet6_timewait_sock *tw6 =
 						inet6_twsk((struct sock *)tw);
@@ -286,7 +286,7 @@ int inet_diag_dump_one_icsk(struct inet_hashinfo *hashinfo, struct sk_buff *in_s
 				 req->id.idiag_dport, req->id.idiag_src[0],
 				 req->id.idiag_sport, req->id.idiag_if);
 	}
-#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	else if (req->sdiag_family == AF_INET6) {
 		sk = inet6_lookup(&init_net, hashinfo,
 				  (struct in6_addr *)req->id.idiag_dst,
@@ -473,7 +473,7 @@ int inet_diag_bc_sk(const struct nlattr *bc, struct sock *sk)
 		return 1;
 
 	entry.family = sk->sk_family;
-#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	if (entry.family == AF_INET6) {
 		struct ipv6_pinfo *np = inet6_sk(sk);
 
@@ -571,7 +571,7 @@ static int inet_twsk_diag_dump(struct inet_timewait_sock *tw,
 		struct inet_diag_entry entry;
 
 		entry.family = tw->tw_family;
-#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 		if (tw->tw_family == AF_INET6) {
 			struct inet6_timewait_sock *tw6 =
 						inet6_twsk((struct sock *)tw);
@@ -633,7 +633,7 @@ static int inet_diag_fill_req(struct sk_buff *skb, struct sock *sk,
 	r->idiag_wqueue = 0;
 	r->idiag_uid = sock_i_uid(sk);
 	r->idiag_inode = 0;
-#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	if (r->idiag_family == AF_INET6) {
 		*(struct in6_addr *)r->id.idiag_src = inet6_rsk(req)->loc_addr;
 		*(struct in6_addr *)r->id.idiag_dst = inet6_rsk(req)->rmt_addr;
@@ -695,13 +695,13 @@ static int inet_diag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 
 			if (bc) {
 				entry.saddr =
-#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 					(entry.family == AF_INET6) ?
 					inet6_rsk(req)->loc_addr.s6_addr32 :
 #endif
 					&ireq->loc_addr;
 				entry.daddr =
-#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 					(entry.family == AF_INET6) ?
 					inet6_rsk(req)->rmt_addr.s6_addr32 :
 #endif

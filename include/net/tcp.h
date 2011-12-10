@@ -628,7 +628,7 @@ extern u32 __tcp_select_window(struct sock *sk);
 struct tcp_skb_cb {
 	union {
 		struct inet_skb_parm	h4;
-#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 		struct inet6_skb_parm	h6;
 #endif
 	} header;	/* For incoming frames		*/
@@ -1152,7 +1152,7 @@ struct tcp6_md5sig_key {
 /* - sock block */
 struct tcp_md5sig_info {
 	struct tcp4_md5sig_key	*keys4;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	struct tcp6_md5sig_key	*keys6;
 	u32			entries6;
 	u32			alloced6;
@@ -1179,7 +1179,7 @@ struct tcp6_pseudohdr {
 
 union tcp_md5sum_block {
 	struct tcp4_pseudohdr ip4;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	struct tcp6_pseudohdr ip6;
 #endif
 };

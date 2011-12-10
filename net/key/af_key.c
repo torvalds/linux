@@ -375,7 +375,7 @@ static int verify_address_len(const void *p)
 	const struct sadb_address *sp = p;
 	const struct sockaddr *addr = (const struct sockaddr *)(sp + 1);
 	const struct sockaddr_in *sin;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	const struct sockaddr_in6 *sin6;
 #endif
 	int len;
@@ -387,7 +387,7 @@ static int verify_address_len(const void *p)
 		    sp->sadb_address_prefixlen > 32)
 			return -EINVAL;
 		break;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
 		len = DIV_ROUND_UP(sizeof(*sp) + sizeof(*sin6), sizeof(uint64_t));
 		if (sp->sadb_address_len != len ||
@@ -469,7 +469,7 @@ static int present_and_same_family(const struct sadb_address *src,
 	if (s_addr->sa_family != d_addr->sa_family)
 		return 0;
 	if (s_addr->sa_family != AF_INET
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	    && s_addr->sa_family != AF_INET6
 #endif
 		)
@@ -579,7 +579,7 @@ static inline int pfkey_sockaddr_len(sa_family_t family)
 	switch (family) {
 	case AF_INET:
 		return sizeof(struct sockaddr_in);
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
 		return sizeof(struct sockaddr_in6);
 #endif
@@ -595,7 +595,7 @@ int pfkey_sockaddr_extract(const struct sockaddr *sa, xfrm_address_t *xaddr)
 		xaddr->a4 =
 			((struct sockaddr_in *)sa)->sin_addr.s_addr;
 		return AF_INET;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
 		memcpy(xaddr->a6,
 		       &((struct sockaddr_in6 *)sa)->sin6_addr,
@@ -639,7 +639,7 @@ static struct  xfrm_state *pfkey_xfrm_state_lookup(struct net *net, const struct
 	case AF_INET:
 		xaddr = (xfrm_address_t *)&((const struct sockaddr_in *)(addr + 1))->sin_addr;
 		break;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
 		xaddr = (xfrm_address_t *)&((const struct sockaddr_in6 *)(addr + 1))->sin6_addr;
 		break;
@@ -705,7 +705,7 @@ static unsigned int pfkey_sockaddr_fill(const xfrm_address_t *xaddr, __be16 port
 		memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
 		return 32;
 	    }
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
 	    {
 		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
@@ -1311,7 +1311,7 @@ static int pfkey_getspi(struct sock *sk, struct sk_buff *skb, const struct sadb_
 		xdaddr = (xfrm_address_t *)&((struct sockaddr_in *)(daddr + 1))->sin_addr.s_addr;
 		xsaddr = (xfrm_address_t *)&((struct sockaddr_in *)(saddr + 1))->sin_addr.s_addr;
 		break;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
 		xdaddr = (xfrm_address_t *)&((struct sockaddr_in6 *)(daddr + 1))->sin6_addr;
 		xsaddr = (xfrm_address_t *)&((struct sockaddr_in6 *)(saddr + 1))->sin6_addr;
@@ -3146,7 +3146,7 @@ static struct xfrm_policy *pfkey_compile_policy(struct sock *sk, int opt,
 			return NULL;
 		}
 		break;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
 		if (opt != IPV6_IPSEC_POLICY) {
 			*dir = -EOPNOTSUPP;
