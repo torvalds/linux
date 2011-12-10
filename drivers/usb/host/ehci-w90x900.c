@@ -78,6 +78,8 @@ static int __devinit usb_w90x900_probe(const struct hc_driver *driver,
 	if (irq < 0)
 		goto err4;
 
+	ehci_reset(ehci);
+
 	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (retval != 0)
 		goto err4;
