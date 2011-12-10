@@ -462,8 +462,11 @@ static int snd_line6_playback_hw_params(struct snd_pcm_substream *substream,
 	}
 	/* -- [FD] end */
 
-	line6pcm->buffer_out = kmalloc(LINE6_ISO_BUFFERS * LINE6_ISO_PACKETS *
-				       line6pcm->max_packet_size, GFP_KERNEL);
+	/* We may be invoked multiple times in a row so allocate once only */
+	if (!line6pcm->buffer_out)
+		line6pcm->buffer_out =
+			kmalloc(LINE6_ISO_BUFFERS * LINE6_ISO_PACKETS *
+				line6pcm->max_packet_size, GFP_KERNEL);
 
 	if (!line6pcm->buffer_out) {
 		dev_err(line6pcm->line6->ifcdev,
