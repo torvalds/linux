@@ -829,31 +829,22 @@ static int em28xx_dvb_init(struct em28xx *dev)
 				   &dev->i2c_adap, &kworld_a340_config);
 		break;
 	case EM28174_BOARD_PCTV_290E:
-		/* MFE
-		 * FE 0 = DVB-T/T2 + FE 1 = DVB-C, both sharing same tuner. */
-		/* FE 0 */
 		dvb->fe[0] = dvb_attach(cxd2820r_attach,
-			&em28xx_cxd2820r_config, &dev->i2c_adap, NULL);
+					&em28xx_cxd2820r_config,
+					&dev->i2c_adap,
+					NULL);
 		if (dvb->fe[0]) {
 			/* FE 0 attach tuner */
-			if (!dvb_attach(tda18271_attach, dvb->fe[0], 0x60,
-				&dev->i2c_adap, &em28xx_cxd2820r_tda18271_config)) {
+			if (!dvb_attach(tda18271_attach,
+					dvb->fe[0],
+					0x60,
+					&dev->i2c_adap,
+					&em28xx_cxd2820r_tda18271_config)) {
+
 				dvb_frontend_detach(dvb->fe[0]);
 				result = -EINVAL;
 				goto out_free;
 			}
-			/* FE 1. This dvb_attach() cannot fail. */
-			dvb->fe[1] = dvb_attach(cxd2820r_attach, NULL, NULL,
-				dvb->fe[0]);
-			dvb->fe[1]->id = 1;
-			/* FE 1 attach tuner */
-			if (!dvb_attach(tda18271_attach, dvb->fe[1], 0x60,
-				&dev->i2c_adap, &em28xx_cxd2820r_tda18271_config)) {
-				dvb_frontend_detach(dvb->fe[1]);
-				/* leave FE 0 still active */
-			}
-
-			mfe_shared = 1;
 		}
 		break;
 	case EM2884_BOARD_HAUPPAUGE_WINTV_HVR_930C:
