@@ -1094,6 +1094,10 @@ void omap_gem_init(struct drm_device *dev)
 	}
 
 	usergart = kzalloc(3 * sizeof(*usergart), GFP_KERNEL);
+	if (!usergart) {
+		dev_warn(dev->dev, "could not allocate usergart\n");
+		return;
+	}
 
 	/* reserve 4k aligned/wide regions for userspace mappings: */
 	for (i = 0; i < ARRAY_SIZE(fmts); i++) {
