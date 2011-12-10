@@ -157,21 +157,28 @@ void __sramfunc ddr_testmode(void)
     {
         for (;;)
         {
-	        sram_printascii("change freq\n");
+	        sram_printch(' ');
+	        sram_printch('8');
+	        sram_printch('8');
+	        sram_printch('8');
+	        sram_printch(' ');
             g_crc1 = calc_crc32((u32)_stext, (size_t)(_etext-_stext));
-            nMHz = 333 + random32();
-            nMHz %= 490;
-            if(nMHz < 100)
-                nMHz = 100;
-            nMHz = ddr_change_freq(nMHz);
+            nMHz = 333 + (random32()>>25);
+            if(nMHz > 402)
+                nMHz = 402;
 	        printhex(nMHz);
 	        sram_printch(' ');
 	        printhex(n++);
-	        sram_printch(' ');
+            //ddr_print("%s change freq to: %d MHz\n", __func__, nMHz);
+            ddr_change_freq(nMHz);
             g_crc2 = calc_crc32((u32)_stext, (size_t)(_etext-_stext));
             if (g_crc1!=g_crc2)
             {
-	            sram_printascii("fail\n");
+	            sram_printch(' ');
+	            sram_printch('f');
+	            sram_printch('a');
+	            sram_printch('i');
+	            sram_printch('l');
 	        }
                //ddr_print("check image crc32 success--crc value = 0x%x!, count:%d\n",g_crc1, n++);
            //     sram_printascii("change freq success\n");
@@ -246,7 +253,7 @@ static void __sramfunc rk29_sram_suspend(void)
 {
 	u32 vol;
 
-	if (ddr_debug == 2)
+	if ((ddr_debug == 1) || (ddr_debug == 2))
 		ddr_testmode();
 
 	sram_printch('5');
@@ -411,7 +418,7 @@ static int rk29_pm_enter(suspend_state_t state)
 	#endif
 	
 	// memory teseter
-	if (ddr_debug != 2)
+	if (ddr_debug == 3)
 		ddr_testmode();
 
 	// dump GPIO INTEN for debug
