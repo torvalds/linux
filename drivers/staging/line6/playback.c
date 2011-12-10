@@ -192,7 +192,7 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 	urb_frames = urb_size / bytes_per_frame;
 	urb_out->transfer_buffer =
 	    line6pcm->buffer_out +
-	    line6pcm->max_packet_size * line6pcm->index_out;
+	    LINE6_ISO_PACKETS * line6pcm->max_packet_size * line6pcm->index_out;
 	urb_out->transfer_buffer_length = urb_size;
 	urb_out->context = line6pcm;
 
