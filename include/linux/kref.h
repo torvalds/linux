@@ -29,7 +29,6 @@ struct kref {
 static inline void kref_init(struct kref *kref)
 {
 	atomic_set(&kref->refcount, 1);
-	smp_mb();
 }
 
 /**
@@ -40,7 +39,6 @@ static inline void kref_get(struct kref *kref)
 {
 	WARN_ON(!atomic_read(&kref->refcount));
 	atomic_inc(&kref->refcount);
-	smp_mb__after_atomic_inc();
 }
 
 /**
