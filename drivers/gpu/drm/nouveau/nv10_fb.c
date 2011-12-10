@@ -35,6 +35,14 @@ nv10_fb_vram_init(struct drm_device *dev)
 	u32 fifo_data = nv_rd32(dev, NV04_PFB_FIFO_DATA);
 
 	dev_priv->vram_size = fifo_data & NV10_PFB_FIFO_DATA_RAM_AMOUNT_MB_MASK;
+	if (dev_priv->card_type < NV_20) {
+		u32 cfg0 = nv_rd32(dev, 0x100200);
+		if (cfg0 & 0x00000001)
+			dev_priv->vram_type = NV_MEM_TYPE_DDR1;
+		else
+			dev_priv->vram_type = NV_MEM_TYPE_SDRAM;
+	}
+
 	return 0;
 }
 

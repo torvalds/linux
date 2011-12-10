@@ -29,6 +29,11 @@ nv04_fb_vram_init(struct drm_device *dev)
 		}
 	}
 
+	if ((boot0 & 0x00000038) <= 0x10)
+		dev_priv->vram_type = NV_MEM_TYPE_SGRAM;
+	else
+		dev_priv->vram_type = NV_MEM_TYPE_SDRAM;
+
 	return 0;
 }
 
