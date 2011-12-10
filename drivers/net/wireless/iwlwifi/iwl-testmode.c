@@ -422,8 +422,7 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 	struct sk_buff *skb;
 	unsigned char *rsp_data_ptr = NULL;
 	int status = 0, rsp_data_len = 0;
-	char buf[32], *ptr = NULL;
-	unsigned int num, devid;
+	u32 devid;
 
 	switch (nla_get_u32(tb[IWL_TM_ATTR_COMMAND])) {
 	case IWL_TM_CMD_APP2DEV_GET_DEVICENAME:
@@ -534,14 +533,8 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 		break;
 
 	case IWL_TM_CMD_APP2DEV_GET_DEVICE_ID:
-		bus_get_hw_id_string(bus(priv), buf, sizeof(buf));
-		ptr = buf;
-		strsep(&ptr, ":");
-		sscanf(strsep(&ptr, ":"), "%x", &num);
-		sscanf(strsep(&ptr, ":"), "%x", &devid);
-		IWL_INFO(priv, "Device ID = 0x%04x, SubDevice ID= 0x%04x\n",
-				num, devid);
-		devid |= (num << 16);
+		devid = bus_get_hw_id(bus(priv));
+		IWL_INFO(priv, "hw version: 0x%x\n", devid);
 
 		skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy, 20);
 		if (!skb) {
