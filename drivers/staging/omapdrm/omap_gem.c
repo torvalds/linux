@@ -50,6 +50,9 @@ struct omap_gem_object {
 	/** width/height for tiled formats (rounded up to slot boundaries) */
 	uint16_t width, height;
 
+	/** roll applied when mapping to DMM */
+	uint32_t roll;
+
 	/**
 	 * If buffer is allocated physically contiguous, the OMAP_BO_DMA flag
 	 * is set and the paddr is valid.  Also if the buffer is remapped in
@@ -338,7 +341,7 @@ static int fault_2d(struct drm_gem_object *obj,
 	memset(pages + slots, 0,
 			sizeof(struct page *) * (usergart[fmt].height - slots));
 
-	ret = tiler_pin(entry->block, pages, true);
+	ret = tiler_pin(entry->block, pages, ARRAY_SIZE(pages), 0, true);
 	if (ret) {
 		dev_err(obj->dev->dev, "failed to pin: %d\n", ret);
 		return ret;
@@ -521,6 +524,41 @@ fail:
 	return ret;
 }
 
+/* Set scrolling position.  This allows us to implement fast scrolling
+ * for console.
+ */
+int omap_gem_roll(struct drm_gem_object *obj, uint32_t roll)
+{
+	struct omap_gem_object *omap_obj = to_omap_bo(obj);
+	uint32_t npages = obj->size >> PAGE_SHIFT;
+	int ret = 0;
+
+	if (roll > npages) {
+		dev_err(obj->dev->dev, "invalid roll: %d\n", roll);
+		return -EINVAL;
+	}
+
+	mutex_lock(&obj->dev->struct_mutex);
+
+	omap_obj->roll = roll;
+
+	/* if we aren't mapped yet, we don't need to do anything */
+	if (omap_obj->block) {
+		struct page **pages;
+		ret = get_pages(obj, &pages);
+		if (ret)
+			goto fail;
+		ret = tiler_pin(omap_obj->block, pages, npages, roll, true);
+		if (ret)
+			dev_err(obj->dev->dev, "could not repin: %d\n", ret);
+	}
+
+fail:
+	mutex_unlock(&obj->dev->struct_mutex);
+
+	return ret;
+}
+
 /* Get physical address for DMA.. if 'remap' is true, and the buffer is not
  * already contiguous, remap it to pin in physically contiguous memory.. (ie.
  * map in TILER)
@@ -528,22 +566,24 @@ fail:
 int omap_gem_get_paddr(struct drm_gem_object *obj,
 		dma_addr_t *paddr, bool remap)
 {
+	struct omap_drm_private *priv = obj->dev->dev_private;
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 	int ret = 0;
 
 	mutex_lock(&obj->dev->struct_mutex);
 
-	if (remap && is_shmem(obj)) {
+	if (remap && is_shmem(obj) && priv->has_dmm) {
 		if (omap_obj->paddr_cnt == 0) {
 			struct page **pages;
+			uint32_t npages = obj->size >> PAGE_SHIFT;
 			enum tiler_fmt fmt = gem2fmt(omap_obj->flags);
 			struct tiler_block *block;
+
 			BUG_ON(omap_obj->block);
 
 			ret = get_pages(obj, &pages);
 			if (ret)
 				goto fail;
-
 
 			if (omap_obj->flags & OMAP_BO_TILED) {
 				block = tiler_reserve_2d(fmt,
@@ -561,7 +601,8 @@ int omap_gem_get_paddr(struct drm_gem_object *obj,
 			}
 
 			/* TODO: enable async refill.. */
-			ret = tiler_pin(block, pages, true);
+			ret = tiler_pin(block, pages, npages,
+					omap_obj->roll, true);
 			if (ret) {
 				tiler_release(block);
 				dev_err(obj->dev->dev,
@@ -1002,6 +1043,7 @@ int omap_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		union omap_gem_size gsize, uint32_t flags)
 {
+	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_gem_object *omap_obj;
 	struct drm_gem_object *obj = NULL;
 	size_t size;
@@ -1043,8 +1085,10 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 
 	obj = &omap_obj->base;
 
-	if (flags & OMAP_BO_SCANOUT) {
-		/* attempt to allocate contiguous memory */
+	if ((flags & OMAP_BO_SCANOUT) && !priv->has_dmm) {
+		/* attempt to allocate contiguous memory if we don't
+		 * have DMM for remappign discontiguous buffers
+		 */
 		omap_obj->vaddr =  dma_alloc_writecombine(dev->dev, size,
 				&omap_obj->paddr, GFP_KERNEL);
 		if (omap_obj->vaddr) {
@@ -1081,6 +1125,7 @@ fail:
 /* init/cleanup.. if DMM is used, we need to set some stuff up.. */
 void omap_gem_init(struct drm_device *dev)
 {
+	struct omap_drm_private *priv = dev->dev_private;
 	const enum tiler_fmt fmts[] = {
 			TILFMT_8BIT, TILFMT_16BIT, TILFMT_32BIT
 	};
@@ -1130,6 +1175,8 @@ void omap_gem_init(struct drm_device *dev)
 					usergart[i].stride_pfn << PAGE_SHIFT);
 		}
 	}
+
+	priv->has_dmm = true;
 }
 
 void omap_gem_deinit(struct drm_device *dev)

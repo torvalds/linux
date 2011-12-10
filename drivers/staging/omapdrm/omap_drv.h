@@ -47,6 +47,8 @@ struct omap_drm_private {
 	struct drm_connector *connectors[8];
 
 	struct drm_fb_helper *fbdev;
+
+	bool has_dmm;
 };
 
 struct drm_fb_helper *omap_fbdev_init(struct drm_device *dev);
@@ -107,6 +109,7 @@ int omap_gem_op_finish(struct drm_gem_object *obj, enum omap_gem_op op);
 int omap_gem_op_sync(struct drm_gem_object *obj, enum omap_gem_op op);
 int omap_gem_op_async(struct drm_gem_object *obj, enum omap_gem_op op,
 		void (*fxn)(void *arg), void *arg);
+int omap_gem_roll(struct drm_gem_object *obj, uint32_t roll);
 int omap_gem_get_paddr(struct drm_gem_object *obj,
 		dma_addr_t *paddr, bool remap);
 int omap_gem_put_paddr(struct drm_gem_object *obj);

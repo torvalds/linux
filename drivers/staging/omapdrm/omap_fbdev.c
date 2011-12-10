@@ -31,9 +31,11 @@
 struct omap_fbdev {
 	struct drm_fb_helper base;
 	struct drm_framebuffer *fb;
+	struct drm_gem_object *bo;
 };
 
 static void omap_fbdev_flush(struct fb_info *fbi, int x, int y, int w, int h);
+static struct drm_fb_helper *get_fb(struct fb_info *fbi);
 
 static ssize_t omap_fbdev_write(struct fb_info *fbi, const char __user *buf,
 		size_t count, loff_t *ppos)
@@ -68,6 +70,31 @@ static void omap_fbdev_imageblit(struct fb_info *fbi,
 				image->width, image->height);
 }
 
+static int omap_fbdev_pan_display(struct fb_var_screeninfo *var,
+		struct fb_info *fbi)
+{
+	struct drm_fb_helper *helper = get_fb(fbi);
+	struct omap_fbdev *fbdev = to_omap_fbdev(helper);
+	struct omap_drm_private *priv;
+	int npages;
+
+	if (!helper)
+		goto fallback;
+
+	priv = helper->dev->dev_private;
+	if (!priv->has_dmm)
+		goto fallback;
+
+	/* DMM roll shifts in 4K pages: */
+	npages = fbi->fix.line_length >> PAGE_SHIFT;
+	omap_gem_roll(fbdev->bo, var->yoffset * npages);
+
+	return 0;
+
+fallback:
+	return drm_fb_helper_pan_display(var, fbi);
+}
+
 static struct fb_ops omap_fb_ops = {
 	.owner = THIS_MODULE,
 
@@ -82,7 +109,7 @@ static struct fb_ops omap_fb_ops = {
 
 	.fb_check_var = drm_fb_helper_check_var,
 	.fb_set_par = drm_fb_helper_set_par,
-	.fb_pan_display = drm_fb_helper_pan_display,
+	.fb_pan_display = omap_fbdev_pan_display,
 	.fb_blank = drm_fb_helper_blank,
 	.fb_setcmap = drm_fb_helper_setcmap,
 
@@ -95,7 +122,9 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 {
 	struct omap_fbdev *fbdev = to_omap_fbdev(helper);
 	struct drm_device *dev = helper->dev;
+	struct omap_drm_private *priv = dev->dev_private;
 	struct drm_framebuffer *fb = NULL;
+	union omap_gem_size gsize;
 	struct fb_info *fbi = NULL;
 	struct drm_mode_fb_cmd mode_cmd = {0};
 	dma_addr_t paddr;
@@ -109,8 +138,9 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 	sizes->surface_bpp = 32;
 	sizes->surface_depth = 32;
 
-	DBG("create fbdev: %dx%d@%d", sizes->surface_width,
-			sizes->surface_height, sizes->surface_bpp);
+	DBG("create fbdev: %dx%d@%d (%dx%d)", sizes->surface_width,
+			sizes->surface_height, sizes->surface_bpp,
+			sizes->fb_width, sizes->fb_height);
 
 	mode_cmd.width = sizes->surface_width;
 	mode_cmd.height = sizes->surface_height;
@@ -118,7 +148,27 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 	mode_cmd.bpp = sizes->surface_bpp;
 	mode_cmd.depth = sizes->surface_depth;
 
-	fb = omap_framebuffer_init(dev, &mode_cmd, NULL);
+	mode_cmd.pitch = align_pitch(
+			mode_cmd.width * ((mode_cmd.bpp + 7) / 8),
+			mode_cmd.width, mode_cmd.bpp);
+
+	if (priv->has_dmm) {
+		/* need to align pitch to page size if using DMM scrolling */
+		mode_cmd.pitch = ALIGN(mode_cmd.pitch, PAGE_SIZE);
+	}
+
+	/* allocate backing bo */
+	gsize = (union omap_gem_size){
+		.bytes = PAGE_ALIGN(mode_cmd.pitch * mode_cmd.height),
+	};
+	DBG("allocating %d bytes for fb %d", gsize.bytes, dev->primary->index);
+	fbdev->bo = omap_gem_new(dev, gsize, OMAP_BO_SCANOUT | OMAP_BO_WC);
+	if (!fbdev->bo) {
+		dev_err(dev->dev, "failed to allocate buffer object\n");
+		goto fail;
+	}
+
+	fb = omap_framebuffer_init(dev, &mode_cmd, fbdev->bo);
 	if (!fb) {
 		dev_err(dev->dev, "failed to allocate fb\n");
 		ret = -ENOMEM;
@@ -153,7 +203,7 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 	}
 
 	drm_fb_helper_fill_fix(fbi, fb->pitch, fb->depth);
-	drm_fb_helper_fill_var(fbi, helper, fb->width, fb->height);
+	drm_fb_helper_fill_var(fbi, helper, sizes->fb_width, sizes->fb_height);
 
 	size = omap_framebuffer_get_buffer(fb, 0, 0,
 			&vaddr, &paddr, &screen_width);
@@ -164,6 +214,15 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 	fbi->screen_size = size;
 	fbi->fix.smem_start = paddr;
 	fbi->fix.smem_len = size;
+
+	/* if we have DMM, then we can use it for scrolling by just
+	 * shuffling pages around in DMM rather than doing sw blit.
+	 */
+	if (priv->has_dmm) {
+		DRM_INFO("Enabling DMM ywrap scrolling\n");
+		fbi->flags |= FBINFO_HWACCEL_YWRAP | FBINFO_READS_FAST;
+		fbi->fix.ywrapstep = 1;
+	}
 
 	DBG("par=%p, %dx%d", fbi->par, fbi->var.xres, fbi->var.yres);
 	DBG("allocated %dx%d fb", fbdev->fb->width, fbdev->fb->height);
@@ -299,6 +358,10 @@ void omap_fbdev_free(struct drm_device *dev)
 	fbdev = to_omap_fbdev(priv->fbdev);
 
 	kfree(fbdev);
+
+	/* this will free the backing object */
+	if (fbdev->fb)
+		fbdev->fb->funcs->destroy(fbdev->fb);
 
 	priv->fbdev = NULL;
 }

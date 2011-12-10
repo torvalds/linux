@@ -77,7 +77,8 @@ int omap_dmm_init(struct drm_device *dev);
 int omap_dmm_remove(void);
 
 /* pin/unpin */
-int tiler_pin(struct tiler_block *block, struct page **pages, bool wait);
+int tiler_pin(struct tiler_block *block, struct page **pages,
+		uint32_t npages, uint32_t roll, bool wait);
 int tiler_unpin(struct tiler_block *block);
 
 /* reserve/release */

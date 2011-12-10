@@ -218,25 +218,9 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 
 	size = PAGE_ALIGN(mode_cmd->pitch * mode_cmd->height);
 
-	if (bo) {
-		DBG("using existing %d byte buffer (needed %d)", bo->size, size);
-		if (size > bo->size) {
-			dev_err(dev->dev, "provided buffer object is too small!\n");
-			goto fail;
-		}
-	} else {
-		/* for convenience of all the various callers who don't want
-		 * to be bothered to allocate their own buffer..
-		 */
-		union omap_gem_size gsize = {
-				.bytes = size,
-		};
-		DBG("allocating %d bytes for fb %d", size, dev->primary->index);
-		bo = omap_gem_new(dev, gsize, OMAP_BO_SCANOUT | OMAP_BO_WC);
-		if (!bo) {
-			dev_err(dev->dev, "failed to allocate buffer object\n");
-			goto fail;
-		}
+	if (size > bo->size) {
+		dev_err(dev->dev, "provided buffer object is too small!\n");
+		goto fail;
 	}
 
 	omap_fb->bo = bo;

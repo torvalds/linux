@@ -170,7 +170,7 @@ static struct dmm_txn *dmm_txn_init(struct dmm *dmm, struct tcm *tcm)
  * corresponding slot is cleared (ie. dummy_pa is programmed)
  */
 static int dmm_txn_append(struct dmm_txn *txn, struct pat_area *area,
-			struct page **pages)
+		struct page **pages, uint32_t npages, uint32_t roll)
 {
 	dma_addr_t pat_pa = 0;
 	uint32_t *data;
@@ -197,8 +197,11 @@ static int dmm_txn_append(struct dmm_txn *txn, struct pat_area *area,
 	data = alloc_dma(txn, 4*i, &pat->data_pa);
 
 	while (i--) {
-		data[i] = (pages && pages[i]) ?
-		page_to_phys(pages[i]) : engine->dmm->dummy_pa;
+		int n = i + roll;
+		if (n >= npages)
+			n -= npages;
+		data[i] = (pages && pages[n]) ?
+			page_to_phys(pages[n]) : engine->dmm->dummy_pa;
 	}
 
 	/* fill in lut with new addresses */
@@ -262,7 +265,8 @@ cleanup:
 /*
  * DMM programming
  */
-static int fill(struct tcm_area *area, struct page **pages, bool wait)
+static int fill(struct tcm_area *area, struct page **pages,
+		uint32_t npages, uint32_t roll, bool wait)
 {
 	int ret = 0;
 	struct tcm_area slice, area_s;
@@ -278,12 +282,11 @@ static int fill(struct tcm_area *area, struct page **pages, bool wait)
 				.x1 = slice.p1.x,  .y1 = slice.p1.y,
 		};
 
-		ret = dmm_txn_append(txn, &p_area, pages);
+		ret = dmm_txn_append(txn, &p_area, pages, npages, roll);
 		if (ret)
 			goto fail;
 
-		if (pages)
-			pages += tcm_sizeof(slice);
+		roll += tcm_sizeof(slice);
 	}
 
 	ret = dmm_txn_commit(txn, wait);
@@ -298,11 +301,12 @@ fail:
 
 /* note: slots for which pages[i] == NULL are filled w/ dummy page
  */
-int tiler_pin(struct tiler_block *block, struct page **pages, bool wait)
+int tiler_pin(struct tiler_block *block, struct page **pages,
+		uint32_t npages, uint32_t roll, bool wait)
 {
 	int ret;
 
-	ret = fill(&block->area, pages, wait);
+	ret = fill(&block->area, pages, npages, roll, wait);
 
 	if (ret)
 		tiler_unpin(block);
@@ -312,7 +316,7 @@ int tiler_pin(struct tiler_block *block, struct page **pages, bool wait)
 
 int tiler_unpin(struct tiler_block *block)
 {
-	return fill(&block->area, NULL, false);
+	return fill(&block->area, NULL, 0, 0, false);
 }
 
 /*
@@ -558,8 +562,13 @@ int omap_dmm_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	/* enable some interrupts! */
-	writel(0xfefefefe, omap_dmm->base + DMM_PAT_IRQENABLE_SET);
+	/* Enable all interrupts for each refill engine except
+	 * ERR_LUT_MISS<n> (which is just advisory, and we don't care
+	 * about because we want to be able to refill live scanout
+	 * buffers for accelerated pan/scroll) and FILL_DSC<n> which
+	 * we just generally don't care about.
+	 */
+	writel(0x7e7e7e7e, omap_dmm->base + DMM_PAT_IRQENABLE_SET);
 
 	lut_table_size = omap_dmm->lut_width * omap_dmm->lut_height *
 			omap_dmm->num_lut;
@@ -658,7 +667,7 @@ int omap_dmm_init(struct drm_device *dev)
 	/* initialize all LUTs to dummy page entries */
 	for (i = 0; i < omap_dmm->num_lut; i++) {
 		area.tcm = omap_dmm->tcm[i];
-		if (fill(&area, NULL, true))
+		if (fill(&area, NULL, 0, 0, true))
 			dev_err(omap_dmm->dev, "refill failed");
 	}
 
