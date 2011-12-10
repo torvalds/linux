@@ -256,6 +256,30 @@ int bat_algo_seq_print_text(struct seq_file *seq, void *offset)
 	return 0;
 }
 
+static int param_set_ra(const char *val, const struct kernel_param *kp)
+{
+	struct bat_algo_ops *bat_algo_ops;
+
+	bat_algo_ops = bat_algo_get((char *)val);
+	if (!bat_algo_ops) {
+		pr_err("Routing algorithm '%s' is not supported\n", val);
+		return -EINVAL;
+	}
+
+	return param_set_copystring(val, kp);
+}
+
+static const struct kernel_param_ops param_ops_ra = {
+	.set = param_set_ra,
+	.get = param_get_string,
+};
+
+static struct kparam_string __param_string_ra = {
+	.maxlen = sizeof(bat_routing_algo),
+	.string = bat_routing_algo,
+};
+
+module_param_cb(routing_algo, &param_ops_ra, &__param_string_ra, 0644);
 module_init(batman_init);
 module_exit(batman_exit);
 
