@@ -86,17 +86,22 @@ static DEVICE_ATTR(impulse_period, S_IWUSR | S_IRUGO, pcm_get_impulse_period,
 
 #endif
 
+static bool test_flags(unsigned long flags0, unsigned long flags1,
+		       unsigned long mask)
+{
+	return ((flags0 & mask) == 0) && ((flags1 & mask) != 0);
+}
+
 int line6_pcm_start(struct snd_line6_pcm *line6pcm, int channels)
 {
 	unsigned long flags_old =
 	    __sync_fetch_and_or(&line6pcm->flags, channels);
 	unsigned long flags_new = flags_old | channels;
 	int err = 0;
-
+	
 	line6pcm->prev_fbuf = NULL;
 
-	if (((flags_old & MASK_CAPTURE) == 0) &&
-	    ((flags_new & MASK_CAPTURE) != 0)) {
+	if (test_flags(flags_old, flags_new, MASK_CAPTURE)) {
 		/*
 		   Waiting for completion of active URBs in the stop handler is
 		   a bug, we therefore report an error if capturing is restarted
@@ -105,34 +110,47 @@ int line6_pcm_start(struct snd_line6_pcm *line6pcm, int channels)
 		if (line6pcm->active_urb_in | line6pcm->unlink_urb_in)
 			return -EBUSY;
 
+		if (!(flags_new & MASK_PCM_ALSA_CAPTURE)) {
+			err = line6_alloc_capture_buffer(line6pcm);
+
+			if (err < 0)
+				goto pcm_start_error;
+		}
+
 		line6pcm->count_in = 0;
 		line6pcm->prev_fsize = 0;
 		err = line6_submit_audio_in_all_urbs(line6pcm);
 
-		if (err < 0) {
-			__sync_fetch_and_and(&line6pcm->flags, ~channels);
-			return err;
-		}
+		if (err < 0)
+			goto pcm_start_error;
 	}
 
-	if (((flags_old & MASK_PLAYBACK) == 0) &&
-	    ((flags_new & MASK_PLAYBACK) != 0)) {
+	if (test_flags(flags_old, flags_new, MASK_PLAYBACK)) {
 		/*
 		   See comment above regarding PCM restart.
 		 */
 		if (line6pcm->active_urb_out | line6pcm->unlink_urb_out)
 			return -EBUSY;
 
+		if (!(flags_new & MASK_PCM_ALSA_PLAYBACK)) {
+			err = line6_alloc_playback_buffer(line6pcm);
+
+			if (err < 0)
+				goto pcm_start_error;
+		}
+
 		line6pcm->count_out = 0;
 		err = line6_submit_audio_out_all_urbs(line6pcm);
 
-		if (err < 0) {
-			__sync_fetch_and_and(&line6pcm->flags, ~channels);
-			return err;
-		}
+		if (err < 0)
+			goto pcm_start_error;
 	}
 
 	return 0;
+
+pcm_start_error:
+	__sync_fetch_and_and(&line6pcm->flags, ~channels);
+	return err;
 }
 
 int line6_pcm_stop(struct snd_line6_pcm *line6pcm, int channels)
@@ -141,14 +159,18 @@ int line6_pcm_stop(struct snd_line6_pcm *line6pcm, int channels)
 	    __sync_fetch_and_and(&line6pcm->flags, ~channels);
 	unsigned long flags_new = flags_old & ~channels;
 
-	if (((flags_old & MASK_CAPTURE) != 0) &&
-	    ((flags_new & MASK_CAPTURE) == 0)) {
+	if (test_flags(flags_new, flags_old, MASK_CAPTURE)) {
 		line6_unlink_audio_in_urbs(line6pcm);
+
+		if (!(flags_old & MASK_PCM_ALSA_CAPTURE))
+			line6_free_capture_buffer(line6pcm);
 	}
 
-	if (((flags_old & MASK_PLAYBACK) != 0) &&
-	    ((flags_new & MASK_PLAYBACK) == 0)) {
+	if (test_flags(flags_new, flags_old, MASK_PLAYBACK)) {
 		line6_unlink_audio_out_urbs(line6pcm);
+
+		if (!(flags_old & MASK_PCM_ALSA_PLAYBACK))
+			line6_free_playback_buffer(line6pcm);
 	}
 
 	return 0;
@@ -476,17 +498,20 @@ int snd_line6_prepare(struct snd_pcm_substream *substream)
 
 	switch (substream->stream) {
 	case SNDRV_PCM_STREAM_PLAYBACK:
-		line6_unlink_wait_clear_audio_out_urbs(line6pcm);
+		if ((line6pcm->flags & MASK_PLAYBACK) == 0)
+			line6_unlink_wait_clear_audio_out_urbs(line6pcm);
+
 		break;
 
 	case SNDRV_PCM_STREAM_CAPTURE:
-		line6_unlink_wait_clear_audio_in_urbs(line6pcm);
+		if ((line6pcm->flags & MASK_CAPTURE) == 0)
+			line6_unlink_wait_clear_audio_in_urbs(line6pcm);
+
 		break;
 
 	default:
 		MISSING_CASE;
 	}
-
 
 	if (!test_and_set_bit(BIT_PREPARED, &line6pcm->flags)) {
 		line6pcm->count_out = 0;

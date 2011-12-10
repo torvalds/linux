@@ -193,6 +193,31 @@ void line6_capture_check_period(struct snd_line6_pcm *line6pcm, int length)
 	}
 }
 
+int line6_alloc_capture_buffer(struct snd_line6_pcm *line6pcm)
+{
+	/* We may be invoked multiple times in a row so allocate once only */
+	if (line6pcm->buffer_in)
+		return 0;
+
+	line6pcm->buffer_in =
+		kmalloc(LINE6_ISO_BUFFERS * LINE6_ISO_PACKETS *
+			line6pcm->max_packet_size, GFP_KERNEL);
+
+	if (!line6pcm->buffer_in) {
+		dev_err(line6pcm->line6->ifcdev,
+			"cannot malloc capture buffer\n");
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+void line6_free_capture_buffer(struct snd_line6_pcm *line6pcm)
+{
+	kfree(line6pcm->buffer_in);
+	line6pcm->buffer_in = NULL;
+}
+
 /*
  * Callback for completed capture URB.
  */
@@ -316,16 +341,11 @@ static int snd_line6_capture_hw_params(struct snd_pcm_substream *substream,
 	}
 	/* -- [FD] end */
 
-	/* We may be invoked multiple times in a row so allocate once only */
-	if (!line6pcm->buffer_in)
-		line6pcm->buffer_in =
-			kmalloc(LINE6_ISO_BUFFERS * LINE6_ISO_PACKETS *
-				line6pcm->max_packet_size, GFP_KERNEL);
+	if ((line6pcm->flags & MASK_CAPTURE) == 0) {
+		ret = line6_alloc_capture_buffer(line6pcm);
 
-	if (!line6pcm->buffer_in) {
-		dev_err(line6pcm->line6->ifcdev,
-			"cannot malloc capture buffer\n");
-		return -ENOMEM;
+		if (ret < 0)
+			return ret;
 	}
 
 	ret = snd_pcm_lib_malloc_pages(substream,
@@ -342,9 +362,11 @@ static int snd_line6_capture_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
 
-	line6_unlink_wait_clear_audio_in_urbs(line6pcm);
-	kfree(line6pcm->buffer_in);
-	line6pcm->buffer_in = NULL;
+	if ((line6pcm->flags & MASK_CAPTURE) == 0) {
+		line6_unlink_wait_clear_audio_in_urbs(line6pcm);
+		line6_free_capture_buffer(line6pcm);
+	}
+
 	return snd_pcm_lib_free_pages(substream);
 }
 
