@@ -474,6 +474,20 @@ int snd_line6_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
 
+	switch (substream->stream) {
+	case SNDRV_PCM_STREAM_PLAYBACK:
+		line6_unlink_wait_clear_audio_out_urbs(line6pcm);
+		break;
+
+	case SNDRV_PCM_STREAM_CAPTURE:
+		line6_unlink_wait_clear_audio_in_urbs(line6pcm);
+		break;
+
+	default:
+		MISSING_CASE;
+	}
+
+
 	if (!test_and_set_bit(BIT_PREPARED, &line6pcm->flags)) {
 		line6pcm->count_out = 0;
 		line6pcm->pos_out = 0;
