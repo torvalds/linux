@@ -611,7 +611,7 @@ static int __init xenbus_init(void)
 
 	err = misc_register(&xenbus_dev);
 	if (err)
-		printk(KERN_ERR "Could not register xenbus device\n");
+		printk(KERN_ERR "Could not register xenbus frontend device\n");
 	return err;
 }
 
