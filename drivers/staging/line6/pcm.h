@@ -146,11 +146,6 @@ struct snd_line6_pcm {
 	unsigned char *buffer_in;
 
 	/**
-		 Temporary buffer index for playback.
-	*/
-	int index_out;
-
-	/**
 		 Previously captured frame (for software monitoring).
 	*/
 	unsigned char *prev_fbuf;
