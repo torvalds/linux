@@ -1002,7 +1002,7 @@ extern int i915_max_ioctl;
 extern unsigned int i915_fbpercrtc __always_unused;
 extern int i915_panel_ignore_lid __read_mostly;
 extern unsigned int i915_powersave __read_mostly;
-extern unsigned int i915_semaphores __read_mostly;
+extern int i915_semaphores __read_mostly;
 extern unsigned int i915_lvds_downclock __read_mostly;
 extern int i915_panel_use_ssc __read_mostly;
 extern int i915_vbt_sdvo_panel_type __read_mostly;
