@@ -112,23 +112,24 @@ struct x86_pmu_capability {
 /*
  * All 3 fixed-mode PMCs are configured via this single MSR:
  */
-#define MSR_ARCH_PERFMON_FIXED_CTR_CTRL			0x38d
+#define MSR_ARCH_PERFMON_FIXED_CTR_CTRL	0x38d
 
 /*
  * The counts are available in three separate MSRs:
  */
 
 /* Instr_Retired.Any: */
-#define MSR_ARCH_PERFMON_FIXED_CTR0			0x309
-#define X86_PMC_IDX_FIXED_INSTRUCTIONS			(X86_PMC_IDX_FIXED + 0)
+#define MSR_ARCH_PERFMON_FIXED_CTR0	0x309
+#define X86_PMC_IDX_FIXED_INSTRUCTIONS	(X86_PMC_IDX_FIXED + 0)
 
 /* CPU_CLK_Unhalted.Core: */
-#define MSR_ARCH_PERFMON_FIXED_CTR1			0x30a
-#define X86_PMC_IDX_FIXED_CPU_CYCLES			(X86_PMC_IDX_FIXED + 1)
+#define MSR_ARCH_PERFMON_FIXED_CTR1	0x30a
+#define X86_PMC_IDX_FIXED_CPU_CYCLES	(X86_PMC_IDX_FIXED + 1)
 
 /* CPU_CLK_Unhalted.Ref: */
-#define MSR_ARCH_PERFMON_FIXED_CTR2			0x30b
-#define X86_PMC_IDX_FIXED_BUS_CYCLES			(X86_PMC_IDX_FIXED + 2)
+#define MSR_ARCH_PERFMON_FIXED_CTR2	0x30b
+#define X86_PMC_IDX_FIXED_REF_CYCLES	(X86_PMC_IDX_FIXED + 2)
+#define X86_PMC_MSK_FIXED_REF_CYCLES	(1ULL << X86_PMC_IDX_FIXED_REF_CYCLES)
 
 /*
  * We model BTS tracing as another fixed-mode PMC.
