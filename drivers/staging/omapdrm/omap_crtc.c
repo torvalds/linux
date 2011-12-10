@@ -320,8 +320,7 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 
 fail:
 	if (crtc) {
-		drm_crtc_cleanup(crtc);
-		kfree(omap_crtc);
+		omap_crtc_destroy(crtc);
 	}
 	return NULL;
 }

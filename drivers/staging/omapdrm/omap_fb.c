@@ -53,11 +53,9 @@ static void omap_framebuffer_destroy(struct drm_framebuffer *fb)
 
 	drm_framebuffer_cleanup(fb);
 
-	if (omap_gem_put_paddr(omap_fb->bo)) {
-		dev_err(dev->dev, "could not unmap!\n");
-	}
-
 	if (omap_fb->bo) {
+		if (omap_fb->paddr && omap_gem_put_paddr(omap_fb->bo))
+			dev_err(dev->dev, "could not unmap!\n");
 		drm_gem_object_unreference_unlocked(omap_fb->bo);
 	}
 

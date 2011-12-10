@@ -164,8 +164,7 @@ struct drm_encoder *omap_encoder_init(struct drm_device *dev,
 
 fail:
 	if (encoder) {
-		drm_encoder_cleanup(encoder);
-		kfree(omap_encoder);
+		omap_encoder_destroy(encoder);
 	}
 
 	return NULL;
