@@ -507,7 +507,7 @@ static int dvb_frontend_is_exiting(struct dvb_frontend *fe)
 		return 1;
 
 	if (fepriv->dvbdev->writers == 1)
-		if (time_after(jiffies, fepriv->release_jiffies +
+		if (time_after_eq(jiffies, fepriv->release_jiffies +
 				  dvb_shutdown_timeout * HZ))
 			return 1;
 
@@ -2116,12 +2116,15 @@ static int dvb_frontend_release(struct inode *inode, struct file *file)
 
 	dprintk ("%s\n", __func__);
 
-	if ((file->f_flags & O_ACCMODE) != O_RDONLY)
+	if ((file->f_flags & O_ACCMODE) != O_RDONLY) {
 		fepriv->release_jiffies = jiffies;
+		mb();
+	}
 
 	ret = dvb_generic_release (inode, file);
 
 	if (dvbdev->users == -1) {
+		wake_up(&fepriv->wait_queue);
 		if (fepriv->exit != DVB_FE_NO_EXIT) {
 			fops_put(file->f_op);
 			file->f_op = NULL;
