@@ -234,6 +234,8 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 		priv->hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&priv->bands[IEEE80211_BAND_5GHZ];
 
+	hw->wiphy->hw_version = bus_get_hw_id(bus(priv));
+
 	iwl_leds_init(priv);
 
 	ret = ieee80211_register_hw(priv->hw);
