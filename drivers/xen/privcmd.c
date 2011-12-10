@@ -365,7 +365,6 @@ static long privcmd_ioctl(struct file *file,
 	return ret;
 }
 
-#ifndef HAVE_ARCH_PRIVCMD_MMAP
 static int privcmd_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	printk(KERN_DEBUG "privcmd_fault: vma=%p %lx-%lx, pgoff=%lx, uv=%p\n",
@@ -398,7 +397,6 @@ static int privcmd_enforce_singleshot_mapping(struct vm_area_struct *vma)
 {
 	return (xchg(&vma->vm_private_data, (void *)1) == NULL);
 }
-#endif
 
 const struct file_operations xen_privcmd_fops = {
 	.owner = THIS_MODULE,
