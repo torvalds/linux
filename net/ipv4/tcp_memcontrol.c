@@ -29,6 +29,12 @@ static struct cftype tcp_files[] = {
 		.trigger = tcp_cgroup_reset,
 		.read_u64 = tcp_cgroup_read,
 	},
+	{
+		.name = "kmem.tcp.max_usage_in_bytes",
+		.private = RES_MAX_USAGE,
+		.trigger = tcp_cgroup_reset,
+		.read_u64 = tcp_cgroup_read,
+	},
 };
 
 static inline struct tcp_memcontrol *tcp_from_cgproto(struct cg_proto *cg_proto)
@@ -205,7 +211,8 @@ static u64 tcp_cgroup_read(struct cgroup *cont, struct cftype *cft)
 		val = tcp_read_usage(memcg);
 		break;
 	case RES_FAILCNT:
-		val = tcp_read_stat(memcg, RES_FAILCNT, 0);
+	case RES_MAX_USAGE:
+		val = tcp_read_stat(memcg, cft->private, 0);
 		break;
 	default:
 		BUG();
@@ -226,6 +233,9 @@ static int tcp_cgroup_reset(struct cgroup *cont, unsigned int event)
 	tcp = tcp_from_cgproto(cg_proto);
 
 	switch (event) {
+	case RES_MAX_USAGE:
+		res_counter_reset_max(&tcp->tcp_memory_allocated);
+		break;
 	case RES_FAILCNT:
 		res_counter_reset_failcnt(&tcp->tcp_memory_allocated);
 		break;
