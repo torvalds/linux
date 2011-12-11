@@ -17,6 +17,11 @@ static struct cftype tcp_files[] = {
 		.read_u64 = tcp_cgroup_read,
 		.private = RES_LIMIT,
 	},
+	{
+		.name = "kmem.tcp.usage_in_bytes",
+		.read_u64 = tcp_cgroup_read,
+		.private = RES_USAGE,
+	},
 };
 
 static inline struct tcp_memcontrol *tcp_from_cgproto(struct cg_proto *cg_proto)
@@ -167,6 +172,19 @@ static u64 tcp_read_stat(struct mem_cgroup *memcg, int type, u64 default_val)
 	return res_counter_read_u64(&tcp->tcp_memory_allocated, type);
 }
 
+static u64 tcp_read_usage(struct mem_cgroup *memcg)
+{
+	struct tcp_memcontrol *tcp;
+	struct cg_proto *cg_proto;
+
+	cg_proto = tcp_prot.proto_cgroup(memcg);
+	if (!cg_proto)
+		return atomic_long_read(&tcp_memory_allocated) << PAGE_SHIFT;
+
+	tcp = tcp_from_cgproto(cg_proto);
+	return res_counter_read_u64(&tcp->tcp_memory_allocated, RES_USAGE);
+}
+
 static u64 tcp_cgroup_read(struct cgroup *cont, struct cftype *cft)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
@@ -175,6 +193,9 @@ static u64 tcp_cgroup_read(struct cgroup *cont, struct cftype *cft)
 	switch (cft->private) {
 	case RES_LIMIT:
 		val = tcp_read_stat(memcg, RES_LIMIT, RESOURCE_MAX);
+		break;
+	case RES_USAGE:
+		val = tcp_read_usage(memcg);
 		break;
 	default:
 		BUG();
