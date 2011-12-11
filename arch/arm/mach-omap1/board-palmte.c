@@ -41,7 +41,7 @@
 #include <plat/board.h>
 #include <plat/irda.h>
 #include <plat/keypad.h>
-#include <plat/common.h>
+#include "common.h"
 
 #define PALMTE_USBDETECT_GPIO	0
 #define PALMTE_USB_OR_DC_GPIO	1

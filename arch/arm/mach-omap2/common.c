@@ -17,7 +17,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <plat/common.h>
+#include "common.h"
 #include <plat/board.h>
 #include <plat/mux.h>
 

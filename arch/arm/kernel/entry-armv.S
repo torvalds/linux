@@ -36,12 +36,11 @@
 #ifdef CONFIG_MULTI_IRQ_HANDLER
 	ldr	r1, =handle_arch_irq
 	mov	r0, sp
-	ldr	r1, [r1]
 	adr	lr, BSYM(9997f)
-	teq	r1, #0
-	movne	pc, r1
-#endif
+	ldr	pc, [r1]
+#else
 	arch_irq_handler_default
+#endif
 9997:
 	.endm
 

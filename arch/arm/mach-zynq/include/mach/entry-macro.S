@@ -20,9 +20,6 @@
  * GNU General Public License for more details.
  */
 
-#include <mach/hardware.h>
-#include <asm/hardware/entry-macro-gic.S>
-
 		.macro  disable_fiq
 		.endm
 
