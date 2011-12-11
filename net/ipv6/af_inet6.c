@@ -1116,6 +1116,8 @@ static int __init inet6_init(void)
 	if (err)
 		goto static_sysctl_fail;
 #endif
+	tcpv6_prot.sysctl_mem = init_net.ipv4.sysctl_tcp_mem;
+
 	/*
 	 *	ipngwg API draft makes clear that the correct semantics
 	 *	for TCP and UDP is to consider one TCP and UDP instance

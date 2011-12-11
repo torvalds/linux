@@ -1,6 +1,8 @@
 #include <net/tcp.h>
 #include <net/tcp_memcontrol.h>
 #include <net/sock.h>
+#include <net/ip.h>
+#include <linux/nsproxy.h>
 #include <linux/memcontrol.h>
 #include <linux/module.h>
 
@@ -28,6 +30,7 @@ int tcp_init_cgroup(struct cgroup *cgrp, struct cgroup_subsys *ss)
 	struct tcp_memcontrol *tcp;
 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
 	struct mem_cgroup *parent = parent_mem_cgroup(memcg);
+	struct net *net = current->nsproxy->net_ns;
 
 	cg_proto = tcp_prot.proto_cgroup(memcg);
 	if (!cg_proto)
@@ -35,9 +38,9 @@ int tcp_init_cgroup(struct cgroup *cgrp, struct cgroup_subsys *ss)
 
 	tcp = tcp_from_cgproto(cg_proto);
 
-	tcp->tcp_prot_mem[0] = sysctl_tcp_mem[0];
-	tcp->tcp_prot_mem[1] = sysctl_tcp_mem[1];
-	tcp->tcp_prot_mem[2] = sysctl_tcp_mem[2];
+	tcp->tcp_prot_mem[0] = net->ipv4.sysctl_tcp_mem[0];
+	tcp->tcp_prot_mem[1] = net->ipv4.sysctl_tcp_mem[1];
+	tcp->tcp_prot_mem[2] = net->ipv4.sysctl_tcp_mem[2];
 	tcp->tcp_memory_pressure = 0;
 
 	parent_cg = tcp_prot.proto_cgroup(parent);
