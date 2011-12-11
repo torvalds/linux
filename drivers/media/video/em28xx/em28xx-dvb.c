@@ -44,6 +44,7 @@
 #include "drxk.h"
 #include "tda10071.h"
 #include "a8293.h"
+#include "qt1010.h"
 
 MODULE_DESCRIPTION("driver for em28xx based DVB cards");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
@@ -524,6 +525,17 @@ static const struct a8293_config em28xx_a8293_config = {
 	.i2c_addr = 0x08, /* (0x10 >> 1) */
 };
 
+static struct zl10353_config em28xx_zl10353_no_i2c_gate_dev = {
+	.demod_address = (0x1e >> 1),
+	.disable_i2c_gate_ctrl = 1,
+	.no_tuner = 1,
+	.parallel_ts = 1,
+};
+static struct qt1010_config em28xx_qt1010_config = {
+	.i2c_address = 0x62
+
+};
+
 /* ------------------------------------------------------------------ */
 
 static int em28xx_attach_xc3028(u8 addr, struct em28xx *dev)
@@ -775,6 +787,14 @@ static int em28xx_dvb_init(struct em28xx *dev)
 			result = -EINVAL;
 			goto out_free;
 		}
+		break;
+	case EM2870_BOARD_KWORLD_355U:
+		dvb->fe[0] = dvb_attach(zl10353_attach,
+					   &em28xx_zl10353_no_i2c_gate_dev,
+					   &dev->i2c_adap);
+		if (dvb->fe[0] != NULL)
+			dvb_attach(qt1010_attach, dvb->fe[0],
+				   &dev->i2c_adap, &em28xx_qt1010_config);
 		break;
 	case EM2883_BOARD_KWORLD_HYBRID_330U:
 	case EM2882_BOARD_EVGA_INDTUBE:
