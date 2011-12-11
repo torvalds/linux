@@ -19,6 +19,7 @@
 #include "../codecs/wm9081.h"
 
 #define WM8996_HPSEL_GPIO 214
+#define MCLK_AUDIO_RATE (512 * 48000)
 
 static int speyside_set_bias_level(struct snd_soc_card *card,
 				   struct snd_soc_dapm_context *dapm,
@@ -67,7 +68,7 @@ static int speyside_set_bias_level_post(struct snd_soc_card *card,
 		if (card->dapm.bias_level == SND_SOC_BIAS_STANDBY) {
 			ret = snd_soc_dai_set_pll(codec_dai, 0,
 						  WM8996_FLL_MCLK2,
-						  32768, 48000 * 256);
+						  32768, MCLK_AUDIO_RATE);
 			if (ret < 0) {
 				pr_err("Failed to start FLL\n");
 				return ret;
@@ -75,7 +76,7 @@ static int speyside_set_bias_level_post(struct snd_soc_card *card,
 
 			ret = snd_soc_dai_set_sysclk(codec_dai,
 						     WM8996_SYSCLK_FLL,
-						     48000 * 256,
+						     MCLK_AUDIO_RATE,
 						     SND_SOC_CLOCK_IN);
 			if (ret < 0)
 				return ret;
@@ -224,7 +225,7 @@ static int speyside_wm9081_init(struct snd_soc_dapm_context *dapm)
 {
 	/* At any time the WM9081 is active it will have this clock */
 	return snd_soc_codec_set_sysclk(dapm->codec, WM9081_SYSCLK_MCLK, 0,
-					48000 * 256, 0);
+					MCLK_AUDIO_RATE, 0);
 }
 
 static struct snd_soc_aux_dev speyside_aux_dev[] = {
