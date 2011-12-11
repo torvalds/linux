@@ -9,6 +9,7 @@
 static u64 tcp_cgroup_read(struct cgroup *cont, struct cftype *cft);
 static int tcp_cgroup_write(struct cgroup *cont, struct cftype *cft,
 			    const char *buffer);
+static int tcp_cgroup_reset(struct cgroup *cont, unsigned int event);
 
 static struct cftype tcp_files[] = {
 	{
@@ -21,6 +22,12 @@ static struct cftype tcp_files[] = {
 		.name = "kmem.tcp.usage_in_bytes",
 		.read_u64 = tcp_cgroup_read,
 		.private = RES_USAGE,
+	},
+	{
+		.name = "kmem.tcp.failcnt",
+		.private = RES_FAILCNT,
+		.trigger = tcp_cgroup_reset,
+		.read_u64 = tcp_cgroup_read,
 	},
 };
 
@@ -197,10 +204,34 @@ static u64 tcp_cgroup_read(struct cgroup *cont, struct cftype *cft)
 	case RES_USAGE:
 		val = tcp_read_usage(memcg);
 		break;
+	case RES_FAILCNT:
+		val = tcp_read_stat(memcg, RES_FAILCNT, 0);
+		break;
 	default:
 		BUG();
 	}
 	return val;
+}
+
+static int tcp_cgroup_reset(struct cgroup *cont, unsigned int event)
+{
+	struct mem_cgroup *memcg;
+	struct tcp_memcontrol *tcp;
+	struct cg_proto *cg_proto;
+
+	memcg = mem_cgroup_from_cont(cont);
+	cg_proto = tcp_prot.proto_cgroup(memcg);
+	if (!cg_proto)
+		return 0;
+	tcp = tcp_from_cgproto(cg_proto);
+
+	switch (event) {
+	case RES_FAILCNT:
+		res_counter_reset_failcnt(&tcp->tcp_memory_allocated);
+		break;
+	}
+
+	return 0;
 }
 
 unsigned long long tcp_max_memory(const struct mem_cgroup *memcg)
