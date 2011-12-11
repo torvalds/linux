@@ -4062,10 +4062,13 @@ static void b43_nphy_op_prepare_structs(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
 	struct b43_phy_n *nphy = phy->n;
+	struct ssb_sprom *sprom = dev->dev->bus_sprom;
 
 	memset(nphy, 0, sizeof(*nphy));
 
 	nphy->hang_avoid = (phy->rev == 3 || phy->rev == 4);
+	nphy->spur_avoid = (phy->rev >= 3) ?
+				B43_SPUR_AVOID_AUTO : B43_SPUR_AVOID_DISABLE;
 	nphy->gain_boost = true; /* this way we follow wl, assume it is true */
 	nphy->txrx_chain = 2; /* sth different than 0 and 1 for now */
 	nphy->phyrxchain = 3; /* to avoid b43_nphy_set_rx_core_state like wl */
@@ -4074,6 +4077,38 @@ static void b43_nphy_op_prepare_structs(struct b43_wldev *dev)
 	 * 0x7f == 127 and we check for 128 when restoring TX pwr ctl. */
 	nphy->tx_pwr_idx[0] = 128;
 	nphy->tx_pwr_idx[1] = 128;
+
+	/* Hardware TX power control and 5GHz power gain */
+	nphy->txpwrctrl = false;
+	nphy->pwg_gain_5ghz = false;
+	if (dev->phy.rev >= 3 ||
+	    (dev->dev->board_vendor == PCI_VENDOR_ID_APPLE &&
+	     (dev->dev->core_rev == 11 || dev->dev->core_rev == 12))) {
+		nphy->txpwrctrl = true;
+		nphy->pwg_gain_5ghz = true;
+	} else if (sprom->revision >= 4) {
+		if (dev->phy.rev >= 2 &&
+		    (sprom->boardflags2_lo & B43_BFL2_TXPWRCTRL_EN)) {
+			nphy->txpwrctrl = true;
+#ifdef CONFIG_B43_SSB
+			if (dev->dev->bus_type == B43_BUS_SSB &&
+			    dev->dev->sdev->bus->bustype == SSB_BUSTYPE_PCI) {
+				struct pci_dev *pdev =
+					dev->dev->sdev->bus->host_pci;
+				if (pdev->device == 0x4328 ||
+				    pdev->device == 0x432a)
+					nphy->pwg_gain_5ghz = true;
+			}
+#endif
+		} else if (sprom->boardflags2_lo & B43_BFL2_5G_PWRGAIN) {
+			nphy->pwg_gain_5ghz = true;
+		}
+	}
+
+	if (dev->phy.rev >= 3) {
+		nphy->ipa2g_on = sprom->fem.ghz2.extpa_gain == 2;
+		nphy->ipa5g_on = sprom->fem.ghz5.extpa_gain == 2;
+	}
 }
 
 static void b43_nphy_op_free(struct b43_wldev *dev)
