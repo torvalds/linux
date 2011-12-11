@@ -21,7 +21,6 @@
 #else
 
 #include <asm/memory.h>
-#include <mach/vmalloc.h>
 #include <asm/pgtable-hwdef.h>
 
 #include <asm/pgtable-2level.h>
@@ -33,14 +32,16 @@
  * any out-of-bounds memory accesses will hopefully be caught.
  * The vmalloc() routines leaves a hole of 4kB between each vmalloced
  * area for the same reason. ;)
- *
- * Note that platforms may override VMALLOC_START, but they must provide
- * VMALLOC_END.  VMALLOC_END defines the (exclusive) limit of this space,
- * which may not overlap IO space.
  */
-#ifndef VMALLOC_START
 #define VMALLOC_OFFSET		(8*1024*1024)
 #define VMALLOC_START		(((unsigned long)high_memory + VMALLOC_OFFSET) & ~(VMALLOC_OFFSET-1))
+#define VMALLOC_END		0xff000000UL
+
+/* This is a temporary hack until shmobile's DMA area size is sorted out */
+#ifdef CONFIG_ARCH_SHMOBILE
+#warning "SH-Mobile's consistent DMA size conflicts with VMALLOC_END by 144MB"
+#undef VMALLOC_END
+#define VMALLOC_END		0xF6000000UL
 #endif
 
 #define LIBRARY_TEXT_START	0x0c000000

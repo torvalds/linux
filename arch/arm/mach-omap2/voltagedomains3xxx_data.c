@@ -18,7 +18,7 @@
 #include <linux/err.h>
 #include <linux/init.h>
 
-#include <plat/common.h>
+#include "common.h"
 #include <plat/cpu.h>
 
 #include "prm-regbits-34xx.h"

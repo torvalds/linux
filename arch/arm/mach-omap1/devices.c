@@ -22,7 +22,7 @@
 #include <mach/hardware.h>
 #include <asm/mach/map.h>
 
-#include <plat/common.h>
+#include "common.h"
 #include <plat/tc.h>
 #include <plat/board.h>
 #include <plat/mux.h>

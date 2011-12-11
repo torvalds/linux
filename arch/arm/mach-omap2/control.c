@@ -15,7 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 
-#include <plat/common.h>
+#include "common.h"
 #include <plat/sdrc.h>
 
 #include "cm-regbits-34xx.h"
