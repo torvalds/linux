@@ -126,6 +126,9 @@ struct nphy_gain_ctl_workaround_entry *b43_nphy_get_gain_ctl_workaround_ent(
 #define B43_NTAB_C1_LOFEEDTH		B43_NTAB16(0x1B, 0x1C0) /* Local Oscillator Feed Through Lookup Table Core 1 */
 #define B43_NTAB_C1_LOFEEDTH_SIZE	128
 
+/* Volatile N-PHY tables, PHY revision >= 3 */
+#define B43_NTAB_ANT_SW_CTL_R3		B43_NTAB16( 9,   0) /* antenna software control */
+
 /* Static N-PHY tables, PHY revision >= 3 */
 #define B43_NTAB_FRAMESTRUCT_R3		B43_NTAB32(10,   0) /* frame struct  */
 #define B43_NTAB_PILOT_R3		B43_NTAB16(11,   0) /* pilot  */
