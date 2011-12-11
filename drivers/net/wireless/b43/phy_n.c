@@ -1591,18 +1591,18 @@ static void b43_nphy_workarounds_rev3plus(struct b43_wldev *dev)
 				0x70);
 	}
 
-	b43_phy_write(dev, 0x224, 0x039C);
-	b43_phy_write(dev, 0x225, 0x0357);
-	b43_phy_write(dev, 0x226, 0x0317);
-	b43_phy_write(dev, 0x227, 0x02D7);
-	b43_phy_write(dev, 0x228, 0x039C);
-	b43_phy_write(dev, 0x229, 0x0357);
-	b43_phy_write(dev, 0x22A, 0x0317);
-	b43_phy_write(dev, 0x22B, 0x02D7);
-	b43_phy_write(dev, 0x22C, 0x039C);
-	b43_phy_write(dev, 0x22D, 0x0357);
-	b43_phy_write(dev, 0x22E, 0x0317);
-	b43_phy_write(dev, 0x22F, 0x02D7);
+	b43_phy_write(dev, 0x224, 0x03eb);
+	b43_phy_write(dev, 0x225, 0x03eb);
+	b43_phy_write(dev, 0x226, 0x0341);
+	b43_phy_write(dev, 0x227, 0x0341);
+	b43_phy_write(dev, 0x228, 0x042b);
+	b43_phy_write(dev, 0x229, 0x042b);
+	b43_phy_write(dev, 0x22a, 0x0381);
+	b43_phy_write(dev, 0x22b, 0x0381);
+	b43_phy_write(dev, 0x22c, 0x042b);
+	b43_phy_write(dev, 0x22d, 0x042b);
+	b43_phy_write(dev, 0x22e, 0x0381);
+	b43_phy_write(dev, 0x22f, 0x0381);
 }
 
 static void b43_nphy_workarounds_rev1_2(struct b43_wldev *dev)
