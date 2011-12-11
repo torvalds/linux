@@ -2932,6 +2932,13 @@ void b43_ntab_write_bulk(struct b43_wldev *dev, u32 offset,
 	b43_phy_write(dev, B43_NPHY_TABLE_ADDR, offset);
 
 	for (i = 0; i < nr_elements; i++) {
+		/* Auto increment broken + caching issue on BCM43224? */
+		if ((offset >> 10) == 9 && dev->dev->chip_id == 43224 &&
+		    dev->dev->chip_rev == 1) {
+			b43_phy_read(dev, B43_NPHY_TABLE_DATALO);
+			b43_phy_write(dev, B43_NPHY_TABLE_ADDR, offset + i);
+		}
+
 		switch (type) {
 		case B43_NTAB_8BIT:
 			value = *data;
