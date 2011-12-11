@@ -6,6 +6,19 @@
 #include <linux/memcontrol.h>
 #include <linux/module.h>
 
+static u64 tcp_cgroup_read(struct cgroup *cont, struct cftype *cft);
+static int tcp_cgroup_write(struct cgroup *cont, struct cftype *cft,
+			    const char *buffer);
+
+static struct cftype tcp_files[] = {
+	{
+		.name = "kmem.tcp.limit_in_bytes",
+		.write_string = tcp_cgroup_write,
+		.read_u64 = tcp_cgroup_read,
+		.private = RES_LIMIT,
+	},
+};
+
 static inline struct tcp_memcontrol *tcp_from_cgproto(struct cg_proto *cg_proto)
 {
 	return container_of(cg_proto, struct tcp_memcontrol, cg_proto);
@@ -34,7 +47,7 @@ int tcp_init_cgroup(struct cgroup *cgrp, struct cgroup_subsys *ss)
 
 	cg_proto = tcp_prot.proto_cgroup(memcg);
 	if (!cg_proto)
-		return 0;
+		goto create_files;
 
 	tcp = tcp_from_cgproto(cg_proto);
 
@@ -57,7 +70,9 @@ int tcp_init_cgroup(struct cgroup *cgrp, struct cgroup_subsys *ss)
 	cg_proto->sockets_allocated = &tcp->tcp_sockets_allocated;
 	cg_proto->memcg = memcg;
 
-	return 0;
+create_files:
+	return cgroup_add_files(cgrp, ss, tcp_files,
+				ARRAY_SIZE(tcp_files));
 }
 EXPORT_SYMBOL(tcp_init_cgroup);
 
@@ -66,6 +81,7 @@ void tcp_destroy_cgroup(struct cgroup *cgrp, struct cgroup_subsys *ss)
 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
 	struct cg_proto *cg_proto;
 	struct tcp_memcontrol *tcp;
+	u64 val;
 
 	cg_proto = tcp_prot.proto_cgroup(memcg);
 	if (!cg_proto)
@@ -73,5 +89,122 @@ void tcp_destroy_cgroup(struct cgroup *cgrp, struct cgroup_subsys *ss)
 
 	tcp = tcp_from_cgproto(cg_proto);
 	percpu_counter_destroy(&tcp->tcp_sockets_allocated);
+
+	val = res_counter_read_u64(&tcp->tcp_memory_allocated, RES_USAGE);
+
+	if (val != RESOURCE_MAX)
+		jump_label_dec(&memcg_socket_limit_enabled);
 }
 EXPORT_SYMBOL(tcp_destroy_cgroup);
+
+static int tcp_update_limit(struct mem_cgroup *memcg, u64 val)
+{
+	struct net *net = current->nsproxy->net_ns;
+	struct tcp_memcontrol *tcp;
+	struct cg_proto *cg_proto;
+	u64 old_lim;
+	int i;
+	int ret;
+
+	cg_proto = tcp_prot.proto_cgroup(memcg);
+	if (!cg_proto)
+		return -EINVAL;
+
+	if (val > RESOURCE_MAX)
+		val = RESOURCE_MAX;
+
+	tcp = tcp_from_cgproto(cg_proto);
+
+	old_lim = res_counter_read_u64(&tcp->tcp_memory_allocated, RES_LIMIT);
+	ret = res_counter_set_limit(&tcp->tcp_memory_allocated, val);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < 3; i++)
+		tcp->tcp_prot_mem[i] = min_t(long, val >> PAGE_SHIFT,
+					     net->ipv4.sysctl_tcp_mem[i]);
+
+	if (val == RESOURCE_MAX && old_lim != RESOURCE_MAX)
+		jump_label_dec(&memcg_socket_limit_enabled);
+	else if (old_lim == RESOURCE_MAX && val != RESOURCE_MAX)
+		jump_label_inc(&memcg_socket_limit_enabled);
+
+	return 0;
+}
+
+static int tcp_cgroup_write(struct cgroup *cont, struct cftype *cft,
+			    const char *buffer)
+{
+	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+	unsigned long long val;
+	int ret = 0;
+
+	switch (cft->private) {
+	case RES_LIMIT:
+		/* see memcontrol.c */
+		ret = res_counter_memparse_write_strategy(buffer, &val);
+		if (ret)
+			break;
+		ret = tcp_update_limit(memcg, val);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+	return ret;
+}
+
+static u64 tcp_read_stat(struct mem_cgroup *memcg, int type, u64 default_val)
+{
+	struct tcp_memcontrol *tcp;
+	struct cg_proto *cg_proto;
+
+	cg_proto = tcp_prot.proto_cgroup(memcg);
+	if (!cg_proto)
+		return default_val;
+
+	tcp = tcp_from_cgproto(cg_proto);
+	return res_counter_read_u64(&tcp->tcp_memory_allocated, type);
+}
+
+static u64 tcp_cgroup_read(struct cgroup *cont, struct cftype *cft)
+{
+	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+	u64 val;
+
+	switch (cft->private) {
+	case RES_LIMIT:
+		val = tcp_read_stat(memcg, RES_LIMIT, RESOURCE_MAX);
+		break;
+	default:
+		BUG();
+	}
+	return val;
+}
+
+unsigned long long tcp_max_memory(const struct mem_cgroup *memcg)
+{
+	struct tcp_memcontrol *tcp;
+	struct cg_proto *cg_proto;
+
+	cg_proto = tcp_prot.proto_cgroup((struct mem_cgroup *)memcg);
+	if (!cg_proto)
+		return 0;
+
+	tcp = tcp_from_cgproto(cg_proto);
+	return res_counter_read_u64(&tcp->tcp_memory_allocated, RES_LIMIT);
+}
+
+void tcp_prot_mem(struct mem_cgroup *memcg, long val, int idx)
+{
+	struct tcp_memcontrol *tcp;
+	struct cg_proto *cg_proto;
+
+	cg_proto = tcp_prot.proto_cgroup(memcg);
+	if (!cg_proto)
+		return;
+
+	tcp = tcp_from_cgproto(cg_proto);
+
+	tcp->tcp_prot_mem[idx] = val;
+}

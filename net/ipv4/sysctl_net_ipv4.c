@@ -24,6 +24,7 @@
 #include <net/cipso_ipv4.h>
 #include <net/inet_frag.h>
 #include <net/ping.h>
+#include <net/tcp_memcontrol.h>
 
 static int zero;
 static int tcp_retr1_max = 255;
@@ -182,6 +183,9 @@ static int ipv4_tcp_mem(ctl_table *ctl, int write,
 	int ret;
 	unsigned long vec[3];
 	struct net *net = current->nsproxy->net_ns;
+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+	struct mem_cgroup *memcg;
+#endif
 
 	ctl_table tmp = {
 		.data = &vec,
@@ -197,6 +201,16 @@ static int ipv4_tcp_mem(ctl_table *ctl, int write,
 	ret = proc_doulongvec_minmax(&tmp, write, buffer, lenp, ppos);
 	if (ret)
 		return ret;
+
+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+	rcu_read_lock();
+	memcg = mem_cgroup_from_task(current);
+
+	tcp_prot_mem(memcg, vec[0], 0);
+	tcp_prot_mem(memcg, vec[1], 1);
+	tcp_prot_mem(memcg, vec[2], 2);
+	rcu_read_unlock();
+#endif
 
 	net->ipv4.sysctl_tcp_mem[0] = vec[0];
 	net->ipv4.sysctl_tcp_mem[1] = vec[1];
