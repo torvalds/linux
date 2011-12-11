@@ -24,6 +24,21 @@
 #include <linux/dvb/frontend.h>
 #include "dvb_frontend.h"
 
+/* Registers (Write-only) */
+#define XREG_INIT         0x00
+#define XREG_RF_FREQ      0x02
+#define XREG_POWER_DOWN   0x08
+
+/* Registers (Read-only) */
+#define XREG_FREQ_ERROR   0x01
+#define XREG_LOCK         0x02
+#define XREG_VERSION      0x04
+#define XREG_PRODUCT_ID   0x08
+#define XREG_HSYNC_FREQ   0x10
+#define XREG_FRAME_LINES  0x20
+#define XREG_SNR          0x40
+
+#define XREG_ADC_ENV      0x0100
 
 static int debug;
 module_param(debug, int, 0644);
@@ -885,7 +900,7 @@ static int xc2028_signal(struct dvb_frontend *fe, u16 *strength)
 	mutex_lock(&priv->lock);
 
 	/* Sync Lock Indicator */
-	rc = xc2028_get_reg(priv, 0x0002, &frq_lock);
+	rc = xc2028_get_reg(priv, XREG_LOCK, &frq_lock);
 	if (rc < 0)
 		goto ret;
 
@@ -894,7 +909,7 @@ static int xc2028_signal(struct dvb_frontend *fe, u16 *strength)
 		signal = 1 << 11;
 
 	/* Get SNR of the video signal */
-	rc = xc2028_get_reg(priv, 0x0040, &signal);
+	rc = xc2028_get_reg(priv, XREG_SNR, &signal);
 	if (rc < 0)
 		goto ret;
 
@@ -1019,9 +1034,9 @@ static int generic_set_freq(struct dvb_frontend *fe, u32 freq /* in HZ */,
 
 	/* CMD= Set frequency */
 	if (priv->firm_version < 0x0202)
-		rc = send_seq(priv, {0x00, 0x02, 0x00, 0x00});
+		rc = send_seq(priv, {0x00, XREG_RF_FREQ, 0x00, 0x00});
 	else
-		rc = send_seq(priv, {0x80, 0x02, 0x00, 0x00});
+		rc = send_seq(priv, {0x80, XREG_RF_FREQ, 0x00, 0x00});
 	if (rc < 0)
 		goto ret;
 
@@ -1201,9 +1216,9 @@ static int xc2028_sleep(struct dvb_frontend *fe)
 	mutex_lock(&priv->lock);
 
 	if (priv->firm_version < 0x0202)
-		rc = send_seq(priv, {0x00, 0x08, 0x00, 0x00});
+		rc = send_seq(priv, {0x00, XREG_POWER_DOWN, 0x00, 0x00});
 	else
-		rc = send_seq(priv, {0x80, 0x08, 0x00, 0x00});
+		rc = send_seq(priv, {0x80, XREG_POWER_DOWN, 0x00, 0x00});
 
 	priv->cur_fw.type = 0;	/* need firmware reload */
 
