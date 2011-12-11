@@ -1493,8 +1493,8 @@ static void b43_nphy_workarounds_rev3plus(struct b43_wldev *dev)
 	struct ssb_sprom *sprom = dev->dev->bus_sprom;
 
 	/* TX to RX */
-	u8 tx2rx_events[9] = { 0x4, 0x3, 0x6, 0x5, 0x2, 0x1, 0x8, 0x1F };
-	u8 tx2rx_delays[9] = { 8, 4, 2, 2, 4, 4, 6, 1 };
+	u8 tx2rx_events[8] = { 0x4, 0x3, 0x6, 0x5, 0x2, 0x1, 0x8, 0x1F };
+	u8 tx2rx_delays[8] = { 8, 4, 2, 2, 4, 4, 6, 1 };
 	/* RX to TX */
 	u8 rx2tx_events_ipa[9] = { 0x0, 0x1, 0x2, 0x8, 0x5, 0x6, 0xF, 0x3,
 					0x1F };
@@ -1504,6 +1504,9 @@ static void b43_nphy_workarounds_rev3plus(struct b43_wldev *dev)
 
 	u16 tmp16;
 	u32 tmp32;
+
+	b43_phy_write(dev, 0x23f, 0x1f8);
+	b43_phy_write(dev, 0x240, 0x1f8);
 
 	tmp32 = b43_ntab_read(dev, B43_NTAB32(30, 0));
 	tmp32 &= 0xffffff;
@@ -1520,12 +1523,13 @@ static void b43_nphy_workarounds_rev3plus(struct b43_wldev *dev)
 	b43_phy_write(dev, 0x2AE, 0x000C);
 
 	/* TX to RX */
-	b43_nphy_set_rf_sequence(dev, 1, tx2rx_events, tx2rx_delays, 9);
+	b43_nphy_set_rf_sequence(dev, 1, tx2rx_events, tx2rx_delays,
+				 ARRAY_SIZE(tx2rx_events));
 
 	/* RX to TX */
 	if (b43_nphy_ipa(dev))
-		b43_nphy_set_rf_sequence(dev, 1, rx2tx_events_ipa,
-					 rx2tx_delays_ipa, 9);
+		b43_nphy_set_rf_sequence(dev, 0, rx2tx_events_ipa,
+				rx2tx_delays_ipa, ARRAY_SIZE(rx2tx_events_ipa));
 	if (nphy->hw_phyrxchain != 3 &&
 	    nphy->hw_phyrxchain != nphy->hw_phytxchain) {
 		if (b43_nphy_ipa(dev)) {
@@ -1533,7 +1537,8 @@ static void b43_nphy_workarounds_rev3plus(struct b43_wldev *dev)
 			rx2tx_delays[6] = 1;
 			rx2tx_events[7] = 0x1F;
 		}
-		b43_nphy_set_rf_sequence(dev, 1, rx2tx_events, rx2tx_delays, 9);
+		b43_nphy_set_rf_sequence(dev, 1, rx2tx_events, rx2tx_delays,
+					 ARRAY_SIZE(rx2tx_events));
 	}
 
 	tmp16 = (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) ?
@@ -1547,8 +1552,8 @@ static void b43_nphy_workarounds_rev3plus(struct b43_wldev *dev)
 
 	b43_nphy_gain_ctrl_workarounds(dev);
 
-	b43_ntab_write(dev, B43_NTAB32(8, 0), 2);
-	b43_ntab_write(dev, B43_NTAB32(8, 16), 2);
+	b43_ntab_write(dev, B43_NTAB16(8, 0), 2);
+	b43_ntab_write(dev, B43_NTAB16(8, 16), 2);
 
 	/* TODO */
 
@@ -1560,6 +1565,8 @@ static void b43_nphy_workarounds_rev3plus(struct b43_wldev *dev)
 	b43_radio_write(dev, B2056_RX1 | B2056_RX_MIXA_BIAS_AUX, 0x07);
 	b43_radio_write(dev, B2056_RX0 | B2056_RX_MIXA_LOB_BIAS, 0x88);
 	b43_radio_write(dev, B2056_RX1 | B2056_RX_MIXA_LOB_BIAS, 0x88);
+	b43_radio_write(dev, B2056_RX0 | B2056_RX_MIXA_CMFB_IDAC, 0x00);
+	b43_radio_write(dev, B2056_RX1 | B2056_RX_MIXA_CMFB_IDAC, 0x00);
 	b43_radio_write(dev, B2056_RX0 | B2056_RX_MIXG_CMFB_IDAC, 0x00);
 	b43_radio_write(dev, B2056_RX1 | B2056_RX_MIXG_CMFB_IDAC, 0x00);
 
