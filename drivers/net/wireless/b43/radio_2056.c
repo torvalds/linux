@@ -9055,6 +9055,21 @@ void b2056_upload_inittabs(struct b43_wldev *dev,
 				B2056_RX1, pts->rx, pts->rx_length);
 }
 
+void b2056_upload_syn_pll_cp2(struct b43_wldev *dev, bool ghz5)
+{
+	struct b2056_inittabs_pts *pts;
+	const struct b2056_inittab_entry *e;
+
+	if (dev->phy.rev >= ARRAY_SIZE(b2056_inittabs)) {
+		B43_WARN_ON(1);
+		return;
+	}
+	pts = &b2056_inittabs[dev->phy.rev];
+	e = &pts->syn[B2056_SYN_PLL_CP2];
+
+	b43_radio_write(dev, B2056_SYN_PLL_CP2, ghz5 ? e->ghz5 : e->ghz2);
+}
+
 const struct b43_nphy_channeltab_entry_rev3 *
 b43_nphy_get_chantabent_rev3(struct b43_wldev *dev, u16 freq)
 {

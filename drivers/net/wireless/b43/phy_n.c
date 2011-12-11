@@ -228,10 +228,98 @@ static void b43_chantab_radio_2056_upload(struct b43_wldev *dev,
 static void b43_radio_2056_setup(struct b43_wldev *dev,
 				const struct b43_nphy_channeltab_entry_rev3 *e)
 {
+	struct ssb_sprom *sprom = dev->dev->bus_sprom;
+	enum ieee80211_band band = b43_current_band(dev->wl);
+	u16 offset;
+	u8 i;
+	u16 bias, cbias, pag_boost, pgag_boost, mixg_boost, padg_boost;
+
 	B43_WARN_ON(dev->phy.rev < 3);
 
 	b43_chantab_radio_2056_upload(dev, e);
-	/* TODO */
+	b2056_upload_syn_pll_cp2(dev, band == IEEE80211_BAND_5GHZ);
+
+	if (sprom->boardflags2_lo & B43_BFL2_GPLL_WAR &&
+	    b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+		b43_radio_write(dev, B2056_SYN_PLL_LOOPFILTER1, 0x1F);
+		b43_radio_write(dev, B2056_SYN_PLL_LOOPFILTER2, 0x1F);
+		if (dev->dev->chip_id == 0x4716) {
+			b43_radio_write(dev, B2056_SYN_PLL_LOOPFILTER4, 0x14);
+			b43_radio_write(dev, B2056_SYN_PLL_CP2, 0);
+		} else {
+			b43_radio_write(dev, B2056_SYN_PLL_LOOPFILTER4, 0x0B);
+			b43_radio_write(dev, B2056_SYN_PLL_CP2, 0x14);
+		}
+	}
+	if (sprom->boardflags2_lo & B43_BFL2_APLL_WAR &&
+	    b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ) {
+		b43_radio_write(dev, B2056_SYN_PLL_LOOPFILTER1, 0x1F);
+		b43_radio_write(dev, B2056_SYN_PLL_LOOPFILTER2, 0x1F);
+		b43_radio_write(dev, B2056_SYN_PLL_LOOPFILTER4, 0x05);
+		b43_radio_write(dev, B2056_SYN_PLL_CP2, 0x0C);
+	}
+
+	if (dev->phy.n->ipa2g_on && band == IEEE80211_BAND_2GHZ) {
+		for (i = 0; i < 2; i++) {
+			offset = i ? B2056_TX1 : B2056_TX0;
+			if (dev->phy.rev >= 5) {
+				b43_radio_write(dev,
+					offset | B2056_TX_PADG_IDAC, 0xcc);
+
+				if (dev->dev->chip_id == 0x4716) {
+					bias = 0x40;
+					cbias = 0x45;
+					pag_boost = 0x5;
+					pgag_boost = 0x33;
+					mixg_boost = 0x55;
+				} else {
+					bias = 0x25;
+					cbias = 0x20;
+					pag_boost = 0x4;
+					pgag_boost = 0x03;
+					mixg_boost = 0x65;
+				}
+				padg_boost = 0x77;
+
+				b43_radio_write(dev,
+					offset | B2056_TX_INTPAG_IMAIN_STAT,
+					bias);
+				b43_radio_write(dev,
+					offset | B2056_TX_INTPAG_IAUX_STAT,
+					bias);
+				b43_radio_write(dev,
+					offset | B2056_TX_INTPAG_CASCBIAS,
+					cbias);
+				b43_radio_write(dev,
+					offset | B2056_TX_INTPAG_BOOST_TUNE,
+					pag_boost);
+				b43_radio_write(dev,
+					offset | B2056_TX_PGAG_BOOST_TUNE,
+					pgag_boost);
+				b43_radio_write(dev,
+					offset | B2056_TX_PADG_BOOST_TUNE,
+					padg_boost);
+				b43_radio_write(dev,
+					offset | B2056_TX_MIXG_BOOST_TUNE,
+					mixg_boost);
+			} else {
+				bias = dev->phy.is_40mhz ? 0x40 : 0x20;
+				b43_radio_write(dev,
+					offset | B2056_TX_INTPAG_IMAIN_STAT,
+					bias);
+				b43_radio_write(dev,
+					offset | B2056_TX_INTPAG_IAUX_STAT,
+					bias);
+				b43_radio_write(dev,
+					offset | B2056_TX_INTPAG_CASCBIAS,
+					0x30);
+			}
+			b43_radio_write(dev, offset | B2056_TX_PA_SPARE1, 0xee);
+		}
+	} else if (dev->phy.n->ipa5g_on && band == IEEE80211_BAND_5GHZ) {
+		/* TODO */
+	}
+
 	udelay(50);
 	/* VCO calibration */
 	b43_radio_write(dev, B2056_SYN_PLL_VCOCAL12, 0x00);
