@@ -164,11 +164,6 @@ int hv_init(void)
 
 	max_leaf = query_hypervisor_info();
 
-	rdmsrl(HV_X64_MSR_GUEST_OS_ID, hv_context.guestid);
-
-	if (hv_context.guestid != 0)
-		goto cleanup;
-
 	/* Write our OS info */
 	wrmsrl(HV_X64_MSR_GUEST_OS_ID, HV_LINUX_GUEST_ID);
 	hv_context.guestid = HV_LINUX_GUEST_ID;
