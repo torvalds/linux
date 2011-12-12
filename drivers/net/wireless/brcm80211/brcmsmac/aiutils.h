@@ -146,8 +146,6 @@
  *   public (read-only) portion of aiutils handle returned by si_attach()
  */
 struct si_pub {
-	uint buscoretype;	/* PCI_CORE_ID, PCIE_CORE_ID, PCMCIA_CORE_ID */
-	uint buscorerev;	/* buscore rev */
 	int ccrev;		/* chip common core rev */
 	u32 cccaps;		/* chip common capabilities */
 	int pmurev;		/* pmu core rev */
@@ -175,11 +173,10 @@ struct si_info {
 	struct bcma_bus *icbus;	/* handle to soc interconnect bus */
 	struct pci_dev *pcibus;	/* handle to pci bus */
 	struct pcicore_info *pch; /* PCI/E core handle */
-
+	struct bcma_device *buscore;
 	struct list_head var_list; /* list of srom variables */
 
 	u32 chipst;		/* chip status */
-	uint buscoreidx;	/* buscore index */
 };
 
 /*
@@ -224,47 +221,49 @@ extern void ai_chipcontrl_epa4331(struct si_pub *sih, bool on);
 /* Enable Ex-PA for 4313 */
 extern void ai_epa_4313war(struct si_pub *sih);
 
-static inline uint ai_get_buscoretype(struct si_pub *sih)
-{
-	return sih->buscoretype;
-}
+extern uint ai_get_buscoretype(struct si_pub *sih);
+extern uint ai_get_buscorerev(struct si_pub *sih);
 
-static inline uint ai_get_buscorerev(struct si_pub *sih)
-{
-	return sih->buscorerev;
-}
 static inline int ai_get_ccrev(struct si_pub *sih)
 {
 	return sih->ccrev;
 }
+
 static inline u32 ai_get_cccaps(struct si_pub *sih)
 {
 	return sih->cccaps;
 }
+
 static inline int ai_get_pmurev(struct si_pub *sih)
 {
 	return sih->pmurev;
 }
+
 static inline u32 ai_get_pmucaps(struct si_pub *sih)
 {
 	return sih->pmucaps;
 }
+
 static inline uint ai_get_boardtype(struct si_pub *sih)
 {
 	return sih->boardtype;
 }
+
 static inline uint ai_get_boardvendor(struct si_pub *sih)
 {
 	return sih->boardvendor;
 }
+
 static inline uint ai_get_chip_id(struct si_pub *sih)
 {
 	return sih->chip;
 }
+
 static inline uint ai_get_chiprev(struct si_pub *sih)
 {
 	return sih->chiprev;
 }
+
 static inline uint ai_get_chippkg(struct si_pub *sih)
 {
 	return sih->chippkg;

@@ -479,10 +479,9 @@ static bool ai_buscore_prep(struct si_info *sii)
 static bool
 ai_buscore_setup(struct si_info *sii, struct bcma_device *cc)
 {
+	struct bcma_device *pci = NULL;
+	struct bcma_device *pcie = NULL;
 	struct bcma_device *core;
-	bool pci, pcie;
-	uint i;
-	uint pciidx, pcieidx, pcirev, pcierev;
 
 
 	/* no cores found, bail out */
@@ -506,15 +505,7 @@ ai_buscore_setup(struct si_info *sii, struct bcma_device *cc)
 		sii->pub.pmurev = sii->pub.pmucaps & PCAP_REV_MASK;
 	}
 
-	/* figure out bus/orignal core idx */
-	sii->pub.buscoretype = NODEV_CORE_ID;
-	sii->pub.buscorerev = NOREV;
-	sii->buscoreidx = BADIDX;
-
-	pci = pcie = false;
-	pcirev = pcierev = NOREV;
-	pciidx = pcieidx = BADIDX;
-
+	/* figure out buscore */
 	list_for_each_entry(core, &cc->bus->cores, list) {
 		uint cid, crev;
 
@@ -522,30 +513,22 @@ ai_buscore_setup(struct si_info *sii, struct bcma_device *cc)
 		crev = core->id.rev;
 
 		if (cid == PCI_CORE_ID) {
-			pciidx = i;
-			pcirev = crev;
-			pci = true;
+			pci = core;
 		} else if (cid == PCIE_CORE_ID) {
-			pcieidx = i;
-			pcierev = crev;
-			pcie = true;
+			pcie = core;
 		}
 	}
 
 	if (pci && pcie) {
 		if (ai_ispcie(sii))
-			pci = false;
+			pci = NULL;
 		else
-			pcie = false;
+			pcie = NULL;
 	}
 	if (pci) {
-		sii->pub.buscoretype = PCI_CORE_ID;
-		sii->pub.buscorerev = pcirev;
-		sii->buscoreidx = pciidx;
+		sii->buscore = pci;
 	} else if (pcie) {
-		sii->pub.buscoretype = PCIE_CORE_ID;
-		sii->pub.buscorerev = pcierev;
-		sii->buscoreidx = pcieidx;
+		sii->buscore = pcie;
 	}
 
 	/* fixup necessary chip/core configurations */
@@ -554,10 +537,8 @@ ai_buscore_setup(struct si_info *sii, struct bcma_device *cc)
 		if (sii->pch == NULL)
 			return false;
 	}
-	if (ai_pci_fixcfg(&sii->pub)) {
-		/* si_doattach: si_pci_fixcfg failed */
+	if (ai_pci_fixcfg(&sii->pub))
 		return false;
-	}
 
 	return true;
 }
@@ -589,7 +570,6 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	savewin = 0;
 
 	sii->icbus = pbus;
-	sii->buscoreidx = BADIDX;
 	sii->pcibus = pbus->host_pci;
 
 	/* switch to Chipcommon core */
@@ -1247,4 +1227,16 @@ bool ai_is_otp_disabled(struct si_pub *sih)
 	default:
 		return false;
 	}
+}
+
+uint ai_get_buscoretype(struct si_pub *sih)
+{
+	struct si_info *sii = (struct si_info *)sih;
+	return sii->buscore->id.id;
+}
+
+uint ai_get_buscorerev(struct si_pub *sih)
+{
+	struct si_info *sii = (struct si_info *)sih;
+	return sii->buscore->id.rev;
 }

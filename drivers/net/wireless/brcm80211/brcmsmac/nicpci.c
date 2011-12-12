@@ -408,7 +408,7 @@ pcie_mdioop(struct pcicore_info *pi, uint physmedia, uint regaddr, bool write,
 	bcma_write32(pi->core, PCIEREGOFFS(mdiocontrol),
 		     MDIOCTL_PREAM_EN | MDIOCTL_DIVISOR_VAL);
 
-	if (pi->sih->buscorerev >= 10) {
+	if (ai_get_buscorerev(pi->sih) >= 10) {
 		/* new serdes is slower in rw,
 		 * using two layers of reg address mapping
 		 */
@@ -782,7 +782,6 @@ void pcicore_down(struct pcicore_info *pi, int state)
 	pcie_extendL1timer(pi, false);
 }
 
-/* precondition: current core is sii->buscoretype */
 void pcicore_fixcfg(struct pcicore_info *pi)
 {
 	struct bcma_device *core = pi->core;
