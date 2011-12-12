@@ -840,6 +840,7 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 	for (k = 0; k < ARRAY_SIZE(priv->ch); k++) {
 		struct sh_mobile_meram_cfg *cfg;
 		int pixelformat;
+		void *meram;
 
 		ch = &priv->ch[k];
 		if (!ch->enabled)
@@ -856,9 +857,9 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 		/* we need to de-init configured ICBs before we can
 		 * re-initialize them.
 		 */
-		if (ch->meram_enabled) {
-			mdev->ops->meram_unregister(mdev, cfg);
-			ch->meram_enabled = 0;
+		if (ch->meram) {
+			mdev->ops->meram_unregister(mdev, ch->meram);
+			ch->meram = NULL;
 		}
 
 		switch (ch->format->fourcc) {
@@ -880,13 +881,13 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 			break;
 		}
 
-		ret = mdev->ops->meram_register(mdev, cfg, ch->pitch,
+		meram = mdev->ops->meram_register(mdev, cfg, ch->pitch,
 					ch->yres, pixelformat,
 					ch->base_addr_y, ch->base_addr_c,
 					&ch->base_addr_y, &ch->base_addr_c,
 					&ch->pitch);
-		if (!ret)
-			ch->meram_enabled = 1;
+		if (!IS_ERR(meram))
+			ch->meram = meram;
 	}
 
 	/* Start the LCDC. */
@@ -951,13 +952,11 @@ static void sh_mobile_lcdc_stop(struct sh_mobile_lcdc_priv *priv)
 		sh_mobile_lcdc_display_off(ch);
 
 		/* disable the meram */
-		if (ch->meram_enabled) {
-			struct sh_mobile_meram_cfg *cfg;
+		if (ch->meram) {
 			struct sh_mobile_meram_info *mdev;
-			cfg = ch->cfg.meram_cfg;
 			mdev = priv->meram_dev;
-			mdev->ops->meram_unregister(mdev, cfg);
-			ch->meram_enabled = 0;
+			mdev->ops->meram_unregister(mdev, ch->meram);
+			ch->meram = 0;
 		}
 
 	}
@@ -1070,14 +1069,12 @@ static int sh_mobile_fb_pan_display(struct fb_var_screeninfo *var,
 			base_addr_c += var->xoffset;
 	}
 
-	if (ch->meram_enabled) {
-		struct sh_mobile_meram_cfg *cfg;
+	if (ch->meram) {
 		struct sh_mobile_meram_info *mdev;
 		int ret;
 
-		cfg = ch->cfg.meram_cfg;
 		mdev = priv->meram_dev;
-		ret = mdev->ops->meram_update(mdev, cfg,
+		ret = mdev->ops->meram_update(mdev, ch->meram,
 					base_addr_y, base_addr_c,
 					&base_addr_y, &base_addr_c);
 		if (ret)

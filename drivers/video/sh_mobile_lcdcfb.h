@@ -59,7 +59,7 @@ struct sh_mobile_lcdc_chan {
 	unsigned long *reg_offs;
 	unsigned long ldmt1r_value;
 	unsigned long enabled; /* ME and SE in LDCNT2R */
-	int meram_enabled;
+	void *meram;
 
 	struct mutex open_lock;		/* protects the use counter */
 	int use_count;
