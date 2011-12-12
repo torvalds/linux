@@ -849,7 +849,7 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int bus, slot;
 	int ret = 0;
 
-	printk("dt3000:");
+	dev_dbg(dev->hw_dev, "dt3000:\n");
 	bus = it->options[0];
 	slot = it->options[1];
 
@@ -861,7 +861,7 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret < 0)
 		return ret;
 	if (ret == 0) {
-		printk(" no DT board found\n");
+		dev_warn(dev->hw_dev, "no DT board found\n");
 		return -ENODEV;
 	}
 
@@ -869,7 +869,8 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	if (request_irq(devpriv->pci_dev->irq, dt3k_interrupt, IRQF_SHARED,
 			"dt3000", dev)) {
-		printk(" unable to allocate IRQ %u\n", devpriv->pci_dev->irq);
+		dev_err(dev->hw_dev, "unable to allocate IRQ %u\n",
+			devpriv->pci_dev->irq);
 		return -EINVAL;
 	}
 	dev->irq = devpriv->pci_dev->irq;
