@@ -332,3 +332,5 @@ static struct platform_driver imx_pcm_driver = {
 };
 
 module_platform_driver(imx_pcm_driver);
+
+MODULE_LICENSE("GPL");
