@@ -641,7 +641,7 @@ static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	int ret;
 	unsigned int mode;
 
-	printk("dt3k_ai_cmd:\n");
+	dev_dbg(dev->hw_dev, "dt3k_ai_cmd:\n");
 	for (i = 0; i < cmd->chanlist_len; i++) {
 		chan = CR_CHAN(cmd->chanlist[i]);
 		range = CR_RANGE(cmd->chanlist[i]);
@@ -652,15 +652,15 @@ static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	aref = CR_AREF(cmd->chanlist[0]);
 
 	writew(cmd->scan_end_arg, devpriv->io_addr + DPR_Params(0));
-	printk("param[0]=0x%04x\n", cmd->scan_end_arg);
+	dev_dbg(dev->hw_dev, "param[0]=0x%04x\n", cmd->scan_end_arg);
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		divider = dt3k_ns_to_timer(50, &cmd->convert_arg,
 					   cmd->flags & TRIG_ROUND_MASK);
 		writew((divider >> 16), devpriv->io_addr + DPR_Params(1));
-		printk("param[1]=0x%04x\n", divider >> 16);
+		dev_dbg(dev->hw_dev, "param[1]=0x%04x\n", divider >> 16);
 		writew((divider & 0xffff), devpriv->io_addr + DPR_Params(2));
-		printk("param[2]=0x%04x\n", divider & 0xffff);
+		dev_dbg(dev->hw_dev, "param[2]=0x%04x\n", divider & 0xffff);
 	} else {
 		/* not supported */
 	}
