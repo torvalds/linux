@@ -21,7 +21,7 @@ struct iio_buffer;
  * @mark_in_use:	reference counting, typically to prevent module removal
  * @unmark_in_use:	reduce reference count when no longer using buffer
  * @store_to:		actually store stuff to the buffer
- * @read_first_n:	try to get a specified number of elements (must exist)
+ * @read_first_n:	try to get a specified number of bytes (must exist)
  * @mark_param_change:	notify buffer that some relevant parameter has changed
  *			Often this means the underlying storage may need to
  *			change.
