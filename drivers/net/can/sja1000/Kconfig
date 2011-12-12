@@ -71,6 +71,7 @@ config CAN_PLX_PCI
 	   - esd CAN-PCIe/2000
 	   - Marathon CAN-bus-PCI card (http://www.marathon.ru/)
 	   - TEWS TECHNOLOGIES TPMC810 card (http://www.tews.com/)
+	   - IXXAT Automation PC-I 04/PCI card (http://www.ixxat.com/)
 
 config CAN_TSCAN1
 	tristate "TS-CAN1 PC104 boards"
