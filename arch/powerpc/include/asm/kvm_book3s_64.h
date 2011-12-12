@@ -113,4 +113,14 @@ static inline unsigned long hpte_page_size(unsigned long h, unsigned long l)
 	return 0;				/* error */
 }
 
+static inline bool slot_is_aligned(struct kvm_memory_slot *memslot,
+				   unsigned long pagesize)
+{
+	unsigned long mask = (pagesize >> PAGE_SHIFT) - 1;
+
+	if (pagesize <= PAGE_SIZE)
+		return 1;
+	return !(memslot->base_gfn & mask) && !(memslot->npages & mask);
+}
+
 #endif /* __ASM_KVM_BOOK3S_64_H__ */

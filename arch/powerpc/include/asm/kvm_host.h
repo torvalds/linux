@@ -177,14 +177,13 @@ struct revmap_entry {
 };
 
 /* Low-order bits in kvm->arch.slot_phys[][] */
+#define KVMPPC_PAGE_ORDER_MASK	0x1f
 #define KVMPPC_GOT_PAGE		0x80
 
 struct kvm_arch {
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 	unsigned long hpt_virt;
 	struct revmap_entry *revmap;
-	unsigned long ram_psize;
-	unsigned long ram_porder;
 	unsigned int lpid;
 	unsigned int host_lpid;
 	unsigned long host_lpcr;

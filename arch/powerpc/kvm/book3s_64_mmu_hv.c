@@ -34,8 +34,6 @@
 #include <asm/ppc-opcode.h>
 #include <asm/cputable.h>
 
-/* Pages in the VRMA are 16MB pages */
-#define VRMA_PAGE_ORDER	24
 #define VRMA_VSID	0x1ffffffUL	/* 1TB VSID reserved for VRMA */
 
 /* POWER7 has 10-bit LPIDs, PPC970 has 6-bit LPIDs */
@@ -95,17 +93,31 @@ void kvmppc_free_hpt(struct kvm *kvm)
 	free_pages(kvm->arch.hpt_virt, HPT_ORDER - PAGE_SHIFT);
 }
 
-void kvmppc_map_vrma(struct kvm_vcpu *vcpu, struct kvm_memory_slot *memslot)
+/* Bits in first HPTE dword for pagesize 4k, 64k or 16M */
+static inline unsigned long hpte0_pgsize_encoding(unsigned long pgsize)
 {
-	struct kvm *kvm = vcpu->kvm;
+	return (pgsize > 0x1000) ? HPTE_V_LARGE : 0;
+}
+
+/* Bits in second HPTE dword for pagesize 4k, 64k or 16M */
+static inline unsigned long hpte1_pgsize_encoding(unsigned long pgsize)
+{
+	return (pgsize == 0x10000) ? 0x1000 : 0;
+}
+
+void kvmppc_map_vrma(struct kvm_vcpu *vcpu, struct kvm_memory_slot *memslot,
+		     unsigned long porder)
+{
 	unsigned long i;
 	unsigned long npages;
 	unsigned long hp_v, hp_r;
 	unsigned long addr, hash;
-	unsigned long porder = kvm->arch.ram_porder;
+	unsigned long psize;
+	unsigned long hp0, hp1;
 	long ret;
 
-	npages = kvm->arch.slot_npages[memslot->id];
+	psize = 1ul << porder;
+	npages = memslot->npages >> (porder - PAGE_SHIFT);
 
 	/* VRMA can't be > 1TB */
 	if (npages > 1ul << (40 - porder))
@@ -113,6 +125,11 @@ void kvmppc_map_vrma(struct kvm_vcpu *vcpu, struct kvm_memory_slot *memslot)
 	/* Can't use more than 1 HPTE per HPTEG */
 	if (npages > HPT_NPTEG)
 		npages = HPT_NPTEG;
+
+	hp0 = HPTE_V_1TB_SEG | (VRMA_VSID << (40 - 16)) |
+		HPTE_V_BOLTED | hpte0_pgsize_encoding(psize);
+	hp1 = hpte1_pgsize_encoding(psize) |
+		HPTE_R_R | HPTE_R_C | HPTE_R_M | PP_RWXX;
 
 	for (i = 0; i < npages; ++i) {
 		addr = i << porder;
@@ -125,10 +142,8 @@ void kvmppc_map_vrma(struct kvm_vcpu *vcpu, struct kvm_memory_slot *memslot)
 		 * is available and use it.
 		 */
 		hash = (hash << 3) + 7;
-		hp_v = HPTE_V_1TB_SEG | (VRMA_VSID << (40 - 16)) |
-			(i << (VRMA_PAGE_ORDER - 16)) | HPTE_V_BOLTED |
-			HPTE_V_LARGE | HPTE_V_VALID;
-		hp_r = addr | HPTE_R_R | HPTE_R_C | HPTE_R_M | PP_RWXX;
+		hp_v = hp0 | ((addr >> 16) & ~0x7fUL);
+		hp_r = hp1 | addr;
 		ret = kvmppc_virtmode_h_enter(vcpu, H_EXACT, hash, hp_v, hp_r);
 		if (ret != H_SUCCESS) {
 			pr_err("KVM: map_vrma at %lx failed, ret=%ld\n",
@@ -176,22 +191,25 @@ static void kvmppc_mmu_book3s_64_hv_reset_msr(struct kvm_vcpu *vcpu)
  * one already in the kvm->arch.slot_phys[][] arrays.
  */
 static long kvmppc_get_guest_page(struct kvm *kvm, unsigned long gfn,
-				  struct kvm_memory_slot *memslot)
+				  struct kvm_memory_slot *memslot,
+				  unsigned long psize)
 {
 	unsigned long start;
-	long np;
-	struct page *page, *pages[1];
+	long np, err;
+	struct page *page, *hpage, *pages[1];
+	unsigned long s, pgsize;
 	unsigned long *physp;
-	unsigned long pfn, i;
+	unsigned int got, pgorder;
+	unsigned long pfn, i, npages;
 
 	physp = kvm->arch.slot_phys[memslot->id];
 	if (!physp)
 		return -EINVAL;
-	i = (gfn - memslot->base_gfn) >> (kvm->arch.ram_porder - PAGE_SHIFT);
-	if (physp[i])
+	if (physp[gfn - memslot->base_gfn])
 		return 0;
 
 	page = NULL;
+	pgsize = psize;
 	start = gfn_to_hva_memslot(memslot, gfn);
 
 	/* Instantiate and get the page we want access to */
@@ -199,25 +217,46 @@ static long kvmppc_get_guest_page(struct kvm *kvm, unsigned long gfn,
 	if (np != 1)
 		return -EINVAL;
 	page = pages[0];
+	got = KVMPPC_GOT_PAGE;
 
-	/* Check it's a 16MB page */
-	if (!PageHead(page) ||
-	    compound_order(page) != (kvm->arch.ram_porder - PAGE_SHIFT)) {
-		pr_err("page at %lx isn't 16MB (o=%d)\n",
-		       start, compound_order(page));
-		put_page(page);
-		return -EINVAL;
+	/* See if this is a large page */
+	s = PAGE_SIZE;
+	if (PageHuge(page)) {
+		hpage = compound_head(page);
+		s <<= compound_order(hpage);
+		/* Get the whole large page if slot alignment is ok */
+		if (s > psize && slot_is_aligned(memslot, s) &&
+		    !(memslot->userspace_addr & (s - 1))) {
+			start &= ~(s - 1);
+			pgsize = s;
+			page = hpage;
+		}
 	}
+	err = -EINVAL;
+	if (s < psize)
+		goto out;
 	pfn = page_to_pfn(page);
 
+	npages = pgsize >> PAGE_SHIFT;
+	pgorder = __ilog2(npages);
+	physp += (gfn - memslot->base_gfn) & ~(npages - 1);
 	spin_lock(&kvm->arch.slot_phys_lock);
-	if (!physp[i])
-		physp[i] = (pfn << PAGE_SHIFT) | KVMPPC_GOT_PAGE;
-	else
-		put_page(page);
+	for (i = 0; i < npages; ++i) {
+		if (!physp[i]) {
+			physp[i] = ((pfn + i) << PAGE_SHIFT) + got + pgorder;
+			got = 0;
+		}
+	}
 	spin_unlock(&kvm->arch.slot_phys_lock);
+	err = 0;
 
-	return 0;
+ out:
+	if (got) {
+		if (PageHuge(page))
+			page = compound_head(page);
+		put_page(page);
+	}
+	return err;
 }
 
 /*
@@ -242,7 +281,9 @@ long kvmppc_virtmode_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 	memslot = gfn_to_memslot(kvm, gfn);
 	if (!memslot || (memslot->flags & KVM_MEMSLOT_INVALID))
 		return H_PARAMETER;
-	if (kvmppc_get_guest_page(kvm, gfn, memslot) < 0)
+	if (!slot_is_aligned(memslot, psize))
+		return H_PARAMETER;
+	if (kvmppc_get_guest_page(kvm, gfn, memslot, psize) < 0)
 		return H_PARAMETER;
 
 	preempt_disable();
@@ -269,8 +310,8 @@ void *kvmppc_pin_guest_page(struct kvm *kvm, unsigned long gpa,
 	struct kvm_memory_slot *memslot;
 	unsigned long gfn = gpa >> PAGE_SHIFT;
 	struct page *page;
-	unsigned long offset;
-	unsigned long pfn, pa;
+	unsigned long psize, offset;
+	unsigned long pa;
 	unsigned long *physp;
 
 	memslot = gfn_to_memslot(kvm, gfn);
@@ -279,20 +320,23 @@ void *kvmppc_pin_guest_page(struct kvm *kvm, unsigned long gpa,
 	physp = kvm->arch.slot_phys[memslot->id];
 	if (!physp)
 		return NULL;
-	physp += (gfn - memslot->base_gfn) >>
-		(kvm->arch.ram_porder - PAGE_SHIFT);
+	physp += gfn - memslot->base_gfn;
 	pa = *physp;
 	if (!pa) {
-		if (kvmppc_get_guest_page(kvm, gfn, memslot) < 0)
+		if (kvmppc_get_guest_page(kvm, gfn, memslot, PAGE_SIZE) < 0)
 			return NULL;
 		pa = *physp;
 	}
-	pfn = pa >> PAGE_SHIFT;
-	page = pfn_to_page(pfn);
+	page = pfn_to_page(pa >> PAGE_SHIFT);
+	psize = PAGE_SIZE;
+	if (PageHuge(page)) {
+		page = compound_head(page);
+		psize <<= compound_order(page);
+	}
 	get_page(page);
-	offset = gpa & (kvm->arch.ram_psize - 1);
+	offset = gpa & (psize - 1);
 	if (nb_ret)
-		*nb_ret = kvm->arch.ram_psize - offset;
+		*nb_ret = psize - offset;
 	return page_address(page) + offset;
 }
 

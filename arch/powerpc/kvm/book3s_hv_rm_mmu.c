@@ -77,6 +77,10 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 	memslot = builtin_gfn_to_memslot(kvm, gfn);
 	if (!(memslot && !(memslot->flags & KVM_MEMSLOT_INVALID)))
 		return H_PARAMETER;
+
+	/* Check if the requested page fits entirely in the memslot. */
+	if (!slot_is_aligned(memslot, psize))
+		return H_PARAMETER;
 	slot_fn = gfn - memslot->base_gfn;
 
 	physp = kvm->arch.slot_phys[memslot->id];
@@ -88,9 +92,9 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 	pa = *physp;
 	if (!pa)
 		return H_TOO_HARD;
+	pte_size = PAGE_SIZE << (pa & KVMPPC_PAGE_ORDER_MASK);
 	pa &= PAGE_MASK;
 
-	pte_size = kvm->arch.ram_psize;
 	if (pte_size < psize)
 		return H_PARAMETER;
 	if (pa && pte_size > psize)

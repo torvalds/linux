@@ -51,8 +51,6 @@
 #include <linux/highmem.h>
 #include <linux/hugetlb.h>
 
-#define LARGE_PAGE_ORDER	24	/* 16MB pages */
-
 /* #define EXIT_DEBUG */
 /* #define EXIT_DEBUG_SIMPLE */
 /* #define EXIT_DEBUG_INT */
@@ -1074,24 +1072,26 @@ long kvm_vm_ioctl_allocate_rma(struct kvm *kvm, struct kvm_allocate_rma *ret)
 	return fd;
 }
 
+static unsigned long slb_pgsize_encoding(unsigned long psize)
+{
+	unsigned long senc = 0;
+
+	if (psize > 0x1000) {
+		senc = SLB_VSID_L;
+		if (psize == 0x10000)
+			senc |= SLB_VSID_LP_01;
+	}
+	return senc;
+}
+
 int kvmppc_core_prepare_memory_region(struct kvm *kvm,
 				struct kvm_userspace_memory_region *mem)
 {
-	unsigned long psize;
 	unsigned long npages;
 	unsigned long *phys;
 
-	/* For now, only allow 16MB-aligned slots */
-	psize = kvm->arch.ram_psize;
-	if ((mem->memory_size & (psize - 1)) ||
-	    (mem->guest_phys_addr & (psize - 1))) {
-		pr_err("bad memory_size=%llx @ %llx\n",
-		       mem->memory_size, mem->guest_phys_addr);
-		return -EINVAL;
-	}
-
 	/* Allocate a slot_phys array */
-	npages = mem->memory_size >> kvm->arch.ram_porder;
+	npages = mem->memory_size >> PAGE_SHIFT;
 	phys = kvm->arch.slot_phys[mem->slot];
 	if (!phys) {
 		phys = vzalloc(npages * sizeof(unsigned long));
@@ -1119,6 +1119,8 @@ static void unpin_slot(struct kvm *kvm, int slot_id)
 				continue;
 			pfn = physp[j] >> PAGE_SHIFT;
 			page = pfn_to_page(pfn);
+			if (PageHuge(page))
+				page = compound_head(page);
 			SetPageDirty(page);
 			put_page(page);
 		}
@@ -1141,12 +1143,12 @@ static int kvmppc_hv_setup_rma(struct kvm_vcpu *vcpu)
 	unsigned long hva;
 	struct kvm_memory_slot *memslot;
 	struct vm_area_struct *vma;
-	unsigned long lpcr;
+	unsigned long lpcr, senc;
 	unsigned long psize, porder;
 	unsigned long rma_size;
 	unsigned long rmls;
 	unsigned long *physp;
-	unsigned long i, npages, pa;
+	unsigned long i, npages;
 
 	mutex_lock(&kvm->lock);
 	if (kvm->arch.rma_setup_done)
@@ -1168,8 +1170,7 @@ static int kvmppc_hv_setup_rma(struct kvm_vcpu *vcpu)
 		goto up_out;
 
 	psize = vma_kernel_pagesize(vma);
-	if (psize != kvm->arch.ram_psize)
-		goto up_out;
+	porder = __ilog2(psize);
 
 	/* Is this one of our preallocated RMAs? */
 	if (vma->vm_file && vma->vm_file->f_op == &kvm_rma_fops &&
@@ -1186,13 +1187,20 @@ static int kvmppc_hv_setup_rma(struct kvm_vcpu *vcpu)
 			goto out;
 		}
 
+		/* We can handle 4k, 64k or 16M pages in the VRMA */
+		err = -EINVAL;
+		if (!(psize == 0x1000 || psize == 0x10000 ||
+		      psize == 0x1000000))
+			goto out;
+
 		/* Update VRMASD field in the LPCR */
-		lpcr = kvm->arch.lpcr & ~(0x1fUL << LPCR_VRMASD_SH);
-		lpcr |= LPCR_VRMA_L;
+		senc = slb_pgsize_encoding(psize);
+		lpcr = kvm->arch.lpcr & ~LPCR_VRMASD;
+		lpcr |= senc << (LPCR_VRMASD_SH - 4);
 		kvm->arch.lpcr = lpcr;
 
 		/* Create HPTEs in the hash page table for the VRMA */
-		kvmppc_map_vrma(vcpu, memslot);
+		kvmppc_map_vrma(vcpu, memslot, porder);
 
 	} else {
 		/* Set up to use an RMO region */
@@ -1231,13 +1239,12 @@ static int kvmppc_hv_setup_rma(struct kvm_vcpu *vcpu)
 			ri->base_pfn << PAGE_SHIFT, rma_size, lpcr);
 
 		/* Initialize phys addrs of pages in RMO */
-		porder = kvm->arch.ram_porder;
-		npages = rma_size >> porder;
-		pa = ri->base_pfn << PAGE_SHIFT;
+		npages = ri->npages;
+		porder = __ilog2(npages);
 		physp = kvm->arch.slot_phys[memslot->id];
 		spin_lock(&kvm->arch.slot_phys_lock);
 		for (i = 0; i < npages; ++i)
-			physp[i] = pa + (i << porder);
+			physp[i] = ((ri->base_pfn + i) << PAGE_SHIFT) + porder;
 		spin_unlock(&kvm->arch.slot_phys_lock);
 	}
 
@@ -1266,8 +1273,6 @@ int kvmppc_core_init_vm(struct kvm *kvm)
 
 	INIT_LIST_HEAD(&kvm->arch.spapr_tce_tables);
 
-	kvm->arch.ram_psize = 1ul << LARGE_PAGE_ORDER;
-	kvm->arch.ram_porder = LARGE_PAGE_ORDER;
 	kvm->arch.rma = NULL;
 
 	kvm->arch.host_sdr1 = mfspr(SPRN_SDR1);
