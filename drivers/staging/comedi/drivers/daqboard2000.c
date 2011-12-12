@@ -729,8 +729,6 @@ static int daqboard2000_attach(struct comedi_device *dev,
 	unsigned int aux_len;
 	int bus, slot;
 
-	printk("comedi%d: daqboard2000:", dev->minor);
-
 	bus = it->options[0];
 	slot = it->options[1];
 
@@ -751,10 +749,10 @@ static int daqboard2000_attach(struct comedi_device *dev,
 	}
 	if (!card) {
 		if (bus || slot)
-			printk(" no daqboard2000 found at bus/slot: %d/%d\n",
-			       bus, slot);
+			dev_err(dev->hw_dev, "no daqboard2000 found at bus/slot: %d/%d\n",
+				bus, slot);
 		else
-			printk(" no daqboard2000 found\n");
+			dev_err(dev->hw_dev, "no daqboard2000 found\n");
 		return -EIO;
 	} else {
 		u32 id;
@@ -764,7 +762,8 @@ static int daqboard2000_attach(struct comedi_device *dev,
 		      subsystem_device << 16) | card->subsystem_vendor;
 		for (i = 0; i < n_boardtypes; i++) {
 			if (boardtypes[i].id == id) {
-				printk(" %s", boardtypes[i].name);
+				dev_dbg(dev->hw_dev, "%s\n",
+					boardtypes[i].name);
 				dev->board_ptr = boardtypes + i;
 			}
 		}
@@ -778,7 +777,7 @@ static int daqboard2000_attach(struct comedi_device *dev,
 
 	result = comedi_pci_enable(card, "daqboard2000");
 	if (result < 0) {
-		printk(" failed to enable PCI device and request regions\n");
+		dev_err(dev->hw_dev, "failed to enable PCI device and request regions\n");
 		return -EIO;
 	}
 	devpriv->got_regions = 1;
@@ -808,7 +807,7 @@ static int daqboard2000_attach(struct comedi_device *dev,
 	if (aux_data && aux_len) {
 		result = initialize_daqboard2000(dev, aux_data, aux_len);
 	} else {
-		printk("no FPGA initialization code, aborting\n");
+		dev_dbg(dev->hw_dev, "no FPGA initialization code, aborting\n");
 		result = -EIO;
 	}
 	if (result < 0)
@@ -848,15 +847,12 @@ static int daqboard2000_attach(struct comedi_device *dev,
 	result = subdev_8255_init(dev, s, daqboard2000_8255_cb,
 				  (unsigned long)(dev->iobase + 0x40));
 
-	printk("\n");
 out:
 	return result;
 }
 
 static int daqboard2000_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: daqboard2000: remove\n", dev->minor);
-
 	if (dev->subdevices)
 		subdev_8255_cleanup(dev, dev->subdevices + 2);
 
