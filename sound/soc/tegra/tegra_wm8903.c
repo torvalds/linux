@@ -34,6 +34,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
+#include <linux/of_gpio.h>
 
 #include <mach/tegra_wm8903_pdata.h>
 
@@ -59,8 +60,9 @@
 #define GPIO_HP_DET     BIT(4)
 
 struct tegra_wm8903 {
+	struct tegra_wm8903_platform_data pdata;
+	struct platform_device *pcm_dev;
 	struct tegra_asoc_utils_data util_data;
-	struct tegra_wm8903_platform_data *pdata;
 	int gpio_requested;
 };
 
@@ -160,7 +162,7 @@ static int tegra_wm8903_event_int_spk(struct snd_soc_dapm_widget *w,
 	struct snd_soc_dapm_context *dapm = w->dapm;
 	struct snd_soc_card *card = dapm->card;
 	struct tegra_wm8903 *machine = snd_soc_card_get_drvdata(card);
-	struct tegra_wm8903_platform_data *pdata = machine->pdata;
+	struct tegra_wm8903_platform_data *pdata = &machine->pdata;
 
 	if (!(machine->gpio_requested & GPIO_SPKR_EN))
 		return 0;
@@ -177,7 +179,7 @@ static int tegra_wm8903_event_hp(struct snd_soc_dapm_widget *w,
 	struct snd_soc_dapm_context *dapm = w->dapm;
 	struct snd_soc_card *card = dapm->card;
 	struct tegra_wm8903 *machine = snd_soc_card_get_drvdata(card);
-	struct tegra_wm8903_platform_data *pdata = machine->pdata;
+	struct tegra_wm8903_platform_data *pdata = &machine->pdata;
 
 	if (!(machine->gpio_requested & GPIO_HP_MUTE))
 		return 0;
@@ -246,8 +248,35 @@ static int tegra_wm8903_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	struct snd_soc_card *card = codec->card;
 	struct tegra_wm8903 *machine = snd_soc_card_get_drvdata(card);
-	struct tegra_wm8903_platform_data *pdata = machine->pdata;
+	struct tegra_wm8903_platform_data *pdata = &machine->pdata;
+	struct device_node *np = card->dev->of_node;
 	int ret;
+
+	if (card->dev->platform_data) {
+		memcpy(pdata, card->dev->platform_data, sizeof(*pdata));
+	} else if (np) {
+		/*
+		 * This part must be in init() rather than probe() in order to
+		 * guarantee that the WM8903 has been probed, and hence its
+		 * GPIO controller registered, which is a pre-condition for
+		 * of_get_named_gpio() to be able to map the phandles in the
+		 * properties to the controller node. Given this, all
+		 * pdata handling is in init() for consistency.
+		 */
+		pdata->gpio_spkr_en = of_get_named_gpio(np,
+						"nvidia,spkr-en-gpios", 0);
+		pdata->gpio_hp_mute = of_get_named_gpio(np,
+						"nvidia,hp-mute-gpios", 0);
+		pdata->gpio_hp_det = of_get_named_gpio(np,
+						"nvidia,hp-det-gpios", 0);
+		pdata->gpio_int_mic_en = of_get_named_gpio(np,
+						"nvidia,int-mic-en-gpios", 0);
+		pdata->gpio_ext_mic_en = of_get_named_gpio(np,
+						"nvidia,ext-mic-en-gpios", 0);
+	} else {
+		dev_err(card->dev, "No platform data supplied\n");
+		return -EINVAL;
+	}
 
 	if (gpio_is_valid(pdata->gpio_spkr_en)) {
 		ret = gpio_request(pdata->gpio_spkr_en, "spkr_en");
@@ -348,11 +377,9 @@ static __devinit int tegra_wm8903_driver_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &snd_soc_tegra_wm8903;
 	struct tegra_wm8903 *machine;
-	struct tegra_wm8903_platform_data *pdata;
 	int ret;
 
-	pdata = pdev->dev.platform_data;
-	if (!pdata) {
+	if (!pdev->dev.platform_data && !pdev->dev.of_node) {
 		dev_err(&pdev->dev, "No platform data supplied\n");
 		return -EINVAL;
 	}
@@ -364,30 +391,69 @@ static __devinit int tegra_wm8903_driver_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err;
 	}
-
-	machine->pdata = pdata;
-
-	ret = tegra_asoc_utils_init(&machine->util_data, &pdev->dev);
-	if (ret)
-		goto err;
+	machine->pcm_dev = ERR_PTR(-EINVAL);
 
 	card->dev = &pdev->dev;
 	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, machine);
 
-	if (machine_is_harmony()) {
-		card->dapm_routes = harmony_audio_map;
-		card->num_dapm_routes = ARRAY_SIZE(harmony_audio_map);
-	} else if (machine_is_seaboard()) {
-		card->dapm_routes = seaboard_audio_map;
-		card->num_dapm_routes = ARRAY_SIZE(seaboard_audio_map);
-	} else if (machine_is_kaen()) {
-		card->dapm_routes = kaen_audio_map;
-		card->num_dapm_routes = ARRAY_SIZE(kaen_audio_map);
+	if (pdev->dev.of_node) {
+		ret = snd_soc_of_parse_card_name(card, "nvidia,model");
+		if (ret)
+			goto err;
+
+		ret = snd_soc_of_parse_audio_routing(card,
+						     "nvidia,audio-routing");
+		if (ret)
+			goto err;
+
+		tegra_wm8903_dai.codec_name = NULL;
+		tegra_wm8903_dai.codec_of_node = of_parse_phandle(
+				pdev->dev.of_node, "nvidia,audio-codec", 0);
+		if (!tegra_wm8903_dai.codec_of_node) {
+			dev_err(&pdev->dev,
+				"Property 'nvidia,audio-codec' missing or invalid\n");
+			ret = -EINVAL;
+			goto err;
+		}
+
+		tegra_wm8903_dai.cpu_dai_name = NULL;
+		tegra_wm8903_dai.cpu_dai_of_node = of_parse_phandle(
+				pdev->dev.of_node, "nvidia,i2s-controller", 0);
+		if (!tegra_wm8903_dai.cpu_dai_of_node) {
+			dev_err(&pdev->dev,
+				"Property 'nvidia,i2s-controller' missing or invalid\n");
+			ret = -EINVAL;
+			goto err;
+		}
+
+		machine->pcm_dev = platform_device_register_simple(
+					"tegra-pcm-audio", -1, NULL, 0);
+		if (IS_ERR(machine->pcm_dev)) {
+			dev_err(&pdev->dev,
+				"Can't instantiate tegra-pcm-audio\n");
+			ret = PTR_ERR(machine->pcm_dev);
+			goto err;
+		}
 	} else {
-		card->dapm_routes = aebl_audio_map;
-		card->num_dapm_routes = ARRAY_SIZE(aebl_audio_map);
+		if (machine_is_harmony()) {
+			card->dapm_routes = harmony_audio_map;
+			card->num_dapm_routes = ARRAY_SIZE(harmony_audio_map);
+		} else if (machine_is_seaboard()) {
+			card->dapm_routes = seaboard_audio_map;
+			card->num_dapm_routes = ARRAY_SIZE(seaboard_audio_map);
+		} else if (machine_is_kaen()) {
+			card->dapm_routes = kaen_audio_map;
+			card->num_dapm_routes = ARRAY_SIZE(kaen_audio_map);
+		} else {
+			card->dapm_routes = aebl_audio_map;
+			card->num_dapm_routes = ARRAY_SIZE(aebl_audio_map);
+		}
 	}
+
+	ret = tegra_asoc_utils_init(&machine->util_data, &pdev->dev);
+	if (ret)
+		goto err_unregister;
 
 	ret = snd_soc_register_card(card);
 	if (ret) {
@@ -400,6 +466,9 @@ static __devinit int tegra_wm8903_driver_probe(struct platform_device *pdev)
 
 err_fini_utils:
 	tegra_asoc_utils_fini(&machine->util_data);
+err_unregister:
+	if (!IS_ERR(machine->pcm_dev))
+		platform_device_unregister(machine->pcm_dev);
 err:
 	return ret;
 }
@@ -408,7 +477,7 @@ static int __devexit tegra_wm8903_driver_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct tegra_wm8903 *machine = snd_soc_card_get_drvdata(card);
-	struct tegra_wm8903_platform_data *pdata = machine->pdata;
+	struct tegra_wm8903_platform_data *pdata = &machine->pdata;
 
 	if (machine->gpio_requested & GPIO_HP_DET)
 		snd_soc_jack_free_gpios(&tegra_wm8903_hp_jack,
@@ -427,15 +496,23 @@ static int __devexit tegra_wm8903_driver_remove(struct platform_device *pdev)
 	snd_soc_unregister_card(card);
 
 	tegra_asoc_utils_fini(&machine->util_data);
+	if (!IS_ERR(machine->pcm_dev))
+		platform_device_unregister(machine->pcm_dev);
 
 	return 0;
 }
+
+static const struct of_device_id tegra_wm8903_of_match[] __devinitconst = {
+	{ .compatible = "nvidia,tegra-audio-wm8903", },
+	{},
+};
 
 static struct platform_driver tegra_wm8903_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
+		.of_match_table = tegra_wm8903_of_match,
 	},
 	.probe = tegra_wm8903_driver_probe,
 	.remove = __devexit_p(tegra_wm8903_driver_remove),
@@ -446,3 +523,4 @@ MODULE_AUTHOR("Stephen Warren <swarren@nvidia.com>");
 MODULE_DESCRIPTION("Tegra+WM8903 machine ASoC driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRV_NAME);
+MODULE_DEVICE_TABLE(of, tegra_wm8903_of_match);
