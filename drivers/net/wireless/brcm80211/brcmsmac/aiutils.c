@@ -454,29 +454,6 @@ struct aidmp {
 	u32 componentid3;	/* 0xffc */
 };
 
-/* parse the enumeration rom to identify all cores */
-static void ai_scan(struct si_pub *sih, struct bcma_bus *bus)
-{
-	struct si_info *sii = (struct si_info *)sih;
-	struct bcma_device *core;
-	uint idx;
-
-	list_for_each_entry(core, &bus->cores, list) {
-		idx = core->core_index;
-		sii->cia[idx] = core->id.manuf << CIA_MFG_SHIFT;
-		sii->cia[idx] |= core->id.id << CIA_CID_SHIFT;
-		sii->cia[idx] |= core->id.class << CIA_CCL_SHIFT;
-		sii->cib[idx] = core->id.rev << CIB_REV_SHIFT;
-		sii->coreid[idx] = core->id.id;
-		sii->coresba[idx] = core->addr;
-		sii->coresba_size[idx] = 0x1000;
-		sii->coresba2[idx] = 0;
-		sii->coresba2_size[idx] = 0;
-		sii->wrapba[idx] = core->wrap;
-		sii->numcores++;
-	}
-}
-
 /* return true if PCIE capability exists in the pci config space */
 static bool ai_ispcie(struct si_info *sii)
 {
@@ -502,9 +479,15 @@ static bool ai_buscore_prep(struct si_info *sii)
 static bool
 ai_buscore_setup(struct si_info *sii, struct bcma_device *cc)
 {
+	struct bcma_device *core;
 	bool pci, pcie;
 	uint i;
 	uint pciidx, pcieidx, pcirev, pcierev;
+
+
+	/* no cores found, bail out */
+	if (cc->bus->nr_cores == 0)
+		return false;
 
 	/* get chipcommon rev */
 	sii->pub.ccrev = cc->id.rev;
@@ -532,11 +515,11 @@ ai_buscore_setup(struct si_info *sii, struct bcma_device *cc)
 	pcirev = pcierev = NOREV;
 	pciidx = pcieidx = BADIDX;
 
-	for (i = 0; i < sii->numcores; i++) {
+	list_for_each_entry(core, &cc->bus->cores, list) {
 		uint cid, crev;
 
-		cid = sii->coreid[i];
-		crev = (sii->cib[i] & CIB_REV_MASK) >> CIB_REV_SHIFT;
+		cid = core->id.id;
+		crev = core->id.rev;
 
 		if (cid == PCI_CORE_ID) {
 			pciidx = i;
@@ -596,7 +579,6 @@ static __used void ai_nvram_process(struct si_info *sii)
 static struct si_info *ai_doattach(struct si_info *sii,
 				   struct bcma_bus *pbus)
 {
-	void __iomem *regs = pbus->mmio;
 	struct si_pub *sih = &sii->pub;
 	u32 w, savewin;
 	struct bcma_device *cc;
@@ -609,8 +591,6 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	sii->icbus = pbus;
 	sii->buscoreidx = BADIDX;
 	sii->pcibus = pbus->host_pci;
-	sii->curmap = regs;
-	sii->curwrap = sii->curmap + SI_CORE_SIZE;
 
 	/* switch to Chipcommon core */
 	cc = pbus->drv_cc.core;
@@ -634,19 +614,10 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	sih->chippkg = (w & CID_PKG_MASK) >> CID_PKG_SHIFT;
 
 	/* scan for cores */
-	if (socitype == SOCI_AI) {
-		SI_MSG("Found chip type AI (0x%08x)\n", w);
-		/* pass chipc address instead of original core base */
-		ai_scan(&sii->pub, pbus);
-	} else {
-		/* Found chip of unknown type */
-		return NULL;
-	}
-	/* no cores found, bail out */
-	if (sii->numcores == 0)
+	if (socitype != SOCI_AI)
 		return NULL;
 
-	/* bus/core/clk setup */
+	SI_MSG("Found chip type AI (0x%08x)\n", w);
 	if (!ai_buscore_setup(sii, cc))
 		goto exit;
 

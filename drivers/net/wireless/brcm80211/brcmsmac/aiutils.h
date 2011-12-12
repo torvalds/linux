@@ -174,39 +174,12 @@ struct si_info {
 	struct si_pub pub;	/* back plane public state (must be first) */
 	struct bcma_bus *icbus;	/* handle to soc interconnect bus */
 	struct pci_dev *pcibus;	/* handle to pci bus */
-	uint dev_coreid;	/* the core provides driver functions */
-	void *intr_arg;		/* interrupt callback function arg */
-	u32 (*intrsoff_fn) (void *intr_arg); /* turns chip interrupts off */
-	/* restore chip interrupts */
-	void (*intrsrestore_fn) (void *intr_arg, u32 arg);
-	/* check if interrupts are enabled */
-	bool (*intrsenabled_fn) (void *intr_arg);
-
 	struct pcicore_info *pch; /* PCI/E core handle */
 
 	struct list_head var_list; /* list of srom variables */
 
-	void __iomem *curmap;			/* current regs va */
-	void __iomem *regs[SI_MAXCORES];	/* other regs va */
-
 	u32 chipst;		/* chip status */
-	uint curidx;		/* current core index */
 	uint buscoreidx;	/* buscore index */
-	uint numcores;		/* # discovered cores */
-	uint coreid[SI_MAXCORES]; /* id of each core */
-	u32 coresba[SI_MAXCORES]; /* backplane address of each core */
-	void *regs2[SI_MAXCORES]; /* 2nd virtual address per core (usbh20) */
-	u32 coresba2[SI_MAXCORES]; /* 2nd phys address per core (usbh20) */
-	u32 coresba_size[SI_MAXCORES]; /* backplane address space size */
-	u32 coresba2_size[SI_MAXCORES];	/* second address space size */
-
-	void *curwrap;		/* current wrapper va */
-	void *wrappers[SI_MAXCORES];	/* other cores wrapper va */
-	u32 wrapba[SI_MAXCORES];	/* address of controlling wrapper */
-
-	u32 cia[SI_MAXCORES];	/* erom cia entry for each core */
-	u32 cib[SI_MAXCORES];	/* erom cia entry for each core */
-	u32 oob_router;	/* oob router registers for axi */
 };
 
 /*
