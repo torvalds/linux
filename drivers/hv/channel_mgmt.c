@@ -287,6 +287,7 @@ static void vmbus_process_offer(struct work_struct *work)
 		spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
 		list_del(&newchannel->listentry);
 		spin_unlock_irqrestore(&vmbus_connection.channel_lock, flags);
+		kfree(newchannel->device_obj);
 
 		free_channel(newchannel);
 	} else {
