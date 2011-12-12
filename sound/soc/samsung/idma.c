@@ -410,7 +410,7 @@ void idma_reg_addr_init(void __iomem *regs, dma_addr_t addr)
 	idma.lp_tx_addr = addr;
 }
 
-struct snd_soc_platform_driver asoc_idma_platform = {
+static struct snd_soc_platform_driver asoc_idma_platform = {
 	.ops = &idma_ops,
 	.pcm_new = idma_new,
 	.pcm_free = idma_free,
