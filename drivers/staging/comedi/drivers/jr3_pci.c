@@ -593,24 +593,24 @@ static struct poll_delay_t jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 					min_full_scale =
 					    get_min_full_scales(channel);
 					printk("Obtained Min. Full Scales:\n");
-					printk("%i   ", (min_full_scale).fx);
-					printk("%i   ", (min_full_scale).fy);
-					printk("%i   ", (min_full_scale).fz);
-					printk("%i   ", (min_full_scale).mx);
-					printk("%i   ", (min_full_scale).my);
-					printk("%i   ", (min_full_scale).mz);
-					printk("\n");
+					printk(KERN_DEBUG "%i ", (min_full_scale).fx);
+					printk(KERN_CONT "%i ", (min_full_scale).fy);
+					printk(KERN_CONT "%i ", (min_full_scale).fz);
+					printk(KERN_CONT "%i ", (min_full_scale).mx);
+					printk(KERN_CONT "%i ", (min_full_scale).my);
+					printk(KERN_CONT "%i ", (min_full_scale).mz);
+					printk(KERN_CONT "\n");
 
 					max_full_scale =
 					    get_max_full_scales(channel);
 					printk("Obtained Max. Full Scales:\n");
-					printk("%i   ", (max_full_scale).fx);
-					printk("%i   ", (max_full_scale).fy);
-					printk("%i   ", (max_full_scale).fz);
-					printk("%i   ", (max_full_scale).mx);
-					printk("%i   ", (max_full_scale).my);
-					printk("%i   ", (max_full_scale).mz);
-					printk("\n");
+					printk(KERN_DEBUG "%i ", (max_full_scale).fx);
+					printk(KERN_CONT "%i ", (max_full_scale).fy);
+					printk(KERN_CONT "%i ", (max_full_scale).fz);
+					printk(KERN_CONT "%i ", (max_full_scale).mx);
+					printk(KERN_CONT "%i ", (max_full_scale).my);
+					printk(KERN_CONT "%i ", (max_full_scale).mz);
+					printk(KERN_CONT "\n");
 
 					set_full_scales(channel,
 							max_full_scale);
