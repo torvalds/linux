@@ -725,7 +725,7 @@ static struct si_info *ai_doattach(struct si_info *sii,
 		goto exit;
 
 	/* Init nvram from sprom/otp if they exist */
-	if (srom_var_init(&sii->pub, cc))
+	if (srom_var_init(&sii->pub))
 		goto exit;
 
 	ai_nvram_process(sii);
