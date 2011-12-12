@@ -2626,8 +2626,10 @@ static struct talitos_crypto_alg *talitos_alg_alloc(struct device *dev,
 		alg = &t_alg->algt.alg.hash.halg.base;
 		alg->cra_init = talitos_cra_init_ahash;
 		if (!(priv->features & TALITOS_FTR_HMAC_OK) &&
-		    !strncmp(alg->cra_name, "hmac", 4))
+		    !strncmp(alg->cra_name, "hmac", 4)) {
+			kfree(t_alg);
 			return ERR_PTR(-ENOTSUPP);
+		}
 		if (!(priv->features & TALITOS_FTR_SHA224_HWINIT) &&
 		    (!strcmp(alg->cra_name, "sha224") ||
 		     !strcmp(alg->cra_name, "hmac(sha224)"))) {
@@ -2835,10 +2837,8 @@ static int talitos_probe(struct platform_device *ofdev)
 			t_alg = talitos_alg_alloc(dev, &driver_algs[i]);
 			if (IS_ERR(t_alg)) {
 				err = PTR_ERR(t_alg);
-				if (err == -ENOTSUPP) {
-					kfree(t_alg);
+				if (err == -ENOTSUPP)
 					continue;
-				}
 				goto err_out;
 			}
 
