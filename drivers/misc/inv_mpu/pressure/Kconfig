@@ -1,0 +1,20 @@
+menuconfig: INV_SENSORS_PRESSURE
+	bool "Pressure Sensor Slaves"
+	depends on INV_SENSORS
+	default y
+	help
+	  Select y to see a list of supported pressure sensors that can be
+	  integrated with the MPUxxxx set of motion processors.
+
+if INV_SENSORS_PRESSURE
+
+config MPU_SENSORS_BMA085
+	tristate "Bosch BMA085"
+	help
+	  This enables support for the Bosch bma085 pressure sensor
+	  This support is for integration with the MPU3050 or MPU6050 gyroscope
+          device driver.  Only one accelerometer can be registered at a time.
+	  Specifying more that one accelerometer in the board file will result
+	  in runtime errors.
+
+endif
