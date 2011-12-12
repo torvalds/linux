@@ -503,6 +503,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	struct page *page, *pages[1];
 	long index, ret, npages;
 	unsigned long is_io;
+	unsigned int writing, write_ok;
 	struct vm_area_struct *vma;
 
 	/*
@@ -553,8 +554,11 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	pfn = 0;
 	page = NULL;
 	pte_size = PAGE_SIZE;
+	writing = (dsisr & DSISR_ISSTORE) != 0;
+	/* If writing != 0, then the HPTE must allow writing, if we get here */
+	write_ok = writing;
 	hva = gfn_to_hva_memslot(memslot, gfn);
-	npages = get_user_pages_fast(hva, 1, 1, pages);
+	npages = get_user_pages_fast(hva, 1, writing, pages);
 	if (npages < 1) {
 		/* Check if it's an I/O mapping */
 		down_read(&current->mm->mmap_sem);
@@ -565,6 +569,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				((hva - vma->vm_start) >> PAGE_SHIFT);
 			pte_size = psize;
 			is_io = hpte_cache_bits(pgprot_val(vma->vm_page_prot));
+			write_ok = vma->vm_flags & VM_WRITE;
 		}
 		up_read(&current->mm->mmap_sem);
 		if (!pfn)
@@ -574,6 +579,24 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		if (PageHuge(page)) {
 			page = compound_head(page);
 			pte_size <<= compound_order(page);
+		}
+		/* if the guest wants write access, see if that is OK */
+		if (!writing && hpte_is_writable(r)) {
+			pte_t *ptep, pte;
+
+			/*
+			 * We need to protect against page table destruction
+			 * while looking up and updating the pte.
+			 */
+			rcu_read_lock_sched();
+			ptep = find_linux_pte_or_hugepte(current->mm->pgd,
+							 hva, NULL);
+			if (ptep && pte_present(*ptep)) {
+				pte = kvmppc_read_update_linux_pte(ptep, 1);
+				if (pte_write(pte))
+					write_ok = 1;
+			}
+			rcu_read_unlock_sched();
 		}
 		pfn = page_to_pfn(page);
 	}
@@ -595,6 +618,8 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	/* Set the HPTE to point to pfn */
 	r = (r & ~(HPTE_R_PP0 - pte_size)) | (pfn << PAGE_SHIFT);
+	if (hpte_is_writable(r) && !write_ok)
+		r = hpte_make_readonly(r);
 	ret = RESUME_GUEST;
 	preempt_disable();
 	while (!try_lock_hpte(hptep, HPTE_V_HVLOCK))
@@ -614,14 +639,22 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		unlock_rmap(rmap);
 		goto out_unlock;
 	}
-	kvmppc_add_revmap_chain(kvm, rev, rmap, index, 0);
+
+	if (hptep[0] & HPTE_V_VALID) {
+		/* HPTE was previously valid, so we need to invalidate it */
+		unlock_rmap(rmap);
+		hptep[0] |= HPTE_V_ABSENT;
+		kvmppc_invalidate_hpte(kvm, hptep, index);
+	} else {
+		kvmppc_add_revmap_chain(kvm, rev, rmap, index, 0);
+	}
 
 	hptep[1] = r;
 	eieio();
 	hptep[0] = hpte[0];
 	asm volatile("ptesync" : : : "memory");
 	preempt_enable();
-	if (page)
+	if (page && hpte_is_writable(r))
 		SetPageDirty(page);
 
  out_put:

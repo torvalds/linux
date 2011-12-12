@@ -1114,8 +1114,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 kvmppc_hdsi:
 	mfspr	r4, SPRN_HDAR
 	mfspr	r6, SPRN_HDSISR
-	/* HPTE not found fault? */
-	andis.	r0, r6, DSISR_NOHPTE@h
+	/* HPTE not found fault or protection fault? */
+	andis.	r0, r6, (DSISR_NOHPTE | DSISR_PROTFAULT)@h
 	beq	1f			/* if not, send it to the guest */
 	andi.	r0, r11, MSR_DR		/* data relocation enabled? */
 	beq	3f

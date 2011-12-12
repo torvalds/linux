@@ -121,6 +121,22 @@ static inline unsigned long hpte_rpn(unsigned long ptel, unsigned long psize)
 	return ((ptel & HPTE_R_RPN) & ~(psize - 1)) >> PAGE_SHIFT;
 }
 
+static inline int hpte_is_writable(unsigned long ptel)
+{
+	unsigned long pp = ptel & (HPTE_R_PP0 | HPTE_R_PP);
+
+	return pp != PP_RXRX && pp != PP_RXXX;
+}
+
+static inline unsigned long hpte_make_readonly(unsigned long ptel)
+{
+	if ((ptel & HPTE_R_PP0) || (ptel & HPTE_R_PP) == PP_RWXX)
+		ptel = (ptel & ~HPTE_R_PP) | PP_RXXX;
+	else
+		ptel |= PP_RXRX;
+	return ptel;
+}
+
 static inline int hpte_cache_flags_ok(unsigned long ptel, unsigned long io_type)
 {
 	unsigned int wimg = ptel & HPTE_R_WIMG;
@@ -140,7 +156,7 @@ static inline int hpte_cache_flags_ok(unsigned long ptel, unsigned long io_type)
  * Lock and read a linux PTE.  If it's present and writable, atomically
  * set dirty and referenced bits and return the PTE, otherwise return 0.
  */
-static inline pte_t kvmppc_read_update_linux_pte(pte_t *p)
+static inline pte_t kvmppc_read_update_linux_pte(pte_t *p, int writing)
 {
 	pte_t pte, tmp;
 
@@ -158,7 +174,7 @@ static inline pte_t kvmppc_read_update_linux_pte(pte_t *p)
 
 	if (pte_present(pte)) {
 		pte = pte_mkyoung(pte);
-		if (pte_write(pte))
+		if (writing && pte_write(pte))
 			pte = pte_mkdirty(pte);
 	}
 

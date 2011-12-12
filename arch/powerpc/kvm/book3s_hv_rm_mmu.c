@@ -120,7 +120,7 @@ static void remove_revmap_chain(struct kvm *kvm, long pte_index,
 }
 
 static pte_t lookup_linux_pte(struct kvm_vcpu *vcpu, unsigned long hva,
-			      unsigned long *pte_sizep)
+			      int writing, unsigned long *pte_sizep)
 {
 	pte_t *ptep;
 	unsigned long ps = *pte_sizep;
@@ -137,7 +137,7 @@ static pte_t lookup_linux_pte(struct kvm_vcpu *vcpu, unsigned long hva,
 		return __pte(0);
 	if (!pte_present(*ptep))
 		return __pte(0);
-	return kvmppc_read_update_linux_pte(ptep);
+	return kvmppc_read_update_linux_pte(ptep, writing);
 }
 
 long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
@@ -154,12 +154,14 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 	unsigned long is_io;
 	unsigned long *rmap;
 	pte_t pte;
+	unsigned int writing;
 	unsigned long mmu_seq;
 	bool realmode = vcpu->arch.vcore->vcore_state == VCORE_RUNNING;
 
 	psize = hpte_page_size(pteh, ptel);
 	if (!psize)
 		return H_PARAMETER;
+	writing = hpte_is_writable(ptel);
 	pteh &= ~(HPTE_V_HVLOCK | HPTE_V_ABSENT | HPTE_V_VALID);
 
 	/* used later to detect if we might have been invalidated */
@@ -208,8 +210,11 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 
 		/* Look up the Linux PTE for the backing page */
 		pte_size = psize;
-		pte = lookup_linux_pte(vcpu, hva, &pte_size);
+		pte = lookup_linux_pte(vcpu, hva, writing, &pte_size);
 		if (pte_present(pte)) {
+			if (writing && !pte_write(pte))
+				/* make the actual HPTE be read-only */
+				ptel = hpte_make_readonly(ptel);
 			is_io = hpte_cache_bits(pte_val(pte));
 			pa = pte_pfn(pte) << PAGE_SHIFT;
 		}
@@ -678,7 +683,9 @@ EXPORT_SYMBOL(kvmppc_hv_find_lock_hpte);
 
 /*
  * Called in real mode to check whether an HPTE not found fault
- * is due to accessing a paged-out page or an emulated MMIO page.
+ * is due to accessing a paged-out page or an emulated MMIO page,
+ * or if a protection fault is due to accessing a page that the
+ * guest wanted read/write access to but which we made read-only.
  * Returns a possibly modified status (DSISR) value if not
  * (i.e. pass the interrupt to the guest),
  * -1 to pass the fault up to host kernel mode code, -2 to do that
@@ -696,12 +703,17 @@ long kvmppc_hpte_hv_fault(struct kvm_vcpu *vcpu, unsigned long addr,
 	struct revmap_entry *rev;
 	unsigned long pp, key;
 
-	valid = HPTE_V_VALID | HPTE_V_ABSENT;
+	/* For protection fault, expect to find a valid HPTE */
+	valid = HPTE_V_VALID;
+	if (status & DSISR_NOHPTE)
+		valid |= HPTE_V_ABSENT;
 
 	index = kvmppc_hv_find_lock_hpte(kvm, addr, slb_v, valid);
-	if (index < 0)
-		return status;		/* there really was no HPTE */
-
+	if (index < 0) {
+		if (status & DSISR_NOHPTE)
+			return status;	/* there really was no HPTE */
+		return 0;		/* for prot fault, HPTE disappeared */
+	}
 	hpte = (unsigned long *)(kvm->arch.hpt_virt + (index << 4));
 	v = hpte[0] & ~HPTE_V_HVLOCK;
 	r = hpte[1];
@@ -712,8 +724,8 @@ long kvmppc_hpte_hv_fault(struct kvm_vcpu *vcpu, unsigned long addr,
 	asm volatile("lwsync" : : : "memory");
 	hpte[0] = v;
 
-	/* If the HPTE is valid by now, retry the instruction */
-	if (v & HPTE_V_VALID)
+	/* For not found, if the HPTE is valid by now, retry the instruction */
+	if ((status & DSISR_NOHPTE) && (v & HPTE_V_VALID))
 		return 0;
 
 	/* Check access permissions to the page */
