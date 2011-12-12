@@ -219,7 +219,7 @@ static void __init bfin_gptmr0_clockevent_init(struct clock_event_device *evt)
 
 #if defined(CONFIG_TICKSOURCE_CORETMR)
 /* per-cpu local core timer */
-static DEFINE_PER_CPU(struct clock_event_device, coretmr_events);
+DEFINE_PER_CPU(struct clock_event_device, coretmr_events);
 
 static int bfin_coretmr_set_next_event(unsigned long cycles,
 				struct clock_event_device *evt)
@@ -281,6 +281,25 @@ void bfin_coretmr_init(void)
 #ifdef CONFIG_CORE_TIMER_IRQ_L1
 __attribute__((l1_text))
 #endif
+
+static void broadcast_timer_set_mode(enum clock_event_mode mode,
+		struct clock_event_device *evt)
+{
+}
+
+static void __cpuinit broadcast_timer_setup(struct clock_event_device *evt)
+{
+	evt->name       = "dummy_timer";
+	evt->features   = CLOCK_EVT_FEAT_ONESHOT |
+		CLOCK_EVT_FEAT_PERIODIC |
+		CLOCK_EVT_FEAT_DUMMY;
+	evt->rating     = 400;
+	evt->mult       = 1;
+	evt->set_mode   = broadcast_timer_set_mode;
+
+	clockevents_register_device(evt);
+}
+
 irqreturn_t bfin_coretmr_interrupt(int irq, void *dev_id)
 {
 	int cpu = smp_processor_id();
@@ -305,6 +324,11 @@ void bfin_coretmr_clockevent_init(void)
 	unsigned long clock_tick;
 	unsigned int cpu = smp_processor_id();
 	struct clock_event_device *evt = &per_cpu(coretmr_events, cpu);
+
+#ifdef CONFIG_SMP
+	evt->broadcast = smp_timer_broadcast;
+#endif
+
 
 	evt->name = "bfin_core_timer";
 	evt->rating = 350;
