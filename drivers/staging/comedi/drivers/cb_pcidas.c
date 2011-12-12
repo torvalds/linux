@@ -773,8 +773,8 @@ static int cb_pcidas_detach(struct comedi_device *dev)
 			outl(INTCSR_INBOX_INTR_STATUS,
 			     devpriv->s5933_config + AMCC_OP_REG_INTCSR);
 #ifdef CB_PCIDAS_DEBUG
-			printk("detaching, incsr is 0x%x\n",
-			       inl(devpriv->s5933_config + AMCC_OP_REG_INTCSR));
+			dev_dbg(dev->hw_dev, "detaching, incsr is 0x%x\n",
+				inl(devpriv->s5933_config + AMCC_OP_REG_INTCSR));
 #endif
 		}
 	}
@@ -1276,7 +1276,7 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 	outw(bits, devpriv->control_status + ADCMUX_CONT);
 
 #ifdef CB_PCIDAS_DEBUG
-	printk("comedi: sent 0x%x to adcmux control\n", bits);
+	dev_dbg(dev->hw_dev, "comedi: sent 0x%x to adcmux control\n", bits);
 #endif
 
 	/*  load counters */
@@ -1303,7 +1303,8 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 		devpriv->adc_fifo_bits |= INT_FHF;	/* interrupt fifo half full */
 	}
 #ifdef CB_PCIDAS_DEBUG
-	printk("comedi: adc_fifo_bits are 0x%x\n", devpriv->adc_fifo_bits);
+	dev_dbg(dev->hw_dev, "comedi: adc_fifo_bits are 0x%x\n",
+		devpriv->adc_fifo_bits);
 #endif
 	/*  enable (and clear) interrupts */
 	outw(devpriv->adc_fifo_bits | EOAI | INT | LADFUL,
@@ -1329,7 +1330,7 @@ static int cb_pcidas_ai_cmd(struct comedi_device *dev,
 		bits |= BURSTE;
 	outw(bits, devpriv->control_status + TRIG_CONTSTAT);
 #ifdef CB_PCIDAS_DEBUG
-	printk("comedi: sent 0x%x to trig control\n", bits);
+	dev_dbg(dev->hw_dev, "comedi: sent 0x%x to trig control\n", bits);
 #endif
 
 	return 0;
