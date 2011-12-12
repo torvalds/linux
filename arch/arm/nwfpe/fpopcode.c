@@ -61,29 +61,3 @@ const float32 float32Constant[] = {
 	0x41200000		/* single 10.0 */
 };
 
-/* condition code lookup table
- index into the table is test code: EQ, NE, ... LT, GT, AL, NV
- bit position in short is condition code: NZCV */
-static const unsigned short aCC[16] = {
-	0xF0F0,			// EQ == Z set
-	0x0F0F,			// NE
-	0xCCCC,			// CS == C set
-	0x3333,			// CC
-	0xFF00,			// MI == N set
-	0x00FF,			// PL
-	0xAAAA,			// VS == V set
-	0x5555,			// VC
-	0x0C0C,			// HI == C set && Z clear
-	0xF3F3,			// LS == C clear || Z set
-	0xAA55,			// GE == (N==V)
-	0x55AA,			// LT == (N!=V)
-	0x0A05,			// GT == (!Z && (N==V))
-	0xF5FA,			// LE == (Z || (N!=V))
-	0xFFFF,			// AL always
-	0			// NV
-};
-
-unsigned int checkCondition(const unsigned int opcode, const unsigned int ccodes)
-{
-	return (aCC[opcode >> 28] >> (ccodes >> 28)) & 1;
-}
