@@ -9,6 +9,7 @@ config VME_USER
 
 config VME_PIO2
 	tristate "GE PIO2 VME"
+	depends on GPIOLIB
 	help
 	  Say Y here to include support for the GE PIO2. The PIO2 is a 6U VME
 	  slave card, implementing 32 solid-state relay switched IO lines, in
