@@ -9,7 +9,6 @@ config MPU_SENSORS_TIMERIRQ
 menuconfig: INV_SENSORS
 	tristate "Motion Processing Unit"
 	depends on I2C
-	default y
 
 if INV_SENSORS
 
