@@ -2417,6 +2417,11 @@ details.</para>
 	  <para>Added integer menus, the new type will be
 	  V4L2_CTRL_TYPE_INTEGER_MENU.</para>
         </listitem>
+        <listitem>
+	  <para>Added selection API for V4L2 subdev interface:
+	  &VIDIOC-SUBDEV-G-SELECTION; and
+	  &VIDIOC-SUBDEV-S-SELECTION;.</para>
+        </listitem>
       </orderedlist>
     </section>
 
@@ -2532,6 +2537,10 @@ ioctls.</para>
         </listitem>
         <listitem>
 	  <para>Selection API. <xref linkend="selection-api" /></para>
+        </listitem>
+        <listitem>
+	  <para>Sub-device selection API: &VIDIOC-SUBDEV-G-SELECTION;
+	  and &VIDIOC-SUBDEV-S-SELECTION; ioctls.</para>
         </listitem>
       </itemizedlist>
     </section>

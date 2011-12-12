@@ -96,6 +96,17 @@ Remote Controller chapter.</contrib>
 	  </address>
 	</affiliation>
       </author>
+
+      <author>
+	<firstname>Sakari</firstname>
+	<surname>Ailus</surname>
+	<contrib>Subdev selections API.</contrib>
+	<affiliation>
+	  <address>
+	    <email>sakari.ailus@iki.fi</email>
+	  </address>
+	</affiliation>
+      </author>
     </authorgroup>
 
     <copyright>
@@ -131,7 +142,8 @@ applications. -->
 	<revnumber>3.5</revnumber>
 	<date>2012-04-02</date>
 	<authorinitials>sa</authorinitials>
-	<revremark>Added V4L2_CTRL_TYPE_INTEGER_MENU.
+	<revremark>Added V4L2_CTRL_TYPE_INTEGER_MENU and V4L2 subdev
+	    selections API.
 	</revremark>
       </revision>
 
@@ -548,6 +560,7 @@ and discussions on the V4L mailing list.</revremark>
     &sub-subdev-g-crop;
     &sub-subdev-g-fmt;
     &sub-subdev-g-frame-interval;
+    &sub-subdev-g-selection;
     &sub-subscribe-event;
     <!-- End of ioctls. -->
     &sub-mmap;

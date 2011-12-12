@@ -76,11 +76,12 @@
     <wordasword>format</wordasword> means the combination of media bus data
     format, frame width and frame height.</para></note>
 
-    <para>Image formats are typically negotiated on video capture and output
-    devices using the <link linkend="crop">cropping and scaling</link> ioctls.
-    The driver is responsible for configuring every block in the video pipeline
-    according to the requested format at the pipeline input and/or
-    output.</para>
+    <para>Image formats are typically negotiated on video capture and
+    output devices using the format and <link
+    linkend="vidioc-subdev-g-selection">selection</link> ioctls. The
+    driver is responsible for configuring every block in the video
+    pipeline according to the requested format at the pipeline input
+    and/or output.</para>
 
     <para>For complex devices, such as often found in embedded systems,
     identical image sizes at the output of a pipeline can be achieved using
@@ -276,11 +277,11 @@
     </section>
 
     <section>
-      <title>Cropping and scaling</title>
+      <title>Selections: cropping, scaling and composition</title>
 
       <para>Many sub-devices support cropping frames on their input or output
       pads (or possible even on both). Cropping is used to select the area of
-      interest in an image, typically on a video sensor or video decoder. It can
+      interest in an image, typically on an image sensor or a video decoder. It can
       also be used as part of digital zoom implementations to select the area of
       the image that will be scaled up.</para>
 
@@ -288,26 +289,179 @@
       &v4l2-rect; by the coordinates of the top left corner and the rectangle
       size. Both the coordinates and sizes are expressed in pixels.</para>
 
-      <para>The crop rectangle is retrieved and set using the
-      &VIDIOC-SUBDEV-G-CROP; and &VIDIOC-SUBDEV-S-CROP; ioctls. Like for pad
-      formats, drivers store try and active crop rectangles. The format
-      negotiation mechanism applies to crop settings as well.</para>
+      <para>As for pad formats, drivers store try and active
+      rectangles for the selection targets of ACTUAL type <xref
+      linkend="v4l2-subdev-selection-targets">.</xref></para>
 
-      <para>On input pads, cropping is applied relatively to the current pad
-      format. The pad format represents the image size as received by the
-      sub-device from the previous block in the pipeline, and the crop rectangle
-      represents the sub-image that will be transmitted further inside the
-      sub-device for processing. The crop rectangle be entirely containted
-      inside the input image size.</para>
+      <para>On sink pads, cropping is applied relative to the
+      current pad format. The pad format represents the image size as
+      received by the sub-device from the previous block in the
+      pipeline, and the crop rectangle represents the sub-image that
+      will be transmitted further inside the sub-device for
+      processing.</para>
 
-      <para>Input crop rectangle are reset to their default value when the input
-      image format is modified. Drivers should use the input image size as the
-      crop rectangle default value, but hardware requirements may prevent this.
-      </para>
+      <para>The scaling operation changes the size of the image by
+      scaling it to new dimensions. The scaling ratio isn't specified
+      explicitly, but is implied from the original and scaled image
+      sizes. Both sizes are represented by &v4l2-rect;.</para>
 
-      <para>Cropping behaviour on output pads is not defined.</para>
+      <para>Scaling support is optional. When supported by a subdev,
+      the crop rectangle on the subdev's sink pad is scaled to the
+      size configured using the &VIDIOC-SUBDEV-S-SELECTION; IOCTL
+      using <constant>V4L2_SUBDEV_SEL_COMPOSE_ACTUAL</constant>
+      selection target on the same pad. If the subdev supports scaling
+      but not composing, the top and left values are not used and must
+      always be set to zero.</para>
+
+      <para>On source pads, cropping is similar to sink pads, with the
+      exception that the source size from which the cropping is
+      performed, is the COMPOSE rectangle on the sink pad. In both
+      sink and source pads, the crop rectangle must be entirely
+      contained inside the source image size for the crop
+      operation.</para>
+
+      <para>The drivers should always use the closest possible
+      rectangle the user requests on all selection targets, unless
+      specifically told otherwise.
+      <constant>V4L2_SUBDEV_SEL_FLAG_SIZE_GE</constant> and
+      <constant>V4L2_SUBDEV_SEL_FLAG_SIZE_LE</constant> flags may be
+      used to round the image size either up or down. <xref
+      linkend="v4l2-subdev-selection-flags"></xref></para>
+    </section>
+
+    <section>
+      <title>Types of selection targets</title>
+
+      <section>
+	<title>ACTUAL targets</title>
+
+	<para>ACTUAL targets reflect the actual hardware configuration
+	at any point of time. There is a BOUNDS target
+	corresponding to every ACTUAL.</para>
+      </section>
+
+      <section>
+	<title>BOUNDS targets</title>
+
+	<para>BOUNDS targets is the smallest rectangle that contains
+	all valid ACTUAL rectangles. It may not be possible to set the
+	ACTUAL rectangle as large as the BOUNDS rectangle, however.
+	This may be because e.g. a sensor's pixel array is not
+	rectangular but cross-shaped or round. The maximum size may
+	also be smaller than the BOUNDS rectangle.</para>
+      </section>
 
     </section>
+
+    <section>
+      <title>Order of configuration and format propagation</title>
+
+      <para>Inside subdevs, the order of image processing steps will
+      always be from the sink pad towards the source pad. This is also
+      reflected in the order in which the configuration must be
+      performed by the user: the changes made will be propagated to
+      any subsequent stages. If this behaviour is not desired, the
+      user must set
+      <constant>V4L2_SUBDEV_SEL_FLAG_KEEP_CONFIG</constant> flag. This
+      flag causes no propagation of the changes are allowed in any
+      circumstances. This may also cause the accessed rectangle to be
+      adjusted by the driver, depending on the properties of the
+      underlying hardware.</para>
+
+      <para>The coordinates to a step always refer to the actual size
+      of the previous step. The exception to this rule is the source
+      compose rectangle, which refers to the sink compose bounds
+      rectangle --- if it is supported by the hardware.</para>
+
+      <orderedlist>
+	<listitem>Sink pad format. The user configures the sink pad
+	format. This format defines the parameters of the image the
+	entity receives through the pad for further processing.</listitem>
+
+	<listitem>Sink pad actual crop selection. The sink pad crop
+	defines the crop performed to the sink pad format.</listitem>
+
+	<listitem>Sink pad actual compose selection. The size of the
+	sink pad compose rectangle defines the scaling ratio compared
+	to the size of the sink pad crop rectangle. The location of
+	the compose rectangle specifies the location of the actual
+	sink compose rectangle in the sink compose bounds
+	rectangle.</listitem>
+
+	<listitem>Source pad actual crop selection. Crop on the source
+	pad defines crop performed to the image in the sink compose
+	bounds rectangle.</listitem>
+
+	<listitem>Source pad format. The source pad format defines the
+	output pixel format of the subdev, as well as the other
+	parameters with the exception of the image width and height.
+	Width and height are defined by the size of the source pad
+	actual crop selection.</listitem>
+      </orderedlist>
+
+      <para>Accessing any of the above rectangles not supported by the
+      subdev will return <constant>EINVAL</constant>. Any rectangle
+      referring to a previous unsupported rectangle coordinates will
+      instead refer to the previous supported rectangle. For example,
+      if sink crop is not supported, the compose selection will refer
+      to the sink pad format dimensions instead.</para>
+
+      <figure id="subdev-image-processing-crop">
+	<title>Image processing in subdevs: simple crop example</title>
+	<mediaobject>
+	  <imageobject>
+	    <imagedata fileref="subdev-image-processing-crop.svg"
+	    format="SVG" scale="200" />
+	  </imageobject>
+	</mediaobject>
+      </figure>
+
+      <para>In the above example, the subdev supports cropping on its
+      sink pad. To configure it, the user sets the media bus format on
+      the subdev's sink pad. Now the actual crop rectangle can be set
+      on the sink pad --- the location and size of this rectangle
+      reflect the location and size of a rectangle to be cropped from
+      the sink format. The size of the sink crop rectangle will also
+      be the size of the format of the subdev's source pad.</para>
+
+      <figure id="subdev-image-processing-scaling-multi-source">
+	<title>Image processing in subdevs: scaling with multiple sources</title>
+	<mediaobject>
+	  <imageobject>
+	    <imagedata fileref="subdev-image-processing-scaling-multi-source.svg"
+	    format="SVG" scale="200" />
+	  </imageobject>
+	</mediaobject>
+      </figure>
+
+      <para>In this example, the subdev is capable of first cropping,
+      then scaling and finally cropping for two source pads
+      individually from the resulting scaled image. The location of
+      the scaled image in the cropped image is ignored in sink compose
+      target. Both of the locations of the source crop rectangles
+      refer to the sink scaling rectangle, independently cropping an
+      area at location specified by the source crop rectangle from
+      it.</para>
+
+      <figure id="subdev-image-processing-full">
+	<title>Image processing in subdevs: scaling and composition
+	with multiple sinks and sources</title>
+	<mediaobject>
+	  <imageobject>
+	    <imagedata fileref="subdev-image-processing-full.svg"
+	    format="SVG" scale="200" />
+	  </imageobject>
+	</mediaobject>
+      </figure>
+
+      <para>The subdev driver supports two sink pads and two source
+      pads. The images from both of the sink pads are individually
+      cropped, then scaled and further composed on the composition
+      bounds rectangle. From that, two independent streams are cropped
+      and sent out of the subdev from the source pads.</para>
+
+    </section>
+
   </section>
 
   &sub-subdev-formats;
