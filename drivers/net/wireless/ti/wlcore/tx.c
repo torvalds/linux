@@ -251,7 +251,7 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 {
 	struct timespec ts;
 	struct wl1271_tx_hw_descr *desc;
-	int aligned_len, ac, rate_idx;
+	int ac, rate_idx;
 	s64 hosttime;
 	u16 tx_attr = 0;
 	__le16 frame_control;
@@ -324,44 +324,16 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	}
 
 	tx_attr |= rate_idx << TX_HW_ATTR_OFST_RATE_POLICY;
-	desc->reserved = 0;
-
-	aligned_len = wlcore_calc_packet_alignment(wl, skb->len);
-
-	if (wl->chip.id == CHIP_ID_1283_PG20) {
-		desc->wl128x_mem.extra_bytes = aligned_len - skb->len;
-		desc->length = cpu_to_le16(aligned_len >> 2);
-
-		wl1271_debug(DEBUG_TX, "tx_fill_hdr: hlid: %d "
-			     "tx_attr: 0x%x len: %d life: %d mem: %d",
-			     desc->hlid, tx_attr,
-			     le16_to_cpu(desc->length),
-			     le16_to_cpu(desc->life_time),
-			     desc->wl128x_mem.total_mem_blocks);
-	} else {
-		int pad;
-
-		/* Store the aligned length in terms of words */
-		desc->length = cpu_to_le16(aligned_len >> 2);
-
-		/* calculate number of padding bytes */
-		pad = aligned_len - skb->len;
-		tx_attr |= pad << TX_HW_ATTR_OFST_LAST_WORD_PAD;
-
-		wl1271_debug(DEBUG_TX, "tx_fill_hdr: pad: %d hlid: %d "
-			     "tx_attr: 0x%x len: %d life: %d mem: %d", pad,
-			     desc->hlid, tx_attr,
-			     le16_to_cpu(desc->length),
-			     le16_to_cpu(desc->life_time),
-			     desc->wl127x_mem.total_mem_blocks);
-	}
 
 	/* for WEP shared auth - no fw encryption is needed */
 	if (ieee80211_is_auth(frame_control) &&
 	    ieee80211_has_protected(frame_control))
 		tx_attr |= TX_HW_ATTR_HOST_ENCRYPT;
 
+	desc->reserved = 0;
 	desc->tx_attr = cpu_to_le16(tx_attr);
+
+	wlcore_hw_set_tx_desc_data_len(wl, desc, skb);
 }
 
 /* caller must hold wl->mutex */

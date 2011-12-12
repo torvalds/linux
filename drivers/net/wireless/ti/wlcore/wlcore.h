@@ -41,6 +41,9 @@ struct wlcore_ops {
 	void (*set_tx_desc_blocks)(struct wl1271 *wl,
 				   struct wl1271_tx_hw_descr *desc,
 				   u32 blks, u32 spare_blks);
+	void (*set_tx_desc_data_len)(struct wl1271 *wl,
+				     struct wl1271_tx_hw_descr *desc,
+				     struct sk_buff *skb);
 	s8 (*get_pg_ver)(struct wl1271 *wl);
 	void (*get_mac)(struct wl1271 *wl);
 };

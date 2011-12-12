@@ -43,4 +43,15 @@ wlcore_hw_set_tx_desc_blocks(struct wl1271 *wl, struct wl1271_tx_hw_descr *desc,
 	return wl->ops->set_tx_desc_blocks(wl, desc, blks, spare_blks);
 }
 
+static inline void
+wlcore_hw_set_tx_desc_data_len(struct wl1271 *wl,
+			       struct wl1271_tx_hw_descr *desc,
+			       struct sk_buff *skb)
+{
+	if (!wl->ops->set_tx_desc_data_len)
+		BUG_ON(1);
+
+	wl->ops->set_tx_desc_data_len(wl, desc, skb);
+}
+
 #endif
