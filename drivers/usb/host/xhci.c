@@ -3614,26 +3614,38 @@ static int xhci_besl_encoding[16] = {125, 150, 200, 300, 400, 500, 1000, 2000,
 	3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000};
 
 /* Calculate HIRD/BESL for USB2 PORTPMSC*/
-static int xhci_calculate_hird_besl(int u2del, bool use_besl)
+static int xhci_calculate_hird_besl(struct xhci_hcd *xhci,
+					struct usb_device *udev)
 {
-	int hird;
+	int u2del, besl, besl_host;
+	int besl_device = 0;
+	u32 field;
 
-	if (use_besl) {
-		for (hird = 0; hird < 16; hird++) {
-			if (xhci_besl_encoding[hird] >= u2del)
+	u2del = HCS_U2_LATENCY(xhci->hcs_params3);
+	field = le32_to_cpu(udev->bos->ext_cap->bmAttributes);
+
+	if (field & USB_BESL_SUPPORT) {
+		for (besl_host = 0; besl_host < 16; besl_host++) {
+			if (xhci_besl_encoding[besl_host] >= u2del)
 				break;
 		}
+		/* Use baseline BESL value as default */
+		if (field & USB_BESL_BASELINE_VALID)
+			besl_device = USB_GET_BESL_BASELINE(field);
+		else if (field & USB_BESL_DEEP_VALID)
+			besl_device = USB_GET_BESL_DEEP(field);
 	} else {
 		if (u2del <= 50)
-			hird = 0;
+			besl_host = 0;
 		else
-			hird = (u2del - 51) / 75 + 1;
-
-		if (hird > 15)
-			hird = 15;
+			besl_host = (u2del - 51) / 75 + 1;
 	}
 
-	return hird;
+	besl = besl_host + besl_device;
+	if (besl > 15)
+		besl = 15;
+
+	return besl;
 }
 
 static int xhci_usb2_software_lpm_test(struct usb_hcd *hcd,
@@ -3646,7 +3658,7 @@ static int xhci_usb2_software_lpm_test(struct usb_hcd *hcd,
 	u32		temp, dev_id;
 	unsigned int	port_num;
 	unsigned long	flags;
-	int		u2del, hird;
+	int		hird;
 	int		ret;
 
 	if (hcd->speed == HCD_USB3 || !xhci->sw_lpm_support ||
@@ -3692,12 +3704,7 @@ static int xhci_usb2_software_lpm_test(struct usb_hcd *hcd,
 	 * HIRD or BESL shoule be used. See USB2.0 LPM errata.
 	 */
 	pm_addr = port_array[port_num] + 1;
-	u2del = HCS_U2_LATENCY(xhci->hcs_params3);
-	if (le32_to_cpu(udev->bos->ext_cap->bmAttributes) & (1 << 2))
-		hird = xhci_calculate_hird_besl(u2del, 1);
-	else
-		hird = xhci_calculate_hird_besl(u2del, 0);
-
+	hird = xhci_calculate_hird_besl(xhci, udev);
 	temp = PORT_L1DS(udev->slot_id) | PORT_HIRD(hird);
 	xhci_writel(xhci, temp, pm_addr);
 
@@ -3776,7 +3783,7 @@ int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
 	u32		temp;
 	unsigned int	port_num;
 	unsigned long	flags;
-	int		u2del, hird;
+	int		hird;
 
 	if (hcd->speed == HCD_USB3 || !xhci->hw_lpm_support ||
 			!udev->lpm_capable)
@@ -3799,11 +3806,7 @@ int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
 	xhci_dbg(xhci, "%s port %d USB2 hardware LPM\n",
 			enable ? "enable" : "disable", port_num);
 
-	u2del = HCS_U2_LATENCY(xhci->hcs_params3);
-	if (le32_to_cpu(udev->bos->ext_cap->bmAttributes) & (1 << 2))
-		hird = xhci_calculate_hird_besl(u2del, 1);
-	else
-		hird = xhci_calculate_hird_besl(u2del, 0);
+	hird = xhci_calculate_hird_besl(xhci, udev);
 
 	if (enable) {
 		temp &= ~PORT_HIRD_MASK;
