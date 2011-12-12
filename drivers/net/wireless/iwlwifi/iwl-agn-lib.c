@@ -934,57 +934,6 @@ u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant, u8 valid)
 	return ant;
 }
 
-/* notification wait support */
-void iwlagn_init_notification_wait(struct iwl_priv *priv,
-				   struct iwl_notification_wait *wait_entry,
-				   u8 cmd,
-				   void (*fn)(struct iwl_priv *priv,
-					      struct iwl_rx_packet *pkt,
-					      void *data),
-				   void *fn_data)
-{
-	wait_entry->fn = fn;
-	wait_entry->fn_data = fn_data;
-	wait_entry->cmd = cmd;
-	wait_entry->triggered = false;
-	wait_entry->aborted = false;
-
-	spin_lock_bh(&priv->notif_wait_lock);
-	list_add(&wait_entry->list, &priv->notif_waits);
-	spin_unlock_bh(&priv->notif_wait_lock);
-}
-
-int iwlagn_wait_notification(struct iwl_priv *priv,
-			     struct iwl_notification_wait *wait_entry,
-			     unsigned long timeout)
-{
-	int ret;
-
-	ret = wait_event_timeout(priv->notif_waitq,
-				 wait_entry->triggered || wait_entry->aborted,
-				 timeout);
-
-	spin_lock_bh(&priv->notif_wait_lock);
-	list_del(&wait_entry->list);
-	spin_unlock_bh(&priv->notif_wait_lock);
-
-	if (wait_entry->aborted)
-		return -EIO;
-
-	/* return value is always >= 0 */
-	if (ret <= 0)
-		return -ETIMEDOUT;
-	return 0;
-}
-
-void iwlagn_remove_notification(struct iwl_priv *priv,
-				struct iwl_notification_wait *wait_entry)
-{
-	spin_lock_bh(&priv->notif_wait_lock);
-	list_del(&wait_entry->list);
-	spin_unlock_bh(&priv->notif_wait_lock);
-}
-
 #ifdef CONFIG_PM_SLEEP
 static void iwlagn_convert_p1k(u16 *p1k, __le16 *out)
 {

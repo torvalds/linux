@@ -2785,9 +2785,11 @@ enum nl80211_ap_sme_features {
  * @NL80211_FEATURE_SK_TX_STATUS: This driver supports reflecting back
  *	TX status to the socket error queue when requested with the
  *	socket option.
+ * @NL80211_FEATURE_HT_IBSS: This driver supports IBSS with HT datarates.
  */
 enum nl80211_feature_flags {
 	NL80211_FEATURE_SK_TX_STATUS	= 1 << 0,
+	NL80211_FEATURE_HT_IBSS		= 1 << 1,
 };
 
 /**

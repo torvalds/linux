@@ -2786,9 +2786,8 @@ il_tx_queue_alloc(struct il_priv *il, struct il_tx_queue *txq, u32 id)
 	/* Driver ilate data, only for Tx (not command) queues,
 	 * not shared with device. */
 	if (id != il->cmd_queue) {
-		txq->txb =
-		    kzalloc(sizeof(txq->txb[0]) * TFD_QUEUE_SIZE_MAX,
-			    GFP_KERNEL);
+		txq->txb = kcalloc(TFD_QUEUE_SIZE_MAX, sizeof(txq->txb[0]),
+				   GFP_KERNEL);
 		if (!txq->txb) {
 			IL_ERR("kmalloc for auxiliary BD "
 			       "structures failed\n");

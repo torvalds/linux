@@ -220,13 +220,6 @@ struct fw_img {
 	struct fw_desc data;	/* firmware data image */
 };
 
-enum iwl_ucode_type {
-	IWL_UCODE_NONE,
-	IWL_UCODE_REGULAR,
-	IWL_UCODE_INIT,
-	IWL_UCODE_WOWLAN,
-};
-
 /**
  * struct iwl_trans - transport common data
  * @ops - pointer to iwl_trans_ops

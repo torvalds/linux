@@ -106,6 +106,10 @@ struct nla_policy iwl_testmode_gnl_msg_policy[IWL_TM_ATTR_MAX] = {
 	[IWL_TM_ATTR_FIXRATE] = { .type = NLA_U32, },
 
 	[IWL_TM_ATTR_UCODE_OWNER] = { .type = NLA_U8, },
+
+	[IWL_TM_ATTR_SRAM_ADDR] = { .type = NLA_U32, },
+	[IWL_TM_ATTR_SRAM_SIZE] = { .type = NLA_U32, },
+	[IWL_TM_ATTR_SRAM_DUMP] = { .type = NLA_UNSPEC, },
 };
 
 /*
@@ -177,6 +181,18 @@ void iwl_testmode_init(struct iwl_priv *priv)
 {
 	priv->pre_rx_handler = iwl_testmode_ucode_rx_pkt;
 	priv->testmode_trace.trace_enabled = false;
+	priv->testmode_sram.sram_readed = false;
+}
+
+static void iwl_sram_cleanup(struct iwl_priv *priv)
+{
+	if (priv->testmode_sram.sram_readed) {
+		kfree(priv->testmode_sram.buff_addr);
+		priv->testmode_sram.buff_addr = NULL;
+		priv->testmode_sram.buff_size = 0;
+		priv->testmode_sram.num_chunks = 0;
+		priv->testmode_sram.sram_readed = false;
+	}
 }
 
 static void iwl_trace_cleanup(struct iwl_priv *priv)
@@ -201,6 +217,7 @@ static void iwl_trace_cleanup(struct iwl_priv *priv)
 void iwl_testmode_cleanup(struct iwl_priv *priv)
 {
 	iwl_trace_cleanup(priv);
+	iwl_sram_cleanup(priv);
 }
 
 /*
@@ -356,7 +373,7 @@ static int iwl_testmode_cfg_init_calib(struct iwl_priv *priv)
 	struct iwl_notification_wait calib_wait;
 	int ret;
 
-	iwlagn_init_notification_wait(priv, &calib_wait,
+	iwl_init_notification_wait(priv->shrd, &calib_wait,
 				      CALIBRATION_COMPLETE_NOTIFICATION,
 				      NULL, NULL);
 	ret = iwlagn_init_alive_start(priv);
@@ -366,14 +383,14 @@ static int iwl_testmode_cfg_init_calib(struct iwl_priv *priv)
 		goto cfg_init_calib_error;
 	}
 
-	ret = iwlagn_wait_notification(priv, &calib_wait, 2 * HZ);
+	ret = iwl_wait_notification(priv->shrd, &calib_wait, 2 * HZ);
 	if (ret)
 		IWL_DEBUG_INFO(priv, "Error detecting"
 			" CALIBRATION_COMPLETE_NOTIFICATION: %d\n", ret);
 	return ret;
 
 cfg_init_calib_error:
-	iwlagn_remove_notification(priv, &calib_wait);
+	iwl_remove_notification(priv->shrd, &calib_wait);
 	return ret;
 }
 
@@ -438,6 +455,21 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 		if (status) {
 			IWL_DEBUG_INFO(priv,
 				"Error loading runtime ucode: %d\n", status);
+			break;
+		}
+		status = iwl_alive_start(priv);
+		if (status)
+			IWL_DEBUG_INFO(priv,
+				"Error starting the device: %d\n", status);
+		break;
+
+	case IWL_TM_CMD_APP2DEV_LOAD_WOWLAN_FW:
+		iwl_scan_cancel_timeout(priv, 200);
+		iwl_trans_stop_device(trans(priv));
+		status = iwlagn_load_ucode_wait_alive(priv, IWL_UCODE_WOWLAN);
+		if (status) {
+			IWL_DEBUG_INFO(priv,
+				"Error loading WOWLAN ucode: %d\n", status);
 			break;
 		}
 		status = iwl_alive_start(priv);
@@ -558,7 +590,7 @@ static int iwl_testmode_trace(struct ieee80211_hw *hw, struct nlattr **tb)
 		}
 		priv->testmode_trace.num_chunks =
 			DIV_ROUND_UP(priv->testmode_trace.buff_size,
-				     TRACE_CHUNK_SIZE);
+				     DUMP_CHUNK_SIZE);
 		break;
 
 	case IWL_TM_CMD_APP2DEV_END_TRACE:
@@ -590,15 +622,15 @@ static int iwl_testmode_trace_dump(struct ieee80211_hw *hw, struct nlattr **tb,
 		idx = cb->args[4];
 		if (idx >= priv->testmode_trace.num_chunks)
 			return -ENOENT;
-		length = TRACE_CHUNK_SIZE;
+		length = DUMP_CHUNK_SIZE;
 		if (((idx + 1) == priv->testmode_trace.num_chunks) &&
-		    (priv->testmode_trace.buff_size % TRACE_CHUNK_SIZE))
+		    (priv->testmode_trace.buff_size % DUMP_CHUNK_SIZE))
 			length = priv->testmode_trace.buff_size %
-				TRACE_CHUNK_SIZE;
+				DUMP_CHUNK_SIZE;
 
 		NLA_PUT(skb, IWL_TM_ATTR_TRACE_DUMP, length,
 			priv->testmode_trace.trace_addr +
-			(TRACE_CHUNK_SIZE * idx));
+			(DUMP_CHUNK_SIZE * idx));
 		idx++;
 		cb->args[4] = idx;
 		return 0;
@@ -642,6 +674,110 @@ static int iwl_testmode_ownership(struct ieee80211_hw *hw, struct nlattr **tb)
 		return -EINVAL;
 	}
 	return 0;
+}
+
+/*
+ * This function handles the user application commands for SRAM data dump
+ *
+ * It retrieves the mandatory fields IWL_TM_ATTR_SRAM_ADDR and
+ * IWL_TM_ATTR_SRAM_SIZE to decide the memory area for SRAM data reading
+ *
+ * Several error will be retured, -EBUSY if the SRAM data retrieved by
+ * previous command has not been delivered to userspace, or -ENOMSG if
+ * the mandatory fields (IWL_TM_ATTR_SRAM_ADDR,IWL_TM_ATTR_SRAM_SIZE)
+ * are missing, or -ENOMEM if the buffer allocation fails.
+ *
+ * Otherwise 0 is replied indicating the success of the SRAM reading.
+ *
+ * @hw: ieee80211_hw object that represents the device
+ * @tb: gnl message fields from the user space
+ */
+static int iwl_testmode_sram(struct ieee80211_hw *hw, struct nlattr **tb)
+{
+	struct iwl_priv *priv = hw->priv;
+	u32 base, ofs, size, maxsize;
+
+	if (priv->testmode_sram.sram_readed)
+		return -EBUSY;
+
+	if (!tb[IWL_TM_ATTR_SRAM_ADDR]) {
+		IWL_DEBUG_INFO(priv, "Error finding SRAM offset address\n");
+		return -ENOMSG;
+	}
+	ofs = nla_get_u32(tb[IWL_TM_ATTR_SRAM_ADDR]);
+	if (!tb[IWL_TM_ATTR_SRAM_SIZE]) {
+		IWL_DEBUG_INFO(priv, "Error finding size for SRAM reading\n");
+		return -ENOMSG;
+	}
+	size = nla_get_u32(tb[IWL_TM_ATTR_SRAM_SIZE]);
+	switch (priv->shrd->ucode_type) {
+	case IWL_UCODE_REGULAR:
+		maxsize = trans(priv)->ucode_rt.data.len;
+		break;
+	case IWL_UCODE_INIT:
+		maxsize = trans(priv)->ucode_init.data.len;
+		break;
+	case IWL_UCODE_WOWLAN:
+		maxsize = trans(priv)->ucode_wowlan.data.len;
+		break;
+	case IWL_UCODE_NONE:
+		IWL_DEBUG_INFO(priv, "Error, uCode does not been loaded\n");
+		return -ENOSYS;
+	default:
+		IWL_DEBUG_INFO(priv, "Error, unsupported uCode type\n");
+		return -ENOSYS;
+	}
+	if ((ofs + size) > maxsize) {
+		IWL_DEBUG_INFO(priv, "Invalid offset/size: out of range\n");
+		return -EINVAL;
+	}
+	priv->testmode_sram.buff_size = (size / 4) * 4;
+	priv->testmode_sram.buff_addr =
+		kmalloc(priv->testmode_sram.buff_size, GFP_KERNEL);
+	if (priv->testmode_sram.buff_addr == NULL) {
+		IWL_DEBUG_INFO(priv, "Error allocating memory\n");
+		return -ENOMEM;
+	}
+	base = 0x800000;
+	_iwl_read_targ_mem_words(bus(priv), base + ofs,
+					priv->testmode_sram.buff_addr,
+					priv->testmode_sram.buff_size / 4);
+	priv->testmode_sram.num_chunks =
+		DIV_ROUND_UP(priv->testmode_sram.buff_size, DUMP_CHUNK_SIZE);
+	priv->testmode_sram.sram_readed = true;
+	return 0;
+}
+
+static int iwl_testmode_sram_dump(struct ieee80211_hw *hw, struct nlattr **tb,
+				   struct sk_buff *skb,
+				   struct netlink_callback *cb)
+{
+	struct iwl_priv *priv = hw->priv;
+	int idx, length;
+
+	if (priv->testmode_sram.sram_readed) {
+		idx = cb->args[4];
+		if (idx >= priv->testmode_sram.num_chunks) {
+			iwl_sram_cleanup(priv);
+			return -ENOENT;
+		}
+		length = DUMP_CHUNK_SIZE;
+		if (((idx + 1) == priv->testmode_sram.num_chunks) &&
+		    (priv->testmode_sram.buff_size % DUMP_CHUNK_SIZE))
+			length = priv->testmode_sram.buff_size %
+				DUMP_CHUNK_SIZE;
+
+		NLA_PUT(skb, IWL_TM_ATTR_SRAM_DUMP, length,
+			priv->testmode_sram.buff_addr +
+			(DUMP_CHUNK_SIZE * idx));
+		idx++;
+		cb->args[4] = idx;
+		return 0;
+	} else
+		return -EFAULT;
+
+ nla_put_failure:
+	return -ENOBUFS;
 }
 
 
@@ -705,6 +841,7 @@ int iwlagn_mac_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
 	case IWL_TM_CMD_APP2DEV_LOAD_RUNTIME_FW:
 	case IWL_TM_CMD_APP2DEV_GET_EEPROM:
 	case IWL_TM_CMD_APP2DEV_FIXRATE_REQ:
+	case IWL_TM_CMD_APP2DEV_LOAD_WOWLAN_FW:
 		IWL_DEBUG_INFO(priv, "testmode cmd to driver\n");
 		result = iwl_testmode_driver(hw, tb);
 		break;
@@ -719,6 +856,11 @@ int iwlagn_mac_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
 	case IWL_TM_CMD_APP2DEV_OWNERSHIP:
 		IWL_DEBUG_INFO(priv, "testmode change uCode ownership\n");
 		result = iwl_testmode_ownership(hw, tb);
+		break;
+
+	case IWL_TM_CMD_APP2DEV_READ_SRAM:
+		IWL_DEBUG_INFO(priv, "testmode sram read cmd to driver\n");
+		result = iwl_testmode_sram(hw, tb);
 		break;
 
 	default:
@@ -768,6 +910,10 @@ int iwlagn_mac_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *skb,
 	case IWL_TM_CMD_APP2DEV_READ_TRACE:
 		IWL_DEBUG_INFO(priv, "uCode trace cmd to driver\n");
 		result = iwl_testmode_trace_dump(hw, tb, skb, cb);
+		break;
+	case IWL_TM_CMD_APP2DEV_DUMP_SRAM:
+		IWL_DEBUG_INFO(priv, "testmode sram dump cmd to driver\n");
+		result = iwl_testmode_sram_dump(hw, tb, skb, cb);
 		break;
 	default:
 		result = -EINVAL;

@@ -170,6 +170,8 @@ struct hci_dev {
 	__u32		amp_max_flush_to;
 	__u32		amp_be_flush_to;
 
+	__u8		flow_ctl_mode;
+
 	unsigned int	auto_accept_delay;
 
 	unsigned long	quirks;
@@ -249,6 +251,8 @@ struct hci_dev {
 	struct rfkill		*rfkill;
 
 	struct module		*owner;
+
+	unsigned long		dev_flags;
 
 	int (*open)(struct hci_dev *hdev);
 	int (*close)(struct hci_dev *hdev);
@@ -917,11 +921,13 @@ int mgmt_connectable(struct hci_dev *hdev, u8 connectable);
 int mgmt_write_scan_failed(struct hci_dev *hdev, u8 scan, u8 status);
 int mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key,
 								u8 persistent);
-int mgmt_connected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type);
-int mgmt_disconnected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type);
-int mgmt_disconnect_failed(struct hci_dev *hdev);
-int mgmt_connect_failed(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type,
-								u8 status);
+int mgmt_connected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
+								u8 addr_type);
+int mgmt_disconnected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
+								u8 addr_type);
+int mgmt_disconnect_failed(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 status);
+int mgmt_connect_failed(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
+						u8 addr_type, u8 status);
 int mgmt_pin_code_request(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 secure);
 int mgmt_pin_code_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 								u8 status);
@@ -933,14 +939,20 @@ int mgmt_user_confirm_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 								u8 status);
 int mgmt_user_confirm_neg_reply_complete(struct hci_dev *hdev,
 						bdaddr_t *bdaddr, u8 status);
+int mgmt_user_passkey_request(struct hci_dev *hdev, bdaddr_t *bdaddr);
+int mgmt_user_passkey_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
+								u8 status);
+int mgmt_user_passkey_neg_reply_complete(struct hci_dev *hdev,
+						bdaddr_t *bdaddr, u8 status);
 int mgmt_auth_failed(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 status);
 int mgmt_set_local_name_complete(struct hci_dev *hdev, u8 *name, u8 status);
 int mgmt_read_local_oob_data_reply_complete(struct hci_dev *hdev, u8 *hash,
 						u8 *randomizer, u8 status);
-int mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type,
-					u8 *dev_class, s8 rssi, u8 *eir);
+int mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
+				u8 addr_type, u8 *dev_class, s8 rssi, u8 *eir);
 int mgmt_remote_name(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 *name);
-int mgmt_inquiry_failed(struct hci_dev *hdev, u8 status);
+int mgmt_start_discovery_failed(struct hci_dev *hdev, u8 status);
+int mgmt_stop_discovery_failed(struct hci_dev *hdev, u8 status);
 int mgmt_discovering(struct hci_dev *hdev, u8 discovering);
 int mgmt_device_blocked(struct hci_dev *hdev, bdaddr_t *bdaddr);
 int mgmt_device_unblocked(struct hci_dev *hdev, bdaddr_t *bdaddr);

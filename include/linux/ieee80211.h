@@ -1695,6 +1695,23 @@ static inline bool ieee80211_is_robust_mgmt_frame(struct ieee80211_hdr *hdr)
 }
 
 /**
+ * ieee80211_is_public_action - check if frame is a public action frame
+ * @hdr: the frame
+ * @len: length of the frame
+ */
+static inline bool ieee80211_is_public_action(struct ieee80211_hdr *hdr,
+					      size_t len)
+{
+	struct ieee80211_mgmt *mgmt = (void *)hdr;
+
+	if (len < IEEE80211_MIN_ACTION_SIZE)
+		return false;
+	if (!ieee80211_is_action(hdr->frame_control))
+		return false;
+	return mgmt->u.action.category == WLAN_CATEGORY_PUBLIC;
+}
+
+/**
  * ieee80211_fhss_chan_to_freq - get channel frequency
  * @channel: the FHSS channel
  *

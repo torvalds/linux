@@ -258,6 +258,8 @@ static void setup_ht_cap(struct ath_softc *sc,
 
 	if (AR_SREV_9330(ah) || AR_SREV_9485(ah))
 		max_streams = 1;
+	else if (AR_SREV_9462(ah))
+		max_streams = 2;
 	else if (AR_SREV_9300_20_OR_LATER(ah))
 		max_streams = 3;
 	else

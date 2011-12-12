@@ -1954,7 +1954,7 @@ static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 		skb_pull(skb, padsize);
 	}
 
-	if (sc->ps_flags & PS_WAIT_FOR_TX_ACK) {
+	if ((sc->ps_flags & PS_WAIT_FOR_TX_ACK) && !txq->axq_depth) {
 		sc->ps_flags &= ~PS_WAIT_FOR_TX_ACK;
 		ath_dbg(common, ATH_DBG_PS,
 			"Going back to sleep after having received TX status (0x%lx)\n",

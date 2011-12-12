@@ -2237,7 +2237,8 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 		if (sdata->vif.type != NL80211_IFTYPE_STATION &&
 		    sdata->vif.type != NL80211_IFTYPE_MESH_POINT &&
 		    sdata->vif.type != NL80211_IFTYPE_AP_VLAN &&
-		    sdata->vif.type != NL80211_IFTYPE_AP)
+		    sdata->vif.type != NL80211_IFTYPE_AP &&
+		    sdata->vif.type != NL80211_IFTYPE_ADHOC)
 			break;
 
 		/* verify action_code is present */
@@ -2796,10 +2797,17 @@ static int prepare_for_handlers(struct ieee80211_rx_data *rx,
 				return 0;
 		} else if (!ieee80211_bssid_match(bssid,
 					sdata->vif.addr)) {
+			/*
+			 * Accept public action frames even when the
+			 * BSSID doesn't match, this is used for P2P
+			 * and location updates. Note that mac80211
+			 * itself never looks at these frames.
+			 */
 			if (!(status->rx_flags & IEEE80211_RX_IN_SCAN) &&
-			    !ieee80211_is_beacon(hdr->frame_control) &&
-			    !(ieee80211_is_action(hdr->frame_control) &&
-			      sdata->vif.p2p))
+			    ieee80211_is_public_action(hdr, skb->len))
+				return 1;
+			if (!(status->rx_flags & IEEE80211_RX_IN_SCAN) &&
+			    !ieee80211_is_beacon(hdr->frame_control))
 				return 0;
 			status->rx_flags &= ~IEEE80211_RX_RA_MATCH;
 		}

@@ -21,48 +21,58 @@ static void bcma_host_pci_switch_core(struct bcma_device *core)
 	pr_debug("Switched to core: 0x%X\n", core->id.id);
 }
 
-static u8 bcma_host_pci_read8(struct bcma_device *core, u16 offset)
+/* Provides access to the requested core. Returns base offset that has to be
+ * used. It makes use of fixed windows when possible. */
+static u16 bcma_host_pci_provide_access_to_core(struct bcma_device *core)
 {
+	switch (core->id.id) {
+	case BCMA_CORE_CHIPCOMMON:
+		return 3 * BCMA_CORE_SIZE;
+	case BCMA_CORE_PCIE:
+		return 2 * BCMA_CORE_SIZE;
+	}
+
 	if (core->bus->mapped_core != core)
 		bcma_host_pci_switch_core(core);
+	return 0;
+}
+
+static u8 bcma_host_pci_read8(struct bcma_device *core, u16 offset)
+{
+	offset += bcma_host_pci_provide_access_to_core(core);
 	return ioread8(core->bus->mmio + offset);
 }
 
 static u16 bcma_host_pci_read16(struct bcma_device *core, u16 offset)
 {
-	if (core->bus->mapped_core != core)
-		bcma_host_pci_switch_core(core);
+	offset += bcma_host_pci_provide_access_to_core(core);
 	return ioread16(core->bus->mmio + offset);
 }
 
 static u32 bcma_host_pci_read32(struct bcma_device *core, u16 offset)
 {
-	if (core->bus->mapped_core != core)
-		bcma_host_pci_switch_core(core);
+	offset += bcma_host_pci_provide_access_to_core(core);
 	return ioread32(core->bus->mmio + offset);
 }
 
 static void bcma_host_pci_write8(struct bcma_device *core, u16 offset,
 				 u8 value)
 {
-	if (core->bus->mapped_core != core)
-		bcma_host_pci_switch_core(core);
+	offset += bcma_host_pci_provide_access_to_core(core);
 	iowrite8(value, core->bus->mmio + offset);
 }
 
 static void bcma_host_pci_write16(struct bcma_device *core, u16 offset,
 				 u16 value)
 {
-	if (core->bus->mapped_core != core)
-		bcma_host_pci_switch_core(core);
+	offset += bcma_host_pci_provide_access_to_core(core);
 	iowrite16(value, core->bus->mmio + offset);
 }
 
 static void bcma_host_pci_write32(struct bcma_device *core, u16 offset,
 				 u32 value)
 {
-	if (core->bus->mapped_core != core)
-		bcma_host_pci_switch_core(core);
+	offset += bcma_host_pci_provide_access_to_core(core);
 	iowrite32(value, core->bus->mmio + offset);
 }
 

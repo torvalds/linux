@@ -83,6 +83,8 @@ static void ieee80211_send_addba_request(struct ieee80211_sub_if_data *sdata,
 		memcpy(mgmt->bssid, sdata->vif.addr, ETH_ALEN);
 	else if (sdata->vif.type == NL80211_IFTYPE_STATION)
 		memcpy(mgmt->bssid, sdata->u.mgd.bssid, ETH_ALEN);
+	else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
+		memcpy(mgmt->bssid, sdata->u.ibss.bssid, ETH_ALEN);
 
 	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					  IEEE80211_STYPE_ACTION);
@@ -419,7 +421,8 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 	if (sdata->vif.type != NL80211_IFTYPE_STATION &&
 	    sdata->vif.type != NL80211_IFTYPE_MESH_POINT &&
 	    sdata->vif.type != NL80211_IFTYPE_AP_VLAN &&
-	    sdata->vif.type != NL80211_IFTYPE_AP)
+	    sdata->vif.type != NL80211_IFTYPE_AP &&
+	    sdata->vif.type != NL80211_IFTYPE_ADHOC)
 		return -EINVAL;
 
 	if (test_sta_flag(sta, WLAN_STA_BLOCK_BA)) {
@@ -427,6 +430,27 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 		printk(KERN_DEBUG "BA sessions blocked. "
 		       "Denying BA session request\n");
 #endif
+		return -EINVAL;
+	}
+
+	/*
+	 * 802.11n-2009 11.5.1.1: If the initiating STA is an HT STA, is a
+	 * member of an IBSS, and has no other existing Block Ack agreement
+	 * with the recipient STA, then the initiating STA shall transmit a
+	 * Probe Request frame to the recipient STA and shall not transmit an
+	 * ADDBA Request frame unless it receives a Probe Response frame
+	 * from the recipient within dot11ADDBAFailureTimeout.
+	 *
+	 * The probe request mechanism for ADDBA is currently not implemented,
+	 * but we only build up Block Ack session with HT STAs. This information
+	 * is set when we receive a bss info from a probe response or a beacon.
+	 */
+	if (sta->sdata->vif.type == NL80211_IFTYPE_ADHOC &&
+	    !sta->sta.ht_cap.ht_supported) {
+#ifdef CONFIG_MAC80211_HT_DEBUG
+		printk(KERN_DEBUG "BA request denied - IBSS STA %pM"
+		       "does not advertise HT support\n", pubsta->addr);
+#endif /* CONFIG_MAC80211_HT_DEBUG */
 		return -EINVAL;
 	}
 
