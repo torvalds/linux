@@ -181,6 +181,9 @@ static void fimd_commit(struct device *dev)
 	struct fb_videomode *timing = ctx->timing;
 	u32 val;
 
+	if (ctx->suspended)
+		return;
+
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	/* setup polarity values from machine code. */
@@ -413,6 +416,9 @@ static void fimd_win_commit(struct device *dev, int zpos)
 	unsigned long val, alpha, size;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	if (ctx->suspended)
+		return;
 
 	if (win == DEFAULT_ZPOS)
 		win = ctx->default_win;
@@ -885,6 +891,51 @@ out:
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int fimd_suspend(struct device *dev)
+{
+	struct fimd_context *ctx = get_fimd_context(dev);
+	int ret;
+
+	if (pm_runtime_suspended(dev))
+		return 0;
+
+	ret = pm_runtime_suspend(dev);
+	if (ret < 0)
+		return ret;
+
+	ctx->suspended = true;
+	return 0;
+}
+
+static int fimd_resume(struct device *dev)
+{
+	struct fimd_context *ctx = get_fimd_context(dev);
+	int ret;
+
+	ret = pm_runtime_resume(dev);
+	if (ret < 0) {
+		DRM_ERROR("failed to resume runtime pm.\n");
+		return ret;
+	}
+
+	pm_runtime_disable(dev);
+
+	ret = pm_runtime_set_active(dev);
+	if (ret < 0) {
+		DRM_ERROR("failed to active runtime pm.\n");
+		pm_runtime_enable(dev);
+		pm_runtime_suspend(dev);
+		return ret;
+	}
+
+	pm_runtime_enable(dev);
+
+	ctx->suspended = false;
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_PM_RUNTIME
 static int fimd_runtime_suspend(struct device *dev)
 {
@@ -917,11 +968,19 @@ static int fimd_runtime_resume(struct device *dev)
 	}
 
 	ctx->suspended = false;
+
+	/* if vblank was enabled status, enable it again. */
+	if (test_and_clear_bit(0, &ctx->irq_flags))
+		fimd_enable_vblank(dev);
+
+	fimd_apply(dev);
+
 	return 0;
 }
 #endif
 
 static const struct dev_pm_ops fimd_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(fimd_suspend, fimd_resume)
 	SET_RUNTIME_PM_OPS(fimd_runtime_suspend, fimd_runtime_resume, NULL)
 };
 
