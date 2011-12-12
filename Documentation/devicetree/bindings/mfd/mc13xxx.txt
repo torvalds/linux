@@ -1,0 +1,53 @@
+* Freescale MC13783/MC13892 Power Management Integrated Circuit (PMIC)
+
+Required properties:
+- compatible : Should be "fsl,mc13783" or "fsl,mc13892"
+
+Optional properties:
+- fsl,mc13xxx-uses-adc : Indicate the ADC is being used
+- fsl,mc13xxx-uses-codec : Indicate the Audio Codec is being used
+- fsl,mc13xxx-uses-rtc : Indicate the RTC is being used
+- fsl,mc13xxx-uses-touch : Indicate the touchscreen controller is being used
+
+Sub-nodes:
+- regulators : Contain the regulator nodes.  The name of regulator node
+  is being used by mc13xxx regulator driver to find the correct relator
+  device.
+
+  The bindings details of individual regulator device can be found in:
+  Documentation/devicetree/bindings/regulator/regulator.txt
+
+Examples:
+
+ecspi@70010000 { /* ECSPI1 */
+	fsl,spi-num-chipselects = <2>;
+	cs-gpios = <&gpio3 24 0>, /* GPIO4_24 */
+		   <&gpio3 25 0>; /* GPIO4_25 */
+	status = "okay";
+
+	pmic: mc13892@0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "fsl,mc13892";
+		spi-max-frequency = <6000000>;
+		reg = <0>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <8>;
+
+		regulators {
+			sw1_reg: mc13892__sw1 {
+				regulator-min-microvolt = <600000>;
+				regulator-max-microvolt = <1375000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			sw2_reg: mc13892__sw2 {
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <1850000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+		};
+	};
+};
