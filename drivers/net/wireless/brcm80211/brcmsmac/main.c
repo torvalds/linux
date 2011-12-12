@@ -2370,27 +2370,6 @@ void brcms_c_intrson(struct brcms_c_info *wlc)
 	bcma_write32(wlc_hw->d11core, D11REGOFFS(macintmask), wlc->macintmask);
 }
 
-/*
- * callback for siutils.c, which has only wlc handler, no wl they both check
- * up, not only because there is no need to off/restore d11 interrupt but also
- * because per-port code may require sync with valid interrupt.
- */
-static u32 brcms_c_wlintrsoff(struct brcms_c_info *wlc)
-{
-	if (!wlc->hw->up)
-		return 0;
-
-	return brcms_intrsoff(wlc->wl);
-}
-
-static void brcms_c_wlintrsrestore(struct brcms_c_info *wlc, u32 macintmask)
-{
-	if (!wlc->hw->up)
-		return;
-
-	brcms_intrsrestore(wlc->wl, macintmask);
-}
-
 u32 brcms_c_intrsoff(struct brcms_c_info *wlc)
 {
 	struct brcms_hardware *wlc_hw = wlc->hw;
@@ -4712,10 +4691,6 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 	/* Match driver "down" state */
 	ai_pci_down(wlc_hw->sih);
 
-	/* register sb interrupt callback functions */
-	ai_register_intr_callback(wlc_hw->sih, (void *)brcms_c_wlintrsoff,
-				  (void *)brcms_c_wlintrsrestore, NULL, wlc);
-
 	/* turn off pll and xtal to match driver "down" state */
 	brcms_b_xtal(wlc_hw, OFF);
 
@@ -4986,7 +4961,6 @@ static int brcms_b_detach(struct brcms_c_info *wlc)
 		 * and per-port interrupt object may has been freed. this must
 		 * be done before sb core switch
 		 */
-		ai_deregister_intr_callback(wlc_hw->sih);
 		ai_pci_sleep(wlc_hw->sih);
 	}
 

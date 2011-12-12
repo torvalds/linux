@@ -818,33 +818,6 @@ void ai_detach(struct si_pub *sih)
 	kfree(sii);
 }
 
-/* register driver interrupt disabling and restoring callback functions */
-void
-ai_register_intr_callback(struct si_pub *sih, void *intrsoff_fn,
-			  void *intrsrestore_fn,
-			  void *intrsenabled_fn, void *intr_arg)
-{
-	struct si_info *sii;
-
-	sii = (struct si_info *)sih;
-	sii->intr_arg = intr_arg;
-	sii->intrsoff_fn = (u32 (*)(void *)) intrsoff_fn;
-	sii->intrsrestore_fn = (void (*) (void *, u32)) intrsrestore_fn;
-	sii->intrsenabled_fn = (bool (*)(void *)) intrsenabled_fn;
-	/* save current core id.  when this function called, the current core
-	 * must be the core which provides driver functions(il, et, wl, etc.)
-	 */
-	sii->dev_coreid = sii->coreid[sii->curidx];
-}
-
-void ai_deregister_intr_callback(struct si_pub *sih)
-{
-	struct si_info *sii;
-
-	sii = (struct si_info *)sih;
-	sii->intrsoff_fn = NULL;
-}
-
 uint ai_coreid(struct si_pub *sih)
 {
 	struct si_info *sii;

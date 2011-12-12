@@ -238,10 +238,6 @@ extern void __iomem *ai_switch_core(struct si_pub *sih, uint coreid,
 				    uint *origidx, uint *intr_val);
 extern void ai_restore_core(struct si_pub *sih, uint coreid, uint intr_val);
 extern void ai_pci_setup(struct si_pub *sih, uint coremask);
-extern void ai_register_intr_callback(struct si_pub *sih, void *intrsoff_fn,
-				      void *intrsrestore_fn,
-				      void *intrsenabled_fn, void *intr_arg);
-extern void ai_deregister_intr_callback(struct si_pub *sih);
 extern void ai_clkctl_init(struct si_pub *sih);
 extern u16 ai_clkctl_fast_pwrup_delay(struct si_pub *sih);
 extern bool ai_clkctl_cc(struct si_pub *sih, uint mode);
