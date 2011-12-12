@@ -113,6 +113,11 @@ static inline unsigned long hpte_page_size(unsigned long h, unsigned long l)
 	return 0;				/* error */
 }
 
+static inline unsigned long hpte_rpn(unsigned long ptel, unsigned long psize)
+{
+	return ((ptel & HPTE_R_RPN) & ~(psize - 1)) >> PAGE_SHIFT;
+}
+
 static inline int hpte_cache_flags_ok(unsigned long ptel, unsigned long io_type)
 {
 	unsigned int wimg = ptel & HPTE_R_WIMG;
@@ -137,6 +142,19 @@ static inline unsigned long hpte_cache_bits(unsigned long pte_val)
 	return ((pte_val & _PAGE_NO_CACHE) ? HPTE_R_I : 0) +
 		((pte_val & _PAGE_WRITETHRU) ? HPTE_R_W : 0);
 #endif
+}
+
+static inline void lock_rmap(unsigned long *rmap)
+{
+	do {
+		while (test_bit(KVMPPC_RMAP_LOCK_BIT, rmap))
+			cpu_relax();
+	} while (test_and_set_bit_lock(KVMPPC_RMAP_LOCK_BIT, rmap));
+}
+
+static inline void unlock_rmap(unsigned long *rmap)
+{
+	__clear_bit_unlock(KVMPPC_RMAP_LOCK_BIT, rmap);
 }
 
 static inline bool slot_is_aligned(struct kvm_memory_slot *memslot,

@@ -54,6 +54,70 @@ static void *real_vmalloc_addr(void *x)
 	return __va(addr);
 }
 
+/*
+ * Add this HPTE into the chain for the real page.
+ * Must be called with the chain locked; it unlocks the chain.
+ */
+static void kvmppc_add_revmap_chain(struct kvm *kvm, struct revmap_entry *rev,
+			     unsigned long *rmap, long pte_index, int realmode)
+{
+	struct revmap_entry *head, *tail;
+	unsigned long i;
+
+	if (*rmap & KVMPPC_RMAP_PRESENT) {
+		i = *rmap & KVMPPC_RMAP_INDEX;
+		head = &kvm->arch.revmap[i];
+		if (realmode)
+			head = real_vmalloc_addr(head);
+		tail = &kvm->arch.revmap[head->back];
+		if (realmode)
+			tail = real_vmalloc_addr(tail);
+		rev->forw = i;
+		rev->back = head->back;
+		tail->forw = pte_index;
+		head->back = pte_index;
+	} else {
+		rev->forw = rev->back = pte_index;
+		i = pte_index;
+	}
+	smp_wmb();
+	*rmap = i | KVMPPC_RMAP_REFERENCED | KVMPPC_RMAP_PRESENT; /* unlock */
+}
+
+/* Remove this HPTE from the chain for a real page */
+static void remove_revmap_chain(struct kvm *kvm, long pte_index,
+				unsigned long hpte_v)
+{
+	struct revmap_entry *rev, *next, *prev;
+	unsigned long gfn, ptel, head;
+	struct kvm_memory_slot *memslot;
+	unsigned long *rmap;
+
+	rev = real_vmalloc_addr(&kvm->arch.revmap[pte_index]);
+	ptel = rev->guest_rpte;
+	gfn = hpte_rpn(ptel, hpte_page_size(hpte_v, ptel));
+	memslot = builtin_gfn_to_memslot(kvm, gfn);
+	if (!memslot || (memslot->flags & KVM_MEMSLOT_INVALID))
+		return;
+
+	rmap = real_vmalloc_addr(&memslot->rmap[gfn - memslot->base_gfn]);
+	lock_rmap(rmap);
+
+	head = *rmap & KVMPPC_RMAP_INDEX;
+	next = real_vmalloc_addr(&kvm->arch.revmap[rev->forw]);
+	prev = real_vmalloc_addr(&kvm->arch.revmap[rev->back]);
+	next->back = rev->back;
+	prev->forw = rev->forw;
+	if (head == pte_index) {
+		head = rev->forw;
+		if (head == pte_index)
+			*rmap &= ~(KVMPPC_RMAP_PRESENT | KVMPPC_RMAP_INDEX);
+		else
+			*rmap = (*rmap & ~KVMPPC_RMAP_INDEX) | head;
+	}
+	unlock_rmap(rmap);
+}
+
 long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 		    long pte_index, unsigned long pteh, unsigned long ptel)
 {
@@ -66,6 +130,7 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 	struct kvm_memory_slot *memslot;
 	unsigned long *physp, pte_size;
 	unsigned long is_io;
+	unsigned long *rmap;
 	bool realmode = vcpu->arch.vcore->vcore_state == VCORE_RUNNING;
 
 	psize = hpte_page_size(pteh, ptel);
@@ -83,6 +148,7 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 	if (!slot_is_aligned(memslot, psize))
 		return H_PARAMETER;
 	slot_fn = gfn - memslot->base_gfn;
+	rmap = &memslot->rmap[slot_fn];
 
 	physp = kvm->arch.slot_phys[memslot->id];
 	if (!physp)
@@ -164,13 +230,25 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 	}
 
 	/* Save away the guest's idea of the second HPTE dword */
-	rev = real_vmalloc_addr(&kvm->arch.revmap[pte_index]);
+	rev = &kvm->arch.revmap[pte_index];
+	if (realmode)
+		rev = real_vmalloc_addr(rev);
 	if (rev)
 		rev->guest_rpte = g_ptel;
+
+	/* Link HPTE into reverse-map chain */
+	if (realmode)
+		rmap = real_vmalloc_addr(rmap);
+	lock_rmap(rmap);
+	kvmppc_add_revmap_chain(kvm, rev, rmap, pte_index, realmode);
+
 	hpte[1] = ptel;
+
+	/* Write the first HPTE dword, unlocking the HPTE and making it valid */
 	eieio();
 	hpte[0] = pteh;
 	asm volatile("ptesync" : : : "memory");
+
 	vcpu->arch.gpr[4] = pte_index;
 	return H_SUCCESS;
 }
@@ -220,6 +298,8 @@ long kvmppc_h_remove(struct kvm_vcpu *vcpu, unsigned long flags,
 	vcpu->arch.gpr[4] = v = hpte[0] & ~HPTE_V_HVLOCK;
 	vcpu->arch.gpr[5] = r = hpte[1];
 	rb = compute_tlbie_rb(v, r, pte_index);
+	remove_revmap_chain(kvm, pte_index, v);
+	smp_wmb();
 	hpte[0] = 0;
 	if (!(flags & H_LOCAL)) {
 		while(!try_lock_tlbie(&kvm->arch.tlbie_lock))
@@ -293,6 +373,8 @@ long kvmppc_h_bulk_remove(struct kvm_vcpu *vcpu)
 		flags |= (hp[1] >> 5) & 0x0c;
 		args[i * 2] = ((0x80 | flags) << 56) + pte_index;
 		tlbrb[n_inval++] = compute_tlbie_rb(hp[0], hp[1], pte_index);
+		remove_revmap_chain(kvm, pte_index, hp[0]);
+		smp_wmb();
 		hp[0] = 0;
 	}
 	if (n_inval == 0)

@@ -170,11 +170,26 @@ struct kvmppc_rma_info {
 /*
  * The reverse mapping array has one entry for each HPTE,
  * which stores the guest's view of the second word of the HPTE
- * (including the guest physical address of the mapping).
+ * (including the guest physical address of the mapping),
+ * plus forward and backward pointers in a doubly-linked ring
+ * of HPTEs that map the same host page.  The pointers in this
+ * ring are 32-bit HPTE indexes, to save space.
  */
 struct revmap_entry {
 	unsigned long guest_rpte;
+	unsigned int forw, back;
 };
+
+/*
+ * We use the top bit of each memslot->rmap entry as a lock bit,
+ * and bit 32 as a present flag.  The bottom 32 bits are the
+ * index in the guest HPT of a HPTE that points to the page.
+ */
+#define KVMPPC_RMAP_LOCK_BIT	63
+#define KVMPPC_RMAP_REF_BIT	33
+#define KVMPPC_RMAP_REFERENCED	(1ul << KVMPPC_RMAP_REF_BIT)
+#define KVMPPC_RMAP_PRESENT	0x100000000ul
+#define KVMPPC_RMAP_INDEX	0xfffffffful
 
 /* Low-order bits in kvm->arch.slot_phys[][] */
 #define KVMPPC_PAGE_ORDER_MASK	0x1f
