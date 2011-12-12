@@ -272,19 +272,35 @@ int m5mols_write(struct v4l2_subdev *sd, u32 reg, u32 val)
 	return 0;
 }
 
-int m5mols_busy(struct v4l2_subdev *sd, u32 reg, u8 mask)
+/**
+ * m5mols_busy_wait - Busy waiting with I2C register polling
+ * @reg: the I2C_REG() address of an 8-bit status register to check
+ * @value: expected status register value
+ * @mask: bit mask for the read status register value
+ * @timeout: timeout in miliseconds, or -1 for default timeout
+ *
+ * The @reg register value is ORed with @mask before comparing with @value.
+ *
+ * Return: 0 if the requested condition became true within less than
+ *         @timeout ms, or else negative errno.
+ */
+int m5mols_busy_wait(struct v4l2_subdev *sd, u32 reg, u32 value, u32 mask,
+		     int timeout)
 {
-	u8 busy;
-	int i;
-	int ret;
+	int ms = timeout < 0 ? M5MOLS_BUSY_WAIT_DEF_TIMEOUT : timeout;
+	unsigned long end = jiffies + msecs_to_jiffies(ms);
+	u8 status;
 
-	for (i = 0; i < M5MOLS_I2C_CHECK_RETRY; i++) {
-		ret = m5mols_read_u8(sd, reg, &busy);
-		if (ret < 0)
+	do {
+		int ret = m5mols_read_u8(sd, reg, &status);
+
+		if (ret < 0 && !(mask & M5MOLS_I2C_RDY_WAIT_FL))
 			return ret;
-		if ((busy & mask) == mask)
+		if (!ret && (status & mask & 0xff) == (value & 0xff))
 			return 0;
-	}
+		usleep_range(100, 250);
+	} while (ms > 0 && time_is_after_jiffies(end));
+
 	return -EBUSY;
 }
 
@@ -316,8 +332,10 @@ int m5mols_enable_interrupt(struct v4l2_subdev *sd, u8 reg)
 static int m5mols_reg_mode(struct v4l2_subdev *sd, u8 mode)
 {
 	int ret = m5mols_write(sd, SYSTEM_SYSMODE, mode);
-
-	return ret ? ret : m5mols_busy(sd, mode, SYSTEM_SYSMODE);
+	if (ret < 0)
+		return ret;
+	return m5mols_busy_wait(sd, SYSTEM_SYSMODE, mode, 0xff,
+				M5MOLS_MODE_CHANGE_TIMEOUT);
 }
 
 /**
@@ -829,9 +847,10 @@ static int m5mols_s_power(struct v4l2_subdev *sd, int on)
 		if (!ret)
 			ret = m5mols_write(sd, AF_MODE, REG_AF_POWEROFF);
 		if (!ret)
-			ret = m5mols_busy(sd, SYSTEM_STATUS, REG_AF_IDLE);
-		if (!ret)
-			v4l2_info(sd, "Success soft-landing lens\n");
+			ret = m5mols_busy_wait(sd, SYSTEM_STATUS, REG_AF_IDLE,
+					       0xff, -1);
+		if (ret < 0)
+			v4l2_warn(sd, "Soft landing lens failed\n");
 	}
 
 	ret = m5mols_sensor_power(info, false);

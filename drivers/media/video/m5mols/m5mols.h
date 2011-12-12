@@ -257,7 +257,15 @@ int m5mols_read_u8(struct v4l2_subdev *sd, u32 reg_comb, u8 *val);
 int m5mols_read_u16(struct v4l2_subdev *sd, u32 reg_comb, u16 *val);
 int m5mols_read_u32(struct v4l2_subdev *sd, u32 reg_comb, u32 *val);
 int m5mols_write(struct v4l2_subdev *sd, u32 reg_comb, u32 val);
-int m5mols_busy(struct v4l2_subdev *sd, u32 reg, u8 value);
+
+int m5mols_busy_wait(struct v4l2_subdev *sd, u32 reg, u32 value, u32 mask,
+		     int timeout);
+
+/* Mask value for busy waiting until M-5MOLS I2C interface is initialized */
+#define M5MOLS_I2C_RDY_WAIT_FL		(1 << 16)
+/* ISP state transition timeout, in ms */
+#define M5MOLS_MODE_CHANGE_TIMEOUT	200
+#define M5MOLS_BUSY_WAIT_DEF_TIMEOUT	250
 
 /*
  * Mode operation of the M-5MOLS
