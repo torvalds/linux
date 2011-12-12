@@ -255,7 +255,7 @@ static int __devexit mc13783_pwrbutton_remove(struct platform_device *pdev)
 	return 0;
 }
 
-struct platform_driver mc13783_pwrbutton_driver = {
+static struct platform_driver mc13783_pwrbutton_driver = {
 	.probe		= mc13783_pwrbutton_probe,
 	.remove		= __devexit_p(mc13783_pwrbutton_remove),
 	.driver		= {
@@ -264,17 +264,7 @@ struct platform_driver mc13783_pwrbutton_driver = {
 	},
 };
 
-static int __init mc13783_pwrbutton_init(void)
-{
-	return platform_driver_register(&mc13783_pwrbutton_driver);
-}
-module_init(mc13783_pwrbutton_init);
-
-static void __exit mc13783_pwrbutton_exit(void)
-{
-	platform_driver_unregister(&mc13783_pwrbutton_driver);
-}
-module_exit(mc13783_pwrbutton_exit);
+module_platform_driver(mc13783_pwrbutton_driver);
 
 MODULE_ALIAS("platform:mc13783-pwrbutton");
 MODULE_DESCRIPTION("MC13783 Power Button");
