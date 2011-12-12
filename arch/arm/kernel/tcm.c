@@ -180,9 +180,9 @@ static int __init setup_tcm_bank(u8 type, u8 bank, u8 banks,
  */
 void __init tcm_init(void)
 {
-	u32 tcm_status = read_cpuid_tcmstatus();
-	u8 dtcm_banks = (tcm_status >> 16) & 0x03;
-	u8 itcm_banks = (tcm_status & 0x03);
+	u32 tcm_status;
+	u8 dtcm_banks;
+	u8 itcm_banks;
 	size_t dtcm_code_sz = &__edtcm_data - &__sdtcm_data;
 	size_t itcm_code_sz = &__eitcm_text - &__sitcm_text;
 	char *start;
@@ -190,6 +190,22 @@ void __init tcm_init(void)
 	char *ram;
 	int ret;
 	int i;
+
+	/*
+	 * Prior to ARMv5 there is no TCM, and trying to read the status
+	 * register will hang the processor.
+	 */
+	if (cpu_architecture() < CPU_ARCH_ARMv5) {
+		if (dtcm_code_sz || itcm_code_sz)
+			pr_info("CPU TCM: %u bytes of DTCM and %u bytes of "
+				"ITCM code compiled in, but no TCM present "
+				"in pre-v5 CPU\n", dtcm_code_sz, itcm_code_sz);
+		return;
+	}
+
+	tcm_status = read_cpuid_tcmstatus();
+	dtcm_banks = (tcm_status >> 16) & 0x03;
+	itcm_banks = (tcm_status & 0x03);
 
 	/* Values greater than 2 for D/ITCM banks are "reserved" */
 	if (dtcm_banks > 2)
