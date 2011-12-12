@@ -130,25 +130,15 @@ int iwl_add_sta_callback(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
 	return iwl_process_add_sta_resp(priv, addsta, pkt);
 }
 
-static u16 iwlagn_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd, u8 *data)
-{
-	u16 size = (u16)sizeof(struct iwl_addsta_cmd);
-	struct iwl_addsta_cmd *addsta = (struct iwl_addsta_cmd *)data;
-	memcpy(addsta, cmd, size);
-	/* resrved in agn */
-	addsta->legacy_reserved = cpu_to_le16(0);
-	return size;
-}
-
 int iwl_send_add_sta(struct iwl_priv *priv,
 		     struct iwl_addsta_cmd *sta, u8 flags)
 {
 	int ret = 0;
-	u8 data[sizeof(*sta)];
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_ADD_STA,
 		.flags = flags,
-		.data = { data, },
+		.data = { sta, },
+		.len = { sizeof(*sta), },
 	};
 	u8 sta_id __maybe_unused = sta->sta.sta_id;
 
@@ -160,7 +150,6 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 		might_sleep();
 	}
 
-	cmd.len[0] = iwlagn_build_addsta_hcmd(sta, data);
 	ret = iwl_trans_send_cmd(trans(priv), &cmd);
 
 	if (ret || (flags & CMD_ASYNC))
