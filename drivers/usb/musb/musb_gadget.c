@@ -40,8 +40,6 @@
 #include <linux/smp.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
-#include <linux/moduleparam.h>
-#include <linux/stat.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 
