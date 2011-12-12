@@ -135,6 +135,7 @@ struct gpio_chip {
 
 extern const char *gpiochip_is_requested(struct gpio_chip *chip,
 			unsigned offset);
+extern struct gpio_chip *gpio_to_chip(unsigned gpio);
 extern int __must_check gpiochip_reserve(int start, int ngpio);
 
 /* add/remove chips */
