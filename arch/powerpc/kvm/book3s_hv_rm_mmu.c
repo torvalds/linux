@@ -20,10 +20,19 @@
 #include <asm/synch.h>
 #include <asm/ppc-opcode.h>
 
-/* For now use fixed-size 16MB page table */
-#define HPT_ORDER	24
-#define HPT_NPTEG	(1ul << (HPT_ORDER - 7))	/* 128B per pteg */
-#define HPT_HASH_MASK	(HPT_NPTEG - 1)
+/* Translate address of a vmalloc'd thing to a linear map address */
+static void *real_vmalloc_addr(void *x)
+{
+	unsigned long addr = (unsigned long) x;
+	pte_t *p;
+
+	p = find_linux_pte(swapper_pg_dir, addr);
+	if (!p || !pte_present(*p))
+		return NULL;
+	/* assume we don't have huge pages in vmalloc space... */
+	addr = (pte_pfn(*p) << PAGE_SHIFT) | (addr & ~PAGE_MASK);
+	return __va(addr);
+}
 
 #define HPTE_V_HVLOCK	0x40UL
 
@@ -52,6 +61,8 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 	struct kvm *kvm = vcpu->kvm;
 	unsigned long i, lpn, pa;
 	unsigned long *hpte;
+	struct revmap_entry *rev;
+	unsigned long g_ptel = ptel;
 
 	/* only handle 4k, 64k and 16M pages for now */
 	porder = 12;
@@ -82,7 +93,7 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 	pteh &= ~0x60UL;
 	ptel &= ~(HPTE_R_PP0 - kvm->arch.ram_psize);
 	ptel |= pa;
-	if (pte_index >= (HPT_NPTEG << 3))
+	if (pte_index >= HPT_NPTE)
 		return H_PARAMETER;
 	if (likely((flags & H_EXACT) == 0)) {
 		pte_index &= ~7UL;
@@ -95,18 +106,22 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 				break;
 			hpte += 2;
 		}
+		pte_index += i;
 	} else {
-		i = 0;
 		hpte = (unsigned long *)(kvm->arch.hpt_virt + (pte_index << 4));
 		if (!lock_hpte(hpte, HPTE_V_HVLOCK | HPTE_V_VALID))
 			return H_PTEG_FULL;
 	}
+
+	/* Save away the guest's idea of the second HPTE dword */
+	rev = real_vmalloc_addr(&kvm->arch.revmap[pte_index]);
+	if (rev)
+		rev->guest_rpte = g_ptel;
 	hpte[1] = ptel;
 	eieio();
 	hpte[0] = pteh;
 	asm volatile("ptesync" : : : "memory");
-	atomic_inc(&kvm->arch.ram_pginfo[lpn].refcnt);
-	vcpu->arch.gpr[4] = pte_index + i;
+	vcpu->arch.gpr[4] = pte_index;
 	return H_SUCCESS;
 }
 
@@ -138,7 +153,7 @@ long kvmppc_h_remove(struct kvm_vcpu *vcpu, unsigned long flags,
 	unsigned long *hpte;
 	unsigned long v, r, rb;
 
-	if (pte_index >= (HPT_NPTEG << 3))
+	if (pte_index >= HPT_NPTE)
 		return H_PARAMETER;
 	hpte = (unsigned long *)(kvm->arch.hpt_virt + (pte_index << 4));
 	while (!lock_hpte(hpte, HPTE_V_HVLOCK))
@@ -193,7 +208,7 @@ long kvmppc_h_bulk_remove(struct kvm_vcpu *vcpu)
 		if (req == 3)
 			break;
 		if (req != 1 || flags == 3 ||
-		    pte_index >= (HPT_NPTEG << 3)) {
+		    pte_index >= HPT_NPTE) {
 			/* parameter error */
 			args[i * 2] = ((0xa0 | flags) << 56) + pte_index;
 			ret = H_PARAMETER;
@@ -256,9 +271,10 @@ long kvmppc_h_protect(struct kvm_vcpu *vcpu, unsigned long flags,
 {
 	struct kvm *kvm = vcpu->kvm;
 	unsigned long *hpte;
-	unsigned long v, r, rb;
+	struct revmap_entry *rev;
+	unsigned long v, r, rb, mask, bits;
 
-	if (pte_index >= (HPT_NPTEG << 3))
+	if (pte_index >= HPT_NPTE)
 		return H_PARAMETER;
 	hpte = (unsigned long *)(kvm->arch.hpt_virt + (pte_index << 4));
 	while (!lock_hpte(hpte, HPTE_V_HVLOCK))
@@ -271,11 +287,21 @@ long kvmppc_h_protect(struct kvm_vcpu *vcpu, unsigned long flags,
 	if (atomic_read(&kvm->online_vcpus) == 1)
 		flags |= H_LOCAL;
 	v = hpte[0];
-	r = hpte[1] & ~(HPTE_R_PP0 | HPTE_R_PP | HPTE_R_N |
-			HPTE_R_KEY_HI | HPTE_R_KEY_LO);
-	r |= (flags << 55) & HPTE_R_PP0;
-	r |= (flags << 48) & HPTE_R_KEY_HI;
-	r |= flags & (HPTE_R_PP | HPTE_R_N | HPTE_R_KEY_LO);
+	bits = (flags << 55) & HPTE_R_PP0;
+	bits |= (flags << 48) & HPTE_R_KEY_HI;
+	bits |= flags & (HPTE_R_PP | HPTE_R_N | HPTE_R_KEY_LO);
+
+	/* Update guest view of 2nd HPTE dword */
+	mask = HPTE_R_PP0 | HPTE_R_PP | HPTE_R_N |
+		HPTE_R_KEY_HI | HPTE_R_KEY_LO;
+	rev = real_vmalloc_addr(&kvm->arch.revmap[pte_index]);
+	if (rev) {
+		r = (rev->guest_rpte & ~mask) | bits;
+		rev->guest_rpte = r;
+	}
+	r = (hpte[1] & ~mask) | bits;
+
+	/* Update HPTE */
 	rb = compute_tlbie_rb(v, r, pte_index);
 	hpte[0] = v & ~HPTE_V_VALID;
 	if (!(flags & H_LOCAL)) {
@@ -298,38 +324,31 @@ long kvmppc_h_protect(struct kvm_vcpu *vcpu, unsigned long flags,
 	return H_SUCCESS;
 }
 
-static unsigned long reverse_xlate(struct kvm *kvm, unsigned long realaddr)
-{
-	long int i;
-	unsigned long offset, rpn;
-
-	offset = realaddr & (kvm->arch.ram_psize - 1);
-	rpn = (realaddr - offset) >> PAGE_SHIFT;
-	for (i = 0; i < kvm->arch.ram_npages; ++i)
-		if (rpn == kvm->arch.ram_pginfo[i].pfn)
-			return (i << PAGE_SHIFT) + offset;
-	return HPTE_R_RPN;	/* all 1s in the RPN field */
-}
-
 long kvmppc_h_read(struct kvm_vcpu *vcpu, unsigned long flags,
 		   unsigned long pte_index)
 {
 	struct kvm *kvm = vcpu->kvm;
 	unsigned long *hpte, r;
 	int i, n = 1;
+	struct revmap_entry *rev = NULL;
 
-	if (pte_index >= (HPT_NPTEG << 3))
+	if (pte_index >= HPT_NPTE)
 		return H_PARAMETER;
 	if (flags & H_READ_4) {
 		pte_index &= ~3;
 		n = 4;
 	}
+	if (flags & H_R_XLATE)
+		rev = real_vmalloc_addr(&kvm->arch.revmap[pte_index]);
 	for (i = 0; i < n; ++i, ++pte_index) {
 		hpte = (unsigned long *)(kvm->arch.hpt_virt + (pte_index << 4));
 		r = hpte[1];
-		if ((flags & H_R_XLATE) && (hpte[0] & HPTE_V_VALID))
-			r = reverse_xlate(kvm, r & HPTE_R_RPN) |
-				(r & ~HPTE_R_RPN);
+		if (hpte[0] & HPTE_V_VALID) {
+			if (rev)
+				r = rev[i].guest_rpte;
+			else
+				r = hpte[1] | HPTE_R_RPN;
+		}
 		vcpu->arch.gpr[4 + i * 2] = hpte[0];
 		vcpu->arch.gpr[5 + i * 2] = r;
 	}

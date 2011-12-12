@@ -35,6 +35,14 @@ static inline void svcpu_put(struct kvmppc_book3s_shadow_vcpu *svcpu)
 
 #define SPAPR_TCE_SHIFT		12
 
+#ifdef CONFIG_KVM_BOOK3S_64_HV
+/* For now use fixed-size 16MB page table */
+#define HPT_ORDER	24
+#define HPT_NPTEG	(1ul << (HPT_ORDER - 7))	/* 128B per pteg */
+#define HPT_NPTE	(HPT_NPTEG << 3)		/* 8 PTEs per PTEG */
+#define HPT_HASH_MASK	(HPT_NPTEG - 1)
+#endif
+
 static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 					     unsigned long pte_index)
 {

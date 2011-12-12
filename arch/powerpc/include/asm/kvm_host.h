@@ -166,9 +166,19 @@ struct kvmppc_rma_info {
 	atomic_t 	 use_count;
 };
 
+/*
+ * The reverse mapping array has one entry for each HPTE,
+ * which stores the guest's view of the second word of the HPTE
+ * (including the guest physical address of the mapping).
+ */
+struct revmap_entry {
+	unsigned long guest_rpte;
+};
+
 struct kvm_arch {
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 	unsigned long hpt_virt;
+	struct revmap_entry *revmap;
 	unsigned long ram_npages;
 	unsigned long ram_psize;
 	unsigned long ram_porder;

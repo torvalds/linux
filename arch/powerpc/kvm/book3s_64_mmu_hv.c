@@ -23,6 +23,7 @@
 #include <linux/gfp.h>
 #include <linux/slab.h>
 #include <linux/hugetlb.h>
+#include <linux/vmalloc.h>
 
 #include <asm/tlbflush.h>
 #include <asm/kvm_ppc.h>
@@ -32,11 +33,6 @@
 #include <asm/synch.h>
 #include <asm/ppc-opcode.h>
 #include <asm/cputable.h>
-
-/* For now use fixed-size 16MB page table */
-#define HPT_ORDER	24
-#define HPT_NPTEG	(1ul << (HPT_ORDER - 7))	/* 128B per pteg */
-#define HPT_HASH_MASK	(HPT_NPTEG - 1)
 
 /* Pages in the VRMA are 16MB pages */
 #define VRMA_PAGE_ORDER	24
@@ -51,7 +47,9 @@ long kvmppc_alloc_hpt(struct kvm *kvm)
 {
 	unsigned long hpt;
 	unsigned long lpid;
+	struct revmap_entry *rev;
 
+	/* Allocate guest's hashed page table */
 	hpt = __get_free_pages(GFP_KERNEL|__GFP_ZERO|__GFP_REPEAT|__GFP_NOWARN,
 			       HPT_ORDER - PAGE_SHIFT);
 	if (!hpt) {
@@ -60,12 +58,20 @@ long kvmppc_alloc_hpt(struct kvm *kvm)
 	}
 	kvm->arch.hpt_virt = hpt;
 
+	/* Allocate reverse map array */
+	rev = vmalloc(sizeof(struct revmap_entry) * HPT_NPTE);
+	if (!rev) {
+		pr_err("kvmppc_alloc_hpt: Couldn't alloc reverse map array\n");
+		goto out_freehpt;
+	}
+	kvm->arch.revmap = rev;
+
+	/* Allocate the guest's logical partition ID */
 	do {
 		lpid = find_first_zero_bit(lpid_inuse, NR_LPIDS);
 		if (lpid >= NR_LPIDS) {
 			pr_err("kvm_alloc_hpt: No LPIDs free\n");
-			free_pages(hpt, HPT_ORDER - PAGE_SHIFT);
-			return -ENOMEM;
+			goto out_freeboth;
 		}
 	} while (test_and_set_bit(lpid, lpid_inuse));
 
@@ -74,11 +80,18 @@ long kvmppc_alloc_hpt(struct kvm *kvm)
 
 	pr_info("KVM guest htab at %lx, LPID %lx\n", hpt, lpid);
 	return 0;
+
+ out_freeboth:
+	vfree(rev);
+ out_freehpt:
+	free_pages(hpt, HPT_ORDER - PAGE_SHIFT);
+	return -ENOMEM;
 }
 
 void kvmppc_free_hpt(struct kvm *kvm)
 {
 	clear_bit(kvm->arch.lpid, lpid_inuse);
+	vfree(kvm->arch.revmap);
 	free_pages(kvm->arch.hpt_virt, HPT_ORDER - PAGE_SHIFT);
 }
 
@@ -89,14 +102,16 @@ void kvmppc_map_vrma(struct kvm *kvm, struct kvm_userspace_memory_region *mem)
 	unsigned long pfn;
 	unsigned long *hpte;
 	unsigned long hash;
+	unsigned long porder = kvm->arch.ram_porder;
+	struct revmap_entry *rev;
 	struct kvmppc_pginfo *pginfo = kvm->arch.ram_pginfo;
 
 	if (!pginfo)
 		return;
 
 	/* VRMA can't be > 1TB */
-	if (npages > 1ul << (40 - kvm->arch.ram_porder))
-		npages = 1ul << (40 - kvm->arch.ram_porder);
+	if (npages > 1ul << (40 - porder))
+		npages = 1ul << (40 - porder);
 	/* Can't use more than 1 HPTE per HPTEG */
 	if (npages > HPT_NPTEG)
 		npages = HPT_NPTEG;
@@ -113,15 +128,20 @@ void kvmppc_map_vrma(struct kvm *kvm, struct kvm_userspace_memory_region *mem)
 		 * at most one HPTE per HPTEG, we just assume entry 7
 		 * is available and use it.
 		 */
-		hpte = (unsigned long *) (kvm->arch.hpt_virt + (hash << 7));
-		hpte += 7 * 2;
+		hash = (hash << 3) + 7;
+		hpte = (unsigned long *) (kvm->arch.hpt_virt + (hash << 4));
 		/* HPTE low word - RPN, protection, etc. */
 		hpte[1] = (pfn << PAGE_SHIFT) | HPTE_R_R | HPTE_R_C |
 			HPTE_R_M | PP_RWXX;
-		wmb();
+		smp_wmb();
 		hpte[0] = HPTE_V_1TB_SEG | (VRMA_VSID << (40 - 16)) |
 			(i << (VRMA_PAGE_ORDER - 16)) | HPTE_V_BOLTED |
 			HPTE_V_LARGE | HPTE_V_VALID;
+
+		/* Reverse map info */
+		rev = &kvm->arch.revmap[hash];
+		rev->guest_rpte = (i << porder) | HPTE_R_R | HPTE_R_C |
+			HPTE_R_M | PP_RWXX;
 	}
 }
 
