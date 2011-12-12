@@ -38,13 +38,6 @@
  */
 #include "../wl12xx/reg.h"
 
-static u8 wl12xx_rx_get_mem_block(struct wl12xx_fw_status *status,
-				  u32 drv_rx_counter)
-{
-	return le32_to_cpu(status->rx_pkt_descs[drv_rx_counter]) &
-		RX_MEM_BLOCK_MASK;
-}
-
 static u32 wlcore_rx_get_buf_size(struct wl1271 *wl,
 				  u32 rx_pkt_desc)
 {
@@ -202,13 +195,11 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 
 void wl12xx_rx(struct wl1271 *wl, struct wl12xx_fw_status *status)
 {
-	struct wl1271_acx_mem_map *wl_mem_map = wl->target_mem_map;
 	unsigned long active_hlids[BITS_TO_LONGS(WL12XX_MAX_LINKS)] = {0};
 	u32 buf_size;
 	u32 fw_rx_counter  = status->fw_rx_counter & NUM_RX_PKT_DESC_MOD_MASK;
 	u32 drv_rx_counter = wl->rx_counter & NUM_RX_PKT_DESC_MOD_MASK;
 	u32 rx_counter;
-	u32 mem_block;
 	u32 pkt_len, align_pkt_len;
 	u32 pkt_offset, des;
 	u8 hlid;
@@ -234,27 +225,9 @@ void wl12xx_rx(struct wl1271 *wl, struct wl12xx_fw_status *status)
 			break;
 		}
 
-		if (wl->chip.id != CHIP_ID_1283_PG20) {
-			/*
-			 * Choose the block we want to read
-			 * For aggregated packets, only the first memory block
-			 * should be retrieved. The FW takes care of the rest.
-			 */
-			mem_block = wl12xx_rx_get_mem_block(status,
-							    drv_rx_counter);
-
-			wl->rx_mem_pool_addr.addr = (mem_block << 8) +
-			   le32_to_cpu(wl_mem_map->packet_memory_pool_start);
-
-			wl->rx_mem_pool_addr.addr_extra =
-				wl->rx_mem_pool_addr.addr + 4;
-
-			wlcore_write_data(wl, REG_SLV_REG_DATA,
-					  &wl->rx_mem_pool_addr,
-					  sizeof(wl->rx_mem_pool_addr), false);
-		}
-
 		/* Read all available packets at once */
+		des = le32_to_cpu(status->rx_pkt_descs[drv_rx_counter]);
+		wlcore_hw_prepare_read(wl, des, buf_size);
 		wlcore_read_data(wl, REG_SLV_MEM_DATA, wl->aggr_buf,
 				 buf_size, true);
 

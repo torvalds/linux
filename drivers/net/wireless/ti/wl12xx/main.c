@@ -32,6 +32,7 @@
 #include "../wlcore/acx.h"
 #include "../wlcore/tx.h"
 #include "../wlcore/rx.h"
+#include "../wlcore/io.h"
 #include "../wlcore/boot.h"
 
 #include "reg.h"
@@ -239,6 +240,29 @@ static const int wl12xx_rtable[REG_TABLE_LEN] = {
 #define WL128X_FW_NAME_SINGLE	"ti-connectivity/wl128x-fw-4-sr.bin"
 #define WL128X_PLT_FW_NAME	"ti-connectivity/wl128x-fw-4-plt.bin"
 
+static void wl127x_prepare_read(struct wl1271 *wl, u32 rx_desc, u32 len)
+{
+	if (wl->chip.id != CHIP_ID_1283_PG20) {
+		struct wl1271_acx_mem_map *wl_mem_map = wl->target_mem_map;
+		struct wl1271_rx_mem_pool_addr rx_mem_addr;
+
+		/*
+		 * Choose the block we want to read
+		 * For aggregated packets, only the first memory block
+		 * should be retrieved. The FW takes care of the rest.
+		 */
+		u32 mem_block = rx_desc & RX_MEM_BLOCK_MASK;
+
+		rx_mem_addr.addr = (mem_block << 8) +
+			le32_to_cpu(wl_mem_map->packet_memory_pool_start);
+
+		rx_mem_addr.addr_extra = rx_mem_addr.addr + 4;
+
+		wl1271_write(wl, WL1271_SLV_REG_DATA,
+			     &rx_mem_addr, sizeof(rx_mem_addr), false);
+	}
+}
+
 static int wl12xx_identify_chip(struct wl1271 *wl)
 {
 	int ret = 0;
@@ -253,6 +277,10 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 		wl->plt_fw_name = WL127X_PLT_FW_NAME;
 		wl->sr_fw_name = WL127X_FW_NAME_SINGLE;
 		wl->mr_fw_name = WL127X_FW_NAME_MULTI;
+
+		/* read data preparation is only needed by wl127x */
+		wl->ops->prepare_read = wl127x_prepare_read;
+
 		break;
 
 	case CHIP_ID_1271_PG20:
@@ -264,6 +292,10 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 		wl->plt_fw_name = WL127X_PLT_FW_NAME;
 		wl->sr_fw_name = WL127X_FW_NAME_SINGLE;
 		wl->mr_fw_name = WL127X_FW_NAME_MULTI;
+
+		/* read data preparation is only needed by wl127x */
+		wl->ops->prepare_read = wl127x_prepare_read;
+
 		break;
 
 	case CHIP_ID_1283_PG20:
