@@ -632,17 +632,17 @@ static int das1800_attach(struct comedi_device *dev,
 	if (alloc_private(dev, sizeof(struct das1800_private)) < 0)
 		return -ENOMEM;
 
-	printk("comedi%d: %s: io 0x%lx", dev->minor, driver_das1800.driver_name,
-	       iobase);
+	printk(KERN_DEBUG "comedi%d: %s: io 0x%lx", dev->minor,
+	       driver_das1800.driver_name, iobase);
 	if (irq) {
-		printk(", irq %u", irq);
+		printk(KERN_CONT ", irq %u", irq);
 		if (dma0) {
-			printk(", dma %u", dma0);
+			printk(KERN_CONT ", dma %u", dma0);
 			if (dma1)
-				printk(" and %u", dma1);
+				printk(KERN_CONT " and %u", dma1);
 		}
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 
 	if (iobase == 0) {
 		printk(" io base address required\n");
