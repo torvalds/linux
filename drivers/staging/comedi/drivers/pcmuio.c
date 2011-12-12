@@ -501,7 +501,8 @@ static int pcmuio_dio_insn_bits(struct comedi_device *dev,
 
 #ifdef DAMMIT_ITS_BROKEN
 	/* DEBUG */
-	printk("write mask: %08x  data: %08x\n", data[0], data[1]);
+	dev_dbg(dev->hw_dev, "write mask: %08x  data: %08x\n", data[0],
+		data[1]);
 #endif
 
 	s->state = 0;
@@ -537,7 +538,7 @@ static int pcmuio_dio_insn_bits(struct comedi_device *dev,
 		}
 #ifdef DAMMIT_ITS_BROKEN
 		/* DEBUG */
-		printk("data_out_byte %02x\n", (unsigned)byte);
+		dev_dbg(dev->hw_dev, "data_out_byte %02x\n", (unsigned)byte);
 #endif
 		/* save the digital input lines for this byte.. */
 		s->state |= ((unsigned int)byte) << offset;
@@ -548,7 +549,8 @@ static int pcmuio_dio_insn_bits(struct comedi_device *dev,
 
 #ifdef DAMMIT_ITS_BROKEN
 	/* DEBUG */
-	printk("s->state %08x data_out %08x\n", s->state, data[1]);
+	dev_dbg(dev->hw_dev, "s->state %08x data_out %08x\n", s->state,
+		data[1]);
 #endif
 
 	return 2;
