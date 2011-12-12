@@ -580,15 +580,16 @@ static int das1800_init_dma(struct comedi_device *dev, unsigned int dma0,
 			break;
 		}
 		if (request_dma(dma0, driver_das1800.driver_name)) {
-			printk(" failed to allocate dma channel %i\n", dma0);
+			dev_err(dev->hw_dev, "failed to allocate dma channel %i\n",
+				dma0);
 			return -EINVAL;
 		}
 		devpriv->dma0 = dma0;
 		devpriv->dma_current = dma0;
 		if (dma1) {
 			if (request_dma(dma1, driver_das1800.driver_name)) {
-				printk(" failed to allocate dma channel %i\n",
-				       dma1);
+				dev_err(dev->hw_dev, "failed to allocate dma channel %i\n",
+					dma1);
 				return -EINVAL;
 			}
 			devpriv->dma1 = dma1;
