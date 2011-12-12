@@ -5286,15 +5286,6 @@ alloc:
 		if (unlikely(block_group->ro))
 			goto loop;
 
-		spin_lock(&block_group->free_space_ctl->tree_lock);
-		if (cached &&
-		    block_group->free_space_ctl->free_space <
-		    num_bytes + empty_cluster + empty_size) {
-			spin_unlock(&block_group->free_space_ctl->tree_lock);
-			goto loop;
-		}
-		spin_unlock(&block_group->free_space_ctl->tree_lock);
-
 		/*
 		 * Ok we want to try and use the cluster allocator, so
 		 * lets look there
@@ -5340,8 +5331,15 @@ refill_cluster:
 			 * plenty of times and not have found
 			 * anything, so we are likely way too
 			 * fragmented for the clustering stuff to find
-			 * anything.  */
-			if (loop >= LOOP_NO_EMPTY_SIZE) {
+			 * anything.
+			 *
+			 * However, if the cluster is taken from the
+			 * current block group, release the cluster
+			 * first, so that we stand a better chance of
+			 * succeeding in the unclustered
+			 * allocation.  */
+			if (loop >= LOOP_NO_EMPTY_SIZE &&
+			    last_ptr->block_group != block_group) {
 				spin_unlock(&last_ptr->refill_lock);
 				goto unclustered_alloc;
 			}
@@ -5351,6 +5349,11 @@ refill_cluster:
 			 * start over
 			 */
 			btrfs_return_cluster_to_free_space(NULL, last_ptr);
+
+			if (loop >= LOOP_NO_EMPTY_SIZE) {
+				spin_unlock(&last_ptr->refill_lock);
+				goto unclustered_alloc;
+			}
 
 			/* allocate a cluster in this block group */
 			ret = btrfs_find_space_cluster(trans, root,
@@ -5392,6 +5395,15 @@ refill_cluster:
 		}
 
 unclustered_alloc:
+		spin_lock(&block_group->free_space_ctl->tree_lock);
+		if (cached &&
+		    block_group->free_space_ctl->free_space <
+		    num_bytes + empty_cluster + empty_size) {
+			spin_unlock(&block_group->free_space_ctl->tree_lock);
+			goto loop;
+		}
+		spin_unlock(&block_group->free_space_ctl->tree_lock);
+
 		offset = btrfs_find_space_for_alloc(block_group, search_start,
 						    num_bytes, empty_size);
 		/*
