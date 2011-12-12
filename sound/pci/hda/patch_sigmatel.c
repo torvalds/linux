@@ -4903,7 +4903,7 @@ static void set_hp_led_gpio(struct hda_codec *codec)
  * Need more information on whether it is true across the entire series.
  * -- kunal
  */
-static int find_mute_led_gpio(struct hda_codec *codec, int default_polarity)
+static int find_mute_led_cfg(struct hda_codec *codec, int default_polarity)
 {
 	struct sigmatel_spec *spec = codec->spec;
 	const struct dmi_device *dev = NULL;
@@ -4933,9 +4933,11 @@ static int find_mute_led_gpio(struct hda_codec *codec, int default_polarity)
 
 		/*
 		 * Fallback case - if we don't find the DMI strings,
-		 * we statically set the GPIO - if not a B-series system.
+		 * we statically set the GPIO - if not a B-series system
+		 * and default polarity is provided
 		 */
-		if (!hp_blike_system(codec->subsystem_id)) {
+		if (!hp_blike_system(codec->subsystem_id) &&
+			(default_polarity == 0 || default_polarity == 1)) {
 			set_hp_led_gpio(codec);
 			spec->gpio_led_polarity = default_polarity;
 			return 1;
@@ -5645,7 +5647,7 @@ again:
 
 	codec->patch_ops = stac92xx_patch_ops;
 
-	if (find_mute_led_gpio(codec, 0))
+	if (find_mute_led_cfg(codec, -1/*no default cfg*/))
 		snd_printd("mute LED gpio %d polarity %d\n",
 				spec->gpio_led,
 				spec->gpio_led_polarity);
@@ -5958,7 +5960,7 @@ again:
 		}
 	}
 
-	if (find_mute_led_gpio(codec, 1))
+	if (find_mute_led_cfg(codec, 1))
 		snd_printd("mute LED gpio %d polarity %d\n",
 				spec->gpio_led,
 				spec->gpio_led_polarity);
