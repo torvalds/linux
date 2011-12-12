@@ -2880,9 +2880,8 @@ u32 b43_ntab_read(struct b43_wldev *dev, u32 offset)
 		break;
 	case B43_NTAB_32BIT:
 		b43_phy_write(dev, B43_NPHY_TABLE_ADDR, offset);
-		value = b43_phy_read(dev, B43_NPHY_TABLE_DATAHI);
-		value <<= 16;
-		value |= b43_phy_read(dev, B43_NPHY_TABLE_DATALO);
+		value = b43_phy_read(dev, B43_NPHY_TABLE_DATALO);
+		value |= b43_phy_read(dev, B43_NPHY_TABLE_DATAHI) << 16;
 		break;
 	default:
 		B43_WARN_ON(1);
@@ -2916,9 +2915,10 @@ void b43_ntab_read_bulk(struct b43_wldev *dev, u32 offset,
 			data += 2;
 			break;
 		case B43_NTAB_32BIT:
-			*((u32 *)data) = b43_phy_read(dev, B43_NPHY_TABLE_DATAHI);
-			*((u32 *)data) <<= 16;
-			*((u32 *)data) |= b43_phy_read(dev, B43_NPHY_TABLE_DATALO);
+			*((u32 *)data) =
+				b43_phy_read(dev, B43_NPHY_TABLE_DATALO);
+			*((u32 *)data) |=
+				b43_phy_read(dev, B43_NPHY_TABLE_DATAHI) << 16;
 			data += 4;
 			break;
 		default:
