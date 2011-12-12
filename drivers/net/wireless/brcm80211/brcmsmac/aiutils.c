@@ -321,20 +321,6 @@
 #define	IS_SIM(chippkg)	\
 	((chippkg == HDLSIM_PKG_ID) || (chippkg == HWSIM_PKG_ID))
 
-/*
- * Macros to disable/restore function core(D11, ENET, ILINE20, etc) interrupts
- * before after core switching to avoid invalid register accesss inside ISR.
- */
-#define INTR_OFF(si, intr_val) \
-	if ((si)->intrsoff_fn && \
-	    (si)->coreid[(si)->curidx] == (si)->dev_coreid) \
-		intr_val = (*(si)->intrsoff_fn)((si)->intr_arg)
-
-#define INTR_RESTORE(si, intr_val) \
-	if ((si)->intrsrestore_fn && \
-	    (si)->coreid[(si)->curidx] == (si)->dev_coreid) \
-		(*(si)->intrsrestore_fn)((si)->intr_arg, intr_val)
-
 #define PCI(sih)	(ai_get_buscoretype(sih) == PCI_CORE_ID)
 #define PCIE(sih)	(ai_get_buscoretype(sih) == PCIE_CORE_ID)
 
@@ -870,32 +856,6 @@ void __iomem *ai_setcore(struct si_pub *sih, uint coreid, uint coreunit)
 		return NULL;
 
 	return ai_setcoreidx(sih, core->core_index);
-}
-
-/* Turn off interrupt as required by ai_setcore, before switch core */
-void __iomem *ai_switch_core(struct si_pub *sih, uint coreid, uint *origidx,
-			     uint *intr_val)
-{
-	void __iomem *cc;
-	struct si_info *sii;
-
-	sii = (struct si_info *)sih;
-
-	INTR_OFF(sii, *intr_val);
-	*origidx = sii->curidx;
-	cc = ai_setcore(sih, coreid, 0);
-	return cc;
-}
-
-/* restore coreidx and restore interrupt */
-void ai_restore_core(struct si_pub *sih, uint coreid, uint intr_val)
-{
-	struct si_info *sii;
-
-	sii = (struct si_info *)sih;
-
-	ai_setcoreidx(sih, coreid);
-	INTR_RESTORE(sii, intr_val);
 }
 
 /*

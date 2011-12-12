@@ -234,9 +234,6 @@ extern uint ai_cc_reg(struct si_pub *sih, uint regoff, u32 mask, u32 val);
 extern uint ai_findcoreidx(struct si_pub *sih, uint coreid, uint coreunit);
 extern void __iomem *ai_setcoreidx(struct si_pub *sih, uint coreidx);
 extern void __iomem *ai_setcore(struct si_pub *sih, uint coreid, uint coreunit);
-extern void __iomem *ai_switch_core(struct si_pub *sih, uint coreid,
-				    uint *origidx, uint *intr_val);
-extern void ai_restore_core(struct si_pub *sih, uint coreid, uint intr_val);
 extern void ai_pci_setup(struct si_pub *sih, uint coremask);
 extern void ai_clkctl_init(struct si_pub *sih);
 extern u16 ai_clkctl_fast_pwrup_delay(struct si_pub *sih);

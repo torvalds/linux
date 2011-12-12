@@ -139,11 +139,13 @@ static void si_pmu_res_masks(struct si_pub *sih, u32 * pmin, u32 * pmax)
 	*pmax = max_mask;
 }
 
-static void
-si_pmu_spuravoid_pllupdate(struct si_pub *sih, struct bcma_device *core,
-			   u8 spuravoid)
+void si_pmu_spuravoid_pllupdate(struct si_pub *sih, u8 spuravoid)
 {
 	u32 tmp = 0;
+	struct bcma_device *core;
+
+	/* switch to chipc */
+	core = ai_findcore(sih, BCMA_CORE_CHIPCOMMON, 0);
 
 	switch (ai_get_chip_id(sih)) {
 	case BCM43224_CHIP_ID:
@@ -279,22 +281,6 @@ u32 si_pmu_alp_clock(struct si_pub *sih)
 	}
 
 	return clock;
-}
-
-void si_pmu_spuravoid(struct si_pub *sih, u8 spuravoid)
-{
-	struct bcma_device *cc;
-	uint origidx, intr_val;
-
-	/* switch to chipc */
-	cc = ai_findcore(sih, BCMA_CORE_CHIPCOMMON, 0);
-	ai_switch_core(sih, CC_CORE_ID, &origidx, &intr_val);
-
-	/* update the pll changes */
-	si_pmu_spuravoid_pllupdate(sih, cc, spuravoid);
-
-	/* Return to original core */
-	ai_restore_core(sih, origidx, intr_val);
 }
 
 /* initialize PMU */

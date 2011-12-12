@@ -19447,7 +19447,6 @@ void wlc_phy_init_nphy(struct brcms_phy *pi)
 	u8 tx_pwr_ctrl_state;
 	bool do_nphy_cal = false;
 	uint core;
-	uint origidx, intr_val;
 	u32 d11_clk_ctl_st;
 	bool do_rssi_cal = false;
 
@@ -19469,8 +19468,6 @@ void wlc_phy_init_nphy(struct brcms_phy *pi)
 	if ((pi->nphy_gband_spurwar2_en) && CHSPEC_IS2G(pi->radio_chanspec) &&
 	    CHSPEC_IS40(pi->radio_chanspec)) {
 
-		ai_switch_core(pi->sh->sih, D11_CORE_ID, &origidx, &intr_val);
-
 		d11_clk_ctl_st = bcma_read32(pi->d11core,
 					     D11REGOFFS(clk_ctl_st));
 		bcma_mask32(pi->d11core, D11REGOFFS(clk_ctl_st),
@@ -19478,8 +19475,6 @@ void wlc_phy_init_nphy(struct brcms_phy *pi)
 
 		bcma_write32(pi->d11core, D11REGOFFS(clk_ctl_st),
 			     d11_clk_ctl_st);
-
-		ai_restore_core(pi->sh->sih, origidx, intr_val);
 	}
 
 	pi->use_int_tx_iqlo_cal_nphy =
@@ -21342,7 +21337,7 @@ wlc_phy_chanspec_nphy_setup(struct brcms_phy *pi, u16 chanspec,
 			spuravoid = 1;
 
 		wlapi_bmac_core_phypll_ctl(pi->sh->physhim, false);
-		si_pmu_spuravoid(pi->sh->sih, spuravoid);
+		si_pmu_spuravoid_pllupdate(pi->sh->sih, spuravoid);
 		wlapi_bmac_core_phypll_ctl(pi->sh->physhim, true);
 
 		if ((pi->sh->chip == BCM43224_CHIP_ID) ||
