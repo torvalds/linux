@@ -574,14 +574,14 @@ static int initialize_daqboard2000(struct comedi_device *dev,
 	secr = readl(devpriv->plx + 0x6c);
 	if (!(secr & DAQBOARD2000_EEPROM_PRESENT)) {
 #ifdef DEBUG_EEPROM
-		printk("no serial eeprom\n");
+		dev_dbg(dev->hw_dev, "no serial eeprom\n");
 #endif
 		return -EIO;
 	}
 
 	for (retry = 0; retry < 3; retry++) {
 #ifdef DEBUG_EEPROM
-		printk("Programming EEPROM try %x\n", retry);
+		dev_dbg(dev->hw_dev, "Programming EEPROM try %x\n", retry);
 #endif
 
 		daqboard2000_resetLocalBus(dev);
@@ -592,7 +592,8 @@ static int initialize_daqboard2000(struct comedi_device *dev,
 				if (cpld_array[i] == 0xff
 				    && cpld_array[i + 1] == 0x20) {
 #ifdef DEBUG_EEPROM
-					printk("Preamble found at %d\n", i);
+					dev_dbg(dev->hw_dev, "Preamble found at %d\n",
+						i);
 #endif
 					break;
 				}
@@ -605,7 +606,7 @@ static int initialize_daqboard2000(struct comedi_device *dev,
 			}
 			if (i >= len) {
 #ifdef DEBUG_EEPROM
-				printk("Programmed\n");
+				dev_dbg(dev->hw_dev, "Programmed\n");
 #endif
 				daqboard2000_resetLocalBus(dev);
 				daqboard2000_reloadPLX(dev);
