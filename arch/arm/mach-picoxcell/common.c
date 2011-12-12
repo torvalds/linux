@@ -45,7 +45,7 @@ static void __init picoxcell_init_irq(void)
 
 DT_MACHINE_START(PICOXCELL, "Picochip picoXcell")
 	.map_io		= picoxcell_map_io,
-	.nr_irqs	= ARCH_NR_IRQS,
+	.nr_irqs	= NR_IRQS_LEGACY,
 	.init_irq	= picoxcell_init_irq,
 	.handle_irq	= vic_handle_irq,
 	.timer		= &picoxcell_timer,

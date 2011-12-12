@@ -650,6 +650,7 @@ config ARCH_PICOXCELL
 	select HAVE_SCHED_CLOCK
 	select HAVE_TCM
 	select NO_IOPORT
+	select SPARSE_IRQ
 	select USE_OF
 	help
 	  This enables support for systems based on the Picochip picoXcell
