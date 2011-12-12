@@ -27,6 +27,8 @@
 #include "wl12xx.h"
 #include "event.h"
 
+struct wl1271_tx_hw_descr;
+
 /* The maximum number of Tx descriptors in all chip families */
 #define WLCORE_MAX_TX_DESCRIPTORS 32
 
@@ -36,6 +38,9 @@ struct wlcore_ops {
 	void (*trigger_cmd)(struct wl1271 *wl);
 	void (*ack_event)(struct wl1271 *wl);
 	u32 (*calc_tx_blocks)(struct wl1271 *wl, u32 len, u32 spare_blks);
+	void (*set_tx_desc_blocks)(struct wl1271 *wl,
+				   struct wl1271_tx_hw_descr *desc,
+				   u32 blks, u32 spare_blks);
 	s8 (*get_pg_ver)(struct wl1271 *wl);
 	void (*get_mac)(struct wl1271 *wl);
 };

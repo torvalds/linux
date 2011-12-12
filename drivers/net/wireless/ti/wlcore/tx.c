@@ -213,13 +213,8 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		desc = (struct wl1271_tx_hw_descr *)skb_push(
 			skb, total_len - skb->len);
 
-		/* HW descriptor fields change between wl127x and wl128x */
-		if (wl->chip.id == CHIP_ID_1283_PG20) {
-			desc->wl128x_mem.total_mem_blocks = total_blocks;
-		} else {
-			desc->wl127x_mem.extra_blocks = spare_blocks;
-			desc->wl127x_mem.total_mem_blocks = total_blocks;
-		}
+		wlcore_hw_set_tx_desc_blocks(wl, desc, total_blocks,
+					     spare_blocks);
 
 		desc->id = id;
 

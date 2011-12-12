@@ -33,4 +33,14 @@ wlcore_hw_calc_tx_blocks(struct wl1271 *wl, u32 len, u32 spare_blks)
 	return wl->ops->calc_tx_blocks(wl, len, spare_blks);
 }
 
+static inline void
+wlcore_hw_set_tx_desc_blocks(struct wl1271 *wl, struct wl1271_tx_hw_descr *desc,
+			     u32 blks, u32 spare_blks)
+{
+	if (!wl->ops->set_tx_desc_blocks)
+		BUG_ON(1);
+
+	return wl->ops->set_tx_desc_blocks(wl, desc, blks, spare_blks);
+}
+
 #endif

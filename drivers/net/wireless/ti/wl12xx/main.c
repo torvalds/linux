@@ -597,6 +597,18 @@ static u32 wl12xx_calc_tx_blocks(struct wl1271 *wl, u32 len, u32 spare_blks)
 	return (align_len + blk_size - 1) / blk_size + spare_blks;
 }
 
+static void
+wl12xx_set_tx_desc_blocks(struct wl1271 *wl, struct wl1271_tx_hw_descr *desc,
+			  u32 blks, u32 spare_blks)
+{
+	if (wl->chip.id == CHIP_ID_1283_PG20) {
+		desc->wl128x_mem.total_mem_blocks = blks;
+	} else {
+		desc->wl127x_mem.extra_blocks = spare_blks;
+		desc->wl127x_mem.total_mem_blocks = blks;
+	}
+}
+
 static bool wl12xx_mac_in_fuse(struct wl1271 *wl)
 {
 	bool supported = false;
@@ -661,13 +673,14 @@ static void wl12xx_get_mac(struct wl1271 *wl)
 }
 
 static struct wlcore_ops wl12xx_ops = {
-	.identify_chip	= wl12xx_identify_chip,
-	.boot		= wl12xx_boot,
-	.trigger_cmd	= wl12xx_trigger_cmd,
-	.ack_event	= wl12xx_ack_event,
-	.calc_tx_blocks = wl12xx_calc_tx_blocks,
-	.get_pg_ver	= wl12xx_get_pg_ver,
-	.get_mac	= wl12xx_get_mac,
+	.identify_chip		= wl12xx_identify_chip,
+	.boot			= wl12xx_boot,
+	.trigger_cmd		= wl12xx_trigger_cmd,
+	.ack_event		= wl12xx_ack_event,
+	.calc_tx_blocks		= wl12xx_calc_tx_blocks,
+	.set_tx_desc_blocks	= wl12xx_set_tx_desc_blocks,
+	.get_pg_ver		= wl12xx_get_pg_ver,
+	.get_mac		= wl12xx_get_mac,
 };
 
 struct wl12xx_priv {
