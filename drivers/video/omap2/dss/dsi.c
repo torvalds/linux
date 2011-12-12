@@ -1734,17 +1734,19 @@ static void dsi_dump_dsidev_clocks(struct platform_device *dsidev,
 	seq_printf(s,	"CLKIN4DDR\t%-16luregm %u\n",
 			cinfo->clkin4ddr, cinfo->regm);
 
-	seq_printf(s,	"%s (%s)\t%-16luregm_dispc %u\t(%s)\n",
-			dss_get_generic_clk_source_name(dispc_clk_src),
-			dss_feat_get_clk_source_name(dispc_clk_src),
+	seq_printf(s,	"DSI_PLL_HSDIV_DISPC (%s)\t%-16luregm_dispc %u\t(%s)\n",
+			dss_feat_get_clk_source_name(dsi_module == 0 ?
+				OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC :
+				OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC),
 			cinfo->dsi_pll_hsdiv_dispc_clk,
 			cinfo->regm_dispc,
 			dispc_clk_src == OMAP_DSS_CLK_SRC_FCK ?
 			"off" : "on");
 
-	seq_printf(s,	"%s (%s)\t%-16luregm_dsi %u\t(%s)\n",
-			dss_get_generic_clk_source_name(dsi_clk_src),
-			dss_feat_get_clk_source_name(dsi_clk_src),
+	seq_printf(s,	"DSI_PLL_HSDIV_DSI (%s)\t%-16luregm_dsi %u\t(%s)\n",
+			dss_feat_get_clk_source_name(dsi_module == 0 ?
+				OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI :
+				OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DSI),
 			cinfo->dsi_pll_hsdiv_dsi_clk,
 			cinfo->regm_dsi,
 			dsi_clk_src == OMAP_DSS_CLK_SRC_FCK ?
