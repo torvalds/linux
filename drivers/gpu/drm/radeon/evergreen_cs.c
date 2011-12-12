@@ -38,6 +38,7 @@ struct evergreen_cs_track {
 	u32			group_size;
 	u32			nbanks;
 	u32			npipes;
+	u32			row_size;
 	/* value we track */
 	u32			nsamples;
 	u32			cb_color_base_last[12];
@@ -76,6 +77,44 @@ struct evergreen_cs_track {
 	struct radeon_bo	*db_s_read_bo;
 	struct radeon_bo	*db_s_write_bo;
 };
+
+static u32 evergreen_cs_get_aray_mode(u32 tiling_flags)
+{
+	if (tiling_flags & RADEON_TILING_MACRO)
+		return ARRAY_2D_TILED_THIN1;
+	else if (tiling_flags & RADEON_TILING_MICRO)
+		return ARRAY_1D_TILED_THIN1;
+	else
+		return ARRAY_LINEAR_GENERAL;
+}
+
+static u32 evergreen_cs_get_num_banks(u32 nbanks)
+{
+	switch (nbanks) {
+	case 2:
+		return ADDR_SURF_2_BANK;
+	case 4:
+		return ADDR_SURF_4_BANK;
+	case 8:
+	default:
+		return ADDR_SURF_8_BANK;
+	case 16:
+		return ADDR_SURF_16_BANK;
+	}
+}
+
+static u32 evergreen_cs_get_tile_split(u32 row_size)
+{
+	switch (row_size) {
+	case 1:
+	default:
+		return ADDR_SURF_TILE_SPLIT_1KB;
+	case 2:
+		return ADDR_SURF_TILE_SPLIT_2KB;
+	case 4:
+		return ADDR_SURF_TILE_SPLIT_4KB;
+	}
+}
 
 static void evergreen_cs_track_init(struct evergreen_cs_track *track)
 {
@@ -490,12 +529,11 @@ static int evergreen_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 			}
 			ib[idx] &= ~Z_ARRAY_MODE(0xf);
 			track->db_z_info &= ~Z_ARRAY_MODE(0xf);
+			ib[idx] |= Z_ARRAY_MODE(evergreen_cs_get_aray_mode(reloc->lobj.tiling_flags));
+			track->db_z_info |= Z_ARRAY_MODE(evergreen_cs_get_aray_mode(reloc->lobj.tiling_flags));
 			if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO) {
-				ib[idx] |= Z_ARRAY_MODE(ARRAY_2D_TILED_THIN1);
-				track->db_z_info |= Z_ARRAY_MODE(ARRAY_2D_TILED_THIN1);
-			} else {
-				ib[idx] |= Z_ARRAY_MODE(ARRAY_1D_TILED_THIN1);
-				track->db_z_info |= Z_ARRAY_MODE(ARRAY_1D_TILED_THIN1);
+				ib[idx] |= DB_NUM_BANKS(evergreen_cs_get_num_banks(track->nbanks));
+				ib[idx] |= DB_TILE_SPLIT(evergreen_cs_get_tile_split(track->row_size));
 			}
 		}
 		break;
@@ -618,13 +656,8 @@ static int evergreen_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 						"0x%04X\n", reg);
 				return -EINVAL;
 			}
-			if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO) {
-				ib[idx] |= CB_ARRAY_MODE(ARRAY_2D_TILED_THIN1);
-				track->cb_color_info[tmp] |= CB_ARRAY_MODE(ARRAY_2D_TILED_THIN1);
-			} else if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO) {
-				ib[idx] |= CB_ARRAY_MODE(ARRAY_1D_TILED_THIN1);
-				track->cb_color_info[tmp] |= CB_ARRAY_MODE(ARRAY_1D_TILED_THIN1);
-			}
+			ib[idx] |= CB_ARRAY_MODE(evergreen_cs_get_aray_mode(reloc->lobj.tiling_flags));
+			track->cb_color_info[tmp] |= CB_ARRAY_MODE(evergreen_cs_get_aray_mode(reloc->lobj.tiling_flags));
 		}
 		break;
 	case CB_COLOR8_INFO:
@@ -640,13 +673,8 @@ static int evergreen_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 						"0x%04X\n", reg);
 				return -EINVAL;
 			}
-			if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO) {
-				ib[idx] |= CB_ARRAY_MODE(ARRAY_2D_TILED_THIN1);
-				track->cb_color_info[tmp] |= CB_ARRAY_MODE(ARRAY_2D_TILED_THIN1);
-			} else if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO) {
-				ib[idx] |= CB_ARRAY_MODE(ARRAY_1D_TILED_THIN1);
-				track->cb_color_info[tmp] |= CB_ARRAY_MODE(ARRAY_1D_TILED_THIN1);
-			}
+			ib[idx] |= CB_ARRAY_MODE(evergreen_cs_get_aray_mode(reloc->lobj.tiling_flags));
+			track->cb_color_info[tmp] |= CB_ARRAY_MODE(evergreen_cs_get_aray_mode(reloc->lobj.tiling_flags));
 		}
 		break;
 	case CB_COLOR0_PITCH:
@@ -701,6 +729,16 @@ static int evergreen_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 	case CB_COLOR9_ATTRIB:
 	case CB_COLOR10_ATTRIB:
 	case CB_COLOR11_ATTRIB:
+		r = evergreen_cs_packet_next_reloc(p, &reloc);
+		if (r) {
+			dev_warn(p->dev, "bad SET_CONTEXT_REG "
+					"0x%04X\n", reg);
+			return -EINVAL;
+		}
+		if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO) {
+			ib[idx] |= CB_NUM_BANKS(evergreen_cs_get_num_banks(track->nbanks));
+			ib[idx] |= CB_TILE_SPLIT(evergreen_cs_get_tile_split(track->row_size));
+		}
 		break;
 	case CB_COLOR0_DIM:
 	case CB_COLOR1_DIM:
@@ -1318,10 +1356,14 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 				}
 				ib[idx+1+(i*8)+2] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
 				if (!p->keep_tiling_flags) {
-					if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
-						ib[idx+1+(i*8)+1] |= TEX_ARRAY_MODE(ARRAY_2D_TILED_THIN1);
-					else if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
-						ib[idx+1+(i*8)+1] |= TEX_ARRAY_MODE(ARRAY_1D_TILED_THIN1);
+					ib[idx+1+(i*8)+1] |=
+						TEX_ARRAY_MODE(evergreen_cs_get_aray_mode(reloc->lobj.tiling_flags));
+					if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO) {
+						ib[idx+1+(i*8)+6] |=
+							TEX_TILE_SPLIT(evergreen_cs_get_tile_split(track->row_size));
+						ib[idx+1+(i*8)+7] |=
+							TEX_NUM_BANKS(evergreen_cs_get_num_banks(track->nbanks));
+					}
 				}
 				texture = reloc->robj;
 				/* tex mip base */
@@ -1422,6 +1464,7 @@ int evergreen_cs_parse(struct radeon_cs_parser *p)
 {
 	struct radeon_cs_packet pkt;
 	struct evergreen_cs_track *track;
+	u32 tmp;
 	int r;
 
 	if (p->track == NULL) {
@@ -1430,9 +1473,63 @@ int evergreen_cs_parse(struct radeon_cs_parser *p)
 		if (track == NULL)
 			return -ENOMEM;
 		evergreen_cs_track_init(track);
-		track->npipes = p->rdev->config.evergreen.tiling_npipes;
-		track->nbanks = p->rdev->config.evergreen.tiling_nbanks;
-		track->group_size = p->rdev->config.evergreen.tiling_group_size;
+		if (p->rdev->family >= CHIP_CAYMAN)
+			tmp = p->rdev->config.cayman.tile_config;
+		else
+			tmp = p->rdev->config.evergreen.tile_config;
+
+		switch (tmp & 0xf) {
+		case 0:
+			track->npipes = 1;
+			break;
+		case 1:
+		default:
+			track->npipes = 2;
+			break;
+		case 2:
+			track->npipes = 4;
+			break;
+		case 3:
+			track->npipes = 8;
+			break;
+		}
+
+		switch ((tmp & 0xf0) >> 4) {
+		case 0:
+			track->nbanks = 4;
+			break;
+		case 1:
+		default:
+			track->nbanks = 8;
+			break;
+		case 2:
+			track->nbanks = 16;
+			break;
+		}
+
+		switch ((tmp & 0xf00) >> 8) {
+		case 0:
+			track->group_size = 256;
+			break;
+		case 1:
+		default:
+			track->group_size = 512;
+			break;
+		}
+
+		switch ((tmp & 0xf000) >> 12) {
+		case 0:
+			track->row_size = 1;
+			break;
+		case 1:
+		default:
+			track->row_size = 2;
+			break;
+		case 2:
+			track->row_size = 4;
+			break;
+		}
+
 		p->track = track;
 	}
 	do {

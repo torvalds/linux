@@ -1,10 +1,9 @@
 /**
- * io.h - DesignWare USB3 DRD IO Header
+ * host.c - DesignWare USB3 DRD Controller Host Glue
  *
- * Copyright (C) 2010-2011 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com
  *
  * Authors: Felipe Balbi <balbi@ti.com>,
- *	    Sebastian Andrzej Siewior <bigeasy@linutronix.de>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,19 +35,68 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __DRIVERS_USB_DWC3_IO_H
-#define __DRIVERS_USB_DWC3_IO_H
+#include <linux/platform_device.h>
 
-#include <linux/io.h>
+#include "core.h"
 
-static inline u32 dwc3_readl(void __iomem *base, u32 offset)
+static struct resource generic_resources[] = {
+	{
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.flags = IORESOURCE_MEM,
+	},
+};
+
+int dwc3_host_init(struct dwc3 *dwc)
 {
-	return readl(base + offset);
+	struct platform_device	*xhci;
+	int			ret;
+
+	xhci = platform_device_alloc("xhci", -1);
+	if (!xhci) {
+		dev_err(dwc->dev, "couldn't allocate xHCI device\n");
+		ret = -ENOMEM;
+		goto err0;
+	}
+
+	dma_set_coherent_mask(&xhci->dev, dwc->dev->coherent_dma_mask);
+
+	xhci->dev.parent	= dwc->dev;
+	xhci->dev.dma_mask	= dwc->dev->dma_mask;
+	xhci->dev.dma_parms	= dwc->dev->dma_parms;
+
+	dwc->xhci = xhci;
+
+	/* setup resources */
+	generic_resources[0].start = dwc->irq;
+
+	generic_resources[1].start = dwc->res->start;
+	generic_resources[1].end = dwc->res->start + 0x7fff;
+
+	ret = platform_device_add_resources(xhci, generic_resources,
+			ARRAY_SIZE(generic_resources));
+	if (ret) {
+		dev_err(dwc->dev, "couldn't add resources to xHCI device\n");
+		goto err1;
+	}
+
+	ret = platform_device_add(xhci);
+	if (ret) {
+		dev_err(dwc->dev, "failed to register xHCI device\n");
+		goto err1;
+	}
+
+	return 0;
+
+err1:
+	platform_device_put(xhci);
+
+err0:
+	return ret;
 }
 
-static inline void dwc3_writel(void __iomem *base, u32 offset, u32 value)
+void dwc3_host_exit(struct dwc3 *dwc)
 {
-	writel(value, base + offset);
+	platform_device_unregister(dwc->xhci);
 }
-
-#endif /* __DRIVERS_USB_DWC3_IO_H */
