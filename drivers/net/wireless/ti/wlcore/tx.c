@@ -905,6 +905,7 @@ void wl1271_tx_complete(struct wl1271 *wl)
 		wl->tx_results_count++;
 	}
 }
+EXPORT_SYMBOL(wl1271_tx_complete);
 
 void wl1271_tx_reset_link_queues(struct wl1271 *wl, u8 hlid)
 {

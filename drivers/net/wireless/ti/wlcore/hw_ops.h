@@ -81,4 +81,16 @@ wlcore_hw_get_rx_packet_len(struct wl1271 *wl, void *rx_data, u32 data_len)
 	return wl->ops->get_rx_packet_len(wl, rx_data, data_len);
 }
 
+static inline void wlcore_hw_tx_delayed_compl(struct wl1271 *wl)
+{
+	if (wl->ops->tx_delayed_compl)
+		wl->ops->tx_delayed_compl(wl);
+}
+
+static inline void wlcore_hw_tx_immediate_compl(struct wl1271 *wl)
+{
+	if (wl->ops->tx_immediate_compl)
+		wl->ops->tx_immediate_compl(wl);
+}
+
 #endif

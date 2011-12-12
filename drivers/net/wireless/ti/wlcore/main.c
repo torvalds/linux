@@ -49,6 +49,7 @@
 #include "boot.h"
 #include "testmode.h"
 #include "scan.h"
+#include "hw_ops.h"
 
 #define WL1271_BOOT_RETRIES 3
 
@@ -933,6 +934,9 @@ static irqreturn_t wl1271_irq(int irq, void *cookie)
 		smp_mb__after_clear_bit();
 
 		wl12xx_fw_status(wl, wl->fw_status);
+
+		wlcore_hw_tx_immediate_compl(wl);
+
 		intr = le32_to_cpu(wl->fw_status->intr);
 		intr &= WL1271_INTR_MASK;
 		if (!intr) {
@@ -969,9 +973,7 @@ static irqreturn_t wl1271_irq(int irq, void *cookie)
 			}
 
 			/* check for tx results */
-			if (wl->fw_status->tx_results_counter !=
-			    (wl->tx_results_count & 0xff))
-				wl1271_tx_complete(wl);
+			wlcore_hw_tx_delayed_compl(wl);
 
 			/* Make sure the deferred queues don't get too long */
 			defer_count = skb_queue_len(&wl->deferred_tx_queue) +

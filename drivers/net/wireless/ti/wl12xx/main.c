@@ -789,6 +789,14 @@ static u32 wl12xx_get_rx_packet_len(struct wl1271 *wl, void *rx_data,
 	return data_len - sizeof(*desc) - desc->pad_len;
 }
 
+static void wl12xx_tx_delayed_compl(struct wl1271 *wl)
+{
+	if (wl->fw_status->tx_results_counter == (wl->tx_results_count & 0xff))
+		return;
+
+	wl1271_tx_complete(wl);
+}
+
 static bool wl12xx_mac_in_fuse(struct wl1271 *wl)
 {
 	bool supported = false;
@@ -862,6 +870,8 @@ static struct wlcore_ops wl12xx_ops = {
 	.set_tx_desc_data_len	= wl12xx_set_tx_desc_data_len,
 	.get_rx_buf_align	= wl12xx_get_rx_buf_align,
 	.get_rx_packet_len	= wl12xx_get_rx_packet_len,
+	.tx_immediate_compl	= NULL,
+	.tx_delayed_compl	= wl12xx_tx_delayed_compl,
 	.get_pg_ver		= wl12xx_get_pg_ver,
 	.get_mac		= wl12xx_get_mac,
 };
