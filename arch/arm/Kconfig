@@ -340,12 +340,12 @@ config ARCH_HIGHBANK
 	select ARM_AMBA
 	select ARM_GIC
 	select ARM_TIMER_SP804
+	select CACHE_L2X0
 	select CLKDEV_LOOKUP
 	select CPU_V7
 	select GENERIC_CLOCKEVENTS
 	select HAVE_ARM_SCU
 	select HAVE_SMP
-	select MIGHT_HAVE_CACHE_L2X0
 	select USE_OF
 	help
 	  Support for the Calxeda Highbank SoC based boards.
