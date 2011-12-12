@@ -295,15 +295,15 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	irq[0] = it->options[1];
 	irq[1] = it->options[2];
 
-	printk("comedi%d: %s: io: %lx ", dev->minor, driver.driver_name,
-	       iobase);
+	dev_dbg(dev->hw_dev, "comedi%d: %s: io: %lx attached\n", dev->minor,
+		driver.driver_name, iobase);
 
 	dev->iobase = iobase;
 
 	if (!iobase || !request_region(iobase,
 				       thisboard->num_asics * ASIC_IOSIZE,
 				       driver.driver_name)) {
-		printk("I/O port conflict\n");
+		dev_err(dev->hw_dev, "I/O port conflict\n");
 		return -EIO;
 	}
 
@@ -318,7 +318,7 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
  * convenient macro defined in comedidev.h.
  */
 	if (alloc_private(dev, sizeof(struct pcmuio_private)) < 0) {
-		printk("cannot allocate private data structure\n");
+		dev_warn(dev->hw_dev, "cannot allocate private data structure\n");
 		return -ENOMEM;
 	}
 
@@ -337,7 +337,7 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	    kcalloc(n_subdevs, sizeof(struct pcmuio_subdev_private),
 		    GFP_KERNEL);
 	if (!devpriv->sprivs) {
-		printk("cannot allocate subdevice private data structures\n");
+		dev_warn(dev->hw_dev, "cannot allocate subdevice private data structures\n");
 		return -ENOMEM;
 	}
 	/*
@@ -348,7 +348,7 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	 * 96-channel version of the board.
 	 */
 	if (alloc_subdevices(dev, n_subdevs) < 0) {
-		printk("cannot allocate subdevice data structures\n");
+		dev_dbg(dev->hw_dev, "cannot allocate subdevice data structures\n");
 		return -ENOMEM;
 	}
 
