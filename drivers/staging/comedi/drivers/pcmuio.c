@@ -436,14 +436,13 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				   irqs.. */
 
 	if (irq[0]) {
-		printk("irq: %u ", irq[0]);
+		dev_dbg(dev->hw_dev, "irq: %u\n", irq[0]);
 		if (irq[1] && thisboard->num_asics == 2)
-			printk("second ASIC irq: %u ", irq[1]);
+			dev_dbg(dev->hw_dev, "second ASIC irq: %u\n", irq[1]);
 	} else {
-		printk("(IRQ mode disabled) ");
+		dev_dbg(dev->hw_dev, "(IRQ mode disabled)\n");
 	}
 
-	printk("attached\n");
 
 	return 1;
 }
@@ -460,7 +459,8 @@ static int pcmuio_detach(struct comedi_device *dev)
 {
 	int i;
 
-	printk("comedi%d: %s: remove\n", dev->minor, driver.driver_name);
+	dev_dbg(dev->hw_dev, "comedi%d: %s: remove\n", dev->minor,
+		driver.driver_name);
 	if (dev->iobase)
 		release_region(dev->iobase, ASIC_IOSIZE * thisboard->num_asics);
 
