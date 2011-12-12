@@ -219,6 +219,8 @@ struct si_info {
 
 
 /* AMBA Interconnect exported externs */
+extern struct bcma_device *ai_findcore(struct si_pub *sih,
+				       u16 coreid, u16 coreunit);
 extern uint ai_coreidx(struct si_pub *sih);
 extern uint ai_corerev(struct si_pub *sih);
 extern u32 ai_core_cflags(struct bcma_device *core, u32 mask, u32 val);

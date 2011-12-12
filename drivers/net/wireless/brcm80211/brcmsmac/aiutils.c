@@ -884,7 +884,7 @@ uint ai_coreidx(struct si_pub *sih)
 }
 
 /* return index of coreid or BADIDX if not found */
-uint ai_findcoreidx(struct si_pub *sih, uint coreid, uint coreunit)
+struct bcma_device *ai_findcore(struct si_pub *sih, u16 coreid, u16 coreunit)
 {
 	struct bcma_device *core;
 	struct si_info *sii;
@@ -897,11 +897,11 @@ uint ai_findcoreidx(struct si_pub *sih, uint coreid, uint coreunit)
 	list_for_each_entry(core, &sii->icbus->cores, list)
 		if (core->id.id == coreid) {
 			if (found == coreunit)
-				return core->core_index;
+				return core;
 			found++;
 		}
 
-	return BADIDX;
+	return NULL;
 }
 
 /*
@@ -912,13 +912,13 @@ uint ai_findcoreidx(struct si_pub *sih, uint coreid, uint coreunit)
  */
 void __iomem *ai_setcore(struct si_pub *sih, uint coreid, uint coreunit)
 {
-	uint idx;
+	struct bcma_device *core;
 
-	idx = ai_findcoreidx(sih, coreid, coreunit);
-	if (idx >= SI_MAXCORES)
+	core = ai_findcore(sih, coreid, coreunit);
+	if (core == NULL)
 		return NULL;
 
-	return ai_setcoreidx(sih, idx);
+	return ai_setcoreidx(sih, core->core_index);
 }
 
 /* Turn off interrupt as required by ai_setcore, before switch core */
