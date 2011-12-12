@@ -432,7 +432,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 {
 	char callchain_default_opt[] = "fractal,0.5,callee";
 	const char * const report_usage[] = {
-		"perf report [<options>] <command>",
+		"perf report [<options>]",
 		NULL
 	};
 	struct perf_report report = {
