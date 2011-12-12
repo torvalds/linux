@@ -814,13 +814,14 @@ int perf_event__preprocess_sample(const union perf_event *event,
 	al->cpu = sample->cpu;
 
 	if (al->map) {
+		struct dso *dso = al->map->dso;
+
 		if (symbol_conf.dso_list &&
-		    (!al->map || !al->map->dso ||
-		     !(strlist__has_entry(symbol_conf.dso_list,
-					  al->map->dso->short_name) ||
-		       (al->map->dso->short_name != al->map->dso->long_name &&
-			strlist__has_entry(symbol_conf.dso_list,
-					   al->map->dso->long_name)))))
+		    (!dso || !(strlist__has_entry(symbol_conf.dso_list,
+						  dso->short_name) ||
+			       (dso->short_name != dso->long_name &&
+				strlist__has_entry(symbol_conf.dso_list,
+						   dso->long_name)))))
 			goto out_filtered;
 
 		al->sym = map__find_symbol(al->map, al->addr, filter);
