@@ -570,12 +570,6 @@ static __devinit int s3c_pcm_dev_probe(struct platform_device *pdev)
 	}
 	clk_enable(pcm->pclk);
 
-	ret = snd_soc_register_dai(&pdev->dev, &s3c_pcm_dai[pdev->id]);
-	if (ret != 0) {
-		dev_err(&pdev->dev, "failed to get pcm_clock\n");
-		goto err5;
-	}
-
 	s3c_pcm_stereo_in[pdev->id].dma_addr = mem_res->start
 							+ S3C_PCM_RXFIFO;
 	s3c_pcm_stereo_out[pdev->id].dma_addr = mem_res->start
@@ -586,6 +580,12 @@ static __devinit int s3c_pcm_dev_probe(struct platform_device *pdev)
 
 	pcm->dma_capture = &s3c_pcm_stereo_in[pdev->id];
 	pcm->dma_playback = &s3c_pcm_stereo_out[pdev->id];
+
+	ret = snd_soc_register_dai(&pdev->dev, &s3c_pcm_dai[pdev->id]);
+	if (ret != 0) {
+		dev_err(&pdev->dev, "failed to get register DAI: %d\n", ret);
+		goto err5;
+	}
 
 	return 0;
 
