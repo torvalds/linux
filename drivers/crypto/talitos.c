@@ -234,7 +234,7 @@ static int reset_device(struct device *dev)
 	       && --timeout)
 		cpu_relax();
 
-	if (priv->irq[1] != NO_IRQ) {
+	if (priv->irq[1]) {
 		mcr = TALITOS_MCR_RCA1 | TALITOS_MCR_RCA3;
 		setbits32(priv->reg + TALITOS_MCR, mcr);
 	}
@@ -2581,13 +2581,13 @@ static int talitos_remove(struct platform_device *ofdev)
 	kfree(priv->chan);
 
 	for (i = 0; i < 2; i++)
-		if (priv->irq[i] != NO_IRQ) {
+		if (priv->irq[i]) {
 			free_irq(priv->irq[i], dev);
 			irq_dispose_mapping(priv->irq[i]);
 		}
 
 	tasklet_kill(&priv->done_task[0]);
-	if (priv->irq[1] != NO_IRQ)
+	if (priv->irq[1])
 		tasklet_kill(&priv->done_task[1]);
 
 	iounmap(priv->reg);
@@ -2663,7 +2663,7 @@ static int talitos_probe_irq(struct platform_device *ofdev)
 	int err;
 
 	priv->irq[0] = irq_of_parse_and_map(np, 0);
-	if (priv->irq[0] == NO_IRQ) {
+	if (!priv->irq[0]) {
 		dev_err(dev, "failed to map irq\n");
 		return -EINVAL;
 	}
@@ -2671,7 +2671,7 @@ static int talitos_probe_irq(struct platform_device *ofdev)
 	priv->irq[1] = irq_of_parse_and_map(np, 1);
 
 	/* get the primary irq line */
-	if (priv->irq[1] == NO_IRQ) {
+	if (!priv->irq[1]) {
 		err = request_irq(priv->irq[0], talitos_interrupt_4ch, 0,
 				  dev_driver_string(dev), dev);
 		goto primary_out;
@@ -2688,7 +2688,7 @@ static int talitos_probe_irq(struct platform_device *ofdev)
 	if (err) {
 		dev_err(dev, "failed to request secondary irq\n");
 		irq_dispose_mapping(priv->irq[1]);
-		priv->irq[1] = NO_IRQ;
+		priv->irq[1] = 0;
 	}
 
 	return err;
@@ -2697,7 +2697,7 @@ primary_out:
 	if (err) {
 		dev_err(dev, "failed to request primary irq\n");
 		irq_dispose_mapping(priv->irq[0]);
-		priv->irq[0] = NO_IRQ;
+		priv->irq[0] = 0;
 	}
 
 	return err;
@@ -2723,7 +2723,7 @@ static int talitos_probe(struct platform_device *ofdev)
 	if (err)
 		goto err_out;
 
-	if (priv->irq[1] == NO_IRQ) {
+	if (!priv->irq[1]) {
 		tasklet_init(&priv->done_task[0], talitos_done_4ch,
 			     (unsigned long)dev);
 	} else {
@@ -2784,7 +2784,7 @@ static int talitos_probe(struct platform_device *ofdev)
 
 	for (i = 0; i < priv->num_channels; i++) {
 		priv->chan[i].reg = priv->reg + TALITOS_CH_STRIDE * (i + 1);
-		if ((priv->irq[1] == NO_IRQ) || !(i & 1))
+		if (!priv->irq[1] || !(i & 1))
 			priv->chan[i].reg += TALITOS_CH_BASE_OFFSET;
 	}
 
