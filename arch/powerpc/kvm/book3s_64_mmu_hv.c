@@ -184,6 +184,44 @@ static int kvmppc_mmu_book3s_64_hv_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 	return -ENOENT;
 }
 
+void *kvmppc_pin_guest_page(struct kvm *kvm, unsigned long gpa,
+			    unsigned long *nb_ret)
+{
+	struct kvm_memory_slot *memslot;
+	unsigned long gfn = gpa >> PAGE_SHIFT;
+	struct page *page;
+	unsigned long offset;
+	unsigned long pfn, pa;
+	unsigned long *physp;
+
+	memslot = gfn_to_memslot(kvm, gfn);
+	if (!memslot || (memslot->flags & KVM_MEMSLOT_INVALID))
+		return NULL;
+	physp = kvm->arch.slot_phys[memslot->id];
+	if (!physp)
+		return NULL;
+	physp += (gfn - memslot->base_gfn) >>
+		(kvm->arch.ram_porder - PAGE_SHIFT);
+	pa = *physp;
+	if (!pa)
+		return NULL;
+	pfn = pa >> PAGE_SHIFT;
+	page = pfn_to_page(pfn);
+	get_page(page);
+	offset = gpa & (kvm->arch.ram_psize - 1);
+	if (nb_ret)
+		*nb_ret = kvm->arch.ram_psize - offset;
+	return page_address(page) + offset;
+}
+
+void kvmppc_unpin_guest_page(struct kvm *kvm, void *va)
+{
+	struct page *page = virt_to_page(va);
+
+	page = compound_head(page);
+	put_page(page);
+}
+
 void kvmppc_mmu_book3s_hv_init(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_mmu *mmu = &vcpu->arch.mmu;

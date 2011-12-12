@@ -139,12 +139,10 @@ static unsigned long do_h_register_vpa(struct kvm_vcpu *vcpu,
 				       unsigned long vcpuid, unsigned long vpa)
 {
 	struct kvm *kvm = vcpu->kvm;
-	unsigned long gfn, pg_index, ra, len;
-	unsigned long pg_offset;
+	unsigned long len, nb;
 	void *va;
 	struct kvm_vcpu *tvcpu;
-	struct kvm_memory_slot *memslot;
-	unsigned long *physp;
+	int err = H_PARAMETER;
 
 	tvcpu = kvmppc_find_vcpu(kvm, vcpuid);
 	if (!tvcpu)
@@ -157,51 +155,41 @@ static unsigned long do_h_register_vpa(struct kvm_vcpu *vcpu,
 	if (flags < 4) {
 		if (vpa & 0x7f)
 			return H_PARAMETER;
+		if (flags >= 2 && !tvcpu->arch.vpa)
+			return H_RESOURCE;
 		/* registering new area; convert logical addr to real */
-		gfn = vpa >> PAGE_SHIFT;
-		memslot = gfn_to_memslot(kvm, gfn);
-		if (!memslot || !(memslot->flags & KVM_MEMSLOT_INVALID))
+		va = kvmppc_pin_guest_page(kvm, vpa, &nb);
+		if (va == NULL)
 			return H_PARAMETER;
-		physp = kvm->arch.slot_phys[memslot->id];
-		if (!physp)
-			return H_PARAMETER;
-		pg_index = (gfn - memslot->base_gfn) >>
-			(kvm->arch.ram_porder - PAGE_SHIFT);
-		pg_offset = vpa & (kvm->arch.ram_psize - 1);
-		ra = physp[pg_index];
-		if (!ra)
-			return H_PARAMETER;
-		ra = (ra & PAGE_MASK) | pg_offset;
-		va = __va(ra);
 		if (flags <= 1)
 			len = *(unsigned short *)(va + 4);
 		else
 			len = *(unsigned int *)(va + 4);
-		if (pg_offset + len > kvm->arch.ram_psize)
-			return H_PARAMETER;
+		if (len > nb)
+			goto out_unpin;
 		switch (flags) {
 		case 1:		/* register VPA */
 			if (len < 640)
-				return H_PARAMETER;
+				goto out_unpin;
+			if (tvcpu->arch.vpa)
+				kvmppc_unpin_guest_page(kvm, vcpu->arch.vpa);
 			tvcpu->arch.vpa = va;
 			init_vpa(vcpu, va);
 			break;
 		case 2:		/* register DTL */
 			if (len < 48)
-				return H_PARAMETER;
-			if (!tvcpu->arch.vpa)
-				return H_RESOURCE;
+				goto out_unpin;
 			len -= len % 48;
+			if (tvcpu->arch.dtl)
+				kvmppc_unpin_guest_page(kvm, vcpu->arch.dtl);
 			tvcpu->arch.dtl = va;
 			tvcpu->arch.dtl_end = va + len;
 			break;
 		case 3:		/* register SLB shadow buffer */
-			if (len < 8)
-				return H_PARAMETER;
-			if (!tvcpu->arch.vpa)
-				return H_RESOURCE;
-			tvcpu->arch.slb_shadow = va;
-			len = (len - 16) / 16;
+			if (len < 16)
+				goto out_unpin;
+			if (tvcpu->arch.slb_shadow)
+				kvmppc_unpin_guest_page(kvm, vcpu->arch.slb_shadow);
 			tvcpu->arch.slb_shadow = va;
 			break;
 		}
@@ -210,17 +198,30 @@ static unsigned long do_h_register_vpa(struct kvm_vcpu *vcpu,
 		case 5:		/* unregister VPA */
 			if (tvcpu->arch.slb_shadow || tvcpu->arch.dtl)
 				return H_RESOURCE;
+			if (!tvcpu->arch.vpa)
+				break;
+			kvmppc_unpin_guest_page(kvm, tvcpu->arch.vpa);
 			tvcpu->arch.vpa = NULL;
 			break;
 		case 6:		/* unregister DTL */
+			if (!tvcpu->arch.dtl)
+				break;
+			kvmppc_unpin_guest_page(kvm, tvcpu->arch.dtl);
 			tvcpu->arch.dtl = NULL;
 			break;
 		case 7:		/* unregister SLB shadow buffer */
+			if (!tvcpu->arch.slb_shadow)
+				break;
+			kvmppc_unpin_guest_page(kvm, tvcpu->arch.slb_shadow);
 			tvcpu->arch.slb_shadow = NULL;
 			break;
 		}
 	}
 	return H_SUCCESS;
+
+ out_unpin:
+	kvmppc_unpin_guest_page(kvm, va);
+	return err;
 }
 
 int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
@@ -470,6 +471,12 @@ out:
 
 void kvmppc_core_vcpu_free(struct kvm_vcpu *vcpu)
 {
+	if (vcpu->arch.dtl)
+		kvmppc_unpin_guest_page(vcpu->kvm, vcpu->arch.dtl);
+	if (vcpu->arch.slb_shadow)
+		kvmppc_unpin_guest_page(vcpu->kvm, vcpu->arch.slb_shadow);
+	if (vcpu->arch.vpa)
+		kvmppc_unpin_guest_page(vcpu->kvm, vcpu->arch.vpa);
 	kvm_vcpu_uninit(vcpu);
 	kfree(vcpu);
 }
