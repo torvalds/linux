@@ -227,19 +227,6 @@ u16 si_pmu_fast_pwrup_delay(struct si_pub *sih)
 	return (u16) delay;
 }
 
-void si_pmu_sprom_enable(struct si_pub *sih, bool enable)
-{
-	struct chipcregs __iomem *cc;
-	uint origidx;
-
-	/* Remember original core before switch to chipc */
-	origidx = ai_coreidx(sih);
-	cc = ai_setcoreidx(sih, SI_CC_IDX);
-
-	/* Return to original core */
-	ai_setcoreidx(sih, origidx);
-}
-
 /* Read/write a chipcontrol reg */
 u32 si_pmu_chipcontrol(struct si_pub *sih, uint reg, u32 mask, u32 val)
 {
@@ -323,50 +310,6 @@ void si_pmu_init(struct si_pub *sih)
 			    ~PCTL_NOILP_ON_WAIT);
 	else if (ai_get_pmurev(sih) >= 2)
 		bcma_set32(core, CHIPCREGOFFS(pmucontrol), PCTL_NOILP_ON_WAIT);
-}
-
-/* initialize PMU chip controls and other chip level stuff */
-void si_pmu_chip_init(struct si_pub *sih)
-{
-	uint origidx;
-
-	/* Gate off SPROM clock and chip select signals */
-	si_pmu_sprom_enable(sih, false);
-
-	/* Remember original core */
-	origidx = ai_coreidx(sih);
-
-	/* Return to original core */
-	ai_setcoreidx(sih, origidx);
-}
-
-/* initialize PMU switch/regulators */
-void si_pmu_swreg_init(struct si_pub *sih)
-{
-}
-
-/* initialize PLL */
-void si_pmu_pll_init(struct si_pub *sih, uint xtalfreq)
-{
-	struct chipcregs __iomem *cc;
-	uint origidx;
-
-	/* Remember original core before switch to chipc */
-	origidx = ai_coreidx(sih);
-	cc = ai_setcoreidx(sih, SI_CC_IDX);
-
-	switch (ai_get_chip_id(sih)) {
-	case BCM4313_CHIP_ID:
-	case BCM43224_CHIP_ID:
-	case BCM43225_CHIP_ID:
-		/* ??? */
-		break;
-	default:
-		break;
-	}
-
-	/* Return to original core */
-	ai_setcoreidx(sih, origidx);
 }
 
 /* initialize PMU resources */

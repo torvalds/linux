@@ -721,14 +721,9 @@ static struct si_info *ai_doattach(struct si_info *sii,
 
 	/* PMU specific initializations */
 	if (ai_get_cccaps(sih) & CC_CAP_PMU) {
-		u32 xtalfreq;
 		si_pmu_init(sih);
-		si_pmu_chip_init(sih);
-
-		xtalfreq = si_pmu_measure_alpclk(sih);
-		si_pmu_pll_init(sih, xtalfreq);
+		(void)si_pmu_measure_alpclk(sih);
 		si_pmu_res_init(sih);
-		si_pmu_swreg_init(sih);
 	}
 
 	/* setup the GPIO based LED powersave register */
