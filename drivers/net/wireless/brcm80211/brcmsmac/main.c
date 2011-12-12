@@ -1953,12 +1953,11 @@ static bool brcms_b_radio_read_hwdisabled(struct brcms_hardware *wlc_hw)
 		flags |= SICF_PCLKE;
 
 		/*
+		 * TODO: test suspend/resume
+		 *
 		 * AI chip doesn't restore bar0win2 on
 		 * hibernation/resume, need sw fixup
 		 */
-		if ((ai_get_chip_id(wlc_hw->sih) == BCM43224_CHIP_ID) ||
-		    (ai_get_chip_id(wlc_hw->sih) == BCM43225_CHIP_ID))
-			(void)ai_setcore(wlc_hw->sih, D11_CORE_ID, 0);
 
 		bcma_core_enable(wlc_hw->d11core, flags);
 		brcms_c_mctrl_reset(wlc_hw);
@@ -4484,8 +4483,6 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 	wlc_hw->vendorid = pcidev->vendor;
 	wlc_hw->deviceid = pcidev->device;
 
-	/* set bar0 window to point at D11 core */
-	(void)ai_setcore(wlc_hw->sih, D11_CORE_ID, 0);
 	wlc_hw->d11core = core;
 	wlc_hw->corerev = core->id.rev;
 
@@ -4606,7 +4603,7 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 		wlc_hw->band->bandtype = j ? BRCM_BAND_5G : BRCM_BAND_2G;
 		wlc->band->bandunit = j;
 		wlc->band->bandtype = j ? BRCM_BAND_5G : BRCM_BAND_2G;
-		wlc->core->coreidx = ai_coreidx(wlc_hw->sih);
+		wlc->core->coreidx = core->core_index;
 
 		wlc_hw->machwcap = bcma_read32(core, D11REGOFFS(machwcap));
 		wlc_hw->machwcap_backup = wlc_hw->machwcap;
@@ -5055,12 +5052,11 @@ static void brcms_b_hw_up(struct brcms_hardware *wlc_hw)
 	ai_pci_fixcfg(wlc_hw->sih);
 
 	/*
+	 * TODO: test suspend/resume
+	 *
 	 * AI chip doesn't restore bar0win2 on
 	 * hibernation/resume, need sw fixup
 	 */
-	if ((ai_get_chip_id(wlc_hw->sih) == BCM43224_CHIP_ID) ||
-	    (ai_get_chip_id(wlc_hw->sih) == BCM43225_CHIP_ID))
-		(void)ai_setcore(wlc_hw->sih, D11_CORE_ID, 0);
 
 	/*
 	 * Inform phy that a POR reset has occurred so

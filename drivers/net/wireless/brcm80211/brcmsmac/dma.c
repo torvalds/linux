@@ -227,7 +227,7 @@ struct dma_info {
 	uint *msg_level;	/* message level pointer */
 	char name[MAXNAMEL];	/* callers name for diag msgs */
 
-	struct bcma_device *d11core;
+	struct bcma_device *core;
 	struct device *dmadev;
 
 	bool dma64;	/* this dma engine is operating in 64-bit mode */
@@ -383,15 +383,15 @@ static uint _dma_ctrlflags(struct dma_info *di, uint mask, uint flags)
 	if (dmactrlflags & DMA_CTRL_PEN) {
 		u32 control;
 
-		control = bcma_read32(di->d11core, DMA64TXREGOFFS(di, control));
-		bcma_write32(di->d11core, DMA64TXREGOFFS(di, control),
+		control = bcma_read32(di->core, DMA64TXREGOFFS(di, control));
+		bcma_write32(di->core, DMA64TXREGOFFS(di, control),
 		      control | D64_XC_PD);
-		if (bcma_read32(di->d11core, DMA64TXREGOFFS(di, control)) &
+		if (bcma_read32(di->core, DMA64TXREGOFFS(di, control)) &
 		    D64_XC_PD)
 			/* We *can* disable it so it is supported,
 			 * restore control register
 			 */
-			bcma_write32(di->d11core, DMA64TXREGOFFS(di, control),
+			bcma_write32(di->core, DMA64TXREGOFFS(di, control),
 				     control);
 		else
 			/* Not supported, don't allow it to be enabled */
@@ -406,9 +406,9 @@ static uint _dma_ctrlflags(struct dma_info *di, uint mask, uint flags)
 static bool _dma64_addrext(struct dma_info *di, uint ctrl_offset)
 {
 	u32 w;
-	bcma_set32(di->d11core, ctrl_offset, D64_XC_AE);
-	w = bcma_read32(di->d11core, ctrl_offset);
-	bcma_mask32(di->d11core, ctrl_offset, ~D64_XC_AE);
+	bcma_set32(di->core, ctrl_offset, D64_XC_AE);
+	w = bcma_read32(di->core, ctrl_offset);
+	bcma_mask32(di->core, ctrl_offset, ~D64_XC_AE);
 	return (w & D64_XC_AE) == D64_XC_AE;
 }
 
@@ -442,13 +442,13 @@ static bool _dma_descriptor_align(struct dma_info *di)
 
 	/* Check to see if the descriptors need to be aligned on 4K/8K or not */
 	if (di->d64txregbase != 0) {
-		bcma_write32(di->d11core, DMA64TXREGOFFS(di, addrlow), 0xff0);
-		addrl = bcma_read32(di->d11core, DMA64TXREGOFFS(di, addrlow));
+		bcma_write32(di->core, DMA64TXREGOFFS(di, addrlow), 0xff0);
+		addrl = bcma_read32(di->core, DMA64TXREGOFFS(di, addrlow));
 		if (addrl != 0)
 			return false;
 	} else if (di->d64rxregbase != 0) {
-		bcma_write32(di->d11core, DMA64RXREGOFFS(di, addrlow), 0xff0);
-		addrl = bcma_read32(di->d11core, DMA64RXREGOFFS(di, addrlow));
+		bcma_write32(di->core, DMA64RXREGOFFS(di, addrlow), 0xff0);
+		addrl = bcma_read32(di->core, DMA64RXREGOFFS(di, addrlow));
 		if (addrl != 0)
 			return false;
 	}
@@ -565,12 +565,13 @@ static bool _dma_alloc(struct dma_info *di, uint direction)
 }
 
 struct dma_pub *dma_attach(char *name, struct si_pub *sih,
-			   struct bcma_device *d11core,
+			   struct bcma_device *core,
 			   uint txregbase, uint rxregbase, uint ntxd, uint nrxd,
 			   uint rxbufsize, int rxextheadroom,
 			   uint nrxpost, uint rxoffset, uint *msg_level)
 {
 	struct dma_info *di;
+	u8 rev = core->id.rev;
 	uint size;
 
 	/* allocate private info structure */
@@ -582,10 +583,10 @@ struct dma_pub *dma_attach(char *name, struct si_pub *sih,
 
 
 	di->dma64 =
-		((bcma_aread32(d11core, BCMA_IOST) & SISF_DMA64) == SISF_DMA64);
+		((bcma_aread32(core, BCMA_IOST) & SISF_DMA64) == SISF_DMA64);
 
 	/* init dma reg info */
-	di->d11core = d11core;
+	di->core = core;
 	di->d64txregbase = txregbase;
 	di->d64rxregbase = rxregbase;
 
@@ -606,7 +607,7 @@ struct dma_pub *dma_attach(char *name, struct si_pub *sih,
 	strncpy(di->name, name, MAXNAMEL);
 	di->name[MAXNAMEL - 1] = '\0';
 
-	di->dmadev = d11core->dma_dev;
+	di->dmadev = core->dma_dev;
 
 	/* save tunables */
 	di->ntxd = (u16) ntxd;
@@ -638,11 +639,11 @@ struct dma_pub *dma_attach(char *name, struct si_pub *sih,
 	di->dataoffsetlow = di->ddoffsetlow;
 	di->dataoffsethigh = di->ddoffsethigh;
 	/* WAR64450 : DMACtl.Addr ext fields are not supported in SDIOD core. */
-	if ((ai_coreid(sih) == SDIOD_CORE_ID)
-	    && ((ai_corerev(sih) > 0) && (ai_corerev(sih) <= 2)))
+	if ((core->id.id == SDIOD_CORE_ID)
+	    && ((rev > 0) && (rev <= 2)))
 		di->addrext = 0;
-	else if ((ai_coreid(sih) == I2S_CORE_ID) &&
-		 ((ai_corerev(sih) == 0) || (ai_corerev(sih) == 1)))
+	else if ((core->id.id == I2S_CORE_ID) &&
+		 ((rev == 0) || (rev == 1)))
 		di->addrext = 0;
 	else
 		di->addrext = _dma_isaddrext(di);
@@ -792,14 +793,14 @@ _dma_ddtable_init(struct dma_info *di, uint direction, dma_addr_t pa)
 	if ((di->ddoffsetlow == 0)
 	    || !(pa & PCI32ADDR_HIGH)) {
 		if (direction == DMA_TX) {
-			bcma_write32(di->d11core, DMA64TXREGOFFS(di, addrlow),
+			bcma_write32(di->core, DMA64TXREGOFFS(di, addrlow),
 				     pa + di->ddoffsetlow);
-			bcma_write32(di->d11core, DMA64TXREGOFFS(di, addrhigh),
+			bcma_write32(di->core, DMA64TXREGOFFS(di, addrhigh),
 				     di->ddoffsethigh);
 		} else {
-			bcma_write32(di->d11core, DMA64RXREGOFFS(di, addrlow),
+			bcma_write32(di->core, DMA64RXREGOFFS(di, addrlow),
 				     pa + di->ddoffsetlow);
-			bcma_write32(di->d11core, DMA64RXREGOFFS(di, addrhigh),
+			bcma_write32(di->core, DMA64RXREGOFFS(di, addrhigh),
 				     di->ddoffsethigh);
 		}
 	} else {
@@ -811,18 +812,18 @@ _dma_ddtable_init(struct dma_info *di, uint direction, dma_addr_t pa)
 		pa &= ~PCI32ADDR_HIGH;
 
 		if (direction == DMA_TX) {
-			bcma_write32(di->d11core, DMA64TXREGOFFS(di, addrlow),
+			bcma_write32(di->core, DMA64TXREGOFFS(di, addrlow),
 				     pa + di->ddoffsetlow);
-			bcma_write32(di->d11core, DMA64TXREGOFFS(di, addrhigh),
+			bcma_write32(di->core, DMA64TXREGOFFS(di, addrhigh),
 				     di->ddoffsethigh);
-			bcma_maskset32(di->d11core, DMA64TXREGOFFS(di, control),
+			bcma_maskset32(di->core, DMA64TXREGOFFS(di, control),
 				       D64_XC_AE, (ae << D64_XC_AE_SHIFT));
 		} else {
-			bcma_write32(di->d11core, DMA64RXREGOFFS(di, addrlow),
+			bcma_write32(di->core, DMA64RXREGOFFS(di, addrlow),
 				     pa + di->ddoffsetlow);
-			bcma_write32(di->d11core, DMA64RXREGOFFS(di, addrhigh),
+			bcma_write32(di->core, DMA64RXREGOFFS(di, addrhigh),
 				     di->ddoffsethigh);
-			bcma_maskset32(di->d11core, DMA64RXREGOFFS(di, control),
+			bcma_maskset32(di->core, DMA64RXREGOFFS(di, control),
 				       D64_RC_AE, (ae << D64_RC_AE_SHIFT));
 		}
 	}
@@ -835,7 +836,7 @@ static void _dma_rxenable(struct dma_info *di)
 
 	DMA_TRACE("%s:\n", di->name);
 
-	control = D64_RC_RE | (bcma_read32(di->d11core,
+	control = D64_RC_RE | (bcma_read32(di->core,
 					   DMA64RXREGOFFS(di, control)) &
 			       D64_RC_AE);
 
@@ -845,7 +846,7 @@ static void _dma_rxenable(struct dma_info *di)
 	if (dmactrlflags & DMA_CTRL_ROC)
 		control |= D64_RC_OC;
 
-	bcma_write32(di->d11core, DMA64RXREGOFFS(di, control),
+	bcma_write32(di->core, DMA64RXREGOFFS(di, control),
 		((di->rxoffset << D64_RC_RO_SHIFT) | control));
 }
 
@@ -888,7 +889,7 @@ static struct sk_buff *dma64_getnextrxp(struct dma_info *di, bool forceall)
 		return NULL;
 
 	curr =
-	    B2I(((bcma_read32(di->d11core,
+	    B2I(((bcma_read32(di->core,
 			      DMA64RXREGOFFS(di, status0)) & D64_RS0_CD_MASK) -
 		 di->rcvptrbase) & D64_RS0_CD_MASK, struct dma64desc);
 
@@ -971,7 +972,7 @@ int dma_rx(struct dma_pub *pub, struct sk_buff_head *skb_list)
 		if (resid > 0) {
 			uint cur;
 			cur =
-			    B2I(((bcma_read32(di->d11core,
+			    B2I(((bcma_read32(di->core,
 					      DMA64RXREGOFFS(di, status0)) &
 				  D64_RS0_CD_MASK) - di->rcvptrbase) &
 				D64_RS0_CD_MASK, struct dma64desc);
@@ -1004,9 +1005,9 @@ static bool dma64_rxidle(struct dma_info *di)
 	if (di->nrxd == 0)
 		return true;
 
-	return ((bcma_read32(di->d11core,
+	return ((bcma_read32(di->core,
 			     DMA64RXREGOFFS(di, status0)) & D64_RS0_CD_MASK) ==
-		(bcma_read32(di->d11core, DMA64RXREGOFFS(di, ptr)) &
+		(bcma_read32(di->core, DMA64RXREGOFFS(di, ptr)) &
 		 D64_RS0_CD_MASK));
 }
 
@@ -1090,7 +1091,7 @@ bool dma_rxfill(struct dma_pub *pub)
 	di->rxout = rxout;
 
 	/* update the chip lastdscr pointer */
-	bcma_write32(di->d11core, DMA64RXREGOFFS(di, ptr),
+	bcma_write32(di->core, DMA64RXREGOFFS(di, ptr),
 	      di->rcvptrbase + I2B(rxout, struct dma64desc));
 
 	return ring_empty;
@@ -1151,7 +1152,7 @@ void dma_txinit(struct dma_pub *pub)
 
 	if ((di->dma.dmactrlflags & DMA_CTRL_PEN) == 0)
 		control |= D64_XC_PD;
-	bcma_set32(di->d11core, DMA64TXREGOFFS(di, control), control);
+	bcma_set32(di->core, DMA64TXREGOFFS(di, control), control);
 
 	/* DMA engine with alignment requirement requires table to be inited
 	 * before enabling the engine
@@ -1169,7 +1170,7 @@ void dma_txsuspend(struct dma_pub *pub)
 	if (di->ntxd == 0)
 		return;
 
-	bcma_set32(di->d11core, DMA64TXREGOFFS(di, control), D64_XC_SE);
+	bcma_set32(di->core, DMA64TXREGOFFS(di, control), D64_XC_SE);
 }
 
 void dma_txresume(struct dma_pub *pub)
@@ -1181,7 +1182,7 @@ void dma_txresume(struct dma_pub *pub)
 	if (di->ntxd == 0)
 		return;
 
-	bcma_mask32(di->d11core, DMA64TXREGOFFS(di, control), ~D64_XC_SE);
+	bcma_mask32(di->core, DMA64TXREGOFFS(di, control), ~D64_XC_SE);
 }
 
 bool dma_txsuspended(struct dma_pub *pub)
@@ -1189,7 +1190,7 @@ bool dma_txsuspended(struct dma_pub *pub)
 	struct dma_info *di = (struct dma_info *)pub;
 
 	return (di->ntxd == 0) ||
-	       ((bcma_read32(di->d11core,
+	       ((bcma_read32(di->core,
 			     DMA64TXREGOFFS(di, control)) & D64_XC_SE) ==
 		D64_XC_SE);
 }
@@ -1224,16 +1225,16 @@ bool dma_txreset(struct dma_pub *pub)
 		return true;
 
 	/* suspend tx DMA first */
-	bcma_write32(di->d11core, DMA64TXREGOFFS(di, control), D64_XC_SE);
+	bcma_write32(di->core, DMA64TXREGOFFS(di, control), D64_XC_SE);
 	SPINWAIT(((status =
-		   (bcma_read32(di->d11core, DMA64TXREGOFFS(di, status0)) &
+		   (bcma_read32(di->core, DMA64TXREGOFFS(di, status0)) &
 		    D64_XS0_XS_MASK)) != D64_XS0_XS_DISABLED) &&
 		  (status != D64_XS0_XS_IDLE) && (status != D64_XS0_XS_STOPPED),
 		 10000);
 
-	bcma_write32(di->d11core, DMA64TXREGOFFS(di, control), 0);
+	bcma_write32(di->core, DMA64TXREGOFFS(di, control), 0);
 	SPINWAIT(((status =
-		   (bcma_read32(di->d11core, DMA64TXREGOFFS(di, status0)) &
+		   (bcma_read32(di->core, DMA64TXREGOFFS(di, status0)) &
 		    D64_XS0_XS_MASK)) != D64_XS0_XS_DISABLED), 10000);
 
 	/* wait for the last transaction to complete */
@@ -1250,9 +1251,9 @@ bool dma_rxreset(struct dma_pub *pub)
 	if (di->nrxd == 0)
 		return true;
 
-	bcma_write32(di->d11core, DMA64RXREGOFFS(di, control), 0);
+	bcma_write32(di->core, DMA64RXREGOFFS(di, control), 0);
 	SPINWAIT(((status =
-		   (bcma_read32(di->d11core, DMA64RXREGOFFS(di, status0)) &
+		   (bcma_read32(di->core, DMA64RXREGOFFS(di, status0)) &
 		    D64_RS0_RS_MASK)) != D64_RS0_RS_DISABLED), 10000);
 
 	return status == D64_RS0_RS_DISABLED;
@@ -1315,7 +1316,7 @@ int dma_txfast(struct dma_pub *pub, struct sk_buff *p, bool commit)
 
 	/* kick the chip */
 	if (commit)
-		bcma_write32(di->d11core, DMA64TXREGOFFS(di, ptr),
+		bcma_write32(di->core, DMA64TXREGOFFS(di, ptr),
 		      di->xmtptrbase + I2B(txout, struct dma64desc));
 
 	/* tx flow control */
@@ -1363,14 +1364,14 @@ struct sk_buff *dma_getnexttxp(struct dma_pub *pub, enum txd_range range)
 	if (range == DMA_RANGE_ALL)
 		end = di->txout;
 	else {
-		end = (u16) (B2I(((bcma_read32(di->d11core,
+		end = (u16) (B2I(((bcma_read32(di->core,
 					       DMA64TXREGOFFS(di, status0)) &
 				   D64_XS0_CD_MASK) - di->xmtptrbase) &
 				 D64_XS0_CD_MASK, struct dma64desc));
 
 		if (range == DMA_RANGE_TRANSFERED) {
 			active_desc =
-				(u16)(bcma_read32(di->d11core,
+				(u16)(bcma_read32(di->core,
 						  DMA64TXREGOFFS(di, status1)) &
 				      D64_XS1_AD_MASK);
 			active_desc =

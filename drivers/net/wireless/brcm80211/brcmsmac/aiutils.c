@@ -477,50 +477,6 @@ static void ai_scan(struct si_pub *sih, struct bcma_bus *bus)
 	}
 }
 
-static struct bcma_device *ai_find_bcma_core(struct si_pub *sih, uint coreidx)
-{
-	struct si_info *sii = (struct si_info *)sih;
-	struct bcma_device *core;
-
-	list_for_each_entry(core, &sii->icbus->cores, list) {
-		if (core->core_index == coreidx)
-			return core;
-	}
-	return NULL;
-}
-/*
- * This function changes the logical "focus" to the indicated core.
- * Return the current core's virtual address. Since each core starts with the
- * same set of registers (BIST, clock control, etc), the returned address
- * contains the first register of this 'common' register block (not to be
- * confused with 'common core').
- */
-void __iomem *ai_setcoreidx(struct si_pub *sih, uint coreidx)
-{
-	struct si_info *sii = (struct si_info *)sih;
-	struct bcma_device *core;
-
-	if (sii->curidx != coreidx) {
-		core = ai_find_bcma_core(sih, coreidx);
-		if (core == NULL)
-			return NULL;
-
-		(void)bcma_aread32(core, BCMA_IOST);
-		sii->curidx = coreidx;
-	}
-	return sii->curmap;
-}
-
-uint ai_corerev(struct si_pub *sih)
-{
-	struct si_info *sii;
-	u32 cib;
-
-	sii = (struct si_info *)sih;
-	cib = sii->cib[sii->curidx];
-	return (cib & CIB_REV_MASK) >> CIB_REV_SHIFT;
-}
-
 /* return true if PCIE capability exists in the pci config space */
 static bool ai_ispcie(struct si_info *sii)
 {
@@ -579,9 +535,8 @@ ai_buscore_setup(struct si_info *sii, struct bcma_device *cc)
 	for (i = 0; i < sii->numcores; i++) {
 		uint cid, crev;
 
-		ai_setcoreidx(&sii->pub, i);
-		cid = ai_coreid(&sii->pub);
-		crev = ai_corerev(&sii->pub);
+		cid = sii->coreid[i];
+		crev = (sii->cib[i] & CIB_REV_MASK) >> CIB_REV_SHIFT;
 
 		if (cid == PCI_CORE_ID) {
 			pciidx = i;
@@ -804,22 +759,6 @@ void ai_detach(struct si_pub *sih)
 	kfree(sii);
 }
 
-uint ai_coreid(struct si_pub *sih)
-{
-	struct si_info *sii;
-
-	sii = (struct si_info *)sih;
-	return sii->coreid[sii->curidx];
-}
-
-uint ai_coreidx(struct si_pub *sih)
-{
-	struct si_info *sii;
-
-	sii = (struct si_info *)sih;
-	return sii->curidx;
-}
-
 /* return index of coreid or BADIDX if not found */
 struct bcma_device *ai_findcore(struct si_pub *sih, u16 coreid, u16 coreunit)
 {
@@ -842,44 +781,16 @@ struct bcma_device *ai_findcore(struct si_pub *sih, u16 coreid, u16 coreunit)
 }
 
 /*
- * This function changes logical "focus" to the indicated core;
- * must be called with interrupts off.
- * Moreover, callers should keep interrupts off during switching
- * out of and back to d11 core.
- */
-void __iomem *ai_setcore(struct si_pub *sih, uint coreid, uint coreunit)
-{
-	struct bcma_device *core;
-
-	core = ai_findcore(sih, coreid, coreunit);
-	if (core == NULL)
-		return NULL;
-
-	return ai_setcoreidx(sih, core->core_index);
-}
-
-/*
- * Switch to 'coreidx', issue a single arbitrary 32bit register mask&set
- * operation, switch back to the original core, and return the new value.
- *
- * When using the silicon backplane, no fiddling with interrupts or core
- * switches is needed.
- *
- * Also, when using pci/pcie, we can optimize away the core switching for pci
- * registers and (on newer pci cores) chipcommon registers.
+ * read/modify chipcommon core register.
  */
 uint ai_cc_reg(struct si_pub *sih, uint regoff, u32 mask, u32 val)
 {
 	struct bcma_device *cc;
-	uint origidx = 0;
 	u32 w;
 	struct si_info *sii;
 
 	sii = (struct si_info *)sih;
 	cc = sii->icbus->drv_cc.core;
-
-	/* save current core index */
-	origidx = ai_coreidx(&sii->pub);
 
 	/* mask and set */
 	if (mask || val) {
@@ -888,9 +799,6 @@ uint ai_cc_reg(struct si_pub *sih, uint regoff, u32 mask, u32 val)
 
 	/* readback */
 	w = bcma_read32(cc, regoff);
-
-	/* restore core index */
-	ai_setcoreidx(&sii->pub, origidx);
 
 	return w;
 }
@@ -1237,19 +1145,9 @@ void ai_pci_down(struct si_pub *sih)
 void ai_pci_setup(struct si_pub *sih, uint coremask)
 {
 	struct si_info *sii;
-	struct sbpciregs __iomem *regs = NULL;
 	u32 w;
-	uint idx = 0;
 
 	sii = (struct si_info *)sih;
-
-	if (PCI(sih)) {
-		/* get current core index */
-		idx = sii->curidx;
-
-		/* switch over to pci core */
-		regs = ai_setcoreidx(sih, sii->buscoreidx);
-	}
 
 	/*
 	 * Enable sb->pci interrupts.  Assume
@@ -1264,9 +1162,6 @@ void ai_pci_setup(struct si_pub *sih, uint coremask)
 
 	if (PCI(sih)) {
 		pcicore_pci_setup(sii->pch);
-
-		/* switch back to previous core */
-		ai_setcoreidx(sih, idx);
 	}
 }
 
@@ -1276,21 +1171,11 @@ void ai_pci_setup(struct si_pub *sih, uint coremask)
  */
 int ai_pci_fixcfg(struct si_pub *sih)
 {
-	uint origidx;
-	void __iomem *regs = NULL;
 	struct si_info *sii = (struct si_info *)sih;
 
 	/* Fixup PI in SROM shadow area to enable the correct PCI core access */
-	/* save the current index */
-	origidx = ai_coreidx(&sii->pub);
-
 	/* check 'pi' is correct and fix it if not */
-	regs = ai_setcore(&sii->pub, ai_get_buscoretype(sih), 0);
 	pcicore_fixcfg(sii->pch);
-
-	/* restore the original index */
-	ai_setcoreidx(&sii->pub, origidx);
-
 	pcicore_hwup(sii->pch);
 	return 0;
 }
