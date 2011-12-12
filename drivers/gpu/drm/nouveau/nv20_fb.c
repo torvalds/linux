@@ -100,8 +100,17 @@ int
 nv20_fb_vram_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	u32 mem_size = nv_rd32(dev, 0x10020c);
+	u32 pbus1218 = nv_rd32(dev, 0x001218);
 
-	dev_priv->vram_size = nv_rd32(dev, 0x10020c) & 0xff000000;
+	dev_priv->vram_size = mem_size & 0xff000000;
+	switch (pbus1218 & 0x00000300) {
+	case 0x00000000: dev_priv->vram_type = NV_MEM_TYPE_SDRAM; break;
+	case 0x00000100: dev_priv->vram_type = NV_MEM_TYPE_DDR1; break;
+	case 0x00000200: dev_priv->vram_type = NV_MEM_TYPE_GDDR3; break;
+	case 0x00000300: dev_priv->vram_type = NV_MEM_TYPE_GDDR2; break;
+	}
+
 	return 0;
 }
 

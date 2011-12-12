@@ -1173,6 +1173,7 @@ extern void nv30_fb_init_tile_region(struct drm_device *dev, int i,
 extern void nv30_fb_free_tile_region(struct drm_device *dev, int i);
 
 /* nv40_fb.c */
+extern int  nv40_fb_vram_init(struct drm_device *dev);
 extern int  nv40_fb_init(struct drm_device *);
 extern void nv40_fb_takedown(struct drm_device *);
 extern void nv40_fb_set_tile_region(struct drm_device *dev, int i);

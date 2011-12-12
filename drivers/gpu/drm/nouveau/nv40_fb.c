@@ -72,6 +72,51 @@ nv44_fb_init_gart(struct drm_device *dev)
 }
 
 int
+nv40_fb_vram_init(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	/* 0x001218 is actually present on a few other NV4X I looked at,
+	 * and even contains sane values matching 0x100474.  From looking
+	 * at various vbios images however, this isn't the case everywhere.
+	 * So, I chose to use the same regs I've seen NVIDIA reading around
+	 * the memory detection, hopefully that'll get us the right numbers
+	 */
+	if (dev_priv->chipset == 0x40) {
+		u32 pbus1218 = nv_rd32(dev, 0x001218);
+		switch (pbus1218 & 0x00000300) {
+		case 0x00000000: dev_priv->vram_type = NV_MEM_TYPE_SDRAM; break;
+		case 0x00000100: dev_priv->vram_type = NV_MEM_TYPE_DDR1; break;
+		case 0x00000200: dev_priv->vram_type = NV_MEM_TYPE_GDDR3; break;
+		case 0x00000300: dev_priv->vram_type = NV_MEM_TYPE_DDR2; break;
+		}
+	} else
+	if (dev_priv->chipset == 0x49 || dev_priv->chipset == 0x4b) {
+		u32 pfb914 = nv_rd32(dev, 0x100914);
+		switch (pfb914 & 0x00000003) {
+		case 0x00000000: dev_priv->vram_type = NV_MEM_TYPE_DDR1; break;
+		case 0x00000001: dev_priv->vram_type = NV_MEM_TYPE_DDR2; break;
+		case 0x00000002: dev_priv->vram_type = NV_MEM_TYPE_GDDR3; break;
+		case 0x00000003: break;
+		}
+	} else
+	if (dev_priv->chipset != 0x4e) {
+		u32 pfb474 = nv_rd32(dev, 0x100474);
+		if (pfb474 & 0x00000004)
+			dev_priv->vram_type = NV_MEM_TYPE_GDDR3;
+		if (pfb474 & 0x00000002)
+			dev_priv->vram_type = NV_MEM_TYPE_DDR2;
+		if (pfb474 & 0x00000001)
+			dev_priv->vram_type = NV_MEM_TYPE_DDR1;
+	} else {
+		dev_priv->vram_type = NV_MEM_TYPE_STOLEN;
+	}
+
+	dev_priv->vram_size = nv_rd32(dev, 0x10020c) & 0xff000000;
+	return 0;
+}
+
+int
 nv40_fb_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
