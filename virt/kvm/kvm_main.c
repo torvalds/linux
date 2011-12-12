@@ -357,11 +357,11 @@ static void kvm_mmu_notifier_invalidate_range_end(struct mmu_notifier *mn,
 	 * been freed.
 	 */
 	kvm->mmu_notifier_seq++;
+	smp_wmb();
 	/*
 	 * The above sequence increase must be visible before the
-	 * below count decrease but both values are read by the kvm
-	 * page fault under mmu_lock spinlock so we don't need to add
-	 * a smb_wmb() here in between the two.
+	 * below count decrease, which is ensured by the smp_wmb above
+	 * in conjunction with the smp_rmb in mmu_notifier_retry().
 	 */
 	kvm->mmu_notifier_count--;
 	spin_unlock(&kvm->mmu_lock);
