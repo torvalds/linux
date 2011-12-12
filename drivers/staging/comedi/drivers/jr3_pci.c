@@ -372,14 +372,14 @@ static int jr3_pci_open(struct comedi_device *dev)
 	int i;
 	struct jr3_pci_dev_private *devpriv = dev->private;
 
-	printk("jr3_pci_open\n");
+	dev_dbg(dev->hw_dev, "jr3_pci_open\n");
 	for (i = 0; i < devpriv->n_channels; i++) {
 		struct jr3_pci_subdev_private *p;
 
 		p = dev->subdevices[i].private;
 		if (p) {
-			printk("serial: %p %d (%d)\n", p, p->serial_no,
-			       p->channel_no);
+			dev_dbg(dev->hw_dev, "serial: %p %d (%d)\n", p,
+				p->serial_no, p->channel_no);
 		}
 	}
 	return 0;
@@ -457,8 +457,8 @@ static int jr3_download_firmware(struct comedi_device *dev, const u8 * data,
 					break;
 				more = more
 				    && read_idm_word(data, size, &pos, &addr);
-				printk("Loading#%d %4.4x bytes at %4.4x\n", i,
-				       count, addr);
+				dev_dbg(dev->hw_dev, "Loading#%d %4.4x bytes at %4.4x\n",
+					i, count, addr);
 				while (more && count > 0) {
 					if (addr & 0x4000) {
 						/*  16 bit data, never seen in real life!! */
