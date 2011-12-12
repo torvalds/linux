@@ -647,44 +647,6 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 	return r;
 }
 
-static int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu,
-				      struct kvm_one_reg *reg)
-{
-	int r = -EINVAL;
-
-	switch (reg->id) {
-#ifdef CONFIG_PPC_BOOK3S
-	case KVM_REG_PPC_HIOR:
-		r = put_user(to_book3s(vcpu)->hior, (u64 __user *)reg->addr);
-		break;
-#endif
-	default:
-		break;
-	}
-
-	return r;
-}
-
-static int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu,
-				      struct kvm_one_reg *reg)
-{
-	int r = -EINVAL;
-
-	switch (reg->id) {
-#ifdef CONFIG_PPC_BOOK3S
-	case KVM_ONE_REG_PPC_HIOR:
-		r = get_user(to_book3s(vcpu)->hior, (u64 __user *)reg->addr);
-		if (!r)
-			to_book3s(vcpu)->hior_explicit = true;
-		break;
-#endif
-	default:
-		break;
-	}
-
-	return r;
-}
-
 int kvm_arch_vcpu_ioctl_get_mpstate(struct kvm_vcpu *vcpu,
                                     struct kvm_mp_state *mp_state)
 {

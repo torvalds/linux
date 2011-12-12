@@ -874,6 +874,38 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
+int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
+{
+	int r = -EINVAL;
+
+	switch (reg->id) {
+	case KVM_REG_PPC_HIOR:
+		r = put_user(to_book3s(vcpu)->hior, (u64 __user *)reg->addr);
+		break;
+	default:
+		break;
+	}
+
+	return r;
+}
+
+int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
+{
+	int r = -EINVAL;
+
+	switch (reg->id) {
+	case KVM_REG_PPC_HIOR:
+		r = get_user(to_book3s(vcpu)->hior, (u64 __user *)reg->addr);
+		if (!r)
+			to_book3s(vcpu)->hior_explicit = true;
+		break;
+	default:
+		break;
+	}
+
+	return r;
+}
+
 int kvmppc_core_check_processor_compat(void)
 {
 	return 0;
