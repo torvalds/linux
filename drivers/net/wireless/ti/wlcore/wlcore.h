@@ -35,6 +35,7 @@ struct wlcore_ops {
 	int (*boot)(struct wl1271 *wl);
 	void (*trigger_cmd)(struct wl1271 *wl);
 	void (*ack_event)(struct wl1271 *wl);
+	u32 (*calc_tx_blocks)(struct wl1271 *wl, u32 len, u32 spare_blks);
 	s8 (*get_pg_ver)(struct wl1271 *wl);
 	void (*get_mac)(struct wl1271 *wl);
 };

@@ -25,8 +25,6 @@
 #ifndef __TX_H__
 #define __TX_H__
 
-#define TX_HW_BLOCK_SIZE                 252
-
 #define TX_HW_MGMT_PKT_LIFETIME_TU       2000
 #define TX_HW_AP_MODE_PKT_LIFETIME_TU    8000
 
@@ -223,6 +221,8 @@ void wl1271_tx_reset_link_queues(struct wl1271 *wl, u8 hlid);
 void wl1271_handle_tx_low_watermark(struct wl1271 *wl);
 bool wl12xx_is_dummy_packet(struct wl1271 *wl, struct sk_buff *skb);
 void wl12xx_rearm_rx_streaming(struct wl1271 *wl, unsigned long *active_hlids);
+unsigned int wlcore_calc_packet_alignment(struct wl1271 *wl,
+					  unsigned int packet_length);
 
 /* from main.c */
 void wl1271_free_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 hlid);
