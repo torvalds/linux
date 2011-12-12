@@ -573,9 +573,9 @@ static int das1800_init_dma(struct comedi_device *dev, unsigned int dma0,
 			devpriv->dma_bits |= DMA_CH7_CH5;
 			break;
 		default:
-			printk(" only supports dma channels 5 through 7\n"
-			       " Dual dma only allows the following combinations:\n"
-			       " dma 5,6 / 6,7 / or 7,5\n");
+			dev_err(dev->hw_dev, " only supports dma channels 5 through 7\n"
+				" Dual dma only allows the following combinations:\n"
+				" dma 5,6 / 6,7 / or 7,5\n");
 			return -EINVAL;
 			break;
 		}
@@ -645,7 +645,7 @@ static int das1800_attach(struct comedi_device *dev,
 	printk(KERN_CONT "\n");
 
 	if (iobase == 0) {
-		printk(" io base address required\n");
+		dev_err(dev->hw_dev, "io base address required\n");
 		return -EINVAL;
 	}
 
@@ -815,8 +815,8 @@ static int das1800_detach(struct comedi_device *dev)
 		kfree(devpriv->ai_buf1);
 	}
 
-	printk("comedi%d: %s: remove\n", dev->minor,
-	       driver_das1800.driver_name);
+	dev_dbg(dev->hw_dev, "comedi%d: %s: remove\n", dev->minor,
+		driver_das1800.driver_name);
 
 	return 0;
 };
