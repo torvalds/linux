@@ -113,7 +113,7 @@ static inline void append_dec_shr_done(u32 *desc)
 
 	jump_cmd = append_jump(desc, JUMP_CLASS_CLASS1 | JUMP_TEST_ALL);
 	set_jump_tgt_here(desc, jump_cmd);
-	append_cmd(desc, SET_OK_PROP_ERRORS | CMD_LOAD);
+	append_cmd(desc, SET_OK_NO_PROP_ERRORS | CMD_LOAD);
 }
 
 /*
@@ -213,7 +213,7 @@ static void init_sh_desc_key_aead(u32 *desc, struct caam_ctx *ctx,
 	set_jump_tgt_here(desc, key_jump_cmd);
 
 	/* Propagate errors from shared to job descriptor */
-	append_cmd(desc, SET_OK_PROP_ERRORS | CMD_LOAD);
+	append_cmd(desc, SET_OK_NO_PROP_ERRORS | CMD_LOAD);
 }
 
 static int aead_set_sh_desc(struct crypto_aead *aead)
@@ -310,7 +310,7 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	/* Only propagate error immediately if shared */
 	jump_cmd = append_jump(desc, JUMP_TEST_ALL);
 	set_jump_tgt_here(desc, key_jump_cmd);
-	append_cmd(desc, SET_OK_PROP_ERRORS | CMD_LOAD);
+	append_cmd(desc, SET_OK_NO_PROP_ERRORS | CMD_LOAD);
 	set_jump_tgt_here(desc, jump_cmd);
 
 	/* Class 2 operation */
@@ -683,7 +683,7 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 	set_jump_tgt_here(desc, key_jump_cmd);
 
 	/* Propagate errors from shared to job descriptor */
-	append_cmd(desc, SET_OK_PROP_ERRORS | CMD_LOAD);
+	append_cmd(desc, SET_OK_NO_PROP_ERRORS | CMD_LOAD);
 
 	/* Load iv */
 	append_cmd(desc, CMD_SEQ_LOAD | LDST_SRCDST_BYTE_CONTEXT |
@@ -724,7 +724,7 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 	/* For aead, only propagate error immediately if shared */
 	jump_cmd = append_jump(desc, JUMP_TEST_ALL);
 	set_jump_tgt_here(desc, key_jump_cmd);
-	append_cmd(desc, SET_OK_PROP_ERRORS | CMD_LOAD);
+	append_cmd(desc, SET_OK_NO_PROP_ERRORS | CMD_LOAD);
 	set_jump_tgt_here(desc, jump_cmd);
 
 	/* load IV */
