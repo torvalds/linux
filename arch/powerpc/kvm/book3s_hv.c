@@ -44,6 +44,7 @@
 #include <asm/processor.h>
 #include <asm/cputhreads.h>
 #include <asm/page.h>
+#include <asm/hvcall.h>
 #include <linux/gfp.h>
 #include <linux/sched.h>
 #include <linux/vmalloc.h>

@@ -1298,14 +1298,12 @@ void __kprobes DebugException(struct pt_regs *regs, unsigned long debug_status)
 
 		if (user_mode(regs)) {
 			current->thread.dbcr0 &= ~DBCR0_IC;
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
 			if (DBCR_ACTIVE_EVENTS(current->thread.dbcr0,
 					       current->thread.dbcr1))
 				regs->msr |= MSR_DE;
 			else
 				/* Make sure the IDM bit is off */
 				current->thread.dbcr0 &= ~DBCR0_IDM;
-#endif
 		}
 
 		_exception(SIGTRAP, regs, TRAP_TRACE, regs->nip);

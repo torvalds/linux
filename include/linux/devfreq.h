@@ -41,7 +41,7 @@ struct devfreq_dev_status {
 	unsigned long total_time;
 	unsigned long busy_time;
 	unsigned long current_frequency;
-	void *private_date;
+	void *private_data;
 };
 
 /**

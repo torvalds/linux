@@ -11,6 +11,7 @@
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/irq.h>
 
 #include <asm/traps.h>
 #include <asm/bootinfo.h>
@@ -19,9 +20,6 @@
 #include <asm/mac_baboon.h>
 
 /* #define DEBUG_IRQS */
-
-extern void mac_enable_irq(unsigned int);
-extern void mac_disable_irq(unsigned int);
 
 int baboon_present;
 static volatile struct baboon *baboon;
@@ -53,7 +51,7 @@ void __init baboon_init(void)
  * Baboon interrupt handler. This works a lot like a VIA.
  */
 
-static irqreturn_t baboon_irq(int irq, void *dev_id)
+static void baboon_irq(unsigned int irq, struct irq_desc *desc)
 {
 	int irq_bit, irq_num;
 	unsigned char events;
@@ -64,15 +62,16 @@ static irqreturn_t baboon_irq(int irq, void *dev_id)
 		(uint) baboon->mb_status);
 #endif
 
-	if (!(events = baboon->mb_ifr & 0x07))
-		return IRQ_NONE;
+	events = baboon->mb_ifr & 0x07;
+	if (!events)
+		return;
 
 	irq_num = IRQ_BABOON_0;
 	irq_bit = 1;
 	do {
 	        if (events & irq_bit) {
 			baboon->mb_ifr &= ~irq_bit;
-			m68k_handle_int(irq_num);
+			generic_handle_irq(irq_num);
 		}
 		irq_bit <<= 1;
 		irq_num++;
@@ -82,7 +81,6 @@ static irqreturn_t baboon_irq(int irq, void *dev_id)
 	/* for now we need to smash all interrupts */
 	baboon->mb_ifr &= ~events;
 #endif
-	return IRQ_HANDLED;
 }
 
 /*
@@ -92,8 +90,7 @@ static irqreturn_t baboon_irq(int irq, void *dev_id)
 void __init baboon_register_interrupts(void)
 {
 	baboon_disabled = 0;
-	if (request_irq(IRQ_NUBUS_C, baboon_irq, 0, "baboon", (void *)baboon))
-		pr_err("Couldn't register baboon interrupt\n");
+	irq_set_chained_handler(IRQ_NUBUS_C, baboon_irq);
 }
 
 /*
@@ -111,7 +108,7 @@ void baboon_irq_enable(int irq)
 
 	baboon_disabled &= ~(1 << irq_idx);
 	if (!baboon_disabled)
-		mac_enable_irq(IRQ_NUBUS_C);
+		mac_irq_enable(irq_get_irq_data(IRQ_NUBUS_C));
 }
 
 void baboon_irq_disable(int irq)
@@ -124,7 +121,7 @@ void baboon_irq_disable(int irq)
 
 	baboon_disabled |= 1 << irq_idx;
 	if (baboon_disabled)
-		mac_disable_irq(IRQ_NUBUS_C);
+		mac_irq_disable(irq_get_irq_data(IRQ_NUBUS_C));
 }
 
 void baboon_irq_clear(int irq)

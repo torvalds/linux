@@ -43,6 +43,8 @@ SECTIONS
 
 	NOTES :text :note
 
+	.dummy : { *(.dummy) } :data
+
 	RODATA
 
 #ifdef CONFIG_SHARED_KERNEL

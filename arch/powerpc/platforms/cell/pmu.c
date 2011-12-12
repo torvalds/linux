@@ -392,7 +392,7 @@ static int __init cbe_init_pm_irq(void)
 		}
 
 		rc = request_irq(irq, cbe_pm_irq,
-				 IRQF_DISABLED, "cbe-pmu-0", NULL);
+				 0, "cbe-pmu-0", NULL);
 		if (rc) {
 			printk("ERROR: Request for irq on node %d failed\n",
 			       node);

@@ -70,6 +70,7 @@ static struct pm_qos_constraints cpu_dma_constraints = {
 };
 static struct pm_qos_object cpu_dma_pm_qos = {
 	.constraints = &cpu_dma_constraints,
+	.name = "cpu_dma_latency",
 };
 
 static BLOCKING_NOTIFIER_HEAD(network_lat_notifier);

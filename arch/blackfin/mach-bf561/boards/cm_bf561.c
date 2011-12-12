@@ -277,8 +277,13 @@ static struct resource bfin_uart0_resources[] = {
 		.flags = IORESOURCE_MEM,
 	},
 	{
+		.start = IRQ_UART_TX,
+		.end = IRQ_UART_TX,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
 		.start = IRQ_UART_RX,
-		.end = IRQ_UART_RX+1,
+		.end = IRQ_UART_RX,
 		.flags = IORESOURCE_IRQ,
 	},
 	{

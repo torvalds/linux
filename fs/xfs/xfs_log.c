@@ -626,7 +626,7 @@ xfs_log_item_init(
 	struct xfs_mount	*mp,
 	struct xfs_log_item	*item,
 	int			type,
-	struct xfs_item_ops	*ops)
+	const struct xfs_item_ops *ops)
 {
 	item->li_mountp = mp;
 	item->li_ailp = mp->m_ail;

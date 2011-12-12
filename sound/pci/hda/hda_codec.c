@@ -2331,6 +2331,39 @@ int snd_hda_codec_reset(struct hda_codec *codec)
 	return 0;
 }
 
+typedef int (*map_slave_func_t)(void *, struct snd_kcontrol *);
+
+/* apply the function to all matching slave ctls in the mixer list */
+static int map_slaves(struct hda_codec *codec, const char * const *slaves,
+		      map_slave_func_t func, void *data) 
+{
+	struct hda_nid_item *items;
+	const char * const *s;
+	int i, err;
+
+	items = codec->mixers.list;
+	for (i = 0; i < codec->mixers.used; i++) {
+		struct snd_kcontrol *sctl = items[i].kctl;
+		if (!sctl || !sctl->id.name ||
+		    sctl->id.iface != SNDRV_CTL_ELEM_IFACE_MIXER)
+			continue;
+		for (s = slaves; *s; s++) {
+			if (!strcmp(sctl->id.name, *s)) {
+				err = func(data, sctl);
+				if (err)
+					return err;
+				break;
+			}
+		}
+	}
+	return 0;
+}
+
+static int check_slave_present(void *data, struct snd_kcontrol *sctl)
+{
+	return 1;
+}
+
 /**
  * snd_hda_add_vmaster - create a virtual master control and add slaves
  * @codec: HD-audio codec
@@ -2351,12 +2384,10 @@ int snd_hda_add_vmaster(struct hda_codec *codec, char *name,
 			unsigned int *tlv, const char * const *slaves)
 {
 	struct snd_kcontrol *kctl;
-	const char * const *s;
 	int err;
 
-	for (s = slaves; *s && !snd_hda_find_mixer_ctl(codec, *s); s++)
-		;
-	if (!*s) {
+	err = map_slaves(codec, slaves, check_slave_present, NULL);
+	if (err != 1) {
 		snd_printdd("No slave found for %s\n", name);
 		return 0;
 	}
@@ -2367,23 +2398,10 @@ int snd_hda_add_vmaster(struct hda_codec *codec, char *name,
 	if (err < 0)
 		return err;
 
-	for (s = slaves; *s; s++) {
-		struct snd_kcontrol *sctl;
-		int i = 0;
-		for (;;) {
-			sctl = _snd_hda_find_mixer_ctl(codec, *s, i);
-			if (!sctl) {
-				if (!i)
-					snd_printdd("Cannot find slave %s, "
-						    "skipped\n", *s);
-				break;
-			}
-			err = snd_ctl_add_slave(kctl, sctl);
-			if (err < 0)
-				return err;
-			i++;
-		}
-	}
+	err = map_slaves(codec, slaves, (map_slave_func_t)snd_ctl_add_slave,
+			 kctl);
+	if (err < 0)
+		return err;
 	return 0;
 }
 EXPORT_SYMBOL_HDA(snd_hda_add_vmaster);
@@ -4752,6 +4770,7 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 	memset(sequences_hp, 0, sizeof(sequences_hp));
 	assoc_line_out = 0;
 
+	codec->ignore_misc_bit = true;
 	end_nid = codec->start_nid + codec->num_nodes;
 	for (nid = codec->start_nid; nid < end_nid; nid++) {
 		unsigned int wid_caps = get_wcaps(codec, nid);
@@ -4767,6 +4786,9 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 			continue;
 
 		def_conf = snd_hda_codec_get_pincfg(codec, nid);
+		if (!(get_defcfg_misc(snd_hda_codec_get_pincfg(codec, nid)) &
+		      AC_DEFCFG_MISC_NO_PRESENCE))
+			codec->ignore_misc_bit = false;
 		conn = get_defcfg_connect(def_conf);
 		if (conn == AC_JACK_PORT_NONE)
 			continue;

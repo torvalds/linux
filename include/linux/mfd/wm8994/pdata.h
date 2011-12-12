@@ -23,7 +23,7 @@ struct wm8994_ldo_pdata {
 	int enable;
 
 	const char *supply;
-	struct regulator_init_data *init_data;
+	const struct regulator_init_data *init_data;
 };
 
 #define WM8994_CONFIGURE_GPIO 0x10000
@@ -197,6 +197,12 @@ struct wm8994_pdata {
 	 * consumption will rise.
 	 */
 	bool ldo_ena_always_driven;
+
+	/*
+	 * SPKMODE must be pulled internally by the device on this
+	 * system.
+	 */
+	bool spkmode_pu;
 };
 
 #endif

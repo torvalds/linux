@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/irq.h>
 #include <linux/bitrev.h>
+#include <linux/console.h>
 #include <asm/system.h>
 #include <asm/io.h>
 #include <asm/tlbflush.h>
@@ -106,9 +107,8 @@ static int pd_power_down(struct generic_pm_domain *genpd)
 	return 0;
 }
 
-static int pd_power_up(struct generic_pm_domain *genpd)
+static int __pd_power_up(struct sh7372_pm_domain *sh7372_pd, bool do_resume)
 {
-	struct sh7372_pm_domain *sh7372_pd = to_sh7372_pd(genpd);
 	unsigned int mask = 1 << sh7372_pd->bit_shift;
 	unsigned int retry_count;
 	int ret = 0;
@@ -123,13 +123,13 @@ static int pd_power_up(struct generic_pm_domain *genpd)
 
 	for (retry_count = 2 * PSTR_RETRIES; retry_count; retry_count--) {
 		if (!(__raw_readl(SWUCR) & mask))
-			goto out;
+			break;
 		if (retry_count > PSTR_RETRIES)
 			udelay(PSTR_DELAY_US);
 		else
 			cpu_relax();
 	}
-	if (__raw_readl(SWUCR) & mask)
+	if (!retry_count)
 		ret = -EIO;
 
 	if (!sh7372_pd->no_debug)
@@ -137,10 +137,15 @@ static int pd_power_up(struct generic_pm_domain *genpd)
 			 mask, __raw_readl(PSTR));
 
  out:
-	if (ret == 0 && sh7372_pd->resume)
+	if (ret == 0 && sh7372_pd->resume && do_resume)
 		sh7372_pd->resume();
 
 	return ret;
+}
+
+static int pd_power_up(struct generic_pm_domain *genpd)
+{
+	 return __pd_power_up(to_sh7372_pd(genpd), true);
 }
 
 static void sh7372_a4r_suspend(void)
@@ -174,7 +179,7 @@ void sh7372_init_pm_domain(struct sh7372_pm_domain *sh7372_pd)
 	genpd->active_wakeup = pd_active_wakeup;
 	genpd->power_off = pd_power_down;
 	genpd->power_on = pd_power_up;
-	genpd->power_on(&sh7372_pd->genpd);
+	__pd_power_up(sh7372_pd, false);
 }
 
 void sh7372_add_device_to_domain(struct sh7372_pm_domain *sh7372_pd,
@@ -227,11 +232,23 @@ struct sh7372_pm_domain sh7372_a3sp = {
 	.no_debug = true,
 };
 
+static void sh7372_a3sp_init(void)
+{
+	/* serial consoles make use of SCIF hardware located in A3SP,
+	 * keep such power domain on if "no_console_suspend" is set.
+	 */
+	sh7372_a3sp.stay_on = !console_suspend_enabled;
+}
+
 struct sh7372_pm_domain sh7372_a3sg = {
 	.bit_shift = 13,
 };
 
-#endif /* CONFIG_PM */
+#else /* !CONFIG_PM */
+
+static inline void sh7372_a3sp_init(void) {}
+
+#endif /* !CONFIG_PM */
 
 #if defined(CONFIG_SUSPEND) || defined(CONFIG_CPU_IDLE)
 static int sh7372_do_idle_core_standby(unsigned long unused)
@@ -402,22 +419,18 @@ static void sh7372_setup_a3sm(unsigned long msk, unsigned long msk2)
 
 #ifdef CONFIG_CPU_IDLE
 
-static void sh7372_cpuidle_setup(struct cpuidle_device *dev)
+static void sh7372_cpuidle_setup(struct cpuidle_driver *drv)
 {
-	struct cpuidle_state *state;
-	int i = dev->state_count;
+	struct cpuidle_state *state = &drv->states[drv->state_count];
 
-	state = &dev->states[i];
 	snprintf(state->name, CPUIDLE_NAME_LEN, "C2");
 	strncpy(state->desc, "Core Standby Mode", CPUIDLE_DESC_LEN);
 	state->exit_latency = 10;
 	state->target_residency = 20 + 10;
-	state->power_usage = 1; /* perhaps not */
-	state->flags = 0;
-	state->flags |= CPUIDLE_FLAG_TIME_VALID;
-	shmobile_cpuidle_modes[i] = sh7372_enter_core_standby;
+	state->flags = CPUIDLE_FLAG_TIME_VALID;
+	shmobile_cpuidle_modes[drv->state_count] = sh7372_enter_core_standby;
 
-	dev->state_count = i + 1;
+	drv->state_count++;
 }
 
 static void sh7372_cpuidle_init(void)
@@ -468,6 +481,8 @@ void __init sh7372_pm_init(void)
 
 	/* do not convert A3SM, A3SP, A3SG, A4R power down into A4S */
 	__raw_writel(0, PDNSEL);
+
+	sh7372_a3sp_init();
 
 	sh7372_suspend_init();
 	sh7372_cpuidle_init();

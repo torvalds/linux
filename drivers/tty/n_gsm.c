@@ -66,14 +66,16 @@
 static int debug;
 module_param(debug, int, 0600);
 
-#define T1	(HZ/10)
-#define T2	(HZ/3)
-#define N2	3
+/* Defaults: these are from the specification */
+
+#define T1	10		/* 100mS */
+#define T2	34		/* 333mS */
+#define N2	3		/* Retry 3 times */
 
 /* Use long timers for testing at low speed with debug on */
 #ifdef DEBUG_TIMING
-#define T1	HZ
-#define T2	(2 * HZ)
+#define T1	100
+#define T2	200
 #endif
 
 /*

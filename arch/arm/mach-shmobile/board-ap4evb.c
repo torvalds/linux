@@ -201,7 +201,7 @@ static struct physmap_flash_data nor_flash_data = {
 static struct resource nor_flash_resources[] = {
 	[0]	= {
 		.start	= 0x20000000, /* CS0 shadow instead of regular CS0 */
-		.end	= 0x28000000 - 1, /* needed by USB MASK ROM boot */		
+		.end	= 0x28000000 - 1, /* needed by USB MASK ROM boot */
 		.flags	= IORESOURCE_MEM,
 	}
 };
