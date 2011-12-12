@@ -855,7 +855,8 @@ static int ai_config_calibration_source(struct comedi_device *dev,
 	unsigned int source = data[1];
 
 	if (source >= num_calibration_sources) {
-		printk("invalid calibration source: %i\n", source);
+		dev_err(dev->hw_dev, "invalid calibration source: %i\n",
+			source);
 		return -EINVAL;
 	}
 
@@ -1547,7 +1548,8 @@ static int cb_pcidas_ao_inttrig(struct comedi_device *dev,
 	spin_lock_irqsave(&dev->spinlock, flags);
 	devpriv->adc_fifo_bits |= DAEMIE | DAHFIE;
 #ifdef CB_PCIDAS_DEBUG
-	printk("comedi: adc_fifo_bits are 0x%x\n", devpriv->adc_fifo_bits);
+	dev_dbg(dev->hw_dev, "comedi: adc_fifo_bits are 0x%x\n",
+		devpriv->adc_fifo_bits);
 #endif
 	/*  enable and clear interrupts */
 	outw(devpriv->adc_fifo_bits | DAEMI | DAHFI,
@@ -1557,7 +1559,8 @@ static int cb_pcidas_ao_inttrig(struct comedi_device *dev,
 	devpriv->ao_control_bits |= DAC_START | DACEN | DAC_EMPTY;
 	outw(devpriv->ao_control_bits, devpriv->control_status + DAC_CSR);
 #ifdef CB_PCIDAS_DEBUG
-	printk("comedi: sent 0x%x to dac control\n", devpriv->ao_control_bits);
+	dev_dbg(dev->hw_dev, "comedi: sent 0x%x to dac control\n",
+		devpriv->ao_control_bits);
 #endif
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
@@ -1585,8 +1588,9 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 
 	s5933_status = inl(devpriv->s5933_config + AMCC_OP_REG_INTCSR);
 #ifdef CB_PCIDAS_DEBUG
-	printk("intcsr 0x%x\n", s5933_status);
-	printk("mbef 0x%x\n", inl(devpriv->s5933_config + AMCC_OP_REG_MBEF));
+	dev_dbg(dev->hw_dev, "intcsr 0x%x\n", s5933_status);
+	dev_dbg(dev->hw_dev, "mbef 0x%x\n",
+		inl(devpriv->s5933_config + AMCC_OP_REG_MBEF));
 #endif
 
 	if ((INTCSR_INTR_ASSERTED & s5933_status) == 0)
