@@ -188,15 +188,16 @@ struct m5mols_info {
 	struct media_pad pad;
 	struct v4l2_mbus_framefmt ffmt[M5MOLS_RESTYPE_MAX];
 	int res_type;
+
 	wait_queue_head_t irq_waitq;
 	atomic_t irq_done;
 
 	struct v4l2_ctrl_handler handle;
+
 	/* Autoexposure/exposure control cluster */
-	struct {
-		struct v4l2_ctrl *autoexposure;
-		struct v4l2_ctrl *exposure;
-	};
+	struct v4l2_ctrl *autoexposure;
+	struct v4l2_ctrl *exposure;
+
 	struct v4l2_ctrl *autowb;
 	struct v4l2_ctrl *colorfx;
 	struct v4l2_ctrl *saturation;
@@ -213,10 +214,10 @@ struct m5mols_info {
 	bool lock_awb;
 	u8 resolution;
 	u8 mode;
+
 	int (*set_power)(struct device *dev, int on);
 };
 
-#define is_ctrl_synced(__info) (__info->ctrl_sync)
 #define is_available_af(__info)	(__info->ver.af)
 #define is_code(__code, __type) (__code == m5mols_default_ffmt[__type].code)
 #define is_manufacturer(__info, __manufacturer)	\
@@ -285,7 +286,7 @@ int m5mols_mode(struct m5mols_info *info, u8 mode);
 
 int m5mols_enable_interrupt(struct v4l2_subdev *sd, u8 reg);
 int m5mols_wait_interrupt(struct v4l2_subdev *sd, u8 condition, u32 timeout);
-int m5mols_sync_controls(struct m5mols_info *info);
+int m5mols_restore_controls(struct m5mols_info *info);
 int m5mols_start_capture(struct m5mols_info *info);
 int m5mols_do_scenemode(struct m5mols_info *info, u8 mode);
 int m5mols_lock_3a(struct m5mols_info *info, bool lock);

@@ -611,26 +611,25 @@ static struct v4l2_subdev_pad_ops m5mols_pad_ops = {
 };
 
 /**
- * m5mols_sync_controls - Apply default scene mode and the current controls
+ * m5mols_restore_controls - Apply current control values to the registers
  *
- * This is used only streaming for syncing between v4l2_ctrl framework and
- * m5mols's controls. First, do the scenemode to the sensor, then call
- * v4l2_ctrl_handler_setup. It can be same between some commands and
- * the scenemode's in the default v4l2_ctrls. But, such commands of control
- * should be prior to the scenemode's one.
+ * m5mols_do_scenemode() handles all parameters for which there is yet no
+ * individual control. It should be replaced at some point by setting each
+ * control individually, in required register set up order.
  */
-int m5mols_sync_controls(struct m5mols_info *info)
+int m5mols_restore_controls(struct m5mols_info *info)
 {
-	int ret = -EINVAL;
+	int ret;
 
-	if (!is_ctrl_synced(info)) {
-		ret = m5mols_do_scenemode(info, REG_SCENE_NORMAL);
-		if (ret)
-			return ret;
+	if (info->ctrl_sync)
+		return 0;
 
-		v4l2_ctrl_handler_setup(&info->handle);
-		info->ctrl_sync = 1;
-	}
+	ret = m5mols_do_scenemode(info, REG_SCENE_NORMAL);
+	if (ret)
+		return ret;
+
+	ret = v4l2_ctrl_handler_setup(&info->handle);
+	info->ctrl_sync = !ret;
 
 	return ret;
 }
@@ -654,7 +653,7 @@ static int m5mols_start_monitor(struct m5mols_info *info)
 	if (!ret)
 		ret = m5mols_mode(info, REG_MONITOR);
 	if (!ret)
-		ret = m5mols_sync_controls(info);
+		ret = m5mols_restore_controls(info);
 
 	return ret;
 }

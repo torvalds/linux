@@ -116,7 +116,7 @@ int m5mols_start_capture(struct m5mols_info *info)
 	 */
 	ret = m5mols_mode(info, REG_MONITOR);
 	if (!ret)
-		ret = m5mols_sync_controls(info);
+		ret = m5mols_restore_controls(info);
 	if (!ret)
 		ret = m5mols_write(sd, CAPP_YUVOUT_MAIN, REG_JPEG);
 	if (!ret)
