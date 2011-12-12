@@ -65,6 +65,7 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 	unsigned long g_ptel = ptel;
 	struct kvm_memory_slot *memslot;
 	unsigned long *physp, pte_size;
+	unsigned long is_io;
 	bool realmode = vcpu->arch.vcore->vcore_state == VCORE_RUNNING;
 
 	psize = hpte_page_size(pteh, ptel);
@@ -92,6 +93,7 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 	pa = *physp;
 	if (!pa)
 		return H_TOO_HARD;
+	is_io = pa & (HPTE_R_I | HPTE_R_W);
 	pte_size = PAGE_SIZE << (pa & KVMPPC_PAGE_ORDER_MASK);
 	pa &= PAGE_MASK;
 
@@ -104,9 +106,16 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 	ptel |= pa;
 
 	/* Check WIMG */
-	if ((ptel & HPTE_R_WIMG) != HPTE_R_M &&
-	    (ptel & HPTE_R_WIMG) != (HPTE_R_W | HPTE_R_I | HPTE_R_M))
-		return H_PARAMETER;
+	if (!hpte_cache_flags_ok(ptel, is_io)) {
+		if (is_io)
+			return H_PARAMETER;
+		/*
+		 * Allow guest to map emulated device memory as
+		 * uncacheable, but actually make it cacheable.
+		 */
+		ptel &= ~(HPTE_R_W|HPTE_R_I|HPTE_R_G);
+		ptel |= HPTE_R_M;
+	}
 	pteh &= ~0x60UL;
 	pteh |= HPTE_V_VALID;
 

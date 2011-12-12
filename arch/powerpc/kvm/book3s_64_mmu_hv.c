@@ -199,7 +199,8 @@ static long kvmppc_get_guest_page(struct kvm *kvm, unsigned long gfn,
 	struct page *page, *hpage, *pages[1];
 	unsigned long s, pgsize;
 	unsigned long *physp;
-	unsigned int got, pgorder;
+	unsigned int is_io, got, pgorder;
+	struct vm_area_struct *vma;
 	unsigned long pfn, i, npages;
 
 	physp = kvm->arch.slot_phys[memslot->id];
@@ -208,34 +209,51 @@ static long kvmppc_get_guest_page(struct kvm *kvm, unsigned long gfn,
 	if (physp[gfn - memslot->base_gfn])
 		return 0;
 
+	is_io = 0;
+	got = 0;
 	page = NULL;
 	pgsize = psize;
+	err = -EINVAL;
 	start = gfn_to_hva_memslot(memslot, gfn);
 
 	/* Instantiate and get the page we want access to */
 	np = get_user_pages_fast(start, 1, 1, pages);
-	if (np != 1)
-		return -EINVAL;
-	page = pages[0];
-	got = KVMPPC_GOT_PAGE;
+	if (np != 1) {
+		/* Look up the vma for the page */
+		down_read(&current->mm->mmap_sem);
+		vma = find_vma(current->mm, start);
+		if (!vma || vma->vm_start > start ||
+		    start + psize > vma->vm_end ||
+		    !(vma->vm_flags & VM_PFNMAP))
+			goto up_err;
+		is_io = hpte_cache_bits(pgprot_val(vma->vm_page_prot));
+		pfn = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
+		/* check alignment of pfn vs. requested page size */
+		if (psize > PAGE_SIZE && (pfn & ((psize >> PAGE_SHIFT) - 1)))
+			goto up_err;
+		up_read(&current->mm->mmap_sem);
 
-	/* See if this is a large page */
-	s = PAGE_SIZE;
-	if (PageHuge(page)) {
-		hpage = compound_head(page);
-		s <<= compound_order(hpage);
-		/* Get the whole large page if slot alignment is ok */
-		if (s > psize && slot_is_aligned(memslot, s) &&
-		    !(memslot->userspace_addr & (s - 1))) {
-			start &= ~(s - 1);
-			pgsize = s;
-			page = hpage;
+	} else {
+		page = pages[0];
+		got = KVMPPC_GOT_PAGE;
+
+		/* See if this is a large page */
+		s = PAGE_SIZE;
+		if (PageHuge(page)) {
+			hpage = compound_head(page);
+			s <<= compound_order(hpage);
+			/* Get the whole large page if slot alignment is ok */
+			if (s > psize && slot_is_aligned(memslot, s) &&
+			    !(memslot->userspace_addr & (s - 1))) {
+				start &= ~(s - 1);
+				pgsize = s;
+				page = hpage;
+			}
 		}
+		if (s < psize)
+			goto out;
+		pfn = page_to_pfn(page);
 	}
-	err = -EINVAL;
-	if (s < psize)
-		goto out;
-	pfn = page_to_pfn(page);
 
 	npages = pgsize >> PAGE_SHIFT;
 	pgorder = __ilog2(npages);
@@ -243,7 +261,8 @@ static long kvmppc_get_guest_page(struct kvm *kvm, unsigned long gfn,
 	spin_lock(&kvm->arch.slot_phys_lock);
 	for (i = 0; i < npages; ++i) {
 		if (!physp[i]) {
-			physp[i] = ((pfn + i) << PAGE_SHIFT) + got + pgorder;
+			physp[i] = ((pfn + i) << PAGE_SHIFT) +
+				got + is_io + pgorder;
 			got = 0;
 		}
 	}
@@ -256,6 +275,10 @@ static long kvmppc_get_guest_page(struct kvm *kvm, unsigned long gfn,
 			page = compound_head(page);
 		put_page(page);
 	}
+	return err;
+
+ up_err:
+	up_read(&current->mm->mmap_sem);
 	return err;
 }
 

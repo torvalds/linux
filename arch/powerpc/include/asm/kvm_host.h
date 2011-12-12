@@ -178,6 +178,8 @@ struct revmap_entry {
 
 /* Low-order bits in kvm->arch.slot_phys[][] */
 #define KVMPPC_PAGE_ORDER_MASK	0x1f
+#define KVMPPC_PAGE_NO_CACHE	HPTE_R_I	/* 0x20 */
+#define KVMPPC_PAGE_WRITETHRU	HPTE_R_W	/* 0x40 */
 #define KVMPPC_GOT_PAGE		0x80
 
 struct kvm_arch {
