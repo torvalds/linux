@@ -502,6 +502,9 @@ struct tc_netem_corrupt {
 
 struct tc_netem_rate {
 	__u32	rate;	/* byte/s */
+	__s32	packet_overhead;
+	__u32	cell_size;
+	__s32	cell_overhead;
 };
 
 enum {

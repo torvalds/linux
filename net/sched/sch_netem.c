@@ -22,6 +22,7 @@
 #include <linux/skbuff.h>
 #include <linux/vmalloc.h>
 #include <linux/rtnetlink.h>
+#include <linux/reciprocal_div.h>
 
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
@@ -80,6 +81,10 @@ struct netem_sched_data {
 	u32 reorder;
 	u32 corrupt;
 	u32 rate;
+	s32 packet_overhead;
+	u32 cell_size;
+	u32 cell_size_reciprocal;
+	s32 cell_overhead;
 
 	struct crndstate {
 		u32 last;
@@ -299,11 +304,23 @@ static psched_tdiff_t tabledist(psched_tdiff_t mu, psched_tdiff_t sigma,
 	return  x / NETEM_DIST_SCALE + (sigma / NETEM_DIST_SCALE) * t + mu;
 }
 
-static psched_time_t packet_len_2_sched_time(unsigned int len, u32 rate)
+static psched_time_t packet_len_2_sched_time(unsigned int len, struct netem_sched_data *q)
 {
-	u64 ticks = (u64)len * NSEC_PER_SEC;
+	u64 ticks;
 
-	do_div(ticks, rate);
+	len += q->packet_overhead;
+
+	if (q->cell_size) {
+		u32 cells = reciprocal_divide(len, q->cell_size_reciprocal);
+
+		if (len > cells * q->cell_size)	/* extra cell needed for remainder */
+			cells++;
+		len = cells * (q->cell_size + q->cell_overhead);
+	}
+
+	ticks = (u64)len * NSEC_PER_SEC;
+
+	do_div(ticks, q->rate);
 	return PSCHED_NS2TICKS(ticks);
 }
 
@@ -384,7 +401,7 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		if (q->rate) {
 			struct sk_buff_head *list = &q->qdisc->q;
 
-			delay += packet_len_2_sched_time(skb->len, q->rate);
+			delay += packet_len_2_sched_time(skb->len, q);
 
 			if (!skb_queue_empty(list)) {
 				/*
@@ -568,6 +585,11 @@ static void get_rate(struct Qdisc *sch, const struct nlattr *attr)
 	const struct tc_netem_rate *r = nla_data(attr);
 
 	q->rate = r->rate;
+	q->packet_overhead = r->packet_overhead;
+	q->cell_size = r->cell_size;
+	if (q->cell_size)
+		q->cell_size_reciprocal = reciprocal_value(q->cell_size);
+	q->cell_overhead = r->cell_overhead;
 }
 
 static int get_loss_clg(struct Qdisc *sch, const struct nlattr *attr)
@@ -909,6 +931,9 @@ static int netem_dump(struct Qdisc *sch, struct sk_buff *skb)
 	NLA_PUT(skb, TCA_NETEM_CORRUPT, sizeof(corrupt), &corrupt);
 
 	rate.rate = q->rate;
+	rate.packet_overhead = q->packet_overhead;
+	rate.cell_size = q->cell_size;
+	rate.cell_overhead = q->cell_overhead;
 	NLA_PUT(skb, TCA_NETEM_RATE, sizeof(rate), &rate);
 
 	if (dump_loss_model(q, skb) != 0)
