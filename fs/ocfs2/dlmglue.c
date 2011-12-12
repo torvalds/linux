@@ -456,7 +456,7 @@ static void ocfs2_update_lock_stats(struct ocfs2_lock_res *res, int level,
 	stats->ls_gets++;
 	stats->ls_total += ktime_to_ns(kt);
 	/* overflow */
-	if (unlikely(stats->ls_gets) == 0) {
+	if (unlikely(stats->ls_gets == 0)) {
 		stats->ls_gets++;
 		stats->ls_total = ktime_to_ns(kt);
 	}
