@@ -961,6 +961,9 @@ static inline bool snd_soc_volsw_is_stereo(struct soc_mixer_control *mc)
 int snd_soc_util_init(void);
 void snd_soc_util_exit(void);
 
+int snd_soc_of_parse_card_name(struct snd_soc_card *card,
+			       const char *propname);
+
 #include <sound/soc-dai.h>
 
 #ifdef CONFIG_DEBUG_FS
