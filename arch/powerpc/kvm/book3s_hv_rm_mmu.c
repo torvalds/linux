@@ -53,26 +53,6 @@ static void *real_vmalloc_addr(void *x)
 	return __va(addr);
 }
 
-#define HPTE_V_HVLOCK	0x40UL
-
-static inline long lock_hpte(unsigned long *hpte, unsigned long bits)
-{
-	unsigned long tmp, old;
-
-	asm volatile("	ldarx	%0,0,%2\n"
-		     "	and.	%1,%0,%3\n"
-		     "	bne	2f\n"
-		     "	ori	%0,%0,%4\n"
-		     "  stdcx.	%0,0,%2\n"
-		     "	beq+	2f\n"
-		     "	li	%1,%3\n"
-		     "2:	isync"
-		     : "=&r" (tmp), "=&r" (old)
-		     : "r" (hpte), "r" (bits), "i" (HPTE_V_HVLOCK)
-		     : "cc", "memory");
-	return old == 0;
-}
-
 long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 		    long pte_index, unsigned long pteh, unsigned long ptel)
 {
@@ -126,24 +106,49 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 	pteh &= ~0x60UL;
 	ptel &= ~(HPTE_R_PP0 - kvm->arch.ram_psize);
 	ptel |= pa;
+
 	if (pte_index >= HPT_NPTE)
 		return H_PARAMETER;
 	if (likely((flags & H_EXACT) == 0)) {
 		pte_index &= ~7UL;
 		hpte = (unsigned long *)(kvm->arch.hpt_virt + (pte_index << 4));
-		for (i = 0; ; ++i) {
-			if (i == 8)
-				return H_PTEG_FULL;
+		for (i = 0; i < 8; ++i) {
 			if ((*hpte & HPTE_V_VALID) == 0 &&
-			    lock_hpte(hpte, HPTE_V_HVLOCK | HPTE_V_VALID))
+			    try_lock_hpte(hpte, HPTE_V_HVLOCK | HPTE_V_VALID))
 				break;
 			hpte += 2;
+		}
+		if (i == 8) {
+			/*
+			 * Since try_lock_hpte doesn't retry (not even stdcx.
+			 * failures), it could be that there is a free slot
+			 * but we transiently failed to lock it.  Try again,
+			 * actually locking each slot and checking it.
+			 */
+			hpte -= 16;
+			for (i = 0; i < 8; ++i) {
+				while (!try_lock_hpte(hpte, HPTE_V_HVLOCK))
+					cpu_relax();
+				if ((*hpte & HPTE_V_VALID) == 0)
+					break;
+				*hpte &= ~HPTE_V_HVLOCK;
+				hpte += 2;
+			}
+			if (i == 8)
+				return H_PTEG_FULL;
 		}
 		pte_index += i;
 	} else {
 		hpte = (unsigned long *)(kvm->arch.hpt_virt + (pte_index << 4));
-		if (!lock_hpte(hpte, HPTE_V_HVLOCK | HPTE_V_VALID))
-			return H_PTEG_FULL;
+		if (!try_lock_hpte(hpte, HPTE_V_HVLOCK | HPTE_V_VALID)) {
+			/* Lock the slot and check again */
+			while (!try_lock_hpte(hpte, HPTE_V_HVLOCK))
+				cpu_relax();
+			if (*hpte & HPTE_V_VALID) {
+				*hpte &= ~HPTE_V_HVLOCK;
+				return H_PTEG_FULL;
+			}
+		}
 	}
 
 	/* Save away the guest's idea of the second HPTE dword */
@@ -189,7 +194,7 @@ long kvmppc_h_remove(struct kvm_vcpu *vcpu, unsigned long flags,
 	if (pte_index >= HPT_NPTE)
 		return H_PARAMETER;
 	hpte = (unsigned long *)(kvm->arch.hpt_virt + (pte_index << 4));
-	while (!lock_hpte(hpte, HPTE_V_HVLOCK))
+	while (!try_lock_hpte(hpte, HPTE_V_HVLOCK))
 		cpu_relax();
 	if ((hpte[0] & HPTE_V_VALID) == 0 ||
 	    ((flags & H_AVPN) && (hpte[0] & ~0x7fUL) != avpn) ||
@@ -248,7 +253,7 @@ long kvmppc_h_bulk_remove(struct kvm_vcpu *vcpu)
 			break;
 		}
 		hp = (unsigned long *)(kvm->arch.hpt_virt + (pte_index << 4));
-		while (!lock_hpte(hp, HPTE_V_HVLOCK))
+		while (!try_lock_hpte(hp, HPTE_V_HVLOCK))
 			cpu_relax();
 		found = 0;
 		if (hp[0] & HPTE_V_VALID) {
@@ -310,7 +315,7 @@ long kvmppc_h_protect(struct kvm_vcpu *vcpu, unsigned long flags,
 	if (pte_index >= HPT_NPTE)
 		return H_PARAMETER;
 	hpte = (unsigned long *)(kvm->arch.hpt_virt + (pte_index << 4));
-	while (!lock_hpte(hpte, HPTE_V_HVLOCK))
+	while (!try_lock_hpte(hpte, HPTE_V_HVLOCK))
 		cpu_relax();
 	if ((hpte[0] & HPTE_V_VALID) == 0 ||
 	    ((flags & H_AVPN) && (hpte[0] & ~0x7fUL) != avpn)) {

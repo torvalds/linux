@@ -43,6 +43,31 @@ static inline void svcpu_put(struct kvmppc_book3s_shadow_vcpu *svcpu)
 #define HPT_HASH_MASK	(HPT_NPTEG - 1)
 #endif
 
+/*
+ * We use a lock bit in HPTE dword 0 to synchronize updates and
+ * accesses to each HPTE, and another bit to indicate non-present
+ * HPTEs.
+ */
+#define HPTE_V_HVLOCK	0x40UL
+
+static inline long try_lock_hpte(unsigned long *hpte, unsigned long bits)
+{
+	unsigned long tmp, old;
+
+	asm volatile("	ldarx	%0,0,%2\n"
+		     "	and.	%1,%0,%3\n"
+		     "	bne	2f\n"
+		     "	ori	%0,%0,%4\n"
+		     "  stdcx.	%0,0,%2\n"
+		     "	beq+	2f\n"
+		     "	li	%1,%3\n"
+		     "2:	isync"
+		     : "=&r" (tmp), "=&r" (old)
+		     : "r" (hpte), "r" (bits), "i" (HPTE_V_HVLOCK)
+		     : "cc", "memory");
+	return old == 0;
+}
+
 static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 					     unsigned long pte_index)
 {
