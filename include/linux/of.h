@@ -217,6 +217,9 @@ extern int of_property_read_string(struct device_node *np,
 extern int of_property_read_string_index(struct device_node *np,
 					 const char *propname,
 					 int index, const char **output);
+extern int of_property_match_string(struct device_node *np,
+				    const char *propname,
+				    const char *string);
 extern int of_property_count_strings(struct device_node *np,
 				     const char *propname);
 extern int of_device_is_compatible(const struct device_node *device,
