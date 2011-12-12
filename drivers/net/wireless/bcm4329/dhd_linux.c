@@ -2529,6 +2529,7 @@ dhd_detach(dhd_pub_t *dhdp)
 	}
 }
 
+extern void reset_g_onoff(void);
 void
 rockchip_wifi_exit_module(void)
 {
@@ -2564,6 +2565,8 @@ rockchip_wifi_init_module(void)
 		DHD_ERROR(("Invalid module parameters.\n"));
 		return -EINVAL;
 	} while (0);
+
+        reset_g_onoff();
 
 	/* Call customer gpio to turn on power with WL_REG_ON signal */
 	dhd_customer_gpio_wlan_ctrl(WLAN_POWER_ON);

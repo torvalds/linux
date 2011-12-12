@@ -317,6 +317,14 @@ static void swap_key_to_BE(
 	key->iv_initialized = dtoh32(key->iv_initialized);
 }
 
+void reset_g_onoff(void)
+{
+    if(g_onoff == G_WLAN_SET_OFF) {
+        printk("g_onoff = G_WLAN_SET_OFF, need to reset to G_WLAN_SET_ON\n");
+        g_onoff = G_WLAN_SET_ON;
+    }
+}
+
 static int
 dev_wlc_ioctl(
 	struct net_device *dev,
