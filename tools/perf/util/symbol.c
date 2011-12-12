@@ -2604,10 +2604,10 @@ int symbol__init(void)
 	symbol_conf.initialized = true;
 	return 0;
 
-out_free_dso_list:
-	strlist__delete(symbol_conf.dso_list);
 out_free_comm_list:
 	strlist__delete(symbol_conf.comm_list);
+out_free_dso_list:
+	strlist__delete(symbol_conf.dso_list);
 	return -1;
 }
 
