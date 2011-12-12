@@ -15,6 +15,15 @@ config PROC_DEVICETREE
 	  an image of the device tree that the kernel copies from Open
 	  Firmware or other boot firmware. If unsure, say Y here.
 
+config OF_SELFTEST
+	bool "Device Tree Runtime self tests"
+	help
+	  This option builds in test cases for the device tree infrastructure
+	  that are executed one at boot time, and the results dumped to the
+	  console.
+
+	  If unsure, say N here, but this option is safe to enable.
+
 config OF_FLATTREE
 	bool
 	select DTC
