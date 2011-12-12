@@ -145,8 +145,21 @@ struct wl1271_stats {
 
 #define AP_MAX_STATIONS            8
 
+struct wl_fw_packet_counters {
+	/* Cumulative counter of released packets per AC */
+	u8 tx_released_pkts[NUM_TX_QUEUES];
+
+	/* Cumulative counter of freed packets per HLID */
+	u8 tx_lnk_free_pkts[WL12XX_MAX_LINKS];
+
+	/* Cumulative counter of released Voice memory blocks */
+	u8 tx_voice_released_blks;
+
+	u8 padding[3];
+} __packed;
+
 /* FW status registers */
-struct wl12xx_fw_status {
+struct wl_fw_status {
 	__le32 intr;
 	u8  fw_rx_counter;
 	u8  drv_rx_counter;
@@ -173,16 +186,12 @@ struct wl12xx_fw_status {
 	/* Size (in Memory Blocks) of TX pool */
 	__le32 tx_total;
 
-	/* Cumulative counter of released packets per AC */
-	u8 tx_released_pkts[NUM_TX_QUEUES];
+	struct wl_fw_packet_counters counters;
 
-	/* Cumulative counter of freed packets per HLID */
-	u8 tx_lnk_free_pkts[WL12XX_MAX_LINKS];
-
-	/* Cumulative counter of released Voice memory blocks */
-	u8 tx_voice_released_blks;
-	u8 padding_1[3];
 	__le32 log_start_addr;
+
+	/* Private status to be used by the lower drivers */
+	u8 priv[0];
 } __packed;
 
 struct wl1271_rx_mem_pool_addr {

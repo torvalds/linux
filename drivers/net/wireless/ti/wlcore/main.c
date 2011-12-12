@@ -387,7 +387,7 @@ static void wl12xx_irq_ps_regulate_link(struct wl1271 *wl,
 
 static void wl12xx_irq_update_links_status(struct wl1271 *wl,
 					   struct wl12xx_vif *wlvif,
-					   struct wl12xx_fw_status *status)
+					   struct wl_fw_status *status)
 {
 	struct wl1271_link *lnk;
 	u32 cur_fw_ps_map;
@@ -407,9 +407,10 @@ static void wl12xx_irq_update_links_status(struct wl1271 *wl,
 
 	for_each_set_bit(hlid, wlvif->ap.sta_hlid_map, WL12XX_MAX_LINKS) {
 		lnk = &wl->links[hlid];
-		cnt = status->tx_lnk_free_pkts[hlid] - lnk->prev_freed_pkts;
+		cnt = status->counters.tx_lnk_free_pkts[hlid] -
+			lnk->prev_freed_pkts;
 
-		lnk->prev_freed_pkts = status->tx_lnk_free_pkts[hlid];
+		lnk->prev_freed_pkts = status->counters.tx_lnk_free_pkts[hlid];
 		lnk->allocated_pkts -= cnt;
 
 		wl12xx_irq_ps_regulate_link(wl, wlvif, hlid,
@@ -418,16 +419,19 @@ static void wl12xx_irq_update_links_status(struct wl1271 *wl,
 }
 
 static void wl12xx_fw_status(struct wl1271 *wl,
-			     struct wl12xx_fw_status *status)
+			     struct wl_fw_status *status)
 {
 	struct wl12xx_vif *wlvif;
 	struct timespec ts;
 	u32 old_tx_blk_count = wl->tx_blocks_available;
 	int avail, freed_blocks;
 	int i;
+	size_t status_len;
+
+	status_len = sizeof(*status) + wl->fw_status_priv_len;
 
 	wlcore_raw_read_data(wl, REG_RAW_FW_STATUS_ADDR, status,
-			     sizeof(*status), false);
+			     status_len, false);
 
 	wl1271_debug(DEBUG_IRQ, "intr: 0x%x (fw_rx_counter = %d, "
 		     "drv_rx_counter = %d, tx_results_counter = %d)",
@@ -439,10 +443,10 @@ static void wl12xx_fw_status(struct wl1271 *wl,
 	for (i = 0; i < NUM_TX_QUEUES; i++) {
 		/* prevent wrap-around in freed-packets counter */
 		wl->tx_allocated_pkts[i] -=
-				(status->tx_released_pkts[i] -
+				(status->counters.tx_released_pkts[i] -
 				wl->tx_pkts_freed[i]) & 0xff;
 
-		wl->tx_pkts_freed[i] = status->tx_released_pkts[i];
+		wl->tx_pkts_freed[i] = status->counters.tx_released_pkts[i];
 	}
 
 	/* prevent wrap-around in total blocks counter */

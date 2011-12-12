@@ -1343,6 +1343,7 @@ static int __devinit wl12xx_probe(struct platform_device *pdev)
 	wl->band_rate_to_idx = wl12xx_band_rate_to_idx;
 	wl->hw_tx_rate_tbl_size = WL12XX_CONF_HW_RXTX_RATE_MAX;
 	wl->hw_min_ht_rate = WL12XX_CONF_HW_RXTX_RATE_MCS0;
+	wl->fw_status_priv_len = 0;
 	memcpy(&wl->ht_cap, &wl12xx_ht_cap, sizeof(wl12xx_ht_cap));
 	wl12xx_conf_init(wl);
 

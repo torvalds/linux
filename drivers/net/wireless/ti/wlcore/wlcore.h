@@ -260,7 +260,7 @@ struct wl1271 {
 	u32 buffer_cmd;
 	u32 buffer_busyword[WL1271_BUSY_WORD_CNT];
 
-	struct wl12xx_fw_status *fw_status;
+	struct wl_fw_status *fw_status;
 	struct wl1271_tx_hw_res_if *tx_res_if;
 
 	/* Current chipset configuration */
@@ -346,6 +346,9 @@ struct wl1271 {
 
 	/* HW HT (11n) capabilities */
 	struct ieee80211_sta_ht_cap ht_cap;
+
+	/* size of the private FW status data */
+	size_t fw_status_priv_len;
 };
 
 int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev);
