@@ -107,7 +107,7 @@ ebt_log_packet(u_int8_t pf, unsigned int hooknum,
 		goto out;
 	}
 
-#if defined(CONFIG_BRIDGE_EBT_IP6) || defined(CONFIG_BRIDGE_EBT_IP6_MODULE)
+#if IS_ENABLED(CONFIG_BRIDGE_EBT_IP6)
 	if ((bitmask & EBT_LOG_IP6) && eth_hdr(skb)->h_proto ==
 	   htons(ETH_P_IPV6)) {
 		const struct ipv6hdr *ih;
