@@ -795,8 +795,19 @@ cleanup:
 	return ret;
 }
 
+static void __exit vmbus_exit(void)
+{
+
+	free_irq(irq, hv_acpi_dev);
+	vmbus_free_channels();
+	bus_unregister(&hv_bus);
+	hv_cleanup();
+	acpi_bus_unregister_driver(&vmbus_acpi_driver);
+}
+
 
 MODULE_LICENSE("GPL");
 MODULE_VERSION(HV_DRV_VERSION);
 
 subsys_initcall(hv_acpi_init);
+module_exit(vmbus_exit);

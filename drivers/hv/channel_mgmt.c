@@ -223,6 +223,17 @@ static void vmbus_process_rescind_offer(struct work_struct *work)
 	vmbus_device_unregister(channel->device_obj);
 }
 
+void vmbus_free_channels(void)
+{
+	struct vmbus_channel *channel;
+
+	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {
+		vmbus_device_unregister(channel->device_obj);
+		kfree(channel->device_obj);
+		free_channel(channel);
+	}
+}
+
 /*
  * vmbus_process_offer - Process the offer by creating a channel/device
  * associated with this offer

@@ -611,6 +611,7 @@ void vmbus_device_unregister(struct hv_device *device_obj);
 
 struct vmbus_channel *relid2channel(u32 relid);
 
+void vmbus_free_channels(void);
 
 /* Connection interface */
 
