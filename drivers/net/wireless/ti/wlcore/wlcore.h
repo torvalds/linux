@@ -33,6 +33,7 @@
 /* forward declaration */
 struct wl1271_tx_hw_descr;
 enum wl_rx_buf_align;
+
 struct wlcore_ops {
 	int (*identify_chip)(struct wl1271 *wl);
 	int (*boot)(struct wl1271 *wl);
@@ -48,6 +49,8 @@ struct wlcore_ops {
 	enum wl_rx_buf_align (*get_rx_buf_align)(struct wl1271 *wl,
 						 u32 rx_desc);
 	void (*prepare_read)(struct wl1271 *wl, u32 rx_desc, u32 len);
+	u32 (*get_rx_packet_len)(struct wl1271 *wl, void *rx_data,
+				 u32 data_len);
 	s8 (*get_pg_ver)(struct wl1271 *wl);
 	void (*get_mac)(struct wl1271 *wl);
 };

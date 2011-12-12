@@ -72,4 +72,13 @@ wlcore_hw_prepare_read(struct wl1271 *wl, u32 rx_desc, u32 len)
 		wl->ops->prepare_read(wl, rx_desc, len);
 }
 
+static inline u32
+wlcore_hw_get_rx_packet_len(struct wl1271 *wl, void *rx_data, u32 data_len)
+{
+	if (!wl->ops->get_rx_packet_len)
+		BUG_ON(1);
+
+	return wl->ops->get_rx_packet_len(wl, rx_data, data_len);
+}
+
 #endif

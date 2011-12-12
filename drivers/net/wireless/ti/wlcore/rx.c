@@ -110,6 +110,7 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 	u8 is_data = 0;
 	u8 reserved = 0;
 	u16 seq_num;
+	u32 pkt_data_len;
 
 	/*
 	 * In PLT mode we seem to get frames and mac80211 warns about them,
@@ -117,6 +118,13 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 	 */
 	if (unlikely(wl->plt))
 		return -EINVAL;
+
+	pkt_data_len = wlcore_hw_get_rx_packet_len(wl, data, length);
+	if (!pkt_data_len) {
+		wl1271_error("Invalid packet arrived from HW. length %d",
+			     length);
+		return -EINVAL;
+	}
 
 	if (rx_align == WLCORE_RX_BUF_UNALIGNED)
 		reserved = NET_IP_ALIGN;
@@ -147,8 +155,8 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 		return -EINVAL;
 	}
 
-	/* skb length not included rx descriptor */
-	skb = __dev_alloc_skb(length + reserved - sizeof(*desc), GFP_KERNEL);
+	/* skb length not including rx descriptor */
+	skb = __dev_alloc_skb(pkt_data_len + reserved, GFP_KERNEL);
 	if (!skb) {
 		wl1271_error("Couldn't allocate RX frame");
 		return -ENOMEM;
@@ -157,7 +165,7 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 	/* reserve the unaligned payload(if any) */
 	skb_reserve(skb, reserved);
 
-	buf = skb_put(skb, length - sizeof(*desc));
+	buf = skb_put(skb, pkt_data_len);
 
 	/*
 	 * Copy packets from aggregation buffer to the skbs without rx
@@ -165,7 +173,7 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 	 * packets copy the packets in offset of 2 bytes guarantee IP header
 	 * payload aligned to 4 bytes.
 	 */
-	memcpy(buf, data + sizeof(*desc), length - sizeof(*desc));
+	memcpy(buf, data + sizeof(*desc), pkt_data_len);
 	if (rx_align == WLCORE_RX_BUF_PADDED)
 		skb_pull(skb, NET_IP_ALIGN);
 
@@ -184,8 +192,6 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 		     skb->len - desc->pad_len,
 		     beacon ? "beacon" : "",
 		     seq_num, *hlid);
-
-	skb_trim(skb, skb->len - desc->pad_len);
 
 	skb_queue_tail(&wl->deferred_rx_queue, skb);
 	queue_work(wl->freezable_wq, &wl->netstack_work);
