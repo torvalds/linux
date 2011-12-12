@@ -157,11 +157,11 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->timer.init		= nv04_timer_init;
 		engine->timer.read		= nv04_timer_read;
 		engine->timer.takedown		= nv04_timer_takedown;
-		engine->fb.init			= nv10_fb_init;
-		engine->fb.takedown		= nv10_fb_takedown;
-		engine->fb.init_tile_region	= nv10_fb_init_tile_region;
-		engine->fb.set_tile_region	= nv10_fb_set_tile_region;
-		engine->fb.free_tile_region	= nv10_fb_free_tile_region;
+		engine->fb.init			= nv20_fb_init;
+		engine->fb.takedown		= nv20_fb_takedown;
+		engine->fb.init_tile_region	= nv20_fb_init_tile_region;
+		engine->fb.set_tile_region	= nv20_fb_set_tile_region;
+		engine->fb.free_tile_region	= nv20_fb_free_tile_region;
 		engine->fifo.channels		= 32;
 		engine->fifo.init		= nv10_fifo_init;
 		engine->fifo.takedown		= nv04_fifo_fini;
@@ -185,7 +185,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->pm.clocks_get		= nv04_pm_clocks_get;
 		engine->pm.clocks_pre		= nv04_pm_clocks_pre;
 		engine->pm.clocks_set		= nv04_pm_clocks_set;
-		engine->vram.init		= nv10_fb_vram_init;
+		engine->vram.init		= nv20_fb_vram_init;
 		engine->vram.takedown		= nouveau_stub_takedown;
 		engine->vram.flags_valid	= nouveau_mem_flags_valid;
 		break;
@@ -234,7 +234,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->pm.clocks_set		= nv04_pm_clocks_set;
 		engine->pm.voltage_get		= nouveau_voltage_gpio_get;
 		engine->pm.voltage_set		= nouveau_voltage_gpio_set;
-		engine->vram.init		= nv10_fb_vram_init;
+		engine->vram.init		= nv20_fb_vram_init;
 		engine->vram.takedown		= nouveau_stub_takedown;
 		engine->vram.flags_valid	= nouveau_mem_flags_valid;
 		break;
@@ -290,7 +290,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->pm.temp_get		= nv40_temp_get;
 		engine->pm.pwm_get		= nv40_pm_pwm_get;
 		engine->pm.pwm_set		= nv40_pm_pwm_set;
-		engine->vram.init		= nv10_fb_vram_init;
+		engine->vram.init		= nv20_fb_vram_init;
 		engine->vram.takedown		= nouveau_stub_takedown;
 		engine->vram.flags_valid	= nouveau_mem_flags_valid;
 		break;

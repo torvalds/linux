@@ -1154,6 +1154,16 @@ extern void nv10_fb_init_tile_region(struct drm_device *dev, int i,
 extern void nv10_fb_set_tile_region(struct drm_device *dev, int i);
 extern void nv10_fb_free_tile_region(struct drm_device *dev, int i);
 
+/* nv20_fb.c */
+extern int  nv20_fb_vram_init(struct drm_device *dev);
+extern int  nv20_fb_init(struct drm_device *);
+extern void nv20_fb_takedown(struct drm_device *);
+extern void nv20_fb_init_tile_region(struct drm_device *dev, int i,
+				     uint32_t addr, uint32_t size,
+				     uint32_t pitch, uint32_t flags);
+extern void nv20_fb_set_tile_region(struct drm_device *dev, int i);
+extern void nv20_fb_free_tile_region(struct drm_device *dev, int i);
+
 /* nv30_fb.c */
 extern int  nv30_fb_init(struct drm_device *);
 extern void nv30_fb_takedown(struct drm_device *);
