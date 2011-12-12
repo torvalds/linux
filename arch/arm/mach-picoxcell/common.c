@@ -16,11 +16,24 @@
 
 #include <asm/mach/arch.h>
 #include <asm/hardware/vic.h>
+#include <asm/mach/map.h>
 
 #include <mach/map.h>
 #include <mach/picoxcell_soc.h>
 
 #include "common.h"
+
+static struct map_desc io_map __initdata = {
+	.virtual	= PHYS_TO_IO(PICOXCELL_PERIPH_BASE),
+	.pfn		= __phys_to_pfn(PICOXCELL_PERIPH_BASE),
+	.length		= PICOXCELL_PERIPH_LENGTH,
+	.type		= MT_DEVICE,
+};
+
+static void __init picoxcell_map_io(void)
+{
+	iotable_init(&io_map, 1);
+}
 
 static void __init picoxcell_init_machine(void)
 {
