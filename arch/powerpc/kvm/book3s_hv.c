@@ -49,6 +49,7 @@
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
 #include <linux/highmem.h>
+#include <linux/hugetlb.h>
 
 #define LARGE_PAGE_ORDER	24	/* 16MB pages */
 
@@ -57,6 +58,7 @@
 /* #define EXIT_DEBUG_INT */
 
 static void kvmppc_end_cede(struct kvm_vcpu *vcpu);
+static int kvmppc_hv_setup_rma(struct kvm_vcpu *vcpu);
 
 void kvmppc_core_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
@@ -231,6 +233,12 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 	struct kvm_vcpu *tvcpu;
 
 	switch (req) {
+	case H_ENTER:
+		ret = kvmppc_virtmode_h_enter(vcpu, kvmppc_get_gpr(vcpu, 4),
+					      kvmppc_get_gpr(vcpu, 5),
+					      kvmppc_get_gpr(vcpu, 6),
+					      kvmppc_get_gpr(vcpu, 7));
+		break;
 	case H_CEDE:
 		break;
 	case H_PROD:
@@ -851,9 +859,12 @@ int kvmppc_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		return -EINTR;
 	}
 
-	/* On PPC970, check that we have an RMA region */
-	if (!vcpu->kvm->arch.rma && cpu_has_feature(CPU_FTR_ARCH_201))
-		return -EPERM;
+	/* On the first time here, set up VRMA or RMA */
+	if (!vcpu->kvm->arch.rma_setup_done) {
+		r = kvmppc_hv_setup_rma(vcpu);
+		if (r)
+			return r;
+	}
 
 	flush_fp_to_thread(current);
 	flush_altivec_to_thread(current);
@@ -1063,34 +1074,15 @@ long kvm_vm_ioctl_allocate_rma(struct kvm *kvm, struct kvm_allocate_rma *ret)
 	return fd;
 }
 
-static struct page *hva_to_page(unsigned long addr)
-{
-	struct page *page[1];
-	int npages;
-
-	might_sleep();
-
-	npages = get_user_pages_fast(addr, 1, 1, page);
-
-	if (unlikely(npages != 1))
-		return 0;
-
-	return page[0];
-}
-
 int kvmppc_core_prepare_memory_region(struct kvm *kvm,
 				struct kvm_userspace_memory_region *mem)
 {
-	unsigned long psize, porder;
-	unsigned long i, npages;
-	unsigned long hva;
-	struct kvmppc_rma_info *ri = NULL;
-	struct page *page;
+	unsigned long psize;
+	unsigned long npages;
 	unsigned long *phys;
 
-	/* For now, only allow 16MB pages */
-	porder = LARGE_PAGE_ORDER;
-	psize = 1ul << porder;
+	/* For now, only allow 16MB-aligned slots */
+	psize = kvm->arch.ram_psize;
 	if ((mem->memory_size & (psize - 1)) ||
 	    (mem->guest_phys_addr & (psize - 1))) {
 		pr_err("bad memory_size=%llx @ %llx\n",
@@ -1099,7 +1091,7 @@ int kvmppc_core_prepare_memory_region(struct kvm *kvm,
 	}
 
 	/* Allocate a slot_phys array */
-	npages = mem->memory_size >> porder;
+	npages = mem->memory_size >> kvm->arch.ram_porder;
 	phys = kvm->arch.slot_phys[mem->slot];
 	if (!phys) {
 		phys = vzalloc(npages * sizeof(unsigned long));
@@ -1109,39 +1101,110 @@ int kvmppc_core_prepare_memory_region(struct kvm *kvm,
 		kvm->arch.slot_npages[mem->slot] = npages;
 	}
 
-	/* Do we already have an RMA registered? */
-	if (mem->guest_phys_addr == 0 && kvm->arch.rma)
-		return -EINVAL;
+	return 0;
+}
+
+static void unpin_slot(struct kvm *kvm, int slot_id)
+{
+	unsigned long *physp;
+	unsigned long j, npages, pfn;
+	struct page *page;
+
+	physp = kvm->arch.slot_phys[slot_id];
+	npages = kvm->arch.slot_npages[slot_id];
+	if (physp) {
+		spin_lock(&kvm->arch.slot_phys_lock);
+		for (j = 0; j < npages; j++) {
+			if (!(physp[j] & KVMPPC_GOT_PAGE))
+				continue;
+			pfn = physp[j] >> PAGE_SHIFT;
+			page = pfn_to_page(pfn);
+			SetPageDirty(page);
+			put_page(page);
+		}
+		kvm->arch.slot_phys[slot_id] = NULL;
+		spin_unlock(&kvm->arch.slot_phys_lock);
+		vfree(physp);
+	}
+}
+
+void kvmppc_core_commit_memory_region(struct kvm *kvm,
+				struct kvm_userspace_memory_region *mem)
+{
+}
+
+static int kvmppc_hv_setup_rma(struct kvm_vcpu *vcpu)
+{
+	int err = 0;
+	struct kvm *kvm = vcpu->kvm;
+	struct kvmppc_rma_info *ri = NULL;
+	unsigned long hva;
+	struct kvm_memory_slot *memslot;
+	struct vm_area_struct *vma;
+	unsigned long lpcr;
+	unsigned long psize, porder;
+	unsigned long rma_size;
+	unsigned long rmls;
+	unsigned long *physp;
+	unsigned long i, npages, pa;
+
+	mutex_lock(&kvm->lock);
+	if (kvm->arch.rma_setup_done)
+		goto out;	/* another vcpu beat us to it */
+
+	/* Look up the memslot for guest physical address 0 */
+	memslot = gfn_to_memslot(kvm, 0);
+
+	/* We must have some memory at 0 by now */
+	err = -EINVAL;
+	if (!memslot || (memslot->flags & KVM_MEMSLOT_INVALID))
+		goto out;
+
+	/* Look up the VMA for the start of this memory slot */
+	hva = memslot->userspace_addr;
+	down_read(&current->mm->mmap_sem);
+	vma = find_vma(current->mm, hva);
+	if (!vma || vma->vm_start > hva || (vma->vm_flags & VM_IO))
+		goto up_out;
+
+	psize = vma_kernel_pagesize(vma);
+	if (psize != kvm->arch.ram_psize)
+		goto up_out;
 
 	/* Is this one of our preallocated RMAs? */
-	if (mem->guest_phys_addr == 0) {
-		struct vm_area_struct *vma;
+	if (vma->vm_file && vma->vm_file->f_op == &kvm_rma_fops &&
+	    hva == vma->vm_start)
+		ri = vma->vm_file->private_data;
 
-		down_read(&current->mm->mmap_sem);
-		vma = find_vma(current->mm, mem->userspace_addr);
-		if (vma && vma->vm_file &&
-		    vma->vm_file->f_op == &kvm_rma_fops &&
-		    mem->userspace_addr == vma->vm_start)
-			ri = vma->vm_file->private_data;
-		up_read(&current->mm->mmap_sem);
-		if (!ri && cpu_has_feature(CPU_FTR_ARCH_201)) {
-			pr_err("CPU requires an RMO\n");
-			return -EINVAL;
+	up_read(&current->mm->mmap_sem);
+
+	if (!ri) {
+		/* On POWER7, use VRMA; on PPC970, give up */
+		err = -EPERM;
+		if (cpu_has_feature(CPU_FTR_ARCH_201)) {
+			pr_err("KVM: CPU requires an RMO\n");
+			goto out;
 		}
-	}
 
-	if (ri) {
-		unsigned long rma_size;
-		unsigned long lpcr;
-		long rmls;
+		/* Update VRMASD field in the LPCR */
+		lpcr = kvm->arch.lpcr & ~(0x1fUL << LPCR_VRMASD_SH);
+		lpcr |= LPCR_VRMA_L;
+		kvm->arch.lpcr = lpcr;
 
-		rma_size = ri->npages << PAGE_SHIFT;
-		if (rma_size > mem->memory_size)
-			rma_size = mem->memory_size;
+		/* Create HPTEs in the hash page table for the VRMA */
+		kvmppc_map_vrma(vcpu, memslot);
+
+	} else {
+		/* Set up to use an RMO region */
+		rma_size = ri->npages;
+		if (rma_size > memslot->npages)
+			rma_size = memslot->npages;
+		rma_size <<= PAGE_SHIFT;
 		rmls = lpcr_rmls(rma_size);
+		err = -EINVAL;
 		if (rmls < 0) {
-			pr_err("Can't use RMA of 0x%lx bytes\n", rma_size);
-			return -EINVAL;
+			pr_err("KVM: Can't use RMA of 0x%lx bytes\n", rma_size);
+			goto out;
 		}
 		atomic_inc(&ri->use_count);
 		kvm->arch.rma = ri;
@@ -1164,65 +1227,31 @@ int kvmppc_core_prepare_memory_region(struct kvm *kvm,
 			kvm->arch.rmor = kvm->arch.rma->base_pfn << PAGE_SHIFT;
 		}
 		kvm->arch.lpcr = lpcr;
-		pr_info("Using RMO at %lx size %lx (LPCR = %lx)\n",
+		pr_info("KVM: Using RMO at %lx size %lx (LPCR = %lx)\n",
 			ri->base_pfn << PAGE_SHIFT, rma_size, lpcr);
+
+		/* Initialize phys addrs of pages in RMO */
+		porder = kvm->arch.ram_porder;
+		npages = rma_size >> porder;
+		pa = ri->base_pfn << PAGE_SHIFT;
+		physp = kvm->arch.slot_phys[memslot->id];
+		spin_lock(&kvm->arch.slot_phys_lock);
+		for (i = 0; i < npages; ++i)
+			physp[i] = pa + (i << porder);
+		spin_unlock(&kvm->arch.slot_phys_lock);
 	}
 
-	for (i = 0; i < npages; ++i) {
-		if (ri && i < ri->npages) {
-			phys[i] = (ri->base_pfn << PAGE_SHIFT) + (i << porder);
-			continue;
-		}
-		hva = mem->userspace_addr + (i << porder);
-		page = hva_to_page(hva);
-		if (!page) {
-			pr_err("oops, no pfn for hva %lx\n", hva);
-			goto err;
-		}
-		/* Check it's a 16MB page */
-		if (!PageHead(page) ||
-		    compound_order(page) != (LARGE_PAGE_ORDER - PAGE_SHIFT)) {
-			pr_err("page at %lx isn't 16MB (o=%d)\n",
-			       hva, compound_order(page));
-			goto err;
-		}
-		phys[i] = (page_to_pfn(page) << PAGE_SHIFT) | KVMPPC_GOT_PAGE;
-	}
+	/* Order updates to kvm->arch.lpcr etc. vs. rma_setup_done */
+	smp_wmb();
+	kvm->arch.rma_setup_done = 1;
+	err = 0;
+ out:
+	mutex_unlock(&kvm->lock);
+	return err;
 
-	return 0;
-
- err:
-	return -EINVAL;
-}
-
-static void unpin_slot(struct kvm *kvm, int slot_id)
-{
-	unsigned long *physp;
-	unsigned long j, npages, pfn;
-	struct page *page;
-
-	physp = kvm->arch.slot_phys[slot_id];
-	npages = kvm->arch.slot_npages[slot_id];
-	if (physp) {
-		for (j = 0; j < npages; j++) {
-			if (!(physp[j] & KVMPPC_GOT_PAGE))
-				continue;
-			pfn = physp[j] >> PAGE_SHIFT;
-			page = pfn_to_page(pfn);
-			SetPageDirty(page);
-			put_page(page);
-		}
-		vfree(physp);
-		kvm->arch.slot_phys[slot_id] = NULL;
-	}
-}
-
-void kvmppc_core_commit_memory_region(struct kvm *kvm,
-				struct kvm_userspace_memory_region *mem)
-{
-	if (mem->guest_phys_addr == 0 && mem->memory_size != 0 &&
-	    !kvm->arch.rma)
-		kvmppc_map_vrma(kvm, mem);
+ up_out:
+	up_read(&current->mm->mmap_sem);
+	goto out;
 }
 
 int kvmppc_core_init_vm(struct kvm *kvm)
@@ -1261,6 +1290,7 @@ int kvmppc_core_init_vm(struct kvm *kvm)
 	}
 	kvm->arch.lpcr = lpcr;
 
+	spin_lock_init(&kvm->arch.slot_phys_lock);
 	return 0;
 }
 

@@ -194,7 +194,9 @@ struct kvm_arch {
 	unsigned long lpcr;
 	unsigned long rmor;
 	struct kvmppc_rma_info *rma;
+	int rma_setup_done;
 	struct list_head spapr_tce_tables;
+	spinlock_t slot_phys_lock;
 	unsigned long *slot_phys[KVM_MEM_SLOTS_NUM];
 	int slot_npages[KVM_MEM_SLOTS_NUM];
 	unsigned short last_vcpu[NR_CPUS];

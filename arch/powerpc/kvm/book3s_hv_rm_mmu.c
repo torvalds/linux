@@ -11,6 +11,7 @@
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
 #include <linux/hugetlb.h>
+#include <linux/module.h>
 
 #include <asm/tlbflush.h>
 #include <asm/kvm_ppc.h>
@@ -56,56 +57,54 @@ static void *real_vmalloc_addr(void *x)
 long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 		    long pte_index, unsigned long pteh, unsigned long ptel)
 {
-	unsigned long porder;
 	struct kvm *kvm = vcpu->kvm;
-	unsigned long i, gfn, lpn, pa;
+	unsigned long i, pa, gpa, gfn, psize;
+	unsigned long slot_fn;
 	unsigned long *hpte;
 	struct revmap_entry *rev;
 	unsigned long g_ptel = ptel;
 	struct kvm_memory_slot *memslot;
-	unsigned long *physp;
+	unsigned long *physp, pte_size;
+	bool realmode = vcpu->arch.vcore->vcore_state == VCORE_RUNNING;
 
-	/* only handle 4k, 64k and 16M pages for now */
-	porder = 12;
-	if (pteh & HPTE_V_LARGE) {
-		if (cpu_has_feature(CPU_FTR_ARCH_206) &&
-		    (ptel & 0xf000) == 0x1000) {
-			/* 64k page */
-			porder = 16;
-		} else if ((ptel & 0xff000) == 0) {
-			/* 16M page */
-			porder = 24;
-			/* lowest AVA bit must be 0 for 16M pages */
-			if (pteh & 0x80)
-				return H_PARAMETER;
-		} else
-			return H_PARAMETER;
-	}
-	if (porder > kvm->arch.ram_porder)
+	psize = hpte_page_size(pteh, ptel);
+	if (!psize)
 		return H_PARAMETER;
 
-	gfn = ((ptel & HPTE_R_RPN) & ~((1ul << porder) - 1)) >> PAGE_SHIFT;
+	/* Find the memslot (if any) for this address */
+	gpa = (ptel & HPTE_R_RPN) & ~(psize - 1);
+	gfn = gpa >> PAGE_SHIFT;
 	memslot = builtin_gfn_to_memslot(kvm, gfn);
 	if (!(memslot && !(memslot->flags & KVM_MEMSLOT_INVALID)))
 		return H_PARAMETER;
+	slot_fn = gfn - memslot->base_gfn;
+
 	physp = kvm->arch.slot_phys[memslot->id];
 	if (!physp)
 		return H_PARAMETER;
-
-	lpn = (gfn - memslot->base_gfn) >> (kvm->arch.ram_porder - PAGE_SHIFT);
-	physp = real_vmalloc_addr(physp + lpn);
+	physp += slot_fn;
+	if (realmode)
+		physp = real_vmalloc_addr(physp);
 	pa = *physp;
 	if (!pa)
-		return H_PARAMETER;
+		return H_TOO_HARD;
 	pa &= PAGE_MASK;
+
+	pte_size = kvm->arch.ram_psize;
+	if (pte_size < psize)
+		return H_PARAMETER;
+	if (pa && pte_size > psize)
+		pa |= gpa & (pte_size - 1);
+
+	ptel &= ~(HPTE_R_PP0 - psize);
+	ptel |= pa;
 
 	/* Check WIMG */
 	if ((ptel & HPTE_R_WIMG) != HPTE_R_M &&
 	    (ptel & HPTE_R_WIMG) != (HPTE_R_W | HPTE_R_I | HPTE_R_M))
 		return H_PARAMETER;
 	pteh &= ~0x60UL;
-	ptel &= ~(HPTE_R_PP0 - kvm->arch.ram_psize);
-	ptel |= pa;
+	pteh |= HPTE_V_VALID;
 
 	if (pte_index >= HPT_NPTE)
 		return H_PARAMETER;
@@ -162,6 +161,7 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 	vcpu->arch.gpr[4] = pte_index;
 	return H_SUCCESS;
 }
+EXPORT_SYMBOL_GPL(kvmppc_h_enter);
 
 #define LOCK_TOKEN	(*(u32 *)(&get_paca()->lock_token))
 

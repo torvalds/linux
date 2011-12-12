@@ -141,6 +141,10 @@ extern pfn_t kvmppc_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn);
 extern void *kvmppc_pin_guest_page(struct kvm *kvm, unsigned long addr,
 			unsigned long *nb_ret);
 extern void kvmppc_unpin_guest_page(struct kvm *kvm, void *addr);
+extern long kvmppc_virtmode_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
+			long pte_index, unsigned long pteh, unsigned long ptel);
+extern long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
+			long pte_index, unsigned long pteh, unsigned long ptel);
 
 extern void kvmppc_entry_trampoline(void);
 extern void kvmppc_hv_entry_trampoline(void);

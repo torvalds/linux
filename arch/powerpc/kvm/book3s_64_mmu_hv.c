@@ -95,19 +95,17 @@ void kvmppc_free_hpt(struct kvm *kvm)
 	free_pages(kvm->arch.hpt_virt, HPT_ORDER - PAGE_SHIFT);
 }
 
-void kvmppc_map_vrma(struct kvm *kvm, struct kvm_userspace_memory_region *mem)
+void kvmppc_map_vrma(struct kvm_vcpu *vcpu, struct kvm_memory_slot *memslot)
 {
+	struct kvm *kvm = vcpu->kvm;
 	unsigned long i;
 	unsigned long npages;
-	unsigned long pa;
-	unsigned long *hpte;
-	unsigned long hash;
+	unsigned long hp_v, hp_r;
+	unsigned long addr, hash;
 	unsigned long porder = kvm->arch.ram_porder;
-	struct revmap_entry *rev;
-	unsigned long *physp;
+	long ret;
 
-	physp = kvm->arch.slot_phys[mem->slot];
-	npages = kvm->arch.slot_npages[mem->slot];
+	npages = kvm->arch.slot_npages[memslot->id];
 
 	/* VRMA can't be > 1TB */
 	if (npages > 1ul << (40 - porder))
@@ -117,10 +115,7 @@ void kvmppc_map_vrma(struct kvm *kvm, struct kvm_userspace_memory_region *mem)
 		npages = HPT_NPTEG;
 
 	for (i = 0; i < npages; ++i) {
-		pa = physp[i];
-		if (!pa)
-			break;
-		pa &= PAGE_MASK;
+		addr = i << porder;
 		/* can't use hpt_hash since va > 64 bits */
 		hash = (i ^ (VRMA_VSID ^ (VRMA_VSID << 25))) & HPT_HASH_MASK;
 		/*
@@ -130,18 +125,16 @@ void kvmppc_map_vrma(struct kvm *kvm, struct kvm_userspace_memory_region *mem)
 		 * is available and use it.
 		 */
 		hash = (hash << 3) + 7;
-		hpte = (unsigned long *) (kvm->arch.hpt_virt + (hash << 4));
-		/* HPTE low word - RPN, protection, etc. */
-		hpte[1] = pa | HPTE_R_R | HPTE_R_C | HPTE_R_M | PP_RWXX;
-		smp_wmb();
-		hpte[0] = HPTE_V_1TB_SEG | (VRMA_VSID << (40 - 16)) |
+		hp_v = HPTE_V_1TB_SEG | (VRMA_VSID << (40 - 16)) |
 			(i << (VRMA_PAGE_ORDER - 16)) | HPTE_V_BOLTED |
 			HPTE_V_LARGE | HPTE_V_VALID;
-
-		/* Reverse map info */
-		rev = &kvm->arch.revmap[hash];
-		rev->guest_rpte = (i << porder) | HPTE_R_R | HPTE_R_C |
-			HPTE_R_M | PP_RWXX;
+		hp_r = addr | HPTE_R_R | HPTE_R_C | HPTE_R_M | PP_RWXX;
+		ret = kvmppc_virtmode_h_enter(vcpu, H_EXACT, hash, hp_v, hp_r);
+		if (ret != H_SUCCESS) {
+			pr_err("KVM: map_vrma at %lx failed, ret=%ld\n",
+			       addr, ret);
+			break;
+		}
 	}
 }
 
@@ -178,6 +171,92 @@ static void kvmppc_mmu_book3s_64_hv_reset_msr(struct kvm_vcpu *vcpu)
 	kvmppc_set_msr(vcpu, MSR_SF | MSR_ME);
 }
 
+/*
+ * This is called to get a reference to a guest page if there isn't
+ * one already in the kvm->arch.slot_phys[][] arrays.
+ */
+static long kvmppc_get_guest_page(struct kvm *kvm, unsigned long gfn,
+				  struct kvm_memory_slot *memslot)
+{
+	unsigned long start;
+	long np;
+	struct page *page, *pages[1];
+	unsigned long *physp;
+	unsigned long pfn, i;
+
+	physp = kvm->arch.slot_phys[memslot->id];
+	if (!physp)
+		return -EINVAL;
+	i = (gfn - memslot->base_gfn) >> (kvm->arch.ram_porder - PAGE_SHIFT);
+	if (physp[i])
+		return 0;
+
+	page = NULL;
+	start = gfn_to_hva_memslot(memslot, gfn);
+
+	/* Instantiate and get the page we want access to */
+	np = get_user_pages_fast(start, 1, 1, pages);
+	if (np != 1)
+		return -EINVAL;
+	page = pages[0];
+
+	/* Check it's a 16MB page */
+	if (!PageHead(page) ||
+	    compound_order(page) != (kvm->arch.ram_porder - PAGE_SHIFT)) {
+		pr_err("page at %lx isn't 16MB (o=%d)\n",
+		       start, compound_order(page));
+		put_page(page);
+		return -EINVAL;
+	}
+	pfn = page_to_pfn(page);
+
+	spin_lock(&kvm->arch.slot_phys_lock);
+	if (!physp[i])
+		physp[i] = (pfn << PAGE_SHIFT) | KVMPPC_GOT_PAGE;
+	else
+		put_page(page);
+	spin_unlock(&kvm->arch.slot_phys_lock);
+
+	return 0;
+}
+
+/*
+ * We come here on a H_ENTER call from the guest when
+ * we don't have the requested page pinned already.
+ */
+long kvmppc_virtmode_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
+			long pte_index, unsigned long pteh, unsigned long ptel)
+{
+	struct kvm *kvm = vcpu->kvm;
+	unsigned long psize, gpa, gfn;
+	struct kvm_memory_slot *memslot;
+	long ret;
+
+	psize = hpte_page_size(pteh, ptel);
+	if (!psize)
+		return H_PARAMETER;
+
+	/* Find the memslot (if any) for this address */
+	gpa = (ptel & HPTE_R_RPN) & ~(psize - 1);
+	gfn = gpa >> PAGE_SHIFT;
+	memslot = gfn_to_memslot(kvm, gfn);
+	if (!memslot || (memslot->flags & KVM_MEMSLOT_INVALID))
+		return H_PARAMETER;
+	if (kvmppc_get_guest_page(kvm, gfn, memslot) < 0)
+		return H_PARAMETER;
+
+	preempt_disable();
+	ret = kvmppc_h_enter(vcpu, flags, pte_index, pteh, ptel);
+	preempt_enable();
+	if (ret == H_TOO_HARD) {
+		/* this can't happen */
+		pr_err("KVM: Oops, kvmppc_h_enter returned too hard!\n");
+		ret = H_RESOURCE;	/* or something */
+	}
+	return ret;
+
+}
+
 static int kvmppc_mmu_book3s_64_hv_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 				struct kvmppc_pte *gpte, bool data)
 {
@@ -203,8 +282,11 @@ void *kvmppc_pin_guest_page(struct kvm *kvm, unsigned long gpa,
 	physp += (gfn - memslot->base_gfn) >>
 		(kvm->arch.ram_porder - PAGE_SHIFT);
 	pa = *physp;
-	if (!pa)
-		return NULL;
+	if (!pa) {
+		if (kvmppc_get_guest_page(kvm, gfn, memslot) < 0)
+			return NULL;
+		pa = *physp;
+	}
 	pfn = pa >> PAGE_SHIFT;
 	page = pfn_to_page(pfn);
 	get_page(page);

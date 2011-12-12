@@ -101,4 +101,16 @@ static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 	return rb;
 }
 
+static inline unsigned long hpte_page_size(unsigned long h, unsigned long l)
+{
+	/* only handle 4k, 64k and 16M pages for now */
+	if (!(h & HPTE_V_LARGE))
+		return 1ul << 12;		/* 4k page */
+	if ((l & 0xf000) == 0x1000 && cpu_has_feature(CPU_FTR_ARCH_206))
+		return 1ul << 16;		/* 64k page */
+	if ((l & 0xff000) == 0)
+		return 1ul << 24;		/* 16M page */
+	return 0;				/* error */
+}
+
 #endif /* __ASM_KVM_BOOK3S_64_H__ */
