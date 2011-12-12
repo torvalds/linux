@@ -534,9 +534,8 @@ static void report_eu_error(struct device *dev, int ch, u32 desc_hdr)
 /*
  * recover from error interrupts
  */
-static void talitos_error(unsigned long data, u32 isr, u32 isr_lo)
+static void talitos_error(struct device *dev, u32 isr, u32 isr_lo)
 {
-	struct device *dev = (struct device *)data;
 	struct talitos_private *priv = dev_get_drvdata(dev);
 	unsigned int timeout = TALITOS_TIMEOUT;
 	int ch, error, reset_dev = 0, reset_ch = 0;
@@ -628,7 +627,7 @@ static irqreturn_t talitos_interrupt_##name(int irq, void *data)	       \
 	out_be32(priv->reg + TALITOS_ICR_LO, isr_lo);			       \
 									       \
 	if (unlikely((isr & ~TALITOS_ISR_4CHDONE) & ch_err_mask || isr_lo))    \
-		talitos_error((unsigned long)data, isr, isr_lo);	       \
+		talitos_error(dev, isr, isr_lo);			       \
 	else								       \
 		if (likely(isr & ch_done_mask)) {			       \
 			/* mask further done interrupts. */		       \
