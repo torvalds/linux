@@ -387,6 +387,7 @@ static int it913x_rc_query(struct dvb_usb_device *d)
 
 /* Firmware sets raw */
 const char fw_it9135_v1[] = "dvb-usb-it9135-01.fw";
+const char fw_it9135_v2[] = "dvb-usb-it9135-02.fw";
 const char fw_it9137[] = "dvb-usb-it9137-01.fw";
 
 static int ite_firmware_select(struct usb_device *udev,
@@ -400,6 +401,9 @@ static int ite_firmware_select(struct usb_device *udev,
 	else if (le16_to_cpu(udev->descriptor.idProduct) ==
 			USB_PID_ITETECH_IT9135_9005)
 		sw = IT9135_V1_FW;
+	else if (le16_to_cpu(udev->descriptor.idProduct) ==
+			USB_PID_ITETECH_IT9135_9006)
+		sw = IT9135_V2_FW;
 	else
 		sw = IT9137_FW;
 
@@ -412,6 +416,11 @@ static int ite_firmware_select(struct usb_device *udev,
 		it913x_config.firmware_ver = 1;
 		it913x_config.adc_x2 = 1;
 		props->firmware = fw_it9135_v1;
+		break;
+	case IT9135_V2_FW:
+		it913x_config.firmware_ver = 1;
+		it913x_config.adc_x2 = 1;
+		props->firmware = fw_it9135_v2;
 		break;
 	case IT9137_FW:
 	default:
@@ -701,6 +710,7 @@ static struct usb_device_id it913x_table[] = {
 	{ USB_DEVICE(USB_VID_ITETECH, USB_PID_ITETECH_IT9135) },
 	{ USB_DEVICE(USB_VID_KWORLD_2, USB_PID_SVEON_STV22_IT9137) },
 	{ USB_DEVICE(USB_VID_ITETECH, USB_PID_ITETECH_IT9135_9005) },
+	{ USB_DEVICE(USB_VID_ITETECH, USB_PID_ITETECH_IT9135_9006) },
 	{}		/* Terminating entry */
 };
 
@@ -776,7 +786,7 @@ static struct dvb_usb_device_properties it913x_properties = {
 		.rc_codes	= RC_MAP_MSI_DIGIVOX_III,
 	},
 	.i2c_algo         = &it913x_i2c_algo,
-	.num_device_descs = 4,
+	.num_device_descs = 5,
 	.devices = {
 		{   "Kworld UB499-2T T09(IT9137)",
 			{ &it913x_table[0], NULL },
@@ -789,6 +799,9 @@ static struct dvb_usb_device_properties it913x_properties = {
 			},
 		{   "ITE 9135(9005) Generic",
 			{ &it913x_table[3], NULL },
+			},
+		{   "ITE 9135(9006) Generic",
+			{ &it913x_table[4], NULL },
 			},
 	}
 };
@@ -823,5 +836,5 @@ module_exit(it913x_module_exit);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("it913x USB 2 Driver");
-MODULE_VERSION("1.14");
+MODULE_VERSION("1.17");
 MODULE_LICENSE("GPL");
