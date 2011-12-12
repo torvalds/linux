@@ -144,7 +144,6 @@ struct inode *logfs_safe_iget(struct super_block *sb, ino_t ino, int *is_cached)
 static void logfs_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(logfs_inode_cache, logfs_inode(inode));
 }
 

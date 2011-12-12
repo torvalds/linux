@@ -119,7 +119,6 @@ static void jfs_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
 	struct jfs_inode_info *ji = JFS_IP(inode);
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(jfs_inode_cachep, ji);
 }
 
