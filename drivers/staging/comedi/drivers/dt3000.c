@@ -352,7 +352,8 @@ static int dt3k_send_cmd(struct comedi_device *dev, unsigned int cmd)
 	if ((status & DT3000_COMPLETION_MASK) == DT3000_NOERROR)
 		return 0;
 
-	printk("dt3k_send_cmd() timeout/error status=0x%04x\n", status);
+	dev_dbg(dev->hw_dev, "dt3k_send_cmd() timeout/error status=0x%04x\n",
+		status);
 
 	return -ETIME;
 }
@@ -452,7 +453,7 @@ static void dt3k_ai_empty_fifo(struct comedi_device *dev,
 	if (count < 0)
 		count += AI_FIFO_DEPTH;
 
-	printk("reading %d samples\n", count);
+	dev_dbg(dev->hw_dev, "reading %d samples\n", count);
 
 	rear = devpriv->ai_rear;
 
