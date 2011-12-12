@@ -430,12 +430,12 @@ static char *intr_flags[] = {
 static void debug_intr_flags(unsigned int flags)
 {
 	int i;
-	printk("dt3k: intr_flags:");
+	printk(KERN_DEBUG "dt3k: intr_flags:");
 	for (i = 0; i < 8; i++) {
 		if (flags & (1 << i))
-			printk(" %s", intr_flags[i]);
+			printk(KERN_CONT " %s", intr_flags[i]);
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 }
 #endif
 
