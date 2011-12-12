@@ -346,6 +346,9 @@ int wlcore_free_hw(struct wl1271 *wl);
 /* wl127x and SPI don't support SDIO block size alignment */
 #define WLCORE_QUIRK_NO_BLOCKSIZE_ALIGNMENT	BIT(2)
 
+/* means aggregated Rx packets are aligned to a SDIO block */
+#define WLCORE_QUIRK_RX_BLOCKSIZE_ALIGN		BIT(3)
+
 /* Older firmwares did not implement the FW logger over bus feature */
 #define WLCORE_QUIRK_FWLOG_NOT_IMPLEMENTED	BIT(4)
 

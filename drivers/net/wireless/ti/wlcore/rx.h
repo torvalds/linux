@@ -96,6 +96,9 @@
 #define RX_MEM_BLOCK_MASK            0xFF
 #define RX_BUF_SIZE_MASK             0xFFF00
 #define RX_BUF_SIZE_SHIFT_DIV        6
+#define ALIGNED_RX_BUF_SIZE_MASK     0xFFFF00
+#define ALIGNED_RX_BUF_SIZE_SHIFT    8
+
 /* If set, the start of IP payload is not 4 bytes aligned */
 #define RX_BUF_UNALIGNED_PAYLOAD     BIT(20)
 

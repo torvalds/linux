@@ -44,11 +44,22 @@ static u8 wl12xx_rx_get_mem_block(struct wl12xx_fw_status *status,
 		RX_MEM_BLOCK_MASK;
 }
 
-static u32 wl12xx_rx_get_buf_size(struct wl12xx_fw_status *status,
-				 u32 drv_rx_counter)
+static u32 wlcore_rx_get_buf_size(struct wl1271 *wl,
+				  u32 rx_pkt_desc)
 {
-	return (le32_to_cpu(status->rx_pkt_descs[drv_rx_counter]) &
-		RX_BUF_SIZE_MASK) >> RX_BUF_SIZE_SHIFT_DIV;
+	if (wl->quirks & WLCORE_QUIRK_RX_BLOCKSIZE_ALIGN)
+		return (rx_pkt_desc & ALIGNED_RX_BUF_SIZE_MASK) >>
+		       ALIGNED_RX_BUF_SIZE_SHIFT;
+
+	return (rx_pkt_desc & RX_BUF_SIZE_MASK) >> RX_BUF_SIZE_SHIFT_DIV;
+}
+
+static u32 wlcore_rx_get_align_buf_size(struct wl1271 *wl, u32 pkt_len)
+{
+	if (wl->quirks & WLCORE_QUIRK_RX_BLOCKSIZE_ALIGN)
+		return ALIGN(pkt_len, WL12XX_BUS_BLOCK_SIZE);
+
+	return pkt_len;
 }
 
 static bool wl12xx_rx_get_unaligned(struct wl12xx_fw_status *status,
@@ -199,8 +210,8 @@ void wl12xx_rx(struct wl1271 *wl, struct wl12xx_fw_status *status)
 	u32 drv_rx_counter = wl->rx_counter & NUM_RX_PKT_DESC_MOD_MASK;
 	u32 rx_counter;
 	u32 mem_block;
-	u32 pkt_length;
-	u32 pkt_offset;
+	u32 pkt_len, align_pkt_len;
+	u32 pkt_offset, des;
 	u8 hlid;
 	bool unaligned = false;
 
@@ -208,10 +219,13 @@ void wl12xx_rx(struct wl1271 *wl, struct wl12xx_fw_status *status)
 		buf_size = 0;
 		rx_counter = drv_rx_counter;
 		while (rx_counter != fw_rx_counter) {
-			pkt_length = wl12xx_rx_get_buf_size(status, rx_counter);
-			if (buf_size + pkt_length > WL1271_AGGR_BUFFER_SIZE)
+			des = le32_to_cpu(status->rx_pkt_descs[rx_counter]);
+			pkt_len = wlcore_rx_get_buf_size(wl, des);
+			align_pkt_len = wlcore_rx_get_align_buf_size(wl,
+								     pkt_len);
+			if (buf_size + align_pkt_len > WL1271_AGGR_BUFFER_SIZE)
 				break;
-			buf_size += pkt_length;
+			buf_size += align_pkt_len;
 			rx_counter++;
 			rx_counter &= NUM_RX_PKT_DESC_MOD_MASK;
 		}
@@ -248,9 +262,8 @@ void wl12xx_rx(struct wl1271 *wl, struct wl12xx_fw_status *status)
 		/* Split data into separate packets */
 		pkt_offset = 0;
 		while (pkt_offset < buf_size) {
-			pkt_length = wl12xx_rx_get_buf_size(status,
-					drv_rx_counter);
-
+			des = le32_to_cpu(status->rx_pkt_descs[drv_rx_counter]);
+			pkt_len = wlcore_rx_get_buf_size(wl, des);
 			unaligned = wl12xx_rx_get_unaligned(status,
 					drv_rx_counter);
 
@@ -261,7 +274,7 @@ void wl12xx_rx(struct wl1271 *wl, struct wl12xx_fw_status *status)
 			 */
 			if (wl1271_rx_handle_data(wl,
 						  wl->aggr_buf + pkt_offset,
-						  pkt_length, unaligned,
+						  pkt_len, unaligned,
 						  &hlid) == 1) {
 				if (hlid < WL12XX_MAX_LINKS)
 					__set_bit(hlid, active_hlids);
@@ -274,7 +287,7 @@ void wl12xx_rx(struct wl1271 *wl, struct wl12xx_fw_status *status)
 			wl->rx_counter++;
 			drv_rx_counter++;
 			drv_rx_counter &= NUM_RX_PKT_DESC_MOD_MASK;
-			pkt_offset += pkt_length;
+			pkt_offset += wlcore_rx_get_align_buf_size(wl, pkt_len);
 		}
 	}
 
