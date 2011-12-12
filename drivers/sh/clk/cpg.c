@@ -222,11 +222,11 @@ static int __init sh_clk_div6_register_ops(struct clk *clks, int nr,
 		clkp->ops = ops;
 		clkp->freq_table = freq_table + (k * freq_table_size);
 		clkp->freq_table[nr_divs].frequency = CPUFREQ_TABLE_END;
-		ret = sh_clk_init_parent(clkp);
+		ret = clk_register(clkp);
 		if (ret < 0)
 			break;
 
-		ret = clk_register(clkp);
+		ret = sh_clk_init_parent(clkp);
 	}
 
 	return ret;
