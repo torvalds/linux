@@ -383,7 +383,7 @@ static struct i2c_gpio_platform_data i2c_gpio_data = {
 	.scl_pin		= GPIO_PF0,
 	.sda_is_open_drain	= 0,
 	.scl_is_open_drain	= 0,
-	.udelay			= 40,
+	.udelay			= 10,
 };
 
 static struct platform_device i2c_gpio_device = {
