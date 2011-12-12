@@ -24,6 +24,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/delay.h>
 #include <linux/dmi.h>
 #include <linux/input/mt.h>
 #include <linux/serio.h>
@@ -760,6 +761,16 @@ static int synaptics_reconnect(struct psmouse *psmouse)
 
 	do {
 		psmouse_reset(psmouse);
+		if (retry) {
+			/*
+			 * On some boxes, right after resuming, the touchpad
+			 * needs some time to finish initializing (I assume
+			 * it needs time to calibrate) and start responding
+			 * to Synaptics-specific queries, so let's wait a
+			 * bit.
+			 */
+			ssleep(1);
+		}
 		error = synaptics_detect(psmouse, 0);
 	} while (error && ++retry < 3);
 
