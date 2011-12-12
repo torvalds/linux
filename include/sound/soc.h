@@ -963,6 +963,8 @@ void snd_soc_util_exit(void);
 
 int snd_soc_of_parse_card_name(struct snd_soc_card *card,
 			       const char *propname);
+int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
+				   const char *propname);
 
 #include <sound/soc-dai.h>
 
