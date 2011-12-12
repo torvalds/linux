@@ -25,7 +25,7 @@ enum regcache_type {
 	REGCACHE_NONE,
 	REGCACHE_INDEXED,
 	REGCACHE_RBTREE,
-	REGCACHE_LZO
+	REGCACHE_COMPRESSED
 };
 
 /**
@@ -129,6 +129,8 @@ struct regmap *regmap_init_spi(struct spi_device *dev,
 			       const struct regmap_config *config);
 
 void regmap_exit(struct regmap *map);
+int regmap_reinit_cache(struct regmap *map,
+			const struct regmap_config *config);
 int regmap_write(struct regmap *map, unsigned int reg, unsigned int val);
 int regmap_raw_write(struct regmap *map, unsigned int reg,
 		     const void *val, size_t val_len);
@@ -143,5 +145,6 @@ int regmap_update_bits(struct regmap *map, unsigned int reg,
 int regcache_sync(struct regmap *map);
 void regcache_cache_only(struct regmap *map, bool enable);
 void regcache_cache_bypass(struct regmap *map, bool enable);
+void regcache_mark_dirty(struct regmap *map);
 
 #endif
