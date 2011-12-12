@@ -102,6 +102,13 @@
 /* If set, the start of IP payload is not 4 bytes aligned */
 #define RX_BUF_UNALIGNED_PAYLOAD     BIT(20)
 
+/* Describes the alignment state of a Rx buffer */
+enum wl_rx_buf_align {
+	WLCORE_RX_BUF_ALIGNED,
+	WLCORE_RX_BUF_UNALIGNED,
+	WLCORE_RX_BUF_PADDED,
+};
+
 enum {
 	WL12XX_RX_CLASS_UNKNOWN,
 	WL12XX_RX_CLASS_MANAGEMENT,

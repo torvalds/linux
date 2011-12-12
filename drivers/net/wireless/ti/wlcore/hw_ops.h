@@ -23,6 +23,7 @@
 #define __WLCORE_HW_OPS_H__
 
 #include "wlcore.h"
+#include "rx.h"
 
 static inline u32
 wlcore_hw_calc_tx_blocks(struct wl1271 *wl, u32 len, u32 spare_blks)
@@ -52,6 +53,16 @@ wlcore_hw_set_tx_desc_data_len(struct wl1271 *wl,
 		BUG_ON(1);
 
 	wl->ops->set_tx_desc_data_len(wl, desc, skb);
+}
+
+static inline enum wl_rx_buf_align
+wlcore_hw_get_rx_buf_align(struct wl1271 *wl, u32 rx_desc)
+{
+
+	if (!wl->ops->get_rx_buf_align)
+		BUG_ON(1);
+
+	return wl->ops->get_rx_buf_align(wl, rx_desc);
 }
 
 #endif

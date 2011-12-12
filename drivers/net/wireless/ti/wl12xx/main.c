@@ -31,6 +31,7 @@
 #include "../wlcore/io.h"
 #include "../wlcore/acx.h"
 #include "../wlcore/tx.h"
+#include "../wlcore/rx.h"
 #include "../wlcore/boot.h"
 
 #include "reg.h"
@@ -734,6 +735,15 @@ wl12xx_set_tx_desc_data_len(struct wl1271 *wl, struct wl1271_tx_hw_descr *desc,
 	}
 }
 
+static enum wl_rx_buf_align
+wl12xx_get_rx_buf_align(struct wl1271 *wl, u32 rx_desc)
+{
+	if (rx_desc & RX_BUF_UNALIGNED_PAYLOAD)
+		return WLCORE_RX_BUF_UNALIGNED;
+
+	return WLCORE_RX_BUF_ALIGNED;
+}
+
 static bool wl12xx_mac_in_fuse(struct wl1271 *wl)
 {
 	bool supported = false;
@@ -805,6 +815,7 @@ static struct wlcore_ops wl12xx_ops = {
 	.calc_tx_blocks		= wl12xx_calc_tx_blocks,
 	.set_tx_desc_blocks	= wl12xx_set_tx_desc_blocks,
 	.set_tx_desc_data_len	= wl12xx_set_tx_desc_data_len,
+	.get_rx_buf_align	= wl12xx_get_rx_buf_align,
 	.get_pg_ver		= wl12xx_get_pg_ver,
 	.get_mac		= wl12xx_get_mac,
 };
