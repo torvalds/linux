@@ -4,6 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/errno.h>
+#include <linux/of.h>
 
 #ifdef CONFIG_GPIOLIB
 
@@ -128,8 +129,8 @@ struct gpio_chip {
 	 */
 	struct device_node *of_node;
 	int of_gpio_n_cells;
-	int (*of_xlate)(struct gpio_chip *gc, struct device_node *np,
-		        const void *gpio_spec, u32 *flags);
+	int (*of_xlate)(struct gpio_chip *gc,
+		        const struct of_phandle_args *gpiospec, u32 *flags);
 #endif
 };
 
