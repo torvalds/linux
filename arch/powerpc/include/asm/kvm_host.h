@@ -210,6 +210,7 @@ struct kvm_arch {
 	unsigned long lpcr;
 	unsigned long rmor;
 	struct kvmppc_rma_info *rma;
+	unsigned long vrma_slb_v;
 	int rma_setup_done;
 	struct list_head spapr_tce_tables;
 	spinlock_t slot_phys_lock;
@@ -451,6 +452,10 @@ struct kvm_vcpu_arch {
 
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 	struct kvm_vcpu_arch_shared shregs;
+
+	unsigned long pgfault_addr;
+	long pgfault_index;
+	unsigned long pgfault_hpte[2];
 
 	struct list_head run_list;
 	struct task_struct *run_task;

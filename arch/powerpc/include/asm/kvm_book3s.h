@@ -119,6 +119,11 @@ extern void kvmppc_mmu_book3s_hv_init(struct kvm_vcpu *vcpu);
 extern int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *pte);
 extern int kvmppc_mmu_map_segment(struct kvm_vcpu *vcpu, ulong eaddr);
 extern void kvmppc_mmu_flush_segments(struct kvm_vcpu *vcpu);
+extern int kvmppc_book3s_hv_page_fault(struct kvm_run *run,
+			struct kvm_vcpu *vcpu, unsigned long addr,
+			unsigned long status);
+extern long kvmppc_hv_find_lock_hpte(struct kvm *kvm, gva_t eaddr,
+			unsigned long slb_v, unsigned long valid);
 
 extern void kvmppc_mmu_hpte_cache_map(struct kvm_vcpu *vcpu, struct hpte_cache *pte);
 extern struct hpte_cache *kvmppc_mmu_hpte_cache_next(struct kvm_vcpu *vcpu);

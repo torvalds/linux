@@ -43,12 +43,15 @@ static inline void svcpu_put(struct kvmppc_book3s_shadow_vcpu *svcpu)
 #define HPT_HASH_MASK	(HPT_NPTEG - 1)
 #endif
 
+#define VRMA_VSID	0x1ffffffUL	/* 1TB VSID reserved for VRMA */
+
 /*
  * We use a lock bit in HPTE dword 0 to synchronize updates and
  * accesses to each HPTE, and another bit to indicate non-present
  * HPTEs.
  */
 #define HPTE_V_HVLOCK	0x40UL
+#define HPTE_V_ABSENT	0x20UL
 
 static inline long try_lock_hpte(unsigned long *hpte, unsigned long bits)
 {
@@ -142,6 +145,29 @@ static inline unsigned long hpte_cache_bits(unsigned long pte_val)
 	return ((pte_val & _PAGE_NO_CACHE) ? HPTE_R_I : 0) +
 		((pte_val & _PAGE_WRITETHRU) ? HPTE_R_W : 0);
 #endif
+}
+
+static inline bool hpte_read_permission(unsigned long pp, unsigned long key)
+{
+	if (key)
+		return PP_RWRX <= pp && pp <= PP_RXRX;
+	return 1;
+}
+
+static inline bool hpte_write_permission(unsigned long pp, unsigned long key)
+{
+	if (key)
+		return pp == PP_RWRW;
+	return pp <= PP_RWRW;
+}
+
+static inline int hpte_get_skey_perm(unsigned long hpte_r, unsigned long amr)
+{
+	unsigned long skey;
+
+	skey = ((hpte_r & HPTE_R_KEY_HI) >> 57) |
+		((hpte_r & HPTE_R_KEY_LO) >> 9);
+	return (amr >> (62 - 2 * skey)) & 3;
 }
 
 static inline void lock_rmap(unsigned long *rmap)

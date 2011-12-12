@@ -326,19 +326,18 @@ static int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		break;
 	}
 	/*
-	 * We get these next two if the guest does a bad real-mode access,
-	 * as we have enabled VRMA (virtualized real mode area) mode in the
-	 * LPCR.  We just generate an appropriate DSI/ISI to the guest.
+	 * We get this if the guest accesses a page which it thinks
+	 * it has mapped but which is not actually present, because
+	 * it is for an emulated I/O device.
+	 * Any other HDSI interrupt has been handled already.
 	 */
 	case BOOK3S_INTERRUPT_H_DATA_STORAGE:
-		vcpu->arch.shregs.dsisr = vcpu->arch.fault_dsisr;
-		vcpu->arch.shregs.dar = vcpu->arch.fault_dar;
-		kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_DATA_STORAGE, 0);
-		r = RESUME_GUEST;
+		r = kvmppc_book3s_hv_page_fault(run, vcpu,
+				vcpu->arch.fault_dar, vcpu->arch.fault_dsisr);
 		break;
 	case BOOK3S_INTERRUPT_H_INST_STORAGE:
 		kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_INST_STORAGE,
-					0x08000000);
+					vcpu->arch.shregs.msr & 0x58000000);
 		r = RESUME_GUEST;
 		break;
 	/*
@@ -1195,6 +1194,8 @@ static int kvmppc_hv_setup_rma(struct kvm_vcpu *vcpu)
 
 		/* Update VRMASD field in the LPCR */
 		senc = slb_pgsize_encoding(psize);
+		kvm->arch.vrma_slb_v = senc | SLB_VSID_B_1T |
+			(VRMA_VSID << SLB_VSID_SHIFT_1T);
 		lpcr = kvm->arch.lpcr & ~LPCR_VRMASD;
 		lpcr |= senc << (LPCR_VRMASD_SH - 4);
 		kvm->arch.lpcr = lpcr;
@@ -1291,7 +1292,9 @@ int kvmppc_core_init_vm(struct kvm *kvm)
 		kvm->arch.host_lpcr = lpcr = mfspr(SPRN_LPCR);
 		lpcr &= LPCR_PECE | LPCR_LPES;
 		lpcr |= (4UL << LPCR_DPFD_SH) | LPCR_HDICE |
-			LPCR_VPM0 | LPCR_VRMA_L;
+			LPCR_VPM0 | LPCR_VPM1;
+		kvm->arch.vrma_slb_v = SLB_VSID_B_1T |
+			(VRMA_VSID << SLB_VSID_SHIFT_1T);
 	}
 	kvm->arch.lpcr = lpcr;
 
