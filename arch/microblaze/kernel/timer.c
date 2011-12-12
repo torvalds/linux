@@ -257,7 +257,15 @@ void __init time_init(void)
 				0
 			};
 #endif
-	timer = of_find_compatible_node(NULL, NULL, "xlnx,xps-timer-1.00.a");
+	prop = of_get_property(of_chosen, "system-timer", NULL);
+	if (prop)
+		timer = of_find_node_by_phandle(be32_to_cpup(prop));
+	else
+		pr_info("No chosen timer found, using default\n");
+
+	if (!timer)
+		timer = of_find_compatible_node(NULL, NULL,
+						"xlnx,xps-timer-1.00.a");
 	BUG_ON(!timer);
 
 	timer_baseaddr = be32_to_cpup(of_get_property(timer, "reg", NULL));
