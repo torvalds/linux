@@ -20,6 +20,25 @@
 #include <asm/synch.h>
 #include <asm/ppc-opcode.h>
 
+/*
+ * Since this file is built in even if KVM is a module, we need
+ * a local copy of this function for the case where kvm_main.c is
+ * modular.
+ */
+static struct kvm_memory_slot *builtin_gfn_to_memslot(struct kvm *kvm,
+						gfn_t gfn)
+{
+	struct kvm_memslots *slots;
+	struct kvm_memory_slot *memslot;
+
+	slots = kvm_memslots(kvm);
+	kvm_for_each_memslot(memslot, slots)
+		if (gfn >= memslot->base_gfn &&
+		      gfn < memslot->base_gfn + memslot->npages)
+			return memslot;
+	return NULL;
+}
+
 /* Translate address of a vmalloc'd thing to a linear map address */
 static void *real_vmalloc_addr(void *x)
 {
@@ -59,10 +78,12 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 {
 	unsigned long porder;
 	struct kvm *kvm = vcpu->kvm;
-	unsigned long i, lpn, pa;
+	unsigned long i, gfn, lpn, pa;
 	unsigned long *hpte;
 	struct revmap_entry *rev;
 	unsigned long g_ptel = ptel;
+	struct kvm_memory_slot *memslot;
+	unsigned long *physp;
 
 	/* only handle 4k, 64k and 16M pages for now */
 	porder = 12;
@@ -80,12 +101,24 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 		} else
 			return H_PARAMETER;
 	}
-	lpn = (ptel & HPTE_R_RPN) >> kvm->arch.ram_porder;
-	if (lpn >= kvm->arch.ram_npages || porder > kvm->arch.ram_porder)
+	if (porder > kvm->arch.ram_porder)
 		return H_PARAMETER;
-	pa = kvm->arch.ram_pginfo[lpn].pfn << PAGE_SHIFT;
+
+	gfn = ((ptel & HPTE_R_RPN) & ~((1ul << porder) - 1)) >> PAGE_SHIFT;
+	memslot = builtin_gfn_to_memslot(kvm, gfn);
+	if (!(memslot && !(memslot->flags & KVM_MEMSLOT_INVALID)))
+		return H_PARAMETER;
+	physp = kvm->arch.slot_phys[memslot->id];
+	if (!physp)
+		return H_PARAMETER;
+
+	lpn = (gfn - memslot->base_gfn) >> (kvm->arch.ram_porder - PAGE_SHIFT);
+	physp = real_vmalloc_addr(physp + lpn);
+	pa = *physp;
 	if (!pa)
 		return H_PARAMETER;
+	pa &= PAGE_MASK;
+
 	/* Check WIMG */
 	if ((ptel & HPTE_R_WIMG) != HPTE_R_M &&
 	    (ptel & HPTE_R_WIMG) != (HPTE_R_W | HPTE_R_I | HPTE_R_M))

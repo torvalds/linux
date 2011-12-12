@@ -98,16 +98,16 @@ void kvmppc_free_hpt(struct kvm *kvm)
 void kvmppc_map_vrma(struct kvm *kvm, struct kvm_userspace_memory_region *mem)
 {
 	unsigned long i;
-	unsigned long npages = kvm->arch.ram_npages;
-	unsigned long pfn;
+	unsigned long npages;
+	unsigned long pa;
 	unsigned long *hpte;
 	unsigned long hash;
 	unsigned long porder = kvm->arch.ram_porder;
 	struct revmap_entry *rev;
-	struct kvmppc_pginfo *pginfo = kvm->arch.ram_pginfo;
+	unsigned long *physp;
 
-	if (!pginfo)
-		return;
+	physp = kvm->arch.slot_phys[mem->slot];
+	npages = kvm->arch.slot_npages[mem->slot];
 
 	/* VRMA can't be > 1TB */
 	if (npages > 1ul << (40 - porder))
@@ -117,9 +117,10 @@ void kvmppc_map_vrma(struct kvm *kvm, struct kvm_userspace_memory_region *mem)
 		npages = HPT_NPTEG;
 
 	for (i = 0; i < npages; ++i) {
-		pfn = pginfo[i].pfn;
-		if (!pfn)
+		pa = physp[i];
+		if (!pa)
 			break;
+		pa &= PAGE_MASK;
 		/* can't use hpt_hash since va > 64 bits */
 		hash = (i ^ (VRMA_VSID ^ (VRMA_VSID << 25))) & HPT_HASH_MASK;
 		/*
@@ -131,8 +132,7 @@ void kvmppc_map_vrma(struct kvm *kvm, struct kvm_userspace_memory_region *mem)
 		hash = (hash << 3) + 7;
 		hpte = (unsigned long *) (kvm->arch.hpt_virt + (hash << 4));
 		/* HPTE low word - RPN, protection, etc. */
-		hpte[1] = (pfn << PAGE_SHIFT) | HPTE_R_R | HPTE_R_C |
-			HPTE_R_M | PP_RWXX;
+		hpte[1] = pa | HPTE_R_R | HPTE_R_C | HPTE_R_M | PP_RWXX;
 		smp_wmb();
 		hpte[0] = HPTE_V_1TB_SEG | (VRMA_VSID << (40 - 16)) |
 			(i << (VRMA_PAGE_ORDER - 16)) | HPTE_V_BOLTED |

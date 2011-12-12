@@ -38,6 +38,7 @@
 #define KVM_MEMORY_SLOTS 32
 /* memory slots that does not exposed to userspace */
 #define KVM_PRIVATE_MEM_SLOTS 4
+#define KVM_MEM_SLOTS_NUM (KVM_MEMORY_SLOTS + KVM_PRIVATE_MEM_SLOTS)
 
 #ifdef CONFIG_KVM_MMIO
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
@@ -175,25 +176,27 @@ struct revmap_entry {
 	unsigned long guest_rpte;
 };
 
+/* Low-order bits in kvm->arch.slot_phys[][] */
+#define KVMPPC_GOT_PAGE		0x80
+
 struct kvm_arch {
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 	unsigned long hpt_virt;
 	struct revmap_entry *revmap;
-	unsigned long ram_npages;
 	unsigned long ram_psize;
 	unsigned long ram_porder;
-	struct kvmppc_pginfo *ram_pginfo;
 	unsigned int lpid;
 	unsigned int host_lpid;
 	unsigned long host_lpcr;
 	unsigned long sdr1;
 	unsigned long host_sdr1;
 	int tlbie_lock;
-	int n_rma_pages;
 	unsigned long lpcr;
 	unsigned long rmor;
 	struct kvmppc_rma_info *rma;
 	struct list_head spapr_tce_tables;
+	unsigned long *slot_phys[KVM_MEM_SLOTS_NUM];
+	int slot_npages[KVM_MEM_SLOTS_NUM];
 	unsigned short last_vcpu[NR_CPUS];
 	struct kvmppc_vcore *vcores[KVM_MAX_VCORES];
 #endif /* CONFIG_KVM_BOOK3S_64_HV */

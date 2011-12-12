@@ -50,14 +50,6 @@
 #include <linux/vmalloc.h>
 #include <linux/highmem.h>
 
-/*
- * For now, limit memory to 64GB and require it to be large pages.
- * This value is chosen because it makes the ram_pginfo array be
- * 64kB in size, which is about as large as we want to be trying
- * to allocate with kmalloc.
- */
-#define MAX_MEM_ORDER		36
-
 #define LARGE_PAGE_ORDER	24	/* 16MB pages */
 
 /* #define EXIT_DEBUG */
@@ -147,10 +139,12 @@ static unsigned long do_h_register_vpa(struct kvm_vcpu *vcpu,
 				       unsigned long vcpuid, unsigned long vpa)
 {
 	struct kvm *kvm = vcpu->kvm;
-	unsigned long pg_index, ra, len;
+	unsigned long gfn, pg_index, ra, len;
 	unsigned long pg_offset;
 	void *va;
 	struct kvm_vcpu *tvcpu;
+	struct kvm_memory_slot *memslot;
+	unsigned long *physp;
 
 	tvcpu = kvmppc_find_vcpu(kvm, vcpuid);
 	if (!tvcpu)
@@ -164,14 +158,20 @@ static unsigned long do_h_register_vpa(struct kvm_vcpu *vcpu,
 		if (vpa & 0x7f)
 			return H_PARAMETER;
 		/* registering new area; convert logical addr to real */
-		pg_index = vpa >> kvm->arch.ram_porder;
+		gfn = vpa >> PAGE_SHIFT;
+		memslot = gfn_to_memslot(kvm, gfn);
+		if (!memslot || !(memslot->flags & KVM_MEMSLOT_INVALID))
+			return H_PARAMETER;
+		physp = kvm->arch.slot_phys[memslot->id];
+		if (!physp)
+			return H_PARAMETER;
+		pg_index = (gfn - memslot->base_gfn) >>
+			(kvm->arch.ram_porder - PAGE_SHIFT);
 		pg_offset = vpa & (kvm->arch.ram_psize - 1);
-		if (pg_index >= kvm->arch.ram_npages)
+		ra = physp[pg_index];
+		if (!ra)
 			return H_PARAMETER;
-		if (kvm->arch.ram_pginfo[pg_index].pfn == 0)
-			return H_PARAMETER;
-		ra = kvm->arch.ram_pginfo[pg_index].pfn << PAGE_SHIFT;
-		ra |= pg_offset;
+		ra = (ra & PAGE_MASK) | pg_offset;
 		va = __va(ra);
 		if (flags <= 1)
 			len = *(unsigned short *)(va + 4);
@@ -1075,12 +1075,11 @@ int kvmppc_core_prepare_memory_region(struct kvm *kvm,
 				struct kvm_userspace_memory_region *mem)
 {
 	unsigned long psize, porder;
-	unsigned long i, npages, totalpages;
-	unsigned long pg_ix;
-	struct kvmppc_pginfo *pginfo;
+	unsigned long i, npages;
 	unsigned long hva;
 	struct kvmppc_rma_info *ri = NULL;
 	struct page *page;
+	unsigned long *phys;
 
 	/* For now, only allow 16MB pages */
 	porder = LARGE_PAGE_ORDER;
@@ -1092,19 +1091,20 @@ int kvmppc_core_prepare_memory_region(struct kvm *kvm,
 		return -EINVAL;
 	}
 
+	/* Allocate a slot_phys array */
 	npages = mem->memory_size >> porder;
-	totalpages = (mem->guest_phys_addr + mem->memory_size) >> porder;
-
-	/* More memory than we have space to track? */
-	if (totalpages > (1ul << (MAX_MEM_ORDER - LARGE_PAGE_ORDER)))
-		return -EINVAL;
+	phys = kvm->arch.slot_phys[mem->slot];
+	if (!phys) {
+		phys = vzalloc(npages * sizeof(unsigned long));
+		if (!phys)
+			return -ENOMEM;
+		kvm->arch.slot_phys[mem->slot] = phys;
+		kvm->arch.slot_npages[mem->slot] = npages;
+	}
 
 	/* Do we already have an RMA registered? */
 	if (mem->guest_phys_addr == 0 && kvm->arch.rma)
 		return -EINVAL;
-
-	if (totalpages > kvm->arch.ram_npages)
-		kvm->arch.ram_npages = totalpages;
 
 	/* Is this one of our preallocated RMAs? */
 	if (mem->guest_phys_addr == 0) {
@@ -1138,7 +1138,6 @@ int kvmppc_core_prepare_memory_region(struct kvm *kvm,
 		}
 		atomic_inc(&ri->use_count);
 		kvm->arch.rma = ri;
-		kvm->arch.n_rma_pages = rma_size >> porder;
 
 		/* Update LPCR and RMOR */
 		lpcr = kvm->arch.lpcr;
@@ -1162,12 +1161,9 @@ int kvmppc_core_prepare_memory_region(struct kvm *kvm,
 			ri->base_pfn << PAGE_SHIFT, rma_size, lpcr);
 	}
 
-	pg_ix = mem->guest_phys_addr >> porder;
-	pginfo = kvm->arch.ram_pginfo + pg_ix;
-	for (i = 0; i < npages; ++i, ++pg_ix) {
-		if (ri && pg_ix < kvm->arch.n_rma_pages) {
-			pginfo[i].pfn = ri->base_pfn +
-				(pg_ix << (porder - PAGE_SHIFT));
+	for (i = 0; i < npages; ++i) {
+		if (ri && i < ri->npages) {
+			phys[i] = (ri->base_pfn << PAGE_SHIFT) + (i << porder);
 			continue;
 		}
 		hva = mem->userspace_addr + (i << porder);
@@ -1183,13 +1179,35 @@ int kvmppc_core_prepare_memory_region(struct kvm *kvm,
 			       hva, compound_order(page));
 			goto err;
 		}
-		pginfo[i].pfn = page_to_pfn(page);
+		phys[i] = (page_to_pfn(page) << PAGE_SHIFT) | KVMPPC_GOT_PAGE;
 	}
 
 	return 0;
 
  err:
 	return -EINVAL;
+}
+
+static void unpin_slot(struct kvm *kvm, int slot_id)
+{
+	unsigned long *physp;
+	unsigned long j, npages, pfn;
+	struct page *page;
+
+	physp = kvm->arch.slot_phys[slot_id];
+	npages = kvm->arch.slot_npages[slot_id];
+	if (physp) {
+		for (j = 0; j < npages; j++) {
+			if (!(physp[j] & KVMPPC_GOT_PAGE))
+				continue;
+			pfn = physp[j] >> PAGE_SHIFT;
+			page = pfn_to_page(pfn);
+			SetPageDirty(page);
+			put_page(page);
+		}
+		vfree(physp);
+		kvm->arch.slot_phys[slot_id] = NULL;
+	}
 }
 
 void kvmppc_core_commit_memory_region(struct kvm *kvm,
@@ -1203,8 +1221,6 @@ void kvmppc_core_commit_memory_region(struct kvm *kvm,
 int kvmppc_core_init_vm(struct kvm *kvm)
 {
 	long r;
-	unsigned long npages = 1ul << (MAX_MEM_ORDER - LARGE_PAGE_ORDER);
-	long err = -ENOMEM;
 	unsigned long lpcr;
 
 	/* Allocate hashed page table */
@@ -1214,19 +1230,9 @@ int kvmppc_core_init_vm(struct kvm *kvm)
 
 	INIT_LIST_HEAD(&kvm->arch.spapr_tce_tables);
 
-	kvm->arch.ram_pginfo = kzalloc(npages * sizeof(struct kvmppc_pginfo),
-				       GFP_KERNEL);
-	if (!kvm->arch.ram_pginfo) {
-		pr_err("kvmppc_core_init_vm: couldn't alloc %lu bytes\n",
-		       npages * sizeof(struct kvmppc_pginfo));
-		goto out_free;
-	}
-
-	kvm->arch.ram_npages = 0;
 	kvm->arch.ram_psize = 1ul << LARGE_PAGE_ORDER;
 	kvm->arch.ram_porder = LARGE_PAGE_ORDER;
 	kvm->arch.rma = NULL;
-	kvm->arch.n_rma_pages = 0;
 
 	kvm->arch.host_sdr1 = mfspr(SPRN_SDR1);
 
@@ -1249,25 +1255,15 @@ int kvmppc_core_init_vm(struct kvm *kvm)
 	kvm->arch.lpcr = lpcr;
 
 	return 0;
-
- out_free:
-	kvmppc_free_hpt(kvm);
-	return err;
 }
 
 void kvmppc_core_destroy_vm(struct kvm *kvm)
 {
-	struct kvmppc_pginfo *pginfo;
 	unsigned long i;
 
-	if (kvm->arch.ram_pginfo) {
-		pginfo = kvm->arch.ram_pginfo;
-		kvm->arch.ram_pginfo = NULL;
-		for (i = kvm->arch.n_rma_pages; i < kvm->arch.ram_npages; ++i)
-			if (pginfo[i].pfn)
-				put_page(pfn_to_page(pginfo[i].pfn));
-		kfree(pginfo);
-	}
+	for (i = 0; i < KVM_MEM_SLOTS_NUM; i++)
+		unpin_slot(kvm, i);
+
 	if (kvm->arch.rma) {
 		kvm_release_rma(kvm->arch.rma);
 		kvm->arch.rma = NULL;
