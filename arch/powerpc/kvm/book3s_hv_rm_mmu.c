@@ -58,7 +58,7 @@ static void *real_vmalloc_addr(void *x)
  * Add this HPTE into the chain for the real page.
  * Must be called with the chain locked; it unlocks the chain.
  */
-static void kvmppc_add_revmap_chain(struct kvm *kvm, struct revmap_entry *rev,
+void kvmppc_add_revmap_chain(struct kvm *kvm, struct revmap_entry *rev,
 			     unsigned long *rmap, long pte_index, int realmode)
 {
 	struct revmap_entry *head, *tail;
@@ -83,6 +83,7 @@ static void kvmppc_add_revmap_chain(struct kvm *kvm, struct revmap_entry *rev,
 	smp_wmb();
 	*rmap = i | KVMPPC_RMAP_REFERENCED | KVMPPC_RMAP_PRESENT; /* unlock */
 }
+EXPORT_SYMBOL_GPL(kvmppc_add_revmap_chain);
 
 /* Remove this HPTE from the chain for a real page */
 static void remove_revmap_chain(struct kvm *kvm, long pte_index,
@@ -118,12 +119,33 @@ static void remove_revmap_chain(struct kvm *kvm, long pte_index,
 	unlock_rmap(rmap);
 }
 
+static pte_t lookup_linux_pte(struct kvm_vcpu *vcpu, unsigned long hva,
+			      unsigned long *pte_sizep)
+{
+	pte_t *ptep;
+	unsigned long ps = *pte_sizep;
+	unsigned int shift;
+
+	ptep = find_linux_pte_or_hugepte(vcpu->arch.pgdir, hva, &shift);
+	if (!ptep)
+		return __pte(0);
+	if (shift)
+		*pte_sizep = 1ul << shift;
+	else
+		*pte_sizep = PAGE_SIZE;
+	if (ps > *pte_sizep)
+		return __pte(0);
+	if (!pte_present(*ptep))
+		return __pte(0);
+	return kvmppc_read_update_linux_pte(ptep);
+}
+
 long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 		    long pte_index, unsigned long pteh, unsigned long ptel)
 {
 	struct kvm *kvm = vcpu->kvm;
 	unsigned long i, pa, gpa, gfn, psize;
-	unsigned long slot_fn;
+	unsigned long slot_fn, hva;
 	unsigned long *hpte;
 	struct revmap_entry *rev;
 	unsigned long g_ptel = ptel;
@@ -131,6 +153,8 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 	unsigned long *physp, pte_size;
 	unsigned long is_io;
 	unsigned long *rmap;
+	pte_t pte;
+	unsigned long mmu_seq;
 	bool realmode = vcpu->arch.vcore->vcore_state == VCORE_RUNNING;
 
 	psize = hpte_page_size(pteh, ptel);
@@ -138,11 +162,16 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 		return H_PARAMETER;
 	pteh &= ~(HPTE_V_HVLOCK | HPTE_V_ABSENT | HPTE_V_VALID);
 
+	/* used later to detect if we might have been invalidated */
+	mmu_seq = kvm->mmu_notifier_seq;
+	smp_rmb();
+
 	/* Find the memslot (if any) for this address */
 	gpa = (ptel & HPTE_R_RPN) & ~(psize - 1);
 	gfn = gpa >> PAGE_SHIFT;
 	memslot = builtin_gfn_to_memslot(kvm, gfn);
 	pa = 0;
+	is_io = ~0ul;
 	rmap = NULL;
 	if (!(memslot && !(memslot->flags & KVM_MEMSLOT_INVALID))) {
 		/* PPC970 can't do emulated MMIO */
@@ -160,19 +189,31 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 	slot_fn = gfn - memslot->base_gfn;
 	rmap = &memslot->rmap[slot_fn];
 
-	physp = kvm->arch.slot_phys[memslot->id];
-	if (!physp)
-		return H_PARAMETER;
-	physp += slot_fn;
-	if (realmode)
-		physp = real_vmalloc_addr(physp);
-	pa = *physp;
-	if (!pa)
-		return H_TOO_HARD;
-	is_io = pa & (HPTE_R_I | HPTE_R_W);
-	pte_size = PAGE_SIZE << (pa & KVMPPC_PAGE_ORDER_MASK);
-	pa &= PAGE_MASK;
+	if (!kvm->arch.using_mmu_notifiers) {
+		physp = kvm->arch.slot_phys[memslot->id];
+		if (!physp)
+			return H_PARAMETER;
+		physp += slot_fn;
+		if (realmode)
+			physp = real_vmalloc_addr(physp);
+		pa = *physp;
+		if (!pa)
+			return H_TOO_HARD;
+		is_io = pa & (HPTE_R_I | HPTE_R_W);
+		pte_size = PAGE_SIZE << (pa & KVMPPC_PAGE_ORDER_MASK);
+		pa &= PAGE_MASK;
+	} else {
+		/* Translate to host virtual address */
+		hva = gfn_to_hva_memslot(memslot, gfn);
 
+		/* Look up the Linux PTE for the backing page */
+		pte_size = psize;
+		pte = lookup_linux_pte(vcpu, hva, &pte_size);
+		if (pte_present(pte)) {
+			is_io = hpte_cache_bits(pte_val(pte));
+			pa = pte_pfn(pte) << PAGE_SHIFT;
+		}
+	}
 	if (pte_size < psize)
 		return H_PARAMETER;
 	if (pa && pte_size > psize)
@@ -180,10 +221,14 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 
 	ptel &= ~(HPTE_R_PP0 - psize);
 	ptel |= pa;
-	pteh |= HPTE_V_VALID;
+
+	if (pa)
+		pteh |= HPTE_V_VALID;
+	else
+		pteh |= HPTE_V_ABSENT;
 
 	/* Check WIMG */
-	if (!hpte_cache_flags_ok(ptel, is_io)) {
+	if (is_io != ~0ul && !hpte_cache_flags_ok(ptel, is_io)) {
 		if (is_io)
 			return H_PARAMETER;
 		/*
@@ -194,6 +239,7 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 		ptel |= HPTE_R_M;
 	}
 
+	/* Find and lock the HPTEG slot to use */
  do_insert:
 	if (pte_index >= HPT_NPTE)
 		return H_PARAMETER;
@@ -253,7 +299,17 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 		if (realmode)
 			rmap = real_vmalloc_addr(rmap);
 		lock_rmap(rmap);
-		kvmppc_add_revmap_chain(kvm, rev, rmap, pte_index, realmode);
+		/* Check for pending invalidations under the rmap chain lock */
+		if (kvm->arch.using_mmu_notifiers &&
+		    mmu_notifier_retry(vcpu, mmu_seq)) {
+			/* inval in progress, write a non-present HPTE */
+			pteh |= HPTE_V_ABSENT;
+			pteh &= ~HPTE_V_VALID;
+			unlock_rmap(rmap);
+		} else {
+			kvmppc_add_revmap_chain(kvm, rev, rmap, pte_index,
+						realmode);
+		}
 	}
 
 	hpte[1] = ptel;
@@ -516,6 +572,23 @@ long kvmppc_h_read(struct kvm_vcpu *vcpu, unsigned long flags,
 	return H_SUCCESS;
 }
 
+void kvmppc_invalidate_hpte(struct kvm *kvm, unsigned long *hptep,
+			unsigned long pte_index)
+{
+	unsigned long rb;
+
+	hptep[0] &= ~HPTE_V_VALID;
+	rb = compute_tlbie_rb(hptep[0], hptep[1], pte_index);
+	while (!try_lock_tlbie(&kvm->arch.tlbie_lock))
+		cpu_relax();
+	asm volatile("ptesync" : : : "memory");
+	asm volatile(PPC_TLBIE(%1,%0)"; eieio; tlbsync"
+		     : : "r" (rb), "r" (kvm->arch.lpid));
+	asm volatile("ptesync" : : : "memory");
+	kvm->arch.tlbie_lock = 0;
+}
+EXPORT_SYMBOL_GPL(kvmppc_invalidate_hpte);
+
 static int slb_base_page_shift[4] = {
 	24,	/* 16M */
 	16,	/* 64k */
@@ -605,15 +678,15 @@ EXPORT_SYMBOL(kvmppc_hv_find_lock_hpte);
 
 /*
  * Called in real mode to check whether an HPTE not found fault
- * is due to accessing an emulated MMIO page.
+ * is due to accessing a paged-out page or an emulated MMIO page.
  * Returns a possibly modified status (DSISR) value if not
  * (i.e. pass the interrupt to the guest),
  * -1 to pass the fault up to host kernel mode code, -2 to do that
- * and also load the instruction word,
+ * and also load the instruction word (for MMIO emulation),
  * or 0 if we should make the guest retry the access.
  */
 long kvmppc_hpte_hv_fault(struct kvm_vcpu *vcpu, unsigned long addr,
-			  unsigned long slb_v, unsigned int status)
+			  unsigned long slb_v, unsigned int status, bool data)
 {
 	struct kvm *kvm = vcpu->kvm;
 	long int index;
@@ -624,6 +697,7 @@ long kvmppc_hpte_hv_fault(struct kvm_vcpu *vcpu, unsigned long addr,
 	unsigned long pp, key;
 
 	valid = HPTE_V_VALID | HPTE_V_ABSENT;
+
 	index = kvmppc_hv_find_lock_hpte(kvm, addr, slb_v, valid);
 	if (index < 0)
 		return status;		/* there really was no HPTE */
@@ -645,22 +719,28 @@ long kvmppc_hpte_hv_fault(struct kvm_vcpu *vcpu, unsigned long addr,
 	/* Check access permissions to the page */
 	pp = gr & (HPTE_R_PP0 | HPTE_R_PP);
 	key = (vcpu->arch.shregs.msr & MSR_PR) ? SLB_VSID_KP : SLB_VSID_KS;
-	if (status & DSISR_ISSTORE) {
+	status &= ~DSISR_NOHPTE;	/* DSISR_NOHPTE == SRR1_ISI_NOPT */
+	if (!data) {
+		if (gr & (HPTE_R_N | HPTE_R_G))
+			return status | SRR1_ISI_N_OR_G;
+		if (!hpte_read_permission(pp, slb_v & key))
+			return status | SRR1_ISI_PROT;
+	} else if (status & DSISR_ISSTORE) {
 		/* check write permission */
 		if (!hpte_write_permission(pp, slb_v & key))
-			goto protfault;
+			return status | DSISR_PROTFAULT;
 	} else {
 		if (!hpte_read_permission(pp, slb_v & key))
-			goto protfault;
+			return status | DSISR_PROTFAULT;
 	}
 
 	/* Check storage key, if applicable */
-	if (vcpu->arch.shregs.msr & MSR_DR) {
+	if (data && (vcpu->arch.shregs.msr & MSR_DR)) {
 		unsigned int perm = hpte_get_skey_perm(gr, vcpu->arch.amr);
 		if (status & DSISR_ISSTORE)
 			perm >>= 1;
 		if (perm & 1)
-			return (status & ~DSISR_NOHPTE) | DSISR_KEYFAULT;
+			return status | DSISR_KEYFAULT;
 	}
 
 	/* Save HPTE info for virtual-mode handler */
@@ -669,11 +749,11 @@ long kvmppc_hpte_hv_fault(struct kvm_vcpu *vcpu, unsigned long addr,
 	vcpu->arch.pgfault_hpte[0] = v;
 	vcpu->arch.pgfault_hpte[1] = r;
 
-	if (vcpu->arch.shregs.msr & MSR_IR)
+	/* Check the storage key to see if it is possibly emulated MMIO */
+	if (data && (vcpu->arch.shregs.msr & MSR_IR) &&
+	    (r & (HPTE_R_KEY_HI | HPTE_R_KEY_LO)) ==
+	    (HPTE_R_KEY_HI | HPTE_R_KEY_LO))
 		return -2;	/* MMIO emulation - load instr word */
 
 	return -1;		/* send fault up to host kernel mode */
-
- protfault:
-	return (status & ~DSISR_NOHPTE) | DSISR_PROTFAULT;
 }

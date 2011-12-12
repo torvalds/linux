@@ -326,19 +326,19 @@ static int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		break;
 	}
 	/*
-	 * We get this if the guest accesses a page which it thinks
-	 * it has mapped but which is not actually present, because
-	 * it is for an emulated I/O device.
-	 * Any other HDSI interrupt has been handled already.
+	 * We get these next two if the guest accesses a page which it thinks
+	 * it has mapped but which is not actually present, either because
+	 * it is for an emulated I/O device or because the corresonding
+	 * host page has been paged out.  Any other HDSI/HISI interrupts
+	 * have been handled already.
 	 */
 	case BOOK3S_INTERRUPT_H_DATA_STORAGE:
 		r = kvmppc_book3s_hv_page_fault(run, vcpu,
 				vcpu->arch.fault_dar, vcpu->arch.fault_dsisr);
 		break;
 	case BOOK3S_INTERRUPT_H_INST_STORAGE:
-		kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_INST_STORAGE,
-					vcpu->arch.shregs.msr & 0x58000000);
-		r = RESUME_GUEST;
+		r = kvmppc_book3s_hv_page_fault(run, vcpu,
+				kvmppc_get_pc(vcpu), 0);
 		break;
 	/*
 	 * This occurs if the guest executes an illegal instruction.
@@ -867,6 +867,7 @@ int kvmppc_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	flush_altivec_to_thread(current);
 	flush_vsx_to_thread(current);
 	vcpu->arch.wqp = &vcpu->arch.vcore->wq;
+	vcpu->arch.pgdir = current->mm->pgd;
 
 	do {
 		r = kvmppc_run_vcpu(run, vcpu);
@@ -1090,9 +1091,9 @@ int kvmppc_core_prepare_memory_region(struct kvm *kvm,
 	unsigned long *phys;
 
 	/* Allocate a slot_phys array */
-	npages = mem->memory_size >> PAGE_SHIFT;
 	phys = kvm->arch.slot_phys[mem->slot];
-	if (!phys) {
+	if (!kvm->arch.using_mmu_notifiers && !phys) {
+		npages = mem->memory_size >> PAGE_SHIFT;
 		phys = vzalloc(npages * sizeof(unsigned long));
 		if (!phys)
 			return -ENOMEM;
@@ -1298,6 +1299,7 @@ int kvmppc_core_init_vm(struct kvm *kvm)
 	}
 	kvm->arch.lpcr = lpcr;
 
+	kvm->arch.using_mmu_notifiers = !!cpu_has_feature(CPU_FTR_ARCH_206);
 	spin_lock_init(&kvm->arch.slot_phys_lock);
 	return 0;
 }
@@ -1306,8 +1308,9 @@ void kvmppc_core_destroy_vm(struct kvm *kvm)
 {
 	unsigned long i;
 
-	for (i = 0; i < KVM_MEM_SLOTS_NUM; i++)
-		unpin_slot(kvm, i);
+	if (!kvm->arch.using_mmu_notifiers)
+		for (i = 0; i < KVM_MEM_SLOTS_NUM; i++)
+			unpin_slot(kvm, i);
 
 	if (kvm->arch.rma) {
 		kvm_release_rma(kvm->arch.rma);

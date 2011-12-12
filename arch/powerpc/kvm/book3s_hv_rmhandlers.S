@@ -621,6 +621,8 @@ BEGIN_FTR_SECTION
 	/* If this is a page table miss then see if it's theirs or ours */
 	cmpwi	r12, BOOK3S_INTERRUPT_H_DATA_STORAGE
 	beq	kvmppc_hdsi
+	cmpwi	r12, BOOK3S_INTERRUPT_H_INST_STORAGE
+	beq	kvmppc_hisi
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 
 	/* See if this is a leftover HDEC interrupt */
@@ -1125,6 +1127,7 @@ kvmppc_hdsi:
 
 	/* Search the hash table. */
 	mr	r3, r9			/* vcpu pointer */
+	li	r7, 1			/* data fault */
 	bl	.kvmppc_hpte_hv_fault
 	ld	r9, HSTATE_KVM_VCPU(r13)
 	ld	r10, VCPU_PC(r9)
@@ -1180,6 +1183,52 @@ kvmppc_hdsi:
 	li	r0, KVM_GUEST_MODE_NONE
 	stb	r0, HSTATE_IN_GUEST(r13)
 	b	nohpte_cont
+
+/*
+ * Similarly for an HISI, reflect it to the guest as an ISI unless
+ * it is an HPTE not found fault for a page that we have paged out.
+ */
+kvmppc_hisi:
+	andis.	r0, r11, SRR1_ISI_NOPT@h
+	beq	1f
+	andi.	r0, r11, MSR_IR		/* instruction relocation enabled? */
+	beq	3f
+	clrrdi	r0, r10, 28
+	PPC_SLBFEE_DOT(r5, r0)		/* if so, look up SLB */
+	bne	1f			/* if no SLB entry found */
+4:
+	/* Search the hash table. */
+	mr	r3, r9			/* vcpu pointer */
+	mr	r4, r10
+	mr	r6, r11
+	li	r7, 0			/* instruction fault */
+	bl	.kvmppc_hpte_hv_fault
+	ld	r9, HSTATE_KVM_VCPU(r13)
+	ld	r10, VCPU_PC(r9)
+	ld	r11, VCPU_MSR(r9)
+	li	r12, BOOK3S_INTERRUPT_H_INST_STORAGE
+	cmpdi	r3, 0			/* retry the instruction */
+	beq	6f
+	cmpdi	r3, -1			/* handle in kernel mode */
+	beq	nohpte_cont
+
+	/* Synthesize an ISI for the guest */
+	mr	r11, r3
+1:	mtspr	SPRN_SRR0, r10
+	mtspr	SPRN_SRR1, r11
+	li	r10, BOOK3S_INTERRUPT_INST_STORAGE
+	li	r11, (MSR_ME << 1) | 1	/* synthesize MSR_SF | MSR_ME */
+	rotldi	r11, r11, 63
+6:	ld	r7, VCPU_CTR(r9)
+	lwz	r8, VCPU_XER(r9)
+	mtctr	r7
+	mtxer	r8
+	mr	r4, r9
+	b	fast_guest_return
+
+3:	ld	r6, VCPU_KVM(r9)	/* not relocated, use VRMA */
+	ld	r5, KVM_VRMA_SLB_V(r6)
+	b	4b
 
 /*
  * Try to handle an hcall in real mode.

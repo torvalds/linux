@@ -281,8 +281,9 @@ static long kvmppc_get_guest_page(struct kvm *kvm, unsigned long gfn,
 }
 
 /*
- * We come here on a H_ENTER call from the guest when
- * we don't have the requested page pinned already.
+ * We come here on a H_ENTER call from the guest when we are not
+ * using mmu notifiers and we don't have the requested page pinned
+ * already.
  */
 long kvmppc_virtmode_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 			long pte_index, unsigned long pteh, unsigned long ptel)
@@ -291,6 +292,9 @@ long kvmppc_virtmode_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 	unsigned long psize, gpa, gfn;
 	struct kvm_memory_slot *memslot;
 	long ret;
+
+	if (kvm->arch.using_mmu_notifiers)
+		goto do_insert;
 
 	psize = hpte_page_size(pteh, ptel);
 	if (!psize)
@@ -309,9 +313,12 @@ long kvmppc_virtmode_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 			return H_PARAMETER;
 	}
 
-	preempt_disable();
+ do_insert:
+	/* Protect linux PTE lookup from page table destruction */
+	rcu_read_lock_sched();	/* this disables preemption too */
+	vcpu->arch.pgdir = current->mm->pgd;
 	ret = kvmppc_h_enter(vcpu, flags, pte_index, pteh, ptel);
-	preempt_enable();
+	rcu_read_unlock_sched();
 	if (ret == H_TOO_HARD) {
 		/* this can't happen */
 		pr_err("KVM: Oops, kvmppc_h_enter returned too hard!\n");
@@ -487,12 +494,16 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				unsigned long ea, unsigned long dsisr)
 {
 	struct kvm *kvm = vcpu->kvm;
-	unsigned long *hptep, hpte[3];
-	unsigned long psize;
-	unsigned long gfn;
+	unsigned long *hptep, hpte[3], r;
+	unsigned long mmu_seq, psize, pte_size;
+	unsigned long gfn, hva, pfn;
 	struct kvm_memory_slot *memslot;
+	unsigned long *rmap;
 	struct revmap_entry *rev;
-	long index;
+	struct page *page, *pages[1];
+	long index, ret, npages;
+	unsigned long is_io;
+	struct vm_area_struct *vma;
 
 	/*
 	 * Real-mode code has already searched the HPT and found the
@@ -510,7 +521,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		cpu_relax();
 	hpte[0] = hptep[0] & ~HPTE_V_HVLOCK;
 	hpte[1] = hptep[1];
-	hpte[2] = rev->guest_rpte;
+	hpte[2] = r = rev->guest_rpte;
 	asm volatile("lwsync" : : : "memory");
 	hptep[0] = hpte[0];
 	preempt_enable();
@@ -520,8 +531,8 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		return RESUME_GUEST;
 
 	/* Translate the logical address and get the page */
-	psize = hpte_page_size(hpte[0], hpte[1]);
-	gfn = hpte_rpn(hpte[2], psize);
+	psize = hpte_page_size(hpte[0], r);
+	gfn = hpte_rpn(r, psize);
 	memslot = gfn_to_memslot(kvm, gfn);
 
 	/* No memslot means it's an emulated MMIO region */
@@ -531,8 +542,228 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 					      dsisr & DSISR_ISSTORE);
 	}
 
-	/* should never get here otherwise */
-	return -EFAULT;
+	if (!kvm->arch.using_mmu_notifiers)
+		return -EFAULT;		/* should never get here */
+
+	/* used to check for invalidations in progress */
+	mmu_seq = kvm->mmu_notifier_seq;
+	smp_rmb();
+
+	is_io = 0;
+	pfn = 0;
+	page = NULL;
+	pte_size = PAGE_SIZE;
+	hva = gfn_to_hva_memslot(memslot, gfn);
+	npages = get_user_pages_fast(hva, 1, 1, pages);
+	if (npages < 1) {
+		/* Check if it's an I/O mapping */
+		down_read(&current->mm->mmap_sem);
+		vma = find_vma(current->mm, hva);
+		if (vma && vma->vm_start <= hva && hva + psize <= vma->vm_end &&
+		    (vma->vm_flags & VM_PFNMAP)) {
+			pfn = vma->vm_pgoff +
+				((hva - vma->vm_start) >> PAGE_SHIFT);
+			pte_size = psize;
+			is_io = hpte_cache_bits(pgprot_val(vma->vm_page_prot));
+		}
+		up_read(&current->mm->mmap_sem);
+		if (!pfn)
+			return -EFAULT;
+	} else {
+		page = pages[0];
+		if (PageHuge(page)) {
+			page = compound_head(page);
+			pte_size <<= compound_order(page);
+		}
+		pfn = page_to_pfn(page);
+	}
+
+	ret = -EFAULT;
+	if (psize > pte_size)
+		goto out_put;
+
+	/* Check WIMG vs. the actual page we're accessing */
+	if (!hpte_cache_flags_ok(r, is_io)) {
+		if (is_io)
+			return -EFAULT;
+		/*
+		 * Allow guest to map emulated device memory as
+		 * uncacheable, but actually make it cacheable.
+		 */
+		r = (r & ~(HPTE_R_W|HPTE_R_I|HPTE_R_G)) | HPTE_R_M;
+	}
+
+	/* Set the HPTE to point to pfn */
+	r = (r & ~(HPTE_R_PP0 - pte_size)) | (pfn << PAGE_SHIFT);
+	ret = RESUME_GUEST;
+	preempt_disable();
+	while (!try_lock_hpte(hptep, HPTE_V_HVLOCK))
+		cpu_relax();
+	if ((hptep[0] & ~HPTE_V_HVLOCK) != hpte[0] || hptep[1] != hpte[1] ||
+	    rev->guest_rpte != hpte[2])
+		/* HPTE has been changed under us; let the guest retry */
+		goto out_unlock;
+	hpte[0] = (hpte[0] & ~HPTE_V_ABSENT) | HPTE_V_VALID;
+
+	rmap = &memslot->rmap[gfn - memslot->base_gfn];
+	lock_rmap(rmap);
+
+	/* Check if we might have been invalidated; let the guest retry if so */
+	ret = RESUME_GUEST;
+	if (mmu_notifier_retry(vcpu, mmu_seq)) {
+		unlock_rmap(rmap);
+		goto out_unlock;
+	}
+	kvmppc_add_revmap_chain(kvm, rev, rmap, index, 0);
+
+	hptep[1] = r;
+	eieio();
+	hptep[0] = hpte[0];
+	asm volatile("ptesync" : : : "memory");
+	preempt_enable();
+	if (page)
+		SetPageDirty(page);
+
+ out_put:
+	if (page)
+		put_page(page);
+	return ret;
+
+ out_unlock:
+	hptep[0] &= ~HPTE_V_HVLOCK;
+	preempt_enable();
+	goto out_put;
+}
+
+static int kvm_handle_hva(struct kvm *kvm, unsigned long hva,
+			  int (*handler)(struct kvm *kvm, unsigned long *rmapp,
+					 unsigned long gfn))
+{
+	int ret;
+	int retval = 0;
+	struct kvm_memslots *slots;
+	struct kvm_memory_slot *memslot;
+
+	slots = kvm_memslots(kvm);
+	kvm_for_each_memslot(memslot, slots) {
+		unsigned long start = memslot->userspace_addr;
+		unsigned long end;
+
+		end = start + (memslot->npages << PAGE_SHIFT);
+		if (hva >= start && hva < end) {
+			gfn_t gfn_offset = (hva - start) >> PAGE_SHIFT;
+
+			ret = handler(kvm, &memslot->rmap[gfn_offset],
+				      memslot->base_gfn + gfn_offset);
+			retval |= ret;
+		}
+	}
+
+	return retval;
+}
+
+static int kvm_unmap_rmapp(struct kvm *kvm, unsigned long *rmapp,
+			   unsigned long gfn)
+{
+	struct revmap_entry *rev = kvm->arch.revmap;
+	unsigned long h, i, j;
+	unsigned long *hptep;
+	unsigned long ptel, psize;
+
+	for (;;) {
+		while (test_and_set_bit_lock(KVMPPC_RMAP_LOCK_BIT, rmapp))
+			cpu_relax();
+		if (!(*rmapp & KVMPPC_RMAP_PRESENT)) {
+			__clear_bit_unlock(KVMPPC_RMAP_LOCK_BIT, rmapp);
+			break;
+		}
+
+		/*
+		 * To avoid an ABBA deadlock with the HPTE lock bit,
+		 * we have to unlock the rmap chain before locking the HPTE.
+		 * Thus we remove the first entry, unlock the rmap chain,
+		 * lock the HPTE and then check that it is for the
+		 * page we're unmapping before changing it to non-present.
+		 */
+		i = *rmapp & KVMPPC_RMAP_INDEX;
+		j = rev[i].forw;
+		if (j == i) {
+			/* chain is now empty */
+			j = 0;
+		} else {
+			/* remove i from chain */
+			h = rev[i].back;
+			rev[h].forw = j;
+			rev[j].back = h;
+			rev[i].forw = rev[i].back = i;
+			j |= KVMPPC_RMAP_PRESENT;
+		}
+		smp_wmb();
+		*rmapp = j | (1ul << KVMPPC_RMAP_REF_BIT);
+
+		/* Now lock, check and modify the HPTE */
+		hptep = (unsigned long *) (kvm->arch.hpt_virt + (i << 4));
+		while (!try_lock_hpte(hptep, HPTE_V_HVLOCK))
+			cpu_relax();
+		ptel = rev[i].guest_rpte;
+		psize = hpte_page_size(hptep[0], ptel);
+		if ((hptep[0] & HPTE_V_VALID) &&
+		    hpte_rpn(ptel, psize) == gfn) {
+			kvmppc_invalidate_hpte(kvm, hptep, i);
+			hptep[0] |= HPTE_V_ABSENT;
+		}
+		hptep[0] &= ~HPTE_V_HVLOCK;
+	}
+	return 0;
+}
+
+int kvm_unmap_hva(struct kvm *kvm, unsigned long hva)
+{
+	if (kvm->arch.using_mmu_notifiers)
+		kvm_handle_hva(kvm, hva, kvm_unmap_rmapp);
+	return 0;
+}
+
+static int kvm_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
+			 unsigned long gfn)
+{
+	if (!kvm->arch.using_mmu_notifiers)
+		return 0;
+	if (!(*rmapp & KVMPPC_RMAP_REFERENCED))
+		return 0;
+	kvm_unmap_rmapp(kvm, rmapp, gfn);
+	while (test_and_set_bit_lock(KVMPPC_RMAP_LOCK_BIT, rmapp))
+		cpu_relax();
+	__clear_bit(KVMPPC_RMAP_REF_BIT, rmapp);
+	__clear_bit_unlock(KVMPPC_RMAP_LOCK_BIT, rmapp);
+	return 1;
+}
+
+int kvm_age_hva(struct kvm *kvm, unsigned long hva)
+{
+	if (!kvm->arch.using_mmu_notifiers)
+		return 0;
+	return kvm_handle_hva(kvm, hva, kvm_age_rmapp);
+}
+
+static int kvm_test_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
+			      unsigned long gfn)
+{
+	return !!(*rmapp & KVMPPC_RMAP_REFERENCED);
+}
+
+int kvm_test_age_hva(struct kvm *kvm, unsigned long hva)
+{
+	if (!kvm->arch.using_mmu_notifiers)
+		return 0;
+	return kvm_handle_hva(kvm, hva, kvm_test_age_rmapp);
+}
+
+void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte)
+{
+	if (!kvm->arch.using_mmu_notifiers)
+		return;
+	kvm_handle_hva(kvm, hva, kvm_unmap_rmapp);
 }
 
 void *kvmppc_pin_guest_page(struct kvm *kvm, unsigned long gpa,
@@ -540,31 +771,42 @@ void *kvmppc_pin_guest_page(struct kvm *kvm, unsigned long gpa,
 {
 	struct kvm_memory_slot *memslot;
 	unsigned long gfn = gpa >> PAGE_SHIFT;
-	struct page *page;
-	unsigned long psize, offset;
+	struct page *page, *pages[1];
+	int npages;
+	unsigned long hva, psize, offset;
 	unsigned long pa;
 	unsigned long *physp;
 
 	memslot = gfn_to_memslot(kvm, gfn);
 	if (!memslot || (memslot->flags & KVM_MEMSLOT_INVALID))
 		return NULL;
-	physp = kvm->arch.slot_phys[memslot->id];
-	if (!physp)
-		return NULL;
-	physp += gfn - memslot->base_gfn;
-	pa = *physp;
-	if (!pa) {
-		if (kvmppc_get_guest_page(kvm, gfn, memslot, PAGE_SIZE) < 0)
+	if (!kvm->arch.using_mmu_notifiers) {
+		physp = kvm->arch.slot_phys[memslot->id];
+		if (!physp)
 			return NULL;
+		physp += gfn - memslot->base_gfn;
 		pa = *physp;
+		if (!pa) {
+			if (kvmppc_get_guest_page(kvm, gfn, memslot,
+						  PAGE_SIZE) < 0)
+				return NULL;
+			pa = *physp;
+		}
+		page = pfn_to_page(pa >> PAGE_SHIFT);
+	} else {
+		hva = gfn_to_hva_memslot(memslot, gfn);
+		npages = get_user_pages_fast(hva, 1, 1, pages);
+		if (npages < 1)
+			return NULL;
+		page = pages[0];
 	}
-	page = pfn_to_page(pa >> PAGE_SHIFT);
 	psize = PAGE_SIZE;
 	if (PageHuge(page)) {
 		page = compound_head(page);
 		psize <<= compound_order(page);
 	}
-	get_page(page);
+	if (!kvm->arch.using_mmu_notifiers)
+		get_page(page);
 	offset = gpa & (psize - 1);
 	if (nb_ret)
 		*nb_ret = psize - offset;

@@ -136,6 +136,37 @@ static inline int hpte_cache_flags_ok(unsigned long ptel, unsigned long io_type)
 	return (wimg & (HPTE_R_W | HPTE_R_I)) == io_type;
 }
 
+/*
+ * Lock and read a linux PTE.  If it's present and writable, atomically
+ * set dirty and referenced bits and return the PTE, otherwise return 0.
+ */
+static inline pte_t kvmppc_read_update_linux_pte(pte_t *p)
+{
+	pte_t pte, tmp;
+
+	/* wait until _PAGE_BUSY is clear then set it atomically */
+	__asm__ __volatile__ (
+		"1:	ldarx	%0,0,%3\n"
+		"	andi.	%1,%0,%4\n"
+		"	bne-	1b\n"
+		"	ori	%1,%0,%4\n"
+		"	stdcx.	%1,0,%3\n"
+		"	bne-	1b"
+		: "=&r" (pte), "=&r" (tmp), "=m" (*p)
+		: "r" (p), "i" (_PAGE_BUSY)
+		: "cc");
+
+	if (pte_present(pte)) {
+		pte = pte_mkyoung(pte);
+		if (pte_write(pte))
+			pte = pte_mkdirty(pte);
+	}
+
+	*p = pte;	/* clears _PAGE_BUSY */
+
+	return pte;
+}
+
 /* Return HPTE cache control bits corresponding to Linux pte bits */
 static inline unsigned long hpte_cache_bits(unsigned long pte_val)
 {
