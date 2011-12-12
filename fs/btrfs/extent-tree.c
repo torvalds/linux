@@ -2300,7 +2300,12 @@ static noinline int run_clustered_refs(struct btrfs_trans_handle *trans,
 		ref->in_tree = 0;
 		rb_erase(&ref->rb_node, &delayed_refs->root);
 		delayed_refs->num_entries--;
-
+		/*
+		 * we modified num_entries, but as we're currently running
+		 * delayed refs, skip
+		 *     wake_up(&delayed_refs->seq_wait);
+		 * here.
+		 */
 		spin_unlock(&delayed_refs->lock);
 
 		ret = run_one_delayed_ref(trans, root, ref, extent_op,
@@ -2315,6 +2320,23 @@ static noinline int run_clustered_refs(struct btrfs_trans_handle *trans,
 		spin_lock(&delayed_refs->lock);
 	}
 	return count;
+}
+
+
+static void wait_for_more_refs(struct btrfs_delayed_ref_root *delayed_refs,
+			unsigned long num_refs)
+{
+	struct list_head *first_seq = delayed_refs->seq_head.next;
+
+	spin_unlock(&delayed_refs->lock);
+	pr_debug("waiting for more refs (num %ld, first %p)\n",
+		 num_refs, first_seq);
+	wait_event(delayed_refs->seq_wait,
+		   num_refs != delayed_refs->num_entries ||
+		   delayed_refs->seq_head.next != first_seq);
+	pr_debug("done waiting for more refs (num %ld, first %p)\n",
+		 delayed_refs->num_entries, delayed_refs->seq_head.next);
+	spin_lock(&delayed_refs->lock);
 }
 
 /*
@@ -2332,8 +2354,11 @@ int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 	struct btrfs_delayed_ref_node *ref;
 	struct list_head cluster;
 	int ret;
+	u64 delayed_start;
 	int run_all = count == (unsigned long)-1;
 	int run_most = 0;
+	unsigned long num_refs = 0;
+	int consider_waiting;
 
 	if (root == root->fs_info->extent_root)
 		root = root->fs_info->tree_root;
@@ -2341,6 +2366,7 @@ int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 	delayed_refs = &trans->transaction->delayed_refs;
 	INIT_LIST_HEAD(&cluster);
 again:
+	consider_waiting = 0;
 	spin_lock(&delayed_refs->lock);
 	if (count == 0) {
 		count = delayed_refs->num_entries * 2;
@@ -2357,10 +2383,34 @@ again:
 		 * of refs to process starting at the first one we are able to
 		 * lock
 		 */
+		delayed_start = delayed_refs->run_delayed_start;
 		ret = btrfs_find_ref_cluster(trans, &cluster,
 					     delayed_refs->run_delayed_start);
 		if (ret)
 			break;
+
+		if (delayed_start >= delayed_refs->run_delayed_start) {
+			if (consider_waiting == 0) {
+				/*
+				 * btrfs_find_ref_cluster looped. let's do one
+				 * more cycle. if we don't run any delayed ref
+				 * during that cycle (because we can't because
+				 * all of them are blocked) and if the number of
+				 * refs doesn't change, we avoid busy waiting.
+				 */
+				consider_waiting = 1;
+				num_refs = delayed_refs->num_entries;
+			} else {
+				wait_for_more_refs(delayed_refs, num_refs);
+				/*
+				 * after waiting, things have changed. we
+				 * dropped the lock and someone else might have
+				 * run some refs, built new clusters and so on.
+				 * therefore, we restart staleness detection.
+				 */
+				consider_waiting = 0;
+			}
+		}
 
 		ret = run_clustered_refs(trans, root, &cluster);
 		BUG_ON(ret < 0);
@@ -2369,6 +2419,11 @@ again:
 
 		if (count == 0)
 			break;
+
+		if (ret || delayed_refs->run_delayed_start == 0) {
+			/* refs were run, let's reset staleness detection */
+			consider_waiting = 0;
+		}
 	}
 
 	if (run_all) {
@@ -4933,6 +4988,8 @@ static noinline int check_ref_cleanup(struct btrfs_trans_handle *trans,
 	rb_erase(&head->node.rb_node, &delayed_refs->root);
 
 	delayed_refs->num_entries--;
+	if (waitqueue_active(&delayed_refs->seq_wait))
+		wake_up(&delayed_refs->seq_wait);
 
 	/*
 	 * we don't take a ref on the node because we're removing it from the

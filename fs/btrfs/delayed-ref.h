@@ -153,6 +153,12 @@ struct btrfs_delayed_ref_root {
 	 * as it might influence the outcome of the walk.
 	 */
 	struct list_head seq_head;
+
+	/*
+	 * when the only refs we have in the list must not be processed, we want
+	 * to wait for more refs to show up or for the end of backref walking.
+	 */
+	wait_queue_head_t seq_wait;
 };
 
 static inline void btrfs_put_delayed_ref(struct btrfs_delayed_ref_node *ref)
@@ -216,6 +222,7 @@ btrfs_put_delayed_seq(struct btrfs_delayed_ref_root *delayed_refs,
 {
 	spin_lock(&delayed_refs->lock);
 	list_del(&elem->list);
+	wake_up(&delayed_refs->seq_wait);
 	spin_unlock(&delayed_refs->lock);
 }
 
