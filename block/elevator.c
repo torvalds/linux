@@ -886,15 +886,36 @@ void elv_unregister_queue(struct request_queue *q)
 }
 EXPORT_SYMBOL(elv_unregister_queue);
 
-void elv_register(struct elevator_type *e)
+int elv_register(struct elevator_type *e)
 {
 	char *def = "";
 
+	/* create icq_cache if requested */
+	if (e->icq_size) {
+		if (WARN_ON(e->icq_size < sizeof(struct io_cq)) ||
+		    WARN_ON(e->icq_align < __alignof__(struct io_cq)))
+			return -EINVAL;
+
+		snprintf(e->icq_cache_name, sizeof(e->icq_cache_name),
+			 "%s_io_cq", e->elevator_name);
+		e->icq_cache = kmem_cache_create(e->icq_cache_name, e->icq_size,
+						 e->icq_align, 0, NULL);
+		if (!e->icq_cache)
+			return -ENOMEM;
+	}
+
+	/* register, don't allow duplicate names */
 	spin_lock(&elv_list_lock);
-	BUG_ON(elevator_find(e->elevator_name));
+	if (elevator_find(e->elevator_name)) {
+		spin_unlock(&elv_list_lock);
+		if (e->icq_cache)
+			kmem_cache_destroy(e->icq_cache);
+		return -EBUSY;
+	}
 	list_add_tail(&e->list, &elv_list);
 	spin_unlock(&elv_list_lock);
 
+	/* print pretty message */
 	if (!strcmp(e->elevator_name, chosen_elevator) ||
 			(!*chosen_elevator &&
 			 !strcmp(e->elevator_name, CONFIG_DEFAULT_IOSCHED)))
@@ -902,14 +923,26 @@ void elv_register(struct elevator_type *e)
 
 	printk(KERN_INFO "io scheduler %s registered%s\n", e->elevator_name,
 								def);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(elv_register);
 
 void elv_unregister(struct elevator_type *e)
 {
+	/* unregister */
 	spin_lock(&elv_list_lock);
 	list_del_init(&e->list);
 	spin_unlock(&elv_list_lock);
+
+	/*
+	 * Destroy icq_cache if it exists.  icq's are RCU managed.  Make
+	 * sure all RCU operations are complete before proceeding.
+	 */
+	if (e->icq_cache) {
+		rcu_barrier();
+		kmem_cache_destroy(e->icq_cache);
+		e->icq_cache = NULL;
+	}
 }
 EXPORT_SYMBOL_GPL(elv_unregister);
 

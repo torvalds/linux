@@ -78,10 +78,19 @@ struct elv_fs_entry {
  */
 struct elevator_type
 {
+	/* managed by elevator core */
+	struct kmem_cache *icq_cache;
+
+	/* fields provided by elevator implementation */
 	struct elevator_ops ops;
+	size_t icq_size;
+	size_t icq_align;
 	struct elv_fs_entry *elevator_attrs;
 	char elevator_name[ELV_NAME_MAX];
 	struct module *elevator_owner;
+
+	/* managed by elevator core */
+	char icq_cache_name[ELV_NAME_MAX + 5];	/* elvname + "_io_cq" */
 	struct list_head list;
 };
 
@@ -127,7 +136,7 @@ extern void elv_drain_elevator(struct request_queue *);
 /*
  * io scheduler registration
  */
-extern void elv_register(struct elevator_type *);
+extern int elv_register(struct elevator_type *);
 extern void elv_unregister(struct elevator_type *);
 
 /*

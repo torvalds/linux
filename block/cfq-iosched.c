@@ -3914,34 +3914,6 @@ static void *cfq_init_queue(struct request_queue *q)
 	return cfqd;
 }
 
-static void cfq_slab_kill(void)
-{
-	/*
-	 * Caller already ensured that pending RCU callbacks are completed,
-	 * so we should have no busy allocations at this point.
-	 */
-	if (cfq_pool)
-		kmem_cache_destroy(cfq_pool);
-	if (cfq_icq_pool)
-		kmem_cache_destroy(cfq_icq_pool);
-}
-
-static int __init cfq_slab_setup(void)
-{
-	cfq_pool = KMEM_CACHE(cfq_queue, 0);
-	if (!cfq_pool)
-		goto fail;
-
-	cfq_icq_pool = KMEM_CACHE(cfq_io_cq, 0);
-	if (!cfq_icq_pool)
-		goto fail;
-
-	return 0;
-fail:
-	cfq_slab_kill();
-	return -ENOMEM;
-}
-
 /*
  * sysfs parts below -->
  */
@@ -4053,8 +4025,10 @@ static struct elevator_type iosched_cfq = {
 		.elevator_init_fn =		cfq_init_queue,
 		.elevator_exit_fn =		cfq_exit_queue,
 	},
+	.icq_size	=	sizeof(struct cfq_io_cq),
+	.icq_align	=	__alignof__(struct cfq_io_cq),
 	.elevator_attrs =	cfq_attrs,
-	.elevator_name =	"cfq",
+	.elevator_name	=	"cfq",
 	.elevator_owner =	THIS_MODULE,
 };
 
@@ -4072,6 +4046,8 @@ static struct blkio_policy_type blkio_policy_cfq;
 
 static int __init cfq_init(void)
 {
+	int ret;
+
 	/*
 	 * could be 0 on HZ < 1000 setups
 	 */
@@ -4086,10 +4062,17 @@ static int __init cfq_init(void)
 #else
 		cfq_group_idle = 0;
 #endif
-	if (cfq_slab_setup())
+	cfq_pool = KMEM_CACHE(cfq_queue, 0);
+	if (!cfq_pool)
 		return -ENOMEM;
 
-	elv_register(&iosched_cfq);
+	ret = elv_register(&iosched_cfq);
+	if (ret) {
+		kmem_cache_destroy(cfq_pool);
+		return ret;
+	}
+	cfq_icq_pool = iosched_cfq.icq_cache;
+
 	blkio_policy_register(&blkio_policy_cfq);
 
 	return 0;
@@ -4099,8 +4082,7 @@ static void __exit cfq_exit(void)
 {
 	blkio_policy_unregister(&blkio_policy_cfq);
 	elv_unregister(&iosched_cfq);
-	rcu_barrier();	/* make sure all cic RCU frees are complete */
-	cfq_slab_kill();
+	kmem_cache_destroy(cfq_pool);
 }
 
 module_init(cfq_init);
