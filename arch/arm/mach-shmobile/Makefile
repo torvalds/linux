@@ -26,6 +26,7 @@ pfc-$(CONFIG_ARCH_SH7377)	+= pfc-sh7377.o
 pfc-$(CONFIG_ARCH_SH7372)	+= pfc-sh7372.o
 pfc-$(CONFIG_ARCH_SH73A0)	+= pfc-sh73a0.o
 pfc-$(CONFIG_ARCH_R8A7740)	+= pfc-r8a7740.o
+pfc-$(CONFIG_ARCH_R8A7779)	+= pfc-r8a7779.o
 
 # IRQ objects
 obj-$(CONFIG_ARCH_SH7367)	+= entry-intc.o

@@ -39,6 +39,7 @@ config ARCH_R8A7779
 	select CPU_V7
 	select SH_CLK_CPG
 	select ARM_GIC
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 
 comment "SH-Mobile Board Type"
 
@@ -90,6 +91,7 @@ config MACH_KOTA2
 config MACH_MARZEN
 	bool "MARZEN board"
 	depends on ARCH_R8A7779
+	select ARCH_REQUIRE_GPIOLIB
 
 comment "SH-Mobile System Configuration"
 

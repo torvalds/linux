@@ -84,6 +84,8 @@ static void __init marzen_init_early(void)
 
 static void __init marzen_init(void)
 {
+	r8a7779_pinmux_init();
+
 	r8a7779_add_standard_devices();
 	platform_add_devices(marzen_devices, ARRAY_SIZE(marzen_devices));
 }

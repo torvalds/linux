@@ -64,5 +64,6 @@ extern void r8a7779_init_irq(void);
 extern void r8a7779_add_early_devices(void);
 extern void r8a7779_add_standard_devices(void);
 extern void r8a7779_clock_init(void);
+extern void r8a7779_pinmux_init(void);
 
 #endif /* __ARCH_MACH_COMMON_H */
