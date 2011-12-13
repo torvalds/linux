@@ -196,22 +196,5 @@ enum {
 	INIT_LIST_HEAD(&(rq)->csd.list);	\
 	} while (0)
 
-/*
- * io context count accounting
- */
-#define elv_ioc_count_mod(name, __val) this_cpu_add(name, __val)
-#define elv_ioc_count_inc(name)	this_cpu_inc(name)
-#define elv_ioc_count_dec(name)	this_cpu_dec(name)
-
-#define elv_ioc_count_read(name)				\
-({								\
-	unsigned long __val = 0;				\
-	int __cpu;						\
-	smp_wmb();						\
-	for_each_possible_cpu(__cpu)				\
-		__val += per_cpu(name, __cpu);			\
-	__val;							\
-})
-
 #endif /* CONFIG_BLOCK */
 #endif

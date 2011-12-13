@@ -62,10 +62,6 @@ static const int cfq_hist_divisor = 4;
 static struct kmem_cache *cfq_pool;
 static struct kmem_cache *cfq_ioc_pool;
 
-static DEFINE_PER_CPU(unsigned long, cfq_ioc_count);
-static struct completion *ioc_gone;
-static DEFINE_SPINLOCK(ioc_gone_lock);
-
 #define CFQ_PRIO_LISTS		IOPRIO_BE_NR
 #define cfq_class_idle(cfqq)	((cfqq)->ioprio_class == IOPRIO_CLASS_IDLE)
 #define cfq_class_rt(cfqq)	((cfqq)->ioprio_class == IOPRIO_CLASS_RT)
@@ -2671,26 +2667,8 @@ static void cfq_put_queue(struct cfq_queue *cfqq)
 
 static void cfq_cic_free_rcu(struct rcu_head *head)
 {
-	struct cfq_io_context *cic;
-
-	cic = container_of(head, struct cfq_io_context, rcu_head);
-
-	kmem_cache_free(cfq_ioc_pool, cic);
-	elv_ioc_count_dec(cfq_ioc_count);
-
-	if (ioc_gone) {
-		/*
-		 * CFQ scheduler is exiting, grab exit lock and check
-		 * the pending io context count. If it hits zero,
-		 * complete ioc_gone and set it back to NULL
-		 */
-		spin_lock(&ioc_gone_lock);
-		if (ioc_gone && !elv_ioc_count_read(cfq_ioc_count)) {
-			complete(ioc_gone);
-			ioc_gone = NULL;
-		}
-		spin_unlock(&ioc_gone_lock);
-	}
+	kmem_cache_free(cfq_ioc_pool,
+			container_of(head, struct cfq_io_context, rcu_head));
 }
 
 static void cfq_cic_free(struct cfq_io_context *cic)
@@ -2705,7 +2683,7 @@ static void cfq_release_cic(struct cfq_io_context *cic)
 
 	BUG_ON(!(dead_key & CIC_DEAD_KEY));
 	radix_tree_delete(&ioc->radix_root, dead_key >> CIC_DEAD_INDEX_SHIFT);
-	hlist_del_rcu(&cic->cic_list);
+	hlist_del(&cic->cic_list);
 	cfq_cic_free(cic);
 }
 
@@ -2782,7 +2760,6 @@ cfq_alloc_io_context(struct cfq_data *cfqd, gfp_t gfp_mask)
 		INIT_HLIST_NODE(&cic->cic_list);
 		cic->exit = cfq_exit_cic;
 		cic->release = cfq_release_cic;
-		elv_ioc_count_inc(cfq_ioc_count);
 	}
 
 	return cic;
@@ -3072,7 +3049,7 @@ static int cfq_create_cic(struct cfq_data *cfqd, gfp_t gfp_mask)
 
 	ret = radix_tree_insert(&ioc->radix_root, q->id, cic);
 	if (likely(!ret)) {
-		hlist_add_head_rcu(&cic->cic_list, &ioc->cic_list);
+		hlist_add_head(&cic->cic_list, &ioc->cic_list);
 		list_add(&cic->queue_list, &cfqd->cic_list);
 		cic = NULL;
 	} else if (ret == -EEXIST) {
@@ -4156,19 +4133,9 @@ static int __init cfq_init(void)
 
 static void __exit cfq_exit(void)
 {
-	DECLARE_COMPLETION_ONSTACK(all_gone);
 	blkio_policy_unregister(&blkio_policy_cfq);
 	elv_unregister(&iosched_cfq);
-	ioc_gone = &all_gone;
-	/* ioc_gone's update must be visible before reading ioc_count */
-	smp_wmb();
-
-	/*
-	 * this also protects us from entering cfq_slab_kill() with
-	 * pending RCU callbacks
-	 */
-	if (elv_ioc_count_read(cfq_ioc_count))
-		wait_for_completion(&all_gone);
+	rcu_barrier();	/* make sure all cic RCU frees are complete */
 	cfq_slab_kill();
 }
 
