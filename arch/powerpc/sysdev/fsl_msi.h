@@ -20,9 +20,10 @@
 #define IRQS_PER_MSI_REG	32
 #define NR_MSI_IRQS	(NR_MSI_REG * IRQS_PER_MSI_REG)
 
-#define FSL_PIC_IP_MASK	0x0000000F
-#define FSL_PIC_IP_MPIC	0x00000001
-#define FSL_PIC_IP_IPIC	0x00000002
+#define FSL_PIC_IP_MASK   0x0000000F
+#define FSL_PIC_IP_MPIC   0x00000001
+#define FSL_PIC_IP_IPIC   0x00000002
+#define FSL_PIC_IP_VMPIC  0x00000003
 
 struct fsl_msi {
 	struct irq_host *irqhost;

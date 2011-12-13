@@ -137,6 +137,8 @@ static void __init setup_pci_atmu(struct pci_controller *hose,
 	u32 piwar = PIWAR_EN | PIWAR_PF | PIWAR_TGI_LOCAL |
 			PIWAR_READ_SNOOP | PIWAR_WRITE_SNOOP;
 	char *name = hose->dn->full_name;
+	const u64 *reg;
+	int len;
 
 	pr_debug("PCI memory map start 0x%016llx, size 0x%016llx\n",
 		 (u64)rsrc->start, (u64)resource_size(rsrc));
@@ -229,6 +231,33 @@ static void __init setup_pci_atmu(struct pci_controller *hose,
 
 	/* Setup inbound mem window */
 	mem = memblock_end_of_DRAM();
+
+	/*
+	 * The msi-address-64 property, if it exists, indicates the physical
+	 * address of the MSIIR register.  Normally, this register is located
+	 * inside CCSR, so the ATMU that covers all of CCSR is used. But if
+	 * this property exists, then we normally need to create a new ATMU
+	 * for it.  For now, however, we cheat.  The only entity that creates
+	 * this property is the Freescale hypervisor, and the address is
+	 * specified in the partition configuration.  Typically, the address
+	 * is located in the page immediately after the end of DDR.  If so, we
+	 * can avoid allocating a new ATMU by extending the DDR ATMU by one
+	 * page.
+	 */
+	reg = of_get_property(hose->dn, "msi-address-64", &len);
+	if (reg && (len == sizeof(u64))) {
+		u64 address = be64_to_cpup(reg);
+
+		if ((address >= mem) && (address < (mem + PAGE_SIZE))) {
+			pr_info("%s: extending DDR ATMU to cover MSIIR", name);
+			mem += PAGE_SIZE;
+		} else {
+			/* TODO: Create a new ATMU for MSIIR */
+			pr_warn("%s: msi-address-64 address of %llx is "
+				"unsupported\n", name, address);
+		}
+	}
+
 	sz = min(mem, paddr_lo);
 	mem_log = __ilog2_u64(sz);
 
