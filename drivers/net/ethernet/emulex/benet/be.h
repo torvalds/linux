@@ -288,11 +288,11 @@ struct be_drv_stats {
 };
 
 struct be_vf_cfg {
-	unsigned char vf_mac_addr[ETH_ALEN];
-	int vf_if_handle;
-	int vf_pmac_id;
-	u16 vf_vlan_tag;
-	u32 vf_tx_rate;
+	unsigned char mac_addr[ETH_ALEN];
+	int if_handle;
+	int pmac_id;
+	u16 vlan_tag;
+	u32 tx_rate;
 };
 
 struct be_adapter {
@@ -368,16 +368,20 @@ struct be_adapter {
 	u32 flash_status;
 	struct completion flash_compl;
 
-	bool be3_native;
-	bool sriov_enabled;
-	struct be_vf_cfg *vf_cfg;
+	u32 num_vfs;
 	u8 is_virtfn;
+	struct be_vf_cfg *vf_cfg;
+	bool be3_native;
 	u32 sli_family;
 	u8 hba_port_num;
 	u16 pvid;
 };
 
 #define be_physfn(adapter) (!adapter->is_virtfn)
+#define	sriov_enabled(adapter)		(adapter->num_vfs > 0)
+#define for_all_vfs(adapter, vf_cfg, i)					\
+	for (i = 0, vf_cfg = &adapter->vf_cfg[i]; i < adapter->num_vfs;	\
+		i++, vf_cfg++)
 
 /* BladeEngine Generation numbers */
 #define BE_GEN2 2

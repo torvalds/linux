@@ -27,12 +27,13 @@ MODULE_DESCRIPTION(DRV_DESC " " DRV_VER);
 MODULE_AUTHOR("ServerEngines Corporation");
 MODULE_LICENSE("GPL");
 
-static ushort rx_frag_size = 2048;
 static unsigned int num_vfs;
-module_param(rx_frag_size, ushort, S_IRUGO);
 module_param(num_vfs, uint, S_IRUGO);
-MODULE_PARM_DESC(rx_frag_size, "Size of a fragment that holds rcvd data.");
 MODULE_PARM_DESC(num_vfs, "Number of PCI VFs to initialize");
+
+static ushort rx_frag_size = 2048;
+module_param(rx_frag_size, ushort, S_IRUGO);
+MODULE_PARM_DESC(rx_frag_size, "Size of a fragment that holds rcvd data.");
 
 static DEFINE_PCI_DEVICE_TABLE(be_dev_ids) = {
 	{ PCI_DEVICE(BE_VENDOR_ID, BE_DEVICE_ID1) },
@@ -779,15 +780,15 @@ static int be_change_mtu(struct net_device *netdev, int new_mtu)
  */
 static int be_vid_config(struct be_adapter *adapter, bool vf, u32 vf_num)
 {
+	struct be_vf_cfg *vf_cfg = &adapter->vf_cfg[vf_num];
 	u16 vtag[BE_NUM_VLANS_SUPPORTED];
 	u16 ntags = 0, i;
 	int status = 0;
-	u32 if_handle;
 
 	if (vf) {
-		if_handle = adapter->vf_cfg[vf_num].vf_if_handle;
-		vtag[0] = cpu_to_le16(adapter->vf_cfg[vf_num].vf_vlan_tag);
-		status = be_cmd_vlan_config(adapter, if_handle, vtag, 1, 1, 0);
+		vtag[0] = cpu_to_le16(vf_cfg->vlan_tag);
+		status = be_cmd_vlan_config(adapter, vf_cfg->if_handle, vtag,
+					    1, 1, 0);
 	}
 
 	/* No need to further configure vids if in promiscuous mode */
@@ -877,31 +878,30 @@ done:
 static int be_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
+	struct be_vf_cfg *vf_cfg = &adapter->vf_cfg[vf];
 	int status;
 
-	if (!adapter->sriov_enabled)
+	if (!sriov_enabled(adapter))
 		return -EPERM;
 
-	if (!is_valid_ether_addr(mac) || (vf >= num_vfs))
+	if (!is_valid_ether_addr(mac) || vf >= adapter->num_vfs)
 		return -EINVAL;
 
 	if (lancer_chip(adapter)) {
 		status = be_cmd_set_mac_list(adapter,  mac, 1, vf + 1);
 	} else {
-		status = be_cmd_pmac_del(adapter,
-				adapter->vf_cfg[vf].vf_if_handle,
-				adapter->vf_cfg[vf].vf_pmac_id, vf + 1);
+		status = be_cmd_pmac_del(adapter, vf_cfg->if_handle,
+					 vf_cfg->pmac_id, vf + 1);
 
-		status = be_cmd_pmac_add(adapter, mac,
-				adapter->vf_cfg[vf].vf_if_handle,
-				&adapter->vf_cfg[vf].vf_pmac_id, vf + 1);
+		status = be_cmd_pmac_add(adapter, mac, vf_cfg->if_handle,
+					 &vf_cfg->pmac_id, vf + 1);
 	}
 
 	if (status)
 		dev_err(&adapter->pdev->dev, "MAC %pM set on VF %d Failed\n",
 				mac, vf);
 	else
-		memcpy(adapter->vf_cfg[vf].vf_mac_addr, mac, ETH_ALEN);
+		memcpy(vf_cfg->mac_addr, mac, ETH_ALEN);
 
 	return status;
 }
@@ -910,18 +910,19 @@ static int be_get_vf_config(struct net_device *netdev, int vf,
 			struct ifla_vf_info *vi)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
+	struct be_vf_cfg *vf_cfg = &adapter->vf_cfg[vf];
 
-	if (!adapter->sriov_enabled)
+	if (!sriov_enabled(adapter))
 		return -EPERM;
 
-	if (vf >= num_vfs)
+	if (vf >= adapter->num_vfs)
 		return -EINVAL;
 
 	vi->vf = vf;
-	vi->tx_rate = adapter->vf_cfg[vf].vf_tx_rate;
-	vi->vlan = adapter->vf_cfg[vf].vf_vlan_tag;
+	vi->tx_rate = vf_cfg->tx_rate;
+	vi->vlan = vf_cfg->vlan_tag;
 	vi->qos = 0;
-	memcpy(&vi->mac, adapter->vf_cfg[vf].vf_mac_addr, ETH_ALEN);
+	memcpy(&vi->mac, vf_cfg->mac_addr, ETH_ALEN);
 
 	return 0;
 }
@@ -932,17 +933,17 @@ static int be_set_vf_vlan(struct net_device *netdev,
 	struct be_adapter *adapter = netdev_priv(netdev);
 	int status = 0;
 
-	if (!adapter->sriov_enabled)
+	if (!sriov_enabled(adapter))
 		return -EPERM;
 
-	if ((vf >= num_vfs) || (vlan > 4095))
+	if (vf >= adapter->num_vfs || vlan > 4095)
 		return -EINVAL;
 
 	if (vlan) {
-		adapter->vf_cfg[vf].vf_vlan_tag = vlan;
+		adapter->vf_cfg[vf].vlan_tag = vlan;
 		adapter->vlans_added++;
 	} else {
-		adapter->vf_cfg[vf].vf_vlan_tag = 0;
+		adapter->vf_cfg[vf].vlan_tag = 0;
 		adapter->vlans_added--;
 	}
 
@@ -960,16 +961,16 @@ static int be_set_vf_tx_rate(struct net_device *netdev,
 	struct be_adapter *adapter = netdev_priv(netdev);
 	int status = 0;
 
-	if (!adapter->sriov_enabled)
+	if (!sriov_enabled(adapter))
 		return -EPERM;
 
-	if ((vf >= num_vfs) || (rate < 0))
+	if (vf >= adapter->num_vfs || rate < 0)
 		return -EINVAL;
 
 	if (rate > 10000)
 		rate = 10000;
 
-	adapter->vf_cfg[vf].vf_tx_rate = rate;
+	adapter->vf_cfg[vf].tx_rate = rate;
 	status = be_cmd_set_qos(adapter, rate / 10, vf + 1);
 
 	if (status)
@@ -1685,8 +1686,7 @@ static void be_tx_queues_destroy(struct be_adapter *adapter)
 
 static int be_num_txqs_want(struct be_adapter *adapter)
 {
-	if ((num_vfs && adapter->sriov_enabled) ||
-		be_is_mc(adapter) ||
+	if (sriov_enabled(adapter) || be_is_mc(adapter) ||
 		lancer_chip(adapter) || !be_physfn(adapter) ||
 		adapter->generation == BE_GEN2)
 		return 1;
@@ -1768,8 +1768,8 @@ static void be_rx_queues_destroy(struct be_adapter *adapter)
 static u32 be_num_rxqs_want(struct be_adapter *adapter)
 {
 	if ((adapter->function_caps & BE_FUNCTION_CAPS_RSS) &&
-		!adapter->sriov_enabled && be_physfn(adapter) &&
-		!be_is_mc(adapter)) {
+	     !sriov_enabled(adapter) && be_physfn(adapter) &&
+	     !be_is_mc(adapter)) {
 		return 1 + MAX_RSS_QS; /* one default non-RSS queue */
 	} else {
 		dev_warn(&adapter->pdev->dev,
@@ -2116,27 +2116,28 @@ done:
 static int be_sriov_enable(struct be_adapter *adapter)
 {
 	be_check_sriov_fn_type(adapter);
+
 #ifdef CONFIG_PCI_IOV
 	if (be_physfn(adapter) && num_vfs) {
 		int status, pos;
-		u16 nvfs;
+		u16 dev_vfs;
 
 		pos = pci_find_ext_capability(adapter->pdev,
 						PCI_EXT_CAP_ID_SRIOV);
 		pci_read_config_word(adapter->pdev,
-					pos + PCI_SRIOV_TOTAL_VF, &nvfs);
+				     pos + PCI_SRIOV_TOTAL_VF, &dev_vfs);
 
-		if (num_vfs > nvfs) {
+		adapter->num_vfs = min_t(u16, num_vfs, dev_vfs);
+		if (adapter->num_vfs != num_vfs)
 			dev_info(&adapter->pdev->dev,
-					"Device supports %d VFs and not %d\n",
-					nvfs, num_vfs);
-			num_vfs = nvfs;
-		}
+				 "Device supports %d VFs and not %d\n",
+				 adapter->num_vfs, num_vfs);
 
-		status = pci_enable_sriov(adapter->pdev, num_vfs);
-		adapter->sriov_enabled = status ? false : true;
+		status = pci_enable_sriov(adapter->pdev, adapter->num_vfs);
+		if (status)
+			adapter->num_vfs = 0;
 
-		if (adapter->sriov_enabled) {
+		if (adapter->num_vfs) {
 			adapter->vf_cfg = kcalloc(num_vfs,
 						sizeof(struct be_vf_cfg),
 						GFP_KERNEL);
@@ -2151,10 +2152,10 @@ static int be_sriov_enable(struct be_adapter *adapter)
 static void be_sriov_disable(struct be_adapter *adapter)
 {
 #ifdef CONFIG_PCI_IOV
-	if (adapter->sriov_enabled) {
+	if (sriov_enabled(adapter)) {
 		pci_disable_sriov(adapter->pdev);
 		kfree(adapter->vf_cfg);
-		adapter->sriov_enabled = false;
+		adapter->num_vfs = 0;
 	}
 #endif
 }
@@ -2466,24 +2467,24 @@ static inline int be_vf_eth_addr_config(struct be_adapter *adapter)
 	u32 vf;
 	int status = 0;
 	u8 mac[ETH_ALEN];
+	struct be_vf_cfg *vf_cfg;
 
 	be_vf_eth_addr_generate(adapter, mac);
 
-	for (vf = 0; vf < num_vfs; vf++) {
+	for_all_vfs(adapter, vf_cfg, vf) {
 		if (lancer_chip(adapter)) {
 			status = be_cmd_set_mac_list(adapter,  mac, 1, vf + 1);
 		} else {
 			status = be_cmd_pmac_add(adapter, mac,
-					adapter->vf_cfg[vf].vf_if_handle,
-					&adapter->vf_cfg[vf].vf_pmac_id,
-					vf + 1);
+						 vf_cfg->if_handle,
+						 &vf_cfg->pmac_id, vf + 1);
 		}
 
 		if (status)
 			dev_err(&adapter->pdev->dev,
 			"Mac address assignment failed for VF %d\n", vf);
 		else
-			memcpy(adapter->vf_cfg[vf].vf_mac_addr, mac, ETH_ALEN);
+			memcpy(vf_cfg->mac_addr, mac, ETH_ALEN);
 
 		mac[5] += 1;
 	}
@@ -2492,25 +2493,23 @@ static inline int be_vf_eth_addr_config(struct be_adapter *adapter)
 
 static void be_vf_clear(struct be_adapter *adapter)
 {
+	struct be_vf_cfg *vf_cfg;
 	u32 vf;
 
-	for (vf = 0; vf < num_vfs; vf++) {
+	for_all_vfs(adapter, vf_cfg, vf) {
 		if (lancer_chip(adapter))
 			be_cmd_set_mac_list(adapter, NULL, 0, vf + 1);
 		else
-			be_cmd_pmac_del(adapter,
-					adapter->vf_cfg[vf].vf_if_handle,
-					adapter->vf_cfg[vf].vf_pmac_id, vf + 1);
-	}
+			be_cmd_pmac_del(adapter, vf_cfg->if_handle,
+					vf_cfg->pmac_id, vf + 1);
 
-	for (vf = 0; vf < num_vfs; vf++)
-		be_cmd_if_destroy(adapter, adapter->vf_cfg[vf].vf_if_handle,
-				vf + 1);
+		be_cmd_if_destroy(adapter, vf_cfg->if_handle, vf + 1);
+	}
 }
 
 static int be_clear(struct be_adapter *adapter)
 {
-	if (be_physfn(adapter) && adapter->sriov_enabled)
+	if (sriov_enabled(adapter))
 		be_vf_clear(adapter);
 
 	be_cmd_if_destroy(adapter, adapter->if_handle,  0);
@@ -2526,16 +2525,18 @@ static int be_clear(struct be_adapter *adapter)
 
 static void be_vf_setup_init(struct be_adapter *adapter)
 {
+	struct be_vf_cfg *vf_cfg;
 	int vf;
 
-	for (vf = 0; vf < num_vfs; vf++) {
-		adapter->vf_cfg[vf].vf_if_handle = -1;
-		adapter->vf_cfg[vf].vf_pmac_id = -1;
+	for_all_vfs(adapter, vf_cfg, vf) {
+		vf_cfg->if_handle = -1;
+		vf_cfg->pmac_id = -1;
 	}
 }
 
 static int be_vf_setup(struct be_adapter *adapter)
 {
+	struct be_vf_cfg *vf_cfg;
 	u32 cap_flags, en_flags, vf;
 	u16 lnk_speed;
 	int status;
@@ -2544,11 +2545,9 @@ static int be_vf_setup(struct be_adapter *adapter)
 
 	cap_flags = en_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST |
 				BE_IF_FLAGS_MULTICAST;
-
-	for (vf = 0; vf < num_vfs; vf++) {
+	for_all_vfs(adapter, vf_cfg, vf) {
 		status = be_cmd_if_create(adapter, cap_flags, en_flags, NULL,
-					&adapter->vf_cfg[vf].vf_if_handle,
-					NULL, vf+1);
+					  &vf_cfg->if_handle, NULL, vf + 1);
 		if (status)
 			goto err;
 	}
@@ -2557,12 +2556,12 @@ static int be_vf_setup(struct be_adapter *adapter)
 	if (status)
 		goto err;
 
-	for (vf = 0; vf < num_vfs; vf++) {
+	for_all_vfs(adapter, vf_cfg, vf) {
 		status = be_cmd_link_status_query(adapter, NULL, &lnk_speed,
-				vf + 1);
+						  vf + 1);
 		if (status)
 			goto err;
-		adapter->vf_cfg[vf].vf_tx_rate = lnk_speed * 10;
+		vf_cfg->tx_rate = lnk_speed * 10;
 	}
 	return 0;
 err:
@@ -2690,7 +2689,7 @@ static int be_setup(struct be_adapter *adapter)
 
 	pcie_set_readrq(adapter->pdev, 4096);
 
-	if (be_physfn(adapter) && adapter->sriov_enabled) {
+	if (sriov_enabled(adapter)) {
 		status = be_vf_setup(adapter);
 		if (status)
 			goto err;
