@@ -217,19 +217,20 @@ static int iwl_set_Xtal_calib(struct iwl_priv *priv)
 {
 	struct iwl_calib_xtal_freq_cmd cmd;
 	__le16 *xtal_calib =
-		(__le16 *)iwl_eeprom_query_addr(priv, EEPROM_XTAL);
+		(__le16 *)iwl_eeprom_query_addr(priv->shrd, EEPROM_XTAL);
 
 	iwl_set_calib_hdr(&cmd.hdr, IWL_PHY_CALIBRATE_CRYSTAL_FRQ_CMD);
 	cmd.cap_pin1 = le16_to_cpu(xtal_calib[0]);
 	cmd.cap_pin2 = le16_to_cpu(xtal_calib[1]);
-	return iwl_calib_set(priv, (void *)&cmd, sizeof(cmd));
+	return iwl_calib_set(trans(priv), (void *)&cmd, sizeof(cmd));
 }
 
 static int iwl_set_temperature_offset_calib(struct iwl_priv *priv)
 {
 	struct iwl_calib_temperature_offset_cmd cmd;
 	__le16 *offset_calib =
-		(__le16 *)iwl_eeprom_query_addr(priv, EEPROM_RAW_TEMPERATURE);
+		(__le16 *)iwl_eeprom_query_addr(priv->shrd,
+						EEPROM_RAW_TEMPERATURE);
 
 	memset(&cmd, 0, sizeof(cmd));
 	iwl_set_calib_hdr(&cmd.hdr, IWL_PHY_CALIBRATE_TEMP_OFFSET_CMD);
@@ -239,21 +240,22 @@ static int iwl_set_temperature_offset_calib(struct iwl_priv *priv)
 
 	IWL_DEBUG_CALIB(priv, "Radio sensor offset: %d\n",
 			le16_to_cpu(cmd.radio_sensor_offset));
-	return iwl_calib_set(priv, (void *)&cmd, sizeof(cmd));
+	return iwl_calib_set(trans(priv), (void *)&cmd, sizeof(cmd));
 }
 
 static int iwl_set_temperature_offset_calib_v2(struct iwl_priv *priv)
 {
 	struct iwl_calib_temperature_offset_v2_cmd cmd;
-	__le16 *offset_calib_high = (__le16 *)iwl_eeprom_query_addr(priv,
+	__le16 *offset_calib_high = (__le16 *)iwl_eeprom_query_addr(priv->shrd,
 				     EEPROM_KELVIN_TEMPERATURE);
 	__le16 *offset_calib_low =
-		(__le16 *)iwl_eeprom_query_addr(priv, EEPROM_RAW_TEMPERATURE);
+		(__le16 *)iwl_eeprom_query_addr(priv->shrd,
+						EEPROM_RAW_TEMPERATURE);
 	struct iwl_eeprom_calib_hdr *hdr;
 
 	memset(&cmd, 0, sizeof(cmd));
 	iwl_set_calib_hdr(&cmd.hdr, IWL_PHY_CALIBRATE_TEMP_OFFSET_CMD);
-	hdr = (struct iwl_eeprom_calib_hdr *)iwl_eeprom_query_addr(priv,
+	hdr = (struct iwl_eeprom_calib_hdr *)iwl_eeprom_query_addr(priv->shrd,
 							EEPROM_CALIB_ALL);
 	memcpy(&cmd.radio_sensor_offset_high, offset_calib_high,
 		sizeof(*offset_calib_high));
@@ -274,7 +276,7 @@ static int iwl_set_temperature_offset_calib_v2(struct iwl_priv *priv)
 	IWL_DEBUG_CALIB(priv, "Voltage Ref: %d\n",
 			le16_to_cpu(cmd.burntVoltageRef));
 
-	return iwl_calib_set(priv, (void *)&cmd, sizeof(cmd));
+	return iwl_calib_set(trans(priv), (void *)&cmd, sizeof(cmd));
 }
 
 static int iwl_send_calib_cfg(struct iwl_trans *trans)
@@ -307,7 +309,7 @@ int iwlagn_rx_calib_result(struct iwl_priv *priv,
 	/* reduce the size of the length field itself */
 	len -= 4;
 
-	if (iwl_calib_set(priv, hdr, len))
+	if (iwl_calib_set(trans(priv), hdr, len))
 		IWL_ERR(priv, "Failed to record calibration data %d\n",
 			hdr->op_code);
 
@@ -457,7 +459,7 @@ static int iwl_alive_notify(struct iwl_priv *priv)
 			return ret;
 	}
 
-	return iwl_send_calib_results(priv);
+	return iwl_send_calib_results(trans(priv));
 }
 
 
@@ -548,7 +550,7 @@ struct iwlagn_alive_data {
 	u8 subtype;
 };
 
-static void iwl_alive_fn(struct iwl_priv *priv,
+static void iwl_alive_fn(struct iwl_trans *trans,
 			    struct iwl_rx_packet *pkt,
 			    void *data)
 {
@@ -557,14 +559,14 @@ static void iwl_alive_fn(struct iwl_priv *priv,
 
 	palive = &pkt->u.alive_frame;
 
-	IWL_DEBUG_FW(priv, "Alive ucode status 0x%08X revision "
+	IWL_DEBUG_FW(trans, "Alive ucode status 0x%08X revision "
 		       "0x%01X 0x%01X\n",
 		       palive->is_valid, palive->ver_type,
 		       palive->ver_subtype);
 
-	priv->device_pointers.error_event_table =
+	trans->shrd->device_pointers.error_event_table =
 		le32_to_cpu(palive->error_event_table_ptr);
-	priv->device_pointers.log_event_table =
+	trans->shrd->device_pointers.log_event_table =
 		le32_to_cpu(palive->log_event_table_ptr);
 
 	alive_data->subtype = palive->ver_subtype;
@@ -575,7 +577,7 @@ static void iwl_alive_fn(struct iwl_priv *priv,
 void iwl_init_notification_wait(struct iwl_shared *shrd,
 				   struct iwl_notification_wait *wait_entry,
 				   u8 cmd,
-				   void (*fn)(struct iwl_priv *priv,
+				   void (*fn)(struct iwl_trans *trans,
 					      struct iwl_rx_packet *pkt,
 					      void *data),
 				   void *fn_data)

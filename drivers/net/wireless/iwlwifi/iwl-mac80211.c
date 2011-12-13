@@ -427,7 +427,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 	iwl_write32(bus(priv), CSR_UCODE_DRV_GP1_CLR,
 			  CSR_UCODE_DRV_GP1_BIT_D3_CFG_COMPLETE);
 
-	base = priv->device_pointers.error_event_table;
+	base = priv->shrd->device_pointers.error_event_table;
 	if (iwlagn_hw_valid_rtc_data_addr(base)) {
 		spin_lock_irqsave(&bus(priv)->reg_lock, flags);
 		ret = iwl_grab_nic_access_silent(bus(priv));
@@ -811,21 +811,9 @@ static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
 
 	/* Configure HT40 channels */
 	ctx->ht.enabled = conf_is_ht(conf);
-	if (ctx->ht.enabled) {
-		if (conf_is_ht40_minus(conf)) {
-			ctx->ht.extension_chan_offset =
-				IEEE80211_HT_PARAM_CHA_SEC_BELOW;
-			ctx->ht.is_40mhz = true;
-		} else if (conf_is_ht40_plus(conf)) {
-			ctx->ht.extension_chan_offset =
-				IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
-			ctx->ht.is_40mhz = true;
-		} else {
-			ctx->ht.extension_chan_offset =
-				IEEE80211_HT_PARAM_CHA_SEC_NONE;
-			ctx->ht.is_40mhz = false;
-		}
-	} else
+	if (ctx->ht.enabled)
+		iwlagn_config_ht40(conf, ctx);
+	else
 		ctx->ht.is_40mhz = false;
 
 	if ((le16_to_cpu(ctx->staging.channel) != ch))

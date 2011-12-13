@@ -81,7 +81,7 @@ static void iwl6000_set_ct_threshold(struct iwl_priv *priv)
 static void iwl6050_additional_nic_config(struct iwl_priv *priv)
 {
 	/* Indicate calibration version to uCode. */
-	if (iwlagn_eeprom_calib_version(priv) >= 6)
+	if (iwl_eeprom_calib_version(priv->shrd) >= 6)
 		iwl_set_bit(bus(priv), CSR_GP_DRIVER_REG,
 				CSR_GP_DRIVER_REG_BIT_CALIB_VERSION6);
 }
@@ -89,7 +89,7 @@ static void iwl6050_additional_nic_config(struct iwl_priv *priv)
 static void iwl6150_additional_nic_config(struct iwl_priv *priv)
 {
 	/* Indicate calibration version to uCode. */
-	if (iwlagn_eeprom_calib_version(priv) >= 6)
+	if (iwl_eeprom_calib_version(priv->shrd) >= 6)
 		iwl_set_bit(bus(priv), CSR_GP_DRIVER_REG,
 				CSR_GP_DRIVER_REG_BIT_CALIB_VERSION6);
 	iwl_set_bit(bus(priv), CSR_GP_DRIVER_REG,

@@ -60,11 +60,10 @@ struct iwl_tx_queue;
 
 /* Default noise level to report when noise measurement is not available.
  *   This may be because we're:
- *   1)  Not associated (4965, no beacon statistics being sent to driver)
+ *   1)  Not associated  no beacon statistics being sent to driver)
  *   2)  Scanning (noise measurement does not apply to associated channel)
- *   3)  Receiving CCK (3945 delivers noise info only for OFDM frames)
  * Use default noise value of -127 ... this is below the range of measurable
- *   Rx dBm for either 3945 or 4965, so it can indicate "unmeasurable" to user.
+ *   Rx dBm for all agn devices, so it can indicate "unmeasurable" to user.
  *   Also, -127 works better than 0 when averaging frames with/without
  *   noise info (e.g. averaging might be done in app); measured dBm values are
  *   always negative ... using a negative value as the default keeps all
@@ -441,15 +440,6 @@ enum iwlagn_chain_noise_state {
 	IWL_CHAIN_NOISE_DONE,
 };
 
-
-/* Opaque calibration results */
-struct iwl_calib_result {
-	struct list_head list;
-	size_t cmd_len;
-	struct iwl_calib_hdr hdr;
-	/* data follows */
-};
-
 /* Sensitivity calib data */
 struct iwl_sensitivity_data {
 	u32 auto_corr_ofdm;
@@ -751,7 +741,7 @@ enum iwl_scan_type {
 	IWL_SCAN_ROC,
 };
 
-#ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
+#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
 struct iwl_testmode_trace {
 	u32 buff_size;
 	u32 total_size;
@@ -831,9 +821,6 @@ struct iwl_priv {
 	s32 temperature;	/* Celsius */
 	s32 last_temperature;
 
-	/* init calibration results */
-	struct list_head calib_results;
-
 	struct iwl_wipan_noa_data __rcu *noa_data;
 
 	/* Scan related variables */
@@ -865,11 +852,6 @@ struct iwl_priv {
 	struct iwl_rxon_context contexts[NUM_IWL_RXON_CTX];
 
 	__le16 switch_channel;
-
-	struct {
-		u32 error_event_table;
-		u32 log_event_table;
-	} device_pointers;
 
 	u16 active_rate;
 
@@ -903,10 +885,6 @@ struct iwl_priv {
 
 	/* Indication if ieee80211_ops->open has been called */
 	u8 is_open;
-
-	/* eeprom -- this is in the card's little endian byte order */
-	u8 *eeprom;
-	struct iwl_eeprom_calib_info *calib_info;
 
 	enum nl80211_iftype iw_mode;
 
@@ -1040,7 +1018,7 @@ struct iwl_priv {
 	struct led_classdev led;
 	unsigned long blink_on, blink_off;
 	bool led_registered;
-#ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
+#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
 	struct iwl_testmode_trace testmode_trace;
 	struct iwl_testmode_sram testmode_sram;
 	u32 tm_fixed_rate;
