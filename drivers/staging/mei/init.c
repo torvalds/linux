@@ -366,8 +366,7 @@ void mei_host_start_message(struct mei_device *dev)
 	host_start_req->host_version.major_version = HBM_MAJOR_VERSION;
 	host_start_req->host_version.minor_version = HBM_MINOR_VERSION;
 	dev->recvd_msg = false;
-	if (!mei_write_message(dev, mei_hdr,
-				       (unsigned char *) (host_start_req),
+	if (!mei_write_message(dev, mei_hdr, (unsigned char *)host_start_req,
 				       mei_hdr->length)) {
 		dev_dbg(&dev->pdev->dev, "write send version message to FW fail.\n");
 		dev->mei_state = MEI_RESETING;
@@ -400,8 +399,7 @@ void mei_host_enum_clients_message(struct mei_device *dev)
 	host_enum_req = (struct hbm_host_enum_request *) &dev->wr_msg_buf[1];
 	memset(host_enum_req, 0, sizeof(struct hbm_host_enum_request));
 	host_enum_req->cmd.cmd = HOST_ENUM_REQ_CMD;
-	if (!mei_write_message(dev, mei_hdr,
-			       (unsigned char *) (host_enum_req),
+	if (!mei_write_message(dev, mei_hdr, (unsigned char *)host_enum_req,
 				mei_hdr->length)) {
 		dev->mei_state = MEI_RESETING;
 		dev_dbg(&dev->pdev->dev, "write send enumeration request message to FW fail.\n");

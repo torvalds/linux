@@ -709,7 +709,7 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 	case CLIENT_DISCONNECT_RES_CMD:
 		disconnect_res =
 			(struct hbm_client_connect_response *) mei_msg;
-		mei_client_disconnect_response(dev,	 disconnect_res);
+		mei_client_disconnect_response(dev, disconnect_res);
 		dev_dbg(&dev->pdev->dev, "client disconnect response message received.\n");
 		wake_up(&dev->wait_recvd_msg);
 		break;
@@ -727,7 +727,7 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 			mei_reset(dev, 1);
 			return;
 		}
-	       if (dev->me_clients[dev->me_client_presentation_num]
+		if (dev->me_clients[dev->me_client_presentation_num]
 					.client_id == props_res->address) {
 
 			dev->me_clients[dev->me_client_presentation_num].props
@@ -1495,8 +1495,8 @@ void mei_timer(struct work_struct *work)
 		}
 	}
 out:
-	 schedule_delayed_work(&dev->timer_work, 2 * HZ);
-	 mutex_unlock(&dev->device_lock);
+	schedule_delayed_work(&dev->timer_work, 2 * HZ);
+	mutex_unlock(&dev->device_lock);
 }
 
 /**
