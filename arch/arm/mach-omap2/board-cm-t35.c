@@ -600,24 +600,28 @@ static void __init cm_t3x_common_dss_mux_init(int mux_mode)
 
 static void __init cm_t35_init_mux(void)
 {
-	omap_mux_init_signal("gpio_70", OMAP_MUX_MODE0 | OMAP_PIN_OUTPUT);
-	omap_mux_init_signal("gpio_71", OMAP_MUX_MODE0 | OMAP_PIN_OUTPUT);
-	omap_mux_init_signal("gpio_72", OMAP_MUX_MODE0 | OMAP_PIN_OUTPUT);
-	omap_mux_init_signal("gpio_73", OMAP_MUX_MODE0 | OMAP_PIN_OUTPUT);
-	omap_mux_init_signal("gpio_74", OMAP_MUX_MODE0 | OMAP_PIN_OUTPUT);
-	omap_mux_init_signal("gpio_75", OMAP_MUX_MODE0 | OMAP_PIN_OUTPUT);
-	cm_t3x_common_dss_mux_init(OMAP_MUX_MODE0 | OMAP_PIN_OUTPUT);
+	int mux_mode = OMAP_MUX_MODE0 | OMAP_PIN_OUTPUT;
+
+	omap_mux_init_signal("dss_data0.dss_data0", mux_mode);
+	omap_mux_init_signal("dss_data1.dss_data1", mux_mode);
+	omap_mux_init_signal("dss_data2.dss_data2", mux_mode);
+	omap_mux_init_signal("dss_data3.dss_data3", mux_mode);
+	omap_mux_init_signal("dss_data4.dss_data4", mux_mode);
+	omap_mux_init_signal("dss_data5.dss_data5", mux_mode);
+	cm_t3x_common_dss_mux_init(mux_mode);
 }
 
 static void __init cm_t3730_init_mux(void)
 {
-	omap_mux_init_signal("sys_boot0", OMAP_MUX_MODE3 | OMAP_PIN_OUTPUT);
-	omap_mux_init_signal("sys_boot1", OMAP_MUX_MODE3 | OMAP_PIN_OUTPUT);
-	omap_mux_init_signal("sys_boot3", OMAP_MUX_MODE3 | OMAP_PIN_OUTPUT);
-	omap_mux_init_signal("sys_boot4", OMAP_MUX_MODE3 | OMAP_PIN_OUTPUT);
-	omap_mux_init_signal("sys_boot5", OMAP_MUX_MODE3 | OMAP_PIN_OUTPUT);
-	omap_mux_init_signal("sys_boot6", OMAP_MUX_MODE3 | OMAP_PIN_OUTPUT);
-	cm_t3x_common_dss_mux_init(OMAP_MUX_MODE3 | OMAP_PIN_OUTPUT);
+	int mux_mode = OMAP_MUX_MODE3 | OMAP_PIN_OUTPUT;
+
+	omap_mux_init_signal("sys_boot0", mux_mode);
+	omap_mux_init_signal("sys_boot1", mux_mode);
+	omap_mux_init_signal("sys_boot3", mux_mode);
+	omap_mux_init_signal("sys_boot4", mux_mode);
+	omap_mux_init_signal("sys_boot5", mux_mode);
+	omap_mux_init_signal("sys_boot6", mux_mode);
+	cm_t3x_common_dss_mux_init(mux_mode);
 }
 #else
 static inline void cm_t35_init_mux(void) {}
