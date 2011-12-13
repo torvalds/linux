@@ -44,7 +44,6 @@
 #include <linux/proc_fs.h>
 #include <linux/if_arp.h>
 #include <linux/random.h>
-#include <linux/version.h>
 #include <linux/io.h>
 
 /* Need this defined before including local include files */

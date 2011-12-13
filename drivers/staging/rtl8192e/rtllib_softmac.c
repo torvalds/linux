@@ -18,7 +18,6 @@
 
 #include <linux/random.h>
 #include <linux/delay.h>
-#include <linux/version.h>
 #include <linux/uaccess.h>
 #include "dot11d.h"
 
