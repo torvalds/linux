@@ -3502,7 +3502,11 @@
 #define   GEN6_CAGF_MASK			(0x7f << GEN6_CAGF_SHIFT)
 #define GEN6_RP_CONTROL				0xA024
 #define   GEN6_RP_MEDIA_TURBO			(1<<11)
-#define   GEN6_RP_USE_NORMAL_FREQ		(1<<9)
+#define   GEN6_RP_MEDIA_MODE_MASK		(3<<9)
+#define   GEN6_RP_MEDIA_HW_TURBO_MODE		(3<<9)
+#define   GEN6_RP_MEDIA_HW_NORMAL_MODE		(2<<9)
+#define   GEN6_RP_MEDIA_HW_MODE			(1<<9)
+#define   GEN6_RP_MEDIA_SW_MODE			(0<<9)
 #define   GEN6_RP_MEDIA_IS_GFX			(1<<8)
 #define   GEN6_RP_ENABLE			(1<<7)
 #define   GEN6_RP_UP_IDLE_MIN			(0x1<<3)
