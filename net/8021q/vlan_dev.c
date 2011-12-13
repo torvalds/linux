@@ -664,12 +664,12 @@ static struct rtnl_link_stats64 *vlan_dev_get_stats64(struct net_device *dev, st
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-void vlan_dev_poll_controller(struct net_device *dev)
+static void vlan_dev_poll_controller(struct net_device *dev)
 {
 	return;
 }
 
-int vlan_dev_netpoll_setup(struct net_device *dev, struct netpoll_info *npinfo)
+static int vlan_dev_netpoll_setup(struct net_device *dev, struct netpoll_info *npinfo)
 {
 	struct vlan_dev_priv *info = vlan_dev_priv(dev);
 	struct net_device *real_dev = info->real_dev;
@@ -696,7 +696,7 @@ out:
 	return err;
 }
 
-void vlan_dev_netpoll_cleanup(struct net_device *dev)
+static void vlan_dev_netpoll_cleanup(struct net_device *dev)
 {
 	struct vlan_dev_priv *info = vlan_dev_priv(dev);
 	struct netpoll *netpoll = info->netpoll;
