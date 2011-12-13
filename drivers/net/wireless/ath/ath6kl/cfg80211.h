@@ -20,7 +20,8 @@
 enum ath6kl_cfg_suspend_mode {
 	ATH6KL_CFG_SUSPEND_DEEPSLEEP,
 	ATH6KL_CFG_SUSPEND_CUTPOWER,
-	ATH6KL_CFG_SUSPEND_WOW
+	ATH6KL_CFG_SUSPEND_WOW,
+	ATH6KL_CFG_SUSPEND_SCHED_SCAN,
 };
 
 struct net_device *ath6kl_interface_add(struct ath6kl *ar, char *name,

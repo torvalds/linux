@@ -1644,6 +1644,9 @@ int ath6kl_core_init(struct ath6kl *ar)
 			    WIPHY_FLAG_HAVE_AP_SME |
 			    WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD;
 
+	if (test_bit(ATH6KL_FW_CAPABILITY_SCHED_SCAN, ar->fw_capabilities))
+		ar->wiphy->flags |= WIPHY_FLAG_SUPPORTS_SCHED_SCAN;
+
 	ar->wiphy->probe_resp_offload =
 		NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS |
 		NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS2 |

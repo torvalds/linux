@@ -977,6 +977,13 @@ static int ath6kl_wmi_tkip_micerr_event_rx(struct wmi *wmi, u8 *datap, int len,
 	return 0;
 }
 
+void ath6kl_wmi_sscan_timer(unsigned long ptr)
+{
+	struct ath6kl_vif *vif = (struct ath6kl_vif *) ptr;
+
+	cfg80211_sched_scan_results(vif->ar->wiphy);
+}
+
 static int ath6kl_wmi_bssinfo_event_rx(struct wmi *wmi, u8 *datap, int len,
 				       struct ath6kl_vif *vif)
 {
@@ -1065,6 +1072,21 @@ static int ath6kl_wmi_bssinfo_event_rx(struct wmi *wmi, u8 *datap, int len,
 	if (bss == NULL)
 		return -ENOMEM;
 	cfg80211_put_bss(bss);
+
+	/*
+	 * Firmware doesn't return any event when scheduled scan has
+	 * finished, so we need to use a timer to find out when there are
+	 * no more results.
+	 *
+	 * The timer is started from the first bss info received, otherwise
+	 * the timer would not ever fire if the scan interval is short
+	 * enough.
+	 */
+	if (ar->state == ATH6KL_STATE_SCHED_SCAN &&
+	    !timer_pending(&vif->sched_scan_timer)) {
+		mod_timer(&vif->sched_scan_timer, jiffies +
+			  msecs_to_jiffies(ATH6KL_SCHED_SCAN_RESULT_DELAY));
+	}
 
 	return 0;
 }
@@ -2940,7 +2962,10 @@ int ath6kl_wmi_set_appie_cmd(struct wmi *wmi, u8 if_idx, u8 mgmt_frm_type,
 	p = (struct wmi_set_appie_cmd *) skb->data;
 	p->mgmt_frm_type = mgmt_frm_type;
 	p->ie_len = ie_len;
-	memcpy(p->ie_info, ie, ie_len);
+
+	if (ie != NULL && ie_len > 0)
+		memcpy(p->ie_info, ie, ie_len);
+
 	return ath6kl_wmi_cmd_send(wmi, if_idx, skb, WMI_SET_APPIE_CMDID,
 				   NO_SYNC_WMIFLAG);
 }
