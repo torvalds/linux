@@ -1495,6 +1495,7 @@ retry:
 			     pos, temp);
 		} else if (stop_on_nosnap && inode &&
 			   ceph_snap(inode) == CEPH_NOSNAP) {
+			spin_unlock(&temp->d_lock);
 			break;
 		} else {
 			pos -= temp->d_name.len;
