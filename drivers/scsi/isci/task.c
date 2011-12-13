@@ -846,7 +846,6 @@ int isci_task_lu_reset(struct domain_device *dev, u8 *lun)
 		ret = TMF_RESP_FUNC_COMPLETE;
 		goto out;
 	}
-	set_bit(IDEV_EH, &isci_device->flags);
 
 	/* Send the task management part of the reset. */
 	if (dev_is_sata(dev)) {
@@ -980,9 +979,6 @@ int isci_task_abort_task(struct sas_task *task)
 	dev_dbg(&isci_host->pdev->dev,
 		"%s: dev = %p, task = %p, old_request == %p\n",
 		__func__, isci_device, task, old_request);
-
-	if (isci_device)
-		set_bit(IDEV_EH, &isci_device->flags);
 
 	/* Device reset conditions signalled in task_state_flags are the
 	 * responsbility of libsas to observe at the start of the error
@@ -1312,7 +1308,10 @@ int isci_task_I_T_nexus_reset(struct domain_device *dev)
 	idev = isci_lookup_device(dev);
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
-	if (!idev || !test_bit(IDEV_EH, &idev->flags)) {
+	if (!idev) {
+		/* XXX: need to cleanup any ireqs targeting this
+		 * domain_device
+		 */
 		ret = TMF_RESP_FUNC_COMPLETE;
 		goto out;
 	}

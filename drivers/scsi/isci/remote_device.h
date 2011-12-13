@@ -82,10 +82,9 @@ struct isci_remote_device {
 	#define IDEV_START_PENDING 0
 	#define IDEV_STOP_PENDING 1
 	#define IDEV_ALLOCATED 2
-	#define IDEV_EH 3
-	#define IDEV_GONE 4
-	#define IDEV_IO_READY 5
-	#define IDEV_IO_NCQERROR 6
+	#define IDEV_GONE 3
+	#define IDEV_IO_READY 4
+	#define IDEV_IO_NCQERROR 5
 	unsigned long flags;
 	struct kref kref;
 	struct isci_port *isci_port;
