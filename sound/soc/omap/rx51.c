@@ -365,7 +365,7 @@ static struct snd_soc_dai_link rx51_dai[] = {
 	},
 };
 
-struct snd_soc_aux_dev rx51_aux_dev[] = {
+static struct snd_soc_aux_dev rx51_aux_dev[] = {
 	{
 		.name = "TLV320AIC34b",
 		.codec_name = "tlv320aic3x-codec.2-0019",
