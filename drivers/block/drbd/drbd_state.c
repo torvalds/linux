@@ -1325,7 +1325,9 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 				"ASSERT FAILED: disk is %s during detach\n",
 				drbd_disk_str(mdev->state.disk));
 
-		drbd_send_state(mdev, ns);
+		if (ns.conn >= C_CONNECTED)
+			drbd_send_state(mdev, ns);
+
 		drbd_rs_cancel_all(mdev);
 
 		/* In case we want to get something to stable storage still,
@@ -1353,14 +1355,15 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
                 mdev->rs_failed = 0;
                 atomic_set(&mdev->rs_pending_cnt, 0);
 
-		drbd_send_state(mdev, ns);
+		if (ns.conn >= C_CONNECTED)
+			drbd_send_state(mdev, ns);
 		/* corresponding get_ldev in __drbd_set_state
 		 * this may finally trigger drbd_ldev_destroy. */
 		put_ldev(mdev);
 	}
 
 	/* Notify peer that I had a local IO error, and did not detached.. */
-	if (os.disk == D_UP_TO_DATE && ns.disk == D_INCONSISTENT)
+	if (os.disk == D_UP_TO_DATE && ns.disk == D_INCONSISTENT && ns.conn >= C_CONNECTED)
 		drbd_send_state(mdev, ns);
 
 	/* Disks got bigger while they were detached */
