@@ -32,6 +32,7 @@
 #include "debug.h"
 #include "wl12xx_80211.h"
 #include "ps.h"
+#include "hw_ops.h"
 
 int wl1271_acx_wake_up_conditions(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 				  u8 wake_up_event, u8 listen_interval)
@@ -756,7 +757,10 @@ int wl1271_acx_sta_rate_policies(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 
 	/* configure one AP supported rate class */
 	acx->rate_policy_idx = cpu_to_le32(wlvif->sta.ap_rate_idx);
-	acx->rate_policy.enabled_rates = cpu_to_le32(wlvif->rate_set);
+
+	/* the AP policy is HW specific */
+	acx->rate_policy.enabled_rates =
+		cpu_to_le32(wlcore_hw_sta_get_ap_rate_mask(wl, wlvif));
 	acx->rate_policy.short_retry_limit = c->short_retry_limit;
 	acx->rate_policy.long_retry_limit = c->long_retry_limit;
 	acx->rate_policy.aflags = c->aflags;

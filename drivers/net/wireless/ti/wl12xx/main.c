@@ -1192,6 +1192,12 @@ out:
 	return ret;
 }
 
+static u32 wl12xx_sta_get_ap_rate_mask(struct wl1271 *wl,
+				       struct wl12xx_vif *wlvif)
+{
+	return wlvif->rate_set;
+}
+
 static void wl12xx_conf_init(struct wl1271 *wl)
 {
 	struct wl12xx_priv *priv = wl->priv;
@@ -1280,6 +1286,7 @@ static struct wlcore_ops wl12xx_ops = {
 	.tx_delayed_compl	= wl12xx_tx_delayed_compl,
 	.hw_init		= wl12xx_hw_init,
 	.init_vif		= NULL,
+	.sta_get_ap_rate_mask	= wl12xx_sta_get_ap_rate_mask,
 	.get_pg_ver		= wl12xx_get_pg_ver,
 	.get_mac		= wl12xx_get_mac,
 };
