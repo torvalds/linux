@@ -191,6 +191,7 @@ static void *rproc_da_to_va(struct rproc *rproc, u64 da, int len)
  * rproc_load_segments() - load firmware segments to memory
  * @rproc: remote processor which will be booted using these fw segments
  * @elf_data: the content of the ELF firmware image
+ * @len: firmware size (in bytes)
  *
  * This function loads the firmware segments to memory, where the remote
  * processor expects them.
@@ -211,7 +212,8 @@ static void *rproc_da_to_va(struct rproc *rproc, u64 da, int len)
  * directly allocate memory for every segment/resource. This is not yet
  * supported, though.
  */
-static int rproc_load_segments(struct rproc *rproc, const u8 *elf_data)
+static int
+rproc_load_segments(struct rproc *rproc, const u8 *elf_data, size_t len)
 {
 	struct device *dev = rproc->dev;
 	struct elf32_hdr *ehdr;
@@ -226,6 +228,7 @@ static int rproc_load_segments(struct rproc *rproc, const u8 *elf_data)
 		u32 da = phdr->p_paddr;
 		u32 memsz = phdr->p_memsz;
 		u32 filesz = phdr->p_filesz;
+		u32 offset = phdr->p_offset;
 		void *ptr;
 
 		if (phdr->p_type != PT_LOAD)
@@ -237,6 +240,13 @@ static int rproc_load_segments(struct rproc *rproc, const u8 *elf_data)
 		if (filesz > memsz) {
 			dev_err(dev, "bad phdr filesz 0x%x memsz 0x%x\n",
 							filesz, memsz);
+			ret = -EINVAL;
+			break;
+		}
+
+		if (offset + filesz > len) {
+			dev_err(dev, "truncated fw: need 0x%x avail 0x%x\n",
+					offset + filesz, len);
 			ret = -EINVAL;
 			break;
 		}
@@ -712,6 +722,7 @@ rproc_handle_virtio_rsc(struct rproc *rproc, struct fw_resource *rsc, int len)
  * rproc_handle_resources() - find and handle the resource table
  * @rproc: the rproc handle
  * @elf_data: the content of the ELF firmware image
+ * @len: firmware size (in bytes)
  * @handler: function that should be used to handle the resource table
  *
  * This function finds the resource table inside the remote processor's
@@ -725,7 +736,7 @@ rproc_handle_virtio_rsc(struct rproc *rproc, struct fw_resource *rsc, int len)
  * processors that don't need a resource table.
  */
 static int rproc_handle_resources(struct rproc *rproc, const u8 *elf_data,
-					rproc_handle_resources_t handler)
+				size_t len, rproc_handle_resources_t handler)
 
 {
 	struct elf32_hdr *ehdr;
@@ -742,6 +753,13 @@ static int rproc_handle_resources(struct rproc *rproc, const u8 *elf_data,
 		if (!strcmp(name_table + shdr->sh_name, ".resource_table")) {
 			struct fw_resource *table = (struct fw_resource *)
 						(elf_data + shdr->sh_offset);
+
+			if (shdr->sh_offset + shdr->sh_size > len) {
+				dev_err(rproc->dev,
+					"truncated fw: need 0x%x avail 0x%x\n",
+					shdr->sh_offset + shdr->sh_size, len);
+				ret = -EINVAL;
+			}
 
 			ret = handler(rproc, table, shdr->sh_size);
 
@@ -833,6 +851,11 @@ static int rproc_fw_sanity_check(struct rproc *rproc, const struct firmware *fw)
 
 	ehdr = (struct elf32_hdr *)fw->data;
 
+	if (fw->size < ehdr->e_shoff + sizeof(struct elf32_shdr)) {
+		dev_err(dev, "Image is too small\n");
+		return -EINVAL;
+	}
+
 	if (memcmp(ehdr->e_ident, ELFMAG, SELFMAG)) {
 		dev_err(dev, "Image is corrupted (bad magic)\n");
 		return -EINVAL;
@@ -887,14 +910,15 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 	rproc->bootaddr = ehdr->e_entry;
 
 	/* handle fw resources which are required to boot rproc */
-	ret = rproc_handle_resources(rproc, fw->data, rproc_handle_boot_rsc);
+	ret = rproc_handle_resources(rproc, fw->data, fw->size,
+						rproc_handle_boot_rsc);
 	if (ret) {
 		dev_err(dev, "Failed to process resources: %d\n", ret);
 		goto clean_up;
 	}
 
 	/* load the ELF segments to memory */
-	ret = rproc_load_segments(rproc, fw->data);
+	ret = rproc_load_segments(rproc, fw->data, fw->size);
 	if (ret) {
 		dev_err(dev, "Failed to load program segments: %d\n", ret);
 		goto clean_up;
@@ -937,7 +961,8 @@ static void rproc_fw_config_virtio(const struct firmware *fw, void *context)
 		goto out;
 
 	/* does the fw supports any virtio devices ? */
-	ret = rproc_handle_resources(rproc, fw->data, rproc_handle_virtio_rsc);
+	ret = rproc_handle_resources(rproc, fw->data, fw->size,
+						rproc_handle_virtio_rsc);
 	if (ret) {
 		dev_info(dev, "No fw virtio device was found\n");
 		goto out;
