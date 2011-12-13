@@ -565,6 +565,8 @@ struct ath6kl {
 		u32 board_ext_data_addr;
 		u32 reserved_ram_size;
 		u32 board_addr;
+		u32 refclk_hz;
+		u32 uarttx_pin;
 
 		const char *fw_otp;
 		const char *fw;

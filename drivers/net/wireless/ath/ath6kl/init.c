@@ -41,6 +41,8 @@ static const struct ath6kl_hw hw_list[] = {
 		.app_load_addr			= 0x543180,
 		.board_ext_data_addr		= 0x57e500,
 		.reserved_ram_size		= 6912,
+		.refclk_hz			= 26000000,
+		.uarttx_pin			= 8,
 
 		/* hw2.0 needs override address hardcoded */
 		.app_start_override_addr	= 0x944C00,
@@ -60,6 +62,8 @@ static const struct ath6kl_hw hw_list[] = {
 		.app_load_addr			= 0x1234,
 		.board_ext_data_addr		= 0x542330,
 		.reserved_ram_size		= 512,
+		.refclk_hz			= 26000000,
+		.uarttx_pin			= 8,
 
 		.fw_otp			= AR6003_HW_2_1_1_OTP_FILE,
 		.fw			= AR6003_HW_2_1_1_FIRMWARE_FILE,
@@ -77,6 +81,8 @@ static const struct ath6kl_hw hw_list[] = {
 		.board_ext_data_addr		= 0x437000,
 		.reserved_ram_size		= 19456,
 		.board_addr			= 0x433900,
+		.refclk_hz			= 26000000,
+		.uarttx_pin			= 11,
 
 		.fw			= AR6004_HW_1_0_FIRMWARE_FILE,
 		.fw_api2		= AR6004_HW_1_0_FIRMWARE_2_FILE,
@@ -91,6 +97,8 @@ static const struct ath6kl_hw hw_list[] = {
 		.board_ext_data_addr		= 0x437000,
 		.reserved_ram_size		= 11264,
 		.board_addr			= 0x43d400,
+		.refclk_hz			= 40000000,
+		.uarttx_pin			= 11,
 
 		.fw			= AR6004_HW_1_1_FIRMWARE_FILE,
 		.fw_api2		= AR6004_HW_1_1_FIRMWARE_2_FILE,
@@ -124,7 +132,6 @@ static const struct ath6kl_hw hw_list[] = {
  */
 #define WLAN_CONFIG_DISCONNECT_TIMEOUT 10
 
-#define CONFIG_AR600x_DEBUG_UART_TX_PIN 8
 
 #define ATH6KL_DATA_OFFSET    64
 struct sk_buff *ath6kl_buf_alloc(int size)
@@ -443,7 +450,7 @@ int ath6kl_configure_target(struct ath6kl *ar)
 {
 	u32 param, ram_reserved_size;
 	u8 fw_iftype, fw_mode = 0, fw_submode = 0;
-	int i;
+	int i, status;
 
 	/*
 	 * Note: Even though the firmware interface type is
@@ -544,6 +551,24 @@ int ath6kl_configure_target(struct ath6kl *ar)
 	if (ath6kl_set_htc_params(ar, MBOX_YIELD_LIMIT, 0))
 		/* use default number of control buffers */
 		return -EIO;
+
+	/* Configure GPIO AR600x UART */
+	param = ar->hw.uarttx_pin;
+	status = ath6kl_bmi_write(ar,
+				ath6kl_get_hi_item_addr(ar,
+				HI_ITEM(hi_dbg_uart_txpin)),
+				(u8 *)&param, 4);
+	if (status)
+		return status;
+
+	/* Configure target refclk_hz */
+	param =  ar->hw.refclk_hz;
+	status = ath6kl_bmi_write(ar,
+				ath6kl_get_hi_item_addr(ar,
+				HI_ITEM(hi_refclk_hz)),
+				(u8 *)&param, 4);
+	if (status)
+		return status;
 
 	return 0;
 }
@@ -1344,13 +1369,6 @@ static int ath6kl_init_upload(struct ath6kl *ar)
 	if (status)
 		return status;
 
-	/* Configure GPIO AR6003 UART */
-	param = CONFIG_AR600x_DEBUG_UART_TX_PIN;
-	status = ath6kl_bmi_write(ar,
-				  ath6kl_get_hi_item_addr(ar,
-				  HI_ITEM(hi_dbg_uart_txpin)),
-				  (u8 *)&param, 4);
-
 	return status;
 }
 
@@ -1382,6 +1400,9 @@ static int ath6kl_init_hw_params(struct ath6kl *ar)
 		   "app_start_override_addr 0x%x board_ext_data_addr 0x%x reserved_ram_size 0x%x",
 		   ar->hw.app_start_override_addr, ar->hw.board_ext_data_addr,
 		   ar->hw.reserved_ram_size);
+	ath6kl_dbg(ATH6KL_DBG_BOOT,
+		   "refclk_hz %d uarttx_pin %d",
+		   ar->hw.refclk_hz, ar->hw.uarttx_pin);
 
 	return 0;
 }
