@@ -55,13 +55,6 @@ static unsigned int convert_to_vm_err_msg(int msg)
 	return out_msg;
 }
 
-static unsigned int get_gem_mmap_offset(struct drm_gem_object *obj)
-{
-	DRM_DEBUG_KMS("%s\n", __FILE__);
-
-	return (unsigned int)obj->map_list.hash.key << PAGE_SHIFT;
-}
-
 static struct exynos_drm_gem_obj *
 exynos_drm_gem_init(struct drm_device *drm_dev, struct drm_file *file_priv,
 		    unsigned int *handle, unsigned int size)
@@ -87,19 +80,13 @@ exynos_drm_gem_init(struct drm_device *drm_dev, struct drm_file *file_priv,
 
 	DRM_DEBUG_KMS("created file object = 0x%x\n", (unsigned int)obj->filp);
 
-	ret = drm_gem_create_mmap_offset(obj);
-	if (ret < 0) {
-		DRM_ERROR("failed to allocate mmap offset.\n");
-		goto err_release;
-	}
-
 	/*
 	 * allocate a id of idr table where the obj is registered
 	 * and handle has the id what user can see.
 	 */
 	ret = drm_gem_handle_create(file_priv, obj, handle);
 	if (ret)
-		goto err_free_mmap_offset;
+		goto err_release;
 
 	DRM_DEBUG_KMS("gem handle = 0x%x\n", *handle);
 
@@ -107,9 +94,6 @@ exynos_drm_gem_init(struct drm_device *drm_dev, struct drm_file *file_priv,
 	drm_gem_object_unreference_unlocked(obj);
 
 	return exynos_gem_obj;
-
-err_free_mmap_offset:
-	drm_gem_free_mmap_offset(obj);
 
 err_release:
 	drm_gem_object_release(obj);
@@ -328,6 +312,7 @@ int exynos_drm_gem_dumb_map_offset(struct drm_file *file_priv,
 {
 	struct exynos_drm_gem_obj *exynos_gem_obj;
 	struct drm_gem_object *obj;
+	int ret = 0;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
@@ -342,21 +327,26 @@ int exynos_drm_gem_dumb_map_offset(struct drm_file *file_priv,
 	obj = drm_gem_object_lookup(dev, file_priv, handle);
 	if (!obj) {
 		DRM_ERROR("failed to lookup gem object.\n");
-		mutex_unlock(&dev->struct_mutex);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto unlock;
 	}
 
 	exynos_gem_obj = to_exynos_gem_obj(obj);
 
-	*offset = get_gem_mmap_offset(&exynos_gem_obj->base);
+	if (!exynos_gem_obj->base.map_list.map) {
+		ret = drm_gem_create_mmap_offset(&exynos_gem_obj->base);
+		if (ret)
+			goto out;
+	}
 
-	drm_gem_object_unreference(obj);
-
+	*offset = (u64)exynos_gem_obj->base.map_list.hash.key << PAGE_SHIFT;
 	DRM_DEBUG_KMS("offset = 0x%lx\n", (unsigned long)*offset);
 
+out:
+	drm_gem_object_unreference(obj);
+unlock:
 	mutex_unlock(&dev->struct_mutex);
-
-	return 0;
+	return ret;
 }
 
 int exynos_drm_gem_dumb_destroy(struct drm_file *file_priv,
