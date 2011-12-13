@@ -27,6 +27,7 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/dma-mapping.h>
+#include <linux/smsc911x.h>
 #include <mach/hardware.h>
 #include <mach/r8a7779.h>
 #include <mach/common.h>
@@ -37,7 +38,38 @@
 #include <asm/hardware/gic.h>
 #include <asm/traps.h>
 
+/* SMSC LAN89218 */
+static struct resource smsc911x_resources[] = {
+	[0] = {
+		.start		= 0x18000000, /* ExCS0 */
+		.end		= 0x180000ff, /* A1->A7 */
+		.flags		= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start		= gic_spi(28), /* IRQ 1 */
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct smsc911x_platform_config smsc911x_platdata = {
+	.flags		= SMSC911X_USE_32BIT, /* 32-bit SW on 16-bit HW bus */
+	.phy_interface	= PHY_INTERFACE_MODE_MII,
+	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
+	.irq_type	= SMSC911X_IRQ_TYPE_PUSH_PULL,
+};
+
+static struct platform_device eth_device = {
+	.name		= "smsc911x",
+	.id		= 0,
+	.dev  = {
+		.platform_data = &smsc911x_platdata,
+	},
+	.resource	= smsc911x_resources,
+	.num_resources	= ARRAY_SIZE(smsc911x_resources),
+};
+
 static struct platform_device *marzen_devices[] __initdata = {
+	&eth_device,
 };
 
 static struct map_desc marzen_io_desc[] __initdata = {
@@ -94,6 +126,10 @@ static void __init marzen_init(void)
 	/* SCIF4 (CN19: DEBUG1) */
 	gpio_request(GPIO_FN_TX4, NULL);
 	gpio_request(GPIO_FN_RX4, NULL);
+
+	/* LAN89218 */
+	gpio_request(GPIO_FN_EX_CS0, NULL); /* nCS */
+	gpio_request(GPIO_FN_IRQ1_B, NULL); /* IRQ + PME */
 
 	r8a7779_add_standard_devices();
 	platform_add_devices(marzen_devices, ARRAY_SIZE(marzen_devices));
