@@ -115,6 +115,8 @@ nvc0_vram_init(struct drm_device *dev)
 	NV_DEBUG(dev, "0x100800: 0x%08x\n", nv_rd32(dev, 0x100800));
 	NV_DEBUG(dev, "parts 0x%08x bcast_mem_amount 0x%08x\n", parts, bsize);
 
+	dev_priv->vram_type = nouveau_mem_vbios_type(dev);
+
 	/* read amount of vram attached to each memory controller */
 	part = 0;
 	while (parts) {
