@@ -420,7 +420,7 @@ struct mlx4_mfunc_master_ctx {
 	struct work_struct	slave_event_work;
 	struct work_struct	slave_flr_event_work;
 	spinlock_t		slave_state_lock;
-	u32			comm_arm_bit_vector[4];
+	__be32			comm_arm_bit_vector[4];
 	struct mlx4_eqe		cmd_eqe;
 	struct mlx4_slave_event_eq slave_eq;
 	struct mutex		gen_eqe_mutex[MLX4_MFUNC_MAX];
@@ -914,4 +914,7 @@ int mlx4_QUERY_IF_STAT_wrapper(struct mlx4_dev *dev, int slave,
 			       struct mlx4_cmd_mailbox *inbox,
 			       struct mlx4_cmd_mailbox *outbox,
 			       struct mlx4_cmd_info *cmd);
+
+#define NOT_MASKED_PD_BITS 17
+
 #endif /* MLX4_H */
