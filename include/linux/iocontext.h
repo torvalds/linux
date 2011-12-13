@@ -13,6 +13,11 @@ struct cfq_ttime {
 	unsigned long ttime_mean;
 };
 
+enum {
+	CIC_IOPRIO_CHANGED,
+	CIC_CGROUP_CHANGED,
+};
+
 struct cfq_io_context {
 	void *key;
 	struct request_queue *q;
@@ -25,6 +30,8 @@ struct cfq_io_context {
 
 	struct list_head queue_list;
 	struct hlist_node cic_list;
+
+	unsigned long changed;
 
 	void (*dtor)(struct io_context *); /* destructor */
 	void (*exit)(struct io_context *); /* called on task exit */
@@ -44,11 +51,6 @@ struct io_context {
 	spinlock_t lock;
 
 	unsigned short ioprio;
-	unsigned short ioprio_changed;
-
-#if defined(CONFIG_BLK_CGROUP) || defined(CONFIG_BLK_CGROUP_MODULE)
-	unsigned short cgroup_changed;
-#endif
 
 	/*
 	 * For request batching
@@ -81,6 +83,8 @@ void put_io_context(struct io_context *ioc);
 void exit_io_context(struct task_struct *task);
 struct io_context *get_task_io_context(struct task_struct *task,
 				       gfp_t gfp_flags, int node);
+void ioc_ioprio_changed(struct io_context *ioc, int ioprio);
+void ioc_cgroup_changed(struct io_context *ioc);
 #else
 struct io_context;
 static inline void put_io_context(struct io_context *ioc) { }

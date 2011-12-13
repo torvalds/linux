@@ -50,8 +50,7 @@ int set_task_ioprio(struct task_struct *task, int ioprio)
 
 	ioc = get_task_io_context(task, GFP_ATOMIC, NUMA_NO_NODE);
 	if (ioc) {
-		ioc->ioprio = ioprio;
-		ioc->ioprio_changed = 1;
+		ioc_ioprio_changed(ioc, ioprio);
 		put_io_context(ioc);
 	}
 

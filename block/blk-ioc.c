@@ -188,6 +188,51 @@ struct io_context *get_task_io_context(struct task_struct *task,
 }
 EXPORT_SYMBOL(get_task_io_context);
 
+void ioc_set_changed(struct io_context *ioc, int which)
+{
+	struct cfq_io_context *cic;
+	struct hlist_node *n;
+
+	hlist_for_each_entry(cic, n, &ioc->cic_list, cic_list)
+		set_bit(which, &cic->changed);
+}
+
+/**
+ * ioc_ioprio_changed - notify ioprio change
+ * @ioc: io_context of interest
+ * @ioprio: new ioprio
+ *
+ * @ioc's ioprio has changed to @ioprio.  Set %CIC_IOPRIO_CHANGED for all
+ * cic's.  iosched is responsible for checking the bit and applying it on
+ * request issue path.
+ */
+void ioc_ioprio_changed(struct io_context *ioc, int ioprio)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&ioc->lock, flags);
+	ioc->ioprio = ioprio;
+	ioc_set_changed(ioc, CIC_IOPRIO_CHANGED);
+	spin_unlock_irqrestore(&ioc->lock, flags);
+}
+
+/**
+ * ioc_cgroup_changed - notify cgroup change
+ * @ioc: io_context of interest
+ *
+ * @ioc's cgroup has changed.  Set %CIC_CGROUP_CHANGED for all cic's.
+ * iosched is responsible for checking the bit and applying it on request
+ * issue path.
+ */
+void ioc_cgroup_changed(struct io_context *ioc)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&ioc->lock, flags);
+	ioc_set_changed(ioc, CIC_CGROUP_CHANGED);
+	spin_unlock_irqrestore(&ioc->lock, flags);
+}
+
 static int __init blk_ioc_init(void)
 {
 	iocontext_cachep = kmem_cache_create("blkdev_ioc",
