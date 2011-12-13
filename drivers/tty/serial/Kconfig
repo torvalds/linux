@@ -99,7 +99,7 @@ config SERIAL_8250_PNP
 
 config SERIAL_8250_FSL
 	bool
-	depends on SERIAL_8250 && PPC
+	depends on SERIAL_8250_CONSOLE && PPC_UDBG_16550
 	default PPC
 
 config SERIAL_8250_HP300
