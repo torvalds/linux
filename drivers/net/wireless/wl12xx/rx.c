@@ -258,8 +258,12 @@ void wl12xx_rx(struct wl1271 *wl, struct wl12xx_fw_status *status)
 						  wl->aggr_buf + pkt_offset,
 						  pkt_length, unaligned,
 						  &hlid) == 1) {
-				WARN_ON(hlid >= WL12XX_MAX_LINKS);
-				__set_bit(hlid, active_hlids);
+				if (hlid < WL12XX_MAX_LINKS)
+					__set_bit(hlid, active_hlids);
+				else
+					WARN(1,
+					     "hlid exceeded WL12XX_MAX_LINKS "
+					     "(%d)\n", hlid);
 			}
 
 			wl->rx_counter++;
