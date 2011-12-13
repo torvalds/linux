@@ -5,38 +5,23 @@
 #include <linux/rcupdate.h>
 #include <linux/workqueue.h>
 
-struct cfq_queue;
-struct cfq_ttime {
-	unsigned long last_end_request;
-
-	unsigned long ttime_total;
-	unsigned long ttime_samples;
-	unsigned long ttime_mean;
-};
-
 enum {
-	CIC_IOPRIO_CHANGED,
-	CIC_CGROUP_CHANGED,
+	ICQ_IOPRIO_CHANGED,
+	ICQ_CGROUP_CHANGED,
 };
 
-struct cfq_io_context {
-	struct request_queue *q;
+struct io_cq {
+	struct request_queue	*q;
+	struct io_context	*ioc;
 
-	struct cfq_queue *cfqq[2];
+	struct list_head	q_node;
+	struct hlist_node	ioc_node;
 
-	struct io_context *ioc;
+	unsigned long		changed;
+	struct rcu_head		rcu_head;
 
-	struct cfq_ttime ttime;
-
-	struct list_head queue_list;
-	struct hlist_node cic_list;
-
-	unsigned long changed;
-
-	void (*exit)(struct cfq_io_context *);
-	void (*release)(struct cfq_io_context *);
-
-	struct rcu_head rcu_head;
+	void (*exit)(struct io_cq *);
+	void (*release)(struct io_cq *);
 };
 
 /*
@@ -58,9 +43,9 @@ struct io_context {
 	int nr_batch_requests;     /* Number of requests left in the batch */
 	unsigned long last_waited; /* Time last woken after wait for request */
 
-	struct radix_tree_root radix_root;
-	struct hlist_head cic_list;
-	void __rcu *ioc_data;
+	struct radix_tree_root	icq_tree;
+	struct io_cq __rcu	*icq_hint;
+	struct hlist_head	icq_list;
 
 	struct work_struct release_work;
 };
