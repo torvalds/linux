@@ -1550,9 +1550,9 @@ static int mr_phys_mpt(struct mlx4_mpt_entry *mpt)
 	return (be32_to_cpu(mpt->flags) >> 9) & 1;
 }
 
-static int mr_get_mtt_seg(struct mlx4_mpt_entry *mpt)
+static int mr_get_mtt_addr(struct mlx4_mpt_entry *mpt)
 {
-	return (int)be64_to_cpu(mpt->mtt_seg) & 0xfffffff8;
+	return (int)be64_to_cpu(mpt->mtt_addr) & 0xfffffff8;
 }
 
 static int mr_get_mtt_size(struct mlx4_mpt_entry *mpt)
@@ -1565,12 +1565,12 @@ static int mr_get_pdn(struct mlx4_mpt_entry *mpt)
 	return be32_to_cpu(mpt->pd_flags) & 0xffffff;
 }
 
-static int qp_get_mtt_seg(struct mlx4_qp_context *qpc)
+static int qp_get_mtt_addr(struct mlx4_qp_context *qpc)
 {
 	return be32_to_cpu(qpc->mtt_base_addr_l) & 0xfffffff8;
 }
 
-static int srq_get_mtt_seg(struct mlx4_srq_context *srqc)
+static int srq_get_mtt_addr(struct mlx4_srq_context *srqc)
 {
 	return be32_to_cpu(srqc->mtt_base_addr_l) & 0xfffffff8;
 }
@@ -1614,8 +1614,8 @@ static int pdn2slave(int pdn)
 static int check_mtt_range(struct mlx4_dev *dev, int slave, int start,
 			   int size, struct res_mtt *mtt)
 {
-	int res_start = mtt->com.res_id * dev->caps.mtts_per_seg;
-	int res_size = (1 << mtt->order) * dev->caps.mtts_per_seg;
+	int res_start = mtt->com.res_id;
+	int res_size = (1 << mtt->order);
 
 	if (start < res_start || start + size > res_start + res_size)
 		return -EPERM;
@@ -1632,8 +1632,7 @@ int mlx4_SW2HW_MPT_wrapper(struct mlx4_dev *dev, int slave,
 	int index = vhcr->in_modifier;
 	struct res_mtt *mtt;
 	struct res_mpt *mpt;
-	int mtt_base = (mr_get_mtt_seg(inbox->buf) / dev->caps.mtt_entry_sz) *
-		dev->caps.mtts_per_seg;
+	int mtt_base = mr_get_mtt_addr(inbox->buf) / dev->caps.mtt_entry_sz;
 	int phys;
 	int id;
 
@@ -1644,8 +1643,7 @@ int mlx4_SW2HW_MPT_wrapper(struct mlx4_dev *dev, int slave,
 
 	phys = mr_phys_mpt(inbox->buf);
 	if (!phys) {
-		err = get_res(dev, slave, mtt_base / dev->caps.mtts_per_seg,
-			      RES_MTT, &mtt);
+		err = get_res(dev, slave, mtt_base, RES_MTT, &mtt);
 		if (err)
 			goto ex_abort;
 
@@ -1769,8 +1767,7 @@ int mlx4_RST2INIT_QP_wrapper(struct mlx4_dev *dev, int slave,
 	struct res_mtt *mtt;
 	struct res_qp *qp;
 	struct mlx4_qp_context *qpc = inbox->buf + 8;
-	int mtt_base = (qp_get_mtt_seg(qpc) / dev->caps.mtt_entry_sz) *
-		dev->caps.mtts_per_seg;
+	int mtt_base = qp_get_mtt_addr(qpc) / dev->caps.mtt_entry_sz;
 	int mtt_size = qp_get_mtt_size(qpc);
 	struct res_cq *rcq;
 	struct res_cq *scq;
@@ -1786,8 +1783,7 @@ int mlx4_RST2INIT_QP_wrapper(struct mlx4_dev *dev, int slave,
 		return err;
 	qp->local_qpn = local_qpn;
 
-	err = get_res(dev, slave, mtt_base / dev->caps.mtts_per_seg, RES_MTT,
-		      &mtt);
+	err = get_res(dev, slave, mtt_base, RES_MTT, &mtt);
 	if (err)
 		goto ex_abort;
 
@@ -1836,7 +1832,7 @@ int mlx4_RST2INIT_QP_wrapper(struct mlx4_dev *dev, int slave,
 		qp->srq = srq;
 	}
 	put_res(dev, slave, rcqn, RES_CQ);
-	put_res(dev, slave, mtt_base  / dev->caps.mtts_per_seg, RES_MTT);
+	put_res(dev, slave, mtt_base, RES_MTT);
 	res_end_move(dev, slave, RES_QP, qpn);
 
 	return 0;
@@ -1850,14 +1846,14 @@ ex_put_scq:
 ex_put_rcq:
 	put_res(dev, slave, rcqn, RES_CQ);
 ex_put_mtt:
-	put_res(dev, slave, mtt_base / dev->caps.mtts_per_seg, RES_MTT);
+	put_res(dev, slave, mtt_base, RES_MTT);
 ex_abort:
 	res_abort_move(dev, slave, RES_QP, qpn);
 
 	return err;
 }
 
-static int eq_get_mtt_seg(struct mlx4_eq_context *eqc)
+static int eq_get_mtt_addr(struct mlx4_eq_context *eqc)
 {
 	return be32_to_cpu(eqc->mtt_base_addr_l) & 0xfffffff8;
 }
@@ -1873,7 +1869,7 @@ static int eq_get_mtt_size(struct mlx4_eq_context *eqc)
 	return 1 << (log_eq_size + 5 - page_shift);
 }
 
-static int cq_get_mtt_seg(struct mlx4_cq_context *cqc)
+static int cq_get_mtt_addr(struct mlx4_cq_context *cqc)
 {
 	return be32_to_cpu(cqc->mtt_base_addr_l) & 0xfffffff8;
 }
@@ -1899,8 +1895,7 @@ int mlx4_SW2HW_EQ_wrapper(struct mlx4_dev *dev, int slave,
 	int eqn = vhcr->in_modifier;
 	int res_id = (slave << 8) | eqn;
 	struct mlx4_eq_context *eqc = inbox->buf;
-	int mtt_base = (eq_get_mtt_seg(eqc) / dev->caps.mtt_entry_sz) *
-		dev->caps.mtts_per_seg;
+	int mtt_base = eq_get_mtt_addr(eqc) / dev->caps.mtt_entry_sz;
 	int mtt_size = eq_get_mtt_size(eqc);
 	struct res_eq *eq;
 	struct res_mtt *mtt;
@@ -1912,8 +1907,7 @@ int mlx4_SW2HW_EQ_wrapper(struct mlx4_dev *dev, int slave,
 	if (err)
 		goto out_add;
 
-	err = get_res(dev, slave, mtt_base / dev->caps.mtts_per_seg, RES_MTT,
-		      &mtt);
+	err = get_res(dev, slave, mtt_base, RES_MTT, &mtt);
 	if (err)
 		goto out_move;
 
@@ -1986,7 +1980,8 @@ int mlx4_WRITE_MTT_wrapper(struct mlx4_dev *dev, int slave,
 	/* Call the SW implementation of write_mtt:
 	 * - Prepare a dummy mtt struct
 	 * - Translate inbox contents to simple addresses in host endianess */
-	mtt.first_seg = 0;
+	mtt.offset = 0;  /* TBD this is broken but I don't handle it since
+			    we don't really use it */
 	mtt.order = 0;
 	mtt.page_shift = 0;
 	for (i = 0; i < npages; ++i)
@@ -2137,16 +2132,14 @@ int mlx4_SW2HW_CQ_wrapper(struct mlx4_dev *dev, int slave,
 	int err;
 	int cqn = vhcr->in_modifier;
 	struct mlx4_cq_context *cqc = inbox->buf;
-	int mtt_base = (cq_get_mtt_seg(cqc) / dev->caps.mtt_entry_sz) *
-		dev->caps.mtts_per_seg;
+	int mtt_base = cq_get_mtt_addr(cqc) / dev->caps.mtt_entry_sz;
 	struct res_cq *cq;
 	struct res_mtt *mtt;
 
 	err = cq_res_start_move_to(dev, slave, cqn, RES_CQ_HW, &cq);
 	if (err)
 		return err;
-	err = get_res(dev, slave, mtt_base / dev->caps.mtts_per_seg, RES_MTT,
-		      &mtt);
+	err = get_res(dev, slave, mtt_base, RES_MTT, &mtt);
 	if (err)
 		goto out_move;
 	err = check_mtt_range(dev, slave, mtt_base, cq_get_mtt_size(cqc), mtt);
@@ -2228,8 +2221,7 @@ static int handle_resize(struct mlx4_dev *dev, int slave,
 	struct res_mtt *orig_mtt;
 	struct res_mtt *mtt;
 	struct mlx4_cq_context *cqc = inbox->buf;
-	int mtt_base = (cq_get_mtt_seg(cqc) / dev->caps.mtt_entry_sz) *
-		dev->caps.mtts_per_seg;
+	int mtt_base = cq_get_mtt_addr(cqc) / dev->caps.mtt_entry_sz;
 
 	err = get_res(dev, slave, cq->mtt->com.res_id, RES_MTT, &orig_mtt);
 	if (err)
@@ -2240,8 +2232,7 @@ static int handle_resize(struct mlx4_dev *dev, int slave,
 		goto ex_put;
 	}
 
-	err = get_res(dev, slave, mtt_base / dev->caps.mtts_per_seg, RES_MTT,
-		      &mtt);
+	err = get_res(dev, slave, mtt_base, RES_MTT, &mtt);
 	if (err)
 		goto ex_put;
 
@@ -2325,8 +2316,7 @@ int mlx4_SW2HW_SRQ_wrapper(struct mlx4_dev *dev, int slave,
 	struct res_mtt *mtt;
 	struct res_srq *srq;
 	struct mlx4_srq_context *srqc = inbox->buf;
-	int mtt_base = (srq_get_mtt_seg(srqc) / dev->caps.mtt_entry_sz) *
-		dev->caps.mtts_per_seg;
+	int mtt_base = srq_get_mtt_addr(srqc) / dev->caps.mtt_entry_sz;
 
 	if (srqn != (be32_to_cpu(srqc->state_logsize_srqn) & 0xffffff))
 		return -EINVAL;
@@ -2334,8 +2324,7 @@ int mlx4_SW2HW_SRQ_wrapper(struct mlx4_dev *dev, int slave,
 	err = srq_res_start_move_to(dev, slave, srqn, RES_SRQ_HW, &srq);
 	if (err)
 		return err;
-	err = get_res(dev, slave, mtt_base / dev->caps.mtts_per_seg,
-		      RES_MTT, &mtt);
+	err = get_res(dev, slave, mtt_base, RES_MTT, &mtt);
 	if (err)
 		goto ex_abort;
 	err = check_mtt_range(dev, slave, mtt_base, srq_get_mtt_size(srqc),

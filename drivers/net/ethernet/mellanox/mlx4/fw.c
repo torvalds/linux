@@ -209,7 +209,7 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 		size = dev->caps.num_mpts;
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_MPT_QUOTA_OFFSET);
 
-		size = dev->caps.num_mtt_segs * dev->caps.mtts_per_seg;
+		size = dev->caps.num_mtts;
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_MTT_QUOTA_OFFSET);
 
 		size = dev->caps.num_mgms + dev->caps.num_amgms;

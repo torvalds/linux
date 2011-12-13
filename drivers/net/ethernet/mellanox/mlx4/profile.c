@@ -98,7 +98,7 @@ u64 mlx4_make_profile(struct mlx4_dev *dev,
 	profile[MLX4_RES_EQ].size     = dev_cap->eqc_entry_sz;
 	profile[MLX4_RES_DMPT].size   = dev_cap->dmpt_entry_sz;
 	profile[MLX4_RES_CMPT].size   = dev_cap->cmpt_entry_sz;
-	profile[MLX4_RES_MTT].size    = dev->caps.mtts_per_seg * dev_cap->mtt_entry_sz;
+	profile[MLX4_RES_MTT].size    = dev_cap->mtt_entry_sz;
 	profile[MLX4_RES_MCG].size    = mlx4_get_mgm_entry_size(dev);
 
 	profile[MLX4_RES_QP].num      = request->num_qp;
@@ -210,7 +210,7 @@ u64 mlx4_make_profile(struct mlx4_dev *dev,
 			init_hca->cmpt_base	 = profile[i].start;
 			break;
 		case MLX4_RES_MTT:
-			dev->caps.num_mtt_segs	 = profile[i].num;
+			dev->caps.num_mtts	 = profile[i].num;
 			priv->mr_table.mtt_base	 = profile[i].start;
 			init_hca->mtt_base	 = profile[i].start;
 			break;

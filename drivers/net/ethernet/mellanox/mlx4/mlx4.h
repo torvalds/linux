@@ -191,6 +191,7 @@ do {									\
 	dev_warn(&mdev->pdev->dev, format, ##arg)
 
 extern int mlx4_log_num_mgm_entry_size;
+extern int log_mtts_per_seg;
 
 #define MLX4_MAX_NUM_SLAVES	(MLX4_MAX_NUM_PF + MLX4_MAX_NUM_VF)
 #define ALL_SLAVES 0xff
@@ -240,7 +241,7 @@ struct mlx4_mpt_entry {
 	__be32 win_cnt;
 	u8	reserved1[3];
 	u8	mtt_rep;
-	__be64 mtt_seg;
+	__be64 mtt_addr;
 	__be32 mtt_sz;
 	__be32 entity_size;
 	__be32 first_byte_offset;

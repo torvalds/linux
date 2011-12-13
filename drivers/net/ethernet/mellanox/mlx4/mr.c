@@ -166,18 +166,24 @@ u32 __mlx4_alloc_mtt_range(struct mlx4_dev *dev, int order)
 {
 	struct mlx4_mr_table *mr_table = &mlx4_priv(dev)->mr_table;
 	u32 seg;
+	int seg_order;
+	u32 offset;
 
-	seg = mlx4_buddy_alloc(&mr_table->mtt_buddy, order);
+	seg_order = max_t(int, order - log_mtts_per_seg, 0);
+
+	seg = mlx4_buddy_alloc(&mr_table->mtt_buddy, seg_order);
 	if (seg == -1)
 		return -1;
 
-	if (mlx4_table_get_range(dev, &mr_table->mtt_table, seg,
-				 seg + (1 << order) - 1)) {
-		mlx4_buddy_free(&mr_table->mtt_buddy, seg, order);
+	offset = seg * (1 << log_mtts_per_seg);
+
+	if (mlx4_table_get_range(dev, &mr_table->mtt_table, offset,
+				 offset + (1 << order) - 1)) {
+		mlx4_buddy_free(&mr_table->mtt_buddy, seg, seg_order);
 		return -1;
 	}
 
-	return seg;
+	return offset;
 }
 
 static u32 mlx4_alloc_mtt_range(struct mlx4_dev *dev, int order)
@@ -212,45 +218,49 @@ int mlx4_mtt_init(struct mlx4_dev *dev, int npages, int page_shift,
 	} else
 		mtt->page_shift = page_shift;
 
-	for (mtt->order = 0, i = dev->caps.mtts_per_seg; i < npages; i <<= 1)
+	for (mtt->order = 0, i = 1; i < npages; i <<= 1)
 		++mtt->order;
 
-	mtt->first_seg = mlx4_alloc_mtt_range(dev, mtt->order);
-	if (mtt->first_seg == -1)
+	mtt->offset = mlx4_alloc_mtt_range(dev, mtt->order);
+	if (mtt->offset == -1)
 		return -ENOMEM;
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mlx4_mtt_init);
 
-void __mlx4_free_mtt_range(struct mlx4_dev *dev, u32 first_seg,
-				  int order)
+void __mlx4_free_mtt_range(struct mlx4_dev *dev, u32 offset, int order)
 {
+	u32 first_seg;
+	int seg_order;
 	struct mlx4_mr_table *mr_table = &mlx4_priv(dev)->mr_table;
 
-	mlx4_buddy_free(&mr_table->mtt_buddy, first_seg, order);
+	seg_order = max_t(int, order - log_mtts_per_seg, 0);
+	first_seg = offset / (1 << log_mtts_per_seg);
+
+	mlx4_buddy_free(&mr_table->mtt_buddy, first_seg, seg_order);
 	mlx4_table_put_range(dev, &mr_table->mtt_table, first_seg,
-				     first_seg + (1 << order) - 1);
+			     first_seg + (1 << seg_order) - 1);
 }
 
-static void mlx4_free_mtt_range(struct mlx4_dev *dev, u32 first_seg, int order)
+static void mlx4_free_mtt_range(struct mlx4_dev *dev, u32 offset, int order)
 {
 	u64 in_param;
 	int err;
 
 	if (mlx4_is_mfunc(dev)) {
-		set_param_l(&in_param, first_seg);
+		set_param_l(&in_param, offset);
 		set_param_h(&in_param, order);
 		err = mlx4_cmd(dev, in_param, RES_MTT, RES_OP_RESERVE_AND_MAP,
 						       MLX4_CMD_FREE_RES,
 						       MLX4_CMD_TIME_CLASS_A,
 						       MLX4_CMD_WRAPPED);
 		if (err)
-			mlx4_warn(dev, "Failed to free mtt range at:%d"
-				  " order:%d\n", first_seg, order);
+			mlx4_warn(dev, "Failed to free mtt range at:"
+				  "%d order:%d\n", offset, order);
 		return;
 	}
-	__mlx4_free_mtt_range(dev, first_seg, order);
+	 __mlx4_free_mtt_range(dev, offset, order);
 }
 
 void mlx4_mtt_cleanup(struct mlx4_dev *dev, struct mlx4_mtt *mtt)
@@ -258,13 +268,13 @@ void mlx4_mtt_cleanup(struct mlx4_dev *dev, struct mlx4_mtt *mtt)
 	if (mtt->order < 0)
 		return;
 
-	mlx4_free_mtt_range(dev, mtt->first_seg, mtt->order);
+	mlx4_free_mtt_range(dev, mtt->offset, mtt->order);
 }
 EXPORT_SYMBOL_GPL(mlx4_mtt_cleanup);
 
 u64 mlx4_mtt_addr(struct mlx4_dev *dev, struct mlx4_mtt *mtt)
 {
-	return (u64) mtt->first_seg * dev->caps.mtt_entry_sz;
+	return (u64) mtt->offset * dev->caps.mtt_entry_sz;
 }
 EXPORT_SYMBOL_GPL(mlx4_mtt_addr);
 
@@ -504,9 +514,10 @@ int mlx4_mr_enable(struct mlx4_dev *dev, struct mlx4_mr *mr)
 
 	if (mr->mtt.order < 0) {
 		mpt_entry->flags |= cpu_to_be32(MLX4_MPT_FLAG_PHYSICAL);
-		mpt_entry->mtt_seg = 0;
+		mpt_entry->mtt_addr = 0;
 	} else {
-		mpt_entry->mtt_seg = cpu_to_be64(mlx4_mtt_addr(dev, &mr->mtt));
+		mpt_entry->mtt_addr = cpu_to_be64(mlx4_mtt_addr(dev,
+						  &mr->mtt));
 	}
 
 	if (mr->mtt.order >= 0 && mr->mtt.page_shift == 0) {
@@ -514,8 +525,7 @@ int mlx4_mr_enable(struct mlx4_dev *dev, struct mlx4_mr *mr)
 		mpt_entry->flags    |= cpu_to_be32(MLX4_MPT_FLAG_FREE);
 		mpt_entry->pd_flags |= cpu_to_be32(MLX4_MPT_PD_FLAG_FAST_REG |
 						   MLX4_MPT_PD_FLAG_RAE);
-		mpt_entry->mtt_sz    = cpu_to_be32((1 << mr->mtt.order) *
-						   dev->caps.mtts_per_seg);
+		mpt_entry->mtt_sz    = cpu_to_be32(1 << mr->mtt.order);
 	} else {
 		mpt_entry->flags    |= cpu_to_be32(MLX4_MPT_FLAG_SW_OWNS);
 	}
@@ -548,18 +558,10 @@ static int mlx4_write_mtt_chunk(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 	__be64 *mtts;
 	dma_addr_t dma_handle;
 	int i;
-	int s = start_index * sizeof (u64);
 
-	/* All MTTs must fit in the same page */
-	if (start_index / (PAGE_SIZE / sizeof (u64)) !=
-	    (start_index + npages - 1) / (PAGE_SIZE / sizeof (u64)))
-		return -EINVAL;
+	mtts = mlx4_table_find(&priv->mr_table.mtt_table, mtt->offset +
+			       start_index, &dma_handle);
 
-	if (start_index & (dev->caps.mtts_per_seg - 1))
-		return -EINVAL;
-
-	mtts = mlx4_table_find(&priv->mr_table.mtt_table, mtt->first_seg +
-				s / dev->caps.mtt_entry_sz, &dma_handle);
 	if (!mtts)
 		return -ENOMEM;
 
@@ -580,15 +582,25 @@ int __mlx4_write_mtt(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 {
 	int err = 0;
 	int chunk;
+	int mtts_per_page;
+	int max_mtts_first_page;
+
+	/* compute how may mtts fit in the first page */
+	mtts_per_page = PAGE_SIZE / sizeof(u64);
+	max_mtts_first_page = mtts_per_page - (mtt->offset + start_index)
+			      % mtts_per_page;
+
+	chunk = min_t(int, max_mtts_first_page, npages);
 
 	while (npages > 0) {
-		chunk = min_t(int, PAGE_SIZE / sizeof(u64), npages);
 		err = mlx4_write_mtt_chunk(dev, mtt, start_index, chunk, page_list);
 		if (err)
 			return err;
 		npages      -= chunk;
 		start_index += chunk;
 		page_list   += chunk;
+
+		chunk = min_t(int, mtts_per_page, npages);
 	}
 	return err;
 }
@@ -612,18 +624,9 @@ int mlx4_write_mtt(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 		inbox = mailbox->buf;
 
 		while (npages > 0) {
-			int s = mtt->first_seg * dev->caps.mtts_per_seg +
-				start_index;
-			chunk = min_t(int, MLX4_MAILBOX_SIZE / sizeof(u64) -
-				      dev->caps.mtts_per_seg, npages);
-			if (s / (PAGE_SIZE / sizeof(u64)) !=
-			    (s + chunk - 1) / (PAGE_SIZE / sizeof(u64)))
-				chunk = PAGE_SIZE / sizeof(u64) -
-					(s % (PAGE_SIZE / sizeof(u64)));
-
-			inbox[0] = cpu_to_be64(mtt->first_seg *
-					       dev->caps.mtts_per_seg +
-					       start_index);
+			chunk = min_t(int, MLX4_MAILBOX_SIZE / sizeof(u64) - 2,
+				      npages);
+			inbox[0] = cpu_to_be64(mtt->offset + start_index);
 			inbox[1] = 0;
 			for (i = 0; i < chunk; ++i)
 				inbox[i + 2] = cpu_to_be64(page_list[i] |
@@ -690,7 +693,8 @@ int mlx4_init_mr_table(struct mlx4_dev *dev)
 		return err;
 
 	err = mlx4_buddy_init(&mr_table->mtt_buddy,
-			      ilog2(dev->caps.num_mtt_segs));
+			      ilog2(dev->caps.num_mtts /
+			      (1 << log_mtts_per_seg)));
 	if (err)
 		goto err_buddy;
 
@@ -809,7 +813,7 @@ int mlx4_fmr_alloc(struct mlx4_dev *dev, u32 pd, u32 access, int max_pages,
 		   int max_maps, u8 page_shift, struct mlx4_fmr *fmr)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
-	u64 mtt_seg;
+	u64 mtt_offset;
 	int err = -ENOMEM;
 
 	if (page_shift < (ffs(dev->caps.page_size_cap) - 1) || page_shift >= 32)
@@ -829,11 +833,12 @@ int mlx4_fmr_alloc(struct mlx4_dev *dev, u32 pd, u32 access, int max_pages,
 	if (err)
 		return err;
 
-	mtt_seg = fmr->mr.mtt.first_seg * dev->caps.mtt_entry_sz;
+	mtt_offset = fmr->mr.mtt.offset * dev->caps.mtt_entry_sz;
 
 	fmr->mtts = mlx4_table_find(&priv->mr_table.mtt_table,
-				    fmr->mr.mtt.first_seg,
+				    fmr->mr.mtt.offset,
 				    &fmr->dma_handle);
+
 	if (!fmr->mtts) {
 		err = -ENOMEM;
 		goto err_free;
@@ -872,7 +877,7 @@ static int mlx4_fmr_alloc_reserved(struct mlx4_dev *dev, u32 mridx,
 		return err;
 
 	fmr->mtts = mlx4_table_find(&priv->mr_table.mtt_table,
-				    fmr->mr.mtt.first_seg,
+				    fmr->mr.mtt.offset,
 				    &fmr->dma_handle);
 	if (!fmr->mtts) {
 		err = -ENOMEM;
