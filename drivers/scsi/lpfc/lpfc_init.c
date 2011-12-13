@@ -1417,7 +1417,10 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 	uint32_t event_data;
 	struct Scsi_Host *shost;
 	uint32_t if_type;
-	struct lpfc_register portstat_reg;
+	struct lpfc_register portstat_reg = {0};
+	uint32_t reg_err1, reg_err2;
+	uint32_t uerrlo_reg, uemasklo_reg;
+	uint32_t pci_rd_rc1, pci_rd_rc2;
 	int rc;
 
 	/* If the pci channel is offline, ignore possible errors, since
@@ -1429,27 +1432,29 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 	if (!phba->cfg_enable_hba_reset)
 		return;
 
-	/* Send an internal error event to mgmt application */
-	lpfc_board_errevt_to_mgmt(phba);
-
-	/* For now, the actual action for SLI4 device handling is not
-	 * specified yet, just treated it as adaptor hardware failure
-	 */
-	event_data = FC_REG_DUMP_EVENT;
-	shost = lpfc_shost_from_vport(vport);
-	fc_host_post_vendor_event(shost, fc_get_event_number(),
-				  sizeof(event_data), (char *) &event_data,
-				  SCSI_NL_VID_TYPE_PCI | PCI_VENDOR_ID_EMULEX);
-
 	if_type = bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf);
 	switch (if_type) {
 	case LPFC_SLI_INTF_IF_TYPE_0:
+		pci_rd_rc1 = lpfc_readl(
+				phba->sli4_hba.u.if_type0.UERRLOregaddr,
+				&uerrlo_reg);
+		pci_rd_rc2 = lpfc_readl(
+				phba->sli4_hba.u.if_type0.UEMASKLOregaddr,
+				&uemasklo_reg);
+		/* consider PCI bus read error as pci_channel_offline */
+		if (pci_rd_rc1 == -EIO && pci_rd_rc2 == -EIO)
+			return;
 		lpfc_sli4_offline_eratt(phba);
 		break;
 	case LPFC_SLI_INTF_IF_TYPE_2:
-		portstat_reg.word0 =
-			readl(phba->sli4_hba.u.if_type2.STATUSregaddr);
-
+		pci_rd_rc1 = lpfc_readl(
+				phba->sli4_hba.u.if_type2.STATUSregaddr,
+				&portstat_reg.word0);
+		/* consider PCI bus read error as pci_channel_offline */
+		if (pci_rd_rc1 == -EIO)
+			return;
+		reg_err1 = readl(phba->sli4_hba.u.if_type2.ERR1regaddr);
+		reg_err2 = readl(phba->sli4_hba.u.if_type2.ERR2regaddr);
 		if (bf_get(lpfc_sliport_status_oti, &portstat_reg)) {
 			/* TODO: Register for Overtemp async events. */
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -1459,8 +1464,20 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 			phba->over_temp_state = HBA_OVER_TEMP;
 			spin_unlock_irq(&phba->hbalock);
 			lpfc_sli4_offline_eratt(phba);
-			return;
+			break;
 		}
+		if (reg_err1 == SLIPORT_ERR1_REG_ERR_CODE_2 &&
+		    reg_err2 == SLIPORT_ERR2_REG_FW_RESTART)
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"3143 Port Down: Firmware Restarted\n");
+		else if (reg_err1 == SLIPORT_ERR1_REG_ERR_CODE_2 &&
+			 reg_err2 == SLIPORT_ERR2_REG_FORCED_DUMP)
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"3144 Port Down: Debug Dump\n");
+		else if (reg_err1 == SLIPORT_ERR1_REG_ERR_CODE_2 &&
+			 reg_err2 == SLIPORT_ERR2_REG_FUNC_PROVISON)
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"3145 Port Down: Provisioning\n");
 		/*
 		 * On error status condition, driver need to wait for port
 		 * ready before performing reset.
@@ -1469,14 +1486,19 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 		if (!rc) {
 			/* need reset: attempt for port recovery */
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"2887 Port Error: Attempting "
-					"Port Recovery\n");
+					"2887 Reset Needed: Attempting Port "
+					"Recovery...\n");
 			lpfc_offline_prep(phba);
 			lpfc_offline(phba);
 			lpfc_sli_brdrestart(phba);
 			if (lpfc_online(phba) == 0) {
 				lpfc_unblock_mgmt_io(phba);
-				return;
+				/* don't report event on forced debug dump */
+				if (reg_err1 == SLIPORT_ERR1_REG_ERR_CODE_2 &&
+				    reg_err2 == SLIPORT_ERR2_REG_FORCED_DUMP)
+					return;
+				else
+					break;
 			}
 			/* fall through for not able to recover */
 		}
@@ -1486,6 +1508,16 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 	default:
 		break;
 	}
+	lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+			"3123 Report dump event to upper layer\n");
+	/* Send an internal error event to mgmt application */
+	lpfc_board_errevt_to_mgmt(phba);
+
+	event_data = FC_REG_DUMP_EVENT;
+	shost = lpfc_shost_from_vport(vport);
+	fc_host_post_vendor_event(shost, fc_get_event_number(),
+				  sizeof(event_data), (char *) &event_data,
+				  SCSI_NL_VID_TYPE_PCI | PCI_VENDOR_ID_EMULEX);
 }
 
 /**
@@ -6475,6 +6507,7 @@ out_free_fcp_wq:
 		phba->sli4_hba.fcp_wq[fcp_wqidx] = NULL;
 	}
 	kfree(phba->sli4_hba.fcp_wq);
+	phba->sli4_hba.fcp_wq = NULL;
 out_free_els_wq:
 	lpfc_sli4_queue_free(phba->sli4_hba.els_wq);
 	phba->sli4_hba.els_wq = NULL;
@@ -6487,6 +6520,7 @@ out_free_fcp_cq:
 		phba->sli4_hba.fcp_cq[fcp_cqidx] = NULL;
 	}
 	kfree(phba->sli4_hba.fcp_cq);
+	phba->sli4_hba.fcp_cq = NULL;
 out_free_els_cq:
 	lpfc_sli4_queue_free(phba->sli4_hba.els_cq);
 	phba->sli4_hba.els_cq = NULL;
@@ -6499,6 +6533,7 @@ out_free_fp_eq:
 		phba->sli4_hba.fp_eq[fcp_eqidx] = NULL;
 	}
 	kfree(phba->sli4_hba.fp_eq);
+	phba->sli4_hba.fp_eq = NULL;
 out_free_sp_eq:
 	lpfc_sli4_queue_free(phba->sli4_hba.sp_eq);
 	phba->sli4_hba.sp_eq = NULL;
@@ -6532,8 +6567,10 @@ lpfc_sli4_queue_destroy(struct lpfc_hba *phba)
 	phba->sli4_hba.els_wq = NULL;
 
 	/* Release FCP work queue */
-	for (fcp_qidx = 0; fcp_qidx < phba->cfg_fcp_wq_count; fcp_qidx++)
-		lpfc_sli4_queue_free(phba->sli4_hba.fcp_wq[fcp_qidx]);
+	if (phba->sli4_hba.fcp_wq != NULL)
+		for (fcp_qidx = 0; fcp_qidx < phba->cfg_fcp_wq_count;
+		     fcp_qidx++)
+			lpfc_sli4_queue_free(phba->sli4_hba.fcp_wq[fcp_qidx]);
 	kfree(phba->sli4_hba.fcp_wq);
 	phba->sli4_hba.fcp_wq = NULL;
 
@@ -6553,15 +6590,18 @@ lpfc_sli4_queue_destroy(struct lpfc_hba *phba)
 
 	/* Release FCP response complete queue */
 	fcp_qidx = 0;
-	do
-		lpfc_sli4_queue_free(phba->sli4_hba.fcp_cq[fcp_qidx]);
-	while (++fcp_qidx < phba->cfg_fcp_eq_count);
+	if (phba->sli4_hba.fcp_cq != NULL)
+		do
+			lpfc_sli4_queue_free(phba->sli4_hba.fcp_cq[fcp_qidx]);
+		while (++fcp_qidx < phba->cfg_fcp_eq_count);
 	kfree(phba->sli4_hba.fcp_cq);
 	phba->sli4_hba.fcp_cq = NULL;
 
 	/* Release fast-path event queue */
-	for (fcp_qidx = 0; fcp_qidx < phba->cfg_fcp_eq_count; fcp_qidx++)
-		lpfc_sli4_queue_free(phba->sli4_hba.fp_eq[fcp_qidx]);
+	if (phba->sli4_hba.fp_eq != NULL)
+		for (fcp_qidx = 0; fcp_qidx < phba->cfg_fcp_eq_count;
+		     fcp_qidx++)
+			lpfc_sli4_queue_free(phba->sli4_hba.fp_eq[fcp_qidx]);
 	kfree(phba->sli4_hba.fp_eq);
 	phba->sli4_hba.fp_eq = NULL;
 
@@ -6614,6 +6654,11 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 			phba->sli4_hba.sp_eq->queue_id);
 
 	/* Set up fast-path event queue */
+	if (!phba->sli4_hba.fp_eq) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3147 Fast-path EQs not allocated\n");
+		goto out_destroy_sp_eq;
+	}
 	for (fcp_eqidx = 0; fcp_eqidx < phba->cfg_fcp_eq_count; fcp_eqidx++) {
 		if (!phba->sli4_hba.fp_eq[fcp_eqidx]) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -6678,6 +6723,12 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 			phba->sli4_hba.sp_eq->queue_id);
 
 	/* Set up fast-path FCP Response Complete Queue */
+	if (!phba->sli4_hba.fcp_cq) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3148 Fast-path FCP CQ array not "
+				"allocated\n");
+		goto out_destroy_els_cq;
+	}
 	fcp_cqidx = 0;
 	do {
 		if (!phba->sli4_hba.fcp_cq[fcp_cqidx]) {
@@ -6757,6 +6808,12 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 			phba->sli4_hba.els_cq->queue_id);
 
 	/* Set up fast-path FCP Work Queue */
+	if (!phba->sli4_hba.fcp_wq) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3149 Fast-path FCP WQ array not "
+				"allocated\n");
+		goto out_destroy_els_wq;
+	}
 	for (fcp_wqidx = 0; fcp_wqidx < phba->cfg_fcp_wq_count; fcp_wqidx++) {
 		if (!phba->sli4_hba.fcp_wq[fcp_wqidx]) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -6818,18 +6875,21 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 out_destroy_fcp_wq:
 	for (--fcp_wqidx; fcp_wqidx >= 0; fcp_wqidx--)
 		lpfc_wq_destroy(phba, phba->sli4_hba.fcp_wq[fcp_wqidx]);
+out_destroy_els_wq:
 	lpfc_wq_destroy(phba, phba->sli4_hba.els_wq);
 out_destroy_mbx_wq:
 	lpfc_mq_destroy(phba, phba->sli4_hba.mbx_wq);
 out_destroy_fcp_cq:
 	for (--fcp_cqidx; fcp_cqidx >= 0; fcp_cqidx--)
 		lpfc_cq_destroy(phba, phba->sli4_hba.fcp_cq[fcp_cqidx]);
+out_destroy_els_cq:
 	lpfc_cq_destroy(phba, phba->sli4_hba.els_cq);
 out_destroy_mbx_cq:
 	lpfc_cq_destroy(phba, phba->sli4_hba.mbx_cq);
 out_destroy_fp_eq:
 	for (--fcp_eqidx; fcp_eqidx >= 0; fcp_eqidx--)
 		lpfc_eq_destroy(phba, phba->sli4_hba.fp_eq[fcp_eqidx]);
+out_destroy_sp_eq:
 	lpfc_eq_destroy(phba, phba->sli4_hba.sp_eq);
 out_error:
 	return rc;
@@ -6866,13 +6926,18 @@ lpfc_sli4_queue_unset(struct lpfc_hba *phba)
 	/* Unset ELS complete queue */
 	lpfc_cq_destroy(phba, phba->sli4_hba.els_cq);
 	/* Unset FCP response complete queue */
-	fcp_qidx = 0;
-	do {
-		lpfc_cq_destroy(phba, phba->sli4_hba.fcp_cq[fcp_qidx]);
-	} while (++fcp_qidx < phba->cfg_fcp_eq_count);
+	if (phba->sli4_hba.fcp_cq) {
+		fcp_qidx = 0;
+		do {
+			lpfc_cq_destroy(phba, phba->sli4_hba.fcp_cq[fcp_qidx]);
+		} while (++fcp_qidx < phba->cfg_fcp_eq_count);
+	}
 	/* Unset fast-path event queue */
-	for (fcp_qidx = 0; fcp_qidx < phba->cfg_fcp_eq_count; fcp_qidx++)
-		lpfc_eq_destroy(phba, phba->sli4_hba.fp_eq[fcp_qidx]);
+	if (phba->sli4_hba.fp_eq) {
+		for (fcp_qidx = 0; fcp_qidx < phba->cfg_fcp_eq_count;
+		     fcp_qidx++)
+			lpfc_eq_destroy(phba, phba->sli4_hba.fp_eq[fcp_qidx]);
+	}
 	/* Unset slow-path event queue */
 	lpfc_eq_destroy(phba, phba->sli4_hba.sp_eq);
 }
@@ -7411,22 +7476,25 @@ out:
 static void
 lpfc_sli4_pci_mem_unset(struct lpfc_hba *phba)
 {
-	struct pci_dev *pdev;
+	uint32_t if_type;
+	if_type = bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf);
 
-	/* Obtain PCI device reference */
-	if (!phba->pcidev)
-		return;
-	else
-		pdev = phba->pcidev;
-
-	/* Free coherent DMA memory allocated */
-
-	/* Unmap I/O memory space */
-	iounmap(phba->sli4_hba.drbl_regs_memmap_p);
-	iounmap(phba->sli4_hba.ctrl_regs_memmap_p);
-	iounmap(phba->sli4_hba.conf_regs_memmap_p);
-
-	return;
+	switch (if_type) {
+	case LPFC_SLI_INTF_IF_TYPE_0:
+		iounmap(phba->sli4_hba.drbl_regs_memmap_p);
+		iounmap(phba->sli4_hba.ctrl_regs_memmap_p);
+		iounmap(phba->sli4_hba.conf_regs_memmap_p);
+		break;
+	case LPFC_SLI_INTF_IF_TYPE_2:
+		iounmap(phba->sli4_hba.conf_regs_memmap_p);
+		break;
+	case LPFC_SLI_INTF_IF_TYPE_1:
+	default:
+		dev_printk(KERN_ERR, &phba->pcidev->dev,
+			   "FATAL - unsupported SLI4 interface type - %d\n",
+			   if_type);
+		break;
+	}
 }
 
 /**

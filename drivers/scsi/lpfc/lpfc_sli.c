@@ -89,9 +89,14 @@ lpfc_get_iocb_from_iocbq(struct lpfc_iocbq *iocbq)
 static uint32_t
 lpfc_sli4_wq_put(struct lpfc_queue *q, union lpfc_wqe *wqe)
 {
-	union lpfc_wqe *temp_wqe = q->qe[q->host_index].wqe;
+	union lpfc_wqe *temp_wqe;
 	struct lpfc_register doorbell;
 	uint32_t host_index;
+
+	/* sanity check on queue memory */
+	if (unlikely(!q))
+		return -ENOMEM;
+	temp_wqe = q->qe[q->host_index].wqe;
 
 	/* If the host has not yet processed the next entry then we are done */
 	if (((q->host_index + 1) % q->entry_count) == q->hba_index)
@@ -134,6 +139,10 @@ lpfc_sli4_wq_release(struct lpfc_queue *q, uint32_t index)
 {
 	uint32_t released = 0;
 
+	/* sanity check on queue memory */
+	if (unlikely(!q))
+		return 0;
+
 	if (q->hba_index == index)
 		return 0;
 	do {
@@ -158,9 +167,14 @@ lpfc_sli4_wq_release(struct lpfc_queue *q, uint32_t index)
 static uint32_t
 lpfc_sli4_mq_put(struct lpfc_queue *q, struct lpfc_mqe *mqe)
 {
-	struct lpfc_mqe *temp_mqe = q->qe[q->host_index].mqe;
+	struct lpfc_mqe *temp_mqe;
 	struct lpfc_register doorbell;
 	uint32_t host_index;
+
+	/* sanity check on queue memory */
+	if (unlikely(!q))
+		return -ENOMEM;
+	temp_mqe = q->qe[q->host_index].mqe;
 
 	/* If the host has not yet processed the next entry then we are done */
 	if (((q->host_index + 1) % q->entry_count) == q->hba_index)
@@ -195,6 +209,10 @@ lpfc_sli4_mq_put(struct lpfc_queue *q, struct lpfc_mqe *mqe)
 static uint32_t
 lpfc_sli4_mq_release(struct lpfc_queue *q)
 {
+	/* sanity check on queue memory */
+	if (unlikely(!q))
+		return 0;
+
 	/* Clear the mailbox pointer for completion */
 	q->phba->mbox = NULL;
 	q->hba_index = ((q->hba_index + 1) % q->entry_count);
@@ -213,7 +231,12 @@ lpfc_sli4_mq_release(struct lpfc_queue *q)
 static struct lpfc_eqe *
 lpfc_sli4_eq_get(struct lpfc_queue *q)
 {
-	struct lpfc_eqe *eqe = q->qe[q->hba_index].eqe;
+	struct lpfc_eqe *eqe;
+
+	/* sanity check on queue memory */
+	if (unlikely(!q))
+		return NULL;
+	eqe = q->qe[q->hba_index].eqe;
 
 	/* If the next EQE is not valid then we are done */
 	if (!bf_get_le32(lpfc_eqe_valid, eqe))
@@ -247,6 +270,10 @@ lpfc_sli4_eq_release(struct lpfc_queue *q, bool arm)
 	uint32_t released = 0;
 	struct lpfc_eqe *temp_eqe;
 	struct lpfc_register doorbell;
+
+	/* sanity check on queue memory */
+	if (unlikely(!q))
+		return 0;
 
 	/* while there are valid entries */
 	while (q->hba_index != q->host_index) {
@@ -288,6 +315,10 @@ lpfc_sli4_cq_get(struct lpfc_queue *q)
 {
 	struct lpfc_cqe *cqe;
 
+	/* sanity check on queue memory */
+	if (unlikely(!q))
+		return NULL;
+
 	/* If the next CQE is not valid then we are done */
 	if (!bf_get_le32(lpfc_cqe_valid, q->qe[q->hba_index].cqe))
 		return NULL;
@@ -322,6 +353,9 @@ lpfc_sli4_cq_release(struct lpfc_queue *q, bool arm)
 	struct lpfc_cqe *temp_qe;
 	struct lpfc_register doorbell;
 
+	/* sanity check on queue memory */
+	if (unlikely(!q))
+		return 0;
 	/* while there are valid entries */
 	while (q->hba_index != q->host_index) {
 		temp_qe = q->qe[q->host_index].cqe;
@@ -359,10 +393,16 @@ static int
 lpfc_sli4_rq_put(struct lpfc_queue *hq, struct lpfc_queue *dq,
 		 struct lpfc_rqe *hrqe, struct lpfc_rqe *drqe)
 {
-	struct lpfc_rqe *temp_hrqe = hq->qe[hq->host_index].rqe;
-	struct lpfc_rqe *temp_drqe = dq->qe[dq->host_index].rqe;
+	struct lpfc_rqe *temp_hrqe;
+	struct lpfc_rqe *temp_drqe;
 	struct lpfc_register doorbell;
 	int put_index = hq->host_index;
+
+	/* sanity check on queue memory */
+	if (unlikely(!hq) || unlikely(!dq))
+		return -ENOMEM;
+	temp_hrqe = hq->qe[hq->host_index].rqe;
+	temp_drqe = dq->qe[dq->host_index].rqe;
 
 	if (hq->type != LPFC_HRQ || dq->type != LPFC_DRQ)
 		return -EINVAL;
@@ -402,6 +442,10 @@ lpfc_sli4_rq_put(struct lpfc_queue *hq, struct lpfc_queue *dq,
 static uint32_t
 lpfc_sli4_rq_release(struct lpfc_queue *hq, struct lpfc_queue *dq)
 {
+	/* sanity check on queue memory */
+	if (unlikely(!hq) || unlikely(!dq))
+		return 0;
+
 	if ((hq->type != LPFC_HRQ) || (dq->type != LPFC_DRQ))
 		return 0;
 	hq->hba_index = ((hq->hba_index + 1) % hq->entry_count);
@@ -3851,7 +3895,6 @@ lpfc_sli4_brdreset(struct lpfc_hba *phba)
 {
 	struct lpfc_sli *psli = &phba->sli;
 	uint16_t cfg_value;
-	uint8_t qindx;
 
 	/* Reset HBA */
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
@@ -3867,19 +3910,6 @@ lpfc_sli4_brdreset(struct lpfc_hba *phba)
 	spin_lock_irq(&phba->hbalock);
 	psli->sli_flag &= ~(LPFC_PROCESS_LA);
 	phba->fcf.fcf_flag = 0;
-	/* Clean up the child queue list for the CQs */
-	list_del_init(&phba->sli4_hba.mbx_wq->list);
-	list_del_init(&phba->sli4_hba.els_wq->list);
-	list_del_init(&phba->sli4_hba.hdr_rq->list);
-	list_del_init(&phba->sli4_hba.dat_rq->list);
-	list_del_init(&phba->sli4_hba.mbx_cq->list);
-	list_del_init(&phba->sli4_hba.els_cq->list);
-	for (qindx = 0; qindx < phba->cfg_fcp_wq_count; qindx++)
-		list_del_init(&phba->sli4_hba.fcp_wq[qindx]->list);
-	qindx = 0;
-	do
-		list_del_init(&phba->sli4_hba.fcp_cq[qindx]->list);
-	while (++qindx < phba->cfg_fcp_eq_count);
 	spin_unlock_irq(&phba->hbalock);
 
 	/* Now physically reset the device */
@@ -3892,6 +3922,7 @@ lpfc_sli4_brdreset(struct lpfc_hba *phba)
 			      ~(PCI_COMMAND_PARITY | PCI_COMMAND_SERR)));
 
 	/* Perform FCoE PCI function reset */
+	lpfc_sli4_queue_destroy(phba);
 	lpfc_pci_function_reset(phba);
 
 	/* Restore PCI cmd register */
@@ -4869,14 +4900,19 @@ lpfc_sli4_arm_cqeq_intr(struct lpfc_hba *phba)
 	lpfc_sli4_cq_release(phba->sli4_hba.mbx_cq, LPFC_QUEUE_REARM);
 	lpfc_sli4_cq_release(phba->sli4_hba.els_cq, LPFC_QUEUE_REARM);
 	fcp_eqidx = 0;
-	do
-		lpfc_sli4_cq_release(phba->sli4_hba.fcp_cq[fcp_eqidx],
-				     LPFC_QUEUE_REARM);
-	while (++fcp_eqidx < phba->cfg_fcp_eq_count);
+	if (phba->sli4_hba.fcp_cq) {
+		do
+			lpfc_sli4_cq_release(phba->sli4_hba.fcp_cq[fcp_eqidx],
+					     LPFC_QUEUE_REARM);
+		while (++fcp_eqidx < phba->cfg_fcp_eq_count);
+	}
 	lpfc_sli4_eq_release(phba->sli4_hba.sp_eq, LPFC_QUEUE_REARM);
-	for (fcp_eqidx = 0; fcp_eqidx < phba->cfg_fcp_eq_count; fcp_eqidx++)
-		lpfc_sli4_eq_release(phba->sli4_hba.fp_eq[fcp_eqidx],
-				     LPFC_QUEUE_REARM);
+	if (phba->sli4_hba.fp_eq) {
+		for (fcp_eqidx = 0; fcp_eqidx < phba->cfg_fcp_eq_count;
+		     fcp_eqidx++)
+			lpfc_sli4_eq_release(phba->sli4_hba.fp_eq[fcp_eqidx],
+					     LPFC_QUEUE_REARM);
+	}
 }
 
 /**
@@ -8083,6 +8119,8 @@ __lpfc_sli_issue_iocb_s4(struct lpfc_hba *phba, uint32_t ring_number,
 		 */
 		if (piocb->iocb_flag & LPFC_IO_FCP)
 			piocb->fcp_wqidx = lpfc_sli4_scmd_to_wqidx_distr(phba);
+		if (unlikely(!phba->sli4_hba.fcp_wq))
+			return IOCB_ERROR;
 		if (lpfc_sli4_wq_put(phba->sli4_hba.fcp_wq[piocb->fcp_wqidx],
 				     &wqe))
 			return IOCB_ERROR;
@@ -9900,7 +9938,7 @@ lpfc_sli4_eratt_read(struct lpfc_hba *phba)
 			phba->work_status[1] =
 				readl(phba->sli4_hba.u.if_type2.ERR2regaddr);
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"2885 Port Error Detected: "
+					"2885 Port Status Event: "
 					"port status reg 0x%x, "
 					"port smphr reg 0x%x, "
 					"error 1=0x%x, error 2=0x%x\n",
@@ -10906,6 +10944,9 @@ static void
 lpfc_sli4_sp_handle_rel_wcqe(struct lpfc_hba *phba,
 			     struct lpfc_wcqe_release *wcqe)
 {
+	/* sanity check on queue memory */
+	if (unlikely(!phba->sli4_hba.els_wq))
+		return;
 	/* Check for the slow-path ELS work queue */
 	if (bf_get(lpfc_wcqe_r_wq_id, wcqe) == phba->sli4_hba.els_wq->queue_id)
 		lpfc_sli4_wq_release(phba->sli4_hba.els_wq,
@@ -10994,6 +11035,10 @@ lpfc_sli4_sp_handle_rcqe(struct lpfc_hba *phba, struct lpfc_rcqe *rcqe)
 	struct hbq_dmabuf *dma_buf;
 	uint32_t status, rq_id;
 	unsigned long iflags;
+
+	/* sanity check on queue memory */
+	if (unlikely(!hrq) || unlikely(!drq))
+		return workposted;
 
 	if (bf_get(lpfc_cqe_code, rcqe) == CQE_CODE_RECEIVE_V1)
 		rq_id = bf_get(lpfc_rcqe_rq_id_v1, rcqe);
@@ -11129,6 +11174,9 @@ lpfc_sli4_sp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe)
 
 	/* Search for completion queue pointer matching this cqid */
 	speq = phba->sli4_hba.sp_eq;
+	/* sanity check on queue memory */
+	if (unlikely(!speq))
+		return;
 	list_for_each_entry(childq, &speq->child_list, list) {
 		if (childq->queue_id == cqid) {
 			cq = childq;
@@ -11370,12 +11418,18 @@ lpfc_sli4_fp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
 		return;
 	}
 
+	if (unlikely(!phba->sli4_hba.fcp_cq)) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
+				"3146 Fast-path completion queues "
+				"does not exist\n");
+		return;
+	}
 	cq = phba->sli4_hba.fcp_cq[fcp_cqidx];
 	if (unlikely(!cq)) {
 		if (phba->sli.sli_flag & LPFC_SLI_ACTIVE)
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 					"0367 Fast-path completion queue "
-					"does not exist\n");
+					"(%d) does not exist\n", fcp_cqidx);
 		return;
 	}
 
@@ -11546,6 +11600,8 @@ lpfc_sli4_fp_intr_handler(int irq, void *dev_id)
 
 	/* Get to the EQ struct associated with this vector */
 	fpeq = phba->sli4_hba.fp_eq[fcp_eqidx];
+	if (unlikely(!fpeq))
+		return IRQ_NONE;
 
 	/* Check device state for handling interrupt */
 	if (unlikely(lpfc_intr_state_check(phba))) {
@@ -11764,6 +11820,9 @@ lpfc_eq_create(struct lpfc_hba *phba, struct lpfc_queue *eq, uint16_t imax)
 	uint16_t dmult;
 	uint32_t hw_page_size = phba->sli4_hba.pc_sli4_params.if_page_sz;
 
+	/* sanity check on queue memory */
+	if (!eq)
+		return -ENODEV;
 	if (!phba->sli4_hba.pc_sli4_params.supported)
 		hw_page_size = SLI4_PAGE_SIZE;
 
@@ -11880,6 +11939,9 @@ lpfc_cq_create(struct lpfc_hba *phba, struct lpfc_queue *cq,
 	union lpfc_sli4_cfg_shdr *shdr;
 	uint32_t hw_page_size = phba->sli4_hba.pc_sli4_params.if_page_sz;
 
+	/* sanity check on queue memory */
+	if (!cq || !eq)
+		return -ENODEV;
 	if (!phba->sli4_hba.pc_sli4_params.supported)
 		hw_page_size = SLI4_PAGE_SIZE;
 
@@ -12062,6 +12124,9 @@ lpfc_mq_create(struct lpfc_hba *phba, struct lpfc_queue *mq,
 	union lpfc_sli4_cfg_shdr *shdr;
 	uint32_t hw_page_size = phba->sli4_hba.pc_sli4_params.if_page_sz;
 
+	/* sanity check on queue memory */
+	if (!mq || !cq)
+		return -ENODEV;
 	if (!phba->sli4_hba.pc_sli4_params.supported)
 		hw_page_size = SLI4_PAGE_SIZE;
 
@@ -12212,6 +12277,9 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 	uint32_t hw_page_size = phba->sli4_hba.pc_sli4_params.if_page_sz;
 	struct dma_address *page;
 
+	/* sanity check on queue memory */
+	if (!wq || !cq)
+		return -ENODEV;
 	if (!phba->sli4_hba.pc_sli4_params.supported)
 		hw_page_size = SLI4_PAGE_SIZE;
 
@@ -12304,6 +12372,9 @@ lpfc_rq_adjust_repost(struct lpfc_hba *phba, struct lpfc_queue *rq, int qno)
 {
 	uint32_t cnt;
 
+	/* sanity check on queue memory */
+	if (!rq)
+		return;
 	cnt = lpfc_hbq_defs[qno]->entry_count;
 
 	/* Recalc repost for RQs based on buffers initially posted */
@@ -12349,6 +12420,9 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 	union lpfc_sli4_cfg_shdr *shdr;
 	uint32_t hw_page_size = phba->sli4_hba.pc_sli4_params.if_page_sz;
 
+	/* sanity check on queue memory */
+	if (!hrq || !drq || !cq)
+		return -ENODEV;
 	if (!phba->sli4_hba.pc_sli4_params.supported)
 		hw_page_size = SLI4_PAGE_SIZE;
 
@@ -12550,6 +12624,7 @@ lpfc_eq_destroy(struct lpfc_hba *phba, struct lpfc_queue *eq)
 	uint32_t shdr_status, shdr_add_status;
 	union lpfc_sli4_cfg_shdr *shdr;
 
+	/* sanity check on queue memory */
 	if (!eq)
 		return -ENODEV;
 	mbox = mempool_alloc(eq->phba->mbox_mem_pool, GFP_KERNEL);
@@ -12605,6 +12680,7 @@ lpfc_cq_destroy(struct lpfc_hba *phba, struct lpfc_queue *cq)
 	uint32_t shdr_status, shdr_add_status;
 	union lpfc_sli4_cfg_shdr *shdr;
 
+	/* sanity check on queue memory */
 	if (!cq)
 		return -ENODEV;
 	mbox = mempool_alloc(cq->phba->mbox_mem_pool, GFP_KERNEL);
@@ -12658,6 +12734,7 @@ lpfc_mq_destroy(struct lpfc_hba *phba, struct lpfc_queue *mq)
 	uint32_t shdr_status, shdr_add_status;
 	union lpfc_sli4_cfg_shdr *shdr;
 
+	/* sanity check on queue memory */
 	if (!mq)
 		return -ENODEV;
 	mbox = mempool_alloc(mq->phba->mbox_mem_pool, GFP_KERNEL);
@@ -12711,6 +12788,7 @@ lpfc_wq_destroy(struct lpfc_hba *phba, struct lpfc_queue *wq)
 	uint32_t shdr_status, shdr_add_status;
 	union lpfc_sli4_cfg_shdr *shdr;
 
+	/* sanity check on queue memory */
 	if (!wq)
 		return -ENODEV;
 	mbox = mempool_alloc(wq->phba->mbox_mem_pool, GFP_KERNEL);
@@ -12764,6 +12842,7 @@ lpfc_rq_destroy(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 	uint32_t shdr_status, shdr_add_status;
 	union lpfc_sli4_cfg_shdr *shdr;
 
+	/* sanity check on queue memory */
 	if (!hrq || !drq)
 		return -ENODEV;
 	mbox = mempool_alloc(hrq->phba->mbox_mem_pool, GFP_KERNEL);
