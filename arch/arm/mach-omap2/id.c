@@ -393,8 +393,11 @@ static void __init omap4_check_revision(void)
 			omap_revision = OMAP4430_REV_ES2_1;
 			break;
 		case 4:
-		default:
 			omap_revision = OMAP4430_REV_ES2_2;
+			break;
+		case 6:
+		default:
+			omap_revision = OMAP4430_REV_ES2_3;
 		}
 		break;
 	case 0xb94e:
@@ -407,7 +410,7 @@ static void __init omap4_check_revision(void)
 		break;
 	default:
 		/* Unknown default to latest silicon rev as default */
-		omap_revision = OMAP4430_REV_ES2_2;
+		omap_revision = OMAP4430_REV_ES2_3;
 	}
 
 	pr_info("OMAP%04x ES%d.%d\n", omap_rev() >> 16,
