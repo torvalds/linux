@@ -339,7 +339,7 @@ static irqreturn_t ioh_gpio_handler(int irq, void *dev_id)
 	int i, j;
 	int ret = IRQ_NONE;
 
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < 8; i++, chip++) {
 		reg_val = ioread32(&chip->reg->regs[i].istatus);
 		for (j = 0; j < num_ports[i]; j++) {
 			if (reg_val & BIT(j)) {
