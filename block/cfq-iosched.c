@@ -472,22 +472,9 @@ static inline void cic_set_cfqq(struct cfq_io_context *cic,
 	cic->cfqq[is_sync] = cfqq;
 }
 
-#define CIC_DEAD_KEY	1ul
-#define CIC_DEAD_INDEX_SHIFT	1
-
-static inline void *cfqd_dead_key(struct cfq_data *cfqd)
-{
-	return (void *)(cfqd->queue->id << CIC_DEAD_INDEX_SHIFT | CIC_DEAD_KEY);
-}
-
 static inline struct cfq_data *cic_to_cfqd(struct cfq_io_context *cic)
 {
-	struct cfq_data *cfqd = cic->key;
-
-	if (unlikely((unsigned long) cfqd & CIC_DEAD_KEY))
-		return NULL;
-
-	return cfqd;
+	return cic->q->elevator->elevator_data;
 }
 
 /*
@@ -2679,10 +2666,8 @@ static void cfq_cic_free(struct cfq_io_context *cic)
 static void cfq_release_cic(struct cfq_io_context *cic)
 {
 	struct io_context *ioc = cic->ioc;
-	unsigned long dead_key = (unsigned long) cic->key;
 
-	BUG_ON(!(dead_key & CIC_DEAD_KEY));
-	radix_tree_delete(&ioc->radix_root, dead_key >> CIC_DEAD_INDEX_SHIFT);
+	radix_tree_delete(&ioc->radix_root, cic->q->id);
 	hlist_del(&cic->cic_list);
 	cfq_cic_free(cic);
 }
@@ -2726,7 +2711,6 @@ static void cfq_exit_cic(struct cfq_io_context *cic)
 	struct io_context *ioc = cic->ioc;
 
 	list_del_init(&cic->queue_list);
-	cic->key = cfqd_dead_key(cfqd);
 
 	/*
 	 * Both setting lookup hint to and clearing it from @cic are done
@@ -2982,6 +2966,7 @@ cfq_get_queue(struct cfq_data *cfqd, bool is_sync, struct io_context *ioc,
 static struct cfq_io_context *
 cfq_cic_lookup(struct cfq_data *cfqd, struct io_context *ioc)
 {
+	struct request_queue *q = cfqd->queue;
 	struct cfq_io_context *cic;
 
 	lockdep_assert_held(cfqd->queue->queue_lock);
@@ -2996,11 +2981,11 @@ cfq_cic_lookup(struct cfq_data *cfqd, struct io_context *ioc)
 	 */
 	rcu_read_lock();
 	cic = rcu_dereference(ioc->ioc_data);
-	if (cic && cic->key == cfqd)
+	if (cic && cic->q == q)
 		goto out;
 
 	cic = radix_tree_lookup(&ioc->radix_root, cfqd->queue->id);
-	if (cic && cic->key == cfqd)
+	if (cic && cic->q == q)
 		rcu_assign_pointer(ioc->ioc_data, cic);	/* allowed to race */
 	else
 		cic = NULL;
@@ -3040,7 +3025,6 @@ static int cfq_create_cic(struct cfq_data *cfqd, gfp_t gfp_mask)
 		goto out;
 
 	cic->ioc = ioc;
-	cic->key = cfqd;
 	cic->q = cfqd->queue;
 
 	/* lock both q and ioc and try to link @cic */
