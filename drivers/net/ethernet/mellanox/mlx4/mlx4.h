@@ -50,8 +50,8 @@
 
 #define DRV_NAME	"mlx4_core"
 #define PFX		DRV_NAME ": "
-#define DRV_VERSION	"1.0"
-#define DRV_RELDATE	"July 14, 2011"
+#define DRV_VERSION	"1.1"
+#define DRV_RELDATE	"Dec, 2011"
 
 enum {
 	MLX4_HCR_BASE		= 0x80680,
