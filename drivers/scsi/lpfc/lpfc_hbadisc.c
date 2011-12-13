@@ -2858,7 +2858,6 @@ lpfc_mbx_cmpl_reg_vfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	if (vport->port_state == LPFC_FABRIC_CFG_LINK) {
 		/* For private loop just start discovery and we are done. */
 		if ((phba->fc_topology == LPFC_TOPOLOGY_LOOP) &&
-		    (phba->alpa_map[0] == 0) &&
 		    !(vport->fc_flag & FC_PUBLIC_LOOP)) {
 			/* Use loop map to make discovery list */
 			lpfc_disc_list_loopmap(vport);

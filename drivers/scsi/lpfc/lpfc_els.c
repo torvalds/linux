@@ -909,15 +909,15 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		 */
 		if (phba->alpa_map[0] == 0) {
 			vport->cfg_discovery_threads = LPFC_MAX_DISC_THREADS;
-			if ((phba->sli_rev == LPFC_SLI_REV4) &&
-			    (!(vport->fc_flag & FC_VFI_REGISTERED) ||
-			     (vport->fc_prevDID != vport->fc_myDID))) {
-				if (vport->fc_flag & FC_VFI_REGISTERED)
-					lpfc_sli4_unreg_all_rpis(vport);
-				lpfc_issue_reg_vfi(vport);
-				lpfc_nlp_put(ndlp);
-				goto out;
-			}
+		}
+		if ((phba->sli_rev == LPFC_SLI_REV4) &&
+		    (!(vport->fc_flag & FC_VFI_REGISTERED) ||
+		     (vport->fc_prevDID != vport->fc_myDID))) {
+			if (vport->fc_flag & FC_VFI_REGISTERED)
+				lpfc_sli4_unreg_all_rpis(vport);
+			lpfc_issue_reg_vfi(vport);
+			lpfc_nlp_put(ndlp);
+			goto out;
 		}
 		goto flogifail;
 	}

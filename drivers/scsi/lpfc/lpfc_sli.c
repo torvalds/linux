@@ -97,7 +97,7 @@ lpfc_sli4_wq_put(struct lpfc_queue *q, union lpfc_wqe *wqe)
 	if (((q->host_index + 1) % q->entry_count) == q->hba_index)
 		return -ENOMEM;
 	/* set consumption flag every once in a while */
-	if (!((q->host_index + 1) % LPFC_RELEASE_NOTIFICATION_INTERVAL))
+	if (!((q->host_index + 1) % q->entry_repost))
 		bf_set(wqe_wqec, &wqe->generic.wqe_com, 1);
 	if (q->phba->sli3_options & LPFC_SLI4_PHWQ_ENABLED)
 		bf_set(wqe_wqid, &wqe->generic.wqe_com, q->queue_id);
@@ -4551,9 +4551,9 @@ lpfc_sli_hba_setup_error:
  * data structure.
  **/
 static int
-lpfc_sli4_read_fcoe_params(struct lpfc_hba *phba,
-		LPFC_MBOXQ_t *mboxq)
+lpfc_sli4_read_fcoe_params(struct lpfc_hba *phba)
 {
+	LPFC_MBOXQ_t *mboxq;
 	struct lpfc_dmabuf *mp;
 	struct lpfc_mqe *mqe;
 	uint32_t data_length;
@@ -4565,9 +4565,15 @@ lpfc_sli4_read_fcoe_params(struct lpfc_hba *phba,
 	phba->fc_map[1] = LPFC_FCOE_FCF_MAP1;
 	phba->fc_map[2] = LPFC_FCOE_FCF_MAP2;
 
-	mqe = &mboxq->u.mqe;
-	if (lpfc_sli4_dump_cfg_rg23(phba, mboxq))
+	mboxq = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mboxq)
 		return -ENOMEM;
+
+	mqe = &mboxq->u.mqe;
+	if (lpfc_sli4_dump_cfg_rg23(phba, mboxq)) {
+		rc = -ENOMEM;
+		goto out_free_mboxq;
+	}
 
 	mp = (struct lpfc_dmabuf *) mboxq->context1;
 	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
@@ -4596,19 +4602,25 @@ lpfc_sli4_read_fcoe_params(struct lpfc_hba *phba,
 	if (rc) {
 		lpfc_mbuf_free(phba, mp->virt, mp->phys);
 		kfree(mp);
-		return -EIO;
+		rc = -EIO;
+		goto out_free_mboxq;
 	}
 	data_length = mqe->un.mb_words[5];
 	if (data_length > DMP_RGN23_SIZE) {
 		lpfc_mbuf_free(phba, mp->virt, mp->phys);
 		kfree(mp);
-		return -EIO;
+		rc = -EIO;
+		goto out_free_mboxq;
 	}
 
 	lpfc_parse_fcoe_conf(phba, mp->virt, data_length);
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 	kfree(mp);
-	return 0;
+	rc = 0;
+
+out_free_mboxq:
+	mempool_free(mboxq, phba->mbox_mem_pool);
+	return rc;
 }
 
 /**
@@ -4706,7 +4718,6 @@ static int
 lpfc_sli4_retrieve_pport_name(struct lpfc_hba *phba)
 {
 	LPFC_MBOXQ_t *mboxq;
-	struct lpfc_mbx_read_config *rd_config;
 	struct lpfc_mbx_get_cntl_attributes *mbx_cntl_attr;
 	struct lpfc_controller_attribute *cntl_attr;
 	struct lpfc_mbx_get_port_name *get_port_name;
@@ -4724,33 +4735,11 @@ lpfc_sli4_retrieve_pport_name(struct lpfc_hba *phba)
 	mboxq = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mboxq)
 		return -ENOMEM;
-
 	/* obtain link type and link number via READ_CONFIG */
-	lpfc_read_config(phba, mboxq);
-	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
-	if (rc == MBX_SUCCESS) {
-		rd_config = &mboxq->u.mqe.un.rd_config;
-		if (bf_get(lpfc_mbx_rd_conf_lnk_ldv, rd_config)) {
-			phba->sli4_hba.lnk_info.lnk_dv = LPFC_LNK_DAT_VAL;
-			phba->sli4_hba.lnk_info.lnk_tp =
-				bf_get(lpfc_mbx_rd_conf_lnk_type, rd_config);
-			phba->sli4_hba.lnk_info.lnk_no =
-				bf_get(lpfc_mbx_rd_conf_lnk_numb, rd_config);
-			lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
-					"3081 lnk_type:%d, lnk_numb:%d\n",
-					phba->sli4_hba.lnk_info.lnk_tp,
-					phba->sli4_hba.lnk_info.lnk_no);
-			goto retrieve_ppname;
-		} else
-			lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
-					"3082 Mailbox (x%x) returned ldv:x0\n",
-					bf_get(lpfc_mqe_command,
-					       &mboxq->u.mqe));
-	} else
-		lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
-				"3083 Mailbox (x%x) failed, status:x%x\n",
-				bf_get(lpfc_mqe_command, &mboxq->u.mqe),
-				bf_get(lpfc_mqe_status, &mboxq->u.mqe));
+	phba->sli4_hba.lnk_info.lnk_dv = LPFC_LNK_DAT_INVAL;
+	lpfc_sli4_read_config(phba);
+	if (phba->sli4_hba.lnk_info.lnk_dv == LPFC_LNK_DAT_VAL)
+		goto retrieve_ppname;
 
 	/* obtain link type and link number via COMMON_GET_CNTL_ATTRIBUTES */
 	reqlen = sizeof(struct lpfc_mbx_get_cntl_attributes);
@@ -5457,6 +5446,8 @@ lpfc_sli4_alloc_resource_identifiers(struct lpfc_hba *phba)
 	uint16_t count, base;
 	unsigned long longs;
 
+	if (!phba->sli4_hba.rpi_hdrs_in_use)
+		phba->sli4_hba.next_rpi = phba->sli4_hba.max_cfg_param.max_rpi;
 	if (phba->sli4_hba.extents_in_use) {
 		/*
 		 * The port supports resource extents. The XRI, VPI, VFI, RPI
@@ -5538,9 +5529,10 @@ lpfc_sli4_alloc_resource_identifiers(struct lpfc_hba *phba)
 		 * need any action - just exit.
 		 */
 		if (bf_get(lpfc_idx_rsrc_rdy, &phba->sli4_hba.sli4_flags) ==
-		    LPFC_IDX_RSRC_RDY)
-			return 0;
-
+		    LPFC_IDX_RSRC_RDY) {
+			lpfc_sli4_dealloc_resource_identifiers(phba);
+			lpfc_sli4_remove_rpis(phba);
+		}
 		/* RPIs. */
 		count = phba->sli4_hba.max_cfg_param.max_rpi;
 		base = phba->sli4_hba.max_cfg_param.rpi_base;
@@ -5880,14 +5872,6 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	if (!mboxq)
 		return -ENOMEM;
 
-	/*
-	 * Continue initialization with default values even if driver failed
-	 * to read FCoE param config regions
-	 */
-	if (lpfc_sli4_read_fcoe_params(phba, mboxq))
-		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX | LOG_INIT,
-			"2570 Failed to read FCoE parameters\n");
-
 	/* Issue READ_REV to collect vpd and FW information. */
 	vpd_size = SLI4_PAGE_SIZE;
 	vpd = kzalloc(vpd_size, GFP_KERNEL);
@@ -5923,6 +5907,16 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		kfree(vpd);
 		goto out_free_mbox;
 	}
+
+	/*
+	 * Continue initialization with default values even if driver failed
+	 * to read FCoE param config regions, only read parameters if the
+	 * board is FCoE
+	 */
+	if (phba->hba_flag & HBA_FCOE_MODE &&
+	    lpfc_sli4_read_fcoe_params(phba))
+		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX | LOG_INIT,
+			"2570 Failed to read FCoE parameters\n");
 
 	/*
 	 * Retrieve sli4 device physical port name, failure of doing it
@@ -6044,6 +6038,8 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 				"rc = x%x\n", rc);
 		goto out_free_mbox;
 	}
+	/* update physical xri mappings in the scsi buffers */
+	lpfc_scsi_buf_update(phba);
 
 	/* Read the port's service parameters. */
 	rc = lpfc_read_sparam(phba, mboxq, vport->vpi);
@@ -7632,6 +7628,7 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 	int numBdes, i;
 	struct ulp_bde64 bde;
 	struct lpfc_nodelist *ndlp;
+	uint32_t *pcmd;
 
 	fip = phba->hba_flag & HBA_FIP_SUPPORT;
 	/* The fcp commands will set command type */
@@ -7685,6 +7682,7 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 				iocbq->iocb.ulpCommand);
 			return IOCB_ERROR;
 		}
+
 		wqe->els_req.payload_len = xmit_len;
 		/* Els_reguest64 has a TMO */
 		bf_set(wqe_tmo, &wqe->els_req.wqe_com,
@@ -7699,9 +7697,25 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		bf_set(wqe_ct, &wqe->els_req.wqe_com, ct);
 		bf_set(wqe_pu, &wqe->els_req.wqe_com, 0);
 		/* CCP CCPE PV PRI in word10 were set in the memcpy */
-		if (command_type == ELS_COMMAND_FIP) {
+		if (command_type == ELS_COMMAND_FIP)
 			els_id = ((iocbq->iocb_flag & LPFC_FIP_ELS_ID_MASK)
 					>> LPFC_FIP_ELS_ID_SHIFT);
+		pcmd = (uint32_t *) (((struct lpfc_dmabuf *)
+					iocbq->context2)->virt);
+		if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
+			if (pcmd && (*pcmd == ELS_CMD_FLOGI ||
+				*pcmd == ELS_CMD_PLOGI)) {
+				bf_set(els_req64_sp, &wqe->els_req, 1);
+				bf_set(els_req64_sid, &wqe->els_req,
+					iocbq->vport->fc_myDID);
+				bf_set(wqe_ct, &wqe->els_req.wqe_com, 1);
+				bf_set(wqe_ctxt_tag, &wqe->els_req.wqe_com,
+					phba->vpi_ids[phba->pport->vpi]);
+			} else if (iocbq->context1) {
+				bf_set(wqe_ct, &wqe->els_req.wqe_com, 0);
+				bf_set(wqe_ctxt_tag, &wqe->els_req.wqe_com,
+					phba->sli4_hba.rpi_ids[ndlp->nlp_rpi]);
+			}
 		}
 		bf_set(wqe_temp_rpi, &wqe->els_req.wqe_com,
 		       phba->sli4_hba.rpi_ids[ndlp->nlp_rpi]);
@@ -7862,6 +7876,16 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		bf_set(wqe_ebde_cnt, &wqe->xmit_els_rsp.wqe_com, 0);
 		bf_set(wqe_rsp_temp_rpi, &wqe->xmit_els_rsp,
 		       phba->sli4_hba.rpi_ids[ndlp->nlp_rpi]);
+		pcmd = (uint32_t *) (((struct lpfc_dmabuf *)
+					iocbq->context2)->virt);
+		if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
+				bf_set(els_req64_sp, &wqe->els_req, 1);
+				bf_set(els_req64_sid, &wqe->els_req,
+					iocbq->vport->fc_myDID);
+				bf_set(wqe_ct, &wqe->els_req.wqe_com, 1);
+				bf_set(wqe_ctxt_tag, &wqe->els_req.wqe_com,
+					phba->vpi_ids[phba->pport->vpi]);
+		}
 		command_type = OTHER_COMMAND;
 		break;
 	case CMD_CLOSE_XRI_CN:
@@ -8839,12 +8863,14 @@ lpfc_sli_abort_els_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 {
 	IOCB_t *irsp = &rspiocb->iocb;
 	uint16_t abort_iotag, abort_context;
-	struct lpfc_iocbq *abort_iocb;
-	struct lpfc_sli_ring *pring = &phba->sli.ring[LPFC_ELS_RING];
-
-	abort_iocb = NULL;
+	struct lpfc_iocbq *abort_iocb = NULL;
 
 	if (irsp->ulpStatus) {
+
+		/*
+		 * Assume that the port already completed and returned, or
+		 * will return the iocb. Just Log the message.
+		 */
 		abort_context = cmdiocb->iocb.un.acxri.abortContextTag;
 		abort_iotag = cmdiocb->iocb.un.acxri.abortIoTag;
 
@@ -8862,68 +8888,15 @@ lpfc_sli_abort_els_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			 */
 			abort_iocb = phba->sli.iocbq_lookup[abort_context];
 
-		/*
-		 *  If the iocb is not found in Firmware queue the iocb
-		 *  might have completed already. Do not free it again.
-		 */
-		if (irsp->ulpStatus == IOSTAT_LOCAL_REJECT) {
-			if (irsp->un.ulpWord[4] != IOERR_NO_XRI) {
-				spin_unlock_irq(&phba->hbalock);
-				lpfc_sli_release_iocbq(phba, cmdiocb);
-				return;
-			}
-			/* For SLI4 the ulpContext field for abort IOCB
-			 * holds the iotag of the IOCB being aborted so
-			 * the local abort_context needs to be reset to
-			 * match the aborted IOCBs ulpContext.
-			 */
-			if (abort_iocb && phba->sli_rev == LPFC_SLI_REV4)
-				abort_context = abort_iocb->iocb.ulpContext;
-		}
-
 		lpfc_printf_log(phba, KERN_WARNING, LOG_ELS | LOG_SLI,
 				"0327 Cannot abort els iocb %p "
 				"with tag %x context %x, abort status %x, "
 				"abort code %x\n",
 				abort_iocb, abort_iotag, abort_context,
 				irsp->ulpStatus, irsp->un.ulpWord[4]);
-		/*
-		 * make sure we have the right iocbq before taking it
-		 * off the txcmplq and try to call completion routine.
-		 */
-		if (!abort_iocb ||
-		    abort_iocb->iocb.ulpContext != abort_context ||
-		    (abort_iocb->iocb_flag & LPFC_DRIVER_ABORTED) == 0)
-			spin_unlock_irq(&phba->hbalock);
-		else if (phba->sli_rev < LPFC_SLI_REV4) {
-			/*
-			 * leave the SLI4 aborted command on the txcmplq
-			 * list and the command complete WCQE's XB bit
-			 * will tell whether the SGL (XRI) can be released
-			 * immediately or to the aborted SGL list for the
-			 * following abort XRI from the HBA.
-			 */
-			list_del_init(&abort_iocb->list);
-			if (abort_iocb->iocb_flag & LPFC_IO_ON_Q) {
-				abort_iocb->iocb_flag &= ~LPFC_IO_ON_Q;
-				pring->txcmplq_cnt--;
-			}
 
-			/* Firmware could still be in progress of DMAing
-			 * payload, so don't free data buffer till after
-			 * a hbeat.
-			 */
-			abort_iocb->iocb_flag |= LPFC_DELAY_MEM_FREE;
-			abort_iocb->iocb_flag &= ~LPFC_DRIVER_ABORTED;
-			spin_unlock_irq(&phba->hbalock);
-
-			abort_iocb->iocb.ulpStatus = IOSTAT_LOCAL_REJECT;
-			abort_iocb->iocb.un.ulpWord[4] = IOERR_ABORT_REQUESTED;
-			(abort_iocb->iocb_cmpl)(phba, abort_iocb, abort_iocb);
-		} else
-			spin_unlock_irq(&phba->hbalock);
+		spin_unlock_irq(&phba->hbalock);
 	}
-
 	lpfc_sli_release_iocbq(phba, cmdiocb);
 	return;
 }
@@ -12167,6 +12140,7 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 	wq->subtype = subtype;
 	wq->host_index = 0;
 	wq->hba_index = 0;
+	wq->entry_repost = LPFC_RELEASE_NOTIFICATION_INTERVAL;
 
 	/* link the wq onto the parent cq child list */
 	list_add_tail(&wq->list, &cq->child_list);

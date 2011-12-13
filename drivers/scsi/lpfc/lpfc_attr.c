@@ -2777,6 +2777,14 @@ lpfc_topology_store(struct device *dev, struct device_attribute *attr,
 	if (val >= 0 && val <= 6) {
 		prev_val = phba->cfg_topology;
 		phba->cfg_topology = val;
+		if (phba->cfg_link_speed == LPFC_USER_LINK_SPEED_16G &&
+			val == 4) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+				"3113 Loop mode not supported at speed %d\n",
+				phba->cfg_link_speed);
+			phba->cfg_topology = prev_val;
+			return -EINVAL;
+		}
 		if (nolip)
 			return strlen(buf);
 
@@ -3222,6 +3230,14 @@ lpfc_link_speed_store(struct device *dev, struct device_attribute *attr,
 				val);
 		return -EINVAL;
 	}
+	if (val == LPFC_USER_LINK_SPEED_16G &&
+		 phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3112 lpfc_link_speed attribute cannot be set "
+				"to %d. Speed is not supported in loop mode.\n",
+				val);
+		return -EINVAL;
+	}
 	if ((val >= 0) && (val <= LPFC_USER_LINK_SPEED_MAX) &&
 	    (LPFC_USER_LINK_SPEED_BITMAP & (1 << val))) {
 		prev_val = phba->cfg_link_speed;
@@ -3266,6 +3282,13 @@ lpfc_param_show(link_speed)
 static int
 lpfc_link_speed_init(struct lpfc_hba *phba, int val)
 {
+	if (val == LPFC_USER_LINK_SPEED_16G && phba->cfg_topology == 4) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"3111 lpfc_link_speed of %d cannot "
+			"support loop mode, setting topology to default.\n",
+			 val);
+		phba->cfg_topology = 0;
+	}
 	if ((val >= 0) && (val <= LPFC_USER_LINK_SPEED_MAX) &&
 	    (LPFC_USER_LINK_SPEED_BITMAP & (1 << val))) {
 		phba->cfg_link_speed = val;

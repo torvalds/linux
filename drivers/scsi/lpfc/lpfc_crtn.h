@@ -453,3 +453,5 @@ int lpfc_sli_probe_sriov_nr_virtfn(struct lpfc_hba *, int);
 uint16_t lpfc_sli_sriov_nr_virtfn_get(struct lpfc_hba *);
 int lpfc_sli4_queue_create(struct lpfc_hba *);
 void lpfc_sli4_queue_destroy(struct lpfc_hba *);
+int lpfc_sli4_read_config(struct lpfc_hba *phba);
+int lpfc_scsi_buf_update(struct lpfc_hba *phba);

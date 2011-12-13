@@ -62,7 +62,6 @@ static int lpfc_post_rcv_buf(struct lpfc_hba *);
 static int lpfc_sli4_queue_verify(struct lpfc_hba *);
 static int lpfc_create_bootstrap_mbox(struct lpfc_hba *);
 static int lpfc_setup_endian_order(struct lpfc_hba *);
-static int lpfc_sli4_read_config(struct lpfc_hba *);
 static void lpfc_destroy_bootstrap_mbox(struct lpfc_hba *);
 static void lpfc_free_sgl_list(struct lpfc_hba *);
 static int lpfc_init_sgl_list(struct lpfc_hba *);
@@ -2655,6 +2654,32 @@ lpfc_offline(struct lpfc_hba *phba)
 }
 
 /**
+ * lpfc_scsi_buf_update - Update the scsi_buffers that are already allocated.
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine goes through all the scsi buffers in the system and updates the
+ * Physical XRIs assigned to the SCSI buffer because these may change after any
+ * firmware reset
+ *
+ * Return codes
+ *   0 - successful (for now, it always returns 0)
+ **/
+int
+lpfc_scsi_buf_update(struct lpfc_hba *phba)
+{
+	struct lpfc_scsi_buf *sb, *sb_next;
+
+	spin_lock_irq(&phba->hbalock);
+	spin_lock(&phba->scsi_buf_list_lock);
+	list_for_each_entry_safe(sb, sb_next, &phba->lpfc_scsi_buf_list, list)
+		sb->cur_iocbq.sli4_xritag =
+			phba->sli4_hba.xri_ids[sb->cur_iocbq.sli4_lxritag];
+	spin_unlock(&phba->scsi_buf_list_lock);
+	spin_unlock_irq(&phba->hbalock);
+	return 0;
+}
+
+/**
  * lpfc_scsi_free - Free all the SCSI buffers and IOCBs from driver lists
  * @phba: pointer to lpfc hba data structure.
  *
@@ -5021,15 +5046,8 @@ lpfc_sli4_init_rpi_hdrs(struct lpfc_hba *phba)
 	struct lpfc_rpi_hdr *rpi_hdr;
 
 	INIT_LIST_HEAD(&phba->sli4_hba.lpfc_rpi_hdr_list);
-	/*
-	 * If the SLI4 port supports extents, posting the rpi header isn't
-	 * required.  Set the expected maximum count and let the actual value
-	 * get set when extents are fully allocated.
-	 */
-	if (!phba->sli4_hba.rpi_hdrs_in_use) {
-		phba->sli4_hba.next_rpi = phba->sli4_hba.max_cfg_param.max_rpi;
+	if (!phba->sli4_hba.rpi_hdrs_in_use)
 		return rc;
-	}
 	if (phba->sli4_hba.extents_in_use)
 		return -EIO;
 
@@ -5923,7 +5941,7 @@ lpfc_destroy_bootstrap_mbox(struct lpfc_hba *phba)
  * 	-ENOMEM - No available memory
  *      -EIO - The mailbox failed to complete successfully.
  **/
-static int
+int
 lpfc_sli4_read_config(struct lpfc_hba *phba)
 {
 	LPFC_MBOXQ_t *pmb;
@@ -5955,6 +5973,20 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 		rc = -EIO;
 	} else {
 		rd_config = &pmb->u.mqe.un.rd_config;
+		if (bf_get(lpfc_mbx_rd_conf_lnk_ldv, rd_config)) {
+			phba->sli4_hba.lnk_info.lnk_dv = LPFC_LNK_DAT_VAL;
+			phba->sli4_hba.lnk_info.lnk_tp =
+				bf_get(lpfc_mbx_rd_conf_lnk_type, rd_config);
+			phba->sli4_hba.lnk_info.lnk_no =
+				bf_get(lpfc_mbx_rd_conf_lnk_numb, rd_config);
+			lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+					"3081 lnk_type:%d, lnk_numb:%d\n",
+					phba->sli4_hba.lnk_info.lnk_tp,
+					phba->sli4_hba.lnk_info.lnk_no);
+		} else
+			lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
+					"3082 Mailbox (x%x) returned ldv:x0\n",
+					bf_get(lpfc_mqe_command, &pmb->u.mqe));
 		phba->sli4_hba.extents_in_use =
 			bf_get(lpfc_mbx_rd_conf_extnts_inuse, rd_config);
 		phba->sli4_hba.max_cfg_param.max_xri =
