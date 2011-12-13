@@ -81,6 +81,11 @@ config SOC_OMAPTI816X
 	depends on ARCH_OMAP3
 	default y
 
+config SOC_OMAPAM33XX
+	bool "AM33XX support"
+	depends on ARCH_OMAP3
+	default y
+
 config OMAP_PACKAGE_ZAF
        bool
 
