@@ -532,18 +532,6 @@ static int wm9090_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	ret = snd_soc_read(codec, WM9090_SOFTWARE_RESET);
-	if (ret < 0)
-		return ret;
-	if (ret != 0x9093) {
-		dev_err(codec->dev, "Device is not a WM9090, ID=%x\n", ret);
-		return -EINVAL;
-	}
-
-	ret = snd_soc_write(codec, WM9090_SOFTWARE_RESET, 0);
-	if (ret < 0)
-		return ret;
-
 	/* Configure some defaults; they will be written out when we
 	 * bring the bias up.
 	 */
@@ -631,6 +619,7 @@ static int wm9090_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct wm9090_priv *wm9090;
+	unsigned int reg;
 	int ret;
 
 	wm9090 = devm_kzalloc(&i2c->dev, sizeof(*wm9090), GFP_KERNEL);
@@ -645,6 +634,19 @@ static int wm9090_i2c_probe(struct i2c_client *i2c,
 		dev_err(&i2c->dev, "Failed to allocate regmap: %d\n", ret);
 		return ret;
 	}
+
+	ret = regmap_read(wm9090->regmap, WM9090_SOFTWARE_RESET, &reg);
+	if (ret < 0)
+		goto err;
+	if (reg != 0x9093) {
+		dev_err(&i2c->dev, "Device is not a WM9090, ID=%x\n", ret);
+		ret = -ENODEV;
+		goto err;
+	}
+
+	ret = regmap_write(wm9090->regmap, WM9090_SOFTWARE_RESET, 0);
+	if (ret < 0)
+		goto err;
 
 	if (i2c->dev.platform_data)
 		memcpy(&wm9090->pdata, i2c->dev.platform_data,
