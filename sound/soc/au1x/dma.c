@@ -316,7 +316,7 @@ static int alchemy_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-struct snd_soc_platform_driver alchemy_pcm_soc_platform = {
+static struct snd_soc_platform_driver alchemy_pcm_soc_platform = {
 	.ops		= &alchemy_pcm_ops,
 	.pcm_new	= alchemy_pcm_new,
 	.pcm_free	= alchemy_pcm_free_dma_buffers,
