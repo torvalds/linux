@@ -3787,6 +3787,12 @@ static int receive_state(struct drbd_tconn *tconn, struct packet_info *pi)
 	os = ns = drbd_read_state(mdev);
 	spin_unlock_irq(&mdev->tconn->req_lock);
 
+	/* If some other part of the code (asender thread, timeout)
+	 * already decided to close the connection again,
+	 * we must not "re-establish" it here. */
+	if (os.conn <= C_TEAR_DOWN)
+		return false;
+
 	/* If this is the "end of sync" confirmation, usually the peer disk
 	 * transitions from D_INCONSISTENT to D_UP_TO_DATE. For empty (0 bits
 	 * set) resync started in PausedSyncT, or if the timing of pause-/
@@ -4367,6 +4373,13 @@ static void conn_disconnect(struct drbd_tconn *tconn)
 
 	if (tconn->cstate == C_STANDALONE)
 		return;
+
+	/* We are about to start the cleanup after connection loss.
+	 * Make sure drbd_make_request knows about that.
+	 * Usually we should be in some network failure state already,
+	 * but just in case we are not, we fix it up here.
+	 */
+	conn_request_state(tconn, NS(conn, C_NETWORK_FAILURE), CS_HARD);
 
 	/* asender does not clean up anything. it must not interfere, either */
 	drbd_thread_stop(&tconn->asender);
