@@ -371,7 +371,7 @@ static void __init omap4_check_revision(void)
 	 * Few initial 4430 ES2.0 samples IDCODE is same as ES1.0
 	 * Use ARM register to detect the correct ES version
 	 */
-	if (!rev && (hawkeye != 0xb94e)) {
+	if (!rev && (hawkeye != 0xb94e) && (hawkeye != 0xb975)) {
 		idcode = read_cpuid(CPUID_ID);
 		rev = (idcode & 0xf) - 1;
 	}
@@ -405,6 +405,14 @@ static void __init omap4_check_revision(void)
 		case 0:
 		default:
 			omap_revision = OMAP4460_REV_ES1_0;
+			break;
+		}
+		break;
+	case 0xb975:
+		switch (rev) {
+		case 0:
+		default:
+			omap_revision = OMAP4470_REV_ES1_0;
 			break;
 		}
 		break;

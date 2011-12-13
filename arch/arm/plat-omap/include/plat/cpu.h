@@ -69,6 +69,7 @@ unsigned int omap_rev(void);
  * cpu_is_omap343x():	True for OMAP3430
  * cpu_is_omap443x():	True for OMAP4430
  * cpu_is_omap446x():	True for OMAP4460
+ * cpu_is_omap447x():	True for OMAP4470
  */
 #define GET_OMAP_CLASS	(omap_rev() & 0xff)
 
@@ -120,6 +121,7 @@ IS_OMAP_SUBCLASS(343x, 0x343)
 IS_OMAP_SUBCLASS(363x, 0x363)
 IS_OMAP_SUBCLASS(443x, 0x443)
 IS_OMAP_SUBCLASS(446x, 0x446)
+IS_OMAP_SUBCLASS(447x, 0x447)
 
 IS_TI_SUBCLASS(816x, 0x816)
 IS_AM_SUBCLASS(335x, 0x335)
@@ -138,6 +140,7 @@ IS_AM_SUBCLASS(335x, 0x335)
 #define cpu_is_omap44xx()		0
 #define cpu_is_omap443x()		0
 #define cpu_is_omap446x()		0
+#define cpu_is_omap447x()		0
 
 #if defined(MULTI_OMAP1)
 # if defined(CONFIG_ARCH_OMAP730)
@@ -368,9 +371,11 @@ IS_OMAP_TYPE(3517, 0x3517)
 # undef cpu_is_omap44xx
 # undef cpu_is_omap443x
 # undef cpu_is_omap446x
+# undef cpu_is_omap447x
 # define cpu_is_omap44xx()		is_omap44xx()
 # define cpu_is_omap443x()		is_omap443x()
 # define cpu_is_omap446x()		is_omap446x()
+# define cpu_is_omap447x()		is_omap447x()
 # endif
 
 /* Macros to detect if we have OMAP1 or OMAP2 */
@@ -420,6 +425,9 @@ IS_OMAP_TYPE(3517, 0x3517)
 
 #define OMAP446X_CLASS		0x44600044
 #define OMAP4460_REV_ES1_0	(OMAP446X_CLASS | (0x10 << 8))
+
+#define OMAP447X_CLASS		0x44700044
+#define OMAP4470_REV_ES1_0	(OMAP447X_CLASS | (0x10 << 8))
 
 void omap2_check_revision(void);
 
