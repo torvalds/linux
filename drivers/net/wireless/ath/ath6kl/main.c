@@ -1007,16 +1007,7 @@ static int ath6kl_close(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-	ath6kl_disconnect(vif);
-
-	if (test_bit(WMI_READY, &ar->flag)) {
-		if (ath6kl_wmi_scanparams_cmd(ar->wmi, vif->fw_vif_idx, 0xFFFF,
-					      0, 0, 0, 0, 0, 0, 0, 0, 0))
-			return -EIO;
-
-	}
-
-	ath6kl_cfg80211_scan_complete_event(vif, true);
+	ath6kl_cfg80211_stop(ar);
 
 	clear_bit(WLAN_ENABLED, &vif->flags);
 
