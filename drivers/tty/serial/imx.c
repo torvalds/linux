@@ -566,6 +566,9 @@ static irqreturn_t imx_int(int irq, void *dev_id)
 	if (sts & USR1_RTSD)
 		imx_rtsint(irq, dev_id);
 
+	if (sts & USR1_AWAKE)
+		writel(USR1_AWAKE, sport->port.membase + USR1);
+
 	return IRQ_HANDLED;
 }
 
@@ -1269,6 +1272,12 @@ static struct uart_driver imx_reg = {
 static int serial_imx_suspend(struct platform_device *dev, pm_message_t state)
 {
 	struct imx_port *sport = platform_get_drvdata(dev);
+	unsigned int val;
+
+	/* enable wakeup from i.MX UART */
+	val = readl(sport->port.membase + UCR3);
+	val |= UCR3_AWAKEN;
+	writel(val, sport->port.membase + UCR3);
 
 	if (sport)
 		uart_suspend_port(&imx_reg, &sport->port);
@@ -1279,6 +1288,12 @@ static int serial_imx_suspend(struct platform_device *dev, pm_message_t state)
 static int serial_imx_resume(struct platform_device *dev)
 {
 	struct imx_port *sport = platform_get_drvdata(dev);
+	unsigned int val;
+
+	/* disable wakeup from i.MX UART */
+	val = readl(sport->port.membase + UCR3);
+	val &= ~UCR3_AWAKEN;
+	writel(val, sport->port.membase + UCR3);
 
 	if (sport)
 		uart_resume_port(&imx_reg, &sport->port);
