@@ -541,6 +541,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 	unsigned int length;
 	int polled = 0;
 	int ip_summed;
+	struct ethhdr *ethh;
+	u64 s_mac;
 
 	if (!priv->port_up)
 		return 0;
@@ -576,6 +578,19 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 			en_dbg(RX_ERR, priv, "Accepted frame with bad FCS\n");
 			goto next;
 		}
+
+		/* Get pointer to first fragment since we haven't skb yet and
+		 * cast it to ethhdr struct */
+		ethh = (struct ethhdr *)(page_address(skb_frags[0].page) +
+					 skb_frags[0].offset);
+		s_mac = mlx4_en_mac_to_u64(ethh->h_source);
+
+		/* If source MAC is equal to our own MAC and not performing
+		 * the selftest or flb disabled - drop the packet */
+		if (s_mac == priv->mac &&
+			(!(dev->features & NETIF_F_LOOPBACK) ||
+			 !priv->validate_loopback))
+			goto next;
 
 		/*
 		 * Packet is OK - process it.
