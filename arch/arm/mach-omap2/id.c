@@ -226,7 +226,7 @@ static void __init omap4_check_features(void)
 	}
 }
 
-static void __init ti816x_check_features(void)
+static void __init ti81xx_check_features(void)
 {
 	omap_features = OMAP3_HAS_NEON;
 }
@@ -489,11 +489,11 @@ void __init omap2_check_revision(void)
 	} else if (cpu_is_omap34xx()) {
 		omap3_check_revision(&cpu_rev);
 
-		/* TI816X doesn't have feature register */
-		if (!cpu_is_ti816x())
+		/* TI81XX doesn't have feature register */
+		if (!cpu_is_ti81xx())
 			omap3_check_features();
 		else
-			ti816x_check_features();
+			ti81xx_check_features();
 
 		omap3_cpuinfo(cpu_rev);
 		return;

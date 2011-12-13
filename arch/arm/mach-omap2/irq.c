@@ -193,7 +193,7 @@ void __init omap3_init_irq(void)
 	omap_init_irq(OMAP34XX_IC_BASE, 96);
 }
 
-void __init ti816x_init_irq(void)
+void __init ti81xx_init_irq(void)
 {
 	omap_init_irq(OMAP34XX_IC_BASE, 128);
 }

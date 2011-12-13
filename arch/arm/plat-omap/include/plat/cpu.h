@@ -87,6 +87,14 @@ static inline int is_am ##class (void)			\
 	return (GET_AM_CLASS == (id)) ? 1 : 0;		\
 }
 
+#define GET_TI_CLASS	((omap_rev() >> 24) & 0xff)
+
+#define IS_TI_CLASS(class, id)			\
+static inline int is_ti ##class (void)		\
+{							\
+	return (GET_TI_CLASS == (id)) ? 1 : 0;	\
+}
+
 #define GET_OMAP_SUBCLASS	((omap_rev() >> 20) & 0x0fff)
 
 #define IS_OMAP_SUBCLASS(subclass, id)			\
@@ -115,6 +123,8 @@ IS_OMAP_CLASS(34xx, 0x34)
 IS_OMAP_CLASS(44xx, 0x44)
 IS_AM_CLASS(33xx, 0x33)
 
+IS_TI_CLASS(81xx, 0x81)
+
 IS_OMAP_SUBCLASS(242x, 0x242)
 IS_OMAP_SUBCLASS(243x, 0x243)
 IS_OMAP_SUBCLASS(343x, 0x343)
@@ -134,6 +144,7 @@ IS_AM_SUBCLASS(335x, 0x335)
 #define cpu_is_omap243x()		0
 #define cpu_is_omap34xx()		0
 #define cpu_is_omap343x()		0
+#define cpu_is_ti81xx()			0
 #define cpu_is_ti816x()			0
 #define cpu_is_am33xx()			0
 #define cpu_is_am335x()			0
@@ -343,6 +354,7 @@ IS_OMAP_TYPE(3517, 0x3517)
 # undef cpu_is_omap3530
 # undef cpu_is_omap3505
 # undef cpu_is_omap3517
+# undef cpu_is_ti81xx
 # undef cpu_is_ti816x
 # undef cpu_is_am33xx
 # undef cpu_is_am335x
@@ -362,6 +374,7 @@ IS_OMAP_TYPE(3517, 0x3517)
 						!omap3_has_sgx())
 # undef cpu_is_omap3630
 # define cpu_is_omap3630()		is_omap363x()
+# define cpu_is_ti81xx()		is_ti81xx()
 # define cpu_is_ti816x()		is_ti816x()
 # define cpu_is_am33xx()		is_am33xx()
 # define cpu_is_am335x()		is_am335x()
