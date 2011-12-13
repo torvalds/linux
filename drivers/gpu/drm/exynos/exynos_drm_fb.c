@@ -150,8 +150,8 @@ exynos_drm_fb_init(struct drm_file *file_priv, struct drm_device *dev,
 			 * for default framebuffer.
 			 */
 			buffer = exynos_drm_buf_create(dev, size);
-			if (IS_ERR(buffer)) {
-				ret = PTR_ERR(buffer);
+			if (!buffer) {
+				ret = -ENOMEM;
 				goto err_buffer;
 			}
 
