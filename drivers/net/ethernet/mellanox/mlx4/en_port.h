@@ -40,12 +40,6 @@
 #define SET_PORT_MC_PROMISC_SHIFT	30
 
 enum {
-	MLX4_CMD_SET_VLAN_FLTR  = 0x47,
-	MLX4_CMD_SET_MCAST_FLTR = 0x48,
-	MLX4_CMD_DUMP_ETH_STATS = 0x49,
-};
-
-enum {
 	MCAST_DIRECT_ONLY       = 0,
 	MCAST_DIRECT            = 1,
 	MCAST_DEFAULT           = 2

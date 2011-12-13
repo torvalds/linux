@@ -102,45 +102,6 @@ struct mlx4_eq_context {
 			       (1ull << MLX4_EVENT_TYPE_SRQ_LIMIT)	    | \
 			       (1ull << MLX4_EVENT_TYPE_CMD))
 
-struct mlx4_eqe {
-	u8			reserved1;
-	u8			type;
-	u8			reserved2;
-	u8			subtype;
-	union {
-		u32		raw[6];
-		struct {
-			__be32	cqn;
-		} __packed comp;
-		struct {
-			u16	reserved1;
-			__be16	token;
-			u32	reserved2;
-			u8	reserved3[3];
-			u8	status;
-			__be64	out_param;
-		} __packed cmd;
-		struct {
-			__be32	qpn;
-		} __packed qp;
-		struct {
-			__be32	srqn;
-		} __packed srq;
-		struct {
-			__be32	cqn;
-			u32	reserved1;
-			u8	reserved2[3];
-			u8	syndrome;
-		} __packed cq_err;
-		struct {
-			u32	reserved1[2];
-			__be32	port;
-		} __packed port_change;
-	}			event;
-	u8			reserved3[3];
-	u8			owner;
-} __packed;
-
 static void eq_set_ci(struct mlx4_eq *eq, int req_not)
 {
 	__raw_writel((__force u32) cpu_to_be32((eq->cons_index & 0xffffff) |

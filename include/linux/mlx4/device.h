@@ -47,6 +47,9 @@
 enum {
 	MLX4_FLAG_MSI_X		= 1 << 0,
 	MLX4_FLAG_OLD_PORT_CMDS	= 1 << 1,
+	MLX4_FLAG_MASTER	= 1 << 2,
+	MLX4_FLAG_SLAVE		= 1 << 3,
+	MLX4_FLAG_SRIOV		= 1 << 4,
 };
 
 enum {
@@ -55,6 +58,15 @@ enum {
 
 enum {
 	MLX4_BOARD_ID_LEN = 64
+};
+
+enum {
+	MLX4_MAX_NUM_PF		= 16,
+	MLX4_MAX_NUM_VF		= 64,
+	MLX4_MFUNC_MAX		= 80,
+	MLX4_MFUNC_EQ_NUM	= 4,
+	MLX4_MFUNC_MAX_EQES     = 8,
+	MLX4_MFUNC_EQE_MASK     = (MLX4_MFUNC_MAX_EQES - 1)
 };
 
 enum {
@@ -117,7 +129,11 @@ enum mlx4_event {
 	MLX4_EVENT_TYPE_PORT_CHANGE	   = 0x09,
 	MLX4_EVENT_TYPE_EQ_OVERFLOW	   = 0x0f,
 	MLX4_EVENT_TYPE_ECC_DETECT	   = 0x0e,
-	MLX4_EVENT_TYPE_CMD		   = 0x0a
+	MLX4_EVENT_TYPE_CMD		   = 0x0a,
+	MLX4_EVENT_TYPE_VEP_UPDATE	   = 0x19,
+	MLX4_EVENT_TYPE_COMM_CHANNEL	   = 0x18,
+	MLX4_EVENT_TYPE_FLR_EVENT	   = 0x1c,
+	MLX4_EVENT_TYPE_NONE		   = 0xff,
 };
 
 enum {
@@ -184,6 +200,7 @@ enum mlx4_qp_region {
 };
 
 enum mlx4_port_type {
+	MLX4_PORT_TYPE_NONE	= 0,
 	MLX4_PORT_TYPE_IB	= 1,
 	MLX4_PORT_TYPE_ETH	= 2,
 	MLX4_PORT_TYPE_AUTO	= 3
@@ -216,6 +233,7 @@ static inline u64 mlx4_fw_ver(u64 major, u64 minor, u64 subminor)
 
 struct mlx4_caps {
 	u64			fw_ver;
+	u32			function;
 	int			num_ports;
 	int			vl_cap[MLX4_MAX_PORTS + 1];
 	int			ib_mtu_cap[MLX4_MAX_PORTS + 1];
@@ -466,6 +484,7 @@ struct mlx4_counter {
 struct mlx4_dev {
 	struct pci_dev	       *pdev;
 	unsigned long		flags;
+	unsigned long		num_slaves;
 	struct mlx4_caps	caps;
 	struct radix_tree_root	qp_table_tree;
 	u8			rev_id;
@@ -494,8 +513,27 @@ struct mlx4_init_port_param {
 #define mlx4_foreach_ib_transport_port(port, dev)			\
 	for ((port) = 1; (port) <= (dev)->caps.num_ports; (port)++)	\
 		if (((dev)->caps.port_mask & 1 << ((port) - 1)) ||	\
-		    ((dev)->caps.flags & MLX4_DEV_CAP_FLAG_IBOE))
+		     ((dev)->caps.flags & MLX4_DEV_CAP_FLAG_IBOE))
 
+static inline int mlx4_is_master(struct mlx4_dev *dev)
+{
+	return dev->flags & MLX4_FLAG_MASTER;
+}
+
+static inline int mlx4_is_qp_reserved(struct mlx4_dev *dev, u32 qpn)
+{
+	return (qpn < dev->caps.sqp_start + 8);
+}
+
+static inline int mlx4_is_mfunc(struct mlx4_dev *dev)
+{
+	return dev->flags & (MLX4_FLAG_SLAVE | MLX4_FLAG_MASTER);
+}
+
+static inline int mlx4_is_slave(struct mlx4_dev *dev)
+{
+	return dev->flags & MLX4_FLAG_SLAVE;
+}
 
 int mlx4_buf_alloc(struct mlx4_dev *dev, int size, int max_direct,
 		   struct mlx4_buf *buf);

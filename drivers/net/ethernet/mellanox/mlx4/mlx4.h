@@ -46,6 +46,7 @@
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/driver.h>
 #include <linux/mlx4/doorbell.h>
+#include <linux/mlx4/cmd.h>
 
 #define DRV_NAME	"mlx4_core"
 #define DRV_VERSION	"1.0"
@@ -54,7 +55,9 @@
 enum {
 	MLX4_HCR_BASE		= 0x80680,
 	MLX4_HCR_SIZE		= 0x0001c,
-	MLX4_CLR_INT_SIZE	= 0x00008
+	MLX4_CLR_INT_SIZE	= 0x00008,
+	MLX4_SLAVE_COMM_BASE	= 0x0,
+	MLX4_COMM_PAGESIZE	= 0x1000
 };
 
 enum {
@@ -80,6 +83,94 @@ enum {
 	MLX4_NUM_CMPTS		= MLX4_CMPT_NUM_TYPE << MLX4_CMPT_SHIFT
 };
 
+enum mlx4_mr_state {
+	MLX4_MR_DISABLED = 0,
+	MLX4_MR_EN_HW,
+	MLX4_MR_EN_SW
+};
+
+#define MLX4_COMM_TIME		10000
+enum {
+	MLX4_COMM_CMD_RESET,
+	MLX4_COMM_CMD_VHCR0,
+	MLX4_COMM_CMD_VHCR1,
+	MLX4_COMM_CMD_VHCR2,
+	MLX4_COMM_CMD_VHCR_EN,
+	MLX4_COMM_CMD_VHCR_POST,
+	MLX4_COMM_CMD_FLR = 254
+};
+
+/*The flag indicates that the slave should delay the RESET cmd*/
+#define MLX4_DELAY_RESET_SLAVE 0xbbbbbbb
+/*indicates how many retries will be done if we are in the middle of FLR*/
+#define NUM_OF_RESET_RETRIES	10
+#define SLEEP_TIME_IN_RESET	(2 * 1000)
+enum mlx4_resource {
+	RES_QP,
+	RES_CQ,
+	RES_SRQ,
+	RES_XRCD,
+	RES_MPT,
+	RES_MTT,
+	RES_MAC,
+	RES_VLAN,
+	RES_EQ,
+	RES_COUNTER,
+	MLX4_NUM_OF_RESOURCE_TYPE
+};
+
+enum mlx4_alloc_mode {
+	RES_OP_RESERVE,
+	RES_OP_RESERVE_AND_MAP,
+	RES_OP_MAP_ICM,
+};
+
+
+/*
+ *Virtual HCR structures.
+ * mlx4_vhcr is the sw representation, in machine endianess
+ *
+ * mlx4_vhcr_cmd is the formalized structure, the one that is passed
+ * to FW to go through communication channel.
+ * It is big endian, and has the same structure as the physical HCR
+ * used by command interface
+ */
+struct mlx4_vhcr {
+	u64	in_param;
+	u64	out_param;
+	u32	in_modifier;
+	u32	errno;
+	u16	op;
+	u16	token;
+	u8	op_modifier;
+	u8	e_bit;
+};
+
+struct mlx4_vhcr_cmd {
+	__be64 in_param;
+	__be32 in_modifier;
+	__be64 out_param;
+	__be16 token;
+	u16 reserved;
+	u8 status;
+	u8 flags;
+	__be16 opcode;
+};
+
+struct mlx4_cmd_info {
+	u16 opcode;
+	bool has_inbox;
+	bool has_outbox;
+	bool out_is_imm;
+	bool encode_slave_id;
+	int (*verify)(struct mlx4_dev *dev, int slave, struct mlx4_vhcr *vhcr,
+		      struct mlx4_cmd_mailbox *inbox);
+	int (*wrapper)(struct mlx4_dev *dev, int slave, struct mlx4_vhcr *vhcr,
+		       struct mlx4_cmd_mailbox *inbox,
+		       struct mlx4_cmd_mailbox *outbox,
+		       struct mlx4_cmd_info *cmd);
+};
+
 #ifdef CONFIG_MLX4_DEBUG
 extern int mlx4_debug_level;
 #else /* CONFIG_MLX4_DEBUG */
@@ -98,6 +189,9 @@ do {									\
 	dev_info(&mdev->pdev->dev, format, ##arg)
 #define mlx4_warn(mdev, format, arg...) \
 	dev_warn(&mdev->pdev->dev, format, ##arg)
+
+#define MLX4_MAX_NUM_SLAVES	(MLX4_MAX_NUM_PF + MLX4_MAX_NUM_VF)
+#define ALL_SLAVES 0xff
 
 struct mlx4_bitmap {
 	u32			last;
@@ -130,6 +224,62 @@ struct mlx4_icm_table {
 	struct mlx4_icm	      **icm;
 };
 
+struct mlx4_eqe {
+	u8			reserved1;
+	u8			type;
+	u8			reserved2;
+	u8			subtype;
+	union {
+		u32		raw[6];
+		struct {
+			__be32	cqn;
+		} __packed comp;
+		struct {
+			u16	reserved1;
+			__be16	token;
+			u32	reserved2;
+			u8	reserved3[3];
+			u8	status;
+			__be64	out_param;
+		} __packed cmd;
+		struct {
+			__be32	qpn;
+		} __packed qp;
+		struct {
+			__be32	srqn;
+		} __packed srq;
+		struct {
+			__be32	cqn;
+			u32	reserved1;
+			u8	reserved2[3];
+			u8	syndrome;
+		} __packed cq_err;
+		struct {
+			u32	reserved1[2];
+			__be32	port;
+		} __packed port_change;
+		struct {
+			#define COMM_CHANNEL_BIT_ARRAY_SIZE	4
+			u32 reserved;
+			u32 bit_vec[COMM_CHANNEL_BIT_ARRAY_SIZE];
+		} __packed comm_channel_arm;
+		struct {
+			u8	port;
+			u8	reserved[3];
+			__be64	mac;
+		} __packed mac_update;
+		struct {
+			u8	port;
+		} __packed sw_event;
+		struct {
+			__be32	slave_id;
+		} __packed flr_event;
+	}			event;
+	u8			slave_id;
+	u8			reserved3[2];
+	u8			owner;
+} __packed;
+
 struct mlx4_eq {
 	struct mlx4_dev	       *dev;
 	void __iomem	       *doorbell;
@@ -140,6 +290,18 @@ struct mlx4_eq {
 	int			nent;
 	struct mlx4_buf_list   *page_list;
 	struct mlx4_mtt		mtt;
+};
+
+struct mlx4_slave_eqe {
+	u8 type;
+	u8 port;
+	u32 param;
+};
+
+struct mlx4_slave_event_eq_info {
+	u32 eqn;
+	u16 token;
+	u64 event_type;
 };
 
 struct mlx4_profile {
@@ -155,16 +317,29 @@ struct mlx4_profile {
 struct mlx4_fw {
 	u64			clr_int_base;
 	u64			catas_offset;
+	u64			comm_base;
 	struct mlx4_icm	       *fw_icm;
 	struct mlx4_icm	       *aux_icm;
 	u32			catas_size;
 	u16			fw_pages;
 	u8			clr_int_bar;
 	u8			catas_bar;
+	u8			comm_bar;
+};
+
+struct mlx4_comm {
+	u32			slave_write;
+	u32			slave_read;
 };
 
 #define MGM_QPN_MASK       0x00FFFFFF
 #define MGM_BLCK_LB_BIT    30
+
+#define VLAN_FLTR_SIZE	128
+
+struct mlx4_vlan_fltr {
+	__be32 entry[VLAN_FLTR_SIZE];
+};
 
 struct mlx4_promisc_qp {
 	struct list_head list;
@@ -184,12 +359,88 @@ struct mlx4_mgm {
 	u8			gid[16];
 	__be32			qp[MLX4_QP_PER_MGM];
 };
+
+struct mlx4_slave_state {
+	u8 comm_toggle;
+	u8 last_cmd;
+	u8 init_port_mask;
+	bool active;
+	u8 function;
+	dma_addr_t vhcr_dma;
+	u16 mtu[MLX4_MAX_PORTS + 1];
+	__be32 ib_cap_mask[MLX4_MAX_PORTS + 1];
+	struct mlx4_slave_eqe eq[MLX4_MFUNC_MAX_EQES];
+	struct list_head mcast_filters[MLX4_MAX_PORTS + 1];
+	struct mlx4_vlan_fltr *vlan_filter[MLX4_MAX_PORTS + 1];
+	struct mlx4_slave_event_eq_info event_eq;
+	u16 eq_pi;
+	u16 eq_ci;
+	spinlock_t lock;
+	/*initialized via the kzalloc*/
+	u8 is_slave_going_down;
+	u32 cookie;
+};
+
+struct slave_list {
+	struct mutex mutex;
+	struct list_head res_list[MLX4_NUM_OF_RESOURCE_TYPE];
+};
+
+struct mlx4_resource_tracker {
+	spinlock_t lock;
+	/* tree for each resources */
+	struct radix_tree_root res_tree[MLX4_NUM_OF_RESOURCE_TYPE];
+	/* num_of_slave's lists, one per slave */
+	struct slave_list *slave_list;
+};
+
+#define SLAVE_EVENT_EQ_SIZE	128
+struct mlx4_slave_event_eq {
+	u32 eqn;
+	u32 cons;
+	u32 prod;
+	struct mlx4_eqe event_eqe[SLAVE_EVENT_EQ_SIZE];
+};
+
+struct mlx4_master_qp0_state {
+	int proxy_qp0_active;
+	int qp0_active;
+	int port_active;
+};
+
+struct mlx4_mfunc_master_ctx {
+	struct mlx4_slave_state *slave_state;
+	struct mlx4_master_qp0_state qp0_state[MLX4_MAX_PORTS + 1];
+	int			init_port_ref[MLX4_MAX_PORTS + 1];
+	u16			max_mtu[MLX4_MAX_PORTS + 1];
+	int			disable_mcast_ref[MLX4_MAX_PORTS + 1];
+	struct mlx4_resource_tracker res_tracker;
+	struct workqueue_struct *comm_wq;
+	struct work_struct	comm_work;
+	struct work_struct	slave_event_work;
+	struct work_struct	slave_flr_event_work;
+	spinlock_t		slave_state_lock;
+	u32			comm_arm_bit_vector[4];
+	struct mlx4_eqe		cmd_eqe;
+	struct mlx4_slave_event_eq slave_eq;
+	struct mutex		gen_eqe_mutex[MLX4_MFUNC_MAX];
+};
+
+struct mlx4_mfunc {
+	struct mlx4_comm __iomem       *comm;
+	struct mlx4_vhcr_cmd	       *vhcr;
+	dma_addr_t			vhcr_dma;
+
+	struct mlx4_mfunc_master_ctx	master;
+};
+
 struct mlx4_cmd {
 	struct pci_pool	       *pool;
 	void __iomem	       *hcr;
 	struct mutex		hcr_mutex;
 	struct semaphore	poll_sem;
 	struct semaphore	event_sem;
+	struct semaphore	slave_sem;
 	int			max_cmds;
 	spinlock_t		context_lock;
 	int			free_head;
@@ -197,6 +448,7 @@ struct mlx4_cmd {
 	u16			token_mask;
 	u8			use_events;
 	u8			toggle;
+	u8			comm_toggle;
 };
 
 struct mlx4_uar_table {
@@ -333,6 +585,7 @@ struct mlx4_priv {
 
 	struct mlx4_fw		fw;
 	struct mlx4_cmd		cmd;
+	struct mlx4_mfunc	mfunc;
 
 	struct mlx4_bitmap	pd_bitmap;
 	struct mlx4_bitmap	xrcd_bitmap;
@@ -404,6 +657,42 @@ void mlx4_cleanup_qp_table(struct mlx4_dev *dev);
 void mlx4_cleanup_srq_table(struct mlx4_dev *dev);
 void mlx4_cleanup_mcg_table(struct mlx4_dev *dev);
 
+int mlx4_WRITE_MTT_wrapper(struct mlx4_dev *dev, int slave,
+			   struct mlx4_vhcr *vhcr,
+			   struct mlx4_cmd_mailbox *inbox,
+			   struct mlx4_cmd_mailbox *outbox,
+			   struct mlx4_cmd_info *cmd);
+int mlx4_SYNC_TPT_wrapper(struct mlx4_dev *dev, int slave,
+			   struct mlx4_vhcr *vhcr,
+			   struct mlx4_cmd_mailbox *inbox,
+			   struct mlx4_cmd_mailbox *outbox,
+			   struct mlx4_cmd_info *cmd);
+int mlx4_SW2HW_MPT_wrapper(struct mlx4_dev *dev, int slave,
+			   struct mlx4_vhcr *vhcr,
+			   struct mlx4_cmd_mailbox *inbox,
+			   struct mlx4_cmd_mailbox *outbox,
+			   struct mlx4_cmd_info *cmd);
+int mlx4_HW2SW_MPT_wrapper(struct mlx4_dev *dev, int slave,
+			   struct mlx4_vhcr *vhcr,
+			   struct mlx4_cmd_mailbox *inbox,
+			   struct mlx4_cmd_mailbox *outbox,
+			   struct mlx4_cmd_info *cmd);
+int mlx4_QUERY_MPT_wrapper(struct mlx4_dev *dev, int slave,
+			   struct mlx4_vhcr *vhcr,
+			   struct mlx4_cmd_mailbox *inbox,
+			   struct mlx4_cmd_mailbox *outbox,
+			   struct mlx4_cmd_info *cmd);
+int mlx4_SW2HW_EQ_wrapper(struct mlx4_dev *dev, int slave,
+			  struct mlx4_vhcr *vhcr,
+			  struct mlx4_cmd_mailbox *inbox,
+			  struct mlx4_cmd_mailbox *outbox,
+			  struct mlx4_cmd_info *cmd);
+int mlx4_DMA_wrapper(struct mlx4_dev *dev, int slave,
+		     struct mlx4_vhcr *vhcr,
+		     struct mlx4_cmd_mailbox *inbox,
+		     struct mlx4_cmd_mailbox *outbox,
+		     struct mlx4_cmd_info *cmd);
+
 void mlx4_start_catas_poll(struct mlx4_dev *dev);
 void mlx4_stop_catas_poll(struct mlx4_dev *dev);
 void mlx4_catas_init(void);
@@ -419,6 +708,101 @@ u64 mlx4_make_profile(struct mlx4_dev *dev,
 		      struct mlx4_profile *request,
 		      struct mlx4_dev_cap *dev_cap,
 		      struct mlx4_init_hca_param *init_hca);
+void mlx4_master_comm_channel(struct work_struct *work);
+void mlx4_gen_slave_eqe(struct work_struct *work);
+void mlx4_master_handle_slave_flr(struct work_struct *work);
+
+int mlx4_ALLOC_RES_wrapper(struct mlx4_dev *dev, int slave,
+			   struct mlx4_vhcr *vhcr,
+			   struct mlx4_cmd_mailbox *inbox,
+			   struct mlx4_cmd_mailbox *outbox,
+			   struct mlx4_cmd_info *cmd);
+int mlx4_FREE_RES_wrapper(struct mlx4_dev *dev, int slave,
+			  struct mlx4_vhcr *vhcr,
+			  struct mlx4_cmd_mailbox *inbox,
+			  struct mlx4_cmd_mailbox *outbox,
+			  struct mlx4_cmd_info *cmd);
+int mlx4_MAP_EQ_wrapper(struct mlx4_dev *dev, int slave,
+			struct mlx4_vhcr *vhcr, struct mlx4_cmd_mailbox *inbox,
+			struct mlx4_cmd_mailbox *outbox,
+			struct mlx4_cmd_info *cmd);
+int mlx4_COMM_INT_wrapper(struct mlx4_dev *dev, int slave,
+			  struct mlx4_vhcr *vhcr,
+			  struct mlx4_cmd_mailbox *inbox,
+			  struct mlx4_cmd_mailbox *outbox,
+			  struct mlx4_cmd_info *cmd);
+int mlx4_HW2SW_EQ_wrapper(struct mlx4_dev *dev, int slave,
+			    struct mlx4_vhcr *vhcr,
+			    struct mlx4_cmd_mailbox *inbox,
+			    struct mlx4_cmd_mailbox *outbox,
+			  struct mlx4_cmd_info *cmd);
+int mlx4_QUERY_EQ_wrapper(struct mlx4_dev *dev, int slave,
+			  struct mlx4_vhcr *vhcr,
+			  struct mlx4_cmd_mailbox *inbox,
+			  struct mlx4_cmd_mailbox *outbox,
+			  struct mlx4_cmd_info *cmd);
+int mlx4_SW2HW_CQ_wrapper(struct mlx4_dev *dev, int slave,
+			  struct mlx4_vhcr *vhcr,
+			  struct mlx4_cmd_mailbox *inbox,
+			  struct mlx4_cmd_mailbox *outbox,
+			  struct mlx4_cmd_info *cmd);
+int mlx4_HW2SW_CQ_wrapper(struct mlx4_dev *dev, int slave,
+			  struct mlx4_vhcr *vhcr,
+			  struct mlx4_cmd_mailbox *inbox,
+			  struct mlx4_cmd_mailbox *outbox,
+			  struct mlx4_cmd_info *cmd);
+int mlx4_QUERY_CQ_wrapper(struct mlx4_dev *dev, int slave,
+			  struct mlx4_vhcr *vhcr,
+			  struct mlx4_cmd_mailbox *inbox,
+			  struct mlx4_cmd_mailbox *outbox,
+			  struct mlx4_cmd_info *cmd);
+int mlx4_MODIFY_CQ_wrapper(struct mlx4_dev *dev, int slave,
+			  struct mlx4_vhcr *vhcr,
+			  struct mlx4_cmd_mailbox *inbox,
+			  struct mlx4_cmd_mailbox *outbox,
+			   struct mlx4_cmd_info *cmd);
+int mlx4_SW2HW_SRQ_wrapper(struct mlx4_dev *dev, int slave,
+			   struct mlx4_vhcr *vhcr,
+			   struct mlx4_cmd_mailbox *inbox,
+			   struct mlx4_cmd_mailbox *outbox,
+			   struct mlx4_cmd_info *cmd);
+int mlx4_HW2SW_SRQ_wrapper(struct mlx4_dev *dev, int slave,
+			   struct mlx4_vhcr *vhcr,
+			   struct mlx4_cmd_mailbox *inbox,
+			   struct mlx4_cmd_mailbox *outbox,
+			   struct mlx4_cmd_info *cmd);
+int mlx4_QUERY_SRQ_wrapper(struct mlx4_dev *dev, int slave,
+			   struct mlx4_vhcr *vhcr,
+			   struct mlx4_cmd_mailbox *inbox,
+			   struct mlx4_cmd_mailbox *outbox,
+			   struct mlx4_cmd_info *cmd);
+int mlx4_ARM_SRQ_wrapper(struct mlx4_dev *dev, int slave,
+			 struct mlx4_vhcr *vhcr,
+			 struct mlx4_cmd_mailbox *inbox,
+			 struct mlx4_cmd_mailbox *outbox,
+			 struct mlx4_cmd_info *cmd);
+int mlx4_GEN_QP_wrapper(struct mlx4_dev *dev, int slave,
+			struct mlx4_vhcr *vhcr,
+			struct mlx4_cmd_mailbox *inbox,
+			struct mlx4_cmd_mailbox *outbox,
+			struct mlx4_cmd_info *cmd);
+int mlx4_RST2INIT_QP_wrapper(struct mlx4_dev *dev, int slave,
+			     struct mlx4_vhcr *vhcr,
+			     struct mlx4_cmd_mailbox *inbox,
+			     struct mlx4_cmd_mailbox *outbox,
+			     struct mlx4_cmd_info *cmd);
+int mlx4_INIT2RTR_QP_wrapper(struct mlx4_dev *dev, int slave,
+			     struct mlx4_vhcr *vhcr,
+			     struct mlx4_cmd_mailbox *inbox,
+			     struct mlx4_cmd_mailbox *outbox,
+			     struct mlx4_cmd_info *cmd);
+int mlx4_2RST_QP_wrapper(struct mlx4_dev *dev, int slave,
+			 struct mlx4_vhcr *vhcr,
+			 struct mlx4_cmd_mailbox *inbox,
+			 struct mlx4_cmd_mailbox *outbox,
+			 struct mlx4_cmd_info *cmd);
+
+int mlx4_GEN_EQE(struct mlx4_dev *dev, int slave, struct mlx4_eqe *eqe);
 
 int mlx4_cmd_init(struct mlx4_dev *dev);
 void mlx4_cmd_cleanup(struct mlx4_dev *dev);
@@ -452,12 +836,82 @@ void mlx4_init_mac_table(struct mlx4_dev *dev, struct mlx4_mac_table *table);
 void mlx4_init_vlan_table(struct mlx4_dev *dev, struct mlx4_vlan_table *table);
 
 int mlx4_SET_PORT(struct mlx4_dev *dev, u8 port);
+/* resource tracker functions*/
+int mlx4_get_slave_from_resource_id(struct mlx4_dev *dev,
+				    enum mlx4_resource resource_type,
+				    int resource_id, int *slave);
+void mlx4_delete_all_resources_for_slave(struct mlx4_dev *dev, int slave_id);
+int mlx4_init_resource_tracker(struct mlx4_dev *dev);
+
+void mlx4_free_resource_tracker(struct mlx4_dev *dev);
+
+int mlx4_SET_PORT_wrapper(struct mlx4_dev *dev, int slave,
+			  struct mlx4_vhcr *vhcr,
+			  struct mlx4_cmd_mailbox *inbox,
+			  struct mlx4_cmd_mailbox *outbox,
+			  struct mlx4_cmd_info *cmd);
+int mlx4_INIT_PORT_wrapper(struct mlx4_dev *dev, int slave,
+			   struct mlx4_vhcr *vhcr,
+			   struct mlx4_cmd_mailbox *inbox,
+			   struct mlx4_cmd_mailbox *outbox,
+			   struct mlx4_cmd_info *cmd);
+int mlx4_CLOSE_PORT_wrapper(struct mlx4_dev *dev, int slave,
+			    struct mlx4_vhcr *vhcr,
+			    struct mlx4_cmd_mailbox *inbox,
+			    struct mlx4_cmd_mailbox *outbox,
+			    struct mlx4_cmd_info *cmd);
+int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
+			    struct mlx4_vhcr *vhcr,
+			    struct mlx4_cmd_mailbox *inbox,
+			    struct mlx4_cmd_mailbox *outbox,
+			    struct mlx4_cmd_info *cmd);
 int mlx4_get_port_ib_caps(struct mlx4_dev *dev, u8 port, __be32 *caps);
 int mlx4_check_ext_port_caps(struct mlx4_dev *dev, u8 port);
 
+
+int mlx4_QP_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
+			   struct mlx4_vhcr *vhcr,
+			   struct mlx4_cmd_mailbox *inbox,
+			   struct mlx4_cmd_mailbox *outbox,
+			   struct mlx4_cmd_info *cmd);
+
+int mlx4_PROMISC_wrapper(struct mlx4_dev *dev, int slave,
+			 struct mlx4_vhcr *vhcr,
+			 struct mlx4_cmd_mailbox *inbox,
+			 struct mlx4_cmd_mailbox *outbox,
+			 struct mlx4_cmd_info *cmd);
 int mlx4_qp_detach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 			  enum mlx4_protocol prot, enum mlx4_steer_type steer);
 int mlx4_qp_attach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 			  int block_mcast_loopback, enum mlx4_protocol prot,
 			  enum mlx4_steer_type steer);
+int mlx4_SET_MCAST_FLTR_wrapper(struct mlx4_dev *dev, int slave,
+				struct mlx4_vhcr *vhcr,
+				struct mlx4_cmd_mailbox *inbox,
+				struct mlx4_cmd_mailbox *outbox,
+				struct mlx4_cmd_info *cmd);
+int mlx4_SET_VLAN_FLTR_wrapper(struct mlx4_dev *dev, int slave,
+			       struct mlx4_vhcr *vhcr,
+			       struct mlx4_cmd_mailbox *inbox,
+			       struct mlx4_cmd_mailbox *outbox,
+			       struct mlx4_cmd_info *cmd);
+int mlx4_common_set_vlan_fltr(struct mlx4_dev *dev, int function,
+				     int port, void *buf);
+int mlx4_common_dump_eth_stats(struct mlx4_dev *dev, int slave, u32 in_mod,
+				struct mlx4_cmd_mailbox *outbox);
+int mlx4_DUMP_ETH_STATS_wrapper(struct mlx4_dev *dev, int slave,
+				   struct mlx4_vhcr *vhcr,
+				   struct mlx4_cmd_mailbox *inbox,
+				   struct mlx4_cmd_mailbox *outbox,
+				struct mlx4_cmd_info *cmd);
+int mlx4_PKEY_TABLE_wrapper(struct mlx4_dev *dev, int slave,
+			    struct mlx4_vhcr *vhcr,
+			    struct mlx4_cmd_mailbox *inbox,
+			    struct mlx4_cmd_mailbox *outbox,
+			    struct mlx4_cmd_info *cmd);
+int mlx4_QUERY_IF_STAT_wrapper(struct mlx4_dev *dev, int slave,
+			       struct mlx4_vhcr *vhcr,
+			       struct mlx4_cmd_mailbox *inbox,
+			       struct mlx4_cmd_mailbox *outbox,
+			       struct mlx4_cmd_info *cmd);
 #endif /* MLX4_H */
