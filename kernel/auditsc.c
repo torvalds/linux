@@ -633,9 +633,23 @@ static int audit_filter_rules(struct task_struct *tsk,
 			break;
 		case AUDIT_GID:
 			result = audit_gid_comparator(cred->gid, f->op, f->gid);
+			if (f->op == Audit_equal) {
+				if (!result)
+					result = in_group_p(f->gid);
+			} else if (f->op == Audit_not_equal) {
+				if (result)
+					result = !in_group_p(f->gid);
+			}
 			break;
 		case AUDIT_EGID:
 			result = audit_gid_comparator(cred->egid, f->op, f->gid);
+			if (f->op == Audit_equal) {
+				if (!result)
+					result = in_egroup_p(f->gid);
+			} else if (f->op == Audit_not_equal) {
+				if (result)
+					result = !in_egroup_p(f->gid);
+			}
 			break;
 		case AUDIT_SGID:
 			result = audit_gid_comparator(cred->sgid, f->op, f->gid);
