@@ -873,7 +873,7 @@ static int spacc_aes_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 	 * request for any other size (192 bits) then we need to do a software
 	 * fallback.
 	 */
-	if ((len != AES_KEYSIZE_128 || len != AES_KEYSIZE_256) &&
+	if (len != AES_KEYSIZE_128 && len != AES_KEYSIZE_256 &&
 	    ctx->sw_cipher) {
 		/*
 		 * Set the fallback transform to use the same request flags as
@@ -886,7 +886,7 @@ static int spacc_aes_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 		err = crypto_ablkcipher_setkey(ctx->sw_cipher, key, len);
 		if (err)
 			goto sw_setkey_failed;
-	} else if ((len != AES_KEYSIZE_128 || len != AES_KEYSIZE_256) &&
+	} else if (len != AES_KEYSIZE_128 && len != AES_KEYSIZE_256 &&
 		   !ctx->sw_cipher)
 		err = -EINVAL;
 
