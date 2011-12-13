@@ -1818,6 +1818,11 @@ static void *__slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
 	if (unlikely(!node_match(c, node)))
 		goto another_slab;
 
+	/* must check again c->freelist in case of cpu migration or IRQ */
+	object = c->freelist;
+	if (object)
+		goto update_freelist;
+
 	stat(s, ALLOC_REFILL);
 
 load_freelist:
@@ -1827,6 +1832,7 @@ load_freelist:
 	if (kmem_cache_debug(s))
 		goto debug;
 
+update_freelist:
 	c->freelist = get_freepointer(s, object);
 	page->inuse = page->objects;
 	page->freelist = NULL;
