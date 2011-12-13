@@ -25,6 +25,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/gpio.h>
 #include <linux/dma-mapping.h>
 #include <mach/hardware.h>
 #include <mach/r8a7779.h>
@@ -85,6 +86,14 @@ static void __init marzen_init_early(void)
 static void __init marzen_init(void)
 {
 	r8a7779_pinmux_init();
+
+	/* SCIF2 (CN18: DEBUG0) */
+	gpio_request(GPIO_FN_TX2_C, NULL);
+	gpio_request(GPIO_FN_RX2_C, NULL);
+
+	/* SCIF4 (CN19: DEBUG1) */
+	gpio_request(GPIO_FN_TX4, NULL);
+	gpio_request(GPIO_FN_RX4, NULL);
 
 	r8a7779_add_standard_devices();
 	platform_add_devices(marzen_devices, ARRAY_SIZE(marzen_devices));
