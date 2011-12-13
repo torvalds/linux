@@ -105,8 +105,8 @@ static int rproc_enable_iommu(struct rproc *rproc)
 	 * that will be set by the remoteproc driver.
 	 */
 	if (!iommu_present(dev->bus)) {
-		dev_err(dev, "iommu not found\n");
-		return -ENODEV;
+		dev_dbg(dev, "iommu not found\n");
+		return 0;
 	}
 
 	domain = iommu_domain_alloc(dev->bus);
