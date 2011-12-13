@@ -1808,7 +1808,7 @@ struct wmi_set_ip_cmd {
 } __packed;
 
 enum ath6kl_wow_filters {
-	WOW_FILTER_SSID			= BIT(0),
+	WOW_FILTER_SSID			= BIT(1),
 	WOW_FILTER_OPTION_MAGIC_PACKET  = BIT(2),
 	WOW_FILTER_OPTION_EAP_REQ	= BIT(3),
 	WOW_FILTER_OPTION_PATTERNS	= BIT(4),
