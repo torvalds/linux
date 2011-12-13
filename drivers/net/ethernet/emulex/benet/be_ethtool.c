@@ -520,16 +520,13 @@ static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 	return 0;
 }
 
-static void
-be_get_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring)
+static void be_get_ringparam(struct net_device *netdev,
+			     struct ethtool_ringparam *ring)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 
-	ring->rx_max_pending = adapter->rx_obj[0].q.len;
-	ring->tx_max_pending = adapter->tx_obj[0].q.len;
-
-	ring->rx_pending = atomic_read(&adapter->rx_obj[0].q.used);
-	ring->tx_pending = atomic_read(&adapter->tx_obj[0].q.used);
+	ring->rx_max_pending = ring->rx_pending = adapter->rx_obj[0].q.len;
+	ring->tx_max_pending = ring->tx_pending = adapter->tx_obj[0].q.len;
 }
 
 static void
