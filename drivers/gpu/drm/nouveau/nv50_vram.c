@@ -195,10 +195,10 @@ nv50_vram_init(struct drm_device *dev)
 	switch (pfb714 & 0x00000007) {
 	case 0: dev_priv->vram_type = NV_MEM_TYPE_DDR1; break;
 	case 1:
-		if (0 /* some currently unknown condition */)
-			dev_priv->vram_type = NV_MEM_TYPE_DDR2;
-		else
+		if (nouveau_mem_vbios_type(dev) == NV_MEM_TYPE_DDR3)
 			dev_priv->vram_type = NV_MEM_TYPE_DDR3;
+		else
+			dev_priv->vram_type = NV_MEM_TYPE_DDR2;
 		break;
 	case 2: dev_priv->vram_type = NV_MEM_TYPE_GDDR3; break;
 	case 3: dev_priv->vram_type = NV_MEM_TYPE_GDDR4; break;

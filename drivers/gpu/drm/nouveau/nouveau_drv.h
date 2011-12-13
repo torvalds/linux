@@ -909,6 +909,7 @@ extern int  nouveau_mem_init_agp(struct drm_device *);
 extern int  nouveau_mem_reset_agp(struct drm_device *);
 extern void nouveau_mem_close(struct drm_device *);
 extern bool nouveau_mem_flags_valid(struct drm_device *, u32 tile_flags);
+extern int nouveau_mem_vbios_type(struct drm_device *);
 extern struct nouveau_tile_reg *nv10_mem_set_tiling(
 	struct drm_device *dev, uint32_t addr, uint32_t size,
 	uint32_t pitch, uint32_t flags);
