@@ -326,14 +326,16 @@ int vlan_vids_add_by_dev(struct net_device *dev,
 			 const struct net_device *by_dev)
 {
 	struct vlan_vid_info *vid_info;
+	struct vlan_info *vlan_info;
 	int err;
 
 	ASSERT_RTNL();
 
-	if (!by_dev->vlan_info)
+	vlan_info = rtnl_dereference(by_dev->vlan_info);
+	if (!vlan_info)
 		return 0;
 
-	list_for_each_entry(vid_info, &by_dev->vlan_info->vid_list, list) {
+	list_for_each_entry(vid_info, &vlan_info->vid_list, list) {
 		err = vlan_vid_add(dev, vid_info->vid);
 		if (err)
 			goto unwind;
@@ -342,7 +344,7 @@ int vlan_vids_add_by_dev(struct net_device *dev,
 
 unwind:
 	list_for_each_entry_continue_reverse(vid_info,
-					     &by_dev->vlan_info->vid_list,
+					     &vlan_info->vid_list,
 					     list) {
 		vlan_vid_del(dev, vid_info->vid);
 	}
@@ -355,13 +357,15 @@ void vlan_vids_del_by_dev(struct net_device *dev,
 			  const struct net_device *by_dev)
 {
 	struct vlan_vid_info *vid_info;
+	struct vlan_info *vlan_info;
 
 	ASSERT_RTNL();
 
-	if (!by_dev->vlan_info)
+	vlan_info = rtnl_dereference(by_dev->vlan_info);
+	if (!vlan_info)
 		return;
 
-	list_for_each_entry(vid_info, &by_dev->vlan_info->vid_list, list)
+	list_for_each_entry(vid_info, &vlan_info->vid_list, list)
 		vlan_vid_del(dev, vid_info->vid);
 }
 EXPORT_SYMBOL(vlan_vids_del_by_dev);
