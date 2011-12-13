@@ -54,9 +54,9 @@ static const int cfq_hist_divisor = 4;
 #define CFQQ_SECT_THR_NONROT	(sector_t)(2 * 32)
 #define CFQQ_SEEKY(cfqq)	(hweight32(cfqq->seek_history) > 32/8)
 
-#define RQ_CIC(rq)		icq_to_cic((rq)->elevator_private[0])
-#define RQ_CFQQ(rq)		(struct cfq_queue *) ((rq)->elevator_private[1])
-#define RQ_CFQG(rq)		(struct cfq_group *) ((rq)->elevator_private[2])
+#define RQ_CIC(rq)		icq_to_cic((rq)->elv.icq)
+#define RQ_CFQQ(rq)		(struct cfq_queue *) ((rq)->elv.priv[0])
+#define RQ_CFQG(rq)		(struct cfq_group *) ((rq)->elv.priv[1])
 
 static struct kmem_cache *cfq_pool;
 static struct kmem_cache *cfq_icq_pool;
@@ -296,8 +296,6 @@ struct cfq_data {
 	unsigned int cfq_slice_idle;
 	unsigned int cfq_group_idle;
 	unsigned int cfq_latency;
-
-	struct list_head icq_list;
 
 	/*
 	 * Fallback dummy cfqq for extreme OOM conditions
@@ -3053,7 +3051,7 @@ static int cfq_create_cic(struct cfq_data *cfqd, gfp_t gfp_mask)
 	ret = radix_tree_insert(&ioc->icq_tree, q->id, icq);
 	if (likely(!ret)) {
 		hlist_add_head(&icq->ioc_node, &ioc->icq_list);
-		list_add(&icq->q_node, &cfqd->icq_list);
+		list_add(&icq->q_node, &q->icq_list);
 		icq = NULL;
 	} else if (ret == -EEXIST) {
 		/* someone else already did it */
@@ -3605,12 +3603,10 @@ static void cfq_put_request(struct request *rq)
 
 		put_io_context(RQ_CIC(rq)->icq.ioc, cfqq->cfqd->queue);
 
-		rq->elevator_private[0] = NULL;
-		rq->elevator_private[1] = NULL;
-
 		/* Put down rq reference on cfqg */
 		cfq_put_cfqg(RQ_CFQG(rq));
-		rq->elevator_private[2] = NULL;
+		rq->elv.priv[0] = NULL;
+		rq->elv.priv[1] = NULL;
 
 		cfq_put_queue(cfqq);
 	}
@@ -3696,9 +3692,9 @@ new_queue:
 	cfqq->allocated[rw]++;
 
 	cfqq->ref++;
-	rq->elevator_private[0] = &cic->icq;
-	rq->elevator_private[1] = cfqq;
-	rq->elevator_private[2] = cfq_ref_get_cfqg(cfqq->cfqg);
+	rq->elv.icq = &cic->icq;
+	rq->elv.priv[0] = cfqq;
+	rq->elv.priv[1] = cfq_ref_get_cfqg(cfqq->cfqg);
 	spin_unlock_irq(q->queue_lock);
 	return 0;
 
@@ -3810,8 +3806,8 @@ static void cfq_exit_queue(struct elevator_queue *e)
 	if (cfqd->active_queue)
 		__cfq_slice_expired(cfqd, cfqd->active_queue, 0);
 
-	while (!list_empty(&cfqd->icq_list)) {
-		struct io_cq *icq = list_entry(cfqd->icq_list.next,
+	while (!list_empty(&q->icq_list)) {
+		struct io_cq *icq = list_entry(q->icq_list.next,
 					       struct io_cq, q_node);
 		struct io_context *ioc = icq->ioc;
 
@@ -3921,8 +3917,6 @@ static void *cfq_init_queue(struct request_queue *q)
 	cfq_init_cfqq(cfqd, &cfqd->oom_cfqq, 1, 0);
 	cfqd->oom_cfqq.ref++;
 	cfq_link_cfqq_cfqg(&cfqd->oom_cfqq, &cfqd->root_group);
-
-	INIT_LIST_HEAD(&cfqd->icq_list);
 
 	cfqd->queue = q;
 
