@@ -160,7 +160,7 @@
 	(MCI_RXFIFOHALFFULLMASK | MCI_RXDATAAVLBLMASK | \
 	 MCI_TXFIFOHALFEMPTYMASK)
 
-#define NR_SG		16
+#define NR_SG		128
 
 struct clk;
 struct variant_data;
