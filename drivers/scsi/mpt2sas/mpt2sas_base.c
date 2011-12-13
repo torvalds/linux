@@ -4099,7 +4099,8 @@ _base_make_ioc_operational(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 		ioc->reply_free[i] = cpu_to_le32(reply_address);
 
 	/* initialize reply queues */
-	_base_assign_reply_queues(ioc);
+	if (ioc->is_driver_loading)
+		_base_assign_reply_queues(ioc);
 
 	/* initialize Reply Post Free Queue */
 	reply_post_free = (long)ioc->reply_post_free;
@@ -4147,24 +4148,17 @@ _base_make_ioc_operational(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 
 
 	if (ioc->is_driver_loading) {
-
-
-
-		ioc->wait_for_discovery_to_complete =
-		    _base_determine_wait_on_discovery(ioc);
-		return r; /* scan_start and scan_finished support */
-	}
-
-
-	if (ioc->wait_for_discovery_to_complete && ioc->is_warpdrive) {
-		if (ioc->manu_pg10.OEMIdentifier  == 0x80) {
+		if (ioc->is_warpdrive && ioc->manu_pg10.OEMIdentifier
+		    == 0x80) {
 			hide_flag = (u8) (ioc->manu_pg10.OEMSpecificFlags0 &
 			    MFG_PAGE10_HIDE_SSDS_MASK);
 			if (hide_flag != MFG_PAGE10_HIDE_SSDS_MASK)
 				ioc->mfg_pg10_hide_flag = hide_flag;
 		}
+		ioc->wait_for_discovery_to_complete =
+		    _base_determine_wait_on_discovery(ioc);
+		return r; /* scan_start and scan_finished support */
 	}
-
 	r = _base_send_port_enable(ioc, sleep_flag);
 	if (r)
 		return r;

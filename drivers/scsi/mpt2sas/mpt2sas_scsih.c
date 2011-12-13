@@ -8039,7 +8039,6 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out_attach_fail;
 	}
 
-	scsi_scan_host(shost);
 	if (ioc->is_warpdrive) {
 		if (ioc->mfg_pg10_hide_flag ==  MFG_PAGE10_EXPOSE_ALL_DISKS)
 			ioc->hide_drives = 0;
@@ -8053,8 +8052,8 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		}
 	} else
 		ioc->hide_drives = 0;
+	scsi_scan_host(shost);
 
-	_scsih_probe_devices(ioc);
 	return 0;
 
  out_attach_fail:
