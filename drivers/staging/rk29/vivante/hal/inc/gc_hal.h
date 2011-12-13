@@ -26,10 +26,20 @@
 
 // dkm: 方便调用系统的函数
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include "gc_hal_types.h"
 #include "gc_hal_enum.h"
 #include "gc_hal_base.h"
 #include "gc_hal_profiler.h"
+
+enum {
+	D_ERROR	= 1U << 0,
+	D_IOCTL	= 1U << 1,
+	D_IRQ   = 1U << 2,
+};
+extern uint gpu_dmask;
+#define dprintk(mask, fmt, ...) do { if (mask & gpu_dmask) printk("gpu: " fmt, ##__VA_ARGS__); } while (0)
+//#define dprintk(mask, fmt, ...) do { if (mask & gpu_dmask) printk(fmt, ##__VA_ARGS__); } while (0)
 
 #ifdef __cplusplus
 extern "C" {

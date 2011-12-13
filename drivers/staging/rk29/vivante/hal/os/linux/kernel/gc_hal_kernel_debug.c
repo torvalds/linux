@@ -74,7 +74,9 @@ OutputDebugString(
 #else
     if (String != gcvNULL)
     {
-        printk(String);
+//#define ddprintk(args...) printk(KERN_DEBUG args)
+        printk(KERN_DEBUG "%s", String);
+        //printk(String);
     }
 #endif
 }

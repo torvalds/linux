@@ -556,7 +556,7 @@ gckOS_Construct(
     #endif
     }
 
-    for(os->pageNum8=0; os->pageNum8<40; os->pageNum8++) {
+    for(os->pageNum8=0; os->pageNum8<55; os->pageNum8++) {
     #if USE_DMA_COHERENT
         os->addr8[os->pageNum8] = 
         #if (2==gcdENABLE_MEM_CACHE)
@@ -3096,6 +3096,9 @@ gckOS_AllocatePagedMemory(
 **          Pointer to a variable that receives the physical address of the
 **          memory allocation.
 */
+
+//static int alloc_page = 0;
+
 gceSTATUS gckOS_AllocatePagedMemoryEx(
     IN gckOS Os,
     IN gctBOOL Contiguous,
@@ -3161,6 +3164,9 @@ gceSTATUS gckOS_AllocatePagedMemoryEx(
         gcmkHEADER_ARG("status=%d", gcvSTATUS_OUT_OF_MEMORY);
         return gcvSTATUS_OUT_OF_MEMORY;
     }
+
+    //alloc_page += numPages;
+    //printk("+ %d / %d addr=%p\n", numPages , alloc_page, addr);
 
     mdl = _CreateMdl(current->tgid);
 
@@ -3305,6 +3311,9 @@ gceSTATUS gckOS_FreePagedMemory(
     {
         vfree(mdl->addr);
     }
+
+    //alloc_page -= mdl->numPages;
+    //printk("- %d / %d\n", mdl->numPages , alloc_page);
 
     /* Remove the node from global list. */
     if (mdl == Os->mdlHead)

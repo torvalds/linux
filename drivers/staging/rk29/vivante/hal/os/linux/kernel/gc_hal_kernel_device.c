@@ -28,6 +28,8 @@
 #include <linux/mman.h>
 #include <linux/slab.h>
 
+extern unsigned int regAddress;
+
 #define _GC_OBJ_ZONE    gcvZONE_DEVICE
 
 #ifdef FLAREON
@@ -498,6 +500,7 @@ gckGALDEVICE_Construct(
         }
         // dkm: print te regbase
         printk("---- gpu regbase: 0x%08x ---- \n", (unsigned int)device->registerBase);
+        regAddress = (unsigned int)device->registerBase;
 
         physical += RegisterMemSize;
 
