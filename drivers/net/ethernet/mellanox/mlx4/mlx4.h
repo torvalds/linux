@@ -612,6 +612,7 @@ struct mlx4_priv {
 	struct list_head	bf_list;
 	struct mutex		bf_mutex;
 	struct io_mapping	*bf_mapping;
+	int			reserved_mtts;
 };
 
 static inline struct mlx4_priv *mlx4_priv(struct mlx4_dev *dev)
