@@ -35,14 +35,6 @@
 #include <crypto/lrw.h>
 #include <crypto/xts.h>
 
-#if defined(CONFIG_CRYPTO_LRW) || defined(CONFIG_CRYPTO_LRW_MODULE)
-#define HAS_LRW
-#endif
-
-#if defined(CONFIG_CRYPTO_XTS) || defined(CONFIG_CRYPTO_XTS_MODULE)
-#define HAS_XTS
-#endif
-
 /* regular block cipher functions from twofish_x86_64 module */
 asmlinkage void twofish_enc_blk(struct twofish_ctx *ctx, u8 *dst,
 				const u8 *src);
@@ -442,8 +434,6 @@ static struct crypto_alg blk_ctr_alg = {
 	},
 };
 
-#if defined(HAS_LRW) || defined(HAS_XTS)
-
 static void encrypt_callback(void *priv, u8 *srcdst, unsigned int nbytes)
 {
 	const unsigned int bsize = TF_BLOCK_SIZE;
@@ -473,10 +463,6 @@ static void decrypt_callback(void *priv, u8 *srcdst, unsigned int nbytes)
 	for (i = 0; i < nbytes / bsize; i++, srcdst += bsize)
 		twofish_dec_blk(ctx, srcdst, srcdst);
 }
-
-#endif
-
-#ifdef HAS_LRW
 
 struct twofish_lrw_ctx {
 	struct lrw_table_ctx lrw_table;
@@ -561,10 +547,6 @@ static struct crypto_alg blk_lrw_alg = {
 		},
 	},
 };
-
-#endif
-
-#ifdef HAS_XTS
 
 struct twofish_xts_ctx {
 	struct twofish_ctx tweak_ctx;
@@ -655,8 +637,6 @@ static struct crypto_alg blk_xts_alg = {
 	},
 };
 
-#endif
-
 int __init init(void)
 {
 	int err;
@@ -670,27 +650,19 @@ int __init init(void)
 	err = crypto_register_alg(&blk_ctr_alg);
 	if (err)
 		goto ctr_err;
-#ifdef HAS_LRW
 	err = crypto_register_alg(&blk_lrw_alg);
 	if (err)
 		goto blk_lrw_err;
-#endif
-#ifdef HAS_XTS
 	err = crypto_register_alg(&blk_xts_alg);
 	if (err)
 		goto blk_xts_err;
-#endif
 
 	return 0;
 
-#ifdef HAS_XTS
 	crypto_unregister_alg(&blk_xts_alg);
 blk_xts_err:
-#endif
-#ifdef HAS_LRW
 	crypto_unregister_alg(&blk_lrw_alg);
 blk_lrw_err:
-#endif
 	crypto_unregister_alg(&blk_ctr_alg);
 ctr_err:
 	crypto_unregister_alg(&blk_cbc_alg);
@@ -702,12 +674,8 @@ ecb_err:
 
 void __exit fini(void)
 {
-#ifdef HAS_XTS
 	crypto_unregister_alg(&blk_xts_alg);
-#endif
-#ifdef HAS_LRW
 	crypto_unregister_alg(&blk_lrw_alg);
-#endif
 	crypto_unregister_alg(&blk_ctr_alg);
 	crypto_unregister_alg(&blk_cbc_alg);
 	crypto_unregister_alg(&blk_ecb_alg);
