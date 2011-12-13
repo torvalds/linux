@@ -79,6 +79,11 @@ DEFINE_EARLY_PER_CPU(u16, x86_bios_cpu_apicid, BAD_APICID);
 EXPORT_EARLY_PER_CPU_SYMBOL(x86_cpu_to_apicid);
 EXPORT_EARLY_PER_CPU_SYMBOL(x86_bios_cpu_apicid);
 
+/*
+ * ICR read retry counter
+ */
+DEFINE_PER_CPU(unsigned, icr_read_retry_count);
+
 #ifdef CONFIG_X86_32
 
 /*
@@ -250,6 +255,7 @@ u32 native_safe_apic_wait_icr_idle(void)
 		send_status = apic_read(APIC_ICR) & APIC_ICR_BUSY;
 		if (!send_status)
 			break;
+		percpu_inc(icr_read_retry_count);
 		udelay(100);
 	} while (timeout++ < 1000);
 
