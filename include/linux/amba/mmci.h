@@ -31,7 +31,8 @@ struct dma_chan;
  * @ocr_mask: available voltages on the 4 pins from the block, this
  * is ignored if a regulator is used, see the MMC_VDD_* masks in
  * mmc/host.h
- * @vdd_handler: a callback function to translate a MMC_VDD_*
+ * @ios_handler: a callback function to act on specfic ios changes,
+ * used for example to control a levelshifter
  * mask into a value to be binary (or set some other custom bits
  * in MMCIPWR) or:ed and written into the MMCIPWR register of the
  * block.  May also control external power based on the power_mode.
@@ -61,8 +62,7 @@ struct dma_chan;
 struct mmci_platform_data {
 	unsigned int f_max;
 	unsigned int ocr_mask;
-	u32 (*vdd_handler)(struct device *, unsigned int vdd,
-			   unsigned char power_mode);
+	int (*ios_handler)(struct device *, struct mmc_ios *);
 	unsigned int (*status)(struct device *);
 	int	gpio_wp;
 	int	gpio_cd;
