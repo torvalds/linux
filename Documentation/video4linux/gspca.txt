@@ -279,6 +279,7 @@ pac7302		093a:2628	Genius iLook 300
 pac7302		093a:2629	Genious iSlim 300
 pac7302		093a:262a	Webcam 300k
 pac7302		093a:262c	Philips SPC 230 NC
+jl2005bcd	0979:0227	Various brands, 19 known cameras supported
 jeilinj		0979:0280	Sakar 57379
 jeilinj		0979:0280	Sportscam DV15
 zc3xx		0ac8:0302	Z-star Vimicro zc0302
