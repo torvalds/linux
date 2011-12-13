@@ -1075,6 +1075,7 @@ lpfc_issue_els_flogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	/* Setup CSPs accordingly for Fabric */
 	sp->cmn.e_d_tov = 0;
 	sp->cmn.w2.r_a_tov = 0;
+	sp->cmn.virtual_fabric_support = 0;
 	sp->cls1.classValid = 0;
 	sp->cls2.seqDelivery = 1;
 	sp->cls3.seqDelivery = 1;
@@ -3066,17 +3067,22 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	if (did == FDMI_DID)
 		retry = 1;
 
-	if (((cmd == ELS_CMD_FLOGI) || (cmd == ELS_CMD_FDISC)) &&
+	if ((cmd == ELS_CMD_FLOGI) &&
 	    (phba->fc_topology != LPFC_TOPOLOGY_LOOP) &&
 	    !lpfc_error_lost_link(irsp)) {
 		/* FLOGI retry policy */
 		retry = 1;
-		/* retry forever */
+		/* retry FLOGI forever */
 		maxretry = 0;
 		if (cmdiocb->retry >= 100)
 			delay = 5000;
 		else if (cmdiocb->retry >= 32)
 			delay = 1000;
+	} else if ((cmd == ELS_CMD_FDISC) && !lpfc_error_lost_link(irsp)) {
+		/* retry FDISCs every second up to devloss */
+		retry = 1;
+		maxretry = vport->cfg_devloss_tmo;
+		delay = 1000;
 	}
 
 	cmdiocb->retry++;
@@ -3389,11 +3395,17 @@ lpfc_cmpl_els_logo_acc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	/*
 	 * The driver received a LOGO from the rport and has ACK'd it.
-	 * At this point, the driver is done so release the IOCB and
-	 * remove the ndlp reference.
+	 * At this point, the driver is done so release the IOCB
 	 */
 	lpfc_els_free_iocb(phba, cmdiocb);
-	lpfc_nlp_put(ndlp);
+
+	/*
+	 * Remove the ndlp reference if it's a fabric node that has
+	 * sent us an unsolicted LOGO.
+	 */
+	if (ndlp->nlp_type & NLP_FABRIC)
+		lpfc_nlp_put(ndlp);
+
 	return;
 }
 
@@ -7231,6 +7243,7 @@ lpfc_issue_els_fdisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	/* Setup CSPs accordingly for Fabric */
 	sp->cmn.e_d_tov = 0;
 	sp->cmn.w2.r_a_tov = 0;
+	sp->cmn.virtual_fabric_support = 0;
 	sp->cls1.classValid = 0;
 	sp->cls2.seqDelivery = 1;
 	sp->cls3.seqDelivery = 1;

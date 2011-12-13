@@ -349,6 +349,12 @@ struct csp {
  * Word 1 Bit 31 in FLOGI response is clean address bit
  */
 #define clean_address_bit request_multiple_Nport /* Word 1, bit 31 */
+/*
+ * Word 1 Bit 30 in common service parameter is overloaded.
+ * Word 1 Bit 30 in FLOGI request is Virtual Fabrics
+ * Word 1 Bit 30 in PLOGI request is random offset
+ */
+#define virtual_fabric_support randomOffset /* Word 1, bit 30 */
 #ifdef __BIG_ENDIAN_BITFIELD
 	uint16_t request_multiple_Nport:1;	/* FC Word 1, bit 31 */
 	uint16_t randomOffset:1;	/* FC Word 1, bit 30 */

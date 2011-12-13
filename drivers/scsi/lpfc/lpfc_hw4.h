@@ -1830,6 +1830,8 @@ struct lpfc_mbx_init_vfi {
 #define lpfc_init_vfi_hop_count_MASK	0x000000FF
 #define lpfc_init_vfi_hop_count_WORD	word4
 };
+#define MBX_VFI_IN_USE			0x9F02
+
 
 struct lpfc_mbx_reg_vfi {
 	uint32_t word1;
