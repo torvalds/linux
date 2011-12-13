@@ -27,26 +27,28 @@ static void cfq_dtor(struct io_context *ioc)
 	}
 }
 
-/*
- * IO Context helper functions. put_io_context() returns 1 if there are no
- * more users of this io context, 0 otherwise.
+/**
+ * put_io_context - put a reference of io_context
+ * @ioc: io_context to put
+ *
+ * Decrement reference count of @ioc and release it if the count reaches
+ * zero.
  */
-int put_io_context(struct io_context *ioc)
+void put_io_context(struct io_context *ioc)
 {
 	if (ioc == NULL)
-		return 1;
+		return;
 
-	BUG_ON(atomic_long_read(&ioc->refcount) == 0);
+	BUG_ON(atomic_long_read(&ioc->refcount) <= 0);
 
-	if (atomic_long_dec_and_test(&ioc->refcount)) {
-		rcu_read_lock();
-		cfq_dtor(ioc);
-		rcu_read_unlock();
+	if (!atomic_long_dec_and_test(&ioc->refcount))
+		return;
 
-		kmem_cache_free(iocontext_cachep, ioc);
-		return 1;
-	}
-	return 0;
+	rcu_read_lock();
+	cfq_dtor(ioc);
+	rcu_read_unlock();
+
+	kmem_cache_free(iocontext_cachep, ioc);
 }
 EXPORT_SYMBOL(put_io_context);
 
@@ -84,33 +86,31 @@ struct io_context *alloc_io_context(gfp_t gfp_flags, int node)
 {
 	struct io_context *ioc;
 
-	ioc = kmem_cache_alloc_node(iocontext_cachep, gfp_flags, node);
-	if (ioc) {
-		atomic_long_set(&ioc->refcount, 1);
-		atomic_set(&ioc->nr_tasks, 1);
-		spin_lock_init(&ioc->lock);
-		ioc->ioprio_changed = 0;
-		ioc->ioprio = 0;
-		ioc->last_waited = 0; /* doesn't matter... */
-		ioc->nr_batch_requests = 0; /* because this is 0 */
-		INIT_RADIX_TREE(&ioc->radix_root, GFP_ATOMIC | __GFP_HIGH);
-		INIT_HLIST_HEAD(&ioc->cic_list);
-		ioc->ioc_data = NULL;
-#if defined(CONFIG_BLK_CGROUP) || defined(CONFIG_BLK_CGROUP_MODULE)
-		ioc->cgroup_changed = 0;
-#endif
-	}
+	ioc = kmem_cache_alloc_node(iocontext_cachep, gfp_flags | __GFP_ZERO,
+				    node);
+	if (unlikely(!ioc))
+		return NULL;
+
+	/* initialize */
+	atomic_long_set(&ioc->refcount, 1);
+	atomic_set(&ioc->nr_tasks, 1);
+	spin_lock_init(&ioc->lock);
+	INIT_RADIX_TREE(&ioc->radix_root, GFP_ATOMIC | __GFP_HIGH);
+	INIT_HLIST_HEAD(&ioc->cic_list);
 
 	return ioc;
 }
 
-/*
- * If the current task has no IO context then create one and initialise it.
- * Otherwise, return its existing IO context.
+/**
+ * current_io_context - get io_context of %current
+ * @gfp_flags: allocation flags, used if allocation is necessary
+ * @node: allocation node, used if allocation is necessary
  *
- * This returned IO context doesn't have a specifically elevated refcount,
- * but since the current task itself holds a reference, the context can be
- * used in general code, so long as it stays within `current` context.
+ * Return io_context of %current.  If it doesn't exist, it is created with
+ * @gfp_flags and @node.  The returned io_context does NOT have its
+ * reference count incremented.  Because io_context is exited only on task
+ * exit, %current can be sure that the returned io_context is valid and
+ * alive as long as it is executing.
  */
 struct io_context *current_io_context(gfp_t gfp_flags, int node)
 {
