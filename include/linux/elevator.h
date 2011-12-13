@@ -5,6 +5,8 @@
 
 #ifdef CONFIG_BLOCK
 
+struct io_cq;
+
 typedef int (elevator_merge_fn) (struct request_queue *, struct request **,
 				 struct bio *);
 
@@ -24,6 +26,7 @@ typedef struct request *(elevator_request_list_fn) (struct request_queue *, stru
 typedef void (elevator_completed_req_fn) (struct request_queue *, struct request *);
 typedef int (elevator_may_queue_fn) (struct request_queue *, int);
 
+typedef void (elevator_exit_icq_fn) (struct io_cq *);
 typedef int (elevator_set_req_fn) (struct request_queue *, struct request *, gfp_t);
 typedef void (elevator_put_req_fn) (struct request *);
 typedef void (elevator_activate_req_fn) (struct request_queue *, struct request *);
@@ -55,6 +58,8 @@ struct elevator_ops
 
 	elevator_request_list_fn *elevator_former_req_fn;
 	elevator_request_list_fn *elevator_latter_req_fn;
+
+	elevator_exit_icq_fn *elevator_exit_icq_fn;
 
 	elevator_set_req_fn *elevator_set_req_fn;
 	elevator_put_req_fn *elevator_put_req_fn;

@@ -44,6 +44,51 @@ EXPORT_SYMBOL(get_io_context);
 #define ioc_release_depth_dec(q)	do { } while (0)
 #endif
 
+static void icq_free_icq_rcu(struct rcu_head *head)
+{
+	struct io_cq *icq = container_of(head, struct io_cq, __rcu_head);
+
+	kmem_cache_free(icq->__rcu_icq_cache, icq);
+}
+
+/*
+ * Exit and free an icq.  Called with both ioc and q locked.
+ */
+static void ioc_exit_icq(struct io_cq *icq)
+{
+	struct io_context *ioc = icq->ioc;
+	struct request_queue *q = icq->q;
+	struct elevator_type *et = q->elevator->type;
+
+	lockdep_assert_held(&ioc->lock);
+	lockdep_assert_held(q->queue_lock);
+
+	radix_tree_delete(&ioc->icq_tree, icq->q->id);
+	hlist_del_init(&icq->ioc_node);
+	list_del_init(&icq->q_node);
+
+	/*
+	 * Both setting lookup hint to and clearing it from @icq are done
+	 * under queue_lock.  If it's not pointing to @icq now, it never
+	 * will.  Hint assignment itself can race safely.
+	 */
+	if (rcu_dereference_raw(ioc->icq_hint) == icq)
+		rcu_assign_pointer(ioc->icq_hint, NULL);
+
+	if (et->ops.elevator_exit_icq_fn) {
+		ioc_release_depth_inc(q);
+		et->ops.elevator_exit_icq_fn(icq);
+		ioc_release_depth_dec(q);
+	}
+
+	/*
+	 * @icq->q might have gone away by the time RCU callback runs
+	 * making it impossible to determine icq_cache.  Record it in @icq.
+	 */
+	icq->__rcu_icq_cache = et->icq_cache;
+	call_rcu(&icq->__rcu_head, icq_free_icq_rcu);
+}
+
 /*
  * Slow path for ioc release in put_io_context().  Performs double-lock
  * dancing to unlink all icq's and then frees ioc.
@@ -87,10 +132,7 @@ static void ioc_release_fn(struct work_struct *work)
 			spin_lock(&ioc->lock);
 			continue;
 		}
-		ioc_release_depth_inc(this_q);
-		icq->exit(icq);
-		icq->release(icq);
-		ioc_release_depth_dec(this_q);
+		ioc_exit_icq(icq);
 	}
 
 	if (last_q) {
@@ -167,10 +209,7 @@ void put_io_context(struct io_context *ioc, struct request_queue *locked_q)
 			last_q = this_q;
 			continue;
 		}
-		ioc_release_depth_inc(this_q);
-		icq->exit(icq);
-		icq->release(icq);
-		ioc_release_depth_dec(this_q);
+		ioc_exit_icq(icq);
 	}
 
 	if (last_q && last_q != locked_q)
@@ -201,6 +240,27 @@ void exit_io_context(struct task_struct *task)
 
 	atomic_dec(&ioc->nr_tasks);
 	put_io_context(ioc, NULL);
+}
+
+/**
+ * ioc_clear_queue - break any ioc association with the specified queue
+ * @q: request_queue being cleared
+ *
+ * Walk @q->icq_list and exit all io_cq's.  Must be called with @q locked.
+ */
+void ioc_clear_queue(struct request_queue *q)
+{
+	lockdep_assert_held(q->queue_lock);
+
+	while (!list_empty(&q->icq_list)) {
+		struct io_cq *icq = list_entry(q->icq_list.next,
+					       struct io_cq, q_node);
+		struct io_context *ioc = icq->ioc;
+
+		spin_lock(&ioc->lock);
+		ioc_exit_icq(icq);
+		spin_unlock(&ioc->lock);
+	}
 }
 
 void create_io_context_slowpath(struct task_struct *task, gfp_t gfp_flags,

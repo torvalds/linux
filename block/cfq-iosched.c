@@ -2674,26 +2674,6 @@ static void cfq_put_queue(struct cfq_queue *cfqq)
 	cfq_put_cfqg(cfqg);
 }
 
-static void cfq_icq_free_rcu(struct rcu_head *head)
-{
-	kmem_cache_free(cfq_icq_pool,
-			icq_to_cic(container_of(head, struct io_cq, rcu_head)));
-}
-
-static void cfq_icq_free(struct io_cq *icq)
-{
-	call_rcu(&icq->rcu_head, cfq_icq_free_rcu);
-}
-
-static void cfq_release_icq(struct io_cq *icq)
-{
-	struct io_context *ioc = icq->ioc;
-
-	radix_tree_delete(&ioc->icq_tree, icq->q->id);
-	hlist_del(&icq->ioc_node);
-	cfq_icq_free(icq);
-}
-
 static void cfq_put_cooperator(struct cfq_queue *cfqq)
 {
 	struct cfq_queue *__cfqq, *next;
@@ -2731,17 +2711,6 @@ static void cfq_exit_icq(struct io_cq *icq)
 {
 	struct cfq_io_cq *cic = icq_to_cic(icq);
 	struct cfq_data *cfqd = cic_to_cfqd(cic);
-	struct io_context *ioc = icq->ioc;
-
-	list_del_init(&icq->q_node);
-
-	/*
-	 * Both setting lookup hint to and clearing it from @icq are done
-	 * under queue_lock.  If it's not pointing to @icq now, it never
-	 * will.  Hint assignment itself can race safely.
-	 */
-	if (rcu_dereference_raw(ioc->icq_hint) == icq)
-		rcu_assign_pointer(ioc->icq_hint, NULL);
 
 	if (cic->cfqq[BLK_RW_ASYNC]) {
 		cfq_exit_cfqq(cfqd, cic->cfqq[BLK_RW_ASYNC]);
@@ -2764,8 +2733,6 @@ static struct cfq_io_cq *cfq_alloc_cic(struct cfq_data *cfqd, gfp_t gfp_mask)
 		cic->ttime.last_end_request = jiffies;
 		INIT_LIST_HEAD(&cic->icq.q_node);
 		INIT_HLIST_NODE(&cic->icq.ioc_node);
-		cic->icq.exit = cfq_exit_icq;
-		cic->icq.release = cfq_release_icq;
 	}
 
 	return cic;
@@ -3034,7 +3001,7 @@ out:
 	if (ret)
 		printk(KERN_ERR "cfq: icq link failed!\n");
 	if (icq)
-		cfq_icq_free(icq);
+		kmem_cache_free(cfq_icq_pool, icq);
 	return ret;
 }
 
@@ -3774,17 +3741,6 @@ static void cfq_exit_queue(struct elevator_queue *e)
 	if (cfqd->active_queue)
 		__cfq_slice_expired(cfqd, cfqd->active_queue, 0);
 
-	while (!list_empty(&q->icq_list)) {
-		struct io_cq *icq = list_entry(q->icq_list.next,
-					       struct io_cq, q_node);
-		struct io_context *ioc = icq->ioc;
-
-		spin_lock(&ioc->lock);
-		cfq_exit_icq(icq);
-		cfq_release_icq(icq);
-		spin_unlock(&ioc->lock);
-	}
-
 	cfq_put_async_queues(cfqd);
 	cfq_release_cfq_groups(cfqd);
 
@@ -4019,6 +3975,7 @@ static struct elevator_type iosched_cfq = {
 		.elevator_completed_req_fn =	cfq_completed_request,
 		.elevator_former_req_fn =	elv_rb_former_request,
 		.elevator_latter_req_fn =	elv_rb_latter_request,
+		.elevator_exit_icq_fn =		cfq_exit_icq,
 		.elevator_set_req_fn =		cfq_set_request,
 		.elevator_put_req_fn =		cfq_put_request,
 		.elevator_may_queue_fn =	cfq_may_queue,

@@ -14,14 +14,22 @@ struct io_cq {
 	struct request_queue	*q;
 	struct io_context	*ioc;
 
-	struct list_head	q_node;
-	struct hlist_node	ioc_node;
+	/*
+	 * q_node and ioc_node link io_cq through icq_list of q and ioc
+	 * respectively.  Both fields are unused once ioc_exit_icq() is
+	 * called and shared with __rcu_icq_cache and __rcu_head which are
+	 * used for RCU free of io_cq.
+	 */
+	union {
+		struct list_head	q_node;
+		struct kmem_cache	*__rcu_icq_cache;
+	};
+	union {
+		struct hlist_node	ioc_node;
+		struct rcu_head		__rcu_head;
+	};
 
 	unsigned long		changed;
-	struct rcu_head		rcu_head;
-
-	void (*exit)(struct io_cq *);
-	void (*release)(struct io_cq *);
 };
 
 /*
