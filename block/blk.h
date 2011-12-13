@@ -122,6 +122,7 @@ static inline int blk_should_fake_timeout(struct request_queue *q)
 }
 #endif
 
+void get_io_context(struct io_context *ioc);
 struct io_context *current_io_context(gfp_t gfp_flags, int node);
 
 int ll_back_merge_fn(struct request_queue *q, struct request *req,

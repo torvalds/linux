@@ -1645,11 +1645,12 @@ static void blkiocg_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
 {
 	struct io_context *ioc;
 
-	task_lock(tsk);
-	ioc = tsk->io_context;
-	if (ioc)
+	/* we don't lose anything even if ioc allocation fails */
+	ioc = get_task_io_context(tsk, GFP_ATOMIC, NUMA_NO_NODE);
+	if (ioc) {
 		ioc->cgroup_changed = 1;
-	task_unlock(tsk);
+		put_io_context(ioc);
+	}
 }
 
 void blkio_policy_register(struct blkio_policy_type *blkiop)
