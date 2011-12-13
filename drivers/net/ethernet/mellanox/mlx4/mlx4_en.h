@@ -51,8 +51,8 @@
 #include "en_port.h"
 
 #define DRV_NAME	"mlx4_en"
-#define DRV_VERSION	"1.5.4.2"
-#define DRV_RELDATE	"October 2011"
+#define DRV_VERSION	"2.0"
+#define DRV_RELDATE	"Dec 2011"
 
 #define MLX4_EN_MSG_LEVEL	(NETIF_MSG_LINK | NETIF_MSG_IFDOWN)
 
