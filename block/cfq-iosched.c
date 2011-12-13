@@ -3012,7 +3012,7 @@ static int cfq_create_cic(struct cfq_data *cfqd, gfp_t gfp_mask)
 	might_sleep_if(gfp_mask & __GFP_WAIT);
 
 	/* allocate stuff */
-	ioc = current_io_context(gfp_mask, q->node);
+	ioc = create_io_context(current, gfp_mask, q->node);
 	if (!ioc)
 		goto out;
 

@@ -127,9 +127,6 @@ static inline int blk_should_fake_timeout(struct request_queue *q)
 }
 #endif
 
-void get_io_context(struct io_context *ioc);
-struct io_context *current_io_context(gfp_t gfp_flags, int node);
-
 int ll_back_merge_fn(struct request_queue *q, struct request *req,
 		     struct bio *bio);
 int ll_front_merge_fn(struct request_queue *q, struct request *req, 
@@ -198,6 +195,39 @@ static inline int blk_do_io_stat(struct request *rq)
 	        (rq->cmd_flags & REQ_DISCARD));
 }
 
+/*
+ * Internal io_context interface
+ */
+void get_io_context(struct io_context *ioc);
+
+void create_io_context_slowpath(struct task_struct *task, gfp_t gfp_mask,
+				int node);
+
+/**
+ * create_io_context - try to create task->io_context
+ * @task: target task
+ * @gfp_mask: allocation mask
+ * @node: allocation node
+ *
+ * If @task->io_context is %NULL, allocate a new io_context and install it.
+ * Returns the current @task->io_context which may be %NULL if allocation
+ * failed.
+ *
+ * Note that this function can't be called with IRQ disabled because
+ * task_lock which protects @task->io_context is IRQ-unsafe.
+ */
+static inline struct io_context *create_io_context(struct task_struct *task,
+						   gfp_t gfp_mask, int node)
+{
+	WARN_ON_ONCE(irqs_disabled());
+	if (unlikely(!task->io_context))
+		create_io_context_slowpath(task, gfp_mask, node);
+	return task->io_context;
+}
+
+/*
+ * Internal throttling interface
+ */
 #ifdef CONFIG_BLK_DEV_THROTTLING
 extern bool blk_throtl_bio(struct request_queue *q, struct bio *bio);
 extern void blk_throtl_drain(struct request_queue *q);

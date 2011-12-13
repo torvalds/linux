@@ -771,9 +771,12 @@ static struct request *get_request(struct request_queue *q, int rw_flags,
 {
 	struct request *rq = NULL;
 	struct request_list *rl = &q->rq;
-	struct io_context *ioc = NULL;
+	struct io_context *ioc;
 	const bool is_sync = rw_is_sync(rw_flags) != 0;
+	bool retried = false;
 	int may_queue;
+retry:
+	ioc = current->io_context;
 
 	if (unlikely(blk_queue_dead(q)))
 		return NULL;
@@ -784,7 +787,20 @@ static struct request *get_request(struct request_queue *q, int rw_flags,
 
 	if (rl->count[is_sync]+1 >= queue_congestion_on_threshold(q)) {
 		if (rl->count[is_sync]+1 >= q->nr_requests) {
-			ioc = current_io_context(GFP_ATOMIC, q->node);
+			/*
+			 * We want ioc to record batching state.  If it's
+			 * not already there, creating a new one requires
+			 * dropping queue_lock, which in turn requires
+			 * retesting conditions to avoid queue hang.
+			 */
+			if (!ioc && !retried) {
+				spin_unlock_irq(q->queue_lock);
+				create_io_context(current, gfp_mask, q->node);
+				spin_lock_irq(q->queue_lock);
+				retried = true;
+				goto retry;
+			}
+
 			/*
 			 * The queue will fill after this allocation, so set
 			 * it as full, and mark this process as "batching".
@@ -892,7 +908,6 @@ static struct request *get_request_wait(struct request_queue *q, int rw_flags,
 	rq = get_request(q, rw_flags, bio, GFP_NOIO);
 	while (!rq) {
 		DEFINE_WAIT(wait);
-		struct io_context *ioc;
 		struct request_list *rl = &q->rq;
 
 		if (unlikely(blk_queue_dead(q)))
@@ -912,8 +927,8 @@ static struct request *get_request_wait(struct request_queue *q, int rw_flags,
 		 * up to a big batch of them for a small period time.
 		 * See ioc_batching, ioc_set_batching
 		 */
-		ioc = current_io_context(GFP_NOIO, q->node);
-		ioc_set_batching(q, ioc);
+		create_io_context(current, GFP_NOIO, q->node);
+		ioc_set_batching(q, current->io_context);
 
 		spin_lock_irq(q->queue_lock);
 		finish_wait(&rl->wait[is_sync], &wait);
