@@ -207,6 +207,8 @@ struct drm_i915_display_funcs {
 	int (*get_display_clock_speed)(struct drm_device *dev);
 	int (*get_fifo_size)(struct drm_device *dev, int plane);
 	void (*update_wm)(struct drm_device *dev);
+	void (*update_sprite_wm)(struct drm_device *dev, int pipe,
+				 uint32_t sprite_width, int pixel_size);
 	int (*crtc_mode_set)(struct drm_crtc *crtc,
 			     struct drm_display_mode *mode,
 			     struct drm_display_mode *adjusted_mode,
@@ -352,6 +354,7 @@ typedef struct drm_i915_private {
 
 	/* overlay */
 	struct intel_overlay *overlay;
+	bool sprite_scaling_enabled;
 
 	/* LVDS info */
 	int backlight_level;  /* restore backlight to this value */

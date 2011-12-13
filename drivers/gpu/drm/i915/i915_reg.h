@@ -2461,6 +2461,8 @@
 #define WM3_LP_ILK		0x45110
 #define  WM3_LP_EN		(1<<31)
 #define WM1S_LP_ILK		0x45120
+#define WM2S_LP_IVB		0x45124
+#define WM3S_LP_IVB		0x45128
 #define  WM1S_LP_EN		(1<<31)
 
 /* Memory latency timer register */
@@ -2676,6 +2678,137 @@
 #define _DSPBSIZE		0x71190
 #define _DSPBSURF		0x7119C
 #define _DSPBTILEOFF		0x711A4
+
+/* Sprite A control */
+#define _DVSACNTR		0x72180
+#define   DVS_ENABLE		(1<<31)
+#define   DVS_GAMMA_ENABLE	(1<<30)
+#define   DVS_PIXFORMAT_MASK	(3<<25)
+#define   DVS_FORMAT_YUV422	(0<<25)
+#define   DVS_FORMAT_RGBX101010	(1<<25)
+#define   DVS_FORMAT_RGBX888	(2<<25)
+#define   DVS_FORMAT_RGBX161616	(3<<25)
+#define   DVS_SOURCE_KEY	(1<<22)
+#define   DVS_RGB_ORDER_RGBX	(1<<20)
+#define   DVS_YUV_BYTE_ORDER_MASK (3<<16)
+#define   DVS_YUV_ORDER_YUYV	(0<<16)
+#define   DVS_YUV_ORDER_UYVY	(1<<16)
+#define   DVS_YUV_ORDER_YVYU	(2<<16)
+#define   DVS_YUV_ORDER_VYUY	(3<<16)
+#define   DVS_DEST_KEY		(1<<2)
+#define   DVS_TRICKLE_FEED_DISABLE (1<<14)
+#define   DVS_TILED		(1<<10)
+#define _DVSALINOFF		0x72184
+#define _DVSASTRIDE		0x72188
+#define _DVSAPOS		0x7218c
+#define _DVSASIZE		0x72190
+#define _DVSAKEYVAL		0x72194
+#define _DVSAKEYMSK		0x72198
+#define _DVSASURF		0x7219c
+#define _DVSAKEYMAXVAL		0x721a0
+#define _DVSATILEOFF		0x721a4
+#define _DVSASURFLIVE		0x721ac
+#define _DVSASCALE		0x72204
+#define   DVS_SCALE_ENABLE	(1<<31)
+#define   DVS_FILTER_MASK	(3<<29)
+#define   DVS_FILTER_MEDIUM	(0<<29)
+#define   DVS_FILTER_ENHANCING	(1<<29)
+#define   DVS_FILTER_SOFTENING	(2<<29)
+#define   DVS_VERTICAL_OFFSET_HALF (1<<28) /* must be enabled below */
+#define   DVS_VERTICAL_OFFSET_ENABLE (1<<27)
+#define _DVSAGAMC		0x72300
+
+#define _DVSBCNTR		0x73180
+#define _DVSBLINOFF		0x73184
+#define _DVSBSTRIDE		0x73188
+#define _DVSBPOS		0x7318c
+#define _DVSBSIZE		0x73190
+#define _DVSBKEYVAL		0x73194
+#define _DVSBKEYMSK		0x73198
+#define _DVSBSURF		0x7319c
+#define _DVSBKEYMAXVAL		0x731a0
+#define _DVSBTILEOFF		0x731a4
+#define _DVSBSURFLIVE		0x731ac
+#define _DVSBSCALE		0x73204
+#define _DVSBGAMC		0x73300
+
+#define DVSCNTR(pipe) _PIPE(pipe, _DVSACNTR, _DVSBCNTR)
+#define DVSLINOFF(pipe) _PIPE(pipe, _DVSALINOFF, _DVSBLINOFF)
+#define DVSSTRIDE(pipe) _PIPE(pipe, _DVSASTRIDE, _DVSBSTRIDE)
+#define DVSPOS(pipe) _PIPE(pipe, _DVSAPOS, _DVSBPOS)
+#define DVSSURF(pipe) _PIPE(pipe, _DVSASURF, _DVSBSURF)
+#define DVSSIZE(pipe) _PIPE(pipe, _DVSASIZE, _DVSBSIZE)
+#define DVSSCALE(pipe) _PIPE(pipe, _DVSASCALE, _DVSBSCALE)
+#define DVSTILEOFF(pipe) _PIPE(pipe, _DVSATILEOFF, _DVSBTILEOFF)
+
+#define _SPRA_CTL		0x70280
+#define   SPRITE_ENABLE			(1<<31)
+#define   SPRITE_GAMMA_ENABLE		(1<<30)
+#define   SPRITE_PIXFORMAT_MASK		(7<<25)
+#define   SPRITE_FORMAT_YUV422		(0<<25)
+#define   SPRITE_FORMAT_RGBX101010	(1<<25)
+#define   SPRITE_FORMAT_RGBX888		(2<<25)
+#define   SPRITE_FORMAT_RGBX161616	(3<<25)
+#define   SPRITE_FORMAT_YUV444		(4<<25)
+#define   SPRITE_FORMAT_XR_BGR101010	(5<<25) /* Extended range */
+#define   SPRITE_CSC_ENABLE		(1<<24)
+#define   SPRITE_SOURCE_KEY		(1<<22)
+#define   SPRITE_RGB_ORDER_RGBX		(1<<20) /* only for 888 and 161616 */
+#define   SPRITE_YUV_TO_RGB_CSC_DISABLE	(1<<19)
+#define   SPRITE_YUV_CSC_FORMAT_BT709	(1<<18) /* 0 is BT601 */
+#define   SPRITE_YUV_BYTE_ORDER_MASK	(3<<16)
+#define   SPRITE_YUV_ORDER_YUYV		(0<<16)
+#define   SPRITE_YUV_ORDER_UYVY		(1<<16)
+#define   SPRITE_YUV_ORDER_YVYU		(2<<16)
+#define   SPRITE_YUV_ORDER_VYUY		(3<<16)
+#define   SPRITE_TRICKLE_FEED_DISABLE	(1<<14)
+#define   SPRITE_INT_GAMMA_ENABLE	(1<<13)
+#define   SPRITE_TILED			(1<<10)
+#define   SPRITE_DEST_KEY		(1<<2)
+#define _SPRA_LINOFF		0x70284
+#define _SPRA_STRIDE		0x70288
+#define _SPRA_POS		0x7028c
+#define _SPRA_SIZE		0x70290
+#define _SPRA_KEYVAL		0x70294
+#define _SPRA_KEYMSK		0x70298
+#define _SPRA_SURF		0x7029c
+#define _SPRA_KEYMAX		0x702a0
+#define _SPRA_TILEOFF		0x702a4
+#define _SPRA_SCALE		0x70304
+#define   SPRITE_SCALE_ENABLE	(1<<31)
+#define   SPRITE_FILTER_MASK	(3<<29)
+#define   SPRITE_FILTER_MEDIUM	(0<<29)
+#define   SPRITE_FILTER_ENHANCING	(1<<29)
+#define   SPRITE_FILTER_SOFTENING	(2<<29)
+#define   SPRITE_VERTICAL_OFFSET_HALF	(1<<28) /* must be enabled below */
+#define   SPRITE_VERTICAL_OFFSET_ENABLE	(1<<27)
+#define _SPRA_GAMC		0x70400
+
+#define _SPRB_CTL		0x71280
+#define _SPRB_LINOFF		0x71284
+#define _SPRB_STRIDE		0x71288
+#define _SPRB_POS		0x7128c
+#define _SPRB_SIZE		0x71290
+#define _SPRB_KEYVAL		0x71294
+#define _SPRB_KEYMSK		0x71298
+#define _SPRB_SURF		0x7129c
+#define _SPRB_KEYMAX		0x712a0
+#define _SPRB_TILEOFF		0x712a4
+#define _SPRB_SCALE		0x71304
+#define _SPRB_GAMC		0x71400
+
+#define SPRCTL(pipe) _PIPE(pipe, _SPRA_CTL, _SPRB_CTL)
+#define SPRLINOFF(pipe) _PIPE(pipe, _SPRA_LINOFF, _SPRB_LINOFF)
+#define SPRSTRIDE(pipe) _PIPE(pipe, _SPRA_STRIDE, _SPRB_STRIDE)
+#define SPRPOS(pipe) _PIPE(pipe, _SPRA_POS, _SPRB_POS)
+#define SPRSIZE(pipe) _PIPE(pipe, _SPRA_SIZE, _SPRB_SIZE)
+#define SPRKEYVAL(pipe) _PIPE(pipe, _SPRA_KEYVAL, _SPRB_KEYVAL)
+#define SPRKEYMSK(pipe) _PIPE(pipe, _SPRA_KEYMSK, _SPRB_KEYMSK)
+#define SPRSURF(pipe) _PIPE(pipe, _SPRA_SURF, _SPRB_SURF)
+#define SPRKEYMAX(pipe) _PIPE(pipe, _SPRA_KEYMAX, _SPRB_KEYMAX)
+#define SPRTILEOFF(pipe) _PIPE(pipe, _SPRA_TILEOFF, _SPRB_TILEOFF)
+#define SPRSCALE(pipe) _PIPE(pipe, _SPRA_SCALE, _SPRB_SCALE)
+#define SPRGAMC(pipe) _PIPE(pipe, _SPRA_GAMC, _SPRB_GAMC)
 
 /* VBIOS regs */
 #define VGACNTRL		0x71400

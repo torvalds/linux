@@ -28,6 +28,7 @@ i915-y := i915_drv.o i915_dma.o i915_irq.o i915_mem.o \
 	  intel_dvo.o \
 	  intel_ringbuffer.o \
 	  intel_overlay.o \
+	  intel_sprite.o \
 	  intel_opregion.o \
 	  dvo_ch7xxx.o \
 	  dvo_ch7017.o \

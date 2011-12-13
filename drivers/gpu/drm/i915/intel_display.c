@@ -915,8 +915,8 @@ static void assert_panel_unlocked(struct drm_i915_private *dev_priv,
 	     pipe_name(pipe));
 }
 
-static void assert_pipe(struct drm_i915_private *dev_priv,
-			enum pipe pipe, bool state)
+void assert_pipe(struct drm_i915_private *dev_priv,
+		 enum pipe pipe, bool state)
 {
 	int reg;
 	u32 val;
@@ -929,8 +929,6 @@ static void assert_pipe(struct drm_i915_private *dev_priv,
 	     "pipe %c assertion failure (expected %s, current %s)\n",
 	     pipe_name(pipe), state_string(state), state_string(cur_state));
 }
-#define assert_pipe_enabled(d, p) assert_pipe(d, p, true)
-#define assert_pipe_disabled(d, p) assert_pipe(d, p, false)
 
 static void assert_plane_enabled(struct drm_i915_private *dev_priv,
 				 enum plane plane)
@@ -4509,7 +4507,7 @@ static void ironlake_update_wm(struct drm_device *dev)
 	 */
 }
 
-static void sandybridge_update_wm(struct drm_device *dev)
+void sandybridge_update_wm(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int latency = SNB_READ_WM0_LATENCY() * 100;	/* In unit 0.1us */
@@ -4569,7 +4567,8 @@ static void sandybridge_update_wm(struct drm_device *dev)
 	I915_WRITE(WM2_LP_ILK, 0);
 	I915_WRITE(WM1_LP_ILK, 0);
 
-	if (!single_plane_enabled(enabled))
+	if (!single_plane_enabled(enabled) ||
+	    dev_priv->sprite_scaling_enabled)
 		return;
 	enabled = ffs(enabled) - 1;
 
@@ -4619,6 +4618,149 @@ static void sandybridge_update_wm(struct drm_device *dev)
 		   cursor_wm);
 }
 
+static bool
+sandybridge_compute_sprite_wm(struct drm_device *dev, int plane,
+			      uint32_t sprite_width, int pixel_size,
+			      const struct intel_watermark_params *display,
+			      int display_latency_ns, int *sprite_wm)
+{
+	struct drm_crtc *crtc;
+	int clock;
+	int entries, tlb_miss;
+
+	crtc = intel_get_crtc_for_plane(dev, plane);
+	if (crtc->fb == NULL || !crtc->enabled) {
+		*sprite_wm = display->guard_size;
+		return false;
+	}
+
+	clock = crtc->mode.clock;
+
+	/* Use the small buffer method to calculate the sprite watermark */
+	entries = ((clock * pixel_size / 1000) * display_latency_ns) / 1000;
+	tlb_miss = display->fifo_size*display->cacheline_size -
+		sprite_width * 8;
+	if (tlb_miss > 0)
+		entries += tlb_miss;
+	entries = DIV_ROUND_UP(entries, display->cacheline_size);
+	*sprite_wm = entries + display->guard_size;
+	if (*sprite_wm > (int)display->max_wm)
+		*sprite_wm = display->max_wm;
+
+	return true;
+}
+
+static bool
+sandybridge_compute_sprite_srwm(struct drm_device *dev, int plane,
+				uint32_t sprite_width, int pixel_size,
+				const struct intel_watermark_params *display,
+				int latency_ns, int *sprite_wm)
+{
+	struct drm_crtc *crtc;
+	unsigned long line_time_us;
+	int clock;
+	int line_count, line_size;
+	int small, large;
+	int entries;
+
+	if (!latency_ns) {
+		*sprite_wm = 0;
+		return false;
+	}
+
+	crtc = intel_get_crtc_for_plane(dev, plane);
+	clock = crtc->mode.clock;
+
+	line_time_us = (sprite_width * 1000) / clock;
+	line_count = (latency_ns / line_time_us + 1000) / 1000;
+	line_size = sprite_width * pixel_size;
+
+	/* Use the minimum of the small and large buffer method for primary */
+	small = ((clock * pixel_size / 1000) * latency_ns) / 1000;
+	large = line_count * line_size;
+
+	entries = DIV_ROUND_UP(min(small, large), display->cacheline_size);
+	*sprite_wm = entries + display->guard_size;
+
+	return *sprite_wm > 0x3ff ? false : true;
+}
+
+static void sandybridge_update_sprite_wm(struct drm_device *dev, int pipe,
+					 uint32_t sprite_width, int pixel_size)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int latency = SNB_READ_WM0_LATENCY() * 100;	/* In unit 0.1us */
+	int sprite_wm, reg;
+	int ret;
+
+	switch (pipe) {
+	case 0:
+		reg = WM0_PIPEA_ILK;
+		break;
+	case 1:
+		reg = WM0_PIPEB_ILK;
+		break;
+	case 2:
+		reg = WM0_PIPEC_IVB;
+		break;
+	default:
+		return; /* bad pipe */
+	}
+
+	ret = sandybridge_compute_sprite_wm(dev, pipe, sprite_width, pixel_size,
+					    &sandybridge_display_wm_info,
+					    latency, &sprite_wm);
+	if (!ret) {
+		DRM_DEBUG_KMS("failed to compute sprite wm for pipe %d\n",
+			      pipe);
+		return;
+	}
+
+	I915_WRITE(reg, I915_READ(reg) | (sprite_wm << WM0_PIPE_SPRITE_SHIFT));
+	DRM_DEBUG_KMS("sprite watermarks For pipe %d - %d\n", pipe, sprite_wm);
+
+
+	ret = sandybridge_compute_sprite_srwm(dev, pipe, sprite_width,
+					      pixel_size,
+					      &sandybridge_display_srwm_info,
+					      SNB_READ_WM1_LATENCY() * 500,
+					      &sprite_wm);
+	if (!ret) {
+		DRM_DEBUG_KMS("failed to compute sprite lp1 wm on pipe %d\n",
+			      pipe);
+		return;
+	}
+	I915_WRITE(WM1S_LP_ILK, sprite_wm);
+
+	/* Only IVB has two more LP watermarks for sprite */
+	if (!IS_IVYBRIDGE(dev))
+		return;
+
+	ret = sandybridge_compute_sprite_srwm(dev, pipe, sprite_width,
+					      pixel_size,
+					      &sandybridge_display_srwm_info,
+					      SNB_READ_WM2_LATENCY() * 500,
+					      &sprite_wm);
+	if (!ret) {
+		DRM_DEBUG_KMS("failed to compute sprite lp2 wm on pipe %d\n",
+			      pipe);
+		return;
+	}
+	I915_WRITE(WM2S_LP_IVB, sprite_wm);
+
+	ret = sandybridge_compute_sprite_srwm(dev, pipe, sprite_width,
+					      pixel_size,
+					      &sandybridge_display_srwm_info,
+					      SNB_READ_WM3_LATENCY() * 500,
+					      &sprite_wm);
+	if (!ret) {
+		DRM_DEBUG_KMS("failed to compute sprite lp3 wm on pipe %d\n",
+			      pipe);
+		return;
+	}
+	I915_WRITE(WM3S_LP_IVB, sprite_wm);
+}
+
 /**
  * intel_update_watermarks - update FIFO watermark values based on current modes
  *
@@ -4657,6 +4799,16 @@ static void intel_update_watermarks(struct drm_device *dev)
 
 	if (dev_priv->display.update_wm)
 		dev_priv->display.update_wm(dev);
+}
+
+void intel_update_sprite_watermarks(struct drm_device *dev, int pipe,
+				    uint32_t sprite_width, int pixel_size)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->display.update_sprite_wm)
+		dev_priv->display.update_sprite_wm(dev, pipe, sprite_width,
+						   pixel_size);
 }
 
 static inline bool intel_panel_use_ssc(struct drm_i915_private *dev_priv)
@@ -8631,6 +8783,7 @@ static void intel_init_display(struct drm_device *dev)
 		} else if (IS_GEN6(dev)) {
 			if (SNB_READ_WM0_LATENCY()) {
 				dev_priv->display.update_wm = sandybridge_update_wm;
+				dev_priv->display.update_sprite_wm = sandybridge_update_sprite_wm;
 			} else {
 				DRM_DEBUG_KMS("Failed to read display plane latency. "
 					      "Disable CxSR\n");
@@ -8644,6 +8797,7 @@ static void intel_init_display(struct drm_device *dev)
 			dev_priv->display.fdi_link_train = ivb_manual_fdi_link_train;
 			if (SNB_READ_WM0_LATENCY()) {
 				dev_priv->display.update_wm = sandybridge_update_wm;
+				dev_priv->display.update_sprite_wm = sandybridge_update_sprite_wm;
 			} else {
 				DRM_DEBUG_KMS("Failed to read display plane latency. "
 					      "Disable CxSR\n");
@@ -8827,7 +8981,7 @@ static void i915_disable_vga(struct drm_device *dev)
 void intel_modeset_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int i;
+	int i, ret;
 
 	drm_mode_config_init(dev);
 
@@ -8857,6 +9011,12 @@ void intel_modeset_init(struct drm_device *dev)
 
 	for (i = 0; i < dev_priv->num_pipe; i++) {
 		intel_crtc_init(dev, i);
+		if (HAS_PCH_SPLIT(dev)) {
+			ret = intel_plane_init(dev, i);
+			if (ret)
+				DRM_ERROR("plane %d init failed: %d\n",
+					  i, ret);
+		}
 	}
 
 	/* Just disable it once at startup */
