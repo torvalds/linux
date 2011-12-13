@@ -1778,7 +1778,7 @@ __cfq_slice_expired(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		cfqd->active_queue = NULL;
 
 	if (cfqd->active_cic) {
-		put_io_context(cfqd->active_cic->ioc);
+		put_io_context(cfqd->active_cic->ioc, cfqd->queue);
 		cfqd->active_cic = NULL;
 	}
 }
@@ -2812,38 +2812,6 @@ static void cfq_exit_cic(struct cfq_io_context *cic)
 	}
 }
 
-static void cfq_exit_single_io_context(struct io_context *ioc,
-				       struct cfq_io_context *cic)
-{
-	struct cfq_data *cfqd = cic_to_cfqd(cic);
-
-	if (cfqd) {
-		struct request_queue *q = cfqd->queue;
-		unsigned long flags;
-
-		spin_lock_irqsave(q->queue_lock, flags);
-
-		/*
-		 * Ensure we get a fresh copy of the ->key to prevent
-		 * race between exiting task and queue
-		 */
-		smp_read_barrier_depends();
-		if (cic->key == cfqd)
-			cfq_exit_cic(cic);
-
-		spin_unlock_irqrestore(q->queue_lock, flags);
-	}
-}
-
-/*
- * The process that ioc belongs to has exited, we need to clean up
- * and put the internal structures we have that belongs to that process.
- */
-static void cfq_exit_io_context(struct io_context *ioc)
-{
-	call_for_each_cic(ioc, cfq_exit_single_io_context);
-}
-
 static struct cfq_io_context *
 cfq_alloc_io_context(struct cfq_data *cfqd, gfp_t gfp_mask)
 {
@@ -2855,8 +2823,8 @@ cfq_alloc_io_context(struct cfq_data *cfqd, gfp_t gfp_mask)
 		cic->ttime.last_end_request = jiffies;
 		INIT_LIST_HEAD(&cic->queue_list);
 		INIT_HLIST_NODE(&cic->cic_list);
-		cic->dtor = cfq_free_io_context;
-		cic->exit = cfq_exit_io_context;
+		cic->exit = cfq_exit_cic;
+		cic->release = cfq_release_cic;
 		elv_ioc_count_inc(cfq_ioc_count);
 	}
 
@@ -3726,7 +3694,7 @@ static void cfq_put_request(struct request *rq)
 		BUG_ON(!cfqq->allocated[rw]);
 		cfqq->allocated[rw]--;
 
-		put_io_context(RQ_CIC(rq)->ioc);
+		put_io_context(RQ_CIC(rq)->ioc, cfqq->cfqd->queue);
 
 		rq->elevator_private[0] = NULL;
 		rq->elevator_private[1] = NULL;
@@ -3937,8 +3905,12 @@ static void cfq_exit_queue(struct elevator_queue *e)
 		struct cfq_io_context *cic = list_entry(cfqd->cic_list.next,
 							struct cfq_io_context,
 							queue_list);
+		struct io_context *ioc = cic->ioc;
 
+		spin_lock(&ioc->lock);
 		cfq_exit_cic(cic);
+		cfq_release_cic(cic);
+		spin_unlock(&ioc->lock);
 	}
 
 	cfq_put_async_queues(cfqd);

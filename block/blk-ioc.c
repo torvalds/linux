@@ -29,55 +29,164 @@ void get_io_context(struct io_context *ioc)
 }
 EXPORT_SYMBOL(get_io_context);
 
-static void cfq_dtor(struct io_context *ioc)
-{
-	if (!hlist_empty(&ioc->cic_list)) {
-		struct cfq_io_context *cic;
+/*
+ * Releasing ioc may nest into another put_io_context() leading to nested
+ * fast path release.  As the ioc's can't be the same, this is okay but
+ * makes lockdep whine.  Keep track of nesting and use it as subclass.
+ */
+#ifdef CONFIG_LOCKDEP
+#define ioc_release_depth(q)		((q) ? (q)->ioc_release_depth : 0)
+#define ioc_release_depth_inc(q)	(q)->ioc_release_depth++
+#define ioc_release_depth_dec(q)	(q)->ioc_release_depth--
+#else
+#define ioc_release_depth(q)		0
+#define ioc_release_depth_inc(q)	do { } while (0)
+#define ioc_release_depth_dec(q)	do { } while (0)
+#endif
 
-		cic = hlist_entry(ioc->cic_list.first, struct cfq_io_context,
-								cic_list);
-		cic->dtor(ioc);
+/*
+ * Slow path for ioc release in put_io_context().  Performs double-lock
+ * dancing to unlink all cic's and then frees ioc.
+ */
+static void ioc_release_fn(struct work_struct *work)
+{
+	struct io_context *ioc = container_of(work, struct io_context,
+					      release_work);
+	struct request_queue *last_q = NULL;
+
+	spin_lock_irq(&ioc->lock);
+
+	while (!hlist_empty(&ioc->cic_list)) {
+		struct cfq_io_context *cic = hlist_entry(ioc->cic_list.first,
+							 struct cfq_io_context,
+							 cic_list);
+		struct request_queue *this_q = cic->q;
+
+		if (this_q != last_q) {
+			/*
+			 * Need to switch to @this_q.  Once we release
+			 * @ioc->lock, it can go away along with @cic.
+			 * Hold on to it.
+			 */
+			__blk_get_queue(this_q);
+
+			/*
+			 * blk_put_queue() might sleep thanks to kobject
+			 * idiocy.  Always release both locks, put and
+			 * restart.
+			 */
+			if (last_q) {
+				spin_unlock(last_q->queue_lock);
+				spin_unlock_irq(&ioc->lock);
+				blk_put_queue(last_q);
+			} else {
+				spin_unlock_irq(&ioc->lock);
+			}
+
+			last_q = this_q;
+			spin_lock_irq(this_q->queue_lock);
+			spin_lock(&ioc->lock);
+			continue;
+		}
+		ioc_release_depth_inc(this_q);
+		cic->exit(cic);
+		cic->release(cic);
+		ioc_release_depth_dec(this_q);
 	}
+
+	if (last_q) {
+		spin_unlock(last_q->queue_lock);
+		spin_unlock_irq(&ioc->lock);
+		blk_put_queue(last_q);
+	} else {
+		spin_unlock_irq(&ioc->lock);
+	}
+
+	kmem_cache_free(iocontext_cachep, ioc);
 }
 
 /**
  * put_io_context - put a reference of io_context
  * @ioc: io_context to put
+ * @locked_q: request_queue the caller is holding queue_lock of (hint)
  *
  * Decrement reference count of @ioc and release it if the count reaches
- * zero.
+ * zero.  If the caller is holding queue_lock of a queue, it can indicate
+ * that with @locked_q.  This is an optimization hint and the caller is
+ * allowed to pass in %NULL even when it's holding a queue_lock.
  */
-void put_io_context(struct io_context *ioc)
+void put_io_context(struct io_context *ioc, struct request_queue *locked_q)
 {
+	struct request_queue *last_q = locked_q;
+	unsigned long flags;
+
 	if (ioc == NULL)
 		return;
 
 	BUG_ON(atomic_long_read(&ioc->refcount) <= 0);
+	if (locked_q)
+		lockdep_assert_held(locked_q->queue_lock);
 
 	if (!atomic_long_dec_and_test(&ioc->refcount))
 		return;
 
-	rcu_read_lock();
-	cfq_dtor(ioc);
-	rcu_read_unlock();
+	/*
+	 * Destroy @ioc.  This is a bit messy because cic's are chained
+	 * from both ioc and queue, and ioc->lock nests inside queue_lock.
+	 * The inner ioc->lock should be held to walk our cic_list and then
+	 * for each cic the outer matching queue_lock should be grabbed.
+	 * ie. We need to do reverse-order double lock dancing.
+	 *
+	 * Another twist is that we are often called with one of the
+	 * matching queue_locks held as indicated by @locked_q, which
+	 * prevents performing double-lock dance for other queues.
+	 *
+	 * So, we do it in two stages.  The fast path uses the queue_lock
+	 * the caller is holding and, if other queues need to be accessed,
+	 * uses trylock to avoid introducing locking dependency.  This can
+	 * handle most cases, especially if @ioc was performing IO on only
+	 * single device.
+	 *
+	 * If trylock doesn't cut it, we defer to @ioc->release_work which
+	 * can do all the double-locking dancing.
+	 */
+	spin_lock_irqsave_nested(&ioc->lock, flags,
+				 ioc_release_depth(locked_q));
 
-	kmem_cache_free(iocontext_cachep, ioc);
+	while (!hlist_empty(&ioc->cic_list)) {
+		struct cfq_io_context *cic = hlist_entry(ioc->cic_list.first,
+							 struct cfq_io_context,
+							 cic_list);
+		struct request_queue *this_q = cic->q;
+
+		if (this_q != last_q) {
+			if (last_q && last_q != locked_q)
+				spin_unlock(last_q->queue_lock);
+			last_q = NULL;
+
+			if (!spin_trylock(this_q->queue_lock))
+				break;
+			last_q = this_q;
+			continue;
+		}
+		ioc_release_depth_inc(this_q);
+		cic->exit(cic);
+		cic->release(cic);
+		ioc_release_depth_dec(this_q);
+	}
+
+	if (last_q && last_q != locked_q)
+		spin_unlock(last_q->queue_lock);
+
+	spin_unlock_irqrestore(&ioc->lock, flags);
+
+	/* if no cic's left, we're done; otherwise, kick release_work */
+	if (hlist_empty(&ioc->cic_list))
+		kmem_cache_free(iocontext_cachep, ioc);
+	else
+		schedule_work(&ioc->release_work);
 }
 EXPORT_SYMBOL(put_io_context);
-
-static void cfq_exit(struct io_context *ioc)
-{
-	rcu_read_lock();
-
-	if (!hlist_empty(&ioc->cic_list)) {
-		struct cfq_io_context *cic;
-
-		cic = hlist_entry(ioc->cic_list.first, struct cfq_io_context,
-								cic_list);
-		cic->exit(ioc);
-	}
-	rcu_read_unlock();
-}
 
 /* Called by the exiting task */
 void exit_io_context(struct task_struct *task)
@@ -92,10 +201,8 @@ void exit_io_context(struct task_struct *task)
 	task->io_context = NULL;
 	task_unlock(task);
 
-	if (atomic_dec_and_test(&ioc->nr_tasks))
-		cfq_exit(ioc);
-
-	put_io_context(ioc);
+	atomic_dec(&ioc->nr_tasks);
+	put_io_context(ioc, NULL);
 }
 
 static struct io_context *create_task_io_context(struct task_struct *task,
@@ -115,6 +222,7 @@ static struct io_context *create_task_io_context(struct task_struct *task,
 	spin_lock_init(&ioc->lock);
 	INIT_RADIX_TREE(&ioc->radix_root, GFP_ATOMIC | __GFP_HIGH);
 	INIT_HLIST_HEAD(&ioc->cic_list);
+	INIT_WORK(&ioc->release_work, ioc_release_fn);
 
 	/* try to install, somebody might already have beaten us to it */
 	task_lock(task);
