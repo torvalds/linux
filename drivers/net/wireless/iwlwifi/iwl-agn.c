@@ -1668,7 +1668,7 @@ static int iwl_set_hw_params(struct iwl_priv *priv)
 		hw_params(priv).rx_page_order =
 			get_order(IWL_RX_BUF_SIZE_4K);
 
-	if (iwlagn_mod_params.disable_11n)
+	if (iwlagn_mod_params.disable_11n & IWL_DISABLE_HT_ALL)
 		cfg(priv)->sku &= ~EEPROM_SKU_CAP_11N_ENABLE;
 
 	hw_params(priv).num_ampdu_queues =
@@ -1995,8 +1995,9 @@ module_param_named(swcrypto, iwlagn_mod_params.sw_crypto, int, S_IRUGO);
 MODULE_PARM_DESC(swcrypto, "using crypto in software (default 0 [hardware])");
 module_param_named(queues_num, iwlagn_mod_params.num_of_queues, int, S_IRUGO);
 MODULE_PARM_DESC(queues_num, "number of hw queues.");
-module_param_named(11n_disable, iwlagn_mod_params.disable_11n, int, S_IRUGO);
-MODULE_PARM_DESC(11n_disable, "disable 11n functionality");
+module_param_named(11n_disable, iwlagn_mod_params.disable_11n, uint, S_IRUGO);
+MODULE_PARM_DESC(11n_disable,
+	"disable 11n functionality, bitmap: 1: full, 2: agg TX, 4: agg RX");
 module_param_named(amsdu_size_8K, iwlagn_mod_params.amsdu_size_8K,
 		   int, S_IRUGO);
 MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size");
