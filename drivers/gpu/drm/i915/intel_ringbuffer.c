@@ -414,6 +414,11 @@ static int init_render_ring(struct intel_ring_buffer *ring)
 			return ret;
 	}
 
+	if (INTEL_INFO(dev)->gen >= 6) {
+		I915_WRITE(INSTPM,
+			   INSTPM_FORCE_ORDERING << 16 | INSTPM_FORCE_ORDERING);
+	}
+
 	return ret;
 }
 

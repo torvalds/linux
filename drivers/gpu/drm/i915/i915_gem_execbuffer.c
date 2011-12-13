@@ -984,6 +984,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	struct intel_ring_buffer *ring;
 	u32 exec_start, exec_len;
 	u32 seqno;
+	u32 mask;
 	int ret, mode, i;
 
 	if (!i915_gem_check_execbuffer(args)) {
@@ -1021,6 +1022,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	}
 
 	mode = args->flags & I915_EXEC_CONSTANTS_MASK;
+	mask = I915_EXEC_CONSTANTS_MASK;
 	switch (mode) {
 	case I915_EXEC_CONSTANTS_REL_GENERAL:
 	case I915_EXEC_CONSTANTS_ABSOLUTE:
@@ -1033,6 +1035,10 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			if (INTEL_INFO(dev)->gen > 5 &&
 			    mode == I915_EXEC_CONSTANTS_REL_SURFACE)
 				return -EINVAL;
+
+			/* The HW changed the meaning on this bit on gen6 */
+			if (INTEL_INFO(dev)->gen >= 6)
+				mask &= ~I915_EXEC_CONSTANTS_REL_SURFACE;
 		}
 		break;
 	default:
@@ -1172,8 +1178,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		intel_ring_emit(ring, MI_NOOP);
 		intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
 		intel_ring_emit(ring, INSTPM);
-		intel_ring_emit(ring,
-				I915_EXEC_CONSTANTS_MASK << 16 | mode);
+		intel_ring_emit(ring, mask << 16 | mode);
 		intel_ring_advance(ring);
 
 		dev_priv->relative_constants_mode = mode;
