@@ -174,10 +174,19 @@ static void config_reg_helper(struct pinmux_info *gpioc,
 			      unsigned long *maskp,
 			      unsigned long *posp)
 {
+	int k;
+
 	*mapped_regp = pfc_phys_to_virt(gpioc, crp->reg);
 
-	*maskp = (1 << crp->field_width) - 1;
-	*posp = crp->reg_width - ((in_pos + 1) * crp->field_width);
+	if (crp->field_width) {
+		*maskp = (1 << crp->field_width) - 1;
+		*posp = crp->reg_width - ((in_pos + 1) * crp->field_width);
+	} else {
+		*maskp = (1 << crp->var_field_width[in_pos]) - 1;
+		*posp = crp->reg_width;
+		for (k = 0; k <= in_pos; k++)
+			*posp -= crp->var_field_width[k];
+	}
 }
 
 static int read_config_reg(struct pinmux_info *gpioc,
@@ -303,8 +312,8 @@ static int get_config_reg(struct pinmux_info *gpioc, pinmux_enum_t enum_id,
 			  unsigned long **cntp)
 {
 	struct pinmux_cfg_reg *config_reg;
-	unsigned long r_width, f_width;
-	int k, n;
+	unsigned long r_width, f_width, curr_width, ncomb;
+	int k, m, n, pos, bit_pos;
 
 	k = 0;
 	while (1) {
@@ -315,14 +324,27 @@ static int get_config_reg(struct pinmux_info *gpioc, pinmux_enum_t enum_id,
 
 		if (!r_width)
 			break;
-		for (n = 0; n < (r_width / f_width) * (1 << f_width); n++) {
-			if (config_reg->enum_ids[n] == enum_id) {
-				*crp = config_reg;
-				*fieldp = n / (1 << f_width);
-				*valuep = n % (1 << f_width);
-				*cntp = &config_reg->cnt[n / (1 << f_width)];
-				return 0;
+
+		pos = 0;
+		m = 0;
+		for (bit_pos = 0; bit_pos < r_width; bit_pos += curr_width) {
+			if (f_width)
+				curr_width = f_width;
+			else
+				curr_width = config_reg->var_field_width[m];
+
+			ncomb = 1 << curr_width;
+			for (n = 0; n < ncomb; n++) {
+				if (config_reg->enum_ids[pos + n] == enum_id) {
+					*crp = config_reg;
+					*fieldp = m;
+					*valuep = n;
+					*cntp = &config_reg->cnt[m];
+					return 0;
+				}
 			}
+			pos += ncomb;
+			m++;
 		}
 		k++;
 	}

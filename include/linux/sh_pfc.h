@@ -45,12 +45,19 @@ struct pinmux_cfg_reg {
 	unsigned long reg, reg_width, field_width;
 	unsigned long *cnt;
 	pinmux_enum_t *enum_ids;
+	unsigned long *var_field_width;
 };
 
 #define PINMUX_CFG_REG(name, r, r_width, f_width) \
 	.reg = r, .reg_width = r_width, .field_width = f_width,		\
 	.cnt = (unsigned long [r_width / f_width]) {}, \
-	.enum_ids = (pinmux_enum_t [(r_width / f_width) * (1 << f_width)]) \
+	.enum_ids = (pinmux_enum_t [(r_width / f_width) * (1 << f_width)])
+
+#define PINMUX_CFG_REG_VAR(name, r, r_width, var_fw0, var_fwn...) \
+	.reg = r, .reg_width = r_width,	\
+	.cnt = (unsigned long [r_width]) {}, \
+	.var_field_width = (unsigned long [r_width]) { var_fw0, var_fwn, 0 }, \
+	.enum_ids = (pinmux_enum_t [])
 
 struct pinmux_data_reg {
 	unsigned long reg, reg_width, reg_shadow;
