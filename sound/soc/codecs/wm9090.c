@@ -513,18 +513,7 @@ static int wm9090_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_STANDBY:
 		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
 			/* Restore the register cache */
-			for (i = 1; i < codec->driver->reg_cache_size; i++) {
-				if (reg_cache[i] == wm9090_reg_defaults[i])
-					continue;
-				if (wm9090_volatile(codec, i))
-					continue;
-
-				ret = snd_soc_write(codec, i, reg_cache[i]);
-				if (ret != 0)
-					dev_warn(codec->dev,
-						 "Failed to restore register %d: %d\n",
-						 i, ret);
-			}
+			snd_soc_cache_sync(codec);
 		}
 
 		/* We keep VMID off during standby since the combination of
