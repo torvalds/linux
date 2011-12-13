@@ -592,6 +592,25 @@ struct omap_overlay_manager *omap_dss_get_overlay_manager(int num)
 }
 EXPORT_SYMBOL(omap_dss_get_overlay_manager);
 
+int dss_mgr_simple_check(struct omap_overlay_manager *mgr,
+		const struct omap_overlay_manager_info *info)
+{
+	if (dss_has_feature(FEAT_ALPHA_FIXED_ZORDER)) {
+		/*
+		 * OMAP3 supports only graphics source transparency color key
+		 * and alpha blending simultaneously. See TRM 15.4.2.4.2.2
+		 * Alpha Mode.
+		 */
+		if (info->partial_alpha_enabled && info->trans_enabled
+			&& info->trans_key_type != OMAP_DSS_COLOR_KEY_GFX_DST) {
+			DSSERR("check_manager: illegal transparency key\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int dss_mgr_check_zorder(struct omap_overlay_manager *mgr,
 		struct omap_overlay_info **overlay_infos)
 {
