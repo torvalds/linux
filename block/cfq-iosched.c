@@ -59,7 +59,6 @@ static const int cfq_hist_divisor = 4;
 #define RQ_CFQG(rq)		(struct cfq_group *) ((rq)->elv.priv[1])
 
 static struct kmem_cache *cfq_pool;
-static struct kmem_cache *cfq_icq_pool;
 
 #define CFQ_PRIO_LISTS		IOPRIO_BE_NR
 #define cfq_class_idle(cfqq)	((cfqq)->ioprio_class == IOPRIO_CLASS_IDLE)
@@ -2707,6 +2706,13 @@ static void cfq_exit_cfqq(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	cfq_put_queue(cfqq);
 }
 
+static void cfq_init_icq(struct io_cq *icq)
+{
+	struct cfq_io_cq *cic = icq_to_cic(icq);
+
+	cic->ttime.last_end_request = jiffies;
+}
+
 static void cfq_exit_icq(struct io_cq *icq)
 {
 	struct cfq_io_cq *cic = icq_to_cic(icq);
@@ -2721,21 +2727,6 @@ static void cfq_exit_icq(struct io_cq *icq)
 		cfq_exit_cfqq(cfqd, cic->cfqq[BLK_RW_SYNC]);
 		cic->cfqq[BLK_RW_SYNC] = NULL;
 	}
-}
-
-static struct cfq_io_cq *cfq_alloc_cic(struct cfq_data *cfqd, gfp_t gfp_mask)
-{
-	struct cfq_io_cq *cic;
-
-	cic = kmem_cache_alloc_node(cfq_icq_pool, gfp_mask | __GFP_ZERO,
-							cfqd->queue->node);
-	if (cic) {
-		cic->ttime.last_end_request = jiffies;
-		INIT_LIST_HEAD(&cic->icq.q_node);
-		INIT_HLIST_NODE(&cic->icq.ioc_node);
-	}
-
-	return cic;
 }
 
 static void cfq_init_prio_data(struct cfq_queue *cfqq, struct io_context *ioc)
@@ -2945,64 +2936,62 @@ cfq_get_queue(struct cfq_data *cfqd, bool is_sync, struct io_context *ioc,
 }
 
 /**
- * cfq_create_cic - create and link a cfq_io_cq
- * @cfqd: cfqd of interest
+ * ioc_create_icq - create and link io_cq
+ * @q: request_queue of interest
  * @gfp_mask: allocation mask
  *
- * Make sure cfq_io_cq linking %current->io_context and @cfqd exists.  If
- * ioc and/or cic doesn't exist, they will be created using @gfp_mask.
+ * Make sure io_cq linking %current->io_context and @q exists.  If either
+ * io_context and/or icq don't exist, they will be created using @gfp_mask.
+ *
+ * The caller is responsible for ensuring @ioc won't go away and @q is
+ * alive and will stay alive until this function returns.
  */
-static int cfq_create_cic(struct cfq_data *cfqd, gfp_t gfp_mask)
+static struct io_cq *ioc_create_icq(struct request_queue *q, gfp_t gfp_mask)
 {
-	struct request_queue *q = cfqd->queue;
-	struct io_cq *icq = NULL;
-	struct cfq_io_cq *cic;
+	struct elevator_type *et = q->elevator->type;
 	struct io_context *ioc;
-	int ret = -ENOMEM;
-
-	might_sleep_if(gfp_mask & __GFP_WAIT);
+	struct io_cq *icq;
 
 	/* allocate stuff */
 	ioc = create_io_context(current, gfp_mask, q->node);
 	if (!ioc)
-		goto out;
+		return NULL;
 
-	cic = cfq_alloc_cic(cfqd, gfp_mask);
-	if (!cic)
-		goto out;
-	icq = &cic->icq;
+	icq = kmem_cache_alloc_node(et->icq_cache, gfp_mask | __GFP_ZERO,
+				    q->node);
+	if (!icq)
+		return NULL;
 
-	ret = radix_tree_preload(gfp_mask);
-	if (ret)
-		goto out;
+	if (radix_tree_preload(gfp_mask) < 0) {
+		kmem_cache_free(et->icq_cache, icq);
+		return NULL;
+	}
 
 	icq->ioc = ioc;
-	icq->q = cfqd->queue;
+	icq->q = q;
+	INIT_LIST_HEAD(&icq->q_node);
+	INIT_HLIST_NODE(&icq->ioc_node);
 
 	/* lock both q and ioc and try to link @icq */
 	spin_lock_irq(q->queue_lock);
 	spin_lock(&ioc->lock);
 
-	ret = radix_tree_insert(&ioc->icq_tree, q->id, icq);
-	if (likely(!ret)) {
+	if (likely(!radix_tree_insert(&ioc->icq_tree, q->id, icq))) {
 		hlist_add_head(&icq->ioc_node, &ioc->icq_list);
 		list_add(&icq->q_node, &q->icq_list);
-		icq = NULL;
-	} else if (ret == -EEXIST) {
-		/* someone else already did it */
-		ret = 0;
+		if (et->ops.elevator_init_icq_fn)
+			et->ops.elevator_init_icq_fn(icq);
+	} else {
+		kmem_cache_free(et->icq_cache, icq);
+		icq = ioc_lookup_icq(ioc, q);
+		if (!icq)
+			printk(KERN_ERR "cfq: icq link failed!\n");
 	}
 
 	spin_unlock(&ioc->lock);
 	spin_unlock_irq(q->queue_lock);
-
 	radix_tree_preload_end();
-out:
-	if (ret)
-		printk(KERN_ERR "cfq: icq link failed!\n");
-	if (icq)
-		kmem_cache_free(cfq_icq_pool, icq);
-	return ret;
+	return icq;
 }
 
 /**
@@ -3022,7 +3011,6 @@ static struct cfq_io_cq *cfq_get_cic(struct cfq_data *cfqd, gfp_t gfp_mask)
 	struct request_queue *q = cfqd->queue;
 	struct cfq_io_cq *cic = NULL;
 	struct io_context *ioc;
-	int err;
 
 	lockdep_assert_held(q->queue_lock);
 
@@ -3037,9 +3025,9 @@ static struct cfq_io_cq *cfq_get_cic(struct cfq_data *cfqd, gfp_t gfp_mask)
 
 		/* slow path - unlock, create missing ones and retry */
 		spin_unlock_irq(q->queue_lock);
-		err = cfq_create_cic(cfqd, gfp_mask);
+		cic = icq_to_cic(ioc_create_icq(q, gfp_mask));
 		spin_lock_irq(q->queue_lock);
-		if (err)
+		if (!cic)
 			return NULL;
 	}
 
@@ -3975,6 +3963,7 @@ static struct elevator_type iosched_cfq = {
 		.elevator_completed_req_fn =	cfq_completed_request,
 		.elevator_former_req_fn =	elv_rb_former_request,
 		.elevator_latter_req_fn =	elv_rb_latter_request,
+		.elevator_init_icq_fn =		cfq_init_icq,
 		.elevator_exit_icq_fn =		cfq_exit_icq,
 		.elevator_set_req_fn =		cfq_set_request,
 		.elevator_put_req_fn =		cfq_put_request,
@@ -4028,7 +4017,6 @@ static int __init cfq_init(void)
 		kmem_cache_destroy(cfq_pool);
 		return ret;
 	}
-	cfq_icq_pool = iosched_cfq.icq_cache;
 
 	blkio_policy_register(&blkio_policy_cfq);
 
