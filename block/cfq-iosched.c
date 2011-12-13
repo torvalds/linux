@@ -1682,12 +1682,19 @@ static int cfq_allow_merge(struct request_queue *q, struct request *rq,
 		return false;
 
 	/*
-	 * Lookup the cfqq that this bio will be queued with. Allow
-	 * merge only if rq is queued there.
+	 * Lookup the cfqq that this bio will be queued with and allow
+	 * merge only if rq is queued there.  This function can be called
+	 * from plug merge without queue_lock.  In such cases, ioc of @rq
+	 * and %current are guaranteed to be equal.  Avoid lookup which
+	 * requires queue_lock by using @rq's cic.
 	 */
-	cic = cfq_cic_lookup(cfqd, current->io_context);
-	if (!cic)
-		return false;
+	if (current->io_context == RQ_CIC(rq)->ioc) {
+		cic = RQ_CIC(rq);
+	} else {
+		cic = cfq_cic_lookup(cfqd, current->io_context);
+		if (!cic)
+			return false;
+	}
 
 	cfqq = cic_to_cfqq(cic, cfq_bio_sync(bio));
 	return cfqq == RQ_CFQQ(rq);
@@ -2784,21 +2791,15 @@ static void cfq_exit_cic(struct cfq_io_context *cic)
 	struct io_context *ioc = cic->ioc;
 
 	list_del_init(&cic->queue_list);
-
-	/*
-	 * Make sure dead mark is seen for dead queues
-	 */
-	smp_wmb();
 	cic->key = cfqd_dead_key(cfqd);
 
-	rcu_read_lock();
-	if (rcu_dereference(ioc->ioc_data) == cic) {
-		rcu_read_unlock();
-		spin_lock(&ioc->lock);
+	/*
+	 * Both setting lookup hint to and clearing it from @cic are done
+	 * under queue_lock.  If it's not pointing to @cic now, it never
+	 * will.  Hint assignment itself can race safely.
+	 */
+	if (rcu_dereference_raw(ioc->ioc_data) == cic)
 		rcu_assign_pointer(ioc->ioc_data, NULL);
-		spin_unlock(&ioc->lock);
-	} else
-		rcu_read_unlock();
 
 	if (cic->cfqq[BLK_RW_ASYNC]) {
 		cfq_exit_cfqq(cfqd, cic->cfqq[BLK_RW_ASYNC]);
@@ -3092,12 +3093,20 @@ cfq_drop_dead_cic(struct cfq_data *cfqd, struct io_context *ioc,
 	cfq_cic_free(cic);
 }
 
+/**
+ * cfq_cic_lookup - lookup cfq_io_context
+ * @cfqd: the associated cfq_data
+ * @ioc: the associated io_context
+ *
+ * Look up cfq_io_context associated with @cfqd - @ioc pair.  Must be
+ * called with queue_lock held.
+ */
 static struct cfq_io_context *
 cfq_cic_lookup(struct cfq_data *cfqd, struct io_context *ioc)
 {
 	struct cfq_io_context *cic;
-	unsigned long flags;
 
+	lockdep_assert_held(cfqd->queue->queue_lock);
 	if (unlikely(!ioc))
 		return NULL;
 
@@ -3107,28 +3116,22 @@ cfq_cic_lookup(struct cfq_data *cfqd, struct io_context *ioc)
 	 * we maintain a last-hit cache, to avoid browsing over the tree
 	 */
 	cic = rcu_dereference(ioc->ioc_data);
-	if (cic && cic->key == cfqd) {
-		rcu_read_unlock();
-		return cic;
-	}
+	if (cic && cic->key == cfqd)
+		goto out;
 
 	do {
 		cic = radix_tree_lookup(&ioc->radix_root, cfqd->queue->id);
-		rcu_read_unlock();
 		if (!cic)
 			break;
-		if (unlikely(cic->key != cfqd)) {
-			cfq_drop_dead_cic(cfqd, ioc, cic);
-			rcu_read_lock();
-			continue;
+		if (likely(cic->key == cfqd)) {
+			/* hint assignment itself can race safely */
+			rcu_assign_pointer(ioc->ioc_data, cic);
+			break;
 		}
-
-		spin_lock_irqsave(&ioc->lock, flags);
-		rcu_assign_pointer(ioc->ioc_data, cic);
-		spin_unlock_irqrestore(&ioc->lock, flags);
-		break;
+		cfq_drop_dead_cic(cfqd, ioc, cic);
 	} while (1);
-
+out:
+	rcu_read_unlock();
 	return cic;
 }
 
