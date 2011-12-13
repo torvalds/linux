@@ -5668,6 +5668,8 @@ int transport_send_check_condition_and_sense(
 	case TCM_SECTOR_COUNT_TOO_MANY:
 		/* CURRENT ERROR */
 		buffer[offset] = 0x70;
+		buffer[offset+SPC_ADD_SENSE_LEN_OFFSET] = 10;
+		buffer[offset+SPC_ADD_SENSE_LEN_OFFSET] = 10;
 		/* ILLEGAL REQUEST */
 		buffer[offset+SPC_SENSE_KEY_OFFSET] = ILLEGAL_REQUEST;
 		/* INVALID COMMAND OPERATION CODE */
@@ -5676,6 +5678,7 @@ int transport_send_check_condition_and_sense(
 	case TCM_UNKNOWN_MODE_PAGE:
 		/* CURRENT ERROR */
 		buffer[offset] = 0x70;
+		buffer[offset+SPC_ADD_SENSE_LEN_OFFSET] = 10;
 		/* ILLEGAL REQUEST */
 		buffer[offset+SPC_SENSE_KEY_OFFSET] = ILLEGAL_REQUEST;
 		/* INVALID FIELD IN CDB */
@@ -5684,6 +5687,7 @@ int transport_send_check_condition_and_sense(
 	case TCM_CHECK_CONDITION_ABORT_CMD:
 		/* CURRENT ERROR */
 		buffer[offset] = 0x70;
+		buffer[offset+SPC_ADD_SENSE_LEN_OFFSET] = 10;
 		/* ABORTED COMMAND */
 		buffer[offset+SPC_SENSE_KEY_OFFSET] = ABORTED_COMMAND;
 		/* BUS DEVICE RESET FUNCTION OCCURRED */
@@ -5693,6 +5697,7 @@ int transport_send_check_condition_and_sense(
 	case TCM_INCORRECT_AMOUNT_OF_DATA:
 		/* CURRENT ERROR */
 		buffer[offset] = 0x70;
+		buffer[offset+SPC_ADD_SENSE_LEN_OFFSET] = 10;
 		/* ABORTED COMMAND */
 		buffer[offset+SPC_SENSE_KEY_OFFSET] = ABORTED_COMMAND;
 		/* WRITE ERROR */
@@ -5703,6 +5708,7 @@ int transport_send_check_condition_and_sense(
 	case TCM_INVALID_CDB_FIELD:
 		/* CURRENT ERROR */
 		buffer[offset] = 0x70;
+		buffer[offset+SPC_ADD_SENSE_LEN_OFFSET] = 10;
 		/* ABORTED COMMAND */
 		buffer[offset+SPC_SENSE_KEY_OFFSET] = ABORTED_COMMAND;
 		/* INVALID FIELD IN CDB */
@@ -5711,6 +5717,7 @@ int transport_send_check_condition_and_sense(
 	case TCM_INVALID_PARAMETER_LIST:
 		/* CURRENT ERROR */
 		buffer[offset] = 0x70;
+		buffer[offset+SPC_ADD_SENSE_LEN_OFFSET] = 10;
 		/* ABORTED COMMAND */
 		buffer[offset+SPC_SENSE_KEY_OFFSET] = ABORTED_COMMAND;
 		/* INVALID FIELD IN PARAMETER LIST */
@@ -5719,6 +5726,7 @@ int transport_send_check_condition_and_sense(
 	case TCM_UNEXPECTED_UNSOLICITED_DATA:
 		/* CURRENT ERROR */
 		buffer[offset] = 0x70;
+		buffer[offset+SPC_ADD_SENSE_LEN_OFFSET] = 10;
 		/* ABORTED COMMAND */
 		buffer[offset+SPC_SENSE_KEY_OFFSET] = ABORTED_COMMAND;
 		/* WRITE ERROR */
@@ -5729,6 +5737,7 @@ int transport_send_check_condition_and_sense(
 	case TCM_SERVICE_CRC_ERROR:
 		/* CURRENT ERROR */
 		buffer[offset] = 0x70;
+		buffer[offset+SPC_ADD_SENSE_LEN_OFFSET] = 10;
 		/* ABORTED COMMAND */
 		buffer[offset+SPC_SENSE_KEY_OFFSET] = ABORTED_COMMAND;
 		/* PROTOCOL SERVICE CRC ERROR */
@@ -5739,6 +5748,7 @@ int transport_send_check_condition_and_sense(
 	case TCM_SNACK_REJECTED:
 		/* CURRENT ERROR */
 		buffer[offset] = 0x70;
+		buffer[offset+SPC_ADD_SENSE_LEN_OFFSET] = 10;
 		/* ABORTED COMMAND */
 		buffer[offset+SPC_SENSE_KEY_OFFSET] = ABORTED_COMMAND;
 		/* READ ERROR */
@@ -5749,6 +5759,7 @@ int transport_send_check_condition_and_sense(
 	case TCM_WRITE_PROTECTED:
 		/* CURRENT ERROR */
 		buffer[offset] = 0x70;
+		buffer[offset+SPC_ADD_SENSE_LEN_OFFSET] = 10;
 		/* DATA PROTECT */
 		buffer[offset+SPC_SENSE_KEY_OFFSET] = DATA_PROTECT;
 		/* WRITE PROTECTED */
@@ -5757,6 +5768,7 @@ int transport_send_check_condition_and_sense(
 	case TCM_CHECK_CONDITION_UNIT_ATTENTION:
 		/* CURRENT ERROR */
 		buffer[offset] = 0x70;
+		buffer[offset+SPC_ADD_SENSE_LEN_OFFSET] = 10;
 		/* UNIT ATTENTION */
 		buffer[offset+SPC_SENSE_KEY_OFFSET] = UNIT_ATTENTION;
 		core_scsi3_ua_for_check_condition(cmd, &asc, &ascq);
@@ -5766,6 +5778,7 @@ int transport_send_check_condition_and_sense(
 	case TCM_CHECK_CONDITION_NOT_READY:
 		/* CURRENT ERROR */
 		buffer[offset] = 0x70;
+		buffer[offset+SPC_ADD_SENSE_LEN_OFFSET] = 10;
 		/* Not Ready */
 		buffer[offset+SPC_SENSE_KEY_OFFSET] = NOT_READY;
 		transport_get_sense_codes(cmd, &asc, &ascq);
@@ -5776,6 +5789,7 @@ int transport_send_check_condition_and_sense(
 	default:
 		/* CURRENT ERROR */
 		buffer[offset] = 0x70;
+		buffer[offset+SPC_ADD_SENSE_LEN_OFFSET] = 10;
 		/* ILLEGAL REQUEST */
 		buffer[offset+SPC_SENSE_KEY_OFFSET] = ILLEGAL_REQUEST;
 		/* LOGICAL UNIT COMMUNICATION FAILURE */
