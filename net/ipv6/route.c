@@ -1089,8 +1089,10 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 		neigh_hold(neigh);
 	else {
 		neigh = __neigh_lookup_errno(&nd_tbl, &fl6->daddr, dev);
-		if (IS_ERR(neigh))
-			neigh = NULL;
+		if (IS_ERR(neigh)) {
+			dst_free(&rt->dst);
+			return ERR_CAST(neigh);
+		}
 	}
 
 	rt->dst.flags |= DST_HOST;
