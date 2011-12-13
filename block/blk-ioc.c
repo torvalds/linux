@@ -289,7 +289,6 @@ void create_io_context_slowpath(struct task_struct *task, gfp_t gfp_flags,
 		kmem_cache_free(iocontext_cachep, ioc);
 	task_unlock(task);
 }
-EXPORT_SYMBOL(create_io_context_slowpath);
 
 /**
  * get_task_io_context - get io_context of a task
@@ -361,6 +360,65 @@ out:
 	return icq;
 }
 EXPORT_SYMBOL(ioc_lookup_icq);
+
+/**
+ * ioc_create_icq - create and link io_cq
+ * @q: request_queue of interest
+ * @gfp_mask: allocation mask
+ *
+ * Make sure io_cq linking %current->io_context and @q exists.  If either
+ * io_context and/or icq don't exist, they will be created using @gfp_mask.
+ *
+ * The caller is responsible for ensuring @ioc won't go away and @q is
+ * alive and will stay alive until this function returns.
+ */
+struct io_cq *ioc_create_icq(struct request_queue *q, gfp_t gfp_mask)
+{
+	struct elevator_type *et = q->elevator->type;
+	struct io_context *ioc;
+	struct io_cq *icq;
+
+	/* allocate stuff */
+	ioc = create_io_context(current, gfp_mask, q->node);
+	if (!ioc)
+		return NULL;
+
+	icq = kmem_cache_alloc_node(et->icq_cache, gfp_mask | __GFP_ZERO,
+				    q->node);
+	if (!icq)
+		return NULL;
+
+	if (radix_tree_preload(gfp_mask) < 0) {
+		kmem_cache_free(et->icq_cache, icq);
+		return NULL;
+	}
+
+	icq->ioc = ioc;
+	icq->q = q;
+	INIT_LIST_HEAD(&icq->q_node);
+	INIT_HLIST_NODE(&icq->ioc_node);
+
+	/* lock both q and ioc and try to link @icq */
+	spin_lock_irq(q->queue_lock);
+	spin_lock(&ioc->lock);
+
+	if (likely(!radix_tree_insert(&ioc->icq_tree, q->id, icq))) {
+		hlist_add_head(&icq->ioc_node, &ioc->icq_list);
+		list_add(&icq->q_node, &q->icq_list);
+		if (et->ops.elevator_init_icq_fn)
+			et->ops.elevator_init_icq_fn(icq);
+	} else {
+		kmem_cache_free(et->icq_cache, icq);
+		icq = ioc_lookup_icq(ioc, q);
+		if (!icq)
+			printk(KERN_ERR "cfq: icq link failed!\n");
+	}
+
+	spin_unlock(&ioc->lock);
+	spin_unlock_irq(q->queue_lock);
+	radix_tree_preload_end();
+	return icq;
+}
 
 void ioc_set_changed(struct io_context *ioc, int which)
 {
