@@ -39,6 +39,8 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(block_bio_remap);
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_rq_remap);
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_bio_complete);
 
+DEFINE_IDA(blk_queue_ida);
+
 /*
  * For the allocated request tables
  */
@@ -474,6 +476,10 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	if (!q)
 		return NULL;
 
+	q->id = ida_simple_get(&blk_queue_ida, 0, 0, GFP_KERNEL);
+	if (q->id < 0)
+		goto fail_q;
+
 	q->backing_dev_info.ra_pages =
 			(VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
 	q->backing_dev_info.state = 0;
@@ -481,15 +487,11 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	q->backing_dev_info.name = "block";
 
 	err = bdi_init(&q->backing_dev_info);
-	if (err) {
-		kmem_cache_free(blk_requestq_cachep, q);
-		return NULL;
-	}
+	if (err)
+		goto fail_id;
 
-	if (blk_throtl_init(q)) {
-		kmem_cache_free(blk_requestq_cachep, q);
-		return NULL;
-	}
+	if (blk_throtl_init(q))
+		goto fail_id;
 
 	setup_timer(&q->backing_dev_info.laptop_mode_wb_timer,
 		    laptop_mode_timer_fn, (unsigned long) q);
@@ -512,6 +514,12 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	q->queue_lock = &q->__queue_lock;
 
 	return q;
+
+fail_id:
+	ida_simple_remove(&blk_queue_ida, q->id);
+fail_q:
+	kmem_cache_free(blk_requestq_cachep, q);
+	return NULL;
 }
 EXPORT_SYMBOL(blk_alloc_queue_node);
 

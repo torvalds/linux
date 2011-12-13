@@ -311,6 +311,12 @@ struct request_queue {
 	unsigned long		queue_flags;
 
 	/*
+	 * ida allocated id for this queue.  Used to index queues from
+	 * ioctx.
+	 */
+	int			id;
+
+	/*
 	 * queue needs bounce pages for pages above this limit
 	 */
 	gfp_t			bounce_gfp;
