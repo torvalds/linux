@@ -711,10 +711,10 @@ void tegra_pinmux_config_pullupdown_table(const struct tegra_pingroup_config *co
 
 static struct of_device_id tegra_pinmux_of_match[] __devinitdata = {
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
-	{ .compatible = "nvidia,tegra20-pinmux", tegra20_pinmux_init },
+	{ .compatible = "nvidia,tegra20-pinmux-disabled", tegra20_pinmux_init },
 #endif
 #ifdef CONFIG_ARCH_TEGRA_3x_SOC
-	{ .compatible = "nvidia,tegra30-pinmux", tegra30_pinmux_init },
+	{ .compatible = "nvidia,tegra30-pinmux-disabled", tegra30_pinmux_init },
 #endif
 	{ },
 };
@@ -809,7 +809,7 @@ static int __devinit tegra_pinmux_probe(struct platform_device *pdev)
 
 static struct platform_driver tegra_pinmux_driver = {
 	.driver		= {
-		.name	= "tegra-pinmux",
+		.name	= "tegra-pinmux-disabled",
 		.owner	= THIS_MODULE,
 		.of_match_table = tegra_pinmux_of_match,
 	},

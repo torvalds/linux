@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2011,2012, NVIDIA CORPORATION.  All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -18,47 +18,57 @@
 #include <linux/of.h>
 #include <linux/string.h>
 
-#include <mach/pinmux.h>
-
 #include "board-pinmux.h"
 #include "devices.h"
 
-struct tegra_board_pinmux_conf *confs[2];
+unsigned long tegra_pincfg_pullnone_driven[2] = {
+	TEGRA_PINCONF_PACK(TEGRA_PINCONF_PARAM_PULL, TEGRA_PINCONFIG_PULL_NONE),
+	TEGRA_PINCONF_PACK(TEGRA_PINCONF_PARAM_TRISTATE, TEGRA_PINCONFIG_DRIVEN),
+};
 
-static void tegra_board_pinmux_setup_pinmux(void)
-{
-	int i;
+unsigned long tegra_pincfg_pullnone_tristate[2] = {
+	TEGRA_PINCONF_PACK(TEGRA_PINCONF_PARAM_PULL, TEGRA_PINCONFIG_PULL_NONE),
+	TEGRA_PINCONF_PACK(TEGRA_PINCONF_PARAM_TRISTATE, TEGRA_PINCONFIG_TRISTATE),
+};
 
-	for (i = 0; i < ARRAY_SIZE(confs); i++) {
-		if (!confs[i])
-			continue;
+unsigned long tegra_pincfg_pullnone_na[1] = {
+	TEGRA_PINCONF_PACK(TEGRA_PINCONF_PARAM_PULL, TEGRA_PINCONFIG_PULL_NONE),
+};
 
-		tegra_pinmux_config_table(confs[i]->pgs, confs[i]->pg_count);
+unsigned long tegra_pincfg_pullup_driven[2] = {
+	TEGRA_PINCONF_PACK(TEGRA_PINCONF_PARAM_PULL, TEGRA_PINCONFIG_PULL_UP),
+	TEGRA_PINCONF_PACK(TEGRA_PINCONF_PARAM_TRISTATE, TEGRA_PINCONFIG_DRIVEN),
+};
 
-		if (confs[i]->drives)
-			tegra_drive_pinmux_config_table(confs[i]->drives,
-							confs[i]->drive_count);
-	}
-}
+unsigned long tegra_pincfg_pullup_tristate[2] = {
+	TEGRA_PINCONF_PACK(TEGRA_PINCONF_PARAM_PULL, TEGRA_PINCONFIG_PULL_UP),
+	TEGRA_PINCONF_PACK(TEGRA_PINCONF_PARAM_TRISTATE, TEGRA_PINCONFIG_TRISTATE),
+};
 
-static int tegra_board_pinmux_bus_notify(struct notifier_block *nb,
-					 unsigned long event, void *vdev)
-{
-	struct device *dev = vdev;
+unsigned long tegra_pincfg_pullup_na[1] = {
+	TEGRA_PINCONF_PACK(TEGRA_PINCONF_PARAM_PULL, TEGRA_PINCONFIG_PULL_UP),
+};
 
-	if (event != BUS_NOTIFY_BOUND_DRIVER)
-		return NOTIFY_DONE;
+unsigned long tegra_pincfg_pulldown_driven[2] = {
+	TEGRA_PINCONF_PACK(TEGRA_PINCONF_PARAM_PULL, TEGRA_PINCONFIG_PULL_DOWN),
+	TEGRA_PINCONF_PACK(TEGRA_PINCONF_PARAM_TRISTATE, TEGRA_PINCONFIG_DRIVEN),
+};
 
-	if (strcmp(dev_name(dev), PINMUX_DEV))
-		return NOTIFY_DONE;
+unsigned long tegra_pincfg_pulldown_tristate[2] = {
+	TEGRA_PINCONF_PACK(TEGRA_PINCONF_PARAM_PULL, TEGRA_PINCONFIG_PULL_DOWN),
+	TEGRA_PINCONF_PACK(TEGRA_PINCONF_PARAM_TRISTATE, TEGRA_PINCONFIG_TRISTATE),
+};
 
-	tegra_board_pinmux_setup_pinmux();
+unsigned long tegra_pincfg_pulldown_na[1] = {
+	TEGRA_PINCONF_PACK(TEGRA_PINCONF_PARAM_PULL, TEGRA_PINCONFIG_PULL_DOWN),
+};
 
-	return NOTIFY_STOP_MASK;
-}
+unsigned long tegra_pincfg_pullna_driven[1] = {
+	TEGRA_PINCONF_PACK(TEGRA_PINCONF_PARAM_TRISTATE, TEGRA_PINCONFIG_DRIVEN),
+};
 
-static struct notifier_block nb = {
-	.notifier_call = tegra_board_pinmux_bus_notify,
+unsigned long tegra_pincfg_pullna_tristate[1] = {
+	TEGRA_PINCONF_PACK(TEGRA_PINCONF_PARAM_TRISTATE, TEGRA_PINCONFIG_TRISTATE),
 };
 
 static struct platform_device *devices[] = {
@@ -69,10 +79,10 @@ static struct platform_device *devices[] = {
 void tegra_board_pinmux_init(struct tegra_board_pinmux_conf *conf_a,
 			     struct tegra_board_pinmux_conf *conf_b)
 {
-	confs[0] = conf_a;
-	confs[1] = conf_b;
-
-	bus_register_notifier(&platform_bus_type, &nb);
+	if (conf_a)
+		pinctrl_register_mappings(conf_a->maps, conf_a->map_count);
+	if (conf_b)
+		pinctrl_register_mappings(conf_b->maps, conf_b->map_count);
 
 	if (!of_machine_is_compatible("nvidia,tegra20"))
 		platform_add_devices(devices, ARRAY_SIZE(devices));

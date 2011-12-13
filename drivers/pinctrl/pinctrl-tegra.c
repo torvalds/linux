@@ -33,7 +33,7 @@
 
 #include "pinctrl-tegra.h"
 
-#define DRIVER_NAME "tegra-pinmux-disabled"
+#define DRIVER_NAME "tegra-pinmux"
 
 struct tegra_pmx {
 	struct device *dev;
@@ -599,13 +599,13 @@ static struct pinctrl_desc tegra_pinctrl_desc = {
 static struct of_device_id tegra_pinctrl_of_match[] __devinitdata = {
 #ifdef CONFIG_PINCTRL_TEGRA20
 	{
-		.compatible = "nvidia,tegra20-pinmux-disabled",
+		.compatible = "nvidia,tegra20-pinmux",
 		.data = tegra20_pinctrl_init,
 	},
 #endif
 #ifdef CONFIG_PINCTRL_TEGRA30
 	{
-		.compatible = "nvidia,tegra30-pinmux-disabled",
+		.compatible = "nvidia,tegra30-pinmux",
 		.data = tegra30_pinctrl_init,
 	},
 #endif
