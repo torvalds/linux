@@ -475,27 +475,6 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	/* Get the default values for Model Name and Description */
 	lpfc_get_hba_model_desc(phba, phba->ModelName, phba->ModelDesc);
 
-	if ((phba->cfg_link_speed > LPFC_USER_LINK_SPEED_16G)
-	    || ((phba->cfg_link_speed == LPFC_USER_LINK_SPEED_1G)
-		&& !(phba->lmt & LMT_1Gb))
-	    || ((phba->cfg_link_speed == LPFC_USER_LINK_SPEED_2G)
-		&& !(phba->lmt & LMT_2Gb))
-	    || ((phba->cfg_link_speed == LPFC_USER_LINK_SPEED_4G)
-		&& !(phba->lmt & LMT_4Gb))
-	    || ((phba->cfg_link_speed == LPFC_USER_LINK_SPEED_8G)
-		&& !(phba->lmt & LMT_8Gb))
-	    || ((phba->cfg_link_speed == LPFC_USER_LINK_SPEED_10G)
-		&& !(phba->lmt & LMT_10Gb))
-	    || ((phba->cfg_link_speed == LPFC_USER_LINK_SPEED_16G)
-		&& !(phba->lmt & LMT_16Gb))) {
-		/* Reset link speed to auto */
-		lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
-			"1302 Invalid speed for this board: "
-			"Reset link speed to auto: x%x\n",
-			phba->cfg_link_speed);
-			phba->cfg_link_speed = LPFC_USER_LINK_SPEED_AUTO;
-	}
-
 	phba->link_state = LPFC_LINK_DOWN;
 
 	/* Only process IOCBs on ELS ring till hba_state is READY */
@@ -585,28 +564,10 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 			return -EIO;
 		}
 	} else if (phba->cfg_suppress_link_up == LPFC_INITIALIZE_LINK) {
-		lpfc_init_link(phba, pmb, phba->cfg_topology,
-			phba->cfg_link_speed);
-		pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-		lpfc_set_loopback_flag(phba);
-		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
-		if (rc != MBX_SUCCESS) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0454 Adapter failed to init, mbxCmd x%x "
-				"INIT_LINK, mbxStatus x%x\n",
-				mb->mbxCommand, mb->mbxStatus);
-
-			/* Clear all interrupt enable conditions */
-			writel(0, phba->HCregaddr);
-			readl(phba->HCregaddr); /* flush */
-			/* Clear all pending interrupts */
-			writel(0xffffffff, phba->HAregaddr);
-			readl(phba->HAregaddr); /* flush */
-			phba->link_state = LPFC_HBA_ERROR;
-			if (rc != MBX_BUSY)
-				mempool_free(pmb, phba->mbox_mem_pool);
-			return -EIO;
-		}
+		mempool_free(pmb, phba->mbox_mem_pool);
+		rc = phba->lpfc_hba_init_link(phba, MBX_NOWAIT);
+		if (rc)
+			return rc;
 	}
 	/* MBOX buffer will be freed in mbox compl */
 	pmb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -681,6 +642,26 @@ lpfc_hba_init_link(struct lpfc_hba *phba, uint32_t flag)
 	mb = &pmb->u.mb;
 	pmb->vport = vport;
 
+	if ((phba->cfg_link_speed > LPFC_USER_LINK_SPEED_MAX) ||
+	    ((phba->cfg_link_speed == LPFC_USER_LINK_SPEED_1G) &&
+	     !(phba->lmt & LMT_1Gb)) ||
+	    ((phba->cfg_link_speed == LPFC_USER_LINK_SPEED_2G) &&
+	     !(phba->lmt & LMT_2Gb)) ||
+	    ((phba->cfg_link_speed == LPFC_USER_LINK_SPEED_4G) &&
+	     !(phba->lmt & LMT_4Gb)) ||
+	    ((phba->cfg_link_speed == LPFC_USER_LINK_SPEED_8G) &&
+	     !(phba->lmt & LMT_8Gb)) ||
+	    ((phba->cfg_link_speed == LPFC_USER_LINK_SPEED_10G) &&
+	     !(phba->lmt & LMT_10Gb)) ||
+	    ((phba->cfg_link_speed == LPFC_USER_LINK_SPEED_16G) &&
+	     !(phba->lmt & LMT_16Gb))) {
+		/* Reset link speed to auto */
+		lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
+			"1302 Invalid speed for this board:%d "
+			"Reset link speed to auto.\n",
+			phba->cfg_link_speed);
+			phba->cfg_link_speed = LPFC_USER_LINK_SPEED_AUTO;
+	}
 	lpfc_init_link(phba, pmb, phba->cfg_topology, phba->cfg_link_speed);
 	pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 	lpfc_set_loopback_flag(phba);
@@ -1474,7 +1455,7 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 			/* TODO: Register for Overtemp async events. */
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"2889 Port Overtemperature event, "
-				"taking port\n");
+				"taking port offline\n");
 			spin_lock_irq(&phba->hbalock);
 			phba->over_temp_state = HBA_OVER_TEMP;
 			spin_unlock_irq(&phba->hbalock);
@@ -9198,12 +9179,15 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	/* Perform post initialization setup */
 	lpfc_post_init_setup(phba);
 
-	/* check for firmware upgrade or downgrade */
-	snprintf(file_name, 16, "%s.grp", phba->ModelName);
-	error = request_firmware(&fw, file_name, &phba->pcidev->dev);
-	if (!error) {
-		lpfc_write_firmware(phba, fw);
-		release_firmware(fw);
+	/* check for firmware upgrade or downgrade (if_type 2 only) */
+	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
+	    LPFC_SLI_INTF_IF_TYPE_2) {
+		snprintf(file_name, 16, "%s.grp", phba->ModelName);
+		error = request_firmware(&fw, file_name, &phba->pcidev->dev);
+		if (!error) {
+			lpfc_write_firmware(phba, fw);
+			release_firmware(fw);
+		}
 	}
 
 	/* Check if there are static vports to be created. */

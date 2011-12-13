@@ -247,18 +247,6 @@ struct lpfc_stats {
 	uint32_t fcpLocalErr;
 };
 
-enum sysfs_mbox_state {
-	SMBOX_IDLE,
-	SMBOX_WRITING,
-	SMBOX_READING
-};
-
-struct lpfc_sysfs_mbox {
-	enum sysfs_mbox_state state;
-	size_t                offset;
-	struct lpfcMboxq *    mbox;
-};
-
 struct lpfc_hba;
 
 
@@ -782,8 +770,6 @@ struct lpfc_hba {
 	uint64_t bg_guard_err_cnt;
 	uint64_t bg_apptag_err_cnt;
 	uint64_t bg_reftag_err_cnt;
-
-	struct lpfc_sysfs_mbox sysfs_mbox;
 
 	/* fastpath list. */
 	spinlock_t scsi_buf_list_lock;

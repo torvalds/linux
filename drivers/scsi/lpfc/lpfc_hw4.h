@@ -2104,6 +2104,8 @@ struct lpfc_mbx_read_config {
 #define lpfc_mbx_rd_conf_lnk_type_SHIFT		6
 #define lpfc_mbx_rd_conf_lnk_type_MASK		0x00000003
 #define lpfc_mbx_rd_conf_lnk_type_WORD		word2
+#define LPFC_LNK_TYPE_GE	0
+#define LPFC_LNK_TYPE_FC	1
 #define lpfc_mbx_rd_conf_lnk_ldv_SHIFT		8
 #define lpfc_mbx_rd_conf_lnk_ldv_MASK		0x00000001
 #define lpfc_mbx_rd_conf_lnk_ldv_WORD		word2

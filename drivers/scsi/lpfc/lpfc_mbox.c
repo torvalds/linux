@@ -2175,16 +2175,15 @@ lpfc_unreg_vfi(struct lpfcMboxq *mbox, struct lpfc_vport *vport)
 }
 
 /**
- * lpfc_dump_fcoe_param - Dump config region 23 to get FCoe parameters.
+ * lpfc_sli4_dump_cfg_rg23 - Dump sli4 port config region 23
  * @phba: pointer to the hba structure containing.
  * @mbox: pointer to lpfc mbox command to initialize.
  *
- * This function create a SLI4 dump mailbox command to dump FCoE
- * parameters stored in region 23.
+ * This function create a SLI4 dump mailbox command to dump configure
+ * region 23.
  **/
 int
-lpfc_dump_fcoe_param(struct lpfc_hba *phba,
-		struct lpfcMboxq *mbox)
+lpfc_sli4_dump_cfg_rg23(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
 {
 	struct lpfc_dmabuf *mp = NULL;
 	MAILBOX_t *mb;
@@ -2198,9 +2197,9 @@ lpfc_dump_fcoe_param(struct lpfc_hba *phba,
 
 	if (!mp || !mp->virt) {
 		kfree(mp);
-		/* dump_fcoe_param failed to allocate memory */
+		/* dump config region 23 failed to allocate memory */
 		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX,
-			"2569 lpfc_dump_fcoe_param: memory"
+			"2569 lpfc dump config region 23: memory"
 			" allocation failed\n");
 		return 1;
 	}
