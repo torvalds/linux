@@ -695,7 +695,7 @@ static int
 rproc_handle_virtio_rsc(struct rproc *rproc, struct fw_resource *rsc, int len)
 {
 	struct device *dev = rproc->dev;
-	int ret = 0;
+	int ret = -ENODEV;
 
 	for (; len >= sizeof(*rsc); rsc++, len -= sizeof(*rsc))
 		if (rsc->type == RSC_VIRTIO_DEV) {
