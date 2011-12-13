@@ -61,9 +61,9 @@ enum {
 };
 
 enum {
-	MLX4_MGM_ENTRY_SIZE	=  0x100,
-	MLX4_QP_PER_MGM		= 4 * (MLX4_MGM_ENTRY_SIZE / 16 - 2),
-	MLX4_MTT_ENTRY_PER_SEG	= 8
+	MLX4_MAX_MGM_ENTRY_SIZE = 0x1000,
+	MLX4_MAX_QP_PER_MGM	= 4 * (MLX4_MAX_MGM_ENTRY_SIZE / 16 - 2),
+	MLX4_MTT_ENTRY_PER_SEG	= 8,
 };
 
 enum {
@@ -189,6 +189,8 @@ do {									\
 	dev_info(&mdev->pdev->dev, format, ##arg)
 #define mlx4_warn(mdev, format, arg...) \
 	dev_warn(&mdev->pdev->dev, format, ##arg)
+
+extern int mlx4_log_num_mgm_entry_size;
 
 #define MLX4_MAX_NUM_SLAVES	(MLX4_MAX_NUM_PF + MLX4_MAX_NUM_VF)
 #define ALL_SLAVES 0xff
@@ -417,9 +419,6 @@ struct mlx4_comm {
 	u32			slave_read;
 };
 
-#define MGM_QPN_MASK       0x00FFFFFF
-#define MGM_BLCK_LB_BIT    30
-
 #define VLAN_FLTR_SIZE	128
 
 struct mlx4_vlan_fltr {
@@ -435,14 +434,6 @@ struct mlx4_steer_index {
 	struct list_head list;
 	unsigned int index;
 	struct list_head duplicates;
-};
-
-struct mlx4_mgm {
-	__be32			next_gid_index;
-	__be32			members_count;
-	u32			reserved[2];
-	u8			gid[16];
-	__be32			qp[MLX4_QP_PER_MGM];
 };
 
 struct mlx4_slave_state {
@@ -1020,6 +1011,9 @@ int mlx4_QUERY_IF_STAT_wrapper(struct mlx4_dev *dev, int slave,
 			       struct mlx4_cmd_mailbox *inbox,
 			       struct mlx4_cmd_mailbox *outbox,
 			       struct mlx4_cmd_info *cmd);
+
+int mlx4_get_mgm_entry_size(struct mlx4_dev *dev);
+int mlx4_get_qp_per_mgm(struct mlx4_dev *dev);
 
 static inline void set_param_l(u64 *arg, u32 val)
 {

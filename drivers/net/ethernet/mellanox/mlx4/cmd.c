@@ -997,6 +997,15 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.wrapper = mlx4_QP_ATTACH_wrapper
 	},
 	{
+		.opcode = MLX4_CMD_PROMISC,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_PROMISC_wrapper
+	},
+	{
 		.opcode = MLX4_CMD_INFORM_FLR_DONE,
 		.has_inbox = false,
 		.has_outbox = false,

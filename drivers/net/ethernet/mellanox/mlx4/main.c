@@ -75,6 +75,14 @@ MODULE_PARM_DESC(msi_x, "attempt to use MSI-X if nonzero");
 
 #endif /* CONFIG_PCI_MSI */
 
+int mlx4_log_num_mgm_entry_size = 10;
+module_param_named(log_num_mgm_entry_size,
+			mlx4_log_num_mgm_entry_size, int, 0444);
+MODULE_PARM_DESC(log_num_mgm_entry_size, "log mgm size, that defines the num"
+					 " of qp per mcg, for example:"
+					 " 10 gives 248.range: 9<="
+					 " log_num_mgm_entry_size <= 12");
+
 static char mlx4_version[] __devinitdata =
 	DRV_NAME ": Mellanox ConnectX core driver v"
 	DRV_VERSION " (" DRV_RELDATE ")\n";
@@ -205,7 +213,7 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev->caps.reserved_srqs	     = dev_cap->reserved_srqs;
 	dev->caps.max_sq_desc_sz     = dev_cap->max_sq_desc_sz;
 	dev->caps.max_rq_desc_sz     = dev_cap->max_rq_desc_sz;
-	dev->caps.num_qp_per_mgm     = MLX4_QP_PER_MGM;
+	dev->caps.num_qp_per_mgm     = mlx4_get_qp_per_mgm(dev);
 	/*
 	 * Subtract 1 from the limit because we need to allocate a
 	 * spare CQE so the HCA HW can tell the difference between an
@@ -648,7 +656,8 @@ static int mlx4_init_icm(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap,
 	 * and it's a lot easier than trying to track ref counts.
 	 */
 	err = mlx4_init_icm_table(dev, &priv->mcg_table.table,
-				  init_hca->mc_base, MLX4_MGM_ENTRY_SIZE,
+				  init_hca->mc_base,
+				  mlx4_get_mgm_entry_size(dev),
 				  dev->caps.num_mgms + dev->caps.num_amgms,
 				  dev->caps.num_mgms + dev->caps.num_amgms,
 				  0, 0);
