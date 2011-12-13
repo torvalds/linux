@@ -2709,19 +2709,24 @@ static void cfq_cic_free(struct cfq_io_context *cic)
 	call_rcu(&cic->rcu_head, cfq_cic_free_rcu);
 }
 
-static void cic_free_func(struct io_context *ioc, struct cfq_io_context *cic)
+static void cfq_release_cic(struct cfq_io_context *cic)
 {
-	unsigned long flags;
+	struct io_context *ioc = cic->ioc;
 	unsigned long dead_key = (unsigned long) cic->key;
 
 	BUG_ON(!(dead_key & CIC_DEAD_KEY));
-
-	spin_lock_irqsave(&ioc->lock, flags);
 	radix_tree_delete(&ioc->radix_root, dead_key >> CIC_DEAD_INDEX_SHIFT);
 	hlist_del_rcu(&cic->cic_list);
-	spin_unlock_irqrestore(&ioc->lock, flags);
-
 	cfq_cic_free(cic);
+}
+
+static void cic_free_func(struct io_context *ioc, struct cfq_io_context *cic)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&ioc->lock, flags);
+	cfq_release_cic(cic);
+	spin_unlock_irqrestore(&ioc->lock, flags);
 }
 
 /*
@@ -2773,9 +2778,9 @@ static void cfq_exit_cfqq(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	cfq_put_queue(cfqq);
 }
 
-static void __cfq_exit_single_io_context(struct cfq_data *cfqd,
-					 struct cfq_io_context *cic)
+static void cfq_exit_cic(struct cfq_io_context *cic)
 {
+	struct cfq_data *cfqd = cic_to_cfqd(cic);
 	struct io_context *ioc = cic->ioc;
 
 	list_del_init(&cic->queue_list);
@@ -2823,7 +2828,7 @@ static void cfq_exit_single_io_context(struct io_context *ioc,
 		 */
 		smp_read_barrier_depends();
 		if (cic->key == cfqd)
-			__cfq_exit_single_io_context(cfqd, cic);
+			cfq_exit_cic(cic);
 
 		spin_unlock_irqrestore(q->queue_lock, flags);
 	}
@@ -3161,28 +3166,29 @@ static int cfq_cic_link(struct cfq_data *cfqd, struct io_context *ioc,
 	int ret;
 
 	ret = radix_tree_preload(gfp_mask);
+	if (ret)
+		goto out;
+
+	cic->ioc = ioc;
+	cic->key = cfqd;
+	cic->q = cfqd->queue;
+
+	spin_lock_irqsave(&ioc->lock, flags);
+	ret = radix_tree_insert(&ioc->radix_root, cfqd->queue->id, cic);
+	if (!ret)
+		hlist_add_head_rcu(&cic->cic_list, &ioc->cic_list);
+	spin_unlock_irqrestore(&ioc->lock, flags);
+
+	radix_tree_preload_end();
+
 	if (!ret) {
-		cic->ioc = ioc;
-		cic->key = cfqd;
-
-		spin_lock_irqsave(&ioc->lock, flags);
-		ret = radix_tree_insert(&ioc->radix_root, cfqd->queue->id, cic);
-		if (!ret)
-			hlist_add_head_rcu(&cic->cic_list, &ioc->cic_list);
-		spin_unlock_irqrestore(&ioc->lock, flags);
-
-		radix_tree_preload_end();
-
-		if (!ret) {
-			spin_lock_irqsave(cfqd->queue->queue_lock, flags);
-			list_add(&cic->queue_list, &cfqd->cic_list);
-			spin_unlock_irqrestore(cfqd->queue->queue_lock, flags);
-		}
+		spin_lock_irqsave(cfqd->queue->queue_lock, flags);
+		list_add(&cic->queue_list, &cfqd->cic_list);
+		spin_unlock_irqrestore(cfqd->queue->queue_lock, flags);
 	}
-
+out:
 	if (ret)
 		printk(KERN_ERR "cfq: cic link failed!\n");
-
 	return ret;
 }
 
@@ -3922,7 +3928,7 @@ static void cfq_exit_queue(struct elevator_queue *e)
 							struct cfq_io_context,
 							queue_list);
 
-		__cfq_exit_single_io_context(cfqd, cic);
+		cfq_exit_cic(cic);
 	}
 
 	cfq_put_async_queues(cfqd);
