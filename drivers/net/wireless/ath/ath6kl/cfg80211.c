@@ -1798,7 +1798,7 @@ int ath6kl_cfg80211_suspend(struct ath6kl *ar,
 
 	case ATH6KL_CFG_SUSPEND_DEEPSLEEP:
 
-		ath6kl_cfg80211_stop(ar);
+		ath6kl_cfg80211_stop_all(ar);
 
 		/* save the current power mode before enabling power save */
 		ar->wmi->saved_pwr_mode = ar->wmi->pwr_mode;
@@ -1815,7 +1815,7 @@ int ath6kl_cfg80211_suspend(struct ath6kl *ar,
 
 	case ATH6KL_CFG_SUSPEND_CUTPOWER:
 
-		ath6kl_cfg80211_stop(ar);
+		ath6kl_cfg80211_stop_all(ar);
 
 		if (ar->state == ATH6KL_STATE_OFF) {
 			ath6kl_dbg(ATH6KL_DBG_SUSPEND,
@@ -2388,22 +2388,8 @@ static struct cfg80211_ops ath6kl_cfg80211_ops = {
 	.mgmt_frame_register = ath6kl_mgmt_frame_register,
 };
 
-void ath6kl_cfg80211_stop(struct ath6kl *ar)
+void ath6kl_cfg80211_stop(struct ath6kl_vif *vif)
 {
-	struct ath6kl_vif *vif;
-
-	/* FIXME: for multi vif */
-	vif = ath6kl_vif_first(ar);
-	if (!vif) {
-		/* save the current power mode before enabling power save */
-		ar->wmi->saved_pwr_mode = ar->wmi->pwr_mode;
-
-		if (ath6kl_wmi_powermode_cmd(ar->wmi, 0, REC_POWER) != 0)
-			ath6kl_warn("ath6kl_deep_sleep_enable: "
-				    "wmi_powermode_cmd failed\n");
-		return;
-	}
-
 	switch (vif->sme_state) {
 	case SME_DISCONNECTED:
 		break;
@@ -2420,19 +2406,42 @@ void ath6kl_cfg80211_stop(struct ath6kl *ar)
 
 	if (test_bit(CONNECTED, &vif->flags) ||
 	    test_bit(CONNECT_PEND, &vif->flags))
-		ath6kl_wmi_disconnect_cmd(ar->wmi, vif->fw_vif_idx);
+		ath6kl_wmi_disconnect_cmd(vif->ar->wmi, vif->fw_vif_idx);
 
 	vif->sme_state = SME_DISCONNECTED;
 	clear_bit(CONNECTED, &vif->flags);
 	clear_bit(CONNECT_PEND, &vif->flags);
 
 	/* disable scanning */
-	if (ath6kl_wmi_scanparams_cmd(ar->wmi, vif->fw_vif_idx, 0xFFFF, 0, 0,
-				      0, 0, 0, 0, 0, 0, 0) != 0)
-		printk(KERN_WARNING "ath6kl: failed to disable scan "
-		       "during suspend\n");
+	if (ath6kl_wmi_scanparams_cmd(vif->ar->wmi, vif->fw_vif_idx, 0xFFFF,
+				      0, 0, 0, 0, 0, 0, 0, 0, 0) != 0)
+		ath6kl_warn("failed to disable scan during stop\n");
 
 	ath6kl_cfg80211_scan_complete_event(vif, true);
+}
+
+void ath6kl_cfg80211_stop_all(struct ath6kl *ar)
+{
+	struct ath6kl_vif *vif;
+
+	vif = ath6kl_vif_first(ar);
+	if (!vif) {
+		/* save the current power mode before enabling power save */
+		ar->wmi->saved_pwr_mode = ar->wmi->pwr_mode;
+
+		if (ath6kl_wmi_powermode_cmd(ar->wmi, 0, REC_POWER) != 0)
+			ath6kl_warn("ath6kl_deep_sleep_enable: "
+				    "wmi_powermode_cmd failed\n");
+		return;
+	}
+
+	/*
+	 * FIXME: we should take ar->list_lock to protect changes in the
+	 * vif_list, but that's not trivial to do as ath6kl_cfg80211_stop()
+	 * sleeps.
+	 */
+	list_for_each_entry(vif, &ar->vif_list, list)
+		ath6kl_cfg80211_stop(vif);
 }
 
 struct ath6kl *ath6kl_core_alloc(struct device *dev)
