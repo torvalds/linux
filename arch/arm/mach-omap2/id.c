@@ -343,6 +343,25 @@ static void __init omap3_check_revision(const char **cpu_rev)
 	case 0xb944:
 		omap_revision = AM335X_REV_ES1_0;
 		*cpu_rev = "1.0";
+	case 0xb8f2:
+		switch (rev) {
+		case 0:
+		/* FALLTHROUGH */
+		case 1:
+			omap_revision = TI8148_REV_ES1_0;
+			*cpu_rev = "1.0";
+			break;
+		case 2:
+			omap_revision = TI8148_REV_ES2_0;
+			*cpu_rev = "2.0";
+			break;
+		case 3:
+		/* FALLTHROUGH */
+		default:
+			omap_revision = TI8148_REV_ES2_1;
+			*cpu_rev = "2.1";
+			break;
+		}
 		break;
 	default:
 		/* Unknown default to latest silicon rev as default */
@@ -449,6 +468,8 @@ static void __init omap3_cpuinfo(const char *cpu_rev)
 		cpu_name = "TI816X";
 	} else if (cpu_is_am335x()) {
 		cpu_name =  "AM335X";
+	} else if (cpu_is_ti814x()) {
+		cpu_name = "TI814X";
 	} else if (omap3_has_iva() && omap3_has_sgx()) {
 		/* OMAP3430, OMAP3525, OMAP3515, OMAP3503 devices */
 		cpu_name = "OMAP3430/3530";
