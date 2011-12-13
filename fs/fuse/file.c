@@ -1567,6 +1567,10 @@ static loff_t fuse_file_llseek(struct file *file, loff_t offset, int origin)
 		offset += i_size_read(inode);
 		break;
 	case SEEK_CUR:
+		if (offset == 0) {
+			retval = file->f_pos;
+			goto exit;
+		}
 		offset += file->f_pos;
 		break;
 	case SEEK_DATA:
