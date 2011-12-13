@@ -627,8 +627,7 @@ int recv_tt_query(struct sk_buff *skb, struct hard_iface *recv_if)
 
 			/* Ensure we have all the claimed data */
 			if (unlikely(skb_headlen(skb) <
-					sizeof(struct tt_query_packet) +
-					tt_len))
+				     sizeof(struct tt_query_packet) + tt_len))
 				goto out;
 
 			handle_tt_response(bat_priv, tt_query);

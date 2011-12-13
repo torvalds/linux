@@ -222,24 +222,24 @@ struct socket_packet {
 	struct icmp_packet_rr icmp_packet;
 };
 
-struct tt_local_entry {
+struct tt_common_entry {
 	uint8_t addr[ETH_ALEN];
 	struct hlist_node hash_entry;
-	unsigned long last_seen;
 	uint16_t flags;
 	atomic_t refcount;
 	struct rcu_head rcu;
 };
 
+struct tt_local_entry {
+	struct tt_common_entry common;
+	unsigned long last_seen;
+};
+
 struct tt_global_entry {
-	uint8_t addr[ETH_ALEN];
-	struct hlist_node hash_entry; /* entry in the global table */
+	struct tt_common_entry common;
 	struct orig_node *orig_node;
 	uint8_t ttvn;
-	uint16_t flags; /* only TT_GLOBAL_ROAM is used */
 	unsigned long roam_at; /* time at which TT_GLOBAL_ROAM was set */
-	atomic_t refcount;
-	struct rcu_head rcu;
 };
 
 struct tt_change_node {
