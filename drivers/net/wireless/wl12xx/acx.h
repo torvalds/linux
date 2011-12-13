@@ -171,13 +171,6 @@ struct acx_rx_msdu_lifetime {
 	__le32 lifetime;
 } __packed;
 
-struct acx_packet_detection {
-	struct acx_header header;
-
-	__le32 threshold;
-} __packed;
-
-
 enum acx_slot_type {
 	SLOT_TIME_LONG = 0,
 	SLOT_TIME_SHORT = 1,
@@ -1238,7 +1231,6 @@ int wl1271_acx_feature_cfg(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 int wl1271_acx_mem_map(struct wl1271 *wl,
 		       struct acx_header *mem_map, size_t len);
 int wl1271_acx_rx_msdu_life_time(struct wl1271 *wl);
-int wl1271_acx_pd_threshold(struct wl1271 *wl);
 int wl1271_acx_slot(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		    enum acx_slot_type slot_time);
 int wl1271_acx_group_address_tbl(struct wl1271 *wl, struct wl12xx_vif *wlvif,

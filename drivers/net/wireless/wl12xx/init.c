@@ -223,17 +223,6 @@ static int wl12xx_init_rx_config(struct wl1271 *wl)
 	return 0;
 }
 
-int wl1271_init_phy_config(struct wl1271 *wl)
-{
-	int ret;
-
-	ret = wl1271_acx_pd_threshold(wl);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
 static int wl12xx_init_phy_vif_config(struct wl1271 *wl,
 					    struct wl12xx_vif *wlvif)
 {
@@ -703,11 +692,6 @@ int wl1271_hw_init(struct wl1271 *wl)
 
 	/* RX config */
 	ret = wl12xx_init_rx_config(wl);
-	if (ret < 0)
-		goto out_free_memmap;
-
-	/* PHY layer config */
-	ret = wl1271_init_phy_config(wl);
 	if (ret < 0)
 		goto out_free_memmap;
 

@@ -674,11 +674,6 @@ static int wl1271_plt_init(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
-	/* PHY layer config */
-	ret = wl1271_init_phy_config(wl);
-	if (ret < 0)
-		goto out_free_memmap;
-
 	ret = wl12xx_acx_mem_cfg(wl);
 	if (ret < 0)
 		goto out_free_memmap;
