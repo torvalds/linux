@@ -78,11 +78,11 @@ struct elv_fs_entry {
  */
 struct elevator_type
 {
-	struct list_head list;
 	struct elevator_ops ops;
 	struct elv_fs_entry *elevator_attrs;
 	char elevator_name[ELV_NAME_MAX];
 	struct module *elevator_owner;
+	struct list_head list;
 };
 
 /*
@@ -90,10 +90,9 @@ struct elevator_type
  */
 struct elevator_queue
 {
-	struct elevator_ops *ops;
+	struct elevator_type *type;
 	void *elevator_data;
 	struct kobject kobj;
-	struct elevator_type *elevator_type;
 	struct mutex sysfs_lock;
 	struct hlist_head *hash;
 	unsigned int registered:1;
