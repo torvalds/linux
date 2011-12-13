@@ -2169,6 +2169,11 @@ redo:
 		goto new_slab;
 	}
 
+	/* must check again c->freelist in case of cpu migration or IRQ */
+	object = c->freelist;
+	if (object)
+		goto load_freelist;
+
 	stat(s, ALLOC_SLOWPATH);
 
 	do {
