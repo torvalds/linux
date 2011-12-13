@@ -1293,6 +1293,10 @@ lpfc_config_port(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		phba->sli_rev = LPFC_SLI_REV2;
 	mb->un.varCfgPort.sli_mode = phba->sli_rev;
 
+	/* If this is an SLI3 port, configure async status notification. */
+	if (phba->sli_rev == LPFC_SLI_REV3)
+		mb->un.varCfgPort.casabt = 1;
+
 	/* Now setup pcb */
 	phba->pcb->type = TYPE_NATIVE_SLI2;
 	phba->pcb->feature = FEATURE_INITIAL_SLI2;

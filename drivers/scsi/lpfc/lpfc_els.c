@@ -6596,56 +6596,6 @@ dropit:
 }
 
 /**
- * lpfc_find_vport_by_vpid - Find a vport on a HBA through vport identifier
- * @phba: pointer to lpfc hba data structure.
- * @vpi: host virtual N_Port identifier.
- *
- * This routine finds a vport on a HBA (referred by @phba) through a
- * @vpi. The function walks the HBA's vport list and returns the address
- * of the vport with the matching @vpi.
- *
- * Return code
- *    NULL - No vport with the matching @vpi found
- *    Otherwise - Address to the vport with the matching @vpi.
- **/
-struct lpfc_vport *
-lpfc_find_vport_by_vpid(struct lpfc_hba *phba, uint16_t vpi)
-{
-	struct lpfc_vport *vport;
-	unsigned long flags;
-	int i = 0;
-
-	/* The physical ports are always vpi 0 - translate is unnecessary. */
-	if (vpi > 0) {
-		/*
-		 * Translate the physical vpi to the logical vpi.  The
-		 * vport stores the logical vpi.
-		 */
-		for (i = 0; i < phba->max_vpi; i++) {
-			if (vpi == phba->vpi_ids[i])
-				break;
-		}
-
-		if (i >= phba->max_vpi) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
-					 "2936 Could not find Vport mapped "
-					 "to vpi %d\n", vpi);
-			return NULL;
-		}
-	}
-
-	spin_lock_irqsave(&phba->hbalock, flags);
-	list_for_each_entry(vport, &phba->port_list, listentry) {
-		if (vport->vpi == i) {
-			spin_unlock_irqrestore(&phba->hbalock, flags);
-			return vport;
-		}
-	}
-	spin_unlock_irqrestore(&phba->hbalock, flags);
-	return NULL;
-}
-
-/**
  * lpfc_els_unsol_event - Process an unsolicited event from an els sli ring
  * @phba: pointer to lpfc hba data structure.
  * @pring: pointer to a SLI ring.

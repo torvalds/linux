@@ -681,8 +681,10 @@ lpfc_sli4_fcp_xri_aborted(struct lpfc_hba *phba,
 
 			rrq_empty = list_empty(&phba->active_rrq_list);
 			spin_unlock_irqrestore(&phba->hbalock, iflag);
-			if (ndlp)
+			if (ndlp) {
 				lpfc_set_rrq_active(phba, ndlp, xri, rxid, 1);
+				lpfc_sli4_abts_err_handler(phba, ndlp, axri);
+			}
 			lpfc_release_scsi_buf_s4(phba, psb);
 			if (rrq_empty)
 				lpfc_worker_wake_up(phba);
