@@ -468,12 +468,19 @@ static inline int cfqg_busy_async_queues(struct cfq_data *cfqd,
 static void cfq_dispatch_insert(struct request_queue *, struct request *);
 static struct cfq_queue *cfq_get_queue(struct cfq_data *, bool,
 				       struct io_context *, gfp_t);
-static struct cfq_io_cq *cfq_cic_lookup(struct cfq_data *, struct io_context *);
 
 static inline struct cfq_io_cq *icq_to_cic(struct io_cq *icq)
 {
 	/* cic->icq is the first member, %NULL will convert to %NULL */
 	return container_of(icq, struct cfq_io_cq, icq);
+}
+
+static inline struct cfq_io_cq *cfq_cic_lookup(struct cfq_data *cfqd,
+					       struct io_context *ioc)
+{
+	if (ioc)
+		return icq_to_cic(ioc_lookup_icq(ioc, cfqd->queue));
+	return NULL;
 }
 
 static inline struct cfq_queue *cic_to_cfqq(struct cfq_io_cq *cic, bool is_sync)
@@ -2968,45 +2975,6 @@ cfq_get_queue(struct cfq_data *cfqd, bool is_sync, struct io_context *ioc,
 
 	cfqq->ref++;
 	return cfqq;
-}
-
-/**
- * cfq_cic_lookup - lookup cfq_io_cq
- * @cfqd: the associated cfq_data
- * @ioc: the associated io_context
- *
- * Look up cfq_io_cq associated with @cfqd - @ioc pair.  Must be called
- * with queue_lock held.
- */
-static struct cfq_io_cq *
-cfq_cic_lookup(struct cfq_data *cfqd, struct io_context *ioc)
-{
-	struct request_queue *q = cfqd->queue;
-	struct io_cq *icq;
-
-	lockdep_assert_held(cfqd->queue->queue_lock);
-	if (unlikely(!ioc))
-		return NULL;
-
-	/*
-	 * icq's are indexed from @ioc using radix tree and hint pointer,
-	 * both of which are protected with RCU.  All removals are done
-	 * holding both q and ioc locks, and we're holding q lock - if we
-	 * find a icq which points to us, it's guaranteed to be valid.
-	 */
-	rcu_read_lock();
-	icq = rcu_dereference(ioc->icq_hint);
-	if (icq && icq->q == q)
-		goto out;
-
-	icq = radix_tree_lookup(&ioc->icq_tree, cfqd->queue->id);
-	if (icq && icq->q == q)
-		rcu_assign_pointer(ioc->icq_hint, icq);	/* allowed to race */
-	else
-		icq = NULL;
-out:
-	rcu_read_unlock();
-	return icq_to_cic(icq);
 }
 
 /**

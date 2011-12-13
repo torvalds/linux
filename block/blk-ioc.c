@@ -266,6 +266,42 @@ struct io_context *get_task_io_context(struct task_struct *task,
 }
 EXPORT_SYMBOL(get_task_io_context);
 
+/**
+ * ioc_lookup_icq - lookup io_cq from ioc
+ * @ioc: the associated io_context
+ * @q: the associated request_queue
+ *
+ * Look up io_cq associated with @ioc - @q pair from @ioc.  Must be called
+ * with @q->queue_lock held.
+ */
+struct io_cq *ioc_lookup_icq(struct io_context *ioc, struct request_queue *q)
+{
+	struct io_cq *icq;
+
+	lockdep_assert_held(q->queue_lock);
+
+	/*
+	 * icq's are indexed from @ioc using radix tree and hint pointer,
+	 * both of which are protected with RCU.  All removals are done
+	 * holding both q and ioc locks, and we're holding q lock - if we
+	 * find a icq which points to us, it's guaranteed to be valid.
+	 */
+	rcu_read_lock();
+	icq = rcu_dereference(ioc->icq_hint);
+	if (icq && icq->q == q)
+		goto out;
+
+	icq = radix_tree_lookup(&ioc->icq_tree, q->id);
+	if (icq && icq->q == q)
+		rcu_assign_pointer(ioc->icq_hint, icq);	/* allowed to race */
+	else
+		icq = NULL;
+out:
+	rcu_read_unlock();
+	return icq;
+}
+EXPORT_SYMBOL(ioc_lookup_icq);
+
 void ioc_set_changed(struct io_context *ioc, int which)
 {
 	struct io_cq *icq;

@@ -199,6 +199,7 @@ static inline int blk_do_io_stat(struct request *rq)
  * Internal io_context interface
  */
 void get_io_context(struct io_context *ioc);
+struct io_cq *ioc_lookup_icq(struct io_context *ioc, struct request_queue *q);
 
 void create_io_context_slowpath(struct task_struct *task, gfp_t gfp_mask,
 				int node);
