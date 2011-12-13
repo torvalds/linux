@@ -161,6 +161,7 @@ struct mlx4_init_hca_param {
 	u8  log_mc_table_sz;
 	u8  log_mpt_sz;
 	u8  log_uar_sz;
+	u8  uar_page_sz; /* log pg sz in 4k chunks */
 };
 
 struct mlx4_init_ib_param {
@@ -197,6 +198,7 @@ int mlx4_RUN_FW(struct mlx4_dev *dev);
 int mlx4_QUERY_FW(struct mlx4_dev *dev);
 int mlx4_QUERY_ADAPTER(struct mlx4_dev *dev, struct mlx4_adapter *adapter);
 int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param);
+int mlx4_QUERY_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param);
 int mlx4_CLOSE_HCA(struct mlx4_dev *dev, int panic);
 int mlx4_map_cmd(struct mlx4_dev *dev, u16 op, struct mlx4_icm *icm, u64 virt);
 int mlx4_SET_ICM_SIZE(struct mlx4_dev *dev, u64 icm_size, u64 *aux_pages);

@@ -1071,7 +1071,7 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 
 	/* UAR attributes */
 
-	MLX4_PUT(inbox, (u8) (PAGE_SHIFT - 12), INIT_HCA_UAR_PAGE_SZ_OFFSET);
+	MLX4_PUT(inbox, param->uar_page_sz,	INIT_HCA_UAR_PAGE_SZ_OFFSET);
 	MLX4_PUT(inbox, param->log_uar_sz,      INIT_HCA_LOG_UAR_SZ_OFFSET);
 
 	err = mlx4_cmd(dev, mailbox->dma, 0, 0, MLX4_CMD_INIT_HCA, 10000,
@@ -1081,6 +1081,72 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 		mlx4_err(dev, "INIT_HCA returns %d\n", err);
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
+	return err;
+}
+
+int mlx4_QUERY_HCA(struct mlx4_dev *dev,
+		   struct mlx4_init_hca_param *param)
+{
+	struct mlx4_cmd_mailbox *mailbox;
+	__be32 *outbox;
+	int err;
+
+#define QUERY_HCA_GLOBAL_CAPS_OFFSET	0x04
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+	outbox = mailbox->buf;
+
+	err = mlx4_cmd_box(dev, 0, mailbox->dma, 0, 0,
+			   MLX4_CMD_QUERY_HCA,
+			   MLX4_CMD_TIME_CLASS_B,
+			   !mlx4_is_slave(dev));
+	if (err)
+		goto out;
+
+	MLX4_GET(param->global_caps, outbox, QUERY_HCA_GLOBAL_CAPS_OFFSET);
+
+	/* QPC/EEC/CQC/EQC/RDMARC attributes */
+
+	MLX4_GET(param->qpc_base,      outbox, INIT_HCA_QPC_BASE_OFFSET);
+	MLX4_GET(param->log_num_qps,   outbox, INIT_HCA_LOG_QP_OFFSET);
+	MLX4_GET(param->srqc_base,     outbox, INIT_HCA_SRQC_BASE_OFFSET);
+	MLX4_GET(param->log_num_srqs,  outbox, INIT_HCA_LOG_SRQ_OFFSET);
+	MLX4_GET(param->cqc_base,      outbox, INIT_HCA_CQC_BASE_OFFSET);
+	MLX4_GET(param->log_num_cqs,   outbox, INIT_HCA_LOG_CQ_OFFSET);
+	MLX4_GET(param->altc_base,     outbox, INIT_HCA_ALTC_BASE_OFFSET);
+	MLX4_GET(param->auxc_base,     outbox, INIT_HCA_AUXC_BASE_OFFSET);
+	MLX4_GET(param->eqc_base,      outbox, INIT_HCA_EQC_BASE_OFFSET);
+	MLX4_GET(param->log_num_eqs,   outbox, INIT_HCA_LOG_EQ_OFFSET);
+	MLX4_GET(param->rdmarc_base,   outbox, INIT_HCA_RDMARC_BASE_OFFSET);
+	MLX4_GET(param->log_rd_per_qp, outbox, INIT_HCA_LOG_RD_OFFSET);
+
+	/* multicast attributes */
+
+	MLX4_GET(param->mc_base,         outbox, INIT_HCA_MC_BASE_OFFSET);
+	MLX4_GET(param->log_mc_entry_sz, outbox,
+		 INIT_HCA_LOG_MC_ENTRY_SZ_OFFSET);
+	MLX4_GET(param->log_mc_hash_sz,  outbox,
+		 INIT_HCA_LOG_MC_HASH_SZ_OFFSET);
+	MLX4_GET(param->log_mc_table_sz, outbox,
+		 INIT_HCA_LOG_MC_TABLE_SZ_OFFSET);
+
+	/* TPT attributes */
+
+	MLX4_GET(param->dmpt_base,  outbox, INIT_HCA_DMPT_BASE_OFFSET);
+	MLX4_GET(param->log_mpt_sz, outbox, INIT_HCA_LOG_MPT_SZ_OFFSET);
+	MLX4_GET(param->mtt_base,   outbox, INIT_HCA_MTT_BASE_OFFSET);
+	MLX4_GET(param->cmpt_base,  outbox, INIT_HCA_CMPT_BASE_OFFSET);
+
+	/* UAR attributes */
+
+	MLX4_GET(param->uar_page_sz, outbox, INIT_HCA_UAR_PAGE_SZ_OFFSET);
+	MLX4_GET(param->log_uar_sz, outbox, INIT_HCA_LOG_UAR_SZ_OFFSET);
+
+out:
+	mlx4_free_cmd_mailbox(dev, mailbox);
+
 	return err;
 }
 

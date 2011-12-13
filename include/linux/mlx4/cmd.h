@@ -225,4 +225,6 @@ void mlx4_free_cmd_mailbox(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbo
 
 u32 mlx4_comm_get_version(void);
 
+#define MLX4_COMM_GET_IF_REV(cmd_chan_ver) (u8)((cmd_chan_ver) >> 8)
+
 #endif /* MLX4_CMD_H */

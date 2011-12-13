@@ -257,7 +257,7 @@ out:
 	return err;
 }
 
-static int mlx4_comm_cmd(struct mlx4_dev *dev, u8 cmd, u16 param,
+int mlx4_comm_cmd(struct mlx4_dev *dev, u8 cmd, u16 param,
 		  unsigned long timeout)
 {
 	if (mlx4_priv(dev)->cmd.use_events)
@@ -1390,6 +1390,153 @@ void mlx4_master_comm_channel(struct work_struct *work)
 		mlx4_warn(dev, "Failed to arm comm channel events\n");
 }
 
+static int sync_toggles(struct mlx4_dev *dev)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	int wr_toggle;
+	int rd_toggle;
+	unsigned long end;
+
+	wr_toggle = swab32(readl(&priv->mfunc.comm->slave_write)) >> 31;
+	end = jiffies + msecs_to_jiffies(5000);
+
+	while (time_before(jiffies, end)) {
+		rd_toggle = swab32(readl(&priv->mfunc.comm->slave_read)) >> 31;
+		if (rd_toggle == wr_toggle) {
+			priv->cmd.comm_toggle = rd_toggle;
+			return 0;
+		}
+
+		cond_resched();
+	}
+
+	/*
+	 * we could reach here if for example the previous VM using this
+	 * function misbehaved and left the channel with unsynced state. We
+	 * should fix this here and give this VM a chance to use a properly
+	 * synced channel
+	 */
+	mlx4_warn(dev, "recovering from previously mis-behaved VM\n");
+	__raw_writel((__force u32) 0, &priv->mfunc.comm->slave_read);
+	__raw_writel((__force u32) 0, &priv->mfunc.comm->slave_write);
+	priv->cmd.comm_toggle = 0;
+
+	return 0;
+}
+
+int mlx4_multi_func_init(struct mlx4_dev *dev)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	struct mlx4_slave_state *s_state;
+	int i, err, port;
+
+	priv->mfunc.vhcr = dma_alloc_coherent(&(dev->pdev->dev), PAGE_SIZE,
+					    &priv->mfunc.vhcr_dma,
+					    GFP_KERNEL);
+	if (!priv->mfunc.vhcr) {
+		mlx4_err(dev, "Couldn't allocate vhcr.\n");
+		return -ENOMEM;
+	}
+
+	if (mlx4_is_master(dev))
+		priv->mfunc.comm =
+		ioremap(pci_resource_start(dev->pdev, priv->fw.comm_bar) +
+			priv->fw.comm_base, MLX4_COMM_PAGESIZE);
+	else
+		priv->mfunc.comm =
+		ioremap(pci_resource_start(dev->pdev, 2) +
+			MLX4_SLAVE_COMM_BASE, MLX4_COMM_PAGESIZE);
+	if (!priv->mfunc.comm) {
+		mlx4_err(dev, "Couldn't map communication vector.\n");
+		goto err_vhcr;
+	}
+
+	if (mlx4_is_master(dev)) {
+		priv->mfunc.master.slave_state =
+			kzalloc(dev->num_slaves *
+				sizeof(struct mlx4_slave_state), GFP_KERNEL);
+		if (!priv->mfunc.master.slave_state)
+			goto err_comm;
+
+		for (i = 0; i < dev->num_slaves; ++i) {
+			s_state = &priv->mfunc.master.slave_state[i];
+			s_state->last_cmd = MLX4_COMM_CMD_RESET;
+			__raw_writel((__force u32) 0,
+				     &priv->mfunc.comm[i].slave_write);
+			__raw_writel((__force u32) 0,
+				     &priv->mfunc.comm[i].slave_read);
+			mmiowb();
+			for (port = 1; port <= MLX4_MAX_PORTS; port++) {
+				s_state->vlan_filter[port] =
+					kzalloc(sizeof(struct mlx4_vlan_fltr),
+						GFP_KERNEL);
+				if (!s_state->vlan_filter[port]) {
+					if (--port)
+						kfree(s_state->vlan_filter[port]);
+					goto err_slaves;
+				}
+				INIT_LIST_HEAD(&s_state->mcast_filters[port]);
+			}
+			spin_lock_init(&s_state->lock);
+		}
+
+		memset(&priv->mfunc.master.cmd_eqe, 0, sizeof(struct mlx4_eqe));
+		priv->mfunc.master.cmd_eqe.type = MLX4_EVENT_TYPE_CMD;
+		INIT_WORK(&priv->mfunc.master.comm_work,
+			  mlx4_master_comm_channel);
+		INIT_WORK(&priv->mfunc.master.slave_event_work,
+			  mlx4_gen_slave_eqe);
+		INIT_WORK(&priv->mfunc.master.slave_flr_event_work,
+			  mlx4_master_handle_slave_flr);
+		spin_lock_init(&priv->mfunc.master.slave_state_lock);
+		priv->mfunc.master.comm_wq =
+			create_singlethread_workqueue("mlx4_comm");
+		if (!priv->mfunc.master.comm_wq)
+			goto err_slaves;
+
+		if (mlx4_init_resource_tracker(dev))
+			goto err_thread;
+
+		sema_init(&priv->cmd.slave_sem, 1);
+		err = mlx4_ARM_COMM_CHANNEL(dev);
+		if (err) {
+			mlx4_err(dev, " Failed to arm comm channel eq: %x\n",
+				 err);
+			goto err_resource;
+		}
+
+	} else {
+		err = sync_toggles(dev);
+		if (err) {
+			mlx4_err(dev, "Couldn't sync toggles\n");
+			goto err_comm;
+		}
+
+		sema_init(&priv->cmd.slave_sem, 1);
+	}
+	return 0;
+
+err_resource:
+	mlx4_free_resource_tracker(dev);
+err_thread:
+	flush_workqueue(priv->mfunc.master.comm_wq);
+	destroy_workqueue(priv->mfunc.master.comm_wq);
+err_slaves:
+	while (--i) {
+		for (port = 1; port <= MLX4_MAX_PORTS; port++)
+			kfree(priv->mfunc.master.slave_state[i].vlan_filter[port]);
+	}
+	kfree(priv->mfunc.master.slave_state);
+err_comm:
+	iounmap(priv->mfunc.comm);
+err_vhcr:
+	dma_free_coherent(&(dev->pdev->dev), PAGE_SIZE,
+					     priv->mfunc.vhcr,
+					     priv->mfunc.vhcr_dma);
+	priv->mfunc.vhcr = NULL;
+	return -ENOMEM;
+}
+
 int mlx4_cmd_init(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
@@ -1423,6 +1570,27 @@ err_hcr:
 	if (!mlx4_is_slave(dev))
 		iounmap(priv->cmd.hcr);
 	return -ENOMEM;
+}
+
+void mlx4_multi_func_cleanup(struct mlx4_dev *dev)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	int i, port;
+
+	if (mlx4_is_master(dev)) {
+		flush_workqueue(priv->mfunc.master.comm_wq);
+		destroy_workqueue(priv->mfunc.master.comm_wq);
+		for (i = 0; i < dev->num_slaves; i++) {
+			for (port = 1; port <= MLX4_MAX_PORTS; port++)
+				kfree(priv->mfunc.master.slave_state[i].vlan_filter[port]);
+		}
+		kfree(priv->mfunc.master.slave_state);
+		iounmap(priv->mfunc.comm);
+		dma_free_coherent(&(dev->pdev->dev), PAGE_SIZE,
+						     priv->mfunc.vhcr,
+						     priv->mfunc.vhcr_dma);
+		priv->mfunc.vhcr = NULL;
+	}
 }
 
 void mlx4_cmd_cleanup(struct mlx4_dev *dev)

@@ -489,6 +489,7 @@ struct mlx4_dev {
 	struct radix_tree_root	qp_table_tree;
 	u8			rev_id;
 	char			board_id[MLX4_BOARD_ID_LEN];
+	int			num_vfs;
 };
 
 struct mlx4_init_port_param {

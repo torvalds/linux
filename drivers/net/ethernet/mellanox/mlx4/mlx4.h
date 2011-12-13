@@ -49,6 +49,7 @@
 #include <linux/mlx4/cmd.h>
 
 #define DRV_NAME	"mlx4_core"
+#define PFX		DRV_NAME ": "
 #define DRV_VERSION	"1.0"
 #define DRV_RELDATE	"July 14, 2011"
 
@@ -957,9 +958,14 @@ int mlx4_GEN_EQE(struct mlx4_dev *dev, int slave, struct mlx4_eqe *eqe);
 
 int mlx4_cmd_init(struct mlx4_dev *dev);
 void mlx4_cmd_cleanup(struct mlx4_dev *dev);
+int mlx4_multi_func_init(struct mlx4_dev *dev);
+void mlx4_multi_func_cleanup(struct mlx4_dev *dev);
 void mlx4_cmd_event(struct mlx4_dev *dev, u16 token, u8 status, u64 out_param);
 int mlx4_cmd_use_events(struct mlx4_dev *dev);
 void mlx4_cmd_use_polling(struct mlx4_dev *dev);
+
+int mlx4_comm_cmd(struct mlx4_dev *dev, u8 cmd, u16 param,
+		  unsigned long timeout);
 
 void mlx4_cq_completion(struct mlx4_dev *dev, u32 cqn);
 void mlx4_cq_event(struct mlx4_dev *dev, u32 cqn, int event_type);
