@@ -98,6 +98,7 @@ static __inline__ void __arch_decomp_setup(unsigned long arch_id)
 	case MACH_TYPE_PCM043:
 	case MACH_TYPE_LILLY1131:
 	case MACH_TYPE_VPR200:
+	case MACH_TYPE_EUKREA_CPUIMX35SD:
 		uart_base = MX3X_UART1_BASE_ADDR;
 		break;
 	case MACH_TYPE_MAGX_ZN5:
