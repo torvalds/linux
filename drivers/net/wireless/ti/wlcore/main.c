@@ -4256,29 +4256,12 @@ static struct ieee80211_channel wl1271_channels[] = {
 	{ .hw_value = 14, .center_freq = 2484, .max_power = 25 },
 };
 
-/* 11n STA capabilities */
-#define HW_RX_HIGHEST_RATE	72
-
-#define WL12XX_HT_CAP { \
-	.cap = IEEE80211_HT_CAP_GRN_FLD | IEEE80211_HT_CAP_SGI_20 | \
-	       (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT), \
-	.ht_supported = true, \
-	.ampdu_factor = IEEE80211_HT_MAX_AMPDU_8K, \
-	.ampdu_density = IEEE80211_HT_MPDU_DENSITY_8, \
-	.mcs = { \
-		.rx_mask = { 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, }, \
-		.rx_highest = cpu_to_le16(HW_RX_HIGHEST_RATE), \
-		.tx_params = IEEE80211_HT_MCS_TX_DEFINED, \
-		}, \
-}
-
 /* can't be const, mac80211 writes to this */
 static struct ieee80211_supported_band wl1271_band_2ghz = {
 	.channels = wl1271_channels,
 	.n_channels = ARRAY_SIZE(wl1271_channels),
 	.bitrates = wl1271_rates,
 	.n_bitrates = ARRAY_SIZE(wl1271_rates),
-	.ht_cap	= WL12XX_HT_CAP,
 };
 
 /* 5 GHz data rates for WL1273 */
@@ -4352,7 +4335,6 @@ static struct ieee80211_supported_band wl1271_band_5ghz = {
 	.n_channels = ARRAY_SIZE(wl1271_channels_5ghz),
 	.bitrates = wl1271_rates_5ghz,
 	.n_bitrates = ARRAY_SIZE(wl1271_rates_5ghz),
-	.ht_cap	= WL12XX_HT_CAP,
 };
 
 static const struct ieee80211_ops wl1271_ops = {
@@ -4729,8 +4711,12 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 	 */
 	memcpy(&wl->bands[IEEE80211_BAND_2GHZ], &wl1271_band_2ghz,
 	       sizeof(wl1271_band_2ghz));
+	memcpy(&wl->bands[IEEE80211_BAND_2GHZ].ht_cap, &wl->ht_cap,
+	       sizeof(wl->ht_cap));
 	memcpy(&wl->bands[IEEE80211_BAND_5GHZ], &wl1271_band_5ghz,
 	       sizeof(wl1271_band_5ghz));
+	memcpy(&wl->bands[IEEE80211_BAND_5GHZ].ht_cap, &wl->ht_cap,
+	       sizeof(wl->ht_cap));
 
 	wl->hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
 		&wl->bands[IEEE80211_BAND_2GHZ];

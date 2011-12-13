@@ -342,6 +342,9 @@ struct wl1271 {
 
 	/* this HW rate and below are considered HT rates for this chip */
 	u8 hw_min_ht_rate;
+
+	/* HW HT (11n) capabilities */
+	struct ieee80211_sta_ht_cap ht_cap;
 };
 
 int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev);

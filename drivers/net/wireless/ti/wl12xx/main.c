@@ -1291,6 +1291,19 @@ static struct wlcore_ops wl12xx_ops = {
 	.get_mac		= wl12xx_get_mac,
 };
 
+static struct ieee80211_sta_ht_cap wl12xx_ht_cap = {
+	.cap = IEEE80211_HT_CAP_GRN_FLD | IEEE80211_HT_CAP_SGI_20 |
+	       (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT),
+	.ht_supported = true,
+	.ampdu_factor = IEEE80211_HT_MAX_AMPDU_8K,
+	.ampdu_density = IEEE80211_HT_MPDU_DENSITY_8,
+	.mcs = {
+		.rx_mask = { 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+		.rx_highest = cpu_to_le16(72),
+		.tx_params = IEEE80211_HT_MCS_TX_DEFINED,
+		},
+};
+
 static int __devinit wl12xx_probe(struct platform_device *pdev)
 {
 	struct wl1271 *wl;
@@ -1313,6 +1326,7 @@ static int __devinit wl12xx_probe(struct platform_device *pdev)
 	wl->band_rate_to_idx = wl12xx_band_rate_to_idx;
 	wl->hw_tx_rate_tbl_size = WL12XX_CONF_HW_RXTX_RATE_MAX;
 	wl->hw_min_ht_rate = WL12XX_CONF_HW_RXTX_RATE_MCS0;
+	memcpy(&wl->ht_cap, &wl12xx_ht_cap, sizeof(wl12xx_ht_cap));
 	wl12xx_conf_init(wl);
 
 	return wlcore_probe(wl, pdev);
