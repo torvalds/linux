@@ -47,14 +47,6 @@
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
 
-#if defined(CONFIG_CRYPTO_LRW) || defined(CONFIG_CRYPTO_LRW_MODULE)
-#define HAS_LRW
-#endif
-
-#if defined(CONFIG_CRYPTO_XTS) || defined(CONFIG_CRYPTO_XTS_MODULE)
-#define HAS_XTS
-#endif
-
 struct async_serpent_ctx {
 	struct cryptd_ablkcipher *cryptd_tfm;
 };
@@ -470,8 +462,6 @@ static struct crypto_alg blk_ctr_alg = {
 	},
 };
 
-#if defined(HAS_LRW) || defined(HAS_XTS)
-
 struct crypt_priv {
 	struct serpent_ctx *ctx;
 	bool fpu_enabled;
@@ -510,10 +500,6 @@ static void decrypt_callback(void *priv, u8 *srcdst, unsigned int nbytes)
 	for (i = 0; i < nbytes / bsize; i++, srcdst += bsize)
 		__serpent_decrypt(ctx->ctx, srcdst, srcdst);
 }
-
-#endif
-
-#ifdef HAS_LRW
 
 struct serpent_lrw_ctx {
 	struct lrw_table_ctx lrw_table;
@@ -620,10 +606,6 @@ static struct crypto_alg blk_lrw_alg = {
 	},
 };
 
-#endif
-
-#ifdef HAS_XTS
-
 struct serpent_xts_ctx {
 	struct serpent_ctx tweak_ctx;
 	struct serpent_ctx crypt_ctx;
@@ -729,8 +711,6 @@ static struct crypto_alg blk_xts_alg = {
 		},
 	},
 };
-
-#endif
 
 static int ablk_set_key(struct crypto_ablkcipher *tfm, const u8 *key,
 			unsigned int key_len)
@@ -930,8 +910,6 @@ static struct crypto_alg ablk_ctr_alg = {
 	},
 };
 
-#ifdef HAS_LRW
-
 static int ablk_lrw_init(struct crypto_tfm *tfm)
 {
 	struct cryptd_ablkcipher *cryptd_tfm;
@@ -970,10 +948,6 @@ static struct crypto_alg ablk_lrw_alg = {
 	},
 };
 
-#endif
-
-#ifdef HAS_XTS
-
 static int ablk_xts_init(struct crypto_tfm *tfm)
 {
 	struct cryptd_ablkcipher *cryptd_tfm;
@@ -1010,8 +984,6 @@ static struct crypto_alg ablk_xts_alg = {
 	},
 };
 
-#endif
-
 static int __init serpent_sse2_init(void)
 {
 	int err;
@@ -1039,36 +1011,28 @@ static int __init serpent_sse2_init(void)
 	err = crypto_register_alg(&ablk_ctr_alg);
 	if (err)
 		goto ablk_ctr_err;
-#ifdef HAS_LRW
 	err = crypto_register_alg(&blk_lrw_alg);
 	if (err)
 		goto blk_lrw_err;
 	err = crypto_register_alg(&ablk_lrw_alg);
 	if (err)
 		goto ablk_lrw_err;
-#endif
-#ifdef HAS_XTS
 	err = crypto_register_alg(&blk_xts_alg);
 	if (err)
 		goto blk_xts_err;
 	err = crypto_register_alg(&ablk_xts_alg);
 	if (err)
 		goto ablk_xts_err;
-#endif
 	return err;
 
-#ifdef HAS_XTS
 	crypto_unregister_alg(&ablk_xts_alg);
 ablk_xts_err:
 	crypto_unregister_alg(&blk_xts_alg);
 blk_xts_err:
-#endif
-#ifdef HAS_LRW
 	crypto_unregister_alg(&ablk_lrw_alg);
 ablk_lrw_err:
 	crypto_unregister_alg(&blk_lrw_alg);
 blk_lrw_err:
-#endif
 	crypto_unregister_alg(&ablk_ctr_alg);
 ablk_ctr_err:
 	crypto_unregister_alg(&ablk_cbc_alg);
@@ -1086,14 +1050,10 @@ blk_ecb_err:
 
 static void __exit serpent_sse2_exit(void)
 {
-#ifdef HAS_XTS
 	crypto_unregister_alg(&ablk_xts_alg);
 	crypto_unregister_alg(&blk_xts_alg);
-#endif
-#ifdef HAS_LRW
 	crypto_unregister_alg(&ablk_lrw_alg);
 	crypto_unregister_alg(&blk_lrw_alg);
-#endif
 	crypto_unregister_alg(&ablk_ctr_alg);
 	crypto_unregister_alg(&ablk_cbc_alg);
 	crypto_unregister_alg(&ablk_ecb_alg);
