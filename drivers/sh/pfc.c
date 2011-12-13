@@ -135,6 +135,19 @@ static void gpio_write_raw_reg(void __iomem *mapped_reg,
 	BUG();
 }
 
+static int gpio_read_bit(struct pinmux_data_reg *dr,
+			 unsigned long in_pos)
+{
+	unsigned long pos;
+
+	pos = dr->reg_width - (in_pos + 1);
+
+	pr_debug("read_bit: addr = %lx, pos = %ld, "
+		 "r_width = %ld\n", dr->reg, pos, dr->reg_width);
+
+	return (gpio_read_raw_reg(dr->mapped_reg, dr->reg_width) >> pos) & 1;
+}
+
 static void gpio_write_bit(struct pinmux_data_reg *dr,
 			   unsigned long in_pos, unsigned long value)
 {
@@ -644,7 +657,7 @@ static int sh_gpio_get_value(struct pinmux_info *gpioc, unsigned gpio)
 	if (!gpioc || get_data_reg(gpioc, gpio, &dr, &bit) != 0)
 		return -EINVAL;
 
-	return gpio_read_reg(dr->mapped_reg, dr->reg_width, 1, bit, dr->reg);
+	return gpio_read_bit(dr, bit);
 }
 
 static int sh_gpio_get(struct gpio_chip *chip, unsigned offset)
