@@ -357,6 +357,7 @@ static void mxs_mmc_bc(struct mxs_mmc_host *host)
 	host->ssp_pio_words[1] = cmd0;
 	host->ssp_pio_words[2] = cmd1;
 	host->dma_dir = DMA_NONE;
+	host->slave_dirn = DMA_TRANS_NONE;
 	desc = mxs_mmc_prep_dma(host, 0);
 	if (!desc)
 		goto out;
@@ -396,6 +397,7 @@ static void mxs_mmc_ac(struct mxs_mmc_host *host)
 	host->ssp_pio_words[1] = cmd0;
 	host->ssp_pio_words[2] = cmd1;
 	host->dma_dir = DMA_NONE;
+	host->slave_dirn = DMA_TRANS_NONE;
 	desc = mxs_mmc_prep_dma(host, 0);
 	if (!desc)
 		goto out;
@@ -514,6 +516,7 @@ static void mxs_mmc_adtc(struct mxs_mmc_host *host)
 	host->ssp_pio_words[1] = cmd0;
 	host->ssp_pio_words[2] = cmd1;
 	host->dma_dir = DMA_NONE;
+	host->slave_dirn = DMA_TRANS_NONE;
 	desc = mxs_mmc_prep_dma(host, 0);
 	if (!desc)
 		goto out;
