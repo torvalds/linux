@@ -122,7 +122,6 @@ enum fw_resource_type {
 	RSC_TRACE	= 2,
 	RSC_VRING	= 3,
 	RSC_VIRTIO_DEV	= 4,
-	RSC_VIRTIO_CFG	= 5,
 };
 
 /**
