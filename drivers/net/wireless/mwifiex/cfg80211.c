@@ -1376,9 +1376,6 @@ int mwifiex_register_cfg80211(struct mwifiex_private *priv)
 	memcpy(wdev->wiphy->perm_addr, priv->curr_addr, ETH_ALEN);
 	wdev->wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
 
-	/* We are using custom domains */
-	wdev->wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
-
 	/* Reserve space for bss band information */
 	wdev->wiphy->bss_priv_size = sizeof(u8);
 
