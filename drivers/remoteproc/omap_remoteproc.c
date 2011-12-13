@@ -232,18 +232,7 @@ static struct platform_driver omap_rproc_driver = {
 	},
 };
 
-/* most of the below will go when module_platform_driver is merged */
-static int __init omap_rproc_init(void)
-{
-	return platform_driver_register(&omap_rproc_driver);
-}
-module_init(omap_rproc_init);
-
-static void __exit omap_rproc_exit(void)
-{
-	platform_driver_unregister(&omap_rproc_driver);
-}
-module_exit(omap_rproc_exit);
+module_platform_driver(omap_rproc_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("OMAP Remote Processor control driver");
