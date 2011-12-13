@@ -915,6 +915,26 @@ int mlx4_QUERY_IF_STAT_wrapper(struct mlx4_dev *dev, int slave,
 			       struct mlx4_cmd_mailbox *outbox,
 			       struct mlx4_cmd_info *cmd);
 
+static inline void set_param_l(u64 *arg, u32 val)
+{
+	*((u32 *)arg) = val;
+}
+
+static inline void set_param_h(u64 *arg, u32 val)
+{
+	*arg = (*arg & 0xffffffff) | ((u64) val << 32);
+}
+
+static inline u32 get_param_l(u64 *arg)
+{
+	return (u32) (*arg & 0xffffffff);
+}
+
+static inline u32 get_param_h(u64 *arg)
+{
+	return (u32)(*arg >> 32);
+}
+
 #define NOT_MASKED_PD_BITS 17
 
 #endif /* MLX4_H */
