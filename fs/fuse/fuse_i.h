@@ -765,6 +765,8 @@ ssize_t fuse_direct_io(struct file *file, const char __user *buf,
 		       size_t count, loff_t *ppos, int write);
 long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 		   unsigned int flags);
+long fuse_ioctl_common(struct file *file, unsigned int cmd,
+		       unsigned long arg, unsigned int flags);
 unsigned fuse_file_poll(struct file *file, poll_table *wait);
 int fuse_dev_release(struct inode *inode, struct file *file);
 

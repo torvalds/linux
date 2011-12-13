@@ -50,6 +50,9 @@
  *
  * 7.17
  *  - add FUSE_FLOCK_LOCKS and FUSE_RELEASE_FLOCK_UNLOCK
+ *
+ * 7.18
+ *  - add FUSE_IOCTL_DIR flag
  */
 
 #ifndef _LINUX_FUSE_H
@@ -81,7 +84,7 @@
 #define FUSE_KERNEL_VERSION 7
 
 /** Minor version number of this interface */
-#define FUSE_KERNEL_MINOR_VERSION 17
+#define FUSE_KERNEL_MINOR_VERSION 18
 
 /** The node ID of the root inode */
 #define FUSE_ROOT_ID 1
@@ -214,6 +217,7 @@ struct fuse_file_lock {
  * FUSE_IOCTL_UNRESTRICTED: not restricted to well-formed ioctls, retry allowed
  * FUSE_IOCTL_RETRY: retry with new iovecs
  * FUSE_IOCTL_32BIT: 32bit ioctl
+ * FUSE_IOCTL_DIR: is a directory
  *
  * FUSE_IOCTL_MAX_IOV: maximum of in_iovecs + out_iovecs
  */
@@ -221,6 +225,7 @@ struct fuse_file_lock {
 #define FUSE_IOCTL_UNRESTRICTED	(1 << 1)
 #define FUSE_IOCTL_RETRY	(1 << 2)
 #define FUSE_IOCTL_32BIT	(1 << 3)
+#define FUSE_IOCTL_DIR		(1 << 4)
 
 #define FUSE_IOCTL_MAX_IOV	256
 
