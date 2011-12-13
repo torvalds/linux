@@ -172,12 +172,6 @@ static void mlx4_comm_cmd_post(struct mlx4_dev *dev, u8 cmd, u16 param)
 	mmiowb();
 }
 
-/* dummy procedure for this patch */
-int mlx4_GEN_EQE(struct mlx4_dev *dev, int slave, struct mlx4_eqe *eqe)
-{
-	return 0;
-}
-
 static int mlx4_comm_cmd_poll(struct mlx4_dev *dev, u8 cmd, u16 param,
 		       unsigned long timeout)
 {
@@ -614,6 +608,403 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.verify = NULL,
 		.wrapper = NULL
 	},
+	{
+		.opcode = MLX4_CMD_QUERY_FUNC_CAP,
+		.has_inbox = false,
+		.has_outbox = true,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_QUERY_FUNC_CAP_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_QUERY_ADAPTER,
+		.has_inbox = false,
+		.has_outbox = true,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = NULL
+	},
+	{
+		.opcode = MLX4_CMD_INIT_PORT,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_INIT_PORT_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_CLOSE_PORT,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm  = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_CLOSE_PORT_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_QUERY_PORT,
+		.has_inbox = false,
+		.has_outbox = true,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_QUERY_PORT_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_MAP_EQ,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_MAP_EQ_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_SW2HW_EQ,
+		.has_inbox = true,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = true,
+		.verify = NULL,
+		.wrapper = mlx4_SW2HW_EQ_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_HW_HEALTH_CHECK,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = NULL
+	},
+	{
+		.opcode = MLX4_CMD_NOP,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = NULL
+	},
+	{
+		.opcode = MLX4_CMD_ALLOC_RES,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm = true,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_ALLOC_RES_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_FREE_RES,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_FREE_RES_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_SW2HW_MPT,
+		.has_inbox = true,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = true,
+		.verify = NULL,
+		.wrapper = mlx4_SW2HW_MPT_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_QUERY_MPT,
+		.has_inbox = false,
+		.has_outbox = true,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_QUERY_MPT_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_HW2SW_MPT,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_HW2SW_MPT_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_READ_MTT,
+		.has_inbox = false,
+		.has_outbox = true,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = NULL
+	},
+	{
+		.opcode = MLX4_CMD_WRITE_MTT,
+		.has_inbox = true,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_WRITE_MTT_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_SYNC_TPT,
+		.has_inbox = true,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = NULL
+	},
+	{
+		.opcode = MLX4_CMD_HW2SW_EQ,
+		.has_inbox = false,
+		.has_outbox = true,
+		.out_is_imm = false,
+		.encode_slave_id = true,
+		.verify = NULL,
+		.wrapper = mlx4_HW2SW_EQ_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_QUERY_EQ,
+		.has_inbox = false,
+		.has_outbox = true,
+		.out_is_imm = false,
+		.encode_slave_id = true,
+		.verify = NULL,
+		.wrapper = mlx4_QUERY_EQ_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_SW2HW_CQ,
+		.has_inbox = true,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = true,
+		.verify = NULL,
+		.wrapper = mlx4_SW2HW_CQ_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_HW2SW_CQ,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_HW2SW_CQ_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_QUERY_CQ,
+		.has_inbox = false,
+		.has_outbox = true,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_QUERY_CQ_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_MODIFY_CQ,
+		.has_inbox = true,
+		.has_outbox = false,
+		.out_is_imm = true,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_MODIFY_CQ_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_SW2HW_SRQ,
+		.has_inbox = true,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = true,
+		.verify = NULL,
+		.wrapper = mlx4_SW2HW_SRQ_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_HW2SW_SRQ,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_HW2SW_SRQ_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_QUERY_SRQ,
+		.has_inbox = false,
+		.has_outbox = true,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_QUERY_SRQ_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_ARM_SRQ,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_ARM_SRQ_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_RST2INIT_QP,
+		.has_inbox = true,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = true,
+		.verify = NULL,
+		.wrapper = mlx4_RST2INIT_QP_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_INIT2INIT_QP,
+		.has_inbox = true,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_GEN_QP_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_INIT2RTR_QP,
+		.has_inbox = true,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_INIT2RTR_QP_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_RTR2RTS_QP,
+		.has_inbox = true,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_GEN_QP_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_RTS2RTS_QP,
+		.has_inbox = true,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_GEN_QP_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_SQERR2RTS_QP,
+		.has_inbox = true,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_GEN_QP_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_2ERR_QP,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_GEN_QP_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_RTS2SQD_QP,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_GEN_QP_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_SQD2SQD_QP,
+		.has_inbox = true,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_GEN_QP_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_SQD2RTS_QP,
+		.has_inbox = true,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_GEN_QP_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_2RST_QP,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_2RST_QP_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_QUERY_QP,
+		.has_inbox = false,
+		.has_outbox = true,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_GEN_QP_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_SUSPEND_QP,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_GEN_QP_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_UNSUSPEND_QP,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_GEN_QP_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_QUERY_IF_STAT,
+		.has_inbox = false,
+		.has_outbox = true,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_QUERY_IF_STAT_wrapper
+	},
+	/* Native multicast commands are not available for guests */
+	{
+		.opcode = MLX4_CMD_QP_ATTACH,
+		.has_inbox = true,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_QP_ATTACH_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_INFORM_FLR_DONE,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = NULL
+	},
 };
 
 static int mlx4_master_process_vhcr(struct mlx4_dev *dev, int slave,
@@ -877,6 +1268,8 @@ static void mlx4_master_do_cmd(struct mlx4_dev *dev, int slave, u8 cmd,
 	return;
 
 reset_slave:
+	/* cleanup any slave resources */
+	mlx4_delete_all_resources_for_slave(dev, slave);
 	spin_lock(&priv->mfunc.master.slave_state_lock);
 	if (!slave_state[slave].is_slave_going_down)
 		slave_state[slave].last_cmd = MLX4_COMM_CMD_RESET;

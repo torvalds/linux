@@ -44,27 +44,6 @@
 #include "mlx4.h"
 #include "icm.h"
 
-struct mlx4_cq_context {
-	__be32			flags;
-	u16			reserved1[3];
-	__be16			page_offset;
-	__be32			logsize_usrpage;
-	__be16			cq_period;
-	__be16			cq_max_count;
-	u8			reserved2[3];
-	u8			comp_eqn;
-	u8			log_page_size;
-	u8			reserved3[2];
-	u8			mtt_base_addr_h;
-	__be32			mtt_base_addr_l;
-	__be32			last_notified_index;
-	__be32			solicit_producer_index;
-	__be32			consumer_index;
-	__be32			producer_index;
-	u32			reserved4[2];
-	__be64			db_rec_addr;
-};
-
 #define MLX4_CQ_STATUS_OK		( 0 << 28)
 #define MLX4_CQ_STATUS_OVERFLOW		( 9 << 28)
 #define MLX4_CQ_STATUS_WRITE_FAIL	(10 << 28)
@@ -189,7 +168,7 @@ int mlx4_cq_resize(struct mlx4_dev *dev, struct mlx4_cq *cq,
 }
 EXPORT_SYMBOL_GPL(mlx4_cq_resize);
 
-static int __mlx4_cq_alloc_icm(struct mlx4_dev *dev, int *cqn)
+int __mlx4_cq_alloc_icm(struct mlx4_dev *dev, int *cqn)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_cq_table *cq_table = &priv->cq_table;
@@ -235,7 +214,7 @@ static int mlx4_cq_alloc_icm(struct mlx4_dev *dev, int *cqn)
 	return __mlx4_cq_alloc_icm(dev, cqn);
 }
 
-static void __mlx4_cq_free_icm(struct mlx4_dev *dev, int cqn)
+void __mlx4_cq_free_icm(struct mlx4_dev *dev, int cqn)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_cq_table *cq_table = &priv->cq_table;

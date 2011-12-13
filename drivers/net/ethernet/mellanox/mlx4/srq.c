@@ -40,26 +40,6 @@
 #include "mlx4.h"
 #include "icm.h"
 
-struct mlx4_srq_context {
-	__be32			state_logsize_srqn;
-	u8			logstride;
-	u8			reserved1;
-	__be16			xrcd;
-	__be32			pg_offset_cqn;
-	u32			reserved2;
-	u8			log_page_size;
-	u8			reserved3[2];
-	u8			mtt_base_addr_h;
-	__be32			mtt_base_addr_l;
-	__be32			pd;
-	__be16			limit_watermark;
-	__be16			wqe_cnt;
-	u16			reserved4;
-	__be16			wqe_counter;
-	u32			reserved5;
-	__be64			db_rec_addr;
-};
-
 void mlx4_srq_event(struct mlx4_dev *dev, u32 srqn, int event_type)
 {
 	struct mlx4_srq_table *srq_table = &mlx4_priv(dev)->srq_table;
@@ -113,7 +93,7 @@ static int mlx4_QUERY_SRQ(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbox
 			    MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
 }
 
-static int __mlx4_srq_alloc_icm(struct mlx4_dev *dev, int *srqn)
+int __mlx4_srq_alloc_icm(struct mlx4_dev *dev, int *srqn)
 {
 	struct mlx4_srq_table *srq_table = &mlx4_priv(dev)->srq_table;
 	int err;
@@ -158,7 +138,7 @@ static int mlx4_srq_alloc_icm(struct mlx4_dev *dev, int *srqn)
 	return __mlx4_srq_alloc_icm(dev, srqn);
 }
 
-static void __mlx4_srq_free_icm(struct mlx4_dev *dev, int srqn)
+void __mlx4_srq_free_icm(struct mlx4_dev *dev, int srqn)
 {
 	struct mlx4_srq_table *srq_table = &mlx4_priv(dev)->srq_table;
 

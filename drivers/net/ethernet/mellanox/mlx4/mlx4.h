@@ -224,6 +224,91 @@ struct mlx4_icm_table {
 	struct mlx4_icm	      **icm;
 };
 
+/*
+ * Must be packed because mtt_seg is 64 bits but only aligned to 32 bits.
+ */
+struct mlx4_mpt_entry {
+	__be32 flags;
+	__be32 qpn;
+	__be32 key;
+	__be32 pd_flags;
+	__be64 start;
+	__be64 length;
+	__be32 lkey;
+	__be32 win_cnt;
+	u8	reserved1[3];
+	u8	mtt_rep;
+	__be64 mtt_seg;
+	__be32 mtt_sz;
+	__be32 entity_size;
+	__be32 first_byte_offset;
+} __packed;
+
+/*
+ * Must be packed because start is 64 bits but only aligned to 32 bits.
+ */
+struct mlx4_eq_context {
+	__be32			flags;
+	u16			reserved1[3];
+	__be16			page_offset;
+	u8			log_eq_size;
+	u8			reserved2[4];
+	u8			eq_period;
+	u8			reserved3;
+	u8			eq_max_count;
+	u8			reserved4[3];
+	u8			intr;
+	u8			log_page_size;
+	u8			reserved5[2];
+	u8			mtt_base_addr_h;
+	__be32			mtt_base_addr_l;
+	u32			reserved6[2];
+	__be32			consumer_index;
+	__be32			producer_index;
+	u32			reserved7[4];
+};
+
+struct mlx4_cq_context {
+	__be32			flags;
+	u16			reserved1[3];
+	__be16			page_offset;
+	__be32			logsize_usrpage;
+	__be16			cq_period;
+	__be16			cq_max_count;
+	u8			reserved2[3];
+	u8			comp_eqn;
+	u8			log_page_size;
+	u8			reserved3[2];
+	u8			mtt_base_addr_h;
+	__be32			mtt_base_addr_l;
+	__be32			last_notified_index;
+	__be32			solicit_producer_index;
+	__be32			consumer_index;
+	__be32			producer_index;
+	u32			reserved4[2];
+	__be64			db_rec_addr;
+};
+
+struct mlx4_srq_context {
+	__be32			state_logsize_srqn;
+	u8			logstride;
+	u8			reserved1;
+	__be16			xrcd;
+	__be32			pg_offset_cqn;
+	u32			reserved2;
+	u8			log_page_size;
+	u8			reserved3[2];
+	u8			mtt_base_addr_h;
+	__be32			mtt_base_addr_l;
+	__be32			pd;
+	__be16			limit_watermark;
+	__be16			wqe_cnt;
+	u16			reserved4;
+	__be16			wqe_counter;
+	u32			reserved5;
+	__be64			db_rec_addr;
+};
+
 struct mlx4_eqe {
 	u8			reserved1;
 	u8			type;
@@ -657,6 +742,18 @@ void mlx4_cleanup_cq_table(struct mlx4_dev *dev);
 void mlx4_cleanup_qp_table(struct mlx4_dev *dev);
 void mlx4_cleanup_srq_table(struct mlx4_dev *dev);
 void mlx4_cleanup_mcg_table(struct mlx4_dev *dev);
+int __mlx4_qp_alloc_icm(struct mlx4_dev *dev, int qpn);
+void __mlx4_qp_free_icm(struct mlx4_dev *dev, int qpn);
+int __mlx4_cq_alloc_icm(struct mlx4_dev *dev, int *cqn);
+void __mlx4_cq_free_icm(struct mlx4_dev *dev, int cqn);
+int __mlx4_srq_alloc_icm(struct mlx4_dev *dev, int *srqn);
+void __mlx4_srq_free_icm(struct mlx4_dev *dev, int srqn);
+int __mlx4_mr_reserve(struct mlx4_dev *dev);
+void __mlx4_mr_release(struct mlx4_dev *dev, u32 index);
+int __mlx4_mr_alloc_icm(struct mlx4_dev *dev, u32 index);
+void __mlx4_mr_free_icm(struct mlx4_dev *dev, u32 index);
+u32 __mlx4_alloc_mtt_range(struct mlx4_dev *dev, int order);
+void __mlx4_free_mtt_range(struct mlx4_dev *dev, u32 first_seg, int order);
 
 int mlx4_WRITE_MTT_wrapper(struct mlx4_dev *dev, int slave,
 			   struct mlx4_vhcr *vhcr,
@@ -693,6 +790,14 @@ int mlx4_DMA_wrapper(struct mlx4_dev *dev, int slave,
 		     struct mlx4_cmd_mailbox *inbox,
 		     struct mlx4_cmd_mailbox *outbox,
 		     struct mlx4_cmd_info *cmd);
+int __mlx4_qp_reserve_range(struct mlx4_dev *dev, int cnt, int align,
+			    int *base);
+void __mlx4_qp_release_range(struct mlx4_dev *dev, int base_qpn, int cnt);
+int __mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac);
+void __mlx4_unregister_mac(struct mlx4_dev *dev, u8 port, u64 mac);
+int __mlx4_replace_mac(struct mlx4_dev *dev, u8 port, int qpn, u64 new_mac);
+int __mlx4_write_mtt(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
+		     int start_index, int npages, u64 *page_list);
 
 void mlx4_start_catas_poll(struct mlx4_dev *dev);
 void mlx4_stop_catas_poll(struct mlx4_dev *dev);
@@ -934,6 +1039,11 @@ static inline u32 get_param_l(u64 *arg)
 static inline u32 get_param_h(u64 *arg)
 {
 	return (u32)(*arg >> 32);
+}
+
+static inline spinlock_t *mlx4_tlock(struct mlx4_dev *dev)
+{
+	return &mlx4_priv(dev)->mfunc.master.res_tracker.lock;
 }
 
 #define NOT_MASKED_PD_BITS 17

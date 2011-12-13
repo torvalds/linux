@@ -43,26 +43,6 @@
 #include "mlx4.h"
 #include "icm.h"
 
-/*
- * Must be packed because mtt_seg is 64 bits but only aligned to 32 bits.
- */
-struct mlx4_mpt_entry {
-	__be32 flags;
-	__be32 qpn;
-	__be32 key;
-	__be32 pd_flags;
-	__be64 start;
-	__be64 length;
-	__be32 lkey;
-	__be32 win_cnt;
-	u8	reserved1[3];
-	u8	mtt_rep;
-	__be64 mtt_seg;
-	__be32 mtt_sz;
-	__be32 entity_size;
-	__be32 first_byte_offset;
-} __packed;
-
 #define MLX4_MPT_FLAG_SW_OWNS	    (0xfUL << 28)
 #define MLX4_MPT_FLAG_FREE	    (0x3UL << 28)
 #define MLX4_MPT_FLAG_MIO	    (1 << 17)
@@ -182,7 +162,7 @@ static void mlx4_buddy_cleanup(struct mlx4_buddy *buddy)
 	kfree(buddy->num_free);
 }
 
-static u32 __mlx4_alloc_mtt_range(struct mlx4_dev *dev, int order)
+u32 __mlx4_alloc_mtt_range(struct mlx4_dev *dev, int order)
 {
 	struct mlx4_mr_table *mr_table = &mlx4_priv(dev)->mr_table;
 	u32 seg;
@@ -243,7 +223,7 @@ int mlx4_mtt_init(struct mlx4_dev *dev, int npages, int page_shift,
 }
 EXPORT_SYMBOL_GPL(mlx4_mtt_init);
 
-static void __mlx4_free_mtt_range(struct mlx4_dev *dev, u32 first_seg,
+void __mlx4_free_mtt_range(struct mlx4_dev *dev, u32 first_seg,
 				  int order)
 {
 	struct mlx4_mr_table *mr_table = &mlx4_priv(dev)->mr_table;
@@ -360,7 +340,7 @@ static int mlx4_WRITE_MTT(struct mlx4_dev *dev,
 			MLX4_CMD_TIME_CLASS_A,  MLX4_CMD_WRAPPED);
 }
 
-static int __mlx4_mr_reserve(struct mlx4_dev *dev)
+int __mlx4_mr_reserve(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
@@ -381,7 +361,7 @@ static int mlx4_mr_reserve(struct mlx4_dev *dev)
 	return  __mlx4_mr_reserve(dev);
 }
 
-static void __mlx4_mr_release(struct mlx4_dev *dev, u32 index)
+void __mlx4_mr_release(struct mlx4_dev *dev, u32 index)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
@@ -404,7 +384,7 @@ static void mlx4_mr_release(struct mlx4_dev *dev, u32 index)
 	__mlx4_mr_release(dev, index);
 }
 
-static int __mlx4_mr_alloc_icm(struct mlx4_dev *dev, u32 index)
+int __mlx4_mr_alloc_icm(struct mlx4_dev *dev, u32 index)
 {
 	struct mlx4_mr_table *mr_table = &mlx4_priv(dev)->mr_table;
 
@@ -425,7 +405,7 @@ static int mlx4_mr_alloc_icm(struct mlx4_dev *dev, u32 index)
 	return __mlx4_mr_alloc_icm(dev, index);
 }
 
-static void __mlx4_mr_free_icm(struct mlx4_dev *dev, u32 index)
+void __mlx4_mr_free_icm(struct mlx4_dev *dev, u32 index)
 {
 	struct mlx4_mr_table *mr_table = &mlx4_priv(dev)->mr_table;
 
@@ -595,7 +575,7 @@ static int mlx4_write_mtt_chunk(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 	return 0;
 }
 
-static int __mlx4_write_mtt(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
+int __mlx4_write_mtt(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 		     int start_index, int npages, u64 *page_list)
 {
 	int err = 0;

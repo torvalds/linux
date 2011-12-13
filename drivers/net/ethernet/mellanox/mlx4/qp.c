@@ -182,7 +182,7 @@ int mlx4_qp_modify(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 }
 EXPORT_SYMBOL_GPL(mlx4_qp_modify);
 
-static int __mlx4_qp_reserve_range(struct mlx4_dev *dev, int cnt, int align,
+int __mlx4_qp_reserve_range(struct mlx4_dev *dev, int cnt, int align,
 				   int *base)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
@@ -218,7 +218,7 @@ int mlx4_qp_reserve_range(struct mlx4_dev *dev, int cnt, int align, int *base)
 }
 EXPORT_SYMBOL_GPL(mlx4_qp_reserve_range);
 
-static void __mlx4_qp_release_range(struct mlx4_dev *dev, int base_qpn, int cnt)
+void __mlx4_qp_release_range(struct mlx4_dev *dev, int base_qpn, int cnt)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_qp_table *qp_table = &priv->qp_table;
@@ -248,7 +248,7 @@ void mlx4_qp_release_range(struct mlx4_dev *dev, int base_qpn, int cnt)
 }
 EXPORT_SYMBOL_GPL(mlx4_qp_release_range);
 
-static int __mlx4_qp_alloc_icm(struct mlx4_dev *dev, int qpn)
+int __mlx4_qp_alloc_icm(struct mlx4_dev *dev, int qpn)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_qp_table *qp_table = &priv->qp_table;
@@ -305,7 +305,7 @@ static int mlx4_qp_alloc_icm(struct mlx4_dev *dev, int qpn)
 	return __mlx4_qp_alloc_icm(dev, qpn);
 }
 
-static void __mlx4_qp_free_icm(struct mlx4_dev *dev, int qpn)
+void __mlx4_qp_free_icm(struct mlx4_dev *dev, int qpn)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_qp_table *qp_table = &priv->qp_table;

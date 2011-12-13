@@ -53,30 +53,6 @@ enum {
 	MLX4_EQ_ENTRY_SIZE	= 0x20
 };
 
-/*
- * Must be packed because start is 64 bits but only aligned to 32 bits.
- */
-struct mlx4_eq_context {
-	__be32			flags;
-	u16			reserved1[3];
-	__be16			page_offset;
-	u8			log_eq_size;
-	u8			reserved2[4];
-	u8			eq_period;
-	u8			reserved3;
-	u8			eq_max_count;
-	u8			reserved4[3];
-	u8			intr;
-	u8			log_page_size;
-	u8			reserved5[2];
-	u8			mtt_base_addr_h;
-	__be32			mtt_base_addr_l;
-	u32			reserved6[2];
-	__be32			consumer_index;
-	__be32			producer_index;
-	u32			reserved7[4];
-};
-
 #define MLX4_EQ_STATUS_OK	   ( 0 << 28)
 #define MLX4_EQ_STATUS_WRITE_FAIL  (10 << 28)
 #define MLX4_EQ_OWNER_SW	   ( 0 << 24)
@@ -134,19 +110,6 @@ static struct mlx4_eqe *next_slave_event_eqe(struct mlx4_slave_event_eq *slave_e
 		!!(slave_eq->cons & SLAVE_EVENT_EQ_SIZE)) ?
 		eqe : NULL;
 }
-
-/* dummies for now */
-void mlx4_delete_all_resources_for_slave(struct mlx4_dev *dev, int slave)
-{
-}
-
-int mlx4_get_slave_from_resource_id(struct mlx4_dev *dev,
-				    enum mlx4_resource type,
-				    int res_id, int *slave)
-{
-	return -ENOENT;
-}
-/*  end dummies */
 
 void mlx4_gen_slave_eqe(struct work_struct *work)
 {
