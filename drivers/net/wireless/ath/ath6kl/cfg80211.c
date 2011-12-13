@@ -2405,6 +2405,8 @@ void ath6kl_cfg80211_stop(struct ath6kl *ar)
 	}
 
 	switch (vif->sme_state) {
+	case SME_DISCONNECTED:
+		break;
 	case SME_CONNECTING:
 		cfg80211_connect_result(vif->ndev, vif->bssid, NULL, 0,
 					NULL, 0,
@@ -2412,12 +2414,6 @@ void ath6kl_cfg80211_stop(struct ath6kl *ar)
 					GFP_KERNEL);
 		break;
 	case SME_CONNECTED:
-	default:
-		/*
-		 * FIXME: oddly enough smeState is in DISCONNECTED during
-		 * suspend, why? Need to send disconnected event in that
-		 * state.
-		 */
 		cfg80211_disconnected(vif->ndev, 0, NULL, 0, GFP_KERNEL);
 		break;
 	}
