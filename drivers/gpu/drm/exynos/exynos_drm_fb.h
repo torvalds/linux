@@ -28,9 +28,10 @@
 #ifndef _EXYNOS_DRM_FB_H_
 #define _EXYNOS_DRM_FB_H
 
-struct drm_framebuffer *exynos_drm_fb_create(struct drm_device *dev,
-					     struct drm_file *filp,
-					     struct drm_mode_fb_cmd2 *mode_cmd);
+struct drm_framebuffer *
+exynos_drm_framebuffer_init(struct drm_device *dev,
+			    struct drm_mode_fb_cmd2 *mode_cmd,
+			    struct drm_gem_object *obj);
 
 void exynos_drm_mode_config_init(struct drm_device *dev);
 
