@@ -1,5 +1,5 @@
 /*
- * Code for TI8168 EVM.
+ * Code for TI8168/TI8148 EVM.
  *
  * Copyright (C) 2010 Texas Instruments, Inc. - http://www.ti.com/
  *
@@ -24,15 +24,15 @@
 #include <plat/board.h>
 #include "common.h"
 
-static struct omap_board_config_kernel ti8168_evm_config[] __initdata = {
+static struct omap_board_config_kernel ti81xx_evm_config[] __initdata = {
 };
 
-static void __init ti8168_evm_init(void)
+static void __init ti81xx_evm_init(void)
 {
 	omap_serial_init();
 	omap_sdrc_init(NULL, NULL);
-	omap_board_config = ti8168_evm_config;
-	omap_board_config_size = ARRAY_SIZE(ti8168_evm_config);
+	omap_board_config = ti81xx_evm_config;
+	omap_board_config_size = ARRAY_SIZE(ti81xx_evm_config);
 }
 
 MACHINE_START(TI8168EVM, "ti8168evm")
@@ -42,5 +42,15 @@ MACHINE_START(TI8168EVM, "ti8168evm")
 	.init_early	= ti81xx_init_early,
 	.init_irq	= ti81xx_init_irq,
 	.timer		= &omap3_timer,
-	.init_machine	= ti8168_evm_init,
+	.init_machine	= ti81xx_evm_init,
+MACHINE_END
+
+MACHINE_START(TI8148EVM, "ti8148evm")
+	/* Maintainer: Texas Instruments */
+	.atag_offset	= 0x100,
+	.map_io		= ti81xx_map_io,
+	.init_early	= ti81xx_init_early,
+	.init_irq	= ti81xx_init_irq,
+	.timer		= &omap3_timer,
+	.init_machine	= ti81xx_evm_init,
 MACHINE_END
