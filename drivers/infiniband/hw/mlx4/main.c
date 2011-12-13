@@ -1075,6 +1075,11 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 
 	printk_once(KERN_INFO "%s", mlx4_ib_version);
 
+	if (mlx4_is_mfunc(dev)) {
+		printk(KERN_WARNING "IB not yet supported in SRIOV\n");
+		return NULL;
+	}
+
 	mlx4_foreach_ib_transport_port(i, dev)
 		num_ports++;
 
