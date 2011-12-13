@@ -1959,7 +1959,7 @@ static int amd5536_start(struct usb_gadget_driver *driver,
 	u32 tmp;
 
 	if (!driver || !bind || !driver->setup
-			|| driver->speed < USB_SPEED_HIGH)
+			|| driver->max_speed < USB_SPEED_HIGH)
 		return -EINVAL;
 	if (!dev)
 		return -ENODEV;
@@ -3349,7 +3349,7 @@ static int udc_probe(struct udc *dev)
 	dev_set_name(&dev->gadget.dev, "gadget");
 	dev->gadget.dev.release = gadget_release;
 	dev->gadget.name = name;
-	dev->gadget.is_dualspeed = 1;
+	dev->gadget.max_speed = USB_SPEED_HIGH;
 
 	/* init registers, interrupts, ... */
 	startup_registers(dev);

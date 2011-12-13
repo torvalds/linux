@@ -235,7 +235,6 @@ config USB_R8A66597
 
 config USB_RENESAS_USBHS_UDC
 	tristate 'Renesas USBHS controller'
-	depends on SUPERH || ARCH_SHMOBILE
 	depends on USB_RENESAS_USBHS
 	select USB_GADGET_DUALSPEED
 	help

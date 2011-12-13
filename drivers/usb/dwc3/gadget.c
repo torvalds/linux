@@ -2087,7 +2087,7 @@ int __devinit dwc3_gadget_init(struct dwc3 *dwc)
 	dev_set_name(&dwc->gadget.dev, "gadget");
 
 	dwc->gadget.ops			= &dwc3_gadget_ops;
-	dwc->gadget.is_dualspeed	= true;
+	dwc->gadget.max_speed		= USB_SPEED_SUPER;
 	dwc->gadget.speed		= USB_SPEED_UNKNOWN;
 	dwc->gadget.dev.parent		= dwc->dev;
 

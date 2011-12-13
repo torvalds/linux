@@ -477,8 +477,8 @@ struct usb_gadget_ops {
  *	driver setup() requests
  * @ep_list: List of other endpoints supported by the device.
  * @speed: Speed of current connection to USB host.
- * @is_dualspeed: True if the controller supports both high and full speed
- *	operation.  If it does, the gadget driver must also support both.
+ * @max_speed: Maximal speed the UDC can handle.  UDC must support this
+ *      and all slower speeds.
  * @is_otg: True if the USB device port uses a Mini-AB jack, so that the
  *	gadget driver must provide a USB OTG descriptor.
  * @is_a_peripheral: False unless is_otg, the "A" end of a USB cable
@@ -518,7 +518,7 @@ struct usb_gadget {
 	struct usb_ep			*ep0;
 	struct list_head		ep_list;	/* of usb_ep */
 	enum usb_device_speed		speed;
-	unsigned			is_dualspeed:1;
+	enum usb_device_speed		max_speed;
 	unsigned			is_otg:1;
 	unsigned			is_a_peripheral:1;
 	unsigned			b_hnp_enable:1;
@@ -549,7 +549,7 @@ static inline struct usb_gadget *dev_to_usb_gadget(struct device *dev)
 static inline int gadget_is_dualspeed(struct usb_gadget *g)
 {
 #ifdef CONFIG_USB_GADGET_DUALSPEED
-	/* runtime test would check "g->is_dualspeed" ... that might be
+	/* runtime test would check "g->max_speed" ... that might be
 	 * useful to work around hardware bugs, but is mostly pointless
 	 */
 	return 1;
@@ -567,7 +567,7 @@ static inline int gadget_is_superspeed(struct usb_gadget *g)
 {
 #ifdef CONFIG_USB_GADGET_SUPERSPEED
 	/*
-	 * runtime test would check "g->is_superspeed" ... that might be
+	 * runtime test would check "g->max_speed" ... that might be
 	 * useful to work around hardware bugs, but is mostly pointless
 	 */
 	return 1;
@@ -760,7 +760,7 @@ static inline int usb_gadget_disconnect(struct usb_gadget *gadget)
 /**
  * struct usb_gadget_driver - driver for usb 'slave' devices
  * @function: String describing the gadget's function
- * @speed: Highest speed the driver handles.
+ * @max_speed: Highest speed the driver handles.
  * @setup: Invoked for ep0 control requests that aren't handled by
  *	the hardware level driver. Most calls must be handled by
  *	the gadget driver, including descriptor and configuration
@@ -824,7 +824,7 @@ static inline int usb_gadget_disconnect(struct usb_gadget *gadget)
  */
 struct usb_gadget_driver {
 	char			*function;
-	enum usb_device_speed	speed;
+	enum usb_device_speed	max_speed;
 	void			(*unbind)(struct usb_gadget *);
 	int			(*setup)(struct usb_gadget *,
 					const struct usb_ctrlrequest *);

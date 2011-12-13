@@ -2586,7 +2586,7 @@ static int s3c_hsotg_start(struct usb_gadget_driver *driver,
 		return -EINVAL;
 	}
 
-	if (driver->speed < USB_SPEED_FULL)
+	if (driver->max_speed < USB_SPEED_FULL)
 		dev_err(hsotg->dev, "%s: bad speed\n", __func__);
 
 	if (!bind || !driver->setup) {
@@ -3362,7 +3362,7 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 
 	dev_set_name(&hsotg->gadget.dev, "gadget");
 
-	hsotg->gadget.is_dualspeed = 1;
+	hsotg->gadget.max_speed = USB_SPEED_HIGH;
 	hsotg->gadget.ops = &s3c_hsotg_gadget_ops;
 	hsotg->gadget.name = dev_name(dev);
 
