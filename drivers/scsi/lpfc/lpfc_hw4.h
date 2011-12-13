@@ -1351,11 +1351,11 @@ struct lpfc_mbx_set_link_diag_loopback {
 		struct {
 			uint32_t word0;
 #define lpfc_mbx_set_diag_lpbk_type_SHIFT	0
-#define lpfc_mbx_set_diag_lpbk_type_MASK	0x00000001
+#define lpfc_mbx_set_diag_lpbk_type_MASK	0x00000003
 #define lpfc_mbx_set_diag_lpbk_type_WORD	word0
 #define LPFC_DIAG_LOOPBACK_TYPE_DISABLE		0x0
 #define LPFC_DIAG_LOOPBACK_TYPE_INTERNAL	0x1
-#define LPFC_DIAG_LOOPBACK_TYPE_EXTERNAL	0x2
+#define LPFC_DIAG_LOOPBACK_TYPE_SERDES		0x2
 #define lpfc_mbx_set_diag_lpbk_link_num_SHIFT	16
 #define lpfc_mbx_set_diag_lpbk_link_num_MASK	0x0000003F
 #define lpfc_mbx_set_diag_lpbk_link_num_WORD	word0
@@ -3324,6 +3324,9 @@ struct wqe_rctl_dfctl {
 #define wqe_la_SHIFT 3
 #define wqe_la_MASK  0x000000001
 #define wqe_la_WORD  word5
+#define wqe_xo_SHIFT	6
+#define wqe_xo_MASK	0x000000001
+#define wqe_xo_WORD	word5
 #define wqe_ls_SHIFT 7
 #define wqe_ls_MASK  0x000000001
 #define wqe_ls_WORD  word5

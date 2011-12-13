@@ -2133,6 +2133,14 @@ lpfc_reg_vfi(struct lpfcMboxq *mbox, struct lpfc_vport *vport, dma_addr_t phys)
 	reg_vfi->bde.tus.f.bdeSize = sizeof(vport->fc_sparam);
 	reg_vfi->bde.tus.f.bdeFlags = BUFF_TYPE_BDE_64;
 	bf_set(lpfc_reg_vfi_nport_id, reg_vfi, vport->fc_myDID);
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_MBOX,
+			"3134 Register VFI, mydid:x%x, fcfi:%d, "
+			" vfi:%d, vpi:%d, fc_pname:%x%x\n",
+			vport->fc_myDID,
+			vport->phba->fcf.fcfi,
+			vport->phba->sli4_hba.vfi_ids[vport->vfi],
+			vport->phba->vpi_ids[vport->vpi],
+			reg_vfi->wwn[0], reg_vfi->wwn[1]);
 }
 
 /**

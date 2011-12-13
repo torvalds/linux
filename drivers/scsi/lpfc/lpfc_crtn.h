@@ -78,6 +78,7 @@ void lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_mbx_cmpl_ns_reg_login(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_mbx_cmpl_fdmi_reg_login(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_mbx_cmpl_reg_vfi(struct lpfc_hba *, LPFC_MBOXQ_t *);
+void lpfc_unregister_vfi_cmpl(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_enqueue_node(struct lpfc_vport *, struct lpfc_nodelist *);
 void lpfc_dequeue_node(struct lpfc_vport *, struct lpfc_nodelist *);
 struct lpfc_nodelist *lpfc_enable_node(struct lpfc_vport *,
@@ -453,7 +454,11 @@ int lpfc_sli_probe_sriov_nr_virtfn(struct lpfc_hba *, int);
 uint16_t lpfc_sli_sriov_nr_virtfn_get(struct lpfc_hba *);
 int lpfc_sli4_queue_create(struct lpfc_hba *);
 void lpfc_sli4_queue_destroy(struct lpfc_hba *);
-int lpfc_sli4_read_config(struct lpfc_hba *phba);
-int lpfc_scsi_buf_update(struct lpfc_hba *phba);
 void lpfc_sli4_abts_err_handler(struct lpfc_hba *, struct lpfc_nodelist *,
 				struct sli4_wcqe_xri_aborted *);
+int lpfc_hba_init_link_fc_topology(struct lpfc_hba *, uint32_t, uint32_t);
+int lpfc_issue_reg_vfi(struct lpfc_vport *);
+int lpfc_issue_unreg_vfi(struct lpfc_vport *);
+int lpfc_selective_reset(struct lpfc_hba *);
+int lpfc_sli4_read_config(struct lpfc_hba *phba);
+int lpfc_scsi_buf_update(struct lpfc_hba *phba);
