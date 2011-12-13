@@ -32,6 +32,7 @@
 #include "cmd.h"
 #include "tx.h"
 #include "io.h"
+#include "hw_ops.h"
 
 int wl1271_init_templates_config(struct wl1271 *wl)
 {
@@ -635,6 +636,10 @@ int wl1271_init_vif_specific(struct wl1271 *wl, struct ieee80211_vif *vif)
 
 	/* Configure initiator BA sessions policies */
 	ret = wl1271_set_ba_policies(wl, wlvif);
+	if (ret < 0)
+		return ret;
+
+	ret = wlcore_hw_init_vif(wl, wlvif);
 	if (ret < 0)
 		return ret;
 
