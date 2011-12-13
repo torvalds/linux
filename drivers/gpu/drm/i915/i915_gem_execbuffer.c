@@ -1033,19 +1033,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			if (INTEL_INFO(dev)->gen > 5 &&
 			    mode == I915_EXEC_CONSTANTS_REL_SURFACE)
 				return -EINVAL;
-
-			ret = intel_ring_begin(ring, 4);
-			if (ret)
-				return ret;
-
-			intel_ring_emit(ring, MI_NOOP);
-			intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
-			intel_ring_emit(ring, INSTPM);
-			intel_ring_emit(ring,
-					I915_EXEC_CONSTANTS_MASK << 16 | mode);
-			intel_ring_advance(ring);
-
-			dev_priv->relative_constants_mode = mode;
 		}
 		break;
 	default:
@@ -1174,6 +1161,22 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 			BUG_ON(ring->sync_seqno[i]);
 		}
+	}
+
+	if (ring == &dev_priv->ring[RCS] &&
+	    mode != dev_priv->relative_constants_mode) {
+		ret = intel_ring_begin(ring, 4);
+		if (ret)
+				goto err;
+
+		intel_ring_emit(ring, MI_NOOP);
+		intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
+		intel_ring_emit(ring, INSTPM);
+		intel_ring_emit(ring,
+				I915_EXEC_CONSTANTS_MASK << 16 | mode);
+		intel_ring_advance(ring);
+
+		dev_priv->relative_constants_mode = mode;
 	}
 
 	trace_i915_gem_ring_dispatch(ring, seqno);
