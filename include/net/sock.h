@@ -64,6 +64,8 @@
 #include <net/dst.h>
 #include <net/checksum.h>
 
+struct cgroup;
+struct cgroup_subsys;
 int mem_cgroup_sockets_init(struct cgroup *cgrp, struct cgroup_subsys *ss);
 void mem_cgroup_sockets_destroy(struct cgroup *cgrp, struct cgroup_subsys *ss);
 /*
