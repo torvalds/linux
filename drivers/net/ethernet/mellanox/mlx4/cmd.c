@@ -311,7 +311,7 @@ out:
 
 int __mlx4_cmd(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 	       int out_is_imm, u32 in_modifier, u8 op_modifier,
-	       u16 op, unsigned long timeout)
+	       u16 op, unsigned long timeout, int native)
 {
 	if (mlx4_priv(dev)->cmd.use_events)
 		return mlx4_cmd_wait(dev, in_param, out_param, out_is_imm,

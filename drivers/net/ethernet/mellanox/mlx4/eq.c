@@ -255,21 +255,24 @@ static int mlx4_MAP_EQ(struct mlx4_dev *dev, u64 event_mask, int unmap,
 			int eq_num)
 {
 	return mlx4_cmd(dev, event_mask, (unmap << 31) | eq_num,
-			0, MLX4_CMD_MAP_EQ, MLX4_CMD_TIME_CLASS_B);
+			0, MLX4_CMD_MAP_EQ, MLX4_CMD_TIME_CLASS_B,
+			MLX4_CMD_WRAPPED);
 }
 
 static int mlx4_SW2HW_EQ(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbox,
 			 int eq_num)
 {
 	return mlx4_cmd(dev, mailbox->dma, eq_num, 0, MLX4_CMD_SW2HW_EQ,
-			MLX4_CMD_TIME_CLASS_A);
+			MLX4_CMD_TIME_CLASS_A,
+			MLX4_CMD_WRAPPED);
 }
 
 static int mlx4_HW2SW_EQ(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbox,
 			 int eq_num)
 {
 	return mlx4_cmd_box(dev, 0, mailbox->dma, eq_num, 0, MLX4_CMD_HW2SW_EQ,
-			    MLX4_CMD_TIME_CLASS_A);
+			    MLX4_CMD_TIME_CLASS_A,
+			    MLX4_CMD_WRAPPED);
 }
 
 static int mlx4_num_eq_uar(struct mlx4_dev *dev)

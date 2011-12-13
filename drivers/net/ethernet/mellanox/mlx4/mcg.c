@@ -48,14 +48,14 @@ static int mlx4_READ_ENTRY(struct mlx4_dev *dev, int index,
 			   struct mlx4_cmd_mailbox *mailbox)
 {
 	return mlx4_cmd_box(dev, 0, mailbox->dma, index, 0, MLX4_CMD_READ_MCG,
-			    MLX4_CMD_TIME_CLASS_A);
+			    MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
 }
 
 static int mlx4_WRITE_ENTRY(struct mlx4_dev *dev, int index,
 			    struct mlx4_cmd_mailbox *mailbox)
 {
 	return mlx4_cmd(dev, mailbox->dma, index, 0, MLX4_CMD_WRITE_MCG,
-			MLX4_CMD_TIME_CLASS_A);
+			MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
 }
 
 static int mlx4_WRITE_PROMISC(struct mlx4_dev *dev, u8 vep_num, u8 port, u8 steer,
@@ -65,7 +65,8 @@ static int mlx4_WRITE_PROMISC(struct mlx4_dev *dev, u8 vep_num, u8 port, u8 stee
 
 	in_mod = (u32) vep_num << 24 | (u32) port << 16 | steer << 1;
 	return mlx4_cmd(dev, mailbox->dma, in_mod, 0x1,
-			MLX4_CMD_WRITE_MCG, MLX4_CMD_TIME_CLASS_A);
+			MLX4_CMD_WRITE_MCG, MLX4_CMD_TIME_CLASS_A,
+			MLX4_CMD_NATIVE);
 }
 
 static int mlx4_GID_HASH(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbox,
@@ -75,7 +76,8 @@ static int mlx4_GID_HASH(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbox,
 	int err;
 
 	err = mlx4_cmd_imm(dev, mailbox->dma, &imm, 0, op_mod,
-			   MLX4_CMD_MGID_HASH, MLX4_CMD_TIME_CLASS_A);
+			   MLX4_CMD_MGID_HASH, MLX4_CMD_TIME_CLASS_A,
+			   MLX4_CMD_NATIVE);
 
 	if (!err)
 		*hash = imm;

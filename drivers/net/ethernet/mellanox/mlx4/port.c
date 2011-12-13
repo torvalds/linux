@@ -85,7 +85,7 @@ static int mlx4_set_port_mac_table(struct mlx4_dev *dev, u8 port,
 
 	in_mod = MLX4_SET_PORT_MAC_TABLE << 8 | port;
 	err = mlx4_cmd(dev, mailbox->dma, in_mod, 1, MLX4_CMD_SET_PORT,
-		       MLX4_CMD_TIME_CLASS_B);
+		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	return err;
@@ -326,7 +326,7 @@ static int mlx4_set_port_vlan_table(struct mlx4_dev *dev, u8 port,
 	memcpy(mailbox->buf, entries, MLX4_VLAN_TABLE_SIZE);
 	in_mod = MLX4_SET_PORT_VLAN_TABLE << 8 | port;
 	err = mlx4_cmd(dev, mailbox->dma, in_mod, 1, MLX4_CMD_SET_PORT,
-		       MLX4_CMD_TIME_CLASS_B);
+		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
 
@@ -462,7 +462,8 @@ int mlx4_get_port_ib_caps(struct mlx4_dev *dev, u8 port, __be32 *caps)
 	*(__be32 *) (&inbuf[20]) = cpu_to_be32(port);
 
 	err = mlx4_cmd_box(dev, inmailbox->dma, outmailbox->dma, port, 3,
-			   MLX4_CMD_MAD_IFC, MLX4_CMD_TIME_CLASS_C);
+			   MLX4_CMD_MAD_IFC, MLX4_CMD_TIME_CLASS_C,
+			   MLX4_CMD_NATIVE);
 	if (!err)
 		*caps = *(__be32 *) (outbuf + 84);
 	mlx4_free_cmd_mailbox(dev, inmailbox);
@@ -499,7 +500,8 @@ int mlx4_check_ext_port_caps(struct mlx4_dev *dev, u8 port)
 	*(__be32 *) (&inbuf[20]) = cpu_to_be32(port);
 
 	err = mlx4_cmd_box(dev, inmailbox->dma, outmailbox->dma, port, 3,
-			   MLX4_CMD_MAD_IFC, MLX4_CMD_TIME_CLASS_C);
+			   MLX4_CMD_MAD_IFC, MLX4_CMD_TIME_CLASS_C,
+			   MLX4_CMD_NATIVE);
 
 	packet_error = be16_to_cpu(*(__be16 *) (outbuf + 4));
 
@@ -528,7 +530,7 @@ int mlx4_SET_PORT(struct mlx4_dev *dev, u8 port)
 
 	((__be32 *) mailbox->buf)[1] = dev->caps.ib_port_def_cap[port];
 	err = mlx4_cmd(dev, mailbox->dma, port, 0, MLX4_CMD_SET_PORT,
-		       MLX4_CMD_TIME_CLASS_B);
+		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	return err;

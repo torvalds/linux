@@ -45,7 +45,8 @@ int mlx4_SET_MCAST_FLTR(struct mlx4_dev *dev, u8 port,
 			u64 mac, u64 clear, u8 mode)
 {
 	return mlx4_cmd(dev, (mac | (clear << 63)), port, mode,
-			MLX4_CMD_SET_MCAST_FLTR, MLX4_CMD_TIME_CLASS_B);
+			MLX4_CMD_SET_MCAST_FLTR, MLX4_CMD_TIME_CLASS_B,
+			MLX4_CMD_WRAPPED);
 }
 
 int mlx4_SET_VLAN_FLTR(struct mlx4_dev *dev, struct mlx4_en_priv *priv)
@@ -72,7 +73,7 @@ int mlx4_SET_VLAN_FLTR(struct mlx4_dev *dev, struct mlx4_en_priv *priv)
 		filter->entry[i] = cpu_to_be32(entry);
 	}
 	err = mlx4_cmd(dev, mailbox->dma, priv->port, 0, MLX4_CMD_SET_VLAN_FLTR,
-		       MLX4_CMD_TIME_CLASS_B);
+		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	return err;
 }
@@ -101,7 +102,7 @@ int mlx4_SET_PORT_general(struct mlx4_dev *dev, u8 port, int mtu,
 
 	in_mod = MLX4_SET_PORT_GENERAL << 8 | port;
 	err = mlx4_cmd(dev, mailbox->dma, in_mod, 1, MLX4_CMD_SET_PORT,
-		       MLX4_CMD_TIME_CLASS_B);
+		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	return err;
@@ -140,7 +141,7 @@ int mlx4_SET_PORT_qpn_calc(struct mlx4_dev *dev, u8 port, u32 base_qpn,
 
 	in_mod = MLX4_SET_PORT_RQP_CALC << 8 | port;
 	err = mlx4_cmd(dev, mailbox->dma, in_mod, 1, MLX4_CMD_SET_PORT,
-		       MLX4_CMD_TIME_CLASS_B);
+		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	return err;
@@ -159,7 +160,8 @@ int mlx4_en_QUERY_PORT(struct mlx4_en_dev *mdev, u8 port)
 		return PTR_ERR(mailbox);
 	memset(mailbox->buf, 0, sizeof(*qport_context));
 	err = mlx4_cmd_box(mdev->dev, 0, mailbox->dma, port, 0,
-			   MLX4_CMD_QUERY_PORT, MLX4_CMD_TIME_CLASS_B);
+			   MLX4_CMD_QUERY_PORT, MLX4_CMD_TIME_CLASS_B,
+			   MLX4_CMD_WRAPPED);
 	if (err)
 		goto out;
 	qport_context = mailbox->buf;
@@ -204,7 +206,8 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 		return PTR_ERR(mailbox);
 	memset(mailbox->buf, 0, sizeof(*mlx4_en_stats));
 	err = mlx4_cmd_box(mdev->dev, 0, mailbox->dma, in_mod, 0,
-			   MLX4_CMD_DUMP_ETH_STATS, MLX4_CMD_TIME_CLASS_B);
+			   MLX4_CMD_DUMP_ETH_STATS, MLX4_CMD_TIME_CLASS_B,
+			   MLX4_CMD_WRAPPED);
 	if (err)
 		goto out;
 

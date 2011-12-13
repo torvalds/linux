@@ -139,7 +139,7 @@ int mlx4_MOD_STAT_CFG(struct mlx4_dev *dev, struct mlx4_mod_stat_cfg *cfg)
 	MLX4_PUT(inbox, cfg->log_pg_sz_m, MOD_STAT_CFG_PG_SZ_M_OFFSET);
 
 	err = mlx4_cmd(dev, mailbox->dma, 0, 0, MLX4_CMD_MOD_STAT_CFG,
-			MLX4_CMD_TIME_CLASS_A);
+			MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	return err;
@@ -229,7 +229,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	outbox = mailbox->buf;
 
 	err = mlx4_cmd_box(dev, 0, mailbox->dma, 0, 0, MLX4_CMD_QUERY_DEV_CAP,
-			   MLX4_CMD_TIME_CLASS_A);
+			   MLX4_CMD_TIME_CLASS_A, !mlx4_is_slave(dev));
 	if (err)
 		goto out;
 
@@ -396,7 +396,8 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 
 		for (i = 1; i <= dev_cap->num_ports; ++i) {
 			err = mlx4_cmd_box(dev, 0, mailbox->dma, i, 0, MLX4_CMD_QUERY_PORT,
-					   MLX4_CMD_TIME_CLASS_B);
+					   MLX4_CMD_TIME_CLASS_B,
+					   !mlx4_is_slave(dev));
 			if (err)
 				goto out;
 
@@ -519,7 +520,8 @@ int mlx4_map_cmd(struct mlx4_dev *dev, u16 op, struct mlx4_icm *icm, u64 virt)
 
 			if (++nent == MLX4_MAILBOX_SIZE / 16) {
 				err = mlx4_cmd(dev, mailbox->dma, nent, 0, op,
-						MLX4_CMD_TIME_CLASS_B);
+						MLX4_CMD_TIME_CLASS_B,
+						MLX4_CMD_NATIVE);
 				if (err)
 					goto out;
 				nent = 0;
@@ -528,7 +530,8 @@ int mlx4_map_cmd(struct mlx4_dev *dev, u16 op, struct mlx4_icm *icm, u64 virt)
 	}
 
 	if (nent)
-		err = mlx4_cmd(dev, mailbox->dma, nent, 0, op, MLX4_CMD_TIME_CLASS_B);
+		err = mlx4_cmd(dev, mailbox->dma, nent, 0, op,
+			       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
 	if (err)
 		goto out;
 
@@ -557,13 +560,15 @@ int mlx4_MAP_FA(struct mlx4_dev *dev, struct mlx4_icm *icm)
 
 int mlx4_UNMAP_FA(struct mlx4_dev *dev)
 {
-	return mlx4_cmd(dev, 0, 0, 0, MLX4_CMD_UNMAP_FA, MLX4_CMD_TIME_CLASS_B);
+	return mlx4_cmd(dev, 0, 0, 0, MLX4_CMD_UNMAP_FA,
+			MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
 }
 
 
 int mlx4_RUN_FW(struct mlx4_dev *dev)
 {
-	return mlx4_cmd(dev, 0, 0, 0, MLX4_CMD_RUN_FW, MLX4_CMD_TIME_CLASS_A);
+	return mlx4_cmd(dev, 0, 0, 0, MLX4_CMD_RUN_FW,
+			MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
 }
 
 int mlx4_QUERY_FW(struct mlx4_dev *dev)
@@ -595,7 +600,7 @@ int mlx4_QUERY_FW(struct mlx4_dev *dev)
 	outbox = mailbox->buf;
 
 	err = mlx4_cmd_box(dev, 0, mailbox->dma, 0, 0, MLX4_CMD_QUERY_FW,
-			    MLX4_CMD_TIME_CLASS_A);
+			    MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
 	if (err)
 		goto out;
 
@@ -711,7 +716,7 @@ int mlx4_QUERY_ADAPTER(struct mlx4_dev *dev, struct mlx4_adapter *adapter)
 	outbox = mailbox->buf;
 
 	err = mlx4_cmd_box(dev, 0, mailbox->dma, 0, 0, MLX4_CMD_QUERY_ADAPTER,
-			   MLX4_CMD_TIME_CLASS_A);
+			   MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
 	if (err)
 		goto out;
 
@@ -834,7 +839,8 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 	MLX4_PUT(inbox, (u8) (PAGE_SHIFT - 12), INIT_HCA_UAR_PAGE_SZ_OFFSET);
 	MLX4_PUT(inbox, param->log_uar_sz,      INIT_HCA_LOG_UAR_SZ_OFFSET);
 
-	err = mlx4_cmd(dev, mailbox->dma, 0, 0, MLX4_CMD_INIT_HCA, 10000);
+	err = mlx4_cmd(dev, mailbox->dma, 0, 0, MLX4_CMD_INIT_HCA, 10000,
+		       MLX4_CMD_NATIVE);
 
 	if (err)
 		mlx4_err(dev, "INIT_HCA returns %d\n", err);
@@ -886,12 +892,12 @@ int mlx4_INIT_PORT(struct mlx4_dev *dev, int port)
 		MLX4_PUT(inbox, field, INIT_PORT_MAX_PKEY_OFFSET);
 
 		err = mlx4_cmd(dev, mailbox->dma, port, 0, MLX4_CMD_INIT_PORT,
-			       MLX4_CMD_TIME_CLASS_A);
+			       MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
 
 		mlx4_free_cmd_mailbox(dev, mailbox);
 	} else
 		err = mlx4_cmd(dev, 0, port, 0, MLX4_CMD_INIT_PORT,
-			       MLX4_CMD_TIME_CLASS_A);
+			       MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
 
 	return err;
 }
@@ -899,20 +905,22 @@ EXPORT_SYMBOL_GPL(mlx4_INIT_PORT);
 
 int mlx4_CLOSE_PORT(struct mlx4_dev *dev, int port)
 {
-	return mlx4_cmd(dev, 0, port, 0, MLX4_CMD_CLOSE_PORT, 1000);
+	return mlx4_cmd(dev, 0, port, 0, MLX4_CMD_CLOSE_PORT, 1000,
+			MLX4_CMD_WRAPPED);
 }
 EXPORT_SYMBOL_GPL(mlx4_CLOSE_PORT);
 
 int mlx4_CLOSE_HCA(struct mlx4_dev *dev, int panic)
 {
-	return mlx4_cmd(dev, 0, 0, panic, MLX4_CMD_CLOSE_HCA, 1000);
+	return mlx4_cmd(dev, 0, 0, panic, MLX4_CMD_CLOSE_HCA, 1000,
+			MLX4_CMD_NATIVE);
 }
 
 int mlx4_SET_ICM_SIZE(struct mlx4_dev *dev, u64 icm_size, u64 *aux_pages)
 {
 	int ret = mlx4_cmd_imm(dev, icm_size, aux_pages, 0, 0,
 			       MLX4_CMD_SET_ICM_SIZE,
-			       MLX4_CMD_TIME_CLASS_A);
+			       MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
 	if (ret)
 		return ret;
 
@@ -929,7 +937,7 @@ int mlx4_SET_ICM_SIZE(struct mlx4_dev *dev, u64 icm_size, u64 *aux_pages)
 int mlx4_NOP(struct mlx4_dev *dev)
 {
 	/* Input modifier of 0x1f means "finish as soon as possible." */
-	return mlx4_cmd(dev, 0, 0x1f, 0, MLX4_CMD_NOP, 100);
+	return mlx4_cmd(dev, 0, 0x1f, 0, MLX4_CMD_NOP, 100, MLX4_CMD_NATIVE);
 }
 
 #define MLX4_WOL_SETUP_MODE (5 << 28)
@@ -938,7 +946,8 @@ int mlx4_wol_read(struct mlx4_dev *dev, u64 *config, int port)
 	u32 in_mod = MLX4_WOL_SETUP_MODE | port << 8;
 
 	return mlx4_cmd_imm(dev, 0, config, in_mod, 0x3,
-			    MLX4_CMD_MOD_STAT_CFG, MLX4_CMD_TIME_CLASS_A);
+			    MLX4_CMD_MOD_STAT_CFG, MLX4_CMD_TIME_CLASS_A,
+			    MLX4_CMD_NATIVE);
 }
 EXPORT_SYMBOL_GPL(mlx4_wol_read);
 
@@ -947,6 +956,6 @@ int mlx4_wol_write(struct mlx4_dev *dev, u64 config, int port)
 	u32 in_mod = MLX4_WOL_SETUP_MODE | port << 8;
 
 	return mlx4_cmd(dev, config, in_mod, 0x1, MLX4_CMD_MOD_STAT_CFG,
-					MLX4_CMD_TIME_CLASS_A);
+			MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
 }
 EXPORT_SYMBOL_GPL(mlx4_wol_write);

@@ -173,6 +173,11 @@ enum {
 	MLX4_SET_PORT_GID_TABLE = 0x5,
 };
 
+enum {
+	MLX4_CMD_WRAPPED,
+	MLX4_CMD_NATIVE
+};
+
 struct mlx4_dev;
 
 struct mlx4_cmd_mailbox {
@@ -182,23 +187,24 @@ struct mlx4_cmd_mailbox {
 
 int __mlx4_cmd(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 	       int out_is_imm, u32 in_modifier, u8 op_modifier,
-	       u16 op, unsigned long timeout);
+	       u16 op, unsigned long timeout, int native);
 
 /* Invoke a command with no output parameter */
 static inline int mlx4_cmd(struct mlx4_dev *dev, u64 in_param, u32 in_modifier,
-			   u8 op_modifier, u16 op, unsigned long timeout)
+			   u8 op_modifier, u16 op, unsigned long timeout,
+			   int native)
 {
 	return __mlx4_cmd(dev, in_param, NULL, 0, in_modifier,
-			  op_modifier, op, timeout);
+			  op_modifier, op, timeout, native);
 }
 
 /* Invoke a command with an output mailbox */
 static inline int mlx4_cmd_box(struct mlx4_dev *dev, u64 in_param, u64 out_param,
 			       u32 in_modifier, u8 op_modifier, u16 op,
-			       unsigned long timeout)
+			       unsigned long timeout, int native)
 {
 	return __mlx4_cmd(dev, in_param, &out_param, 0, in_modifier,
-			  op_modifier, op, timeout);
+			  op_modifier, op, timeout, native);
 }
 
 /*
@@ -208,10 +214,10 @@ static inline int mlx4_cmd_box(struct mlx4_dev *dev, u64 in_param, u64 out_param
  */
 static inline int mlx4_cmd_imm(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 			       u32 in_modifier, u8 op_modifier, u16 op,
-			       unsigned long timeout)
+			       unsigned long timeout, int native)
 {
 	return __mlx4_cmd(dev, in_param, out_param, 1, in_modifier,
-			  op_modifier, op, timeout);
+			  op_modifier, op, timeout, native);
 }
 
 struct mlx4_cmd_mailbox *mlx4_alloc_cmd_mailbox(struct mlx4_dev *dev);

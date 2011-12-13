@@ -45,7 +45,8 @@ int mlx4_SENSE_PORT(struct mlx4_dev *dev, int port,
 	int err = 0;
 
 	err = mlx4_cmd_imm(dev, 0, &out_param, port, 0,
-			   MLX4_CMD_SENSE_PORT, MLX4_CMD_TIME_CLASS_B);
+			   MLX4_CMD_SENSE_PORT, MLX4_CMD_TIME_CLASS_B,
+			   MLX4_CMD_WRAPPED);
 	if (err) {
 		mlx4_err(dev, "Sense command failed for port: %d\n", port);
 		return err;

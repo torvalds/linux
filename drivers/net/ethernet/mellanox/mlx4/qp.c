@@ -119,7 +119,8 @@ int mlx4_qp_modify(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 
 	if (op[cur_state][new_state] == MLX4_CMD_2RST_QP)
 		return mlx4_cmd(dev, 0, qp->qpn, 2,
-				MLX4_CMD_2RST_QP, MLX4_CMD_TIME_CLASS_A);
+				MLX4_CMD_2RST_QP, MLX4_CMD_TIME_CLASS_A,
+				MLX4_CMD_WRAPPED);
 
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox))
@@ -140,7 +141,8 @@ int mlx4_qp_modify(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 
 	ret = mlx4_cmd(dev, mailbox->dma, qp->qpn | (!!sqd_event << 31),
 		       new_state == MLX4_QP_STATE_RST ? 2 : 0,
-		       op[cur_state][new_state], MLX4_CMD_TIME_CLASS_C);
+		       op[cur_state][new_state], MLX4_CMD_TIME_CLASS_C,
+		       MLX4_CMD_WRAPPED);
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	return ret;
@@ -265,7 +267,7 @@ EXPORT_SYMBOL_GPL(mlx4_qp_free);
 static int mlx4_CONF_SPECIAL_QP(struct mlx4_dev *dev, u32 base_qpn)
 {
 	return mlx4_cmd(dev, 0, base_qpn, 0, MLX4_CMD_CONF_SPECIAL_QP,
-			MLX4_CMD_TIME_CLASS_B);
+			MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
 }
 
 int mlx4_init_qp_table(struct mlx4_dev *dev)
@@ -342,7 +344,8 @@ int mlx4_qp_query(struct mlx4_dev *dev, struct mlx4_qp *qp,
 		return PTR_ERR(mailbox);
 
 	err = mlx4_cmd_box(dev, 0, mailbox->dma, qp->qpn, 0,
-			   MLX4_CMD_QUERY_QP, MLX4_CMD_TIME_CLASS_A);
+			   MLX4_CMD_QUERY_QP, MLX4_CMD_TIME_CLASS_A,
+			   MLX4_CMD_WRAPPED);
 	if (!err)
 		memcpy(context, mailbox->buf + 8, sizeof *context);
 

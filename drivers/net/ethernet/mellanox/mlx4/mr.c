@@ -254,14 +254,15 @@ static int mlx4_SW2HW_MPT(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbox
 			  int mpt_index)
 {
 	return mlx4_cmd(dev, mailbox->dma, mpt_index, 0, MLX4_CMD_SW2HW_MPT,
-			MLX4_CMD_TIME_CLASS_B);
+			MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
 }
 
 static int mlx4_HW2SW_MPT(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbox,
 			  int mpt_index)
 {
 	return mlx4_cmd_box(dev, 0, mailbox ? mailbox->dma : 0, mpt_index,
-			    !mailbox, MLX4_CMD_HW2SW_MPT, MLX4_CMD_TIME_CLASS_B);
+			    !mailbox, MLX4_CMD_HW2SW_MPT,
+			    MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
 }
 
 int mlx4_mr_alloc(struct mlx4_dev *dev, u32 pd, u64 iova, u64 size, u32 access,
@@ -663,6 +664,7 @@ EXPORT_SYMBOL_GPL(mlx4_fmr_free);
 
 int mlx4_SYNC_TPT(struct mlx4_dev *dev)
 {
-	return mlx4_cmd(dev, 0, 0, 0, MLX4_CMD_SYNC_TPT, 1000);
+	return mlx4_cmd(dev, 0, 0, 0, MLX4_CMD_SYNC_TPT, 1000,
+			MLX4_CMD_WRAPPED);
 }
 EXPORT_SYMBOL_GPL(mlx4_SYNC_TPT);
