@@ -2455,7 +2455,7 @@ static inline void hci_acldata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 	if (conn) {
 		register struct hci_proto *hp;
 
-		hci_conn_enter_active_mode(conn, bt_cb(skb)->force_active);
+		hci_conn_enter_active_mode(conn, BT_POWER_FORCE_ACTIVE_OFF);
 
 		/* Send to upper protocol */
 		hp = hci_proto[HCI_PROTO_L2CAP];
