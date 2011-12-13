@@ -1306,7 +1306,7 @@ static const struct cx88_board cx88_boards[] = {
 	},
 	[CX88_BOARD_WINFAST_DTV2000H_J] = {
 		.name           = "WinFast DTV2000 H rev. J",
-		.tuner_type     = TUNER_PHILIPS_FMD1216ME_MK3,
+		.tuner_type     = TUNER_PHILIPS_FMD1216MEX_MK3,
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
@@ -3232,6 +3232,7 @@ static void cx88_card_setup_pre_i2c(struct cx88_core *core)
 		cx_set(MO_GP0_IO, 0x00001010);
 		break;
 
+	case CX88_BOARD_WINFAST_DTV2000H_J:
 	case CX88_BOARD_HAUPPAUGE_HVR3000:
 	case CX88_BOARD_HAUPPAUGE_HVR4000:
 		/* Init GPIO */

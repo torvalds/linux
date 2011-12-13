@@ -1000,7 +1000,6 @@ static int dvb_register(struct cx8802_dev *dev)
 		}
 		break;
 	case CX88_BOARD_WINFAST_DTV2000H:
-	case CX88_BOARD_WINFAST_DTV2000H_J:
 	case CX88_BOARD_HAUPPAUGE_HVR1100:
 	case CX88_BOARD_HAUPPAUGE_HVR1100LP:
 	case CX88_BOARD_HAUPPAUGE_HVR1300:
@@ -1011,6 +1010,17 @@ static int dvb_register(struct cx8802_dev *dev)
 			if (!dvb_attach(simple_tuner_attach, fe0->dvb.frontend,
 				   &core->i2c_adap, 0x61,
 				   TUNER_PHILIPS_FMD1216ME_MK3))
+				goto frontend_detach;
+		}
+		break;
+	case CX88_BOARD_WINFAST_DTV2000H_J:
+		fe0->dvb.frontend = dvb_attach(cx22702_attach,
+					       &hauppauge_hvr_config,
+					       &core->i2c_adap);
+		if (fe0->dvb.frontend != NULL) {
+			if (!dvb_attach(simple_tuner_attach, fe0->dvb.frontend,
+				   &core->i2c_adap, 0x61,
+				   TUNER_PHILIPS_FMD1216MEX_MK3))
 				goto frontend_detach;
 		}
 		break;
