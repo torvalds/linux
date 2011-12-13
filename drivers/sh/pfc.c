@@ -210,7 +210,7 @@ static void write_config_reg(struct pinmux_info *gpioc,
 			     unsigned long field, unsigned long value)
 {
 	void __iomem *mapped_reg;
-	unsigned long mask, pos;
+	unsigned long mask, pos, data;
 
 	config_reg_helper(gpioc, crp, field, &mapped_reg, &mask, &pos);
 
@@ -221,17 +221,15 @@ static void write_config_reg(struct pinmux_info *gpioc,
 	mask = ~(mask << pos);
 	value = value << pos;
 
-	switch (crp->reg_width) {
-	case 8:
-		iowrite8((ioread8(mapped_reg) & mask) | value, mapped_reg);
-		break;
-	case 16:
-		iowrite16((ioread16(mapped_reg) & mask) | value, mapped_reg);
-		break;
-	case 32:
-		iowrite32((ioread32(mapped_reg) & mask) | value, mapped_reg);
-		break;
-	}
+	data = gpio_read_raw_reg(mapped_reg, crp->reg_width);
+	data &= mask;
+	data |= value;
+
+	if (gpioc->unlock_reg)
+		gpio_write_raw_reg(pfc_phys_to_virt(gpioc, gpioc->unlock_reg),
+				   32, ~data);
+
+	gpio_write_raw_reg(mapped_reg, crp->reg_width, data);
 }
 
 static int setup_data_reg(struct pinmux_info *gpioc, unsigned gpio)

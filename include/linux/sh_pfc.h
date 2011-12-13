@@ -116,6 +116,8 @@ struct pinmux_info {
 	unsigned int num_resources;
 	struct pfc_window *window;
 
+	unsigned long unlock_reg;
+
 	struct gpio_chip chip;
 };
 
