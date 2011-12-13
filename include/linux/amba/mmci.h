@@ -6,6 +6,19 @@
 
 #include <linux/mmc/host.h>
 
+
+/*
+ * These defines is places here due to access is needed from machine
+ * configuration files. The ST Micro version does not have ROD and
+ * reuse the voltage registers for direction settings.
+ */
+#define MCI_ST_DATA2DIREN	(1 << 2)
+#define MCI_ST_CMDDIREN		(1 << 3)
+#define MCI_ST_DATA0DIREN	(1 << 4)
+#define MCI_ST_DATA31DIREN	(1 << 5)
+#define MCI_ST_FBCLKEN		(1 << 7)
+#define MCI_ST_DATA74DIREN	(1 << 8)
+
 /* Just some dummy forwarding */
 struct dma_chan;
 
@@ -31,6 +44,8 @@ struct dma_chan;
  * @capabilities: the capabilities of the block as implemented in
  * this platform, signify anything MMC_CAP_* from mmc/host.h
  * @capabilities2: more capabilities, MMC_CAP2_* from mmc/host.h
+ * @sigdir: a bit field indicating for what bits in the MMC bus the host
+ * should enable signal direction indication.
  * @dma_filter: function used to select an appropriate RX and TX
  * DMA channel to be used for DMA, if and only if you're deploying the
  * generic DMA engine
@@ -54,6 +69,7 @@ struct mmci_platform_data {
 	bool	cd_invert;
 	unsigned long capabilities;
 	unsigned long capabilities2;
+	u32 sigdir;
 	bool (*dma_filter)(struct dma_chan *chan, void *filter_param);
 	void *dma_rx_param;
 	void *dma_tx_param;
