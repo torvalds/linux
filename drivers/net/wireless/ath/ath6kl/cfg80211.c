@@ -413,6 +413,7 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	struct ath6kl *ar = ath6kl_priv(dev);
 	struct ath6kl_vif *vif = netdev_priv(dev);
 	int status;
+	u8 nw_subtype = (ar->p2p) ? SUBTYPE_P2PDEV : SUBTYPE_NONE;
 
 	ath6kl_cfg80211_sscan_disable(vif);
 
@@ -555,6 +556,9 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 
 	vif->nw_type = vif->next_mode;
 
+	if (vif->wdev.iftype == NL80211_IFTYPE_P2P_CLIENT)
+		nw_subtype = SUBTYPE_P2PCLIENT;
+
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
 		   "%s: connect called with authmode %d dot11 auth %d"
 		   " PW crypto %d PW crypto len %d GRP crypto %d"
@@ -572,7 +576,7 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 					vif->grp_crypto, vif->grp_crypto_len,
 					vif->ssid_len, vif->ssid,
 					vif->req_bssid, vif->ch_hint,
-					ar->connect_ctrl_flags);
+					ar->connect_ctrl_flags, nw_subtype);
 
 	up(&ar->sem);
 
@@ -914,9 +918,25 @@ static int ath6kl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 	if (test_bit(CONNECTED, &vif->flags))
 		force_fg_scan = 1;
 
-	ret = ath6kl_wmi_startscan_cmd(ar->wmi, vif->fw_vif_idx, WMI_LONG_SCAN,
-				       force_fg_scan, false, 0, 0, n_channels,
-				       channels);
+	if (test_bit(ATH6KL_FW_CAPABILITY_STA_P2PDEV_DUPLEX,
+		    ar->fw_capabilities)) {
+		/*
+		 * If capable of doing P2P mgmt operations using
+		 * station interface, send additional information like
+		 * supported rates to advertise and xmit rates for
+		 * probe requests
+		 */
+		ret = ath6kl_wmi_beginscan_cmd(ar->wmi, vif->fw_vif_idx,
+						WMI_LONG_SCAN, force_fg_scan,
+						false, 0, 0, n_channels,
+						channels, request->no_cck,
+						request->rates);
+	} else {
+		ret = ath6kl_wmi_startscan_cmd(ar->wmi, vif->fw_vif_idx,
+						WMI_LONG_SCAN, force_fg_scan,
+						false, 0, 0, n_channels,
+						channels);
+	}
 	if (ret)
 		ath6kl_err("wmi_startscan_cmd failed\n");
 	else
@@ -1485,7 +1505,7 @@ static int ath6kl_cfg80211_join_ibss(struct wiphy *wiphy,
 					vif->grp_crypto, vif->grp_crypto_len,
 					vif->ssid_len, vif->ssid,
 					vif->req_bssid, vif->ch_hint,
-					ar->connect_ctrl_flags);
+					ar->connect_ctrl_flags, SUBTYPE_NONE);
 	set_bit(CONNECT_PEND, &vif->flags);
 
 	return 0;
@@ -2192,6 +2212,16 @@ static int ath6kl_ap_beacon(struct wiphy *wiphy, struct net_device *dev,
 	p.dot11_auth_mode = vif->dot11_auth_mode;
 	p.ch = cpu_to_le16(vif->next_chan);
 
+	if (vif->wdev.iftype == NL80211_IFTYPE_P2P_GO) {
+		p.nw_subtype = SUBTYPE_P2PGO;
+	} else {
+		/*
+		 * Due to firmware limitation, it is not possible to
+		 * do P2P mgmt operations in AP mode
+		 */
+		p.nw_subtype = SUBTYPE_NONE;
+	}
+
 	res = ath6kl_wmi_ap_profile_commit(ar->wmi, vif->fw_vif_idx, &p);
 	if (res < 0)
 		return res;
@@ -2357,9 +2387,23 @@ static int ath6kl_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	*cookie = id;
-	return ath6kl_wmi_send_action_cmd(ar->wmi, vif->fw_vif_idx, id,
-					  chan->center_freq, wait,
-					  buf, len);
+
+	if (test_bit(ATH6KL_FW_CAPABILITY_STA_P2PDEV_DUPLEX,
+		    ar->fw_capabilities)) {
+		/*
+		 * If capable of doing P2P mgmt operations using
+		 * station interface, send additional information like
+		 * supported rates to advertise and xmit rates for
+		 * probe requests
+		 */
+		return ath6kl_wmi_send_mgmt_cmd(ar->wmi, vif->fw_vif_idx, id,
+						chan->center_freq, wait,
+						buf, len, no_cck);
+	} else {
+		return ath6kl_wmi_send_action_cmd(ar->wmi, vif->fw_vif_idx, id,
+						  chan->center_freq, wait,
+						  buf, len);
+	}
 }
 
 static void ath6kl_mgmt_frame_register(struct wiphy *wiphy,

@@ -1704,7 +1704,8 @@ int ath6kl_wmi_connect_cmd(struct wmi *wmi, u8 if_idx,
 			   u8 pairwise_crypto_len,
 			   enum crypto_type group_crypto,
 			   u8 group_crypto_len, int ssid_len, u8 *ssid,
-			   u8 *bssid, u16 channel, u32 ctrl_flags)
+			   u8 *bssid, u16 channel, u32 ctrl_flags,
+			   u8 nw_subtype)
 {
 	struct sk_buff *skb;
 	struct wmi_connect_cmd *cc;
@@ -1744,6 +1745,7 @@ int ath6kl_wmi_connect_cmd(struct wmi *wmi, u8 if_idx,
 	cc->grp_crypto_len = group_crypto_len;
 	cc->ch = cpu_to_le16(channel);
 	cc->ctrl_flags = cpu_to_le32(ctrl_flags);
+	cc->nw_subtype = nw_subtype;
 
 	if (bssid != NULL)
 		memcpy(cc->bssid, bssid, ETH_ALEN);
@@ -1796,6 +1798,72 @@ int ath6kl_wmi_disconnect_cmd(struct wmi *wmi, u8 if_idx)
 	return ret;
 }
 
+int ath6kl_wmi_beginscan_cmd(struct wmi *wmi, u8 if_idx,
+			     enum wmi_scan_type scan_type,
+			     u32 force_fgscan, u32 is_legacy,
+			     u32 home_dwell_time, u32 force_scan_interval,
+			     s8 num_chan, u16 *ch_list, u32 no_cck, u32 *rates)
+{
+	struct sk_buff *skb;
+	struct wmi_begin_scan_cmd *sc;
+	s8 size;
+	int i, band, ret;
+	struct ath6kl *ar = wmi->parent_dev;
+	int num_rates;
+
+	size = sizeof(struct wmi_begin_scan_cmd);
+
+	if ((scan_type != WMI_LONG_SCAN) && (scan_type != WMI_SHORT_SCAN))
+		return -EINVAL;
+
+	if (num_chan > WMI_MAX_CHANNELS)
+		return -EINVAL;
+
+	if (num_chan)
+		size += sizeof(u16) * (num_chan - 1);
+
+	skb = ath6kl_wmi_get_new_buf(size);
+	if (!skb)
+		return -ENOMEM;
+
+	sc = (struct wmi_begin_scan_cmd *) skb->data;
+	sc->scan_type = scan_type;
+	sc->force_fg_scan = cpu_to_le32(force_fgscan);
+	sc->is_legacy = cpu_to_le32(is_legacy);
+	sc->home_dwell_time = cpu_to_le32(home_dwell_time);
+	sc->force_scan_intvl = cpu_to_le32(force_scan_interval);
+	sc->no_cck = cpu_to_le32(no_cck);
+	sc->num_ch = num_chan;
+
+	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+		struct ieee80211_supported_band *sband =
+		    ar->wiphy->bands[band];
+		u32 ratemask = rates[band];
+		u8 *supp_rates = sc->supp_rates[band].rates;
+		num_rates = 0;
+
+		for (i = 0; i < sband->n_bitrates; i++) {
+			if ((BIT(i) & ratemask) == 0)
+				continue; /* skip rate */
+			supp_rates[num_rates++] =
+			    (u8) (sband->bitrates[i].bitrate / 5);
+		}
+		sc->supp_rates[band].nrates = num_rates;
+	}
+
+	for (i = 0; i < num_chan; i++)
+		sc->ch_list[i] = cpu_to_le16(ch_list[i]);
+
+	ret = ath6kl_wmi_cmd_send(wmi, if_idx, skb, WMI_BEGIN_SCAN_CMDID,
+				  NO_SYNC_WMIFLAG);
+
+	return ret;
+}
+
+/* ath6kl_wmi_start_scan_cmd is to be deprecated. Use
+ * ath6kl_wmi_begin_scan_cmd instead. The new function supports P2P
+ * mgmt operations using station interface.
+ */
 int ath6kl_wmi_startscan_cmd(struct wmi *wmi, u8 if_idx,
 			     enum wmi_scan_type scan_type,
 			     u32 force_fgscan, u32 is_legacy,
@@ -3006,6 +3074,10 @@ int ath6kl_wmi_remain_on_chnl_cmd(struct wmi *wmi, u8 if_idx, u32 freq, u32 dur)
 				   NO_SYNC_WMIFLAG);
 }
 
+/* ath6kl_wmi_send_action_cmd is to be deprecated. Use
+ * ath6kl_wmi_send_mgmt_cmd instead. The new function supports P2P
+ * mgmt operations using station interface.
+ */
 int ath6kl_wmi_send_action_cmd(struct wmi *wmi, u8 if_idx, u32 id, u32 freq,
 			       u32 wait, const u8 *data, u16 data_len)
 {
@@ -3040,6 +3112,45 @@ int ath6kl_wmi_send_action_cmd(struct wmi *wmi, u8 if_idx, u32 id, u32 freq,
 	p->len = cpu_to_le16(data_len);
 	memcpy(p->data, data, data_len);
 	return ath6kl_wmi_cmd_send(wmi, if_idx, skb, WMI_SEND_ACTION_CMDID,
+				   NO_SYNC_WMIFLAG);
+}
+
+int ath6kl_wmi_send_mgmt_cmd(struct wmi *wmi, u8 if_idx, u32 id, u32 freq,
+			       u32 wait, const u8 *data, u16 data_len,
+			       u32 no_cck)
+{
+	struct sk_buff *skb;
+	struct wmi_send_mgmt_cmd *p;
+	u8 *buf;
+
+	if (wait)
+		return -EINVAL; /* Offload for wait not supported */
+
+	buf = kmalloc(data_len, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	skb = ath6kl_wmi_get_new_buf(sizeof(*p) + data_len);
+	if (!skb) {
+		kfree(buf);
+		return -ENOMEM;
+	}
+
+	kfree(wmi->last_mgmt_tx_frame);
+	memcpy(buf, data, data_len);
+	wmi->last_mgmt_tx_frame = buf;
+	wmi->last_mgmt_tx_frame_len = data_len;
+
+	ath6kl_dbg(ATH6KL_DBG_WMI, "send_action_cmd: id=%u freq=%u wait=%u "
+		   "len=%u\n", id, freq, wait, data_len);
+	p = (struct wmi_send_mgmt_cmd *) skb->data;
+	p->id = cpu_to_le32(id);
+	p->freq = cpu_to_le32(freq);
+	p->wait = cpu_to_le32(wait);
+	p->no_cck = cpu_to_le32(no_cck);
+	p->len = cpu_to_le16(data_len);
+	memcpy(p->data, data, data_len);
+	return ath6kl_wmi_cmd_send(wmi, if_idx, skb, WMI_SEND_MGMT_CMDID,
 				   NO_SYNC_WMIFLAG);
 }
 
