@@ -913,12 +913,15 @@ static int ath6kl_fetch_fw_api2(struct ath6kl *ar)
 				   ar->hw.reserved_ram_size);
 			break;
 		case ATH6KL_FW_IE_CAPABILITIES:
+			if (ie_len < DIV_ROUND_UP(ATH6KL_FW_CAPABILITY_MAX, 8))
+				break;
+
 			ath6kl_dbg(ATH6KL_DBG_BOOT,
 				   "found firmware capabilities ie (%zd B)\n",
 				   ie_len);
 
 			for (i = 0; i < ATH6KL_FW_CAPABILITY_MAX; i++) {
-				index = ALIGN(i, 8) / 8;
+				index = i / 8;
 				bit = i % 8;
 
 				if (data[index] & (1 << bit))
