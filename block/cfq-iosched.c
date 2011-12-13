@@ -2669,24 +2669,6 @@ static void cfq_put_queue(struct cfq_queue *cfqq)
 	cfq_put_cfqg(cfqg);
 }
 
-/*
- * Call func for each cic attached to this ioc.
- */
-static void
-call_for_each_cic(struct io_context *ioc,
-		  void (*func)(struct io_context *, struct cfq_io_context *))
-{
-	struct cfq_io_context *cic;
-	struct hlist_node *n;
-
-	rcu_read_lock();
-
-	hlist_for_each_entry_rcu(cic, n, &ioc->cic_list, cic_list)
-		func(ioc, cic);
-
-	rcu_read_unlock();
-}
-
 static void cfq_cic_free_rcu(struct rcu_head *head)
 {
 	struct cfq_io_context *cic;
@@ -2725,31 +2707,6 @@ static void cfq_release_cic(struct cfq_io_context *cic)
 	radix_tree_delete(&ioc->radix_root, dead_key >> CIC_DEAD_INDEX_SHIFT);
 	hlist_del_rcu(&cic->cic_list);
 	cfq_cic_free(cic);
-}
-
-static void cic_free_func(struct io_context *ioc, struct cfq_io_context *cic)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&ioc->lock, flags);
-	cfq_release_cic(cic);
-	spin_unlock_irqrestore(&ioc->lock, flags);
-}
-
-/*
- * Must be called with rcu_read_lock() held or preemption otherwise disabled.
- * Only two callers of this - ->dtor() which is called with the rcu_read_lock(),
- * and ->trim() which is called with the task lock held
- */
-static void cfq_free_io_context(struct io_context *ioc)
-{
-	/*
-	 * ioc->refcount is zero here, or we are called from elv_unregister(),
-	 * so no more cic's are allowed to be linked into this ioc.  So it
-	 * should be ok to iterate over the known list, we will see all cic's
-	 * since no new ones are added.
-	 */
-	call_for_each_cic(ioc, cic_free_func);
 }
 
 static void cfq_put_cooperator(struct cfq_queue *cfqq)
@@ -3037,30 +2994,6 @@ cfq_get_queue(struct cfq_data *cfqd, bool is_sync, struct io_context *ioc,
 	return cfqq;
 }
 
-/*
- * We drop cfq io contexts lazily, so we may find a dead one.
- */
-static void
-cfq_drop_dead_cic(struct cfq_data *cfqd, struct io_context *ioc,
-		  struct cfq_io_context *cic)
-{
-	unsigned long flags;
-
-	WARN_ON(!list_empty(&cic->queue_list));
-	BUG_ON(cic->key != cfqd_dead_key(cfqd));
-
-	spin_lock_irqsave(&ioc->lock, flags);
-
-	BUG_ON(rcu_dereference_check(ioc->ioc_data,
-		lockdep_is_held(&ioc->lock)) == cic);
-
-	radix_tree_delete(&ioc->radix_root, cfqd->queue->id);
-	hlist_del_rcu(&cic->cic_list);
-	spin_unlock_irqrestore(&ioc->lock, flags);
-
-	cfq_cic_free(cic);
-}
-
 /**
  * cfq_cic_lookup - lookup cfq_io_context
  * @cfqd: the associated cfq_data
@@ -3078,26 +3011,22 @@ cfq_cic_lookup(struct cfq_data *cfqd, struct io_context *ioc)
 	if (unlikely(!ioc))
 		return NULL;
 
-	rcu_read_lock();
-
 	/*
-	 * we maintain a last-hit cache, to avoid browsing over the tree
+	 * cic's are indexed from @ioc using radix tree and hint pointer,
+	 * both of which are protected with RCU.  All removals are done
+	 * holding both q and ioc locks, and we're holding q lock - if we
+	 * find a cic which points to us, it's guaranteed to be valid.
 	 */
+	rcu_read_lock();
 	cic = rcu_dereference(ioc->ioc_data);
 	if (cic && cic->key == cfqd)
 		goto out;
 
-	do {
-		cic = radix_tree_lookup(&ioc->radix_root, cfqd->queue->id);
-		if (!cic)
-			break;
-		if (likely(cic->key == cfqd)) {
-			/* hint assignment itself can race safely */
-			rcu_assign_pointer(ioc->ioc_data, cic);
-			break;
-		}
-		cfq_drop_dead_cic(cfqd, ioc, cic);
-	} while (1);
+	cic = radix_tree_lookup(&ioc->radix_root, cfqd->queue->id);
+	if (cic && cic->key == cfqd)
+		rcu_assign_pointer(ioc->ioc_data, cic);	/* allowed to race */
+	else
+		cic = NULL;
 out:
 	rcu_read_unlock();
 	return cic;
@@ -4182,7 +4111,6 @@ static struct elevator_type iosched_cfq = {
 		.elevator_may_queue_fn =	cfq_may_queue,
 		.elevator_init_fn =		cfq_init_queue,
 		.elevator_exit_fn =		cfq_exit_queue,
-		.trim =				cfq_free_io_context,
 	},
 	.elevator_attrs =	cfq_attrs,
 	.elevator_name =	"cfq",

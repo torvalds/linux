@@ -63,7 +63,6 @@ struct elevator_ops
 
 	elevator_init_fn *elevator_init_fn;
 	elevator_exit_fn *elevator_exit_fn;
-	void (*trim)(struct io_context *);
 };
 
 #define ELV_NAME_MAX	(16)
