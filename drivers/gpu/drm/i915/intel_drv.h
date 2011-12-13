@@ -181,6 +181,7 @@ struct intel_plane {
 	struct drm_plane base;
 	enum pipe pipe;
 	struct drm_i915_gem_object *obj;
+	bool primary_disabled;
 	int max_downscale;
 	u32 lut_r[1024], lut_g[1024], lut_b[1024];
 	void (*update_plane)(struct drm_plane *plane,

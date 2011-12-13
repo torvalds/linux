@@ -256,6 +256,28 @@ snb_disable_plane(struct drm_plane *plane)
 	POSTING_READ(DVSSURF(pipe));
 }
 
+static void
+intel_enable_primary(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int reg = DSPCNTR(intel_crtc->plane);
+
+	I915_WRITE(reg, I915_READ(reg) | DISPLAY_PLANE_ENABLE);
+}
+
+static void
+intel_disable_primary(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int reg = DSPCNTR(intel_crtc->plane);
+
+	I915_WRITE(reg, I915_READ(reg) & ~DISPLAY_PLANE_ENABLE);
+}
+
 static int
 intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		   struct drm_framebuffer *fb, int crtc_x, int crtc_y,
@@ -342,8 +364,22 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	intel_plane->obj = obj;
 
+	/*
+	 * Be sure to re-enable the primary before the sprite is no longer
+	 * covering it fully.
+	 */
+	if (!disable_primary && intel_plane->primary_disabled) {
+		intel_enable_primary(crtc);
+		intel_plane->primary_disabled = false;
+	}
+
 	intel_plane->update_plane(plane, fb, obj, crtc_x, crtc_y,
 				  crtc_w, crtc_h, x, y, src_w, src_h);
+
+	if (disable_primary) {
+		intel_disable_primary(crtc);
+		intel_plane->primary_disabled = true;
+	}
 
 	/* Unpin old obj after new one is active to avoid ugliness */
 	if (old_obj) {
@@ -373,6 +409,11 @@ intel_disable_plane(struct drm_plane *plane)
 	struct drm_device *dev = plane->dev;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	int ret = 0;
+
+	if (intel_plane->primary_disabled) {
+		intel_enable_primary(plane->crtc);
+		intel_plane->primary_disabled = false;
+	}
 
 	intel_plane->disable_plane(plane);
 
