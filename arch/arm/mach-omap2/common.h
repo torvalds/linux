@@ -60,6 +60,14 @@ static inline void omapti816x_map_common_io(void)
 }
 #endif
 
+#ifdef CONFIG_SOC_OMAPAM33XX
+extern void omapam33xx_map_common_io(void);
+#else
+static inline void omapam33xx_map_common_io(void)
+{
+}
+#endif
+
 #ifdef CONFIG_ARCH_OMAP4
 extern void omap44xx_map_common_io(void);
 #else
@@ -107,6 +115,7 @@ void omap2_set_globals_243x(void);
 void omap2_set_globals_3xxx(void);
 void omap2_set_globals_443x(void);
 void omap2_set_globals_ti816x(void);
+void omap2_set_globals_am33xx(void);
 
 /* These get called from omap2_set_globals_xxxx(), do not call these */
 void omap2_set_globals_tap(struct omap_globals *);
@@ -117,6 +126,7 @@ void omap2_set_globals_prcm(struct omap_globals *);
 void omap242x_map_io(void);
 void omap243x_map_io(void);
 void omap3_map_io(void);
+void am33xx_map_io(void);
 void omap4_map_io(void);
 
 /**

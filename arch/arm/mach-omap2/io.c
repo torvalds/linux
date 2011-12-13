@@ -183,7 +183,24 @@ static struct map_desc omapti816x_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(L4_34XX_PHYS),
 		.length		= L4_34XX_SIZE,
 		.type		= MT_DEVICE
+	}
+};
+#endif
+
+#ifdef CONFIG_SOC_OMAPAM33XX
+static struct map_desc omapam33xx_io_desc[] __initdata = {
+	{
+		.virtual	= L4_34XX_VIRT,
+		.pfn		= __phys_to_pfn(L4_34XX_PHYS),
+		.length		= L4_34XX_SIZE,
+		.type		= MT_DEVICE
 	},
+	{
+		.virtual	= L4_WK_AM33XX_VIRT,
+		.pfn		= __phys_to_pfn(L4_WK_AM33XX_PHYS),
+		.length		= L4_WK_AM33XX_SIZE,
+		.type		= MT_DEVICE
+	}
 };
 #endif
 
@@ -267,6 +284,13 @@ void __init omap34xx_map_common_io(void)
 void __init omapti816x_map_common_io(void)
 {
 	iotable_init(omapti816x_io_desc, ARRAY_SIZE(omapti816x_io_desc));
+}
+#endif
+
+#ifdef CONFIG_SOC_OMAPAM33XX
+void __init omapam33xx_map_common_io(void)
+{
+	iotable_init(omapam33xx_io_desc, ARRAY_SIZE(omapam33xx_io_desc));
 }
 #endif
 

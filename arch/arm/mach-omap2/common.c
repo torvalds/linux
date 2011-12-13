@@ -128,6 +128,27 @@ void __init omap2_set_globals_ti816x(void)
 {
 	__omap2_set_globals(&ti816x_globals);
 }
+
+#define AM33XX_TAP_BASE		(AM33XX_CTRL_BASE + \
+				TI816X_CONTROL_DEVICE_ID - 0x204)
+
+static struct omap_globals am33xx_globals = {
+	.class  = AM335X_CLASS,
+	.tap    = AM33XX_L4_WK_IO_ADDRESS(AM33XX_TAP_BASE),
+	.ctrl   = AM33XX_L4_WK_IO_ADDRESS(AM33XX_CTRL_BASE),
+	.prm    = AM33XX_L4_WK_IO_ADDRESS(AM33XX_PRCM_BASE),
+	.cm     = AM33XX_L4_WK_IO_ADDRESS(AM33XX_PRCM_BASE),
+};
+
+void __init omap2_set_globals_am33xx(void)
+{
+	__omap2_set_globals(&am33xx_globals);
+}
+
+void __init am33xx_map_io(void)
+{
+	omapam33xx_map_common_io();
+}
 #endif
 
 #if defined(CONFIG_ARCH_OMAP4)
