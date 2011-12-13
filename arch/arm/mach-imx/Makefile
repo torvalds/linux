@@ -24,7 +24,7 @@ obj-$(CONFIG_MACH_MX21ADS) += mach-mx21ads.o
 
 # i.MX25 based machines
 obj-$(CONFIG_MACH_MX25_3DS) += mach-mx25_3ds.o
-obj-$(CONFIG_MACH_EUKREA_CPUIMX25) += mach-eukrea_cpuimx25.o
+obj-$(CONFIG_MACH_EUKREA_CPUIMX25SD) += mach-eukrea_cpuimx25.o
 obj-$(CONFIG_MACH_EUKREA_MBIMXSD25_BASEBOARD) += eukrea_mbimxsd25-baseboard.o
 
 # i.MX27 based machines
