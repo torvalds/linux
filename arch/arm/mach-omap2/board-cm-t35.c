@@ -339,12 +339,10 @@ static struct regulator_consumer_supply cm_t35_vsim_supply[] = {
 	REGULATOR_SUPPLY("vmmc_aux", "omap_hsmmc.0"),
 };
 
-static struct regulator_consumer_supply cm_t35_vdvi_supply[] = {
-	REGULATOR_SUPPLY("vdvi", "omapdss"),
-};
-
 static struct regulator_consumer_supply cm_t35_vio_supplies[] = {
 	REGULATOR_SUPPLY("vcc", "spi1.0"),
+	REGULATOR_SUPPLY("vdds_dsi", "omapdss"),
+	REGULATOR_SUPPLY("vdds_dsi", "omapdss_dsi1"),
 };
 
 /* VMMC1 for MMC1 pins CMD, CLK, DAT0..DAT3 (20 mA, plus card == max 220 mA) */
@@ -479,12 +477,7 @@ static struct twl4030_platform_data cm_t35_twldata = {
 static void __init cm_t35_init_i2c(void)
 {
 	omap3_pmic_get_config(&cm_t35_twldata, TWL_COMMON_PDATA_USB,
-			TWL_COMMON_REGULATOR_VDAC | TWL_COMMON_REGULATOR_VPLL2);
-
-	cm_t35_twldata.vpll2->constraints.name = "VDVI";
-	cm_t35_twldata.vpll2->num_consumer_supplies =
-						ARRAY_SIZE(cm_t35_vdvi_supply);
-	cm_t35_twldata.vpll2->consumer_supplies = cm_t35_vdvi_supply;
+			TWL_COMMON_REGULATOR_VDAC);
 
 	omap3_pmic_init("tps65930", &cm_t35_twldata);
 }
