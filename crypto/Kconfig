@@ -261,8 +261,7 @@ config CRYPTO_PCBC
 	  This block cipher algorithm is required for RxRPC.
 
 config CRYPTO_XTS
-	tristate "XTS support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "XTS support"
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_MANAGER
 	select CRYPTO_GF128MUL
