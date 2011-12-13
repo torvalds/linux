@@ -140,10 +140,8 @@ static void mlx4_set_port_mask(struct mlx4_dev *dev)
 {
 	int i;
 
-	dev->caps.port_mask = 0;
 	for (i = 1; i <= dev->caps.num_ports; ++i)
-		if (dev->caps.port_type[i] == MLX4_PORT_TYPE_IB)
-			dev->caps.port_mask |= 1 << (i - 1);
+		dev->caps.port_mask[i] = dev->caps.port_type[i];
 }
 
 static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)

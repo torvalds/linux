@@ -302,7 +302,7 @@ struct mlx4_caps {
 	int                     log_num_prios;
 	enum mlx4_port_type	port_type[MLX4_MAX_PORTS + 1];
 	u8			supported_type[MLX4_MAX_PORTS + 1];
-	u32			port_mask;
+	u32			port_mask[MLX4_MAX_PORTS + 1];
 	enum mlx4_port_type	possible_type[MLX4_MAX_PORTS + 1];
 	u32			max_counters;
 	u8			ext_port_cap[MLX4_MAX_PORTS + 1];
@@ -507,13 +507,12 @@ struct mlx4_init_port_param {
 
 #define mlx4_foreach_port(port, dev, type)				\
 	for ((port) = 1; (port) <= (dev)->caps.num_ports; (port)++)	\
-		if (((type) == MLX4_PORT_TYPE_IB ? (dev)->caps.port_mask : \
-		     ~(dev)->caps.port_mask) & 1 << ((port) - 1))
+		if ((type) == (dev)->caps.port_mask[(port)])
 
-#define mlx4_foreach_ib_transport_port(port, dev)			\
-	for ((port) = 1; (port) <= (dev)->caps.num_ports; (port)++)	\
-		if (((dev)->caps.port_mask & 1 << ((port) - 1)) ||	\
-		     ((dev)->caps.flags & MLX4_DEV_CAP_FLAG_IBOE))
+#define mlx4_foreach_ib_transport_port(port, dev)                         \
+	for ((port) = 1; (port) <= (dev)->caps.num_ports; (port)++)	  \
+		if (((dev)->caps.port_mask[port] == MLX4_PORT_TYPE_IB) || \
+			((dev)->caps.flags & MLX4_DEV_CAP_FLAG_IBOE))
 
 static inline int mlx4_is_master(struct mlx4_dev *dev)
 {

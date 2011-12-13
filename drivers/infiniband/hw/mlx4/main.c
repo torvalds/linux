@@ -177,7 +177,7 @@ mlx4_ib_port_link_layer(struct ib_device *device, u8 port_num)
 {
 	struct mlx4_dev *dev = to_mdev(device)->dev;
 
-	return dev->caps.port_mask & (1 << (port_num - 1)) ?
+	return dev->caps.port_mask[port_num] == MLX4_PORT_TYPE_IB ?
 		IB_LINK_LAYER_INFINIBAND : IB_LINK_LAYER_ETHERNET;
 }
 
