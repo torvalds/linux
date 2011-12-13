@@ -591,15 +591,10 @@ void mei_host_init_iamthif(struct mei_device *dev)
 		return;
 	}
 
-	/* Do not render the system unusable when iamthif_mtu is not equal to
-	the value received from ME.
-	Assign iamthif_mtu to the value received from ME in order to solve the
-	hardware macro incompatibility. */
+	/* Assign iamthif_mtu to the value received from ME  */
 
-	dev_dbg(&dev->pdev->dev, "[DEFAULT] IAMTHIF = %d\n", dev->iamthif_mtu);
 	dev->iamthif_mtu = dev->me_clients[i].props.max_msg_length;
-	dev_dbg(&dev->pdev->dev,
-			"IAMTHIF = %d\n",
+	dev_dbg(&dev->pdev->dev, "IAMTHIF_MTU = %d\n",
 			dev->me_clients[i].props.max_msg_length);
 
 	kfree(dev->iamthif_msg_buf);
