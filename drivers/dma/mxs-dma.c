@@ -391,7 +391,7 @@ static struct dma_async_tx_descriptor *mxs_dma_prep_slave_sg(
 		idx = 0;
 	}
 
-	if (direction == DMA_NONE) {
+	if (direction == DMA_TRANS_NONE) {
 		ccw = &mxs_chan->ccw[idx++];
 		pio = (u32 *) sgl;
 
