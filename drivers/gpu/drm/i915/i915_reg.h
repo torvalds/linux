@@ -3563,6 +3563,14 @@
 #define GEN6_PCODE_DATA				0x138128
 #define   GEN6_PCODE_FREQ_IA_RATIO_SHIFT	8
 
+#define GEN6_GT_CORE_STATUS		0x138060
+#define   GEN6_CORE_CPD_STATE_MASK	(7<<4)
+#define   GEN6_RCn_MASK			7
+#define   GEN6_RC0			0
+#define   GEN6_RC3			2
+#define   GEN6_RC6			3
+#define   GEN6_RC7			4
+
 #define G4X_AUD_VID_DID			0x62020
 #define INTEL_AUDIO_DEVCL		0x808629FB
 #define INTEL_AUDIO_DEVBLC		0x80862801
