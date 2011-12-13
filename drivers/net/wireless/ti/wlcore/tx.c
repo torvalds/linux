@@ -176,10 +176,10 @@ u8 wl12xx_tx_get_hlid(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 unsigned int wlcore_calc_packet_alignment(struct wl1271 *wl,
 					  unsigned int packet_length)
 {
-	if (wl->quirks & WLCORE_QUIRK_NO_BLOCKSIZE_ALIGNMENT)
-		return ALIGN(packet_length, WL1271_TX_ALIGN_TO);
-	else
+	if (wl->quirks & WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN)
 		return ALIGN(packet_length, WL12XX_BUS_BLOCK_SIZE);
+	else
+		return ALIGN(packet_length, WL1271_TX_ALIGN_TO);
 }
 EXPORT_SYMBOL(wlcore_calc_packet_alignment);
 

@@ -1345,8 +1345,8 @@ static int wl12xx_chip_wakeup(struct wl1271 *wl, bool plt)
 	 * negligible, we use the same block size for all different
 	 * chip types.
 	 */
-	if (!wl1271_set_block_size(wl))
-		wl->quirks |= WLCORE_QUIRK_NO_BLOCKSIZE_ALIGNMENT;
+	if (wl1271_set_block_size(wl))
+		wl->quirks |= WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN;
 
 	ret = wl->ops->identify_chip(wl);
 	if (ret < 0)

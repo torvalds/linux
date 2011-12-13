@@ -353,7 +353,7 @@ int wlcore_free_hw(struct wl1271 *wl);
 #define WLCORE_QUIRK_END_OF_TRANSACTION		BIT(0)
 
 /* wl127x and SPI don't support SDIO block size alignment */
-#define WLCORE_QUIRK_NO_BLOCKSIZE_ALIGNMENT	BIT(2)
+#define WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN		BIT(2)
 
 /* means aggregated Rx packets are aligned to a SDIO block */
 #define WLCORE_QUIRK_RX_BLOCKSIZE_ALIGN		BIT(3)
