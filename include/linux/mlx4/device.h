@@ -599,6 +599,10 @@ int mlx4_srq_query(struct mlx4_dev *dev, struct mlx4_srq *srq, int *limit_waterm
 int mlx4_INIT_PORT(struct mlx4_dev *dev, int port);
 int mlx4_CLOSE_PORT(struct mlx4_dev *dev, int port);
 
+int mlx4_unicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
+			int block_mcast_loopback, enum mlx4_protocol prot);
+int mlx4_unicast_detach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
+			enum mlx4_protocol prot);
 int mlx4_multicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 			  int block_mcast_loopback, enum mlx4_protocol protocol);
 int mlx4_multicast_detach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
@@ -609,9 +613,11 @@ int mlx4_unicast_promisc_add(struct mlx4_dev *dev, u32 qpn, u8 port);
 int mlx4_unicast_promisc_remove(struct mlx4_dev *dev, u32 qpn, u8 port);
 int mlx4_SET_MCAST_FLTR(struct mlx4_dev *dev, u8 port, u64 mac, u64 clear, u8 mode);
 
-int mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac, int *qpn, u8 wrap);
-void mlx4_unregister_mac(struct mlx4_dev *dev, u8 port, int qpn);
-int mlx4_replace_mac(struct mlx4_dev *dev, u8 port, int qpn, u64 new_mac, u8 wrap);
+int mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac);
+void mlx4_unregister_mac(struct mlx4_dev *dev, u8 port, u64 mac);
+int mlx4_replace_mac(struct mlx4_dev *dev, u8 port, int qpn, u64 new_mac);
+int mlx4_get_eth_qp(struct mlx4_dev *dev, u8 port, u64 mac, int *qpn);
+void mlx4_put_eth_qp(struct mlx4_dev *dev, u8 port, u64 mac, int qpn);
 
 int mlx4_find_cached_vlan(struct mlx4_dev *dev, u8 port, u16 vid, int *idx);
 int mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan, int *index);

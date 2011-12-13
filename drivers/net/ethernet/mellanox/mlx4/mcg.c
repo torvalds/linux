@@ -913,7 +913,7 @@ int mlx4_multicast_detach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 }
 EXPORT_SYMBOL_GPL(mlx4_multicast_detach);
 
-static int mlx4_unicast_attach(struct mlx4_dev *dev,
+int mlx4_unicast_attach(struct mlx4_dev *dev,
 			struct mlx4_qp *qp, u8 gid[16],
 			int block_mcast_loopback, enum mlx4_protocol prot)
 {
@@ -933,7 +933,7 @@ static int mlx4_unicast_attach(struct mlx4_dev *dev,
 }
 EXPORT_SYMBOL_GPL(mlx4_unicast_attach);
 
-static int mlx4_unicast_detach(struct mlx4_dev *dev, struct mlx4_qp *qp,
+int mlx4_unicast_detach(struct mlx4_dev *dev, struct mlx4_qp *qp,
 			       u8 gid[16], enum mlx4_protocol prot)
 {
 	if (prot == MLX4_PROT_ETH &&

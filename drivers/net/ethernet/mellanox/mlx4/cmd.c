@@ -654,6 +654,15 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.wrapper = mlx4_QUERY_PORT_wrapper
 	},
 	{
+		.opcode = MLX4_CMD_SET_PORT,
+		.has_inbox = true,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_SET_PORT_wrapper
+	},
+	{
 		.opcode = MLX4_CMD_MAP_EQ,
 		.has_inbox = false,
 		.has_outbox = false,
@@ -1004,6 +1013,34 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.encode_slave_id = false,
 		.verify = NULL,
 		.wrapper = mlx4_PROMISC_wrapper
+	},
+	/* Ethernet specific commands */
+	{
+		.opcode = MLX4_CMD_SET_VLAN_FLTR,
+		.has_inbox = true,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_SET_VLAN_FLTR_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_SET_MCAST_FLTR,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_SET_MCAST_FLTR_wrapper
+	},
+	{
+		.opcode = MLX4_CMD_DUMP_ETH_STATS,
+		.has_inbox = false,
+		.has_outbox = true,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_DUMP_ETH_STATS_wrapper
 	},
 	{
 		.opcode = MLX4_CMD_INFORM_FLR_DONE,

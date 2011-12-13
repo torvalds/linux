@@ -419,10 +419,21 @@ struct mlx4_comm {
 	u32			slave_read;
 };
 
+enum {
+	MLX4_MCAST_CONFIG       = 0,
+	MLX4_MCAST_DISABLE      = 1,
+	MLX4_MCAST_ENABLE       = 2,
+};
+
 #define VLAN_FLTR_SIZE	128
 
 struct mlx4_vlan_fltr {
 	__be32 entry[VLAN_FLTR_SIZE];
+};
+
+struct mlx4_mcast_entry {
+	struct list_head list;
+	u64 addr;
 };
 
 struct mlx4_promisc_qp {
@@ -613,6 +624,48 @@ struct mlx4_vlan_table {
 	struct mutex		mutex;
 	int			total;
 	int			max;
+};
+
+#define SET_PORT_GEN_ALL_VALID		0x7
+#define SET_PORT_PROMISC_SHIFT		31
+#define SET_PORT_MC_PROMISC_SHIFT	30
+
+enum {
+	MCAST_DIRECT_ONLY	= 0,
+	MCAST_DIRECT		= 1,
+	MCAST_DEFAULT		= 2
+};
+
+
+struct mlx4_set_port_general_context {
+	u8 reserved[3];
+	u8 flags;
+	u16 reserved2;
+	__be16 mtu;
+	u8 pptx;
+	u8 pfctx;
+	u16 reserved3;
+	u8 pprx;
+	u8 pfcrx;
+	u16 reserved4;
+};
+
+struct mlx4_set_port_rqp_calc_context {
+	__be32 base_qpn;
+	u8 rererved;
+	u8 n_mac;
+	u8 n_vlan;
+	u8 n_prio;
+	u8 reserved2[3];
+	u8 mac_miss;
+	u8 intra_no_vlan;
+	u8 no_vlan;
+	u8 intra_vlan_miss;
+	u8 vlan_miss;
+	u8 reserved3[3];
+	u8 no_vlan_prio;
+	__be32 promisc;
+	__be32 mcast;
 };
 
 struct mlx4_mac_entry {

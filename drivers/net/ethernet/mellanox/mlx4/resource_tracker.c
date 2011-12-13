@@ -223,17 +223,6 @@ static const char *ResourceType(enum mlx4_resource rt)
 	};
 }
 
-/* dummy procedures */
-int __mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac)
-{
-	return 0;
-}
-
-void __mlx4_unregister_mac(struct mlx4_dev *dev, u8 port, u64 mac)
-{
-}
-/* end dummies */
-
 int mlx4_init_resource_tracker(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
@@ -1271,6 +1260,12 @@ static int mac_alloc_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 	return err;
 }
 
+static int vlan_alloc_res(struct mlx4_dev *dev, int slave, int op, int cmd,
+			 u64 in_param, u64 *out_param)
+{
+	return 0;
+}
+
 int mlx4_ALLOC_RES_wrapper(struct mlx4_dev *dev, int slave,
 			   struct mlx4_vhcr *vhcr,
 			   struct mlx4_cmd_mailbox *inbox,
@@ -1308,6 +1303,11 @@ int mlx4_ALLOC_RES_wrapper(struct mlx4_dev *dev, int slave,
 
 	case RES_MAC:
 		err = mac_alloc_res(dev, slave, vhcr->op_modifier, alop,
+				    vhcr->in_param, &vhcr->out_param);
+		break;
+
+	case RES_VLAN:
+		err = vlan_alloc_res(dev, slave, vhcr->op_modifier, alop,
 				    vhcr->in_param, &vhcr->out_param);
 		break;
 
@@ -1487,6 +1487,12 @@ static int mac_free_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 
 }
 
+static int vlan_free_res(struct mlx4_dev *dev, int slave, int op, int cmd,
+			    u64 in_param, u64 *out_param)
+{
+	return 0;
+}
+
 int mlx4_FREE_RES_wrapper(struct mlx4_dev *dev, int slave,
 			  struct mlx4_vhcr *vhcr,
 			  struct mlx4_cmd_mailbox *inbox,
@@ -1524,6 +1530,11 @@ int mlx4_FREE_RES_wrapper(struct mlx4_dev *dev, int slave,
 
 	case RES_MAC:
 		err = mac_free_res(dev, slave, vhcr->op_modifier, alop,
+				   vhcr->in_param, &vhcr->out_param);
+		break;
+
+	case RES_VLAN:
+		err = vlan_free_res(dev, slave, vhcr->op_modifier, alop,
 				   vhcr->in_param, &vhcr->out_param);
 		break;
 

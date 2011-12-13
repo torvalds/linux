@@ -41,14 +41,6 @@
 #include "mlx4_en.h"
 
 
-int mlx4_SET_MCAST_FLTR(struct mlx4_dev *dev, u8 port,
-			u64 mac, u64 clear, u8 mode)
-{
-	return mlx4_cmd(dev, (mac | (clear << 63)), port, mode,
-			MLX4_CMD_SET_MCAST_FLTR, MLX4_CMD_TIME_CLASS_B,
-			MLX4_CMD_WRAPPED);
-}
-
 int mlx4_SET_VLAN_FLTR(struct mlx4_dev *dev, struct mlx4_en_priv *priv)
 {
 	struct mlx4_cmd_mailbox *mailbox;
@@ -74,75 +66,6 @@ int mlx4_SET_VLAN_FLTR(struct mlx4_dev *dev, struct mlx4_en_priv *priv)
 	}
 	err = mlx4_cmd(dev, mailbox->dma, priv->port, 0, MLX4_CMD_SET_VLAN_FLTR,
 		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
-	mlx4_free_cmd_mailbox(dev, mailbox);
-	return err;
-}
-
-
-int mlx4_SET_PORT_general(struct mlx4_dev *dev, u8 port, int mtu,
-			  u8 pptx, u8 pfctx, u8 pprx, u8 pfcrx)
-{
-	struct mlx4_cmd_mailbox *mailbox;
-	struct mlx4_set_port_general_context *context;
-	int err;
-	u32 in_mod;
-
-	mailbox = mlx4_alloc_cmd_mailbox(dev);
-	if (IS_ERR(mailbox))
-		return PTR_ERR(mailbox);
-	context = mailbox->buf;
-	memset(context, 0, sizeof *context);
-
-	context->flags = SET_PORT_GEN_ALL_VALID;
-	context->mtu = cpu_to_be16(mtu);
-	context->pptx = (pptx * (!pfctx)) << 7;
-	context->pfctx = pfctx;
-	context->pprx = (pprx * (!pfcrx)) << 7;
-	context->pfcrx = pfcrx;
-
-	in_mod = MLX4_SET_PORT_GENERAL << 8 | port;
-	err = mlx4_cmd(dev, mailbox->dma, in_mod, 1, MLX4_CMD_SET_PORT,
-		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
-
-	mlx4_free_cmd_mailbox(dev, mailbox);
-	return err;
-}
-
-int mlx4_SET_PORT_qpn_calc(struct mlx4_dev *dev, u8 port, u32 base_qpn,
-			   u8 promisc)
-{
-	struct mlx4_cmd_mailbox *mailbox;
-	struct mlx4_set_port_rqp_calc_context *context;
-	int err;
-	u32 in_mod;
-	u32 m_promisc = (dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER) ?
-						MCAST_DIRECT : MCAST_DEFAULT;
-
-	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER  &&
-			dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_UC_STEER)
-		return 0;
-
-	mailbox = mlx4_alloc_cmd_mailbox(dev);
-	if (IS_ERR(mailbox))
-		return PTR_ERR(mailbox);
-	context = mailbox->buf;
-	memset(context, 0, sizeof *context);
-
-	context->base_qpn = cpu_to_be32(base_qpn);
-	context->n_mac = dev->caps.log_num_macs;
-	context->promisc = cpu_to_be32(promisc << SET_PORT_PROMISC_SHIFT |
-				       base_qpn);
-	context->mcast = cpu_to_be32(m_promisc << SET_PORT_MC_PROMISC_SHIFT |
-				     base_qpn);
-	context->intra_no_vlan = 0;
-	context->no_vlan = MLX4_NO_VLAN_IDX;
-	context->intra_vlan_miss = 0;
-	context->vlan_miss = MLX4_VLAN_MISS_IDX;
-
-	in_mod = MLX4_SET_PORT_RQP_CALC << 8 | port;
-	err = mlx4_cmd(dev, mailbox->dma, in_mod, 1, MLX4_CMD_SET_PORT,
-		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
-
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	return err;
 }
