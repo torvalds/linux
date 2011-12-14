@@ -368,11 +368,12 @@ void __gen6_gt_force_wake_mt_get(struct drm_i915_private *dev_priv)
  */
 void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
 {
-	WARN_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
+	unsigned long irqflags;
 
-	/* Forcewake is atomic in case we get in here without the lock */
-	if (atomic_add_return(1, &dev_priv->forcewake_count) == 1)
+	spin_lock_irqsave(&dev_priv->gt_lock, irqflags);
+	if (dev_priv->forcewake_count++ == 0)
 		dev_priv->display.force_wake_get(dev_priv);
+	spin_unlock_irqrestore(&dev_priv->gt_lock, irqflags);
 }
 
 void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
@@ -392,10 +393,12 @@ void __gen6_gt_force_wake_mt_put(struct drm_i915_private *dev_priv)
  */
 void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
 {
-	WARN_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
+	unsigned long irqflags;
 
-	if (atomic_dec_and_test(&dev_priv->forcewake_count))
+	spin_lock_irqsave(&dev_priv->gt_lock, irqflags);
+	if (--dev_priv->forcewake_count == 0)
 		dev_priv->display.force_wake_put(dev_priv);
+	spin_unlock_irqrestore(&dev_priv->gt_lock, irqflags);
 }
 
 void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
@@ -626,6 +629,7 @@ int i915_reset(struct drm_device *dev, u8 flags)
 	 * need to
 	 */
 	bool need_display = true;
+	unsigned long irqflags;
 	int ret;
 
 	if (!i915_try_reset)
@@ -644,8 +648,10 @@ int i915_reset(struct drm_device *dev, u8 flags)
 	case 6:
 		ret = gen6_do_reset(dev, flags);
 		/* If reset with a user forcewake, try to restore */
-		if (atomic_read(&dev_priv->forcewake_count))
+		spin_lock_irqsave(&dev_priv->gt_lock, irqflags);
+		if (dev_priv->forcewake_count)
 			dev_priv->display.force_wake_get(dev_priv);
+		spin_unlock_irqrestore(&dev_priv->gt_lock, irqflags);
 		break;
 	case 5:
 		ret = ironlake_do_reset(dev, flags);
