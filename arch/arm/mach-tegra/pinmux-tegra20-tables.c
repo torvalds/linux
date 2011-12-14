@@ -1,7 +1,7 @@
 /*
- * linux/arch/arm/mach-tegra/pinmux-t2-tables.c
+ * linux/arch/arm/mach-tegra/pinmux-tegra20-tables.c
  *
- * Common pinmux configurations for Tegra 2 SoCs
+ * Common pinmux configurations for Tegra20 SoCs
  *
  * Copyright (C) 2010 NVIDIA Corporation
  *
@@ -29,6 +29,7 @@
 
 #include <mach/iomap.h>
 #include <mach/pinmux.h>
+#include <mach/pinmux-tegra20.h>
 #include <mach/suspend.h>
 
 #define TRISTATE_REG_A		0x14

@@ -18,7 +18,7 @@
 #define __MACH_TEGRA_PINMUX_H
 
 #if defined(CONFIG_ARCH_TEGRA_2x_SOC)
-#include "pinmux-t2.h"
+#include "pinmux-tegra20.h"
 #else
 #error "Undefined Tegra architecture"
 #endif
