@@ -367,8 +367,8 @@ config KEXEC
 
 config CRASH_DUMP
 	bool "Build a kdump crash kernel"
-	depends on PPC64 || 6xx || FSL_BOOKE
-	select RELOCATABLE if PPC64
+	depends on PPC64 || 6xx || FSL_BOOKE || (44x && !SMP && !PPC_47x)
+	select RELOCATABLE if PPC64 || 44x
 	select DYNAMIC_MEMSTART if FSL_BOOKE
 	help
 	  Build a kernel suitable for use as a kdump capture kernel.
