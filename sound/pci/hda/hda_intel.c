@@ -1153,16 +1153,6 @@ static void update_pci_byte(struct pci_dev *pci, unsigned int reg,
 
 static void azx_init_pci(struct azx *chip)
 {
-	/* force to non-snoop mode for a new VIA controller when BIOS is set */
-	if (chip->snoop && chip->driver_type == AZX_DRIVER_VIA) {
-		u8 snoop;
-		pci_read_config_byte(chip->pci, 0x42, &snoop);
-		if (!(snoop & 0x80) && chip->pci->revision == 0x30) {
-			chip->snoop = 0;
-			snd_printdd(SFX "Force to non-snoop mode\n");
-		}
-	}
-
 	/* Clear bits 0-2 of PCI register TCSEL (at offset 0x44)
 	 * TCSEL == Traffic Class Select Register, which sets PCI express QOS
 	 * Ensuring these bits are 0 clears playback static on some HD Audio
@@ -2634,6 +2624,35 @@ static void __devinit check_msi(struct azx *chip)
 	}
 }
 
+/* check the snoop mode availability */
+static void __devinit azx_check_snoop_available(struct azx *chip)
+{
+	bool snoop = chip->snoop;
+
+	switch (chip->driver_type) {
+	case AZX_DRIVER_VIA:
+		/* force to non-snoop mode for a new VIA controller
+		 * when BIOS is set
+		 */
+		if (snoop) {
+			u8 val;
+			pci_read_config_byte(chip->pci, 0x42, &val);
+			if (!(val & 0x80) && chip->pci->revision == 0x30)
+				snoop = false;
+		}
+		break;
+	case AZX_DRIVER_ATIHDMI_NS:
+		/* new ATI HDMI requires non-snoop */
+		snoop = false;
+		break;
+	}
+
+	if (snoop != chip->snoop) {
+		snd_printk(KERN_INFO SFX "Force to %s mode\n",
+			   snoop ? "snoop" : "non-snoop");
+		chip->snoop = snoop;
+	}
+}
 
 /*
  * constructor
@@ -2680,8 +2699,7 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 
 	chip->single_cmd = single_cmd;
 	chip->snoop = hda_snoop;
-	if (chip->driver_type == AZX_DRIVER_ATIHDMI_NS)
-		chip->snoop = 0;
+	azx_check_snoop_available(chip);
 
 	if (bdl_pos_adj[dev] < 0) {
 		switch (chip->driver_type) {
