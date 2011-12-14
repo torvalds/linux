@@ -100,6 +100,8 @@ struct mgmt_cp_set_discoverable {
 
 #define MGMT_OP_SET_CONNECTABLE		0x0007
 
+#define MGMT_OP_SET_FAST_CONNECTABLE	0x001F
+
 #define MGMT_OP_SET_PAIRABLE		0x0008
 
 #define MGMT_OP_ADD_UUID		0x0009
@@ -253,11 +255,6 @@ struct mgmt_cp_block_device {
 #define MGMT_OP_UNBLOCK_DEVICE		0x001E
 struct mgmt_cp_unblock_device {
 	bdaddr_t bdaddr;
-} __packed;
-
-#define MGMT_OP_SET_FAST_CONNECTABLE	0x001F
-struct mgmt_cp_set_fast_connectable {
-	__u8 enable;
 } __packed;
 
 #define MGMT_OP_USER_PASSKEY_REPLY	0x0020

@@ -2052,7 +2052,7 @@ static int set_fast_connectable(struct sock *sk, u16 index,
 					unsigned char *data, u16 len)
 {
 	struct hci_dev *hdev;
-	struct mgmt_cp_set_fast_connectable *cp = (void *) data;
+	struct mgmt_mode *cp = (void *) data;
 	struct hci_cp_write_page_scan_activity acp;
 	u8 type;
 	int err;
@@ -2070,7 +2070,7 @@ static int set_fast_connectable(struct sock *sk, u16 index,
 
 	hci_dev_lock(hdev);
 
-	if (cp->enable) {
+	if (cp->val) {
 		type = PAGE_SCAN_TYPE_INTERLACED;
 		acp.interval = 0x0024;	/* 22.5 msec page scan interval */
 	} else {
@@ -2154,6 +2154,10 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 	case MGMT_OP_SET_CONNECTABLE:
 		err = set_connectable(sk, index, buf + sizeof(*hdr), len);
 		break;
+	case MGMT_OP_SET_FAST_CONNECTABLE:
+		err = set_fast_connectable(sk, index, buf + sizeof(*hdr),
+								len);
+		break;
 	case MGMT_OP_SET_PAIRABLE:
 		err = set_pairable(sk, index, buf + sizeof(*hdr), len);
 		break;
@@ -2231,10 +2235,6 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		break;
 	case MGMT_OP_UNBLOCK_DEVICE:
 		err = unblock_device(sk, index, buf + sizeof(*hdr), len);
-		break;
-	case MGMT_OP_SET_FAST_CONNECTABLE:
-		err = set_fast_connectable(sk, index, buf + sizeof(*hdr),
-								len);
 		break;
 	default:
 		BT_DBG("Unknown op %u", opcode);
