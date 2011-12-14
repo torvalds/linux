@@ -804,12 +804,24 @@ skpinv:	addi	r4,r4,1				/* Increment */
 /*
  * Configure and load pinned entry into TLB slot 63.
  */
+#ifdef CONFIG_DYNAMIC_MEMSTART
+
+	/* Read the XLAT entry for our current mapping */
+	tlbre	r25,r23,PPC44x_TLB_XLAT
+
+	lis	r3,KERNELBASE@h
+	ori	r3,r3,KERNELBASE@l
+
+	/* Use our current RPN entry */
+	mr	r4,r25
+#else
 
 	lis	r3,PAGE_OFFSET@h
 	ori	r3,r3,PAGE_OFFSET@l
 
 	/* Kernel is at the base of RAM */
 	li r4, 0			/* Load the kernel physical address */
+#endif
 
 	/* Load the kernel PID = 0 */
 	li	r0,0
