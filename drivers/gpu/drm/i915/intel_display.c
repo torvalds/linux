@@ -2041,6 +2041,8 @@ intel_pin_and_fence_fb_obj(struct drm_device *dev,
 		ret = i915_gem_object_get_fence(obj, pipelined);
 		if (ret)
 			goto err_unpin;
+
+		i915_gem_object_pin_fence(obj);
 	}
 
 	dev_priv->mm.interruptible = true;
@@ -2051,6 +2053,12 @@ err_unpin:
 err_interruptible:
 	dev_priv->mm.interruptible = true;
 	return ret;
+}
+
+void intel_unpin_fb_obj(struct drm_i915_gem_object *obj)
+{
+	i915_gem_object_unpin_fence(obj);
+	i915_gem_object_unpin(obj);
 }
 
 static int i9xx_update_plane(struct drm_crtc *crtc, struct drm_framebuffer *fb,
@@ -2284,7 +2292,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	ret = intel_pipe_set_base_atomic(crtc, crtc->fb, x, y,
 					 LEAVE_ATOMIC_MODE_SET);
 	if (ret) {
-		i915_gem_object_unpin(to_intel_framebuffer(crtc->fb)->obj);
+		intel_unpin_fb_obj(to_intel_framebuffer(crtc->fb)->obj);
 		mutex_unlock(&dev->struct_mutex);
 		DRM_ERROR("failed to update base address\n");
 		return ret;
@@ -2292,7 +2300,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 
 	if (old_fb) {
 		intel_wait_for_vblank(dev, intel_crtc->pipe);
-		i915_gem_object_unpin(to_intel_framebuffer(old_fb)->obj);
+		intel_unpin_fb_obj(to_intel_framebuffer(old_fb)->obj);
 	}
 
 	mutex_unlock(&dev->struct_mutex);
@@ -3355,7 +3363,7 @@ static void intel_crtc_disable(struct drm_crtc *crtc)
 
 	if (crtc->fb) {
 		mutex_lock(&dev->struct_mutex);
-		i915_gem_object_unpin(to_intel_framebuffer(crtc->fb)->obj);
+		intel_unpin_fb_obj(to_intel_framebuffer(crtc->fb)->obj);
 		mutex_unlock(&dev->struct_mutex);
 	}
 }
@@ -7158,7 +7166,7 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 		container_of(__work, struct intel_unpin_work, work);
 
 	mutex_lock(&work->dev->struct_mutex);
-	i915_gem_object_unpin(work->old_fb_obj);
+	intel_unpin_fb_obj(work->old_fb_obj);
 	drm_gem_object_unreference(&work->pending_flip_obj->base);
 	drm_gem_object_unreference(&work->old_fb_obj->base);
 
