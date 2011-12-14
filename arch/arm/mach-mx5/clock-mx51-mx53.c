@@ -1281,9 +1281,9 @@ DEFINE_CLOCK(gpt_clk, 0, MXC_CCM_CCGR2, MXC_CCM_CCGRx_CG9_OFFSET,
 	NULL,  NULL, &ipg_clk, &gpt_ipg_clk);
 
 DEFINE_CLOCK(pwm1_clk, 0, MXC_CCM_CCGR2, MXC_CCM_CCGRx_CG6_OFFSET,
-	NULL, NULL, &ipg_clk, NULL);
+	NULL, NULL, &ipg_perclk, NULL);
 DEFINE_CLOCK(pwm2_clk, 0, MXC_CCM_CCGR2, MXC_CCM_CCGRx_CG8_OFFSET,
-	NULL, NULL, &ipg_clk, NULL);
+	NULL, NULL, &ipg_perclk, NULL);
 
 /* I2C */
 DEFINE_CLOCK(i2c1_clk, 0, MXC_CCM_CCGR1, MXC_CCM_CCGRx_CG9_OFFSET,
@@ -1634,6 +1634,7 @@ int __init mx53_clocks_init(unsigned long ckil, unsigned long osc,
 	return 0;
 }
 
+#ifdef CONFIG_OF
 static void __init clk_get_freq_dt(unsigned long *ckil, unsigned long *osc,
 				   unsigned long *ckih1, unsigned long *ckih2)
 {
@@ -1671,3 +1672,4 @@ int __init mx53_clocks_init_dt(void)
 	clk_get_freq_dt(&ckil, &osc, &ckih1, &ckih2);
 	return mx53_clocks_init(ckil, osc, ckih1, ckih2);
 }
+#endif

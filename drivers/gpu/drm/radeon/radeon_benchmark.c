@@ -98,7 +98,7 @@ static void radeon_benchmark_move(struct radeon_device *rdev, unsigned size,
 	struct radeon_bo *sobj = NULL;
 	uint64_t saddr, daddr;
 	int r, n;
-	unsigned int time;
+	int time;
 
 	n = RADEON_BENCHMARK_ITERATIONS;
 	r = radeon_bo_create(rdev, size, PAGE_SIZE, true, sdomain, &sobj);

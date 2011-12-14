@@ -43,7 +43,7 @@ static const u8 types[256] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 3, 3, 3, 3, 1, 1, 1, 1, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
-	3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3,
+	3, 3, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3,
 	3, 3, 0, 0, 0, 0, 0, 0, 3, 0, 0, 3, 0, 3, 0, 3,
 	3, 0, 3, 3, 3, 3, 3, 0, 0, 3, 0, 3, 0, 3, 3, 0,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 1, 1, 0
@@ -110,22 +110,26 @@ nvc0_vram_init(struct drm_device *dev)
 	u32 bsize = nv_rd32(dev, 0x10f20c);
 	u32 offset, length;
 	bool uniform = true;
-	int ret, i;
+	int ret, part;
 
 	NV_DEBUG(dev, "0x100800: 0x%08x\n", nv_rd32(dev, 0x100800));
 	NV_DEBUG(dev, "parts 0x%08x bcast_mem_amount 0x%08x\n", parts, bsize);
 
 	/* read amount of vram attached to each memory controller */
-	for (i = 0; i < parts; i++) {
-		u32 psize = nv_rd32(dev, 0x11020c + (i * 0x1000));
+	part = 0;
+	while (parts) {
+		u32 psize = nv_rd32(dev, 0x11020c + (part++ * 0x1000));
+		if (psize == 0)
+			continue;
+		parts--;
+
 		if (psize != bsize) {
 			if (psize < bsize)
 				bsize = psize;
 			uniform = false;
 		}
 
-		NV_DEBUG(dev, "%d: mem_amount 0x%08x\n", i, psize);
-
+		NV_DEBUG(dev, "%d: mem_amount 0x%08x\n", part, psize);
 		dev_priv->vram_size += (u64)psize << 20;
 	}
 

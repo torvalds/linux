@@ -133,17 +133,7 @@ static struct platform_driver wm8350_hwmon_driver = {
 	},
 };
 
-static int __init wm8350_hwmon_init(void)
-{
-	return platform_driver_register(&wm8350_hwmon_driver);
-}
-module_init(wm8350_hwmon_init);
-
-static void __exit wm8350_hwmon_exit(void)
-{
-	platform_driver_unregister(&wm8350_hwmon_driver);
-}
-module_exit(wm8350_hwmon_exit);
+module_platform_driver(wm8350_hwmon_driver);
 
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
 MODULE_DESCRIPTION("WM8350 Hardware Monitoring");

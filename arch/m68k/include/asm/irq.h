@@ -27,11 +27,6 @@
 
 #ifdef CONFIG_MMU
 
-#include <linux/linkage.h>
-#include <linux/hardirq.h>
-#include <linux/irqreturn.h>
-#include <linux/spinlock_types.h>
-
 /*
  * Interrupt source definitions
  * General interrupt sources are the level 1-7.
@@ -54,10 +49,6 @@
 
 #define IRQ_USER	8
 
-extern unsigned int irq_canonicalize(unsigned int irq);
-
-struct pt_regs;
-
 /*
  * various flags for request_irq() - the Amiga now uses the standard
  * mechanism like all other architectures - IRQF_DISABLED and
@@ -71,57 +62,27 @@ struct pt_regs;
 #define IRQ_FLG_STD	(0x8000)	/* internally used		*/
 #endif
 
-/*
- * This structure is used to chain together the ISRs for a particular
- * interrupt source (if it supports chaining).
- */
-typedef struct irq_node {
-	irqreturn_t	(*handler)(int, void *);
-	void		*dev_id;
-	struct irq_node *next;
-	unsigned long	flags;
-	const char	*devname;
-} irq_node_t;
+struct irq_data;
+struct irq_chip;
+struct irq_desc;
+extern unsigned int m68k_irq_startup(struct irq_data *data);
+extern unsigned int m68k_irq_startup_irq(unsigned int irq);
+extern void m68k_irq_shutdown(struct irq_data *data);
+extern void m68k_setup_auto_interrupt(void (*handler)(unsigned int,
+						      struct pt_regs *));
+extern void m68k_setup_user_interrupt(unsigned int vec, unsigned int cnt);
+extern void m68k_setup_irq_controller(struct irq_chip *,
+				      void (*handle)(unsigned int irq,
+						     struct irq_desc *desc),
+				      unsigned int irq, unsigned int cnt);
 
-/*
- * This structure has only 4 elements for speed reasons
- */
-struct irq_handler {
-	int		(*handler)(int, void *);
-	unsigned long	flags;
-	void		*dev_id;
-	const char	*devname;
-};
-
-struct irq_controller {
-	const char *name;
-	spinlock_t lock;
-	int (*startup)(unsigned int irq);
-	void (*shutdown)(unsigned int irq);
-	void (*enable)(unsigned int irq);
-	void (*disable)(unsigned int irq);
-};
-
-extern int m68k_irq_startup(unsigned int);
-extern void m68k_irq_shutdown(unsigned int);
-
-/*
- * This function returns a new irq_node_t
- */
-extern irq_node_t *new_irq_node(void);
-
-extern void m68k_setup_auto_interrupt(void (*handler)(unsigned int, struct pt_regs *));
-extern void m68k_setup_user_interrupt(unsigned int vec, unsigned int cnt,
-				      void (*handler)(unsigned int, struct pt_regs *));
-extern void m68k_setup_irq_controller(struct irq_controller *, unsigned int, unsigned int);
-
-asmlinkage void m68k_handle_int(unsigned int);
-asmlinkage void __m68k_handle_int(unsigned int, struct pt_regs *);
+extern unsigned int irq_canonicalize(unsigned int irq);
 
 #else
 #define irq_canonicalize(irq)  (irq)
 #endif /* CONFIG_MMU */
 
 asmlinkage void do_IRQ(int irq, struct pt_regs *regs);
+extern atomic_t irq_err_count;
 
 #endif /* _M68K_IRQ_H_ */

@@ -589,14 +589,14 @@ static const struct backlight_ops dell_ops = {
 	.update_status  = dell_send_intensity,
 };
 
-static void touchpad_led_on()
+static void touchpad_led_on(void)
 {
 	int command = 0x97;
 	char data = 1;
 	i8042_command(&data, command | 1 << 12);
 }
 
-static void touchpad_led_off()
+static void touchpad_led_off(void)
 {
 	int command = 0x97;
 	char data = 2;

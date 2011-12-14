@@ -328,6 +328,34 @@ config PMIC_DA903X
 	  individual components like LCD backlight, voltage regulators,
 	  LEDs and battery-charger under the corresponding menus.
 
+config PMIC_DA9052
+	bool
+	select MFD_CORE
+
+config MFD_DA9052_SPI
+	bool "Support Dialog Semiconductor DA9052/53 PMIC variants with SPI"
+	select REGMAP_SPI
+	select REGMAP_IRQ
+	select PMIC_DA9052
+	depends on SPI_MASTER=y
+	help
+	  Support for the Dialog Semiconductor DA9052 PMIC
+	  when controlled using SPI. This driver provides common support
+	  for accessing the device, additional drivers must be enabled in
+	  order to use the functionality of the device.
+
+config MFD_DA9052_I2C
+	bool "Support Dialog Semiconductor DA9052/53 PMIC variants with I2C"
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	select PMIC_DA9052
+	depends on I2C=y
+	help
+	  Support for the Dialog Semiconductor DA9052 PMIC
+	  when controlled using I2C. This driver provides common support
+	  for accessing the device, additional drivers must be enabled in
+	  order to use the functionality of the device.
+
 config PMIC_ADP5520
 	bool "Analog Devices ADP5520/01 MFD PMIC Core Support"
 	depends on I2C=y

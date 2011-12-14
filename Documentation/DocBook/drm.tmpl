@@ -32,7 +32,7 @@
       The Linux DRM layer contains code intended to support the needs
       of complex graphics devices, usually containing programmable
       pipelines well suited to 3D graphics acceleration.  Graphics
-      drivers in the kernel can make use of DRM functions to make
+      drivers in the kernel may make use of DRM functions to make
       tasks like memory management, interrupt handling and DMA easier,
       and provide a uniform interface to applications.
     </para>
@@ -57,10 +57,10 @@
       existing drivers.
     </para>
     <para>
-      First, we'll go over some typical driver initialization
+      First, we go over some typical driver initialization
       requirements, like setting up command buffers, creating an
       initial output configuration, and initializing core services.
-      Subsequent sections will cover core internals in more detail,
+      Subsequent sections cover core internals in more detail,
       providing implementation notes and examples.
     </para>
     <para>
@@ -74,7 +74,7 @@
     </para>
     <para>
       The core of every DRM driver is struct drm_driver.  Drivers
-      will typically statically initialize a drm_driver structure,
+      typically statically initialize a drm_driver structure,
       then pass it to drm_init() at load time.
     </para>
 
@@ -88,8 +88,8 @@
     </para>
     <programlisting>
       static struct drm_driver driver = {
-	/* don't use mtrr's here, the Xserver or user space app should
-	 * deal with them for intel hardware.
+	/* Don't use MTRRs here; the Xserver or userspace app should
+	 * deal with them for Intel hardware.
 	 */
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_REQUIRE_AGP |
@@ -154,8 +154,8 @@
     </programlisting>
     <para>
       In the example above, taken from the i915 DRM driver, the driver
-      sets several flags indicating what core features it supports.
-      We'll go over the individual callbacks in later sections.  Since
+      sets several flags indicating what core features it supports;
+      we go over the individual callbacks in later sections.  Since
       flags indicate which features your driver supports to the DRM
       core, you need to set most of them prior to calling drm_init().  Some,
       like DRIVER_MODESET can be set later based on user supplied parameters,
@@ -203,8 +203,8 @@
 	<term>DRIVER_HAVE_IRQ</term><term>DRIVER_IRQ_SHARED</term>
 	<listitem>
 	  <para>
-	    DRIVER_HAVE_IRQ indicates whether the driver has a IRQ
-	    handler, DRIVER_IRQ_SHARED indicates whether the device &amp;
+	    DRIVER_HAVE_IRQ indicates whether the driver has an IRQ
+	    handler.  DRIVER_IRQ_SHARED indicates whether the device &amp;
 	    handler support shared IRQs (note that this is required of
 	    PCI drivers).
 	  </para>
@@ -214,8 +214,8 @@
 	<term>DRIVER_DMA_QUEUE</term>
 	<listitem>
 	  <para>
-	    If the driver queues DMA requests and completes them
-	    asynchronously, this flag should be set.  Deprecated.
+	    Should be set if the driver queues DMA requests and completes them
+	    asynchronously.  Deprecated.
 	  </para>
 	</listitem>
       </varlistentry>
@@ -238,7 +238,7 @@
     </variablelist>
     <para>
       In this specific case, the driver requires AGP and supports
-      IRQs.  DMA, as we'll see, is handled by device specific ioctls
+      IRQs.  DMA, as discussed later, is handled by device-specific ioctls
       in this case.  It also supports the kernel mode setting APIs, though
       unlike in the actual i915 driver source, this example unconditionally
       exports KMS capability.
@@ -269,36 +269,34 @@
       initial output configuration.
     </para>
     <para>
-      Note that the tasks performed at driver load time must not
-      conflict with DRM client requirements.  For instance, if user
+      If compatibility is a concern (e.g. with drivers converted over
+      to the new interfaces from the old ones), care must be taken to
+      prevent device initialization and control that is incompatible with
+      currently active userspace drivers.  For instance, if user
       level mode setting drivers are in use, it would be problematic
       to perform output discovery &amp; configuration at load time.
-      Likewise, if pre-memory management aware user level drivers are
+      Likewise, if user-level drivers unaware of memory management are
       in use, memory management and command buffer setup may need to
-      be omitted.  These requirements are driver specific, and care
+      be omitted.  These requirements are driver-specific, and care
       needs to be taken to keep both old and new applications and
       libraries working.  The i915 driver supports the "modeset"
       module parameter to control whether advanced features are
-      enabled at load time or in legacy fashion.  If compatibility is
-      a concern (e.g. with drivers converted over to the new interfaces
-      from the old ones), care must be taken to prevent incompatible
-      device initialization and control with the currently active
-      userspace drivers.
+      enabled at load time or in legacy fashion.
     </para>
 
     <sect2>
       <title>Driver private &amp; performance counters</title>
       <para>
 	The driver private hangs off the main drm_device structure and
-	can be used for tracking various device specific bits of
+	can be used for tracking various device-specific bits of
 	information, like register offsets, command buffer status,
 	register state for suspend/resume, etc.  At load time, a
-	driver can simply allocate one and set drm_device.dev_priv
-	appropriately; at unload the driver can free it and set
-	drm_device.dev_priv to NULL.
+	driver may simply allocate one and set drm_device.dev_priv
+	appropriately; it should be freed and drm_device.dev_priv set
+	to NULL when the driver is unloaded.
       </para>
       <para>
-	The DRM supports several counters which can be used for rough
+	The DRM supports several counters which may be used for rough
 	performance characterization.  Note that the DRM stat counter
 	system is not often used by applications, and supporting
 	additional counters is completely optional.
@@ -307,15 +305,15 @@
 	These interfaces are deprecated and should not be used.  If performance
 	monitoring is desired, the developer should investigate and
 	potentially enhance the kernel perf and tracing infrastructure to export
-	GPU related performance information to performance monitoring
-	tools and applications.
+	GPU related performance information for consumption by performance
+	monitoring tools and applications.
       </para>
     </sect2>
 
     <sect2>
       <title>Configuring the device</title>
       <para>
-	Obviously, device configuration will be device specific.
+	Obviously, device configuration is device-specific.
 	However, there are several common operations: finding a
 	device's PCI resources, mapping them, and potentially setting
 	up an IRQ handler.
@@ -323,10 +321,10 @@
       <para>
 	Finding &amp; mapping resources is fairly straightforward.  The
 	DRM wrapper functions, drm_get_resource_start() and
-	drm_get_resource_len() can be used to find BARs on the given
+	drm_get_resource_len(), may be used to find BARs on the given
 	drm_device struct.  Once those values have been retrieved, the
 	driver load function can call drm_addmap() to create a new
-	mapping for the BAR in question.  Note you'll probably want a
+	mapping for the BAR in question.  Note that you probably want a
 	drm_local_map_t in your driver private structure to track any
 	mappings you create.
 <!-- !Fdrivers/gpu/drm/drm_bufs.c drm_get_resource_* -->
@@ -335,20 +333,20 @@
       <para>
 	if compatibility with other operating systems isn't a concern
 	(DRM drivers can run under various BSD variants and OpenSolaris),
-	native Linux calls can be used for the above, e.g. pci_resource_*
+	native Linux calls may be used for the above, e.g. pci_resource_*
 	and iomap*/iounmap.  See the Linux device driver book for more
 	info.
       </para>
       <para>
-	Once you have a register map, you can use the DRM_READn() and
+	Once you have a register map, you may use the DRM_READn() and
 	DRM_WRITEn() macros to access the registers on your device, or
-	use driver specific versions to offset into your MMIO space
-	relative to a driver specific base pointer (see I915_READ for
-	example).
+	use driver-specific versions to offset into your MMIO space
+	relative to a driver-specific base pointer (see I915_READ for
+	an example).
       </para>
       <para>
 	If your device supports interrupt generation, you may want to
-	setup an interrupt handler at driver load time as well.  This
+	set up an interrupt handler when the driver is loaded.  This
 	is done using the drm_irq_install() function.  If your device
 	supports vertical blank interrupts, it should call
 	drm_vblank_init() to initialize the core vblank handling code before
@@ -357,7 +355,7 @@
       </para>
 <!--!Fdrivers/char/drm/drm_irq.c drm_irq_install-->
       <para>
-	Once your interrupt handler is registered (it'll use your
+	Once your interrupt handler is registered (it uses your
 	drm_driver.irq_handler as the actual interrupt handling
 	function), you can safely enable interrupts on your device,
 	assuming any other state your interrupt handler uses is also
@@ -371,10 +369,10 @@
 	using the pci_map_rom() call, a convenience function that
 	takes care of mapping the actual ROM, whether it has been
 	shadowed into memory (typically at address 0xc0000) or exists
-	on the PCI device in the ROM BAR.  Note that once you've
-	mapped the ROM and extracted any necessary information, be
-	sure to unmap it; on many devices the ROM address decoder is
-	shared with other BARs, so leaving it mapped can cause
+	on the PCI device in the ROM BAR.  Note that after the ROM
+	has been mapped and any necessary information has been extracted,
+	it should be unmapped; on many devices, the ROM address decoder is
+	shared with other BARs, so leaving it mapped could cause
 	undesired behavior like hangs or memory corruption.
 <!--!Fdrivers/pci/rom.c pci_map_rom-->
       </para>
@@ -389,9 +387,9 @@
 	should support a memory manager.
       </para>
       <para>
-	If your driver supports memory management (it should!), you'll
+	If your driver supports memory management (it should!), you
 	need to set that up at load time as well.  How you initialize
-	it depends on which memory manager you're using, TTM or GEM.
+	it depends on which memory manager you're using: TTM or GEM.
       </para>
       <sect3>
 	<title>TTM initialization</title>
@@ -401,7 +399,7 @@
 	  and devices with dedicated video RAM (VRAM), i.e. most discrete
 	  graphics devices.  If your device has dedicated RAM, supporting
 	  TTM is desirable.  TTM also integrates tightly with your
-	  driver specific buffer execution function.  See the radeon
+	  driver-specific buffer execution function.  See the radeon
 	  driver for examples.
 	</para>
 	<para>
@@ -429,21 +427,21 @@
 	  created by the memory manager at runtime.  Your global TTM should
 	  have a type of TTM_GLOBAL_TTM_MEM.  The size field for the global
 	  object should be sizeof(struct ttm_mem_global), and the init and
-	  release hooks should point at your driver specific init and
-	  release routines, which will probably eventually call
-	  ttm_mem_global_init and ttm_mem_global_release respectively.
+	  release hooks should point at your driver-specific init and
+	  release routines, which probably eventually call
+	  ttm_mem_global_init and ttm_mem_global_release, respectively.
 	</para>
 	<para>
 	  Once your global TTM accounting structure is set up and initialized
-	  (done by calling ttm_global_item_ref on the global object you
-	  just created), you'll need to create a buffer object TTM to
+	  by calling ttm_global_item_ref() on it,
+	  you need to create a buffer object TTM to
 	  provide a pool for buffer object allocation by clients and the
 	  kernel itself.  The type of this object should be TTM_GLOBAL_TTM_BO,
 	  and its size should be sizeof(struct ttm_bo_global).  Again,
-	  driver specific init and release functions can be provided,
-	  likely eventually calling ttm_bo_global_init and
-	  ttm_bo_global_release, respectively.  Also like the previous
-	  object, ttm_global_item_ref is used to create an initial reference
+	  driver-specific init and release functions may be provided,
+	  likely eventually calling ttm_bo_global_init() and
+	  ttm_bo_global_release(), respectively.  Also, like the previous
+	  object, ttm_global_item_ref() is used to create an initial reference
 	  count for the TTM, which will call your initialization function.
 	</para>
       </sect3>
@@ -453,27 +451,26 @@
 	  GEM is an alternative to TTM, designed specifically for UMA
 	  devices.  It has simpler initialization and execution requirements
 	  than TTM, but has no VRAM management capability.  Core GEM
-	  initialization is comprised of a basic drm_mm_init call to create
+	  is initialized by calling drm_mm_init() to create
 	  a GTT DRM MM object, which provides an address space pool for
-	  object allocation.  In a KMS configuration, the driver will
-	  need to allocate and initialize a command ring buffer following
-	  basic GEM initialization.  Most UMA devices have a so-called
+	  object allocation.  In a KMS configuration, the driver
+	  needs to allocate and initialize a command ring buffer following
+	  core GEM initialization.  A UMA device usually has what is called a
 	  "stolen" memory region, which provides space for the initial
 	  framebuffer and large, contiguous memory regions required by the
-	  device.  This space is not typically managed by GEM, and must
+	  device.  This space is not typically managed by GEM, and it must
 	  be initialized separately into its own DRM MM object.
 	</para>
 	<para>
-	  Initialization will be driver specific, and will depend on
-	  the architecture of the device.  In the case of Intel
+	  Initialization is driver-specific. In the case of Intel
 	  integrated graphics chips like 965GM, GEM initialization can
 	  be done by calling the internal GEM init function,
 	  i915_gem_do_init().  Since the 965GM is a UMA device
-	  (i.e. it doesn't have dedicated VRAM), GEM will manage
+	  (i.e. it doesn't have dedicated VRAM), GEM manages
 	  making regular RAM available for GPU operations.  Memory set
 	  aside by the BIOS (called "stolen" memory by the i915
-	  driver) will be managed by the DRM memrange allocator; the
-	  rest of the aperture will be managed by GEM.
+	  driver) is managed by the DRM memrange allocator; the
+	  rest of the aperture is managed by GEM.
 	  <programlisting>
 	    /* Basic memrange allocator for stolen space (aka vram) */
 	    drm_memrange_init(&amp;dev_priv->vram, 0, prealloc_size);
@@ -483,7 +480,7 @@
 <!--!Edrivers/char/drm/drm_memrange.c-->
 	</para>
 	<para>
-	  Once the memory manager has been set up, we can allocate the
+	  Once the memory manager has been set up, we may allocate the
 	  command buffer.  In the i915 case, this is also done with a
 	  GEM function, i915_gem_init_ringbuffer().
 	</para>
@@ -493,16 +490,25 @@
     <sect2>
       <title>Output configuration</title>
       <para>
-	The final initialization task is output configuration.  This involves
-	finding and initializing the CRTCs, encoders and connectors
-	for your device, creating an initial configuration and
-	registering a framebuffer console driver.
+	The final initialization task is output configuration.  This involves:
+	<itemizedlist>
+	  <listitem>
+	    Finding and initializing the CRTCs, encoders, and connectors
+	    for the device.
+	  </listitem>
+	  <listitem>
+	    Creating an initial configuration.
+	  </listitem>
+	  <listitem>
+	    Registering a framebuffer console driver.
+	  </listitem>
+	</itemizedlist>
       </para>
       <sect3>
 	<title>Output discovery and initialization</title>
 	<para>
-	  Several core functions exist to create CRTCs, encoders and
-	  connectors, namely drm_crtc_init(), drm_connector_init() and
+	  Several core functions exist to create CRTCs, encoders, and
+	  connectors, namely: drm_crtc_init(), drm_connector_init(), and
 	  drm_encoder_init(), along with several "helper" functions to
 	  perform common tasks.
 	</para>
@@ -555,10 +561,10 @@ void intel_crt_init(struct drm_device *dev)
 	</programlisting>
 	<para>
 	  In the example above (again, taken from the i915 driver), a
-	  CRT connector and encoder combination is created.  A device
-	  specific i2c bus is also created, for fetching EDID data and
+	  CRT connector and encoder combination is created.  A device-specific
+	  i2c bus is also created for fetching EDID data and
 	  performing monitor detection.  Once the process is complete,
-	  the new connector is registered with sysfs, to make its
+	  the new connector is registered with sysfs to make its
 	  properties available to applications.
 	</para>
 	<sect4>
@@ -567,12 +573,12 @@ void intel_crt_init(struct drm_device *dev)
 	    Since many PC-class graphics devices have similar display output
 	    designs, the DRM provides a set of helper functions to make
 	    output management easier.  The core helper routines handle
-	    encoder re-routing and disabling of unused functions following
-	    mode set.  Using the helpers is optional, but recommended for
+	    encoder re-routing and the disabling of unused functions following
+	    mode setting.  Using the helpers is optional, but recommended for
 	    devices with PC-style architectures (i.e. a set of display planes
 	    for feeding pixels to encoders which are in turn routed to
 	    connectors).  Devices with more complex requirements needing
-	    finer grained management can opt to use the core callbacks
+	    finer grained management may opt to use the core callbacks
 	    directly.
 	  </para>
 	  <para>
@@ -580,17 +586,25 @@ void intel_crt_init(struct drm_device *dev)
 	  </para>
 	</sect4>
 	<para>
-	  For each encoder, CRTC and connector, several functions must
-	  be provided, depending on the object type.  Encoder objects
-	  need to provide a DPMS (basically on/off) function, mode fixup
-	  (for converting requested modes into native hardware timings),
-	  and prepare, set and commit functions for use by the core DRM
-	  helper functions.  Connector helpers need to provide mode fetch and
-	  validity functions as well as an encoder matching function for
-	  returning an ideal encoder for a given connector.  The core
-	  connector functions include a DPMS callback, (deprecated)
-	  save/restore routines, detection, mode probing, property handling,
-	  and cleanup functions.
+	  Each encoder object needs to provide:
+	  <itemizedlist>
+	    <listitem>
+	      A DPMS (basically on/off) function.
+	    </listitem>
+	    <listitem>
+	      A mode-fixup function (for converting requested modes into
+	      native hardware timings).
+	    </listitem>
+	    <listitem>
+	      Functions (prepare, set, and commit) for use by the core DRM
+	      helper functions.
+	    </listitem>
+	  </itemizedlist>
+	  Connector helpers need to provide functions (mode-fetch, validity,
+	  and encoder-matching) for returning an ideal encoder for a given
+	  connector.  The core connector functions include a DPMS callback,
+	  save/restore routines (deprecated), detection, mode probing,
+	  property handling, and cleanup functions.
 	</para>
 <!--!Edrivers/char/drm/drm_crtc.h-->
 <!--!Edrivers/char/drm/drm_crtc.c-->
@@ -605,21 +619,32 @@ void intel_crt_init(struct drm_device *dev)
     <title>VBlank event handling</title>
     <para>
       The DRM core exposes two vertical blank related ioctls:
-      DRM_IOCTL_WAIT_VBLANK and DRM_IOCTL_MODESET_CTL.
+      <variablelist>
+        <varlistentry>
+          <term>DRM_IOCTL_WAIT_VBLANK</term>
+          <listitem>
+            <para>
+              This takes a struct drm_wait_vblank structure as its argument,
+              and it is used to block or request a signal when a specified
+              vblank event occurs.
+            </para>
+          </listitem>
+        </varlistentry>
+        <varlistentry>
+          <term>DRM_IOCTL_MODESET_CTL</term>
+          <listitem>
+            <para>
+              This should be called by application level drivers before and
+              after mode setting, since on many devices the vertical blank
+              counter is reset at that time.  Internally, the DRM snapshots
+              the last vblank count when the ioctl is called with the
+              _DRM_PRE_MODESET command, so that the counter won't go backwards
+              (which is dealt with when _DRM_POST_MODESET is used).
+            </para>
+          </listitem>
+        </varlistentry>
+      </variablelist>
 <!--!Edrivers/char/drm/drm_irq.c-->
-    </para>
-    <para>
-      DRM_IOCTL_WAIT_VBLANK takes a struct drm_wait_vblank structure
-      as its argument, and is used to block or request a signal when a
-      specified vblank event occurs.
-    </para>
-    <para>
-      DRM_IOCTL_MODESET_CTL should be called by application level
-      drivers before and after mode setting, since on many devices the
-      vertical blank counter will be reset at that time.  Internally,
-      the DRM snapshots the last vblank count when the ioctl is called
-      with the _DRM_PRE_MODESET command so that the counter won't go
-      backwards (which is dealt with when _DRM_POST_MODESET is used).
     </para>
     <para>
       To support the functions above, the DRM core provides several
@@ -632,24 +657,24 @@ void intel_crt_init(struct drm_device *dev)
       register.  The enable and disable vblank callbacks should enable
       and disable vertical blank interrupts, respectively.  In the
       absence of DRM clients waiting on vblank events, the core DRM
-      code will use the disable_vblank() function to disable
-      interrupts, which saves power.  They'll be re-enabled again when
+      code uses the disable_vblank() function to disable
+      interrupts, which saves power.  They are re-enabled again when
       a client calls the vblank wait ioctl above.
     </para>
     <para>
-      Devices that don't provide a count register can simply use an
+      A device that doesn't provide a count register may simply use an
       internal atomic counter incremented on every vertical blank
-      interrupt, and can make their enable and disable vblank
-      functions into no-ops.
+      interrupt (and then treat the enable_vblank() and disable_vblank()
+      callbacks as no-ops).
     </para>
   </sect1>
 
   <sect1>
     <title>Memory management</title>
     <para>
-      The memory manager lies at the heart of many DRM operations, and
-      is also required to support advanced client features like OpenGL
-      pbuffers.  The DRM currently contains two memory managers, TTM
+      The memory manager lies at the heart of many DRM operations; it
+      is required to support advanced client features like OpenGL
+      pbuffers.  The DRM currently contains two memory managers: TTM
       and GEM.
     </para>
 
@@ -679,41 +704,46 @@ void intel_crt_init(struct drm_device *dev)
       <para>
 	GEM-enabled drivers must provide gem_init_object() and
 	gem_free_object() callbacks to support the core memory
-	allocation routines.  They should also provide several driver
-	specific ioctls to support command execution, pinning, buffer
+	allocation routines.  They should also provide several driver-specific
+	ioctls to support command execution, pinning, buffer
 	read &amp; write, mapping, and domain ownership transfers.
       </para>
       <para>
-	On a fundamental level, GEM involves several operations: memory
-	allocation and freeing, command execution, and aperture management
-	at command execution time.  Buffer object allocation is relatively
+	On a fundamental level, GEM involves several operations:
+	<itemizedlist>
+	  <listitem>Memory allocation and freeing</listitem>
+	  <listitem>Command execution</listitem>
+	  <listitem>Aperture management at command execution time</listitem>
+	</itemizedlist>
+	Buffer object allocation is relatively
 	straightforward and largely provided by Linux's shmem layer, which
 	provides memory to back each object.  When mapped into the GTT
 	or used in a command buffer, the backing pages for an object are
 	flushed to memory and marked write combined so as to be coherent
-	with the GPU.  Likewise, when the GPU finishes rendering to an object,
-	if the CPU accesses it, it must be made coherent with the CPU's view
+	with the GPU.  Likewise, if the CPU accesses an object after the GPU
+	has finished rendering to the object, then the object must be made
+	coherent with the CPU's view
 	of memory, usually involving GPU cache flushing of various kinds.
-	This core CPU&lt;-&gt;GPU coherency management is provided by the GEM
-	set domain function, which evaluates an object's current domain and
+	This core CPU&lt;-&gt;GPU coherency management is provided by a
+	device-specific ioctl, which evaluates an object's current domain and
 	performs any necessary flushing or synchronization to put the object
 	into the desired coherency domain (note that the object may be busy,
-	i.e. an active render target; in that case the set domain function
-	will block the client and wait for rendering to complete before
+	i.e. an active render target; in that case, setting the domain
+	blocks the client and waits for rendering to complete before
 	performing any necessary flushing operations).
       </para>
       <para>
 	Perhaps the most important GEM function is providing a command
 	execution interface to clients.  Client programs construct command
-	buffers containing references to previously allocated memory objects
-	and submit them to GEM.  At that point, GEM will take care to bind
+	buffers containing references to previously allocated memory objects,
+	and then submit them to GEM.  At that point, GEM takes care to bind
 	all the objects into the GTT, execute the buffer, and provide
 	necessary synchronization between clients accessing the same buffers.
 	This often involves evicting some objects from the GTT and re-binding
 	others (a fairly expensive operation), and providing relocation
 	support which hides fixed GTT offsets from clients.  Clients must
 	take care not to submit command buffers that reference more objects
-	than can fit in the GTT or GEM will reject them and no rendering
+	than can fit in the GTT; otherwise, GEM will reject them and no rendering
 	will occur.  Similarly, if several objects in the buffer require
 	fence registers to be allocated for correct rendering (e.g. 2D blits
 	on pre-965 chips), care must be taken not to require more fence
@@ -729,7 +759,7 @@ void intel_crt_init(struct drm_device *dev)
     <title>Output management</title>
     <para>
       At the core of the DRM output management code is a set of
-      structures representing CRTCs, encoders and connectors.
+      structures representing CRTCs, encoders, and connectors.
     </para>
     <para>
       A CRTC is an abstraction representing a part of the chip that
@@ -765,21 +795,19 @@ void intel_crt_init(struct drm_device *dev)
   <sect1>
     <title>Framebuffer management</title>
     <para>
-      In order to set a mode on a given CRTC, encoder and connector
-      configuration, clients need to provide a framebuffer object which
-      will provide a source of pixels for the CRTC to deliver to the encoder(s)
-      and ultimately the connector(s) in the configuration.  A framebuffer
-      is fundamentally a driver specific memory object, made into an opaque
-      handle by the DRM addfb function.  Once an fb has been created this
-      way it can be passed to the KMS mode setting routines for use in
-      a configuration.
+      Clients need to provide a framebuffer object which provides a source
+      of pixels for a CRTC to deliver to the encoder(s) and ultimately the
+      connector(s). A framebuffer is fundamentally a driver-specific memory
+      object, made into an opaque handle by the DRM's addfb() function.
+      Once a framebuffer has been created this way, it may be passed to the
+      KMS mode setting routines for use in a completed configuration.
     </para>
   </sect1>
 
   <sect1>
     <title>Command submission &amp; fencing</title>
     <para>
-      This should cover a few device specific command submission
+      This should cover a few device-specific command submission
       implementations.
     </para>
   </sect1>
@@ -789,7 +817,7 @@ void intel_crt_init(struct drm_device *dev)
     <para>
       The DRM core provides some suspend/resume code, but drivers
       wanting full suspend/resume support should provide save() and
-      restore() functions.  These will be called at suspend,
+      restore() functions.  These are called at suspend,
       hibernate, or resume time, and should perform any state save or
       restore required by your device across suspend or hibernate
       states.
@@ -812,8 +840,8 @@ void intel_crt_init(struct drm_device *dev)
     <para>
       The DRM core exports several interfaces to applications,
       generally intended to be used through corresponding libdrm
-      wrapper functions.  In addition, drivers export device specific
-      interfaces for use by userspace drivers &amp; device aware
+      wrapper functions.  In addition, drivers export device-specific
+      interfaces for use by userspace drivers &amp; device-aware
       applications through ioctls and sysfs files.
     </para>
     <para>
@@ -822,8 +850,8 @@ void intel_crt_init(struct drm_device *dev)
       management, memory management, and output management.
     </para>
     <para>
-      Cover generic ioctls and sysfs layout here.  Only need high
-      level info, since man pages will cover the rest.
+      Cover generic ioctls and sysfs layout here.  We only need high-level
+      info, since man pages should cover the rest.
     </para>
   </chapter>
 

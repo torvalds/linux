@@ -190,14 +190,10 @@ irqreturn_t mac_debug_handler(int, void *);
 
 /* #define DEBUG_MACINTS */
 
-void mac_enable_irq(unsigned int irq);
-void mac_disable_irq(unsigned int irq);
-
-static struct irq_controller mac_irq_controller = {
+static struct irq_chip mac_irq_chip = {
 	.name		= "mac",
-	.lock		= __SPIN_LOCK_UNLOCKED(mac_irq_controller.lock),
-	.enable		= mac_enable_irq,
-	.disable	= mac_disable_irq,
+	.irq_enable	= mac_irq_enable,
+	.irq_disable	= mac_irq_disable,
 };
 
 void __init mac_init_IRQ(void)
@@ -205,7 +201,7 @@ void __init mac_init_IRQ(void)
 #ifdef DEBUG_MACINTS
 	printk("mac_init_IRQ(): Setting things up...\n");
 #endif
-	m68k_setup_irq_controller(&mac_irq_controller, IRQ_USER,
+	m68k_setup_irq_controller(&mac_irq_chip, handle_simple_irq, IRQ_USER,
 				  NUM_MAC_SOURCES - IRQ_USER);
 	/* Make sure the SONIC interrupt is cleared or things get ugly */
 #ifdef SHUTUP_SONIC
@@ -241,16 +237,17 @@ void __init mac_init_IRQ(void)
 }
 
 /*
- *  mac_enable_irq - enable an interrupt source
- * mac_disable_irq - disable an interrupt source
+ *  mac_irq_enable - enable an interrupt source
+ * mac_irq_disable - disable an interrupt source
  *   mac_clear_irq - clears a pending interrupt
- * mac_pending_irq - Returns the pending status of an IRQ (nonzero = pending)
+ * mac_irq_pending - returns the pending status of an IRQ (nonzero = pending)
  *
  * These routines are just dispatchers to the VIA/OSS/PSC routines.
  */
 
-void mac_enable_irq(unsigned int irq)
+void mac_irq_enable(struct irq_data *data)
 {
+	int irq = data->irq;
 	int irq_src = IRQ_SRC(irq);
 
 	switch(irq_src) {
@@ -283,8 +280,9 @@ void mac_enable_irq(unsigned int irq)
 	}
 }
 
-void mac_disable_irq(unsigned int irq)
+void mac_irq_disable(struct irq_data *data)
 {
+	int irq = data->irq;
 	int irq_src = IRQ_SRC(irq);
 
 	switch(irq_src) {

@@ -4,6 +4,7 @@
  * Debugfs support for the AB5500 MFD driver
  */
 
+#include <linux/export.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/mfd/ab5500/ab5500.h>

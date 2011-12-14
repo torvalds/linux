@@ -436,8 +436,7 @@ static void ft_del_lport(struct se_wwn *wwn)
 	struct ft_lport_acl *lacl = container_of(wwn,
 				struct ft_lport_acl, fc_lport_wwn);
 
-	pr_debug("del lport %s\n",
-			config_item_name(&wwn->wwn_group.cg_item));
+	pr_debug("del lport %s\n", lacl->name);
 	mutex_lock(&ft_lport_lock);
 	list_del(&lacl->list);
 	mutex_unlock(&ft_lport_lock);
