@@ -384,13 +384,13 @@ mem_cgroup_print_bad_page(struct page *page)
 }
 #endif
 
-#ifdef CONFIG_INET
 enum {
 	UNDER_LIMIT,
 	SOFT_LIMIT,
 	OVER_LIMIT,
 };
 
+#ifdef CONFIG_INET
 struct sock;
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
 void sock_update_memcg(struct sock *sk);
