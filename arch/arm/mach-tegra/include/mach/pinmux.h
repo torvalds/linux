@@ -2,6 +2,7 @@
  * linux/arch/arm/mach-tegra/include/mach/pinmux.h
  *
  * Copyright (C) 2010 Google, Inc.
+ * Copyright (C) 2010,2011 Nvidia, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -97,6 +98,11 @@ enum tegra_pullupdown {
 enum tegra_tristate {
 	TEGRA_TRI_NORMAL = 0,
 	TEGRA_TRI_TRISTATE = 1,
+};
+
+enum tegra_pin_io {
+	TEGRA_PIN_OUTPUT = 0,
+	TEGRA_PIN_INPUT = 1,
 };
 
 enum tegra_vddio {
@@ -202,6 +208,7 @@ struct tegra_pingroup_desc {
 	int funcs[4];
 	int func_safe;
 	int vddio;
+	enum tegra_pin_io io_default;
 	s16 tri_bank;	/* Register bank the tri_reg exists within */
 	s16 mux_bank;	/* Register bank the mux_reg exists within */
 	s16 pupd_bank;	/* Register bank the pupd_reg exists within */
@@ -211,6 +218,9 @@ struct tegra_pingroup_desc {
 	s8 tri_bit; 	/* offset into the TRISTATE_REG_* register bit */
 	s8 mux_bit;	/* offset into the PIN_MUX_CTL_* register bit */
 	s8 pupd_bit;	/* offset into the PULL_UPDOWN_REG_* register bit */
+	s8 lock_bit;	/* offset of the LOCK bit into mux register bit */
+	s8 od_bit;	/* offset of the OD bit into mux register bit */
+	s8 ioreset_bit;	/* offset of the IO_RESET bit into mux register bit */
 };
 
 typedef void (*pinmux_init) (const struct tegra_pingroup_desc **pg,

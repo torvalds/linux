@@ -106,6 +106,10 @@ static const struct tegra_drive_pingroup_desc tegra_soc_drive_pingroups[TEGRA_MA
 		.pupd_bank = 2,				\
 		.pupd_reg = ((pupd_r) - PULLUPDOWN_REG_A),	\
 		.pupd_bit = pupd_b,				\
+		.lock_bit = -1,					\
+		.od_bit = -1,					\
+		.ioreset_bit = -1,				\
+		.io_default = -1,				\
 	}
 
 static const struct tegra_pingroup_desc tegra_soc_pingroups[TEGRA_MAX_PINGROUP] = {
