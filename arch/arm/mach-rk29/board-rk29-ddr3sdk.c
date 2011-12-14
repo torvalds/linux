@@ -27,6 +27,7 @@
 #ifdef CONFIG_USB_ANDROID
 #include <linux/usb/android_composite.h>
 #endif
+#include <linux/ion.h>
 
 #include <mach/hardware.h>
 #include <asm/setup.h>
@@ -820,6 +821,29 @@ static struct platform_device android_pmem_skype_device = {
 	.id		= 3,
 	.dev		= {
 		.platform_data = &android_pmem_skype_pdata,
+	},
+};
+#endif
+
+#ifdef CONFIG_ION
+static struct ion_platform_data rk29_ion_pdata = {
+	.nr = 1,
+	.heaps = {
+		{
+			.type = ION_HEAP_TYPE_CARVEOUT,
+			.id = 0,
+			.name = "ui",
+			.base = PMEM_UI_BASE,
+			.size = PMEM_UI_SIZE,
+		}
+	},
+};
+
+static struct platform_device rk29_ion_device = {
+	.name = "ion-rockchip",
+	.id = 0,
+	.dev = {
+		.platform_data = &rk29_ion_pdata,
 	},
 };
 #endif
@@ -2680,6 +2704,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #if PMEM_SKYPE_SIZE > 0
 	&android_pmem_skype_device,
+#endif
+#ifdef CONFIG_ION
+	&rk29_ion_device,
 #endif
 	&android_pmem_device,
 	&rk29_vpu_mem_device,
