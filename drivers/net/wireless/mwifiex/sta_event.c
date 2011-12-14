@@ -115,16 +115,15 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv)
 	if (adapter->num_cmd_timeout && adapter->curr_cmd)
 		return;
 	priv->media_connected = false;
-	if (!priv->disconnect) {
-		priv->disconnect = 1;
-		dev_dbg(adapter->dev, "info: successfully disconnected from"
-				" %pM: reason code %d\n", priv->cfg_bssid,
-				WLAN_REASON_DEAUTH_LEAVING);
-		cfg80211_disconnected(priv->netdev,
-				WLAN_REASON_DEAUTH_LEAVING, NULL, 0,
-				GFP_KERNEL);
-		queue_work(priv->workqueue, &priv->cfg_workqueue);
+	dev_dbg(adapter->dev, "info: successfully disconnected from"
+			" %pM: reason code %d\n", priv->cfg_bssid,
+			WLAN_REASON_DEAUTH_LEAVING);
+	if (priv->bss_mode == NL80211_IFTYPE_STATION) {
+		cfg80211_disconnected(priv->netdev, WLAN_REASON_DEAUTH_LEAVING,
+				      NULL, 0, GFP_KERNEL);
 	}
+	memset(priv->cfg_bssid, 0, ETH_ALEN);
+
 	if (!netif_queue_stopped(priv->netdev))
 		mwifiex_stop_net_dev_queue(priv->netdev, adapter);
 	if (netif_carrier_ok(priv->netdev))

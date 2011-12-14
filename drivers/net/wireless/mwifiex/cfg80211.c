@@ -751,17 +751,13 @@ mwifiex_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 
-	if (priv->disconnect)
-		return -EBUSY;
-
-	priv->disconnect = 1;
 	if (mwifiex_deauthenticate(priv, NULL))
 		return -EFAULT;
 
 	wiphy_dbg(wiphy, "info: successfully disconnected from %pM:"
 		" reason code %d\n", priv->cfg_bssid, reason_code);
 
-	queue_work(priv->workqueue, &priv->cfg_workqueue);
+	memset(priv->cfg_bssid, 0, ETH_ALEN);
 
 	return 0;
 }
@@ -981,27 +977,32 @@ mwifiex_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 	int ret = 0;
 
-	if (priv->assoc_request)
-		return -EBUSY;
-
 	if (priv->bss_mode == NL80211_IFTYPE_ADHOC) {
 		wiphy_err(wiphy, "received infra assoc request "
 				"when station is in ibss mode\n");
 		goto done;
 	}
 
-	priv->assoc_request = -EINPROGRESS;
-
 	wiphy_dbg(wiphy, "info: Trying to associate to %s and bssid %pM\n",
 	       (char *) sme->ssid, sme->bssid);
 
 	ret = mwifiex_cfg80211_assoc(priv, sme->ssid_len, sme->ssid, sme->bssid,
 				     priv->bss_mode, sme->channel, sme, 0);
-
-	priv->assoc_request = 1;
 done:
-	priv->assoc_result = ret;
-	queue_work(priv->workqueue, &priv->cfg_workqueue);
+	if (!ret) {
+		cfg80211_connect_result(priv->netdev, priv->cfg_bssid, NULL, 0,
+					NULL, 0, WLAN_STATUS_SUCCESS,
+					GFP_KERNEL);
+		dev_dbg(priv->adapter->dev,
+			"info: associated to bssid %pM successfully\n",
+			priv->cfg_bssid);
+	} else {
+		dev_dbg(priv->adapter->dev,
+			"info: association to bssid %pM failed\n",
+			priv->cfg_bssid);
+		memset(priv->cfg_bssid, 0, ETH_ALEN);
+	}
+
 	return ret;
 }
 
@@ -1018,16 +1019,11 @@ mwifiex_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
 	int ret = 0;
 
-	if (priv->ibss_join_request)
-		return -EBUSY;
-
 	if (priv->bss_mode != NL80211_IFTYPE_ADHOC) {
 		wiphy_err(wiphy, "request to join ibss received "
 				"when station is not in ibss mode\n");
 		goto done;
 	}
-
-	priv->ibss_join_request = -EINPROGRESS;
 
 	wiphy_dbg(wiphy, "info: trying to join to %s and bssid %pM\n",
 	       (char *) params->ssid, params->bssid);
@@ -1035,11 +1031,17 @@ mwifiex_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	ret = mwifiex_cfg80211_assoc(priv, params->ssid_len, params->ssid,
 				params->bssid, priv->bss_mode,
 				params->channel, NULL, params->privacy);
-
-	priv->ibss_join_request = 1;
 done:
-	priv->ibss_join_result = ret;
-	queue_work(priv->workqueue, &priv->cfg_workqueue);
+	if (!ret) {
+		cfg80211_ibss_joined(priv->netdev, priv->cfg_bssid, GFP_KERNEL);
+		dev_dbg(priv->adapter->dev,
+			"info: joined/created adhoc network with bssid"
+			" %pM successfully\n", priv->cfg_bssid);
+	} else {
+		dev_dbg(priv->adapter->dev,
+			"info: failed creating/joining adhoc network\n");
+	}
+
 	return ret;
 }
 
@@ -1054,17 +1056,12 @@ mwifiex_cfg80211_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 {
 	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
 
-	if (priv->disconnect)
-		return -EBUSY;
-
-	priv->disconnect = 1;
-
 	wiphy_dbg(wiphy, "info: disconnecting from essid %pM\n",
 			priv->cfg_bssid);
 	if (mwifiex_deauthenticate(priv, NULL))
 		return -EFAULT;
 
-	queue_work(priv->workqueue, &priv->cfg_workqueue);
+	memset(priv->cfg_bssid, 0, ETH_ALEN);
 
 	return 0;
 }
@@ -1081,15 +1078,42 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy, struct net_device *dev,
 		      struct cfg80211_scan_request *request)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+	int i;
+	struct ieee80211_channel *chan;
 
 	wiphy_dbg(wiphy, "info: received scan request on %s\n", dev->name);
 
-	if (priv->scan_request && priv->scan_request != request)
-		return -EBUSY;
-
 	priv->scan_request = request;
 
-	queue_work(priv->workqueue, &priv->cfg_workqueue);
+	priv->user_scan_cfg = kzalloc(sizeof(struct mwifiex_user_scan_cfg),
+					GFP_KERNEL);
+	if (!priv->user_scan_cfg) {
+		dev_err(priv->adapter->dev, "failed to alloc scan_req\n");
+		return -ENOMEM;
+	}
+	for (i = 0; i < request->n_ssids; i++) {
+		memcpy(priv->user_scan_cfg->ssid_list[i].ssid,
+			request->ssids[i].ssid, request->ssids[i].ssid_len);
+		priv->user_scan_cfg->ssid_list[i].max_len =
+			request->ssids[i].ssid_len;
+	}
+	for (i = 0; i < request->n_channels; i++) {
+		chan = request->channels[i];
+		priv->user_scan_cfg->chan_list[i].chan_number = chan->hw_value;
+		priv->user_scan_cfg->chan_list[i].radio_type = chan->band;
+
+		if (chan->flags & IEEE80211_CHAN_PASSIVE_SCAN)
+			priv->user_scan_cfg->chan_list[i].scan_type =
+				MWIFIEX_SCAN_TYPE_PASSIVE;
+		else
+			priv->user_scan_cfg->chan_list[i].scan_type =
+				MWIFIEX_SCAN_TYPE_ACTIVE;
+
+		priv->user_scan_cfg->chan_list[i].scan_time = 0;
+	}
+	if (mwifiex_set_user_scan_ioctl(priv, priv->user_scan_cfg))
+		return -EFAULT;
+
 	return 0;
 }
 
@@ -1295,10 +1319,6 @@ int mwifiex_del_virtual_intf(struct wiphy *wiphy, struct net_device *dev)
 
 	priv->media_connected = false;
 
-	cancel_work_sync(&priv->cfg_workqueue);
-	flush_workqueue(priv->workqueue);
-	destroy_workqueue(priv->workqueue);
-
 	priv->bss_mode = NL80211_IFTYPE_UNSPECIFIED;
 
 	return 0;
@@ -1403,101 +1423,4 @@ int mwifiex_register_cfg80211(struct mwifiex_private *priv)
 	priv->wdev = wdev;
 
 	return ret;
-}
-
-/*
- * This function handles the result of different pending network operations.
- *
- * The following operations are handled and CFG802.11 subsystem is
- * notified accordingly -
- *      - Scan request completion
- *      - Association request completion
- *      - IBSS join request completion
- *      - Disconnect request completion
- */
-void
-mwifiex_cfg80211_results(struct work_struct *work)
-{
-	struct mwifiex_private *priv =
-		container_of(work, struct mwifiex_private, cfg_workqueue);
-	struct mwifiex_user_scan_cfg *scan_req;
-	int ret = 0, i;
-	struct ieee80211_channel *chan;
-
-	if (priv->scan_request) {
-		scan_req = kzalloc(sizeof(struct mwifiex_user_scan_cfg),
-				   GFP_KERNEL);
-		if (!scan_req) {
-			dev_err(priv->adapter->dev, "failed to alloc "
-						    "scan_req\n");
-			return;
-		}
-		for (i = 0; i < priv->scan_request->n_ssids; i++) {
-			memcpy(scan_req->ssid_list[i].ssid,
-					priv->scan_request->ssids[i].ssid,
-					priv->scan_request->ssids[i].ssid_len);
-			scan_req->ssid_list[i].max_len =
-					priv->scan_request->ssids[i].ssid_len;
-		}
-		for (i = 0; i < priv->scan_request->n_channels; i++) {
-			chan = priv->scan_request->channels[i];
-			scan_req->chan_list[i].chan_number = chan->hw_value;
-			scan_req->chan_list[i].radio_type = chan->band;
-			if (chan->flags & IEEE80211_CHAN_DISABLED)
-				scan_req->chan_list[i].scan_type =
-					MWIFIEX_SCAN_TYPE_PASSIVE;
-			else
-				scan_req->chan_list[i].scan_type =
-					MWIFIEX_SCAN_TYPE_ACTIVE;
-			scan_req->chan_list[i].scan_time = 0;
-		}
-		if (mwifiex_set_user_scan_ioctl(priv, scan_req))
-			ret = -EFAULT;
-		priv->scan_result_status = ret;
-		dev_dbg(priv->adapter->dev, "info: %s: sending scan results\n",
-							__func__);
-		cfg80211_scan_done(priv->scan_request,
-				(priv->scan_result_status < 0));
-		priv->scan_request = NULL;
-		kfree(scan_req);
-	}
-
-	if (priv->assoc_request == 1) {
-		if (!priv->assoc_result) {
-			cfg80211_connect_result(priv->netdev, priv->cfg_bssid,
-						NULL, 0, NULL, 0,
-						WLAN_STATUS_SUCCESS,
-						GFP_KERNEL);
-			dev_dbg(priv->adapter->dev,
-				"info: associated to bssid %pM successfully\n",
-			       priv->cfg_bssid);
-		} else {
-			dev_dbg(priv->adapter->dev,
-				"info: association to bssid %pM failed\n",
-			       priv->cfg_bssid);
-			memset(priv->cfg_bssid, 0, ETH_ALEN);
-		}
-		priv->assoc_request = 0;
-		priv->assoc_result = 0;
-	}
-
-	if (priv->ibss_join_request == 1) {
-		if (!priv->ibss_join_result) {
-			cfg80211_ibss_joined(priv->netdev, priv->cfg_bssid,
-					     GFP_KERNEL);
-			dev_dbg(priv->adapter->dev,
-				"info: joined/created adhoc network with bssid"
-					" %pM successfully\n", priv->cfg_bssid);
-		} else {
-			dev_dbg(priv->adapter->dev,
-				"info: failed creating/joining adhoc network\n");
-		}
-		priv->ibss_join_request = 0;
-		priv->ibss_join_result = 0;
-	}
-
-	if (priv->disconnect) {
-		memset(priv->cfg_bssid, 0, ETH_ALEN);
-		priv->disconnect = 0;
-	}
 }

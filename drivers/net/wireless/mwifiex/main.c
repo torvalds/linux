@@ -586,8 +586,6 @@ void mwifiex_init_priv_params(struct mwifiex_private *priv,
 	priv->media_connected = false;
 	memset(&priv->nick_name, 0, sizeof(priv->nick_name));
 	priv->num_tx_timeout = 0;
-	priv->workqueue = create_singlethread_workqueue("cfg80211_wq");
-	INIT_WORK(&priv->cfg_workqueue, mwifiex_cfg80211_results);
 	memcpy(dev->dev_addr, priv->curr_addr, ETH_ALEN);
 }
 
