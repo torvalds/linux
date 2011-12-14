@@ -916,11 +916,6 @@ static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state 
 	if (ns.disk == D_FAILED && os.disk == D_DISKLESS)
 		ns.disk = D_DISKLESS;
 
-	/* if we are only D_ATTACHING yet,
-	 * we can (and should) go directly to D_DISKLESS. */
-	if (ns.disk == D_FAILED && os.disk == D_ATTACHING)
-		ns.disk = D_DISKLESS;
-
 	/* After C_DISCONNECTING only C_STANDALONE may follow */
 	if (os.conn == C_DISCONNECTING && ns.conn != C_STANDALONE)
 		ns.conn = os.conn;
@@ -1592,35 +1587,38 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	/* first half of local IO error, failure to attach,
 	 * or administrative detach */
 	if (os.disk != D_FAILED && ns.disk == D_FAILED) {
-		enum drbd_io_error_p eh;
-		int was_io_error;
+		enum drbd_io_error_p eh = EP_PASS_ON;
+		int was_io_error = 0;
 		/* corresponding get_ldev was in __drbd_set_state, to serialize
-		 * our cleanup here with the transition to D_DISKLESS,
-		 * so it is safe to dreference ldev here. */
-		eh = mdev->ldev->dc.on_io_error;
-		was_io_error = test_and_clear_bit(WAS_IO_ERROR, &mdev->flags);
+		 * our cleanup here with the transition to D_DISKLESS.
+		 * But is is still not save to dreference ldev here, since
+		 * we might come from an failed Attach before ldev was set. */
+		if (mdev->ldev) {
+			eh = mdev->ldev->dc.on_io_error;
+			was_io_error = test_and_clear_bit(WAS_IO_ERROR, &mdev->flags);
 
-		/* Immediately allow completion of all application IO, that waits
-		   for completion from the local disk. */
-		tl_abort_disk_io(mdev);
+			/* Immediately allow completion of all application IO, that waits
+			   for completion from the local disk. */
+			tl_abort_disk_io(mdev);
 
-		/* current state still has to be D_FAILED,
-		 * there is only one way out: to D_DISKLESS,
-		 * and that may only happen after our put_ldev below. */
-		if (mdev->state.disk != D_FAILED)
-			dev_err(DEV,
-				"ASSERT FAILED: disk is %s during detach\n",
-				drbd_disk_str(mdev->state.disk));
+			/* current state still has to be D_FAILED,
+			 * there is only one way out: to D_DISKLESS,
+			 * and that may only happen after our put_ldev below. */
+			if (mdev->state.disk != D_FAILED)
+				dev_err(DEV,
+					"ASSERT FAILED: disk is %s during detach\n",
+					drbd_disk_str(mdev->state.disk));
 
-		if (ns.conn >= C_CONNECTED)
-			drbd_send_state(mdev, ns);
+			if (ns.conn >= C_CONNECTED)
+				drbd_send_state(mdev, ns);
 
-		drbd_rs_cancel_all(mdev);
+			drbd_rs_cancel_all(mdev);
 
-		/* In case we want to get something to stable storage still,
-		 * this may be the last chance.
-		 * Following put_ldev may transition to D_DISKLESS. */
-		drbd_md_sync(mdev);
+			/* In case we want to get something to stable storage still,
+			 * this may be the last chance.
+			 * Following put_ldev may transition to D_DISKLESS. */
+			drbd_md_sync(mdev);
+		}
 		put_ldev(mdev);
 
 		if (was_io_error && eh == EP_CALL_HELPER)
