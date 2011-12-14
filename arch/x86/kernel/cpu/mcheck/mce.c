@@ -887,6 +887,49 @@ static void mce_clear_state(unsigned long *toclear)
 }
 
 /*
+ * Need to save faulting physical address associated with a process
+ * in the machine check handler some place where we can grab it back
+ * later in mce_notify_process()
+ */
+#define	MCE_INFO_MAX	16
+
+struct mce_info {
+	atomic_t		inuse;
+	struct task_struct	*t;
+	__u64			paddr;
+} mce_info[MCE_INFO_MAX];
+
+static void mce_save_info(__u64 addr)
+{
+	struct mce_info *mi;
+
+	for (mi = mce_info; mi < &mce_info[MCE_INFO_MAX]; mi++) {
+		if (atomic_cmpxchg(&mi->inuse, 0, 1) == 0) {
+			mi->t = current;
+			mi->paddr = addr;
+			return;
+		}
+	}
+
+	mce_panic("Too many concurrent recoverable errors", NULL, NULL);
+}
+
+static struct mce_info *mce_find_info(void)
+{
+	struct mce_info *mi;
+
+	for (mi = mce_info; mi < &mce_info[MCE_INFO_MAX]; mi++)
+		if (atomic_read(&mi->inuse) && mi->t == current)
+			return mi;
+	return NULL;
+}
+
+static void mce_clear_info(struct mce_info *mi)
+{
+	atomic_set(&mi->inuse, 0);
+}
+
+/*
  * The actual machine check handler. This only handles real
  * exceptions when something got corrupted coming in through int 18.
  *
