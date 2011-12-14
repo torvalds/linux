@@ -52,6 +52,7 @@ struct pinctrl_dev {
  * @pctldev: corresponding pin control device
  * @name: a name for the pin, e.g. the name of the pin/pad/finger on a
  *	datasheet or such
+ * @dynamic_name: if the name of this pin was dynamically allocated
  * @lock: a lock to protect the descriptor structure
  * @mux_requested: whether the pin is already requested by pinmux or not
  * @mux_function: a named muxing function for the pin that will be passed to
@@ -60,6 +61,7 @@ struct pinctrl_dev {
 struct pin_desc {
 	struct pinctrl_dev *pctldev;
 	const char *name;
+	bool dynamic_name;
 	spinlock_t lock;
 	/* These fields only added when supporting pinmux drivers */
 #ifdef CONFIG_PINMUX

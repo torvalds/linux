@@ -158,6 +158,8 @@ static void pinctrl_free_pindescs(struct pinctrl_dev *pctldev,
 		if (pindesc != NULL) {
 			radix_tree_delete(&pctldev->pin_desc_tree,
 					  pins[i].number);
+			if (pindesc->dynamic_name)
+				kfree(pindesc->name);
 		}
 		kfree(pindesc);
 	}
@@ -186,13 +188,20 @@ static int pinctrl_register_one_pin(struct pinctrl_dev *pctldev,
 	pindesc->pctldev = pctldev;
 
 	/* Copy basic pin info */
-	pindesc->name = name;
+	if (pindesc->name) {
+		pindesc->name = name;
+	} else {
+		pindesc->name = kasprintf(GFP_KERNEL, "PIN%u", number);
+		if (pindesc->name == NULL)
+			return -ENOMEM;
+		pindesc->dynamic_name = true;
+	}
 
 	spin_lock(&pctldev->pin_desc_tree_lock);
 	radix_tree_insert(&pctldev->pin_desc_tree, number, pindesc);
 	spin_unlock(&pctldev->pin_desc_tree_lock);
 	pr_debug("registered pin %d (%s) on %s\n",
-		 number, name ? name : "(unnamed)", pctldev->desc->name);
+		 number, pindesc->name, pctldev->desc->name);
 	return 0;
 }
 
