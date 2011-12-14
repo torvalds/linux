@@ -31,6 +31,8 @@
 #define TG3_RX_RET_MAX_SIZE_5705	512
 #define TG3_RX_RET_MAX_SIZE_5717	4096
 
+#define TG3_RSS_INDIR_TBL_SIZE		128
+
 /* First 256 bytes are a mirror of PCI config space. */
 #define TG3PCI_VENDOR			0x00000000
 #define  TG3PCI_VENDOR_BROADCOM		 0x14e4
@@ -3152,6 +3154,7 @@ struct tg3 {
 	u32				led_ctrl;
 	u32				phy_otp;
 	u32				setlpicnt;
+	u8				rss_ind_tbl[TG3_RSS_INDIR_TBL_SIZE];
 
 #define TG3_BPN_SIZE			24
 	char				board_part_number[TG3_BPN_SIZE];

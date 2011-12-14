@@ -135,7 +135,6 @@ static inline void _tg3_flag_clear(enum TG3_FLAGS flag, unsigned long *bits)
 	(tg3_flag(tp, LRG_PROD_RING_CAP) ? \
 	 TG3_RX_JMB_MAX_SIZE_5717 : TG3_RX_JMB_MAX_SIZE_5700)
 #define TG3_DEF_RX_JUMBO_RING_PENDING	100
-#define TG3_RSS_INDIR_TBL_SIZE		128
 
 /* Do not place this n-ring entries value into the tp struct itself,
  * we really want to expose these constants to GCC so that modulo et
@@ -8221,6 +8220,37 @@ static void tg3_setup_rxbd_thresholds(struct tg3 *tp)
 		tw32(JMB_REPLENISH_LWM, bdcache_maxcnt);
 }
 
+void tg3_rss_init_indir_tbl(struct tg3 *tp)
+{
+	int i;
+
+	if (!tg3_flag(tp, SUPPORT_MSIX))
+		return;
+
+	if (tp->irq_cnt <= 2)
+		memset(&tp->rss_ind_tbl[0], 0, sizeof(tp->rss_ind_tbl));
+	else
+		for (i = 0; i < TG3_RSS_INDIR_TBL_SIZE; i++)
+			tp->rss_ind_tbl[i] = i % (tp->irq_cnt - 1);
+}
+
+void tg3_rss_write_indir_tbl(struct tg3 *tp)
+{
+	int i = 0;
+	u32 reg = MAC_RSS_INDIR_TBL_0;
+
+	while (i < TG3_RSS_INDIR_TBL_SIZE) {
+		u32 val = tp->rss_ind_tbl[i];
+		i++;
+		for (; i % 8; i++) {
+			val <<= 4;
+			val |= tp->rss_ind_tbl[i];
+		}
+		tw32(reg, val);
+		reg += 4;
+	}
+}
+
 /* tp->lock is held. */
 static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 {
@@ -8914,28 +8944,7 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	udelay(100);
 
 	if (tg3_flag(tp, ENABLE_RSS)) {
-		int i = 0;
-		u32 reg = MAC_RSS_INDIR_TBL_0;
-
-		if (tp->irq_cnt == 2) {
-			for (i = 0; i < TG3_RSS_INDIR_TBL_SIZE; i += 8) {
-				tw32(reg, 0x0);
-				reg += 4;
-			}
-		} else {
-			u32 val;
-
-			while (i < TG3_RSS_INDIR_TBL_SIZE) {
-				val = i % (tp->irq_cnt - 1);
-				i++;
-				for (; i % 8; i++) {
-					val <<= 4;
-					val |= (i % (tp->irq_cnt - 1));
-				}
-				tw32(reg, val);
-				reg += 4;
-			}
-		}
+		tg3_rss_write_indir_tbl(tp);
 
 		/* Setup the "secret" hash key. */
 		tw32(MAC_RSS_HASH_KEY_0, 0x5f865437);
@@ -9658,6 +9667,8 @@ static int tg3_open(struct net_device *dev)
 	 * many NAPI resources to allocate
 	 */
 	tg3_ints_init(tp);
+
+	tg3_rss_init_indir_tbl(tp);
 
 	/* The placement of this call is tied
 	 * to the setup and use of Host TX descriptors.
