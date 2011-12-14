@@ -67,12 +67,6 @@ struct hci_conn_hash {
 	unsigned int     le_num;
 };
 
-struct hci_chan_hash {
-	struct list_head list;
-	spinlock_t       lock;
-	unsigned int     num;
-};
-
 struct bdaddr_list {
 	struct list_head list;
 	bdaddr_t bdaddr;
@@ -301,7 +295,7 @@ struct hci_conn {
 	unsigned int	sent;
 
 	struct sk_buff_head data_q;
-	struct hci_chan_hash chan_hash;
+	struct list_head chan_list;
 
 	struct timer_list disc_timer;
 	struct timer_list idle_timer;
@@ -390,7 +384,6 @@ static inline void hci_conn_hash_init(struct hci_dev *hdev)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
 	INIT_LIST_HEAD(&h->list);
-	spin_lock_init(&h->lock);
 	h->acl_num = 0;
 	h->sco_num = 0;
 }
@@ -492,28 +485,6 @@ static inline struct hci_conn *hci_conn_hash_lookup_state(struct hci_dev *hdev,
 	return NULL;
 }
 
-static inline void hci_chan_hash_init(struct hci_conn *c)
-{
-	struct hci_chan_hash *h = &c->chan_hash;
-	INIT_LIST_HEAD(&h->list);
-	spin_lock_init(&h->lock);
-	h->num = 0;
-}
-
-static inline void hci_chan_hash_add(struct hci_conn *c, struct hci_chan *chan)
-{
-	struct hci_chan_hash *h = &c->chan_hash;
-	list_add(&chan->list, &h->list);
-	h->num++;
-}
-
-static inline void hci_chan_hash_del(struct hci_conn *c, struct hci_chan *chan)
-{
-	struct hci_chan_hash *h = &c->chan_hash;
-	list_del(&chan->list);
-	h->num--;
-}
-
 void hci_acl_connect(struct hci_conn *conn);
 void hci_acl_disconn(struct hci_conn *conn, __u8 reason);
 void hci_add_sco(struct hci_conn *conn, __u16 handle);
@@ -527,7 +498,7 @@ void hci_conn_check_pending(struct hci_dev *hdev);
 
 struct hci_chan *hci_chan_create(struct hci_conn *conn);
 int hci_chan_del(struct hci_chan *chan);
-void hci_chan_hash_flush(struct hci_conn *conn);
+void hci_chan_list_flush(struct hci_conn *conn);
 
 struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst,
 						__u8 sec_level, __u8 auth_type);

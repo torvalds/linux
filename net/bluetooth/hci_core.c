@@ -2125,7 +2125,6 @@ static inline struct hci_chan *hci_chan_sent(struct hci_dev *hdev, __u8 type,
 	BT_DBG("%s", hdev->name);
 
 	list_for_each_entry(conn, &h->list, list) {
-		struct hci_chan_hash *ch;
 		struct hci_chan *tmp;
 
 		if (conn->type != type)
@@ -2136,9 +2135,7 @@ static inline struct hci_chan *hci_chan_sent(struct hci_dev *hdev, __u8 type,
 
 		conn_num++;
 
-		ch = &conn->chan_hash;
-
-		list_for_each_entry(tmp, &ch->list, list) {
+		list_for_each_entry(tmp, &conn->chan_list, list) {
 			struct sk_buff *skb;
 
 			if (skb_queue_empty(&tmp->data_q))
@@ -2200,7 +2197,6 @@ static void hci_prio_recalculate(struct hci_dev *hdev, __u8 type)
 	BT_DBG("%s", hdev->name);
 
 	list_for_each_entry(conn, &h->list, list) {
-		struct hci_chan_hash *ch;
 		struct hci_chan *chan;
 
 		if (conn->type != type)
@@ -2211,8 +2207,7 @@ static void hci_prio_recalculate(struct hci_dev *hdev, __u8 type)
 
 		num++;
 
-		ch = &conn->chan_hash;
-		list_for_each_entry(chan, &ch->list, list) {
+		list_for_each_entry(chan, &conn->chan_list, list) {
 			struct sk_buff *skb;
 
 			if (chan->sent) {
