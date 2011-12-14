@@ -504,7 +504,6 @@ static int ad7793_probe_trigger(struct iio_dev *indio_dev)
 	disable_irq_nosync(st->spi->irq);
 	st->irq_dis = true;
 	st->trig->dev.parent = &st->spi->dev;
-	st->trig->owner = THIS_MODULE;
 	st->trig->private_data = indio_dev;
 
 	ret = iio_trigger_register(st->trig);

@@ -46,7 +46,6 @@ struct iio_trigger_ops {
  * @private_data:	[DRIVER] device specific data
  * @list:		[INTERN] used in maintenance of global trigger list
  * @alloc_list:		[DRIVER] used for driver specific trigger list
- * @owner:		[DRIVER] used to monitor usage count of the trigger.
  * @use_count:		use count for the trigger
  * @subirq_chip:	[INTERN] associate 'virtual' irq chip.
  * @subirq_base:	[INTERN] base number for irqs provided by trigger.
@@ -63,7 +62,6 @@ struct iio_trigger {
 	void				*private_data;
 	struct list_head		list;
 	struct list_head		alloc_list;
-	struct module			*owner;
 	int use_count;
 
 	struct irq_chip			subirq_chip;

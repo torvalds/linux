@@ -125,7 +125,6 @@ static int iio_trig_periodic_rtc_probe(struct platform_device *dev)
 			goto error_put_trigger_and_remove_from_list;
 		}
 		trig->private_data = trig_info;
-		trig->owner = THIS_MODULE;
 		trig->ops = &iio_prtc_trigger_ops;
 		/* RTC access */
 		trig_info->rtc
