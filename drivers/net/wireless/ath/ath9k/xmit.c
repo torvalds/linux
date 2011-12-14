@@ -480,27 +480,25 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 		} else if (!isaggr && txok) {
 			/* transmit completion */
 			acked_cnt++;
-		} else {
-			if ((tid->state & AGGR_CLEANUP) || !retry) {
-				/*
-				 * cleanup in progress, just fail
-				 * the un-acked sub-frames
-				 */
-				txfail = 1;
-			} else if (flush) {
-				txpending = 1;
-			} else if (fi->retries < ATH_MAX_SW_RETRIES) {
-				if (txok || !an->sleeping)
-					ath_tx_set_retry(sc, txq, bf->bf_mpdu,
-							 retries);
+		} else if ((tid->state & AGGR_CLEANUP) || !retry) {
+			/*
+			 * cleanup in progress, just fail
+			 * the un-acked sub-frames
+			 */
+			txfail = 1;
+		} else if (flush) {
+			txpending = 1;
+		} else if (fi->retries < ATH_MAX_SW_RETRIES) {
+			if (txok || !an->sleeping)
+				ath_tx_set_retry(sc, txq, bf->bf_mpdu,
+						 retries);
 
-				txpending = 1;
-			} else {
-				txfail = 1;
-				txfail_cnt++;
-				bar_index = max_t(int, bar_index,
-					ATH_BA_INDEX(seq_first, seqno));
-			}
+			txpending = 1;
+		} else {
+			txfail = 1;
+			txfail_cnt++;
+			bar_index = max_t(int, bar_index,
+				ATH_BA_INDEX(seq_first, seqno));
 		}
 
 		/*
@@ -531,32 +529,29 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 				!txfail);
 		} else {
 			/* retry the un-acked ones */
-			if (!(sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)) {
-				if (bf->bf_next == NULL && bf_last->bf_stale) {
-					struct ath_buf *tbf;
+			if (!(sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) &&
+			    bf->bf_next == NULL && bf_last->bf_stale) {
+				struct ath_buf *tbf;
 
-					tbf = ath_clone_txbuf(sc, bf_last);
-					/*
-					 * Update tx baw and complete the
-					 * frame with failed status if we
-					 * run out of tx buf.
-					 */
-					if (!tbf) {
-						spin_lock_bh(&txq->axq_lock);
-						ath_tx_update_baw(sc, tid, seqno);
-						spin_unlock_bh(&txq->axq_lock);
+				tbf = ath_clone_txbuf(sc, bf_last);
+				/*
+				 * Update tx baw and complete the
+				 * frame with failed status if we
+				 * run out of tx buf.
+				 */
+				if (!tbf) {
+					spin_lock_bh(&txq->axq_lock);
+					ath_tx_update_baw(sc, tid, seqno);
+					spin_unlock_bh(&txq->axq_lock);
 
-						ath_tx_complete_buf(sc, bf, txq,
-								    &bf_head,
-								    ts, 0);
-						bar_index = max_t(int, bar_index,
-							ATH_BA_INDEX(seq_first,
-								seqno));
-						break;
-					}
-
-					fi->bf = tbf;
+					ath_tx_complete_buf(sc, bf, txq,
+							    &bf_head, ts, 0);
+					bar_index = max_t(int, bar_index,
+						ATH_BA_INDEX(seq_first, seqno));
+					break;
 				}
+
+				fi->bf = tbf;
 			}
 
 			/*
@@ -644,24 +639,26 @@ static u32 ath_lookup_rate(struct ath_softc *sc, struct ath_buf *bf,
 	max_4ms_framelen = ATH_AMPDU_LIMIT_MAX;
 
 	for (i = 0; i < 4; i++) {
-		if (rates[i].count) {
-			int modeidx;
-			if (!(rates[i].flags & IEEE80211_TX_RC_MCS)) {
-				legacy = 1;
-				break;
-			}
+		int modeidx;
 
-			if (rates[i].flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
-				modeidx = MCS_HT40;
-			else
-				modeidx = MCS_HT20;
+		if (!rates[i].count)
+			continue;
 
-			if (rates[i].flags & IEEE80211_TX_RC_SHORT_GI)
-				modeidx++;
-
-			frmlen = ath_max_4ms_framelen[modeidx][rates[i].idx];
-			max_4ms_framelen = min(max_4ms_framelen, frmlen);
+		if (!(rates[i].flags & IEEE80211_TX_RC_MCS)) {
+			legacy = 1;
+			break;
 		}
+
+		if (rates[i].flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
+			modeidx = MCS_HT40;
+		else
+			modeidx = MCS_HT20;
+
+		if (rates[i].flags & IEEE80211_TX_RC_SHORT_GI)
+			modeidx++;
+
+		frmlen = ath_max_4ms_framelen[modeidx][rates[i].idx];
+		max_4ms_framelen = min(max_4ms_framelen, frmlen);
 	}
 
 	/*
@@ -1587,11 +1584,9 @@ void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
 				break;
 		}
 
-		if (!list_empty(&ac->tid_q)) {
-			if (!ac->sched) {
-				ac->sched = true;
-				list_add_tail(&ac->list, &txq->axq_acq);
-			}
+		if (!list_empty(&ac->tid_q) && !ac->sched) {
+			ac->sched = true;
+			list_add_tail(&ac->list, &txq->axq_acq);
 		}
 
 		if (ac == last_ac ||
