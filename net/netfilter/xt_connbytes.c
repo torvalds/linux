@@ -40,46 +40,46 @@ connbytes_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	case XT_CONNBYTES_PKTS:
 		switch (sinfo->direction) {
 		case XT_CONNBYTES_DIR_ORIGINAL:
-			what = counters[IP_CT_DIR_ORIGINAL].packets;
+			what = atomic64_read(&counters[IP_CT_DIR_ORIGINAL].packets);
 			break;
 		case XT_CONNBYTES_DIR_REPLY:
-			what = counters[IP_CT_DIR_REPLY].packets;
+			what = atomic64_read(&counters[IP_CT_DIR_REPLY].packets);
 			break;
 		case XT_CONNBYTES_DIR_BOTH:
-			what = counters[IP_CT_DIR_ORIGINAL].packets;
-			what += counters[IP_CT_DIR_REPLY].packets;
+			what = atomic64_read(&counters[IP_CT_DIR_ORIGINAL].packets);
+			what += atomic64_read(&counters[IP_CT_DIR_REPLY].packets);
 			break;
 		}
 		break;
 	case XT_CONNBYTES_BYTES:
 		switch (sinfo->direction) {
 		case XT_CONNBYTES_DIR_ORIGINAL:
-			what = counters[IP_CT_DIR_ORIGINAL].bytes;
+			what = atomic64_read(&counters[IP_CT_DIR_ORIGINAL].bytes);
 			break;
 		case XT_CONNBYTES_DIR_REPLY:
-			what = counters[IP_CT_DIR_REPLY].bytes;
+			what = atomic64_read(&counters[IP_CT_DIR_REPLY].bytes);
 			break;
 		case XT_CONNBYTES_DIR_BOTH:
-			what = counters[IP_CT_DIR_ORIGINAL].bytes;
-			what += counters[IP_CT_DIR_REPLY].bytes;
+			what = atomic64_read(&counters[IP_CT_DIR_ORIGINAL].bytes);
+			what += atomic64_read(&counters[IP_CT_DIR_REPLY].bytes);
 			break;
 		}
 		break;
 	case XT_CONNBYTES_AVGPKT:
 		switch (sinfo->direction) {
 		case XT_CONNBYTES_DIR_ORIGINAL:
-			bytes = counters[IP_CT_DIR_ORIGINAL].bytes;
-			pkts  = counters[IP_CT_DIR_ORIGINAL].packets;
+			bytes = atomic64_read(&counters[IP_CT_DIR_ORIGINAL].bytes);
+			pkts  = atomic64_read(&counters[IP_CT_DIR_ORIGINAL].packets);
 			break;
 		case XT_CONNBYTES_DIR_REPLY:
-			bytes = counters[IP_CT_DIR_REPLY].bytes;
-			pkts  = counters[IP_CT_DIR_REPLY].packets;
+			bytes = atomic64_read(&counters[IP_CT_DIR_REPLY].bytes);
+			pkts  = atomic64_read(&counters[IP_CT_DIR_REPLY].packets);
 			break;
 		case XT_CONNBYTES_DIR_BOTH:
-			bytes = counters[IP_CT_DIR_ORIGINAL].bytes +
-				counters[IP_CT_DIR_REPLY].bytes;
-			pkts  = counters[IP_CT_DIR_ORIGINAL].packets +
-				counters[IP_CT_DIR_REPLY].packets;
+			bytes = atomic64_read(&counters[IP_CT_DIR_ORIGINAL].bytes) +
+				atomic64_read(&counters[IP_CT_DIR_REPLY].bytes);
+			pkts  = atomic64_read(&counters[IP_CT_DIR_ORIGINAL].packets) +
+				atomic64_read(&counters[IP_CT_DIR_REPLY].packets);
 			break;
 		}
 		if (pkts != 0)

@@ -219,9 +219,9 @@ ctnetlink_dump_counters(struct sk_buff *skb, const struct nf_conn *ct,
 		goto nla_put_failure;
 
 	NLA_PUT_BE64(skb, CTA_COUNTERS_PACKETS,
-		     cpu_to_be64(acct[dir].packets));
+		     cpu_to_be64(atomic64_read(&acct[dir].packets)));
 	NLA_PUT_BE64(skb, CTA_COUNTERS_BYTES,
-		     cpu_to_be64(acct[dir].bytes));
+		     cpu_to_be64(atomic64_read(&acct[dir].bytes)));
 
 	nla_nest_end(skb, nest_count);
 
@@ -720,8 +720,12 @@ restart:
 				struct nf_conn_counter *acct;
 
 				acct = nf_conn_acct_find(ct);
-				if (acct)
-					memset(acct, 0, sizeof(struct nf_conn_counter[IP_CT_DIR_MAX]));
+				if (acct) {
+					atomic64_set(&acct[IP_CT_DIR_ORIGINAL].bytes, 0);
+					atomic64_set(&acct[IP_CT_DIR_ORIGINAL].packets, 0);
+					atomic64_set(&acct[IP_CT_DIR_REPLY].bytes, 0);
+					atomic64_set(&acct[IP_CT_DIR_REPLY].packets, 0);
+					}
 			}
 		}
 		if (cb->args[1]) {
