@@ -73,6 +73,15 @@ struct pinmux_map {
 	{ .name = a, .ctrl_dev_name = b, .function = c, \
 	  .hog_on_boot = true }
 
+/*
+ * Convenience macro to map a system function onto a certain pinctrl device
+ * using a specified group, to be hogged by the pinmux core until the system
+ * shuts down.
+ */
+#define PINMUX_MAP_SYS_HOG_GROUP(a, b, c, d)		\
+	{ .name = a, .ctrl_dev_name = b, .function = c, .group = d, \
+	  .hog_on_boot = true }
+
 #ifdef CONFIG_PINMUX
 
 extern int pinmux_register_mappings(struct pinmux_map const *map,
