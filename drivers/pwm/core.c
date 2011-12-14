@@ -129,6 +129,45 @@ static int pwm_device_request(struct pwm_device *pwm, const char *label)
 	return 0;
 }
 
+static struct pwm_device *of_pwm_simple_xlate(struct pwm_chip *pc,
+					      const struct of_phandle_args *args)
+{
+	struct pwm_device *pwm;
+
+	if (pc->of_pwm_n_cells < 2)
+		return ERR_PTR(-EINVAL);
+
+	if (args->args[0] >= pc->npwm)
+		return ERR_PTR(-EINVAL);
+
+	pwm = pwm_request_from_chip(pc, args->args[0], NULL);
+	if (IS_ERR(pwm))
+		return pwm;
+
+	pwm_set_period(pwm, args->args[1]);
+
+	return pwm;
+}
+
+void of_pwmchip_add(struct pwm_chip *chip)
+{
+	if (!chip->dev || !chip->dev->of_node)
+		return;
+
+	if (!chip->of_xlate) {
+		chip->of_xlate = of_pwm_simple_xlate;
+		chip->of_pwm_n_cells = 2;
+	}
+
+	of_node_get(chip->dev->of_node);
+}
+
+void of_pwmchip_remove(struct pwm_chip *chip)
+{
+	if (chip->dev && chip->dev->of_node)
+		of_node_put(chip->dev->of_node);
+}
+
 /**
  * pwm_set_chip_data() - set private chip data for a PWM
  * @pwm: PWM device
@@ -201,6 +240,9 @@ int pwmchip_add(struct pwm_chip *chip)
 
 	ret = 0;
 
+	if (IS_ENABLED(CONFIG_OF))
+		of_pwmchip_add(chip);
+
 out:
 	mutex_unlock(&pwm_lock);
 	return ret;
@@ -231,6 +273,10 @@ int pwmchip_remove(struct pwm_chip *chip)
 	}
 
 	list_del_init(&chip->list);
+
+	if (IS_ENABLED(CONFIG_OF))
+		of_pwmchip_remove(chip);
+
 	free_pwms(chip);
 
 out:
@@ -356,6 +402,99 @@ void pwm_disable(struct pwm_device *pwm)
 }
 EXPORT_SYMBOL_GPL(pwm_disable);
 
+static struct pwm_chip *of_node_to_pwmchip(struct device_node *np)
+{
+	struct pwm_chip *chip;
+
+	mutex_lock(&pwm_lock);
+
+	list_for_each_entry(chip, &pwm_chips, list)
+		if (chip->dev && chip->dev->of_node == np) {
+			mutex_unlock(&pwm_lock);
+			return chip;
+		}
+
+	mutex_unlock(&pwm_lock);
+
+	return ERR_PTR(-EPROBE_DEFER);
+}
+
+/**
+ * of_pwm_request() - request a PWM via the PWM framework
+ * @np: device node to get the PWM from
+ * @con_id: consumer name
+ *
+ * Returns the PWM device parsed from the phandle and index specified in the
+ * "pwms" property of a device tree node or a negative error-code on failure.
+ * Values parsed from the device tree are stored in the returned PWM device
+ * object.
+ *
+ * If con_id is NULL, the first PWM device listed in the "pwms" property will
+ * be requested. Otherwise the "pwm-names" property is used to do a reverse
+ * lookup of the PWM index. This also means that the "pwm-names" property
+ * becomes mandatory for devices that look up the PWM device via the con_id
+ * parameter.
+ */
+static struct pwm_device *of_pwm_request(struct device_node *np,
+					 const char *con_id)
+{
+	struct pwm_device *pwm = NULL;
+	struct of_phandle_args args;
+	struct pwm_chip *pc;
+	int index = 0;
+	int err;
+
+	if (con_id) {
+		index = of_property_match_string(np, "pwm-names", con_id);
+		if (index < 0)
+			return ERR_PTR(index);
+	}
+
+	err = of_parse_phandle_with_args(np, "pwms", "#pwm-cells", index,
+					 &args);
+	if (err) {
+		pr_debug("%s(): can't parse \"pwms\" property\n", __func__);
+		return ERR_PTR(err);
+	}
+
+	pc = of_node_to_pwmchip(args.np);
+	if (IS_ERR(pc)) {
+		pr_debug("%s(): PWM chip not found\n", __func__);
+		pwm = ERR_CAST(pc);
+		goto put;
+	}
+
+	if (args.args_count != pc->of_pwm_n_cells) {
+		pr_debug("%s: wrong #pwm-cells for %s\n", np->full_name,
+			 args.np->full_name);
+		pwm = ERR_PTR(-EINVAL);
+		goto put;
+	}
+
+	pwm = pc->of_xlate(pc, &args);
+	if (IS_ERR(pwm))
+		goto put;
+
+	/*
+	 * If a consumer name was not given, try to look it up from the
+	 * "pwm-names" property if it exists. Otherwise use the name of
+	 * the user device node.
+	 */
+	if (!con_id) {
+		err = of_property_read_string_index(np, "pwm-names", index,
+						    &con_id);
+		if (err < 0)
+			con_id = np->name;
+	}
+
+	pwm->label = con_id;
+
+put:
+	of_node_put(args.np);
+
+	return pwm;
+}
+
 /**
  * pwm_add_table() - register PWM device consumers
  * @table: array of consumers to register
@@ -378,8 +517,9 @@ void __init pwm_add_table(struct pwm_lookup *table, size_t num)
  * @dev: device for PWM consumer
  * @con_id: consumer name
  *
- * Look up a PWM chip and a relative index via a table supplied by board setup
- * code (see pwm_add_table()).
+ * Lookup is first attempted using DT. If the device was not instantiated from
+ * a device tree, a PWM chip and a relative index is looked up via a table
+ * supplied by board setup code (see pwm_add_table()).
  *
  * Once a PWM chip has been found the specified PWM device will be requested
  * and is ready to be used.
@@ -393,6 +533,10 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 	struct pwm_lookup *p;
 	unsigned int index;
 	unsigned int match;
+
+	/* look up via DT first */
+	if (IS_ENABLED(CONFIG_OF) && dev && dev->of_node)
+		return of_pwm_request(dev->of_node, con_id);
 
 	/*
 	 * We look up the provider in the static table typically provided by

@@ -1,6 +1,8 @@
 #ifndef __LINUX_PWM_H
 #define __LINUX_PWM_H
 
+#include <linux/of.h>
+
 struct pwm_device;
 struct seq_file;
 
@@ -105,6 +107,10 @@ struct pwm_chip {
 	unsigned int		npwm;
 
 	struct pwm_device	*pwms;
+
+	struct pwm_device *	(*of_xlate)(struct pwm_chip *pc,
+					    const struct of_phandle_args *args);
+	unsigned int		of_pwm_n_cells;
 };
 
 int pwm_set_chip_data(struct pwm_device *pwm, void *data);

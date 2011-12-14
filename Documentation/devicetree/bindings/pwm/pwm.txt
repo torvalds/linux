@@ -1,0 +1,57 @@
+Specifying PWM information for devices
+======================================
+
+1) PWM user nodes
+-----------------
+
+PWM users should specify a list of PWM devices that they want to use
+with a property containing a 'pwm-list':
+
+	pwm-list ::= <single-pwm> [pwm-list]
+	single-pwm ::= <pwm-phandle> <pwm-specifier>
+	pwm-phandle : phandle to PWM controller node
+	pwm-specifier : array of #pwm-cells specifying the given PWM
+			(controller specific)
+
+PWM properties should be named "pwms". The exact meaning of each pwms
+property must be documented in the device tree binding for each device.
+An optional property "pwm-names" may contain a list of strings to label
+each of the PWM devices listed in the "pwms" property. If no "pwm-names"
+property is given, the name of the user node will be used as fallback.
+
+Drivers for devices that use more than a single PWM device can use the
+"pwm-names" property to map the name of the PWM device requested by the
+pwm_get() call to an index into the list given by the "pwms" property.
+
+The following example could be used to describe a PWM-based backlight
+device:
+
+	pwm: pwm {
+		#pwm-cells = <2>;
+	};
+
+	[...]
+
+	bl: backlight {
+		pwms = <&pwm 0 5000000>;
+		pwm-names = "backlight";
+	};
+
+pwm-specifier typically encodes the chip-relative PWM number and the PWM
+period in nanoseconds. Note that in the example above, specifying the
+"pwm-names" is redundant because the name "backlight" would be used as
+fallback anyway.
+
+2) PWM controller nodes
+-----------------------
+
+PWM controller nodes must specify the number of cells used for the
+specifier using the '#pwm-cells' property.
+
+An example PWM controller might look like this:
+
+	pwm: pwm@7000a000 {
+		compatible = "nvidia,tegra20-pwm";
+		reg = <0x7000a000 0x100>;
+		#pwm-cells = <2>;
+	};
