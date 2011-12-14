@@ -57,10 +57,10 @@ config MACH_SEABOARD
 	 have large similarities with the seaboard design.
 
 config MACH_TEGRA_DT
-	bool "Generic Tegra board (FDT support)"
+	bool "Generic Tegra20 board (FDT support)"
 	select USE_OF
 	help
-	  Support for generic nVidia Tegra boards using Flattened Device Tree
+	  Support for generic NVIDIA Tegra20 boards using Flattened Device Tree
 
 config MACH_TRIMSLICE
        bool "TrimSlice board"
