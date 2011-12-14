@@ -669,9 +669,9 @@ static int i915_ringbuffer_info(struct seq_file *m, void *data)
 static const char *ring_str(int ring)
 {
 	switch (ring) {
-	case RING_RENDER: return " render";
-	case RING_BSD: return " bsd";
-	case RING_BLT: return " blt";
+	case RCS: return "render";
+	case VCS: return "bsd";
+	case BCS: return "blt";
 	default: return "";
 	}
 }
@@ -714,7 +714,7 @@ static void print_error_buffers(struct seq_file *m,
 	seq_printf(m, "%s [%d]:\n", name, count);
 
 	while (count--) {
-		seq_printf(m, "  %08x %8u %04x %04x %08x%s%s%s%s%s%s",
+		seq_printf(m, "  %08x %8u %04x %04x %08x%s%s%s%s%s%s%s",
 			   err->gtt_offset,
 			   err->size,
 			   err->read_domains,
@@ -724,6 +724,7 @@ static void print_error_buffers(struct seq_file *m,
 			   tiling_flag(err->tiling),
 			   dirty_flag(err->dirty),
 			   purgeable_flag(err->purgeable),
+			   err->ring != -1 ? " " : "",
 			   ring_str(err->ring),
 			   cache_level_str(err->cache_level));
 

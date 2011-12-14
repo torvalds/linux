@@ -729,13 +729,13 @@ void intel_ring_setup_status_page(struct intel_ring_buffer *ring)
 	 */
 	if (IS_GEN7(dev)) {
 		switch (ring->id) {
-		case RING_RENDER:
+		case RCS:
 			mmio = RENDER_HWS_PGA_GEN7;
 			break;
-		case RING_BLT:
+		case BCS:
 			mmio = BLT_HWS_PGA_GEN7;
 			break;
-		case RING_BSD:
+		case VCS:
 			mmio = BSD_HWS_PGA_GEN7;
 			break;
 		}
@@ -1199,7 +1199,7 @@ void intel_ring_advance(struct intel_ring_buffer *ring)
 
 static const struct intel_ring_buffer render_ring = {
 	.name			= "render ring",
-	.id			= RING_RENDER,
+	.id			= RCS,
 	.mmio_base		= RENDER_RING_BASE,
 	.size			= 32 * PAGE_SIZE,
 	.init			= init_render_ring,
@@ -1222,7 +1222,7 @@ static const struct intel_ring_buffer render_ring = {
 
 static const struct intel_ring_buffer bsd_ring = {
 	.name                   = "bsd ring",
-	.id			= RING_BSD,
+	.id			= VCS,
 	.mmio_base		= BSD_RING_BASE,
 	.size			= 32 * PAGE_SIZE,
 	.init			= init_ring_common,
@@ -1332,7 +1332,7 @@ gen6_bsd_ring_put_irq(struct intel_ring_buffer *ring)
 /* ring buffer for Video Codec for Gen6+ */
 static const struct intel_ring_buffer gen6_bsd_ring = {
 	.name			= "gen6 bsd ring",
-	.id			= RING_BSD,
+	.id			= VCS,
 	.mmio_base		= GEN6_BSD_RING_BASE,
 	.size			= 32 * PAGE_SIZE,
 	.init			= init_ring_common,
@@ -1467,7 +1467,7 @@ static void blt_ring_cleanup(struct intel_ring_buffer *ring)
 
 static const struct intel_ring_buffer gen6_blt_ring = {
 	.name			= "blt ring",
-	.id			= RING_BLT,
+	.id			= BCS,
 	.mmio_base		= BLT_RING_BASE,
 	.size			= 32 * PAGE_SIZE,
 	.init			= blt_ring_init,

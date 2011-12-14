@@ -1,13 +1,6 @@
 #ifndef _INTEL_RINGBUFFER_H_
 #define _INTEL_RINGBUFFER_H_
 
-enum {
-	RCS = 0x0,
-	VCS,
-	BCS,
-	I915_NUM_RINGS,
-};
-
 struct  intel_hw_status_page {
 	u32	__iomem	*page_addr;
 	unsigned int	gfx_addr;
@@ -36,10 +29,11 @@ struct  intel_hw_status_page {
 struct  intel_ring_buffer {
 	const char	*name;
 	enum intel_ring_id {
-		RING_RENDER = 0x1,
-		RING_BSD = 0x2,
-		RING_BLT = 0x4,
+		RCS = 0x0,
+		VCS,
+		BCS,
 	} id;
+#define I915_NUM_RINGS 3
 	u32		mmio_base;
 	void		__iomem *virtual_start;
 	struct		drm_device *dev;
@@ -118,6 +112,12 @@ struct  intel_ring_buffer {
 
 	void *private;
 };
+
+static inline unsigned
+intel_ring_flag(struct intel_ring_buffer *ring)
+{
+	return 1 << ring->id;
+}
 
 static inline u32
 intel_ring_sync_index(struct intel_ring_buffer *ring,

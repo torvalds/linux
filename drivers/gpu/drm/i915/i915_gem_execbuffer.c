@@ -203,9 +203,9 @@ i915_gem_object_set_to_gpu_domain(struct drm_i915_gem_object *obj,
 	cd->invalidate_domains |= invalidate_domains;
 	cd->flush_domains |= flush_domains;
 	if (flush_domains & I915_GEM_GPU_DOMAINS)
-		cd->flush_rings |= obj->ring->id;
+		cd->flush_rings |= intel_ring_flag(obj->ring);
 	if (invalidate_domains & I915_GEM_GPU_DOMAINS)
-		cd->flush_rings |= ring->id;
+		cd->flush_rings |= intel_ring_flag(ring);
 }
 
 struct eb_objects {
