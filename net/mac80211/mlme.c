@@ -819,7 +819,7 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 	}
 
 	if ((local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK) &&
-	    (!(ifmgd->flags & IEEE80211_STA_NULLFUNC_ACKED))) {
+	    !(ifmgd->flags & IEEE80211_STA_NULLFUNC_ACKED)) {
 		netif_tx_stop_all_queues(sdata->dev);
 
 		if (drv_tx_frames_pending(local))
