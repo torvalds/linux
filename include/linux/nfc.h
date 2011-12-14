@@ -62,6 +62,8 @@ enum nfc_commands {
 	NFC_CMD_GET_DEVICE,
 	NFC_CMD_DEV_UP,
 	NFC_CMD_DEV_DOWN,
+	NFC_CMD_DEP_LINK_UP,
+	NFC_CMD_DEP_LINK_DOWN,
 	NFC_CMD_START_POLL,
 	NFC_CMD_STOP_POLL,
 	NFC_CMD_GET_TARGET,
@@ -86,6 +88,8 @@ enum nfc_commands {
  * @NFC_ATTR_TARGET_SENS_RES: NFC-A targets extra information such as NFCID
  * @NFC_ATTR_TARGET_SEL_RES: NFC-A targets extra information (useful if the
  *	target is not NFC-Forum compliant)
+ * @NFC_ATTR_COMM_MODE: Passive or active mode
+ * @NFC_ATTR_RF_MODE: Initiator or target
  */
 enum nfc_attrs {
 	NFC_ATTR_UNSPEC,
@@ -95,6 +99,8 @@ enum nfc_attrs {
 	NFC_ATTR_TARGET_INDEX,
 	NFC_ATTR_TARGET_SENS_RES,
 	NFC_ATTR_TARGET_SEL_RES,
+	NFC_ATTR_COMM_MODE,
+	NFC_ATTR_RF_MODE,
 /* private: internal use only */
 	__NFC_ATTR_AFTER_LAST
 };
@@ -110,6 +116,14 @@ enum nfc_attrs {
 #define NFC_PROTO_NFC_DEP	5
 
 #define NFC_PROTO_MAX		6
+
+/* NFC communication modes */
+#define NFC_COMM_ACTIVE  0
+#define NFC_COMM_PASSIVE 1
+
+/* NFC RF modes */
+#define NFC_RF_INITIATOR 0
+#define NFC_RF_TARGET    1
 
 /* NFC protocols masks used in bitsets */
 #define NFC_PROTO_JEWEL_MASK	(1 << NFC_PROTO_JEWEL)

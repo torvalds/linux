@@ -181,6 +181,83 @@ error:
 	return rc;
 }
 
+int nfc_dep_link_up(struct nfc_dev *dev, int target_index,
+					u8 comm_mode, u8 rf_mode)
+{
+	int rc = 0;
+
+	pr_debug("dev_name=%s comm:%d rf:%d\n",
+			dev_name(&dev->dev), comm_mode, rf_mode);
+
+	if (!dev->ops->dep_link_up)
+		return -EOPNOTSUPP;
+
+	device_lock(&dev->dev);
+
+	if (!device_is_registered(&dev->dev)) {
+		rc = -ENODEV;
+		goto error;
+	}
+
+	if (dev->dep_link_up == true) {
+		rc = -EALREADY;
+		goto error;
+	}
+
+	rc = dev->ops->dep_link_up(dev, target_index, comm_mode, rf_mode);
+
+error:
+	device_unlock(&dev->dev);
+	return rc;
+}
+
+int nfc_dep_link_down(struct nfc_dev *dev)
+{
+	int rc = 0;
+
+	pr_debug("dev_name=%s\n", dev_name(&dev->dev));
+
+	if (!dev->ops->dep_link_down)
+		return -EOPNOTSUPP;
+
+	device_lock(&dev->dev);
+
+	if (!device_is_registered(&dev->dev)) {
+		rc = -ENODEV;
+		goto error;
+	}
+
+	if (dev->dep_link_up == false) {
+		rc = -EALREADY;
+		goto error;
+	}
+
+	if (dev->dep_rf_mode == NFC_RF_TARGET) {
+		rc = -EOPNOTSUPP;
+		goto error;
+	}
+
+	rc = dev->ops->dep_link_down(dev);
+	if (!rc) {
+		dev->dep_link_up = false;
+		nfc_genl_dep_link_down_event(dev);
+	}
+
+error:
+	device_unlock(&dev->dev);
+	return rc;
+}
+
+int nfc_dep_link_is_up(struct nfc_dev *dev, u32 target_idx,
+					u8 comm_mode, u8 rf_mode)
+{
+	dev->dep_link_up = true;
+	dev->dep_rf_mode = rf_mode;
+
+	return nfc_genl_dep_link_up_event(dev, target_idx, comm_mode, rf_mode);
+}
+EXPORT_SYMBOL(nfc_dep_link_is_up);
+
 /**
  * nfc_activate_target - prepare the target for data exchange
  *
