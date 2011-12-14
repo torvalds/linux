@@ -281,7 +281,7 @@ static int sta_prepare_rate_control(struct ieee80211_local *local,
 }
 
 struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
-				u8 *addr, gfp_t gfp)
+				const u8 *addr, gfp_t gfp)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
