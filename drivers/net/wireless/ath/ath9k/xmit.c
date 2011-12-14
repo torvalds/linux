@@ -264,14 +264,17 @@ static void ath_tid_drain(struct ath_softc *sc, struct ath_txq *txq,
 }
 
 static void ath_tx_set_retry(struct ath_softc *sc, struct ath_txq *txq,
-			     struct sk_buff *skb)
+			     struct sk_buff *skb, int count)
 {
 	struct ath_frame_info *fi = get_frame_info(skb);
 	struct ath_buf *bf = fi->bf;
 	struct ieee80211_hdr *hdr;
+	int prev = fi->retries;
 
 	TX_STAT_INC(txq->axq_qnum, a_retries);
-	if (fi->retries++ > 0)
+	fi->retries += count;
+
+	if (prev > 0)
 		return;
 
 	hdr = (struct ieee80211_hdr *)skb->data;
@@ -379,6 +382,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 	int nframes;
 	u8 tidno;
 	bool flush = !!(ts->ts_status & ATH9K_TX_FLUSH);
+	int i, retries;
 
 	skb = bf->bf_mpdu;
 	hdr = (struct ieee80211_hdr *)skb->data;
@@ -386,6 +390,10 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 	tx_info = IEEE80211_SKB_CB(skb);
 
 	memcpy(rates, tx_info->control.rates, sizeof(rates));
+
+	retries = ts->ts_longretry + 1;
+	for (i = 0; i < ts->ts_rateindex; i++)
+		retries += rates[i].count;
 
 	rcu_read_lock();
 
@@ -471,7 +479,8 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 				txpending = 1;
 			} else if (fi->retries < ATH_MAX_SW_RETRIES) {
 				if (txok || !an->sleeping)
-					ath_tx_set_retry(sc, txq, bf->bf_mpdu);
+					ath_tx_set_retry(sc, txq, bf->bf_mpdu,
+							 retries);
 
 				txpending = 1;
 			} else {
