@@ -304,17 +304,14 @@ ieee80211_tx_h_check_assoc(struct ieee80211_tx_data *tx)
 			I802_DEBUG_INC(tx->local->tx_handlers_drop_not_assoc);
 			return TX_DROP;
 		}
-	} else {
-		if (unlikely(ieee80211_is_data(hdr->frame_control) &&
-			     tx->local->num_sta == 0 &&
-			     tx->sdata->vif.type != NL80211_IFTYPE_ADHOC)) {
-			/*
-			 * No associated STAs - no need to send multicast
-			 * frames.
-			 */
-			return TX_DROP;
-		}
-		return TX_CONTINUE;
+	} else if (unlikely(tx->sdata->vif.type == NL80211_IFTYPE_AP &&
+			    ieee80211_is_data(hdr->frame_control) &&
+			    !atomic_read(&tx->sdata->u.ap.num_sta_authorized))) {
+		/*
+		 * No associated STAs - no need to send multicast
+		 * frames.
+		 */
+		return TX_DROP;
 	}
 
 	return TX_CONTINUE;
