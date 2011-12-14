@@ -1536,7 +1536,11 @@ enum nl80211_iftype {
  * @NL80211_STA_FLAG_WME: station is WME/QoS capable
  * @NL80211_STA_FLAG_MFP: station uses management frame protection
  * @NL80211_STA_FLAG_AUTHENTICATED: station is authenticated
- * @NL80211_STA_FLAG_TDLS_PEER: station is a TDLS peer
+ * @NL80211_STA_FLAG_TDLS_PEER: station is a TDLS peer -- this flag should
+ *	only be used in managed mode (even in the flags mask). Note that the
+ *	flag can't be changed, it is only valid while adding a station, and
+ *	attempts to change it will silently be ignored (rather than rejected
+ *	as errors.)
  * @NL80211_STA_FLAG_MAX: highest station flag number currently defined
  * @__NL80211_STA_FLAG_AFTER_LAST: internal use
  */

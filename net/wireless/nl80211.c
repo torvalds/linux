@@ -2579,6 +2579,9 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 		params.ht_capa =
 			nla_data(info->attrs[NL80211_ATTR_HT_CAPABILITY]);
 
+	if (!rdev->ops->change_station)
+		return -EOPNOTSUPP;
+
 	if (parse_station_flags(info, &params))
 		return -EINVAL;
 
@@ -2590,73 +2593,84 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 		params.plink_state =
 		    nla_get_u8(info->attrs[NL80211_ATTR_STA_PLINK_STATE]);
 
-	params.vlan = get_vlan(info, rdev);
-	if (IS_ERR(params.vlan))
-		return PTR_ERR(params.vlan);
-
-	/* validate settings */
-	err = 0;
-
 	switch (dev->ieee80211_ptr->iftype) {
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_AP_VLAN:
 	case NL80211_IFTYPE_P2P_GO:
 		/* disallow mesh-specific things */
 		if (params.plink_action)
-			err = -EINVAL;
+			return -EINVAL;
+
+		/* TDLS can't be set, ... */
+		if (params.sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER))
+			return -EINVAL;
+		/*
+		 * ... but don't bother the driver with it. This works around
+		 * a hostapd/wpa_supplicant issue -- it always includes the
+		 * TLDS_PEER flag in the mask even for AP mode.
+		 */
+		params.sta_flags_mask &= ~BIT(NL80211_STA_FLAG_TDLS_PEER);
+
+		/* accept only the listed bits */
+		if (params.sta_flags_mask &
+				~(BIT(NL80211_STA_FLAG_AUTHORIZED) |
+				  BIT(NL80211_STA_FLAG_SHORT_PREAMBLE) |
+				  BIT(NL80211_STA_FLAG_WME) |
+				  BIT(NL80211_STA_FLAG_MFP)))
+			return -EINVAL;
+
+		/* must be last in here for error handling */
+		params.vlan = get_vlan(info, rdev);
+		if (IS_ERR(params.vlan))
+			return PTR_ERR(params.vlan);
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_STATION:
 		/* disallow things sta doesn't support */
 		if (params.plink_action)
-			err = -EINVAL;
-		if (params.vlan)
-			err = -EINVAL;
-		if (params.supported_rates &&
-		    !(params.sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER)))
-			err = -EINVAL;
+			return -EINVAL;
 		if (params.ht_capa)
-			err = -EINVAL;
+			return -EINVAL;
 		if (params.listen_interval >= 0)
-			err = -EINVAL;
-		if (params.sta_flags_mask &
-				~(BIT(NL80211_STA_FLAG_AUTHORIZED) |
-				  BIT(NL80211_STA_FLAG_TDLS_PEER)))
-			err = -EINVAL;
-		/* can't change the TDLS bit */
-		if (!(params.sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER)) &&
-		    (params.sta_flags_mask & BIT(NL80211_STA_FLAG_TDLS_PEER)))
-			err = -EINVAL;
+			return -EINVAL;
+		/*
+		 * Don't allow userspace to change the TDLS_PEER flag,
+		 * but silently ignore attempts to change it since we
+		 * don't have state here to verify that it doesn't try
+		 * to change the flag.
+		 */
+		params.sta_flags_mask &= ~BIT(NL80211_STA_FLAG_TDLS_PEER);
+
+		/* reject any changes other than AUTHORIZED */
+		if (params.sta_flags_mask & ~BIT(NL80211_STA_FLAG_AUTHORIZED))
+			return -EINVAL;
 		break;
 	case NL80211_IFTYPE_MESH_POINT:
 		/* disallow things mesh doesn't support */
 		if (params.vlan)
-			err = -EINVAL;
+			return -EINVAL;
 		if (params.ht_capa)
-			err = -EINVAL;
+			return -EINVAL;
 		if (params.listen_interval >= 0)
-			err = -EINVAL;
+			return -EINVAL;
+		/*
+		 * No special handling for TDLS here -- the userspace
+		 * mesh code doesn't have this bug.
+		 */
 		if (params.sta_flags_mask &
 				~(BIT(NL80211_STA_FLAG_AUTHENTICATED) |
 				  BIT(NL80211_STA_FLAG_MFP) |
 				  BIT(NL80211_STA_FLAG_AUTHORIZED)))
-			err = -EINVAL;
+			return -EINVAL;
 		break;
 	default:
-		err = -EINVAL;
+		return -EOPNOTSUPP;
 	}
 
-	if (err)
-		goto out;
-
-	if (!rdev->ops->change_station) {
-		err = -EOPNOTSUPP;
-		goto out;
-	}
+	/* be aware of params.vlan when changing code here */
 
 	err = rdev->ops->change_station(&rdev->wiphy, dev, mac_addr, &params);
 
- out:
 	if (params.vlan)
 		dev_put(params.vlan);
 
@@ -2711,70 +2725,81 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 		params.plink_action =
 		    nla_get_u8(info->attrs[NL80211_ATTR_STA_PLINK_ACTION]);
 
+	if (!rdev->ops->add_station)
+		return -EOPNOTSUPP;
+
 	if (parse_station_flags(info, &params))
 		return -EINVAL;
 
-	/* parse WME attributes if sta is WME capable */
-	if ((rdev->wiphy.flags & WIPHY_FLAG_AP_UAPSD) &&
-	    (params.sta_flags_set & BIT(NL80211_STA_FLAG_WME)) &&
-	    info->attrs[NL80211_ATTR_STA_WME]) {
-		struct nlattr *tb[NL80211_STA_WME_MAX + 1];
-		struct nlattr *nla;
+	switch (dev->ieee80211_ptr->iftype) {
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_AP_VLAN:
+	case NL80211_IFTYPE_P2P_GO:
+		/* parse WME attributes if sta is WME capable */
+		if ((rdev->wiphy.flags & WIPHY_FLAG_AP_UAPSD) &&
+		    (params.sta_flags_set & BIT(NL80211_STA_FLAG_WME)) &&
+		    info->attrs[NL80211_ATTR_STA_WME]) {
+			struct nlattr *tb[NL80211_STA_WME_MAX + 1];
+			struct nlattr *nla;
 
-		nla = info->attrs[NL80211_ATTR_STA_WME];
-		err = nla_parse_nested(tb, NL80211_STA_WME_MAX, nla,
-				       nl80211_sta_wme_policy);
-		if (err)
-			return err;
+			nla = info->attrs[NL80211_ATTR_STA_WME];
+			err = nla_parse_nested(tb, NL80211_STA_WME_MAX, nla,
+					       nl80211_sta_wme_policy);
+			if (err)
+				return err;
 
-		if (tb[NL80211_STA_WME_UAPSD_QUEUES])
-			params.uapsd_queues =
-			     nla_get_u8(tb[NL80211_STA_WME_UAPSD_QUEUES]);
-		if (params.uapsd_queues & ~IEEE80211_WMM_IE_STA_QOSINFO_AC_MASK)
+			if (tb[NL80211_STA_WME_UAPSD_QUEUES])
+				params.uapsd_queues =
+				     nla_get_u8(tb[NL80211_STA_WME_UAPSD_QUEUES]);
+			if (params.uapsd_queues &
+					~IEEE80211_WMM_IE_STA_QOSINFO_AC_MASK)
+				return -EINVAL;
+
+			if (tb[NL80211_STA_WME_MAX_SP])
+				params.max_sp =
+				     nla_get_u8(tb[NL80211_STA_WME_MAX_SP]);
+
+			if (params.max_sp &
+					~IEEE80211_WMM_IE_STA_QOSINFO_SP_MASK)
+				return -EINVAL;
+
+			params.sta_modify_mask |= STATION_PARAM_APPLY_UAPSD;
+		}
+		/* TDLS peers cannot be added */
+		if (params.sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER))
 			return -EINVAL;
+		/* but don't bother the driver with it */
+		params.sta_flags_mask &= ~BIT(NL80211_STA_FLAG_TDLS_PEER);
 
-		if (tb[NL80211_STA_WME_MAX_SP])
-			params.max_sp =
-			     nla_get_u8(tb[NL80211_STA_WME_MAX_SP]);
-
-		if (params.max_sp & ~IEEE80211_WMM_IE_STA_QOSINFO_SP_MASK)
+		/* must be last in here for error handling */
+		params.vlan = get_vlan(info, rdev);
+		if (IS_ERR(params.vlan))
+			return PTR_ERR(params.vlan);
+		break;
+	case NL80211_IFTYPE_MESH_POINT:
+		/* TDLS peers cannot be added */
+		if (params.sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER))
 			return -EINVAL;
-
-		params.sta_modify_mask |= STATION_PARAM_APPLY_UAPSD;
+		break;
+	case NL80211_IFTYPE_STATION:
+		/* Only TDLS peers can be added */
+		if (!(params.sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER)))
+			return -EINVAL;
+		/* Can only add if TDLS ... */
+		if (!(rdev->wiphy.flags & WIPHY_FLAG_SUPPORTS_TDLS))
+			return -EOPNOTSUPP;
+		/* ... with external setup is supported */
+		if (!(rdev->wiphy.flags & WIPHY_FLAG_TDLS_EXTERNAL_SETUP))
+			return -EOPNOTSUPP;
+		break;
+	default:
+		return -EOPNOTSUPP;
 	}
 
-	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
-	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP_VLAN &&
-	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_MESH_POINT &&
-	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_GO &&
-	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION)
-		return -EINVAL;
-
-	/*
-	 * Only managed stations can add TDLS peers, and only when the
-	 * wiphy supports external TDLS setup.
-	 */
-	if (dev->ieee80211_ptr->iftype == NL80211_IFTYPE_STATION &&
-	    !((params.sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER)) &&
-	      (rdev->wiphy.flags & WIPHY_FLAG_SUPPORTS_TDLS) &&
-	      (rdev->wiphy.flags & WIPHY_FLAG_TDLS_EXTERNAL_SETUP)))
-		return -EINVAL;
-
-	params.vlan = get_vlan(info, rdev);
-	if (IS_ERR(params.vlan))
-		return PTR_ERR(params.vlan);
-
-	/* validate settings */
-	err = 0;
-
-	if (!rdev->ops->add_station) {
-		err = -EOPNOTSUPP;
-		goto out;
-	}
+	/* be aware of params.vlan when changing code here */
 
 	err = rdev->ops->add_station(&rdev->wiphy, dev, mac_addr, &params);
 
- out:
 	if (params.vlan)
 		dev_put(params.vlan);
 	return err;

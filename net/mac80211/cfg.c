@@ -976,6 +976,14 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
+	/* in station mode, supported rates are only valid with TDLS */
+	if (sdata->vif.type == NL80211_IFTYPE_STATION &&
+	    params->supported_rates &&
+	    !test_sta_flag(sta, WLAN_STA_TDLS_PEER)) {
+		rcu_read_unlock();
+		return -EINVAL;
+	}
+
 	if (params->vlan && params->vlan != sta->sdata->dev) {
 		vlansdata = IEEE80211_DEV_TO_SUB_IF(params->vlan);
 

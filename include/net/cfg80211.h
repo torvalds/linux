@@ -1346,7 +1346,12 @@ struct cfg80211_gtk_rekey_data {
  *
  * @add_station: Add a new station.
  * @del_station: Remove a station; @mac may be NULL to remove all stations.
- * @change_station: Modify a given station.
+ * @change_station: Modify a given station. Note that flags changes are not much
+ *	validated in cfg80211, in particular the auth/assoc/authorized flags
+ *	might come to the driver in invalid combinations -- make sure to check
+ *	them, also against the existing state! Also, supported_rates changes are
+ *	not checked in station mode -- drivers need to reject (or ignore) them
+ *	for anything but TDLS peers.
  * @get_station: get station information for the station identified by @mac
  * @dump_station: dump station callback -- resume dump at index @idx
  *
