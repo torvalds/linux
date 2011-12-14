@@ -1580,24 +1580,24 @@ static int wl1271_configure_suspend_sta(struct wl1271 *wl,
 
 		ret = wait_for_completion_timeout(
 			&compl, msecs_to_jiffies(WL1271_PS_COMPLETE_TIMEOUT));
+
+		mutex_lock(&wl->mutex);
 		if (ret <= 0) {
 			wl1271_warning("couldn't enter ps mode!");
 			ret = -EBUSY;
-			goto out;
+			goto out_cleanup;
 		}
-
-		/* take mutex again, and wakeup */
-		mutex_lock(&wl->mutex);
 
 		ret = wl1271_ps_elp_wakeup(wl);
 		if (ret < 0)
-			goto out_unlock;
+			goto out_cleanup;
 	}
 out_sleep:
 	wl1271_ps_elp_sleep(wl);
+out_cleanup:
+	wlvif->ps_compl = NULL;
 out_unlock:
 	mutex_unlock(&wl->mutex);
-out:
 	return ret;
 
 }
