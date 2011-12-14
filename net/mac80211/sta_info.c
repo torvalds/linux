@@ -204,16 +204,17 @@ struct sta_info *sta_info_get_by_idx(struct ieee80211_sub_if_data *sdata,
 }
 
 /**
- * __sta_info_free - internal STA free helper
+ * sta_info_free - free STA
  *
  * @local: pointer to the global information
  * @sta: STA info to free
  *
  * This function must undo everything done by sta_info_alloc()
- * that may happen before sta_info_insert().
+ * that may happen before sta_info_insert(). It may only be
+ * called when sta_info_insert() has not been attempted (and
+ * if that fails, the station is freed anyway.)
  */
-static void __sta_info_free(struct ieee80211_local *local,
-			    struct sta_info *sta)
+void sta_info_free(struct ieee80211_local *local, struct sta_info *sta)
 {
 	if (sta->rate_ctrl) {
 		rate_control_free_sta(sta);
@@ -598,7 +599,7 @@ int sta_info_insert_rcu(struct sta_info *sta) __acquires(RCU)
 	return 0;
  out_free:
 	BUG_ON(!err);
-	__sta_info_free(local, sta);
+	sta_info_free(local, sta);
 	return err;
 }
 
@@ -905,6 +906,9 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 		RCU_INIT_POINTER(sdata->u.vlan.sta, NULL);
 
+	while (sta->sta_state > IEEE80211_STA_NONE)
+		sta_info_move_state(sta, sta->sta_state - 1);
+
 	if (sta->uploaded) {
 		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 			sdata = container_of(sdata->bss,
@@ -974,7 +978,7 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 		kfree_rcu(tid_tx, rcu_head);
 	}
 
-	__sta_info_free(local, sta);
+	sta_info_free(local, sta);
 
 	return 0;
 }
@@ -1538,3 +1542,52 @@ void ieee80211_sta_set_buffered(struct ieee80211_sta *pubsta,
 	sta_info_recalc_tim(sta);
 }
 EXPORT_SYMBOL(ieee80211_sta_set_buffered);
+
+int sta_info_move_state_checked(struct sta_info *sta,
+				enum ieee80211_sta_state new_state)
+{
+	/* might_sleep(); -- for driver notify later, fix IBSS first */
+
+	if (sta->sta_state == new_state)
+		return 0;
+
+	switch (new_state) {
+	case IEEE80211_STA_NONE:
+		if (sta->sta_state == IEEE80211_STA_AUTH)
+			clear_bit(WLAN_STA_AUTH, &sta->_flags);
+		else
+			return -EINVAL;
+		break;
+	case IEEE80211_STA_AUTH:
+		if (sta->sta_state == IEEE80211_STA_NONE)
+			set_bit(WLAN_STA_AUTH, &sta->_flags);
+		else if (sta->sta_state == IEEE80211_STA_ASSOC)
+			clear_bit(WLAN_STA_ASSOC, &sta->_flags);
+		else
+			return -EINVAL;
+		break;
+	case IEEE80211_STA_ASSOC:
+		if (sta->sta_state == IEEE80211_STA_AUTH)
+			set_bit(WLAN_STA_ASSOC, &sta->_flags);
+		else if (sta->sta_state == IEEE80211_STA_AUTHORIZED)
+			clear_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
+		else
+			return -EINVAL;
+		break;
+	case IEEE80211_STA_AUTHORIZED:
+		if (sta->sta_state == IEEE80211_STA_ASSOC)
+			set_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
+		else
+			return -EINVAL;
+		break;
+	default:
+		WARN(1, "invalid state %d", new_state);
+		return -EINVAL;
+	}
+
+	printk(KERN_DEBUG "%s: moving STA %pM to state %d\n",
+		sta->sdata->name, sta->sta.addr, new_state);
+	sta->sta_state = new_state;
+
+	return 0;
+}

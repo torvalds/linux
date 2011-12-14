@@ -1577,10 +1577,10 @@ static bool ieee80211_assoc_success(struct ieee80211_work *wk,
 		return false;
 	}
 
-	set_sta_flag(sta, WLAN_STA_AUTH);
-	set_sta_flag(sta, WLAN_STA_ASSOC);
+	sta_info_move_state(sta, IEEE80211_STA_AUTH);
+	sta_info_move_state(sta, IEEE80211_STA_ASSOC);
 	if (!(ifmgd->flags & IEEE80211_STA_CONTROL_PORT))
-		set_sta_flag(sta, WLAN_STA_AUTHORIZED);
+		sta_info_move_state(sta, IEEE80211_STA_AUTHORIZED);
 
 	rates = 0;
 	basic_rates = 0;
