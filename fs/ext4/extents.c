@@ -2955,7 +2955,6 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 	/* Pre-conditions */
 	BUG_ON(!ext4_ext_is_uninitialized(ex));
 	BUG_ON(!in_range(map->m_lblk, ee_block, ee_len));
-	BUG_ON(map->m_lblk + map->m_len > ee_block + ee_len);
 
 	/*
 	 * Attempt to transfer newly initialized blocks from the currently
