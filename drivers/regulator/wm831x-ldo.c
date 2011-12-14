@@ -326,7 +326,7 @@ static __devinit int wm831x_gp_ldo_probe(struct platform_device *pdev)
 	if (pdata == NULL || pdata->ldo[id] == NULL)
 		return -ENODEV;
 
-	ldo = kzalloc(sizeof(struct wm831x_ldo), GFP_KERNEL);
+	ldo = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_ldo), GFP_KERNEL);
 	if (ldo == NULL) {
 		dev_err(&pdev->dev, "Unable to allocate private data\n");
 		return -ENOMEM;
@@ -376,7 +376,6 @@ static __devinit int wm831x_gp_ldo_probe(struct platform_device *pdev)
 err_regulator:
 	regulator_unregister(ldo->regulator);
 err:
-	kfree(ldo);
 	return ret;
 }
 
@@ -388,7 +387,6 @@ static __devexit int wm831x_gp_ldo_remove(struct platform_device *pdev)
 
 	free_irq(platform_get_irq_byname(pdev, "UV"), ldo);
 	regulator_unregister(ldo->regulator);
-	kfree(ldo);
 
 	return 0;
 }
@@ -596,7 +594,7 @@ static __devinit int wm831x_aldo_probe(struct platform_device *pdev)
 	if (pdata == NULL || pdata->ldo[id] == NULL)
 		return -ENODEV;
 
-	ldo = kzalloc(sizeof(struct wm831x_ldo), GFP_KERNEL);
+	ldo = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_ldo), GFP_KERNEL);
 	if (ldo == NULL) {
 		dev_err(&pdev->dev, "Unable to allocate private data\n");
 		return -ENOMEM;
@@ -645,7 +643,6 @@ static __devinit int wm831x_aldo_probe(struct platform_device *pdev)
 err_regulator:
 	regulator_unregister(ldo->regulator);
 err:
-	kfree(ldo);
 	return ret;
 }
 
@@ -655,7 +652,6 @@ static __devexit int wm831x_aldo_remove(struct platform_device *pdev)
 
 	free_irq(platform_get_irq_byname(pdev, "UV"), ldo);
 	regulator_unregister(ldo->regulator);
-	kfree(ldo);
 
 	return 0;
 }
@@ -793,7 +789,7 @@ static __devinit int wm831x_alive_ldo_probe(struct platform_device *pdev)
 	if (pdata == NULL || pdata->ldo[id] == NULL)
 		return -ENODEV;
 
-	ldo = kzalloc(sizeof(struct wm831x_ldo), GFP_KERNEL);
+	ldo = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_ldo), GFP_KERNEL);
 	if (ldo == NULL) {
 		dev_err(&pdev->dev, "Unable to allocate private data\n");
 		return -ENOMEM;
@@ -831,7 +827,6 @@ static __devinit int wm831x_alive_ldo_probe(struct platform_device *pdev)
 	return 0;
 
 err:
-	kfree(ldo);
 	return ret;
 }
 
@@ -840,7 +835,6 @@ static __devexit int wm831x_alive_ldo_remove(struct platform_device *pdev)
 	struct wm831x_ldo *ldo = platform_get_drvdata(pdev);
 
 	regulator_unregister(ldo->regulator);
-	kfree(ldo);
 
 	return 0;
 }
