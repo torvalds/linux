@@ -1,3 +1,5 @@
+menu "Remoteproc drivers"
+
 # REMOTEPROC gets selected by whoever wants it
 config REMOTEPROC
 	tristate
@@ -22,3 +24,5 @@ config OMAP_REMOTEPROC
 
 	  It's safe to say n here if you're not interested in multimedia
 	  offloading or just want a bare minimum kernel.
+
+endmenu
