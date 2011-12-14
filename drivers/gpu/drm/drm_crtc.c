@@ -348,6 +348,9 @@ void drm_framebuffer_cleanup(struct drm_framebuffer *fb)
 			ret = plane->funcs->disable_plane(plane);
 			if (ret)
 				DRM_ERROR("failed to disable plane with busy fb\n");
+			/* disconnect the plane from the fb and crtc: */
+			plane->fb = NULL;
+			plane->crtc = NULL;
 		}
 	}
 
