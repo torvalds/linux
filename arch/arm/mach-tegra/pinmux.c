@@ -100,6 +100,49 @@ static char *tegra_mux_names[TEGRA_MAX_MUX] = {
 	[TEGRA_MUX_VI] = "VI",
 	[TEGRA_MUX_VI_SENSOR_CLK] = "VI_SENSOR_CLK",
 	[TEGRA_MUX_XIO] = "XIO",
+	[TEGRA_MUX_BLINK] = "BLINK",
+	[TEGRA_MUX_CEC] = "CEC",
+	[TEGRA_MUX_CLK12] = "CLK12",
+	[TEGRA_MUX_DAP] = "DAP",
+	[TEGRA_MUX_DAPSDMMC2] = "DAPSDMMC2",
+	[TEGRA_MUX_DDR] = "DDR",
+	[TEGRA_MUX_DEV3] = "DEV3",
+	[TEGRA_MUX_DTV] = "DTV",
+	[TEGRA_MUX_VI_ALT1] = "VI_ALT1",
+	[TEGRA_MUX_VI_ALT2] = "VI_ALT2",
+	[TEGRA_MUX_VI_ALT3] = "VI_ALT3",
+	[TEGRA_MUX_EMC_DLL] = "EMC_DLL",
+	[TEGRA_MUX_EXTPERIPH1] = "EXTPERIPH1",
+	[TEGRA_MUX_EXTPERIPH2] = "EXTPERIPH2",
+	[TEGRA_MUX_EXTPERIPH3] = "EXTPERIPH3",
+	[TEGRA_MUX_GMI_ALT] = "GMI_ALT",
+	[TEGRA_MUX_HDA] = "HDA",
+	[TEGRA_MUX_HSI] = "HSI",
+	[TEGRA_MUX_I2C4] = "I2C4",
+	[TEGRA_MUX_I2C5] = "I2C5",
+	[TEGRA_MUX_I2CPWR] = "I2CPWR",
+	[TEGRA_MUX_I2S0] = "I2S0",
+	[TEGRA_MUX_I2S1] = "I2S1",
+	[TEGRA_MUX_I2S2] = "I2S2",
+	[TEGRA_MUX_I2S3] = "I2S3",
+	[TEGRA_MUX_I2S4] = "I2S4",
+	[TEGRA_MUX_NAND_ALT] = "NAND_ALT",
+	[TEGRA_MUX_POPSDIO4] = "POPSDIO4",
+	[TEGRA_MUX_POPSDMMC4] = "POPSDMMC4",
+	[TEGRA_MUX_PWM0] = "PWM0",
+	[TEGRA_MUX_PWM1] = "PWM2",
+	[TEGRA_MUX_PWM2] = "PWM2",
+	[TEGRA_MUX_PWM3] = "PWM3",
+	[TEGRA_MUX_SATA] = "SATA",
+	[TEGRA_MUX_SPI5] = "SPI5",
+	[TEGRA_MUX_SPI6] = "SPI6",
+	[TEGRA_MUX_SYSCLK] = "SYSCLK",
+	[TEGRA_MUX_VGP1] = "VGP1",
+	[TEGRA_MUX_VGP2] = "VGP2",
+	[TEGRA_MUX_VGP3] = "VGP3",
+	[TEGRA_MUX_VGP4] = "VGP4",
+	[TEGRA_MUX_VGP5] = "VGP5",
+	[TEGRA_MUX_VGP6] = "VGP6",
 	[TEGRA_MUX_SAFE] = "<safe>",
 };
 
@@ -667,7 +710,12 @@ void tegra_pinmux_config_pullupdown_table(const struct tegra_pingroup_config *co
 }
 
 static struct of_device_id tegra_pinmux_of_match[] __devinitdata = {
+#ifdef CONFIG_ARCH_TEGRA_2x_SOC
 	{ .compatible = "nvidia,tegra20-pinmux", tegra20_pinmux_init },
+#endif
+#ifdef CONFIG_ARCH_TEGRA_3x_SOC
+	{ .compatible = "nvidia,tegra30-pinmux", tegra30_pinmux_init },
+#endif
 	{ },
 };
 
