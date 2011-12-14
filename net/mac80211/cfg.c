@@ -954,11 +954,11 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 	struct sta_info *sta;
 	struct ieee80211_sub_if_data *vlansdata;
 
-	rcu_read_lock();
+	mutex_lock(&local->sta_mtx);
 
 	sta = sta_info_get_bss(sdata, mac);
 	if (!sta) {
-		rcu_read_unlock();
+		mutex_unlock(&local->sta_mtx);
 		return -ENOENT;
 	}
 
@@ -966,7 +966,7 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 	if (sdata->vif.type == NL80211_IFTYPE_STATION &&
 	    params->supported_rates &&
 	    !test_sta_flag(sta, WLAN_STA_TDLS_PEER)) {
-		rcu_read_unlock();
+		mutex_unlock(&local->sta_mtx);
 		return -EINVAL;
 	}
 
@@ -975,13 +975,13 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 
 		if (vlansdata->vif.type != NL80211_IFTYPE_AP_VLAN &&
 		    vlansdata->vif.type != NL80211_IFTYPE_AP) {
-			rcu_read_unlock();
+			mutex_unlock(&local->sta_mtx);
 			return -EINVAL;
 		}
 
 		if (params->vlan->ieee80211_ptr->use_4addr) {
 			if (vlansdata->u.vlan.sta) {
-				rcu_read_unlock();
+				mutex_unlock(&local->sta_mtx);
 				return -EBUSY;
 			}
 
@@ -997,7 +997,7 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 	if (test_sta_flag(sta, WLAN_STA_TDLS_PEER) && params->supported_rates)
 		rate_control_rate_init(sta);
 
-	rcu_read_unlock();
+	mutex_unlock(&local->sta_mtx);
 
 	if (sdata->vif.type == NL80211_IFTYPE_STATION &&
 	    params->sta_flags_mask & BIT(NL80211_STA_FLAG_AUTHORIZED))
