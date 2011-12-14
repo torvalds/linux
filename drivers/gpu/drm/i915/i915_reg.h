@@ -352,6 +352,9 @@
 #define IPEIR_I965	0x02064
 #define IPEHR_I965	0x02068
 #define INSTDONE_I965	0x0206c
+#define RING_IPEIR(base)	((base)+0x64)
+#define RING_IPEHR(base)	((base)+0x68)
+#define RING_INSTDONE(base)	((base)+0x6c)
 #define INSTPS		0x02070 /* 965+ only */
 #define INSTDONE1	0x0207c /* 965+ only */
 #define ACTHD_I965	0x02074
@@ -365,14 +368,6 @@
 #define INSTDONE	0x02090
 #define NOPID		0x02094
 #define HWSTAM		0x02098
-#define VCS_INSTDONE	0x1206C
-#define VCS_IPEIR	0x12064
-#define VCS_IPEHR	0x12068
-#define VCS_ACTHD	0x12074
-#define BCS_INSTDONE	0x2206C
-#define BCS_IPEIR	0x22064
-#define BCS_IPEHR	0x22068
-#define BCS_ACTHD	0x22074
 
 #define ERROR_GEN6	0x040a0
 

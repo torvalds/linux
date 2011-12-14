@@ -738,6 +738,26 @@ static void print_error_buffers(struct seq_file *m,
 	}
 }
 
+static void i915_ring_error_state(struct seq_file *m,
+				  struct drm_device *dev,
+				  struct drm_i915_error_state *error,
+				  unsigned ring)
+{
+	seq_printf(m, "%s command stream:\n", ring_str(ring));
+	seq_printf(m, "  ACTHD: 0x%08x\n", error->acthd[ring]);
+	seq_printf(m, "  IPEIR: 0x%08x\n", error->ipeir[ring]);
+	seq_printf(m, "  IPEHR: 0x%08x\n", error->ipehr[ring]);
+	seq_printf(m, "  INSTDONE: 0x%08x\n", error->instdone[ring]);
+	if (ring == RCS) {
+		if (INTEL_INFO(dev)->gen >= 4) {
+			seq_printf(m, "  INSTDONE1: 0x%08x\n", error->instdone1);
+			seq_printf(m, "  INSTPS: 0x%08x\n", error->instps);
+		}
+		seq_printf(m, "  INSTPM: 0x%08x\n", error->instpm);
+	}
+	seq_printf(m, "  seqno: 0x%08x\n", error->seqno[ring]);
+}
+
 static int i915_error_state(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
@@ -760,35 +780,18 @@ static int i915_error_state(struct seq_file *m, void *unused)
 	seq_printf(m, "PCI ID: 0x%04x\n", dev->pci_device);
 	seq_printf(m, "EIR: 0x%08x\n", error->eir);
 	seq_printf(m, "PGTBL_ER: 0x%08x\n", error->pgtbl_er);
-	if (INTEL_INFO(dev)->gen >= 6) {
-		seq_printf(m, "ERROR: 0x%08x\n", error->error);
-		seq_printf(m, "Blitter command stream:\n");
-		seq_printf(m, "  ACTHD:    0x%08x\n", error->bcs_acthd);
-		seq_printf(m, "  IPEIR:    0x%08x\n", error->bcs_ipeir);
-		seq_printf(m, "  IPEHR:    0x%08x\n", error->bcs_ipehr);
-		seq_printf(m, "  INSTDONE: 0x%08x\n", error->bcs_instdone);
-		seq_printf(m, "  seqno:    0x%08x\n", error->bcs_seqno);
-		seq_printf(m, "Video (BSD) command stream:\n");
-		seq_printf(m, "  ACTHD:    0x%08x\n", error->vcs_acthd);
-		seq_printf(m, "  IPEIR:    0x%08x\n", error->vcs_ipeir);
-		seq_printf(m, "  IPEHR:    0x%08x\n", error->vcs_ipehr);
-		seq_printf(m, "  INSTDONE: 0x%08x\n", error->vcs_instdone);
-		seq_printf(m, "  seqno:    0x%08x\n", error->vcs_seqno);
-	}
-	seq_printf(m, "Render command stream:\n");
-	seq_printf(m, "  ACTHD: 0x%08x\n", error->acthd);
-	seq_printf(m, "  IPEIR: 0x%08x\n", error->ipeir);
-	seq_printf(m, "  IPEHR: 0x%08x\n", error->ipehr);
-	seq_printf(m, "  INSTDONE: 0x%08x\n", error->instdone);
-	if (INTEL_INFO(dev)->gen >= 4) {
-		seq_printf(m, "  INSTDONE1: 0x%08x\n", error->instdone1);
-		seq_printf(m, "  INSTPS: 0x%08x\n", error->instps);
-	}
-	seq_printf(m, "  INSTPM: 0x%08x\n", error->instpm);
-	seq_printf(m, "  seqno: 0x%08x\n", error->seqno);
 
 	for (i = 0; i < dev_priv->num_fence_regs; i++)
 		seq_printf(m, "  fence[%d] = %08llx\n", i, error->fence[i]);
+
+	if (INTEL_INFO(dev)->gen >= 6) 
+		seq_printf(m, "ERROR: 0x%08x\n", error->error);
+
+	i915_ring_error_state(m, dev, error, RCS);
+	if (HAS_BLT(dev))
+		i915_ring_error_state(m, dev, error, BCS);
+	if (HAS_BSD(dev))
+		i915_ring_error_state(m, dev, error, VCS);
 
 	if (error->active_bo)
 		print_error_buffers(m, "Active",

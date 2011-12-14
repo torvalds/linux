@@ -876,6 +876,32 @@ i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 	return NULL;
 }
 
+static void i915_record_ring_state(struct drm_device *dev,
+				   struct drm_i915_error_state *error,
+				   struct intel_ring_buffer *ring)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (INTEL_INFO(dev)->gen >= 4) {
+		error->ipeir[ring->id] = I915_READ(RING_IPEIR(ring->mmio_base));
+		error->ipehr[ring->id] = I915_READ(RING_IPEHR(ring->mmio_base));
+		error->instdone[ring->id] = I915_READ(RING_INSTDONE(ring->mmio_base));
+		if (ring->id == RCS) {
+			error->instps = I915_READ(INSTPS);
+			error->instdone1 = I915_READ(INSTDONE1);
+			error->bbaddr = I915_READ64(BB_ADDR);
+		}
+	} else {
+		error->ipeir[ring->id] = I915_READ(IPEIR);
+		error->ipehr[ring->id] = I915_READ(IPEHR);
+		error->instdone[ring->id] = I915_READ(INSTDONE);
+		error->bbaddr = 0;
+	}
+
+	error->seqno[ring->id] = ring->get_seqno(ring);
+	error->acthd[ring->id] = intel_ring_get_active_head(ring);
+}
+
 /**
  * i915_capture_error_state - capture an error record for later analysis
  * @dev: drm device
@@ -909,47 +935,23 @@ static void i915_capture_error_state(struct drm_device *dev)
 	DRM_INFO("capturing error event; look for more information in /debug/dri/%d/i915_error_state\n",
 		 dev->primary->index);
 
-	error->seqno = dev_priv->ring[RCS].get_seqno(&dev_priv->ring[RCS]);
 	error->eir = I915_READ(EIR);
 	error->pgtbl_er = I915_READ(PGTBL_ER);
 	for_each_pipe(pipe)
 		error->pipestat[pipe] = I915_READ(PIPESTAT(pipe));
 	error->instpm = I915_READ(INSTPM);
-	error->error = 0;
-	if (INTEL_INFO(dev)->gen >= 6) {
+
+	if (INTEL_INFO(dev)->gen >= 6)
 		error->error = I915_READ(ERROR_GEN6);
+	else
+		error->error = 0;
 
-		error->bcs_acthd = I915_READ(BCS_ACTHD);
-		error->bcs_ipehr = I915_READ(BCS_IPEHR);
-		error->bcs_ipeir = I915_READ(BCS_IPEIR);
-		error->bcs_instdone = I915_READ(BCS_INSTDONE);
-		error->bcs_seqno = 0;
-		if (dev_priv->ring[BCS].get_seqno)
-			error->bcs_seqno = dev_priv->ring[BCS].get_seqno(&dev_priv->ring[BCS]);
+	i915_record_ring_state(dev, error, &dev_priv->ring[RCS]);
+	if (HAS_BLT(dev))
+		i915_record_ring_state(dev, error, &dev_priv->ring[BCS]);
+	if (HAS_BSD(dev))
+		i915_record_ring_state(dev, error, &dev_priv->ring[VCS]);
 
-		error->vcs_acthd = I915_READ(VCS_ACTHD);
-		error->vcs_ipehr = I915_READ(VCS_IPEHR);
-		error->vcs_ipeir = I915_READ(VCS_IPEIR);
-		error->vcs_instdone = I915_READ(VCS_INSTDONE);
-		error->vcs_seqno = 0;
-		if (dev_priv->ring[VCS].get_seqno)
-			error->vcs_seqno = dev_priv->ring[VCS].get_seqno(&dev_priv->ring[VCS]);
-	}
-	if (INTEL_INFO(dev)->gen >= 4) {
-		error->ipeir = I915_READ(IPEIR_I965);
-		error->ipehr = I915_READ(IPEHR_I965);
-		error->instdone = I915_READ(INSTDONE_I965);
-		error->instps = I915_READ(INSTPS);
-		error->instdone1 = I915_READ(INSTDONE1);
-		error->acthd = I915_READ(ACTHD_I965);
-		error->bbaddr = I915_READ64(BB_ADDR);
-	} else {
-		error->ipeir = I915_READ(IPEIR);
-		error->ipehr = I915_READ(IPEHR);
-		error->instdone = I915_READ(INSTDONE);
-		error->acthd = I915_READ(ACTHD);
-		error->bbaddr = 0;
-	}
 	i915_gem_record_fences(dev, error);
 
 	/* Record the active batch and ring buffers */
