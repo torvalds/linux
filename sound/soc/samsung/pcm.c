@@ -478,7 +478,7 @@ static const struct snd_soc_dai_ops s3c_pcm_dai_ops = {
 		.formats	= SNDRV_PCM_FMTBIT_S16_LE,	\
 	}
 
-struct snd_soc_dai_driver s3c_pcm_dai[] = {
+static struct snd_soc_dai_driver s3c_pcm_dai[] = {
 	[0] = {
 		.name	= "samsung-pcm.0",
 		S3C_PCM_DAI_DECLARE,
@@ -488,7 +488,6 @@ struct snd_soc_dai_driver s3c_pcm_dai[] = {
 		S3C_PCM_DAI_DECLARE,
 	},
 };
-EXPORT_SYMBOL_GPL(s3c_pcm_dai);
 
 static __devinit int s3c_pcm_dev_probe(struct platform_device *pdev)
 {
