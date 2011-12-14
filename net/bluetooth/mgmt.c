@@ -1690,7 +1690,7 @@ static int user_confirm_reply(struct sock *sk, u16 index, void *data, u16 len)
 static int user_confirm_neg_reply(struct sock *sk, u16 index, void *data,
 									u16 len)
 {
-	struct mgmt_cp_user_confirm_reply *cp = (void *) data;
+	struct mgmt_cp_user_confirm_neg_reply *cp = data;
 
 	BT_DBG("");
 
