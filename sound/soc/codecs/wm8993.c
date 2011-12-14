@@ -934,28 +934,6 @@ static const struct snd_soc_dapm_route routes[] = {
 	{ "Right Headphone Mux", "DAC", "DACR" },
 };
 
-static void wm8993_cache_restore(struct snd_soc_codec *codec)
-{
-	u16 *cache = codec->reg_cache;
-	int i;
-
-	if (!codec->cache_sync)
-		return;
-
-	/* Reenable hardware writes */
-	codec->cache_only = 0;
-
-	/* Restore the register settings */
-	for (i = 1; i < WM8993_MAX_REGISTER; i++) {
-		if (cache[i] == wm8993_reg_defaults[i])
-			continue;
-		snd_soc_write(codec, i, cache[i]);
-	}
-
-	/* We're in sync again */
-	codec->cache_sync = 0;
-}
-
 static int wm8993_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
@@ -979,7 +957,7 @@ static int wm8993_set_bias_level(struct snd_soc_codec *codec,
 			if (ret != 0)
 				return ret;
 
-			wm8993_cache_restore(codec);
+			snd_soc_cache_sync(codec);
 
 			/* Tune DC servo configuration */
 			snd_soc_write(codec, 0x44, 3);
