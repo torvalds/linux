@@ -53,6 +53,8 @@ extern void bus_remove_file(struct bus_type *, struct bus_attribute *);
  * struct bus_type - The bus type of the device
  *
  * @name:	The name of the bus.
+ * @dev_name:	Used for subsystems to enumerate devices like ("foo%u", dev->id).
+ * @dev_root:	Default device to use as the parent.
  * @bus_attrs:	Default attributes of the bus.
  * @dev_attrs:	Default attributes of the devices on the bus.
  * @drv_attrs:	Default attributes of the device drivers on the bus.
@@ -86,6 +88,8 @@ extern void bus_remove_file(struct bus_type *, struct bus_attribute *);
  */
 struct bus_type {
 	const char		*name;
+	const char		*dev_name;
+	struct device		*dev_root;
 	struct bus_attribute	*bus_attrs;
 	struct device_attribute	*dev_attrs;
 	struct driver_attribute	*drv_attrs;
@@ -106,12 +110,30 @@ struct bus_type {
 	struct subsys_private *p;
 };
 
-extern int __must_check bus_register(struct bus_type *bus);
+/* This is a #define to keep the compiler from merging different
+ * instances of the __key variable */
+#define bus_register(subsys)			\
+({						\
+	static struct lock_class_key __key;	\
+	__bus_register(subsys, &__key);	\
+})
+extern int __must_check __bus_register(struct bus_type *bus,
+				       struct lock_class_key *key);
 extern void bus_unregister(struct bus_type *bus);
 
 extern int __must_check bus_rescan_devices(struct bus_type *bus);
 
 /* iterator helpers for buses */
+struct subsys_dev_iter {
+	struct klist_iter		ki;
+	const struct device_type	*type;
+};
+void subsys_dev_iter_init(struct subsys_dev_iter *iter,
+			 struct bus_type *subsys,
+			 struct device *start,
+			 const struct device_type *type);
+struct device *subsys_dev_iter_next(struct subsys_dev_iter *iter);
+void subsys_dev_iter_exit(struct subsys_dev_iter *iter);
 
 int bus_for_each_dev(struct bus_type *bus, struct device *start, void *data,
 		     int (*fn)(struct device *dev, void *data));
@@ -121,10 +143,10 @@ struct device *bus_find_device(struct bus_type *bus, struct device *start,
 struct device *bus_find_device_by_name(struct bus_type *bus,
 				       struct device *start,
 				       const char *name);
-
+struct device *subsys_find_device_by_id(struct bus_type *bus, unsigned int id,
+					struct device *hint);
 int bus_for_each_drv(struct bus_type *bus, struct device_driver *start,
 		     void *data, int (*fn)(struct device_driver *, void *));
-
 void bus_sort_breadthfirst(struct bus_type *bus,
 			   int (*compare)(const struct device *a,
 					  const struct device *b));
@@ -254,6 +276,33 @@ extern int __must_check driver_for_each_device(struct device_driver *drv,
 struct device *driver_find_device(struct device_driver *drv,
 				  struct device *start, void *data,
 				  int (*match)(struct device *dev, void *data));
+
+/**
+ * struct subsys_interface - interfaces to device functions
+ * @name        name of the device function
+ * @subsystem   subsytem of the devices to attach to
+ * @node        the list of functions registered at the subsystem
+ * @add         device hookup to device function handler
+ * @remove      device hookup to device function handler
+ *
+ * Simple interfaces attached to a subsystem. Multiple interfaces can
+ * attach to a subsystem and its devices. Unlike drivers, they do not
+ * exclusively claim or control devices. Interfaces usually represent
+ * a specific functionality of a subsystem/class of devices.
+ */
+struct subsys_interface {
+	const char *name;
+	struct bus_type *subsys;
+	struct list_head node;
+	int (*add_dev)(struct device *dev, struct subsys_interface *sif);
+	int (*remove_dev)(struct device *dev, struct subsys_interface *sif);
+};
+
+int subsys_interface_register(struct subsys_interface *sif);
+void subsys_interface_unregister(struct subsys_interface *sif);
+
+int subsys_system_register(struct bus_type *subsys,
+			   const struct attribute_group **groups);
 
 /**
  * struct class - device classes
@@ -438,8 +487,28 @@ struct device_attribute {
 			 const char *buf, size_t count);
 };
 
+struct dev_ext_attribute {
+	struct device_attribute attr;
+	void *var;
+};
+
+ssize_t device_show_ulong(struct device *dev, struct device_attribute *attr,
+			  char *buf);
+ssize_t device_store_ulong(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count);
+ssize_t device_show_int(struct device *dev, struct device_attribute *attr,
+			char *buf);
+ssize_t device_store_int(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count);
+
 #define DEVICE_ATTR(_name, _mode, _show, _store) \
-struct device_attribute dev_attr_##_name = __ATTR(_name, _mode, _show, _store)
+	struct device_attribute dev_attr_##_name = __ATTR(_name, _mode, _show, _store)
+#define DEVICE_ULONG_ATTR(_name, _mode, _var) \
+	struct dev_ext_attribute dev_attr_##_name = \
+		{ __ATTR(_name, _mode, device_show_ulong, device_store_ulong), &(_var) }
+#define DEVICE_INT_ATTR(_name, _mode, _var) \
+	struct dev_ext_attribute dev_attr_##_name = \
+		{ __ATTR(_name, _mode, device_show_ulong, device_store_ulong), &(_var) }
 
 extern int __must_check device_create_file(struct device *device,
 					const struct device_attribute *entry);
@@ -603,6 +672,7 @@ struct device {
 	struct device_node	*of_node; /* associated device tree node */
 
 	dev_t			devt;	/* dev_t, creates the sysfs "dev" */
+	u32			id;	/* device instance */
 
 	spinlock_t		devres_lock;
 	struct list_head	devres_head;
