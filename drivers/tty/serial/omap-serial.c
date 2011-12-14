@@ -166,11 +166,12 @@ static void serial_omap_stop_rx(struct uart_port *port)
 	pm_runtime_put_autosuspend(&up->pdev->dev);
 }
 
-static inline void receive_chars(struct uart_omap_port *up, int *status)
+static inline void receive_chars(struct uart_omap_port *up,
+		unsigned int *status)
 {
 	struct tty_struct *tty = up->port.state->port.tty;
-	unsigned int flag;
-	unsigned char ch, lsr = *status;
+	unsigned int flag, lsr = *status;
+	unsigned char ch = 0;
 	int max_count = 256;
 
 	do {
