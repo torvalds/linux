@@ -19,7 +19,6 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
-#include <linux/sysdev.h>
 #include <linux/ctype.h>
 #include <linux/workqueue.h>
 #include <asm/uaccess.h>
