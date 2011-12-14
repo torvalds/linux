@@ -121,11 +121,6 @@ struct mgmt_cp_set_dev_class {
 	__u8 minor;
 } __packed;
 
-#define MGMT_OP_SET_SERVICE_CACHE	0x000C
-struct mgmt_cp_set_service_cache {
-	__u8 enable;
-} __packed;
-
 struct mgmt_link_key_info {
 	bdaddr_t bdaddr;
 	u8 type;

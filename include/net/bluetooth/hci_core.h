@@ -943,12 +943,16 @@ int mgmt_device_unblocked(struct hci_dev *hdev, bdaddr_t *bdaddr);
 /* HCI info for socket */
 #define hci_pi(sk) ((struct hci_pinfo *) sk)
 
+/* HCI socket flags */
+#define HCI_PI_MGMT_INIT	0
+
 struct hci_pinfo {
 	struct bt_sock    bt;
 	struct hci_dev    *hdev;
 	struct hci_filter filter;
 	__u32             cmsg_mask;
 	unsigned short   channel;
+	unsigned long     flags;
 };
 
 /* HCI security filter */

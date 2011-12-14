@@ -316,7 +316,10 @@ static int read_controller_info(struct sock *sk, u16 index)
 
 	hci_dev_lock(hdev);
 
-	set_bit(HCI_MGMT, &hdev->flags);
+	if (test_and_clear_bit(HCI_PI_MGMT_INIT, &hci_pi(sk)->flags)) {
+		set_bit(HCI_MGMT, &hdev->flags);
+		set_bit(HCI_SERVICE_CACHE, &hdev->flags);
+	}
 
 	memset(&rp, 0, sizeof(rp));
 
@@ -989,55 +992,13 @@ static int set_dev_class(struct sock *sk, u16 index, unsigned char *data,
 	hdev->major_class = cp->major;
 	hdev->minor_class = cp->minor;
 
+	if (test_and_clear_bit(HCI_SERVICE_CACHE, &hdev->flags))
+		update_eir(hdev);
+
 	err = update_class(hdev);
 
 	if (err == 0)
 		err = cmd_complete(sk, index, MGMT_OP_SET_DEV_CLASS, NULL, 0);
-
-	hci_dev_unlock(hdev);
-	hci_dev_put(hdev);
-
-	return err;
-}
-
-static int set_service_cache(struct sock *sk, u16 index,  unsigned char *data,
-									u16 len)
-{
-	struct hci_dev *hdev;
-	struct mgmt_cp_set_service_cache *cp;
-	int err;
-
-	cp = (void *) data;
-
-	if (len != sizeof(*cp))
-		return cmd_status(sk, index, MGMT_OP_SET_SERVICE_CACHE,
-						MGMT_STATUS_INVALID_PARAMS);
-
-	hdev = hci_dev_get(index);
-	if (!hdev)
-		return cmd_status(sk, index, MGMT_OP_SET_SERVICE_CACHE,
-						MGMT_STATUS_INVALID_PARAMS);
-
-	hci_dev_lock(hdev);
-
-	BT_DBG("hci%u enable %d", index, cp->enable);
-
-	if (cp->enable) {
-		set_bit(HCI_SERVICE_CACHE, &hdev->flags);
-		err = 0;
-	} else {
-		clear_bit(HCI_SERVICE_CACHE, &hdev->flags);
-		err = update_class(hdev);
-		if (err == 0)
-			err = update_eir(hdev);
-	}
-
-	if (err == 0)
-		err = cmd_complete(sk, index, MGMT_OP_SET_SERVICE_CACHE, NULL,
-									0);
-	else
-		cmd_status(sk, index, MGMT_OP_SET_SERVICE_CACHE, -err);
-
 
 	hci_dev_unlock(hdev);
 	hci_dev_put(hdev);
@@ -2169,9 +2130,6 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		break;
 	case MGMT_OP_SET_DEV_CLASS:
 		err = set_dev_class(sk, index, buf + sizeof(*hdr), len);
-		break;
-	case MGMT_OP_SET_SERVICE_CACHE:
-		err = set_service_cache(sk, index, buf + sizeof(*hdr), len);
 		break;
 	case MGMT_OP_LOAD_LINK_KEYS:
 		err = load_link_keys(sk, index, buf + sizeof(*hdr), len);
