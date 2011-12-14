@@ -14,6 +14,8 @@
 
 #include <linux/kvm_host.h>
 #include <linux/module.h>
+#include <linux/vmalloc.h>
+#include <linux/uaccess.h>
 #include <asm/user.h>
 #include <asm/xsave.h>
 #include "cpuid.h"
