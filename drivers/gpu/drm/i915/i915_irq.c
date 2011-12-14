@@ -720,7 +720,6 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 	reloc_offset = src->gtt_offset;
 	for (page = 0; page < page_count; page++) {
 		unsigned long flags;
-		void __iomem *s;
 		void *d;
 
 		d = kmalloc(PAGE_SIZE, GFP_ATOMIC);
@@ -728,10 +727,29 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 			goto unwind;
 
 		local_irq_save(flags);
-		s = io_mapping_map_atomic_wc(dev_priv->mm.gtt_mapping,
-					     reloc_offset);
-		memcpy_fromio(d, s, PAGE_SIZE);
-		io_mapping_unmap_atomic(s);
+		if (reloc_offset < dev_priv->mm.gtt_mappable_end) {
+			void __iomem *s;
+
+			/* Simply ignore tiling or any overlapping fence.
+			 * It's part of the error state, and this hopefully
+			 * captures what the GPU read.
+			 */
+
+			s = io_mapping_map_atomic_wc(dev_priv->mm.gtt_mapping,
+						     reloc_offset);
+			memcpy_fromio(d, s, PAGE_SIZE);
+			io_mapping_unmap_atomic(s);
+		} else {
+			void *s;
+
+			drm_clflush_pages(&src->pages[page], 1);
+
+			s = kmap_atomic(src->pages[page]);
+			memcpy(d, s, PAGE_SIZE);
+			kunmap_atomic(s);
+
+			drm_clflush_pages(&src->pages[page], 1);
+		}
 		local_irq_restore(flags);
 
 		dst->pages[page] = d;
