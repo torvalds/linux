@@ -1368,7 +1368,7 @@ static int pn533_data_exchange(struct nfc_dev *nfc_dev, u32 target_idx,
 			PN533_CMD_DATAEXCH_DATA_MAXLEN +
 			PN533_FRAME_TAIL_SIZE;
 
-	skb_resp = nfc_alloc_skb(skb_resp_len, GFP_KERNEL);
+	skb_resp = nfc_alloc_recv_skb(skb_resp_len, GFP_KERNEL);
 	if (!skb_resp) {
 		rc = -ENOMEM;
 		goto error;

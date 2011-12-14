@@ -27,6 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/nfc.h>
 
 #include "nfc.h"
 
@@ -275,12 +276,35 @@ error:
 }
 
 /**
- * nfc_alloc_skb - allocate a skb for data exchange responses
+ * nfc_alloc_send_skb - allocate a skb for data exchange responses
  *
  * @size: size to allocate
  * @gfp: gfp flags
  */
-struct sk_buff *nfc_alloc_skb(unsigned int size, gfp_t gfp)
+struct sk_buff *nfc_alloc_send_skb(struct nfc_dev *dev, struct sock *sk,
+					unsigned int flags, unsigned int size,
+					unsigned int *err)
+{
+	struct sk_buff *skb;
+	unsigned int total_size;
+
+	total_size = size +
+		dev->tx_headroom + dev->tx_tailroom + NFC_HEADER_SIZE;
+
+	skb = sock_alloc_send_skb(sk, total_size, flags & MSG_DONTWAIT, err);
+	if (skb)
+		skb_reserve(skb, dev->tx_headroom + NFC_HEADER_SIZE);
+
+	return skb;
+}
+
+/**
+ * nfc_alloc_recv_skb - allocate a skb for data exchange responses
+ *
+ * @size: size to allocate
+ * @gfp: gfp flags
+ */
+struct sk_buff *nfc_alloc_recv_skb(unsigned int size, gfp_t gfp)
 {
 	struct sk_buff *skb;
 	unsigned int total_size;
@@ -293,7 +317,7 @@ struct sk_buff *nfc_alloc_skb(unsigned int size, gfp_t gfp)
 
 	return skb;
 }
-EXPORT_SYMBOL(nfc_alloc_skb);
+EXPORT_SYMBOL(nfc_alloc_recv_skb);
 
 /**
  * nfc_targets_found - inform that targets were found

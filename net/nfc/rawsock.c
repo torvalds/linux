@@ -208,12 +208,9 @@ static int rawsock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	if (sock->state != SS_CONNECTED)
 		return -ENOTCONN;
 
-	skb = sock_alloc_send_skb(sk, len + dev->tx_headroom + dev->tx_tailroom + NFC_HEADER_SIZE,
-					msg->msg_flags & MSG_DONTWAIT, &rc);
-	if (!skb)
+	skb = nfc_alloc_send_skb(dev, sk, msg->msg_flags, len, &rc);
+	if (skb == NULL)
 		return rc;
-
-	skb_reserve(skb, dev->tx_headroom + NFC_HEADER_SIZE);
 
 	rc = memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len);
 	if (rc < 0) {

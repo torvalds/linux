@@ -157,7 +157,10 @@ static inline const char *nfc_device_name(struct nfc_dev *dev)
 	return dev_name(&dev->dev);
 }
 
-struct sk_buff *nfc_alloc_skb(unsigned int size, gfp_t gfp);
+struct sk_buff *nfc_alloc_send_skb(struct nfc_dev *dev, struct sock *sk,
+					unsigned int flags, unsigned int size,
+					unsigned int *err);
+struct sk_buff *nfc_alloc_recv_skb(unsigned int size, gfp_t gfp);
 
 int nfc_targets_found(struct nfc_dev *dev, struct nfc_target *targets,
 							int ntargets);
