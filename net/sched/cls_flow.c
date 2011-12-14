@@ -285,7 +285,7 @@ static int flow_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 	int r;
 
 	list_for_each_entry(f, &head->filters, list) {
-		u32 keys[f->nkeys];
+		u32 keys[FLOW_KEY_MAX + 1];
 		struct flow_keys flow_keys;
 
 		if (!tcf_em_tree_match(skb, &f->ematches, NULL))
