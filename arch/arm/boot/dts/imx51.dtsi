@@ -117,7 +117,7 @@
 				};
 			};
 
-			gpio0: gpio@73f84000 { /* GPIO1 */
+			gpio1: gpio@73f84000 {
 				compatible = "fsl,imx51-gpio", "fsl,imx31-gpio";
 				reg = <0x73f84000 0x4000>;
 				interrupts = <50 51>;
@@ -127,7 +127,7 @@
 				#interrupt-cells = <1>;
 			};
 
-			gpio1: gpio@73f88000 { /* GPIO2 */
+			gpio2: gpio@73f88000 {
 				compatible = "fsl,imx51-gpio", "fsl,imx31-gpio";
 				reg = <0x73f88000 0x4000>;
 				interrupts = <52 53>;
@@ -137,7 +137,7 @@
 				#interrupt-cells = <1>;
 			};
 
-			gpio2: gpio@73f8c000 { /* GPIO3 */
+			gpio3: gpio@73f8c000 {
 				compatible = "fsl,imx51-gpio", "fsl,imx31-gpio";
 				reg = <0x73f8c000 0x4000>;
 				interrupts = <54 55>;
@@ -147,7 +147,7 @@
 				#interrupt-cells = <1>;
 			};
 
-			gpio3: gpio@73f90000 { /* GPIO4 */
+			gpio4: gpio@73f90000 {
 				compatible = "fsl,imx51-gpio", "fsl,imx31-gpio";
 				reg = <0x73f90000 0x4000>;
 				interrupts = <56 57>;

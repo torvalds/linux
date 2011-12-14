@@ -34,8 +34,8 @@
 			};
 
 			usdhc@02198000 { /* uSDHC3 */
-				cd-gpios = <&gpio5 11 0>; /* GPIO6_11 */
-				wp-gpios = <&gpio5 14 0>; /* GPIO6_14 */
+				cd-gpios = <&gpio6 11 0>;
+				wp-gpios = <&gpio6 14 0>;
 				status = "okay";
 			};
 
@@ -55,7 +55,7 @@
 
 		debug-led {
 			label = "Heartbeat";
-			gpios = <&gpio2 25 0>; /* GPIO3_25 */
+			gpios = <&gpio3 25 0>;
 			linux,default-trigger = "heartbeat";
 		};
 	};
