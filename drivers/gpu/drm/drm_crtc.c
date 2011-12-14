@@ -557,7 +557,8 @@ EXPORT_SYMBOL(drm_encoder_cleanup);
 int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 		   unsigned long possible_crtcs,
 		   const struct drm_plane_funcs *funcs,
-		   const uint32_t *formats, uint32_t format_count)
+		   const uint32_t *formats, uint32_t format_count,
+		   bool priv)
 {
 	mutex_lock(&dev->mode_config.mutex);
 
@@ -577,8 +578,16 @@ int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 	plane->format_count = format_count;
 	plane->possible_crtcs = possible_crtcs;
 
-	list_add_tail(&plane->head, &dev->mode_config.plane_list);
-	dev->mode_config.num_plane++;
+	/* private planes are not exposed to userspace, but depending on
+	 * display hardware, might be convenient to allow sharing programming
+	 * for the scanout engine with the crtc implementation.
+	 */
+	if (!priv) {
+		list_add_tail(&plane->head, &dev->mode_config.plane_list);
+		dev->mode_config.num_plane++;
+	} else {
+		INIT_LIST_HEAD(&plane->head);
+	}
 
 	mutex_unlock(&dev->mode_config.mutex);
 
@@ -593,8 +602,11 @@ void drm_plane_cleanup(struct drm_plane *plane)
 	mutex_lock(&dev->mode_config.mutex);
 	kfree(plane->format_types);
 	drm_mode_object_put(dev, &plane->base);
-	list_del(&plane->head);
-	dev->mode_config.num_plane--;
+	/* if not added to a list, it must be a private plane */
+	if (!list_empty(&plane->head)) {
+		list_del(&plane->head);
+		dev->mode_config.num_plane--;
+	}
 	mutex_unlock(&dev->mode_config.mutex);
 }
 EXPORT_SYMBOL(drm_plane_cleanup);

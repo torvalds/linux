@@ -659,7 +659,7 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe)
 	possible_crtcs = (1 << pipe);
 	ret = drm_plane_init(dev, &intel_plane->base, possible_crtcs,
 			     &intel_plane_funcs, snb_plane_formats,
-			     ARRAY_SIZE(snb_plane_formats));
+			     ARRAY_SIZE(snb_plane_formats), false);
 	if (ret)
 		kfree(intel_plane);
 

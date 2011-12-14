@@ -117,7 +117,7 @@ int exynos_plane_init(struct drm_device *dev, unsigned int nr)
 
 	/* TODO: format */
 	return drm_plane_init(dev, &exynos_plane->base, possible_crtcs,
-			      &exynos_plane_funcs, NULL, 0);
+			      &exynos_plane_funcs, NULL, 0, false);
 }
 
 int exynos_plane_set_zpos_ioctl(struct drm_device *dev, void *data,
