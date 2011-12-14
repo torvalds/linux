@@ -1649,13 +1649,6 @@ static bool kick_ring(struct intel_ring_buffer *ring)
 		I915_WRITE_CTL(ring, tmp);
 		return true;
 	}
-	if (IS_GEN6(dev) &&
-	    (tmp & RING_WAIT_SEMAPHORE)) {
-		DRM_ERROR("Kicking stuck semaphore on %s\n",
-			  ring->name);
-		I915_WRITE_CTL(ring, tmp);
-		return true;
-	}
 	return false;
 }
 
