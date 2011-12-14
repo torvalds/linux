@@ -263,7 +263,7 @@ static int adxrs450_read_raw(struct iio_dev *indio_dev,
 {
 	int ret;
 	s16 t;
-	u16 ut;
+
 	switch (mask) {
 	case 0:
 		switch (chan->type) {
@@ -276,15 +276,29 @@ static int adxrs450_read_raw(struct iio_dev *indio_dev,
 			break;
 		case IIO_TEMP:
 			ret = adxrs450_spi_read_reg_16(indio_dev,
-						       ADXRS450_TEMP1, &ut);
+						       ADXRS450_TEMP1, &t);
 			if (ret)
 				break;
-			*val = ut;
+			*val = (t >> 6) + 225;
 			ret = IIO_VAL_INT;
 			break;
 		default:
 			ret = -EINVAL;
 			break;
+		}
+		break;
+	case IIO_CHAN_INFO_SCALE:
+		switch (chan->type) {
+		case IIO_ANGL_VEL:
+			*val = 0;
+			*val2 = 218166;
+			return IIO_VAL_INT_PLUS_NANO;
+		case IIO_TEMP:
+			*val = 200;
+			*val2 = 0;
+			return IIO_VAL_INT;
+		default:
+			return -EINVAL;
 		}
 		break;
 	case IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW:
@@ -308,11 +322,13 @@ static const struct iio_chan_spec adxrs450_channels[] = {
 		.modified = 1,
 		.channel2 = IIO_MOD_Z,
 		.info_mask = IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT |
-		IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SEPARATE_BIT,
+		IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SEPARATE_BIT |
+		IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 	}, {
 		.type = IIO_TEMP,
 		.indexed = 1,
 		.channel = 0,
+		.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 	}
 };
 
