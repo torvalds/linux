@@ -38,6 +38,7 @@
 #include <linux/serial_core.h>
 #include <linux/irq.h>
 #include <linux/pm_runtime.h>
+#include <linux/of.h>
 
 #include <plat/dma.h>
 #include <plat/dmtimer.h>
@@ -1325,12 +1326,28 @@ static void uart_tx_dma_callback(int lch, u16 ch_status, void *data)
 	return;
 }
 
+static struct omap_uart_port_info *of_get_uart_port_info(struct device *dev)
+{
+	struct omap_uart_port_info *omap_up_info;
+
+	omap_up_info = devm_kzalloc(dev, sizeof(*omap_up_info), GFP_KERNEL);
+	if (!omap_up_info)
+		return NULL; /* out of memory */
+
+	of_property_read_u32(dev->of_node, "clock-frequency",
+					 &omap_up_info->uartclk);
+	return omap_up_info;
+}
+
 static int serial_omap_probe(struct platform_device *pdev)
 {
 	struct uart_omap_port	*up;
 	struct resource		*mem, *irq, *dma_tx, *dma_rx;
 	struct omap_uart_port_info *omap_up_info = pdev->dev.platform_data;
 	int ret = -ENOSPC;
+
+	if (pdev->dev.of_node)
+		omap_up_info = of_get_uart_port_info(&pdev->dev);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem) {
@@ -1376,9 +1393,20 @@ static int serial_omap_probe(struct platform_device *pdev)
 	up->port.regshift = 2;
 	up->port.fifosize = 64;
 	up->port.ops = &serial_omap_pops;
-	up->port.line = pdev->id;
-	sprintf(up->name, "OMAP UART%d", up->port.line);
 
+	if (pdev->dev.of_node)
+		up->port.line = of_alias_get_id(pdev->dev.of_node, "serial");
+	else
+		up->port.line = pdev->id;
+
+	if (up->port.line < 0) {
+		dev_err(&pdev->dev, "failed to get alias/pdev id, errno %d\n",
+								up->port.line);
+		ret = -ENODEV;
+		goto err;
+	}
+
+	sprintf(up->name, "OMAP UART%d", up->port.line);
 	up->port.mapbase = mem->start;
 	up->port.membase = ioremap(mem->start, resource_size(mem));
 	if (!up->port.membase) {
@@ -1531,7 +1559,7 @@ static int serial_omap_runtime_suspend(struct device *dev)
 	if (!up)
 		return -EINVAL;
 
-	if (!pdata->enable_wakeup)
+	if (!pdata || !pdata->enable_wakeup)
 		return 0;
 
 	if (pdata->get_context_loss_count)
@@ -1592,12 +1620,23 @@ static const struct dev_pm_ops serial_omap_dev_pm_ops = {
 				serial_omap_runtime_resume, NULL)
 };
 
+#if defined(CONFIG_OF)
+static const struct of_device_id omap_serial_of_match[] = {
+	{ .compatible = "ti,omap2-uart" },
+	{ .compatible = "ti,omap3-uart" },
+	{ .compatible = "ti,omap4-uart" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, omap_serial_of_match);
+#endif
+
 static struct platform_driver serial_omap_driver = {
 	.probe          = serial_omap_probe,
 	.remove         = serial_omap_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.pm	= &serial_omap_dev_pm_ops,
+		.of_match_table = of_match_ptr(omap_serial_of_match),
 	},
 };
 
