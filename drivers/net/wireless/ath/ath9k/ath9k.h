@@ -241,6 +241,7 @@ struct ath_atx_tid {
 	struct ath_node *an;
 	struct ath_atx_ac *ac;
 	unsigned long tx_buf[BITS_TO_LONGS(ATH_TID_MAX_BUFS)];
+	int bar_index;
 	u16 seq_start;
 	u16 seq_next;
 	u16 baw_size;

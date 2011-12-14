@@ -206,6 +206,8 @@ static void ath_tx_update_baw(struct ath_softc *sc, struct ath_atx_tid *tid,
 	while (tid->baw_head != tid->baw_tail && !test_bit(tid->baw_head, tid->tx_buf)) {
 		INCR(tid->seq_start, IEEE80211_SEQ_MAX);
 		INCR(tid->baw_head, ATH_TID_MAX_BUFS);
+		if (tid->bar_index >= 0)
+			tid->bar_index--;
 	}
 }
 
@@ -263,6 +265,7 @@ static void ath_tid_drain(struct ath_softc *sc, struct ath_txq *txq,
 
 	tid->seq_next = tid->seq_start;
 	tid->baw_tail = tid->baw_head;
+	tid->bar_index = -1;
 }
 
 static void ath_tx_set_retry(struct ath_softc *sc, struct ath_txq *txq,
@@ -551,8 +554,12 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 		bf = bf_next;
 	}
 
-	if (bar_index >= 0)
+	if (bar_index >= 0) {
+		u16 bar_seq = ATH_BA_INDEX2SEQ(seq_first, bar_index);
 		ath_send_bar(tid, ATH_BA_INDEX2SEQ(seq_first, bar_index + 1));
+		if (BAW_WITHIN(tid->seq_start, tid->baw_size, bar_seq))
+			tid->bar_index = ATH_BA_INDEX(tid->seq_start, bar_seq);
+	}
 
 	/* prepend un-acked frames to the beginning of the pending frame queue */
 	if (!skb_queue_empty(&bf_pending)) {
@@ -779,14 +786,27 @@ static enum ATH_AGGR_STATUS ath_tx_form_aggr(struct ath_softc *sc,
 
 		bf->bf_state.bf_type = BUF_AMPDU | BUF_AGGR;
 		seqno = bf->bf_state.seqno;
-		if (!bf_first)
-			bf_first = bf;
 
 		/* do not step over block-ack window */
 		if (!BAW_WITHIN(tid->seq_start, tid->baw_size, seqno)) {
 			status = ATH_AGGR_BAW_CLOSED;
 			break;
 		}
+
+		if (tid->bar_index > ATH_BA_INDEX(tid->seq_start, seqno)) {
+			struct ath_tx_status ts = {};
+			struct list_head bf_head;
+
+			INIT_LIST_HEAD(&bf_head);
+			list_add(&bf->list, &bf_head);
+			__skb_unlink(skb, &tid->buf_q);
+			ath_tx_update_baw(sc, tid, seqno);
+			ath_tx_complete_buf(sc, bf, txq, &bf_head, &ts, 0);
+			continue;
+		}
+
+		if (!bf_first)
+			bf_first = bf;
 
 		if (!rl) {
 			aggr_limit = ath_lookup_rate(sc, bf, tid);
@@ -1130,6 +1150,7 @@ int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
 	txtid->state |= AGGR_ADDBA_PROGRESS;
 	txtid->paused = true;
 	*ssn = txtid->seq_start = txtid->seq_next;
+	txtid->bar_index = -1;
 
 	memset(txtid->tx_buf, 0, sizeof(txtid->tx_buf));
 	txtid->baw_head = txtid->baw_tail = 0;
