@@ -1706,6 +1706,7 @@ void i915_hangcheck_elapsed(unsigned long data)
 	    dev_priv->last_instdone1 == instdone1) {
 		if (dev_priv->hangcheck_count++ > 1) {
 			DRM_ERROR("Hangcheck timer elapsed... GPU hung\n");
+			i915_handle_error(dev, true);
 
 			if (!IS_GEN2(dev)) {
 				/* Is the chip hanging on a WAIT_FOR_EVENT?
@@ -1713,7 +1714,6 @@ void i915_hangcheck_elapsed(unsigned long data)
 				 * and break the hang. This should work on
 				 * all but the second generation chipsets.
 				 */
-
 				if (kick_ring(&dev_priv->ring[RCS]))
 					goto repeat;
 
@@ -1726,7 +1726,6 @@ void i915_hangcheck_elapsed(unsigned long data)
 					goto repeat;
 			}
 
-			i915_handle_error(dev, true);
 			return;
 		}
 	} else {
