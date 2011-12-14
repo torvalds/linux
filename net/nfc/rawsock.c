@@ -310,7 +310,7 @@ static int rawsock_create(struct net *net, struct socket *sock,
 
 	sock->ops = &rawsock_ops;
 
-	sk = sk_alloc(net, PF_NFC, GFP_KERNEL, nfc_proto->proto);
+	sk = sk_alloc(net, PF_NFC, GFP_ATOMIC, nfc_proto->proto);
 	if (!sk)
 		return -ENOMEM;
 
