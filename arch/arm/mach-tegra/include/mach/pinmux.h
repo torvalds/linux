@@ -17,12 +17,6 @@
 #ifndef __MACH_TEGRA_PINMUX_H
 #define __MACH_TEGRA_PINMUX_H
 
-#if defined(CONFIG_ARCH_TEGRA_2x_SOC)
-#include "pinmux-tegra20.h"
-#else
-#error "Undefined Tegra architecture"
-#endif
-
 enum tegra_mux_func {
 	TEGRA_MUX_RSVD = 0x8000,
 	TEGRA_MUX_RSVD1 = 0x8000,
@@ -118,7 +112,7 @@ enum tegra_vddio {
 };
 
 struct tegra_pingroup_config {
-	enum tegra_pingroup	pingroup;
+	int pingroup;
 	enum tegra_mux_func	func;
 	enum tegra_pullupdown	pupd;
 	enum tegra_tristate	tristate;
@@ -187,7 +181,7 @@ enum tegra_schmitt {
 };
 
 struct tegra_drive_pingroup_config {
-	enum tegra_drive_pingroup pingroup;
+	int pingroup;
 	enum tegra_hsm hsm;
 	enum tegra_schmitt schmitt;
 	enum tegra_drive drive;
@@ -219,13 +213,15 @@ struct tegra_pingroup_desc {
 	s8 pupd_bit;	/* offset into the PULL_UPDOWN_REG_* register bit */
 };
 
-extern const struct tegra_pingroup_desc tegra_soc_pingroups[];
-extern const struct tegra_drive_pingroup_desc tegra_soc_drive_pingroups[];
+typedef void (*pinmux_init) (const struct tegra_pingroup_desc **pg,
+	int *pg_max, const struct tegra_drive_pingroup_desc **pgdrive,
+	int *pgdrive_max);
 
-int tegra_pinmux_set_tristate(enum tegra_pingroup pg,
-	enum tegra_tristate tristate);
-int tegra_pinmux_set_pullupdown(enum tegra_pingroup pg,
-	enum tegra_pullupdown pupd);
+void tegra20_pinmux_init(const struct tegra_pingroup_desc **pg, int *pg_max,
+	const struct tegra_drive_pingroup_desc **pgdrive, int *pgdrive_max);
+
+int tegra_pinmux_set_tristate(int pg, enum tegra_tristate tristate);
+int tegra_pinmux_set_pullupdown(int pg, enum tegra_pullupdown pupd);
 
 void tegra_pinmux_config_table(const struct tegra_pingroup_config *config,
 	int len);
@@ -241,4 +237,3 @@ void tegra_pinmux_config_tristate_table(const struct tegra_pingroup_config *conf
 void tegra_pinmux_config_pullupdown_table(const struct tegra_pingroup_config *config,
 	int len, enum tegra_pullupdown pupd);
 #endif
-

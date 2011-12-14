@@ -44,7 +44,7 @@
 		.reg = ((r) - PINGROUP_REG_A)			\
 	}
 
-const struct tegra_drive_pingroup_desc tegra_soc_drive_pingroups[TEGRA_MAX_DRIVE_PINGROUP] = {
+static const struct tegra_drive_pingroup_desc tegra_soc_drive_pingroups[TEGRA_MAX_DRIVE_PINGROUP] = {
 	DRIVE_PINGROUP(AO1,		0x868),
 	DRIVE_PINGROUP(AO2,		0x86c),
 	DRIVE_PINGROUP(AT1,		0x870),
@@ -108,7 +108,7 @@ const struct tegra_drive_pingroup_desc tegra_soc_drive_pingroups[TEGRA_MAX_DRIVE
 		.pupd_bit = pupd_b,				\
 	}
 
-const struct tegra_pingroup_desc tegra_soc_pingroups[TEGRA_MAX_PINGROUP] = {
+static const struct tegra_pingroup_desc tegra_soc_pingroups[TEGRA_MAX_PINGROUP] = {
 	PINGROUP(ATA,   NAND,  IDE,       NAND,      GMI,       RSVD,          IDE,       0x14, 0,  0x80, 24, 0xA0, 0),
 	PINGROUP(ATB,   NAND,  IDE,       NAND,      GMI,       SDIO4,         IDE,       0x14, 1,  0x80, 16, 0xA0, 2),
 	PINGROUP(ATC,   NAND,  IDE,       NAND,      GMI,       SDIO4,         IDE,       0x14, 2,  0x80, 22, 0xA0, 4),
@@ -227,3 +227,14 @@ const struct tegra_pingroup_desc tegra_soc_pingroups[TEGRA_MAX_PINGROUP] = {
 	PINGROUP(XM2C,  DDR,   RSVD,      RSVD,      RSVD,      RSVD,          RSVD,      -1,   -1, -1,   -1, 0xA8, 30),
 	PINGROUP(XM2D,  DDR,   RSVD,      RSVD,      RSVD,      RSVD,          RSVD,      -1,   -1, -1,   -1, 0xA8, 28),
 };
+
+void __init tegra20_pinmux_init(const struct tegra_pingroup_desc **pg,
+		int *pg_max, const struct tegra_drive_pingroup_desc **pgdrive,
+		int *pgdrive_max)
+{
+	*pg = tegra_soc_pingroups;
+	*pg_max = TEGRA_MAX_PINGROUP;
+	*pgdrive = tegra_soc_drive_pingroups;
+	*pgdrive_max = TEGRA_MAX_DRIVE_PINGROUP;
+}
+
