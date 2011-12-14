@@ -1330,8 +1330,8 @@ struct task_struct {
 	 * older sibling, respectively.  (p->father can be replaced with 
 	 * p->real_parent->pid)
 	 */
-	struct task_struct *real_parent; /* real parent process */
-	struct task_struct *parent; /* recipient of SIGCHLD, wait4() reports */
+	struct task_struct __rcu *real_parent; /* real parent process */
+	struct task_struct __rcu *parent; /* recipient of SIGCHLD, wait4() reports */
 	/*
 	 * children/sibling forms the list of my natural children
 	 */
