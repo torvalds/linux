@@ -995,6 +995,7 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 		if (!ieee80211_set_channel_type(sdata->local, sdata,
 					       params->channel_type)) {
 			mutex_unlock(&sdata->u.ibss.mtx);
+			kfree_skb(skb);
 			return -EINVAL;
 		}
 	}
