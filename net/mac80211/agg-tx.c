@@ -309,6 +309,38 @@ ieee80211_wake_queue_agg(struct ieee80211_local *local, int tid)
 	__release(agg_queue);
 }
 
+/*
+ * splice packets from the STA's pending to the local pending,
+ * requires a call to ieee80211_agg_splice_finish later
+ */
+static void __acquires(agg_queue)
+ieee80211_agg_splice_packets(struct ieee80211_local *local,
+			     struct tid_ampdu_tx *tid_tx, u16 tid)
+{
+	int queue = ieee80211_ac_from_tid(tid);
+	unsigned long flags;
+
+	ieee80211_stop_queue_agg(local, tid);
+
+	if (WARN(!tid_tx, "TID %d gone but expected when splicing aggregates"
+			  " from the pending queue\n", tid))
+		return;
+
+	if (!skb_queue_empty(&tid_tx->pending)) {
+		spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
+		/* copy over remaining packets */
+		skb_queue_splice_tail_init(&tid_tx->pending,
+					   &local->pending[queue]);
+		spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
+	}
+}
+
+static void __releases(agg_queue)
+ieee80211_agg_splice_finish(struct ieee80211_local *local, u16 tid)
+{
+	ieee80211_wake_queue_agg(local, tid);
+}
+
 void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 {
 	struct tid_ampdu_tx *tid_tx;
@@ -320,19 +352,17 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 	tid_tx = rcu_dereference_protected_tid_tx(sta, tid);
 
 	/*
-	 * While we're asking the driver about the aggregation,
-	 * stop the AC queue so that we don't have to worry
-	 * about frames that came in while we were doing that,
-	 * which would require us to put them to the AC pending
-	 * afterwards which just makes the code more complex.
+	 * Start queuing up packets for this aggregation session.
+	 * We're going to release them once the driver is OK with
+	 * that.
 	 */
-	ieee80211_stop_queue_agg(local, tid);
-
 	clear_bit(HT_AGG_STATE_WANT_START, &tid_tx->state);
 
 	/*
-	 * make sure no packets are being processed to get
-	 * valid starting sequence number
+	 * Make sure no packets are being processed. This ensures that
+	 * we have a valid starting sequence number and that in-flight
+	 * packets have been flushed out and no packets for this TID
+	 * will go into the driver during the ampdu_action call.
 	 */
 	synchronize_net();
 
@@ -346,16 +376,14 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 					" tid %d\n", tid);
 #endif
 		spin_lock_bh(&sta->lock);
+		ieee80211_agg_splice_packets(local, tid_tx, tid);
 		ieee80211_assign_tid_tx(sta, tid, NULL);
+		ieee80211_agg_splice_finish(local, tid);
 		spin_unlock_bh(&sta->lock);
 
-		ieee80211_wake_queue_agg(local, tid);
 		kfree_rcu(tid_tx, rcu_head);
 		return;
 	}
-
-	/* we can take packets again now */
-	ieee80211_wake_queue_agg(local, tid);
 
 	/* activate the timer for the recipient's addBA response */
 	mod_timer(&tid_tx->addba_resp_timer, jiffies + ADDBA_RESP_INTERVAL);
@@ -515,38 +543,6 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 	return ret;
 }
 EXPORT_SYMBOL(ieee80211_start_tx_ba_session);
-
-/*
- * splice packets from the STA's pending to the local pending,
- * requires a call to ieee80211_agg_splice_finish later
- */
-static void __acquires(agg_queue)
-ieee80211_agg_splice_packets(struct ieee80211_local *local,
-			     struct tid_ampdu_tx *tid_tx, u16 tid)
-{
-	int queue = ieee80211_ac_from_tid(tid);
-	unsigned long flags;
-
-	ieee80211_stop_queue_agg(local, tid);
-
-	if (WARN(!tid_tx, "TID %d gone but expected when splicing aggregates"
-			  " from the pending queue\n", tid))
-		return;
-
-	if (!skb_queue_empty(&tid_tx->pending)) {
-		spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
-		/* copy over remaining packets */
-		skb_queue_splice_tail_init(&tid_tx->pending,
-					   &local->pending[queue]);
-		spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
-	}
-}
-
-static void __releases(agg_queue)
-ieee80211_agg_splice_finish(struct ieee80211_local *local, u16 tid)
-{
-	ieee80211_wake_queue_agg(local, tid);
-}
 
 static void ieee80211_agg_tx_operational(struct ieee80211_local *local,
 					 struct sta_info *sta, u16 tid)
