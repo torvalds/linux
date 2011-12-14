@@ -1316,7 +1316,7 @@ static int serial_imx_probe_dt(struct imx_port *sport,
 	ret = of_alias_get_id(np, "serial");
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to get alias id, errno %d\n", ret);
-		return -ENODEV;
+		return ret;
 	}
 	sport->port.line = ret;
 
