@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-tegra/board-harmony.c
+ * arch/arm/mach-tegra/common.c
  *
  * Copyright (C) 2010 Google, Inc.
  *
@@ -21,8 +21,10 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/of_irq.h>
 
 #include <asm/hardware/cache-l2x0.h>
+#include <asm/hardware/gic.h>
 
 #include <mach/iomap.h>
 #include <mach/system.h>
@@ -32,6 +34,17 @@
 #include "fuse.h"
 
 void (*arch_reset)(char mode, const char *cmd) = tegra_assert_system_reset;
+
+static const struct of_device_id tegra_dt_irq_match[] __initconst = {
+	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init },
+	{ }
+};
+
+void __init tegra_dt_init_irq(void)
+{
+	tegra_init_irq();
+	of_irq_init(tegra_dt_irq_match);
+}
 
 void tegra_assert_system_reset(char mode, const char *cmd)
 {
@@ -44,7 +57,8 @@ void tegra_assert_system_reset(char mode, const char *cmd)
 	writel_relaxed(reg, reset);
 }
 
-static __initdata struct tegra_clk_init_table common_clk_init_table[] = {
+#ifdef CONFIG_ARCH_TEGRA_2x_SOC
+static __initdata struct tegra_clk_init_table tegra20_clk_init_table[] = {
 	/* name		parent		rate		enabled */
 	{ "clk_m",	NULL,		0,		true },
 	{ "pll_p",	"clk_m",	216000000,	true },
@@ -60,6 +74,7 @@ static __initdata struct tegra_clk_init_table common_clk_init_table[] = {
 	{ "cpu",	NULL,		0,		true },
 	{ NULL,		NULL,		0,		0},
 };
+#endif
 
 static void __init tegra_init_cache(void)
 {
@@ -74,10 +89,12 @@ static void __init tegra_init_cache(void)
 
 }
 
-void __init tegra_init_early(void)
+#ifdef CONFIG_ARCH_TEGRA_2x_SOC
+void __init tegra20_init_early(void)
 {
 	tegra_init_fuse();
-	tegra_init_clock();
-	tegra_clk_init_from_table(common_clk_init_table);
+	tegra2_init_clocks();
+	tegra_clk_init_from_table(tegra20_clk_init_table);
 	tegra_init_cache();
 }
+#endif

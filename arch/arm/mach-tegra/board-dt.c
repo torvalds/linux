@@ -53,17 +53,6 @@ void seaboard_pinmux_init(void);
 void trimslice_pinmux_init(void);
 void ventana_pinmux_init(void);
 
-static const struct of_device_id tegra_dt_irq_match[] __initconst = {
-	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init },
-	{ }
-};
-
-void __init tegra_dt_init_irq(void)
-{
-	tegra_init_irq();
-	of_irq_init(tegra_dt_irq_match);
-}
-
 struct of_dev_auxdata tegra20_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("nvidia,tegra20-sdhci", TEGRA_SDMMC1_BASE, "sdhci-tegra.0", NULL),
 	OF_DEV_AUXDATA("nvidia,tegra20-sdhci", TEGRA_SDMMC2_BASE, "sdhci-tegra.1", NULL),
@@ -139,7 +128,7 @@ static void __init tegra_dt_init(void)
 		"Unknown platform! Pinmuxing not initialized\n");
 }
 
-static const char * tegra_dt_board_compat[] = {
+static const char *tegra20_dt_board_compat[] = {
 	"compulab,trimslice",
 	"nvidia,harmony",
 	"compal,paz00",
@@ -148,12 +137,12 @@ static const char * tegra_dt_board_compat[] = {
 	NULL
 };
 
-DT_MACHINE_START(TEGRA_DT, "nVidia Tegra (Flattened Device Tree)")
+DT_MACHINE_START(TEGRA_DT, "nVidia Tegra20 (Flattened Device Tree)")
 	.map_io		= tegra_map_common_io,
-	.init_early	= tegra_init_early,
+	.init_early	= tegra20_init_early,
 	.init_irq	= tegra_dt_init_irq,
 	.handle_irq	= gic_handle_irq,
 	.timer		= &tegra_timer,
 	.init_machine	= tegra_dt_init,
-	.dt_compat	= tegra_dt_board_compat,
+	.dt_compat	= tegra20_dt_board_compat,
 MACHINE_END
