@@ -1479,10 +1479,10 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 
 	dev_file_info = comedi_get_device_file_info(minor);
 	if (dev_file_info == NULL)
-	        return -ENODEV;
+		return -ENODEV;
 	dev = dev_file_info->device;
 	if (dev == NULL)
-	        return -ENODEV;
+		return -ENODEV;
 
 	mutex_lock(&dev->mutex);
 	if (!dev->attached) {
@@ -1556,10 +1556,10 @@ static unsigned int comedi_poll(struct file *file, poll_table * wait)
 	dev_file_info = comedi_get_device_file_info(minor);
 
 	if (dev_file_info == NULL)
-	        return -ENODEV;
+		return -ENODEV;
 	dev = dev_file_info->device;
 	if (dev == NULL)
-	        return -ENODEV;
+		return -ENODEV;
 
 	mutex_lock(&dev->mutex);
 	if (!dev->attached) {
@@ -1610,10 +1610,10 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 	dev_file_info = comedi_get_device_file_info(minor);
 
 	if (dev_file_info == NULL)
-	        return -ENODEV;
+		return -ENODEV;
 	dev = dev_file_info->device;
 	if (dev == NULL)
-	        return -ENODEV;
+		return -ENODEV;
 
 	if (!dev->attached) {
 		DPRINTK("no driver configured on comedi%i\n", dev->minor);
@@ -1721,10 +1721,10 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 	dev_file_info = comedi_get_device_file_info(minor);
 
 	if (dev_file_info == NULL)
-	        return -ENODEV;
+		return -ENODEV;
 	dev = dev_file_info->device;
 	if (dev == NULL)
-	        return -ENODEV;
+		return -ENODEV;
 
 	if (!dev->attached) {
 		DPRINTK("no driver configured on comedi%i\n", dev->minor);
@@ -1931,10 +1931,10 @@ static int comedi_close(struct inode *inode, struct file *file)
 	dev_file_info = comedi_get_device_file_info(minor);
 
 	if (dev_file_info == NULL)
-	        return -ENODEV;
+		return -ENODEV;
 	dev = dev_file_info->device;
 	if (dev == NULL)
-	        return -ENODEV;
+		return -ENODEV;
 
 	mutex_lock(&dev->mutex);
 
@@ -1973,10 +1973,10 @@ static int comedi_fasync(int fd, struct file *file, int on)
 	dev_file_info = comedi_get_device_file_info(minor);
 
 	if (dev_file_info == NULL)
-	        return -ENODEV;
+		return -ENODEV;
 	dev = dev_file_info->device;
 	if (dev == NULL)
-	        return -ENODEV;
+		return -ENODEV;
 
 	return fasync_helper(fd, file, on, &dev->async_queue);
 }
