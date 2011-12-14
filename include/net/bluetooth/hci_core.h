@@ -193,6 +193,8 @@ struct hci_dev {
 	__u16			discov_timeout;
 	struct delayed_work	discov_off;
 
+	struct delayed_work	service_cache;
+
 	struct timer_list	cmd_timer;
 
 	struct work_struct	rx_work;

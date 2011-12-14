@@ -598,6 +598,9 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	if (test_and_clear_bit(HCI_AUTO_OFF, &hdev->flags))
 		cancel_delayed_work(&hdev->power_off);
 
+	if (test_and_clear_bit(HCI_SERVICE_CACHE, &hdev->flags))
+		cancel_delayed_work(&hdev->service_cache);
+
 	hci_dev_lock(hdev);
 	inquiry_cache_flush(hdev);
 	hci_conn_hash_flush(hdev);

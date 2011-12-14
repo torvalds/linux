@@ -35,6 +35,8 @@
 
 #define INQUIRY_LEN_BREDR 0x08 /* TGAP(100) */
 
+#define SERVICE_CACHE_TIMEOUT (5 * 1000)
+
 struct pending_cmd {
 	struct list_head list;
 	u16 opcode;
@@ -472,6 +474,32 @@ static int update_class(struct hci_dev *hdev)
 	return hci_send_cmd(hdev, HCI_OP_WRITE_CLASS_OF_DEV, sizeof(cod), cod);
 }
 
+static void service_cache_off(struct work_struct *work)
+{
+	struct hci_dev *hdev = container_of(work, struct hci_dev,
+							service_cache.work);
+
+	if (!test_and_clear_bit(HCI_SERVICE_CACHE, &hdev->flags))
+		return;
+
+	hci_dev_lock(hdev);
+
+	update_eir(hdev);
+	update_class(hdev);
+
+	hci_dev_unlock(hdev);
+}
+
+static void mgmt_init_hdev(struct hci_dev *hdev)
+{
+	if (!test_and_set_bit(HCI_MGMT, &hdev->flags))
+		INIT_DELAYED_WORK(&hdev->service_cache, service_cache_off);
+
+	if (!test_and_set_bit(HCI_SERVICE_CACHE, &hdev->flags))
+		schedule_delayed_work(&hdev->service_cache,
+				msecs_to_jiffies(SERVICE_CACHE_TIMEOUT));
+}
+
 static int read_controller_info(struct sock *sk, u16 index)
 {
 	struct mgmt_rp_read_info rp;
@@ -489,10 +517,8 @@ static int read_controller_info(struct sock *sk, u16 index)
 
 	hci_dev_lock(hdev);
 
-	if (test_and_clear_bit(HCI_PI_MGMT_INIT, &hci_pi(sk)->flags)) {
-		set_bit(HCI_MGMT, &hdev->flags);
-		set_bit(HCI_SERVICE_CACHE, &hdev->flags);
-	}
+	if (test_and_clear_bit(HCI_PI_MGMT_INIT, &hci_pi(sk)->flags))
+		mgmt_init_hdev(hdev);
 
 	memset(&rp, 0, sizeof(rp));
 
@@ -992,8 +1018,12 @@ static int set_dev_class(struct sock *sk, u16 index, unsigned char *data,
 	hdev->major_class = cp->major;
 	hdev->minor_class = cp->minor;
 
-	if (test_and_clear_bit(HCI_SERVICE_CACHE, &hdev->flags))
+	if (test_and_clear_bit(HCI_SERVICE_CACHE, &hdev->flags)) {
+		hci_dev_unlock(hdev);
+		cancel_delayed_work_sync(&hdev->service_cache);
+		hci_dev_lock(hdev);
 		update_eir(hdev);
+	}
 
 	err = update_class(hdev);
 
