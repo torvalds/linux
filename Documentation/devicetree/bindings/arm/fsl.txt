@@ -24,3 +24,7 @@ Required root node properties:
 i.MX6 Quad SABRE Automotive Board
 Required root node properties:
     - compatible = "fsl,imx6q-sabreauto", "fsl,imx6q";
+
+i.MX6 Quad SABRE Lite Board
+Required root node properties:
+    - compatible = "fsl,imx6q-sabrelite", "fsl,imx6q";
