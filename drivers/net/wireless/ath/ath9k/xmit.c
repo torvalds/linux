@@ -1729,10 +1729,6 @@ static void ath_tx_send_normal(struct ath_softc *sc, struct ath_txq *txq,
 	list_add_tail(&bf->list, &bf_head);
 	bf->bf_state.bf_type = 0;
 
-	/* update starting sequence number for subsequent ADDBA request */
-	if (tid)
-		INCR(tid->seq_start, IEEE80211_SEQ_MAX);
-
 	bf->bf_lastbf = bf;
 	ath_tx_fill_desc(sc, bf, txq, fi->framelen);
 	ath_tx_txqaddbuf(sc, txq, &bf_head, false);
