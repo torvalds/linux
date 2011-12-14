@@ -4,6 +4,7 @@ to start learning about RCU:
 1.	What is RCU, Fundamentally?  http://lwn.net/Articles/262464/
 2.	What is RCU? Part 2: Usage   http://lwn.net/Articles/263130/
 3.	RCU part 3: the RCU API      http://lwn.net/Articles/264090/
+4.	The RCU API, 2010 Edition    http://lwn.net/Articles/418853/
 
 
 What is RCU?
@@ -834,6 +835,8 @@ SRCU:	Critical sections	Grace period		Barrier
 
 	srcu_read_lock		synchronize_srcu	N/A
 	srcu_read_unlock	synchronize_srcu_expedited
+	srcu_read_lock_raw
+	srcu_read_unlock_raw
 	srcu_dereference
 
 SRCU:	Initialization/cleanup
@@ -855,27 +858,33 @@ list can be helpful:
 
 a.	Will readers need to block?  If so, you need SRCU.
 
-b.	What about the -rt patchset?  If readers would need to block
+b.	Is it necessary to start a read-side critical section in a
+	hardirq handler or exception handler, and then to complete
+	this read-side critical section in the task that was
+	interrupted?  If so, you need SRCU's srcu_read_lock_raw() and
+	srcu_read_unlock_raw() primitives.
+
+c.	What about the -rt patchset?  If readers would need to block
 	in an non-rt kernel, you need SRCU.  If readers would block
 	in a -rt kernel, but not in a non-rt kernel, SRCU is not
 	necessary.
 
-c.	Do you need to treat NMI handlers, hardirq handlers,
+d.	Do you need to treat NMI handlers, hardirq handlers,
 	and code segments with preemption disabled (whether
 	via preempt_disable(), local_irq_save(), local_bh_disable(),
 	or some other mechanism) as if they were explicit RCU readers?
 	If so, you need RCU-sched.
 
-d.	Do you need RCU grace periods to complete even in the face
+e.	Do you need RCU grace periods to complete even in the face
 	of softirq monopolization of one or more of the CPUs?  For
 	example, is your code subject to network-based denial-of-service
 	attacks?  If so, you need RCU-bh.
 
-e.	Is your workload too update-intensive for normal use of
+f.	Is your workload too update-intensive for normal use of
 	RCU, but inappropriate for other synchronization mechanisms?
 	If so, consider SLAB_DESTROY_BY_RCU.  But please be careful!
 
-f.	Otherwise, use RCU.
+g.	Otherwise, use RCU.
 
 Of course, this all assumes that you have determined that RCU is in fact
 the right tool for your job.
