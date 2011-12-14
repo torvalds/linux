@@ -504,12 +504,10 @@ static int nfc_genl_rcv_nl_event(struct notifier_block *this,
 	dev = nfc_device_iter_next(&iter);
 
 	while (dev) {
-		mutex_lock(&dev->genl_data.genl_data_mutex);
 		if (dev->genl_data.poll_req_pid == n->pid) {
 			nfc_stop_poll(dev);
 			dev->genl_data.poll_req_pid = 0;
 		}
-		mutex_unlock(&dev->genl_data.genl_data_mutex);
 		dev = nfc_device_iter_next(&iter);
 	}
 
