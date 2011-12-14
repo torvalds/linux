@@ -1637,21 +1637,6 @@ drm_add_fake_info_node(struct drm_minor *minor,
 	return 0;
 }
 
-static int i915_wedged_create(struct dentry *root, struct drm_minor *minor)
-{
-	struct drm_device *dev = minor->dev;
-	struct dentry *ent;
-
-	ent = debugfs_create_file("i915_wedged",
-				  S_IRUGO | S_IWUSR,
-				  root, dev,
-				  &i915_wedged_fops);
-	if (IS_ERR(ent))
-		return PTR_ERR(ent);
-
-	return drm_add_fake_info_node(minor, ent, &i915_wedged_fops);
-}
-
 static int i915_forcewake_open(struct inode *inode, struct file *file)
 {
 	struct drm_device *dev = inode->i_private;
@@ -1713,34 +1698,22 @@ static int i915_forcewake_create(struct dentry *root, struct drm_minor *minor)
 	return drm_add_fake_info_node(minor, ent, &i915_forcewake_fops);
 }
 
-static int i915_max_freq_create(struct dentry *root, struct drm_minor *minor)
+static int i915_debugfs_create(struct dentry *root,
+			       struct drm_minor *minor,
+			       const char *name,
+			       const struct file_operations *fops)
 {
 	struct drm_device *dev = minor->dev;
 	struct dentry *ent;
 
-	ent = debugfs_create_file("i915_max_freq",
+	ent = debugfs_create_file(name,
 				  S_IRUGO | S_IWUSR,
 				  root, dev,
-				  &i915_max_freq_fops);
+				  fops);
 	if (IS_ERR(ent))
 		return PTR_ERR(ent);
 
-	return drm_add_fake_info_node(minor, ent, &i915_max_freq_fops);
-}
-
-static int i915_cache_sharing_create(struct dentry *root, struct drm_minor *minor)
-{
-	struct drm_device *dev = minor->dev;
-	struct dentry *ent;
-
-	ent = debugfs_create_file("i915_cache_sharing",
-				  S_IRUGO | S_IWUSR,
-				  root, dev,
-				  &i915_cache_sharing_fops);
-	if (IS_ERR(ent))
-		return PTR_ERR(ent);
-
-	return drm_add_fake_info_node(minor, ent, &i915_cache_sharing_fops);
+	return drm_add_fake_info_node(minor, ent, fops);
 }
 
 static struct drm_info_list i915_debugfs_list[] = {
@@ -1789,17 +1762,25 @@ int i915_debugfs_init(struct drm_minor *minor)
 {
 	int ret;
 
-	ret = i915_wedged_create(minor->debugfs_root, minor);
+	ret = i915_debugfs_create(minor->debugfs_root, minor,
+				  "i915_wedged",
+				  &i915_wedged_fops);
 	if (ret)
 		return ret;
 
 	ret = i915_forcewake_create(minor->debugfs_root, minor);
 	if (ret)
 		return ret;
-	ret = i915_max_freq_create(minor->debugfs_root, minor);
+
+	ret = i915_debugfs_create(minor->debugfs_root, minor,
+				  "i915_max_freq",
+				  &i915_max_freq_fops);
 	if (ret)
 		return ret;
-	ret = i915_cache_sharing_create(minor->debugfs_root, minor);
+
+	ret = i915_debugfs_create(minor->debugfs_root, minor,
+				  "i915_cache_sharing",
+				  &i915_cache_sharing_fops);
 	if (ret)
 		return ret;
 
