@@ -392,7 +392,8 @@ static int mpc8610_hpcd_probe(struct platform_device *pdev)
 	}
 
 	if (strcasecmp(sprop, "i2s-slave") == 0) {
-		machine_data->dai_format = SND_SOC_DAIFMT_I2S;
+		machine_data->dai_format =
+			SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBM_CFM;
 		machine_data->codec_clk_direction = SND_SOC_CLOCK_OUT;
 		machine_data->cpu_clk_direction = SND_SOC_CLOCK_IN;
 
@@ -409,31 +410,38 @@ static int mpc8610_hpcd_probe(struct platform_device *pdev)
 		}
 		machine_data->clk_frequency = be32_to_cpup(iprop);
 	} else if (strcasecmp(sprop, "i2s-master") == 0) {
-		machine_data->dai_format = SND_SOC_DAIFMT_I2S;
+		machine_data->dai_format =
+			SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS;
 		machine_data->codec_clk_direction = SND_SOC_CLOCK_IN;
 		machine_data->cpu_clk_direction = SND_SOC_CLOCK_OUT;
 	} else if (strcasecmp(sprop, "lj-slave") == 0) {
-		machine_data->dai_format = SND_SOC_DAIFMT_LEFT_J;
+		machine_data->dai_format =
+			SND_SOC_DAIFMT_LEFT_J | SND_SOC_DAIFMT_CBM_CFM;
 		machine_data->codec_clk_direction = SND_SOC_CLOCK_OUT;
 		machine_data->cpu_clk_direction = SND_SOC_CLOCK_IN;
 	} else if (strcasecmp(sprop, "lj-master") == 0) {
-		machine_data->dai_format = SND_SOC_DAIFMT_LEFT_J;
+		machine_data->dai_format =
+			SND_SOC_DAIFMT_LEFT_J | SND_SOC_DAIFMT_CBS_CFS;
 		machine_data->codec_clk_direction = SND_SOC_CLOCK_IN;
 		machine_data->cpu_clk_direction = SND_SOC_CLOCK_OUT;
 	} else if (strcasecmp(sprop, "rj-slave") == 0) {
-		machine_data->dai_format = SND_SOC_DAIFMT_RIGHT_J;
+		machine_data->dai_format =
+			SND_SOC_DAIFMT_RIGHT_J | SND_SOC_DAIFMT_CBM_CFM;
 		machine_data->codec_clk_direction = SND_SOC_CLOCK_OUT;
 		machine_data->cpu_clk_direction = SND_SOC_CLOCK_IN;
 	} else if (strcasecmp(sprop, "rj-master") == 0) {
-		machine_data->dai_format = SND_SOC_DAIFMT_RIGHT_J;
+		machine_data->dai_format =
+			SND_SOC_DAIFMT_RIGHT_J | SND_SOC_DAIFMT_CBS_CFS;
 		machine_data->codec_clk_direction = SND_SOC_CLOCK_IN;
 		machine_data->cpu_clk_direction = SND_SOC_CLOCK_OUT;
 	} else if (strcasecmp(sprop, "ac97-slave") == 0) {
-		machine_data->dai_format = SND_SOC_DAIFMT_AC97;
+		machine_data->dai_format =
+			SND_SOC_DAIFMT_AC97 | SND_SOC_DAIFMT_CBM_CFM;
 		machine_data->codec_clk_direction = SND_SOC_CLOCK_OUT;
 		machine_data->cpu_clk_direction = SND_SOC_CLOCK_IN;
 	} else if (strcasecmp(sprop, "ac97-master") == 0) {
-		machine_data->dai_format = SND_SOC_DAIFMT_AC97;
+		machine_data->dai_format =
+			SND_SOC_DAIFMT_AC97 | SND_SOC_DAIFMT_CBS_CFS;
 		machine_data->codec_clk_direction = SND_SOC_CLOCK_IN;
 		machine_data->cpu_clk_direction = SND_SOC_CLOCK_OUT;
 	} else {
