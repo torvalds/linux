@@ -996,10 +996,13 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	 * pread/pwrite currently are reading and writing from the CPU
 	 * perspective, requiring manual detiling by the client.
 	 */
-	if (obj->phys_obj)
+	if (obj->phys_obj) {
 		ret = i915_gem_phys_pwrite(dev, obj, args, file);
-	else if (obj->gtt_space &&
-		 obj->base.write_domain != I915_GEM_DOMAIN_CPU) {
+		goto out;
+	}
+
+	if (obj->gtt_space &&
+	    obj->base.write_domain != I915_GEM_DOMAIN_CPU) {
 		ret = i915_gem_object_pin(obj, 0, true);
 		if (ret)
 			goto out;
@@ -1018,17 +1021,23 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 
 out_unpin:
 		i915_gem_object_unpin(obj);
-	} else {
-		ret = i915_gem_object_set_to_cpu_domain(obj, 1);
-		if (ret)
-			goto out;
 
-		ret = -EFAULT;
-		if (!i915_gem_object_needs_bit17_swizzle(obj))
-			ret = i915_gem_shmem_pwrite_fast(dev, obj, args, file);
-		if (ret == -EFAULT)
-			ret = i915_gem_shmem_pwrite_slow(dev, obj, args, file);
+		if (ret != -EFAULT)
+			goto out;
+		/* Fall through to the shmfs paths because the gtt paths might
+		 * fail with non-page-backed user pointers (e.g. gtt mappings
+		 * when moving data between textures). */
 	}
+
+	ret = i915_gem_object_set_to_cpu_domain(obj, 1);
+	if (ret)
+		goto out;
+
+	ret = -EFAULT;
+	if (!i915_gem_object_needs_bit17_swizzle(obj))
+		ret = i915_gem_shmem_pwrite_fast(dev, obj, args, file);
+	if (ret == -EFAULT)
+		ret = i915_gem_shmem_pwrite_slow(dev, obj, args, file);
 
 out:
 	drm_gem_object_unreference(&obj->base);
