@@ -197,8 +197,8 @@ static void __init vic_register(void __iomem *base, unsigned int irq,
 	v->domain.nr_irq = 32;
 #ifdef CONFIG_OF_IRQ
 	v->domain.of_node = of_node_get(node);
-	v->domain.ops = &irq_domain_simple_ops;
 #endif /* CONFIG_OF */
+	v->domain.ops = &irq_domain_simple_ops;
 	irq_domain_add(&v->domain);
 }
 
