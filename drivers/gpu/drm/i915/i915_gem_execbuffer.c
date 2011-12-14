@@ -303,8 +303,9 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 			  reloc->write_domain);
 		return ret;
 	}
-	if (unlikely((reloc->write_domain | reloc->read_domains) & I915_GEM_DOMAIN_CPU)) {
-		DRM_ERROR("reloc with read/write CPU domains: "
+	if (unlikely((reloc->write_domain | reloc->read_domains)
+		     & ~I915_GEM_GPU_DOMAINS)) {
+		DRM_ERROR("reloc with read/write non-GPU domains: "
 			  "obj %p target %d offset %d "
 			  "read %08x write %08x",
 			  obj, reloc->target_handle,
