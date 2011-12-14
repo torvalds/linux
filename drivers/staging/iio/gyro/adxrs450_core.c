@@ -1,5 +1,5 @@
 /*
- * ADXRS450 Digital Output Gyroscope Driver
+ * ADXRS450/ADXRS453 Digital Output Gyroscope Driver
  *
  * Copyright 2011 Analog Devices Inc.
  *
@@ -323,20 +323,36 @@ static int adxrs450_read_raw(struct iio_dev *indio_dev,
 	return ret;
 }
 
-static const struct iio_chan_spec adxrs450_channels[] = {
-	{
-		.type = IIO_ANGL_VEL,
-		.modified = 1,
-		.channel2 = IIO_MOD_Z,
-		.info_mask = IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT |
-		IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SEPARATE_BIT |
-		IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
-	}, {
-		.type = IIO_TEMP,
-		.indexed = 1,
-		.channel = 0,
-		.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
-	}
+static const struct iio_chan_spec adxrs450_channels[2][2] = {
+	[ID_ADXRS450] = {
+		{
+			.type = IIO_ANGL_VEL,
+			.modified = 1,
+			.channel2 = IIO_MOD_Z,
+			.info_mask = IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT |
+			IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SEPARATE_BIT |
+			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+		}, {
+			.type = IIO_TEMP,
+			.indexed = 1,
+			.channel = 0,
+			.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+		}
+	},
+	[ID_ADXRS453] = {
+		{
+			.type = IIO_ANGL_VEL,
+			.modified = 1,
+			.channel2 = IIO_MOD_Z,
+			.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
+			IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SEPARATE_BIT,
+		}, {
+			.type = IIO_TEMP,
+			.indexed = 1,
+			.channel = 0,
+			.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+		}
+	},
 };
 
 static const struct iio_info adxrs450_info = {
@@ -366,7 +382,8 @@ static int __devinit adxrs450_probe(struct spi_device *spi)
 	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &adxrs450_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->channels = adxrs450_channels;
+	indio_dev->channels =
+		adxrs450_channels[spi_get_device_id(spi)->driver_data];
 	indio_dev->num_channels = ARRAY_SIZE(adxrs450_channels);
 	indio_dev->name = spi->dev.driver->name;
 
@@ -396,6 +413,13 @@ static int adxrs450_remove(struct spi_device *spi)
 	return 0;
 }
 
+static const struct spi_device_id adxrs450_id[] = {
+	{"adxrs450", ID_ADXRS450},
+	{"adxrs453", ID_ADXRS453},
+	{}
+};
+MODULE_DEVICE_TABLE(spi, adxrs450_id);
+
 static struct spi_driver adxrs450_driver = {
 	.driver = {
 		.name = "adxrs450",
@@ -403,6 +427,7 @@ static struct spi_driver adxrs450_driver = {
 	},
 	.probe = adxrs450_probe,
 	.remove = __devexit_p(adxrs450_remove),
+	.id_table	= adxrs450_id,
 };
 
 static __init int adxrs450_init(void)
@@ -418,6 +443,5 @@ static __exit void adxrs450_exit(void)
 module_exit(adxrs450_exit);
 
 MODULE_AUTHOR("Cliff Cai <cliff.cai@xxxxxxxxxx>");
-MODULE_DESCRIPTION("Analog Devices ADXRS450 Gyroscope SPI driver");
+MODULE_DESCRIPTION("Analog Devices ADXRS450/ADXRS453 Gyroscope SPI driver");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("spi:adxrs450");
