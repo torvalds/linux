@@ -644,9 +644,9 @@ static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta,
 	spin_lock(&sc->nodes_lock);
 	list_add(&an->list, &sc->nodes);
 	spin_unlock(&sc->nodes_lock);
+#endif
 	an->sta = sta;
 	an->vif = vif;
-#endif
 	if (sc->sc_flags & SC_OP_TXAGGR) {
 		ath_tx_node_init(sc, an);
 		an->maxampdu = 1 << (IEEE80211_HT_MAX_AMPDU_FACTOR +

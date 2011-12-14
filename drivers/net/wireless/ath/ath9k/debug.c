@@ -856,7 +856,7 @@ void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
 	sc->debug.stats.txstats[qnum].tx_bytes_all += bf->bf_mpdu->len;
 
 	if (bf_isampdu(bf)) {
-		if (flags & ATH_TX_BAR)
+		if (flags & ATH_TX_ERROR)
 			TX_STAT_INC(qnum, a_xretries);
 		else
 			TX_STAT_INC(qnum, a_completed);
