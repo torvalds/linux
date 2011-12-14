@@ -564,45 +564,6 @@ static int i915_hws_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static void i915_dump_object(struct seq_file *m,
-			     struct io_mapping *mapping,
-			     struct drm_i915_gem_object *obj)
-{
-	int page, page_count, i;
-
-	page_count = obj->base.size / PAGE_SIZE;
-	for (page = 0; page < page_count; page++) {
-		u32 *mem = io_mapping_map_wc(mapping,
-					     obj->gtt_offset + page * PAGE_SIZE);
-		for (i = 0; i < PAGE_SIZE; i += 4)
-			seq_printf(m, "%08x :  %08x\n", i, mem[i / 4]);
-		io_mapping_unmap(mem);
-	}
-}
-
-static int i915_batchbuffer_info(struct seq_file *m, void *data)
-{
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-
-	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list) {
-		if (obj->base.read_domains & I915_GEM_DOMAIN_COMMAND) {
-		    seq_printf(m, "--- gtt_offset = 0x%08x\n", obj->gtt_offset);
-		    i915_dump_object(m, dev_priv->mm.gtt_mapping, obj);
-		}
-	}
-
-	mutex_unlock(&dev->struct_mutex);
-	return 0;
-}
-
 static int i915_ringbuffer_data(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
@@ -1739,7 +1700,6 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_bsd_ringbuffer_info", i915_ringbuffer_info, 0, (void *)VCS},
 	{"i915_blt_ringbuffer_data", i915_ringbuffer_data, 0, (void *)BCS},
 	{"i915_blt_ringbuffer_info", i915_ringbuffer_info, 0, (void *)BCS},
-	{"i915_batchbuffers", i915_batchbuffer_info, 0},
 	{"i915_error_state", i915_error_state, 0},
 	{"i915_rstdby_delays", i915_rstdby_delays, 0},
 	{"i915_cur_delayinfo", i915_cur_delayinfo, 0},
