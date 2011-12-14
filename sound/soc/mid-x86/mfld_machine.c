@@ -281,7 +281,7 @@ static int mfld_init(struct snd_soc_pcm_runtime *runtime)
 	return ret_val;
 }
 
-struct snd_soc_dai_link mfld_msic_dailink[] = {
+static struct snd_soc_dai_link mfld_msic_dailink[] = {
 	{
 		.name = "Medfield Headset",
 		.stream_name = "Headset",
