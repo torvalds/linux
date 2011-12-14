@@ -960,9 +960,7 @@ struct hci_chan *hci_chan_create(struct hci_conn *conn)
 	chan->conn = conn;
 	skb_queue_head_init(&chan->data_q);
 
-	tasklet_disable(&hdev->tx_task);
-	list_add(&conn->chan_list, &chan->list);
-	tasklet_enable(&hdev->tx_task);
+	list_add_rcu(&chan->list, &conn->chan_list);
 
 	return chan;
 }
@@ -974,9 +972,9 @@ int hci_chan_del(struct hci_chan *chan)
 
 	BT_DBG("%s conn %p chan %p", hdev->name, conn, chan);
 
-	tasklet_disable(&hdev->tx_task);
-	list_del(&chan->list);
-	tasklet_enable(&hdev->tx_task);
+	list_del_rcu(&chan->list);
+
+	synchronize_rcu();
 
 	skb_queue_purge(&chan->data_q);
 	kfree(chan);
@@ -986,10 +984,10 @@ int hci_chan_del(struct hci_chan *chan)
 
 void hci_chan_list_flush(struct hci_conn *conn)
 {
-	struct hci_chan *chan, *tmp;
+	struct hci_chan *chan;
 
 	BT_DBG("conn %p", conn);
 
-	list_for_each_entry_safe(chan, tmp, &conn->chan_list, list)
+	list_for_each_entry_rcu(chan, &conn->chan_list, list)
 		hci_chan_del(chan);
 }

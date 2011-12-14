@@ -2135,7 +2135,9 @@ static inline struct hci_chan *hci_chan_sent(struct hci_dev *hdev, __u8 type,
 
 		conn_num++;
 
-		list_for_each_entry(tmp, &conn->chan_list, list) {
+		rcu_read_lock();
+
+		list_for_each_entry_rcu(tmp, &conn->chan_list, list) {
 			struct sk_buff *skb;
 
 			if (skb_queue_empty(&tmp->data_q))
@@ -2158,6 +2160,8 @@ static inline struct hci_chan *hci_chan_sent(struct hci_dev *hdev, __u8 type,
 				chan = tmp;
 			}
 		}
+
+		rcu_read_unlock();
 
 		if (hci_conn_num(hdev, type) == conn_num)
 			break;
@@ -2207,7 +2211,9 @@ static void hci_prio_recalculate(struct hci_dev *hdev, __u8 type)
 
 		num++;
 
-		list_for_each_entry(chan, &conn->chan_list, list) {
+		rcu_read_lock();
+
+		list_for_each_entry_rcu(chan, &conn->chan_list, list) {
 			struct sk_buff *skb;
 
 			if (chan->sent) {
@@ -2227,6 +2233,8 @@ static void hci_prio_recalculate(struct hci_dev *hdev, __u8 type)
 			BT_DBG("chan %p skb %p promoted to %d", chan, skb,
 								skb->priority);
 		}
+
+		rcu_read_unlock();
 
 		if (hci_conn_num(hdev, type) == num)
 			break;
