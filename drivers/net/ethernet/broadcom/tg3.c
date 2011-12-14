@@ -1671,22 +1671,6 @@ static void tg3_link_report(struct tg3 *tp)
 	}
 }
 
-static u16 tg3_advert_flowctrl_1000T(u8 flow_ctrl)
-{
-	u16 miireg;
-
-	if ((flow_ctrl & FLOW_CTRL_TX) && (flow_ctrl & FLOW_CTRL_RX))
-		miireg = ADVERTISE_PAUSE_CAP;
-	else if (flow_ctrl & FLOW_CTRL_TX)
-		miireg = ADVERTISE_PAUSE_ASYM;
-	else if (flow_ctrl & FLOW_CTRL_RX)
-		miireg = ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
-	else
-		miireg = 0;
-
-	return miireg;
-}
-
 static u16 tg3_advert_flowctrl_1000X(u8 flow_ctrl)
 {
 	u16 miireg;
@@ -1787,7 +1771,7 @@ static void tg3_adjust_link(struct net_device *dev)
 		if (phydev->duplex == DUPLEX_HALF)
 			mac_mode |= MAC_MODE_HALF_DUPLEX;
 		else {
-			lcl_adv = tg3_advert_flowctrl_1000T(
+			lcl_adv = mii_advertise_flowctrl(
 				  tp->link_config.flowctrl);
 
 			if (phydev->pause)
@@ -3589,7 +3573,7 @@ static int tg3_phy_autoneg_cfg(struct tg3 *tp, u32 advertise, u32 flowctrl)
 
 	new_adv = ADVERTISE_CSMA;
 	new_adv |= ethtool_adv_to_mii_adv_t(advertise) & ADVERTISE_ALL;
-	new_adv |= tg3_advert_flowctrl_1000T(flowctrl);
+	new_adv |= mii_advertise_flowctrl(flowctrl);
 
 	err = tg3_writephy(tp, MII_ADVERTISE, new_adv);
 	if (err)
@@ -3777,7 +3761,7 @@ static bool tg3_phy_copper_an_config_ok(struct tg3 *tp, u32 *lcladv)
 
 	advmsk = ADVERTISE_ALL;
 	if (tp->link_config.active_duplex == DUPLEX_FULL) {
-		tgtadv |= tg3_advert_flowctrl_1000T(tp->link_config.flowctrl);
+		tgtadv |= mii_advertise_flowctrl(tp->link_config.flowctrl);
 		advmsk |= ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
 	}
 
