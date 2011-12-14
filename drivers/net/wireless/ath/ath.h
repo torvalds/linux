@@ -215,6 +215,9 @@ do {								\
  * @ATH_DBG_HWTIMER: hardware timer handling
  * @ATH_DBG_BTCOEX: bluetooth coexistance
  * @ATH_DBG_BSTUCK: stuck beacons
+ * @ATH_DBG_MCI: Message Coexistence Interface, a private protocol
+ *	used exclusively for WLAN-BT coexistence starting from
+ *	AR9462.
  * @ATH_DBG_ANY: enable all debugging
  *
  * The debug level is used to control the amount and type of debugging output
