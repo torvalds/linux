@@ -2246,6 +2246,7 @@ static const struct nla_policy sta_flags_policy[NL80211_STA_FLAG_MAX + 1] = {
 	[NL80211_STA_FLAG_WME] = { .type = NLA_FLAG },
 	[NL80211_STA_FLAG_MFP] = { .type = NLA_FLAG },
 	[NL80211_STA_FLAG_AUTHENTICATED] = { .type = NLA_FLAG },
+	[NL80211_STA_FLAG_TDLS_PEER] = { .type = NLA_FLAG },
 };
 
 static int parse_station_flags(struct genl_info *info,
