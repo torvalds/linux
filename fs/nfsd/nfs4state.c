@@ -4505,18 +4505,19 @@ void nfsd_forget_openowners(u64 num)
 int nfsd_process_n_delegations(u64 num, void (*deleg_func)(struct nfs4_delegation *))
 {
 	int i, count = 0;
-	struct nfs4_file *fp;
-	struct nfs4_delegation *dp, *next;
+	struct nfs4_file *fp, *fnext;
+	struct nfs4_delegation *dp, *dnext;
 
 	for (i = 0; i < FILE_HASH_SIZE; i++) {
-		list_for_each_entry(fp, &file_hashtbl[i], fi_hash) {
-			list_for_each_entry_safe(dp, next, &fp->fi_delegations, dl_perfile) {
+		list_for_each_entry_safe(fp, fnext, &file_hashtbl[i], fi_hash) {
+			list_for_each_entry_safe(dp, dnext, &fp->fi_delegations, dl_perfile) {
 				deleg_func(dp);
 				if (++count == num)
 					return count;
 			}
 		}
 	}
+
 	return count;
 }
 
