@@ -534,7 +534,7 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 		break;
 
 	case IWL_TM_CMD_APP2DEV_GET_DEVICE_ID:
-		bus_get_hw_id(bus(priv), buf, sizeof(buf));
+		bus_get_hw_id_string(bus(priv), buf, sizeof(buf));
 		ptr = buf;
 		strsep(&ptr, ":");
 		sscanf(strsep(&ptr, ":"), "%x", &num);

@@ -135,13 +135,20 @@ static void iwl_pci_apm_config(struct iwl_bus *bus)
 	}
 }
 
-static void iwl_pci_get_hw_id(struct iwl_bus *bus, char buf[],
+static void iwl_pci_get_hw_id_string(struct iwl_bus *bus, char buf[],
 			      int buf_len)
 {
 	struct pci_dev *pci_dev = IWL_BUS_GET_PCI_DEV(bus);
 
 	snprintf(buf, buf_len, "PCI ID: 0x%04X:0x%04X", pci_dev->device,
 		 pci_dev->subsystem_device);
+}
+
+static u32 iwl_pci_get_hw_id(struct iwl_bus *bus)
+{
+	struct pci_dev *pci_dev = IWL_BUS_GET_PCI_DEV(bus);
+
+	return (pci_dev->device << 16) + pci_dev->subsystem_device;
 }
 
 static void iwl_pci_write8(struct iwl_bus *bus, u32 ofs, u8 val)
@@ -163,6 +170,7 @@ static u32 iwl_pci_read32(struct iwl_bus *bus, u32 ofs)
 static const struct iwl_bus_ops bus_ops_pci = {
 	.get_pm_support = iwl_pci_is_pm_supported,
 	.apm_config = iwl_pci_apm_config,
+	.get_hw_id_string = iwl_pci_get_hw_id_string,
 	.get_hw_id = iwl_pci_get_hw_id,
 	.write8 = iwl_pci_write8,
 	.write32 = iwl_pci_write32,

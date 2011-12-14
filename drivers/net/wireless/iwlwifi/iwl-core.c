@@ -204,7 +204,7 @@ int iwl_init_geos(struct iwl_priv *priv)
 	if ((priv->bands[IEEE80211_BAND_5GHZ].n_channels == 0) &&
 	     cfg(priv)->sku & EEPROM_SKU_CAP_BAND_52GHZ) {
 		char buf[32];
-		bus_get_hw_id(bus(priv), buf, sizeof(buf));
+		bus_get_hw_id_string(bus(priv), buf, sizeof(buf));
 		IWL_INFO(priv, "Incorrectly detected BG card as ABG. "
 			"Please send your %s to maintainer.\n", buf);
 		cfg(priv)->sku &= ~EEPROM_SKU_CAP_BAND_52GHZ;
