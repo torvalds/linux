@@ -1379,6 +1379,55 @@ static int i915_gen6_forcewake_count_info(struct seq_file *m, void *data)
 	return 0;
 }
 
+static const char *swizzle_string(unsigned swizzle)
+{
+	switch(swizzle) {
+	case I915_BIT_6_SWIZZLE_NONE:
+		return "none";
+	case I915_BIT_6_SWIZZLE_9:
+		return "bit9";
+	case I915_BIT_6_SWIZZLE_9_10:
+		return "bit9/bit10";
+	case I915_BIT_6_SWIZZLE_9_11:
+		return "bit9/bit11";
+	case I915_BIT_6_SWIZZLE_9_10_11:
+		return "bit9/bit10/bit11";
+	case I915_BIT_6_SWIZZLE_9_17:
+		return "bit9/bit17";
+	case I915_BIT_6_SWIZZLE_9_10_17:
+		return "bit9/bit10/bit17";
+	case I915_BIT_6_SWIZZLE_UNKNOWN:
+		return "unkown";
+	}
+
+	return "bug";
+}
+
+static int i915_swizzle_info(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	mutex_lock(&dev->struct_mutex);
+	seq_printf(m, "bit6 swizzle for X-tiling = %s\n",
+		   swizzle_string(dev_priv->mm.bit_6_swizzle_x));
+	seq_printf(m, "bit6 swizzle for Y-tiling = %s\n",
+		   swizzle_string(dev_priv->mm.bit_6_swizzle_y));
+
+	if (IS_GEN3(dev) || IS_GEN4(dev)) {
+		seq_printf(m, "DDC = 0x%08x\n",
+			   I915_READ(DCC));
+		seq_printf(m, "C0DRB3 = 0x%04x\n",
+			   I915_READ16(C0DRB3));
+		seq_printf(m, "C1DRB3 = 0x%04x\n",
+			   I915_READ16(C1DRB3));
+	}
+	mutex_unlock(&dev->struct_mutex);
+
+	return 0;
+}
+
 static int
 i915_debugfs_common_open(struct inode *inode,
 			 struct file *filp)
@@ -1719,6 +1768,7 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_framebuffer", i915_gem_framebuffer_info, 0},
 	{"i915_context_status", i915_context_status, 0},
 	{"i915_gen6_forcewake_count", i915_gen6_forcewake_count_info, 0},
+	{"i915_swizzle_info", i915_swizzle_info, 0},
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 
