@@ -408,12 +408,12 @@ int tm6000_ir_init(struct tm6000_core *dev)
 	if (!dev->ir_codes)
 		return 0;
 
-	dprintk(2, "%s\n",__func__);
-
 	ir = kzalloc(sizeof(*ir), GFP_ATOMIC);
 	rc = rc_allocate_device();
 	if (!ir || !rc)
 		goto out;
+
+	dprintk(2, "%s\n", __func__);
 
 	/* record handles to ourself */
 	ir->dev = dev;
