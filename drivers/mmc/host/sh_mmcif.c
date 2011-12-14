@@ -961,7 +961,12 @@ static irqreturn_t sh_mmcif_intr(int irq, void *dev_id)
 
 	state = sh_mmcif_readl(host->addr, MMCIF_CE_INT);
 
-	if (state & INT_RBSYE) {
+	if (state & INT_ERR_STS) {
+		/* error interrupts - process first */
+		sh_mmcif_writel(host->addr, MMCIF_CE_INT, ~state);
+		sh_mmcif_bitclr(host, MMCIF_CE_INT_MASK, state);
+		err = 1;
+	} else if (state & INT_RBSYE) {
 		sh_mmcif_writel(host->addr, MMCIF_CE_INT,
 				~(INT_RBSYE | INT_CRSPE));
 		sh_mmcif_bitclr(host, MMCIF_CE_INT_MASK, MASK_MRBSYE);
@@ -989,11 +994,6 @@ static irqreturn_t sh_mmcif_intr(int irq, void *dev_id)
 		sh_mmcif_writel(host->addr, MMCIF_CE_INT,
 				~(INT_CMD12RBE | INT_CMD12CRE));
 		sh_mmcif_bitclr(host, MMCIF_CE_INT_MASK, MASK_MCMD12RBE);
-	} else if (state & INT_ERR_STS) {
-		/* err interrupts */
-		sh_mmcif_writel(host->addr, MMCIF_CE_INT, ~state);
-		sh_mmcif_bitclr(host, MMCIF_CE_INT_MASK, state);
-		err = 1;
 	} else {
 		dev_dbg(&host->pd->dev, "Unsupported interrupt: 0x%x\n", state);
 		sh_mmcif_writel(host->addr, MMCIF_CE_INT, ~state);
