@@ -308,6 +308,13 @@ static int adxrs450_read_raw(struct iio_dev *indio_dev,
 		*val = t;
 		ret = IIO_VAL_INT;
 		break;
+	case IIO_CHAN_INFO_CALIBBIAS:
+		ret = adxrs450_spi_read_reg_16(indio_dev, ADXRS450_DNC1, &t);
+		if (ret)
+			break;
+		*val = t;
+		ret = IIO_VAL_INT;
+		break;
 	default:
 		ret = -EINVAL;
 		break;
