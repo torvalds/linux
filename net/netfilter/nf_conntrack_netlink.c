@@ -1015,6 +1015,17 @@ ctnetlink_get_conntrack(struct sock *ctnl, struct sk_buff *skb,
 	if (err < 0)
 		goto out;
 
+	if (NFNL_MSG_TYPE(nlh->nlmsg_type) == IPCTNL_MSG_CT_GET_CTRZERO) {
+		struct nf_conn_counter *acct;
+
+		acct = nf_conn_acct_find(ct);
+		if (acct) {
+			atomic64_set(&acct[IP_CT_DIR_ORIGINAL].bytes, 0);
+			atomic64_set(&acct[IP_CT_DIR_ORIGINAL].packets, 0);
+			atomic64_set(&acct[IP_CT_DIR_REPLY].bytes, 0);
+			atomic64_set(&acct[IP_CT_DIR_REPLY].packets, 0);
+		}
+	}
 	return 0;
 
 free:
