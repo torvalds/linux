@@ -2566,7 +2566,7 @@ i915_gem_object_get_fence(struct drm_i915_gem_object *obj,
 
 	reg = i915_find_fence_reg(dev, pipelined);
 	if (reg == NULL)
-		return -ENOSPC;
+		return -EDEADLK;
 
 	ret = i915_gem_object_flush_fence(obj, pipelined);
 	if (ret)
