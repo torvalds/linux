@@ -410,7 +410,6 @@ static int map_iovm_area(struct iommu_domain *domain, struct iovm_struct *new,
 	unsigned int i, j;
 	struct scatterlist *sg;
 	u32 da = new->da_start;
-	int order;
 
 	if (!domain || !sgt)
 		return -EINVAL;
@@ -429,12 +428,10 @@ static int map_iovm_area(struct iommu_domain *domain, struct iovm_struct *new,
 		if (bytes_to_iopgsz(bytes) < 0)
 			goto err_out;
 
-		order = get_order(bytes);
-
 		pr_debug("%s: [%d] %08x %08x(%x)\n", __func__,
 			 i, da, pa, bytes);
 
-		err = iommu_map(domain, da, pa, order, flags);
+		err = iommu_map(domain, da, pa, bytes, flags);
 		if (err)
 			goto err_out;
 
@@ -449,10 +446,9 @@ err_out:
 		size_t bytes;
 
 		bytes = sg->length + sg->offset;
-		order = get_order(bytes);
 
 		/* ignore failures.. we're already handling one */
-		iommu_unmap(domain, da, order);
+		iommu_unmap(domain, da, bytes);
 
 		da += bytes;
 	}
@@ -467,7 +463,8 @@ static void unmap_iovm_area(struct iommu_domain *domain, struct omap_iommu *obj,
 	size_t total = area->da_end - area->da_start;
 	const struct sg_table *sgt = area->sgt;
 	struct scatterlist *sg;
-	int i, err;
+	int i;
+	size_t unmapped;
 
 	BUG_ON(!sgtable_ok(sgt));
 	BUG_ON((!total) || !IS_ALIGNED(total, PAGE_SIZE));
@@ -475,13 +472,11 @@ static void unmap_iovm_area(struct iommu_domain *domain, struct omap_iommu *obj,
 	start = area->da_start;
 	for_each_sg(sgt->sgl, sg, sgt->nents, i) {
 		size_t bytes;
-		int order;
 
 		bytes = sg->length + sg->offset;
-		order = get_order(bytes);
 
-		err = iommu_unmap(domain, start, order);
-		if (err < 0)
+		unmapped = iommu_unmap(domain, start, bytes);
+		if (unmapped < bytes)
 			break;
 
 		dev_dbg(obj->dev, "%s: unmap %08x(%x) %08x\n",
