@@ -2371,6 +2371,7 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 		    (unsigned long) sdata);
 
 	ifmgd->flags = 0;
+	ifmgd->powersave = sdata->wdev.ps;
 
 	mutex_init(&ifmgd->mtx);
 
