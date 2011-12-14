@@ -52,10 +52,6 @@ struct target_core_fabric_ops {
 	 * Returning 0 will signal a descriptor has not been released.
 	 */
 	int (*check_stop_free)(struct se_cmd *);
-	/*
-	 * Optional check for active I/O shutdown
-	 */
-	int (*check_release_cmd)(struct se_cmd *);
 	void (*release_cmd)(struct se_cmd *);
 	/*
 	 * Called with spin_lock_bh(struct se_portal_group->session_lock held.
