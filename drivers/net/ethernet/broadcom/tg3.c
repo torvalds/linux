@@ -199,7 +199,7 @@ static inline void _tg3_flag_clear(enum TG3_FLAGS flag, unsigned long *bits)
 
 /* minimum number of free TX descriptors required to wake up TX process */
 #define TG3_TX_WAKEUP_THRESH(tnapi)		((tnapi)->tx_pending / 4)
-#define TG3_TX_BD_DMA_MAX		4096
+#define TG3_TX_BD_DMA_MAX_4K		4096
 
 #define TG3_RAW_IP_ALIGN 2
 
@@ -6449,17 +6449,17 @@ static bool tg3_tx_frag_set(struct tg3_napi *tnapi, u32 *entry, u32 *budget,
 	if (tg3_40bit_overflow_test(tp, map, len))
 		hwbug = 1;
 
-	if (tg3_flag(tp, 4K_FIFO_LIMIT)) {
+	if (tp->dma_limit) {
 		u32 prvidx = *entry;
 		u32 tmp_flag = flags & ~TXD_FLAG_END;
-		while (len > TG3_TX_BD_DMA_MAX && *budget) {
-			u32 frag_len = TG3_TX_BD_DMA_MAX;
-			len -= TG3_TX_BD_DMA_MAX;
+		while (len > tp->dma_limit && *budget) {
+			u32 frag_len = tp->dma_limit;
+			len -= tp->dma_limit;
 
 			/* Avoid the 8byte DMA problem */
 			if (len <= 8) {
-				len += TG3_TX_BD_DMA_MAX / 2;
-				frag_len = TG3_TX_BD_DMA_MAX / 2;
+				len += tp->dma_limit / 2;
+				frag_len = tp->dma_limit / 2;
 			}
 
 			tnapi->tx_buffers[*entry].fragmented = true;
@@ -14041,7 +14041,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		tg3_flag_set(tp, SHORT_DMA_BUG);
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719)
-		tg3_flag_set(tp, 4K_FIFO_LIMIT);
+		tp->dma_limit = TG3_TX_BD_DMA_MAX_4K;
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719 ||
