@@ -325,11 +325,6 @@ static inline int irq_data_to_status_reg(struct wm831x_irq_data *irq_data)
 	return WM831X_INTERRUPT_STATUS_1 - 1 + irq_data->reg;
 }
 
-static inline int irq_data_to_mask_reg(struct wm831x_irq_data *irq_data)
-{
-	return WM831X_INTERRUPT_STATUS_1_MASK - 1 + irq_data->reg;
-}
-
 static inline struct wm831x_irq_data *irq_to_wm831x_irq(struct wm831x *wm831x,
 							int irq)
 {
