@@ -385,6 +385,7 @@ static inline void hci_conn_hash_init(struct hci_dev *hdev)
 	INIT_LIST_HEAD(&h->list);
 	h->acl_num = 0;
 	h->sco_num = 0;
+	h->le_num = 0;
 }
 
 static inline void hci_conn_hash_add(struct hci_dev *hdev, struct hci_conn *c)
