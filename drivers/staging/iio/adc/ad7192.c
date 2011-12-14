@@ -609,6 +609,10 @@ static irqreturn_t ad7192_data_rdy_trig_poll(int irq, void *private)
 	return IRQ_HANDLED;
 }
 
+static struct iio_trigger_ops ad7192_trigger_ops = {
+	.owner = THIS_MODULE,
+};
+
 static int ad7192_probe_trigger(struct iio_dev *indio_dev)
 {
 	struct ad7192_state *st = iio_priv(indio_dev);
@@ -621,7 +625,7 @@ static int ad7192_probe_trigger(struct iio_dev *indio_dev)
 		ret = -ENOMEM;
 		goto error_ret;
 	}
-
+	st->trig->ops = &ad7192_trigger_ops;
 	ret = request_irq(st->spi->irq,
 			  ad7192_data_rdy_trig_poll,
 			  IRQF_TRIGGER_LOW,

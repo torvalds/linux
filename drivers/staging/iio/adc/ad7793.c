@@ -475,6 +475,10 @@ static irqreturn_t ad7793_data_rdy_trig_poll(int irq, void *private)
 	return IRQ_HANDLED;
 }
 
+static struct iio_trigger_ops ad7793_trigger_ops = {
+	.owner = THIS_MODULE,
+};
+
 static int ad7793_probe_trigger(struct iio_dev *indio_dev)
 {
 	struct ad7793_state *st = iio_priv(indio_dev);
@@ -487,6 +491,7 @@ static int ad7793_probe_trigger(struct iio_dev *indio_dev)
 		ret = -ENOMEM;
 		goto error_ret;
 	}
+	st->trig->ops = &ad7793_trigger_ops;
 
 	ret = request_irq(st->spi->irq,
 			  ad7793_data_rdy_trig_poll,
