@@ -1121,6 +1121,7 @@ static int pn533_activate_target_nfcdep(struct pn533 *dev)
 {
 	struct pn533_cmd_activate_param param;
 	struct pn533_cmd_activate_response *resp;
+	u16 gt_len;
 	int rc;
 
 	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
@@ -1146,7 +1147,11 @@ static int pn533_activate_target_nfcdep(struct pn533 *dev)
 	if (rc != PN533_CMD_RET_SUCCESS)
 		return -EIO;
 
-	return 0;
+	/* ATR_RES general bytes are located at offset 16 */
+	gt_len = PN533_FRAME_CMD_PARAMS_LEN(dev->in_frame) - 16;
+	rc = nfc_set_remote_general_bytes(dev->nfc_dev, resp->gt, gt_len);
+
+	return rc;
 }
 
 static int pn533_activate_target(struct nfc_dev *nfc_dev, u32 target_idx,

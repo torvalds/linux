@@ -170,6 +170,11 @@ struct sk_buff *nfc_alloc_send_skb(struct nfc_dev *dev, struct sock *sk,
 					unsigned int *err);
 struct sk_buff *nfc_alloc_recv_skb(unsigned int size, gfp_t gfp);
 
+int nfc_set_remote_general_bytes(struct nfc_dev *dev,
+					u8 *gt, u8 gt_len);
+
+u8 *nfc_get_local_general_bytes(struct nfc_dev *dev, u8 *gt_len);
+
 int nfc_targets_found(struct nfc_dev *dev, struct nfc_target *targets,
 							int ntargets);
 

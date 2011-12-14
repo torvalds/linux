@@ -352,6 +352,24 @@ error:
 	return rc;
 }
 
+int nfc_set_remote_general_bytes(struct nfc_dev *dev, u8 *gb, u8 gb_len)
+{
+	pr_debug("dev_name=%s gb_len=%d\n",
+			dev_name(&dev->dev), gb_len);
+
+	if (gb_len > NFC_MAX_GT_LEN)
+		return -EINVAL;
+
+	return 0;
+}
+EXPORT_SYMBOL(nfc_set_remote_general_bytes);
+
+u8 *nfc_get_local_general_bytes(struct nfc_dev *dev, u8 *gt_len)
+{
+	return NULL;
+}
+EXPORT_SYMBOL(nfc_get_local_general_bytes);
+
 /**
  * nfc_alloc_send_skb - allocate a skb for data exchange responses
  *
