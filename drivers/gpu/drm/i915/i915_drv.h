@@ -152,16 +152,19 @@ struct drm_i915_error_state {
 	u32 eir;
 	u32 pgtbl_er;
 	u32 pipestat[I915_MAX_PIPES];
+	u32 tail[I915_NUM_RINGS];
+	u32 head[I915_NUM_RINGS];
 	u32 ipeir[I915_NUM_RINGS];
 	u32 ipehr[I915_NUM_RINGS];
 	u32 instdone[I915_NUM_RINGS];
 	u32 acthd[I915_NUM_RINGS];
 	u32 error; /* gen6+ */
-	u32 instpm;
-	u32 instps;
+	u32 instpm[I915_NUM_RINGS];
+	u32 instps[I915_NUM_RINGS];
 	u32 instdone1;
 	u32 seqno[I915_NUM_RINGS];
 	u64 bbaddr;
+	u32 faddr[I915_NUM_RINGS];
 	u64 fence[I915_MAX_NUM_FENCES];
 	struct timeval time;
 	struct drm_i915_error_object {

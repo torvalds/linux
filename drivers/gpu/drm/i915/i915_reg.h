@@ -355,6 +355,9 @@
 #define RING_IPEIR(base)	((base)+0x64)
 #define RING_IPEHR(base)	((base)+0x68)
 #define RING_INSTDONE(base)	((base)+0x6c)
+#define RING_INSTPS(base)	((base)+0x70)
+#define RING_DMA_FADD(base)	((base)+0x78)
+#define RING_INSTPM(base)	((base)+0xc0)
 #define INSTPS		0x02070 /* 965+ only */
 #define INSTDONE1	0x0207c /* 965+ only */
 #define ACTHD_I965	0x02074

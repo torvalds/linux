@@ -882,12 +882,15 @@ static void i915_record_ring_state(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	if (INTEL_INFO(dev)->gen >= 6)
+		error->faddr[ring->id] = I915_READ(RING_DMA_FADD(ring->mmio_base));
+
 	if (INTEL_INFO(dev)->gen >= 4) {
 		error->ipeir[ring->id] = I915_READ(RING_IPEIR(ring->mmio_base));
 		error->ipehr[ring->id] = I915_READ(RING_IPEHR(ring->mmio_base));
 		error->instdone[ring->id] = I915_READ(RING_INSTDONE(ring->mmio_base));
+		error->instps[ring->id] = I915_READ(RING_INSTPS(ring->mmio_base));
 		if (ring->id == RCS) {
-			error->instps = I915_READ(INSTPS);
 			error->instdone1 = I915_READ(INSTDONE1);
 			error->bbaddr = I915_READ64(BB_ADDR);
 		}
@@ -898,8 +901,11 @@ static void i915_record_ring_state(struct drm_device *dev,
 		error->bbaddr = 0;
 	}
 
+	error->instpm[ring->id] = I915_READ(RING_INSTPM(ring->mmio_base));
 	error->seqno[ring->id] = ring->get_seqno(ring);
 	error->acthd[ring->id] = intel_ring_get_active_head(ring);
+	error->head[ring->id] = I915_READ_HEAD(ring);
+	error->tail[ring->id] = I915_READ_TAIL(ring);
 }
 
 /**
@@ -939,7 +945,6 @@ static void i915_capture_error_state(struct drm_device *dev)
 	error->pgtbl_er = I915_READ(PGTBL_ER);
 	for_each_pipe(pipe)
 		error->pipestat[pipe] = I915_READ(PIPESTAT(pipe));
-	error->instpm = I915_READ(INSTPM);
 
 	if (INTEL_INFO(dev)->gen >= 6)
 		error->error = I915_READ(ERROR_GEN6);

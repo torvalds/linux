@@ -744,17 +744,21 @@ static void i915_ring_error_state(struct seq_file *m,
 				  unsigned ring)
 {
 	seq_printf(m, "%s command stream:\n", ring_str(ring));
+	seq_printf(m, "  HEAD: 0x%08x\n", error->head[ring]);
+	seq_printf(m, "  TAIL: 0x%08x\n", error->tail[ring]);
 	seq_printf(m, "  ACTHD: 0x%08x\n", error->acthd[ring]);
 	seq_printf(m, "  IPEIR: 0x%08x\n", error->ipeir[ring]);
 	seq_printf(m, "  IPEHR: 0x%08x\n", error->ipehr[ring]);
 	seq_printf(m, "  INSTDONE: 0x%08x\n", error->instdone[ring]);
-	if (ring == RCS) {
-		if (INTEL_INFO(dev)->gen >= 4) {
-			seq_printf(m, "  INSTDONE1: 0x%08x\n", error->instdone1);
-			seq_printf(m, "  INSTPS: 0x%08x\n", error->instps);
-		}
-		seq_printf(m, "  INSTPM: 0x%08x\n", error->instpm);
+	if (ring == RCS && INTEL_INFO(dev)->gen >= 4) {
+		seq_printf(m, "  INSTDONE1: 0x%08x\n", error->instdone1);
+		seq_printf(m, "  BBADDR: 0x%08llx\n", error->bbaddr);
 	}
+	if (INTEL_INFO(dev)->gen >= 4)
+		seq_printf(m, "  INSTPS: 0x%08x\n", error->instps[ring]);
+	seq_printf(m, "  INSTPM: 0x%08x\n", error->instpm[ring]);
+	if (INTEL_INFO(dev)->gen >= 6)
+		seq_printf(m, "  FADDR: 0x%08x\n", error->faddr[ring]);
 	seq_printf(m, "  seqno: 0x%08x\n", error->seqno[ring]);
 }
 
