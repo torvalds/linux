@@ -131,6 +131,28 @@ struct max8997_muic_platform_data {
 	int num_init_data;
 };
 
+enum max8997_led_mode {
+	MAX8997_NONE,
+	MAX8997_FLASH_MODE,
+	MAX8997_MOVIE_MODE,
+	MAX8997_FLASH_PIN_CONTROL_MODE,
+	MAX8997_MOVIE_PIN_CONTROL_MODE,
+};
+
+/**
+ *  struct max8997_led_platform_data
+ *  The number of LED devices for MAX8997 is two
+ *  @mode: LED mode for each LED device
+ *  @brightness: initial brightness for each LED device
+ *	range:
+ *	[0 - 31]: MAX8997_FLASH_MODE and MAX8997_FLASH_PIN_CONTROL_MODE
+ *	[0 - 15]: MAX8997_MOVIE_MODE and MAX8997_MOVIE_PIN_CONTROL_MODE
+ */
+struct max8997_led_platform_data {
+	enum max8997_led_mode mode[2];
+	u8 brightness[2];
+};
+
 struct max8997_platform_data {
 	/* IRQ */
 	int irq_base;
@@ -172,7 +194,8 @@ struct max8997_platform_data {
 
 	/* HAPTIC: Not implemented */
 	/* RTC: Not implemented */
-	/* Flash: Not implemented */
+	/* ---- LED ---- */
+	struct max8997_led_platform_data *led_pdata;
 };
 
 #endif /* __LINUX_MFD_MAX8998_H */
