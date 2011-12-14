@@ -2572,8 +2572,10 @@ static void wm8996_micd(struct snd_soc_codec *codec)
 				    SND_JACK_BTN_0);
 
 		snd_soc_update_bits(codec, WM8996_MIC_DETECT_1,
-				    WM8996_MICD_RATE_MASK,
-				    WM8996_MICD_RATE_MASK);
+				    WM8996_MICD_RATE_MASK |
+				    WM8996_MICD_BIAS_STARTTIME_MASK,
+				    WM8996_MICD_RATE_MASK |
+				    9 << WM8996_MICD_BIAS_STARTTIME_SHIFT);
 		return;
 	}
 
@@ -2590,8 +2592,10 @@ static void wm8996_micd(struct snd_soc_codec *codec)
 			/* Increase poll rate to give better responsiveness
 			 * for buttons */
 			snd_soc_update_bits(codec, WM8996_MIC_DETECT_1,
-					    WM8996_MICD_RATE_MASK,
-					    5 << WM8996_MICD_RATE_SHIFT);
+					    WM8996_MICD_RATE_MASK |
+					    WM8996_MICD_BIAS_STARTTIME_MASK,
+					    5 << WM8996_MICD_RATE_SHIFT |
+					    7 << WM8996_MICD_BIAS_STARTTIME_SHIFT);
 		} else {
 			dev_dbg(codec->dev, "Mic button up\n");
 			snd_soc_jack_report(wm8996->jack, 0, SND_JACK_BTN_0);
@@ -2639,8 +2643,10 @@ static void wm8996_micd(struct snd_soc_codec *codec)
 			 * responsiveness.
 			 */
 			snd_soc_update_bits(codec, WM8996_MIC_DETECT_1,
-					    WM8996_MICD_RATE_MASK,
-					    7 << WM8996_MICD_RATE_SHIFT);
+					    WM8996_MICD_RATE_MASK |
+					    WM8996_MICD_BIAS_STARTTIME_MASK,
+					    7 << WM8996_MICD_RATE_SHIFT |
+					    7 << WM8996_MICD_BIAS_STARTTIME_SHIFT);
 		}
 	}
 }
