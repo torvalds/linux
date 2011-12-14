@@ -58,6 +58,7 @@ static void i915_gem_free_object_tail(struct drm_i915_gem_object *obj);
 
 static int i915_gem_inactive_shrink(struct shrinker *shrinker,
 				    struct shrink_control *sc);
+static void i915_gem_object_truncate(struct drm_i915_gem_object *obj);
 
 /* some bookkeeping */
 static void i915_gem_info_add_obj(struct drm_i915_private *dev_priv,
@@ -380,6 +381,32 @@ i915_gem_shmem_pread_fast(struct drm_device *dev,
 		remain -= page_length;
 		user_data += page_length;
 		offset += page_length;
+	}
+
+	return 0;
+}
+
+static inline int
+__copy_from_user_swizzled(char __user *gpu_vaddr, int gpu_offset,
+			  const char *cpu_vaddr,
+			  int length)
+{
+	int ret, cpu_offset = 0;
+
+	while (length > 0) {
+		int cacheline_end = ALIGN(gpu_offset + 1, 64);
+		int this_length = min(cacheline_end - gpu_offset, length);
+		int swizzled_gpu_offset = gpu_offset ^ 64;
+
+		ret = __copy_from_user(gpu_vaddr + swizzled_gpu_offset,
+				       cpu_vaddr + cpu_offset,
+				       this_length);
+		if (ret)
+			return ret + length;
+
+		cpu_offset += this_length;
+		gpu_offset += this_length;
+		length -= this_length;
 	}
 
 	return 0;
@@ -841,71 +868,36 @@ i915_gem_shmem_pwrite_slow(struct drm_device *dev,
 			   struct drm_file *file)
 {
 	struct address_space *mapping = obj->base.filp->f_path.dentry->d_inode->i_mapping;
-	struct mm_struct *mm = current->mm;
-	struct page **user_pages;
 	ssize_t remain;
-	loff_t offset, pinned_pages, i;
-	loff_t first_data_page, last_data_page, num_pages;
-	int shmem_page_offset;
-	int data_page_index,  data_page_offset;
-	int page_length;
-	int ret;
-	uint64_t data_ptr = args->data_ptr;
-	int do_bit17_swizzling;
+	loff_t offset;
+	char __user *user_data;
+	int shmem_page_offset, page_length, ret;
+	int obj_do_bit17_swizzling, page_do_bit17_swizzling;
 
+	user_data = (char __user *) (uintptr_t) args->data_ptr;
 	remain = args->size;
 
-	/* Pin the user pages containing the data.  We can't fault while
-	 * holding the struct mutex, and all of the pwrite implementations
-	 * want to hold it while dereferencing the user data.
-	 */
-	first_data_page = data_ptr / PAGE_SIZE;
-	last_data_page = (data_ptr + args->size - 1) / PAGE_SIZE;
-	num_pages = last_data_page - first_data_page + 1;
-
-	user_pages = drm_malloc_ab(num_pages, sizeof(struct page *));
-	if (user_pages == NULL)
-		return -ENOMEM;
-
-	mutex_unlock(&dev->struct_mutex);
-	down_read(&mm->mmap_sem);
-	pinned_pages = get_user_pages(current, mm, (uintptr_t)args->data_ptr,
-				      num_pages, 0, 0, user_pages, NULL);
-	up_read(&mm->mmap_sem);
-	mutex_lock(&dev->struct_mutex);
-	if (pinned_pages < num_pages) {
-		ret = -EFAULT;
-		goto out;
-	}
-
-	ret = i915_gem_object_set_to_cpu_domain(obj, 1);
-	if (ret)
-		goto out;
-
-	do_bit17_swizzling = i915_gem_object_needs_bit17_swizzle(obj);
+	obj_do_bit17_swizzling = i915_gem_object_needs_bit17_swizzle(obj);
 
 	offset = args->offset;
 	obj->dirty = 1;
 
+	mutex_unlock(&dev->struct_mutex);
+
 	while (remain > 0) {
 		struct page *page;
+		char *vaddr;
 
 		/* Operation in this page
 		 *
 		 * shmem_page_offset = offset within page in shmem file
-		 * data_page_index = page number in get_user_pages return
-		 * data_page_offset = offset with data_page_index page.
 		 * page_length = bytes to copy for this page
 		 */
 		shmem_page_offset = offset_in_page(offset);
-		data_page_index = data_ptr / PAGE_SIZE - first_data_page;
-		data_page_offset = offset_in_page(data_ptr);
 
 		page_length = remain;
 		if ((shmem_page_offset + page_length) > PAGE_SIZE)
 			page_length = PAGE_SIZE - shmem_page_offset;
-		if ((data_page_offset + page_length) > PAGE_SIZE)
-			page_length = PAGE_SIZE - data_page_offset;
 
 		page = shmem_read_mapping_page(mapping, offset >> PAGE_SHIFT);
 		if (IS_ERR(page)) {
@@ -913,34 +905,45 @@ i915_gem_shmem_pwrite_slow(struct drm_device *dev,
 			goto out;
 		}
 
-		if (do_bit17_swizzling) {
-			slow_shmem_bit17_copy(page,
-					      shmem_page_offset,
-					      user_pages[data_page_index],
-					      data_page_offset,
-					      page_length,
-					      0);
-		} else {
-			slow_shmem_copy(page,
-					shmem_page_offset,
-					user_pages[data_page_index],
-					data_page_offset,
-					page_length);
-		}
+		page_do_bit17_swizzling = obj_do_bit17_swizzling &&
+			(page_to_phys(page) & (1 << 17)) != 0;
+
+		vaddr = kmap(page);
+		if (page_do_bit17_swizzling)
+			ret = __copy_from_user_swizzled(vaddr, shmem_page_offset,
+							user_data,
+							page_length);
+		else
+			ret = __copy_from_user(vaddr + shmem_page_offset,
+					       user_data,
+					       page_length);
+		kunmap(page);
 
 		set_page_dirty(page);
 		mark_page_accessed(page);
 		page_cache_release(page);
 
+		if (ret) {
+			ret = -EFAULT;
+			goto out;
+		}
+
 		remain -= page_length;
-		data_ptr += page_length;
+		user_data += page_length;
 		offset += page_length;
 	}
 
 out:
-	for (i = 0; i < pinned_pages; i++)
-		page_cache_release(user_pages[i]);
-	drm_free_large(user_pages);
+	mutex_lock(&dev->struct_mutex);
+	/* Fixup: Kill any reinstated backing storage pages */
+	if (obj->madv == __I915_MADV_PURGED)
+		i915_gem_object_truncate(obj);
+	/* and flush dirty cachelines in case the object isn't in the cpu write
+	 * domain anymore. */
+	if (obj->base.write_domain != I915_GEM_DOMAIN_CPU) {
+		i915_gem_clflush_object(obj);
+		intel_gtt_chipset_flush();
+	}
 
 	return ret;
 }
