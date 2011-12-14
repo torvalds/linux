@@ -487,6 +487,7 @@ enum {
 	AZX_DRIVER_SCH,
 	AZX_DRIVER_ATI,
 	AZX_DRIVER_ATIHDMI,
+	AZX_DRIVER_ATIHDMI_NS,
 	AZX_DRIVER_VIA,
 	AZX_DRIVER_SIS,
 	AZX_DRIVER_ULI,
@@ -533,6 +534,7 @@ static char *driver_short_names[] __devinitdata = {
 	[AZX_DRIVER_SCH] = "HDA Intel MID",
 	[AZX_DRIVER_ATI] = "HDA ATI SB",
 	[AZX_DRIVER_ATIHDMI] = "HDA ATI HDMI",
+	[AZX_DRIVER_ATIHDMI_NS] = "HDA ATI HDMI",
 	[AZX_DRIVER_VIA] = "HDA VIA VT82xx",
 	[AZX_DRIVER_SIS] = "HDA SIS966",
 	[AZX_DRIVER_ULI] = "HDA ULI M5461",
@@ -2678,6 +2680,8 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 
 	chip->single_cmd = single_cmd;
 	chip->snoop = hda_snoop;
+	if (chip->driver_type == AZX_DRIVER_ATIHDMI_NS)
+		chip->snoop = 0;
 
 	if (bdl_pos_adj[dev] < 0) {
 		switch (chip->driver_type) {
@@ -2776,6 +2780,7 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 			chip->capture_streams = ULI_NUM_CAPTURE;
 			break;
 		case AZX_DRIVER_ATIHDMI:
+		case AZX_DRIVER_ATIHDMI_NS:
 			chip->playback_streams = ATIHDMI_NUM_PLAYBACK;
 			chip->capture_streams = ATIHDMI_NUM_CAPTURE;
 			break;
@@ -3037,6 +3042,14 @@ static DEFINE_PCI_DEVICE_TABLE(azx_ids) = {
 	  .driver_data = AZX_DRIVER_ATIHDMI | AZX_DCAPS_PRESET_ATI_HDMI },
 	{ PCI_DEVICE(0x1002, 0xaa48),
 	  .driver_data = AZX_DRIVER_ATIHDMI | AZX_DCAPS_PRESET_ATI_HDMI },
+	{ PCI_DEVICE(0x1002, 0x9902),
+	  .driver_data = AZX_DRIVER_ATIHDMI_NS | AZX_DCAPS_PRESET_ATI_HDMI },
+	{ PCI_DEVICE(0x1002, 0xaaa0),
+	  .driver_data = AZX_DRIVER_ATIHDMI_NS | AZX_DCAPS_PRESET_ATI_HDMI },
+	{ PCI_DEVICE(0x1002, 0xaaa8),
+	  .driver_data = AZX_DRIVER_ATIHDMI_NS | AZX_DCAPS_PRESET_ATI_HDMI },
+	{ PCI_DEVICE(0x1002, 0xaab0),
+	  .driver_data = AZX_DRIVER_ATIHDMI_NS | AZX_DCAPS_PRESET_ATI_HDMI },
 	/* VIA VT8251/VT8237A */
 	{ PCI_DEVICE(0x1106, 0x3288),
 	  .driver_data = AZX_DRIVER_VIA | AZX_DCAPS_POSFIX_VIA },
