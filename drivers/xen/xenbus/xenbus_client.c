@@ -567,12 +567,10 @@ static int xenbus_map_ring_valloc_hvm(struct xenbus_device *dev,
 int xenbus_map_ring(struct xenbus_device *dev, int gnt_ref,
 		    grant_handle_t *handle, void *vaddr)
 {
-	struct gnttab_map_grant_ref op = {
-		.host_addr = (unsigned long)vaddr,
-		.flags     = GNTMAP_host_map,
-		.ref       = gnt_ref,
-		.dom       = dev->otherend_id,
-	};
+	struct gnttab_map_grant_ref op;
+
+	gnttab_set_map_op(&op, (phys_addr_t)vaddr, GNTMAP_host_map, gnt_ref,
+			  dev->otherend_id);
 
 	if (HYPERVISOR_grant_table_op(GNTTABOP_map_grant_ref, &op, 1))
 		BUG();
@@ -698,10 +696,9 @@ static int xenbus_unmap_ring_vfree_hvm(struct xenbus_device *dev, void *vaddr)
 int xenbus_unmap_ring(struct xenbus_device *dev,
 		      grant_handle_t handle, void *vaddr)
 {
-	struct gnttab_unmap_grant_ref op = {
-		.host_addr = (unsigned long)vaddr,
-		.handle    = handle,
-	};
+	struct gnttab_unmap_grant_ref op;
+
+	gnttab_set_unmap_op(&op, (phys_addr_t)vaddr, GNTMAP_host_map, handle);
 
 	if (HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, &op, 1))
 		BUG();
