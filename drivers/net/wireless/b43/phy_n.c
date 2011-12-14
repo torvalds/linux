@@ -4048,6 +4048,7 @@ int b43_phy_initn(struct b43_wldev *dev)
 /* http://bcm-v4.sipsolutions.net/802.11/PmuSpurAvoid */
 static void b43_nphy_pmu_spur_avoid(struct b43_wldev *dev, bool avoid)
 {
+#ifdef CONFIG_B43_BCMA
 	struct bcma_drv_cc *cc = &dev->dev->bdev->bus->drv_cc;
 	u32 pmu_ctl;
 	if (dev->dev->chip_id == 43224 || dev->dev->chip_id == 43225) {
@@ -4098,6 +4099,9 @@ static void b43_nphy_pmu_spur_avoid(struct b43_wldev *dev, bool avoid)
 		return;
 	}
 	bcma_cc_set32(cc, BCMA_CC_PMU_CTL, pmu_ctl);
+#else
+	return;
+#endif
 }
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/ChanspecSetup */
