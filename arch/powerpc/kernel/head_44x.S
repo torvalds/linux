@@ -86,8 +86,10 @@ _ENTRY(_start);
 
 	bl	early_init
 
-#ifdef CONFIG_RELOCATABLE
+#ifdef CONFIG_DYNAMIC_MEMSTART
 	/*
+	 * Mapping based, page aligned dynamic kernel loading.
+	 *
 	 * r25 will contain RPN/ERPN for the start address of memory
 	 *
 	 * Add the difference between KERNELBASE and PAGE_OFFSET to the

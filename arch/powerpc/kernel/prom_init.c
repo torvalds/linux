@@ -2845,7 +2845,7 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	RELOC(of_platform) = prom_find_machine_type();
 	prom_printf("Detected machine type: %x\n", RELOC(of_platform));
 
-#ifndef CONFIG_RELOCATABLE
+#ifndef CONFIG_NONSTATIC_KERNEL
 	/* Bail if this is a kdump kernel. */
 	if (PHYSICAL_START > 0)
 		prom_panic("Error: You can't boot a kdump kernel from OF!\n");

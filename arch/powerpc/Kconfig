@@ -368,7 +368,8 @@ config KEXEC
 config CRASH_DUMP
 	bool "Build a kdump crash kernel"
 	depends on PPC64 || 6xx || FSL_BOOKE
-	select RELOCATABLE if PPC64 || FSL_BOOKE
+	select RELOCATABLE if PPC64
+	select DYNAMIC_MEMSTART if FSL_BOOKE
 	help
 	  Build a kernel suitable for use as a kdump capture kernel.
 	  The same kernel binary can be used as production kernel and dump
@@ -777,6 +778,10 @@ source "drivers/rapidio/Kconfig"
 
 endmenu
 
+config NONSTATIC_KERNEL
+	bool
+	default n
+
 menu "Advanced setup"
 	depends on PPC32
 
@@ -826,23 +831,39 @@ config LOWMEM_CAM_NUM
 	int "Number of CAMs to use to map low memory" if LOWMEM_CAM_NUM_BOOL
 	default 3
 
-config RELOCATABLE
-	bool "Build a relocatable kernel (EXPERIMENTAL)"
+config DYNAMIC_MEMSTART
+	bool "Enable page aligned dynamic load address for kernel (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && ADVANCED_OPTIONS && FLATMEM && (FSL_BOOKE || PPC_47x)
+	select NONSTATIC_KERNEL
 	help
-	  This builds a kernel image that is capable of running at the
-	  location the kernel is loaded at (some alignment restrictions may
-	  exist).
+	  This option enables the kernel to be loaded at any page aligned
+	  physical address. The kernel creates a mapping from KERNELBASE to 
+	  the address where the kernel is loaded. The page size here implies
+	  the TLB page size of the mapping for kernel on the particular platform.
+	  Please refer to the init code for finding the TLB page size.
 
-	  One use is for the kexec on panic case where the recovery kernel
-	  must live at a different physical address than the primary
-	  kernel.
+	  DYNAMIC_MEMSTART is an easy way of implementing pseudo-RELOCATABLE
+	  kernel image, where the only restriction is the page aligned kernel
+	  load address. When this option is enabled, the compile time physical 
+	  address CONFIG_PHYSICAL_START is ignored.
 
-	  Note: If CONFIG_RELOCATABLE=y, then the kernel runs from the address
-	  it has been loaded at and the compile time physical addresses
-	  CONFIG_PHYSICAL_START is ignored.  However CONFIG_PHYSICAL_START
-	  setting can still be useful to bootwrappers that need to know the
-	  load location of the kernel (eg. u-boot/mkimage).
+# Mapping based RELOCATABLE is moved to DYNAMIC_MEMSTART
+# config RELOCATABLE
+#	bool "Build a relocatable kernel (EXPERIMENTAL)"
+#	depends on EXPERIMENTAL && ADVANCED_OPTIONS && FLATMEM && (FSL_BOOKE || PPC_47x)
+#	help
+#	  This builds a kernel image that is capable of running at the
+#	  location the kernel is loaded at, without any alignment restrictions.
+#
+#	  One use is for the kexec on panic case where the recovery kernel
+#	  must live at a different physical address than the primary
+#	  kernel.
+#
+#	  Note: If CONFIG_RELOCATABLE=y, then the kernel runs from the address
+#	  it has been loaded at and the compile time physical addresses
+#	  CONFIG_PHYSICAL_START is ignored.  However CONFIG_PHYSICAL_START
+#	  setting can still be useful to bootwrappers that need to know the
+#	  load location of the kernel (eg. u-boot/mkimage).
 
 config PAGE_OFFSET_BOOL
 	bool "Set custom page offset address"
@@ -872,7 +893,7 @@ config KERNEL_START_BOOL
 config KERNEL_START
 	hex "Virtual address of kernel base" if KERNEL_START_BOOL
 	default PAGE_OFFSET if PAGE_OFFSET_BOOL
-	default "0xc2000000" if CRASH_DUMP && !RELOCATABLE
+	default "0xc2000000" if CRASH_DUMP && !NONSTATIC_KERNEL
 	default "0xc0000000"
 
 config PHYSICAL_START_BOOL
@@ -885,7 +906,7 @@ config PHYSICAL_START_BOOL
 
 config PHYSICAL_START
 	hex "Physical address where the kernel is loaded" if PHYSICAL_START_BOOL
-	default "0x02000000" if PPC_STD_MMU && CRASH_DUMP && !RELOCATABLE
+	default "0x02000000" if PPC_STD_MMU && CRASH_DUMP && !NONSTATIC_KERNEL
 	default "0x00000000"
 
 config PHYSICAL_ALIGN
@@ -931,6 +952,7 @@ endmenu
 if PPC64
 config RELOCATABLE
 	bool "Build a relocatable kernel"
+	select NONSTATIC_KERNEL
 	help
 	  This builds a kernel image that is capable of running anywhere
 	  in the RMA (real memory area) at any 16k-aligned base address.

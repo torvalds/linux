@@ -217,7 +217,7 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 {
 	u64 size;
 
-#ifndef CONFIG_RELOCATABLE
+#ifndef CONFIG_NONSTATIC_KERNEL
 	/* We don't currently support the first MEMBLOCK not mapping 0
 	 * physical on those processors
 	 */

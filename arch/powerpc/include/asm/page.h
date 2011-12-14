@@ -92,7 +92,7 @@ extern unsigned int HPAGE_SHIFT;
 #define PAGE_OFFSET	ASM_CONST(CONFIG_PAGE_OFFSET)
 #define LOAD_OFFSET	ASM_CONST((CONFIG_KERNEL_START-CONFIG_PHYSICAL_START))
 
-#if defined(CONFIG_RELOCATABLE)
+#if defined(CONFIG_NONSTATIC_KERNEL)
 #ifndef __ASSEMBLY__
 
 extern phys_addr_t memstart_addr;
@@ -105,7 +105,7 @@ extern phys_addr_t kernstart_addr;
 
 #ifdef CONFIG_PPC64
 #define MEMORY_START	0UL
-#elif defined(CONFIG_RELOCATABLE)
+#elif defined(CONFIG_NONSTATIC_KERNEL)
 #define MEMORY_START	memstart_addr
 #else
 #define MEMORY_START	(PHYSICAL_START + PAGE_OFFSET - KERNELBASE)
