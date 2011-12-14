@@ -44,7 +44,7 @@
 				status = "okay";
 			};
 
-			uart3: uart@021f0000 { /* UART4 */
+			uart4: uart@021f0000 {
 				status = "okay";
 			};
 		};

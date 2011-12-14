@@ -40,7 +40,7 @@
 					status = "okay";
 				};
 
-				uart2: uart@7000c000 { /* UART3 */
+				uart3: uart@7000c000 {
 					fsl,uart-has-rtscts;
 					status = "okay";
 				};
@@ -90,12 +90,12 @@
 				reg = <0x73fa8000 0x4000>;
 			};
 
-			uart0: uart@73fbc000 {
+			uart1: uart@73fbc000 {
 				fsl,uart-has-rtscts;
 				status = "okay";
 			};
 
-			uart1: uart@73fc0000 {
+			uart2: uart@73fc0000 {
 				status = "okay";
 			};
 		};

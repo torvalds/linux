@@ -14,11 +14,11 @@
 
 / {
 	aliases {
-		serial0 = &uart0;
-		serial1 = &uart1;
-		serial2 = &uart2;
-		serial3 = &uart3;
-		serial4 = &uart4;
+		serial0 = &uart1;
+		serial1 = &uart2;
+		serial2 = &uart3;
+		serial3 = &uart4;
+		serial4 = &uart5;
 	};
 
 	cpus {
@@ -165,7 +165,7 @@
 					status = "disabled";
 				};
 
-				uart0: uart@02020000 { /* UART1 */
+				uart1: uart@02020000 {
 					compatible = "fsl,imx6q-uart", "fsl,imx21-uart";
 					reg = <0x02020000 0x4000>;
 					interrupts = <0 26 0x04>;
@@ -543,28 +543,28 @@
 				interrupts = <0 18 0x04>;
 			};
 
-			uart1: uart@021e8000 { /* UART2 */
+			uart2: uart@021e8000 {
 				compatible = "fsl,imx6q-uart", "fsl,imx21-uart";
 				reg = <0x021e8000 0x4000>;
 				interrupts = <0 27 0x04>;
 				status = "disabled";
 			};
 
-			uart2: uart@021ec000 { /* UART3 */
+			uart3: uart@021ec000 {
 				compatible = "fsl,imx6q-uart", "fsl,imx21-uart";
 				reg = <0x021ec000 0x4000>;
 				interrupts = <0 28 0x04>;
 				status = "disabled";
 			};
 
-			uart3: uart@021f0000 { /* UART4 */
+			uart4: uart@021f0000 {
 				compatible = "fsl,imx6q-uart", "fsl,imx21-uart";
 				reg = <0x021f0000 0x4000>;
 				interrupts = <0 29 0x04>;
 				status = "disabled";
 			};
 
-			uart4: uart@021f4000 { /* UART5 */
+			uart5: uart@021f4000 {
 				compatible = "fsl,imx6q-uart", "fsl,imx21-uart";
 				reg = <0x021f4000 0x4000>;
 				interrupts = <0 30 0x04>;

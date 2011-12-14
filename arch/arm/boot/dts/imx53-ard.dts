@@ -44,7 +44,7 @@
 				reg = <0x53fa8000 0x4000>;
 			};
 
-			uart0: uart@53fbc000 { /* UART1 */
+			uart1: uart@53fbc000 {
 				status = "okay";
 			};
 		};
