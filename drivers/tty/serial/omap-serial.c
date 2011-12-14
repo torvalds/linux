@@ -43,6 +43,8 @@
 #include <plat/dmtimer.h>
 #include <plat/omap-serial.h>
 
+#define DEFAULT_CLK_SPEED 48000000 /* 48Mhz*/
+
 static struct uart_omap_port *ui[OMAP_MAX_HSUART_PORTS];
 
 /* Forward declaration of functions */
@@ -1387,6 +1389,11 @@ static int serial_omap_probe(struct platform_device *pdev)
 
 	up->port.flags = omap_up_info->flags;
 	up->port.uartclk = omap_up_info->uartclk;
+	if (!up->port.uartclk) {
+		up->port.uartclk = DEFAULT_CLK_SPEED;
+		dev_warn(&pdev->dev, "No clock speed specified: using default:"
+						"%d\n", DEFAULT_CLK_SPEED);
+	}
 	up->uart_dma.uart_base = mem->start;
 	up->errata = omap_up_info->errata;
 
