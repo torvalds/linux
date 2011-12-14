@@ -102,3 +102,9 @@ void __init tegra20_init_early(void)
 	tegra_init_cache(0x331, 0x441);
 }
 #endif
+#ifdef CONFIG_ARCH_TEGRA_3x_SOC
+void __init tegra30_init_early(void)
+{
+	tegra_init_cache(0x441, 0x551);
+}
+#endif
