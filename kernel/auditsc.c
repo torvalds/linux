@@ -508,12 +508,41 @@ static int audit_field_compare(struct task_struct *tsk,
 			       struct audit_names *name)
 {
 	switch (f->val) {
+	/* process to file object comparisons */
 	case AUDIT_COMPARE_UID_TO_OBJ_UID:
 		return audit_compare_id(cred->uid,
 					name, offsetof(struct audit_names, uid),
 					f, ctx);
 	case AUDIT_COMPARE_GID_TO_OBJ_GID:
 		return audit_compare_id(cred->gid,
+					name, offsetof(struct audit_names, gid),
+					f, ctx);
+	case AUDIT_COMPARE_EUID_TO_OBJ_UID:
+		return audit_compare_id(cred->euid,
+					name, offsetof(struct audit_names, uid),
+					f, ctx);
+	case AUDIT_COMPARE_EGID_TO_OBJ_GID:
+		return audit_compare_id(cred->egid,
+					name, offsetof(struct audit_names, gid),
+					f, ctx);
+	case AUDIT_COMPARE_AUID_TO_OBJ_UID:
+		return audit_compare_id(tsk->loginuid,
+					name, offsetof(struct audit_names, uid),
+					f, ctx);
+	case AUDIT_COMPARE_SUID_TO_OBJ_UID:
+		return audit_compare_id(cred->suid,
+					name, offsetof(struct audit_names, uid),
+					f, ctx);
+	case AUDIT_COMPARE_SGID_TO_OBJ_GID:
+		return audit_compare_id(cred->sgid,
+					name, offsetof(struct audit_names, gid),
+					f, ctx);
+	case AUDIT_COMPARE_FSUID_TO_OBJ_UID:
+		return audit_compare_id(cred->fsuid,
+					name, offsetof(struct audit_names, uid),
+					f, ctx);
+	case AUDIT_COMPARE_FSGID_TO_OBJ_GID:
+		return audit_compare_id(cred->fsgid,
 					name, offsetof(struct audit_names, gid),
 					f, ctx);
 	default:
