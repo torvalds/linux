@@ -319,6 +319,8 @@
 #define RING_HWS_PGA(base)	((base)+0x80)
 #define RING_HWS_PGA_GEN6(base)	((base)+0x2080)
 #define RENDER_HWS_PGA_GEN7	(0x04080)
+#define RING_FAULT_REG(ring)	(0x4094 + 0x100*(ring)->id)
+#define DONE_REG		0x40b0
 #define BSD_HWS_PGA_GEN7	(0x04180)
 #define BLT_HWS_PGA_GEN7	(0x04280)
 #define RING_ACTHD(base)	((base)+0x74)

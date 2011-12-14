@@ -882,8 +882,10 @@ static void i915_record_ring_state(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (INTEL_INFO(dev)->gen >= 6)
+	if (INTEL_INFO(dev)->gen >= 6) {
 		error->faddr[ring->id] = I915_READ(RING_DMA_FADD(ring->mmio_base));
+		error->fault_reg[ring->id] = I915_READ(RING_FAULT_REG(ring));
+	}
 
 	if (INTEL_INFO(dev)->gen >= 4) {
 		error->ipeir[ring->id] = I915_READ(RING_IPEIR(ring->mmio_base));
@@ -898,7 +900,6 @@ static void i915_record_ring_state(struct drm_device *dev,
 		error->ipeir[ring->id] = I915_READ(IPEIR);
 		error->ipehr[ring->id] = I915_READ(IPEHR);
 		error->instdone[ring->id] = I915_READ(INSTDONE);
-		error->bbaddr = 0;
 	}
 
 	error->instpm[ring->id] = I915_READ(RING_INSTPM(ring->mmio_base));
@@ -932,7 +933,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 		return;
 
 	/* Account for pipe specific data like PIPE*STAT */
-	error = kmalloc(sizeof(*error), GFP_ATOMIC);
+	error = kzalloc(sizeof(*error), GFP_ATOMIC);
 	if (!error) {
 		DRM_DEBUG_DRIVER("out of memory, not capturing error state\n");
 		return;
@@ -946,10 +947,10 @@ static void i915_capture_error_state(struct drm_device *dev)
 	for_each_pipe(pipe)
 		error->pipestat[pipe] = I915_READ(PIPESTAT(pipe));
 
-	if (INTEL_INFO(dev)->gen >= 6)
+	if (INTEL_INFO(dev)->gen >= 6) {
 		error->error = I915_READ(ERROR_GEN6);
-	else
-		error->error = 0;
+		error->done_reg = I915_READ(DONE_REG);
+	}
 
 	i915_record_ring_state(dev, error, &dev_priv->ring[RCS]);
 	if (HAS_BLT(dev))

@@ -718,8 +718,10 @@ static void i915_ring_error_state(struct seq_file *m,
 	if (INTEL_INFO(dev)->gen >= 4)
 		seq_printf(m, "  INSTPS: 0x%08x\n", error->instps[ring]);
 	seq_printf(m, "  INSTPM: 0x%08x\n", error->instpm[ring]);
-	if (INTEL_INFO(dev)->gen >= 6)
+	if (INTEL_INFO(dev)->gen >= 6) {
 		seq_printf(m, "  FADDR: 0x%08x\n", error->faddr[ring]);
+		seq_printf(m, "  FAULT_REG: 0x%08x\n", error->fault_reg[ring]);
+	}
 	seq_printf(m, "  seqno: 0x%08x\n", error->seqno[ring]);
 }
 
@@ -749,8 +751,10 @@ static int i915_error_state(struct seq_file *m, void *unused)
 	for (i = 0; i < dev_priv->num_fence_regs; i++)
 		seq_printf(m, "  fence[%d] = %08llx\n", i, error->fence[i]);
 
-	if (INTEL_INFO(dev)->gen >= 6) 
+	if (INTEL_INFO(dev)->gen >= 6) {
 		seq_printf(m, "ERROR: 0x%08x\n", error->error);
+		seq_printf(m, "DONE_REG: 0x%08x\n", error->done_reg);
+	}
 
 	i915_ring_error_state(m, dev, error, RCS);
 	if (HAS_BLT(dev))
