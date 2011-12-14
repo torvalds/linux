@@ -1135,7 +1135,16 @@ int intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n)
 	}
 
 	trace_i915_ring_wait_begin(ring);
-	end = jiffies + 3 * HZ;
+	if (drm_core_check_feature(dev, DRIVER_GEM))
+		/* With GEM the hangcheck timer should kick us out of the loop,
+		 * leaving it early runs the risk of corrupting GEM state (due
+		 * to running on almost untested codepaths). But on resume
+		 * timers don't work yet, so prevent a complete hang in that
+		 * case by choosing an insanely large timeout. */
+		end = jiffies + 60 * HZ;
+	else
+		end = jiffies + 3 * HZ;
+
 	do {
 		ring->head = I915_READ_HEAD(ring);
 		ring->space = ring_space(ring);
