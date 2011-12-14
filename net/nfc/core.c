@@ -240,6 +240,7 @@ int nfc_dep_link_down(struct nfc_dev *dev)
 	rc = dev->ops->dep_link_down(dev);
 	if (!rc) {
 		dev->dep_link_up = false;
+		nfc_llcp_mac_is_down(dev);
 		nfc_genl_dep_link_down_event(dev);
 	}
 
@@ -253,6 +254,8 @@ int nfc_dep_link_is_up(struct nfc_dev *dev, u32 target_idx,
 {
 	dev->dep_link_up = true;
 	dev->dep_rf_mode = rf_mode;
+
+	nfc_llcp_mac_is_up(dev, target_idx, comm_mode, rf_mode);
 
 	return nfc_genl_dep_link_up_event(dev, target_idx, comm_mode, rf_mode);
 }
@@ -360,13 +363,13 @@ int nfc_set_remote_general_bytes(struct nfc_dev *dev, u8 *gb, u8 gb_len)
 	if (gb_len > NFC_MAX_GT_LEN)
 		return -EINVAL;
 
-	return 0;
+	return nfc_llcp_set_remote_gb(dev, gb, gb_len);
 }
 EXPORT_SYMBOL(nfc_set_remote_general_bytes);
 
 u8 *nfc_get_local_general_bytes(struct nfc_dev *dev, u8 *gt_len)
 {
-	return NULL;
+	return nfc_llcp_general_bytes(dev, gt_len);
 }
 EXPORT_SYMBOL(nfc_get_local_general_bytes);
 
@@ -560,6 +563,10 @@ int nfc_register_device(struct nfc_dev *dev)
 	if (rc < 0)
 		return rc;
 
+	rc = nfc_llcp_register_device(dev);
+	if (rc)
+		pr_err("Could not register llcp device\n");
+
 	rc = nfc_genl_device_added(dev);
 	if (rc)
 		pr_debug("The userspace won't be notified that the device %s was added\n",
@@ -591,6 +598,8 @@ void nfc_unregister_device(struct nfc_dev *dev)
 
 	mutex_unlock(&nfc_devlist_mutex);
 
+	nfc_llcp_unregister_device(dev);
+
 	rc = nfc_genl_device_removed(dev);
 	if (rc)
 		pr_debug("The userspace won't be notified that the device %s was removed\n",
@@ -620,6 +629,10 @@ static int __init nfc_init(void)
 	if (rc)
 		goto err_rawsock;
 
+	rc = nfc_llcp_init();
+	if (rc)
+		goto err_llcp_sock;
+
 	rc = af_nfc_init();
 	if (rc)
 		goto err_af_nfc;
@@ -627,6 +640,8 @@ static int __init nfc_init(void)
 	return 0;
 
 err_af_nfc:
+	nfc_llcp_exit();
+err_llcp_sock:
 	rawsock_exit();
 err_rawsock:
 	nfc_genl_exit();
@@ -638,6 +653,7 @@ err_genl:
 static void __exit nfc_exit(void)
 {
 	af_nfc_exit();
+	nfc_llcp_exit();
 	rawsock_exit();
 	nfc_genl_exit();
 	class_unregister(&nfc_class);
