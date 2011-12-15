@@ -558,7 +558,7 @@ static int it913x_download_firmware(struct usb_device *udev,
 					const struct firmware *fw)
 {
 	int ret = 0, i = 0, pos = 0;
-	u8 packet_size;
+	u8 packet_size, min_pkt;
 	u8 *fw_data;
 
 	ret = it913x_wr_reg(udev, DEV_0,  I2C_CLK, I2C_CLK_100);
@@ -570,11 +570,16 @@ static int it913x_download_firmware(struct usb_device *udev,
 	/* The firmware must start with 03 XX 00 */
 	/* and be the extact firmware length */
 
+	if (it913x_config.chip_ver == 2)
+		min_pkt = 0x11;
+	else
+		min_pkt = 0x19;
+
 	while (i <= fw->size) {
 		if (((fw->data[i] == 0x3) && (fw->data[i + 2] == 0x0))
 			|| (i == fw->size)) {
 			packet_size = i - pos;
-			if ((packet_size > 0x19) || (i == fw->size)) {
+			if ((packet_size > min_pkt) || (i == fw->size)) {
 				fw_data = (u8 *)(fw->data + pos);
 				pos += packet_size;
 				if (packet_size > 0)
