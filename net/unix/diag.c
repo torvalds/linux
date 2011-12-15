@@ -10,6 +10,22 @@
 #define UNIX_DIAG_PUT(skb, attrtype, attrlen) \
 	RTA_DATA(__RTA_PUT(skb, attrtype, attrlen))
 
+static int sk_diag_dump_name(struct sock *sk, struct sk_buff *nlskb)
+{
+	struct unix_address *addr = unix_sk(sk)->addr;
+	char *s;
+
+	if (addr) {
+		s = UNIX_DIAG_PUT(nlskb, UNIX_DIAG_NAME, addr->len - sizeof(short));
+		memcpy(s, addr->name->sun_path, addr->len - sizeof(short));
+	}
+
+	return 0;
+
+rtattr_failure:
+	return -EMSGSIZE;
+}
+
 static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct unix_diag_req *req,
 		u32 pid, u32 seq, u32 flags, int sk_ino)
 {
@@ -27,6 +43,10 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct unix_diag_r
 	rep->udiag_state = sk->sk_state;
 	rep->udiag_ino = sk_ino;
 	sock_diag_save_cookie(sk, rep->udiag_cookie);
+
+	if ((req->udiag_show & UDIAG_SHOW_NAME) &&
+			sk_diag_dump_name(sk, skb))
+		goto nlmsg_failure;
 
 	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	return skb->len;
