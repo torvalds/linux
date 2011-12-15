@@ -38,6 +38,7 @@
 #include <linux/falloc.h>
 #include <linux/slab.h>
 #include <linux/ratelimit.h>
+#include <linux/mount.h>
 #include "compat.h"
 #include "ctree.h"
 #include "disk-io.h"
@@ -2031,7 +2032,7 @@ int btrfs_orphan_add(struct btrfs_trans_handle *trans, struct inode *inode)
 	/* insert an orphan item to track this unlinked/truncated file */
 	if (insert >= 1) {
 		ret = btrfs_insert_orphan_item(trans, root, btrfs_ino(inode));
-		BUG_ON(ret);
+		BUG_ON(ret && ret != -EEXIST);
 	}
 
 	/* insert an orphan item to track subvolume contains orphan files */
@@ -2223,7 +2224,14 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 				continue;
 			}
 			nr_truncate++;
+			/*
+			 * Need to hold the imutex for reservation purposes, not
+			 * a huge deal here but I have a WARN_ON in
+			 * btrfs_delalloc_reserve_space to catch offenders.
+			 */
+			mutex_lock(&inode->i_mutex);
 			ret = btrfs_truncate(inode);
+			mutex_unlock(&inode->i_mutex);
 		} else {
 			nr_unlink++;
 		}
@@ -3426,7 +3434,6 @@ static int btrfs_setsize(struct inode *inode, loff_t newsize)
 		i_size_write(inode, newsize);
 		btrfs_ordered_update_i_size(inode, i_size_read(inode), NULL);
 		ret = btrfs_update_inode(trans, root, inode);
-
 		btrfs_end_transaction_throttle(trans, root);
 	} else {
 
@@ -3467,9 +3474,9 @@ static int btrfs_setattr(struct dentry *dentry, struct iattr *attr)
 
 	if (attr->ia_valid) {
 		setattr_copy(inode, attr);
-		mark_inode_dirty(inode);
+		err = btrfs_dirty_inode(inode);
 
-		if (attr->ia_valid & ATTR_MODE)
+		if (!err && attr->ia_valid & ATTR_MODE)
 			err = btrfs_acl_chmod(inode);
 	}
 
@@ -4245,42 +4252,80 @@ int btrfs_write_inode(struct inode *inode, struct writeback_control *wbc)
  * FIXME, needs more benchmarking...there are no reasons other than performance
  * to keep or drop this code.
  */
-void btrfs_dirty_inode(struct inode *inode, int flags)
+int btrfs_dirty_inode(struct inode *inode)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
 	int ret;
 
 	if (BTRFS_I(inode)->dummy_inode)
-		return;
+		return 0;
 
 	trans = btrfs_join_transaction(root);
-	BUG_ON(IS_ERR(trans));
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
 
 	ret = btrfs_update_inode(trans, root, inode);
 	if (ret && ret == -ENOSPC) {
 		/* whoops, lets try again with the full transaction */
 		btrfs_end_transaction(trans, root);
 		trans = btrfs_start_transaction(root, 1);
-		if (IS_ERR(trans)) {
-			printk_ratelimited(KERN_ERR "btrfs: fail to "
-				       "dirty  inode %llu error %ld\n",
-				       (unsigned long long)btrfs_ino(inode),
-				       PTR_ERR(trans));
-			return;
-		}
+		if (IS_ERR(trans))
+			return PTR_ERR(trans);
 
 		ret = btrfs_update_inode(trans, root, inode);
-		if (ret) {
-			printk_ratelimited(KERN_ERR "btrfs: fail to "
-				       "dirty  inode %llu error %d\n",
-				       (unsigned long long)btrfs_ino(inode),
-				       ret);
-		}
 	}
 	btrfs_end_transaction(trans, root);
 	if (BTRFS_I(inode)->delayed_node)
 		btrfs_balance_delayed_items(root);
+
+	return ret;
+}
+
+/*
+ * This is a copy of file_update_time.  We need this so we can return error on
+ * ENOSPC for updating the inode in the case of file write and mmap writes.
+ */
+int btrfs_update_time(struct file *file)
+{
+	struct inode *inode = file->f_path.dentry->d_inode;
+	struct timespec now;
+	int ret;
+	enum { S_MTIME = 1, S_CTIME = 2, S_VERSION = 4 } sync_it = 0;
+
+	/* First try to exhaust all avenues to not sync */
+	if (IS_NOCMTIME(inode))
+		return 0;
+
+	now = current_fs_time(inode->i_sb);
+	if (!timespec_equal(&inode->i_mtime, &now))
+		sync_it = S_MTIME;
+
+	if (!timespec_equal(&inode->i_ctime, &now))
+		sync_it |= S_CTIME;
+
+	if (IS_I_VERSION(inode))
+		sync_it |= S_VERSION;
+
+	if (!sync_it)
+		return 0;
+
+	/* Finally allowed to write? Takes lock. */
+	if (mnt_want_write_file(file))
+		return 0;
+
+	/* Only change inode inside the lock region */
+	if (sync_it & S_VERSION)
+		inode_inc_iversion(inode);
+	if (sync_it & S_CTIME)
+		inode->i_ctime = now;
+	if (sync_it & S_MTIME)
+		inode->i_mtime = now;
+	ret = btrfs_dirty_inode(inode);
+	if (!ret)
+		mark_inode_dirty_sync(inode);
+	mnt_drop_write(file->f_path.mnt);
+	return ret;
 }
 
 /*
@@ -6358,7 +6403,12 @@ int btrfs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	u64 page_start;
 	u64 page_end;
 
+	/* Need this to keep space reservations serialized */
+	mutex_lock(&inode->i_mutex);
 	ret  = btrfs_delalloc_reserve_space(inode, PAGE_CACHE_SIZE);
+	mutex_unlock(&inode->i_mutex);
+	if (!ret)
+		ret = btrfs_update_time(vma->vm_file);
 	if (ret) {
 		if (ret == -ENOMEM)
 			ret = VM_FAULT_OOM;
@@ -6570,8 +6620,9 @@ static int btrfs_truncate(struct inode *inode)
 			/* Just need the 1 for updating the inode */
 			trans = btrfs_start_transaction(root, 1);
 			if (IS_ERR(trans)) {
-				err = PTR_ERR(trans);
-				goto out;
+				ret = err = PTR_ERR(trans);
+				trans = NULL;
+				break;
 			}
 		}
 
@@ -7415,6 +7466,7 @@ static const struct inode_operations btrfs_symlink_inode_operations = {
 	.follow_link	= page_follow_link_light,
 	.put_link	= page_put_link,
 	.getattr	= btrfs_getattr,
+	.setattr	= btrfs_setattr,
 	.permission	= btrfs_permission,
 	.setxattr	= btrfs_setxattr,
 	.getxattr	= btrfs_getxattr,
