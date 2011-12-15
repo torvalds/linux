@@ -2025,23 +2025,17 @@ static bool css_set_check_fetched(struct cgroup *cgrp,
 
 	read_lock(&css_set_lock);
 	newcg = find_existing_css_set(cg, cgrp, template);
-	if (newcg)
-		get_css_set(newcg);
 	read_unlock(&css_set_lock);
 
 	/* doesn't exist at all? */
 	if (!newcg)
 		return false;
 	/* see if it's already in the list */
-	list_for_each_entry(cg_entry, newcg_list, links) {
-		if (cg_entry->cg == newcg) {
-			put_css_set(newcg);
+	list_for_each_entry(cg_entry, newcg_list, links)
+		if (cg_entry->cg == newcg)
 			return true;
-		}
-	}
 
 	/* not found */
-	put_css_set(newcg);
 	return false;
 }
 
