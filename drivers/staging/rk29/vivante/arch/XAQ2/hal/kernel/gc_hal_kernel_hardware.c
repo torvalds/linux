@@ -26,8 +26,7 @@
 
 #define _GC_OBJ_ZONE    gcvZONE_HARDWARE
 
-static uint gpu_state = 0;
-module_param(gpu_state, uint, 0644);
+extern uint gpuState;
 
 // dkm: gcdENABLE_AUTO_FREQ
 #if (1==gcdENABLE_AUTO_FREQ)
@@ -3370,7 +3369,7 @@ gckHARDWARE_SetPowerManagementState(
     /* Release the power mutex. */
     gcmkONERROR(gckOS_ReleaseMutex(os, Hardware->powerMutex));
 
-    gpu_state = State;
+    gpuState = State;
 
     /* Success. */
     gcmkFOOTER_NO();

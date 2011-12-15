@@ -105,7 +105,7 @@ static int rk29_aif1_hw_params(struct snd_pcm_substream *substream,
 		DBG("rk29_hw_params_wm8994:failed to set the sysclk for codec side\n"); 
 		return ret;
 	}
-#else if
+#elif defined (CONFIG_SND_RK29_CODEC_SOC_MASTER)
 	
 #endif
 
