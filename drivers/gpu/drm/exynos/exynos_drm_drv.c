@@ -38,7 +38,7 @@
 #include "exynos_drm_gem.h"
 #include "exynos_drm_plane.h"
 
-#define DRIVER_NAME	"exynos-drm"
+#define DRIVER_NAME	"exynos"
 #define DRIVER_DESC	"Samsung SoC DRM"
 #define DRIVER_DATE	"20110530"
 #define DRIVER_MAJOR	1
