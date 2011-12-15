@@ -1302,6 +1302,10 @@ static int serial_imx_resume(struct platform_device *dev)
 }
 
 #ifdef CONFIG_OF
+/*
+ * This function returns 1 iff pdev isn't a device instatiated by dt, 0 iff it
+ * could successfully get all information from dt or a negative errno.
+ */
 static int serial_imx_probe_dt(struct imx_port *sport,
 		struct platform_device *pdev)
 {
@@ -1311,7 +1315,8 @@ static int serial_imx_probe_dt(struct imx_port *sport,
 	int ret;
 
 	if (!np)
-		return -ENODEV;
+		/* no device tree device */
+		return 1;
 
 	ret = of_alias_get_id(np, "serial");
 	if (ret < 0) {
@@ -1334,7 +1339,7 @@ static int serial_imx_probe_dt(struct imx_port *sport,
 static inline int serial_imx_probe_dt(struct imx_port *sport,
 		struct platform_device *pdev)
 {
-	return -ENODEV;
+	return 1;
 }
 #endif
 
@@ -1369,8 +1374,10 @@ static int serial_imx_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ret = serial_imx_probe_dt(sport, pdev);
-	if (ret == -ENODEV)
+	if (ret > 0)
 		serial_imx_probe_pdata(sport, pdev);
+	else if (ret < 0)
+		goto free;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
