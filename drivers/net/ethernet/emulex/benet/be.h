@@ -40,6 +40,7 @@
 #define OC_NAME			"Emulex OneConnect 10Gbps NIC"
 #define OC_NAME_BE		OC_NAME	"(be3)"
 #define OC_NAME_LANCER		OC_NAME "(Lancer)"
+#define OC_NAME_SH		OC_NAME "(Skyhawk)"
 #define DRV_DESC		"ServerEngines BladeEngine 10Gbps NIC Driver"
 
 #define BE_VENDOR_ID 		0x19a2
@@ -50,6 +51,7 @@
 #define OC_DEVICE_ID2		0x710	/* Device Id for BE3 cards */
 #define OC_DEVICE_ID3		0xe220	/* Device id for Lancer cards */
 #define OC_DEVICE_ID4           0xe228   /* Device id for VF in Lancer */
+#define OC_DEVICE_ID5		0x720	/* Device Id for Skyhawk cards */
 
 static inline char *nic_name(struct pci_dev *pdev)
 {
@@ -63,6 +65,8 @@ static inline char *nic_name(struct pci_dev *pdev)
 		return OC_NAME_LANCER;
 	case BE_DEVICE_ID2:
 		return BE3_NAME;
+	case OC_DEVICE_ID5:
+		return OC_NAME_SH;
 	default:
 		return BE_NAME;
 	}

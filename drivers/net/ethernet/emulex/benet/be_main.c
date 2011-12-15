@@ -42,6 +42,7 @@ static DEFINE_PCI_DEVICE_TABLE(be_dev_ids) = {
 	{ PCI_DEVICE(BE_VENDOR_ID, OC_DEVICE_ID2) },
 	{ PCI_DEVICE(EMULEX_VENDOR_ID, OC_DEVICE_ID3)},
 	{ PCI_DEVICE(EMULEX_VENDOR_ID, OC_DEVICE_ID4)},
+	{ PCI_DEVICE(EMULEX_VENDOR_ID, OC_DEVICE_ID5)},
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, be_dev_ids);
@@ -3312,6 +3313,7 @@ static int be_dev_family_check(struct be_adapter *adapter)
 		break;
 	case BE_DEVICE_ID2:
 	case OC_DEVICE_ID2:
+	case OC_DEVICE_ID5:
 		adapter->generation = BE_GEN3;
 		break;
 	case OC_DEVICE_ID3:
