@@ -1046,11 +1046,15 @@ out:
 }
 EXPORT_SYMBOL_GPL(do_machine_check);
 
-/* dummy to break dependency. actual code is in mm/memory-failure.c */
-void __attribute__((weak)) memory_failure(unsigned long pfn, int vector)
+#ifndef CONFIG_MEMORY_FAILURE
+int memory_failure(unsigned long pfn, int vector, int flags)
 {
-	printk(KERN_ERR "Action optional memory failure at %lx ignored\n", pfn);
+	printk(KERN_ERR "Uncorrected memory error in page 0x%lx ignored\n"
+		"Rebuild kernel with CONFIG_MEMORY_FAILURE=y for smarter handling\n", pfn);
+
+	return 0;
 }
+#endif
 
 /*
  * Called after mce notification in process context. This code
@@ -1068,7 +1072,7 @@ void mce_notify_process(void)
 	unsigned long pfn;
 	mce_notify_irq();
 	while (mce_ring_get(&pfn))
-		memory_failure(pfn, MCE_VECTOR);
+		memory_failure(pfn, MCE_VECTOR, 0);
 }
 
 static void mce_process_work(struct work_struct *dummy)

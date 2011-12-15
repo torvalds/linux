@@ -984,7 +984,25 @@ static void clear_page_hwpoison_huge_page(struct page *hpage)
 		ClearPageHWPoison(hpage + i);
 }
 
-int __memory_failure(unsigned long pfn, int trapno, int flags)
+/**
+ * memory_failure - Handle memory failure of a page.
+ * @pfn: Page Number of the corrupted page
+ * @trapno: Trap number reported in the signal to user space.
+ * @flags: fine tune action taken
+ *
+ * This function is called by the low level machine check code
+ * of an architecture when it detects hardware memory corruption
+ * of a page. It tries its best to recover, which includes
+ * dropping pages, killing processes etc.
+ *
+ * The function is primarily of use for corruptions that
+ * happen outside the current execution context (e.g. when
+ * detected by a background scrubber)
+ *
+ * Must run in process context (e.g. a work queue) with interrupts
+ * enabled and no spinlocks hold.
+ */
+int memory_failure(unsigned long pfn, int trapno, int flags)
 {
 	struct page_state *ps;
 	struct page *p;
@@ -1156,29 +1174,7 @@ out:
 	unlock_page(hpage);
 	return res;
 }
-EXPORT_SYMBOL_GPL(__memory_failure);
-
-/**
- * memory_failure - Handle memory failure of a page.
- * @pfn: Page Number of the corrupted page
- * @trapno: Trap number reported in the signal to user space.
- *
- * This function is called by the low level machine check code
- * of an architecture when it detects hardware memory corruption
- * of a page. It tries its best to recover, which includes
- * dropping pages, killing processes etc.
- *
- * The function is primarily of use for corruptions that
- * happen outside the current execution context (e.g. when
- * detected by a background scrubber)
- *
- * Must run in process context (e.g. a work queue) with interrupts
- * enabled and no spinlocks hold.
- */
-void memory_failure(unsigned long pfn, int trapno)
-{
-	__memory_failure(pfn, trapno, 0);
-}
+EXPORT_SYMBOL_GPL(memory_failure);
 
 #define MEMORY_FAILURE_FIFO_ORDER	4
 #define MEMORY_FAILURE_FIFO_SIZE	(1 << MEMORY_FAILURE_FIFO_ORDER)
@@ -1251,7 +1247,7 @@ static void memory_failure_work_func(struct work_struct *work)
 		spin_unlock_irqrestore(&mf_cpu->lock, proc_flags);
 		if (!gotten)
 			break;
-		__memory_failure(entry.pfn, entry.trapno, entry.flags);
+		memory_failure(entry.pfn, entry.trapno, entry.flags);
 	}
 }
 
