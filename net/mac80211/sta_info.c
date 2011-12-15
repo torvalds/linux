@@ -354,35 +354,26 @@ static int sta_info_finish_insert(struct sta_info *sta,
 		/* notify driver */
 		err = drv_sta_add(local, sdata, &sta->sta);
 		if (err) {
-			if (!async)
+			if (sdata->vif.type != NL80211_IFTYPE_ADHOC)
 				return err;
 			printk(KERN_DEBUG "%s: failed to add IBSS STA %pM to "
 					  "driver (%d) - keeping it anyway.\n",
 			       sdata->name, sta->sta.addr, err);
-		} else {
+		} else
 			sta->uploaded = true;
-#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-			if (async)
-				wiphy_debug(local->hw.wiphy,
-					    "Finished adding IBSS STA %pM\n",
-					    sta->sta.addr);
-#endif
-		}
 
 		sdata = sta->sdata;
 	}
 
 	if (!dummy_reinsert) {
-		if (!async) {
-			local->num_sta++;
-			local->sta_generation++;
-			smp_mb();
+		local->num_sta++;
+		local->sta_generation++;
+		smp_mb();
 
-			/* make the station visible */
-			spin_lock_irqsave(&local->sta_lock, flags);
-			sta_info_hash_add(local, sta);
-			spin_unlock_irqrestore(&local->sta_lock, flags);
-		}
+		/* make the station visible */
+		spin_lock_irqsave(&local->sta_lock, flags);
+		sta_info_hash_add(local, sta);
+		spin_unlock_irqrestore(&local->sta_lock, flags);
 
 		list_add(&sta->list, &local->sta_list);
 	} else {
@@ -1546,7 +1537,7 @@ EXPORT_SYMBOL(ieee80211_sta_set_buffered);
 int sta_info_move_state_checked(struct sta_info *sta,
 				enum ieee80211_sta_state new_state)
 {
-	/* might_sleep(); -- for driver notify later, fix IBSS first */
+	might_sleep();
 
 	if (sta->sta_state == new_state)
 		return 0;
