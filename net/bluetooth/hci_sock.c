@@ -535,7 +535,7 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 		if (test_bit(HCI_RAW, &hdev->flags) || (ogf == 0x3f)) {
 			skb_queue_tail(&hdev->raw_q, skb);
-			tasklet_schedule(&hdev->tx_task);
+			queue_work(hdev->workqueue, &hdev->tx_work);
 		} else {
 			skb_queue_tail(&hdev->cmd_q, skb);
 			queue_work(hdev->workqueue, &hdev->cmd_work);
@@ -547,7 +547,7 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 		}
 
 		skb_queue_tail(&hdev->raw_q, skb);
-		tasklet_schedule(&hdev->tx_task);
+		queue_work(hdev->workqueue, &hdev->tx_work);
 	}
 
 	err = len;

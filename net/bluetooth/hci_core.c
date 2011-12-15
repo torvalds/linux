@@ -58,7 +58,7 @@ int enable_hs;
 
 static void hci_rx_work(struct work_struct *work);
 static void hci_cmd_work(struct work_struct *work);
-static void hci_tx_task(unsigned long arg);
+static void hci_tx_work(struct work_struct *work);
 
 static DEFINE_MUTEX(hci_task_lock);
 
@@ -547,7 +547,7 @@ int hci_dev_open(__u16 dev)
 		}
 	} else {
 		/* Init failed, cleanup */
-		tasklet_kill(&hdev->tx_task);
+		flush_work(&hdev->tx_work);
 		flush_work(&hdev->cmd_work);
 		flush_work(&hdev->rx_work);
 
@@ -585,8 +585,8 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 		return 0;
 	}
 
-	/* Kill RX and TX tasks */
-	tasklet_kill(&hdev->tx_task);
+	/* Flush RX and TX works */
+	flush_work(&hdev->tx_work);
 	flush_work(&hdev->rx_work);
 
 	if (hdev->discov_timeout > 0) {
@@ -672,7 +672,6 @@ int hci_dev_reset(__u16 dev)
 		return -ENODEV;
 
 	hci_req_lock(hdev);
-	tasklet_disable(&hdev->tx_task);
 
 	if (!test_bit(HCI_UP, &hdev->flags))
 		goto done;
@@ -697,7 +696,6 @@ int hci_dev_reset(__u16 dev)
 					msecs_to_jiffies(HCI_INIT_TIMEOUT));
 
 done:
-	tasklet_enable(&hdev->tx_task);
 	hci_req_unlock(hdev);
 	hci_dev_put(hdev);
 	return ret;
@@ -1459,8 +1457,8 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	INIT_WORK(&hdev->rx_work, hci_rx_work);
 	INIT_WORK(&hdev->cmd_work, hci_cmd_work);
+	INIT_WORK(&hdev->tx_work, hci_tx_work);
 
-	tasklet_init(&hdev->tx_task, hci_tx_task, (unsigned long) hdev);
 
 	skb_queue_head_init(&hdev->rx_q);
 	skb_queue_head_init(&hdev->cmd_q);
@@ -2012,7 +2010,7 @@ void hci_send_acl(struct hci_chan *chan, struct sk_buff *skb, __u16 flags)
 
 	hci_queue_acl(conn, &chan->data_q, skb, flags);
 
-	tasklet_schedule(&hdev->tx_task);
+	queue_work(hdev->workqueue, &hdev->tx_work);
 }
 EXPORT_SYMBOL(hci_send_acl);
 
@@ -2035,7 +2033,7 @@ void hci_send_sco(struct hci_conn *conn, struct sk_buff *skb)
 	bt_cb(skb)->pkt_type = HCI_SCODATA_PKT;
 
 	skb_queue_tail(&conn->data_q, skb);
-	tasklet_schedule(&hdev->tx_task);
+	queue_work(hdev->workqueue, &hdev->tx_work);
 }
 EXPORT_SYMBOL(hci_send_sco);
 
@@ -2399,9 +2397,9 @@ static inline void hci_sched_le(struct hci_dev *hdev)
 		hci_prio_recalculate(hdev, LE_LINK);
 }
 
-static void hci_tx_task(unsigned long arg)
+static void hci_tx_work(struct work_struct *work)
 {
-	struct hci_dev *hdev = (struct hci_dev *) arg;
+	struct hci_dev *hdev = container_of(work, struct hci_dev, tx_work);
 	struct sk_buff *skb;
 
 	mutex_lock(&hci_task_lock);

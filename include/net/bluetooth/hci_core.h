@@ -197,7 +197,7 @@ struct hci_dev {
 
 	struct work_struct	rx_work;
 	struct work_struct	cmd_work;
-	struct tasklet_struct	tx_task;
+	struct work_struct	tx_work;
 
 	struct sk_buff_head	rx_q;
 	struct sk_buff_head	raw_q;

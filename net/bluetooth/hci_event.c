@@ -2239,8 +2239,6 @@ static inline void hci_num_comp_pkts_evt(struct hci_dev *hdev, struct sk_buff *s
 		return;
 	}
 
-	tasklet_disable(&hdev->tx_task);
-
 	for (i = 0, ptr = (__le16 *) skb->data; i < ev->num_hndl; i++) {
 		struct hci_conn *conn;
 		__u16  handle, count;
@@ -2274,9 +2272,7 @@ static inline void hci_num_comp_pkts_evt(struct hci_dev *hdev, struct sk_buff *s
 		}
 	}
 
-	tasklet_schedule(&hdev->tx_task);
-
-	tasklet_enable(&hdev->tx_task);
+	queue_work(hdev->workqueue, &hdev->tx_work);
 }
 
 static inline void hci_mode_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
