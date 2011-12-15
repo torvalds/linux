@@ -3327,7 +3327,7 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 			u64 hint_byte = 0;
 			hole_size = last_byte - cur_offset;
 
-			trans = btrfs_start_transaction(root, 2);
+			trans = btrfs_start_transaction(root, 3);
 			if (IS_ERR(trans)) {
 				err = PTR_ERR(trans);
 				break;
@@ -3337,6 +3337,7 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 						 cur_offset + hole_size,
 						 &hint_byte, 1);
 			if (err) {
+				btrfs_update_inode(trans, root, inode);
 				btrfs_end_transaction(trans, root);
 				break;
 			}
@@ -3346,6 +3347,7 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 					0, hole_size, 0, hole_size,
 					0, 0, 0);
 			if (err) {
+				btrfs_update_inode(trans, root, inode);
 				btrfs_end_transaction(trans, root);
 				break;
 			}
@@ -3353,6 +3355,7 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 			btrfs_drop_extent_cache(inode, hole_start,
 					last_byte - 1, 0);
 
+			btrfs_update_inode(trans, root, inode);
 			btrfs_end_transaction(trans, root);
 		}
 		free_extent_map(em);
