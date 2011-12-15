@@ -1286,6 +1286,49 @@ produce a slight hiss, but in the encoder itself, guaranteeing a fixed
 and reproducible audio bitstream. 0 = unmuted, 1 = muted.</entry>
 	      </row>
 	      <row><entry></entry></row>
+	      <row id="v4l2-mpeg-audio-dec-playback">
+		<entry spanname="id"><constant>V4L2_CID_MPEG_AUDIO_DEC_PLAYBACK</constant>&nbsp;</entry>
+		<entry>enum&nbsp;v4l2_mpeg_audio_dec_playback</entry>
+	      </row><row><entry spanname="descr">Determines how monolingual audio should be played back.
+Possible values are:</entry>
+	      </row>
+	      <row>
+		<entrytbl spanname="descr" cols="2">
+		  <tbody valign="top">
+		    <row>
+		      <entry><constant>V4L2_MPEG_AUDIO_DEC_PLAYBACK_AUTO</constant>&nbsp;</entry>
+		      <entry>Automatically determines the best playback mode.</entry>
+		    </row>
+		    <row>
+		      <entry><constant>V4L2_MPEG_AUDIO_DEC_PLAYBACK_STEREO</constant>&nbsp;</entry>
+		      <entry>Stereo playback.</entry>
+		    </row>
+		    <row>
+		      <entry><constant>V4L2_MPEG_AUDIO_DEC_PLAYBACK_LEFT</constant>&nbsp;</entry>
+		      <entry>Left channel playback.</entry>
+		    </row>
+		    <row>
+		      <entry><constant>V4L2_MPEG_AUDIO_DEC_PLAYBACK_RIGHT</constant>&nbsp;</entry>
+		      <entry>Right channel playback.</entry>
+		    </row>
+		    <row>
+		      <entry><constant>V4L2_MPEG_AUDIO_DEC_PLAYBACK_MONO</constant>&nbsp;</entry>
+		      <entry>Mono playback.</entry>
+		    </row>
+		    <row>
+		      <entry><constant>V4L2_MPEG_AUDIO_DEC_PLAYBACK_SWAPPED_STEREO</constant>&nbsp;</entry>
+		      <entry>Stereo playback with swapped left and right channels.</entry>
+		    </row>
+		  </tbody>
+		</entrytbl>
+	      </row>
+	      <row><entry></entry></row>
+	      <row id="v4l2-mpeg-audio-dec-multilingual-playback">
+		<entry spanname="id"><constant>V4L2_CID_MPEG_AUDIO_DEC_MULTILINGUAL_PLAYBACK</constant>&nbsp;</entry>
+		<entry>enum&nbsp;v4l2_mpeg_audio_dec_playback</entry>
+	      </row><row><entry spanname="descr">Determines how multilingual audio should be played back.</entry>
+	      </row>
+	      <row><entry></entry></row>
 	      <row id="v4l2-mpeg-video-encoding">
 		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_ENCODING</constant>&nbsp;</entry>
 		<entry>enum&nbsp;v4l2_mpeg_video_encoding</entry>
@@ -1446,6 +1489,22 @@ of the video. The supplied 32-bit integer is interpreted as follows (bit
 		    </row>
 		  </tbody>
 		</entrytbl>
+	      </row>
+	      <row><entry></entry></row>
+	      <row id="v4l2-mpeg-video-dec-pts">
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_DEC_PTS</constant>&nbsp;</entry>
+		<entry>integer64</entry>
+	      </row><row><entry spanname="descr">This read-only control returns the
+33-bit video Presentation Time Stamp as defined in ITU T-REC-H.222.0 and ISO/IEC 13818-1 of
+the currently displayed frame. This is the same PTS as is used in &VIDIOC-DECODER-CMD;.</entry>
+	      </row>
+	      <row><entry></entry></row>
+	      <row id="v4l2-mpeg-video-dec-frame">
+		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_DEC_FRAME</constant>&nbsp;</entry>
+		<entry>integer64</entry>
+	      </row><row><entry spanname="descr">This read-only control returns the
+frame counter of the frame that is currently displayed (decoded). This value is reset to 0 whenever
+the decoder is started.</entry>
 	      </row>
 
 
