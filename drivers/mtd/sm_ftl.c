@@ -25,7 +25,7 @@
 struct workqueue_struct *cache_flush_workqueue;
 
 static int cache_timeout = 1000;
-module_param(cache_timeout, bool, S_IRUGO);
+module_param(cache_timeout, int, S_IRUGO);
 MODULE_PARM_DESC(cache_timeout,
 	"Timeout (in ms) for cache flush (1000 ms default");
 
