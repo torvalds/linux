@@ -65,8 +65,10 @@ static int __vb2_buf_mem_alloc(struct vb2_buffer *vb)
 	return 0;
 free:
 	/* Free already allocated memory if one of the allocations failed */
-	for (; plane > 0; --plane)
+	for (; plane > 0; --plane) {
 		call_memop(q, put, vb->planes[plane - 1].mem_priv);
+		vb->planes[plane - 1].mem_priv = NULL;
+	}
 
 	return -ENOMEM;
 }
@@ -82,8 +84,8 @@ static void __vb2_buf_mem_free(struct vb2_buffer *vb)
 	for (plane = 0; plane < vb->num_planes; ++plane) {
 		call_memop(q, put, vb->planes[plane].mem_priv);
 		vb->planes[plane].mem_priv = NULL;
-		dprintk(3, "Freed plane %d of buffer %d\n",
-				plane, vb->v4l2_buf.index);
+		dprintk(3, "Freed plane %d of buffer %d\n", plane,
+			vb->v4l2_buf.index);
 	}
 }
 
@@ -97,12 +99,9 @@ static void __vb2_buf_userptr_put(struct vb2_buffer *vb)
 	unsigned int plane;
 
 	for (plane = 0; plane < vb->num_planes; ++plane) {
-		void *mem_priv = vb->planes[plane].mem_priv;
-
-		if (mem_priv) {
-			call_memop(q, put_userptr, mem_priv);
-			vb->planes[plane].mem_priv = NULL;
-		}
+		if (vb->planes[plane].mem_priv)
+			call_memop(q, put_userptr, vb->planes[plane].mem_priv);
+		vb->planes[plane].mem_priv = NULL;
 	}
 }
 
@@ -731,7 +730,7 @@ void *vb2_plane_vaddr(struct vb2_buffer *vb, unsigned int plane_no)
 {
 	struct vb2_queue *q = vb->vb2_queue;
 
-	if (plane_no > vb->num_planes)
+	if (plane_no > vb->num_planes || !vb->planes[plane_no].mem_priv)
 		return NULL;
 
 	return call_memop(q, vaddr, vb->planes[plane_no].mem_priv);
@@ -754,7 +753,7 @@ void *vb2_plane_cookie(struct vb2_buffer *vb, unsigned int plane_no)
 {
 	struct vb2_queue *q = vb->vb2_queue;
 
-	if (plane_no > vb->num_planes)
+	if (plane_no > vb->num_planes || !vb->planes[plane_no].mem_priv)
 		return NULL;
 
 	return call_memop(q, cookie, vb->planes[plane_no].mem_priv);
@@ -906,19 +905,16 @@ static int __qbuf_userptr(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 		vb->v4l2_planes[plane].length = 0;
 
 		/* Acquire each plane's memory */
-		if (q->mem_ops->get_userptr) {
-			mem_priv = q->mem_ops->get_userptr(q->alloc_ctx[plane],
-							planes[plane].m.userptr,
-							planes[plane].length,
-							write);
-			if (IS_ERR(mem_priv)) {
-				dprintk(1, "qbuf: failed acquiring userspace "
+		mem_priv = call_memop(q, get_userptr, q->alloc_ctx[plane],
+				      planes[plane].m.userptr,
+				      planes[plane].length, write);
+		if (IS_ERR_OR_NULL(mem_priv)) {
+			dprintk(1, "qbuf: failed acquiring userspace "
 						"memory for plane %d\n", plane);
-				ret = PTR_ERR(mem_priv);
-				goto err;
-			}
-			vb->planes[plane].mem_priv = mem_priv;
+			ret = mem_priv ? PTR_ERR(mem_priv) : -EINVAL;
+			goto err;
 		}
+		vb->planes[plane].mem_priv = mem_priv;
 	}
 
 	/*
@@ -1553,7 +1549,6 @@ static int __find_plane_by_offset(struct vb2_queue *q, unsigned long off,
 int vb2_mmap(struct vb2_queue *q, struct vm_area_struct *vma)
 {
 	unsigned long off = vma->vm_pgoff << PAGE_SHIFT;
-	struct vb2_plane *vb_plane;
 	struct vb2_buffer *vb;
 	unsigned int buffer, plane;
 	int ret;
@@ -1590,9 +1585,8 @@ int vb2_mmap(struct vb2_queue *q, struct vm_area_struct *vma)
 		return ret;
 
 	vb = q->bufs[buffer];
-	vb_plane = &vb->planes[plane];
 
-	ret = q->mem_ops->mmap(vb_plane->mem_priv, vma);
+	ret = call_memop(q, mmap, vb->planes[plane].mem_priv, vma);
 	if (ret)
 		return ret;
 
