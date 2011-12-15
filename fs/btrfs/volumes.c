@@ -295,6 +295,12 @@ loop_lock:
 			btrfs_requeue_work(&device->work);
 			goto done;
 		}
+		/* unplug every 64 requests just for good measure */
+		if (batch_run % 64 == 0) {
+			blk_finish_plug(&plug);
+			blk_start_plug(&plug);
+			sync_pending = 0;
+		}
 	}
 
 	cond_resched();
