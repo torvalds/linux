@@ -2654,15 +2654,29 @@ static const struct file_operations *stat_fops[] = {
 	[KVM_STAT_VM]   = &vm_stat_fops,
 };
 
-static void kvm_init_debug(void)
+static int kvm_init_debug(void)
 {
+	int r = -EFAULT;
 	struct kvm_stats_debugfs_item *p;
 
 	kvm_debugfs_dir = debugfs_create_dir("kvm", NULL);
-	for (p = debugfs_entries; p->name; ++p)
+	if (kvm_debugfs_dir == NULL)
+		goto out;
+
+	for (p = debugfs_entries; p->name; ++p) {
 		p->dentry = debugfs_create_file(p->name, 0444, kvm_debugfs_dir,
 						(void *)(long)p->offset,
 						stat_fops[p->kind]);
+		if (p->dentry == NULL)
+			goto out_dir;
+	}
+
+	return 0;
+
+out_dir:
+	debugfs_remove_recursive(kvm_debugfs_dir);
+out:
+	return r;
 }
 
 static void kvm_exit_debug(void)
@@ -2806,10 +2820,16 @@ int kvm_init(void *opaque, unsigned vcpu_size, unsigned vcpu_align,
 	kvm_preempt_ops.sched_in = kvm_sched_in;
 	kvm_preempt_ops.sched_out = kvm_sched_out;
 
-	kvm_init_debug();
+	r = kvm_init_debug();
+	if (r) {
+		printk(KERN_ERR "kvm: create debugfs files failed\n");
+		goto out_undebugfs;
+	}
 
 	return 0;
 
+out_undebugfs:
+	unregister_syscore_ops(&kvm_syscore_ops);
 out_unreg:
 	kvm_async_pf_deinit();
 out_free:
