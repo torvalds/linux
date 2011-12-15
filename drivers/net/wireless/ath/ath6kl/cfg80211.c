@@ -461,13 +461,13 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 		}
 	}
 
-	if (sme->ie && (sme->ie_len > 0)) {
-		status = ath6kl_set_assoc_req_ies(vif, sme->ie, sme->ie_len);
-		if (status) {
-			up(&ar->sem);
-			return status;
-		}
-	} else
+	status = ath6kl_set_assoc_req_ies(vif, sme->ie, sme->ie_len);
+	if (status) {
+		up(&ar->sem);
+		return status;
+	}
+
+	if (sme->ie == NULL || sme->ie_len == 0)
 		ar->connect_ctrl_flags &= ~CONNECT_WPS_FLAG;
 
 	if (test_bit(CONNECTED, &vif->flags) &&
