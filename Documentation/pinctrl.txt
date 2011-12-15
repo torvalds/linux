@@ -208,7 +208,7 @@ unconnected.
 
 For example, a platform may do this:
 
-ret = pin_config_set(dev, "FOO_GPIO_PIN", PLATFORM_X_PULL_UP);
+ret = pin_config_set("foo-dev", "FOO_GPIO_PIN", PLATFORM_X_PULL_UP);
 
 To pull up a pin to VDD. The pin configuration driver implements callbacks for
 changing pin configuration in the pin controller ops like this:

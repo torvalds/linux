@@ -39,16 +39,21 @@ int pin_config_get_for_pin(struct pinctrl_dev *pctldev, unsigned pin,
 
 /**
  * pin_config_get() - get the configuration of a single pin parameter
- * @pctldev: pin controller device for this pin
+ * @dev_name: name of the pin controller device for this pin
  * @name: name of the pin to get the config for
  * @config: the config pointed to by this argument will be filled in with the
  *	current pin state, it can be used directly by drivers as a numeral, or
  *	it can be dereferenced to any struct.
  */
-int pin_config_get(struct pinctrl_dev *pctldev, const char *name,
+int pin_config_get(const char *dev_name, const char *name,
 			  unsigned long *config)
 {
+	struct pinctrl_dev *pctldev;
 	int pin;
+
+	pctldev = get_pinctrl_dev_from_dev(NULL, dev_name);
+	if (!pctldev)
+		return -EINVAL;
 
 	pin = pin_get_from_name(pctldev, name);
 	if (pin < 0)
@@ -82,16 +87,21 @@ int pin_config_set_for_pin(struct pinctrl_dev *pctldev, unsigned pin,
 
 /**
  * pin_config_set() - set the configuration of a single pin parameter
- * @pctldev: pin controller device for this pin
+ * @dev_name: name of pin controller device for this pin
  * @name: name of the pin to set the config for
  * @config: the config in this argument will contain the desired pin state, it
  *	can be used directly by drivers as a numeral, or it can be dereferenced
  *	to any struct.
  */
-int pin_config_set(struct pinctrl_dev *pctldev, const char *name,
+int pin_config_set(const char *dev_name, const char *name,
 		   unsigned long config)
 {
+	struct pinctrl_dev *pctldev;
 	int pin;
+
+	pctldev = get_pinctrl_dev_from_dev(NULL, dev_name);
+	if (!pctldev)
+		return -EINVAL;
 
 	pin = pin_get_from_name(pctldev, name);
 	if (pin < 0)
@@ -101,11 +111,17 @@ int pin_config_set(struct pinctrl_dev *pctldev, const char *name,
 }
 EXPORT_SYMBOL(pin_config_set);
 
-int pin_config_group_get(struct pinctrl_dev *pctldev, const char *pin_group,
+int pin_config_group_get(const char *dev_name, const char *pin_group,
 			 unsigned long *config)
 {
-	const struct pinconf_ops *ops = pctldev->desc->confops;
+	struct pinctrl_dev *pctldev;
+	const struct pinconf_ops *ops;
 	int selector;
+
+	pctldev = get_pinctrl_dev_from_dev(NULL, dev_name);
+	if (!pctldev)
+		return -EINVAL;
+	ops = pctldev->desc->confops;
 
 	if (!ops || !ops->pin_config_group_get) {
 		dev_err(pctldev->dev, "cannot get configuration for pin "
@@ -123,16 +139,23 @@ int pin_config_group_get(struct pinctrl_dev *pctldev, const char *pin_group,
 EXPORT_SYMBOL(pin_config_group_get);
 
 
-int pin_config_group_set(struct pinctrl_dev *pctldev, const char *pin_group,
+int pin_config_group_set(const char *dev_name, const char *pin_group,
 			 unsigned long config)
 {
-	const struct pinctrl_ops *pctlops = pctldev->desc->pctlops;
-	const struct pinconf_ops *ops = pctldev->desc->confops;
+	struct pinctrl_dev *pctldev;
+	const struct pinconf_ops *ops;
+	const struct pinctrl_ops *pctlops;
 	int selector;
 	const unsigned *pins;
 	unsigned num_pins;
 	int ret;
 	int i;
+
+	pctldev = get_pinctrl_dev_from_dev(NULL, dev_name);
+	if (!pctldev)
+		return -EINVAL;
+	ops = pctldev->desc->confops;
+	pctlops = pctldev->desc->pctlops;
 
 	if (!ops || (!ops->pin_config_group_set && !ops->pin_config_set)) {
 		dev_err(pctldev->dev, "cannot configure pin group, missing "
