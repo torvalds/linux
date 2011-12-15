@@ -16,6 +16,11 @@ static u32 ibs_caps;
 
 #if defined(CONFIG_PERF_EVENTS) && defined(CONFIG_CPU_SUP_AMD)
 
+#include <linux/kprobes.h>
+#include <linux/hardirq.h>
+
+#include <asm/nmi.h>
+
 #define IBS_FETCH_CONFIG_MASK	(IBS_FETCH_RAND_EN | IBS_FETCH_MAX_CNT)
 #define IBS_OP_CONFIG_MASK	IBS_OP_MAX_CNT
 
@@ -25,6 +30,18 @@ struct perf_ibs {
 	u64		config_mask;
 	u64		cnt_mask;
 	u64		enable_mask;
+	u64		valid_mask;
+	unsigned long	offset_mask[1];
+	int		offset_max;
+};
+
+struct perf_ibs_data {
+	u32		size;
+	union {
+		u32	data[0];	/* data buffer starts here */
+		u32	caps;
+	};
+	u64		regs[MSR_AMD64_IBS_REG_COUNT_MAX];
 };
 
 static struct perf_ibs perf_ibs_fetch;
@@ -101,6 +118,9 @@ static struct perf_ibs perf_ibs_fetch = {
 	.config_mask		= IBS_FETCH_CONFIG_MASK,
 	.cnt_mask		= IBS_FETCH_MAX_CNT,
 	.enable_mask		= IBS_FETCH_ENABLE,
+	.valid_mask		= IBS_FETCH_VAL,
+	.offset_mask		= { MSR_AMD64_IBSFETCH_REG_MASK },
+	.offset_max		= MSR_AMD64_IBSFETCH_REG_COUNT,
 };
 
 static struct perf_ibs perf_ibs_op = {
@@ -115,7 +135,70 @@ static struct perf_ibs perf_ibs_op = {
 	.config_mask		= IBS_OP_CONFIG_MASK,
 	.cnt_mask		= IBS_OP_MAX_CNT,
 	.enable_mask		= IBS_OP_ENABLE,
+	.valid_mask		= IBS_OP_VAL,
+	.offset_mask		= { MSR_AMD64_IBSOP_REG_MASK },
+	.offset_max		= MSR_AMD64_IBSOP_REG_COUNT,
 };
+
+static int perf_ibs_handle_irq(struct perf_ibs *perf_ibs, struct pt_regs *iregs)
+{
+	struct perf_event *event = NULL;
+	struct hw_perf_event *hwc = &event->hw;
+	struct perf_sample_data data;
+	struct perf_raw_record raw;
+	struct pt_regs regs;
+	struct perf_ibs_data ibs_data;
+	int offset, size;
+	unsigned int msr;
+	u64 *buf;
+
+	msr = hwc->config_base;
+	buf = ibs_data.regs;
+	rdmsrl(msr, *buf);
+	if (!(*buf++ & perf_ibs->valid_mask))
+		return 0;
+
+	perf_sample_data_init(&data, 0);
+	if (event->attr.sample_type & PERF_SAMPLE_RAW) {
+		ibs_data.caps = ibs_caps;
+		size = 1;
+		offset = 1;
+		do {
+		    rdmsrl(msr + offset, *buf++);
+		    size++;
+		    offset = find_next_bit(perf_ibs->offset_mask,
+					   perf_ibs->offset_max,
+					   offset + 1);
+		} while (offset < perf_ibs->offset_max);
+		raw.size = sizeof(u32) + sizeof(u64) * size;
+		raw.data = ibs_data.data;
+		data.raw = &raw;
+	}
+
+	regs = *iregs; /* XXX: update ip from ibs sample */
+
+	if (perf_event_overflow(event, &data, &regs))
+		; /* stop */
+	else
+		/* reenable */
+		wrmsrl(hwc->config_base, hwc->config | perf_ibs->enable_mask);
+
+	return 1;
+}
+
+static int __kprobes
+perf_ibs_nmi_handler(unsigned int cmd, struct pt_regs *regs)
+{
+	int handled = 0;
+
+	handled += perf_ibs_handle_irq(&perf_ibs_fetch, regs);
+	handled += perf_ibs_handle_irq(&perf_ibs_op, regs);
+
+	if (handled)
+		inc_irq_stat(apic_perf_irqs);
+
+	return handled;
+}
 
 static __init int perf_event_ibs_init(void)
 {
@@ -124,6 +207,7 @@ static __init int perf_event_ibs_init(void)
 
 	perf_pmu_register(&perf_ibs_fetch.pmu, "ibs_fetch", -1);
 	perf_pmu_register(&perf_ibs_op.pmu, "ibs_op", -1);
+	register_nmi_handler(NMI_LOCAL, &perf_ibs_nmi_handler, 0, "perf_ibs");
 	printk(KERN_INFO "perf: AMD IBS detected (0x%08x)\n", ibs_caps);
 
 	return 0;
