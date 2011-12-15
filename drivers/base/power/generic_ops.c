@@ -97,16 +97,16 @@ int pm_generic_prepare(struct device *dev)
  * @event: PM transition of the system under way.
  * @bool: Whether or not this is the "noirq" stage.
  *
- * If the device has not been suspended at run time, execute the
- * suspend/freeze/poweroff/thaw callback provided by its driver, if defined, and
- * return its error code.  Otherwise, return zero.
+ * Execute the suspend/freeze/poweroff/thaw callback provided by the driver of
+ * @dev, if defined, and return its error code.    Return 0 if the callback is
+ * not present.
  */
 static int __pm_generic_call(struct device *dev, int event, bool noirq)
 {
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 	int (*callback)(struct device *);
 
-	if (!pm || pm_runtime_suspended(dev))
+	if (!pm)
 		return 0;
 
 	switch (event) {
@@ -217,14 +217,12 @@ EXPORT_SYMBOL_GPL(pm_generic_thaw);
  * @bool: Whether or not this is the "noirq" stage.
  *
  * Execute the resume/resotre callback provided by the @dev's driver, if
- * defined.  If it returns 0, change the device's runtime PM status to 'active'.
- * Return the callback's error code.
+ * defined, and return its error code.  Return 0 if the callback is not present.
  */
 static int __pm_generic_resume(struct device *dev, int event, bool noirq)
 {
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 	int (*callback)(struct device *);
-	int ret;
 
 	if (!pm)
 		return 0;
@@ -241,17 +239,7 @@ static int __pm_generic_resume(struct device *dev, int event, bool noirq)
 		break;
 	}
 
-	if (!callback)
-		return 0;
-
-	ret = callback(dev);
-	if (!ret && !noirq && pm_runtime_enabled(dev)) {
-		pm_runtime_disable(dev);
-		pm_runtime_set_active(dev);
-		pm_runtime_enable(dev);
-	}
-
-	return ret;
+	return callback ? callback(dev) : 0;
 }
 
 /**
