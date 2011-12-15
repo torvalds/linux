@@ -43,6 +43,26 @@ rtattr_failure:
 	return -EMSGSIZE;
 }
 
+static int sk_diag_dump_peer(struct sock *sk, struct sk_buff *nlskb)
+{
+	struct sock *peer;
+	int ino;
+
+	peer = unix_peer_get(sk);
+	if (peer) {
+		unix_state_lock(peer);
+		ino = sock_i_ino(peer);
+		unix_state_unlock(peer);
+		sock_put(peer);
+
+		RTA_PUT_U32(nlskb, UNIX_DIAG_PEER, ino);
+	}
+
+	return 0;
+rtattr_failure:
+	return -EMSGSIZE;
+}
+
 static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct unix_diag_req *req,
 		u32 pid, u32 seq, u32 flags, int sk_ino)
 {
@@ -67,6 +87,10 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct unix_diag_r
 
 	if ((req->udiag_show & UDIAG_SHOW_VFS) &&
 			sk_diag_dump_vfs(sk, skb))
+		goto nlmsg_failure;
+
+	if ((req->udiag_show & UDIAG_SHOW_PEER) &&
+			sk_diag_dump_peer(sk, skb))
 		goto nlmsg_failure;
 
 	nlh->nlmsg_len = skb_tail_pointer(skb) - b;

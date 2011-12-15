@@ -13,6 +13,7 @@ struct unix_diag_req {
 
 #define UDIAG_SHOW_NAME		0x00000001	/* show name (not path) */
 #define UDIAG_SHOW_VFS		0x00000002	/* show VFS inode info */
+#define UDIAG_SHOW_PEER		0x00000004	/* show peer socket info */
 
 struct unix_diag_msg {
 	__u8	udiag_family;
@@ -27,6 +28,7 @@ struct unix_diag_msg {
 enum {
 	UNIX_DIAG_NAME,
 	UNIX_DIAG_VFS,
+	UNIX_DIAG_PEER,
 
 	UNIX_DIAG_MAX,
 };
