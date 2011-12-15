@@ -54,7 +54,6 @@ config ACERHDF
 config ASUS_LAPTOP
 	tristate "Asus Laptop Extras"
 	depends on ACPI
-	depends on !ACPI_ASUS
 	select LEDS_CLASS
 	select NEW_LEDS
 	select BACKLIGHT_CLASS_DEVICE
@@ -460,10 +459,9 @@ config INTEL_MENLOW
 	  If unsure, say N.
 
 config EEEPC_LAPTOP
-	tristate "Eee PC Hotkey Driver (EXPERIMENTAL)"
+	tristate "Eee PC Hotkey Driver"
 	depends on ACPI
 	depends on INPUT
-	depends on EXPERIMENTAL
 	depends on RFKILL || RFKILL = n
 	depends on HOTPLUG_PCI
 	select BACKLIGHT_CLASS_DEVICE
@@ -482,11 +480,10 @@ config EEEPC_LAPTOP
 	  doesn't work on your Eee PC, try eeepc-wmi instead.
 
 config ASUS_WMI
-	tristate "ASUS WMI Driver (EXPERIMENTAL)"
+	tristate "ASUS WMI Driver"
 	depends on ACPI_WMI
 	depends on INPUT
 	depends on HWMON
-	depends on EXPERIMENTAL
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on RFKILL || RFKILL = n
 	depends on HOTPLUG_PCI
@@ -501,7 +498,7 @@ config ASUS_WMI
 	  be called asus-wmi.
 
 config ASUS_NB_WMI
-	tristate "Asus Notebook WMI Driver (EXPERIMENTAL)"
+	tristate "Asus Notebook WMI Driver"
 	depends on ASUS_WMI
 	---help---
 	  This is a driver for newer Asus notebooks. It adds extra features
@@ -514,7 +511,7 @@ config ASUS_NB_WMI
 	  here.
 
 config EEEPC_WMI
-	tristate "Eee PC WMI Driver (EXPERIMENTAL)"
+	tristate "Eee PC WMI Driver"
 	depends on ASUS_WMI
 	---help---
 	  This is a driver for newer Eee PC laptops. It adds extra features
@@ -558,38 +555,6 @@ config MSI_WMI
 
 	 To compile this driver as a module, choose M here: the module will
 	 be called msi-wmi.
-
-config ACPI_ASUS
-	tristate "ASUS/Medion Laptop Extras (DEPRECATED)"
-	depends on ACPI
-	select BACKLIGHT_CLASS_DEVICE
-	---help---
-	  This driver provides support for extra features of ACPI-compatible
-	  ASUS laptops. As some of Medion laptops are made by ASUS, it may also
-	  support some Medion laptops (such as 9675 for example).  It makes all
-	  the extra buttons generate standard ACPI events that go through
-	  /proc/acpi/events, and (on some models) adds support for changing the
-	  display brightness and output, switching the LCD backlight on and off,
-	  and most importantly, allows you to blink those fancy LEDs intended
-	  for reporting mail and wireless status.
-
-	  Note: display switching code is currently considered EXPERIMENTAL,
-	  toying with these values may even lock your machine.
-
-	  All settings are changed via /proc/acpi/asus directory entries. Owner
-	  and group for these entries can be set with asus_uid and asus_gid
-	  parameters.
-
-	  More information and a userspace daemon for handling the extra buttons
-	  at <http://acpi4asus.sf.net>.
-
-	  If you have an ACPI-compatible ASUS laptop, say Y or M here. This
-	  driver is still under development, so if your laptop is unsupported or
-	  something works not quite as expected, please use the mailing list
-	  available on the above page (acpi4asus-user@lists.sourceforge.net).
-
-	  NOTE: This driver is deprecated and will probably be removed soon,
-	  use asus-laptop instead.
 
 config TOPSTAR_LAPTOP
 	tristate "Topstar Laptop Extras"
