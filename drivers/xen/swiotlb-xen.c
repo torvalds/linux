@@ -162,7 +162,7 @@ void __init xen_swiotlb_init(int verbose)
 	/*
 	 * Get IO TLB memory from any location.
 	 */
-	xen_io_tlb_start = alloc_bootmem(bytes);
+	xen_io_tlb_start = alloc_bootmem_pages(PAGE_ALIGN(bytes));
 	if (!xen_io_tlb_start)
 		panic("Cannot allocate SWIOTLB buffer");
 
