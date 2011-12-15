@@ -4982,6 +4982,48 @@ static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
 	return display_bpc != bpc;
 }
 
+static int i9xx_get_refclk(struct drm_crtc *crtc, int num_connectors)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int refclk;
+
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) &&
+	    intel_panel_use_ssc(dev_priv) && num_connectors < 2) {
+		refclk = dev_priv->lvds_ssc_freq * 1000;
+		DRM_DEBUG_KMS("using SSC reference clock of %d MHz\n",
+			      refclk / 1000);
+	} else if (!IS_GEN2(dev)) {
+		refclk = 96000;
+	} else {
+		refclk = 48000;
+	}
+
+	return refclk;
+}
+
+static void i9xx_adjust_sdvo_tv_clock(struct drm_display_mode *adjusted_mode,
+				      intel_clock_t *clock)
+{
+	/* SDVO TV has fixed PLL values depend on its clock range,
+	   this mirrors vbios setting. */
+	if (adjusted_mode->clock >= 100000
+	    && adjusted_mode->clock < 140500) {
+		clock->p1 = 2;
+		clock->p2 = 10;
+		clock->n = 3;
+		clock->m1 = 16;
+		clock->m2 = 8;
+	} else if (adjusted_mode->clock >= 140500
+		   && adjusted_mode->clock <= 200000) {
+		clock->p1 = 1;
+		clock->p2 = 10;
+		clock->n = 6;
+		clock->m1 = 12;
+		clock->m2 = 8;
+	}
+}
+
 static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 			      struct drm_display_mode *mode,
 			      struct drm_display_mode *adjusted_mode,
@@ -5036,15 +5078,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 		num_connectors++;
 	}
 
-	if (is_lvds && intel_panel_use_ssc(dev_priv) && num_connectors < 2) {
-		refclk = dev_priv->lvds_ssc_freq * 1000;
-		DRM_DEBUG_KMS("using SSC reference clock of %d MHz\n",
-			      refclk / 1000);
-	} else if (!IS_GEN2(dev)) {
-		refclk = 96000;
-	} else {
-		refclk = 48000;
-	}
+	refclk = i9xx_get_refclk(crtc, num_connectors);
 
 	/*
 	 * Returns a set of divisors for the desired target clock with the given
@@ -5075,25 +5109,9 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 						    &clock,
 						    &reduced_clock);
 	}
-	/* SDVO TV has fixed PLL values depend on its clock range,
-	   this mirrors vbios setting. */
-	if (is_sdvo && is_tv) {
-		if (adjusted_mode->clock >= 100000
-		    && adjusted_mode->clock < 140500) {
-			clock.p1 = 2;
-			clock.p2 = 10;
-			clock.n = 3;
-			clock.m1 = 16;
-			clock.m2 = 8;
-		} else if (adjusted_mode->clock >= 140500
-			   && adjusted_mode->clock <= 200000) {
-			clock.p1 = 1;
-			clock.p2 = 10;
-			clock.n = 6;
-			clock.m1 = 12;
-			clock.m2 = 8;
-		}
-	}
+
+	if (is_sdvo && is_tv)
+		i9xx_adjust_sdvo_tv_clock(adjusted_mode, &clock);
 
 	if (IS_PINEVIEW(dev)) {
 		fp = (1 << clock.n) << 16 | clock.m1 << 8 | clock.m2;
