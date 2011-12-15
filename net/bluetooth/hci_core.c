@@ -2050,7 +2050,10 @@ static inline struct hci_conn *hci_low_sent(struct hci_dev *hdev, __u8 type, int
 
 	/* We don't have to lock device here. Connections are always
 	 * added and removed with TX task disabled. */
-	list_for_each_entry(c, &h->list, list) {
+
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(c, &h->list, list) {
 		if (c->type != type || skb_queue_empty(&c->data_q))
 			continue;
 
@@ -2067,6 +2070,8 @@ static inline struct hci_conn *hci_low_sent(struct hci_dev *hdev, __u8 type, int
 		if (hci_conn_num(hdev, type) == num)
 			break;
 	}
+
+	rcu_read_unlock();
 
 	if (conn) {
 		int cnt, q;
@@ -2103,14 +2108,18 @@ static inline void hci_link_tx_to(struct hci_dev *hdev, __u8 type)
 
 	BT_ERR("%s link tx timeout", hdev->name);
 
+	rcu_read_lock();
+
 	/* Kill stalled connections */
-	list_for_each_entry(c, &h->list, list) {
+	list_for_each_entry_rcu(c, &h->list, list) {
 		if (c->type == type && c->sent) {
 			BT_ERR("%s killing stalled connection %s",
 				hdev->name, batostr(&c->dst));
 			hci_acl_disconn(c, 0x13);
 		}
 	}
+
+	rcu_read_unlock();
 }
 
 static inline struct hci_chan *hci_chan_sent(struct hci_dev *hdev, __u8 type,
@@ -2124,7 +2133,9 @@ static inline struct hci_chan *hci_chan_sent(struct hci_dev *hdev, __u8 type,
 
 	BT_DBG("%s", hdev->name);
 
-	list_for_each_entry(conn, &h->list, list) {
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(conn, &h->list, list) {
 		struct hci_chan *tmp;
 
 		if (conn->type != type)
@@ -2134,8 +2145,6 @@ static inline struct hci_chan *hci_chan_sent(struct hci_dev *hdev, __u8 type,
 			continue;
 
 		conn_num++;
-
-		rcu_read_lock();
 
 		list_for_each_entry_rcu(tmp, &conn->chan_list, list) {
 			struct sk_buff *skb;
@@ -2161,11 +2170,11 @@ static inline struct hci_chan *hci_chan_sent(struct hci_dev *hdev, __u8 type,
 			}
 		}
 
-		rcu_read_unlock();
-
 		if (hci_conn_num(hdev, type) == conn_num)
 			break;
 	}
+
+	rcu_read_unlock();
 
 	if (!chan)
 		return NULL;
@@ -2200,7 +2209,9 @@ static void hci_prio_recalculate(struct hci_dev *hdev, __u8 type)
 
 	BT_DBG("%s", hdev->name);
 
-	list_for_each_entry(conn, &h->list, list) {
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(conn, &h->list, list) {
 		struct hci_chan *chan;
 
 		if (conn->type != type)
@@ -2210,8 +2221,6 @@ static void hci_prio_recalculate(struct hci_dev *hdev, __u8 type)
 			continue;
 
 		num++;
-
-		rcu_read_lock();
 
 		list_for_each_entry_rcu(chan, &conn->chan_list, list) {
 			struct sk_buff *skb;
@@ -2234,11 +2243,12 @@ static void hci_prio_recalculate(struct hci_dev *hdev, __u8 type)
 								skb->priority);
 		}
 
-		rcu_read_unlock();
-
 		if (hci_conn_num(hdev, type) == num)
 			break;
 	}
+
+	rcu_read_unlock();
+
 }
 
 static inline void hci_sched_acl(struct hci_dev *hdev)

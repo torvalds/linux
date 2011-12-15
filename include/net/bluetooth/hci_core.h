@@ -392,7 +392,7 @@ static inline void hci_conn_hash_init(struct hci_dev *hdev)
 static inline void hci_conn_hash_add(struct hci_dev *hdev, struct hci_conn *c)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
-	list_add(&c->list, &h->list);
+	list_add_rcu(&c->list, &h->list);
 	switch (c->type) {
 	case ACL_LINK:
 		h->acl_num++;
@@ -410,7 +410,10 @@ static inline void hci_conn_hash_add(struct hci_dev *hdev, struct hci_conn *c)
 static inline void hci_conn_hash_del(struct hci_dev *hdev, struct hci_conn *c)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
-	list_del(&c->list);
+
+	list_del_rcu(&c->list);
+	synchronize_rcu();
+
 	switch (c->type) {
 	case ACL_LINK:
 		h->acl_num--;
@@ -445,14 +448,18 @@ static inline struct hci_conn *hci_conn_hash_lookup_handle(struct hci_dev *hdev,
 								__u16 handle)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
-	struct list_head *p;
 	struct hci_conn  *c;
 
-	list_for_each(p, &h->list) {
-		c = list_entry(p, struct hci_conn, list);
-		if (c->handle == handle)
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(c, &h->list, list) {
+		if (c->handle == handle) {
+			rcu_read_unlock();
 			return c;
+		}
 	}
+	rcu_read_unlock();
+
 	return NULL;
 }
 
@@ -460,14 +467,19 @@ static inline struct hci_conn *hci_conn_hash_lookup_ba(struct hci_dev *hdev,
 							__u8 type, bdaddr_t *ba)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
-	struct list_head *p;
 	struct hci_conn  *c;
 
-	list_for_each(p, &h->list) {
-		c = list_entry(p, struct hci_conn, list);
-		if (c->type == type && !bacmp(&c->dst, ba))
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(c, &h->list, list) {
+		if (c->type == type && !bacmp(&c->dst, ba)) {
+			rcu_read_unlock();
 			return c;
+		}
 	}
+
+	rcu_read_unlock();
+
 	return NULL;
 }
 
@@ -475,14 +487,19 @@ static inline struct hci_conn *hci_conn_hash_lookup_state(struct hci_dev *hdev,
 							__u8 type, __u16 state)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
-	struct list_head *p;
 	struct hci_conn  *c;
 
-	list_for_each(p, &h->list) {
-		c = list_entry(p, struct hci_conn, list);
-		if (c->type == type && c->state == state)
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(c, &h->list, list) {
+		if (c->type == type && c->state == state) {
+			rcu_read_unlock();
 			return c;
+		}
 	}
+
+	rcu_read_unlock();
+
 	return NULL;
 }
 
