@@ -631,6 +631,17 @@ struct ivtv {
 
 	struct v4l2_device v4l2_dev;
 	struct cx2341x_handler cxhdl;
+	struct {
+		/* PTS/Frame count control cluster */
+		struct v4l2_ctrl *ctrl_pts;
+		struct v4l2_ctrl *ctrl_frame;
+	};
+	struct {
+		/* Audio Playback control cluster */
+		struct v4l2_ctrl *ctrl_audio_playback;
+		struct v4l2_ctrl *ctrl_audio_multilingual_playback;
+	};
+	struct v4l2_ctrl_handler hdl_out;
 	struct v4l2_ctrl_handler hdl_gpio;
 	struct v4l2_subdev sd_gpio;	/* GPIO sub-device */
 	u16 instance;
@@ -649,7 +660,6 @@ struct ivtv {
 	v4l2_std_id std_out;            /* current TV output standard */
 	u8 audio_stereo_mode;           /* decoder setting how to handle stereo MPEG audio */
 	u8 audio_bilingual_mode;        /* decoder setting how to handle bilingual MPEG audio */
-
 
 	/* Locking */
 	spinlock_t lock;                /* lock access to this struct */

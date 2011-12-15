@@ -1510,13 +1510,6 @@ static int ivtv_log_status(struct file *file, void *fh)
 			"YUV Frames",
 			"Passthrough",
 		};
-		static const char * const audio_modes[5] = {
-			"Stereo",
-			"Left",
-			"Right",
-			"Mono",
-			"Swapped"
-		};
 		static const char * const alpha_mode[4] = {
 			"None",
 			"Global",
@@ -1545,9 +1538,6 @@ static int ivtv_log_status(struct file *file, void *fh)
 		ivtv_get_output(itv, itv->active_output, &vidout);
 		ivtv_get_audio_output(itv, 0, &audout);
 		IVTV_INFO("Video Output: %s\n", vidout.name);
-		IVTV_INFO("Audio Output: %s (Stereo/Bilingual: %s/%s)\n", audout.name,
-			audio_modes[itv->audio_stereo_mode],
-			audio_modes[itv->audio_bilingual_mode]);
 		if (mode < 0 || mode > OUT_PASSTHROUGH)
 			mode = OUT_NONE;
 		IVTV_INFO("Output Mode:  %s\n", output_modes[mode]);
@@ -1560,7 +1550,10 @@ static int ivtv_log_status(struct file *file, void *fh)
 	}
 	IVTV_INFO("Tuner:  %s\n",
 		test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags) ? "Radio" : "TV");
-	v4l2_ctrl_handler_log_status(&itv->cxhdl.hdl, itv->v4l2_dev.name);
+	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT)
+		v4l2_ctrl_handler_log_status(&itv->hdl_out, itv->v4l2_dev.name);
+	else
+		v4l2_ctrl_handler_log_status(&itv->cxhdl.hdl, itv->v4l2_dev.name);
 	IVTV_INFO("Status flags:    0x%08lx\n", itv->i_flags);
 	for (i = 0; i < IVTV_MAX_STREAMS; i++) {
 		struct ivtv_stream *s = &itv->streams[i];
@@ -1633,8 +1626,8 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 	}
 
 	case VIDEO_GET_PTS: {
-		u32 data[CX2341X_MBOX_MAX_DATA];
-		u64 *pts = arg;
+		s64 *pts = arg;
+		s64 frame;
 
 		IVTV_DEBUG_IOCTL("VIDEO_GET_PTS\n");
 		if (s->type < IVTV_DEC_STREAM_TYPE_MPG) {
@@ -1643,29 +1636,12 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 		}
 		if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT))
 			return -EINVAL;
-
-		if (test_bit(IVTV_F_I_VALID_DEC_TIMINGS, &itv->i_flags)) {
-			*pts = (u64) ((u64)itv->last_dec_timing[2] << 32) |
-					(u64)itv->last_dec_timing[1];
-			break;
-		}
-		*pts = 0;
-		if (atomic_read(&itv->decoding)) {
-			if (ivtv_api(itv, CX2341X_DEC_GET_TIMING_INFO, 5, data)) {
-				IVTV_DEBUG_WARN("GET_TIMING: couldn't read clock\n");
-				return -EIO;
-			}
-			memcpy(itv->last_dec_timing, data, sizeof(itv->last_dec_timing));
-			set_bit(IVTV_F_I_VALID_DEC_TIMINGS, &itv->i_flags);
-			*pts = (u64) ((u64) data[2] << 32) | (u64) data[1];
-			/*timing->scr = (u64) (((u64) data[4] << 32) | (u64) (data[3]));*/
-		}
-		break;
+		return ivtv_g_pts_frame(itv, pts, &frame);
 	}
 
 	case VIDEO_GET_FRAME_COUNT: {
-		u32 data[CX2341X_MBOX_MAX_DATA];
-		u64 *frame = arg;
+		s64 *frame = arg;
+		s64 pts;
 
 		IVTV_DEBUG_IOCTL("VIDEO_GET_FRAME_COUNT\n");
 		if (s->type < IVTV_DEC_STREAM_TYPE_MPG) {
@@ -1674,22 +1650,7 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 		}
 		if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT))
 			return -EINVAL;
-
-		if (test_bit(IVTV_F_I_VALID_DEC_TIMINGS, &itv->i_flags)) {
-			*frame = itv->last_dec_timing[0];
-			break;
-		}
-		*frame = 0;
-		if (atomic_read(&itv->decoding)) {
-			if (ivtv_api(itv, CX2341X_DEC_GET_TIMING_INFO, 5, data)) {
-				IVTV_DEBUG_WARN("GET_TIMING: couldn't read clock\n");
-				return -EIO;
-			}
-			memcpy(itv->last_dec_timing, data, sizeof(itv->last_dec_timing));
-			set_bit(IVTV_F_I_VALID_DEC_TIMINGS, &itv->i_flags);
-			*frame = data[0];
-		}
-		break;
+		return ivtv_g_pts_frame(itv, &pts, frame);
 	}
 
 	case VIDEO_PLAY: {
@@ -1804,17 +1765,13 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 		IVTV_DEBUG_IOCTL("AUDIO_CHANNEL_SELECT\n");
 		if (iarg > AUDIO_STEREO_SWAPPED)
 			return -EINVAL;
-		itv->audio_stereo_mode = iarg;
-		ivtv_vapi(itv, CX2341X_DEC_SET_AUDIO_MODE, 2, itv->audio_bilingual_mode, itv->audio_stereo_mode);
-		return 0;
+		return v4l2_ctrl_s_ctrl(itv->ctrl_audio_playback, iarg);
 
 	case AUDIO_BILINGUAL_CHANNEL_SELECT:
 		IVTV_DEBUG_IOCTL("AUDIO_BILINGUAL_CHANNEL_SELECT\n");
 		if (iarg > AUDIO_STEREO_SWAPPED)
 			return -EINVAL;
-		itv->audio_bilingual_mode = iarg;
-		ivtv_vapi(itv, CX2341X_DEC_SET_AUDIO_MODE, 2, itv->audio_bilingual_mode, itv->audio_stereo_mode);
-		return 0;
+		return v4l2_ctrl_s_ctrl(itv->ctrl_audio_multilingual_playback, iarg);
 
 	default:
 		return -EINVAL;

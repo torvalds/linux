@@ -223,7 +223,10 @@ static int ivtv_prep_dev(struct ivtv *itv, int type)
 
 	s->vdev->num = num;
 	s->vdev->v4l2_dev = &itv->v4l2_dev;
-	s->vdev->ctrl_handler = itv->v4l2_dev.ctrl_handler;
+	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT)
+		s->vdev->ctrl_handler = &itv->hdl_out;
+	else
+		s->vdev->ctrl_handler = itv->v4l2_dev.ctrl_handler;
 	s->vdev->fops = ivtv_stream_info[type].fops;
 	s->vdev->release = video_device_release;
 	s->vdev->tvnorms = V4L2_STD_ALL;

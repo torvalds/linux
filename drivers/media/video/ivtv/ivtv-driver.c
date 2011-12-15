@@ -744,8 +744,6 @@ static int __devinit ivtv_init_struct1(struct ivtv *itv)
 
 	itv->cur_dma_stream = -1;
 	itv->cur_pio_stream = -1;
-	itv->audio_stereo_mode = AUDIO_STEREO;
-	itv->audio_bilingual_mode = AUDIO_MONO_LEFT;
 
 	/* Ctrls */
 	itv->speed = 1000;
@@ -1200,6 +1198,32 @@ static int __devinit ivtv_probe(struct pci_dev *pdev,
 	itv->tuner_std = itv->std;
 
 	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT) {
+		v4l2_ctrl_handler_init(&itv->hdl_out, 50);
+		itv->ctrl_pts = v4l2_ctrl_new_std(&itv->hdl_out, &ivtv_hdl_out_ops,
+				V4L2_CID_MPEG_VIDEO_DEC_PTS, 0, 0, 1, 0);
+		itv->ctrl_frame = v4l2_ctrl_new_std(&itv->hdl_out, &ivtv_hdl_out_ops,
+				V4L2_CID_MPEG_VIDEO_DEC_FRAME, 0, 0x7fffffff, 1, 0);
+		/* Note: V4L2_MPEG_AUDIO_DEC_PLAYBACK_AUTO is not supported,
+		   mask that menu item. */
+		itv->ctrl_audio_playback =
+			v4l2_ctrl_new_std_menu(&itv->hdl_out, &ivtv_hdl_out_ops,
+				V4L2_CID_MPEG_AUDIO_DEC_PLAYBACK,
+				V4L2_MPEG_AUDIO_DEC_PLAYBACK_SWAPPED_STEREO,
+				1 << V4L2_MPEG_AUDIO_DEC_PLAYBACK_AUTO,
+				V4L2_MPEG_AUDIO_DEC_PLAYBACK_STEREO);
+		itv->ctrl_audio_multilingual_playback =
+			v4l2_ctrl_new_std_menu(&itv->hdl_out, &ivtv_hdl_out_ops,
+				V4L2_CID_MPEG_AUDIO_DEC_MULTILINGUAL_PLAYBACK,
+				V4L2_MPEG_AUDIO_DEC_PLAYBACK_SWAPPED_STEREO,
+				1 << V4L2_MPEG_AUDIO_DEC_PLAYBACK_AUTO,
+				V4L2_MPEG_AUDIO_DEC_PLAYBACK_LEFT);
+		v4l2_ctrl_add_handler(&itv->hdl_out, &itv->cxhdl.hdl);
+		if (itv->hdl_out.error) {
+			retval = itv->hdl_out.error;
+			goto free_i2c;
+		}
+		v4l2_ctrl_cluster(2, &itv->ctrl_pts);
+		v4l2_ctrl_cluster(2, &itv->ctrl_audio_playback);
 		ivtv_call_all(itv, video, s_std_output, itv->std);
 		/* Turn off the output signal. The mpeg decoder is not yet
 		   active so without this you would get a green image until the
@@ -1236,6 +1260,9 @@ free_streams:
 free_irq:
 	free_irq(itv->pdev->irq, (void *)itv);
 free_i2c:
+	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT)
+		v4l2_ctrl_handler_free(&itv->hdl_out);
+	v4l2_ctrl_handler_free(&itv->cxhdl.hdl);
 	exit_ivtv_i2c(itv);
 free_io:
 	ivtv_iounmap(itv);
@@ -1390,6 +1417,10 @@ static void ivtv_remove(struct pci_dev *pdev)
 
 	ivtv_streams_cleanup(itv, 1);
 	ivtv_udma_free(itv);
+
+	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT)
+		v4l2_ctrl_handler_free(&itv->hdl_out);
+	v4l2_ctrl_handler_free(&itv->cxhdl.hdl);
 
 	exit_ivtv_i2c(itv);
 
