@@ -160,12 +160,12 @@ static const struct unwind_idx *unwind_find_origin(
 		const struct unwind_idx *start, const struct unwind_idx *stop)
 {
 	pr_debug("%s(%p, %p)\n", __func__, start, stop);
-	while (start < stop - 1) {
+	while (start < stop) {
 		const struct unwind_idx *mid = start + ((stop - start) >> 1);
 
 		if (mid->addr_offset >= 0x40000000)
 			/* negative offset */
-			start = mid;
+			start = mid + 1;
 		else
 			/* positive offset */
 			stop = mid;
