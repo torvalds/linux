@@ -13,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
 #include <linux/ata_platform.h>
+#include <linux/clk-provider.h>
 #include <linux/ethtool.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
@@ -103,24 +104,24 @@ static void get_pclk_l2clk(int hclk, int core_index, int *pclk, int *l2clk)
 
 static int get_tclk(void)
 {
-	int tclk;
+	int tclk_freq;
 
 	/*
 	 * TCLK tick rate is configured by DEV_A[2:0] strap pins.
 	 */
 	switch ((readl(SAMPLE_AT_RESET_HIGH) >> 6) & 7) {
 	case 1:
-		tclk = 166666667;
+		tclk_freq = 166666667;
 		break;
 	case 3:
-		tclk = 200000000;
+		tclk_freq = 200000000;
 		break;
 	default:
 		panic("unknown TCLK PLL setting: %.8x\n",
 			readl(SAMPLE_AT_RESET_HIGH));
 	}
 
-	return tclk;
+	return tclk_freq;
 }
 
 
@@ -164,6 +165,17 @@ void __init mv78xx0_map_io(void)
 	iotable_init(mv78xx0_io_desc, ARRAY_SIZE(mv78xx0_io_desc));
 }
 
+
+/*****************************************************************************
+ * CLK tree
+ ****************************************************************************/
+static struct clk *tclk;
+
+static void __init clk_init(void)
+{
+	tclk = clk_register_fixed_rate(NULL, "tclk", NULL, CLK_IS_ROOT,
+				       get_tclk());
+}
 
 /*****************************************************************************
  * EHCI
@@ -378,25 +390,26 @@ void __init mv78xx0_init(void)
 	int hclk;
 	int pclk;
 	int l2clk;
-	int tclk;
 
 	core_index = mv78xx0_core_index();
 	hclk = get_hclk();
 	get_pclk_l2clk(hclk, core_index, &pclk, &l2clk);
-	tclk = get_tclk();
 
 	printk(KERN_INFO "%s ", mv78xx0_id());
 	printk("core #%d, ", core_index);
 	printk("PCLK = %dMHz, ", (pclk + 499999) / 1000000);
 	printk("L2 = %dMHz, ", (l2clk + 499999) / 1000000);
 	printk("HCLK = %dMHz, ", (hclk + 499999) / 1000000);
-	printk("TCLK = %dMHz\n", (tclk + 499999) / 1000000);
+	printk("TCLK = %dMHz\n", (get_tclk() + 499999) / 1000000);
 
 	mv78xx0_setup_cpu_mbus();
 
 #ifdef CONFIG_CACHE_FEROCEON_L2
 	feroceon_l2_init(is_l2_writethrough());
 #endif
+
+	/* Setup root of clk tree */
+	clk_init();
 }
 
 void mv78xx0_restart(char mode, const char *cmd)

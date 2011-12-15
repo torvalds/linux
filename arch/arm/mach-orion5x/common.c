@@ -18,6 +18,7 @@
 #include <linux/mv643xx_i2c.h>
 #include <linux/ata_platform.h>
 #include <linux/delay.h>
+#include <linux/clk-provider.h>
 #include <net/dsa.h>
 #include <asm/page.h>
 #include <asm/setup.h>
@@ -68,6 +69,17 @@ void __init orion5x_map_io(void)
 	iotable_init(orion5x_io_desc, ARRAY_SIZE(orion5x_io_desc));
 }
 
+
+/*****************************************************************************
+ * CLK tree
+ ****************************************************************************/
+static struct clk *tclk;
+
+static void __init clk_init(void)
+{
+	tclk = clk_register_fixed_rate(NULL, "tclk", NULL, CLK_IS_ROOT,
+				       orion5x_tclk);
+}
 
 /*****************************************************************************
  * EHCI0
@@ -275,6 +287,9 @@ void __init orion5x_init(void)
 	 * Setup Orion address map
 	 */
 	orion5x_setup_cpu_mbus_bridge();
+
+	/* Setup root of clk tree */
+	clk_init();
 
 	/*
 	 * Don't issue "Wait for Interrupt" instruction if we are

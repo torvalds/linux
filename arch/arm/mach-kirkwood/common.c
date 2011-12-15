@@ -15,6 +15,8 @@
 #include <linux/ata_platform.h>
 #include <linux/mtd/nand.h>
 #include <linux/dma-mapping.h>
+#include <linux/clk-provider.h>
+#include <linux/spinlock.h>
 #include <net/dsa.h>
 #include <asm/page.h>
 #include <asm/timex.h>
@@ -31,6 +33,7 @@
 #include <plat/common.h>
 #include <plat/time.h>
 #include <plat/addr-map.h>
+#include <plat/mv_xor.h>
 #include "common.h"
 
 /*****************************************************************************
@@ -67,6 +70,41 @@ void __init kirkwood_map_io(void)
  */
 unsigned int kirkwood_clk_ctrl = CGC_DUNIT | CGC_RESERVED;
 
+
+/*****************************************************************************
+ * CLK tree
+ ****************************************************************************/
+static DEFINE_SPINLOCK(gating_lock);
+static struct clk *tclk;
+
+static struct clk __init *kirkwood_register_gate(const char *name, u8 bit_idx)
+{
+	return clk_register_gate(NULL, name, "tclk", CLK_IGNORE_UNUSED,
+				 (void __iomem *)CLOCK_GATING_CTRL,
+				 bit_idx, 0, &gating_lock);
+}
+
+void __init kirkwood_clk_init(void)
+{
+	tclk = clk_register_fixed_rate(NULL, "tclk", NULL,
+				       CLK_IS_ROOT, kirkwood_tclk);
+
+	kirkwood_register_gate("runit",  CGC_BIT_RUNIT);
+	kirkwood_register_gate("ge0",    CGC_BIT_GE0);
+	kirkwood_register_gate("ge1",    CGC_BIT_GE1);
+	kirkwood_register_gate("sata0",  CGC_BIT_SATA0);
+	kirkwood_register_gate("sata1",  CGC_BIT_SATA1);
+	kirkwood_register_gate("usb0",   CGC_BIT_USB0);
+	kirkwood_register_gate("sdio",   CGC_BIT_SDIO);
+	kirkwood_register_gate("crypto", CGC_BIT_CRYPTO);
+	kirkwood_register_gate("xor0",   CGC_BIT_XOR0);
+	kirkwood_register_gate("xor1",   CGC_BIT_XOR1);
+	kirkwood_register_gate("pex0",   CGC_BIT_PEX0);
+	kirkwood_register_gate("pex1",   CGC_BIT_PEX1);
+	kirkwood_register_gate("audio",  CGC_BIT_AUDIO);
+	kirkwood_register_gate("tdm",    CGC_BIT_TDM);
+	kirkwood_register_gate("tsu",    CGC_BIT_TSU);
+}
 
 /*****************************************************************************
  * EHCI0
@@ -464,6 +502,9 @@ void __init kirkwood_init(void)
 #ifdef CONFIG_CACHE_FEROCEON_L2
 	kirkwood_l2_init();
 #endif
+
+	/* Setup root of clk tree */
+	kirkwood_clk_init();
 
 	/* internal devices that every board has */
 	kirkwood_rtc_init();

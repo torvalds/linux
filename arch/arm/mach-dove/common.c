@@ -13,7 +13,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/pci.h>
-#include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/ata_platform.h>
 #include <linux/gpio.h>
 #include <asm/page.h>
@@ -65,6 +65,17 @@ static struct map_desc dove_io_desc[] __initdata = {
 void __init dove_map_io(void)
 {
 	iotable_init(dove_io_desc, ARRAY_SIZE(dove_io_desc));
+}
+
+/*****************************************************************************
+ * CLK tree
+ ****************************************************************************/
+static struct clk *tclk;
+
+static void __init clk_init(void)
+{
+	tclk = clk_register_fixed_rate(NULL, "tclk", NULL, CLK_IS_ROOT,
+				       get_tclk());
 }
 
 /*****************************************************************************
@@ -272,17 +283,16 @@ void __init dove_sdio1_init(void)
 
 void __init dove_init(void)
 {
-	int tclk;
-
-	tclk = get_tclk();
-
 	printk(KERN_INFO "Dove 88AP510 SoC, ");
-	printk(KERN_INFO "TCLK = %dMHz\n", (tclk + 499999) / 1000000);
+	printk(KERN_INFO "TCLK = %dMHz\n", (get_tclk() + 499999) / 1000000);
 
 #ifdef CONFIG_CACHE_TAUROS2
 	tauros2_init();
 #endif
 	dove_setup_cpu_mbus();
+
+	/* Setup root of clk tree */
+	clk_init();
 
 	/* internal devices that every board has */
 	dove_rtc_init();
