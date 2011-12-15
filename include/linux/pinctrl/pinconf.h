@@ -15,6 +15,7 @@
 #ifdef CONFIG_PINCONF
 
 struct pinctrl_dev;
+struct seq_file;
 
 /**
  * struct pinconf_ops - pin config operations, to be implemented by
