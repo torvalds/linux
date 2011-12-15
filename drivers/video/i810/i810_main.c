@@ -147,7 +147,7 @@ static int vyres      __devinitdata;
 static int sync       __devinitdata;
 static int extvga     __devinitdata;
 static int dcolor     __devinitdata;
-static int ddc3       __devinitdata = 2;
+static bool ddc3      __devinitdata;
 
 /*------------------------------------------------------------*/
 
@@ -1776,7 +1776,7 @@ static void __devinit i810_init_defaults(struct i810fb_par *par,
 	if (sync) 
 		par->dev_flags |= ALWAYS_SYNC;
 
-	par->ddc_num = ddc3;
+	par->ddc_num = (ddc3 ? 3 : 2);
 
 	if (bpp < 8)
 		bpp = 8;
@@ -1999,7 +1999,7 @@ static int __devinit i810fb_setup(char *options)
 		else if (!strncmp(this_opt, "dcolor", 6))
 			dcolor = 1;
 		else if (!strncmp(this_opt, "ddc3", 4))
-			ddc3 = 3;
+			ddc3 = true;
 		else
 			mode_option = this_opt;
 	}
