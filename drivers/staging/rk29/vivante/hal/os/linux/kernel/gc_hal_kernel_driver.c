@@ -94,7 +94,8 @@ module_param(coreClock, ulong, 0644);
 uint gpu_dmask = D_ERROR;
 module_param(gpu_dmask, uint, 0644);
 
-unsigned int regAddress = 0;
+uint gpuState = 0;
+uint regAddress = 0;
 
 // gcdkREPORT_VIDMEM_USAGE add by vv
 #if gcdkREPORT_VIDMEM_USAGE
@@ -1413,6 +1414,15 @@ struct RegDefine reg_def[] =
 static int proc_gpu_show(struct seq_file *s, void *v)
 {
     int i = 0;
+
+    switch(gpuState) {
+        case gcvPOWER_ON:       seq_printf(s, "gpu state: POWER_ON\n");         break;
+        case gcvPOWER_OFF:      seq_printf(s, "gpu state: POWER_OFF\n");        break;
+        case gcvPOWER_IDLE:     seq_printf(s, "gpu state: POWER_IDLE\n");       break;
+        case gcvPOWER_SUSPEND:  seq_printf(s, "gpu state: POWER_SUSPEND\n");    break;
+        default:                seq_printf(s, "gpu state: %d\n", gpuState);     break;
+    }
+    
     seq_printf(s, "gpu regs:\n");
 
     for(i=0; i<sizeof(reg_def)/sizeof(struct RegDefine); i++) {
