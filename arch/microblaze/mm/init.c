@@ -58,11 +58,7 @@ static void __init paging_init(void)
 	/* Clean every zones */
 	memset(zones_size, 0, sizeof(zones_size));
 
-	/*
-	 * old: we can DMA to/from any address.put all page into ZONE_DMA
-	 * We use only ZONE_NORMAL
-	 */
-	zones_size[ZONE_NORMAL] = max_mapnr;
+	zones_size[ZONE_DMA] = max_mapnr;
 
 	free_area_init(zones_size);
 }

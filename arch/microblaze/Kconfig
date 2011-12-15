@@ -27,6 +27,9 @@ config SWAP
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
 
+config ZONE_DMA
+	def_bool y
+
 config RWSEM_XCHGADD_ALGORITHM
 	bool
 
