@@ -999,11 +999,15 @@ cntrlEnd:
 	}
 
 	case IOCTL_BCM_GET_DRIVER_VERSION: {
+		ulong len;
+
 		/* Copy Ioctl Buffer structure */
 		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
 			return -EFAULT;
 
-		if (copy_to_user(IoBuffer.OutputBuffer, VER_FILEVERSION_STR, IoBuffer.OutputLength))
+		len = min_t(ulong, IoBuffer.OutputLength, strlen(VER_FILEVERSION_STR) + 1);
+
+		if (copy_to_user(IoBuffer.OutputBuffer, VER_FILEVERSION_STR, len))
 			return -EFAULT;
 		Status = STATUS_SUCCESS;
 		break;
