@@ -1361,14 +1361,16 @@ static int asus_rfkill_init(struct asus_laptop *asus)
 		goto exit;
 
 
-	if (asus->wled_type == TYPE_RFKILL)
+	if (!acpi_check_handle(asus->handle, METHOD_WLAN, NULL) &&
+	    asus->wled_type == TYPE_RFKILL)
 		result = asus_rfkill_setup(asus, &asus->wlan, "asus-wlan",
 					   WL_RSTS, RFKILL_TYPE_WLAN,
 					   &asus_rfkill_ops);
 	if (result)
 		goto exit;
 
-	if (asus->bled_type == TYPE_RFKILL)
+	if (!acpi_check_handle(asus->handle, METHOD_BLUETOOTH, NULL) &&
+	    asus->bled_type == TYPE_RFKILL)
 		result = asus_rfkill_setup(asus, &asus->bluetooth,
 					   "asus-bluetooth", BT_RSTS,
 					   RFKILL_TYPE_BLUETOOTH,
