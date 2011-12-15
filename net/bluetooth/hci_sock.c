@@ -538,7 +538,7 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 			tasklet_schedule(&hdev->tx_task);
 		} else {
 			skb_queue_tail(&hdev->cmd_q, skb);
-			tasklet_schedule(&hdev->cmd_task);
+			queue_work(hdev->workqueue, &hdev->cmd_work);
 		}
 	} else {
 		if (!capable(CAP_NET_RAW)) {

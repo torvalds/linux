@@ -57,7 +57,7 @@
 int enable_hs;
 
 static void hci_rx_work(struct work_struct *work);
-static void hci_cmd_task(unsigned long arg);
+static void hci_cmd_work(struct work_struct *work);
 static void hci_tx_task(unsigned long arg);
 
 static DEFINE_MUTEX(hci_task_lock);
@@ -209,7 +209,7 @@ static void hci_init_req(struct hci_dev *hdev, unsigned long opt)
 		skb->dev = (void *) hdev;
 
 		skb_queue_tail(&hdev->cmd_q, skb);
-		tasklet_schedule(&hdev->cmd_task);
+		queue_work(hdev->workqueue, &hdev->cmd_work);
 	}
 	skb_queue_purge(&hdev->driver_init);
 
@@ -548,7 +548,7 @@ int hci_dev_open(__u16 dev)
 	} else {
 		/* Init failed, cleanup */
 		tasklet_kill(&hdev->tx_task);
-		tasklet_kill(&hdev->cmd_task);
+		flush_work(&hdev->cmd_work);
 		flush_work(&hdev->rx_work);
 
 		skb_queue_purge(&hdev->cmd_q);
@@ -617,8 +617,8 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 		clear_bit(HCI_INIT, &hdev->flags);
 	}
 
-	/* Kill cmd task */
-	tasklet_kill(&hdev->cmd_task);
+	/* flush cmd  work */
+	flush_work(&hdev->cmd_work);
 
 	/* Drop queues */
 	skb_queue_purge(&hdev->rx_q);
@@ -1207,7 +1207,7 @@ static void hci_cmd_timer(unsigned long arg)
 
 	BT_ERR("%s command tx timeout", hdev->name);
 	atomic_set(&hdev->cmd_cnt, 1);
-	tasklet_schedule(&hdev->cmd_task);
+	queue_work(hdev->workqueue, &hdev->cmd_work);
 }
 
 struct oob_data *hci_find_remote_oob_data(struct hci_dev *hdev,
@@ -1458,8 +1458,8 @@ int hci_register_dev(struct hci_dev *hdev)
 	hdev->sniff_min_interval = 80;
 
 	INIT_WORK(&hdev->rx_work, hci_rx_work);
+	INIT_WORK(&hdev->cmd_work, hci_cmd_work);
 
-	tasklet_init(&hdev->cmd_task, hci_cmd_task,(unsigned long) hdev);
 	tasklet_init(&hdev->tx_task, hci_tx_task, (unsigned long) hdev);
 
 	skb_queue_head_init(&hdev->rx_q);
@@ -1922,7 +1922,7 @@ int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen, void *param)
 		hdev->init_last_cmd = opcode;
 
 	skb_queue_tail(&hdev->cmd_q, skb);
-	tasklet_schedule(&hdev->cmd_task);
+	queue_work(hdev->workqueue, &hdev->cmd_work);
 
 	return 0;
 }
@@ -2560,9 +2560,9 @@ static void hci_rx_work(struct work_struct *work)
 	mutex_unlock(&hci_task_lock);
 }
 
-static void hci_cmd_task(unsigned long arg)
+static void hci_cmd_work(struct work_struct *work)
 {
-	struct hci_dev *hdev = (struct hci_dev *) arg;
+	struct hci_dev *hdev = container_of(work, struct hci_dev, cmd_work);
 	struct sk_buff *skb;
 
 	BT_DBG("%s cmd %d", hdev->name, atomic_read(&hdev->cmd_cnt));
@@ -2586,7 +2586,7 @@ static void hci_cmd_task(unsigned long arg)
 				  jiffies + msecs_to_jiffies(HCI_CMD_TIMEOUT));
 		} else {
 			skb_queue_head(&hdev->cmd_q, skb);
-			tasklet_schedule(&hdev->cmd_task);
+			queue_work(hdev->workqueue, &hdev->cmd_work);
 		}
 	}
 }
