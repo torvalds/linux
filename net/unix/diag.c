@@ -98,6 +98,15 @@ rtattr_failure:
 	return -EMSGSIZE;
 }
 
+static int sk_diag_show_rqlen(struct sock *sk, struct sk_buff *nlskb)
+{
+	RTA_PUT_U32(nlskb, UNIX_DIAG_RQLEN, sk->sk_receive_queue.qlen);
+	return 0;
+
+rtattr_failure:
+	return -EMSGSIZE;
+}
+
 static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct unix_diag_req *req,
 		u32 pid, u32 seq, u32 flags, int sk_ino)
 {
@@ -130,6 +139,10 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct unix_diag_r
 
 	if ((req->udiag_show & UDIAG_SHOW_ICONS) &&
 			sk_diag_dump_icons(sk, skb))
+		goto nlmsg_failure;
+
+	if ((req->udiag_show & UDIAG_SHOW_RQLEN) &&
+			sk_diag_show_rqlen(sk, skb))
 		goto nlmsg_failure;
 
 	nlh->nlmsg_len = skb_tail_pointer(skb) - b;

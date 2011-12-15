@@ -15,6 +15,7 @@ struct unix_diag_req {
 #define UDIAG_SHOW_VFS		0x00000002	/* show VFS inode info */
 #define UDIAG_SHOW_PEER		0x00000004	/* show peer socket info */
 #define UDIAG_SHOW_ICONS	0x00000008	/* show pending connections */
+#define UDIAG_SHOW_RQLEN	0x00000010	/* show skb receive queue len */
 
 struct unix_diag_msg {
 	__u8	udiag_family;
@@ -31,6 +32,7 @@ enum {
 	UNIX_DIAG_VFS,
 	UNIX_DIAG_PEER,
 	UNIX_DIAG_ICONS,
+	UNIX_DIAG_RQLEN,
 
 	UNIX_DIAG_MAX,
 };
