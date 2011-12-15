@@ -505,18 +505,23 @@ static inline struct da9052_regulator_info *find_regulator_info(u8 chip_id,
 	struct da9052_regulator_info *info;
 	int i;
 
-	if (chip_id == DA9052) {
+	switch (chip_id) {
+	case DA9052:
 		for (i = 0; i < ARRAY_SIZE(da9052_regulator_info); i++) {
 			info = &da9052_regulator_info[i];
 			if (info->reg_desc.id == id)
 				return info;
 		}
-	} else {
+		break;
+	case DA9053_AA:
+	case DA9053_BA:
+	case DA9053_BB:
 		for (i = 0; i < ARRAY_SIZE(da9053_regulator_info); i++) {
 			info = &da9053_regulator_info[i];
 			if (info->reg_desc.id == id)
 				return info;
 		}
+		break;
 	}
 
 	return NULL;
@@ -529,7 +534,8 @@ static int __devinit da9052_regulator_probe(struct platform_device *pdev)
 	struct da9052_pdata *pdata;
 	int ret;
 
-	regulator = kzalloc(sizeof(struct da9052_regulator), GFP_KERNEL);
+	regulator = devm_kzalloc(&pdev->dev, sizeof(struct da9052_regulator),
+				 GFP_KERNEL);
 	if (!regulator)
 		return -ENOMEM;
 
@@ -559,7 +565,7 @@ static int __devinit da9052_regulator_probe(struct platform_device *pdev)
 
 	return 0;
 err:
-	kfree(regulator);
+	devm_kfree(&pdev->dev, regulator);
 	return ret;
 }
 
@@ -568,7 +574,7 @@ static int __devexit da9052_regulator_remove(struct platform_device *pdev)
 	struct da9052_regulator *regulator = platform_get_drvdata(pdev);
 
 	regulator_unregister(regulator->rdev);
-	kfree(regulator);
+	devm_kfree(&pdev->dev, regulator);
 
 	return 0;
 }
