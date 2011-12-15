@@ -7,6 +7,11 @@
  * Author: 
  * hcy@rock-chips.com
  * yk@rock-chips.com
+ * 
+ * v2.02 
+ * reset DRAM DLL at update_mr
+ * adjust ZQCR0, MR0,MR1,MR2 for ODT and driver strengh
+ *
  * v2.01 
  * disable DFTCMP
  */
@@ -261,6 +266,7 @@
 #define DDR3_MR1_RTT_NOM(n) (((n&1)<<2)|((n&2)<<5)|((n&4)<<7))
 
 //mr2 for ddr3
+#define DDR3_MR2_RTT_WR(n) ((n&0x3)<<9)
 #define DDR3_MR2_CWL(n) (((n-5)&0x7)<<3)
 
 //EMR;                    //Extended Mode Register      
@@ -532,7 +538,6 @@ static __sramdata uint32_t tWR_MR0;
 static __sramdata uint32_t cl;
 static __sramdata uint32_t cwl;
 
-static __sramdata uint32_t cpu_freq;
 static __sramdata uint32_t ddr_freq;
 static __sramdata volatile uint32_t ddr_stop;
 
@@ -543,17 +548,17 @@ Cpu highest frequency is 1.2 GHz
 1 cycle = 1/1.2 ns
 1 us = 1000 ns = 1000 * 1.2 cycles = 1200 cycles
 *****************************************************************************/
-//static 
-void __sramlocalfunc delayus(uint32_t us)
-{	
-     uint32_t count;
-     if(cpu_freq == 24)
-         count = us * 6;//533;
-     else
-        count = us*200;
-     while(count--)  // 3 cycles
-	 	barrier();
+static __sramdata uint32_t loops_per_us;
 
+#define LPJ_100MHZ	499728UL
+
+/*static*/ void __sramlocalfunc delayus(uint32_t us)
+{	
+    uint32_t count;
+     
+    count = loops_per_us*us;
+    while(count--)  // 3 cycles
+	 	barrier();
 }
 
 static uint32_t __sramlocalfunc ddr_get_parameter(uint32_t nMHz)
@@ -926,7 +931,7 @@ static uint32_t __sramlocalfunc ddr_update_timing(void)
         pDDR_Reg->TPR[1] = value | TFAW(tFAW);
         // ddr3 tCKE should be tCKESR=tCKE+1nCK
         pDDR_Reg->TPR[2] = TXS(tXS) | TXP(tXP) | TCKE(4);//0x198c8;//       
-        
+        pDDR_Reg->ZQCR[0] = 0x10039d29;//(pDDR_Reg->ZQSR & (0x3FF)) | (0x6<<10) | (0x6<<15) | (0x1<<28);
     }
     else if(mem_type == DDRII)
     {
@@ -965,9 +970,20 @@ static uint32_t __sramlocalfunc ddr_update_mr(void)
     if(mem_type == DDR3)
     {
         pDDR_Reg->TPR3 = value | CL(cl) | CWL(cwl) | WR(tWR);
-        pDDR_Reg->MR = DDR3_BL8 | DDR3_CL(cl) | DDR3_MR0_WR(tWR_MR0)/*15 ns*/;
+        pDDR_Reg->MR = DDR3_BL8 | DDR3_CL(cl) | DDR3_MR0_DLL_RESET | DDR3_MR0_WR(tWR_MR0)/*15 ns*/;
         delayus(1);
-        pDDR_Reg->EMR2 = DDR3_MR2_CWL(cwl);
+        /*
+         * DIC:Output Driver Impedance Control,0, RZQ(240)/6
+         * Rtt_Nom:2 RZQ(240)/2
+         */
+        pDDR_Reg->EMR = DDR3_MR1_DIC(0) | DDR3_MR1_AL(0) | DDR3_MR1_RTT_NOM(2);
+        delayus(1);
+        /* DDR3 :CWL=5
+         * RTT_WR: 1, RZQ(240)/4
+         */
+        pDDR_Reg->EMR2 = DDR3_MR2_RTT_WR(1)|DDR3_MR2_CWL(cwl);
+        delayus(1);
+        pDDR_Reg->EMR3 = 0x0;
     }
     else if(mem_type == DDRII)
     {
@@ -1047,7 +1063,7 @@ static uint32_t __sramlocalfunc ddr_set_pll(uint32_t nMHz, uint32_t set)
 
         delayus(1);  //delay at least 500ns
         pSCU_Reg->CRU_DPLL_CON &= ~(0x1<<15);
-        delayus(2000); // 7.2us*140=1.008ms
+        delayus(500); // wait for DPLL stable
 
         // ddr pll normal
         pSCU_Reg->CRU_MODE_CON |= 0x1<<6;
@@ -1087,7 +1103,7 @@ void __sramlocalfunc ddr_selfrefresh_enter(void)
     pSCU_Reg->CRU_SOFTRST_CON[0] |= (0x1F<<19);  //reset DLL
     delayus(1);
     pSCU_Reg->CRU_CLKGATE_CON[0] |= (0x1<<18);  //close DDR PHY clock
-    delayus(10);
+    delayus(1);
         pDDR_Reg->DLLCR09[0] =0x80000000;
         pDDR_Reg->DLLCR09[9] =0x80000000;
         pDDR_Reg->DLLCR09[1] =0x80000000;
@@ -1105,13 +1121,13 @@ void __sramlocalfunc ddr_selfrefresh_exit(void)
        6. Re-enables all host ports
      */
     pSCU_Reg->CRU_CLKGATE_CON[0] &= ~(0x1<<18);  //open DDR PHY clock
-    delayus(10); 
+    delayus(1); 
     pSCU_Reg->CRU_SOFTRST_CON[0] &= ~(0x1F<<19); //de-reset DLL
-    delayus(1000); 
+    delayus(10); 
     pDDR_Reg->CCR &= ~ITMRST;   //ITM reset
-    delayus(500); 
+    delayus(5); 
     pDDR_Reg->DCR = (pDDR_Reg->DCR & (~((0x1<<24) | (0x1<<13) | (0xF<<27) | (0x1<<31)))) | ((0x1<<13) | (0x7<<27) | (0x1<<31)); //exit    
-    delayus(1000);
+    delayus(10);
     ddr_update_mr();
     delayus(1);
 
@@ -1120,8 +1136,8 @@ refresh:
     pDDR_Reg->DRR |= RD;
     delayus(1);
     pDDR_Reg->CCR |= DTT;
-    //delayus(15);
     dsb();
+    delayus(10);
     do
     {
         delayus(1);
@@ -1148,16 +1164,22 @@ uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
 	volatile u32 n;	
     unsigned long flags;
     volatile unsigned int * temp=(volatile unsigned int *)SRAM_CODE_OFFSET;
+     uint32_t regvalue = pSCU_Reg->CRU_APLL_CON;
+     uint32_t freq;
 
-    if((pSCU_Reg->CRU_MODE_CON & 0x03) == 0x03)
-        cpu_freq = 24;
-    else 
-        cpu_freq = clk_get_rate(clk_get(NULL,"core"))/1000000;
+     // freq = (Fin/NR)*NF/OD
+     if((pSCU_Reg->CRU_MODE_CON&3) == 1)             // CPLL Normal mode
+         freq = 24 *((((regvalue>>3)&0x7f)+1)<<1)    // NF = 2*(CLKF+1)
+                /(((regvalue>>10)&0x1f)+1)           // NR = CLKR+1
+                *(2<<((regvalue>>1)&3));             // OD = 2^CLKOD
+     else
+        freq = 24;
+        
+    loops_per_us = LPJ_100MHZ*freq / 1000000;
     
     ret = ddr_set_pll(nMHz, 0);
     ddr_get_parameter(ret);
     /** 1. Make sure there is no host access */
-#if 1
     local_irq_save(flags);
     flush_cache_all();
     __cpuc_flush_kern_all();
@@ -1175,7 +1197,6 @@ uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
     n= pDDR_Reg->CCR;
     n= pSCU_Reg->CRU_SOFTRST_CON[0];
     dsb();
-#endif
     
     /** 2. ddr enter self-refresh mode or precharge power-down mode */
     ddr_selfrefresh_enter();
@@ -1237,9 +1258,19 @@ void __sramfunc ddr_suspend(void)
 {
     uint32_t n;
     volatile unsigned int * temp=(volatile unsigned int *)SRAM_CODE_OFFSET;
+    uint32_t regvalue = pSCU_Reg->CRU_APLL_CON;
+    uint32_t freq;
+    
+    // freq = (Fin/NR)*NF/OD
+    if((pSCU_Reg->CRU_MODE_CON&3) == 1)             // CPLL Normal mode
+        freq = 24 *((((regvalue>>3)&0x7f)+1)<<1)    // NF = 2*(CLKF+1)
+               /(((regvalue>>10)&0x1f)+1)           // NR = CLKR+1
+               *(2<<((regvalue>>1)&3));             // OD = 2^CLKOD
+    else
+       freq = 24;
+       
+    loops_per_us = LPJ_100MHZ*freq / 1000000;
 
-    cpu_freq = 24;
-	
     /** 1. Make sure there is no host access */
     flush_cache_all();
     __cpuc_flush_kern_all();
@@ -1321,10 +1352,12 @@ void __sramfunc ddr_resume(void)
     delayus(1);
     #endif
     
-#if 1
-     pSCU_Reg->CRU_DPLL_CON &= ~(0x1 << 15);  //power on DPLL   
-    //   while(!(pGRF_Reg->GRF_SOC_CON[0] & (1<<28)));
-     delayus(500); // 7.2us*140=1.008ms // Ëø¶¨pll
+    pSCU_Reg->CRU_DPLL_CON &= ~(0x1 << 15);  //power on DPLL   
+    delayus(300); //     Ëø¶¨pll
+    do
+    {
+        delayus(3);
+    }while(!(pGRF_Reg->GRF_SOC_CON[0] & (1<<28)));  //wait pll lock
     // ddr pll normal
     value = pSCU_Reg->CRU_MODE_CON;
     value &=~(0x3<<6);
@@ -1338,7 +1371,6 @@ void __sramfunc ddr_resume(void)
     pSCU_Reg->CRU_CLKGATE_CON[1] &= ~(0x1<<6);      //close DDR PERIPH AXI clock
     pSCU_Reg->CRU_CLKGATE_CON[0] &= ~(0x1<<18);     //enable DDR PHY clock
     delayus(1);   
-#endif
 
     ddr_selfrefresh_exit();
 	dsb(); 
@@ -1372,7 +1404,6 @@ typedef struct _dtt_cnt_t
     uint32_t  cnt;
 }dtt_cnt_t;
 
-//static int __init ddr_probe(void)
 int ddr_init(uint32_t dram_type, uint32_t freq)
 {
     volatile uint32_t value = 0;
@@ -1383,7 +1414,7 @@ int ddr_init(uint32_t dram_type, uint32_t freq)
     uint32_t          bank = 0;
     uint32_t          n;
 
-    ddr_print("version 2.01 20110504 \n");
+    ddr_print("version 2.02 20111109 \n");
 
     mem_type = (pDDR_Reg->DCR & 0x3);
     ddr_type = dram_type;//DDR3_TYPE;//
@@ -1450,6 +1481,8 @@ int ddr_init(uint32_t dram_type, uint32_t freq)
     }
     pDDR_Reg->DTAR = value;
     pDDR_Reg->CCR  &= ~(DFTCMP);
+    pDDR_Reg->IOCR = AUTO_CMD_IOPD(3) | AUTO_DATA_IOPD(3) | DQ_ODT | DQS_ODT |  DQRTT | DQSRTT;
+    
     //pDDR_Reg->CCR |= DQSCFG;// passive windowing mode
 
     if((mem_type == DDRII) || (mem_type == DDR3))
@@ -1491,8 +1524,6 @@ int ddr_init(uint32_t dram_type, uint32_t freq)
     return 0;
 }
 EXPORT_SYMBOL(ddr_init);
-
-//core_initcall_sync(ddr_probe);
 
 #ifdef CONFIG_DDR_RECONFIG
 #include "ddr_reconfig.c"
