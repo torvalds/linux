@@ -3449,7 +3449,7 @@ static int __devinit init_rss(struct adapter *adap)
 		if (!pi->rss)
 			return -ENOMEM;
 		for (j = 0; j < pi->rss_size; j++)
-			pi->rss[j] = j % pi->nqsets;
+			pi->rss[j] = ethtool_rxfh_indir_default(j, pi->nqsets);
 	}
 	return 0;
 }

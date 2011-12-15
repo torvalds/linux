@@ -581,30 +581,37 @@ static noinline_for_stack int ethtool_set_rxfh_indir(struct net_device *dev,
 			   sizeof(user_size)))
 		return -EFAULT;
 
-	if (user_size != dev_size)
+	if (user_size != 0 && user_size != dev_size)
 		return -EINVAL;
 
 	indir = kcalloc(dev_size, sizeof(indir[0]), GFP_USER);
 	if (!indir)
 		return -ENOMEM;
 
-	if (copy_from_user(indir,
-			   useraddr +
-			   offsetof(struct ethtool_rxfh_indir, ring_index[0]),
-			   dev_size * sizeof(indir[0]))) {
-		ret = -EFAULT;
-		goto out;
-	}
-
-	/* Validate ring indices */
 	rx_rings.cmd = ETHTOOL_GRXRINGS;
 	ret = dev->ethtool_ops->get_rxnfc(dev, &rx_rings, NULL);
 	if (ret)
 		goto out;
-	for (i = 0; i < dev_size; i++) {
-		if (indir[i] >= rx_rings.data) {
-			ret = -EINVAL;
+
+	if (user_size == 0) {
+		for (i = 0; i < dev_size; i++)
+			indir[i] = ethtool_rxfh_indir_default(i, rx_rings.data);
+	} else {
+		if (copy_from_user(indir,
+				  useraddr +
+				  offsetof(struct ethtool_rxfh_indir,
+					   ring_index[0]),
+				  dev_size * sizeof(indir[0]))) {
+			ret = -EFAULT;
 			goto out;
+		}
+
+		/* Validate ring indices */
+		for (i = 0; i < dev_size; i++) {
+			if (indir[i] >= rx_rings.data) {
+				ret = -EINVAL;
+				goto out;
+			}
 		}
 	}
 

@@ -1545,7 +1545,8 @@ static inline int bnx2x_init_rss_pf(struct bnx2x *bp)
 	if (bp->multi_mode != ETH_RSS_MODE_DISABLED) {
 		for (i = 0; i < sizeof(ind_table); i++)
 			ind_table[i] =
-				bp->fp->cl_id +	(i % num_eth_queues);
+				bp->fp->cl_id +
+				ethtool_rxfh_indir_default(i, num_eth_queues);
 	}
 
 	/*

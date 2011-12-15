@@ -1336,7 +1336,8 @@ static int efx_probe_nic(struct efx_nic *efx)
 	if (efx->n_channels > 1)
 		get_random_bytes(&efx->rx_hash_key, sizeof(efx->rx_hash_key));
 	for (i = 0; i < ARRAY_SIZE(efx->rx_indir_table); i++)
-		efx->rx_indir_table[i] = i % efx->n_rx_channels;
+		efx->rx_indir_table[i] =
+			ethtool_rxfh_indir_default(i, efx->n_rx_channels);
 
 	efx_set_channels(efx);
 	netif_set_real_num_tx_queues(efx->net_dev, efx->n_tx_channels);

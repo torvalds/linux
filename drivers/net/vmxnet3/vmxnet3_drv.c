@@ -2167,7 +2167,8 @@ vmxnet3_setup_driver_shared(struct vmxnet3_adapter *adapter)
 		rssConf->indTableSize = VMXNET3_RSS_IND_TABLE_SIZE;
 		get_random_bytes(&rssConf->hashKey[0], rssConf->hashKeySize);
 		for (i = 0; i < rssConf->indTableSize; i++)
-			rssConf->indTable[i] = i % adapter->num_rx_queues;
+			rssConf->indTable[i] = ethtool_rxfh_indir_default(
+				i, adapter->num_rx_queues);
 
 		devRead->rssConfDesc.confVer = 1;
 		devRead->rssConfDesc.confLen = sizeof(*rssConf);
