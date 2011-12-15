@@ -1665,7 +1665,7 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 #if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)
     if( strncmp( mmc_hostname(host) ,"mmc0" , strlen("mmc0")) )
     {
-	    sdio_reset(host);
+	    //sdio_reset(host);//make no sense; noteed by xbw at 2011-12-14
     	mmc_go_idle(host);
 
     	if (!(init_ret=mmc_attach_sdio(host)))
@@ -1690,7 +1690,7 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
         mmc_go_idle(host);
     }
 #else
-    sdio_reset(host);
+    //sdio_reset(host); //make no sense; noteed by xbw at 2011-12-14
 	mmc_go_idle(host);
 
 	if (!(init_ret=mmc_attach_sdio(host)))

@@ -1021,14 +1021,16 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
         if (brq.sbc.error || brq.cmd.error || brq.stop.error || brq.data.error) {   //modifyed by xbw at 2011-11-17
 #else
 		if (brq.data.error) {
-#endif
 			pr_err("%s: error %d transferring data, sector %u, nr %u, cmd response %#x, card status %#x\n",
 				req->rq_disk->disk_name, brq.data.error,
 				(unsigned)blk_rq_pos(req),
 				(unsigned)blk_rq_sectors(req),
 				brq.cmd.resp[0], brq.stop.resp[0]);
-
+#endif
 			if (rq_data_dir(req) == READ) {
+			  #if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
+			  //direct to exit when error happen; deleted by xbw at 2011-12-14
+			  #else
 				if (brq.data.blocks > 1) {
 					/* Redo read one sector at a time */
 					pr_warning("%s: retrying using single block read\n",
@@ -1036,6 +1038,7 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 					disable_multi = 1;
 					continue;
 				}
+				#endif
 
 				/*
 				 * After an error, we redo I/O one sector at a

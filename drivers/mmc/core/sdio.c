@@ -947,6 +947,7 @@ int sdio_reset_comm(struct mmc_card *card)
 
 #if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
 	host->sdmmc_host_hw_init(mmc_priv(host));  //added by xbw , at 2011-10-18
+	host->ios.clock = host->f_min; //for avoid 25MHz once again during init process.noted by xbw at 2011-11-14
 #endif
 
 	mmc_go_idle(host);

@@ -313,10 +313,19 @@ static int sdio_read_cis(struct mmc_card *card, struct sdio_func *func)
 
 			if (ret == -ENOENT) {
 				/* warn about unknown tuples */
-				printk(KERN_WARNING "%s: queuing unknown"
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
+                // This is the normal exit procedure,rather than an error.noted by xbw at 2011-12-14
+				printk(KERN_DEBUG "%s: queuing unknown"
 				       " CIS tuple 0x%02x (%u bytes)\n",
 				       mmc_hostname(card->host),
 				       tpl_code, tpl_link);
+#else
+                printk(KERN_WARNING "%s: queuing unknown"
+				       " CIS tuple 0x%02x (%u bytes)\n",
+				       mmc_hostname(card->host),
+				       tpl_code, tpl_link);
+
+#endif
 			}
 
 			/* keep on analyzing tuples */
