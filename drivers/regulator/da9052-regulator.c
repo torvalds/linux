@@ -547,7 +547,7 @@ static int __devinit da9052_regulator_probe(struct platform_device *pdev)
 	regulator->rdev = regulator_register(&regulator->info->reg_desc,
 					     &pdev->dev,
 					     pdata->regulators[pdev->id],
-					     regulator);
+					     regulator, NULL);
 	if (IS_ERR(regulator->rdev)) {
 		dev_err(&pdev->dev, "failed to register regulator %s\n",
 			regulator->info->reg_desc.name);
