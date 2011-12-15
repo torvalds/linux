@@ -102,8 +102,7 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 	r->idiag_retrans = 0;
 
 	r->id.idiag_if = sk->sk_bound_dev_if;
-	r->id.idiag_cookie[0] = (u32)(unsigned long)sk;
-	r->id.idiag_cookie[1] = (u32)(((unsigned long)sk >> 31) >> 1);
+	sock_diag_save_cookie(sk, r->id.idiag_cookie);
 
 	r->id.idiag_sport = inet->inet_sport;
 	r->id.idiag_dport = inet->inet_dport;
@@ -221,8 +220,7 @@ static int inet_twsk_diag_fill(struct inet_timewait_sock *tw,
 	r->idiag_family	      = tw->tw_family;
 	r->idiag_retrans      = 0;
 	r->id.idiag_if	      = tw->tw_bound_dev_if;
-	r->id.idiag_cookie[0] = (u32)(unsigned long)tw;
-	r->id.idiag_cookie[1] = (u32)(((unsigned long)tw >> 31) >> 1);
+	sock_diag_save_cookie(tw, r->id.idiag_cookie);
 	r->id.idiag_sport     = tw->tw_sport;
 	r->id.idiag_dport     = tw->tw_dport;
 	r->id.idiag_src[0]    = tw->tw_rcv_saddr;
@@ -261,18 +259,6 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
 	return inet_csk_diag_fill(sk, skb, r, pid, seq, nlmsg_flags, unlh);
 }
 
-int inet_diag_check_cookie(struct sock *sk, struct inet_diag_req *req)
-{
-	if ((req->id.idiag_cookie[0] != INET_DIAG_NOCOOKIE ||
-	     req->id.idiag_cookie[1] != INET_DIAG_NOCOOKIE) &&
-	    ((u32)(unsigned long)sk != req->id.idiag_cookie[0] ||
-	     (u32)((((unsigned long)sk) >> 31) >> 1) != req->id.idiag_cookie[1]))
-		return -ESTALE;
-	else
-		return 0;
-}
-EXPORT_SYMBOL_GPL(inet_diag_check_cookie);
-
 int inet_diag_dump_one_icsk(struct inet_hashinfo *hashinfo, struct sk_buff *in_skb,
 		const struct nlmsghdr *nlh, struct inet_diag_req *req)
 {
@@ -304,7 +290,7 @@ int inet_diag_dump_one_icsk(struct inet_hashinfo *hashinfo, struct sk_buff *in_s
 	if (sk == NULL)
 		goto out_nosk;
 
-	err = inet_diag_check_cookie(sk, req);
+	err = sock_diag_check_cookie(sk, req->id.idiag_cookie);
 	if (err)
 		goto out;
 
@@ -617,8 +603,7 @@ static int inet_diag_fill_req(struct sk_buff *skb, struct sock *sk,
 	r->idiag_retrans = req->retrans;
 
 	r->id.idiag_if = sk->sk_bound_dev_if;
-	r->id.idiag_cookie[0] = (u32)(unsigned long)req;
-	r->id.idiag_cookie[1] = (u32)(((unsigned long)req >> 31) >> 1);
+	sock_diag_save_cookie(req, r->id.idiag_cookie);
 
 	tmo = req->expires - jiffies;
 	if (tmo < 0)

@@ -12,6 +12,25 @@ static struct sock_diag_handler *sock_diag_handlers[AF_MAX];
 static int (*inet_rcv_compat)(struct sk_buff *skb, struct nlmsghdr *nlh);
 static DEFINE_MUTEX(sock_diag_table_mutex);
 
+int sock_diag_check_cookie(void *sk, __u32 *cookie)
+{
+	if ((cookie[0] != INET_DIAG_NOCOOKIE ||
+	     cookie[1] != INET_DIAG_NOCOOKIE) &&
+	    ((u32)(unsigned long)sk != cookie[0] ||
+	     (u32)((((unsigned long)sk) >> 31) >> 1) != cookie[1]))
+		return -ESTALE;
+	else
+		return 0;
+}
+EXPORT_SYMBOL_GPL(sock_diag_check_cookie);
+
+void sock_diag_save_cookie(void *sk, __u32 *cookie)
+{
+	cookie[0] = (u32)(unsigned long)sk;
+	cookie[1] = (u32)(((unsigned long)sk >> 31) >> 1);
+}
+EXPORT_SYMBOL_GPL(sock_diag_save_cookie);
+
 void sock_diag_register_inet_compat(int (*fn)(struct sk_buff *skb, struct nlmsghdr *nlh))
 {
 	mutex_lock(&sock_diag_table_mutex);

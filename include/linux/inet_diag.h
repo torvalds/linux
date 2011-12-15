@@ -168,7 +168,6 @@ int inet_diag_dump_one_icsk(struct inet_hashinfo *hashinfo,
 		struct inet_diag_req *req);
 
 int inet_diag_bc_sk(const struct nlattr *_bc, struct sock *sk);
-int inet_diag_check_cookie(struct sock *sk, struct inet_diag_req *req);
 
 extern int  inet_diag_register(const struct inet_diag_handler *handler);
 extern void inet_diag_unregister(const struct inet_diag_handler *handler);
