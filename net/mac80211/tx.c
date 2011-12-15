@@ -2333,9 +2333,9 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 			} else {
 				unsigned long flags;
 
-				spin_lock_irqsave(&local->sta_lock, flags);
+				spin_lock_irqsave(&local->tim_lock, flags);
 				ieee80211_beacon_add_tim(ap, skb, beacon);
-				spin_unlock_irqrestore(&local->sta_lock, flags);
+				spin_unlock_irqrestore(&local->tim_lock, flags);
 			}
 
 			if (tim_offset)

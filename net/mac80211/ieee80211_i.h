@@ -855,18 +855,15 @@ struct ieee80211_local {
 
 	/* Station data */
 	/*
-	 * The mutex only protects the list and counter,
-	 * reads are done in RCU.
-	 * Additionally, the lock protects the hash table,
-	 * the pending list and each BSS's TIM bitmap.
+	 * The mutex only protects the list, hash table and
+	 * counter, reads are done with RCU.
 	 */
 	struct mutex sta_mtx;
-	spinlock_t sta_lock;
+	spinlock_t tim_lock;
 	unsigned long num_sta;
-	struct list_head sta_list, sta_pending_list;
+	struct list_head sta_list;
 	struct sta_info __rcu *sta_hash[STA_HASH_SIZE];
 	struct timer_list sta_cleanup;
-	struct work_struct sta_finish_work;
 	int sta_generation;
 
 	struct sk_buff_head pending[IEEE80211_MAX_QUEUES];
