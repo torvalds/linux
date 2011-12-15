@@ -267,6 +267,7 @@ static int sst_platform_open(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct sst_runtime_stream *stream;
+	int ret_val;
 
 	pr_debug("sst_platform_open called\n");
 
