@@ -87,15 +87,17 @@ EXPORT_SYMBOL_GPL(kvmppc_add_revmap_chain);
 
 /* Remove this HPTE from the chain for a real page */
 static void remove_revmap_chain(struct kvm *kvm, long pte_index,
-				unsigned long hpte_v)
+				struct revmap_entry *rev,
+				unsigned long hpte_v, unsigned long hpte_r)
 {
-	struct revmap_entry *rev, *next, *prev;
+	struct revmap_entry *next, *prev;
 	unsigned long gfn, ptel, head;
 	struct kvm_memory_slot *memslot;
 	unsigned long *rmap;
+	unsigned long rcbits;
 
-	rev = real_vmalloc_addr(&kvm->arch.revmap[pte_index]);
-	ptel = rev->guest_rpte;
+	rcbits = hpte_r & (HPTE_R_R | HPTE_R_C);
+	ptel = rev->guest_rpte |= rcbits;
 	gfn = hpte_rpn(ptel, hpte_page_size(hpte_v, ptel));
 	memslot = builtin_gfn_to_memslot(kvm, gfn);
 	if (!memslot || (memslot->flags & KVM_MEMSLOT_INVALID))
@@ -116,6 +118,7 @@ static void remove_revmap_chain(struct kvm *kvm, long pte_index,
 		else
 			*rmap = (*rmap & ~KVMPPC_RMAP_INDEX) | head;
 	}
+	*rmap |= rcbits << KVMPPC_RMAP_RC_SHIFT;
 	unlock_rmap(rmap);
 }
 
@@ -162,6 +165,7 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 	pte_t pte;
 	unsigned int writing;
 	unsigned long mmu_seq;
+	unsigned long rcbits;
 	bool realmode = vcpu->arch.vcore->vcore_state == VCORE_RUNNING;
 
 	psize = hpte_page_size(pteh, ptel);
@@ -320,6 +324,9 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 		} else {
 			kvmppc_add_revmap_chain(kvm, rev, rmap, pte_index,
 						realmode);
+			/* Only set R/C in real HPTE if already set in *rmap */
+			rcbits = *rmap >> KVMPPC_RMAP_RC_SHIFT;
+			ptel &= rcbits | ~(HPTE_R_R | HPTE_R_C);
 		}
 	}
 
@@ -394,7 +401,8 @@ long kvmppc_h_remove(struct kvm_vcpu *vcpu, unsigned long flags,
 			asm volatile("tlbiel %0" : : "r" (rb));
 			asm volatile("ptesync" : : : "memory");
 		}
-		remove_revmap_chain(kvm, pte_index, v);
+		/* Read PTE low word after tlbie to get final R/C values */
+		remove_revmap_chain(kvm, pte_index, rev, v, hpte[1]);
 	}
 	r = rev->guest_rpte;
 	unlock_hpte(hpte, 0);
@@ -469,12 +477,13 @@ long kvmppc_h_bulk_remove(struct kvm_vcpu *vcpu)
 
 			args[j] = ((0x80 | flags) << 56) + pte_index;
 			rev = real_vmalloc_addr(&kvm->arch.revmap[pte_index]);
-			/* insert R and C bits from guest PTE */
-			rcbits = rev->guest_rpte & (HPTE_R_R|HPTE_R_C);
-			args[j] |= rcbits << (56 - 5);
 
-			if (!(hp[0] & HPTE_V_VALID))
+			if (!(hp[0] & HPTE_V_VALID)) {
+				/* insert R and C bits from PTE */
+				rcbits = rev->guest_rpte & (HPTE_R_R|HPTE_R_C);
+				args[j] |= rcbits << (56 - 5);
 				continue;
+			}
 
 			hp[0] &= ~HPTE_V_VALID;		/* leave it locked */
 			tlbrb[n] = compute_tlbie_rb(hp[0], hp[1], pte_index);
@@ -505,13 +514,16 @@ long kvmppc_h_bulk_remove(struct kvm_vcpu *vcpu)
 			asm volatile("ptesync" : : : "memory");
 		}
 
+		/* Read PTE low words after tlbie to get final R/C values */
 		for (k = 0; k < n; ++k) {
 			j = indexes[k];
 			pte_index = args[j] & ((1ul << 56) - 1);
 			hp = hptes[k];
 			rev = revs[k];
-			remove_revmap_chain(kvm, pte_index, hp[0]);
-			unlock_hpte(hp, 0);
+			remove_revmap_chain(kvm, pte_index, rev, hp[0], hp[1]);
+			rcbits = rev->guest_rpte & (HPTE_R_R|HPTE_R_C);
+			args[j] |= rcbits << (56 - 5);
+			hp[0] = 0;
 		}
 	}
 
@@ -595,8 +607,7 @@ long kvmppc_h_read(struct kvm_vcpu *vcpu, unsigned long flags,
 		pte_index &= ~3;
 		n = 4;
 	}
-	if (flags & H_R_XLATE)
-		rev = real_vmalloc_addr(&kvm->arch.revmap[pte_index]);
+	rev = real_vmalloc_addr(&kvm->arch.revmap[pte_index]);
 	for (i = 0; i < n; ++i, ++pte_index) {
 		hpte = (unsigned long *)(kvm->arch.hpt_virt + (pte_index << 4));
 		v = hpte[0] & ~HPTE_V_HVLOCK;
@@ -605,12 +616,8 @@ long kvmppc_h_read(struct kvm_vcpu *vcpu, unsigned long flags,
 			v &= ~HPTE_V_ABSENT;
 			v |= HPTE_V_VALID;
 		}
-		if (v & HPTE_V_VALID) {
-			if (rev)
-				r = rev[i].guest_rpte;
-			else
-				r = hpte[1] | HPTE_R_RPN;
-		}
+		if (v & HPTE_V_VALID)
+			r = rev[i].guest_rpte | (r & (HPTE_R_R | HPTE_R_C));
 		vcpu->arch.gpr[4 + i * 2] = v;
 		vcpu->arch.gpr[5 + i * 2] = r;
 	}

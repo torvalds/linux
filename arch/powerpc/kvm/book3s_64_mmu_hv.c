@@ -505,6 +505,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	unsigned long is_io;
 	unsigned int writing, write_ok;
 	struct vm_area_struct *vma;
+	unsigned long rcbits;
 
 	/*
 	 * Real-mode code has already searched the HPT and found the
@@ -640,11 +641,17 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		goto out_unlock;
 	}
 
+	/* Only set R/C in real HPTE if set in both *rmap and guest_rpte */
+	rcbits = *rmap >> KVMPPC_RMAP_RC_SHIFT;
+	r &= rcbits | ~(HPTE_R_R | HPTE_R_C);
+
 	if (hptep[0] & HPTE_V_VALID) {
 		/* HPTE was previously valid, so we need to invalidate it */
 		unlock_rmap(rmap);
 		hptep[0] |= HPTE_V_ABSENT;
 		kvmppc_invalidate_hpte(kvm, hptep, index);
+		/* don't lose previous R and C bits */
+		r |= hptep[1] & (HPTE_R_R | HPTE_R_C);
 	} else {
 		kvmppc_add_revmap_chain(kvm, rev, rmap, index, 0);
 	}
@@ -701,50 +708,55 @@ static int kvm_unmap_rmapp(struct kvm *kvm, unsigned long *rmapp,
 	struct revmap_entry *rev = kvm->arch.revmap;
 	unsigned long h, i, j;
 	unsigned long *hptep;
-	unsigned long ptel, psize;
+	unsigned long ptel, psize, rcbits;
 
 	for (;;) {
-		while (test_and_set_bit_lock(KVMPPC_RMAP_LOCK_BIT, rmapp))
-			cpu_relax();
+		lock_rmap(rmapp);
 		if (!(*rmapp & KVMPPC_RMAP_PRESENT)) {
-			__clear_bit_unlock(KVMPPC_RMAP_LOCK_BIT, rmapp);
+			unlock_rmap(rmapp);
 			break;
 		}
 
 		/*
 		 * To avoid an ABBA deadlock with the HPTE lock bit,
-		 * we have to unlock the rmap chain before locking the HPTE.
-		 * Thus we remove the first entry, unlock the rmap chain,
-		 * lock the HPTE and then check that it is for the
-		 * page we're unmapping before changing it to non-present.
+		 * we can't spin on the HPTE lock while holding the
+		 * rmap chain lock.
 		 */
 		i = *rmapp & KVMPPC_RMAP_INDEX;
+		hptep = (unsigned long *) (kvm->arch.hpt_virt + (i << 4));
+		if (!try_lock_hpte(hptep, HPTE_V_HVLOCK)) {
+			/* unlock rmap before spinning on the HPTE lock */
+			unlock_rmap(rmapp);
+			while (hptep[0] & HPTE_V_HVLOCK)
+				cpu_relax();
+			continue;
+		}
 		j = rev[i].forw;
 		if (j == i) {
 			/* chain is now empty */
-			j = 0;
+			*rmapp &= ~(KVMPPC_RMAP_PRESENT | KVMPPC_RMAP_INDEX);
 		} else {
 			/* remove i from chain */
 			h = rev[i].back;
 			rev[h].forw = j;
 			rev[j].back = h;
 			rev[i].forw = rev[i].back = i;
-			j |= KVMPPC_RMAP_PRESENT;
+			*rmapp = (*rmapp & ~KVMPPC_RMAP_INDEX) | j;
 		}
-		smp_wmb();
-		*rmapp = j | (1ul << KVMPPC_RMAP_REF_BIT);
 
-		/* Now lock, check and modify the HPTE */
-		hptep = (unsigned long *) (kvm->arch.hpt_virt + (i << 4));
-		while (!try_lock_hpte(hptep, HPTE_V_HVLOCK))
-			cpu_relax();
+		/* Now check and modify the HPTE */
 		ptel = rev[i].guest_rpte;
 		psize = hpte_page_size(hptep[0], ptel);
 		if ((hptep[0] & HPTE_V_VALID) &&
 		    hpte_rpn(ptel, psize) == gfn) {
-			kvmppc_invalidate_hpte(kvm, hptep, i);
 			hptep[0] |= HPTE_V_ABSENT;
+			kvmppc_invalidate_hpte(kvm, hptep, i);
+			/* Harvest R and C */
+			rcbits = hptep[1] & (HPTE_R_R | HPTE_R_C);
+			*rmapp |= rcbits << KVMPPC_RMAP_RC_SHIFT;
+			rev[i].guest_rpte = ptel | rcbits;
 		}
+		unlock_rmap(rmapp);
 		hptep[0] &= ~HPTE_V_HVLOCK;
 	}
 	return 0;
@@ -767,7 +779,7 @@ static int kvm_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
 	kvm_unmap_rmapp(kvm, rmapp, gfn);
 	while (test_and_set_bit_lock(KVMPPC_RMAP_LOCK_BIT, rmapp))
 		cpu_relax();
-	__clear_bit(KVMPPC_RMAP_REF_BIT, rmapp);
+	*rmapp &= ~KVMPPC_RMAP_REFERENCED;
 	__clear_bit_unlock(KVMPPC_RMAP_LOCK_BIT, rmapp);
 	return 1;
 }

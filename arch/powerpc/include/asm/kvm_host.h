@@ -200,8 +200,9 @@ struct revmap_entry {
  * index in the guest HPT of a HPTE that points to the page.
  */
 #define KVMPPC_RMAP_LOCK_BIT	63
-#define KVMPPC_RMAP_REF_BIT	33
-#define KVMPPC_RMAP_REFERENCED	(1ul << KVMPPC_RMAP_REF_BIT)
+#define KVMPPC_RMAP_RC_SHIFT	32
+#define KVMPPC_RMAP_REFERENCED	(HPTE_R_R << KVMPPC_RMAP_RC_SHIFT)
+#define KVMPPC_RMAP_CHANGED	(HPTE_R_C << KVMPPC_RMAP_RC_SHIFT)
 #define KVMPPC_RMAP_PRESENT	0x100000000ul
 #define KVMPPC_RMAP_INDEX	0xfffffffful
 
