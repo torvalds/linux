@@ -99,7 +99,7 @@ static const unsigned int boost_tlv[] = {
 };
 static const DECLARE_TLV_DB_SCALE(dig_tlv, 0, 600, 0);
 
-static const struct snd_kcontrol_new rt5621_vol_snd_controls[] = {
+static const struct snd_kcontrol_new alc5621_vol_snd_controls[] = {
 	SOC_DOUBLE_TLV("Speaker Playback Volume",
 			ALC5623_SPK_OUT_VOL, 8, 0, 31, 1, hp_tlv),
 	SOC_DOUBLE("Speaker Playback Switch",
@@ -110,7 +110,7 @@ static const struct snd_kcontrol_new rt5621_vol_snd_controls[] = {
 			ALC5623_HP_OUT_VOL, 15, 7, 1, 1),
 };
 
-static const struct snd_kcontrol_new rt5622_vol_snd_controls[] = {
+static const struct snd_kcontrol_new alc5622_vol_snd_controls[] = {
 	SOC_DOUBLE_TLV("Speaker Playback Volume",
 			ALC5623_SPK_OUT_VOL, 8, 0, 31, 1, hp_tlv),
 	SOC_DOUBLE("Speaker Playback Switch",
@@ -925,12 +925,12 @@ static int alc5623_probe(struct snd_soc_codec *codec)
 
 	switch (alc5623->id) {
 	case 0x21:
-		snd_soc_add_controls(codec, rt5621_vol_snd_controls,
-			ARRAY_SIZE(rt5621_vol_snd_controls));
+		snd_soc_add_controls(codec, alc5621_vol_snd_controls,
+			ARRAY_SIZE(alc5621_vol_snd_controls));
 		break;
 	case 0x22:
-		snd_soc_add_controls(codec, rt5622_vol_snd_controls,
-			ARRAY_SIZE(rt5622_vol_snd_controls));
+		snd_soc_add_controls(codec, alc5622_vol_snd_controls,
+			ARRAY_SIZE(alc5622_vol_snd_controls));
 		break;
 	case 0x23:
 		snd_soc_add_controls(codec, alc5623_vol_snd_controls,
