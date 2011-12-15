@@ -211,6 +211,7 @@ enum ath9k_hw_caps {
 	ATH9K_HW_CAP_APM			= BIT(15),
 	ATH9K_HW_CAP_RTT			= BIT(16),
 	ATH9K_HW_CAP_MCI			= BIT(17),
+	ATH9K_HW_CAP_DFS			= BIT(18),
 };
 
 struct ath9k_hw_capabilities {

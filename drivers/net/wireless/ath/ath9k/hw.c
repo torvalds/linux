@@ -2277,6 +2277,30 @@ static u8 fixup_chainmask(u8 chip_chainmask, u8 eeprom_chainmask)
 		return chip_chainmask;
 }
 
+/**
+ * ath9k_hw_dfs_tested - checks if DFS has been tested with used chipset
+ * @ah: the atheros hardware data structure
+ *
+ * We enable DFS support upstream on chipsets which have passed a series
+ * of tests. The testing requirements are going to be documented. Desired
+ * test requirements are documented at:
+ *
+ * http://wireless.kernel.org/en/users/Drivers/ath9k/dfs
+ *
+ * Once a new chipset gets properly tested an individual commit can be used
+ * to document the testing for DFS for that chipset.
+ */
+static bool ath9k_hw_dfs_tested(struct ath_hw *ah)
+{
+
+	switch (ah->hw_version.macVersion) {
+	/* AR9580 will likely be our first target to get testing on */
+	case AR_SREV_VERSION_9580:
+	default:
+		return false;
+	}
+}
+
 int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 {
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
@@ -2489,6 +2513,9 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		pCap->pcie_lcr_extsync_en = true;
 		pCap->pcie_lcr_offset = 0x80;
 	}
+
+	if (ath9k_hw_dfs_tested(ah))
+		pCap->hw_caps |= ATH9K_HW_CAP_DFS;
 
 	tx_chainmask = pCap->tx_chainmask;
 	rx_chainmask = pCap->rx_chainmask;
