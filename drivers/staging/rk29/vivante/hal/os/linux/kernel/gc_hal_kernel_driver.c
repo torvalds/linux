@@ -91,6 +91,11 @@ unsigned long coreClock = 552*1000000;
 module_param(coreClock, ulong, 0644);
 #endif
 
+uint gpu_dmask = D_ERROR;
+module_param(gpu_dmask, uint, 0644);
+
+unsigned int regAddress = 0;
+
 // gcdkREPORT_VIDMEM_USAGE add by vv
 #if gcdkREPORT_VIDMEM_USAGE
 #include <linux/proc_fs.h>
@@ -546,6 +551,8 @@ long drv_ioctl(struct file *filp,
 		}
 	}
 #endif
+
+    dprintk(D_IOCTL, "gckKERNEL_Dispatch(FromUser %d, Cmd %d)\n", (ioctlCode == IOCTL_GCHAL_INTERFACE), iface.command);
 
     status = gckKERNEL_Dispatch(device->kernel,
 		(ioctlCode == IOCTL_GCHAL_INTERFACE) , &iface);
@@ -1298,6 +1305,143 @@ static void __exit gpu_exit(void)
 
 module_init(gpu_init);
 module_exit(gpu_exit);
+
+
+#ifdef CONFIG_PROC_FS
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
+
+struct RegDefine {
+    char regname[35];
+    uint offset;
+};
+
+struct RegDefine reg_def[] =
+{
+    {"AQHiClockControl",        0x0000},
+    {"AQHiIdle",                0x0001},
+    {"AQAxiConfig",             0x0002},
+    {"AQAxiStatus",             0x0003},
+    {"AQIntrAcknowledge",       0x0004},
+    {"AQIntrEnbl",              0x0005},
+    {"AQIdent",                 0x0006},
+    {"GCFeatures",              0x0007},
+    {"GCChipId",                0x0008},
+    {"GCChipRev",               0x0009},
+    {"GCChipDate",              0x000A},
+    {"GCChipTime",              0x000B},
+    {"GCChipCustomer",          0x000C},
+    {"GCMinorFeatures0",        0x000D},
+    {"GCCacheControl",          0x000E},
+    {"GCResetMemCounters",      0x000F},
+    {"gcTotalReads",            0x0010},
+    {"gcTotalWrites",           0x0011},
+    {"gcChipSpecs",             0x0012},
+    {"gcTotalWriteBursts",      0x0013},
+    {"gcTotalWriteReqs",        0x0014},
+    {"gcTotalWriteLasts",       0x0015},
+    {"gcTotalReadBursts",       0x0016},
+    {"gcTotalReadReqs",         0x0017},
+    {"gcTotalReadLasts",        0x0018},
+    {"gcGpOut0",                0x0019},
+    {"gcGpOut1",                0x001A},
+    {"gcGpOut2",                0x001B},
+    {"gcAxiControl",            0x001C},
+    {"GCMinorFeatures1",        0x001D},
+    {"gcTotalCycles",           0x001E},
+    {"gcTotalIdleCycles",       0x001F},
+    
+    {"AQMemoryFePageTable",     0x0100},
+    {"AQMemoryTxPageTable",     0x0101},
+    {"AQMemoryPePageTable",     0x0102},
+    {"AQMemoryPezPageTable",    0x0103},
+    {"AQMemoryRaPageTable",     0x0104},
+    {"AQMemoryDebug",           0x0105},
+    {"AQMemoryRa",              0x0106},
+    {"AQMemoryFe",              0x0107},
+    {"AQMemoryTx",              0x0108},
+    {"AQMemoryPez",             0x0109},
+    {"AQMemoryPec",             0x010A},
+    {"AQRegisterTimingControl", 0x010B},
+    {"gcMemoryReserved",        0x010C},
+    {"gcDisplayPriority",       0x010D},
+    {"gcDbgCycleCounter",       0x010E},
+    {"gcOutstandingReads0",     0x010F},
+    {"gcOutstandingReads1",     0x0110},
+    {"gcOutstandingWrites",     0x0111},
+    {"gcDebugSignalsRa",        0x0112},
+    {"gcDebugSignalsTx",        0x0113},
+    {"gcDebugSignalsFe",        0x0114},
+    {"gcDebugSignalsPe",        0x0115},
+    {"gcDebugSignalsDe",        0x0116},
+    {"gcDebugSignalsSh",        0x0117},
+    {"gcDebugSignalsPa",        0x0118},
+    {"gcDebugSignalsSe",        0x0119},
+    {"gcDebugSignalsMc",        0x011A},
+    {"gcDebugSignalsHi",        0x011B},
+    {"gcDebugControl0",         0x011C},
+    {"gcDebugControl1",         0x011D},
+    {"gcDebugControl2",         0x011E},
+    {"gcDebugControl3",         0x011F},
+    {"gcBusControl",            0x0120},
+    {"gcregEndianness0",        0x0121},
+    {"gcregEndianness1",        0x0122},
+    {"gcregEndianness2",        0x0123},
+    {"gcregDrawPrimitiveStartTimeStamp",    0x0124},
+    {"gcregDrawPrimitiveEndTimeStamp",      0x0125},
+    {"gcregReqBankAddrMask",    0x0126},
+    {"gcregReqRowAddrMask",     0x0127},
+
+    //{"gcregReqWeight",          0x0025},
+    //{"gcregRdReqAgingThresh",   0x0013},
+    //{"gcregWrReqAgingThresh",   0x0014},
+    
+    {"AQCmdBufferAddr",         0x0195},
+    {"AQCmdBufferCtrl",         0x0196},
+    {"AQFEDebugState",          0x0198},
+    {"AQFEDebugCurCmdAdr",      0x0199},
+    {"AQFEDebugCmdLowReg",      0x019A},
+    {"AQFEDebugCmdHiReg",       0x019B},
+    
+    {"gcModulePowerControls",       0x0040},
+    {"gcModulePowerModuleControl",  0x0041},
+    {"gcModulePowerModuleStatus",   0x0042},
+};
+
+#define gpu_readl(offset)	readl(regAddress + offset*4)
+
+static int proc_gpu_show(struct seq_file *s, void *v)
+{
+    int i = 0;
+    seq_printf(s, "gpu regs:\n");
+
+    for(i=0; i<sizeof(reg_def)/sizeof(struct RegDefine); i++) {
+        seq_printf(s, "  %-35s : 0x%08x\n", reg_def[i].regname, gpu_readl(reg_def[i].offset));
+    }
+    
+    return 0;
+}
+
+static int proc_gpu_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, proc_gpu_show, NULL);
+}
+
+static const struct file_operations proc_gpu_fops = {
+	.open		= proc_gpu_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int __init gpu_proc_init(void)
+{
+	proc_create("gpu", 0, NULL, &proc_gpu_fops);
+	return 0;
+
+}
+late_initcall(gpu_proc_init);
+#endif /* CONFIG_PROC_FS */
 
 #endif
 

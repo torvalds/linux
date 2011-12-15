@@ -29,6 +29,7 @@
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 #include <linux/debugfs.h>
+#include <linux/android_pmem.h>
 
 #include "ion_priv.h"
 #define DEBUG
@@ -904,10 +905,26 @@ err:
 	return ret;
 }
 
+static long ion_share_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	struct ion_buffer *buffer = filp->private_data;
+	struct pmem_region region;
+
+	region.offset = buffer->priv_phys;
+	region.len = buffer->size;
+
+	if (copy_to_user((void __user *)arg, &region,
+				sizeof(struct pmem_region)))
+		return -EFAULT;
+
+	return 0;
+}
+
 static const struct file_operations ion_share_fops = {
 	.owner		= THIS_MODULE,
 	.release	= ion_share_release,
 	.mmap		= ion_share_mmap,
+	.unlocked_ioctl = ion_share_ioctl,
 };
 
 static int ion_ioctl_share(struct file *parent, struct ion_client *client,

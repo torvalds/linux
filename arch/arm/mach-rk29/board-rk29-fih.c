@@ -534,43 +534,32 @@ static struct mma8452_platform_data mma8452_info = {
 
 };
 #endif
-#if defined (CONFIG_SENSORS_MPU3050)
 /*mpu3050*/
-static struct mpu3050_platform_data mpu3050_data = {
-		.int_config = 0x10,
-		//.orientation = { 1, 0, 0,0, -1, 0,0, 0, 1 },
-		//.orientation = { 0, 1, 0,-1, 0, 0,0, 0, -1 },
-		.orientation = { -1, 0, 0,0, -1, 0,0, 0, -1 },
-		.level_shifter = 0,
-#if defined (CONFIG_SENSORS_KXTF9)
-		.accel = {
-				.get_slave_descr = kxtf9_get_slave_descr ,
-				.adapt_num = 0, // The i2c bus to which the mpu device is
-				// connected
-				.irq = RK29_PIN0_PA3,
-				.bus = EXT_SLAVE_BUS_SECONDARY,  //The secondary I2C of MPU
-				.address = 0x0f,
-				//.orientation = { 1, 0, 0,0, 1, 0,0, 0, 1 },
-				//.orientation = { 0, -1, 0,-1, 0, 0,0, 0, -1 },
-				.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
-		},
-#endif
-#if defined (CONFIG_SENSORS_AK8975)
-		.compass = {
-				.get_slave_descr = ak8975_get_slave_descr,/*ak5883_get_slave_descr,*/
-				.adapt_num = 0, // The i2c bus to which the compass device is. 
-				// It can be difference with mpu
-				// connected
-				.irq = RK29_PIN0_PA4,
-				.bus = EXT_SLAVE_BUS_PRIMARY,
-				.address = 0x0d,
-				//.orientation = { -1, 0, 0,0, -1, 0,0, 0, 1 },
-				//.orientation = { 0, -1, 0,-1, 0, 0,0, 0, -1 },
-				.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
-		},
+#if defined (CONFIG_MPU_SENSORS_MPU3050)
+static struct mpu_platform_data mpu3050_data = {
+	.int_config = 0x10,
+	.orientation = { 1, 0, 0,0, 1, 0, 0, 0, 1 },
 };
 #endif
+
+/* accel */
+#if defined (CONFIG_MPU_SENSORS_KXTF9)
+static struct ext_slave_platform_data inv_mpu_kxtf9_data = {
+	.bus         = EXT_SLAVE_BUS_SECONDARY,
+	.adapt_num = 0,
+	.orientation = {1, 0, 0, 0, 1, 0, 0, 0, 1},
+};
 #endif
+
+/* compass */
+#if defined (CONFIG_MPU_SENSORS_AK8975)
+static struct ext_slave_platform_data inv_mpu_ak8975_data = {
+	.bus         = EXT_SLAVE_BUS_PRIMARY,
+	.adapt_num = 0,
+	.orientation = {0, 1, 0, -1, 0, 0, 0, 0, 1},
+};
+#endif
+
 #if defined (CONFIG_BATTERY_BQ27510)
  
 #define DC_CHECK_PIN RK29_PIN4_PA1
@@ -1110,16 +1099,34 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.irq			= RK29_PIN0_PA4,
 	},
 #endif
-/*mpu3050*/
-#if defined (CONFIG_SENSORS_MPU3050) 
+#if defined (CONFIG_MPU_SENSORS_MPU3050) 
 	{
-		.type 			= "mpu3050",
+		.type			= "mpu3050",
 		.addr			= 0x68,
 		.flags			= 0,
-		.irq			= RK29_PIN5_PA3,
-		.platform_data  = &mpu3050_data,
+		.irq			= RK29_PIN4_PC4,
+		.platform_data	= &mpu3050_data,
 	},
 #endif
+#if defined (CONFIG_MPU_SENSORS_KXTF9)
+	{
+		.type    		= "kxtf9",
+		.addr           = 0x0f,
+		.flags			= 0,	
+		//.irq 			= RK29_PIN6_PC4,
+		.platform_data = &inv_mpu_kxtf9_data,
+	},
+#endif
+#if defined (CONFIG_MPU_SENSORS_AK8975)
+	{
+		.type			= "ak8975",
+		.addr			= 0x0d,
+		.flags			= 0,	
+		//.irq 			= RK29_PIN6_PC5,
+		.platform_data = &inv_mpu_ak8975_data,
+	},
+#endif
+
 };
 #endif
 

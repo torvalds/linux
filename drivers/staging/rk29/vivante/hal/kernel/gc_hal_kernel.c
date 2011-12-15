@@ -18,6 +18,11 @@
 *  
 *****************************************************************************/
 
+#include <linux/pagemap.h>
+#include <linux/mm.h>
+
+#define GetPageCount(size, offset) 	((((size) + ((offset) & ~PAGE_CACHE_MASK)) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT)
+
 
 #include <linux/string.h>
 #include "gc_hal_kernel_precomp.h"
@@ -396,13 +401,14 @@ _AllocateMemory(
     ||     (*Pool == gcvPOOL_UNIFIED)
 #if (0==gcdPAGE_ALLOC_LIMIT)
     // dkm : let gcvPOOL_SYSTEM can use contiguous memory
-    ||     ((*Pool == gcvPOOL_SYSTEM) && (pool==gcvPOOL_CONTIGUOUS))    
+    //||     ((*Pool == gcvPOOL_SYSTEM) && (pool==gcvPOOL_CONTIGUOUS))    
 #endif
     );
 
     if (gcmIS_SUCCESS(status))
     {
         /* Return pool used for allocation. */
+        //if(pool == gcvPOOL_VIRTUAL)     printk("  pool=%d->%d, Bytes=%d, Type=%d\n", *Pool, pool, (int)Bytes, Type);
         *Pool = pool;
     } else {
         printk("_AllocateMemory fail! pool=%d->%d, Bytes=%d, Type=%d\n", *Pool, pool, (int)Bytes, Type);
@@ -621,6 +627,13 @@ gckKERNEL_Dispatch(
         bytes = Interface->u.AllocateVideoMemory.width * bitsPerPixel
               * Interface->u.AllocateVideoMemory.height
               * Interface->u.AllocateVideoMemory.depth / 8;
+    /*
+        printk(" VM-> %d (%d) : %d (%d)\n", 
+            Interface->u.AllocateVideoMemory.pool, 
+            Interface->u.AllocateVideoMemory.type, 
+            (int)GetPageCount(gcmALIGN(bytes, PAGE_SIZE), 0), 
+            (int)bytes);
+    */
 
         /* Allocate memory. */
 #ifdef __QNXNTO__
@@ -644,6 +657,13 @@ gckKERNEL_Dispatch(
         break;
 
     case gcvHAL_ALLOCATE_LINEAR_VIDEO_MEMORY:
+    /*
+        printk(" LVM-> %d (%d) : %d (%d)\n", 
+            Interface->u.AllocateLinearVideoMemory.pool, 
+            Interface->u.AllocateLinearVideoMemory.type, 
+            (int)GetPageCount(gcmALIGN(Interface->u.AllocateLinearVideoMemory.bytes, PAGE_SIZE), 0),
+            (int)Interface->u.AllocateLinearVideoMemory.bytes);
+     */  
         /* Allocate memory. */
 #ifdef __QNXNTO__
         gcmkONERROR(

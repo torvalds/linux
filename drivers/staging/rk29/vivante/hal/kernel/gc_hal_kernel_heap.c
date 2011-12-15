@@ -824,6 +824,9 @@ gckHEAP_Free(
 
 	/* Mark the node as freed. */
 	node->next = gcvNULL;
+
+    // dkm : clear the buffer for safe
+    //memset(Memory, 0, node->bytes - sizeof(gcskNODE));
 	
 #if VIVANTE_PROFILER || gcdDEBUG
 	/* Update profile counters. */

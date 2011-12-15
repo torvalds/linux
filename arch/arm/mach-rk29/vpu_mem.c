@@ -878,7 +878,7 @@ static int vpu_mem_open(struct inode *inode, struct file *file)
     DLOG("current %u file %p(%d)\n", current->pid, file, (int)file_count(file));
     /* setup file->private_data to indicate its unmapped */
     /*  you can only open a vpu_mem device one time */
-    if (file->private_data != NULL)
+    if (file->private_data != NULL && file->private_data != &vpu_mem.dev)
             return -1;
     session = kmalloc(sizeof(vdm_session), GFP_KERNEL);
     if (!session) {

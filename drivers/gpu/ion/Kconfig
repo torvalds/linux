@@ -10,3 +10,8 @@ config ION_TEGRA
 	help
 	  Choose this option if you wish to use ion on an nVidia Tegra.
 
+config ION_ROCKCHIP
+	tristate "Ion for Rockchip"
+	depends on ARCH_RK29 && ION
+	help
+	  Choose this option if you wish to use ion on an Rockchip.

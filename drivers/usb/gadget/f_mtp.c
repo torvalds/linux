@@ -470,7 +470,7 @@ static ssize_t mtp_read(struct file *fp, char __user *buf,
 	DBG(cdev, "mtp_read(%d)\n", count);
 
 	if (count > MTP_BULK_BUFFER_SIZE)
-		return -EINVAL;
+        count = MTP_BULK_BUFFER_SIZE;
 
 	/* we will block until we're online */
 	DBG(cdev, "mtp_read: waiting for online state\n");

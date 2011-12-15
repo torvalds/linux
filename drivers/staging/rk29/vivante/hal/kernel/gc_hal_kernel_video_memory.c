@@ -822,15 +822,16 @@ gckVIDMEM_AllocateLinear(
 
     acquired = gcvTRUE;
 
-#if 0
+#if 1
     // dkm: 对于花屏死机的问题，感觉VV这么做只是规避，还是没有找到问题的原因
 	if (Type == gcvSURF_TILE_STATUS
-    && (Bytes + (1 << 20) > Memory->freeBytes)
-	)
+    && (Bytes + (1 << 20) > Memory->freeBytes))
     {
+        //printk("alloc = %d, freeBytes = %d!, return OUT_OF_MEMORY!\n", (int)Bytes, (int)Memory->freeBytes);
         /* Not enough memory. */
         gcmkONERROR(gcvSTATUS_OUT_OF_MEMORY);
 	}
+    //printk("alloc = %d, freeBytes = %d!\n", (int)Bytes, (int)Memory->freeBytes);
 #else
     // dkm : 为gcvSURF_TILE_STATUS保留2M的空间
 	if (Type != gcvSURF_TILE_STATUS
@@ -909,6 +910,9 @@ gckVIDMEM_AllocateLinear(
 
             /* Remove alignment. */
             alignment = 0;
+        } else {
+            // dkm : Out of memory
+            gcmkONERROR(gcvSTATUS_OUT_OF_MEMORY);
         }
     }
 
@@ -916,7 +920,10 @@ gckVIDMEM_AllocateLinear(
     if (node->VidMem.bytes - Bytes > Memory->threshold)
     {
         /* Adjust the node size. */
-        _Split(Memory->os, node, Bytes);
+        if(!_Split(Memory->os, node, Bytes)) {
+            // dkm : Out of memory
+            gcmkONERROR(gcvSTATUS_OUT_OF_MEMORY);
+        }
     }
 
     /* Remove the node from the free list. */

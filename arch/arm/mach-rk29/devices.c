@@ -859,10 +859,12 @@ static int __init boot_mode_init(char *s)
 }
 __setup("androidboot.mode=", boot_mode_init);
 
-void rk29_boot_mode_init_by_register(void)
+__init void rk29_boot_mode_init_by_register(void)
 {
 	u32 flag = readl(RK29_TIMER0_BASE);
 	if (flag == (SYS_KERNRL_REBOOT_FLAG | BOOT_RECOVER)) {
+		boot_mode = BOOT_MODE_RECOVERY;
+	} else if (strstr(boot_command_line, "(parameter)")) {
 		boot_mode = BOOT_MODE_RECOVERY;
 	} else {
 		boot_mode = readl(RK29_GRF_BASE + 0xdc); // GRF_OS_REG3

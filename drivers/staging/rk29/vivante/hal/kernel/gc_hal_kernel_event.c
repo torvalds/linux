@@ -1007,6 +1007,8 @@ gckEVENT_Notify(
     /* Verify the arguments. */
     gcmkVERIFY_OBJECT(Event, gcvOBJ_EVENT);
 
+    dprintk(D_IRQ, "irq ");
+
     for (;;)
     {
         /* Suspend interrupts. */
@@ -1352,6 +1354,7 @@ gckEVENT_Submit(
                 if (Wait && (status == gcvSTATUS_OUT_OF_RESOURCES))
                 {
                     /* Delay a while. */
+                    printk("gpu : gckEVENT_Submit -> _GetEvent fail! Delay 1ms!\n");
                     gcmkONERROR(gckOS_Delay(Event->os, 1));
 
 #if gcdGPU_TIMEOUT
