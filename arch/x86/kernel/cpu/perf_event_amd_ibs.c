@@ -16,12 +16,67 @@ static u32 ibs_caps;
 
 #if defined(CONFIG_PERF_EVENTS) && defined(CONFIG_CPU_SUP_AMD)
 
-static struct pmu perf_ibs;
+#define IBS_FETCH_CONFIG_MASK	(IBS_FETCH_RAND_EN | IBS_FETCH_MAX_CNT)
+#define IBS_OP_CONFIG_MASK	IBS_OP_MAX_CNT
+
+struct perf_ibs {
+	struct pmu	pmu;
+	unsigned int	msr;
+	u64		config_mask;
+	u64		cnt_mask;
+	u64		enable_mask;
+};
+
+static struct perf_ibs perf_ibs_fetch;
+static struct perf_ibs perf_ibs_op;
+
+static struct perf_ibs *get_ibs_pmu(int type)
+{
+	if (perf_ibs_fetch.pmu.type == type)
+		return &perf_ibs_fetch;
+	if (perf_ibs_op.pmu.type == type)
+		return &perf_ibs_op;
+	return NULL;
+}
 
 static int perf_ibs_init(struct perf_event *event)
 {
-	if (perf_ibs.type != event->attr.type)
+	struct hw_perf_event *hwc = &event->hw;
+	struct perf_ibs *perf_ibs;
+	u64 max_cnt, config;
+
+	perf_ibs = get_ibs_pmu(event->attr.type);
+	if (!perf_ibs)
 		return -ENOENT;
+
+	config = event->attr.config;
+	if (config & ~perf_ibs->config_mask)
+		return -EINVAL;
+
+	if (hwc->sample_period) {
+		if (config & perf_ibs->cnt_mask)
+			/* raw max_cnt may not be set */
+			return -EINVAL;
+		if (hwc->sample_period & 0x0f)
+			/* lower 4 bits can not be set in ibs max cnt */
+			return -EINVAL;
+		max_cnt = hwc->sample_period >> 4;
+		if (max_cnt & ~perf_ibs->cnt_mask)
+			/* out of range */
+			return -EINVAL;
+		config |= max_cnt;
+	} else {
+		max_cnt = config & perf_ibs->cnt_mask;
+		event->attr.sample_period = max_cnt << 4;
+		hwc->sample_period = event->attr.sample_period;
+	}
+
+	if (!max_cnt)
+		return -EINVAL;
+
+	hwc->config_base = perf_ibs->msr;
+	hwc->config = config;
+
 	return 0;
 }
 
@@ -34,10 +89,32 @@ static void perf_ibs_del(struct perf_event *event, int flags)
 {
 }
 
-static struct pmu perf_ibs = {
-	.event_init= perf_ibs_init,
-	.add= perf_ibs_add,
-	.del= perf_ibs_del,
+static struct perf_ibs perf_ibs_fetch = {
+	.pmu = {
+		.task_ctx_nr	= perf_invalid_context,
+
+		.event_init	= perf_ibs_init,
+		.add		= perf_ibs_add,
+		.del		= perf_ibs_del,
+	},
+	.msr			= MSR_AMD64_IBSFETCHCTL,
+	.config_mask		= IBS_FETCH_CONFIG_MASK,
+	.cnt_mask		= IBS_FETCH_MAX_CNT,
+	.enable_mask		= IBS_FETCH_ENABLE,
+};
+
+static struct perf_ibs perf_ibs_op = {
+	.pmu = {
+		.task_ctx_nr	= perf_invalid_context,
+
+		.event_init	= perf_ibs_init,
+		.add		= perf_ibs_add,
+		.del		= perf_ibs_del,
+	},
+	.msr			= MSR_AMD64_IBSOPCTL,
+	.config_mask		= IBS_OP_CONFIG_MASK,
+	.cnt_mask		= IBS_OP_MAX_CNT,
+	.enable_mask		= IBS_OP_ENABLE,
 };
 
 static __init int perf_event_ibs_init(void)
@@ -45,7 +122,8 @@ static __init int perf_event_ibs_init(void)
 	if (!ibs_caps)
 		return -ENODEV;	/* ibs not supported by the cpu */
 
-	perf_pmu_register(&perf_ibs, "ibs", -1);
+	perf_pmu_register(&perf_ibs_fetch.pmu, "ibs_fetch", -1);
+	perf_pmu_register(&perf_ibs_op.pmu, "ibs_op", -1);
 	printk(KERN_INFO "perf: AMD IBS detected (0x%08x)\n", ibs_caps);
 
 	return 0;
