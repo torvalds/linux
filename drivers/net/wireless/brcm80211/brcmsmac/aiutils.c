@@ -565,8 +565,6 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	struct bcma_device *cc;
 	uint socitype;
 
-	memset((unsigned char *) sii, 0, sizeof(struct si_info));
-
 	savewin = 0;
 
 	sii->icbus = pbus;
@@ -677,7 +675,7 @@ ai_attach(struct bcma_bus *pbus)
 	struct si_info *sii;
 
 	/* alloc struct si_info */
-	sii = kmalloc(sizeof(struct si_info), GFP_ATOMIC);
+	sii = kzalloc(sizeof(struct si_info), GFP_ATOMIC);
 	if (sii == NULL)
 		return NULL;
 
