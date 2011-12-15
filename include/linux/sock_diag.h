@@ -1,5 +1,8 @@
 #ifndef __SOCK_DIAG_H__
 #define __SOCK_DIAG_H__
+
+#define SOCK_DIAG_BY_FAMILY 20
+
 struct sk_buff;
 struct nlmsghdr;
 
