@@ -136,8 +136,8 @@ static void ath9k_ani_restart(struct ath_hw *ah)
 		cck_base = AR_PHY_COUNTMAX - ah->config.cck_trig_high;
 	}
 
-	ath_dbg(common, ATH_DBG_ANI,
-		"Writing ofdmbase=%u   cckbase=%u\n", ofdm_base, cck_base);
+	ath_dbg(common, ANI, "Writing ofdmbase=%u   cckbase=%u\n",
+		ofdm_base, cck_base);
 
 	ENABLE_REGWRITE_BUFFER(ah);
 
@@ -268,8 +268,7 @@ static void ath9k_hw_set_ofdm_nil(struct ath_hw *ah, u8 immunityLevel)
 
 	aniState->noiseFloor = BEACON_RSSI(ah);
 
-	ath_dbg(common, ATH_DBG_ANI,
-		"**** ofdmlevel %d=>%d, rssi=%d[lo=%d hi=%d]\n",
+	ath_dbg(common, ANI, "**** ofdmlevel %d=>%d, rssi=%d[lo=%d hi=%d]\n",
 		aniState->ofdmNoiseImmunityLevel,
 		immunityLevel, aniState->noiseFloor,
 		aniState->rssiThrLow, aniState->rssiThrHigh);
@@ -336,8 +335,7 @@ static void ath9k_hw_set_cck_nil(struct ath_hw *ah, u_int8_t immunityLevel)
 	const struct ani_cck_level_entry *entry_cck;
 
 	aniState->noiseFloor = BEACON_RSSI(ah);
-	ath_dbg(common, ATH_DBG_ANI,
-		"**** ccklevel %d=>%d, rssi=%d[lo=%d hi=%d]\n",
+	ath_dbg(common, ANI, "**** ccklevel %d=>%d, rssi=%d[lo=%d hi=%d]\n",
 		aniState->cckNoiseImmunityLevel, immunityLevel,
 		aniState->noiseFloor, aniState->rssiThrLow,
 		aniState->rssiThrHigh);
@@ -481,8 +479,7 @@ static void ath9k_ani_reset_old(struct ath_hw *ah, bool is_scanning)
 
 	if (ah->opmode != NL80211_IFTYPE_STATION
 	    && ah->opmode != NL80211_IFTYPE_ADHOC) {
-		ath_dbg(common, ATH_DBG_ANI,
-			"Reset ANI state opmode %u\n", ah->opmode);
+		ath_dbg(common, ANI, "Reset ANI state opmode %u\n", ah->opmode);
 		ah->stats.ast_ani_reset++;
 
 		if (ah->opmode == NL80211_IFTYPE_AP) {
@@ -582,7 +579,7 @@ void ath9k_ani_reset(struct ath_hw *ah, bool is_scanning)
 		    ATH9K_ANI_OFDM_DEF_LEVEL ||
 		    aniState->cckNoiseImmunityLevel !=
 		    ATH9K_ANI_CCK_DEF_LEVEL) {
-			ath_dbg(common, ATH_DBG_ANI,
+			ath_dbg(common, ANI,
 				"Restore defaults: opmode %u chan %d Mhz/0x%x is_scanning=%d ofdm:%d cck:%d\n",
 				ah->opmode,
 				chan->channel,
@@ -599,7 +596,7 @@ void ath9k_ani_reset(struct ath_hw *ah, bool is_scanning)
 		/*
 		 * restore historical levels for this channel
 		 */
-		ath_dbg(common, ATH_DBG_ANI,
+		ath_dbg(common, ANI,
 			"Restore history: opmode %u chan %d Mhz/0x%x is_scanning=%d ofdm:%d cck:%d\n",
 			ah->opmode,
 			chan->channel,
@@ -662,7 +659,7 @@ static bool ath9k_hw_ani_read_counters(struct ath_hw *ah)
 
 	if (!use_new_ani(ah) && (phyCnt1 < ofdm_base || phyCnt2 < cck_base)) {
 		if (phyCnt1 < ofdm_base) {
-			ath_dbg(common, ATH_DBG_ANI,
+			ath_dbg(common, ANI,
 				"phyCnt1 0x%x, resetting counter value to 0x%x\n",
 				phyCnt1, ofdm_base);
 			REG_WRITE(ah, AR_PHY_ERR_1, ofdm_base);
@@ -670,7 +667,7 @@ static bool ath9k_hw_ani_read_counters(struct ath_hw *ah)
 				  AR_PHY_ERR_OFDM_TIMING);
 		}
 		if (phyCnt2 < cck_base) {
-			ath_dbg(common, ATH_DBG_ANI,
+			ath_dbg(common, ANI,
 				"phyCnt2 0x%x, resetting counter value to 0x%x\n",
 				phyCnt2, cck_base);
 			REG_WRITE(ah, AR_PHY_ERR_2, cck_base);
@@ -713,7 +710,7 @@ void ath9k_hw_ani_monitor(struct ath_hw *ah, struct ath9k_channel *chan)
 	cckPhyErrRate =  aniState->cckPhyErrCount * 1000 /
 			 aniState->listenTime;
 
-	ath_dbg(common, ATH_DBG_ANI,
+	ath_dbg(common, ANI,
 		"listenTime=%d OFDM:%d errs=%d/s CCK:%d errs=%d/s ofdm_turn=%d\n",
 		aniState->listenTime,
 		aniState->ofdmNoiseImmunityLevel,
@@ -748,7 +745,7 @@ void ath9k_enable_mib_counters(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 
-	ath_dbg(common, ATH_DBG_ANI, "Enable MIB counters\n");
+	ath_dbg(common, ANI, "Enable MIB counters\n");
 
 	ath9k_hw_update_mibstats(ah, &ah->ah_mibStats);
 
@@ -770,7 +767,7 @@ void ath9k_hw_disable_mib_counters(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 
-	ath_dbg(common, ATH_DBG_ANI, "Disable MIB counters\n");
+	ath_dbg(common, ANI, "Disable MIB counters\n");
 
 	REG_WRITE(ah, AR_MIBC, AR_MIBC_FMC);
 	ath9k_hw_update_mibstats(ah, &ah->ah_mibStats);
@@ -845,7 +842,7 @@ void ath9k_hw_ani_init(struct ath_hw *ah)
 	struct ath_common *common = ath9k_hw_common(ah);
 	int i;
 
-	ath_dbg(common, ATH_DBG_ANI, "Initialize ANI\n");
+	ath_dbg(common, ANI, "Initialize ANI\n");
 
 	if (use_new_ani(ah)) {
 		ah->config.ofdm_trig_high = ATH9K_ANI_OFDM_TRIG_HIGH_NEW;

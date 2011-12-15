@@ -313,8 +313,7 @@ void ath9k_hw_btcoex_bt_stomp(struct ath_hw *ah,
 				AR_STOMP_NONE_WLAN_WGHT);
 		break;
 	default:
-		ath_dbg(ath9k_hw_common(ah), ATH_DBG_BTCOEX,
-				"Invalid Stomptype\n");
+		ath_dbg(ath9k_hw_common(ah), BTCOEX, "Invalid Stomptype\n");
 		break;
 	}
 }

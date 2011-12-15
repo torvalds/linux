@@ -172,7 +172,7 @@ static void ath_rx_addbuffer_edma(struct ath_softc *sc,
 	u32 nbuf = 0;
 
 	if (list_empty(&sc->rx.rxbuf)) {
-		ath_dbg(common, ATH_DBG_QUEUE, "No free rx buf available\n");
+		ath_dbg(common, QUEUE, "No free rx buf available\n");
 		return;
 	}
 
@@ -337,7 +337,7 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
 		return ath_rx_edma_init(sc, nbufs);
 	} else {
-		ath_dbg(common, ATH_DBG_CONFIG, "cachelsz %u rxbufsize %u\n",
+		ath_dbg(common, CONFIG, "cachelsz %u rxbufsize %u\n",
 			common->cachelsz, common->rx_bufsize);
 
 		/* Initialize rx descriptors */
@@ -591,7 +591,7 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 
 	if (sc->ps_flags & PS_BEACON_SYNC) {
 		sc->ps_flags &= ~PS_BEACON_SYNC;
-		ath_dbg(common, ATH_DBG_PS,
+		ath_dbg(common, PS,
 			"Reconfigure Beacon timers based on timestamp from the AP\n");
 		ath_set_beacon(sc);
 	}
@@ -604,7 +604,7 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 		 * a backup trigger for returning into NETWORK SLEEP state,
 		 * so we are waiting for it as well.
 		 */
-		ath_dbg(common, ATH_DBG_PS,
+		ath_dbg(common, PS,
 			"Received DTIM beacon indicating buffered broadcast/multicast frame(s)\n");
 		sc->ps_flags |= PS_WAIT_FOR_CAB | PS_WAIT_FOR_BEACON;
 		return;
@@ -617,8 +617,7 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 		 * been delivered.
 		 */
 		sc->ps_flags &= ~PS_WAIT_FOR_CAB;
-		ath_dbg(common, ATH_DBG_PS,
-			"PS wait for CAB frames timed out\n");
+		ath_dbg(common, PS, "PS wait for CAB frames timed out\n");
 	}
 }
 
@@ -643,13 +642,13 @@ static void ath_rx_ps(struct ath_softc *sc, struct sk_buff *skb, bool mybeacon)
 		 * point.
 		 */
 		sc->ps_flags &= ~(PS_WAIT_FOR_CAB | PS_WAIT_FOR_BEACON);
-		ath_dbg(common, ATH_DBG_PS,
+		ath_dbg(common, PS,
 			"All PS CAB frames received, back to sleep\n");
 	} else if ((sc->ps_flags & PS_WAIT_FOR_PSPOLL_DATA) &&
 		   !is_multicast_ether_addr(hdr->addr1) &&
 		   !ieee80211_has_morefrags(hdr->frame_control)) {
 		sc->ps_flags &= ~PS_WAIT_FOR_PSPOLL_DATA;
-		ath_dbg(common, ATH_DBG_PS,
+		ath_dbg(common, PS,
 			"Going back to sleep after having received PS-Poll data (0x%lx)\n",
 			sc->ps_flags & (PS_WAIT_FOR_BEACON |
 					PS_WAIT_FOR_CAB |
@@ -932,7 +931,7 @@ static int ath9k_process_rate(struct ath_common *common,
 	 * No valid hardware bitrate found -- we should not get here
 	 * because hardware has already validated this frame as OK.
 	 */
-	ath_dbg(common, ATH_DBG_ANY,
+	ath_dbg(common, ANY,
 		"unsupported hw bitrate detected 0x%02x using 1 Mbit\n",
 		rx_stats->rs_rate);
 

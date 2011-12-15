@@ -158,7 +158,7 @@ static void ar5008_hw_force_bias(struct ath_hw *ah, u16 synth_freq)
 	/* pre-reverse this field */
 	tmp_reg = ath9k_hw_reverse_bits(new_bias, 3);
 
-	ath_dbg(common, ATH_DBG_CONFIG, "Force rf_pwd_icsyndiv to %1d on %4d\n",
+	ath_dbg(common, CONFIG, "Force rf_pwd_icsyndiv to %1d on %4d\n",
 		new_bias, synth_freq);
 
 	/* swizzle rf_pwd_icsyndiv */
@@ -1053,8 +1053,7 @@ static bool ar5008_hw_ani_control_old(struct ath_hw *ah,
 		u32 level = param;
 
 		if (level >= ARRAY_SIZE(ah->totalSizeDesired)) {
-			ath_dbg(common, ATH_DBG_ANI,
-				"level out of range (%u > %zu)\n",
+			ath_dbg(common, ANI, "level out of range (%u > %zu)\n",
 				level, ARRAY_SIZE(ah->totalSizeDesired));
 			return false;
 		}
@@ -1157,8 +1156,7 @@ static bool ar5008_hw_ani_control_old(struct ath_hw *ah,
 		u32 level = param;
 
 		if (level >= ARRAY_SIZE(firstep)) {
-			ath_dbg(common, ATH_DBG_ANI,
-				"level out of range (%u > %zu)\n",
+			ath_dbg(common, ANI, "level out of range (%u > %zu)\n",
 				level, ARRAY_SIZE(firstep));
 			return false;
 		}
@@ -1177,8 +1175,7 @@ static bool ar5008_hw_ani_control_old(struct ath_hw *ah,
 		u32 level = param;
 
 		if (level >= ARRAY_SIZE(cycpwrThr1)) {
-			ath_dbg(common, ATH_DBG_ANI,
-				"level out of range (%u > %zu)\n",
+			ath_dbg(common, ANI, "level out of range (%u > %zu)\n",
 				level, ARRAY_SIZE(cycpwrThr1));
 			return false;
 		}
@@ -1195,23 +1192,22 @@ static bool ar5008_hw_ani_control_old(struct ath_hw *ah,
 	case ATH9K_ANI_PRESENT:
 		break;
 	default:
-		ath_dbg(common, ATH_DBG_ANI, "invalid cmd %u\n", cmd);
+		ath_dbg(common, ANI, "invalid cmd %u\n", cmd);
 		return false;
 	}
 
-	ath_dbg(common, ATH_DBG_ANI, "ANI parameters:\n");
-	ath_dbg(common, ATH_DBG_ANI,
+	ath_dbg(common, ANI, "ANI parameters:\n");
+	ath_dbg(common, ANI,
 		"noiseImmunityLevel=%d, spurImmunityLevel=%d, ofdmWeakSigDetectOff=%d\n",
 		aniState->noiseImmunityLevel,
 		aniState->spurImmunityLevel,
 		!aniState->ofdmWeakSigDetectOff);
-	ath_dbg(common, ATH_DBG_ANI,
+	ath_dbg(common, ANI,
 		"cckWeakSigThreshold=%d, firstepLevel=%d, listenTime=%d\n",
 		aniState->cckWeakSigThreshold,
 		aniState->firstepLevel,
 		aniState->listenTime);
-	ath_dbg(common, ATH_DBG_ANI,
-		"ofdmPhyErrCount=%d, cckPhyErrCount=%d\n\n",
+	ath_dbg(common, ANI, "ofdmPhyErrCount=%d, cckPhyErrCount=%d\n\n",
 		aniState->ofdmPhyErrCount,
 		aniState->cckPhyErrCount);
 
@@ -1295,7 +1291,7 @@ static bool ar5008_hw_ani_control_new(struct ath_hw *ah,
 				    AR_PHY_SFCORR_LOW_USE_SELF_CORR_LOW);
 
 		if (!on != aniState->ofdmWeakSigDetectOff) {
-			ath_dbg(common, ATH_DBG_ANI,
+			ath_dbg(common, ANI,
 				"** ch %d: ofdm weak signal: %s=>%s\n",
 				chan->channel,
 				!aniState->ofdmWeakSigDetectOff ?
@@ -1313,7 +1309,7 @@ static bool ar5008_hw_ani_control_new(struct ath_hw *ah,
 		u32 level = param;
 
 		if (level >= ARRAY_SIZE(firstep_table)) {
-			ath_dbg(common, ATH_DBG_ANI,
+			ath_dbg(common, ANI,
 				"ATH9K_ANI_FIRSTEP_LEVEL: level out of range (%u > %zu)\n",
 				level, ARRAY_SIZE(firstep_table));
 			return false;
@@ -1350,7 +1346,7 @@ static bool ar5008_hw_ani_control_new(struct ath_hw *ah,
 			      AR_PHY_FIND_SIG_FIRSTEP_LOW, value2);
 
 		if (level != aniState->firstepLevel) {
-			ath_dbg(common, ATH_DBG_ANI,
+			ath_dbg(common, ANI,
 				"** ch %d: level %d=>%d[def:%d] firstep[level]=%d ini=%d\n",
 				chan->channel,
 				aniState->firstepLevel,
@@ -1358,7 +1354,7 @@ static bool ar5008_hw_ani_control_new(struct ath_hw *ah,
 				ATH9K_ANI_FIRSTEP_LVL_NEW,
 				value,
 				aniState->iniDef.firstep);
-			ath_dbg(common, ATH_DBG_ANI,
+			ath_dbg(common, ANI,
 				"** ch %d: level %d=>%d[def:%d] firstep_low[level]=%d ini=%d\n",
 				chan->channel,
 				aniState->firstepLevel,
@@ -1378,7 +1374,7 @@ static bool ar5008_hw_ani_control_new(struct ath_hw *ah,
 		u32 level = param;
 
 		if (level >= ARRAY_SIZE(cycpwrThr1_table)) {
-			ath_dbg(common, ATH_DBG_ANI,
+			ath_dbg(common, ANI,
 				"ATH9K_ANI_SPUR_IMMUNITY_LEVEL: level out of range (%u > %zu)\n",
 				level, ARRAY_SIZE(cycpwrThr1_table));
 			return false;
@@ -1414,7 +1410,7 @@ static bool ar5008_hw_ani_control_new(struct ath_hw *ah,
 			      AR_PHY_EXT_TIMING5_CYCPWR_THR1, value2);
 
 		if (level != aniState->spurImmunityLevel) {
-			ath_dbg(common, ATH_DBG_ANI,
+			ath_dbg(common, ANI,
 				"** ch %d: level %d=>%d[def:%d] cycpwrThr1[level]=%d ini=%d\n",
 				chan->channel,
 				aniState->spurImmunityLevel,
@@ -1422,7 +1418,7 @@ static bool ar5008_hw_ani_control_new(struct ath_hw *ah,
 				ATH9K_ANI_SPUR_IMMUNE_LVL_NEW,
 				value,
 				aniState->iniDef.cycpwrThr1);
-			ath_dbg(common, ATH_DBG_ANI,
+			ath_dbg(common, ANI,
 				"** ch %d: level %d=>%d[def:%d] cycpwrThr1Ext[level]=%d ini=%d\n",
 				chan->channel,
 				aniState->spurImmunityLevel,
@@ -1448,11 +1444,11 @@ static bool ar5008_hw_ani_control_new(struct ath_hw *ah,
 	case ATH9K_ANI_PRESENT:
 		break;
 	default:
-		ath_dbg(common, ATH_DBG_ANI, "invalid cmd %u\n", cmd);
+		ath_dbg(common, ANI, "invalid cmd %u\n", cmd);
 		return false;
 	}
 
-	ath_dbg(common, ATH_DBG_ANI,
+	ath_dbg(common, ANI,
 		"ANI parameters: SI=%d, ofdmWS=%s FS=%d MRCcck=%s listenTime=%d ofdmErrs=%d cckErrs=%d\n",
 		aniState->spurImmunityLevel,
 		!aniState->ofdmWeakSigDetectOff ? "on" : "off",
@@ -1506,7 +1502,7 @@ static void ar5008_hw_ani_cache_ini_regs(struct ath_hw *ah)
 
 	iniDef = &aniState->iniDef;
 
-	ath_dbg(common, ATH_DBG_ANI, "ver %d.%d opmode %u chan %d Mhz/0x%x\n",
+	ath_dbg(common, ANI, "ver %d.%d opmode %u chan %d Mhz/0x%x\n",
 		ah->hw_version.macVersion,
 		ah->hw_version.macRev,
 		ah->opmode,

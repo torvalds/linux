@@ -276,8 +276,7 @@ static void setup_ht_cap(struct ath_softc *sc,
 	tx_streams = ath9k_cmn_count_streams(ah->txchainmask, max_streams);
 	rx_streams = ath9k_cmn_count_streams(ah->rxchainmask, max_streams);
 
-	ath_dbg(common, ATH_DBG_CONFIG,
-		"TX streams %d, RX streams: %d\n",
+	ath_dbg(common, CONFIG, "TX streams %d, RX streams: %d\n",
 		tx_streams, rx_streams);
 
 	if (tx_streams != rx_streams) {
@@ -329,7 +328,7 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 	struct ath_buf *bf;
 	int i, bsize, error, desc_len;
 
-	ath_dbg(common, ATH_DBG_CONFIG, "%s DMA: %u buffers %u desc/buf\n",
+	ath_dbg(common, CONFIG, "%s DMA: %u buffers %u desc/buf\n",
 		name, nbuf, ndesc);
 
 	INIT_LIST_HEAD(head);
@@ -375,7 +374,7 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 		goto fail;
 	}
 	ds = (u8 *) dd->dd_desc;
-	ath_dbg(common, ATH_DBG_CONFIG, "%s DMA map: %p (%u) -> %llx (%u)\n",
+	ath_dbg(common, CONFIG, "%s DMA map: %p (%u) -> %llx (%u)\n",
 		name, ds, (u32) dd->dd_desc_len,
 		ito64(dd->dd_desc_paddr), /*XXX*/(u32) dd->dd_desc_len);
 

@@ -299,8 +299,7 @@ static unsigned int ath9k_regread(void *hw_priv, u32 reg_offset)
 			  (u8 *) &val, sizeof(val),
 			  100);
 	if (unlikely(r)) {
-		ath_dbg(common, ATH_DBG_WMI,
-			"REGISTER READ FAILED: (0x%04x, %d)\n",
+		ath_dbg(common, WMI, "REGISTER READ FAILED: (0x%04x, %d)\n",
 			reg_offset, r);
 		return -EIO;
 	}
@@ -327,7 +326,7 @@ static void ath9k_multi_regread(void *hw_priv, u32 *addr,
 			   (u8 *)tmpval, sizeof(u32) * count,
 			   100);
 	if (unlikely(ret)) {
-		ath_dbg(common, ATH_DBG_WMI,
+		ath_dbg(common, WMI,
 			"Multiple REGISTER READ FAILED (count: %d)\n", count);
 	}
 
@@ -352,8 +351,7 @@ static void ath9k_regwrite_single(void *hw_priv, u32 val, u32 reg_offset)
 			  (u8 *) &val, sizeof(val),
 			  100);
 	if (unlikely(r)) {
-		ath_dbg(common, ATH_DBG_WMI,
-			"REGISTER WRITE FAILED:(0x%04x, %d)\n",
+		ath_dbg(common, WMI, "REGISTER WRITE FAILED:(0x%04x, %d)\n",
 			reg_offset, r);
 	}
 }
@@ -384,7 +382,7 @@ static void ath9k_regwrite_buffer(void *hw_priv, u32 val, u32 reg_offset)
 			  (u8 *) &rsp_status, sizeof(rsp_status),
 			  100);
 		if (unlikely(r)) {
-			ath_dbg(common, ATH_DBG_WMI,
+			ath_dbg(common, WMI,
 				"REGISTER WRITE FAILED, multi len: %d\n",
 				priv->wmi->multi_write_idx);
 		}
@@ -434,7 +432,7 @@ static void ath9k_regwrite_flush(void *hw_priv)
 			  (u8 *) &rsp_status, sizeof(rsp_status),
 			  100);
 		if (unlikely(r)) {
-			ath_dbg(common, ATH_DBG_WMI,
+			ath_dbg(common, WMI,
 				"REGISTER WRITE FAILED, multi len: %d\n",
 				priv->wmi->multi_write_idx);
 		}
@@ -512,8 +510,7 @@ static void setup_ht_cap(struct ath9k_htc_priv *priv,
 	tx_streams = ath9k_cmn_count_streams(priv->ah->txchainmask, 2);
 	rx_streams = ath9k_cmn_count_streams(priv->ah->rxchainmask, 2);
 
-	ath_dbg(common, ATH_DBG_CONFIG,
-		"TX streams %d, RX streams: %d\n",
+	ath_dbg(common, CONFIG, "TX streams %d, RX streams: %d\n",
 		tx_streams, rx_streams);
 
 	if (tx_streams != rx_streams) {
@@ -876,9 +873,8 @@ static int ath9k_init_device(struct ath9k_htc_priv *priv,
 		goto err_world;
 	}
 
-	ath_dbg(common, ATH_DBG_CONFIG,
-		"WMI:%d, BCN:%d, CAB:%d, UAPSD:%d, MGMT:%d, "
-		"BE:%d, BK:%d, VI:%d, VO:%d\n",
+	ath_dbg(common, CONFIG,
+		"WMI:%d, BCN:%d, CAB:%d, UAPSD:%d, MGMT:%d, BE:%d, BK:%d, VI:%d, VO:%d\n",
 		priv->wmi_cmd_ep,
 		priv->beacon_ep,
 		priv->cab_ep,

@@ -1199,7 +1199,7 @@ struct ath_rate_table *ath_choose_rate_table(struct ath_softc *sc,
 			return &ar5416_11na_ratetable;
 		return &ar5416_11a_ratetable;
 	default:
-		ath_dbg(common, ATH_DBG_CONFIG, "Invalid band\n");
+		ath_dbg(common, CONFIG, "Invalid band\n");
 		return NULL;
 	}
 }
@@ -1276,8 +1276,7 @@ static void ath_rc_init(struct ath_softc *sc,
 					ath_rc_priv->valid_rate_index[k-1];
 	ath_rc_priv->rate_table = rate_table;
 
-	ath_dbg(common, ATH_DBG_CONFIG,
-		"RC Initialized with capabilities: 0x%x\n",
+	ath_dbg(common, CONFIG, "RC Initialized with capabilities: 0x%x\n",
 		ath_rc_priv->ht_cap);
 }
 
@@ -1474,7 +1473,7 @@ static void ath_rate_update(void *priv, struct ieee80211_supported_band *sband,
 						   oper_cw40, oper_sgi);
 			ath_rc_init(sc, priv_sta, sband, sta, rate_table);
 
-			ath_dbg(ath9k_hw_common(sc->sc_ah), ATH_DBG_CONFIG,
+			ath_dbg(ath9k_hw_common(sc->sc_ah), CONFIG,
 				"Operating HT Bandwidth changed to: %d\n",
 				sc->hw->conf.channel_type);
 		}

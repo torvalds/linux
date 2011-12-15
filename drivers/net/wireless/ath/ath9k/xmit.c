@@ -1626,8 +1626,8 @@ static void ath_tx_txqaddbuf(struct ath_softc *sc, struct ath_txq *txq,
 	bf = list_first_entry(head, struct ath_buf, list);
 	bf_last = list_entry(head->prev, struct ath_buf, list);
 
-	ath_dbg(common, ATH_DBG_QUEUE,
-		"qnum: %d, txq depth: %d\n", txq->axq_qnum, txq->axq_depth);
+	ath_dbg(common, QUEUE, "qnum: %d, txq depth: %d\n",
+		txq->axq_qnum, txq->axq_depth);
 
 	if (edma && list_empty(&txq->txq_fifo[txq->txq_headidx])) {
 		list_splice_tail_init(head, &txq->txq_fifo[txq->txq_headidx]);
@@ -1638,8 +1638,7 @@ static void ath_tx_txqaddbuf(struct ath_softc *sc, struct ath_txq *txq,
 
 		if (txq->axq_link) {
 			ath9k_hw_set_desc_link(ah, txq->axq_link, bf->bf_daddr);
-			ath_dbg(common, ATH_DBG_XMIT,
-				"link[%u] (%p)=%llx (%p)\n",
+			ath_dbg(common, XMIT, "link[%u] (%p)=%llx (%p)\n",
 				txq->axq_qnum, txq->axq_link,
 				ito64(bf->bf_daddr), bf->bf_desc);
 		} else if (!edma)
@@ -1651,7 +1650,7 @@ static void ath_tx_txqaddbuf(struct ath_softc *sc, struct ath_txq *txq,
 	if (puttxbuf) {
 		TX_STAT_INC(txq->axq_qnum, puttxbuf);
 		ath9k_hw_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
-		ath_dbg(common, ATH_DBG_XMIT, "TXDP[%u] = %llx (%p)\n",
+		ath_dbg(common, XMIT, "TXDP[%u] = %llx (%p)\n",
 			txq->axq_qnum, ito64(bf->bf_daddr), bf->bf_desc);
 	}
 
@@ -1793,7 +1792,7 @@ static struct ath_buf *ath_tx_setup_buffer(struct ath_softc *sc,
 
 	bf = ath_tx_get_buffer(sc);
 	if (!bf) {
-		ath_dbg(common, ATH_DBG_XMIT, "TX buffers are full\n");
+		ath_dbg(common, XMIT, "TX buffers are full\n");
 		goto error;
 	}
 
@@ -1952,7 +1951,7 @@ static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 	struct ieee80211_hdr * hdr = (struct ieee80211_hdr *)skb->data;
 	int q, padpos, padsize;
 
-	ath_dbg(common, ATH_DBG_XMIT, "TX complete: skb: %p\n", skb);
+	ath_dbg(common, XMIT, "TX complete: skb: %p\n", skb);
 
 	if (!(tx_flags & ATH_TX_ERROR))
 		/* Frame was ACKed */
@@ -1971,7 +1970,7 @@ static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 
 	if ((sc->ps_flags & PS_WAIT_FOR_TX_ACK) && !txq->axq_depth) {
 		sc->ps_flags &= ~PS_WAIT_FOR_TX_ACK;
-		ath_dbg(common, ATH_DBG_PS,
+		ath_dbg(common, PS,
 			"Going back to sleep after having received TX status (0x%lx)\n",
 			sc->ps_flags & (PS_WAIT_FOR_BEACON |
 					PS_WAIT_FOR_CAB |
@@ -2122,7 +2121,7 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 	struct ath_tx_status ts;
 	int status;
 
-	ath_dbg(common, ATH_DBG_QUEUE, "tx queue %d (%x), link %p\n",
+	ath_dbg(common, QUEUE, "tx queue %d (%x), link %p\n",
 		txq->axq_qnum, ath9k_hw_gettxbuf(sc->sc_ah, txq->axq_qnum),
 		txq->axq_link);
 
@@ -2216,7 +2215,7 @@ static void ath_tx_complete_poll_work(struct work_struct *work)
 		}
 
 	if (needreset) {
-		ath_dbg(ath9k_hw_common(sc->sc_ah), ATH_DBG_RESET,
+		ath_dbg(ath9k_hw_common(sc->sc_ah), RESET,
 			"tx hung, resetting the chip\n");
 		RESET_STAT_INC(sc, RESET_TYPE_TX_HANG);
 		ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
@@ -2259,8 +2258,7 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 		if (status == -EINPROGRESS)
 			break;
 		if (status == -EIO) {
-			ath_dbg(common, ATH_DBG_XMIT,
-				"Error processing tx status\n");
+			ath_dbg(common, XMIT, "Error processing tx status\n");
 			break;
 		}
 
