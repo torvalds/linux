@@ -68,7 +68,8 @@ static void __init paging_init(void)
 
 	zones_size[ZONE_DMA] = max_pfn;
 
-	free_area_init(zones_size);
+	/* We don't have holes in memory map */
+	free_area_init_nodes(zones_size);
 }
 
 void __init setup_memory(void)
@@ -142,8 +143,18 @@ void __init setup_memory(void)
 		PFN_UP(TOPHYS((u32)klimit)), min_low_pfn, max_low_pfn);
 	memblock_reserve(PFN_UP(TOPHYS((u32)klimit)) << PAGE_SHIFT, map_size);
 
+	/* Add active regions with valid PFNs */
+	for_each_memblock(memory, reg) {
+		unsigned long start_pfn, end_pfn;
+
+		start_pfn = memblock_region_memory_base_pfn(reg);
+		end_pfn = memblock_region_memory_end_pfn(reg);
+		memblock_set_node(start_pfn << PAGE_SHIFT,
+					(end_pfn - start_pfn) << PAGE_SHIFT, 0);
+	}
+
 	/* free bootmem is whole main memory */
-	free_bootmem(memory_start, lowmem_size);
+	free_bootmem_with_active_regions(0, max_low_pfn);
 
 	/* reserve allocate blocks */
 	for_each_memblock(reserved, reg) {
@@ -161,6 +172,9 @@ void __init setup_memory(void)
 			reserve_bootmem(reg->base, trunc_size, BOOTMEM_DEFAULT);
 		}
 	}
+
+	/* XXX need to clip this if using highmem? */
+	sparse_memory_present_with_active_regions(0);
 
 #ifdef CONFIG_MMU
 	init_bootmem_done = 1;

@@ -1,6 +1,7 @@
 config MICROBLAZE
 	def_bool y
 	select HAVE_MEMBLOCK
+	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	select HAVE_FUNCTION_GRAPH_TRACER
@@ -28,6 +29,9 @@ config RWSEM_GENERIC_SPINLOCK
 	def_bool y
 
 config ZONE_DMA
+	def_bool y
+
+config ARCH_POPULATES_NODE_MAP
 	def_bool y
 
 config RWSEM_XCHGADD_ALGORITHM
