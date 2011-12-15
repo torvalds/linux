@@ -28,6 +28,7 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/netdevice.h>
+#include <linux/if_ether.h>
 
 #include "hyperv_net.h"
 
@@ -260,9 +261,57 @@ exit:
 }
 
 
-static int netvsc_connect_vsp(struct hv_device *device)
+/* Negotiate NVSP protocol version */
+static int negotiate_nvsp_ver(struct hv_device *device,
+			      struct netvsc_device *net_device,
+			      struct nvsp_message *init_packet,
+			      u32 nvsp_ver)
 {
 	int ret, t;
+
+	memset(init_packet, 0, sizeof(struct nvsp_message));
+	init_packet->hdr.msg_type = NVSP_MSG_TYPE_INIT;
+	init_packet->msg.init_msg.init.min_protocol_ver = nvsp_ver;
+	init_packet->msg.init_msg.init.max_protocol_ver = nvsp_ver;
+
+	/* Send the init request */
+	ret = vmbus_sendpacket(device->channel, init_packet,
+			       sizeof(struct nvsp_message),
+			       (unsigned long)init_packet,
+			       VM_PKT_DATA_INBAND,
+			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+
+	if (ret != 0)
+		return ret;
+
+	t = wait_for_completion_timeout(&net_device->channel_init_wait, 5*HZ);
+
+	if (t == 0)
+		return -ETIMEDOUT;
+
+	if (init_packet->msg.init_msg.init_complete.status !=
+	    NVSP_STAT_SUCCESS)
+		return -EINVAL;
+
+	if (nvsp_ver != NVSP_PROTOCOL_VERSION_2)
+		return 0;
+
+	/* NVSPv2 only: Send NDIS config */
+	memset(init_packet, 0, sizeof(struct nvsp_message));
+	init_packet->hdr.msg_type = NVSP_MSG2_TYPE_SEND_NDIS_CONFIG;
+	init_packet->msg.v2_msg.send_ndis_config.mtu = ETH_DATA_LEN;
+
+	ret = vmbus_sendpacket(device->channel, init_packet,
+				sizeof(struct nvsp_message),
+				(unsigned long)init_packet,
+				VM_PKT_DATA_INBAND, 0);
+
+	return ret;
+}
+
+static int netvsc_connect_vsp(struct hv_device *device)
+{
+	int ret;
 	struct netvsc_device *net_device;
 	struct nvsp_message *init_packet;
 	int ndis_version;
@@ -275,41 +324,20 @@ static int netvsc_connect_vsp(struct hv_device *device)
 
 	init_packet = &net_device->channel_init_pkt;
 
-	memset(init_packet, 0, sizeof(struct nvsp_message));
-	init_packet->hdr.msg_type = NVSP_MSG_TYPE_INIT;
-	init_packet->msg.init_msg.init.min_protocol_ver =
-		NVSP_MIN_PROTOCOL_VERSION;
-	init_packet->msg.init_msg.init.max_protocol_ver =
-		NVSP_MAX_PROTOCOL_VERSION;
-
-	/* Send the init request */
-	ret = vmbus_sendpacket(device->channel, init_packet,
-			       sizeof(struct nvsp_message),
-			       (unsigned long)init_packet,
-			       VM_PKT_DATA_INBAND,
-			       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
-
-	if (ret != 0)
-		goto cleanup;
-
-	t = wait_for_completion_timeout(&net_device->channel_init_wait, 5*HZ);
-
-	if (t == 0) {
-		ret = -ETIMEDOUT;
-		goto cleanup;
-	}
-
-	if (init_packet->msg.init_msg.init_complete.status !=
-	    NVSP_STAT_SUCCESS) {
-		ret = -EINVAL;
-		goto cleanup;
-	}
-
-	if (init_packet->msg.init_msg.init_complete.
-	    negotiated_protocol_ver != NVSP_PROTOCOL_VERSION_1) {
+	/* Negotiate the latest NVSP protocol supported */
+	if (negotiate_nvsp_ver(device, net_device, init_packet,
+			       NVSP_PROTOCOL_VERSION_2) == 0) {
+		net_device->nvsp_version = NVSP_PROTOCOL_VERSION_2;
+	} else if (negotiate_nvsp_ver(device, net_device, init_packet,
+				    NVSP_PROTOCOL_VERSION_1) == 0) {
+		net_device->nvsp_version = NVSP_PROTOCOL_VERSION_1;
+	} else {
 		ret = -EPROTO;
 		goto cleanup;
 	}
+
+	pr_debug("Negotiated NVSP version:%x\n", net_device->nvsp_version);
+
 	/* Send the ndis version */
 	memset(init_packet, 0, sizeof(struct nvsp_message));
 
