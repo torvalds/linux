@@ -4784,7 +4784,7 @@ void sched_show_task(struct task_struct *p)
 	free = stack_not_used(p);
 #endif
 	printk(KERN_CONT "%5lu %5d %6d 0x%08lx\n", free,
-		task_pid_nr(p), task_pid_nr(p->real_parent),
+		task_pid_nr(p), task_pid_nr(rcu_dereference(p->real_parent)),
 		(unsigned long)task_thread_info(p)->flags);
 
 	show_stack(p, NULL);
