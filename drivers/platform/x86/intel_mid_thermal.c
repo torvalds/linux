@@ -550,6 +550,7 @@ static int mid_thermal_remove(struct platform_device *pdev)
 
 static const struct platform_device_id therm_id_table[] = {
 	{ DRIVER_NAME, 1 },
+	{ "msic_thermal", 1 },
 	{ }
 };
 
