@@ -42,7 +42,7 @@ static struct netvsc_device *alloc_net_device(struct hv_device *device)
 	if (!net_device)
 		return NULL;
 
-
+	net_device->start_remove = false;
 	net_device->destroy = false;
 	net_device->dev = device;
 	net_device->ndev = ndev;
@@ -299,7 +299,7 @@ static int negotiate_nvsp_ver(struct hv_device *device,
 	/* NVSPv2 only: Send NDIS config */
 	memset(init_packet, 0, sizeof(struct nvsp_message));
 	init_packet->hdr.msg_type = NVSP_MSG2_TYPE_SEND_NDIS_CONFIG;
-	init_packet->msg.v2_msg.send_ndis_config.mtu = ETH_DATA_LEN;
+	init_packet->msg.v2_msg.send_ndis_config.mtu = net_device->ndev->mtu;
 
 	ret = vmbus_sendpacket(device->channel, init_packet,
 				sizeof(struct nvsp_message),
@@ -464,7 +464,7 @@ static void netvsc_send_completion(struct hv_device *device,
 
 		atomic_dec(&net_device->num_outstanding_sends);
 
-		if (netif_queue_stopped(ndev))
+		if (netif_queue_stopped(ndev) && !net_device->start_remove)
 			netif_wake_queue(ndev);
 	} else {
 		netdev_err(ndev, "Unknown send completion packet type- "

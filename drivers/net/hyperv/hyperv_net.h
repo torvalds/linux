@@ -456,12 +456,9 @@ struct nvsp_message {
 } __packed;
 
 
+#define NETVSC_MTU 65536
 
-
-/* #define NVSC_MIN_PROTOCOL_VERSION		1 */
-/* #define NVSC_MAX_PROTOCOL_VERSION		1 */
-
-#define NETVSC_RECEIVE_BUFFER_SIZE		(1024*1024)	/* 1MB */
+#define NETVSC_RECEIVE_BUFFER_SIZE		(1024*1024*2)	/* 2MB */
 
 #define NETVSC_RECEIVE_BUFFER_ID		0xcafe
 
@@ -479,6 +476,7 @@ struct netvsc_device {
 	u32 nvsp_version;
 
 	atomic_t num_outstanding_sends;
+	bool start_remove;
 	bool destroy;
 	/*
 	 * List of free preallocated hv_netvsc_packet to represent receive

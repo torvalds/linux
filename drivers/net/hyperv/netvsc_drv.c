@@ -148,10 +148,12 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	struct net_device_context *net_device_ctx = netdev_priv(net);
 	struct hv_netvsc_packet *packet;
 	int ret;
-	unsigned int i, num_pages;
+	unsigned int i, num_pages, npg_data;
 
-	/* Add 1 for skb->data and additional one for RNDIS */
-	num_pages = skb_shinfo(skb)->nr_frags + 1 + 1;
+	/* Add multipage for skb->data and additional one for RNDIS */
+	npg_data = (((unsigned long)skb->data + skb_headlen(skb) - 1)
+		>> PAGE_SHIFT) - ((unsigned long)skb->data >> PAGE_SHIFT) + 1;
+	num_pages = skb_shinfo(skb)->nr_frags + npg_data + 1;
 
 	/* Allocate a netvsc packet based on # of frags. */
 	packet = kzalloc(sizeof(struct hv_netvsc_packet) +
@@ -174,21 +176,36 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	packet->page_buf_cnt = num_pages;
 
 	/* Initialize it from the skb */
-	packet->total_data_buflen	= skb->len;
+	packet->total_data_buflen = skb->len;
 
 	/* Start filling in the page buffers starting after RNDIS buffer. */
 	packet->page_buf[1].pfn = virt_to_phys(skb->data) >> PAGE_SHIFT;
 	packet->page_buf[1].offset
 		= (unsigned long)skb->data & (PAGE_SIZE - 1);
-	packet->page_buf[1].len = skb_headlen(skb);
+	if (npg_data == 1)
+		packet->page_buf[1].len = skb_headlen(skb);
+	else
+		packet->page_buf[1].len = PAGE_SIZE
+			- packet->page_buf[1].offset;
+
+	for (i = 2; i <= npg_data; i++) {
+		packet->page_buf[i].pfn = virt_to_phys(skb->data
+			+ PAGE_SIZE * (i-1)) >> PAGE_SHIFT;
+		packet->page_buf[i].offset = 0;
+		packet->page_buf[i].len = PAGE_SIZE;
+	}
+	if (npg_data > 1)
+		packet->page_buf[npg_data].len = (((unsigned long)skb->data
+			+ skb_headlen(skb) - 1) & (PAGE_SIZE - 1)) + 1;
 
 	/* Additional fragments are after SKB data */
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		const skb_frag_t *f = &skb_shinfo(skb)->frags[i];
 
-		packet->page_buf[i+2].pfn = page_to_pfn(skb_frag_page(f));
-		packet->page_buf[i+2].offset = f->page_offset;
-		packet->page_buf[i+2].len = skb_frag_size(f);
+		packet->page_buf[i+npg_data+1].pfn =
+			page_to_pfn(skb_frag_page(f));
+		packet->page_buf[i+npg_data+1].offset = f->page_offset;
+		packet->page_buf[i+npg_data+1].len = skb_frag_size(f);
 	}
 
 	/* Set the completion routine */
@@ -300,6 +317,39 @@ static void netvsc_get_drvinfo(struct net_device *net,
 	strcpy(info->fw_version, "N/A");
 }
 
+static int netvsc_change_mtu(struct net_device *ndev, int mtu)
+{
+	struct net_device_context *ndevctx = netdev_priv(ndev);
+	struct hv_device *hdev =  ndevctx->device_ctx;
+	struct netvsc_device *nvdev = hv_get_drvdata(hdev);
+	struct netvsc_device_info device_info;
+	int limit = ETH_DATA_LEN;
+
+	if (nvdev == NULL || nvdev->destroy)
+		return -ENODEV;
+
+	if (nvdev->nvsp_version == NVSP_PROTOCOL_VERSION_2)
+		limit = NETVSC_MTU;
+
+	if (mtu < 68 || mtu > limit)
+		return -EINVAL;
+
+	nvdev->start_remove = true;
+	cancel_delayed_work_sync(&ndevctx->dwork);
+	netif_stop_queue(ndev);
+	rndis_filter_device_remove(hdev);
+
+	ndev->mtu = mtu;
+
+	ndevctx->device_ctx = hdev;
+	hv_set_drvdata(hdev, ndev);
+	device_info.ring_size = ring_size;
+	rndis_filter_device_add(hdev, &device_info);
+	netif_wake_queue(ndev);
+
+	return 0;
+}
+
 static const struct ethtool_ops ethtool_ops = {
 	.get_drvinfo	= netvsc_get_drvinfo,
 	.get_link	= ethtool_op_get_link,
@@ -310,7 +360,7 @@ static const struct net_device_ops device_ops = {
 	.ndo_stop =			netvsc_close,
 	.ndo_start_xmit =		netvsc_start_xmit,
 	.ndo_set_rx_mode =		netvsc_set_multicast_list,
-	.ndo_change_mtu =		eth_change_mtu,
+	.ndo_change_mtu =		netvsc_change_mtu,
 	.ndo_validate_addr =		eth_validate_addr,
 	.ndo_set_mac_address =		eth_mac_addr,
 };
@@ -402,6 +452,8 @@ static int netvsc_remove(struct hv_device *dev)
 		dev_err(&dev->device, "No net device to remove\n");
 		return 0;
 	}
+
+	net_device->start_remove = true;
 
 	ndev_ctx = netdev_priv(net);
 	cancel_delayed_work_sync(&ndev_ctx->dwork);
