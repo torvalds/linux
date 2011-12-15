@@ -559,7 +559,7 @@ wl12xx_scan_sched_scan_ssid_list(struct wl1271 *wl,
 						break;
 					}
 				/* Fail if SSID isn't present in the filters */
-				if (j == req->n_ssids) {
+				if (j == cmd->n_ssids) {
 					ret = -EINVAL;
 					goto out_free;
 				}

@@ -24,6 +24,7 @@
 #include <linux/irq.h>
 #include <linux/serio.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #include <asm/mach-types.h>
 #include <plat/board-ams-delta.h>

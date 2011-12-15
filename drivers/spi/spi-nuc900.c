@@ -8,6 +8,7 @@
  *
  */
 
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
@@ -426,7 +427,7 @@ static int __devinit nuc900_spi_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	mfp_set_groupg(&pdev->dev);
+	mfp_set_groupg(&pdev->dev, NULL);
 	nuc900_init_spi(hw);
 
 	err = spi_bitbang_start(&hw->bitbang);

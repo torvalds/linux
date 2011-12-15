@@ -593,14 +593,16 @@ static inline pgste_t pgste_update_all(pte_t *ptep, pgste_t pgste)
 	unsigned long address, bits;
 	unsigned char skey;
 
+	if (!pte_present(*ptep))
+		return pgste;
 	address = pte_val(*ptep) & PAGE_MASK;
 	skey = page_get_storage_key(address);
 	bits = skey & (_PAGE_CHANGED | _PAGE_REFERENCED);
 	/* Clear page changed & referenced bit in the storage key */
-	if (bits) {
-		skey ^= bits;
-		page_set_storage_key(address, skey, 1);
-	}
+	if (bits & _PAGE_CHANGED)
+		page_set_storage_key(address, skey ^ bits, 1);
+	else if (bits)
+		page_reset_referenced(address);
 	/* Transfer page changed & referenced bit to guest bits in pgste */
 	pgste_val(pgste) |= bits << 48;		/* RCP_GR_BIT & RCP_GC_BIT */
 	/* Get host changed & referenced bits from pgste */
@@ -625,6 +627,8 @@ static inline pgste_t pgste_update_young(pte_t *ptep, pgste_t pgste)
 #ifdef CONFIG_PGSTE
 	int young;
 
+	if (!pte_present(*ptep))
+		return pgste;
 	young = page_reset_referenced(pte_val(*ptep) & PAGE_MASK);
 	/* Transfer page referenced bit to pte software bit (host view) */
 	if (young || (pgste_val(pgste) & RCP_HR_BIT))
@@ -638,13 +642,15 @@ static inline pgste_t pgste_update_young(pte_t *ptep, pgste_t pgste)
 
 }
 
-static inline void pgste_set_pte(pte_t *ptep, pgste_t pgste)
+static inline void pgste_set_pte(pte_t *ptep, pgste_t pgste, pte_t entry)
 {
 #ifdef CONFIG_PGSTE
 	unsigned long address;
 	unsigned long okey, nkey;
 
-	address = pte_val(*ptep) & PAGE_MASK;
+	if (!pte_present(entry))
+		return;
+	address = pte_val(entry) & PAGE_MASK;
 	okey = nkey = page_get_storage_key(address);
 	nkey &= ~(_PAGE_ACC_BITS | _PAGE_FP_BIT);
 	/* Set page access key and fetch protection bit from pgste */
@@ -712,7 +718,7 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 
 	if (mm_has_pgste(mm)) {
 		pgste = pgste_get_lock(ptep);
-		pgste_set_pte(ptep, pgste);
+		pgste_set_pte(ptep, pgste, entry);
 		*ptep = entry;
 		pgste_set_unlock(ptep, pgste);
 	} else

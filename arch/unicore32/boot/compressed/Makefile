@@ -10,8 +10,8 @@
 # Copyright (C) 2001~2010 GUAN Xue-tao
 #
 
-EXTRA_CFLAGS	:= -fpic -fno-builtin
-EXTRA_AFLAGS	:= -Wa,-march=all
+ccflags-y	:= -fpic -fno-builtin
+asflags-y	:= -Wa,-march=all
 
 OBJS		:= misc.o
 

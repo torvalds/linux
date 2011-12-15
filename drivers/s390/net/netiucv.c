@@ -1994,6 +1994,8 @@ static struct net_device *netiucv_init_netdevice(char *username)
 			   netiucv_setup_netdevice);
 	if (!dev)
 		return NULL;
+	if (dev_alloc_name(dev, dev->name) < 0)
+		goto out_netdev;
 
 	privptr = netdev_priv(dev);
 	privptr->fsm = init_fsm("netiucvdev", dev_state_names,

@@ -1718,6 +1718,8 @@ static void r8a66597_fifo_flush(struct usb_ep *_ep)
 	if (list_empty(&ep->queue) && !ep->busy) {
 		pipe_stop(ep->r8a66597, ep->pipenum);
 		r8a66597_bclr(ep->r8a66597, BCLR, ep->fifoctr);
+		r8a66597_write(ep->r8a66597, ACLRM, ep->pipectr);
+		r8a66597_write(ep->r8a66597, 0, ep->pipectr);
 	}
 	spin_unlock_irqrestore(&ep->r8a66597->lock, flags);
 }
@@ -1742,26 +1744,16 @@ static int r8a66597_start(struct usb_gadget *gadget,
 		struct usb_gadget_driver *driver)
 {
 	struct r8a66597 *r8a66597 = gadget_to_r8a66597(gadget);
-	int retval;
 
 	if (!driver
-			|| driver->speed != USB_SPEED_HIGH
+			|| driver->speed < USB_SPEED_HIGH
 			|| !driver->setup)
 		return -EINVAL;
 	if (!r8a66597)
 		return -ENODEV;
 
 	/* hook up the driver */
-	driver->driver.bus = NULL;
 	r8a66597->driver = driver;
-	r8a66597->gadget.dev.driver = &driver->driver;
-
-	retval = device_add(&r8a66597->gadget.dev);
-	if (retval) {
-		dev_err(r8a66597_to_dev(r8a66597), "device_add error (%d)\n",
-			retval);
-		goto error;
-	}
 
 	init_controller(r8a66597);
 	r8a66597_bset(r8a66597, VBSE, INTENB0);
@@ -1775,12 +1767,6 @@ static int r8a66597_start(struct usb_gadget *gadget,
 	}
 
 	return 0;
-
-error:
-	r8a66597->driver = NULL;
-	r8a66597->gadget.dev.driver = NULL;
-
-	return retval;
 }
 
 static int r8a66597_stop(struct usb_gadget *gadget,
@@ -1794,7 +1780,6 @@ static int r8a66597_stop(struct usb_gadget *gadget,
 	disable_controller(r8a66597);
 	spin_unlock_irqrestore(&r8a66597->lock, flags);
 
-	device_del(&r8a66597->gadget.dev);
 	r8a66597->driver = NULL;
 	return 0;
 }
@@ -1845,6 +1830,7 @@ static int __exit r8a66597_remove(struct platform_device *pdev)
 		clk_put(r8a66597->clk);
 	}
 #endif
+	device_unregister(&r8a66597->gadget.dev);
 	kfree(r8a66597);
 	return 0;
 }
@@ -1924,13 +1910,17 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	r8a66597->irq_sense_low = irq_trigger == IRQF_TRIGGER_LOW;
 
 	r8a66597->gadget.ops = &r8a66597_gadget_ops;
-	device_initialize(&r8a66597->gadget.dev);
 	dev_set_name(&r8a66597->gadget.dev, "gadget");
 	r8a66597->gadget.is_dualspeed = 1;
 	r8a66597->gadget.dev.parent = &pdev->dev;
 	r8a66597->gadget.dev.dma_mask = pdev->dev.dma_mask;
 	r8a66597->gadget.dev.release = pdev->dev.release;
 	r8a66597->gadget.name = udc_name;
+	ret = device_register(&r8a66597->gadget.dev);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "device_register failed\n");
+		goto clean_up;
+	}
 
 	init_timer(&r8a66597->timer);
 	r8a66597->timer.function = r8a66597_timer;
@@ -1945,7 +1935,7 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "cannot get clock \"%s\"\n",
 				clk_name);
 			ret = PTR_ERR(r8a66597->clk);
-			goto clean_up;
+			goto clean_up_dev;
 		}
 		clk_enable(r8a66597->clk);
 	}
@@ -2014,7 +2004,9 @@ clean_up2:
 		clk_disable(r8a66597->clk);
 		clk_put(r8a66597->clk);
 	}
+clean_up_dev:
 #endif
+	device_unregister(&r8a66597->gadget.dev);
 clean_up:
 	if (r8a66597) {
 		if (r8a66597->sudmac_reg)
