@@ -93,6 +93,7 @@ struct mt_device {
 #define MT_CLS_DUAL_INRANGE_CONTACTID		0x0006
 #define MT_CLS_DUAL_INRANGE_CONTACTNUMBER	0x0007
 #define MT_CLS_DUAL_NSMU_CONTACTID		0x0008
+#define MT_CLS_INRANGE_CONTACTNUMBER		0x0009
 
 /* vendor specific classes */
 #define MT_CLS_3M				0x0101
@@ -159,6 +160,9 @@ struct mt_class mt_classes[] = {
 		.quirks = MT_QUIRK_NOT_SEEN_MEANS_UP |
 			MT_QUIRK_SLOT_IS_CONTACTID,
 		.maxcontacts = 2 },
+	{ .name = MT_CLS_INRANGE_CONTACTNUMBER,
+		.quirks = MT_QUIRK_VALID_IS_INRANGE |
+			MT_QUIRK_SLOT_IS_CONTACTNUMBER },
 
 	/*
 	 * vendor specific classes
@@ -783,6 +787,17 @@ static const struct hid_device_id mt_devices[] = {
 	{ .driver_data = MT_CLS_CONFIDENCE,
 		HID_USB_DEVICE(USB_VENDOR_ID_PENMOUNT,
 			USB_DEVICE_ID_PENMOUNT_PCI) },
+
+	/* PixArt optical touch screen */
+	{ .driver_data = MT_CLS_INRANGE_CONTACTNUMBER,
+		HID_USB_DEVICE(USB_VENDOR_ID_PIXART,
+			USB_DEVICE_ID_PIXART_OPTICAL_TOUCH_SCREEN) },
+	{ .driver_data = MT_CLS_INRANGE_CONTACTNUMBER,
+		HID_USB_DEVICE(USB_VENDOR_ID_PIXART,
+			USB_DEVICE_ID_PIXART_OPTICAL_TOUCH_SCREEN1) },
+	{ .driver_data = MT_CLS_INRANGE_CONTACTNUMBER,
+		HID_USB_DEVICE(USB_VENDOR_ID_PIXART,
+			USB_DEVICE_ID_PIXART_OPTICAL_TOUCH_SCREEN2) },
 
 	/* PixCir-based panels */
 	{ .driver_data = MT_CLS_DUAL_INRANGE_CONTACTID,
