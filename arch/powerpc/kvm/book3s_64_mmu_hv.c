@@ -772,16 +772,50 @@ int kvm_unmap_hva(struct kvm *kvm, unsigned long hva)
 static int kvm_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
 			 unsigned long gfn)
 {
-	if (!kvm->arch.using_mmu_notifiers)
-		return 0;
-	if (!(*rmapp & KVMPPC_RMAP_REFERENCED))
-		return 0;
-	kvm_unmap_rmapp(kvm, rmapp, gfn);
-	while (test_and_set_bit_lock(KVMPPC_RMAP_LOCK_BIT, rmapp))
-		cpu_relax();
-	*rmapp &= ~KVMPPC_RMAP_REFERENCED;
-	__clear_bit_unlock(KVMPPC_RMAP_LOCK_BIT, rmapp);
-	return 1;
+	struct revmap_entry *rev = kvm->arch.revmap;
+	unsigned long head, i, j;
+	unsigned long *hptep;
+	int ret = 0;
+
+ retry:
+	lock_rmap(rmapp);
+	if (*rmapp & KVMPPC_RMAP_REFERENCED) {
+		*rmapp &= ~KVMPPC_RMAP_REFERENCED;
+		ret = 1;
+	}
+	if (!(*rmapp & KVMPPC_RMAP_PRESENT)) {
+		unlock_rmap(rmapp);
+		return ret;
+	}
+
+	i = head = *rmapp & KVMPPC_RMAP_INDEX;
+	do {
+		hptep = (unsigned long *) (kvm->arch.hpt_virt + (i << 4));
+		j = rev[i].forw;
+
+		/* If this HPTE isn't referenced, ignore it */
+		if (!(hptep[1] & HPTE_R_R))
+			continue;
+
+		if (!try_lock_hpte(hptep, HPTE_V_HVLOCK)) {
+			/* unlock rmap before spinning on the HPTE lock */
+			unlock_rmap(rmapp);
+			while (hptep[0] & HPTE_V_HVLOCK)
+				cpu_relax();
+			goto retry;
+		}
+
+		/* Now check and modify the HPTE */
+		if ((hptep[0] & HPTE_V_VALID) && (hptep[1] & HPTE_R_R)) {
+			kvmppc_clear_ref_hpte(kvm, hptep, i);
+			rev[i].guest_rpte |= HPTE_R_R;
+			ret = 1;
+		}
+		hptep[0] &= ~HPTE_V_HVLOCK;
+	} while ((i = j) != head);
+
+	unlock_rmap(rmapp);
+	return ret;
 }
 
 int kvm_age_hva(struct kvm *kvm, unsigned long hva)
@@ -794,7 +828,32 @@ int kvm_age_hva(struct kvm *kvm, unsigned long hva)
 static int kvm_test_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
 			      unsigned long gfn)
 {
-	return !!(*rmapp & KVMPPC_RMAP_REFERENCED);
+	struct revmap_entry *rev = kvm->arch.revmap;
+	unsigned long head, i, j;
+	unsigned long *hp;
+	int ret = 1;
+
+	if (*rmapp & KVMPPC_RMAP_REFERENCED)
+		return 1;
+
+	lock_rmap(rmapp);
+	if (*rmapp & KVMPPC_RMAP_REFERENCED)
+		goto out;
+
+	if (*rmapp & KVMPPC_RMAP_PRESENT) {
+		i = head = *rmapp & KVMPPC_RMAP_INDEX;
+		do {
+			hp = (unsigned long *)(kvm->arch.hpt_virt + (i << 4));
+			j = rev[i].forw;
+			if (hp[1] & HPTE_R_R)
+				goto out;
+		} while ((i = j) != head);
+	}
+	ret = 0;
+
+ out:
+	unlock_rmap(rmapp);
+	return ret;
 }
 
 int kvm_test_age_hva(struct kvm *kvm, unsigned long hva)

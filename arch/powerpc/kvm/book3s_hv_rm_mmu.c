@@ -641,6 +641,25 @@ void kvmppc_invalidate_hpte(struct kvm *kvm, unsigned long *hptep,
 }
 EXPORT_SYMBOL_GPL(kvmppc_invalidate_hpte);
 
+void kvmppc_clear_ref_hpte(struct kvm *kvm, unsigned long *hptep,
+			   unsigned long pte_index)
+{
+	unsigned long rb;
+	unsigned char rbyte;
+
+	rb = compute_tlbie_rb(hptep[0], hptep[1], pte_index);
+	rbyte = (hptep[1] & ~HPTE_R_R) >> 8;
+	/* modify only the second-last byte, which contains the ref bit */
+	*((char *)hptep + 14) = rbyte;
+	while (!try_lock_tlbie(&kvm->arch.tlbie_lock))
+		cpu_relax();
+	asm volatile(PPC_TLBIE(%1,%0)"; eieio; tlbsync"
+		     : : "r" (rb), "r" (kvm->arch.lpid));
+	asm volatile("ptesync" : : : "memory");
+	kvm->arch.tlbie_lock = 0;
+}
+EXPORT_SYMBOL_GPL(kvmppc_clear_ref_hpte);
+
 static int slb_base_page_shift[4] = {
 	24,	/* 16M */
 	16,	/* 64k */
