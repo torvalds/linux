@@ -30,7 +30,7 @@ module_param(debug, int, 0644);
 			printk(KERN_DEBUG "vb2: " fmt, ## arg);		\
 	} while (0)
 
-#define call_memop(q, plane, op, args...)				\
+#define call_memop(q, op, args...)					\
 	(((q)->mem_ops->op) ?						\
 		((q)->mem_ops->op(args)) : 0)
 
@@ -52,7 +52,7 @@ static int __vb2_buf_mem_alloc(struct vb2_buffer *vb)
 
 	/* Allocate memory for all planes in this buffer */
 	for (plane = 0; plane < vb->num_planes; ++plane) {
-		mem_priv = call_memop(q, plane, alloc, q->alloc_ctx[plane],
+		mem_priv = call_memop(q, alloc, q->alloc_ctx[plane],
 				      q->plane_sizes[plane]);
 		if (IS_ERR_OR_NULL(mem_priv))
 			goto free;
@@ -66,7 +66,7 @@ static int __vb2_buf_mem_alloc(struct vb2_buffer *vb)
 free:
 	/* Free already allocated memory if one of the allocations failed */
 	for (; plane > 0; --plane)
-		call_memop(q, plane, put, vb->planes[plane - 1].mem_priv);
+		call_memop(q, put, vb->planes[plane - 1].mem_priv);
 
 	return -ENOMEM;
 }
@@ -80,7 +80,7 @@ static void __vb2_buf_mem_free(struct vb2_buffer *vb)
 	unsigned int plane;
 
 	for (plane = 0; plane < vb->num_planes; ++plane) {
-		call_memop(q, plane, put, vb->planes[plane].mem_priv);
+		call_memop(q, put, vb->planes[plane].mem_priv);
 		vb->planes[plane].mem_priv = NULL;
 		dprintk(3, "Freed plane %d of buffer %d\n",
 				plane, vb->v4l2_buf.index);
@@ -100,7 +100,7 @@ static void __vb2_buf_userptr_put(struct vb2_buffer *vb)
 		void *mem_priv = vb->planes[plane].mem_priv;
 
 		if (mem_priv) {
-			call_memop(q, plane, put_userptr, mem_priv);
+			call_memop(q, put_userptr, mem_priv);
 			vb->planes[plane].mem_priv = NULL;
 		}
 	}
@@ -305,7 +305,7 @@ static bool __buffer_in_use(struct vb2_queue *q, struct vb2_buffer *vb)
 		 * case anyway. If num_users() returns more than 1,
 		 * we are not the only user of the plane's memory.
 		 */
-		if (mem_priv && call_memop(q, plane, num_users, mem_priv) > 1)
+		if (mem_priv && call_memop(q, num_users, mem_priv) > 1)
 			return true;
 	}
 	return false;
@@ -734,7 +734,7 @@ void *vb2_plane_vaddr(struct vb2_buffer *vb, unsigned int plane_no)
 	if (plane_no > vb->num_planes)
 		return NULL;
 
-	return call_memop(q, plane_no, vaddr, vb->planes[plane_no].mem_priv);
+	return call_memop(q, vaddr, vb->planes[plane_no].mem_priv);
 
 }
 EXPORT_SYMBOL_GPL(vb2_plane_vaddr);
@@ -757,7 +757,7 @@ void *vb2_plane_cookie(struct vb2_buffer *vb, unsigned int plane_no)
 	if (plane_no > vb->num_planes)
 		return NULL;
 
-	return call_memop(q, plane_no, cookie, vb->planes[plane_no].mem_priv);
+	return call_memop(q, cookie, vb->planes[plane_no].mem_priv);
 }
 EXPORT_SYMBOL_GPL(vb2_plane_cookie);
 
@@ -899,8 +899,7 @@ static int __qbuf_userptr(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 
 		/* Release previously acquired memory if present */
 		if (vb->planes[plane].mem_priv)
-			call_memop(q, plane, put_userptr,
-					vb->planes[plane].mem_priv);
+			call_memop(q, put_userptr, vb->planes[plane].mem_priv);
 
 		vb->planes[plane].mem_priv = NULL;
 		vb->v4l2_planes[plane].m.userptr = 0;
@@ -944,8 +943,7 @@ err:
 	/* In case of errors, release planes that were already acquired */
 	for (plane = 0; plane < vb->num_planes; ++plane) {
 		if (vb->planes[plane].mem_priv)
-			call_memop(q, plane, put_userptr,
-				   vb->planes[plane].mem_priv);
+			call_memop(q, put_userptr, vb->planes[plane].mem_priv);
 		vb->planes[plane].mem_priv = NULL;
 		vb->v4l2_planes[plane].m.userptr = 0;
 		vb->v4l2_planes[plane].length = 0;
