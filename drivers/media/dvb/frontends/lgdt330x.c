@@ -288,6 +288,8 @@ static int lgdt330x_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 	int err;
 	u8 buf[2];
 
+	*ucblocks = 0;
+
 	switch (state->config->demod_chip) {
 	case LGDT3302:
 		err = i2c_read_demod_bytes(state, LGDT3302_PACKET_ERR_COUNTER1,
@@ -302,6 +304,8 @@ static int lgdt330x_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 		       "Only LGDT3302 and LGDT3303 are supported chips.\n");
 		err = -ENODEV;
 	}
+	if (err < 0)
+		return err;
 
 	*ucblocks = (buf[0] << 8) | buf[1];
 	return 0;
