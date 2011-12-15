@@ -331,7 +331,7 @@ again:
 			run_ordered_completions(worker->workers, work);
 
 			check_pending_worker_creates(worker);
-
+			cond_resched();
 		}
 
 		spin_lock_irq(&worker->lock);
