@@ -44,7 +44,7 @@ static inline struct tcp_memcontrol *tcp_from_cgproto(struct cg_proto *cg_proto)
 
 static void memcg_tcp_enter_memory_pressure(struct sock *sk)
 {
-	if (!sk->sk_cgrp->memory_pressure)
+	if (sk->sk_cgrp->memory_pressure)
 		*sk->sk_cgrp->memory_pressure = 1;
 }
 EXPORT_SYMBOL(memcg_tcp_enter_memory_pressure);
