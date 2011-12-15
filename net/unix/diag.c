@@ -26,6 +26,23 @@ rtattr_failure:
 	return -EMSGSIZE;
 }
 
+static int sk_diag_dump_vfs(struct sock *sk, struct sk_buff *nlskb)
+{
+	struct dentry *dentry = unix_sk(sk)->dentry;
+	struct unix_diag_vfs *uv;
+
+	if (dentry) {
+		uv = UNIX_DIAG_PUT(nlskb, UNIX_DIAG_VFS, sizeof(*uv));
+		uv->udiag_vfs_ino = dentry->d_inode->i_ino;
+		uv->udiag_vfs_dev = dentry->d_sb->s_dev;
+	}
+
+	return 0;
+
+rtattr_failure:
+	return -EMSGSIZE;
+}
+
 static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct unix_diag_req *req,
 		u32 pid, u32 seq, u32 flags, int sk_ino)
 {
@@ -46,6 +63,10 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct unix_diag_r
 
 	if ((req->udiag_show & UDIAG_SHOW_NAME) &&
 			sk_diag_dump_name(sk, skb))
+		goto nlmsg_failure;
+
+	if ((req->udiag_show & UDIAG_SHOW_VFS) &&
+			sk_diag_dump_vfs(sk, skb))
 		goto nlmsg_failure;
 
 	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
