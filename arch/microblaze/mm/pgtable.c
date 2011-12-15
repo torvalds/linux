@@ -37,6 +37,7 @@
 #include <linux/io.h>
 #include <asm/mmu.h>
 #include <asm/sections.h>
+#include <asm/fixmap.h>
 
 #define flush_HPTE(X, va, pg)	_tlbie(va)
 
@@ -248,4 +249,14 @@ __init_refok pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
 			clear_page(pte);
 	}
 	return pte;
+}
+
+void __set_fixmap(enum fixed_addresses idx, phys_addr_t phys, pgprot_t flags)
+{
+	unsigned long address = __fix_to_virt(idx);
+
+	if (idx >= __end_of_fixed_addresses)
+		BUG();
+
+	map_page(address, phys, pgprot_val(flags));
 }

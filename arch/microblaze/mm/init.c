@@ -24,6 +24,7 @@
 #include <asm/pgalloc.h>
 #include <asm/sections.h>
 #include <asm/tlb.h>
+#include <asm/fixmap.h>
 
 /* Use for MMU and noMMU because of PCI generic code */
 int mem_init_done;
@@ -54,6 +55,13 @@ unsigned long lowmem_size;
 static void __init paging_init(void)
 {
 	unsigned long zones_size[MAX_NR_ZONES];
+#ifdef CONFIG_MMU
+	int idx;
+
+	/* Setup fixmaps */
+	for (idx = 0; idx < __end_of_fixed_addresses; idx++)
+		clear_fixmap(idx);
+#endif
 
 	/* Clean every zones */
 	memset(zones_size, 0, sizeof(zones_size));
@@ -316,12 +324,9 @@ asmlinkage void __init mmu_init(void)
 	/* Map in all of RAM starting at CONFIG_KERNEL_START */
 	mapin_ram();
 
-#ifdef CONFIG_HIGHMEM_START_BOOL
-	ioremap_base = CONFIG_HIGHMEM_START;
-#else
-	ioremap_base = 0xfe000000UL;	/* for now, could be 0xfffff000 */
-#endif /* CONFIG_HIGHMEM_START_BOOL */
-	ioremap_bot = ioremap_base;
+	/* Extend vmalloc and ioremap area as big as possible */
+	ioremap_base = ioremap_bot = FIXADDR_START;
+
 	/* Initialize the context management stuff */
 	mmu_context_init();
 
