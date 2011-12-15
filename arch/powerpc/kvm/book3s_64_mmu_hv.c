@@ -870,6 +870,75 @@ void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte)
 	kvm_handle_hva(kvm, hva, kvm_unmap_rmapp);
 }
 
+static int kvm_test_clear_dirty(struct kvm *kvm, unsigned long *rmapp)
+{
+	struct revmap_entry *rev = kvm->arch.revmap;
+	unsigned long head, i, j;
+	unsigned long *hptep;
+	int ret = 0;
+
+ retry:
+	lock_rmap(rmapp);
+	if (*rmapp & KVMPPC_RMAP_CHANGED) {
+		*rmapp &= ~KVMPPC_RMAP_CHANGED;
+		ret = 1;
+	}
+	if (!(*rmapp & KVMPPC_RMAP_PRESENT)) {
+		unlock_rmap(rmapp);
+		return ret;
+	}
+
+	i = head = *rmapp & KVMPPC_RMAP_INDEX;
+	do {
+		hptep = (unsigned long *) (kvm->arch.hpt_virt + (i << 4));
+		j = rev[i].forw;
+
+		if (!(hptep[1] & HPTE_R_C))
+			continue;
+
+		if (!try_lock_hpte(hptep, HPTE_V_HVLOCK)) {
+			/* unlock rmap before spinning on the HPTE lock */
+			unlock_rmap(rmapp);
+			while (hptep[0] & HPTE_V_HVLOCK)
+				cpu_relax();
+			goto retry;
+		}
+
+		/* Now check and modify the HPTE */
+		if ((hptep[0] & HPTE_V_VALID) && (hptep[1] & HPTE_R_C)) {
+			/* need to make it temporarily absent to clear C */
+			hptep[0] |= HPTE_V_ABSENT;
+			kvmppc_invalidate_hpte(kvm, hptep, i);
+			hptep[1] &= ~HPTE_R_C;
+			eieio();
+			hptep[0] = (hptep[0] & ~HPTE_V_ABSENT) | HPTE_V_VALID;
+			rev[i].guest_rpte |= HPTE_R_C;
+			ret = 1;
+		}
+		hptep[0] &= ~HPTE_V_HVLOCK;
+	} while ((i = j) != head);
+
+	unlock_rmap(rmapp);
+	return ret;
+}
+
+long kvmppc_hv_get_dirty_log(struct kvm *kvm, struct kvm_memory_slot *memslot)
+{
+	unsigned long i;
+	unsigned long *rmapp, *map;
+
+	preempt_disable();
+	rmapp = memslot->rmap;
+	map = memslot->dirty_bitmap;
+	for (i = 0; i < memslot->npages; ++i) {
+		if (kvm_test_clear_dirty(kvm, rmapp))
+			__set_bit_le(i, map);
+		++rmapp;
+	}
+	preempt_enable();
+	return 0;
+}
+
 void *kvmppc_pin_guest_page(struct kvm *kvm, unsigned long gpa,
 			    unsigned long *nb_ret)
 {

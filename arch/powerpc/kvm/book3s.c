@@ -477,45 +477,6 @@ int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
-/*
- * Get (and clear) the dirty memory log for a memory slot.
- */
-int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
-				      struct kvm_dirty_log *log)
-{
-	struct kvm_memory_slot *memslot;
-	struct kvm_vcpu *vcpu;
-	ulong ga, ga_end;
-	int is_dirty = 0;
-	int r;
-	unsigned long n;
-
-	mutex_lock(&kvm->slots_lock);
-
-	r = kvm_get_dirty_log(kvm, log, &is_dirty);
-	if (r)
-		goto out;
-
-	/* If nothing is dirty, don't bother messing with page tables. */
-	if (is_dirty) {
-		memslot = id_to_memslot(kvm->memslots, log->slot);
-
-		ga = memslot->base_gfn << PAGE_SHIFT;
-		ga_end = ga + (memslot->npages << PAGE_SHIFT);
-
-		kvm_for_each_vcpu(n, vcpu, kvm)
-			kvmppc_mmu_pte_pflush(vcpu, ga, ga_end);
-
-		n = kvm_dirty_bitmap_bytes(memslot);
-		memset(memslot->dirty_bitmap, 0, n);
-	}
-
-	r = 0;
-out:
-	mutex_unlock(&kvm->slots_lock);
-	return r;
-}
-
 void kvmppc_decrementer_func(unsigned long data)
 {
 	struct kvm_vcpu *vcpu = (struct kvm_vcpu *)data;
