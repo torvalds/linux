@@ -954,6 +954,7 @@ static int dvb_register(struct cx8802_dev *dev)
 	struct cx88_core *core = dev->core;
 	struct videobuf_dvb_frontend *fe0, *fe1 = NULL;
 	int mfe_shared = 0; /* bus not shared by default */
+	int res = -EINVAL;
 
 	if (0 != core->i2c_rc) {
 		printk(KERN_ERR "%s/2: no i2c-bus available, cannot attach dvb drivers\n", core->name);
@@ -1566,13 +1567,16 @@ static int dvb_register(struct cx8802_dev *dev)
 	call_all(core, core, s_power, 0);
 
 	/* register everything */
-	return videobuf_dvb_register_bus(&dev->frontends, THIS_MODULE, dev,
-					 &dev->pci->dev, adapter_nr, mfe_shared, NULL);
+	res = videobuf_dvb_register_bus(&dev->frontends, THIS_MODULE, dev,
+		&dev->pci->dev, adapter_nr, mfe_shared, NULL);
+	if (res)
+		goto frontend_detach;
+	return res;
 
 frontend_detach:
 	core->gate_ctrl = NULL;
 	videobuf_dvb_dealloc_frontends(&dev->frontends);
-	return -EINVAL;
+	return res;
 }
 
 /* ----------------------------------------------------------- */
