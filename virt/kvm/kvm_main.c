@@ -1743,10 +1743,6 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)
 	smp_wmb();
 	atomic_inc(&kvm->online_vcpus);
 
-#ifdef CONFIG_KVM_APIC_ARCHITECTURE
-	if (kvm->bsp_vcpu_id == id)
-		kvm->bsp_vcpu = vcpu;
-#endif
 	mutex_unlock(&kvm->lock);
 	return r;
 

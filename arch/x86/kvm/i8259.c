@@ -262,9 +262,10 @@ int kvm_pic_read_irq(struct kvm *kvm)
 
 void kvm_pic_reset(struct kvm_kpic_state *s)
 {
-	int irq;
-	struct kvm_vcpu *vcpu0 = s->pics_state->kvm->bsp_vcpu;
+	int irq, i;
+	struct kvm_vcpu *vcpu;
 	u8 irr = s->irr, isr = s->imr;
+	bool found = false;
 
 	s->last_irr = 0;
 	s->irr = 0;
@@ -281,12 +282,19 @@ void kvm_pic_reset(struct kvm_kpic_state *s)
 	s->special_fully_nested_mode = 0;
 	s->init4 = 0;
 
-	for (irq = 0; irq < PIC_NUM_PINS/2; irq++) {
-		if (vcpu0 && kvm_apic_accept_pic_intr(vcpu0))
-			if (irr & (1 << irq) || isr & (1 << irq)) {
-				pic_clear_isr(s, irq);
-			}
-	}
+	kvm_for_each_vcpu(i, vcpu, s->pics_state->kvm)
+		if (kvm_apic_accept_pic_intr(vcpu)) {
+			found = true;
+			break;
+		}
+
+
+	if (!found)
+		return;
+
+	for (irq = 0; irq < PIC_NUM_PINS/2; irq++)
+		if (irr & (1 << irq) || isr & (1 << irq))
+			pic_clear_isr(s, irq);
 }
 
 static void pic_ioport_write(void *opaque, u32 addr, u32 val)
