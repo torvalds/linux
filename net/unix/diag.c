@@ -63,6 +63,41 @@ rtattr_failure:
 	return -EMSGSIZE;
 }
 
+static int sk_diag_dump_icons(struct sock *sk, struct sk_buff *nlskb)
+{
+	struct sk_buff *skb;
+	u32 *buf;
+	int i;
+
+	if (sk->sk_state == TCP_LISTEN) {
+		spin_lock(&sk->sk_receive_queue.lock);
+		buf = UNIX_DIAG_PUT(nlskb, UNIX_DIAG_ICONS, sk->sk_receive_queue.qlen);
+		i = 0;
+		skb_queue_walk(&sk->sk_receive_queue, skb) {
+			struct sock *req, *peer;
+
+			req = skb->sk;
+			/*
+			 * The state lock is outer for the same sk's
+			 * queue lock. With the other's queue locked it's
+			 * OK to lock the state.
+			 */
+			unix_state_lock_nested(req);
+			peer = unix_sk(req)->peer;
+			if (peer)
+				buf[i++] = sock_i_ino(peer);
+			unix_state_unlock(req);
+		}
+		spin_unlock(&sk->sk_receive_queue.lock);
+	}
+
+	return 0;
+
+rtattr_failure:
+	spin_unlock(&sk->sk_receive_queue.lock);
+	return -EMSGSIZE;
+}
+
 static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct unix_diag_req *req,
 		u32 pid, u32 seq, u32 flags, int sk_ino)
 {
@@ -91,6 +126,10 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct unix_diag_r
 
 	if ((req->udiag_show & UDIAG_SHOW_PEER) &&
 			sk_diag_dump_peer(sk, skb))
+		goto nlmsg_failure;
+
+	if ((req->udiag_show & UDIAG_SHOW_ICONS) &&
+			sk_diag_dump_icons(sk, skb))
 		goto nlmsg_failure;
 
 	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
