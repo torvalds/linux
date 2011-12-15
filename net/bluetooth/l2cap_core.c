@@ -698,7 +698,7 @@ static void l2cap_do_start(struct l2cap_chan *chan)
 		conn->info_state |= L2CAP_INFO_FEAT_MASK_REQ_SENT;
 		conn->info_ident = l2cap_get_ident(conn);
 
-		mod_timer(&conn->info_timer, jiffies +
+		schedule_delayed_work(&conn->info_work,
 					msecs_to_jiffies(L2CAP_INFO_TIMEOUT));
 
 		l2cap_send_cmd(conn, conn->info_ident,
@@ -998,9 +998,10 @@ static void l2cap_conn_unreliable(struct l2cap_conn *conn, int err)
 	mutex_unlock(&conn->chan_lock);
 }
 
-static void l2cap_info_timeout(unsigned long arg)
+static void l2cap_info_timeout(struct work_struct *work)
 {
-	struct l2cap_conn *conn = (void *) arg;
+	struct l2cap_conn *conn = container_of(work, struct l2cap_conn,
+							info_work.work);
 
 	conn->info_state |= L2CAP_INFO_FEAT_MASK_REQ_DONE;
 	conn->info_ident = 0;
@@ -1033,7 +1034,7 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 	hci_chan_del(conn->hchan);
 
 	if (conn->info_state & L2CAP_INFO_FEAT_MASK_REQ_SENT)
-		del_timer_sync(&conn->info_timer);
+		cancel_delayed_work_sync(&conn->info_work);
 
 	if (test_and_clear_bit(HCI_CONN_LE_SMP_PEND, &hcon->pend)) {
 		del_timer(&conn->security_timer);
@@ -1094,8 +1095,7 @@ static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon, u8 status)
 		setup_timer(&conn->security_timer, security_timeout,
 						(unsigned long) conn);
 	else
-		setup_timer(&conn->info_timer, l2cap_info_timeout,
-						(unsigned long) conn);
+		INIT_DELAYED_WORK(&conn->info_work, l2cap_info_timeout);
 
 	conn->disc_reason = HCI_ERROR_REMOTE_USER_TERM;
 
@@ -2530,7 +2530,7 @@ static inline int l2cap_command_rej(struct l2cap_conn *conn, struct l2cap_cmd_hd
 
 	if ((conn->info_state & L2CAP_INFO_FEAT_MASK_REQ_SENT) &&
 					cmd->ident == conn->info_ident) {
-		del_timer(&conn->info_timer);
+		cancel_delayed_work_sync(&conn->info_work);
 
 		conn->info_state |= L2CAP_INFO_FEAT_MASK_REQ_DONE;
 		conn->info_ident = 0;
@@ -2656,7 +2656,7 @@ sendresp:
 		conn->info_state |= L2CAP_INFO_FEAT_MASK_REQ_SENT;
 		conn->info_ident = l2cap_get_ident(conn);
 
-		mod_timer(&conn->info_timer, jiffies +
+		schedule_delayed_work(&conn->info_work,
 					msecs_to_jiffies(L2CAP_INFO_TIMEOUT));
 
 		l2cap_send_cmd(conn, conn->info_ident,
@@ -3081,7 +3081,7 @@ static inline int l2cap_information_rsp(struct l2cap_conn *conn, struct l2cap_cm
 			conn->info_state & L2CAP_INFO_FEAT_MASK_REQ_DONE)
 		return 0;
 
-	del_timer(&conn->info_timer);
+	cancel_delayed_work_sync(&conn->info_work);
 
 	if (result != L2CAP_IR_SUCCESS) {
 		conn->info_state |= L2CAP_INFO_FEAT_MASK_REQ_DONE;

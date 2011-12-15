@@ -522,7 +522,7 @@ struct l2cap_conn {
 	__u8		info_state;
 	__u8		info_ident;
 
-	struct timer_list info_timer;
+	struct delayed_work info_work;
 
 	spinlock_t	lock;
 
