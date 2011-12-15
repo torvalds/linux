@@ -1196,7 +1196,7 @@ static int mv_udc_get_frame(struct usb_gadget *gadget)
 
 	udc = container_of(gadget, struct mv_udc, gadget);
 
-	retval = readl(udc->op_regs->frindex) & USB_FRINDEX_MASKS;
+	retval = readl(&udc->op_regs->frindex) & USB_FRINDEX_MASKS;
 
 	return retval;
 }
