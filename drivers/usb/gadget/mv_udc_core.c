@@ -276,11 +276,12 @@ static void done(struct mv_ep *ep, struct mv_req *req, int status)
 
 static int queue_dtd(struct mv_ep *ep, struct mv_req *req)
 {
-	u32 tmp, epstatus, bit_pos, direction;
 	struct mv_udc *udc;
 	struct mv_dqh *dqh;
+	u32 bit_pos, direction;
+	u32 usbcmd, epstatus;
 	unsigned int loops;
-	int readsafe, retval = 0;
+	int retval = 0;
 
 	udc = ep->udc;
 	direction = ep_dir(ep);
@@ -293,30 +294,18 @@ static int queue_dtd(struct mv_ep *ep, struct mv_req *req)
 		lastreq = list_entry(ep->queue.prev, struct mv_req, queue);
 		lastreq->tail->dtd_next =
 			req->head->td_dma & EP_QUEUE_HEAD_NEXT_POINTER_MASK;
-		if (readl(&udc->op_regs->epprime) & bit_pos) {
-			loops = LOOPS(PRIME_TIMEOUT);
-			while (readl(&udc->op_regs->epprime) & bit_pos) {
-				if (loops == 0) {
-					retval = -ETIME;
-					goto done;
-				}
-				udelay(LOOPS_USEC);
-				loops--;
-			}
-			if (readl(&udc->op_regs->epstatus) & bit_pos)
-				goto done;
-		}
-		readsafe = 0;
+
+		wmb();
+
+		if (readl(&udc->op_regs->epprime) & bit_pos)
+			goto done;
+
 		loops = LOOPS(READSAFE_TIMEOUT);
-		while (readsafe == 0) {
-			if (loops == 0) {
-				retval = -ETIME;
-				goto done;
-			}
+		while (1) {
 			/* start with setting the semaphores */
-			tmp = readl(&udc->op_regs->usbcmd);
-			tmp |= USBCMD_ATDTW_TRIPWIRE_SET;
-			writel(tmp, &udc->op_regs->usbcmd);
+			usbcmd = readl(&udc->op_regs->usbcmd);
+			usbcmd |= USBCMD_ATDTW_TRIPWIRE_SET;
+			writel(usbcmd, &udc->op_regs->usbcmd);
 
 			/* read the endpoint status */
 			epstatus = readl(&udc->op_regs->epstatus) & bit_pos;
@@ -329,97 +318,45 @@ static int queue_dtd(struct mv_ep *ep, struct mv_req *req)
 			 * primed.
 			 */
 			if (readl(&udc->op_regs->usbcmd)
-				& USBCMD_ATDTW_TRIPWIRE_SET) {
-				readsafe = 1;
-			}
+				& USBCMD_ATDTW_TRIPWIRE_SET)
+				break;
+
 			loops--;
+			if (loops == 0) {
+				dev_err(&udc->dev->dev,
+					"Timeout for ATDTW_TRIPWIRE...\n");
+				retval = -ETIME;
+				goto done;
+			}
 			udelay(LOOPS_USEC);
 		}
 
 		/* Clear the semaphore */
-		tmp = readl(&udc->op_regs->usbcmd);
-		tmp &= USBCMD_ATDTW_TRIPWIRE_CLEAR;
-		writel(tmp, &udc->op_regs->usbcmd);
+		usbcmd = readl(&udc->op_regs->usbcmd);
+		usbcmd &= USBCMD_ATDTW_TRIPWIRE_CLEAR;
+		writel(usbcmd, &udc->op_regs->usbcmd);
 
-		/* If endpoint is not active, we activate it now. */
-		if (!epstatus) {
-			if (direction == EP_DIR_IN) {
-				struct mv_dtd *curr_dtd = dma_to_virt(
-					&udc->dev->dev, dqh->curr_dtd_ptr);
-
-				loops = LOOPS(DTD_TIMEOUT);
-				while (curr_dtd->size_ioc_sts
-					& DTD_STATUS_ACTIVE) {
-					if (loops == 0) {
-						retval = -ETIME;
-						goto done;
-					}
-					loops--;
-					udelay(LOOPS_USEC);
-				}
-			}
-			/* No other transfers on the queue */
-
-			/* Write dQH next pointer and terminate bit to 0 */
-			dqh->next_dtd_ptr = req->head->td_dma
-				& EP_QUEUE_HEAD_NEXT_POINTER_MASK;
-			dqh->size_ioc_int_sts = 0;
-
-			/*
-			 * Ensure that updates to the QH will
-			 * occur before priming.
-			 */
-			wmb();
-
-			/* Prime the Endpoint */
-			writel(bit_pos, &udc->op_regs->epprime);
-		}
-	} else {
-		/* Write dQH next pointer and terminate bit to 0 */
-		dqh->next_dtd_ptr = req->head->td_dma
-			& EP_QUEUE_HEAD_NEXT_POINTER_MASK;
-		dqh->size_ioc_int_sts = 0;
-
-		/* Ensure that updates to the QH will occur before priming. */
-		wmb();
-
-		/* Prime the Endpoint */
-		writel(bit_pos, &udc->op_regs->epprime);
-
-		if (direction == EP_DIR_IN) {
-			/* FIXME add status check after prime the IN ep */
-			int prime_again;
-			u32 curr_dtd_ptr = dqh->curr_dtd_ptr;
-
-			loops = LOOPS(DTD_TIMEOUT);
-			prime_again = 0;
-			while ((curr_dtd_ptr != req->head->td_dma)) {
-				curr_dtd_ptr = dqh->curr_dtd_ptr;
-				if (loops == 0) {
-					dev_err(&udc->dev->dev,
-						"failed to prime %s\n",
-						ep->name);
-					retval = -ETIME;
-					goto done;
-				}
-				loops--;
-				udelay(LOOPS_USEC);
-
-				if (loops == (LOOPS(DTD_TIMEOUT) >> 2)) {
-					if (prime_again)
-						goto done;
-					dev_info(&udc->dev->dev,
-						"prime again\n");
-					writel(bit_pos,
-						&udc->op_regs->epprime);
-					prime_again = 1;
-				}
-			}
-		}
+		if (epstatus)
+			goto done;
 	}
+
+	/* Write dQH next pointer and terminate bit to 0 */
+	dqh->next_dtd_ptr = req->head->td_dma
+				& EP_QUEUE_HEAD_NEXT_POINTER_MASK;
+
+	/* clear active and halt bit, in case set from a previous error */
+	dqh->size_ioc_int_sts &= ~(DTD_STATUS_ACTIVE | DTD_STATUS_HALTED);
+
+	/* Ensure that updates to the QH will occure before priming. */
+	wmb();
+
+	/* Prime the Endpoint */
+	writel(bit_pos, &udc->op_regs->epprime);
+
 done:
 	return retval;
 }
+
 
 static struct mv_dtd *build_dtd(struct mv_req *req, unsigned *length,
 		dma_addr_t *dma, int *is_last)
