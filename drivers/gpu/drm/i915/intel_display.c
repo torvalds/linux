@@ -5024,6 +5024,40 @@ static void i9xx_adjust_sdvo_tv_clock(struct drm_display_mode *adjusted_mode,
 	}
 }
 
+static void i9xx_update_pll_dividers(struct drm_crtc *crtc,
+				     intel_clock_t *clock,
+				     intel_clock_t *reduced_clock)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+	u32 fp, fp2 = 0;
+
+	if (IS_PINEVIEW(dev)) {
+		fp = (1 << clock->n) << 16 | clock->m1 << 8 | clock->m2;
+		if (reduced_clock)
+			fp2 = (1 << reduced_clock->n) << 16 |
+				reduced_clock->m1 << 8 | reduced_clock->m2;
+	} else {
+		fp = clock->n << 16 | clock->m1 << 8 | clock->m2;
+		if (reduced_clock)
+			fp2 = reduced_clock->n << 16 | reduced_clock->m1 << 8 |
+				reduced_clock->m2;
+	}
+
+	I915_WRITE(FP0(pipe), fp);
+
+	intel_crtc->lowfreq_avail = false;
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) &&
+	    reduced_clock && i915_powersave) {
+		I915_WRITE(FP1(pipe), fp2);
+		intel_crtc->lowfreq_avail = true;
+	} else {
+		I915_WRITE(FP1(pipe), fp);
+	}
+}
+
 static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 			      struct drm_display_mode *mode,
 			      struct drm_display_mode *adjusted_mode,
@@ -5037,7 +5071,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	int plane = intel_crtc->plane;
 	int refclk, num_connectors = 0;
 	intel_clock_t clock, reduced_clock;
-	u32 dpll, fp = 0, fp2 = 0, dspcntr, pipeconf;
+	u32 dpll, dspcntr, pipeconf;
 	bool ok, has_reduced_clock = false, is_sdvo = false, is_dvo = false;
 	bool is_crt = false, is_lvds = false, is_tv = false, is_dp = false;
 	struct drm_mode_config *mode_config = &dev->mode_config;
@@ -5113,17 +5147,8 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	if (is_sdvo && is_tv)
 		i9xx_adjust_sdvo_tv_clock(adjusted_mode, &clock);
 
-	if (IS_PINEVIEW(dev)) {
-		fp = (1 << clock.n) << 16 | clock.m1 << 8 | clock.m2;
-		if (has_reduced_clock)
-			fp2 = (1 << reduced_clock.n) << 16 |
-				reduced_clock.m1 << 8 | reduced_clock.m2;
-	} else {
-		fp = clock.n << 16 | clock.m1 << 8 | clock.m2;
-		if (has_reduced_clock)
-			fp2 = reduced_clock.n << 16 | reduced_clock.m1 << 8 |
-				reduced_clock.m2;
-	}
+	i9xx_update_pll_dividers(crtc, &clock, has_reduced_clock ?
+				 &reduced_clock : NULL);
 
 	dpll = DPLL_VGA_MODE_DIS;
 
@@ -5233,7 +5258,6 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	DRM_DEBUG_KMS("Mode for pipe %c:\n", pipe == 0 ? 'A' : 'B');
 	drm_mode_debug_printmodeline(mode);
 
-	I915_WRITE(FP0(pipe), fp);
 	I915_WRITE(DPLL(pipe), dpll & ~DPLL_VCO_ENABLE);
 
 	POSTING_READ(DPLL(pipe));
@@ -5320,17 +5344,11 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 		I915_WRITE(DPLL(pipe), dpll);
 	}
 
-	intel_crtc->lowfreq_avail = false;
-	if (is_lvds && has_reduced_clock && i915_powersave) {
-		I915_WRITE(FP1(pipe), fp2);
-		intel_crtc->lowfreq_avail = true;
-		if (HAS_PIPE_CXSR(dev)) {
+	if (HAS_PIPE_CXSR(dev)) {
+		if (intel_crtc->lowfreq_avail) {
 			DRM_DEBUG_KMS("enabling CxSR downclocking\n");
 			pipeconf |= PIPECONF_CXSR_DOWNCLOCK;
-		}
-	} else {
-		I915_WRITE(FP1(pipe), fp);
-		if (HAS_PIPE_CXSR(dev)) {
+		} else {
 			DRM_DEBUG_KMS("disabling CxSR downclocking\n");
 			pipeconf &= ~PIPECONF_CXSR_DOWNCLOCK;
 		}
