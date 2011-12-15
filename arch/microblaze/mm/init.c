@@ -49,6 +49,53 @@ unsigned long memory_size;
 EXPORT_SYMBOL(memory_size);
 unsigned long lowmem_size;
 
+#ifdef CONFIG_HIGHMEM
+pte_t *kmap_pte;
+EXPORT_SYMBOL(kmap_pte);
+pgprot_t kmap_prot;
+EXPORT_SYMBOL(kmap_prot);
+
+static inline pte_t *virt_to_kpte(unsigned long vaddr)
+{
+	return pte_offset_kernel(pmd_offset(pgd_offset_k(vaddr),
+			vaddr), vaddr);
+}
+
+static void __init highmem_init(void)
+{
+	pr_debug("%x\n", (u32)PKMAP_BASE);
+	map_page(PKMAP_BASE, 0, 0);	/* XXX gross */
+	pkmap_page_table = virt_to_kpte(PKMAP_BASE);
+
+	kmap_pte = virt_to_kpte(__fix_to_virt(FIX_KMAP_BEGIN));
+	kmap_prot = PAGE_KERNEL;
+}
+
+static unsigned long highmem_setup(void)
+{
+	unsigned long pfn;
+	unsigned long reservedpages = 0;
+
+	for (pfn = max_low_pfn; pfn < max_pfn; ++pfn) {
+		struct page *page = pfn_to_page(pfn);
+
+		/* FIXME not sure about */
+		if (memblock_is_reserved(pfn << PAGE_SHIFT))
+			continue;
+		ClearPageReserved(page);
+		init_page_count(page);
+		__free_page(page);
+		totalhigh_pages++;
+		reservedpages++;
+	}
+	totalram_pages += totalhigh_pages;
+	printk(KERN_INFO "High memory: %luk\n",
+					totalhigh_pages << (PAGE_SHIFT-10));
+
+	return reservedpages;
+}
+#endif /* CONFIG_HIGHMEM */
+
 /*
  * paging_init() sets up the page tables - in fact we've already done this.
  */
@@ -66,7 +113,14 @@ static void __init paging_init(void)
 	/* Clean every zones */
 	memset(zones_size, 0, sizeof(zones_size));
 
+#ifdef CONFIG_HIGHMEM
+	highmem_init();
+
+	zones_size[ZONE_DMA] = max_low_pfn;
+	zones_size[ZONE_HIGHMEM] = max_pfn;
+#else
 	zones_size[ZONE_DMA] = max_pfn;
+#endif
 
 	/* We don't have holes in memory map */
 	free_area_init_nodes(zones_size);
@@ -241,6 +295,10 @@ void __init mem_init(void)
 		}
 	}
 
+#ifdef CONFIG_HIGHMEM
+	reservedpages -= highmem_setup();
+#endif
+
 	codesize = (unsigned long)&_sdata - (unsigned long)&_stext;
 	datasize = (unsigned long)&_edata - (unsigned long)&_sdata;
 	initsize = (unsigned long)&__init_end - (unsigned long)&__init_begin;
@@ -259,6 +317,10 @@ void __init mem_init(void)
 #ifdef CONFIG_MMU
 	pr_info("Kernel virtual memory layout:\n");
 	pr_info("  * 0x%08lx..0x%08lx  : fixmap\n", FIXADDR_START, FIXADDR_TOP);
+#ifdef CONFIG_HIGHMEM
+	pr_info("  * 0x%08lx..0x%08lx  : highmem PTEs\n",
+		PKMAP_BASE, PKMAP_ADDR(LAST_PKMAP));
+#endif /* CONFIG_HIGHMEM */
 	pr_info("  * 0x%08lx..0x%08lx  : early ioremap\n",
 		ioremap_bot, ioremap_base);
 	pr_info("  * 0x%08lx..0x%08lx  : vmalloc & ioremap\n",
@@ -346,7 +408,9 @@ asmlinkage void __init mmu_init(void)
 
 	if (lowmem_size > CONFIG_LOWMEM_SIZE) {
 		lowmem_size = CONFIG_LOWMEM_SIZE;
+#ifndef CONFIG_HIGHMEM
 		memory_size = lowmem_size;
+#endif
 	}
 
 	mm_cmdline_setup(); /* FIXME parse args from command line - not used */
@@ -375,7 +439,11 @@ asmlinkage void __init mmu_init(void)
 	mapin_ram();
 
 	/* Extend vmalloc and ioremap area as big as possible */
+#ifdef CONFIG_HIGHMEM
+	ioremap_base = ioremap_bot = PKMAP_BASE;
+#else
 	ioremap_base = ioremap_bot = FIXADDR_START;
+#endif
 
 	/* Initialize the context management stuff */
 	mmu_context_init();
