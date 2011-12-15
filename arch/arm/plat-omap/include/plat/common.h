@@ -31,7 +31,6 @@
 #include <plat/omap_hwmod.h>
 
 extern int __init omap_init_clocksource_32k(void);
-extern unsigned long long notrace omap_32k_sched_clock(void);
 
 extern void omap_reserve(void);
 extern int omap_dss_reset(struct omap_hwmod *);
