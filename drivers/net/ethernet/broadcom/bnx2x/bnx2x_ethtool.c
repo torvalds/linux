@@ -2302,17 +2302,19 @@ static int bnx2x_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 	}
 }
 
-static int bnx2x_get_rxfh_indir(struct net_device *dev,
-				struct ethtool_rxfh_indir *indir)
+static u32 bnx2x_get_rxfh_indir_size(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-	size_t copy_size =
-		min_t(size_t, indir->size, T_ETH_INDIRECTION_TABLE_SIZE);
+
+	return (bp->multi_mode == ETH_RSS_MODE_DISABLED ?
+		0 : T_ETH_INDIRECTION_TABLE_SIZE);
+}
+
+static int bnx2x_get_rxfh_indir(struct net_device *dev, u32 *indir)
+{
+	struct bnx2x *bp = netdev_priv(dev);
 	u8 ind_table[T_ETH_INDIRECTION_TABLE_SIZE] = {0};
 	size_t i;
-
-	if (bp->multi_mode == ETH_RSS_MODE_DISABLED)
-		return -EOPNOTSUPP;
 
 	/* Get the current configuration of the RSS indirection table */
 	bnx2x_get_rss_ind_table(&bp->rss_conf_obj, ind_table);
@@ -2326,33 +2328,19 @@ static int bnx2x_get_rxfh_indir(struct net_device *dev,
 	 * align the returned table to the Client ID of the leading RSS
 	 * queue.
 	 */
-	for (i = 0; i < copy_size; i++)
-		indir->ring_index[i] = ind_table[i] - bp->fp->cl_id;
-
-	indir->size = T_ETH_INDIRECTION_TABLE_SIZE;
+	for (i = 0; i < T_ETH_INDIRECTION_TABLE_SIZE; i++)
+		indir[i] = ind_table[i] - bp->fp->cl_id;
 
 	return 0;
 }
 
-static int bnx2x_set_rxfh_indir(struct net_device *dev,
-				const struct ethtool_rxfh_indir *indir)
+static int bnx2x_set_rxfh_indir(struct net_device *dev, const u32 *indir)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	size_t i;
 	u8 ind_table[T_ETH_INDIRECTION_TABLE_SIZE] = {0};
-	u32 num_eth_queues = BNX2X_NUM_ETH_QUEUES(bp);
-
-	if (bp->multi_mode == ETH_RSS_MODE_DISABLED)
-		return -EOPNOTSUPP;
-
-	/* validate the size */
-	if (indir->size != T_ETH_INDIRECTION_TABLE_SIZE)
-		return -EINVAL;
 
 	for (i = 0; i < T_ETH_INDIRECTION_TABLE_SIZE; i++) {
-		/* validate the indices */
-		if (indir->ring_index[i] >= num_eth_queues)
-			return -EINVAL;
 		/*
 		 * The same as in bnx2x_get_rxfh_indir: we can't use a memcpy()
 		 * as an internal storage of an indirection table is a u8 array
@@ -2362,7 +2350,7 @@ static int bnx2x_set_rxfh_indir(struct net_device *dev,
 		 * align the received table to the Client ID of the leading RSS
 		 * queue
 		 */
-		ind_table[i] = indir->ring_index[i] + bp->fp->cl_id;
+		ind_table[i] = indir[i] + bp->fp->cl_id;
 	}
 
 	return bnx2x_config_rss_pf(bp, ind_table, false);
@@ -2395,6 +2383,7 @@ static const struct ethtool_ops bnx2x_ethtool_ops = {
 	.set_phys_id		= bnx2x_set_phys_id,
 	.get_ethtool_stats	= bnx2x_get_ethtool_stats,
 	.get_rxnfc		= bnx2x_get_rxnfc,
+	.get_rxfh_indir_size	= bnx2x_get_rxfh_indir_size,
 	.get_rxfh_indir		= bnx2x_get_rxfh_indir,
 	.set_rxfh_indir		= bnx2x_set_rxfh_indir,
 };

@@ -515,34 +515,44 @@ err_out:
 static noinline_for_stack int ethtool_get_rxfh_indir(struct net_device *dev,
 						     void __user *useraddr)
 {
-	struct ethtool_rxfh_indir *indir;
-	u32 table_size;
-	size_t full_size;
+	u32 user_size, dev_size;
+	u32 *indir;
 	int ret;
 
-	if (!dev->ethtool_ops->get_rxfh_indir)
+	if (!dev->ethtool_ops->get_rxfh_indir_size ||
+	    !dev->ethtool_ops->get_rxfh_indir)
+		return -EOPNOTSUPP;
+	dev_size = dev->ethtool_ops->get_rxfh_indir_size(dev);
+	if (dev_size == 0)
 		return -EOPNOTSUPP;
 
-	if (copy_from_user(&table_size,
+	if (copy_from_user(&user_size,
 			   useraddr + offsetof(struct ethtool_rxfh_indir, size),
-			   sizeof(table_size)))
+			   sizeof(user_size)))
 		return -EFAULT;
 
-	if (table_size >
-	    (KMALLOC_MAX_SIZE - sizeof(*indir)) / sizeof(*indir->ring_index))
-		return -ENOMEM;
-	full_size = sizeof(*indir) + sizeof(*indir->ring_index) * table_size;
-	indir = kzalloc(full_size, GFP_USER);
+	if (copy_to_user(useraddr + offsetof(struct ethtool_rxfh_indir, size),
+			 &dev_size, sizeof(dev_size)))
+		return -EFAULT;
+
+	/* If the user buffer size is 0, this is just a query for the
+	 * device table size.  Otherwise, if it's smaller than the
+	 * device table size it's an error.
+	 */
+	if (user_size < dev_size)
+		return user_size == 0 ? 0 : -EINVAL;
+
+	indir = kcalloc(dev_size, sizeof(indir[0]), GFP_USER);
 	if (!indir)
 		return -ENOMEM;
 
-	indir->cmd = ETHTOOL_GRXFHINDIR;
-	indir->size = table_size;
 	ret = dev->ethtool_ops->get_rxfh_indir(dev, indir);
 	if (ret)
 		goto out;
 
-	if (copy_to_user(useraddr, indir, full_size))
+	if (copy_to_user(useraddr +
+			 offsetof(struct ethtool_rxfh_indir, ring_index[0]),
+			 indir, dev_size * sizeof(indir[0])))
 		ret = -EFAULT;
 
 out:
@@ -553,30 +563,49 @@ out:
 static noinline_for_stack int ethtool_set_rxfh_indir(struct net_device *dev,
 						     void __user *useraddr)
 {
-	struct ethtool_rxfh_indir *indir;
-	u32 table_size;
-	size_t full_size;
+	struct ethtool_rxnfc rx_rings;
+	u32 user_size, dev_size, i;
+	u32 *indir;
 	int ret;
 
-	if (!dev->ethtool_ops->set_rxfh_indir)
+	if (!dev->ethtool_ops->get_rxfh_indir_size ||
+	    !dev->ethtool_ops->set_rxfh_indir ||
+	    !dev->ethtool_ops->get_rxnfc)
+		return -EOPNOTSUPP;
+	dev_size = dev->ethtool_ops->get_rxfh_indir_size(dev);
+	if (dev_size == 0)
 		return -EOPNOTSUPP;
 
-	if (copy_from_user(&table_size,
+	if (copy_from_user(&user_size,
 			   useraddr + offsetof(struct ethtool_rxfh_indir, size),
-			   sizeof(table_size)))
+			   sizeof(user_size)))
 		return -EFAULT;
 
-	if (table_size >
-	    (KMALLOC_MAX_SIZE - sizeof(*indir)) / sizeof(*indir->ring_index))
-		return -ENOMEM;
-	full_size = sizeof(*indir) + sizeof(*indir->ring_index) * table_size;
-	indir = kmalloc(full_size, GFP_USER);
+	if (user_size != dev_size)
+		return -EINVAL;
+
+	indir = kcalloc(dev_size, sizeof(indir[0]), GFP_USER);
 	if (!indir)
 		return -ENOMEM;
 
-	if (copy_from_user(indir, useraddr, full_size)) {
+	if (copy_from_user(indir,
+			   useraddr +
+			   offsetof(struct ethtool_rxfh_indir, ring_index[0]),
+			   dev_size * sizeof(indir[0]))) {
 		ret = -EFAULT;
 		goto out;
+	}
+
+	/* Validate ring indices */
+	rx_rings.cmd = ETHTOOL_GRXRINGS;
+	ret = dev->ethtool_ops->get_rxnfc(dev, &rx_rings, NULL);
+	if (ret)
+		goto out;
+	for (i = 0; i < dev_size; i++) {
+		if (indir[i] >= rx_rings.data) {
+			ret = -EINVAL;
+			goto out;
+		}
 	}
 
 	ret = dev->ethtool_ops->set_rxfh_indir(dev, indir);
