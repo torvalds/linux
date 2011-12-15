@@ -541,7 +541,8 @@ static const struct backlight_ops backlight_ops = {
 
 static int seclinux_rfkill_set(void *data, bool blocked)
 {
-	struct samsung_laptop *samsung = data;
+	struct samsung_rfkill *srfkill = data;
+	struct samsung_laptop *samsung = srfkill->samsung;
 	const struct sabi_commands *commands = &samsung->config->commands;
 
 	return sabi_set_commandb(samsung, commands->set_wireless_button,
@@ -889,8 +890,13 @@ static int __init samsung_rfkill_init_swsmi(struct samsung_laptop *samsung)
 	int ret;
 
 	ret = swsmi_wireless_status(samsung, &data);
-	if (ret)
+	if (ret) {
+		/* Some swsmi laptops use the old seclinux way to control
+		 * wireless devices */
+		if (ret == -EINVAL)
+			ret = samsung_rfkill_init_seclinux(samsung);
 		return ret;
+	}
 
 	/* 0x02 seems to mean that the device is no present/available */
 
