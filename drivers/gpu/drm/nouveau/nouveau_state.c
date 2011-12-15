@@ -592,15 +592,33 @@ nouveau_card_init(struct drm_device *dev)
 		nv_mask(dev, 0x00088080, 0x00000800, 0x00000000);
 	}
 
-	nouveau_pm_init(dev);
-
-	ret = engine->vram.init(dev);
+	/* PMC */
+	ret = engine->mc.init(dev);
 	if (ret)
 		goto out_bios;
 
-	ret = nouveau_gpuobj_init(dev);
+	/* PTIMER */
+	ret = engine->timer.init(dev);
+	if (ret)
+		goto out_mc;
+
+	/* PFB */
+	ret = engine->fb.init(dev);
+	if (ret)
+		goto out_timer;
+
+	ret = engine->vram.init(dev);
+	if (ret)
+		goto out_fb;
+
+	/* PGPIO */
+	ret = nouveau_gpio_create(dev);
 	if (ret)
 		goto out_vram;
+
+	ret = nouveau_gpuobj_init(dev);
+	if (ret)
+		goto out_gpio;
 
 	ret = engine->instmem.init(dev);
 	if (ret)
@@ -614,25 +632,7 @@ nouveau_card_init(struct drm_device *dev)
 	if (ret)
 		goto out_ttmvram;
 
-	/* PMC */
-	ret = engine->mc.init(dev);
-	if (ret)
-		goto out_gart;
-
-	/* PGPIO */
-	ret = nouveau_gpio_create(dev);
-	if (ret)
-		goto out_mc;
-
-	/* PTIMER */
-	ret = engine->timer.init(dev);
-	if (ret)
-		goto out_gpio;
-
-	/* PFB */
-	ret = engine->fb.init(dev);
-	if (ret)
-		goto out_timer;
+	nouveau_pm_init(dev);
 
 	if (!dev_priv->noaccel) {
 		switch (dev_priv->card_type) {
@@ -783,15 +783,7 @@ out_engine:
 			dev_priv->eng[e]->destroy(dev,e );
 		}
 	}
-
-	engine->fb.takedown(dev);
-out_timer:
-	engine->timer.takedown(dev);
-out_gpio:
-	nouveau_gpio_destroy(dev);
-out_mc:
-	engine->mc.takedown(dev);
-out_gart:
+	nouveau_pm_fini(dev);
 	nouveau_mem_gart_fini(dev);
 out_ttmvram:
 	nouveau_mem_vram_fini(dev);
@@ -799,10 +791,17 @@ out_instmem:
 	engine->instmem.takedown(dev);
 out_gpuobj:
 	nouveau_gpuobj_takedown(dev);
+out_gpio:
+	nouveau_gpio_destroy(dev);
 out_vram:
 	engine->vram.takedown(dev);
+out_fb:
+	engine->fb.takedown(dev);
+out_timer:
+	engine->timer.takedown(dev);
+out_mc:
+	engine->mc.takedown(dev);
 out_bios:
-	nouveau_pm_fini(dev);
 	nouveau_bios_takedown(dev);
 out_display_early:
 	engine->display.late_takedown(dev);
@@ -839,11 +838,6 @@ static void nouveau_card_takedown(struct drm_device *dev)
 			}
 		}
 	}
-	engine->fb.takedown(dev);
-	engine->timer.takedown(dev);
-	nouveau_gpio_destroy(dev);
-	engine->mc.takedown(dev);
-	engine->display.late_takedown(dev);
 
 	if (dev_priv->vga_ram) {
 		nouveau_bo_unpin(dev_priv->vga_ram);
@@ -859,12 +853,19 @@ static void nouveau_card_takedown(struct drm_device *dev)
 
 	engine->instmem.takedown(dev);
 	nouveau_gpuobj_takedown(dev);
-	engine->vram.takedown(dev);
-
-	nouveau_irq_fini(dev);
 
 	nouveau_pm_fini(dev);
+
+	nouveau_gpio_destroy(dev);
+	engine->vram.takedown(dev);
+	engine->fb.takedown(dev);
+	engine->timer.takedown(dev);
+	engine->mc.takedown(dev);
+
 	nouveau_bios_takedown(dev);
+	engine->display.late_takedown(dev);
+
+	nouveau_irq_fini(dev);
 
 	vga_client_register(dev->pdev, NULL, NULL, NULL);
 }
