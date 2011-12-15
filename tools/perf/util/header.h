@@ -11,6 +11,7 @@
 
 enum {
 	HEADER_RESERVED		= 0,	/* always cleared */
+	HEADER_FIRST_FEATURE	= 1,
 	HEADER_TRACE_INFO	= 1,
 	HEADER_BUILD_ID,
 
