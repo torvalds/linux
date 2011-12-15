@@ -90,7 +90,7 @@ static struct hid_field *hid_register_field(struct hid_report *report, unsigned 
 	struct hid_field *field;
 
 	if (report->maxfield == HID_MAX_FIELDS) {
-		dbg_hid("too many fields in report\n");
+		hid_err(report->device, "too many fields in report\n");
 		return NULL;
 	}
 
@@ -121,7 +121,7 @@ static int open_collection(struct hid_parser *parser, unsigned type)
 	usage = parser->local.usage[0];
 
 	if (parser->collection_stack_ptr == HID_COLLECTION_STACK_SIZE) {
-		dbg_hid("collection stack overflow\n");
+		hid_err(parser->device, "collection stack overflow\n");
 		return -1;
 	}
 
@@ -129,7 +129,7 @@ static int open_collection(struct hid_parser *parser, unsigned type)
 		collection = kmalloc(sizeof(struct hid_collection) *
 				parser->device->collection_size * 2, GFP_KERNEL);
 		if (collection == NULL) {
-			dbg_hid("failed to reallocate collection array\n");
+			hid_err(parser->device, "failed to reallocate collection array\n");
 			return -1;
 		}
 		memcpy(collection, parser->device->collection,
@@ -165,7 +165,7 @@ static int open_collection(struct hid_parser *parser, unsigned type)
 static int close_collection(struct hid_parser *parser)
 {
 	if (!parser->collection_stack_ptr) {
-		dbg_hid("collection stack underflow\n");
+		hid_err(parser->device, "collection stack underflow\n");
 		return -1;
 	}
 	parser->collection_stack_ptr--;
@@ -197,7 +197,7 @@ static unsigned hid_lookup_collection(struct hid_parser *parser, unsigned type)
 static int hid_add_usage(struct hid_parser *parser, unsigned usage)
 {
 	if (parser->local.usage_index >= HID_MAX_USAGES) {
-		dbg_hid("usage index exceeded\n");
+		hid_err(parser->device, "usage index exceeded\n");
 		return -1;
 	}
 	parser->local.usage[parser->local.usage_index] = usage;
@@ -222,12 +222,13 @@ static int hid_add_field(struct hid_parser *parser, unsigned report_type, unsign
 
 	report = hid_register_report(parser->device, report_type, parser->global.report_id);
 	if (!report) {
-		dbg_hid("hid_register_report failed\n");
+		hid_err(parser->device, "hid_register_report failed\n");
 		return -1;
 	}
 
 	if (parser->global.logical_maximum < parser->global.logical_minimum) {
-		dbg_hid("logical range invalid %d %d\n", parser->global.logical_minimum, parser->global.logical_maximum);
+		hid_err(parser->device, "logical range invalid %d %d\n",
+				parser->global.logical_minimum, parser->global.logical_maximum);
 		return -1;
 	}
 
@@ -307,7 +308,7 @@ static int hid_parser_global(struct hid_parser *parser, struct hid_item *item)
 	case HID_GLOBAL_ITEM_TAG_PUSH:
 
 		if (parser->global_stack_ptr == HID_GLOBAL_STACK_SIZE) {
-			dbg_hid("global environment stack overflow\n");
+			hid_err(parser->device, "global environment stack overflow\n");
 			return -1;
 		}
 
@@ -318,7 +319,7 @@ static int hid_parser_global(struct hid_parser *parser, struct hid_item *item)
 	case HID_GLOBAL_ITEM_TAG_POP:
 
 		if (!parser->global_stack_ptr) {
-			dbg_hid("global environment stack underflow\n");
+			hid_err(parser->device, "global environment stack underflow\n");
 			return -1;
 		}
 
@@ -363,7 +364,7 @@ static int hid_parser_global(struct hid_parser *parser, struct hid_item *item)
 	case HID_GLOBAL_ITEM_TAG_REPORT_SIZE:
 		parser->global.report_size = item_udata(item);
 		if (parser->global.report_size > 96) {
-			dbg_hid("invalid report_size %d\n",
+			hid_err(parser->device, "invalid report_size %d\n",
 					parser->global.report_size);
 			return -1;
 		}
@@ -372,7 +373,7 @@ static int hid_parser_global(struct hid_parser *parser, struct hid_item *item)
 	case HID_GLOBAL_ITEM_TAG_REPORT_COUNT:
 		parser->global.report_count = item_udata(item);
 		if (parser->global.report_count > HID_MAX_USAGES) {
-			dbg_hid("invalid report_count %d\n",
+			hid_err(parser->device, "invalid report_count %d\n",
 					parser->global.report_count);
 			return -1;
 		}
@@ -381,13 +382,13 @@ static int hid_parser_global(struct hid_parser *parser, struct hid_item *item)
 	case HID_GLOBAL_ITEM_TAG_REPORT_ID:
 		parser->global.report_id = item_udata(item);
 		if (parser->global.report_id == 0) {
-			dbg_hid("report_id 0 is invalid\n");
+			hid_err(parser->device, "report_id 0 is invalid\n");
 			return -1;
 		}
 		return 0;
 
 	default:
-		dbg_hid("unknown global tag 0x%x\n", item->tag);
+		hid_err(parser->device, "unknown global tag 0x%x\n", item->tag);
 		return -1;
 	}
 }
@@ -414,14 +415,14 @@ static int hid_parser_local(struct hid_parser *parser, struct hid_item *item)
 			 * items and the first delimiter set.
 			 */
 			if (parser->local.delimiter_depth != 0) {
-				dbg_hid("nested delimiters\n");
+				hid_err(parser->device, "nested delimiters\n");
 				return -1;
 			}
 			parser->local.delimiter_depth++;
 			parser->local.delimiter_branch++;
 		} else {
 			if (parser->local.delimiter_depth < 1) {
-				dbg_hid("bogus close delimiter\n");
+				hid_err(parser->device, "bogus close delimiter\n");
 				return -1;
 			}
 			parser->local.delimiter_depth--;
@@ -506,7 +507,7 @@ static int hid_parser_main(struct hid_parser *parser, struct hid_item *item)
 		ret = hid_add_field(parser, HID_FEATURE_REPORT, data);
 		break;
 	default:
-		dbg_hid("unknown main item tag 0x%x\n", item->tag);
+		hid_err(parser->device, "unknown main item tag 0x%x\n", item->tag);
 		ret = 0;
 	}
 
@@ -678,12 +679,12 @@ int hid_parse_report(struct hid_device *device, __u8 *start,
 	while ((start = fetch_item(start, end, &item)) != NULL) {
 
 		if (item.format != HID_ITEM_FORMAT_SHORT) {
-			dbg_hid("unexpected long global item\n");
+			hid_err(device, "unexpected long global item\n");
 			goto err;
 		}
 
 		if (dispatch_type[item.type](parser, &item)) {
-			dbg_hid("item %u %u %u %u parsing failed\n",
+			hid_err(device, "item %u %u %u %u parsing failed\n",
 				item.format, (unsigned)item.size,
 				(unsigned)item.type, (unsigned)item.tag);
 			goto err;
@@ -691,11 +692,11 @@ int hid_parse_report(struct hid_device *device, __u8 *start,
 
 		if (start == end) {
 			if (parser->collection_stack_ptr) {
-				dbg_hid("unbalanced collection at end of report description\n");
+				hid_err(device, "unbalanced collection at end of report description\n");
 				goto err;
 			}
 			if (parser->local.delimiter_depth) {
-				dbg_hid("unbalanced delimiter at end of report description\n");
+				hid_err(device, "unbalanced delimiter at end of report description\n");
 				goto err;
 			}
 			vfree(parser);
@@ -703,7 +704,7 @@ int hid_parse_report(struct hid_device *device, __u8 *start,
 		}
 	}
 
-	dbg_hid("item fetching failed at offset %d\n", (int)(end - start));
+	hid_err(device, "item fetching failed at offset %d\n", (int)(end - start));
 err:
 	vfree(parser);
 	return ret;
@@ -873,7 +874,7 @@ static void hid_process_event(struct hid_device *hid, struct hid_field *field,
 		ret = hdrv->event(hid, field, usage, value);
 		if (ret != 0) {
 			if (ret < 0)
-				dbg_hid("%s's event failed with %d\n",
+				hid_err(hid, "%s's event failed with %d\n",
 						hdrv->name, ret);
 			return;
 		}
@@ -995,12 +996,13 @@ int hid_set_field(struct hid_field *field, unsigned offset, __s32 value)
 	hid_dump_input(field->report->device, field->usage + offset, value);
 
 	if (offset >= field->report_count) {
-		dbg_hid("offset (%d) exceeds report_count (%d)\n", offset, field->report_count);
+		hid_err(field->report->device, "offset (%d) exceeds report_count (%d)\n",
+				offset, field->report_count);
 		return -1;
 	}
 	if (field->logical_minimum < 0) {
 		if (value != snto32(s32ton(value, size), size)) {
-			dbg_hid("value %d is out of range\n", value);
+			hid_err(field->report->device, "value %d is out of range\n", value);
 			return -1;
 		}
 	}
