@@ -482,8 +482,8 @@ wlc_phy_attach(struct shared_phy *sh, struct bcma_device *d11core,
 	pi->pubpi.phy_corenum = PHY_CORE_NUM_2;
 	pi->pubpi.ana_rev = (phyversion & PV_AV_MASK) >> PV_AV_SHIFT;
 
-	if (!pi->pubpi.phy_type == PHY_TYPE_N &&
-	    !pi->pubpi.phy_type == PHY_TYPE_LCN)
+	if (pi->pubpi.phy_type != PHY_TYPE_N &&
+	    pi->pubpi.phy_type != PHY_TYPE_LCN)
 		goto err;
 
 	if (bandtype == BRCM_BAND_5G) {
