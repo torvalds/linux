@@ -189,6 +189,7 @@ ov519		05a9:0511	Video Blaster WebCam 3/WebCam Plus, D-Link USB Digital Video Ca
 ov519		05a9:0518	Creative WebCam
 ov519		05a9:0519	OV519 Microphone
 ov519		05a9:0530	OmniVision
+ov534_9		05a9:1550	OmniVision VEHO Filmscanner
 ov519		05a9:2800	OmniVision SuperCAM
 ov519		05a9:4519	Webcam Classic
 ov534_9		05a9:8065	OmniVision test kit ov538+ov9712
