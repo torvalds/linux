@@ -34,7 +34,6 @@
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_gem.h"
-#include "exynos_drm_buf.h"
 
 #define MAX_CONNECTOR		4
 #define PREFERRED_BPP		32
@@ -99,7 +98,8 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->depth);
 	drm_fb_helper_fill_var(fbi, helper, fb->width, fb->height);
 
-	buffer = exynos_drm_fb_get_buf(fb);
+	/* RGB formats use only one buffer */
+	buffer = exynos_drm_fb_buffer(fb, 0);
 	if (!buffer) {
 		DRM_LOG_KMS("buffer is null.\n");
 		return -EFAULT;

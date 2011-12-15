@@ -313,8 +313,8 @@ static void fimd_win_mode_set(struct device *dev,
 	win_data->ovl_height = overlay->crtc_height;
 	win_data->fb_width = overlay->fb_width;
 	win_data->fb_height = overlay->fb_height;
-	win_data->dma_addr = overlay->dma_addr + offset;
-	win_data->vaddr = overlay->vaddr + offset;
+	win_data->dma_addr = overlay->dma_addr[0] + offset;
+	win_data->vaddr = overlay->vaddr[0] + offset;
 	win_data->bpp = overlay->bpp;
 	win_data->buf_offsize = (overlay->fb_width - overlay->crtc_width) *
 				(overlay->bpp >> 3);

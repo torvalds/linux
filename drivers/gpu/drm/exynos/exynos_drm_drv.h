@@ -34,6 +34,7 @@
 
 #define MAX_CRTC	2
 #define MAX_PLANE	5
+#define MAX_FB_BUFFER	3
 #define DEFAULT_ZPOS	-1
 
 struct drm_device;
@@ -82,9 +83,10 @@ struct exynos_drm_overlay_ops {
  * @scan_flag: interlace or progressive way.
  *	(it could be DRM_MODE_FLAG_*)
  * @bpp: pixel size.(in bit)
- * @dma_addr: bus(accessed by dma) address to the memory region allocated
- *	for a overlay.
- * @vaddr: virtual memory addresss to this overlay.
+ * @pixel_format: fourcc pixel format of this overlay
+ * @dma_addr: array of bus(accessed by dma) address to the memory region
+ *	      allocated for a overlay.
+ * @vaddr: array of virtual memory addresss to this overlay.
  * @zpos: order of overlay layer(z position).
  * @default_win: a window to be enabled.
  * @color_key: color key on or off.
@@ -112,8 +114,9 @@ struct exynos_drm_overlay {
 	unsigned int scan_flag;
 	unsigned int bpp;
 	unsigned int pitch;
-	dma_addr_t dma_addr;
-	void __iomem *vaddr;
+	uint32_t pixel_format;
+	dma_addr_t dma_addr[MAX_FB_BUFFER];
+	void __iomem *vaddr[MAX_FB_BUFFER];
 	int zpos;
 
 	bool default_win;

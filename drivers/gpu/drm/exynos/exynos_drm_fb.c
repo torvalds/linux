@@ -33,7 +33,6 @@
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
-#include "exynos_drm_buf.h"
 #include "exynos_drm_gem.h"
 
 #define to_exynos_fb(x)	container_of(x, struct exynos_drm_fb, fb)
@@ -42,11 +41,11 @@
  * exynos specific framebuffer structure.
  *
  * @fb: drm framebuffer obejct.
- * @exynos_gem_obj: exynos specific gem object containing a gem object.
+ * @exynos_gem_obj: array of exynos specific gem object containing a gem object.
  */
 struct exynos_drm_fb {
 	struct drm_framebuffer		fb;
-	struct exynos_drm_gem_obj	*exynos_gem_obj;
+	struct exynos_drm_gem_obj	*exynos_gem_obj[MAX_FB_BUFFER];
 };
 
 static void exynos_drm_fb_destroy(struct drm_framebuffer *fb)
@@ -70,7 +69,7 @@ static int exynos_drm_fb_create_handle(struct drm_framebuffer *fb,
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	return drm_gem_handle_create(file_priv,
-			&exynos_fb->exynos_gem_obj->base, handle);
+			&exynos_fb->exynos_gem_obj[0]->base, handle);
 }
 
 static int exynos_drm_fb_dirty(struct drm_framebuffer *fb,
@@ -112,7 +111,7 @@ exynos_drm_framebuffer_init(struct drm_device *dev,
 	}
 
 	drm_helper_mode_fill_fb_struct(&exynos_fb->fb, mode_cmd);
-	exynos_fb->exynos_gem_obj = to_exynos_gem_obj(obj);
+	exynos_fb->exynos_gem_obj[0] = to_exynos_gem_obj(obj);
 
 	return &exynos_fb->fb;
 }
@@ -122,6 +121,10 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		      struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct drm_gem_object *obj;
+	struct drm_framebuffer *fb;
+	struct exynos_drm_fb *exynos_fb;
+	int nr;
+	int i;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
@@ -133,17 +136,42 @@ exynos_user_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 
 	drm_gem_object_unreference_unlocked(obj);
 
-	return exynos_drm_framebuffer_init(dev, mode_cmd, obj);
+	fb = exynos_drm_framebuffer_init(dev, mode_cmd, obj);
+	if (IS_ERR(fb))
+		return fb;
+
+	exynos_fb = to_exynos_fb(fb);
+	nr = exynos_drm_format_num_buffers(fb->pixel_format);
+
+	for (i = 1; i < nr; i++) {
+		obj = drm_gem_object_lookup(dev, file_priv,
+				mode_cmd->handles[i]);
+		if (!obj) {
+			DRM_ERROR("failed to lookup gem object\n");
+			exynos_drm_fb_destroy(fb);
+			return ERR_PTR(-ENOENT);
+		}
+
+		drm_gem_object_unreference_unlocked(obj);
+
+		exynos_fb->exynos_gem_obj[i] = to_exynos_gem_obj(obj);
+	}
+
+	return fb;
 }
 
-struct exynos_drm_gem_buf *exynos_drm_fb_get_buf(struct drm_framebuffer *fb)
+struct exynos_drm_gem_buf *exynos_drm_fb_buffer(struct drm_framebuffer *fb,
+						int index)
 {
 	struct exynos_drm_fb *exynos_fb = to_exynos_fb(fb);
 	struct exynos_drm_gem_buf *buffer;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	buffer = exynos_fb->exynos_gem_obj->buffer;
+	if (index >= MAX_FB_BUFFER)
+		return NULL;
+
+	buffer = exynos_fb->exynos_gem_obj[index]->buffer;
 	if (!buffer)
 		return NULL;
 
