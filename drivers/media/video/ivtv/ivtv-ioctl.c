@@ -1625,6 +1625,12 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 		return ivtv_yuv_prep_frame(itv, args);
 	}
 
+	case IVTV_IOC_PASSTHROUGH_MODE:
+		IVTV_DEBUG_IOCTL("IVTV_IOC_PASSTHROUGH_MODE\n");
+		if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT))
+			return -EINVAL;
+		return ivtv_passthrough_mode(itv, *(int *)arg != 0);
+
 	case VIDEO_GET_PTS: {
 		s64 *pts = arg;
 		s64 frame;
@@ -1786,6 +1792,7 @@ static long ivtv_default(struct file *file, void *fh, bool valid_prio,
 
 	if (!valid_prio) {
 		switch (cmd) {
+		case IVTV_IOC_PASSTHROUGH_MODE:
 		case VIDEO_PLAY:
 		case VIDEO_STOP:
 		case VIDEO_FREEZE:
@@ -1811,6 +1818,7 @@ static long ivtv_default(struct file *file, void *fh, bool valid_prio,
 	}
 
 	case IVTV_IOC_DMA_FRAME:
+	case IVTV_IOC_PASSTHROUGH_MODE:
 	case VIDEO_GET_PTS:
 	case VIDEO_GET_FRAME_COUNT:
 	case VIDEO_GET_EVENT:
