@@ -807,17 +807,11 @@ void hci_conn_enter_sniff_mode(struct hci_conn *conn)
 void hci_conn_hash_flush(struct hci_dev *hdev)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
-	struct list_head *p;
+	struct hci_conn *c;
 
 	BT_DBG("hdev %s", hdev->name);
 
-	p = h->list.next;
-	while (p != &h->list) {
-		struct hci_conn *c;
-
-		c = list_entry(p, struct hci_conn, list);
-		p = p->next;
-
+	list_for_each_entry(c, &h->list, list) {
 		c->state = BT_CLOSED;
 
 		hci_proto_disconn_cfm(c, HCI_ERROR_LOCAL_HOST_TERM);
