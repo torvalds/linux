@@ -380,18 +380,19 @@ static inline int gred_change_table_def(struct Qdisc *sch, struct nlattr *dps)
 
 static inline int gred_change_vq(struct Qdisc *sch, int dp,
 				 struct tc_gred_qopt *ctl, int prio,
-				 u8 *stab, u32 max_P)
+				 u8 *stab, u32 max_P,
+				 struct gred_sched_data **prealloc)
 {
 	struct gred_sched *table = qdisc_priv(sch);
-	struct gred_sched_data *q;
+	struct gred_sched_data *q = table->tab[dp];
 
-	if (table->tab[dp] == NULL) {
-		table->tab[dp] = kzalloc(sizeof(*q), GFP_ATOMIC);
-		if (table->tab[dp] == NULL)
+	if (!q) {
+		table->tab[dp] = q = *prealloc;
+		*prealloc = NULL;
+		if (!q)
 			return -ENOMEM;
 	}
 
-	q = table->tab[dp];
 	q->DP = dp;
 	q->prio = prio;
 	q->limit = ctl->limit;
@@ -421,6 +422,7 @@ static int gred_change(struct Qdisc *sch, struct nlattr *opt)
 	int err, prio = GRED_DEF_PRIO;
 	u8 *stab;
 	u32 max_P;
+	struct gred_sched_data *prealloc;
 
 	if (opt == NULL)
 		return -EINVAL;
@@ -460,9 +462,10 @@ static int gred_change(struct Qdisc *sch, struct nlattr *opt)
 			prio = ctl->prio;
 	}
 
+	prealloc = kzalloc(sizeof(*prealloc), GFP_KERNEL);
 	sch_tree_lock(sch);
 
-	err = gred_change_vq(sch, ctl->DP, ctl, prio, stab, max_P);
+	err = gred_change_vq(sch, ctl->DP, ctl, prio, stab, max_P, &prealloc);
 	if (err < 0)
 		goto errout_locked;
 
@@ -476,6 +479,7 @@ static int gred_change(struct Qdisc *sch, struct nlattr *opt)
 
 errout_locked:
 	sch_tree_unlock(sch);
+	kfree(prealloc);
 errout:
 	return err;
 }
