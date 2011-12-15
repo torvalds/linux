@@ -633,7 +633,6 @@ static void usbhsh_queue_done(struct usbhs_priv *priv, struct usbhs_pkt *pkt)
 	struct usbhsh_hpriv *hpriv = usbhsh_priv_to_hpriv(priv);
 	struct usb_hcd *hcd = usbhsh_hpriv_to_hcd(hpriv);
 	struct urb *urb = ureq->urb;
-	struct usbhsh_ep *uep = usbhsh_ep_to_uep(urb->ep);
 	struct device *dev = usbhs_priv_to_dev(priv);
 	int status = 0;
 
@@ -651,7 +650,7 @@ static void usbhsh_queue_done(struct usbhs_priv *priv, struct usbhs_pkt *pkt)
 	usbhsh_ureq_free(hpriv, ureq);
 
 	usbhsh_endpoint_sequence_save(hpriv, urb, pkt);
-	usbhsh_pipe_detach(hpriv, uep);
+	usbhsh_pipe_detach(hpriv, usbhsh_ep_to_uep(urb->ep));
 
 	usb_hcd_unlink_urb_from_ep(hcd, urb);
 	usb_hcd_giveback_urb(hcd, urb, status);
