@@ -603,12 +603,10 @@ static void netvsc_receive(struct hv_device *device,
 	struct vmtransfer_page_packet_header *vmxferpage_packet;
 	struct nvsp_message *nvsp_packet;
 	struct hv_netvsc_packet *netvsc_packet = NULL;
-	unsigned long start;
-	unsigned long end, end_virtual;
 	/* struct netvsc_driver *netvscDriver; */
 	struct xferpage_packet *xferpage_packet = NULL;
-	int i, j;
-	int count = 0, bytes_remain = 0;
+	int i;
+	int count = 0;
 	unsigned long flags;
 	struct net_device *ndev;
 
@@ -717,53 +715,10 @@ static void netvsc_receive(struct hv_device *device,
 		netvsc_packet->completion.recv.recv_completion_tid =
 					vmxferpage_packet->d.trans_id;
 
+		netvsc_packet->data = (void *)((unsigned long)net_device->
+			recv_buf + vmxferpage_packet->ranges[i].byte_offset);
 		netvsc_packet->total_data_buflen =
 					vmxferpage_packet->ranges[i].byte_count;
-		netvsc_packet->page_buf_cnt = 1;
-
-		netvsc_packet->page_buf[0].len =
-					vmxferpage_packet->ranges[i].byte_count;
-
-		start = virt_to_phys((void *)((unsigned long)net_device->
-		recv_buf + vmxferpage_packet->ranges[i].byte_offset));
-
-		netvsc_packet->page_buf[0].pfn = start >> PAGE_SHIFT;
-		end_virtual = (unsigned long)net_device->recv_buf
-		    + vmxferpage_packet->ranges[i].byte_offset
-		    + vmxferpage_packet->ranges[i].byte_count - 1;
-		end = virt_to_phys((void *)end_virtual);
-
-		/* Calculate the page relative offset */
-		netvsc_packet->page_buf[0].offset =
-			vmxferpage_packet->ranges[i].byte_offset &
-			(PAGE_SIZE - 1);
-		if ((end >> PAGE_SHIFT) != (start >> PAGE_SHIFT)) {
-			/* Handle frame across multiple pages: */
-			netvsc_packet->page_buf[0].len =
-				(netvsc_packet->page_buf[0].pfn <<
-				 PAGE_SHIFT)
-				+ PAGE_SIZE - start;
-			bytes_remain = netvsc_packet->total_data_buflen -
-					netvsc_packet->page_buf[0].len;
-			for (j = 1; j < NETVSC_PACKET_MAXPAGE; j++) {
-				netvsc_packet->page_buf[j].offset = 0;
-				if (bytes_remain <= PAGE_SIZE) {
-					netvsc_packet->page_buf[j].len =
-						bytes_remain;
-					bytes_remain = 0;
-				} else {
-					netvsc_packet->page_buf[j].len =
-						PAGE_SIZE;
-					bytes_remain -= PAGE_SIZE;
-				}
-				netvsc_packet->page_buf[j].pfn =
-				    virt_to_phys((void *)(end_virtual -
-						bytes_remain)) >> PAGE_SHIFT;
-				netvsc_packet->page_buf_cnt++;
-				if (bytes_remain == 0)
-					break;
-			}
-		}
 
 		/* Pass it to the upper layer */
 		rndis_filter_receive(device, netvsc_packet);

@@ -251,9 +251,6 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 {
 	struct net_device *net = dev_get_drvdata(&device_obj->device);
 	struct sk_buff *skb;
-	void *data;
-	int i;
-	unsigned long flags;
 	struct netvsc_device *net_device;
 
 	net_device = hv_get_drvdata(device_obj);
@@ -272,27 +269,12 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 		return 0;
 	}
 
-	/* for kmap_atomic */
-	local_irq_save(flags);
-
 	/*
 	 * Copy to skb. This copy is needed here since the memory pointed by
 	 * hv_netvsc_packet cannot be deallocated
 	 */
-	for (i = 0; i < packet->page_buf_cnt; i++) {
-		data = kmap_atomic(pfn_to_page(packet->page_buf[i].pfn),
-					       KM_IRQ1);
-		data = (void *)(unsigned long)data +
-				packet->page_buf[i].offset;
-
-		memcpy(skb_put(skb, packet->page_buf[i].len), data,
-		       packet->page_buf[i].len);
-
-		kunmap_atomic((void *)((unsigned long)data -
-				       packet->page_buf[i].offset), KM_IRQ1);
-	}
-
-	local_irq_restore(flags);
+	memcpy(skb_put(skb, packet->total_data_buflen), packet->data,
+		packet->total_data_buflen);
 
 	skb->protocol = eth_type_trans(skb, net);
 	skb->ip_summed = CHECKSUM_NONE;

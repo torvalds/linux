@@ -39,9 +39,6 @@ struct xferpage_packet {
 	u32 count;
 };
 
-/* The number of pages which are enough to cover jumbo frame buffer. */
-#define NETVSC_PACKET_MAXPAGE		4
-
 /*
  * Represent netvsc packet which contains 1 RNDIS and 1 ethernet frame
  * within the RNDIS
@@ -77,8 +74,9 @@ struct hv_netvsc_packet {
 
 	u32 total_data_buflen;
 	/* Points to the send/receive buffer where the ethernet frame is */
+	void *data;
 	u32 page_buf_cnt;
-	struct hv_page_buffer page_buf[NETVSC_PACKET_MAXPAGE];
+	struct hv_page_buffer page_buf[0];
 };
 
 struct netvsc_device_info {
