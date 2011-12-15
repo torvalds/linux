@@ -35,7 +35,7 @@ MODULE_SUPPORTED_DEVICE("{{TerraTec, DMX 6Fire USB}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX; /* Index 0-max */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR; /* Id for card */
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP; /* Enable card */
+static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP; /* Enable card */
 static struct sfire_chip *chips[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 static struct usb_device *devices[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 

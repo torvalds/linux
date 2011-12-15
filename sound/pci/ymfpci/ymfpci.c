@@ -41,13 +41,13 @@ MODULE_SUPPORTED_DEVICE("{{Yamaha,YMF724},"
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
+static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
 static long fm_port[SNDRV_CARDS];
 static long mpu_port[SNDRV_CARDS];
 #ifdef SUPPORT_JOYSTICK
 static long joystick_port[SNDRV_CARDS];
 #endif
-static int rear_switch[SNDRV_CARDS];
+static bool rear_switch[SNDRV_CARDS];
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for the Yamaha DS-1 PCI soundcard.");

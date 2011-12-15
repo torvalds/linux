@@ -55,7 +55,7 @@ MODULE_SUPPORTED_DEVICE("{{Native Instruments, RigKontrol2},"
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX; /* Index 0-max */
 static char* id[SNDRV_CARDS] = SNDRV_DEFAULT_STR; /* Id for this card */
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP; /* Enable this card */
+static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP; /* Enable this card */
 static int snd_card_used[SNDRV_CARDS];
 
 module_param_array(index, int, NULL, 0444);

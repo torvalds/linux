@@ -15,8 +15,8 @@
 #include "cthardware.h"
 #include "cttimer.h"
 
-static int use_system_timer;
-MODULE_PARM_DESC(use_system_timer, "Foce to use system-timer");
+static bool use_system_timer;
+MODULE_PARM_DESC(use_system_timer, "Force to use system-timer");
 module_param(use_system_timer, bool, S_IRUGO);
 
 struct ct_timer_ops {

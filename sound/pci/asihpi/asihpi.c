@@ -63,8 +63,8 @@ MODULE_DESCRIPTION("AudioScience ALSA ASI5000 ASI6000 ASI87xx ASI89xx");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
-static int enable_hpi_hwdep = 1;
+static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
+static bool enable_hpi_hwdep = 1;
 
 module_param_array(index, int, NULL, S_IRUGO);
 MODULE_PARM_DESC(index, "ALSA index value for AudioScience soundcard.");

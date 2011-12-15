@@ -40,7 +40,7 @@ MODULE_SUPPORTED_DEVICE("{{SiS,SiS7019 Audio Accelerator}}");
 
 static int index = SNDRV_DEFAULT_IDX1;	/* Index 0-MAX */
 static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
-static int enable = 1;
+static bool enable = 1;
 static int codecs = 1;
 
 module_param(index, int, 0444);

@@ -37,8 +37,8 @@ MODULE_SUPPORTED_DEVICE("{{Digigram," CARD_NAME "}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
-static int mic[SNDRV_CARDS]; /* microphone */
+static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
+static bool mic[SNDRV_CARDS]; /* microphone */
 static int ibl[SNDRV_CARDS]; /* microphone */
 
 module_param_array(index, int, NULL, 0444);

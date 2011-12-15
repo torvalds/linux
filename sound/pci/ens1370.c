@@ -83,12 +83,12 @@ MODULE_SUPPORTED_DEVICE("{{Ensoniq,AudioPCI ES1371/73},"
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable switches */
+static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable switches */
 #ifdef SUPPORT_JOYSTICK
 #ifdef CHIP1371
 static int joystick_port[SNDRV_CARDS];
 #else
-static int joystick[SNDRV_CARDS];
+static bool joystick[SNDRV_CARDS];
 #endif
 #endif
 #ifdef CHIP1371
