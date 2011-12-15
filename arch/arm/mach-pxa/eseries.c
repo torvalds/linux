@@ -936,12 +936,18 @@ static struct platform_device e800_tc6393xb_device = {
 	.resource      = eseries_tmio_resources,
 };
 
+static struct platform_device e800_audio_device = {
+	.name		= "e800-audio",
+	.id		= -1,
+};
+
 /* ----------------------------------------------------------------------- */
 
 static struct platform_device *e800_devices[] __initdata = {
 	&e800_fb_device,
 	&e800_tc6393xb_device,
 	&e800_gpio_vbus,
+	&e800_audio_device,
 };
 
 static void __init e800_init(void)
