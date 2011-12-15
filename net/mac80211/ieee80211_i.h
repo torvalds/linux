@@ -1349,7 +1349,16 @@ void mac80211_ev_michael_mic_failure(struct ieee80211_sub_if_data *sdata, int ke
 				     gfp_t gfp);
 void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata);
 void ieee80211_xmit(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb);
-void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb);
+
+void ieee80211_tx_skb_tid(struct ieee80211_sub_if_data *sdata,
+			  struct sk_buff *skb, int tid);
+static void inline ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata,
+				    struct sk_buff *skb)
+{
+	/* Send all internal mgmt frames on VO. Accordingly set TID to 7. */
+	ieee80211_tx_skb_tid(sdata, skb, 7);
+}
+
 void ieee802_11_parse_elems(u8 *start, size_t len,
 			    struct ieee802_11_elems *elems);
 u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
