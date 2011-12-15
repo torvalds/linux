@@ -783,7 +783,7 @@ int mlx4_SET_PORT(struct mlx4_dev *dev, u8 port)
 	return err;
 }
 
-static int mlx4_SET_PORT_general(struct mlx4_dev *dev, u8 port, int mtu,
+int mlx4_SET_PORT_general(struct mlx4_dev *dev, u8 port, int mtu,
 			  u8 pptx, u8 pfctx, u8 pprx, u8 pfcrx)
 {
 	struct mlx4_cmd_mailbox *mailbox;
@@ -813,7 +813,7 @@ static int mlx4_SET_PORT_general(struct mlx4_dev *dev, u8 port, int mtu,
 }
 EXPORT_SYMBOL(mlx4_SET_PORT_general);
 
-static int mlx4_SET_PORT_qpn_calc(struct mlx4_dev *dev, u8 port, u32 base_qpn,
+int mlx4_SET_PORT_qpn_calc(struct mlx4_dev *dev, u8 port, u32 base_qpn,
 			   u8 promisc)
 {
 	struct mlx4_cmd_mailbox *mailbox;
