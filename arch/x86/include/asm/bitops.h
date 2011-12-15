@@ -380,6 +380,8 @@ static inline unsigned long __fls(unsigned long word)
 	return word;
 }
 
+#undef ADDR
+
 #ifdef __KERNEL__
 /**
  * ffs - find first set bit in word
@@ -434,11 +436,6 @@ static inline int fls(int x)
 #endif
 	return r + 1;
 }
-#endif /* __KERNEL__ */
-
-#undef ADDR
-
-#ifdef __KERNEL__
 
 #include <asm-generic/bitops/find.h>
 
@@ -450,11 +447,7 @@ static inline int fls(int x)
 
 #include <asm-generic/bitops/const_hweight.h>
 
-#endif /* __KERNEL__ */
-
 #include <asm-generic/bitops/fls64.h>
-
-#ifdef __KERNEL__
 
 #include <asm-generic/bitops/le.h>
 
