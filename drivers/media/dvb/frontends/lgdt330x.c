@@ -347,7 +347,7 @@ static int lgdt330x_set_parameters(struct dvb_frontend* fe,
 
 	static u8 top_ctrl_cfg[]   = { TOP_CONTROL, 0x03 };
 
-	int err;
+	int err = 0;
 	/* Change only if we are actually changing the modulation */
 	if (state->current_modulation != param->u.vsb.modulation) {
 		switch(param->u.vsb.modulation) {
@@ -402,6 +402,11 @@ static int lgdt330x_set_parameters(struct dvb_frontend* fe,
 			printk(KERN_WARNING "lgdt330x: %s: Modulation type(%d) UNSUPPORTED\n", __func__, param->u.vsb.modulation);
 			return -1;
 		}
+		if (err < 0)
+			printk(KERN_WARNING "lgdt330x: %s: error blasting "
+			       "bytes to lgdt3303 for modulation type(%d)\n",
+			       __func__, param->u.vsb.modulation);
+
 		/*
 		 * select serial or parallel MPEG harware interface
 		 * Serial:   0x04 for LGDT3302 or 0x40 for LGDT3303
