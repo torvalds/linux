@@ -1253,9 +1253,10 @@ int iwl_alive_start(struct iwl_priv *priv)
 		iwl_send_bt_config(priv);
 	}
 
-	if (hw_params(priv).calib_rt_cfg)
-		iwlagn_send_calib_cfg_rt(priv,
-					 hw_params(priv).calib_rt_cfg);
+	/*
+	 * Perform runtime calibrations, including DC calibration.
+	 */
+	iwlagn_send_calib_cfg_rt(priv, IWL_CALIB_CFG_DC_IDX);
 
 	ieee80211_wake_queues(priv->hw);
 
