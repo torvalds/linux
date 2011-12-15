@@ -283,8 +283,7 @@ static inline void account_group_user_time(struct task_struct *tsk,
 		return;
 
 	raw_spin_lock(&cputimer->lock);
-	cputimer->cputime.utime =
-		cputime_add(cputimer->cputime.utime, cputime);
+	cputimer->cputime.utime += cputime;
 	raw_spin_unlock(&cputimer->lock);
 }
 
@@ -307,8 +306,7 @@ static inline void account_group_system_time(struct task_struct *tsk,
 		return;
 
 	raw_spin_lock(&cputimer->lock);
-	cputimer->cputime.stime =
-		cputime_add(cputimer->cputime.stime, cputime);
+	cputimer->cputime.stime += cputime;
 	raw_spin_unlock(&cputimer->lock);
 }
 
