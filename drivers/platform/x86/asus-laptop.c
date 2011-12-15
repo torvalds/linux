@@ -282,6 +282,7 @@ struct asus_laptop {
 	struct asus_rfkill wlan;
 	struct asus_rfkill bluetooth;
 	struct asus_rfkill wwan;
+	struct asus_rfkill wimax;
 	struct asus_rfkill gps;
 
 	acpi_handle handle;	/* the handle of the hotk device */
@@ -1291,6 +1292,10 @@ static int asus_rfkill_set(void *data, bool blocked)
 		return asus_wlan_set(asus, !blocked);
 	else if (rfk->control_id == BT_RSTS)
 		return asus_bluetooth_set(asus, !blocked);
+	else if (rfk->control_id == WM_RSTS)
+		return asus_wimax_set(asus, !blocked);
+	else if (rfk->control_id == WW_RSTS)
+		return asus_wwan_set(asus, !blocked);
 
 	return -EINVAL;
 }
@@ -1343,6 +1348,9 @@ static int asus_rfkill_init(struct asus_laptop *asus)
 {
 	int result = 0;
 
+	if (asus->is_pega_lucid)
+		return -ENODEV;
+
 	if (!acpi_check_handle(asus->handle, METHOD_GPS_ON, NULL) &&
 	    !acpi_check_handle(asus->handle, METHOD_GPS_OFF, NULL) &&
 	    !acpi_check_handle(asus->handle, METHOD_GPS_STATUS, NULL))
@@ -1364,6 +1372,20 @@ static int asus_rfkill_init(struct asus_laptop *asus)
 		result = asus_rfkill_setup(asus, &asus->bluetooth,
 					   "asus-bluetooth", BT_RSTS,
 					   RFKILL_TYPE_BLUETOOTH,
+					   &asus_rfkill_ops);
+	if (result)
+		goto exit;
+
+	if (!acpi_check_handle(asus->handle, METHOD_WWAN, NULL))
+		result = asus_rfkill_setup(asus, &asus->wwan, "asus-wwan",
+					   WW_RSTS, RFKILL_TYPE_WWAN,
+					   &asus_rfkill_ops);
+	if (result)
+		goto exit;
+
+	if (!acpi_check_handle(asus->handle, METHOD_WIMAX, NULL))
+		result = asus_rfkill_setup(asus, &asus->wimax, "asus-wimax",
+					   WM_RSTS, RFKILL_TYPE_WIMAX,
 					   &asus_rfkill_ops);
 	if (result)
 		goto exit;
@@ -1859,7 +1881,7 @@ static int __devinit asus_acpi_add(struct acpi_device *device)
 		goto fail_led;
 
 	result = asus_rfkill_init(asus);
-	if (result)
+	if (result && result != -ENODEV)
 		goto fail_rfkill;
 
 	result = pega_accel_init(asus);
