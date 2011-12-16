@@ -51,10 +51,10 @@
 #define OMAP4_UART3_BASE	0x48020000
 #define OMAP4_UART4_BASE	0x4806e000
 
-/* TI816X serial ports */
-#define TI816X_UART1_BASE	0x48020000
-#define TI816X_UART2_BASE	0x48022000
-#define TI816X_UART3_BASE	0x48024000
+/* TI81XX serial ports */
+#define TI81XX_UART1_BASE	0x48020000
+#define TI81XX_UART2_BASE	0x48022000
+#define TI81XX_UART3_BASE	0x48024000
 
 /* AM3505/3517 UART4 */
 #define AM35XX_UART4_BASE	0x4809E000	/* Only on AM3505/3517 */
@@ -89,9 +89,9 @@
 #define OMAP4UART2		OMAP2UART2
 #define OMAP4UART3		43
 #define OMAP4UART4		44
-#define TI816XUART1		81
-#define TI816XUART2		82
-#define TI816XUART3		83
+#define TI81XXUART1		81
+#define TI81XXUART2		82
+#define TI81XXUART3		83
 #define ZOOM_UART		95		/* Only on zoom2/3 */
 
 /* This is only used by 8250.c for omap1510 */
@@ -106,15 +106,13 @@
 #ifndef __ASSEMBLER__
 
 struct omap_board_data;
+struct omap_uart_port_info;
 
 extern void omap_serial_init(void);
-extern void omap_serial_init_port(struct omap_board_data *bdata);
 extern int omap_uart_can_sleep(void);
-extern void omap_uart_check_wakeup(void);
-extern void omap_uart_prepare_suspend(void);
-extern void omap_uart_prepare_idle(int num);
-extern void omap_uart_resume_idle(int num);
-extern void omap_uart_enable_irqs(int enable);
+extern void omap_serial_board_init(struct omap_uart_port_info *platform_data);
+extern void omap_serial_init_port(struct omap_board_data *bdata,
+		struct omap_uart_port_info *platform_data);
 #endif
 
 #endif

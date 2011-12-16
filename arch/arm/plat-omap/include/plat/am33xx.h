@@ -1,7 +1,7 @@
 /*
- * This file contains the address data for various TI816X modules.
+ * This file contains the address info for various AM33XX modules.
  *
- * Copyright (C) 2010 Texas Instruments, Inc. - http://www.ti.com/
+ * Copyright (C) 2011 Texas Instruments, Inc. - http://www.ti.com/
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -13,15 +13,13 @@
  * GNU General Public License for more details.
  */
 
-#ifndef __ASM_ARCH_TI816X_H
-#define __ASM_ARCH_TI816X_H
+#ifndef __ASM_ARCH_AM33XX_H
+#define __ASM_ARCH_AM33XX_H
 
-#define L4_SLOW_TI816X_BASE	0x48000000
+#define L4_SLOW_AM33XX_BASE	0x48000000
 
-#define TI816X_SCM_BASE		0x48140000
-#define TI816X_CTRL_BASE	TI816X_SCM_BASE
-#define TI816X_PRCM_BASE	0x48180000
+#define AM33XX_SCM_BASE		0x44E10000
+#define AM33XX_CTRL_BASE	AM33XX_SCM_BASE
+#define AM33XX_PRCM_BASE	0x44E00000
 
-#define TI816X_ARM_INTC_BASE	0x48200000
-
-#endif /* __ASM_ARCH_TI816X_H */
+#endif /* __ASM_ARCH_AM33XX_H */
