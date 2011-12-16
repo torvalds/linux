@@ -27,6 +27,8 @@
 #define USB_SKEL_VENDOR_ID	0xfff0
 #define USB_SKEL_PRODUCT_ID	0xfff0
 
+static DEFINE_MUTEX(skel_mutex);
+
 /* table of devices that work with this driver */
 static const struct usb_device_id skel_table[] = {
 	{ USB_DEVICE(USB_SKEL_VENDOR_ID, USB_SKEL_PRODUCT_ID) },
@@ -100,18 +102,25 @@ static int skel_open(struct inode *inode, struct file *file)
 		goto exit;
 	}
 
+	mutex_lock(&skel_mutex);
 	dev = usb_get_intfdata(interface);
 	if (!dev) {
+		mutex_unlock(&skel_mutex);
 		retval = -ENODEV;
 		goto exit;
 	}
 
 	/* increment our usage count for the device */
 	kref_get(&dev->kref);
+	mutex_unlock(&skel_mutex);
 
 	/* lock the device to allow correctly handling errors
 	 * in resumption */
 	mutex_lock(&dev->io_mutex);
+	if (!dev->interface) {
+		retval = -ENODEV;
+		goto out_err;
+	}
 
 	if (!dev->open_count++) {
 		retval = usb_autopm_get_interface(interface);
@@ -132,7 +141,11 @@ static int skel_open(struct inode *inode, struct file *file)
 
 	/* save our object in the file's private structure */
 	file->private_data = dev;
+
+out_err:
 	mutex_unlock(&dev->io_mutex);
+	if (retval)
+		kref_put(&dev->kref, skel_delete);
 
 exit:
 	return retval;
@@ -612,7 +625,6 @@ static void skel_disconnect(struct usb_interface *interface)
 	int minor = interface->minor;
 
 	dev = usb_get_intfdata(interface);
-	usb_set_intfdata(interface, NULL);
 
 	/* give back our minor */
 	usb_deregister_dev(interface, &skel_class);
@@ -624,8 +636,12 @@ static void skel_disconnect(struct usb_interface *interface)
 
 	usb_kill_anchored_urbs(&dev->submitted);
 
+	mutex_lock(&skel_mutex);
+	usb_set_intfdata(interface, NULL);
+
 	/* decrement our usage count */
 	kref_put(&dev->kref, skel_delete);
+	mutex_unlock(&skel_mutex);
 
 	dev_info(&interface->dev, "USB Skeleton #%d now disconnected", minor);
 }
