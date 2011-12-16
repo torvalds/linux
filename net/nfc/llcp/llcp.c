@@ -554,10 +554,8 @@ static void nfc_llcp_recv_connect(struct nfc_llcp_local *local,
 				goto enqueue;
 			}
 		}
-
+		mutex_unlock(&local->socket_lock);
 	}
-
-	mutex_unlock(&local->socket_lock);
 
 	reason = LLCP_DM_NOBOUND;
 	goto fail;
