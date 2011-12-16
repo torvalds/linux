@@ -43,9 +43,8 @@ static void cpuidle_cpu_output(unsigned int cpu, int verbose)
 	}
 
 	printf(_("Number of idle states: %d\n"), idlestates);
-
 	printf(_("Available idle states:"));
-	for (idlestate = 1; idlestate < idlestates; idlestate++) {
+	for (idlestate = 0; idlestate < idlestates; idlestate++) {
 		tmp = sysfs_get_idlestate_name(cpu, idlestate);
 		if (!tmp)
 			continue;
@@ -57,7 +56,7 @@ static void cpuidle_cpu_output(unsigned int cpu, int verbose)
 	if (!verbose)
 		return;
 
-	for (idlestate = 1; idlestate < idlestates; idlestate++) {
+	for (idlestate = 0; idlestate < idlestates; idlestate++) {
 		tmp = sysfs_get_idlestate_name(cpu, idlestate);
 		if (!tmp)
 			continue;
