@@ -26,11 +26,13 @@ struct pwm_bl_data {
 	struct device		*dev;
 	unsigned int		period;
 	unsigned int		lth_brightness;
+	unsigned int		*levels;
 	int			(*notify)(struct device *,
 					  int brightness);
 	void			(*notify_after)(struct device *,
 					int brightness);
 	int			(*check_fb)(struct device *, struct fb_info *);
+	void			(*exit)(struct device *);
 };
 
 static int pwm_backlight_update_status(struct backlight_device *bl)
@@ -52,6 +54,11 @@ static int pwm_backlight_update_status(struct backlight_device *bl)
 		pwm_config(pb->pwm, 0, pb->period);
 		pwm_disable(pb->pwm);
 	} else {
+		if (pb->levels) {
+			brightness = pb->levels[brightness];
+			max = pb->levels[max];
+		}
+
 		brightness = pb->lth_brightness +
 			(brightness * (pb->period - pb->lth_brightness) / max);
 		pwm_config(pb->pwm, brightness, pb->period);
@@ -83,17 +90,98 @@ static const struct backlight_ops pwm_backlight_ops = {
 	.check_fb	= pwm_backlight_check_fb,
 };
 
+#ifdef CONFIG_OF
+static int pwm_backlight_parse_dt(struct device *dev,
+				  struct platform_pwm_backlight_data *data)
+{
+	struct device_node *node = dev->of_node;
+	struct property *prop;
+	int length;
+	u32 value;
+	int ret;
+
+	if (!node)
+		return -ENODEV;
+
+	memset(data, 0, sizeof(*data));
+
+	/* determine the number of brightness levels */
+	prop = of_find_property(node, "brightness-levels", &length);
+	if (!prop)
+		return -EINVAL;
+
+	data->max_brightness = length / sizeof(u32);
+
+	/* read brightness levels from DT property */
+	if (data->max_brightness > 0) {
+		size_t size = sizeof(*data->levels) * data->max_brightness;
+
+		data->levels = devm_kzalloc(dev, size, GFP_KERNEL);
+		if (!data->levels)
+			return -ENOMEM;
+
+		ret = of_property_read_u32_array(node, "brightness-levels",
+						 data->levels,
+						 data->max_brightness);
+		if (ret < 0)
+			return ret;
+
+		ret = of_property_read_u32(node, "default-brightness-level",
+					   &value);
+		if (ret < 0)
+			return ret;
+
+		if (value >= data->max_brightness) {
+			dev_warn(dev, "invalid default brightness level: %u, using %u\n",
+				 value, data->max_brightness - 1);
+			value = data->max_brightness - 1;
+		}
+
+		data->dft_brightness = value;
+		data->max_brightness--;
+	}
+
+	/*
+	 * TODO: Most users of this driver use a number of GPIOs to control
+	 *       backlight power. Support for specifying these needs to be
+	 *       added.
+	 */
+
+	return 0;
+}
+
+static struct of_device_id pwm_backlight_of_match[] = {
+	{ .compatible = "pwm-backlight" },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(of, pwm_backlight_of_match);
+#else
+static int pwm_backlight_parse_dt(struct device *dev,
+				  struct platform_pwm_backlight_data *data)
+{
+	return -ENODEV;
+}
+#endif
+
 static int pwm_backlight_probe(struct platform_device *pdev)
 {
-	struct backlight_properties props;
 	struct platform_pwm_backlight_data *data = pdev->dev.platform_data;
+	struct platform_pwm_backlight_data defdata;
+	struct backlight_properties props;
 	struct backlight_device *bl;
 	struct pwm_bl_data *pb;
+	unsigned int max;
 	int ret;
 
 	if (!data) {
-		dev_err(&pdev->dev, "failed to find platform data\n");
-		return -EINVAL;
+		ret = pwm_backlight_parse_dt(&pdev->dev, &defdata);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "failed to find platform data\n");
+			return ret;
+		}
+
+		data = &defdata;
 	}
 
 	if (data->init) {
@@ -109,21 +197,42 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 		goto err_alloc;
 	}
 
-	pb->period = data->pwm_period_ns;
+	if (data->levels) {
+		max = data->levels[data->max_brightness];
+		pb->levels = data->levels;
+	} else
+		max = data->max_brightness;
+
 	pb->notify = data->notify;
 	pb->notify_after = data->notify_after;
 	pb->check_fb = data->check_fb;
-	pb->lth_brightness = data->lth_brightness *
-		(data->pwm_period_ns / data->max_brightness);
+	pb->exit = data->exit;
 	pb->dev = &pdev->dev;
 
-	pb->pwm = pwm_request(data->pwm_id, "backlight");
+	pb->pwm = pwm_get(&pdev->dev, NULL);
 	if (IS_ERR(pb->pwm)) {
-		dev_err(&pdev->dev, "unable to request PWM for backlight\n");
-		ret = PTR_ERR(pb->pwm);
-		goto err_alloc;
-	} else
-		dev_dbg(&pdev->dev, "got pwm for backlight\n");
+		dev_err(&pdev->dev, "unable to request PWM, trying legacy API\n");
+
+		pb->pwm = pwm_request(data->pwm_id, "pwm-backlight");
+		if (IS_ERR(pb->pwm)) {
+			dev_err(&pdev->dev, "unable to request legacy PWM\n");
+			ret = PTR_ERR(pb->pwm);
+			goto err_alloc;
+		}
+	}
+
+	dev_dbg(&pdev->dev, "got pwm for backlight\n");
+
+	/*
+	 * The DT case will set the pwm_period_ns field to 0 and store the
+	 * period, parsed from the DT, in the PWM device. For the non-DT case,
+	 * set the period from platform data.
+	 */
+	if (data->pwm_period_ns > 0)
+		pwm_set_period(pb->pwm, data->pwm_period_ns);
+
+	pb->period = pwm_get_period(pb->pwm);
+	pb->lth_brightness = data->lth_brightness * (pb->period / max);
 
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;
@@ -143,7 +252,7 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	return 0;
 
 err_bl:
-	pwm_free(pb->pwm);
+	pwm_put(pb->pwm);
 err_alloc:
 	if (data->exit)
 		data->exit(&pdev->dev);
@@ -152,16 +261,15 @@ err_alloc:
 
 static int pwm_backlight_remove(struct platform_device *pdev)
 {
-	struct platform_pwm_backlight_data *data = pdev->dev.platform_data;
 	struct backlight_device *bl = platform_get_drvdata(pdev);
 	struct pwm_bl_data *pb = dev_get_drvdata(&bl->dev);
 
 	backlight_device_unregister(bl);
 	pwm_config(pb->pwm, 0, pb->period);
 	pwm_disable(pb->pwm);
-	pwm_free(pb->pwm);
-	if (data->exit)
-		data->exit(&pdev->dev);
+	pwm_put(pb->pwm);
+	if (pb->exit)
+		pb->exit(&pdev->dev);
 	return 0;
 }
 
@@ -195,11 +303,12 @@ static SIMPLE_DEV_PM_OPS(pwm_backlight_pm_ops, pwm_backlight_suspend,
 
 static struct platform_driver pwm_backlight_driver = {
 	.driver		= {
-		.name	= "pwm-backlight",
-		.owner	= THIS_MODULE,
+		.name		= "pwm-backlight",
+		.owner		= THIS_MODULE,
 #ifdef CONFIG_PM
-		.pm	= &pwm_backlight_pm_ops,
+		.pm		= &pwm_backlight_pm_ops,
 #endif
+		.of_match_table	= of_match_ptr(pwm_backlight_of_match),
 	},
 	.probe		= pwm_backlight_probe,
 	.remove		= pwm_backlight_remove,
