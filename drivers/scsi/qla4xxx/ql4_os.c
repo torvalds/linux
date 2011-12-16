@@ -4242,6 +4242,9 @@ void qla4xxx_build_ddb_list(struct scsi_qla_host *ha, int is_reset)
 
 	wtime = jiffies + (HZ * tmo);
 	do {
+		if (list_empty(&list_st))
+			break;
+
 		qla4xxx_remove_failed_ddb(ha, &list_st);
 		schedule_timeout_uninterruptible(HZ / 10);
 	} while (time_after(wtime, jiffies));
