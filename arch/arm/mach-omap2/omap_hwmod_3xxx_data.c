@@ -3125,7 +3125,35 @@ static struct omap_mmc_dev_attr mmc1_dev_attr = {
 	.flags = OMAP_HSMMC_SUPPORTS_DUAL_VOLT,
 };
 
-static struct omap_hwmod omap3xxx_mmc1_hwmod = {
+/* See 35xx errata 2.1.1.128 in SPRZ278F */
+static struct omap_mmc_dev_attr mmc1_pre_es3_dev_attr = {
+	.flags = (OMAP_HSMMC_SUPPORTS_DUAL_VOLT |
+		  OMAP_HSMMC_BROKEN_MULTIBLOCK_READ),
+};
+
+static struct omap_hwmod omap3xxx_pre_es3_mmc1_hwmod = {
+	.name		= "mmc1",
+	.mpu_irqs	= omap34xx_mmc1_mpu_irqs,
+	.sdma_reqs	= omap34xx_mmc1_sdma_reqs,
+	.opt_clks	= omap34xx_mmc1_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(omap34xx_mmc1_opt_clks),
+	.main_clk	= "mmchs1_fck",
+	.prcm		= {
+		.omap2 = {
+			.module_offs = CORE_MOD,
+			.prcm_reg_id = 1,
+			.module_bit = OMAP3430_EN_MMC1_SHIFT,
+			.idlest_reg_id = 1,
+			.idlest_idle_bit = OMAP3430_ST_MMC1_SHIFT,
+		},
+	},
+	.dev_attr	= &mmc1_pre_es3_dev_attr,
+	.slaves		= omap3xxx_mmc1_slaves,
+	.slaves_cnt	= ARRAY_SIZE(omap3xxx_mmc1_slaves),
+	.class		= &omap34xx_mmc_class,
+};
+
+static struct omap_hwmod omap3xxx_es3plus_mmc1_hwmod = {
 	.name		= "mmc1",
 	.mpu_irqs	= omap34xx_mmc1_mpu_irqs,
 	.sdma_reqs	= omap34xx_mmc1_sdma_reqs,
@@ -3168,7 +3196,34 @@ static struct omap_hwmod_ocp_if *omap3xxx_mmc2_slaves[] = {
 	&omap3xxx_l4_core__mmc2,
 };
 
-static struct omap_hwmod omap3xxx_mmc2_hwmod = {
+/* See 35xx errata 2.1.1.128 in SPRZ278F */
+static struct omap_mmc_dev_attr mmc2_pre_es3_dev_attr = {
+	.flags = OMAP_HSMMC_BROKEN_MULTIBLOCK_READ,
+};
+
+static struct omap_hwmod omap3xxx_pre_es3_mmc2_hwmod = {
+	.name		= "mmc2",
+	.mpu_irqs	= omap34xx_mmc2_mpu_irqs,
+	.sdma_reqs	= omap34xx_mmc2_sdma_reqs,
+	.opt_clks	= omap34xx_mmc2_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(omap34xx_mmc2_opt_clks),
+	.main_clk	= "mmchs2_fck",
+	.prcm		= {
+		.omap2 = {
+			.module_offs = CORE_MOD,
+			.prcm_reg_id = 1,
+			.module_bit = OMAP3430_EN_MMC2_SHIFT,
+			.idlest_reg_id = 1,
+			.idlest_idle_bit = OMAP3430_ST_MMC2_SHIFT,
+		},
+	},
+	.dev_attr	= &mmc2_pre_es3_dev_attr,
+	.slaves		= omap3xxx_mmc2_slaves,
+	.slaves_cnt	= ARRAY_SIZE(omap3xxx_mmc2_slaves),
+	.class		= &omap34xx_mmc_class,
+};
+
+static struct omap_hwmod omap3xxx_es3plus_mmc2_hwmod = {
 	.name		= "mmc2",
 	.mpu_irqs	= omap34xx_mmc2_mpu_irqs,
 	.sdma_reqs	= omap34xx_mmc2_sdma_reqs,
@@ -3447,8 +3502,6 @@ static __initdata struct omap_hwmod *omap3xxx_hwmods[] = {
 	&omap3xxx_l4_core_hwmod,
 	&omap3xxx_l4_per_hwmod,
 	&omap3xxx_l4_wkup_hwmod,
-	&omap3xxx_mmc1_hwmod,
-	&omap3xxx_mmc2_hwmod,
 	&omap3xxx_mmc3_hwmod,
 	&omap3xxx_mpu_hwmod,
 
@@ -3531,6 +3584,20 @@ static __initdata struct omap_hwmod *omap3430es2plus_hwmods[] = {
 	NULL
 };
 
+/* <= 3430ES3-only hwmods */
+static struct omap_hwmod *omap3430_pre_es3_hwmods[] __initdata = {
+	&omap3xxx_pre_es3_mmc1_hwmod,
+	&omap3xxx_pre_es3_mmc2_hwmod,
+	NULL
+};
+
+/* 3430ES3+-only hwmods */
+static struct omap_hwmod *omap3430_es3plus_hwmods[] __initdata = {
+	&omap3xxx_es3plus_mmc1_hwmod,
+	&omap3xxx_es3plus_mmc2_hwmod,
+	NULL
+};
+
 /* 34xx-only hwmods (all ES revisions) */
 static __initdata struct omap_hwmod *omap34xx_hwmods[] = {
 	&omap3xxx_iva_hwmod,
@@ -3551,6 +3618,8 @@ static __initdata struct omap_hwmod *omap36xx_hwmods[] = {
 	&omap3xxx_mailbox_hwmod,
 	&omap3xxx_usb_host_hs_hwmod,
 	&omap3xxx_usb_tll_hs_hwmod,
+	&omap3xxx_es3plus_mmc1_hwmod,
+	&omap3xxx_es3plus_mmc2_hwmod,
 	NULL
 };
 
@@ -3560,6 +3629,8 @@ static __initdata struct omap_hwmod *am35xx_hwmods[] = {
 	&am35xx_uart4_hwmod,
 	&omap3xxx_usb_host_hs_hwmod,
 	&omap3xxx_usb_tll_hs_hwmod,
+	&omap3xxx_es3plus_mmc1_hwmod,
+	&omap3xxx_es3plus_mmc2_hwmod,
 	NULL
 };
 
@@ -3617,6 +3688,21 @@ int __init omap3xxx_hwmod_init(void)
 		   rev == OMAP3430_REV_ES3_0 || rev == OMAP3430_REV_ES3_1 ||
 		   rev == OMAP3430_REV_ES3_1_2) {
 		h = omap3430es2plus_hwmods;
+	};
+
+	if (h) {
+		r = omap_hwmod_register(h);
+		if (r < 0)
+			return r;
+	}
+
+	h = NULL;
+	if (rev == OMAP3430_REV_ES1_0 || rev == OMAP3430_REV_ES2_0 ||
+	    rev == OMAP3430_REV_ES2_1) {
+		h = omap3430_pre_es3_hwmods;
+	} else if (rev == OMAP3430_REV_ES3_0 || rev == OMAP3430_REV_ES3_1 ||
+		   rev == OMAP3430_REV_ES3_1_2) {
+		h = omap3430_es3plus_hwmods;
 	};
 
 	if (h)
