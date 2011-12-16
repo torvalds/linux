@@ -963,6 +963,7 @@ static inline struct bio *pscsi_get_bio(int sg_num)
 static int pscsi_map_sg(struct se_task *task, struct scatterlist *task_sg,
 		struct bio **hbio)
 {
+	struct se_cmd *cmd = task->task_se_cmd;
 	struct pscsi_dev_virt *pdv = task->task_se_cmd->se_dev->dev_ptr;
 	u32 task_sg_num = task->task_sg_nents;
 	struct bio *bio = NULL, *tbio = NULL;
@@ -971,7 +972,7 @@ static int pscsi_map_sg(struct se_task *task, struct scatterlist *task_sg,
 	u32 data_len = task->task_size, i, len, bytes, off;
 	int nr_pages = (task->task_size + task_sg[0].offset +
 			PAGE_SIZE - 1) >> PAGE_SHIFT;
-	int nr_vecs = 0, rc, ret = PYX_TRANSPORT_OUT_OF_MEMORY_RESOURCES;
+	int nr_vecs = 0, rc;
 	int rw = (task->task_data_direction == DMA_TO_DEVICE);
 
 	*hbio = NULL;
@@ -1058,11 +1059,13 @@ fail:
 		bio->bi_next = NULL;
 		bio_endio(bio, 0);	/* XXX: should be error */
 	}
-	return ret;
+	cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+	return -ENOMEM;
 }
 
 static int pscsi_do_task(struct se_task *task)
 {
+	struct se_cmd *cmd = task->task_se_cmd;
 	struct pscsi_dev_virt *pdv = task->task_se_cmd->se_dev->dev_ptr;
 	struct pscsi_plugin_task *pt = PSCSI_TASK(task);
 	struct request *req;
@@ -1078,7 +1081,9 @@ static int pscsi_do_task(struct se_task *task)
 		if (!req || IS_ERR(req)) {
 			pr_err("PSCSI: blk_get_request() failed: %ld\n",
 					req ? IS_ERR(req) : -ENOMEM);
-			return PYX_TRANSPORT_LU_COMM_FAILURE;
+			cmd->scsi_sense_reason =
+				TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+			return -ENODEV;
 		}
 	} else {
 		BUG_ON(!task->task_size);
@@ -1087,8 +1092,11 @@ static int pscsi_do_task(struct se_task *task)
 		 * Setup the main struct request for the task->task_sg[] payload
 		 */
 		ret = pscsi_map_sg(task, task->task_sg, &hbio);
-		if (ret < 0)
-			return PYX_TRANSPORT_LU_COMM_FAILURE;
+		if (ret < 0) {
+			cmd->scsi_sense_reason =
+				TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+			return ret;
+		}
 
 		req = blk_make_request(pdv->pdv_sd->request_queue, hbio,
 				       GFP_KERNEL);
@@ -1115,7 +1123,7 @@ static int pscsi_do_task(struct se_task *task)
 			(task->task_se_cmd->sam_task_attr == MSG_HEAD_TAG),
 			pscsi_req_done);
 
-	return PYX_TRANSPORT_SENT_TO_TRANSPORT;
+	return 0;
 
 fail:
 	while (hbio) {
@@ -1124,7 +1132,8 @@ fail:
 		bio->bi_next = NULL;
 		bio_endio(bio, 0);	/* XXX: should be error */
 	}
-	return PYX_TRANSPORT_OUT_OF_MEMORY_RESOURCES;
+	cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+	return -ENOMEM;
 }
 
 /*	pscsi_get_sense_buffer():
@@ -1198,9 +1207,8 @@ static inline void pscsi_process_SAM_status(
 			" 0x%02x Result: 0x%08x\n", task, pt->pscsi_cdb[0],
 			pt->pscsi_result);
 		task->task_scsi_status = SAM_STAT_CHECK_CONDITION;
-		task->task_error_status = PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
-		task->task_se_cmd->transport_error_status =
-					PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
+		task->task_se_cmd->scsi_sense_reason =
+					TCM_UNSUPPORTED_SCSI_OPCODE;
 		transport_complete_task(task, 0);
 		break;
 	}

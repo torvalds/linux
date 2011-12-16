@@ -37,14 +37,15 @@ static void __init imx6q_map_io(void)
 	imx6q_clock_map_io();
 }
 
-static void __init imx6q_gpio_add_irq_domain(struct device_node *np,
+static int __init imx6q_gpio_add_irq_domain(struct device_node *np,
 				struct device_node *interrupt_parent)
 {
-	static int gpio_irq_base = MXC_GPIO_IRQ_START + ARCH_NR_GPIOS -
-				   32 * 7; /* imx6q gets 7 gpio ports */
+	static int gpio_irq_base = MXC_GPIO_IRQ_START + ARCH_NR_GPIOS;
 
+	gpio_irq_base -= 32;
 	irq_domain_add_simple(np, gpio_irq_base);
-	gpio_irq_base += 32;
+
+	return 0;
 }
 
 static const struct of_device_id imx6q_irq_match[] __initconst = {

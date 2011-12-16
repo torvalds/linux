@@ -353,15 +353,15 @@ validate_group(struct perf_event *event)
 	fake_pmu.used_mask = fake_used_mask;
 
 	if (!validate_event(&fake_pmu, leader))
-		return -ENOSPC;
+		return -EINVAL;
 
 	list_for_each_entry(sibling, &leader->sibling_list, group_entry) {
 		if (!validate_event(&fake_pmu, sibling))
-			return -ENOSPC;
+			return -EINVAL;
 	}
 
 	if (!validate_event(&fake_pmu, event))
-		return -ENOSPC;
+		return -EINVAL;
 
 	return 0;
 }
@@ -640,6 +640,9 @@ static struct platform_device_id armpmu_plat_device_ids[] = {
 
 static int __devinit armpmu_device_probe(struct platform_device *pdev)
 {
+	if (!cpu_pmu)
+		return -ENODEV;
+
 	cpu_pmu->plat_device = pdev;
 	return 0;
 }
