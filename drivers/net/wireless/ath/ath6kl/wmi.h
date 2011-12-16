@@ -1903,7 +1903,7 @@ struct wow_filter {
 
 struct wmi_set_ip_cmd {
 	/* IP in network byte order */
-	__le32 ips[MAX_IP_ADDRS];
+	__be32 ips[MAX_IP_ADDRS];
 } __packed;
 
 enum ath6kl_wow_filters {
@@ -2417,7 +2417,8 @@ int ath6kl_wmi_test_cmd(struct wmi *wmi, void *buf, size_t len);
 
 s32 ath6kl_wmi_get_rate(s8 rate_index);
 
-int ath6kl_wmi_set_ip_cmd(struct wmi *wmi, struct wmi_set_ip_cmd *ip_cmd);
+int ath6kl_wmi_set_ip_cmd(struct wmi *wmi, u8 if_idx,
+			  __be32 ips0, __be32 ips1);
 int ath6kl_wmi_set_host_sleep_mode_cmd(struct wmi *wmi, u8 if_idx,
 				       enum ath6kl_host_mode host_mode);
 int ath6kl_wmi_set_wow_mode_cmd(struct wmi *wmi, u8 if_idx,
