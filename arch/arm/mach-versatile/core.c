@@ -141,11 +141,6 @@ static struct map_desc versatile_io_desc[] __initdata = {
 	},
 #ifdef CONFIG_MACH_VERSATILE_AB
  	{
-		.virtual	=  IO_ADDRESS(VERSATILE_GPIO0_BASE),
-		.pfn		= __phys_to_pfn(VERSATILE_GPIO0_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE
-	}, {
 		.virtual	=  IO_ADDRESS(VERSATILE_IB2_BASE),
 		.pfn		= __phys_to_pfn(VERSATILE_IB2_BASE),
 		.length		= SZ_64M,

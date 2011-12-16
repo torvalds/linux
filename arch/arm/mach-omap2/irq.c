@@ -15,6 +15,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <mach/hardware.h>
+#include <asm/exception.h>
 #include <asm/mach/irq.h>
 
 
@@ -34,6 +35,11 @@
 #define INTC_PENDING_IRQ0	0x0098
 /* Number of IRQ state bits in each MIR register */
 #define IRQ_BITS_PER_REG	32
+
+#define OMAP2_IRQ_BASE		OMAP2_L4_IO_ADDRESS(OMAP24XX_IC_BASE)
+#define OMAP3_IRQ_BASE		OMAP2_L4_IO_ADDRESS(OMAP34XX_IC_BASE)
+#define INTCPS_SIR_IRQ_OFFSET	0x0040	/* omap2/3 active interrupt offset */
+#define ACTIVEIRQ_MASK		0x7f	/* omap2/3 active interrupt bits */
 
 /*
  * OMAP2 has a number of different interrupt controllers, each interrupt
@@ -143,6 +149,7 @@ omap_alloc_gc(void __iomem *base, unsigned int irq_start, unsigned int num)
 
 static void __init omap_init_irq(u32 base, int nr_irqs)
 {
+	void __iomem *omap_irq_base;
 	unsigned long nr_of_irqs = 0;
 	unsigned int nr_banks = 0;
 	int i, j;
@@ -186,9 +193,47 @@ void __init omap3_init_irq(void)
 	omap_init_irq(OMAP34XX_IC_BASE, 96);
 }
 
-void __init ti816x_init_irq(void)
+void __init ti81xx_init_irq(void)
 {
 	omap_init_irq(OMAP34XX_IC_BASE, 128);
+}
+
+static inline void omap_intc_handle_irq(void __iomem *base_addr, struct pt_regs *regs)
+{
+	u32 irqnr;
+
+	do {
+		irqnr = readl_relaxed(base_addr + 0x98);
+		if (irqnr)
+			goto out;
+
+		irqnr = readl_relaxed(base_addr + 0xb8);
+		if (irqnr)
+			goto out;
+
+		irqnr = readl_relaxed(base_addr + 0xd8);
+#ifdef CONFIG_SOC_OMAPTI816X
+		if (irqnr)
+			goto out;
+		irqnr = readl_relaxed(base_addr + 0xf8);
+#endif
+
+out:
+		if (!irqnr)
+			break;
+
+		irqnr = readl_relaxed(base_addr + INTCPS_SIR_IRQ_OFFSET);
+		irqnr &= ACTIVEIRQ_MASK;
+
+		if (irqnr)
+			handle_IRQ(irqnr, regs);
+	} while (irqnr);
+}
+
+asmlinkage void __exception_irq_entry omap2_intc_handle_irq(struct pt_regs *regs)
+{
+	void __iomem *base_addr = OMAP2_IRQ_BASE;
+	omap_intc_handle_irq(base_addr, regs);
 }
 
 #ifdef CONFIG_ARCH_OMAP3
@@ -262,5 +307,11 @@ void omap3_intc_resume_idle(void)
 {
 	/* Re-enable autoidle */
 	intc_bank_write_reg(1, &irq_banks[0], INTC_SYSCONFIG);
+}
+
+asmlinkage void __exception_irq_entry omap3_intc_handle_irq(struct pt_regs *regs)
+{
+	void __iomem *base_addr = OMAP3_IRQ_BASE;
+	omap_intc_handle_irq(base_addr, regs);
 }
 #endif /* CONFIG_ARCH_OMAP3 */

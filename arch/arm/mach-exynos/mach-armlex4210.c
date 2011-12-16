@@ -16,6 +16,7 @@
 #include <linux/smsc911x.h>
 
 #include <asm/mach/arch.h>
+#include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 
 #include <plat/cpu.h>
@@ -210,6 +211,7 @@ MACHINE_START(ARMLEX4210, "ARMLEX4210")
 	.atag_offset	= 0x100,
 	.init_irq	= exynos4_init_irq,
 	.map_io		= armlex4210_map_io,
+	.handle_irq	= gic_handle_irq,
 	.init_machine	= armlex4210_machine_init,
 	.timer		= &exynos4_timer,
 MACHINE_END
