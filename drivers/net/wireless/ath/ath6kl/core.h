@@ -98,6 +98,7 @@ struct ath6kl_fw_ie {
 };
 
 #define ATH6KL_FW_API2_FILE "fw-2.bin"
+#define ATH6KL_FW_API3_FILE "fw-3.bin"
 
 /* AR6003 1.0 definitions */
 #define AR6003_HW_1_0_VERSION                 0x300002ba
@@ -582,7 +583,6 @@ struct ath6kl {
 			const char *fw;
 			const char *tcmd;
 			const char *patch;
-			const char *api2;
 		} fw;
 
 		const char *fw_board;
@@ -608,6 +608,7 @@ struct ath6kl {
 	u8 *fw_patch;
 	size_t fw_patch_len;
 
+	unsigned int fw_api;
 	unsigned long fw_capabilities[ATH6KL_CAPABILITY_LEN];
 
 	struct workqueue_struct *ath6kl_wq;
