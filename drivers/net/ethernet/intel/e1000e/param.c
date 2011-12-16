@@ -113,11 +113,20 @@ E1000_PARAM(InterruptThrottleRate, "Interrupt Throttling Rate");
 #define MAX_ITR 100000
 #define MIN_ITR 100
 
-/* IntMode (Interrupt Mode)
+/*
+ * IntMode (Interrupt Mode)
  *
- * Valid Range: 0 - 2
+ * Valid Range: varies depending on kernel configuration & hardware support
  *
- * Default Value: 2 (MSI-X)
+ * legacy=0, MSI=1, MSI-X=2
+ *
+ * When MSI/MSI-X support is enabled in kernel-
+ *   Default Value: 2 (MSI-X) when supported by hardware, 1 (MSI) otherwise
+ * When MSI/MSI-X support is not enabled in kernel-
+ *   Default Value: 0 (legacy)
+ *
+ * When a mode is specified that is not allowed/supported, it will be
+ * demoted to the most advanced interrupt mode available.
  */
 E1000_PARAM(IntMode, "Interrupt Mode");
 #define MAX_INTMODE	2
@@ -388,11 +397,32 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 		static struct e1000_option opt = {
 			.type = range_option,
 			.name = "Interrupt Mode",
-			.err  = "defaulting to 2 (MSI-X)",
-			.def  = E1000E_INT_MODE_MSIX,
-			.arg  = { .r = { .min = MIN_INTMODE,
-					 .max = MAX_INTMODE } }
+#ifndef CONFIG_PCI_MSI
+			.err  = "defaulting to 0 (legacy)",
+			.def  = E1000E_INT_MODE_LEGACY,
+			.arg  = { .r = { .min = 0,
+					 .max = 0 } }
+#endif
 		};
+
+#ifdef CONFIG_PCI_MSI
+		if (adapter->flags & FLAG_HAS_MSIX) {
+			opt.err = kstrdup("defaulting to 2 (MSI-X)",
+					  GFP_KERNEL);
+			opt.def = E1000E_INT_MODE_MSIX;
+			opt.arg.r.max = E1000E_INT_MODE_MSIX;
+		} else {
+			opt.err = kstrdup("defaulting to 1 (MSI)", GFP_KERNEL);
+			opt.def = E1000E_INT_MODE_MSI;
+			opt.arg.r.max = E1000E_INT_MODE_MSI;
+		}
+
+		if (!opt.err) {
+			dev_err(&adapter->pdev->dev,
+				"Failed to allocate memory\n");
+			return;
+		}
+#endif
 
 		if (num_IntMode > bd) {
 			unsigned int int_mode = IntMode[bd];
@@ -401,6 +431,10 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 		} else {
 			adapter->int_mode = opt.def;
 		}
+
+#ifdef CONFIG_PCI_MSI
+		kfree(opt.err);
+#endif
 	}
 	{ /* Smart Power Down */
 		static const struct e1000_option opt = {
