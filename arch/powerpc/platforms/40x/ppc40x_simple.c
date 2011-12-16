@@ -55,6 +55,7 @@ static const char *board[] __initdata = {
 	"amcc,haleakala",
 	"amcc,kilauea",
 	"amcc,makalu",
+	"apm,klondike",
 	"est,hotfoot",
 	"plathome,obs600"
 };
