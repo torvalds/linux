@@ -15,6 +15,7 @@
  */
 
 #include <linux/moduleparam.h>
+#include <linux/inetdevice.h>
 
 #include "core.h"
 #include "cfg80211.h"
@@ -1729,11 +1730,14 @@ static int ath6kl_flush_pmksa(struct wiphy *wiphy, struct net_device *netdev)
 
 static int ath6kl_wow_suspend(struct ath6kl *ar, struct cfg80211_wowlan *wow)
 {
+	struct in_device *in_dev;
+	struct in_ifaddr *ifa;
 	struct ath6kl_vif *vif;
 	int ret, pos, left;
 	u32 filter = 0;
 	u16 i;
-	u8 mask[WOW_MASK_SIZE];
+	u8 mask[WOW_MASK_SIZE], index = 0;
+	__be32 ips[MAX_IP_ADDRS];
 
 	vif = ath6kl_vif_first(ar);
 	if (!vif)
@@ -1780,6 +1784,33 @@ static int ath6kl_wow_suspend(struct ath6kl *ar, struct cfg80211_wowlan *wow)
 			return ret;
 	}
 
+	/* Setup own IP addr for ARP agent. */
+	in_dev = __in_dev_get_rtnl(vif->ndev);
+	if (!in_dev)
+		goto skip_arp;
+
+	ifa = in_dev->ifa_list;
+	memset(&ips, 0, sizeof(ips));
+
+	/* Configure IP addr only if IP address count < MAX_IP_ADDRS */
+	while (index < MAX_IP_ADDRS && ifa) {
+		ips[index] = ifa->ifa_local;
+		ifa = ifa->ifa_next;
+		index++;
+	}
+
+	if (ifa) {
+		ath6kl_err("total IP addr count is exceeding fw limit\n");
+		return -EINVAL;
+	}
+
+	ret = ath6kl_wmi_set_ip_cmd(ar->wmi, vif->fw_vif_idx, ips[0], ips[1]);
+	if (ret) {
+		ath6kl_err("fail to setup ip for arp agent\n");
+		return ret;
+	}
+
+skip_arp:
 	if (wow->disconnect)
 		filter |= WOW_FILTER_OPTION_NWK_DISASSOC;
 
