@@ -160,7 +160,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 	hw->flags |= IEEE80211_HW_SUPPORTS_PS |
 		     IEEE80211_HW_SUPPORTS_DYNAMIC_PS;
 
-	if (priv->cfg->sku & EEPROM_SKU_CAP_11N_ENABLE)
+	if (cfg(priv)->sku & EEPROM_SKU_CAP_11N_ENABLE)
 		hw->flags |= IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |
 			     IEEE80211_HW_SUPPORTS_STATIC_SMPS;
 
@@ -616,7 +616,7 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 	IWL_DEBUG_HT(priv, "A-MPDU action on addr %pM tid %d\n",
 		     sta->addr, tid);
 
-	if (!(priv->cfg->sku & EEPROM_SKU_CAP_11N_ENABLE))
+	if (!(cfg(priv)->sku & EEPROM_SKU_CAP_11N_ENABLE))
 		return -EACCES;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
@@ -647,8 +647,8 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 		}
 		if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 			ret = 0;
-		if (!priv->agg_tids_count && priv->cfg->ht_params &&
-		    priv->cfg->ht_params->use_rts_for_aggregation) {
+		if (!priv->agg_tids_count && cfg(priv)->ht_params &&
+		    cfg(priv)->ht_params->use_rts_for_aggregation) {
 			/*
 			 * switch off RTS/CTS if it was previously enabled
 			 */
@@ -684,8 +684,8 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 		sta_priv->max_agg_bufsize =
 			min(sta_priv->max_agg_bufsize, buf_size);
 
-		if (priv->cfg->ht_params &&
-		    priv->cfg->ht_params->use_rts_for_aggregation) {
+		if (cfg(priv)->ht_params &&
+		    cfg(priv)->ht_params->use_rts_for_aggregation) {
 			/*
 			 * switch to RTS/CTS if it is the prefer protection
 			 * method for HT traffic
@@ -792,7 +792,7 @@ static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
 	if (!iwl_is_associated_ctx(ctx))
 		goto out;
 
-	if (!priv->cfg->lib->set_channel_switch)
+	if (!cfg(priv)->lib->set_channel_switch)
 		goto out;
 
 	ch = channel->hw_value;
@@ -832,7 +832,7 @@ static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
 	 */
 	set_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->shrd->status);
 	priv->switch_channel = cpu_to_le16(ch);
-	if (priv->cfg->lib->set_channel_switch(priv, ch_switch)) {
+	if (cfg(priv)->lib->set_channel_switch(priv, ch_switch)) {
 		clear_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->shrd->status);
 		priv->switch_channel = 0;
 		ieee80211_chswitch_done(ctx->vif, false);
@@ -1125,8 +1125,8 @@ static void iwlagn_mac_rssi_callback(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 	mutex_lock(&priv->shrd->mutex);
 
-	if (priv->cfg->bt_params &&
-			priv->cfg->bt_params->advanced_bt_coexist) {
+	if (cfg(priv)->bt_params &&
+			cfg(priv)->bt_params->advanced_bt_coexist) {
 		if (rssi_event == RSSI_EVENT_LOW)
 			priv->bt_enable_pspoll = true;
 		else if (rssi_event == RSSI_EVENT_HIGH)
@@ -1237,7 +1237,7 @@ static int iwl_setup_interface(struct iwl_priv *priv,
 		return err;
 	}
 
-	if (priv->cfg->bt_params && priv->cfg->bt_params->advanced_bt_coexist &&
+	if (cfg(priv)->bt_params && cfg(priv)->bt_params->advanced_bt_coexist &&
 	    vif->type == NL80211_IFTYPE_ADHOC) {
 		/*
 		 * pretend to have high BT traffic as long as we

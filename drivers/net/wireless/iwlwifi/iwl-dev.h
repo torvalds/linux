@@ -512,16 +512,6 @@ enum iwl_access_mode {
 	IWL_OTP_ACCESS_RELATIVE,
 };
 
-/**
- * enum iwl_pa_type - Power Amplifier type
- * @IWL_PA_SYSTEM:  based on uCode configuration
- * @IWL_PA_INTERNAL: use Internal only
- */
-enum iwl_pa_type {
-	IWL_PA_SYSTEM = 0,
-	IWL_PA_INTERNAL = 1,
-};
-
 /* reply_tx_statistics (for _agn devices) */
 struct reply_tx_error_statistics {
 	u32 pp_delay;
@@ -776,7 +766,6 @@ struct iwl_priv {
 	struct ieee80211_channel *ieee_channels;
 	struct ieee80211_rate *ieee_rates;
 	struct kmem_cache *tx_cmd_pool;
-	struct iwl_cfg *cfg;
 
 	enum ieee80211_band band;
 

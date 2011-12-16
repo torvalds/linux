@@ -150,7 +150,7 @@ static u32 eeprom_indirect_address(const struct iwl_shared *shrd, u32 address)
 const u8 *iwl_eeprom_query_addr(const struct iwl_shared *shrd, size_t offset)
 {
 	u32 address = eeprom_indirect_address(shrd, offset);
-	BUG_ON(address >= shrd->priv->cfg->base_params->eeprom_size);
+	BUG_ON(address >= shrd->cfg->base_params->eeprom_size);
 	return &shrd->eeprom[address];
 }
 
@@ -232,7 +232,7 @@ int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
 				IWL_PAN_SCD_BK_MSK | IWL_PAN_SCD_MGMT_MSK |
 				IWL_PAN_SCD_MULTICAST_MSK;
 
-	if (priv->cfg->sku & EEPROM_SKU_CAP_11N_ENABLE)
+	if (cfg(priv)->sku & EEPROM_SKU_CAP_11N_ENABLE)
 		flush_cmd.fifo_control |= IWL_AGG_TX_QUEUE_MSK;
 
 	IWL_DEBUG_INFO(priv, "fifo queue control: 0X%x\n",
@@ -374,15 +374,15 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 	BUILD_BUG_ON(sizeof(iwlagn_def_3w_lookup) !=
 			sizeof(basic.bt3_lookup_table));
 
-	if (priv->cfg->bt_params) {
-		if (priv->cfg->bt_params->bt_session_2) {
+	if (cfg(priv)->bt_params) {
+		if (cfg(priv)->bt_params->bt_session_2) {
 			bt_cmd_2000.prio_boost = cpu_to_le32(
-				priv->cfg->bt_params->bt_prio_boost);
+				cfg(priv)->bt_params->bt_prio_boost);
 			bt_cmd_2000.tx_prio_boost = 0;
 			bt_cmd_2000.rx_prio_boost = 0;
 		} else {
 			bt_cmd_6000.prio_boost =
-				priv->cfg->bt_params->bt_prio_boost;
+				cfg(priv)->bt_params->bt_prio_boost;
 			bt_cmd_6000.tx_prio_boost = 0;
 			bt_cmd_6000.rx_prio_boost = 0;
 		}
@@ -430,7 +430,7 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 		       priv->bt_full_concurrent ?
 		       "full concurrency" : "3-wire");
 
-	if (priv->cfg->bt_params->bt_session_2) {
+	if (cfg(priv)->bt_params->bt_session_2) {
 		memcpy(&bt_cmd_2000.basic, &basic,
 			sizeof(basic));
 		ret = iwl_trans_send_cmd_pdu(trans(priv), REPLY_BT_CONFIG,
@@ -799,8 +799,8 @@ static bool is_single_rx_stream(struct iwl_priv *priv)
  */
 static int iwl_get_active_rx_chain_count(struct iwl_priv *priv)
 {
-	if (priv->cfg->bt_params &&
-	    priv->cfg->bt_params->advanced_bt_coexist &&
+	if (cfg(priv)->bt_params &&
+	    cfg(priv)->bt_params->advanced_bt_coexist &&
 	    (priv->bt_full_concurrent ||
 	     priv->bt_traffic_load >= IWL_BT_COEX_TRAFFIC_LOAD_HIGH)) {
 		/*
@@ -871,8 +871,8 @@ void iwlagn_set_rxon_chain(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	else
 		active_chains = hw_params(priv).valid_rx_ant;
 
-	if (priv->cfg->bt_params &&
-	    priv->cfg->bt_params->advanced_bt_coexist &&
+	if (cfg(priv)->bt_params &&
+	    cfg(priv)->bt_params->advanced_bt_coexist &&
 	    (priv->bt_full_concurrent ||
 	     priv->bt_traffic_load >= IWL_BT_COEX_TRAFFIC_LOAD_HIGH)) {
 		/*
