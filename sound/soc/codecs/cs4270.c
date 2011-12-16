@@ -601,7 +601,6 @@ static int cs4270_soc_suspend(struct snd_soc_codec *codec, pm_message_t mesg)
 static int cs4270_soc_resume(struct snd_soc_codec *codec)
 {
 	struct cs4270_private *cs4270 = snd_soc_codec_get_drvdata(codec);
-	struct i2c_client *i2c_client = to_i2c_client(codec->dev);
 	int reg;
 
 	regulator_bulk_enable(ARRAY_SIZE(cs4270->supplies),
@@ -612,14 +611,7 @@ static int cs4270_soc_resume(struct snd_soc_codec *codec)
 	ndelay(500);
 
 	/* first restore the entire register cache ... */
-	for (reg = CS4270_FIRSTREG; reg <= CS4270_LASTREG; reg++) {
-		u8 val = snd_soc_read(codec, reg);
-
-		if (i2c_smbus_write_byte_data(i2c_client, reg, val)) {
-			dev_err(codec->dev, "i2c write failed\n");
-			return -EIO;
-		}
-	}
+	snd_soc_cache_sync(codec);
 
 	/* ... then disable the power-down bits */
 	reg = snd_soc_read(codec, CS4270_PWRCTL);

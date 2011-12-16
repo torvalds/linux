@@ -456,6 +456,30 @@ done:
 EXPORT_SYMBOL(drm_crtc_helper_set_mode);
 
 
+static int
+drm_crtc_helper_disable(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_connector *connector;
+	struct drm_encoder *encoder;
+
+	/* Decouple all encoders and their attached connectors from this crtc */
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		if (encoder->crtc != crtc)
+			continue;
+
+		list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+			if (connector->encoder != encoder)
+				continue;
+
+			connector->encoder = NULL;
+		}
+	}
+
+	drm_helper_disable_unused_functions(dev);
+	return 0;
+}
+
 /**
  * drm_crtc_helper_set_config - set a new config from userspace
  * @crtc: CRTC to setup
@@ -484,6 +508,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	struct drm_connector *save_connectors, *connector;
 	int count = 0, ro, fail = 0;
 	struct drm_crtc_helper_funcs *crtc_funcs;
+	struct drm_mode_set save_set;
 	int ret = 0;
 	int i;
 
@@ -509,8 +534,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 				(int)set->num_connectors, set->x, set->y);
 	} else {
 		DRM_DEBUG_KMS("[CRTC:%d] [NOFB]\n", set->crtc->base.id);
-		set->mode = NULL;
-		set->num_connectors = 0;
+		return drm_crtc_helper_disable(set->crtc);
 	}
 
 	dev = set->crtc->dev;
@@ -555,6 +579,12 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		save_connectors[count++] = *connector;
 	}
+
+	save_set.crtc = set->crtc;
+	save_set.mode = &set->crtc->mode;
+	save_set.x = set->crtc->x;
+	save_set.y = set->crtc->y;
+	save_set.fb = set->crtc->fb;
 
 	/* We should be able to check here if the fb has the same properties
 	 * and then just flip_or_move it */
@@ -720,6 +750,12 @@ fail:
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		*connector = save_connectors[count++];
 	}
+
+	/* Try to restore the config */
+	if (mode_changed &&
+	    !drm_crtc_helper_set_mode(save_set.crtc, save_set.mode, save_set.x,
+				      save_set.y, save_set.fb))
+		DRM_ERROR("failed to restore config after modeset failure\n");
 
 	kfree(save_connectors);
 	kfree(save_encoders);

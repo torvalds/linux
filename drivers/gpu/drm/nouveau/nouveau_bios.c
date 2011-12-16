@@ -640,10 +640,9 @@ static int
 nv50_pll_set(struct drm_device *dev, uint32_t reg, uint32_t clk)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	uint32_t reg0 = nv_rd32(dev, reg + 0);
-	uint32_t reg1 = nv_rd32(dev, reg + 4);
 	struct nouveau_pll_vals pll;
 	struct pll_lims pll_limits;
+	u32 ctrl, mask, coef;
 	int ret;
 
 	ret = get_pll_limits(dev, reg, &pll_limits);
@@ -654,15 +653,20 @@ nv50_pll_set(struct drm_device *dev, uint32_t reg, uint32_t clk)
 	if (!clk)
 		return -ERANGE;
 
-	reg0 = (reg0 & 0xfff8ffff) | (pll.log2P << 16);
-	reg1 = (reg1 & 0xffff0000) | (pll.N1 << 8) | pll.M1;
-
-	if (dev_priv->vbios.execute) {
-		still_alive();
-		nv_wr32(dev, reg + 4, reg1);
-		nv_wr32(dev, reg + 0, reg0);
+	coef = pll.N1 << 8 | pll.M1;
+	ctrl = pll.log2P << 16;
+	mask = 0x00070000;
+	if (reg == 0x004008) {
+		mask |= 0x01f80000;
+		ctrl |= (pll_limits.log2p_bias << 19);
+		ctrl |= (pll.log2P << 22);
 	}
 
+	if (!dev_priv->vbios.execute)
+		return 0;
+
+	nv_mask(dev, reg + 0, mask, ctrl);
+	nv_wr32(dev, reg + 4, coef);
 	return 0;
 }
 

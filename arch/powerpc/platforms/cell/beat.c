@@ -230,7 +230,7 @@ static int __init beat_register_event(void)
 		}
 		ev->virq = virq;
 
-		rc = request_irq(virq, ev->handler, IRQF_DISABLED,
+		rc = request_irq(virq, ev->handler, 0,
 				      ev->typecode, NULL);
 		if (rc != 0) {
 			printk(KERN_ERR "Beat: failed to request virtual IRQ"

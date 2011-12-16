@@ -160,7 +160,7 @@ nv50_vram_rblock(struct drm_device *dev)
 	colbits  =  (r4 & 0x0000f000) >> 12;
 	rowbitsa = ((r4 & 0x000f0000) >> 16) + 8;
 	rowbitsb = ((r4 & 0x00f00000) >> 20) + 8;
-	banks    = ((r4 & 0x01000000) ? 8 : 4);
+	banks    = 1 << (((r4 & 0x03000000) >> 24) + 2);
 
 	rowsize = parts * banks * (1 << colbits) * 8;
 	predicted = rowsize << rowbitsa;

@@ -1963,6 +1963,21 @@
 #define WM8958_MICB2_DISCH_WIDTH                     1  /* MICB2_DISCH */
 
 /*
+ * R210 (0xD2) - Mic Detect 3
+ */
+#define WM8958_MICD_LVL_MASK                    0x07FC  /* MICD_LVL - [10:2] */
+#define WM8958_MICD_LVL_SHIFT                        2  /* MICD_LVL - [10:2] */
+#define WM8958_MICD_LVL_WIDTH                        9  /* MICD_LVL - [10:2] */
+#define WM8958_MICD_VALID                       0x0002  /* MICD_VALID */
+#define WM8958_MICD_VALID_MASK                  0x0002  /* MICD_VALID */
+#define WM8958_MICD_VALID_SHIFT                      1  /* MICD_VALID */
+#define WM8958_MICD_VALID_WIDTH                      1  /* MICD_VALID */
+#define WM8958_MICD_STS                         0x0001  /* MICD_STS */
+#define WM8958_MICD_STS_MASK                    0x0001  /* MICD_STS */
+#define WM8958_MICD_STS_SHIFT                        0  /* MICD_STS */
+#define WM8958_MICD_STS_WIDTH                        1  /* MICD_STS */
+
+/*
  * R76 (0x4C) - Charge Pump (1)
  */
 #define WM8994_CP_ENA                           0x8000  /* CP_ENA */
