@@ -47,11 +47,15 @@ static const struct ath6kl_hw hw_list[] = {
 		/* hw2.0 needs override address hardcoded */
 		.app_start_override_addr	= 0x944C00,
 
-		.fw_otp			= AR6003_HW_2_0_OTP_FILE,
-		.fw			= AR6003_HW_2_0_FIRMWARE_FILE,
-		.fw_tcmd		= AR6003_HW_2_0_TCMD_FIRMWARE_FILE,
-		.fw_patch		= AR6003_HW_2_0_PATCH_FILE,
-		.fw_api2		= AR6003_HW_2_0_FIRMWARE_2_FILE,
+		.fw = {
+			.dir		= AR6003_HW_2_0_FW_DIR,
+			.otp		= AR6003_HW_2_0_OTP_FILE,
+			.fw		= AR6003_HW_2_0_FIRMWARE_FILE,
+			.tcmd		= AR6003_HW_2_0_TCMD_FIRMWARE_FILE,
+			.patch		= AR6003_HW_2_0_PATCH_FILE,
+			.api2		= ATH6KL_FW_API2_FILE,
+		},
+
 		.fw_board		= AR6003_HW_2_0_BOARD_DATA_FILE,
 		.fw_default_board	= AR6003_HW_2_0_DEFAULT_BOARD_DATA_FILE,
 	},
@@ -65,11 +69,15 @@ static const struct ath6kl_hw hw_list[] = {
 		.refclk_hz			= 26000000,
 		.uarttx_pin			= 8,
 
-		.fw_otp			= AR6003_HW_2_1_1_OTP_FILE,
-		.fw			= AR6003_HW_2_1_1_FIRMWARE_FILE,
-		.fw_tcmd		= AR6003_HW_2_1_1_TCMD_FIRMWARE_FILE,
-		.fw_patch		= AR6003_HW_2_1_1_PATCH_FILE,
-		.fw_api2		= AR6003_HW_2_1_1_FIRMWARE_2_FILE,
+		.fw = {
+			.dir		= AR6003_HW_2_1_1_FW_DIR,
+			.otp		= AR6003_HW_2_1_1_OTP_FILE,
+			.fw		= AR6003_HW_2_1_1_FIRMWARE_FILE,
+			.tcmd		= AR6003_HW_2_1_1_TCMD_FIRMWARE_FILE,
+			.patch		= AR6003_HW_2_1_1_PATCH_FILE,
+			.api2		= ATH6KL_FW_API2_FILE,
+		},
+
 		.fw_board		= AR6003_HW_2_1_1_BOARD_DATA_FILE,
 		.fw_default_board	= AR6003_HW_2_1_1_DEFAULT_BOARD_DATA_FILE,
 	},
@@ -84,8 +92,12 @@ static const struct ath6kl_hw hw_list[] = {
 		.refclk_hz			= 26000000,
 		.uarttx_pin			= 11,
 
-		.fw			= AR6004_HW_1_0_FIRMWARE_FILE,
-		.fw_api2		= AR6004_HW_1_0_FIRMWARE_2_FILE,
+		.fw = {
+			.dir		= AR6004_HW_1_0_FW_DIR,
+			.fw		= AR6004_HW_1_0_FIRMWARE_FILE,
+			.api2		= ATH6KL_FW_API2_FILE,
+		},
+
 		.fw_board		= AR6004_HW_1_0_BOARD_DATA_FILE,
 		.fw_default_board	= AR6004_HW_1_0_DEFAULT_BOARD_DATA_FILE,
 	},
@@ -100,8 +112,12 @@ static const struct ath6kl_hw hw_list[] = {
 		.refclk_hz			= 40000000,
 		.uarttx_pin			= 11,
 
-		.fw			= AR6004_HW_1_1_FIRMWARE_FILE,
-		.fw_api2		= AR6004_HW_1_1_FIRMWARE_2_FILE,
+		.fw = {
+			.dir		= AR6004_HW_1_1_FW_DIR,
+			.fw		= AR6004_HW_1_1_FIRMWARE_FILE,
+			.api2		= ATH6KL_FW_API2_FILE,
+		},
+
 		.fw_board		= AR6004_HW_1_1_BOARD_DATA_FILE,
 		.fw_default_board	= AR6004_HW_1_1_DEFAULT_BOARD_DATA_FILE,
 	},
@@ -626,21 +642,6 @@ static int ath6kl_get_fw(struct ath6kl *ar, const char *filename,
 }
 
 #ifdef CONFIG_OF
-static const char *get_target_ver_dir(const struct ath6kl *ar)
-{
-	switch (ar->version.target_ver) {
-	case AR6003_HW_1_0_VERSION:
-		return "ath6k/AR6003/hw1.0";
-	case AR6003_HW_2_0_VERSION:
-		return "ath6k/AR6003/hw2.0";
-	case AR6003_HW_2_1_1_VERSION:
-		return "ath6k/AR6003/hw2.1.1";
-	}
-	ath6kl_warn("%s: unsupported target version 0x%x.\n", __func__,
-		    ar->version.target_ver);
-	return NULL;
-}
-
 /*
  * Check the device tree for a board-id and use it to construct
  * the pathname to the firmware file.  Used (for now) to find a
@@ -663,7 +664,7 @@ static bool check_device_tree(struct ath6kl *ar)
 			continue;
 		}
 		snprintf(board_filename, sizeof(board_filename),
-			 "%s/bdata.%s.bin", get_target_ver_dir(ar), board_id);
+			 "%s/bdata.%s.bin", ar->hw.fw.dir, board_id);
 
 		ret = ath6kl_get_fw(ar, board_filename, &ar->fw_board,
 				    &ar->fw_board_len);
@@ -730,19 +731,20 @@ static int ath6kl_fetch_board_file(struct ath6kl *ar)
 
 static int ath6kl_fetch_otp_file(struct ath6kl *ar)
 {
-	const char *filename;
+	char filename[100];
 	int ret;
 
 	if (ar->fw_otp != NULL)
 		return 0;
 
-	if (ar->hw.fw_otp == NULL) {
+	if (ar->hw.fw.otp == NULL) {
 		ath6kl_dbg(ATH6KL_DBG_BOOT,
 			   "no OTP file configured for this hw\n");
 		return 0;
 	}
 
-	filename = ar->hw.fw_otp;
+	snprintf(filename, sizeof(filename), "%s/%s",
+		 ar->hw.fw.dir, ar->hw.fw.otp);
 
 	ret = ath6kl_get_fw(ar, filename, &ar->fw_otp,
 			    &ar->fw_otp_len);
@@ -757,29 +759,32 @@ static int ath6kl_fetch_otp_file(struct ath6kl *ar)
 
 static int ath6kl_fetch_fw_file(struct ath6kl *ar)
 {
-	const char *filename;
+	char filename[100];
 	int ret;
 
 	if (ar->fw != NULL)
 		return 0;
 
 	if (testmode) {
-		if (ar->hw.fw_tcmd == NULL) {
+		if (ar->hw.fw.tcmd == NULL) {
 			ath6kl_warn("testmode not supported\n");
 			return -EOPNOTSUPP;
 		}
 
-		filename = ar->hw.fw_tcmd;
+		snprintf(filename, sizeof(filename), "%s/%s",
+			 ar->hw.fw.dir, ar->hw.fw.tcmd);
 
 		set_bit(TESTMODE, &ar->flag);
 
 		goto get_fw;
 	}
 
-	if (WARN_ON(ar->hw.fw == NULL))
+	/* FIXME: remove WARN_ON() as we won't support FW API 1 for long */
+	if (WARN_ON(ar->hw.fw.fw == NULL))
 		return -EINVAL;
 
-	filename = ar->hw.fw;
+	snprintf(filename, sizeof(filename), "%s/%s",
+		 ar->hw.fw.dir, ar->hw.fw.fw);
 
 get_fw:
 	ret = ath6kl_get_fw(ar, filename, &ar->fw, &ar->fw_len);
@@ -794,16 +799,17 @@ get_fw:
 
 static int ath6kl_fetch_patch_file(struct ath6kl *ar)
 {
-	const char *filename;
+	char filename[100];
 	int ret;
 
 	if (ar->fw_patch != NULL)
 		return 0;
 
-	if (ar->hw.fw_patch == NULL)
+	if (ar->hw.fw.patch == NULL)
 		return 0;
 
-	filename = ar->hw.fw_patch;
+	snprintf(filename, sizeof(filename), "%s/%s",
+		 ar->hw.fw.dir, ar->hw.fw.patch);
 
 	ret = ath6kl_get_fw(ar, filename, &ar->fw_patch,
 			    &ar->fw_patch_len);
@@ -840,15 +846,16 @@ static int ath6kl_fetch_fw_api2(struct ath6kl *ar)
 	size_t magic_len, len, ie_len;
 	const struct firmware *fw;
 	struct ath6kl_fw_ie *hdr;
-	const char *filename;
+	char filename[100];
 	const u8 *data;
 	int ret, ie_id, i, index, bit;
 	__le32 *val;
 
-	if (ar->hw.fw_api2 == NULL)
+	if (ar->hw.fw.api2 == NULL)
 		return -EOPNOTSUPP;
 
-	filename = ar->hw.fw_api2;
+	snprintf(filename, sizeof(filename), "%s/%s",
+		 ar->hw.fw.dir, ar->hw.fw.api2);
 
 	ret = request_firmware(&fw, filename, ar->dev);
 	if (ret)

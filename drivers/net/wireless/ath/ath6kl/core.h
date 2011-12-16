@@ -97,45 +97,46 @@ struct ath6kl_fw_ie {
 	u8 data[0];
 };
 
+#define ATH6KL_FW_API2_FILE "fw-2.bin"
+
 /* AR6003 1.0 definitions */
 #define AR6003_HW_1_0_VERSION                 0x300002ba
 
 /* AR6003 2.0 definitions */
 #define AR6003_HW_2_0_VERSION                 0x30000384
 #define AR6003_HW_2_0_PATCH_DOWNLOAD_ADDRESS  0x57e910
-#define AR6003_HW_2_0_OTP_FILE "ath6k/AR6003/hw2.0/otp.bin.z77"
-#define AR6003_HW_2_0_FIRMWARE_FILE "ath6k/AR6003/hw2.0/athwlan.bin.z77"
-#define AR6003_HW_2_0_TCMD_FIRMWARE_FILE "ath6k/AR6003/hw2.0/athtcmd_ram.bin"
-#define AR6003_HW_2_0_PATCH_FILE "ath6k/AR6003/hw2.0/data.patch.bin"
-#define AR6003_HW_2_0_FIRMWARE_2_FILE "ath6k/AR6003/hw2.0/fw-2.bin"
+#define AR6003_HW_2_0_FW_DIR			"ath6k/AR6003/hw2.0"
+#define AR6003_HW_2_0_OTP_FILE			"otp.bin.z77"
+#define AR6003_HW_2_0_FIRMWARE_FILE		"athwlan.bin.z77"
+#define AR6003_HW_2_0_TCMD_FIRMWARE_FILE	"athtcmd_ram.bin"
+#define AR6003_HW_2_0_PATCH_FILE		"data.patch.bin"
 #define AR6003_HW_2_0_BOARD_DATA_FILE "ath6k/AR6003/hw2.0/bdata.bin"
 #define AR6003_HW_2_0_DEFAULT_BOARD_DATA_FILE \
 			"ath6k/AR6003/hw2.0/bdata.SD31.bin"
 
 /* AR6003 3.0 definitions */
 #define AR6003_HW_2_1_1_VERSION                 0x30000582
-#define AR6003_HW_2_1_1_OTP_FILE "ath6k/AR6003/hw2.1.1/otp.bin"
-#define AR6003_HW_2_1_1_FIRMWARE_FILE "ath6k/AR6003/hw2.1.1/athwlan.bin"
-#define AR6003_HW_2_1_1_TCMD_FIRMWARE_FILE \
-			"ath6k/AR6003/hw2.1.1/athtcmd_ram.bin"
-#define AR6003_HW_2_1_1_PATCH_FILE "ath6k/AR6003/hw2.1.1/data.patch.bin"
-#define AR6003_HW_2_1_1_FIRMWARE_2_FILE "ath6k/AR6003/hw2.1.1/fw-2.bin"
+#define AR6003_HW_2_1_1_FW_DIR			"ath6k/AR6003/hw2.1.1"
+#define AR6003_HW_2_1_1_OTP_FILE		"otp.bin"
+#define AR6003_HW_2_1_1_FIRMWARE_FILE		"athwlan.bin"
+#define AR6003_HW_2_1_1_TCMD_FIRMWARE_FILE	"athtcmd_ram.bin"
+#define AR6003_HW_2_1_1_PATCH_FILE		"data.patch.bin"
 #define AR6003_HW_2_1_1_BOARD_DATA_FILE "ath6k/AR6003/hw2.1.1/bdata.bin"
 #define AR6003_HW_2_1_1_DEFAULT_BOARD_DATA_FILE	\
 			"ath6k/AR6003/hw2.1.1/bdata.SD31.bin"
 
 /* AR6004 1.0 definitions */
 #define AR6004_HW_1_0_VERSION                 0x30000623
-#define AR6004_HW_1_0_FIRMWARE_2_FILE         "ath6k/AR6004/hw1.0/fw-2.bin"
-#define AR6004_HW_1_0_FIRMWARE_FILE           "ath6k/AR6004/hw1.0/fw.ram.bin"
+#define AR6004_HW_1_0_FW_DIR			"ath6k/AR6004/hw1.0"
+#define AR6004_HW_1_0_FIRMWARE_FILE		"fw.ram.bin"
 #define AR6004_HW_1_0_BOARD_DATA_FILE         "ath6k/AR6004/hw1.0/bdata.bin"
 #define AR6004_HW_1_0_DEFAULT_BOARD_DATA_FILE \
 	"ath6k/AR6004/hw1.0/bdata.DB132.bin"
 
 /* AR6004 1.1 definitions */
 #define AR6004_HW_1_1_VERSION                 0x30000001
-#define AR6004_HW_1_1_FIRMWARE_2_FILE         "ath6k/AR6004/hw1.1/fw-2.bin"
-#define AR6004_HW_1_1_FIRMWARE_FILE           "ath6k/AR6004/hw1.1/fw.ram.bin"
+#define AR6004_HW_1_1_FW_DIR			"ath6k/AR6004/hw1.1"
+#define AR6004_HW_1_1_FIRMWARE_FILE		"fw.ram.bin"
 #define AR6004_HW_1_1_BOARD_DATA_FILE         "ath6k/AR6004/hw1.1/bdata.bin"
 #define AR6004_HW_1_1_DEFAULT_BOARD_DATA_FILE \
 	"ath6k/AR6004/hw1.1/bdata.DB132.bin"
@@ -575,11 +576,15 @@ struct ath6kl {
 		u32 refclk_hz;
 		u32 uarttx_pin;
 
-		const char *fw_otp;
-		const char *fw;
-		const char *fw_tcmd;
-		const char *fw_patch;
-		const char *fw_api2;
+		struct ath6kl_hw_fw {
+			const char *dir;
+			const char *otp;
+			const char *fw;
+			const char *tcmd;
+			const char *patch;
+			const char *api2;
+		} fw;
+
 		const char *fw_board;
 		const char *fw_default_board;
 	} hw;
