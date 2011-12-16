@@ -136,6 +136,7 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 
 #include <plat/common.h>
 #include <plat/cpu.h>
@@ -2706,6 +2707,60 @@ int omap_hwmod_no_setup_reset(struct omap_hwmod *oh)
 	}
 
 	oh->flags |= HWMOD_INIT_NO_RESET;
+
+	return 0;
+}
+
+/**
+ * omap_hwmod_pad_route_irq - route an I/O pad wakeup to a particular MPU IRQ
+ * @oh: struct omap_hwmod * containing hwmod mux entries
+ * @pad_idx: array index in oh->mux of the hwmod mux entry to route wakeup
+ * @irq_idx: the hwmod mpu_irqs array index of the IRQ to trigger on wakeup
+ *
+ * When an I/O pad wakeup arrives for the dynamic or wakeup hwmod mux
+ * entry number @pad_idx for the hwmod @oh, trigger the interrupt
+ * service routine for the hwmod's mpu_irqs array index @irq_idx.  If
+ * this function is not called for a given pad_idx, then the ISR
+ * associated with @oh's first MPU IRQ will be triggered when an I/O
+ * pad wakeup occurs on that pad.  Note that @pad_idx is the index of
+ * the _dynamic or wakeup_ entry: if there are other entries not
+ * marked with OMAP_DEVICE_PAD_WAKEUP or OMAP_DEVICE_PAD_REMUX, these
+ * entries are NOT COUNTED in the dynamic pad index.  This function
+ * must be called separately for each pad that requires its interrupt
+ * to be re-routed this way.  Returns -EINVAL if there is an argument
+ * problem or if @oh does not have hwmod mux entries or MPU IRQs;
+ * returns -ENOMEM if memory cannot be allocated; or 0 upon success.
+ *
+ * XXX This function interface is fragile.  Rather than using array
+ * indexes, which are subject to unpredictable change, it should be
+ * using hwmod IRQ names, and some other stable key for the hwmod mux
+ * pad records.
+ */
+int omap_hwmod_pad_route_irq(struct omap_hwmod *oh, int pad_idx, int irq_idx)
+{
+	int nr_irqs;
+
+	might_sleep();
+
+	if (!oh || !oh->mux || !oh->mpu_irqs || pad_idx < 0 ||
+	    pad_idx >= oh->mux->nr_pads_dynamic)
+		return -EINVAL;
+
+	/* Check the number of available mpu_irqs */
+	for (nr_irqs = 0; oh->mpu_irqs[nr_irqs].irq >= 0; nr_irqs++)
+		;
+
+	if (irq_idx >= nr_irqs)
+		return -EINVAL;
+
+	if (!oh->mux->irqs) {
+		/* XXX What frees this? */
+		oh->mux->irqs = kzalloc(sizeof(int) * oh->mux->nr_pads_dynamic,
+			GFP_KERNEL);
+		if (!oh->mux->irqs)
+			return -ENOMEM;
+	}
+	oh->mux->irqs[pad_idx] = irq_idx;
 
 	return 0;
 }
