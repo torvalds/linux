@@ -780,7 +780,7 @@ nvd0_sor_dpms(struct drm_encoder *encoder, int mode)
 			continue;
 
 		if (nv_partner != nv_encoder &&
-		    nv_partner->dcb->or == nv_encoder->or) {
+		    nv_partner->dcb->or == nv_encoder->dcb->or) {
 			if (nv_partner->last_dpms == DRM_MODE_DPMS_ON)
 				return;
 			break;

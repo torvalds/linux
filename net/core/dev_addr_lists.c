@@ -696,8 +696,7 @@ static const struct seq_operations dev_mc_seq_ops = {
 
 static int dev_mc_seq_open(struct inode *inode, struct file *file)
 {
-	return seq_open_net(inode, file, &dev_mc_seq_ops,
-			    sizeof(struct seq_net_private));
+	return dev_seq_open_ops(inode, file, &dev_mc_seq_ops);
 }
 
 static const struct file_operations dev_mc_seq_fops = {

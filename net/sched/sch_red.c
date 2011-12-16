@@ -209,8 +209,8 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt)
 				 ctl->Plog, ctl->Scell_log,
 				 nla_data(tb[TCA_RED_STAB]));
 
-	if (skb_queue_empty(&sch->q))
-		red_end_of_idle_period(&q->parms);
+	if (!q->qdisc->q.qlen)
+		red_start_of_idle_period(&q->parms);
 
 	sch_tree_unlock(sch);
 	return 0;

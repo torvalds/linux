@@ -3036,6 +3036,8 @@ static void analyse_stripe(struct stripe_head *sh, struct stripe_head_state *s)
 		if (dev->written)
 			s->written++;
 		rdev = rcu_dereference(conf->disks[i].rdev);
+		if (rdev && test_bit(Faulty, &rdev->flags))
+			rdev = NULL;
 		if (rdev) {
 			is_bad = is_badblock(rdev, sh->sector, STRIPE_SECTORS,
 					     &first_bad, &bad_sectors);
@@ -3063,12 +3065,12 @@ static void analyse_stripe(struct stripe_head *sh, struct stripe_head_state *s)
 			}
 		} else if (test_bit(In_sync, &rdev->flags))
 			set_bit(R5_Insync, &dev->flags);
-		else if (!test_bit(Faulty, &rdev->flags)) {
+		else {
 			/* in sync if before recovery_offset */
 			if (sh->sector + STRIPE_SECTORS <= rdev->recovery_offset)
 				set_bit(R5_Insync, &dev->flags);
 		}
-		if (test_bit(R5_WriteError, &dev->flags)) {
+		if (rdev && test_bit(R5_WriteError, &dev->flags)) {
 			clear_bit(R5_Insync, &dev->flags);
 			if (!test_bit(Faulty, &rdev->flags)) {
 				s->handle_bad_blocks = 1;
@@ -3076,7 +3078,7 @@ static void analyse_stripe(struct stripe_head *sh, struct stripe_head_state *s)
 			} else
 				clear_bit(R5_WriteError, &dev->flags);
 		}
-		if (test_bit(R5_MadeGood, &dev->flags)) {
+		if (rdev && test_bit(R5_MadeGood, &dev->flags)) {
 			if (!test_bit(Faulty, &rdev->flags)) {
 				s->handle_bad_blocks = 1;
 				atomic_inc(&rdev->nr_pending);
