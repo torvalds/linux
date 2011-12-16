@@ -643,14 +643,22 @@ grow:
 			u64 size;
 
 			size = initrds[j].size;
-			status = efi_call_phys3(fh->read, initrds[j].handle,
-						&size, addr);
-			if (status != EFI_SUCCESS)
-				goto free_initrd_total;
+			while (size) {
+				u64 chunksize;
+				if (size > EFI_READ_CHUNK_SIZE)
+					chunksize = EFI_READ_CHUNK_SIZE;
+				else
+					chunksize = size;
+				status = efi_call_phys3(fh->read,
+							initrds[j].handle,
+							&chunksize, addr);
+				if (status != EFI_SUCCESS)
+					goto free_initrd_total;
+				addr += chunksize;
+				size -= chunksize;
+			}
 
 			efi_call_phys1(fh->close, initrds[j].handle);
-
-			addr += size;
 		}
 
 	}
