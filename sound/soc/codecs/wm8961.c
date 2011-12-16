@@ -1047,18 +1047,7 @@ static int wm8961_suspend(struct snd_soc_codec *codec)
 
 static int wm8961_resume(struct snd_soc_codec *codec)
 {
-	u16 *reg_cache = codec->reg_cache;
-	int i;
-
-	for (i = 0; i < codec->driver->reg_cache_size; i++) {
-		if (reg_cache[i] == wm8961_reg_defaults[i])
-			continue;
-
-		if (i == WM8961_SOFTWARE_RESET)
-			continue;
-
-		snd_soc_write(codec, i, reg_cache[i]);
-	}
+	snd_soc_cache_sync(codec);
 
 	wm8961_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
