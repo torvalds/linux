@@ -19,6 +19,7 @@ static int __init net_secret_init(void)
 }
 late_initcall(net_secret_init);
 
+#ifdef CONFIG_INET
 static u32 seq_scale(u32 seq)
 {
 	/*
@@ -33,6 +34,7 @@ static u32 seq_scale(u32 seq)
 	 */
 	return seq + (ktime_to_ns(ktime_get_real()) >> 6);
 }
+#endif
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 __u32 secure_tcpv6_sequence_number(const __be32 *saddr, const __be32 *daddr,
