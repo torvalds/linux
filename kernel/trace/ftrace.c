@@ -996,8 +996,6 @@ struct ftrace_page {
 static struct ftrace_page	*ftrace_pages_start;
 static struct ftrace_page	*ftrace_pages;
 
-static struct dyn_ftrace *ftrace_free_records;
-
 static struct ftrace_func_entry *
 ftrace_lookup_ip(struct ftrace_hash *hash, unsigned long ip)
 {
@@ -1421,32 +1419,8 @@ static void ftrace_hash_rec_enable(struct ftrace_ops *ops,
 	__ftrace_hash_rec_update(ops, filter_hash, 1);
 }
 
-static void ftrace_free_rec(struct dyn_ftrace *rec)
-{
-	rec->freelist = ftrace_free_records;
-	ftrace_free_records = rec;
-	rec->flags |= FTRACE_FL_FREE;
-}
-
 static struct dyn_ftrace *ftrace_alloc_dyn_node(unsigned long ip)
 {
-	struct dyn_ftrace *rec;
-
-	/* First check for freed records */
-	if (ftrace_free_records) {
-		rec = ftrace_free_records;
-
-		if (unlikely(!(rec->flags & FTRACE_FL_FREE))) {
-			FTRACE_WARN_ON_ONCE(1);
-			ftrace_free_records = NULL;
-			return NULL;
-		}
-
-		ftrace_free_records = rec->freelist;
-		memset(rec, 0, sizeof(*rec));
-		return rec;
-	}
-
 	if (ftrace_pages->index == ENTRIES_PER_PAGE) {
 		if (!ftrace_pages->next) {
 			/* allocate another page */
@@ -1639,10 +1613,6 @@ static void ftrace_replace_code(int update)
 		return;
 
 	do_for_each_ftrace_rec(pg, rec) {
-		/* Skip over free records */
-		if (rec->flags & FTRACE_FL_FREE)
-			continue;
-
 		failed = __ftrace_replace_code(rec, update);
 		if (failed) {
 			ftrace_bug(failed, rec->ip);
@@ -2007,11 +1977,8 @@ static int ftrace_update_code(struct module *mod)
 		 * Do the initial record conversion from mcount jump
 		 * to the NOP instructions.
 		 */
-		if (!ftrace_code_disable(mod, p)) {
-			ftrace_free_rec(p);
-			/* Game over */
+		if (!ftrace_code_disable(mod, p))
 			break;
-		}
 
 		ftrace_update_cnt++;
 
@@ -2026,10 +1993,8 @@ static int ftrace_update_code(struct module *mod)
 		 */
 		if (ftrace_start_up && ref) {
 			int failed = __ftrace_replace_code(p, 1);
-			if (failed) {
+			if (failed)
 				ftrace_bug(failed, p->ip);
-				ftrace_free_rec(p);
-			}
 		}
 	}
 
@@ -2223,9 +2188,7 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 		}
 	} else {
 		rec = &iter->pg->records[iter->idx++];
-		if ((rec->flags & FTRACE_FL_FREE) ||
-
-		    ((iter->flags & FTRACE_ITER_FILTER) &&
+		if (((iter->flags & FTRACE_ITER_FILTER) &&
 		     !(ftrace_lookup_ip(ops->filter_hash, rec->ip))) ||
 
 		    ((iter->flags & FTRACE_ITER_NOTRACE) &&
@@ -2602,7 +2565,6 @@ match_records(struct ftrace_hash *hash, char *buff,
 		goto out_unlock;
 
 	do_for_each_ftrace_rec(pg, rec) {
-
 		if (ftrace_match_record(rec, mod, search, search_len, type)) {
 			ret = enter_record(hash, rec, not);
 			if (ret < 0) {
@@ -3446,9 +3408,6 @@ ftrace_set_func(unsigned long *array, int *idx, char *buffer)
 
 	do_for_each_ftrace_rec(pg, rec) {
 
-		if (rec->flags & FTRACE_FL_FREE)
-			continue;
-
 		if (ftrace_match_record(rec, NULL, search, search_len, type)) {
 			/* if it is in the array */
 			exists = false;
@@ -3566,6 +3525,27 @@ static int ftrace_process_locs(struct module *mod,
 	unsigned long flags = 0; /* Shut up gcc */
 
 	mutex_lock(&ftrace_lock);
+	/*
+	 * Core and each module needs their own pages, as
+	 * modules will free them when they are removed.
+	 * Force a new page to be allocated for modules.
+	 */
+	if (mod) {
+		if (!ftrace_pages)
+			return -ENOMEM;
+
+		/*
+		 * If the last page was full, it will be
+		 * allocated anyway.
+		 */
+		if (ftrace_pages->index != ENTRIES_PER_PAGE) {
+			ftrace_pages->next = (void *)get_zeroed_page(GFP_KERNEL);
+			if (!ftrace_pages->next)
+				return -ENOMEM;
+			ftrace_pages = ftrace_pages->next;
+		}
+	}
+
 	p = start;
 	while (p < end) {
 		addr = ftrace_call_adjust(*p++);
@@ -3599,9 +3579,13 @@ static int ftrace_process_locs(struct module *mod,
 }
 
 #ifdef CONFIG_MODULES
+
+#define next_to_ftrace_page(p) container_of(p, struct ftrace_page, next)
+
 void ftrace_release_mod(struct module *mod)
 {
 	struct dyn_ftrace *rec;
+	struct ftrace_page **last_pg;
 	struct ftrace_page *pg;
 
 	mutex_lock(&ftrace_lock);
@@ -3609,16 +3593,30 @@ void ftrace_release_mod(struct module *mod)
 	if (ftrace_disabled)
 		goto out_unlock;
 
-	do_for_each_ftrace_rec(pg, rec) {
+	/*
+	 * Each module has its own ftrace_pages, remove
+	 * them from the list.
+	 */
+	last_pg = &ftrace_pages_start;
+	for (pg = ftrace_pages_start; pg; pg = *last_pg) {
+		rec = &pg->records[0];
 		if (within_module_core(rec->ip, mod)) {
 			/*
-			 * rec->ip is changed in ftrace_free_rec()
-			 * It should not between s and e if record was freed.
+			 * As core pages are first, the first
+			 * page should never be a module page.
 			 */
-			FTRACE_WARN_ON(rec->flags & FTRACE_FL_FREE);
-			ftrace_free_rec(rec);
-		}
-	} while_for_each_ftrace_rec();
+			if (WARN_ON(pg == ftrace_pages_start))
+				goto out_unlock;
+
+			/* Check if we are deleting the last page */
+			if (pg == ftrace_pages)
+				ftrace_pages = next_to_ftrace_page(last_pg);
+
+			*last_pg = pg->next;
+			free_page((unsigned long)pg);
+		} else
+			last_pg = &pg->next;
+	}
  out_unlock:
 	mutex_unlock(&ftrace_lock);
 }

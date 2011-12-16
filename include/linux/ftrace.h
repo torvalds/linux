@@ -163,7 +163,6 @@ extern int ftrace_text_reserved(void *start, void *end);
 
 enum {
 	FTRACE_FL_ENABLED	= (1 << 30),
-	FTRACE_FL_FREE		= (1 << 31),
 };
 
 #define FTRACE_FL_MASK		(0x3UL << 30)
