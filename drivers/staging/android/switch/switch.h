@@ -30,7 +30,7 @@ struct switch_dev {
 
 struct gpio_switch_platform_data {
 	const char *name;
-	unsigned 	gpio;
+	unsigned	gpio;
 
 	/* if NULL, switch_dev.name will be printed */
 	const char *name_on;

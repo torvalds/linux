@@ -91,7 +91,7 @@ static int gpio_switch_probe(struct platform_device *pdev)
 	switch_data->state_off = pdata->state_off;
 	switch_data->sdev.print_state = switch_gpio_print_state;
 
-    ret = switch_dev_register(&switch_data->sdev);
+	ret = switch_dev_register(&switch_data->sdev);
 	if (ret < 0)
 		goto err_switch_dev_register;
 
@@ -126,7 +126,7 @@ err_detect_irq_num_failed:
 err_set_gpio_input:
 	gpio_free(switch_data->gpio);
 err_request_gpio:
-    switch_dev_unregister(&switch_data->sdev);
+	switch_dev_unregister(&switch_data->sdev);
 err_switch_dev_register:
 	kfree(switch_data);
 
@@ -139,7 +139,7 @@ static int __devexit gpio_switch_remove(struct platform_device *pdev)
 
 	cancel_work_sync(&switch_data->work);
 	gpio_free(switch_data->gpio);
-    switch_dev_unregister(&switch_data->sdev);
+	switch_dev_unregister(&switch_data->sdev);
 	kfree(switch_data);
 
 	return 0;
