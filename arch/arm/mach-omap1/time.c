@@ -54,7 +54,7 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 
-#include <plat/common.h>
+#include "common.h"
 
 #ifdef CONFIG_OMAP_MPU_TIMER
 

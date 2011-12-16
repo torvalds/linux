@@ -71,12 +71,6 @@
 
 #ifndef __ASSEMBLER__
 
-#define __arch_ioremap		tegra_ioremap
-#define __arch_iounmap		tegra_iounmap
-
-void __iomem *tegra_ioremap(unsigned long phys, size_t size, unsigned int type);
-void tegra_iounmap(volatile void __iomem *addr);
-
 #define IO_ADDRESS(n) (IO_TO_VIRT(n))
 
 #ifdef CONFIG_TEGRA_PCI
