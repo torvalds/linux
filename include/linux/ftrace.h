@@ -173,10 +173,7 @@ struct dyn_ftrace {
 		unsigned long		ip; /* address of mcount call-site */
 		struct dyn_ftrace	*freelist;
 	};
-	union {
-		unsigned long		flags;
-		struct dyn_ftrace	*newlist;
-	};
+	unsigned long		flags;
 	struct dyn_arch_ftrace		arch;
 };
 
