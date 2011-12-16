@@ -44,6 +44,8 @@
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
 
+#define VBLANK_OFF_DELAY	50000
+
 static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 {
 	struct exynos_drm_private *private;
@@ -106,6 +108,8 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 		DRM_ERROR("failed to initialize drm fbdev\n");
 		goto err_drm_device;
 	}
+
+	drm_vblank_offdelay = VBLANK_OFF_DELAY;
 
 	return 0;
 
