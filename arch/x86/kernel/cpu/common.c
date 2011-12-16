@@ -1093,11 +1093,13 @@ unsigned long kernel_eflags;
 DEFINE_PER_CPU(struct orig_ist, orig_ist);
 
 static DEFINE_PER_CPU(unsigned long, debug_stack_addr);
+DEFINE_PER_CPU(int, debug_stack_usage);
 
 int is_debug_stack(unsigned long addr)
 {
-	return addr <= __get_cpu_var(debug_stack_addr) &&
-		addr > (__get_cpu_var(debug_stack_addr) - DEBUG_STKSZ);
+	return __get_cpu_var(debug_stack_usage) ||
+		(addr <= __get_cpu_var(debug_stack_addr) &&
+		 addr > (__get_cpu_var(debug_stack_addr) - DEBUG_STKSZ));
 }
 
 void debug_stack_set_zero(void)
