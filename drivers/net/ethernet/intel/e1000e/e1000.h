@@ -242,8 +242,8 @@ struct e1000_ring {
 	u16 next_to_use;
 	u16 next_to_clean;
 
-	u16 head;
-	u16 tail;
+	void __iomem *head;
+	void __iomem *tail;
 
 	/* array of buffer information structs */
 	struct e1000_buffer *buffer_info;
@@ -251,7 +251,7 @@ struct e1000_ring {
 	char name[IFNAMSIZ + 5];
 	u32 ims_val;
 	u32 itr_val;
-	u16 itr_register;
+	void __iomem *itr_register;
 	int set_itr;
 
 	struct sk_buff *rx_skb_top;
