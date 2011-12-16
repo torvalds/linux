@@ -2817,9 +2817,9 @@ static void e1000_configure_tx(struct e1000_adapter *adapter)
 		 */
 		txdctl |= E1000_TXDCTL_DMA_BURST_ENABLE;
 		ew32(TXDCTL(0), txdctl);
-		/* erratum work around: set txdctl the same for both queues */
-		ew32(TXDCTL(1), txdctl);
 	}
+	/* erratum work around: set txdctl the same for both queues */
+	ew32(TXDCTL(1), er32(TXDCTL(0)));
 
 	/* Program the Transmit Control Register */
 	tctl = er32(TCTL);
