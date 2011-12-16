@@ -14,10 +14,6 @@
 #include "net_driver.h"
 #include "filter.h"
 
-/* PCI IDs */
-#define BETHPAGE_A_P_DEVID      0x0803
-#define SIENA_A_P_DEVID         0x0813
-
 /* Solarstorm controllers use BAR 0 for I/O space and BAR 2(&3) for memory */
 #define EFX_MEM_BAR 2
 
