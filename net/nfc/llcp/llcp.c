@@ -954,7 +954,7 @@ void nfc_llcp_unregister_device(struct nfc_dev *dev)
 	skb_queue_purge(&local->tx_queue);
 	destroy_workqueue(local->tx_wq);
 	destroy_workqueue(local->rx_wq);
-	kfree(local->rx_pending);
+	kfree_skb(local->rx_pending);
 	kfree(local);
 }
 
