@@ -983,12 +983,13 @@ static DEFINE_MUTEX(ftrace_regex_lock);
 
 struct ftrace_page {
 	struct ftrace_page	*next;
+	struct dyn_ftrace	*records;
 	int			index;
-	struct dyn_ftrace	records[];
+	int			size;
 };
 
-#define ENTRIES_PER_PAGE \
-  ((PAGE_SIZE - sizeof(struct ftrace_page)) / sizeof(struct dyn_ftrace))
+#define ENTRY_SIZE sizeof(struct dyn_ftrace)
+#define ENTRIES_PER_PAGE (PAGE_SIZE / ENTRY_SIZE)
 
 /* estimate from running different kernels */
 #define NR_TO_INIT		10000
@@ -1421,14 +1422,10 @@ static void ftrace_hash_rec_enable(struct ftrace_ops *ops,
 
 static struct dyn_ftrace *ftrace_alloc_dyn_node(unsigned long ip)
 {
-	if (ftrace_pages->index == ENTRIES_PER_PAGE) {
-		if (!ftrace_pages->next) {
-			/* allocate another page */
-			ftrace_pages->next =
-				(void *)get_zeroed_page(GFP_KERNEL);
-			if (!ftrace_pages->next)
-				return NULL;
-		}
+	if (ftrace_pages->index == ftrace_pages->size) {
+		/* We should have allocated enough */
+		if (WARN_ON(!ftrace_pages->next))
+			return NULL;
 		ftrace_pages = ftrace_pages->next;
 	}
 
@@ -2005,46 +2002,105 @@ static int ftrace_update_code(struct module *mod)
 	return 0;
 }
 
-static int __init ftrace_dyn_table_alloc(unsigned long num_to_init)
+static int ftrace_allocate_records(struct ftrace_page *pg, int count)
 {
-	struct ftrace_page *pg;
+	int order;
 	int cnt;
-	int i;
 
-	/* allocate a few pages */
-	ftrace_pages_start = (void *)get_zeroed_page(GFP_KERNEL);
-	if (!ftrace_pages_start)
-		return -1;
+	if (WARN_ON(!count))
+		return -EINVAL;
+
+	order = get_count_order(DIV_ROUND_UP(count, ENTRIES_PER_PAGE));
 
 	/*
-	 * Allocate a few more pages.
-	 *
-	 * TODO: have some parser search vmlinux before
-	 *   final linking to find all calls to ftrace.
-	 *   Then we can:
-	 *    a) know how many pages to allocate.
-	 *     and/or
-	 *    b) set up the table then.
-	 *
-	 *  The dynamic code is still necessary for
-	 *  modules.
+	 * We want to fill as much as possible. No more than a page
+	 * may be empty.
 	 */
+	while ((PAGE_SIZE << order) / ENTRY_SIZE >= count + ENTRIES_PER_PAGE)
+		order--;
 
-	pg = ftrace_pages = ftrace_pages_start;
+ again:
+	pg->records = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, order);
+
+	if (!pg->records) {
+		/* if we can't allocate this size, try something smaller */
+		if (!order)
+			return -ENOMEM;
+		order >>= 1;
+		goto again;
+	}
+
+	cnt = (PAGE_SIZE << order) / ENTRY_SIZE;
+	pg->size = cnt;
+
+	if (cnt > count)
+		cnt = count;
+
+	return cnt;
+}
+
+static struct ftrace_page *
+ftrace_allocate_pages(unsigned long num_to_init)
+{
+	struct ftrace_page *start_pg;
+	struct ftrace_page *pg;
+	int order;
+	int cnt;
+
+	if (!num_to_init)
+		return 0;
+
+	start_pg = pg = kzalloc(sizeof(*pg), GFP_KERNEL);
+	if (!pg)
+		return NULL;
+
+	/*
+	 * Try to allocate as much as possible in one continues
+	 * location that fills in all of the space. We want to
+	 * waste as little space as possible.
+	 */
+	for (;;) {
+		cnt = ftrace_allocate_records(pg, num_to_init);
+		if (cnt < 0)
+			goto free_pages;
+
+		num_to_init -= cnt;
+		if (!num_to_init)
+			break;
+
+		pg->next = kzalloc(sizeof(*pg), GFP_KERNEL);
+		if (!pg->next)
+			goto free_pages;
+
+		pg = pg->next;
+	}
+
+	return start_pg;
+
+ free_pages:
+	while (start_pg) {
+		order = get_count_order(pg->size / ENTRIES_PER_PAGE);
+		free_pages((unsigned long)pg->records, order);
+		start_pg = pg->next;
+		kfree(pg);
+		pg = start_pg;
+	}
+	pr_info("ftrace: FAILED to allocate memory for functions\n");
+	return NULL;
+}
+
+static int __init ftrace_dyn_table_alloc(unsigned long num_to_init)
+{
+	int cnt;
+
+	if (!num_to_init) {
+		pr_info("ftrace: No functions to be traced?\n");
+		return -1;
+	}
 
 	cnt = num_to_init / ENTRIES_PER_PAGE;
 	pr_info("ftrace: allocating %ld entries in %d pages\n",
 		num_to_init, cnt + 1);
-
-	for (i = 0; i < cnt; i++) {
-		pg->next = (void *)get_zeroed_page(GFP_KERNEL);
-
-		/* If we fail, we'll try later anyway */
-		if (!pg->next)
-			break;
-
-		pg = pg->next;
-	}
 
 	return 0;
 }
@@ -3520,30 +3576,45 @@ static int ftrace_process_locs(struct module *mod,
 			       unsigned long *start,
 			       unsigned long *end)
 {
+	struct ftrace_page *pg;
+	unsigned long count;
 	unsigned long *p;
 	unsigned long addr;
 	unsigned long flags = 0; /* Shut up gcc */
+	int ret = -ENOMEM;
+
+	count = end - start;
+
+	if (!count)
+		return 0;
+
+	pg = ftrace_allocate_pages(count);
+	if (!pg)
+		return -ENOMEM;
 
 	mutex_lock(&ftrace_lock);
+
 	/*
 	 * Core and each module needs their own pages, as
 	 * modules will free them when they are removed.
 	 * Force a new page to be allocated for modules.
 	 */
-	if (mod) {
+	if (!mod) {
+		WARN_ON(ftrace_pages || ftrace_pages_start);
+		/* First initialization */
+		ftrace_pages = ftrace_pages_start = pg;
+	} else {
 		if (!ftrace_pages)
-			return -ENOMEM;
+			goto out;
 
-		/*
-		 * If the last page was full, it will be
-		 * allocated anyway.
-		 */
-		if (ftrace_pages->index != ENTRIES_PER_PAGE) {
-			ftrace_pages->next = (void *)get_zeroed_page(GFP_KERNEL);
-			if (!ftrace_pages->next)
-				return -ENOMEM;
-			ftrace_pages = ftrace_pages->next;
+		if (WARN_ON(ftrace_pages->next)) {
+			/* Hmm, we have free pages? */
+			while (ftrace_pages->next)
+				ftrace_pages = ftrace_pages->next;
 		}
+
+		ftrace_pages->next = pg;
+		ftrace_pages = pg;
 	}
 
 	p = start;
@@ -3557,7 +3628,8 @@ static int ftrace_process_locs(struct module *mod,
 		 */
 		if (!addr)
 			continue;
-		ftrace_record_ip(addr);
+		if (!ftrace_record_ip(addr))
+			break;
 	}
 
 	/*
@@ -3573,9 +3645,11 @@ static int ftrace_process_locs(struct module *mod,
 	ftrace_update_code(mod);
 	if (!mod)
 		local_irq_restore(flags);
+	ret = 0;
+ out:
 	mutex_unlock(&ftrace_lock);
 
-	return 0;
+	return ret;
 }
 
 #ifdef CONFIG_MODULES
@@ -3587,6 +3661,7 @@ void ftrace_release_mod(struct module *mod)
 	struct dyn_ftrace *rec;
 	struct ftrace_page **last_pg;
 	struct ftrace_page *pg;
+	int order;
 
 	mutex_lock(&ftrace_lock);
 
@@ -3613,7 +3688,9 @@ void ftrace_release_mod(struct module *mod)
 				ftrace_pages = next_to_ftrace_page(last_pg);
 
 			*last_pg = pg->next;
-			free_page((unsigned long)pg);
+			order = get_count_order(pg->size / ENTRIES_PER_PAGE);
+			free_pages((unsigned long)pg->records, order);
+			kfree(pg);
 		} else
 			last_pg = &pg->next;
 	}
