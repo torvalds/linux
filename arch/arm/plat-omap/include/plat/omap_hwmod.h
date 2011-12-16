@@ -97,6 +97,7 @@ struct omap_hwmod_mux_info {
 	struct omap_device_pad		*pads;
 	int				nr_pads_dynamic;
 	struct omap_device_pad		**pads_dynamic;
+	int				*irqs;
 	bool				enabled;
 };
 
