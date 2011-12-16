@@ -538,9 +538,21 @@ int omap_gem_roll(struct drm_gem_object *obj, uint32_t roll)
 		return -EINVAL;
 	}
 
-	mutex_lock(&obj->dev->struct_mutex);
-
 	omap_obj->roll = roll;
+
+	if (in_atomic() || mutex_is_locked(&obj->dev->struct_mutex)) {
+		/* this can get called from fbcon in atomic context.. so
+		 * just ignore it and wait for next time called from
+		 * interruptible context to update the PAT.. the result
+		 * may be that user sees wrap-around instead of scrolling
+		 * momentarily on the screen.  If we wanted to be fancier
+		 * we could perhaps schedule some workqueue work at this
+		 * point.
+		 */
+		return 0;
+	}
+
+	mutex_lock(&obj->dev->struct_mutex);
 
 	/* if we aren't mapped yet, we don't need to do anything */
 	if (omap_obj->block) {
