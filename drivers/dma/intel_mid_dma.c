@@ -280,7 +280,8 @@ static void midc_dostart(struct intel_mid_dma_chan *midc,
  * callbacks but must be called with the lock held.
  */
 static void midc_descriptor_complete(struct intel_mid_dma_chan *midc,
-	       struct intel_mid_dma_desc *desc)
+		struct intel_mid_dma_desc *desc)
+		__releases(&midc->lock) __acquires(&midc->lock)
 {
 	struct dma_async_tx_descriptor	*txd = &desc->txd;
 	dma_async_tx_callback callback_txd = NULL;
@@ -311,6 +312,7 @@ static void midc_descriptor_complete(struct intel_mid_dma_chan *midc,
 			pci_pool_free(desc->lli_pool, desc->lli,
 						desc->lli_phys);
 			pci_pool_destroy(desc->lli_pool);
+			desc->lli = NULL;
 		}
 		list_move(&desc->desc_node, &midc->free_list);
 		midc->busy = false;
@@ -490,7 +492,9 @@ static enum dma_status intel_mid_dma_tx_status(struct dma_chan *chan,
 
 	ret = dma_async_is_complete(cookie, last_complete, last_used);
 	if (ret != DMA_SUCCESS) {
+		spin_lock_bh(&midc->lock);
 		midc_scan_descriptors(to_middma_device(chan->device), midc);
+		spin_unlock_bh(&midc->lock);
 
 		last_complete = midc->completed;
 		last_used = chan->cookie;
@@ -566,6 +570,7 @@ static int intel_mid_dma_device_control(struct dma_chan *chan,
 			pci_pool_free(desc->lli_pool, desc->lli,
 						desc->lli_phys);
 			pci_pool_destroy(desc->lli_pool);
+			desc->lli = NULL;
 		}
 		list_move(&desc->desc_node, &midc->free_list);
 	}
