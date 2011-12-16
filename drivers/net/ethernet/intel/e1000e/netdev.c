@@ -2770,8 +2770,7 @@ static void e1000_configure_tx(struct e1000_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	struct e1000_ring *tx_ring = adapter->tx_ring;
 	u64 tdba;
-	u32 tdlen, tctl, tipg, tarc;
-	u32 ipgr1, ipgr2;
+	u32 tdlen, tctl, tarc;
 
 	/* Setup the HW Tx Head and Tail descriptor pointers */
 	tdba = tx_ring->dma;
@@ -2783,18 +2782,6 @@ static void e1000_configure_tx(struct e1000_adapter *adapter)
 	ew32(TDT, 0);
 	tx_ring->head = adapter->hw.hw_addr + E1000_TDH;
 	tx_ring->tail = adapter->hw.hw_addr + E1000_TDT;
-
-	/* Set the default values for the Tx Inter Packet Gap timer */
-	tipg = DEFAULT_82543_TIPG_IPGT_COPPER;          /*  8  */
-	ipgr1 = DEFAULT_82543_TIPG_IPGR1;               /*  8  */
-	ipgr2 = DEFAULT_82543_TIPG_IPGR2;               /*  6  */
-
-	if (adapter->flags & FLAG_TIPG_MEDIUM_FOR_80003ESLAN)
-		ipgr2 = DEFAULT_80003ES2LAN_TIPG_IPGR2; /*  7  */
-
-	tipg |= ipgr1 << E1000_TIPG_IPGR1_SHIFT;
-	tipg |= ipgr2 << E1000_TIPG_IPGR2_SHIFT;
-	ew32(TIPG, tipg);
 
 	/* Set the Tx Interrupt Delay register */
 	ew32(TIDV, adapter->tx_int_delay);
