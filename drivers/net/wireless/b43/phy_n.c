@@ -4048,8 +4048,8 @@ int b43_phy_initn(struct b43_wldev *dev)
 /* http://bcm-v4.sipsolutions.net/802.11/PmuSpurAvoid */
 static void b43_nphy_pmu_spur_avoid(struct b43_wldev *dev, bool avoid)
 {
-	struct bcma_drv_cc *cc;
-	u32 pmu_ctl;
+	struct bcma_drv_cc __maybe_unused *cc;
+	u32 __maybe_unused pmu_ctl;
 
 	switch (dev->dev->bus_type) {
 #ifdef CONFIG_B43_BCMA
