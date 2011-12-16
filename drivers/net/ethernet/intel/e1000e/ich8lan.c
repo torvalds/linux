@@ -306,7 +306,6 @@ static void e1000_toggle_lanphypc_value_ich8lan(struct e1000_hw *hw)
 static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
-	u32 fwsm;
 	s32 ret_val = 0;
 
 	phy->addr                     = 1;
@@ -325,14 +324,14 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 	phy->ops.power_down           = e1000_power_down_phy_copper_ich8lan;
 	phy->autoneg_mask             = AUTONEG_ADVERTISE_SPEED_DEFAULT;
 
-	/*
-	 * The MAC-PHY interconnect may still be in SMBus mode
-	 * after Sx->S0.  If the manageability engine (ME) is
-	 * disabled, then toggle the LANPHYPC Value bit to force
-	 * the interconnect to PCIe mode.
-	 */
-	fwsm = er32(FWSM);
-	if (!(fwsm & E1000_ICH_FWSM_FW_VALID) && !e1000_check_reset_block(hw)) {
+	if (!e1000_check_reset_block(hw)) {
+		u32 fwsm = er32(FWSM);
+
+		/*
+		 * The MAC-PHY interconnect may still be in SMBus mode after
+		 * Sx->S0.  If resetting the PHY is not blocked, toggle the
+		 * LANPHYPC Value bit to force the interconnect to PCIe mode.
+		 */
 		e1000_toggle_lanphypc_value_ich8lan(hw);
 		msleep(50);
 
@@ -340,25 +339,26 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 		 * Gate automatic PHY configuration by hardware on
 		 * non-managed 82579
 		 */
-		if (hw->mac.type == e1000_pch2lan)
+		if ((hw->mac.type == e1000_pch2lan) &&
+		    !(fwsm & E1000_ICH_FWSM_FW_VALID))
 			e1000_gate_hw_phy_config_ich8lan(hw, true);
-	}
 
-	/*
-	 * Reset the PHY before any access to it.  Doing so, ensures that
-	 * the PHY is in a known good state before we read/write PHY registers.
-	 * The generic reset is sufficient here, because we haven't determined
-	 * the PHY type yet.
-	 */
-	ret_val = e1000e_phy_hw_reset_generic(hw);
-	if (ret_val)
-		goto out;
+		/*
+		 * Reset the PHY before any access to it.  Doing so, ensures
+		 * that the PHY is in a known good state before we read/write
+		 * PHY registers.  The generic reset is sufficient here,
+		 * because we haven't determined the PHY type yet.
+		 */
+		ret_val = e1000e_phy_hw_reset_generic(hw);
+		if (ret_val)
+			goto out;
 
-	/* Ungate automatic PHY configuration on non-managed 82579 */
-	if ((hw->mac.type == e1000_pch2lan) &&
-	    !(fwsm & E1000_ICH_FWSM_FW_VALID)) {
-		usleep_range(10000, 20000);
-		e1000_gate_hw_phy_config_ich8lan(hw, false);
+		/* Ungate automatic PHY configuration on non-managed 82579 */
+		if ((hw->mac.type == e1000_pch2lan) &&
+		    !(fwsm & E1000_ICH_FWSM_FW_VALID)) {
+			usleep_range(10000, 20000);
+			e1000_gate_hw_phy_config_ich8lan(hw, false);
+		}
 	}
 
 	phy->id = e1000_phy_unknown;
@@ -3736,42 +3736,37 @@ void e1000_suspend_workarounds_ich8lan(struct e1000_hw *hw)
  **/
 void e1000_resume_workarounds_pchlan(struct e1000_hw *hw)
 {
-	u32 fwsm;
+	u16 phy_id1, phy_id2;
+	s32 ret_val;
 
-	if (hw->mac.type != e1000_pch2lan)
+	if ((hw->mac.type != e1000_pch2lan) || e1000_check_reset_block(hw))
 		return;
 
-	fwsm = er32(FWSM);
-	if (!(fwsm & E1000_ICH_FWSM_FW_VALID) || !e1000_check_reset_block(hw)) {
-		u16 phy_id1, phy_id2;
-		s32 ret_val;
-
-		ret_val = hw->phy.ops.acquire(hw);
-		if (ret_val) {
-			e_dbg("Failed to acquire PHY semaphore in resume\n");
-			return;
-		}
-
-		/* Test access to the PHY registers by reading the ID regs */
-		ret_val = hw->phy.ops.read_reg_locked(hw, PHY_ID1, &phy_id1);
-		if (ret_val)
-			goto release;
-		ret_val = hw->phy.ops.read_reg_locked(hw, PHY_ID2, &phy_id2);
-		if (ret_val)
-			goto release;
-
-		if (hw->phy.id == ((u32)(phy_id1 << 16) |
-				   (u32)(phy_id2 & PHY_REVISION_MASK)))
-			goto release;
-
-		e1000_toggle_lanphypc_value_ich8lan(hw);
-
-		hw->phy.ops.release(hw);
-		msleep(50);
-		e1000_phy_hw_reset(hw);
-		msleep(50);
+	ret_val = hw->phy.ops.acquire(hw);
+	if (ret_val) {
+		e_dbg("Failed to acquire PHY semaphore in resume\n");
 		return;
 	}
+
+	/* Test access to the PHY registers by reading the ID regs */
+	ret_val = hw->phy.ops.read_reg_locked(hw, PHY_ID1, &phy_id1);
+	if (ret_val)
+		goto release;
+	ret_val = hw->phy.ops.read_reg_locked(hw, PHY_ID2, &phy_id2);
+	if (ret_val)
+		goto release;
+
+	if (hw->phy.id == ((u32)(phy_id1 << 16) |
+			   (u32)(phy_id2 & PHY_REVISION_MASK)))
+		goto release;
+
+	e1000_toggle_lanphypc_value_ich8lan(hw);
+
+	hw->phy.ops.release(hw);
+	msleep(50);
+	e1000_phy_hw_reset(hw);
+	msleep(50);
+	return;
 
 release:
 	hw->phy.ops.release(hw);
