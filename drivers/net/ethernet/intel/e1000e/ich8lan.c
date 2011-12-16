@@ -4108,7 +4108,7 @@ const struct e1000_info e1000_ich9_info = {
 				  | FLAG_HAS_AMT
 				  | FLAG_HAS_FLASH
 				  | FLAG_APME_IN_WUC,
-	.pba			= 10,
+	.pba			= 18,
 	.max_hw_frame_size	= DEFAULT_JUMBO,
 	.get_variants		= e1000_get_variants_ich8lan,
 	.mac_ops		= &ich8_mac_ops,
@@ -4125,7 +4125,7 @@ const struct e1000_info e1000_ich10_info = {
 				  | FLAG_HAS_AMT
 				  | FLAG_HAS_FLASH
 				  | FLAG_APME_IN_WUC,
-	.pba			= 10,
+	.pba			= 18,
 	.max_hw_frame_size	= DEFAULT_JUMBO,
 	.get_variants		= e1000_get_variants_ich8lan,
 	.mac_ops		= &ich8_mac_ops,
