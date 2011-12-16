@@ -406,6 +406,11 @@ static int dvb_init(struct tm6000_core *dev)
 	if (!dev->caps.has_dvb)
 		return 0;
 
+	if (dev->udev->speed == USB_SPEED_FULL) {
+		printk(KERN_INFO "This USB2.0 device cannot be run on a USB1.1 port. (it lacks a hardware PID filter)\n");
+		return 0;
+	}
+
 	dvb = kzalloc(sizeof(struct tm6000_dvb), GFP_KERNEL);
 	if (!dvb) {
 		printk(KERN_INFO "Cannot allocate memory\n");
