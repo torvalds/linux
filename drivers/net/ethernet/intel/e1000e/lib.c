@@ -187,11 +187,8 @@ s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
 	if (ret_val)
 		goto out;
 
-	/* Check for LOM (vs. NIC) or one of two valid mezzanine cards */
-	if (!((nvm_data & NVM_COMPAT_LOM) ||
-	      (hw->adapter->pdev->device == E1000_DEV_ID_82571EB_SERDES_DUAL) ||
-	      (hw->adapter->pdev->device == E1000_DEV_ID_82571EB_SERDES_QUAD) ||
-	      (hw->adapter->pdev->device == E1000_DEV_ID_82571EB_SERDES)))
+	/* not supported on older hardware or 82573 */
+	if ((hw->mac.type < e1000_82571) || (hw->mac.type == e1000_82573))
 		goto out;
 
 	ret_val = e1000_read_nvm(hw, NVM_ALT_MAC_ADDR_PTR, 1,
