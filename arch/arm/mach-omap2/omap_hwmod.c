@@ -1441,6 +1441,25 @@ static int _enable(struct omap_hwmod *oh)
 
 	pr_debug("omap_hwmod: %s: enabling\n", oh->name);
 
+	/*
+	 * hwmods with HWMOD_INIT_NO_IDLE flag set are left
+	 * in enabled state at init.
+	 * Now that someone is really trying to enable them,
+	 * just ensure that the hwmod mux is set.
+	 */
+	if (oh->_int_flags & _HWMOD_SKIP_ENABLE) {
+		/*
+		 * If the caller has mux data populated, do the mux'ing
+		 * which wouldn't have been done as part of the _enable()
+		 * done during setup.
+		 */
+		if (oh->mux)
+			omap_hwmod_mux(oh->mux, _HWMOD_STATE_ENABLED);
+
+		oh->_int_flags &= ~_HWMOD_SKIP_ENABLE;
+		return 0;
+	}
+
 	if (oh->_state != _HWMOD_STATE_INITIALIZED &&
 	    oh->_state != _HWMOD_STATE_IDLE &&
 	    oh->_state != _HWMOD_STATE_DISABLED) {
@@ -1744,8 +1763,10 @@ static int _setup(struct omap_hwmod *oh, void *data)
 	 * it should be set by the core code as a runtime flag during startup
 	 */
 	if ((oh->flags & HWMOD_INIT_NO_IDLE) &&
-	    (postsetup_state == _HWMOD_STATE_IDLE))
+	    (postsetup_state == _HWMOD_STATE_IDLE)) {
+		oh->_int_flags |= _HWMOD_SKIP_ENABLE;
 		postsetup_state = _HWMOD_STATE_ENABLED;
+	}
 
 	if (postsetup_state == _HWMOD_STATE_IDLE)
 		_idle(oh);
