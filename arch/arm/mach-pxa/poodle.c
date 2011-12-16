@@ -420,17 +420,11 @@ static void poodle_poweroff(void)
 	arm_machine_restart('h', NULL);
 }
 
-static void poodle_restart(char mode, const char *cmd)
-{
-	arm_machine_restart('h', cmd);
-}
-
 static void __init poodle_init(void)
 {
 	int ret = 0;
 
 	pm_power_off = poodle_poweroff;
-	arm_pm_restart = poodle_restart;
 
 	PCFR |= PCFR_OPDE;
 

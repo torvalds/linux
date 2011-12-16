@@ -18,8 +18,6 @@ static inline void arch_idle(void)
 
 static inline void arch_reset(char mode, const char *cmd)
 {
-	local_irq_disable();
-
 	if (machine_is_n2100()) {
 		gpio_line_set(N2100_HARDWARE_RESET, GPIO_LOW);
 		gpio_line_config(N2100_HARDWARE_RESET, GPIO_OUT);
@@ -30,5 +28,5 @@ static inline void arch_reset(char mode, const char *cmd)
 	*IOP3XX_PCSR = 0x30;
 
 	/* Jump into ROM at address 0 */
-	cpu_reset(0);
+	soft_restart(0);
 }
