@@ -268,11 +268,8 @@ static int sas_phy_enable(struct sas_phy *phy, int enable)
 
 		if (enable)
 			ret = transport_sas_phy_reset(phy, 0);
-		else {
-			sas_phy_disconnected(asd_phy);
-			sas_ha->notify_phy_event(asd_phy, PHYE_LOSS_OF_SIGNAL);
+		else
 			ret = i->dft->lldd_control_phy(asd_phy, cmd, NULL);
-		}
 	} else {
 		struct sas_rphy *rphy = dev_to_rphy(phy->dev.parent);
 		struct domain_device *ddev = sas_find_dev_by_rphy(rphy);
