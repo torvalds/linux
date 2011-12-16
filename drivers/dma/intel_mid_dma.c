@@ -1104,7 +1104,8 @@ static int mid_setup_dma(struct pci_dev *pdev)
 					LNW_PERIPHRAL_MASK_SIZE);
 		if (dma->mask_reg == NULL) {
 			pr_err("ERR_MDMA:Can't map periphral intr space !!\n");
-			return -ENOMEM;
+			err = -ENOMEM;
+			goto err_ioremap;
 		}
 	} else
 		dma->mask_reg = NULL;
@@ -1201,6 +1202,9 @@ static int mid_setup_dma(struct pci_dev *pdev)
 err_engine:
 	free_irq(pdev->irq, dma);
 err_irq:
+	if (dma->mask_reg)
+		iounmap(dma->mask_reg);
+err_ioremap:
 	pci_pool_destroy(dma->dma_pool);
 err_dma_pool:
 	pr_err("ERR_MDMA:setup_dma failed: %d\n", err);
