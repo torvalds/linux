@@ -244,3 +244,40 @@ void omap3xxx_prm_ocp_barrier(void)
 {
 	omap2_prm_read_mod_reg(OCP_MOD, OMAP3_PRM_REVISION_OFFSET);
 }
+
+/**
+ * omap3xxx_prm_save_and_clear_irqen - save/clear PRM_IRQENABLE_MPU reg
+ * @saved_mask: ptr to a u32 array to save IRQENABLE bits
+ *
+ * Save the PRM_IRQENABLE_MPU register to @saved_mask.  @saved_mask
+ * must be allocated by the caller.  Intended to be used in the PRM
+ * interrupt handler suspend callback.  The OCP barrier is needed to
+ * ensure the write to disable PRM interrupts reaches the PRM before
+ * returning; otherwise, spurious interrupts might occur.  No return
+ * value.
+ */
+void omap3xxx_prm_save_and_clear_irqen(u32 *saved_mask)
+{
+	saved_mask[0] = omap2_prm_read_mod_reg(OCP_MOD,
+					       OMAP3_PRM_IRQENABLE_MPU_OFFSET);
+	omap2_prm_write_mod_reg(0, OCP_MOD, OMAP3_PRM_IRQENABLE_MPU_OFFSET);
+
+	/* OCP barrier */
+	omap2_prm_read_mod_reg(OCP_MOD, OMAP3_PRM_REVISION_OFFSET);
+}
+
+/**
+ * omap3xxx_prm_restore_irqen - set PRM_IRQENABLE_MPU register from args
+ * @saved_mask: ptr to a u32 array of IRQENABLE bits saved previously
+ *
+ * Restore the PRM_IRQENABLE_MPU register from @saved_mask.  Intended
+ * to be used in the PRM interrupt handler resume callback to restore
+ * values saved by omap3xxx_prm_save_and_clear_irqen().  No OCP
+ * barrier should be needed here; any pending PRM interrupts will fire
+ * once the writes reach the PRM.  No return value.
+ */
+void omap3xxx_prm_restore_irqen(u32 *saved_mask)
+{
+	omap2_prm_write_mod_reg(saved_mask[0], OCP_MOD,
+				OMAP3_PRM_IRQENABLE_MPU_OFFSET);
+}

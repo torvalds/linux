@@ -163,3 +163,51 @@ void omap44xx_prm_ocp_barrier(void)
 	omap4_prm_read_inst_reg(OMAP4430_PRM_DEVICE_INST,
 				OMAP4_REVISION_PRM_OFFSET);
 }
+
+/**
+ * omap44xx_prm_save_and_clear_irqen - save/clear PRM_IRQENABLE_MPU* regs
+ * @saved_mask: ptr to a u32 array to save IRQENABLE bits
+ *
+ * Save the PRM_IRQENABLE_MPU and PRM_IRQENABLE_MPU_2 registers to
+ * @saved_mask.  @saved_mask must be allocated by the caller.
+ * Intended to be used in the PRM interrupt handler suspend callback.
+ * The OCP barrier is needed to ensure the write to disable PRM
+ * interrupts reaches the PRM before returning; otherwise, spurious
+ * interrupts might occur.  No return value.
+ */
+void omap44xx_prm_save_and_clear_irqen(u32 *saved_mask)
+{
+	saved_mask[0] =
+		omap4_prm_read_inst_reg(OMAP4430_PRM_DEVICE_INST,
+					OMAP4_PRM_IRQSTATUS_MPU_OFFSET);
+	saved_mask[1] =
+		omap4_prm_read_inst_reg(OMAP4430_PRM_DEVICE_INST,
+					OMAP4_PRM_IRQSTATUS_MPU_2_OFFSET);
+
+	omap4_prm_write_inst_reg(0, OMAP4430_PRM_DEVICE_INST,
+				 OMAP4_PRM_IRQENABLE_MPU_OFFSET);
+	omap4_prm_write_inst_reg(0, OMAP4430_PRM_DEVICE_INST,
+				 OMAP4_PRM_IRQENABLE_MPU_2_OFFSET);
+
+	/* OCP barrier */
+	omap4_prm_read_inst_reg(OMAP4430_PRM_DEVICE_INST,
+				OMAP4_REVISION_PRM_OFFSET);
+}
+
+/**
+ * omap44xx_prm_restore_irqen - set PRM_IRQENABLE_MPU* registers from args
+ * @saved_mask: ptr to a u32 array of IRQENABLE bits saved previously
+ *
+ * Restore the PRM_IRQENABLE_MPU and PRM_IRQENABLE_MPU_2 registers from
+ * @saved_mask.  Intended to be used in the PRM interrupt handler resume
+ * callback to restore values saved by omap44xx_prm_save_and_clear_irqen().
+ * No OCP barrier should be needed here; any pending PRM interrupts will fire
+ * once the writes reach the PRM.  No return value.
+ */
+void omap44xx_prm_restore_irqen(u32 *saved_mask)
+{
+	omap4_prm_write_inst_reg(saved_mask[0], OMAP4430_PRM_DEVICE_INST,
+				 OMAP4_PRM_IRQENABLE_MPU_OFFSET);
+	omap4_prm_write_inst_reg(saved_mask[1], OMAP4430_PRM_DEVICE_INST,
+				 OMAP4_PRM_IRQENABLE_MPU_2_OFFSET);
+}

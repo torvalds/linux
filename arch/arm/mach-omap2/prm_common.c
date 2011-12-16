@@ -89,10 +89,25 @@ static void omap_prcm_irq_handler(unsigned int irq, struct irq_desc *desc)
 	int nr_irqs = prcm_irq_setup->nr_regs * 32;
 
 	/*
+	 * If we are suspended, mask all interrupts from PRCM level,
+	 * this does not ack them, and they will be pending until we
+	 * re-enable the interrupts, at which point the
+	 * omap_prcm_irq_handler will be executed again.  The
+	 * _save_and_clear_irqen() function must ensure that the PRM
+	 * write to disable all IRQs has reached the PRM before
+	 * returning, or spurious PRCM interrupts may occur during
+	 * suspend.
+	 */
+	if (prcm_irq_setup->suspended) {
+		prcm_irq_setup->save_and_clear_irqen(prcm_irq_setup->saved_mask);
+		prcm_irq_setup->suspend_save_flag = true;
+	}
+
+	/*
 	 * Loop until all pending irqs are handled, since
 	 * generic_handle_irq() can cause new irqs to come
 	 */
-	while (1) {
+	while (!prcm_irq_setup->suspended) {
 		prcm_irq_setup->read_pending_irqs(pending);
 
 		/* No bit set, then all IRQs are handled */
@@ -174,6 +189,9 @@ void omap_prcm_irq_cleanup(void)
 		prcm_irq_chips = NULL;
 	}
 
+	kfree(prcm_irq_setup->saved_mask);
+	prcm_irq_setup->saved_mask = NULL;
+
 	kfree(prcm_irq_setup->priority_mask);
 	prcm_irq_setup->priority_mask = NULL;
 
@@ -183,6 +201,29 @@ void omap_prcm_irq_cleanup(void)
 		irq_free_descs(prcm_irq_setup->base_irq,
 			prcm_irq_setup->nr_regs * 32);
 	prcm_irq_setup->base_irq = 0;
+}
+
+void omap_prcm_irq_prepare(void)
+{
+	prcm_irq_setup->suspended = true;
+}
+
+void omap_prcm_irq_complete(void)
+{
+	prcm_irq_setup->suspended = false;
+
+	/* If we have not saved the masks, do not attempt to restore */
+	if (!prcm_irq_setup->suspend_save_flag)
+		return;
+
+	prcm_irq_setup->suspend_save_flag = false;
+
+	/*
+	 * Re-enable all masked PRCM irq sources, this causes the PRCM
+	 * interrupt to fire immediately if the events were masked
+	 * previously in the chain handler
+	 */
+	prcm_irq_setup->restore_irqen(prcm_irq_setup->saved_mask);
 }
 
 /**
@@ -219,10 +260,12 @@ int omap_prcm_register_chain_handler(struct omap_prcm_irq_setup *irq_setup)
 	prcm_irq_setup = irq_setup;
 
 	prcm_irq_chips = kzalloc(sizeof(void *) * nr_regs, GFP_KERNEL);
+	prcm_irq_setup->saved_mask = kzalloc(sizeof(u32) * nr_regs, GFP_KERNEL);
 	prcm_irq_setup->priority_mask = kzalloc(sizeof(u32) * nr_regs,
 		GFP_KERNEL);
 
-	if (!prcm_irq_chips || !prcm_irq_setup->priority_mask) {
+	if (!prcm_irq_chips || !prcm_irq_setup->saved_mask ||
+	    !prcm_irq_setup->priority_mask) {
 		pr_err("PRCM: kzalloc failed\n");
 		goto err;
 	}

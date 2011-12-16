@@ -766,6 +766,8 @@ extern u32 omap4_prm_vcvp_rmw(u32 mask, u32 bits, u8 offset);
 /* PRM interrupt-related functions */
 extern void omap44xx_prm_read_pending_irqs(unsigned long *events);
 extern void omap44xx_prm_ocp_barrier(void);
+extern void omap44xx_prm_save_and_clear_irqen(u32 *saved_mask);
+extern void omap44xx_prm_restore_irqen(u32 *saved_mask);
 
 # endif
 

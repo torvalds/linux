@@ -437,11 +437,16 @@ struct omap_prcm_irq {
  * @irq: MPU IRQ asserted when a PRCM interrupt arrives
  * @read_pending_irqs: fn ptr to determine if any PRCM IRQs are pending
  * @ocp_barrier: fn ptr to force buffered PRM writes to complete
+ * @save_and_clear_irqen: fn ptr to save and clear IRQENABLE regs
+ * @restore_irqen: fn ptr to save and clear IRQENABLE regs
+ * @saved_mask: IRQENABLE regs are saved here during suspend
  * @priority_mask: 1 bit per IRQ, set to 1 if omap_prcm_irq.priority = true
  * @base_irq: base dynamic IRQ number, returned from irq_alloc_descs() in init
+ * @suspended: set to true after Linux suspend code has called our ->prepare()
+ * @suspend_save_flag: set to true after IRQ masks have been saved and disabled
  *
- * @priority_mask and @base_irq are populated dynamically during
- * omap_prcm_register_chain_handler() - these fields are not to be
+ * @saved_mask, @priority_mask, @base_irq, @suspended, and
+ * @suspend_save_flag are populated dynamically, and are not to be
  * specified in static initializers.
  */
 struct omap_prcm_irq_setup {
@@ -453,8 +458,13 @@ struct omap_prcm_irq_setup {
 	int irq;
 	void (*read_pending_irqs)(unsigned long *events);
 	void (*ocp_barrier)(void);
+	void (*save_and_clear_irqen)(u32 *saved_mask);
+	void (*restore_irqen)(u32 *saved_mask);
+	u32 *saved_mask;
 	u32 *priority_mask;
 	int base_irq;
+	bool suspended;
+	bool suspend_save_flag;
 };
 
 /* OMAP_PRCM_IRQ: convenience macro for creating struct omap_prcm_irq records */
@@ -468,6 +478,8 @@ extern void omap_prcm_irq_cleanup(void);
 extern int omap_prcm_register_chain_handler(
 	struct omap_prcm_irq_setup *irq_setup);
 extern int omap_prcm_event_to_irq(const char *event);
+extern void omap_prcm_irq_prepare(void);
+extern void omap_prcm_irq_complete(void);
 
 # endif
 
