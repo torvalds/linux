@@ -87,6 +87,7 @@ struct fimd_context {
 	u32				vidcon0;
 	u32				vidcon1;
 	bool				suspended;
+	struct mutex			lock;
 
 	struct fb_videomode		*timing;
 };
@@ -137,11 +138,22 @@ static struct exynos_drm_display_ops fimd_display_ops = {
 
 static void fimd_dpms(struct device *subdrv_dev, int mode)
 {
+	struct fimd_context *ctx = get_fimd_context(subdrv_dev);
+
 	DRM_DEBUG_KMS("%s, %d\n", __FILE__, mode);
+
+	mutex_lock(&ctx->lock);
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
-		pm_runtime_get_sync(subdrv_dev);
+		/*
+		 * enable fimd hardware only if suspended status.
+		 *
+		 * P.S. fimd_dpms function would be called at booting time so
+		 * clk_enable could be called double time.
+		 */
+		if (ctx->suspended)
+			pm_runtime_get_sync(subdrv_dev);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
@@ -152,6 +164,8 @@ static void fimd_dpms(struct device *subdrv_dev, int mode)
 		DRM_DEBUG_KMS("unspecified mode %d\n", mode);
 		break;
 	}
+
+	mutex_unlock(&ctx->lock);
 }
 
 static void fimd_apply(struct device *subdrv_dev)
@@ -803,13 +817,6 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 		goto err_req_irq;
 	}
 
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
-	pm_runtime_get_sync(dev);
-
-	for (win = 0; win < WINDOWS_NR; win++)
-		fimd_clear_win(ctx, win);
-
 	ctx->clkdiv = fimd_calc_clkdiv(ctx, timing);
 	ctx->vidcon0 = pdata->vidcon0;
 	ctx->vidcon1 = pdata->vidcon1;
@@ -831,7 +838,17 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 	subdrv->manager.display_ops = &fimd_display_ops;
 	subdrv->manager.dev = dev;
 
+	mutex_init(&ctx->lock);
+
 	platform_set_drvdata(pdev, ctx);
+
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+	pm_runtime_get_sync(dev);
+
+	for (win = 0; win < WINDOWS_NR; win++)
+		fimd_clear_win(ctx, win);
+
 	exynos_drm_subdrv_register(subdrv);
 
 	return 0;
@@ -894,7 +911,6 @@ out:
 #ifdef CONFIG_PM_SLEEP
 static int fimd_suspend(struct device *dev)
 {
-	struct fimd_context *ctx = get_fimd_context(dev);
 	int ret;
 
 	if (pm_runtime_suspended(dev))
@@ -904,13 +920,11 @@ static int fimd_suspend(struct device *dev)
 	if (ret < 0)
 		return ret;
 
-	ctx->suspended = true;
 	return 0;
 }
 
 static int fimd_resume(struct device *dev)
 {
-	struct fimd_context *ctx = get_fimd_context(dev);
 	int ret;
 
 	ret = pm_runtime_resume(dev);
@@ -931,7 +945,6 @@ static int fimd_resume(struct device *dev)
 
 	pm_runtime_enable(dev);
 
-	ctx->suspended = false;
 	return 0;
 }
 #endif
