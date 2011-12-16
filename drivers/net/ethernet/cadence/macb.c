@@ -23,6 +23,8 @@
 #include <linux/platform_data/macb.h>
 #include <linux/platform_device.h>
 #include <linux/phy.h>
+#include <linux/of_device.h>
+#include <linux/of_net.h>
 
 #include "macb.h"
 
@@ -191,7 +193,6 @@ static int macb_mii_probe(struct net_device *dev)
 {
 	struct macb *bp = netdev_priv(dev);
 	struct phy_device *phydev;
-	struct macb_platform_data *pdata;
 	int ret;
 
 	phydev = phy_find_first(bp->mii_bus);
@@ -200,14 +201,11 @@ static int macb_mii_probe(struct net_device *dev)
 		return -1;
 	}
 
-	pdata = bp->pdev->dev.platform_data;
 	/* TODO : add pin_irq */
 
 	/* attach the mac to the phy */
 	ret = phy_connect_direct(dev, phydev, &macb_handle_link_change, 0,
-				 pdata && pdata->is_rmii ?
-				 PHY_INTERFACE_MODE_RMII :
-				 PHY_INTERFACE_MODE_MII);
+				 bp->phy_interface);
 	if (ret) {
 		netdev_err(dev, "Could not attach to PHY\n");
 		return ret;
@@ -1244,6 +1242,52 @@ static const struct net_device_ops macb_netdev_ops = {
 #endif
 };
 
+#if defined(CONFIG_OF)
+static const struct of_device_id macb_dt_ids[] = {
+	{ .compatible = "cdns,at32ap7000-macb" },
+	{ .compatible = "cdns,at91sam9260-macb" },
+	{ .compatible = "cdns,macb" },
+	{ .compatible = "cdns,pc302-gem" },
+	{ .compatible = "cdns,gem" },
+	{ /* sentinel */ }
+};
+
+MODULE_DEVICE_TABLE(of, macb_dt_ids);
+
+static int __devinit macb_get_phy_mode_dt(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+
+	if (np)
+		return of_get_phy_mode(np);
+
+	return -ENODEV;
+}
+
+static int __devinit macb_get_hwaddr_dt(struct macb *bp)
+{
+	struct device_node *np = bp->pdev->dev.of_node;
+	if (np) {
+		const char *mac = of_get_mac_address(np);
+		if (mac) {
+			memcpy(bp->dev->dev_addr, mac, ETH_ALEN);
+			return 0;
+		}
+	}
+
+	return -ENODEV;
+}
+#else
+static int __devinit macb_get_phy_mode_dt(struct platform_device *pdev)
+{
+	return -ENODEV;
+}
+static int __devinit macb_get_hwaddr_dt(struct macb *bp)
+{
+	return -ENODEV;
+}
+#endif
+
 static int __init macb_probe(struct platform_device *pdev)
 {
 	struct macb_platform_data *pdata;
@@ -1318,10 +1362,22 @@ static int __init macb_probe(struct platform_device *pdev)
 	config |= macb_dbw(bp);
 	macb_writel(bp, NCFGR, config);
 
-	macb_get_hwaddr(bp);
-	pdata = pdev->dev.platform_data;
+	err = macb_get_hwaddr_dt(bp);
+	if (err < 0)
+		macb_get_hwaddr(bp);
 
-	if (pdata && pdata->is_rmii)
+	err = macb_get_phy_mode_dt(pdev);
+	if (err < 0) {
+		pdata = pdev->dev.platform_data;
+		if (pdata && pdata->is_rmii)
+			bp->phy_interface = PHY_INTERFACE_MODE_RMII;
+		else
+			bp->phy_interface = PHY_INTERFACE_MODE_MII;
+	} else {
+		bp->phy_interface = err;
+	}
+
+	if (bp->phy_interface == PHY_INTERFACE_MODE_RMII)
 #if defined(CONFIG_ARCH_AT91)
 		macb_or_gem_writel(bp, USRIO, (MACB_BIT(RMII) |
 					       MACB_BIT(CLKEN)));
@@ -1444,6 +1500,7 @@ static struct platform_driver macb_driver = {
 	.driver		= {
 		.name		= "macb",
 		.owner	= THIS_MODULE,
+		.of_match_table	= of_match_ptr(macb_dt_ids),
 	},
 };
 

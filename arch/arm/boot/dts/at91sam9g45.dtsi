@@ -101,6 +101,13 @@
 				atmel,use-dma-tx;
 				status = "disabled";
 			};
+
+			macb0: ethernet@fffbc000 {
+				compatible = "cdns,at32ap7000-macb", "cdns,macb";
+				reg = <0xfffbc000 0x100>;
+				interrupts = <25>;
+				status = "disabled";
+			};
 		};
 	};
 };
