@@ -1,7 +1,9 @@
 /*
- *  linux/arch/arm/mach-clps711x/irq.c
+ *  linux/arch/arm/mach-clps711x/core.c
  *
- *  Copyright (C) 2000 Deep Blue Solutions Ltd.
+ *  Core support for the CLPS711x-based machines.
+ *
+ *  Copyright (C) 2001,2011 Deep Blue Solutions Ltd
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,15 +19,41 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#include <linux/kernel.h>
+#include <linux/mm.h>
 #include <linux/init.h>
-#include <linux/list.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/irq.h>
+#include <linux/sched.h>
+#include <linux/timex.h>
 
-#include <asm/mach/irq.h>
+#include <asm/sizes.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
-
+#include <asm/leds.h>
+#include <asm/pgtable.h>
+#include <asm/page.h>
+#include <asm/mach/map.h>
+#include <asm/mach/time.h>
 #include <asm/hardware/clps7111.h>
+
+/*
+ * This maps the generic CLPS711x registers
+ */
+static struct map_desc clps711x_io_desc[] __initdata = {
+	{
+		.virtual	= CLPS7111_VIRT_BASE,
+		.pfn		= __phys_to_pfn(CLPS7111_PHYS_BASE),
+		.length		= SZ_1M,
+		.type		= MT_DEVICE
+	}
+};
+
+void __init clps711x_map_io(void)
+{
+	iotable_init(clps711x_io_desc, ARRAY_SIZE(clps711x_io_desc));
+}
 
 static void int1_mask(struct irq_data *d)
 {
@@ -112,15 +140,15 @@ void __init clps711x_init_irq(void)
 
 	for (i = 0; i < NR_IRQS; i++) {
 	        if (INT1_IRQS & (1 << i)) {
-	        	irq_set_chip_and_handler(i, &int1_chip,
+			irq_set_chip_and_handler(i, &int1_chip,
 						 handle_level_irq);
-	        	set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
+			set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
 		}
 		if (INT2_IRQS & (1 << i)) {
 			irq_set_chip_and_handler(i, &int2_chip,
 						 handle_level_irq);
 			set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
-		}			
+		}
 	}
 
 	/*
@@ -141,3 +169,54 @@ void __init clps711x_init_irq(void)
 	clps_writel(0, SYNCIO);
 	clps_writel(0, KBDEOI);
 }
+
+/*
+ * gettimeoffset() returns time since last timer tick, in usecs.
+ *
+ * 'LATCH' is hwclock ticks (see CLOCK_TICK_RATE in timex.h) per jiffy.
+ * 'tick' is usecs per jiffy.
+ */
+static unsigned long clps711x_gettimeoffset(void)
+{
+	unsigned long hwticks;
+	hwticks = LATCH - (clps_readl(TC2D) & 0xffff);	/* since last underflow */
+	return (hwticks * (tick_nsec / 1000)) / LATCH;
+}
+
+/*
+ * IRQ handler for the timer
+ */
+static irqreturn_t p720t_timer_interrupt(int irq, void *dev_id)
+{
+	timer_tick();
+	return IRQ_HANDLED;
+}
+
+static struct irqaction clps711x_timer_irq = {
+	.name		= "CLPS711x Timer Tick",
+	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
+	.handler	= p720t_timer_interrupt,
+};
+
+static void __init clps711x_timer_init(void)
+{
+	struct timespec tv;
+	unsigned int syscon;
+
+	syscon = clps_readl(SYSCON1);
+	syscon |= SYSCON1_TC2S | SYSCON1_TC2M;
+	clps_writel(syscon, SYSCON1);
+
+	clps_writel(LATCH-1, TC2D); /* 512kHz / 100Hz - 1 */
+
+	setup_irq(IRQ_TC2OI, &clps711x_timer_irq);
+
+	tv.tv_nsec = 0;
+	tv.tv_sec = clps_readl(RTCDR);
+	do_settimeofday(&tv);
+}
+
+struct sys_timer clps711x_timer = {
+	.init		= clps711x_timer_init,
+	.offset		= clps711x_gettimeoffset,
+};

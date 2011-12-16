@@ -33,7 +33,7 @@ static void arch_reset(char mode, const char *cmd)
 {
 	if (mode == 's') {
 		/* Jump into ROM at address 0 */
-		cpu_reset(0);
+		soft_restart(0);
 	} else {
 		__raw_writel(WTE | WTRE | WTCLK, WTCR);
 	}
