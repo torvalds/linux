@@ -873,7 +873,7 @@ static int intel_mid_dma_alloc_chan_resources(struct dma_chan *chan)
 	pm_runtime_get_sync(&mid->pdev->dev);
 
 	if (mid->state == SUSPENDED) {
-		if (dma_resume(mid->pdev)) {
+		if (dma_resume(&mid->pdev->dev)) {
 			pr_err("ERR_MDMA: resume failed");
 			return -EFAULT;
 		}
@@ -1346,8 +1346,9 @@ static void __devexit intel_mid_dma_remove(struct pci_dev *pdev)
 *
 * This function is called by OS when a power event occurs
 */
-int dma_suspend(struct pci_dev *pci, pm_message_t state)
+static int dma_suspend(struct device *dev)
 {
+	struct pci_dev *pci = to_pci_dev(dev);
 	int i;
 	struct middma_device *device = pci_get_drvdata(pci);
 	pr_debug("MDMA: dma_suspend called\n");
@@ -1371,8 +1372,9 @@ int dma_suspend(struct pci_dev *pci, pm_message_t state)
 *
 * This function is called by OS when a power event occurs
 */
-int dma_resume(struct pci_dev *pci)
+int dma_resume(struct device *dev)
 {
+	struct pci_dev *pci = to_pci_dev(dev);
 	int ret;
 	struct middma_device *device = pci_get_drvdata(pci);
 
@@ -1438,6 +1440,8 @@ static const struct dev_pm_ops intel_mid_dma_pm = {
 	.runtime_suspend = dma_runtime_suspend,
 	.runtime_resume = dma_runtime_resume,
 	.runtime_idle = dma_runtime_idle,
+	.suspend = dma_suspend,
+	.resume = dma_resume,
 };
 
 static struct pci_driver intel_mid_dma_pci_driver = {
@@ -1446,8 +1450,6 @@ static struct pci_driver intel_mid_dma_pci_driver = {
 	.probe		=	intel_mid_dma_probe,
 	.remove		=	__devexit_p(intel_mid_dma_remove),
 #ifdef CONFIG_PM
-	.suspend = dma_suspend,
-	.resume = dma_resume,
 	.driver = {
 		.pm = &intel_mid_dma_pm,
 	},
