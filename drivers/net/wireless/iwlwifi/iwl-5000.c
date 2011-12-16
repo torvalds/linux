@@ -364,6 +364,7 @@ static struct iwl_base_params iwl5000_base_params = {
 	.wd_timeout = IWL_LONG_WD_TIMEOUT,
 	.max_event_log_size = 512,
 	.no_idle_support = true,
+	.wd_disable = true,
 };
 static struct iwl_ht_params iwl5000_ht_params = {
 	.ht_greenfield_support = true,
