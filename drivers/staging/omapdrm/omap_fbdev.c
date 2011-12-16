@@ -22,6 +22,10 @@
 #include "drm_crtc.h"
 #include "drm_fb_helper.h"
 
+MODULE_PARM_DESC(ywrap, "Enable ywrap scrolling (omap44xx and later, default 'y')");
+static bool ywrap_enabled = true;
+module_param_named(ywrap, ywrap_enabled, bool, 0644);
+
 /*
  * fbdev funcs, to implement legacy fbdev interface on top of drm driver
  */
@@ -32,6 +36,7 @@ struct omap_fbdev {
 	struct drm_fb_helper base;
 	struct drm_framebuffer *fb;
 	struct drm_gem_object *bo;
+	bool ywrap_enabled;
 };
 
 static void omap_fbdev_flush(struct fb_info *fbi, int x, int y, int w, int h);
@@ -75,14 +80,12 @@ static int omap_fbdev_pan_display(struct fb_var_screeninfo *var,
 {
 	struct drm_fb_helper *helper = get_fb(fbi);
 	struct omap_fbdev *fbdev = to_omap_fbdev(helper);
-	struct omap_drm_private *priv;
 	int npages;
 
 	if (!helper)
 		goto fallback;
 
-	priv = helper->dev->dev_private;
-	if (!priv->has_dmm)
+	if (!fbdev->ywrap_enabled)
 		goto fallback;
 
 	/* DMM roll shifts in 4K pages: */
@@ -152,7 +155,8 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 			mode_cmd.width * ((mode_cmd.bpp + 7) / 8),
 			mode_cmd.width, mode_cmd.bpp);
 
-	if (priv->has_dmm) {
+	fbdev->ywrap_enabled = priv->has_dmm && ywrap_enabled;
+	if (fbdev->ywrap_enabled) {
 		/* need to align pitch to page size if using DMM scrolling */
 		mode_cmd.pitch = ALIGN(mode_cmd.pitch, PAGE_SIZE);
 	}
@@ -218,11 +222,12 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 	/* if we have DMM, then we can use it for scrolling by just
 	 * shuffling pages around in DMM rather than doing sw blit.
 	 */
-	if (priv->has_dmm) {
+	if (fbdev->ywrap_enabled) {
 		DRM_INFO("Enabling DMM ywrap scrolling\n");
 		fbi->flags |= FBINFO_HWACCEL_YWRAP | FBINFO_READS_FAST;
 		fbi->fix.ywrapstep = 1;
 	}
+
 
 	DBG("par=%p, %dx%d", fbi->par, fbi->var.xres, fbi->var.yres);
 	DBG("allocated %dx%d fb", fbdev->fb->width, fbdev->fb->height);
