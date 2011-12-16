@@ -902,8 +902,7 @@ static s32 e1000_acquire_swflag_ich8lan(struct e1000_hw *hw)
 	}
 
 	if (!timeout) {
-		e_dbg("Failed to acquire the semaphore, FW or HW has it: "
-		      "FWSM=0x%8.8x EXTCNF_CTRL=0x%8.8x)\n",
+		e_dbg("Failed to acquire the semaphore, FW or HW has it: FWSM=0x%8.8x EXTCNF_CTRL=0x%8.8x)\n",
 		      er32(FWSM), extcnf_ctrl);
 		extcnf_ctrl &= ~E1000_EXTCNF_CTRL_SWFLAG;
 		ew32(EXTCNF_CTRL, extcnf_ctrl);
@@ -2132,8 +2131,7 @@ static s32 e1000_valid_nvm_bank_detect_ich8lan(struct e1000_hw *hw, u32 *bank)
 
 			return 0;
 		}
-		e_dbg("Unable to determine valid NVM bank via EEC - "
-		       "reading flash signature\n");
+		e_dbg("Unable to determine valid NVM bank via EEC - reading flash signature\n");
 		/* fall-thru */
 	default:
 		/* set bank to 0 in case flash read fails */
@@ -2245,8 +2243,7 @@ static s32 e1000_flash_cycle_init_ich8lan(struct e1000_hw *hw)
 
 	/* Check if the flash descriptor is valid */
 	if (hsfsts.hsf_status.fldesvalid == 0) {
-		e_dbg("Flash descriptor invalid.  "
-			 "SW Sequencing must be used.\n");
+		e_dbg("Flash descriptor invalid.  SW Sequencing must be used.\n");
 		return -E1000_ERR_NVM;
 	}
 
@@ -2446,8 +2443,7 @@ static s32 e1000_read_flash_data_ich8lan(struct e1000_hw *hw, u32 offset,
 				/* Repeat for some time before giving up. */
 				continue;
 			} else if (hsfsts.hsf_status.flcdone == 0) {
-				e_dbg("Timeout error - flash cycle "
-					 "did not complete.\n");
+				e_dbg("Timeout error - flash cycle did not complete.\n");
 				break;
 			}
 		}
@@ -2798,8 +2794,7 @@ static s32 e1000_write_flash_data_ich8lan(struct e1000_hw *hw, u32 offset,
 			/* Repeat for some time before giving up. */
 			continue;
 		if (hsfsts.hsf_status.flcdone == 0) {
-			e_dbg("Timeout error - flash cycle "
-				 "did not complete.");
+			e_dbg("Timeout error - flash cycle did not complete.\n");
 			break;
 		}
 	} while (count++ < ICH_FLASH_CYCLE_REPEAT_COUNT);

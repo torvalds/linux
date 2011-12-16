@@ -1136,8 +1136,7 @@ static s32 e1000_copper_link_autoneg(struct e1000_hw *hw)
 	if (phy->autoneg_wait_to_complete) {
 		ret_val = e1000_wait_autoneg(hw);
 		if (ret_val) {
-			e_dbg("Error while waiting for "
-				 "autoneg to complete\n");
+			e_dbg("Error while waiting for autoneg to complete\n");
 			return ret_val;
 		}
 	}

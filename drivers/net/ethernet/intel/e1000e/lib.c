@@ -653,12 +653,10 @@ s32 e1000e_check_for_serdes_link(struct e1000_hw *hw)
 			if (rxcw & E1000_RXCW_SYNCH) {
 				if (!(rxcw & E1000_RXCW_IV)) {
 					mac->serdes_has_link = true;
-					e_dbg("SERDES: Link up - autoneg "
-					   "completed successfully.\n");
+					e_dbg("SERDES: Link up - autoneg completed successfully.\n");
 				} else {
 					mac->serdes_has_link = false;
-					e_dbg("SERDES: Link down - invalid"
-					   "codewords detected in autoneg.\n");
+					e_dbg("SERDES: Link down - invalid codewords detected in autoneg.\n");
 				}
 			} else {
 				mac->serdes_has_link = false;
@@ -1118,8 +1116,7 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 			return ret_val;
 
 		if (!(mii_status_reg & MII_SR_AUTONEG_COMPLETE)) {
-			e_dbg("Copper PHY and Auto Neg "
-				 "has not completed.\n");
+			e_dbg("Copper PHY and Auto Neg has not completed.\n");
 			return ret_val;
 		}
 
@@ -1183,11 +1180,10 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 			 */
 			if (hw->fc.requested_mode == e1000_fc_full) {
 				hw->fc.current_mode = e1000_fc_full;
-				e_dbg("Flow Control = FULL.\r\n");
+				e_dbg("Flow Control = FULL.\n");
 			} else {
 				hw->fc.current_mode = e1000_fc_rx_pause;
-				e_dbg("Flow Control = "
-				      "Rx PAUSE frames only.\r\n");
+				e_dbg("Flow Control = Rx PAUSE frames only.\n");
 			}
 		}
 		/*
@@ -1203,7 +1199,7 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 			  (mii_nway_lp_ability_reg & NWAY_LPAR_PAUSE) &&
 			  (mii_nway_lp_ability_reg & NWAY_LPAR_ASM_DIR)) {
 			hw->fc.current_mode = e1000_fc_tx_pause;
-			e_dbg("Flow Control = Tx PAUSE frames only.\r\n");
+			e_dbg("Flow Control = Tx PAUSE frames only.\n");
 		}
 		/*
 		 * For transmitting PAUSE frames ONLY.
@@ -1218,14 +1214,14 @@ s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw)
 			 !(mii_nway_lp_ability_reg & NWAY_LPAR_PAUSE) &&
 			 (mii_nway_lp_ability_reg & NWAY_LPAR_ASM_DIR)) {
 			hw->fc.current_mode = e1000_fc_rx_pause;
-			e_dbg("Flow Control = Rx PAUSE frames only.\r\n");
+			e_dbg("Flow Control = Rx PAUSE frames only.\n");
 		} else {
 			/*
 			 * Per the IEEE spec, at this point flow control
 			 * should be disabled.
 			 */
 			hw->fc.current_mode = e1000_fc_none;
-			e_dbg("Flow Control = NONE.\r\n");
+			e_dbg("Flow Control = NONE.\n");
 		}
 
 		/*
