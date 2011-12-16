@@ -386,7 +386,7 @@ static inline int gred_change_vq(struct Qdisc *sch, int dp,
 	struct gred_sched_data *q;
 
 	if (table->tab[dp] == NULL) {
-		table->tab[dp] = kzalloc(sizeof(*q), GFP_KERNEL);
+		table->tab[dp] = kzalloc(sizeof(*q), GFP_ATOMIC);
 		if (table->tab[dp] == NULL)
 			return -ENOMEM;
 	}
