@@ -27,6 +27,24 @@
 #include "prm-regbits-24xx.h"
 #include "prm-regbits-34xx.h"
 
+static const struct omap_prcm_irq omap3_prcm_irqs[] = {
+	OMAP_PRCM_IRQ("wkup",	0,	0),
+	OMAP_PRCM_IRQ("io",	9,	1),
+};
+
+static struct omap_prcm_irq_setup omap3_prcm_irq_setup = {
+	.ack			= OMAP3_PRM_IRQSTATUS_MPU_OFFSET,
+	.mask			= OMAP3_PRM_IRQENABLE_MPU_OFFSET,
+	.nr_regs		= 1,
+	.irqs			= omap3_prcm_irqs,
+	.nr_irqs		= ARRAY_SIZE(omap3_prcm_irqs),
+	.irq			= INT_34XX_PRCM_MPU_IRQ,
+	.read_pending_irqs	= &omap3xxx_prm_read_pending_irqs,
+	.ocp_barrier		= &omap3xxx_prm_ocp_barrier,
+	.save_and_clear_irqen	= &omap3xxx_prm_save_and_clear_irqen,
+	.restore_irqen		= &omap3xxx_prm_restore_irqen,
+};
+
 u32 omap2_prm_read_mod_reg(s16 module, u16 idx)
 {
 	return __raw_readl(prm_base + module + idx);
@@ -281,3 +299,11 @@ void omap3xxx_prm_restore_irqen(u32 *saved_mask)
 	omap2_prm_write_mod_reg(saved_mask[0], OCP_MOD,
 				OMAP3_PRM_IRQENABLE_MPU_OFFSET);
 }
+
+static int __init omap3xxx_prcm_init(void)
+{
+	if (cpu_is_omap34xx())
+		return omap_prcm_register_chain_handler(&omap3_prcm_irq_setup);
+	return 0;
+}
+subsys_initcall(omap3xxx_prcm_init);
