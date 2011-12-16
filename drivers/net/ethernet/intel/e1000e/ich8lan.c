@@ -3698,9 +3698,10 @@ void e1000e_gig_downshift_workaround_ich8lan(struct e1000_hw *hw)
  *
  *  During S0 to Sx transition, it is possible the link remains at gig
  *  instead of negotiating to a lower speed.  Before going to Sx, set
- *  'LPLU Enabled' and 'Gig Disable' to force link speed negotiation
- *  to a lower speed.  For PCH and newer parts, the OEM bits PHY register
- *  (LED, GbE disable and LPLU configurations) also needs to be written.
+ *  'Gig Disable' to force link speed negotiation to a lower speed based on
+ *  the LPLU setting in the NVM or custom setting.  For PCH and newer parts,
+ *  the OEM bits PHY register (LED, GbE disable and LPLU configurations) also
+ *  needs to be written.
  **/
 void e1000_suspend_workarounds_ich8lan(struct e1000_hw *hw)
 {
@@ -3708,7 +3709,7 @@ void e1000_suspend_workarounds_ich8lan(struct e1000_hw *hw)
 	s32 ret_val;
 
 	phy_ctrl = er32(PHY_CTRL);
-	phy_ctrl |= E1000_PHY_CTRL_D0A_LPLU | E1000_PHY_CTRL_GBE_DISABLE;
+	phy_ctrl |= E1000_PHY_CTRL_GBE_DISABLE;
 	ew32(PHY_CTRL, phy_ctrl);
 
 	if (hw->mac.type == e1000_ich8lan)
