@@ -121,3 +121,45 @@ u32 omap4_prm_vcvp_rmw(u32 mask, u32 bits, u8 offset)
 					       OMAP4430_PRM_DEVICE_INST,
 					       offset);
 }
+
+static inline u32 _read_pending_irq_reg(u16 irqen_offs, u16 irqst_offs)
+{
+	u32 mask, st;
+
+	/* XXX read mask from RAM? */
+	mask = omap4_prm_read_inst_reg(OMAP4430_PRM_DEVICE_INST, irqen_offs);
+	st = omap4_prm_read_inst_reg(OMAP4430_PRM_DEVICE_INST, irqst_offs);
+
+	return mask & st;
+}
+
+/**
+ * omap44xx_prm_read_pending_irqs - read pending PRM MPU IRQs into @events
+ * @events: ptr to two consecutive u32s, preallocated by caller
+ *
+ * Read PRM_IRQSTATUS_MPU* bits, AND'ed with the currently-enabled PRM
+ * MPU IRQs, and store the result into the two u32s pointed to by @events.
+ * No return value.
+ */
+void omap44xx_prm_read_pending_irqs(unsigned long *events)
+{
+	events[0] = _read_pending_irq_reg(OMAP4_PRM_IRQENABLE_MPU_OFFSET,
+					  OMAP4_PRM_IRQSTATUS_MPU_OFFSET);
+
+	events[1] = _read_pending_irq_reg(OMAP4_PRM_IRQENABLE_MPU_2_OFFSET,
+					  OMAP4_PRM_IRQSTATUS_MPU_2_OFFSET);
+}
+
+/**
+ * omap44xx_prm_ocp_barrier - force buffered MPU writes to the PRM to complete
+ *
+ * Force any buffered writes to the PRM IP block to complete.  Needed
+ * by the PRM IRQ handler, which reads and writes directly to the IP
+ * block, to avoid race conditions after acknowledging or clearing IRQ
+ * bits.  No return value.
+ */
+void omap44xx_prm_ocp_barrier(void)
+{
+	omap4_prm_read_inst_reg(OMAP4430_PRM_DEVICE_INST,
+				OMAP4_REVISION_PRM_OFFSET);
+}
