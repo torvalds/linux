@@ -1921,7 +1921,9 @@ static s32 e1000_set_lplu_state_pchlan(struct e1000_hw *hw, bool active)
 	else
 		oem_reg &= ~HV_OEM_BITS_LPLU;
 
-	oem_reg |= HV_OEM_BITS_RESTART_AN;
+	if (!e1000_check_reset_block(hw))
+		oem_reg |= HV_OEM_BITS_RESTART_AN;
+
 	ret_val = e1e_wphy(hw, HV_OEM_BITS, oem_reg);
 
 out:
