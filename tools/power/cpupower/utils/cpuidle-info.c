@@ -35,13 +35,6 @@ static void cpuidle_cpu_output(unsigned int cpu, int verbose)
 		printf(_("CPU %u: Can't read idle state info\n"), cpu);
 		return;
 	}
-	tmp = sysfs_get_idlestate_name(cpu, idlestates - 1);
-	if (!tmp) {
-		printf(_("Could not determine max idle state %u\n"),
-		       idlestates - 1);
-		return;
-	}
-
 	printf(_("Number of idle states: %d\n"), idlestates);
 	printf(_("Available idle states:"));
 	for (idlestate = 0; idlestate < idlestates; idlestate++) {
