@@ -943,6 +943,7 @@ static void tm6000_config_tuner(struct tm6000_core *dev)
 		case TM6010_BOARD_HAUPPAUGE_900H:
 		case TM6010_BOARD_TERRATEC_CINERGY_HYBRID_XE:
 		case TM6010_BOARD_TWINHAN_TU501:
+			ctl.max_len = 80;
 			ctl.fname = "xc3028L-v36.fw";
 			break;
 		default:
@@ -1004,6 +1005,7 @@ static int fill_board_specific_data(struct tm6000_core *dev)
 	/* setup per-model quirks */
 	switch (dev->model) {
 	case TM6010_BOARD_TERRATEC_CINERGY_HYBRID_XE:
+	case TM6010_BOARD_HAUPPAUGE_900H:
 		dev->quirks |= TM6000_QUIRK_NO_USB_DELAY;
 		break;
 

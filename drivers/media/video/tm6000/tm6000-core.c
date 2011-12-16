@@ -38,6 +38,7 @@ int tm6000_read_write_usb(struct tm6000_core *dev, u8 req_type, u8 req,
 	int          ret, i;
 	unsigned int pipe;
 	u8	     *data = NULL;
+	int delay = 5000;
 
 	mutex_lock(&dev->usb_lock);
 
@@ -89,8 +90,19 @@ int tm6000_read_write_usb(struct tm6000_core *dev, u8 req_type, u8 req,
 
 	kfree(data);
 
-	if ((dev->quirks & TM6000_QUIRK_NO_USB_DELAY) == 0)
-		msleep(5);
+	if (dev->quirks & TM6000_QUIRK_NO_USB_DELAY)
+		delay = 0;
+
+	if (req == REQ_16_SET_GET_I2C_WR1_RDN && !(req_type & USB_DIR_IN)) {
+		unsigned int tsleep;
+		/* Calculate delay time, 14000us for 64 bytes */
+		tsleep = (len * 200) + 200;
+		if (tsleep < delay)
+			tsleep = delay;
+		usleep_range(tsleep, tsleep + 1000);
+	}
+	else if (delay)
+		usleep_range(delay, delay + 1000);
 
 	mutex_unlock(&dev->usb_lock);
 	return ret;
