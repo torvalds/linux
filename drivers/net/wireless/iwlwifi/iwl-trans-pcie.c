@@ -1275,47 +1275,6 @@ static int iwl_trans_pcie_request_irq(struct iwl_trans *trans)
 	return 0;
 }
 
-static int iwlagn_txq_check_empty(struct iwl_trans *trans,
-			   int sta_id, u8 tid, int txq_id)
-{
-	struct iwl_tid_data *tid_data = &trans->shrd->tid_data[sta_id][tid];
-
-	lockdep_assert_held(&trans->shrd->sta_lock);
-
-	switch (trans->shrd->tid_data[sta_id][tid].agg.state) {
-	case IWL_EMPTYING_HW_QUEUE_DELBA:
-		/* There are no packets for this RA / TID in the HW any more */
-		if ((txq_id  == tid_data->agg.txq_id) &&
-		    (tid_data->agg.ssn == tid_data->next_reclaimed)) {
-			IWL_DEBUG_TX_QUEUES(trans,
-				"Can continue DELBA flow ssn = next_recl ="
-				" %d", tid_data->next_reclaimed);
-			iwl_trans_pcie_tx_agg_disable(trans, sta_id, tid);
-			tid_data->agg.state = IWL_AGG_OFF;
-			iwl_stop_tx_ba_trans_ready(priv(trans),
-						   NUM_IWL_RXON_CTX,
-						   sta_id, tid);
-		}
-		break;
-	case IWL_EMPTYING_HW_QUEUE_ADDBA:
-		/* There are no packets for this RA / TID in the HW any more */
-		if (tid_data->agg.ssn == tid_data->next_reclaimed) {
-			IWL_DEBUG_TX_QUEUES(trans,
-				"Can continue ADDBA flow ssn = next_recl ="
-				" %d", tid_data->next_reclaimed);
-			tid_data->agg.state = IWL_AGG_ON;
-			iwl_start_tx_ba_trans_ready(priv(trans),
-						    NUM_IWL_RXON_CTX,
-						    sta_id, tid);
-		}
-		break;
-	default:
-		break;
-	}
-
-	return 0;
-}
-
 static void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int sta_id, int tid,
 		      int txq_id, int ssn, u32 status,
 		      struct sk_buff_head *skbs)
@@ -1338,8 +1297,6 @@ static void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int sta_id, int tid,
 		   status != TX_STATUS_FAIL_PASSIVE_NO_RX))
 			iwl_wake_queue(trans, txq, "Packets reclaimed");
 	}
-
-	iwlagn_txq_check_empty(trans, sta_id, tid, txq_id);
 }
 
 static void iwl_trans_pcie_free(struct iwl_trans *trans)

@@ -588,6 +588,43 @@ int iwlagn_tx_agg_oper(struct iwl_priv *priv, struct ieee80211_vif *vif,
 			&sta_priv->lq_sta.lq, CMD_ASYNC, false);
 }
 
+static void iwlagn_check_ratid_empty(struct iwl_priv *priv, int sta_id, u8 tid)
+{
+	struct iwl_tid_data *tid_data = &priv->shrd->tid_data[sta_id][tid];
+
+	lockdep_assert_held(&priv->shrd->sta_lock);
+
+	switch (priv->shrd->tid_data[sta_id][tid].agg.state) {
+	case IWL_EMPTYING_HW_QUEUE_DELBA:
+		/* There are no packets for this RA / TID in the HW any more */
+		if (tid_data->agg.ssn == tid_data->next_reclaimed) {
+			IWL_DEBUG_TX_QUEUES(priv,
+				"Can continue DELBA flow ssn = next_recl ="
+				" %d", tid_data->next_reclaimed);
+			iwl_trans_tx_agg_disable(trans(priv), sta_id, tid);
+			tid_data->agg.state = IWL_AGG_OFF;
+			iwl_stop_tx_ba_trans_ready(priv,
+						   NUM_IWL_RXON_CTX,
+						   sta_id, tid);
+		}
+		break;
+	case IWL_EMPTYING_HW_QUEUE_ADDBA:
+		/* There are no packets for this RA / TID in the HW any more */
+		if (tid_data->agg.ssn == tid_data->next_reclaimed) {
+			IWL_DEBUG_TX_QUEUES(priv,
+				"Can continue ADDBA flow ssn = next_recl ="
+				" %d", tid_data->next_reclaimed);
+			tid_data->agg.state = IWL_AGG_ON;
+			iwl_start_tx_ba_trans_ready(priv,
+						    NUM_IWL_RXON_CTX,
+						    sta_id, tid);
+		}
+		break;
+	default:
+		break;
+	}
+}
+
 static void iwlagn_non_agg_tx_status(struct iwl_priv *priv,
 				     struct iwl_rxon_context *ctx,
 				     const u8 *addr1)
@@ -965,6 +1002,7 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
 		/*we can free until ssn % q.n_bd not inclusive */
 		iwl_trans_reclaim(trans(priv), sta_id, tid, txq_id,
 				  ssn, status, &skbs);
+		iwlagn_check_ratid_empty(priv, sta_id, tid);
 		freed = 0;
 		while (!skb_queue_empty(&skbs)) {
 			skb = __skb_dequeue(&skbs);
@@ -1120,6 +1158,7 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 	priv->shrd->tid_data[sta_id][tid].next_reclaimed = ba_resp_scd_ssn;
 	iwl_trans_reclaim(trans(priv), sta_id, tid, scd_flow, ba_resp_scd_ssn,
 			  0, &reclaimed_skbs);
+	iwlagn_check_ratid_empty(priv, sta_id, tid);
 	freed = 0;
 	while (!skb_queue_empty(&reclaimed_skbs)) {
 
