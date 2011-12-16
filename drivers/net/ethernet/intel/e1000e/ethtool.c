@@ -656,10 +656,10 @@ static int e1000_set_ringparam(struct net_device *netdev,
 
 	if (netif_running(adapter->netdev)) {
 		/* Try to get new resources before deleting old */
-		err = e1000e_setup_rx_resources(adapter);
+		err = e1000e_setup_rx_resources(rx_ring);
 		if (err)
 			goto err_setup_rx;
-		err = e1000e_setup_tx_resources(adapter);
+		err = e1000e_setup_tx_resources(tx_ring);
 		if (err)
 			goto err_setup_tx;
 
@@ -669,8 +669,8 @@ static int e1000_set_ringparam(struct net_device *netdev,
 		 */
 		adapter->rx_ring = rx_old;
 		adapter->tx_ring = tx_old;
-		e1000e_free_rx_resources(adapter);
-		e1000e_free_tx_resources(adapter);
+		e1000e_free_rx_resources(adapter->rx_ring);
+		e1000e_free_tx_resources(adapter->tx_ring);
 		kfree(tx_old);
 		kfree(rx_old);
 		adapter->rx_ring = rx_ring;
@@ -683,7 +683,7 @@ static int e1000_set_ringparam(struct net_device *netdev,
 	clear_bit(__E1000_RESETTING, &adapter->state);
 	return 0;
 err_setup_tx:
-	e1000e_free_rx_resources(adapter);
+	e1000e_free_rx_resources(rx_ring);
 err_setup_rx:
 	adapter->rx_ring = rx_old;
 	adapter->tx_ring = tx_old;

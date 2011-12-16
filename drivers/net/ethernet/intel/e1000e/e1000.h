@@ -234,6 +234,7 @@ struct e1000_buffer {
 };
 
 struct e1000_ring {
+	struct e1000_adapter *adapter;	/* back pointer to adapter */
 	void *desc;			/* pointer to ring memory  */
 	dma_addr_t dma;			/* phys address of ring    */
 	unsigned int size;		/* length of ring in bytes */
@@ -334,11 +335,10 @@ struct e1000_adapter {
 	/*
 	 * Rx
 	 */
-	bool (*clean_rx) (struct e1000_adapter *adapter,
-			  int *work_done, int work_to_do)
-						____cacheline_aligned_in_smp;
-	void (*alloc_rx_buf) (struct e1000_adapter *adapter,
-			      int cleaned_count, gfp_t gfp);
+	bool (*clean_rx) (struct e1000_ring *ring, int *work_done,
+			  int work_to_do) ____cacheline_aligned_in_smp;
+	void (*alloc_rx_buf) (struct e1000_ring *ring, int cleaned_count,
+			      gfp_t gfp);
 	struct e1000_ring *rx_ring;
 
 	u32 rx_int_delay;
@@ -398,6 +398,9 @@ struct e1000_adapter {
 
 	bool idle_check;
 	int phy_hang_count;
+
+	u16 tx_ring_count;
+	u16 rx_ring_count;
 };
 
 struct e1000_info {
@@ -492,10 +495,10 @@ extern void e1000e_down(struct e1000_adapter *adapter);
 extern void e1000e_reinit_locked(struct e1000_adapter *adapter);
 extern void e1000e_reset(struct e1000_adapter *adapter);
 extern void e1000e_power_up_phy(struct e1000_adapter *adapter);
-extern int e1000e_setup_rx_resources(struct e1000_adapter *adapter);
-extern int e1000e_setup_tx_resources(struct e1000_adapter *adapter);
-extern void e1000e_free_rx_resources(struct e1000_adapter *adapter);
-extern void e1000e_free_tx_resources(struct e1000_adapter *adapter);
+extern int e1000e_setup_rx_resources(struct e1000_ring *ring);
+extern int e1000e_setup_tx_resources(struct e1000_ring *ring);
+extern void e1000e_free_rx_resources(struct e1000_ring *ring);
+extern void e1000e_free_tx_resources(struct e1000_ring *ring);
 extern struct rtnl_link_stats64 *e1000e_get_stats64(struct net_device *netdev,
                                                     struct rtnl_link_stats64
                                                     *stats);
