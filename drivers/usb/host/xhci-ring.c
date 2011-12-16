@@ -155,10 +155,6 @@ static void inc_deq(struct xhci_hcd *xhci, struct xhci_ring *ring, bool consumer
 	while (last_trb(xhci, ring, ring->deq_seg, next)) {
 		if (consumer && last_trb_on_last_seg(xhci, ring, ring->deq_seg, next)) {
 			ring->cycle_state = (ring->cycle_state ? 0 : 1);
-			if (!in_interrupt())
-				xhci_dbg(xhci, "Toggle cycle state for ring %p = %i\n",
-						ring,
-						(unsigned int) ring->cycle_state);
 		}
 		ring->deq_seg = ring->deq_seg->next;
 		ring->dequeue = ring->deq_seg->trbs;
@@ -231,10 +227,6 @@ static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring,
 			/* Toggle the cycle bit after the last ring segment. */
 			if (last_trb_on_last_seg(xhci, ring, ring->enq_seg, next)) {
 				ring->cycle_state = (ring->cycle_state ? 0 : 1);
-				if (!in_interrupt())
-					xhci_dbg(xhci, "Toggle cycle state for ring %p = %i\n",
-							ring,
-							(unsigned int) ring->cycle_state);
 			}
 		}
 		ring->enq_seg = ring->enq_seg->next;
@@ -2476,11 +2468,6 @@ static int prepare_ring(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 			/* Toggle the cycle bit after the last ring segment. */
 			if (last_trb_on_last_seg(xhci, ring, ring->enq_seg, next)) {
 				ring->cycle_state = (ring->cycle_state ? 0 : 1);
-				if (!in_interrupt()) {
-					xhci_dbg(xhci, "queue_trb: Toggle cycle "
-						"state for ring %p = %i\n",
-						ring, (unsigned int)ring->cycle_state);
-				}
 			}
 			ring->enq_seg = ring->enq_seg->next;
 			ring->enqueue = ring->enq_seg->trbs;
