@@ -57,8 +57,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
  */
+#include <linux/export.h>
+#include <linux/moduleparam.h>
 
-#include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/list.h>
 #include "debug.h"

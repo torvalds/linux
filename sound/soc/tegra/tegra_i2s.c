@@ -312,7 +312,7 @@ static struct snd_soc_dai_ops tegra_i2s_dai_ops = {
 	.trigger	= tegra_i2s_trigger,
 };
 
-struct snd_soc_dai_driver tegra_i2s_dai[] = {
+static struct snd_soc_dai_driver tegra_i2s_dai[] = {
 	{
 		.name = DRV_NAME ".0",
 		.probe = tegra_i2s_probe,

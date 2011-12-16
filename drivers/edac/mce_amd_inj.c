@@ -13,6 +13,7 @@
 #include <linux/kobject.h>
 #include <linux/sysdev.h>
 #include <linux/edac.h>
+#include <linux/module.h>
 #include <asm/mce.h>
 
 #include "mce_amd.h"

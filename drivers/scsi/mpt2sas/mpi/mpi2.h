@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2000-2010 LSI Corporation.
+ *  Copyright (c) 2000-2011 LSI Corporation.
  *
  *
  *           Name:  mpi2.h
@@ -8,7 +8,7 @@
  *                  scatter/gather formats.
  *  Creation Date:  June 21, 2006
  *
- *  mpi2.h Version:  02.00.18
+ *  mpi2.h Version:  02.00.20
  *
  *  Version History
  *  ---------------
@@ -66,6 +66,9 @@
  *  08-11-10  02.00.17  Bumped MPI2_HEADER_VERSION_UNIT.
  *  11-10-10  02.00.18  Bumped MPI2_HEADER_VERSION_UNIT.
  *                      Added MPI2_IEEE_SGE_FLAGS_SYSTEMPLBCPI_ADDR define.
+ *  02-23-11  02.00.19  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Added MPI2_FUNCTION_SEND_HOST_MESSAGE.
+ *  03-09-11  02.00.20  Bumped MPI2_HEADER_VERSION_UNIT.
  *  --------------------------------------------------------------------------
  */
 
@@ -91,7 +94,7 @@
 #define MPI2_VERSION_02_00                  (0x0200)
 
 /* versioning for this MPI header set */
-#define MPI2_HEADER_VERSION_UNIT            (0x12)
+#define MPI2_HEADER_VERSION_UNIT            (0x14)
 #define MPI2_HEADER_VERSION_DEV             (0x00)
 #define MPI2_HEADER_VERSION_UNIT_MASK       (0xFF00)
 #define MPI2_HEADER_VERSION_UNIT_SHIFT      (8)
@@ -515,6 +518,8 @@ typedef union _MPI2_REPLY_DESCRIPTORS_UNION
 #define MPI2_FUNCTION_HOST_BASED_DISCOVERY_ACTION   (0x2F)
 /* Power Management Control */
 #define MPI2_FUNCTION_PWR_MGMT_CONTROL              (0x30)
+/* Send Host Message */
+#define MPI2_FUNCTION_SEND_HOST_MESSAGE             (0x31)
 /* beginning of product-specific range */
 #define MPI2_FUNCTION_MIN_PRODUCT_SPECIFIC          (0xF0)
 /* end of product-specific range */

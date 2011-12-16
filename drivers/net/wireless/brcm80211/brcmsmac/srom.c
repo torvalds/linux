@@ -586,17 +586,6 @@ static const struct brcms_sromvar perpath_pci_sromvars[] = {
  * shared between devices. */
 static u8 brcms_srom_crc8_table[CRC8_TABLE_SIZE];
 
-static u8 __iomem *
-srom_window_address(struct si_pub *sih, u8 __iomem *curmap)
-{
-	if (sih->ccrev < 32)
-		return curmap + PCI_BAR0_SPROM_OFFSET;
-	if (sih->cccaps & CC_CAP_SROM)
-		return curmap + PCI_16KB0_CCREGS_OFFSET + CC_SROM_OTP;
-
-	return NULL;
-}
-
 static uint mask_shift(u16 mask)
 {
 	uint i;
@@ -779,17 +768,27 @@ _initvars_srom_pci(u8 sromrev, u16 *srom, struct list_head *var_list)
  * Return 0 on success, nonzero on error.
  */
 static int
-sprom_read_pci(struct si_pub *sih, u8 __iomem *sprom, uint wordoff,
-	       u16 *buf, uint nwords, bool check_crc)
+sprom_read_pci(struct si_pub *sih, u16 *buf, uint nwords, bool check_crc)
 {
 	int err = 0;
 	uint i;
 	u8 *bbuf = (u8 *)buf; /* byte buffer */
 	uint nbytes = nwords << 1;
+	struct bcma_device *core;
+	uint sprom_offset;
+
+	/* determine core to read */
+	if (ai_get_ccrev(sih) < 32) {
+		core = ai_findcore(sih, BCMA_CORE_80211, 0);
+		sprom_offset = PCI_BAR0_SPROM_OFFSET;
+	} else {
+		core = ai_findcore(sih, BCMA_CORE_CHIPCOMMON, 0);
+		sprom_offset = CHIPCREGOFFS(sromotp);
+	}
 
 	/* read the sprom in bytes */
 	for (i = 0; i < nbytes; i++)
-		bbuf[i] = readb(sprom+i);
+		bbuf[i] = bcma_read8(core, sprom_offset+i);
 
 	if (buf[0] == 0xffff)
 		/*
@@ -851,10 +850,9 @@ static int otp_read_pci(struct si_pub *sih, u16 *buf, uint nwords)
  * Initialize nonvolatile variable table from sprom.
  * Return 0 on success, nonzero on error.
  */
-static int initvars_srom_pci(struct si_pub *sih, void __iomem *curmap)
+int srom_var_init(struct si_pub *sih)
 {
 	u16 *srom;
-	u8 __iomem *sromwindow;
 	u8 sromrev = 0;
 	u32 sr;
 	int err = 0;
@@ -866,12 +864,9 @@ static int initvars_srom_pci(struct si_pub *sih, void __iomem *curmap)
 	if (!srom)
 		return -ENOMEM;
 
-	sromwindow = srom_window_address(sih, curmap);
-
 	crc8_populate_lsb(brcms_srom_crc8_table, SROM_CRC8_POLY);
 	if (ai_is_sprom_available(sih)) {
-		err = sprom_read_pci(sih, sromwindow, 0, srom,
-				     SROM4_WORDS, true);
+		err = sprom_read_pci(sih, srom, SROM4_WORDS, true);
 
 		if (err == 0)
 			/* srom read and passed crc */
@@ -920,21 +915,6 @@ void srom_free_vars(struct si_pub *sih)
 		list_del(&entry->var_list);
 		kfree(entry);
 	}
-}
-/*
- * Initialize local vars from the right source for this platform.
- * Return 0 on success, nonzero on error.
- */
-int srom_var_init(struct si_pub *sih, void __iomem *curmap)
-{
-	uint len;
-
-	len = 0;
-
-	if (curmap != NULL)
-		return initvars_srom_pci(sih, curmap);
-
-	return -EINVAL;
 }
 
 /*

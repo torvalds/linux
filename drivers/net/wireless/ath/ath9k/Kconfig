@@ -2,6 +2,9 @@ config ATH9K_HW
 	tristate
 config ATH9K_COMMON
 	tristate
+config ATH9K_DFS_DEBUGFS
+	def_bool y
+	depends on ATH9K_DEBUGFS && ATH9K_DFS_CERTIFIED
 
 config ATH9K
 	tristate "Atheros 802.11n wireless cards support"
@@ -50,6 +53,25 @@ config ATH9K_DEBUGFS
 	  interrupts, rate control, etc.
 
 	  Also required for changing debug message flags at run time.
+
+config ATH9K_DFS_CERTIFIED
+	bool "Atheros DFS support for certified platforms"
+	depends on ATH9K && EXPERT
+	default n
+	---help---
+	  This option enables DFS support for initiating radiation on
+	  ath9k. There is no way to dynamically detect if a card was DFS
+	  certified and as such this is left as a build time option. This
+	  option should only be enabled by system integrators that can
+	  guarantee that all the platforms that their kernel will run on
+	  have obtained appropriate regulatory body certification for a
+	  respective Atheros card by using ath9k on the target shipping
+	  platforms.
+
+	  This is currently only a placeholder for future DFS support,
+	  as DFS support requires more components that still need to be
+	  developed. At this point enabling this option won't do anything
+	  except increase code size.
 
 config ATH9K_RATE_CONTROL
 	bool "Atheros ath9k rate control"

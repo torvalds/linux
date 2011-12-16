@@ -26,20 +26,14 @@
 #include "../w1_family.h"
 #include "w1_ds2780.h"
 
-int w1_ds2780_io(struct device *dev, char *buf, int addr, size_t count,
-			int io)
+static int w1_ds2780_do_io(struct device *dev, char *buf, int addr,
+			size_t count, int io)
 {
 	struct w1_slave *sl = container_of(dev, struct w1_slave, dev);
 
-	if (!dev)
-		return -ENODEV;
+	if (addr > DS2780_DATA_SIZE || addr < 0)
+		return 0;
 
-	mutex_lock(&sl->master->mutex);
-
-	if (addr > DS2780_DATA_SIZE || addr < 0) {
-		count = 0;
-		goto out;
-	}
 	count = min_t(int, count, DS2780_DATA_SIZE - addr);
 
 	if (w1_reset_select_slave(sl) == 0) {
@@ -47,7 +41,6 @@ int w1_ds2780_io(struct device *dev, char *buf, int addr, size_t count,
 			w1_write_8(sl->master, W1_DS2780_WRITE_DATA);
 			w1_write_8(sl->master, addr);
 			w1_write_block(sl->master, buf, count);
-			/* XXX w1_write_block returns void, not n_written */
 		} else {
 			w1_write_8(sl->master, W1_DS2780_READ_DATA);
 			w1_write_8(sl->master, addr);
@@ -55,12 +48,41 @@ int w1_ds2780_io(struct device *dev, char *buf, int addr, size_t count,
 		}
 	}
 
-out:
-	mutex_unlock(&sl->master->mutex);
-
 	return count;
 }
+
+int w1_ds2780_io(struct device *dev, char *buf, int addr, size_t count,
+			int io)
+{
+	struct w1_slave *sl = container_of(dev, struct w1_slave, dev);
+	int ret;
+
+	if (!dev)
+		return -ENODEV;
+
+	mutex_lock(&sl->master->mutex);
+
+	ret = w1_ds2780_do_io(dev, buf, addr, count, io);
+
+	mutex_unlock(&sl->master->mutex);
+
+	return ret;
+}
 EXPORT_SYMBOL(w1_ds2780_io);
+
+int w1_ds2780_io_nolock(struct device *dev, char *buf, int addr, size_t count,
+			int io)
+{
+	int ret;
+
+	if (!dev)
+		return -ENODEV;
+
+	ret = w1_ds2780_do_io(dev, buf, addr, count, io);
+
+	return ret;
+}
+EXPORT_SYMBOL(w1_ds2780_io_nolock);
 
 int w1_ds2780_eeprom_cmd(struct device *dev, int addr, int cmd)
 {
@@ -99,43 +121,7 @@ static struct bin_attribute w1_ds2780_bin_attr = {
 	.read = w1_ds2780_read_bin,
 };
 
-static DEFINE_IDR(bat_idr);
-static DEFINE_MUTEX(bat_idr_lock);
-
-static int new_bat_id(void)
-{
-	int ret;
-
-	while (1) {
-		int id;
-
-		ret = idr_pre_get(&bat_idr, GFP_KERNEL);
-		if (ret == 0)
-			return -ENOMEM;
-
-		mutex_lock(&bat_idr_lock);
-		ret = idr_get_new(&bat_idr, NULL, &id);
-		mutex_unlock(&bat_idr_lock);
-
-		if (ret == 0) {
-			ret = id & MAX_ID_MASK;
-			break;
-		} else if (ret == -EAGAIN) {
-			continue;
-		} else {
-			break;
-		}
-	}
-
-	return ret;
-}
-
-static void release_bat_id(int id)
-{
-	mutex_lock(&bat_idr_lock);
-	idr_remove(&bat_idr, id);
-	mutex_unlock(&bat_idr_lock);
-}
+static DEFINE_IDA(bat_ida);
 
 static int w1_ds2780_add_slave(struct w1_slave *sl)
 {
@@ -143,7 +129,7 @@ static int w1_ds2780_add_slave(struct w1_slave *sl)
 	int id;
 	struct platform_device *pdev;
 
-	id = new_bat_id();
+	id = ida_simple_get(&bat_ida, 0, 0, GFP_KERNEL);
 	if (id < 0) {
 		ret = id;
 		goto noid;
@@ -172,7 +158,7 @@ bin_attr_failed:
 pdev_add_failed:
 	platform_device_unregister(pdev);
 pdev_alloc_failed:
-	release_bat_id(id);
+	ida_simple_remove(&bat_ida, id);
 noid:
 	return ret;
 }
@@ -183,7 +169,7 @@ static void w1_ds2780_remove_slave(struct w1_slave *sl)
 	int id = pdev->id;
 
 	platform_device_unregister(pdev);
-	release_bat_id(id);
+	ida_simple_remove(&bat_ida, id);
 	sysfs_remove_bin_file(&sl->dev.kobj, &w1_ds2780_bin_attr);
 }
 
@@ -199,14 +185,14 @@ static struct w1_family w1_ds2780_family = {
 
 static int __init w1_ds2780_init(void)
 {
-	idr_init(&bat_idr);
+	ida_init(&bat_ida);
 	return w1_register_family(&w1_ds2780_family);
 }
 
 static void __exit w1_ds2780_exit(void)
 {
 	w1_unregister_family(&w1_ds2780_family);
-	idr_destroy(&bat_idr);
+	ida_destroy(&bat_ida);
 }
 
 module_init(w1_ds2780_init);

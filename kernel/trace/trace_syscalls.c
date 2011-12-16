@@ -2,6 +2,7 @@
 #include <trace/events/syscalls.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
+#include <linux/module.h>	/* for MODULE_NAME_LEN via KSYM_SYMBOL_LEN */
 #include <linux/ftrace.h>
 #include <linux/perf_event.h>
 #include <asm/syscall.h>

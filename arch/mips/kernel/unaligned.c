@@ -73,7 +73,6 @@
  *       Undo the partial store in this case.
  */
 #include <linux/mm.h>
-#include <linux/module.h>
 #include <linux/signal.h>
 #include <linux/smp.h>
 #include <linux/sched.h>

@@ -12,8 +12,10 @@
  *  GNU General Public License for more details.
  */
 
+#include <linux/export.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
+#include <linux/kmod.h>
 #include <linux/sched.h>
 #include <linux/freezer.h>
 #include "rc-core-priv.h"

@@ -9,7 +9,6 @@
  *	      Dan Morrison, IBM Corporation <dmorriso@cse.buffalo.edu>
  */
 
-#include <linux/kernel_stat.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kdev_t.h>
@@ -362,7 +361,6 @@ static void raw3215_irq(struct ccw_device *cdev, unsigned long intparm,
 	int cstat, dstat;
 	int count;
 
-	kstat_cpu(smp_processor_id()).irqs[IOINT_C15]++;
 	raw = dev_get_drvdata(&cdev->dev);
 	req = (struct raw3215_req *) intparm;
 	cstat = irb->scsw.cmd.cstat;
@@ -776,6 +774,7 @@ static struct ccw_driver raw3215_ccw_driver = {
 	.freeze		= &raw3215_pm_stop,
 	.thaw		= &raw3215_pm_start,
 	.restore	= &raw3215_pm_start,
+	.int_class	= IOINT_C15,
 };
 
 #ifdef CONFIG_TN3215_CONSOLE

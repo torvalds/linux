@@ -309,7 +309,7 @@ static irqreturn_t mc13xxx_rtc_reset_handler(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static int __devinit mc13xxx_rtc_probe(struct platform_device *pdev)
+static int __init mc13xxx_rtc_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct mc13xxx_rtc *priv;
@@ -378,7 +378,7 @@ err_reset_irq_request:
 	return ret;
 }
 
-static int __devexit mc13xxx_rtc_remove(struct platform_device *pdev)
+static int __exit mc13xxx_rtc_remove(struct platform_device *pdev)
 {
 	struct mc13xxx_rtc *priv = platform_get_drvdata(pdev);
 
@@ -410,7 +410,7 @@ const struct platform_device_id mc13xxx_rtc_idtable[] = {
 
 static struct platform_driver mc13xxx_rtc_driver = {
 	.id_table = mc13xxx_rtc_idtable,
-	.remove = __devexit_p(mc13xxx_rtc_remove),
+	.remove = __exit_p(mc13xxx_rtc_remove),
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,

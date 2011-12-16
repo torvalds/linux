@@ -161,6 +161,7 @@ static void __init tx28_stk5v3_init(void)
 	i2c_register_board_info(0, tx28_stk5v3_i2c_boardinfo,
 			ARRAY_SIZE(tx28_stk5v3_i2c_boardinfo));
 	mx28_add_mxs_mmc(0, &tx28_mmc0_pdata);
+	mx28_add_rtc_stmp3xxx();
 }
 
 static void __init tx28_timer_init(void)
@@ -175,6 +176,6 @@ static struct sys_timer tx28_timer = {
 MACHINE_START(TX28, "Ka-Ro electronics TX28 module")
 	.map_io = mx28_map_io,
 	.init_irq = mx28_init_irq,
-	.init_machine = tx28_stk5v3_init,
 	.timer = &tx28_timer,
+	.init_machine = tx28_stk5v3_init,
 MACHINE_END

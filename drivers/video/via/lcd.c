@@ -548,9 +548,8 @@ static void lcd_patch_skew(struct lvds_setting_information
 }
 
 /* LCD Set Mode */
-void viafb_lcd_set_mode(struct crt_mode_table *mode_crt_table,
-		  struct lvds_setting_information *plvds_setting_info,
-		  struct lvds_chip_information *plvds_chip_info)
+void viafb_lcd_set_mode(struct lvds_setting_information *plvds_setting_info,
+	struct lvds_chip_information *plvds_chip_info)
 {
 	int set_iga = plvds_setting_info->iga_path;
 	int mode_bpp = plvds_setting_info->bpp;
@@ -559,16 +558,15 @@ void viafb_lcd_set_mode(struct crt_mode_table *mode_crt_table,
 	int panel_hres = plvds_setting_info->lcd_panel_hres;
 	int panel_vres = plvds_setting_info->lcd_panel_vres;
 	u32 clock;
-	struct display_timing mode_crt_reg, panel_crt_reg;
-	struct crt_mode_table *panel_crt_table = NULL;
-	struct VideoModeTable *vmode_tbl = viafb_get_mode(panel_hres,
-		panel_vres);
+	struct display_timing mode_crt_reg, panel_crt_reg, timing;
+	struct crt_mode_table *mode_crt_table, *panel_crt_table;
 
 	DEBUG_MSG(KERN_INFO "viafb_lcd_set_mode!!\n");
 	/* Get mode table */
+	mode_crt_table = viafb_get_best_mode(set_hres, set_vres, 60);
 	mode_crt_reg = mode_crt_table->crtc;
 	/* Get panel table Pointer */
-	panel_crt_table = vmode_tbl->crtc;
+	panel_crt_table = viafb_get_best_mode(panel_hres, panel_vres, 60);
 	panel_crt_reg = panel_crt_table->crtc;
 	DEBUG_MSG(KERN_INFO "bellow viafb_lcd_set_mode!!\n");
 	if (VT1636_LVDS == plvds_chip_info->lvds_chip_name)
@@ -576,30 +574,27 @@ void viafb_lcd_set_mode(struct crt_mode_table *mode_crt_table,
 	clock = panel_crt_reg.hor_total * panel_crt_reg.ver_total
 		* panel_crt_table->refresh_rate;
 	plvds_setting_info->vclk = clock;
-	if (set_iga == IGA1) {
-		/* IGA1 doesn't have LCD scaling, so set it as centering. */
-		viafb_load_crtc_timing(lcd_centering_timging
-				 (mode_crt_reg, panel_crt_reg), IGA1);
+
+	if (set_iga == IGA2 && (set_hres < panel_hres || set_vres < panel_vres)
+		&& plvds_setting_info->display_method == LCD_EXPANDSION) {
+		timing = panel_crt_reg;
+		load_lcd_scaling(set_hres, set_vres, panel_hres, panel_vres);
 	} else {
-		/* Expansion */
-		if (plvds_setting_info->display_method == LCD_EXPANDSION
-			&& (set_hres < panel_hres || set_vres < panel_vres)) {
-			/* expansion timing IGA2 loaded panel set timing*/
-			viafb_load_crtc_timing(panel_crt_reg, IGA2);
-			DEBUG_MSG(KERN_INFO "viafb_load_crtc_timing!!\n");
-			load_lcd_scaling(set_hres, set_vres, panel_hres,
-					 panel_vres);
-			DEBUG_MSG(KERN_INFO "load_lcd_scaling!!\n");
-		} else {	/* Centering */
-			/* centering timing IGA2 always loaded panel
-			   and mode releative timing */
-			viafb_load_crtc_timing(lcd_centering_timging
-					 (mode_crt_reg, panel_crt_reg), IGA2);
-			viafb_write_reg_mask(CR79, VIACR, 0x00,
+		timing = lcd_centering_timging(mode_crt_reg, panel_crt_reg);
+		if (set_iga == IGA2)
+			/* disable scaling */
+			via_write_reg_mask(VIACR, 0x79, 0x00,
 				BIT0 + BIT1 + BIT2);
-			/* LCD scaling disabled */
-		}
 	}
+
+	timing.hor_blank_end += timing.hor_blank_start;
+	timing.hor_sync_end += timing.hor_sync_start;
+	timing.ver_blank_end += timing.ver_blank_start;
+	timing.ver_sync_end += timing.ver_sync_start;
+	if (set_iga == IGA1)
+		via_set_primary_timing(&timing);
+	else if (set_iga == IGA2)
+		via_set_secondary_timing(&timing);
 
 	/* Fetch count for IGA2 only */
 	viafb_load_fetch_count_reg(set_hres, mode_bpp / 8, set_iga);

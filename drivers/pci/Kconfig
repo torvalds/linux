@@ -51,17 +51,6 @@ config XEN_PCIDEV_FRONTEND
           The PCI device frontend driver allows the kernel to import arbitrary
           PCI devices from a PCI backend to support PCI driver domains.
 
-config XEN_PCIDEV_FE_DEBUG
-        bool "Xen PCI Frontend debugging"
-        depends on XEN_PCIDEV_FRONTEND && PCI_DEBUG
-	help
-	  Say Y here if you want the Xen PCI frontend to produce a bunch of debug
-	  messages to the system log.  Select this if you are having a
-	  problem with Xen PCI frontend support and want to see more of what is
-	  going on.
-
-	  When in doubt, say N.
-
 config HT_IRQ
 	bool "Interrupts on hypertransport devices"
 	default y
@@ -71,13 +60,39 @@ config HT_IRQ
 
 	   If unsure say Y.
 
+config PCI_ATS
+	bool
+
 config PCI_IOV
 	bool "PCI IOV support"
 	depends on PCI
+	select PCI_ATS
 	help
 	  I/O Virtualization is a PCI feature supported by some devices
 	  which allows them to create virtual devices which share their
 	  physical resources.
+
+	  If unsure, say N.
+
+config PCI_PRI
+	bool "PCI PRI support"
+	select PCI_ATS
+	help
+	  PRI is the PCI Page Request Interface. It allows PCI devices that are
+	  behind an IOMMU to recover from page faults.
+
+	  If unsure, say N.
+
+config PCI_PASID
+	bool "PCI PASID support"
+	depends on PCI
+	select PCI_ATS
+	help
+	  Process Address Space Identifiers (PASIDs) can be used by PCI devices
+	  to access more than one IO address space at the same time. To make
+	  use of this feature an IOMMU is required which also supports PASIDs.
+	  Select this option if you have such an IOMMU and want to compile the
+	  driver for it into your kernel.
 
 	  If unsure, say N.
 

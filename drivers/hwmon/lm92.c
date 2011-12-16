@@ -117,16 +117,16 @@ static struct lm92_data *lm92_update_device(struct device *dev)
 	if (time_after(jiffies, data->last_updated + HZ)
 	 || !data->valid) {
 		dev_dbg(&client->dev, "Updating lm92 data\n");
-		data->temp1_input = swab16(i2c_smbus_read_word_data(client,
-				    LM92_REG_TEMP));
-		data->temp1_hyst = swab16(i2c_smbus_read_word_data(client,
-				    LM92_REG_TEMP_HYST));
-		data->temp1_crit = swab16(i2c_smbus_read_word_data(client,
-				    LM92_REG_TEMP_CRIT));
-		data->temp1_min = swab16(i2c_smbus_read_word_data(client,
-				    LM92_REG_TEMP_LOW));
-		data->temp1_max = swab16(i2c_smbus_read_word_data(client,
-				    LM92_REG_TEMP_HIGH));
+		data->temp1_input = i2c_smbus_read_word_swapped(client,
+				    LM92_REG_TEMP);
+		data->temp1_hyst = i2c_smbus_read_word_swapped(client,
+				    LM92_REG_TEMP_HYST);
+		data->temp1_crit = i2c_smbus_read_word_swapped(client,
+				    LM92_REG_TEMP_CRIT);
+		data->temp1_min = i2c_smbus_read_word_swapped(client,
+				    LM92_REG_TEMP_LOW);
+		data->temp1_max = i2c_smbus_read_word_swapped(client,
+				    LM92_REG_TEMP_HIGH);
 
 		data->last_updated = jiffies;
 		data->valid = 1;
@@ -158,7 +158,7 @@ static ssize_t set_##value(struct device *dev, struct device_attribute *attr, co
  \
 	mutex_lock(&data->update_lock); \
 	data->value = TEMP_TO_REG(val); \
-	i2c_smbus_write_word_data(client, reg, swab16(data->value)); \
+	i2c_smbus_write_word_swapped(client, reg, data->value); \
 	mutex_unlock(&data->update_lock); \
 	return count; \
 }
@@ -194,8 +194,8 @@ static ssize_t set_temp1_crit_hyst(struct device *dev, struct device_attribute *
 
 	mutex_lock(&data->update_lock);
 	data->temp1_hyst = TEMP_FROM_REG(data->temp1_crit) - val;
-	i2c_smbus_write_word_data(client, LM92_REG_TEMP_HYST,
-				  swab16(TEMP_TO_REG(data->temp1_hyst)));
+	i2c_smbus_write_word_swapped(client, LM92_REG_TEMP_HYST,
+				     TEMP_TO_REG(data->temp1_hyst));
 	mutex_unlock(&data->update_lock);
 	return count;
 }

@@ -167,12 +167,59 @@ static struct i2c_board_info gpr_i2c_info[] __initdata = {
 	}
 };
 
+
+
+static struct resource alchemy_pci_host_res[] = {
+	[0] = {
+		.start	= AU1500_PCI_PHYS_ADDR,
+		.end	= AU1500_PCI_PHYS_ADDR + 0xfff,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static int gpr_map_pci_irq(const struct pci_dev *d, u8 slot, u8 pin)
+{
+	if ((slot == 0) && (pin == 1))
+		return AU1550_PCI_INTA;
+	else if ((slot == 0) && (pin == 2))
+		return AU1550_PCI_INTB;
+
+	return -1;
+}
+
+static struct alchemy_pci_platdata gpr_pci_pd = {
+	.board_map_irq	= gpr_map_pci_irq,
+	.pci_cfg_set	= PCI_CONFIG_AEN | PCI_CONFIG_R2H | PCI_CONFIG_R1H |
+			  PCI_CONFIG_CH |
+#if defined(__MIPSEB__)
+			  PCI_CONFIG_SIC_HWA_DAT | PCI_CONFIG_SM,
+#else
+			  0,
+#endif
+};
+
+static struct platform_device gpr_pci_host_dev = {
+	.dev.platform_data = &gpr_pci_pd,
+	.name		= "alchemy-pci",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(alchemy_pci_host_res),
+	.resource	= alchemy_pci_host_res,
+};
+
 static struct platform_device *gpr_devices[] __initdata = {
 	&gpr_wdt_device,
 	&gpr_mtd_device,
 	&gpr_i2c_device,
 	&gpr_led_devices,
 };
+
+static int __init gpr_pci_init(void)
+{
+	return platform_device_register(&gpr_pci_host_dev);
+}
+/* must be arch_initcall; MIPS PCI scans busses in a subsys_initcall */
+arch_initcall(gpr_pci_init);
+
 
 static int __init gpr_dev_init(void)
 {

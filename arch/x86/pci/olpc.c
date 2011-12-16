@@ -301,7 +301,7 @@ static int pci_olpc_write(unsigned int seg, unsigned int bus,
 	return 0;
 }
 
-static struct pci_raw_ops pci_olpc_conf = {
+static const struct pci_raw_ops pci_olpc_conf = {
 	.read =	pci_olpc_read,
 	.write = pci_olpc_write,
 };

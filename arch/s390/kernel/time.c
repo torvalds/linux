@@ -48,6 +48,7 @@
 #include <asm/timer.h>
 #include <asm/etr.h>
 #include <asm/cio.h>
+#include "entry.h"
 
 /* change this if you have some constant time drift */
 #define USECS_PER_JIFFY     ((unsigned long) 1000000/HZ)

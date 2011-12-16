@@ -6,6 +6,10 @@
 struct platform_device;
 struct tmio_mmc_data;
 
+#define SH_MOBILE_SDHI_IRQ_CARD_DETECT	"card_detect"
+#define SH_MOBILE_SDHI_IRQ_SDCARD	"sdcard"
+#define SH_MOBILE_SDHI_IRQ_SDIO		"sdio"
+
 struct sh_mobile_sdhi_info {
 	int dma_slave_tx;
 	int dma_slave_rx;

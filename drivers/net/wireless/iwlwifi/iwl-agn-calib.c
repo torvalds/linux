@@ -82,56 +82,64 @@ struct statistics_general_data {
 	u32 beacon_energy_c;
 };
 
-int iwl_send_calib_results(struct iwl_priv *priv)
+int iwl_send_calib_results(struct iwl_trans *trans)
 {
-	int ret = 0;
-	int i = 0;
-
 	struct iwl_host_cmd hcmd = {
 		.id = REPLY_PHY_CALIBRATION_CMD,
 		.flags = CMD_SYNC,
 	};
+	struct iwl_calib_result *res;
 
-	for (i = 0; i < IWL_CALIB_MAX; i++) {
-		if ((BIT(i) & hw_params(priv).calib_init_cfg) &&
-		    priv->calib_results[i].buf) {
-			hcmd.len[0] = priv->calib_results[i].buf_len;
-			hcmd.data[0] = priv->calib_results[i].buf;
-			hcmd.dataflags[0] = IWL_HCMD_DFL_NOCOPY;
-			ret = iwl_trans_send_cmd(trans(priv), &hcmd);
-			if (ret) {
-				IWL_ERR(priv, "Error %d iteration %d\n",
-					ret, i);
-				break;
-			}
+	list_for_each_entry(res, &trans->calib_results, list) {
+		int ret;
+
+		hcmd.len[0] = res->cmd_len;
+		hcmd.data[0] = &res->hdr;
+		hcmd.dataflags[0] = IWL_HCMD_DFL_NOCOPY;
+		ret = iwl_trans_send_cmd(trans, &hcmd);
+		if (ret) {
+			IWL_ERR(trans, "Error %d on calib cmd %d\n",
+				ret, res->hdr.op_code);
+			return ret;
 		}
 	}
 
-	return ret;
-}
-
-int iwl_calib_set(struct iwl_calib_result *res, const u8 *buf, int len)
-{
-	if (res->buf_len != len) {
-		kfree(res->buf);
-		res->buf = kzalloc(len, GFP_ATOMIC);
-	}
-	if (unlikely(res->buf == NULL))
-		return -ENOMEM;
-
-	res->buf_len = len;
-	memcpy(res->buf, buf, len);
 	return 0;
 }
 
-void iwl_calib_free_results(struct iwl_priv *priv)
+int iwl_calib_set(struct iwl_trans *trans,
+		  const struct iwl_calib_hdr *cmd, int len)
 {
-	int i;
+	struct iwl_calib_result *res, *tmp;
 
-	for (i = 0; i < IWL_CALIB_MAX; i++) {
-		kfree(priv->calib_results[i].buf);
-		priv->calib_results[i].buf = NULL;
-		priv->calib_results[i].buf_len = 0;
+	res = kmalloc(sizeof(*res) + len - sizeof(struct iwl_calib_hdr),
+		      GFP_ATOMIC);
+	if (!res)
+		return -ENOMEM;
+	memcpy(&res->hdr, cmd, len);
+	res->cmd_len = len;
+
+	list_for_each_entry(tmp, &trans->calib_results, list) {
+		if (tmp->hdr.op_code == res->hdr.op_code) {
+			list_replace(&tmp->list, &res->list);
+			kfree(tmp);
+			return 0;
+		}
+	}
+
+	/* wasn't in list already */
+	list_add_tail(&res->list, &trans->calib_results);
+
+	return 0;
+}
+
+void iwl_calib_free_results(struct iwl_trans *trans)
+{
+	struct iwl_calib_result *res, *tmp;
+
+	list_for_each_entry_safe(res, tmp, &trans->calib_results, list) {
+		list_del(&res->list);
+		kfree(res);
 	}
 }
 

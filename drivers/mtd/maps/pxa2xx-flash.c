@@ -41,8 +41,6 @@ static void pxa2xx_map_inval_cache(struct map_info *map, unsigned long from,
 }
 
 struct pxa2xx_flash_info {
-	struct mtd_partition	*parts;
-	int			nr_parts;
 	struct mtd_info		*mtd;
 	struct map_info		map;
 };
@@ -55,9 +53,7 @@ static int __devinit pxa2xx_flash_probe(struct platform_device *pdev)
 {
 	struct flash_platform_data *flash = pdev->dev.platform_data;
 	struct pxa2xx_flash_info *info;
-	struct mtd_partition *parts;
 	struct resource *res;
-	int ret = 0;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -71,8 +67,6 @@ static int __devinit pxa2xx_flash_probe(struct platform_device *pdev)
 	info->map.bankwidth = flash->width;
 	info->map.phys = res->start;
 	info->map.size = resource_size(res);
-	info->parts = flash->parts;
-	info->nr_parts = flash->nr_parts;
 
 	info->map.virt = ioremap(info->map.phys, info->map.size);
 	if (!info->map.virt) {
@@ -104,18 +98,7 @@ static int __devinit pxa2xx_flash_probe(struct platform_device *pdev)
 	}
 	info->mtd->owner = THIS_MODULE;
 
-	ret = parse_mtd_partitions(info->mtd, probes, &parts, 0);
-
-	if (ret > 0) {
-		info->nr_parts = ret;
-		info->parts = parts;
-	}
-
-	if (!info->nr_parts)
-		printk("Registering %s as whole device\n",
-		       info->map.name);
-
-	mtd_device_register(info->mtd, info->parts, info->nr_parts);
+	mtd_device_parse_register(info->mtd, probes, 0, NULL, 0);
 
 	platform_set_drvdata(pdev, info);
 	return 0;
@@ -133,7 +116,6 @@ static int __devexit pxa2xx_flash_remove(struct platform_device *dev)
 	iounmap(info->map.virt);
 	if (info->map.cached)
 		iounmap(info->map.cached);
-	kfree(info->parts);
 	kfree(info);
 	return 0;
 }

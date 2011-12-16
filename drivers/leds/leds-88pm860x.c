@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/mfd/88pm860x.h>
+#include <linux/module.h>
 
 #define LED_PWM_SHIFT		(3)
 #define LED_PWM_MASK		(0x1F)

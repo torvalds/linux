@@ -43,13 +43,14 @@
 #include <mach/hardware.h>
 #include <mach/map.h>
 
-#include <mach/s3c6410.h>
 #include <mach/regs-sys.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-modem.h>
+#include <mach/crag6410.h>
 
 #include <mach/regs-gpio-memport.h>
 
+#include <plat/s3c6410.h>
 #include <plat/regs-serial.h>
 #include <plat/regs-fb-v4.h>
 #include <plat/fb.h>
@@ -64,17 +65,6 @@
 #include <plat/adc.h>
 #include <plat/iic.h>
 #include <plat/pm.h>
-
-#include <sound/wm8996.h>
-#include <sound/wm8962.h>
-#include <sound/wm9081.h>
-
-#define BANFF_PMIC_IRQ_BASE		IRQ_BOARD_START
-#define GLENFARCLAS_PMIC_IRQ_BASE	(IRQ_BOARD_START + 64)
-
-#define PCA935X_GPIO_BASE		GPIO_BOARD_START
-#define CODEC_GPIO_BASE		(GPIO_BOARD_START + 8)
-#define GLENFARCLAS_PMIC_GPIO_BASE	(GPIO_BOARD_START + 16)
 
 /* serial port setup */
 
@@ -287,6 +277,11 @@ static struct platform_device speyside_device = {
 	.id		= -1,
 };
 
+static struct platform_device lowland_device = {
+	.name		= "lowland",
+	.id		= -1,
+};
+
 static struct platform_device speyside_wm8962_device = {
 	.name		= "speyside-wm8962",
 	.id		= -1,
@@ -295,6 +290,8 @@ static struct platform_device speyside_wm8962_device = {
 static struct regulator_consumer_supply wallvdd_consumers[] = {
 	REGULATOR_SUPPLY("SPKVDD1", "1-001a"),
 	REGULATOR_SUPPLY("SPKVDD2", "1-001a"),
+	REGULATOR_SUPPLY("SPKVDDL", "1-001a"),
+	REGULATOR_SUPPLY("SPKVDDR", "1-001a"),
 };
 
 static struct regulator_init_data wallvdd_data = {
@@ -329,9 +326,6 @@ static struct platform_device *crag6410_devices[] __initdata = {
 	&s3c_device_fb,
 	&s3c_device_ohci,
 	&s3c_device_usb_hsotg,
-	&s3c_device_adc,
-	&s3c_device_rtc,
-	&s3c_device_ts,
 	&s3c_device_timer[0],
 	&s3c64xx_device_iis0,
 	&s3c64xx_device_iis1,
@@ -345,12 +339,19 @@ static struct platform_device *crag6410_devices[] __initdata = {
 	&crag6410_backlight_device,
 	&speyside_device,
 	&speyside_wm8962_device,
+	&lowland_device,
 	&wallvdd_device,
 };
 
 static struct pca953x_platform_data crag6410_pca_data = {
 	.gpio_base	= PCA935X_GPIO_BASE,
 	.irq_base	= 0,
+};
+
+/* VDDARM is controlled by DVS1 connected to GPK(0) */
+static struct wm831x_buckv_pdata vddarm_pdata = {
+	.dvs_control_src = 1,
+	.dvs_gpio = S3C64XX_GPK(0),
 };
 
 static struct regulator_consumer_supply vddarm_consumers[] __initdata = {
@@ -368,6 +369,7 @@ static struct regulator_init_data vddarm __initdata = {
 	.num_consumer_supplies = ARRAY_SIZE(vddarm_consumers),
 	.consumer_supplies = vddarm_consumers,
 	.supply_regulator = "WALLVDD",
+	.driver_data = &vddarm_pdata,
 };
 
 static struct regulator_init_data vddint __initdata = {
@@ -503,6 +505,8 @@ static struct wm831x_pdata crag_pmic_pdata __initdata = {
 	.backup = &banff_backup_pdata,
 
 	.gpio_defaults = {
+		/* GPIO5: DVS1_REQ - CMOS, DBVDD, active high */
+		[4] = WM831X_GPN_DIR | WM831X_GPN_POL | WM831X_GPN_ENA | 0x8,
 		/* GPIO11: Touchscreen data - CMOS, DBVDD, active high*/
 		[10] = WM831X_GPN_POL | WM831X_GPN_ENA | 0x6,
 		/* GPIO12: Touchscreen pen down - CMOS, DBVDD, active high*/
@@ -560,8 +564,12 @@ static struct regulator_init_data pvdd_1v2 __initdata = {
 };
 
 static struct regulator_consumer_supply pvdd_1v8_consumers[] __initdata = {
+	REGULATOR_SUPPLY("LDOVDD", "1-001a"),
 	REGULATOR_SUPPLY("PLLVDD", "1-001a"),
 	REGULATOR_SUPPLY("DBVDD", "1-001a"),
+	REGULATOR_SUPPLY("DBVDD1", "1-001a"),
+	REGULATOR_SUPPLY("DBVDD2", "1-001a"),
+	REGULATOR_SUPPLY("DBVDD3", "1-001a"),
 	REGULATOR_SUPPLY("CPVDD", "1-001a"),
 	REGULATOR_SUPPLY("AVDD2", "1-001a"),
 	REGULATOR_SUPPLY("DCVDD", "1-001a"),
@@ -614,81 +622,16 @@ static struct wm831x_pdata glenfarclas_pmic_pdata __initdata = {
 	.disable_touch = true,
 };
 
-static struct wm8996_retune_mobile_config wm8996_retune[] = {
-	{
-		.name = "Sub LPF",
-		.rate = 48000,
-		.regs = {
-			0x6318, 0x6300, 0x1000, 0x0000, 0x0004, 0x2000, 0xF000,
-			0x0000, 0x0004, 0x2000, 0xF000, 0x0000, 0x0004, 0x2000,
-			0xF000, 0x0000, 0x0004, 0x1000, 0x0800, 0x4000
-		},
-	},
-	{
-		.name = "Sub HPF",
-		.rate = 48000,
-		.regs = {
-			0x000A, 0x6300, 0x1000, 0x0000, 0x0004, 0x2000, 0xF000,
-			0x0000, 0x0004, 0x2000, 0xF000, 0x0000, 0x0004, 0x2000,
-			0xF000, 0x0000, 0x0004, 0x1000, 0x0800, 0x4000
-		},
-	},
-};
-
-static struct wm8996_pdata wm8996_pdata __initdata = {
-	.ldo_ena = S3C64XX_GPN(7),
-	.gpio_base = CODEC_GPIO_BASE,
-	.micdet_def = 1,
-	.inl_mode = WM8996_DIFFERRENTIAL_1,
-	.inr_mode = WM8996_DIFFERRENTIAL_1,
-
-	.irq_flags = IRQF_TRIGGER_RISING,
-
-	.gpio_default = {
-		0x8001, /* GPIO1 == ADCLRCLK1 */
-		0x8001, /* GPIO2 == ADCLRCLK2, input due to CPU */
-		0x0141, /* GPIO3 == HP_SEL */
-		0x0002, /* GPIO4 == IRQ */
-		0x020e, /* GPIO5 == CLKOUT */
-	},
-
-	.retune_mobile_cfgs = wm8996_retune,
-	.num_retune_mobile_cfgs = ARRAY_SIZE(wm8996_retune),
-};
-
-static struct wm8962_pdata wm8962_pdata __initdata = {
-	.gpio_init = {
-		0,
-		WM8962_GPIO_FN_OPCLK,
-		WM8962_GPIO_FN_DMICCLK,
-		0,
-		0x8000 | WM8962_GPIO_FN_DMICDAT,
-		WM8962_GPIO_FN_IRQ,    /* Open drain mode */
-	},
-	.irq_active_low = true,
-};
-
-static struct wm9081_pdata wm9081_pdata __initdata = {
-	.irq_high = false,
-	.irq_cmos = false,
-};
-
 static struct i2c_board_info i2c_devs1[] __initdata = {
 	{ I2C_BOARD_INFO("wm8311", 0x34),
 	  .irq = S3C_EINT(0),
 	  .platform_data = &glenfarclas_pmic_pdata },
 
+	{ I2C_BOARD_INFO("wlf-gf-module", 0x24) },
+	{ I2C_BOARD_INFO("wlf-gf-module", 0x25) },
+	{ I2C_BOARD_INFO("wlf-gf-module", 0x26) },
+
 	{ I2C_BOARD_INFO("wm1250-ev1", 0x27) },
-	{ I2C_BOARD_INFO("wm8996", 0x1a),
-	  .platform_data = &wm8996_pdata,
-	  .irq = GLENFARCLAS_PMIC_IRQ_BASE + WM831X_IRQ_GPIO_2,
-	},
-	{ I2C_BOARD_INFO("wm9081", 0x6c),
-	  .platform_data = &wm9081_pdata, },
-	{ I2C_BOARD_INFO("wm8962", 0x1a),
-	  .platform_data = &wm8962_pdata,
-	  .irq = GLENFARCLAS_PMIC_IRQ_BASE + WM831X_IRQ_GPIO_2,
-	},
 };
 
 static void __init crag6410_map_io(void)
@@ -766,7 +709,7 @@ static void __init crag6410_machine_init(void)
 
 MACHINE_START(WLF_CRAGG_6410, "Wolfson Cragganmore 6410")
 	/* Maintainer: Mark Brown <broonie@opensource.wolfsonmicro.com> */
-	.boot_params	= S3C64XX_PA_SDRAM + 0x100,
+	.atag_offset	= 0x100,
 	.init_irq	= s3c6410_init_irq,
 	.map_io		= crag6410_map_io,
 	.init_machine	= crag6410_machine_init,

@@ -4,7 +4,7 @@
  * (C) 2004 William Irwin, Oracle
  */
 #include <linux/init.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/wait.h>

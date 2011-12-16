@@ -54,12 +54,14 @@
 #define S5P_CIGCTRL_IRQ_CLR		(1 << 19)
 #define S5P_CIGCTRL_IRQ_ENABLE		(1 << 16)
 #define S5P_CIGCTRL_SHDW_DISABLE	(1 << 12)
+#define S5P_CIGCTRL_CAM_JPEG		(1 << 8)
 #define S5P_CIGCTRL_SELCAM_MIPI_A	(1 << 7)
 #define S5P_CIGCTRL_CAMIF_SELWB		(1 << 6)
 /* 0 - ITU601; 1 - ITU709 */
 #define S5P_CIGCTRL_CSC_ITU601_709	(1 << 5)
 #define S5P_CIGCTRL_INVPOLHSYNC		(1 << 4)
 #define S5P_CIGCTRL_SELCAM_MIPI		(1 << 3)
+#define S5P_CIGCTRL_INVPOLFIELD		(1 << 1)
 #define S5P_CIGCTRL_INTERLACE		(1 << 0)
 
 /* Window offset 2 */
@@ -184,7 +186,6 @@
 
 /* Image effect */
 #define S5P_CIIMGEFF			0xd0
-#define S5P_CIIMGEFF_IE_DISABLE		(0 << 30)
 #define S5P_CIIMGEFF_IE_ENABLE		(1 << 30)
 #define S5P_CIIMGEFF_IE_SC_BEFORE	(0 << 29)
 #define S5P_CIIMGEFF_IE_SC_AFTER	(1 << 29)
@@ -286,10 +287,8 @@
 #define S5P_CSIIMGFMT_RAW8		0x2a
 #define S5P_CSIIMGFMT_RAW10		0x2b
 #define S5P_CSIIMGFMT_RAW12		0x2c
-#define S5P_CSIIMGFMT_USER1		0x30
-#define S5P_CSIIMGFMT_USER2		0x31
-#define S5P_CSIIMGFMT_USER3		0x32
-#define S5P_CSIIMGFMT_USER4		0x33
+/* User defined formats. x = 0...16. */
+#define S5P_CSIIMGFMT_USER(x)		(0x30 + x - 1)
 
 /* Output frame buffer sequence mask */
 #define S5P_CIFCNTSEQ			0x1FC

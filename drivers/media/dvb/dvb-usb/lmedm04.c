@@ -162,7 +162,7 @@ static int lme2510_usb_talk(struct dvb_usb_device *d,
 	int ret = 0;
 
 	if (st->usb_buffer == NULL) {
-		st->usb_buffer = kmalloc(512, GFP_KERNEL);
+		st->usb_buffer = kmalloc(64, GFP_KERNEL);
 		if (st->usb_buffer == NULL) {
 			info("MEM Error no memory");
 			return -ENOMEM;
@@ -175,8 +175,8 @@ static int lme2510_usb_talk(struct dvb_usb_device *d,
 	if (ret < 0)
 		return -EAGAIN;
 
-	/* the read/write capped at 512 */
-	memcpy(buff, wbuf, (wlen > 512) ? 512 : wlen);
+	/* the read/write capped at 64 */
+	memcpy(buff, wbuf, (wlen < 64) ? wlen : 64);
 
 	ret |= usb_clear_halt(d->udev, usb_sndbulkpipe(d->udev, 0x01));
 
@@ -186,8 +186,8 @@ static int lme2510_usb_talk(struct dvb_usb_device *d,
 
 	ret |= usb_clear_halt(d->udev, usb_rcvbulkpipe(d->udev, 0x01));
 
-	ret |= lme2510_bulk_read(d->udev, buff, (rlen > 512) ?
-			512 : rlen , 0x01);
+	ret |= lme2510_bulk_read(d->udev, buff, (rlen < 64) ?
+			rlen : 64 , 0x01);
 
 	if (rlen > 0)
 		memcpy(rbuf, buff, rlen);
@@ -333,7 +333,7 @@ static int lme2510_int_read(struct dvb_usb_adapter *adap)
 	if (lme_int->lme_urb == NULL)
 			return -ENOMEM;
 
-	lme_int->buffer = usb_alloc_coherent(adap->dev->udev, 5000, GFP_ATOMIC,
+	lme_int->buffer = usb_alloc_coherent(adap->dev->udev, 128, GFP_ATOMIC,
 					&lme_int->lme_urb->transfer_dma);
 
 	if (lme_int->buffer == NULL)
@@ -343,10 +343,10 @@ static int lme2510_int_read(struct dvb_usb_adapter *adap)
 				adap->dev->udev,
 				usb_rcvintpipe(adap->dev->udev, 0xa),
 				lme_int->buffer,
-				4096,
+				128,
 				lme2510_int_response,
 				adap,
-				11);
+				8);
 
 	lme_int->lme_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
@@ -580,7 +580,7 @@ static int lme2510_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 {
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
 	struct lme2510_state *st = d->priv;
-	static u8 obuf[64], ibuf[512];
+	static u8 obuf[64], ibuf[64];
 	int i, read, read_o;
 	u16 len;
 	u8 gate = st->i2c_gate;
@@ -621,7 +621,7 @@ static int lme2510_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 			len = msg[i].len+3;
 		}
 
-		if (lme2510_msg(d, obuf, len, ibuf, 512) < 0) {
+		if (lme2510_msg(d, obuf, len, ibuf, 64) < 0) {
 			deb_info(1, "i2c transfer failed.");
 			return -EAGAIN;
 		}
@@ -941,7 +941,7 @@ static int lme_name(struct dvb_usb_adapter *adap)
 	const char *desc = adap->dev->desc->name;
 	char *fe_name[] = {"", " LG TDQY-P001F", " SHARP:BS2F7HZ7395",
 				" SHARP:BS2F7HZ0194"};
-	char *name = adap->fe->ops.info.name;
+	char *name = adap->fe_adap[0].fe->ops.info.name;
 
 	strlcpy(name, desc, 128);
 	strlcat(name, fe_name[st->tuner_config], 128);
@@ -958,10 +958,10 @@ static int dm04_lme2510_frontend_attach(struct dvb_usb_adapter *adap)
 	st->i2c_talk_onoff = 1;
 
 	st->i2c_gate = 4;
-	adap->fe = dvb_attach(tda10086_attach, &tda10086_config,
+	adap->fe_adap[0].fe = dvb_attach(tda10086_attach, &tda10086_config,
 		&adap->dev->i2c_adap);
 
-	if (adap->fe) {
+	if (adap->fe_adap[0].fe) {
 		info("TUN Found Frontend TDA10086");
 		st->i2c_tuner_gate_w = 4;
 		st->i2c_tuner_gate_r = 4;
@@ -975,9 +975,9 @@ static int dm04_lme2510_frontend_attach(struct dvb_usb_adapter *adap)
 	}
 
 	st->i2c_gate = 4;
-	adap->fe = dvb_attach(stv0299_attach, &sharp_z0194_config,
+	adap->fe_adap[0].fe = dvb_attach(stv0299_attach, &sharp_z0194_config,
 			&adap->dev->i2c_adap);
-	if (adap->fe) {
+	if (adap->fe_adap[0].fe) {
 		info("FE Found Stv0299");
 		st->i2c_tuner_gate_w = 4;
 		st->i2c_tuner_gate_r = 5;
@@ -991,9 +991,9 @@ static int dm04_lme2510_frontend_attach(struct dvb_usb_adapter *adap)
 	}
 
 	st->i2c_gate = 5;
-	adap->fe = dvb_attach(stv0288_attach, &lme_config,
+	adap->fe_adap[0].fe = dvb_attach(stv0288_attach, &lme_config,
 			&adap->dev->i2c_adap);
-	if (adap->fe) {
+	if (adap->fe_adap[0].fe) {
 		info("FE Found Stv0288");
 		st->i2c_tuner_gate_w = 4;
 		st->i2c_tuner_gate_r = 5;
@@ -1010,15 +1010,15 @@ static int dm04_lme2510_frontend_attach(struct dvb_usb_adapter *adap)
 
 
 end:	if (ret) {
-		if (adap->fe) {
-			dvb_frontend_detach(adap->fe);
-			adap->fe = NULL;
+		if (adap->fe_adap[0].fe) {
+			dvb_frontend_detach(adap->fe_adap[0].fe);
+			adap->fe_adap[0].fe = NULL;
 		}
 		adap->dev->props.rc.core.rc_codes = NULL;
 		return -ENODEV;
 	}
 
-	adap->fe->ops.set_voltage = dm04_lme2510_set_voltage;
+	adap->fe_adap[0].fe->ops.set_voltage = dm04_lme2510_set_voltage;
 	ret = lme_name(adap);
 	return ret;
 }
@@ -1031,17 +1031,17 @@ static int dm04_lme2510_tuner(struct dvb_usb_adapter *adap)
 
 	switch (st->tuner_config) {
 	case TUNER_LG:
-		if (dvb_attach(tda826x_attach, adap->fe, 0xc0,
+		if (dvb_attach(tda826x_attach, adap->fe_adap[0].fe, 0xc0,
 			&adap->dev->i2c_adap, 1))
 			ret = st->tuner_config;
 		break;
 	case TUNER_S7395:
-		if (dvb_attach(ix2505v_attach , adap->fe, &lme_tuner,
+		if (dvb_attach(ix2505v_attach , adap->fe_adap[0].fe, &lme_tuner,
 			&adap->dev->i2c_adap))
 			ret = st->tuner_config;
 		break;
 	case TUNER_S0194:
-		if (dvb_attach(dvb_pll_attach , adap->fe, 0xc0,
+		if (dvb_attach(dvb_pll_attach , adap->fe_adap[0].fe, 0xc0,
 			&adap->dev->i2c_adap, DVB_PLL_OPERA1))
 			ret = st->tuner_config;
 		break;
@@ -1145,6 +1145,8 @@ static struct dvb_usb_device_properties lme2510_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+		.num_frontends = 1,
+		.fe = {{
 			.caps = DVB_USB_ADAP_HAS_PID_FILTER|
 				DVB_USB_ADAP_NEED_PID_FILTERING|
 				DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
@@ -1166,6 +1168,7 @@ static struct dvb_usb_device_properties lme2510_properties = {
 					}
 				}
 			}
+		}},
 		}
 	},
 	.rc.core = {
@@ -1193,6 +1196,8 @@ static struct dvb_usb_device_properties lme2510c_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+		.num_frontends = 1,
+		.fe = {{
 			.caps = DVB_USB_ADAP_HAS_PID_FILTER|
 				DVB_USB_ADAP_NEED_PID_FILTERING|
 				DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
@@ -1214,6 +1219,7 @@ static struct dvb_usb_device_properties lme2510c_properties = {
 					}
 				}
 			}
+		}},
 		}
 	},
 	.rc.core = {
@@ -1241,7 +1247,7 @@ static void *lme2510_exit_int(struct dvb_usb_device *d)
 	void *buffer = NULL;
 
 	if (adap != NULL) {
-		lme2510_kill_urb(&adap->stream);
+		lme2510_kill_urb(&adap->fe_adap[0].stream);
 		adap->feedcount = 0;
 	}
 
@@ -1255,7 +1261,7 @@ static void *lme2510_exit_int(struct dvb_usb_device *d)
 
 	if (st->lme_urb != NULL) {
 		usb_kill_urb(st->lme_urb);
-		usb_free_coherent(d->udev, 5000, st->buffer,
+		usb_free_coherent(d->udev, 128, st->buffer,
 				  st->lme_urb->transfer_dma);
 		info("Interrupt Service Stopped");
 	}
@@ -1306,5 +1312,5 @@ module_exit(lme2510_module_exit);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("LME2510(C) DVB-S USB2.0");
-MODULE_VERSION("1.88");
+MODULE_VERSION("1.90");
 MODULE_LICENSE("GPL");

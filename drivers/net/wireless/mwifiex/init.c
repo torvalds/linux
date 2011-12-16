@@ -283,6 +283,45 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 }
 
 /*
+ * This function sets trans_start per tx_queue
+ */
+void mwifiex_set_trans_start(struct net_device *dev)
+{
+	int i;
+
+	for (i = 0; i < dev->num_tx_queues; i++)
+		netdev_get_tx_queue(dev, i)->trans_start = jiffies;
+
+	dev->trans_start = jiffies;
+}
+
+/*
+ * This function wakes up all queues in net_device
+ */
+void mwifiex_wake_up_net_dev_queue(struct net_device *netdev,
+					struct mwifiex_adapter *adapter)
+{
+	unsigned long dev_queue_flags;
+
+	spin_lock_irqsave(&adapter->queue_lock, dev_queue_flags);
+	netif_tx_wake_all_queues(netdev);
+	spin_unlock_irqrestore(&adapter->queue_lock, dev_queue_flags);
+}
+
+/*
+ * This function stops all queues in net_device
+ */
+void mwifiex_stop_net_dev_queue(struct net_device *netdev,
+					struct mwifiex_adapter *adapter)
+{
+	unsigned long dev_queue_flags;
+
+	spin_lock_irqsave(&adapter->queue_lock, dev_queue_flags);
+	netif_tx_stop_all_queues(netdev);
+	spin_unlock_irqrestore(&adapter->queue_lock, dev_queue_flags);
+}
+
+/*
  *  This function releases the lock variables and frees the locks and
  *  associated locks.
  */
@@ -359,6 +398,7 @@ int mwifiex_init_lock_list(struct mwifiex_adapter *adapter)
 	spin_lock_init(&adapter->int_lock);
 	spin_lock_init(&adapter->main_proc_lock);
 	spin_lock_init(&adapter->mwifiex_cmd_lock);
+	spin_lock_init(&adapter->queue_lock);
 	for (i = 0; i < adapter->priv_num; i++) {
 		if (adapter->priv[i]) {
 			priv = adapter->priv[i];

@@ -17,11 +17,11 @@
 #
 ENTRY(store_status)
 	/* Save register one and load save area base */
-	stg	%r1,__LC_SAVE_AREA_64(%r0)
+	stg	%r1,__LC_SAVE_AREA+120(%r0)
 	lghi	%r1,SAVE_AREA_BASE
 	/* General purpose registers */
 	stmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	lg	%r2,__LC_SAVE_AREA_64(%r0)
+	lg	%r2,__LC_SAVE_AREA+120(%r0)
 	stg	%r2,__LC_GPREGS_SAVE_AREA-SAVE_AREA_BASE+8(%r1)
 	/* Control registers */
 	stctg	%c0,%c15,__LC_CREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
@@ -62,8 +62,11 @@ ENTRY(store_status)
 	larl	%r2,store_status
 	stg	%r2,__LC_PSW_SAVE_AREA-SAVE_AREA_BASE + 8(%r1)
 	br	%r14
-.align	8
+
+	.section .bss
+	.align	8
 .Lclkcmp:	.quad	0x0000000000000000
+	.previous
 
 #
 # do_reipl_asm

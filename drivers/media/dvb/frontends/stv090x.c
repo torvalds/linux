@@ -3463,8 +3463,14 @@ static enum dvbfe_search stv090x_search(struct dvb_frontend *fe, struct dvb_fron
 static int stv090x_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	struct stv090x_state *state = fe->demodulator_priv;
-	u32 reg;
+	u32 reg, dstatus;
 	u8 search_state;
+
+	*status = 0;
+
+	dstatus = STV090x_READ_DEMOD(state, DSTATUS);
+	if (STV090x_GETFIELD_Px(dstatus, CAR_LOCK_FIELD))
+		*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER;
 
 	reg = STV090x_READ_DEMOD(state, DMDSTATE);
 	search_state = STV090x_GETFIELD_Px(reg, HEADER_MODE_FIELD);
@@ -3474,41 +3480,30 @@ static int stv090x_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	case 1: /* first PLH detected */
 	default:
 		dprintk(FE_DEBUG, 1, "Status: Unlocked (Searching ..)");
-		*status = 0;
 		break;
 
 	case 2: /* DVB-S2 mode */
 		dprintk(FE_DEBUG, 1, "Delivery system: DVB-S2");
-		reg = STV090x_READ_DEMOD(state, DSTATUS);
-		if (STV090x_GETFIELD_Px(reg, LOCK_DEFINITIF_FIELD)) {
+		if (STV090x_GETFIELD_Px(dstatus, LOCK_DEFINITIF_FIELD)) {
 			reg = STV090x_READ_DEMOD(state, PDELSTATUS1);
 			if (STV090x_GETFIELD_Px(reg, PKTDELIN_LOCK_FIELD)) {
+				*status |= FE_HAS_VITERBI;
 				reg = STV090x_READ_DEMOD(state, TSSTATUS);
-				if (STV090x_GETFIELD_Px(reg, TSFIFO_LINEOK_FIELD)) {
-					*status = FE_HAS_SIGNAL |
-						  FE_HAS_CARRIER |
-						  FE_HAS_VITERBI |
-						  FE_HAS_SYNC |
-						  FE_HAS_LOCK;
-				}
+				if (STV090x_GETFIELD_Px(reg, TSFIFO_LINEOK_FIELD))
+					*status |= FE_HAS_SYNC | FE_HAS_LOCK;
 			}
 		}
 		break;
 
 	case 3: /* DVB-S1/legacy mode */
 		dprintk(FE_DEBUG, 1, "Delivery system: DVB-S");
-		reg = STV090x_READ_DEMOD(state, DSTATUS);
-		if (STV090x_GETFIELD_Px(reg, LOCK_DEFINITIF_FIELD)) {
+		if (STV090x_GETFIELD_Px(dstatus, LOCK_DEFINITIF_FIELD)) {
 			reg = STV090x_READ_DEMOD(state, VSTATUSVIT);
 			if (STV090x_GETFIELD_Px(reg, LOCKEDVIT_FIELD)) {
+				*status |= FE_HAS_VITERBI;
 				reg = STV090x_READ_DEMOD(state, TSSTATUS);
-				if (STV090x_GETFIELD_Px(reg, TSFIFO_LINEOK_FIELD)) {
-					*status = FE_HAS_SIGNAL |
-						  FE_HAS_CARRIER |
-						  FE_HAS_VITERBI |
-						  FE_HAS_SYNC |
-						  FE_HAS_LOCK;
-				}
+				if (STV090x_GETFIELD_Px(reg, TSFIFO_LINEOK_FIELD))
+					*status |= FE_HAS_SYNC | FE_HAS_LOCK;
 			}
 		}
 		break;

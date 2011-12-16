@@ -97,6 +97,7 @@
 struct iwl_cfg;
 struct iwl_bus;
 struct iwl_priv;
+struct iwl_trans;
 struct iwl_sensitivity_ranges;
 struct iwl_trans_ops;
 
@@ -120,7 +121,7 @@ extern struct iwl_mod_params iwlagn_mod_params;
  * @restart_fw: restart firmware, default = 1
  * @plcp_check: enable plcp health check, default = true
  * @ack_check: disable ack health check, default = false
- * @wd_disable: enable stuck queue check, default = false
+ * @wd_disable: enable stuck queue check, default = 0
  * @bt_coex_active: enable bt coex, default = true
  * @led_mode: system default, default = 0
  * @no_sleep_autoadjust: disable autoadjust, default = true
@@ -141,7 +142,7 @@ struct iwl_mod_params {
 	int restart_fw;
 	bool plcp_check;
 	bool ack_check;
-	bool wd_disable;
+	int  wd_disable;
 	bool bt_coex_active;
 	int led_mode;
 	bool no_sleep_autoadjust;
@@ -174,7 +175,6 @@ struct iwl_mod_params {
  * @ct_kill_exit_threshold: when to reeable the device - in hw dependent unit
  *	relevant for 1000, 6000 and up
  * @wd_timeout: TX queues watchdog timeout
- * @calib_init_cfg: setup initial calibrations for the hw
  * @calib_rt_cfg: setup runtime calibrations for the hw
  * @struct iwl_sensitivity_ranges: range of sensitivity values
  */
@@ -195,7 +195,6 @@ struct iwl_hw_params {
 	u32 ct_kill_exit_threshold;
 	unsigned int wd_timeout;
 
-	u32 calib_init_cfg;
 	u32 calib_rt_cfg;
 	const struct iwl_sensitivity_ranges *sens;
 };
@@ -259,6 +258,52 @@ struct iwl_tid_data {
 };
 
 /**
+ * enum iwl_ucode_type
+ *
+ * The type of ucode currently loaded on the hardware.
+ *
+ * @IWL_UCODE_NONE: No ucode loaded
+ * @IWL_UCODE_REGULAR: Normal runtime ucode
+ * @IWL_UCODE_INIT: Initial ucode
+ * @IWL_UCODE_WOWLAN: Wake on Wireless enabled ucode
+ */
+enum iwl_ucode_type {
+	IWL_UCODE_NONE,
+	IWL_UCODE_REGULAR,
+	IWL_UCODE_INIT,
+	IWL_UCODE_WOWLAN,
+};
+
+/**
+ * struct iwl_notification_wait - notification wait entry
+ * @list: list head for global list
+ * @fn: function called with the notification
+ * @cmd: command ID
+ *
+ * This structure is not used directly, to wait for a
+ * notification declare it on the stack, and call
+ * iwlagn_init_notification_wait() with appropriate
+ * parameters. Then do whatever will cause the ucode
+ * to notify the driver, and to wait for that then
+ * call iwlagn_wait_notification().
+ *
+ * Each notification is one-shot. If at some point we
+ * need to support multi-shot notifications (which
+ * can't be allocated on the stack) we need to modify
+ * the code for them.
+ */
+struct iwl_notification_wait {
+	struct list_head list;
+
+	void (*fn)(struct iwl_trans *trans, struct iwl_rx_packet *pkt,
+		   void *data);
+	void *fn_data;
+
+	u8 cmd;
+	bool triggered, aborted;
+};
+
+/**
  * struct iwl_shared - shared fields for all the layers of the driver
  *
  * @dbg_level_dev: dbg level set per device. Prevails on
@@ -275,6 +320,11 @@ struct iwl_tid_data {
  * @sta_lock: protects the station table.
  *	If lock and sta_lock are needed, lock must be acquired first.
  * @mutex:
+ * @ucode_type: indicator of loaded ucode image
+ * @notif_waits: things waiting for notification
+ * @notif_wait_lock: lock protecting notification
+ * @notif_waitq: head of notification wait queue
+ * @device_pointers: pointers to ucode event tables
  */
 struct iwl_shared {
 #ifdef CONFIG_IWLWIFI_DEBUG
@@ -302,6 +352,23 @@ struct iwl_shared {
 	struct iwl_tid_data tid_data[IWLAGN_STATION_COUNT][IWL_MAX_TID_COUNT];
 
 	wait_queue_head_t wait_command_queue;
+
+	/* eeprom -- this is in the card's little endian byte order */
+	u8 *eeprom;
+
+	/* ucode related variables */
+	enum iwl_ucode_type ucode_type;
+
+	/* notification wait support */
+	struct list_head notif_waits;
+	spinlock_t notif_wait_lock;
+	wait_queue_head_t notif_waitq;
+
+	struct {
+		u32 error_event_table;
+		u32 log_event_table;
+	} device_pointers;
+
 };
 
 /*Whatever _m is (iwl_trans, iwl_priv, iwl_bus, these macros will work */
@@ -444,6 +511,24 @@ bool iwl_check_for_ct_kill(struct iwl_priv *priv);
 
 void iwl_stop_sw_queue(struct iwl_priv *priv, u8 ac);
 void iwl_wake_sw_queue(struct iwl_priv *priv, u8 ac);
+
+/* notification wait support */
+void iwl_abort_notification_waits(struct iwl_shared *shrd);
+void __acquires(wait_entry)
+iwl_init_notification_wait(struct iwl_shared *shrd,
+			      struct iwl_notification_wait *wait_entry,
+			      u8 cmd,
+			      void (*fn)(struct iwl_trans *trans,
+					 struct iwl_rx_packet *pkt,
+					 void *data),
+			      void *fn_data);
+int __must_check __releases(wait_entry)
+iwl_wait_notification(struct iwl_shared *shrd,
+			 struct iwl_notification_wait *wait_entry,
+			 unsigned long timeout);
+void __releases(wait_entry)
+iwl_remove_notification(struct iwl_shared *shrd,
+			   struct iwl_notification_wait *wait_entry);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 void iwl_reset_traffic_log(struct iwl_priv *priv);

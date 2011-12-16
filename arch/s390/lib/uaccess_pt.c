@@ -342,7 +342,8 @@ int futex_atomic_op_pt(int op, u32 __user *uaddr, int oparg, int *old)
 	if (segment_eq(get_fs(), KERNEL_DS))
 		return __futex_atomic_op_pt(op, uaddr, oparg, old);
 	spin_lock(&current->mm->page_table_lock);
-	uaddr = (int __user *) __dat_user_addr((unsigned long) uaddr);
+	uaddr = (u32 __force __user *)
+		__dat_user_addr((__force unsigned long) uaddr);
 	if (!uaddr) {
 		spin_unlock(&current->mm->page_table_lock);
 		return -EFAULT;
@@ -378,7 +379,8 @@ int futex_atomic_cmpxchg_pt(u32 *uval, u32 __user *uaddr,
 	if (segment_eq(get_fs(), KERNEL_DS))
 		return __futex_atomic_cmpxchg_pt(uval, uaddr, oldval, newval);
 	spin_lock(&current->mm->page_table_lock);
-	uaddr = (int __user *) __dat_user_addr((unsigned long) uaddr);
+	uaddr = (u32 __force __user *)
+		__dat_user_addr((__force unsigned long) uaddr);
 	if (!uaddr) {
 		spin_unlock(&current->mm->page_table_lock);
 		return -EFAULT;

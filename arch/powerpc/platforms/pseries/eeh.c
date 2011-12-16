@@ -22,6 +22,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/sched.h>	/* for init_mm */
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/pci.h>
@@ -29,6 +30,7 @@
 #include <linux/rbtree.h>
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
+#include <linux/export.h>
 #include <linux/of.h>
 
 #include <linux/atomic.h>
@@ -1338,7 +1340,7 @@ static const struct file_operations proc_eeh_operations = {
 static int __init eeh_init_proc(void)
 {
 	if (machine_is(pseries))
-		proc_create("ppc64/eeh", 0, NULL, &proc_eeh_operations);
+		proc_create("powerpc/eeh", 0, NULL, &proc_eeh_operations);
 	return 0;
 }
 __initcall(eeh_init_proc);

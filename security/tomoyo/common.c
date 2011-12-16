@@ -966,6 +966,9 @@ static bool tomoyo_manager(void)
 	return found;
 }
 
+static struct tomoyo_domain_info *tomoyo_find_domain_by_qid
+(unsigned int serial);
+
 /**
  * tomoyo_select_domain - Parse select command.
  *
@@ -999,6 +1002,8 @@ static bool tomoyo_select_domain(struct tomoyo_io_buffer *head,
 	} else if (!strncmp(data, "domain=", 7)) {
 		if (tomoyo_domain_def(data + 7))
 			domain = tomoyo_find_domain(data + 7);
+	} else if (sscanf(data, "Q=%u", &pid) == 1) {
+		domain = tomoyo_find_domain_by_qid(pid);
 	} else
 		return false;
 	head->w.domain = domain;
@@ -1894,6 +1899,7 @@ static DECLARE_WAIT_QUEUE_HEAD(tomoyo_answer_wait);
 /* Structure for query. */
 struct tomoyo_query {
 	struct list_head list;
+	struct tomoyo_domain_info *domain;
 	char *query;
 	size_t query_len;
 	unsigned int serial;
@@ -2044,6 +2050,7 @@ int tomoyo_supervisor(struct tomoyo_request_info *r, const char *fmt, ...)
 		goto out;
 	}
 	len = tomoyo_round2(entry.query_len);
+	entry.domain = r->domain;
 	spin_lock(&tomoyo_query_list_lock);
 	if (tomoyo_memory_quota[TOMOYO_MEMORY_QUERY] &&
 	    tomoyo_memory_used[TOMOYO_MEMORY_QUERY] + len
@@ -2088,6 +2095,29 @@ int tomoyo_supervisor(struct tomoyo_request_info *r, const char *fmt, ...)
 out:
 	kfree(entry.query);
 	return error;
+}
+
+/**
+ * tomoyo_find_domain_by_qid - Get domain by query id.
+ *
+ * @serial: Query ID assigned by tomoyo_supervisor().
+ *
+ * Returns pointer to "struct tomoyo_domain_info" if found, NULL otherwise.
+ */
+static struct tomoyo_domain_info *tomoyo_find_domain_by_qid
+(unsigned int serial)
+{
+	struct tomoyo_query *ptr;
+	struct tomoyo_domain_info *domain = NULL;
+	spin_lock(&tomoyo_query_list_lock);
+	list_for_each_entry(ptr, &tomoyo_query_list, list) {
+		if (ptr->serial != serial || ptr->answer)
+			continue;
+		domain = ptr->domain;
+		break;
+	}
+	spin_unlock(&tomoyo_query_list_lock);
+	return domain;
 }
 
 /**

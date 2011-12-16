@@ -33,6 +33,7 @@ Common Linux HPI ioctl and module probe/remove functions
 #include <asm/uaccess.h>
 #include <linux/pci.h>
 #include <linux/stringify.h>
+#include <linux/module.h>
 
 #ifdef MODULE_FIRMWARE
 MODULE_FIRMWARE("asihpi/dsp5000.bin");

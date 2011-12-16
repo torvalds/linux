@@ -906,7 +906,7 @@ static const char *sctp_state_name(int state)
 	return "?";
 }
 
-static inline int
+static inline void
 set_sctp_state(struct ip_vs_proto_data *pd, struct ip_vs_conn *cp,
 		int direction, const struct sk_buff *skb)
 {
@@ -924,7 +924,7 @@ set_sctp_state(struct ip_vs_proto_data *pd, struct ip_vs_conn *cp,
 	sch = skb_header_pointer(skb, ihl + sizeof(sctp_sctphdr_t),
 				sizeof(_sctpch), &_sctpch);
 	if (sch == NULL)
-		return 0;
+		return;
 
 	chunk_type = sch->type;
 	/*
@@ -993,21 +993,15 @@ set_sctp_state(struct ip_vs_proto_data *pd, struct ip_vs_conn *cp,
 		cp->timeout = pd->timeout_table[cp->state = next_state];
 	else	/* What to do ? */
 		cp->timeout = sctp_timeouts[cp->state = next_state];
-
-	return 1;
 }
 
-static int
+static void
 sctp_state_transition(struct ip_vs_conn *cp, int direction,
 		const struct sk_buff *skb, struct ip_vs_proto_data *pd)
 {
-	int ret = 0;
-
 	spin_lock(&cp->lock);
-	ret = set_sctp_state(pd, cp, direction, skb);
+	set_sctp_state(pd, cp, direction, skb);
 	spin_unlock(&cp->lock);
-
-	return ret;
 }
 
 static inline __u16 sctp_app_hashkey(__be16 port)

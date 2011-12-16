@@ -117,15 +117,10 @@ int omap2_sdrc_get_params(unsigned long r,
 
 void __init omap2_set_globals_sdrc(struct omap_globals *omap2_globals)
 {
-	/* Static mapping, never released */
-	if (omap2_globals->sdrc) {
-		omap2_sdrc_base = ioremap(omap2_globals->sdrc, SZ_64K);
-		WARN_ON(!omap2_sdrc_base);
-	}
-	if (omap2_globals->sms) {
-		omap2_sms_base = ioremap(omap2_globals->sms, SZ_64K);
-		WARN_ON(!omap2_sms_base);
-	}
+	if (omap2_globals->sdrc)
+		omap2_sdrc_base = omap2_globals->sdrc;
+	if (omap2_globals->sms)
+		omap2_sms_base = omap2_globals->sms;
 }
 
 /**

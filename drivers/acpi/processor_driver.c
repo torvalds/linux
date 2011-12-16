@@ -426,7 +426,7 @@ static int acpi_cpu_soft_notify(struct notifier_block *nfb,
 
 	if (action == CPU_ONLINE && pr) {
 		acpi_processor_ppc_has_changed(pr, 0);
-		acpi_processor_cst_has_changed(pr);
+		acpi_processor_hotplug(pr);
 		acpi_processor_reevaluate_tstate(pr, action);
 		acpi_processor_tstate_has_changed(pr);
 	}
@@ -503,8 +503,7 @@ static int __cpuinit acpi_processor_add(struct acpi_device *device)
 	acpi_processor_get_throttling_info(pr);
 	acpi_processor_get_limit_info(pr);
 
-
-	if (cpuidle_get_driver() == &acpi_idle_driver)
+	if (!cpuidle_get_driver() || cpuidle_get_driver() == &acpi_idle_driver)
 		acpi_processor_power_init(pr, device);
 
 	pr->cdev = thermal_cooling_device_register("Processor", device,
@@ -800,17 +799,9 @@ static int __init acpi_processor_init(void)
 
 	memset(&errata, 0, sizeof(errata));
 
-	if (!cpuidle_register_driver(&acpi_idle_driver)) {
-		printk(KERN_DEBUG "ACPI: %s registered with cpuidle\n",
-			acpi_idle_driver.name);
-	} else {
-		printk(KERN_DEBUG "ACPI: acpi_idle yielding to %s\n",
-			cpuidle_get_driver()->name);
-	}
-
 	result = acpi_bus_register_driver(&acpi_processor_driver);
 	if (result < 0)
-		goto out_cpuidle;
+		return result;
 
 	acpi_processor_install_hotplug_notify();
 
@@ -821,11 +812,6 @@ static int __init acpi_processor_init(void)
 	acpi_processor_throttling_init();
 
 	return 0;
-
-out_cpuidle:
-	cpuidle_unregister_driver(&acpi_idle_driver);
-
-	return result;
 }
 
 static void __exit acpi_processor_exit(void)

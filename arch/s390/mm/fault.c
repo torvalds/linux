@@ -307,7 +307,7 @@ static inline int do_exception(struct pt_regs *regs, int access,
 
 #ifdef CONFIG_PGSTE
 	if (test_tsk_thread_flag(current, TIF_SIE) && S390_lowcore.gmap) {
-		address = gmap_fault(address,
+		address = __gmap_fault(address,
 				     (struct gmap *) S390_lowcore.gmap);
 		if (address == -EFAULT) {
 			fault = VM_FAULT_BADMAP;
@@ -393,7 +393,7 @@ void __kprobes do_protection_exception(struct pt_regs *regs, long pgm_int_code,
 	int fault;
 
 	/* Protection exception is suppressing, decrement psw address. */
-	regs->psw.addr -= (pgm_int_code >> 16);
+	regs->psw.addr = __rewind_psw(regs->psw, pgm_int_code >> 16);
 	/*
 	 * Check for low-address protection.  This needs to be treated
 	 * as a special case because the translation exception code
@@ -454,7 +454,7 @@ int __handle_fault(unsigned long uaddr, unsigned long pgm_int_code, int write)
 	struct pt_regs regs;
 	int access, fault;
 
-	regs.psw.mask = psw_kernel_bits;
+	regs.psw.mask = psw_kernel_bits | PSW_MASK_DAT | PSW_MASK_MCHECK;
 	if (!irqs_disabled())
 		regs.psw.mask |= PSW_MASK_IO | PSW_MASK_EXT;
 	regs.psw.addr = (unsigned long) __builtin_return_address(0);

@@ -339,7 +339,7 @@ static int erase_xfer(partition_t *part,
     struct erase_info *erase;
 
     xfer = &part->XferInfo[xfernum];
-    DEBUG(1, "ftl_cs: erasing xfer unit at 0x%x\n", xfer->Offset);
+    pr_debug("ftl_cs: erasing xfer unit at 0x%x\n", xfer->Offset);
     xfer->state = XFER_ERASING;
 
     /* Is there a free erase slot? Always in MTD. */
@@ -415,7 +415,7 @@ static int prepare_xfer(partition_t *part, int i)
     xfer = &part->XferInfo[i];
     xfer->state = XFER_FAILED;
 
-    DEBUG(1, "ftl_cs: preparing xfer unit at 0x%x\n", xfer->Offset);
+    pr_debug("ftl_cs: preparing xfer unit at 0x%x\n", xfer->Offset);
 
     /* Write the transfer unit header */
     header = part->header;
@@ -476,7 +476,7 @@ static int copy_erase_unit(partition_t *part, uint16_t srcunit,
 
     eun = &part->EUNInfo[srcunit];
     xfer = &part->XferInfo[xferunit];
-    DEBUG(2, "ftl_cs: copying block 0x%x to 0x%x\n",
+    pr_debug("ftl_cs: copying block 0x%x to 0x%x\n",
 	  eun->Offset, xfer->Offset);
 
 
@@ -598,7 +598,7 @@ static int copy_erase_unit(partition_t *part, uint16_t srcunit,
     unit with the fewest erases, and usually pick the data unit with
     the most deleted blocks.  But with a small probability, pick the
     oldest data unit instead.  This means that we generally postpone
-    the next reclaimation as long as possible, but shuffle static
+    the next reclamation as long as possible, but shuffle static
     stuff around a bit for wear leveling.
 
 ======================================================================*/
@@ -609,8 +609,8 @@ static int reclaim_block(partition_t *part)
     uint32_t best;
     int queued, ret;
 
-    DEBUG(0, "ftl_cs: reclaiming space...\n");
-    DEBUG(3, "NumTransferUnits == %x\n", part->header.NumTransferUnits);
+    pr_debug("ftl_cs: reclaiming space...\n");
+    pr_debug("NumTransferUnits == %x\n", part->header.NumTransferUnits);
     /* Pick the least erased transfer unit */
     best = 0xffffffff; xfer = 0xffff;
     do {
@@ -618,22 +618,22 @@ static int reclaim_block(partition_t *part)
 	for (i = 0; i < part->header.NumTransferUnits; i++) {
 	    int n=0;
 	    if (part->XferInfo[i].state == XFER_UNKNOWN) {
-		DEBUG(3,"XferInfo[%d].state == XFER_UNKNOWN\n",i);
+		pr_debug("XferInfo[%d].state == XFER_UNKNOWN\n",i);
 		n=1;
 		erase_xfer(part, i);
 	    }
 	    if (part->XferInfo[i].state == XFER_ERASING) {
-		DEBUG(3,"XferInfo[%d].state == XFER_ERASING\n",i);
+		pr_debug("XferInfo[%d].state == XFER_ERASING\n",i);
 		n=1;
 		queued = 1;
 	    }
 	    else if (part->XferInfo[i].state == XFER_ERASED) {
-		DEBUG(3,"XferInfo[%d].state == XFER_ERASED\n",i);
+		pr_debug("XferInfo[%d].state == XFER_ERASED\n",i);
 		n=1;
 		prepare_xfer(part, i);
 	    }
 	    if (part->XferInfo[i].state == XFER_PREPARED) {
-		DEBUG(3,"XferInfo[%d].state == XFER_PREPARED\n",i);
+		pr_debug("XferInfo[%d].state == XFER_PREPARED\n",i);
 		n=1;
 		if (part->XferInfo[i].EraseCount <= best) {
 		    best = part->XferInfo[i].EraseCount;
@@ -641,12 +641,12 @@ static int reclaim_block(partition_t *part)
 		}
 	    }
 		if (!n)
-		    DEBUG(3,"XferInfo[%d].state == %x\n",i, part->XferInfo[i].state);
+		    pr_debug("XferInfo[%d].state == %x\n",i, part->XferInfo[i].state);
 
 	}
 	if (xfer == 0xffff) {
 	    if (queued) {
-		DEBUG(1, "ftl_cs: waiting for transfer "
+		pr_debug("ftl_cs: waiting for transfer "
 		      "unit to be prepared...\n");
 		if (part->mbd.mtd->sync)
 			part->mbd.mtd->sync(part->mbd.mtd);
@@ -656,7 +656,7 @@ static int reclaim_block(partition_t *part)
 		    printk(KERN_NOTICE "ftl_cs: reclaim failed: no "
 			   "suitable transfer units!\n");
 		else
-		    DEBUG(1, "ftl_cs: reclaim failed: no "
+		    pr_debug("ftl_cs: reclaim failed: no "
 			  "suitable transfer units!\n");
 
 		return -EIO;
@@ -666,7 +666,7 @@ static int reclaim_block(partition_t *part)
 
     eun = 0;
     if ((jiffies % shuffle_freq) == 0) {
-	DEBUG(1, "ftl_cs: recycling freshest block...\n");
+	pr_debug("ftl_cs: recycling freshest block...\n");
 	best = 0xffffffff;
 	for (i = 0; i < part->DataUnits; i++)
 	    if (part->EUNInfo[i].EraseCount <= best) {
@@ -686,7 +686,7 @@ static int reclaim_block(partition_t *part)
 		printk(KERN_NOTICE "ftl_cs: reclaim failed: "
 		       "no free blocks!\n");
 	    else
-		DEBUG(1,"ftl_cs: reclaim failed: "
+		pr_debug("ftl_cs: reclaim failed: "
 		       "no free blocks!\n");
 
 	    return -EIO;
@@ -771,7 +771,7 @@ static uint32_t find_free(partition_t *part)
 	printk(KERN_NOTICE "ftl_cs: bad free list!\n");
 	return 0;
     }
-    DEBUG(2, "ftl_cs: found free block at %d in %d\n", blk, eun);
+    pr_debug("ftl_cs: found free block at %d in %d\n", blk, eun);
     return blk;
 
 } /* find_free */
@@ -791,7 +791,7 @@ static int ftl_read(partition_t *part, caddr_t buffer,
     int ret;
     size_t offset, retlen;
 
-    DEBUG(2, "ftl_cs: ftl_read(0x%p, 0x%lx, %ld)\n",
+    pr_debug("ftl_cs: ftl_read(0x%p, 0x%lx, %ld)\n",
 	  part, sector, nblocks);
     if (!(part->state & FTL_FORMATTED)) {
 	printk(KERN_NOTICE "ftl_cs: bad partition\n");
@@ -840,7 +840,7 @@ static int set_bam_entry(partition_t *part, uint32_t log_addr,
     int ret;
     size_t retlen, offset;
 
-    DEBUG(2, "ftl_cs: set_bam_entry(0x%p, 0x%x, 0x%x)\n",
+    pr_debug("ftl_cs: set_bam_entry(0x%p, 0x%x, 0x%x)\n",
 	  part, log_addr, virt_addr);
     bsize = 1 << part->header.EraseUnitSize;
     eun = log_addr / bsize;
@@ -905,7 +905,7 @@ static int ftl_write(partition_t *part, caddr_t buffer,
     int ret;
     size_t retlen, offset;
 
-    DEBUG(2, "ftl_cs: ftl_write(0x%p, %ld, %ld)\n",
+    pr_debug("ftl_cs: ftl_write(0x%p, %ld, %ld)\n",
 	  part, sector, nblocks);
     if (!(part->state & FTL_FORMATTED)) {
 	printk(KERN_NOTICE "ftl_cs: bad partition\n");
@@ -1011,7 +1011,7 @@ static int ftl_discardsect(struct mtd_blktrans_dev *dev,
 	partition_t *part = (void *)dev;
 	uint32_t bsize = 1 << part->header.EraseUnitSize;
 
-	DEBUG(1, "FTL erase sector %ld for %d sectors\n",
+	pr_debug("FTL erase sector %ld for %d sectors\n",
 	      sector, nr_sects);
 
 	while (nr_sects) {

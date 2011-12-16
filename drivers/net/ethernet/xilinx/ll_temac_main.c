@@ -716,8 +716,8 @@ static int temac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		cur_p = &lp->tx_bd_v[lp->tx_bd_tail];
 		cur_p->phys = dma_map_single(ndev->dev.parent,
 					     skb_frag_address(frag),
-					     frag_size(frag), DMA_TO_DEVICE);
-		cur_p->len = frag_size(frag);
+					     skb_frag_size(frag), DMA_TO_DEVICE);
+		cur_p->len = skb_frag_size(frag);
 		cur_p->app0 = 0;
 		frag++;
 	}

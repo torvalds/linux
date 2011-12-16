@@ -3,6 +3,9 @@
 
 #include <asm/wsp.h>
 
+/* Devtree compatible strings for major devices */
+#define PCIE_COMPATIBLE     "ibm,wsp-pciex"
+
 extern void wsp_setup_pci(void);
 extern void scom_init_wsp(void);
 

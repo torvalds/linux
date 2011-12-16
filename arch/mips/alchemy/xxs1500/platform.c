@@ -27,20 +27,20 @@ static struct resource xxs1500_pcmcia_res[] = {
 	{
 		.name	= "pcmcia-io",
 		.flags	= IORESOURCE_MEM,
-		.start	= PCMCIA_IO_PHYS_ADDR,
-		.end	= PCMCIA_IO_PHYS_ADDR + 0x000400000 - 1,
+		.start	= AU1000_PCMCIA_IO_PHYS_ADDR,
+		.end	= AU1000_PCMCIA_IO_PHYS_ADDR + 0x000400000 - 1,
 	},
 	{
 		.name	= "pcmcia-attr",
 		.flags	= IORESOURCE_MEM,
-		.start	= PCMCIA_ATTR_PHYS_ADDR,
-		.end	= PCMCIA_ATTR_PHYS_ADDR + 0x000400000 - 1,
+		.start	= AU1000_PCMCIA_ATTR_PHYS_ADDR,
+		.end	= AU1000_PCMCIA_ATTR_PHYS_ADDR + 0x000400000 - 1,
 	},
 	{
 		.name	= "pcmcia-mem",
 		.flags	= IORESOURCE_MEM,
-		.start	= PCMCIA_MEM_PHYS_ADDR,
-		.end	= PCMCIA_MEM_PHYS_ADDR + 0x000400000 - 1,
+		.start	= AU1000_PCMCIA_MEM_PHYS_ADDR,
+		.end	= AU1000_PCMCIA_MEM_PHYS_ADDR + 0x000400000 - 1,
 	},
 };
 

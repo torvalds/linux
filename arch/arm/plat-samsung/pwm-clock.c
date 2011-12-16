@@ -27,7 +27,7 @@
 #include <plat/cpu.h>
 
 #include <plat/regs-timer.h>
-#include <mach/pwm-clock.h>
+#include <plat/pwm-clock.h>
 
 /* Each of the timers 0 through 5 go through the following
  * clock tree, with the inputs depending on the timers.
@@ -339,8 +339,17 @@ static int clk_pwm_tin_set_parent(struct clk *clk, struct clk *parent)
 	unsigned long bits;
 	unsigned long shift = S3C2410_TCFG1_SHIFT(id);
 
+	unsigned long mux_tclk;
+
+	if (soc_is_s3c24xx())
+		mux_tclk = S3C2410_TCFG1_MUX_TCLK;
+	else if (soc_is_s5p6440() || soc_is_s5p6450())
+		mux_tclk = 0;
+	else
+		mux_tclk = S3C64XX_TCFG1_MUX_TCLK;
+
 	if (parent == s3c24xx_pwmclk_tclk(id))
-		bits = S3C_TCFG1_MUX_TCLK << shift;
+		bits = mux_tclk << shift;
 	else if (parent == s3c24xx_pwmclk_tdiv(id))
 		bits = clk_pwm_tdiv_bits(to_tdiv(parent)) << shift;
 	else

@@ -1,5 +1,5 @@
 /*
- *    Copyright IBM Corp. 2007,2009
+ *    Copyright IBM Corp. 2007,2011
  *    Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
@@ -222,6 +222,7 @@ void gmap_free(struct gmap *gmap)
 
 	/* Free all segment & region tables. */
 	down_read(&gmap->mm->mmap_sem);
+	spin_lock(&gmap->mm->page_table_lock);
 	list_for_each_entry_safe(page, next, &gmap->crst_list, lru) {
 		table = (unsigned long *) page_to_phys(page);
 		if ((*table & _REGION_ENTRY_TYPE_MASK) == 0)
@@ -230,6 +231,7 @@ void gmap_free(struct gmap *gmap)
 				gmap_unlink_segment(gmap, table);
 		__free_pages(page, ALLOC_ORDER);
 	}
+	spin_unlock(&gmap->mm->page_table_lock);
 	up_read(&gmap->mm->mmap_sem);
 	list_del(&gmap->list);
 	kfree(gmap);
@@ -256,6 +258,9 @@ void gmap_disable(struct gmap *gmap)
 }
 EXPORT_SYMBOL_GPL(gmap_disable);
 
+/*
+ * gmap_alloc_table is assumed to be called with mmap_sem held
+ */
 static int gmap_alloc_table(struct gmap *gmap,
 			       unsigned long *table, unsigned long init)
 {
@@ -267,14 +272,12 @@ static int gmap_alloc_table(struct gmap *gmap,
 		return -ENOMEM;
 	new = (unsigned long *) page_to_phys(page);
 	crst_table_init(new, init);
-	down_read(&gmap->mm->mmap_sem);
 	if (*table & _REGION_ENTRY_INV) {
 		list_add(&page->lru, &gmap->crst_list);
 		*table = (unsigned long) new | _REGION_ENTRY_LENGTH |
 			(*table & _REGION_ENTRY_TYPE_MASK);
 	} else
 		__free_pages(page, ALLOC_ORDER);
-	up_read(&gmap->mm->mmap_sem);
 	return 0;
 }
 
@@ -299,6 +302,7 @@ int gmap_unmap_segment(struct gmap *gmap, unsigned long to, unsigned long len)
 
 	flush = 0;
 	down_read(&gmap->mm->mmap_sem);
+	spin_lock(&gmap->mm->page_table_lock);
 	for (off = 0; off < len; off += PMD_SIZE) {
 		/* Walk the guest addr space page table */
 		table = gmap->table + (((to + off) >> 53) & 0x7ff);
@@ -320,6 +324,7 @@ int gmap_unmap_segment(struct gmap *gmap, unsigned long to, unsigned long len)
 		*table = _SEGMENT_ENTRY_INV;
 	}
 out:
+	spin_unlock(&gmap->mm->page_table_lock);
 	up_read(&gmap->mm->mmap_sem);
 	if (flush)
 		gmap_flush_tlb(gmap);
@@ -350,6 +355,7 @@ int gmap_map_segment(struct gmap *gmap, unsigned long from,
 
 	flush = 0;
 	down_read(&gmap->mm->mmap_sem);
+	spin_lock(&gmap->mm->page_table_lock);
 	for (off = 0; off < len; off += PMD_SIZE) {
 		/* Walk the gmap address space page table */
 		table = gmap->table + (((to + off) >> 53) & 0x7ff);
@@ -373,19 +379,24 @@ int gmap_map_segment(struct gmap *gmap, unsigned long from,
 		flush |= gmap_unlink_segment(gmap, table);
 		*table = _SEGMENT_ENTRY_INV | _SEGMENT_ENTRY_RO | (from + off);
 	}
+	spin_unlock(&gmap->mm->page_table_lock);
 	up_read(&gmap->mm->mmap_sem);
 	if (flush)
 		gmap_flush_tlb(gmap);
 	return 0;
 
 out_unmap:
+	spin_unlock(&gmap->mm->page_table_lock);
 	up_read(&gmap->mm->mmap_sem);
 	gmap_unmap_segment(gmap, to, len);
 	return -ENOMEM;
 }
 EXPORT_SYMBOL_GPL(gmap_map_segment);
 
-unsigned long gmap_fault(unsigned long address, struct gmap *gmap)
+/*
+ * this function is assumed to be called with mmap_sem held
+ */
+unsigned long __gmap_fault(unsigned long address, struct gmap *gmap)
 {
 	unsigned long *table, vmaddr, segment;
 	struct mm_struct *mm;
@@ -445,15 +456,74 @@ unsigned long gmap_fault(unsigned long address, struct gmap *gmap)
 		page = pmd_page(*pmd);
 		mp = (struct gmap_pgtable *) page->index;
 		rmap->entry = table;
+		spin_lock(&mm->page_table_lock);
 		list_add(&rmap->list, &mp->mapper);
+		spin_unlock(&mm->page_table_lock);
 		/* Set gmap segment table entry to page table. */
 		*table = pmd_val(*pmd) & PAGE_MASK;
 		return vmaddr | (address & ~PMD_MASK);
 	}
 	return -EFAULT;
+}
 
+unsigned long gmap_fault(unsigned long address, struct gmap *gmap)
+{
+	unsigned long rc;
+
+	down_read(&gmap->mm->mmap_sem);
+	rc = __gmap_fault(address, gmap);
+	up_read(&gmap->mm->mmap_sem);
+
+	return rc;
 }
 EXPORT_SYMBOL_GPL(gmap_fault);
+
+void gmap_discard(unsigned long from, unsigned long to, struct gmap *gmap)
+{
+
+	unsigned long *table, address, size;
+	struct vm_area_struct *vma;
+	struct gmap_pgtable *mp;
+	struct page *page;
+
+	down_read(&gmap->mm->mmap_sem);
+	address = from;
+	while (address < to) {
+		/* Walk the gmap address space page table */
+		table = gmap->table + ((address >> 53) & 0x7ff);
+		if (unlikely(*table & _REGION_ENTRY_INV)) {
+			address = (address + PMD_SIZE) & PMD_MASK;
+			continue;
+		}
+		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
+		table = table + ((address >> 42) & 0x7ff);
+		if (unlikely(*table & _REGION_ENTRY_INV)) {
+			address = (address + PMD_SIZE) & PMD_MASK;
+			continue;
+		}
+		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
+		table = table + ((address >> 31) & 0x7ff);
+		if (unlikely(*table & _REGION_ENTRY_INV)) {
+			address = (address + PMD_SIZE) & PMD_MASK;
+			continue;
+		}
+		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
+		table = table + ((address >> 20) & 0x7ff);
+		if (unlikely(*table & _SEGMENT_ENTRY_INV)) {
+			address = (address + PMD_SIZE) & PMD_MASK;
+			continue;
+		}
+		page = pfn_to_page(*table >> PAGE_SHIFT);
+		mp = (struct gmap_pgtable *) page->index;
+		vma = find_vma(gmap->mm, mp->vmaddr);
+		size = min(to - address, PMD_SIZE - (address & ~PMD_MASK));
+		zap_page_range(vma, mp->vmaddr | (address & ~PMD_MASK),
+			       size, NULL);
+		address = (address + PMD_SIZE) & PMD_MASK;
+	}
+	up_read(&gmap->mm->mmap_sem);
+}
+EXPORT_SYMBOL_GPL(gmap_discard);
 
 void gmap_unmap_notifier(struct mm_struct *mm, unsigned long *table)
 {
@@ -662,8 +732,9 @@ void page_table_free_rcu(struct mmu_gather *tlb, unsigned long *table)
 
 void __tlb_remove_table(void *_table)
 {
-	void *table = (void *)((unsigned long) _table & PAGE_MASK);
-	unsigned type = (unsigned long) _table & ~PAGE_MASK;
+	const unsigned long mask = (FRAG_MASK << 4) | FRAG_MASK;
+	void *table = (void *)((unsigned long) _table & ~mask);
+	unsigned type = (unsigned long) _table & mask;
 
 	if (type)
 		__page_table_free_rcu(table, type);

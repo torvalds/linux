@@ -31,68 +31,6 @@
 
 #include <asm/xen/hypervisor.h>
 
-struct vm_struct *xen_alloc_vm_area(unsigned long size)
-{
-	int order;
-	unsigned long virt;
-	unsigned long nr_pages;
-	struct vm_struct *area;
-
-	order = get_order(size);
-	virt = __get_free_pages(GFP_KERNEL, order);
-	if (virt == 0)
-		goto err0;
-	nr_pages = 1 << order;
-	scrub_pages(virt, nr_pages);
-
-	area = kmalloc(sizeof(*area), GFP_KERNEL);
-	if (area == NULL)
-		goto err1;
-
-	area->flags = VM_IOREMAP;
-	area->addr = (void *)virt;
-	area->size = size;
-	area->pages = NULL;
-	area->nr_pages = nr_pages;
-	area->phys_addr = 0;	/* xenbus_map_ring_valloc uses this field!  */
-
-	return area;
-
-err1:
-	free_pages(virt, order);
-err0:
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(xen_alloc_vm_area);
-
-void xen_free_vm_area(struct vm_struct *area)
-{
-	unsigned int order = get_order(area->size);
-	unsigned long i;
-	unsigned long phys_addr = __pa(area->addr);
-
-	/* This area is used for foreign page mappping.
-	 * So underlying machine page may not be assigned. */
-	for (i = 0; i < (1 << order); i++) {
-		unsigned long ret;
-		unsigned long gpfn = (phys_addr >> PAGE_SHIFT) + i;
-		struct xen_memory_reservation reservation = {
-			.nr_extents   = 1,
-			.address_bits = 0,
-			.extent_order = 0,
-			.domid        = DOMID_SELF
-		};
-		set_xen_guest_handle(reservation.extent_start, &gpfn);
-		ret = HYPERVISOR_memory_op(XENMEM_populate_physmap,
-					   &reservation);
-		BUG_ON(ret != 1);
-	}
-	free_pages((unsigned long)area->addr, order);
-	kfree(area);
-}
-EXPORT_SYMBOL_GPL(xen_free_vm_area);
-
-
 /****************************************************************************
  * grant table hack
  * cmd: GNTTABOP_xxx

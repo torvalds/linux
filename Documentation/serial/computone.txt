@@ -20,8 +20,6 @@ Version: 1.2.14
 Date: 11/01/2001
 Historical Author: Andrew Manison <amanison@america.net>
 Primary Author: Doug McNash
-Support: support@computone.com
-Fixes and Updates: Mike Warfield <mhw@wittsend.com>
 
 This file assumes that you are using the Computone drivers which are
 integrated into the kernel sources.  For updating the drivers or installing

@@ -62,6 +62,17 @@ config INPUT_AD714X_SPI
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad714x-spi.
 
+config INPUT_BMA150
+	tristate "BMA150/SMB380 acceleration sensor support"
+	depends on I2C
+	select INPUT_POLLDEV
+	help
+	  Say Y here if you have Bosch Sensortec's BMA150 or SMB380
+	  acceleration sensor hooked to an I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bma150.
+
 config INPUT_PCSPKR
 	tristate "PC Speaker support"
 	depends on PCSPKR_PLATFORM
@@ -73,6 +84,29 @@ config INPUT_PCSPKR
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called pcspkr.
+
+config INPUT_PM8XXX_VIBRATOR
+	tristate "Qualcomm PM8XXX vibrator support"
+	depends on MFD_PM8XXX
+	select INPUT_FF_MEMLESS
+	help
+	  This option enables device driver support for the vibrator
+	  on Qualcomm PM8xxx chip. This driver supports ff-memless interface
+	  from input framework.
+
+	  To compile this driver as module, choose M here: the
+	  module will be called pm8xxx-vibrator.
+
+config INPUT_PMIC8XXX_PWRKEY
+	tristate "PMIC8XXX power key support"
+	depends on MFD_PM8XXX
+	help
+	  Say Y here if you want support for the PMIC8XXX power key.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pmic8xxx-pwrkey.
 
 config INPUT_SPARCSPKR
 	tristate "SPARC Speaker support"
@@ -99,6 +133,16 @@ config INPUT_MAX8925_ONKEY
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called max8925_onkey.
+
+config INPUT_MC13783_PWRBUTTON
+	tristate "MC13783 ON buttons"
+	depends on MFD_MC13783
+	help
+	  Support the ON buttons of MC13783 PMIC as an input device
+	  reporting power button status.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called mc13783-pwrbutton.
 
 config INPUT_MMA8450
 	tristate "MMA8450 - Freescale's 3-Axis, 8/12-bit Digital Accelerometer"
@@ -182,22 +226,6 @@ config INPUT_ATLAS_BTNS
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called atlas_btns.
-
-config INPUT_ATI_REMOTE
-	tristate "ATI / X10 USB RF remote control"
-	depends on USB_ARCH_HAS_HCD
-	select USB
-	help
-	  Say Y here if you want to use an ATI or X10 "Lola" USB remote control.
-	  These are RF remotes with USB receivers.
-	  The ATI remote comes with many of ATI's All-In-Wonder video cards.
-	  The X10 "Lola" remote is available at:
-	     <http://www.x10.com/products/lola_sg1.htm>
-	  This driver provides mouse pointer, left and right mouse buttons,
-	  and maps all the other remote buttons to keypress events.
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called ati_remote.
 
 config INPUT_ATI_REMOTE2
 	tristate "ATI / Philips USB RF remote control"
@@ -378,17 +406,6 @@ config INPUT_PWM_BEEPER
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called pwm-beeper.
-
-config INPUT_PMIC8XXX_PWRKEY
-	tristate "PMIC8XXX power key support"
-	depends on MFD_PM8XXX
-	help
-	  Say Y here if you want support for the PMIC8XXX power key.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called pmic8xxx-pwrkey.
 
 config INPUT_GPIO_ROTARY_ENCODER
 	tristate "Rotary encoders connected to GPIO pins"

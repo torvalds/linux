@@ -941,11 +941,15 @@
 #define	CB_COLOR0_SLICE					0x28c68
 #define	CB_COLOR0_VIEW					0x28c6c
 #define	CB_COLOR0_INFO					0x28c70
+#	define CB_FORMAT(x)				((x) << 2)
 #       define CB_ARRAY_MODE(x)                         ((x) << 8)
 #       define ARRAY_LINEAR_GENERAL                     0
 #       define ARRAY_LINEAR_ALIGNED                     1
 #       define ARRAY_1D_TILED_THIN1                     2
 #       define ARRAY_2D_TILED_THIN1                     4
+#	define CB_SOURCE_FORMAT(x)			((x) << 24)
+#	define CB_SF_EXPORT_FULL			0
+#	define CB_SF_EXPORT_NORM			1
 #define	CB_COLOR0_ATTRIB				0x28c74
 #define	CB_COLOR0_DIM					0x28c78
 /* only CB0-7 blocks have these regs */
@@ -1107,14 +1111,52 @@
 #define	CB_COLOR7_CLEAR_WORD3				0x28e3c
 
 #define SQ_TEX_RESOURCE_WORD0_0                         0x30000
+#	define TEX_DIM(x)				((x) << 0)
+#	define SQ_TEX_DIM_1D				0
+#	define SQ_TEX_DIM_2D				1
+#	define SQ_TEX_DIM_3D				2
+#	define SQ_TEX_DIM_CUBEMAP			3
+#	define SQ_TEX_DIM_1D_ARRAY			4
+#	define SQ_TEX_DIM_2D_ARRAY			5
+#	define SQ_TEX_DIM_2D_MSAA			6
+#	define SQ_TEX_DIM_2D_ARRAY_MSAA			7
 #define SQ_TEX_RESOURCE_WORD1_0                         0x30004
 #       define TEX_ARRAY_MODE(x)                        ((x) << 28)
 #define SQ_TEX_RESOURCE_WORD2_0                         0x30008
 #define SQ_TEX_RESOURCE_WORD3_0                         0x3000C
 #define SQ_TEX_RESOURCE_WORD4_0                         0x30010
+#	define TEX_DST_SEL_X(x)				((x) << 16)
+#	define TEX_DST_SEL_Y(x)				((x) << 19)
+#	define TEX_DST_SEL_Z(x)				((x) << 22)
+#	define TEX_DST_SEL_W(x)				((x) << 25)
+#	define SQ_SEL_X					0
+#	define SQ_SEL_Y					1
+#	define SQ_SEL_Z					2
+#	define SQ_SEL_W					3
+#	define SQ_SEL_0					4
+#	define SQ_SEL_1					5
 #define SQ_TEX_RESOURCE_WORD5_0                         0x30014
 #define SQ_TEX_RESOURCE_WORD6_0                         0x30018
 #define SQ_TEX_RESOURCE_WORD7_0                         0x3001c
+
+#define SQ_VTX_CONSTANT_WORD0_0				0x30000
+#define SQ_VTX_CONSTANT_WORD1_0				0x30004
+#define SQ_VTX_CONSTANT_WORD2_0				0x30008
+#	define SQ_VTXC_BASE_ADDR_HI(x)			((x) << 0)
+#	define SQ_VTXC_STRIDE(x)			((x) << 8)
+#	define SQ_VTXC_ENDIAN_SWAP(x)			((x) << 30)
+#	define SQ_ENDIAN_NONE				0
+#	define SQ_ENDIAN_8IN16				1
+#	define SQ_ENDIAN_8IN32				2
+#define SQ_VTX_CONSTANT_WORD3_0				0x3000C
+#	define SQ_VTCX_SEL_X(x)				((x) << 3)
+#	define SQ_VTCX_SEL_Y(x)				((x) << 6)
+#	define SQ_VTCX_SEL_Z(x)				((x) << 9)
+#	define SQ_VTCX_SEL_W(x)				((x) << 12)
+#define SQ_VTX_CONSTANT_WORD4_0				0x30010
+#define SQ_VTX_CONSTANT_WORD5_0                         0x30014
+#define SQ_VTX_CONSTANT_WORD6_0                         0x30018
+#define SQ_VTX_CONSTANT_WORD7_0                         0x3001c
 
 /* cayman 3D regs */
 #define CAYMAN_VGT_OFFCHIP_LDS_BASE			0x89B0

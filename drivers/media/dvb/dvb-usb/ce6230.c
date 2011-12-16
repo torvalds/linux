@@ -186,9 +186,9 @@ static struct zl10353_config ce6230_zl10353_config = {
 static int ce6230_zl10353_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	deb_info("%s:\n", __func__);
-	adap->fe = dvb_attach(zl10353_attach, &ce6230_zl10353_config,
+	adap->fe_adap[0].fe = dvb_attach(zl10353_attach, &ce6230_zl10353_config,
 		&adap->dev->i2c_adap);
-	if (adap->fe == NULL)
+	if (adap->fe_adap[0].fe == NULL)
 		return -ENODEV;
 	return 0;
 }
@@ -214,7 +214,7 @@ static int ce6230_mxl5003s_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	int ret;
 	deb_info("%s:\n", __func__);
-	ret = dvb_attach(mxl5005s_attach, adap->fe, &adap->dev->i2c_adap,
+	ret = dvb_attach(mxl5005s_attach, adap->fe_adap[0].fe, &adap->dev->i2c_adap,
 			&ce6230_mxl5003s_config) == NULL ? -ENODEV : 0;
 	return ret;
 }
@@ -273,6 +273,8 @@ static struct dvb_usb_device_properties ce6230_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+		.num_frontends = 1,
+		.fe = {{
 			.frontend_attach  = ce6230_zl10353_frontend_attach,
 			.tuner_attach     = ce6230_mxl5003s_tuner_attach,
 			.stream = {
@@ -285,6 +287,7 @@ static struct dvb_usb_device_properties ce6230_properties = {
 					}
 				}
 			},
+		}},
 		}
 	},
 

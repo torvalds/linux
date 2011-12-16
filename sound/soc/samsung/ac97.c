@@ -15,6 +15,7 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+#include <linux/module.h>
 
 #include <sound/soc.h>
 
@@ -271,7 +272,10 @@ static int s3c_ac97_trigger(struct snd_pcm_substream *substream, int cmd,
 
 	writel(ac_glbctrl, s3c_ac97.regs + S3C_AC97_GLBCTRL);
 
-	s3c2410_dma_ctrl(dma_data->channel, S3C2410_DMAOP_STARTED);
+	if (!dma_data->ops)
+		dma_data->ops = samsung_dma_get_ops();
+
+	dma_data->ops->started(dma_data->channel);
 
 	return 0;
 }
@@ -317,7 +321,10 @@ static int s3c_ac97_mic_trigger(struct snd_pcm_substream *substream,
 
 	writel(ac_glbctrl, s3c_ac97.regs + S3C_AC97_GLBCTRL);
 
-	s3c2410_dma_ctrl(dma_data->channel, S3C2410_DMAOP_STARTED);
+	if (!dma_data->ops)
+		dma_data->ops = samsung_dma_get_ops();
+
+	dma_data->ops->started(dma_data->channel);
 
 	return 0;
 }
@@ -444,7 +451,7 @@ static __devinit int s3c_ac97_probe(struct platform_device *pdev)
 	}
 
 	ret = request_irq(irq_res->start, s3c_ac97_irq,
-					IRQF_DISABLED, "AC97", NULL);
+					0, "AC97", NULL);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "ac97: interrupt request failed.\n");
 		goto err4;
@@ -495,7 +502,7 @@ static __devexit int s3c_ac97_remove(struct platform_device *pdev)
 
 static struct platform_driver s3c_ac97_driver = {
 	.probe  = s3c_ac97_probe,
-	.remove = s3c_ac97_remove,
+	.remove = __devexit_p(s3c_ac97_remove),
 	.driver = {
 		.name = "samsung-ac97",
 		.owner = THIS_MODULE,

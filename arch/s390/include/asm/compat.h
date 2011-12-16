@@ -12,6 +12,7 @@
 #define PSW32_MASK_IO		0x02000000UL
 #define PSW32_MASK_EXT		0x01000000UL
 #define PSW32_MASK_KEY		0x00F00000UL
+#define PSW32_MASK_BASE		0x00080000UL	/* Always one */
 #define PSW32_MASK_MCHECK	0x00040000UL
 #define PSW32_MASK_WAIT		0x00020000UL
 #define PSW32_MASK_PSTATE	0x00010000UL
@@ -19,21 +20,19 @@
 #define PSW32_MASK_CC		0x00003000UL
 #define PSW32_MASK_PM		0x00000f00UL
 
-#define PSW32_ADDR_AMODE31	0x80000000UL
+#define PSW32_MASK_USER		0x00003F00UL
+
+#define PSW32_ADDR_AMODE	0x80000000UL
 #define PSW32_ADDR_INSN		0x7FFFFFFFUL
 
-#define PSW32_BASE_BITS		0x00080000UL
+#define PSW32_DEFAULT_KEY	(((u32) PAGE_DEFAULT_ACC) << 20)
 
 #define PSW32_ASC_PRIMARY	0x00000000UL
 #define PSW32_ASC_ACCREG	0x00004000UL
 #define PSW32_ASC_SECONDARY	0x00008000UL
 #define PSW32_ASC_HOME		0x0000C000UL
 
-#define PSW32_MASK_MERGE(CURRENT,NEW) \
-	(((CURRENT) & ~(PSW32_MASK_CC|PSW32_MASK_PM)) | \
-	 ((NEW) & (PSW32_MASK_CC|PSW32_MASK_PM)))
-
-extern long psw32_user_bits;
+extern u32 psw32_user_bits;
 
 #define COMPAT_USER_HZ		100
 #define COMPAT_UTS_MACHINE	"s390\0\0\0\0"
@@ -131,7 +130,8 @@ struct compat_statfs {
 	compat_fsid_t	f_fsid;
 	s32		f_namelen;
 	s32		f_frsize;
-	s32		f_spare[6];
+	s32		f_flags;
+	s32		f_spare[5];
 };
 
 #define COMPAT_RLIM_OLD_INFINITY	0x7fffffff

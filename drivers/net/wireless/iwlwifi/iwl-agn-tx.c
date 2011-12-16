@@ -91,7 +91,10 @@ static void iwlagn_tx_cmd_build_basic(struct iwl_priv *priv,
 		tx_cmd->tid_tspec = qc[0] & 0xf;
 		tx_flags &= ~TX_CMD_FLG_SEQ_CTL_MSK;
 	} else {
-		tx_flags |= TX_CMD_FLG_SEQ_CTL_MSK;
+		if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ)
+			tx_flags |= TX_CMD_FLG_SEQ_CTL_MSK;
+		else
+			tx_flags &= ~TX_CMD_FLG_SEQ_CTL_MSK;
 	}
 
 	iwlagn_tx_cmd_protection(priv, info, fc, &tx_flags);
@@ -148,7 +151,7 @@ static void iwlagn_tx_cmd_build_rate(struct iwl_priv *priv,
 	if (ieee80211_is_data(fc)) {
 		tx_cmd->initial_rate_index = 0;
 		tx_cmd->tx_flags |= TX_CMD_FLG_STA_RATE_MSK;
-#ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
+#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
 		if (priv->tm_fixed_rate) {
 			/*
 			 * rate overwrite by testmode
@@ -161,7 +164,8 @@ static void iwlagn_tx_cmd_build_rate(struct iwl_priv *priv,
 		}
 #endif
 		return;
-	}
+	} else if (ieee80211_is_back_req(fc))
+		tx_cmd->tx_flags |= TX_CMD_FLG_STA_RATE_MSK;
 
 	/**
 	 * If the current TX rate stored in mac80211 has the MCS bit set, it's
@@ -790,6 +794,7 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
 		iwl_rx_reply_tx_agg(priv, tx_resp);
 
 	if (tx_resp->frame_count == 1) {
+		IWL_DEBUG_TX_REPLY(priv, "Q %d, ssn %d", txq_id, ssn);
 		__skb_queue_head_init(&skbs);
 		/*we can free until ssn % q.n_bd not inclusive */
 		iwl_trans_reclaim(trans(priv), sta_id, tid, txq_id,
@@ -920,11 +925,9 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 			   ba_resp->sta_id);
 	IWL_DEBUG_TX_REPLY(priv, "TID = %d, SeqCtl = %d, bitmap = 0x%llx, "
 			   "scd_flow = %d, scd_ssn = %d\n",
-			   ba_resp->tid,
-			   ba_resp->seq_ctl,
+			   ba_resp->tid, ba_resp->seq_ctl,
 			   (unsigned long long)le64_to_cpu(ba_resp->bitmap),
-			   ba_resp->scd_flow,
-			   ba_resp->scd_ssn);
+			   scd_flow, ba_resp_scd_ssn);
 
 	/* Mark that the expected block-ack response arrived */
 	agg->wait_for_ba = false;

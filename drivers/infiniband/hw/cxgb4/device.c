@@ -376,10 +376,8 @@ struct uld_ctx {
 	struct c4iw_dev *dev;
 };
 
-static void c4iw_remove(struct uld_ctx *ctx)
+static void c4iw_dealloc(struct uld_ctx *ctx)
 {
-	PDBG("%s c4iw_dev %p\n", __func__,  ctx->dev);
-	c4iw_unregister_device(ctx->dev);
 	c4iw_rdev_close(&ctx->dev->rdev);
 	idr_destroy(&ctx->dev->cqidr);
 	idr_destroy(&ctx->dev->qpidr);
@@ -389,11 +387,30 @@ static void c4iw_remove(struct uld_ctx *ctx)
 	ctx->dev = NULL;
 }
 
+static void c4iw_remove(struct uld_ctx *ctx)
+{
+	PDBG("%s c4iw_dev %p\n", __func__,  ctx->dev);
+	c4iw_unregister_device(ctx->dev);
+	c4iw_dealloc(ctx);
+}
+
+static int rdma_supported(const struct cxgb4_lld_info *infop)
+{
+	return infop->vr->stag.size > 0 && infop->vr->pbl.size > 0 &&
+	       infop->vr->rq.size > 0 && infop->vr->qp.size > 0 &&
+	       infop->vr->cq.size > 0 && infop->vr->ocq.size > 0;
+}
+
 static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 {
 	struct c4iw_dev *devp;
 	int ret;
 
+	if (!rdma_supported(infop)) {
+		printk(KERN_INFO MOD "%s: RDMA not supported on this device.\n",
+		       pci_name(infop->pdev));
+		return ERR_PTR(-ENOSYS);
+	}
 	devp = (struct c4iw_dev *)ib_alloc_device(sizeof(*devp));
 	if (!devp) {
 		printk(KERN_ERR MOD "Cannot allocate ib device\n");
@@ -414,7 +431,6 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 
 	ret = c4iw_rdev_open(&devp->rdev);
 	if (ret) {
-		mutex_unlock(&dev_mutex);
 		printk(KERN_ERR MOD "Unable to open CXIO rdev err %d\n", ret);
 		ib_dealloc_device(&devp->ibdev);
 		return ERR_PTR(ret);
@@ -519,15 +535,24 @@ static int c4iw_uld_state_change(void *handle, enum cxgb4_state new_state)
 	case CXGB4_STATE_UP:
 		printk(KERN_INFO MOD "%s: Up\n", pci_name(ctx->lldi.pdev));
 		if (!ctx->dev) {
-			int ret = 0;
+			int ret;
 
 			ctx->dev = c4iw_alloc(&ctx->lldi);
-			if (!IS_ERR(ctx->dev))
-				ret = c4iw_register_device(ctx->dev);
-			if (IS_ERR(ctx->dev) || ret)
+			if (IS_ERR(ctx->dev)) {
+				printk(KERN_ERR MOD
+				       "%s: initialization failed: %ld\n",
+				       pci_name(ctx->lldi.pdev),
+				       PTR_ERR(ctx->dev));
+				ctx->dev = NULL;
+				break;
+			}
+			ret = c4iw_register_device(ctx->dev);
+			if (ret) {
 				printk(KERN_ERR MOD
 				       "%s: RDMA registration failed: %d\n",
 				       pci_name(ctx->lldi.pdev), ret);
+				c4iw_dealloc(ctx);
+			}
 		}
 		break;
 	case CXGB4_STATE_DOWN:

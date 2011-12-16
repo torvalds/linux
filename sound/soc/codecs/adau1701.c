@@ -401,7 +401,7 @@ static int adau1701_digital_mute(struct snd_soc_dai *dai, int mute)
 }
 
 static int adau1701_set_sysclk(struct snd_soc_codec *codec, int clk_id,
-	unsigned int freq, int dir)
+	int source, unsigned int freq, int dir)
 {
 	unsigned int val;
 
@@ -458,6 +458,7 @@ static int adau1701_probe(struct snd_soc_codec *codec)
 	int ret;
 
 	codec->dapm.idle_bias_off = 1;
+	codec->control_data = to_i2c_client(codec->dev);
 
 	ret = adau1701_load_firmware(codec);
 	if (ret)

@@ -138,6 +138,42 @@
 				clock-frequency = <0>; /* Filled in by zImage */
 				interrupts = <0x5 0x1>;
 				interrupt-parent = <&UIC1>;
+
+				nor_flash@0,0 {
+					compatible = "amd,s29gl256n", "cfi-flash";
+					bank-width = <2>;
+					reg = <0x00000000 0x00000000 0x04000000>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+					partition@0 {
+						label = "kernel";
+						reg = <0x00000000 0x001e0000>;
+					};
+					partition@1e0000 {
+						label = "dtb";
+						reg = <0x001e0000 0x00020000>;
+					};
+					partition@200000 {
+						label = "ramdisk";
+						reg = <0x00200000 0x01400000>;
+					};
+					partition@1600000 {
+						label = "jffs2";
+						reg = <0x01600000 0x00400000>;
+					};
+					partition@1a00000 {
+						label = "user";
+						reg = <0x01a00000 0x02540000>;
+					};
+					partition@3f40000 {
+						label = "env";
+						reg = <0x03f40000 0x00040000>;
+					};
+					partition@3f80000 {
+						label = "u-boot";
+						reg = <0x03f80000 0x00080000>;
+					};
+				};
 			};
 
 			UART0: serial@ef600300 {

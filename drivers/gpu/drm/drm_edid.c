@@ -30,6 +30,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
+#include <linux/export.h>
 #include "drmP.h"
 #include "drm_edid.h"
 #include "drm_edid_modes.h"
@@ -1319,6 +1320,7 @@ add_detailed_modes(struct drm_connector *connector, struct edid *edid,
 #define HDMI_IDENTIFIER 0x000C03
 #define AUDIO_BLOCK	0x01
 #define VENDOR_BLOCK    0x03
+#define SPEAKER_BLOCK	0x04
 #define EDID_BASIC_AUDIO	(1 << 6)
 
 /**
@@ -1346,6 +1348,176 @@ u8 *drm_find_cea_extension(struct edid *edid)
 	return edid_ext;
 }
 EXPORT_SYMBOL(drm_find_cea_extension);
+
+static void
+parse_hdmi_vsdb(struct drm_connector *connector, uint8_t *db)
+{
+	connector->eld[5] |= (db[6] >> 7) << 1;  /* Supports_AI */
+
+	connector->dvi_dual = db[6] & 1;
+	connector->max_tmds_clock = db[7] * 5;
+
+	connector->latency_present[0] = db[8] >> 7;
+	connector->latency_present[1] = (db[8] >> 6) & 1;
+	connector->video_latency[0] = db[9];
+	connector->audio_latency[0] = db[10];
+	connector->video_latency[1] = db[11];
+	connector->audio_latency[1] = db[12];
+
+	DRM_LOG_KMS("HDMI: DVI dual %d, "
+		    "max TMDS clock %d, "
+		    "latency present %d %d, "
+		    "video latency %d %d, "
+		    "audio latency %d %d\n",
+		    connector->dvi_dual,
+		    connector->max_tmds_clock,
+	      (int) connector->latency_present[0],
+	      (int) connector->latency_present[1],
+		    connector->video_latency[0],
+		    connector->video_latency[1],
+		    connector->audio_latency[0],
+		    connector->audio_latency[1]);
+}
+
+static void
+monitor_name(struct detailed_timing *t, void *data)
+{
+	if (t->data.other_data.type == EDID_DETAIL_MONITOR_NAME)
+		*(u8 **)data = t->data.other_data.data.str.str;
+}
+
+/**
+ * drm_edid_to_eld - build ELD from EDID
+ * @connector: connector corresponding to the HDMI/DP sink
+ * @edid: EDID to parse
+ *
+ * Fill the ELD (EDID-Like Data) buffer for passing to the audio driver.
+ * Some ELD fields are left to the graphics driver caller:
+ * - Conn_Type
+ * - HDCP
+ * - Port_ID
+ */
+void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
+{
+	uint8_t *eld = connector->eld;
+	u8 *cea;
+	u8 *name;
+	u8 *db;
+	int sad_count = 0;
+	int mnl;
+	int dbl;
+
+	memset(eld, 0, sizeof(connector->eld));
+
+	cea = drm_find_cea_extension(edid);
+	if (!cea) {
+		DRM_DEBUG_KMS("ELD: no CEA Extension found\n");
+		return;
+	}
+
+	name = NULL;
+	drm_for_each_detailed_block((u8 *)edid, monitor_name, &name);
+	for (mnl = 0; name && mnl < 13; mnl++) {
+		if (name[mnl] == 0x0a)
+			break;
+		eld[20 + mnl] = name[mnl];
+	}
+	eld[4] = (cea[1] << 5) | mnl;
+	DRM_DEBUG_KMS("ELD monitor %s\n", eld + 20);
+
+	eld[0] = 2 << 3;		/* ELD version: 2 */
+
+	eld[16] = edid->mfg_id[0];
+	eld[17] = edid->mfg_id[1];
+	eld[18] = edid->prod_code[0];
+	eld[19] = edid->prod_code[1];
+
+	for (db = cea + 4; db < cea + cea[2]; db += dbl + 1) {
+		dbl = db[0] & 0x1f;
+
+		switch ((db[0] & 0xe0) >> 5) {
+		case AUDIO_BLOCK:	/* Audio Data Block, contains SADs */
+			sad_count = dbl / 3;
+			memcpy(eld + 20 + mnl, &db[1], dbl);
+			break;
+		case SPEAKER_BLOCK:	/* Speaker Allocation Data Block */
+			eld[7] = db[1];
+			break;
+		case VENDOR_BLOCK:
+			/* HDMI Vendor-Specific Data Block */
+			if (db[1] == 0x03 && db[2] == 0x0c && db[3] == 0)
+				parse_hdmi_vsdb(connector, db);
+			break;
+		default:
+			break;
+		}
+	}
+	eld[5] |= sad_count << 4;
+	eld[2] = (20 + mnl + sad_count * 3 + 3) / 4;
+
+	DRM_DEBUG_KMS("ELD size %d, SAD count %d\n", (int)eld[2], sad_count);
+}
+EXPORT_SYMBOL(drm_edid_to_eld);
+
+/**
+ * drm_av_sync_delay - HDMI/DP sink audio-video sync delay in millisecond
+ * @connector: connector associated with the HDMI/DP sink
+ * @mode: the display mode
+ */
+int drm_av_sync_delay(struct drm_connector *connector,
+		      struct drm_display_mode *mode)
+{
+	int i = !!(mode->flags & DRM_MODE_FLAG_INTERLACE);
+	int a, v;
+
+	if (!connector->latency_present[0])
+		return 0;
+	if (!connector->latency_present[1])
+		i = 0;
+
+	a = connector->audio_latency[i];
+	v = connector->video_latency[i];
+
+	/*
+	 * HDMI/DP sink doesn't support audio or video?
+	 */
+	if (a == 255 || v == 255)
+		return 0;
+
+	/*
+	 * Convert raw EDID values to millisecond.
+	 * Treat unknown latency as 0ms.
+	 */
+	if (a)
+		a = min(2 * (a - 1), 500);
+	if (v)
+		v = min(2 * (v - 1), 500);
+
+	return max(v - a, 0);
+}
+EXPORT_SYMBOL(drm_av_sync_delay);
+
+/**
+ * drm_select_eld - select one ELD from multiple HDMI/DP sinks
+ * @encoder: the encoder just changed display mode
+ * @mode: the adjusted display mode
+ *
+ * It's possible for one encoder to be associated with multiple HDMI/DP sinks.
+ * The policy is now hard coded to simply use the first HDMI/DP sink's ELD.
+ */
+struct drm_connector *drm_select_eld(struct drm_encoder *encoder,
+				     struct drm_display_mode *mode)
+{
+	struct drm_connector *connector;
+	struct drm_device *dev = encoder->dev;
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
+		if (connector->encoder == encoder && connector->eld[0])
+			return connector;
+
+	return NULL;
+}
+EXPORT_SYMBOL(drm_select_eld);
 
 /**
  * drm_detect_hdmi_monitor - detect whether monitor is hdmi.

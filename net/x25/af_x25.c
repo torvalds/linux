@@ -1261,14 +1261,19 @@ static int x25_recvmsg(struct kiocb *iocb, struct socket *sock,
 	struct x25_sock *x25 = x25_sk(sk);
 	struct sockaddr_x25 *sx25 = (struct sockaddr_x25 *)msg->msg_name;
 	size_t copied;
-	int qbit, header_len = x25->neighbour->extended ?
-		X25_EXT_MIN_LEN : X25_STD_MIN_LEN;
-
+	int qbit, header_len;
 	struct sk_buff *skb;
 	unsigned char *asmptr;
 	int rc = -ENOTCONN;
 
 	lock_sock(sk);
+
+	if (x25->neighbour == NULL)
+		goto out;
+
+	header_len = x25->neighbour->extended ?
+		X25_EXT_MIN_LEN : X25_STD_MIN_LEN;
+
 	/*
 	 * This works for seqpacket too. The receiver has ordered the queue for
 	 * us! We do one quick check first though

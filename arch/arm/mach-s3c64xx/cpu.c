@@ -20,6 +20,7 @@
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/dma-mapping.h>
 
 #include <mach/hardware.h>
 #include <mach/map.h>
@@ -33,8 +34,8 @@
 #include <plat/devs.h>
 #include <plat/clock.h>
 
-#include <mach/s3c6400.h>
-#include <mach/s3c6410.h>
+#include <plat/s3c6400.h>
+#include <plat/s3c6410.h>
 
 /* table of supported CPUs */
 
@@ -43,16 +44,16 @@ static const char name_s3c6410[] = "S3C6410";
 
 static struct cpu_table cpu_ids[] __initdata = {
 	{
-		.idcode		= 0x36400000,
-		.idmask		= 0xfffff000,
+		.idcode		= S3C6400_CPU_ID,
+		.idmask		= S3C64XX_CPU_MASK,
 		.map_io		= s3c6400_map_io,
 		.init_clocks	= s3c6400_init_clocks,
 		.init_uarts	= s3c6400_init_uarts,
 		.init		= s3c6400_init,
 		.name		= name_s3c6400,
 	}, {
-		.idcode		= 0x36410100,
-		.idmask		= 0xffffff00,
+		.idcode		= S3C6410_CPU_ID,
+		.idmask		= S3C64XX_CPU_MASK,
 		.map_io		= s3c6410_map_io,
 		.init_clocks	= s3c6410_init_clocks,
 		.init_uarts	= s3c6410_init_uarts,
@@ -140,22 +141,15 @@ void __init s3c6400_common_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 
 void __init s3c64xx_init_io(struct map_desc *mach_desc, int size)
 {
-	unsigned long idcode;
-
 	/* initialise the io descriptors we need for initialisation */
 	iotable_init(s3c_iodesc, ARRAY_SIZE(s3c_iodesc));
 	iotable_init(mach_desc, size);
+	init_consistent_dma_size(SZ_8M);
 
-	idcode = __raw_readl(S3C_VA_SYS + 0x118);
-	if (!idcode) {
-		/* S3C6400 has the ID register in a different place,
-		 * and needs a write before it can be read. */
+	/* detect cpu id */
+	s3c64xx_init_cpu();
 
-		__raw_writel(0x0, S3C_VA_SYS + 0xA1C);
-		idcode = __raw_readl(S3C_VA_SYS + 0xA1C);
-	}
-
-	s3c_init_cpu(idcode, cpu_ids, ARRAY_SIZE(cpu_ids));
+	s3c_init_cpu(samsung_cpu_id, cpu_ids, ARRAY_SIZE(cpu_ids));
 }
 
 static __init int s3c64xx_sysdev_init(void)

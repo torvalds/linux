@@ -14,6 +14,7 @@
  */
 
 #include <linux/gpio.h>
+#include <linux/module.h>
 
 #include <sound/soc.h>
 #include <sound/jack.h>
@@ -153,20 +154,6 @@ static int smartq_wm8987_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int err = 0;
 
-	/* Add SmartQ specific widgets */
-	snd_soc_dapm_new_controls(dapm, wm8987_dapm_widgets,
-				  ARRAY_SIZE(wm8987_dapm_widgets));
-
-	/* add SmartQ specific controls */
-	err = snd_soc_add_controls(codec, wm8987_smartq_controls,
-				   ARRAY_SIZE(wm8987_smartq_controls));
-
-	if (err < 0)
-		return err;
-
-	/* setup SmartQ specific audio path */
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
-
 	/* set endpoints to not connected */
 	snd_soc_dapm_nc_pin(dapm, "LINPUT1");
 	snd_soc_dapm_nc_pin(dapm, "RINPUT1");
@@ -177,10 +164,6 @@ static int smartq_wm8987_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_enable_pin(dapm, "Internal Speaker");
 	snd_soc_dapm_enable_pin(dapm, "Internal Mic");
 	snd_soc_dapm_disable_pin(dapm, "Headphone Jack");
-
-	err = snd_soc_dapm_sync(dapm);
-	if (err)
-		return err;
 
 	/* Headphone jack detection */
 	err = snd_soc_jack_new(codec, "Headphone Jack",
@@ -207,7 +190,7 @@ static struct snd_soc_dai_link smartq_dai[] = {
 		.cpu_dai_name	= "samsung-i2s.0",
 		.codec_dai_name	= "wm8750-hifi",
 		.platform_name	= "samsung-audio",
-		.codec_name	= "wm8750-codec.0-0x1a",
+		.codec_name	= "wm8750.0-0x1a",
 		.init		= smartq_wm8987_init,
 		.ops		= &smartq_hifi_ops,
 	},
@@ -217,6 +200,13 @@ static struct snd_soc_card snd_soc_smartq = {
 	.name = "SmartQ",
 	.dai_link = smartq_dai,
 	.num_links = ARRAY_SIZE(smartq_dai),
+
+	.dapm_widgets = wm8987_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8987_dapm_widgets),
+	.dapm_routes = audio_map,
+	.num_dapm_routes = ARRAY_SIZE(audio_map),
+	.controls = wm8987_smartq_controls,
+	.num_controls = ARRAY_SIZE(wm8987_smartq_controls),
 };
 
 static struct platform_device *smartq_snd_device;

@@ -354,6 +354,11 @@ static inline void iwl_set_swq_id(struct iwl_tx_queue *txq, u8 ac, u8 hwq)
 	txq->swq_id = (hwq << 2) | ac;
 }
 
+static inline u8 iwl_get_queue_ac(struct iwl_tx_queue *txq)
+{
+	return txq->swq_id & 0x3;
+}
+
 static inline void iwl_wake_queue(struct iwl_trans *trans,
 				  struct iwl_tx_queue *txq, const char *msg)
 {

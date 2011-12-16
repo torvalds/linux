@@ -18,6 +18,7 @@
 #include <linux/of_gpio.h>
 #include <linux/of_i2c.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 
 #include <asm/machdep.h>
 #include <asm/prom.h>

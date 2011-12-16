@@ -5,6 +5,7 @@
 #include <linux/atomic.h>
 #include <linux/wait.h>
 #include <linux/notifier.h>
+#include <linux/kernel_stat.h>
 #include "io_sch.h"
 
 /*
@@ -56,7 +57,17 @@ extern fsm_func_t *dev_jumptable[NR_DEV_STATES][NR_DEV_EVENTS];
 static inline void
 dev_fsm_event(struct ccw_device *cdev, enum dev_event dev_event)
 {
-	dev_jumptable[cdev->private->state][dev_event](cdev, dev_event);
+	int state = cdev->private->state;
+
+	if (dev_event == DEV_EVENT_INTERRUPT) {
+		if (state == DEV_STATE_ONLINE)
+			kstat_cpu(smp_processor_id()).
+				irqs[cdev->private->int_class]++;
+		else if (state != DEV_STATE_CMFCHANGE &&
+			 state != DEV_STATE_CMFUPDATE)
+			kstat_cpu(smp_processor_id()).irqs[IOINT_CIO]++;
+	}
+	dev_jumptable[state][dev_event](cdev, dev_event);
 }
 
 /*

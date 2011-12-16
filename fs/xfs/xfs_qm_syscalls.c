@@ -261,7 +261,7 @@ xfs_qm_scall_trunc_qfile(
 	}
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	xfs_trans_ijoin(tp, ip);
+	xfs_trans_ijoin(tp, ip, 0);
 
 	error = xfs_itruncate_data(&tp, ip, 0);
 	if (error) {

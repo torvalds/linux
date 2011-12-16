@@ -1,7 +1,7 @@
 /*
  * Range add and subtract
  */
-#include <linux/module.h>
+#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sort.h>
 

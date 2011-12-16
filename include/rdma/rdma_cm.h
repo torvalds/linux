@@ -65,6 +65,7 @@ enum rdma_cm_event_type {
 enum rdma_port_space {
 	RDMA_PS_SDP   = 0x0001,
 	RDMA_PS_IPOIB = 0x0002,
+	RDMA_PS_IB    = 0x013F,
 	RDMA_PS_TCP   = 0x0106,
 	RDMA_PS_UDP   = 0x0111,
 };

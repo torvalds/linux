@@ -559,7 +559,6 @@ int iwl_trans_pcie_tx_agg_alloc(struct iwl_trans *trans,
 	tid_data->agg.txq_id = txq_id;
 	iwl_set_swq_id(&trans_pcie->txq[txq_id], get_ac_from_tid(tid), txq_id);
 
-	tid_data = &trans->shrd->tid_data[sta_id][tid];
 	if (tid_data->tfds_in_queue == 0) {
 		IWL_DEBUG_TX_QUEUES(trans, "HW queue is empty\n");
 		tid_data->agg.state = IWL_AGG_ON;
@@ -1120,9 +1119,6 @@ int iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
 			  q->write_ptr, q->read_ptr);
 		return 0;
 	}
-
-	IWL_DEBUG_TX_REPLY(trans, "reclaim: [%d, %d, %d]\n", txq_id,
-			   q->read_ptr, index);
 
 	if (WARN_ON(!skb_queue_empty(skbs)))
 		return 0;

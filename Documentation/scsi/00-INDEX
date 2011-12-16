@@ -28,6 +28,8 @@ LICENSE.FlashPoint
 	- Licence of the Flashpoint driver
 LICENSE.qla2xxx
 	- License for QLogic Linux Fibre Channel HBA Driver firmware.
+LICENSE.qla4xxx
+	- License for QLogic Linux iSCSI HBA Driver.
 Mylex.txt
 	- info on driver for Mylex adapters
 NinjaSCSI.txt

@@ -247,7 +247,7 @@ static void palmtx_nand_cmd_ctl(struct mtd_info *mtd, int cmd,
 				 unsigned int ctrl)
 {
 	struct nand_chip *this = mtd->priv;
-	unsigned long nandaddr = (unsigned long)this->IO_ADDR_W;
+	char __iomem *nandaddr = this->IO_ADDR_W;
 
 	if (cmd == NAND_CMD_NONE)
 		return;
@@ -315,17 +315,17 @@ static inline void palmtx_nand_init(void) {}
  ******************************************************************************/
 static struct map_desc palmtx_io_desc[] __initdata = {
 {
-	.virtual	= PALMTX_PCMCIA_VIRT,
+	.virtual	= (unsigned long)PALMTX_PCMCIA_VIRT,
 	.pfn		= __phys_to_pfn(PALMTX_PCMCIA_PHYS),
 	.length		= PALMTX_PCMCIA_SIZE,
 	.type		= MT_DEVICE,
 }, {
-	.virtual	= PALMTX_NAND_ALE_VIRT,
+	.virtual	= (unsigned long)PALMTX_NAND_ALE_VIRT,
 	.pfn		= __phys_to_pfn(PALMTX_NAND_ALE_PHYS),
 	.length		= SZ_1M,
 	.type		= MT_DEVICE,
 }, {
-	.virtual	= PALMTX_NAND_CLE_VIRT,
+	.virtual	= (unsigned long)PALMTX_NAND_CLE_VIRT,
 	.pfn		= __phys_to_pfn(PALMTX_NAND_CLE_PHYS),
 	.length		= SZ_1M,
 	.type		= MT_DEVICE,
@@ -364,7 +364,7 @@ static void __init palmtx_init(void)
 }
 
 MACHINE_START(PALMTX, "Palm T|X")
-	.boot_params	= 0xa0000100,
+	.atag_offset	= 0x100,
 	.map_io		= palmtx_map_io,
 	.init_irq	= pxa27x_init_irq,
 	.handle_irq	= pxa27x_handle_irq,

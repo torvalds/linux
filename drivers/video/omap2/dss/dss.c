@@ -24,6 +24,7 @@
 
 #include <linux/kernel.h>
 #include <linux/io.h>
+#include <linux/export.h>
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/seq_file.h>
@@ -639,6 +640,17 @@ void dss_select_hdmi_venc_clk_source(enum dss_hdmi_venc_clk_source_select hdmi)
 	REG_FLD_MOD(DSS_CONTROL, hdmi, 15, 15);	/* VENC_HDMI_SWITCH */
 }
 
+enum dss_hdmi_venc_clk_source_select dss_get_hdmi_venc_clk_source(void)
+{
+	enum omap_display_type displays;
+
+	displays = dss_feat_get_supported_displays(OMAP_DSS_CHANNEL_DIGIT);
+	if ((displays & OMAP_DISPLAY_TYPE_HDMI) == 0)
+		return DSS_VENC_TV_CLK;
+
+	return REG_GET(DSS_CONTROL, 15, 15);
+}
+
 static int dss_get_clocks(void)
 {
 	struct clk *clk;
@@ -689,11 +701,6 @@ static void dss_put_clocks(void)
 	if (dss.dpll4_m4_ck)
 		clk_put(dss.dpll4_m4_ck);
 	clk_put(dss.dss_clk);
-}
-
-struct clk *dss_get_ick(void)
-{
-	return clk_get(&dss.pdev->dev, "ick");
 }
 
 int dss_runtime_get(void)
@@ -824,13 +831,11 @@ static int omap_dsshw_remove(struct platform_device *pdev)
 static int dss_runtime_suspend(struct device *dev)
 {
 	dss_save_context();
-	clk_disable(dss.dss_clk);
 	return 0;
 }
 
 static int dss_runtime_resume(struct device *dev)
 {
-	clk_enable(dss.dss_clk);
 	dss_restore_context();
 	return 0;
 }

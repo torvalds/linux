@@ -9,10 +9,8 @@
 #include <errno.h>
 #include <termios.h>
 #include "chan_user.h"
-#include "kern_constants.h"
 #include "os.h"
 #include "um_malloc.h"
-#include "user.h"
 
 struct fd_chan {
 	int fd;

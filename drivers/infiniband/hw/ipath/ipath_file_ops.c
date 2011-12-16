@@ -35,6 +35,7 @@
 #include <linux/poll.h>
 #include <linux/cdev.h>
 #include <linux/swap.h>
+#include <linux/export.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/highmem.h>

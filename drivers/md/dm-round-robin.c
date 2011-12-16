@@ -14,6 +14,7 @@
 #include "dm-path-selector.h"
 
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #define DM_MSG_PREFIX "multipath round-robin"
 

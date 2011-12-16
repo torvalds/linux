@@ -30,7 +30,6 @@
  *	when virtual port control is not in use.
  * @WLAN_STA_SHORT_PREAMBLE: Station is capable of receiving short-preamble
  *	frames.
- * @WLAN_STA_ASSOC_AP: We're associated to that station, it is an AP.
  * @WLAN_STA_WME: Station is a QoS-STA.
  * @WLAN_STA_WDS: Station is one of our WDS peers.
  * @WLAN_STA_CLEAR_PS_FILT: Clear PS filter in hardware (using the
@@ -60,7 +59,6 @@ enum ieee80211_sta_info_flags {
 	WLAN_STA_PS_STA,
 	WLAN_STA_AUTHORIZED,
 	WLAN_STA_SHORT_PREAMBLE,
-	WLAN_STA_ASSOC_AP,
 	WLAN_STA_WME,
 	WLAN_STA_WDS,
 	WLAN_STA_CLEAR_PS_FILT,
@@ -73,6 +71,14 @@ enum ieee80211_sta_info_flags {
 	WLAN_STA_UAPSD,
 	WLAN_STA_SP,
 	WLAN_STA_4ADDR_EVENT,
+};
+
+enum ieee80211_sta_state {
+	/* NOTE: These need to be ordered correctly! */
+	IEEE80211_STA_NONE,
+	IEEE80211_STA_AUTH,
+	IEEE80211_STA_ASSOC,
+	IEEE80211_STA_AUTHORIZED,
 };
 
 #define STA_TID_NUM 16
@@ -90,6 +96,7 @@ enum ieee80211_sta_info_flags {
  * struct tid_ampdu_tx - TID aggregation information (Tx).
  *
  * @rcu_head: rcu head for freeing structure
+ * @session_timer: check if we keep Tx-ing on the TID (by timeout value)
  * @addba_resp_timer: timer for peer's response to addba request
  * @pending: pending frames queue -- use sta's spinlock to protect
  * @dialog_token: dialog token for aggregation session
@@ -112,6 +119,7 @@ enum ieee80211_sta_info_flags {
  */
 struct tid_ampdu_tx {
 	struct rcu_head rcu_head;
+	struct timer_list session_timer;
 	struct timer_list addba_resp_timer;
 	struct sk_buff_head pending;
 	unsigned long state;
@@ -262,6 +270,7 @@ struct sta_ampdu_mlme {
  * @dummy: indicate a dummy station created for receiving
  *	EAP frames before association
  * @sta: station information we share with the driver
+ * @sta_state: duplicates information about station state (for debug)
  */
 struct sta_info {
 	/* General information, mostly static */
@@ -282,6 +291,8 @@ struct sta_info {
 	bool dead;
 
 	bool uploaded;
+
+	enum ieee80211_sta_state sta_state;
 
 	/* use the accessors defined below */
 	unsigned long _flags;
@@ -371,12 +382,18 @@ static inline enum nl80211_plink_state sta_plink_state(struct sta_info *sta)
 static inline void set_sta_flag(struct sta_info *sta,
 				enum ieee80211_sta_info_flags flag)
 {
+	WARN_ON(flag == WLAN_STA_AUTH ||
+		flag == WLAN_STA_ASSOC ||
+		flag == WLAN_STA_AUTHORIZED);
 	set_bit(flag, &sta->_flags);
 }
 
 static inline void clear_sta_flag(struct sta_info *sta,
 				  enum ieee80211_sta_info_flags flag)
 {
+	WARN_ON(flag == WLAN_STA_AUTH ||
+		flag == WLAN_STA_ASSOC ||
+		flag == WLAN_STA_AUTHORIZED);
 	clear_bit(flag, &sta->_flags);
 }
 
@@ -389,14 +406,31 @@ static inline int test_sta_flag(struct sta_info *sta,
 static inline int test_and_clear_sta_flag(struct sta_info *sta,
 					  enum ieee80211_sta_info_flags flag)
 {
+	WARN_ON(flag == WLAN_STA_AUTH ||
+		flag == WLAN_STA_ASSOC ||
+		flag == WLAN_STA_AUTHORIZED);
 	return test_and_clear_bit(flag, &sta->_flags);
 }
 
 static inline int test_and_set_sta_flag(struct sta_info *sta,
 					enum ieee80211_sta_info_flags flag)
 {
+	WARN_ON(flag == WLAN_STA_AUTH ||
+		flag == WLAN_STA_ASSOC ||
+		flag == WLAN_STA_AUTHORIZED);
 	return test_and_set_bit(flag, &sta->_flags);
 }
+
+int sta_info_move_state_checked(struct sta_info *sta,
+				enum ieee80211_sta_state new_state);
+
+static inline void sta_info_move_state(struct sta_info *sta,
+				       enum ieee80211_sta_state new_state)
+{
+	int ret = sta_info_move_state_checked(sta, new_state);
+	WARN_ON_ONCE(ret);
+}
+
 
 void ieee80211_assign_tid_tx(struct sta_info *sta, int tid,
 			     struct tid_ampdu_tx *tid_tx);
@@ -488,7 +522,10 @@ struct sta_info *sta_info_get_by_idx(struct ieee80211_sub_if_data *sdata,
  * until sta_info_insert().
  */
 struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
-				u8 *addr, gfp_t gfp);
+				const u8 *addr, gfp_t gfp);
+
+void sta_info_free(struct ieee80211_local *local, struct sta_info *sta);
+
 /*
  * Insert STA info into hash table/list, returns zero or a
  * -EEXIST if (if the same MAC address is already present).
@@ -499,7 +536,6 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
  */
 int sta_info_insert(struct sta_info *sta);
 int sta_info_insert_rcu(struct sta_info *sta) __acquires(RCU);
-int sta_info_insert_atomic(struct sta_info *sta);
 int sta_info_reinsert(struct sta_info *sta);
 
 int sta_info_destroy_addr(struct ieee80211_sub_if_data *sdata,

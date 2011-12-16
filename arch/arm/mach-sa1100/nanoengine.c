@@ -111,7 +111,7 @@ static void __init nanoengine_init(void)
 }
 
 MACHINE_START(NANOENGINE, "BSE nanoEngine")
-	.boot_params	= 0xc0000000,
+	.atag_offset	= 0x100,
 	.map_io		= nanoengine_map_io,
 	.init_irq	= sa1100_init_irq,
 	.timer		= &sa1100_timer,

@@ -35,6 +35,7 @@
 #include "devices-imx53.h"
 
 #define SMD_FEC_PHY_RST		IMX_GPIO_NR(7, 6)
+#define MX53_SMD_SATA_PWR_EN    IMX_GPIO_NR(3, 3)
 
 static iomux_v3_cfg_t mx53_smd_pads[] = {
 	MX53_PAD_CSI0_DAT10__UART1_TXD_MUX,
@@ -111,12 +112,30 @@ static const struct imxi2c_platform_data mx53_smd_i2c_data __initconst = {
 	.bitrate = 100000,
 };
 
+static inline void mx53_smd_ahci_pwr_on(void)
+{
+	int ret;
+
+	/* Enable SATA PWR */
+	ret = gpio_request_one(MX53_SMD_SATA_PWR_EN,
+			GPIOF_DIR_OUT | GPIOF_INIT_HIGH, "ahci-sata-pwr");
+	if (ret) {
+		pr_err("failed to enable SATA_PWR_EN: %d\n", ret);
+		return;
+	}
+}
+
+void __init imx53_smd_common_init(void)
+{
+	mxc_iomux_v3_setup_multiple_pads(mx53_smd_pads,
+					 ARRAY_SIZE(mx53_smd_pads));
+}
+
 static void __init mx53_smd_board_init(void)
 {
 	imx53_soc_init();
+	imx53_smd_common_init();
 
-	mxc_iomux_v3_setup_multiple_pads(mx53_smd_pads,
-					ARRAY_SIZE(mx53_smd_pads));
 	mx53_smd_init_uart();
 	mx53_smd_fec_reset();
 	imx53_add_fec(&mx53_smd_fec_data);
@@ -125,6 +144,8 @@ static void __init mx53_smd_board_init(void)
 	imx53_add_sdhci_esdhc_imx(0, NULL);
 	imx53_add_sdhci_esdhc_imx(1, NULL);
 	imx53_add_sdhci_esdhc_imx(2, NULL);
+	mx53_smd_ahci_pwr_on();
+	imx53_add_ahci_imx();
 }
 
 static void __init mx53_smd_timer_init(void)
@@ -140,6 +161,7 @@ MACHINE_START(MX53_SMD, "Freescale MX53 SMD Board")
 	.map_io = mx53_map_io,
 	.init_early = imx53_init_early,
 	.init_irq = mx53_init_irq,
+	.handle_irq = imx53_handle_irq,
 	.timer = &mx53_smd_timer,
 	.init_machine = mx53_smd_board_init,
 MACHINE_END

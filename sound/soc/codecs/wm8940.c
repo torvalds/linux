@@ -43,8 +43,18 @@
 struct wm8940_priv {
 	unsigned int sysclk;
 	enum snd_soc_control_type control_type;
-	void *control_data;
 };
+
+static int wm8940_volatile_register(struct snd_soc_codec *codec,
+				    unsigned int reg)
+{
+	switch (reg) {
+	case WM8940_SOFTRESET:
+		return 1;
+	default:
+		return 0;
+	}
+}
 
 static u16 wm8940_reg_defaults[] = {
 	0x8940, /* Soft Reset */
@@ -460,6 +470,14 @@ static int wm8940_set_bias_level(struct snd_soc_codec *codec,
 		ret = snd_soc_write(codec, WM8940_POWER1, pwr_reg | 0x1);
 		break;
 	case SND_SOC_BIAS_STANDBY:
+		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+			ret = snd_soc_cache_sync(codec);
+			if (ret < 0) {
+				dev_err(codec->dev, "Failed to sync cache: %d\n", ret);
+				return ret;
+			}
+		}
+
 		/* ensure bufioen and biasen */
 		pwr_reg |= (1 << 2) | (1 << 3);
 		/* set vmid to 300k for standby */
@@ -469,6 +487,8 @@ static int wm8940_set_bias_level(struct snd_soc_codec *codec,
 		ret = snd_soc_write(codec, WM8940_POWER1, pwr_reg);
 		break;
 	}
+
+	codec->dapm.bias_level = level;
 
 	return ret;
 }
@@ -601,7 +621,7 @@ static int wm8940_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 
 	switch (div_id) {
 	case WM8940_BCLKDIV:
-		reg = snd_soc_read(codec, WM8940_CLOCK) & 0xFFEF3;
+		reg = snd_soc_read(codec, WM8940_CLOCK) & 0xFFE3;
 		ret = snd_soc_write(codec, WM8940_CLOCK, reg | (div << 2));
 		break;
 	case WM8940_MCLKDIV:
@@ -660,30 +680,8 @@ static int wm8940_suspend(struct snd_soc_codec *codec, pm_message_t state)
 
 static int wm8940_resume(struct snd_soc_codec *codec)
 {
-	int i;
-	int ret;
-	u8 data[3];
-	u16 *cache = codec->reg_cache;
-
-	/* Sync reg_cache with the hardware
-	 * Could use auto incremented writes to speed this up
-	 */
-	for (i = 0; i < ARRAY_SIZE(wm8940_reg_defaults); i++) {
-		data[0] = i;
-		data[1] = (cache[i] & 0xFF00) >> 8;
-		data[2] = cache[i] & 0x00FF;
-		ret = codec->hw_write(codec->control_data, data, 3);
-		if (ret < 0)
-			goto error_ret;
-		else if (ret != 3) {
-			ret = -EIO;
-			goto error_ret;
-		}
-	}
-	ret = wm8940_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-error_ret:
-	return ret;
+	wm8940_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+	return 0;
 }
 
 static int wm8940_probe(struct snd_soc_codec *codec)
@@ -693,7 +691,6 @@ static int wm8940_probe(struct snd_soc_codec *codec)
 	int ret;
 	u16 reg;
 
-	codec->control_data = wm8940->control_data;
 	ret = snd_soc_codec_set_cache_io(codec, 8, 16, wm8940->control_type);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
@@ -744,6 +741,7 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8940 = {
 	.reg_cache_size = ARRAY_SIZE(wm8940_reg_defaults),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm8940_reg_defaults,
+	.volatile_register = wm8940_volatile_register,
 };
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
@@ -758,7 +756,6 @@ static __devinit int wm8940_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, wm8940);
-	wm8940->control_data = i2c;
 	wm8940->control_type = SND_SOC_I2C;
 
 	ret = snd_soc_register_codec(&i2c->dev,

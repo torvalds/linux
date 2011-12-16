@@ -6,6 +6,7 @@
  * Licensed under the GPL-2 or later.
  */
 
+#include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/device.h>

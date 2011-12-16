@@ -35,7 +35,7 @@
 #include <asm/mach-types.h>
 
 #include <mach/at91rm9200_emac.h>
-#include <mach/gpio.h>
+#include <asm/gpio.h>
 #include <mach/board.h>
 
 #include "at91_ether.h"

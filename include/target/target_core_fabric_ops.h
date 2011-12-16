@@ -46,9 +46,16 @@ struct target_core_fabric_ops {
 	int (*new_cmd_map)(struct se_cmd *);
 	/*
 	 * Optional to release struct se_cmd and fabric dependent allocated
-	 * I/O descriptor in transport_cmd_check_stop()
+	 * I/O descriptor in transport_cmd_check_stop().
+	 *
+	 * Returning 1 will signal a descriptor has been released.
+	 * Returning 0 will signal a descriptor has not been released.
 	 */
-	void (*check_stop_free)(struct se_cmd *);
+	int (*check_stop_free)(struct se_cmd *);
+	/*
+	 * Optional check for active I/O shutdown
+	 */
+	int (*check_release_cmd)(struct se_cmd *);
 	void (*release_cmd)(struct se_cmd *);
 	/*
 	 * Called with spin_lock_bh(struct se_portal_group->session_lock held.

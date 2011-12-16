@@ -158,13 +158,18 @@ EXPORT_SYMBOL_GPL(w1_write_8);
 static u8 w1_read_bit(struct w1_master *dev)
 {
 	int result;
+	unsigned long flags;
 
+	/* sample timing is critical here */
+	local_irq_save(flags);
 	dev->bus_master->write_bit(dev->bus_master->data, 0);
 	w1_delay(6);
 	dev->bus_master->write_bit(dev->bus_master->data, 1);
 	w1_delay(9);
 
 	result = dev->bus_master->read_bit(dev->bus_master->data);
+	local_irq_restore(flags);
+
 	w1_delay(55);
 
 	return result & 0x1;

@@ -17,6 +17,7 @@
 #include <linux/reboot.h>
 #include <linux/kexec.h>
 #include <linux/bootmem.h>
+#include <linux/export.h>
 #include <linux/crash_dump.h>
 #include <linux/delay.h>
 #include <linux/elf.h>

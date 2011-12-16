@@ -79,8 +79,6 @@ EXPORT_SYMBOL(__umoddi3);
 int64_t __moddi3(int64_t dividend, int64_t divisor);
 EXPORT_SYMBOL(__moddi3);
 #ifndef __tilegx__
-uint64_t __ll_mul(uint64_t n0, uint64_t n1);
-EXPORT_SYMBOL(__ll_mul);
 int64_t __muldi3(int64_t, int64_t);
 EXPORT_SYMBOL(__muldi3);
 uint64_t __lshrdi3(uint64_t, unsigned int);

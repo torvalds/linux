@@ -31,7 +31,7 @@
 
 #include <plat/regs-serial.h>
 
-#include <mach/s3c6400.h>
+#include <plat/s3c6400.h>
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
@@ -85,7 +85,7 @@ static void __init smdk6400_machine_init(void)
 
 MACHINE_START(SMDK6400, "SMDK6400")
 	/* Maintainer: Ben Dooks <ben-linux@fluff.org> */
-	.boot_params	= S3C64XX_PA_SDRAM + 0x100,
+	.atag_offset	= 0x100,
 
 	.init_irq	= s3c6400_init_irq,
 	.map_io		= smdk6400_map_io,

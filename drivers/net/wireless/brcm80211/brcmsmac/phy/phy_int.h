@@ -503,10 +503,8 @@ struct shared_phy {
 	uint sromrev;
 	uint boardtype;
 	uint boardrev;
-	uint boardvendor;
 	u32 boardflags;
 	u32 boardflags2;
-	uint buscorerev;
 	uint fast_timer;
 	uint slow_timer;
 	uint glacial_timer;
@@ -559,7 +557,7 @@ struct brcms_phy {
 	} u;
 	bool user_txpwr_at_rfport;
 
-	struct d11regs __iomem *regs;
+	struct bcma_device *d11core;
 	struct brcms_phy *next;
 	struct brcms_phy_pub pubpi;
 
@@ -1090,7 +1088,7 @@ extern void wlc_phy_table_write_nphy(struct brcms_phy *pi, u32, u32, u32,
 
 #define BRCMS_PHY_WAR_PR51571(pi) \
 	if (NREV_LT((pi)->pubpi.phy_rev, 3)) \
-		(void)R_REG(&(pi)->regs->maccontrol)
+		(void)bcma_read32(pi->d11core, D11REGOFFS(maccontrol))
 
 extern void wlc_phy_cal_perical_nphy_run(struct brcms_phy *pi, u8 caltype);
 extern void wlc_phy_aci_reset_nphy(struct brcms_phy *pi);

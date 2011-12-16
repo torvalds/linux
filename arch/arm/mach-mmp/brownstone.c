@@ -14,7 +14,6 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/max8649.h>
 #include <linux/regulator/fixed.h>
@@ -186,6 +185,15 @@ static struct sdhci_pxa_platdata mmp2_sdh_platdata_mmc2 = {
 		| PXA_FLAG_SD_8_BIT_CAPABLE_SLOT,
 };
 
+static struct sram_platdata mmp2_asram_platdata = {
+	.pool_name	= "asram",
+	.granularity	= SRAM_GRANULARITY,
+};
+
+static struct sram_platdata mmp2_isram_platdata = {
+	.pool_name	= "isram",
+	.granularity	= SRAM_GRANULARITY,
+};
 
 static void __init brownstone_init(void)
 {
@@ -197,6 +205,8 @@ static void __init brownstone_init(void)
 	mmp2_add_twsi(1, NULL, ARRAY_AND_SIZE(brownstone_twsi1_info));
 	mmp2_add_sdhost(0, &mmp2_sdh_platdata_mmc0); /* SD/MMC */
 	mmp2_add_sdhost(2, &mmp2_sdh_platdata_mmc2); /* eMMC */
+	mmp2_add_asram(&mmp2_asram_platdata);
+	mmp2_add_isram(&mmp2_isram_platdata);
 
 	/* enable 5v regulator */
 	platform_device_register(&brownstone_v_5vp_device);

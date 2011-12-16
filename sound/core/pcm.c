@@ -21,6 +21,7 @@
 
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <linux/time.h>
 #include <linux/mutex.h>
 #include <sound/core.h>

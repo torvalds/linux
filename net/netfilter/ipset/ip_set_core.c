@@ -1699,10 +1699,8 @@ ip_set_init(void)
 
 	ip_set_list = kzalloc(sizeof(struct ip_set *) * ip_set_max,
 			      GFP_KERNEL);
-	if (!ip_set_list) {
-		pr_err("ip_set: Unable to create ip_set_list\n");
+	if (!ip_set_list)
 		return -ENOMEM;
-	}
 
 	ret = nfnetlink_subsys_register(&ip_set_netlink_subsys);
 	if (ret != 0) {

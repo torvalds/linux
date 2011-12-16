@@ -11,6 +11,7 @@
  */
 
 #include <media/rc-map.h>
+#include <linux/module.h>
 
 /* Pinnacle PCTV HD 800i mini remote */
 
@@ -20,6 +21,7 @@ static struct rc_map_table pinnacle_pctv_hd[] = {
 	{ 0x0701, KEY_MENU }, /* Pinnacle logo */
 	{ 0x0739, KEY_POWER },
 	{ 0x0703, KEY_VOLUMEUP },
+	{ 0x0705, KEY_OK },
 	{ 0x0709, KEY_VOLUMEDOWN },
 	{ 0x0706, KEY_CHANNELUP },
 	{ 0x070c, KEY_CHANNELDOWN },

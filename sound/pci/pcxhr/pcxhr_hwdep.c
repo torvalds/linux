@@ -24,6 +24,7 @@
 #include <linux/vmalloc.h>
 #include <linux/firmware.h>
 #include <linux/pci.h>
+#include <linux/module.h>
 #include <asm/io.h>
 #include <sound/core.h>
 #include <sound/hwdep.h>

@@ -22,6 +22,7 @@
 #include <linux/miscdevice.h>
 #include <linux/gfp.h>
 #include <linux/file.h>
+#include <linux/export.h>
 #include <net/tcp.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>

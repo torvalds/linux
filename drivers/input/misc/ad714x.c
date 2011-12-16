@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/input/ad714x.h>
+#include <linux/module.h>
 #include "ad714x.h"
 
 #define AD714X_PWR_CTRL           0x0

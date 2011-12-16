@@ -62,7 +62,7 @@
 #include "bnx2fc_constants.h"
 
 #define BNX2FC_NAME		"bnx2fc"
-#define BNX2FC_VERSION		"1.0.4"
+#define BNX2FC_VERSION		"1.0.9"
 
 #define PFX			"bnx2fc: "
 
@@ -145,6 +145,9 @@
 #define REC_RETRY_COUNT			1
 #define BNX2FC_NUM_ERR_BITS		63
 
+#define BNX2FC_RELOGIN_WAIT_TIME	200
+#define BNX2FC_RELOGIN_WAIT_CNT		10
+
 /* bnx2fc driver uses only one instance of fcoe_percpu_s */
 extern struct fcoe_percpu_s bnx2fc_global;
 
@@ -224,6 +227,7 @@ struct bnx2fc_interface {
 	struct fcoe_ctlr ctlr;
 	u8 vlan_enabled;
 	int vlan_id;
+	bool enabled;
 };
 
 #define bnx2fc_from_ctlr(fip) container_of(fip, struct bnx2fc_interface, ctlr)

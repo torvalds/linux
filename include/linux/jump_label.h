@@ -16,7 +16,7 @@ struct jump_label_key {
 
 # include <asm/jump_label.h>
 # define HAVE_JUMP_LABEL
-#endif
+#endif	/* CC_HAVE_ASM_GOTO && CONFIG_JUMP_LABEL */
 
 enum jump_label_type {
 	JUMP_LABEL_DISABLE = 0,
@@ -28,9 +28,9 @@ struct module;
 #ifdef HAVE_JUMP_LABEL
 
 #ifdef CONFIG_MODULES
-#define JUMP_LABEL_INIT {{ 0 }, NULL, NULL}
+#define JUMP_LABEL_INIT {ATOMIC_INIT(0), NULL, NULL}
 #else
-#define JUMP_LABEL_INIT {{ 0 }, NULL}
+#define JUMP_LABEL_INIT {ATOMIC_INIT(0), NULL}
 #endif
 
 static __always_inline bool static_branch(struct jump_label_key *key)
@@ -41,18 +41,20 @@ static __always_inline bool static_branch(struct jump_label_key *key)
 extern struct jump_entry __start___jump_table[];
 extern struct jump_entry __stop___jump_table[];
 
+extern void jump_label_init(void);
 extern void jump_label_lock(void);
 extern void jump_label_unlock(void);
 extern void arch_jump_label_transform(struct jump_entry *entry,
-				 enum jump_label_type type);
-extern void arch_jump_label_text_poke_early(jump_label_t addr);
+				      enum jump_label_type type);
+extern void arch_jump_label_transform_static(struct jump_entry *entry,
+					     enum jump_label_type type);
 extern int jump_label_text_reserved(void *start, void *end);
 extern void jump_label_inc(struct jump_label_key *key);
 extern void jump_label_dec(struct jump_label_key *key);
 extern bool jump_label_enabled(struct jump_label_key *key);
 extern void jump_label_apply_nops(struct module *mod);
 
-#else
+#else  /* !HAVE_JUMP_LABEL */
 
 #include <linux/atomic.h>
 
@@ -61,6 +63,10 @@ extern void jump_label_apply_nops(struct module *mod);
 struct jump_label_key {
 	atomic_t enabled;
 };
+
+static __always_inline void jump_label_init(void)
+{
+}
 
 static __always_inline bool static_branch(struct jump_label_key *key)
 {
@@ -96,7 +102,6 @@ static inline int jump_label_apply_nops(struct module *mod)
 {
 	return 0;
 }
+#endif	/* HAVE_JUMP_LABEL */
 
-#endif
-
-#endif
+#endif	/* _LINUX_JUMP_LABEL_H */

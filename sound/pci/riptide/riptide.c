@@ -98,6 +98,7 @@
 #include <linux/device.h>
 #include <linux/firmware.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <asm/io.h>
 #include <sound/core.h>
 #include <sound/info.h>
@@ -2109,7 +2110,7 @@ snd_card_riptide_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 		val = mpu_port[dev];
 		pci_write_config_word(chip->pci, PCI_EXT_MPU_Base, val);
 		err = snd_mpu401_uart_new(card, 0, MPU401_HW_RIPTIDE,
-					  val, 0, chip->irq, 0,
+					  val, MPU401_INFO_IRQ_HOOK, -1,
 					  &chip->rmidi);
 		if (err < 0)
 			snd_printk(KERN_WARNING

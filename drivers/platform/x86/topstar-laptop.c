@@ -41,6 +41,7 @@ static const struct key_entry topstar_keymap[] = {
 	{ KE_KEY, 0x8c, { KEY_MEDIA } },
 
 	/* Known non hotkey events don't handled or that we don't care yet */
+	{ KE_IGNORE, 0x82, }, /* backlight event */
 	{ KE_IGNORE, 0x8e, },
 	{ KE_IGNORE, 0x8f, },
 	{ KE_IGNORE, 0x90, },

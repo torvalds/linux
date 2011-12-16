@@ -116,7 +116,7 @@ static int xen_add_device(struct device *dev)
 			&manage_pci_ext);
 	} else {
 		struct physdev_manage_pci manage_pci = {
-			.bus 	= pci_dev->bus->number,
+			.bus	= pci_dev->bus->number,
 			.devfn	= pci_dev->devfn,
 		};
 

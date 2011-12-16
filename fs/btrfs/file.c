@@ -1069,6 +1069,7 @@ static noinline int prepare_pages(struct btrfs_root *root, struct file *file,
 	int i;
 	unsigned long index = pos >> PAGE_CACHE_SHIFT;
 	struct inode *inode = fdentry(file)->d_inode;
+	gfp_t mask = btrfs_alloc_write_mask(inode->i_mapping);
 	int err = 0;
 	int faili = 0;
 	u64 start_pos;
@@ -1080,7 +1081,7 @@ static noinline int prepare_pages(struct btrfs_root *root, struct file *file,
 again:
 	for (i = 0; i < num_pages; i++) {
 		pages[i] = find_or_create_page(inode->i_mapping, index + i,
-					       GFP_NOFS);
+					       mask);
 		if (!pages[i]) {
 			faili = i - 1;
 			err = -ENOMEM;
@@ -1615,10 +1616,6 @@ static long btrfs_fallocate(struct file *file, int mode,
 			goto out;
 	}
 
-	ret = btrfs_check_data_free_space(inode, alloc_end - alloc_start);
-	if (ret)
-		goto out;
-
 	locked_end = alloc_end - 1;
 	while (1) {
 		struct btrfs_ordered_extent *ordered;
@@ -1664,11 +1661,27 @@ static long btrfs_fallocate(struct file *file, int mode,
 		if (em->block_start == EXTENT_MAP_HOLE ||
 		    (cur_offset >= inode->i_size &&
 		     !test_bit(EXTENT_FLAG_PREALLOC, &em->flags))) {
+
+			/*
+			 * Make sure we have enough space before we do the
+			 * allocation.
+			 */
+			ret = btrfs_check_data_free_space(inode, last_byte -
+							  cur_offset);
+			if (ret) {
+				free_extent_map(em);
+				break;
+			}
+
 			ret = btrfs_prealloc_file_range(inode, mode, cur_offset,
 							last_byte - cur_offset,
 							1 << inode->i_blkbits,
 							offset + len,
 							&alloc_hint);
+
+			/* Let go of our reservation. */
+			btrfs_free_reserved_data_space(inode, last_byte -
+						       cur_offset);
 			if (ret < 0) {
 				free_extent_map(em);
 				break;
@@ -1694,8 +1707,6 @@ static long btrfs_fallocate(struct file *file, int mode,
 	}
 	unlock_extent_cached(&BTRFS_I(inode)->io_tree, alloc_start, locked_end,
 			     &cached_state, GFP_NOFS);
-
-	btrfs_free_reserved_data_space(inode, alloc_end - alloc_start);
 out:
 	mutex_unlock(&inode->i_mutex);
 	return ret;
@@ -1821,7 +1832,7 @@ static loff_t btrfs_file_llseek(struct file *file, loff_t offset, int origin)
 	switch (origin) {
 	case SEEK_END:
 	case SEEK_CUR:
-		offset = generic_file_llseek_unlocked(file, offset, origin);
+		offset = generic_file_llseek(file, offset, origin);
 		goto out;
 	case SEEK_DATA:
 	case SEEK_HOLE:

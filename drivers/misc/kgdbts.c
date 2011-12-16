@@ -102,6 +102,7 @@
 #include <linux/nmi.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
+#include <linux/module.h>
 
 #define v1printk(a...) do { \
 	if (verbose) \

@@ -69,7 +69,7 @@ static void intel_crt_dpms(struct drm_encoder *encoder, int mode)
 	temp &= ~(ADPA_HSYNC_CNTL_DISABLE | ADPA_VSYNC_CNTL_DISABLE);
 	temp &= ~ADPA_DAC_ENABLE;
 
-	switch(mode) {
+	switch (mode) {
 	case DRM_MODE_DPMS_ON:
 		temp |= ADPA_DAC_ENABLE;
 		break;
@@ -152,17 +152,13 @@ static void intel_crt_mode_set(struct drm_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
 		adpa |= ADPA_VSYNC_ACTIVE_HIGH;
 
-	if (intel_crtc->pipe == 0) {
-		if (HAS_PCH_CPT(dev))
-			adpa |= PORT_TRANS_A_SEL_CPT;
-		else
-			adpa |= ADPA_PIPE_A_SELECT;
-	} else {
-		if (HAS_PCH_CPT(dev))
-			adpa |= PORT_TRANS_B_SEL_CPT;
-		else
-			adpa |= ADPA_PIPE_B_SELECT;
-	}
+	/* For CPT allow 3 pipe config, for others just use A or B */
+	if (HAS_PCH_CPT(dev))
+		adpa |= PORT_TRANS_SEL_CPT(intel_crtc->pipe);
+	else if (intel_crtc->pipe == 0)
+		adpa |= ADPA_PIPE_A_SELECT;
+	else
+		adpa |= ADPA_PIPE_B_SELECT;
 
 	if (!HAS_PCH_SPLIT(dev))
 		I915_WRITE(BCLRPAT(intel_crtc->pipe), 0);

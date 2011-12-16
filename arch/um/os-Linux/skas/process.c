@@ -9,31 +9,23 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/mman.h>
-#include <sys/ptrace.h>
 #include <sys/wait.h>
 #include <asm/unistd.h>
 #include "as-layout.h"
-#include "chan_user.h"
-#include "kern_constants.h"
+#include "init.h"
 #include "kern_util.h"
 #include "mem.h"
 #include "os.h"
-#include "process.h"
 #include "proc_mm.h"
 #include "ptrace_user.h"
 #include "registers.h"
 #include "skas.h"
 #include "skas_ptrace.h"
-#include "user.h"
 #include "sysdep/stub.h"
 
 int is_skas_winch(int pid, int fd, void *data)
 {
-	if (pid != getpgrp())
-		return 0;
-
-	register_winch_irq(-1, fd, -1, data, 0);
-	return 1;
+	return pid == getpgrp();
 }
 
 static int ptrace_dump_regs(int pid)
@@ -169,7 +161,7 @@ static void handle_trap(int pid, struct uml_pt_regs *regs,
 
 	if (!local_using_sysemu)
 	{
-		err = ptrace(PTRACE_POKEUSR, pid, PT_SYSCALL_NR_OFFSET,
+		err = ptrace(PTRACE_POKEUSER, pid, PT_SYSCALL_NR_OFFSET,
 			     __NR_getpid);
 		if (err < 0) {
 			printk(UM_KERN_ERR "handle_trap - nullifying syscall "
@@ -257,8 +249,8 @@ static int userspace_tramp(void *stack)
 
 		set_sigstack((void *) STUB_DATA, UM_KERN_PAGE_SIZE);
 		sigemptyset(&sa.sa_mask);
-		sa.sa_flags = SA_ONSTACK | SA_NODEFER;
-		sa.sa_handler = (void *) v;
+		sa.sa_flags = SA_ONSTACK | SA_NODEFER | SA_SIGINFO;
+		sa.sa_sigaction = (void *) v;
 		sa.sa_restorer = NULL;
 		if (sigaction(SIGSEGV, &sa, NULL) < 0) {
 			printk(UM_KERN_ERR "userspace_tramp - setting SIGSEGV "
@@ -661,8 +653,7 @@ int start_idle_thread(void *stack, jmp_buf *switch_buf)
 {
 	int n;
 
-	set_handler(SIGWINCH, (__sighandler_t) sig_handler,
-		    SA_ONSTACK | SA_RESTART, SIGUSR1, SIGIO, SIGVTALRM, -1);
+	set_handler(SIGWINCH);
 
 	/*
 	 * Can't use UML_SETJMP or UML_LONGJMP here because they save

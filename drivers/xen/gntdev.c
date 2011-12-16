@@ -193,9 +193,8 @@ static void gntdev_put_map(struct grant_map *map)
 
 	atomic_sub(map->count, &pages_mapped);
 
-	if (map->notify.flags & UNMAP_NOTIFY_SEND_EVENT) {
+	if (map->notify.flags & UNMAP_NOTIFY_SEND_EVENT)
 		notify_remote_via_evtchn(map->notify.event);
-	}
 
 	if (map->pages) {
 		if (!use_ptemod)

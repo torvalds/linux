@@ -199,6 +199,7 @@ struct tegra_drive_pingroup_config {
 
 struct tegra_drive_pingroup_desc {
 	const char *name;
+	s16 reg_bank;
 	s16 reg;
 };
 
@@ -207,6 +208,9 @@ struct tegra_pingroup_desc {
 	int funcs[4];
 	int func_safe;
 	int vddio;
+	s16 tri_bank;	/* Register bank the tri_reg exists within */
+	s16 mux_bank;	/* Register bank the mux_reg exists within */
+	s16 pupd_bank;	/* Register bank the pupd_reg exists within */
 	s16 tri_reg; 	/* offset into the TRISTATE_REG_* register bank */
 	s16 mux_reg;	/* offset into the PIN_MUX_CTL_* register bank */
 	s16 pupd_reg;	/* offset into the PULL_UPDOWN_REG_* register bank */

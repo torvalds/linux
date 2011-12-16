@@ -278,7 +278,7 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 	inode->i_mtime = ITIME(je32_to_cpu(latest_node.mtime));
 	inode->i_ctime = ITIME(je32_to_cpu(latest_node.ctime));
 
-	inode->i_nlink = f->inocache->pino_nlink;
+	set_nlink(inode, f->inocache->pino_nlink);
 
 	inode->i_blocks = (inode->i_size + 511) >> 9;
 
@@ -291,7 +291,7 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 	case S_IFDIR:
 	{
 		struct jffs2_full_dirent *fd;
-		inode->i_nlink = 2; /* parent and '.' */
+		set_nlink(inode, 2); /* parent and '.' */
 
 		for (fd=f->dents; fd; fd = fd->next) {
 			if (fd->type == DT_DIR && fd->ino)
@@ -379,7 +379,7 @@ void jffs2_dirty_inode(struct inode *inode, int flags)
 	jffs2_do_setattr(inode, &iattr);
 }
 
-int jffs2_remount_fs (struct super_block *sb, int *flags, char *data)
+int jffs2_do_remount_fs(struct super_block *sb, int *flags, char *data)
 {
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(sb);
 
@@ -453,7 +453,7 @@ struct inode *jffs2_new_inode (struct inode *dir_i, umode_t mode, struct jffs2_r
 		iput(inode);
 		return ERR_PTR(ret);
 	}
-	inode->i_nlink = 1;
+	set_nlink(inode, 1);
 	inode->i_ino = je32_to_cpu(ri->ino);
 	inode->i_mode = jemode_to_cpu(ri->mode);
 	inode->i_gid = je16_to_cpu(ri->gid);

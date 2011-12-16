@@ -59,6 +59,7 @@ static inline void __tlb_flush_full(struct mm_struct *mm)
 }
 #else
 #define __tlb_flush_full(mm)	__tlb_flush_local()
+#define __tlb_flush_global()	__tlb_flush_local()
 #endif
 
 /*

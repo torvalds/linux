@@ -182,6 +182,13 @@ config MACH_TS72XX
 	  Say 'Y' here if you want your kernel to support the
 	  Technologic Systems TS-72xx board.
 
+config MACH_VISION_EP9307
+	bool "Support Vision Engraving Systems EP9307 SoM"
+	depends on EP93XX_SDCE0_PHYS_OFFSET
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Vision Engraving Systems EP9307 SoM.
+
 choice
 	prompt "Select a UART for early kernel messages"
 

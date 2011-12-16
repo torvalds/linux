@@ -11,6 +11,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <trace/events/regmap.h>
 #include <linux/bsearch.h>
 #include <linux/sort.h>

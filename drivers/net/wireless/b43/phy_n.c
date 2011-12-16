@@ -228,10 +228,98 @@ static void b43_chantab_radio_2056_upload(struct b43_wldev *dev,
 static void b43_radio_2056_setup(struct b43_wldev *dev,
 				const struct b43_nphy_channeltab_entry_rev3 *e)
 {
+	struct ssb_sprom *sprom = dev->dev->bus_sprom;
+	enum ieee80211_band band = b43_current_band(dev->wl);
+	u16 offset;
+	u8 i;
+	u16 bias, cbias, pag_boost, pgag_boost, mixg_boost, padg_boost;
+
 	B43_WARN_ON(dev->phy.rev < 3);
 
 	b43_chantab_radio_2056_upload(dev, e);
-	/* TODO */
+	b2056_upload_syn_pll_cp2(dev, band == IEEE80211_BAND_5GHZ);
+
+	if (sprom->boardflags2_lo & B43_BFL2_GPLL_WAR &&
+	    b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+		b43_radio_write(dev, B2056_SYN_PLL_LOOPFILTER1, 0x1F);
+		b43_radio_write(dev, B2056_SYN_PLL_LOOPFILTER2, 0x1F);
+		if (dev->dev->chip_id == 0x4716) {
+			b43_radio_write(dev, B2056_SYN_PLL_LOOPFILTER4, 0x14);
+			b43_radio_write(dev, B2056_SYN_PLL_CP2, 0);
+		} else {
+			b43_radio_write(dev, B2056_SYN_PLL_LOOPFILTER4, 0x0B);
+			b43_radio_write(dev, B2056_SYN_PLL_CP2, 0x14);
+		}
+	}
+	if (sprom->boardflags2_lo & B43_BFL2_APLL_WAR &&
+	    b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ) {
+		b43_radio_write(dev, B2056_SYN_PLL_LOOPFILTER1, 0x1F);
+		b43_radio_write(dev, B2056_SYN_PLL_LOOPFILTER2, 0x1F);
+		b43_radio_write(dev, B2056_SYN_PLL_LOOPFILTER4, 0x05);
+		b43_radio_write(dev, B2056_SYN_PLL_CP2, 0x0C);
+	}
+
+	if (dev->phy.n->ipa2g_on && band == IEEE80211_BAND_2GHZ) {
+		for (i = 0; i < 2; i++) {
+			offset = i ? B2056_TX1 : B2056_TX0;
+			if (dev->phy.rev >= 5) {
+				b43_radio_write(dev,
+					offset | B2056_TX_PADG_IDAC, 0xcc);
+
+				if (dev->dev->chip_id == 0x4716) {
+					bias = 0x40;
+					cbias = 0x45;
+					pag_boost = 0x5;
+					pgag_boost = 0x33;
+					mixg_boost = 0x55;
+				} else {
+					bias = 0x25;
+					cbias = 0x20;
+					pag_boost = 0x4;
+					pgag_boost = 0x03;
+					mixg_boost = 0x65;
+				}
+				padg_boost = 0x77;
+
+				b43_radio_write(dev,
+					offset | B2056_TX_INTPAG_IMAIN_STAT,
+					bias);
+				b43_radio_write(dev,
+					offset | B2056_TX_INTPAG_IAUX_STAT,
+					bias);
+				b43_radio_write(dev,
+					offset | B2056_TX_INTPAG_CASCBIAS,
+					cbias);
+				b43_radio_write(dev,
+					offset | B2056_TX_INTPAG_BOOST_TUNE,
+					pag_boost);
+				b43_radio_write(dev,
+					offset | B2056_TX_PGAG_BOOST_TUNE,
+					pgag_boost);
+				b43_radio_write(dev,
+					offset | B2056_TX_PADG_BOOST_TUNE,
+					padg_boost);
+				b43_radio_write(dev,
+					offset | B2056_TX_MIXG_BOOST_TUNE,
+					mixg_boost);
+			} else {
+				bias = dev->phy.is_40mhz ? 0x40 : 0x20;
+				b43_radio_write(dev,
+					offset | B2056_TX_INTPAG_IMAIN_STAT,
+					bias);
+				b43_radio_write(dev,
+					offset | B2056_TX_INTPAG_IAUX_STAT,
+					bias);
+				b43_radio_write(dev,
+					offset | B2056_TX_INTPAG_CASCBIAS,
+					0x30);
+			}
+			b43_radio_write(dev, offset | B2056_TX_PA_SPARE1, 0xee);
+		}
+	} else if (dev->phy.n->ipa5g_on && band == IEEE80211_BAND_5GHZ) {
+		/* TODO */
+	}
+
 	udelay(50);
 	/* VCO calibration */
 	b43_radio_write(dev, B2056_SYN_PLL_VCOCAL12, 0x00);
@@ -387,7 +475,9 @@ static void b43_nphy_tx_power_fix(struct b43_wldev *dev)
 	if (nphy->hang_avoid)
 		b43_nphy_stay_in_carrier_search(dev, 1);
 
-	if (dev->phy.rev >= 3) {
+	if (dev->phy.rev >= 7) {
+		txpi[0] = txpi[1] = 30;
+	} else if (dev->phy.rev >= 3) {
 		txpi[0] = 40;
 		txpi[1] = 40;
 	} else if (sprom->revision < 4) {
@@ -411,6 +501,9 @@ static void b43_nphy_tx_power_fix(struct b43_wldev *dev)
 			txpi[1] = 91;
 		}
 	}
+	if (dev->phy.rev < 7 &&
+	    (txpi[0] < 40 || txpi[0] > 100 || txpi[1] < 40 || txpi[1] > 10))
+		txpi[0] = txpi[1] = 91;
 
 	/*
 	for (i = 0; i < 2; i++) {
@@ -421,15 +514,31 @@ static void b43_nphy_tx_power_fix(struct b43_wldev *dev)
 
 	for (i = 0; i < 2; i++) {
 		if (dev->phy.rev >= 3) {
-			/* FIXME: support 5GHz */
-			txgain = b43_ntab_tx_gain_rev3plus_2ghz[txpi[i]];
+			if (b43_nphy_ipa(dev)) {
+				txgain = *(b43_nphy_get_ipa_gain_table(dev) +
+						txpi[i]);
+			} else if (b43_current_band(dev->wl) ==
+				   IEEE80211_BAND_5GHZ) {
+				/* FIXME: use 5GHz tables */
+				txgain =
+					b43_ntab_tx_gain_rev3plus_2ghz[txpi[i]];
+			} else {
+				if (dev->phy.rev >= 5 &&
+				    sprom->fem.ghz5.extpa_gain == 3)
+					; /* FIXME: 5GHz_txgain_HiPwrEPA */
+				txgain =
+					b43_ntab_tx_gain_rev3plus_2ghz[txpi[i]];
+			}
 			radio_gain = (txgain >> 16) & 0x1FFFF;
 		} else {
 			txgain = b43_ntab_tx_gain_rev0_1_2[txpi[i]];
 			radio_gain = (txgain >> 16) & 0x1FFF;
 		}
 
-		dac_gain = (txgain >> 8) & 0x3F;
+		if (dev->phy.rev >= 7)
+			dac_gain = (txgain >> 8) & 0x7;
+		else
+			dac_gain = (txgain >> 8) & 0x3F;
 		bbmult = txgain & 0xFF;
 
 		if (dev->phy.rev >= 3) {
@@ -459,7 +568,8 @@ static void b43_nphy_tx_power_fix(struct b43_wldev *dev)
 			u32 tmp32;
 			u16 reg = (i == 0) ?
 				B43_NPHY_PAPD_EN0 : B43_NPHY_PAPD_EN1;
-			tmp32 = b43_ntab_read(dev, B43_NTAB32(26 + i, txpi[i]));
+			tmp32 = b43_ntab_read(dev, B43_NTAB32(26 + i,
+							      576 + txpi[i]));
 			b43_phy_maskset(dev, reg, 0xE00F, (u32) tmp32 << 4);
 			b43_phy_set(dev, reg, 0x4);
 		}
@@ -1493,8 +1603,8 @@ static void b43_nphy_workarounds_rev3plus(struct b43_wldev *dev)
 	struct ssb_sprom *sprom = dev->dev->bus_sprom;
 
 	/* TX to RX */
-	u8 tx2rx_events[9] = { 0x4, 0x3, 0x6, 0x5, 0x2, 0x1, 0x8, 0x1F };
-	u8 tx2rx_delays[9] = { 8, 4, 2, 2, 4, 4, 6, 1 };
+	u8 tx2rx_events[8] = { 0x4, 0x3, 0x6, 0x5, 0x2, 0x1, 0x8, 0x1F };
+	u8 tx2rx_delays[8] = { 8, 4, 2, 2, 4, 4, 6, 1 };
 	/* RX to TX */
 	u8 rx2tx_events_ipa[9] = { 0x0, 0x1, 0x2, 0x8, 0x5, 0x6, 0xF, 0x3,
 					0x1F };
@@ -1504,6 +1614,9 @@ static void b43_nphy_workarounds_rev3plus(struct b43_wldev *dev)
 
 	u16 tmp16;
 	u32 tmp32;
+
+	b43_phy_write(dev, 0x23f, 0x1f8);
+	b43_phy_write(dev, 0x240, 0x1f8);
 
 	tmp32 = b43_ntab_read(dev, B43_NTAB32(30, 0));
 	tmp32 &= 0xffffff;
@@ -1520,12 +1633,13 @@ static void b43_nphy_workarounds_rev3plus(struct b43_wldev *dev)
 	b43_phy_write(dev, 0x2AE, 0x000C);
 
 	/* TX to RX */
-	b43_nphy_set_rf_sequence(dev, 1, tx2rx_events, tx2rx_delays, 9);
+	b43_nphy_set_rf_sequence(dev, 1, tx2rx_events, tx2rx_delays,
+				 ARRAY_SIZE(tx2rx_events));
 
 	/* RX to TX */
 	if (b43_nphy_ipa(dev))
-		b43_nphy_set_rf_sequence(dev, 1, rx2tx_events_ipa,
-					 rx2tx_delays_ipa, 9);
+		b43_nphy_set_rf_sequence(dev, 0, rx2tx_events_ipa,
+				rx2tx_delays_ipa, ARRAY_SIZE(rx2tx_events_ipa));
 	if (nphy->hw_phyrxchain != 3 &&
 	    nphy->hw_phyrxchain != nphy->hw_phytxchain) {
 		if (b43_nphy_ipa(dev)) {
@@ -1533,7 +1647,8 @@ static void b43_nphy_workarounds_rev3plus(struct b43_wldev *dev)
 			rx2tx_delays[6] = 1;
 			rx2tx_events[7] = 0x1F;
 		}
-		b43_nphy_set_rf_sequence(dev, 1, rx2tx_events, rx2tx_delays, 9);
+		b43_nphy_set_rf_sequence(dev, 1, rx2tx_events, rx2tx_delays,
+					 ARRAY_SIZE(rx2tx_events));
 	}
 
 	tmp16 = (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) ?
@@ -1547,8 +1662,8 @@ static void b43_nphy_workarounds_rev3plus(struct b43_wldev *dev)
 
 	b43_nphy_gain_ctrl_workarounds(dev);
 
-	b43_ntab_write(dev, B43_NTAB32(8, 0), 2);
-	b43_ntab_write(dev, B43_NTAB32(8, 16), 2);
+	b43_ntab_write(dev, B43_NTAB16(8, 0), 2);
+	b43_ntab_write(dev, B43_NTAB16(8, 16), 2);
 
 	/* TODO */
 
@@ -1560,6 +1675,8 @@ static void b43_nphy_workarounds_rev3plus(struct b43_wldev *dev)
 	b43_radio_write(dev, B2056_RX1 | B2056_RX_MIXA_BIAS_AUX, 0x07);
 	b43_radio_write(dev, B2056_RX0 | B2056_RX_MIXA_LOB_BIAS, 0x88);
 	b43_radio_write(dev, B2056_RX1 | B2056_RX_MIXA_LOB_BIAS, 0x88);
+	b43_radio_write(dev, B2056_RX0 | B2056_RX_MIXA_CMFB_IDAC, 0x00);
+	b43_radio_write(dev, B2056_RX1 | B2056_RX_MIXA_CMFB_IDAC, 0x00);
 	b43_radio_write(dev, B2056_RX0 | B2056_RX_MIXG_CMFB_IDAC, 0x00);
 	b43_radio_write(dev, B2056_RX1 | B2056_RX_MIXG_CMFB_IDAC, 0x00);
 
@@ -1584,18 +1701,18 @@ static void b43_nphy_workarounds_rev3plus(struct b43_wldev *dev)
 				0x70);
 	}
 
-	b43_phy_write(dev, 0x224, 0x039C);
-	b43_phy_write(dev, 0x225, 0x0357);
-	b43_phy_write(dev, 0x226, 0x0317);
-	b43_phy_write(dev, 0x227, 0x02D7);
-	b43_phy_write(dev, 0x228, 0x039C);
-	b43_phy_write(dev, 0x229, 0x0357);
-	b43_phy_write(dev, 0x22A, 0x0317);
-	b43_phy_write(dev, 0x22B, 0x02D7);
-	b43_phy_write(dev, 0x22C, 0x039C);
-	b43_phy_write(dev, 0x22D, 0x0357);
-	b43_phy_write(dev, 0x22E, 0x0317);
-	b43_phy_write(dev, 0x22F, 0x02D7);
+	b43_phy_write(dev, 0x224, 0x03eb);
+	b43_phy_write(dev, 0x225, 0x03eb);
+	b43_phy_write(dev, 0x226, 0x0341);
+	b43_phy_write(dev, 0x227, 0x0341);
+	b43_phy_write(dev, 0x228, 0x042b);
+	b43_phy_write(dev, 0x229, 0x042b);
+	b43_phy_write(dev, 0x22a, 0x0381);
+	b43_phy_write(dev, 0x22b, 0x0381);
+	b43_phy_write(dev, 0x22c, 0x042b);
+	b43_phy_write(dev, 0x22d, 0x042b);
+	b43_phy_write(dev, 0x22e, 0x0381);
+	b43_phy_write(dev, 0x22f, 0x0381);
 }
 
 static void b43_nphy_workarounds_rev1_2(struct b43_wldev *dev)
@@ -3928,6 +4045,76 @@ int b43_phy_initn(struct b43_wldev *dev)
 	return 0;
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PmuSpurAvoid */
+static void b43_nphy_pmu_spur_avoid(struct b43_wldev *dev, bool avoid)
+{
+	struct bcma_drv_cc *cc;
+	u32 pmu_ctl;
+
+	switch (dev->dev->bus_type) {
+#ifdef CONFIG_B43_BCMA
+	case B43_BUS_BCMA:
+		cc = &dev->dev->bdev->bus->drv_cc;
+		if (dev->dev->chip_id == 43224 || dev->dev->chip_id == 43225) {
+			if (avoid) {
+				bcma_chipco_pll_write(cc, 0x0, 0x11500010);
+				bcma_chipco_pll_write(cc, 0x1, 0x000C0C06);
+				bcma_chipco_pll_write(cc, 0x2, 0x0F600a08);
+				bcma_chipco_pll_write(cc, 0x3, 0x00000000);
+				bcma_chipco_pll_write(cc, 0x4, 0x2001E920);
+				bcma_chipco_pll_write(cc, 0x5, 0x88888815);
+			} else {
+				bcma_chipco_pll_write(cc, 0x0, 0x11100010);
+				bcma_chipco_pll_write(cc, 0x1, 0x000c0c06);
+				bcma_chipco_pll_write(cc, 0x2, 0x03000a08);
+				bcma_chipco_pll_write(cc, 0x3, 0x00000000);
+				bcma_chipco_pll_write(cc, 0x4, 0x200005c0);
+				bcma_chipco_pll_write(cc, 0x5, 0x88888815);
+			}
+			pmu_ctl = BCMA_CC_PMU_CTL_PLL_UPD;
+		} else if (dev->dev->chip_id == 0x4716) {
+			if (avoid) {
+				bcma_chipco_pll_write(cc, 0x0, 0x11500060);
+				bcma_chipco_pll_write(cc, 0x1, 0x080C0C06);
+				bcma_chipco_pll_write(cc, 0x2, 0x0F600000);
+				bcma_chipco_pll_write(cc, 0x3, 0x00000000);
+				bcma_chipco_pll_write(cc, 0x4, 0x2001E924);
+				bcma_chipco_pll_write(cc, 0x5, 0x88888815);
+			} else {
+				bcma_chipco_pll_write(cc, 0x0, 0x11100060);
+				bcma_chipco_pll_write(cc, 0x1, 0x080c0c06);
+				bcma_chipco_pll_write(cc, 0x2, 0x03000000);
+				bcma_chipco_pll_write(cc, 0x3, 0x00000000);
+				bcma_chipco_pll_write(cc, 0x4, 0x200005c0);
+				bcma_chipco_pll_write(cc, 0x5, 0x88888815);
+			}
+			pmu_ctl = BCMA_CC_PMU_CTL_PLL_UPD |
+				  BCMA_CC_PMU_CTL_NOILPONW;
+		} else if (dev->dev->chip_id == 0x4322 ||
+			   dev->dev->chip_id == 0x4340 ||
+			   dev->dev->chip_id == 0x4341) {
+			bcma_chipco_pll_write(cc, 0x0, 0x11100070);
+			bcma_chipco_pll_write(cc, 0x1, 0x1014140a);
+			bcma_chipco_pll_write(cc, 0x5, 0x88888854);
+			if (avoid)
+				bcma_chipco_pll_write(cc, 0x2, 0x05201828);
+			else
+				bcma_chipco_pll_write(cc, 0x2, 0x05001828);
+			pmu_ctl = BCMA_CC_PMU_CTL_PLL_UPD;
+		} else {
+			return;
+		}
+		bcma_cc_set32(cc, BCMA_CC_PMU_CTL, pmu_ctl);
+		break;
+#endif
+#ifdef CONFIG_B43_SSB
+	case B43_BUS_SSB:
+		/* FIXME */
+		break;
+#endif
+	}
+}
+
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/ChanspecSetup */
 static void b43_nphy_channel_setup(struct b43_wldev *dev,
 				const struct b43_phy_n_sfo_cfg *e,
@@ -3935,6 +4122,7 @@ static void b43_nphy_channel_setup(struct b43_wldev *dev,
 {
 	struct b43_phy *phy = &dev->phy;
 	struct b43_phy_n *nphy = dev->phy.n;
+	int ch = new_channel->hw_value;
 
 	u16 old_band_5ghz;
 	u32 tmp32;
@@ -3974,8 +4162,41 @@ static void b43_nphy_channel_setup(struct b43_wldev *dev,
 
 	b43_nphy_tx_lp_fbw(dev);
 
-	if (dev->phy.rev >= 3 && 0) {
-		/* TODO */
+	if (dev->phy.rev >= 3 &&
+	    dev->phy.n->spur_avoid != B43_SPUR_AVOID_DISABLE) {
+		bool avoid = false;
+		if (dev->phy.n->spur_avoid == B43_SPUR_AVOID_FORCE) {
+			avoid = true;
+		} else if (!b43_channel_type_is_40mhz(phy->channel_type)) {
+			if ((ch >= 5 && ch <= 8) || ch == 13 || ch == 14)
+				avoid = true;
+		} else { /* 40MHz */
+			if (nphy->aband_spurwar_en &&
+			    (ch == 38 || ch == 102 || ch == 118))
+				avoid = dev->dev->chip_id == 0x4716;
+		}
+
+		b43_nphy_pmu_spur_avoid(dev, avoid);
+
+		if (dev->dev->chip_id == 43222 || dev->dev->chip_id == 43224 ||
+		    dev->dev->chip_id == 43225) {
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_LOW,
+				    avoid ? 0x5341 : 0x8889);
+			b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_HIGH, 0x8);
+		}
+
+		if (dev->phy.rev == 3 || dev->phy.rev == 4)
+			; /* TODO: reset PLL */
+
+		if (avoid)
+			b43_phy_set(dev, B43_NPHY_BBCFG, B43_NPHY_BBCFG_RSTRX);
+		else
+			b43_phy_mask(dev, B43_NPHY_BBCFG,
+				     ~B43_NPHY_BBCFG_RSTRX & 0xFFFF);
+
+		b43_nphy_reset_cca(dev);
+
+		/* wl sets useless phy_isspuravoid here */
 	}
 
 	b43_phy_write(dev, B43_NPHY_NDATAT_DUP40, 0x3830);
@@ -4055,10 +4276,13 @@ static void b43_nphy_op_prepare_structs(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
 	struct b43_phy_n *nphy = phy->n;
+	struct ssb_sprom *sprom = dev->dev->bus_sprom;
 
 	memset(nphy, 0, sizeof(*nphy));
 
 	nphy->hang_avoid = (phy->rev == 3 || phy->rev == 4);
+	nphy->spur_avoid = (phy->rev >= 3) ?
+				B43_SPUR_AVOID_AUTO : B43_SPUR_AVOID_DISABLE;
 	nphy->gain_boost = true; /* this way we follow wl, assume it is true */
 	nphy->txrx_chain = 2; /* sth different than 0 and 1 for now */
 	nphy->phyrxchain = 3; /* to avoid b43_nphy_set_rx_core_state like wl */
@@ -4067,6 +4291,38 @@ static void b43_nphy_op_prepare_structs(struct b43_wldev *dev)
 	 * 0x7f == 127 and we check for 128 when restoring TX pwr ctl. */
 	nphy->tx_pwr_idx[0] = 128;
 	nphy->tx_pwr_idx[1] = 128;
+
+	/* Hardware TX power control and 5GHz power gain */
+	nphy->txpwrctrl = false;
+	nphy->pwg_gain_5ghz = false;
+	if (dev->phy.rev >= 3 ||
+	    (dev->dev->board_vendor == PCI_VENDOR_ID_APPLE &&
+	     (dev->dev->core_rev == 11 || dev->dev->core_rev == 12))) {
+		nphy->txpwrctrl = true;
+		nphy->pwg_gain_5ghz = true;
+	} else if (sprom->revision >= 4) {
+		if (dev->phy.rev >= 2 &&
+		    (sprom->boardflags2_lo & B43_BFL2_TXPWRCTRL_EN)) {
+			nphy->txpwrctrl = true;
+#ifdef CONFIG_B43_SSB
+			if (dev->dev->bus_type == B43_BUS_SSB &&
+			    dev->dev->sdev->bus->bustype == SSB_BUSTYPE_PCI) {
+				struct pci_dev *pdev =
+					dev->dev->sdev->bus->host_pci;
+				if (pdev->device == 0x4328 ||
+				    pdev->device == 0x432a)
+					nphy->pwg_gain_5ghz = true;
+			}
+#endif
+		} else if (sprom->boardflags2_lo & B43_BFL2_5G_PWRGAIN) {
+			nphy->pwg_gain_5ghz = true;
+		}
+	}
+
+	if (dev->phy.rev >= 3) {
+		nphy->ipa2g_on = sprom->fem.ghz2.extpa_gain == 2;
+		nphy->ipa5g_on = sprom->fem.ghz5.extpa_gain == 2;
+	}
 }
 
 static void b43_nphy_op_free(struct b43_wldev *dev)

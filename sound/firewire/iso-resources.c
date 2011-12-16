@@ -8,6 +8,7 @@
 #include <linux/device.h>
 #include <linux/firewire.h>
 #include <linux/firewire-constants.h>
+#include <linux/export.h>
 #include <linux/jiffies.h>
 #include <linux/mutex.h>
 #include <linux/sched.h>

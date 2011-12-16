@@ -22,6 +22,7 @@
  *
  */
 
+#include <linux/export.h>
 #include "emux_voice.h"
 #include <sound/asoundef.h>
 

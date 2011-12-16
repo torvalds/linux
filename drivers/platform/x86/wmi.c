@@ -36,6 +36,7 @@
 #include <linux/list.h>
 #include <linux/acpi.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 
@@ -754,9 +755,13 @@ static void wmi_free_devices(void)
 	struct wmi_block *wblock, *next;
 
 	/* Delete devices for all the GUIDs */
-	list_for_each_entry_safe(wblock, next, &wmi_block_list, list)
+	list_for_each_entry_safe(wblock, next, &wmi_block_list, list) {
+		list_del(&wblock->list);
 		if (wblock->dev.class)
 			device_unregister(&wblock->dev);
+		else
+			kfree(wblock);
+	}
 }
 
 static bool guid_already_parsed(const char *guid_string)

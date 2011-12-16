@@ -24,6 +24,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define MODULE_NAME "kinect"
 
 #include "gspca.h"
@@ -33,11 +35,6 @@
 MODULE_AUTHOR("Antonio Ospite <ospite@studenti.unina.it>");
 MODULE_DESCRIPTION("GSPCA/Kinect Sensor Device USB Camera Driver");
 MODULE_LICENSE("GPL");
-
-#ifdef GSPCA_DEBUG
-int gspca_debug = D_ERR | D_PROBE | D_CONF | D_STREAM | D_FRAM | D_PACK |
-	D_USBI | D_USBO | D_V4L2;
-#endif
 
 struct pkt_hdr {
 	uint8_t magic[2];
@@ -141,7 +138,7 @@ static int send_cmd(struct gspca_dev *gspca_dev, uint16_t cmd, void *cmdbuf,
 	struct cam_hdr *rhdr = (void *)ibuf;
 
 	if (cmd_len & 1 || cmd_len > (0x400 - sizeof(*chdr))) {
-		err("send_cmd: Invalid command length (0x%x)", cmd_len);
+		pr_err("send_cmd: Invalid command length (0x%x)\n", cmd_len);
 		return -1;
 	}
 
@@ -157,7 +154,7 @@ static int send_cmd(struct gspca_dev *gspca_dev, uint16_t cmd, void *cmdbuf,
 	PDEBUG(D_USBO, "Control cmd=%04x tag=%04x len=%04x: %d", cmd,
 		sd->cam_tag, cmd_len, res);
 	if (res < 0) {
-		err("send_cmd: Output control transfer failed (%d)", res);
+		pr_err("send_cmd: Output control transfer failed (%d)\n", res);
 		return res;
 	}
 
@@ -166,33 +163,35 @@ static int send_cmd(struct gspca_dev *gspca_dev, uint16_t cmd, void *cmdbuf,
 	} while (actual_len == 0);
 	PDEBUG(D_USBO, "Control reply: %d", res);
 	if (actual_len < sizeof(*rhdr)) {
-		err("send_cmd: Input control transfer failed (%d)", res);
+		pr_err("send_cmd: Input control transfer failed (%d)\n", res);
 		return res;
 	}
 	actual_len -= sizeof(*rhdr);
 
 	if (rhdr->magic[0] != 0x52 || rhdr->magic[1] != 0x42) {
-		err("send_cmd: Bad magic %02x %02x", rhdr->magic[0],
-			rhdr->magic[1]);
+		pr_err("send_cmd: Bad magic %02x %02x\n",
+		       rhdr->magic[0], rhdr->magic[1]);
 		return -1;
 	}
 	if (rhdr->cmd != chdr->cmd) {
-		err("send_cmd: Bad cmd %02x != %02x", rhdr->cmd, chdr->cmd);
+		pr_err("send_cmd: Bad cmd %02x != %02x\n",
+		       rhdr->cmd, chdr->cmd);
 		return -1;
 	}
 	if (rhdr->tag != chdr->tag) {
-		err("send_cmd: Bad tag %04x != %04x", rhdr->tag, chdr->tag);
+		pr_err("send_cmd: Bad tag %04x != %04x\n",
+		       rhdr->tag, chdr->tag);
 		return -1;
 	}
 	if (cpu_to_le16(rhdr->len) != (actual_len/2)) {
-		err("send_cmd: Bad len %04x != %04x",
-				cpu_to_le16(rhdr->len), (int)(actual_len/2));
+		pr_err("send_cmd: Bad len %04x != %04x\n",
+		       cpu_to_le16(rhdr->len), (int)(actual_len/2));
 		return -1;
 	}
 
 	if (actual_len > reply_len) {
-		warn("send_cmd: Data buffer is %d bytes long, but got %d bytes",
-				reply_len, actual_len);
+		pr_warn("send_cmd: Data buffer is %d bytes long, but got %d bytes\n",
+			reply_len, actual_len);
 		memcpy(replybuf, ibuf+sizeof(*rhdr), reply_len);
 	} else {
 		memcpy(replybuf, ibuf+sizeof(*rhdr), actual_len);
@@ -218,8 +217,8 @@ static int write_register(struct gspca_dev *gspca_dev, uint16_t reg,
 	if (res < 0)
 		return res;
 	if (res != 2) {
-		warn("send_cmd returned %d [%04x %04x], 0000 expected",
-				res, reply[0], reply[1]);
+		pr_warn("send_cmd returned %d [%04x %04x], 0000 expected\n",
+			res, reply[0], reply[1]);
 	}
 	return 0;
 }
@@ -353,8 +352,8 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev, u8 *__data, int len)
 		return;
 
 	if (hdr->magic[0] != 'R' || hdr->magic[1] != 'B') {
-		warn("[Stream %02x] Invalid magic %02x%02x", sd->stream_flag,
-				hdr->magic[0], hdr->magic[1]);
+		pr_warn("[Stream %02x] Invalid magic %02x%02x\n",
+			sd->stream_flag, hdr->magic[0], hdr->magic[1]);
 		return;
 	}
 
@@ -368,7 +367,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev, u8 *__data, int len)
 		gspca_frame_add(gspca_dev, LAST_PACKET, data, datalen);
 
 	else
-		warn("Packet type not recognized...");
+		pr_warn("Packet type not recognized...\n");
 }
 
 /* sub-driver description */

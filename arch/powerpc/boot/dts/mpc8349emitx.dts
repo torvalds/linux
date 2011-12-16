@@ -390,7 +390,8 @@
 		#address-cells = <2>;
 		#size-cells = <1>;
 		compatible = "fsl,mpc8349e-localbus",
-			     "fsl,pq2pro-localbus";
+			     "fsl,pq2pro-localbus",
+			     "simple-bus";
 		reg = <0xe0005000 0xd8>;
 		ranges = <0x0 0x0 0xfe000000 0x1000000	/* flash */
 			  0x1 0x0 0xf8000000 0x20000	/* VSC 7385 */

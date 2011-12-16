@@ -25,9 +25,11 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/device.h>
+#include <linux/export.h>
 #include <linux/err.h>
 #include <linux/kdev_t.h>
 #include <linux/random.h>
+#include <linux/stat.h>
 #include "uwb-internal.h"
 
 /* We initialize addresses to 0xff (invalid, as it is bcast) */

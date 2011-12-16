@@ -17,6 +17,7 @@
 #ifndef _BRCM_PUB_H_
 #define _BRCM_PUB_H_
 
+#include <linux/bcma/bcma.h>
 #include <brcmu_wifi.h>
 #include "types.h"
 #include "defs.h"
@@ -530,9 +531,8 @@ struct brcms_antselcfg {
 
 /* common functions for every port */
 extern struct brcms_c_info *
-brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
-	       bool piomode, void __iomem *regsva, struct pci_dev *btparam,
-	       uint *perr);
+brcms_c_attach(struct brcms_info *wl, struct bcma_device *core, uint unit,
+	       bool piomode, uint *perr);
 extern uint brcms_c_detach(struct brcms_c_info *wlc);
 extern int brcms_c_up(struct brcms_c_info *wlc);
 extern uint brcms_c_down(struct brcms_c_info *wlc);

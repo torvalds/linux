@@ -21,6 +21,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
+#include <linux/module.h>
 
 #include "spi-dw.h"
 

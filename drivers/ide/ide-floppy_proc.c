@@ -1,4 +1,5 @@
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <linux/ide.h>
 #include <linux/seq_file.h>
 

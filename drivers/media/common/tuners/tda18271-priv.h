@@ -136,29 +136,26 @@ extern int tda18271_debug;
 #define DBG_ADV  8
 #define DBG_CAL  16
 
-#define tda_printk(st, kern, fmt, arg...) do {\
-	if (st) { \
-		struct tda18271_priv *state = st; \
-		printk(kern "%s: [%d-%04x|%s] " fmt, __func__, \
-			i2c_adapter_id(state->i2c_props.adap), \
-			state->i2c_props.addr, \
-			(state->role == TDA18271_MASTER) \
-			? "M" : "S", ##arg); \
-	} else \
-		printk(kern "%s: " fmt, __func__, ##arg); \
+__attribute__((format(printf, 4, 5)))
+int _tda_printk(struct tda18271_priv *state, const char *level,
+		const char *func, const char *fmt, ...);
+
+#define tda_printk(st, lvl, fmt, arg...)			\
+	_tda_printk(st, lvl, __func__, fmt, ##arg)
+
+#define tda_dprintk(st, lvl, fmt, arg...)			\
+do {								\
+	if (tda18271_debug & lvl)				\
+		tda_printk(st, KERN_DEBUG, fmt, ##arg);		\
 } while (0)
 
-#define tda_dprintk(st, lvl, fmt, arg...) do {\
-	if (tda18271_debug & lvl) \
-		tda_printk(st, KERN_DEBUG, fmt, ##arg); } while (0)
-
-#define tda_info(fmt, arg...)     printk(KERN_INFO     fmt, ##arg)
-#define tda_warn(fmt, arg...) tda_printk(priv, KERN_WARNING, fmt, ##arg)
-#define tda_err(fmt, arg...)  tda_printk(priv, KERN_ERR,     fmt, ##arg)
-#define tda_dbg(fmt, arg...)  tda_dprintk(priv, DBG_INFO,    fmt, ##arg)
-#define tda_map(fmt, arg...)  tda_dprintk(priv, DBG_MAP,     fmt, ##arg)
-#define tda_reg(fmt, arg...)  tda_dprintk(priv, DBG_REG,     fmt, ##arg)
-#define tda_cal(fmt, arg...)  tda_dprintk(priv, DBG_CAL,     fmt, ##arg)
+#define tda_info(fmt, arg...)	pr_info(fmt, ##arg)
+#define tda_warn(fmt, arg...)	tda_printk(priv, KERN_WARNING, fmt, ##arg)
+#define tda_err(fmt, arg...)	tda_printk(priv, KERN_ERR,     fmt, ##arg)
+#define tda_dbg(fmt, arg...)	tda_dprintk(priv, DBG_INFO,    fmt, ##arg)
+#define tda_map(fmt, arg...)	tda_dprintk(priv, DBG_MAP,     fmt, ##arg)
+#define tda_reg(fmt, arg...)	tda_dprintk(priv, DBG_REG,     fmt, ##arg)
+#define tda_cal(fmt, arg...)	tda_dprintk(priv, DBG_CAL,     fmt, ##arg)
 
 #define tda_fail(ret)							     \
 ({									     \

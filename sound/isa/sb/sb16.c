@@ -24,7 +24,7 @@
 #include <linux/pnp.h>
 #include <linux/err.h>
 #include <linux/isa.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/sb.h>
 #include <sound/sb16_csp.h>
@@ -394,8 +394,9 @@ static int __devinit snd_sb16_probe(struct snd_card *card, int dev)
 
 	if (chip->mpu_port > 0 && chip->mpu_port != SNDRV_AUTO_PORT) {
 		if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_SB,
-					       chip->mpu_port, 0,
-					       xirq, 0, &chip->rmidi)) < 0)
+					       chip->mpu_port,
+					       MPU401_INFO_IRQ_HOOK, -1,
+					       &chip->rmidi)) < 0)
 			return err;
 		chip->rmidi_callback = snd_mpu401_uart_interrupt;
 	}

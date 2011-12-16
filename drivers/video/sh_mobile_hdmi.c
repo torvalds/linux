@@ -1111,6 +1111,7 @@ static long sh_hdmi_clk_configure(struct sh_hdmi *hdmi, unsigned long hdmi_rate,
 static void sh_hdmi_edid_work_fn(struct work_struct *work)
 {
 	struct sh_hdmi *hdmi = container_of(work, struct sh_hdmi, edid_work.work);
+	struct fb_info *info;
 	struct sh_mobile_hdmi_info *pdata = hdmi->dev->platform_data;
 	struct sh_mobile_lcdc_chan *ch;
 	int ret;
@@ -1123,8 +1124,9 @@ static void sh_hdmi_edid_work_fn(struct work_struct *work)
 
 	mutex_lock(&hdmi->mutex);
 
+	info = hdmi->info;
+
 	if (hdmi->hp_state == HDMI_HOTPLUG_CONNECTED) {
-		struct fb_info *info = hdmi->info;
 		unsigned long parent_rate = 0, hdmi_rate;
 
 		ret = sh_hdmi_read_edid(hdmi, &hdmi_rate, &parent_rate);
@@ -1148,42 +1150,45 @@ static void sh_hdmi_edid_work_fn(struct work_struct *work)
 
 		ch = info->par;
 
-		console_lock();
+		if (lock_fb_info(info)) {
+			console_lock();
 
-		/* HDMI plug in */
-		if (!sh_hdmi_must_reconfigure(hdmi) &&
-		    info->state == FBINFO_STATE_RUNNING) {
-			/*
-			 * First activation with the default monitor - just turn
-			 * on, if we run a resume here, the logo disappears
-			 */
-			if (lock_fb_info(info)) {
+			/* HDMI plug in */
+			if (!sh_hdmi_must_reconfigure(hdmi) &&
+			    info->state == FBINFO_STATE_RUNNING) {
+				/*
+				 * First activation with the default monitor - just turn
+				 * on, if we run a resume here, the logo disappears
+				 */
 				info->var.width = hdmi->var.width;
 				info->var.height = hdmi->var.height;
 				sh_hdmi_display_on(hdmi, info);
-				unlock_fb_info(info);
+			} else {
+				/* New monitor or have to wake up */
+				fb_set_suspend(info, 0);
 			}
-		} else {
-			/* New monitor or have to wake up */
-			fb_set_suspend(info, 0);
-		}
 
-		console_unlock();
+			console_unlock();
+			unlock_fb_info(info);
+		}
 	} else {
 		ret = 0;
-		if (!hdmi->info)
+		if (!info)
 			goto out;
 
 		hdmi->monspec.modedb_len = 0;
 		fb_destroy_modedb(hdmi->monspec.modedb);
 		hdmi->monspec.modedb = NULL;
 
-		console_lock();
+		if (lock_fb_info(info)) {
+			console_lock();
 
-		/* HDMI disconnect */
-		fb_set_suspend(hdmi->info, 1);
+			/* HDMI disconnect */
+			fb_set_suspend(info, 1);
 
-		console_unlock();
+			console_unlock();
+			unlock_fb_info(info);
+		}
 	}
 
 out:

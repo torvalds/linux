@@ -25,6 +25,7 @@
 #include <linux/time.h>
 #include <linux/timex.h>
 #include <linux/interrupt.h>
+#include <linux/export.h>
 
 #include <asm/irq.h>
 #include <asm/oplib.h>

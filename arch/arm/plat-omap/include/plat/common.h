@@ -45,6 +45,18 @@ extern unsigned long long notrace omap_32k_sched_clock(void);
 
 extern void omap_reserve(void);
 
+void omap2420_init_early(void);
+void omap2430_init_early(void);
+void omap3430_init_early(void);
+void omap35xx_init_early(void);
+void omap3630_init_early(void);
+void omap3_init_early(void);	/* Do not use this one */
+void am35xx_init_early(void);
+void ti816x_init_early(void);
+void omap4430_init_early(void);
+
+void omap_sram_init(void);
+
 /*
  * IO bases for various OMAP processors
  * Except the tap base, rest all the io bases
@@ -53,13 +65,13 @@ extern void omap_reserve(void);
 struct omap_globals {
 	u32		class;		/* OMAP class to detect */
 	void __iomem	*tap;		/* Control module ID code */
-	unsigned long   sdrc;           /* SDRAM Controller */
-	unsigned long   sms;            /* SDRAM Memory Scheduler */
-	unsigned long   ctrl;           /* System Control Module */
-	unsigned long   ctrl_pad;	/* PAD Control Module */
-	unsigned long   prm;            /* Power and Reset Management */
-	unsigned long   cm;             /* Clock Management */
-	unsigned long   cm2;
+	void __iomem	*sdrc;           /* SDRAM Controller */
+	void __iomem	*sms;            /* SDRAM Memory Scheduler */
+	void __iomem	*ctrl;           /* System Control Module */
+	void __iomem	*ctrl_pad;	/* PAD Control Module */
+	void __iomem	*prm;            /* Power and Reset Management */
+	void __iomem	*cm;             /* Clock Management */
+	void __iomem	*cm2;
 };
 
 void omap2_set_globals_242x(void);
@@ -74,7 +86,11 @@ void omap2_set_globals_sdrc(struct omap_globals *);
 void omap2_set_globals_control(struct omap_globals *);
 void omap2_set_globals_prcm(struct omap_globals *);
 
+void omap242x_map_io(void);
+void omap243x_map_io(void);
 void omap3_map_io(void);
+void omap4_map_io(void);
+
 
 /**
  * omap_test_timeout - busy-loop, testing a condition

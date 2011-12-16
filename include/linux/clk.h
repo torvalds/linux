@@ -11,6 +11,8 @@
 #ifndef __LINUX_CLK_H
 #define __LINUX_CLK_H
 
+#include <linux/kernel.h>
+
 struct device;
 
 /*
@@ -41,10 +43,30 @@ struct clk;
 struct clk *clk_get(struct device *dev, const char *id);
 
 /**
+ * clk_prepare - prepare a clock source
+ * @clk: clock source
+ *
+ * This prepares the clock source for use.
+ *
+ * Must not be called from within atomic context.
+ */
+#ifdef CONFIG_HAVE_CLK_PREPARE
+int clk_prepare(struct clk *clk);
+#else
+static inline int clk_prepare(struct clk *clk)
+{
+	might_sleep();
+	return 0;
+}
+#endif
+
+/**
  * clk_enable - inform the system when the clock source should be running.
  * @clk: clock source
  *
  * If the clock can not be enabled/disabled, this should return success.
+ *
+ * May be called from atomic contexts.
  *
  * Returns success (0) or negative errno.
  */
@@ -57,12 +79,33 @@ int clk_enable(struct clk *clk);
  * Inform the system that a clock source is no longer required by
  * a driver and may be shut down.
  *
+ * May be called from atomic contexts.
+ *
  * Implementation detail: if the clock source is shared between
  * multiple drivers, clk_enable() calls must be balanced by the
  * same number of clk_disable() calls for the clock source to be
  * disabled.
  */
 void clk_disable(struct clk *clk);
+
+
+/**
+ * clk_unprepare - undo preparation of a clock source
+ * @clk: clock source
+ *
+ * This undoes a previously prepared clock.  The caller must balance
+ * the number of prepare and unprepare calls.
+ *
+ * Must not be called from within atomic context.
+ */
+#ifdef CONFIG_HAVE_CLK_PREPARE
+void clk_unprepare(struct clk *clk);
+#else
+static inline void clk_unprepare(struct clk *clk)
+{
+	might_sleep();
+}
+#endif
 
 /**
  * clk_get_rate - obtain the current clock rate (in Hz) for a clock source.

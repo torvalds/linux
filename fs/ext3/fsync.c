@@ -61,13 +61,6 @@ int ext3_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	if (ret)
 		goto out;
 
-	/*
-	 * Taking the mutex here just to keep consistent with how fsync was
-	 * called previously, however it looks like we don't need to take
-	 * i_mutex at all.
-	 */
-	mutex_lock(&inode->i_mutex);
-
 	J_ASSERT(ext3_journal_current_handle() == NULL);
 
 	/*
@@ -85,7 +78,6 @@ int ext3_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 *  safe in-journal, which is all fsync() needs to ensure.
 	 */
 	if (ext3_should_journal_data(inode)) {
-		mutex_unlock(&inode->i_mutex);
 		ret = ext3_force_commit(inode->i_sb);
 		goto out;
 	}
@@ -108,8 +100,6 @@ int ext3_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 */
 	if (needs_barrier)
 		blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL);
-
-	mutex_unlock(&inode->i_mutex);
 out:
 	trace_ext3_sync_file_exit(inode, ret);
 	return ret;

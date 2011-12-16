@@ -35,6 +35,7 @@
 #include <linux/parser.h>
 #include <linux/vfs.h>
 #include <linux/random.h>
+#include <linux/module.h>
 #include <linux/exportfs.h>
 #include <linux/slab.h>
 

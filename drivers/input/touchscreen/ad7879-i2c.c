@@ -16,7 +16,7 @@
 
 #define AD7879_DEVID		0x79	/* AD7879-1/AD7889-1 */
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int ad7879_i2c_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -36,9 +36,9 @@ static int ad7879_i2c_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(ad7879_i2c_pm, ad7879_i2c_suspend, ad7879_i2c_resume);
-#endif
 
 /* All registers are word-sized.
  * AD7879 uses a high-byte first convention.
@@ -119,9 +119,7 @@ static struct i2c_driver ad7879_i2c_driver = {
 	.driver = {
 		.name	= "ad7879",
 		.owner	= THIS_MODULE,
-#ifdef CONFIG_PM
 		.pm	= &ad7879_i2c_pm,
-#endif
 	},
 	.probe		= ad7879_i2c_probe,
 	.remove		= __devexit_p(ad7879_i2c_remove),

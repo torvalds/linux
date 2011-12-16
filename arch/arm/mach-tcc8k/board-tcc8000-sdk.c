@@ -73,7 +73,7 @@ static void __init tcc8k_map_io(void)
 }
 
 MACHINE_START(TCC8000_SDK, "Telechips TCC8000-SDK Demo Board")
-	.boot_params	= PLAT_PHYS_OFFSET + 0x00000100,
+	.atag_offset	= 0x100,
 	.map_io		= tcc8k_map_io,
 	.init_irq	= tcc8k_init_irq,
 	.init_machine	= tcc8k_init,

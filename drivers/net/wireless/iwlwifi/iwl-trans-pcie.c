@@ -990,28 +990,15 @@ static int iwl_trans_tx_stop(struct iwl_trans *trans)
 	return 0;
 }
 
-static void iwl_trans_pcie_disable_sync_irq(struct iwl_trans *trans)
+static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 {
 	unsigned long flags;
-	struct iwl_trans_pcie *trans_pcie =
-		IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
+	/* tell the device to stop sending interrupts */
 	spin_lock_irqsave(&trans->shrd->lock, flags);
 	iwl_disable_interrupts(trans);
 	spin_unlock_irqrestore(&trans->shrd->lock, flags);
-
-	/* wait to make sure we flush pending tasklet*/
-	synchronize_irq(bus(trans)->irq);
-	tasklet_kill(&trans_pcie->irq_tasklet);
-}
-
-static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
-{
-	/* stop and reset the on-board processor */
-	iwl_write32(bus(trans), CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
-
-	/* tell the device to stop sending interrupts */
-	iwl_trans_pcie_disable_sync_irq(trans);
 
 	/* device going down, Stop using ICT table */
 	iwl_disable_ict(trans);
@@ -1039,6 +1026,20 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 
 	/* Stop the device, and put it in low power state */
 	iwl_apm_stop(priv(trans));
+
+	/* Upon stop, the APM issues an interrupt if HW RF kill is set.
+	 * Clean again the interrupt here
+	 */
+	spin_lock_irqsave(&trans->shrd->lock, flags);
+	iwl_disable_interrupts(trans);
+	spin_unlock_irqrestore(&trans->shrd->lock, flags);
+
+	/* wait to make sure we flush pending tasklet*/
+	synchronize_irq(bus(trans)->irq);
+	tasklet_kill(&trans_pcie->irq_tasklet);
+
+	/* stop and reset the on-board processor */
+	iwl_write32(bus(trans), CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
 }
 
 static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
@@ -1099,13 +1100,21 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		hdr->seq_ctrl = hdr->seq_ctrl &
 				cpu_to_le16(IEEE80211_SCTL_FRAG);
 		hdr->seq_ctrl |= cpu_to_le16(seq_number);
-		seq_number += 0x10;
 		/* aggregation is on for this <sta,tid> */
 		if (info->flags & IEEE80211_TX_CTL_AMPDU) {
-			WARN_ON_ONCE(tid_data->agg.state != IWL_AGG_ON);
+			if (WARN_ON_ONCE(tid_data->agg.state != IWL_AGG_ON)) {
+				IWL_ERR(trans, "TX_CTL_AMPDU while not in AGG:"
+					" Tx flags = 0x%08x, agg.state = %d",
+					info->flags, tid_data->agg.state);
+				IWL_ERR(trans, "sta_id = %d, tid = %d "
+					"txq_id = %d, seq_num = %d", sta_id,
+					tid, tid_data->agg.txq_id,
+					seq_number >> 4);
+			}
 			txq_id = tid_data->agg.txq_id;
 			is_agg = true;
 		}
+		seq_number += 0x10;
 	}
 
 	/* Copy MAC header from skb into command buffer */
@@ -1350,9 +1359,9 @@ static void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int sta_id, int tid,
 	}
 
 	if (txq->q.read_ptr != tfd_num) {
-		IWL_DEBUG_TX_REPLY(trans, "Retry scheduler reclaim "
-				"scd_ssn=%d idx=%d txq=%d swq=%d\n",
-				ssn , tfd_num, txq_id, txq->swq_id);
+		IWL_DEBUG_TX_REPLY(trans, "[Q %d | AC %d] %d -> %d (%d)\n",
+				txq_id, iwl_get_queue_ac(txq), txq->q.read_ptr,
+				tfd_num, ssn);
 		freed = iwl_tx_queue_reclaim(trans, txq_id, tfd_num, skbs);
 		if (iwl_queue_space(&txq->q) > txq->q.low_mark && cond)
 			iwl_wake_queue(trans, txq, "Packets reclaimed");
@@ -1364,6 +1373,7 @@ static void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int sta_id, int tid,
 
 static void iwl_trans_pcie_free(struct iwl_trans *trans)
 {
+	iwl_calib_free_results(trans);
 	iwl_trans_pcie_tx_free(trans);
 	iwl_trans_pcie_rx_free(trans);
 	free_irq(bus(trans)->irq, trans);
@@ -1515,8 +1525,12 @@ static int iwl_trans_pcie_check_stuck_queue(struct iwl_trans *trans, int cnt)
 	if (time_after(jiffies, timeout)) {
 		IWL_ERR(trans, "Queue %d stuck for %u ms.\n", q->id,
 			hw_params(trans).wd_timeout);
-		IWL_ERR(trans, "Current read_ptr %d write_ptr %d\n",
+		IWL_ERR(trans, "Current SW read_ptr %d write_ptr %d\n",
 			q->read_ptr, q->write_ptr);
+		IWL_ERR(trans, "Current HW read_ptr %d write_ptr %d\n",
+			iwl_read_prph(bus(trans), SCD_QUEUE_RDPTR(cnt))
+				& (TFD_QUEUE_SIZE_MAX - 1),
+			iwl_read_prph(bus(trans), SCD_QUEUE_WRPTR(cnt)));
 		return 1;
 	}
 

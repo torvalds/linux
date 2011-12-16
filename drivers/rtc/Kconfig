@@ -8,7 +8,7 @@ config RTC_LIB
 menuconfig RTC_CLASS
 	bool "Real Time Clock"
 	default n
-	depends on !S390
+	depends on !S390 && !UML
 	select RTC_LIB
 	help
 	  Generic RTC class support. If you say yes here, you will

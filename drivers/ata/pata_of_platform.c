@@ -11,6 +11,8 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/ata_platform.h>
 
@@ -50,18 +52,18 @@ static int __devinit pata_of_platform_probe(struct platform_device *ofdev)
 	}
 
 	ret = of_irq_to_resource(dn, 0, &irq_res);
-	if (ret == NO_IRQ)
+	if (!ret)
 		irq_res.start = irq_res.end = 0;
 	else
 		irq_res.flags = 0;
 
 	prop = of_get_property(dn, "reg-shift", NULL);
 	if (prop)
-		reg_shift = *prop;
+		reg_shift = be32_to_cpup(prop);
 
 	prop = of_get_property(dn, "pio-mode", NULL);
 	if (prop) {
-		pio_mode = *prop;
+		pio_mode = be32_to_cpup(prop);
 		if (pio_mode > 6) {
 			dev_err(&ofdev->dev, "invalid pio-mode\n");
 			return -EINVAL;

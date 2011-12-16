@@ -1,6 +1,6 @@
 /**************************************************************************
  *
- * Copyright © 2009 VMware, Inc., Palo Alto, CA., USA
+ * Copyright © 2009-2011 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -28,6 +28,77 @@
 #include "vmwgfx_drv.h"
 #include "drmP.h"
 #include "ttm/ttm_bo_driver.h"
+
+#define VMW_PPN_SIZE sizeof(unsigned long)
+
+static int vmw_gmr2_bind(struct vmw_private *dev_priv,
+			 struct page *pages[],
+			 unsigned long num_pages,
+			 int gmr_id)
+{
+	SVGAFifoCmdDefineGMR2 define_cmd;
+	SVGAFifoCmdRemapGMR2 remap_cmd;
+	uint32_t define_size = sizeof(define_cmd) + 4;
+	uint32_t remap_size = VMW_PPN_SIZE * num_pages + sizeof(remap_cmd) + 4;
+	uint32_t *cmd;
+	uint32_t *cmd_orig;
+	uint32_t i;
+
+	cmd_orig = cmd = vmw_fifo_reserve(dev_priv, define_size + remap_size);
+	if (unlikely(cmd == NULL))
+		return -ENOMEM;
+
+	define_cmd.gmrId = gmr_id;
+	define_cmd.numPages = num_pages;
+
+	remap_cmd.gmrId = gmr_id;
+	remap_cmd.flags = (VMW_PPN_SIZE > sizeof(*cmd)) ?
+		SVGA_REMAP_GMR2_PPN64 : SVGA_REMAP_GMR2_PPN32;
+	remap_cmd.offsetPages = 0;
+	remap_cmd.numPages = num_pages;
+
+	*cmd++ = SVGA_CMD_DEFINE_GMR2;
+	memcpy(cmd, &define_cmd, sizeof(define_cmd));
+	cmd += sizeof(define_cmd) / sizeof(uint32);
+
+	*cmd++ = SVGA_CMD_REMAP_GMR2;
+	memcpy(cmd, &remap_cmd, sizeof(remap_cmd));
+	cmd += sizeof(remap_cmd) / sizeof(uint32);
+
+	for (i = 0; i < num_pages; ++i) {
+		if (VMW_PPN_SIZE > 4)
+			*cmd = page_to_pfn(*pages++);
+		else
+			*((uint64_t *)cmd) = page_to_pfn(*pages++);
+
+		cmd += VMW_PPN_SIZE / sizeof(*cmd);
+	}
+
+	vmw_fifo_commit(dev_priv, define_size + remap_size);
+
+	return 0;
+}
+
+static void vmw_gmr2_unbind(struct vmw_private *dev_priv,
+			    int gmr_id)
+{
+	SVGAFifoCmdDefineGMR2 define_cmd;
+	uint32_t define_size = sizeof(define_cmd) + 4;
+	uint32_t *cmd;
+
+	cmd = vmw_fifo_reserve(dev_priv, define_size);
+	if (unlikely(cmd == NULL)) {
+		DRM_ERROR("GMR2 unbind failed.\n");
+		return;
+	}
+	define_cmd.gmrId = gmr_id;
+	define_cmd.numPages = 0;
+
+	*cmd++ = SVGA_CMD_DEFINE_GMR2;
+	memcpy(cmd, &define_cmd, sizeof(define_cmd));
+
+	vmw_fifo_commit(dev_priv, define_size);
+}
 
 /**
  * FIXME: Adjust to the ttm lowmem / highmem storage to minimize
@@ -170,6 +241,9 @@ int vmw_gmr_bind(struct vmw_private *dev_priv,
 	struct list_head desc_pages;
 	int ret;
 
+	if (likely(dev_priv->capabilities & SVGA_CAP_GMR2))
+		return vmw_gmr2_bind(dev_priv, pages, num_pages, gmr_id);
+
 	if (unlikely(!(dev_priv->capabilities & SVGA_CAP_GMR)))
 		return -EINVAL;
 
@@ -192,6 +266,11 @@ int vmw_gmr_bind(struct vmw_private *dev_priv,
 
 void vmw_gmr_unbind(struct vmw_private *dev_priv, int gmr_id)
 {
+	if (likely(dev_priv->capabilities & SVGA_CAP_GMR2)) {
+		vmw_gmr2_unbind(dev_priv, gmr_id);
+		return;
+	}
+
 	mutex_lock(&dev_priv->hw_mutex);
 	vmw_write(dev_priv, SVGA_REG_GMR_ID, gmr_id);
 	wmb();

@@ -27,6 +27,7 @@
 #include <linux/adb.h>
 #include <linux/pmu.h>
 #include <linux/ioport.h>
+#include <linux/export.h>
 #include <linux/pci.h>
 #include <asm/sections.h>
 #include <asm/errno.h>

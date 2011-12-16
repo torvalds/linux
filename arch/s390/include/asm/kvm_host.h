@@ -119,6 +119,7 @@ struct kvm_vcpu_stat {
 	u32 instruction_lctlg;
 	u32 exit_program_interruption;
 	u32 exit_instr_and_program;
+	u32 deliver_external_call;
 	u32 deliver_emergency_signal;
 	u32 deliver_service_signal;
 	u32 deliver_virtio_interrupt;
@@ -138,11 +139,13 @@ struct kvm_vcpu_stat {
 	u32 instruction_stfl;
 	u32 instruction_tprot;
 	u32 instruction_sigp_sense;
+	u32 instruction_sigp_external_call;
 	u32 instruction_sigp_emergency;
 	u32 instruction_sigp_stop;
 	u32 instruction_sigp_arch;
 	u32 instruction_sigp_prefix;
 	u32 instruction_sigp_restart;
+	u32 diagnose_10;
 	u32 diagnose_44;
 };
 
@@ -174,6 +177,10 @@ struct kvm_s390_prefix_info {
 	__u32 address;
 };
 
+struct kvm_s390_extcall_info {
+	__u16 code;
+};
+
 struct kvm_s390_emerg_info {
 	__u16 code;
 };
@@ -186,6 +193,7 @@ struct kvm_s390_interrupt_info {
 		struct kvm_s390_ext_info ext;
 		struct kvm_s390_pgm_info pgm;
 		struct kvm_s390_emerg_info emerg;
+		struct kvm_s390_extcall_info extcall;
 		struct kvm_s390_prefix_info prefix;
 	};
 };

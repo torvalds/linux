@@ -1,0 +1,135 @@
+/*
+ * Copyright 2011 Freescale Semiconductor, Inc.
+ * Copyright 2011 Linaro Ltd.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+/include/ "imx51.dtsi"
+
+/ {
+	model = "Freescale i.MX51 Babbage Board";
+	compatible = "fsl,imx51-babbage", "fsl,imx51";
+
+	chosen {
+		bootargs = "console=ttymxc0,115200 root=/dev/mmcblk0p3 rootwait";
+	};
+
+	memory {
+		reg = <0x90000000 0x20000000>;
+	};
+
+	soc {
+		aips@70000000 { /* aips-1 */
+			spba@70000000 {
+				esdhc@70004000 { /* ESDHC1 */
+					fsl,cd-internal;
+					fsl,wp-internal;
+					status = "okay";
+				};
+
+				esdhc@70008000 { /* ESDHC2 */
+					cd-gpios = <&gpio0 6 0>; /* GPIO1_6 */
+					wp-gpios = <&gpio0 5 0>; /* GPIO1_5 */
+					status = "okay";
+				};
+
+				uart2: uart@7000c000 { /* UART3 */
+					fsl,uart-has-rtscts;
+					status = "okay";
+				};
+
+				ecspi@70010000 { /* ECSPI1 */
+					fsl,spi-num-chipselects = <2>;
+					cs-gpios = <&gpio3 24 0>, /* GPIO4_24 */
+						   <&gpio3 25 0>; /* GPIO4_25 */
+					status = "okay";
+
+					pmic: mc13892@0 {
+						#address-cells = <1>;
+						#size-cells = <0>;
+						compatible = "fsl,mc13892";
+						spi-max-frequency = <6000000>;
+						reg = <0>;
+						mc13xxx-irq-gpios = <&gpio0 8 0>; /* GPIO1_8 */
+						fsl,mc13xxx-uses-regulator;
+					};
+
+					flash: at45db321d@1 {
+						#address-cells = <1>;
+						#size-cells = <1>;
+						compatible = "atmel,at45db321d", "atmel,at45", "atmel,dataflash";
+						spi-max-frequency = <25000000>;
+						reg = <1>;
+
+						partition@0 {
+							label = "U-Boot";
+							reg = <0x0 0x40000>;
+							read-only;
+						};
+
+						partition@40000 {
+							label = "Kernel";
+							reg = <0x40000 0x3c0000>;
+						};
+					};
+				};
+			};
+
+			wdog@73f98000 { /* WDOG1 */
+				status = "okay";
+			};
+
+			iomuxc@73fa8000 {
+				compatible = "fsl,imx51-iomuxc-babbage";
+				reg = <0x73fa8000 0x4000>;
+			};
+
+			uart0: uart@73fbc000 {
+				fsl,uart-has-rtscts;
+				status = "okay";
+			};
+
+			uart1: uart@73fc0000 {
+				status = "okay";
+			};
+		};
+
+		aips@80000000 {	/* aips-2 */
+			sdma@83fb0000 {
+				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx51.bin";
+			};
+
+			i2c@83fc4000 { /* I2C2 */
+				status = "okay";
+
+				codec: sgtl5000@0a {
+					compatible = "fsl,sgtl5000";
+					reg = <0x0a>;
+				};
+			};
+
+			fec@83fec000 {
+				phy-mode = "mii";
+				status = "okay";
+			};
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		power {
+			label = "Power Button";
+			gpios = <&gpio1 21 0>;
+			linux,code = <116>; /* KEY_POWER */
+			gpio-key,wakeup;
+		};
+	};
+};

@@ -13,11 +13,9 @@
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <sys/uio.h>
-#include "kern_constants.h"
 #include "kern_util.h"
 #include "os.h"
 #include "tuntap.h"
-#include "user.h"
 
 static int tuntap_user_init(void *data, void *dev)
 {

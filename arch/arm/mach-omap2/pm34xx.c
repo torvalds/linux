@@ -55,7 +55,7 @@
 static suspend_state_t suspend_state = PM_SUSPEND_ON;
 static inline bool is_suspending(void)
 {
-	return (suspend_state != PM_SUSPEND_ON);
+	return (suspend_state != PM_SUSPEND_ON) && console_suspend_enabled;
 }
 #else
 static inline bool is_suspending(void)
@@ -99,31 +99,27 @@ static void omap3_enable_io_chain(void)
 {
 	int timeout = 0;
 
-	if (omap_rev() >= OMAP3430_REV_ES3_1) {
-		omap2_prm_set_mod_reg_bits(OMAP3430_EN_IO_CHAIN_MASK, WKUP_MOD,
-				     PM_WKEN);
-		/* Do a readback to assure write has been done */
-		omap2_prm_read_mod_reg(WKUP_MOD, PM_WKEN);
+	omap2_prm_set_mod_reg_bits(OMAP3430_EN_IO_CHAIN_MASK, WKUP_MOD,
+				   PM_WKEN);
+	/* Do a readback to assure write has been done */
+	omap2_prm_read_mod_reg(WKUP_MOD, PM_WKEN);
 
-		while (!(omap2_prm_read_mod_reg(WKUP_MOD, PM_WKEN) &
-			 OMAP3430_ST_IO_CHAIN_MASK)) {
-			timeout++;
-			if (timeout > 1000) {
-				printk(KERN_ERR "Wake up daisy chain "
-				       "activation failed.\n");
-				return;
-			}
-			omap2_prm_set_mod_reg_bits(OMAP3430_ST_IO_CHAIN_MASK,
-					     WKUP_MOD, PM_WKEN);
+	while (!(omap2_prm_read_mod_reg(WKUP_MOD, PM_WKEN) &
+		 OMAP3430_ST_IO_CHAIN_MASK)) {
+		timeout++;
+		if (timeout > 1000) {
+			pr_err("Wake up daisy chain activation failed.\n");
+			return;
 		}
+		omap2_prm_set_mod_reg_bits(OMAP3430_ST_IO_CHAIN_MASK,
+					   WKUP_MOD, PM_WKEN);
 	}
 }
 
 static void omap3_disable_io_chain(void)
 {
-	if (omap_rev() >= OMAP3430_REV_ES3_1)
-		omap2_prm_clear_mod_reg_bits(OMAP3430_EN_IO_CHAIN_MASK, WKUP_MOD,
-				       PM_WKEN);
+	omap2_prm_clear_mod_reg_bits(OMAP3430_EN_IO_CHAIN_MASK, WKUP_MOD,
+				     PM_WKEN);
 }
 
 static void omap3_core_save_context(void)
@@ -363,7 +359,6 @@ void omap_sram_idle(void)
 		printk(KERN_ERR "Invalid mpu state in sram_idle\n");
 		return;
 	}
-	pwrdm_pre_transition();
 
 	/* NEON control */
 	if (pwrdm_read_pwrst(neon_pwrdm) == PWRDM_POWER_ON)
@@ -376,7 +371,8 @@ void omap_sram_idle(void)
 	    (per_next_state < PWRDM_POWER_ON ||
 	     core_next_state < PWRDM_POWER_ON)) {
 		omap2_prm_set_mod_reg_bits(OMAP3430_EN_IO_MASK, WKUP_MOD, PM_WKEN);
-		omap3_enable_io_chain();
+		if (omap3_has_io_chain_ctrl())
+			omap3_enable_io_chain();
 	}
 
 	/* Block console output in case it is on one of the OMAP UARTs */
@@ -385,6 +381,8 @@ void omap_sram_idle(void)
 		    core_next_state < PWRDM_POWER_ON)
 			if (!console_trylock())
 				goto console_still_active;
+
+	pwrdm_pre_transition();
 
 	/* PER */
 	if (per_next_state < PWRDM_POWER_ON) {
@@ -409,13 +407,14 @@ void omap_sram_idle(void)
 	omap3_intc_prepare_idle();
 
 	/*
-	* On EMU/HS devices ROM code restores a SRDC value
-	* from scratchpad which has automatic self refresh on timeout
-	* of AUTO_CNT = 1 enabled. This takes care of erratum ID i443.
-	* Hence store/restore the SDRC_POWER register here.
-	*/
-	if (omap_rev() >= OMAP3430_REV_ES3_0 &&
-	    omap_type() != OMAP2_DEVICE_TYPE_GP &&
+	 * On EMU/HS devices ROM code restores a SRDC value
+	 * from scratchpad which has automatic self refresh on timeout
+	 * of AUTO_CNT = 1 enabled. This takes care of erratum ID i443.
+	 * Hence store/restore the SDRC_POWER register here.
+	 */
+	if (cpu_is_omap3430() && omap_rev() >= OMAP3430_REV_ES3_0 &&
+	    (omap_type() == OMAP2_DEVICE_TYPE_EMU ||
+	     omap_type() == OMAP2_DEVICE_TYPE_SEC) &&
 	    core_next_state == PWRDM_POWER_OFF)
 		sdrc_pwr = sdrc_read_reg(SDRC_POWER);
 
@@ -432,8 +431,9 @@ void omap_sram_idle(void)
 		omap34xx_do_sram_idle(save_state);
 
 	/* Restore normal SDRC POWER settings */
-	if (omap_rev() >= OMAP3430_REV_ES3_0 &&
-	    omap_type() != OMAP2_DEVICE_TYPE_GP &&
+	if (cpu_is_omap3430() && omap_rev() >= OMAP3430_REV_ES3_0 &&
+	    (omap_type() == OMAP2_DEVICE_TYPE_EMU ||
+	     omap_type() == OMAP2_DEVICE_TYPE_SEC) &&
 	    core_next_state == PWRDM_POWER_OFF)
 		sdrc_write_reg(sdrc_pwr, SDRC_POWER);
 
@@ -455,6 +455,8 @@ void omap_sram_idle(void)
 	}
 	omap3_intc_resume_idle();
 
+	pwrdm_post_transition();
+
 	/* PER */
 	if (per_next_state < PWRDM_POWER_ON) {
 		per_prev_state = pwrdm_read_prev_pwrst(per_pwrdm);
@@ -475,10 +477,9 @@ console_still_active:
 	     core_next_state < PWRDM_POWER_ON)) {
 		omap2_prm_clear_mod_reg_bits(OMAP3430_EN_IO_MASK, WKUP_MOD,
 					     PM_WKEN);
-		omap3_disable_io_chain();
+		if (omap3_has_io_chain_ctrl())
+			omap3_disable_io_chain();
 	}
-
-	pwrdm_post_transition();
 
 	clkdm_allow_idle(mpu_pwrdm->pwrdm_clkdms[0]);
 }
@@ -869,6 +870,9 @@ static int __init omap3_pm_init(void)
 
 	if (!cpu_is_omap34xx())
 		return -ENODEV;
+
+	if (!omap3_has_io_chain_ctrl())
+		pr_warning("PM: no software I/O chain control; some wakeups may be lost\n");
 
 	pm_errata_configure();
 

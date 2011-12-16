@@ -92,6 +92,14 @@ struct btrfs_device {
 	struct btrfs_work work;
 	struct rcu_head rcu;
 	struct work_struct rcu_work;
+
+	/* readahead state */
+	spinlock_t reada_lock;
+	atomic_t reada_in_flight;
+	u64 reada_next;
+	struct reada_zone *reada_curr_zone;
+	struct radix_tree_root reada_zones;
+	struct radix_tree_root reada_extents;
 };
 
 struct btrfs_fs_devices {
@@ -136,7 +144,10 @@ struct btrfs_bio_stripe {
 	u64 length; /* only used for discard mappings */
 };
 
-struct btrfs_multi_bio {
+struct btrfs_bio;
+typedef void (btrfs_bio_end_io_t) (struct btrfs_bio *bio, int err);
+
+struct btrfs_bio {
 	atomic_t stripes_pending;
 	bio_end_io_t *end_io;
 	struct bio *orig_bio;
@@ -144,6 +155,7 @@ struct btrfs_multi_bio {
 	atomic_t error;
 	int max_errors;
 	int num_stripes;
+	int mirror_num;
 	struct btrfs_bio_stripe stripes[];
 };
 
@@ -171,7 +183,7 @@ struct map_lookup {
 int btrfs_account_dev_extents_size(struct btrfs_device *device, u64 start,
 				   u64 end, u64 *length);
 
-#define btrfs_multi_bio_size(n) (sizeof(struct btrfs_multi_bio) + \
+#define btrfs_bio_size(n) (sizeof(struct btrfs_bio) + \
 			    (sizeof(struct btrfs_bio_stripe) * (n)))
 
 int btrfs_alloc_dev_extent(struct btrfs_trans_handle *trans,
@@ -180,7 +192,7 @@ int btrfs_alloc_dev_extent(struct btrfs_trans_handle *trans,
 			   u64 chunk_offset, u64 start, u64 num_bytes);
 int btrfs_map_block(struct btrfs_mapping_tree *map_tree, int rw,
 		    u64 logical, u64 *length,
-		    struct btrfs_multi_bio **multi_ret, int mirror_num);
+		    struct btrfs_bio **bbio_ret, int mirror_num);
 int btrfs_rmap_block(struct btrfs_mapping_tree *map_tree,
 		     u64 chunk_start, u64 physical, u64 devid,
 		     u64 **logical, int *naddrs, int *stripe_len);

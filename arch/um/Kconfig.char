@@ -1,5 +1,4 @@
-
-menu "Character Devices"
+menu "UML Character Devices"
 
 config STDERR_CONSOLE
 	bool "stderr console"
@@ -105,92 +104,6 @@ config SSL_CHAN
           this if you expect the UML that you build to be run in environments
           which don't have a set of /dev/pty* devices.
 
-config UNIX98_PTYS
-	bool "Unix98 PTY support"
-	help
-	  A pseudo terminal (PTY) is a software device consisting of two
-	  halves: a master and a slave. The slave device behaves identical to
-	  a physical terminal; the master device is used by a process to
-	  read data from and write data to the slave, thereby emulating a
-	  terminal. Typical programs for the master side are telnet servers
-	  and xterms.
-
-	  Linux has traditionally used the BSD-like names /dev/ptyxx for
-	  masters and /dev/ttyxx for slaves of pseudo terminals. This scheme
-	  has a number of problems. The GNU C library glibc 2.1 and later,
-	  however, supports the Unix98 naming standard: in order to acquire a
-	  pseudo terminal, a process opens /dev/ptmx; the number of the pseudo
-	  terminal is then made available to the process and the pseudo
-	  terminal slave can be accessed as /dev/pts/<number>. What was
-	  traditionally /dev/ttyp2 will then be /dev/pts/2, for example.
-
-	  All modern Linux systems use the Unix98 ptys.  Say Y unless
-	  you're on an embedded system and want to conserve memory.
-
-config LEGACY_PTYS
-	bool "Legacy (BSD) PTY support"
-	default y
-	help
-	  A pseudo terminal (PTY) is a software device consisting of two
-	  halves: a master and a slave. The slave device behaves identical to
-	  a physical terminal; the master device is used by a process to
-	  read data from and write data to the slave, thereby emulating a
-	  terminal. Typical programs for the master side are telnet servers
-	  and xterms.
-
-	  Linux has traditionally used the BSD-like names /dev/ptyxx
-	  for masters and /dev/ttyxx for slaves of pseudo
-	  terminals. This scheme has a number of problems, including
-	  security.  This option enables these legacy devices; on most
-	  systems, it is safe to say N.
-
-config RAW_DRIVER
-        tristate "RAW driver (/dev/raw/rawN)"
-	depends on BLOCK
-        help
-          The raw driver permits block devices to be bound to /dev/raw/rawN.
-          Once bound, I/O against /dev/raw/rawN uses efficient zero-copy I/O.
-          See the raw(8) manpage for more details.
-
-          Applications should preferably open the device (eg /dev/hda1)
-          with the O_DIRECT flag.
-
-config MAX_RAW_DEVS
-        int "Maximum number of RAW devices to support (1-8192)"
-        depends on RAW_DRIVER
-        default "256"
-        help
-          The maximum number of RAW devices that are supported.
-          Default is 256. Increase this number in case you need lots of
-          raw devices.
-
-config LEGACY_PTY_COUNT
-	int "Maximum number of legacy PTY in use"
-	depends on LEGACY_PTYS
-	default "256"
-	help
-	  The maximum number of legacy PTYs that can be used at any one time.
-	  The default is 256, and should be more than enough.  Embedded
-	  systems may want to reduce this to save memory.
-
-	  When not in use, each legacy PTY occupies 12 bytes on 32-bit
-	  architectures and 24 bytes on 64-bit architectures.
-
-config WATCHDOG
-	bool "Watchdog Timer Support"
-
-config WATCHDOG_NOWAYOUT
-	bool "Disable watchdog shutdown on close"
-	depends on WATCHDOG
-
-config SOFT_WATCHDOG
-	tristate "Software Watchdog"
-	depends on WATCHDOG
-
-config UML_WATCHDOG
-	tristate "UML watchdog"
-	depends on WATCHDOG
-
 config UML_SOUND
 	tristate "Sound support"
 	help
@@ -210,30 +123,5 @@ config SOUND_OSS_CORE
 config HOSTAUDIO
 	tristate
 	default UML_SOUND
-
-#It is selected elsewhere, so kconfig would warn without this.
-config HW_RANDOM
-	tristate
-	default n
-
-config UML_RANDOM
-	tristate "Hardware random number generator"
-	help
-	  This option enables UML's "hardware" random number generator.  It
-	  attaches itself to the host's /dev/random, supplying as much entropy
-	  as the host has, rather than the small amount the UML gets from its
-	  own drivers.  It registers itself as a standard hardware random number
-	  generator, major 10, minor 183, and the canonical device name is
-	  /dev/hwrng.
-	  The way to make use of this is to install the rng-tools package
-	  (check your distro, or download from
-	  http://sourceforge.net/projects/gkernel/).  rngd periodically reads
-	  /dev/hwrng and injects the entropy into /dev/random.
-
-config MMAPPER
-	tristate "iomem emulation driver"
-	help
-	  This driver allows a host file to be used as emulated IO memory inside
-	  UML.
 
 endmenu

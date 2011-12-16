@@ -148,4 +148,16 @@ config PS3_LPM
 	  profiling support of the Cell processor with programs like
 	  oprofile and perfmon2, then say Y or M, otherwise say N.
 
+config PS3GELIC_UDBG
+	bool "PS3 udbg output via UDP broadcasts on Ethernet"
+	depends on PPC_PS3
+	help
+	  Enables udbg early debugging output by sending broadcast UDP
+	  via the Ethernet port (UDP port number 18194).
+
+	  This driver uses a trivial implementation and is independent
+	  from the main network driver.
+
+	  If in doubt, say N here.
+
 endmenu

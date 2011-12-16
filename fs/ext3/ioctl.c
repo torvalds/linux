@@ -150,30 +150,6 @@ setversion_out:
 		mnt_drop_write(filp->f_path.mnt);
 		return err;
 	}
-#ifdef CONFIG_JBD_DEBUG
-	case EXT3_IOC_WAIT_FOR_READONLY:
-		/*
-		 * This is racy - by the time we're woken up and running,
-		 * the superblock could be released.  And the module could
-		 * have been unloaded.  So sue me.
-		 *
-		 * Returns 1 if it slept, else zero.
-		 */
-		{
-			struct super_block *sb = inode->i_sb;
-			DECLARE_WAITQUEUE(wait, current);
-			int ret = 0;
-
-			set_current_state(TASK_INTERRUPTIBLE);
-			add_wait_queue(&EXT3_SB(sb)->ro_wait_queue, &wait);
-			if (timer_pending(&EXT3_SB(sb)->turn_ro_timer)) {
-				schedule();
-				ret = 1;
-			}
-			remove_wait_queue(&EXT3_SB(sb)->ro_wait_queue, &wait);
-			return ret;
-		}
-#endif
 	case EXT3_IOC_GETRSVSZ:
 		if (test_opt(inode->i_sb, RESERVATION)
 			&& S_ISREG(inode->i_mode)

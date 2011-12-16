@@ -26,6 +26,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/etherdevice.h>
 #include <linux/debugfs.h>
+#include <linux/module.h>
 #include <net/genetlink.h>
 #include "mac80211_hwsim.h"
 
@@ -36,7 +37,8 @@ MODULE_AUTHOR("Jouni Malinen");
 MODULE_DESCRIPTION("Software simulator of 802.11 radio(s) for mac80211");
 MODULE_LICENSE("GPL");
 
-int wmediumd_pid;
+static u32 wmediumd_pid;
+
 static int radios = 2;
 module_param(radios, int, 0444);
 MODULE_PARM_DESC(radios, "Number of simulated radios");
@@ -664,7 +666,7 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	bool ack;
 	struct ieee80211_tx_info *txi;
-	int _pid;
+	u32 _pid;
 
 	mac80211_hwsim_monitor_rx(hw, skb);
 
@@ -675,7 +677,7 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	}
 
 	/* wmediumd mode check */
-	_pid = wmediumd_pid;
+	_pid = ACCESS_ONCE(wmediumd_pid);
 
 	if (_pid)
 		return mac80211_hwsim_tx_frame_nl(hw, skb, _pid);
@@ -763,7 +765,7 @@ static void mac80211_hwsim_beacon_tx(void *arg, u8 *mac,
 	struct ieee80211_hw *hw = arg;
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *info;
-	int _pid;
+	u32 _pid;
 
 	hwsim_check_magic(vif);
 
@@ -780,7 +782,7 @@ static void mac80211_hwsim_beacon_tx(void *arg, u8 *mac,
 	mac80211_hwsim_monitor_rx(hw, skb);
 
 	/* wmediumd mode check */
-	_pid = wmediumd_pid;
+	_pid = ACCESS_ONCE(wmediumd_pid);
 
 	if (_pid)
 		return mac80211_hwsim_tx_frame_nl(hw, skb, _pid);
@@ -1253,7 +1255,7 @@ static void hwsim_send_ps_poll(void *dat, u8 *mac, struct ieee80211_vif *vif)
 	struct hwsim_vif_priv *vp = (void *)vif->drv_priv;
 	struct sk_buff *skb;
 	struct ieee80211_pspoll *pspoll;
-	int _pid;
+	u32 _pid;
 
 	if (!vp->assoc)
 		return;
@@ -1274,7 +1276,7 @@ static void hwsim_send_ps_poll(void *dat, u8 *mac, struct ieee80211_vif *vif)
 	memcpy(pspoll->ta, mac, ETH_ALEN);
 
 	/* wmediumd mode check */
-	_pid = wmediumd_pid;
+	_pid = ACCESS_ONCE(wmediumd_pid);
 
 	if (_pid)
 		return mac80211_hwsim_tx_frame_nl(data->hw, skb, _pid);
@@ -1291,7 +1293,7 @@ static void hwsim_send_nullfunc(struct mac80211_hwsim_data *data, u8 *mac,
 	struct hwsim_vif_priv *vp = (void *)vif->drv_priv;
 	struct sk_buff *skb;
 	struct ieee80211_hdr *hdr;
-	int _pid;
+	u32 _pid;
 
 	if (!vp->assoc)
 		return;
@@ -1313,7 +1315,7 @@ static void hwsim_send_nullfunc(struct mac80211_hwsim_data *data, u8 *mac,
 	memcpy(hdr->addr3, vp->bssid, ETH_ALEN);
 
 	/* wmediumd mode check */
-	_pid = wmediumd_pid;
+	_pid = ACCESS_ONCE(wmediumd_pid);
 
 	if (_pid)
 		return mac80211_hwsim_tx_frame_nl(data->hw, skb, _pid);
@@ -1632,8 +1634,6 @@ static int hwsim_init_netlink(void)
 {
 	int rc;
 	printk(KERN_INFO "mac80211_hwsim: initializing netlink\n");
-
-	wmediumd_pid = 0;
 
 	rc = genl_register_family_with_ops(&hwsim_genl_family,
 		hwsim_ops, ARRAY_SIZE(hwsim_ops));

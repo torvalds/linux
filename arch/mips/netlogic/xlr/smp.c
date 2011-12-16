@@ -158,6 +158,10 @@ void __init nlm_smp_setup(void)
 
 	num_cpus = 1;
 	for (i = 0; i < NR_CPUS; i++) {
+		/*
+		 * BSP is not set in nlm_cpu_ready array, it is only for
+		 * ASPs (goto see smpboot.S)
+		 */
 		if (nlm_cpu_ready[i]) {
 			cpu_set(i, phys_cpu_present_map);
 			__cpu_number_map[i] = num_cpus;
@@ -191,7 +195,7 @@ struct plat_smp_ops nlm_smp_ops = {
 
 unsigned long secondary_entry_point;
 
-int nlm_wakeup_secondary_cpus(u32 wakeup_mask)
+int __cpuinit nlm_wakeup_secondary_cpus(u32 wakeup_mask)
 {
 	unsigned int tid, pid, ipi, i, boot_cpu;
 	void *reset_vec;

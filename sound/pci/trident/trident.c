@@ -24,7 +24,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/time.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/trident.h>
 #include <sound/initval.h>
@@ -148,8 +148,9 @@ static int __devinit snd_trident_probe(struct pci_dev *pci,
 	if (trident->device != TRIDENT_DEVICE_ID_SI7018 &&
 	    (err = snd_mpu401_uart_new(card, 0, MPU401_HW_TRID4DWAVE,
 				       trident->midi_port,
-				       MPU401_INFO_INTEGRATED,
-				       trident->irq, 0, &trident->rmidi)) < 0) {
+				       MPU401_INFO_INTEGRATED |
+				       MPU401_INFO_IRQ_HOOK,
+				       -1, &trident->rmidi)) < 0) {
 		snd_card_free(card);
 		return err;
 	}

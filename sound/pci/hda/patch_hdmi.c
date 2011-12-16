@@ -31,7 +31,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/jack.h>
 #include "hda_codec.h"
@@ -322,6 +322,66 @@ static int cvt_nid_to_cvt_index(struct hdmi_spec *spec, hda_nid_t cvt_nid)
 
 	snd_printk(KERN_WARNING "HDMI: cvt nid %d not registered\n", cvt_nid);
 	return -EINVAL;
+}
+
+static int hdmi_eld_ctl_info(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_info *uinfo)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct hdmi_spec *spec;
+	int pin_idx;
+
+	spec = codec->spec;
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_BYTES;
+
+	pin_idx = kcontrol->private_value;
+	uinfo->count = spec->pins[pin_idx].sink_eld.eld_size;
+
+	return 0;
+}
+
+static int hdmi_eld_ctl_get(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct hdmi_spec *spec;
+	int pin_idx;
+
+	spec = codec->spec;
+	pin_idx = kcontrol->private_value;
+
+	memcpy(ucontrol->value.bytes.data,
+		spec->pins[pin_idx].sink_eld.eld_buffer, ELD_MAX_SIZE);
+
+	return 0;
+}
+
+static struct snd_kcontrol_new eld_bytes_ctl = {
+	.access = SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
+	.iface = SNDRV_CTL_ELEM_IFACE_PCM,
+	.name = "ELD",
+	.info = hdmi_eld_ctl_info,
+	.get = hdmi_eld_ctl_get,
+};
+
+static int hdmi_create_eld_ctl(struct hda_codec *codec, int pin_idx,
+			int device)
+{
+	struct snd_kcontrol *kctl;
+	struct hdmi_spec *spec = codec->spec;
+	int err;
+
+	kctl = snd_ctl_new1(&eld_bytes_ctl, codec);
+	if (!kctl)
+		return -ENOMEM;
+	kctl->private_value = pin_idx;
+	kctl->id.device = device;
+
+	err = snd_hda_ctl_add(codec, spec->pins[pin_idx].pin_nid, kctl);
+	if (err < 0)
+		return err;
+
+	return 0;
 }
 
 #ifdef BE_PARANOID
@@ -946,7 +1006,6 @@ static int hdmi_add_pin(struct hda_codec *codec, hda_nid_t pin_nid)
 	unsigned int caps, config;
 	int pin_idx;
 	struct hdmi_spec_per_pin *per_pin;
-	struct hdmi_eld *eld;
 	int err;
 
 	caps = snd_hda_param_read(codec, pin_nid, AC_PAR_PIN_CAP);
@@ -963,22 +1022,14 @@ static int hdmi_add_pin(struct hda_codec *codec, hda_nid_t pin_nid)
 
 	pin_idx = spec->num_pins;
 	per_pin = &spec->pins[pin_idx];
-	eld = &per_pin->sink_eld;
 
 	per_pin->pin_nid = pin_nid;
-
-	err = snd_hda_input_jack_add(codec, pin_nid,
-				     SND_JACK_VIDEOOUT, NULL);
-	if (err < 0)
-		return err;
 
 	err = hdmi_read_pin_conn(codec, pin_idx);
 	if (err < 0)
 		return err;
 
 	spec->num_pins++;
-
-	hdmi_present_sense(codec, pin_nid, eld);
 
 	return 0;
 }
@@ -1162,6 +1213,25 @@ static int generic_hdmi_build_pcms(struct hda_codec *codec)
 	return 0;
 }
 
+static int generic_hdmi_build_jack(struct hda_codec *codec, int pin_idx)
+{
+	int err;
+	char hdmi_str[32];
+	struct hdmi_spec *spec = codec->spec;
+	struct hdmi_spec_per_pin *per_pin = &spec->pins[pin_idx];
+	int pcmdev = spec->pcm_rec[pin_idx].device;
+
+	snprintf(hdmi_str, sizeof(hdmi_str), "HDMI/DP,pcm=%d", pcmdev);
+
+	err = snd_hda_input_jack_add(codec, per_pin->pin_nid,
+			     SND_JACK_VIDEOOUT, pcmdev > 0 ? hdmi_str : NULL);
+	if (err < 0)
+		return err;
+
+	hdmi_present_sense(codec, per_pin->pin_nid, &per_pin->sink_eld);
+	return 0;
+}
+
 static int generic_hdmi_build_controls(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec = codec->spec;
@@ -1170,12 +1240,25 @@ static int generic_hdmi_build_controls(struct hda_codec *codec)
 
 	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
 		struct hdmi_spec_per_pin *per_pin = &spec->pins[pin_idx];
+
+		err = generic_hdmi_build_jack(codec, pin_idx);
+		if (err < 0)
+			return err;
+
 		err = snd_hda_create_spdif_out_ctls(codec,
 						    per_pin->pin_nid,
 						    per_pin->mux_nids[0]);
 		if (err < 0)
 			return err;
 		snd_hda_spdif_ctls_unassign(codec, pin_idx);
+
+		/* add control for ELD Bytes */
+		err = hdmi_create_eld_ctl(codec,
+					pin_idx,
+					spec->pcm_rec[pin_idx].device);
+
+		if (err < 0)
+			return err;
 	}
 
 	return 0;
@@ -1491,7 +1574,7 @@ static int nvhdmi_8ch_7x_pcm_prepare(struct hda_pcm_stream *hinfo,
 				     struct snd_pcm_substream *substream)
 {
 	int chs;
-	unsigned int dataDCC1, dataDCC2, channel_id;
+	unsigned int dataDCC2, channel_id;
 	int i;
 	struct hdmi_spec *spec = codec->spec;
 	struct hda_spdif_out *spdif =
@@ -1501,7 +1584,6 @@ static int nvhdmi_8ch_7x_pcm_prepare(struct hda_pcm_stream *hinfo,
 
 	chs = substream->runtime->channels;
 
-	dataDCC1 = AC_DIG1_ENABLE | AC_DIG1_COPYRIGHT;
 	dataDCC2 = 0x2;
 
 	/* turn off SPDIF once; otherwise the IEC958 bits won't be updated */

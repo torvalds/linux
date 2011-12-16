@@ -4288,7 +4288,7 @@ struct _snd_pcm_runtime {
 <![CDATA[
   struct snd_rawmidi *rmidi;
   snd_mpu401_uart_new(card, 0, MPU401_HW_MPU401, port, info_flags,
-                      irq, irq_flags, &rmidi);
+                      irq, &rmidi);
 ]]>
           </programlisting>
         </informalexample>
@@ -4343,6 +4343,13 @@ struct _snd_pcm_runtime {
 	by itself to start processing the output stream in the irq handler.
 	</para>
 
+	<para>
+	If the MPU-401 interface shares its interrupt with the other logical
+	devices on the card, set <constant>MPU401_INFO_IRQ_HOOK</constant>
+	(see <link linkend="midi-interface-interrupt-handler"><citetitle>
+	below</citetitle></link>).
+	</para>
+
       <para>
         Usually, the port address corresponds to the command port and
         port + 1 corresponds to the data port. If not, you may change
@@ -4375,14 +4382,12 @@ struct _snd_pcm_runtime {
       </para>
 
       <para>
-        The 6th argument specifies the irq number for UART. If the irq
-      is already allocated, pass 0 to the 7th argument
-      (<parameter>irq_flags</parameter>). Otherwise, pass the flags
-      for irq allocation 
-      (<constant>SA_XXX</constant> bits) to it, and the irq will be
-      reserved by the mpu401-uart layer. If the card doesn't generate
-      UART interrupts, pass -1 as the irq number. Then a timer
-      interrupt will be invoked for polling. 
+	The 6th argument specifies the ISA irq number that will be
+	allocated.  If no interrupt is to be allocated (because your
+	code is already allocating a shared interrupt, or because the
+	device does not use interrupts), pass -1 instead.
+	For a MPU-401 device without an interrupt, a polling timer
+	will be used instead.
       </para>
     </section>
 
@@ -4390,12 +4395,13 @@ struct _snd_pcm_runtime {
       <title>Interrupt Handler</title>
       <para>
         When the interrupt is allocated in
-      <function>snd_mpu401_uart_new()</function>, the private
-      interrupt handler is used, hence you don't have anything else to do
-      than creating the mpu401 stuff. Otherwise, you have to call
-      <function>snd_mpu401_uart_interrupt()</function> explicitly when
-      a UART interrupt is invoked and checked in your own interrupt
-      handler.  
+      <function>snd_mpu401_uart_new()</function>, an exclusive ISA
+      interrupt handler is automatically used, hence you don't have
+      anything else to do than creating the mpu401 stuff.  Otherwise, you
+      have to set <constant>MPU401_INFO_IRQ_HOOK</constant>, and call
+      <function>snd_mpu401_uart_interrupt()</function> explicitly from your
+      own interrupt handler when it has determined that a UART interrupt
+      has occurred.
       </para>
 
       <para>

@@ -146,7 +146,7 @@ static struct mtd_partition partition_info_16KB_blk[] = {
 	{
 		.name = "Root File System",
 		.offset = 0x460000,
-		.size = 0,
+		.size = MTDPART_SIZ_FULL,
 	},
 };
 
@@ -173,13 +173,10 @@ static struct mtd_partition partition_info_128KB_blk[] = {
 	{
 		.name = "Root File System",
 		.offset = 0x800000,
-		.size = 0,
+		.size = MTDPART_SIZ_FULL,
 	},
 };
 
-#ifdef CONFIG_MTD_CMDLINE_PARTS
-const char *part_probes[] = { "cmdlinepart", NULL };
-#endif
 
 /**
  * struct fsmc_nand_data - structure for FSMC NAND device state
@@ -187,8 +184,6 @@ const char *part_probes[] = { "cmdlinepart", NULL };
  * @pid:		Part ID on the AMBA PrimeCell format
  * @mtd:		MTD info for a NAND flash.
  * @nand:		Chip related info for a NAND flash.
- * @partitions:		Partition info for a NAND Flash.
- * @nr_partitions:	Total number of partition of a NAND flash.
  *
  * @ecc_place:		ECC placing locations in oobfree type format.
  * @bank:		Bank number for probed device.
@@ -203,8 +198,6 @@ struct fsmc_nand_data {
 	u32			pid;
 	struct mtd_info		mtd;
 	struct nand_chip	nand;
-	struct mtd_partition	*partitions;
-	unsigned int		nr_partitions;
 
 	struct fsmc_eccplace	*ecc_place;
 	unsigned int		bank;
@@ -716,65 +709,17 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	 * platform data,
 	 * default partition information present in driver.
 	 */
-#ifdef CONFIG_MTD_CMDLINE_PARTS
 	/*
-	 * Check if partition info passed via command line
+	 * Check for partition info passed
 	 */
 	host->mtd.name = "nand";
-	host->nr_partitions = parse_mtd_partitions(&host->mtd, part_probes,
-			&host->partitions, 0);
-	if (host->nr_partitions <= 0) {
-#endif
-		/*
-		 * Check if partition info passed via command line
-		 */
-		if (pdata->partitions) {
-			host->partitions = pdata->partitions;
-			host->nr_partitions = pdata->nr_partitions;
-		} else {
-			struct mtd_partition *partition;
-			int i;
-
-			/* Select the default partitions info */
-			switch (host->mtd.size) {
-			case 0x01000000:
-			case 0x02000000:
-			case 0x04000000:
-				host->partitions = partition_info_16KB_blk;
-				host->nr_partitions =
-					sizeof(partition_info_16KB_blk) /
-					sizeof(struct mtd_partition);
-				break;
-			case 0x08000000:
-			case 0x10000000:
-			case 0x20000000:
-			case 0x40000000:
-				host->partitions = partition_info_128KB_blk;
-				host->nr_partitions =
-					sizeof(partition_info_128KB_blk) /
-					sizeof(struct mtd_partition);
-				break;
-			default:
-				ret = -ENXIO;
-				pr_err("Unsupported NAND size\n");
-				goto err_probe;
-			}
-
-			partition = host->partitions;
-			for (i = 0; i < host->nr_partitions; i++, partition++) {
-				if (partition->size == 0) {
-					partition->size = host->mtd.size -
-						partition->offset;
-					break;
-				}
-			}
-		}
-#ifdef CONFIG_MTD_CMDLINE_PARTS
-	}
-#endif
-
-	ret = mtd_device_register(&host->mtd, host->partitions,
-				  host->nr_partitions);
+	ret = mtd_device_parse_register(&host->mtd, NULL, 0,
+			host->mtd.size <= 0x04000000 ?
+				partition_info_16KB_blk :
+				partition_info_128KB_blk,
+			host->mtd.size <= 0x04000000 ?
+				ARRAY_SIZE(partition_info_16KB_blk) :
+				ARRAY_SIZE(partition_info_128KB_blk));
 	if (ret)
 		goto err_probe;
 
@@ -822,7 +767,7 @@ static int fsmc_nand_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 
 	if (host) {
-		mtd_device_unregister(&host->mtd);
+		nand_release(&host->mtd);
 		clk_disable(host->clk);
 		clk_put(host->clk);
 

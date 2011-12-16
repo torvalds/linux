@@ -25,9 +25,11 @@
 #include <linux/sched.h>
 
 #include "wl12xx.h"
+#include "debug.h"
 #include "acx.h"
 #include "reg.h"
 #include "rx.h"
+#include "tx.h"
 #include "io.h"
 
 static u8 wl12xx_rx_get_mem_block(struct wl12xx_fw_status *status,
@@ -96,7 +98,7 @@ static void wl1271_rx_status(struct wl1271 *wl,
 }
 
 static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
-				 bool unaligned)
+				 bool unaligned, u8 *hlid)
 {
 	struct wl1271_rx_descriptor *desc;
 	struct sk_buff *skb;
@@ -159,6 +161,7 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 	 * payload aligned to 4 bytes.
 	 */
 	memcpy(buf, data + sizeof(*desc), length - sizeof(*desc));
+	*hlid = desc->hlid;
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 	if (ieee80211_is_beacon(hdr->frame_control))
@@ -169,10 +172,10 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 	wl1271_rx_status(wl, desc, IEEE80211_SKB_RXCB(skb), beacon);
 
 	seq_num = (le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_SEQ) >> 4;
-	wl1271_debug(DEBUG_RX, "rx skb 0x%p: %d B %s seq %d", skb,
+	wl1271_debug(DEBUG_RX, "rx skb 0x%p: %d B %s seq %d hlid %d", skb,
 		     skb->len - desc->pad_len,
 		     beacon ? "beacon" : "",
-		     seq_num);
+		     seq_num, *hlid);
 
 	skb_trim(skb, skb->len - desc->pad_len);
 
@@ -185,6 +188,7 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 void wl12xx_rx(struct wl1271 *wl, struct wl12xx_fw_status *status)
 {
 	struct wl1271_acx_mem_map *wl_mem_map = wl->target_mem_map;
+	unsigned long active_hlids[BITS_TO_LONGS(WL12XX_MAX_LINKS)] = {0};
 	u32 buf_size;
 	u32 fw_rx_counter  = status->fw_rx_counter & NUM_RX_PKT_DESC_MOD_MASK;
 	u32 drv_rx_counter = wl->rx_counter & NUM_RX_PKT_DESC_MOD_MASK;
@@ -192,8 +196,7 @@ void wl12xx_rx(struct wl1271 *wl, struct wl12xx_fw_status *status)
 	u32 mem_block;
 	u32 pkt_length;
 	u32 pkt_offset;
-	bool is_ap = (wl->bss_type == BSS_TYPE_AP_BSS);
-	bool had_data = false;
+	u8 hlid;
 	bool unaligned = false;
 
 	while (drv_rx_counter != fw_rx_counter) {
@@ -253,8 +256,15 @@ void wl12xx_rx(struct wl1271 *wl, struct wl12xx_fw_status *status)
 			 */
 			if (wl1271_rx_handle_data(wl,
 						  wl->aggr_buf + pkt_offset,
-						  pkt_length, unaligned) == 1)
-				had_data = true;
+						  pkt_length, unaligned,
+						  &hlid) == 1) {
+				if (hlid < WL12XX_MAX_LINKS)
+					__set_bit(hlid, active_hlids);
+				else
+					WARN(1,
+					     "hlid exceeded WL12XX_MAX_LINKS "
+					     "(%d)\n", hlid);
+			}
 
 			wl->rx_counter++;
 			drv_rx_counter++;
@@ -270,17 +280,5 @@ void wl12xx_rx(struct wl1271 *wl, struct wl12xx_fw_status *status)
 	if (wl->quirks & WL12XX_QUIRK_END_OF_TRANSACTION)
 		wl1271_write32(wl, RX_DRIVER_COUNTER_ADDRESS, wl->rx_counter);
 
-	if (!is_ap && wl->conf.rx_streaming.interval && had_data &&
-	    (wl->conf.rx_streaming.always ||
-	     test_bit(WL1271_FLAG_SOFT_GEMINI, &wl->flags))) {
-		u32 timeout = wl->conf.rx_streaming.duration;
-
-		/* restart rx streaming */
-		if (!test_bit(WL1271_FLAG_RX_STREAMING_STARTED, &wl->flags))
-			ieee80211_queue_work(wl->hw,
-					     &wl->rx_streaming_enable_work);
-
-		mod_timer(&wl->rx_streaming_timer,
-			  jiffies + msecs_to_jiffies(timeout));
-	}
+	wl12xx_rearm_rx_streaming(wl, active_hlids);
 }

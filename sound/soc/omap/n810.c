@@ -31,6 +31,7 @@
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
 #include <linux/gpio.h>
+#include <linux/module.h>
 #include <plat/mcbsp.h>
 
 #include "omap-mcbsp.h"
@@ -115,24 +116,7 @@ static int n810_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	int err;
-
-	/* Set codec DAI configuration */
-	err = snd_soc_dai_set_fmt(codec_dai,
-					 SND_SOC_DAIFMT_I2S |
-					 SND_SOC_DAIFMT_NB_NF |
-					 SND_SOC_DAIFMT_CBM_CFM);
-	if (err < 0)
-		return err;
-
-	/* Set cpu DAI configuration */
-	err = snd_soc_dai_set_fmt(cpu_dai,
-				       SND_SOC_DAIFMT_I2S |
-				       SND_SOC_DAIFMT_NB_NF |
-				       SND_SOC_DAIFMT_CBM_CFM);
-	if (err < 0)
-		return err;
 
 	/* Set the codec system clock for DAC and ADC */
 	err = snd_soc_dai_set_sysclk(codec_dai, 0, 12000000,
@@ -274,7 +258,6 @@ static int n810_aic33_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	int err;
 
 	/* Not connected */
 	snd_soc_dapm_nc_pin(dapm, "MONO_LOUT");
@@ -285,21 +268,6 @@ static int n810_aic33_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_nc_pin(dapm, "LINE1R");
 	snd_soc_dapm_nc_pin(dapm, "LINE2L");
 	snd_soc_dapm_nc_pin(dapm, "LINE2R");
-
-	/* Add N810 specific controls */
-	err = snd_soc_add_controls(codec, aic33_n810_controls,
-				ARRAY_SIZE(aic33_n810_controls));
-	if (err < 0)
-		return err;
-
-	/* Add N810 specific widgets */
-	snd_soc_dapm_new_controls(dapm, aic33_dapm_widgets,
-				  ARRAY_SIZE(aic33_dapm_widgets));
-
-	/* Set up N810 specific audio path audio_map */
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
-
-	snd_soc_dapm_sync(dapm);
 
 	return 0;
 }
@@ -312,6 +280,8 @@ static struct snd_soc_dai_link n810_dai = {
 	.platform_name = "omap-pcm-audio",
 	.codec_name = "tlv320aic3x-codec.2-0018",
 	.codec_dai_name = "tlv320aic3x-hifi",
+	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+		   SND_SOC_DAIFMT_CBM_CFM,
 	.init = n810_aic33_init,
 	.ops = &n810_ops,
 };
@@ -321,6 +291,13 @@ static struct snd_soc_card snd_soc_n810 = {
 	.name = "N810",
 	.dai_link = &n810_dai,
 	.num_links = 1,
+
+	.controls = aic33_n810_controls,
+	.num_controls = ARRAY_SIZE(aic33_n810_controls),
+	.dapm_widgets = aic33_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(aic33_dapm_widgets),
+	.dapm_routes = audio_map,
+	.num_dapm_routes = ARRAY_SIZE(audio_map),
 };
 
 static struct platform_device *n810_snd_device;

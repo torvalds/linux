@@ -36,6 +36,7 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/sfi.h>
+#include <linux/module.h>
 #include <asm/mrst.h>
 #include "max3107.h"
 

@@ -8,6 +8,7 @@ xxxx		vend:prod
 ----
 spca501		0000:0000	MystFromOri Unknown Camera
 spca508		0130:0130	Clone Digital Webcam 11043
+zc3xx		03f0:1b07	HP Premium Starter Cam
 m5602		0402:5602	ALi Video Camera Controller
 spca501		040a:0002	Kodak DVC-325
 spca500		040a:0300	Kodak EZ200
@@ -190,6 +191,7 @@ ov519		05a9:0519	OV519 Microphone
 ov519		05a9:0530	OmniVision
 ov519		05a9:2800	OmniVision SuperCAM
 ov519		05a9:4519	Webcam Classic
+ov534_9		05a9:8065	OmniVision test kit ov538+ov9712
 ov519		05a9:8519	OmniVision
 ov519		05a9:a511	D-Link USB Digital Video Camera
 ov519		05a9:a518	D-Link DSB-C310 Webcam
@@ -199,6 +201,8 @@ gl860		05e3:0503	Genesys Logic PC Camera
 gl860		05e3:f191	Genesys Logic PC Camera
 spca561		060b:a001	Maxell Compact Pc PM3
 zc3xx		0698:2003	CTX M730V built in
+topro		06a2:0003	TP6800 PC Camera, CmoX CX0342 webcam
+topro		06a2:6810	Creative Qmax
 nw80x		06a5:0000	Typhoon Webcam 100 USB
 nw80x		06a5:d001	Divio based webcams
 nw80x		06a5:d800	Divio Chicony TwinkleCam, Trust SpaceCam

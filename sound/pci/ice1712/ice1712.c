@@ -54,7 +54,7 @@
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
 
 #include <sound/core.h>
@@ -2748,8 +2748,9 @@ static int __devinit snd_ice1712_probe(struct pci_dev *pci,
 	if (!c->no_mpu401) {
 		err = snd_mpu401_uart_new(card, 0, MPU401_HW_ICE1712,
 			ICEREG(ice, MPU1_CTRL),
-			(c->mpu401_1_info_flags | MPU401_INFO_INTEGRATED),
-			ice->irq, 0, &ice->rmidi[0]);
+			c->mpu401_1_info_flags |
+			MPU401_INFO_INTEGRATED | MPU401_INFO_IRQ_HOOK,
+			-1, &ice->rmidi[0]);
 		if (err < 0) {
 			snd_card_free(card);
 			return err;
@@ -2764,8 +2765,9 @@ static int __devinit snd_ice1712_probe(struct pci_dev *pci,
 			/*  2nd port used  */
 			err = snd_mpu401_uart_new(card, 1, MPU401_HW_ICE1712,
 				ICEREG(ice, MPU2_CTRL),
-				(c->mpu401_2_info_flags | MPU401_INFO_INTEGRATED),
-				ice->irq, 0, &ice->rmidi[1]);
+				c->mpu401_2_info_flags |
+				MPU401_INFO_INTEGRATED | MPU401_INFO_IRQ_HOOK,
+				-1, &ice->rmidi[1]);
 
 			if (err < 0) {
 				snd_card_free(card);

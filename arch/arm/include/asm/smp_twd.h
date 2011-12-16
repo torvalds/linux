@@ -22,7 +22,7 @@ struct clock_event_device;
 
 extern void __iomem *twd_base;
 
-int twd_timer_ack(void);
 void twd_timer_setup(struct clock_event_device *);
+void twd_timer_stop(struct clock_event_device *);
 
 #endif

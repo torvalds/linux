@@ -47,6 +47,7 @@ struct irq_domain_ops {
  *            of the irq_domain is responsible for allocating the array of
  *            irq_desc structures.
  * @nr_irq: Number of irqs managed by the irq domain
+ * @hwirq_base: Starting number for hwirqs managed by the irq domain
  * @ops: pointer to irq_domain methods
  * @priv: private data pointer for use by owner.  Not touched by irq_domain
  *        core code.
@@ -57,6 +58,7 @@ struct irq_domain {
 	struct list_head list;
 	unsigned int irq_base;
 	unsigned int nr_irq;
+	unsigned int hwirq_base;
 	const struct irq_domain_ops *ops;
 	void *priv;
 	struct device_node *of_node;
@@ -72,8 +74,20 @@ struct irq_domain {
 static inline unsigned int irq_domain_to_irq(struct irq_domain *d,
 					     unsigned long hwirq)
 {
-	return d->ops->to_irq ? d->ops->to_irq(d, hwirq) : d->irq_base + hwirq;
+	if (d->ops->to_irq)
+		return d->ops->to_irq(d, hwirq);
+	if (WARN_ON(hwirq < d->hwirq_base))
+		return 0;
+	return d->irq_base + hwirq - d->hwirq_base;
 }
+
+#define irq_domain_for_each_hwirq(d, hw) \
+	for (hw = d->hwirq_base; hw < d->hwirq_base + d->nr_irq; hw++)
+
+#define irq_domain_for_each_irq(d, hw, irq) \
+	for (hw = d->hwirq_base, irq = irq_domain_to_irq(d, hw); \
+	     hw < d->hwirq_base + d->nr_irq; \
+	     hw++, irq = irq_domain_to_irq(d, hw))
 
 extern void irq_domain_add(struct irq_domain *domain);
 extern void irq_domain_del(struct irq_domain *domain);

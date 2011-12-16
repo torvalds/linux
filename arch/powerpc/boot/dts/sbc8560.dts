@@ -331,7 +331,7 @@
 	};
 
 	localbus@ff705000 {
-		compatible = "fsl,mpc8560-localbus";
+		compatible = "fsl,mpc8560-localbus", "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <1>;
 		reg = <0xff705000 0x100>;	// BRx, ORx, etc.

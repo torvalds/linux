@@ -14,6 +14,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/init.h>
+#include <linux/export.h>
 
 static char *state2str(unsigned short state)
 {

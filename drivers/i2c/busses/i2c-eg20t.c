@@ -64,6 +64,7 @@
 #define TEN_BIT_ADDR_DEFAULT	0xF000
 #define TEN_BIT_ADDR_MASK	0xF0
 #define PCH_START		0x0020
+#define PCH_RESTART		0x0004
 #define PCH_ESR_START		0x0001
 #define PCH_BUFF_START		0x1
 #define PCH_REPSTART		0x0004
@@ -273,23 +274,24 @@ static s32 pch_i2c_wait_for_bus_idle(struct i2c_algo_pch_data *adap,
 				     s32 timeout)
 {
 	void __iomem *p = adap->pch_base_address;
+	ktime_t ns_val;
+
+	if ((ioread32(p + PCH_I2CSR) & I2CMBB_BIT) == 0)
+		return 0;
 
 	/* MAX timeout value is timeout*1000*1000nsec */
-	ktime_t ns_val = ktime_add_ns(ktime_get(), timeout*1000*1000);
+	ns_val = ktime_add_ns(ktime_get(), timeout*1000*1000);
 	do {
-		if ((ioread32(p + PCH_I2CSR) & I2CMBB_BIT) == 0)
-			break;
 		msleep(20);
+		if ((ioread32(p + PCH_I2CSR) & I2CMBB_BIT) == 0)
+			return 0;
 	} while (ktime_lt(ktime_get(), ns_val));
 
 	pch_dbg(adap, "I2CSR = %x\n", ioread32(p + PCH_I2CSR));
+	pch_err(adap, "%s: Timeout Error.return%d\n", __func__, -ETIME);
+	pch_i2c_init(adap);
 
-	if (timeout == 0) {
-		pch_err(adap, "%s: Timeout Error.return%d\n", __func__, -ETIME);
-		return -ETIME;
-	}
-
-	return 0;
+	return -ETIME;
 }
 
 /**
@@ -311,21 +313,19 @@ static void pch_i2c_start(struct i2c_algo_pch_data *adap)
  */
 static s32 pch_i2c_wait_for_xfer_complete(struct i2c_algo_pch_data *adap)
 {
-	s32 ret;
+	long ret;
 	ret = wait_event_timeout(pch_event,
 			(adap->pch_event_flag != 0), msecs_to_jiffies(50));
-	if (ret < 0) {
-		pch_err(adap, "timeout: %x\n", adap->pch_event_flag);
-		return ret;
-	}
 
 	if (ret == 0) {
 		pch_err(adap, "timeout: %x\n", adap->pch_event_flag);
+		adap->pch_event_flag = 0;
 		return -ETIMEDOUT;
 	}
 
 	if (adap->pch_event_flag & I2C_ERROR_MASK) {
 		pch_err(adap, "error bits set: %x\n", adap->pch_event_flag);
+		adap->pch_event_flag = 0;
 		return -EIO;
 	}
 
@@ -394,6 +394,7 @@ static s32 pch_i2c_writebytes(struct i2c_adapter *i2c_adap,
 	u32 addr_2_msb;
 	u32 addr_8_lsb;
 	s32 wrcount;
+	s32 rtn;
 	void __iomem *p = adap->pch_base_address;
 
 	length = msgs->len;
@@ -412,15 +413,29 @@ static s32 pch_i2c_writebytes(struct i2c_adapter *i2c_adap,
 	}
 
 	if (msgs->flags & I2C_M_TEN) {
-		addr_2_msb = ((addr & I2C_MSB_2B_MSK) >> 7);
+		addr_2_msb = ((addr & I2C_MSB_2B_MSK) >> 7) & 0x06;
 		iowrite32(addr_2_msb | TEN_BIT_ADDR_MASK, p + PCH_I2CDR);
 		if (first)
 			pch_i2c_start(adap);
-		if (pch_i2c_wait_for_xfer_complete(adap) == 0 &&
-		    pch_i2c_getack(adap) == 0) {
+
+		rtn = pch_i2c_wait_for_xfer_complete(adap);
+		if (rtn == 0) {
+			if (pch_i2c_getack(adap)) {
+				pch_dbg(adap, "Receive NACK for slave address"
+					"setting\n");
+				return -EIO;
+			}
 			addr_8_lsb = (addr & I2C_ADDR_MSK);
 			iowrite32(addr_8_lsb, p + PCH_I2CDR);
-		} else {
+		} else if (rtn == -EIO) { /* Arbitration Lost */
+			pch_err(adap, "Lost Arbitration\n");
+			pch_clrbit(adap->pch_base_address, PCH_I2CSR,
+				   I2CMAL_BIT);
+			pch_clrbit(adap->pch_base_address, PCH_I2CSR,
+				   I2CMIF_BIT);
+			pch_i2c_init(adap);
+			return -EAGAIN;
+		} else { /* wait-event timeout */
 			pch_i2c_stop(adap);
 			return -ETIME;
 		}
@@ -431,30 +446,51 @@ static s32 pch_i2c_writebytes(struct i2c_adapter *i2c_adap,
 			pch_i2c_start(adap);
 	}
 
-	if ((pch_i2c_wait_for_xfer_complete(adap) == 0) &&
-	    (pch_i2c_getack(adap) == 0)) {
-		for (wrcount = 0; wrcount < length; ++wrcount) {
-			/* write buffer value to I2C data register */
-			iowrite32(buf[wrcount], p + PCH_I2CDR);
-			pch_dbg(adap, "writing %x to Data register\n",
-				buf[wrcount]);
-
-			if (pch_i2c_wait_for_xfer_complete(adap) != 0)
-				return -ETIME;
-
-			if (pch_i2c_getack(adap))
-				return -EIO;
+	rtn = pch_i2c_wait_for_xfer_complete(adap);
+	if (rtn == 0) {
+		if (pch_i2c_getack(adap)) {
+			pch_dbg(adap, "Receive NACK for slave address"
+				"setting\n");
+			return -EIO;
 		}
-
-		/* check if this is the last message */
-		if (last)
-			pch_i2c_stop(adap);
-		else
-			pch_i2c_repstart(adap);
-	} else {
+	} else if (rtn == -EIO) { /* Arbitration Lost */
+		pch_err(adap, "Lost Arbitration\n");
+		pch_clrbit(adap->pch_base_address, PCH_I2CSR, I2CMAL_BIT);
+		pch_clrbit(adap->pch_base_address, PCH_I2CSR, I2CMIF_BIT);
+		pch_i2c_init(adap);
+		return -EAGAIN;
+	} else { /* wait-event timeout */
 		pch_i2c_stop(adap);
-		return -EIO;
+		return -ETIME;
 	}
+
+	for (wrcount = 0; wrcount < length; ++wrcount) {
+		/* write buffer value to I2C data register */
+		iowrite32(buf[wrcount], p + PCH_I2CDR);
+		pch_dbg(adap, "writing %x to Data register\n", buf[wrcount]);
+
+		rtn = pch_i2c_wait_for_xfer_complete(adap);
+		if (rtn == 0) {
+			if (pch_i2c_getack(adap)) {
+				pch_dbg(adap, "Receive NACK for slave address"
+					"setting\n");
+				return -EIO;
+			}
+			pch_clrbit(adap->pch_base_address, PCH_I2CSR,
+				   I2CMCF_BIT);
+			pch_clrbit(adap->pch_base_address, PCH_I2CSR,
+				   I2CMIF_BIT);
+		} else { /* wait-event timeout */
+			pch_i2c_stop(adap);
+			return -ETIME;
+		}
+	}
+
+	/* check if this is the last message */
+	if (last)
+		pch_i2c_stop(adap);
+	else
+		pch_i2c_repstart(adap);
 
 	pch_dbg(adap, "return=%d\n", wrcount);
 
@@ -484,6 +520,19 @@ static void pch_i2c_sendnack(struct i2c_algo_pch_data *adap)
 }
 
 /**
+ * pch_i2c_restart() - Generate I2C restart condition in normal mode.
+ * @adap:	Pointer to struct i2c_algo_pch_data.
+ *
+ * Generate I2C restart condition in normal mode by setting I2CCTL.I2CRSTA.
+ */
+static void pch_i2c_restart(struct i2c_algo_pch_data *adap)
+{
+	void __iomem *p = adap->pch_base_address;
+	pch_dbg(adap, "I2CCTL = %x\n", ioread32(p + PCH_I2CCTL));
+	pch_setbit(adap->pch_base_address, PCH_I2CCTL, PCH_RESTART);
+}
+
+/**
  * pch_i2c_readbytes() - read data  from I2C bus in normal mode.
  * @i2c_adap:	Pointer to the struct i2c_adapter.
  * @msgs:	Pointer to i2c_msg structure.
@@ -500,7 +549,9 @@ static s32 pch_i2c_readbytes(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs,
 	u32 length;
 	u32 addr;
 	u32 addr_2_msb;
+	u32 addr_8_lsb;
 	void __iomem *p = adap->pch_base_address;
+	s32 rtn;
 
 	length = msgs->len;
 	buf = msgs->buf;
@@ -515,9 +566,55 @@ static s32 pch_i2c_readbytes(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs,
 	}
 
 	if (msgs->flags & I2C_M_TEN) {
-		addr_2_msb = (((addr & I2C_MSB_2B_MSK) >> 7) | (I2C_RD));
+		addr_2_msb = ((addr & I2C_MSB_2B_MSK) >> 7);
 		iowrite32(addr_2_msb | TEN_BIT_ADDR_MASK, p + PCH_I2CDR);
+		if (first)
+			pch_i2c_start(adap);
 
+		rtn = pch_i2c_wait_for_xfer_complete(adap);
+		if (rtn == 0) {
+			if (pch_i2c_getack(adap)) {
+				pch_dbg(adap, "Receive NACK for slave address"
+					"setting\n");
+				return -EIO;
+			}
+			addr_8_lsb = (addr & I2C_ADDR_MSK);
+			iowrite32(addr_8_lsb, p + PCH_I2CDR);
+		} else if (rtn == -EIO) { /* Arbitration Lost */
+			pch_err(adap, "Lost Arbitration\n");
+			pch_clrbit(adap->pch_base_address, PCH_I2CSR,
+				   I2CMAL_BIT);
+			pch_clrbit(adap->pch_base_address, PCH_I2CSR,
+				   I2CMIF_BIT);
+			pch_i2c_init(adap);
+			return -EAGAIN;
+		} else { /* wait-event timeout */
+			pch_i2c_stop(adap);
+			return -ETIME;
+		}
+		pch_i2c_restart(adap);
+		rtn = pch_i2c_wait_for_xfer_complete(adap);
+		if (rtn == 0) {
+			if (pch_i2c_getack(adap)) {
+				pch_dbg(adap, "Receive NACK for slave address"
+					"setting\n");
+				return -EIO;
+			}
+			addr_2_msb |= I2C_RD;
+			iowrite32(addr_2_msb | TEN_BIT_ADDR_MASK,
+				  p + PCH_I2CDR);
+		} else if (rtn == -EIO) { /* Arbitration Lost */
+			pch_err(adap, "Lost Arbitration\n");
+			pch_clrbit(adap->pch_base_address, PCH_I2CSR,
+				   I2CMAL_BIT);
+			pch_clrbit(adap->pch_base_address, PCH_I2CSR,
+				   I2CMIF_BIT);
+			pch_i2c_init(adap);
+			return -EAGAIN;
+		} else { /* wait-event timeout */
+			pch_i2c_stop(adap);
+			return -ETIME;
+		}
 	} else {
 		/* 7 address bits + R/W bit */
 		addr = (((addr) << 1) | (I2C_RD));
@@ -528,56 +625,81 @@ static s32 pch_i2c_readbytes(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs,
 	if (first)
 		pch_i2c_start(adap);
 
-	if ((pch_i2c_wait_for_xfer_complete(adap) == 0) &&
-	    (pch_i2c_getack(adap) == 0)) {
-		pch_dbg(adap, "return %d\n", 0);
+	rtn = pch_i2c_wait_for_xfer_complete(adap);
+	if (rtn == 0) {
+		if (pch_i2c_getack(adap)) {
+			pch_dbg(adap, "Receive NACK for slave address"
+				"setting\n");
+			return -EIO;
+		}
+	} else if (rtn == -EIO) { /* Arbitration Lost */
+		pch_err(adap, "Lost Arbitration\n");
+		pch_clrbit(adap->pch_base_address, PCH_I2CSR, I2CMAL_BIT);
+		pch_clrbit(adap->pch_base_address, PCH_I2CSR, I2CMIF_BIT);
+		pch_i2c_init(adap);
+		return -EAGAIN;
+	} else { /* wait-event timeout */
+		pch_i2c_stop(adap);
+		return -ETIME;
+	}
 
-		if (length == 0) {
-			pch_i2c_stop(adap);
-			ioread32(p + PCH_I2CDR); /* Dummy read needs */
+	if (length == 0) {
+		pch_i2c_stop(adap);
+		ioread32(p + PCH_I2CDR); /* Dummy read needs */
 
-			count = length;
-		} else {
-			int read_index;
-			int loop;
-			pch_i2c_sendack(adap);
+		count = length;
+	} else {
+		int read_index;
+		int loop;
+		pch_i2c_sendack(adap);
 
-			/* Dummy read */
-			for (loop = 1, read_index = 0; loop < length; loop++) {
-				buf[read_index] = ioread32(p + PCH_I2CDR);
-
-				if (loop != 1)
-					read_index++;
-
-				if (pch_i2c_wait_for_xfer_complete(adap) != 0) {
-					pch_i2c_stop(adap);
-					return -ETIME;
-				}
-			}	/* end for */
-
-			pch_i2c_sendnack(adap);
-
+		/* Dummy read */
+		for (loop = 1, read_index = 0; loop < length; loop++) {
 			buf[read_index] = ioread32(p + PCH_I2CDR);
 
-			if (length != 1)
+			if (loop != 1)
 				read_index++;
 
-			if (pch_i2c_wait_for_xfer_complete(adap) == 0) {
-				if (last)
-					pch_i2c_stop(adap);
-				else
-					pch_i2c_repstart(adap);
-
-				buf[read_index++] = ioread32(p + PCH_I2CDR);
-				count = read_index;
-			} else {
-				count = -ETIME;
+			rtn = pch_i2c_wait_for_xfer_complete(adap);
+			if (rtn == 0) {
+				if (pch_i2c_getack(adap)) {
+					pch_dbg(adap, "Receive NACK for slave"
+						"address setting\n");
+					return -EIO;
+				}
+			} else { /* wait-event timeout */
+				pch_i2c_stop(adap);
+				return -ETIME;
 			}
 
+		}	/* end for */
+
+		pch_i2c_sendnack(adap);
+
+		buf[read_index] = ioread32(p + PCH_I2CDR); /* Read final - 1 */
+
+		if (length != 1)
+			read_index++;
+
+		rtn = pch_i2c_wait_for_xfer_complete(adap);
+		if (rtn == 0) {
+			if (pch_i2c_getack(adap)) {
+				pch_dbg(adap, "Receive NACK for slave"
+					"address setting\n");
+				return -EIO;
+			}
+		} else { /* wait-event timeout */
+			pch_i2c_stop(adap);
+			return -ETIME;
 		}
-	} else {
-		count = -ETIME;
-		pch_i2c_stop(adap);
+
+		if (last)
+			pch_i2c_stop(adap);
+		else
+			pch_i2c_repstart(adap);
+
+		buf[read_index++] = ioread32(p + PCH_I2CDR); /* Read Final */
+		count = read_index;
 	}
 
 	return count;

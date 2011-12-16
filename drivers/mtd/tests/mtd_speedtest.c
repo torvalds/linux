@@ -29,7 +29,7 @@
 
 #define PRINT_PREF KERN_INFO "mtd_speedtest: "
 
-static int dev;
+static int dev = -EINVAL;
 module_param(dev, int, S_IRUGO);
 MODULE_PARM_DESC(dev, "MTD device number to use");
 
@@ -216,7 +216,7 @@ static int read_eraseblock(int ebnum)
 
 	err = mtd->read(mtd, addr, mtd->erasesize, &read, iobuf);
 	/* Ignore corrected ECC errors */
-	if (err == -EUCLEAN)
+	if (mtd_is_bitflip(err))
 		err = 0;
 	if (err || read != mtd->erasesize) {
 		printk(PRINT_PREF "error: read failed at %#llx\n", addr);
@@ -237,7 +237,7 @@ static int read_eraseblock_by_page(int ebnum)
 	for (i = 0; i < pgcnt; i++) {
 		err = mtd->read(mtd, addr, pgsize, &read, buf);
 		/* Ignore corrected ECC errors */
-		if (err == -EUCLEAN)
+		if (mtd_is_bitflip(err))
 			err = 0;
 		if (err || read != pgsize) {
 			printk(PRINT_PREF "error: read failed at %#llx\n",
@@ -263,7 +263,7 @@ static int read_eraseblock_by_2pages(int ebnum)
 	for (i = 0; i < n; i++) {
 		err = mtd->read(mtd, addr, sz, &read, buf);
 		/* Ignore corrected ECC errors */
-		if (err == -EUCLEAN)
+		if (mtd_is_bitflip(err))
 			err = 0;
 		if (err || read != sz) {
 			printk(PRINT_PREF "error: read failed at %#llx\n",
@@ -278,7 +278,7 @@ static int read_eraseblock_by_2pages(int ebnum)
 	if (pgcnt % 2) {
 		err = mtd->read(mtd, addr, pgsize, &read, buf);
 		/* Ignore corrected ECC errors */
-		if (err == -EUCLEAN)
+		if (mtd_is_bitflip(err))
 			err = 0;
 		if (err || read != pgsize) {
 			printk(PRINT_PREF "error: read failed at %#llx\n",
@@ -361,6 +361,13 @@ static int __init mtd_speedtest_init(void)
 
 	printk(KERN_INFO "\n");
 	printk(KERN_INFO "=================================================\n");
+
+	if (dev < 0) {
+		printk(PRINT_PREF "Please specify a valid mtd-device via module paramter\n");
+		printk(KERN_CRIT "CAREFUL: This test wipes all data on the specified MTD device!\n");
+		return -EINVAL;
+	}
+
 	if (count)
 		printk(PRINT_PREF "MTD device: %d    count: %d\n", dev, count);
 	else

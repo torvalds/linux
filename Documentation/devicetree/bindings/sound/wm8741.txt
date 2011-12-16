@@ -1,0 +1,18 @@
+WM8741 audio CODEC
+
+This device supports both I2C and SPI (configured with pin strapping
+on the board).
+
+Required properties:
+
+  - compatible : "wlf,wm8741"
+
+  - reg : the I2C address of the device for I2C, the chip select
+          number for SPI.
+
+Example:
+
+codec: wm8741@1a {
+	compatible = "wlf,wm8741";
+	reg = <0x1a>;
+};

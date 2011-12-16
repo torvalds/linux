@@ -354,7 +354,7 @@ static void clk_cgr_disable(struct clk *clk)
 	}
 
 DEFINE_CLOCK(asrc_clk,   0, CCM_CGR0,  0, NULL, NULL);
-DEFINE_CLOCK(ata_clk,    0, CCM_CGR0,  2, get_rate_ipg, NULL);
+DEFINE_CLOCK(pata_clk,    0, CCM_CGR0,  2, get_rate_ipg, NULL);
 /* DEFINE_CLOCK(audmux_clk, 0, CCM_CGR0,  4, NULL, NULL); */
 DEFINE_CLOCK(can1_clk,   0, CCM_CGR0,  6, get_rate_ipg, NULL);
 DEFINE_CLOCK(can2_clk,   1, CCM_CGR0,  8, get_rate_ipg, NULL);
@@ -447,7 +447,7 @@ static struct clk nfc_clk = {
 
 static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK(NULL, "asrc", asrc_clk)
-	_REGISTER_CLOCK(NULL, "ata", ata_clk)
+	_REGISTER_CLOCK("pata_imx", NULL, pata_clk)
 	_REGISTER_CLOCK("flexcan.0", NULL, can1_clk)
 	_REGISTER_CLOCK("flexcan.1", NULL, can2_clk)
 	_REGISTER_CLOCK("imx35-cspi.0", NULL, cspi1_clk)
@@ -537,7 +537,8 @@ int __init mx35_clocks_init()
 	__raw_writel(cgr3, CCM_BASE + CCM_CGR3);
 
 	clk_enable(&iim_clk);
-	mx35_read_cpu_rev();
+	imx_print_silicon_rev("i.MX35", mx35_revision());
+	clk_disable(&iim_clk);
 
 #ifdef CONFIG_MXC_USE_EPIT
 	epit_timer_init(&epit1_clk,

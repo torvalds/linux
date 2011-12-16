@@ -23,7 +23,7 @@
 #include <linux/ipc.h>
 #include <linux/personality.h>
 #include <linux/random.h>
-#include <linux/module.h>
+#include <linux/export.h>
 
 #include <asm/uaccess.h>
 #include <asm/utrap.h>

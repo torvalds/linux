@@ -35,6 +35,7 @@
 #include "core_priv.h"
 
 #include <linux/slab.h>
+#include <linux/stat.h>
 #include <linux/string.h>
 
 #include <rdma/ib_mad.h>
@@ -185,17 +186,35 @@ static ssize_t rate_show(struct ib_port *p, struct port_attribute *unused,
 	if (ret)
 		return ret;
 
+	rate = (25 * attr.active_speed) / 10;
+
 	switch (attr.active_speed) {
-	case 2: speed = " DDR"; break;
-	case 4: speed = " QDR"; break;
+	case 2:
+		speed = " DDR";
+		break;
+	case 4:
+		speed = " QDR";
+		break;
+	case 8:
+		speed = " FDR10";
+		rate = 10;
+		break;
+	case 16:
+		speed = " FDR";
+		rate = 14;
+		break;
+	case 32:
+		speed = " EDR";
+		rate = 25;
+		break;
 	}
 
-	rate = 25 * ib_width_enum_to_int(attr.active_width) * attr.active_speed;
+	rate *= ib_width_enum_to_int(attr.active_width);
 	if (rate < 0)
 		return -EINVAL;
 
 	return sprintf(buf, "%d%s Gb/sec (%dX%s)\n",
-		       rate / 10, rate % 10 ? ".5" : "",
+		       rate, (attr.active_speed == 1) ? ".5" : "",
 		       ib_width_enum_to_int(attr.active_width), speed);
 }
 

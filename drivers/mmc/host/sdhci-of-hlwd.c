@@ -20,6 +20,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/module.h>
 #include <linux/mmc/host.h>
 #include "sdhci-pltfm.h"
 

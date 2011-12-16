@@ -31,11 +31,12 @@ static int dibusb_dib3000mb_frontend_attach(struct dvb_usb_adapter *adap)
 
 	demod_cfg.demod_address = 0x8;
 
-	if ((adap->fe = dvb_attach(dib3000mb_attach, &demod_cfg,
-				   &adap->dev->i2c_adap, &st->ops)) == NULL)
+	adap->fe_adap[0].fe = dvb_attach(dib3000mb_attach, &demod_cfg,
+					 &adap->dev->i2c_adap, &st->ops);
+	if ((adap->fe_adap[0].fe) == NULL)
 		return -ENODEV;
 
-	adap->fe->ops.i2c_gate_ctrl = dib3000mb_i2c_gate_ctrl;
+	adap->fe_adap[0].fe->ops.i2c_gate_ctrl = dib3000mb_i2c_gate_ctrl;
 
 	return 0;
 }
@@ -46,7 +47,7 @@ static int dibusb_thomson_tuner_attach(struct dvb_usb_adapter *adap)
 
 	st->tuner_addr = 0x61;
 
-	dvb_attach(dvb_pll_attach, adap->fe, 0x61, &adap->dev->i2c_adap,
+	dvb_attach(dvb_pll_attach, adap->fe_adap[0].fe, 0x61, &adap->dev->i2c_adap,
 		   DVB_PLL_TUA6010XS);
 	return 0;
 }
@@ -57,7 +58,7 @@ static int dibusb_panasonic_tuner_attach(struct dvb_usb_adapter *adap)
 
 	st->tuner_addr = 0x60;
 
-	dvb_attach(dvb_pll_attach, adap->fe, 0x60, &adap->dev->i2c_adap,
+	dvb_attach(dvb_pll_attach, adap->fe_adap[0].fe, 0x60, &adap->dev->i2c_adap,
 		   DVB_PLL_TDA665X);
 	return 0;
 }
@@ -78,16 +79,16 @@ static int dibusb_tuner_probe_and_attach(struct dvb_usb_adapter *adap)
 	/* the Panasonic sits on I2C addrass 0x60, the Thomson on 0x61 */
 	msg[0].addr = msg[1].addr = st->tuner_addr = 0x60;
 
-	if (adap->fe->ops.i2c_gate_ctrl)
-		adap->fe->ops.i2c_gate_ctrl(adap->fe,1);
+	if (adap->fe_adap[0].fe->ops.i2c_gate_ctrl)
+		adap->fe_adap[0].fe->ops.i2c_gate_ctrl(adap->fe_adap[0].fe, 1);
 
 	if (i2c_transfer(&adap->dev->i2c_adap, msg, 2) != 2) {
 		err("tuner i2c write failed.");
 		ret = -EREMOTEIO;
 	}
 
-	if (adap->fe->ops.i2c_gate_ctrl)
-		adap->fe->ops.i2c_gate_ctrl(adap->fe,0);
+	if (adap->fe_adap[0].fe->ops.i2c_gate_ctrl)
+		adap->fe_adap[0].fe->ops.i2c_gate_ctrl(adap->fe_adap[0].fe, 0);
 
 	if (b2[0] == 0xfe) {
 		info("This device has the Thomson Cable onboard. Which is default.");
@@ -185,6 +186,8 @@ static struct dvb_usb_device_properties dibusb1_1_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+		.num_frontends = 1,
+		.fe = {{
 			.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
 			.pid_filter_count = 16,
 
@@ -205,6 +208,7 @@ static struct dvb_usb_device_properties dibusb1_1_properties = {
 					}
 				}
 			},
+		}},
 			.size_of_priv     = sizeof(struct dibusb_state),
 		}
 	},
@@ -272,6 +276,8 @@ static struct dvb_usb_device_properties dibusb1_1_an2235_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+		.num_frontends = 1,
+		.fe = {{
 			.caps = DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF | DVB_USB_ADAP_HAS_PID_FILTER,
 			.pid_filter_count = 16,
 
@@ -292,6 +298,7 @@ static struct dvb_usb_device_properties dibusb1_1_an2235_properties = {
 					}
 				}
 			},
+		}},
 			.size_of_priv     = sizeof(struct dibusb_state),
 		},
 	},
@@ -338,6 +345,8 @@ static struct dvb_usb_device_properties dibusb2_0b_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+		.num_frontends = 1,
+		.fe = {{
 			.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
 			.pid_filter_count = 16,
 
@@ -358,6 +367,7 @@ static struct dvb_usb_device_properties dibusb2_0b_properties = {
 					}
 				}
 			},
+		}},
 			.size_of_priv     = sizeof(struct dibusb_state),
 		}
 	},
@@ -398,6 +408,8 @@ static struct dvb_usb_device_properties artec_t1_usb2_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+		.num_frontends = 1,
+		.fe = {{
 			.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
 			.pid_filter_count = 16,
 
@@ -417,6 +429,7 @@ static struct dvb_usb_device_properties artec_t1_usb2_properties = {
 					}
 				}
 			},
+		}},
 			.size_of_priv     = sizeof(struct dibusb_state),
 		}
 	},

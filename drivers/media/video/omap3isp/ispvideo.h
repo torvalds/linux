@@ -190,6 +190,7 @@ struct isp_video_fh {
 				container_of(q, struct isp_video_fh, queue)
 
 int omap3isp_video_init(struct isp_video *video, const char *name);
+void omap3isp_video_cleanup(struct isp_video *video);
 int omap3isp_video_register(struct isp_video *video,
 			    struct v4l2_device *vdev);
 void omap3isp_video_unregister(struct isp_video *video);

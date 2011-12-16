@@ -67,6 +67,7 @@
 #include <linux/buffer_head.h>		/* for sync_blockdev() */
 #include <linux/bio.h>
 #include <linux/freezer.h>
+#include <linux/export.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/seq_file.h>

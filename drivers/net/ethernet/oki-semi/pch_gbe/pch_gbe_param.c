@@ -18,6 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307, USA.
  */
 
+#include <linux/module.h>	/* for __MODULE_STRING */
 #include "pch_gbe.h"
 
 #define OPTION_UNSET   -1

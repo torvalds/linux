@@ -98,6 +98,11 @@ extern void __init at91_add_device_eth(struct at91_eth_data *data);
 struct at91_usbh_data {
 	u8		ports;		/* number of ports on root hub */
 	u8		vbus_pin[2];	/* port power-control pin */
+	u8              vbus_pin_inverted;
+	u8              overcurrent_supported;
+	u8              overcurrent_pin[2];
+	u8              overcurrent_status[2];
+	u8              overcurrent_changed[2];
 };
 extern void __init at91_add_device_usbh(struct at91_usbh_data *data);
 extern void __init at91_add_device_usbh_ohci(struct at91_usbh_data *data);
@@ -112,7 +117,8 @@ struct atmel_nand_data {
 	u8		ale;		/* address line number connected to ALE */
 	u8		cle;		/* address line number connected to CLE */
 	u8		bus_width_16;	/* buswidth is 16 bit */
-	struct mtd_partition* (*partition_info)(int, int*);
+	struct mtd_partition *parts;
+	unsigned int	num_parts;
 };
 extern void __init at91_add_device_nand(struct atmel_nand_data *data);
 

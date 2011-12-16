@@ -1,6 +1,6 @@
 #include <linux/file.h>
 #include <linux/fs.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/slab.h>

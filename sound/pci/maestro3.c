@@ -39,7 +39,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/firmware.h>
 #include <linux/input.h>
 #include <sound/core.h>
@@ -2820,8 +2820,8 @@ snd_m3_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	/* TODO enable MIDI IRQ and I/O */
 	err = snd_mpu401_uart_new(chip->card, 0, MPU401_HW_MPU401,
 				  chip->iobase + MPU401_DATA_PORT,
-				  MPU401_INFO_INTEGRATED,
-				  chip->irq, 0, &chip->rmidi);
+				  MPU401_INFO_INTEGRATED | MPU401_INFO_IRQ_HOOK,
+				  -1, &chip->rmidi);
 	if (err < 0)
 		printk(KERN_WARNING "maestro3: no MIDI support.\n");
 #endif

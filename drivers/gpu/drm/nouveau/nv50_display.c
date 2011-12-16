@@ -247,6 +247,16 @@ static int nv50_display_disable(struct drm_device *dev)
 		}
 	}
 
+	for (i = 0; i < 2; i++) {
+		nv_wr32(dev, NV50_PDISPLAY_CURSOR_CURSOR_CTRL2(i), 0);
+		if (!nv_wait(dev, NV50_PDISPLAY_CURSOR_CURSOR_CTRL2(i),
+			     NV50_PDISPLAY_CURSOR_CURSOR_CTRL2_STATUS, 0)) {
+			NV_ERROR(dev, "timeout: CURSOR_CTRL2_STATUS == 0\n");
+			NV_ERROR(dev, "CURSOR_CTRL2 = 0x%08x\n",
+				 nv_rd32(dev, NV50_PDISPLAY_CURSOR_CURSOR_CTRL2(i)));
+		}
+	}
+
 	nv50_evo_fini(dev);
 
 	for (i = 0; i < 3; i++) {
@@ -285,23 +295,6 @@ int nv50_display_create(struct drm_device *dev)
 	if (!priv)
 		return -ENOMEM;
 	dev_priv->engine.display.priv = priv;
-
-	/* init basic kernel modesetting */
-	drm_mode_config_init(dev);
-
-	/* Initialise some optional connector properties. */
-	drm_mode_create_scaling_mode_property(dev);
-	drm_mode_create_dithering_property(dev);
-
-	dev->mode_config.min_width = 0;
-	dev->mode_config.min_height = 0;
-
-	dev->mode_config.funcs = (void *)&nouveau_mode_config_funcs;
-
-	dev->mode_config.max_width = 8192;
-	dev->mode_config.max_height = 8192;
-
-	dev->mode_config.fb_base = dev_priv->fb_phys;
 
 	/* Create CRTC objects */
 	for (i = 0; i < 2; i++)
@@ -363,8 +356,6 @@ nv50_display_destroy(struct drm_device *dev)
 	struct nv50_display *disp = nv50_display(dev);
 
 	NV_DEBUG_KMS(dev, "\n");
-
-	drm_mode_config_cleanup(dev);
 
 	nv50_display_disable(dev);
 	nouveau_irq_unregister(dev, 26);
@@ -698,7 +689,7 @@ nv50_display_unk10_handler(struct drm_device *dev)
 		struct dcb_entry *dcb = &dev_priv->vbios.dcb.entry[i];
 
 		if (dcb->type == type && (dcb->or & (1 << or))) {
-			nouveau_bios_run_display_table(dev, dcb, 0, -1);
+			nouveau_bios_run_display_table(dev, 0, -1, dcb, -1);
 			disp->irq.dcb = dcb;
 			goto ack;
 		}
@@ -708,37 +699,6 @@ nv50_display_unk10_handler(struct drm_device *dev)
 ack:
 	nv_wr32(dev, NV50_PDISPLAY_INTR_1, NV50_PDISPLAY_INTR_1_CLK_UNK10);
 	nv_wr32(dev, 0x610030, 0x80000000);
-}
-
-static void
-nv50_display_unk20_dp_hack(struct drm_device *dev, struct dcb_entry *dcb)
-{
-	int or = ffs(dcb->or) - 1, link = !(dcb->dpconf.sor.link & 1);
-	struct drm_encoder *encoder;
-	uint32_t tmp, unk0 = 0, unk1 = 0;
-
-	if (dcb->type != OUTPUT_DP)
-		return;
-
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-
-		if (nv_encoder->dcb == dcb) {
-			unk0 = nv_encoder->dp.unk0;
-			unk1 = nv_encoder->dp.unk1;
-			break;
-		}
-	}
-
-	if (unk0 || unk1) {
-		tmp  = nv_rd32(dev, NV50_SOR_DP_CTRL(or, link));
-		tmp &= 0xfffffe03;
-		nv_wr32(dev, NV50_SOR_DP_CTRL(or, link), tmp | unk0);
-
-		tmp  = nv_rd32(dev, NV50_SOR_DP_UNK128(or, link));
-		tmp &= 0xfef080c0;
-		nv_wr32(dev, NV50_SOR_DP_UNK128(or, link), tmp | unk1);
-	}
 }
 
 static void
@@ -753,7 +713,7 @@ nv50_display_unk20_handler(struct drm_device *dev)
 	NV_DEBUG_KMS(dev, "0x610030: 0x%08x\n", unk30);
 	dcb = disp->irq.dcb;
 	if (dcb) {
-		nouveau_bios_run_display_table(dev, dcb, 0, -2);
+		nouveau_bios_run_display_table(dev, 0, -2, dcb, -1);
 		disp->irq.dcb = NULL;
 	}
 
@@ -837,9 +797,15 @@ nv50_display_unk20_handler(struct drm_device *dev)
 	}
 
 	script = nv50_display_script_select(dev, dcb, mc, pclk);
-	nouveau_bios_run_display_table(dev, dcb, script, pclk);
+	nouveau_bios_run_display_table(dev, script, pclk, dcb, -1);
 
-	nv50_display_unk20_dp_hack(dev, dcb);
+	if (type == OUTPUT_DP) {
+		int link = !(dcb->dpconf.sor.link & 1);
+		if ((mc & 0x000f0000) == 0x00020000)
+			nouveau_dp_tu_update(dev, or, link, pclk, 18);
+		else
+			nouveau_dp_tu_update(dev, or, link, pclk, 24);
+	}
 
 	if (dcb->type != OUTPUT_ANALOG) {
 		tmp = nv_rd32(dev, NV50_PDISPLAY_SOR_CLK_CTRL2(or));
@@ -904,7 +870,7 @@ nv50_display_unk40_handler(struct drm_device *dev)
 	if (!dcb)
 		goto ack;
 
-	nouveau_bios_run_display_table(dev, dcb, script, -pclk);
+	nouveau_bios_run_display_table(dev, script, -pclk, dcb, -1);
 	nv50_display_unk40_dp_set_tmds(dev, dcb);
 
 ack:

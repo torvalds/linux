@@ -888,9 +888,11 @@ bool intel_lvds_init(struct drm_device *dev)
 	intel_encoder->type = INTEL_OUTPUT_LVDS;
 
 	intel_encoder->clone_mask = (1 << INTEL_LVDS_CLONE_BIT);
-	intel_encoder->crtc_mask = (1 << 1);
-	if (INTEL_INFO(dev)->gen >= 5)
-		intel_encoder->crtc_mask |= (1 << 0);
+	if (HAS_PCH_SPLIT(dev))
+		intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
+	else
+		intel_encoder->crtc_mask = (1 << 1);
+
 	drm_encoder_helper_add(encoder, &intel_lvds_helper_funcs);
 	drm_connector_helper_add(connector, &intel_lvds_connector_helper_funcs);
 	connector->display_info.subpixel_order = SubPixelHorizontalRGB;

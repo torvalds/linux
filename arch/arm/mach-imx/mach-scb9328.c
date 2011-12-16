@@ -137,10 +137,11 @@ static struct sys_timer scb9328_timer = {
 
 MACHINE_START(SCB9328, "Synertronixx scb9328")
 	/* Sascha Hauer */
-	.boot_params = 0x08000100,
+	.atag_offset = 100,
 	.map_io = mx1_map_io,
 	.init_early = imx1_init_early,
 	.init_irq = mx1_init_irq,
+	.handle_irq = imx1_handle_irq,
 	.timer = &scb9328_timer,
 	.init_machine = scb9328_init,
 MACHINE_END

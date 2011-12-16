@@ -379,10 +379,10 @@ EVENT_PROCESS:
 
 			# To closer match vmstat scanning statistics, only count isolate_both
 			# and isolate_inactive as scanning. isolate_active is rotation
-			# isolate_inactive == 0
-			# isolate_active   == 1
-			# isolate_both     == 2
-			if ($isolate_mode != 1) {
+			# isolate_inactive == 1
+			# isolate_active   == 2
+			# isolate_both     == 3
+			if ($isolate_mode != 2) {
 				$perprocesspid{$process_pid}->{HIGH_NR_SCANNED} += $nr_scanned;
 			}
 			$perprocesspid{$process_pid}->{HIGH_NR_CONTIG_DIRTY} += $nr_contig_dirty;

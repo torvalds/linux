@@ -148,7 +148,7 @@ set_placement_range(struct nouveau_bo *nvbo, uint32_t type)
 
 	if (dev_priv->card_type == NV_10 &&
 	    nvbo->tile_mode && (type & TTM_PL_FLAG_VRAM) &&
-	    nvbo->bo.mem.num_pages < vram_pages / 2) {
+	    nvbo->bo.mem.num_pages < vram_pages / 4) {
 		/*
 		 * Make sure that the color and depth buffers are handled
 		 * by independent memory controller units. Up to a 9x
@@ -956,7 +956,7 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 			break;
 		}
 
-		if (dev_priv->card_type == NV_C0)
+		if (dev_priv->card_type >= NV_C0)
 			page_shift = node->page_shift;
 		else
 			page_shift = 12;

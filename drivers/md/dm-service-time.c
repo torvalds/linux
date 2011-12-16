@@ -12,6 +12,7 @@
 #include "dm-path-selector.h"
 
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #define DM_MSG_PREFIX	"multipath service-time"
 #define ST_MIN_IO	1

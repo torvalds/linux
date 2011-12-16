@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/input/adxl34x.h>
+#include <linux/module.h>
 
 #include "adxl34x.h"
 

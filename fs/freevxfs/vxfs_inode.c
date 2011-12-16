@@ -227,7 +227,7 @@ vxfs_iinit(struct inode *ip, struct vxfs_inode_info *vip)
 	ip->i_uid = (uid_t)vip->vii_uid;
 	ip->i_gid = (gid_t)vip->vii_gid;
 
-	ip->i_nlink = vip->vii_nlink;
+	set_nlink(ip, vip->vii_nlink);
 	ip->i_size = vip->vii_size;
 
 	ip->i_atime.tv_sec = vip->vii_atime;

@@ -5,7 +5,7 @@
 # selected by any of the users.
 config ORE
 	tristate
-	depends on EXOFS_FS
+	depends on EXOFS_FS || PNFS_OBJLAYOUT
 	select ASYNC_XOR
 	default SCSI_OSD_ULD
 

@@ -54,6 +54,7 @@ struct xc2028_config {
 /* xc2028 commands for callback */
 #define XC2028_TUNER_RESET	0
 #define XC2028_RESET_CLK	1
+#define XC2028_I2C_FLUSH	2
 
 #if defined(CONFIG_MEDIA_TUNER_XC2028) || (defined(CONFIG_MEDIA_TUNER_XC2028_MODULE) && defined(MODULE))
 extern struct dvb_frontend *xc2028_attach(struct dvb_frontend *fe,

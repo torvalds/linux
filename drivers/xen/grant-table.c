@@ -193,7 +193,7 @@ int gnttab_query_foreign_access(grant_ref_t ref)
 
 	nflags = shared[ref].flags;
 
-	return (nflags & (GTF_reading|GTF_writing));
+	return nflags & (GTF_reading|GTF_writing);
 }
 EXPORT_SYMBOL_GPL(gnttab_query_foreign_access);
 

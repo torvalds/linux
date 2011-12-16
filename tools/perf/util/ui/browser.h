@@ -43,6 +43,15 @@ void ui_browser__hide(struct ui_browser *self);
 int ui_browser__refresh(struct ui_browser *self);
 int ui_browser__run(struct ui_browser *browser, int delay_secs);
 void ui_browser__update_nr_entries(struct ui_browser *browser, u32 nr_entries);
+void ui_browser__handle_resize(struct ui_browser *browser);
+
+int ui_browser__warning(struct ui_browser *browser, int timeout,
+			const char *format, ...);
+int ui_browser__help_window(struct ui_browser *browser, const char *text);
+bool ui_browser__dialog_yesno(struct ui_browser *browser, const char *text);
+
+void ui_browser__argv_seek(struct ui_browser *browser, off_t offset, int whence);
+unsigned int ui_browser__argv_refresh(struct ui_browser *browser);
 
 void ui_browser__rb_tree_seek(struct ui_browser *self, off_t offset, int whence);
 unsigned int ui_browser__rb_tree_refresh(struct ui_browser *self);

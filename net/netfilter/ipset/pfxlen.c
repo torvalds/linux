@@ -1,3 +1,4 @@
+#include <linux/export.h>
 #include <linux/netfilter/ipset/pfxlen.h>
 
 /*

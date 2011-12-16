@@ -6,7 +6,7 @@
 #ifndef __USER_H__
 #define __USER_H__
 
-#include "kern_constants.h"
+#include <generated/asm-offsets.h>
 
 /*
  * The usual definition - copied here because the kernel provides its own,
@@ -36,10 +36,11 @@ static inline int printk(const char *fmt, ...)
 }
 #endif
 
-extern void schedule(void);
 extern int in_aton(char *str);
-extern int open_gdb_chan(void);
 extern size_t strlcpy(char *, const char *, size_t);
 extern size_t strlcat(char *, const char *, size_t);
+
+/* Copied from linux/compiler-gcc.h since we can't include it directly */
+#define barrier() __asm__ __volatile__("": : :"memory")
 
 #endif

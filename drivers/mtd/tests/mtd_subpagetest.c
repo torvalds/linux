@@ -29,7 +29,7 @@
 
 #define PRINT_PREF KERN_INFO "mtd_subpagetest: "
 
-static int dev;
+static int dev = -EINVAL;
 module_param(dev, int, S_IRUGO);
 MODULE_PARM_DESC(dev, "MTD device number to use");
 
@@ -198,7 +198,7 @@ static int verify_eraseblock(int ebnum)
 	read = 0;
 	err = mtd->read(mtd, addr, subpgsize, &read, readbuf);
 	if (unlikely(err || read != subpgsize)) {
-		if (err == -EUCLEAN && read == subpgsize) {
+		if (mtd_is_bitflip(err) && read == subpgsize) {
 			printk(PRINT_PREF "ECC correction at %#llx\n",
 			       (long long)addr);
 			err = 0;
@@ -226,7 +226,7 @@ static int verify_eraseblock(int ebnum)
 	read = 0;
 	err = mtd->read(mtd, addr, subpgsize, &read, readbuf);
 	if (unlikely(err || read != subpgsize)) {
-		if (err == -EUCLEAN && read == subpgsize) {
+		if (mtd_is_bitflip(err) && read == subpgsize) {
 			printk(PRINT_PREF "ECC correction at %#llx\n",
 			       (long long)addr);
 			err = 0;
@@ -264,7 +264,7 @@ static int verify_eraseblock2(int ebnum)
 		read = 0;
 		err = mtd->read(mtd, addr, subpgsize * k, &read, readbuf);
 		if (unlikely(err || read != subpgsize * k)) {
-			if (err == -EUCLEAN && read == subpgsize * k) {
+			if (mtd_is_bitflip(err) && read == subpgsize * k) {
 				printk(PRINT_PREF "ECC correction at %#llx\n",
 				       (long long)addr);
 				err = 0;
@@ -298,7 +298,7 @@ static int verify_eraseblock_ff(int ebnum)
 		read = 0;
 		err = mtd->read(mtd, addr, subpgsize, &read, readbuf);
 		if (unlikely(err || read != subpgsize)) {
-			if (err == -EUCLEAN && read == subpgsize) {
+			if (mtd_is_bitflip(err) && read == subpgsize) {
 				printk(PRINT_PREF "ECC correction at %#llx\n",
 				       (long long)addr);
 				err = 0;
@@ -379,6 +379,13 @@ static int __init mtd_subpagetest_init(void)
 
 	printk(KERN_INFO "\n");
 	printk(KERN_INFO "=================================================\n");
+
+	if (dev < 0) {
+		printk(PRINT_PREF "Please specify a valid mtd-device via module paramter\n");
+		printk(KERN_CRIT "CAREFUL: This test wipes all data on the specified MTD device!\n");
+		return -EINVAL;
+	}
+
 	printk(PRINT_PREF "MTD device: %d\n", dev);
 
 	mtd = get_mtd_device(NULL, dev);

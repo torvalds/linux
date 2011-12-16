@@ -1,5 +1,12 @@
 config PPC_WSP
 	bool
+	select PPC_A2
+	select PPC_SCOM
+	select PPC_XICS
+	select PPC_ICP_NATIVE
+	select PCI
+	select PPC_IO_WORKAROUNDS if PCI
+	select PPC_INDIRECT_PIO if PCI
 	default n
 
 menu "WSP platform selection"
@@ -7,13 +14,9 @@ menu "WSP platform selection"
 
 config PPC_PSR2
 	bool "PSR-2 platform"
-	select PPC_A2
 	select GENERIC_TBSYNC
-	select PPC_SCOM
 	select EPAPR_BOOT
 	select PPC_WSP
-	select PPC_XICS
-	select PPC_ICP_NATIVE
 	default y
 
 endmenu
@@ -21,8 +24,3 @@ endmenu
 config PPC_A2_DD2
 	bool "Support for DD2 based A2/WSP systems"
 	depends on PPC_A2
-
-config WORKAROUND_ERRATUM_463
-	depends on PPC_A2_DD2
-	bool "Workaround erratum 463"
-	default y

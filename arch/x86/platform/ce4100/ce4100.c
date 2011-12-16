@@ -109,7 +109,7 @@ static __init void sdv_serial_fixup(void)
 }
 
 #else
-static inline void sdv_serial_fixup(void);
+static inline void sdv_serial_fixup(void) {};
 #endif
 
 static void __init sdv_arch_setup(void)

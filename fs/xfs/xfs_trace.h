@@ -30,6 +30,7 @@ struct xfs_buf_log_item;
 struct xfs_da_args;
 struct xfs_da_node_entry;
 struct xfs_dquot;
+struct xfs_log_item;
 struct xlog_ticket;
 struct log;
 struct xlog_recover;
@@ -320,7 +321,6 @@ DEFINE_BUF_EVENT(xfs_buf_rele);
 DEFINE_BUF_EVENT(xfs_buf_iodone);
 DEFINE_BUF_EVENT(xfs_buf_iorequest);
 DEFINE_BUF_EVENT(xfs_buf_bawrite);
-DEFINE_BUF_EVENT(xfs_buf_bdwrite);
 DEFINE_BUF_EVENT(xfs_buf_lock);
 DEFINE_BUF_EVENT(xfs_buf_lock_done);
 DEFINE_BUF_EVENT(xfs_buf_trylock);
@@ -577,6 +577,7 @@ DEFINE_INODE_EVENT(xfs_vm_bmap);
 DEFINE_INODE_EVENT(xfs_file_ioctl);
 DEFINE_INODE_EVENT(xfs_file_compat_ioctl);
 DEFINE_INODE_EVENT(xfs_ioctl_setattr);
+DEFINE_INODE_EVENT(xfs_dir_fsync);
 DEFINE_INODE_EVENT(xfs_file_fsync);
 DEFINE_INODE_EVENT(xfs_destroy_inode);
 DEFINE_INODE_EVENT(xfs_write_inode);
@@ -852,6 +853,42 @@ DEFINE_LOGGRANT_EVENT(xfs_log_regrant_reserve_sub);
 DEFINE_LOGGRANT_EVENT(xfs_log_ungrant_enter);
 DEFINE_LOGGRANT_EVENT(xfs_log_ungrant_exit);
 DEFINE_LOGGRANT_EVENT(xfs_log_ungrant_sub);
+
+DECLARE_EVENT_CLASS(xfs_log_item_class,
+	TP_PROTO(struct xfs_log_item *lip),
+	TP_ARGS(lip),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(void *, lip)
+		__field(uint, type)
+		__field(uint, flags)
+		__field(xfs_lsn_t, lsn)
+	),
+	TP_fast_assign(
+		__entry->dev = lip->li_mountp->m_super->s_dev;
+		__entry->lip = lip;
+		__entry->type = lip->li_type;
+		__entry->flags = lip->li_flags;
+		__entry->lsn = lip->li_lsn;
+	),
+	TP_printk("dev %d:%d lip 0x%p lsn %d/%d type %s flags %s",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->lip,
+		  CYCLE_LSN(__entry->lsn), BLOCK_LSN(__entry->lsn),
+		  __print_symbolic(__entry->type, XFS_LI_TYPE_DESC),
+		  __print_flags(__entry->flags, "|", XFS_LI_FLAGS))
+)
+
+#define DEFINE_LOG_ITEM_EVENT(name) \
+DEFINE_EVENT(xfs_log_item_class, name, \
+	TP_PROTO(struct xfs_log_item *lip), \
+	TP_ARGS(lip))
+DEFINE_LOG_ITEM_EVENT(xfs_ail_push);
+DEFINE_LOG_ITEM_EVENT(xfs_ail_pushbuf);
+DEFINE_LOG_ITEM_EVENT(xfs_ail_pushbuf_pinned);
+DEFINE_LOG_ITEM_EVENT(xfs_ail_pinned);
+DEFINE_LOG_ITEM_EVENT(xfs_ail_locked);
+
 
 DECLARE_EVENT_CLASS(xfs_file_class,
 	TP_PROTO(struct xfs_inode *ip, size_t count, loff_t offset, int flags),

@@ -169,8 +169,8 @@ static psmouse_ret_t lifebook_process_byte(struct psmouse *psmouse)
 
 	if (relative_packet) {
 		if (!dev2)
-			printk(KERN_WARNING "lifebook.c: got relative packet "
-				"but no relative device set up\n");
+			psmouse_warn(psmouse,
+				     "got relative packet but no relative device set up\n");
 	} else {
 		if (lifebook_use_6byte_proto) {
 			input_report_abs(dev1, ABS_X,
@@ -212,7 +212,7 @@ static int lifebook_absolute_mode(struct psmouse *psmouse)
 
 	/*
 	 * Enable absolute output -- ps2_command fails always but if
-	 * you leave this call out the touchsreen will never send
+	 * you leave this call out the touchscreen will never send
 	 * absolute coordinates
 	 */
 	param = lifebook_use_6byte_proto ? 0x08 : 0x07;

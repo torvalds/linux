@@ -86,7 +86,7 @@ struct swap_eb {
 	unsigned int flags;
 	unsigned int active_count;
 	unsigned int erase_count;
-	unsigned int pad;		/* speeds up pointer decremtnt */
+	unsigned int pad;		/* speeds up pointer decrement */
 };
 
 #define MTDSWAP_ECNT_MIN(rbroot) (rb_entry(rb_first(rbroot), struct swap_eb, \
@@ -314,7 +314,7 @@ static int mtdswap_read_oob(struct mtdswap_dev *d, loff_t from,
 {
 	int ret = d->mtd->read_oob(d->mtd, from, ops);
 
-	if (ret == -EUCLEAN)
+	if (mtd_is_bitflip(ret))
 		return ret;
 
 	if (ret) {
@@ -350,11 +350,11 @@ static int mtdswap_read_markers(struct mtdswap_dev *d, struct swap_eb *eb)
 	ops.oobbuf = d->oob_buf;
 	ops.ooboffs = 0;
 	ops.datbuf = NULL;
-	ops.mode = MTD_OOB_AUTO;
+	ops.mode = MTD_OPS_AUTO_OOB;
 
 	ret = mtdswap_read_oob(d, offset, &ops);
 
-	if (ret && ret != -EUCLEAN)
+	if (ret && !mtd_is_bitflip(ret))
 		return ret;
 
 	data = (struct mtdswap_oobdata *)d->oob_buf;
@@ -363,7 +363,7 @@ static int mtdswap_read_markers(struct mtdswap_dev *d, struct swap_eb *eb)
 
 	if (le16_to_cpu(data->magic) == MTDSWAP_MAGIC_CLEAN) {
 		eb->erase_count = le32_to_cpu(data->count);
-		if (ret == -EUCLEAN)
+		if (mtd_is_bitflip(ret))
 			ret = MTDSWAP_SCANNED_BITFLIP;
 		else {
 			if (le16_to_cpu(data2->magic) == MTDSWAP_MAGIC_DIRTY)
@@ -389,7 +389,7 @@ static int mtdswap_write_marker(struct mtdswap_dev *d, struct swap_eb *eb,
 
 	ops.ooboffs = 0;
 	ops.oobbuf = (uint8_t *)&n;
-	ops.mode = MTD_OOB_AUTO;
+	ops.mode = MTD_OPS_AUTO_OOB;
 	ops.datbuf = NULL;
 
 	if (marker == MTDSWAP_TYPE_CLEAN) {
@@ -408,7 +408,7 @@ static int mtdswap_write_marker(struct mtdswap_dev *d, struct swap_eb *eb,
 	if (ret) {
 		dev_warn(d->dev, "Write OOB failed for block at %08llx "
 			"error %d\n", offset, ret);
-		if (ret == -EIO || ret == -EBADMSG)
+		if (ret == -EIO || mtd_is_eccerr(ret))
 			mtdswap_handle_write_error(d, eb);
 		return ret;
 	}
@@ -628,7 +628,7 @@ static int mtdswap_map_free_block(struct mtdswap_dev *d, unsigned int page,
 			TREE_COUNT(d, CLEAN)--;
 
 			ret = mtdswap_write_marker(d, eb, MTDSWAP_TYPE_DIRTY);
-		} while (ret == -EIO || ret == -EBADMSG);
+		} while (ret == -EIO || mtd_is_eccerr(ret));
 
 		if (ret)
 			return ret;
@@ -678,7 +678,7 @@ retry:
 	ret = mtdswap_map_free_block(d, page, bp);
 	eb = d->eb_data + (*bp / d->pages_per_eblk);
 
-	if (ret == -EIO || ret == -EBADMSG) {
+	if (ret == -EIO || mtd_is_eccerr(ret)) {
 		d->curr_write = NULL;
 		eb->active_count--;
 		d->revmap[*bp] = PAGE_UNDEF;
@@ -690,7 +690,7 @@ retry:
 
 	writepos = (loff_t)*bp << PAGE_SHIFT;
 	ret =  mtd->write(mtd, writepos, PAGE_SIZE, &retlen, buf);
-	if (ret == -EIO || ret == -EBADMSG) {
+	if (ret == -EIO || mtd_is_eccerr(ret)) {
 		d->curr_write_pos--;
 		eb->active_count--;
 		d->revmap[*bp] = PAGE_UNDEF;
@@ -738,7 +738,7 @@ static int mtdswap_move_block(struct mtdswap_dev *d, unsigned int oldblock,
 retry:
 	ret = mtd->read(mtd, readpos, PAGE_SIZE, &retlen, d->page_buf);
 
-	if (ret < 0 && ret != -EUCLEAN) {
+	if (ret < 0 && !mtd_is_bitflip(ret)) {
 		oldeb = d->eb_data + oldblock / d->pages_per_eblk;
 		oldeb->flags |= EBLOCK_READERR;
 
@@ -931,7 +931,7 @@ static unsigned int mtdswap_eblk_passes(struct mtdswap_dev *d,
 	struct mtd_oob_ops ops;
 	int ret;
 
-	ops.mode = MTD_OOB_AUTO;
+	ops.mode = MTD_OPS_AUTO_OOB;
 	ops.len = mtd->writesize;
 	ops.ooblen = mtd->ecclayout->oobavail;
 	ops.ooboffs = 0;
@@ -1016,7 +1016,7 @@ static int mtdswap_gc(struct mtdswap_dev *d, unsigned int background)
 
 	if (ret == 0)
 		mtdswap_rb_add(d, eb, MTDSWAP_CLEAN);
-	else if (ret != -EIO && ret != -EBADMSG)
+	else if (ret != -EIO && !mtd_is_eccerr(ret))
 		mtdswap_rb_add(d, eb, MTDSWAP_DIRTY);
 
 	return 0;
@@ -1164,7 +1164,7 @@ retry:
 	ret = mtd->read(mtd, readpos, PAGE_SIZE, &retlen, buf);
 
 	d->mtd_read_count++;
-	if (ret == -EUCLEAN) {
+	if (mtd_is_bitflip(ret)) {
 		eb->flags |= EBLOCK_BITFLIP;
 		mtdswap_rb_add(d, eb, MTDSWAP_BITFLIP);
 		ret = 0;
@@ -1374,11 +1374,10 @@ static int mtdswap_init(struct mtdswap_dev *d, unsigned int eblocks,
 		goto revmap_fail;
 
 	eblk_bytes = sizeof(struct swap_eb)*d->eblks;
-	d->eb_data = vmalloc(eblk_bytes);
+	d->eb_data = vzalloc(eblk_bytes);
 	if (!d->eb_data)
 		goto eb_data_fail;
 
-	memset(d->eb_data, 0, eblk_bytes);
 	for (i = 0; i < pages; i++)
 		d->page_data[i] = BLOCK_UNDEF;
 

@@ -310,18 +310,21 @@ static const struct of_dev_auxdata *of_dev_lookup(const struct of_dev_auxdata *l
 				 struct device_node *np)
 {
 	struct resource res;
-	if (lookup) {
-		for(; lookup->name != NULL; lookup++) {
-			if (!of_device_is_compatible(np, lookup->compatible))
-				continue;
-			if (of_address_to_resource(np, 0, &res))
-				continue;
-			if (res.start != lookup->phys_addr)
-				continue;
-			pr_debug("%s: devname=%s\n", np->full_name, lookup->name);
-			return lookup;
-		}
+
+	if (!lookup)
+		return NULL;
+
+	for(; lookup->name != NULL; lookup++) {
+		if (!of_device_is_compatible(np, lookup->compatible))
+			continue;
+		if (of_address_to_resource(np, 0, &res))
+			continue;
+		if (res.start != lookup->phys_addr)
+			continue;
+		pr_debug("%s: devname=%s\n", np->full_name, lookup->name);
+		return lookup;
 	}
+
 	return NULL;
 }
 
@@ -329,8 +332,9 @@ static const struct of_dev_auxdata *of_dev_lookup(const struct of_dev_auxdata *l
  * of_platform_bus_create() - Create a device for a node and its children.
  * @bus: device node of the bus to instantiate
  * @matches: match table for bus nodes
- * disallow recursive creation of child buses
+ * @lookup: auxdata table for matching id and platform_data with device nodes
  * @parent: parent for new device, or NULL for top level.
+ * @strict: require compatible property
  *
  * Creates a platform_device for the provided device_node, and optionally
  * recursively create devices for all the child nodes.

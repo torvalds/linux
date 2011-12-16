@@ -23,6 +23,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
+#include <linux/module.h>
 
 #include <sound/core.h>
 #include <sound/ak4531_codec.h>

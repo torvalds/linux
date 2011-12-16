@@ -491,7 +491,7 @@ int __jbd2_log_start_commit(journal_t *journal, tid_t target)
 		 */
 
 		journal->j_commit_request = target;
-		jbd_debug(1, "JBD: requesting commit %d/%d\n",
+		jbd_debug(1, "JBD2: requesting commit %d/%d\n",
 			  journal->j_commit_request,
 			  journal->j_commit_sequence);
 		wake_up(&journal->j_wait_commit);
@@ -500,7 +500,7 @@ int __jbd2_log_start_commit(journal_t *journal, tid_t target)
 		/* This should never happen, but if it does, preserve
 		   the evidence before kjournald goes into a loop and
 		   increments j_commit_sequence beyond all recognition. */
-		WARN_ONCE(1, "jbd: bad log_start_commit: %u %u %u %u\n",
+		WARN_ONCE(1, "JBD2: bad log_start_commit: %u %u %u %u\n",
 			  journal->j_commit_request,
 			  journal->j_commit_sequence,
 			  target, journal->j_running_transaction ? 
@@ -645,7 +645,7 @@ int jbd2_log_wait_commit(journal_t *journal, tid_t tid)
 	}
 #endif
 	while (tid_gt(tid, journal->j_commit_sequence)) {
-		jbd_debug(1, "JBD: want %d, j_commit_sequence=%d\n",
+		jbd_debug(1, "JBD2: want %d, j_commit_sequence=%d\n",
 				  tid, journal->j_commit_sequence);
 		wake_up(&journal->j_wait_commit);
 		read_unlock(&journal->j_state_lock);
@@ -1093,7 +1093,7 @@ static int journal_reset(journal_t *journal)
 	first = be32_to_cpu(sb->s_first);
 	last = be32_to_cpu(sb->s_maxlen);
 	if (first + JBD2_MIN_JOURNAL_BLOCKS > last + 1) {
-		printk(KERN_ERR "JBD: Journal too short (blocks %llu-%llu).\n",
+		printk(KERN_ERR "JBD2: Journal too short (blocks %llu-%llu).\n",
 		       first, last);
 		journal_fail_superblock(journal);
 		return -EINVAL;
@@ -1139,7 +1139,7 @@ void jbd2_journal_update_superblock(journal_t *journal, int wait)
 	 */
 	if (sb->s_start == 0 && journal->j_tail_sequence ==
 				journal->j_transaction_sequence) {
-		jbd_debug(1,"JBD: Skipping superblock update on recovered sb "
+		jbd_debug(1, "JBD2: Skipping superblock update on recovered sb "
 			"(start %ld, seq %d, errno %d)\n",
 			journal->j_tail, journal->j_tail_sequence,
 			journal->j_errno);
@@ -1163,7 +1163,7 @@ void jbd2_journal_update_superblock(journal_t *journal, int wait)
 	}
 
 	read_lock(&journal->j_state_lock);
-	jbd_debug(1,"JBD: updating superblock (start %ld, seq %d, errno %d)\n",
+	jbd_debug(1, "JBD2: updating superblock (start %ld, seq %d, errno %d)\n",
 		  journal->j_tail, journal->j_tail_sequence, journal->j_errno);
 
 	sb->s_sequence = cpu_to_be32(journal->j_tail_sequence);
@@ -1216,8 +1216,8 @@ static int journal_get_superblock(journal_t *journal)
 		ll_rw_block(READ, 1, &bh);
 		wait_on_buffer(bh);
 		if (!buffer_uptodate(bh)) {
-			printk (KERN_ERR
-				"JBD: IO error reading journal superblock\n");
+			printk(KERN_ERR
+				"JBD2: IO error reading journal superblock\n");
 			goto out;
 		}
 	}
@@ -1228,7 +1228,7 @@ static int journal_get_superblock(journal_t *journal)
 
 	if (sb->s_header.h_magic != cpu_to_be32(JBD2_MAGIC_NUMBER) ||
 	    sb->s_blocksize != cpu_to_be32(journal->j_blocksize)) {
-		printk(KERN_WARNING "JBD: no valid journal superblock found\n");
+		printk(KERN_WARNING "JBD2: no valid journal superblock found\n");
 		goto out;
 	}
 
@@ -1240,14 +1240,22 @@ static int journal_get_superblock(journal_t *journal)
 		journal->j_format_version = 2;
 		break;
 	default:
-		printk(KERN_WARNING "JBD: unrecognised superblock format ID\n");
+		printk(KERN_WARNING "JBD2: unrecognised superblock format ID\n");
 		goto out;
 	}
 
 	if (be32_to_cpu(sb->s_maxlen) < journal->j_maxlen)
 		journal->j_maxlen = be32_to_cpu(sb->s_maxlen);
 	else if (be32_to_cpu(sb->s_maxlen) > journal->j_maxlen) {
-		printk (KERN_WARNING "JBD: journal file too short\n");
+		printk(KERN_WARNING "JBD2: journal file too short\n");
+		goto out;
+	}
+
+	if (be32_to_cpu(sb->s_first) == 0 ||
+	    be32_to_cpu(sb->s_first) >= journal->j_maxlen) {
+		printk(KERN_WARNING
+			"JBD2: Invalid start block of journal: %u\n",
+			be32_to_cpu(sb->s_first));
 		goto out;
 	}
 
@@ -1310,8 +1318,8 @@ int jbd2_journal_load(journal_t *journal)
 		     ~cpu_to_be32(JBD2_KNOWN_ROCOMPAT_FEATURES)) ||
 		    (sb->s_feature_incompat &
 		     ~cpu_to_be32(JBD2_KNOWN_INCOMPAT_FEATURES))) {
-			printk (KERN_WARNING
-				"JBD: Unrecognised features on journal\n");
+			printk(KERN_WARNING
+				"JBD2: Unrecognised features on journal\n");
 			return -EINVAL;
 		}
 	}
@@ -1346,7 +1354,7 @@ int jbd2_journal_load(journal_t *journal)
 	return 0;
 
 recovery_error:
-	printk (KERN_WARNING "JBD: recovery failed\n");
+	printk(KERN_WARNING "JBD2: recovery failed\n");
 	return -EIO;
 }
 
@@ -1577,7 +1585,7 @@ static int journal_convert_superblock_v1(journal_t *journal,
 	struct buffer_head *bh;
 
 	printk(KERN_WARNING
-		"JBD: Converting superblock from version 1 to 2.\n");
+		"JBD2: Converting superblock from version 1 to 2.\n");
 
 	/* Pre-initialise new fields to zero */
 	offset = ((char *) &(sb->s_feature_compat)) - ((char *) sb);
@@ -1694,7 +1702,7 @@ int jbd2_journal_wipe(journal_t *journal, int write)
 	if (!journal->j_tail)
 		goto no_recovery;
 
-	printk (KERN_WARNING "JBD: %s recovery information on journal\n",
+	printk(KERN_WARNING "JBD2: %s recovery information on journal\n",
 		write ? "Clearing" : "Ignoring");
 
 	err = jbd2_journal_skip_recovery(journal);
@@ -2020,7 +2028,7 @@ static int journal_init_jbd2_journal_head_cache(void)
 	retval = 0;
 	if (!jbd2_journal_head_cache) {
 		retval = -ENOMEM;
-		printk(KERN_EMERG "JBD: no memory for journal_head cache\n");
+		printk(KERN_EMERG "JBD2: no memory for journal_head cache\n");
 	}
 	return retval;
 }
@@ -2383,7 +2391,7 @@ static void __exit journal_exit(void)
 #ifdef CONFIG_JBD2_DEBUG
 	int n = atomic_read(&nr_journal_heads);
 	if (n)
-		printk(KERN_EMERG "JBD: leaked %d journal_heads!\n", n);
+		printk(KERN_EMERG "JBD2: leaked %d journal_heads!\n", n);
 #endif
 	jbd2_remove_debugfs_entry();
 	jbd2_remove_jbd_stats_proc_entry();

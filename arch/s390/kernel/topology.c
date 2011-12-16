@@ -299,8 +299,8 @@ out:
 }
 __initcall(init_topology_update);
 
-static void alloc_masks(struct sysinfo_15_1_x *info, struct mask_info *mask,
-			int offset)
+static void __init alloc_masks(struct sysinfo_15_1_x *info,
+			       struct mask_info *mask, int offset)
 {
 	int i, nr_masks;
 

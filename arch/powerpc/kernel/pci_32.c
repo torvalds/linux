@@ -15,6 +15,7 @@
 #include <linux/list.h>
 #include <linux/of.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 
 #include <asm/processor.h>
 #include <asm/io.h>

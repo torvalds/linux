@@ -1,4 +1,4 @@
-config IWLWIFI_LEGACY
+config IWLEGACY
 	tristate
 	select FW_LOADER
 	select NEW_LEDS
@@ -7,13 +7,13 @@ config IWLWIFI_LEGACY
 	select MAC80211_LEDS
 
 menu "Debugging Options"
-	depends on IWLWIFI_LEGACY
+	depends on IWLEGACY
 
-config IWLWIFI_LEGACY_DEBUG
-	bool "Enable full debugging output in 4965 and 3945 drivers"
-	depends on IWLWIFI_LEGACY
+config IWLEGACY_DEBUG
+	bool "Enable full debugging output in iwlegacy (iwl 3945/4965) drivers"
+	depends on IWLEGACY
 	---help---
-	  This option will enable debug tracing output for the iwlwifilegacy
+	  This option will enable debug tracing output for the iwlegacy
 	  drivers.
 
 	  This will result in the kernel module being ~100k larger.  You can
@@ -29,43 +29,26 @@ config IWLWIFI_LEGACY_DEBUG
 		  % echo 0x43fff > /sys/class/net/wlan0/device/debug_level
 
 	  You can find the list of debug mask values in:
-		  drivers/net/wireless/iwlwifilegacy/iwl-debug.h
+		  drivers/net/wireless/iwlegacy/common.h
 
 	  If this is your first time using this driver, you should say Y here
 	  as the debug information can assist others in helping you resolve
 	  any problems you may encounter.
 
-config IWLWIFI_LEGACY_DEBUGFS
-        bool "4965 and 3945 debugfs support"
-        depends on IWLWIFI_LEGACY && MAC80211_DEBUGFS
+config IWLEGACY_DEBUGFS
+        bool "iwlegacy (iwl 3945/4965) debugfs support"
+        depends on IWLEGACY && MAC80211_DEBUGFS
         ---help---
-	  Enable creation of debugfs files for the iwlwifilegacy drivers. This
+	  Enable creation of debugfs files for the iwlegacy drivers. This
 	  is a low-impact option that allows getting insight into the
 	  driver's state at runtime.
 
-config IWLWIFI_LEGACY_DEVICE_TRACING
-	bool "iwlwifilegacy legacy device access tracing"
-	depends on IWLWIFI_LEGACY
-	depends on EVENT_TRACING
-	help
-	  Say Y here to trace all commands, including TX frames and IO
-	  accesses, sent to the device. If you say yes, iwlwifilegacy will
-	  register with the ftrace framework for event tracing and dump
-	  all this information to the ringbuffer, you may need to
-	  increase the ringbuffer size. See the ftrace documentation
-	  for more information.
-
-	  When tracing is not enabled, this option still has some
-	  (though rather small) overhead.
-
-	  If unsure, say Y so we can help you better when problems
-	  occur.
 endmenu
 
 config IWL4965
 	tristate "Intel Wireless WiFi 4965AGN (iwl4965)"
 	depends on PCI && MAC80211
-	select IWLWIFI_LEGACY
+	select IWLEGACY
 	---help---
 	  This option enables support for
 
@@ -93,7 +76,7 @@ config IWL4965
 config IWL3945
 	tristate "Intel PRO/Wireless 3945ABG/BG Network Connection (iwl3945)"
 	depends on PCI && MAC80211
-	select IWLWIFI_LEGACY
+	select IWLEGACY
 	---help---
 	  Select to build the driver supporting the:
 

@@ -35,6 +35,7 @@
 #include <linux/notifier.h>
 #include <linux/spinlock.h>
 #include <linux/pm_runtime.h>
+#include <linux/module.h>
 #include <acpi/video.h>
 
 static int drm_psb_trap_pagefaults;

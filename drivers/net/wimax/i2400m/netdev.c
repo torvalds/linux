@@ -76,6 +76,7 @@
 #include <linux/slab.h>
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
+#include <linux/export.h>
 #include "i2400m.h"
 
 

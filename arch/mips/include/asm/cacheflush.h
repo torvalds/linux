@@ -114,4 +114,28 @@ unsigned long run_uncached(void *func);
 extern void *kmap_coherent(struct page *page, unsigned long addr);
 extern void kunmap_coherent(void);
 
+#define ARCH_HAS_FLUSH_KERNEL_DCACHE_PAGE
+static inline void flush_kernel_dcache_page(struct page *page)
+{
+	BUG_ON(cpu_has_dc_aliases && PageHighMem(page));
+}
+
+/*
+ * For now flush_kernel_vmap_range and invalidate_kernel_vmap_range both do a
+ * cache writeback and invalidate operation.
+ */
+extern void (*__flush_kernel_vmap_range)(unsigned long vaddr, int size);
+
+static inline void flush_kernel_vmap_range(void *vaddr, int size)
+{
+	if (cpu_has_dc_aliases)
+		__flush_kernel_vmap_range((unsigned long) vaddr, size);
+}
+
+static inline void invalidate_kernel_vmap_range(void *vaddr, int size)
+{
+	if (cpu_has_dc_aliases)
+		__flush_kernel_vmap_range((unsigned long) vaddr, size);
+}
+
 #endif /* _ASM_CACHEFLUSH_H */

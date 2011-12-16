@@ -516,7 +516,7 @@ struct cgroup_subsys {
 	struct list_head sibling;
 	/* used when use_id == true */
 	struct idr idr;
-	spinlock_t id_lock;
+	rwlock_t id_lock;
 
 	/* should be defined only by modular subsystems */
 	struct module *module;

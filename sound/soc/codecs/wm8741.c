@@ -17,9 +17,11 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
+#include <linux/spi/spi.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
+#include <linux/of_device.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -337,10 +339,10 @@ static int wm8741_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		iface |= 0x0004;
 		break;
 	case SND_SOC_DAIFMT_DSP_A:
-		iface |= 0x0003;
+		iface |= 0x000C;
 		break;
 	case SND_SOC_DAIFMT_DSP_B:
-		iface |= 0x0013;
+		iface |= 0x001C;
 		break;
 	default:
 		return -EINVAL;
@@ -402,15 +404,7 @@ static struct snd_soc_dai_driver wm8741_dai = {
 #ifdef CONFIG_PM
 static int wm8741_resume(struct snd_soc_codec *codec)
 {
-	u16 *cache = codec->reg_cache;
-	int i;
-
-	/* RESTORE REG Cache */
-	for (i = 0; i < WM8741_REGISTER_COUNT; i++) {
-		if (cache[i] == wm8741_reg_defaults[i] || WM8741_RESET == i)
-			continue;
-		snd_soc_write(codec, i, cache[i]);
-	}
+	snd_soc_cache_sync(codec);
 	return 0;
 }
 #else
@@ -422,17 +416,35 @@ static int wm8741_probe(struct snd_soc_codec *codec)
 {
 	struct wm8741_priv *wm8741 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(wm8741->supplies); i++)
+		wm8741->supplies[i].supply = wm8741_supply_names[i];
+
+	ret = regulator_bulk_get(codec->dev, ARRAY_SIZE(wm8741->supplies),
+				 wm8741->supplies);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to request supplies: %d\n", ret);
+		goto err;
+	}
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(wm8741->supplies),
+				    wm8741->supplies);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to enable supplies: %d\n", ret);
+		goto err_get;
+	}
 
 	ret = snd_soc_codec_set_cache_io(codec, 7, 9, wm8741->control_type);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
+		goto err_enable;
 	}
 
 	ret = wm8741_reset(codec);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to issue reset\n");
-		return ret;
+		goto err_enable;
 	}
 
 	/* Change some default settings - latch VU */
@@ -442,7 +454,7 @@ static int wm8741_probe(struct snd_soc_codec *codec)
 			    WM8741_UPDATELM, WM8741_UPDATELM);
 	snd_soc_update_bits(codec, WM8741_DACRLSB_ATTENUATION,
 			    WM8741_UPDATERL, WM8741_UPDATERL);
-	snd_soc_update_bits(codec, WM8741_DACRLSB_ATTENUATION,
+	snd_soc_update_bits(codec, WM8741_DACRMSB_ATTENUATION,
 			    WM8741_UPDATERM, WM8741_UPDATERM);
 
 	snd_soc_add_controls(codec, wm8741_snd_controls,
@@ -451,58 +463,61 @@ static int wm8741_probe(struct snd_soc_codec *codec)
 
 	dev_dbg(codec->dev, "Successful registration\n");
 	return ret;
+
+err_enable:
+	regulator_bulk_disable(ARRAY_SIZE(wm8741->supplies), wm8741->supplies);
+err_get:
+	regulator_bulk_free(ARRAY_SIZE(wm8741->supplies), wm8741->supplies);
+err:
+	return ret;
+}
+
+static int wm8741_remove(struct snd_soc_codec *codec)
+{
+	struct wm8741_priv *wm8741 = snd_soc_codec_get_drvdata(codec);
+
+	regulator_bulk_disable(ARRAY_SIZE(wm8741->supplies), wm8741->supplies);
+	regulator_bulk_free(ARRAY_SIZE(wm8741->supplies), wm8741->supplies);
+
+	return 0;
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_wm8741 = {
 	.probe =	wm8741_probe,
+	.remove =	wm8741_remove,
 	.resume =	wm8741_resume,
 	.reg_cache_size = ARRAY_SIZE(wm8741_reg_defaults),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm8741_reg_defaults,
 };
 
+static const struct of_device_id wm8741_of_match[] = {
+	{ .compatible = "wlf,wm8741", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, wm8741_of_match);
+
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 static int wm8741_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct wm8741_priv *wm8741;
-	int ret, i;
+	int ret;
 
 	wm8741 = kzalloc(sizeof(struct wm8741_priv), GFP_KERNEL);
 	if (wm8741 == NULL)
 		return -ENOMEM;
 
-	for (i = 0; i < ARRAY_SIZE(wm8741->supplies); i++)
-		wm8741->supplies[i].supply = wm8741_supply_names[i];
-
-	ret = regulator_bulk_get(&i2c->dev, ARRAY_SIZE(wm8741->supplies),
-				 wm8741->supplies);
-	if (ret != 0) {
-		dev_err(&i2c->dev, "Failed to request supplies: %d\n", ret);
-		goto err;
-	}
-
-	ret = regulator_bulk_enable(ARRAY_SIZE(wm8741->supplies),
-				    wm8741->supplies);
-	if (ret != 0) {
-		dev_err(&i2c->dev, "Failed to enable supplies: %d\n", ret);
-		goto err_get;
-	}
-
 	i2c_set_clientdata(i2c, wm8741);
 	wm8741->control_type = SND_SOC_I2C;
 
-	ret =  snd_soc_register_codec(&i2c->dev,
-			&soc_codec_dev_wm8741, &wm8741_dai, 1);
-	if (ret < 0)
-		goto err_enable;
+	ret = snd_soc_register_codec(&i2c->dev,
+				     &soc_codec_dev_wm8741, &wm8741_dai, 1);
+	if (ret != 0)
+		goto err;
+
 	return ret;
 
-err_enable:
-	regulator_bulk_disable(ARRAY_SIZE(wm8741->supplies), wm8741->supplies);
-
-err_get:
-	regulator_bulk_free(ARRAY_SIZE(wm8741->supplies), wm8741->supplies);
 err:
 	kfree(wm8741);
 	return ret;
@@ -510,10 +525,7 @@ err:
 
 static int wm8741_i2c_remove(struct i2c_client *client)
 {
-	struct wm8741_priv *wm8741 = i2c_get_clientdata(client);
-
 	snd_soc_unregister_codec(&client->dev);
-	regulator_bulk_free(ARRAY_SIZE(wm8741->supplies), wm8741->supplies);
 	kfree(i2c_get_clientdata(client));
 	return 0;
 }
@@ -526,14 +538,53 @@ MODULE_DEVICE_TABLE(i2c, wm8741_i2c_id);
 
 static struct i2c_driver wm8741_i2c_driver = {
 	.driver = {
-		.name = "wm8741-codec",
+		.name = "wm8741",
 		.owner = THIS_MODULE,
+		.of_match_table = wm8741_of_match,
 	},
 	.probe =    wm8741_i2c_probe,
 	.remove =   wm8741_i2c_remove,
 	.id_table = wm8741_i2c_id,
 };
 #endif
+
+#if defined(CONFIG_SPI_MASTER)
+static int __devinit wm8741_spi_probe(struct spi_device *spi)
+{
+	struct wm8741_priv *wm8741;
+	int ret;
+
+	wm8741 = kzalloc(sizeof(struct wm8741_priv), GFP_KERNEL);
+	if (wm8741 == NULL)
+		return -ENOMEM;
+
+	wm8741->control_type = SND_SOC_SPI;
+	spi_set_drvdata(spi, wm8741);
+
+	ret = snd_soc_register_codec(&spi->dev,
+			&soc_codec_dev_wm8741, &wm8741_dai, 1);
+	if (ret < 0)
+		kfree(wm8741);
+	return ret;
+}
+
+static int __devexit wm8741_spi_remove(struct spi_device *spi)
+{
+	snd_soc_unregister_codec(&spi->dev);
+	kfree(spi_get_drvdata(spi));
+	return 0;
+}
+
+static struct spi_driver wm8741_spi_driver = {
+	.driver = {
+		.name	= "wm8741",
+		.owner	= THIS_MODULE,
+		.of_match_table = wm8741_of_match,
+	},
+	.probe		= wm8741_spi_probe,
+	.remove		= __devexit_p(wm8741_spi_remove),
+};
+#endif /* CONFIG_SPI_MASTER */
 
 static int __init wm8741_modinit(void)
 {
@@ -544,6 +595,13 @@ static int __init wm8741_modinit(void)
 	if (ret != 0)
 		pr_err("Failed to register WM8741 I2C driver: %d\n", ret);
 #endif
+#if defined(CONFIG_SPI_MASTER)
+	ret = spi_register_driver(&wm8741_spi_driver);
+	if (ret != 0) {
+		printk(KERN_ERR "Failed to register wm8741 SPI driver: %d\n",
+		       ret);
+	}
+#endif
 
 	return ret;
 }
@@ -551,6 +609,9 @@ module_init(wm8741_modinit);
 
 static void __exit wm8741_exit(void)
 {
+#if defined(CONFIG_SPI_MASTER)
+	spi_unregister_driver(&wm8741_spi_driver);
+#endif
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	i2c_del_driver(&wm8741_i2c_driver);
 #endif

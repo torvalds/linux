@@ -13,7 +13,7 @@
  * License version 2. This program is licensed "as is" without any 
  * warranty of any kind, whether express or implied.
  */
-
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
@@ -25,6 +25,7 @@
 #include <linux/bitops.h>
 #include <linux/serial_8250.h>
 #include <linux/mm.h>
+#include <linux/export.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -39,7 +40,7 @@
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
 
-#include <mach/gpio.h>
+#include <mach/gpio-ixp2000.h>
 
 static DEFINE_SPINLOCK(ixp2000_slowport_lock);
 static unsigned long ixp2000_slowport_irq_flags;

@@ -310,9 +310,12 @@ fallback:
 		}
 		err = -ENOENT;
 		dso->annotate_warned = 1;
-		pr_err("Can't annotate %s: No vmlinux file%s was found in the "
-		       "path.\nPlease use 'perf buildid-cache -av vmlinux' or "
-		       "--vmlinux vmlinux.\n",
+		pr_err("Can't annotate %s:\n\n"
+		       "No vmlinux file%s\nwas found in the path.\n\n"
+		       "Please use:\n\n"
+		       "  perf buildid-cache -av vmlinux\n\n"
+		       "or:\n\n"
+		       "  --vmlinux vmlinux",
 		       sym->name, build_id_msg ?: "");
 		goto out_free_filename;
 	}

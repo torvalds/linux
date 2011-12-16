@@ -27,6 +27,7 @@
 #include <linux/if_ether.h>
 #include <linux/if_arp.h>
 #include <linux/inetdevice.h>
+#include <linux/module.h>
 
 /*
  * The device has a CDC ACM port for modem control (it claims to be

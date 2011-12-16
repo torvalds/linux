@@ -22,6 +22,7 @@
 #include <linux/dma_remapping.h>
 #include <linux/init_task.h>
 #include <linux/spinlock.h>
+#include <linux/export.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/init.h>

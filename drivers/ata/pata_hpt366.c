@@ -111,6 +111,28 @@ static const struct hpt_clock hpt366_25[] = {
 	{	0,		0x01208585	}
 };
 
+/**
+ *	hpt36x_find_mode	-	find the hpt36x timing
+ *	@ap: ATA port
+ *	@speed: transfer mode
+ *
+ *	Return the 32bit register programming information for this channel
+ *	that matches the speed provided.
+ */
+
+static u32 hpt36x_find_mode(struct ata_port *ap, int speed)
+{
+	struct hpt_clock *clocks = ap->host->private_data;
+
+	while (clocks->xfer_mode) {
+		if (clocks->xfer_mode == speed)
+			return clocks->timing;
+		clocks++;
+	}
+	BUG();
+	return 0xffffffffU;	/* silence compiler warning */
+}
+
 static const char * const bad_ata33[] = {
 	"Maxtor 92720U8", "Maxtor 92040U6", "Maxtor 91360U4", "Maxtor 91020U3",
 	"Maxtor 90845U3", "Maxtor 90650U2",
@@ -210,10 +232,9 @@ static int hpt36x_cable_detect(struct ata_port *ap)
 static void hpt366_set_mode(struct ata_port *ap, struct ata_device *adev,
 			    u8 mode)
 {
-	struct hpt_clock *clocks = ap->host->private_data;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u32 addr = 0x40 + 4 * adev->devno;
-	u32 mask, reg;
+	u32 mask, reg, t;
 
 	/* determine timing mask and find matching clock entry */
 	if (mode < XFER_MW_DMA_0)
@@ -223,13 +244,7 @@ static void hpt366_set_mode(struct ata_port *ap, struct ata_device *adev,
 	else
 		mask = 0x30070000;
 
-	while (clocks->xfer_mode) {
-		if (clocks->xfer_mode == mode)
-			break;
-		clocks++;
-	}
-	if (!clocks->xfer_mode)
-		BUG();
+	t = hpt36x_find_mode(ap, mode);
 
 	/*
 	 * Combine new mode bits with old config bits and disable
@@ -237,7 +252,7 @@ static void hpt366_set_mode(struct ata_port *ap, struct ata_device *adev,
 	 * problems handling I/O errors later.
 	 */
 	pci_read_config_dword(pdev, addr, &reg);
-	reg = ((reg & ~mask) | (clocks->timing & mask)) & ~0xc0000000;
+	reg = ((reg & ~mask) | (t & mask)) & ~0xc0000000;
 	pci_write_config_dword(pdev, addr, reg);
 }
 

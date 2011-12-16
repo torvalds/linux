@@ -37,29 +37,49 @@ static struct {
 	int retval;
 	int main, second;
 	char *name;
+	v4l2_std_id std;
 } msp_stdlist[] = {
-	{ 0x0000, 0, 0, "could not detect sound standard" },
-	{ 0x0001, 0, 0, "autodetect start" },
-	{ 0x0002, MSP_CARRIER(4.5), MSP_CARRIER(4.72), "4.5/4.72  M Dual FM-Stereo" },
-	{ 0x0003, MSP_CARRIER(5.5), MSP_CARRIER(5.7421875), "5.5/5.74  B/G Dual FM-Stereo" },
-	{ 0x0004, MSP_CARRIER(6.5), MSP_CARRIER(6.2578125), "6.5/6.25  D/K1 Dual FM-Stereo" },
-	{ 0x0005, MSP_CARRIER(6.5), MSP_CARRIER(6.7421875), "6.5/6.74  D/K2 Dual FM-Stereo" },
-	{ 0x0006, MSP_CARRIER(6.5), MSP_CARRIER(6.5), "6.5  D/K FM-Mono (HDEV3)" },
-	{ 0x0007, MSP_CARRIER(6.5), MSP_CARRIER(5.7421875), "6.5/5.74  D/K3 Dual FM-Stereo" },
-	{ 0x0008, MSP_CARRIER(5.5), MSP_CARRIER(5.85), "5.5/5.85  B/G NICAM FM" },
-	{ 0x0009, MSP_CARRIER(6.5), MSP_CARRIER(5.85), "6.5/5.85  L NICAM AM" },
-	{ 0x000a, MSP_CARRIER(6.0), MSP_CARRIER(6.55), "6.0/6.55  I NICAM FM" },
-	{ 0x000b, MSP_CARRIER(6.5), MSP_CARRIER(5.85), "6.5/5.85  D/K NICAM FM" },
-	{ 0x000c, MSP_CARRIER(6.5), MSP_CARRIER(5.85), "6.5/5.85  D/K NICAM FM (HDEV2)" },
-	{ 0x000d, MSP_CARRIER(6.5), MSP_CARRIER(5.85), "6.5/5.85  D/K NICAM FM (HDEV3)" },
-	{ 0x0020, MSP_CARRIER(4.5), MSP_CARRIER(4.5), "4.5  M BTSC-Stereo" },
-	{ 0x0021, MSP_CARRIER(4.5), MSP_CARRIER(4.5), "4.5  M BTSC-Mono + SAP" },
-	{ 0x0030, MSP_CARRIER(4.5), MSP_CARRIER(4.5), "4.5  M EIA-J Japan Stereo" },
-	{ 0x0040, MSP_CARRIER(10.7), MSP_CARRIER(10.7), "10.7  FM-Stereo Radio" },
-	{ 0x0050, MSP_CARRIER(6.5), MSP_CARRIER(6.5), "6.5  SAT-Mono" },
-	{ 0x0051, MSP_CARRIER(7.02), MSP_CARRIER(7.20), "7.02/7.20  SAT-Stereo" },
-	{ 0x0060, MSP_CARRIER(7.2), MSP_CARRIER(7.2), "7.2  SAT ADR" },
-	{     -1, 0, 0, NULL }, /* EOF */
+	{ 0x0000, 0, 0, "could not detect sound standard", V4L2_STD_ALL },
+	{ 0x0001, 0, 0, "autodetect start", V4L2_STD_ALL },
+	{ 0x0002, MSP_CARRIER(4.5), MSP_CARRIER(4.72),
+	  "4.5/4.72  M Dual FM-Stereo", V4L2_STD_MN },
+	{ 0x0003, MSP_CARRIER(5.5), MSP_CARRIER(5.7421875),
+	  "5.5/5.74  B/G Dual FM-Stereo", V4L2_STD_BG },
+	{ 0x0004, MSP_CARRIER(6.5), MSP_CARRIER(6.2578125),
+	  "6.5/6.25  D/K1 Dual FM-Stereo", V4L2_STD_DK },
+	{ 0x0005, MSP_CARRIER(6.5), MSP_CARRIER(6.7421875),
+	  "6.5/6.74  D/K2 Dual FM-Stereo", V4L2_STD_DK },
+	{ 0x0006, MSP_CARRIER(6.5), MSP_CARRIER(6.5),
+	  "6.5  D/K FM-Mono (HDEV3)", V4L2_STD_DK },
+	{ 0x0007, MSP_CARRIER(6.5), MSP_CARRIER(5.7421875),
+	  "6.5/5.74  D/K3 Dual FM-Stereo", V4L2_STD_DK },
+	{ 0x0008, MSP_CARRIER(5.5), MSP_CARRIER(5.85),
+	  "5.5/5.85  B/G NICAM FM", V4L2_STD_BG },
+	{ 0x0009, MSP_CARRIER(6.5), MSP_CARRIER(5.85),
+	  "6.5/5.85  L NICAM AM", V4L2_STD_L },
+	{ 0x000a, MSP_CARRIER(6.0), MSP_CARRIER(6.55),
+	  "6.0/6.55  I NICAM FM", V4L2_STD_PAL_I },
+	{ 0x000b, MSP_CARRIER(6.5), MSP_CARRIER(5.85),
+	  "6.5/5.85  D/K NICAM FM", V4L2_STD_DK },
+	{ 0x000c, MSP_CARRIER(6.5), MSP_CARRIER(5.85),
+	  "6.5/5.85  D/K NICAM FM (HDEV2)", V4L2_STD_DK },
+	{ 0x000d, MSP_CARRIER(6.5), MSP_CARRIER(5.85),
+	  "6.5/5.85  D/K NICAM FM (HDEV3)", V4L2_STD_DK },
+	{ 0x0020, MSP_CARRIER(4.5), MSP_CARRIER(4.5),
+	  "4.5  M BTSC-Stereo", V4L2_STD_MTS },
+	{ 0x0021, MSP_CARRIER(4.5), MSP_CARRIER(4.5),
+	  "4.5  M BTSC-Mono + SAP", V4L2_STD_MTS },
+	{ 0x0030, MSP_CARRIER(4.5), MSP_CARRIER(4.5),
+	  "4.5  M EIA-J Japan Stereo", V4L2_STD_NTSC_M_JP },
+	{ 0x0040, MSP_CARRIER(10.7), MSP_CARRIER(10.7),
+	  "10.7  FM-Stereo Radio", V4L2_STD_ALL },
+	{ 0x0050, MSP_CARRIER(6.5), MSP_CARRIER(6.5),
+	  "6.5  SAT-Mono", V4L2_STD_ALL },
+	{ 0x0051, MSP_CARRIER(7.02), MSP_CARRIER(7.20),
+	  "7.02/7.20  SAT-Stereo", V4L2_STD_ALL },
+	{ 0x0060, MSP_CARRIER(7.2), MSP_CARRIER(7.2),
+	  "7.2  SAT ADR", V4L2_STD_ALL },
+	{     -1, 0, 0, NULL, 0 }, /* EOF */
 };
 
 static struct msp3400c_init_data_dem {
@@ -154,6 +174,16 @@ const char *msp_standard_std_name(int std)
 		if (msp_stdlist[i].retval == std)
 			return msp_stdlist[i].name;
 	return "unknown";
+}
+
+static v4l2_std_id msp_standard_std(int std)
+{
+	int i;
+
+	for (i = 0; msp_stdlist[i].name != NULL; i++)
+		if (msp_stdlist[i].retval == std)
+			return msp_stdlist[i].std;
+	return V4L2_STD_ALL;
 }
 
 static void msp_set_source(struct i2c_client *client, u16 src)
@@ -479,6 +509,7 @@ int msp3400c_thread(void *data)
 	int count, max1, max2, val1, val2, val, i;
 
 	v4l_dbg(1, msp_debug, client, "msp3400 daemon started\n");
+	state->detected_std = V4L2_STD_ALL;
 	set_freezable();
 	for (;;) {
 		v4l_dbg(2, msp_debug, client, "msp3400 thread: sleep\n");
@@ -579,6 +610,7 @@ restart:
 		state->main = msp3400c_carrier_detect_main[max1].cdo;
 		switch (max1) {
 		case 1: /* 5.5 */
+			state->detected_std = V4L2_STD_BG | V4L2_STD_PAL_H;
 			if (max2 == 0) {
 				/* B/G FM-stereo */
 				state->second = msp3400c_carrier_detect_55[max2].cdo;
@@ -596,6 +628,7 @@ restart:
 			break;
 		case 2: /* 6.0 */
 			/* PAL I NICAM */
+			state->detected_std = V4L2_STD_PAL_I;
 			state->second = MSP_CARRIER(6.552);
 			msp3400c_set_mode(client, MSP_MODE_FM_NICAM2);
 			state->nicam_on = 1;
@@ -607,22 +640,26 @@ restart:
 				state->second = msp3400c_carrier_detect_65[max2].cdo;
 				msp3400c_set_mode(client, MSP_MODE_FM_TERRA);
 				state->watch_stereo = 1;
+				state->detected_std = V4L2_STD_DK;
 			} else if (max2 == 0 && (state->v4l2_std & V4L2_STD_SECAM)) {
 				/* L NICAM or AM-mono */
 				state->second = msp3400c_carrier_detect_65[max2].cdo;
 				msp3400c_set_mode(client, MSP_MODE_AM_NICAM);
 				state->watch_stereo = 1;
+				state->detected_std = V4L2_STD_L;
 			} else if (max2 == 0 && state->has_nicam) {
 				/* D/K NICAM */
 				state->second = msp3400c_carrier_detect_65[max2].cdo;
 				msp3400c_set_mode(client, MSP_MODE_FM_NICAM1);
 				state->nicam_on = 1;
 				state->watch_stereo = 1;
+				state->detected_std = V4L2_STD_DK;
 			} else {
 				goto no_second;
 			}
 			break;
 		case 0: /* 4.5 */
+			state->detected_std = V4L2_STD_MN;
 		default:
 no_second:
 			state->second = msp3400c_carrier_detect_main[max1].cdo;
@@ -662,6 +699,7 @@ int msp3410d_thread(void *data)
 	int val, i, std, count;
 
 	v4l_dbg(1, msp_debug, client, "msp3410 daemon started\n");
+	state->detected_std = V4L2_STD_ALL;
 	set_freezable();
 	for (;;) {
 		v4l_dbg(2, msp_debug, client, "msp3410 thread: sleep\n");
@@ -743,6 +781,8 @@ restart:
 					msp_stdlist[8].name : "unknown", val);
 			state->std = val = 0x0009;
 			msp_write_dem(client, 0x20, val);
+		} else {
+			state->detected_std = msp_standard_std(state->std);
 		}
 
 		/* set stereo */
@@ -957,6 +997,7 @@ int msp34xxg_thread(void *data)
 	int val, i;
 
 	v4l_dbg(1, msp_debug, client, "msp34xxg daemon started\n");
+	state->detected_std = V4L2_STD_ALL;
 	set_freezable();
 	for (;;) {
 		v4l_dbg(2, msp_debug, client, "msp34xxg thread: sleep\n");
@@ -1013,6 +1054,7 @@ unmute:
 		v4l_dbg(1, msp_debug, client,
 			"detected standard: %s (0x%04x)\n",
 			msp_standard_std_name(state->std), state->std);
+		state->detected_std = msp_standard_std(state->std);
 
 		if (state->std == 9) {
 			/* AM NICAM mode */

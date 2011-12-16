@@ -20,7 +20,6 @@
 #include <linux/smp.h>
 #include <linux/perf_event.h>
 #include <linux/interrupt.h>
-#include <linux/module.h>
 #include <linux/kdebug.h>
 
 #include <asm/system.h>

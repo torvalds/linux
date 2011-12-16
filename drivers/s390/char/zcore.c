@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/miscdevice.h>
 #include <linux/debugfs.h>
+#include <linux/module.h>
 #include <asm/asm-offsets.h>
 #include <asm/ipl.h>
 #include <asm/sclp.h>
@@ -140,22 +141,6 @@ static int memcpy_hsa_user(void __user *dest, unsigned long src, size_t count)
 static int memcpy_hsa_kernel(void *dest, unsigned long src, size_t count)
 {
 	return memcpy_hsa(dest, src, count, TO_KERNEL);
-}
-
-static int memcpy_real_user(void __user *dest, unsigned long src, size_t count)
-{
-	static char buf[4096];
-	int offs = 0, size;
-
-	while (offs < count) {
-		size = min(sizeof(buf), count - offs);
-		if (memcpy_real(buf, (void *) src + offs, size))
-			return -EFAULT;
-		if (copy_to_user(dest + offs, buf, size))
-			return -EFAULT;
-		offs += size;
-	}
-	return 0;
 }
 
 static int __init init_cpu_info(enum arch_id arch)
@@ -346,8 +331,8 @@ static ssize_t zcore_read(struct file *file, char __user *buf, size_t count,
 
 	/* Copy from real mem */
 	size = count - mem_offs - hdr_count;
-	rc = memcpy_real_user(buf + hdr_count + mem_offs, mem_start + mem_offs,
-			      size);
+	rc = copy_to_user_real(buf + hdr_count + mem_offs,
+			       (void *) mem_start + mem_offs, size);
 	if (rc)
 		goto fail;
 

@@ -28,6 +28,7 @@
 #include <linux/device.h>
 #include <linux/dca.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #define DCA_VERSION "1.12.1"
 

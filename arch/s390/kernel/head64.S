@@ -90,7 +90,7 @@ ENTRY(_stext)
 .LPG3:
 # check control registers
 	stctg	%c0,%c15,0(%r15)
-	oi	6(%r15),0x40		# enable sigp emergency signal
+	oi	6(%r15),0x60		# enable sigp emergency & external call
 	oi	4(%r15),0x10		# switch on low address proctection
 	lctlg	%c0,%c15,0(%r15)
 

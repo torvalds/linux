@@ -10,6 +10,7 @@
 #include <linux/dma-debug.h>
 #include <linux/gfp.h>
 #include <linux/memblock.h>
+#include <linux/export.h>
 #include <asm/bug.h>
 #include <asm/abs_addr.h>
 #include <asm/machdep.h>
@@ -96,6 +97,18 @@ static int dma_direct_dma_supported(struct device *dev, u64 mask)
 #endif
 }
 
+static u64 dma_direct_get_required_mask(struct device *dev)
+{
+	u64 end, mask;
+
+	end = memblock_end_of_DRAM() + get_dma_offset(dev);
+
+	mask = 1ULL << (fls64(end) - 1);
+	mask += mask - 1;
+
+	return mask;
+}
+
 static inline dma_addr_t dma_direct_map_page(struct device *dev,
 					     struct page *page,
 					     unsigned long offset,
@@ -137,13 +150,14 @@ static inline void dma_direct_sync_single(struct device *dev,
 #endif
 
 struct dma_map_ops dma_direct_ops = {
-	.alloc_coherent	= dma_direct_alloc_coherent,
-	.free_coherent	= dma_direct_free_coherent,
-	.map_sg		= dma_direct_map_sg,
-	.unmap_sg	= dma_direct_unmap_sg,
-	.dma_supported	= dma_direct_dma_supported,
-	.map_page	= dma_direct_map_page,
-	.unmap_page	= dma_direct_unmap_page,
+	.alloc_coherent			= dma_direct_alloc_coherent,
+	.free_coherent			= dma_direct_free_coherent,
+	.map_sg				= dma_direct_map_sg,
+	.unmap_sg			= dma_direct_unmap_sg,
+	.dma_supported			= dma_direct_dma_supported,
+	.map_page			= dma_direct_map_page,
+	.unmap_page			= dma_direct_unmap_page,
+	.get_required_mask		= dma_direct_get_required_mask,
 #ifdef CONFIG_NOT_COHERENT_CACHE
 	.sync_single_for_cpu 		= dma_direct_sync_single,
 	.sync_single_for_device 	= dma_direct_sync_single,
@@ -169,6 +183,23 @@ int dma_set_mask(struct device *dev, u64 dma_mask)
 	return 0;
 }
 EXPORT_SYMBOL(dma_set_mask);
+
+u64 dma_get_required_mask(struct device *dev)
+{
+	struct dma_map_ops *dma_ops = get_dma_ops(dev);
+
+	if (ppc_md.dma_get_required_mask)
+		return ppc_md.dma_get_required_mask(dev);
+
+	if (unlikely(dma_ops == NULL))
+		return 0;
+
+	if (dma_ops->get_required_mask)
+		return dma_ops->get_required_mask(dev);
+
+	return DMA_BIT_MASK(8 * sizeof(dma_addr_t));
+}
+EXPORT_SYMBOL_GPL(dma_get_required_mask);
 
 static int __init dma_init(void)
 {

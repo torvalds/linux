@@ -11,6 +11,7 @@
  */
 
 #include <media/rc-map.h>
+#include <linux/module.h>
 
 /* DVBWorld remotes
    Igor M. Liplianin <liplianin@me.by>

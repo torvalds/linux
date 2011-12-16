@@ -71,6 +71,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/module.h>
 #include "megaraid_mbox.h"
 
 static int megaraid_init(void);

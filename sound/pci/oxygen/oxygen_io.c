@@ -19,6 +19,7 @@
 
 #include <linux/delay.h>
 #include <linux/sched.h>
+#include <linux/export.h>
 #include <sound/core.h>
 #include <sound/mpu401.h>
 #include <asm/io.h>

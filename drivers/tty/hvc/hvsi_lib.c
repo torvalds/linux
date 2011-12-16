@@ -183,7 +183,7 @@ int hvsilib_get_chars(struct hvsi_priv *pv, char *buf, int count)
 	unsigned int tries, read = 0;
 
 	if (WARN_ON(!pv))
-		return 0;
+		return -ENXIO;
 
 	/* If we aren't open, don't do anything in order to avoid races
 	 * with connection establishment. The hvc core will call this
@@ -234,7 +234,7 @@ int hvsilib_put_chars(struct hvsi_priv *pv, const char *buf, int count)
 	int rc, adjcount = min(count, HVSI_MAX_OUTGOING_DATA);
 
 	if (WARN_ON(!pv))
-		return 0;
+		return -ENODEV;
 
 	dp.hdr.type = VS_DATA_PACKET_HEADER;
 	dp.hdr.len = adjcount + sizeof(struct hvsi_header);

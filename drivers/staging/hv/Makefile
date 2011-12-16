@@ -1,4 +1,3 @@
-obj-$(CONFIG_HYPERV)		+= hv_timesource.o
 obj-$(CONFIG_HYPERV_STORAGE)	+= hv_storvsc.o
 obj-$(CONFIG_HYPERV_NET)	+= hv_netvsc.o
 obj-$(CONFIG_HYPERV_MOUSE)	+= hv_mouse.o

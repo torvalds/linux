@@ -39,6 +39,7 @@
 #include <net/protocol.h>
 #include <linux/skbuff.h>
 #include <linux/proc_fs.h>
+#include <linux/export.h>
 #include <net/sock.h>
 #include <net/ping.h>
 #include <net/udp.h>

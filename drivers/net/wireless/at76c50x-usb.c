@@ -517,7 +517,7 @@ static char *hex2str(void *buf, size_t len)
 		goto exit;
 
 	while (len--) {
-		obuf = pack_hex_byte(obuf, *ibuf++);
+		obuf = hex_byte_pack(obuf, *ibuf++);
 		*obuf++ = '-';
 	}
 	obuf--;

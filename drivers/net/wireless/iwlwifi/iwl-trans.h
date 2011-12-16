@@ -220,11 +220,12 @@ struct fw_img {
 	struct fw_desc data;	/* firmware data image */
 };
 
-enum iwl_ucode_type {
-	IWL_UCODE_NONE,
-	IWL_UCODE_REGULAR,
-	IWL_UCODE_INIT,
-	IWL_UCODE_WOWLAN,
+/* Opaque calibration results */
+struct iwl_calib_result {
+	struct list_head list;
+	size_t cmd_len;
+	struct iwl_calib_hdr hdr;
+	/* data follows */
 };
 
 /**
@@ -236,6 +237,8 @@ enum iwl_ucode_type {
  * @ucode_rt: run time ucode image
  * @ucode_init: init ucode image
  * @ucode_wowlan: wake on wireless ucode image (optional)
+ * @nvm_device_type: indicates OTP or eeprom
+ * @calib_results: list head for init calibration results
  */
 struct iwl_trans {
 	const struct iwl_trans_ops *ops;
@@ -249,6 +252,9 @@ struct iwl_trans {
 
 	/* eeprom related variables */
 	int    nvm_device_type;
+
+	/* init calibration results */
+	struct list_head calib_results;
 
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
@@ -385,5 +391,10 @@ extern const struct iwl_trans_ops trans_ops_pcie;
 int iwl_alloc_fw_desc(struct iwl_bus *bus, struct fw_desc *desc,
 		      const void *data, size_t len);
 void iwl_dealloc_ucode(struct iwl_trans *trans);
+
+int iwl_send_calib_results(struct iwl_trans *trans);
+int iwl_calib_set(struct iwl_trans *trans,
+		  const struct iwl_calib_hdr *cmd, int len);
+void iwl_calib_free_results(struct iwl_trans *trans);
 
 #endif /* __iwl_trans_h__ */

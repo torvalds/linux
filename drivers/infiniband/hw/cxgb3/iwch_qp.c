@@ -822,8 +822,11 @@ static void __flush_qp(struct iwch_qp *qhp, struct iwch_cq *rchp,
 	flushed = cxio_flush_rq(&qhp->wq, &rchp->cq, count);
 	spin_unlock(&qhp->lock);
 	spin_unlock_irqrestore(&rchp->lock, *flag);
-	if (flushed)
+	if (flushed) {
+		spin_lock_irqsave(&rchp->comp_handler_lock, *flag);
 		(*rchp->ibcq.comp_handler)(&rchp->ibcq, rchp->ibcq.cq_context);
+		spin_unlock_irqrestore(&rchp->comp_handler_lock, *flag);
+	}
 
 	/* locking hierarchy: cq lock first, then qp lock. */
 	spin_lock_irqsave(&schp->lock, *flag);
@@ -833,8 +836,11 @@ static void __flush_qp(struct iwch_qp *qhp, struct iwch_cq *rchp,
 	flushed = cxio_flush_sq(&qhp->wq, &schp->cq, count);
 	spin_unlock(&qhp->lock);
 	spin_unlock_irqrestore(&schp->lock, *flag);
-	if (flushed)
+	if (flushed) {
+		spin_lock_irqsave(&schp->comp_handler_lock, *flag);
 		(*schp->ibcq.comp_handler)(&schp->ibcq, schp->ibcq.cq_context);
+		spin_unlock_irqrestore(&schp->comp_handler_lock, *flag);
+	}
 
 	/* deref */
 	if (atomic_dec_and_test(&qhp->refcnt))
@@ -853,11 +859,15 @@ static void flush_qp(struct iwch_qp *qhp, unsigned long *flag)
 	if (qhp->ibqp.uobject) {
 		cxio_set_wq_in_error(&qhp->wq);
 		cxio_set_cq_in_error(&rchp->cq);
+		spin_lock_irqsave(&rchp->comp_handler_lock, *flag);
 		(*rchp->ibcq.comp_handler)(&rchp->ibcq, rchp->ibcq.cq_context);
+		spin_unlock_irqrestore(&rchp->comp_handler_lock, *flag);
 		if (schp != rchp) {
 			cxio_set_cq_in_error(&schp->cq);
+			spin_lock_irqsave(&schp->comp_handler_lock, *flag);
 			(*schp->ibcq.comp_handler)(&schp->ibcq,
 						   schp->ibcq.cq_context);
+			spin_unlock_irqrestore(&schp->comp_handler_lock, *flag);
 		}
 		return;
 	}

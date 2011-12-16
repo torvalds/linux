@@ -15,6 +15,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/regulator/consumer.h>
+#include <linux/module.h>
 
 static struct clk *armclk;
 static struct regulator *vddarm;

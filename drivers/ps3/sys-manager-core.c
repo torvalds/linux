@@ -19,6 +19,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <asm/lv1call.h>
 #include <asm/ps3.h>
 

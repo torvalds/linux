@@ -21,6 +21,7 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <linux/firmware.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
@@ -2992,6 +2993,13 @@ static void pvr2_subdev_set_control(struct pvr2_hdw *hdw, int id,
 	if ((hdw)->lab##_dirty || (hdw)->force_dirty) {		\
 		pvr2_subdev_set_control(hdw, id, #lab, (hdw)->lab##_val); \
 	}
+
+int pvr2_hdw_get_detected_std(struct pvr2_hdw *hdw, v4l2_std_id *std)
+{
+	v4l2_device_call_all(&hdw->v4l2_dev, 0,
+			     video, querystd, std);
+	return 0;
+}
 
 /* Execute whatever commands are required to update the state of all the
    sub-devices so that they match our current control values. */

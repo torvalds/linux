@@ -30,6 +30,7 @@
  * SOFTWARE.
  *
  */
+#include <linux/module.h>
 #include <rdma/rdma_cm.h>
 
 #include "rdma_transport.h"

@@ -33,6 +33,7 @@
  *
  */
 
+#include <linux/export.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
 #include <linux/pci.h>

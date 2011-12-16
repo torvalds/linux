@@ -1098,7 +1098,7 @@ static long trusted_read(const struct key *key, char __user *buffer,
 
 	bufp = ascii_buf;
 	for (i = 0; i < p->blob_len; i++)
-		bufp = pack_hex_byte(bufp, p->blob[i]);
+		bufp = hex_byte_pack(bufp, p->blob[i]);
 	if ((copy_to_user(buffer, ascii_buf, 2 * p->blob_len)) != 0) {
 		kfree(ascii_buf);
 		return -EFAULT;

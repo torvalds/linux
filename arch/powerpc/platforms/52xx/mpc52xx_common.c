@@ -17,6 +17,7 @@
 #include <linux/spinlock.h>
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
+#include <linux/export.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/mpc52xx.h>

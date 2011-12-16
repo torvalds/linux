@@ -77,6 +77,14 @@
 		gpio-controller;
 	};
 
+	pinmux: pinmux@70000000 {
+		compatible = "nvidia,tegra20-pinmux";
+		reg = < 0x70000014 0x10    /* Tri-state registers */
+			0x70000080 0x20    /* Mux registers */
+			0x700000a0 0x14    /* Pull-up/down registers */
+			0x70000868 0xa8 >; /* Pad control registers */
+	};
+
 	serial@70006000 {
 		compatible = "nvidia,tegra20-uart";
 		reg = <0x70006000 0x40>;

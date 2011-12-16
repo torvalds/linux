@@ -43,6 +43,7 @@
 
 #include <mach/regs-gpio.h>
 #include <mach/regs-gpioj.h>
+#include <mach/regs-lcd.h>
 #include <mach/h1940.h>
 #include <mach/fb.h>
 
@@ -825,7 +826,7 @@ static void __init rx1950_reserve(void)
 
 MACHINE_START(RX1950, "HP iPAQ RX1950")
     /* Maintainers: Vasily Khoruzhick */
-	.boot_params = S3C2410_SDRAM_PA + 0x100,
+	.atag_offset = 0x100,
 	.map_io = rx1950_map_io,
 	.reserve	= rx1950_reserve,
 	.init_irq = s3c24xx_init_irq,

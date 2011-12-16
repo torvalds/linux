@@ -32,6 +32,7 @@
 #include <asm/intel_scu_ipc.h>
 #include "mdfld_dsi_pkg_sender.h"
 #include <linux/pm_runtime.h>
+#include <linux/moduleparam.h>
 
 #define MDFLD_DSI_BRIGHTNESS_MAX_LEVEL 100
 

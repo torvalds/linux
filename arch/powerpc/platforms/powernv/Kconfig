@@ -1,0 +1,16 @@
+config PPC_POWERNV
+	depends on PPC64 && PPC_BOOK3S
+	bool "IBM PowerNV (Non-Virtualized) platform support"
+	select PPC_NATIVE
+	select PPC_XICS
+	select PPC_ICP_NATIVE
+	select PPC_P7_NAP
+	select PPC_PCI_CHOICE if EMBEDDED
+	default y
+
+config PPC_POWERNV_RTAS
+	depends on PPC_POWERNV
+	bool "Support for RTAS based PowerNV platforms such as BML"
+	default y
+	select PPC_ICS_RTAS
+	select PPC_RTAS

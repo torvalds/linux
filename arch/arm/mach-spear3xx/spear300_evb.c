@@ -64,7 +64,7 @@ static void __init spear300_evb_init(void)
 }
 
 MACHINE_START(SPEAR300, "ST-SPEAR300-EVB")
-	.boot_params	=	0x00000100,
+	.atag_offset	=	0x100,
 	.map_io		=	spear3xx_map_io,
 	.init_irq	=	spear3xx_init_irq,
 	.timer		=	&spear3xx_timer,

@@ -13,32 +13,30 @@
 #include <mach/hardware.h>
 #include <mach/iim.h>
 
-unsigned int mx35_cpu_rev;
-EXPORT_SYMBOL(mx35_cpu_rev);
+static int mx35_cpu_rev = -1;
 
-void __init mx35_read_cpu_rev(void)
+static int mx35_read_cpu_rev(void)
 {
 	u32 rev;
-	char *srev;
 
 	rev = __raw_readl(MX35_IO_ADDRESS(MX35_IIM_BASE_ADDR + MXC_IIMSREV));
 	switch (rev) {
 	case 0x00:
-		mx35_cpu_rev = IMX_CHIP_REVISION_1_0;
-		srev = "1.0";
-		break;
+		return IMX_CHIP_REVISION_1_0;
 	case 0x10:
-		mx35_cpu_rev = IMX_CHIP_REVISION_2_0;
-		srev = "2.0";
-		break;
+		return IMX_CHIP_REVISION_2_0;
 	case 0x11:
-		mx35_cpu_rev = IMX_CHIP_REVISION_2_1;
-		srev = "2.1";
-		break;
+		return IMX_CHIP_REVISION_2_1;
 	default:
-		mx35_cpu_rev = IMX_CHIP_REVISION_UNKNOWN;
-		srev = "unknown";
+		return IMX_CHIP_REVISION_UNKNOWN;
 	}
-
-	printk(KERN_INFO "CPU identified as i.MX35, silicon rev %s\n", srev);
 }
+
+int mx35_revision(void)
+{
+	if (mx35_cpu_rev == -1)
+		mx35_cpu_rev = mx35_read_cpu_rev();
+
+	return mx35_cpu_rev;
+}
+EXPORT_SYMBOL(mx35_revision);

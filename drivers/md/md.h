@@ -419,7 +419,7 @@ struct md_personality
 	int level;
 	struct list_head list;
 	struct module *owner;
-	int (*make_request)(struct mddev *mddev, struct bio *bio);
+	void (*make_request)(struct mddev *mddev, struct bio *bio);
 	int (*run)(struct mddev *mddev);
 	int (*stop)(struct mddev *mddev);
 	void (*status)(struct seq_file *seq, struct mddev *mddev);

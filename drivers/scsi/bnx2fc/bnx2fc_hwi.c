@@ -1009,6 +1009,7 @@ int bnx2fc_process_new_cqes(struct bnx2fc_rport *tgt)
 	u32 cq_cons;
 	struct fcoe_cqe *cqe;
 	u32 num_free_sqes = 0;
+	u32 num_cqes = 0;
 	u16 wqe;
 
 	/*
@@ -1058,10 +1059,11 @@ unlock:
 				wake_up_process(fps->iothread);
 			else
 				bnx2fc_process_cq_compl(tgt, wqe);
+			num_free_sqes++;
 		}
 		cqe++;
 		tgt->cq_cons_idx++;
-		num_free_sqes++;
+		num_cqes++;
 
 		if (tgt->cq_cons_idx == BNX2FC_CQ_WQES_MAX) {
 			tgt->cq_cons_idx = 0;
@@ -1070,8 +1072,10 @@ unlock:
 				1 - tgt->cq_curr_toggle_bit;
 		}
 	}
-	if (num_free_sqes) {
-		bnx2fc_arm_cq(tgt);
+	if (num_cqes) {
+		/* Arm CQ only if doorbell is mapped */
+		if (tgt->ctx_base)
+			bnx2fc_arm_cq(tgt);
 		atomic_add(num_free_sqes, &tgt->free_sqes);
 	}
 	spin_unlock_bh(&tgt->cq_lock);
@@ -1739,11 +1743,13 @@ void bnx2fc_init_task(struct bnx2fc_cmd *io_req,
 	/* Init state to NORMAL */
 	task->txwr_rxrd.const_ctx.init_flags |= task_type <<
 				FCOE_TCE_TX_WR_RX_RD_CONST_TASK_TYPE_SHIFT;
-	if (dev_type == TYPE_TAPE)
+	if (dev_type == TYPE_TAPE) {
 		task->txwr_rxrd.const_ctx.init_flags |=
 				FCOE_TASK_DEV_TYPE_TAPE <<
 				FCOE_TCE_TX_WR_RX_RD_CONST_DEV_TYPE_SHIFT;
-	else
+		io_req->rec_retry = 0;
+		io_req->rec_retry = 0;
+	} else
 		task->txwr_rxrd.const_ctx.init_flags |=
 				FCOE_TASK_DEV_TYPE_DISK <<
 				FCOE_TCE_TX_WR_RX_RD_CONST_DEV_TYPE_SHIFT;

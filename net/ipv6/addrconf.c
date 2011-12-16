@@ -87,6 +87,7 @@
 
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/export.h>
 
 /* Set to 3 to get tracing... */
 #define ACONF_DEBUG 2

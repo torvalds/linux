@@ -1,7 +1,8 @@
 #ifndef _LINUX_MISCDEVICE_H
 #define _LINUX_MISCDEVICE_H
-#include <linux/module.h>
 #include <linux/major.h>
+#include <linux/list.h>
+#include <linux/types.h>
 
 /*
  *	These allocations are managed by device@lanana.org. If you use an

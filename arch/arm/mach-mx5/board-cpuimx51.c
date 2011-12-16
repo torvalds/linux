@@ -22,21 +22,18 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
-#include <linux/irq.h>
 
 #include <mach/eukrea-baseboards.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <mach/iomux-mx51.h>
 
-#include <asm/irq.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
 #include "devices-imx51.h"
-#include "devices.h"
 
 #define CPUIMX51_USBH1_STP	IMX_GPIO_NR(1, 27)
 #define CPUIMX51_QUARTA_GPIO	IMX_GPIO_NR(3, 28)
@@ -57,7 +54,7 @@
 static struct plat_serial8250_port serial_platform_data[] = {
 	{
 		.mapbase = (unsigned long)(MX51_CS1_BASE_ADDR + 0x400000),
-		.irq = gpio_to_irq(CPUIMX51_QUARTA_GPIO),
+		.irq = IMX_GPIO_TO_IRQ(CPUIMX51_QUARTA_GPIO),
 		.irqflags = IRQF_TRIGGER_HIGH,
 		.uartclk = CPUIMX51_QUART_XTAL,
 		.regshift = CPUIMX51_QUART_REGSHIFT,
@@ -65,7 +62,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 		.flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST | UPF_IOREMAP,
 	}, {
 		.mapbase = (unsigned long)(MX51_CS1_BASE_ADDR + 0x800000),
-		.irq = gpio_to_irq(CPUIMX51_QUARTB_GPIO),
+		.irq = IMX_GPIO_TO_IRQ(CPUIMX51_QUARTB_GPIO),
 		.irqflags = IRQF_TRIGGER_HIGH,
 		.uartclk = CPUIMX51_QUART_XTAL,
 		.regshift = CPUIMX51_QUART_REGSHIFT,
@@ -73,7 +70,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 		.flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST | UPF_IOREMAP,
 	}, {
 		.mapbase = (unsigned long)(MX51_CS1_BASE_ADDR + 0x1000000),
-		.irq = gpio_to_irq(CPUIMX51_QUARTC_GPIO),
+		.irq = IMX_GPIO_TO_IRQ(CPUIMX51_QUARTC_GPIO),
 		.irqflags = IRQF_TRIGGER_HIGH,
 		.uartclk = CPUIMX51_QUART_XTAL,
 		.regshift = CPUIMX51_QUART_REGSHIFT,
@@ -81,7 +78,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 		.flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST | UPF_IOREMAP,
 	}, {
 		.mapbase = (unsigned long)(MX51_CS1_BASE_ADDR + 0x2000000),
-		.irq = gpio_to_irq(CPUIMX51_QUARTD_GPIO),
+		.irq = IMX_GPIO_TO_IRQ(CPUIMX51_QUARTD_GPIO),
 		.irqflags = IRQF_TRIGGER_HIGH,
 		.uartclk = CPUIMX51_QUART_XTAL,
 		.regshift = CPUIMX51_QUART_REGSHIFT,
@@ -167,7 +164,7 @@ static int initialize_otg_port(struct platform_device *pdev)
 	void __iomem *usb_base;
 	void __iomem *usbother_base;
 
-	usb_base = ioremap(MX51_OTG_BASE_ADDR, SZ_4K);
+	usb_base = ioremap(MX51_USB_OTG_BASE_ADDR, SZ_4K);
 	if (!usb_base)
 		return -ENOMEM;
 	usbother_base = usb_base + MX5_USBOTHER_REGS_OFFSET;
@@ -190,7 +187,7 @@ static int initialize_usbh1_port(struct platform_device *pdev)
 	void __iomem *usb_base;
 	void __iomem *usbother_base;
 
-	usb_base = ioremap(MX51_OTG_BASE_ADDR, SZ_4K);
+	usb_base = ioremap(MX51_USB_OTG_BASE_ADDR, SZ_4K);
 	if (!usb_base)
 		return -ENOMEM;
 	usbother_base = usb_base + MX5_USBOTHER_REGS_OFFSET;
@@ -206,17 +203,17 @@ static int initialize_usbh1_port(struct platform_device *pdev)
 			MXC_EHCI_ITC_NO_THRESHOLD);
 }
 
-static struct mxc_usbh_platform_data dr_utmi_config = {
+static const struct mxc_usbh_platform_data dr_utmi_config __initconst = {
 	.init		= initialize_otg_port,
 	.portsc	= MXC_EHCI_UTMI_16BIT,
 };
 
-static struct fsl_usb2_platform_data usb_pdata = {
+static const struct fsl_usb2_platform_data usb_pdata __initconst = {
 	.operating_mode	= FSL_USB2_DR_DEVICE,
 	.phy_mode	= FSL_USB2_PHY_UTMI_WIDE,
 };
 
-static struct mxc_usbh_platform_data usbh1_config = {
+static const struct mxc_usbh_platform_data usbh1_config __initconst = {
 	.init		= initialize_usbh1_port,
 	.portsc	= MXC_EHCI_MODE_ULPI,
 };
@@ -270,12 +267,12 @@ static void __init eukrea_cpuimx51_init(void)
 				ARRAY_SIZE(eukrea_cpuimx51_i2c_devices));
 
 	if (otg_mode_host)
-		mxc_register_device(&mxc_usbdr_host_device, &dr_utmi_config);
+		imx51_add_mxc_ehci_otg(&dr_utmi_config);
 	else {
 		initialize_otg_port(NULL);
-		mxc_register_device(&mxc_usbdr_udc_device, &usb_pdata);
+		imx51_add_fsl_usb2_udc(&usb_pdata);
 	}
-	mxc_register_device(&mxc_usbh1_device, &usbh1_config);
+	imx51_add_mxc_ehci_hs(1, &usbh1_config);
 
 #ifdef CONFIG_MACH_EUKREA_MBIMX51_BASEBOARD
 	eukrea_mbimx51_baseboard_init();
@@ -293,10 +290,11 @@ static struct sys_timer mxc_timer = {
 
 MACHINE_START(EUKREA_CPUIMX51, "Eukrea CPUIMX51 Module")
 	/* Maintainer: Eric Bénard <eric@eukrea.com> */
-	.boot_params = MX51_PHYS_OFFSET + 0x100,
+	.atag_offset = 0x100,
 	.map_io = mx51_map_io,
 	.init_early = imx51_init_early,
 	.init_irq = mx51_init_irq,
+	.handle_irq = imx51_handle_irq,
 	.timer = &mxc_timer,
 	.init_machine = eukrea_cpuimx51_init,
 MACHINE_END

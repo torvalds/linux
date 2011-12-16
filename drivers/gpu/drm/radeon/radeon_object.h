@@ -52,28 +52,7 @@ static inline unsigned radeon_mem_type_to_domain(u32 mem_type)
 	return 0;
 }
 
-/**
- * radeon_bo_reserve - reserve bo
- * @bo:		bo structure
- * @no_wait:		don't sleep while trying to reserve (return -EBUSY)
- *
- * Returns:
- * -EBUSY: buffer is busy and @no_wait is true
- * -ERESTARTSYS: A wait for the buffer to become unreserved was interrupted by
- * a signal. Release all buffer reservations and return to user-space.
- */
-static inline int radeon_bo_reserve(struct radeon_bo *bo, bool no_wait)
-{
-	int r;
-
-	r = ttm_bo_reserve(&bo->tbo, true, no_wait, false, 0);
-	if (unlikely(r != 0)) {
-		if (r != -ERESTARTSYS)
-			dev_err(bo->rdev->dev, "%p reserve failed\n", bo);
-		return r;
-	}
-	return 0;
-}
+int radeon_bo_reserve(struct radeon_bo *bo, bool no_wait);
 
 static inline void radeon_bo_unreserve(struct radeon_bo *bo)
 {
@@ -118,23 +97,8 @@ static inline u64 radeon_bo_mmap_offset(struct radeon_bo *bo)
 	return bo->tbo.addr_space_offset;
 }
 
-static inline int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type,
-					bool no_wait)
-{
-	int r;
-
-	r = ttm_bo_reserve(&bo->tbo, true, no_wait, false, 0);
-	if (unlikely(r != 0))
-		return r;
-	spin_lock(&bo->tbo.bdev->fence_lock);
-	if (mem_type)
-		*mem_type = bo->tbo.mem.mem_type;
-	if (bo->tbo.sync_obj)
-		r = ttm_bo_wait(&bo->tbo, true, true, no_wait);
-	spin_unlock(&bo->tbo.bdev->fence_lock);
-	ttm_bo_unreserve(&bo->tbo);
-	return r;
-}
+extern int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type,
+			  bool no_wait);
 
 extern int radeon_bo_create(struct radeon_device *rdev,
 				unsigned long size, int byte_align,

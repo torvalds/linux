@@ -64,7 +64,7 @@ static int intel_dsm(acpi_handle handle, int func, int arg)
 
 	case ACPI_TYPE_BUFFER:
 		if (obj->buffer.length == 4) {
-			result =(obj->buffer.pointer[0] |
+			result = (obj->buffer.pointer[0] |
 				(obj->buffer.pointer[1] <<  8) |
 				(obj->buffer.pointer[2] << 16) |
 				(obj->buffer.pointer[3] << 24));

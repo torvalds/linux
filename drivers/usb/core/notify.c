@@ -10,6 +10,7 @@
 
 
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <linux/notifier.h>
 #include <linux/usb.h>
 #include <linux/mutex.h>

@@ -31,7 +31,7 @@
 #define MC13783_ADC_NAME	"mc13783-adc"
 
 struct mc13783_adc_priv {
-	struct mc13783 *mc13783;
+	struct mc13xxx *mc13xxx;
 	struct device *hwmon_dev;
 };
 
@@ -51,8 +51,8 @@ static int mc13783_adc_read(struct device *dev,
 	unsigned int sample[4];
 	int ret;
 
-	ret = mc13783_adc_do_conversion(priv->mc13783,
-			MC13783_ADC_MODE_MULT_CHAN,
+	ret = mc13xxx_adc_do_conversion(priv->mc13xxx,
+			MC13XXX_ADC_MODE_MULT_CHAN,
 			channel, sample);
 	if (ret)
 		return ret;
@@ -147,9 +147,9 @@ static const struct attribute_group mc13783_group_ts = {
 static int mc13783_adc_use_touchscreen(struct platform_device *pdev)
 {
 	struct mc13783_adc_priv *priv = platform_get_drvdata(pdev);
-	unsigned flags = mc13783_get_flags(priv->mc13783);
+	unsigned flags = mc13xxx_get_flags(priv->mc13xxx);
 
-	return flags & MC13783_USE_TOUCHSCREEN;
+	return flags & MC13XXX_USE_TOUCHSCREEN;
 }
 
 static int __init mc13783_adc_probe(struct platform_device *pdev)
@@ -161,7 +161,7 @@ static int __init mc13783_adc_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->mc13783 = dev_get_drvdata(pdev->dev.parent);
+	priv->mc13xxx = dev_get_drvdata(pdev->dev.parent);
 
 	platform_set_drvdata(pdev, priv);
 

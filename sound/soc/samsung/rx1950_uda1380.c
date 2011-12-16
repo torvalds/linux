@@ -19,6 +19,7 @@
 
 #include <linux/types.h>
 #include <linux/gpio.h>
+#include <linux/module.h>
 
 #include <sound/soc.h>
 #include <sound/jack.h>
@@ -90,12 +91,6 @@ static struct snd_soc_dai_link rx1950_uda1380_dai[] = {
 	},
 };
 
-static struct snd_soc_card rx1950_asoc = {
-	.name = "rx1950",
-	.dai_link = rx1950_uda1380_dai,
-	.num_links = ARRAY_SIZE(rx1950_uda1380_dai),
-};
-
 /* rx1950 machine dapm widgets */
 static const struct snd_soc_dapm_widget uda1380_dapm_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
@@ -115,6 +110,17 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 	/* mic is connected to VINM */
 	{"VINM", NULL, "Mic Jack"},
+};
+
+static struct snd_soc_card rx1950_asoc = {
+	.name = "rx1950",
+	.dai_link = rx1950_uda1380_dai,
+	.num_links = ARRAY_SIZE(rx1950_uda1380_dai),
+
+	.dapm_widgets = uda1380_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(uda1380_dapm_widgets),
+	.dapm_routes = audio_map,
+	.num_dapm_routes = ARRAY_SIZE(audio_map),
 };
 
 static struct platform_device *s3c24xx_snd_device;
@@ -220,25 +226,9 @@ static int rx1950_uda1380_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int err;
 
-	/* Add rx1950 specific widgets */
-	err = snd_soc_dapm_new_controls(dapm, uda1380_dapm_widgets,
-				  ARRAY_SIZE(uda1380_dapm_widgets));
-
-	if (err)
-		return err;
-
-	/* Set up rx1950 specific audio path audio_mapnects */
-	err = snd_soc_dapm_add_routes(dapm, audio_map,
-				      ARRAY_SIZE(audio_map));
-
-	if (err)
-		return err;
-
 	snd_soc_dapm_enable_pin(dapm, "Headphone Jack");
 	snd_soc_dapm_enable_pin(dapm, "Speaker");
 	snd_soc_dapm_enable_pin(dapm, "Mic Jack");
-
-	snd_soc_dapm_sync(dapm);
 
 	snd_soc_jack_new(codec, "Headphone Jack", SND_JACK_HEADPHONE,
 		&hp_jack);

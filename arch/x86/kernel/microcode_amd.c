@@ -74,14 +74,13 @@ static struct equiv_cpu_entry *equiv_cpu_table;
 static int collect_cpu_info_amd(int cpu, struct cpu_signature *csig)
 {
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
-	u32 dummy;
 
 	if (c->x86_vendor != X86_VENDOR_AMD || c->x86 < 0x10) {
 		pr_warning("CPU%d: family %d not supported\n", cpu, c->x86);
 		return -1;
 	}
 
-	rdmsr(MSR_AMD64_PATCH_LEVEL, csig->rev, dummy);
+	csig->rev = c->microcode;
 	pr_info("CPU%d: patch_level=0x%08x\n", cpu, csig->rev);
 
 	return 0;
@@ -130,6 +129,7 @@ static int apply_microcode_amd(int cpu)
 	int cpu_num = raw_smp_processor_id();
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu_num;
 	struct microcode_amd *mc_amd = uci->mc;
+	struct cpuinfo_x86 *c = &cpu_data(cpu);
 
 	/* We should bind the task to the CPU */
 	BUG_ON(cpu_num != cpu);
@@ -150,6 +150,7 @@ static int apply_microcode_amd(int cpu)
 
 	pr_info("CPU%d: new patch_level=0x%08x\n", cpu, rev);
 	uci->cpu_sig.rev = rev;
+	c->microcode = rev;
 
 	return 0;
 }

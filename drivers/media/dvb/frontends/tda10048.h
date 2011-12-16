@@ -51,6 +51,7 @@ struct tda10048_config {
 #define TDA10048_IF_4300  4300
 #define TDA10048_IF_4500  4500
 #define TDA10048_IF_4750  4750
+#define TDA10048_IF_5000  5000
 #define TDA10048_IF_36130 36130
 	u16 dtv6_if_freq_khz;
 	u16 dtv7_if_freq_khz;
@@ -62,6 +63,13 @@ struct tda10048_config {
 
 	/* Disable I2C gate access */
 	u8 disable_gate_access;
+
+	bool no_firmware;
+
+	bool set_pll;
+	u8 pll_m;
+	u8 pll_p;
+	u8 pll_n;
 };
 
 #if defined(CONFIG_DVB_TDA10048) || \

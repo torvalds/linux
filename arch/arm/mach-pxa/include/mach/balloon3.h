@@ -23,7 +23,7 @@ enum balloon3_features {
 };
 
 #define BALLOON3_FPGA_PHYS	PXA_CS4_PHYS
-#define BALLOON3_FPGA_VIRT	(0xf1000000)	/* as per balloon2 */
+#define BALLOON3_FPGA_VIRT	IOMEM(0xf1000000)	/* as per balloon2 */
 #define BALLOON3_FPGA_LENGTH	0x01000000
 
 #define	BALLOON3_FPGA_SETnCLR		(0x1000)

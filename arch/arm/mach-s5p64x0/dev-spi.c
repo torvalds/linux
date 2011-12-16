@@ -21,6 +21,7 @@
 #include <mach/regs-clock.h>
 #include <mach/spi-clocks.h>
 
+#include <plat/cpu.h>
 #include <plat/s3c64xx-spi.h>
 #include <plat/gpio-cfg.h>
 
@@ -185,10 +186,7 @@ struct platform_device s5p64x0_device_spi1 = {
 
 void __init s5p64x0_spi_set_info(int cntrlr, int src_clk_nr, int num_cs)
 {
-	unsigned int id;
 	struct s3c64xx_spi_info *pd;
-
-	id = __raw_readl(S5P64X0_SYS_ID) & 0xFF000;
 
 	/* Reject invalid configuration */
 	if (!num_cs || src_clk_nr < 0
@@ -199,7 +197,7 @@ void __init s5p64x0_spi_set_info(int cntrlr, int src_clk_nr, int num_cs)
 
 	switch (cntrlr) {
 	case 0:
-		if (id == 0x50000)
+		if (soc_is_s5p6450())
 			pd = &s5p6450_spi0_pdata;
 		else
 			pd = &s5p6440_spi0_pdata;
@@ -207,7 +205,7 @@ void __init s5p64x0_spi_set_info(int cntrlr, int src_clk_nr, int num_cs)
 		s5p64x0_device_spi0.dev.platform_data = pd;
 		break;
 	case 1:
-		if (id == 0x50000)
+		if (soc_is_s5p6450())
 			pd = &s5p6450_spi1_pdata;
 		else
 			pd = &s5p6440_spi1_pdata;

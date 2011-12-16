@@ -17,6 +17,7 @@
 #include <linux/device.h>
 #include <linux/list.h>
 #include <linux/errno.h>
+#include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/limits.h>
@@ -73,9 +74,6 @@ static int _clkdm_register(struct clockdomain *clkdm)
 	if (!clkdm || !clkdm->name)
 		return -EINVAL;
 
-	if (!omap_chip_is(clkdm->omap_chip))
-		return -EINVAL;
-
 	pwrdm = pwrdm_lookup(clkdm->pwrdm.name);
 	if (!pwrdm) {
 		pr_err("clockdomain: %s: powerdomain %s does not exist\n",
@@ -105,13 +103,10 @@ static struct clkdm_dep *_clkdm_deps_lookup(struct clockdomain *clkdm,
 {
 	struct clkdm_dep *cd;
 
-	if (!clkdm || !deps || !omap_chip_is(clkdm->omap_chip))
+	if (!clkdm || !deps)
 		return ERR_PTR(-EINVAL);
 
 	for (cd = deps; cd->clkdm_name; cd++) {
-		if (!omap_chip_is(cd->omap_chip))
-			continue;
-
 		if (!cd->clkdm && cd->clkdm_name)
 			cd->clkdm = _clkdm_lookup(cd->clkdm_name);
 
@@ -148,9 +143,6 @@ static void _autodep_lookup(struct clkdm_autodep *autodep)
 	if (!autodep)
 		return;
 
-	if (!omap_chip_is(autodep->omap_chip))
-		return;
-
 	clkdm = clkdm_lookup(autodep->clkdm.name);
 	if (!clkdm) {
 		pr_err("clockdomain: autodeps: clockdomain %s does not exist\n",
@@ -180,9 +172,6 @@ void _clkdm_add_autodeps(struct clockdomain *clkdm)
 
 	for (autodep = autodeps; autodep->clkdm.ptr; autodep++) {
 		if (IS_ERR(autodep->clkdm.ptr))
-			continue;
-
-		if (!omap_chip_is(autodep->omap_chip))
 			continue;
 
 		pr_debug("clockdomain: adding %s sleepdep/wkdep for "
@@ -216,9 +205,6 @@ void _clkdm_del_autodeps(struct clockdomain *clkdm)
 		if (IS_ERR(autodep->clkdm.ptr))
 			continue;
 
-		if (!omap_chip_is(autodep->omap_chip))
-			continue;
-
 		pr_debug("clockdomain: removing %s sleepdep/wkdep for "
 			 "clkdm %s\n", autodep->clkdm.ptr->name,
 			 clkdm->name);
@@ -243,8 +229,6 @@ static void _resolve_clkdm_deps(struct clockdomain *clkdm,
 	struct clkdm_dep *cd;
 
 	for (cd = clkdm_deps; cd && cd->clkdm_name; cd++) {
-		if (!omap_chip_is(cd->omap_chip))
-			continue;
 		if (cd->clkdm)
 			continue;
 		cd->clkdm = _clkdm_lookup(cd->clkdm_name);
@@ -257,43 +241,113 @@ static void _resolve_clkdm_deps(struct clockdomain *clkdm,
 /* Public functions */
 
 /**
- * clkdm_init - set up the clockdomain layer
- * @clkdms: optional pointer to an array of clockdomains to register
- * @init_autodeps: optional pointer to an array of autodeps to register
- * @custom_funcs: func pointers for arch specific implementations
+ * clkdm_register_platform_funcs - register clockdomain implementation fns
+ * @co: func pointers for arch specific implementations
  *
- * Set up internal state.  If a pointer to an array of clockdomains
- * @clkdms was supplied, loop through the list of clockdomains,
- * register all that are available on the current platform. Similarly,
- * if a pointer to an array of clockdomain autodependencies
- * @init_autodeps was provided, register those.  No return value.
+ * Register the list of function pointers used to implement the
+ * clockdomain functions on different OMAP SoCs.  Should be called
+ * before any other clkdm_register*() function.  Returns -EINVAL if
+ * @co is null, -EEXIST if platform functions have already been
+ * registered, or 0 upon success.
  */
-void clkdm_init(struct clockdomain **clkdms,
-		struct clkdm_autodep *init_autodeps,
-		struct clkdm_ops *custom_funcs)
+int clkdm_register_platform_funcs(struct clkdm_ops *co)
+{
+	if (!co)
+		return -EINVAL;
+
+	if (arch_clkdm)
+		return -EEXIST;
+
+	arch_clkdm = co;
+
+	return 0;
+};
+
+/**
+ * clkdm_register_clkdms - register SoC clockdomains
+ * @cs: pointer to an array of struct clockdomain to register
+ *
+ * Register the clockdomains available on a particular OMAP SoC.  Must
+ * be called after clkdm_register_platform_funcs().  May be called
+ * multiple times.  Returns -EACCES if called before
+ * clkdm_register_platform_funcs(); -EINVAL if the argument @cs is
+ * null; or 0 upon success.
+ */
+int clkdm_register_clkdms(struct clockdomain **cs)
 {
 	struct clockdomain **c = NULL;
-	struct clockdomain *clkdm;
-	struct clkdm_autodep *autodep = NULL;
 
-	if (!custom_funcs)
-		WARN(1, "No custom clkdm functions registered\n");
-	else
-		arch_clkdm = custom_funcs;
+	if (!arch_clkdm)
+		return -EACCES;
 
-	if (clkdms)
-		for (c = clkdms; *c; c++)
-			_clkdm_register(*c);
+	if (!cs)
+		return -EINVAL;
 
-	autodeps = init_autodeps;
+	for (c = cs; *c; c++)
+		_clkdm_register(*c);
+
+	return 0;
+}
+
+/**
+ * clkdm_register_autodeps - register autodeps (if required)
+ * @ia: pointer to a static array of struct clkdm_autodep to register
+ *
+ * Register clockdomain "automatic dependencies."  These are
+ * clockdomain wakeup and sleep dependencies that are automatically
+ * added whenever the first clock inside a clockdomain is enabled, and
+ * removed whenever the last clock inside a clockdomain is disabled.
+ * These are currently only used on OMAP3 devices, and are deprecated,
+ * since they waste energy.  However, until the OMAP2/3 IP block
+ * enable/disable sequence can be converted to match the OMAP4
+ * sequence, they are needed.
+ *
+ * Must be called only after all of the SoC clockdomains are
+ * registered, since the function will resolve autodep clockdomain
+ * names into clockdomain pointers.
+ *
+ * The struct clkdm_autodep @ia array must be static, as this function
+ * does not copy the array elements.
+ *
+ * Returns -EACCES if called before any clockdomains have been
+ * registered, -EINVAL if called with a null @ia argument, -EEXIST if
+ * autodeps have already been registered, or 0 upon success.
+ */
+int clkdm_register_autodeps(struct clkdm_autodep *ia)
+{
+	struct clkdm_autodep *a = NULL;
+
+	if (list_empty(&clkdm_list))
+		return -EACCES;
+
+	if (!ia)
+		return -EINVAL;
+
 	if (autodeps)
-		for (autodep = autodeps; autodep->clkdm.ptr; autodep++)
-			_autodep_lookup(autodep);
+		return -EEXIST;
 
-	/*
-	 * Put all clockdomains into software-supervised mode; PM code
-	 * should later enable hardware-supervised mode as appropriate
-	 */
+	autodeps = ia;
+	for (a = autodeps; a->clkdm.ptr; a++)
+		_autodep_lookup(a);
+
+	return 0;
+}
+
+/**
+ * clkdm_complete_init - set up the clockdomain layer
+ *
+ * Put all clockdomains into software-supervised mode; PM code should
+ * later enable hardware-supervised mode as appropriate.  Must be
+ * called after clkdm_register_clkdms().  Returns -EACCES if called
+ * before clkdm_register_clkdms(), or 0 upon success.
+ */
+int clkdm_complete_init(void)
+{
+	struct clockdomain *clkdm;
+
+	if (list_empty(&clkdm_list))
+		return -EACCES;
+
 	list_for_each_entry(clkdm, &clkdm_list, node) {
 		if (clkdm->flags & CLKDM_CAN_FORCE_WAKEUP)
 			clkdm_wakeup(clkdm);
@@ -306,6 +360,8 @@ void clkdm_init(struct clockdomain **clkdms,
 		_resolve_clkdm_deps(clkdm, clkdm->sleepdep_srcs);
 		clkdm_clear_all_sleepdeps(clkdm);
 	}
+
+	return 0;
 }
 
 /**

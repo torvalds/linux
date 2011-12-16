@@ -362,7 +362,7 @@ int add_mtd_device(struct mtd_info *mtd)
 			      MTD_DEVT(i) + 1,
 			      NULL, "mtd%dro", i);
 
-	DEBUG(0, "mtd: Giving out device %d to %s\n", i, mtd->name);
+	pr_debug("mtd: Giving out device %d to %s\n", i, mtd->name);
 	/* No need to get a refcount on the module containing
 	   the notifier, since we hold the mtd_table_mutex */
 	list_for_each_entry(not, &mtd_notifiers, list)
@@ -429,27 +429,63 @@ out_error:
 }
 
 /**
- * mtd_device_register - register an MTD device.
+ * mtd_device_parse_register - parse partitions and register an MTD device.
  *
- * @master: the MTD device to register
- * @parts: the partitions to register - only valid if nr_parts > 0
- * @nr_parts: the number of partitions in parts.  If zero then the full MTD
- *            device is registered
+ * @mtd: the MTD device to register
+ * @types: the list of MTD partition probes to try, see
+ *         'parse_mtd_partitions()' for more information
+ * @parser_data: MTD partition parser-specific data
+ * @parts: fallback partition information to register, if parsing fails;
+ *         only valid if %nr_parts > %0
+ * @nr_parts: the number of partitions in parts, if zero then the full
+ *            MTD device is registered if no partition info is found
  *
- * Register an MTD device with the system and optionally, a number of
- * partitions.  If nr_parts is 0 then the whole device is registered, otherwise
- * only the partitions are registered.  To register both the full device *and*
- * the partitions, call mtd_device_register() twice, once with nr_parts == 0
- * and once equal to the number of partitions.
+ * This function aggregates MTD partitions parsing (done by
+ * 'parse_mtd_partitions()') and MTD device and partitions registering. It
+ * basically follows the most common pattern found in many MTD drivers:
+ *
+ * * It first tries to probe partitions on MTD device @mtd using parsers
+ *   specified in @types (if @types is %NULL, then the default list of parsers
+ *   is used, see 'parse_mtd_partitions()' for more information). If none are
+ *   found this functions tries to fallback to information specified in
+ *   @parts/@nr_parts.
+ * * If any partitioning info was found, this function registers the found
+ *   partitions.
+ * * If no partitions were found this function just registers the MTD device
+ *   @mtd and exits.
+ *
+ * Returns zero in case of success and a negative error code in case of failure.
  */
-int mtd_device_register(struct mtd_info *master,
-			const struct mtd_partition *parts,
-			int nr_parts)
+int mtd_device_parse_register(struct mtd_info *mtd, const char **types,
+			      struct mtd_part_parser_data *parser_data,
+			      const struct mtd_partition *parts,
+			      int nr_parts)
 {
-	return parts ? add_mtd_partitions(master, parts, nr_parts) :
-		add_mtd_device(master);
+	int err;
+	struct mtd_partition *real_parts;
+
+	err = parse_mtd_partitions(mtd, types, &real_parts, parser_data);
+	if (err <= 0 && nr_parts && parts) {
+		real_parts = kmemdup(parts, sizeof(*parts) * nr_parts,
+				     GFP_KERNEL);
+		if (!real_parts)
+			err = -ENOMEM;
+		else
+			err = nr_parts;
+	}
+
+	if (err > 0) {
+		err = add_mtd_partitions(mtd, real_parts, err);
+		kfree(real_parts);
+	} else if (err == 0) {
+		err = add_mtd_device(mtd);
+		if (err == 1)
+			err = -ENODEV;
+	}
+
+	return err;
 }
-EXPORT_SYMBOL_GPL(mtd_device_register);
+EXPORT_SYMBOL_GPL(mtd_device_parse_register);
 
 /**
  * mtd_device_unregister - unregister an existing MTD device.

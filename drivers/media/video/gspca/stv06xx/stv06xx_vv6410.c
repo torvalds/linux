@@ -27,6 +27,8 @@
  * P/N 861040-0000: Sensor ST VV6410       ASIC STV0610   - QuickCam Web
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "stv06xx_vv6410.h"
 
 static struct v4l2_pix_format vv6410_mode[] = {
@@ -112,7 +114,7 @@ static int vv6410_probe(struct sd *sd)
 		return -ENODEV;
 
 	if (data == 0x19) {
-		info("vv6410 sensor detected");
+		pr_info("vv6410 sensor detected\n");
 
 		sensor_settings = kmalloc(ARRAY_SIZE(vv6410_ctrl) * sizeof(s32),
 					  GFP_KERNEL);
@@ -138,18 +140,7 @@ static int vv6410_init(struct sd *sd)
 	s32 *sensor_settings = sd->sensor_priv;
 
 	for (i = 0; i < ARRAY_SIZE(stv_bridge_init); i++) {
-		/* if NULL then len contains single value */
-		if (stv_bridge_init[i].data == NULL) {
-			err = stv06xx_write_bridge(sd,
-				stv_bridge_init[i].start,
-				stv_bridge_init[i].len);
-		} else {
-			int j;
-			for (j = 0; j < stv_bridge_init[i].len; j++)
-				err = stv06xx_write_bridge(sd,
-					stv_bridge_init[i].start + j,
-					stv_bridge_init[i].data[j]);
-		}
+		stv06xx_write_bridge(sd, stv_bridge_init[i].addr, stv_bridge_init[i].data);
 	}
 
 	if (err < 0)
@@ -183,15 +174,6 @@ static int vv6410_start(struct sd *sd)
 	struct cam *cam = &sd->gspca_dev.cam;
 	u32 priv = cam->cam_mode[sd->gspca_dev.curr_mode].priv;
 
-	if (priv & VV6410_CROP_TO_QVGA) {
-		PDEBUG(D_CONF, "Cropping to QVGA");
-		stv06xx_write_sensor(sd, VV6410_XENDH, 320 - 1);
-		stv06xx_write_sensor(sd, VV6410_YENDH, 240 - 1);
-	} else {
-		stv06xx_write_sensor(sd, VV6410_XENDH, 360 - 1);
-		stv06xx_write_sensor(sd, VV6410_YENDH, 294 - 1);
-	}
-
 	if (priv & VV6410_SUBSAMPLE) {
 		PDEBUG(D_CONF, "Enabling subsampling");
 		stv06xx_write_bridge(sd, STV_Y_CTRL, 0x02);
@@ -201,8 +183,8 @@ static int vv6410_start(struct sd *sd)
 	} else {
 		stv06xx_write_bridge(sd, STV_Y_CTRL, 0x01);
 		stv06xx_write_bridge(sd, STV_X_CTRL, 0x0a);
+		stv06xx_write_bridge(sd, STV_SCAN_RATE, 0x00);
 
-		stv06xx_write_bridge(sd, STV_SCAN_RATE, 0x20);
 	}
 
 	/* Turn on LED */
@@ -242,11 +224,11 @@ static int vv6410_dump(struct sd *sd)
 	u8 i;
 	int err = 0;
 
-	info("Dumping all vv6410 sensor registers");
+	pr_info("Dumping all vv6410 sensor registers\n");
 	for (i = 0; i < 0xff && !err; i++) {
 		u16 data;
 		err = stv06xx_read_sensor(sd, i, &data);
-		info("Register 0x%x contained 0x%x", i, data);
+		pr_info("Register 0x%x contained 0x%x\n", i, data);
 	}
 	return (err < 0) ? err : 0;
 }

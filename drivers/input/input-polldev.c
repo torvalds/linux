@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
+#include <linux/module.h>
 #include <linux/input-polldev.h>
 
 MODULE_AUTHOR("Dmitry Torokhov <dtor@mail.ru>");
@@ -49,8 +50,10 @@ static int input_open_polled_device(struct input_dev *input)
 		dev->open(dev);
 
 	/* Only start polling if polling is enabled */
-	if (dev->poll_interval > 0)
-		queue_delayed_work(system_freezable_wq, &dev->work, 0);
+	if (dev->poll_interval > 0) {
+		dev->poll(dev);
+		input_polldev_queue_work(dev);
+	}
 
 	return 0;
 }

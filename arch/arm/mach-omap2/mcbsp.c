@@ -27,66 +27,69 @@
 
 #include "control.h"
 
-/* McBSP internal signal muxing functions */
+/*
+ * FIXME: Find a mechanism to enable/disable runtime the McBSP ICLK autoidle.
+ * Sidetone needs non-gated ICLK and sidetone autoidle is broken.
+ */
+#include "cm2xxx_3xxx.h"
+#include "cm-regbits-34xx.h"
 
-void omap2_mcbsp1_mux_clkr_src(u8 mux)
+/* McBSP internal signal muxing function */
+static int omap2_mcbsp1_mux_rx_clk(struct device *dev, const char *signal,
+				   const char *src)
 {
 	u32 v;
 
 	v = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0);
-	if (mux == CLKR_SRC_CLKR)
-		v &= ~OMAP2_MCBSP1_CLKR_MASK;
-	else if (mux == CLKR_SRC_CLKX)
-		v |= OMAP2_MCBSP1_CLKR_MASK;
-	omap_ctrl_writel(v, OMAP2_CONTROL_DEVCONF0);
-}
-EXPORT_SYMBOL(omap2_mcbsp1_mux_clkr_src);
 
-void omap2_mcbsp1_mux_fsr_src(u8 mux)
-{
-	u32 v;
+	if (!strcmp(signal, "clkr")) {
+		if (!strcmp(src, "clkr"))
+			v &= ~OMAP2_MCBSP1_CLKR_MASK;
+		else if (!strcmp(src, "clkx"))
+			v |= OMAP2_MCBSP1_CLKR_MASK;
+		else
+			return -EINVAL;
+	} else if (!strcmp(signal, "fsr")) {
+		if (!strcmp(src, "fsr"))
+			v &= ~OMAP2_MCBSP1_FSR_MASK;
+		else if (!strcmp(src, "fsx"))
+			v |= OMAP2_MCBSP1_FSR_MASK;
+		else
+			return -EINVAL;
+	} else {
+		return -EINVAL;
+	}
 
-	v = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0);
-	if (mux == FSR_SRC_FSR)
-		v &= ~OMAP2_MCBSP1_FSR_MASK;
-	else if (mux == FSR_SRC_FSX)
-		v |= OMAP2_MCBSP1_FSR_MASK;
 	omap_ctrl_writel(v, OMAP2_CONTROL_DEVCONF0);
+
+	return 0;
 }
-EXPORT_SYMBOL(omap2_mcbsp1_mux_fsr_src);
 
 /* McBSP CLKS source switching function */
-
-int omap2_mcbsp_set_clks_src(u8 id, u8 fck_src_id)
+static int omap2_mcbsp_set_clk_src(struct device *dev, struct clk *clk,
+				   const char *src)
 {
-	struct omap_mcbsp *mcbsp;
 	struct clk *fck_src;
 	char *fck_src_name;
 	int r;
 
-	if (!omap_mcbsp_check_valid_id(id)) {
-		pr_err("%s: Invalid id (%d)\n", __func__, id + 1);
-		return -EINVAL;
-	}
-	mcbsp = id_to_mcbsp_ptr(id);
-
-	if (fck_src_id == MCBSP_CLKS_PAD_SRC)
+	if (!strcmp(src, "clks_ext"))
 		fck_src_name = "pad_fck";
-	else if (fck_src_id == MCBSP_CLKS_PRCM_SRC)
+	else if (!strcmp(src, "clks_fclk"))
 		fck_src_name = "prcm_fck";
 	else
 		return -EINVAL;
 
-	fck_src = clk_get(mcbsp->dev, fck_src_name);
+	fck_src = clk_get(dev, fck_src_name);
 	if (IS_ERR_OR_NULL(fck_src)) {
 		pr_err("omap-mcbsp: %s: could not clk_get() %s\n", "clks",
 		       fck_src_name);
 		return -EINVAL;
 	}
 
-	pm_runtime_put_sync(mcbsp->dev);
+	pm_runtime_put_sync(dev);
 
-	r = clk_set_parent(mcbsp->fclk, fck_src);
+	r = clk_set_parent(clk, fck_src);
 	if (IS_ERR_VALUE(r)) {
 		pr_err("omap-mcbsp: %s: could not clk_set_parent() to %s\n",
 		       "clks", fck_src_name);
@@ -94,21 +97,30 @@ int omap2_mcbsp_set_clks_src(u8 id, u8 fck_src_id)
 		return -EINVAL;
 	}
 
-	pm_runtime_get_sync(mcbsp->dev);
+	pm_runtime_get_sync(dev);
 
 	clk_put(fck_src);
 
 	return 0;
 }
-EXPORT_SYMBOL(omap2_mcbsp_set_clks_src);
 
-struct omap_device_pm_latency omap2_mcbsp_latency[] = {
-	{
-		.deactivate_func = omap_device_idle_hwmods,
-		.activate_func   = omap_device_enable_hwmods,
-		.flags = OMAP_DEVICE_LATENCY_AUTO_ADJUST,
-	},
-};
+static int omap3_enable_st_clock(unsigned int id, bool enable)
+{
+	unsigned int w;
+
+	/*
+	 * Sidetone uses McBSP ICLK - which must not idle when sidetones
+	 * are enabled or sidetones start sounding ugly.
+	 */
+	w = omap2_cm_read_mod_reg(OMAP3430_PER_MOD, CM_AUTOIDLE);
+	if (enable)
+		w &= ~(1 << (id - 2));
+	else
+		w |= 1 << (id - 2);
+	omap2_cm_write_mod_reg(w, OMAP3430_PER_MOD, CM_AUTOIDLE);
+
+	return 0;
+}
 
 static int omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
 {
@@ -116,7 +128,7 @@ static int omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
 	char *name = "omap-mcbsp";
 	struct omap_hwmod *oh_device[2];
 	struct omap_mcbsp_platform_data *pdata = NULL;
-	struct omap_device *od;
+	struct platform_device *pdev;
 
 	sscanf(oh->name, "mcbsp%d", &id);
 
@@ -126,7 +138,13 @@ static int omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
 		return -ENOMEM;
 	}
 
-	pdata->mcbsp_config_type = oh->class->rev;
+	pdata->reg_step = 4;
+	if (oh->class->rev < MCBSP_CONFIG_TYPE2) {
+		pdata->reg_size = 2;
+	} else {
+		pdata->reg_size = 4;
+		pdata->has_ccr = true;
+	}
 
 	if (oh->class->rev == MCBSP_CONFIG_TYPE3) {
 		if (id == 2)
@@ -137,22 +155,28 @@ static int omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
 			pdata->buffer_size = 0x80;
 	}
 
+	if (oh->class->rev >= MCBSP_CONFIG_TYPE3)
+		pdata->has_wakeup = true;
+
 	oh_device[0] = oh;
 
 	if (oh->dev_attr) {
 		oh_device[1] = omap_hwmod_lookup((
 		(struct omap_mcbsp_dev_attr *)(oh->dev_attr))->sidetone);
+		pdata->enable_st_clock = omap3_enable_st_clock;
 		count++;
 	}
-	od = omap_device_build_ss(name, id, oh_device, count, pdata,
-				sizeof(*pdata), omap2_mcbsp_latency,
-				ARRAY_SIZE(omap2_mcbsp_latency), false);
+	pdev = omap_device_build_ss(name, id, oh_device, count, pdata,
+				sizeof(*pdata), NULL, 0, false);
 	kfree(pdata);
-	if (IS_ERR(od))  {
+	if (IS_ERR(pdev))  {
 		pr_err("%s: Can't build omap_device for %s:%s.\n", __func__,
 					name, oh->name);
-		return PTR_ERR(od);
+		return PTR_ERR(pdev);
 	}
+	pdata->set_clk_src = omap2_mcbsp_set_clk_src;
+	if (id == 1)
+		pdata->mux_signal = omap2_mcbsp1_mux_rx_clk;
 	omap_mcbsp_count++;
 	return 0;
 }

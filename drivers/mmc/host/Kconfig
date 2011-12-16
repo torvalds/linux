@@ -130,13 +130,13 @@ config MMC_SDHCI_CNS3XXX
 	  If unsure, say N.
 
 config MMC_SDHCI_ESDHC_IMX
-	tristate "SDHCI platform support for the Freescale eSDHC i.MX controller"
-	depends on ARCH_MX25 || ARCH_MX35 || ARCH_MX5
+	tristate "SDHCI support for the Freescale eSDHC/uSDHC i.MX controller"
+	depends on ARCH_MXC
 	depends on MMC_SDHCI_PLTFM
 	select MMC_SDHCI_IO_ACCESSORS
 	help
-	  This selects the Freescale eSDHC controller support on the platform
-	  bus, found on platforms like mx35/51.
+	  This selects the Freescale eSDHC/uSDHC controller support
+	  found on i.MX25, i.MX35 i.MX5x and i.MX6x.
 
 	  If you have a controller with this interface, say Y or M here.
 
@@ -263,7 +263,7 @@ config MMC_WBSD
 
 config MMC_AU1X
 	tristate "Alchemy AU1XX0 MMC Card Interface support"
-	depends on SOC_AU1200
+	depends on MIPS_ALCHEMY
 	help
 	  This selects the AMD Alchemy(R) Multimedia card interface.
 	  If you have a Alchemy platform with a MMC slot, say Y or M here.
@@ -326,11 +326,11 @@ config MMC_MSM
 	  support for SDIO devices.
 
 config MMC_MXC
-	tristate "Freescale i.MX2/3 Multimedia Card Interface support"
-	depends on MACH_MX21 || MACH_MX27 || ARCH_MX31
+	tristate "Freescale i.MX21/27/31 Multimedia Card Interface support"
+	depends on ARCH_MXC
 	help
-	  This selects the Freescale i.MX2/3 Multimedia card Interface.
-	  If you have a i.MX platform with a Multimedia Card slot,
+	  This selects the Freescale i.MX21, i.MX27 and i.MX31 Multimedia card
+	  Interface. If you have a i.MX platform with a Multimedia Card slot,
 	  say Y or M here.
 
 	  If unsure, say N.

@@ -11,6 +11,7 @@
 #include <linux/platform_device.h>
 #include <linux/uio_driver.h>
 #include <linux/stringify.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 
 #define DRIVER_NAME "uio_pdrv"

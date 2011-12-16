@@ -13,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
+#include <linux/module.h>
 
 #include <media/ak881x.h>
 #include <media/v4l2-chip-ident.h>

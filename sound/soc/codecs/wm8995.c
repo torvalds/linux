@@ -485,7 +485,7 @@ static int configure_aif_clock(struct snd_soc_codec *codec, int aif)
 static int configure_clock(struct snd_soc_codec *codec)
 {
 	struct wm8995_priv *wm8995;
-	int old, new;
+	int change, new;
 
 	wm8995 = snd_soc_codec_get_drvdata(codec);
 
@@ -509,14 +509,10 @@ static int configure_clock(struct snd_soc_codec *codec)
 	else
 		new = 0;
 
-	old = snd_soc_read(codec, WM8995_CLOCKING_1) & WM8995_SYSCLK_SRC;
-
-	/* If there's no change then we're done. */
-	if (old == new)
+	change = snd_soc_update_bits(codec, WM8995_CLOCKING_1,
+				     WM8995_SYSCLK_SRC_MASK, new);
+	if (!change)
 		return 0;
-
-	snd_soc_update_bits(codec, WM8995_CLOCKING_1,
-			    WM8995_SYSCLK_SRC_MASK, new);
 
 	snd_soc_dapm_sync(&codec->dapm);
 
@@ -1573,11 +1569,16 @@ static int wm8995_resume(struct snd_soc_codec *codec)
 static int wm8995_remove(struct snd_soc_codec *codec)
 {
 	struct wm8995_priv *wm8995;
-	struct i2c_client *i2c;
+	int i;
 
-	i2c = container_of(codec->dev, struct i2c_client, dev);
 	wm8995 = snd_soc_codec_get_drvdata(codec);
 	wm8995_set_bias_level(codec, SND_SOC_BIAS_OFF);
+
+	for (i = 0; i < ARRAY_SIZE(wm8995->supplies); ++i)
+		regulator_unregister_notifier(wm8995->supplies[i].consumer,
+					      &wm8995->disable_nb[i]);
+
+	regulator_bulk_free(ARRAY_SIZE(wm8995->supplies), wm8995->supplies);
 	return 0;
 }
 
@@ -1642,6 +1643,7 @@ static int wm8995_probe(struct snd_soc_codec *codec)
 
 	if (ret != 0x8995) {
 		dev_err(codec->dev, "Invalid device ID: %#x\n", ret);
+		ret = -EINVAL;
 		goto err_reg_enable;
 	}
 

@@ -836,19 +836,6 @@ void iwl_print_rx_config_cmd(struct iwl_priv *priv,
 }
 #endif
 
-static void iwlagn_abort_notification_waits(struct iwl_priv *priv)
-{
-	unsigned long flags;
-	struct iwl_notification_wait *wait_entry;
-
-	spin_lock_irqsave(&priv->notif_wait_lock, flags);
-	list_for_each_entry(wait_entry, &priv->notif_waits, list)
-		wait_entry->aborted = true;
-	spin_unlock_irqrestore(&priv->notif_wait_lock, flags);
-
-	wake_up_all(&priv->notif_waitq);
-}
-
 void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 {
 	unsigned int reload_msec;
@@ -860,7 +847,7 @@ void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 	/* Cancel currently queued command. */
 	clear_bit(STATUS_HCMD_ACTIVE, &priv->shrd->status);
 
-	iwlagn_abort_notification_waits(priv);
+	iwl_abort_notification_waits(priv->shrd);
 
 	/* Keep the restart process from trying to send host
 	 * commands by clearing the ready bit */
@@ -1505,11 +1492,23 @@ void iwl_setup_watchdog(struct iwl_priv *priv)
 {
 	unsigned int timeout = priv->cfg->base_params->wd_timeout;
 
-	if (timeout && !iwlagn_mod_params.wd_disable)
-		mod_timer(&priv->watchdog,
-			  jiffies + msecs_to_jiffies(IWL_WD_TICK(timeout)));
-	else
-		del_timer(&priv->watchdog);
+	if (!iwlagn_mod_params.wd_disable) {
+		/* use system default */
+		if (timeout && !priv->cfg->base_params->wd_disable)
+			mod_timer(&priv->watchdog,
+				jiffies +
+				msecs_to_jiffies(IWL_WD_TICK(timeout)));
+		else
+			del_timer(&priv->watchdog);
+	} else {
+		/* module parameter overwrite default configuration */
+		if (timeout && iwlagn_mod_params.wd_disable == 2)
+			mod_timer(&priv->watchdog,
+				jiffies +
+				msecs_to_jiffies(IWL_WD_TICK(timeout)));
+		else
+			del_timer(&priv->watchdog);
+	}
 }
 
 /**

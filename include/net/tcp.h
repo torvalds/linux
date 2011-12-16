@@ -1403,11 +1403,13 @@ enum tcp_seq_states {
 	TCP_SEQ_STATE_TIME_WAIT,
 };
 
+int tcp_seq_open(struct inode *inode, struct file *file);
+
 struct tcp_seq_afinfo {
-	char			*name;
-	sa_family_t		family;
-	struct file_operations	seq_fops;
-	struct seq_operations	seq_ops;
+	char				*name;
+	sa_family_t			family;
+	const struct file_operations	*seq_fops;
+	struct seq_operations		seq_ops;
 };
 
 struct tcp_iter_state {

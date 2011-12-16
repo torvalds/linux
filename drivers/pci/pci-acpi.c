@@ -46,6 +46,9 @@ static void pci_acpi_wake_dev(acpi_handle handle, u32 event, void *context)
 	struct pci_dev *pci_dev = context;
 
 	if (event == ACPI_NOTIFY_DEVICE_WAKE && pci_dev) {
+		if (pci_dev->pme_poll)
+			pci_dev->pme_poll = false;
+
 		pci_wakeup_event(pci_dev);
 		pci_check_pme_status(pci_dev);
 		pm_runtime_resume(&pci_dev->dev);
@@ -282,7 +285,6 @@ static int acpi_dev_run_wake(struct device *phys_dev, bool enable)
 {
 	struct acpi_device *dev;
 	acpi_handle handle;
-	int error = -ENODEV;
 
 	if (!device_run_wake(phys_dev))
 		return -EINVAL;
@@ -302,7 +304,7 @@ static int acpi_dev_run_wake(struct device *phys_dev, bool enable)
 		acpi_disable_wakeup_device_power(dev);
 	}
 
-	return error;
+	return 0;
 }
 
 static void acpi_pci_propagate_run_wake(struct pci_bus *bus, bool enable)

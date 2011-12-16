@@ -11,6 +11,7 @@
  */
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <linux/device.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/eeprom.h>

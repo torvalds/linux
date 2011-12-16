@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/mutex.h>
+#include <linux/module.h>
 
 #include <sound/core.h>
 #include <sound/control.h>
@@ -897,6 +898,18 @@ static int snd_ymfpci_playback_open_1(struct snd_pcm_substream *substream)
 	struct snd_ymfpci *chip = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_ymfpci_pcm *ypcm;
+	int err;
+
+	runtime->hw = snd_ymfpci_playback;
+	/* FIXME? True value is 256/48 = 5.33333 ms */
+	err = snd_pcm_hw_constraint_minmax(runtime,
+					   SNDRV_PCM_HW_PARAM_PERIOD_TIME,
+					   5334, UINT_MAX);
+	if (err < 0)
+		return err;
+	err = snd_pcm_hw_rule_noresample(runtime, 48000);
+	if (err < 0)
+		return err;
 
 	ypcm = kzalloc(sizeof(*ypcm), GFP_KERNEL);
 	if (ypcm == NULL)
@@ -904,11 +917,8 @@ static int snd_ymfpci_playback_open_1(struct snd_pcm_substream *substream)
 	ypcm->chip = chip;
 	ypcm->type = PLAYBACK_VOICE;
 	ypcm->substream = substream;
-	runtime->hw = snd_ymfpci_playback;
 	runtime->private_data = ypcm;
 	runtime->private_free = snd_ymfpci_pcm_free_substream;
-	/* FIXME? True value is 256/48 = 5.33333 ms */
-	snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_PERIOD_TIME, 5333, UINT_MAX);
 	return 0;
 }
 
@@ -1013,6 +1023,18 @@ static int snd_ymfpci_capture_open(struct snd_pcm_substream *substream,
 	struct snd_ymfpci *chip = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_ymfpci_pcm *ypcm;
+	int err;
+
+	runtime->hw = snd_ymfpci_capture;
+	/* FIXME? True value is 256/48 = 5.33333 ms */
+	err = snd_pcm_hw_constraint_minmax(runtime,
+					   SNDRV_PCM_HW_PARAM_PERIOD_TIME,
+					   5334, UINT_MAX);
+	if (err < 0)
+		return err;
+	err = snd_pcm_hw_rule_noresample(runtime, 48000);
+	if (err < 0)
+		return err;
 
 	ypcm = kzalloc(sizeof(*ypcm), GFP_KERNEL);
 	if (ypcm == NULL)
@@ -1022,9 +1044,6 @@ static int snd_ymfpci_capture_open(struct snd_pcm_substream *substream,
 	ypcm->substream = substream;	
 	ypcm->capture_bank_number = capture_bank_number;
 	chip->capture_substream[capture_bank_number] = substream;
-	runtime->hw = snd_ymfpci_capture;
-	/* FIXME? True value is 256/48 = 5.33333 ms */
-	snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_PERIOD_TIME, 5333, UINT_MAX);
 	runtime->private_data = ypcm;
 	runtime->private_free = snd_ymfpci_pcm_free_substream;
 	snd_ymfpci_hw_start(chip);
@@ -1615,7 +1634,7 @@ YMFPCI_DOUBLE("ADC Playback Volume", 0, YDSXGR_PRIADCOUTVOL),
 YMFPCI_DOUBLE("ADC Capture Volume", 0, YDSXGR_PRIADCLOOPVOL),
 YMFPCI_DOUBLE("ADC Playback Volume", 1, YDSXGR_SECADCOUTVOL),
 YMFPCI_DOUBLE("ADC Capture Volume", 1, YDSXGR_SECADCLOOPVOL),
-YMFPCI_DOUBLE("FM Legacy Volume", 0, YDSXGR_LEGACYOUTVOL),
+YMFPCI_DOUBLE("FM Legacy Playback Volume", 0, YDSXGR_LEGACYOUTVOL),
 YMFPCI_DOUBLE(SNDRV_CTL_NAME_IEC958("AC97 ", PLAYBACK,VOLUME), 0, YDSXGR_ZVOUTVOL),
 YMFPCI_DOUBLE(SNDRV_CTL_NAME_IEC958("", CAPTURE,VOLUME), 0, YDSXGR_ZVLOOPVOL),
 YMFPCI_DOUBLE(SNDRV_CTL_NAME_IEC958("AC97 ",PLAYBACK,VOLUME), 1, YDSXGR_SPDIFOUTVOL),

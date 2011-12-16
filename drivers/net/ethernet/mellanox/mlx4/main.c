@@ -96,6 +96,8 @@ MODULE_PARM_DESC(log_num_mac, "Log2 max number of MACs per ETH port (1-7)");
 static int log_num_vlan;
 module_param_named(log_num_vlan, log_num_vlan, int, 0444);
 MODULE_PARM_DESC(log_num_vlan, "Log2 max number of VLANs per ETH port (0-7)");
+/* Log2 max number of VLANs per ETH port (0-7) */
+#define MLX4_LOG_NUM_VLANS 7
 
 static int use_prio;
 module_param_named(use_prio, use_prio, bool, 0444);
@@ -220,6 +222,10 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev->caps.reserved_mrws	     = dev_cap->reserved_mrws;
 	dev->caps.reserved_uars	     = dev_cap->reserved_uars;
 	dev->caps.reserved_pds	     = dev_cap->reserved_pds;
+	dev->caps.reserved_xrcds     = (dev->caps.flags & MLX4_DEV_CAP_FLAG_XRC) ?
+					dev_cap->reserved_xrcds : 0;
+	dev->caps.max_xrcds          = (dev->caps.flags & MLX4_DEV_CAP_FLAG_XRC) ?
+					dev_cap->max_xrcds : 0;
 	dev->caps.mtt_entry_sz	     = dev->caps.mtts_per_seg * dev_cap->mtt_entry_sz;
 	dev->caps.max_msg_sz         = dev_cap->max_msg_sz;
 	dev->caps.page_size_cap	     = ~(u32) (dev_cap->min_page_sz - 1);
@@ -230,7 +236,7 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev->caps.max_gso_sz	     = dev_cap->max_gso_sz;
 
 	dev->caps.log_num_macs  = log_num_mac;
-	dev->caps.log_num_vlans = log_num_vlan;
+	dev->caps.log_num_vlans = MLX4_LOG_NUM_VLANS;
 	dev->caps.log_num_prios = use_prio ? 3 : 0;
 
 	for (i = 1; i <= dev->caps.num_ports; ++i) {
@@ -912,11 +918,18 @@ static int mlx4_setup_hca(struct mlx4_dev *dev)
 		goto err_kar_unmap;
 	}
 
+	err = mlx4_init_xrcd_table(dev);
+	if (err) {
+		mlx4_err(dev, "Failed to initialize "
+			 "reliable connection domain table, aborting.\n");
+		goto err_pd_table_free;
+	}
+
 	err = mlx4_init_mr_table(dev);
 	if (err) {
 		mlx4_err(dev, "Failed to initialize "
 			 "memory region table, aborting.\n");
-		goto err_pd_table_free;
+		goto err_xrcd_table_free;
 	}
 
 	err = mlx4_init_eq_table(dev);
@@ -998,6 +1011,13 @@ static int mlx4_setup_hca(struct mlx4_dev *dev)
 				  "ib capabilities (%d). Continuing with "
 				  "caps = 0\n", port, err);
 		dev->caps.ib_port_def_cap[port] = ib_port_default_caps;
+
+		err = mlx4_check_ext_port_caps(dev, port);
+		if (err)
+			mlx4_warn(dev, "failed to get port %d extended "
+				  "port capabilities support info (%d)."
+				  " Assuming not supported\n", port, err);
+
 		err = mlx4_SET_PORT(dev, port);
 		if (err) {
 			mlx4_err(dev, "Failed to set port %d, aborting\n",
@@ -1032,6 +1052,9 @@ err_eq_table_free:
 
 err_mr_table_free:
 	mlx4_cleanup_mr_table(dev);
+
+err_xrcd_table_free:
+	mlx4_cleanup_xrcd_table(dev);
 
 err_pd_table_free:
 	mlx4_cleanup_pd_table(dev);
@@ -1355,6 +1378,7 @@ err_port:
 	mlx4_cmd_use_polling(dev);
 	mlx4_cleanup_eq_table(dev);
 	mlx4_cleanup_mr_table(dev);
+	mlx4_cleanup_xrcd_table(dev);
 	mlx4_cleanup_pd_table(dev);
 	mlx4_cleanup_uar_table(dev);
 
@@ -1416,6 +1440,7 @@ static void mlx4_remove_one(struct pci_dev *pdev)
 		mlx4_cmd_use_polling(dev);
 		mlx4_cleanup_eq_table(dev);
 		mlx4_cleanup_mr_table(dev);
+		mlx4_cleanup_xrcd_table(dev);
 		mlx4_cleanup_pd_table(dev);
 
 		iounmap(priv->kar);
@@ -1489,10 +1514,9 @@ static int __init mlx4_verify_params(void)
 		return -1;
 	}
 
-	if ((log_num_vlan < 0) || (log_num_vlan > 7)) {
-		pr_warning("mlx4_core: bad num_vlan: %d\n", log_num_vlan);
-		return -1;
-	}
+	if (log_num_vlan != 0)
+		pr_warning("mlx4_core: log_num_vlan - obsolete module param, using %d\n",
+			   MLX4_LOG_NUM_VLANS);
 
 	if ((log_mtts_per_seg < 1) || (log_mtts_per_seg > 7)) {
 		pr_warning("mlx4_core: bad log_mtts_per_seg: %d\n", log_mtts_per_seg);

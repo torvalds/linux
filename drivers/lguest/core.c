@@ -232,6 +232,13 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
 			}
 		}
 
+		/*
+		 * All long-lived kernel loops need to check with this horrible
+		 * thing called the freezer.  If the Host is trying to suspend,
+		 * it stops us.
+		 */
+		try_to_freeze();
+
 		/* Check for signals */
 		if (signal_pending(current))
 			return -ERESTARTSYS;
@@ -244,13 +251,6 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
 		irq = interrupt_pending(cpu, &more);
 		if (irq < LGUEST_IRQS)
 			try_deliver_interrupt(cpu, irq, more);
-
-		/*
-		 * All long-lived kernel loops need to check with this horrible
-		 * thing called the freezer.  If the Host is trying to suspend,
-		 * it stops us.
-		 */
-		try_to_freeze();
 
 		/*
 		 * Just make absolutely sure the Guest is still alive.  One of
@@ -313,7 +313,7 @@ static int __init init(void)
 	int err;
 
 	/* Lguest can't run under Xen, VMI or itself.  It does Tricky Stuff. */
-	if (paravirt_enabled()) {
+	if (get_kernel_rpl() != 0) {
 		printk("lguest is afraid of being a guest\n");
 		return -EPERM;
 	}

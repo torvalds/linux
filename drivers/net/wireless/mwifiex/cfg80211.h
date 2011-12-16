@@ -26,5 +26,4 @@
 
 int mwifiex_register_cfg80211(struct mwifiex_private *);
 
-void mwifiex_cfg80211_results(struct work_struct *work);
 #endif

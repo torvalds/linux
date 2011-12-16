@@ -42,6 +42,7 @@
 #include <linux/slab.h>
 #include <linux/rtc.h>
 #include <linux/spi/spi.h>
+#include <linux/module.h>
 
 #define DRV_VERSION "0.6"
 

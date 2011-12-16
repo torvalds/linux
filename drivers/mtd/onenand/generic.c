@@ -30,11 +30,8 @@
  */
 #define DRIVER_NAME	"onenand-flash"
 
-static const char *part_probes[] = { "cmdlinepart", NULL,  };
-
 struct onenand_info {
 	struct mtd_info		mtd;
-	struct mtd_partition	*parts;
 	struct onenand_chip	onenand;
 };
 
@@ -73,13 +70,9 @@ static int __devinit generic_onenand_probe(struct platform_device *pdev)
 		goto out_iounmap;
 	}
 
-	err = parse_mtd_partitions(&info->mtd, part_probes, &info->parts, 0);
-	if (err > 0)
-		mtd_device_register(&info->mtd, info->parts, err);
-	else if (err <= 0 && pdata && pdata->parts)
-		mtd_device_register(&info->mtd, pdata->parts, pdata->nr_parts);
-	else
-		err = mtd_device_register(&info->mtd, NULL, 0);
+	err = mtd_device_parse_register(&info->mtd, NULL, 0,
+			pdata ? pdata->parts : NULL,
+			pdata ? pdata->nr_parts : 0);
 
 	platform_set_drvdata(pdev, info);
 
@@ -104,7 +97,6 @@ static int __devexit generic_onenand_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 
 	if (info) {
-		mtd_device_unregister(&info->mtd);
 		onenand_release(&info->mtd);
 		release_mem_region(res->start, size);
 		iounmap(info->onenand.base);

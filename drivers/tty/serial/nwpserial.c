@@ -10,6 +10,7 @@
  *
  */
 #include <linux/init.h>
+#include <linux/export.h>
 #include <linux/console.h>
 #include <linux/serial.h>
 #include <linux/serial_reg.h>

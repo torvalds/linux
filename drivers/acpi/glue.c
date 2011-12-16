@@ -6,6 +6,7 @@
  *
  * This file is released under the GPLv2.
  */
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/device.h>

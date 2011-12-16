@@ -121,16 +121,16 @@ static void audit_mappings(struct kvm_vcpu *vcpu, u64 *sptep, int level)
 
 static void inspect_spte_has_rmap(struct kvm *kvm, u64 *sptep)
 {
+	static DEFINE_RATELIMIT_STATE(ratelimit_state, 5 * HZ, 10);
 	unsigned long *rmapp;
 	struct kvm_mmu_page *rev_sp;
 	gfn_t gfn;
-
 
 	rev_sp = page_header(__pa(sptep));
 	gfn = kvm_mmu_page_get_gfn(rev_sp, sptep - rev_sp->spt);
 
 	if (!gfn_to_memslot(kvm, gfn)) {
-		if (!printk_ratelimit())
+		if (!__ratelimit(&ratelimit_state))
 			return;
 		audit_printk(kvm, "no memslot for gfn %llx\n", gfn);
 		audit_printk(kvm, "index %ld of sp (gfn=%llx)\n",
@@ -141,7 +141,7 @@ static void inspect_spte_has_rmap(struct kvm *kvm, u64 *sptep)
 
 	rmapp = gfn_to_rmap(kvm, gfn, rev_sp->role.level);
 	if (!*rmapp) {
-		if (!printk_ratelimit())
+		if (!__ratelimit(&ratelimit_state))
 			return;
 		audit_printk(kvm, "no rmap for writable spte %llx\n",
 			     *sptep);

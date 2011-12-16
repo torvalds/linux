@@ -72,8 +72,8 @@ struct kobject {
 	unsigned int uevent_suppress:1;
 };
 
-extern int kobject_set_name(struct kobject *kobj, const char *name, ...)
-			    __attribute__((format(printf, 2, 3)));
+extern __printf(2, 3)
+int kobject_set_name(struct kobject *kobj, const char *name, ...);
 extern int kobject_set_name_vargs(struct kobject *kobj, const char *fmt,
 				  va_list vargs);
 
@@ -83,15 +83,13 @@ static inline const char *kobject_name(const struct kobject *kobj)
 }
 
 extern void kobject_init(struct kobject *kobj, struct kobj_type *ktype);
-extern int __must_check kobject_add(struct kobject *kobj,
-				    struct kobject *parent,
-				    const char *fmt, ...)
-	__attribute__((format(printf, 3, 4)));
-extern int __must_check kobject_init_and_add(struct kobject *kobj,
-					     struct kobj_type *ktype,
-					     struct kobject *parent,
-					     const char *fmt, ...)
-	__attribute__((format(printf, 4, 5)));
+extern __printf(3, 4) __must_check
+int kobject_add(struct kobject *kobj, struct kobject *parent,
+		const char *fmt, ...);
+extern __printf(4, 5) __must_check
+int kobject_init_and_add(struct kobject *kobj,
+			 struct kobj_type *ktype, struct kobject *parent,
+			 const char *fmt, ...);
 
 extern void kobject_del(struct kobject *kobj);
 
@@ -212,8 +210,8 @@ int kobject_uevent(struct kobject *kobj, enum kobject_action action);
 int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 			char *envp[]);
 
-int add_uevent_var(struct kobj_uevent_env *env, const char *format, ...)
-	__attribute__((format (printf, 2, 3)));
+__printf(2, 3)
+int add_uevent_var(struct kobj_uevent_env *env, const char *format, ...);
 
 int kobject_action_type(const char *buf, size_t count,
 			enum kobject_action *type);
@@ -226,7 +224,7 @@ static inline int kobject_uevent_env(struct kobject *kobj,
 				      char *envp[])
 { return 0; }
 
-static inline __attribute__((format(printf, 2, 3)))
+static inline __printf(2, 3)
 int add_uevent_var(struct kobj_uevent_env *env, const char *format, ...)
 { return 0; }
 

@@ -1687,7 +1687,7 @@ s32 igb_get_cable_length_m88_gen2(struct e1000_hw *hw)
 		if (ret_val)
 			goto out;
 
-		is_cm = !(phy_data & I347AT4_PCDC_CABLE_LENGTH_UNIT);
+		is_cm = !(phy_data2 & I347AT4_PCDC_CABLE_LENGTH_UNIT);
 
 		/* Populate the phy structure with cable length in meters */
 		phy->min_cable_length = phy_data / (is_cm ? 100 : 1);

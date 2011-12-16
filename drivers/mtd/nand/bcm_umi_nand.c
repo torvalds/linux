@@ -52,8 +52,6 @@
 static const __devinitconst char gBanner[] = KERN_INFO \
 	"BCM UMI MTD NAND Driver: 1.00\n";
 
-const char *part_probes[] = { "cmdlinepart", NULL };
-
 #if NAND_ECC_BCH
 static uint8_t scan_ff_pattern[] = { 0xff };
 
@@ -376,16 +374,18 @@ static int __devinit bcm_umi_nand_probe(struct platform_device *pdev)
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	if (!r)
-		return -ENXIO;
+	if (!r) {
+		err = -ENXIO;
+		goto out_free;
+	}
 
 	/* map physical address */
 	bcm_umi_io_base = ioremap(r->start, resource_size(r));
 
 	if (!bcm_umi_io_base) {
 		printk(KERN_ERR "ioremap to access BCM UMI NAND chip failed\n");
-		kfree(board_mtd);
-		return -EIO;
+		err = -EIO;
+		goto out_free;
 	}
 
 	/* Get pointer to private data */
@@ -401,9 +401,8 @@ static int __devinit bcm_umi_nand_probe(struct platform_device *pdev)
 	/* Initialize the NAND hardware.  */
 	if (bcm_umi_nand_inithw() < 0) {
 		printk(KERN_ERR "BCM UMI NAND chip could not be initialized\n");
-		iounmap(bcm_umi_io_base);
-		kfree(board_mtd);
-		return -EIO;
+		err = -EIO;
+		goto out_unmap;
 	}
 
 	/* Set address of NAND IO lines */
@@ -436,7 +435,7 @@ static int __devinit bcm_umi_nand_probe(struct platform_device *pdev)
 #if USE_DMA
 	err = nand_dma_init();
 	if (err != 0)
-		return err;
+		goto out_unmap;
 #endif
 
 	/* Figure out the size of the device that we have.
@@ -447,9 +446,7 @@ static int __devinit bcm_umi_nand_probe(struct platform_device *pdev)
 	err = nand_scan_ident(board_mtd, 1, NULL);
 	if (err) {
 		printk(KERN_ERR "nand_scan failed: %d\n", err);
-		iounmap(bcm_umi_io_base);
-		kfree(board_mtd);
-		return err;
+		goto out_unmap;
 	}
 
 	/* Now that we know the nand size, we can setup the ECC layout */
@@ -468,13 +465,14 @@ static int __devinit bcm_umi_nand_probe(struct platform_device *pdev)
 		{
 			printk(KERN_ERR "NAND - Unrecognized pagesize: %d\n",
 					 board_mtd->writesize);
-			return -EINVAL;
+			err = -EINVAL;
+			goto out_unmap;
 		}
 	}
 
 #if NAND_ECC_BCH
 	if (board_mtd->writesize > 512) {
-		if (this->options & NAND_USE_FLASH_BBT)
+		if (this->bbt_options & NAND_BBT_USE_FLASH)
 			largepage_bbt.options = NAND_BBT_SCAN2NDPAGE;
 		this->badblock_pattern = &largepage_bbt;
 	}
@@ -485,33 +483,20 @@ static int __devinit bcm_umi_nand_probe(struct platform_device *pdev)
 	err = nand_scan_tail(board_mtd);
 	if (err) {
 		printk(KERN_ERR "nand_scan failed: %d\n", err);
-		iounmap(bcm_umi_io_base);
-		kfree(board_mtd);
-		return err;
+		goto out_unmap;
 	}
 
 	/* Register the partitions */
-	{
-		int nr_partitions;
-		struct mtd_partition *partition_info;
-
-		board_mtd->name = "bcm_umi-nand";
-		nr_partitions =
-		    parse_mtd_partitions(board_mtd, part_probes,
-					 &partition_info, 0);
-
-		if (nr_partitions <= 0) {
-			printk(KERN_ERR "BCM UMI NAND: Too few partitions - %d\n",
-			       nr_partitions);
-			iounmap(bcm_umi_io_base);
-			kfree(board_mtd);
-			return -EIO;
-		}
-		mtd_device_register(board_mtd, partition_info, nr_partitions);
-	}
+	board_mtd->name = "bcm_umi-nand";
+	mtd_device_parse_register(board_mtd, NULL, 0, NULL, 0);
 
 	/* Return happy */
 	return 0;
+out_unmap:
+	iounmap(bcm_umi_io_base);
+out_free:
+	kfree(board_mtd);
+	return err;
 }
 
 static int bcm_umi_nand_remove(struct platform_device *pdev)

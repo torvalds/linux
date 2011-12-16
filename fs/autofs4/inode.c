@@ -342,7 +342,7 @@ struct inode *autofs4_get_inode(struct super_block *sb, mode_t mode)
 	inode->i_ino = get_next_ino();
 
 	if (S_ISDIR(mode)) {
-		inode->i_nlink = 2;
+		set_nlink(inode, 2);
 		inode->i_op = &autofs4_dir_inode_operations;
 		inode->i_fop = &autofs4_dir_operations;
 	} else if (S_ISLNK(mode)) {

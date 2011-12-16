@@ -17,7 +17,7 @@
 static int bnx2fc_split_bd(struct bnx2fc_cmd *io_req, u64 addr, int sg_len,
 			   int bd_index);
 static int bnx2fc_map_sg(struct bnx2fc_cmd *io_req);
-static void bnx2fc_build_bd_list_from_sg(struct bnx2fc_cmd *io_req);
+static int bnx2fc_build_bd_list_from_sg(struct bnx2fc_cmd *io_req);
 static void bnx2fc_unmap_sg_list(struct bnx2fc_cmd *io_req);
 static void bnx2fc_free_mp_resc(struct bnx2fc_cmd *io_req);
 static void bnx2fc_parse_fcp_rsp(struct bnx2fc_cmd *io_req,
@@ -1103,7 +1103,10 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 	struct fc_rport_libfc_priv *rp = rport->dd_data;
 	struct bnx2fc_cmd *io_req;
 	struct fc_lport *lport;
+	struct fc_rport_priv *rdata;
 	struct bnx2fc_rport *tgt;
+	int logo_issued;
+	int wait_cnt = 0;
 	int rc = FAILED;
 
 
@@ -1192,8 +1195,40 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 	} else {
 		printk(KERN_ERR PFX "eh_abort: io_req (xid = 0x%x) "
 				"already in abts processing\n", io_req->xid);
+		if (cancel_delayed_work(&io_req->timeout_work))
+			kref_put(&io_req->refcount,
+				 bnx2fc_cmd_release); /* drop timer hold */
+		bnx2fc_initiate_cleanup(io_req);
+
+		spin_unlock_bh(&tgt->tgt_lock);
+
+		wait_for_completion(&io_req->tm_done);
+
+		spin_lock_bh(&tgt->tgt_lock);
+		io_req->wait_for_comp = 0;
+		rdata = io_req->tgt->rdata;
+		logo_issued = test_and_set_bit(BNX2FC_FLAG_EXPL_LOGO,
+					       &tgt->flags);
 		kref_put(&io_req->refcount, bnx2fc_cmd_release);
 		spin_unlock_bh(&tgt->tgt_lock);
+
+		if (!logo_issued) {
+			BNX2FC_IO_DBG(io_req, "Expl logo - tgt flags = 0x%lx\n",
+				      tgt->flags);
+			mutex_lock(&lport->disc.disc_mutex);
+			lport->tt.rport_logoff(rdata);
+			mutex_unlock(&lport->disc.disc_mutex);
+			do {
+				msleep(BNX2FC_RELOGIN_WAIT_TIME);
+				/*
+				 * If session not recovered, let SCSI-ml
+				 * escalate error recovery.
+				 */
+				if (wait_cnt++ > BNX2FC_RELOGIN_WAIT_CNT)
+					return FAILED;
+			} while (!test_bit(BNX2FC_FLAG_SESSION_READY,
+					   &tgt->flags));
+		}
 		return SUCCESS;
 	}
 	if (rc == FAILED) {
@@ -1251,7 +1286,6 @@ void bnx2fc_process_seq_cleanup_compl(struct bnx2fc_cmd *seq_clnp_req,
 			seq_clnp_req->xid);
 		goto free_cb_arg;
 	}
-	kref_get(&orig_io_req->refcount);
 
 	spin_unlock_bh(&tgt->tgt_lock);
 	rc = bnx2fc_send_srr(orig_io_req, offset, r_ctl);
@@ -1276,6 +1310,8 @@ void bnx2fc_process_cleanup_compl(struct bnx2fc_cmd *io_req,
 		   io_req->refcount.refcount.counter, io_req->cmd_type);
 	bnx2fc_scsi_done(io_req, DID_ERROR);
 	kref_put(&io_req->refcount, bnx2fc_cmd_release);
+	if (io_req->wait_for_comp)
+		complete(&io_req->tm_done);
 }
 
 void bnx2fc_process_abts_compl(struct bnx2fc_cmd *io_req,
@@ -1569,6 +1605,8 @@ static int bnx2fc_split_bd(struct bnx2fc_cmd *io_req, u64 addr, int sg_len,
 
 static int bnx2fc_map_sg(struct bnx2fc_cmd *io_req)
 {
+	struct bnx2fc_interface *interface = io_req->port->priv;
+	struct bnx2fc_hba *hba = interface->hba;
 	struct scsi_cmnd *sc = io_req->sc_cmd;
 	struct fcoe_bd_ctx *bd = io_req->bd_tbl->bd_tbl;
 	struct scatterlist *sg;
@@ -1580,7 +1618,8 @@ static int bnx2fc_map_sg(struct bnx2fc_cmd *io_req)
 	u64 addr;
 	int i;
 
-	sg_count = scsi_dma_map(sc);
+	sg_count = dma_map_sg(&hba->pcidev->dev, scsi_sglist(sc),
+			      scsi_sg_count(sc), sc->sc_data_direction);
 	scsi_for_each_sg(sc, sg, sg_count, i) {
 		sg_len = sg_dma_len(sg);
 		addr = sg_dma_address(sg);
@@ -1605,20 +1644,24 @@ static int bnx2fc_map_sg(struct bnx2fc_cmd *io_req)
 	return bd_count;
 }
 
-static void bnx2fc_build_bd_list_from_sg(struct bnx2fc_cmd *io_req)
+static int bnx2fc_build_bd_list_from_sg(struct bnx2fc_cmd *io_req)
 {
 	struct scsi_cmnd *sc = io_req->sc_cmd;
 	struct fcoe_bd_ctx *bd = io_req->bd_tbl->bd_tbl;
 	int bd_count;
 
-	if (scsi_sg_count(sc))
+	if (scsi_sg_count(sc)) {
 		bd_count = bnx2fc_map_sg(io_req);
-	else {
+		if (bd_count == 0)
+			return -ENOMEM;
+	} else {
 		bd_count = 0;
 		bd[0].buf_addr_lo = bd[0].buf_addr_hi = 0;
 		bd[0].buf_len = bd[0].flags = 0;
 	}
 	io_req->bd_tbl->bd_valid = bd_count;
+
+	return 0;
 }
 
 static void bnx2fc_unmap_sg_list(struct bnx2fc_cmd *io_req)
@@ -1790,12 +1833,6 @@ int bnx2fc_queuecommand(struct Scsi_Host *host,
 	tgt = (struct bnx2fc_rport *)&rp[1];
 
 	if (!test_bit(BNX2FC_FLAG_SESSION_READY, &tgt->flags)) {
-		if (test_bit(BNX2FC_FLAG_UPLD_REQ_COMPL, &tgt->flags))  {
-			sc_cmd->result = DID_NO_CONNECT << 16;
-			sc_cmd->scsi_done(sc_cmd);
-			return 0;
-
-		}
 		/*
 		 * Session is not offloaded yet. Let SCSI-ml retry
 		 * the command.
@@ -1946,7 +1983,13 @@ int bnx2fc_post_io_req(struct bnx2fc_rport *tgt,
 	xid = io_req->xid;
 
 	/* Build buffer descriptor list for firmware from sg list */
-	bnx2fc_build_bd_list_from_sg(io_req);
+	if (bnx2fc_build_bd_list_from_sg(io_req)) {
+		printk(KERN_ERR PFX "BD list creation failed\n");
+		spin_lock_bh(&tgt->tgt_lock);
+		kref_put(&io_req->refcount, bnx2fc_cmd_release);
+		spin_unlock_bh(&tgt->tgt_lock);
+		return -EAGAIN;
+	}
 
 	task_idx = xid / BNX2FC_TASKS_PER_PAGE;
 	index = xid % BNX2FC_TASKS_PER_PAGE;

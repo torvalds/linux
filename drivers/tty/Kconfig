@@ -1,6 +1,6 @@
 config VT
 	bool "Virtual terminal" if EXPERT
-	depends on !S390
+	depends on !S390 && !UML
 	select INPUT
 	default y
 	---help---

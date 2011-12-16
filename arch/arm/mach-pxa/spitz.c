@@ -30,6 +30,7 @@
 #include <linux/input/matrix_keypad.h>
 #include <linux/regulator/machine.h>
 #include <linux/io.h>
+#include <linux/module.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>

@@ -13,7 +13,6 @@ obj-				:=
 # Core files
 obj-y				+= cpu.o
 obj-y				+= clock.o
-obj-y				+= gpiolib.o
 
 # Core support for S3C6400 system
 
@@ -55,12 +54,10 @@ obj-$(CONFIG_MACH_HMT)		+= mach-hmt.o
 obj-$(CONFIG_MACH_SMARTQ)	+= mach-smartq.o
 obj-$(CONFIG_MACH_SMARTQ5)	+= mach-smartq5.o
 obj-$(CONFIG_MACH_SMARTQ7)	+= mach-smartq7.o
-obj-$(CONFIG_MACH_WLF_CRAGG_6410) += mach-crag6410.o
+obj-$(CONFIG_MACH_WLF_CRAGG_6410) += mach-crag6410.o mach-crag6410-module.o
 
 # device support
 
 obj-y				+= dev-uart.o
 obj-y				+= dev-audio.o
 obj-$(CONFIG_S3C64XX_DEV_SPI)	+= dev-spi.o
-obj-$(CONFIG_S3C64XX_DEV_TS)	+= dev-ts.o
-obj-$(CONFIG_S3C64XX_DEV_ONENAND1)	+= dev-onenand1.o

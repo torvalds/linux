@@ -30,6 +30,7 @@
 #include <linux/kernel.h>
 #include <linux/lcd.h>
 #include <linux/backlight.h>
+#include <linux/module.h>
 
 #include "s6e63m0_gamma.h"
 

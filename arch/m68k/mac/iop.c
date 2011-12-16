@@ -305,15 +305,13 @@ void __init iop_register_interrupts(void)
 {
 	if (iop_ism_present) {
 		if (oss_present) {
-			if (request_irq(OSS_IRQLEV_IOPISM, iop_ism_irq,
-					IRQ_FLG_LOCK, "ISM IOP",
-					(void *) IOP_NUM_ISM))
+			if (request_irq(OSS_IRQLEV_IOPISM, iop_ism_irq, 0,
+					"ISM IOP", (void *)IOP_NUM_ISM))
 				pr_err("Couldn't register ISM IOP interrupt\n");
 			oss_irq_enable(IRQ_MAC_ADB);
 		} else {
-			if (request_irq(IRQ_VIA2_0, iop_ism_irq,
-					IRQ_FLG_LOCK|IRQ_FLG_FAST, "ISM IOP",
-					(void *) IOP_NUM_ISM))
+			if (request_irq(IRQ_VIA2_0, iop_ism_irq, 0, "ISM IOP",
+					(void *)IOP_NUM_ISM))
 				pr_err("Couldn't register ISM IOP interrupt\n");
 		}
 		if (!iop_alive(iop_base[IOP_NUM_ISM])) {

@@ -70,7 +70,6 @@ static void put_io_page(struct ext4_io_page *io_page)
 void ext4_free_io_end(ext4_io_end_t *io)
 {
 	int i;
-	wait_queue_head_t *wq;
 
 	BUG_ON(!io);
 	if (io->page)
@@ -78,56 +77,43 @@ void ext4_free_io_end(ext4_io_end_t *io)
 	for (i = 0; i < io->num_io_pages; i++)
 		put_io_page(io->pages[i]);
 	io->num_io_pages = 0;
-	wq = ext4_ioend_wq(io->inode);
-	if (atomic_dec_and_test(&EXT4_I(io->inode)->i_ioend_count) &&
-	    waitqueue_active(wq))
-		wake_up_all(wq);
+	if (atomic_dec_and_test(&EXT4_I(io->inode)->i_ioend_count))
+		wake_up_all(ext4_ioend_wq(io->inode));
 	kmem_cache_free(io_end_cachep, io);
 }
 
 /*
  * check a range of space and convert unwritten extents to written.
+ *
+ * Called with inode->i_mutex; we depend on this when we manipulate
+ * io->flag, since we could otherwise race with ext4_flush_completed_IO()
  */
 int ext4_end_io_nolock(ext4_io_end_t *io)
 {
 	struct inode *inode = io->inode;
 	loff_t offset = io->offset;
 	ssize_t size = io->size;
-	wait_queue_head_t *wq;
 	int ret = 0;
 
 	ext4_debug("ext4_end_io_nolock: io 0x%p from inode %lu,list->next 0x%p,"
 		   "list->prev 0x%p\n",
 		   io, inode->i_ino, io->list.next, io->list.prev);
 
-	if (list_empty(&io->list))
-		return ret;
-
-	if (!(io->flag & EXT4_IO_END_UNWRITTEN))
-		return ret;
-
 	ret = ext4_convert_unwritten_extents(inode, offset, size);
 	if (ret < 0) {
-		printk(KERN_EMERG "%s: failed to convert unwritten "
-			"extents to written extents, error is %d "
-			"io is still on inode %lu aio dio list\n",
-		       __func__, ret, inode->i_ino);
-		return ret;
+		ext4_msg(inode->i_sb, KERN_EMERG,
+			 "failed to convert unwritten extents to written "
+			 "extents -- potential data loss!  "
+			 "(inode %lu, offset %llu, size %zd, error %d)",
+			 inode->i_ino, offset, size, ret);
 	}
 
 	if (io->iocb)
 		aio_complete(io->iocb, io->result, 0);
-	/* clear the DIO AIO unwritten flag */
-	if (io->flag & EXT4_IO_END_UNWRITTEN) {
-		io->flag &= ~EXT4_IO_END_UNWRITTEN;
-		/* Wake up anyone waiting on unwritten extent conversion */
-		wq = ext4_ioend_wq(io->inode);
-		if (atomic_dec_and_test(&EXT4_I(inode)->i_aiodio_unwritten) &&
-		    waitqueue_active(wq)) {
-			wake_up_all(wq);
-		}
-	}
 
+	/* Wake up anyone waiting on unwritten extent conversion */
+	if (atomic_dec_and_test(&EXT4_I(inode)->i_aiodio_unwritten))
+		wake_up_all(ext4_ioend_wq(io->inode));
 	return ret;
 }
 
@@ -140,9 +126,15 @@ static void ext4_end_io_work(struct work_struct *work)
 	struct inode		*inode = io->inode;
 	struct ext4_inode_info	*ei = EXT4_I(inode);
 	unsigned long		flags;
-	int			ret;
+
+	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
+	if (list_empty(&io->list)) {
+		spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
+		goto free;
+	}
 
 	if (!mutex_trylock(&inode->i_mutex)) {
+		spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
 		/*
 		 * Requeue the work instead of waiting so that the work
 		 * items queued after this can be processed.
@@ -159,17 +151,11 @@ static void ext4_end_io_work(struct work_struct *work)
 		io->flag |= EXT4_IO_END_QUEUED;
 		return;
 	}
-	ret = ext4_end_io_nolock(io);
-	if (ret < 0) {
-		mutex_unlock(&inode->i_mutex);
-		return;
-	}
-
-	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
-	if (!list_empty(&io->list))
-		list_del_init(&io->list);
+	list_del_init(&io->list);
 	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
+	(void) ext4_end_io_nolock(io);
 	mutex_unlock(&inode->i_mutex);
+free:
 	ext4_free_io_end(io);
 }
 
@@ -350,10 +336,8 @@ submit_and_retry:
 	if ((io_end->num_io_pages >= MAX_IO_PAGES) &&
 	    (io_end->pages[io_end->num_io_pages-1] != io_page))
 		goto submit_and_retry;
-	if (buffer_uninit(bh) && !(io_end->flag & EXT4_IO_END_UNWRITTEN)) {
-		io_end->flag |= EXT4_IO_END_UNWRITTEN;
-		atomic_inc(&EXT4_I(inode)->i_aiodio_unwritten);
-	}
+	if (buffer_uninit(bh))
+		ext4_set_io_unwritten_flag(inode, io_end);
 	io->io_end->size += bh->b_size;
 	io->io_next_block++;
 	ret = bio_add_page(io->io_bio, bh->b_page, bh->b_size, bh_offset(bh));

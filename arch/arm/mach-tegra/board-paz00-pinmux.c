@@ -16,10 +16,13 @@
 
 #include <linux/kernel.h>
 #include <linux/gpio.h>
+#include <linux/of.h>
+
 #include <mach/pinmux.h>
 
 #include "gpio-names.h"
 #include "board-paz00.h"
+#include "devices.h"
 
 static struct tegra_pingroup_config paz00_pinmux[] = {
 	{TEGRA_PINGROUP_ATA,   TEGRA_MUX_GMI,           TEGRA_PUPD_NORMAL,    TEGRA_TRI_NORMAL},
@@ -140,15 +143,27 @@ static struct tegra_pingroup_config paz00_pinmux[] = {
 	{TEGRA_PINGROUP_XM2D,  TEGRA_MUX_NONE,          TEGRA_PUPD_NORMAL,    TEGRA_TRI_NORMAL},
 };
 
+static struct platform_device *pinmux_devices[] = {
+	&tegra_gpio_device,
+	&tegra_pinmux_device,
+};
+
 static struct tegra_gpio_table gpio_table[] = {
 	{ .gpio = TEGRA_GPIO_SD1_CD,	.enable = true },
 	{ .gpio = TEGRA_GPIO_SD1_WP,	.enable = true },
 	{ .gpio = TEGRA_GPIO_SD1_POWER,	.enable = true },
 	{ .gpio = TEGRA_ULPI_RST,	.enable = true },
+	{ .gpio = TEGRA_WIFI_PWRN,	.enable = true },
+	{ .gpio = TEGRA_WIFI_RST,	.enable = true },
+	{ .gpio = TEGRA_WIFI_LED,	.enable = true },
 };
 
 void paz00_pinmux_init(void)
 {
+	if (!of_machine_is_compatible("nvidia,tegra20"))
+		platform_add_devices(pinmux_devices,
+					ARRAY_SIZE(pinmux_devices));
+
 	tegra_pinmux_config_table(paz00_pinmux, ARRAY_SIZE(paz00_pinmux));
 
 	tegra_gpio_config(gpio_table, ARRAY_SIZE(gpio_table));

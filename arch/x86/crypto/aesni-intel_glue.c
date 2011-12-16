@@ -22,6 +22,7 @@
 #include <linux/hardirq.h>
 #include <linux/types.h>
 #include <linux/crypto.h>
+#include <linux/module.h>
 #include <linux/err.h>
 #include <crypto/algapi.h>
 #include <crypto/aes.h>

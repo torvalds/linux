@@ -286,12 +286,14 @@ void blk_queue_end_tag(struct request_queue *q, struct request *rq)
 
 	BUG_ON(tag == -1);
 
-	if (unlikely(tag >= bqt->real_max_depth))
+	if (unlikely(tag >= bqt->max_depth)) {
 		/*
 		 * This can happen after tag depth has been reduced.
-		 * FIXME: how about a warning or info message here?
+		 * But tag shouldn't be larger than real_max_depth.
 		 */
+		WARN_ON(tag >= bqt->real_max_depth);
 		return;
+	}
 
 	list_del_init(&rq->queuelist);
 	rq->cmd_flags &= ~REQ_QUEUED;

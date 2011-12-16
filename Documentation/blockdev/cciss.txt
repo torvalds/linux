@@ -78,6 +78,16 @@ The device naming scheme is:
 /dev/cciss/c1d1p2		Controller 1, disk 1, partition 2
 /dev/cciss/c1d1p3		Controller 1, disk 1, partition 3
 
+CCISS simple mode support
+-------------------------
+
+The "cciss_simple_mode=1" boot parameter may be used to prevent the driver
+from putting the controller into "performant" mode. The difference is that
+with simple mode, each command completion requires an interrupt, while with
+"performant mode" (the default, and ordinarily better performing) it is
+possible to have multiple command completions indicated by a single
+interrupt.
+
 SCSI tape drive and medium changer support
 ------------------------------------------
 

@@ -34,6 +34,7 @@ DECLARE_EVENT_CLASS(writeback_work_class,
 		__field(int, for_kupdate)
 		__field(int, range_cyclic)
 		__field(int, for_background)
+		__field(int, reason)
 	),
 	TP_fast_assign(
 		strncpy(__entry->name, dev_name(bdi->dev), 32);
@@ -43,16 +44,18 @@ DECLARE_EVENT_CLASS(writeback_work_class,
 		__entry->for_kupdate = work->for_kupdate;
 		__entry->range_cyclic = work->range_cyclic;
 		__entry->for_background	= work->for_background;
+		__entry->reason = work->reason;
 	),
 	TP_printk("bdi %s: sb_dev %d:%d nr_pages=%ld sync_mode=%d "
-		  "kupdate=%d range_cyclic=%d background=%d",
+		  "kupdate=%d range_cyclic=%d background=%d reason=%s",
 		  __entry->name,
 		  MAJOR(__entry->sb_dev), MINOR(__entry->sb_dev),
 		  __entry->nr_pages,
 		  __entry->sync_mode,
 		  __entry->for_kupdate,
 		  __entry->range_cyclic,
-		  __entry->for_background
+		  __entry->for_background,
+		  wb_reason_name[__entry->reason]
 	)
 );
 #define DEFINE_WRITEBACK_WORK_EVENT(name) \
@@ -104,30 +107,6 @@ DEFINE_WRITEBACK_EVENT(writeback_bdi_register);
 DEFINE_WRITEBACK_EVENT(writeback_bdi_unregister);
 DEFINE_WRITEBACK_EVENT(writeback_thread_start);
 DEFINE_WRITEBACK_EVENT(writeback_thread_stop);
-DEFINE_WRITEBACK_EVENT(balance_dirty_start);
-DEFINE_WRITEBACK_EVENT(balance_dirty_wait);
-
-TRACE_EVENT(balance_dirty_written,
-
-	TP_PROTO(struct backing_dev_info *bdi, int written),
-
-	TP_ARGS(bdi, written),
-
-	TP_STRUCT__entry(
-		__array(char,	name, 32)
-		__field(int,	written)
-	),
-
-	TP_fast_assign(
-		strncpy(__entry->name, dev_name(bdi->dev), 32);
-		__entry->written = written;
-	),
-
-	TP_printk("bdi %s written %d",
-		  __entry->name,
-		  __entry->written
-	)
-);
 
 DECLARE_EVENT_CLASS(wbc_class,
 	TP_PROTO(struct writeback_control *wbc, struct backing_dev_info *bdi),
@@ -181,27 +160,31 @@ DEFINE_WBC_EVENT(wbc_writepage);
 
 TRACE_EVENT(writeback_queue_io,
 	TP_PROTO(struct bdi_writeback *wb,
-		 unsigned long *older_than_this,
+		 struct wb_writeback_work *work,
 		 int moved),
-	TP_ARGS(wb, older_than_this, moved),
+	TP_ARGS(wb, work, moved),
 	TP_STRUCT__entry(
 		__array(char,		name, 32)
 		__field(unsigned long,	older)
 		__field(long,		age)
 		__field(int,		moved)
+		__field(int,		reason)
 	),
 	TP_fast_assign(
+		unsigned long *older_than_this = work->older_than_this;
 		strncpy(__entry->name, dev_name(wb->bdi->dev), 32);
 		__entry->older	= older_than_this ?  *older_than_this : 0;
 		__entry->age	= older_than_this ?
 				  (jiffies - *older_than_this) * 1000 / HZ : -1;
 		__entry->moved	= moved;
+		__entry->reason	= work->reason;
 	),
-	TP_printk("bdi %s: older=%lu age=%ld enqueue=%d",
+	TP_printk("bdi %s: older=%lu age=%ld enqueue=%d reason=%s",
 		__entry->name,
 		__entry->older,	/* older_than_this in jiffies */
 		__entry->age,	/* older_than_this in relative milliseconds */
-		__entry->moved)
+		__entry->moved,
+		wb_reason_name[__entry->reason])
 );
 
 TRACE_EVENT(global_dirty_state,
@@ -248,6 +231,124 @@ TRACE_EVENT(global_dirty_state,
 		  __entry->nr_dirtied,
 		  __entry->nr_written
 	)
+);
+
+#define KBps(x)			((x) << (PAGE_SHIFT - 10))
+
+TRACE_EVENT(bdi_dirty_ratelimit,
+
+	TP_PROTO(struct backing_dev_info *bdi,
+		 unsigned long dirty_rate,
+		 unsigned long task_ratelimit),
+
+	TP_ARGS(bdi, dirty_rate, task_ratelimit),
+
+	TP_STRUCT__entry(
+		__array(char,		bdi, 32)
+		__field(unsigned long,	write_bw)
+		__field(unsigned long,	avg_write_bw)
+		__field(unsigned long,	dirty_rate)
+		__field(unsigned long,	dirty_ratelimit)
+		__field(unsigned long,	task_ratelimit)
+		__field(unsigned long,	balanced_dirty_ratelimit)
+	),
+
+	TP_fast_assign(
+		strlcpy(__entry->bdi, dev_name(bdi->dev), 32);
+		__entry->write_bw	= KBps(bdi->write_bandwidth);
+		__entry->avg_write_bw	= KBps(bdi->avg_write_bandwidth);
+		__entry->dirty_rate	= KBps(dirty_rate);
+		__entry->dirty_ratelimit = KBps(bdi->dirty_ratelimit);
+		__entry->task_ratelimit	= KBps(task_ratelimit);
+		__entry->balanced_dirty_ratelimit =
+					  KBps(bdi->balanced_dirty_ratelimit);
+	),
+
+	TP_printk("bdi %s: "
+		  "write_bw=%lu awrite_bw=%lu dirty_rate=%lu "
+		  "dirty_ratelimit=%lu task_ratelimit=%lu "
+		  "balanced_dirty_ratelimit=%lu",
+		  __entry->bdi,
+		  __entry->write_bw,		/* write bandwidth */
+		  __entry->avg_write_bw,	/* avg write bandwidth */
+		  __entry->dirty_rate,		/* bdi dirty rate */
+		  __entry->dirty_ratelimit,	/* base ratelimit */
+		  __entry->task_ratelimit, /* ratelimit with position control */
+		  __entry->balanced_dirty_ratelimit /* the balanced ratelimit */
+	)
+);
+
+TRACE_EVENT(balance_dirty_pages,
+
+	TP_PROTO(struct backing_dev_info *bdi,
+		 unsigned long thresh,
+		 unsigned long bg_thresh,
+		 unsigned long dirty,
+		 unsigned long bdi_thresh,
+		 unsigned long bdi_dirty,
+		 unsigned long dirty_ratelimit,
+		 unsigned long task_ratelimit,
+		 unsigned long dirtied,
+		 long pause,
+		 unsigned long start_time),
+
+	TP_ARGS(bdi, thresh, bg_thresh, dirty, bdi_thresh, bdi_dirty,
+		dirty_ratelimit, task_ratelimit,
+		dirtied, pause, start_time),
+
+	TP_STRUCT__entry(
+		__array(	 char,	bdi, 32)
+		__field(unsigned long,	limit)
+		__field(unsigned long,	setpoint)
+		__field(unsigned long,	dirty)
+		__field(unsigned long,	bdi_setpoint)
+		__field(unsigned long,	bdi_dirty)
+		__field(unsigned long,	dirty_ratelimit)
+		__field(unsigned long,	task_ratelimit)
+		__field(unsigned int,	dirtied)
+		__field(unsigned int,	dirtied_pause)
+		__field(unsigned long,	paused)
+		__field(	 long,	pause)
+	),
+
+	TP_fast_assign(
+		unsigned long freerun = (thresh + bg_thresh) / 2;
+		strlcpy(__entry->bdi, dev_name(bdi->dev), 32);
+
+		__entry->limit		= global_dirty_limit;
+		__entry->setpoint	= (global_dirty_limit + freerun) / 2;
+		__entry->dirty		= dirty;
+		__entry->bdi_setpoint	= __entry->setpoint *
+						bdi_thresh / (thresh + 1);
+		__entry->bdi_dirty	= bdi_dirty;
+		__entry->dirty_ratelimit = KBps(dirty_ratelimit);
+		__entry->task_ratelimit	= KBps(task_ratelimit);
+		__entry->dirtied	= dirtied;
+		__entry->dirtied_pause	= current->nr_dirtied_pause;
+		__entry->pause		= pause * 1000 / HZ;
+		__entry->paused		= (jiffies - start_time) * 1000 / HZ;
+	),
+
+
+	TP_printk("bdi %s: "
+		  "limit=%lu setpoint=%lu dirty=%lu "
+		  "bdi_setpoint=%lu bdi_dirty=%lu "
+		  "dirty_ratelimit=%lu task_ratelimit=%lu "
+		  "dirtied=%u dirtied_pause=%u "
+		  "paused=%lu pause=%ld",
+		  __entry->bdi,
+		  __entry->limit,
+		  __entry->setpoint,
+		  __entry->dirty,
+		  __entry->bdi_setpoint,
+		  __entry->bdi_dirty,
+		  __entry->dirty_ratelimit,
+		  __entry->task_ratelimit,
+		  __entry->dirtied,
+		  __entry->dirtied_pause,
+		  __entry->paused,	/* ms */
+		  __entry->pause	/* ms */
+	  )
 );
 
 DECLARE_EVENT_CLASS(writeback_congest_waited_template,

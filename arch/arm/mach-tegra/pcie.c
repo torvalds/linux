@@ -32,6 +32,7 @@
 #include <linux/irq.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/export.h>
 
 #include <asm/sizes.h>
 #include <asm/mach/pci.h>
@@ -40,6 +41,8 @@
 #include <mach/iomap.h>
 #include <mach/clk.h>
 #include <mach/powergate.h>
+
+#include "board.h"
 
 /* register definitions */
 #define AFI_OFFSET	0x3800
@@ -150,9 +153,9 @@
 static void __iomem *reg_pmc_base = IO_ADDRESS(TEGRA_PMC_BASE);
 
 #define pmc_writel(value, reg) \
-	__raw_writel(value, (u32)reg_pmc_base + (reg))
+	__raw_writel(value, reg_pmc_base + (reg))
 #define pmc_readl(reg) \
-	__raw_readl((u32)reg_pmc_base + (reg))
+	__raw_readl(reg_pmc_base + (reg))
 
 /*
  * Tegra2 defines 1GB in the AXI address map for PCIe.
@@ -460,7 +463,7 @@ static struct pci_bus __init *tegra_pcie_scan_bus(int nr,
 	struct tegra_pcie_port *pp;
 
 	if (nr >= tegra_pcie.num_ports)
-		return 0;
+		return NULL;
 
 	pp = tegra_pcie.port + nr;
 	pp->root_bus_nr = sys->busnr;

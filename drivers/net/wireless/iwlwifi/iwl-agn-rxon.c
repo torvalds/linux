@@ -60,7 +60,7 @@ static int iwlagn_disable_pan(struct iwl_priv *priv,
 	u8 old_dev_type = send->dev_type;
 	int ret;
 
-	iwlagn_init_notification_wait(priv, &disable_wait,
+	iwl_init_notification_wait(priv->shrd, &disable_wait,
 				      REPLY_WIPAN_DEACTIVATION_COMPLETE,
 				      NULL, NULL);
 
@@ -74,9 +74,9 @@ static int iwlagn_disable_pan(struct iwl_priv *priv,
 
 	if (ret) {
 		IWL_ERR(priv, "Error disabling PAN (%d)\n", ret);
-		iwlagn_remove_notification(priv, &disable_wait);
+		iwl_remove_notification(priv->shrd, &disable_wait);
 	} else {
-		ret = iwlagn_wait_notification(priv, &disable_wait, HZ);
+		ret = iwl_wait_notification(priv->shrd, &disable_wait, HZ);
 		if (ret)
 			IWL_ERR(priv, "Timed out waiting for PAN disable\n");
 	}
@@ -529,6 +529,24 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	return 0;
 }
 
+void iwlagn_config_ht40(struct ieee80211_conf *conf,
+	struct iwl_rxon_context *ctx)
+{
+	if (conf_is_ht40_minus(conf)) {
+		ctx->ht.extension_chan_offset =
+			IEEE80211_HT_PARAM_CHA_SEC_BELOW;
+		ctx->ht.is_40mhz = true;
+	} else if (conf_is_ht40_plus(conf)) {
+		ctx->ht.extension_chan_offset =
+			IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
+		ctx->ht.is_40mhz = true;
+	} else {
+		ctx->ht.extension_chan_offset =
+			IEEE80211_HT_PARAM_CHA_SEC_NONE;
+		ctx->ht.is_40mhz = false;
+	}
+}
+
 int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct iwl_priv *priv = hw->priv;
@@ -590,19 +608,11 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 				ctx->ht.enabled = conf_is_ht(conf);
 
 			if (ctx->ht.enabled) {
-				if (conf_is_ht40_minus(conf)) {
-					ctx->ht.extension_chan_offset =
-						IEEE80211_HT_PARAM_CHA_SEC_BELOW;
-					ctx->ht.is_40mhz = true;
-				} else if (conf_is_ht40_plus(conf)) {
-					ctx->ht.extension_chan_offset =
-						IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
-					ctx->ht.is_40mhz = true;
-				} else {
-					ctx->ht.extension_chan_offset =
-						IEEE80211_HT_PARAM_CHA_SEC_NONE;
-					ctx->ht.is_40mhz = false;
-				}
+				/* if HT40 is used, it should not change
+				 * after associated except channel switch */
+				if (!ctx->ht.is_40mhz ||
+						!iwl_is_associated_ctx(ctx))
+					iwlagn_config_ht40(conf, ctx);
 			} else
 				ctx->ht.is_40mhz = false;
 

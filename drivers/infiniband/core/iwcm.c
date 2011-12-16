@@ -45,6 +45,7 @@
 #include <linux/workqueue.h>
 #include <linux/completion.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #include <rdma/iw_cm.h>
 #include <rdma/ib_addr.h>

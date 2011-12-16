@@ -17,7 +17,7 @@ extern int core_dev_export(struct se_device *, struct se_portal_group *,
 					struct se_lun *);
 extern void core_dev_unexport(struct se_device *, struct se_portal_group *,
 					struct se_lun *);
-extern int transport_core_report_lun_response(struct se_cmd *);
+extern int target_report_luns(struct se_task *);
 extern void se_release_device_for_hba(struct se_device *);
 extern void se_release_vpd_for_dev(struct se_device *);
 extern void se_clear_dev_ports(struct se_device *);

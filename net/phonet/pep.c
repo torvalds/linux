@@ -30,6 +30,7 @@
 #include <asm/ioctls.h>
 
 #include <linux/phonet.h>
+#include <linux/module.h>
 #include <net/phonet/phonet.h>
 #include <net/phonet/pep.h>
 #include <net/phonet/gprs.h>

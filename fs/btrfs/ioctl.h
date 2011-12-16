@@ -193,6 +193,30 @@ struct btrfs_ioctl_space_args {
 	struct btrfs_ioctl_space_info spaces[0];
 };
 
+struct btrfs_data_container {
+	__u32	bytes_left;	/* out -- bytes not needed to deliver output */
+	__u32	bytes_missing;	/* out -- additional bytes needed for result */
+	__u32	elem_cnt;	/* out */
+	__u32	elem_missed;	/* out */
+	__u64	val[0];		/* out */
+};
+
+struct btrfs_ioctl_ino_path_args {
+	__u64				inum;		/* in */
+	__u32				size;		/* in */
+	__u64				reserved[4];
+	/* struct btrfs_data_container	*fspath;	   out */
+	__u64				fspath;		/* out */
+};
+
+struct btrfs_ioctl_logical_ino_args {
+	__u64				logical;	/* in */
+	__u32				size;		/* in */
+	__u64				reserved[4];
+	/* struct btrfs_data_container	*inodes;	out   */
+	__u64				inodes;
+};
+
 #define BTRFS_IOC_SNAP_CREATE _IOW(BTRFS_IOCTL_MAGIC, 1, \
 				   struct btrfs_ioctl_vol_args)
 #define BTRFS_IOC_DEFRAG _IOW(BTRFS_IOCTL_MAGIC, 2, \
@@ -248,4 +272,9 @@ struct btrfs_ioctl_space_args {
 				 struct btrfs_ioctl_dev_info_args)
 #define BTRFS_IOC_FS_INFO _IOR(BTRFS_IOCTL_MAGIC, 31, \
 			       struct btrfs_ioctl_fs_info_args)
+#define BTRFS_IOC_INO_PATHS _IOWR(BTRFS_IOCTL_MAGIC, 35, \
+					struct btrfs_ioctl_ino_path_args)
+#define BTRFS_IOC_LOGICAL_INO _IOWR(BTRFS_IOCTL_MAGIC, 36, \
+					struct btrfs_ioctl_ino_path_args)
+
 #endif

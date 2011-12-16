@@ -276,7 +276,7 @@ static const struct icp_ops icp_native_ops = {
 #endif
 };
 
-int icp_native_init(void)
+int __init icp_native_init(void)
 {
 	struct device_node *np;
 	u32 indx = 0;

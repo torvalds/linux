@@ -53,7 +53,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/gameport.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -1175,6 +1175,7 @@ static int snd_via82xx_pcm_open(struct via82xx *chip, struct viadev *viadev,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 	struct via_rate_lock *ratep;
+	bool use_src = false;
 
 	runtime->hw = snd_via82xx_hw;
 	
@@ -1196,6 +1197,7 @@ static int snd_via82xx_pcm_open(struct via82xx *chip, struct viadev *viadev,
 				     SNDRV_PCM_RATE_8000_48000);
 		runtime->hw.rate_min = 8000;
 		runtime->hw.rate_max = 48000;
+		use_src = true;
 	} else if (! ratep->rate) {
 		int idx = viadev->direction ? AC97_RATES_ADC : AC97_RATES_FRONT_DAC;
 		runtime->hw.rates = chip->ac97->rates[idx];
@@ -1211,6 +1213,12 @@ static int snd_via82xx_pcm_open(struct via82xx *chip, struct viadev *viadev,
 	   in interrupt */
 	if ((err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS)) < 0)
 		return err;
+
+	if (use_src) {
+		err = snd_pcm_hw_rule_noresample(runtime, 48000);
+		if (err < 0)
+			return err;
+	}
 
 	runtime->private_data = viadev;
 	viadev->substream = substream;
@@ -2068,8 +2076,9 @@ static int __devinit snd_via686_init_misc(struct via82xx *chip)
 	pci_write_config_byte(chip->pci, VIA_PNP_CONTROL, legacy_cfg);
 	if (chip->mpu_res) {
 		if (snd_mpu401_uart_new(chip->card, 0, MPU401_HW_VIA686A,
-					mpu_port, MPU401_INFO_INTEGRATED,
-					chip->irq, 0, &chip->rmidi) < 0) {
+					mpu_port, MPU401_INFO_INTEGRATED |
+					MPU401_INFO_IRQ_HOOK, -1,
+					&chip->rmidi) < 0) {
 			printk(KERN_WARNING "unable to initialize MPU-401"
 			       " at 0x%lx, skipping\n", mpu_port);
 			legacy &= ~VIA_FUNC_ENABLE_MIDI;

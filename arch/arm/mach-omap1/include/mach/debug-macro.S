@@ -13,12 +13,7 @@
 
 #include <linux/serial_reg.h>
 
-#include <asm/memory.h>
-
 #include <plat/serial.h>
-
-#define omap_uart_v2p(x)	((x) - PAGE_OFFSET + PLAT_PHYS_OFFSET)
-#define omap_uart_p2v(x)	((x) - PLAT_PHYS_OFFSET + PAGE_OFFSET)
 
 		.pushsection .data
 omap_uart_phys:	.word	0x0
@@ -31,26 +26,24 @@ omap_uart_virt:	.word	0x0
 		 * the desired UART phys and virt addresses temporarily into
 		 * the omap_uart_phys and omap_uart_virt above.
 		 */
-		.macro	addruart, rp, rv
+		.macro	addruart, rp, rv, tmp
 
 		/* Use omap_uart_phys/virt if already configured */
-9:		mrc	p15, 0, \rp, c1, c0
-		tst	\rp, #1			@ MMU enabled?
-		ldreq	\rp, =omap_uart_v2p(omap_uart_phys)	@ MMU disabled
-		ldrne	\rp, =omap_uart_phys	@ MMU enabled
-		add	\rv, \rp, #4		@ omap_uart_virt
-		ldr	\rp, [\rp, #0]
-		ldr	\rv, [\rv, #0]
+9:		adr	\rp, 99f		@ get effective addr of 99f
+		ldr	\rv, [\rp]		@ get absolute addr of 99f
+		sub	\rv, \rv, \rp		@ offset between the two
+		ldr	\rp, [\rp, #4]		@ abs addr of omap_uart_phys
+		sub	\tmp, \rp, \rv		@ make it effective
+		ldr	\rp, [\tmp, #0]		@ omap_uart_phys
+		ldr	\rv, [\tmp, #4]		@ omap_uart_virt
 		cmp	\rp, #0			@ is port configured?
 		cmpne	\rv, #0
-		bne	99f			@ already configured
+		bne	100f			@ already configured
 
 		/* Check the debug UART configuration set in uncompress.h */
-		mrc	p15, 0, \rp, c1, c0
-		tst	\rp, #1			@ MMU enabled?
-		ldreq	\rp, =OMAP_UART_INFO	@ MMU not enabled
-		ldrne	\rp, =omap_uart_p2v(OMAP_UART_INFO)	@ MMU enabled
-		ldr	\rp, [\rp, #0]
+		and	\rp, pc, #0xff000000
+		ldr	\rv, =OMAP_UART_INFO_OFS
+		ldr	\rp, [\rp, \rv]
 
 		/* Select the UART to use based on the UART1 scratchpad value */
 10:		cmp	\rp, #0			@ no port configured?
@@ -74,17 +67,18 @@ omap_uart_virt:	.word	0x0
 
 		/* Store both phys and virt address for the uart */
 98:		add	\rp, \rp, #0xff000000	@ phys base
-		mrc	p15, 0, \rv, c1, c0
-		tst	\rv, #1			@ MMU enabled?
-		ldreq	\rv, =omap_uart_v2p(omap_uart_phys)	@ MMU disabled
-		ldrne	\rv, =omap_uart_phys	@ MMU enabled
-		str	\rp, [\rv, #0]
+		str	\rp, [\tmp, #0]		@ omap_uart_phys
 		sub	\rp, \rp, #0xff000000	@ phys base
 		add	\rp, \rp, #0xfe000000	@ virt base
-		add	\rv, \rv, #4		@ omap_uart_lsr
-		str	\rp, [\rv, #0]
+		str	\rp, [\tmp, #4]		@ omap_uart_virt
 		b	9b
-99:
+
+		.align
+99:		.word	.
+		.word	omap_uart_phys
+		.ltorg
+
+100:
 		.endm
 
 		.macro	senduart,rd,rx

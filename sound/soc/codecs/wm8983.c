@@ -1007,7 +1007,7 @@ static int wm8983_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	ret = snd_soc_write(codec, WM8983_SOFTWARE_RESET, 0x8983);
+	ret = snd_soc_write(codec, WM8983_SOFTWARE_RESET, 0);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to issue reset: %d\n", ret);
 		return ret;

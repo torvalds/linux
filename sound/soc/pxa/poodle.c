@@ -265,7 +265,6 @@ static int poodle_wm8731_init(struct snd_soc_pcm_runtime *rtd)
 	/* Set up poodle specific audio path audio_map */
 	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
-	snd_soc_dapm_sync(dapm);
 	return 0;
 }
 

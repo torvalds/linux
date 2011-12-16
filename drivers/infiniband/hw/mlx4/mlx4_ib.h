@@ -56,6 +56,13 @@ struct mlx4_ib_pd {
 	u32			pdn;
 };
 
+struct mlx4_ib_xrcd {
+	struct ib_xrcd		ibxrcd;
+	u32			xrcdn;
+	struct ib_pd	       *pd;
+	struct ib_cq	       *cq;
+};
+
 struct mlx4_ib_cq_buf {
 	struct mlx4_buf		buf;
 	struct mlx4_mtt		mtt;
@@ -138,6 +145,7 @@ struct mlx4_ib_qp {
 	struct mlx4_mtt		mtt;
 	int			buf_size;
 	struct mutex		mutex;
+	u16			xrcdn;
 	u32			flags;
 	u8			port;
 	u8			alt_port;
@@ -209,6 +217,11 @@ static inline struct mlx4_ib_ucontext *to_mucontext(struct ib_ucontext *ibuconte
 static inline struct mlx4_ib_pd *to_mpd(struct ib_pd *ibpd)
 {
 	return container_of(ibpd, struct mlx4_ib_pd, ibpd);
+}
+
+static inline struct mlx4_ib_xrcd *to_mxrcd(struct ib_xrcd *ibxrcd)
+{
+	return container_of(ibxrcd, struct mlx4_ib_xrcd, ibxrcd);
 }
 
 static inline struct mlx4_ib_cq *to_mcq(struct ib_cq *ibcq)

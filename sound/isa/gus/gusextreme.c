@@ -24,7 +24,7 @@
 #include <linux/isa.h>
 #include <linux/delay.h>
 #include <linux/time.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <asm/dma.h>
 #include <sound/core.h>
 #include <sound/gus.h>
@@ -317,8 +317,7 @@ static int __devinit snd_gusextreme_probe(struct device *dev, unsigned int n)
 
 	if (es1688->mpu_port >= 0x300) {
 		error = snd_mpu401_uart_new(card, 0, MPU401_HW_ES1688,
-				es1688->mpu_port, 0,
-				mpu_irq[n], IRQF_DISABLED, NULL);
+				es1688->mpu_port, 0, mpu_irq[n], NULL);
 		if (error < 0)
 			goto out;
 	}

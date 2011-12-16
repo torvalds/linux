@@ -8,6 +8,7 @@
  */
 
 #include <linux/sched.h>
+#include <linux/export.h>
 #include <linux/pm_runtime.h>
 #include <trace/events/rpm.h>
 #include "power.h"
@@ -29,12 +30,9 @@ static int rpm_suspend(struct device *dev, int rpmflags);
 void update_pm_runtime_accounting(struct device *dev)
 {
 	unsigned long now = jiffies;
-	int delta;
+	unsigned long delta;
 
 	delta = now - dev->power.accounting_timestamp;
-
-	if (delta < 0)
-		delta = 0;
 
 	dev->power.accounting_timestamp = now;
 
@@ -296,6 +294,9 @@ static int rpm_callback(int (*cb)(struct device *), struct device *dev)
  * the callback was running then carry it out, otherwise send an idle
  * notification for its parent (if the suspend succeeded and both
  * ignore_children of parent->power and irq_safe of dev->power are not set).
+ * If ->runtime_suspend failed with -EAGAIN or -EBUSY, and if the RPM_AUTO
+ * flag is set and the next autosuspend-delay expiration time is in the
+ * future, schedule another autosuspend attempt.
  *
  * This function must be called under dev->power.lock with interrupts disabled.
  */
@@ -416,10 +417,21 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 	if (retval) {
 		__update_runtime_status(dev, RPM_ACTIVE);
 		dev->power.deferred_resume = false;
-		if (retval == -EAGAIN || retval == -EBUSY)
+		if (retval == -EAGAIN || retval == -EBUSY) {
 			dev->power.runtime_error = 0;
-		else
+
+			/*
+			 * If the callback routine failed an autosuspend, and
+			 * if the last_busy time has been updated so that there
+			 * is a new autosuspend expiration time, automatically
+			 * reschedule another autosuspend.
+			 */
+			if ((rpmflags & RPM_AUTO) &&
+			    pm_runtime_autosuspend_expiration(dev) != 0)
+				goto repeat;
+		} else {
 			pm_runtime_cancel_pending(dev);
+		}
 		wake_up_all(&dev->power.wait_queue);
 		goto out;
 	}

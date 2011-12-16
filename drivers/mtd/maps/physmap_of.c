@@ -34,57 +34,9 @@ struct of_flash_list {
 
 struct of_flash {
 	struct mtd_info		*cmtd;
-	struct mtd_partition	*parts;
 	int list_size; /* number of elements in of_flash_list */
 	struct of_flash_list	list[0];
 };
-
-#define OF_FLASH_PARTS(info)	((info)->parts)
-static int parse_obsolete_partitions(struct platform_device *dev,
-				     struct of_flash *info,
-				     struct device_node *dp)
-{
-	int i, plen, nr_parts;
-	const struct {
-		__be32 offset, len;
-	} *part;
-	const char *names;
-
-	part = of_get_property(dp, "partitions", &plen);
-	if (!part)
-		return 0; /* No partitions found */
-
-	dev_warn(&dev->dev, "Device tree uses obsolete partition map binding\n");
-
-	nr_parts = plen / sizeof(part[0]);
-
-	info->parts = kzalloc(nr_parts * sizeof(*info->parts), GFP_KERNEL);
-	if (!info->parts)
-		return -ENOMEM;
-
-	names = of_get_property(dp, "partition-names", &plen);
-
-	for (i = 0; i < nr_parts; i++) {
-		info->parts[i].offset = be32_to_cpu(part->offset);
-		info->parts[i].size   = be32_to_cpu(part->len) & ~1;
-		if (be32_to_cpu(part->len) & 1) /* bit 0 set signifies read only partition */
-			info->parts[i].mask_flags = MTD_WRITEABLE;
-
-		if (names && (plen > 0)) {
-			int len = strlen(names) + 1;
-
-			info->parts[i].name = (char *)names;
-			plen -= len;
-			names += len;
-		} else {
-			info->parts[i].name = "unnamed";
-		}
-
-		part++;
-	}
-
-	return nr_parts;
-}
 
 static int of_flash_remove(struct platform_device *dev)
 {
@@ -101,11 +53,8 @@ static int of_flash_remove(struct platform_device *dev)
 		mtd_concat_destroy(info->cmtd);
 	}
 
-	if (info->cmtd) {
-		if (OF_FLASH_PARTS(info))
-			kfree(OF_FLASH_PARTS(info));
+	if (info->cmtd)
 		mtd_device_unregister(info->cmtd);
-	}
 
 	for (i = 0; i < info->list_size; i++) {
 		if (info->list[i].mtd)
@@ -165,7 +114,8 @@ static struct mtd_info * __devinit obsolete_probe(struct platform_device *dev,
    specifies the list of partition probers to use. If none is given then the
    default is use. These take precedence over other device tree
    information. */
-static const char *part_probe_types_def[] = { "cmdlinepart", "RedBoot", NULL };
+static const char *part_probe_types_def[] = { "cmdlinepart", "RedBoot",
+					"ofpart", "ofoldpart", NULL };
 static const char ** __devinit of_get_probes(struct device_node *dp)
 {
 	const char *cp;
@@ -218,6 +168,7 @@ static int __devinit of_flash_probe(struct platform_device *dev)
 	int reg_tuple_size;
 	struct mtd_info **mtd_list = NULL;
 	resource_size_t res_size;
+	struct mtd_part_parser_data ppdata;
 
 	match = of_match_device(of_flash_match, &dev->dev);
 	if (!match)
@@ -331,28 +282,11 @@ static int __devinit of_flash_probe(struct platform_device *dev)
 	if (err)
 		goto err_out;
 
+	ppdata.of_node = dp;
 	part_probe_types = of_get_probes(dp);
-	err = parse_mtd_partitions(info->cmtd, part_probe_types,
-				   &info->parts, 0);
-	if (err < 0) {
-		of_free_probes(part_probe_types);
-		goto err_out;
-	}
+	mtd_device_parse_register(info->cmtd, part_probe_types, &ppdata,
+			NULL, 0);
 	of_free_probes(part_probe_types);
-
-	if (err == 0) {
-		err = of_mtd_parse_partitions(&dev->dev, dp, &info->parts);
-		if (err < 0)
-			goto err_out;
-	}
-
-	if (err == 0) {
-		err = parse_obsolete_partitions(dev, info, dp);
-		if (err < 0)
-			goto err_out;
-	}
-
-	mtd_device_register(info->cmtd, info->parts, err);
 
 	kfree(mtd_list);
 

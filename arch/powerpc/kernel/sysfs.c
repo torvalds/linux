@@ -4,7 +4,7 @@
 #include <linux/percpu.h>
 #include <linux/init.h>
 #include <linux/sched.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/nodemask.h>
 #include <linux/cpumask.h>
 #include <linux/notifier.h>

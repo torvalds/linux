@@ -48,6 +48,7 @@
 #include <linux/pci-acpi.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/acpi.h>
 
 #include "../pci.h"
 #include "acpiphp.h"
@@ -1149,15 +1150,35 @@ check_sub_bridges(acpi_handle handle, u32 lvl, void *context, void **rv)
 	return AE_OK ;
 }
 
-/**
- * handle_hotplug_event_bridge - handle ACPI event on bridges
- * @handle: Notify()'ed acpi_handle
- * @type: Notify code
- * @context: pointer to acpiphp_bridge structure
- *
- * Handles ACPI event notification on {host,p2p} bridges.
- */
-static void handle_hotplug_event_bridge(acpi_handle handle, u32 type, void *context)
+struct acpiphp_hp_work {
+	struct work_struct work;
+	acpi_handle handle;
+	u32 type;
+	void *context;
+};
+
+static void alloc_acpiphp_hp_work(acpi_handle handle, u32 type,
+				  void *context,
+				  void (*func)(struct work_struct *work))
+{
+	struct acpiphp_hp_work *hp_work;
+	int ret;
+
+	hp_work = kmalloc(sizeof(*hp_work), GFP_KERNEL);
+	if (!hp_work)
+		return;
+
+	hp_work->handle = handle;
+	hp_work->type = type;
+	hp_work->context = context;
+
+	INIT_WORK(&hp_work->work, func);
+	ret = queue_work(kacpi_hotplug_wq, &hp_work->work);
+	if (!ret)
+		kfree(hp_work);
+}
+
+static void _handle_hotplug_event_bridge(struct work_struct *work)
 {
 	struct acpiphp_bridge *bridge;
 	char objname[64];
@@ -1165,11 +1186,18 @@ static void handle_hotplug_event_bridge(acpi_handle handle, u32 type, void *cont
 				      .pointer = objname };
 	struct acpi_device *device;
 	int num_sub_bridges = 0;
+	struct acpiphp_hp_work *hp_work;
+	acpi_handle handle;
+	u32 type;
+
+	hp_work = container_of(work, struct acpiphp_hp_work, work);
+	handle = hp_work->handle;
+	type = hp_work->type;
 
 	if (acpi_bus_get_device(handle, &device)) {
 		/* This bridge must have just been physically inserted */
 		handle_bridge_insertion(handle, type);
-		return;
+		goto out;
 	}
 
 	bridge = acpiphp_handle_to_bridge(handle);
@@ -1180,7 +1208,7 @@ static void handle_hotplug_event_bridge(acpi_handle handle, u32 type, void *cont
 
 	if (!bridge && !num_sub_bridges) {
 		err("cannot get bridge info\n");
-		return;
+		goto out;
 	}
 
 	acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
@@ -1241,22 +1269,49 @@ static void handle_hotplug_event_bridge(acpi_handle handle, u32 type, void *cont
 		warn("notify_handler: unknown event type 0x%x for %s\n", type, objname);
 		break;
 	}
+
+out:
+	kfree(hp_work); /* allocated in handle_hotplug_event_bridge */
 }
 
 /**
- * handle_hotplug_event_func - handle ACPI event on functions (i.e. slots)
+ * handle_hotplug_event_bridge - handle ACPI event on bridges
  * @handle: Notify()'ed acpi_handle
  * @type: Notify code
- * @context: pointer to acpiphp_func structure
+ * @context: pointer to acpiphp_bridge structure
  *
- * Handles ACPI event notification on slots.
+ * Handles ACPI event notification on {host,p2p} bridges.
  */
-static void handle_hotplug_event_func(acpi_handle handle, u32 type, void *context)
+static void handle_hotplug_event_bridge(acpi_handle handle, u32 type,
+					void *context)
+{
+	/*
+	 * Currently the code adds all hotplug events to the kacpid_wq
+	 * queue when it should add hotplug events to the kacpi_hotplug_wq.
+	 * The proper way to fix this is to reorganize the code so that
+	 * drivers (dock, etc.) do not call acpi_os_execute(), etc.
+	 * For now just re-add this work to the kacpi_hotplug_wq so we
+	 * don't deadlock on hotplug actions.
+	 */
+	alloc_acpiphp_hp_work(handle, type, context,
+			      _handle_hotplug_event_bridge);
+}
+
+static void _handle_hotplug_event_func(struct work_struct *work)
 {
 	struct acpiphp_func *func;
 	char objname[64];
 	struct acpi_buffer buffer = { .length = sizeof(objname),
 				      .pointer = objname };
+	struct acpiphp_hp_work *hp_work;
+	acpi_handle handle;
+	u32 type;
+	void *context;
+
+	hp_work = container_of(work, struct acpiphp_hp_work, work);
+	handle = hp_work->handle;
+	type = hp_work->type;
+	context = hp_work->context;
 
 	acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
 
@@ -1291,8 +1346,32 @@ static void handle_hotplug_event_func(acpi_handle handle, u32 type, void *contex
 		warn("notify_handler: unknown event type 0x%x for %s\n", type, objname);
 		break;
 	}
+
+	kfree(hp_work); /* allocated in handle_hotplug_event_func */
 }
 
+/**
+ * handle_hotplug_event_func - handle ACPI event on functions (i.e. slots)
+ * @handle: Notify()'ed acpi_handle
+ * @type: Notify code
+ * @context: pointer to acpiphp_func structure
+ *
+ * Handles ACPI event notification on slots.
+ */
+static void handle_hotplug_event_func(acpi_handle handle, u32 type,
+				      void *context)
+{
+	/*
+	 * Currently the code adds all hotplug events to the kacpid_wq
+	 * queue when it should add hotplug events to the kacpi_hotplug_wq.
+	 * The proper way to fix this is to reorganize the code so that
+	 * drivers (dock, etc.) do not call acpi_os_execute(), etc.
+	 * For now just re-add this work to the kacpi_hotplug_wq so we
+	 * don't deadlock on hotplug actions.
+	 */
+	alloc_acpiphp_hp_work(handle, type, context,
+			      _handle_hotplug_event_func);
+}
 
 static acpi_status
 find_root_bridges(acpi_handle handle, u32 lvl, void *context, void **rv)

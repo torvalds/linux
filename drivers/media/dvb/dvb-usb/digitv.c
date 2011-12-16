@@ -137,11 +137,16 @@ static int digitv_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	struct digitv_state *st = adap->dev->priv;
 
-	if ((adap->fe = dvb_attach(mt352_attach, &digitv_mt352_config, &adap->dev->i2c_adap)) != NULL) {
+	adap->fe_adap[0].fe = dvb_attach(mt352_attach, &digitv_mt352_config,
+					 &adap->dev->i2c_adap);
+	if ((adap->fe_adap[0].fe) != NULL) {
 		st->is_nxt6000 = 0;
 		return 0;
 	}
-	if ((adap->fe = dvb_attach(nxt6000_attach, &digitv_nxt6000_config, &adap->dev->i2c_adap)) != NULL) {
+	adap->fe_adap[0].fe = dvb_attach(nxt6000_attach,
+					 &digitv_nxt6000_config,
+					 &adap->dev->i2c_adap);
+	if ((adap->fe_adap[0].fe) != NULL) {
 		st->is_nxt6000 = 1;
 		return 0;
 	}
@@ -152,11 +157,11 @@ static int digitv_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	struct digitv_state *st = adap->dev->priv;
 
-	if (!dvb_attach(dvb_pll_attach, adap->fe, 0x60, NULL, DVB_PLL_TDED4))
+	if (!dvb_attach(dvb_pll_attach, adap->fe_adap[0].fe, 0x60, NULL, DVB_PLL_TDED4))
 		return -ENODEV;
 
 	if (st->is_nxt6000)
-		adap->fe->ops.tuner_ops.set_params = digitv_nxt6000_tuner_set_params;
+		adap->fe_adap[0].fe->ops.tuner_ops.set_params = digitv_nxt6000_tuner_set_params;
 
 	return 0;
 }
@@ -292,6 +297,8 @@ static struct dvb_usb_device_properties digitv_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+		.num_frontends = 1,
+		.fe = {{
 			.frontend_attach  = digitv_frontend_attach,
 			.tuner_attach     = digitv_tuner_attach,
 
@@ -306,6 +313,7 @@ static struct dvb_usb_device_properties digitv_properties = {
 					}
 				}
 			},
+		}},
 		}
 	},
 	.identify_state   = digitv_identify_state,

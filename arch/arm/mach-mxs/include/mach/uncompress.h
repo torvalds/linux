@@ -63,6 +63,7 @@ static inline void __arch_decomp_setup(unsigned long arch_id)
 		mxs_duart_base = MX23_DUART_BASE_ADDR;
 		break;
 	case MACH_TYPE_MX28EVK:
+	case MACH_TYPE_M28EVK:
 	case MACH_TYPE_TX28:
 		mxs_duart_base = MX28_DUART_BASE_ADDR;
 		break;

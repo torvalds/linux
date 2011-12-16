@@ -29,6 +29,7 @@
 #include <linux/spi/spi.h>
 #include <linux/of_spi.h>
 #include <linux/pm_runtime.h>
+#include <linux/export.h>
 
 static void spidev_release(struct device *dev)
 {

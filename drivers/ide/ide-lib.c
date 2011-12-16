@@ -1,6 +1,7 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/ide.h>
 #include <linux/bitops.h>

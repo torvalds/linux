@@ -40,7 +40,7 @@
 #include <asm/mach/flash.h>
 #include <plat/gpmc.h>
 #include <plat/onenand.h>
-#include <mach/gpio.h>
+#include <asm/gpio.h>
 
 #include <plat/dma.h>
 
@@ -57,7 +57,6 @@ struct omap2_onenand {
 	unsigned long phys_base;
 	int gpio_irq;
 	struct mtd_info mtd;
-	struct mtd_partition *parts;
 	struct onenand_chip onenand;
 	struct completion irq_done;
 	struct completion dma_done;
@@ -66,8 +65,6 @@ struct omap2_onenand {
 	int (*setup)(void __iomem *base, int *freq_ptr);
 	struct regulator *regulator;
 };
-
-static const char *part_probes[] = { "cmdlinepart", NULL,  };
 
 static void omap2_onenand_dma_cb(int lch, u16 ch_status, void *data)
 {
@@ -741,6 +738,7 @@ static int __devinit omap2_onenand_probe(struct platform_device *pdev)
 		c->regulator = regulator_get(&pdev->dev, "vonenand");
 		if (IS_ERR(c->regulator)) {
 			dev_err(&pdev->dev,  "Failed to get regulator\n");
+			r = PTR_ERR(c->regulator);
 			goto err_release_dma;
 		}
 		c->onenand.enable = omap2_onenand_enable;
@@ -753,13 +751,9 @@ static int __devinit omap2_onenand_probe(struct platform_device *pdev)
 	if ((r = onenand_scan(&c->mtd, 1)) < 0)
 		goto err_release_regulator;
 
-	r = parse_mtd_partitions(&c->mtd, part_probes, &c->parts, 0);
-	if (r > 0)
-		r = mtd_device_register(&c->mtd, c->parts, r);
-	else if (pdata->parts != NULL)
-		r = mtd_device_register(&c->mtd, pdata->parts, pdata->nr_parts);
-	else
-		r = mtd_device_register(&c->mtd, NULL, 0);
+	r = mtd_device_parse_register(&c->mtd, NULL, 0,
+			pdata ? pdata->parts : NULL,
+			pdata ? pdata->nr_parts : 0);
 	if (r)
 		goto err_release_onenand;
 
@@ -786,7 +780,6 @@ err_release_mem_region:
 err_free_cs:
 	gpmc_cs_free(c->gpmc_cs);
 err_kfree:
-	kfree(c->parts);
 	kfree(c);
 
 	return r;
@@ -809,7 +802,6 @@ static int __devexit omap2_onenand_remove(struct platform_device *pdev)
 	iounmap(c->onenand.base);
 	release_mem_region(c->phys_base, ONENAND_IO_SIZE);
 	gpmc_cs_free(c->gpmc_cs);
-	kfree(c->parts);
 	kfree(c);
 
 	return 0;

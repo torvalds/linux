@@ -19,6 +19,7 @@
 
  ****************************************************************/
 
+#include <linux/export.h>
 #include <asm/byteorder.h>
 
 #include "smsendian.h"

@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/string.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/gfp.h>
 

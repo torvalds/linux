@@ -19,6 +19,7 @@
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-mediabus.h>
@@ -714,11 +715,6 @@ static int sr030pc30_base_config(struct v4l2_subdev *sd)
 	return ret;
 }
 
-static int sr030pc30_s_stream(struct v4l2_subdev *sd, int enable)
-{
-	return 0;
-}
-
 static int sr030pc30_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -764,7 +760,6 @@ static const struct v4l2_subdev_core_ops sr030pc30_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops sr030pc30_video_ops = {
-	.s_stream	= sr030pc30_s_stream,
 	.g_mbus_fmt	= sr030pc30_g_fmt,
 	.s_mbus_fmt	= sr030pc30_s_fmt,
 	.try_mbus_fmt	= sr030pc30_try_fmt,

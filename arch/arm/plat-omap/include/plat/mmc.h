@@ -31,7 +31,24 @@
 
 #define OMAP_MMC_MAX_SLOTS	2
 
-#define OMAP_HSMMC_SUPPORTS_DUAL_VOLT	BIT(1)
+/*
+ * struct omap_mmc_dev_attr.flags possibilities
+ *
+ * OMAP_HSMMC_SUPPORTS_DUAL_VOLT: Some HSMMC controller instances can
+ *    operate with either 1.8Vdc or 3.0Vdc card voltages; this flag
+ *    should be set if this is the case.  See for example Section 22.5.3
+ *    "MMC/SD/SDIO1 Bus Voltage Selection" of the OMAP34xx Multimedia
+ *    Device Silicon Revision 3.1.x Revision ZR (July 2011) (SWPU223R).
+ *
+ * OMAP_HSMMC_BROKEN_MULTIBLOCK_READ: Multiple-block read transfers
+ *    don't work correctly on some MMC controller instances on some
+ *    OMAP3 SoCs; this flag should be set if this is the case.  See
+ *    for example Advisory 2.1.1.128 "MMC: Multiple Block Read
+ *    Operation Issue" in _OMAP3530/3525/3515/3503 Silicon Errata_
+ *    Revision F (October 2010) (SPRZ278F).
+ */
+#define OMAP_HSMMC_SUPPORTS_DUAL_VOLT		BIT(0)
+#define OMAP_HSMMC_BROKEN_MULTIBLOCK_READ	BIT(1)
 
 struct omap_mmc_dev_attr {
 	u8 flags;

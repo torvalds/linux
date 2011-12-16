@@ -113,6 +113,7 @@ struct iwl_lib_ops {
  * @shadow_reg_enable: HW shadhow register bit
  * @no_idle_support: do not support idle mode
  * @hd_v2: v2 of enhanced sensitivity value, used for 2000 series and up
+ * wd_disable: disable watchdog timer
  */
 struct iwl_base_params {
 	int eeprom_size;
@@ -134,6 +135,7 @@ struct iwl_base_params {
 	const bool shadow_reg_enable;
 	const bool no_idle_support;
 	const bool hd_v2;
+	const bool wd_disable;
 };
 /*
  * @advanced_bt_coexist: support advanced bt coexist
@@ -184,8 +186,9 @@ struct iwl_ht_params {
  * @ht_params: point to ht patameters
  * @bt_params: pointer to bt parameters
  * @pa_type: used by 6000 series only to identify the type of Power Amplifier
- * @need_dc_calib: need to perform init dc calibration
  * @need_temp_offset_calib: need to perform temperature offset calibration
+ * @no_xtal_calib: some devices do not need crystal calibration data,
+ *	don't send it to those
  * @scan_antennas: available antenna for scan operation
  * @led_mode: 0=blinking, 1=On(RF On)/Off(RF Off)
  * @adv_pm: advance power management
@@ -222,8 +225,8 @@ struct iwl_cfg {
 	struct iwl_ht_params *ht_params;
 	struct iwl_bt_params *bt_params;
 	enum iwl_pa_type pa_type;	  /* if used set to IWL_PA_SYSTEM */
-	const bool need_dc_calib;	  /* if used set to true */
 	const bool need_temp_offset_calib; /* if used set to true */
+	const bool no_xtal_calib;
 	u8 scan_rx_antennas[IEEE80211_NUM_BANDS];
 	enum iwl_led_mode led_mode;
 	const bool adv_pm;

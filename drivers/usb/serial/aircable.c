@@ -47,6 +47,7 @@
 #include <asm/unaligned.h>
 #include <linux/tty.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <linux/tty_flip.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>

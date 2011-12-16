@@ -165,6 +165,7 @@ struct dentry_operations {
 			unsigned int, const char *, const struct qstr *);
 	int (*d_delete)(const struct dentry *);
 	void (*d_release)(struct dentry *);
+	void (*d_prune)(struct dentry *);
 	void (*d_iput)(struct dentry *, struct inode *);
 	char *(*d_dname)(struct dentry *, char *, int);
 	struct vfsmount *(*d_automount)(struct path *);
@@ -184,8 +185,9 @@ struct dentry_operations {
 #define DCACHE_OP_COMPARE	0x0002
 #define DCACHE_OP_REVALIDATE	0x0004
 #define DCACHE_OP_DELETE	0x0008
+#define DCACHE_OP_PRUNE         0x0010
 
-#define	DCACHE_DISCONNECTED	0x0010
+#define	DCACHE_DISCONNECTED	0x0020
      /* This dentry is possibly not currently connected to the dcache tree, in
       * which case its parent will either be itself, or will have this flag as
       * well.  nfsd will not use a dentry with this bit set, but will first
@@ -196,8 +198,8 @@ struct dentry_operations {
       * dentry into place and return that dentry rather than the passed one,
       * typically using d_splice_alias. */
 
-#define DCACHE_REFERENCED	0x0020  /* Recently used, don't discard. */
-#define DCACHE_RCUACCESS	0x0040	/* Entry has ever been RCU-visible */
+#define DCACHE_REFERENCED	0x0040  /* Recently used, don't discard. */
+#define DCACHE_RCUACCESS	0x0080	/* Entry has ever been RCU-visible */
 
 #define DCACHE_CANT_MOUNT	0x0100
 #define DCACHE_GENOCIDE		0x0200

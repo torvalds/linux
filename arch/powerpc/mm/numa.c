@@ -13,7 +13,7 @@
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/mmzone.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/nodemask.h>
 #include <linux/cpu.h>
 #include <linux/notifier.h>
@@ -315,7 +315,10 @@ static int __init find_min_common_depth(void)
 	struct device_node *root;
 	const char *vec5;
 
-	root = of_find_node_by_path("/rtas");
+	if (firmware_has_feature(FW_FEATURE_OPAL))
+		root = of_find_node_by_path("/ibm,opal");
+	else
+		root = of_find_node_by_path("/rtas");
 	if (!root)
 		root = of_find_node_by_path("/");
 
@@ -344,12 +347,19 @@ static int __init find_min_common_depth(void)
 
 #define VEC5_AFFINITY_BYTE	5
 #define VEC5_AFFINITY		0x80
-	chosen = of_find_node_by_path("/chosen");
-	if (chosen) {
-		vec5 = of_get_property(chosen, "ibm,architecture-vec-5", NULL);
-		if (vec5 && (vec5[VEC5_AFFINITY_BYTE] & VEC5_AFFINITY)) {
-			dbg("Using form 1 affinity\n");
-			form1_affinity = 1;
+
+	if (firmware_has_feature(FW_FEATURE_OPAL))
+		form1_affinity = 1;
+	else {
+		chosen = of_find_node_by_path("/chosen");
+		if (chosen) {
+			vec5 = of_get_property(chosen,
+					       "ibm,architecture-vec-5", NULL);
+			if (vec5 && (vec5[VEC5_AFFINITY_BYTE] &
+							VEC5_AFFINITY)) {
+				dbg("Using form 1 affinity\n");
+				form1_affinity = 1;
+			}
 		}
 	}
 
@@ -709,8 +719,7 @@ static void __init parse_drconf_memory(struct device_node *memory)
 
 static int __init parse_numa_properties(void)
 {
-	struct device_node *cpu = NULL;
-	struct device_node *memory = NULL;
+	struct device_node *memory;
 	int default_nid = 0;
 	unsigned long i;
 
@@ -732,6 +741,7 @@ static int __init parse_numa_properties(void)
 	 * each node to be onlined must have NODE_DATA etc backing it.
 	 */
 	for_each_present_cpu(i) {
+		struct device_node *cpu;
 		int nid;
 
 		cpu = of_get_cpu_node(i, NULL);
@@ -750,8 +760,8 @@ static int __init parse_numa_properties(void)
 	}
 
 	get_n_mem_cells(&n_mem_addr_cells, &n_mem_size_cells);
-	memory = NULL;
-	while ((memory = of_find_node_by_type(memory, "memory")) != NULL) {
+
+	for_each_node_by_type(memory, "memory") {
 		unsigned long start;
 		unsigned long size;
 		int nid;
@@ -800,8 +810,9 @@ new_range:
 	}
 
 	/*
-	 * Now do the same thing for each MEMBLOCK listed in the ibm,dynamic-memory
-	 * property in the ibm,dynamic-reconfiguration-memory node.
+	 * Now do the same thing for each MEMBLOCK listed in the
+	 * ibm,dynamic-memory property in the
+	 * ibm,dynamic-reconfiguration-memory node.
 	 */
 	memory = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
 	if (memory)
@@ -1187,10 +1198,10 @@ static int hot_add_drconf_scn_to_nid(struct device_node *memory,
  */
 int hot_add_node_scn_to_nid(unsigned long scn_addr)
 {
-	struct device_node *memory = NULL;
+	struct device_node *memory;
 	int nid = -1;
 
-	while ((memory = of_find_node_by_type(memory, "memory")) != NULL) {
+	for_each_node_by_type(memory, "memory") {
 		unsigned long start, size;
 		int ranges;
 		const unsigned int *memcell_buf;
@@ -1214,10 +1225,11 @@ int hot_add_node_scn_to_nid(unsigned long scn_addr)
 			break;
 		}
 
-		of_node_put(memory);
 		if (nid >= 0)
 			break;
 	}
+
+	of_node_put(memory);
 
 	return nid;
 }

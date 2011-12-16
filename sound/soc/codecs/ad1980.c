@@ -148,7 +148,6 @@ static struct snd_soc_dai_driver ad1980_dai = {
 		.rates = SNDRV_PCM_RATE_48000,
 		.formats = SND_SOC_STD_AC97_FMTS, },
 };
-EXPORT_SYMBOL_GPL(ad1980_dai);
 
 static int ad1980_reset(struct snd_soc_codec *codec, int try_warm)
 {
@@ -200,18 +199,22 @@ static int ad1980_soc_probe(struct snd_soc_codec *codec)
 	}
 
 	/* Read out vendor ID to make sure it is ad1980 */
-	if (ac97_read(codec, AC97_VENDOR_ID1) != 0x4144)
+	if (ac97_read(codec, AC97_VENDOR_ID1) != 0x4144) {
+		ret = -ENODEV;
 		goto reset_err;
+	}
 
 	vendor_id2 = ac97_read(codec, AC97_VENDOR_ID2);
 
 	if (vendor_id2 != 0x5370) {
-		if (vendor_id2 != 0x5374)
+		if (vendor_id2 != 0x5374) {
+			ret = -ENODEV;
 			goto reset_err;
-		else
+		} else {
 			printk(KERN_WARNING "ad1980: "
 				"Found AD1981 - only 2/2 IN/OUT Channels "
 				"supported\n");
+		}
 	}
 
 	/* unmute captures and playbacks volume */

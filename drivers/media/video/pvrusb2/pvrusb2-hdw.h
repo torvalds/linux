@@ -214,6 +214,9 @@ struct pvr2_stream *pvr2_hdw_get_video_stream(struct pvr2_hdw *);
 int pvr2_hdw_get_stdenum_value(struct pvr2_hdw *hdw,struct v4l2_standard *std,
 			       unsigned int idx);
 
+/* Get the detected video standard */
+int pvr2_hdw_get_detected_std(struct pvr2_hdw *hdw, v4l2_std_id *std);
+
 /* Enable / disable retrieval of CPU firmware or prom contents.  This must
    be enabled before pvr2_hdw_cpufw_get() will function.  Note that doing
    this may prevent the device from running (and leaving this mode may

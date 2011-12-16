@@ -22,8 +22,12 @@
  */
 #define V4L2_MBUS_MASTER			(1 << 0)
 #define V4L2_MBUS_SLAVE				(1 << 1)
-/* Which signal polarities it supports */
-/* Note: in BT.656 mode HSYNC and VSYNC are unused */
+/*
+ * Signal polarity flags
+ * Note: in BT.656 mode HSYNC, FIELD, and VSYNC are unused
+ * V4L2_MBUS_[HV]SYNC* flags should be also used for specifying
+ * configuration of hardware that uses [HV]REF signals
+ */
 #define V4L2_MBUS_HSYNC_ACTIVE_HIGH		(1 << 2)
 #define V4L2_MBUS_HSYNC_ACTIVE_LOW		(1 << 3)
 #define V4L2_MBUS_VSYNC_ACTIVE_HIGH		(1 << 4)
@@ -32,6 +36,10 @@
 #define V4L2_MBUS_PCLK_SAMPLE_FALLING		(1 << 7)
 #define V4L2_MBUS_DATA_ACTIVE_HIGH		(1 << 8)
 #define V4L2_MBUS_DATA_ACTIVE_LOW		(1 << 9)
+/* FIELD = 0/1 - Field1 (odd)/Field2 (even) */
+#define V4L2_MBUS_FIELD_EVEN_HIGH		(1 << 10)
+/* FIELD = 1/0 - Field1 (odd)/Field2 (even) */
+#define V4L2_MBUS_FIELD_EVEN_LOW		(1 << 11)
 
 /* Serial flags */
 /* How many lanes the client can use */

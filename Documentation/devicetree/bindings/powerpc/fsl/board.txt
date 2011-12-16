@@ -1,3 +1,8 @@
+Freescale Reference Board Bindings
+
+This document describes device tree bindings for various devices that
+exist on some Freescale reference boards.
+
 * Board Control and Status (BCSR)
 
 Required properties:
@@ -12,25 +17,26 @@ Example:
 		reg = <f8000000 8000>;
 	};
 
-* Freescale on board FPGA
+* Freescale on-board FPGA
 
 This is the memory-mapped registers for on board FPGA.
 
 Required properities:
-- compatible : should be "fsl,fpga-pixis".
-- reg : should contain the address and the length of the FPPGA register
-  set.
+- compatible: should be a board-specific string followed by a string
+  indicating the type of FPGA.  Example:
+	"fsl,<board>-fpga", "fsl,fpga-pixis"
+- reg: should contain the address and the length of the FPGA register set.
 - interrupt-parent: should specify phandle for the interrupt controller.
-- interrupts : should specify event (wakeup) IRQ.
+- interrupts: should specify event (wakeup) IRQ.
 
-Example (MPC8610HPCD):
+Example (P1022DS):
 
-	board-control@e8000000 {
-		compatible = "fsl,fpga-pixis";
-		reg = <0xe8000000 32>;
-		interrupt-parent = <&mpic>;
-		interrupts = <8 8>;
-	};
+	 board-control@3,0 {
+		 compatible = "fsl,p1022ds-fpga", "fsl,fpga-ngpixis";
+		 reg = <3 0 0x30>;
+		 interrupt-parent = <&mpic>;
+		 interrupts = <8 8 0 0>;
+	 };
 
 * Freescale BCSR GPIO banks
 

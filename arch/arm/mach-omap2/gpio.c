@@ -24,17 +24,9 @@
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
 
-static struct omap_device_pm_latency omap_gpio_latency[] = {
-	[0] = {
-		.deactivate_func = omap_device_idle_hwmods,
-		.activate_func   = omap_device_enable_hwmods,
-		.flags		 = OMAP_DEVICE_LATENCY_AUTO_ADJUST,
-	},
-};
-
 static int omap2_gpio_dev_init(struct omap_hwmod *oh, void *unused)
 {
-	struct omap_device *od;
+	struct platform_device *pdev;
 	struct omap_gpio_platform_data *pdata;
 	struct omap_gpio_dev_attr *dev_attr;
 	char *name = "omap_gpio";
@@ -107,19 +99,17 @@ static int omap2_gpio_dev_init(struct omap_hwmod *oh, void *unused)
 		return -EINVAL;
 	}
 
-	od = omap_device_build(name, id - 1, oh, pdata,
-				sizeof(*pdata),	omap_gpio_latency,
-				ARRAY_SIZE(omap_gpio_latency),
-				false);
+	pdev = omap_device_build(name, id - 1, oh, pdata,
+				sizeof(*pdata),	NULL, 0, false);
 	kfree(pdata);
 
-	if (IS_ERR(od)) {
+	if (IS_ERR(pdev)) {
 		WARN(1, "Can't build omap_device for %s:%s.\n",
 					name, oh->name);
-		return PTR_ERR(od);
+		return PTR_ERR(pdev);
 	}
 
-	omap_device_disable_idle_on_suspend(od);
+	omap_device_disable_idle_on_suspend(pdev);
 
 	gpio_bank_count++;
 	return 0;

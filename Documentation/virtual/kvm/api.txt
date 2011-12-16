@@ -175,10 +175,30 @@ Parameters: vcpu id (apic id on x86)
 Returns: vcpu fd on success, -1 on error
 
 This API adds a vcpu to a virtual machine.  The vcpu id is a small integer
-in the range [0, max_vcpus).  You can use KVM_CAP_NR_VCPUS of the
-KVM_CHECK_EXTENSION ioctl() to determine the value for max_vcpus at run-time.
+in the range [0, max_vcpus).
+
+The recommended max_vcpus value can be retrieved using the KVM_CAP_NR_VCPUS of
+the KVM_CHECK_EXTENSION ioctl() at run-time.
+The maximum possible value for max_vcpus can be retrieved using the
+KVM_CAP_MAX_VCPUS of the KVM_CHECK_EXTENSION ioctl() at run-time.
+
 If the KVM_CAP_NR_VCPUS does not exist, you should assume that max_vcpus is 4
 cpus max.
+If the KVM_CAP_MAX_VCPUS does not exist, you should assume that max_vcpus is
+same as the value returned from KVM_CAP_NR_VCPUS.
+
+On powerpc using book3s_hv mode, the vcpus are mapped onto virtual
+threads in one or more virtual CPU cores.  (This is because the
+hardware requires all the hardware threads in a CPU core to be in the
+same partition.)  The KVM_CAP_PPC_SMT capability indicates the number
+of vcpus per virtual core (vcore).  The vcore id is obtained by
+dividing the vcpu id by the number of vcpus per vcore.  The vcpus in a
+given vcore will always be in the same physical core as each other
+(though that might be a different physical core from time to time).
+Userspace can control the threading (SMT) mode of the guest by its
+allocation of vcpu ids.  For example, if userspace wants
+single-threaded guest vcpus, it should make all vcpu ids be a multiple
+of the number of vcpus per vcore.
 
 On powerpc using book3s_hv mode, the vcpus are mapped onto virtual
 threads in one or more virtual CPU cores.  (This is because the
@@ -1633,3 +1653,50 @@ developer registration required to access it).
 		char padding[256];
 	};
 };
+
+6. Capabilities that can be enabled
+
+There are certain capabilities that change the behavior of the virtual CPU when
+enabled. To enable them, please see section 4.37. Below you can find a list of
+capabilities and what their effect on the vCPU is when enabling them.
+
+The following information is provided along with the description:
+
+  Architectures: which instruction set architectures provide this ioctl.
+      x86 includes both i386 and x86_64.
+
+  Parameters: what parameters are accepted by the capability.
+
+  Returns: the return value.  General error numbers (EBADF, ENOMEM, EINVAL)
+      are not detailed, but errors with specific meanings are.
+
+6.1 KVM_CAP_PPC_OSI
+
+Architectures: ppc
+Parameters: none
+Returns: 0 on success; -1 on error
+
+This capability enables interception of OSI hypercalls that otherwise would
+be treated as normal system calls to be injected into the guest. OSI hypercalls
+were invented by Mac-on-Linux to have a standardized communication mechanism
+between the guest and the host.
+
+When this capability is enabled, KVM_EXIT_OSI can occur.
+
+6.2 KVM_CAP_PPC_PAPR
+
+Architectures: ppc
+Parameters: none
+Returns: 0 on success; -1 on error
+
+This capability enables interception of PAPR hypercalls. PAPR hypercalls are
+done using the hypercall instruction "sc 1".
+
+It also sets the guest privilege level to "supervisor" mode. Usually the guest
+runs in "hypervisor" privilege mode with a few missing features.
+
+In addition to the above, it changes the semantics of SDR1. In this mode, the
+HTAB address part of SDR1 contains an HVA instead of a GPA, as PAPR keeps the
+HTAB invisible to the guest.
+
+When this capability is enabled, KVM_EXIT_PAPR_HCALL can occur.

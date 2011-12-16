@@ -90,7 +90,7 @@ static int dtt200u_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 
 static int dtt200u_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	adap->fe = dtt200u_fe_attach(adap->dev);
+	adap->fe_adap[0].fe = dtt200u_fe_attach(adap->dev);
 	return 0;
 }
 
@@ -140,6 +140,8 @@ static struct dvb_usb_device_properties dtt200u_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+		.num_frontends = 1,
+		.fe = {{
 			.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_NEED_PID_FILTERING,
 			.pid_filter_count = 15,
 
@@ -157,6 +159,7 @@ static struct dvb_usb_device_properties dtt200u_properties = {
 			}
 		}
 	},
+		}},
 		}
 	},
 	.power_ctrl      = dtt200u_power_ctrl,
@@ -187,6 +190,8 @@ static struct dvb_usb_device_properties wt220u_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+		.num_frontends = 1,
+		.fe = {{
 			.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_NEED_PID_FILTERING,
 			.pid_filter_count = 15,
 
@@ -204,6 +209,7 @@ static struct dvb_usb_device_properties wt220u_properties = {
 			}
 		}
 	},
+		}},
 		}
 	},
 	.power_ctrl      = dtt200u_power_ctrl,
@@ -234,6 +240,8 @@ static struct dvb_usb_device_properties wt220u_fc_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+		.num_frontends = 1,
+		.fe = {{
 			.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_NEED_PID_FILTERING,
 			.pid_filter_count = 15,
 
@@ -251,6 +259,7 @@ static struct dvb_usb_device_properties wt220u_fc_properties = {
 			}
 		}
 	},
+		}},
 		}
 	},
 	.power_ctrl      = dtt200u_power_ctrl,
@@ -281,6 +290,8 @@ static struct dvb_usb_device_properties wt220u_zl0353_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+		.num_frontends = 1,
+		.fe = {{
 			.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_NEED_PID_FILTERING,
 			.pid_filter_count = 15,
 
@@ -298,6 +309,7 @@ static struct dvb_usb_device_properties wt220u_zl0353_properties = {
 					}
 				}
 			},
+		}},
 		}
 	},
 	.power_ctrl      = dtt200u_power_ctrl,

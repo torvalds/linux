@@ -311,8 +311,8 @@ static inline struct hpfs_sb_info *hpfs_sb(struct super_block *sb)
 
 /* super.c */
 
-void hpfs_error(struct super_block *, const char *, ...)
-	__attribute__((format (printf, 2, 3)));
+__printf(2, 3)
+void hpfs_error(struct super_block *, const char *, ...);
 int hpfs_stop_cycles(struct super_block *, int, int *, int *, char *);
 unsigned hpfs_count_one_bitmap(struct super_block *, secno);
 

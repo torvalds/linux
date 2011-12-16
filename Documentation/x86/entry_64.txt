@@ -27,9 +27,6 @@ Some of these entries are:
    magically-generated functions that make their way to do_IRQ with
    the interrupt number as a parameter.
 
- - emulate_vsyscall: int 0xcc, a special non-ABI entry used by
-   vsyscall emulation.
-
  - APIC interrupts: Various special-purpose interrupts for things
    like TLB shootdown.
 

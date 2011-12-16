@@ -383,6 +383,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	pm_iir = dev_priv->pm_iir;
 	dev_priv->pm_iir = 0;
 	pm_imr = I915_READ(GEN6_PMIMR);
+	I915_WRITE(GEN6_PMIMR, 0);
 	spin_unlock_irq(&dev_priv->rps_lock);
 
 	if (!pm_iir)
@@ -420,7 +421,6 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	 * an *extremely* unlikely race with gen6_rps_enable() that is prevented
 	 * by holding struct_mutex for the duration of the write.
 	 */
-	I915_WRITE(GEN6_PMIMR, pm_imr & ~pm_iir);
 	mutex_unlock(&dev_priv->dev->struct_mutex);
 }
 
@@ -536,8 +536,9 @@ static irqreturn_t ivybridge_irq_handler(DRM_IRQ_ARGS)
 		unsigned long flags;
 		spin_lock_irqsave(&dev_priv->rps_lock, flags);
 		WARN(dev_priv->pm_iir & pm_iir, "Missed a PM interrupt\n");
-		I915_WRITE(GEN6_PMIMR, pm_iir);
 		dev_priv->pm_iir |= pm_iir;
+		I915_WRITE(GEN6_PMIMR, dev_priv->pm_iir);
+		POSTING_READ(GEN6_PMIMR);
 		spin_unlock_irqrestore(&dev_priv->rps_lock, flags);
 		queue_work(dev_priv->wq, &dev_priv->rps_work);
 	}
@@ -649,8 +650,9 @@ static irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
 		unsigned long flags;
 		spin_lock_irqsave(&dev_priv->rps_lock, flags);
 		WARN(dev_priv->pm_iir & pm_iir, "Missed a PM interrupt\n");
-		I915_WRITE(GEN6_PMIMR, pm_iir);
 		dev_priv->pm_iir |= pm_iir;
+		I915_WRITE(GEN6_PMIMR, dev_priv->pm_iir);
+		POSTING_READ(GEN6_PMIMR);
 		spin_unlock_irqrestore(&dev_priv->rps_lock, flags);
 		queue_work(dev_priv->wq, &dev_priv->rps_work);
 	}
@@ -711,7 +713,7 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 
 	page_count = src->base.size / PAGE_SIZE;
 
-	dst = kmalloc(sizeof(*dst) + page_count * sizeof (u32 *), GFP_ATOMIC);
+	dst = kmalloc(sizeof(*dst) + page_count * sizeof(u32 *), GFP_ATOMIC);
 	if (dst == NULL)
 		return NULL;
 
@@ -1493,7 +1495,7 @@ static int ironlake_enable_vblank(struct drm_device *dev, int pipe)
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	ironlake_enable_display_irq(dev_priv, (pipe == 0) ?
-				    DE_PIPEA_VBLANK: DE_PIPEB_VBLANK);
+				    DE_PIPEA_VBLANK : DE_PIPEB_VBLANK);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
 	return 0;
@@ -1541,7 +1543,7 @@ static void ironlake_disable_vblank(struct drm_device *dev, int pipe)
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	ironlake_disable_display_irq(dev_priv, (pipe == 0) ?
-				     DE_PIPEA_VBLANK: DE_PIPEB_VBLANK);
+				     DE_PIPEA_VBLANK : DE_PIPEB_VBLANK);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
@@ -1777,6 +1779,26 @@ static void ironlake_irq_preinstall(struct drm_device *dev)
 	POSTING_READ(SDEIER);
 }
 
+/*
+ * Enable digital hotplug on the PCH, and configure the DP short pulse
+ * duration to 2ms (which is the minimum in the Display Port spec)
+ *
+ * This register is the same on all known PCH chips.
+ */
+
+static void ironlake_enable_pch_hotplug(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	u32	hotplug;
+
+	hotplug = I915_READ(PCH_PORT_HOTPLUG);
+	hotplug &= ~(PORTD_PULSE_DURATION_MASK|PORTC_PULSE_DURATION_MASK|PORTB_PULSE_DURATION_MASK);
+	hotplug |= PORTD_HOTPLUG_ENABLE | PORTD_PULSE_DURATION_2ms;
+	hotplug |= PORTC_HOTPLUG_ENABLE | PORTC_PULSE_DURATION_2ms;
+	hotplug |= PORTB_HOTPLUG_ENABLE | PORTB_PULSE_DURATION_2ms;
+	I915_WRITE(PCH_PORT_HOTPLUG, hotplug);
+}
+
 static int ironlake_irq_postinstall(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
@@ -1839,6 +1861,8 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	I915_WRITE(SDEIER, hotplug_mask);
 	POSTING_READ(SDEIER);
 
+	ironlake_enable_pch_hotplug(dev);
+
 	if (IS_IRONLAKE_M(dev)) {
 		/* Clear & enable PCU event interrupts */
 		I915_WRITE(DEIIR, DE_PCU_EVENT);
@@ -1895,6 +1919,8 @@ static int ivybridge_irq_postinstall(struct drm_device *dev)
 	I915_WRITE(SDEIMR, dev_priv->pch_irq_mask);
 	I915_WRITE(SDEIER, hotplug_mask);
 	POSTING_READ(SDEIER);
+
+	ironlake_enable_pch_hotplug(dev);
 
 	return 0;
 }
@@ -2020,6 +2046,10 @@ static void ironlake_irq_uninstall(struct drm_device *dev)
 	I915_WRITE(GTIMR, 0xffffffff);
 	I915_WRITE(GTIER, 0x0);
 	I915_WRITE(GTIIR, I915_READ(GTIIR));
+
+	I915_WRITE(SDEIMR, 0xffffffff);
+	I915_WRITE(SDEIER, 0x0);
+	I915_WRITE(SDEIIR, I915_READ(SDEIIR));
 }
 
 static void i915_driver_irq_uninstall(struct drm_device * dev)

@@ -17,6 +17,7 @@
 #include <net/dst.h>
 #include <net/xfrm.h>
 #include <linux/veth.h>
+#include <linux/module.h>
 
 #define DRV_NAME	"veth"
 #define DRV_VERSION	"1.0"

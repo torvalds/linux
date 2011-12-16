@@ -1263,6 +1263,10 @@ void isci_host_deinit(struct isci_host *ihost)
 {
 	int i;
 
+	/* disable output data selects */
+	for (i = 0; i < isci_gpio_count(ihost); i++)
+		writel(SGPIO_HW_CONTROL, &ihost->scu_registers->peg0.sgpio.output_data_select[i]);
+
 	isci_host_change_state(ihost, isci_stopping);
 	for (i = 0; i < SCI_MAX_PORTS; i++) {
 		struct isci_port *iport = &ihost->ports[i];
@@ -1281,6 +1285,12 @@ void isci_host_deinit(struct isci_host *ihost)
 	spin_unlock_irq(&ihost->scic_lock);
 
 	wait_for_stop(ihost);
+
+	/* disable sgpio: where the above wait should give time for the
+	 * enclosure to sample the gpios going inactive
+	 */
+	writel(0, &ihost->scu_registers->peg0.sgpio.interface_control);
+
 	sci_controller_reset(ihost);
 
 	/* Cancel any/all outstanding port timers */
@@ -1340,7 +1350,7 @@ static void isci_user_parameters_get(struct sci_user_parameters *u)
 	u->stp_max_occupancy_timeout = stp_max_occ_to;
 	u->ssp_max_occupancy_timeout = ssp_max_occ_to;
 	u->no_outbound_task_timeout = no_outbound_task_to;
-	u->max_number_concurrent_device_spin_up = max_concurr_spinup;
+	u->max_concurr_spinup = max_concurr_spinup;
 }
 
 static void sci_controller_initial_state_enter(struct sci_base_state_machine *sm)
@@ -1651,7 +1661,7 @@ static void sci_controller_set_default_config_parameters(struct isci_host *ihost
 	ihost->oem_parameters.controller.mode_type = SCIC_PORT_AUTOMATIC_CONFIGURATION_MODE;
 
 	/* Default to APC mode. */
-	ihost->oem_parameters.controller.max_concurrent_dev_spin_up = 1;
+	ihost->oem_parameters.controller.max_concurr_spin_up = 1;
 
 	/* Default to no SSC operation. */
 	ihost->oem_parameters.controller.do_enable_ssc = false;
@@ -1777,7 +1787,8 @@ int sci_oem_parameters_validate(struct sci_oem_params *oem)
 	} else
 		return -EINVAL;
 
-	if (oem->controller.max_concurrent_dev_spin_up > MAX_CONCURRENT_DEVICE_SPIN_UP_COUNT)
+	if (oem->controller.max_concurr_spin_up > MAX_CONCURRENT_DEVICE_SPIN_UP_COUNT ||
+	    oem->controller.max_concurr_spin_up < 1)
 		return -EINVAL;
 
 	return 0;
@@ -1798,6 +1809,16 @@ static enum sci_status sci_oem_parameters_set(struct isci_host *ihost)
 	}
 
 	return SCI_FAILURE_INVALID_STATE;
+}
+
+static u8 max_spin_up(struct isci_host *ihost)
+{
+	if (ihost->user_parameters.max_concurr_spinup)
+		return min_t(u8, ihost->user_parameters.max_concurr_spinup,
+			     MAX_CONCURRENT_DEVICE_SPIN_UP_COUNT);
+	else
+		return min_t(u8, ihost->oem_parameters.controller.max_concurr_spin_up,
+			     MAX_CONCURRENT_DEVICE_SPIN_UP_COUNT);
 }
 
 static void power_control_timeout(unsigned long data)
@@ -1829,8 +1850,7 @@ static void power_control_timeout(unsigned long data)
 		if (iphy == NULL)
 			continue;
 
-		if (ihost->power_control.phys_granted_power >=
-		    ihost->oem_parameters.controller.max_concurrent_dev_spin_up)
+		if (ihost->power_control.phys_granted_power >= max_spin_up(ihost))
 			break;
 
 		ihost->power_control.requesters[i] = NULL;
@@ -1855,8 +1875,7 @@ void sci_controller_power_control_queue_insert(struct isci_host *ihost,
 {
 	BUG_ON(iphy == NULL);
 
-	if (ihost->power_control.phys_granted_power <
-	    ihost->oem_parameters.controller.max_concurrent_dev_spin_up) {
+	if (ihost->power_control.phys_granted_power < max_spin_up(ihost)) {
 		ihost->power_control.phys_granted_power++;
 		sci_phy_consume_power_handler(iphy);
 
@@ -2365,6 +2384,12 @@ int isci_host_init(struct isci_host *ihost)
 	for (i = 0; i < SCI_MAX_PHYS; i++)
 		isci_phy_init(&ihost->phys[i], ihost, i);
 
+	/* enable sgpio */
+	writel(1, &ihost->scu_registers->peg0.sgpio.interface_control);
+	for (i = 0; i < isci_gpio_count(ihost); i++)
+		writel(SGPIO_HW_CONTROL, &ihost->scu_registers->peg0.sgpio.output_data_select[i]);
+	writel(0, &ihost->scu_registers->peg0.sgpio.vendor_specific_code);
+
 	for (i = 0; i < SCI_MAX_REMOTE_DEVICES; i++) {
 		struct isci_remote_device *idev = &ihost->devices[i];
 
@@ -2759,4 +2784,57 @@ enum sci_task_status sci_controller_start_task(struct isci_host *ihost,
 	}
 
 	return status;
+}
+
+static int sci_write_gpio_tx_gp(struct isci_host *ihost, u8 reg_index, u8 reg_count, u8 *write_data)
+{
+	int d;
+
+	/* no support for TX_GP_CFG */
+	if (reg_index == 0)
+		return -EINVAL;
+
+	for (d = 0; d < isci_gpio_count(ihost); d++) {
+		u32 val = 0x444; /* all ODx.n clear */
+		int i;
+
+		for (i = 0; i < 3; i++) {
+			int bit = (i << 2) + 2;
+
+			bit = try_test_sas_gpio_gp_bit(to_sas_gpio_od(d, i),
+						       write_data, reg_index,
+						       reg_count);
+			if (bit < 0)
+				break;
+
+			/* if od is set, clear the 'invert' bit */
+			val &= ~(bit << ((i << 2) + 2));
+		}
+
+		if (i < 3)
+			break;
+		writel(val, &ihost->scu_registers->peg0.sgpio.output_data_select[d]);
+	}
+
+	/* unless reg_index is > 1, we should always be able to write at
+	 * least one register
+	 */
+	return d > 0;
+}
+
+int isci_gpio_write(struct sas_ha_struct *sas_ha, u8 reg_type, u8 reg_index,
+		    u8 reg_count, u8 *write_data)
+{
+	struct isci_host *ihost = sas_ha->lldd_ha;
+	int written;
+
+	switch (reg_type) {
+	case SAS_GPIO_REG_TX_GP:
+		written = sci_write_gpio_tx_gp(ihost, reg_index, reg_count, write_data);
+		break;
+	default:
+		written = -EINVAL;
+	}
+
+	return written;
 }

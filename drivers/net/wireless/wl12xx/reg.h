@@ -408,7 +408,7 @@
 
 
 /* Firmware image load chunk size */
-#define CHUNK_SIZE          512
+#define CHUNK_SIZE	16384
 
 /* Firmware image header size */
 #define FW_HDR_SIZE 8

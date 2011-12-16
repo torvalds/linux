@@ -127,6 +127,17 @@ static int do_setxattr(struct btrfs_trans_handle *trans,
 again:
 	ret = btrfs_insert_xattr_item(trans, root, path, btrfs_ino(inode),
 				      name, name_len, value, size);
+	/*
+	 * If we're setting an xattr to a new value but the new value is say
+	 * exactly BTRFS_MAX_XATTR_SIZE, we could end up with EOVERFLOW getting
+	 * back from split_leaf.  This is because it thinks we'll be extending
+	 * the existing item size, but we're asking for enough space to add the
+	 * item itself.  So if we get EOVERFLOW just set ret to EEXIST and let
+	 * the rest of the function figure it out.
+	 */
+	if (ret == -EOVERFLOW)
+		ret = -EEXIST;
+
 	if (ret == -EEXIST) {
 		if (flags & XATTR_CREATE)
 			goto out;

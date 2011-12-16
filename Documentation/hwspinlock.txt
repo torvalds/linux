@@ -39,23 +39,20 @@ independent, drivers.
      in case an unused hwspinlock isn't available. Users of this
      API will usually want to communicate the lock's id to the remote core
      before it can be used to achieve synchronization.
-     Can be called from an atomic context (this function will not sleep) but
-     not from within interrupt context.
+     Should be called from a process context (might sleep).
 
   struct hwspinlock *hwspin_lock_request_specific(unsigned int id);
    - assign a specific hwspinlock id and return its address, or NULL
      if that hwspinlock is already in use. Usually board code will
      be calling this function in order to reserve specific hwspinlock
      ids for predefined purposes.
-     Can be called from an atomic context (this function will not sleep) but
-     not from within interrupt context.
+     Should be called from a process context (might sleep).
 
   int hwspin_lock_free(struct hwspinlock *hwlock);
    - free a previously-assigned hwspinlock; returns 0 on success, or an
      appropriate error code on failure (e.g. -EINVAL if the hwspinlock
      is already free).
-     Can be called from an atomic context (this function will not sleep) but
-     not from within interrupt context.
+     Should be called from a process context (might sleep).
 
   int hwspin_lock_timeout(struct hwspinlock *hwlock, unsigned int timeout);
    - lock a previously-assigned hwspinlock with a timeout limit (specified in
@@ -230,45 +227,62 @@ int hwspinlock_example2(void)
 
 4. API for implementors
 
-  int hwspin_lock_register(struct hwspinlock *hwlock);
+  int hwspin_lock_register(struct hwspinlock_device *bank, struct device *dev,
+		const struct hwspinlock_ops *ops, int base_id, int num_locks);
    - to be called from the underlying platform-specific implementation, in
-     order to register a new hwspinlock instance. Can be called from an atomic
-     context (this function will not sleep) but not from within interrupt
-     context. Returns 0 on success, or appropriate error code on failure.
+     order to register a new hwspinlock device (which is usually a bank of
+     numerous locks). Should be called from a process context (this function
+     might sleep).
+     Returns 0 on success, or appropriate error code on failure.
 
-  struct hwspinlock *hwspin_lock_unregister(unsigned int id);
+  int hwspin_lock_unregister(struct hwspinlock_device *bank);
    - to be called from the underlying vendor-specific implementation, in order
-     to unregister an existing (and unused) hwspinlock instance.
-     Can be called from an atomic context (will not sleep) but not from
-     within interrupt context.
+     to unregister an hwspinlock device (which is usually a bank of numerous
+     locks).
+     Should be called from a process context (this function might sleep).
      Returns the address of hwspinlock on success, or NULL on error (e.g.
      if the hwspinlock is sill in use).
 
-5. struct hwspinlock
+5. Important structs
 
-This struct represents an hwspinlock instance. It is registered by the
-underlying hwspinlock implementation using the hwspin_lock_register() API.
+struct hwspinlock_device is a device which usually contains a bank
+of hardware locks. It is registered by the underlying hwspinlock
+implementation using the hwspin_lock_register() API.
 
 /**
- * struct hwspinlock - vendor-specific hwspinlock implementation
- *
- * @dev: underlying device, will be used with runtime PM api
- * @ops: vendor-specific hwspinlock handlers
- * @id: a global, unique, system-wide, index of the lock.
- * @lock: initialized and used by hwspinlock core
- * @owner: underlying implementation module, used to maintain module ref count
+ * struct hwspinlock_device - a device which usually spans numerous hwspinlocks
+ * @dev: underlying device, will be used to invoke runtime PM api
+ * @ops: platform-specific hwspinlock handlers
+ * @base_id: id index of the first lock in this device
+ * @num_locks: number of locks in this device
+ * @lock: dynamically allocated array of 'struct hwspinlock'
  */
-struct hwspinlock {
+struct hwspinlock_device {
 	struct device *dev;
 	const struct hwspinlock_ops *ops;
-	int id;
-	spinlock_t lock;
-	struct module *owner;
+	int base_id;
+	int num_locks;
+	struct hwspinlock lock[0];
 };
 
-The underlying implementation is responsible to assign the dev, ops, id and
-owner members. The lock member, OTOH, is initialized and used by the hwspinlock
-core.
+struct hwspinlock_device contains an array of hwspinlock structs, each
+of which represents a single hardware lock:
+
+/**
+ * struct hwspinlock - this struct represents a single hwspinlock instance
+ * @bank: the hwspinlock_device structure which owns this lock
+ * @lock: initialized and used by hwspinlock core
+ * @priv: private data, owned by the underlying platform-specific hwspinlock drv
+ */
+struct hwspinlock {
+	struct hwspinlock_device *bank;
+	spinlock_t lock;
+	void *priv;
+};
+
+When registering a bank of locks, the hwspinlock driver only needs to
+set the priv members of the locks. The rest of the members are set and
+initialized by the hwspinlock core itself.
 
 6. Implementation callbacks
 

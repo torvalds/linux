@@ -108,6 +108,7 @@ struct au1100fb_device {
 	unsigned char* 		fb_mem;		/* FrameBuffer memory map */
 	size_t	      		fb_len;
 	dma_addr_t    		fb_phys;
+	int			panel_idx;
 };
 
 /********************************************************************/
@@ -362,11 +363,6 @@ static struct au1100fb_panel known_lcd_panels[] =
 		.verttiming = 0x210805df,
 		.clkcontrol_base = 0x00038001,
 	},
-};
-
-struct au1100fb_drv_info {
-	int	panel_idx;
-	char 	*opt_mode;
 };
 
 /********************************************************************/

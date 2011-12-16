@@ -194,7 +194,8 @@ associated with the inotify_handle, and on which events are queued.
 Each watch is associated with an inotify_watch structure.  Watches are chained
 off of each associated inotify_handle and each associated inode.
 
-See fs/inotify.c and fs/inotify_user.c for the locking and lifetime rules.
+See fs/notify/inotify/inotify_fsnotify.c and fs/notify/inotify/inotify_user.c
+for the locking and lifetime rules.
 
 
 (vi) Rationale

@@ -87,6 +87,7 @@ static int __sigp_emergency(struct kvm_vcpu *vcpu, u16 cpu_addr)
 		return -ENOMEM;
 
 	inti->type = KVM_S390_INT_EMERGENCY;
+	inti->emerg.code = vcpu->vcpu_id;
 
 	spin_lock(&fi->lock);
 	li = fi->local_int[cpu_addr];
@@ -103,9 +104,47 @@ static int __sigp_emergency(struct kvm_vcpu *vcpu, u16 cpu_addr)
 		wake_up_interruptible(&li->wq);
 	spin_unlock_bh(&li->lock);
 	rc = 0; /* order accepted */
+	VCPU_EVENT(vcpu, 4, "sent sigp emerg to cpu %x", cpu_addr);
 unlock:
 	spin_unlock(&fi->lock);
-	VCPU_EVENT(vcpu, 4, "sent sigp emerg to cpu %x", cpu_addr);
+	return rc;
+}
+
+static int __sigp_external_call(struct kvm_vcpu *vcpu, u16 cpu_addr)
+{
+	struct kvm_s390_float_interrupt *fi = &vcpu->kvm->arch.float_int;
+	struct kvm_s390_local_interrupt *li;
+	struct kvm_s390_interrupt_info *inti;
+	int rc;
+
+	if (cpu_addr >= KVM_MAX_VCPUS)
+		return 3; /* not operational */
+
+	inti = kzalloc(sizeof(*inti), GFP_KERNEL);
+	if (!inti)
+		return -ENOMEM;
+
+	inti->type = KVM_S390_INT_EXTERNAL_CALL;
+	inti->extcall.code = vcpu->vcpu_id;
+
+	spin_lock(&fi->lock);
+	li = fi->local_int[cpu_addr];
+	if (li == NULL) {
+		rc = 3; /* not operational */
+		kfree(inti);
+		goto unlock;
+	}
+	spin_lock_bh(&li->lock);
+	list_add_tail(&inti->list, &li->list);
+	atomic_set(&li->active, 1);
+	atomic_set_mask(CPUSTAT_EXT_INT, li->cpuflags);
+	if (waitqueue_active(&li->wq))
+		wake_up_interruptible(&li->wq);
+	spin_unlock_bh(&li->lock);
+	rc = 0; /* order accepted */
+	VCPU_EVENT(vcpu, 4, "sent sigp ext call to cpu %x", cpu_addr);
+unlock:
+	spin_unlock(&fi->lock);
 	return rc;
 }
 
@@ -266,6 +305,10 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 		vcpu->stat.instruction_sigp_sense++;
 		rc = __sigp_sense(vcpu, cpu_addr,
 				  &vcpu->arch.guest_gprs[r1]);
+		break;
+	case SIGP_EXTERNAL_CALL:
+		vcpu->stat.instruction_sigp_external_call++;
+		rc = __sigp_external_call(vcpu, cpu_addr);
 		break;
 	case SIGP_EMERGENCY:
 		vcpu->stat.instruction_sigp_emergency++;

@@ -27,6 +27,7 @@
 #include <linux/init.h>
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
+#include <linux/export.h>
 
 #include <asm/tlbflush.h>
 #include <asm/tlb.h>

@@ -75,10 +75,11 @@ struct dma_pub {
 };
 
 extern struct dma_pub *dma_attach(char *name, struct si_pub *sih,
-			    void __iomem *dmaregstx, void __iomem *dmaregsrx,
-			    uint ntxd, uint nrxd,
-			    uint rxbufsize, int rxextheadroom,
-			    uint nrxpost, uint rxoffset, uint *msg_level);
+				  struct bcma_device *d11core,
+				  uint txregbase, uint rxregbase,
+				  uint ntxd, uint nrxd,
+				  uint rxbufsize, int rxextheadroom,
+				  uint nrxpost, uint rxoffset, uint *msg_level);
 
 void dma_rxinit(struct dma_pub *pub);
 int dma_rx(struct dma_pub *pub, struct sk_buff_head *skb_list);

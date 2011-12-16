@@ -167,6 +167,18 @@ static struct mfd_cell wm8994_devs[] = {
  * and should be handled via the standard regulator API supply
  * management.
  */
+static const char *wm1811_main_supplies[] = {
+	"DBVDD1",
+	"DBVDD2",
+	"DBVDD3",
+	"DCVDD",
+	"AVDD1",
+	"AVDD2",
+	"CPVDD",
+	"SPKVDD1",
+	"SPKVDD2",
+};
+
 static const char *wm8994_main_supplies[] = {
 	"DBVDD",
 	"DCVDD",
@@ -204,6 +216,47 @@ static int wm8994_suspend(struct device *dev)
 		dev_dbg(dev, "CODEC still active, ignoring suspend\n");
 		return 0;
 	}
+
+	ret = wm8994_reg_read(wm8994, WM8994_POWER_MANAGEMENT_4);
+	if (ret < 0) {
+		dev_err(dev, "Failed to read power status: %d\n", ret);
+	} else if (ret & (WM8994_AIF2ADCL_ENA | WM8994_AIF2ADCR_ENA |
+			  WM8994_AIF1ADC2L_ENA | WM8994_AIF1ADC2R_ENA |
+			  WM8994_AIF1ADC1L_ENA | WM8994_AIF1ADC1R_ENA)) {
+		dev_dbg(dev, "CODEC still active, ignoring suspend\n");
+		return 0;
+	}
+
+	ret = wm8994_reg_read(wm8994, WM8994_POWER_MANAGEMENT_5);
+	if (ret < 0) {
+		dev_err(dev, "Failed to read power status: %d\n", ret);
+	} else if (ret & (WM8994_AIF2DACL_ENA | WM8994_AIF2DACR_ENA |
+			  WM8994_AIF1DAC2L_ENA | WM8994_AIF1DAC2R_ENA |
+			  WM8994_AIF1DAC1L_ENA | WM8994_AIF1DAC1R_ENA)) {
+		dev_dbg(dev, "CODEC still active, ignoring suspend\n");
+		return 0;
+	}
+
+	switch (wm8994->type) {
+	case WM8958:
+		ret = wm8994_reg_read(wm8994, WM8958_MIC_DETECT_1);
+		if (ret < 0) {
+			dev_err(dev, "Failed to read power status: %d\n", ret);
+		} else if (ret & WM8958_MICD_ENA) {
+			dev_dbg(dev, "CODEC still active, ignoring suspend\n");
+			return 0;
+		}
+		break;
+	default:
+		break;
+	}
+
+	/* Disable LDO pulldowns while the device is suspended if we
+	 * don't know that something will be driving them. */
+	if (!wm8994->ldo_ena_always_driven)
+		wm8994_set_bits(wm8994, WM8994_PULL_CONTROL_2,
+				WM8994_LDO1ENA_PD | WM8994_LDO2ENA_PD,
+				WM8994_LDO1ENA_PD | WM8994_LDO2ENA_PD);
 
 	/* GPIO configuration state is saved here since we may be configuring
 	 * the GPIO alternate functions even if we're not using the gpiolib
@@ -274,6 +327,11 @@ static int wm8994_resume(struct device *dev)
 	if (ret < 0)
 		dev_err(dev, "Failed to restore GPIO registers: %d\n", ret);
 
+	/* Disable LDO pulldowns while the device is active */
+	wm8994_set_bits(wm8994, WM8994_PULL_CONTROL_2,
+			WM8994_LDO1ENA_PD | WM8994_LDO2ENA_PD,
+			0);
+
 	wm8994->suspended = false;
 
 	return 0;
@@ -329,6 +387,9 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 	}
 
 	switch (wm8994->type) {
+	case WM1811:
+		wm8994->num_supplies = ARRAY_SIZE(wm1811_main_supplies);
+		break;
 	case WM8994:
 		wm8994->num_supplies = ARRAY_SIZE(wm8994_main_supplies);
 		break;
@@ -349,6 +410,10 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 	}
 
 	switch (wm8994->type) {
+	case WM1811:
+		for (i = 0; i < ARRAY_SIZE(wm1811_main_supplies); i++)
+			wm8994->supplies[i].supply = wm1811_main_supplies[i];
+		break;
 	case WM8994:
 		for (i = 0; i < ARRAY_SIZE(wm8994_main_supplies); i++)
 			wm8994->supplies[i].supply = wm8994_main_supplies[i];
@@ -382,6 +447,13 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		goto err_enable;
 	}
 	switch (ret) {
+	case 0x1811:
+		devname = "WM1811";
+		if (wm8994->type != WM1811)
+			dev_warn(wm8994->dev, "Device registered as type %d\n",
+				 wm8994->type);
+		wm8994->type = WM1811;
+		break;
 	case 0x8994:
 		devname = "WM8994";
 		if (wm8994->type != WM8994)
@@ -441,7 +513,14 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 						pdata->gpio_defaults[i]);
 			}
 		}
+
+		wm8994->ldo_ena_always_driven = pdata->ldo_ena_always_driven;
 	}
+
+	/* Disable LDO pulldowns while the device is active */
+	wm8994_set_bits(wm8994, WM8994_PULL_CONTROL_2,
+			WM8994_LDO1ENA_PD | WM8994_LDO2ENA_PD,
+			0);
 
 	/* In some system designs where the regulators are not in use,
 	 * we can achieve a small reduction in leakage currents by
@@ -539,6 +618,7 @@ static int wm8994_i2c_remove(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id wm8994_i2c_id[] = {
+	{ "wm1811", WM1811 },
 	{ "wm8994", WM8994 },
 	{ "wm8958", WM8958 },
 	{ }

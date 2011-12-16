@@ -71,7 +71,7 @@ static void __init init_eval_h7202(void)
 
 MACHINE_START(H7202, "Hynix HMS30C7202")
 	/* Maintainer: Robert Schwebel, Pengutronix */
-	.boot_params	= 0x40000100,
+	.atag_offset	= 0x100,
 	.map_io		= h720x_map_io,
 	.init_irq	= h7202_init_irq,
 	.timer		= &h7202_timer,

@@ -34,6 +34,7 @@
 
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
+#include <linux/moduleparam.h>
 #include <linux/ip.h>
 #include <linux/in.h>
 #include <linux/igmp.h>

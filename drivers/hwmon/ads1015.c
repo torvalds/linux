@@ -59,19 +59,6 @@ struct ads1015_data {
 	struct ads1015_channel_data channel_data[ADS1015_CHANNELS];
 };
 
-static s32 ads1015_read_reg(struct i2c_client *client, unsigned int reg)
-{
-	s32 data = i2c_smbus_read_word_data(client, reg);
-
-	return (data < 0) ? data : swab16(data);
-}
-
-static s32 ads1015_write_reg(struct i2c_client *client, unsigned int reg,
-			     u16 val)
-{
-	return i2c_smbus_write_word_data(client, reg, swab16(val));
-}
-
 static int ads1015_read_value(struct i2c_client *client, unsigned int channel,
 			      int *value)
 {
@@ -87,7 +74,7 @@ static int ads1015_read_value(struct i2c_client *client, unsigned int channel,
 	mutex_lock(&data->update_lock);
 
 	/* get channel parameters */
-	res = ads1015_read_reg(client, ADS1015_CONFIG);
+	res = i2c_smbus_read_word_swapped(client, ADS1015_CONFIG);
 	if (res < 0)
 		goto err_unlock;
 	config = res;
@@ -101,13 +88,13 @@ static int ads1015_read_value(struct i2c_client *client, unsigned int channel,
 	config |= (pga & 0x0007) << 9;
 	config |= (data_rate & 0x0007) << 5;
 
-	res = ads1015_write_reg(client, ADS1015_CONFIG, config);
+	res = i2c_smbus_write_word_swapped(client, ADS1015_CONFIG, config);
 	if (res < 0)
 		goto err_unlock;
 
 	/* wait until conversion finished */
 	msleep(conversion_time_ms);
-	res = ads1015_read_reg(client, ADS1015_CONFIG);
+	res = i2c_smbus_read_word_swapped(client, ADS1015_CONFIG);
 	if (res < 0)
 		goto err_unlock;
 	config = res;
@@ -117,7 +104,7 @@ static int ads1015_read_value(struct i2c_client *client, unsigned int channel,
 		goto err_unlock;
 	}
 
-	res = ads1015_read_reg(client, ADS1015_CONVERSION);
+	res = i2c_smbus_read_word_swapped(client, ADS1015_CONVERSION);
 	if (res < 0)
 		goto err_unlock;
 	conversion = res;

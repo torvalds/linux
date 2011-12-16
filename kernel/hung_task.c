@@ -13,7 +13,7 @@
 #include <linux/freezer.h>
 #include <linux/kthread.h>
 #include <linux/lockdep.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/sysctl.h>
 
 /*

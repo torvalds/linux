@@ -99,7 +99,7 @@ static struct regulator_init_data omap3_vdac_idata = {
 
 static struct regulator_consumer_supply omap3_vpll2_supplies[] = {
 	REGULATOR_SUPPLY("vdds_dsi", "omapdss"),
-	REGULATOR_SUPPLY("vdds_dsi", "omapdss_dsi1"),
+	REGULATOR_SUPPLY("vdds_dsi", "omapdss_dsi.0"),
 };
 
 static struct regulator_init_data omap3_vpll2_idata = {
@@ -235,6 +235,12 @@ static struct regulator_init_data omap4_vana_idata = {
 	},
 };
 
+static struct regulator_consumer_supply omap4_vcxio_supply[] = {
+	REGULATOR_SUPPLY("vdds_dsi", "omapdss_dss"),
+	REGULATOR_SUPPLY("vdds_dsi", "omapdss_dsi.0"),
+	REGULATOR_SUPPLY("vdds_dsi", "omapdss_dsi.1"),
+};
+
 static struct regulator_init_data omap4_vcxio_idata = {
 	.constraints = {
 		.min_uV			= 1800000,
@@ -243,7 +249,10 @@ static struct regulator_init_data omap4_vcxio_idata = {
 					| REGULATOR_MODE_STANDBY,
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
+		.always_on		= true,
 	},
+	.num_consumer_supplies	= ARRAY_SIZE(omap4_vcxio_supply),
+	.consumer_supplies	= omap4_vcxio_supply,
 };
 
 static struct regulator_init_data omap4_vusb_idata = {

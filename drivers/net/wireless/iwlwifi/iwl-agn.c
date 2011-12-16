@@ -366,7 +366,7 @@ static void iwl_continuous_event_trace(struct iwl_priv *priv)
 	u32 num_wraps;  /* # times uCode wrapped to top of log */
 	u32 next_entry; /* index of next entry to be written by uCode */
 
-	base = priv->device_pointers.error_event_table;
+	base = priv->shrd->device_pointers.error_event_table;
 	if (iwlagn_hw_valid_rtc_data_addr(base)) {
 		capacity = iwl_read_targ_mem(bus(priv), base);
 		num_wraps = iwl_read_targ_mem(bus(priv),
@@ -1036,6 +1036,9 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 		priv->inst_evtlog_size =
 			priv->cfg->base_params->max_event_log_size;
 	priv->inst_errlog_ptr = pieces.inst_errlog_ptr;
+#ifndef CONFIG_IWLWIFI_P2P
+	ucode_capa.flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
+#endif
 
 	priv->new_scan_threshold_behaviour =
 		!!(ucode_capa.flags & IWL_UCODE_TLV_FLAGS_NEWSCAN);
@@ -1057,7 +1060,6 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 		priv->sta_key_max_num = STA_KEY_MAX_NUM;
 		priv->shrd->cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
 	}
-
 	/*
 	 * figure out the offset of chain noise reset and gain commands
 	 * base on the size of standard phy calibration commands table size
@@ -1232,14 +1234,14 @@ int iwl_alive_start(struct iwl_priv *priv)
 		priv->bt_valid = IWLAGN_BT_VALID_ENABLE_FLAGS;
 		priv->cur_rssi_ctx = NULL;
 
-		iwlagn_send_prio_tbl(priv);
+		iwl_send_prio_tbl(trans(priv));
 
 		/* FIXME: w/a to force change uCode BT state machine */
-		ret = iwlagn_send_bt_env(priv, IWL_BT_COEX_ENV_OPEN,
+		ret = iwl_send_bt_env(trans(priv), IWL_BT_COEX_ENV_OPEN,
 					 BT_COEX_PRIO_TBL_EVT_INIT_CALIB2);
 		if (ret)
 			return ret;
-		ret = iwlagn_send_bt_env(priv, IWL_BT_COEX_ENV_CLOSE,
+		ret = iwl_send_bt_env(trans(priv), IWL_BT_COEX_ENV_CLOSE,
 					 BT_COEX_PRIO_TBL_EVT_INIT_CALIB2);
 		if (ret)
 			return ret;
@@ -1575,6 +1577,8 @@ static int iwl_init_drv(struct iwl_priv *priv)
 
 	mutex_init(&priv->shrd->mutex);
 
+	INIT_LIST_HEAD(&trans(priv)->calib_results);
+
 	priv->ieee_channels = NULL;
 	priv->ieee_rates = NULL;
 	priv->band = IEEE80211_BAND_2GHZ;
@@ -1631,7 +1635,6 @@ err:
 
 static void iwl_uninit_drv(struct iwl_priv *priv)
 {
-	iwl_calib_free_results(priv);
 	iwl_free_geos(priv);
 	iwl_free_channel_map(priv);
 	if (priv->tx_cmd_pool)
@@ -1680,6 +1683,41 @@ static int iwl_set_hw_params(struct iwl_priv *priv)
 
 
 
+static void iwl_debug_config(struct iwl_priv *priv)
+{
+	dev_printk(KERN_INFO, bus(priv)->dev, "CONFIG_IWLWIFI_DEBUG "
+#ifdef CONFIG_IWLWIFI_DEBUG
+		"enabled\n");
+#else
+		"disabled\n");
+#endif
+	dev_printk(KERN_INFO, bus(priv)->dev, "CONFIG_IWLWIFI_DEBUGFS "
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+		"enabled\n");
+#else
+		"disabled\n");
+#endif
+	dev_printk(KERN_INFO, bus(priv)->dev, "CONFIG_IWLWIFI_DEVICE_TRACING "
+#ifdef CONFIG_IWLWIFI_DEVICE_TRACING
+		"enabled\n");
+#else
+		"disabled\n");
+#endif
+
+	dev_printk(KERN_INFO, bus(priv)->dev, "CONFIG_IWLWIFI_DEVICE_TESTMODE "
+#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
+		"enabled\n");
+#else
+		"disabled\n");
+#endif
+	dev_printk(KERN_INFO, bus(priv)->dev, "CONFIG_IWLWIFI_P2P "
+#ifdef CONFIG_IWLWIFI_P2P
+		"enabled\n");
+#else
+		"disabled\n");
+#endif
+}
+
 int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 		struct iwl_cfg *cfg)
 {
@@ -1714,6 +1752,9 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	/* At this point both hw and priv are allocated. */
 
 	SET_IEEE80211_DEV(hw, bus(priv)->dev);
+
+	/* what debugging capabilities we have */
+	iwl_debug_config(priv);
 
 	IWL_DEBUG_INFO(priv, "*** LOAD DRIVER ***\n");
 	priv->cfg = cfg;
@@ -1780,11 +1821,11 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 		goto out_free_eeprom;
 
 	/* extract MAC Address */
-	iwl_eeprom_get_mac(priv, priv->addresses[0].addr);
+	iwl_eeprom_get_mac(priv->shrd, priv->addresses[0].addr);
 	IWL_DEBUG_INFO(priv, "MAC address: %pM\n", priv->addresses[0].addr);
 	priv->hw->wiphy->addresses = priv->addresses;
 	priv->hw->wiphy->n_addresses = 1;
-	num_mac = iwl_eeprom_query16(priv, EEPROM_NUM_MAC_ADDRESS);
+	num_mac = iwl_eeprom_query16(priv->shrd, EEPROM_NUM_MAC_ADDRESS);
 	if (num_mac > 1) {
 		memcpy(priv->addresses[1].addr, priv->addresses[0].addr,
 		       ETH_ALEN);
@@ -1849,7 +1890,7 @@ out_destroy_workqueue:
 	priv->shrd->workqueue = NULL;
 	iwl_uninit_drv(priv);
 out_free_eeprom:
-	iwl_eeprom_free(priv);
+	iwl_eeprom_free(priv->shrd);
 out_free_trans:
 	iwl_trans_free(trans(priv));
 out_free_traffic_mem:
@@ -1888,7 +1929,7 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 
 	iwl_dealloc_ucode(trans(priv));
 
-	iwl_eeprom_free(priv);
+	iwl_eeprom_free(priv->shrd);
 
 	/*netif_stop_queue(dev); */
 	flush_workqueue(priv->shrd->workqueue);
@@ -1988,9 +2029,10 @@ MODULE_PARM_DESC(plcp_check, "Check plcp health (default: 1 [enabled])");
 module_param_named(ack_check, iwlagn_mod_params.ack_check, bool, S_IRUGO);
 MODULE_PARM_DESC(ack_check, "Check ack health (default: 0 [disabled])");
 
-module_param_named(wd_disable, iwlagn_mod_params.wd_disable, bool, S_IRUGO);
+module_param_named(wd_disable, iwlagn_mod_params.wd_disable, int, S_IRUGO);
 MODULE_PARM_DESC(wd_disable,
-		"Disable stuck queue watchdog timer (default: 0 [enabled])");
+		"Disable stuck queue watchdog timer 0=system default, "
+		"1=disable, 2=enable (default: 0)");
 
 /*
  * set bt_coex_active to true, uCode will do kill/defer

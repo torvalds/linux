@@ -29,6 +29,11 @@
 
 struct jffs2_inodirty;
 
+struct jffs2_mount_opts {
+	bool override_compr;
+	unsigned int compr;
+};
+
 /* A struct for the overall file system control.  Pointers to
    jffs2_sb_info structs are named `c' in the source code.
    Nee jffs_control
@@ -126,6 +131,7 @@ struct jffs2_sb_info {
 #endif
 
 	struct jffs2_summary *summary;		/* Summary information */
+	struct jffs2_mount_opts mount_opts;
 
 #ifdef CONFIG_JFFS2_FS_XATTR
 #define XATTRINDEX_HASHSIZE	(57)

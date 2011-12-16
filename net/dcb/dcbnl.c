@@ -25,6 +25,7 @@
 #include <linux/dcbnl.h>
 #include <net/dcbevent.h>
 #include <linux/rtnetlink.h>
+#include <linux/module.h>
 #include <net/sock.h>
 
 /**

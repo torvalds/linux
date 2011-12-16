@@ -135,8 +135,8 @@ static u16 iwlagn_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd, u8 *data)
 	u16 size = (u16)sizeof(struct iwl_addsta_cmd);
 	struct iwl_addsta_cmd *addsta = (struct iwl_addsta_cmd *)data;
 	memcpy(addsta, cmd, size);
-	/* resrved in 5000 */
-	addsta->rate_n_flags = cpu_to_le16(0);
+	/* resrved in agn */
+	addsta->legacy_reserved = cpu_to_le16(0);
 	return size;
 }
 
@@ -1250,9 +1250,6 @@ int iwl_set_dynamic_key(struct iwl_priv *priv,
 
 	switch (keyconf->cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
-		keyconf->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
-		keyconf->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
-
 		if (sta)
 			addr = sta->addr;
 		else /* station mode case only */
@@ -1265,8 +1262,6 @@ int iwl_set_dynamic_key(struct iwl_priv *priv,
 					  seq.tkip.iv32, p1k, CMD_SYNC);
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
-		keyconf->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
-		/* fall through */
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
 		ret = iwlagn_send_sta_key(priv, keyconf, sta_id,

@@ -610,7 +610,7 @@ static int __devinit nuc900_i2c_probe(struct platform_device *pdev)
 		goto err_iomap;
 	}
 
-	ret = request_irq(i2c->irq, nuc900_i2c_irq, IRQF_DISABLED | IRQF_SHARED,
+	ret = request_irq(i2c->irq, nuc900_i2c_irq, IRQF_SHARED,
 			  dev_name(&pdev->dev), i2c);
 
 	if (ret != 0) {

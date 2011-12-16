@@ -309,6 +309,7 @@ config SCSI_FC_TGT_ATTRS
 config SCSI_ISCSI_ATTRS
 	tristate "iSCSI Transport Attributes"
 	depends on SCSI && NET
+	select BLK_DEV_BSGLIB
 	help
 	  If you wish to export transport-specific information about
 	  each attached iSCSI device to sysfs, say Y.
@@ -559,6 +560,15 @@ source "drivers/scsi/aic7xxx/Kconfig.aic79xx"
 source "drivers/scsi/aic94xx/Kconfig"
 source "drivers/scsi/mvsas/Kconfig"
 
+config SCSI_MVUMI
+	tristate "Marvell UMI driver"
+	depends on SCSI && PCI
+	help
+	  Module for Marvell Universal Message Interface(UMI) driver
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mvumi.
+
 config SCSI_DPT_I2O
 	tristate "Adaptec I2O RAID support "
 	depends on SCSI && PCI && VIRT_TO_BUS
@@ -606,20 +616,6 @@ config SCSI_ARCMSR
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called arcmsr (modprobe arcmsr).
-
-config SCSI_ARCMSR_AER
-	bool "Enable PCI Error Recovery Capability in Areca Driver(ARCMSR)"
-	depends on SCSI_ARCMSR && PCIEAER
-	default n
-	help
-	  The advanced error reporting(AER) capability is "NOT" provided by
-	  ARC1200/1201/1202 SATA RAID controllers cards.
-	  If your card is one of ARC1200/1201/1202, please use the default setting, n.
-	  If your card is other models, you could pick it
-	  on condition that the kernel version is greater than 2.6.19.
-	  This function is maintained driver by Nick Cheng. If you have any
-	  problems or suggestion, you are welcome to contact with <nick.cheng@areca.com.tw>.
-	  To enable this function, choose Y here.
 
 source "drivers/scsi/megaraid/Kconfig.megaraid"
 source "drivers/scsi/mpt2sas/Kconfig"
@@ -1871,10 +1867,6 @@ config ZFCP
           This driver is also available as a module. This module will be
           called zfcp. If you want to compile it as a module, say M here
           and read <file:Documentation/kbuild/modules.txt>.
-
-config ZFCP_DIF
-	tristate "T10 DIF/DIX support for the zfcp driver (EXPERIMENTAL)"
-	depends on ZFCP && EXPERIMENTAL
 
 config SCSI_PMCRAID
 	tristate "PMC SIERRA Linux MaxRAID adapter support"

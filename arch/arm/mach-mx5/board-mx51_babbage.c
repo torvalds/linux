@@ -24,14 +24,12 @@
 #include <mach/hardware.h>
 #include <mach/iomux-mx51.h>
 
-#include <asm/irq.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
 #include "devices-imx51.h"
-#include "devices.h"
 #include "cpu_op-mx51.h"
 
 #define BABBAGE_USB_HUB_RESET	IMX_GPIO_NR(1, 7)
@@ -176,7 +174,7 @@ static const struct imxi2c_platform_data babbage_i2c_data __initconst = {
 	.bitrate = 100000,
 };
 
-static struct imxi2c_platform_data babbage_hsi2c_data = {
+static const struct imxi2c_platform_data babbage_hsi2c_data __initconst = {
 	.bitrate = 400000,
 };
 
@@ -249,7 +247,7 @@ static int initialize_otg_port(struct platform_device *pdev)
 	void __iomem *usb_base;
 	void __iomem *usbother_base;
 
-	usb_base = ioremap(MX51_OTG_BASE_ADDR, SZ_4K);
+	usb_base = ioremap(MX51_USB_OTG_BASE_ADDR, SZ_4K);
 	if (!usb_base)
 		return -ENOMEM;
 	usbother_base = usb_base + MX5_USBOTHER_REGS_OFFSET;
@@ -272,7 +270,7 @@ static int initialize_usbh1_port(struct platform_device *pdev)
 	void __iomem *usb_base;
 	void __iomem *usbother_base;
 
-	usb_base = ioremap(MX51_OTG_BASE_ADDR, SZ_4K);
+	usb_base = ioremap(MX51_USB_OTG_BASE_ADDR, SZ_4K);
 	if (!usb_base)
 		return -ENOMEM;
 	usbother_base = usb_base + MX5_USBOTHER_REGS_OFFSET;
@@ -288,17 +286,17 @@ static int initialize_usbh1_port(struct platform_device *pdev)
 			MXC_EHCI_ITC_NO_THRESHOLD);
 }
 
-static struct mxc_usbh_platform_data dr_utmi_config = {
+static const struct mxc_usbh_platform_data dr_utmi_config __initconst = {
 	.init		= initialize_otg_port,
 	.portsc	= MXC_EHCI_UTMI_16BIT,
 };
 
-static struct fsl_usb2_platform_data usb_pdata = {
+static const struct fsl_usb2_platform_data usb_pdata __initconst = {
 	.operating_mode	= FSL_USB2_DR_DEVICE,
 	.phy_mode	= FSL_USB2_PHY_UTMI_WIDE,
 };
 
-static struct mxc_usbh_platform_data usbh1_config = {
+static const struct mxc_usbh_platform_data usbh1_config __initconst = {
 	.init		= initialize_usbh1_port,
 	.portsc	= MXC_EHCI_MODE_ULPI,
 };
@@ -351,22 +349,27 @@ static const struct esdhc_platform_data mx51_babbage_sd2_data __initconst = {
 	.wp_type = ESDHC_WP_GPIO,
 };
 
+void __init imx51_babbage_common_init(void)
+{
+	mxc_iomux_v3_setup_multiple_pads(mx51babbage_pads,
+					 ARRAY_SIZE(mx51babbage_pads));
+}
+
 /*
  * Board specific initialization.
  */
 static void __init mx51_babbage_init(void)
 {
 	iomux_v3_cfg_t usbh1stp = MX51_PAD_USBH1_STP__USBH1_STP;
-	iomux_v3_cfg_t power_key = _MX51_PAD_EIM_A27__GPIO2_21 |
-		MUX_PAD_CTRL(PAD_CTL_SRE_FAST | PAD_CTL_DSE_HIGH | PAD_CTL_PUS_100K_UP);
+	iomux_v3_cfg_t power_key = NEW_PAD_CTRL(MX51_PAD_EIM_A27__GPIO2_21,
+		PAD_CTL_SRE_FAST | PAD_CTL_DSE_HIGH | PAD_CTL_PUS_100K_UP);
 
 	imx51_soc_init();
 
 #if defined(CONFIG_CPU_FREQ_IMX)
 	get_cpu_op = mx51_get_cpu_op;
 #endif
-	mxc_iomux_v3_setup_multiple_pads(mx51babbage_pads,
-					ARRAY_SIZE(mx51babbage_pads));
+	imx51_babbage_common_init();
 
 	imx51_add_imx_uart(0, &uart_pdata);
 	imx51_add_imx_uart(1, NULL);
@@ -381,17 +384,17 @@ static void __init mx51_babbage_init(void)
 
 	imx51_add_imx_i2c(0, &babbage_i2c_data);
 	imx51_add_imx_i2c(1, &babbage_i2c_data);
-	mxc_register_device(&mxc_hsi2c_device, &babbage_hsi2c_data);
+	imx51_add_hsi2c(&babbage_hsi2c_data);
 
 	if (otg_mode_host)
-		mxc_register_device(&mxc_usbdr_host_device, &dr_utmi_config);
+		imx51_add_mxc_ehci_otg(&dr_utmi_config);
 	else {
 		initialize_otg_port(NULL);
-		mxc_register_device(&mxc_usbdr_udc_device, &usb_pdata);
+		imx51_add_fsl_usb2_udc(&usb_pdata);
 	}
 
 	gpio_usbh1_active();
-	mxc_register_device(&mxc_usbh1_device, &usbh1_config);
+	imx51_add_mxc_ehci_hs(1, &usbh1_config);
 	/* setback USBH1_STP to be function */
 	mxc_iomux_v3_setup_pad(usbh1stp);
 	babbage_usbhub_reset();
@@ -416,10 +419,11 @@ static struct sys_timer mx51_babbage_timer = {
 
 MACHINE_START(MX51_BABBAGE, "Freescale MX51 Babbage Board")
 	/* Maintainer: Amit Kucheria <amit.kucheria@canonical.com> */
-	.boot_params = MX51_PHYS_OFFSET + 0x100,
+	.atag_offset = 0x100,
 	.map_io = mx51_map_io,
 	.init_early = imx51_init_early,
 	.init_irq = mx51_init_irq,
+	.handle_irq = imx51_handle_irq,
 	.timer = &mx51_babbage_timer,
 	.init_machine = mx51_babbage_init,
 MACHINE_END

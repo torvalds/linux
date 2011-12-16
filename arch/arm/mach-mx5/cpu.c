@@ -18,7 +18,7 @@
 #include <mach/hardware.h>
 #include <asm/io.h>
 
-static int cpu_silicon_rev = -1;
+static int mx5_cpu_rev = -1;
 
 #define IIM_SREV 0x24
 #define MX50_HW_ADADIG_DIGPROG	0xB0
@@ -28,11 +28,14 @@ static int get_mx51_srev(void)
 	void __iomem *iim_base = MX51_IO_ADDRESS(MX51_IIM_BASE_ADDR);
 	u32 rev = readl(iim_base + IIM_SREV) & 0xff;
 
-	if (rev == 0x0)
+	switch (rev) {
+	case 0x0:
 		return IMX_CHIP_REVISION_2_0;
-	else if (rev == 0x10)
+	case 0x10:
 		return IMX_CHIP_REVISION_3_0;
-	return 0;
+	default:
+		return IMX_CHIP_REVISION_UNKNOWN;
+	}
 }
 
 /*
@@ -45,32 +48,12 @@ int mx51_revision(void)
 	if (!cpu_is_mx51())
 		return -EINVAL;
 
-	if (cpu_silicon_rev == -1)
-		cpu_silicon_rev = get_mx51_srev();
+	if (mx5_cpu_rev == -1)
+		mx5_cpu_rev = get_mx51_srev();
 
-	return cpu_silicon_rev;
+	return mx5_cpu_rev;
 }
 EXPORT_SYMBOL(mx51_revision);
-
-void mx51_display_revision(void)
-{
-	int rev;
-	char *srev;
-	rev = mx51_revision();
-
-	switch (rev) {
-	case IMX_CHIP_REVISION_2_0:
-		srev = IMX_CHIP_REVISION_2_0_STRING;
-		break;
-	case IMX_CHIP_REVISION_3_0:
-		srev = IMX_CHIP_REVISION_3_0_STRING;
-		break;
-	default:
-		srev = IMX_CHIP_REVISION_UNKNOWN_STRING;
-	}
-	printk(KERN_INFO "CPU identified as i.MX51, silicon rev %s\n", srev);
-}
-EXPORT_SYMBOL(mx51_display_revision);
 
 #ifdef CONFIG_NEON
 
@@ -121,10 +104,10 @@ int mx53_revision(void)
 	if (!cpu_is_mx53())
 		return -EINVAL;
 
-	if (cpu_silicon_rev == -1)
-		cpu_silicon_rev = get_mx53_srev();
+	if (mx5_cpu_rev == -1)
+		mx5_cpu_rev = get_mx53_srev();
 
-	return cpu_silicon_rev;
+	return mx5_cpu_rev;
 }
 EXPORT_SYMBOL(mx53_revision);
 
@@ -134,7 +117,7 @@ static int get_mx50_srev(void)
 	u32 rev;
 
 	if (!anatop) {
-		cpu_silicon_rev = -EINVAL;
+		mx5_cpu_rev = -EINVAL;
 		return 0;
 	}
 
@@ -159,35 +142,12 @@ int mx50_revision(void)
 	if (!cpu_is_mx50())
 		return -EINVAL;
 
-	if (cpu_silicon_rev == -1)
-		cpu_silicon_rev = get_mx50_srev();
+	if (mx5_cpu_rev == -1)
+		mx5_cpu_rev = get_mx50_srev();
 
-	return cpu_silicon_rev;
+	return mx5_cpu_rev;
 }
 EXPORT_SYMBOL(mx50_revision);
-
-void mx53_display_revision(void)
-{
-	int rev;
-	char *srev;
-	rev = mx53_revision();
-
-	switch (rev) {
-	case IMX_CHIP_REVISION_1_0:
-		srev = IMX_CHIP_REVISION_1_0_STRING;
-		break;
-	case IMX_CHIP_REVISION_2_0:
-		srev = IMX_CHIP_REVISION_2_0_STRING;
-		break;
-	case IMX_CHIP_REVISION_2_1:
-		srev = IMX_CHIP_REVISION_2_1_STRING;
-		break;
-	default:
-		srev = IMX_CHIP_REVISION_UNKNOWN_STRING;
-	}
-	printk(KERN_INFO "CPU identified as i.MX53, silicon rev %s\n", srev);
-}
-EXPORT_SYMBOL(mx53_display_revision);
 
 static int __init post_cpu_init(void)
 {

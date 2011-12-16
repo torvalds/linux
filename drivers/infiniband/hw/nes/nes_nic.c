@@ -1091,6 +1091,8 @@ static const char nes_ethtool_stringset[][ETH_GSTRING_LEN] = {
 	"LRO aggregated",
 	"LRO flushed",
 	"LRO no_desc",
+	"PAU CreateQPs",
+	"PAU DestroyQPs",
 };
 #define NES_ETHTOOL_STAT_COUNT  ARRAY_SIZE(nes_ethtool_stringset)
 
@@ -1306,6 +1308,8 @@ static void nes_netdev_get_ethtool_stats(struct net_device *netdev,
 	target_stat_values[++index] = nesvnic->lro_mgr.stats.aggregated;
 	target_stat_values[++index] = nesvnic->lro_mgr.stats.flushed;
 	target_stat_values[++index] = nesvnic->lro_mgr.stats.no_desc;
+	target_stat_values[++index] = atomic_read(&pau_qps_created);
+	target_stat_values[++index] = atomic_read(&pau_qps_destroyed);
 }
 
 /**

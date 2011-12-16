@@ -11,14 +11,11 @@
 #include <sched.h>
 #include <signal.h>
 #include <string.h>
-#include "kern_constants.h"
 #include "kern_util.h"
 #include "init.h"
 #include "os.h"
-#include "process.h"
 #include "sigio.h"
 #include "um_malloc.h"
-#include "user.h"
 
 /*
  * Protected by sigio_lock(), also used by sigio_cleanup, which is an

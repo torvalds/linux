@@ -21,6 +21,7 @@
 #include <linux/device.h>
 #include <linux/workqueue.h>
 #include <linux/timer.h>
+#include <linux/kernel_stat.h>
 
 #include <asm/ccwdev.h>
 #include <asm/cio.h>
@@ -747,6 +748,7 @@ static int io_subchannel_initialize_dev(struct subchannel *sch,
 					struct ccw_device *cdev)
 {
 	cdev->private->cdev = cdev;
+	cdev->private->int_class = IOINT_CIO;
 	atomic_set(&cdev->private->onoff, 0);
 	cdev->dev.parent = &sch->dev;
 	cdev->dev.release = ccw_device_release;
@@ -1010,6 +1012,8 @@ static void io_subchannel_irq(struct subchannel *sch)
 	CIO_TRACE_EVENT(6, dev_name(&sch->dev));
 	if (cdev)
 		dev_fsm_event(cdev, DEV_EVENT_INTERRUPT);
+	else
+		kstat_cpu(smp_processor_id()).irqs[IOINT_CIO]++;
 }
 
 void io_subchannel_init_config(struct subchannel *sch)
@@ -1621,6 +1625,7 @@ ccw_device_probe_console(void)
 	memset(&console_private, 0, sizeof(struct ccw_device_private));
 	console_cdev.private = &console_private;
 	console_private.cdev = &console_cdev;
+	console_private.int_class = IOINT_CIO;
 	ret = ccw_device_console_enable(&console_cdev, sch);
 	if (ret) {
 		cio_release_console();
@@ -1702,11 +1707,18 @@ ccw_device_probe (struct device *dev)
 	int ret;
 
 	cdev->drv = cdrv; /* to let the driver call _set_online */
+	/* Note: we interpret class 0 in this context as an uninitialized
+	 * field since it translates to a non-I/O interrupt class. */
+	if (cdrv->int_class != 0)
+		cdev->private->int_class = cdrv->int_class;
+	else
+		cdev->private->int_class = IOINT_CIO;
 
 	ret = cdrv->probe ? cdrv->probe(cdev) : -ENODEV;
 
 	if (ret) {
 		cdev->drv = NULL;
+		cdev->private->int_class = IOINT_CIO;
 		return ret;
 	}
 
@@ -1740,6 +1752,7 @@ ccw_device_remove (struct device *dev)
 	}
 	ccw_device_set_timeout(cdev, 0);
 	cdev->drv = NULL;
+	cdev->private->int_class = IOINT_CIO;
 	return 0;
 }
 

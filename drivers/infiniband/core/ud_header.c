@@ -33,6 +33,7 @@
 
 #include <linux/errno.h>
 #include <linux/string.h>
+#include <linux/export.h>
 #include <linux/if_ether.h>
 
 #include <rdma/ib_pack.h>

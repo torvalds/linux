@@ -1,5 +1,7 @@
 include include/asm-generic/Kbuild.asm
 
+header-y += ../arch/
+
 header-y += ucontext.h
 header-y += hardwall.h
 

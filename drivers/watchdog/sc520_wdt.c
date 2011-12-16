@@ -398,7 +398,7 @@ static int __init sc520_wdt_init(void)
 							WATCHDOG_TIMEOUT);
 	}
 
-	wdtmrctl = ioremap((unsigned long)(MMCR_BASE + OFFS_WDTMRCTL), 2);
+	wdtmrctl = ioremap(MMCR_BASE + OFFS_WDTMRCTL, 2);
 	if (!wdtmrctl) {
 		printk(KERN_ERR PFX "Unable to remap memory\n");
 		rc = -ENOMEM;

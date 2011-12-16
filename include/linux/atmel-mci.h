@@ -1,7 +1,7 @@
 #ifndef __LINUX_ATMEL_MCI_H
 #define __LINUX_ATMEL_MCI_H
 
-#define ATMEL_MCI_MAX_NR_SLOTS	2
+#define ATMCI_MAX_NR_SLOTS	2
 
 /**
  * struct mci_slot_pdata - board-specific per-slot configuration
@@ -33,7 +33,7 @@ struct mci_slot_pdata {
  */
 struct mci_platform_data {
 	struct mci_dma_data	*dma_slave;
-	struct mci_slot_pdata	slot[ATMEL_MCI_MAX_NR_SLOTS];
+	struct mci_slot_pdata	slot[ATMCI_MAX_NR_SLOTS];
 };
 
 #endif /* __LINUX_ATMEL_MCI_H */

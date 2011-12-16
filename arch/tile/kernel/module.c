@@ -20,9 +20,9 @@
 #include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
-#include <asm/opcode-tile.h>
 #include <asm/pgtable.h>
 #include <asm/homecache.h>
+#include <arch/opcode.h>
 
 #ifdef __tilegx__
 # define Elf_Rela Elf64_Rela

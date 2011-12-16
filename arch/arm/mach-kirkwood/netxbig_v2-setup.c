@@ -399,7 +399,7 @@ static void __init netxbig_v2_init(void)
 
 #ifdef CONFIG_MACH_NET2BIG_V2
 MACHINE_START(NET2BIG_V2, "LaCie 2Big Network v2")
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.init_machine	= netxbig_v2_init,
 	.map_io		= kirkwood_map_io,
 	.init_early	= kirkwood_init_early,
@@ -410,7 +410,7 @@ MACHINE_END
 
 #ifdef CONFIG_MACH_NET5BIG_V2
 MACHINE_START(NET5BIG_V2, "LaCie 5Big Network v2")
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.init_machine	= netxbig_v2_init,
 	.map_io		= kirkwood_map_io,
 	.init_early	= kirkwood_init_early,

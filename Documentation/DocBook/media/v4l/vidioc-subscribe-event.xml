@@ -139,6 +139,22 @@
 	    </entry>
 	  </row>
 	  <row>
+	    <entry><constant>V4L2_EVENT_FRAME_SYNC</constant></entry>
+	    <entry>4</entry>
+	    <entry>
+	      <para>Triggered immediately when the reception of a
+	      frame has begun. This event has a
+	      &v4l2-event-frame-sync; associated with it.</para>
+
+	      <para>If the hardware needs to be stopped in the case of a
+	      buffer underrun it might not be able to generate this event.
+	      In such cases the <structfield>frame_sequence</structfield>
+	      field in &v4l2-event-frame-sync; will not be incremented. This
+	      causes two consecutive frame sequence numbers to have n times
+	      frame interval in between them.</para>
+	    </entry>
+	  </row>
+	  <row>
 	    <entry><constant>V4L2_EVENT_PRIVATE_START</constant></entry>
 	    <entry>0x08000000</entry>
 	    <entry>Base event number for driver-private events.</entry>
@@ -183,113 +199,6 @@
       </tgroup>
     </table>
 
-    <table frame="none" pgwide="1" id="v4l2-event-vsync">
-      <title>struct <structname>v4l2_event_vsync</structname></title>
-      <tgroup cols="3">
-	&cs-str;
-	<tbody valign="top">
-	  <row>
-	    <entry>__u8</entry>
-	    <entry><structfield>field</structfield></entry>
-	    <entry>The upcoming field. See &v4l2-field;.</entry>
-	  </row>
-	</tbody>
-      </tgroup>
-    </table>
-
-    <table frame="none" pgwide="1" id="v4l2-event-ctrl">
-      <title>struct <structname>v4l2_event_ctrl</structname></title>
-      <tgroup cols="4">
-	&cs-str;
-	<tbody valign="top">
-	  <row>
-	    <entry>__u32</entry>
-	    <entry><structfield>changes</structfield></entry>
-	    <entry></entry>
-	    <entry>A bitmask that tells what has changed. See <xref linkend="changes-flags" />.</entry>
-	  </row>
-	  <row>
-	    <entry>__u32</entry>
-	    <entry><structfield>type</structfield></entry>
-	    <entry></entry>
-	    <entry>The type of the control. See &v4l2-ctrl-type;.</entry>
-	  </row>
-	  <row>
-	    <entry>union (anonymous)</entry>
-	    <entry></entry>
-	    <entry></entry>
-	    <entry></entry>
-	  </row>
-	  <row>
-	    <entry></entry>
-	    <entry>__s32</entry>
-	    <entry><structfield>value</structfield></entry>
-	    <entry>The 32-bit value of the control for 32-bit control types.
-		This is 0 for string controls since the value of a string
-		cannot be passed using &VIDIOC-DQEVENT;.</entry>
-	  </row>
-	  <row>
-	    <entry></entry>
-	    <entry>__s64</entry>
-	    <entry><structfield>value64</structfield></entry>
-	    <entry>The 64-bit value of the control for 64-bit control types.</entry>
-	  </row>
-	  <row>
-	    <entry>__u32</entry>
-	    <entry><structfield>flags</structfield></entry>
-	    <entry></entry>
-	    <entry>The control flags. See <xref linkend="control-flags" />.</entry>
-	  </row>
-	  <row>
-	    <entry>__s32</entry>
-	    <entry><structfield>minimum</structfield></entry>
-	    <entry></entry>
-	    <entry>The minimum value of the control. See &v4l2-queryctrl;.</entry>
-	  </row>
-	  <row>
-	    <entry>__s32</entry>
-	    <entry><structfield>maximum</structfield></entry>
-	    <entry></entry>
-	    <entry>The maximum value of the control. See &v4l2-queryctrl;.</entry>
-	  </row>
-	  <row>
-	    <entry>__s32</entry>
-	    <entry><structfield>step</structfield></entry>
-	    <entry></entry>
-	    <entry>The step value of the control. See &v4l2-queryctrl;.</entry>
-	  </row>
-	  <row>
-	    <entry>__s32</entry>
-	    <entry><structfield>default_value</structfield></entry>
-	    <entry></entry>
-	    <entry>The default value value of the control. See &v4l2-queryctrl;.</entry>
-	  </row>
-	</tbody>
-      </tgroup>
-    </table>
-
-    <table pgwide="1" frame="none" id="changes-flags">
-      <title>Changes</title>
-      <tgroup cols="3">
-	&cs-def;
-	<tbody valign="top">
-	  <row>
-	    <entry><constant>V4L2_EVENT_CTRL_CH_VALUE</constant></entry>
-	    <entry>0x0001</entry>
-	    <entry>This control event was triggered because the value of the control
-		changed. Special case: if a button control is pressed, then this
-		event is sent as well, even though there is not explicit value
-		associated with a button control.</entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_EVENT_CTRL_CH_FLAGS</constant></entry>
-	    <entry>0x0002</entry>
-	    <entry>This control event was triggered because the control flags
-		changed.</entry>
-	  </row>
-	</tbody>
-      </tgroup>
-    </table>
   </refsect1>
   <refsect1>
     &return-value;

@@ -2,6 +2,7 @@
 #include <linux/netdevice.h>
 #include <linux/if_vlan.h>
 #include <linux/netpoll.h>
+#include <linux/export.h>
 #include "vlan.h"
 
 bool vlan_do_receive(struct sk_buff **skbp, bool last_handler)

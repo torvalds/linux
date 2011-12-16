@@ -206,3 +206,16 @@ Description:
 		when a discarded area is read the discard_zeroes_data
 		parameter will be set to one. Otherwise it will be 0 and
 		the result of reading a discarded area is undefined.
+What:		/sys/block/<disk>/alias
+Date:		Aug 2011
+Contact:	Nao Nishijima <nao.nishijima.xt@hitachi.com>
+Description:
+		A raw device name of a disk does not always point a same disk
+		each boot-up time. Therefore, users have to use persistent
+		device names, which udev creates when the kernel finds a disk,
+		instead of raw device name. However, kernel doesn't show those
+		persistent names on its messages (e.g. dmesg).
+		This file can store an alias of the disk and it would be
+		appeared in kernel messages if it is set. A disk can have an
+		alias which length is up to 255bytes. Users can use alphabets,
+		numbers, "-" and "_" in alias name. This file is writeonce.

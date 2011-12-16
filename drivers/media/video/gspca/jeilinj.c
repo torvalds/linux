@@ -24,6 +24,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define MODULE_NAME "jeilinj"
 
 #include <linux/slab.h>
@@ -113,8 +115,8 @@ static void jlj_write2(struct gspca_dev *gspca_dev, unsigned char *command)
 			usb_sndbulkpipe(gspca_dev->dev, 3),
 			gspca_dev->usb_buf, 2, NULL, 500);
 	if (retval < 0) {
-		err("command write [%02x] error %d",
-				gspca_dev->usb_buf[0], retval);
+		pr_err("command write [%02x] error %d\n",
+		       gspca_dev->usb_buf[0], retval);
 		gspca_dev->usb_err = retval;
 	}
 }
@@ -131,8 +133,8 @@ static void jlj_read1(struct gspca_dev *gspca_dev, unsigned char response)
 				gspca_dev->usb_buf, 1, NULL, 500);
 	response = gspca_dev->usb_buf[0];
 	if (retval < 0) {
-		err("read command [%02x] error %d",
-				gspca_dev->usb_buf[0], retval);
+		pr_err("read command [%02x] error %d\n",
+		       gspca_dev->usb_buf[0], retval);
 		gspca_dev->usb_err = retval;
 	}
 }
@@ -403,13 +405,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	dev->type = id->driver_info;
 	gspca_dev->cam.ctrls = dev->ctrls;
 	dev->quality = QUALITY_DEF;
-	dev->ctrls[LIGHTFREQ].def = V4L2_CID_POWER_LINE_FREQUENCY_60HZ;
-	dev->ctrls[RED].def = RED_BALANCE_DEF;
-	dev->ctrls[GREEN].def = GREEN_BALANCE_DEF;
-	dev->ctrls[BLUE].def = BLUE_BALANCE_DEF;
-	PDEBUG(D_PROBE,
-		"JEILINJ camera detected"
-		" (vid/pid 0x%04X:0x%04X)", id->idVendor, id->idProduct);
+
 	cam->cam_mode = jlj_mode;
 	cam->nmodes = ARRAY_SIZE(jlj_mode);
 	cam->bulk = 1;
@@ -422,7 +418,7 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 {
 	int i;
 	u8 *buf;
-	u8 stop_commands[][2] = {
+	static u8 stop_commands[][2] = {
 		{0x71, 0x00},
 		{0x70, 0x09},
 		{0x71, 0x80},

@@ -234,11 +234,12 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 
 	/* default is to dump the entire data segment */
 	if (!priv->dbgfs_sram_offset && !priv->dbgfs_sram_len) {
+		struct iwl_trans *trans = trans(priv);
 		priv->dbgfs_sram_offset = 0x800000;
-		if (priv->ucode_type == IWL_UCODE_INIT)
-			priv->dbgfs_sram_len = trans(priv)->ucode_init.data.len;
+		if (trans->shrd->ucode_type == IWL_UCODE_INIT)
+			priv->dbgfs_sram_len = trans->ucode_init.data.len;
 		else
-			priv->dbgfs_sram_len = trans(priv)->ucode_rt.data.len;
+			priv->dbgfs_sram_len = trans->ucode_rt.data.len;
 	}
 	len = priv->dbgfs_sram_len;
 
@@ -415,7 +416,7 @@ static ssize_t iwl_dbgfs_nvm_read(struct file *file,
 		return -ENODATA;
 	}
 
-	ptr = priv->eeprom;
+	ptr = priv->shrd->eeprom;
 	if (!ptr) {
 		IWL_ERR(priv, "Invalid EEPROM/OTP memory\n");
 		return -ENOMEM;
@@ -427,7 +428,7 @@ static ssize_t iwl_dbgfs_nvm_read(struct file *file,
 		IWL_ERR(priv, "Can not allocate Buffer\n");
 		return -ENOMEM;
 	}
-	eeprom_ver = iwl_eeprom_query16(priv, EEPROM_VERSION);
+	eeprom_ver = iwl_eeprom_query16(priv->shrd, EEPROM_VERSION);
 	pos += scnprintf(buf + pos, buf_size - pos, "NVM Type: %s, "
 			"version: 0x%x\n",
 			(trans(priv)->nvm_device_type == NVM_DEVICE_TYPE_OTP)

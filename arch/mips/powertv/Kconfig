@@ -1,5 +1,3 @@
-source "arch/mips/powertv/asic/Kconfig"
-
 config BOOTLOADER_DRIVER
 	bool "PowerTV Bootloader Driver Support"
 	default n

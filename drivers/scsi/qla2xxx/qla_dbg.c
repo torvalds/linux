@@ -12,7 +12,7 @@
  * |             Level            |   Last Value Used  |     Holes	|
  * ----------------------------------------------------------------------
  * | Module Init and Probe        |       0x0116       |  		|
- * | Mailbox commands             |       0x1126       |		|
+ * | Mailbox commands             |       0x1129       |		|
  * | Device Discovery             |       0x2083       |		|
  * | Queue Command and IO tracing |       0x302e       |     0x3008     |
  * | DPC Thread                   |       0x401c       |		|
@@ -22,7 +22,7 @@
  * | Task Management              |       0x8041       |    		|
  * | AER/EEH                      |       0x900f       |		|
  * | Virtual Port                 |       0xa007       |		|
- * | ISP82XX Specific             |       0xb04f       |    		|
+ * | ISP82XX Specific             |       0xb051       |    		|
  * | MultiQ                       |       0xc00b       |		|
  * | Misc                         |       0xd00b       |		|
  * ----------------------------------------------------------------------
@@ -403,7 +403,7 @@ qla25xx_copy_mq(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
 	return ptr + sizeof(struct qla2xxx_mq_chain);
 }
 
-static void
+void
 qla2xxx_dump_post_process(scsi_qla_host_t *vha, int rval)
 {
 	struct qla_hw_data *ha = vha->hw;

@@ -35,7 +35,7 @@
 #include <linux/mutex.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
-#include <mach/gpio.h>
+#include <asm/gpio.h>
 #include <plat/keypad.h>
 #include <plat/menelaus.h>
 #include <asm/irq.h>

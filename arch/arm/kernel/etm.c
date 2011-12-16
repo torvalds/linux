@@ -24,6 +24,7 @@
 #include <linux/miscdevice.h>
 #include <linux/vmalloc.h>
 #include <linux/mutex.h>
+#include <linux/module.h>
 #include <asm/hardware/coresight.h>
 #include <asm/sections.h>
 

@@ -142,8 +142,11 @@ struct expander_device {
 	u16    ex_change_count;
 	u16    max_route_indexes;
 	u8     num_phys;
+
+	u8     t2t_supp:1;
 	u8     configuring:1;
 	u8     conf_route_table:1;
+
 	u8     enclosure_logical_id[8];
 
 	struct ex_phy *ex_phy;
@@ -386,6 +389,11 @@ sdev_to_domain_dev(struct scsi_device *sdev) {
 	return starget_to_domain_dev(sdev->sdev_target);
 }
 
+static inline struct ata_device *sas_to_ata_dev(struct domain_device *dev)
+{
+	return &dev->sata_dev.ap->link.device[0];
+}
+
 static inline struct domain_device *
 cmd_to_domain_dev(struct scsi_cmnd *cmd)
 {
@@ -404,6 +412,20 @@ static inline void sas_phy_disconnected(struct asd_sas_phy *phy)
 	phy->oob_mode = OOB_NOT_CONNECTED;
 	phy->linkrate = SAS_LINK_RATE_UNKNOWN;
 }
+
+static inline unsigned int to_sas_gpio_od(int device, int bit)
+{
+	return 3 * device + bit;
+}
+
+#ifdef CONFIG_SCSI_SAS_HOST_SMP
+int try_test_sas_gpio_gp_bit(unsigned int od, u8 *data, u8 index, u8 count);
+#else
+static inline int try_test_sas_gpio_gp_bit(unsigned int od, u8 *data, u8 index, u8 count)
+{
+	return -1;
+}
+#endif
 
 /* ---------- Tasks ---------- */
 /*
@@ -555,36 +577,14 @@ struct sas_task {
 	struct work_struct abort_work;
 };
 
-extern struct kmem_cache *sas_task_cache;
-
 #define SAS_TASK_STATE_PENDING      1
 #define SAS_TASK_STATE_DONE         2
 #define SAS_TASK_STATE_ABORTED      4
 #define SAS_TASK_NEED_DEV_RESET     8
 #define SAS_TASK_AT_INITIATOR       16
 
-static inline struct sas_task *sas_alloc_task(gfp_t flags)
-{
-	struct sas_task *task = kmem_cache_zalloc(sas_task_cache, flags);
-
-	if (task) {
-		INIT_LIST_HEAD(&task->list);
-		spin_lock_init(&task->task_state_lock);
-		task->task_state_flags = SAS_TASK_STATE_PENDING;
-		init_timer(&task->timer);
-		init_completion(&task->completion);
-	}
-
-	return task;
-}
-
-static inline void sas_free_task(struct sas_task *task)
-{
-	if (task) {
-		BUG_ON(!list_empty(&task->list));
-		kmem_cache_free(sas_task_cache, task);
-	}
-}
+extern struct sas_task *sas_alloc_task(gfp_t flags);
+extern void sas_free_task(struct sas_task *task);
 
 struct sas_domain_function_template {
 	/* The class calls these to notify the LLDD of an event. */
@@ -614,6 +614,10 @@ struct sas_domain_function_template {
 
 	/* Phy management */
 	int (*lldd_control_phy)(struct asd_sas_phy *, enum phy_func, void *);
+
+	/* GPIO support */
+	int (*lldd_write_gpio)(struct sas_ha_struct *, u8 reg_type,
+			       u8 reg_index, u8 reg_count, u8 *write_data);
 };
 
 extern int sas_register_ha(struct sas_ha_struct *);
@@ -652,7 +656,7 @@ int  sas_discover_event(struct asd_sas_port *, enum discover_event ev);
 int  sas_discover_sata(struct domain_device *);
 int  sas_discover_end_dev(struct domain_device *);
 
-void sas_unregister_dev(struct domain_device *);
+void sas_unregister_dev(struct asd_sas_port *port, struct domain_device *);
 
 void sas_init_dev(struct domain_device *);
 

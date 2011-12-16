@@ -614,6 +614,13 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 			p += len;
 			size -= len;
 		}
+
+		/* silently fail if the frontend doesn't support I2C flush */
+		rc = do_tuner_callback(fe, XC2028_I2C_FLUSH, 0);
+		if ((rc < 0) && (rc != -EINVAL)) {
+			tuner_err("error executing flush: %d\n", rc);
+			return rc;
+		}
 	}
 	return 0;
 }
@@ -933,11 +940,16 @@ static int generic_set_freq(struct dvb_frontend *fe, u32 freq /* in HZ */,
 	 * that xc2028 will be in a safe state.
 	 * Maybe this might also be needed for DTV.
 	 */
-	if (new_type == V4L2_TUNER_ANALOG_TV) {
+	switch (new_type) {
+	case V4L2_TUNER_ANALOG_TV:
 		rc = send_seq(priv, {0x00, 0x00});
 
-		/* Analog modes require offset = 0 */
-	} else {
+		/* Analog mode requires offset = 0 */
+		break;
+	case V4L2_TUNER_RADIO:
+		/* Radio mode requires offset = 0 */
+		break;
+	case V4L2_TUNER_DIGITAL_TV:
 		/*
 		 * Digital modes require an offset to adjust to the
 		 * proper frequency. The offset depends on what

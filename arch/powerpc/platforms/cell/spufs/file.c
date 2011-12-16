@@ -24,7 +24,7 @@
 
 #include <linux/fs.h>
 #include <linux/ioctl.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/pagemap.h>
 #include <linux/poll.h>
 #include <linux/ptrace.h>

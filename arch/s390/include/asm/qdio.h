@@ -46,6 +46,8 @@ struct qdesfmt0 {
 	u32	 : 16;
 } __attribute__ ((packed));
 
+#define QDR_AC_MULTI_BUFFER_ENABLE 0x01
+
 /**
  * struct qdr - queue description record (QDR)
  * @qfmt: queue format
@@ -256,6 +258,8 @@ struct slsb {
 	u8 val[QDIO_MAX_BUFFERS_PER_Q];
 } __attribute__ ((packed, aligned(256)));
 
+#define CHSC_AC2_MULTI_BUFFER_AVAILABLE	0x0080
+#define CHSC_AC2_MULTI_BUFFER_ENABLED	0x0040
 #define CHSC_AC2_DATA_DIV_AVAILABLE	0x0010
 #define CHSC_AC2_DATA_DIV_ENABLED	0x0002
 
@@ -357,6 +361,7 @@ typedef void qdio_handler_t(struct ccw_device *, unsigned int, int,
 struct qdio_initialize {
 	struct ccw_device *cdev;
 	unsigned char q_format;
+	unsigned char qdr_ac;
 	unsigned char adapter_name[8];
 	unsigned int qib_param_field_format;
 	unsigned char *qib_param_field;

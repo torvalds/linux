@@ -292,7 +292,7 @@ static void technisat_usb2_green_led_control(struct work_struct *work)
 {
 	struct technisat_usb2_state *state =
 		container_of(work, struct technisat_usb2_state, green_led_work.work);
-	struct dvb_frontend *fe = state->dev->adapter[0].fe;
+	struct dvb_frontend *fe = state->dev->adapter[0].fe_adap[0].fe;
 
 	if (state->power_state == 0)
 		goto schedule;
@@ -505,14 +505,14 @@ static int technisat_usb2_frontend_attach(struct dvb_usb_adapter *a)
 	struct usb_device *udev = a->dev->udev;
 	int ret;
 
-	a->fe = dvb_attach(stv090x_attach, &technisat_usb2_stv090x_config,
+	a->fe_adap[0].fe = dvb_attach(stv090x_attach, &technisat_usb2_stv090x_config,
 			&a->dev->i2c_adap, STV090x_DEMODULATOR_0);
 
-	if (a->fe) {
+	if (a->fe_adap[0].fe) {
 		struct stv6110x_devctl *ctl;
 
 		ctl = dvb_attach(stv6110x_attach,
-				a->fe,
+				a->fe_adap[0].fe,
 				&technisat_usb2_stv6110x_config,
 				&a->dev->i2c_adap);
 
@@ -532,8 +532,8 @@ static int technisat_usb2_frontend_attach(struct dvb_usb_adapter *a)
 			/* call the init function once to initialize
 			   tuner's clock output divider and demod's
 			   master clock */
-			if (a->fe->ops.init)
-				a->fe->ops.init(a->fe);
+			if (a->fe_adap[0].fe->ops.init)
+				a->fe_adap[0].fe->ops.init(a->fe_adap[0].fe);
 
 			if (mutex_lock_interruptible(&a->dev->i2c_mutex) < 0)
 				return -EAGAIN;
@@ -548,20 +548,20 @@ static int technisat_usb2_frontend_attach(struct dvb_usb_adapter *a)
 			if (ret != 0)
 				err("could not set IF_CLK to external");
 
-			a->fe->ops.set_voltage = technisat_usb2_set_voltage;
+			a->fe_adap[0].fe->ops.set_voltage = technisat_usb2_set_voltage;
 
 			/* if everything was successful assign a nice name to the frontend */
-			strlcpy(a->fe->ops.info.name, a->dev->desc->name,
-					sizeof(a->fe->ops.info.name));
+			strlcpy(a->fe_adap[0].fe->ops.info.name, a->dev->desc->name,
+					sizeof(a->fe_adap[0].fe->ops.info.name));
 		} else {
-			dvb_frontend_detach(a->fe);
-			a->fe = NULL;
+			dvb_frontend_detach(a->fe_adap[0].fe);
+			a->fe_adap[0].fe = NULL;
 		}
 	}
 
 	technisat_usb2_set_led_timer(a->dev, 1, 1);
 
-	return a->fe == NULL ? -ENODEV : 0;
+	return a->fe_adap[0].fe == NULL ? -ENODEV : 0;
 }
 
 /* Remote control */
@@ -697,6 +697,8 @@ static struct dvb_usb_device_properties technisat_usb2_devices = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+		.num_frontends = 1,
+		.fe = {{
 			.frontend_attach  = technisat_usb2_frontend_attach,
 
 			.stream = {
@@ -711,7 +713,7 @@ static struct dvb_usb_device_properties technisat_usb2_devices = {
 					}
 				}
 			},
-
+		}},
 			.size_of_priv = 0,
 		},
 	},

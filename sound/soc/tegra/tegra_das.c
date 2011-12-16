@@ -212,7 +212,7 @@ err_release:
 	release_mem_region(res->start, resource_size(res));
 err_free:
 	kfree(das);
-	das = 0;
+	das = NULL;
 exit:
 	return ret;
 }
@@ -234,7 +234,7 @@ static int __devexit tegra_das_remove(struct platform_device *pdev)
 	release_mem_region(res->start, resource_size(res));
 
 	kfree(das);
-	das = 0;
+	das = NULL;
 
 	return 0;
 }

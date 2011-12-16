@@ -15,6 +15,7 @@
 #include <linux/spi/74x164.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 struct gen_74x164_chip {
 	struct spi_device	*spi;

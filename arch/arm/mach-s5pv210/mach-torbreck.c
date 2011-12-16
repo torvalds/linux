@@ -125,7 +125,7 @@ static void __init torbreck_machine_init(void)
 
 MACHINE_START(TORBRECK, "TORBRECK")
 	/* Maintainer: Hyunchul Ko <ghcstop@gmail.com> */
-	.boot_params	= S5P_PA_SDRAM + 0x100,
+	.atag_offset	= 0x100,
 	.init_irq	= s5pv210_init_irq,
 	.map_io		= torbreck_map_io,
 	.init_machine	= torbreck_machine_init,

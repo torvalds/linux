@@ -7,6 +7,7 @@
 #include <linux/pci.h>
 #include <linux/gfp.h>
 #include <linux/bootmem.h>
+#include <linux/export.h>
 #include <linux/scatterlist.h>
 #include <linux/log2.h>
 #include <linux/dma-mapping.h>
