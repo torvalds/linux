@@ -43,6 +43,37 @@ void evergreen_pcie_gen2_enable(struct radeon_device *rdev);
 extern void cayman_cp_int_cntl_setup(struct radeon_device *rdev,
 				     int ring, u32 cp_int_cntl);
 
+void evergreen_tiling_fields(unsigned tiling_flags, unsigned *bankw,
+			     unsigned *bankh, unsigned *mtaspect,
+			     unsigned *tile_split)
+{
+	*bankw = (tiling_flags >> RADEON_TILING_EG_BANKW_SHIFT) & RADEON_TILING_EG_BANKW_MASK;
+	*bankh = (tiling_flags >> RADEON_TILING_EG_BANKH_SHIFT) & RADEON_TILING_EG_BANKH_MASK;
+	*mtaspect = (tiling_flags >> RADEON_TILING_EG_MACRO_TILE_ASPECT_SHIFT) & RADEON_TILING_EG_MACRO_TILE_ASPECT_MASK;
+	*tile_split = (tiling_flags >> RADEON_TILING_EG_TILE_SPLIT_SHIFT) & RADEON_TILING_EG_TILE_SPLIT_MASK;
+	switch (*bankw) {
+	default:
+	case 1: *bankw = EVERGREEN_ADDR_SURF_BANK_WIDTH_1; break;
+	case 2: *bankw = EVERGREEN_ADDR_SURF_BANK_WIDTH_2; break;
+	case 4: *bankw = EVERGREEN_ADDR_SURF_BANK_WIDTH_4; break;
+	case 8: *bankw = EVERGREEN_ADDR_SURF_BANK_WIDTH_8; break;
+	}
+	switch (*bankh) {
+	default:
+	case 1: *bankh = EVERGREEN_ADDR_SURF_BANK_HEIGHT_1; break;
+	case 2: *bankh = EVERGREEN_ADDR_SURF_BANK_HEIGHT_2; break;
+	case 4: *bankh = EVERGREEN_ADDR_SURF_BANK_HEIGHT_4; break;
+	case 8: *bankh = EVERGREEN_ADDR_SURF_BANK_HEIGHT_8; break;
+	}
+	switch (*mtaspect) {
+	default:
+	case 1: *mtaspect = EVERGREEN_ADDR_SURF_MACRO_TILE_ASPECT_1; break;
+	case 2: *mtaspect = EVERGREEN_ADDR_SURF_MACRO_TILE_ASPECT_2; break;
+	case 4: *mtaspect = EVERGREEN_ADDR_SURF_MACRO_TILE_ASPECT_4; break;
+	case 8: *mtaspect = EVERGREEN_ADDR_SURF_MACRO_TILE_ASPECT_8; break;
+	}
+}
+
 void evergreen_fix_pci_max_read_req_size(struct radeon_device *rdev)
 {
 	u16 ctl, v;

@@ -445,8 +445,54 @@ static void radeon_bo_clear_surface_reg(struct radeon_bo *bo)
 int radeon_bo_set_tiling_flags(struct radeon_bo *bo,
 				uint32_t tiling_flags, uint32_t pitch)
 {
+	struct radeon_device *rdev = bo->rdev;
 	int r;
 
+	if (rdev->family >= CHIP_CEDAR) {
+		unsigned bankw, bankh, mtaspect, tilesplit, stilesplit;
+
+		bankw = (tiling_flags >> RADEON_TILING_EG_BANKW_SHIFT) & RADEON_TILING_EG_BANKW_MASK;
+		bankh = (tiling_flags >> RADEON_TILING_EG_BANKH_SHIFT) & RADEON_TILING_EG_BANKH_MASK;
+		mtaspect = (tiling_flags >> RADEON_TILING_EG_MACRO_TILE_ASPECT_SHIFT) & RADEON_TILING_EG_MACRO_TILE_ASPECT_MASK;
+		tilesplit = (tiling_flags >> RADEON_TILING_EG_TILE_SPLIT_SHIFT) & RADEON_TILING_EG_TILE_SPLIT_MASK;
+		stilesplit = (tiling_flags >> RADEON_TILING_EG_STENCIL_TILE_SPLIT_SHIFT) & RADEON_TILING_EG_STENCIL_TILE_SPLIT_MASK;
+		switch (bankw) {
+		case 0:
+		case 1:
+		case 2:
+		case 4:
+		case 8:
+			break;
+		default:
+			return -EINVAL;
+		}
+		switch (bankh) {
+		case 0:
+		case 1:
+		case 2:
+		case 4:
+		case 8:
+			break;
+		default:
+			return -EINVAL;
+		}
+		switch (mtaspect) {
+		case 0:
+		case 1:
+		case 2:
+		case 4:
+		case 8:
+			break;
+		default:
+			return -EINVAL;
+		}
+		if (tilesplit > 6) {
+			return -EINVAL;
+		}
+		if (stilesplit > 6) {
+			return -EINVAL;
+		}
+	}
 	r = radeon_bo_reserve(bo, false);
 	if (unlikely(r != 0))
 		return r;

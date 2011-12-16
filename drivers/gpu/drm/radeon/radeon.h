@@ -242,6 +242,9 @@ extern int rv6xx_get_temp(struct radeon_device *rdev);
 extern int rv770_get_temp(struct radeon_device *rdev);
 extern int evergreen_get_temp(struct radeon_device *rdev);
 extern int sumo_get_temp(struct radeon_device *rdev);
+extern void evergreen_tiling_fields(unsigned tiling_flags, unsigned *bankw,
+				    unsigned *bankh, unsigned *mtaspect,
+				    unsigned *tile_split);
 
 /*
  * Fences.
@@ -1748,6 +1751,16 @@ int radeon_vm_bo_rmv(struct radeon_device *rdev,
  */
 int r600_vram_scratch_init(struct radeon_device *rdev);
 void r600_vram_scratch_fini(struct radeon_device *rdev);
+
+/*
+ * r600 cs checking helper
+ */
+unsigned r600_mip_minify(unsigned size, unsigned level);
+bool r600_fmt_is_valid_color(u32 format);
+bool r600_fmt_is_valid_texture(u32 format, enum radeon_family family);
+int r600_fmt_get_blocksize(u32 format);
+int r600_fmt_get_nblocksx(u32 format, u32 w);
+int r600_fmt_get_nblocksy(u32 format, u32 h);
 
 /*
  * r600 functions used by radeon_encoder.c
