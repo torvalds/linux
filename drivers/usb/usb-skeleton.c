@@ -62,7 +62,6 @@ struct usb_skel {
 	__u8			bulk_in_endpointAddr;	/* the address of the bulk in endpoint */
 	__u8			bulk_out_endpointAddr;	/* the address of the bulk out endpoint */
 	int			errors;			/* the last request tanked */
-	int			open_count;		/* count the number of openers */
 	bool			ongoing_read;		/* a read is going on */
 	bool			processed_urb;		/* indicates we haven't processed the urb */
 	spinlock_t		err_lock;		/* lock for errors */
@@ -122,22 +121,9 @@ static int skel_open(struct inode *inode, struct file *file)
 		goto out_err;
 	}
 
-	if (!dev->open_count++) {
-		retval = usb_autopm_get_interface(interface);
-			if (retval) {
-				dev->open_count--;
-				mutex_unlock(&dev->io_mutex);
-				kref_put(&dev->kref, skel_delete);
-				goto exit;
-			}
-	} /* else { //uncomment this block if you want exclusive open
-		retval = -EBUSY;
-		dev->open_count--;
-		mutex_unlock(&dev->io_mutex);
-		kref_put(&dev->kref, skel_delete);
-		goto exit;
-	} */
-	/* prevent the device from being autosuspended */
+	retval = usb_autopm_get_interface(interface);
+	if (retval)
+		goto out_err;
 
 	/* save our object in the file's private structure */
 	file->private_data = dev;
@@ -161,7 +147,7 @@ static int skel_release(struct inode *inode, struct file *file)
 
 	/* allow the device to be autosuspended */
 	mutex_lock(&dev->io_mutex);
-	if (!--dev->open_count && dev->interface)
+	if (dev->interface)
 		usb_autopm_put_interface(dev->interface);
 	mutex_unlock(&dev->io_mutex);
 
