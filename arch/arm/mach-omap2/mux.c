@@ -306,7 +306,8 @@ omap_hwmod_mux_init(struct omap_device_pad *bpads, int nr_pads)
 		pad->idle = bpad->idle;
 		pad->off = bpad->off;
 
-		if (pad->flags & OMAP_DEVICE_PAD_REMUX)
+		if (pad->flags &
+		    (OMAP_DEVICE_PAD_REMUX | OMAP_DEVICE_PAD_WAKEUP))
 			nr_pads_dynamic++;
 
 		pr_debug("%s: Initialized %s\n", __func__, pad->name);
@@ -331,7 +332,8 @@ omap_hwmod_mux_init(struct omap_device_pad *bpads, int nr_pads)
 	for (i = 0; i < hmux->nr_pads; i++) {
 		struct omap_device_pad *pad = &hmux->pads[i];
 
-		if (pad->flags & OMAP_DEVICE_PAD_REMUX) {
+		if (pad->flags &
+		    (OMAP_DEVICE_PAD_REMUX | OMAP_DEVICE_PAD_WAKEUP)) {
 			pr_debug("%s: pad %s tagged dynamic\n",
 					__func__, pad->name);
 			hmux->pads_dynamic[nr_pads_dynamic] = pad;
