@@ -1032,6 +1032,9 @@ dhd_op_if(dhd_if_t *ifp)
 	if (ret < 0) {
 		ifp->set_multicast = FALSE;
 		if (ifp->net) {
+#ifdef WL_CFG80211
+			wl_cfg80211_post_del((void*)(ifp->net));
+#endif
 			free_netdev(ifp->net);
 		}
 		dhd->iflist[ifp->idx] = NULL;

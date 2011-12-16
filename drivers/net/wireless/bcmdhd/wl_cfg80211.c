@@ -16,7 +16,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -589,7 +589,7 @@ static const u32 __wl_cipher_suites[] = {
 	WLAN_CIPHER_SUITE_WEP104,
 	WLAN_CIPHER_SUITE_TKIP,
 	WLAN_CIPHER_SUITE_CCMP,
-	WLAN_CIPHER_SUITE_AES_CMAC,
+	WLAN_CIPHER_SUITE_AES_CMAC
 };
 
 /* There isn't a lot of sense in it, but you can transmit anything you like */
@@ -844,8 +844,10 @@ wl_cfg80211_add_virtual_iface(struct wiphy *wiphy, char *name,
 		wl_set_p2p_status(wl, IF_ADD);
 		err = wl_cfgp2p_ifadd(wl, &wl->p2p->int_addr, htod32(wlif_type), chspec);
 
-		if (unlikely(err))
+		if (unlikely(err)) {
+			WL_ERR((" virtual iface add failed (%d) \n", err));
 			return ERR_PTR(-ENOMEM);
+		}
 
 		timeout = wait_event_interruptible_timeout(wl->dongle_event_wait,
 			(wl_get_p2p_status(wl, IF_ADD) == false),
@@ -860,7 +862,7 @@ wl_cfg80211_add_virtual_iface(struct wiphy *wiphy, char *name,
 			}
 			vwdev->wiphy = wl->wdev->wiphy;
 			WL_INFO((" virtual interface(%s) is created memalloc done \n",
-			wl->p2p->vir_ifname));
+				wl->p2p->vir_ifname));
 			index = alloc_idx_vwdev(wl);
 			wl->vwdev[index] = vwdev;
 			vwdev->iftype =
@@ -873,6 +875,8 @@ wl_cfg80211_add_virtual_iface(struct wiphy *wiphy, char *name,
 			wl_set_drv_status(wl, READY);
 			wl->p2p->vif_created = true;
 			set_mode_by_netdev(wl, _ndev, mode);
+			WL_DBG((" virtual interface(%s) wl->wdev %p wl->wdev->netdev %p vwdev %p vwdev->netdev %p\n",
+				wl->p2p->vir_ifname, wl->wdev, wl->wdev->netdev, vwdev, vwdev->netdev));
 			net_attach =  wl_to_p2p_bss_private(wl, P2PAPI_BSSCFG_CONNECTION);
 			if (rtnl_is_locked()) {
 				rtnl_unlock();
@@ -927,10 +931,14 @@ wl_cfg80211_del_virtual_iface(struct wiphy *wiphy, struct net_device *dev)
 			* ifconfig <inter> down and up sequnce, which will reload the fw
 			* however we should cleanup the linux network virtual interfaces
 			*/
-				dhd_pub_t *dhd = (dhd_pub_t *)(wl->pub);
-				WL_ERR(("Firmware returned an error from p2p_ifdel\n"));
-				WL_ERR(("try to remove linux virtual interface %s\n", dev->name));
-				dhd_del_if(dhd->info, dhd_net2idx(dhd->info, dev));
+			/* Request framework to RESET and clean up */
+				struct net_device *ndev = wl_to_prmry_ndev(wl);
+				WL_ERR(("Firmware returned an error (%d) from p2p_ifdel"
+					"HANG Notification sent to %s dev %p wdev %p ndev %p\n", ret, ndev->name, dev, wl->wdev, wl_to_prmry_ndev(wl)));
+				wl_cfg80211_hang(ndev, WLAN_REASON_UNSPECIFIED);
+			}
+			else {
+				WL_ERR(("Firmware success from p2p_ifdel dev %p wdev %p ndev %p", dev, wl->wdev, wl_to_prmry_ndev(wl)));
 			}
 
 			/* Wait for any pending scan req to get aborted from the sysioc context */
@@ -1035,7 +1043,7 @@ int (*_net_attach)(dhd_pub_t *dhdp, int ifidx))
 		WL_ERR(("net is NULL\n"));
 		return 0;
 	}
-	if (wl->p2p_supported) {
+	if (wl->p2p_supported && wl_get_p2p_status(wl, IF_ADD)) {
 		WL_DBG(("IF_ADD event called from dongle, old interface name: %s,"
 			"new name: %s\n", ndev->name, wl->p2p->vir_ifname));
 		/* Assign the net device to CONNECT BSSCFG */
@@ -1047,6 +1055,8 @@ int (*_net_attach)(dhd_pub_t *dhdp, int ifidx))
 		wl_clr_p2p_status(wl, IF_ADD);
 
 		wake_up_interruptible(&wl->dongle_event_wait);
+	} else {
+		ret = BCME_NOTREADY;
 	}
 	return ret;
 }
@@ -1063,7 +1073,8 @@ wl_cfg80211_notify_ifdel(struct net_device *ndev)
 		return 0;
 	}
 
-	if (p2p_is_on(wl) && wl->p2p->vif_created) {
+	if (p2p_is_on(wl) && wl->p2p->vif_created &&
+		wl_get_p2p_status(wl, IF_DELETING)) {
 		if (wl->scan_request) {
 			/* Abort any pending scan requests */
 			wl->escan_info.escan_state = WL_ESCAN_STATE_IDLE;
@@ -1093,6 +1104,18 @@ wl_cfg80211_notify_ifdel(struct net_device *ndev)
 	/* Wake up any waiting thread */
 	wake_up_interruptible(&wl->dongle_event_wait);
 
+	return 0;
+}
+
+s32 wl_cfg80211_post_del(void* ndev)
+{
+	int index;
+	struct wl_priv *wl = wlcfg_drv_priv;
+	index = get_idx_vwdev_by_netdev(wl, (struct net_device *)ndev);
+	WL_DBG(("index : %d\n", index));
+	if (index >= 0) {
+		free_vwdev_by_index(wl, index);
+	}
 	return 0;
 }
 
