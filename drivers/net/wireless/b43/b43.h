@@ -667,6 +667,7 @@ struct b43_key {
 };
 
 /* SHM offsets to the QOS data structures for the 4 different queues. */
+#define B43_QOS_QUEUE_NUM	4
 #define B43_QOS_PARAMS(queue)	(B43_SHM_SH_EDCFQ + \
 				 (B43_NR_QOSPARAMS * sizeof(u16) * (queue)))
 #define B43_QOS_BACKGROUND	B43_QOS_PARAMS(0)
@@ -904,7 +905,7 @@ struct b43_wl {
 	struct work_struct beacon_update_trigger;
 
 	/* The current QOS parameters for the 4 queues. */
-	struct b43_qos_params qos_params[4];
+	struct b43_qos_params qos_params[B43_QOS_QUEUE_NUM];
 
 	/* Work for adjustment of the transmission power.
 	 * This is scheduled when we determine that the actual TX output
@@ -913,8 +914,12 @@ struct b43_wl {
 
 	/* Packet transmit work */
 	struct work_struct tx_work;
+
 	/* Queue of packets to be transmitted. */
-	struct sk_buff_head tx_queue;
+	struct sk_buff_head tx_queue[B43_QOS_QUEUE_NUM];
+
+	/* Flag that implement the queues stopping. */
+	bool tx_queue_stopped[B43_QOS_QUEUE_NUM];
 
 	/* The device LEDs. */
 	struct b43_leds leds;
