@@ -2947,8 +2947,7 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 	 * per packet.
 	 */
 	pages = PAGE_USE_COUNT(adapter->netdev->mtu);
-	if (!(adapter->flags & FLAG_HAS_ERT) && (pages <= 3) &&
-	    (PAGE_SIZE <= 16384) && (rctl & E1000_RCTL_LPE))
+	if ((pages <= 3) && (PAGE_SIZE <= 16384) && (rctl & E1000_RCTL_LPE))
 		adapter->rx_ps_pages = pages;
 	else
 		adapter->rx_ps_pages = 0;
@@ -3095,23 +3094,14 @@ static void e1000_configure_rx(struct e1000_adapter *adapter)
 	}
 	ew32(RXCSUM, rxcsum);
 
-	/*
-	 * Enable early receives on supported devices, only takes effect when
-	 * packet size is equal or larger than the specified value (in 8 byte
-	 * units), e.g. using jumbo frames when setting to E1000_ERT_2048
-	 */
-	if ((adapter->flags & FLAG_HAS_ERT) ||
-	    (adapter->hw.mac.type == e1000_pch2lan)) {
+	if (adapter->hw.mac.type == e1000_pch2lan) {
+		/*
+		 * With jumbo frames, excessive C-state transition
+		 * latencies result in dropped transactions.
+		 */
 		if (adapter->netdev->mtu > ETH_DATA_LEN) {
 			u32 rxdctl = er32(RXDCTL(0));
 			ew32(RXDCTL(0), rxdctl | 0x3);
-			if (adapter->flags & FLAG_HAS_ERT)
-				ew32(ERT, E1000_ERT_2048 | (1 << 13));
-			/*
-			 * With jumbo frames and early-receive enabled,
-			 * excessive C-state transition latencies result in
-			 * dropped transactions.
-			 */
 			pm_qos_update_request(&adapter->netdev->pm_qos_req, 55);
 		} else {
 			pm_qos_update_request(&adapter->netdev->pm_qos_req,
@@ -3422,9 +3412,7 @@ void e1000e_reset(struct e1000_adapter *adapter)
 			 * if short on Rx space, Rx wins and must trump Tx
 			 * adjustment or use Early Receive if available
 			 */
-			if ((pba < min_rx_space) &&
-			    (!(adapter->flags & FLAG_HAS_ERT)))
-				/* ERT enabled in e1000_configure_rx */
+			if (pba < min_rx_space)
 				pba = min_rx_space;
 		}
 
@@ -3438,8 +3426,6 @@ void e1000e_reset(struct e1000_adapter *adapter)
 	 * (or the size used for early receive) above it in the Rx FIFO.
 	 * Set it to the lower of:
 	 * - 90% of the Rx FIFO size, and
-	 * - the full Rx FIFO size minus the early receive size (for parts
-	 *   with ERT support assuming ERT set to E1000_ERT_2048), or
 	 * - the full Rx FIFO size minus one full frame
 	 */
 	if (adapter->flags & FLAG_DISABLE_FC_PAUSE_TIME)
@@ -3450,14 +3436,19 @@ void e1000e_reset(struct e1000_adapter *adapter)
 	fc->current_mode = fc->requested_mode;
 
 	switch (hw->mac.type) {
+	case e1000_ich9lan:
+	case e1000_ich10lan:
+		if (adapter->netdev->mtu > ETH_DATA_LEN) {
+			pba = 14;
+			ew32(PBA, pba);
+			fc->high_water = 0x2800;
+			fc->low_water = fc->high_water - 8;
+			break;
+		}
+		/* fall-through */
 	default:
-		if ((adapter->flags & FLAG_HAS_ERT) &&
-		    (adapter->netdev->mtu > ETH_DATA_LEN))
-			hwm = min(((pba << 10) * 9 / 10),
-				  ((pba << 10) - (E1000_ERT_2048 << 3)));
-		else
-			hwm = min(((pba << 10) * 9 / 10),
-				  ((pba << 10) - adapter->max_frame_size));
+		hwm = min(((pba << 10) * 9 / 10),
+			  ((pba << 10) - adapter->max_frame_size));
 
 		fc->high_water = hwm & E1000_FCRTH_RTH; /* 8-byte granularity */
 		fc->low_water = fc->high_water - 8;
@@ -3490,11 +3481,10 @@ void e1000e_reset(struct e1000_adapter *adapter)
 
 	/*
 	 * Disable Adaptive Interrupt Moderation if 2 full packets cannot
-	 * fit in receive buffer and early-receive not supported.
+	 * fit in receive buffer.
 	 */
 	if (adapter->itr_setting & 0x3) {
-		if (((adapter->max_frame_size * 2) > (pba << 10)) &&
-		    !(adapter->flags & FLAG_HAS_ERT)) {
+		if ((adapter->max_frame_size * 2) > (pba << 10)) {
 			if (!(adapter->flags2 & FLAG2_DISABLE_AIM)) {
 				dev_info(&adapter->pdev->dev,
 					"Interrupt Throttle Rate turned off\n");
@@ -3862,9 +3852,8 @@ static int e1000_open(struct net_device *netdev)
 	     E1000_MNG_DHCP_COOKIE_STATUS_VLAN))
 		e1000_update_mng_vlan(adapter);
 
-	/* DMA latency requirement to workaround early-receive/jumbo issue */
-	if ((adapter->flags & FLAG_HAS_ERT) ||
-	    (adapter->hw.mac.type == e1000_pch2lan))
+	/* DMA latency requirement to workaround jumbo issue */
+	if (adapter->hw.mac.type == e1000_pch2lan)
 		pm_qos_add_request(&adapter->netdev->pm_qos_req,
 				   PM_QOS_CPU_DMA_LATENCY,
 				   PM_QOS_DEFAULT_VALUE);
@@ -3975,8 +3964,7 @@ static int e1000_close(struct net_device *netdev)
 	    !test_bit(__E1000_TESTING, &adapter->state))
 		e1000e_release_hw_control(adapter);
 
-	if ((adapter->flags & FLAG_HAS_ERT) ||
-	    (adapter->hw.mac.type == e1000_pch2lan))
+	if (adapter->hw.mac.type == e1000_pch2lan)
 		pm_qos_remove_request(&adapter->netdev->pm_qos_req);
 
 	pm_runtime_put_sync(&pdev->dev);
