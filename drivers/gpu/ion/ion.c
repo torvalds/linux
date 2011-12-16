@@ -31,6 +31,7 @@
 #include <linux/debugfs.h>
 #include <linux/android_pmem.h>
 
+#include <asm/cacheflush.h>
 #include "ion_priv.h"
 #define DEBUG
 
@@ -908,15 +909,32 @@ err:
 static long ion_share_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct ion_buffer *buffer = filp->private_data;
-	struct pmem_region region;
+	
+	switch (cmd) {
+	case PMEM_GET_PHYS:
+	{
+		struct pmem_region region;
+		region.offset = buffer->priv_phys;
+		region.len = buffer->size;
 
-	region.offset = buffer->priv_phys;
-	region.len = buffer->size;
-
-	if (copy_to_user((void __user *)arg, &region,
+		if (copy_to_user((void __user *)arg, &region,
 				sizeof(struct pmem_region)))
-		return -EFAULT;
+			return -EFAULT;
+		break;
+	}
+	case PMEM_CACHE_FLUSH:
+	{
+		struct pmem_region region;
+		if (copy_from_user(&region, (void __user *)arg,
+				sizeof(struct pmem_region)))
+			return -EFAULT;
+		dmac_flush_range((void *)region.offset, (void *)(region.offset + region.len));
 
+		break;
+	}
+	default:
+		return -ENOTTY;
+	}
 	return 0;
 }
 
@@ -965,6 +983,8 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 					     data.flags);
 		if (copy_to_user((void __user *)arg, &data, sizeof(data)))
 			return -EFAULT;
+		printk("%s: alloc 0x%x bytes, phy addr is 0x%lx\n",
+			__func__, data.len, data.handle->buffer->priv_phys);
 		break;
 	}
 	case ION_IOC_FREE:
