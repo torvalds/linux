@@ -1227,6 +1227,10 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 	case e1000_82572:
 		reg |= (1 << 23) | (1 << 24) | (1 << 25) | (1 << 26);
 		break;
+	case e1000_82574:
+	case e1000_82583:
+		reg |= (1 << 26);
+		break;
 	default:
 		break;
 	}
