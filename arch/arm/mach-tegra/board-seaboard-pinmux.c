@@ -22,8 +22,8 @@
 #include <mach/pinmux-t2.h>
 
 #include "gpio-names.h"
+#include "board-pinmux.h"
 #include "board-seaboard.h"
-#include "devices.h"
 
 #define DEFAULT_DRIVE(_name)					\
 	{							\
@@ -179,11 +179,6 @@ static __initdata struct tegra_pingroup_config ventana_pinmux[] = {
 	{TEGRA_PINGROUP_SPIG, TEGRA_MUX_SPI2_ALT, TEGRA_PUPD_NORMAL,    TEGRA_TRI_TRISTATE},
 };
 
-static struct platform_device *pinmux_devices[] = {
-	&tegra_gpio_device,
-	&tegra_pinmux_device,
-};
-
 static struct tegra_gpio_table common_gpio_table[] = {
 	{ .gpio = TEGRA_GPIO_SD2_CD,		.enable = true },
 	{ .gpio = TEGRA_GPIO_SD2_WP,		.enable = true },
@@ -208,31 +203,35 @@ static struct tegra_gpio_table ventana_gpio_table[] = {
 	{ .gpio = TEGRA_GPIO_PX1,		.enable = true },
 };
 
-void __init seaboard_common_pinmux_init(void)
+static struct tegra_board_pinmux_conf common_conf = {
+	.pgs = common_pinmux,
+	.pg_count = ARRAY_SIZE(common_pinmux),
+	.gpios = common_gpio_table,
+	.gpio_count = ARRAY_SIZE(common_gpio_table),
+};
+
+static struct tegra_board_pinmux_conf seaboard_conf = {
+	.pgs = seaboard_pinmux,
+	.pg_count = ARRAY_SIZE(seaboard_pinmux),
+	.drives = seaboard_drive_pinmux,
+	.drive_count = ARRAY_SIZE(seaboard_drive_pinmux),
+	.gpios = seaboard_gpio_table,
+	.gpio_count = ARRAY_SIZE(seaboard_gpio_table),
+};
+
+static struct tegra_board_pinmux_conf ventana_conf = {
+	.pgs = ventana_pinmux,
+	.pg_count = ARRAY_SIZE(ventana_pinmux),
+	.gpios = ventana_gpio_table,
+	.gpio_count = ARRAY_SIZE(ventana_gpio_table),
+};
+
+void seaboard_pinmux_init(void)
 {
-	if (!of_machine_is_compatible("nvidia,tegra20"))
-		platform_add_devices(pinmux_devices,
-					ARRAY_SIZE(pinmux_devices));
-
-	tegra_pinmux_config_table(common_pinmux, ARRAY_SIZE(common_pinmux));
-
-	tegra_drive_pinmux_config_table(seaboard_drive_pinmux,
-					ARRAY_SIZE(seaboard_drive_pinmux));
-
-	tegra_gpio_config(common_gpio_table, ARRAY_SIZE(common_gpio_table));
+	tegra_board_pinmux_init(&common_conf, &seaboard_conf);
 }
 
-void __init seaboard_pinmux_init(void)
+void ventana_pinmux_init(void)
 {
-	seaboard_common_pinmux_init();
-	tegra_pinmux_config_table(seaboard_pinmux, ARRAY_SIZE(seaboard_pinmux));
-	tegra_gpio_config(seaboard_gpio_table, ARRAY_SIZE(seaboard_gpio_table));
+	tegra_board_pinmux_init(&common_conf, &ventana_conf);
 }
-
-void __init ventana_pinmux_init(void)
-{
-	seaboard_common_pinmux_init();
-	tegra_pinmux_config_table(ventana_pinmux, ARRAY_SIZE(ventana_pinmux));
-	tegra_gpio_config(ventana_gpio_table, ARRAY_SIZE(ventana_gpio_table));
-}
-
