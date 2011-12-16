@@ -5,6 +5,7 @@
 
 ccflags-y := -Iinclude/drm -Werror
 omapdrm-y := omap_drv.o \
+	omap_debugfs.o \
 	omap_crtc.o \
 	omap_encoder.o \
 	omap_connector.o \

@@ -76,6 +76,10 @@ struct tiler_block {
 int omap_dmm_init(struct drm_device *dev);
 int omap_dmm_remove(void);
 
+#ifdef CONFIG_DEBUG_FS
+int tiler_map_show(struct seq_file *s, void *arg);
+#endif
+
 /* pin/unpin */
 int tiler_pin(struct tiler_block *block, struct page **pages,
 		uint32_t npages, uint32_t roll, bool wait);

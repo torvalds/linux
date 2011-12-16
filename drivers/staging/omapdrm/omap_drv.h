@@ -51,6 +51,11 @@ struct omap_drm_private {
 	bool has_dmm;
 };
 
+#ifdef CONFIG_DEBUG_FS
+int omap_debugfs_init(struct drm_minor *minor);
+void omap_debugfs_cleanup(struct drm_minor *minor);
+#endif
+
 struct drm_fb_helper *omap_fbdev_init(struct drm_device *dev);
 void omap_fbdev_free(struct drm_device *dev);
 
