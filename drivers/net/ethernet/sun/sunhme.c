@@ -2850,7 +2850,7 @@ err_out:
 static int is_quattro_p(struct pci_dev *pdev)
 {
 	struct pci_dev *busdev = pdev->bus->self;
-	struct list_head *tmp;
+	struct pci_dev *this_pdev;
 	int n_hmes;
 
 	if (busdev == NULL ||
@@ -2859,15 +2859,10 @@ static int is_quattro_p(struct pci_dev *pdev)
 		return 0;
 
 	n_hmes = 0;
-	tmp = pdev->bus->devices.next;
-	while (tmp != &pdev->bus->devices) {
-		struct pci_dev *this_pdev = pci_dev_b(tmp);
-
+	list_for_each_entry(this_pdev, &pdev->bus->devices, bus_list) {
 		if (this_pdev->vendor == PCI_VENDOR_ID_SUN &&
 		    this_pdev->device == PCI_DEVICE_ID_SUN_HAPPYMEAL)
 			n_hmes++;
-
-		tmp = tmp->next;
 	}
 
 	if (n_hmes != 4)
