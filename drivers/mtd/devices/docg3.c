@@ -1037,6 +1037,7 @@ static int doc_block_isbad(struct mtd_info *mtd, loff_t from)
 	return !is_good;
 }
 
+#if 0
 /**
  * doc_get_erase_count - Get block erase count
  * @docg3: the device
@@ -1078,6 +1079,7 @@ static int doc_get_erase_count(struct docg3 *docg3, loff_t from)
 
 	return max(plane1_erase_count, plane2_erase_count);
 }
+#endif
 
 /**
  * doc_get_op_status - get erase/write operation status
