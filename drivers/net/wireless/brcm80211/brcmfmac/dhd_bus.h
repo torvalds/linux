@@ -55,6 +55,11 @@ struct brcmf_bus {
 	int (*brcmf_bus_init)(struct device *);
 	/* Send a data frame to the dongle.  Callee disposes of txp. */
 	int (*brcmf_bus_txdata)(struct device *, struct sk_buff *);
+	/* Send/receive a control message to/from the dongle.
+	 * Expects caller to enforce a single outstanding transaction.
+	 */
+	int (*brcmf_bus_txctl)(struct device *, unsigned char *, uint);
+	int (*brcmf_bus_rxctl)(struct device *, unsigned char *, uint);
 };
 
 /*
@@ -97,16 +102,4 @@ extern int brcmf_bus_start(struct device *dev);
 
 extern int brcmf_add_if(struct device *dev, int ifidx,
 			char *name, u8 *mac_addr);
-
-/*
- * Exported from brcmf bus module (brcmf_usb, brcmf_sdio)
- */
-/* Send/receive a control message to/from the dongle.
- * Expects caller to enforce a single outstanding transaction.
- */
-extern int
-brcmf_sdbrcm_bus_txctl(struct device *dev, unsigned char *msg, uint msglen);
-
-extern int
-brcmf_sdbrcm_bus_rxctl(struct device *dev, unsigned char *msg, uint msglen);
 #endif				/* _BRCMF_BUS_H_ */

@@ -117,8 +117,9 @@ static int brcmf_proto_cdc_msg(struct brcmf_pub *drvr)
 		len = CDC_MAX_MSG_SIZE;
 
 	/* Send request */
-	return brcmf_sdbrcm_bus_txctl(drvr->dev, (unsigned char *)&prot->msg,
-				      len);
+	return drvr->bus_if->brcmf_bus_txctl(drvr->dev,
+					     (unsigned char *)&prot->msg,
+					     len);
 }
 
 static int brcmf_proto_cdc_cmplt(struct brcmf_pub *drvr, u32 id, u32 len)
@@ -129,7 +130,7 @@ static int brcmf_proto_cdc_cmplt(struct brcmf_pub *drvr, u32 id, u32 len)
 	brcmf_dbg(TRACE, "Enter\n");
 
 	do {
-		ret = brcmf_sdbrcm_bus_rxctl(drvr->dev,
+		ret = drvr->bus_if->brcmf_bus_rxctl(drvr->dev,
 				(unsigned char *)&prot->msg,
 				len + sizeof(struct brcmf_proto_cdc_dcmd));
 		if (ret < 0)

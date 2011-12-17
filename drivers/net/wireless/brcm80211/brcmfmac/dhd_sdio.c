@@ -2892,7 +2892,7 @@ static int brcmf_tx_frame(struct brcmf_sdio *bus, u8 *frame, u16 len)
 	return ret;
 }
 
-int
+static int
 brcmf_sdbrcm_bus_txctl(struct device *dev, unsigned char *msg, uint msglen)
 {
 	u8 *frame;
@@ -3010,7 +3010,7 @@ brcmf_sdbrcm_bus_txctl(struct device *dev, unsigned char *msg, uint msglen)
 	return ret ? -EIO : 0;
 }
 
-int
+static int
 brcmf_sdbrcm_bus_rxctl(struct device *dev, unsigned char *msg, uint msglen)
 {
 	int timeleft;
@@ -3956,6 +3956,8 @@ void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
 	bus->sdiodev->bus_if->brcmf_bus_stop = brcmf_sdbrcm_bus_stop;
 	bus->sdiodev->bus_if->brcmf_bus_init = brcmf_sdbrcm_bus_init;
 	bus->sdiodev->bus_if->brcmf_bus_txdata = brcmf_sdbrcm_bus_txdata;
+	bus->sdiodev->bus_if->brcmf_bus_txctl = brcmf_sdbrcm_bus_txctl;
+	bus->sdiodev->bus_if->brcmf_bus_rxctl = brcmf_sdbrcm_bus_rxctl;
 	/* Attach to the brcmf/OS/network interface */
 	ret = brcmf_attach(SDPCM_RESERVE, bus->sdiodev->dev);
 	if (ret != 0) {
