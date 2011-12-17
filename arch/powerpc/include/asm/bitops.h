@@ -124,14 +124,14 @@ static __inline__ unsigned long fn(			\
 	return (old & mask);				\
 }
 
-DEFINE_TESTOP(test_and_set_bits, or, PPC_RELEASE_BARRIER,
-	      PPC_ACQUIRE_BARRIER, 0)
+DEFINE_TESTOP(test_and_set_bits, or, PPC_ATOMIC_ENTRY_BARRIER,
+	      PPC_ATOMIC_EXIT_BARRIER, 0)
 DEFINE_TESTOP(test_and_set_bits_lock, or, "",
 	      PPC_ACQUIRE_BARRIER, 1)
-DEFINE_TESTOP(test_and_clear_bits, andc, PPC_RELEASE_BARRIER,
-	      PPC_ACQUIRE_BARRIER, 0)
-DEFINE_TESTOP(test_and_change_bits, xor, PPC_RELEASE_BARRIER,
-	      PPC_ACQUIRE_BARRIER, 0)
+DEFINE_TESTOP(test_and_clear_bits, andc, PPC_ATOMIC_ENTRY_BARRIER,
+	      PPC_ATOMIC_EXIT_BARRIER, 0)
+DEFINE_TESTOP(test_and_change_bits, xor, PPC_ATOMIC_ENTRY_BARRIER,
+	      PPC_ATOMIC_EXIT_BARRIER, 0)
 
 static __inline__ int test_and_set_bit(unsigned long nr,
 				       volatile unsigned long *addr)

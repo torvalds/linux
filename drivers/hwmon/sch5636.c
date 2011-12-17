@@ -521,19 +521,8 @@ static struct platform_driver sch5636_driver = {
 	.remove		= sch5636_remove,
 };
 
-static int __init sch5636_init(void)
-{
-	return platform_driver_register(&sch5636_driver);
-}
-
-static void __exit sch5636_exit(void)
-{
-	platform_driver_unregister(&sch5636_driver);
-}
+module_platform_driver(sch5636_driver);
 
 MODULE_DESCRIPTION("SMSC SCH5636 Hardware Monitoring Driver");
 MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
 MODULE_LICENSE("GPL");
-
-module_init(sch5636_init);
-module_exit(sch5636_exit);

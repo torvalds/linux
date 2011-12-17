@@ -161,7 +161,6 @@ static struct clk dsp_clk = {
 	.name = "dsp",
 	.parent = &pll1_sysclk1,
 	.lpsc = DM646X_LPSC_C64X_CPU,
-	.flags = PSC_DSP,
 	.usecount = 1,			/* REVISIT how to disable? */
 };
 

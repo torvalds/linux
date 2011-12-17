@@ -335,10 +335,10 @@ static ssize_t qeth_l3_dev_sniffer_store(struct device *dev,
 					QETH_IN_BUF_COUNT_MAX)
 				qeth_realloc_buffer_pool(card,
 					QETH_IN_BUF_COUNT_MAX);
-			break;
 		} else
 			rc = -EPERM;
-	default:   /* fall through */
+		break;
+	default:
 		rc = -EINVAL;
 	}
 out:

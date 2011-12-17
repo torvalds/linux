@@ -7,6 +7,7 @@
  * Support for all devices (greater than 16) added by David Gathright.
  */
 
+#include <linux/export.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
