@@ -18,12 +18,6 @@
 
 #include <linux/vga_switcheroo.h>
 
-#define NOUVEAU_DSM_SUPPORTED 0x00
-#define NOUVEAU_DSM_SUPPORTED_FUNCTIONS 0x00
-
-#define NOUVEAU_DSM_ACTIVE 0x01
-#define NOUVEAU_DSM_ACTIVE_QUERY 0x00
-
 #define NOUVEAU_DSM_LED 0x02
 #define NOUVEAU_DSM_LED_STATE 0x00
 #define NOUVEAU_DSM_LED_OFF 0x10
@@ -35,6 +29,7 @@
 #define NOUVEAU_DSM_POWER_SPEED 0x01
 #define NOUVEAU_DSM_POWER_STAMINA 0x02
 
+#define NOUVEAU_DSM_OPTIMUS_FN 0x1A
 static struct nouveau_dsm_priv {
 	bool dsm_detected;
 	bool optimus_detected;
@@ -148,6 +143,23 @@ static int nouveau_dsm(acpi_handle handle, int func, int arg, uint32_t *result)
 	return 0;
 }
 
+/* Returns 1 if a DSM function is usable and 0 otherwise */
+static int nouveau_test_dsm(acpi_handle test_handle,
+	int (*dsm_func)(acpi_handle, int, int, uint32_t *),
+	int sfnc)
+{
+	u32 result = 0;
+
+	/* Function 0 returns a Buffer containing available functions. The args
+	 * parameter is ignored for function 0, so just put 0 in it */
+	if (dsm_func(test_handle, 0, 0, &result))
+		return 0;
+
+	/* ACPI Spec v4 9.14.1: if bit 0 is zero, no function is supported. If
+	 * the n-th bit is enabled, function n is supported */
+	return result & 1 && result & (1 << sfnc);
+}
+
 static int nouveau_dsm_switch_mux(acpi_handle handle, int mux_id)
 {
 	mxm_wmi_call_mxmx(mux_id == NOUVEAU_DSM_LED_STAMINA ? MXM_MXDS_ADAPTER_IGD : MXM_MXDS_ADAPTER_0);
@@ -212,8 +224,7 @@ static int nouveau_dsm_pci_probe(struct pci_dev *pdev)
 {
 	acpi_handle dhandle, nvidia_handle;
 	acpi_status status;
-	int ret, retval = 0;
-	uint32_t result;
+	int retval = 0;
 
 	dhandle = DEVICE_ACPI_HANDLE(&pdev->dev);
 	if (!dhandle)
@@ -224,13 +235,11 @@ static int nouveau_dsm_pci_probe(struct pci_dev *pdev)
 		return false;
 	}
 
-	ret = nouveau_dsm(dhandle, NOUVEAU_DSM_SUPPORTED,
-			  NOUVEAU_DSM_SUPPORTED_FUNCTIONS, &result);
-	if (ret == 0)
+	if (nouveau_test_dsm(dhandle, nouveau_dsm, NOUVEAU_DSM_POWER))
 		retval |= NOUVEAU_DSM_HAS_MUX;
 
-	ret = nouveau_optimus_dsm(dhandle, 0, 0, &result);
-	if (ret == 0)
+	if (nouveau_test_dsm(dhandle, nouveau_optimus_dsm,
+		NOUVEAU_DSM_OPTIMUS_FN))
 		retval |= NOUVEAU_DSM_HAS_OPT;
 
 	if (retval)
