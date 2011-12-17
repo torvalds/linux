@@ -324,7 +324,7 @@ static int brcmf_netdev_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 		brcmf_dbg(INFO, "%s: insufficient headroom\n",
 			  brcmf_ifname(drvr, ifp->idx));
-		drvr->tx_realloc++;
+		drvr->bus_if->tx_realloc++;
 		skb2 = skb_realloc_headroom(skb, drvr->hdrlen);
 		dev_kfree_skb(skb);
 		skb = skb2;

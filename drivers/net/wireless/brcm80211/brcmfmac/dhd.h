@@ -578,6 +578,7 @@ struct brcmf_bus {
 	enum brcmf_bus_state state;
 	uint maxctl;		/* Max size rxctl request from proto to bus */
 	bool drvr_up;		/* Status flag of driver up/down */
+	unsigned long tx_realloc;	/* Tx packets realloced for headroom */
 	struct dngl_stats dstats;	/* Stats for dongle-based data */
 };
 
@@ -615,8 +616,6 @@ struct brcmf_pub {
 	/* Number of times dpc scheduled by watchdog timer */
 	unsigned long wd_dpc_sched;
 
-	/* Number of tx packets we had to realloc for headroom */
-	unsigned long tx_realloc;
 	/* Number of flow control pkts recvd */
 	unsigned long fc_packets;
 

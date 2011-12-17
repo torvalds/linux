@@ -2130,7 +2130,7 @@ static int brcmf_sdbrcm_txpkt(struct brcmf_sdio *bus, struct sk_buff *pkt,
 		if (skb_headroom(pkt) < pad) {
 			brcmf_dbg(INFO, "insufficient headroom %d for %d pad\n",
 				  skb_headroom(pkt), pad);
-			bus->drvr->tx_realloc++;
+			bus->sdiodev->bus_if->tx_realloc++;
 			new = brcmu_pkt_buf_get_skb(pkt->len + BRCMF_SDALIGN);
 			if (!new) {
 				brcmf_dbg(ERROR, "couldn't allocate new %d-byte packet\n",
