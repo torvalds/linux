@@ -30,6 +30,7 @@
 #include <sound/tlv.h>
 #include <trace/events/asoc.h>
 #include <mach/gpio.h>
+#include <mach/iomux.h>
 
 #include <linux/mfd/wm8994/core.h>
 #include <linux/mfd/wm8994/registers.h>
@@ -3249,6 +3250,8 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 				  ARRAY_SIZE(wm8994_PA_dapm_widgets));	
 		snd_soc_dapm_add_routes(dapm, wm8994_PA_intercon, 
 				ARRAY_SIZE(wm8994_PA_intercon));
+		if(pdata->PA_iomux_name != NULL)
+			rk29_mux_api_set(pdata->PA_iomux_name, pdata->PA_iomux_mode);
 		gpio_request(pdata->PA_control_pin, "wm8994_PA_ctrl");				
 		gpio_direction_output(pdata->PA_control_pin,GPIO_LOW);
 	}
