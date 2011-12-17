@@ -708,7 +708,7 @@ extern void brcmf_detach(struct device *dev);
 /* Indication from bus module to change flow-control state */
 extern void brcmf_txflowcontrol(struct device *dev, int ifidx, bool on);
 
-extern bool brcmf_c_prec_enq(struct brcmf_pub *drvr, struct pktq *q,
+extern bool brcmf_c_prec_enq(struct device *dev, struct pktq *q,
 			 struct sk_buff *pkt, int prec);
 
 /* Receive frame for delivery to OS.  Callee disposes of rxp. */

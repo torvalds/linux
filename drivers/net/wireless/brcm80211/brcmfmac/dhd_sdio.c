@@ -2590,7 +2590,8 @@ int brcmf_sdbrcm_bus_txdata(struct device *dev, struct sk_buff *pkt)
 
 	/* Priority based enq */
 	spin_lock_bh(&bus->txqlock);
-	if (brcmf_c_prec_enq(bus->drvr, &bus->txq, pkt, prec) == false) {
+	if (brcmf_c_prec_enq(bus->sdiodev->dev, &bus->txq, pkt, prec) ==
+	    false) {
 		skb_pull(pkt, SDPCM_HDRLEN);
 		brcmf_txcomplete(bus->sdiodev->dev, pkt, false);
 		brcmu_pkt_buf_free_skb(pkt);

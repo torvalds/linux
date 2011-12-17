@@ -83,12 +83,14 @@ brcmf_c_mkiovar(char *name, char *data, uint datalen, char *buf, uint buflen)
 	return len;
 }
 
-bool brcmf_c_prec_enq(struct brcmf_pub *drvr, struct pktq *q,
+bool brcmf_c_prec_enq(struct device *dev, struct pktq *q,
 		      struct sk_buff *pkt, int prec)
 {
 	struct sk_buff *p;
 	int eprec = -1;		/* precedence to evict from */
 	bool discard_oldest;
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_pub *drvr = bus_if->drvr;
 
 	/* Fast case, precedence queue is not full and we are also not
 	 * exceeding total queue length
