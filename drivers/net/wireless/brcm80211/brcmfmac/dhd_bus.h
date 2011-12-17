@@ -51,6 +51,8 @@ struct brcmf_bus {
 	/* interface functions pointers */
 	/* Stop bus module: clear pending frames, disable data flow */
 	void (*brcmf_bus_stop)(struct device *);
+	/* Initialize bus module: prepare for communication w/dongle */
+	int (*brcmf_bus_init)(struct device *);
 };
 
 /*
@@ -97,9 +99,6 @@ extern int brcmf_add_if(struct device *dev, int ifidx,
 /*
  * Exported from brcmf bus module (brcmf_usb, brcmf_sdio)
  */
-/* Initialize bus module: prepare for communication w/dongle */
-extern int brcmf_sdbrcm_bus_init(struct device *dev);
-
 /* Send a data frame to the dongle.  Callee disposes of txp. */
 extern int brcmf_sdbrcm_bus_txdata(struct device *dev, struct sk_buff *txp);
 
