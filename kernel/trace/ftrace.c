@@ -22,6 +22,7 @@
 #include <linux/hardirq.h>
 #include <linux/kthread.h>
 #include <linux/uaccess.h>
+#include <linux/bsearch.h>
 #include <linux/module.h>
 #include <linux/ftrace.h>
 #include <linux/sysctl.h>
@@ -1300,6 +1301,19 @@ ftrace_ops_test(struct ftrace_ops *ops, unsigned long ip)
 		}				\
 	}
 
+
+static int ftrace_cmp_recs(const void *a, const void *b)
+{
+	const struct dyn_ftrace *reca = a;
+	const struct dyn_ftrace *recb = b;
+
+	if (reca->ip > recb->ip)
+		return 1;
+	if (reca->ip < recb->ip)
+		return -1;
+	return 0;
+}
+
 /**
  * ftrace_location - return true if the ip giving is a traced location
  * @ip: the instruction pointer to check
@@ -1313,11 +1327,17 @@ int ftrace_location(unsigned long ip)
 {
 	struct ftrace_page *pg;
 	struct dyn_ftrace *rec;
+	struct dyn_ftrace key;
 
-	do_for_each_ftrace_rec(pg, rec) {
-		if (rec->ip == ip)
+	key.ip = ip;
+
+	for (pg = ftrace_pages_start; pg; pg = pg->next) {
+		rec = bsearch(&key, pg->records, pg->index,
+			      sizeof(struct dyn_ftrace),
+			      ftrace_cmp_recs);
+		if (rec)
 			return 1;
-	} while_for_each_ftrace_rec();
+	}
 
 	return 0;
 }
@@ -3585,18 +3605,6 @@ static void ftrace_swap_recs(void *a, void *b, int size)
 	t = *reca;
 	*reca = *recb;
 	*recb = t;
-}
-
-static int ftrace_cmp_recs(const void *a, const void *b)
-{
-	const struct dyn_ftrace *reca = a;
-	const struct dyn_ftrace *recb = b;
-
-	if (reca->ip > recb->ip)
-		return 1;
-	if (reca->ip < recb->ip)
-		return -1;
-	return 0;
 }
 
 static int ftrace_process_locs(struct module *mod,
