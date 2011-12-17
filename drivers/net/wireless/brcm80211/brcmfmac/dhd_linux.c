@@ -955,7 +955,7 @@ struct brcmf_pub *brcmf_attach(struct brcmf_sdio *bus, uint bus_hdrlen,
 
 fail:
 	if (drvr)
-		brcmf_detach(drvr);
+		brcmf_detach(dev);
 
 	return NULL;
 }
@@ -1093,29 +1093,30 @@ static void brcmf_bus_detach(struct brcmf_pub *drvr)
 	}
 }
 
-void brcmf_detach(struct brcmf_pub *drvr)
+void brcmf_detach(struct device *dev)
 {
+	int i;
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_pub *drvr = bus_if->drvr;
+
 	brcmf_dbg(TRACE, "Enter\n");
 
-	if (drvr) {
-		int i;
 
-		/* make sure primary interface removed last */
-		for (i = BRCMF_MAX_IFS-1; i > -1; i--)
-			if (drvr->iflist[i])
-				brcmf_del_if(drvr, i);
+	/* make sure primary interface removed last */
+	for (i = BRCMF_MAX_IFS-1; i > -1; i--)
+		if (drvr->iflist[i])
+			brcmf_del_if(drvr, i);
 
-		cancel_work_sync(&drvr->setmacaddr_work);
-		cancel_work_sync(&drvr->multicast_work);
+	cancel_work_sync(&drvr->setmacaddr_work);
+	cancel_work_sync(&drvr->multicast_work);
 
-		brcmf_bus_detach(drvr);
+	brcmf_bus_detach(drvr);
 
-		if (drvr->prot)
-			brcmf_proto_detach(drvr);
+	if (drvr->prot)
+		brcmf_proto_detach(drvr);
 
-		drvr->bus_if->drvr = NULL;
-		kfree(drvr);
-	}
+	bus_if->drvr = NULL;
+	kfree(drvr);
 }
 
 static int brcmf_get_pend_8021x_cnt(struct brcmf_pub *drvr)

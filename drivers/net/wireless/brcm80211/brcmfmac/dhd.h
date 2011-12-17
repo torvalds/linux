@@ -703,7 +703,7 @@ extern int brcmf_netdev_wait_pend8021x(struct net_device *ndev);
 extern s32 brcmf_exec_dcmd(struct net_device *dev, u32 cmd, void *arg, u32 len);
 
 /* Indication from bus module regarding removal/absence of dongle */
-extern void brcmf_detach(struct brcmf_pub *drvr);
+extern void brcmf_detach(struct device *dev);
 
 /* Indication from bus module to change flow-control state */
 extern void brcmf_txflowcontrol(struct brcmf_pub *drvr, int ifidx, bool on);

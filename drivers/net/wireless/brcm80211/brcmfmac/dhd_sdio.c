@@ -3865,8 +3865,8 @@ static void brcmf_sdbrcm_release(struct brcmf_sdio *bus)
 		/* De-register interrupt handler */
 		brcmf_sdcard_intr_dereg(bus->sdiodev);
 
-		if (bus->drvr) {
-			brcmf_detach(bus->drvr);
+		if (bus->sdiodev->bus_if->drvr) {
+			brcmf_detach(bus->sdiodev->dev);
 			brcmf_sdbrcm_release_dongle(bus);
 			bus->drvr = NULL;
 		}
