@@ -629,11 +629,13 @@ static void xc_debug_dump(struct xc5000_priv *priv)
 }
 
 static int xc5000_set_params(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *params)
+			     struct dvb_frontend_parameters *params)
 {
+	int ret, b;
 	struct xc5000_priv *priv = fe->tuner_priv;
-	int ret;
-	u32 bw;
+	u32 bw = fe->dtv_property_cache.bandwidth_hz;
+	u32 freq = fe->dtv_property_cache.frequency;
+	u32 delsys  = fe->dtv_property_cache.delivery_system;
 
 	if (xc5000_is_firmware_loaded(fe) != XC_RESULT_SUCCESS) {
 		if (xc_load_fw_and_init_tuner(fe) != XC_RESULT_SUCCESS) {
@@ -642,104 +644,77 @@ static int xc5000_set_params(struct dvb_frontend *fe,
 		}
 	}
 
-	dprintk(1, "%s() frequency=%d (Hz)\n", __func__, params->frequency);
+	dprintk(1, "%s() frequency=%d (Hz)\n", __func__, freq);
 
-	if (fe->ops.info.type == FE_ATSC) {
-		dprintk(1, "%s() ATSC\n", __func__);
-		switch (params->u.vsb.modulation) {
-		case VSB_8:
-		case VSB_16:
-			dprintk(1, "%s() VSB modulation\n", __func__);
-			priv->rf_mode = XC_RF_MODE_AIR;
-			priv->freq_hz = params->frequency - 1750000;
-			priv->bandwidth = BANDWIDTH_6_MHZ;
-			priv->video_standard = DTV6;
-			break;
-		case QAM_64:
-		case QAM_256:
-		case QAM_AUTO:
-			dprintk(1, "%s() QAM modulation\n", __func__);
-			priv->rf_mode = XC_RF_MODE_CABLE;
-			priv->freq_hz = params->frequency - 1750000;
-			priv->bandwidth = BANDWIDTH_6_MHZ;
-			priv->video_standard = DTV6;
-			break;
-		default:
-			return -EINVAL;
-		}
-	} else if (fe->ops.info.type == FE_OFDM) {
+	switch (delsys) {
+	case SYS_ATSC:
+		dprintk(1, "%s() VSB modulation\n", __func__);
+		priv->rf_mode = XC_RF_MODE_AIR;
+		priv->freq_hz = freq - 1750000;
+		priv->bandwidth = BANDWIDTH_6_MHZ;
+		priv->video_standard = DTV6;
+		break;
+	case SYS_DVBC_ANNEX_B:
+		dprintk(1, "%s() QAM modulation\n", __func__);
+		priv->rf_mode = XC_RF_MODE_CABLE;
+		priv->freq_hz = freq - 1750000;
+		priv->bandwidth = BANDWIDTH_6_MHZ;
+		priv->video_standard = DTV6;
+		break;
+	case SYS_DVBT:
+	case SYS_DVBT2:
 		dprintk(1, "%s() OFDM\n", __func__);
-		switch (params->u.ofdm.bandwidth) {
-		case BANDWIDTH_6_MHZ:
+		switch (bw) {
+		case 6000000:
 			priv->bandwidth = BANDWIDTH_6_MHZ;
 			priv->video_standard = DTV6;
-			priv->freq_hz = params->frequency - 1750000;
+			priv->freq_hz = freq - 1750000;
 			break;
-		case BANDWIDTH_7_MHZ:
+		case 7000000:
 			priv->bandwidth = BANDWIDTH_7_MHZ;
 			priv->video_standard = DTV7;
-			priv->freq_hz = params->frequency - 2250000;
+			priv->freq_hz = freq - 2250000;
 			break;
-		case BANDWIDTH_8_MHZ:
+		case 8000000:
 			priv->bandwidth = BANDWIDTH_8_MHZ;
 			priv->video_standard = DTV8;
-			priv->freq_hz = params->frequency - 2750000;
+			priv->freq_hz = freq - 2750000;
 			break;
 		default:
 			printk(KERN_ERR "xc5000 bandwidth not set!\n");
 			return -EINVAL;
 		}
 		priv->rf_mode = XC_RF_MODE_AIR;
-	} else if (fe->ops.info.type == FE_QAM) {
-		switch (params->u.qam.modulation) {
-		case QAM_256:
-		case QAM_AUTO:
-		case QAM_16:
-		case QAM_32:
-		case QAM_64:
-		case QAM_128:
-			dprintk(1, "%s() QAM modulation\n", __func__);
-			priv->rf_mode = XC_RF_MODE_CABLE;
-			/*
-			 * Using a higher bandwidth at the tuner filter may
-			 * allow inter-carrier interference.
-			 * So, determine the minimal channel spacing, in order
-			 * to better adjust the tuner filter.
-			 * According with ITU-T J.83, the bandwidth is given by:
-			 * bw = Simbol Rate * (1 + roll_off), where the roll_off
-			 * is equal to 0.15 for Annex A, and 0.13 for annex C
-			 */
-			if (fe->dtv_property_cache.rolloff == ROLLOFF_13)
-				bw = (params->u.qam.symbol_rate * 113) / 100;
-			else
-				bw = (params->u.qam.symbol_rate * 115) / 100;
-			if (bw <= 6000000) {
-				priv->bandwidth = BANDWIDTH_6_MHZ;
-				priv->video_standard = DTV6;
-				priv->freq_hz = params->frequency - 1750000;
-			} else if (bw <= 7000000) {
-				priv->bandwidth = BANDWIDTH_7_MHZ;
-				priv->video_standard = DTV7;
-				priv->freq_hz = params->frequency - 2250000;
-			} else {
-				priv->bandwidth = BANDWIDTH_8_MHZ;
-				priv->video_standard = DTV7_8;
-				priv->freq_hz = params->frequency - 2750000;
-			}
-			dprintk(1, "%s() Bandwidth %dMHz (%d)\n", __func__,
-				BANDWIDTH_6_MHZ ? 6: 8, bw);
-			break;
-		default:
-			dprintk(1, "%s() Unsupported QAM type\n", __func__);
-			return -EINVAL;
+	case SYS_DVBC_ANNEX_A:
+	case SYS_DVBC_ANNEX_C:
+		dprintk(1, "%s() QAM modulation\n", __func__);
+		priv->rf_mode = XC_RF_MODE_CABLE;
+		if (bw <= 6000000) {
+			priv->bandwidth = BANDWIDTH_6_MHZ;
+			priv->video_standard = DTV6;
+			priv->freq_hz = freq - 1750000;
+			b = 6;
+		} else if (bw <= 7000000) {
+			priv->bandwidth = BANDWIDTH_7_MHZ;
+			priv->video_standard = DTV7;
+			priv->freq_hz = freq - 2250000;
+			b = 7;
+		} else {
+			priv->bandwidth = BANDWIDTH_8_MHZ;
+			priv->video_standard = DTV7_8;
+			priv->freq_hz = freq - 2750000;
+			b = 8;
 		}
-	} else {
-		printk(KERN_ERR "xc5000 modulation type not supported!\n");
+		dprintk(1, "%s() Bandwidth %dMHz (%d)\n", __func__,
+			b, bw);
+		break;
+	default:
+		printk(KERN_ERR "xc5000: delivery system is not supported!\n");
 		return -EINVAL;
 	}
 
-	dprintk(1, "%s() frequency=%d (compensated)\n",
-		__func__, priv->freq_hz);
+	dprintk(1, "%s() frequency=%d (compensated to %d)\n",
+		__func__, freq, priv->freq_hz);
 
 	ret = xc_SetSignalSource(priv, priv->rf_mode);
 	if (ret != XC_RESULT_SUCCESS) {

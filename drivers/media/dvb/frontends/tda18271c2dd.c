@@ -1130,50 +1130,44 @@ static int set_params(struct dvb_frontend *fe,
 	struct tda_state *state = fe->tuner_priv;
 	int status = 0;
 	int Standard;
-	u32 bw;
+	u32 bw = fe->dtv_property_cache.bandwidth_hz;
+	u32 delsys  = fe->dtv_property_cache.delivery_system;
 
-	state->m_Frequency = params->frequency;
+	state->m_Frequency = fe->dtv_property_cache.frequency;
 
-	if (fe->ops.info.type == FE_OFDM)
-		switch (params->u.ofdm.bandwidth) {
-		case BANDWIDTH_6_MHZ:
+	switch (delsys) {
+	case  SYS_DVBT:
+	case  SYS_DVBT2:
+		switch (bw) {
+		case 6000000:
 			Standard = HF_DVBT_6MHZ;
 			break;
-		case BANDWIDTH_7_MHZ:
+		case 7000000:
 			Standard = HF_DVBT_7MHZ;
 			break;
-		default:
-		case BANDWIDTH_8_MHZ:
+		case 8000000:
 			Standard = HF_DVBT_8MHZ;
 			break;
+		default:
+			return -EINVAL;
 		}
-	else if (fe->ops.info.type == FE_QAM) {
-		/*
-		 * Using a higher bandwidth at the tuner filter may
-		 * allow inter-carrier interference.
-		 * So, determine the minimal channel spacing, in order
-		 * to better adjust the tuner filter.
-		 * According with ITU-T J.83, the bandwidth is given by:
-		 * bw = Simbol Rate * (1 + roll_off), where the roll_off
-		 * is equal to 0.15 for Annex A, and 0.13 for annex C
-		 */
-		if (fe->dtv_property_cache.rolloff == ROLLOFF_13)
-			bw = (params->u.qam.symbol_rate * 113) / 100;
-		else
-			bw = (params->u.qam.symbol_rate * 115) / 100;
+	case SYS_DVBC_ANNEX_A:
+	case SYS_DVBC_ANNEX_C:
 		if (bw <= 6000000)
 			Standard = HF_DVBC_6MHZ;
 		else if (bw <= 7000000)
 			Standard = HF_DVBC_7MHZ;
 		else
 			Standard = HF_DVBC_8MHZ;
-	} else
+	default:
 		return -EINVAL;
+	}
 	do {
-		status = RFTrackingFiltersCorrection(state, params->frequency);
+		status = RFTrackingFiltersCorrection(state, state->m_Frequency);
 		if (status < 0)
 			break;
-		status = ChannelConfiguration(state, params->frequency, Standard);
+		status = ChannelConfiguration(state, state->m_Frequency,
+					      Standard);
 		if (status < 0)
 			break;
 

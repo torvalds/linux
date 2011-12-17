@@ -6215,6 +6215,7 @@ static int drxk_set_parameters(struct dvb_frontend *fe,
 			       struct dvb_frontend_parameters *p)
 {
 	struct drxk_state *state = fe->demodulator_priv;
+	u32 delsys  = fe->dtv_property_cache.delivery_system;
 	u32 IF;
 
 	dprintk(1, "\n");
@@ -6225,11 +6226,15 @@ static int drxk_set_parameters(struct dvb_frontend *fe,
 		return -EINVAL;
 	}
 
-	if (fe->ops.info.type == FE_QAM) {
-		if (fe->dtv_property_cache.rolloff == ROLLOFF_13)
-			state->m_itut_annex_c = true;
-		else
-			state->m_itut_annex_c = false;
+	switch (delsys) {
+	case SYS_DVBC_ANNEX_A:
+		state->m_itut_annex_c = false;
+		break;
+	case SYS_DVBC_ANNEX_C:
+		state->m_itut_annex_c = true;
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	if (fe->ops.i2c_gate_ctrl)

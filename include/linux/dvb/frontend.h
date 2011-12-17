@@ -331,8 +331,6 @@ typedef enum fe_rolloff {
 	ROLLOFF_20,
 	ROLLOFF_25,
 	ROLLOFF_AUTO,
-	ROLLOFF_15,	/* DVB-C Annex A */
-	ROLLOFF_13,	/* DVB-C Annex C */
 } fe_rolloff_t;
 
 typedef enum fe_delivery_system {
