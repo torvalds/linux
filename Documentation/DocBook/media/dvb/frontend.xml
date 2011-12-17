@@ -45,8 +45,8 @@ transmission. The fontend types are given by fe_type_t type, defined as:</para>
   </row>
   <row>
      <entry id="FE_QAM"><constant>FE_QAM</constant></entry>
-     <entry>For DVB-C annex A/C standard</entry>
-     <entry><constant>SYS_DVBC_ANNEX_AC</constant></entry>
+     <entry>For DVB-C annex A standard</entry>
+     <entry><constant>SYS_DVBC_ANNEX_A</constant></entry>
   </row>
   <row>
      <entry id="FE_OFDM"><constant>FE_OFDM</constant></entry>
