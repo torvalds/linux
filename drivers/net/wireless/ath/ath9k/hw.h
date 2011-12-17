@@ -209,7 +209,11 @@ enum ath9k_hw_caps {
 	ATH9K_HW_CAP_5GHZ			= BIT(12),
 	ATH9K_HW_CAP_APM			= BIT(13),
 	ATH9K_HW_CAP_RTT			= BIT(14),
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 	ATH9K_HW_CAP_MCI			= BIT(15),
+#else
+	ATH9K_HW_CAP_MCI			= 0,
+#endif
 	ATH9K_HW_CAP_DFS			= BIT(16),
 };
 
@@ -1227,6 +1231,16 @@ void ar9003_mci_send_lna_transfer(struct ath_hw *ah, bool wait_done);
 void ar9003_mci_sync_bt_state(struct ath_hw *ah);
 void ar9003_mci_get_interrupt(struct ath_hw *ah, u32 *raw_intr,
 			      u32 *rx_msg_intr);
+
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+static inline enum ath_btcoex_scheme
+ath9k_hw_get_btcoex_scheme(struct ath_hw *ah)
+{
+	return ah->btcoex_hw.scheme;
+}
+#else
+#define ath9k_hw_get_btcoex_scheme(...) ATH_BTCOEX_CFG_NONE
+#endif
 
 #define ATH9K_CLOCK_RATE_CCK		22
 #define ATH9K_CLOCK_RATE_5GHZ_OFDM	40

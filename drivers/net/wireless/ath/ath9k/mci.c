@@ -417,6 +417,9 @@ int ath_mci_setup(struct ath_softc *sc)
 	struct ath_mci_coex *mci = &sc->mci_coex;
 	int error = 0;
 
+	if (!ATH9K_HW_CAP_MCI)
+		return 0;
+
 	mci->sched_buf.bf_len = ATH_MCI_SCHED_BUF_SIZE + ATH_MCI_GPM_BUF_SIZE;
 
 	if (ath_mci_buf_alloc(sc, &mci->sched_buf)) {
@@ -450,6 +453,9 @@ void ath_mci_cleanup(struct ath_softc *sc)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_mci_coex *mci = &sc->mci_coex;
 
+	if (!ATH9K_HW_CAP_MCI)
+		return;
+
 	/*
 	 * both schedule and gpm buffers will be released
 	 */
@@ -467,6 +473,9 @@ void ath_mci_intr(struct ath_softc *sc)
 	u32 *pgpm;
 	u32 more_data = MCI_GPM_MORE;
 	bool skip_gpm = false;
+
+	if (!ATH9K_HW_CAP_MCI)
+		return;
 
 	ar9003_mci_get_interrupt(sc->sc_ah, &mci_int, &mci_int_rxmsg);
 

@@ -607,7 +607,7 @@ static void ath9k_init_btcoex(struct ath9k_htc_priv *priv)
 {
 	int qnum;
 
-	switch (priv->ah->btcoex_hw.scheme) {
+	switch (ath9k_hw_get_btcoex_scheme(priv->ah)) {
 	case ATH_BTCOEX_CFG_NONE:
 		break;
 	case ATH_BTCOEX_CFG_3WIRE:
@@ -701,7 +701,8 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 
 	if (product && strncmp(product, ATH_HTC_BTCOEX_PRODUCT_ID, 5) == 0) {
 		ah->btcoex_hw.scheme = ATH_BTCOEX_CFG_3WIRE;
-		ath9k_init_btcoex(priv);
+		if (ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_NONE)
+			ath9k_init_btcoex(priv);
 	}
 
 	return 0;
