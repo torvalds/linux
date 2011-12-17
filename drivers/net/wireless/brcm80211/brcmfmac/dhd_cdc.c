@@ -284,7 +284,7 @@ brcmf_proto_dcmd(struct brcmf_pub *drvr, int ifidx, struct brcmf_dcmd *dcmd,
 		brcmf_dbg(ERROR, "bus is down. we have nothing to do.\n");
 		return ret;
 	}
-	brcmf_os_proto_block(drvr);
+	mutex_lock(&drvr->proto_block);
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -338,7 +338,7 @@ brcmf_proto_dcmd(struct brcmf_pub *drvr, int ifidx, struct brcmf_dcmd *dcmd,
 	prot->pending = false;
 
 done:
-	brcmf_os_proto_unblock(drvr);
+	mutex_unlock(&drvr->proto_block);
 
 	return ret;
 }
@@ -470,19 +470,19 @@ int brcmf_proto_init(struct brcmf_pub *drvr)
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	brcmf_os_proto_block(drvr);
+	mutex_lock(&drvr->proto_block);
 
 	/* Get the device MAC address */
 	strcpy(buf, "cur_etheraddr");
 	ret = brcmf_proto_cdc_query_dcmd(drvr, 0, BRCMF_C_GET_VAR,
 					  buf, sizeof(buf));
 	if (ret < 0) {
-		brcmf_os_proto_unblock(drvr);
+		mutex_unlock(&drvr->proto_block);
 		return ret;
 	}
 	memcpy(drvr->mac, buf, ETH_ALEN);
 
-	brcmf_os_proto_unblock(drvr);
+	mutex_unlock(&drvr->proto_block);
 
 	ret = brcmf_c_preinit_dcmds(drvr);
 

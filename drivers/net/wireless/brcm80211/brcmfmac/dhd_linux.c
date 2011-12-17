@@ -1112,25 +1112,6 @@ void brcmf_detach(struct brcmf_pub *drvr)
 	}
 }
 
-int brcmf_os_proto_block(struct brcmf_pub *drvr)
-{
-	if (drvr) {
-		mutex_lock(&drvr->proto_block);
-		return 1;
-	}
-	return 0;
-}
-
-int brcmf_os_proto_unblock(struct brcmf_pub *drvr)
-{
-	if (drvr) {
-		mutex_unlock(&drvr->proto_block);
-		return 1;
-	}
-
-	return 0;
-}
-
 static int brcmf_get_pend_8021x_cnt(struct brcmf_pub *drvr)
 {
 	return atomic_read(&drvr->pend_8021x_cnt);

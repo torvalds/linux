@@ -804,7 +804,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_pub *drvr)
 	int scan_unassoc_time = 40;
 	int i;
 
-	brcmf_os_proto_block(drvr);
+	mutex_lock(&drvr->proto_block);
 
 	/* Set Country code */
 	if (drvr->country_code[0] != 0) {
@@ -873,7 +873,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_pub *drvr)
 						 0, true);
 	}
 
-	brcmf_os_proto_unblock(drvr);
+	mutex_unlock(&drvr->proto_block);
 
 	return 0;
 }

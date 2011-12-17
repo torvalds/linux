@@ -734,9 +734,6 @@ extern void brcmf_txcomplete(struct brcmf_pub *drvr, struct sk_buff *txp,
 extern int brcmf_proto_cdc_query_dcmd(struct brcmf_pub *drvr, int ifidx,
 				       uint cmd, void *buf, uint len);
 
-/* OS independent layer functions */
-extern int brcmf_os_proto_block(struct brcmf_pub *drvr);
-extern int brcmf_os_proto_unblock(struct brcmf_pub *drvr);
 #ifdef BCMDBG
 extern int brcmf_write_to_file(struct brcmf_pub *drvr, const u8 *buf, int size);
 #endif				/* BCMDBG */
