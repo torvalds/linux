@@ -706,7 +706,7 @@ extern s32 brcmf_exec_dcmd(struct net_device *dev, u32 cmd, void *arg, u32 len);
 extern void brcmf_detach(struct device *dev);
 
 /* Indication from bus module to change flow-control state */
-extern void brcmf_txflowcontrol(struct brcmf_pub *drvr, int ifidx, bool on);
+extern void brcmf_txflowcontrol(struct device *dev, int ifidx, bool on);
 
 extern bool brcmf_c_prec_enq(struct brcmf_pub *drvr, struct pktq *q,
 			 struct sk_buff *pkt, int prec);

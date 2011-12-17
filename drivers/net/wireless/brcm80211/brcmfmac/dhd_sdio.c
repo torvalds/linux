@@ -2289,7 +2289,7 @@ static uint brcmf_sdbrcm_sendfromq(struct brcmf_sdio *bus, uint maxframes)
 	/* Deflow-control stack if needed */
 	if (drvr->up && (drvr->bus_if->state == BRCMF_BUS_DATA) &&
 	    drvr->txoff && (pktq_len(&bus->txq) < TXLOW))
-		brcmf_txflowcontrol(drvr, 0, OFF);
+		brcmf_txflowcontrol(bus->sdiodev->dev, 0, OFF);
 
 	return cnt;
 }
@@ -2602,7 +2602,7 @@ int brcmf_sdbrcm_bus_txdata(struct device *dev, struct sk_buff *pkt)
 	spin_unlock_bh(&bus->txqlock);
 
 	if (pktq_len(&bus->txq) >= TXHI)
-		brcmf_txflowcontrol(bus->drvr, 0, ON);
+		brcmf_txflowcontrol(bus->sdiodev->dev, 0, ON);
 
 #ifdef BCMDBG
 	if (pktq_plen(&bus->txq, prec) > qcount[prec])
