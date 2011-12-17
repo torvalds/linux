@@ -291,7 +291,7 @@ int brcmf_sendpkt(struct brcmf_pub *drvr, int ifidx, struct sk_buff *pktbuf)
 	brcmf_proto_hdrpush(drvr, ifidx, pktbuf);
 
 	/* Use bus module to send data frame */
-	return brcmf_sdbrcm_bus_txdata(drvr->dev, pktbuf);
+	return drvr->bus_if->brcmf_bus_txdata(drvr->dev, pktbuf);
 }
 
 static int brcmf_netdev_start_xmit(struct sk_buff *skb, struct net_device *ndev)
