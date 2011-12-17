@@ -1500,7 +1500,8 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	write_unlock_bh(&hci_dev_list_lock);
 
-	hdev->workqueue = create_singlethread_workqueue(hdev->name);
+	hdev->workqueue = alloc_workqueue(hdev->name, WQ_HIGHPRI | WQ_UNBOUND |
+							WQ_MEM_RECLAIM, 1);
 	if (!hdev->workqueue) {
 		error = -ENOMEM;
 		goto err;
