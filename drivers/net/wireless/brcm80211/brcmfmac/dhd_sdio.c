@@ -575,6 +575,8 @@ struct brcmf_sdio {
 
 	const struct firmware *firmware;
 	u32 fw_ptr;
+
+	bool txoff;		/* Transmit flow-controlled */
 };
 
 /* clkstate */
@@ -2297,8 +2299,10 @@ static uint brcmf_sdbrcm_sendfromq(struct brcmf_sdio *bus, uint maxframes)
 	/* Deflow-control stack if needed */
 	if (drvr->bus_if->drvr_up &&
 	    (drvr->bus_if->state == BRCMF_BUS_DATA) &&
-	    drvr->txoff && (pktq_len(&bus->txq) < TXLOW))
+	    bus->txoff && (pktq_len(&bus->txq) < TXLOW)) {
+		bus->txoff = OFF;
 		brcmf_txflowcontrol(bus->sdiodev->dev, 0, OFF);
+	}
 
 	return cnt;
 }
@@ -2611,8 +2615,10 @@ int brcmf_sdbrcm_bus_txdata(struct device *dev, struct sk_buff *pkt)
 	}
 	spin_unlock_bh(&bus->txqlock);
 
-	if (pktq_len(&bus->txq) >= TXHI)
+	if (pktq_len(&bus->txq) >= TXHI) {
+		bus->txoff = ON;
 		brcmf_txflowcontrol(bus->sdiodev->dev, 0, ON);
+	}
 
 #ifdef BCMDBG
 	if (pktq_plen(&bus->txq, prec) > qcount[prec])

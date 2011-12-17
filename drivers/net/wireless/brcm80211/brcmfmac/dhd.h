@@ -597,7 +597,6 @@ struct brcmf_pub {
 	struct device *dev;		/* fullmac dongle device pointer */
 
 	/* Internal brcmf items */
-	bool txoff;		/* Transmit flow-controlled */
 	uint hdrlen;		/* Total BRCMF header length (proto + bus) */
 	uint rxsz;		/* Rx buffer size bus module should use */
 	u8 wme_dp;		/* wme discard priority */

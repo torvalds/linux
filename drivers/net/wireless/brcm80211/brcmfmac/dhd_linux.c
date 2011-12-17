@@ -356,7 +356,6 @@ void brcmf_txflowcontrol(struct device *dev, int ifidx, bool state)
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	drvr->txoff = state;
 	ndev = drvr->iflist[ifidx]->ndev;
 	if (state == ON)
 		netif_stop_queue(ndev);
