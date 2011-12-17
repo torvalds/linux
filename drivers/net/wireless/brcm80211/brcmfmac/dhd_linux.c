@@ -460,11 +460,13 @@ void brcmf_rx_frame(struct brcmf_pub *drvr, int ifidx,
 	}
 }
 
-void brcmf_txcomplete(struct brcmf_pub *drvr, struct sk_buff *txp, bool success)
+void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success)
 {
 	uint ifidx;
 	struct ethhdr *eh;
 	u16 type;
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_pub *drvr = bus_if->drvr;
 
 	brcmf_proto_hdrpull(drvr, &ifidx, txp);
 

@@ -728,7 +728,7 @@ static inline void brcmf_rx_packet(struct brcmf_pub *drvr, int ifidx,
 extern char *brcmf_ifname(struct brcmf_pub *drvr, int idx);
 
 /* Notify tx completion */
-extern void brcmf_txcomplete(struct brcmf_pub *drvr, struct sk_buff *txp,
+extern void brcmf_txcomplete(struct device *dev, struct sk_buff *txp,
 			     bool success);
 
 /* Query dongle */

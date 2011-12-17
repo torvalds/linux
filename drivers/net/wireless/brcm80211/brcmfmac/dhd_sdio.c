@@ -2230,7 +2230,7 @@ done:
 	/* restore pkt buffer pointer before calling tx complete routine */
 	skb_pull(pkt, SDPCM_HDRLEN + pad);
 	up(&bus->sdsem);
-	brcmf_txcomplete(bus->drvr, pkt, ret != 0);
+	brcmf_txcomplete(bus->sdiodev->dev, pkt, ret != 0);
 	down(&bus->sdsem);
 
 	if (free_pkt)
@@ -2592,7 +2592,7 @@ int brcmf_sdbrcm_bus_txdata(struct device *dev, struct sk_buff *pkt)
 	spin_lock_bh(&bus->txqlock);
 	if (brcmf_c_prec_enq(bus->drvr, &bus->txq, pkt, prec) == false) {
 		skb_pull(pkt, SDPCM_HDRLEN);
-		brcmf_txcomplete(bus->drvr, pkt, false);
+		brcmf_txcomplete(bus->sdiodev->dev, pkt, false);
 		brcmu_pkt_buf_free_skb(pkt);
 		brcmf_dbg(ERROR, "out of bus->txq !!!\n");
 		ret = -ENOSR;
