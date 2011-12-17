@@ -122,6 +122,8 @@ struct brcmf_sdreg {
 	int value;
 };
 
+struct brcmf_sdio;
+
 struct brcmf_sdio_dev {
 	struct sdio_func *func[SDIO_MAX_FUNCS];
 	u8 num_funcs;			/* Supported funcs on client */
@@ -262,4 +264,6 @@ extern void brcmf_sdio_wdtmr_enable(struct brcmf_sdio_dev *sdiodev,
 extern void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev);
 extern void brcmf_sdbrcm_disconnect(void *ptr);
 extern void brcmf_sdbrcm_isr(void *arg);
+
+extern void brcmf_sdbrcm_wd_timer(struct brcmf_sdio *bus, uint wdtick);
 #endif				/* _BRCM_SDH_H_ */

@@ -3953,7 +3953,7 @@ void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
 	}
 
 	/* Attach to the brcmf/OS/network interface */
-	ret = brcmf_attach(bus, SDPCM_RESERVE, bus->sdiodev->dev);
+	ret = brcmf_attach(SDPCM_RESERVE, bus->sdiodev->dev);
 	if (ret != 0) {
 		brcmf_dbg(ERROR, "brcmf_attach failed\n");
 		goto fail;

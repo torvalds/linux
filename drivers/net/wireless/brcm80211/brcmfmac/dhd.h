@@ -583,14 +583,12 @@ struct brcmf_bus {
 };
 
 /* Forward decls for struct brcmf_pub (see below) */
-struct brcmf_sdio;		/* device bus info */
 struct brcmf_proto;	/* device communication protocol info */
 struct brcmf_cfg80211_dev; /* cfg80211 device info */
 
 /* Common structure for module and instance linkage */
 struct brcmf_pub {
 	/* Linkage ponters */
-	struct brcmf_sdio *bus;
 	struct brcmf_bus *bus_if;
 	struct brcmf_proto *prot;
 	struct brcmf_cfg80211_dev *config;
@@ -669,8 +667,7 @@ extern uint brcmf_c_mkiovar(char *name, char *data, uint datalen,
  * Returned structure should have bus and prot pointers filled in.
  * bus_hdrlen specifies required headroom for bus module header.
  */
-extern int brcmf_attach(struct brcmf_sdio *bus,
-			uint bus_hdrlen, struct device *dev);
+extern int brcmf_attach(uint bus_hdrlen, struct device *dev);
 extern int brcmf_net_attach(struct brcmf_pub *drvr, int idx);
 extern int brcmf_netdev_wait_pend8021x(struct net_device *ndev);
 

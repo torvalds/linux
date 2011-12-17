@@ -922,8 +922,7 @@ void brcmf_del_if(struct brcmf_pub *drvr, int ifidx)
 	}
 }
 
-int brcmf_attach(struct brcmf_sdio *bus, uint bus_hdrlen,
-			       struct device *dev)
+int brcmf_attach(uint bus_hdrlen, struct device *dev)
 {
 	struct brcmf_pub *drvr = NULL;
 	int ret = 0;
@@ -938,7 +937,6 @@ int brcmf_attach(struct brcmf_sdio *bus, uint bus_hdrlen,
 	mutex_init(&drvr->proto_block);
 
 	/* Link to bus module */
-	drvr->bus = bus;
 	drvr->hdrlen = bus_hdrlen;
 	drvr->bus_if = dev_get_drvdata(dev);
 	drvr->bus_if->drvr = drvr;

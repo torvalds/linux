@@ -44,7 +44,4 @@ brcmf_sdbrcm_bus_txctl(struct device *dev, unsigned char *msg, uint msglen);
 
 extern int
 brcmf_sdbrcm_bus_rxctl(struct device *dev, unsigned char *msg, uint msglen);
-
-extern void brcmf_sdbrcm_wd_timer(struct brcmf_sdio *bus, uint wdtick);
-
 #endif				/* _BRCMF_BUS_H_ */
