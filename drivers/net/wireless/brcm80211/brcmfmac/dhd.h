@@ -667,10 +667,4 @@ extern void brcmf_c_pktfilter_offload_enable(struct brcmf_pub *drvr, char *arg,
 #define BRCMF_DCMD_MEDLEN	1536	/* "med" cmd buffer required */
 #define	BRCMF_DCMD_MAXLEN	8192	/* max length cmd buffer required */
 
-/* Enter idle immediately (no timeout) */
-#define BRCMF_IDLE_IMMEDIATE	(-1)
-#define BRCMF_IDLE_ACTIVE	0	/* Do not request any SD clock change
-				 when idle */
-#define BRCMF_IDLE_INTERVAL	1
-
 #endif				/* _BRCMF_H_ */

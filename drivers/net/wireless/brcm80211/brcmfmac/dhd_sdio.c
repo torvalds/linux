@@ -314,6 +314,12 @@ struct rte_console {
 MODULE_FIRMWARE(BRCMFMAC_FW_NAME);
 MODULE_FIRMWARE(BRCMFMAC_NV_NAME);
 
+#define BRCMF_IDLE_IMMEDIATE	(-1)	/* Enter idle immediately */
+#define BRCMF_IDLE_ACTIVE	0	/* Do not request any SD clock change
+					 * when idle
+					 */
+#define BRCMF_IDLE_INTERVAL	1
+
 /*
  * Conversion of 802.1D priority to precedence level
  */
