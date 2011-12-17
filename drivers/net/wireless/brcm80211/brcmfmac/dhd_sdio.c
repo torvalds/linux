@@ -1263,7 +1263,7 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 		if (errcode < 0) {
 			brcmf_dbg(ERROR, "glom read of %d bytes failed: %d\n",
 				  dlen, errcode);
-			bus->drvr->dstats.rx_errors++;
+			bus->sdiodev->bus_if->dstats.rx_errors++;
 
 			if (bus->glomerr++ < 3) {
 				brcmf_sdbrcm_rxfail(bus, true, true);
@@ -1447,7 +1447,7 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 			} else if (brcmf_proto_hdrpull(bus->sdiodev->dev,
 						       &ifidx, pfirst) != 0) {
 				brcmf_dbg(ERROR, "rx protocol error\n");
-				bus->drvr->dstats.rx_errors++;
+				bus->sdiodev->bus_if->dstats.rx_errors++;
 				skb_unlink(pfirst, &bus->glom);
 				brcmu_pkt_buf_free_skb(pfirst);
 				continue;
@@ -1548,7 +1548,7 @@ brcmf_sdbrcm_read_control(struct brcmf_sdio *bus, u8 *hdr, uint len, uint doff)
 	if ((rdlen + BRCMF_FIRSTREAD) > bus->sdiodev->bus_if->maxctl) {
 		brcmf_dbg(ERROR, "%d-byte control read exceeds %d-byte buffer\n",
 			  rdlen, bus->sdiodev->bus_if->maxctl);
-		bus->drvr->dstats.rx_errors++;
+		bus->sdiodev->bus_if->dstats.rx_errors++;
 		brcmf_sdbrcm_rxfail(bus, false, false);
 		goto done;
 	}
@@ -1556,7 +1556,7 @@ brcmf_sdbrcm_read_control(struct brcmf_sdio *bus, u8 *hdr, uint len, uint doff)
 	if ((len - doff) > bus->sdiodev->bus_if->maxctl) {
 		brcmf_dbg(ERROR, "%d-byte ctl frame (%d-byte ctl data) exceeds %d-byte limit\n",
 			  len, len - doff, bus->sdiodev->bus_if->maxctl);
-		bus->drvr->dstats.rx_errors++;
+		bus->sdiodev->bus_if->dstats.rx_errors++;
 		bus->rx_toolong++;
 		brcmf_sdbrcm_rxfail(bus, false, false);
 		goto done;
@@ -1630,7 +1630,7 @@ brcmf_alloc_pkt_and_read(struct brcmf_sdio *bus, u16 rdlen,
 		brcmf_dbg(ERROR, "(nextlen): read %d bytes failed: %d\n",
 			  rdlen, sdret);
 		brcmu_pkt_buf_free_skb(*pkt);
-		bus->drvr->dstats.rx_errors++;
+		bus->sdiodev->bus_if->dstats.rx_errors++;
 		/* Force retry w/normal header read.
 		 * Don't attempt NAK for
 		 * gSPI
@@ -1979,7 +1979,7 @@ brcmf_sdbrcm_readframes(struct brcmf_sdio *bus, uint maxframes, bool *finished)
 			/* Too long -- skip this frame */
 			brcmf_dbg(ERROR, "too long: len %d rdlen %d\n",
 				  len, rdlen);
-			bus->drvr->dstats.rx_errors++;
+			bus->sdiodev->bus_if->dstats.rx_errors++;
 			bus->rx_toolong++;
 			brcmf_sdbrcm_rxfail(bus, false, false);
 			continue;
@@ -1991,7 +1991,7 @@ brcmf_sdbrcm_readframes(struct brcmf_sdio *bus, uint maxframes, bool *finished)
 			/* Give up on data, request rtx of events */
 			brcmf_dbg(ERROR, "brcmu_pkt_buf_get_skb failed: rdlen %d chan %d\n",
 				  rdlen, chan);
-			bus->drvr->dstats.rx_dropped++;
+			bus->sdiodev->bus_if->dstats.rx_dropped++;
 			brcmf_sdbrcm_rxfail(bus, false, RETRYCHAN(chan));
 			continue;
 		}
@@ -2011,7 +2011,7 @@ brcmf_sdbrcm_readframes(struct brcmf_sdio *bus, uint maxframes, bool *finished)
 				   : ((chan == SDPCM_DATA_CHANNEL) ? "data"
 				      : "test")), sdret);
 			brcmu_pkt_buf_free_skb(pkt);
-			bus->drvr->dstats.rx_errors++;
+			bus->sdiodev->bus_if->dstats.rx_errors++;
 			brcmf_sdbrcm_rxfail(bus, true, RETRYCHAN(chan));
 			continue;
 		}
@@ -2064,7 +2064,7 @@ deliver:
 			   pkt) != 0) {
 			brcmf_dbg(ERROR, "rx protocol error\n");
 			brcmu_pkt_buf_free_skb(pkt);
-			bus->drvr->dstats.rx_errors++;
+			bus->sdiodev->bus_if->dstats.rx_errors++;
 			continue;
 		}
 
@@ -2276,9 +2276,9 @@ static uint brcmf_sdbrcm_sendfromq(struct brcmf_sdio *bus, uint maxframes)
 
 		ret = brcmf_sdbrcm_txpkt(bus, pkt, SDPCM_DATA_CHANNEL, true);
 		if (ret)
-			bus->drvr->dstats.tx_errors++;
+			bus->sdiodev->bus_if->dstats.tx_errors++;
 		else
-			bus->drvr->dstats.tx_bytes += datalen;
+			bus->sdiodev->bus_if->dstats.tx_bytes += datalen;
 
 		/* In poll mode, need to check for other events */
 		if (!bus->intr && cnt) {

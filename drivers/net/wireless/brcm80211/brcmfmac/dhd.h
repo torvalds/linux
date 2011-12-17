@@ -578,6 +578,7 @@ struct brcmf_bus {
 	enum brcmf_bus_state state;
 	uint maxctl;		/* Max size rxctl request from proto to bus */
 	bool drvr_up;		/* Status flag of driver up/down */
+	struct dngl_stats dstats;	/* Stats for dongle-based data */
 };
 
 /* Forward decls for struct brcmf_pub (see below) */
@@ -604,7 +605,6 @@ struct brcmf_pub {
 	bool iswl;		/* Dongle-resident driver is wl */
 	unsigned long drv_version;	/* Version of dongle-resident driver */
 	u8 mac[ETH_ALEN];		/* MAC address obtained from dongle */
-	struct dngl_stats dstats;	/* Stats for dongle-based data */
 
 	/* Additional stats for the bus level */
 

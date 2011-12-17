@@ -340,9 +340,9 @@ static int brcmf_netdev_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 done:
 	if (ret)
-		drvr->dstats.tx_dropped++;
+		drvr->bus_if->dstats.tx_dropped++;
 	else
-		drvr->dstats.tx_packets++;
+		drvr->bus_if->dstats.tx_packets++;
 
 	/* Return ok: we always eat the packet */
 	return 0;
@@ -427,7 +427,7 @@ void brcmf_rx_frame(struct device *dev, int ifidx,
 		skb->protocol = eth_type_trans(skb, skb->dev);
 
 		if (skb->pkt_type == PACKET_MULTICAST)
-			drvr->dstats.multicast++;
+			bus_if->dstats.multicast++;
 
 		skb->data = eth;
 		skb->len = len;
@@ -446,8 +446,8 @@ void brcmf_rx_frame(struct device *dev, int ifidx,
 			ifp->ndev->last_rx = jiffies;
 		}
 
-		drvr->dstats.rx_bytes += skb->len;
-		drvr->dstats.rx_packets++;	/* Local count */
+		bus_if->dstats.rx_bytes += skb->len;
+		bus_if->dstats.rx_packets++;	/* Local count */
 
 		if (in_interrupt())
 			netif_rx(skb);
@@ -483,20 +483,20 @@ void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success)
 static struct net_device_stats *brcmf_netdev_get_stats(struct net_device *ndev)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
-	struct brcmf_pub *drvr = ifp->drvr;
+	struct brcmf_bus *bus_if = ifp->drvr->bus_if;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
 	/* Copy dongle stats to net device stats */
-	ifp->stats.rx_packets = drvr->dstats.rx_packets;
-	ifp->stats.tx_packets = drvr->dstats.tx_packets;
-	ifp->stats.rx_bytes = drvr->dstats.rx_bytes;
-	ifp->stats.tx_bytes = drvr->dstats.tx_bytes;
-	ifp->stats.rx_errors = drvr->dstats.rx_errors;
-	ifp->stats.tx_errors = drvr->dstats.tx_errors;
-	ifp->stats.rx_dropped = drvr->dstats.rx_dropped;
-	ifp->stats.tx_dropped = drvr->dstats.tx_dropped;
-	ifp->stats.multicast = drvr->dstats.multicast;
+	ifp->stats.rx_packets = bus_if->dstats.rx_packets;
+	ifp->stats.tx_packets = bus_if->dstats.tx_packets;
+	ifp->stats.rx_bytes = bus_if->dstats.rx_bytes;
+	ifp->stats.tx_bytes = bus_if->dstats.tx_bytes;
+	ifp->stats.rx_errors = bus_if->dstats.rx_errors;
+	ifp->stats.tx_errors = bus_if->dstats.tx_errors;
+	ifp->stats.rx_dropped = bus_if->dstats.rx_dropped;
+	ifp->stats.tx_dropped = bus_if->dstats.tx_dropped;
+	ifp->stats.multicast = bus_if->dstats.multicast;
 
 	return &ifp->stats;
 }
