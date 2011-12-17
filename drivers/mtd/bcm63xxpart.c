@@ -32,22 +32,34 @@
 #include <linux/mtd/partitions.h>
 
 #include <asm/mach-bcm63xx/bcm963xx_tag.h>
+#include <asm/mach-bcm63xx/board_bcm963xx.h>
 
 #define BCM63XX_EXTENDED_SIZE	0xBFC00000	/* Extended flash address */
 
+#define BCM63XX_CFE_MAGIC_OFFSET 0x4e0
+
 static int bcm63xx_detect_cfe(struct mtd_info *master)
 {
-	int idoffset = 0x4e0;
-	static char idstring[8] = "CFE1CFE1";
 	char buf[9];
 	int ret;
 	size_t retlen;
 
-	ret = master->read(master, idoffset, 8, &retlen, (void *)buf);
+	ret = master->read(master, BCM963XX_CFE_VERSION_OFFSET, 5, &retlen,
+			   (void *)buf);
 	buf[retlen] = 0;
-	pr_info("Read Signature value of %s\n", buf);
 
-	return strncmp(idstring, buf, 8);
+	if (ret)
+		return ret;
+
+	if (strncmp("cfe-v", buf, 5) == 0)
+		return 0;
+
+	/* very old CFE's do not have the cfe-v string, so check for magic */
+	ret = master->read(master, BCM63XX_CFE_MAGIC_OFFSET, 8, &retlen,
+			   (void *)buf);
+	buf[retlen] = 0;
+
+	return strncmp("CFE1CFE1", buf, 8);
 }
 
 static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
