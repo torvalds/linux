@@ -922,17 +922,18 @@ void brcmf_del_if(struct brcmf_pub *drvr, int ifidx)
 	}
 }
 
-struct brcmf_pub *brcmf_attach(struct brcmf_sdio *bus, uint bus_hdrlen,
+int brcmf_attach(struct brcmf_sdio *bus, uint bus_hdrlen,
 			       struct device *dev)
 {
 	struct brcmf_pub *drvr = NULL;
+	int ret = 0;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
 	/* Allocate primary brcmf_info */
 	drvr = kzalloc(sizeof(struct brcmf_pub), GFP_ATOMIC);
 	if (!drvr)
-		goto fail;
+		return -ENOMEM;
 
 	mutex_init(&drvr->proto_block);
 
@@ -944,7 +945,8 @@ struct brcmf_pub *brcmf_attach(struct brcmf_sdio *bus, uint bus_hdrlen,
 	drvr->dev = dev;
 
 	/* Attach and link in the protocol */
-	if (brcmf_proto_attach(drvr) != 0) {
+	ret = brcmf_proto_attach(drvr);
+	if (ret != 0) {
 		brcmf_dbg(ERROR, "brcmf_prot_attach failed\n");
 		goto fail;
 	}
@@ -952,13 +954,12 @@ struct brcmf_pub *brcmf_attach(struct brcmf_sdio *bus, uint bus_hdrlen,
 	INIT_WORK(&drvr->setmacaddr_work, _brcmf_set_mac_address);
 	INIT_WORK(&drvr->multicast_work, _brcmf_set_multicast_list);
 
-	return drvr;
+	return ret;
 
 fail:
-	if (drvr)
-		brcmf_detach(dev);
+	brcmf_detach(dev);
 
-	return NULL;
+	return ret;
 }
 
 int brcmf_bus_start(struct device *dev)

@@ -669,8 +669,8 @@ extern uint brcmf_c_mkiovar(char *name, char *data, uint datalen,
  * Returned structure should have bus and prot pointers filled in.
  * bus_hdrlen specifies required headroom for bus module header.
  */
-extern struct brcmf_pub *brcmf_attach(struct brcmf_sdio *bus,
-				      uint bus_hdrlen, struct device *dev);
+extern int brcmf_attach(struct brcmf_sdio *bus,
+			uint bus_hdrlen, struct device *dev);
 extern int brcmf_net_attach(struct brcmf_pub *drvr, int idx);
 extern int brcmf_netdev_wait_pend8021x(struct net_device *ndev);
 
