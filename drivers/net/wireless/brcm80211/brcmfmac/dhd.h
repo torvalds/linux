@@ -608,21 +608,8 @@ struct brcmf_pub {
 
 	/* Additional stats for the bus level */
 
-	/* Data packets sent to dongle */
-	unsigned long tx_packets;
 	/* Multicast data packets sent to dongle */
 	unsigned long tx_multicast;
-	/* Errors in sending data to dongle */
-	unsigned long tx_errors;
-	/* Packets sent up the network interface */
-	unsigned long rx_packets;
-	/* Multicast packets sent up the network interface */
-	unsigned long rx_multicast;
-	/* Errors processing rx data packets */
-	unsigned long rx_errors;
-
-	/* Packets dropped locally (no memory) */
-	unsigned long rx_dropped;
 	/* Packets flushed due to unscheduled sendup thread */
 	unsigned long rx_flushed;
 	/* Number of times dpc scheduled by watchdog timer */

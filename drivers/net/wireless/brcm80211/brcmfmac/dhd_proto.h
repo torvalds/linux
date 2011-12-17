@@ -49,9 +49,6 @@ extern int brcmf_proto_hdrpull(struct device *dev, int *ifidx,
 extern int brcmf_proto_dcmd(struct brcmf_pub *drvr, int ifidx,
 				struct brcmf_dcmd *dcmd, int len);
 
-/* Update local copy of dongle statistics */
-extern void brcmf_proto_dstats(struct brcmf_pub *drvr);
-
 extern int brcmf_c_preinit_dcmds(struct brcmf_pub *drvr);
 
 extern int brcmf_proto_cdc_set_dcmd(struct brcmf_pub *drvr, int ifidx,

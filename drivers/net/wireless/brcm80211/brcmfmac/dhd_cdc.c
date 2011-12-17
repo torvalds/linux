@@ -453,18 +453,6 @@ void brcmf_proto_detach(struct brcmf_pub *drvr)
 	drvr->prot = NULL;
 }
 
-void brcmf_proto_dstats(struct brcmf_pub *drvr)
-{
-	/* No stats from dongle added yet, copy bus stats */
-	drvr->dstats.tx_packets = drvr->tx_packets;
-	drvr->dstats.tx_errors = drvr->tx_errors;
-	drvr->dstats.rx_packets = drvr->rx_packets;
-	drvr->dstats.rx_errors = drvr->rx_errors;
-	drvr->dstats.rx_dropped = drvr->rx_dropped;
-	drvr->dstats.multicast = drvr->rx_multicast;
-	return;
-}
-
 int brcmf_proto_init(struct brcmf_pub *drvr)
 {
 	int ret = 0;

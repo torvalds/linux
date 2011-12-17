@@ -342,7 +342,7 @@ done:
 	if (ret)
 		drvr->dstats.tx_dropped++;
 	else
-		drvr->tx_packets++;
+		drvr->dstats.tx_packets++;
 
 	/* Return ok: we always eat the packet */
 	return 0;
@@ -427,7 +427,7 @@ void brcmf_rx_frame(struct device *dev, int ifidx,
 		skb->protocol = eth_type_trans(skb, skb->dev);
 
 		if (skb->pkt_type == PACKET_MULTICAST)
-			drvr->rx_multicast++;
+			drvr->dstats.multicast++;
 
 		skb->data = eth;
 		skb->len = len;
@@ -447,7 +447,7 @@ void brcmf_rx_frame(struct device *dev, int ifidx,
 		}
 
 		drvr->dstats.rx_bytes += skb->len;
-		drvr->rx_packets++;	/* Local count */
+		drvr->dstats.rx_packets++;	/* Local count */
 
 		if (in_interrupt())
 			netif_rx(skb);
@@ -486,10 +486,6 @@ static struct net_device_stats *brcmf_netdev_get_stats(struct net_device *ndev)
 	struct brcmf_pub *drvr = ifp->drvr;
 
 	brcmf_dbg(TRACE, "Enter\n");
-
-	if (drvr->bus_if->drvr_up)
-		/* Use the protocol to get dongle stats */
-		brcmf_proto_dstats(drvr);
 
 	/* Copy dongle stats to net device stats */
 	ifp->stats.rx_packets = drvr->dstats.rx_packets;
