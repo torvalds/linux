@@ -580,7 +580,6 @@ struct brcmf_bus {
 /* Forward decls for struct brcmf_pub (see below) */
 struct brcmf_sdio;		/* device bus info */
 struct brcmf_proto;	/* device communication protocol info */
-struct brcmf_info;	/* device driver info */
 struct brcmf_cfg80211_dev; /* cfg80211 device info */
 
 /* Common structure for module and instance linkage */
@@ -589,7 +588,6 @@ struct brcmf_pub {
 	struct brcmf_sdio *bus;
 	struct brcmf_bus *bus_if;
 	struct brcmf_proto *prot;
-	struct brcmf_info *info;
 	struct brcmf_cfg80211_dev *config;
 	struct device *dev;		/* fullmac dongle device pointer */
 
@@ -663,6 +661,15 @@ struct brcmf_pub {
 
 	u8 country_code[BRCM_CNTRY_BUF_SZ];
 	char eventmask[BRCMF_EVENTING_MASK_LEN];
+
+	struct brcmf_if *iflist[BRCMF_MAX_IFS];
+
+	struct mutex proto_block;
+
+	struct work_struct setmacaddr_work;
+	struct work_struct multicast_work;
+	u8 macvalue[ETH_ALEN];
+	atomic_t pend_8021x_cnt;
 };
 
 struct brcmf_if_event {
@@ -734,14 +741,14 @@ extern int brcmf_os_proto_unblock(struct brcmf_pub *drvr);
 extern int brcmf_write_to_file(struct brcmf_pub *drvr, const u8 *buf, int size);
 #endif				/* BCMDBG */
 
-extern int brcmf_ifname2idx(struct brcmf_info *drvr_priv, char *name);
-extern int brcmf_c_host_event(struct brcmf_info *drvr_priv, int *idx,
+extern int brcmf_ifname2idx(struct brcmf_pub *drvr, char *name);
+extern int brcmf_c_host_event(struct brcmf_pub *drvr, int *idx,
 			      void *pktdata, struct brcmf_event_msg *,
 			      void **data_ptr);
 
-extern int brcmf_add_if(struct brcmf_info *drvr_priv, int ifidx,
+extern int brcmf_add_if(struct brcmf_pub *drvr, int ifidx,
 			char *name, u8 *mac_addr);
-extern void brcmf_del_if(struct brcmf_info *drvr_priv, int ifidx);
+extern void brcmf_del_if(struct brcmf_pub *drvr, int ifidx);
 
 /* Send packet to dongle via data channel */
 extern int brcmf_sendpkt(struct brcmf_pub *drvr, int ifidx,\

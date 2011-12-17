@@ -431,7 +431,7 @@ brcmf_c_show_host_event(struct brcmf_event_msg *event, void *event_data)
 #endif				/* BCMDBG */
 
 int
-brcmf_c_host_event(struct brcmf_info *drvr_priv, int *ifidx, void *pktdata,
+brcmf_c_host_event(struct brcmf_pub *drvr, int *ifidx, void *pktdata,
 		   struct brcmf_event_msg *event, void **data_ptr)
 {
 	/* check whether packet is a BRCM event pkt */
@@ -473,18 +473,18 @@ brcmf_c_host_event(struct brcmf_info *drvr_priv, int *ifidx, void *pktdata,
 
 		if (ifevent->ifidx > 0 && ifevent->ifidx < BRCMF_MAX_IFS) {
 			if (ifevent->action == BRCMF_E_IF_ADD)
-				brcmf_add_if(drvr_priv, ifevent->ifidx,
+				brcmf_add_if(drvr, ifevent->ifidx,
 					     event->ifname,
 					     pvt_data->eth.h_dest);
 			else
-				brcmf_del_if(drvr_priv, ifevent->ifidx);
+				brcmf_del_if(drvr, ifevent->ifidx);
 		} else {
 			brcmf_dbg(ERROR, "Invalid ifidx %d for %s\n",
 				  ifevent->ifidx, event->ifname);
 		}
 
 		/* send up the if event: btamp user needs it */
-		*ifidx = brcmf_ifname2idx(drvr_priv, event->ifname);
+		*ifidx = brcmf_ifname2idx(drvr, event->ifname);
 		break;
 
 		/* These are what external supplicant/authenticator wants */
@@ -496,7 +496,7 @@ brcmf_c_host_event(struct brcmf_info *drvr_priv, int *ifidx, void *pktdata,
 	default:
 		/* Fall through: this should get _everything_  */
 
-		*ifidx = brcmf_ifname2idx(drvr_priv, event->ifname);
+		*ifidx = brcmf_ifname2idx(drvr, event->ifname);
 		brcmf_dbg(TRACE, "MAC event %d, flags %x, status %x\n",
 			  type, flags, status);
 
