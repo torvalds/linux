@@ -24,6 +24,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/crc32.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -80,8 +81,7 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 	unsigned int cfelen, nvramlen;
 	int namelen = 0;
 	int i;
-	char *boardid;
-	char *tagversion;
+	u32 computed_crc;
 
 	if (bcm63xx_detect_cfe(master))
 		return -EINVAL;
@@ -103,20 +103,33 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 		return -EIO;
 	}
 
-	sscanf(buf->kernel_address, "%u", &kerneladdr);
-	sscanf(buf->kernel_length, "%u", &kernellen);
-	sscanf(buf->total_length, "%u", &totallen);
-	tagversion = &(buf->tag_version[0]);
-	boardid = &(buf->board_id[0]);
+	computed_crc = crc32_le(IMAGETAG_CRC_START, (u8 *)buf,
+				offsetof(struct bcm_tag, header_crc));
+	if (computed_crc == buf->header_crc) {
+		char *boardid = &(buf->board_id[0]);
+		char *tagversion = &(buf->tag_version[0]);
 
-	pr_info("CFE boot tag found with version %s and board type %s\n",
-		tagversion, boardid);
+		sscanf(buf->kernel_address, "%u", &kerneladdr);
+		sscanf(buf->kernel_length, "%u", &kernellen);
+		sscanf(buf->total_length, "%u", &totallen);
 
-	kerneladdr = kerneladdr - BCM63XX_EXTENDED_SIZE;
-	rootfsaddr = kerneladdr + kernellen;
-	spareaddr = roundup(totallen, master->erasesize) + cfelen;
-	sparelen = master->size - spareaddr - nvramlen;
-	rootfslen = spareaddr - rootfsaddr;
+		pr_info("CFE boot tag found with version %s and board type %s\n",
+			tagversion, boardid);
+
+		kerneladdr = kerneladdr - BCM63XX_EXTENDED_SIZE;
+		rootfsaddr = kerneladdr + kernellen;
+		spareaddr = roundup(totallen, master->erasesize) + cfelen;
+		sparelen = master->size - spareaddr - nvramlen;
+		rootfslen = spareaddr - rootfsaddr;
+	} else {
+		pr_warn("CFE boot tag CRC invalid (expected %08x, actual %08x)\n",
+			buf->header_crc, computed_crc);
+		kernellen = 0;
+		rootfslen = 0;
+		rootfsaddr = 0;
+		spareaddr = cfelen;
+		sparelen = master->size - cfelen - nvramlen;
+	}
 
 	/* Determine number of partitions */
 	namelen = 8;
