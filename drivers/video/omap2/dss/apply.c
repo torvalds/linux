@@ -327,6 +327,9 @@ static bool extra_info_update_ongoing(void)
 		ovl = omap_dss_get_overlay(i);
 		op = get_ovl_priv(ovl);
 
+		if (!ovl->manager)
+			continue;
+
 		mp = get_mgr_priv(ovl->manager);
 
 		if (!mp->enabled)
