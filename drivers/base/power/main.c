@@ -383,8 +383,13 @@ static int device_resume_noirq(struct device *dev, pm_message_t state)
 		info = "EARLY class ";
 		callback = pm_noirq_op(dev->class->pm, state);
 	} else if (dev->bus && dev->bus->pm) {
-		info = "EARLY ";
+		info = "EARLY bus ";
 		callback = pm_noirq_op(dev->bus->pm, state);
+	}
+
+	if (!callback && dev->driver && dev->driver->pm) {
+		info = "EARLY driver ";
+		callback = pm_noirq_op(dev->driver->pm, state);
 	}
 
 	error = dpm_run_callback(callback, dev, state, info);
@@ -464,20 +469,20 @@ static int device_resume(struct device *dev, pm_message_t state, bool async)
 	if (dev->pm_domain) {
 		info = "power domain ";
 		callback = pm_op(&dev->pm_domain->ops, state);
-		goto End;
+		goto Driver;
 	}
 
 	if (dev->type && dev->type->pm) {
 		info = "type ";
 		callback = pm_op(dev->type->pm, state);
-		goto End;
+		goto Driver;
 	}
 
 	if (dev->class) {
 		if (dev->class->pm) {
 			info = "class ";
 			callback = pm_op(dev->class->pm, state);
-			goto End;
+			goto Driver;
 		} else if (dev->class->resume) {
 			info = "legacy class ";
 			callback = dev->class->resume;
@@ -487,12 +492,19 @@ static int device_resume(struct device *dev, pm_message_t state, bool async)
 
 	if (dev->bus) {
 		if (dev->bus->pm) {
-			info = "";
+			info = "bus ";
 			callback = pm_op(dev->bus->pm, state);
 		} else if (dev->bus->resume) {
-			info = "legacy ";
+			info = "legacy bus ";
 			callback = dev->bus->resume;
+			goto End;
 		}
+	}
+
+ Driver:
+	if (!callback && dev->driver && dev->driver->pm) {
+		info = "driver ";
+		callback = pm_op(dev->driver->pm, state);
 	}
 
  End:
@@ -588,24 +600,33 @@ void dpm_resume(pm_message_t state)
  */
 static void device_complete(struct device *dev, pm_message_t state)
 {
+	void (*callback)(struct device *) = NULL;
+	char *info = NULL;
+
 	device_lock(dev);
 
 	if (dev->pm_domain) {
-		pm_dev_dbg(dev, state, "completing power domain ");
-		if (dev->pm_domain->ops.complete)
-			dev->pm_domain->ops.complete(dev);
+		info = "completing power domain ";
+		callback = dev->pm_domain->ops.complete;
 	} else if (dev->type && dev->type->pm) {
-		pm_dev_dbg(dev, state, "completing type ");
-		if (dev->type->pm->complete)
-			dev->type->pm->complete(dev);
+		info = "completing type ";
+		callback = dev->type->pm->complete;
 	} else if (dev->class && dev->class->pm) {
-		pm_dev_dbg(dev, state, "completing class ");
-		if (dev->class->pm->complete)
-			dev->class->pm->complete(dev);
+		info = "completing class ";
+		callback = dev->class->pm->complete;
 	} else if (dev->bus && dev->bus->pm) {
-		pm_dev_dbg(dev, state, "completing ");
-		if (dev->bus->pm->complete)
-			dev->bus->pm->complete(dev);
+		info = "completing bus ";
+		callback = dev->bus->pm->complete;
+	}
+
+	if (!callback && dev->driver && dev->driver->pm) {
+		info = "completing driver ";
+		callback = dev->driver->pm->complete;
+	}
+
+	if (callback) {
+		pm_dev_dbg(dev, state, info);
+		callback(dev);
 	}
 
 	device_unlock(dev);
@@ -704,8 +725,13 @@ static int device_suspend_noirq(struct device *dev, pm_message_t state)
 		info = "LATE class ";
 		callback = pm_noirq_op(dev->class->pm, state);
 	} else if (dev->bus && dev->bus->pm) {
-		info = "LATE ";
+		info = "LATE bus ";
 		callback = pm_noirq_op(dev->bus->pm, state);
+	}
+
+	if (!callback && dev->driver && dev->driver->pm) {
+		info = "LATE driver ";
+		callback = pm_noirq_op(dev->driver->pm, state);
 	}
 
 	return dpm_run_callback(callback, dev, state, info);
@@ -832,16 +858,21 @@ static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 
 	if (dev->bus) {
 		if (dev->bus->pm) {
-			info = "";
+			info = "bus ";
 			callback = pm_op(dev->bus->pm, state);
 		} else if (dev->bus->suspend) {
-			pm_dev_dbg(dev, state, "legacy ");
+			pm_dev_dbg(dev, state, "legacy bus ");
 			error = legacy_suspend(dev, state, dev->bus->suspend);
 			goto End;
 		}
 	}
 
  Run:
+	if (!callback && dev->driver && dev->driver->pm) {
+		info = "driver ";
+		callback = pm_op(dev->driver->pm, state);
+	}
+
 	error = dpm_run_callback(callback, dev, state, info);
 
  End:
@@ -949,6 +980,8 @@ int dpm_suspend(pm_message_t state)
  */
 static int device_prepare(struct device *dev, pm_message_t state)
 {
+	int (*callback)(struct device *) = NULL;
+	char *info = NULL;
 	int error = 0;
 
 	device_lock(dev);
@@ -956,25 +989,27 @@ static int device_prepare(struct device *dev, pm_message_t state)
 	dev->power.wakeup_path = device_may_wakeup(dev);
 
 	if (dev->pm_domain) {
-		pm_dev_dbg(dev, state, "preparing power domain ");
-		if (dev->pm_domain->ops.prepare)
-			error = dev->pm_domain->ops.prepare(dev);
-		suspend_report_result(dev->pm_domain->ops.prepare, error);
+		info = "preparing power domain ";
+		callback = dev->pm_domain->ops.prepare;
 	} else if (dev->type && dev->type->pm) {
-		pm_dev_dbg(dev, state, "preparing type ");
-		if (dev->type->pm->prepare)
-			error = dev->type->pm->prepare(dev);
-		suspend_report_result(dev->type->pm->prepare, error);
+		info = "preparing type ";
+		callback = dev->type->pm->prepare;
 	} else if (dev->class && dev->class->pm) {
-		pm_dev_dbg(dev, state, "preparing class ");
-		if (dev->class->pm->prepare)
-			error = dev->class->pm->prepare(dev);
-		suspend_report_result(dev->class->pm->prepare, error);
+		info = "preparing class ";
+		callback = dev->class->pm->prepare;
 	} else if (dev->bus && dev->bus->pm) {
-		pm_dev_dbg(dev, state, "preparing ");
-		if (dev->bus->pm->prepare)
-			error = dev->bus->pm->prepare(dev);
-		suspend_report_result(dev->bus->pm->prepare, error);
+		info = "preparing bus ";
+		callback = dev->bus->pm->prepare;
+	}
+
+	if (!callback && dev->driver && dev->driver->pm) {
+		info = "preparing driver ";
+		callback = dev->driver->pm->prepare;
+	}
+
+	if (callback) {
+		error = callback(dev);
+		suspend_report_result(callback, error);
 	}
 
 	device_unlock(dev);

@@ -250,6 +250,9 @@ static int rpm_idle(struct device *dev, int rpmflags)
 	else
 		callback = NULL;
 
+	if (!callback && dev->driver && dev->driver->pm)
+		callback = dev->driver->pm->runtime_idle;
+
 	if (callback)
 		__rpm_callback(callback, dev);
 
@@ -412,6 +415,9 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 		callback = dev->bus->pm->runtime_suspend;
 	else
 		callback = NULL;
+
+	if (!callback && dev->driver && dev->driver->pm)
+		callback = dev->driver->pm->runtime_suspend;
 
 	retval = rpm_callback(callback, dev);
 	if (retval) {
@@ -632,6 +638,9 @@ static int rpm_resume(struct device *dev, int rpmflags)
 		callback = dev->bus->pm->runtime_resume;
 	else
 		callback = NULL;
+
+	if (!callback && dev->driver && dev->driver->pm)
+		callback = dev->driver->pm->runtime_resume;
 
 	retval = rpm_callback(callback, dev);
 	if (retval) {
