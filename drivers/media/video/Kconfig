@@ -490,6 +490,14 @@ config VIDEO_VS6624
 	  To compile this driver as a module, choose M here: the
 	  module will be called vs6624.
 
+config VIDEO_MT9M032
+	tristate "MT9M032 camera sensor support"
+	depends on I2C && VIDEO_V4L2
+	select VIDEO_APTINA_PLL
+	---help---
+	  This driver supports MT9M032 camera sensors from Aptina, monochrome
+	  models only.
+
 config VIDEO_MT9P031
 	tristate "Aptina MT9P031 support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
