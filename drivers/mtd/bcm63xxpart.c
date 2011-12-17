@@ -165,8 +165,8 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 	/* Global partition "linux" to make easy firmware upgrade */
 	curpart++;
 	parts[curpart].name = "linux";
-	parts[curpart].offset = parts[0].size;
-	parts[curpart].size = master->size - parts[0].size - parts[3].size;
+	parts[curpart].offset = cfelen;
+	parts[curpart].size = master->size - cfelen - nvramlen;
 
 	for (i = 0; i < nrparts; i++)
 		pr_info("Partition %d is %s offset %lx and length %lx\n", i,
