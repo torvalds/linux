@@ -576,6 +576,7 @@ struct brcmf_bus {
 	void *bus_priv;		/* pointer to bus private structure */
 	void *drvr;		/* pointer to driver pub structure brcmf_pub */
 	enum brcmf_bus_state state;
+	uint maxctl;		/* Max size rxctl request from proto to bus */
 };
 
 /* Forward decls for struct brcmf_pub (see below) */
@@ -596,7 +597,6 @@ struct brcmf_pub {
 	bool up;		/* Driver up/down (to OS) */
 	bool txoff;		/* Transmit flow-controlled */
 	uint hdrlen;		/* Total BRCMF header length (proto + bus) */
-	uint maxctl;		/* Max size rxctl request from proto to bus */
 	uint rxsz;		/* Rx buffer size bus module should use */
 	u8 wme_dp;		/* wme discard priority */
 

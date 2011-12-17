@@ -1534,7 +1534,7 @@ brcmf_sdbrcm_read_control(struct brcmf_sdio *bus, u8 *hdr, uint len, uint doff)
 	if (bus->roundup && bus->blocksize && (rdlen > bus->blocksize)) {
 		pad = bus->blocksize - (rdlen % bus->blocksize);
 		if ((pad <= bus->roundup) && (pad < bus->blocksize) &&
-		    ((len + pad) < bus->drvr->maxctl))
+		    ((len + pad) < bus->sdiodev->bus_if->maxctl))
 			rdlen += pad;
 	} else if (rdlen % BRCMF_SDALIGN) {
 		rdlen += BRCMF_SDALIGN - (rdlen % BRCMF_SDALIGN);
@@ -1545,17 +1545,17 @@ brcmf_sdbrcm_read_control(struct brcmf_sdio *bus, u8 *hdr, uint len, uint doff)
 		rdlen = roundup(rdlen, ALIGNMENT);
 
 	/* Drop if the read is too big or it exceeds our maximum */
-	if ((rdlen + BRCMF_FIRSTREAD) > bus->drvr->maxctl) {
+	if ((rdlen + BRCMF_FIRSTREAD) > bus->sdiodev->bus_if->maxctl) {
 		brcmf_dbg(ERROR, "%d-byte control read exceeds %d-byte buffer\n",
-			  rdlen, bus->drvr->maxctl);
+			  rdlen, bus->sdiodev->bus_if->maxctl);
 		bus->drvr->rx_errors++;
 		brcmf_sdbrcm_rxfail(bus, false, false);
 		goto done;
 	}
 
-	if ((len - doff) > bus->drvr->maxctl) {
+	if ((len - doff) > bus->sdiodev->bus_if->maxctl) {
 		brcmf_dbg(ERROR, "%d-byte ctl frame (%d-byte ctl data) exceeds %d-byte limit\n",
-			  len, len - doff, bus->drvr->maxctl);
+			  len, len - doff, bus->sdiodev->bus_if->maxctl);
 		bus->drvr->rx_errors++;
 		bus->rx_toolong++;
 		brcmf_sdbrcm_rxfail(bus, false, false);
@@ -3666,9 +3666,9 @@ static bool brcmf_sdbrcm_probe_malloc(struct brcmf_sdio *bus)
 {
 	brcmf_dbg(TRACE, "Enter\n");
 
-	if (bus->drvr->maxctl) {
+	if (bus->sdiodev->bus_if->maxctl) {
 		bus->rxblen =
-		    roundup((bus->drvr->maxctl + SDPCM_HDRLEN),
+		    roundup((bus->sdiodev->bus_if->maxctl + SDPCM_HDRLEN),
 			    ALIGNMENT) + BRCMF_SDALIGN;
 		bus->rxbuf = kmalloc(bus->rxblen, GFP_ATOMIC);
 		if (!(bus->rxbuf))

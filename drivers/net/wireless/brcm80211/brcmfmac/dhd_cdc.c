@@ -437,7 +437,7 @@ int brcmf_proto_attach(struct brcmf_pub *drvr)
 
 	drvr->prot = cdc;
 	drvr->hdrlen += BDC_HEADER_LEN;
-	drvr->maxctl = BRCMF_DCMD_MAXLEN +
+	drvr->bus_if->maxctl = BRCMF_DCMD_MAXLEN +
 			sizeof(struct brcmf_proto_cdc_dcmd) + ROUND_UP_MARGIN;
 	return 0;
 
