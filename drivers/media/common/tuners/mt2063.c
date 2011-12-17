@@ -2199,7 +2199,7 @@ static int mt2063_get_if_frequency(struct dvb_frontend *fe, u32 *freq)
 	if (!state->init)
 		return -ENODEV;
 
-	*freq = state->reference * 1000;
+	*freq = state->AS_Data.f_out;
 
 	dprintk(1, "IF frequency: %d\n", *freq);
 
