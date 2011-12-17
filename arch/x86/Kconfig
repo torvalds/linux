@@ -665,6 +665,7 @@ config APB_TIMER
        def_bool y if MRST
        prompt "Langwell APB Timer Support" if X86_MRST
        select DW_APB_TIMER
+       depends on X86_INTEL_MID && SFI
        help
          APB timer is the replacement for 8254, HPET on X86 MID platforms.
          The APBT provides a stable time base on SMP
