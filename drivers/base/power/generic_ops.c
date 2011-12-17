@@ -276,28 +276,3 @@ void pm_generic_complete(struct device *dev)
 	pm_runtime_idle(dev);
 }
 #endif /* CONFIG_PM_SLEEP */
-
-struct dev_pm_ops generic_subsys_pm_ops = {
-#ifdef CONFIG_PM_SLEEP
-	.prepare = pm_generic_prepare,
-	.suspend = pm_generic_suspend,
-	.suspend_noirq = pm_generic_suspend_noirq,
-	.resume = pm_generic_resume,
-	.resume_noirq = pm_generic_resume_noirq,
-	.freeze = pm_generic_freeze,
-	.freeze_noirq = pm_generic_freeze_noirq,
-	.thaw = pm_generic_thaw,
-	.thaw_noirq = pm_generic_thaw_noirq,
-	.poweroff = pm_generic_poweroff,
-	.poweroff_noirq = pm_generic_poweroff_noirq,
-	.restore = pm_generic_restore,
-	.restore_noirq = pm_generic_restore_noirq,
-	.complete = pm_generic_complete,
-#endif
-#ifdef CONFIG_PM_RUNTIME
-	.runtime_suspend = pm_generic_runtime_suspend,
-	.runtime_resume = pm_generic_runtime_resume,
-	.runtime_idle = pm_generic_runtime_idle,
-#endif
-};
-EXPORT_SYMBOL_GPL(generic_subsys_pm_ops);
