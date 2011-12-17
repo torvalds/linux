@@ -301,9 +301,6 @@ struct hci_conn {
 	struct timer_list idle_timer;
 	struct timer_list auto_accept_timer;
 
-	struct work_struct work_add;
-	struct work_struct work_del;
-
 	struct device	dev;
 	atomic_t	devref;
 

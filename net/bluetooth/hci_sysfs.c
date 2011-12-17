@@ -88,10 +88,34 @@ static struct device_type bt_link = {
 	.release = bt_link_release,
 };
 
-static void add_conn(struct work_struct *work)
+/*
+ * The rfcomm tty device will possibly retain even when conn
+ * is down, and sysfs doesn't support move zombie device,
+ * so we should move the device before conn device is destroyed.
+ */
+static int __match_tty(struct device *dev, void *data)
 {
-	struct hci_conn *conn = container_of(work, struct hci_conn, work_add);
+	return !strncmp(dev_name(dev), "rfcomm", 6);
+}
+
+void hci_conn_init_sysfs(struct hci_conn *conn)
+{
 	struct hci_dev *hdev = conn->hdev;
+
+	BT_DBG("conn %p", conn);
+
+	conn->dev.type = &bt_link;
+	conn->dev.class = bt_class;
+	conn->dev.parent = &hdev->dev;
+
+	device_initialize(&conn->dev);
+}
+
+void hci_conn_add_sysfs(struct hci_conn *conn)
+{
+	struct hci_dev *hdev = conn->hdev;
+
+	BT_DBG("conn %p", conn);
 
 	dev_set_name(&conn->dev, "%s:%d", hdev->name, conn->handle);
 
@@ -105,19 +129,8 @@ static void add_conn(struct work_struct *work)
 	hci_dev_hold(hdev);
 }
 
-/*
- * The rfcomm tty device will possibly retain even when conn
- * is down, and sysfs doesn't support move zombie device,
- * so we should move the device before conn device is destroyed.
- */
-static int __match_tty(struct device *dev, void *data)
+void hci_conn_del_sysfs(struct hci_conn *conn)
 {
-	return !strncmp(dev_name(dev), "rfcomm", 6);
-}
-
-static void del_conn(struct work_struct *work)
-{
-	struct hci_conn *conn = container_of(work, struct hci_conn, work_del);
 	struct hci_dev *hdev = conn->hdev;
 
 	if (!device_is_registered(&conn->dev))
@@ -137,36 +150,6 @@ static void del_conn(struct work_struct *work)
 	put_device(&conn->dev);
 
 	hci_dev_put(hdev);
-}
-
-void hci_conn_init_sysfs(struct hci_conn *conn)
-{
-	struct hci_dev *hdev = conn->hdev;
-
-	BT_DBG("conn %p", conn);
-
-	conn->dev.type = &bt_link;
-	conn->dev.class = bt_class;
-	conn->dev.parent = &hdev->dev;
-
-	device_initialize(&conn->dev);
-
-	INIT_WORK(&conn->work_add, add_conn);
-	INIT_WORK(&conn->work_del, del_conn);
-}
-
-void hci_conn_add_sysfs(struct hci_conn *conn)
-{
-	BT_DBG("conn %p", conn);
-
-	queue_work(conn->hdev->workqueue, &conn->work_add);
-}
-
-void hci_conn_del_sysfs(struct hci_conn *conn)
-{
-	BT_DBG("conn %p", conn);
-
-	queue_work(conn->hdev->workqueue, &conn->work_del);
 }
 
 static inline char *host_bustostr(int bus)
