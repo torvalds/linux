@@ -614,21 +614,13 @@ struct brcmf_pub {
 	unsigned long tx_multicast;
 	/* Errors in sending data to dongle */
 	unsigned long tx_errors;
-	/* Control packets sent to dongle */
-	unsigned long tx_ctlpkts;
-	/* Errors sending control frames to dongle */
-	unsigned long tx_ctlerrs;
 	/* Packets sent up the network interface */
 	unsigned long rx_packets;
 	/* Multicast packets sent up the network interface */
 	unsigned long rx_multicast;
 	/* Errors processing rx data packets */
 	unsigned long rx_errors;
-	/* Control frames processed from dongle */
-	unsigned long rx_ctlpkts;
 
-	/* Errors in processing rx control frames */
-	unsigned long rx_ctlerrs;
 	/* Packets dropped locally (no memory) */
 	unsigned long rx_dropped;
 	/* Packets flushed due to unscheduled sendup thread */
@@ -636,8 +628,6 @@ struct brcmf_pub {
 	/* Number of times dpc scheduled by watchdog timer */
 	unsigned long wd_dpc_sched;
 
-	/* Number of packets where header read-ahead was used. */
-	unsigned long rx_readahead_cnt;
 	/* Number of tx packets we had to realloc for headroom */
 	unsigned long tx_realloc;
 	/* Number of flow control pkts recvd */
@@ -645,7 +635,6 @@ struct brcmf_pub {
 
 	/* Last error return */
 	int bcmerror;
-	uint tickcnt;
 
 	/* Last error from dongle */
 	int dongle_error;

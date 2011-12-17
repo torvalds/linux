@@ -546,6 +546,13 @@ struct brcmf_sdio {
 	uint f2rxdata;		/* Number of frame data reads */
 	uint f2txdata;		/* Number of f2 frame writes */
 	uint f1regdata;		/* Number of f1 register accesses */
+	uint tickcnt;		/* Number of watchdog been schedule */
+	unsigned long tx_ctlerrs;	/* Err of sending ctrl frames */
+	unsigned long tx_ctlpkts;	/* Ctrl frames sent to dongle */
+	unsigned long rx_ctlerrs;	/* Err of processing rx ctrl frames */
+	unsigned long rx_ctlpkts;	/* Ctrl frames processed from dongle */
+	unsigned long rx_readahead_cnt;	/* Number of packets where header
+					 * read-ahead was used. */
 
 	u8 *ctrl_frame_buf;
 	u32 ctrl_frame_len;
@@ -1774,7 +1781,7 @@ brcmf_sdbrcm_readframes(struct brcmf_sdio *bus, uint maxframes, bool *finished)
 				bus->nextlen = 0;
 			}
 
-			bus->drvr->rx_readahead_cnt++;
+			bus->rx_readahead_cnt++;
 
 			/* Handle Flow Control */
 			fcbits = SDPCM_FCMASK_VALUE(
@@ -2912,9 +2919,9 @@ brcmf_sdbrcm_bus_txctl(struct device *dev, unsigned char *msg, uint msglen)
 	up(&bus->sdsem);
 
 	if (ret)
-		bus->drvr->tx_ctlerrs++;
+		bus->tx_ctlerrs++;
 	else
-		bus->drvr->tx_ctlpkts++;
+		bus->tx_ctlpkts++;
 
 	return ret ? -EIO : 0;
 }
@@ -2953,9 +2960,9 @@ brcmf_sdbrcm_bus_rxctl(struct device *dev, unsigned char *msg, uint msglen)
 	}
 
 	if (rxlen)
-		bus->drvr->rx_ctlpkts++;
+		bus->rx_ctlpkts++;
 	else
-		bus->drvr->rx_ctlerrs++;
+		bus->rx_ctlerrs++;
 
 	return rxlen ? (int)rxlen : -ETIMEDOUT;
 }
@@ -3436,7 +3443,7 @@ int brcmf_sdbrcm_bus_init(struct device *dev)
 		return 0;
 
 	/* Start the watchdog timer */
-	bus->drvr->tickcnt = 0;
+	bus->tickcnt = 0;
 	brcmf_sdbrcm_wd_timer(bus, BRCMF_WD_POLL_MS);
 
 	down(&bus->sdsem);
@@ -3821,7 +3828,7 @@ brcmf_sdbrcm_watchdog_thread(void *data)
 		if (!wait_for_completion_interruptible(&bus->watchdog_wait)) {
 			brcmf_sdbrcm_bus_watchdog(bus);
 			/* Count the tick for reference */
-			bus->drvr->tickcnt++;
+			bus->tickcnt++;
 		} else
 			break;
 	}
