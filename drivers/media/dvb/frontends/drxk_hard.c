@@ -6364,6 +6364,32 @@ static int drxk_t_get_frontend(struct dvb_frontend *fe,
 	return 0;
 }
 
+static int drxk_c_get_property(struct dvb_frontend *fe, struct dtv_property *p)
+{
+	switch (p->cmd) {
+	case DTV_ENUM_DELSYS:
+		p->u.buffer.data[0] = SYS_DVBC_ANNEX_A;
+		p->u.buffer.data[1] = SYS_DVBC_ANNEX_C;
+		p->u.buffer.len = 2;
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+static int drxk_t_get_property(struct dvb_frontend *fe, struct dtv_property *p)
+{
+	switch (p->cmd) {
+	case DTV_ENUM_DELSYS:
+		p->u.buffer.data[0] = SYS_DVBT;
+		p->u.buffer.len = 1;
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
 static struct dvb_frontend_ops drxk_c_ops = {
 	.info = {
 		 .name = "DRXK DVB-C",
@@ -6382,6 +6408,7 @@ static struct dvb_frontend_ops drxk_c_ops = {
 
 	.set_frontend = drxk_set_parameters,
 	.get_frontend = drxk_c_get_frontend,
+	.get_property = drxk_c_get_property,
 	.get_tune_settings = drxk_c_get_tune_settings,
 
 	.read_status = drxk_read_status,
@@ -6414,6 +6441,7 @@ static struct dvb_frontend_ops drxk_t_ops = {
 
 	.set_frontend = drxk_set_parameters,
 	.get_frontend = drxk_t_get_frontend,
+	.get_property = drxk_t_get_property,
 
 	.read_status = drxk_read_status,
 	.read_ber = drxk_read_ber,
