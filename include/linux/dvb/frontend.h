@@ -337,7 +337,7 @@ typedef enum fe_rolloff {
 
 typedef enum fe_delivery_system {
 	SYS_UNDEFINED,
-	SYS_DVBC_ANNEX_AC,
+	SYS_DVBC_ANNEX_A,
 	SYS_DVBC_ANNEX_B,
 	SYS_DVBT,
 	SYS_DSS,
@@ -354,7 +354,12 @@ typedef enum fe_delivery_system {
 	SYS_DAB,
 	SYS_DVBT2,
 	SYS_TURBO,
+	SYS_DVBC_ANNEX_C,
 } fe_delivery_system_t;
+
+
+#define SYS_DVBC_ANNEX_AC	SYS_DVBC_ANNEX_A
+
 
 struct dtv_cmds_h {
 	char	*name;		/* A display name for debugging purposes */
