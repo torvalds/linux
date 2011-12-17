@@ -42,7 +42,7 @@ extern void brcmf_proto_hdrpush(struct brcmf_pub *, int ifidx,
 				struct sk_buff *txp);
 
 /* Remove any protocol-specific data header. */
-extern int brcmf_proto_hdrpull(struct brcmf_pub *, int *ifidx,
+extern int brcmf_proto_hdrpull(struct device *dev, int *ifidx,
 			       struct sk_buff *rxp);
 
 /* Use protocol to issue command to dongle */

@@ -1437,8 +1437,8 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 				skb_unlink(pfirst, &bus->glom);
 				brcmu_pkt_buf_free_skb(pfirst);
 				continue;
-			} else if (brcmf_proto_hdrpull(bus->drvr, &ifidx,
-						       pfirst) != 0) {
+			} else if (brcmf_proto_hdrpull(bus->sdiodev->dev,
+						       &ifidx, pfirst) != 0) {
 				brcmf_dbg(ERROR, "rx protocol error\n");
 				bus->drvr->rx_errors++;
 				skb_unlink(pfirst, &bus->glom);
@@ -2053,7 +2053,8 @@ deliver:
 		if (pkt->len == 0) {
 			brcmu_pkt_buf_free_skb(pkt);
 			continue;
-		} else if (brcmf_proto_hdrpull(bus->drvr, &ifidx, pkt) != 0) {
+		} else if (brcmf_proto_hdrpull(bus->sdiodev->dev, &ifidx,
+			   pkt) != 0) {
 			brcmf_dbg(ERROR, "rx protocol error\n");
 			brcmu_pkt_buf_free_skb(pkt);
 			bus->drvr->rx_errors++;
