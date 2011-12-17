@@ -800,7 +800,7 @@ static int brcmf_netdev_open(struct net_device *ndev)
 
 	if (ifp->idx == 0) {	/* do it only for primary eth0 */
 		/* try to bring up bus */
-		ret = brcmf_bus_start(drvr);
+		ret = brcmf_bus_start(drvr->dev);
 		if (ret != 0) {
 			brcmf_dbg(ERROR, "failed with code %d\n", ret);
 			return -1;
@@ -960,23 +960,25 @@ fail:
 	return NULL;
 }
 
-int brcmf_bus_start(struct brcmf_pub *drvr)
+int brcmf_bus_start(struct device *dev)
 {
 	int ret = -1;
 	/* Room for "event_msgs" + '\0' + bitvec */
 	char iovbuf[BRCMF_EVENTING_MASK_LEN + 12];
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_pub *drvr = bus_if->drvr;
 
 	brcmf_dbg(TRACE, "\n");
 
 	/* Bring up the bus */
-	ret = brcmf_sdbrcm_bus_init(drvr->dev);
+	ret = brcmf_sdbrcm_bus_init(dev);
 	if (ret != 0) {
 		brcmf_dbg(ERROR, "brcmf_sdbrcm_bus_init failed %d\n", ret);
 		return ret;
 	}
 
 	/* If bus is not ready, can't come up */
-	if (drvr->bus_if->state != BRCMF_BUS_DATA) {
+	if (bus_if->state != BRCMF_BUS_DATA) {
 		brcmf_dbg(ERROR, "failed bus is not ready\n");
 		return -ENODEV;
 	}

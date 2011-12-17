@@ -752,7 +752,7 @@ extern void brcmf_del_if(struct brcmf_pub *drvr, int ifidx);
 extern int brcmf_sendpkt(struct brcmf_pub *drvr, int ifidx,\
 			 struct sk_buff *pkt);
 
-extern int brcmf_bus_start(struct brcmf_pub *drvr);
+extern int brcmf_bus_start(struct device *dev);
 
 extern void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg);
 extern void brcmf_c_pktfilter_offload_enable(struct brcmf_pub *drvr, char *arg,

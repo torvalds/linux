@@ -3971,7 +3971,7 @@ void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
 	brcmf_dbg(INFO, "completed!!\n");
 
 	/* if firmware path present try to download and bring up bus */
-	ret = brcmf_bus_start(bus->drvr);
+	ret = brcmf_bus_start(bus->sdiodev->dev);
 	if (ret != 0) {
 		if (ret == -ENOLINK) {
 			brcmf_dbg(ERROR, "dongle is not responding\n");
