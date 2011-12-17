@@ -305,6 +305,10 @@ struct qam_params {
 static int tda10023_set_parameters (struct dvb_frontend *fe,
 			    struct dvb_frontend_parameters *p)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	u32 delsys  = c->delivery_system;
+	unsigned qam = c->modulation;
+	bool is_annex_c;
 	struct tda10023_state* state = fe->demodulator_priv;
 	static const struct qam_params qam_params[] = {
 		/* Modulation  QAM    LOCKTHR   MSETH   AREF AGCREFNYQ ERAGCNYQ_THD */
@@ -315,7 +319,17 @@ static int tda10023_set_parameters (struct dvb_frontend *fe,
 		[QAM_128] = { (3<<2),  0x36,    0x34,   0x7e,   0x78,   0x4c  },
 		[QAM_256] = { (4<<2),  0x26,    0x23,   0x6c,   0x5c,   0x3c  },
 	};
-	unsigned qam = p->u.qam.modulation;
+
+	switch (delsys) {
+	case SYS_DVBC_ANNEX_A:
+		is_annex_c = false;
+		break;
+	case SYS_DVBC_ANNEX_C:
+		is_annex_c = true;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	/*
 	 * gcc optimizes the code bellow the same way as it would code:
@@ -341,20 +355,40 @@ static int tda10023_set_parameters (struct dvb_frontend *fe,
 		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 
-	tda10023_set_symbolrate (state, p->u.qam.symbol_rate);
+	tda10023_set_symbolrate(state, c->symbol_rate);
 	tda10023_writereg(state, 0x05, qam_params[qam].lockthr);
 	tda10023_writereg(state, 0x08, qam_params[qam].mseth);
 	tda10023_writereg(state, 0x09, qam_params[qam].aref);
 	tda10023_writereg(state, 0xb4, qam_params[qam].agcrefnyq);
 	tda10023_writereg(state, 0xb6, qam_params[qam].eragnyq_thd);
-
 #if 0
-	tda10023_writereg(state, 0x04, (p->inversion ? 0x12 : 0x32));
-	tda10023_writebit(state, 0x04, 0x60, (p->inversion ? 0 : 0x20));
+	tda10023_writereg(state, 0x04, (c->inversion ? 0x12 : 0x32));
+	tda10023_writebit(state, 0x04, 0x60, (c->inversion ? 0 : 0x20));
 #endif
 	tda10023_writebit(state, 0x04, 0x40, 0x40);
+
+	if (is_annex_c)
+		tda10023_writebit(state, 0x3d, 0xfc, 0x03);
+	else
+		tda10023_writebit(state, 0x3d, 0xfc, 0x02);
+
 	tda10023_setup_reg0(state, qam_params[qam].qam);
 
+	return 0;
+}
+
+static int tda10023_get_property(struct dvb_frontend *fe,
+				 struct dtv_property *p)
+{
+	switch (p->cmd) {
+	case DTV_ENUM_DELSYS:
+		p->u.buffer.data[0] = SYS_DVBC_ANNEX_A;
+		p->u.buffer.data[1] = SYS_DVBC_ANNEX_C;
+		p->u.buffer.len = 2;
+		break;
+	default:
+		break;
+	}
 	return 0;
 }
 
@@ -577,7 +611,7 @@ static struct dvb_frontend_ops tda10023_ops = {
 
 	.set_frontend = tda10023_set_parameters,
 	.get_frontend = tda10023_get_frontend,
-
+	.get_property = tda10023_get_property,
 	.read_status = tda10023_read_status,
 	.read_ber = tda10023_read_ber,
 	.read_signal_strength = tda10023_read_signal_strength,
