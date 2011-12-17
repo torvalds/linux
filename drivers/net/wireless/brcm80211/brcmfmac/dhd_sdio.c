@@ -2295,7 +2295,8 @@ static uint brcmf_sdbrcm_sendfromq(struct brcmf_sdio *bus, uint maxframes)
 	}
 
 	/* Deflow-control stack if needed */
-	if (drvr->up && (drvr->bus_if->state == BRCMF_BUS_DATA) &&
+	if (drvr->bus_if->drvr_up &&
+	    (drvr->bus_if->state == BRCMF_BUS_DATA) &&
 	    drvr->txoff && (pktq_len(&bus->txq) < TXLOW))
 		brcmf_txflowcontrol(bus->sdiodev->dev, 0, OFF);
 
@@ -2974,7 +2975,7 @@ static int brcmf_sdbrcm_downloadvars(struct brcmf_sdio *bus, void *arg, int len)
 	brcmf_dbg(TRACE, "Enter\n");
 
 	/* Basic sanity checks */
-	if (bus->drvr->up) {
+	if (bus->sdiodev->bus_if->drvr_up) {
 		bcmerror = -EISCONN;
 		goto err;
 	}

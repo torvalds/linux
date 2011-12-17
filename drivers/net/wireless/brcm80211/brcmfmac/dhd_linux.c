@@ -273,7 +273,7 @@ static void brcmf_netdev_set_multicast_list(struct net_device *ndev)
 int brcmf_sendpkt(struct brcmf_pub *drvr, int ifidx, struct sk_buff *pktbuf)
 {
 	/* Reject if down */
-	if (!drvr->up || (drvr->bus_if->state == BRCMF_BUS_DOWN))
+	if (!drvr->bus_if->drvr_up || (drvr->bus_if->state == BRCMF_BUS_DOWN))
 		return -ENODEV;
 
 	/* Update multicast statistic */
@@ -303,10 +303,10 @@ static int brcmf_netdev_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	brcmf_dbg(TRACE, "Enter\n");
 
 	/* Reject if down */
-	if (!drvr->up ||
+	if (!drvr->bus_if->drvr_up ||
 	    (drvr->bus_if->state == BRCMF_BUS_DOWN)) {
-		brcmf_dbg(ERROR, "xmit rejected pub.up=%d state=%d\n",
-			  drvr->up,
+		brcmf_dbg(ERROR, "xmit rejected drvup=%d state=%d\n",
+			  drvr->bus_if->drvr_up,
 			  drvr->bus_if->state);
 		netif_stop_queue(ndev);
 		return -ENODEV;
@@ -487,7 +487,7 @@ static struct net_device_stats *brcmf_netdev_get_stats(struct net_device *ndev)
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	if (drvr->up)
+	if (drvr->bus_if->drvr_up)
 		/* Use the protocol to get dongle stats */
 		brcmf_proto_dstats(drvr);
 
@@ -633,7 +633,7 @@ static int brcmf_ethtool(struct brcmf_pub *drvr, void __user *uaddr)
 		}
 
 		/* otherwise, require dongle to be up */
-		else if (!drvr->up) {
+		else if (!drvr->bus_if->drvr_up) {
 			brcmf_dbg(ERROR, "dongle is not up\n");
 			return -ENODEV;
 		}
@@ -785,11 +785,11 @@ static int brcmf_netdev_stop(struct net_device *ndev)
 
 	brcmf_dbg(TRACE, "Enter\n");
 	brcmf_cfg80211_down(drvr->config);
-	if (drvr->up == 0)
+	if (drvr->bus_if->drvr_up == 0)
 		return 0;
 
 	/* Set state and stop OS transmissions */
-	drvr->up = 0;
+	drvr->bus_if->drvr_up = 0;
 	netif_stop_queue(ndev);
 
 	return 0;
@@ -826,7 +826,7 @@ static int brcmf_netdev_open(struct net_device *ndev)
 	}
 	/* Allow transmit calls */
 	netif_start_queue(ndev);
-	drvr->up = 1;
+	drvr->bus_if->drvr_up = 1;
 	if (brcmf_cfg80211_up(drvr->config)) {
 		brcmf_dbg(ERROR, "failed to bring up cfg80211\n");
 		return -1;

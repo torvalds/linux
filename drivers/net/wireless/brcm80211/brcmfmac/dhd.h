@@ -577,6 +577,7 @@ struct brcmf_bus {
 	void *drvr;		/* pointer to driver pub structure brcmf_pub */
 	enum brcmf_bus_state state;
 	uint maxctl;		/* Max size rxctl request from proto to bus */
+	bool drvr_up;		/* Status flag of driver up/down */
 };
 
 /* Forward decls for struct brcmf_pub (see below) */
@@ -594,7 +595,6 @@ struct brcmf_pub {
 	struct device *dev;		/* fullmac dongle device pointer */
 
 	/* Internal brcmf items */
-	bool up;		/* Driver up/down (to OS) */
 	bool txoff;		/* Transmit flow-controlled */
 	uint hdrlen;		/* Total BRCMF header length (proto + bus) */
 	uint rxsz;		/* Rx buffer size bus module should use */
