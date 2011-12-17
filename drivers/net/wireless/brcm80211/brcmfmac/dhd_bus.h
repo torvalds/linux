@@ -17,6 +17,83 @@
 #ifndef _BRCMF_BUS_H_
 #define _BRCMF_BUS_H_
 
+/* The level of bus communication with the dongle */
+enum brcmf_bus_state {
+	BRCMF_BUS_DOWN,		/* Not ready for frame transfers */
+	BRCMF_BUS_LOAD,		/* Download access only (CPU reset) */
+	BRCMF_BUS_DATA		/* Ready for frame transfers */
+};
+
+struct dngl_stats {
+	unsigned long rx_packets;	/* total packets received */
+	unsigned long tx_packets;	/* total packets transmitted */
+	unsigned long rx_bytes;	/* total bytes received */
+	unsigned long tx_bytes;	/* total bytes transmitted */
+	unsigned long rx_errors;	/* bad packets received */
+	unsigned long tx_errors;	/* packet transmit problems */
+	unsigned long rx_dropped;	/* packets dropped by dongle */
+	unsigned long tx_dropped;	/* packets dropped by dongle */
+	unsigned long multicast;	/* multicast packets received */
+};
+
+/* interface structure between common and bus layer */
+struct brcmf_bus {
+	u8 type;		/* bus type */
+	void *bus_priv;		/* pointer to bus private structure */
+	void *drvr;		/* pointer to driver pub structure brcmf_pub */
+	enum brcmf_bus_state state;
+	uint maxctl;		/* Max size rxctl request from proto to bus */
+	bool drvr_up;		/* Status flag of driver up/down */
+	unsigned long tx_realloc;	/* Tx packets realloced for headroom */
+	struct dngl_stats dstats;	/* Stats for dongle-based data */
+	u8 align;		/* bus alignment requirement */
+
+	/* interface functions pointers */
+	/* Stop bus module: clear pending frames, disable data flow */
+	void (*brcmf_bus_stop)(struct device *);
+};
+
+/*
+ * interface functions from common layer
+ */
+
+/* Remove any protocol-specific data header. */
+extern int brcmf_proto_hdrpull(struct device *dev, int *ifidx,
+			       struct sk_buff *rxp);
+
+extern bool brcmf_c_prec_enq(struct device *dev, struct pktq *q,
+			 struct sk_buff *pkt, int prec);
+
+/* Receive frame for delivery to OS.  Callee disposes of rxp. */
+extern void brcmf_rx_frame(struct device *dev, int ifidx,
+			   struct sk_buff_head *rxlist);
+static inline void brcmf_rx_packet(struct device *dev, int ifidx,
+				   struct sk_buff *pkt)
+{
+	struct sk_buff_head q;
+
+	skb_queue_head_init(&q);
+	skb_queue_tail(&q, pkt);
+	brcmf_rx_frame(dev, ifidx, &q);
+}
+
+/* Indication from bus module regarding presence/insertion of dongle. */
+extern int brcmf_attach(uint bus_hdrlen, struct device *dev);
+/* Indication from bus module regarding removal/absence of dongle */
+extern void brcmf_detach(struct device *dev);
+
+/* Indication from bus module to change flow-control state */
+extern void brcmf_txflowcontrol(struct device *dev, int ifidx, bool on);
+
+/* Notify tx completion */
+extern void brcmf_txcomplete(struct device *dev, struct sk_buff *txp,
+			     bool success);
+
+extern int brcmf_bus_start(struct device *dev);
+
+extern int brcmf_add_if(struct device *dev, int ifidx,
+			char *name, u8 *mac_addr);
+
 /*
  * Exported from brcmf bus module (brcmf_usb, brcmf_sdio)
  */

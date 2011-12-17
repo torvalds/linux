@@ -156,18 +156,6 @@ struct brcmf_event {
 	struct brcmf_event_msg msg;
 } __packed;
 
-struct dngl_stats {
-	unsigned long rx_packets;	/* total packets received */
-	unsigned long tx_packets;	/* total packets transmitted */
-	unsigned long rx_bytes;	/* total bytes received */
-	unsigned long tx_bytes;	/* total bytes transmitted */
-	unsigned long rx_errors;	/* bad packets received */
-	unsigned long tx_errors;	/* packet transmit problems */
-	unsigned long rx_dropped;	/* packets dropped by dongle */
-	unsigned long tx_dropped;	/* packets dropped by dongle */
-	unsigned long multicast;	/* multicast packets received */
-};
-
 /* event codes sent by the dongle to this driver */
 #define BRCMF_E_SET_SSID			0
 #define BRCMF_E_JOIN				1
@@ -316,13 +304,6 @@ struct dngl_stats {
 #define BRCMF_E_LINK_DISASSOC			2
 #define BRCMF_E_LINK_ASSOC_REC			3
 #define BRCMF_E_LINK_BSSCFG_DIS			4
-
-/* The level of bus communication with the dongle */
-enum brcmf_bus_state {
-	BRCMF_BUS_DOWN,		/* Not ready for frame transfers */
-	BRCMF_BUS_LOAD,		/* Download access only (CPU reset) */
-	BRCMF_BUS_DATA		/* Ready for frame transfers */
-};
 
 /* Pattern matching filter. Specifies an offset within received packets to
  * start matching, the pattern to match, the size of the pattern, and a bitmask
@@ -571,22 +552,6 @@ struct brcmf_dcmd {
 	uint needed;		/* bytes needed (optional) */
 };
 
-struct brcmf_bus {
-	u8 type;		/* bus type */
-	void *bus_priv;		/* pointer to bus private structure */
-	void *drvr;		/* pointer to driver pub structure brcmf_pub */
-	enum brcmf_bus_state state;
-	uint maxctl;		/* Max size rxctl request from proto to bus */
-	bool drvr_up;		/* Status flag of driver up/down */
-	unsigned long tx_realloc;	/* Tx packets realloced for headroom */
-	struct dngl_stats dstats;	/* Stats for dongle-based data */
-	u8 align;		/* bus alignment requirement */
-
-	/* interface functions pointers */
-	/* Stop bus module: clear pending frames, disable data flow */
-	void (*brcmf_bus_stop)(struct device *);
-};
-
 /* Forward decls for struct brcmf_pub (see below) */
 struct brcmf_proto;	/* device communication protocol info */
 struct brcmf_cfg80211_dev; /* cfg80211 device info */
@@ -667,45 +632,13 @@ extern const struct bcmevent_name bcmevent_names[];
 extern uint brcmf_c_mkiovar(char *name, char *data, uint datalen,
 			  char *buf, uint len);
 
-/* Indication from bus module regarding presence/insertion of dongle.
- * Return struct brcmf_pub pointer, used as handle to OS module in later calls.
- * Returned structure should have bus and prot pointers filled in.
- * bus_hdrlen specifies required headroom for bus module header.
- */
-extern int brcmf_attach(uint bus_hdrlen, struct device *dev);
 extern int brcmf_net_attach(struct brcmf_pub *drvr, int idx);
 extern int brcmf_netdev_wait_pend8021x(struct net_device *ndev);
 
 extern s32 brcmf_exec_dcmd(struct net_device *dev, u32 cmd, void *arg, u32 len);
 
-/* Indication from bus module regarding removal/absence of dongle */
-extern void brcmf_detach(struct device *dev);
-
-/* Indication from bus module to change flow-control state */
-extern void brcmf_txflowcontrol(struct device *dev, int ifidx, bool on);
-
-extern bool brcmf_c_prec_enq(struct device *dev, struct pktq *q,
-			 struct sk_buff *pkt, int prec);
-
-/* Receive frame for delivery to OS.  Callee disposes of rxp. */
-extern void brcmf_rx_frame(struct device *dev, int ifidx,
-			   struct sk_buff_head *rxlist);
-static inline void brcmf_rx_packet(struct device *dev, int ifidx,
-				   struct sk_buff *pkt)
-{
-	struct sk_buff_head q;
-
-	skb_queue_head_init(&q);
-	skb_queue_tail(&q, pkt);
-	brcmf_rx_frame(dev, ifidx, &q);
-}
-
 /* Return pointer to interface name */
 extern char *brcmf_ifname(struct brcmf_pub *drvr, int idx);
-
-/* Notify tx completion */
-extern void brcmf_txcomplete(struct device *dev, struct sk_buff *txp,
-			     bool success);
 
 /* Query dongle */
 extern int brcmf_proto_cdc_query_dcmd(struct brcmf_pub *drvr, int ifidx,
@@ -720,15 +653,11 @@ extern int brcmf_c_host_event(struct brcmf_pub *drvr, int *idx,
 			      void *pktdata, struct brcmf_event_msg *,
 			      void **data_ptr);
 
-extern int brcmf_add_if(struct device *dev, int ifidx,
-			char *name, u8 *mac_addr);
 extern void brcmf_del_if(struct brcmf_pub *drvr, int ifidx);
 
 /* Send packet to dongle via data channel */
 extern int brcmf_sendpkt(struct brcmf_pub *drvr, int ifidx,\
 			 struct sk_buff *pkt);
-
-extern int brcmf_bus_start(struct device *dev);
 
 extern void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg);
 extern void brcmf_c_pktfilter_offload_enable(struct brcmf_pub *drvr, char *arg,
