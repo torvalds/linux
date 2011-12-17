@@ -840,10 +840,12 @@ static const struct net_device_ops brcmf_netdev_ops_pri = {
 };
 
 int
-brcmf_add_if(struct brcmf_pub *drvr, int ifidx, char *name, u8 *mac_addr)
+brcmf_add_if(struct device *dev, int ifidx, char *name, u8 *mac_addr)
 {
 	struct brcmf_if *ifp;
 	struct net_device *ndev;
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_pub *drvr = bus_if->drvr;
 
 	brcmf_dbg(TRACE, "idx %d\n", ifidx);
 
@@ -937,6 +939,7 @@ struct brcmf_pub *brcmf_attach(struct brcmf_sdio *bus, uint bus_hdrlen,
 	drvr->bus = bus;
 	drvr->hdrlen = bus_hdrlen;
 	drvr->bus_if = dev_get_drvdata(dev);
+	drvr->bus_if->drvr = drvr;
 	drvr->dev = dev;
 
 	/* Attach and link in the protocol */
@@ -1108,6 +1111,7 @@ void brcmf_detach(struct brcmf_pub *drvr)
 		if (drvr->prot)
 			brcmf_proto_detach(drvr);
 
+		drvr->bus_if->drvr = NULL;
 		kfree(drvr);
 	}
 }

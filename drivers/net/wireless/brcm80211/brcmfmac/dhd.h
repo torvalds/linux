@@ -574,6 +574,7 @@ struct brcmf_dcmd {
 struct brcmf_bus {
 	u8 type;		/* bus type */
 	void *bus_priv;		/* pointer to bus private structure */
+	void *drvr;		/* pointer to driver pub structure brcmf_pub */
 	enum brcmf_bus_state state;
 };
 
@@ -743,7 +744,7 @@ extern int brcmf_c_host_event(struct brcmf_pub *drvr, int *idx,
 			      void *pktdata, struct brcmf_event_msg *,
 			      void **data_ptr);
 
-extern int brcmf_add_if(struct brcmf_pub *drvr, int ifidx,
+extern int brcmf_add_if(struct device *dev, int ifidx,
 			char *name, u8 *mac_addr);
 extern void brcmf_del_if(struct brcmf_pub *drvr, int ifidx);
 

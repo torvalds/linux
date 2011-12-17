@@ -473,7 +473,7 @@ brcmf_c_host_event(struct brcmf_pub *drvr, int *ifidx, void *pktdata,
 
 		if (ifevent->ifidx > 0 && ifevent->ifidx < BRCMF_MAX_IFS) {
 			if (ifevent->action == BRCMF_E_IF_ADD)
-				brcmf_add_if(drvr, ifevent->ifidx,
+				brcmf_add_if(drvr->dev, ifevent->ifidx,
 					     event->ifname,
 					     pvt_data->eth.h_dest);
 			else
