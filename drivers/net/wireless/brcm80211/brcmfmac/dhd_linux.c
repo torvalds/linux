@@ -1089,7 +1089,7 @@ static void brcmf_bus_detach(struct brcmf_pub *drvr)
 		brcmf_proto_stop(drvr);
 
 		/* Stop the bus module */
-		brcmf_sdbrcm_bus_stop(drvr->dev);
+		drvr->bus_if->brcmf_bus_stop(drvr->dev);
 	}
 }
 

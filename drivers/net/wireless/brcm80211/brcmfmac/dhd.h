@@ -581,6 +581,10 @@ struct brcmf_bus {
 	unsigned long tx_realloc;	/* Tx packets realloced for headroom */
 	struct dngl_stats dstats;	/* Stats for dongle-based data */
 	u8 align;		/* bus alignment requirement */
+
+	/* interface functions pointers */
+	/* Stop bus module: clear pending frames, disable data flow */
+	void (*brcmf_bus_stop)(struct device *);
 };
 
 /* Forward decls for struct brcmf_pub (see below) */
