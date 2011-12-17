@@ -580,6 +580,7 @@ struct brcmf_bus {
 	bool drvr_up;		/* Status flag of driver up/down */
 	unsigned long tx_realloc;	/* Tx packets realloced for headroom */
 	struct dngl_stats dstats;	/* Stats for dongle-based data */
+	u8 align;		/* bus alignment requirement */
 };
 
 /* Forward decls for struct brcmf_pub (see below) */

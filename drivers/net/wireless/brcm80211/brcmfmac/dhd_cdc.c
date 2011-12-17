@@ -82,13 +82,14 @@ struct brcmf_proto_bdc_header {
 
 
 #define RETRIES 2 /* # of retries to retrieve matching dcmd response */
-#define BUS_HEADER_LEN	(16+BRCMF_SDALIGN) /* Must be atleast SDPCM_RESERVE
+#define BUS_HEADER_LEN	(16+64)		/* Must be atleast SDPCM_RESERVE
 					 * (amount of header tha might be added)
 					 * plus any space that might be needed
-					 * for alignment padding.
+					 * for bus alignment padding.
 					 */
-#define ROUND_UP_MARGIN	2048	/* Biggest SDIO block size possible for
+#define ROUND_UP_MARGIN	2048	/* Biggest bus block size possible for
 				 * round off at the end of buffer
+				 * Currently is SDIO
 				 */
 
 struct brcmf_proto {

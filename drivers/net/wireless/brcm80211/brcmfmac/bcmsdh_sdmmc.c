@@ -488,6 +488,7 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 		sdiodev->bus_if = bus_if;
 		bus_if->bus_priv = sdiodev;
 		bus_if->type = SDIO_BUS;
+		bus_if->align = BRCMF_SDALIGN;
 		dev_set_drvdata(&func->card->dev, sdiodev);
 
 		atomic_set(&sdiodev->suspend, false);

@@ -798,7 +798,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_pub *drvr)
 				 "event_msgs" + '\0' + bitvec  */
 	uint up = 0;
 	char buf[128], *ptr;
-	u32 dongle_align = BRCMF_SDALIGN;
+	u32 dongle_align = drvr->bus_if->align;
 	u32 glom = 0;
 	u32 roaming = 1;
 	uint bcn_timeout = 3;

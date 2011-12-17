@@ -116,6 +116,12 @@
 #define SUCCESS	0
 #define ERROR	1
 
+/* Packet alignment for most efficient SDIO (can change based on platform) */
+#define BRCMF_SDALIGN	(1 << 6)
+
+/* watchdog polling interval in ms */
+#define BRCMF_WD_POLL_MS	10
+
 struct brcmf_sdreg {
 	int func;
 	int offset;

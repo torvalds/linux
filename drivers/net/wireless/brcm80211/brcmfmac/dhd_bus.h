@@ -17,12 +17,6 @@
 #ifndef _BRCMF_BUS_H_
 #define _BRCMF_BUS_H_
 
-/* Packet alignment for most efficient SDIO (can change based on platform) */
-#define BRCMF_SDALIGN	(1 << 6)
-
-/* watchdog polling interval in ms */
-#define BRCMF_WD_POLL_MS	10
-
 /*
  * Exported from brcmf bus module (brcmf_usb, brcmf_sdio)
  */
