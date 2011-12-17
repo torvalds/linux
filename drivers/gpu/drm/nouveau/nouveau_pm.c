@@ -162,6 +162,7 @@ nouveau_pm_profile_set(struct drm_device *dev, const char *profile)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
 	struct nouveau_pm_level *perflvl = NULL;
+	long pl;
 
 	/* safety precaution, for now */
 	if (nouveau_perflvl_wr != 7777)
@@ -170,8 +171,9 @@ nouveau_pm_profile_set(struct drm_device *dev, const char *profile)
 	if (!strncmp(profile, "boot", 4))
 		perflvl = &pm->boot;
 	else {
-		int pl = simple_strtol(profile, NULL, 10);
 		int i;
+		if (kstrtol(profile, 10, &pl) == -EINVAL)
+			return -EINVAL;
 
 		for (i = 0; i < pm->nr_perflvl; i++) {
 			if (pm->perflvl[i].id == pl) {
@@ -397,7 +399,7 @@ nouveau_hwmon_set_max_temp(struct device *d, struct device_attribute *a,
 	struct nouveau_pm_threshold_temp *temp = &pm->threshold_temp;
 	long value;
 
-	if (strict_strtol(buf, 10, &value) == -EINVAL)
+	if (kstrtol(buf, 10, &value) == -EINVAL)
 		return count;
 
 	temp->down_clock = value/1000;
@@ -432,7 +434,7 @@ nouveau_hwmon_set_critical_temp(struct device *d, struct device_attribute *a,
 	struct nouveau_pm_threshold_temp *temp = &pm->threshold_temp;
 	long value;
 
-	if (strict_strtol(buf, 10, &value) == -EINVAL)
+	if (kstrtol(buf, 10, &value) == -EINVAL)
 		return count;
 
 	temp->critical = value/1000;
@@ -529,7 +531,7 @@ nouveau_hwmon_set_pwm0(struct device *d, struct device_attribute *a,
 	if (nouveau_perflvl_wr != 7777)
 		return -EPERM;
 
-	if (strict_strtol(buf, 10, &value) == -EINVAL)
+	if (kstrtol(buf, 10, &value) == -EINVAL)
 		return -EINVAL;
 
 	if (value < pm->fan.min_duty)
@@ -568,7 +570,7 @@ nouveau_hwmon_set_pwm0_min(struct device *d, struct device_attribute *a,
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
 	long value;
 
-	if (strict_strtol(buf, 10, &value) == -EINVAL)
+	if (kstrtol(buf, 10, &value) == -EINVAL)
 		return -EINVAL;
 
 	if (value < 0)
@@ -609,7 +611,7 @@ nouveau_hwmon_set_pwm0_max(struct device *d, struct device_attribute *a,
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
 	long value;
 
-	if (strict_strtol(buf, 10, &value) == -EINVAL)
+	if (kstrtol(buf, 10, &value) == -EINVAL)
 		return -EINVAL;
 
 	if (value < 0)
@@ -731,8 +733,10 @@ nouveau_hwmon_fini(struct drm_device *dev)
 
 	if (pm->hwmon) {
 		sysfs_remove_group(&dev->pdev->dev.kobj, &hwmon_attrgroup);
-		sysfs_remove_group(&dev->pdev->dev.kobj, &hwmon_pwm_fan_attrgroup);
-		sysfs_remove_group(&dev->pdev->dev.kobj, &hwmon_fan_rpm_attrgroup);
+		sysfs_remove_group(&dev->pdev->dev.kobj,
+				   &hwmon_pwm_fan_attrgroup);
+		sysfs_remove_group(&dev->pdev->dev.kobj,
+				   &hwmon_fan_rpm_attrgroup);
 
 		hwmon_device_unregister(pm->hwmon);
 	}

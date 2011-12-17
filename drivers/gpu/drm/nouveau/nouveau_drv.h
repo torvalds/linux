@@ -448,14 +448,14 @@ struct nouveau_pm_memtiming {
 	u8 WR;
 };
 
-struct nouveau_pm_tbl_header{
+struct nouveau_pm_tbl_header {
 	u8 version;
 	u8 header_len;
 	u8 entry_cnt;
 	u8 entry_len;
 };
 
-struct nouveau_pm_tbl_entry{
+struct nouveau_pm_tbl_entry {
 	u8 tWR;
 	u8 tUNK_1;
 	u8 tCL;
@@ -470,11 +470,6 @@ struct nouveau_pm_tbl_entry{
 	u8 empty_15,empty_16,empty_17;
 	u8 tUNK_18, tUNK_19, tUNK_20, tUNK_21;
 };
-
-/* nouveau_mem.c */
-void nv30_mem_timing_entry(struct drm_device *dev, struct nouveau_pm_tbl_header *hdr,
-							struct nouveau_pm_tbl_entry *e, uint8_t magic_number,
-							struct nouveau_pm_memtiming *timing);
 
 #define NOUVEAU_PM_MAX_LEVEL 8
 struct nouveau_pm_level {
@@ -918,6 +913,10 @@ extern void nv10_mem_put_tile_region(struct drm_device *dev,
 				     struct nouveau_fence *fence);
 extern const struct ttm_mem_type_manager_func nouveau_vram_manager;
 extern const struct ttm_mem_type_manager_func nouveau_gart_manager;
+void nv30_mem_timing_entry(struct drm_device *dev,
+			   struct nouveau_pm_tbl_header *hdr,
+			   struct nouveau_pm_tbl_entry *e, uint8_t magic_number,
+			   struct nouveau_pm_memtiming *timing);
 
 /* nouveau_notifier.c */
 extern int  nouveau_notifier_init_channel(struct nouveau_channel *);

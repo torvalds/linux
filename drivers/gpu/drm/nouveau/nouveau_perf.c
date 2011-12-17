@@ -230,18 +230,20 @@ nouveau_perf_init(struct drm_device *dev)
 	}
 
 	if (entries > NOUVEAU_PM_MAX_LEVEL) {
-		NV_DEBUG(dev, "perf table has too many entries - buggy vbios?\n");
+		NV_DEBUG(dev,
+			 "perf table has too many entries - buggy vbios?\n");
 		entries = NOUVEAU_PM_MAX_LEVEL;
 	}
 
 	entry = perf + headerlen;
 
 	/* For version 0x15, initialize memtiming table */
-	if(version == 0x15) {
-		memtimings->timing =
-				kcalloc(entries, sizeof(*memtimings->timing), GFP_KERNEL);
+	if (version == 0x15) {
+		memtimings->timing = kcalloc(entries,
+					     sizeof(*memtimings->timing),
+					     GFP_KERNEL);
 		if (!memtimings->timing) {
-			NV_WARN(dev,"Could not allocate memtiming table\n");
+			NV_WARN(dev, "Could not allocate memtiming table\n");
 			return;
 		}
 
@@ -304,7 +306,7 @@ nouveau_perf_init(struct drm_device *dev)
 			perflvl->dom6 = ROM16(entry[20]) * 1000;
 			break;
 		case 0x40:
-#define subent(n) (ROM16(entry[perf[2] + ((n) * perf[3])]) & 0xfff) * 1000
+#define subent(n) ((ROM16(entry[perf[2] + ((n) * perf[3])]) & 0xfff) * 1000)
 			perflvl->fanspeed = 0; /*XXX*/
 			perflvl->volt_min = entry[2];
 			if (dev_priv->card_type == NV_50) {
@@ -342,7 +344,9 @@ nouveau_perf_init(struct drm_device *dev)
 		/* get the corresponding memory timings */
 		if (version == 0x15) {
 			memtimings->timing[i].id = i;
-			nv30_mem_timing_entry(dev,&mt_hdr,(struct nouveau_pm_tbl_entry*) &entry[41],0,&memtimings->timing[i]);
+			nv30_mem_timing_entry(dev, &mt_hdr,
+				     (struct nouveau_pm_tbl_entry *) &entry[41],
+				     0, &memtimings->timing[i]);
 			perflvl->timing = &memtimings->timing[i];
 		} else if (version > 0x15) {
 			/* last 3 args are for < 0x40, ignored for >= 0x40 */
