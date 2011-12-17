@@ -98,7 +98,9 @@ read_pll(struct drm_device *dev, int clk, u32 pll)
 		sclk = read_clk(dev, 0x10 + clk, false);
 	}
 
-	return sclk * N / (M * P);
+	if (M * P)
+		return sclk * N / (M * P);
+	return 0;
 }
 
 struct creg {
@@ -182,23 +184,26 @@ prog_pll(struct drm_device *dev, int clk, u32 pll, struct creg *reg)
 	const u32 src1 = 0x004160 + (clk * 4);
 	const u32 ctrl = pll + 0;
 	const u32 coef = pll + 4;
-	u32 cntl;
 
 	if (!reg->clk && !reg->pll) {
 		NV_DEBUG(dev, "no clock for %02x\n", clk);
 		return;
 	}
 
-	cntl = nv_rd32(dev, ctrl) & 0xfffffff2;
 	if (reg->pll) {
 		nv_mask(dev, src0, 0x00000101, 0x00000101);
 		nv_wr32(dev, coef, reg->pll);
-		nv_wr32(dev, ctrl, cntl | 0x00000015);
+		nv_mask(dev, ctrl, 0x00000015, 0x00000015);
+		nv_mask(dev, ctrl, 0x00000010, 0x00000000);
+		nv_wait(dev, ctrl, 0x00020000, 0x00020000);
+		nv_mask(dev, ctrl, 0x00000010, 0x00000010);
+		nv_mask(dev, ctrl, 0x00000008, 0x00000000);
 		nv_mask(dev, src1, 0x00000100, 0x00000000);
 		nv_mask(dev, src1, 0x00000001, 0x00000000);
 	} else {
 		nv_mask(dev, src1, 0x003f3141, 0x00000101 | reg->clk);
-		nv_wr32(dev, ctrl, cntl | 0x0000001d);
+		nv_mask(dev, ctrl, 0x00000018, 0x00000018);
+		udelay(20);
 		nv_mask(dev, ctrl, 0x00000001, 0x00000000);
 		nv_mask(dev, src0, 0x00000100, 0x00000000);
 		nv_mask(dev, src0, 0x00000001, 0x00000000);
