@@ -31,9 +31,7 @@
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
 #include "sdio_host.h"
-#include "dhd.h"
 #include "dhd_dbg.h"
-#include "wl_cfg80211.h"
 #include "dhd_bus.h"
 
 #define SDIO_VENDOR_ID_BROADCOM		0x02d0

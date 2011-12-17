@@ -31,7 +31,6 @@
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
 #include <soc.h>
-#include "dhd.h"
 #include "dhd_bus.h"
 #include "dhd_dbg.h"
 #include "sdio_host.h"

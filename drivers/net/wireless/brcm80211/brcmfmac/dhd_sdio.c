@@ -87,9 +87,7 @@ struct rte_console {
 #endif				/* BCMDBG */
 #include <chipcommon.h>
 
-#include "dhd.h"
 #include "dhd_bus.h"
-#include "dhd_proto.h"
 #include "dhd_dbg.h"
 
 #define TXQLEN		2048	/* bulk tx queue length */
