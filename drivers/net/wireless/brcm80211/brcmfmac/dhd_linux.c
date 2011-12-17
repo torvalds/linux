@@ -381,7 +381,7 @@ static int brcmf_host_event(struct brcmf_pub *drvr, int *ifidx,
 	return bcmerror;
 }
 
-void brcmf_rx_frame(struct brcmf_pub *drvr, int ifidx,
+void brcmf_rx_frame(struct device *dev, int ifidx,
 		    struct sk_buff_head *skb_list)
 {
 	unsigned char *eth;
@@ -390,6 +390,8 @@ void brcmf_rx_frame(struct brcmf_pub *drvr, int ifidx,
 	struct sk_buff *skb, *pnext;
 	struct brcmf_if *ifp;
 	struct brcmf_event_msg event;
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_pub *drvr = bus_if->drvr;
 
 	brcmf_dbg(TRACE, "Enter\n");
 

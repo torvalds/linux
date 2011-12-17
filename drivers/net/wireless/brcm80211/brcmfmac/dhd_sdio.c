@@ -1461,7 +1461,7 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 		/* sent any remaining packets up */
 		if (bus->glom.qlen) {
 			up(&bus->sdsem);
-			brcmf_rx_frame(bus->drvr, ifidx, &bus->glom);
+			brcmf_rx_frame(bus->sdiodev->dev, ifidx, &bus->glom);
 			down(&bus->sdsem);
 		}
 
@@ -2062,7 +2062,7 @@ deliver:
 
 		/* Unlock during rx call */
 		up(&bus->sdsem);
-		brcmf_rx_packet(bus->drvr, ifidx, pkt);
+		brcmf_rx_packet(bus->sdiodev->dev, ifidx, pkt);
 		down(&bus->sdsem);
 	}
 	rxcount = maxframes - rxleft;

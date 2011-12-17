@@ -712,16 +712,16 @@ extern bool brcmf_c_prec_enq(struct device *dev, struct pktq *q,
 			 struct sk_buff *pkt, int prec);
 
 /* Receive frame for delivery to OS.  Callee disposes of rxp. */
-extern void brcmf_rx_frame(struct brcmf_pub *drvr, int ifidx,
+extern void brcmf_rx_frame(struct device *dev, int ifidx,
 			   struct sk_buff_head *rxlist);
-static inline void brcmf_rx_packet(struct brcmf_pub *drvr, int ifidx,
+static inline void brcmf_rx_packet(struct device *dev, int ifidx,
 				   struct sk_buff *pkt)
 {
 	struct sk_buff_head q;
 
 	skb_queue_head_init(&q);
 	skb_queue_tail(&q, pkt);
-	brcmf_rx_frame(drvr, ifidx, &q);
+	brcmf_rx_frame(dev, ifidx, &q);
 }
 
 /* Return pointer to interface name */
