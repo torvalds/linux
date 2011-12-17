@@ -1137,7 +1137,9 @@ cntrlEnd:
 		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
 			return -EFAULT;
 
-		/* FIXME: restrict length */
+		if (IoBuffer.InputLength < sizeof(ULONG) * 2)
+			return -EINVAL;
+
 		pvBuffer = kmalloc(IoBuffer.InputLength, GFP_KERNEL);
 		if (!pvBuffer)
 			return -ENOMEM;
