@@ -34,7 +34,6 @@ dbx500_add_amba_device(const char *name, resource_size_t base,
 	dev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 
 	dev->irq[0] = irq;
-	dev->irq[1] = NO_IRQ;
 
 	dev->periphid = periphid;
 
