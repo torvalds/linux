@@ -299,11 +299,8 @@ xfs_iformat(
 {
 	xfs_attr_shortform_t	*atp;
 	int			size;
-	int			error;
+	int			error = 0;
 	xfs_fsize_t             di_size;
-	ip->i_df.if_ext_max =
-		XFS_IFORK_DSIZE(ip) / (uint)sizeof(xfs_bmbt_rec_t);
-	error = 0;
 
 	if (unlikely(be32_to_cpu(dip->di_nextents) +
 		     be16_to_cpu(dip->di_anextents) >
@@ -409,10 +406,10 @@ xfs_iformat(
 	}
 	if (!XFS_DFORK_Q(dip))
 		return 0;
+
 	ASSERT(ip->i_afp == NULL);
 	ip->i_afp = kmem_zone_zalloc(xfs_ifork_zone, KM_SLEEP | KM_NOFS);
-	ip->i_afp->if_ext_max =
-		XFS_IFORK_ASIZE(ip) / (uint)sizeof(xfs_bmbt_rec_t);
+
 	switch (dip->di_aformat) {
 	case XFS_DINODE_FMT_LOCAL:
 		atp = (xfs_attr_shortform_t *)XFS_DFORK_APTR(dip);
@@ -604,10 +601,11 @@ xfs_iformat_btree(
 	 * or the number of extents is greater than the number of
 	 * blocks.
 	 */
-	if (unlikely(XFS_IFORK_NEXTENTS(ip, whichfork) <= ifp->if_ext_max
-	    || XFS_BMDR_SPACE_CALC(nrecs) >
-			XFS_DFORK_SIZE(dip, ip->i_mount, whichfork)
-	    || XFS_IFORK_NEXTENTS(ip, whichfork) > ip->i_d.di_nblocks)) {
+	if (unlikely(XFS_IFORK_NEXTENTS(ip, whichfork) <=
+			XFS_IFORK_MAXEXT(ip, whichfork) ||
+		     XFS_BMDR_SPACE_CALC(nrecs) >
+			XFS_DFORK_SIZE(dip, ip->i_mount, whichfork) ||
+		     XFS_IFORK_NEXTENTS(ip, whichfork) > ip->i_d.di_nblocks)) {
 		xfs_warn(ip->i_mount, "corrupt inode %Lu (btree).",
 			(unsigned long long) ip->i_ino);
 		XFS_CORRUPTION_ERROR("xfs_iformat_btree", XFS_ERRLEVEL_LOW,
@@ -835,12 +833,6 @@ xfs_iread(
 		 * with the uninitialized part of it.
 		 */
 		ip->i_d.di_mode = 0;
-		/*
-		 * Initialize the per-fork minima and maxima for a new
-		 * inode here.  xfs_iformat will do it for old inodes.
-		 */
-		ip->i_df.if_ext_max =
-			XFS_IFORK_DSIZE(ip) / (uint)sizeof(xfs_bmbt_rec_t);
 	}
 
 	/*
@@ -1740,8 +1732,6 @@ xfs_ifree(
 	ip->i_d.di_flags = 0;
 	ip->i_d.di_dmevmask = 0;
 	ip->i_d.di_forkoff = 0;		/* mark the attr fork not in use */
-	ip->i_df.if_ext_max =
-		XFS_IFORK_DSIZE(ip) / (uint)sizeof(xfs_bmbt_rec_t);
 	ip->i_d.di_format = XFS_DINODE_FMT_EXTENTS;
 	ip->i_d.di_aformat = XFS_DINODE_FMT_EXTENTS;
 	/*
@@ -2408,7 +2398,7 @@ xfs_iflush(
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_ILOCK_SHARED));
 	ASSERT(!completion_done(&ip->i_flush));
 	ASSERT(ip->i_d.di_format != XFS_DINODE_FMT_BTREE ||
-	       ip->i_d.di_nextents > ip->i_df.if_ext_max);
+	       ip->i_d.di_nextents > XFS_IFORK_MAXEXT(ip, XFS_DATA_FORK));
 
 	iip = ip->i_itemp;
 	mp = ip->i_mount;
@@ -2524,7 +2514,7 @@ xfs_iflush_int(
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_ILOCK_SHARED));
 	ASSERT(!completion_done(&ip->i_flush));
 	ASSERT(ip->i_d.di_format != XFS_DINODE_FMT_BTREE ||
-	       ip->i_d.di_nextents > ip->i_df.if_ext_max);
+	       ip->i_d.di_nextents > XFS_IFORK_MAXEXT(ip, XFS_DATA_FORK));
 
 	iip = ip->i_itemp;
 	mp = ip->i_mount;

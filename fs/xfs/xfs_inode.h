@@ -66,7 +66,6 @@ typedef struct xfs_ifork {
 	struct xfs_btree_block	*if_broot;	/* file's incore btree root */
 	short			if_broot_bytes;	/* bytes allocated for root */
 	unsigned char		if_flags;	/* per-fork flags */
-	unsigned char		if_ext_max;	/* max # of extent records */
 	union {
 		xfs_bmbt_rec_host_t *if_extents;/* linear map file exts */
 		xfs_ext_irec_t	*if_ext_irec;	/* irec map file exts */
@@ -206,7 +205,8 @@ typedef struct xfs_icdinode {
 	((w) == XFS_DATA_FORK ? \
 		((ip)->i_d.di_nextents = (n)) : \
 		((ip)->i_d.di_anextents = (n)))
-
+#define XFS_IFORK_MAXEXT(ip, w) \
+	(XFS_IFORK_SIZE(ip, w) / sizeof(xfs_bmbt_rec_t))
 
 
 #ifdef __KERNEL__

@@ -450,8 +450,6 @@ again:
 
 	*ipp = ip;
 
-	ASSERT(ip->i_df.if_ext_max ==
-	       XFS_IFORK_DSIZE(ip) / sizeof(xfs_bmbt_rec_t));
 	/*
 	 * If we have a real type for an on-disk inode, we can set ops(&unlock)
 	 * now.	 If it's a new inode being created, xfs_ialloc will handle it.

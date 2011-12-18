@@ -1568,7 +1568,6 @@ DECLARE_EVENT_CLASS(xfs_swap_extent_class,
 		__field(xfs_ino_t, ino)
 		__field(int, format)
 		__field(int, nex)
-		__field(int, max_nex)
 		__field(int, broot_size)
 		__field(int, fork_off)
 	),
@@ -1578,18 +1577,16 @@ DECLARE_EVENT_CLASS(xfs_swap_extent_class,
 		__entry->ino = ip->i_ino;
 		__entry->format = ip->i_d.di_format;
 		__entry->nex = ip->i_d.di_nextents;
-		__entry->max_nex = ip->i_df.if_ext_max;
 		__entry->broot_size = ip->i_df.if_broot_bytes;
 		__entry->fork_off = XFS_IFORK_BOFF(ip);
 	),
 	TP_printk("dev %d:%d ino 0x%llx (%s), %s format, num_extents %d, "
-		  "Max in-fork extents %d, broot size %d, fork offset %d",
+		  "broot size %d, fork offset %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __print_symbolic(__entry->which, XFS_SWAPEXT_INODES),
 		  __print_symbolic(__entry->format, XFS_INODE_FORMAT_STR),
 		  __entry->nex,
-		  __entry->max_nex,
 		  __entry->broot_size,
 		  __entry->fork_off)
 )
