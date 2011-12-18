@@ -58,15 +58,15 @@ static struct pl061_platform_data gpio3_plat_data = {
 	.irq_base	= IRQ_GPIO3_START,
 };
 
-#define UART3_IRQ	{ IRQ_SIC_UART3, NO_IRQ }
-#define SCI1_IRQ	{ IRQ_SIC_SCI3, NO_IRQ }
+#define UART3_IRQ	{ IRQ_SIC_UART3 }
+#define SCI1_IRQ	{ IRQ_SIC_SCI3 }
 #define MMCI1_IRQ	{ IRQ_MMCI1A, IRQ_SIC_MMCI1B }
 
 /*
  * These devices are connected via the core APB bridge
  */
-#define GPIO2_IRQ	{ IRQ_GPIOINT2, NO_IRQ }
-#define GPIO3_IRQ	{ IRQ_GPIOINT3, NO_IRQ }
+#define GPIO2_IRQ	{ IRQ_GPIOINT2 }
+#define GPIO3_IRQ	{ IRQ_GPIOINT3 }
 
 /*
  * These devices are connected via the DMA APB bridge

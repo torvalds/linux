@@ -370,7 +370,7 @@ static struct amba_device aaci_device = {
 		.end	= INTEGRATOR_CP_AACI_BASE + SZ_4K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
-	.irq		= { IRQ_CP_AACIINT, NO_IRQ },
+	.irq		= { IRQ_CP_AACIINT },
 	.periphid	= 0,
 };
 
@@ -437,7 +437,7 @@ static struct amba_device clcd_device = {
 		.flags	= IORESOURCE_MEM,
 	},
 	.dma_mask	= ~0,
-	.irq		= { IRQ_CP_CLCDCINT, NO_IRQ },
+	.irq		= { IRQ_CP_CLCDCINT },
 	.periphid	= 0,
 };
 

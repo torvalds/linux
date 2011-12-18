@@ -144,27 +144,27 @@ static struct pl022_ssp_controller ssp0_plat_data = {
  * RealView PBXCore AMBA devices
  */
 
-#define GPIO2_IRQ		{ IRQ_PBX_GPIO2, NO_IRQ }
-#define GPIO3_IRQ		{ IRQ_PBX_GPIO3, NO_IRQ }
-#define AACI_IRQ		{ IRQ_PBX_AACI, NO_IRQ }
+#define GPIO2_IRQ		{ IRQ_PBX_GPIO2 }
+#define GPIO3_IRQ		{ IRQ_PBX_GPIO3 }
+#define AACI_IRQ		{ IRQ_PBX_AACI }
 #define MMCI0_IRQ		{ IRQ_PBX_MMCI0A, IRQ_PBX_MMCI0B }
-#define KMI0_IRQ		{ IRQ_PBX_KMI0, NO_IRQ }
-#define KMI1_IRQ		{ IRQ_PBX_KMI1, NO_IRQ }
-#define PBX_SMC_IRQ		{ NO_IRQ, NO_IRQ }
-#define MPMC_IRQ		{ NO_IRQ, NO_IRQ }
-#define PBX_CLCD_IRQ		{ IRQ_PBX_CLCD, NO_IRQ }
-#define DMAC_IRQ		{ IRQ_PBX_DMAC, NO_IRQ }
-#define SCTL_IRQ		{ NO_IRQ, NO_IRQ }
-#define PBX_WATCHDOG_IRQ	{ IRQ_PBX_WATCHDOG, NO_IRQ }
-#define PBX_GPIO0_IRQ		{ IRQ_PBX_GPIO0, NO_IRQ }
-#define GPIO1_IRQ		{ IRQ_PBX_GPIO1, NO_IRQ }
-#define PBX_RTC_IRQ		{ IRQ_PBX_RTC, NO_IRQ }
-#define SCI_IRQ			{ IRQ_PBX_SCI, NO_IRQ }
-#define PBX_UART0_IRQ		{ IRQ_PBX_UART0, NO_IRQ }
-#define PBX_UART1_IRQ		{ IRQ_PBX_UART1, NO_IRQ }
-#define PBX_UART2_IRQ		{ IRQ_PBX_UART2, NO_IRQ }
-#define PBX_UART3_IRQ		{ IRQ_PBX_UART3, NO_IRQ }
-#define PBX_SSP_IRQ		{ IRQ_PBX_SSP, NO_IRQ }
+#define KMI0_IRQ		{ IRQ_PBX_KMI0 }
+#define KMI1_IRQ		{ IRQ_PBX_KMI1 }
+#define PBX_SMC_IRQ		{ }
+#define MPMC_IRQ		{ }
+#define PBX_CLCD_IRQ		{ IRQ_PBX_CLCD }
+#define DMAC_IRQ		{ IRQ_PBX_DMAC }
+#define SCTL_IRQ		{ }
+#define PBX_WATCHDOG_IRQ	{ IRQ_PBX_WATCHDOG }
+#define PBX_GPIO0_IRQ		{ IRQ_PBX_GPIO0 }
+#define GPIO1_IRQ		{ IRQ_PBX_GPIO1 }
+#define PBX_RTC_IRQ		{ IRQ_PBX_RTC }
+#define SCI_IRQ			{ IRQ_PBX_SCI }
+#define PBX_UART0_IRQ		{ IRQ_PBX_UART0 }
+#define PBX_UART1_IRQ		{ IRQ_PBX_UART1 }
+#define PBX_UART2_IRQ		{ IRQ_PBX_UART2 }
+#define PBX_UART3_IRQ		{ IRQ_PBX_UART3 }
+#define PBX_SSP_IRQ		{ IRQ_PBX_SSP }
 
 /* FPGA Primecells */
 AMBA_DEVICE(aaci,	"fpga:aaci",	AACI,		NULL);

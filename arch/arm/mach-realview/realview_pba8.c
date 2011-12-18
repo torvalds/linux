@@ -122,27 +122,27 @@ static struct pl022_ssp_controller ssp0_plat_data = {
  * RealView PBA8Core AMBA devices
  */
 
-#define GPIO2_IRQ		{ IRQ_PBA8_GPIO2, NO_IRQ }
-#define GPIO3_IRQ		{ IRQ_PBA8_GPIO3, NO_IRQ }
-#define AACI_IRQ		{ IRQ_PBA8_AACI, NO_IRQ }
+#define GPIO2_IRQ		{ IRQ_PBA8_GPIO2 }
+#define GPIO3_IRQ		{ IRQ_PBA8_GPIO3 }
+#define AACI_IRQ		{ IRQ_PBA8_AACI }
 #define MMCI0_IRQ		{ IRQ_PBA8_MMCI0A, IRQ_PBA8_MMCI0B }
-#define KMI0_IRQ		{ IRQ_PBA8_KMI0, NO_IRQ }
-#define KMI1_IRQ		{ IRQ_PBA8_KMI1, NO_IRQ }
-#define PBA8_SMC_IRQ		{ NO_IRQ, NO_IRQ }
-#define MPMC_IRQ		{ NO_IRQ, NO_IRQ }
-#define PBA8_CLCD_IRQ		{ IRQ_PBA8_CLCD, NO_IRQ }
-#define DMAC_IRQ		{ IRQ_PBA8_DMAC, NO_IRQ }
-#define SCTL_IRQ		{ NO_IRQ, NO_IRQ }
-#define PBA8_WATCHDOG_IRQ	{ IRQ_PBA8_WATCHDOG, NO_IRQ }
-#define PBA8_GPIO0_IRQ		{ IRQ_PBA8_GPIO0, NO_IRQ }
-#define GPIO1_IRQ		{ IRQ_PBA8_GPIO1, NO_IRQ }
-#define PBA8_RTC_IRQ		{ IRQ_PBA8_RTC, NO_IRQ }
-#define SCI_IRQ			{ IRQ_PBA8_SCI, NO_IRQ }
-#define PBA8_UART0_IRQ		{ IRQ_PBA8_UART0, NO_IRQ }
-#define PBA8_UART1_IRQ		{ IRQ_PBA8_UART1, NO_IRQ }
-#define PBA8_UART2_IRQ		{ IRQ_PBA8_UART2, NO_IRQ }
-#define PBA8_UART3_IRQ		{ IRQ_PBA8_UART3, NO_IRQ }
-#define PBA8_SSP_IRQ		{ IRQ_PBA8_SSP, NO_IRQ }
+#define KMI0_IRQ		{ IRQ_PBA8_KMI0 }
+#define KMI1_IRQ		{ IRQ_PBA8_KMI1 }
+#define PBA8_SMC_IRQ		{ }
+#define MPMC_IRQ		{ }
+#define PBA8_CLCD_IRQ		{ IRQ_PBA8_CLCD }
+#define DMAC_IRQ		{ IRQ_PBA8_DMAC }
+#define SCTL_IRQ		{ }
+#define PBA8_WATCHDOG_IRQ	{ IRQ_PBA8_WATCHDOG }
+#define PBA8_GPIO0_IRQ		{ IRQ_PBA8_GPIO0 }
+#define GPIO1_IRQ		{ IRQ_PBA8_GPIO1 }
+#define PBA8_RTC_IRQ		{ IRQ_PBA8_RTC }
+#define SCI_IRQ			{ IRQ_PBA8_SCI }
+#define PBA8_UART0_IRQ		{ IRQ_PBA8_UART0 }
+#define PBA8_UART1_IRQ		{ IRQ_PBA8_UART1 }
+#define PBA8_UART2_IRQ		{ IRQ_PBA8_UART2 }
+#define PBA8_UART3_IRQ		{ IRQ_PBA8_UART3 }
+#define PBA8_SSP_IRQ		{ IRQ_PBA8_SSP }
 
 /* FPGA Primecells */
 AMBA_DEVICE(aaci,	"fpga:aaci",	AACI,		NULL);

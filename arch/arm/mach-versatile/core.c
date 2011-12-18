@@ -582,36 +582,36 @@ static struct pl022_ssp_controller ssp0_plat_data = {
 	.num_chipselect = 1,
 };
 
-#define AACI_IRQ	{ IRQ_AACI, NO_IRQ }
+#define AACI_IRQ	{ IRQ_AACI }
 #define MMCI0_IRQ	{ IRQ_MMCI0A,IRQ_SIC_MMCI0B }
-#define KMI0_IRQ	{ IRQ_SIC_KMI0, NO_IRQ }
-#define KMI1_IRQ	{ IRQ_SIC_KMI1, NO_IRQ }
+#define KMI0_IRQ	{ IRQ_SIC_KMI0 }
+#define KMI1_IRQ	{ IRQ_SIC_KMI1 }
 
 /*
  * These devices are connected directly to the multi-layer AHB switch
  */
-#define SMC_IRQ		{ NO_IRQ, NO_IRQ }
-#define MPMC_IRQ	{ NO_IRQ, NO_IRQ }
-#define CLCD_IRQ	{ IRQ_CLCDINT, NO_IRQ }
-#define DMAC_IRQ	{ IRQ_DMAINT, NO_IRQ }
+#define SMC_IRQ		{ }
+#define MPMC_IRQ	{ }
+#define CLCD_IRQ	{ IRQ_CLCDINT }
+#define DMAC_IRQ	{ IRQ_DMAINT }
 
 /*
  * These devices are connected via the core APB bridge
  */
-#define SCTL_IRQ	{ NO_IRQ, NO_IRQ }
-#define WATCHDOG_IRQ	{ IRQ_WDOGINT, NO_IRQ }
-#define GPIO0_IRQ	{ IRQ_GPIOINT0, NO_IRQ }
-#define GPIO1_IRQ	{ IRQ_GPIOINT1, NO_IRQ }
-#define RTC_IRQ		{ IRQ_RTCINT, NO_IRQ }
+#define SCTL_IRQ	{ }
+#define WATCHDOG_IRQ	{ IRQ_WDOGINT }
+#define GPIO0_IRQ	{ IRQ_GPIOINT0 }
+#define GPIO1_IRQ	{ IRQ_GPIOINT1 }
+#define RTC_IRQ		{ IRQ_RTCINT }
 
 /*
  * These devices are connected via the DMA APB bridge
  */
-#define SCI_IRQ		{ IRQ_SCIINT, NO_IRQ }
-#define UART0_IRQ	{ IRQ_UARTINT0, NO_IRQ }
-#define UART1_IRQ	{ IRQ_UARTINT1, NO_IRQ }
-#define UART2_IRQ	{ IRQ_UARTINT2, NO_IRQ }
-#define SSP_IRQ		{ IRQ_SSPINT, NO_IRQ }
+#define SCI_IRQ		{ IRQ_SCIINT }
+#define UART0_IRQ	{ IRQ_UARTINT0 }
+#define UART1_IRQ	{ IRQ_UARTINT1 }
+#define UART2_IRQ	{ IRQ_UARTINT2 }
+#define SSP_IRQ		{ IRQ_SSPINT }
 
 /* FPGA Primecells */
 AMBA_DEVICE(aaci,  "fpga:04", AACI,     NULL);
