@@ -3959,31 +3959,8 @@ static int wl1271_op_conf_tx(struct ieee80211_hw *hw,
 	else
 		ps_scheme = CONF_PS_SCHEME_LEGACY;
 
-	if (wl->state == WL1271_STATE_OFF) {
-		/*
-		 * If the state is off, the parameters will be recorded and
-		 * configured on init. This happens in AP-mode.
-		 */
-		struct conf_tx_ac_category *conf_ac =
-			&wl->conf.tx.ac_conf[wl1271_tx_get_queue(queue)];
-		struct conf_tx_tid *conf_tid =
-			&wl->conf.tx.tid_conf[wl1271_tx_get_queue(queue)];
-
-		conf_ac->ac = wl1271_tx_get_queue(queue);
-		conf_ac->cw_min = (u8)params->cw_min;
-		conf_ac->cw_max = params->cw_max;
-		conf_ac->aifsn = params->aifs;
-		conf_ac->tx_op_limit = params->txop << 5;
-
-		conf_tid->queue_id = wl1271_tx_get_queue(queue);
-		conf_tid->channel_type = CONF_CHANNEL_TYPE_EDCF;
-		conf_tid->tsid = wl1271_tx_get_queue(queue);
-		conf_tid->ps_scheme = ps_scheme;
-		conf_tid->ack_policy = CONF_ACK_POLICY_LEGACY;
-		conf_tid->apsd_conf[0] = 0;
-		conf_tid->apsd_conf[1] = 0;
+	if (!test_bit(WLVIF_FLAG_INITIALIZED, &wlvif->flags))
 		goto out;
-	}
 
 	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
