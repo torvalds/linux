@@ -237,7 +237,6 @@ typedef struct xfs_inode {
 	struct xfs_inode_log_item *i_itemp;	/* logging information */
 	mrlock_t		i_lock;		/* inode lock */
 	mrlock_t		i_iolock;	/* inode IO lock */
-	struct completion	i_flush;	/* inode flush completion q */
 	atomic_t		i_pincount;	/* inode pin count */
 	wait_queue_head_t	i_ipin_wait;	/* inode pinning wait queue */
 	spinlock_t		i_flags_lock;	/* inode i_flags lock */
@@ -324,6 +323,19 @@ xfs_iflags_test_and_clear(xfs_inode_t *ip, unsigned short flags)
 	return ret;
 }
 
+static inline int
+xfs_iflags_test_and_set(xfs_inode_t *ip, unsigned short flags)
+{
+	int ret;
+
+	spin_lock(&ip->i_flags_lock);
+	ret = ip->i_flags & flags;
+	if (!ret)
+		ip->i_flags |= flags;
+	spin_unlock(&ip->i_flags_lock);
+	return ret;
+}
+
 /*
  * Project quota id helpers (previously projid was 16bit only
  * and using two 16bit values to hold new 32bit projid was chosen
@@ -344,35 +356,17 @@ xfs_set_projid(struct xfs_inode *ip,
 }
 
 /*
- * Manage the i_flush queue embedded in the inode.  This completion
- * queue synchronizes processes attempting to flush the in-core
- * inode back to disk.
- */
-static inline void xfs_iflock(xfs_inode_t *ip)
-{
-	wait_for_completion(&ip->i_flush);
-}
-
-static inline int xfs_iflock_nowait(xfs_inode_t *ip)
-{
-	return try_wait_for_completion(&ip->i_flush);
-}
-
-static inline void xfs_ifunlock(xfs_inode_t *ip)
-{
-	complete(&ip->i_flush);
-}
-
-/*
  * In-core inode flags.
  */
-#define XFS_IRECLAIM		0x0001  /* started reclaiming this inode */
-#define XFS_ISTALE		0x0002	/* inode has been staled */
-#define XFS_IRECLAIMABLE	0x0004	/* inode can be reclaimed */
-#define XFS_INEW		0x0008	/* inode has just been allocated */
-#define XFS_IFILESTREAM		0x0010	/* inode is in a filestream directory */
-#define XFS_ITRUNCATED		0x0020	/* truncated down so flush-on-close */
-#define XFS_IDIRTY_RELEASE	0x0040	/* dirty release already seen */
+#define XFS_IRECLAIM		(1 << 0) /* started reclaiming this inode */
+#define XFS_ISTALE		(1 << 1) /* inode has been staled */
+#define XFS_IRECLAIMABLE	(1 << 2) /* inode can be reclaimed */
+#define XFS_INEW		(1 << 3) /* inode has just been allocated */
+#define XFS_IFILESTREAM		(1 << 4) /* inode is in a filestream dir. */
+#define XFS_ITRUNCATED		(1 << 5) /* truncated down so flush-on-close */
+#define XFS_IDIRTY_RELEASE	(1 << 6) /* dirty release already seen */
+#define __XFS_IFLOCK_BIT	7	 /* inode is being flushed right now */
+#define XFS_IFLOCK		(1 << __XFS_IFLOCK_BIT)
 
 /*
  * Per-lifetime flags need to be reset when re-using a reclaimable inode during
@@ -383,6 +377,34 @@ static inline void xfs_ifunlock(xfs_inode_t *ip)
 	(XFS_IRECLAIMABLE | XFS_IRECLAIM | \
 	 XFS_IDIRTY_RELEASE | XFS_ITRUNCATED | \
 	 XFS_IFILESTREAM);
+
+/*
+ * Synchronize processes attempting to flush the in-core inode back to disk.
+ */
+
+extern void __xfs_iflock(struct xfs_inode *ip);
+
+static inline int xfs_iflock_nowait(struct xfs_inode *ip)
+{
+	return !xfs_iflags_test_and_set(ip, XFS_IFLOCK);
+}
+
+static inline void xfs_iflock(struct xfs_inode *ip)
+{
+	if (!xfs_iflock_nowait(ip))
+		__xfs_iflock(ip);
+}
+
+static inline void xfs_ifunlock(struct xfs_inode *ip)
+{
+	xfs_iflags_clear(ip, XFS_IFLOCK);
+	wake_up_bit(&ip->i_flags, __XFS_IFLOCK_BIT);
+}
+
+static inline int xfs_isiflocked(struct xfs_inode *ip)
+{
+	return xfs_iflags_test(ip, XFS_IFLOCK);
+}
 
 /*
  * Flags for inode locking.
