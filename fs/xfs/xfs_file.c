@@ -327,7 +327,7 @@ xfs_file_aio_read(
 				mp->m_rtdev_targp : mp->m_ddev_targp;
 		if ((iocb->ki_pos & target->bt_smask) ||
 		    (size & target->bt_smask)) {
-			if (iocb->ki_pos == ip->i_size)
+			if (iocb->ki_pos == i_size_read(inode))
 				return 0;
 			return -XFS_ERROR(EINVAL);
 		}
@@ -412,30 +412,6 @@ xfs_file_splice_read(
 	return ret;
 }
 
-STATIC void
-xfs_aio_write_isize_update(
-	struct inode	*inode,
-	loff_t		*ppos,
-	ssize_t		bytes_written)
-{
-	struct xfs_inode	*ip = XFS_I(inode);
-	xfs_fsize_t		isize = i_size_read(inode);
-
-	if (bytes_written > 0)
-		XFS_STATS_ADD(xs_write_bytes, bytes_written);
-
-	if (unlikely(bytes_written < 0 && bytes_written != -EFAULT &&
-					*ppos > isize))
-		*ppos = isize;
-
-	if (*ppos > ip->i_size) {
-		xfs_rw_ilock(ip, XFS_ILOCK_EXCL);
-		if (*ppos > ip->i_size)
-			ip->i_size = *ppos;
-		xfs_rw_iunlock(ip, XFS_ILOCK_EXCL);
-	}
-}
-
 /*
  * If this was a direct or synchronous I/O that failed (such as ENOSPC) then
  * part of the I/O may have been written to disk before the error occurred.  In
@@ -451,8 +427,8 @@ xfs_aio_write_newsize_update(
 		xfs_rw_ilock(ip, XFS_ILOCK_EXCL);
 		if (new_size == ip->i_new_size)
 			ip->i_new_size = 0;
-		if (ip->i_d.di_size > ip->i_size)
-			ip->i_d.di_size = ip->i_size;
+		if (ip->i_d.di_size > i_size_read(VFS_I(ip)))
+			ip->i_d.di_size = i_size_read(VFS_I(ip));
 		xfs_rw_iunlock(ip, XFS_ILOCK_EXCL);
 	}
 }
@@ -492,15 +468,16 @@ xfs_file_splice_write(
 	new_size = *ppos + count;
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	if (new_size > ip->i_size)
+	if (new_size > i_size_read(inode))
 		ip->i_new_size = new_size;
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 
 	trace_xfs_file_splice_write(ip, count, *ppos, ioflags);
 
 	ret = generic_file_splice_write(pipe, outfilp, ppos, count, flags);
+	if (ret > 0)
+		XFS_STATS_ADD(xs_write_bytes, ret);
 
-	xfs_aio_write_isize_update(inode, ppos, ret);
 	xfs_aio_write_newsize_update(ip, new_size);
 	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 	return ret;
@@ -728,14 +705,14 @@ restart:
 	 * values are still valid.
 	 */
 	if ((ip->i_new_size && *pos > ip->i_new_size) ||
-	    (!ip->i_new_size && *pos > ip->i_size)) {
+	    (!ip->i_new_size && *pos > i_size_read(inode))) {
 		if (*iolock == XFS_IOLOCK_SHARED) {
 			xfs_rw_iunlock(ip, XFS_ILOCK_EXCL | *iolock);
 			*iolock = XFS_IOLOCK_EXCL;
 			xfs_rw_ilock(ip, XFS_ILOCK_EXCL | *iolock);
 			goto restart;
 		}
-		error = -xfs_zero_eof(ip, *pos, ip->i_size);
+		error = -xfs_zero_eof(ip, *pos, i_size_read(inode));
 	}
 
 	/*
@@ -744,7 +721,7 @@ restart:
 	 * ip->i_new_size if this IO ends beyond any other in-flight writes.
 	 */
 	new_size = *pos + *count;
-	if (new_size > ip->i_size) {
+	if (new_size > i_size_read(inode)) {
 		if (new_size > ip->i_new_size)
 			ip->i_new_size = new_size;
 		*new_sizep = new_size;
@@ -957,10 +934,10 @@ xfs_file_aio_write(
 		ret = xfs_file_buffered_aio_write(iocb, iovp, nr_segs, pos,
 						ocount, &new_size, &iolock);
 
-	xfs_aio_write_isize_update(inode, &iocb->ki_pos, ret);
-
 	if (ret <= 0)
 		goto out_unlock;
+
+	XFS_STATS_ADD(xs_write_bytes, ret);
 
 	/* Handle various SYNC-type writes */
 	if ((file->f_flags & O_DSYNC) || IS_SYNC(inode)) {

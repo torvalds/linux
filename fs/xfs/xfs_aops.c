@@ -111,7 +111,7 @@ xfs_ioend_new_eof(
 	xfs_fsize_t		bsize;
 
 	bsize = ioend->io_offset + ioend->io_size;
-	isize = MAX(ip->i_size, ip->i_new_size);
+	isize = MAX(i_size_read(VFS_I(ip)), ip->i_new_size);
 	isize = MIN(isize, bsize);
 	return isize > ip->i_d.di_size ? isize : 0;
 }

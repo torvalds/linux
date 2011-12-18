@@ -246,15 +246,11 @@ typedef struct xfs_inode {
 
 	xfs_icdinode_t		i_d;		/* most of ondisk inode */
 
-	xfs_fsize_t		i_size;		/* in-memory size */
 	xfs_fsize_t		i_new_size;	/* size when write completes */
 
 	/* VFS inode */
 	struct inode		i_vnode;	/* embedded VFS inode */
 } xfs_inode_t;
-
-#define XFS_ISIZE(ip)	S_ISREG((ip)->i_d.di_mode) ? \
-				(ip)->i_size : (ip)->i_d.di_size;
 
 /* Convert from vfs inode to xfs inode */
 static inline struct xfs_inode *XFS_I(struct inode *inode)
@@ -266,6 +262,18 @@ static inline struct xfs_inode *XFS_I(struct inode *inode)
 static inline struct inode *VFS_I(struct xfs_inode *ip)
 {
 	return &ip->i_vnode;
+}
+
+/*
+ * For regular files we only update the on-disk filesize when actually
+ * writing data back to disk.  Until then only the copy in the VFS inode
+ * is uptodate.
+ */
+static inline xfs_fsize_t XFS_ISIZE(struct xfs_inode *ip)
+{
+	if (S_ISREG(ip->i_d.di_mode))
+		return i_size_read(VFS_I(ip));
+	return ip->i_d.di_size;
 }
 
 /*

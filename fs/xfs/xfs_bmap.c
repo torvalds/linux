@@ -3997,11 +3997,8 @@ xfs_bmap_one_block(
 	xfs_bmbt_irec_t	s;		/* internal version of extent */
 
 #ifndef DEBUG
-	if (whichfork == XFS_DATA_FORK) {
-		return S_ISREG(ip->i_d.di_mode) ?
-			(ip->i_size == ip->i_mount->m_sb.sb_blocksize) :
-			(ip->i_d.di_size == ip->i_mount->m_sb.sb_blocksize);
-	}
+	if (whichfork == XFS_DATA_FORK)
+		return XFS_ISIZE(ip) == ip->i_mount->m_sb.sb_blocksize;
 #endif	/* !DEBUG */
 	if (XFS_IFORK_NEXTENTS(ip, whichfork) != 1)
 		return 0;
@@ -4013,7 +4010,7 @@ xfs_bmap_one_block(
 	xfs_bmbt_get_all(ep, &s);
 	rval = s.br_startoff == 0 && s.br_blockcount == 1;
 	if (rval && whichfork == XFS_DATA_FORK)
-		ASSERT(ip->i_size == ip->i_mount->m_sb.sb_blocksize);
+		ASSERT(XFS_ISIZE(ip) == ip->i_mount->m_sb.sb_blocksize);
 	return rval;
 }
 
@@ -5427,7 +5424,7 @@ xfs_getbmapx_fix_eof_hole(
 	if (startblock == HOLESTARTBLOCK) {
 		mp = ip->i_mount;
 		out->bmv_block = -1;
-		fixlen = XFS_FSB_TO_BB(mp, XFS_B_TO_FSB(mp, ip->i_size));
+		fixlen = XFS_FSB_TO_BB(mp, XFS_B_TO_FSB(mp, XFS_ISIZE(ip)));
 		fixlen -= out->bmv_offset;
 		if (prealloced && out->bmv_offset + out->bmv_length == end) {
 			/* Came to hole at EOF. Trim it. */
@@ -5515,7 +5512,7 @@ xfs_getbmap(
 			fixlen = XFS_MAXIOFFSET(mp);
 		} else {
 			prealloced = 0;
-			fixlen = ip->i_size;
+			fixlen = XFS_ISIZE(ip);
 		}
 	}
 
@@ -5544,7 +5541,7 @@ xfs_getbmap(
 
 	xfs_ilock(ip, XFS_IOLOCK_SHARED);
 	if (whichfork == XFS_DATA_FORK && !(iflags & BMV_IF_DELALLOC)) {
-		if (ip->i_delayed_blks || ip->i_size > ip->i_d.di_size) {
+		if (ip->i_delayed_blks || XFS_ISIZE(ip) > ip->i_d.di_size) {
 			error = xfs_flush_pages(ip, 0, -1, 0, FI_REMAPF);
 			if (error)
 				goto out_unlock_iolock;

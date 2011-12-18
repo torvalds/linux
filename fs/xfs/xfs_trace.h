@@ -1038,7 +1038,7 @@ DECLARE_EVENT_CLASS(xfs_simple_io_class,
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
 		__entry->ino = ip->i_ino;
-		__entry->isize = ip->i_size;
+		__entry->isize = VFS_I(ip)->i_size;
 		__entry->disize = ip->i_d.di_size;
 		__entry->new_size = ip->i_new_size;
 		__entry->offset = offset;

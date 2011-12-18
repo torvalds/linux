@@ -778,7 +778,7 @@ xfs_setattr_size(
 		lock_flags |= XFS_IOLOCK_EXCL;
 	xfs_ilock(ip, lock_flags);
 
-	oldsize = ip->i_size;
+	oldsize = inode->i_size;
 	newsize = iattr->ia_size;
 
 	/*
@@ -897,7 +897,6 @@ xfs_setattr_size(
 	 * they get written to.
 	 */
 	ip->i_d.di_size = newsize;
-	ip->i_size = newsize;
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
 	if (newsize <= oldsize) {
