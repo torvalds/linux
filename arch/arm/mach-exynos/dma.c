@@ -86,7 +86,7 @@ struct amba_device exynos4_device_pdma0 = {
 		.end = EXYNOS4_PA_PDMA0 + SZ_4K,
 		.flags = IORESOURCE_MEM,
 	},
-	.irq = {IRQ_PDMA0, NO_IRQ},
+	.irq = {IRQ_PDMA0},
 	.periphid = 0x00041330,
 };
 
@@ -135,7 +135,7 @@ struct amba_device exynos4_device_pdma1 = {
 		.end = EXYNOS4_PA_PDMA1 + SZ_4K,
 		.flags = IORESOURCE_MEM,
 	},
-	.irq = {IRQ_PDMA1, NO_IRQ},
+	.irq = {IRQ_PDMA1},
 	.periphid = 0x00041330,
 };
 

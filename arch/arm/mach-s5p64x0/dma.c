@@ -119,7 +119,7 @@ struct amba_device s5p64x0_device_pdma = {
 		.end = S5P64X0_PA_PDMA + SZ_4K,
 		.flags = IORESOURCE_MEM,
 	},
-	.irq = {IRQ_DMA0, NO_IRQ},
+	.irq = {IRQ_DMA0},
 	.periphid = 0x00041330,
 };
 
