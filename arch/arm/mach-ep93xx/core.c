@@ -289,7 +289,7 @@ static struct amba_device uart1_device = {
 		.end	= EP93XX_UART1_PHYS_BASE + 0x0fff,
 		.flags	= IORESOURCE_MEM,
 	},
-	.irq		= { IRQ_EP93XX_UART1, NO_IRQ },
+	.irq		= { IRQ_EP93XX_UART1 },
 	.periphid	= 0x00041010,
 };
 
@@ -303,7 +303,7 @@ static struct amba_device uart2_device = {
 		.end	= EP93XX_UART2_PHYS_BASE + 0x0fff,
 		.flags	= IORESOURCE_MEM,
 	},
-	.irq		= { IRQ_EP93XX_UART2, NO_IRQ },
+	.irq		= { IRQ_EP93XX_UART2 },
 	.periphid	= 0x00041010,
 };
 
@@ -317,7 +317,7 @@ static struct amba_device uart3_device = {
 		.end	= EP93XX_UART3_PHYS_BASE + 0x0fff,
 		.flags	= IORESOURCE_MEM,
 	},
-	.irq		= { IRQ_EP93XX_UART3, NO_IRQ },
+	.irq		= { IRQ_EP93XX_UART3 },
 	.periphid	= 0x00041010,
 };
 
