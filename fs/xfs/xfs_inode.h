@@ -238,7 +238,6 @@ typedef struct xfs_inode {
 	mrlock_t		i_lock;		/* inode lock */
 	mrlock_t		i_iolock;	/* inode IO lock */
 	atomic_t		i_pincount;	/* inode pin count */
-	wait_queue_head_t	i_ipin_wait;	/* inode pinning wait queue */
 	spinlock_t		i_flags_lock;	/* inode i_flags lock */
 	/* Miscellaneous state. */
 	unsigned long		i_flags;	/* see defined flags below */
@@ -367,6 +366,8 @@ xfs_set_projid(struct xfs_inode *ip,
 #define XFS_IDIRTY_RELEASE	(1 << 6) /* dirty release already seen */
 #define __XFS_IFLOCK_BIT	7	 /* inode is being flushed right now */
 #define XFS_IFLOCK		(1 << __XFS_IFLOCK_BIT)
+#define __XFS_IPINNED_BIT	8	 /* wakeup key for zero pin count */
+#define XFS_IPINNED		(1 << __XFS_IPINNED_BIT)
 
 /*
  * Per-lifetime flags need to be reset when re-using a reclaimable inode during
