@@ -522,6 +522,46 @@ v9fs_vfs_getattr_dotl(struct vfsmount *mnt, struct dentry *dentry,
 	return 0;
 }
 
+/*
+ * Attribute flags.
+ */
+#define P9_ATTR_MODE		(1 << 0)
+#define P9_ATTR_UID		(1 << 1)
+#define P9_ATTR_GID		(1 << 2)
+#define P9_ATTR_SIZE		(1 << 3)
+#define P9_ATTR_ATIME		(1 << 4)
+#define P9_ATTR_MTIME		(1 << 5)
+#define P9_ATTR_CTIME		(1 << 6)
+#define P9_ATTR_ATIME_SET	(1 << 7)
+#define P9_ATTR_MTIME_SET	(1 << 8)
+
+struct dotl_iattr_map {
+	int iattr_valid;
+	int p9_iattr_valid;
+};
+
+static int v9fs_mapped_iattr_valid(int iattr_valid)
+{
+	int i;
+	int p9_iattr_valid = 0;
+	struct dotl_iattr_map dotl_iattr_map[] = {
+		{ ATTR_MODE,		P9_ATTR_MODE },
+		{ ATTR_UID,		P9_ATTR_UID },
+		{ ATTR_GID,		P9_ATTR_GID },
+		{ ATTR_SIZE,		P9_ATTR_SIZE },
+		{ ATTR_ATIME,		P9_ATTR_ATIME },
+		{ ATTR_MTIME,		P9_ATTR_MTIME },
+		{ ATTR_CTIME,		P9_ATTR_CTIME },
+		{ ATTR_ATIME_SET,	P9_ATTR_ATIME_SET },
+		{ ATTR_MTIME_SET,	P9_ATTR_MTIME_SET },
+	};
+	for (i = 0; i < ARRAY_SIZE(dotl_iattr_map); i++) {
+		if (iattr_valid & dotl_iattr_map[i].iattr_valid)
+			p9_iattr_valid |= dotl_iattr_map[i].p9_iattr_valid;
+	}
+	return p9_iattr_valid;
+}
+
 /**
  * v9fs_vfs_setattr_dotl - set file metadata
  * @dentry: file whose metadata to set
@@ -542,7 +582,7 @@ int v9fs_vfs_setattr_dotl(struct dentry *dentry, struct iattr *iattr)
 	if (retval)
 		return retval;
 
-	p9attr.valid = iattr->ia_valid;
+	p9attr.valid = v9fs_mapped_iattr_valid(iattr->ia_valid);
 	p9attr.mode = iattr->ia_mode;
 	p9attr.uid = iattr->ia_uid;
 	p9attr.gid = iattr->ia_gid;
