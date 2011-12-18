@@ -24,7 +24,7 @@ static void arch_reset(char mode, const char *cmd)
 		arch_wdt_reset();
 
 	/* if all else fails, or mode was for soft, jump to 0 */
-	cpu_reset(0);
+	soft_restart(0);
 }
 
 #endif /* __ASM_ARCH_IRQ_H */
