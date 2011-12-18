@@ -1129,7 +1129,11 @@ static int __pci_enable_device_flags(struct pci_dev *dev,
 	if (atomic_add_return(1, &dev->enable_cnt) > 1)
 		return 0;		/* already enabled */
 
-	for (i = 0; i < PCI_ROM_RESOURCE; i++)
+	/* only skip sriov related */
+	for (i = 0; i <= PCI_ROM_RESOURCE; i++)
+		if (dev->resource[i].flags & flags)
+			bars |= (1 << i);
+	for (i = PCI_BRIDGE_RESOURCES; i < DEVICE_COUNT_RESOURCE; i++)
 		if (dev->resource[i].flags & flags)
 			bars |= (1 << i);
 
