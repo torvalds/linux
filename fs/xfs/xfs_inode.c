@@ -1166,52 +1166,6 @@ xfs_ialloc(
 }
 
 /*
- * Check to make sure that there are no blocks allocated to the
- * file beyond the size of the file.  We don't check this for
- * files with fixed size extents or real time extents, but we
- * at least do it for regular files.
- */
-#ifdef DEBUG
-STATIC void
-xfs_isize_check(
-	struct xfs_inode	*ip,
-	xfs_fsize_t		isize)
-{
-	struct xfs_mount	*mp = ip->i_mount;
-	xfs_fileoff_t		map_first;
-	int			nimaps;
-	xfs_bmbt_irec_t		imaps[2];
-	int			error;
-
-	if (!S_ISREG(ip->i_d.di_mode))
-		return;
-
-	if (XFS_IS_REALTIME_INODE(ip))
-		return;
-
-	if (ip->i_d.di_flags & XFS_DIFLAG_EXTSIZE)
-		return;
-
-	nimaps = 2;
-	map_first = XFS_B_TO_FSB(mp, (xfs_ufsize_t)isize);
-	/*
-	 * The filesystem could be shutting down, so bmapi may return
-	 * an error.
-	 */
-	error = xfs_bmapi_read(ip, map_first,
-			 (XFS_B_TO_FSB(mp,
-			       (xfs_ufsize_t)XFS_MAXIOFFSET(mp)) - map_first),
-			 imaps, &nimaps, XFS_BMAPI_ENTIRE);
-	if (error)
-		return;
-	ASSERT(nimaps == 1);
-	ASSERT(imaps[0].br_startblock == HOLESTARTBLOCK);
-}
-#else	/* DEBUG */
-#define xfs_isize_check(ip, isize)
-#endif	/* DEBUG */
-
-/*
  * Free up the underlying blocks past new_size.  The new size must be smaller
  * than the current size.  This routine can be used both for the attribute and
  * data fork, and does not modify the inode size, which is left to the caller.
@@ -1257,6 +1211,8 @@ xfs_itruncate_extents(
 	ASSERT(ip->i_itemp != NULL);
 	ASSERT(ip->i_itemp->ili_lock_flags == 0);
 	ASSERT(!XFS_NOT_DQATTACHED(mp, ip));
+
+	trace_xfs_itruncate_extents_start(ip, new_size);
 
 	/*
 	 * Since it is possible for space to become allocated beyond
@@ -1325,6 +1281,14 @@ xfs_itruncate_extents(
 			goto out;
 	}
 
+	/*
+	 * Always re-log the inode so that our permanent transaction can keep
+	 * on rolling it forward in the log.
+	 */
+	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+
+	trace_xfs_itruncate_extents_end(ip, new_size);
+
 out:
 	*tpp = tp;
 	return error;
@@ -1336,74 +1300,6 @@ out_bmap_cancel:
 	 */
 	xfs_bmap_cancel(&free_list);
 	goto out;
-}
-
-int
-xfs_itruncate_data(
-	struct xfs_trans	**tpp,
-	struct xfs_inode	*ip,
-	xfs_fsize_t		new_size)
-{
-	int			error;
-
-	trace_xfs_itruncate_data_start(ip, new_size);
-
-	/*
-	 * The first thing we do is set the size to new_size permanently on
-	 * disk.  This way we don't have to worry about anyone ever being able
-	 * to look at the data being freed even in the face of a crash.
-	 * What we're getting around here is the case where we free a block, it
-	 * is allocated to another file, it is written to, and then we crash.
-	 * If the new data gets written to the file but the log buffers
-	 * containing the free and reallocation don't, then we'd end up with
-	 * garbage in the blocks being freed.  As long as we make the new_size
-	 * permanent before actually freeing any blocks it doesn't matter if
-	 * they get written to.
-	 */
-	if (ip->i_d.di_nextents > 0) {
-		/*
-		 * If we are not changing the file size then do not update
-		 * the on-disk file size - we may be called from
-		 * xfs_inactive_free_eofblocks().  If we update the on-disk
-		 * file size and then the system crashes before the contents
-		 * of the file are flushed to disk then the files may be
-		 * full of holes (ie NULL files bug).
-		 */
-		if (ip->i_size != new_size) {
-			ip->i_d.di_size = new_size;
-			ip->i_size = new_size;
-			xfs_trans_log_inode(*tpp, ip, XFS_ILOG_CORE);
-		}
-	}
-
-	error = xfs_itruncate_extents(tpp, ip, XFS_DATA_FORK, new_size);
-	if (error)
-		return error;
-
-	/*
-	 * If we are not changing the file size then do not update the on-disk
-	 * file size - we may be called from xfs_inactive_free_eofblocks().
-	 * If we update the on-disk file size and then the system crashes
-	 * before the contents of the file are flushed to disk then the files
-	 * may be full of holes (ie NULL files bug).
-	 */
-	xfs_isize_check(ip, new_size);
-	if (ip->i_size != new_size) {
-		ip->i_d.di_size = new_size;
-		ip->i_size = new_size;
-	}
-
-	ASSERT(new_size != 0 || ip->i_delayed_blks == 0);
-	ASSERT(new_size != 0 || ip->i_d.di_nextents == 0);
-
-	/*
-	 * Always re-log the inode so that our permanent transaction can keep
-	 * on rolling it forward in the log.
-	 */
-	xfs_trans_log_inode(*tpp, ip, XFS_ILOG_CORE);
-
-	trace_xfs_itruncate_data_end(ip, new_size);
-	return 0;
 }
 
 /*
