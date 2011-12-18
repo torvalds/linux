@@ -1012,7 +1012,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	default:
 		uvc_trace(UVC_TRACE_IOCTL, "Unknown ioctl 0x%08x\n", cmd);
-		return -EINVAL;
+		return -ENOTTY;
 	}
 
 	return ret;
