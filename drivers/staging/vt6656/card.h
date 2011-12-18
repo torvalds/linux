@@ -60,7 +60,7 @@ typedef enum _CARD_OP_MODE {
 
 /*---------------------  Export Functions  --------------------------*/
 
-BOOL CARDbSetMediaChannel(void *pDeviceHandler,
+void CARDbSetMediaChannel(void *pDeviceHandler,
 			  unsigned int uConnectionChannel);
 void CARDvSetRSPINF(void *pDeviceHandler, BYTE byBBType);
 void vUpdateIFS(void *pDeviceHandler);
