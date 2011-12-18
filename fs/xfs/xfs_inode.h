@@ -211,7 +211,6 @@ typedef struct xfs_icdinode {
 
 #ifdef __KERNEL__
 
-struct bhv_desc;
 struct xfs_buf;
 struct xfs_bmap_free;
 struct xfs_bmbt_irec;
@@ -219,12 +218,6 @@ struct xfs_inode_log_item;
 struct xfs_mount;
 struct xfs_trans;
 struct xfs_dquot;
-
-typedef struct dm_attrs_s {
-	__uint32_t	da_dmevmask;	/* DMIG event mask */
-	__uint16_t	da_dmstate;	/* DMIG state info */
-	__uint16_t	da_pad;		/* DMIG extra padding */
-} dm_attrs_t;
 
 typedef struct xfs_inode {
 	/* Inode linking and identification information. */
