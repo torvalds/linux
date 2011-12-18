@@ -392,6 +392,7 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 #endif
 
 	spin_lock_bh(&sta->lock);
+	sta->ampdu_mlme.last_addba_req_time[tid] = jiffies;
 	sta->ampdu_mlme.addba_req_num[tid]++;
 	spin_unlock_bh(&sta->lock);
 
@@ -488,6 +489,24 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 
 	/* we have tried too many times, receiver does not want A-MPDU */
 	if (sta->ampdu_mlme.addba_req_num[tid] > HT_AGG_MAX_RETRIES) {
+		ret = -EBUSY;
+		goto err_unlock_sta;
+	}
+
+	/*
+	 * if we have tried more than HT_AGG_BURST_RETRIES times we
+	 * will spread our requests in time to avoid stalling connection
+	 * for too long
+	 */
+	if (sta->ampdu_mlme.addba_req_num[tid] > HT_AGG_BURST_RETRIES &&
+	    time_before(jiffies, sta->ampdu_mlme.last_addba_req_time[tid] +
+			HT_AGG_RETRIES_PERIOD)) {
+#ifdef CONFIG_MAC80211_HT_DEBUG
+		printk(KERN_DEBUG "BA request denied - "
+		       "waiting a grace period after %d failed requests "
+		       "on tid %u\n",
+		       sta->ampdu_mlme.addba_req_num[tid], tid);
+#endif /* CONFIG_MAC80211_HT_DEBUG */
 		ret = -EBUSY;
 		goto err_unlock_sta;
 	}
