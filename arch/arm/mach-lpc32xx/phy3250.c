@@ -161,7 +161,7 @@ static struct amba_device lpc32xx_clcd_device = {
 		.flags			= IORESOURCE_MEM,
 	},
 	.dma_mask			= ~0,
-	.irq				= {IRQ_LPC32XX_LCD, NO_IRQ},
+	.irq				= {IRQ_LPC32XX_LCD},
 };
 
 /*
@@ -203,7 +203,7 @@ static struct amba_device lpc32xx_ssp0_device = {
 		.flags			= IORESOURCE_MEM,
 	},
 	.dma_mask			= ~0,
-	.irq				= {IRQ_LPC32XX_SSP0, NO_IRQ},
+	.irq				= {IRQ_LPC32XX_SSP0},
 };
 
 /* AT25 driver registration */
