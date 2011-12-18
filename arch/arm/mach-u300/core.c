@@ -105,7 +105,7 @@ static struct amba_device uart0_device = {
 		.end   = U300_UART0_BASE + SZ_4K - 1,
 		.flags = IORESOURCE_MEM,
 	},
-	.irq = { IRQ_U300_UART0, NO_IRQ },
+	.irq = { IRQ_U300_UART0 },
 };
 
 /* The U335 have an additional UART1 on the APP CPU */
@@ -129,7 +129,7 @@ static struct amba_device uart1_device = {
 		.end   = U300_UART1_BASE + SZ_4K - 1,
 		.flags = IORESOURCE_MEM,
 	},
-	.irq = { IRQ_U300_UART1, NO_IRQ },
+	.irq = { IRQ_U300_UART1 },
 };
 #endif
 
@@ -160,7 +160,7 @@ static struct amba_device pl022_device = {
 		.end   = U300_SPI_BASE + SZ_4K - 1,
 		.flags = IORESOURCE_MEM,
 	},
-	.irq = {IRQ_U300_SPI, NO_IRQ },
+	.irq = {IRQ_U300_SPI },
 	/*
 	 * This device has a DMA channel but the Linux driver does not use
 	 * it currently.
