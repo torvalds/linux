@@ -3,7 +3,8 @@
 
 #include <linux/types.h>
 
-#define XT_CT_NOTRACK	0x1
+#define XT_CT_NOTRACK		0x1
+#define XT_CT_USERSPACE_HELPER	0x2
 
 struct xt_ct_target_info {
 	__u16 flags;
