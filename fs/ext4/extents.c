@@ -3625,7 +3625,7 @@ static int get_implied_cluster_alloc(struct super_block *sb,
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	ext4_lblk_t c_offset = map->m_lblk & (sbi->s_cluster_ratio-1);
 	ext4_lblk_t ex_cluster_start, ex_cluster_end;
-	ext4_lblk_t rr_cluster_start, rr_cluster_end;
+	ext4_lblk_t rr_cluster_start;
 	ext4_lblk_t ee_block = le32_to_cpu(ex->ee_block);
 	ext4_fsblk_t ee_start = ext4_ext_pblock(ex);
 	unsigned short ee_len = ext4_ext_get_actual_len(ex);
@@ -3636,7 +3636,6 @@ static int get_implied_cluster_alloc(struct super_block *sb,
 
 	/* The requested region passed into ext4_map_blocks() */
 	rr_cluster_start = EXT4_B2C(sbi, map->m_lblk);
-	rr_cluster_end = EXT4_B2C(sbi, map->m_lblk + map->m_len - 1);
 
 	if ((rr_cluster_start == ex_cluster_end) ||
 	    (rr_cluster_start == ex_cluster_start)) {
