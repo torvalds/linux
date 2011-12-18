@@ -636,7 +636,9 @@ out_lock:
 /*
  * Common pre-write limit and setup checks.
  *
- * Returns with iolock held according to @iolock.
+ * Called with the iolocked held either shared and exclusive according to
+ * @iolock, and returns with it held.  Might upgrade the iolock to exclusive
+ * if called for a direct write beyond i_size.
  */
 STATIC ssize_t
 xfs_file_aio_write_checks(
@@ -653,8 +655,7 @@ xfs_file_aio_write_checks(
 restart:
 	error = generic_write_checks(file, pos, count, S_ISBLK(inode->i_mode));
 	if (error) {
-		xfs_rw_iunlock(ip, XFS_ILOCK_EXCL | *iolock);
-		*iolock = 0;
+		xfs_rw_iunlock(ip, XFS_ILOCK_EXCL);
 		return error;
 	}
 
