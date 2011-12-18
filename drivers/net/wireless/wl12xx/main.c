@@ -2384,6 +2384,10 @@ static int wl1271_sta_handle_idle(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 				  bool idle)
 {
 	int ret;
+	bool cur_idle = !test_bit(WLVIF_FLAG_IN_USE, &wlvif->flags);
+
+	if (idle == cur_idle)
+		return 0;
 
 	if (idle) {
 		/* no need to croc if we weren't busy (e.g. during boot) */
@@ -2402,7 +2406,7 @@ static int wl1271_sta_handle_idle(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			ACX_KEEP_ALIVE_TPL_INVALID);
 		if (ret < 0)
 			goto out;
-		set_bit(WL1271_FLAG_IDLE, &wl->flags);
+		clear_bit(WLVIF_FLAG_IN_USE, &wlvif->flags);
 	} else {
 		/* The current firmware only supports sched_scan in idle */
 		if (wl->sched_scanning) {
@@ -2413,7 +2417,7 @@ static int wl1271_sta_handle_idle(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		ret = wl12xx_start_dev(wl, wlvif);
 		if (ret < 0)
 			goto out;
-		clear_bit(WL1271_FLAG_IDLE, &wl->flags);
+		set_bit(WLVIF_FLAG_IN_USE, &wlvif->flags);
 	}
 
 out:
