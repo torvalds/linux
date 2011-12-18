@@ -67,9 +67,6 @@ static struct config_group target_core_hbagroup;
 static struct config_group alua_group;
 static struct config_group alua_lu_gps_group;
 
-static DEFINE_SPINLOCK(se_device_lock);
-static LIST_HEAD(se_dev_list);
-
 static inline struct se_hba *
 item_to_hba(struct config_item *item)
 {
@@ -2741,7 +2738,6 @@ static struct config_group *target_core_make_subdev(
 				" struct se_subsystem_dev\n");
 		goto unlock;
 	}
-	INIT_LIST_HEAD(&se_dev->se_dev_node);
 	INIT_LIST_HEAD(&se_dev->t10_wwn.t10_vpd_list);
 	spin_lock_init(&se_dev->t10_wwn.t10_vpd_lock);
 	INIT_LIST_HEAD(&se_dev->t10_pr.registration_list);
@@ -2777,9 +2773,6 @@ static struct config_group *target_core_make_subdev(
 			" from allocate_virtdevice()\n");
 		goto out;
 	}
-	spin_lock(&se_device_lock);
-	list_add_tail(&se_dev->se_dev_node, &se_dev_list);
-	spin_unlock(&se_device_lock);
 
 	config_group_init_type_name(&se_dev->se_dev_group, name,
 			&target_core_dev_cit);
@@ -2873,10 +2866,6 @@ static void target_core_drop_subdev(
 
 	mutex_lock(&hba->hba_access_mutex);
 	t = hba->transport;
-
-	spin_lock(&se_device_lock);
-	list_del(&se_dev->se_dev_node);
-	spin_unlock(&se_device_lock);
 
 	dev_stat_grp = &se_dev->dev_stat_grps.stat_group;
 	for (i = 0; dev_stat_grp->default_groups[i]; i++) {

@@ -685,9 +685,15 @@ __SYSCALL(__NR_syncfs, sys_syncfs)
 __SYSCALL(__NR_setns, sys_setns)
 #define __NR_sendmmsg 269
 __SC_COMP(__NR_sendmmsg, sys_sendmmsg, compat_sys_sendmmsg)
+#define __NR_process_vm_readv 270
+__SC_COMP(__NR_process_vm_readv, sys_process_vm_readv, \
+          compat_sys_process_vm_readv)
+#define __NR_process_vm_writev 271
+__SC_COMP(__NR_process_vm_writev, sys_process_vm_writev, \
+          compat_sys_process_vm_writev)
 
 #undef __NR_syscalls
-#define __NR_syscalls 270
+#define __NR_syscalls 272
 
 /*
  * All syscalls below here should go away really,

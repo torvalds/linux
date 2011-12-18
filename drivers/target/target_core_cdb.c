@@ -478,7 +478,7 @@ target_emulate_evpd_86(struct se_cmd *cmd, unsigned char *buf)
 	if (cmd->data_length < 60)
 		return 0;
 
-	buf[2] = 0x3c;
+	buf[3] = 0x3c;
 	/* Set HEADSUP, ORDSUP, SIMPSUP */
 	buf[5] = 0x07;
 
@@ -703,6 +703,7 @@ int target_emulate_inquiry(struct se_task *task)
 	if (cmd->data_length < 4) {
 		pr_err("SCSI Inquiry payload length: %u"
 			" too small for EVPD=1\n", cmd->data_length);
+		cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
 		return -EINVAL;
 	}
 
@@ -719,6 +720,7 @@ int target_emulate_inquiry(struct se_task *task)
 	}
 
 	pr_err("Unknown VPD Code: 0x%02x\n", cdb[2]);
+	cmd->scsi_sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
 	ret = -EINVAL;
 
 out_unmap:
@@ -969,7 +971,8 @@ int target_emulate_modesense(struct se_task *task)
 	default:
 		pr_err("MODE SENSE: unimplemented page/subpage: 0x%02x/0x%02x\n",
 		       cdb[2] & 0x3f, cdb[3]);
-		return PYX_TRANSPORT_UNKNOWN_MODE_PAGE;
+		cmd->scsi_sense_reason = TCM_UNKNOWN_MODE_PAGE;
+		return -EINVAL;
 	}
 	offset += length;
 
@@ -1027,7 +1030,8 @@ int target_emulate_request_sense(struct se_task *task)
 	if (cdb[1] & 0x01) {
 		pr_err("REQUEST_SENSE description emulation not"
 			" supported\n");
-		return PYX_TRANSPORT_INVALID_CDB_FIELD;
+		cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
+		return -ENOSYS;
 	}
 
 	buf = transport_kmap_first_data_page(cmd);
@@ -1100,7 +1104,8 @@ int target_emulate_unmap(struct se_task *task)
 	if (!dev->transport->do_discard) {
 		pr_err("UNMAP emulation not supported for: %s\n",
 				dev->transport->name);
-		return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
+		cmd->scsi_sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
+		return -ENOSYS;
 	}
 
 	/* First UNMAP block descriptor starts at 8 byte offset */
@@ -1157,7 +1162,8 @@ int target_emulate_write_same(struct se_task *task)
 	if (!dev->transport->do_discard) {
 		pr_err("WRITE_SAME emulation not supported"
 				" for: %s\n", dev->transport->name);
-		return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
+		cmd->scsi_sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
+		return -ENOSYS;
 	}
 
 	if (cmd->t_task_cdb[0] == WRITE_SAME)
@@ -1193,11 +1199,13 @@ int target_emulate_write_same(struct se_task *task)
 int target_emulate_synchronize_cache(struct se_task *task)
 {
 	struct se_device *dev = task->task_se_cmd->se_dev;
+	struct se_cmd *cmd = task->task_se_cmd;
 
 	if (!dev->transport->do_sync_cache) {
 		pr_err("SYNCHRONIZE_CACHE emulation not supported"
 			" for: %s\n", dev->transport->name);
-		return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
+		cmd->scsi_sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
+		return -ENOSYS;
 	}
 
 	dev->transport->do_sync_cache(task);

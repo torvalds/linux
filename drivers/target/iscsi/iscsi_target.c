@@ -614,13 +614,12 @@ int iscsit_add_reject(
 	hdr	= (struct iscsi_reject *) cmd->pdu;
 	hdr->reason = reason;
 
-	cmd->buf_ptr = kzalloc(ISCSI_HDR_LEN, GFP_KERNEL);
+	cmd->buf_ptr = kmemdup(buf, ISCSI_HDR_LEN, GFP_KERNEL);
 	if (!cmd->buf_ptr) {
 		pr_err("Unable to allocate memory for cmd->buf_ptr\n");
 		iscsit_release_cmd(cmd);
 		return -1;
 	}
-	memcpy(cmd->buf_ptr, buf, ISCSI_HDR_LEN);
 
 	spin_lock_bh(&conn->cmd_lock);
 	list_add_tail(&cmd->i_list, &conn->conn_cmd_list);
@@ -661,13 +660,12 @@ int iscsit_add_reject_from_cmd(
 	hdr	= (struct iscsi_reject *) cmd->pdu;
 	hdr->reason = reason;
 
-	cmd->buf_ptr = kzalloc(ISCSI_HDR_LEN, GFP_KERNEL);
+	cmd->buf_ptr = kmemdup(buf, ISCSI_HDR_LEN, GFP_KERNEL);
 	if (!cmd->buf_ptr) {
 		pr_err("Unable to allocate memory for cmd->buf_ptr\n");
 		iscsit_release_cmd(cmd);
 		return -1;
 	}
-	memcpy(cmd->buf_ptr, buf, ISCSI_HDR_LEN);
 
 	if (add_to_conn) {
 		spin_lock_bh(&conn->cmd_lock);
@@ -1017,11 +1015,6 @@ done:
 				" non-existent or non-exported iSCSI LUN:"
 				" 0x%016Lx\n", get_unaligned_le64(&hdr->lun));
 		}
-		if (ret == PYX_TRANSPORT_OUT_OF_MEMORY_RESOURCES)
-			return iscsit_add_reject_from_cmd(
-					ISCSI_REASON_BOOKMARK_NO_RESOURCES,
-					1, 1, buf, cmd);
-
 		send_check_condition = 1;
 		goto attach_cmd;
 	}
@@ -1044,6 +1037,8 @@ done:
 		 */
 		send_check_condition = 1;
 	} else {
+		cmd->data_length = cmd->se_cmd.data_length;
+
 		if (iscsit_decide_list_to_build(cmd, payload_length) < 0)
 			return iscsit_add_reject_from_cmd(
 				ISCSI_REASON_BOOKMARK_NO_RESOURCES,
@@ -1123,7 +1118,7 @@ attach_cmd:
 	 * the backend memory allocation.
 	 */
 	ret = transport_generic_new_cmd(&cmd->se_cmd);
-	if ((ret < 0) || (cmd->se_cmd.se_cmd_flags & SCF_SE_CMD_FAILED)) {
+	if (ret < 0) {
 		immed_ret = IMMEDIATE_DATA_NORMAL_OPERATION;
 		dump_immediate_data = 1;
 		goto after_immediate_data;
@@ -1341,7 +1336,7 @@ static int iscsit_handle_data_out(struct iscsi_conn *conn, unsigned char *buf)
 
 		spin_lock_irqsave(&se_cmd->t_state_lock, flags);
 		if (!(se_cmd->se_cmd_flags & SCF_SUPPORTED_SAM_OPCODE) ||
-		     (se_cmd->se_cmd_flags & SCF_SE_CMD_FAILED))
+		     (se_cmd->se_cmd_flags & SCF_SCSI_CDB_EXCEPTION))
 			dump_unsolicited_data = 1;
 		spin_unlock_irqrestore(&se_cmd->t_state_lock, flags);
 
@@ -2513,10 +2508,10 @@ static int iscsit_send_data_in(
 	if (hdr->flags & ISCSI_FLAG_DATA_STATUS) {
 		if (cmd->se_cmd.se_cmd_flags & SCF_OVERFLOW_BIT) {
 			hdr->flags |= ISCSI_FLAG_DATA_OVERFLOW;
-			hdr->residual_count = cpu_to_be32(cmd->residual_count);
+			hdr->residual_count = cpu_to_be32(cmd->se_cmd.residual_count);
 		} else if (cmd->se_cmd.se_cmd_flags & SCF_UNDERFLOW_BIT) {
 			hdr->flags |= ISCSI_FLAG_DATA_UNDERFLOW;
-			hdr->residual_count = cpu_to_be32(cmd->residual_count);
+			hdr->residual_count = cpu_to_be32(cmd->se_cmd.residual_count);
 		}
 	}
 	hton24(hdr->dlength, datain.length);
@@ -3018,10 +3013,10 @@ static int iscsit_send_status(
 	hdr->flags		|= ISCSI_FLAG_CMD_FINAL;
 	if (cmd->se_cmd.se_cmd_flags & SCF_OVERFLOW_BIT) {
 		hdr->flags |= ISCSI_FLAG_CMD_OVERFLOW;
-		hdr->residual_count = cpu_to_be32(cmd->residual_count);
+		hdr->residual_count = cpu_to_be32(cmd->se_cmd.residual_count);
 	} else if (cmd->se_cmd.se_cmd_flags & SCF_UNDERFLOW_BIT) {
 		hdr->flags |= ISCSI_FLAG_CMD_UNDERFLOW;
-		hdr->residual_count = cpu_to_be32(cmd->residual_count);
+		hdr->residual_count = cpu_to_be32(cmd->se_cmd.residual_count);
 	}
 	hdr->response		= cmd->iscsi_response;
 	hdr->cmd_status		= cmd->se_cmd.scsi_status;
@@ -3133,6 +3128,7 @@ static int iscsit_send_task_mgt_rsp(
 	hdr			= (struct iscsi_tm_rsp *) cmd->pdu;
 	memset(hdr, 0, ISCSI_HDR_LEN);
 	hdr->opcode		= ISCSI_OP_SCSI_TMFUNC_RSP;
+	hdr->flags		= ISCSI_FLAG_CMD_FINAL;
 	hdr->response		= iscsit_convert_tcm_tmr_rsp(se_tmr);
 	hdr->itt		= cpu_to_be32(cmd->init_task_tag);
 	cmd->stat_sn		= conn->stat_sn++;

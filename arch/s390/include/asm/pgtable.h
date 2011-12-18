@@ -599,10 +599,10 @@ static inline pgste_t pgste_update_all(pte_t *ptep, pgste_t pgste)
 	skey = page_get_storage_key(address);
 	bits = skey & (_PAGE_CHANGED | _PAGE_REFERENCED);
 	/* Clear page changed & referenced bit in the storage key */
-	if (bits) {
-		skey ^= bits;
-		page_set_storage_key(address, skey, 1);
-	}
+	if (bits & _PAGE_CHANGED)
+		page_set_storage_key(address, skey ^ bits, 1);
+	else if (bits)
+		page_reset_referenced(address);
 	/* Transfer page changed & referenced bit to guest bits in pgste */
 	pgste_val(pgste) |= bits << 48;		/* RCP_GR_BIT & RCP_GC_BIT */
 	/* Get host changed & referenced bits from pgste */
