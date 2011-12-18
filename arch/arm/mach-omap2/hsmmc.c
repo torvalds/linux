@@ -182,7 +182,7 @@ static void hsmmc2_select_input_clk_src(struct omap_mmc_platform_data *mmc)
 	}
 }
 
-static void hsmmc23_before_set_reg(struct device *dev, int slot,
+static void hsmmc2_before_set_reg(struct device *dev, int slot,
 				   int power_on, int vdd)
 {
 	struct omap_mmc_platform_data *mmc = dev->platform_data;
@@ -407,14 +407,13 @@ static int __init omap_hsmmc_pdata_init(struct omap2_hsmmc_info *c,
 			c->caps &= ~MMC_CAP_8_BIT_DATA;
 			c->caps |= MMC_CAP_4_BIT_DATA;
 		}
-		/* FALLTHROUGH */
-	case 3:
 		if (mmc->slots[0].features & HSMMC_HAS_PBIAS) {
 			/* off-chip level shifting, or none */
-			mmc->slots[0].before_set_reg = hsmmc23_before_set_reg;
+			mmc->slots[0].before_set_reg = hsmmc2_before_set_reg;
 			mmc->slots[0].after_set_reg = NULL;
 		}
 		break;
+	case 3:
 	case 4:
 	case 5:
 		mmc->slots[0].before_set_reg = NULL;
