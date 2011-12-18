@@ -415,7 +415,7 @@ static int set_powered(struct sock *sk, u16 index, unsigned char *data, u16 len)
 	}
 
 	if (cp->val)
-		queue_work(hdev->workqueue, &hdev->power_on);
+		schedule_work(&hdev->power_on);
 	else
 		schedule_work(&hdev->power_off.work);
 

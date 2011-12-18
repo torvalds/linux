@@ -1522,7 +1522,7 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	set_bit(HCI_AUTO_OFF, &hdev->flags);
 	set_bit(HCI_SETUP, &hdev->flags);
-	queue_work(hdev->workqueue, &hdev->power_on);
+	schedule_work(&hdev->power_on);
 
 	hci_notify(hdev, HCI_DEV_REG);
 
