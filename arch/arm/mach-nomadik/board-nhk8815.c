@@ -191,13 +191,13 @@ static void __init nhk8815_onenand_init(void)
 static struct amba_device uart0_device = {
 	.dev = { .init_name = "uart0" },
 	__MEM_4K_RESOURCE(NOMADIK_UART0_BASE),
-	.irq = {IRQ_UART0, NO_IRQ},
+	.irq = {IRQ_UART0},
 };
 
 static struct amba_device uart1_device = {
 	.dev = { .init_name = "uart1" },
 	__MEM_4K_RESOURCE(NOMADIK_UART1_BASE),
-	.irq = {IRQ_UART1, NO_IRQ},
+	.irq = {IRQ_UART1},
 };
 
 static struct amba_device *amba_devs[] __initdata = {
