@@ -94,7 +94,6 @@ xfs_inode_alloc(
 	ip->i_update_core = 0;
 	ip->i_delayed_blks = 0;
 	memset(&ip->i_d, 0, sizeof(xfs_icdinode_t));
-	ip->i_new_size = 0;
 
 	return ip;
 }
