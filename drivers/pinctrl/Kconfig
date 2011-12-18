@@ -23,13 +23,13 @@ config DEBUG_PINCTRL
 	help
 	  Say Y here to add some extra checks and diagnostics to PINCTRL calls.
 
-config PINMUX_SIRF
-	bool "CSR SiRFprimaII pinmux driver"
+config PINCTRL_SIRF
+	bool "CSR SiRFprimaII pin controller driver"
 	depends on ARCH_PRIMA2
 	select PINMUX
 
-config PINMUX_U300
-	bool "U300 pinmux driver"
+config PINCTRL_U300
+	bool "U300 pin controller driver"
 	depends on ARCH_U300
 	select PINMUX
 
