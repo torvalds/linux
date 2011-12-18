@@ -102,7 +102,7 @@ static struct amba_device fb_device = {
 		.end	= 0x00104fff,
 		.flags	= IORESOURCE_MEM,
 	},
-	.irq		= { NETX_IRQ_LCD, NO_IRQ },
+	.irq		= { NETX_IRQ_LCD },
 };
 
 int netx_fb_init(struct clcd_board *board, struct clcd_panel *panel)
