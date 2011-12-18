@@ -651,7 +651,7 @@ err_out:
 late_initcall(clk_debugfs_init);
 #endif /* defined(CONFIG_DEBUG_FS) */
 
-unsigned long clk_smp_twd_rate = 400000000;
+unsigned long clk_smp_twd_rate = 500000000;
 
 unsigned long clk_smp_twd_get_rate(struct clk *clk)
 {
@@ -677,7 +677,7 @@ static int clk_twd_cpufreq_transition(struct notifier_block *nb,
 
 	if (state == CPUFREQ_PRECHANGE) {
 		/* Save frequency in simple Hz */
-		clk_smp_twd_rate = f->new * 1000;
+		clk_smp_twd_rate = (f->new * 1000) / 2;
 	}
 
 	return NOTIFY_OK;
