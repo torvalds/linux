@@ -73,13 +73,13 @@ static struct pl061_platform_data gpio3_plat_data = {
  */
 
 /* FPGA Primecells */
-AMBA_DEVICE(uart3, "fpga:09", UART3,    NULL);
-AMBA_DEVICE(sci1,  "fpga:0a", SCI1,     NULL);
-AMBA_DEVICE(mmc1,  "fpga:0b", MMCI1,    &mmc1_plat_data);
+APB_DEVICE(uart3, "fpga:09", UART3,    NULL);
+APB_DEVICE(sci1,  "fpga:0a", SCI1,     NULL);
+APB_DEVICE(mmc1,  "fpga:0b", MMCI1,    &mmc1_plat_data);
 
 /* DevChip Primecells */
-AMBA_DEVICE(gpio2, "dev:e6",  GPIO2,    &gpio2_plat_data);
-AMBA_DEVICE(gpio3, "dev:e7",  GPIO3,    &gpio3_plat_data);
+APB_DEVICE(gpio2, "dev:e6",  GPIO2,    &gpio2_plat_data);
+APB_DEVICE(gpio3, "dev:e7",  GPIO3,    &gpio3_plat_data);
 
 static struct amba_device *amba_devs[] __initdata = {
 	&uart3_device,
