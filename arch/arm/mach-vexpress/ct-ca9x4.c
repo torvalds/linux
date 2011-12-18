@@ -109,10 +109,10 @@ static struct clcd_board ct_ca9x4_clcd_data = {
 	.remove		= versatile_clcd_remove_dma,
 };
 
-static AMBA_DEVICE(clcd, "ct:clcd", CT_CA9X4_CLCDC, &ct_ca9x4_clcd_data);
-static AMBA_DEVICE(dmc, "ct:dmc", CT_CA9X4_DMC, NULL);
-static AMBA_DEVICE(smc, "ct:smc", CT_CA9X4_SMC, NULL);
-static AMBA_DEVICE(gpio, "ct:gpio", CT_CA9X4_GPIO, NULL);
+static AMBA_AHB_DEVICE(clcd, "ct:clcd", 0, CT_CA9X4_CLCDC, IRQ_CT_CA9X4_CLCDC, &ct_ca9x4_clcd_data);
+static AMBA_APB_DEVICE(dmc, "ct:dmc", 0, CT_CA9X4_DMC, IRQ_CT_CA9X4_DMC, NULL);
+static AMBA_APB_DEVICE(smc, "ct:smc", 0, CT_CA9X4_SMC, IRQ_CT_CA9X4_SMC, NULL);
+static AMBA_APB_DEVICE(gpio, "ct:gpio", 0, CT_CA9X4_GPIO, IRQ_CT_CA9X4_GPIO, NULL);
 
 static struct amba_device *ct_ca9x4_amba_devs[] __initdata = {
 	&clcd_device,
