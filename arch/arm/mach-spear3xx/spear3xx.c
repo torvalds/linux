@@ -38,7 +38,7 @@ struct amba_device spear3xx_gpio_device = {
 		.end = SPEAR3XX_ICM3_GPIO_BASE + SZ_4K - 1,
 		.flags = IORESOURCE_MEM,
 	},
-	.irq = {SPEAR3XX_IRQ_BASIC_GPIO, NO_IRQ},
+	.irq = {SPEAR3XX_IRQ_BASIC_GPIO},
 };
 
 /* uart device registration */
@@ -51,7 +51,7 @@ struct amba_device spear3xx_uart_device = {
 		.end = SPEAR3XX_ICM1_UART_BASE + SZ_4K - 1,
 		.flags = IORESOURCE_MEM,
 	},
-	.irq = {SPEAR3XX_IRQ_UART, NO_IRQ},
+	.irq = {SPEAR3XX_IRQ_UART},
 };
 
 /* Do spear3xx familiy common initialization part here */

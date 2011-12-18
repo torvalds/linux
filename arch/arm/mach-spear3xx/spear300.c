@@ -440,7 +440,7 @@ struct amba_device spear300_gpio1_device = {
 		.end = SPEAR300_GPIO_BASE + SZ_4K - 1,
 		.flags = IORESOURCE_MEM,
 	},
-	.irq = {SPEAR300_VIRQ_GPIO1, NO_IRQ},
+	.irq = {SPEAR300_VIRQ_GPIO1},
 };
 
 /* spear300 routines */
