@@ -57,26 +57,26 @@ xfs_iomap_eof_align_last_fsb(
 	xfs_fileoff_t	*last_fsb)
 {
 	xfs_fileoff_t	new_last_fsb = 0;
-	xfs_extlen_t	align;
+	xfs_extlen_t	align = 0;
 	int		eof, error;
 
-	if (XFS_IS_REALTIME_INODE(ip))
-		;
-	/*
-	 * If mounted with the "-o swalloc" option, roundup the allocation
-	 * request to a stripe width boundary if the file size is >=
-	 * stripe width and we are allocating past the allocation eof.
-	 */
-	else if (mp->m_swidth && (mp->m_flags & XFS_MOUNT_SWALLOC) &&
-	        (ip->i_size >= XFS_FSB_TO_B(mp, mp->m_swidth)))
-		new_last_fsb = roundup_64(*last_fsb, mp->m_swidth);
-	/*
-	 * Roundup the allocation request to a stripe unit (m_dalign) boundary
-	 * if the file size is >= stripe unit size, and we are allocating past
-	 * the allocation eof.
-	 */
-	else if (mp->m_dalign && (ip->i_size >= XFS_FSB_TO_B(mp, mp->m_dalign)))
-		new_last_fsb = roundup_64(*last_fsb, mp->m_dalign);
+	if (!XFS_IS_REALTIME_INODE(ip)) {
+		/*
+		 * Round up the allocation request to a stripe unit
+		 * (m_dalign) boundary if the file size is >= stripe unit
+		 * size, and we are allocating past the allocation eof.
+		 *
+		 * If mounted with the "-o swalloc" option the alignment is
+		 * increased from the strip unit size to the stripe width.
+		 */
+		if (mp->m_swidth && (mp->m_flags & XFS_MOUNT_SWALLOC))
+			align = mp->m_swidth;
+		else if (mp->m_dalign)
+			align = mp->m_dalign;
+
+		if (align && ip->i_size >= XFS_FSB_TO_B(mp, align))
+			new_last_fsb = roundup_64(*last_fsb, align);
+	}
 
 	/*
 	 * Always round up the allocation request to an extent boundary
