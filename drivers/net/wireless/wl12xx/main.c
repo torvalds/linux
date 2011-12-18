@@ -450,7 +450,16 @@ static int wl1271_dev_notify(struct notifier_block *me, unsigned long what,
 	if (wl->state == WL1271_STATE_OFF)
 		goto out;
 
+	if (dev->operstate != IF_OPER_UP)
+		goto out;
+	/*
+	 * The correct behavior should be just getting the appropriate wlvif
+	 * from the given dev, but currently we don't have a mac80211
+	 * interface for it.
+	 */
 	wl12xx_for_each_wlvif_sta(wl, wlvif) {
+		struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
+
 		if (!test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
 			continue;
 
@@ -458,7 +467,8 @@ static int wl1271_dev_notify(struct notifier_block *me, unsigned long what,
 		if (ret < 0)
 			goto out;
 
-		wl1271_check_operstate(wl, wlvif, dev->operstate);
+		wl1271_check_operstate(wl, wlvif,
+				       ieee80211_get_operstate(vif));
 
 		wl1271_ps_elp_sleep(wl);
 	}
