@@ -107,14 +107,14 @@ nouveau_framebuffer_init(struct drm_device *dev,
 
 		if (!tile_flags) {
 			if (dev_priv->card_type < NV_D0)
-				nv_fb->r_pitch = 0x00100000 | fb->pitch;
+				nv_fb->r_pitch = 0x00100000 | fb->pitches[0];
 			else
-				nv_fb->r_pitch = 0x01000000 | fb->pitch;
+				nv_fb->r_pitch = 0x01000000 | fb->pitches[0];
 		} else {
 			u32 mode = nvbo->tile_mode;
 			if (dev_priv->card_type >= NV_C0)
 				mode >>= 4;
-			nv_fb->r_pitch = ((fb->pitch / 4) << 4) | mode;
+			nv_fb->r_pitch = ((fb->pitches[0] / 4) << 4) | mode;
 		}
 	}
 
@@ -294,7 +294,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	/* Initialize a page flip struct */
 	*s = (struct nouveau_page_flip_state)
 		{ { }, event, nouveau_crtc(crtc)->index,
-		  fb->bits_per_pixel, fb->pitch, crtc->x, crtc->y,
+		  fb->bits_per_pixel, fb->pitches[0], crtc->x, crtc->y,
 		  new_bo->bo.offset };
 
 	/* Choose the channel the flip will be handled in */

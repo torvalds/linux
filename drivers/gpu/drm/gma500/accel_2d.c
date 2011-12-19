@@ -253,7 +253,7 @@ static void psbfb_copyarea_accel(struct fb_info *info,
 		return;
 
 	offset = psbfb->gtt->offset;
-	stride = fb->pitch;
+	stride = fb->pitches[0];
 
 	switch (fb->depth) {
 	case 8:

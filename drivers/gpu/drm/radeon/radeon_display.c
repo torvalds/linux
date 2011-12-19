@@ -406,7 +406,7 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 	if (!ASIC_IS_AVIVO(rdev)) {
 		/* crtc offset is from display base addr not FB location */
 		base -= radeon_crtc->legacy_display_base_addr;
-		pitch_pixels = fb->pitch / (fb->bits_per_pixel / 8);
+		pitch_pixels = fb->pitches[0] / (fb->bits_per_pixel / 8);
 
 		if (tiling_flags & RADEON_TILING_MACRO) {
 			if (ASIC_IS_R300(rdev)) {

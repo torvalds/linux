@@ -1511,8 +1511,8 @@ static void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	u32 fbc_ctl, fbc_ctl2;
 
 	cfb_pitch = dev_priv->cfb_size / FBC_LL_SIZE;
-	if (fb->pitch < cfb_pitch)
-		cfb_pitch = fb->pitch;
+	if (fb->pitches[0] < cfb_pitch)
+		cfb_pitch = fb->pitches[0];
 
 	/* FBC_CTL wants 64B units */
 	cfb_pitch = (cfb_pitch / 64) - 1;
@@ -2073,11 +2073,11 @@ static int i9xx_update_plane(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	I915_WRITE(reg, dspcntr);
 
 	Start = obj->gtt_offset;
-	Offset = y * fb->pitch + x * (fb->bits_per_pixel / 8);
+	Offset = y * fb->pitches[0] + x * (fb->bits_per_pixel / 8);
 
 	DRM_DEBUG_KMS("Writing base %08lX %08lX %d %d %d\n",
-		      Start, Offset, x, y, fb->pitch);
-	I915_WRITE(DSPSTRIDE(plane), fb->pitch);
+		      Start, Offset, x, y, fb->pitches[0]);
+	I915_WRITE(DSPSTRIDE(plane), fb->pitches[0]);
 	if (INTEL_INFO(dev)->gen >= 4) {
 		I915_WRITE(DSPSURF(plane), Start);
 		I915_WRITE(DSPTILEOFF(plane), (y << 16) | x);
@@ -2154,11 +2154,11 @@ static int ironlake_update_plane(struct drm_crtc *crtc,
 	I915_WRITE(reg, dspcntr);
 
 	Start = obj->gtt_offset;
-	Offset = y * fb->pitch + x * (fb->bits_per_pixel / 8);
+	Offset = y * fb->pitches[0] + x * (fb->bits_per_pixel / 8);
 
 	DRM_DEBUG_KMS("Writing base %08lX %08lX %d %d %d\n",
-		      Start, Offset, x, y, fb->pitch);
-	I915_WRITE(DSPSTRIDE(plane), fb->pitch);
+		      Start, Offset, x, y, fb->pitches[0]);
+	I915_WRITE(DSPSTRIDE(plane), fb->pitches[0]);
 	I915_WRITE(DSPSURF(plane), Start);
 	I915_WRITE(DSPTILEOFF(plane), (y << 16) | x);
 	I915_WRITE(DSPADDR(plane), Offset);
@@ -6353,11 +6353,11 @@ mode_fits_in_fbdev(struct drm_device *dev,
 		return NULL;
 
 	fb = &dev_priv->fbdev->ifb.base;
-	if (fb->pitch < intel_framebuffer_pitch_for_width(mode->hdisplay,
-							  fb->bits_per_pixel))
+	if (fb->pitches[0] < intel_framebuffer_pitch_for_width(mode->hdisplay,
+							       fb->bits_per_pixel))
 		return NULL;
 
-	if (obj->base.size < mode->vdisplay * fb->pitch)
+	if (obj->base.size < mode->vdisplay * fb->pitches[0])
 		return NULL;
 
 	return fb;
@@ -6990,7 +6990,7 @@ static int intel_gen2_queue_flip(struct drm_device *dev,
 		goto out;
 
 	/* Offset into the new buffer for cases of shared fbs between CRTCs */
-	offset = crtc->y * fb->pitch + crtc->x * fb->bits_per_pixel/8;
+	offset = crtc->y * fb->pitches[0] + crtc->x * fb->bits_per_pixel/8;
 
 	ret = BEGIN_LP_RING(6);
 	if (ret)
@@ -7007,7 +7007,7 @@ static int intel_gen2_queue_flip(struct drm_device *dev,
 	OUT_RING(MI_NOOP);
 	OUT_RING(MI_DISPLAY_FLIP |
 		 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
-	OUT_RING(fb->pitch);
+	OUT_RING(fb->pitches[0]);
 	OUT_RING(obj->gtt_offset + offset);
 	OUT_RING(MI_NOOP);
 	ADVANCE_LP_RING();
@@ -7031,7 +7031,7 @@ static int intel_gen3_queue_flip(struct drm_device *dev,
 		goto out;
 
 	/* Offset into the new buffer for cases of shared fbs between CRTCs */
-	offset = crtc->y * fb->pitch + crtc->x * fb->bits_per_pixel/8;
+	offset = crtc->y * fb->pitches[0] + crtc->x * fb->bits_per_pixel/8;
 
 	ret = BEGIN_LP_RING(6);
 	if (ret)
@@ -7045,7 +7045,7 @@ static int intel_gen3_queue_flip(struct drm_device *dev,
 	OUT_RING(MI_NOOP);
 	OUT_RING(MI_DISPLAY_FLIP_I915 |
 		 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
-	OUT_RING(fb->pitch);
+	OUT_RING(fb->pitches[0]);
 	OUT_RING(obj->gtt_offset + offset);
 	OUT_RING(MI_NOOP);
 
@@ -7078,7 +7078,7 @@ static int intel_gen4_queue_flip(struct drm_device *dev,
 	 */
 	OUT_RING(MI_DISPLAY_FLIP |
 		 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
-	OUT_RING(fb->pitch);
+	OUT_RING(fb->pitches[0]);
 	OUT_RING(obj->gtt_offset | obj->tiling_mode);
 
 	/* XXX Enabling the panel-fitter across page-flip is so far
@@ -7113,7 +7113,7 @@ static int intel_gen6_queue_flip(struct drm_device *dev,
 
 	OUT_RING(MI_DISPLAY_FLIP |
 		 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
-	OUT_RING(fb->pitch | obj->tiling_mode);
+	OUT_RING(fb->pitches[0] | obj->tiling_mode);
 	OUT_RING(obj->gtt_offset);
 
 	pf = I915_READ(PF_CTL(intel_crtc->pipe)) & PF_ENABLE;
@@ -7149,7 +7149,7 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 		goto out;
 
 	intel_ring_emit(ring, MI_DISPLAY_FLIP_I915 | (intel_crtc->plane << 19));
-	intel_ring_emit(ring, (fb->pitch | obj->tiling_mode));
+	intel_ring_emit(ring, (fb->pitches[0] | obj->tiling_mode));
 	intel_ring_emit(ring, (obj->gtt_offset));
 	intel_ring_emit(ring, (MI_NOOP));
 	intel_ring_advance(ring);

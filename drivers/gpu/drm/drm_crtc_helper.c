@@ -814,9 +814,14 @@ EXPORT_SYMBOL(drm_helper_connector_dpms);
 int drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,
 				   struct drm_mode_fb_cmd2 *mode_cmd)
 {
+	int i;
+
 	fb->width = mode_cmd->width;
 	fb->height = mode_cmd->height;
-	fb->pitch = mode_cmd->pitches[0];
+	for (i = 0; i < 4; i++) {
+		fb->pitches[i] = mode_cmd->pitches[i];
+		fb->offsets[i] = mode_cmd->offsets[i];
+	}
 	drm_fb_get_bpp_depth(mode_cmd->pixel_format, &fb->depth,
 				    &fb->bits_per_pixel);
 	fb->pixel_format = mode_cmd->pixel_format;

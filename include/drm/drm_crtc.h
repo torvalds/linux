@@ -239,7 +239,8 @@ struct drm_framebuffer {
 	struct list_head head;
 	struct drm_mode_object base;
 	const struct drm_framebuffer_funcs *funcs;
-	unsigned int pitch;
+	unsigned int pitches[4];
+	unsigned int offsets[4];
 	unsigned int width;
 	unsigned int height;
 	/* depth can be 15 or 16 */

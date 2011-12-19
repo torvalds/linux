@@ -100,7 +100,7 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 
 	exynos_fb->fb = fb;
 
-	drm_fb_helper_fill_fix(fbi, fb->pitch, fb->depth);
+	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->depth);
 	drm_fb_helper_fill_var(fbi, helper, fb_width, fb_height);
 
 	entry = exynos_drm_fb_get_buf(fb);
@@ -110,7 +110,7 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 	}
 
 	offset = fbi->var.xoffset * (fb->bits_per_pixel >> 3);
-	offset += fbi->var.yoffset * fb->pitch;
+	offset += fbi->var.yoffset * fb->pitches[0];
 
 	dev->mode_config.fb_base = entry->paddr;
 	fbi->screen_base = entry->vaddr + offset;

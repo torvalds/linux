@@ -119,7 +119,7 @@ static int exynos_drm_overlay_update(struct exynos_drm_overlay *overlay,
 	overlay->fb_width = fb->width;
 	overlay->fb_height = fb->height;
 	overlay->bpp = fb->bits_per_pixel;
-	overlay->pitch = fb->pitch;
+	overlay->pitch = fb->pitches[0];
 
 	/* set overlay range to be displayed. */
 	overlay->crtc_x = pos->crtc_x;

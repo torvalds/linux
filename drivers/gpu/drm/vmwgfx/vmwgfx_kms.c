@@ -605,7 +605,7 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 
 	/* XXX get the first 3 from the surface info */
 	vfbs->base.base.bits_per_pixel = mode_cmd->bpp;
-	vfbs->base.base.pitch = mode_cmd->pitch;
+	vfbs->base.base.pitches[0] = mode_cmd->pitch;
 	vfbs->base.base.depth = mode_cmd->depth;
 	vfbs->base.base.width = mode_cmd->width;
 	vfbs->base.base.height = mode_cmd->height;
@@ -719,7 +719,7 @@ static int do_dmabuf_define_gmrfb(struct drm_file *file_priv,
 	cmd->body.format.bitsPerPixel = framebuffer->base.bits_per_pixel;
 	cmd->body.format.colorDepth = depth;
 	cmd->body.format.reserved = 0;
-	cmd->body.bytesPerLine = framebuffer->base.pitch;
+	cmd->body.bytesPerLine = framebuffer->base.pitches[0];
 	cmd->body.ptr.gmrId = framebuffer->user_handle;
 	cmd->body.ptr.offset = 0;
 
@@ -961,7 +961,7 @@ static int vmw_kms_new_framebuffer_dmabuf(struct vmw_private *dev_priv,
 	}
 
 	vfbd->base.base.bits_per_pixel = mode_cmd->bpp;
-	vfbd->base.base.pitch = mode_cmd->pitch;
+	vfbd->base.base.pitches[0] = mode_cmd->pitch;
 	vfbd->base.base.depth = mode_cmd->depth;
 	vfbd->base.base.width = mode_cmd->width;
 	vfbd->base.base.height = mode_cmd->height;
@@ -1243,7 +1243,7 @@ int vmw_kms_readback(struct vmw_private *dev_priv,
 	cmd->body.format.bitsPerPixel = vfb->base.bits_per_pixel;
 	cmd->body.format.colorDepth = vfb->base.depth;
 	cmd->body.format.reserved = 0;
-	cmd->body.bytesPerLine = vfb->base.pitch;
+	cmd->body.bytesPerLine = vfb->base.pitches[0];
 	cmd->body.ptr.gmrId = vfb->user_handle;
 	cmd->body.ptr.offset = 0;
 

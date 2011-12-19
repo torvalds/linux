@@ -1204,7 +1204,7 @@ static void i915_pageflip_stall_check(struct drm_device *dev, int pipe)
 	} else {
 		int dspaddr = DSPADDR(intel_crtc->plane);
 		stall_detected = I915_READ(dspaddr) == (obj->gtt_offset +
-							crtc->y * crtc->fb->pitch +
+							crtc->y * crtc->fb->pitches[0] +
 							crtc->x * crtc->fb->bits_per_pixel/8);
 	}
 
