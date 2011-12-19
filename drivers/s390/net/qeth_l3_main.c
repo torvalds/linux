@@ -3492,14 +3492,13 @@ contin:
 	else
 		netif_carrier_off(card->dev);
 	if (recover_flag == CARD_STATE_RECOVER) {
+		rtnl_lock();
 		if (recovery_mode)
 			__qeth_l3_open(card->dev);
-		else {
-			rtnl_lock();
+		else
 			dev_open(card->dev);
-			rtnl_unlock();
-		}
 		qeth_l3_set_multicast_list(card->dev);
+		rtnl_unlock();
 	}
 	/* let user_space know that device is online */
 	kobject_uevent(&gdev->dev.kobj, KOBJ_CHANGE);
