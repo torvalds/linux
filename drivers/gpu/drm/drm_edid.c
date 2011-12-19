@@ -1474,26 +1474,29 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 	eld[18] = edid->prod_code[0];
 	eld[19] = edid->prod_code[1];
 
-	for (db = cea + 4; db < cea + cea[2]; db += dbl + 1) {
-		dbl = db[0] & 0x1f;
-
-		switch ((db[0] & 0xe0) >> 5) {
-		case AUDIO_BLOCK:	/* Audio Data Block, contains SADs */
-			sad_count = dbl / 3;
-			memcpy(eld + 20 + mnl, &db[1], dbl);
-			break;
-		case SPEAKER_BLOCK:	/* Speaker Allocation Data Block */
-			eld[7] = db[1];
-			break;
-		case VENDOR_BLOCK:
-			/* HDMI Vendor-Specific Data Block */
-			if (db[1] == 0x03 && db[2] == 0x0c && db[3] == 0)
-				parse_hdmi_vsdb(connector, db);
-			break;
-		default:
-			break;
+	if (cea[1] >= 3)
+		for (db = cea + 4; db < cea + cea[2]; db += dbl + 1) {
+			dbl = db[0] & 0x1f;
+			
+			switch ((db[0] & 0xe0) >> 5) {
+			case AUDIO_BLOCK:
+				/* Audio Data Block, contains SADs */
+				sad_count = dbl / 3;
+				memcpy(eld + 20 + mnl, &db[1], dbl);
+				break;
+			case SPEAKER_BLOCK:
+                                /* Speaker Allocation Data Block */
+				eld[7] = db[1];
+				break;
+			case VENDOR_BLOCK:
+				/* HDMI Vendor-Specific Data Block */
+				if (db[1] == 0x03 && db[2] == 0x0c && db[3] == 0)
+					parse_hdmi_vsdb(connector, db);
+				break;
+			default:
+				break;
+			}
 		}
-	}
 	eld[5] |= sad_count << 4;
 	eld[2] = (20 + mnl + sad_count * 3 + 3) / 4;
 
