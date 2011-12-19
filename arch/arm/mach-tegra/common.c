@@ -35,6 +35,7 @@
 
 void (*arch_reset)(char mode, const char *cmd) = tegra_assert_system_reset;
 
+#ifdef CONFIG_OF
 static const struct of_device_id tegra_dt_irq_match[] __initconst = {
 	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init },
 	{ }
@@ -45,6 +46,7 @@ void __init tegra_dt_init_irq(void)
 	tegra_init_irq();
 	of_irq_init(tegra_dt_irq_match);
 }
+#endif
 
 void tegra_assert_system_reset(char mode, const char *cmd)
 {
