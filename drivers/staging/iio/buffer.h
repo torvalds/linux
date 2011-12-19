@@ -79,7 +79,6 @@ struct iio_buffer_access_funcs {
  *			created from the iio_chan_info array.
  * @pollq:		[INTERN] wait queue to allow for polling on the buffer.
  * @stufftoread:	[INTERN] flag to indicate new data.
- * @flags:		[INTERN] file ops related flags including busy flag.
  * @demux_list:		[INTERN] list of operations required to demux the scan.
  * @demux_bounce:	[INTERN] buffer for doing gather from incoming scan.
  **/
@@ -95,7 +94,6 @@ struct iio_buffer {
 	struct attribute_group			scan_el_group;
 	wait_queue_head_t			pollq;
 	bool					stufftoread;
-	unsigned long				flags;
 	const struct attribute_group *attrs;
 	struct list_head			demux_list;
 	unsigned char				*demux_bounce;

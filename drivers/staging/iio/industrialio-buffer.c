@@ -80,7 +80,6 @@ void iio_chrdev_buffer_release(struct iio_dev *indio_dev)
 
 	if (!rb)
 		return;
-	clear_bit(IIO_BUSY_BIT_POS, &rb->flags);
 	if (rb->access->unmark_in_use)
 		rb->access->unmark_in_use(rb);
 }
