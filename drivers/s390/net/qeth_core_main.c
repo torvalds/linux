@@ -1329,6 +1329,7 @@ static int qeth_do_start_thread(struct qeth_card *card, unsigned long thread)
 
 static void qeth_start_kernel_thread(struct work_struct *work)
 {
+	struct task_struct *ts;
 	struct qeth_card *card = container_of(work, struct qeth_card,
 					kernel_thread_starter);
 	QETH_CARD_TEXT(card , 2, "strthrd");
@@ -1336,9 +1337,15 @@ static void qeth_start_kernel_thread(struct work_struct *work)
 	if (card->read.state != CH_STATE_UP &&
 	    card->write.state != CH_STATE_UP)
 		return;
-	if (qeth_do_start_thread(card, QETH_RECOVER_THREAD))
-		kthread_run(card->discipline.recover, (void *) card,
+	if (qeth_do_start_thread(card, QETH_RECOVER_THREAD)) {
+		ts = kthread_run(card->discipline.recover, (void *)card,
 				"qeth_recover");
+		if (IS_ERR(ts)) {
+			qeth_clear_thread_start_bit(card, QETH_RECOVER_THREAD);
+			qeth_clear_thread_running_bit(card,
+				QETH_RECOVER_THREAD);
+		}
+	}
 }
 
 static int qeth_setup_card(struct qeth_card *card)
