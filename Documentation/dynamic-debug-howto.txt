@@ -144,11 +144,12 @@ func
     func svc_tcp_accept
 
 file
-    The given string is compared against either the full
-    pathname or the basename of the source file of each
-    callsite.  Examples:
+    The given string is compared against either the full pathname, the
+    src-root relative pathname, or the basename of the source file of
+    each callsite.  Examples:
 
     file svcsock.c
+    file kernel/freezer.c
     file /usr/src/packages/BUILD/sgi-enhancednfs-1.4/default/net/sunrpc/svcsock.c
 
 module

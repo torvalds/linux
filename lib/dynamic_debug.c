@@ -69,6 +69,17 @@ static inline const char *basename(const char *path)
 	return tail ? tail+1 : path;
 }
 
+/* Return the path relative to source root */
+static inline const char *trim_prefix(const char *path)
+{
+	int skip = strlen(__FILE__) - strlen("lib/dynamic_debug.c");
+
+	if (strncmp(path, __FILE__, skip))
+		skip = 0; /* prefix mismatch, don't skip */
+
+	return path + skip;
+}
+
 static struct { unsigned flag:8; char opt_char; } opt_array[] = {
 	{ _DPRINTK_FLAGS_PRINT, 'p' },
 	{ _DPRINTK_FLAGS_INCL_MODNAME, 'm' },
@@ -125,7 +136,8 @@ static void ddebug_change(const struct ddebug_query *query,
 			/* match against the source filename */
 			if (query->filename &&
 			    strcmp(query->filename, dp->filename) &&
-			    strcmp(query->filename, basename(dp->filename)))
+			    strcmp(query->filename, basename(dp->filename)) &&
+			    strcmp(query->filename, trim_prefix(dp->filename)))
 				continue;
 
 			/* match against the function */
@@ -154,7 +166,7 @@ static void ddebug_change(const struct ddebug_query *query,
 			dp->flags = newflags;
 			if (verbose)
 				pr_info("changed %s:%d [%s]%s =%s\n",
-					dp->filename, dp->lineno,
+					trim_prefix(dp->filename), dp->lineno,
 					dt->mod_name, dp->function,
 					ddebug_describe_flags(dp, flagbuf,
 							sizeof(flagbuf)));
@@ -714,7 +726,7 @@ static int ddebug_proc_show(struct seq_file *m, void *p)
 	}
 
 	seq_printf(m, "%s:%u [%s]%s =%s \"",
-		dp->filename, dp->lineno,
+		trim_prefix(dp->filename), dp->lineno,
 		iter->table->mod_name, dp->function,
 		ddebug_describe_flags(dp, flagsbuf, sizeof(flagsbuf)));
 	seq_escape(m, dp->format, "\t\r\n\"");
