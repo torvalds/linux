@@ -406,25 +406,6 @@ static int afiucv_hs_send(struct iucv_message *imsg, struct sock *sock,
 	return err;
 }
 
-/* Timers */
-static void iucv_sock_timeout(unsigned long arg)
-{
-	struct sock *sk = (struct sock *)arg;
-
-	bh_lock_sock(sk);
-	sk->sk_err = ETIMEDOUT;
-	sk->sk_state_change(sk);
-	bh_unlock_sock(sk);
-
-	iucv_sock_kill(sk);
-	sock_put(sk);
-}
-
-static void iucv_sock_clear_timer(struct sock *sk)
-{
-	sk_stop_timer(sk, &sk->sk_timer);
-}
-
 static struct sock *__iucv_get_sock_by_name(char *nm)
 {
 	struct sock *sk;
@@ -477,7 +458,6 @@ static void iucv_sock_close(struct sock *sk)
 	int err, blen;
 	struct sk_buff *skb;
 
-	iucv_sock_clear_timer(sk);
 	lock_sock(sk);
 
 	switch (sk->sk_state) {
@@ -588,8 +568,6 @@ static struct sock *iucv_sock_alloc(struct socket *sock, int proto, gfp_t prio)
 
 	sk->sk_protocol = proto;
 	sk->sk_state	= IUCV_OPEN;
-
-	setup_timer(&sk->sk_timer, iucv_sock_timeout, (unsigned long)sk);
 
 	iucv_sock_link(&iucv_sk_list, sk);
 	return sk;
