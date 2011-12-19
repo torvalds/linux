@@ -224,7 +224,7 @@ static void sysfs_deactivate(struct sysfs_dirent *sd)
 	rwsem_release(&sd->dep_map, 1, _RET_IP_);
 }
 
-static int sysfs_alloc_ino(ino_t *pino)
+static int sysfs_alloc_ino(unsigned int *pino)
 {
 	int ino, rc;
 
@@ -243,7 +243,7 @@ static int sysfs_alloc_ino(ino_t *pino)
 	return rc;
 }
 
-static void sysfs_free_ino(ino_t ino)
+static void sysfs_free_ino(unsigned int ino)
 {
 	spin_lock(&sysfs_ino_lock);
 	ida_remove(&sysfs_ino_ida, ino);

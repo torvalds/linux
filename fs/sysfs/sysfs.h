@@ -79,7 +79,7 @@ struct sysfs_dirent {
 
 	unsigned short		s_flags;
 	umode_t 		s_mode;
-	ino_t			s_ino;
+	unsigned int		s_ino;
 	struct sysfs_inode_attrs *s_iattr;
 };
 
