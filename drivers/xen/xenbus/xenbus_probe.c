@@ -730,6 +730,8 @@ static int __init xenbus_init(void)
 	if (!xen_domain())
 		return -ENODEV;
 
+	xenbus_ring_ops_init();
+
 	if (xen_hvm_domain()) {
 		uint64_t v = 0;
 		err = hvm_get_parameter(HVM_PARAM_STORE_EVTCHN, &v);

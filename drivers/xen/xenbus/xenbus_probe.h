@@ -76,4 +76,6 @@ extern void xenbus_otherend_changed(struct xenbus_watch *watch,
 extern int xenbus_read_otherend_details(struct xenbus_device *xendev,
 					char *id_node, char *path_node);
 
+void xenbus_ring_ops_init(void);
+
 #endif
