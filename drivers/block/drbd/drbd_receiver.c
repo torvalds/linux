@@ -842,7 +842,7 @@ int drbd_connected(struct drbd_conf *mdev)
  */
 static int conn_connect(struct drbd_tconn *tconn)
 {
-	struct socket *sock, *msock;
+	struct drbd_socket sock, msock;
 	struct drbd_conf *mdev;
 	struct net_conf *nc;
 	int vnr, timeout, try, h, ok;
@@ -850,6 +850,15 @@ static int conn_connect(struct drbd_tconn *tconn)
 
 	if (conn_request_state(tconn, NS(conn, C_WF_CONNECTION), CS_VERBOSE) < SS_SUCCESS)
 		return -2;
+
+	mutex_init(&sock.mutex);
+	sock.sbuf = tconn->data.sbuf;
+	sock.rbuf = tconn->data.rbuf;
+	sock.socket = NULL;
+	mutex_init(&msock.mutex);
+	msock.sbuf = tconn->meta.sbuf;
+	msock.rbuf = tconn->meta.rbuf;
+	msock.socket = NULL;
 
 	clear_bit(DISCARD_CONCURRENT, &tconn->flags);
 
@@ -869,22 +878,26 @@ static int conn_connect(struct drbd_tconn *tconn)
 		}
 
 		if (s) {
-			if (!tconn->data.socket) {
-				tconn->data.socket = s;
-				send_first_packet(tconn, &tconn->data, P_INITIAL_DATA);
-			} else if (!tconn->meta.socket) {
-				tconn->meta.socket = s;
-				send_first_packet(tconn, &tconn->meta, P_INITIAL_META);
+			if (!sock.socket) {
+				sock.socket = s;
+				send_first_packet(tconn, &sock, P_INITIAL_DATA);
+			} else if (!msock.socket) {
+				msock.socket = s;
+				send_first_packet(tconn, &msock, P_INITIAL_META);
 			} else {
 				conn_err(tconn, "Logic error in conn_connect()\n");
 				goto out_release_sockets;
 			}
 		}
 
-		if (tconn->data.socket && tconn->meta.socket) {
-			schedule_timeout_interruptible(tconn->net_conf->ping_timeo*HZ/10);
-			ok = drbd_socket_okay(&tconn->data.socket);
-			ok = drbd_socket_okay(&tconn->meta.socket) && ok;
+		if (sock.socket && msock.socket) {
+			rcu_read_lock();
+			nc = rcu_dereference(tconn->net_conf);
+			timeout = nc->ping_timeo * HZ / 10;
+			rcu_read_unlock();
+			schedule_timeout_interruptible(timeout);
+			ok = drbd_socket_okay(&sock.socket);
+			ok = drbd_socket_okay(&msock.socket) && ok;
 			if (ok)
 				break;
 		}
@@ -893,22 +906,22 @@ retry:
 		s = drbd_wait_for_connect(tconn);
 		if (s) {
 			try = receive_first_packet(tconn, s);
-			drbd_socket_okay(&tconn->data.socket);
-			drbd_socket_okay(&tconn->meta.socket);
+			drbd_socket_okay(&sock.socket);
+			drbd_socket_okay(&msock.socket);
 			switch (try) {
 			case P_INITIAL_DATA:
-				if (tconn->data.socket) {
+				if (sock.socket) {
 					conn_warn(tconn, "initial packet S crossed\n");
-					sock_release(tconn->data.socket);
+					sock_release(sock.socket);
 				}
-				tconn->data.socket = s;
+				sock.socket = s;
 				break;
 			case P_INITIAL_META:
-				if (tconn->meta.socket) {
+				if (msock.socket) {
 					conn_warn(tconn, "initial packet M crossed\n");
-					sock_release(tconn->meta.socket);
+					sock_release(msock.socket);
 				}
-				tconn->meta.socket = s;
+				msock.socket = s;
 				set_bit(DISCARD_CONCURRENT, &tconn->flags);
 				break;
 			default:
@@ -928,49 +941,48 @@ retry:
 				goto out_release_sockets;
 		}
 
-		if (tconn->data.socket && &tconn->meta.socket) {
-			ok = drbd_socket_okay(&tconn->data.socket);
-			ok = drbd_socket_okay(&tconn->meta.socket) && ok;
+		if (sock.socket && &msock.socket) {
+			ok = drbd_socket_okay(&sock.socket);
+			ok = drbd_socket_okay(&msock.socket) && ok;
 			if (ok)
 				break;
 		}
 	} while (1);
 
-	sock  = tconn->data.socket;
-	msock = tconn->meta.socket;
+	sock.socket->sk->sk_reuse = 1; /* SO_REUSEADDR */
+	msock.socket->sk->sk_reuse = 1; /* SO_REUSEADDR */
 
-	msock->sk->sk_reuse = 1; /* SO_REUSEADDR */
-	sock->sk->sk_reuse = 1; /* SO_REUSEADDR */
+	sock.socket->sk->sk_allocation = GFP_NOIO;
+	msock.socket->sk->sk_allocation = GFP_NOIO;
 
-	sock->sk->sk_allocation = GFP_NOIO;
-	msock->sk->sk_allocation = GFP_NOIO;
-
-	sock->sk->sk_priority = TC_PRIO_INTERACTIVE_BULK;
-	msock->sk->sk_priority = TC_PRIO_INTERACTIVE;
+	sock.socket->sk->sk_priority = TC_PRIO_INTERACTIVE_BULK;
+	msock.socket->sk->sk_priority = TC_PRIO_INTERACTIVE;
 
 	/* NOT YET ...
-	 * sock->sk->sk_sndtimeo = tconn->net_conf->timeout*HZ/10;
-	 * sock->sk->sk_rcvtimeo = MAX_SCHEDULE_TIMEOUT;
+	 * sock.socket->sk->sk_sndtimeo = tconn->net_conf->timeout*HZ/10;
+	 * sock.socket->sk->sk_rcvtimeo = MAX_SCHEDULE_TIMEOUT;
 	 * first set it to the P_CONNECTION_FEATURES timeout,
 	 * which we set to 4x the configured ping_timeout. */
 	rcu_read_lock();
 	nc = rcu_dereference(tconn->net_conf);
 
-	sock->sk->sk_sndtimeo =
-	sock->sk->sk_rcvtimeo = nc->ping_timeo*4*HZ/10;
+	sock.socket->sk->sk_sndtimeo =
+	sock.socket->sk->sk_rcvtimeo = nc->ping_timeo*4*HZ/10;
 
-	msock->sk->sk_rcvtimeo = nc->ping_int*HZ;
+	msock.socket->sk->sk_rcvtimeo = nc->ping_int*HZ;
 	timeout = nc->timeout * HZ / 10;
 	discard_my_data = nc->discard_my_data;
 	rcu_read_unlock();
 
-	msock->sk->sk_sndtimeo = timeout;
+	msock.socket->sk->sk_sndtimeo = timeout;
 
 	/* we don't want delays.
 	 * we use TCP_CORK where appropriate, though */
-	drbd_tcp_nodelay(sock);
-	drbd_tcp_nodelay(msock);
+	drbd_tcp_nodelay(sock.socket);
+	drbd_tcp_nodelay(msock.socket);
 
+	tconn->data.socket = sock.socket;
+	tconn->meta.socket = msock.socket;
 	tconn->last_received = jiffies;
 
 	h = drbd_do_features(tconn);
@@ -989,8 +1001,8 @@ retry:
 		}
 	}
 
-	sock->sk->sk_sndtimeo = timeout;
-	sock->sk->sk_rcvtimeo = MAX_SCHEDULE_TIMEOUT;
+	tconn->data.socket->sk->sk_sndtimeo = timeout;
+	tconn->data.socket->sk->sk_rcvtimeo = MAX_SCHEDULE_TIMEOUT;
 
 	if (drbd_send_protocol(tconn) == -EOPNOTSUPP)
 		return -1;
@@ -1027,14 +1039,10 @@ retry:
 	return h;
 
 out_release_sockets:
-	if (tconn->data.socket) {
-		sock_release(tconn->data.socket);
-		tconn->data.socket = NULL;
-	}
-	if (tconn->meta.socket) {
-		sock_release(tconn->meta.socket);
-		tconn->meta.socket = NULL;
-	}
+	if (sock.socket)
+		sock_release(sock.socket);
+	if (msock.socket)
+		sock_release(msock.socket);
 	return -1;
 }
 
