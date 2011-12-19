@@ -260,6 +260,16 @@ struct psb_intel_opregion {
 	int enabled;
 };
 
+struct sdvo_device_mapping {
+	u8 initialized;
+	u8 dvo_port;
+	u8 slave_addr;
+	u8 dvo_wiring;
+	u8 i2c_pin;
+	u8 i2c_speed;
+	u8 ddc_pin;
+};
+
 struct intel_gmbus {
 	struct i2c_adapter adapter;
 	struct i2c_adapter *force_bit;
@@ -344,6 +354,15 @@ struct drm_psb_private {
 
 	/* gmbus */
 	struct intel_gmbus *gmbus;
+
+	/* Used by SDVO */
+	int crt_ddc_pin;
+	/* FIXME: The mappings should be parsed from bios but for now we can
+		  pretend there are no mappings available */
+	struct sdvo_device_mapping sdvo_mappings[2];
+	u32 hotplug_supported_mask;
+	struct drm_property *broadcast_rgb_property;
+	struct drm_property *force_audio_property;
 
 	/*
 	 * LVDS info

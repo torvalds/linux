@@ -376,6 +376,8 @@
 #define SDVO_PIPE_B_SELECT		(1 << 30)
 #define SDVO_STALL_SELECT		(1 << 29)
 #define SDVO_INTERRUPT_ENABLE		(1 << 26)
+#define SDVO_COLOR_RANGE_16_235		(1 << 8)
+#define SDVO_AUDIO_ENABLE		(1 << 6)
 
 /**
  * 915G/GM SDVO pixel multiplier.

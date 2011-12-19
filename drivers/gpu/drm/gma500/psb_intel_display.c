@@ -552,6 +552,14 @@ void psb_intel_encoder_commit(struct drm_encoder *encoder)
 	encoder_funcs->dpms(encoder, DRM_MODE_DPMS_ON);
 }
 
+void psb_intel_encoder_destroy(struct drm_encoder *encoder)
+{
+	struct psb_intel_encoder *intel_encoder = to_psb_intel_encoder(encoder);
+
+	drm_encoder_cleanup(encoder);
+	kfree(intel_encoder);
+}
+
 static bool psb_intel_crtc_mode_fixup(struct drm_crtc *crtc,
 				  struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)

@@ -39,6 +39,25 @@
 #define INTEL_I2C_BUS_DVO 1
 #define INTEL_I2C_BUS_SDVO 2
 
+/* Intel Pipe Clone Bit */
+#define INTEL_HDMIB_CLONE_BIT 1
+#define INTEL_HDMIC_CLONE_BIT 2
+#define INTEL_HDMID_CLONE_BIT 3
+#define INTEL_HDMIE_CLONE_BIT 4
+#define INTEL_HDMIF_CLONE_BIT 5
+#define INTEL_SDVO_NON_TV_CLONE_BIT 6
+#define INTEL_SDVO_TV_CLONE_BIT 7
+#define INTEL_SDVO_LVDS_CLONE_BIT 8
+#define INTEL_ANALOG_CLONE_BIT 9
+#define INTEL_TV_CLONE_BIT 10
+#define INTEL_DP_B_CLONE_BIT 11
+#define INTEL_DP_C_CLONE_BIT 12
+#define INTEL_DP_D_CLONE_BIT 13
+#define INTEL_LVDS_CLONE_BIT 14
+#define INTEL_DVO_TMDS_CLONE_BIT 15
+#define INTEL_DVO_LVDS_CLONE_BIT 16
+#define INTEL_EDP_CLONE_BIT 17
+
 /* these are outputs from the chip - integrated only
  * external chips are via DVO or SDVO output */
 #define INTEL_OUTPUT_UNUSED 0
@@ -55,6 +74,25 @@
 #define INTEL_DVO_CHIP_LVDS 1
 #define INTEL_DVO_CHIP_TMDS 2
 #define INTEL_DVO_CHIP_TVOUT 4
+
+#define INTEL_MODE_PIXEL_MULTIPLIER_SHIFT (0x0)
+#define INTEL_MODE_PIXEL_MULTIPLIER_MASK (0xf << INTEL_MODE_PIXEL_MULTIPLIER_SHIFT)
+
+static inline void
+psb_intel_mode_set_pixel_multiplier(struct drm_display_mode *mode,
+				int multiplier)
+{
+	mode->clock *= multiplier;
+	mode->private_flags |= multiplier;
+}
+
+static inline int
+psb_intel_mode_get_pixel_multiplier(const struct drm_display_mode *mode)
+{
+	return (mode->private_flags & INTEL_MODE_PIXEL_MULTIPLIER_MASK)
+	       >> INTEL_MODE_PIXEL_MULTIPLIER_SHIFT;
+}
+
 
 /*
  * Hold information useally put on the device driver privates here,
@@ -173,7 +211,7 @@ extern bool psb_intel_ddc_probe(struct i2c_adapter *adapter);
 extern void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 			    struct psb_intel_mode_device *mode_dev);
 extern void psb_intel_crt_init(struct drm_device *dev);
-extern void psb_intel_sdvo_init(struct drm_device *dev, int output_device);
+extern bool psb_intel_sdvo_init(struct drm_device *dev, int output_device);
 extern void psb_intel_dvo_init(struct drm_device *dev);
 extern void psb_intel_tv_init(struct drm_device *dev);
 extern void psb_intel_lvds_init(struct drm_device *dev,
@@ -190,6 +228,7 @@ extern void mid_dsi_init(struct drm_device *dev,
 extern void psb_intel_crtc_load_lut(struct drm_crtc *crtc);
 extern void psb_intel_encoder_prepare(struct drm_encoder *encoder);
 extern void psb_intel_encoder_commit(struct drm_encoder *encoder);
+extern void psb_intel_encoder_destroy(struct drm_encoder *encoder);
 
 static inline struct psb_intel_encoder *psb_intel_attached_encoder(
 						struct drm_connector *connector)
