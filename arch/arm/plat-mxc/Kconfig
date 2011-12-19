@@ -20,6 +20,7 @@ config ARCH_IMX_V6_V7
 	bool "i.MX3, i.MX6"
 	select AUTO_ZRELADDR if !ZBOOT_ROM
 	select ARM_PATCH_PHYS_VIRT
+	select MIGHT_HAVE_CACHE_L2X0
 	help
 	  This enables support for systems based on the Freescale i.MX3 and i.MX6
 	  family.
