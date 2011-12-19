@@ -199,6 +199,8 @@ static void bredr_init(struct hci_dev *hdev)
 	__le16 param;
 	__u8 flt_type;
 
+	hdev->flow_ctl_mode = HCI_FLOW_CTL_MODE_PACKET_BASED;
+
 	/* Mandatory initialization */
 
 	/* Reset */
@@ -245,6 +247,8 @@ static void bredr_init(struct hci_dev *hdev)
 
 static void amp_init(struct hci_dev *hdev)
 {
+	hdev->flow_ctl_mode = HCI_FLOW_CTL_MODE_BLOCK_BASED;
+
 	/* Reset */
 	hci_send_cmd(hdev, HCI_OP_RESET, 0, NULL);
 

@@ -280,6 +280,10 @@ enum {
 #define HCI_ERROR_LOCAL_HOST_TERM	0x16
 #define HCI_ERROR_PAIRING_NOT_ALLOWED	0x18
 
+/* Flow control modes */
+#define HCI_FLOW_CTL_MODE_PACKET_BASED	0x00
+#define HCI_FLOW_CTL_MODE_BLOCK_BASED	0x01
+
 /* -----  HCI Commands ---- */
 #define HCI_OP_NOP			0x0000
 
