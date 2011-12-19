@@ -902,7 +902,7 @@ static struct platform_driver mxsfb_driver = {
 	},
 };
 
-module_platform_driver(mxsfb_devtype);
+module_platform_driver(mxsfb_driver);
 
 MODULE_DESCRIPTION("Freescale mxs framebuffer driver");
 MODULE_AUTHOR("Sascha Hauer, Pengutronix");
