@@ -45,6 +45,7 @@
 #include "f_mass_storage.c"
 #include "u_serial.c"
 #include "f_acm.c"
+#include "f_mtp.c"
 #define USB_ETH_RNDIS y
 #include "f_rndis.c"
 #include "rndis.c"
@@ -261,6 +262,69 @@ static struct android_usb_function acm_function = {
 	.cleanup	= acm_function_cleanup,
 	.bind_config	= acm_function_bind_config,
 	.attributes	= acm_function_attributes,
+};
+
+
+static int
+mtp_function_init(struct android_usb_function *f,
+		struct usb_composite_dev *cdev)
+{
+	return mtp_setup();
+}
+
+static void mtp_function_cleanup(struct android_usb_function *f)
+{
+	mtp_cleanup();
+}
+
+static int
+mtp_function_bind_config(struct android_usb_function *f,
+		struct usb_configuration *c)
+{
+	return mtp_bind_config(c, false);
+}
+
+static int
+ptp_function_init(struct android_usb_function *f,
+		struct usb_composite_dev *cdev)
+{
+	/* nothing to do - initialization is handled by mtp_function_init */
+	return 0;
+}
+
+static void ptp_function_cleanup(struct android_usb_function *f)
+{
+	/* nothing to do - cleanup is handled by mtp_function_cleanup */
+}
+
+static int
+ptp_function_bind_config(struct android_usb_function *f,
+		struct usb_configuration *c)
+{
+	return mtp_bind_config(c, true);
+}
+
+static int mtp_function_ctrlrequest(struct android_usb_function *f,
+					struct usb_composite_dev *cdev,
+					const struct usb_ctrlrequest *c)
+{
+	return mtp_ctrlrequest(cdev, c);
+}
+
+static struct android_usb_function mtp_function = {
+	.name		= "mtp",
+	.init		= mtp_function_init,
+	.cleanup	= mtp_function_cleanup,
+	.bind_config	= mtp_function_bind_config,
+	.ctrlrequest	= mtp_function_ctrlrequest,
+};
+
+/* PTP function is same as MTP with slightly different interface descriptor */
+static struct android_usb_function ptp_function = {
+	.name		= "ptp",
+	.init		= ptp_function_init,
+	.cleanup	= ptp_function_cleanup,
+	.bind_config	= ptp_function_bind_config,
 };
 
 
@@ -543,6 +607,8 @@ static struct android_usb_function mass_storage_function = {
 
 static struct android_usb_function *supported_functions[] = {
 	&acm_function,
+	&mtp_function,
+	&ptp_function,
 	&rndis_function,
 	&mass_storage_function,
 	NULL
