@@ -2198,6 +2198,9 @@ static void *t_hash_start(struct seq_file *m, loff_t *pos)
 	void *p = NULL;
 	loff_t l;
 
+	if (!(iter->flags & FTRACE_ITER_DO_HASH))
+		return NULL;
+
 	if (iter->func_pos > *pos)
 		return NULL;
 
@@ -2343,12 +2346,8 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 			break;
 	}
 
-	if (!p) {
-		if (iter->flags & FTRACE_ITER_FILTER)
-			return t_hash_start(m, pos);
-
-		return NULL;
-	}
+	if (!p)
+		return t_hash_start(m, pos);
 
 	return iter;
 }
@@ -2541,8 +2540,9 @@ ftrace_regex_open(struct ftrace_ops *ops, int flag,
 static int
 ftrace_filter_open(struct inode *inode, struct file *file)
 {
-	return ftrace_regex_open(&global_ops, FTRACE_ITER_FILTER,
-				 inode, file);
+	return ftrace_regex_open(&global_ops,
+			FTRACE_ITER_FILTER | FTRACE_ITER_DO_HASH,
+			inode, file);
 }
 
 static int

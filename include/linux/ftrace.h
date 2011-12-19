@@ -206,8 +206,9 @@ enum {
 	FTRACE_ITER_FILTER	= (1 << 0),
 	FTRACE_ITER_NOTRACE	= (1 << 1),
 	FTRACE_ITER_PRINTALL	= (1 << 2),
-	FTRACE_ITER_HASH	= (1 << 3),
-	FTRACE_ITER_ENABLED	= (1 << 4),
+	FTRACE_ITER_DO_HASH	= (1 << 3),
+	FTRACE_ITER_HASH	= (1 << 4),
+	FTRACE_ITER_ENABLED	= (1 << 5),
 };
 
 void arch_ftrace_update_code(int command);
