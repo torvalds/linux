@@ -1576,25 +1576,6 @@ ieee80211_rx_h_defragment(struct ieee80211_rx_data *rx)
 	return RX_CONTINUE;
 }
 
-static ieee80211_rx_result debug_noinline
-ieee80211_rx_h_remove_qos_control(struct ieee80211_rx_data *rx)
-{
-	u8 *data = rx->skb->data;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)data;
-
-	if (!ieee80211_is_data_qos(hdr->frame_control))
-		return RX_CONTINUE;
-
-	/* remove the qos control field, update frame type and meta-data */
-	memmove(data + IEEE80211_QOS_CTL_LEN, data,
-		ieee80211_hdrlen(hdr->frame_control) - IEEE80211_QOS_CTL_LEN);
-	hdr = (struct ieee80211_hdr *)skb_pull(rx->skb, IEEE80211_QOS_CTL_LEN);
-	/* change frame type to non QOS */
-	hdr->frame_control &= ~cpu_to_le16(IEEE80211_STYPE_QOS_DATA);
-
-	return RX_CONTINUE;
-}
-
 static int
 ieee80211_802_1x_port_control(struct ieee80211_rx_data *rx)
 {
@@ -2718,7 +2699,6 @@ static void ieee80211_rx_handlers(struct ieee80211_rx_data *rx)
 		if (ieee80211_vif_is_mesh(&rx->sdata->vif))
 			CALL_RXH(ieee80211_rx_h_mesh_fwding);
 #endif
-		CALL_RXH(ieee80211_rx_h_remove_qos_control)
 		CALL_RXH(ieee80211_rx_h_amsdu)
 		CALL_RXH(ieee80211_rx_h_data)
 		CALL_RXH(ieee80211_rx_h_ctrl);
