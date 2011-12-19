@@ -36,6 +36,9 @@
 
 #define BCM63XX_EXTENDED_SIZE	0xBFC00000	/* Extended flash address */
 
+#define BCM63XX_MIN_CFE_SIZE	0x10000		/* always at least 64KiB */
+#define BCM63XX_MIN_NVRAM_SIZE	0x10000		/* always at least 64KiB */
+
 #define BCM63XX_CFE_MAGIC_OFFSET 0x4e0
 
 static int bcm63xx_detect_cfe(struct mtd_info *master)
@@ -74,6 +77,7 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 	size_t retlen;
 	unsigned int rootfsaddr, kerneladdr, spareaddr;
 	unsigned int rootfslen, kernellen, sparelen, totallen;
+	unsigned int cfelen, nvramlen;
 	int namelen = 0;
 	int i;
 	char *boardid;
@@ -82,14 +86,18 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 	if (bcm63xx_detect_cfe(master))
 		return -EINVAL;
 
+	cfelen = max_t(uint32_t, master->erasesize, BCM63XX_MIN_CFE_SIZE);
+	nvramlen = max_t(uint32_t, master->erasesize, BCM63XX_MIN_NVRAM_SIZE);
+
 	/* Allocate memory for buffer */
 	buf = vmalloc(sizeof(struct bcm_tag));
 	if (!buf)
 		return -ENOMEM;
 
 	/* Get the tag */
-	ret = master->read(master, master->erasesize, sizeof(struct bcm_tag),
-							&retlen, (void *)buf);
+	ret = master->read(master, cfelen, sizeof(struct bcm_tag), &retlen,
+			   (void *)buf);
+
 	if (retlen != sizeof(struct bcm_tag)) {
 		vfree(buf);
 		return -EIO;
@@ -106,8 +114,8 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 
 	kerneladdr = kerneladdr - BCM63XX_EXTENDED_SIZE;
 	rootfsaddr = kerneladdr + kernellen;
-	spareaddr = roundup(totallen, master->erasesize) + master->erasesize;
-	sparelen = master->size - spareaddr - master->erasesize;
+	spareaddr = roundup(totallen, master->erasesize) + cfelen;
+	sparelen = master->size - spareaddr - nvramlen;
 	rootfslen = spareaddr - rootfsaddr;
 
 	/* Determine number of partitions */
@@ -131,7 +139,7 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 	/* Start building partition list */
 	parts[curpart].name = "CFE";
 	parts[curpart].offset = 0;
-	parts[curpart].size = master->erasesize;
+	parts[curpart].size = cfelen;
 	curpart++;
 
 	if (kernellen > 0) {
@@ -151,8 +159,8 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 	}
 
 	parts[curpart].name = "nvram";
-	parts[curpart].offset = master->size - master->erasesize;
-	parts[curpart].size = master->erasesize;
+	parts[curpart].offset = master->size - nvramlen;
+	parts[curpart].size = nvramlen;
 
 	/* Global partition "linux" to make easy firmware upgrade */
 	curpart++;
