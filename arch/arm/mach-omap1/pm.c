@@ -583,8 +583,6 @@ static void omap_pm_init_proc(void)
 
 #endif /* DEBUG && CONFIG_PROC_FS */
 
-static void (*saved_idle)(void) = NULL;
-
 /*
  *	omap_pm_prepare - Do preliminary suspend work.
  *
@@ -592,8 +590,7 @@ static void (*saved_idle)(void) = NULL;
 static int omap_pm_prepare(void)
 {
 	/* We cannot sleep in idle until we have resumed */
-	saved_idle = pm_idle;
-	pm_idle = NULL;
+	disable_hlt();
 
 	return 0;
 }
@@ -630,7 +627,7 @@ static int omap_pm_enter(suspend_state_t state)
 
 static void omap_pm_finish(void)
 {
-	pm_idle = saved_idle;
+	enable_hlt();
 }
 
 
