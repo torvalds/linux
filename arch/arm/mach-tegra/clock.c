@@ -399,11 +399,6 @@ void tegra_periph_reset_assert(struct clk *c)
 }
 EXPORT_SYMBOL(tegra_periph_reset_assert);
 
-void __init tegra_init_clock(void)
-{
-	tegra2_init_clocks();
-}
-
 #ifdef CONFIG_DEBUG_FS
 
 static int __clk_lock_all_spinlocks(void)
