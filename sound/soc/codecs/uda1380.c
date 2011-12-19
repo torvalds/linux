@@ -373,7 +373,7 @@ static const struct snd_soc_dapm_widget uda1380_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("HeadPhone Driver", UDA1380_PM, 13, 0, NULL, 0),
 };
 
-static const struct snd_soc_dapm_route audio_map[] = {
+static const struct snd_soc_dapm_route uda1380_dapm_routes[] = {
 
 	/* output mux */
 	{"HeadPhone Driver", NULL, "Output Mux"},
@@ -409,17 +409,6 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Left PGA", NULL, "VINL"},
 	{"Right PGA", NULL, "VINR"},
 };
-
-static int uda1380_add_widgets(struct snd_soc_codec *codec)
-{
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	snd_soc_dapm_new_controls(dapm, uda1380_dapm_widgets,
-				  ARRAY_SIZE(uda1380_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
-
-	return 0;
-}
 
 static int uda1380_set_dai_fmt_both(struct snd_soc_dai *codec_dai,
 		unsigned int fmt)
@@ -764,10 +753,6 @@ static int uda1380_probe(struct snd_soc_codec *codec)
 		break;
 	}
 
-	snd_soc_add_controls(codec, uda1380_snd_controls,
-				ARRAY_SIZE(uda1380_snd_controls));
-	uda1380_add_widgets(codec);
-
 	return 0;
 
 err_free_gpio:
@@ -802,6 +787,13 @@ static struct snd_soc_codec_driver soc_codec_dev_uda1380 = {
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = uda1380_reg,
 	.reg_cache_step = 1,
+
+	.controls = uda1380_snd_controls,
+	.num_controls = ARRAY_SIZE(uda1380_snd_controls),
+	.dapm_widgets = uda1380_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(uda1380_dapm_widgets),
+	.dapm_routes = uda1380_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(uda1380_dapm_routes),
 };
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
