@@ -556,6 +556,9 @@ static void hci_set_le_support(struct hci_dev *hdev)
 
 static void hci_setup(struct hci_dev *hdev)
 {
+	if (hdev->dev_type != HCI_BREDR)
+		return;
+
 	hci_setup_event_mask(hdev);
 
 	if (hdev->hci_ver > BLUETOOTH_VER_1_1)

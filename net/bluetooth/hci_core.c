@@ -193,33 +193,18 @@ static void hci_reset_req(struct hci_dev *hdev, unsigned long opt)
 	hci_send_cmd(hdev, HCI_OP_RESET, 0, NULL);
 }
 
-static void hci_init_req(struct hci_dev *hdev, unsigned long opt)
+static void bredr_init(struct hci_dev *hdev)
 {
 	struct hci_cp_delete_stored_link_key cp;
-	struct sk_buff *skb;
 	__le16 param;
 	__u8 flt_type;
-
-	BT_DBG("%s %ld", hdev->name, opt);
-
-	/* Driver initialization */
-
-	/* Special commands */
-	while ((skb = skb_dequeue(&hdev->driver_init))) {
-		bt_cb(skb)->pkt_type = HCI_COMMAND_PKT;
-		skb->dev = (void *) hdev;
-
-		skb_queue_tail(&hdev->cmd_q, skb);
-		queue_work(hdev->workqueue, &hdev->cmd_work);
-	}
-	skb_queue_purge(&hdev->driver_init);
 
 	/* Mandatory initialization */
 
 	/* Reset */
 	if (!test_bit(HCI_QUIRK_NO_RESET, &hdev->quirks)) {
-			set_bit(HCI_RESET, &hdev->flags);
-			hci_send_cmd(hdev, HCI_OP_RESET, 0, NULL);
+		set_bit(HCI_RESET, &hdev->flags);
+		hci_send_cmd(hdev, HCI_OP_RESET, 0, NULL);
 	}
 
 	/* Read Local Supported Features */
@@ -256,6 +241,49 @@ static void hci_init_req(struct hci_dev *hdev, unsigned long opt)
 	bacpy(&cp.bdaddr, BDADDR_ANY);
 	cp.delete_all = 1;
 	hci_send_cmd(hdev, HCI_OP_DELETE_STORED_LINK_KEY, sizeof(cp), &cp);
+}
+
+static void amp_init(struct hci_dev *hdev)
+{
+	/* Reset */
+	hci_send_cmd(hdev, HCI_OP_RESET, 0, NULL);
+
+	/* Read Local Version */
+	hci_send_cmd(hdev, HCI_OP_READ_LOCAL_VERSION, 0, NULL);
+}
+
+static void hci_init_req(struct hci_dev *hdev, unsigned long opt)
+{
+	struct sk_buff *skb;
+
+	BT_DBG("%s %ld", hdev->name, opt);
+
+	/* Driver initialization */
+
+	/* Special commands */
+	while ((skb = skb_dequeue(&hdev->driver_init))) {
+		bt_cb(skb)->pkt_type = HCI_COMMAND_PKT;
+		skb->dev = (void *) hdev;
+
+		skb_queue_tail(&hdev->cmd_q, skb);
+		queue_work(hdev->workqueue, &hdev->cmd_work);
+	}
+	skb_queue_purge(&hdev->driver_init);
+
+	switch (hdev->dev_type) {
+	case HCI_BREDR:
+		bredr_init(hdev);
+		break;
+
+	case HCI_AMP:
+		amp_init(hdev);
+		break;
+
+	default:
+		BT_ERR("Unknown device type %d", hdev->dev_type);
+		break;
+	}
+
 }
 
 static void hci_le_init_req(struct hci_dev *hdev, unsigned long opt)
