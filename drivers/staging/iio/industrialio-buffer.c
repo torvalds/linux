@@ -396,13 +396,20 @@ ssize_t iio_buffer_write_length(struct device *dev,
 		if (val == buffer->access->get_length(buffer))
 			return len;
 
-	if (buffer->access->set_length) {
-		buffer->access->set_length(buffer, val);
-		if (buffer->access->mark_param_change)
-			buffer->access->mark_param_change(buffer);
+	mutex_lock(&indio_dev->mlock);
+	if (iio_buffer_enabled(indio_dev)) {
+		ret = -EBUSY;
+	} else {
+		if (buffer->access->set_length) {
+			buffer->access->set_length(buffer, val);
+			if (buffer->access->mark_param_change)
+				buffer->access->mark_param_change(buffer);
+		}
+		ret = 0;
 	}
+	mutex_unlock(&indio_dev->mlock);
 
-	return len;
+	return ret ? ret : len;
 }
 EXPORT_SYMBOL(iio_buffer_write_length);
 
