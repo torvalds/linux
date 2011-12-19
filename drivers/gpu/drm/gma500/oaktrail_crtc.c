@@ -313,9 +313,9 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 	bool is_crt = false, is_lvds = false, is_tv = false;
 	bool is_mipi = false;
 	struct drm_mode_config *mode_config = &dev->mode_config;
-	struct psb_intel_output *psb_intel_output = NULL;
+	struct psb_intel_encoder *psb_intel_encoder = NULL;
 	uint64_t scalingType = DRM_MODE_SCALE_FULLSCREEN;
-	struct drm_encoder *encoder;
+	struct drm_connector *connector;
 
 	if (!gma_power_begin(dev, true))
 		return 0;
@@ -327,13 +327,13 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 		adjusted_mode,
 		sizeof(struct drm_display_mode));
 
-	list_for_each_entry(encoder, &mode_config->encoder_list, head) {
-
-		if (encoder->crtc != crtc)
+	list_for_each_entry(connector, &mode_config->connector_list, head) {
+		if (!connector->encoder || connector->encoder->crtc != crtc)
 			continue;
 
-		psb_intel_output = enc_to_psb_intel_output(encoder);
-		switch (psb_intel_output->type) {
+		psb_intel_encoder = psb_intel_attached_encoder(connector);
+
+		switch (psb_intel_encoder->type) {
 		case INTEL_OUTPUT_LVDS:
 			is_lvds = true;
 			break;
@@ -363,8 +363,8 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 		  ((mode->crtc_hdisplay - 1) << 16) |
 		  (mode->crtc_vdisplay - 1));
 
-	if (psb_intel_output)
-		drm_connector_property_get_value(&psb_intel_output->base,
+	if (psb_intel_encoder)
+		drm_connector_property_get_value(connector,
 			dev->mode_config.scaling_mode_property, &scalingType);
 
 	if (scalingType == DRM_MODE_SCALE_NO_SCALE) {

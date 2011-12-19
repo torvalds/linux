@@ -643,29 +643,33 @@ static const struct drm_encoder_funcs oaktrail_hdmi_enc_funcs = {
 void oaktrail_hdmi_init(struct drm_device *dev,
 					struct psb_intel_mode_device *mode_dev)
 {
-	struct psb_intel_output *psb_intel_output;
+	struct psb_intel_encoder *psb_intel_encoder;
+	struct psb_intel_connector *psb_intel_connector;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
 
-	psb_intel_output = kzalloc(sizeof(struct psb_intel_output), GFP_KERNEL);
-	if (!psb_intel_output)
+	psb_intel_encoder = kzalloc(sizeof(struct psb_intel_encoder), GFP_KERNEL);
+	if (!psb_intel_encoder)
 		return;
 
-	psb_intel_output->mode_dev = mode_dev;
-	connector = &psb_intel_output->base;
-	encoder = &psb_intel_output->enc;
-	drm_connector_init(dev, &psb_intel_output->base,
+	psb_intel_connector = kzalloc(sizeof(struct psb_intel_connector), GFP_KERNEL);
+	if (!psb_intel_connector)
+		goto failed_connector;
+
+	connector = &psb_intel_connector->base;
+	encoder = &psb_intel_encoder->base;
+	drm_connector_init(dev, connector,
 			   &oaktrail_hdmi_connector_funcs,
 			   DRM_MODE_CONNECTOR_DVID);
 
-	drm_encoder_init(dev, &psb_intel_output->enc,
+	drm_encoder_init(dev, encoder,
 			 &oaktrail_hdmi_enc_funcs,
 			 DRM_MODE_ENCODER_TMDS);
 
-	drm_mode_connector_attach_encoder(&psb_intel_output->base,
-					  &psb_intel_output->enc);
+	psb_intel_connector_attach_encoder(psb_intel_connector,
+					   psb_intel_encoder);
 
-	psb_intel_output->type = INTEL_OUTPUT_HDMI;
+	psb_intel_encoder->type = INTEL_OUTPUT_HDMI;
 	drm_encoder_helper_add(encoder, &oaktrail_hdmi_helper_funcs);
 	drm_connector_helper_add(connector, &oaktrail_hdmi_connector_helper_funcs);
 
@@ -675,6 +679,9 @@ void oaktrail_hdmi_init(struct drm_device *dev,
 	drm_sysfs_connector_add(connector);
 
 	return;
+
+failed_connector:
+	kfree(psb_intel_encoder);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(hdmi_ids) = {
