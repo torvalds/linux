@@ -570,24 +570,32 @@ __setup("ddebug_query=", ddebug_setup_query);
  * File_ops->write method for <debugfs>/dynamic_debug/conrol.  Gathers the
  * command text from userspace, parses and executes it.
  */
+#define USER_BUF_PAGE 4096
 static ssize_t ddebug_proc_write(struct file *file, const char __user *ubuf,
 				  size_t len, loff_t *offp)
 {
-	char tmpbuf[256];
+	char *tmpbuf;
 	int ret;
 
 	if (len == 0)
 		return 0;
-	/* we don't check *offp -- multiple writes() are allowed */
-	if (len > sizeof(tmpbuf)-1)
+	if (len > USER_BUF_PAGE - 1) {
+		pr_warn("expected <%d bytes into control\n", USER_BUF_PAGE);
 		return -E2BIG;
-	if (copy_from_user(tmpbuf, ubuf, len))
+	}
+	tmpbuf = kmalloc(len + 1, GFP_KERNEL);
+	if (!tmpbuf)
+		return -ENOMEM;
+	if (copy_from_user(tmpbuf, ubuf, len)) {
+		kfree(tmpbuf);
 		return -EFAULT;
+	}
 	tmpbuf[len] = '\0';
 	if (verbose)
 		pr_info("read %d bytes from userspace\n", (int)len);
 
 	ret = ddebug_exec_query(tmpbuf);
+	kfree(tmpbuf);
 	if (ret)
 		return ret;
 
