@@ -260,6 +260,12 @@ struct psb_intel_opregion {
 	int enabled;
 };
 
+struct intel_gmbus {
+	struct i2c_adapter adapter;
+	struct i2c_adapter *force_bit;
+	u32 reg0;
+};
+
 struct psb_ops;
 
 #define PSB_NUM_PIPE		3
@@ -335,6 +341,9 @@ struct drm_psb_private {
 
 	/* PCI revision ID for B0:D2:F0 */
 	uint8_t platform_rev_id;
+
+	/* gmbus */
+	struct intel_gmbus *gmbus;
 
 	/*
 	 * LVDS info

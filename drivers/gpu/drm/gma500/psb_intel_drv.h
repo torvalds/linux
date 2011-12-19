@@ -235,5 +235,11 @@ extern int psb_intel_lvds_set_property(struct drm_connector *connector,
 extern void psb_intel_lvds_destroy(struct drm_connector *connector);
 extern const struct drm_encoder_funcs psb_intel_lvds_enc_funcs;
 
+/* intel_gmbus.c */
+extern void gma_intel_i2c_reset(struct drm_device *dev);
+extern int gma_intel_setup_gmbus(struct drm_device *dev);
+extern void gma_intel_gmbus_set_speed(struct i2c_adapter *adapter, int speed);
+extern void gma_intel_gmbus_force_bit(struct i2c_adapter *adapter, bool force_bit);
+extern void gma_intel_teardown_gmbus(struct drm_device *dev);
 
 #endif				/* __INTEL_DRV_H__ */

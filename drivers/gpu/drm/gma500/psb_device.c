@@ -290,9 +290,15 @@ static void psb_get_core_freq(struct drm_device *dev)
 static int psb_chip_setup(struct drm_device *dev)
 {
 	psb_get_core_freq(dev);
+	gma_intel_setup_gmbus(dev);
 	gma_intel_opregion_init(dev);
 	psb_intel_init_bios(dev);
 	return 0;
+}
+
+static void psb_chip_teardown(struct drm_device *dev)
+{
+	gma_intel_teardown_gmbus(dev);
 }
 
 const struct psb_ops psb_chip_ops = {
@@ -302,6 +308,7 @@ const struct psb_ops psb_chip_ops = {
 	.crtcs = 2,
 	.sgx_offset = PSB_SGX_OFFSET,
 	.chip_setup = psb_chip_setup,
+	.chip_teardown = psb_chip_teardown,
 
 	.crtc_helper = &psb_intel_helper_funcs,
 	.crtc_funcs = &psb_intel_crtc_funcs,
