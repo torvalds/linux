@@ -420,7 +420,7 @@ ssize_t iio_buffer_store_enable(struct device *dev,
 	mutex_lock(&indio_dev->mlock);
 	previous_mode = indio_dev->currentmode;
 	requested_state = !(buf[0] == '0');
-	current_state = !!(previous_mode & INDIO_ALL_BUFFER_MODES);
+	current_state = iio_buffer_enabled(indio_dev);
 	if (current_state == requested_state) {
 		printk(KERN_INFO "iio-buffer, current state requested again\n");
 		goto done;
@@ -509,8 +509,7 @@ ssize_t iio_buffer_show_enable(struct device *dev,
 			       char *buf)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	return sprintf(buf, "%d\n", !!(indio_dev->currentmode
-				       & INDIO_ALL_BUFFER_MODES));
+	return sprintf(buf, "%d\n", iio_buffer_enabled(indio_dev));
 }
 EXPORT_SYMBOL(iio_buffer_show_enable);
 
