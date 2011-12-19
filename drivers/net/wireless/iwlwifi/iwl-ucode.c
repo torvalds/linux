@@ -33,6 +33,7 @@
 #include <linux/sched.h>
 #include <linux/dma-mapping.h>
 
+#include "iwl-wifi.h"
 #include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-io.h"
@@ -213,23 +214,23 @@ static int iwl_load_given_ucode(struct iwl_trans *trans,
 /*
  *  Calibration
  */
-static int iwl_set_Xtal_calib(struct iwl_priv *priv)
+static int iwl_set_Xtal_calib(struct iwl_trans *trans)
 {
 	struct iwl_calib_xtal_freq_cmd cmd;
 	__le16 *xtal_calib =
-		(__le16 *)iwl_eeprom_query_addr(priv->shrd, EEPROM_XTAL);
+		(__le16 *)iwl_eeprom_query_addr(trans->shrd, EEPROM_XTAL);
 
 	iwl_set_calib_hdr(&cmd.hdr, IWL_PHY_CALIBRATE_CRYSTAL_FRQ_CMD);
 	cmd.cap_pin1 = le16_to_cpu(xtal_calib[0]);
 	cmd.cap_pin2 = le16_to_cpu(xtal_calib[1]);
-	return iwl_calib_set(trans(priv), (void *)&cmd, sizeof(cmd));
+	return iwl_calib_set(trans, (void *)&cmd, sizeof(cmd));
 }
 
-static int iwl_set_temperature_offset_calib(struct iwl_priv *priv)
+static int iwl_set_temperature_offset_calib(struct iwl_trans *trans)
 {
 	struct iwl_calib_temperature_offset_cmd cmd;
 	__le16 *offset_calib =
-		(__le16 *)iwl_eeprom_query_addr(priv->shrd,
+		(__le16 *)iwl_eeprom_query_addr(trans->shrd,
 						EEPROM_RAW_TEMPERATURE);
 
 	memset(&cmd, 0, sizeof(cmd));
@@ -238,45 +239,45 @@ static int iwl_set_temperature_offset_calib(struct iwl_priv *priv)
 	if (!(cmd.radio_sensor_offset))
 		cmd.radio_sensor_offset = DEFAULT_RADIO_SENSOR_OFFSET;
 
-	IWL_DEBUG_CALIB(priv, "Radio sensor offset: %d\n",
+	IWL_DEBUG_CALIB(trans, "Radio sensor offset: %d\n",
 			le16_to_cpu(cmd.radio_sensor_offset));
-	return iwl_calib_set(trans(priv), (void *)&cmd, sizeof(cmd));
+	return iwl_calib_set(trans, (void *)&cmd, sizeof(cmd));
 }
 
-static int iwl_set_temperature_offset_calib_v2(struct iwl_priv *priv)
+static int iwl_set_temperature_offset_calib_v2(struct iwl_trans *trans)
 {
 	struct iwl_calib_temperature_offset_v2_cmd cmd;
-	__le16 *offset_calib_high = (__le16 *)iwl_eeprom_query_addr(priv->shrd,
+	__le16 *offset_calib_high = (__le16 *)iwl_eeprom_query_addr(trans->shrd,
 				     EEPROM_KELVIN_TEMPERATURE);
 	__le16 *offset_calib_low =
-		(__le16 *)iwl_eeprom_query_addr(priv->shrd,
+		(__le16 *)iwl_eeprom_query_addr(trans->shrd,
 						EEPROM_RAW_TEMPERATURE);
 	struct iwl_eeprom_calib_hdr *hdr;
 
 	memset(&cmd, 0, sizeof(cmd));
 	iwl_set_calib_hdr(&cmd.hdr, IWL_PHY_CALIBRATE_TEMP_OFFSET_CMD);
-	hdr = (struct iwl_eeprom_calib_hdr *)iwl_eeprom_query_addr(priv->shrd,
+	hdr = (struct iwl_eeprom_calib_hdr *)iwl_eeprom_query_addr(trans->shrd,
 							EEPROM_CALIB_ALL);
 	memcpy(&cmd.radio_sensor_offset_high, offset_calib_high,
 		sizeof(*offset_calib_high));
 	memcpy(&cmd.radio_sensor_offset_low, offset_calib_low,
 		sizeof(*offset_calib_low));
 	if (!(cmd.radio_sensor_offset_low)) {
-		IWL_DEBUG_CALIB(priv, "no info in EEPROM, use default\n");
+		IWL_DEBUG_CALIB(trans, "no info in EEPROM, use default\n");
 		cmd.radio_sensor_offset_low = DEFAULT_RADIO_SENSOR_OFFSET;
 		cmd.radio_sensor_offset_high = DEFAULT_RADIO_SENSOR_OFFSET;
 	}
 	memcpy(&cmd.burntVoltageRef, &hdr->voltage,
 		sizeof(hdr->voltage));
 
-	IWL_DEBUG_CALIB(priv, "Radio sensor offset high: %d\n",
+	IWL_DEBUG_CALIB(trans, "Radio sensor offset high: %d\n",
 			le16_to_cpu(cmd.radio_sensor_offset_high));
-	IWL_DEBUG_CALIB(priv, "Radio sensor offset low: %d\n",
+	IWL_DEBUG_CALIB(trans, "Radio sensor offset low: %d\n",
 			le16_to_cpu(cmd.radio_sensor_offset_low));
-	IWL_DEBUG_CALIB(priv, "Voltage Ref: %d\n",
+	IWL_DEBUG_CALIB(trans, "Voltage Ref: %d\n",
 			le16_to_cpu(cmd.burntVoltageRef));
 
-	return iwl_calib_set(trans(priv), (void *)&cmd, sizeof(cmd));
+	return iwl_calib_set(trans, (void *)&cmd, sizeof(cmd));
 }
 
 static int iwl_send_calib_cfg(struct iwl_trans *trans)
@@ -316,26 +317,26 @@ int iwlagn_rx_calib_result(struct iwl_priv *priv,
 	return 0;
 }
 
-int iwlagn_init_alive_start(struct iwl_priv *priv)
+int iwl_init_alive_start(struct iwl_trans *trans)
 {
 	int ret;
 
-	if (priv->cfg->bt_params &&
-	    priv->cfg->bt_params->advanced_bt_coexist) {
+	if (cfg(trans)->bt_params &&
+	    cfg(trans)->bt_params->advanced_bt_coexist) {
 		/*
 		 * Tell uCode we are ready to perform calibration
 		 * need to perform this before any calibration
 		 * no need to close the envlope since we are going
 		 * to load the runtime uCode later.
 		 */
-		ret = iwl_send_bt_env(trans(priv), IWL_BT_COEX_ENV_OPEN,
+		ret = iwl_send_bt_env(trans, IWL_BT_COEX_ENV_OPEN,
 			BT_COEX_PRIO_TBL_EVT_INIT_CALIB2);
 		if (ret)
 			return ret;
 
 	}
 
-	ret = iwl_send_calib_cfg(trans(priv));
+	ret = iwl_send_calib_cfg(trans);
 	if (ret)
 		return ret;
 
@@ -343,21 +344,21 @@ int iwlagn_init_alive_start(struct iwl_priv *priv)
 	 * temperature offset calibration is only needed for runtime ucode,
 	 * so prepare the value now.
 	 */
-	if (priv->cfg->need_temp_offset_calib) {
-		if (priv->cfg->temp_offset_v2)
-			return iwl_set_temperature_offset_calib_v2(priv);
+	if (cfg(trans)->need_temp_offset_calib) {
+		if (cfg(trans)->temp_offset_v2)
+			return iwl_set_temperature_offset_calib_v2(trans);
 		else
-			return iwl_set_temperature_offset_calib(priv);
+			return iwl_set_temperature_offset_calib(trans);
 	}
 
 	return 0;
 }
 
-static int iwl_send_wimax_coex(struct iwl_priv *priv)
+static int iwl_send_wimax_coex(struct iwl_trans *trans)
 {
 	struct iwl_wimax_coex_cmd coex_cmd;
 
-	if (priv->cfg->base_params->support_wimax_coexist) {
+	if (cfg(trans)->base_params->support_wimax_coexist) {
 		/* UnMask wake up src at associated sleep */
 		coex_cmd.flags = COEX_FLAGS_ASSOC_WA_UNMASK_MSK;
 
@@ -376,7 +377,7 @@ static int iwl_send_wimax_coex(struct iwl_priv *priv)
 		/* coexistence is disabled */
 		memset(&coex_cmd, 0, sizeof(coex_cmd));
 	}
-	return iwl_trans_send_cmd_pdu(trans(priv),
+	return iwl_trans_send_cmd_pdu(trans,
 				COEX_PRIORITY_TABLE_CMD, CMD_SYNC,
 				sizeof(coex_cmd), &coex_cmd);
 }
@@ -431,8 +432,9 @@ int iwl_send_bt_env(struct iwl_trans *trans, u8 action, u8 type)
 }
 
 
-static int iwl_alive_notify(struct iwl_priv *priv)
+static int iwl_alive_notify(struct iwl_trans *trans)
 {
+	struct iwl_priv *priv = priv(trans);
 	struct iwl_rxon_context *ctx;
 	int ret;
 
@@ -445,21 +447,21 @@ static int iwl_alive_notify(struct iwl_priv *priv)
 	if (!priv->tx_cmd_pool)
 		return -ENOMEM;
 
-	iwl_trans_tx_start(trans(priv));
+	iwl_trans_tx_start(trans);
 	for_each_context(priv, ctx)
 		ctx->last_tx_rejected = false;
 
-	ret = iwl_send_wimax_coex(priv);
+	ret = iwl_send_wimax_coex(trans);
 	if (ret)
 		return ret;
 
-	if (!priv->cfg->no_xtal_calib) {
-		ret = iwl_set_Xtal_calib(priv);
+	if (!cfg(priv)->no_xtal_calib) {
+		ret = iwl_set_Xtal_calib(trans);
 		if (ret)
 			return ret;
 	}
 
-	return iwl_send_calib_results(trans(priv));
+	return iwl_send_calib_results(trans);
 }
 
 
@@ -545,7 +547,7 @@ static int iwl_verify_ucode(struct iwl_trans *trans,
 	return -EIO;
 }
 
-struct iwlagn_alive_data {
+struct iwl_alive_data {
 	bool valid;
 	u8 subtype;
 };
@@ -554,7 +556,7 @@ static void iwl_alive_fn(struct iwl_trans *trans,
 			    struct iwl_rx_packet *pkt,
 			    void *data)
 {
-	struct iwlagn_alive_data *alive_data = data;
+	struct iwl_alive_data *alive_data = data;
 	struct iwl_alive_resp *palive;
 
 	palive = &pkt->u.alive_frame;
@@ -640,12 +642,11 @@ void iwl_abort_notification_waits(struct iwl_shared *shrd)
 #define UCODE_ALIVE_TIMEOUT	HZ
 #define UCODE_CALIB_TIMEOUT	(2*HZ)
 
-int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
+int iwl_load_ucode_wait_alive(struct iwl_trans *trans,
 				 enum iwl_ucode_type ucode_type)
 {
 	struct iwl_notification_wait alive_wait;
-	struct iwlagn_alive_data alive_data;
-	struct iwl_trans *trans = trans(priv);
+	struct iwl_alive_data alive_data;
 	int ret;
 	enum iwl_ucode_type old_type;
 
@@ -680,7 +681,7 @@ int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 	}
 
 	if (!alive_data.valid) {
-		IWL_ERR(priv, "Loaded ucode is not valid!\n");
+		IWL_ERR(trans, "Loaded ucode is not valid!\n");
 		trans->shrd->ucode_type = old_type;
 		return -EIO;
 	}
@@ -701,9 +702,9 @@ int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 		msleep(5);
 	}
 
-	ret = iwl_alive_notify(priv);
+	ret = iwl_alive_notify(trans);
 	if (ret) {
-		IWL_WARN(priv,
+		IWL_WARN(trans,
 			"Could not complete ALIVE transition: %d\n", ret);
 		trans->shrd->ucode_type = old_type;
 		return ret;
@@ -712,30 +713,30 @@ int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 	return 0;
 }
 
-int iwlagn_run_init_ucode(struct iwl_priv *priv)
+int iwl_run_init_ucode(struct iwl_trans *trans)
 {
 	struct iwl_notification_wait calib_wait;
 	int ret;
 
-	lockdep_assert_held(&priv->shrd->mutex);
+	lockdep_assert_held(&trans->shrd->mutex);
 
 	/* No init ucode required? Curious, but maybe ok */
-	if (!trans(priv)->ucode_init.code.len)
+	if (!trans->ucode_init.code.len)
 		return 0;
 
-	if (priv->shrd->ucode_type != IWL_UCODE_NONE)
+	if (trans->shrd->ucode_type != IWL_UCODE_NONE)
 		return 0;
 
-	iwl_init_notification_wait(priv->shrd, &calib_wait,
+	iwl_init_notification_wait(trans->shrd, &calib_wait,
 				      CALIBRATION_COMPLETE_NOTIFICATION,
 				      NULL, NULL);
 
 	/* Will also start the device */
-	ret = iwlagn_load_ucode_wait_alive(priv, IWL_UCODE_INIT);
+	ret = iwl_load_ucode_wait_alive(trans, IWL_UCODE_INIT);
 	if (ret)
 		goto error;
 
-	ret = iwlagn_init_alive_start(priv);
+	ret = iwl_init_alive_start(trans);
 	if (ret)
 		goto error;
 
@@ -743,15 +744,15 @@ int iwlagn_run_init_ucode(struct iwl_priv *priv)
 	 * Some things may run in the background now, but we
 	 * just wait for the calibration complete notification.
 	 */
-	ret = iwl_wait_notification(priv->shrd, &calib_wait,
+	ret = iwl_wait_notification(trans->shrd, &calib_wait,
 					UCODE_CALIB_TIMEOUT);
 
 	goto out;
 
  error:
-	iwl_remove_notification(priv->shrd, &calib_wait);
+	iwl_remove_notification(trans->shrd, &calib_wait);
  out:
 	/* Whatever happened, stop the device */
-	iwl_trans_stop_device(trans(priv));
+	iwl_trans_stop_device(trans);
 	return ret;
 }

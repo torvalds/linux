@@ -70,6 +70,7 @@
 #include <net/mac80211.h>
 #include <net/netlink.h>
 
+#include "iwl-wifi.h"
 #include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-debug.h"
@@ -380,7 +381,7 @@ static int iwl_testmode_cfg_init_calib(struct iwl_priv *priv)
 	iwl_init_notification_wait(priv->shrd, &calib_wait,
 				      CALIBRATION_COMPLETE_NOTIFICATION,
 				      NULL, NULL);
-	ret = iwlagn_init_alive_start(priv);
+	ret = iwl_init_alive_start(trans(priv));
 	if (ret) {
 		IWL_DEBUG_INFO(priv,
 			"Error configuring init calibration: %d\n", ret);
@@ -417,6 +418,7 @@ cfg_init_calib_error:
 static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 {
 	struct iwl_priv *priv = hw->priv;
+	struct iwl_trans *trans = trans(priv);
 	struct sk_buff *skb;
 	unsigned char *rsp_data_ptr = NULL;
 	int status = 0, rsp_data_len = 0;
@@ -425,8 +427,8 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 
 	switch (nla_get_u32(tb[IWL_TM_ATTR_COMMAND])) {
 	case IWL_TM_CMD_APP2DEV_GET_DEVICENAME:
-		rsp_data_ptr = (unsigned char *)priv->cfg->name;
-		rsp_data_len = strlen(priv->cfg->name);
+		rsp_data_ptr = (unsigned char *)cfg(priv)->name;
+		rsp_data_len = strlen(cfg(priv)->name);
 		skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy,
 							rsp_data_len + 20);
 		if (!skb) {
@@ -445,7 +447,7 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 		break;
 
 	case IWL_TM_CMD_APP2DEV_LOAD_INIT_FW:
-		status = iwlagn_load_ucode_wait_alive(priv, IWL_UCODE_INIT);
+		status = iwl_load_ucode_wait_alive(trans, IWL_UCODE_INIT);
 		if (status)
 			IWL_DEBUG_INFO(priv,
 				"Error loading init ucode: %d\n", status);
@@ -453,11 +455,11 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 
 	case IWL_TM_CMD_APP2DEV_CFG_INIT_CALIB:
 		iwl_testmode_cfg_init_calib(priv);
-		iwl_trans_stop_device(trans(priv));
+		iwl_trans_stop_device(trans);
 		break;
 
 	case IWL_TM_CMD_APP2DEV_LOAD_RUNTIME_FW:
-		status = iwlagn_load_ucode_wait_alive(priv, IWL_UCODE_REGULAR);
+		status = iwl_load_ucode_wait_alive(trans, IWL_UCODE_REGULAR);
 		if (status) {
 			IWL_DEBUG_INFO(priv,
 				"Error loading runtime ucode: %d\n", status);
@@ -471,8 +473,8 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 
 	case IWL_TM_CMD_APP2DEV_LOAD_WOWLAN_FW:
 		iwl_scan_cancel_timeout(priv, 200);
-		iwl_trans_stop_device(trans(priv));
-		status = iwlagn_load_ucode_wait_alive(priv, IWL_UCODE_WOWLAN);
+		iwl_trans_stop_device(trans);
+		status = iwl_load_ucode_wait_alive(trans, IWL_UCODE_WOWLAN);
 		if (status) {
 			IWL_DEBUG_INFO(priv,
 				"Error loading WOWLAN ucode: %d\n", status);
@@ -487,7 +489,7 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 	case IWL_TM_CMD_APP2DEV_GET_EEPROM:
 		if (priv->shrd->eeprom) {
 			skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy,
-				priv->cfg->base_params->eeprom_size + 20);
+				cfg(priv)->base_params->eeprom_size + 20);
 			if (!skb) {
 				IWL_DEBUG_INFO(priv,
 				       "Error allocating memory\n");
@@ -496,7 +498,7 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 			NLA_PUT_U32(skb, IWL_TM_ATTR_COMMAND,
 				IWL_TM_CMD_DEV2APP_EEPROM_RSP);
 			NLA_PUT(skb, IWL_TM_ATTR_EEPROM,
-				priv->cfg->base_params->eeprom_size,
+				cfg(priv)->base_params->eeprom_size,
 				priv->shrd->eeprom);
 			status = cfg80211_testmode_reply(skb);
 			if (status < 0)

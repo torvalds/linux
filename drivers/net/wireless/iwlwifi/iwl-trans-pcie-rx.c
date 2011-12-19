@@ -672,7 +672,7 @@ static void iwl_irq_handle_error(struct iwl_trans *trans)
 {
 	struct iwl_priv *priv = priv(trans);
 	/* W/A for WiFi/WiMAX coex and WiMAX own the RF */
-	if (priv->cfg->internal_wimax_coex &&
+	if (cfg(priv)->internal_wimax_coex &&
 	    (!(iwl_read_prph(bus(trans), APMG_CLK_CTRL_REG) &
 			APMS_CLK_VAL_MRB_FUNC_MODE) ||
 	     (iwl_read_prph(bus(trans), APMG_PS_CTRL_REG) &

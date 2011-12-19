@@ -230,8 +230,8 @@ int iwl_eeprom_check_version(struct iwl_priv *priv)
 	eeprom_ver = iwl_eeprom_query16(priv->shrd, EEPROM_VERSION);
 	calib_ver = iwl_eeprom_calib_version(priv->shrd);
 
-	if (eeprom_ver < priv->cfg->eeprom_ver ||
-	    calib_ver < priv->cfg->eeprom_calib_ver)
+	if (eeprom_ver < cfg(priv)->eeprom_ver ||
+	    calib_ver < cfg(priv)->eeprom_calib_ver)
 		goto err;
 
 	IWL_INFO(priv, "device EEPROM VER=0x%x, CALIB=0x%x\n",
@@ -241,8 +241,8 @@ int iwl_eeprom_check_version(struct iwl_priv *priv)
 err:
 	IWL_ERR(priv, "Unsupported (too old) EEPROM VER=0x%x < 0x%x "
 		  "CALIB=0x%x < 0x%x\n",
-		  eeprom_ver, priv->cfg->eeprom_ver,
-		  calib_ver,  priv->cfg->eeprom_calib_ver);
+		  eeprom_ver, cfg(priv)->eeprom_ver,
+		  calib_ver,  cfg(priv)->eeprom_calib_ver);
 	return -EINVAL;
 
 }
@@ -252,35 +252,35 @@ int iwl_eeprom_check_sku(struct iwl_priv *priv)
 	struct iwl_shared *shrd = priv->shrd;
 	u16 radio_cfg;
 
-	if (!priv->cfg->sku) {
+	if (!cfg(priv)->sku) {
 		/* not using sku overwrite */
-		priv->cfg->sku = iwl_eeprom_query16(shrd, EEPROM_SKU_CAP);
-		if (priv->cfg->sku & EEPROM_SKU_CAP_11N_ENABLE &&
-		    !priv->cfg->ht_params) {
+		cfg(priv)->sku = iwl_eeprom_query16(shrd, EEPROM_SKU_CAP);
+		if (cfg(priv)->sku & EEPROM_SKU_CAP_11N_ENABLE &&
+		    !cfg(priv)->ht_params) {
 			IWL_ERR(priv, "Invalid 11n configuration\n");
 			return -EINVAL;
 		}
 	}
-	if (!priv->cfg->sku) {
+	if (!cfg(priv)->sku) {
 		IWL_ERR(priv, "Invalid device sku\n");
 		return -EINVAL;
 	}
 
-	IWL_INFO(priv, "Device SKU: 0X%x\n", priv->cfg->sku);
+	IWL_INFO(priv, "Device SKU: 0x%X\n", cfg(priv)->sku);
 
-	if (!priv->cfg->valid_tx_ant && !priv->cfg->valid_rx_ant) {
+	if (!cfg(priv)->valid_tx_ant && !cfg(priv)->valid_rx_ant) {
 		/* not using .cfg overwrite */
 		radio_cfg = iwl_eeprom_query16(shrd, EEPROM_RADIO_CONFIG);
-		priv->cfg->valid_tx_ant = EEPROM_RF_CFG_TX_ANT_MSK(radio_cfg);
-		priv->cfg->valid_rx_ant = EEPROM_RF_CFG_RX_ANT_MSK(radio_cfg);
-		if (!priv->cfg->valid_tx_ant || !priv->cfg->valid_rx_ant) {
-			IWL_ERR(priv, "Invalid chain (0X%x, 0X%x)\n",
-				priv->cfg->valid_tx_ant,
-				priv->cfg->valid_rx_ant);
+		cfg(priv)->valid_tx_ant = EEPROM_RF_CFG_TX_ANT_MSK(radio_cfg);
+		cfg(priv)->valid_rx_ant = EEPROM_RF_CFG_RX_ANT_MSK(radio_cfg);
+		if (!cfg(priv)->valid_tx_ant || !cfg(priv)->valid_rx_ant) {
+			IWL_ERR(priv, "Invalid chain (0x%X, 0x%X)\n",
+				cfg(priv)->valid_tx_ant,
+				cfg(priv)->valid_rx_ant);
 			return -EINVAL;
 		}
-		IWL_INFO(priv, "Valid Tx ant: 0X%x, Valid Rx ant: 0X%x\n",
-			 priv->cfg->valid_tx_ant, priv->cfg->valid_rx_ant);
+		IWL_INFO(priv, "Valid Tx ant: 0x%X, Valid Rx ant: 0x%X\n",
+			 cfg(priv)->valid_tx_ant, cfg(priv)->valid_rx_ant);
 	}
 	/*
 	 * for some special cases,
@@ -369,7 +369,7 @@ static int iwl_init_otp_access(struct iwl_bus *bus)
 		 * CSR auto clock gate disable bit -
 		 * this is only applicable for HW with OTP shadow RAM
 		 */
-		if (priv(bus)->cfg->base_params->shadow_ram_support)
+		if (cfg(bus)->base_params->shadow_ram_support)
 			iwl_set_bit(bus, CSR_DBG_LINK_PWR_MGMT_REG,
 				CSR_RESET_LINK_PWR_MGMT_DISABLED);
 	}
@@ -489,7 +489,7 @@ static int iwl_find_otp_image(struct iwl_bus *bus,
 		}
 		/* more in the link list, continue */
 		usedblocks++;
-	} while (usedblocks <= priv(bus)->cfg->base_params->max_ll_items);
+	} while (usedblocks <= cfg(bus)->base_params->max_ll_items);
 
 	/* OTP has no valid blocks */
 	IWL_DEBUG_EEPROM(bus, "OTP has no valid blocks\n");
@@ -629,7 +629,7 @@ void iwl_eeprom_enhanced_txpower(struct iwl_priv *priv)
 				 ((txp->delta_20_in_40 & 0xf0) >> 4),
 				 (txp->delta_20_in_40 & 0x0f));
 
-		max_txp_avg = iwl_get_max_txpower_avg(priv->cfg, txp_array, idx,
+		max_txp_avg = iwl_get_max_txpower_avg(cfg(priv), txp_array, idx,
 						      &max_txp_avg_halfdbm);
 
 		/*
@@ -667,7 +667,7 @@ int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 	if (trans(priv)->nvm_device_type == -ENOENT)
 		return -ENOENT;
 	/* allocate eeprom */
-	sz = priv->cfg->base_params->eeprom_size;
+	sz = cfg(priv)->base_params->eeprom_size;
 	IWL_DEBUG_EEPROM(priv, "NVM size = %d\n", sz);
 	shrd->eeprom = kzalloc(sz, GFP_KERNEL);
 	if (!shrd->eeprom) {
@@ -709,7 +709,7 @@ int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 			     CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK |
 			     CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK);
 		/* traversing the linked list if no shadow ram supported */
-		if (!priv->cfg->base_params->shadow_ram_support) {
+		if (!cfg(priv)->base_params->shadow_ram_support) {
 			if (iwl_find_otp_image(bus(priv), &validblockaddr)) {
 				ret = -ENOENT;
 				goto done;
@@ -776,7 +776,7 @@ static void iwl_init_band_reference(const struct iwl_priv *priv,
 			const u8 **eeprom_ch_index)
 {
 	struct iwl_shared *shrd = priv->shrd;
-	u32 offset = priv->cfg->lib->
+	u32 offset = cfg(priv)->lib->
 			eeprom_ops.regulatory_bands[eep_band - 1];
 	switch (eep_band) {
 	case 1:		/* 2.4GHz band */
@@ -983,9 +983,9 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 	}
 
 	/* Check if we do have HT40 channels */
-	if (priv->cfg->lib->eeprom_ops.regulatory_bands[5] ==
+	if (cfg(priv)->lib->eeprom_ops.regulatory_bands[5] ==
 	    EEPROM_REGULATORY_BAND_NO_HT40 &&
-	    priv->cfg->lib->eeprom_ops.regulatory_bands[6] ==
+	    cfg(priv)->lib->eeprom_ops.regulatory_bands[6] ==
 	    EEPROM_REGULATORY_BAND_NO_HT40)
 		return 0;
 
@@ -1021,8 +1021,8 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 	 * driver need to process addition information
 	 * to determine the max channel tx power limits
 	 */
-	if (priv->cfg->lib->eeprom_ops.update_enhanced_txpower)
-		priv->cfg->lib->eeprom_ops.update_enhanced_txpower(priv);
+	if (cfg(priv)->lib->eeprom_ops.update_enhanced_txpower)
+		cfg(priv)->lib->eeprom_ops.update_enhanced_txpower(priv);
 
 	return 0;
 }

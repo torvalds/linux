@@ -318,7 +318,7 @@ static bool iwlagn_good_plcp_health(struct iwl_priv *priv,
 				 unsigned int msecs)
 {
 	int delta;
-	int threshold = priv->cfg->base_params->plcp_delta_threshold;
+	int threshold = cfg(priv)->base_params->plcp_delta_threshold;
 
 	if (threshold == IWL_MAX_PLCP_ERR_THRESHOLD_DISABLE) {
 		IWL_DEBUG_RADIO(priv, "plcp_err check disabled\n");
@@ -583,8 +583,8 @@ static int iwlagn_rx_statistics(struct iwl_priv *priv,
 		iwlagn_rx_calc_noise(priv);
 		queue_work(priv->shrd->workqueue, &priv->run_time_calib_work);
 	}
-	if (priv->cfg->lib->temperature && change)
-		priv->cfg->lib->temperature(priv);
+	if (cfg(priv)->lib->temperature && change)
+		cfg(priv)->lib->temperature(priv);
 	return 0;
 }
 
@@ -1136,8 +1136,8 @@ void iwl_setup_rx_handlers(struct iwl_priv *priv)
 	init_waitqueue_head(&priv->shrd->notif_waitq);
 
 	/* Set up BT Rx handlers */
-	if (priv->cfg->lib->bt_rx_handler_setup)
-		priv->cfg->lib->bt_rx_handler_setup(priv);
+	if (cfg(priv)->lib->bt_rx_handler_setup)
+		cfg(priv)->lib->bt_rx_handler_setup(priv);
 
 }
 
