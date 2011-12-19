@@ -45,6 +45,7 @@
 #include "f_mass_storage.c"
 #include "u_serial.c"
 #include "f_acm.c"
+#include "f_adb.c"
 #include "f_mtp.c"
 #define USB_ETH_RNDIS y
 #include "f_rndis.c"
@@ -184,6 +185,33 @@ static void android_work(struct work_struct *data)
 
 /*-------------------------------------------------------------------------*/
 /* Supported functions initialization */
+
+static int
+adb_function_init(struct android_usb_function *f,
+		struct usb_composite_dev *cdev)
+{
+	return adb_setup();
+}
+
+static void adb_function_cleanup(struct android_usb_function *f)
+{
+	adb_cleanup();
+}
+
+static int
+adb_function_bind_config(struct android_usb_function *f,
+		struct usb_configuration *c)
+{
+	return adb_bind_config(c);
+}
+
+static struct android_usb_function adb_function = {
+	.name		= "adb",
+	.init		= adb_function_init,
+	.cleanup	= adb_function_cleanup,
+	.bind_config	= adb_function_bind_config,
+};
+
 
 #define MAX_ACM_INSTANCES 4
 struct acm_function_config {
@@ -606,6 +634,7 @@ static struct android_usb_function mass_storage_function = {
 
 
 static struct android_usb_function *supported_functions[] = {
+	&adb_function,
 	&acm_function,
 	&mtp_function,
 	&ptp_function,
