@@ -19,7 +19,6 @@ struct sysfs_open_dirent;
 struct sysfs_elem_dir {
 	struct kobject		*kobj;
 
-	unsigned long		subdirs;
 	/* children rbtree starts here and goes through sd->s_rb */
 	struct rb_root		children;
 };
