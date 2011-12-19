@@ -161,7 +161,6 @@ struct s3c_hsudc {
 #define ep_index(_ep)		((_ep)->bEndpointAddress & \
 					USB_ENDPOINT_NUMBER_MASK)
 
-static struct s3c_hsudc *the_controller;
 static const char driver_name[] = "s3c-udc";
 static const char ep0name[] = "ep0-control";
 
@@ -1141,7 +1140,7 @@ static irqreturn_t s3c_hsudc_irq(int irq, void *_dev)
 static int s3c_hsudc_start(struct usb_gadget *gadget,
 		struct usb_gadget_driver *driver)
 {
-	struct s3c_hsudc *hsudc = the_controller;
+	struct s3c_hsudc *hsudc = to_hsudc(gadget);
 	int ret;
 
 	if (!driver
@@ -1195,7 +1194,7 @@ err_supplies:
 static int s3c_hsudc_stop(struct usb_gadget *gadget,
 		struct usb_gadget_driver *driver)
 {
-	struct s3c_hsudc *hsudc = the_controller;
+	struct s3c_hsudc *hsudc = to_hsudc(gadget);
 	unsigned long flags;
 
 	if (!hsudc)
@@ -1238,7 +1237,7 @@ static int s3c_hsudc_gadget_getframe(struct usb_gadget *gadget)
 
 static int s3c_hsudc_vbus_draw(struct usb_gadget *gadget, unsigned mA)
 {
-	struct s3c_hsudc *hsudc = the_controller;
+	struct s3c_hsudc *hsudc = to_hsudc(gadget);
 
 	if (!hsudc)
 		return -ENODEV;
@@ -1272,7 +1271,6 @@ static int __devinit s3c_hsudc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	the_controller = hsudc;
 	platform_set_drvdata(pdev, dev);
 	hsudc->dev = dev;
 	hsudc->pd = pdev->dev.platform_data;
