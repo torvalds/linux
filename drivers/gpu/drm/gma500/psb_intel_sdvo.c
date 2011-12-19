@@ -1876,6 +1876,13 @@ static const struct drm_encoder_funcs psb_intel_sdvo_enc_funcs = {
 static void
 psb_intel_sdvo_guess_ddc_bus(struct psb_intel_sdvo *sdvo)
 {
+	/* FIXME: At the moment, ddc_bus = 2 is the only thing that works.
+	 * We need to figure out if this is true for all available poulsbo
+	 * hardware, or if we need to fiddle with the guessing code above.
+	 * The problem might go away if we can parse sdvo mappings from bios */
+	sdvo->ddc_bus = 2;
+
+#if 0
 	uint16_t mask = 0;
 	unsigned int num_bits;
 
@@ -1907,6 +1914,7 @@ psb_intel_sdvo_guess_ddc_bus(struct psb_intel_sdvo *sdvo)
 
 	/* Corresponds to SDVO_CONTROL_BUS_DDCx */
 	sdvo->ddc_bus = 1 << num_bits;
+#endif
 }
 
 /**
