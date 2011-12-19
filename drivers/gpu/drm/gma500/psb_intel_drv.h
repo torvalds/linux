@@ -139,6 +139,11 @@ struct psb_intel_encoder {
 	int crtc_mask;
 	int clone_mask;
 	void *dev_priv; /* For sdvo_priv, lvds_priv, etc... */
+
+	/* FIXME: Either make SDVO and LVDS store it's i2c here or give CDV it's
+	   own set of output privates */
+	struct psb_intel_i2c_chan *i2c_bus;
+	struct psb_intel_i2c_chan *ddc_bus;
 };
 
 struct psb_intel_connector {

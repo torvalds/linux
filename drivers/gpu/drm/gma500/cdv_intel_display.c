@@ -342,7 +342,7 @@ cdv_dpll_set_clock_cdv(struct drm_device *dev, struct drm_crtc *crtc,
 }
 
 /*
- * Returns whether any output on the specified pipe is of the specified type
+ * Returns whether any encoder on the specified pipe is of the specified type
  */
 bool cdv_intel_pipe_has_type(struct drm_crtc *crtc, int type)
 {
@@ -352,9 +352,9 @@ bool cdv_intel_pipe_has_type(struct drm_crtc *crtc, int type)
 
 	list_for_each_entry(l_entry, &mode_config->connector_list, head) {
 		if (l_entry->encoder && l_entry->encoder->crtc == crtc) {
-			struct psb_intel_output *psb_intel_output =
-			    to_psb_intel_output(l_entry);
-			if (psb_intel_output->type == type)
+			struct psb_intel_encoder *psb_intel_encoder =
+					psb_intel_attached_encoder(l_entry);
+			if (psb_intel_encoder->type == type)
 				return true;
 		}
 	}
@@ -752,14 +752,14 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 	struct drm_connector *connector;
 
 	list_for_each_entry(connector, &mode_config->connector_list, head) {
-		struct psb_intel_output *psb_intel_output =
-		    to_psb_intel_output(connector);
+		struct psb_intel_encoder *psb_intel_encoder =
+					psb_intel_attached_encoder(connector);
 
 		if (!connector->encoder
 		    || connector->encoder->crtc != crtc)
 			continue;
 
-		switch (psb_intel_output->type) {
+		switch (psb_intel_encoder->type) {
 		case INTEL_OUTPUT_LVDS:
 			is_lvds = true;
 			break;
