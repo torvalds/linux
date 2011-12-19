@@ -635,6 +635,16 @@ module_exit(soc_pcmcia_cpufreq_unregister);
 
 #endif
 
+void soc_pcmcia_init_one(struct soc_pcmcia_socket *skt,
+	struct pcmcia_low_level *ops, struct device *dev)
+{
+	skt->ops = ops;
+	skt->socket.owner = ops->owner;
+	skt->socket.dev.parent = dev;
+	skt->socket.pci_irq = NO_IRQ;
+}
+EXPORT_SYMBOL(soc_pcmcia_init_one);
+
 void soc_pcmcia_remove_one(struct soc_pcmcia_socket *skt)
 {
 	mutex_lock(&soc_pcmcia_sockets_lock);

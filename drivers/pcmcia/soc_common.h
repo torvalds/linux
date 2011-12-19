@@ -133,7 +133,8 @@ extern void soc_pcmcia_disable_irqs(struct soc_pcmcia_socket *skt, struct pcmcia
 extern void soc_pcmcia_enable_irqs(struct soc_pcmcia_socket *skt, struct pcmcia_irqs *irqs, int nr);
 extern void soc_common_pcmcia_get_timing(struct soc_pcmcia_socket *, struct soc_pcmcia_timing *);
 
-
+void soc_pcmcia_init_one(struct soc_pcmcia_socket *skt,
+	struct pcmcia_low_level *ops, struct device *dev);
 void soc_pcmcia_remove_one(struct soc_pcmcia_socket *skt);
 int soc_pcmcia_add_one(struct soc_pcmcia_socket *skt);
 
