@@ -316,12 +316,18 @@ static int iio_get_bytes_per_datum_sw_rb(struct iio_buffer *r)
 	return ring->buf.bytes_per_datum;
 }
 
+static int iio_mark_update_needed_sw_rb(struct iio_buffer *r)
+{
+	struct iio_sw_ring_buffer *ring = iio_to_sw_ring(r);
+	ring->update_needed = true;
+	return 0;
+}
+
 static int iio_set_bytes_per_datum_sw_rb(struct iio_buffer *r, size_t bpd)
 {
 	if (r->bytes_per_datum != bpd) {
 		r->bytes_per_datum = bpd;
-		if (r->access->mark_param_change)
-			r->access->mark_param_change(r);
+		iio_mark_update_needed_sw_rb(r);
 	}
 	return 0;
 }
@@ -335,16 +341,8 @@ static int iio_set_length_sw_rb(struct iio_buffer *r, int length)
 {
 	if (r->length != length) {
 		r->length = length;
-		if (r->access->mark_param_change)
-			r->access->mark_param_change(r);
+		iio_mark_update_needed_sw_rb(r);
 	}
-	return 0;
-}
-
-static int iio_mark_update_needed_sw_rb(struct iio_buffer *r)
-{
-	struct iio_sw_ring_buffer *ring = iio_to_sw_ring(r);
-	ring->update_needed = true;
 	return 0;
 }
 
@@ -392,7 +390,6 @@ const struct iio_buffer_access_funcs ring_sw_access_funcs = {
 	.unmark_in_use = &iio_unmark_sw_rb_in_use,
 	.store_to = &iio_store_to_sw_rb,
 	.read_first_n = &iio_read_first_n_sw_rb,
-	.mark_param_change = &iio_mark_update_needed_sw_rb,
 	.request_update = &iio_request_update_sw_rb,
 	.get_bytes_per_datum = &iio_get_bytes_per_datum_sw_rb,
 	.set_bytes_per_datum = &iio_set_bytes_per_datum_sw_rb,

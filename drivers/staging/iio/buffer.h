@@ -22,9 +22,6 @@ struct iio_buffer;
  * @unmark_in_use:	reduce reference count when no longer using buffer
  * @store_to:		actually store stuff to the buffer
  * @read_first_n:	try to get a specified number of bytes (must exist)
- * @mark_param_change:	notify buffer that some relevant parameter has changed
- *			Often this means the underlying storage may need to
- *			change.
  * @request_update:	if a parameter change has been marked, update underlying
  *			storage.
  * @get_bytes_per_datum:get current bytes per datum
@@ -49,7 +46,6 @@ struct iio_buffer_access_funcs {
 			    size_t n,
 			    char __user *buf);
 
-	int (*mark_param_change)(struct iio_buffer *buffer);
 	int (*request_update)(struct iio_buffer *buffer);
 
 	int (*get_bytes_per_datum)(struct iio_buffer *buffer);

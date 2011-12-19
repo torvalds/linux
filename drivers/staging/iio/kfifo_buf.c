@@ -109,16 +109,6 @@ static int iio_get_bytes_per_datum_kfifo(struct iio_buffer *r)
 	return r->bytes_per_datum;
 }
 
-static int iio_set_bytes_per_datum_kfifo(struct iio_buffer *r, size_t bpd)
-{
-	if (r->bytes_per_datum != bpd) {
-		r->bytes_per_datum = bpd;
-		if (r->access->mark_param_change)
-			r->access->mark_param_change(r);
-	}
-	return 0;
-}
-
 static int iio_mark_update_needed_kfifo(struct iio_buffer *r)
 {
 	struct iio_kfifo *kf = iio_to_kfifo(r);
@@ -126,12 +116,20 @@ static int iio_mark_update_needed_kfifo(struct iio_buffer *r)
 	return 0;
 }
 
+static int iio_set_bytes_per_datum_kfifo(struct iio_buffer *r, size_t bpd)
+{
+	if (r->bytes_per_datum != bpd) {
+		r->bytes_per_datum = bpd;
+		iio_mark_update_needed_kfifo(r);
+	}
+	return 0;
+}
+
 static int iio_set_length_kfifo(struct iio_buffer *r, int length)
 {
 	if (r->length != length) {
 		r->length = length;
-		if (r->access->mark_param_change)
-			r->access->mark_param_change(r);
+		iio_mark_update_needed_kfifo(r);
 	}
 	return 0;
 }
@@ -174,7 +172,6 @@ const struct iio_buffer_access_funcs kfifo_access_funcs = {
 	.unmark_in_use = &iio_unmark_kfifo_in_use,
 	.store_to = &iio_store_to_kfifo,
 	.read_first_n = &iio_read_first_n_kfifo,
-	.mark_param_change = &iio_mark_update_needed_kfifo,
 	.request_update = &iio_request_update_kfifo,
 	.get_bytes_per_datum = &iio_get_bytes_per_datum_kfifo,
 	.set_bytes_per_datum = &iio_set_bytes_per_datum_kfifo,

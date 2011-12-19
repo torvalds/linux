@@ -39,8 +39,6 @@ rip_first_n
   The primary buffer reading function. Note that it may well not return
   as much data as requested.
 
-mark_param_changed
-  Used to indicate that something has changed. Used in conjunction with
 request_update
   If parameters have changed that require reinitialization or configuration of
   the buffer this will trigger it.
