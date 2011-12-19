@@ -508,25 +508,10 @@ static void
 cea_for_each_detailed_block(u8 *ext, detailed_cb *cb, void *closure)
 {
 	int i, n = 0;
-	u8 rev = ext[0x01], d = ext[0x02];
+	u8 d = ext[0x02];
 	u8 *det_base = ext + d;
 
-	switch (rev) {
-	case 0:
-		/* can't happen */
-		return;
-	case 1:
-		/* have to infer how many blocks we have, check pixel clock */
-		for (i = 0; i < 6; i++)
-			if (det_base[18*i] || det_base[18*i+1])
-				n++;
-		break;
-	default:
-		/* explicit count */
-		n = min(ext[0x03] & 0x0f, 6);
-		break;
-	}
-
+	n = (127 - d) / 18;
 	for (i = 0; i < n; i++)
 		cb((struct detailed_timing *)(det_base + 18 * i), closure);
 }
