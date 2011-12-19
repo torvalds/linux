@@ -1684,6 +1684,8 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 	/* No fb means shut it down */
 	if (!plane_req->fb_id) {
 		plane->funcs->disable_plane(plane);
+		plane->crtc = NULL;
+		plane->fb = NULL;
 		goto out;
 	}
 
