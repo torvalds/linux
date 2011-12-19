@@ -1376,9 +1376,7 @@ err_irq:
 	iounmap(hsudc->regs);
 
 err_remap:
-	release_resource(hsudc->mem_rsrc);
-	kfree(hsudc->mem_rsrc);
-
+	release_mem_region(res->start, resource_size(res));
 err_res:
 	if (hsudc->transceiver)
 		otg_put_transceiver(hsudc->transceiver);
