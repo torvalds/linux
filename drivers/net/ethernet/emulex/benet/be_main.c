@@ -1970,6 +1970,7 @@ static int be_poll_tx_mcc(struct napi_struct *napi, int budget)
 	struct be_eq_obj *tx_eq = container_of(napi, struct be_eq_obj, napi);
 	struct be_adapter *adapter =
 		container_of(tx_eq, struct be_adapter, tx_eq);
+	struct be_mcc_obj *mcc_obj = &adapter->mcc_obj;
 	struct be_tx_obj *txo;
 	struct be_eth_tx_compl *txcp;
 	int tx_compl, mcc_compl, status = 0;
@@ -2006,11 +2007,18 @@ static int be_poll_tx_mcc(struct napi_struct *napi, int budget)
 	mcc_compl = be_process_mcc(adapter, &status);
 
 	if (mcc_compl) {
-		struct be_mcc_obj *mcc_obj = &adapter->mcc_obj;
 		be_cq_notify(adapter, mcc_obj->cq.id, true, mcc_compl);
 	}
 
 	napi_complete(napi);
+
+	/* Arm CQ again to regenerate EQEs for Lancer in INTx mode */
+	if (lancer_chip(adapter) && !msix_enabled(adapter)) {
+		for_all_tx_queues(adapter, txo, i)
+			be_cq_notify(adapter, txo->cq.id, true, 0);
+
+		be_cq_notify(adapter, mcc_obj->cq.id, true, 0);
+	}
 
 	be_eq_notify(adapter, tx_eq->q.id, true, false, 0);
 	adapter->drv_stats.tx_events++;
