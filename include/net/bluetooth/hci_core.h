@@ -61,16 +61,9 @@ struct inquiry_cache {
 
 struct hci_conn_hash {
 	struct list_head list;
-	spinlock_t       lock;
 	unsigned int     acl_num;
 	unsigned int     sco_num;
 	unsigned int     le_num;
-};
-
-struct hci_chan_hash {
-	struct list_head list;
-	spinlock_t       lock;
-	unsigned int     num;
 };
 
 struct bdaddr_list {
@@ -124,7 +117,7 @@ struct adv_entry {
 #define NUM_REASSEMBLY 4
 struct hci_dev {
 	struct list_head list;
-	spinlock_t	lock;
+	struct mutex	lock;
 	atomic_t	refcnt;
 
 	char		name[8];
@@ -188,6 +181,11 @@ struct hci_dev {
 	unsigned int	sco_pkts;
 	unsigned int	le_pkts;
 
+	__u16		block_len;
+	__u16		block_mtu;
+	__u16		num_blocks;
+	__u16		block_cnt;
+
 	unsigned long	acl_last_tx;
 	unsigned long	sco_last_tx;
 	unsigned long	le_last_tx;
@@ -200,10 +198,13 @@ struct hci_dev {
 	__u16			discov_timeout;
 	struct delayed_work	discov_off;
 
+	struct delayed_work	service_cache;
+
 	struct timer_list	cmd_timer;
-	struct tasklet_struct	cmd_task;
-	struct tasklet_struct	rx_task;
-	struct tasklet_struct	tx_task;
+
+	struct work_struct	rx_work;
+	struct work_struct	cmd_work;
+	struct work_struct	tx_work;
 
 	struct sk_buff_head	rx_q;
 	struct sk_buff_head	raw_q;
@@ -232,7 +233,7 @@ struct hci_dev {
 	struct list_head	remote_oob_data;
 
 	struct list_head	adv_entries;
-	struct timer_list	adv_timer;
+	struct delayed_work	adv_work;
 
 	struct hci_dev_stats	stat;
 
@@ -301,14 +302,11 @@ struct hci_conn {
 	unsigned int	sent;
 
 	struct sk_buff_head data_q;
-	struct hci_chan_hash chan_hash;
+	struct list_head chan_list;
 
-	struct timer_list disc_timer;
+	struct delayed_work disc_work;
 	struct timer_list idle_timer;
 	struct timer_list auto_accept_timer;
-
-	struct work_struct work_add;
-	struct work_struct work_del;
 
 	struct device	dev;
 	atomic_t	devref;
@@ -390,15 +388,15 @@ static inline void hci_conn_hash_init(struct hci_dev *hdev)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
 	INIT_LIST_HEAD(&h->list);
-	spin_lock_init(&h->lock);
 	h->acl_num = 0;
 	h->sco_num = 0;
+	h->le_num = 0;
 }
 
 static inline void hci_conn_hash_add(struct hci_dev *hdev, struct hci_conn *c)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
-	list_add(&c->list, &h->list);
+	list_add_rcu(&c->list, &h->list);
 	switch (c->type) {
 	case ACL_LINK:
 		h->acl_num++;
@@ -416,7 +414,10 @@ static inline void hci_conn_hash_add(struct hci_dev *hdev, struct hci_conn *c)
 static inline void hci_conn_hash_del(struct hci_dev *hdev, struct hci_conn *c)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
-	list_del(&c->list);
+
+	list_del_rcu(&c->list);
+	synchronize_rcu();
+
 	switch (c->type) {
 	case ACL_LINK:
 		h->acl_num--;
@@ -451,14 +452,18 @@ static inline struct hci_conn *hci_conn_hash_lookup_handle(struct hci_dev *hdev,
 								__u16 handle)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
-	struct list_head *p;
 	struct hci_conn  *c;
 
-	list_for_each(p, &h->list) {
-		c = list_entry(p, struct hci_conn, list);
-		if (c->handle == handle)
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(c, &h->list, list) {
+		if (c->handle == handle) {
+			rcu_read_unlock();
 			return c;
+		}
 	}
+	rcu_read_unlock();
+
 	return NULL;
 }
 
@@ -466,14 +471,19 @@ static inline struct hci_conn *hci_conn_hash_lookup_ba(struct hci_dev *hdev,
 							__u8 type, bdaddr_t *ba)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
-	struct list_head *p;
 	struct hci_conn  *c;
 
-	list_for_each(p, &h->list) {
-		c = list_entry(p, struct hci_conn, list);
-		if (c->type == type && !bacmp(&c->dst, ba))
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(c, &h->list, list) {
+		if (c->type == type && !bacmp(&c->dst, ba)) {
+			rcu_read_unlock();
 			return c;
+		}
 	}
+
+	rcu_read_unlock();
+
 	return NULL;
 }
 
@@ -481,37 +491,20 @@ static inline struct hci_conn *hci_conn_hash_lookup_state(struct hci_dev *hdev,
 							__u8 type, __u16 state)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
-	struct list_head *p;
 	struct hci_conn  *c;
 
-	list_for_each(p, &h->list) {
-		c = list_entry(p, struct hci_conn, list);
-		if (c->type == type && c->state == state)
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(c, &h->list, list) {
+		if (c->type == type && c->state == state) {
+			rcu_read_unlock();
 			return c;
+		}
 	}
+
+	rcu_read_unlock();
+
 	return NULL;
-}
-
-static inline void hci_chan_hash_init(struct hci_conn *c)
-{
-	struct hci_chan_hash *h = &c->chan_hash;
-	INIT_LIST_HEAD(&h->list);
-	spin_lock_init(&h->lock);
-	h->num = 0;
-}
-
-static inline void hci_chan_hash_add(struct hci_conn *c, struct hci_chan *chan)
-{
-	struct hci_chan_hash *h = &c->chan_hash;
-	list_add(&chan->list, &h->list);
-	h->num++;
-}
-
-static inline void hci_chan_hash_del(struct hci_conn *c, struct hci_chan *chan)
-{
-	struct hci_chan_hash *h = &c->chan_hash;
-	list_del(&chan->list);
-	h->num--;
 }
 
 void hci_acl_connect(struct hci_conn *conn);
@@ -527,7 +520,7 @@ void hci_conn_check_pending(struct hci_dev *hdev);
 
 struct hci_chan *hci_chan_create(struct hci_conn *conn);
 int hci_chan_del(struct hci_chan *chan);
-void hci_chan_hash_flush(struct hci_conn *conn);
+void hci_chan_list_flush(struct hci_conn *conn);
 
 struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst,
 						__u8 sec_level, __u8 auth_type);
@@ -538,7 +531,6 @@ int hci_conn_change_link_key(struct hci_conn *conn);
 int hci_conn_switch_role(struct hci_conn *conn, __u8 role);
 
 void hci_conn_enter_active_mode(struct hci_conn *conn, __u8 force_active);
-void hci_conn_enter_sniff_mode(struct hci_conn *conn);
 
 void hci_conn_hold_device(struct hci_conn *conn);
 void hci_conn_put_device(struct hci_conn *conn);
@@ -546,7 +538,7 @@ void hci_conn_put_device(struct hci_conn *conn);
 static inline void hci_conn_hold(struct hci_conn *conn)
 {
 	atomic_inc(&conn->refcnt);
-	del_timer(&conn->disc_timer);
+	cancel_delayed_work_sync(&conn->disc_work);
 }
 
 static inline void hci_conn_put(struct hci_conn *conn)
@@ -565,7 +557,9 @@ static inline void hci_conn_put(struct hci_conn *conn)
 		} else {
 			timeo = msecs_to_jiffies(10);
 		}
-		mod_timer(&conn->disc_timer, jiffies + timeo);
+		cancel_delayed_work_sync(&conn->disc_work);
+		queue_delayed_work(conn->hdev->workqueue,
+					&conn->disc_work, jiffies + timeo);
 	}
 }
 
@@ -597,10 +591,8 @@ static inline struct hci_dev *__hci_dev_hold(struct hci_dev *d)
 	try_module_get(d->owner) ? __hci_dev_hold(d) : NULL;	\
 })
 
-#define hci_dev_lock(d)		spin_lock(&d->lock)
-#define hci_dev_unlock(d)	spin_unlock(&d->lock)
-#define hci_dev_lock_bh(d)	spin_lock_bh(&d->lock)
-#define hci_dev_unlock_bh(d)	spin_unlock_bh(&d->lock)
+#define hci_dev_lock(d)		mutex_lock(&d->lock)
+#define hci_dev_unlock(d)	mutex_unlock(&d->lock)
 
 struct hci_dev *hci_dev_get(int index);
 struct hci_dev *hci_get_route(bdaddr_t *src, bdaddr_t *dst);
@@ -960,12 +952,16 @@ int mgmt_device_unblocked(struct hci_dev *hdev, bdaddr_t *bdaddr);
 /* HCI info for socket */
 #define hci_pi(sk) ((struct hci_pinfo *) sk)
 
+/* HCI socket flags */
+#define HCI_PI_MGMT_INIT	0
+
 struct hci_pinfo {
 	struct bt_sock    bt;
 	struct hci_dev    *hdev;
 	struct hci_filter filter;
 	__u32             cmsg_mask;
 	unsigned short   channel;
+	unsigned long     flags;
 };
 
 /* HCI security filter */

@@ -210,6 +210,7 @@ enum {
 
 #define LMP_EV4		0x01
 #define LMP_EV5		0x02
+#define LMP_NO_BREDR	0x20
 #define LMP_LE		0x40
 
 #define LMP_SNIFF_SUBR	0x02
@@ -743,6 +744,14 @@ struct hci_rp_read_buffer_size {
 struct hci_rp_read_bd_addr {
 	__u8     status;
 	bdaddr_t bdaddr;
+} __packed;
+
+#define HCI_OP_READ_DATA_BLOCK_SIZE	0x100a
+struct hci_rp_read_data_block_size {
+	__u8     status;
+	__le16   max_acl_len;
+	__le16   block_len;
+	__le16   num_blocks;
 } __packed;
 
 #define HCI_OP_WRITE_PAGE_SCAN_ACTIVITY	0x0c1c

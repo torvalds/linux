@@ -482,10 +482,11 @@ struct l2cap_chan {
 	__u32		remote_acc_lat;
 	__u32		remote_flush_to;
 
-	struct timer_list	chan_timer;
-	struct timer_list	retrans_timer;
-	struct timer_list	monitor_timer;
-	struct timer_list	ack_timer;
+	struct delayed_work	chan_timer;
+	struct delayed_work	retrans_timer;
+	struct delayed_work	monitor_timer;
+	struct delayed_work	ack_timer;
+
 	struct sk_buff		*tx_send_head;
 	struct sk_buff_head	tx_q;
 	struct sk_buff_head	srej_q;
@@ -521,7 +522,7 @@ struct l2cap_conn {
 	__u8		info_state;
 	__u8		info_ident;
 
-	struct timer_list info_timer;
+	struct delayed_work info_work;
 
 	spinlock_t	lock;
 
@@ -535,7 +536,7 @@ struct l2cap_conn {
 	struct smp_chan *smp_chan;
 
 	struct list_head chan_l;
-	rwlock_t	chan_lock;
+	struct mutex	chan_lock;
 };
 
 #define L2CAP_INFO_CL_MTU_REQ_SENT	0x01
@@ -595,16 +596,16 @@ enum {
 };
 
 #define __set_chan_timer(c, t) l2cap_set_timer(c, &c->chan_timer, (t))
-#define __clear_chan_timer(c) l2cap_clear_timer(c, &c->chan_timer)
+#define __clear_chan_timer(c) l2cap_clear_timer(&c->chan_timer)
 #define __set_retrans_timer(c) l2cap_set_timer(c, &c->retrans_timer, \
 		L2CAP_DEFAULT_RETRANS_TO);
-#define __clear_retrans_timer(c) l2cap_clear_timer(c, &c->retrans_timer)
+#define __clear_retrans_timer(c) l2cap_clear_timer(&c->retrans_timer)
 #define __set_monitor_timer(c) l2cap_set_timer(c, &c->monitor_timer, \
 		L2CAP_DEFAULT_MONITOR_TO);
-#define __clear_monitor_timer(c) l2cap_clear_timer(c, &c->monitor_timer)
+#define __clear_monitor_timer(c) l2cap_clear_timer(&c->monitor_timer)
 #define __set_ack_timer(c) l2cap_set_timer(c, &chan->ack_timer, \
 		L2CAP_DEFAULT_ACK_TO);
-#define __clear_ack_timer(c) l2cap_clear_timer(c, &c->ack_timer)
+#define __clear_ack_timer(c) l2cap_clear_timer(&c->ack_timer)
 
 static inline int __seq_offset(struct l2cap_chan *chan, __u16 seq1, __u16 seq2)
 {
@@ -805,7 +806,8 @@ int l2cap_add_scid(struct l2cap_chan *chan,  __u16 scid);
 struct l2cap_chan *l2cap_chan_create(struct sock *sk);
 void l2cap_chan_close(struct l2cap_chan *chan, int reason);
 void l2cap_chan_destroy(struct l2cap_chan *chan);
-int l2cap_chan_connect(struct l2cap_chan *chan);
+inline int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
+								bdaddr_t *dst);
 int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len,
 								u32 priority);
 void l2cap_chan_busy(struct l2cap_chan *chan, int busy);
