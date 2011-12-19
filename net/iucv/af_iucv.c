@@ -178,7 +178,6 @@ static int afiucv_pm_freeze(struct device *dev)
 		iucv_skb_queue_purge(&iucv->send_skb_q);
 		skb_queue_purge(&iucv->backlog_skb_q);
 		switch (sk->sk_state) {
-		case IUCV_SEVERED:
 		case IUCV_DISCONN:
 		case IUCV_CLOSING:
 		case IUCV_CONNECTED:
@@ -223,7 +222,6 @@ static int afiucv_pm_restore_thaw(struct device *dev)
 			sk->sk_state_change(sk);
 			break;
 		case IUCV_DISCONN:
-		case IUCV_SEVERED:
 		case IUCV_CLOSING:
 		case IUCV_LISTEN:
 		case IUCV_BOUND:
@@ -661,15 +659,11 @@ struct sock *iucv_accept_dequeue(struct sock *parent, struct socket *newsock)
 		}
 
 		if (sk->sk_state == IUCV_CONNECTED ||
-		    sk->sk_state == IUCV_SEVERED ||
-		    sk->sk_state == IUCV_DISCONN ||	/* due to PM restore */
+		    sk->sk_state == IUCV_DISCONN ||
 		    !newsock) {
 			iucv_accept_unlink(sk);
 			if (newsock)
 				sock_graft(sk, newsock);
-
-			if (sk->sk_state == IUCV_SEVERED)
-				sk->sk_state = IUCV_DISCONN;
 
 			release_sock(sk);
 			return sk;
@@ -760,16 +754,13 @@ done:
 static int iucv_sock_autobind(struct sock *sk)
 {
 	struct iucv_sock *iucv = iucv_sk(sk);
-	char query_buffer[80];
 	char name[12];
 	int err = 0;
 
-	/* Set the userid and name */
-	cpcmd("QUERY USERID", query_buffer, sizeof(query_buffer), &err);
-	if (unlikely(err))
+	if (unlikely(!pr_iucv))
 		return -EPROTO;
 
-	memcpy(iucv->src_user_id, query_buffer, 8);
+	memcpy(iucv->src_user_id, iucv_userid, 8);
 
 	write_lock_bh(&iucv_sk_list.lock);
 
@@ -1345,7 +1336,7 @@ static int iucv_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	int blen;
 	int err = 0;
 
-	if ((sk->sk_state == IUCV_DISCONN || sk->sk_state == IUCV_SEVERED) &&
+	if ((sk->sk_state == IUCV_DISCONN) &&
 	    skb_queue_empty(&iucv->backlog_skb_q) &&
 	    skb_queue_empty(&sk->sk_receive_queue) &&
 	    list_empty(&iucv->message_q.list))
@@ -1492,7 +1483,7 @@ unsigned int iucv_sock_poll(struct file *file, struct socket *sock,
 	if (sk->sk_state == IUCV_CLOSED)
 		mask |= POLLHUP;
 
-	if (sk->sk_state == IUCV_DISCONN || sk->sk_state == IUCV_SEVERED)
+	if (sk->sk_state == IUCV_DISCONN)
 		mask |= POLLIN;
 
 	if (sock_writeable(sk))
@@ -1519,7 +1510,6 @@ static int iucv_sock_shutdown(struct socket *sock, int how)
 	switch (sk->sk_state) {
 	case IUCV_DISCONN:
 	case IUCV_CLOSING:
-	case IUCV_SEVERED:
 	case IUCV_CLOSED:
 		err = -ENOTCONN;
 		goto fail;
@@ -1874,10 +1864,7 @@ static void iucv_callback_connrej(struct iucv_path *path, u8 ipuser[16])
 {
 	struct sock *sk = path->private;
 
-	if (!list_empty(&iucv_sk(sk)->accept_q))
-		sk->sk_state = IUCV_SEVERED;
-	else
-		sk->sk_state = IUCV_DISCONN;
+	sk->sk_state = IUCV_DISCONN;
 
 	sk->sk_state_change(sk);
 }
@@ -2037,10 +2024,7 @@ static int afiucv_hs_callback_fin(struct sock *sk, struct sk_buff *skb)
 	/* other end of connection closed */
 	if (iucv) {
 		bh_lock_sock(sk);
-		if (!list_empty(&iucv->accept_q))
-			sk->sk_state = IUCV_SEVERED;
-		else
-			sk->sk_state = IUCV_DISCONN;
+		sk->sk_state = IUCV_DISCONN;
 		sk->sk_state_change(sk);
 		bh_unlock_sock(sk);
 	}
@@ -2269,10 +2253,7 @@ static void afiucv_hs_callback_txnotify(struct sk_buff *skb,
 				__skb_unlink(this, list);
 				dev_put(this->dev);
 				kfree_skb(this);
-				if (!list_empty(&iucv->accept_q))
-					sk->sk_state = IUCV_SEVERED;
-				else
-					sk->sk_state = IUCV_DISCONN;
+				sk->sk_state = IUCV_DISCONN;
 				sk->sk_state_change(sk);
 				break;
 			}
