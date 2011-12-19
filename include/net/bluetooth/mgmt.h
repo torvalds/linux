@@ -268,12 +268,12 @@ struct mgmt_cp_start_discovery {
 
 #define MGMT_OP_STOP_DISCOVERY		0x0022
 
-#define MGMT_OP_BLOCK_DEVICE		0x0023
+#define MGMT_OP_BLOCK_DEVICE		0x0024
 struct mgmt_cp_block_device {
 	bdaddr_t bdaddr;
 } __packed;
 
-#define MGMT_OP_UNBLOCK_DEVICE		0x0024
+#define MGMT_OP_UNBLOCK_DEVICE		0x0025
 struct mgmt_cp_unblock_device {
 	bdaddr_t bdaddr;
 } __packed;
