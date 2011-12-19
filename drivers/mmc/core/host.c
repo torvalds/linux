@@ -302,17 +302,6 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 	host->max_blk_size = 512;
 	host->max_blk_count = PAGE_CACHE_SIZE / 512;
 
-	/*
-	 * Enable runtime power management by default. This flag was added due
-	 * to runtime power management causing disruption for some users, but
-	 * the power on/off code has been improved since then.
-	 *
-	 * We'll enable this flag by default as an experiment, and if no
-	 * problems are reported, we will follow up later and remove the flag
-	 * altogether.
-	 */
-	host->caps = MMC_CAP_POWER_OFF_CARD;
-
 	return host;
 
 free:
