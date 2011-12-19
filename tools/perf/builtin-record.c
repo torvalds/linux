@@ -279,6 +279,9 @@ try_again:
 			    "/proc/sys/kernel/perf_event_mlock_kb,\n"
 			    "or try again with a smaller value of -m/--mmap_pages.\n"
 			    "(current value: %d)\n", opts->mmap_pages);
+		else if (!is_power_of_2(opts->mmap_pages))
+			die("--mmap_pages/-m value must be a power of two.");
+
 		die("failed to mmap with %d (%s)\n", errno, strerror(errno));
 	}
 
