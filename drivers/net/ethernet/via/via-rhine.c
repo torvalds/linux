@@ -35,6 +35,7 @@
 #define DRV_VERSION	"1.5.0"
 #define DRV_RELDATE	"2010-10-09"
 
+#include <linux/types.h>
 
 /* A few user-configurable values.
    These may be modified when a driver module is loaded. */
@@ -55,7 +56,7 @@ static int rx_copybreak;
 
 /* Work-around for broken BIOSes: they are unable to get the chip back out of
    power state D3 so PXE booting fails. bootparam(7): via-rhine.avoid_D3=1 */
-static int avoid_D3;
+static bool avoid_D3;
 
 /*
  * In case you are looking for 'options[]' or 'full_duplex[]', they
@@ -2322,7 +2323,7 @@ static int __init rhine_init(void)
 #endif
 	if (dmi_check_system(rhine_dmi_table)) {
 		/* these BIOSes fail at PXE boot if chip is in D3 */
-		avoid_D3 = 1;
+		avoid_D3 = true;
 		pr_warn("Broken BIOS detected, avoid_D3 enabled\n");
 	}
 	else if (avoid_D3)

@@ -235,7 +235,7 @@ extern struct sctp_globals {
 
 	/* Flag to indicate whether computing and verifying checksum
 	 * is disabled. */
-        int checksum_disable;
+        bool checksum_disable;
 
 	/* Threshold for rwnd update SACKS.  Receive buffer shifted this many
 	 * bits is an indicator of when to send and window update SACK.

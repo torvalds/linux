@@ -35,7 +35,7 @@ MODULE_DESCRIPTION("CAIF SPI driver");
 /* Returns the number of padding bytes for alignment. */
 #define PAD_POW2(x, pow) ((((x)&((pow)-1))==0) ? 0 : (((pow)-((x)&((pow)-1)))))
 
-static int spi_loop;
+static bool spi_loop;
 module_param(spi_loop, bool, S_IRUGO);
 MODULE_PARM_DESC(spi_loop, "SPI running in loopback mode.");
 

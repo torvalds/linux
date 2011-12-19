@@ -49,7 +49,7 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
-static int enable_mgmt;
+static bool enable_mgmt;
 
 /* ----- HCI socket interface ----- */
 

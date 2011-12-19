@@ -91,11 +91,11 @@ static struct iwm_conf def_iwm_conf = {
 	.mac_addr		= {0x00, 0x02, 0xb3, 0x01, 0x02, 0x03},
 };
 
-static int modparam_reset;
+static bool modparam_reset;
 module_param_named(reset, modparam_reset, bool, 0644);
 MODULE_PARM_DESC(reset, "reset on firmware errors (default 0 [not reset])");
 
-static int modparam_wimax_enable = 1;
+static bool modparam_wimax_enable = true;
 module_param_named(wimax_enable, modparam_wimax_enable, bool, 0644);
 MODULE_PARM_DESC(wimax_enable, "Enable wimax core (default 1 [wimax enabled])");
 

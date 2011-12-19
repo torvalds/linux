@@ -121,7 +121,7 @@ module_param(orinoco_debug, int, 0644);
 MODULE_PARM_DESC(orinoco_debug, "Debug level");
 #endif
 
-static int suppress_linkstatus; /* = 0 */
+static bool suppress_linkstatus; /* = 0 */
 module_param(suppress_linkstatus, bool, 0644);
 MODULE_PARM_DESC(suppress_linkstatus, "Don't log link status changes");
 

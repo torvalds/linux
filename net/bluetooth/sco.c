@@ -51,7 +51,7 @@
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/sco.h>
 
-static int disable_esco;
+static bool disable_esco;
 
 static const struct proto_ops sco_sock_ops;
 

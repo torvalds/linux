@@ -42,7 +42,7 @@ static int gkrouted_only __read_mostly = 1;
 module_param(gkrouted_only, int, 0600);
 MODULE_PARM_DESC(gkrouted_only, "only accept calls from gatekeeper");
 
-static int callforward_filter __read_mostly = 1;
+static bool callforward_filter __read_mostly = true;
 module_param(callforward_filter, bool, 0600);
 MODULE_PARM_DESC(callforward_filter, "only create call forwarding expectations "
 				     "if both endpoints are on different sides "

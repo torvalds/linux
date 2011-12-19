@@ -914,7 +914,7 @@ enum ath5k_dmasize {
  */
 
 #define AR5K_KEYCACHE_SIZE	8
-extern int ath5k_modparam_nohwcrypt;
+extern bool ath5k_modparam_nohwcrypt;
 
 /***********************\
  HW RELATED DEFINITIONS

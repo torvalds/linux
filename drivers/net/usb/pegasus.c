@@ -55,8 +55,8 @@ static const char driver_name[] = "pegasus";
 #define	BMSR_MEDIA	(BMSR_10HALF | BMSR_10FULL | BMSR_100HALF | \
 			BMSR_100FULL | BMSR_ANEGCAPABLE)
 
-static int loopback;
-static int mii_mode;
+static bool loopback;
+static bool mii_mode;
 static char *devid;
 
 static struct usb_eth_dev usb_dev_id[] = {

@@ -30,7 +30,7 @@
 static int napi_weight = 128;
 module_param(napi_weight, int, 0444);
 
-static int csum = 1, gso = 1;
+static bool csum = true, gso = true;
 module_param(csum, bool, 0444);
 module_param(gso, bool, 0444);
 

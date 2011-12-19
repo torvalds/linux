@@ -51,8 +51,8 @@
 
 #define VERSION "1.11"
 
-static int disable_cfc;
-static int l2cap_ertm;
+static bool disable_cfc;
+static bool l2cap_ertm;
 static int channel_mtu = -1;
 static unsigned int l2cap_mtu = RFCOMM_MAX_L2CAP_MTU;
 

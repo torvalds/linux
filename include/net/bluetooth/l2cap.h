@@ -791,7 +791,7 @@ static inline __u8 __ctrl_size(struct l2cap_chan *chan)
 		return L2CAP_ENH_HDR_SIZE - L2CAP_HDR_SIZE;
 }
 
-extern int disable_ertm;
+extern bool disable_ertm;
 
 int l2cap_init_sockets(void);
 void l2cap_cleanup_sockets(void);

@@ -31,7 +31,7 @@
 #define MWL8K_VERSION	"0.12"
 
 /* Module parameters */
-static unsigned ap_mode_default;
+static bool ap_mode_default;
 module_param(ap_mode_default, bool, 0);
 MODULE_PARM_DESC(ap_mode_default,
 		 "Set to 1 to make ap mode the default instead of sta mode");

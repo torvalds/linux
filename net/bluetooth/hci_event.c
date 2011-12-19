@@ -45,7 +45,7 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
-static int enable_le;
+static bool enable_le;
 
 /* Handle HCI Event packets */
 
