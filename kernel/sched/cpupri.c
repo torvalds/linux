@@ -1,5 +1,5 @@
 /*
- *  kernel/sched_cpupri.c
+ *  kernel/sched/cpupri.c
  *
  *  CPU priority management
  *
@@ -28,7 +28,7 @@
  */
 
 #include <linux/gfp.h>
-#include "sched_cpupri.h"
+#include "cpupri.h"
 
 /* Convert between a 140 based task->prio, and our 102 based cpupri */
 static int convert_prio(int prio)
