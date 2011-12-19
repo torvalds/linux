@@ -20,9 +20,8 @@ struct sysfs_elem_dir {
 	struct kobject		*kobj;
 
 	unsigned long		subdirs;
-
-	struct rb_root		inode_tree;
-	struct rb_root		name_tree;
+	/* children rbtree starts here and goes through sd->s_rb */
+	struct rb_root		children;
 };
 
 struct sysfs_elem_symlink {
@@ -62,8 +61,7 @@ struct sysfs_dirent {
 	struct sysfs_dirent	*s_parent;
 	const char		*s_name;
 
-	struct rb_node		inode_node;
-	struct rb_node		name_node;
+	struct rb_node		s_rb;
 
 	union {
 		struct completion	*completion;
@@ -71,6 +69,7 @@ struct sysfs_dirent {
 	} u;
 
 	const void		*s_ns; /* namespace tag */
+	unsigned int		s_hash; /* ns + name hash */
 	union {
 		struct sysfs_elem_dir		s_dir;
 		struct sysfs_elem_symlink	s_symlink;
