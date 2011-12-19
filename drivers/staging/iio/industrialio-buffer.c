@@ -153,7 +153,7 @@ static ssize_t iio_scan_el_store(struct device *dev,
 
 	state = !(buf[0] == '0');
 	mutex_lock(&indio_dev->mlock);
-	if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
+	if (iio_buffer_enabled(indio_dev)) {
 		ret = -EBUSY;
 		goto error_ret;
 	}
@@ -196,7 +196,7 @@ static ssize_t iio_scan_el_ts_store(struct device *dev,
 
 	state = !(buf[0] == '0');
 	mutex_lock(&indio_dev->mlock);
-	if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
+	if (iio_buffer_enabled(indio_dev)) {
 		ret = -EBUSY;
 		goto error_ret;
 	}
