@@ -313,6 +313,7 @@ struct iio_buffer_setup_ops {
  * @chrdev:		[INTERN] associated character device
  * @groups:		[INTERN] attribute groups
  * @groupcounter:	[INTERN] index of next attribute group
+ * @flags:		[INTERN] file ops related flags including busy flag.
  **/
 struct iio_dev {
 	int				id;
@@ -344,6 +345,8 @@ struct iio_dev {
 #define IIO_MAX_GROUPS 6
 	const struct attribute_group	*groups[IIO_MAX_GROUPS + 1];
 	int				groupcounter;
+
+	unsigned long			flags;
 };
 
 /**
