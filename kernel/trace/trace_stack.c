@@ -133,7 +133,6 @@ stack_trace_call(unsigned long ip, unsigned long parent_ip)
 static struct ftrace_ops trace_ops __read_mostly =
 {
 	.func = stack_trace_call,
-	.flags = FTRACE_OPS_FL_GLOBAL,
 };
 
 static ssize_t
@@ -311,6 +310,21 @@ static const struct file_operations stack_trace_fops = {
 	.release	= seq_release,
 };
 
+static int
+stack_trace_filter_open(struct inode *inode, struct file *file)
+{
+	return ftrace_regex_open(&trace_ops, FTRACE_ITER_FILTER,
+				 inode, file);
+}
+
+static const struct file_operations stack_trace_filter_fops = {
+	.open = stack_trace_filter_open,
+	.read = seq_read,
+	.write = ftrace_filter_write,
+	.llseek = ftrace_regex_lseek,
+	.release = ftrace_regex_release,
+};
+
 int
 stack_trace_sysctl(struct ctl_table *table, int write,
 		   void __user *buffer, size_t *lenp,
@@ -357,6 +371,9 @@ static __init int stack_trace_init(void)
 
 	trace_create_file("stack_trace", 0444, d_tracer,
 			NULL, &stack_trace_fops);
+
+	trace_create_file("stack_trace_filter", 0444, d_tracer,
+			NULL, &stack_trace_filter_fops);
 
 	if (stack_tracer_enabled)
 		register_ftrace_function(&trace_ops);
