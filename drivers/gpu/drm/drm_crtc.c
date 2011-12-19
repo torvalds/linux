@@ -1732,6 +1732,18 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 		goto out;
 	}
 
+	/* Give drivers some help against integer overflows */
+	if (plane_req->crtc_w > INT_MAX ||
+	    plane_req->crtc_x > INT_MAX - (int32_t) plane_req->crtc_w ||
+	    plane_req->crtc_h > INT_MAX ||
+	    plane_req->crtc_y > INT_MAX - (int32_t) plane_req->crtc_h) {
+		DRM_DEBUG_KMS("Invalid CRTC coordinates %ux%u+%d+%d\n",
+			      plane_req->crtc_w, plane_req->crtc_h,
+			      plane_req->crtc_x, plane_req->crtc_y);
+		ret = -ERANGE;
+		goto out;
+	}
+
 	ret = plane->funcs->update_plane(plane, crtc, fb,
 					 plane_req->crtc_x, plane_req->crtc_y,
 					 plane_req->crtc_w, plane_req->crtc_h,
