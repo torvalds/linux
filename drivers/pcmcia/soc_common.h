@@ -50,6 +50,16 @@ struct soc_pcmcia_socket {
 	struct resource		res_attr;
 	void __iomem		*virt_io;
 
+	struct {
+		int		gpio;
+		unsigned int	irq;
+		const char	*name;
+	} stat[4];
+#define SOC_STAT_CD		0	/* Card detect */
+#define SOC_STAT_BVD1		1	/* BATDEAD / IOSTSCHG */
+#define SOC_STAT_BVD2		2	/* BATWARN / IOSPKR */
+#define SOC_STAT_RDY		3	/* Ready / Interrupt */
+
 	unsigned int		irq_state;
 
 	struct timer_list	poll_timer;
