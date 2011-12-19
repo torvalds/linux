@@ -47,3 +47,12 @@ config SND_SOC_TEGRA_TRIMSLICE
 	help
 	  Say Y or M here if you want to add support for SoC audio on the
 	  TrimSlice platform.
+
+config SND_SOC_TEGRA_ALC5632
+       tristate "SoC Audio support for Tegra boards using an ALC5632 codec"
+       depends on SND_SOC_TEGRA && I2C
+       select SND_SOC_TEGRA_I2S
+       select SND_SOC_ALC5632
+       help
+         Say Y or M here if you want to add support for SoC audio on the
+         Toshiba AC100 netbook.
