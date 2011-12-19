@@ -1319,6 +1319,7 @@ add_detailed_modes(struct drm_connector *connector, struct edid *edid,
 
 #define HDMI_IDENTIFIER 0x000C03
 #define AUDIO_BLOCK	0x01
+#define VIDEO_BLOCK     0x02
 #define VENDOR_BLOCK    0x03
 #define SPEAKER_BLOCK	0x04
 #define EDID_BASIC_AUDIO	(1 << 6)
@@ -1348,6 +1349,47 @@ u8 *drm_find_cea_extension(struct edid *edid)
 	return edid_ext;
 }
 EXPORT_SYMBOL(drm_find_cea_extension);
+
+static int
+do_cea_modes (struct drm_connector *connector, u8 *db, u8 len)
+{
+	struct drm_device *dev = connector->dev;
+	u8 * mode, cea_mode;
+	int modes = 0;
+
+	for (mode = db; mode < db + len; mode++) {
+		cea_mode = (*mode & 127) - 1; /* CEA modes are numbered 1..127 */
+		if (cea_mode < drm_num_cea_modes) {
+			struct drm_display_mode *newmode;
+			newmode = drm_mode_duplicate(dev,
+						     &edid_cea_modes[cea_mode]);
+			if (newmode) {
+				drm_mode_probed_add(connector, newmode);
+				modes++;
+			}
+		}
+	}
+
+	return modes;
+}
+
+static int
+add_cea_modes(struct drm_connector *connector, struct edid *edid)
+{
+	u8 * cea = drm_find_cea_extension(edid);
+	u8 * db, dbl;
+	int modes = 0;
+
+	if (cea && cea[1] >= 3) {
+		for (db = cea + 4; db < cea + cea[2]; db += dbl + 1) {
+			dbl = db[0] & 0x1f;
+			if (((db[0] & 0xe0) >> 5) == VIDEO_BLOCK)
+				modes += do_cea_modes (connector, db+1, dbl);
+		}
+	}
+
+	return modes;
+}
 
 static void
 parse_hdmi_vsdb(struct drm_connector *connector, uint8_t *db)
@@ -1722,6 +1764,7 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 	num_modes += add_standard_modes(connector, edid);
 	num_modes += add_established_modes(connector, edid);
 	num_modes += add_inferred_modes(connector, edid);
+	num_modes += add_cea_modes(connector, edid);
 
 	if (quirks & (EDID_QUIRK_PREFER_LARGE_60 | EDID_QUIRK_PREFER_LARGE_75))
 		edid_fixup_preferred(connector, quirks);
