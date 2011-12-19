@@ -497,6 +497,13 @@ struct neighbour *neigh_create(struct neigh_table *tbl, const void *pkey,
 		}
 	}
 
+	/* Device specific setup. */
+	if (n->parms->neigh_setup &&
+	    (error = n->parms->neigh_setup(n)) < 0) {
+		rc = ERR_PTR(error);
+		goto out_neigh_release;
+	}
+
 	n->confirmed = jiffies - (n->parms->base_reachable_time << 1);
 
 	write_lock_bh(&tbl->lock);
@@ -709,6 +716,9 @@ void neigh_destroy(struct neighbour *neigh)
 
 	skb_queue_purge(&neigh->arp_queue);
 	neigh->arp_queue_len_bytes = 0;
+
+	if (dev->netdev_ops->ndo_neigh_destroy)
+		dev->netdev_ops->ndo_neigh_destroy(neigh);
 
 	dev_put(dev);
 	neigh_parms_put(neigh->parms);
