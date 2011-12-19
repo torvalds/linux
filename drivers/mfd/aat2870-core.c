@@ -500,7 +500,7 @@ static int aat2870_i2c_resume(struct i2c_client *client)
 #define aat2870_i2c_resume	NULL
 #endif /* CONFIG_PM */
 
-static struct i2c_device_id aat2870_i2c_id_table[] = {
+static const struct i2c_device_id aat2870_i2c_id_table[] = {
 	{ "aat2870", 0 },
 	{ }
 };
