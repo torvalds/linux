@@ -684,6 +684,17 @@ static void uas_configure_endpoints(struct uas_dev_info *devinfo)
 	}
 }
 
+static void uas_free_streams(struct uas_dev_info *devinfo)
+{
+	struct usb_device *udev = devinfo->udev;
+	struct usb_host_endpoint *eps[3];
+
+	eps[0] = usb_pipe_endpoint(udev, devinfo->status_pipe);
+	eps[1] = usb_pipe_endpoint(udev, devinfo->data_in_pipe);
+	eps[2] = usb_pipe_endpoint(udev, devinfo->data_out_pipe);
+	usb_free_streams(devinfo->intf, eps, 3, GFP_KERNEL);
+}
+
 /*
  * XXX: What I'd like to do here is register a SCSI host for each USB host in
  * the system.  Follow usb-storage's design of registering a SCSI host for
@@ -713,18 +724,26 @@ static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	shost->max_id = 1;
 	shost->sg_tablesize = udev->bus->sg_tablesize;
 
-	result = scsi_add_host(shost, &intf->dev);
-	if (result)
-		goto free;
-	shost->hostdata[0] = (unsigned long)devinfo;
-
 	devinfo->intf = intf;
 	devinfo->udev = udev;
 	uas_configure_endpoints(devinfo);
 
+	result = scsi_init_shared_tag_map(shost, devinfo->qdepth - 1);
+	if (result)
+		goto free;
+
+	result = scsi_add_host(shost, &intf->dev);
+	if (result)
+		goto deconfig_eps;
+
+	shost->hostdata[0] = (unsigned long)devinfo;
+
 	scsi_scan_host(shost);
 	usb_set_intfdata(intf, shost);
 	return result;
+
+deconfig_eps:
+	uas_free_streams(devinfo);
  free:
 	kfree(devinfo);
 	if (shost)
@@ -746,18 +765,11 @@ static int uas_post_reset(struct usb_interface *intf)
 
 static void uas_disconnect(struct usb_interface *intf)
 {
-	struct usb_device *udev = interface_to_usbdev(intf);
-	struct usb_host_endpoint *eps[3];
 	struct Scsi_Host *shost = usb_get_intfdata(intf);
 	struct uas_dev_info *devinfo = (void *)shost->hostdata[0];
 
 	scsi_remove_host(shost);
-
-	eps[0] = usb_pipe_endpoint(udev, devinfo->status_pipe);
-	eps[1] = usb_pipe_endpoint(udev, devinfo->data_in_pipe);
-	eps[2] = usb_pipe_endpoint(udev, devinfo->data_out_pipe);
-	usb_free_streams(intf, eps, 3, GFP_KERNEL);
-
+	uas_free_streams(devinfo);
 	kfree(devinfo);
 }
 
