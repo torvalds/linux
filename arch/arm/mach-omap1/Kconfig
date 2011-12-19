@@ -156,6 +156,7 @@ config MACH_AMS_DELTA
 	depends on ARCH_OMAP1 && ARCH_OMAP15XX
 	select FIQ
 	select GPIO_GENERIC_PLATFORM
+	select LEDS_GPIO_REGISTER
 	help
 	  Support for the Amstrad E3 (codename Delta) videophone. Say Y here
 	  if you have such a device.

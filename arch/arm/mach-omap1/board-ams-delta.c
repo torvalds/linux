@@ -164,18 +164,21 @@ static struct omap_board_config_kernel ams_delta_config[] __initdata = {
 	{ OMAP_TAG_LCD,		&ams_delta_lcd_config },
 };
 
+#define LATCH1_GPIO_BASE	232
+#define LATCH1_NGPIO		8
+
 static struct resource latch1_resources[] __initconst = {
 	[0] = {
 		.name	= "dat",
 		.start	= LATCH1_PHYS,
-		.end	= LATCH1_PHYS + (AMS_DELTA_LATCH1_NGPIO - 1) / 8,
+		.end	= LATCH1_PHYS + (LATCH1_NGPIO - 1) / 8,
 		.flags	= IORESOURCE_MEM,
 	},
 };
 
 static struct bgpio_pdata latch1_pdata __initconst = {
-	.base	= AMS_DELTA_LATCH1_GPIO_BASE,
-	.ngpio	= AMS_DELTA_LATCH1_NGPIO,
+	.base	= LATCH1_GPIO_BASE,
+	.ngpio	= LATCH1_NGPIO,
 };
 
 static struct platform_device latch1_gpio_device = {
@@ -214,42 +217,12 @@ static struct platform_device latch2_gpio_device = {
 
 static struct gpio latch_gpios[] __initconst = {
 	{
-		.gpio	= AMS_DELTA_GPIO_PIN_LED_CAMERA,
-		.flags	= GPIOF_OUT_INIT_LOW,
-		.label	= "led_camera",
-	},
-	{
-		.gpio	= AMS_DELTA_GPIO_PIN_LED_ADVERT,
-		.flags	= GPIOF_OUT_INIT_LOW,
-		.label	= "led_advert",
-	},
-	{
-		.gpio	= AMS_DELTA_GPIO_PIN_LED_EMAIL,
-		.flags	= GPIOF_OUT_INIT_LOW,
-		.label	= "led_email",
-	},
-	{
-		.gpio	= AMS_DELTA_GPIO_PIN_LED_HANDSFREE,
-		.flags	= GPIOF_OUT_INIT_LOW,
-		.label	= "led_handsfree",
-	},
-	{
-		.gpio	= AMS_DELTA_GPIO_PIN_LED_VOICEMAIL,
-		.flags	= GPIOF_OUT_INIT_LOW,
-		.label	= "led_voicemail",
-	},
-	{
-		.gpio	= AMS_DELTA_GPIO_PIN_LED_VOICE,
-		.flags	= GPIOF_OUT_INIT_LOW,
-		.label	= "led_voice",
-	},
-	{
-		.gpio	= AMS_DELTA_LATCH1_GPIO_BASE + 6,
+		.gpio	= LATCH1_GPIO_BASE + 6,
 		.flags	= GPIOF_OUT_INIT_LOW,
 		.label	= "dockit1",
 	},
 	{
-		.gpio	= AMS_DELTA_LATCH1_GPIO_BASE + 7,
+		.gpio	= LATCH1_GPIO_BASE + 7,
 		.flags	= GPIOF_OUT_INIT_LOW,
 		.label	= "dockit2",
 	},
@@ -399,9 +372,45 @@ static struct platform_device ams_delta_lcd_device = {
 	.id	= -1,
 };
 
-static struct platform_device ams_delta_led_device = {
-	.name	= "ams-delta-led",
-	.id	= -1
+static struct gpio_led gpio_leds[] __initconst = {
+	{
+		.name		 = "camera",
+		.gpio		 = LATCH1_GPIO_BASE + 0,
+		.default_state	 = LEDS_GPIO_DEFSTATE_OFF,
+#ifdef CONFIG_LEDS_TRIGGERS
+		.default_trigger = "ams_delta_camera",
+#endif
+	},
+	{
+		.name		 = "advert",
+		.gpio		 = LATCH1_GPIO_BASE + 1,
+		.default_state	 = LEDS_GPIO_DEFSTATE_OFF,
+	},
+	{
+		.name		 = "email",
+		.gpio		 = LATCH1_GPIO_BASE + 2,
+		.default_state	 = LEDS_GPIO_DEFSTATE_OFF,
+	},
+	{
+		.name		 = "handsfree",
+		.gpio		 = LATCH1_GPIO_BASE + 3,
+		.default_state	 = LEDS_GPIO_DEFSTATE_OFF,
+	},
+	{
+		.name		 = "voicemail",
+		.gpio		 = LATCH1_GPIO_BASE + 4,
+		.default_state	 = LEDS_GPIO_DEFSTATE_OFF,
+	},
+	{
+		.name		 = "voice",
+		.gpio		 = LATCH1_GPIO_BASE + 5,
+		.default_state	 = LEDS_GPIO_DEFSTATE_OFF,
+	},
+};
+
+static struct gpio_led_platform_data leds_pdata __initconst = {
+	.leds		= gpio_leds,
+	.num_leds	= ARRAY_SIZE(gpio_leds),
 };
 
 static struct i2c_board_info ams_delta_camera_board_info[] = {
@@ -459,7 +468,6 @@ static struct platform_device *ams_delta_devices[] __initdata = {
 static struct platform_device *late_devices[] __initconst = {
 	&ams_delta_nand_device,
 	&ams_delta_lcd_device,
-	&ams_delta_led_device,
 };
 
 static void __init ams_delta_init(void)
@@ -493,6 +501,7 @@ static void __init ams_delta_init(void)
 	led_trigger_register_simple("ams_delta_camera",
 			&ams_delta_camera_led_trigger);
 #endif
+	gpio_led_register_device(-1, &leds_pdata);
 	platform_add_devices(ams_delta_devices, ARRAY_SIZE(ams_delta_devices));
 
 	ams_delta_init_fiq();
