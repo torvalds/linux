@@ -352,7 +352,6 @@ struct mfb_info {
  * @fsl_diu_info: fb_info objects, one per AOI
  * @dev_attr: sysfs structure
  * @irq: IRQ
- * @fb_enabled: TRUE if the DIU is enabled, FALSE if not
  * @monitor_port: the monitor port this DIU is connected to
  * @diu_reg: pointer to the DIU hardware registers
  * @reg_lock: spinlock for register access
@@ -371,7 +370,6 @@ struct fsl_diu_data {
 	struct mfb_info mfb[NUM_AOIS];
 	struct device_attribute dev_attr;
 	unsigned int irq;
-	int fb_enabled;
 	enum fsl_diu_monitor_port monitor_port;
 	struct diu __iomem *diu_reg;
 	spinlock_t reg_lock;
@@ -619,10 +617,7 @@ static void enable_lcdc(struct fb_info *info)
 	struct fsl_diu_data *data = mfbi->parent;
 	struct diu __iomem *hw = data->diu_reg;
 
-	if (!data->fb_enabled) {
-		out_be32(&hw->diu_mode, MFB_MODE1);
-		data->fb_enabled++;
-	}
+	out_be32(&hw->diu_mode, MFB_MODE1);
 }
 
 static void disable_lcdc(struct fb_info *info)
@@ -631,10 +626,7 @@ static void disable_lcdc(struct fb_info *info)
 	struct fsl_diu_data *data = mfbi->parent;
 	struct diu __iomem *hw = data->diu_reg;
 
-	if (data->fb_enabled) {
-		out_be32(&hw->diu_mode, 0);
-		data->fb_enabled = 0;
-	}
+	out_be32(&hw->diu_mode, 0);
 }
 
 static void adjust_aoi_size_position(struct fb_var_screeninfo *var,
