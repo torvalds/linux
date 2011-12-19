@@ -151,6 +151,7 @@ static void mlx4_en_clear_list(struct net_device *dev)
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 
 	kfree(priv->mc_addrs);
+	priv->mc_addrs = NULL;
 	priv->mc_addrs_cnt = 0;
 }
 
@@ -170,6 +171,7 @@ static void mlx4_en_cache_mclist(struct net_device *dev)
 	i = 0;
 	netdev_for_each_mc_addr(ha, dev)
 		memcpy(mc_addrs + i++ * ETH_ALEN, ha->addr, ETH_ALEN);
+	mlx4_en_clear_list(dev);
 	priv->mc_addrs = mc_addrs;
 	priv->mc_addrs_cnt = mc_addrs_cnt;
 }
