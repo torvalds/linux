@@ -187,7 +187,7 @@ static int ddebug_tokenize(char *buf, char *words[], int maxwords)
 		if (!*buf)
 			break;	/* oh, it was trailing whitespace */
 
-		/* Run `end' over a word, either whitespace separated or quoted */
+		/* find `end' of word, whitespace separated or quoted */
 		if (*buf == '"' || *buf == '\'') {
 			int quote = *buf++;
 			for (end = buf ; *end && *end != quote ; end++)
@@ -199,8 +199,8 @@ static int ddebug_tokenize(char *buf, char *words[], int maxwords)
 				;
 			BUG_ON(end == buf);
 		}
-		/* Here `buf' is the start of the word, `end' is one past the end */
 
+		/* `buf' is start of word, `end' is one past its end */
 		if (nwords == maxwords)
 			return -EINVAL;	/* ran out of words[] before bytes */
 		if (*end)
@@ -452,7 +452,8 @@ static char *dynamic_emit_prefix(const struct _ddebug *desc, char *buf)
 		pos += snprintf(buf + pos, remaining(pos), "%s:",
 					desc->function);
 	if (desc->flags & _DPRINTK_FLAGS_INCL_LINENO)
-		pos += snprintf(buf + pos, remaining(pos), "%d:", desc->lineno);
+		pos += snprintf(buf + pos, remaining(pos), "%d:",
+					desc->lineno);
 	if (pos - pos_after_tid)
 		pos += snprintf(buf + pos, remaining(pos), " ");
 	if (pos >= PREFIX_SIZE)
@@ -708,10 +709,11 @@ static const struct seq_operations ddebug_proc_seqops = {
 };
 
 /*
- * File_ops->open method for <debugfs>/dynamic_debug/control.  Does the seq_file
- * setup dance, and also creates an iterator to walk the _ddebugs.
- * Note that we create a seq_file always, even for O_WRONLY files
- * where it's not needed, as doing so simplifies the ->release method.
+ * File_ops->open method for <debugfs>/dynamic_debug/control.  Does
+ * the seq_file setup dance, and also creates an iterator to walk the
+ * _ddebugs.  Note that we create a seq_file always, even for O_WRONLY
+ * files where it's not needed, as doing so simplifies the ->release
+ * method.
  */
 static int ddebug_proc_open(struct inode *inode, struct file *file)
 {
