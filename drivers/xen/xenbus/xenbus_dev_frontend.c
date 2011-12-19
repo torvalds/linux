@@ -58,6 +58,7 @@
 #include "xenbus_comms.h"
 
 #include <xen/xenbus.h>
+#include <xen/xen.h>
 #include <asm/xen/hypervisor.h>
 
 MODULE_LICENSE("GPL");
