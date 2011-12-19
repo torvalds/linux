@@ -1231,7 +1231,8 @@ static int __devinit install_fb(struct fb_info *info)
 
 	info->var.activate = FB_ACTIVATE_NOW;
 	info->fbops = &fsl_diu_ops;
-	info->flags = FBINFO_DEFAULT;
+	info->flags = FBINFO_DEFAULT | FBINFO_VIRTFB | FBINFO_PARTIAL_PAN_OK |
+		FBINFO_READS_FAST;
 	info->pseudo_palette = mfbi->pseudo_palette;
 
 	rc = fb_alloc_cmap(&info->cmap, 16, 0);
