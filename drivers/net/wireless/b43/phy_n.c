@@ -3375,7 +3375,7 @@ static int b43_nphy_cal_tx_iq_lo(struct b43_wldev *dev,
 
 	if (dev->phy.rev >= 4) {
 		avoid = nphy->hang_avoid;
-		nphy->hang_avoid = 0;
+		nphy->hang_avoid = false;
 	}
 
 	b43_ntab_read_bulk(dev, B43_NTAB16(7, 0x110), 2, save);
@@ -3485,7 +3485,7 @@ static int b43_nphy_cal_tx_iq_lo(struct b43_wldev *dev,
 
 			if (phy6or5x && updated[core] == 0) {
 				b43_nphy_update_tx_cal_ladder(dev, core);
-				updated[core] = 1;
+				updated[core] = true;
 			}
 
 			tmp = (params[core].ncorr[type] << 8) | 0x66;

@@ -4023,7 +4023,7 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 
 		/* Mark all the VFs as inactive */
 		for (i = 0 ; i < adapter->num_vfs; i++)
-			adapter->vfinfo[i].clear_to_send = 0;
+			adapter->vfinfo[i].clear_to_send = false;
 
 		/* ping all the active vfs to let them know we are going down */
 		ixgbe_ping_all_vfs(adapter);

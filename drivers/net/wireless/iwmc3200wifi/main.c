@@ -130,7 +130,7 @@ static void iwm_disconnect_work(struct work_struct *work)
 		iwm_invalidate_mlme_profile(iwm);
 
 	clear_bit(IWM_STATUS_ASSOCIATED, &iwm->status);
-	iwm->umac_profile_active = 0;
+	iwm->umac_profile_active = false;
 	memset(iwm->bssid, 0, ETH_ALEN);
 	iwm->channel = 0;
 

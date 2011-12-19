@@ -5191,7 +5191,7 @@ de4x5_parse_params(struct net_device *dev)
     struct de4x5_private *lp = netdev_priv(dev);
     char *p, *q, t;
 
-    lp->params.fdx = 0;
+    lp->params.fdx = false;
     lp->params.autosense = AUTO;
 
     if (args == NULL) return;
@@ -5201,7 +5201,7 @@ de4x5_parse_params(struct net_device *dev)
 	t = *q;
 	*q = '\0';
 
-	if (strstr(p, "fdx") || strstr(p, "FDX")) lp->params.fdx = 1;
+	if (strstr(p, "fdx") || strstr(p, "FDX")) lp->params.fdx = true;
 
 	if (strstr(p, "autosense") || strstr(p, "AUTOSENSE")) {
 	    if (strstr(p, "TP")) {

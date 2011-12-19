@@ -859,7 +859,7 @@ static bool e1000_clean_rx_irq(struct e1000_adapter *adapter,
 	u32 length, staterr;
 	unsigned int i;
 	int cleaned_count = 0;
-	bool cleaned = 0;
+	bool cleaned = false;
 	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
 
 	i = rx_ring->next_to_clean;
@@ -888,7 +888,7 @@ static bool e1000_clean_rx_irq(struct e1000_adapter *adapter,
 
 		next_buffer = &rx_ring->buffer_info[i];
 
-		cleaned = 1;
+		cleaned = true;
 		cleaned_count++;
 		dma_unmap_single(&pdev->dev,
 				 buffer_info->dma,
@@ -1157,7 +1157,7 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter)
 		 * Detect a transmit hang in hardware, this serializes the
 		 * check with the clearing of time_stamp and movement of i
 		 */
-		adapter->detect_tx_hung = 0;
+		adapter->detect_tx_hung = false;
 		if (tx_ring->buffer_info[i].time_stamp &&
 		    time_after(jiffies, tx_ring->buffer_info[i].time_stamp
 			       + (adapter->tx_timeout_factor * HZ)) &&
@@ -1192,7 +1192,7 @@ static bool e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 	unsigned int i, j;
 	u32 length, staterr;
 	int cleaned_count = 0;
-	bool cleaned = 0;
+	bool cleaned = false;
 	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
 
 	i = rx_ring->next_to_clean;
@@ -1218,7 +1218,7 @@ static bool e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 
 		next_buffer = &rx_ring->buffer_info[i];
 
-		cleaned = 1;
+		cleaned = true;
 		cleaned_count++;
 		dma_unmap_single(&pdev->dev, buffer_info->dma,
 				 adapter->rx_ps_bsize0, DMA_FROM_DEVICE);
@@ -4257,7 +4257,7 @@ static void e1000_print_link_info(struct e1000_adapter *adapter)
 static bool e1000e_has_link(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	bool link_active = 0;
+	bool link_active = false;
 	s32 ret_val = 0;
 
 	/*
@@ -4272,7 +4272,7 @@ static bool e1000e_has_link(struct e1000_adapter *adapter)
 			ret_val = hw->mac.ops.check_for_link(hw);
 			link_active = !hw->mac.get_link_status;
 		} else {
-			link_active = 1;
+			link_active = true;
 		}
 		break;
 	case e1000_media_type_fiber:
@@ -4371,7 +4371,7 @@ static void e1000_watchdog_task(struct work_struct *work)
 
 	if (link) {
 		if (!netif_carrier_ok(netdev)) {
-			bool txb2b = 1;
+			bool txb2b = true;
 
 			/* Cancel scheduled suspend requests. */
 			pm_runtime_resume(netdev->dev.parent);
@@ -4404,11 +4404,11 @@ static void e1000_watchdog_task(struct work_struct *work)
 			adapter->tx_timeout_factor = 1;
 			switch (adapter->link_speed) {
 			case SPEED_10:
-				txb2b = 0;
+				txb2b = false;
 				adapter->tx_timeout_factor = 16;
 				break;
 			case SPEED_100:
-				txb2b = 0;
+				txb2b = false;
 				adapter->tx_timeout_factor = 10;
 				break;
 			}
@@ -4544,7 +4544,7 @@ link_up:
 	e1000e_flush_descriptors(adapter);
 
 	/* Force detection of hung controller every watchdog period */
-	adapter->detect_tx_hung = 1;
+	adapter->detect_tx_hung = true;
 
 	/*
 	 * With 82571 controllers, LAA may be overwritten due to controller
@@ -6208,7 +6208,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 
 	/* Initialize link parameters. User can change them with ethtool */
 	adapter->hw.mac.autoneg = 1;
-	adapter->fc_autoneg = 1;
+	adapter->fc_autoneg = true;
 	adapter->hw.fc.requested_mode = e1000_fc_default;
 	adapter->hw.fc.current_mode = e1000_fc_default;
 	adapter->hw.phy.autoneg_advertised = 0x2f;

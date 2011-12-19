@@ -228,7 +228,7 @@ ixgb_up(struct ixgb_adapter *adapter)
 	if (IXGB_READ_REG(&adapter->hw, STATUS) & IXGB_STATUS_PCIX_MODE) {
 		err = pci_enable_msi(adapter->pdev);
 		if (!err) {
-			adapter->have_msi = 1;
+			adapter->have_msi = true;
 			irq_flags = 0;
 		}
 		/* proceed to try to request regular interrupt */

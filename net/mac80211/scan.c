@@ -106,7 +106,7 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	/* save the ERP value so that it is available at association time */
 	if (elems->erp_info && elems->erp_info_len >= 1) {
 		bss->erp_value = elems->erp_info[0];
-		bss->has_erp_value = 1;
+		bss->has_erp_value = true;
 	}
 
 	if (elems->tim) {

@@ -385,7 +385,7 @@ static int ath9k_hw_def_check_eeprom(struct ath_hw *ah)
 	if ((ah->hw_version.devid == AR9280_DEVID_PCI) &&
 	    ((eep->baseEepHeader.version & 0xff) > 0x0a) &&
 	    (eep->baseEepHeader.pwdclkind == 0))
-		ah->need_an_top2_fixup = 1;
+		ah->need_an_top2_fixup = true;
 
 	if ((common->bus_ops->ath_bus_type == ATH_USB) &&
 	    (AR_SREV_9280(ah)))

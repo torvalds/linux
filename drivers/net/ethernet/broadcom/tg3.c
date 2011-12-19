@@ -6425,13 +6425,13 @@ static bool tg3_tx_frag_set(struct tg3_napi *tnapi, u32 *entry, u32 *budget,
 	bool hwbug = false;
 
 	if (tg3_flag(tp, SHORT_DMA_BUG) && len <= 8)
-		hwbug = 1;
+		hwbug = true;
 
 	if (tg3_4g_overflow_test(map, len))
-		hwbug = 1;
+		hwbug = true;
 
 	if (tg3_40bit_overflow_test(tp, map, len))
-		hwbug = 1;
+		hwbug = true;
 
 	if (tp->dma_limit) {
 		u32 prvidx = *entry;
@@ -6464,7 +6464,7 @@ static bool tg3_tx_frag_set(struct tg3_napi *tnapi, u32 *entry, u32 *budget,
 				*budget -= 1;
 				*entry = NEXT_TX(*entry);
 			} else {
-				hwbug = 1;
+				hwbug = true;
 				tnapi->tx_buffers[prvidx].fragmented = false;
 			}
 		}

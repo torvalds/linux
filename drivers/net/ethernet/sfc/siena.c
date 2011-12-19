@@ -232,7 +232,7 @@ static int siena_probe_nvconfig(struct efx_nic *efx)
 static int siena_probe_nic(struct efx_nic *efx)
 {
 	struct siena_nic_data *nic_data;
-	bool already_attached = 0;
+	bool already_attached = false;
 	efx_oword_t reg;
 	int rc;
 

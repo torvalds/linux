@@ -738,10 +738,10 @@ static int mwl8k_load_firmware(struct ieee80211_hw *hw)
 
 		ready_code = ioread32(priv->regs + MWL8K_HIU_INT_CODE);
 		if (ready_code == MWL8K_FWAP_READY) {
-			priv->ap_fw = 1;
+			priv->ap_fw = true;
 			break;
 		} else if (ready_code == MWL8K_FWSTA_READY) {
-			priv->ap_fw = 0;
+			priv->ap_fw = false;
 			break;
 		}
 
@@ -5517,8 +5517,8 @@ static int mwl8k_firmware_load_success(struct mwl8k_priv *priv)
 	INIT_LIST_HEAD(&priv->vif_list);
 
 	/* Set default radio state and preamble */
-	priv->radio_on = 0;
-	priv->radio_short_preamble = 0;
+	priv->radio_on = false;
+	priv->radio_short_preamble = false;
 
 	/* Finalize join worker */
 	INIT_WORK(&priv->finalize_join_worker, mwl8k_finalize_join_worker);

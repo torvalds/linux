@@ -1185,7 +1185,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 		if (global_quad_port_a != 0)
 			adapter->eeprom_wol = 0;
 		else
-			adapter->quad_port_a = 1;
+			adapter->quad_port_a = true;
 		/* Reset for multiple quad port adapters */
 		if (++global_quad_port_a == 4)
 			global_quad_port_a = 0;
@@ -1679,7 +1679,7 @@ static void e1000_configure_tx(struct e1000_adapter *adapter)
 	 * need this to apply a workaround later in the send path. */
 	if (hw->mac_type == e1000_82544 &&
 	    hw->bus_type == e1000_bus_type_pcix)
-		adapter->pcix_82544 = 1;
+		adapter->pcix_82544 = true;
 
 	ew32(TCTL, tctl);
 
@@ -2002,7 +2002,7 @@ static void e1000_clean_tx_ring(struct e1000_adapter *adapter,
 
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
-	tx_ring->last_tx_tso = 0;
+	tx_ring->last_tx_tso = false;
 
 	writel(0, hw->hw_addr + tx_ring->tdh);
 	writel(0, hw->hw_addr + tx_ring->tdt);
@@ -2851,7 +2851,7 @@ static int e1000_tx_map(struct e1000_adapter *adapter,
 		 * DMA'd to the controller */
 		if (!skb->data_len && tx_ring->last_tx_tso &&
 		    !skb_is_gso(skb)) {
-			tx_ring->last_tx_tso = 0;
+			tx_ring->last_tx_tso = false;
 			size -= 4;
 		}
 
@@ -3219,7 +3219,7 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 
 	if (likely(tso)) {
 		if (likely(hw->mac_type != e1000_82544))
-			tx_ring->last_tx_tso = 1;
+			tx_ring->last_tx_tso = true;
 		tx_flags |= E1000_TX_FLAGS_TSO;
 	} else if (likely(e1000_tx_csum(adapter, tx_ring, skb)))
 		tx_flags |= E1000_TX_FLAGS_CSUM;

@@ -396,7 +396,7 @@ void rtl_init_rfkill(struct ieee80211_hw *hw)
 	u8 valid = 0;
 
 	/*set init state to on */
-	rtlpriv->rfkill.rfkill_state = 1;
+	rtlpriv->rfkill.rfkill_state = true;
 	wiphy_rfkill_set_hw_state(hw->wiphy, 0);
 
 	radio_state = rtlpriv->cfg->ops->radio_onoff_checking(hw, &valid);

@@ -662,7 +662,7 @@ static void xemaclite_rx_handler(struct net_device *dev)
  */
 static irqreturn_t xemaclite_interrupt(int irq, void *dev_id)
 {
-	bool tx_complete = 0;
+	bool tx_complete = false;
 	struct net_device *dev = dev_id;
 	struct net_local *lp = netdev_priv(dev);
 	void __iomem *base_addr = lp->base_addr;
@@ -683,7 +683,7 @@ static irqreturn_t xemaclite_interrupt(int irq, void *dev_id)
 		tx_status &= ~XEL_TSR_XMIT_ACTIVE_MASK;
 		out_be32(base_addr + XEL_TSR_OFFSET, tx_status);
 
-		tx_complete = 1;
+		tx_complete = true;
 	}
 
 	/* Check if the Transmission for the second buffer is completed */
@@ -695,7 +695,7 @@ static irqreturn_t xemaclite_interrupt(int irq, void *dev_id)
 		out_be32(base_addr + XEL_BUFFER_OFFSET + XEL_TSR_OFFSET,
 			 tx_status);
 
-		tx_complete = 1;
+		tx_complete = true;
 	}
 
 	/* If there was a Tx interrupt, call the Tx Handler */
