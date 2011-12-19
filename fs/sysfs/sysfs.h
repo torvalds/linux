@@ -77,7 +77,7 @@ struct sysfs_dirent {
 		struct sysfs_elem_bin_attr	s_bin_attr;
 	};
 
-	unsigned int		s_flags;
+	unsigned short		s_flags;
 	umode_t 		s_mode;
 	ino_t			s_ino;
 	struct sysfs_inode_attrs *s_iattr;
@@ -94,11 +94,11 @@ struct sysfs_dirent {
 #define SYSFS_ACTIVE_REF		(SYSFS_KOBJ_ATTR | SYSFS_KOBJ_BIN_ATTR)
 
 /* identify any namespace tag on sysfs_dirents */
-#define SYSFS_NS_TYPE_MASK		0xff00
+#define SYSFS_NS_TYPE_MASK		0xf00
 #define SYSFS_NS_TYPE_SHIFT		8
 
 #define SYSFS_FLAG_MASK			~(SYSFS_NS_TYPE_MASK|SYSFS_TYPE_MASK)
-#define SYSFS_FLAG_REMOVED		0x020000
+#define SYSFS_FLAG_REMOVED		0x02000
 
 static inline unsigned int sysfs_type(struct sysfs_dirent *sd)
 {
