@@ -5136,7 +5136,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 		adjusted_mode->crtc_vsync_end -= 1;
 		adjusted_mode->crtc_vsync_start -= 1;
 	} else
-		pipeconf &= ~PIPECONF_INTERLACE_W_FIELD_INDICATION; /* progressive */
+		pipeconf &= ~PIPECONF_INTERLACE_MASK; /* progressive */
 
 	I915_WRITE(HTOTAL(pipe),
 		   (adjusted_mode->crtc_hdisplay - 1) |
