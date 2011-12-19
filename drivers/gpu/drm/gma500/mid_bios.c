@@ -45,6 +45,12 @@ static void mid_get_fuse_settings(struct drm_device *dev)
 #define FB_SKU_100 0
 #define FB_SKU_100L 1
 #define FB_SKU_83 2
+	if (pci_root == NULL) {
+		WARN_ON(1);
+		return;
+	}
+
+
 	pci_write_config_dword(pci_root, 0xD0, FB_REG06);
 	pci_read_config_dword(pci_root, 0xD4, &fuse_value);
 
@@ -101,6 +107,10 @@ static void mid_get_pci_revID(struct drm_psb_private *dev_priv)
 	uint32_t platform_rev_id = 0;
 	struct pci_dev *pci_gfx_root = pci_get_bus_and_slot(0, PCI_DEVFN(2, 0));
 
+	if (pci_gfx_root == NULL) {
+		WARN_ON(1);
+		return;
+	}
 	pci_read_config_dword(pci_gfx_root, 0x08, &platform_rev_id);
 	dev_priv->platform_rev_id = (uint8_t) platform_rev_id;
 	pci_dev_put(pci_gfx_root);
@@ -138,6 +148,10 @@ static void mid_get_vbt_data(struct drm_psb_private *dev_priv)
 
 	/* get the virtual address of the vbt */
 	vbt_virtual = ioremap(addr, sizeof(*vbt));
+	if (vbt_virtual == NULL) {
+		vbt->size = 0;
+		return;
+	}
 
 	memcpy(vbt, vbt_virtual, sizeof(*vbt));
 	iounmap(vbt_virtual); /* Free virtual address space */
