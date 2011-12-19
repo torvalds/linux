@@ -1373,6 +1373,7 @@ static void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int sta_id, int tid,
 
 static void iwl_trans_pcie_free(struct iwl_trans *trans)
 {
+	iwl_calib_free_results(trans);
 	iwl_trans_pcie_tx_free(trans);
 	iwl_trans_pcie_rx_free(trans);
 	free_irq(bus(trans)->irq, trans);

@@ -135,8 +135,8 @@ static u16 iwlagn_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd, u8 *data)
 	u16 size = (u16)sizeof(struct iwl_addsta_cmd);
 	struct iwl_addsta_cmd *addsta = (struct iwl_addsta_cmd *)data;
 	memcpy(addsta, cmd, size);
-	/* resrved in 5000 */
-	addsta->rate_n_flags = cpu_to_le16(0);
+	/* resrved in agn */
+	addsta->legacy_reserved = cpu_to_le16(0);
 	return size;
 }
 

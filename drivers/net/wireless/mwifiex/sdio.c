@@ -1087,7 +1087,7 @@ static int mwifiex_sdio_card_to_host_mp_aggr(struct mwifiex_adapter *adapter,
 					   (adapter->ioport | 0x1000 |
 					    (card->mpa_rx.ports << 4)) +
 					   card->mpa_rx.start_port, 1))
-			return -1;
+			goto error;
 
 		curr_ptr = card->mpa_rx.buf;
 
@@ -1130,12 +1130,29 @@ rx_curr_single:
 		if (mwifiex_sdio_card_to_host(adapter, &pkt_type,
 					      skb->data, skb->len,
 					      adapter->ioport + port))
-			return -1;
+			goto error;
 
 		mwifiex_decode_rx_packet(adapter, skb, pkt_type);
 	}
 
 	return 0;
+
+error:
+	if (MP_RX_AGGR_IN_PROGRESS(card)) {
+		/* Multiport-aggregation transfer failed - cleanup */
+		for (pind = 0; pind < card->mpa_rx.pkt_cnt; pind++) {
+			/* copy pkt to deaggr buf */
+			skb_deaggr = card->mpa_rx.skb_arr[pind];
+			dev_kfree_skb_any(skb_deaggr);
+		}
+		MP_RX_AGGR_BUF_RESET(card);
+	}
+
+	if (f_do_rx_cur)
+		/* Single transfer pending. Free curr buff also */
+		dev_kfree_skb_any(skb);
+
+	return -1;
 }
 
 /*
@@ -1271,7 +1288,6 @@ static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
 
 				dev_dbg(adapter->dev,
 						"info: CFG reg val =%x\n", cr);
-				dev_kfree_skb_any(skb);
 				return -1;
 			}
 		}

@@ -386,7 +386,7 @@ static int mwifiex_pcie_create_txbd_ring(struct mwifiex_adapter *adapter)
 	card->txbd_ring_vbase = kzalloc(card->txbd_ring_size, GFP_KERNEL);
 	if (!card->txbd_ring_vbase) {
 		dev_err(adapter->dev, "Unable to allocate buffer for txbd ring.\n");
-		return -1;
+		return -ENOMEM;
 	}
 	card->txbd_ring_pbase = virt_to_phys(card->txbd_ring_vbase);
 
@@ -476,7 +476,7 @@ static int mwifiex_pcie_create_rxbd_ring(struct mwifiex_adapter *adapter)
 	if (!card->rxbd_ring_vbase) {
 		dev_err(adapter->dev, "Unable to allocate buffer for "
 				"rxbd_ring.\n");
-		return -1;
+		return -ENOMEM;
 	}
 	card->rxbd_ring_pbase = virt_to_phys(card->rxbd_ring_vbase);
 
@@ -569,7 +569,7 @@ static int mwifiex_pcie_create_evtbd_ring(struct mwifiex_adapter *adapter)
 	if (!card->evtbd_ring_vbase) {
 		dev_err(adapter->dev, "Unable to allocate buffer. "
 				"Terminating download\n");
-		return -1;
+		return -ENOMEM;
 	}
 	card->evtbd_ring_pbase = virt_to_phys(card->evtbd_ring_vbase);
 
@@ -1231,15 +1231,13 @@ static int mwifiex_pcie_event_complete(struct mwifiex_adapter *adapter,
 	if (rdptr >= MWIFIEX_MAX_EVT_BD) {
 		dev_err(adapter->dev, "event_complete: Invalid rdptr 0x%x\n",
 					rdptr);
-		ret = -EINVAL;
-		goto done;
+		return -EINVAL;
 	}
 
 	/* Read the event ring write pointer set by firmware */
 	if (mwifiex_read_reg(adapter, REG_EVTBD_WRPTR, &wrptr)) {
 		dev_err(adapter->dev, "event_complete: failed to read REG_EVTBD_WRPTR\n");
-		ret = -1;
-		goto done;
+		return -1;
 	}
 
 	if (!card->evt_buf_list[rdptr]) {
@@ -1268,14 +1266,8 @@ static int mwifiex_pcie_event_complete(struct mwifiex_adapter *adapter,
 	/* Write the event ring read pointer in to REG_EVTBD_RDPTR */
 	if (mwifiex_write_reg(adapter, REG_EVTBD_RDPTR, card->evtbd_rdptr)) {
 		dev_err(adapter->dev, "event_complete: failed to read REG_EVTBD_RDPTR\n");
-		ret = -1;
-		goto done;
+		return -1;
 	}
-
-done:
-	/* Free the buffer for failure case */
-	if (ret && skb)
-		dev_kfree_skb_any(skb);
 
 	dev_dbg(adapter->dev, "info: Check Events Again\n");
 	ret = mwifiex_pcie_process_event_ready(adapter);

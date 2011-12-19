@@ -740,7 +740,14 @@ void wl1271_tx_work_locked(struct wl1271 *wl)
 			set_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags);
 			goto out_ack;
 		} else if (ret < 0) {
-			dev_kfree_skb(skb);
+			if (wl12xx_is_dummy_packet(wl, skb))
+				/*
+				 * fw still expects dummy packet,
+				 * so re-enqueue it
+				 */
+				wl1271_skb_queue_head(wl, wlvif, skb);
+			else
+				ieee80211_free_txskb(wl->hw, skb);
 			goto out_ack;
 		}
 		buf_offset += ret;

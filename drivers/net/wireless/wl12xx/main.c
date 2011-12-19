@@ -674,11 +674,6 @@ static int wl1271_plt_init(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
-	/* PHY layer config */
-	ret = wl1271_init_phy_config(wl);
-	if (ret < 0)
-		goto out_free_memmap;
-
 	ret = wl12xx_acx_mem_cfg(wl);
 	if (ret < 0)
 		goto out_free_memmap;
@@ -1448,7 +1443,7 @@ static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	if (hlid == WL12XX_INVALID_LINK_ID ||
 	    (wlvif && !test_bit(hlid, wlvif->links_map))) {
 		wl1271_debug(DEBUG_TX, "DROP skb hlid %d q %d", hlid, q);
-		dev_kfree_skb(skb);
+		ieee80211_free_txskb(hw, skb);
 		goto out;
 	}
 
@@ -1585,24 +1580,24 @@ static int wl1271_configure_suspend_sta(struct wl1271 *wl,
 
 		ret = wait_for_completion_timeout(
 			&compl, msecs_to_jiffies(WL1271_PS_COMPLETE_TIMEOUT));
+
+		mutex_lock(&wl->mutex);
 		if (ret <= 0) {
 			wl1271_warning("couldn't enter ps mode!");
 			ret = -EBUSY;
-			goto out;
+			goto out_cleanup;
 		}
-
-		/* take mutex again, and wakeup */
-		mutex_lock(&wl->mutex);
 
 		ret = wl1271_ps_elp_wakeup(wl);
 		if (ret < 0)
-			goto out_unlock;
+			goto out_cleanup;
 	}
 out_sleep:
 	wl1271_ps_elp_sleep(wl);
+out_cleanup:
+	wlvif->ps_compl = NULL;
 out_unlock:
 	mutex_unlock(&wl->mutex);
-out:
 	return ret;
 
 }

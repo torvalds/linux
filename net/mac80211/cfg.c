@@ -746,10 +746,11 @@ static void ieee80211_send_layer2_update(struct sta_info *sta)
 	netif_rx_ni(skb);
 }
 
-static void sta_apply_parameters(struct ieee80211_local *local,
-				 struct sta_info *sta,
-				 struct station_parameters *params)
+static int sta_apply_parameters(struct ieee80211_local *local,
+				struct sta_info *sta,
+				struct station_parameters *params)
 {
+	int ret = 0;
 	u32 rates;
 	int i, j;
 	struct ieee80211_supported_band *sband;
@@ -761,12 +762,58 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 	mask = params->sta_flags_mask;
 	set = params->sta_flags_set;
 
+	/*
+	 * In mesh mode, we can clear AUTHENTICATED flag but must
+	 * also make ASSOCIATED follow appropriately for the driver
+	 * API. See also below, after AUTHORIZED changes.
+	 */
+	if (mask & BIT(NL80211_STA_FLAG_AUTHENTICATED)) {
+		/* cfg80211 should not allow this in non-mesh modes */
+		if (WARN_ON(!ieee80211_vif_is_mesh(&sdata->vif)))
+			return -EINVAL;
+
+		if (set & BIT(NL80211_STA_FLAG_AUTHENTICATED) &&
+		    !test_sta_flag(sta, WLAN_STA_AUTH)) {
+			ret = sta_info_move_state_checked(sta,
+					IEEE80211_STA_AUTH);
+			if (ret)
+				return ret;
+			ret = sta_info_move_state_checked(sta,
+					IEEE80211_STA_ASSOC);
+			if (ret)
+				return ret;
+		}
+	}
+
 	if (mask & BIT(NL80211_STA_FLAG_AUTHORIZED)) {
 		if (set & BIT(NL80211_STA_FLAG_AUTHORIZED))
-			set_sta_flag(sta, WLAN_STA_AUTHORIZED);
+			ret = sta_info_move_state_checked(sta,
+					IEEE80211_STA_AUTHORIZED);
 		else
-			clear_sta_flag(sta, WLAN_STA_AUTHORIZED);
+			ret = sta_info_move_state_checked(sta,
+					IEEE80211_STA_ASSOC);
+		if (ret)
+			return ret;
 	}
+
+	if (mask & BIT(NL80211_STA_FLAG_AUTHENTICATED)) {
+		/* cfg80211 should not allow this in non-mesh modes */
+		if (WARN_ON(!ieee80211_vif_is_mesh(&sdata->vif)))
+			return -EINVAL;
+
+		if (!(set & BIT(NL80211_STA_FLAG_AUTHENTICATED)) &&
+		    test_sta_flag(sta, WLAN_STA_AUTH)) {
+			ret = sta_info_move_state_checked(sta,
+					IEEE80211_STA_AUTH);
+			if (ret)
+				return ret;
+			ret = sta_info_move_state_checked(sta,
+					IEEE80211_STA_NONE);
+			if (ret)
+				return ret;
+		}
+	}
+
 
 	if (mask & BIT(NL80211_STA_FLAG_SHORT_PREAMBLE)) {
 		if (set & BIT(NL80211_STA_FLAG_SHORT_PREAMBLE))
@@ -790,13 +837,6 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 			set_sta_flag(sta, WLAN_STA_MFP);
 		else
 			clear_sta_flag(sta, WLAN_STA_MFP);
-	}
-
-	if (mask & BIT(NL80211_STA_FLAG_AUTHENTICATED)) {
-		if (set & BIT(NL80211_STA_FLAG_AUTHENTICATED))
-			set_sta_flag(sta, WLAN_STA_AUTH);
-		else
-			clear_sta_flag(sta, WLAN_STA_AUTH);
 	}
 
 	if (mask & BIT(NL80211_STA_FLAG_TDLS_PEER)) {
@@ -870,6 +910,8 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 			}
 #endif
 	}
+
+	return 0;
 }
 
 static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
@@ -896,20 +938,18 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 	if (is_multicast_ether_addr(mac))
 		return -EINVAL;
 
-	/* Only TDLS-supporting stations can add TDLS peers */
-	if ((params->sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER)) &&
-	    !((wiphy->flags & WIPHY_FLAG_SUPPORTS_TDLS) &&
-	      sdata->vif.type == NL80211_IFTYPE_STATION))
-		return -ENOTSUPP;
-
 	sta = sta_info_alloc(sdata, mac, GFP_KERNEL);
 	if (!sta)
 		return -ENOMEM;
 
-	set_sta_flag(sta, WLAN_STA_AUTH);
-	set_sta_flag(sta, WLAN_STA_ASSOC);
+	sta_info_move_state(sta, IEEE80211_STA_AUTH);
+	sta_info_move_state(sta, IEEE80211_STA_ASSOC);
 
-	sta_apply_parameters(local, sta, params);
+	err = sta_apply_parameters(local, sta, params);
+	if (err) {
+		sta_info_free(local, sta);
+		return err;
+	}
 
 	/*
 	 * for TDLS, rate control should be initialized only when supported
@@ -960,19 +1000,19 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 	struct sta_info *sta;
 	struct ieee80211_sub_if_data *vlansdata;
 
-	rcu_read_lock();
+	mutex_lock(&local->sta_mtx);
 
 	sta = sta_info_get_bss(sdata, mac);
 	if (!sta) {
-		rcu_read_unlock();
+		mutex_unlock(&local->sta_mtx);
 		return -ENOENT;
 	}
 
-	/* The TDLS bit cannot be toggled after the STA was added */
-	if ((params->sta_flags_mask & BIT(NL80211_STA_FLAG_TDLS_PEER)) &&
-	    !!(params->sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER)) !=
-	    !!test_sta_flag(sta, WLAN_STA_TDLS_PEER)) {
-		rcu_read_unlock();
+	/* in station mode, supported rates are only valid with TDLS */
+	if (sdata->vif.type == NL80211_IFTYPE_STATION &&
+	    params->supported_rates &&
+	    !test_sta_flag(sta, WLAN_STA_TDLS_PEER)) {
+		mutex_unlock(&local->sta_mtx);
 		return -EINVAL;
 	}
 
@@ -981,13 +1021,13 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 
 		if (vlansdata->vif.type != NL80211_IFTYPE_AP_VLAN &&
 		    vlansdata->vif.type != NL80211_IFTYPE_AP) {
-			rcu_read_unlock();
+			mutex_unlock(&local->sta_mtx);
 			return -EINVAL;
 		}
 
 		if (params->vlan->ieee80211_ptr->use_4addr) {
 			if (vlansdata->u.vlan.sta) {
-				rcu_read_unlock();
+				mutex_unlock(&local->sta_mtx);
 				return -EBUSY;
 			}
 
@@ -1003,7 +1043,7 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 	if (test_sta_flag(sta, WLAN_STA_TDLS_PEER) && params->supported_rates)
 		rate_control_rate_init(sta);
 
-	rcu_read_unlock();
+	mutex_unlock(&local->sta_mtx);
 
 	if (sdata->vif.type == NL80211_IFTYPE_STATION &&
 	    params->sta_flags_mask & BIT(NL80211_STA_FLAG_AUTHORIZED))

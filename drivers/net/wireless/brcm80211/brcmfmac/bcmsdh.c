@@ -40,8 +40,7 @@
 
 static void brcmf_sdioh_irqhandler(struct sdio_func *func)
 {
-	struct brcmf_bus *bus_if = dev_get_drvdata(&func->card->dev);
-	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv;
+	struct brcmf_sdio_dev *sdiodev = dev_get_drvdata(&func->card->dev);
 
 	brcmf_dbg(TRACE, "***IRQHandler\n");
 

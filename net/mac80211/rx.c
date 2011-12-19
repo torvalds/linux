@@ -2775,8 +2775,8 @@ static int prepare_for_handlers(struct ieee80211_rx_data *rx,
 				rate_idx = 0; /* TODO: HT rates */
 			else
 				rate_idx = status->rate_idx;
-			rx->sta = ieee80211_ibss_add_sta(sdata, bssid,
-					hdr->addr2, BIT(rate_idx), GFP_ATOMIC);
+			ieee80211_ibss_rx_no_sta(sdata, bssid, hdr->addr2,
+						 BIT(rate_idx));
 		}
 		break;
 	case NL80211_IFTYPE_MESH_POINT:

@@ -21,7 +21,7 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#define pr_fmt(fmt) KBUILD_MODNAME ": %s: " fmt, __func__
 
 #include <net/tcp_states.h>
 #include <linux/nfc.h>
@@ -208,12 +208,9 @@ static int rawsock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	if (sock->state != SS_CONNECTED)
 		return -ENOTCONN;
 
-	skb = sock_alloc_send_skb(sk, len + dev->tx_headroom + dev->tx_tailroom + NFC_HEADER_SIZE,
-					msg->msg_flags & MSG_DONTWAIT, &rc);
-	if (!skb)
+	skb = nfc_alloc_send_skb(dev, sk, msg->msg_flags, len, &rc);
+	if (skb == NULL)
 		return rc;
-
-	skb_reserve(skb, dev->tx_headroom + NFC_HEADER_SIZE);
 
 	rc = memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len);
 	if (rc < 0) {
@@ -313,7 +310,7 @@ static int rawsock_create(struct net *net, struct socket *sock,
 
 	sock->ops = &rawsock_ops;
 
-	sk = sk_alloc(net, PF_NFC, GFP_KERNEL, nfc_proto->proto);
+	sk = sk_alloc(net, PF_NFC, GFP_ATOMIC, nfc_proto->proto);
 	if (!sk)
 		return -ENOMEM;
 

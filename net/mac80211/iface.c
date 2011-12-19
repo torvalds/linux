@@ -318,8 +318,9 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 			goto err_del_interface;
 		}
 
-		/* no atomic bitop required since STA is not live yet */
-		set_sta_flag(sta, WLAN_STA_AUTHORIZED);
+		sta_info_move_state(sta, IEEE80211_STA_AUTH);
+		sta_info_move_state(sta, IEEE80211_STA_ASSOC);
+		sta_info_move_state(sta, IEEE80211_STA_AUTHORIZED);
 
 		res = sta_info_insert(sta);
 		if (res) {

@@ -234,7 +234,7 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 				      "associating...\n");
 
 		if (!netif_queue_stopped(priv->netdev))
-			netif_stop_queue(priv->netdev);
+			mwifiex_stop_net_dev_queue(priv->netdev, adapter);
 
 		/* Clear any past association response stored for
 		 * application retrieval */
@@ -265,7 +265,7 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 		ret = mwifiex_check_network_compatibility(priv, bss_desc);
 
 		if (!netif_queue_stopped(priv->netdev))
-			netif_stop_queue(priv->netdev);
+			mwifiex_stop_net_dev_queue(priv->netdev, adapter);
 
 		if (!ret) {
 			dev_dbg(adapter->dev, "info: network found in scan"

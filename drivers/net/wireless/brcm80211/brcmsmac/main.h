@@ -334,7 +334,7 @@ struct brcms_hardware {
 	u32 machwcap_backup;	/* backup of machwcap */
 
 	struct si_pub *sih;	/* SI handle (cookie for siutils calls) */
-	struct d11regs __iomem *regs;	/* pointer to device registers */
+	struct bcma_device *d11core;	/* pointer to 802.11 core */
 	struct phy_shim_info *physhim; /* phy shim layer handler */
 	struct shared_phy *phy_sh;	/* pointer to shared phy state */
 	struct brcms_hw_band *band;/* pointer to active per-band state */
@@ -400,7 +400,6 @@ struct brcms_txq_info {
  *
  * pub: pointer to driver public state.
  * wl: pointer to specific private state.
- * regs: pointer to device registers.
  * hw: HW related state.
  * clkreq_override: setting for clkreq for PCIE : Auto, 0, 1.
  * fastpwrup_dly: time in us needed to bring up d11 fast clock.
@@ -477,7 +476,6 @@ struct brcms_txq_info {
 struct brcms_c_info {
 	struct brcms_pub *pub;
 	struct brcms_info *wl;
-	struct d11regs __iomem *regs;
 	struct brcms_hardware *hw;
 
 	/* clock */

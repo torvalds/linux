@@ -2171,6 +2171,48 @@ static const u16 b43_ntab_loftlt1_r3[] = {
 	0x0000, 0x0000,
 };
 
+/* volatile  tables, PHY revision >= 3 */
+
+/* indexed by antswctl2g */
+static const u16 b43_ntab_antswctl2g_r3[4][32] = {
+	{
+		0x0082, 0x0082, 0x0211, 0x0222, 0x0328,
+		0x0000, 0x0000, 0x0000, 0x0144, 0x0000,
+		0x0000, 0x0000, 0x0188, 0x0000, 0x0000,
+		0x0000, 0x0082, 0x0082, 0x0211, 0x0222,
+		0x0328, 0x0000, 0x0000, 0x0000, 0x0144,
+		0x0000, 0x0000, 0x0000, 0x0188, 0x0000,
+		0x0000, 0x0000,
+	},
+	{
+		0x0022, 0x0022, 0x0011, 0x0022, 0x0022,
+		0x0000, 0x0000, 0x0000, 0x0011, 0x0000,
+		0x0000, 0x0000, 0x0022, 0x0000, 0x0000,
+		0x0000, 0x0022, 0x0022, 0x0011, 0x0022,
+		0x0022, 0x0000, 0x0000, 0x0000, 0x0011,
+		0x0000, 0x0000, 0x0000, 0x0022, 0x0000,
+		0x0000, 0x0000,
+	},
+	{
+		0x0088, 0x0088, 0x0044, 0x0088, 0x0088,
+		0x0000, 0x0000, 0x0000, 0x0044, 0x0000,
+		0x0000, 0x0000, 0x0088, 0x0000, 0x0000,
+		0x0000, 0x0088, 0x0088, 0x0044, 0x0088,
+		0x0088, 0x0000, 0x0000, 0x0000, 0x0044,
+		0x0000, 0x0000, 0x0000, 0x0088, 0x0000,
+		0x0000, 0x0000,
+	},
+	{
+		0x0022, 0x0022, 0x0011, 0x0022, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0011, 0x0000,
+		0x0000, 0x0000, 0x0022, 0x0000, 0x0000,
+		0x03cc, 0x0022, 0x0022, 0x0011, 0x0022,
+		0x0000, 0x0000, 0x0000, 0x0000, 0x0011,
+		0x0000, 0x0000, 0x0000, 0x0022, 0x0000,
+		0x0000, 0x03cc,
+	}
+};
+
 /* TX gain tables */
 const u32 b43_ntab_tx_gain_rev0_1_2[] = {
 	0x03cc2b44, 0x03cc2b42, 0x03cc2a44, 0x03cc2a42,
@@ -2652,7 +2694,7 @@ const u16 tbl_tx_iqlo_cal_cmds_fullcal_nphyrev3[] = {
 const s16 tbl_tx_filter_coef_rev4[7][15] = {
 	{  -377,   137,  -407,   208, -1527,
 	    956,    93,   186,    93,   230,
-	    -44,   230,    20,  -191,   201 },
+	    -44,   230,   201,  -191,   201 },
 	{   -77,    20,   -98,    49,   -93,
 	     60,    56,   111,    56,    26,
 	     -5,    26,    34,   -32,    34 },
@@ -2838,9 +2880,8 @@ u32 b43_ntab_read(struct b43_wldev *dev, u32 offset)
 		break;
 	case B43_NTAB_32BIT:
 		b43_phy_write(dev, B43_NPHY_TABLE_ADDR, offset);
-		value = b43_phy_read(dev, B43_NPHY_TABLE_DATAHI);
-		value <<= 16;
-		value |= b43_phy_read(dev, B43_NPHY_TABLE_DATALO);
+		value = b43_phy_read(dev, B43_NPHY_TABLE_DATALO);
+		value |= b43_phy_read(dev, B43_NPHY_TABLE_DATAHI) << 16;
 		break;
 	default:
 		B43_WARN_ON(1);
@@ -2864,6 +2905,12 @@ void b43_ntab_read_bulk(struct b43_wldev *dev, u32 offset,
 	b43_phy_write(dev, B43_NPHY_TABLE_ADDR, offset);
 
 	for (i = 0; i < nr_elements; i++) {
+		/* Auto increment broken + caching issue on BCM43224? */
+		if (dev->dev->chip_id == 43224 && dev->dev->chip_rev == 1) {
+			b43_phy_read(dev, B43_NPHY_TABLE_DATALO);
+			b43_phy_write(dev, B43_NPHY_TABLE_ADDR, offset + i);
+		}
+
 		switch (type) {
 		case B43_NTAB_8BIT:
 			*data = b43_phy_read(dev, B43_NPHY_TABLE_DATALO) & 0xFF;
@@ -2874,9 +2921,10 @@ void b43_ntab_read_bulk(struct b43_wldev *dev, u32 offset,
 			data += 2;
 			break;
 		case B43_NTAB_32BIT:
-			*((u32 *)data) = b43_phy_read(dev, B43_NPHY_TABLE_DATAHI);
-			*((u32 *)data) <<= 16;
-			*((u32 *)data) |= b43_phy_read(dev, B43_NPHY_TABLE_DATALO);
+			*((u32 *)data) =
+				b43_phy_read(dev, B43_NPHY_TABLE_DATALO);
+			*((u32 *)data) |=
+				b43_phy_read(dev, B43_NPHY_TABLE_DATAHI) << 16;
 			data += 4;
 			break;
 		default:
@@ -2932,6 +2980,13 @@ void b43_ntab_write_bulk(struct b43_wldev *dev, u32 offset,
 	b43_phy_write(dev, B43_NPHY_TABLE_ADDR, offset);
 
 	for (i = 0; i < nr_elements; i++) {
+		/* Auto increment broken + caching issue on BCM43224? */
+		if ((offset >> 10) == 9 && dev->dev->chip_id == 43224 &&
+		    dev->dev->chip_rev == 1) {
+			b43_phy_read(dev, B43_NPHY_TABLE_DATALO);
+			b43_phy_write(dev, B43_NPHY_TABLE_ADDR, offset + i);
+		}
+
 		switch (type) {
 		case B43_NTAB_8BIT:
 			value = *data;
@@ -2999,6 +3054,8 @@ void b43_nphy_rev0_1_2_tables_init(struct b43_wldev *dev)
 	} while (0)
 void b43_nphy_rev3plus_tables_init(struct b43_wldev *dev)
 {
+	struct ssb_sprom *sprom = dev->dev->bus_sprom;
+
 	/* Static tables */
 	ntab_upload_r3(dev, B43_NTAB_FRAMESTRUCT_R3, b43_ntab_framestruct_r3);
 	ntab_upload_r3(dev, B43_NTAB_PILOT_R3, b43_ntab_pilot_r3);
@@ -3029,7 +3086,11 @@ void b43_nphy_rev3plus_tables_init(struct b43_wldev *dev)
 	ntab_upload_r3(dev, B43_NTAB_C1_LOFEEDTH_R3, b43_ntab_loftlt1_r3);
 
 	/* Volatile tables */
-	/* TODO */
+	if (sprom->fem.ghz2.antswlut < ARRAY_SIZE(b43_ntab_antswctl2g_r3))
+		ntab_upload_r3(dev, B43_NTAB_ANT_SW_CTL_R3,
+			       b43_ntab_antswctl2g_r3[sprom->fem.ghz2.antswlut]);
+	else
+		B43_WARN_ON(1);
 }
 
 struct nphy_gain_ctl_workaround_entry *b43_nphy_get_gain_ctl_workaround_ent(

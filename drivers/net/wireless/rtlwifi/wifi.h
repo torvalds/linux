@@ -1544,14 +1544,13 @@ struct rtl_hal_cfg {
 struct rtl_locks {
 	/* mutex */
 	struct mutex conf_mutex;
+	struct mutex ps_mutex;
 
 	/*spin lock */
-	spinlock_t ips_lock;
 	spinlock_t irq_th_lock;
 	spinlock_t h2c_lock;
 	spinlock_t rf_ps_lock;
 	spinlock_t rf_lock;
-	spinlock_t lps_lock;
 	spinlock_t waitq_lock;
 
 	/*Dual mac*/
@@ -1576,7 +1575,8 @@ struct rtl_works {
 	/* For SW LPS */
 	struct delayed_work ps_work;
 	struct delayed_work ps_rfon_wq;
-	struct tasklet_struct ips_leave_tasklet;
+
+	struct work_struct lps_leave_work;
 };
 
 struct rtl_debug {

@@ -453,15 +453,8 @@ struct mwifiex_private {
 	u8 scan_pending_on_block;
 	u8 report_scan_result;
 	struct cfg80211_scan_request *scan_request;
-	int scan_result_status;
-	int assoc_request;
-	u16 assoc_result;
-	int ibss_join_request;
-	u16 ibss_join_result;
-	bool disconnect;
+	struct mwifiex_user_scan_cfg *user_scan_cfg;
 	u8 cfg_bssid[6];
-	struct workqueue_struct *workqueue;
-	struct work_struct cfg_workqueue;
 	u8 country_code[IEEE80211_COUNTRY_STRING_LEN];
 	struct wps wps;
 	u8 scan_block;
@@ -655,9 +648,18 @@ struct mwifiex_adapter {
 	struct mwifiex_wait_queue cmd_wait_q;
 	u8 scan_wait_q_woken;
 	struct cmd_ctrl_node *cmd_queued;
+	spinlock_t queue_lock;		/* lock for tx queues */
 };
 
 int mwifiex_init_lock_list(struct mwifiex_adapter *adapter);
+
+void mwifiex_set_trans_start(struct net_device *dev);
+
+void mwifiex_stop_net_dev_queue(struct net_device *netdev,
+		struct mwifiex_adapter *adapter);
+
+void mwifiex_wake_up_net_dev_queue(struct net_device *netdev,
+		struct mwifiex_adapter *adapter);
 
 int mwifiex_init_fw(struct mwifiex_adapter *adapter);
 

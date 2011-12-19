@@ -187,40 +187,12 @@ static bool ar9003_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
 			isr = REG_READ(ah, AR_ISR);
 	}
 
-	if (async_cause & AR_INTR_ASYNC_MASK_MCI) {
-		u32 raw_intr, rx_msg_intr;
-
-		rx_msg_intr = REG_READ(ah, AR_MCI_INTERRUPT_RX_MSG_RAW);
-		raw_intr = REG_READ(ah, AR_MCI_INTERRUPT_RAW);
-
-		if ((raw_intr == 0xdeadbeef) || (rx_msg_intr == 0xdeadbeef))
-			ath_dbg(common, ATH_DBG_MCI,
-				"MCI gets 0xdeadbeef during MCI int processing"
-				"new raw_intr=0x%08x, new rx_msg_raw=0x%08x, "
-				"raw_intr=0x%08x, rx_msg_raw=0x%08x\n",
-				raw_intr, rx_msg_intr, mci->raw_intr,
-				mci->rx_msg_intr);
-		else {
-			mci->rx_msg_intr |= rx_msg_intr;
-			mci->raw_intr |= raw_intr;
-			*masked |= ATH9K_INT_MCI;
-
-			if (rx_msg_intr & AR_MCI_INTERRUPT_RX_MSG_CONT_INFO)
-				mci->cont_status =
-					REG_READ(ah, AR_MCI_CONT_STATUS);
-
-			REG_WRITE(ah, AR_MCI_INTERRUPT_RX_MSG_RAW, rx_msg_intr);
-			REG_WRITE(ah, AR_MCI_INTERRUPT_RAW, raw_intr);
-			ath_dbg(common, ATH_DBG_MCI, "AR_INTR_SYNC_MCI\n");
-
-		}
-	}
 
 	sync_cause = REG_READ(ah, AR_INTR_SYNC_CAUSE) & AR_INTR_SYNC_DEFAULT;
 
 	*masked = 0;
 
-	if (!isr && !sync_cause)
+	if (!isr && !sync_cause && !async_cause)
 		return false;
 
 	if (isr) {
@@ -324,6 +296,35 @@ static bool ar9003_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
 
 		if (*masked & ATH9K_INT_BB_WATCHDOG)
 			ar9003_hw_bb_watchdog_read(ah);
+	}
+
+	if (async_cause & AR_INTR_ASYNC_MASK_MCI) {
+		u32 raw_intr, rx_msg_intr;
+
+		rx_msg_intr = REG_READ(ah, AR_MCI_INTERRUPT_RX_MSG_RAW);
+		raw_intr = REG_READ(ah, AR_MCI_INTERRUPT_RAW);
+
+		if ((raw_intr == 0xdeadbeef) || (rx_msg_intr == 0xdeadbeef))
+			ath_dbg(common, ATH_DBG_MCI,
+				"MCI gets 0xdeadbeef during MCI int processing"
+				"new raw_intr=0x%08x, new rx_msg_raw=0x%08x, "
+				"raw_intr=0x%08x, rx_msg_raw=0x%08x\n",
+				raw_intr, rx_msg_intr, mci->raw_intr,
+				mci->rx_msg_intr);
+		else {
+			mci->rx_msg_intr |= rx_msg_intr;
+			mci->raw_intr |= raw_intr;
+			*masked |= ATH9K_INT_MCI;
+
+			if (rx_msg_intr & AR_MCI_INTERRUPT_RX_MSG_CONT_INFO)
+				mci->cont_status =
+					REG_READ(ah, AR_MCI_CONT_STATUS);
+
+			REG_WRITE(ah, AR_MCI_INTERRUPT_RX_MSG_RAW, rx_msg_intr);
+			REG_WRITE(ah, AR_MCI_INTERRUPT_RAW, raw_intr);
+			ath_dbg(common, ATH_DBG_MCI, "AR_INTR_SYNC_MCI\n");
+
+		}
 	}
 
 	if (sync_cause) {

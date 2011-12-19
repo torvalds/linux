@@ -234,8 +234,8 @@ static void ath_mci_cal_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 	}
 }
 
-void ath_mci_process_profile(struct ath_softc *sc,
-			     struct ath_mci_profile_info *info)
+static void ath_mci_process_profile(struct ath_softc *sc,
+				    struct ath_mci_profile_info *info)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_btcoex *btcoex = &sc->btcoex;
@@ -261,8 +261,8 @@ void ath_mci_process_profile(struct ath_softc *sc,
 	ath_mci_update_scheme(sc);
 }
 
-void ath_mci_process_status(struct ath_softc *sc,
-			    struct ath_mci_profile_status *status)
+static void ath_mci_process_status(struct ath_softc *sc,
+				   struct ath_mci_profile_status *status)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_btcoex *btcoex = &sc->btcoex;

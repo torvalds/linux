@@ -1118,14 +1118,17 @@ brcms_c_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 		u8 status_delay = 0;
 
 		/* wait till the next 8 bytes of txstatus is available */
-		while (((s1 = R_REG(&wlc->regs->frmtxstatus)) & TXS_V) == 0) {
+		s1 = bcma_read32(wlc->hw->d11core, D11REGOFFS(frmtxstatus));
+		while ((s1 & TXS_V) == 0) {
 			udelay(1);
 			status_delay++;
 			if (status_delay > 10)
 				return; /* error condition */
+			s1 = bcma_read32(wlc->hw->d11core,
+					 D11REGOFFS(frmtxstatus));
 		}
 
-		s2 = R_REG(&wlc->regs->frmtxstatus2);
+		s2 = bcma_read32(wlc->hw->d11core, D11REGOFFS(frmtxstatus2));
 	}
 
 	if (scb) {

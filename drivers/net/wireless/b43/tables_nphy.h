@@ -126,26 +126,29 @@ struct nphy_gain_ctl_workaround_entry *b43_nphy_get_gain_ctl_workaround_ent(
 #define B43_NTAB_C1_LOFEEDTH		B43_NTAB16(0x1B, 0x1C0) /* Local Oscillator Feed Through Lookup Table Core 1 */
 #define B43_NTAB_C1_LOFEEDTH_SIZE	128
 
+/* Volatile N-PHY tables, PHY revision >= 3 */
+#define B43_NTAB_ANT_SW_CTL_R3		B43_NTAB16( 9,   0) /* antenna software control */
+
 /* Static N-PHY tables, PHY revision >= 3 */
-#define B43_NTAB_FRAMESTRUCT_R3		B43_NTAB32(10, 000) /* frame struct  */
-#define B43_NTAB_PILOT_R3		B43_NTAB16(11, 000) /* pilot  */
-#define B43_NTAB_TMAP_R3		B43_NTAB32(12, 000) /* TM AP  */
-#define B43_NTAB_INTLEVEL_R3		B43_NTAB32(13, 000) /* INT LV  */
-#define B43_NTAB_TDTRN_R3		B43_NTAB32(14, 000) /* TD TRN  */
-#define B43_NTAB_NOISEVAR0_R3		B43_NTAB32(16, 000) /* noise variance 0  */
+#define B43_NTAB_FRAMESTRUCT_R3		B43_NTAB32(10,   0) /* frame struct  */
+#define B43_NTAB_PILOT_R3		B43_NTAB16(11,   0) /* pilot  */
+#define B43_NTAB_TMAP_R3		B43_NTAB32(12,   0) /* TM AP  */
+#define B43_NTAB_INTLEVEL_R3		B43_NTAB32(13,   0) /* INT LV  */
+#define B43_NTAB_TDTRN_R3		B43_NTAB32(14,   0) /* TD TRN  */
+#define B43_NTAB_NOISEVAR0_R3		B43_NTAB32(16,   0) /* noise variance 0  */
 #define B43_NTAB_NOISEVAR1_R3		B43_NTAB32(16, 128) /* noise variance 1  */
-#define B43_NTAB_MCS_R3			B43_NTAB16(18, 000) /* MCS  */
+#define B43_NTAB_MCS_R3			B43_NTAB16(18,   0) /* MCS  */
 #define B43_NTAB_TDI20A0_R3		B43_NTAB32(19, 128) /* TDI 20/0  */
 #define B43_NTAB_TDI20A1_R3		B43_NTAB32(19, 256) /* TDI 20/1  */
 #define B43_NTAB_TDI40A0_R3		B43_NTAB32(19, 640) /* TDI 40/0  */
 #define B43_NTAB_TDI40A1_R3		B43_NTAB32(19, 768) /* TDI 40/1  */
-#define B43_NTAB_PILOTLT_R3		B43_NTAB32(20, 000) /* PLT lookup  */
-#define B43_NTAB_CHANEST_R3		B43_NTAB32(22, 000) /* channel estimate  */
-#define B43_NTAB_FRAMELT_R3		B43_NTAB8 (24, 000) /* frame lookup  */
-#define B43_NTAB_C0_ESTPLT_R3		B43_NTAB8 (26, 000) /* estimated power lookup 0  */
-#define B43_NTAB_C1_ESTPLT_R3		B43_NTAB8 (27, 000) /* estimated power lookup 1  */
-#define B43_NTAB_C0_ADJPLT_R3		B43_NTAB8 (26, 064) /* adjusted power lookup 0  */
-#define B43_NTAB_C1_ADJPLT_R3		B43_NTAB8 (27, 064) /* adjusted power lookup 1  */
+#define B43_NTAB_PILOTLT_R3		B43_NTAB32(20,   0) /* PLT lookup  */
+#define B43_NTAB_CHANEST_R3		B43_NTAB32(22,   0) /* channel estimate  */
+#define B43_NTAB_FRAMELT_R3		 B43_NTAB8(24,   0) /* frame lookup  */
+#define B43_NTAB_C0_ESTPLT_R3		 B43_NTAB8(26,   0) /* estimated power lookup 0  */
+#define B43_NTAB_C1_ESTPLT_R3		 B43_NTAB8(27,   0) /* estimated power lookup 1  */
+#define B43_NTAB_C0_ADJPLT_R3		 B43_NTAB8(26,  64) /* adjusted power lookup 0  */
+#define B43_NTAB_C1_ADJPLT_R3		 B43_NTAB8(27,  64) /* adjusted power lookup 1  */
 #define B43_NTAB_C0_GAINCTL_R3		B43_NTAB32(26, 192) /* gain control lookup 0  */
 #define B43_NTAB_C1_GAINCTL_R3		B43_NTAB32(27, 192) /* gain control lookup 1  */
 #define B43_NTAB_C0_IQLT_R3		B43_NTAB32(26, 320) /* I/Q lookup 0  */

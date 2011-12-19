@@ -186,32 +186,6 @@ out:
 	return ret;
 }
 
-int wl1271_acx_pd_threshold(struct wl1271 *wl)
-{
-	struct acx_packet_detection *pd;
-	int ret;
-
-	wl1271_debug(DEBUG_ACX, "acx data pd threshold");
-
-	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
-	if (!pd) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	pd->threshold = cpu_to_le32(wl->conf.rx.packet_detection_threshold);
-
-	ret = wl1271_cmd_configure(wl, ACX_PD_THRESHOLD, pd, sizeof(*pd));
-	if (ret < 0) {
-		wl1271_warning("failed to set pd threshold: %d", ret);
-		goto out;
-	}
-
-out:
-	kfree(pd);
-	return ret;
-}
-
 int wl1271_acx_slot(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		    enum acx_slot_type slot_time)
 {

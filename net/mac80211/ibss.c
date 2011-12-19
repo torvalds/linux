@@ -275,6 +275,80 @@ static void ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 				  cbss->tsf);
 }
 
+static struct sta_info *ieee80211_ibss_finish_sta(struct sta_info *sta)
+	__acquires(RCU)
+{
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	u8 addr[ETH_ALEN];
+
+	memcpy(addr, sta->sta.addr, ETH_ALEN);
+
+#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
+	wiphy_debug(sdata->local->hw.wiphy,
+		    "Adding new IBSS station %pM (dev=%s)\n",
+		    addr, sdata->name);
+#endif
+
+	sta_info_move_state(sta, IEEE80211_STA_AUTH);
+	sta_info_move_state(sta, IEEE80211_STA_ASSOC);
+	sta_info_move_state(sta, IEEE80211_STA_AUTHORIZED);
+
+	rate_control_rate_init(sta);
+
+	/* If it fails, maybe we raced another insertion? */
+	if (sta_info_insert_rcu(sta))
+		return sta_info_get(sdata, addr);
+	return sta;
+}
+
+static struct sta_info *
+ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
+		       const u8 *bssid, const u8 *addr,
+		       u32 supp_rates)
+	__acquires(RCU)
+{
+	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
+	struct ieee80211_local *local = sdata->local;
+	struct sta_info *sta;
+	int band = local->hw.conf.channel->band;
+
+	/*
+	 * XXX: Consider removing the least recently used entry and
+	 * 	allow new one to be added.
+	 */
+	if (local->num_sta >= IEEE80211_IBSS_MAX_STA_ENTRIES) {
+		if (net_ratelimit())
+			printk(KERN_DEBUG "%s: No room for a new IBSS STA entry %pM\n",
+			       sdata->name, addr);
+		rcu_read_lock();
+		return NULL;
+	}
+
+	if (ifibss->state == IEEE80211_IBSS_MLME_SEARCH) {
+		rcu_read_lock();
+		return NULL;
+	}
+
+	if (compare_ether_addr(bssid, sdata->u.ibss.bssid)) {
+		rcu_read_lock();
+		return NULL;
+	}
+
+	sta = sta_info_alloc(sdata, addr, GFP_KERNEL);
+	if (!sta) {
+		rcu_read_lock();
+		return NULL;
+	}
+
+	sta->last_rx = jiffies;
+
+	/* make sure mandatory rates are always added */
+	sta->sta.supp_rates[band] = supp_rates |
+			ieee80211_mandatory_rates(local, band);
+
+	return ieee80211_ibss_finish_sta(sta);
+}
+
 static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 				  struct ieee80211_mgmt *mgmt,
 				  size_t len,
@@ -334,10 +408,11 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 #endif
 					rates_updated = true;
 				}
-			} else
+			} else {
+				rcu_read_unlock();
 				sta = ieee80211_ibss_add_sta(sdata, mgmt->bssid,
-						mgmt->sa, supp_rates,
-						GFP_ATOMIC);
+						mgmt->sa, supp_rates);
+			}
 		}
 
 		if (sta && elems->wmm_info)
@@ -464,21 +539,17 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		ieee80211_sta_join_ibss(sdata, bss);
 		supp_rates = ieee80211_sta_get_rates(local, elems, band);
 		ieee80211_ibss_add_sta(sdata, mgmt->bssid, mgmt->sa,
-				       supp_rates, GFP_KERNEL);
+				       supp_rates);
+		rcu_read_unlock();
 	}
 
  put_bss:
 	ieee80211_rx_bss_put(local, bss);
 }
 
-/*
- * Add a new IBSS station, will also be called by the RX code when,
- * in IBSS mode, receiving a frame from a yet-unknown station, hence
- * must be callable in atomic context.
- */
-struct sta_info *ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
-					u8 *bssid, u8 *addr, u32 supp_rates,
-					gfp_t gfp)
+void ieee80211_ibss_rx_no_sta(struct ieee80211_sub_if_data *sdata,
+			      const u8 *bssid, const u8 *addr,
+			      u32 supp_rates)
 {
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 	struct ieee80211_local *local = sdata->local;
@@ -493,37 +564,29 @@ struct sta_info *ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 		if (net_ratelimit())
 			printk(KERN_DEBUG "%s: No room for a new IBSS STA entry %pM\n",
 			       sdata->name, addr);
-		return NULL;
+		return;
 	}
 
 	if (ifibss->state == IEEE80211_IBSS_MLME_SEARCH)
-		return NULL;
+		return;
 
 	if (compare_ether_addr(bssid, sdata->u.ibss.bssid))
-		return NULL;
+		return;
 
-#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	wiphy_debug(local->hw.wiphy, "Adding new IBSS station %pM (dev=%s)\n",
-		    addr, sdata->name);
-#endif
-
-	sta = sta_info_alloc(sdata, addr, gfp);
+	sta = sta_info_alloc(sdata, addr, GFP_ATOMIC);
 	if (!sta)
-		return NULL;
+		return;
 
 	sta->last_rx = jiffies;
-	set_sta_flag(sta, WLAN_STA_AUTHORIZED);
 
 	/* make sure mandatory rates are always added */
 	sta->sta.supp_rates[band] = supp_rates |
 			ieee80211_mandatory_rates(local, band);
 
-	rate_control_rate_init(sta);
-
-	/* If it fails, maybe we raced another insertion? */
-	if (sta_info_insert(sta))
-		return sta_info_get(sdata, addr);
-	return sta;
+	spin_lock(&ifibss->incomplete_lock);
+	list_add(&sta->list, &ifibss->incomplete_stations);
+	spin_unlock(&ifibss->incomplete_lock);
+	ieee80211_queue_work(&local->hw, &sdata->work);
 }
 
 static int ieee80211_sta_active_ibss(struct ieee80211_sub_if_data *sdata)
@@ -862,6 +925,7 @@ void ieee80211_ibss_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 void ieee80211_ibss_work(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
+	struct sta_info *sta;
 
 	mutex_lock(&ifibss->mtx);
 
@@ -872,6 +936,19 @@ void ieee80211_ibss_work(struct ieee80211_sub_if_data *sdata)
 	 */
 	if (!ifibss->ssid_len)
 		goto out;
+
+	spin_lock_bh(&ifibss->incomplete_lock);
+	while (!list_empty(&ifibss->incomplete_stations)) {
+		sta = list_first_entry(&ifibss->incomplete_stations,
+				       struct sta_info, list);
+		list_del(&sta->list);
+		spin_unlock_bh(&ifibss->incomplete_lock);
+
+		ieee80211_ibss_finish_sta(sta);
+		rcu_read_unlock();
+		spin_lock_bh(&ifibss->incomplete_lock);
+	}
+	spin_unlock_bh(&ifibss->incomplete_lock);
 
 	switch (ifibss->state) {
 	case IEEE80211_IBSS_MLME_SEARCH:
@@ -931,6 +1008,8 @@ void ieee80211_ibss_setup_sdata(struct ieee80211_sub_if_data *sdata)
 	setup_timer(&ifibss->timer, ieee80211_ibss_timer,
 		    (unsigned long) sdata);
 	mutex_init(&ifibss->mtx);
+	INIT_LIST_HEAD(&ifibss->incomplete_stations);
+	spin_lock_init(&ifibss->incomplete_lock);
 }
 
 /* scan finished notification */
@@ -993,8 +1072,11 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 	if (params->channel_fixed) {
 		sdata->local->oper_channel = params->channel;
 		if (!ieee80211_set_channel_type(sdata->local, sdata,
-					       params->channel_type))
+					       params->channel_type)) {
+			mutex_unlock(&sdata->u.ibss.mtx);
+			kfree_skb(skb);
 			return -EINVAL;
+		}
 	}
 
 	if (params->ie) {
@@ -1047,6 +1129,7 @@ int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
 	struct cfg80211_bss *cbss;
 	u16 capability;
 	int active_ibss;
+	struct sta_info *sta;
 
 	mutex_lock(&sdata->u.ibss.mtx);
 
@@ -1075,6 +1158,19 @@ int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
 	}
 
 	sta_info_flush(sdata->local, sdata);
+
+	spin_lock_bh(&ifibss->incomplete_lock);
+	while (!list_empty(&ifibss->incomplete_stations)) {
+		sta = list_first_entry(&ifibss->incomplete_stations,
+				       struct sta_info, list);
+		list_del(&sta->list);
+		spin_unlock_bh(&ifibss->incomplete_lock);
+
+		sta_info_free(local, sta);
+		spin_lock_bh(&ifibss->incomplete_lock);
+	}
+	spin_unlock_bh(&ifibss->incomplete_lock);
+
 	netif_carrier_off(sdata->dev);
 
 	/* remove beacon */
