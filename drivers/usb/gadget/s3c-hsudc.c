@@ -28,9 +28,9 @@
 #include <linux/usb/gadget.h>
 #include <linux/usb/otg.h>
 #include <linux/prefetch.h>
+#include <linux/platform_data/s3c-hsudc.h>
 
 #include <mach/regs-s3c2443-clock.h>
-#include <plat/udc.h>
 
 #define S3C_HSUDC_REG(x)	(x)
 
