@@ -2269,6 +2269,17 @@ out:
 	cancel_work_sync(&wl->recovery_work);
 }
 
+static int wl12xx_op_change_interface(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      enum nl80211_iftype new_type, bool p2p)
+{
+	wl1271_op_remove_interface(hw, vif);
+
+	vif->type = ieee80211_iftype_p2p(new_type, p2p);
+	vif->p2p = p2p;
+	return wl1271_op_add_interface(hw, vif);
+}
+
 static int wl1271_join(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			  bool set_assoc)
 {
@@ -4629,6 +4640,7 @@ static const struct ieee80211_ops wl1271_ops = {
 	.stop = wl1271_op_stop,
 	.add_interface = wl1271_op_add_interface,
 	.remove_interface = wl1271_op_remove_interface,
+	.change_interface = wl12xx_op_change_interface,
 #ifdef CONFIG_PM
 	.suspend = wl1271_op_suspend,
 	.resume = wl1271_op_resume,
