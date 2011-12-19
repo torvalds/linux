@@ -206,14 +206,50 @@ void free_initmem(void)
 
 void __init mem_init(void)
 {
+	pg_data_t *pgdat;
+	unsigned long reservedpages = 0, codesize, initsize, datasize, bsssize;
+
 	high_memory = (void *)__va(memory_start + lowmem_size - 1);
 
 	/* this will put all memory onto the freelists */
 	totalram_pages += free_all_bootmem();
 
-	printk(KERN_INFO "Memory: %luk/%luk available\n",
-	       nr_free_pages() << (PAGE_SHIFT-10),
-	       num_physpages << (PAGE_SHIFT-10));
+	for_each_online_pgdat(pgdat) {
+		unsigned long i;
+		struct page *page;
+
+		for (i = 0; i < pgdat->node_spanned_pages; i++) {
+			if (!pfn_valid(pgdat->node_start_pfn + i))
+				continue;
+			page = pgdat_page_nr(pgdat, i);
+			if (PageReserved(page))
+				reservedpages++;
+		}
+	}
+
+	codesize = (unsigned long)&_sdata - (unsigned long)&_stext;
+	datasize = (unsigned long)&_edata - (unsigned long)&_sdata;
+	initsize = (unsigned long)&__init_end - (unsigned long)&__init_begin;
+	bsssize = (unsigned long)&__bss_stop - (unsigned long)&__bss_start;
+
+	pr_info("Memory: %luk/%luk available (%luk kernel code, "
+		"%luk reserved, %luk data, %luk bss, %luk init)\n",
+		nr_free_pages() << (PAGE_SHIFT-10),
+		num_physpages << (PAGE_SHIFT-10),
+		codesize >> 10,
+		reservedpages << (PAGE_SHIFT-10),
+		datasize >> 10,
+		bsssize >> 10,
+		initsize >> 10);
+
+#ifdef CONFIG_MMU
+	pr_info("Kernel virtual memory layout:\n");
+	pr_info("  * 0x%08lx..0x%08lx  : fixmap\n", FIXADDR_START, FIXADDR_TOP);
+	pr_info("  * 0x%08lx..0x%08lx  : early ioremap\n",
+		ioremap_bot, ioremap_base);
+	pr_info("  * 0x%08lx..0x%08lx  : vmalloc & ioremap\n",
+		(unsigned long)VMALLOC_START, VMALLOC_END);
+#endif
 	mem_init_done = 1;
 }
 
