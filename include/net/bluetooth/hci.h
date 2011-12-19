@@ -979,9 +979,14 @@ struct hci_ev_role_change {
 } __packed;
 
 #define HCI_EV_NUM_COMP_PKTS		0x13
+struct hci_comp_pkts_info {
+	__le16   handle;
+	__le16   count;
+} __packed;
+
 struct hci_ev_num_comp_pkts {
 	__u8     num_hndl;
-	/* variable length part */
+	struct hci_comp_pkts_info handles[0];
 } __packed;
 
 #define HCI_EV_MODE_CHANGE		0x14
