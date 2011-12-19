@@ -2134,14 +2134,6 @@ static int __init ftrace_dyn_table_alloc(unsigned long num_to_init)
 	return 0;
 }
 
-enum {
-	FTRACE_ITER_FILTER	= (1 << 0),
-	FTRACE_ITER_NOTRACE	= (1 << 1),
-	FTRACE_ITER_PRINTALL	= (1 << 2),
-	FTRACE_ITER_HASH	= (1 << 3),
-	FTRACE_ITER_ENABLED	= (1 << 4),
-};
-
 #define FTRACE_BUFF_MAX (KSYM_SYMBOL_LEN+4) /* room for wildcards */
 
 struct ftrace_iterator {
@@ -2249,7 +2241,7 @@ static void *
 t_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	struct ftrace_iterator *iter = m->private;
-	struct ftrace_ops *ops = &global_ops;
+	struct ftrace_ops *ops = iter->ops;
 	struct dyn_ftrace *rec = NULL;
 
 	if (unlikely(ftrace_disabled))
@@ -2305,7 +2297,7 @@ static void reset_iter_read(struct ftrace_iterator *iter)
 static void *t_start(struct seq_file *m, loff_t *pos)
 {
 	struct ftrace_iterator *iter = m->private;
-	struct ftrace_ops *ops = &global_ops;
+	struct ftrace_ops *ops = iter->ops;
 	void *p = NULL;
 	loff_t l;
 
@@ -2414,6 +2406,7 @@ ftrace_avail_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 
 	iter->pg = ftrace_pages_start;
+	iter->ops = &global_ops;
 
 	ret = seq_open(file, &show_ftrace_seq_ops);
 	if (!ret) {
@@ -2442,6 +2435,7 @@ ftrace_enabled_open(struct inode *inode, struct file *file)
 
 	iter->pg = ftrace_pages_start;
 	iter->flags = FTRACE_ITER_ENABLED;
+	iter->ops = &global_ops;
 
 	ret = seq_open(file, &show_ftrace_seq_ops);
 	if (!ret) {
@@ -2462,7 +2456,23 @@ static void ftrace_filter_reset(struct ftrace_hash *hash)
 	mutex_unlock(&ftrace_lock);
 }
 
-static int
+/**
+ * ftrace_regex_open - initialize function tracer filter files
+ * @ops: The ftrace_ops that hold the hash filters
+ * @flag: The type of filter to process
+ * @inode: The inode, usually passed in to your open routine
+ * @file: The file, usually passed in to your open routine
+ *
+ * ftrace_regex_open() initializes the filter files for the
+ * @ops. Depending on @flag it may process the filter hash or
+ * the notrace hash of @ops. With this called from the open
+ * routine, you can use ftrace_filter_write() for the write
+ * routine if @flag has FTRACE_ITER_FILTER set, or
+ * ftrace_notrace_write() if @flag has FTRACE_ITER_NOTRACE set.
+ * ftrace_regex_lseek() should be used as the lseek routine, and
+ * release must call ftrace_regex_release().
+ */
+int
 ftrace_regex_open(struct ftrace_ops *ops, int flag,
 		  struct inode *inode, struct file *file)
 {
@@ -2542,7 +2552,7 @@ ftrace_notrace_open(struct inode *inode, struct file *file)
 				 inode, file);
 }
 
-static loff_t
+loff_t
 ftrace_regex_lseek(struct file *file, loff_t offset, int origin)
 {
 	loff_t ret;
@@ -3095,14 +3105,14 @@ out_unlock:
 	return ret;
 }
 
-static ssize_t
+ssize_t
 ftrace_filter_write(struct file *file, const char __user *ubuf,
 		    size_t cnt, loff_t *ppos)
 {
 	return ftrace_regex_write(file, ubuf, cnt, ppos, 1);
 }
 
-static ssize_t
+ssize_t
 ftrace_notrace_write(struct file *file, const char __user *ubuf,
 		     size_t cnt, loff_t *ppos)
 {
@@ -3292,8 +3302,7 @@ static void __init set_ftrace_early_filters(void)
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 }
 
-static int
-ftrace_regex_release(struct inode *inode, struct file *file)
+int ftrace_regex_release(struct inode *inode, struct file *file)
 {
 	struct seq_file *m = (struct seq_file *)file->private_data;
 	struct ftrace_iterator *iter;

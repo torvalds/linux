@@ -202,6 +202,14 @@ enum {
 	FTRACE_UPDATE_MAKE_NOP,
 };
 
+enum {
+	FTRACE_ITER_FILTER	= (1 << 0),
+	FTRACE_ITER_NOTRACE	= (1 << 1),
+	FTRACE_ITER_PRINTALL	= (1 << 2),
+	FTRACE_ITER_HASH	= (1 << 3),
+	FTRACE_ITER_ENABLED	= (1 << 4),
+};
+
 void arch_ftrace_update_code(int command);
 
 struct ftrace_rec_iter;
@@ -216,6 +224,15 @@ void ftrace_run_stop_machine(int command);
 int ftrace_location(unsigned long ip);
 
 extern ftrace_func_t ftrace_trace_function;
+
+int ftrace_regex_open(struct ftrace_ops *ops, int flag,
+		  struct inode *inode, struct file *file);
+ssize_t ftrace_filter_write(struct file *file, const char __user *ubuf,
+			    size_t cnt, loff_t *ppos);
+ssize_t ftrace_notrace_write(struct file *file, const char __user *ubuf,
+			     size_t cnt, loff_t *ppos);
+loff_t ftrace_regex_lseek(struct file *file, loff_t offset, int origin);
+int ftrace_regex_release(struct inode *inode, struct file *file);
 
 /* defined in arch */
 extern int ftrace_ip_converted(unsigned long ip);
@@ -311,6 +328,24 @@ static inline int ftrace_text_reserved(void *start, void *end)
 {
 	return 0;
 }
+
+/*
+ * Again users of functions that have ftrace_ops may not
+ * have them defined when ftrace is not enabled, but these
+ * functions may still be called. Use a macro instead of inline.
+ */
+#define ftrace_regex_open(ops, flag, inod, file) ({ -ENODEV; })
+
+static inline ssize_t ftrace_filter_write(struct file *file, const char __user *ubuf,
+			    size_t cnt, loff_t *ppos) { return -ENODEV; }
+static inline ssize_t ftrace_notrace_write(struct file *file, const char __user *ubuf,
+			     size_t cnt, loff_t *ppos) { return -ENODEV; }
+static inline loff_t ftrace_regex_lseek(struct file *file, loff_t offset, int origin)
+{
+	return -ENODEV;
+}
+static inline int
+ftrace_regex_release(struct inode *inode, struct file *file) { return -ENODEV; }
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 /* totally disable ftrace - can not re-enable after this */
