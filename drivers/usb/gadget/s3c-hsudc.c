@@ -1156,11 +1156,6 @@ static int s3c_hsudc_start(struct usb_gadget_driver *driver,
 	hsudc->driver = driver;
 	hsudc->gadget.dev.driver = &driver->driver;
 	hsudc->gadget.speed = USB_SPEED_UNKNOWN;
-	ret = device_add(&hsudc->gadget.dev);
-	if (ret) {
-		dev_err(hsudc->dev, "failed to probe gadget device");
-		return ret;
-	}
 
 	ret = bind(&hsudc->gadget);
 	if (ret) {
@@ -1179,8 +1174,6 @@ static int s3c_hsudc_start(struct usb_gadget_driver *driver,
 			dev_err(hsudc->dev, "%s: can't bind to transceiver\n",
 					hsudc->gadget.name);
 			driver->unbind(&hsudc->gadget);
-
-			device_del(&hsudc->gadget.dev);
 
 			hsudc->driver = NULL;
 			hsudc->gadget.dev.driver = NULL;
@@ -1222,7 +1215,6 @@ static int s3c_hsudc_stop(struct usb_gadget_driver *driver)
 		(void) otg_set_peripheral(hsudc->transceiver, NULL);
 
 	driver->unbind(&hsudc->gadget);
-	device_del(&hsudc->gadget.dev);
 	disable_irq(hsudc->irq);
 
 	dev_info(hsudc->dev, "unregistered gadget driver '%s'\n",
@@ -1307,7 +1299,6 @@ static int __devinit s3c_hsudc_probe(struct platform_device *pdev)
 
 	spin_lock_init(&hsudc->lock);
 
-	device_initialize(&hsudc->gadget.dev);
 	dev_set_name(&hsudc->gadget.dev, "gadget");
 
 	hsudc->gadget.max_speed = USB_SPEED_HIGH;
@@ -1348,12 +1339,20 @@ static int __devinit s3c_hsudc_probe(struct platform_device *pdev)
 	disable_irq(hsudc->irq);
 	local_irq_enable();
 
+	ret = device_register(&hsudc->gadget.dev);
+	if (ret) {
+		put_device(&hsudc->gadget.dev);
+		goto err_add_device;
+	}
+
 	ret = usb_add_gadget_udc(&pdev->dev, &hsudc->gadget);
 	if (ret)
 		goto err_add_udc;
 
 	return 0;
 err_add_udc:
+	device_unregister(&hsudc->gadget.dev);
+err_add_device:
 	clk_disable(hsudc->uclk);
 	clk_put(hsudc->uclk);
 err_clk:
