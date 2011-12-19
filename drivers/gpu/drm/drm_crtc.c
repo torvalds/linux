@@ -1661,6 +1661,7 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 	struct drm_crtc *crtc;
 	struct drm_framebuffer *fb;
 	int ret = 0;
+	unsigned int fb_width, fb_height;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
@@ -1708,6 +1709,28 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 		goto out;
 	}
 	fb = obj_to_fb(obj);
+
+	fb_width = fb->width << 16;
+	fb_height = fb->height << 16;
+
+	/* Make sure source coordinates are inside the fb. */
+	if (plane_req->src_w > fb_width ||
+	    plane_req->src_x > fb_width - plane_req->src_w ||
+	    plane_req->src_h > fb_height ||
+	    plane_req->src_y > fb_height - plane_req->src_h) {
+		DRM_DEBUG_KMS("Invalid source coordinates "
+			      "%u.%06ux%u.%06u+%u.%06u+%u.%06u\n",
+			      plane_req->src_w >> 16,
+			      ((plane_req->src_w & 0xffff) * 15625) >> 10,
+			      plane_req->src_h >> 16,
+			      ((plane_req->src_h & 0xffff) * 15625) >> 10,
+			      plane_req->src_x >> 16,
+			      ((plane_req->src_x & 0xffff) * 15625) >> 10,
+			      plane_req->src_y >> 16,
+			      ((plane_req->src_y & 0xffff) * 15625) >> 10);
+		ret = -ENOSPC;
+		goto out;
+	}
 
 	ret = plane->funcs->update_plane(plane, crtc, fb,
 					 plane_req->crtc_x, plane_req->crtc_y,
