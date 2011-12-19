@@ -166,8 +166,9 @@ struct psb_intel_crtc {
 struct psb_intel_i2c_chan *psb_intel_i2c_create(struct drm_device *dev,
 					const u32 reg, const char *name);
 void psb_intel_i2c_destroy(struct psb_intel_i2c_chan *chan);
-int psb_intel_ddc_get_modes(struct psb_intel_output *psb_intel_output);
-extern bool psb_intel_ddc_probe(struct psb_intel_output *psb_intel_output);
+int psb_intel_ddc_get_modes(struct drm_connector *connector,
+			    struct i2c_adapter *adapter);
+extern bool psb_intel_ddc_probe(struct i2c_adapter *adapter);
 
 extern void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 			    struct psb_intel_mode_device *mode_dev);
