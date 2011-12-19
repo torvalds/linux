@@ -309,7 +309,7 @@ static int dwc3_ep0_handle_status(struct dwc3 *dwc,
 	dep = dwc->eps[0];
 	dwc->ep0_usb_req.dep = dep;
 	dwc->ep0_usb_req.request.length = sizeof(*response_pkt);
-	dwc->ep0_usb_req.request.dma = dwc->setup_buf_addr;
+	dwc->ep0_usb_req.request.buf = dwc->setup_buf;
 	dwc->ep0_usb_req.request.complete = dwc3_ep0_status_cmpl;
 
 	return __dwc3_gadget_ep0_queue(dep, &dwc->ep0_usb_req);
@@ -686,7 +686,12 @@ static void dwc3_ep0_do_control_data(struct dwc3 *dwc,
 				DWC3_TRBCTL_CONTROL_DATA);
 	} else if ((req->request.length % dep->endpoint.maxpacket)
 			&& (event->endpoint_number == 0)) {
-		dwc3_map_buffer_to_dma(req);
+		ret = usb_gadget_map_request(&dwc->gadget, &req->request,
+				event->endpoint_number);
+		if (ret) {
+			dev_dbg(dwc->dev, "failed to map request\n");
+			return;
+		}
 
 		WARN_ON(req->request.length > dep->endpoint.maxpacket);
 
@@ -701,7 +706,12 @@ static void dwc3_ep0_do_control_data(struct dwc3 *dwc,
 				dwc->ep0_bounce_addr, dep->endpoint.maxpacket,
 				DWC3_TRBCTL_CONTROL_DATA);
 	} else {
-		dwc3_map_buffer_to_dma(req);
+		ret = usb_gadget_map_request(&dwc->gadget, &req->request,
+				event->endpoint_number);
+		if (ret) {
+			dev_dbg(dwc->dev, "failed to map request\n");
+			return;
+		}
 
 		ret = dwc3_ep0_start_trans(dwc, event->endpoint_number,
 				req->request.dma, req->request.length,

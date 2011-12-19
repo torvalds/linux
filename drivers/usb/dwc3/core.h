@@ -572,7 +572,6 @@ struct dwc3_request {
  * @ctrl_req_addr: dma address of ctrl_req
  * @ep0_trb: dma address of ep0_trb
  * @ep0_usb_req: dummy req used while handling STD USB requests
- * @setup_buf_addr: dma address of setup_buf
  * @ep0_bounce_addr: dma address of ep0_bounce
  * @lock: for synchronizing
  * @dev: pointer to our struct device
@@ -609,7 +608,6 @@ struct dwc3 {
 	u8			*setup_buf;
 	dma_addr_t		ctrl_req_addr;
 	dma_addr_t		ep0_trb_addr;
-	dma_addr_t		setup_buf_addr;
 	dma_addr_t		ep0_bounce_addr;
 	struct dwc3_request	ep0_usb_req;
 	/* device lock */
