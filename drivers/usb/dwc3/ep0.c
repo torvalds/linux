@@ -512,10 +512,13 @@ static int dwc3_ep0_set_address(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 	reg |= DWC3_DCFG_DEVADDR(addr);
 	dwc3_writel(dwc->regs, DWC3_DCFG, reg);
 
-	if (addr)
+	if (addr) {
 		dwc->dev_state = DWC3_ADDRESS_STATE;
-	else
+		usb_gadget_set_state(&dwc->gadget, USB_STATE_ADDRESS);
+	} else {
 		dwc->dev_state = DWC3_DEFAULT_STATE;
+		usb_gadget_set_state(&dwc->gadget, USB_STATE_DEFAULT);
+	}
 
 	return 0;
 }
@@ -549,6 +552,9 @@ static int dwc3_ep0_set_config(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 		/* if the cfg matches and the cfg is non zero */
 		if (cfg && (!ret || (ret == USB_GADGET_DELAYED_STATUS))) {
 			dwc->dev_state = DWC3_CONFIGURED_STATE;
+			usb_gadget_set_state(&dwc->gadget,
+					USB_STATE_CONFIGURED);
+
 			/*
 			 * Enable transition to U1/U2 state when
 			 * nothing is pending from application.
@@ -564,8 +570,11 @@ static int dwc3_ep0_set_config(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 
 	case DWC3_CONFIGURED_STATE:
 		ret = dwc3_ep0_delegate_req(dwc, ctrl);
-		if (!cfg)
+		if (!cfg) {
 			dwc->dev_state = DWC3_ADDRESS_STATE;
+			usb_gadget_set_state(&dwc->gadget,
+					USB_STATE_ADDRESS);
+		}
 		break;
 	default:
 		ret = -EINVAL;

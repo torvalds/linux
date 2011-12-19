@@ -2137,7 +2137,7 @@ static void dwc3_gadget_reset_interrupt(struct dwc3 *dwc)
 	}
 
 	/* after reset -> Default State */
-	dwc->dev_state = DWC3_DEFAULT_STATE;
+	usb_gadget_set_state(&dwc->gadget, USB_STATE_DEFAULT);
 
 	/* Recent versions support automatic phy suspend and don't need this */
 	if (dwc->revision < DWC3_REVISION_194A) {
