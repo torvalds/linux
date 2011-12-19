@@ -93,19 +93,19 @@ struct psb_intel_i2c_chan {
 	u8 slave_addr;
 };
 
-struct psb_intel_output {
-	struct drm_connector base;
-
-	struct drm_encoder enc;
+struct psb_intel_encoder {
+	struct drm_encoder base;
 	int type;
+	bool needs_tv_clock;
+	void (*hot_plug)(struct psb_intel_encoder *);
+	int crtc_mask;
+	int clone_mask;
+	void *dev_priv; /* For sdvo_priv, lvds_priv, etc... */
+};
 
-	struct psb_intel_i2c_chan *i2c_bus;	/* for control functions */
-	struct psb_intel_i2c_chan *ddc_bus;	/* for DDC only stuff */
-	bool load_detect_temp;
-	void *dev_priv;
-
-	struct psb_intel_mode_device *mode_dev;
-	struct i2c_adapter *hdmi_i2c_adapter;	/* for control functions */
+struct psb_intel_connector {
+	struct drm_connector base;
+	struct psb_intel_encoder *encoder;
 };
 
 struct psb_intel_crtc_state {
@@ -156,10 +156,10 @@ struct psb_intel_crtc {
 
 #define to_psb_intel_crtc(x)	\
 		container_of(x, struct psb_intel_crtc, base)
-#define to_psb_intel_output(x)	\
-		container_of(x, struct psb_intel_output, base)
-#define enc_to_psb_intel_output(x)	\
-		container_of(x, struct psb_intel_output, enc)
+#define to_psb_intel_connector(x) \
+		container_of(x, struct psb_intel_connector, base)
+#define to_psb_intel_encoder(x)	\
+		container_of(x, struct psb_intel_encoder, base)
 #define to_psb_intel_framebuffer(x)	\
 		container_of(x, struct psb_intel_framebuffer, base)
 
@@ -189,6 +189,16 @@ extern void mid_dsi_init(struct drm_device *dev,
 extern void psb_intel_crtc_load_lut(struct drm_crtc *crtc);
 extern void psb_intel_encoder_prepare(struct drm_encoder *encoder);
 extern void psb_intel_encoder_commit(struct drm_encoder *encoder);
+
+static inline struct psb_intel_encoder *psb_intel_attached_encoder(
+						struct drm_connector *connector)
+{
+	return to_psb_intel_connector(connector)->encoder;
+}
+
+extern void psb_intel_connector_attach_encoder(
+					struct psb_intel_connector *connector,
+					struct psb_intel_encoder *encoder);
 
 extern struct drm_encoder *psb_intel_best_encoder(struct drm_connector
 					      *connector);

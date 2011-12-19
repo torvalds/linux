@@ -1429,3 +1429,10 @@ struct drm_encoder *psb_intel_best_encoder(struct drm_connector *connector)
 	return &psb_intel_output->enc;
 }
 
+void psb_intel_connector_attach_encoder(struct psb_intel_connector *connector,
+					struct psb_intel_encoder *encoder)
+{
+	connector->encoder = encoder;
+	drm_mode_connector_attach_encoder(&connector->base,
+					  &encoder->base);
+}
