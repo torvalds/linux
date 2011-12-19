@@ -115,27 +115,26 @@ static void ddebug_change(const struct ddebug_query *query,
 	list_for_each_entry(dt, &ddebug_tables, link) {
 
 		/* match against the module name */
-		if (query->module != NULL &&
-		    strcmp(query->module, dt->mod_name))
+		if (query->module && strcmp(query->module, dt->mod_name))
 			continue;
 
 		for (i = 0 ; i < dt->num_ddebugs ; i++) {
 			struct _ddebug *dp = &dt->ddebugs[i];
 
 			/* match against the source filename */
-			if (query->filename != NULL &&
+			if (query->filename &&
 			    strcmp(query->filename, dp->filename) &&
 			    strcmp(query->filename, basename(dp->filename)))
 				continue;
 
 			/* match against the function */
-			if (query->function != NULL &&
+			if (query->function &&
 			    strcmp(query->function, dp->function))
 				continue;
 
 			/* match against the format */
-			if (query->format != NULL &&
-			    strstr(dp->format, query->format) == NULL)
+			if (query->format &&
+			    !strstr(dp->format, query->format))
 				continue;
 
 			/* match against the line number range */
