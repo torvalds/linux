@@ -1151,7 +1151,11 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
  * ICT functions
  *
  ******************************************************************************/
-#define ICT_COUNT (PAGE_SIZE/sizeof(u32))
+
+/* a device (PCI-E) page is 4096 bytes long */
+#define ICT_SHIFT	12
+#define ICT_SIZE	(1 << ICT_SHIFT)
+#define ICT_COUNT	(ICT_SIZE / sizeof(u32))
 
 /* Free dram table */
 void iwl_free_isr_ict(struct iwl_trans *trans)
@@ -1159,21 +1163,19 @@ void iwl_free_isr_ict(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	if (trans_pcie->ict_tbl_vir) {
-		dma_free_coherent(bus(trans)->dev,
-				  (sizeof(u32) * ICT_COUNT) + PAGE_SIZE,
-				  trans_pcie->ict_tbl_vir,
+	if (trans_pcie->ict_tbl) {
+		dma_free_coherent(bus(trans)->dev, ICT_SIZE,
+				  trans_pcie->ict_tbl,
 				  trans_pcie->ict_tbl_dma);
-		trans_pcie->ict_tbl_vir = NULL;
-		memset(&trans_pcie->ict_tbl_dma, 0,
-			sizeof(trans_pcie->ict_tbl_dma));
-		memset(&trans_pcie->aligned_ict_tbl_dma, 0,
-			sizeof(trans_pcie->aligned_ict_tbl_dma));
+		trans_pcie->ict_tbl = NULL;
+		trans_pcie->ict_tbl_dma = 0;
 	}
 }
 
 
-/* allocate dram shared table it is a PAGE_SIZE aligned
+/*
+ * allocate dram shared table, it is an aligned memory
+ * block of ICT_SIZE.
  * also reset all data related to ICT table interrupt.
  */
 int iwl_alloc_isr_ict(struct iwl_trans *trans)
@@ -1181,36 +1183,26 @@ int iwl_alloc_isr_ict(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	/* allocate shrared data table */
-	trans_pcie->ict_tbl_vir =
-		dma_alloc_coherent(bus(trans)->dev,
-				   (sizeof(u32) * ICT_COUNT) + PAGE_SIZE,
-				   &trans_pcie->ict_tbl_dma, GFP_KERNEL);
-	if (!trans_pcie->ict_tbl_vir)
+	trans_pcie->ict_tbl =
+		dma_alloc_coherent(bus(trans)->dev, ICT_SIZE,
+				   &trans_pcie->ict_tbl_dma,
+				   GFP_KERNEL);
+	if (!trans_pcie->ict_tbl)
 		return -ENOMEM;
 
-	/* align table to PAGE_SIZE boundary */
-	trans_pcie->aligned_ict_tbl_dma =
-		ALIGN(trans_pcie->ict_tbl_dma, PAGE_SIZE);
+	/* just an API sanity check ... it is guaranteed to be aligned */
+	if (WARN_ON(trans_pcie->ict_tbl_dma & (ICT_SIZE - 1))) {
+		iwl_free_isr_ict(trans);
+		return -EINVAL;
+	}
 
-	IWL_DEBUG_ISR(trans, "ict dma addr %Lx dma aligned %Lx diff %d\n",
-			   (unsigned long long)trans_pcie->ict_tbl_dma,
-			   (unsigned long long)trans_pcie->aligned_ict_tbl_dma,
-			   (int)(trans_pcie->aligned_ict_tbl_dma -
-			   trans_pcie->ict_tbl_dma));
+	IWL_DEBUG_ISR(trans, "ict dma addr %Lx\n",
+		      (unsigned long long)trans_pcie->ict_tbl_dma);
 
-	trans_pcie->ict_tbl =  trans_pcie->ict_tbl_vir +
-			  (trans_pcie->aligned_ict_tbl_dma -
-			  trans_pcie->ict_tbl_dma);
-
-	IWL_DEBUG_ISR(trans, "ict vir addr %p vir aligned %p diff %d\n",
-			     trans_pcie->ict_tbl, trans_pcie->ict_tbl_vir,
-			(int)(trans_pcie->aligned_ict_tbl_dma -
-			    trans_pcie->ict_tbl_dma));
+	IWL_DEBUG_ISR(trans, "ict vir addr %p\n", trans_pcie->ict_tbl);
 
 	/* reset table and index to all 0 */
-	memset(trans_pcie->ict_tbl_vir, 0,
-		(sizeof(u32) * ICT_COUNT) + PAGE_SIZE);
+	memset(trans_pcie->ict_tbl, 0, ICT_SIZE);
 	trans_pcie->ict_index = 0;
 
 	/* add periodic RX interrupt */
@@ -1228,23 +1220,20 @@ int iwl_reset_ict(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	if (!trans_pcie->ict_tbl_vir)
+	if (!trans_pcie->ict_tbl)
 		return 0;
 
 	spin_lock_irqsave(&trans->shrd->lock, flags);
 	iwl_disable_interrupts(trans);
 
-	memset(&trans_pcie->ict_tbl[0], 0, sizeof(u32) * ICT_COUNT);
+	memset(trans_pcie->ict_tbl, 0, ICT_SIZE);
 
-	val = trans_pcie->aligned_ict_tbl_dma >> PAGE_SHIFT;
+	val = trans_pcie->ict_tbl_dma >> ICT_SHIFT;
 
 	val |= CSR_DRAM_INT_TBL_ENABLE;
 	val |= CSR_DRAM_INIT_TBL_WRAP_CHECK;
 
-	IWL_DEBUG_ISR(trans, "CSR_DRAM_INT_TBL_REG =0x%X "
-			"aligned dma address %Lx\n",
-			val,
-			(unsigned long long)trans_pcie->aligned_ict_tbl_dma);
+	IWL_DEBUG_ISR(trans, "CSR_DRAM_INT_TBL_REG =0x%x\n", val);
 
 	iwl_write32(bus(trans), CSR_DRAM_INT_TBL_REG, val);
 	trans_pcie->use_ict = true;

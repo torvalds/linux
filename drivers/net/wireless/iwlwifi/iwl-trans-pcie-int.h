@@ -219,9 +219,7 @@ struct iwl_trans_pcie {
 
 	/* INT ICT Table */
 	__le32 *ict_tbl;
-	void *ict_tbl_vir;
 	dma_addr_t ict_tbl_dma;
-	dma_addr_t aligned_ict_tbl_dma;
 	int ict_index;
 	u32 inta;
 	bool use_ict;
