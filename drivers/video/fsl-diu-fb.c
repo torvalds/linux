@@ -1220,21 +1220,6 @@ static struct fb_ops fsl_diu_ops = {
 	.fb_release = fsl_diu_release,
 };
 
-static int init_fbinfo(struct fb_info *info)
-{
-	struct mfb_info *mfbi = info->par;
-
-	info->device = NULL;
-	info->var.activate = FB_ACTIVATE_NOW;
-	info->fbops = &fsl_diu_ops;
-	info->flags = FBINFO_FLAG_DEFAULT;
-	info->pseudo_palette = &mfbi->pseudo_palette;
-
-	/* Allocate colormap */
-	fb_alloc_cmap(&info->cmap, 16, 0);
-	return 0;
-}
-
 static int __devinit install_fb(struct fb_info *info)
 {
 	int rc;
@@ -1244,8 +1229,14 @@ static int __devinit install_fb(struct fb_info *info)
 	unsigned int dbsize = ARRAY_SIZE(fsl_diu_mode_db);
 	int has_default_mode = 1;
 
-	if (init_fbinfo(info))
-		return -EINVAL;
+	info->var.activate = FB_ACTIVATE_NOW;
+	info->fbops = &fsl_diu_ops;
+	info->flags = FBINFO_DEFAULT;
+	info->pseudo_palette = mfbi->pseudo_palette;
+
+	rc = fb_alloc_cmap(&info->cmap, 16, 0);
+	if (rc)
+		return rc;
 
 	if (mfbi->index == PLANE0) {
 		if (mfbi->edid_data) {
