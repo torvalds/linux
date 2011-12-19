@@ -272,8 +272,15 @@ try_again:
 		exit(-1);
 	}
 
-	if (perf_evlist__mmap(evlist, opts->mmap_pages, false) < 0)
+	if (perf_evlist__mmap(evlist, opts->mmap_pages, false) < 0) {
+		if (errno == EPERM)
+			die("Permission error mapping pages.\n"
+			    "Consider increasing "
+			    "/proc/sys/kernel/perf_event_mlock_kb,\n"
+			    "or try again with a smaller value of -m/--mmap_pages.\n"
+			    "(current value: %d)\n", opts->mmap_pages);
 		die("failed to mmap with %d (%s)\n", errno, strerror(errno));
+	}
 
 	if (rec->file_new)
 		session->evlist = evlist;
