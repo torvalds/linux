@@ -3281,6 +3281,9 @@ static int ext4_find_delalloc_range(struct inode *inode,
 	ext4_lblk_t i, pg_lblk;
 	pgoff_t index;
 
+	if (!test_opt(inode->i_sb, DELALLOC))
+		return 0;
+
 	/* reverse search wont work if fs block size is less than page size */
 	if (inode->i_blkbits < PAGE_CACHE_SHIFT)
 		search_hint_reverse = 0;
