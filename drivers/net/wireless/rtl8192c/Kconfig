@@ -1,6 +1,7 @@
 config RTL8192CU
 	tristate "Realtek 8192C USB WiFi"
 	depends on USB
+	depends on !RFKILL
 	select WIRELESS_EXT
 	select WEXT_PRIV
 	select IEEE80211
