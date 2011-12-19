@@ -339,14 +339,14 @@ int mlx4_get_slave_from_resource_id(struct mlx4_dev *dev,
 
 	if (type == RES_QP)
 		id &= 0x7fffff;
-	spin_lock_irq(mlx4_tlock(dev));
+	spin_lock(mlx4_tlock(dev));
 
 	r = find_res(dev, id, type);
 	if (r) {
 		*slave = r->owner;
 		err = 0;
 	}
-	spin_unlock_irq(mlx4_tlock(dev));
+	spin_unlock(mlx4_tlock(dev));
 
 	return err;
 }
