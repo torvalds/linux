@@ -214,9 +214,9 @@ bool psb_intel_pipe_has_type(struct drm_crtc *crtc, int type)
 
 	list_for_each_entry(l_entry, &mode_config->connector_list, head) {
 		if (l_entry->encoder && l_entry->encoder->crtc == crtc) {
-			struct psb_intel_output *psb_intel_output =
-			    to_psb_intel_output(l_entry);
-			if (psb_intel_output->type == type)
+			struct psb_intel_encoder *psb_intel_encoder =
+					psb_intel_attached_encoder(l_entry);
+			if (psb_intel_encoder->type == type)
 				return true;
 		}
 	}
@@ -615,14 +615,14 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	list_for_each_entry(connector, &mode_config->connector_list, head) {
-		struct psb_intel_output *psb_intel_output =
-		    to_psb_intel_output(connector);
+		struct psb_intel_encoder *psb_intel_encoder =
+					psb_intel_attached_encoder(connector);
 
 		if (!connector->encoder
 		    || connector->encoder->crtc != crtc)
 			continue;
 
-		switch (psb_intel_output->type) {
+		switch (psb_intel_encoder->type) {
 		case INTEL_OUTPUT_LVDS:
 			is_lvds = true;
 			break;
@@ -1402,9 +1402,9 @@ int psb_intel_connector_clones(struct drm_device *dev, int type_mask)
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list,
 			    head) {
-		struct psb_intel_output *psb_intel_output =
-		    to_psb_intel_output(connector);
-		if (type_mask & (1 << psb_intel_output->type))
+		struct psb_intel_encoder *psb_intel_encoder =
+					psb_intel_attached_encoder(connector);
+		if (type_mask & (1 << psb_intel_encoder->type))
 			index_mask |= (1 << entry);
 		entry++;
 	}
@@ -1423,10 +1423,10 @@ void psb_intel_modeset_cleanup(struct drm_device *dev)
 */
 struct drm_encoder *psb_intel_best_encoder(struct drm_connector *connector)
 {
-	struct psb_intel_output *psb_intel_output =
-					to_psb_intel_output(connector);
+	struct psb_intel_encoder *psb_intel_encoder =
+					psb_intel_attached_encoder(connector);
 
-	return &psb_intel_output->enc;
+	return &psb_intel_encoder->base;
 }
 
 void psb_intel_connector_attach_encoder(struct psb_intel_connector *connector,
