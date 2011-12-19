@@ -617,8 +617,6 @@ EXPORT_SYMBOL_GPL(iio_scan_mask_set);
 int iio_scan_mask_query(struct iio_dev *indio_dev,
 			struct iio_buffer *buffer, int bit)
 {
-	long *mask;
-
 	if (bit > indio_dev->masklength)
 		return -EINVAL;
 
