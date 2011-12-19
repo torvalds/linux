@@ -1208,6 +1208,8 @@ int i810_driver_load(struct drm_device *dev, unsigned long flags)
 	dev->types[8] = _DRM_STAT_SECONDARY;
 	dev->types[9] = _DRM_STAT_DMA;
 
+	pci_set_master(dev->pdev);
+
 	return 0;
 }
 

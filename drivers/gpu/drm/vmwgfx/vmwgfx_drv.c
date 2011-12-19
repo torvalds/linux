@@ -439,6 +439,8 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	}
 	memset(dev_priv, 0, sizeof(*dev_priv));
 
+	pci_set_master(dev->pdev);
+
 	dev_priv->dev = dev;
 	dev_priv->vmw_chipset = chipset;
 	dev_priv->last_read_seqno = (uint32_t) -100;

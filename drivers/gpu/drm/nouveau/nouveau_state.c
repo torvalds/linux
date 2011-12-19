@@ -1002,6 +1002,8 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 	dev->dev_private = dev_priv;
 	dev_priv->dev = dev;
 
+	pci_set_master(dev->pdev);
+
 	dev_priv->flags = flags & NOUVEAU_FLAGS;
 
 	NV_DEBUG(dev, "vendor: 0x%X device: 0x%X class: 0x%X\n",
