@@ -461,37 +461,6 @@ static enum fsl_diu_monitor_port fsl_diu_name_to_port(const char *s)
 	return diu_ops.valid_monitor_port(port);
 }
 
-/**
- * fsl_diu_alloc - allocate memory for the DIU
- * @size: number of bytes to allocate
- * @param: returned physical address of memory
- *
- * This function allocates a physically-contiguous block of memory.
- */
-static void *fsl_diu_alloc(size_t size, phys_addr_t *phys)
-{
-	void *virt;
-
-	virt = alloc_pages_exact(size, GFP_DMA | __GFP_ZERO);
-	if (virt)
-		*phys = virt_to_phys(virt);
-
-	return virt;
-}
-
-/**
- * fsl_diu_free - release DIU memory
- * @virt: pointer returned by fsl_diu_alloc()
- * @size: number of bytes allocated by fsl_diu_alloc()
- *
- * This function releases memory allocated by fsl_diu_alloc().
- */
-static void fsl_diu_free(void *virt, size_t size)
-{
-	if (virt && size)
-		free_pages_exact(virt, size);
-}
-
 /*
  * Workaround for failed writing desc register of planes.
  * Needed with MPC5121 DIU rev 2.0 silicon.
@@ -875,16 +844,17 @@ static void update_lcdc(struct fb_info *info)
 
 static int map_video_memory(struct fb_info *info)
 {
-	phys_addr_t phys;
 	u32 smem_len = info->fix.line_length * info->var.yres_virtual;
+	void *p;
 
-	info->screen_base = fsl_diu_alloc(smem_len, &phys);
-	if (info->screen_base == NULL) {
+	p = alloc_pages_exact(smem_len, GFP_DMA | __GFP_ZERO);
+	if (!p) {
 		dev_err(info->dev, "unable to allocate fb memory\n");
 		return -ENOMEM;
 	}
 	mutex_lock(&info->mm_lock);
-	info->fix.smem_start = (unsigned long) phys;
+	info->screen_base = p;
+	info->fix.smem_start = virt_to_phys(info->screen_base);
 	info->fix.smem_len = smem_len;
 	mutex_unlock(&info->mm_lock);
 	info->screen_size = info->fix.smem_len;
@@ -894,12 +864,17 @@ static int map_video_memory(struct fb_info *info)
 
 static void unmap_video_memory(struct fb_info *info)
 {
-	fsl_diu_free(info->screen_base, info->fix.smem_len);
+	void *p = info->screen_base;
+	size_t l = info->fix.smem_len;
+
 	mutex_lock(&info->mm_lock);
 	info->screen_base = NULL;
 	info->fix.smem_start = 0;
 	info->fix.smem_len = 0;
 	mutex_unlock(&info->mm_lock);
+
+	if (p)
+		free_pages_exact(p, l);
 }
 
 /*
