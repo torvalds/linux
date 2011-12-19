@@ -983,8 +983,12 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 					     data.flags);
 		if (copy_to_user((void __user *)arg, &data, sizeof(data)))
 			return -EFAULT;
-		printk("%s: alloc 0x%x bytes, phy addr is 0x%lx\n",
-			__func__, data.len, data.handle->buffer->priv_phys);
+		if (IS_ERR_OR_NULL(data.handle)) {
+			printk("%s: alloc 0x%x bytes failed\n", __func__, data.len);
+		} else {
+			printk("%s: alloc 0x%x bytes, phy addr is 0x%lx\n",
+				__func__, data.len, data.handle->buffer->priv_phys);
+		}
 		break;
 	}
 	case ION_IOC_FREE:
