@@ -2263,6 +2263,11 @@ static inline void hci_num_comp_pkts_evt(struct hci_dev *hdev, struct sk_buff *s
 
 	BT_DBG("%s num_hndl %d", hdev->name, ev->num_hndl);
 
+	if (hdev->flow_ctl_mode != HCI_FLOW_CTL_MODE_PACKET_BASED) {
+		BT_ERR("Wrong event for mode %d", hdev->flow_ctl_mode);
+		return;
+	}
+
 	if (skb->len < ev->num_hndl * 4) {
 		BT_DBG("%s bad parameters", hdev->name);
 		return;
