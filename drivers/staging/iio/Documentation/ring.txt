@@ -51,7 +51,3 @@ get_bytes_per_datum, set_bytes_per_datum
 get_length / set_length
   Get/set the number of complete scans that may be held by the buffer.
 
-is_enabled
-  Query if ring buffer is in use
-enable
-  Start the ring buffer.

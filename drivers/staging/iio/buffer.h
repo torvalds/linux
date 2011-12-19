@@ -31,8 +31,6 @@ struct iio_buffer;
  * @set_bytes_per_datum:set number of bytes per datum
  * @get_length:		get number of datums in buffer
  * @set_length:		set number of datums in buffer
- * @is_enabled:		query if buffer is currently being used
- * @enable:		enable the buffer
  *
  * The purpose of this structure is to make the buffer element
  * modular as event for a given driver, different usecases may require
@@ -58,9 +56,6 @@ struct iio_buffer_access_funcs {
 	int (*set_bytes_per_datum)(struct iio_buffer *buffer, size_t bpd);
 	int (*get_length)(struct iio_buffer *buffer);
 	int (*set_length)(struct iio_buffer *buffer, int length);
-
-	int (*is_enabled)(struct iio_buffer *buffer);
-	int (*enable)(struct iio_buffer *buffer);
 };
 
 /**
