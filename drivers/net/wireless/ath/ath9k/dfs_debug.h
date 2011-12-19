@@ -16,8 +16,8 @@
  */
 
 
-#ifndef DFS_DEBUG_H
-#define DFS_DEBUG_H
+#ifndef ATH9K_DFS_DEBUG_H
+#define ATH9K_DFS_DEBUG_H
 
 #include "hw.h"
 
@@ -54,4 +54,4 @@ static inline void ath9k_dfs_init_debug(struct ath_softc *sc) { }
 
 #endif /* CONFIG_ATH9K_DFS_DEBUGFS */
 
-#endif /* DFS_DEBUG_H */
+#endif /* ATH9K_DFS_DEBUG_H */
