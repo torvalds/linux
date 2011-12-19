@@ -268,7 +268,7 @@ struct drm_mode_fb_cmd {
 	__u32 handle;
 };
 
-#define DRM_MODE_FB_INTERLACED	(1<<0 /* for interlaced framebuffers */
+#define DRM_MODE_FB_INTERLACED	(1<<0) /* for interlaced framebuffers */
 
 struct drm_mode_fb_cmd2 {
 	__u32 fb_id;
