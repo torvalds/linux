@@ -459,6 +459,29 @@ static struct platform_device rk29_v4l2_output_devce = {
 };
 
 /*HANNSTAR_P1003 touch*/
+
+#ifdef CONFIG_ION
+static struct ion_platform_data rk29_ion_pdata = {
+	.nr = 1,
+	.heaps = {
+		{
+			.type = ION_HEAP_TYPE_CARVEOUT,
+			.id = 0,
+			.name = "ui",
+			.base = PMEM_UI_BASE,
+			.size = PMEM_UI_SIZE,
+		}
+	},
+};
+
+static struct platform_device rk29_ion_device = {
+	.name = "ion-rockchip",
+	.id = 0,
+	.dev = {
+		.platform_data = &rk29_ion_pdata,
+	},
+};
+#endif
 #if defined (CONFIG_HANNSTAR_P1003)
 #define TOUCH_RESET_PIN RK29_PIN6_PC3
 #define TOUCH_INT_PIN   RK29_PIN4_PD5
@@ -3188,6 +3211,9 @@ static struct platform_device *devices[] __initdata = {
  	#endif
  	&rk29_soc_camera_pdrv_1,
  	&android_pmem_cam_device,
+#endif
+#ifdef CONFIG_ION
+	&rk29_ion_device,
 #endif
 	&android_pmem_device,
 	&rk29_vpu_mem_device,
