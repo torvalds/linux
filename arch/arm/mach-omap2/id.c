@@ -112,7 +112,7 @@ void omap_get_die_id(struct omap_die_id *odi)
 	odi->id_3 = read_tap_reg(OMAP_TAP_DIE_ID_3);
 }
 
-static void __init omap24xx_check_revision(void)
+void __init omap2xxx_check_revision(void)
 {
 	int i, j;
 	u32 idcode, prod_id;
@@ -222,7 +222,7 @@ static void __init omap3_cpuinfo(void)
 		omap_features |= OMAP3_HAS_ ##feat;			\
 	}
 
-static void __init omap3_check_features(void)
+void __init omap3xxx_check_features(void)
 {
 	u32 status;
 
@@ -249,9 +249,11 @@ static void __init omap3_check_features(void)
 	 * TODO: Get additional info (where applicable)
 	 *       e.g. Size of L2 cache.
 	 */
+
+	omap3_cpuinfo();
 }
 
-static void __init omap4_check_features(void)
+void __init omap4xxx_check_features(void)
 {
 	u32 si_type;
 
@@ -276,12 +278,13 @@ static void __init omap4_check_features(void)
 	}
 }
 
-static void __init ti81xx_check_features(void)
+void __init ti81xx_check_features(void)
 {
 	omap_features = OMAP3_HAS_NEON;
+	omap3_cpuinfo();
 }
 
-static void __init omap3_check_revision(void)
+void __init omap3xxx_check_revision(void)
 {
 	u32 cpuid, idcode;
 	u16 hawkeye;
@@ -421,7 +424,7 @@ static void __init omap3_check_revision(void)
 	}
 }
 
-static void __init omap4_check_revision(void)
+void __init omap4xxx_check_revision(void)
 {
 	u32 idcode;
 	u16 hawkeye;
@@ -492,37 +495,6 @@ static void __init omap4_check_revision(void)
 
 	pr_info("OMAP%04x ES%d.%d\n", omap_rev() >> 16,
 		((omap_rev() >> 12) & 0xf), ((omap_rev() >> 8) & 0xf));
-}
-
-/*
- * Try to detect the exact revision of the omap we're running on
- */
-void __init omap2_check_revision(void)
-{
-	/*
-	 * At this point we have an idea about the processor revision set
-	 * earlier with omap2_set_globals_tap().
-	 */
-	if (cpu_is_omap24xx()) {
-		omap24xx_check_revision();
-	} else if (cpu_is_omap34xx()) {
-		omap3_check_revision();
-
-		/* TI81XX doesn't have feature register */
-		if (!cpu_is_ti81xx())
-			omap3_check_features();
-		else
-			ti81xx_check_features();
-
-		omap3_cpuinfo();
-		return;
-	} else if (cpu_is_omap44xx()) {
-		omap4_check_revision();
-		omap4_check_features();
-		return;
-	} else {
-		pr_err("OMAP revision unknown, please fix!\n");
-	}
 }
 
 /*
