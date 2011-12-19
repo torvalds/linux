@@ -2209,6 +2209,8 @@ static int afiucv_hs_rcv(struct sk_buff *skb, struct net_device *dev,
 		break;
 	case 0:
 		/* plain data frame */
+		memcpy(CB_TRGCLS(skb), &trans_hdr->iucv_hdr.class,
+		       CB_TRGCLS_LEN);
 		err = afiucv_hs_callback_rx(sk, skb);
 		break;
 	default:
