@@ -566,6 +566,7 @@ int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 	if (!plane->format_types) {
 		DRM_DEBUG_KMS("out of memory when allocating plane\n");
 		drm_mode_object_put(dev, &plane->base);
+		mutex_unlock(&dev->mode_config.mutex);
 		return -ENOMEM;
 	}
 
