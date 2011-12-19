@@ -183,6 +183,8 @@ static int ddebug_tokenize(char *buf, char *words[], int maxwords)
 		buf = skip_spaces(buf);
 		if (!*buf)
 			break;	/* oh, it was trailing whitespace */
+		if (*buf == '#')
+			break;	/* token starts comment, skip rest of line */
 
 		/* find `end' of word, whitespace separated or quoted */
 		if (*buf == '"' || *buf == '\'') {
