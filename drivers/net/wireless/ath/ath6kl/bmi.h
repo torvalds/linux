@@ -44,12 +44,6 @@
  * BMI handles all required Target-side cache flushing.
  */
 
-#define MAX_BMI_CMDBUF_SZ (BMI_DATASZ_MAX + \
-			   (sizeof(u32) * 3 /* cmd + addr + len */))
-
-/* Maximum data size used for BMI transfers */
-#define BMI_DATASZ_MAX                      256
-
 /* BMI Commands */
 
 #define BMI_NO_COMMAND                      0

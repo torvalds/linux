@@ -453,11 +453,11 @@ enum htc_send_full_action ath6kl_tx_queue_full(struct htc_target *target,
 		set_bit(WMI_CTRL_EP_FULL, &ar->flag);
 		spin_unlock_bh(&ar->lock);
 		ath6kl_err("wmi ctrl ep is full\n");
-		goto stop_adhoc_netq;
+		return action;
 	}
 
 	if (packet->info.tx.tag == ATH6KL_CONTROL_PKT_TAG)
-		goto stop_adhoc_netq;
+		return action;
 
 	/*
 	 * The last MAX_HI_COOKIE_NUM "batch" of cookies are reserved for
@@ -465,20 +465,18 @@ enum htc_send_full_action ath6kl_tx_queue_full(struct htc_target *target,
 	 */
 	if (ar->ac_stream_pri_map[ar->ep2ac_map[endpoint]] <
 	    ar->hiac_stream_active_pri &&
-	    ar->cookie_count <= MAX_HI_COOKIE_NUM) {
+	    ar->cookie_count <= MAX_HI_COOKIE_NUM)
 		/*
 		 * Give preference to the highest priority stream by
 		 * dropping the packets which overflowed.
 		 */
 		action = HTC_SEND_FULL_DROP;
-		goto stop_adhoc_netq;
-	}
 
-stop_adhoc_netq:
 	/* FIXME: Locking */
 	spin_lock_bh(&ar->list_lock);
 	list_for_each_entry(vif, &ar->vif_list, list) {
-		if (vif->nw_type == ADHOC_NETWORK) {
+		if (vif->nw_type == ADHOC_NETWORK ||
+		    action != HTC_SEND_FULL_DROP) {
 			spin_unlock_bh(&ar->list_lock);
 
 			spin_lock_bh(&vif->if_lock);
@@ -543,7 +541,7 @@ void ath6kl_tx_complete(void *context, struct list_head *packet_queue)
 	int status;
 	enum htc_endpoint_id eid;
 	bool wake_event = false;
-	bool flushing[MAX_NUM_VIF] = {false};
+	bool flushing[ATH6KL_VIF_MAX] = {false};
 	u8 if_idx;
 	struct ath6kl_vif *vif;
 
@@ -571,8 +569,6 @@ void ath6kl_tx_complete(void *context, struct list_head *packet_queue)
 		if (!skb || !skb->data)
 			goto fatal;
 
-		packet->buf = skb->data;
-
 		__skb_queue_tail(&skb_queue, skb);
 
 		if (!status && (packet->act_len != skb->len))
@@ -593,10 +589,10 @@ void ath6kl_tx_complete(void *context, struct list_head *packet_queue)
 
 		if (eid == ar->ctrl_ep) {
 			if_idx = wmi_cmd_hdr_get_if_idx(
-				(struct wmi_cmd_hdr *) skb->data);
+				(struct wmi_cmd_hdr *) packet->buf);
 		} else {
 			if_idx = wmi_data_hdr_get_if_idx(
-				(struct wmi_data_hdr *) skb->data);
+				(struct wmi_data_hdr *) packet->buf);
 		}
 
 		vif = ath6kl_get_vif_by_index(ar, if_idx);

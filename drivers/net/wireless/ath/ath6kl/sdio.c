@@ -40,7 +40,11 @@ struct ath6kl_sdio {
 	struct bus_request bus_req[BUS_REQUEST_MAX_NUM];
 
 	struct ath6kl *ar;
+
 	u8 *dma_buffer;
+
+	/* protects access to dma_buffer */
+	struct mutex dma_buffer_mutex;
 
 	/* scatter request list head */
 	struct list_head scat_req;
@@ -396,6 +400,7 @@ static int ath6kl_sdio_read_write_sync(struct ath6kl *ar, u32 addr, u8 *buf,
 	if (buf_needs_bounce(buf)) {
 		if (!ar_sdio->dma_buffer)
 			return -ENOMEM;
+		mutex_lock(&ar_sdio->dma_buffer_mutex);
 		tbuf = ar_sdio->dma_buffer;
 		memcpy(tbuf, buf, len);
 		bounced = true;
@@ -405,6 +410,9 @@ static int ath6kl_sdio_read_write_sync(struct ath6kl *ar, u32 addr, u8 *buf,
 	ret = ath6kl_sdio_io(ar_sdio->func, request, addr, tbuf, len);
 	if ((request & HIF_READ) && bounced)
 		memcpy(buf, tbuf, len);
+
+	if (bounced)
+		mutex_unlock(&ar_sdio->dma_buffer_mutex);
 
 	return ret;
 }
@@ -799,7 +807,28 @@ static int ath6kl_sdio_suspend(struct ath6kl *ar, struct cfg80211_wowlan *wow)
 		return ret;
 	}
 
-	if ((flags & MMC_PM_WAKE_SDIO_IRQ) && wow) {
+	if (!(flags & MMC_PM_WAKE_SDIO_IRQ))
+		goto deepsleep;
+
+	/* sdio irq wakes up host */
+
+	if (ar->state == ATH6KL_STATE_SCHED_SCAN) {
+		ret =  ath6kl_cfg80211_suspend(ar,
+					       ATH6KL_CFG_SUSPEND_SCHED_SCAN,
+					       NULL);
+		if (ret) {
+			ath6kl_warn("Schedule scan suspend failed: %d", ret);
+			return ret;
+		}
+
+		ret = sdio_set_host_pm_flags(func, MMC_PM_WAKE_SDIO_IRQ);
+		if (ret)
+			ath6kl_warn("set sdio wake irq flag failed: %d\n", ret);
+
+		return ret;
+	}
+
+	if (wow) {
 		/*
 		 * The host sdio controller is capable of keep power and
 		 * sdio irq wake up at this point. It's fine to continue
@@ -816,6 +845,7 @@ static int ath6kl_sdio_suspend(struct ath6kl *ar, struct cfg80211_wowlan *wow)
 		return ret;
 	}
 
+deepsleep:
 	return ath6kl_cfg80211_suspend(ar, ATH6KL_CFG_SUSPEND_DEEPSLEEP, NULL);
 }
 
@@ -839,9 +869,269 @@ static int ath6kl_sdio_resume(struct ath6kl *ar)
 
 	case ATH6KL_STATE_WOW:
 		break;
+	case ATH6KL_STATE_SCHED_SCAN:
+		break;
 	}
 
 	ath6kl_cfg80211_resume(ar);
+
+	return 0;
+}
+
+/* set the window address register (using 4-byte register access ). */
+static int ath6kl_set_addrwin_reg(struct ath6kl *ar, u32 reg_addr, u32 addr)
+{
+	int status;
+	u8 addr_val[4];
+	s32 i;
+
+	/*
+	 * Write bytes 1,2,3 of the register to set the upper address bytes,
+	 * the LSB is written last to initiate the access cycle
+	 */
+
+	for (i = 1; i <= 3; i++) {
+		/*
+		 * Fill the buffer with the address byte value we want to
+		 * hit 4 times.
+		 */
+		memset(addr_val, ((u8 *)&addr)[i], 4);
+
+		/*
+		 * Hit each byte of the register address with a 4-byte
+		 * write operation to the same address, this is a harmless
+		 * operation.
+		 */
+		status = ath6kl_sdio_read_write_sync(ar, reg_addr + i, addr_val,
+					     4, HIF_WR_SYNC_BYTE_FIX);
+		if (status)
+			break;
+	}
+
+	if (status) {
+		ath6kl_err("%s: failed to write initial bytes of 0x%x "
+			   "to window reg: 0x%X\n", __func__,
+			   addr, reg_addr);
+		return status;
+	}
+
+	/*
+	 * Write the address register again, this time write the whole
+	 * 4-byte value. The effect here is that the LSB write causes the
+	 * cycle to start, the extra 3 byte write to bytes 1,2,3 has no
+	 * effect since we are writing the same values again
+	 */
+	status = ath6kl_sdio_read_write_sync(ar, reg_addr, (u8 *)(&addr),
+				     4, HIF_WR_SYNC_BYTE_INC);
+
+	if (status) {
+		ath6kl_err("%s: failed to write 0x%x to window reg: 0x%X\n",
+			   __func__, addr, reg_addr);
+		return status;
+	}
+
+	return 0;
+}
+
+static int ath6kl_sdio_diag_read32(struct ath6kl *ar, u32 address, u32 *data)
+{
+	int status;
+
+	/* set window register to start read cycle */
+	status = ath6kl_set_addrwin_reg(ar, WINDOW_READ_ADDR_ADDRESS,
+					address);
+
+	if (status)
+		return status;
+
+	/* read the data */
+	status = ath6kl_sdio_read_write_sync(ar, WINDOW_DATA_ADDRESS,
+				(u8 *)data, sizeof(u32), HIF_RD_SYNC_BYTE_INC);
+	if (status) {
+		ath6kl_err("%s: failed to read from window data addr\n",
+			__func__);
+		return status;
+	}
+
+	return status;
+}
+
+static int ath6kl_sdio_diag_write32(struct ath6kl *ar, u32 address,
+				    __le32 data)
+{
+	int status;
+	u32 val = (__force u32) data;
+
+	/* set write data */
+	status = ath6kl_sdio_read_write_sync(ar, WINDOW_DATA_ADDRESS,
+				(u8 *) &val, sizeof(u32), HIF_WR_SYNC_BYTE_INC);
+	if (status) {
+		ath6kl_err("%s: failed to write 0x%x to window data addr\n",
+			   __func__, data);
+		return status;
+	}
+
+	/* set window register, which starts the write cycle */
+	return ath6kl_set_addrwin_reg(ar, WINDOW_WRITE_ADDR_ADDRESS,
+				      address);
+}
+
+static int ath6kl_sdio_bmi_credits(struct ath6kl *ar)
+{
+	u32 addr;
+	unsigned long timeout;
+	int ret;
+
+	ar->bmi.cmd_credits = 0;
+
+	/* Read the counter register to get the command credits */
+	addr = COUNT_DEC_ADDRESS + (HTC_MAILBOX_NUM_MAX + ENDPOINT1) * 4;
+
+	timeout = jiffies + msecs_to_jiffies(BMI_COMMUNICATION_TIMEOUT);
+	while (time_before(jiffies, timeout) && !ar->bmi.cmd_credits) {
+
+		/*
+		 * Hit the credit counter with a 4-byte access, the first byte
+		 * read will hit the counter and cause a decrement, while the
+		 * remaining 3 bytes has no effect. The rationale behind this
+		 * is to make all HIF accesses 4-byte aligned.
+		 */
+		ret = ath6kl_sdio_read_write_sync(ar, addr,
+					 (u8 *)&ar->bmi.cmd_credits, 4,
+					 HIF_RD_SYNC_BYTE_INC);
+		if (ret) {
+			ath6kl_err("Unable to decrement the command credit "
+						"count register: %d\n", ret);
+			return ret;
+		}
+
+		/* The counter is only 8 bits.
+		 * Ignore anything in the upper 3 bytes
+		 */
+		ar->bmi.cmd_credits &= 0xFF;
+	}
+
+	if (!ar->bmi.cmd_credits) {
+		ath6kl_err("bmi communication timeout\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
+static int ath6kl_bmi_get_rx_lkahd(struct ath6kl *ar)
+{
+	unsigned long timeout;
+	u32 rx_word = 0;
+	int ret = 0;
+
+	timeout = jiffies + msecs_to_jiffies(BMI_COMMUNICATION_TIMEOUT);
+	while ((time_before(jiffies, timeout)) && !rx_word) {
+		ret = ath6kl_sdio_read_write_sync(ar,
+					RX_LOOKAHEAD_VALID_ADDRESS,
+					(u8 *)&rx_word, sizeof(rx_word),
+					HIF_RD_SYNC_BYTE_INC);
+		if (ret) {
+			ath6kl_err("unable to read RX_LOOKAHEAD_VALID\n");
+			return ret;
+		}
+
+		 /* all we really want is one bit */
+		rx_word &= (1 << ENDPOINT1);
+	}
+
+	if (!rx_word) {
+		ath6kl_err("bmi_recv_buf FIFO empty\n");
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
+static int ath6kl_sdio_bmi_write(struct ath6kl *ar, u8 *buf, u32 len)
+{
+	int ret;
+	u32 addr;
+
+	ret = ath6kl_sdio_bmi_credits(ar);
+	if (ret)
+		return ret;
+
+	addr = ar->mbox_info.htc_addr;
+
+	ret = ath6kl_sdio_read_write_sync(ar, addr, buf, len,
+					  HIF_WR_SYNC_BYTE_INC);
+	if (ret)
+		ath6kl_err("unable to send the bmi data to the device\n");
+
+	return ret;
+}
+
+static int ath6kl_sdio_bmi_read(struct ath6kl *ar, u8 *buf, u32 len)
+{
+	int ret;
+	u32 addr;
+
+	/*
+	 * During normal bootup, small reads may be required.
+	 * Rather than issue an HIF Read and then wait as the Target
+	 * adds successive bytes to the FIFO, we wait here until
+	 * we know that response data is available.
+	 *
+	 * This allows us to cleanly timeout on an unexpected
+	 * Target failure rather than risk problems at the HIF level.
+	 * In particular, this avoids SDIO timeouts and possibly garbage
+	 * data on some host controllers.  And on an interconnect
+	 * such as Compact Flash (as well as some SDIO masters) which
+	 * does not provide any indication on data timeout, it avoids
+	 * a potential hang or garbage response.
+	 *
+	 * Synchronization is more difficult for reads larger than the
+	 * size of the MBOX FIFO (128B), because the Target is unable
+	 * to push the 129th byte of data until AFTER the Host posts an
+	 * HIF Read and removes some FIFO data.  So for large reads the
+	 * Host proceeds to post an HIF Read BEFORE all the data is
+	 * actually available to read.  Fortunately, large BMI reads do
+	 * not occur in practice -- they're supported for debug/development.
+	 *
+	 * So Host/Target BMI synchronization is divided into these cases:
+	 *  CASE 1: length < 4
+	 *        Should not happen
+	 *
+	 *  CASE 2: 4 <= length <= 128
+	 *        Wait for first 4 bytes to be in FIFO
+	 *        If CONSERVATIVE_BMI_READ is enabled, also wait for
+	 *        a BMI command credit, which indicates that the ENTIRE
+	 *        response is available in the the FIFO
+	 *
+	 *  CASE 3: length > 128
+	 *        Wait for the first 4 bytes to be in FIFO
+	 *
+	 * For most uses, a small timeout should be sufficient and we will
+	 * usually see a response quickly; but there may be some unusual
+	 * (debug) cases of BMI_EXECUTE where we want an larger timeout.
+	 * For now, we use an unbounded busy loop while waiting for
+	 * BMI_EXECUTE.
+	 *
+	 * If BMI_EXECUTE ever needs to support longer-latency execution,
+	 * especially in production, this code needs to be enhanced to sleep
+	 * and yield.  Also note that BMI_COMMUNICATION_TIMEOUT is currently
+	 * a function of Host processor speed.
+	 */
+	if (len >= 4) { /* NB: Currently, always true */
+		ret = ath6kl_bmi_get_rx_lkahd(ar);
+		if (ret)
+			return ret;
+	}
+
+	addr = ar->mbox_info.htc_addr;
+	ret = ath6kl_sdio_read_write_sync(ar, addr, buf, len,
+				  HIF_RD_SYNC_BYTE_INC);
+	if (ret) {
+		ath6kl_err("Unable to read the bmi data from the device: %d\n",
+			   ret);
+		return ret;
+	}
 
 	return 0;
 }
@@ -890,6 +1180,10 @@ static const struct ath6kl_hif_ops ath6kl_sdio_ops = {
 	.cleanup_scatter = ath6kl_sdio_cleanup_scatter,
 	.suspend = ath6kl_sdio_suspend,
 	.resume = ath6kl_sdio_resume,
+	.diag_read32 = ath6kl_sdio_diag_read32,
+	.diag_write32 = ath6kl_sdio_diag_write32,
+	.bmi_read = ath6kl_sdio_bmi_read,
+	.bmi_write = ath6kl_sdio_bmi_write,
 	.power_on = ath6kl_sdio_power_on,
 	.power_off = ath6kl_sdio_power_off,
 	.stop = ath6kl_sdio_stop,
@@ -958,6 +1252,7 @@ static int ath6kl_sdio_probe(struct sdio_func *func,
 	spin_lock_init(&ar_sdio->lock);
 	spin_lock_init(&ar_sdio->scat_lock);
 	spin_lock_init(&ar_sdio->wr_async_lock);
+	mutex_init(&ar_sdio->dma_buffer_mutex);
 
 	INIT_LIST_HEAD(&ar_sdio->scat_req);
 	INIT_LIST_HEAD(&ar_sdio->bus_req_freeq);
@@ -976,8 +1271,10 @@ static int ath6kl_sdio_probe(struct sdio_func *func,
 	}
 
 	ar_sdio->ar = ar;
+	ar->hif_type = ATH6KL_HIF_TYPE_SDIO;
 	ar->hif_priv = ar_sdio;
 	ar->hif_ops = &ath6kl_sdio_ops;
+	ar->bmi.max_data_size = 256;
 
 	ath6kl_sdio_set_mbox_info(ar);
 
@@ -1027,13 +1324,15 @@ static void ath6kl_sdio_remove(struct sdio_func *func)
 static const struct sdio_device_id ath6kl_sdio_devices[] = {
 	{SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_AR6003_BASE | 0x0))},
 	{SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_AR6003_BASE | 0x1))},
+	{SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_AR6004_BASE | 0x0))},
+	{SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_AR6004_BASE | 0x1))},
 	{},
 };
 
 MODULE_DEVICE_TABLE(sdio, ath6kl_sdio_devices);
 
 static struct sdio_driver ath6kl_sdio_driver = {
-	.name = "ath6kl",
+	.name = "ath6kl_sdio",
 	.id_table = ath6kl_sdio_devices,
 	.probe = ath6kl_sdio_probe,
 	.remove = ath6kl_sdio_remove,
@@ -1063,13 +1362,19 @@ MODULE_AUTHOR("Atheros Communications, Inc.");
 MODULE_DESCRIPTION("Driver support for Atheros AR600x SDIO devices");
 MODULE_LICENSE("Dual BSD/GPL");
 
-MODULE_FIRMWARE(AR6003_REV2_OTP_FILE);
-MODULE_FIRMWARE(AR6003_REV2_FIRMWARE_FILE);
-MODULE_FIRMWARE(AR6003_REV2_PATCH_FILE);
-MODULE_FIRMWARE(AR6003_REV2_BOARD_DATA_FILE);
-MODULE_FIRMWARE(AR6003_REV2_DEFAULT_BOARD_DATA_FILE);
-MODULE_FIRMWARE(AR6003_REV3_OTP_FILE);
-MODULE_FIRMWARE(AR6003_REV3_FIRMWARE_FILE);
-MODULE_FIRMWARE(AR6003_REV3_PATCH_FILE);
-MODULE_FIRMWARE(AR6003_REV3_BOARD_DATA_FILE);
-MODULE_FIRMWARE(AR6003_REV3_DEFAULT_BOARD_DATA_FILE);
+MODULE_FIRMWARE(AR6003_HW_2_0_OTP_FILE);
+MODULE_FIRMWARE(AR6003_HW_2_0_FIRMWARE_FILE);
+MODULE_FIRMWARE(AR6003_HW_2_0_PATCH_FILE);
+MODULE_FIRMWARE(AR6003_HW_2_0_BOARD_DATA_FILE);
+MODULE_FIRMWARE(AR6003_HW_2_0_DEFAULT_BOARD_DATA_FILE);
+MODULE_FIRMWARE(AR6003_HW_2_1_1_OTP_FILE);
+MODULE_FIRMWARE(AR6003_HW_2_1_1_FIRMWARE_FILE);
+MODULE_FIRMWARE(AR6003_HW_2_1_1_PATCH_FILE);
+MODULE_FIRMWARE(AR6003_HW_2_1_1_BOARD_DATA_FILE);
+MODULE_FIRMWARE(AR6003_HW_2_1_1_DEFAULT_BOARD_DATA_FILE);
+MODULE_FIRMWARE(AR6004_HW_1_0_FIRMWARE_FILE);
+MODULE_FIRMWARE(AR6004_HW_1_0_BOARD_DATA_FILE);
+MODULE_FIRMWARE(AR6004_HW_1_0_DEFAULT_BOARD_DATA_FILE);
+MODULE_FIRMWARE(AR6004_HW_1_1_FIRMWARE_FILE);
+MODULE_FIRMWARE(AR6004_HW_1_1_BOARD_DATA_FILE);
+MODULE_FIRMWARE(AR6004_HW_1_1_DEFAULT_BOARD_DATA_FILE);
