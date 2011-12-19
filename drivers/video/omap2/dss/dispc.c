@@ -1614,6 +1614,9 @@ static unsigned long calc_fclk_five_taps(enum omap_channel channel, u16 width,
 	u32 fclk = 0;
 	u64 tmp, pclk = dispc_mgr_pclk_rate(channel);
 
+	if (height <= out_height && width <= out_width)
+		return (unsigned long) pclk;
+
 	if (height > out_height) {
 		struct omap_dss_device *dssdev = dispc_mgr_get_device(channel);
 		unsigned int ppl = dssdev->panel.timings.x_res;
@@ -1668,7 +1671,16 @@ static unsigned long calc_fclk(enum omap_channel channel, u16 width,
 	else
 		vf = 1;
 
-	return dispc_mgr_pclk_rate(channel) * vf * hf;
+	if (cpu_is_omap24xx()) {
+		if (vf > 1 && hf > 1)
+			return dispc_mgr_pclk_rate(channel) * 4;
+		else
+			return dispc_mgr_pclk_rate(channel) * 2;
+	} else if (cpu_is_omap34xx()) {
+		return dispc_mgr_pclk_rate(channel) * vf * hf;
+	} else {
+		return dispc_mgr_pclk_rate(channel) * hf;
+	}
 }
 
 static int dispc_ovl_calc_scaling(enum omap_plane plane,
@@ -1678,6 +1690,8 @@ static int dispc_ovl_calc_scaling(enum omap_plane plane,
 {
 	struct omap_overlay *ovl = omap_dss_get_overlay(plane);
 	const int maxdownscale = dss_feat_get_param_max(FEAT_PARAM_DOWNSCALE);
+	const int maxsinglelinewidth =
+				dss_feat_get_param_max(FEAT_PARAM_LINEWIDTH);
 	unsigned long fclk = 0;
 
 	if (width == out_width && height == out_height)
@@ -1694,27 +1708,39 @@ static int dispc_ovl_calc_scaling(enum omap_plane plane,
 			out_height > height * 8)
 		return -EINVAL;
 
-	/* Must use 5-tap filter? */
-	*five_taps = height > out_height * 2;
-
-	if (!*five_taps) {
+	if (cpu_is_omap24xx()) {
+		if (width > maxsinglelinewidth)
+			DSSERR("Cannot scale max input width exceeded");
+		*five_taps = false;
+		fclk = calc_fclk(channel, width, height, out_width,
+								out_height);
+	} else if (cpu_is_omap34xx()) {
+		if (width > (maxsinglelinewidth * 2)) {
+			DSSERR("Cannot setup scaling");
+			DSSERR("width exceeds maximum width possible");
+			return -EINVAL;
+		}
+		fclk = calc_fclk_five_taps(channel, width, height, out_width,
+						out_height, color_mode);
+		if (width > maxsinglelinewidth) {
+			if (height > out_height && height < out_height * 2)
+				*five_taps = false;
+			else {
+				DSSERR("cannot setup scaling with five taps");
+				return -EINVAL;
+			}
+		}
+		if (!*five_taps)
+			fclk = calc_fclk(channel, width, height, out_width,
+					out_height);
+	} else {
+		if (width > maxsinglelinewidth) {
+			DSSERR("Cannot scale width exceeds max line width");
+			return -EINVAL;
+		}
 		fclk = calc_fclk(channel, width, height, out_width,
 				out_height);
-
-		/* Try 5-tap filter if 3-tap fclk is too high */
-		if (cpu_is_omap34xx() && height > out_height &&
-				fclk > dispc_fclk_rate())
-			*five_taps = true;
 	}
-
-	if (width > (2048 >> *five_taps)) {
-		DSSERR("failed to set up scaling, fclk too low\n");
-		return -EINVAL;
-	}
-
-	if (*five_taps)
-		fclk = calc_fclk_five_taps(channel, width, height,
-				out_width, out_height, color_mode);
 
 	DSSDBG("required fclk rate = %lu Hz\n", fclk);
 	DSSDBG("current fclk rate = %lu Hz\n", dispc_fclk_rate());
@@ -1734,7 +1760,7 @@ int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
 		bool ilace, bool replication)
 {
 	struct omap_overlay *ovl = omap_dss_get_overlay(plane);
-	bool five_taps = false;
+	bool five_taps = true;
 	bool fieldmode = 0;
 	int r, cconv = 0;
 	unsigned offset0, offset1;
