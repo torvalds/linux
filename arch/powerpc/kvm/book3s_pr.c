@@ -51,6 +51,8 @@ static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 #define MSR_USER32 MSR_USER
 #define MSR_USER64 MSR_USER
 #define HW_PAGE_SIZE PAGE_SIZE
+#define __hard_irq_disable local_irq_disable
+#define __hard_irq_enable local_irq_enable
 #endif
 
 void kvmppc_core_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
@@ -776,7 +778,16 @@ program_interrupt:
 		/* To avoid clobbering exit_reason, only check for signals if
 		 * we aren't already exiting to userspace for some other
 		 * reason. */
+
+		/*
+		 * Interrupts could be timers for the guest which we have to
+		 * inject again, so let's postpone them until we're in the guest
+		 * and if we really did time things so badly, then we just exit
+		 * again due to a host external interrupt.
+		 */
+		__hard_irq_disable();
 		if (signal_pending(current)) {
+			__hard_irq_enable();
 #ifdef EXIT_DEBUG
 			printk(KERN_EMERG "KVM: Going back to host\n");
 #endif
@@ -959,8 +970,17 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 	kvmppc_core_prepare_to_enter(vcpu);
 
+	/*
+	 * Interrupts could be timers for the guest which we have to inject
+	 * again, so let's postpone them until we're in the guest and if we
+	 * really did time things so badly, then we just exit again due to
+	 * a host external interrupt.
+	 */
+	__hard_irq_disable();
+
 	/* No need to go into the guest when all we do is going out */
 	if (signal_pending(current)) {
+		__hard_irq_enable();
 		kvm_run->exit_reason = KVM_EXIT_INTR;
 		ret = -EINTR;
 		goto out;
