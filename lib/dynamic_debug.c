@@ -124,13 +124,13 @@ do {									\
 } while (0)
 
 /*
- * Search the tables for _ddebug's which match the given
- * `query' and apply the `flags' and `mask' to them.  Tells
- * the user which ddebug's were changed, or whether none
- * were matched.
+ * Search the tables for _ddebug's which match the given `query' and
+ * apply the `flags' and `mask' to them.  Returns number of matching
+ * callsites, normally the same as number of changes.  If verbose,
+ * logs the changes.  Takes ddebug_lock.
  */
-static void ddebug_change(const struct ddebug_query *query,
-			   unsigned int flags, unsigned int mask)
+static int ddebug_change(const struct ddebug_query *query,
+			unsigned int flags, unsigned int mask)
 {
 	int i;
 	struct ddebug_table *dt;
@@ -192,6 +192,8 @@ static void ddebug_change(const struct ddebug_query *query,
 
 	if (!nfound && verbose)
 		pr_info("no matches for query\n");
+
+	return nfound;
 }
 
 /*
@@ -449,7 +451,7 @@ static int ddebug_exec_query(char *query_string)
 	unsigned int flags = 0, mask = 0;
 	struct ddebug_query query;
 #define MAXWORDS 9
-	int nwords;
+	int nwords, nfound;
 	char *words[MAXWORDS];
 
 	nwords = ddebug_tokenize(query_string, words, MAXWORDS);
@@ -461,8 +463,47 @@ static int ddebug_exec_query(char *query_string)
 		return -EINVAL;
 
 	/* actually go and implement the change */
-	ddebug_change(&query, flags, mask);
-	return 0;
+	nfound = ddebug_change(&query, flags, mask);
+	vpr_info_dq((&query), (nfound) ? "applied" : "no-match");
+
+	return nfound;
+}
+
+/* handle multiple queries in query string, continue on error, return
+   last error or number of matching callsites.  Module name is either
+   in param (for boot arg) or perhaps in query string.
+*/
+static int ddebug_exec_queries(char *query)
+{
+	char *split;
+	int i, errs = 0, exitcode = 0, rc, nfound = 0;
+
+	for (i = 0; query; query = split) {
+		split = strpbrk(query, ";\n");
+		if (split)
+			*split++ = '\0';
+
+		query = skip_spaces(query);
+		if (!query || !*query || *query == '#')
+			continue;
+
+		if (verbose)
+			pr_info("query %d: \"%s\"\n", i, query);
+
+		rc = ddebug_exec_query(query);
+		if (rc < 0) {
+			errs++;
+			exitcode = rc;
+		} else
+			nfound += rc;
+		i++;
+	}
+	pr_info("processed %d queries, with %d matches, %d errs\n",
+		 i, nfound, errs);
+
+	if (exitcode)
+		return exitcode;
+	return nfound;
 }
 
 #define PREFIX_SIZE 64
@@ -615,9 +656,9 @@ static ssize_t ddebug_proc_write(struct file *file, const char __user *ubuf,
 	if (verbose)
 		pr_info("read %d bytes from userspace\n", (int)len);
 
-	ret = ddebug_exec_query(tmpbuf);
+	ret = ddebug_exec_queries(tmpbuf);
 	kfree(tmpbuf);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	*offp += len;
@@ -927,13 +968,15 @@ static int __init dynamic_debug_init(void)
 
 	/* ddebug_query boot param got passed -> set it up */
 	if (ddebug_setup_string[0] != '\0') {
-		ret = ddebug_exec_query(ddebug_setup_string);
-		if (ret)
+		ret = ddebug_exec_queries(ddebug_setup_string);
+		if (ret < 0)
 			pr_warn("Invalid ddebug boot param %s",
 				ddebug_setup_string);
 		else
-			pr_info("ddebug initialized with string %s",
-				ddebug_setup_string);
+			pr_info("%d changes by ddebug_query\n", ret);
+
+		/* keep tables even on ddebug_query parse error */
+		ret = 0;
 	}
 
 out_free:
