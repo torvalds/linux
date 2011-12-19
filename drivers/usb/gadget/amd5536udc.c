@@ -827,20 +827,8 @@ __acquires(ep->dev->lock)
 
 	dev = ep->dev;
 	/* unmap DMA */
-	if (req->dma_mapping) {
-		if (ep->in)
-			pci_unmap_single(dev->pdev,
-					req->req.dma,
-					req->req.length,
-					PCI_DMA_TODEVICE);
-		else
-			pci_unmap_single(dev->pdev,
-					req->req.dma,
-					req->req.length,
-					PCI_DMA_FROMDEVICE);
-		req->dma_mapping = 0;
-		req->req.dma = DMA_DONT_USE;
-	}
+	if (ep->dma)
+		usb_gadget_unmap_request(&dev->gadget, &req->req, ep->in);
 
 	halted = ep->halted;
 	ep->halted = 1;
@@ -1089,20 +1077,11 @@ udc_queue(struct usb_ep *usbep, struct usb_request *usbreq, gfp_t gfp)
 		return -ESHUTDOWN;
 
 	/* map dma (usually done before) */
-	if (ep->dma && usbreq->length != 0
-			&& (usbreq->dma == DMA_DONT_USE || usbreq->dma == 0)) {
+	if (ep->dma) {
 		VDBG(dev, "DMA map req %p\n", req);
-		if (ep->in)
-			usbreq->dma = pci_map_single(dev->pdev,
-						usbreq->buf,
-						usbreq->length,
-						PCI_DMA_TODEVICE);
-		else
-			usbreq->dma = pci_map_single(dev->pdev,
-						usbreq->buf,
-						usbreq->length,
-						PCI_DMA_FROMDEVICE);
-		req->dma_mapping = 1;
+		retval = usb_gadget_map_request(&udc->gadget, usbreq, ep->in);
+		if (retval)
+			return retval;
 	}
 
 	VDBG(dev, "%s queue req %p, len %d req->td_data=%p buf %p\n",
