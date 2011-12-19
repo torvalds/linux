@@ -98,6 +98,7 @@ struct uas_dev_info {
 	unsigned cmd_pipe, status_pipe, data_in_pipe, data_out_pipe;
 	unsigned use_streams:1;
 	unsigned uas_sense_old:1;
+	struct scsi_cmnd *cmnd;
 };
 
 enum {
@@ -178,8 +179,6 @@ static void uas_sense(struct urb *urb, struct scsi_cmnd *cmnd)
 	}
 
 	cmnd->result = sense_iu->status;
-	if (sdev->current_cmnd)
-		sdev->current_cmnd = NULL;
 	cmnd->scsi_done(cmnd);
 	usb_free_urb(urb);
 }
@@ -205,8 +204,6 @@ static void uas_sense_old(struct urb *urb, struct scsi_cmnd *cmnd)
 	}
 
 	cmnd->result = sense_iu->status;
-	if (sdev->current_cmnd)
-		sdev->current_cmnd = NULL;
 	cmnd->scsi_done(cmnd);
 	usb_free_urb(urb);
 }
@@ -230,8 +227,8 @@ static void uas_xfer_data(struct urb *urb, struct scsi_cmnd *cmnd,
 static void uas_stat_cmplt(struct urb *urb)
 {
 	struct iu *iu = urb->transfer_buffer;
-	struct scsi_device *sdev = urb->context;
-	struct uas_dev_info *devinfo = sdev->hostdata;
+	struct Scsi_Host *shost = urb->context;
+	struct uas_dev_info *devinfo = (void *)shost->hostdata[0];
 	struct scsi_cmnd *cmnd;
 	u16 tag;
 
@@ -242,10 +239,10 @@ static void uas_stat_cmplt(struct urb *urb)
 	}
 
 	tag = be16_to_cpup(&iu->tag) - 1;
-	if (sdev->current_cmnd)
-		cmnd = sdev->current_cmnd;
+	if (tag == 0)
+		cmnd = devinfo->cmnd;
 	else
-		cmnd = scsi_find_tag(sdev, tag);
+		cmnd = scsi_host_find_tag(shost, tag - 1);
 	if (!cmnd) {
 		usb_free_urb(urb);
 		return;
@@ -253,6 +250,9 @@ static void uas_stat_cmplt(struct urb *urb)
 
 	switch (iu->iu_id) {
 	case IU_ID_STATUS:
+		if (devinfo->cmnd == cmnd)
+			devinfo->cmnd = NULL;
+
 		if (urb->actual_length < 16)
 			devinfo->uas_sense_old = 1;
 		if (devinfo->uas_sense_old)
@@ -314,7 +314,7 @@ static struct urb *uas_alloc_sense_urb(struct uas_dev_info *devinfo, gfp_t gfp,
 		goto free;
 
 	usb_fill_bulk_urb(urb, udev, devinfo->status_pipe, iu, sizeof(*iu),
-						uas_stat_cmplt, cmnd->device);
+						uas_stat_cmplt, cmnd->device->host);
 	urb->stream_id = stream_id;
 	urb->transfer_flags |= URB_FREE_BUFFER;
  out:
@@ -346,7 +346,7 @@ static struct urb *uas_alloc_cmd_urb(struct uas_dev_info *devinfo, gfp_t gfp,
 
 	iu->iu_id = IU_ID_COMMAND;
 	if (blk_rq_tagged(cmnd->request))
-		iu->tag = cpu_to_be16(cmnd->request->tag + 1);
+		iu->tag = cpu_to_be16(cmnd->request->tag + 2);
 	else
 		iu->tag = cpu_to_be16(1);
 	iu->prio_attr = UAS_SIMPLE_TAG;
@@ -458,13 +458,13 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 
 	BUILD_BUG_ON(sizeof(struct uas_cmd_info) > sizeof(struct scsi_pointer));
 
-	if (!cmdinfo->status_urb && sdev->current_cmnd)
+	if (devinfo->cmnd)
 		return SCSI_MLQUEUE_DEVICE_BUSY;
 
 	if (blk_rq_tagged(cmnd->request)) {
-		cmdinfo->stream = cmnd->request->tag + 1;
+		cmdinfo->stream = cmnd->request->tag + 2;
 	} else {
-		sdev->current_cmnd = cmnd;
+		devinfo->cmnd = cmnd;
 		cmdinfo->stream = 1;
 	}
 
@@ -565,7 +565,7 @@ static int uas_slave_configure(struct scsi_device *sdev)
 {
 	struct uas_dev_info *devinfo = sdev->hostdata;
 	scsi_set_tag_type(sdev, MSG_ORDERED_TAG);
-	scsi_activate_tcq(sdev, devinfo->qdepth - 1);
+	scsi_activate_tcq(sdev, devinfo->qdepth - 2);
 	return 0;
 }
 
@@ -633,6 +633,7 @@ static void uas_configure_endpoints(struct uas_dev_info *devinfo)
 	unsigned i, n_endpoints = intf->cur_altsetting->desc.bNumEndpoints;
 
 	devinfo->uas_sense_old = 0;
+	devinfo->cmnd = NULL;
 
 	for (i = 0; i < n_endpoints; i++) {
 		unsigned char *extra = endpoint[i].extra;
@@ -728,7 +729,7 @@ static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	devinfo->udev = udev;
 	uas_configure_endpoints(devinfo);
 
-	result = scsi_init_shared_tag_map(shost, devinfo->qdepth - 1);
+	result = scsi_init_shared_tag_map(shost, devinfo->qdepth - 2);
 	if (result)
 		goto free;
 
