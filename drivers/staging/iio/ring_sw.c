@@ -24,9 +24,7 @@
  * @read_p:		read pointer (oldest available)
  * @write_p:		write pointer
  * @half_p:		half buffer length behind write_p (event generation)
- * @use_count:		reference count to prevent resizing when in use
  * @update_needed:	flag to indicated change in size requested
- * @use_lock:		lock to prevent change in size when in use
  *
  * Note that the first element of all ring buffers must be a
  * struct iio_buffer.
@@ -38,9 +36,7 @@ struct iio_sw_ring_buffer {
 	unsigned char		*write_p;
 	/* used to act as a point at which to signal an event */
 	unsigned char		*half_p;
-	int			use_count;
 	int			update_needed;
-	spinlock_t		use_lock;
 };
 
 #define iio_to_sw_ring(r) container_of(r, struct iio_sw_ring_buffer, buf)
@@ -58,32 +54,10 @@ static inline int __iio_allocate_sw_ring_buffer(struct iio_sw_ring_buffer *ring,
 	return ring->data ? 0 : -ENOMEM;
 }
 
-static inline void __iio_init_sw_ring_buffer(struct iio_sw_ring_buffer *ring)
-{
-	spin_lock_init(&ring->use_lock);
-}
-
 static inline void __iio_free_sw_ring_buffer(struct iio_sw_ring_buffer *ring)
 {
 	kfree(ring->data);
 }
-
-static void iio_mark_sw_rb_in_use(struct iio_buffer *r)
-{
-	struct iio_sw_ring_buffer *ring = iio_to_sw_ring(r);
-	spin_lock(&ring->use_lock);
-	ring->use_count++;
-	spin_unlock(&ring->use_lock);
-}
-
-static void iio_unmark_sw_rb_in_use(struct iio_buffer *r)
-{
-	struct iio_sw_ring_buffer *ring = iio_to_sw_ring(r);
-	spin_lock(&ring->use_lock);
-	ring->use_count--;
-	spin_unlock(&ring->use_lock);
-}
-
 
 /* Ring buffer related functionality */
 /* Store to ring is typically called in the bh of a data ready interrupt handler
@@ -295,18 +269,12 @@ static int iio_request_update_sw_rb(struct iio_buffer *r)
 	struct iio_sw_ring_buffer *ring = iio_to_sw_ring(r);
 
 	r->stufftoread = false;
-	spin_lock(&ring->use_lock);
 	if (!ring->update_needed)
 		goto error_ret;
-	if (ring->use_count) {
-		ret = -EAGAIN;
-		goto error_ret;
-	}
 	__iio_free_sw_ring_buffer(ring);
 	ret = __iio_allocate_sw_ring_buffer(ring, ring->buf.bytes_per_datum,
 					    ring->buf.length);
 error_ret:
-	spin_unlock(&ring->use_lock);
 	return ret;
 }
 
@@ -372,7 +340,6 @@ struct iio_buffer *iio_sw_rb_allocate(struct iio_dev *indio_dev)
 	ring->update_needed = true;
 	buf = &ring->buf;
 	iio_buffer_init(buf);
-	__iio_init_sw_ring_buffer(ring);
 	buf->attrs = &iio_ring_attribute_group;
 
 	return buf;
@@ -386,8 +353,6 @@ void iio_sw_rb_free(struct iio_buffer *r)
 EXPORT_SYMBOL(iio_sw_rb_free);
 
 const struct iio_buffer_access_funcs ring_sw_access_funcs = {
-	.mark_in_use = &iio_mark_sw_rb_in_use,
-	.unmark_in_use = &iio_unmark_sw_rb_in_use,
 	.store_to = &iio_store_to_sw_rb,
 	.read_first_n = &iio_read_first_n_sw_rb,
 	.request_update = &iio_request_update_sw_rb,

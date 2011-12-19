@@ -1083,18 +1083,13 @@ static int iio_chrdev_open(struct inode *inode, struct file *filp)
 {
 	struct iio_dev *indio_dev = container_of(inode->i_cdev,
 						struct iio_dev, chrdev);
-	unsigned int ret;
 
 	if (test_and_set_bit(IIO_BUSY_BIT_POS, &indio_dev->flags))
 		return -EBUSY;
 
 	filp->private_data = indio_dev;
 
-	ret = iio_chrdev_buffer_open(indio_dev);
-	if (ret < 0)
-		clear_bit(IIO_BUSY_BIT_POS, &indio_dev->flags);
-
-	return ret;
+	return 0;
 }
 
 /**
@@ -1104,7 +1099,6 @@ static int iio_chrdev_release(struct inode *inode, struct file *filp)
 {
 	struct iio_dev *indio_dev = container_of(inode->i_cdev,
 						struct iio_dev, chrdev);
-	iio_chrdev_buffer_release(indio_dev);
 	clear_bit(IIO_BUSY_BIT_POS, &indio_dev->flags);
 	return 0;
 }

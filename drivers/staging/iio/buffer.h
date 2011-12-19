@@ -18,8 +18,6 @@ struct iio_buffer;
 
 /**
  * struct iio_buffer_access_funcs - access functions for buffers.
- * @mark_in_use:	reference counting, typically to prevent module removal
- * @unmark_in_use:	reduce reference count when no longer using buffer
  * @store_to:		actually store stuff to the buffer
  * @read_first_n:	try to get a specified number of bytes (must exist)
  * @request_update:	if a parameter change has been marked, update underlying
@@ -38,9 +36,6 @@ struct iio_buffer;
  * any of them not existing.
  **/
 struct iio_buffer_access_funcs {
-	void (*mark_in_use)(struct iio_buffer *buffer);
-	void (*unmark_in_use)(struct iio_buffer *buffer);
-
 	int (*store_to)(struct iio_buffer *buffer, u8 *data, s64 timestamp);
 	int (*read_first_n)(struct iio_buffer *buffer,
 			    size_t n,

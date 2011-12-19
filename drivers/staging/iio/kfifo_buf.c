@@ -11,9 +11,7 @@
 struct iio_kfifo {
 	struct iio_buffer buffer;
 	struct kfifo kf;
-	int use_count;
 	int update_needed;
-	struct mutex use_lock;
 };
 
 #define iio_to_kfifo(r) container_of(r, struct iio_kfifo, buffer)
@@ -33,45 +31,18 @@ static int iio_request_update_kfifo(struct iio_buffer *r)
 	int ret = 0;
 	struct iio_kfifo *buf = iio_to_kfifo(r);
 
-	mutex_lock(&buf->use_lock);
 	if (!buf->update_needed)
 		goto error_ret;
-	if (buf->use_count) {
-		ret = -EAGAIN;
-		goto error_ret;
-	}
 	kfifo_free(&buf->kf);
 	ret = __iio_allocate_kfifo(buf, buf->buffer.bytes_per_datum,
 				   buf->buffer.length);
 error_ret:
-	mutex_unlock(&buf->use_lock);
 	return ret;
-}
-
-static void iio_mark_kfifo_in_use(struct iio_buffer *r)
-{
-	struct iio_kfifo *buf = iio_to_kfifo(r);
-	mutex_lock(&buf->use_lock);
-	buf->use_count++;
-	mutex_unlock(&buf->use_lock);
-}
-
-static void iio_unmark_kfifo_in_use(struct iio_buffer *r)
-{
-	struct iio_kfifo *buf = iio_to_kfifo(r);
-	mutex_lock(&buf->use_lock);
-	buf->use_count--;
-	mutex_unlock(&buf->use_lock);
 }
 
 static int iio_get_length_kfifo(struct iio_buffer *r)
 {
 	return r->length;
-}
-
-static inline void __iio_init_kfifo(struct iio_kfifo *kf)
-{
-	mutex_init(&kf->use_lock);
 }
 
 static IIO_BUFFER_ENABLE_ATTR;
@@ -98,7 +69,6 @@ struct iio_buffer *iio_kfifo_allocate(struct iio_dev *indio_dev)
 	kf->update_needed = true;
 	iio_buffer_init(&kf->buffer);
 	kf->buffer.attrs = &iio_kfifo_attribute_group;
-	__iio_init_kfifo(kf);
 
 	return &kf->buffer;
 }
@@ -168,8 +138,6 @@ static int iio_read_first_n_kfifo(struct iio_buffer *r,
 }
 
 const struct iio_buffer_access_funcs kfifo_access_funcs = {
-	.mark_in_use = &iio_mark_kfifo_in_use,
-	.unmark_in_use = &iio_unmark_kfifo_in_use,
 	.store_to = &iio_store_to_kfifo,
 	.read_first_n = &iio_read_first_n_kfifo,
 	.request_update = &iio_request_update_kfifo,

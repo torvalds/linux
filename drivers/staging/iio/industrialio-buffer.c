@@ -64,26 +64,6 @@ unsigned int iio_buffer_poll(struct file *filp,
 	return 0;
 }
 
-int iio_chrdev_buffer_open(struct iio_dev *indio_dev)
-{
-	struct iio_buffer *rb = indio_dev->buffer;
-	if (!rb)
-		return 0;
-	if (rb->access->mark_in_use)
-		rb->access->mark_in_use(rb);
-	return 0;
-}
-
-void iio_chrdev_buffer_release(struct iio_dev *indio_dev)
-{
-	struct iio_buffer *rb = indio_dev->buffer;
-
-	if (!rb)
-		return;
-	if (rb->access->unmark_in_use)
-		rb->access->unmark_in_use(rb);
-}
-
 void iio_buffer_init(struct iio_buffer *buffer)
 {
 	INIT_LIST_HEAD(&buffer->demux_list);
@@ -447,16 +427,12 @@ ssize_t iio_buffer_store_enable(struct device *dev,
 				goto error_ret;
 			}
 		}
-		if (buffer->access->mark_in_use)
-			buffer->access->mark_in_use(buffer);
 		/* Definitely possible for devices to support both of these.*/
 		if (indio_dev->modes & INDIO_BUFFER_TRIGGERED) {
 			if (!indio_dev->trig) {
 				printk(KERN_INFO
 				       "Buffer not started: no trigger\n");
 				ret = -EINVAL;
-				if (buffer->access->unmark_in_use)
-					buffer->access->unmark_in_use(buffer);
 				goto error_ret;
 			}
 			indio_dev->currentmode = INDIO_BUFFER_TRIGGERED;
@@ -473,8 +449,6 @@ ssize_t iio_buffer_store_enable(struct device *dev,
 				printk(KERN_INFO
 				       "Buffer not started:"
 				       "postenable failed\n");
-				if (buffer->access->unmark_in_use)
-					buffer->access->unmark_in_use(buffer);
 				indio_dev->currentmode = previous_mode;
 				if (indio_dev->setup_ops->postdisable)
 					indio_dev->setup_ops->
@@ -488,8 +462,6 @@ ssize_t iio_buffer_store_enable(struct device *dev,
 			if (ret)
 				goto error_ret;
 		}
-		if (buffer->access->unmark_in_use)
-			buffer->access->unmark_in_use(buffer);
 		indio_dev->currentmode = INDIO_DIRECT_MODE;
 		if (indio_dev->setup_ops->postdisable) {
 			ret = indio_dev->setup_ops->postdisable(indio_dev);
