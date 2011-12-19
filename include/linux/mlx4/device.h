@@ -303,6 +303,8 @@ struct mlx4_caps {
 	int                     log_num_prios;
 	enum mlx4_port_type	port_type[MLX4_MAX_PORTS + 1];
 	u8			supported_type[MLX4_MAX_PORTS + 1];
+	u8                      suggested_type[MLX4_MAX_PORTS + 1];
+	u8                      default_sense[MLX4_MAX_PORTS + 1];
 	u32			port_mask[MLX4_MAX_PORTS + 1];
 	enum mlx4_port_type	possible_type[MLX4_MAX_PORTS + 1];
 	u32			max_counters;

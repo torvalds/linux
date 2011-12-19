@@ -577,6 +577,8 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 
 			MLX4_GET(field, outbox, QUERY_PORT_SUPPORTED_TYPE_OFFSET);
 			dev_cap->supported_port_types[i] = field & 3;
+			dev_cap->suggested_type[i] = (field >> 3) & 1;
+			dev_cap->default_sense[i] = (field >> 4) & 1;
 			MLX4_GET(field, outbox, QUERY_PORT_MTU_OFFSET);
 			dev_cap->ib_mtu[i]	   = field & 0xf;
 			MLX4_GET(field, outbox, QUERY_PORT_WIDTH_OFFSET);
