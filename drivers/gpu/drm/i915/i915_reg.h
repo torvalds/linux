@@ -3303,10 +3303,10 @@
 /* or SDVOB */
 #define HDMIB   0xe1140
 #define  PORT_ENABLE    (1 << 31)
-#define  TRANSCODER_A   (0)
-#define  TRANSCODER_B   (1 << 30)
-#define  TRANSCODER(pipe)	((pipe) << 30)
-#define  TRANSCODER_MASK   (1 << 30)
+#define  TRANSCODER(pipe)       ((pipe) << 30)
+#define  TRANSCODER_CPT(pipe)   ((pipe) << 29)
+#define  TRANSCODER_MASK        (1 << 30)
+#define  TRANSCODER_MASK_CPT    (3 << 29)
 #define  COLOR_FORMAT_8bpc      (0)
 #define  COLOR_FORMAT_12bpc     (3 << 26)
 #define  SDVOB_HOTPLUG_ENABLE   (1 << 23)
@@ -3447,8 +3447,30 @@
 #define  EDP_LINK_TRAIN_800_1200MV_0DB_SNB_B	(0x38<<22)
 #define  EDP_LINK_TRAIN_VOL_EMP_MASK_SNB	(0x3f<<22)
 
+/* IVB */
+#define EDP_LINK_TRAIN_400MV_0DB_IVB		(0x24 <<22)
+#define EDP_LINK_TRAIN_400MV_3_5DB_IVB		(0x2a <<22)
+#define EDP_LINK_TRAIN_400MV_6DB_IVB		(0x2f <<22)
+#define EDP_LINK_TRAIN_600MV_0DB_IVB		(0x30 <<22)
+#define EDP_LINK_TRAIN_600MV_3_5DB_IVB		(0x36 <<22)
+#define EDP_LINK_TRAIN_800MV_0DB_IVB		(0x38 <<22)
+#define EDP_LINK_TRAIN_800MV_3_5DB_IVB		(0x33 <<22)
+
+/* legacy values */
+#define EDP_LINK_TRAIN_500MV_0DB_IVB		(0x00 <<22)
+#define EDP_LINK_TRAIN_1000MV_0DB_IVB		(0x20 <<22)
+#define EDP_LINK_TRAIN_500MV_3_5DB_IVB		(0x02 <<22)
+#define EDP_LINK_TRAIN_1000MV_3_5DB_IVB		(0x22 <<22)
+#define EDP_LINK_TRAIN_1000MV_6DB_IVB		(0x23 <<22)
+
+#define  EDP_LINK_TRAIN_VOL_EMP_MASK_IVB	(0x3f<<22)
+
 #define  FORCEWAKE				0xA18C
 #define  FORCEWAKE_ACK				0x130090
+#define  FORCEWAKE_MT				0xa188 /* multi-threaded */
+#define  FORCEWAKE_MT_ACK			0x130040
+#define  ECOBUS					0xa180
+#define    FORCEWAKE_MT_ENABLE			(1<<5)
 
 #define  GT_FIFO_FREE_ENTRIES			0x120008
 #define    GT_FIFO_NUM_RESERVED_ENTRIES		20

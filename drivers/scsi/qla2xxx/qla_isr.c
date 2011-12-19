@@ -1741,7 +1741,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 				    resid, scsi_bufflen(cp));
 
 				cp->result = DID_ERROR << 16 | lscsi_status;
-				break;
+				goto check_scsi_status;
 			}
 
 			if (!lscsi_status &&
