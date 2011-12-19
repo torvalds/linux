@@ -44,11 +44,6 @@ unsigned long ioremap_base;
 unsigned long ioremap_bot;
 EXPORT_SYMBOL(ioremap_bot);
 
-/* The maximum lowmem defaults to 768Mb, but this can be configured to
- * another value.
- */
-#define MAX_LOW_MEM	CONFIG_LOWMEM_SIZE
-
 #ifndef CONFIG_SMP
 struct pgtable_cache_struct quicklists;
 #endif
@@ -171,7 +166,7 @@ void __init mapin_ram(void)
 
 	v = CONFIG_KERNEL_START;
 	p = memory_start;
-	for (s = 0; s < memory_size; s += PAGE_SIZE) {
+	for (s = 0; s < CONFIG_LOWMEM_SIZE; s += PAGE_SIZE) {
 		f = _PAGE_PRESENT | _PAGE_ACCESSED |
 				_PAGE_SHARED | _PAGE_HWEXEC;
 		if ((char *) v < _stext || (char *) v >= _etext)

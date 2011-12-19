@@ -135,7 +135,6 @@ extern unsigned long min_low_pfn;
 extern unsigned long max_pfn;
 
 extern unsigned long memory_start;
-extern unsigned long memory_end;
 extern unsigned long memory_size;
 
 extern int page_is_ram(unsigned long pfn);
