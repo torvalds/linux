@@ -66,6 +66,7 @@ config MACH_SEABOARD
 
 config MACH_TEGRA_DT
 	bool "Generic Tegra20 board (FDT support)"
+	depends on ARCH_TEGRA_2x_SOC
 	select USE_OF
 	help
 	  Support for generic NVIDIA Tegra20 boards using Flattened Device Tree
