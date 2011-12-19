@@ -336,7 +336,6 @@ static int omap2430_musb_init(struct musb *musb)
 	return 0;
 
 err1:
-	pm_runtime_disable(dev);
 	return status;
 }
 
@@ -479,7 +478,6 @@ static int __exit omap2430_remove(struct platform_device *pdev)
 	platform_device_del(glue->musb);
 	platform_device_put(glue->musb);
 	pm_runtime_put(&pdev->dev);
-	pm_runtime_disable(&pdev->dev);
 	kfree(glue);
 
 	return 0;
