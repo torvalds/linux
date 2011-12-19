@@ -114,6 +114,7 @@ int ima_add_template_entry(struct ima_template_entry *entry, int violation,
 		memcpy(digest, entry->digest, sizeof digest);
 		if (ima_lookup_digest_entry(digest)) {
 			audit_cause = "hash_exists";
+			result = -EEXIST;
 			goto out;
 		}
 	}
