@@ -95,13 +95,7 @@ static struct musb_hdrc_config musb_hdrc_config = {
 };
 
 static struct musb_hdrc_platform_data musb_platform_data = {
-#if defined(CONFIG_USB_MUSB_OTG)
 	.mode = MUSB_OTG,
-#elif defined(CONFIG_USB_MUSB_PERIPHERAL)
-	.mode = MUSB_PERIPHERAL,
-#else /* defined(CONFIG_USB_MUSB_HOST) */
-	.mode = MUSB_HOST,
-#endif
 	.config = &musb_hdrc_config,
 	.board_data = &musb_board_data,
 };
