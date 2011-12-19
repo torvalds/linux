@@ -151,10 +151,6 @@ static void ddebug_change(const struct ddebug_query *query,
 			if (newflags == dp->flags)
 				continue;
 			dp->flags = newflags;
-			if (newflags)
-				dp->enabled = 1;
-			else
-				dp->enabled = 0;
 			if (verbose)
 				pr_info("changed %s:%d [%s]%s %s\n",
 					dp->filename, dp->lineno,
