@@ -227,16 +227,6 @@ static struct gpio latch_gpios[] __initconst = {
 		.label	= "dockit2",
 	},
 	{
-		.gpio	= AMS_DELTA_GPIO_PIN_KEYBRD_PWR,
-		.flags	= GPIOF_OUT_INIT_LOW,
-		.label	= "keybrd_pwr",
-	},
-	{
-		.gpio	= AMS_DELTA_GPIO_PIN_KEYBRD_DATAOUT,
-		.flags	= GPIOF_OUT_INIT_LOW,
-		.label	= "keybrd_dataout",
-	},
-	{
 		.gpio	= AMS_DELTA_GPIO_PIN_SCARD_RSTIN,
 		.flags	= GPIOF_OUT_INIT_LOW,
 		.label	= "scard_rstin",
