@@ -141,7 +141,7 @@ static int tda18218_set_params(struct dvb_frontend *fe,
 	switch (params->u.ofdm.bandwidth) {
 	case BANDWIDTH_6_MHZ:
 		LP_Fc = 0;
-		LO_Frac = params->frequency + 4000000;
+		LO_Frac = params->frequency + 3000000;
 		break;
 	case BANDWIDTH_7_MHZ:
 		LP_Fc = 1;

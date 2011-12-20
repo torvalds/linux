@@ -37,7 +37,7 @@ static char *fimc_clocks[MAX_FIMC_CLOCKS] = {
 static struct fimc_fmt fimc_formats[] = {
 	{
 		.name		= "RGB565",
-		.fourcc		= V4L2_PIX_FMT_RGB565X,
+		.fourcc		= V4L2_PIX_FMT_RGB565,
 		.depth		= { 16 },
 		.color		= S5P_FIMC_RGB565,
 		.memplanes	= 1,
@@ -1038,12 +1038,11 @@ static int fimc_try_fmt_mplane(struct fimc_ctx *ctx, struct v4l2_format *f)
 		mod_x = 6; /* 64 x 32 pixels tile */
 		mod_y = 5;
 	} else {
-		if (fimc->id == 1 && variant->pix_hoff)
+		if (variant->min_vsize_align == 1)
 			mod_y = fimc_fmt_is_rgb(fmt->color) ? 0 : 1;
 		else
-			mod_y = mod_x;
+			mod_y = ffs(variant->min_vsize_align) - 1;
 	}
-	dbg("mod_x: %d, mod_y: %d, max_w: %d", mod_x, mod_y, max_w);
 
 	v4l_bound_align_image(&pix->width, 16, max_w, mod_x,
 		&pix->height, 8, variant->pix_limit->scaler_dis_w, mod_y, 0);
@@ -1226,10 +1225,10 @@ static int fimc_m2m_try_crop(struct fimc_ctx *ctx, struct v4l2_crop *cr)
 		fimc->variant->min_inp_pixsize : fimc->variant->min_out_pixsize;
 
 	/* Get pixel alignment constraints. */
-	if (fimc->id == 1 && fimc->variant->pix_hoff)
+	if (fimc->variant->min_vsize_align == 1)
 		halign = fimc_fmt_is_rgb(f->fmt->color) ? 0 : 1;
 	else
-		halign = ffs(min_size) - 1;
+		halign = ffs(fimc->variant->min_vsize_align) - 1;
 
 	for (i = 0; i < f->fmt->colplanes; i++)
 		depth += f->fmt->depth[i];
@@ -1615,7 +1614,6 @@ static int fimc_probe(struct platform_device *pdev)
 	pdata = pdev->dev.platform_data;
 	fimc->pdata = pdata;
 
-	set_bit(ST_LPM, &fimc->state);
 
 	init_waitqueue_head(&fimc->irq_queue);
 	spin_lock_init(&fimc->slock);
@@ -1707,8 +1705,6 @@ static int fimc_runtime_resume(struct device *dev)
 	/* Enable clocks and perform basic initalization */
 	clk_enable(fimc->clock[CLK_GATE]);
 	fimc_hw_reset(fimc);
-	if (fimc->variant->out_buf_count > 4)
-		fimc_hw_set_dma_seq(fimc, 0xF);
 
 	/* Resume the capture or mem-to-mem device */
 	if (fimc_capture_busy(fimc))
@@ -1750,8 +1746,6 @@ static int fimc_resume(struct device *dev)
 		return 0;
 	}
 	fimc_hw_reset(fimc);
-	if (fimc->variant->out_buf_count > 4)
-		fimc_hw_set_dma_seq(fimc, 0xF);
 	spin_unlock_irqrestore(&fimc->slock, flags);
 
 	if (fimc_capture_busy(fimc))
@@ -1780,7 +1774,6 @@ static int __devexit fimc_remove(struct platform_device *pdev)
 	struct fimc_dev *fimc = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(&pdev->dev);
-	fimc_runtime_suspend(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 
 	vb2_dma_contig_cleanup_ctx(fimc->alloc_ctx);
@@ -1840,6 +1833,7 @@ static struct samsung_fimc_variant fimc0_variant_s5p = {
 	.min_inp_pixsize = 16,
 	.min_out_pixsize = 16,
 	.hor_offs_align	 = 8,
+	.min_vsize_align = 16,
 	.out_buf_count	 = 4,
 	.pix_limit	 = &s5p_pix_limit[0],
 };
@@ -1849,6 +1843,7 @@ static struct samsung_fimc_variant fimc2_variant_s5p = {
 	.min_inp_pixsize = 16,
 	.min_out_pixsize = 16,
 	.hor_offs_align	 = 8,
+	.min_vsize_align = 16,
 	.out_buf_count	 = 4,
 	.pix_limit = &s5p_pix_limit[1],
 };
@@ -1861,6 +1856,7 @@ static struct samsung_fimc_variant fimc0_variant_s5pv210 = {
 	.min_inp_pixsize = 16,
 	.min_out_pixsize = 16,
 	.hor_offs_align	 = 8,
+	.min_vsize_align = 16,
 	.out_buf_count	 = 4,
 	.pix_limit	 = &s5p_pix_limit[1],
 };
@@ -1874,6 +1870,7 @@ static struct samsung_fimc_variant fimc1_variant_s5pv210 = {
 	.min_inp_pixsize = 16,
 	.min_out_pixsize = 16,
 	.hor_offs_align	 = 1,
+	.min_vsize_align = 1,
 	.out_buf_count	 = 4,
 	.pix_limit	 = &s5p_pix_limit[2],
 };
@@ -1884,6 +1881,7 @@ static struct samsung_fimc_variant fimc2_variant_s5pv210 = {
 	.min_inp_pixsize = 16,
 	.min_out_pixsize = 16,
 	.hor_offs_align	 = 8,
+	.min_vsize_align = 16,
 	.out_buf_count	 = 4,
 	.pix_limit	 = &s5p_pix_limit[2],
 };
@@ -1898,6 +1896,7 @@ static struct samsung_fimc_variant fimc0_variant_exynos4 = {
 	.min_inp_pixsize = 16,
 	.min_out_pixsize = 16,
 	.hor_offs_align	 = 2,
+	.min_vsize_align = 1,
 	.out_buf_count	 = 32,
 	.pix_limit	 = &s5p_pix_limit[1],
 };
@@ -1910,6 +1909,7 @@ static struct samsung_fimc_variant fimc3_variant_exynos4 = {
 	.min_inp_pixsize = 16,
 	.min_out_pixsize = 16,
 	.hor_offs_align	 = 2,
+	.min_vsize_align = 1,
 	.out_buf_count	 = 32,
 	.pix_limit	 = &s5p_pix_limit[3],
 };
