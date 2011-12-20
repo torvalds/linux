@@ -235,7 +235,7 @@ void __init bcmring_init_timer(void)
 	 */
 	bcmring_clocksource_init();
 
-	sp804_clockevents_register(TIMER0_VA_BASE, IRQ_TIMER0, "timer0");
+	sp804_clockevents_init(TIMER0_VA_BASE, IRQ_TIMER0, "timer0");
 }
 
 struct sys_timer bcmring_timer = {

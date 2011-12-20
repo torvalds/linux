@@ -1553,12 +1553,21 @@
  */
 #define   PP_READY		(1 << 30)
 #define   PP_SEQUENCE_NONE	(0 << 28)
-#define   PP_SEQUENCE_ON	(1 << 28)
-#define   PP_SEQUENCE_OFF	(2 << 28)
-#define   PP_SEQUENCE_MASK	0x30000000
+#define   PP_SEQUENCE_POWER_UP	(1 << 28)
+#define   PP_SEQUENCE_POWER_DOWN (2 << 28)
+#define   PP_SEQUENCE_MASK	(3 << 28)
+#define   PP_SEQUENCE_SHIFT	28
 #define   PP_CYCLE_DELAY_ACTIVE	(1 << 27)
-#define   PP_SEQUENCE_STATE_ON_IDLE (1 << 3)
 #define   PP_SEQUENCE_STATE_MASK 0x0000000f
+#define   PP_SEQUENCE_STATE_OFF_IDLE	(0x0 << 0)
+#define   PP_SEQUENCE_STATE_OFF_S0_1	(0x1 << 0)
+#define   PP_SEQUENCE_STATE_OFF_S0_2	(0x2 << 0)
+#define   PP_SEQUENCE_STATE_OFF_S0_3	(0x3 << 0)
+#define   PP_SEQUENCE_STATE_ON_IDLE	(0x8 << 0)
+#define   PP_SEQUENCE_STATE_ON_S1_0	(0x9 << 0)
+#define   PP_SEQUENCE_STATE_ON_S1_2	(0xa << 0)
+#define   PP_SEQUENCE_STATE_ON_S1_3	(0xb << 0)
+#define   PP_SEQUENCE_STATE_RESET	(0xf << 0)
 #define PP_CONTROL	0x61204
 #define   POWER_TARGET_ON	(1 << 0)
 #define PP_ON_DELAYS	0x61208
@@ -3443,6 +3452,10 @@
 
 #define  GT_FIFO_FREE_ENTRIES			0x120008
 #define    GT_FIFO_NUM_RESERVED_ENTRIES		20
+
+#define GEN6_UCGCTL2				0x9404
+# define GEN6_RCPBUNIT_CLOCK_GATE_DISABLE		(1 << 12)
+# define GEN6_RCCUNIT_CLOCK_GATE_DISABLE		(1 << 11)
 
 #define GEN6_RPNSWREQ				0xA008
 #define   GEN6_TURBO_DISABLE			(1<<31)
