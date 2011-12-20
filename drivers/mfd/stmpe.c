@@ -8,6 +8,7 @@
  */
 
 #include <linux/gpio.h>
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
