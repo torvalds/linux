@@ -290,9 +290,66 @@ int sas_set_phy_speed(struct sas_phy *phy,
 	return ret;
 }
 
+static void sas_phy_release(struct sas_phy *phy)
+{
+	kfree(phy->hostdata);
+	phy->hostdata = NULL;
+}
+
+static void phy_reset_work(struct work_struct *work)
+{
+	struct sas_phy_data *d = container_of(work, typeof(*d), reset_work);
+
+	d->reset_result = sas_phy_reset(d->phy, d->hard_reset);
+}
+
+static int sas_phy_setup(struct sas_phy *phy)
+{
+	struct sas_phy_data *d = kzalloc(sizeof(*d), GFP_KERNEL);
+
+	if (!d)
+		return -ENOMEM;
+
+	mutex_init(&d->event_lock);
+	INIT_WORK(&d->reset_work, phy_reset_work);
+	d->phy = phy;
+	phy->hostdata = d;
+
+	return 0;
+}
+
+static int queue_phy_reset(struct sas_phy *phy, int hard_reset)
+{
+	struct Scsi_Host *shost = dev_to_shost(phy->dev.parent);
+	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
+	struct sas_phy_data *d = phy->hostdata;
+	int rc;
+
+	if (!d)
+		return -ENOMEM;
+
+	/* libsas workqueue coordinates ata-eh reset with discovery */
+	mutex_lock(&d->event_lock);
+	d->reset_result = 0;
+	d->hard_reset = hard_reset;
+
+	spin_lock_irq(&ha->state_lock);
+	sas_queue_work(ha, &d->reset_work);
+	spin_unlock_irq(&ha->state_lock);
+
+	rc = sas_drain_work(ha);
+	if (rc == 0)
+		rc = d->reset_result;
+	mutex_unlock(&d->event_lock);
+
+	return rc;
+}
+
 static struct sas_function_template sft = {
 	.phy_enable = sas_phy_enable,
-	.phy_reset = sas_phy_reset,
+	.phy_reset = queue_phy_reset,
+	.phy_setup = sas_phy_setup,
+	.phy_release = sas_phy_release,
 	.set_phy_speed = sas_set_phy_speed,
 	.get_linkerrors = sas_get_linkerrors,
 	.smp_handler = sas_smp_handler,

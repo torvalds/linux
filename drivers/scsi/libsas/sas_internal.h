@@ -38,6 +38,15 @@
 #define TO_SAS_TASK(_scsi_cmd)  ((void *)(_scsi_cmd)->host_scribble)
 #define ASSIGN_SAS_TASK(_sc, _t) do { (_sc)->host_scribble = (void *) _t; } while (0)
 
+struct sas_phy_data {
+	/* let reset be performed in sas_queue_work() context */
+	struct sas_phy *phy;
+	struct mutex event_lock;
+	int hard_reset;
+	int reset_result;
+	struct work_struct reset_work;
+};
+
 void sas_scsi_recover_host(struct Scsi_Host *shost);
 
 int sas_show_class(enum sas_class class, char *buf);
@@ -66,6 +75,7 @@ void sas_porte_broadcast_rcvd(struct work_struct *work);
 void sas_porte_link_reset_err(struct work_struct *work);
 void sas_porte_timer_event(struct work_struct *work);
 void sas_porte_hard_reset(struct work_struct *work);
+void sas_queue_work(struct sas_ha_struct *ha, struct work_struct *work);
 
 int sas_notify_lldd_dev_found(struct domain_device *);
 void sas_notify_lldd_dev_gone(struct domain_device *);

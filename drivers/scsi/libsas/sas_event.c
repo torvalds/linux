@@ -27,7 +27,7 @@
 #include "sas_internal.h"
 #include "sas_dump.h"
 
-static void sas_queue_work(struct sas_ha_struct *ha, struct work_struct *work)
+void sas_queue_work(struct sas_ha_struct *ha, struct work_struct *work)
 {
 	if (!test_bit(SAS_HA_REGISTERED, &ha->state))
 		return;
