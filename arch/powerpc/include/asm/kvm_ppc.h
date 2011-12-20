@@ -204,4 +204,9 @@ int kvm_vcpu_ioctl_config_tlb(struct kvm_vcpu *vcpu,
 int kvm_vcpu_ioctl_dirty_tlb(struct kvm_vcpu *vcpu,
 			     struct kvm_dirty_tlb *cfg);
 
+long kvmppc_alloc_lpid(void);
+void kvmppc_claim_lpid(long lpid);
+void kvmppc_free_lpid(long lpid);
+void kvmppc_init_lpid(unsigned long nr_lpids);
+
 #endif /* __POWERPC_KVM_PPC_H__ */

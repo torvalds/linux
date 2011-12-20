@@ -799,6 +799,40 @@ out:
 	return r;
 }
 
+static unsigned long lpid_inuse[BITS_TO_LONGS(KVMPPC_NR_LPIDS)];
+static unsigned long nr_lpids;
+
+long kvmppc_alloc_lpid(void)
+{
+	long lpid;
+
+	do {
+		lpid = find_first_zero_bit(lpid_inuse, KVMPPC_NR_LPIDS);
+		if (lpid >= nr_lpids) {
+			pr_err("%s: No LPIDs free\n", __func__);
+			return -ENOMEM;
+		}
+	} while (test_and_set_bit(lpid, lpid_inuse));
+
+	return lpid;
+}
+
+void kvmppc_claim_lpid(long lpid)
+{
+	set_bit(lpid, lpid_inuse);
+}
+
+void kvmppc_free_lpid(long lpid)
+{
+	clear_bit(lpid, lpid_inuse);
+}
+
+void kvmppc_init_lpid(unsigned long nr_lpids_param)
+{
+	nr_lpids = min_t(unsigned long, KVMPPC_NR_LPIDS, nr_lpids_param);
+	memset(lpid_inuse, 0, sizeof(lpid_inuse));
+}
+
 int kvm_arch_init(void *opaque)
 {
 	return 0;
