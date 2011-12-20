@@ -321,7 +321,7 @@ static struct dvb_frontend_ops ec100_ops = {
 	},
 
 	.release = ec100_release,
-	.set_frontend = ec100_set_frontend,
+	.set_frontend_legacy = ec100_set_frontend,
 	.get_tune_settings = ec100_get_tune_settings,
 	.read_status = ec100_read_status,
 	.read_ber = ec100_read_ber,

@@ -173,7 +173,7 @@ void fdtv_frontend_init(struct firedtv *fdtv, const char *name)
 	ops->init			= fdtv_dvb_init;
 	ops->sleep			= fdtv_sleep;
 
-	ops->set_frontend		= fdtv_set_frontend;
+	ops->set_frontend_legacy	= fdtv_set_frontend;
 	ops->get_frontend		= fdtv_get_frontend;
 
 	ops->get_property		= fdtv_get_property;

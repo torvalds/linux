@@ -939,7 +939,7 @@ static struct dvb_frontend_ops it913x_fe_ofdm_ops = {
 	.init = it913x_fe_init,
 	.sleep = it913x_fe_sleep,
 
-	.set_frontend = it913x_fe_set_frontend,
+	.set_frontend_legacy = it913x_fe_set_frontend,
 	.get_frontend = it913x_fe_get_frontend,
 
 	.read_status = it913x_fe_read_status,

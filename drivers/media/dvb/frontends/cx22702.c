@@ -622,7 +622,7 @@ static const struct dvb_frontend_ops cx22702_ops = {
 	.init = cx22702_init,
 	.i2c_gate_ctrl = cx22702_i2c_gate_ctrl,
 
-	.set_frontend = cx22702_set_tps,
+	.set_frontend_legacy = cx22702_set_tps,
 	.get_frontend = cx22702_get_frontend,
 	.get_tune_settings = cx22702_get_tune_settings,
 

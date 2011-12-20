@@ -729,7 +729,7 @@ static struct dvb_frontend_ops stv0299_ops = {
 	.write = stv0299_write,
 	.i2c_gate_ctrl = stv0299_i2c_gate_ctrl,
 
-	.set_frontend = stv0299_set_frontend,
+	.set_frontend_legacy = stv0299_set_frontend,
 	.get_frontend = stv0299_get_frontend,
 	.get_tune_settings = stv0299_get_tune_settings,
 

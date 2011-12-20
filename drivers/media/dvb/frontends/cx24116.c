@@ -1509,7 +1509,7 @@ static struct dvb_frontend_ops cx24116_ops = {
 
 	.set_property = cx24116_set_property,
 	.get_property = cx24116_get_property,
-	.set_frontend = cx24116_set_frontend,
+	.set_frontend_legacy = cx24116_set_frontend,
 };
 
 MODULE_DESCRIPTION("DVB Frontend module for Conexant cx24116/cx24118 hardware");

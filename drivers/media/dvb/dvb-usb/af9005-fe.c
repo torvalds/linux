@@ -1475,7 +1475,7 @@ static struct dvb_frontend_ops af9005_fe_ops = {
 	.sleep = af9005_fe_sleep,
 	.ts_bus_ctrl = af9005_ts_bus_ctrl,
 
-	.set_frontend = af9005_fe_set_frontend,
+	.set_frontend_legacy = af9005_fe_set_frontend,
 	.get_frontend = af9005_fe_get_frontend,
 
 	.read_status = af9005_fe_read_status,

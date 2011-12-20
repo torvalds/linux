@@ -839,7 +839,7 @@ static struct dvb_frontend_ops bcm3510_ops = {
 	.init = bcm3510_init,
 	.sleep = bcm3510_sleep,
 
-	.set_frontend = bcm3510_set_frontend,
+	.set_frontend_legacy = bcm3510_set_frontend,
 	.get_tune_settings = bcm3510_get_tune_settings,
 
 	.read_status = bcm3510_read_status,

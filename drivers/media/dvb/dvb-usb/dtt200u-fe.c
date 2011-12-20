@@ -193,7 +193,7 @@ static struct dvb_frontend_ops dtt200u_fe_ops = {
 	.init = dtt200u_fe_init,
 	.sleep = dtt200u_fe_sleep,
 
-	.set_frontend = dtt200u_fe_set_frontend,
+	.set_frontend_legacy = dtt200u_fe_set_frontend,
 	.get_frontend = dtt200u_fe_get_frontend,
 	.get_tune_settings = dtt200u_fe_get_tune_settings,
 

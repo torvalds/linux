@@ -352,7 +352,9 @@ static int dvb_frontend_swzigzag_autotune(struct dvb_frontend *fe, int check_wra
 	if (autoinversion)
 		fepriv->parameters_in.inversion = fepriv->inversion;
 	if (fe->ops.set_frontend)
-		fe_set_err = fe->ops.set_frontend(fe, &fepriv->parameters_in);
+		fe_set_err = fe->ops.set_frontend(fe);
+	else if (fe->ops.set_frontend_legacy)
+		fe_set_err = fe->ops.set_frontend_legacy(fe, &fepriv->parameters_in);
 	fepriv->parameters_out = fepriv->parameters_in;
 	if (fe_set_err < 0) {
 		fepriv->state = FESTATE_ERROR;
@@ -383,7 +385,9 @@ static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
 	if (fepriv->tune_mode_flags & FE_TUNE_MODE_ONESHOT) {
 		if (fepriv->state & FESTATE_RETUNE) {
 			if (fe->ops.set_frontend)
-				retval = fe->ops.set_frontend(fe,
+				retval = fe->ops.set_frontend(fe);
+			else if (fe->ops.set_frontend_legacy)
+				retval = fe->ops.set_frontend_legacy(fe,
 							&fepriv->parameters_in);
 			fepriv->parameters_out = fepriv->parameters_in;
 			if (retval < 0)

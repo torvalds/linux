@@ -524,7 +524,7 @@ static struct dvb_frontend_ops tda10021_ops = {
 	.sleep = tda10021_sleep,
 	.i2c_gate_ctrl = tda10021_i2c_gate_ctrl,
 
-	.set_frontend = tda10021_set_parameters,
+	.set_frontend_legacy = tda10021_set_parameters,
 	.get_frontend = tda10021_get_frontend,
 	.get_property = tda10021_get_property,
 

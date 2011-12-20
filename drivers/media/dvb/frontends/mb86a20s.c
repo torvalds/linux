@@ -627,7 +627,7 @@ static struct dvb_frontend_ops mb86a20s_ops = {
 	.release = mb86a20s_release,
 
 	.init = mb86a20s_initfe,
-	.set_frontend = mb86a20s_set_frontend,
+	.set_frontend_legacy = mb86a20s_set_frontend,
 	.get_frontend = mb86a20s_get_frontend,
 	.read_status = mb86a20s_read_status,
 	.read_signal_strength = mb86a20s_read_signal_strength,

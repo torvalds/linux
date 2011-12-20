@@ -1314,7 +1314,7 @@ static struct dvb_frontend_ops ds3000_ops = {
 
 	.set_property = ds3000_set_property,
 	.get_property = ds3000_get_property,
-	.set_frontend = ds3000_set_frontend,
+	.set_frontend_legacy = ds3000_set_frontend,
 	.tune = ds3000_tune,
 };
 

@@ -675,7 +675,7 @@ static struct dvb_frontend_ops zl10353_ops = {
 	.i2c_gate_ctrl = zl10353_i2c_gate_ctrl,
 	.write = zl10353_write,
 
-	.set_frontend = zl10353_set_parameters,
+	.set_frontend_legacy = zl10353_set_parameters,
 	.get_frontend = zl10353_get_parameters,
 	.get_tune_settings = zl10353_get_tune_settings,
 

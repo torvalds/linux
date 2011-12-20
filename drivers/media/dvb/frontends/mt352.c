@@ -592,7 +592,7 @@ static struct dvb_frontend_ops mt352_ops = {
 	.sleep = mt352_sleep,
 	.write = _mt352_write,
 
-	.set_frontend = mt352_set_parameters,
+	.set_frontend_legacy = mt352_set_parameters,
 	.get_frontend = mt352_get_parameters,
 	.get_tune_settings = mt352_get_tune_settings,
 

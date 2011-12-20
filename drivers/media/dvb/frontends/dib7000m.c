@@ -1451,7 +1451,7 @@ static struct dvb_frontend_ops dib7000m_ops = {
 	.init                 = dib7000m_wakeup,
 	.sleep                = dib7000m_sleep,
 
-	.set_frontend         = dib7000m_set_frontend,
+	.set_frontend_legacy         = dib7000m_set_frontend,
 	.get_tune_settings    = dib7000m_fe_get_tune_settings,
 	.get_frontend         = dib7000m_get_frontend,
 

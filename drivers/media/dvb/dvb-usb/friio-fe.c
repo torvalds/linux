@@ -466,7 +466,7 @@ static struct dvb_frontend_ops jdvbt90502_ops = {
 
 	.set_property = jdvbt90502_set_property,
 
-	.set_frontend = jdvbt90502_set_frontend,
+	.set_frontend_legacy = jdvbt90502_set_frontend,
 	.get_frontend = jdvbt90502_get_frontend,
 
 	.read_status = jdvbt90502_read_status,

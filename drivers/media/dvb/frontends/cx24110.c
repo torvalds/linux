@@ -643,7 +643,7 @@ static struct dvb_frontend_ops cx24110_ops = {
 
 	.init = cx24110_initfe,
 	.write = _cx24110_pll_write,
-	.set_frontend = cx24110_set_frontend,
+	.set_frontend_legacy = cx24110_set_frontend,
 	.get_frontend = cx24110_get_frontend,
 	.read_status = cx24110_read_status,
 	.read_ber = cx24110_read_ber,

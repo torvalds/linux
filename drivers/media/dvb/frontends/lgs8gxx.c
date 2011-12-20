@@ -1013,7 +1013,7 @@ static struct dvb_frontend_ops lgs8gxx_ops = {
 	.write = lgs8gxx_write,
 	.i2c_gate_ctrl = lgs8gxx_i2c_gate_ctrl,
 
-	.set_frontend = lgs8gxx_set_fe,
+	.set_frontend_legacy = lgs8gxx_set_fe,
 	.get_frontend = lgs8gxx_get_fe,
 	.get_tune_settings = lgs8gxx_get_tune_settings,
 

@@ -396,7 +396,7 @@ static struct dvb_frontend_ops s5h1432_ops = {
 
 	.init = s5h1432_init,
 	.sleep = s5h1432_sleep,
-	.set_frontend = s5h1432_set_frontend,
+	.set_frontend_legacy = s5h1432_set_frontend,
 	.get_frontend = s5h1432_get_frontend,
 	.get_tune_settings = s5h1432_get_tune_settings,
 	.read_status = s5h1432_read_status,

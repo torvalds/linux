@@ -598,7 +598,7 @@ static struct dvb_frontend_ops sp887x_ops = {
 	.sleep = sp887x_sleep,
 	.i2c_gate_ctrl = sp887x_i2c_gate_ctrl,
 
-	.set_frontend = sp887x_setup_frontend_parameters,
+	.set_frontend_legacy = sp887x_setup_frontend_parameters,
 	.get_tune_settings = sp887x_get_tune_settings,
 
 	.read_status = sp887x_read_status,

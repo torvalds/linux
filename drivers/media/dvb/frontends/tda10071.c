@@ -1247,7 +1247,7 @@ static struct dvb_frontend_ops tda10071_ops = {
 	.init = tda10071_init,
 	.sleep = tda10071_sleep,
 
-	.set_frontend = tda10071_set_frontend,
+	.set_frontend_legacy = tda10071_set_frontend,
 	.get_frontend = tda10071_get_frontend,
 
 	.read_status = tda10071_read_status,

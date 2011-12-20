@@ -340,7 +340,7 @@ static struct dvb_frontend_ops cinergyt2_fe_ops = {
 	.init			= cinergyt2_fe_init,
 	.sleep			= cinergyt2_fe_sleep,
 
-	.set_frontend		= cinergyt2_fe_set_frontend,
+	.set_frontend_legacy		= cinergyt2_fe_set_frontend,
 	.get_frontend		= cinergyt2_fe_get_frontend,
 	.get_tune_settings	= cinergyt2_fe_get_tune_settings,
 

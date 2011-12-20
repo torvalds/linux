@@ -782,7 +782,7 @@ static struct dvb_frontend_ops lgdt3302_ops = {
 		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB
 	},
 	.init                 = lgdt330x_init,
-	.set_frontend         = lgdt330x_set_parameters,
+	.set_frontend_legacy         = lgdt330x_set_parameters,
 	.get_frontend         = lgdt330x_get_frontend,
 	.get_tune_settings    = lgdt330x_get_tune_settings,
 	.read_status          = lgdt3302_read_status,
@@ -805,7 +805,7 @@ static struct dvb_frontend_ops lgdt3303_ops = {
 		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB
 	},
 	.init                 = lgdt330x_init,
-	.set_frontend         = lgdt330x_set_parameters,
+	.set_frontend_legacy         = lgdt330x_set_parameters,
 	.get_frontend         = lgdt330x_get_frontend,
 	.get_tune_settings    = lgdt330x_get_tune_settings,
 	.read_status          = lgdt3303_read_status,

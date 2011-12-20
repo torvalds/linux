@@ -592,7 +592,7 @@ static struct dvb_frontend_ops nxt6000_ops = {
 
 	.get_tune_settings = nxt6000_fe_get_tune_settings,
 
-	.set_frontend = nxt6000_set_frontend,
+	.set_frontend_legacy = nxt6000_set_frontend,
 
 	.read_status = nxt6000_read_status,
 	.read_ber = nxt6000_read_ber,

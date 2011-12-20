@@ -1008,7 +1008,7 @@ static struct dvb_frontend_ops s5h1409_ops = {
 
 	.init                 = s5h1409_init,
 	.i2c_gate_ctrl        = s5h1409_i2c_gate_ctrl,
-	.set_frontend         = s5h1409_set_frontend,
+	.set_frontend_legacy         = s5h1409_set_frontend,
 	.get_frontend         = s5h1409_get_frontend,
 	.get_tune_settings    = s5h1409_get_tune_settings,
 	.read_status          = s5h1409_read_status,

@@ -2513,7 +2513,7 @@ static struct dvb_frontend_ops dib9000_ops = {
 	.init = dib9000_wakeup,
 	.sleep = dib9000_sleep,
 
-	.set_frontend = dib9000_set_frontend,
+	.set_frontend_legacy = dib9000_set_frontend,
 	.get_tune_settings = dib9000_fe_get_tune_settings,
 	.get_frontend = dib9000_get_frontend,
 

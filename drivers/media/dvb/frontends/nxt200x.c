@@ -1220,7 +1220,7 @@ static struct dvb_frontend_ops nxt200x_ops = {
 	.init = nxt200x_init,
 	.sleep = nxt200x_sleep,
 
-	.set_frontend = nxt200x_setup_frontend_parameters,
+	.set_frontend_legacy = nxt200x_setup_frontend_parameters,
 	.get_tune_settings = nxt200x_get_tune_settings,
 
 	.read_status = nxt200x_read_status,

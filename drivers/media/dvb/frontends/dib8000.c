@@ -3479,7 +3479,7 @@ static const struct dvb_frontend_ops dib8000_ops = {
 	.init = dib8000_wakeup,
 	.sleep = dib8000_sleep,
 
-	.set_frontend = dib8000_set_frontend,
+	.set_frontend_legacy = dib8000_set_frontend,
 	.get_tune_settings = dib8000_fe_get_tune_settings,
 	.get_frontend = dib8000_get_frontend,
 

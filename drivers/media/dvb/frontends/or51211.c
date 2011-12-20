@@ -561,7 +561,7 @@ static struct dvb_frontend_ops or51211_ops = {
 	.init = or51211_init,
 	.sleep = or51211_sleep,
 
-	.set_frontend = or51211_set_parameters,
+	.set_frontend_legacy = or51211_set_parameters,
 	.get_tune_settings = or51211_get_tune_settings,
 
 	.read_status = or51211_read_status,

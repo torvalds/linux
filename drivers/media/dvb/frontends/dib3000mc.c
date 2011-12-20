@@ -918,7 +918,7 @@ static struct dvb_frontend_ops dib3000mc_ops = {
 	.init                 = dib3000mc_init,
 	.sleep                = dib3000mc_sleep,
 
-	.set_frontend         = dib3000mc_set_frontend,
+	.set_frontend_legacy         = dib3000mc_set_frontend,
 	.get_tune_settings    = dib3000mc_fe_get_tune_settings,
 	.get_frontend         = dib3000mc_get_frontend,
 

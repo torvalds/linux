@@ -257,7 +257,7 @@ static struct dvb_frontend_ops ttusbdecfe_dvbt_ops = {
 
 	.release = ttusbdecfe_release,
 
-	.set_frontend = ttusbdecfe_dvbt_set_frontend,
+	.set_frontend_legacy = ttusbdecfe_dvbt_set_frontend,
 
 	.get_tune_settings = ttusbdecfe_dvbt_get_tune_settings,
 
@@ -281,7 +281,7 @@ static struct dvb_frontend_ops ttusbdecfe_dvbs_ops = {
 
 	.release = ttusbdecfe_release,
 
-	.set_frontend = ttusbdecfe_dvbs_set_frontend,
+	.set_frontend_legacy = ttusbdecfe_dvbs_set_frontend,
 
 	.read_status = ttusbdecfe_dvbs_read_status,
 

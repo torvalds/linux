@@ -600,7 +600,7 @@ static struct dvb_frontend_ops sp8870_ops = {
 	.sleep = sp8870_sleep,
 	.i2c_gate_ctrl = sp8870_i2c_gate_ctrl,
 
-	.set_frontend = sp8870_set_frontend,
+	.set_frontend_legacy = sp8870_set_frontend,
 	.get_tune_settings = sp8870_get_tune_settings,
 
 	.read_status = sp8870_read_status,

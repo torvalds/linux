@@ -570,7 +570,7 @@ static struct dvb_frontend_ops mxl111sf_demod_ops = {
 	.init                 = mxl111sf_init,
 	.i2c_gate_ctrl        = mxl111sf_i2c_gate_ctrl,
 #endif
-	.set_frontend         = mxl111sf_demod_set_frontend,
+	.set_frontend_legacy         = mxl111sf_demod_set_frontend,
 	.get_frontend         = mxl111sf_demod_get_frontend,
 	.get_tune_settings    = mxl111sf_demod_get_tune_settings,
 	.read_status          = mxl111sf_demod_read_status,

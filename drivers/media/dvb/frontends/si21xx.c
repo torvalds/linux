@@ -910,7 +910,7 @@ static struct dvb_frontend_ops si21xx_ops = {
 
 	.set_property = si21xx_set_property,
 	.get_property = si21xx_get_property,
-	.set_frontend = si21xx_set_frontend,
+	.set_frontend_legacy = si21xx_set_frontend,
 };
 
 struct dvb_frontend *si21xx_attach(const struct si21xx_config *config,

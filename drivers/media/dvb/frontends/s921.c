@@ -534,7 +534,7 @@ static struct dvb_frontend_ops s921_ops = {
 	.release = s921_release,
 
 	.init = s921_initfe,
-	.set_frontend = s921_set_frontend,
+	.set_frontend_legacy = s921_set_frontend,
 	.get_frontend = s921_get_frontend,
 	.read_status = s921_read_status,
 	.read_signal_strength = s921_read_signal_strength,

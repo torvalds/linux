@@ -579,7 +579,7 @@ static struct dvb_frontend_ops stv0288_ops = {
 
 	.set_property = stv0288_set_property,
 	.get_property = stv0288_get_property,
-	.set_frontend = stv0288_set_frontend,
+	.set_frontend_legacy = stv0288_set_frontend,
 };
 
 struct dvb_frontend *stv0288_attach(const struct stv0288_config *config,

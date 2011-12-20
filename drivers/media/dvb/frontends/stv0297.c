@@ -706,7 +706,7 @@ static struct dvb_frontend_ops stv0297_ops = {
 	.sleep = stv0297_sleep,
 	.i2c_gate_ctrl = stv0297_i2c_gate_ctrl,
 
-	.set_frontend = stv0297_set_frontend,
+	.set_frontend_legacy = stv0297_set_frontend,
 	.get_frontend = stv0297_get_frontend,
 
 	.read_status = stv0297_read_status,

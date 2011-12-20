@@ -1512,7 +1512,7 @@ static struct dvb_frontend_ops af9013_ops = {
 	.sleep = af9013_sleep,
 
 	.get_tune_settings = af9013_get_tune_settings,
-	.set_frontend = af9013_set_frontend,
+	.set_frontend_legacy = af9013_set_frontend,
 	.get_frontend = af9013_get_frontend,
 
 	.read_status = af9013_read_status,

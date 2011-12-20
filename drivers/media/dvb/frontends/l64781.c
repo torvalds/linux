@@ -584,7 +584,7 @@ static struct dvb_frontend_ops l64781_ops = {
 	.init = l64781_init,
 	.sleep = l64781_sleep,
 
-	.set_frontend = apply_frontend_param,
+	.set_frontend_legacy = apply_frontend_param,
 	.get_frontend = get_frontend,
 	.get_tune_settings = l64781_get_tune_settings,
 

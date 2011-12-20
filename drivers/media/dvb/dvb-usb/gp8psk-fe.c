@@ -368,7 +368,7 @@ static struct dvb_frontend_ops gp8psk_fe_ops = {
 
 	.set_property = gp8psk_fe_set_property,
 	.get_property = gp8psk_fe_get_property,
-	.set_frontend = gp8psk_fe_set_frontend,
+	.set_frontend_legacy = gp8psk_fe_set_frontend,
 
 	.get_tune_settings = gp8psk_fe_get_tune_settings,
 
