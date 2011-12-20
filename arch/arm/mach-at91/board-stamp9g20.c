@@ -123,8 +123,8 @@ static void __init add_device_nand(void)
 static struct mci_platform_data __initdata mmc_data = {
 	.slot[0] = {
 		.bus_width	= 4,
-		.detect_pin	= -1;
-		.wp_pin		= -1;
+		.detect_pin	= -1,
+		.wp_pin		= -1,
 	},
 };
 #else
