@@ -1333,9 +1333,6 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		goto done;
 	}
 
-	xhci_dbg(xhci, "Cancel URB %p\n", urb);
-	xhci_dbg(xhci, "Event ring:\n");
-	xhci_debug_ring(xhci, xhci->event_ring);
 	ep_index = xhci_get_endpoint_index(&urb->ep->desc);
 	ep = &xhci->devs[urb->dev->slot_id]->eps[ep_index];
 	ep_ring = xhci_urb_to_transfer_ring(xhci, urb);
@@ -1344,12 +1341,18 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		goto done;
 	}
 
-	xhci_dbg(xhci, "Endpoint ring:\n");
-	xhci_debug_ring(xhci, ep_ring);
-
 	urb_priv = urb->hcpriv;
+	i = urb_priv->td_cnt;
+	if (i < urb_priv->length)
+		xhci_dbg(xhci, "Cancel URB %p, dev %s, ep 0x%x, "
+				"starting at offset 0x%llx\n",
+				urb, urb->dev->devpath,
+				urb->ep->desc.bEndpointAddress,
+				(unsigned long long) xhci_trb_virt_to_dma(
+					urb_priv->td[i]->start_seg,
+					urb_priv->td[i]->first_trb));
 
-	for (i = urb_priv->td_cnt; i < urb_priv->length; i++) {
+	for (; i < urb_priv->length; i++) {
 		td = urb_priv->td[i];
 		list_add_tail(&td->cancelled_td_list, &ep->cancelled_td_list);
 	}

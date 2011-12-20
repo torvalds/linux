@@ -552,12 +552,9 @@ static void td_to_noop(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 					cpu_to_le32(TRB_CYCLE);
 			cur_trb->generic.field[3] |= cpu_to_le32(
 				TRB_TYPE(TRB_TR_NOOP));
-			xhci_dbg(xhci, "Cancel TRB %p (0x%llx dma) "
-					"in seg %p (0x%llx dma)\n",
-					cur_trb,
-					(unsigned long long)xhci_trb_virt_to_dma(cur_seg, cur_trb),
-					cur_seg,
-					(unsigned long long)cur_seg->dma);
+			xhci_dbg(xhci, "TRB to noop at offset 0x%llx\n",
+					(unsigned long long)
+					xhci_trb_virt_to_dma(cur_seg, cur_trb));
 		}
 		if (cur_trb == cur_td->last_trb)
 			break;
@@ -697,9 +694,9 @@ static void handle_stopped_endpoint(struct xhci_hcd *xhci,
 	 */
 	list_for_each(entry, &ep->cancelled_td_list) {
 		cur_td = list_entry(entry, struct xhci_td, cancelled_td_list);
-		xhci_dbg(xhci, "Cancelling TD starting at %p, 0x%llx (dma).\n",
-				cur_td->first_trb,
-				(unsigned long long)xhci_trb_virt_to_dma(cur_td->start_seg, cur_td->first_trb));
+		xhci_dbg(xhci, "Removing canceled TD starting at 0x%llx (dma).\n",
+				(unsigned long long)xhci_trb_virt_to_dma(
+					cur_td->start_seg, cur_td->first_trb));
 		ep_ring = xhci_urb_to_transfer_ring(xhci, cur_td->urb);
 		if (!ep_ring) {
 			/* This shouldn't happen unless a driver is mucking
