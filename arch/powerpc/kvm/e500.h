@@ -12,8 +12,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef __KVM_E500_TLB_H__
-#define __KVM_E500_TLB_H__
+#ifndef KVM_E500_H
+#define KVM_E500_H
 
 #include <linux/kvm_host.h>
 #include <asm/mmu-book3e.h>
@@ -171,4 +171,4 @@ static inline int tlbe_is_host_safe(const struct kvm_vcpu *vcpu,
 	return 1;
 }
 
-#endif /* __KVM_E500_TLB_H__ */
+#endif /* KVM_E500_H */

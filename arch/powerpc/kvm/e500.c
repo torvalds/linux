@@ -24,7 +24,7 @@
 #include <asm/kvm_ppc.h>
 
 #include "booke.h"
-#include "e500_tlb.h"
+#include "e500.h"
 
 void kvmppc_core_load_host_debugstate(struct kvm_vcpu *vcpu)
 {

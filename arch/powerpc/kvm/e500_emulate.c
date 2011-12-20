@@ -17,7 +17,7 @@
 #include <asm/kvm_e500.h>
 
 #include "booke.h"
-#include "e500_tlb.h"
+#include "e500.h"
 
 #define XOP_TLBIVAX 786
 #define XOP_TLBSX   914
