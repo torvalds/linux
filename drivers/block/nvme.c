@@ -257,9 +257,9 @@ static void *cancel_cmdid(struct nvme_queue *nvmeq, int cmdid,
 	return ctx;
 }
 
-static struct nvme_queue *get_nvmeq(struct nvme_ns *ns)
+static struct nvme_queue *get_nvmeq(struct nvme_dev *dev)
 {
-	return ns->dev->queues[get_cpu() + 1];
+	return dev->queues[get_cpu() + 1];
 }
 
 static void put_nvmeq(struct nvme_queue *nvmeq)
@@ -606,7 +606,7 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 static int nvme_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct nvme_ns *ns = q->queuedata;
-	struct nvme_queue *nvmeq = get_nvmeq(ns);
+	struct nvme_queue *nvmeq = get_nvmeq(ns->dev);
 	int result = -EBUSY;
 
 	spin_lock_irq(&nvmeq->q_lock);
@@ -1103,7 +1103,7 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	/* XXX: metadata */
 	prps = nvme_setup_prps(dev, &c.common, sg, &length, GFP_KERNEL);
 
-	nvmeq = get_nvmeq(ns);
+	nvmeq = get_nvmeq(dev);
 	/*
 	 * Since nvme_submit_sync_cmd sleeps, we can't keep preemption
 	 * disabled.  We may be preempted at any point, and be rescheduled
