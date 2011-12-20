@@ -120,7 +120,6 @@
 
 #define MMC_AUTOSUSPEND_DELAY	100
 #define MMC_TIMEOUT_MS		20
-#define OMAP_MMC_MASTER_CLOCK	96000000
 #define OMAP_MMC_MIN_CLOCK	400000
 #define OMAP_MMC_MAX_CLOCK	52000000
 #define DRIVER_NAME		"omap_hsmmc"
@@ -598,12 +597,12 @@ static void omap_hsmmc_disable_irq(struct omap_hsmmc_host *host)
 }
 
 /* Calculate divisor for the given clock frequency */
-static u16 calc_divisor(struct mmc_ios *ios)
+static u16 calc_divisor(struct omap_hsmmc_host *host, struct mmc_ios *ios)
 {
 	u16 dsor = 0;
 
 	if (ios->clock) {
-		dsor = DIV_ROUND_UP(OMAP_MMC_MASTER_CLOCK, ios->clock);
+		dsor = DIV_ROUND_UP(clk_get_rate(host->fclk), ios->clock);
 		if (dsor > 250)
 			dsor = 250;
 	}
@@ -623,7 +622,7 @@ static void omap_hsmmc_set_clock(struct omap_hsmmc_host *host)
 
 	regval = OMAP_HSMMC_READ(host->base, SYSCTL);
 	regval = regval & ~(CLKD_MASK | DTO_MASK);
-	regval = regval | (calc_divisor(ios) << 6) | (DTO << 16);
+	regval = regval | (calc_divisor(host, ios) << 6) | (DTO << 16);
 	OMAP_HSMMC_WRITE(host->base, SYSCTL, regval);
 	OMAP_HSMMC_WRITE(host->base, SYSCTL,
 		OMAP_HSMMC_READ(host->base, SYSCTL) | ICE);
