@@ -1019,6 +1019,11 @@ static int dwc_otg_pcd_pullup(struct usb_gadget *_gadget, int is_on)
 	}
 	if(is_on)   //connect
 	{
+#ifdef CONFIG_DWC_CONN_EN
+        pcd->conn_en = 1;
+#else
+        pcd->conn_en = 0;
+#endif
         dctl.d32 = dwc_read_reg32( &core_if->dev_if->dev_global_regs->dctl );
         dctl.b.sftdiscon = 0;
         dwc_write_reg32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
@@ -1832,11 +1837,7 @@ int dwc_otg_pcd_init(struct device *dev)
 	pcd->gadget.is_dualspeed = 0;
 	pcd->gadget.is_otg = 0;
 	pcd->driver = 0;
-#ifdef CONFIG_DWC_CONN_EN
-    pcd->conn_en = 1;
-#else
     pcd->conn_en = 0;
-#endif
 	/* Register the gadget device */
 	retval = device_register( &pcd->gadget.dev );
 	if(retval != 0)
