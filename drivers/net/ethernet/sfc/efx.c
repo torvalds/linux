@@ -1146,9 +1146,7 @@ static void efx_fini_io(struct efx_nic *efx)
 	pci_disable_device(efx->pci_dev);
 }
 
-/* Get number of channels wanted.  Each channel will have its own IRQ,
- * 1 RX queue and/or 2 TX queues. */
-static int efx_wanted_channels(void)
+static int efx_wanted_parallelism(void)
 {
 	cpumask_var_t core_mask;
 	int count;
@@ -1211,7 +1209,7 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 		struct msix_entry xentries[EFX_MAX_CHANNELS];
 		int n_channels;
 
-		n_channels = efx_wanted_channels();
+		n_channels = efx_wanted_parallelism();
 		if (separate_tx_channels)
 			n_channels *= 2;
 		n_channels = min(n_channels, max_channels);
