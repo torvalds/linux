@@ -457,6 +457,11 @@ void kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
 int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 {
 	int ret;
+#ifdef CONFIG_PPC_FPU
+	unsigned int fpscr;
+	int fpexc_mode;
+	u64 fpr[32];
+#endif
 
 	if (!vcpu->arch.sane) {
 		kvm_run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
@@ -479,7 +484,46 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	}
 
 	kvm_guest_enter();
+
+#ifdef CONFIG_PPC_FPU
+	/* Save userspace FPU state in stack */
+	enable_kernel_fp();
+	memcpy(fpr, current->thread.fpr, sizeof(current->thread.fpr));
+	fpscr = current->thread.fpscr.val;
+	fpexc_mode = current->thread.fpexc_mode;
+
+	/* Restore guest FPU state to thread */
+	memcpy(current->thread.fpr, vcpu->arch.fpr, sizeof(vcpu->arch.fpr));
+	current->thread.fpscr.val = vcpu->arch.fpscr;
+
+	/*
+	 * Since we can't trap on MSR_FP in GS-mode, we consider the guest
+	 * as always using the FPU.  Kernel usage of FP (via
+	 * enable_kernel_fp()) in this thread must not occur while
+	 * vcpu->fpu_active is set.
+	 */
+	vcpu->fpu_active = 1;
+
+	kvmppc_load_guest_fp(vcpu);
+#endif
+
 	ret = __kvmppc_vcpu_run(kvm_run, vcpu);
+
+#ifdef CONFIG_PPC_FPU
+	kvmppc_save_guest_fp(vcpu);
+
+	vcpu->fpu_active = 0;
+
+	/* Save guest FPU state from thread */
+	memcpy(vcpu->arch.fpr, current->thread.fpr, sizeof(vcpu->arch.fpr));
+	vcpu->arch.fpscr = current->thread.fpscr.val;
+
+	/* Restore userspace FPU state from stack */
+	memcpy(current->thread.fpr, fpr, sizeof(current->thread.fpr));
+	current->thread.fpscr.val = fpscr;
+	current->thread.fpexc_mode = fpexc_mode;
+#endif
+
 	kvm_guest_exit();
 
 out:
