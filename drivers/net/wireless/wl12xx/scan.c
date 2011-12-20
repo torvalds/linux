@@ -754,7 +754,6 @@ void wl1271_scan_sched_scan_stop(struct wl1271 *wl)
 		wl1271_error("failed to send sched scan stop command");
 		goto out_free;
 	}
-	wl->sched_scanning = false;
 
 out_free:
 	kfree(stop);
