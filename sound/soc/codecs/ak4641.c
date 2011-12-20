@@ -602,7 +602,8 @@ static int __devinit ak4641_i2c_probe(struct i2c_client *i2c,
 	struct ak4641_priv *ak4641;
 	int ret;
 
-	ak4641 = kzalloc(sizeof(struct ak4641_priv), GFP_KERNEL);
+	ak4641 = devm_kzalloc(&i2c->dev, sizeof(struct ak4641_priv),
+			      GFP_KERNEL);
 	if (!ak4641)
 		return -ENOMEM;
 
@@ -610,16 +611,12 @@ static int __devinit ak4641_i2c_probe(struct i2c_client *i2c,
 
 	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_ak4641,
 				ak4641_dai, ARRAY_SIZE(ak4641_dai));
-	if (ret < 0)
-		kfree(ak4641);
-
 	return ret;
 }
 
 static int __devexit ak4641_i2c_remove(struct i2c_client *i2c)
 {
 	snd_soc_unregister_codec(&i2c->dev);
-	kfree(i2c_get_clientdata(i2c));
 	return 0;
 }
 
