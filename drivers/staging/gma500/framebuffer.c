@@ -511,7 +511,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 		info->apertures->ranges[0].size = dev_priv->gtt.stolen_size;
 	}
 
-	drm_fb_helper_fill_fix(info, fb->pitch, fb->depth);
+	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
 	drm_fb_helper_fill_var(info, &fbdev->psb_fb_helper,
 				sizes->fb_width, sizes->fb_height);
 
