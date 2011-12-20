@@ -217,7 +217,7 @@ changing pin configuration in the pin controller ops like this:
 #include <linux/pinctrl/pinconf.h>
 #include "platform_x_pindefs.h"
 
-int foo_pin_config_get(struct pinctrl_dev *pctldev,
+static int foo_pin_config_get(struct pinctrl_dev *pctldev,
 		    unsigned offset,
 		    unsigned long *config)
 {
@@ -228,7 +228,7 @@ int foo_pin_config_get(struct pinctrl_dev *pctldev,
 	*config = (unsigned long) conf;
 }
 
-int foo_pin_config_set(struct pinctrl_dev *pctldev,
+static int foo_pin_config_set(struct pinctrl_dev *pctldev,
 		    unsigned offset,
 		    unsigned long config)
 {
@@ -241,14 +241,14 @@ int foo_pin_config_set(struct pinctrl_dev *pctldev,
 	}
 }
 
-int foo_pin_config_group_get (struct pinctrl_dev *pctldev,
+static int foo_pin_config_group_get (struct pinctrl_dev *pctldev,
 		    unsigned selector,
 		    unsigned long *config)
 {
 	...
 }
 
-int foo_pin_config_group_set (struct pinctrl_dev *pctldev,
+static int foo_pin_config_group_set (struct pinctrl_dev *pctldev,
 		    unsigned selector,
 		    unsigned long config)
 {
@@ -819,7 +819,7 @@ it even more compact which assumes you want to use pinctrl-foo and position
 0 for mapping, for example:
 
 static struct pinmux_map __initdata pmx_mapping[] = {
-       PINMUX_MAP_PRIMARY("I2CMAP", "i2c0", "foo-i2c.0"),
+       PINMUX_MAP("I2CMAP", "pinctrl-foo", "i2c0", "foo-i2c.0"),
 };
 
 

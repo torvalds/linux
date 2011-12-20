@@ -342,7 +342,7 @@ EXPORT_SYMBOL_GPL(pinmux_gpio_direction_output);
  * Only call this once during initialization of your machine, the function is
  * tagged as __init and won't be callable after init has completed. The map
  * passed into this function will be owned by the pinmux core and cannot be
- * free:d.
+ * freed.
  */
 int __init pinmux_register_mappings(struct pinmux_map const *maps,
 				    unsigned num_maps)
