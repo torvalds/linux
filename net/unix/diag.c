@@ -3,6 +3,7 @@
 #include <linux/sock_diag.h>
 #include <linux/unix_diag.h>
 #include <linux/skbuff.h>
+#include <linux/module.h>
 #include <net/netlink.h>
 #include <net/af_unix.h>
 #include <net/tcp_states.h>
