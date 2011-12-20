@@ -111,10 +111,12 @@ struct nci_dev {
 	__u16			max_routing_table_size;
 	__u8			max_ctrl_pkt_payload_len;
 	__u16			max_size_for_large_params;
-	__u8			max_data_pkt_payload_size;
-	__u8			initial_num_credits;
 	__u8			manufact_id;
 	__u32			manufact_specific_info;
+
+	/* received during NCI_OP_RF_INTF_ACTIVATED_NTF */
+	__u8			max_data_pkt_payload_size;
+	__u8			initial_num_credits;
 
 	/* stored during nci_data_exchange */
 	data_exchange_cb_t	data_exchange_cb;
