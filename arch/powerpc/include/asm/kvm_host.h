@@ -426,6 +426,8 @@ struct kvm_vcpu_arch {
 	ulong fault_esr;
 	ulong queued_dear;
 	ulong queued_esr;
+	u32 tlbcfg[4];
+	u32 mmucfg;
 #endif
 	gpa_t paddr_accessed;
 

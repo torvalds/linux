@@ -174,9 +174,9 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 		kvmppc_set_gpr(vcpu, rt, val);
 		break;
 	case SPRN_TLB0CFG:
-		kvmppc_set_gpr(vcpu, rt, vcpu_e500->tlb0cfg); break;
+		kvmppc_set_gpr(vcpu, rt, vcpu->arch.tlbcfg[0]); break;
 	case SPRN_TLB1CFG:
-		kvmppc_set_gpr(vcpu, rt, vcpu_e500->tlb1cfg); break;
+		kvmppc_set_gpr(vcpu, rt, vcpu->arch.tlbcfg[1]); break;
 	case SPRN_L1CSR0:
 		kvmppc_set_gpr(vcpu, rt, vcpu_e500->l1csr0); break;
 	case SPRN_L1CSR1:
@@ -192,7 +192,7 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 		kvmppc_set_gpr(vcpu, rt, 0); break;
 
 	case SPRN_MMUCFG:
-		kvmppc_set_gpr(vcpu, rt, mfspr(SPRN_MMUCFG)); break;
+		kvmppc_set_gpr(vcpu, rt, vcpu->arch.mmucfg); break;
 
 	/* extra exceptions */
 	case SPRN_IVOR32:

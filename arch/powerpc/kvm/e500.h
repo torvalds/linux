@@ -35,7 +35,9 @@ struct tlbe_priv {
 	struct tlbe_ref ref; /* TLB0 only -- TLB1 uses tlb_refs */
 };
 
+#ifdef CONFIG_KVM_E500
 struct vcpu_id_table;
+#endif
 
 struct kvmppc_e500_tlb_params {
 	int entries, ways, sets;
@@ -70,23 +72,22 @@ struct kvmppc_vcpu_e500 {
 	struct tlbe_ref *tlb_refs[E500_TLB_NUM];
 	unsigned int host_tlb1_nv;
 
-	u32 host_pid[E500_PID_NUM];
-	u32 pid[E500_PID_NUM];
 	u32 svr;
-
-	/* vcpu id table */
-	struct vcpu_id_table *idt;
-
 	u32 l1csr0;
 	u32 l1csr1;
 	u32 hid0;
 	u32 hid1;
-	u32 tlb0cfg;
-	u32 tlb1cfg;
 	u64 mcar;
 
 	struct page **shared_tlb_pages;
 	int num_shared_tlb_pages;
+
+#ifdef CONFIG_KVM_E500
+	u32 pid[E500_PID_NUM];
+
+	/* vcpu id table */
+	struct vcpu_id_table *idt;
+#endif
 };
 
 static inline struct kvmppc_vcpu_e500 *to_e500(struct kvm_vcpu *vcpu)
@@ -113,22 +114,24 @@ static inline struct kvmppc_vcpu_e500 *to_e500(struct kvm_vcpu *vcpu)
 	  (MAS3_U0 | MAS3_U1 | MAS3_U2 | MAS3_U3 \
 	   | E500_TLB_USER_PERM_MASK | E500_TLB_SUPER_PERM_MASK)
 
-extern void kvmppc_e500_tlb_put(struct kvm_vcpu *);
-extern void kvmppc_e500_tlb_load(struct kvm_vcpu *, int);
-extern void kvmppc_e500_tlb_setup(struct kvmppc_vcpu_e500 *);
-extern void kvmppc_e500_recalc_shadow_pid(struct kvmppc_vcpu_e500 *);
 int kvmppc_e500_emul_mt_mmucsr0(struct kvmppc_vcpu_e500 *vcpu_e500,
 				ulong value);
 int kvmppc_e500_emul_tlbwe(struct kvm_vcpu *vcpu);
 int kvmppc_e500_emul_tlbre(struct kvm_vcpu *vcpu);
 int kvmppc_e500_emul_tlbivax(struct kvm_vcpu *vcpu, int ra, int rb);
 int kvmppc_e500_emul_tlbsx(struct kvm_vcpu *vcpu, int rb);
-int kvmppc_e500_tlb_search(struct kvm_vcpu *, gva_t, unsigned int, int);
 int kvmppc_e500_tlb_init(struct kvmppc_vcpu_e500 *vcpu_e500);
 void kvmppc_e500_tlb_uninit(struct kvmppc_vcpu_e500 *vcpu_e500);
 
 void kvmppc_get_sregs_e500_tlb(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs);
 int kvmppc_set_sregs_e500_tlb(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs);
+
+
+#ifdef CONFIG_KVM_E500
+unsigned int kvmppc_e500_get_sid(struct kvmppc_vcpu_e500 *vcpu_e500,
+				 unsigned int as, unsigned int gid,
+				 unsigned int pr, int avoid_recursion);
+#endif
 
 /* TLB helper functions */
 static inline unsigned int
@@ -181,6 +184,12 @@ static inline unsigned int
 get_tlb_iprot(const struct kvm_book3e_206_tlb_entry *tlbe)
 {
 	return (tlbe->mas1 >> 30) & 0x1;
+}
+
+static inline unsigned int
+get_tlb_tsize(const struct kvm_book3e_206_tlb_entry *tlbe)
+{
+	return (tlbe->mas1 & MAS1_TSIZE_MASK) >> MAS1_TSIZE_SHIFT;
 }
 
 static inline unsigned int get_cur_pid(struct kvm_vcpu *vcpu)
@@ -247,5 +256,32 @@ static inline int tlbe_is_host_safe(const struct kvm_vcpu *vcpu,
 
 	return 1;
 }
+
+static inline struct kvm_book3e_206_tlb_entry *get_entry(
+	struct kvmppc_vcpu_e500 *vcpu_e500, int tlbsel, int entry)
+{
+	int offset = vcpu_e500->gtlb_offset[tlbsel];
+	return &vcpu_e500->gtlb_arch[offset + entry];
+}
+
+void kvmppc_e500_tlbil_one(struct kvmppc_vcpu_e500 *vcpu_e500,
+			   struct kvm_book3e_206_tlb_entry *gtlbe);
+void kvmppc_e500_tlbil_all(struct kvmppc_vcpu_e500 *vcpu_e500);
+
+#ifdef CONFIG_KVM_E500
+unsigned int kvmppc_e500_get_tlb_stid(struct kvm_vcpu *vcpu,
+				      struct kvm_book3e_206_tlb_entry *gtlbe);
+
+static inline unsigned int get_tlbmiss_tid(struct kvm_vcpu *vcpu)
+{
+	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
+	unsigned int tidseld = (vcpu->arch.shared->mas4 >> 16) & 0xf;
+
+	return vcpu_e500->pid[tidseld];
+}
+
+/* Force TS=1 for all guest mappings. */
+#define get_tlb_sts(gtlbe)              (MAS1_TS)
+#endif /* CONFIG_KVM_E500 */
 
 #endif /* KVM_E500_H */
