@@ -285,9 +285,9 @@ round_size=0x$(printf "%x" $round_size)
 link_addr=$(printf "%d" $link_address)
 
 if [ $link_addr -lt $strip_size ]; then
-    echo "WARN: Uncompressed kernel (size 0x$(printf "%x\n" $strip_size))" \
+    echo "INFO: Uncompressed kernel (size 0x$(printf "%x\n" $strip_size))" \
 		"overlaps the address of the wrapper($link_address)"
-    echo "WARN: Fixing the link_address of wrapper to ($round_size)"
+    echo "INFO: Fixing the link_address of wrapper to ($round_size)"
     link_address=$round_size
 fi
 
