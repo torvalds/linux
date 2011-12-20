@@ -1480,18 +1480,18 @@ new_request:
 }
 
 /* This processes *all* regulatory hints */
-static void reg_process_hint(struct regulatory_request *reg_request)
+static void reg_process_hint(struct regulatory_request *reg_request,
+			     enum nl80211_reg_initiator reg_initiator)
 {
 	int r = 0;
 	struct wiphy *wiphy = NULL;
-	enum nl80211_reg_initiator initiator = reg_request->initiator;
 
 	BUG_ON(!reg_request->alpha2);
 
 	if (wiphy_idx_valid(reg_request->wiphy_idx))
 		wiphy = wiphy_idx_to_wiphy(reg_request->wiphy_idx);
 
-	if (reg_request->initiator == NL80211_REGDOM_SET_BY_DRIVER &&
+	if (reg_initiator == NL80211_REGDOM_SET_BY_DRIVER &&
 	    !wiphy) {
 		kfree(reg_request);
 		return;
@@ -1501,7 +1501,7 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 	/* This is required so that the orig_* parameters are saved */
 	if (r == -EALREADY && wiphy &&
 	    wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY) {
-		wiphy_update_regulatory(wiphy, initiator);
+		wiphy_update_regulatory(wiphy, reg_initiator);
 		return;
 	}
 
@@ -1510,7 +1510,7 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 	 * source of bogus requests.
 	 */
 	if (r != -EALREADY &&
-	    reg_request->initiator == NL80211_REGDOM_SET_BY_USER)
+	    reg_initiator == NL80211_REGDOM_SET_BY_USER)
 		schedule_delayed_work(&reg_timeout, msecs_to_jiffies(3142));
 }
 
@@ -1547,7 +1547,7 @@ static void reg_process_pending_hints(void)
 
 	spin_unlock(&reg_requests_lock);
 
-	reg_process_hint(reg_request);
+	reg_process_hint(reg_request, reg_request->initiator);
 
 out:
 	mutex_unlock(&reg_mutex);
