@@ -122,15 +122,6 @@ static int napi_weight = 64;
  */
 static unsigned int efx_monitor_interval = 1 * HZ;
 
-/* This controls whether or not the driver will initialise devices
- * with invalid MAC addresses stored in the EEPROM or flash.  If true,
- * such devices will be initialised with a random locally-generated
- * MAC address.  This allows for loading the sfc_mtd driver to
- * reprogram the flash, even if the flash contents (including the MAC
- * address) have previously been erased.
- */
-static unsigned int allow_bad_hwaddr;
-
 /* Initial interrupt moderation settings.  They can be modified after
  * module load with ethtool.
  *
@@ -916,7 +907,6 @@ static void efx_mac_work(struct work_struct *data)
 
 static int efx_probe_port(struct efx_nic *efx)
 {
-	unsigned char *perm_addr;
 	int rc;
 
 	netif_dbg(efx, probe, efx->net_dev, "create port\n");
@@ -929,28 +919,10 @@ static int efx_probe_port(struct efx_nic *efx)
 	if (rc)
 		return rc;
 
-	/* Sanity check MAC address */
-	perm_addr = efx->net_dev->perm_addr;
-	if (is_valid_ether_addr(perm_addr)) {
-		memcpy(efx->net_dev->dev_addr, perm_addr, ETH_ALEN);
-	} else {
-		netif_err(efx, probe, efx->net_dev, "invalid MAC address %pM\n",
-			  perm_addr);
-		if (!allow_bad_hwaddr) {
-			rc = -EINVAL;
-			goto err;
-		}
-		random_ether_addr(efx->net_dev->dev_addr);
-		netif_info(efx, probe, efx->net_dev,
-			   "using locally-generated MAC %pM\n",
-			   efx->net_dev->dev_addr);
-	}
+	/* Initialise MAC address to permanent address */
+	memcpy(efx->net_dev->dev_addr, efx->net_dev->perm_addr, ETH_ALEN);
 
 	return 0;
-
- err:
-	efx->type->remove_port(efx);
-	return rc;
 }
 
 static int efx_init_port(struct efx_nic *efx)
