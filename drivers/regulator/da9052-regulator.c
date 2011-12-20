@@ -461,7 +461,7 @@ static struct regulator_ops da9052_ldo_ops = {
 	.activate_bit = (abits),\
 }
 
-struct da9052_regulator_info da9052_regulator_info[] = {
+static struct da9052_regulator_info da9052_regulator_info[] = {
 	/* Buck1 - 4 */
 	DA9052_DCDC(0, 25, 500, 2075, 6, 6, DA9052_SUPPLY_VBCOREGO),
 	DA9052_DCDC(1, 25, 500, 2075, 6, 6, DA9052_SUPPLY_VBPROGO),
@@ -480,7 +480,7 @@ struct da9052_regulator_info da9052_regulator_info[] = {
 	DA9052_LDO(13, 50, 1200, 3600, 6, 6, 0),
 };
 
-struct da9052_regulator_info da9053_regulator_info[] = {
+static struct da9052_regulator_info da9053_regulator_info[] = {
 	/* Buck1 - 4 */
 	DA9052_DCDC(0, 25, 500, 2075, 6, 6, DA9052_SUPPLY_VBCOREGO),
 	DA9052_DCDC(1, 25, 500, 2075, 6, 6, DA9052_SUPPLY_VBPROGO),
