@@ -11,6 +11,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/basic_mmio_gpio.h>
 #include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -39,9 +40,6 @@
 #include <mach/camera.h>
 
 #include <mach/ams-delta-fiq.h>
-
-static u8 ams_delta_latch1_reg;
-static u16 ams_delta_latch2_reg;
 
 static const unsigned int ams_delta_keymap[] = {
 	KEY(0, 0, KEY_F1),		/* Advert    */
@@ -121,39 +119,32 @@ static const unsigned int ams_delta_keymap[] = {
 	KEY(7, 3, KEY_LEFTCTRL),	/* Vol down  */
 };
 
-void ams_delta_latch1_write(u8 mask, u8 value)
-{
-	ams_delta_latch1_reg &= ~mask;
-	ams_delta_latch1_reg |= value;
-	*(volatile __u8 *) AMS_DELTA_LATCH1_VIRT = ams_delta_latch1_reg;
-}
-
-void ams_delta_latch2_write(u16 mask, u16 value)
-{
-	ams_delta_latch2_reg &= ~mask;
-	ams_delta_latch2_reg |= value;
-	*(volatile __u16 *) AMS_DELTA_LATCH2_VIRT = ams_delta_latch2_reg;
-}
+#define LATCH1_PHYS	0x01000000
+#define LATCH1_VIRT	0xEA000000
+#define MODEM_PHYS	0x04000000
+#define MODEM_VIRT	0xEB000000
+#define LATCH2_PHYS	0x08000000
+#define LATCH2_VIRT	0xEC000000
 
 static struct map_desc ams_delta_io_desc[] __initdata = {
 	/* AMS_DELTA_LATCH1 */
 	{
-		.virtual	= AMS_DELTA_LATCH1_VIRT,
-		.pfn		= __phys_to_pfn(AMS_DELTA_LATCH1_PHYS),
+		.virtual	= LATCH1_VIRT,
+		.pfn		= __phys_to_pfn(LATCH1_PHYS),
 		.length		= 0x01000000,
 		.type		= MT_DEVICE
 	},
 	/* AMS_DELTA_LATCH2 */
 	{
-		.virtual	= AMS_DELTA_LATCH2_VIRT,
-		.pfn		= __phys_to_pfn(AMS_DELTA_LATCH2_PHYS),
+		.virtual	= LATCH2_VIRT,
+		.pfn		= __phys_to_pfn(LATCH2_PHYS),
 		.length		= 0x01000000,
 		.type		= MT_DEVICE
 	},
 	/* AMS_DELTA_MODEM */
 	{
-		.virtual	= AMS_DELTA_MODEM_VIRT,
-		.pfn		= __phys_to_pfn(AMS_DELTA_MODEM_PHYS),
+		.virtual	= MODEM_VIRT,
+		.pfn		= __phys_to_pfn(MODEM_PHYS),
 		.length		= 0x01000000,
 		.type		= MT_DEVICE
 	}
@@ -172,6 +163,190 @@ static struct omap_usb_config ams_delta_usb_config __initdata = {
 static struct omap_board_config_kernel ams_delta_config[] __initdata = {
 	{ OMAP_TAG_LCD,		&ams_delta_lcd_config },
 };
+
+static struct resource latch1_resources[] __initconst = {
+	[0] = {
+		.name	= "dat",
+		.start	= LATCH1_PHYS,
+		.end	= LATCH1_PHYS + (AMS_DELTA_LATCH1_NGPIO - 1) / 8,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct bgpio_pdata latch1_pdata __initconst = {
+	.base	= AMS_DELTA_LATCH1_GPIO_BASE,
+	.ngpio	= AMS_DELTA_LATCH1_NGPIO,
+};
+
+static struct platform_device latch1_gpio_device = {
+	.name		= "basic-mmio-gpio",
+	.id		= 0,
+	.resource	= latch1_resources,
+	.num_resources	= ARRAY_SIZE(latch1_resources),
+	.dev		= {
+		.platform_data	= &latch1_pdata,
+	},
+};
+
+static struct resource latch2_resources[] __initconst = {
+	[0] = {
+		.name	= "dat",
+		.start	= LATCH2_PHYS,
+		.end	= LATCH2_PHYS + (AMS_DELTA_LATCH2_NGPIO - 1) / 8,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct bgpio_pdata latch2_pdata __initconst = {
+	.base	= AMS_DELTA_LATCH2_GPIO_BASE,
+	.ngpio	= AMS_DELTA_LATCH2_NGPIO,
+};
+
+static struct platform_device latch2_gpio_device = {
+	.name		= "basic-mmio-gpio",
+	.id		= 1,
+	.resource	= latch2_resources,
+	.num_resources	= ARRAY_SIZE(latch2_resources),
+	.dev		= {
+		.platform_data	= &latch2_pdata,
+	},
+};
+
+static struct gpio latch_gpios[] __initconst = {
+	{
+		.gpio	= AMS_DELTA_GPIO_PIN_LED_CAMERA,
+		.flags	= GPIOF_OUT_INIT_LOW,
+		.label	= "led_camera",
+	},
+	{
+		.gpio	= AMS_DELTA_GPIO_PIN_LED_ADVERT,
+		.flags	= GPIOF_OUT_INIT_LOW,
+		.label	= "led_advert",
+	},
+	{
+		.gpio	= AMS_DELTA_GPIO_PIN_LED_EMAIL,
+		.flags	= GPIOF_OUT_INIT_LOW,
+		.label	= "led_email",
+	},
+	{
+		.gpio	= AMS_DELTA_GPIO_PIN_LED_HANDSFREE,
+		.flags	= GPIOF_OUT_INIT_LOW,
+		.label	= "led_handsfree",
+	},
+	{
+		.gpio	= AMS_DELTA_GPIO_PIN_LED_VOICEMAIL,
+		.flags	= GPIOF_OUT_INIT_LOW,
+		.label	= "led_voicemail",
+	},
+	{
+		.gpio	= AMS_DELTA_GPIO_PIN_LED_VOICE,
+		.flags	= GPIOF_OUT_INIT_LOW,
+		.label	= "led_voice",
+	},
+	{
+		.gpio	= AMS_DELTA_LATCH1_GPIO_BASE + 6,
+		.flags	= GPIOF_OUT_INIT_LOW,
+		.label	= "dockit1",
+	},
+	{
+		.gpio	= AMS_DELTA_LATCH1_GPIO_BASE + 7,
+		.flags	= GPIOF_OUT_INIT_LOW,
+		.label	= "dockit2",
+	},
+	{
+		.gpio	= AMS_DELTA_GPIO_PIN_LCD_VBLEN,
+		.flags	= GPIOF_OUT_INIT_LOW,
+		.label	= "lcd_vblen",
+	},
+	{
+		.gpio	= AMS_DELTA_GPIO_PIN_LCD_NDISP,
+		.flags	= GPIOF_OUT_INIT_LOW,
+		.label	= "lcd_ndisp",
+	},
+	{
+		.gpio	= AMS_DELTA_GPIO_PIN_NAND_NCE,
+		.flags	= GPIOF_OUT_INIT_LOW,
+		.label	= "nand_nce",
+	},
+	{
+		.gpio	= AMS_DELTA_GPIO_PIN_NAND_NRE,
+		.flags	= GPIOF_OUT_INIT_LOW,
+		.label	= "nand_nre",
+	},
+	{
+		.gpio	= AMS_DELTA_GPIO_PIN_NAND_NWP,
+		.flags	= GPIOF_OUT_INIT_LOW,
+		.label	= "nand_nwp",
+	},
+	{
+		.gpio	= AMS_DELTA_GPIO_PIN_NAND_NWE,
+		.flags	= GPIOF_OUT_INIT_LOW,
+		.label	= "nand_nwe",
+	},
+	{
+		.gpio	= AMS_DELTA_GPIO_PIN_NAND_ALE,
+		.flags	= GPIOF_OUT_INIT_LOW,
+		.label	= "nand_ale",
+	},
+	{
+		.gpio	= AMS_DELTA_GPIO_PIN_NAND_CLE,
+		.flags	= GPIOF_OUT_INIT_LOW,
+		.label	= "nand_cle",
+	},
+	{
+		.gpio	= AMS_DELTA_GPIO_PIN_KEYBRD_PWR,
+		.flags	= GPIOF_OUT_INIT_LOW,
+		.label	= "keybrd_pwr",
+	},
+	{
+		.gpio	= AMS_DELTA_GPIO_PIN_KEYBRD_DATAOUT,
+		.flags	= GPIOF_OUT_INIT_LOW,
+		.label	= "keybrd_dataout",
+	},
+	{
+		.gpio	= AMS_DELTA_GPIO_PIN_SCARD_RSTIN,
+		.flags	= GPIOF_OUT_INIT_LOW,
+		.label	= "scard_rstin",
+	},
+	{
+		.gpio	= AMS_DELTA_GPIO_PIN_SCARD_CMDVCC,
+		.flags	= GPIOF_OUT_INIT_LOW,
+		.label	= "scard_cmdvcc",
+	},
+	{
+		.gpio	= AMS_DELTA_GPIO_PIN_MODEM_NRESET,
+		.flags	= GPIOF_OUT_INIT_LOW,
+		.label	= "modem_nreset",
+	},
+	{
+		.gpio	= AMS_DELTA_GPIO_PIN_MODEM_CODEC,
+		.flags	= GPIOF_OUT_INIT_LOW,
+		.label	= "modem_codec",
+	},
+	{
+		.gpio	= AMS_DELTA_LATCH2_GPIO_BASE + 14,
+		.flags	= GPIOF_OUT_INIT_LOW,
+		.label	= "hookflash1",
+	},
+	{
+		.gpio	= AMS_DELTA_LATCH2_GPIO_BASE + 15,
+		.flags	= GPIOF_OUT_INIT_LOW,
+		.label	= "hookflash2",
+	},
+};
+
+void ams_delta_latch_write(int base, int ngpio, u16 mask, u16 value)
+{
+	int bit = 0;
+	u16 bitpos = 1 << bit;
+
+	for (; bit < ngpio; bit++, bitpos = bitpos << 1) {
+		if (!(mask & bitpos))
+			continue;
+		gpio_set_value(base + bit, (value & bitpos) != 0);
+	}
+}
+EXPORT_SYMBOL(ams_delta_latch_write);
 
 static struct resource ams_delta_nand_resources[] = {
 	[0] = {
@@ -275,11 +450,13 @@ static struct omap1_cam_platform_data ams_delta_camera_platform_data = {
 };
 
 static struct platform_device *ams_delta_devices[] __initdata = {
+	&latch1_gpio_device,
+	&latch2_gpio_device,
 	&ams_delta_kp_device,
 	&ams_delta_camera_device,
 };
 
-static struct platform_device *late_devices[] __initdata = {
+static struct platform_device *late_devices[] __initconst = {
 	&ams_delta_nand_device,
 	&ams_delta_lcd_device,
 	&ams_delta_led_device,
@@ -325,8 +502,8 @@ static void __init ams_delta_init(void)
 
 static struct plat_serial8250_port ams_delta_modem_ports[] = {
 	{
-		.membase	= IOMEM(AMS_DELTA_MODEM_VIRT),
-		.mapbase	= AMS_DELTA_MODEM_PHYS,
+		.membase	= IOMEM(MODEM_VIRT),
+		.mapbase	= MODEM_PHYS,
 		.irq		= -EINVAL, /* changed later */
 		.flags		= UPF_BOOT_AUTOCONF,
 		.irqflags	= IRQF_TRIGGER_RISING,
@@ -352,8 +529,11 @@ static int __init late_init(void)
 	if (!machine_is_ams_delta())
 		return -ENODEV;
 
-	/* Clear latch2 (NAND, LCD, modem enable) */
-	ams_delta_latch2_write(~0, 0);
+	err = gpio_request_array(latch_gpios, ARRAY_SIZE(latch_gpios));
+	if (err) {
+		pr_err("Couldn't take over latch1/latch2 GPIO pins\n");
+		return err;
+	}
 
 	platform_add_devices(late_devices, ARRAY_SIZE(late_devices));
 
@@ -399,6 +579,3 @@ MACHINE_START(AMS_DELTA, "Amstrad E3 (Delta)")
 	.init_machine	= ams_delta_init,
 	.timer		= &omap1_timer,
 MACHINE_END
-
-EXPORT_SYMBOL(ams_delta_latch1_write);
-EXPORT_SYMBOL(ams_delta_latch2_write);
