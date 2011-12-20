@@ -700,6 +700,7 @@ const struct option record_options[] = {
 	OPT_BOOLEAN('d', "data", &record.opts.sample_address,
 		    "Sample addresses"),
 	OPT_BOOLEAN('T', "timestamp", &record.opts.sample_time, "Sample timestamps"),
+	OPT_BOOLEAN('P', "period", &record.opts.period, "Sample period"),
 	OPT_BOOLEAN('n', "no-samples", &record.opts.no_samples,
 		    "don't sample"),
 	OPT_BOOLEAN('N', "no-buildid-cache", &record.no_buildid_cache,

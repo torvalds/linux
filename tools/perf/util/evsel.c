@@ -108,6 +108,9 @@ void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts)
 	if (opts->system_wide)
 		attr->sample_type	|= PERF_SAMPLE_CPU;
 
+	if (opts->period)
+		attr->sample_type	|= PERF_SAMPLE_PERIOD;
+
 	if (opts->sample_id_all_avail &&
 	    (opts->sample_time || opts->system_wide ||
 	     !opts->no_inherit || opts->cpu_list))
