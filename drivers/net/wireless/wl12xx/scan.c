@@ -437,18 +437,19 @@ wl1271_scan_get_sched_scan_channels(struct wl1271 *wl,
 
 			if (flags & IEEE80211_CHAN_RADAR) {
 				channels[j].flags |= SCAN_CHANNEL_FLAGS_DFS;
+
 				channels[j].passive_duration =
 					cpu_to_le16(c->dwell_time_dfs);
-			}
-			else if (flags & IEEE80211_CHAN_PASSIVE_SCAN) {
+			} else {
 				channels[j].passive_duration =
 					cpu_to_le16(c->dwell_time_passive);
-			} else {
-				channels[j].min_duration =
-					cpu_to_le16(c->min_dwell_time_active);
-				channels[j].max_duration =
-					cpu_to_le16(c->max_dwell_time_active);
 			}
+
+			channels[j].min_duration =
+				cpu_to_le16(c->min_dwell_time_active);
+			channels[j].max_duration =
+				cpu_to_le16(c->max_dwell_time_active);
+
 			channels[j].tx_power_att = req->channels[i]->max_power;
 			channels[j].channel = req->channels[i]->hw_value;
 
