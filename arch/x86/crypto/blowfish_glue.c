@@ -25,6 +25,7 @@
  *
  */
 
+#include <asm/processor.h>
 #include <crypto/blowfish.h>
 #include <linux/crypto.h>
 #include <linux/init.h>
@@ -446,9 +447,38 @@ static struct crypto_alg blk_ctr_alg = {
 	},
 };
 
+static bool is_blacklisted_cpu(void)
+{
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
+		return false;
+
+	if (boot_cpu_data.x86 == 0x0f) {
+		/*
+		 * On Pentium 4, blowfish-x86_64 is slower than generic C
+		 * implementation because use of 64bit rotates (which are really
+		 * slow on P4). Therefore blacklist P4s.
+		 */
+		return true;
+	}
+
+	return false;
+}
+
+static int force;
+module_param(force, int, 0);
+MODULE_PARM_DESC(force, "Force module load, ignore CPU blacklist");
+
 static int __init init(void)
 {
 	int err;
+
+	if (!force && is_blacklisted_cpu()) {
+		printk(KERN_INFO
+			"blowfish-x86_64: performance on this CPU "
+			"would be suboptimal: disabling "
+			"blowfish-x86_64.\n");
+		return -ENODEV;
+	}
 
 	err = crypto_register_alg(&bf_alg);
 	if (err)
