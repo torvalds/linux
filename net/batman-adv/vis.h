@@ -22,7 +22,8 @@
 #ifndef _NET_BATMAN_ADV_VIS_H_
 #define _NET_BATMAN_ADV_VIS_H_
 
-#define VIS_TIMEOUT		200	/* timeout of vis packets in seconds */
+#define VIS_TIMEOUT		200000	/* timeout of vis packets
+					 * in miliseconds */
 
 int vis_seq_print_text(struct seq_file *seq, void *offset);
 void receive_server_sync_packet(struct bat_priv *bat_priv,

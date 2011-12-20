@@ -41,13 +41,14 @@
 
 /* purge originators after time in seconds if no valid packet comes in
  * -> TODO: check influence on TQ_LOCAL_WINDOW_SIZE */
-#define PURGE_TIMEOUT 200
-#define TT_LOCAL_TIMEOUT 3600 /* in seconds */
-#define TT_CLIENT_ROAM_TIMEOUT 600
+#define PURGE_TIMEOUT 200000 /* 200 seconds */
+#define TT_LOCAL_TIMEOUT 3600000 /* in miliseconds */
+#define TT_CLIENT_ROAM_TIMEOUT 600000 /* in miliseconds */
 /* sliding packet range of received originator messages in sequence numbers
  * (should be a multiple of our word size) */
 #define TQ_LOCAL_WINDOW_SIZE 64
-#define TT_REQUEST_TIMEOUT 3 /* seconds we have to keep pending tt_req */
+#define TT_REQUEST_TIMEOUT 3000 /* miliseconds we have to keep
+				 * pending tt_req */
 
 #define TQ_GLOBAL_WINDOW_SIZE 5
 #define TQ_LOCAL_BIDRECT_SEND_MINIMUM 1
@@ -56,8 +57,8 @@
 
 #define TT_OGM_APPEND_MAX 3 /* number of OGMs sent with the last tt diff */
 
-#define ROAMING_MAX_TIME 20 /* Time in which a client can roam at most
-			     * ROAMING_MAX_COUNT times */
+#define ROAMING_MAX_TIME 20000 /* Time in which a client can roam at most
+				* ROAMING_MAX_COUNT times in miliseconds*/
 #define ROAMING_MAX_COUNT 5
 
 #define NO_FLAGS 0

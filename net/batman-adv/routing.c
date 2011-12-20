@@ -231,8 +231,7 @@ int window_protected(struct bat_priv *bat_priv, int32_t seq_num_diff,
 {
 	if ((seq_num_diff <= -TQ_LOCAL_WINDOW_SIZE)
 		|| (seq_num_diff >= EXPECTED_SEQNO_RANGE)) {
-		if (time_after(jiffies, *last_reset +
-			msecs_to_jiffies(RESET_PROTECTION_MS))) {
+		if (has_timed_out(*last_reset, RESET_PROTECTION_MS)) {
 
 			*last_reset = jiffies;
 			bat_dbg(DBG_BATMAN, bat_priv,

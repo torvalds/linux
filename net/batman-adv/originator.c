@@ -282,8 +282,7 @@ static bool purge_orig_neighbors(struct bat_priv *bat_priv,
 	hlist_for_each_entry_safe(neigh_node, node, node_tmp,
 				  &orig_node->neigh_list, list) {
 
-		if ((time_after(jiffies,
-			neigh_node->last_valid + PURGE_TIMEOUT * HZ)) ||
+		if ((has_timed_out(neigh_node->last_valid, PURGE_TIMEOUT)) ||
 		    (neigh_node->if_incoming->if_status == IF_INACTIVE) ||
 		    (neigh_node->if_incoming->if_status == IF_NOT_IN_USE) ||
 		    (neigh_node->if_incoming->if_status == IF_TO_BE_REMOVED)) {
@@ -327,9 +326,7 @@ static bool purge_orig_node(struct bat_priv *bat_priv,
 {
 	struct neigh_node *best_neigh_node;
 
-	if (time_after(jiffies,
-		orig_node->last_valid + 2 * PURGE_TIMEOUT * HZ)) {
-
+	if (has_timed_out(orig_node->last_valid, 2 * PURGE_TIMEOUT)) {
 		bat_dbg(DBG_BATMAN, bat_priv,
 			"Originator timeout: originator %pM, last_valid %lu\n",
 			orig_node->orig, (orig_node->last_valid / HZ));
@@ -372,8 +369,8 @@ static void _purge_orig(struct bat_priv *bat_priv)
 				continue;
 			}
 
-			if (time_after(jiffies, orig_node->last_frag_packet +
-						msecs_to_jiffies(FRAG_TIMEOUT)))
+			if (has_timed_out(orig_node->last_frag_packet,
+					  FRAG_TIMEOUT))
 				frag_list_free(&orig_node->frag_list);
 		}
 		spin_unlock_bh(list_lock);

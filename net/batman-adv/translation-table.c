@@ -413,7 +413,7 @@ static void tt_local_purge(struct bat_priv *bat_priv)
 				continue;
 
 			if (!has_timed_out(tt_local_entry->last_seen,
-					   TT_LOCAL_TIMEOUT * 1000))
+					   TT_LOCAL_TIMEOUT))
 				continue;
 
 			tt_local_set_pending(bat_priv, tt_local_entry,
@@ -751,7 +751,7 @@ static void tt_global_roam_purge(struct bat_priv *bat_priv)
 			if (!(tt_global_entry->common.flags & TT_CLIENT_ROAM))
 				continue;
 			if (!has_timed_out(tt_global_entry->roam_at,
-					   TT_CLIENT_ROAM_TIMEOUT * 1000))
+					   TT_CLIENT_ROAM_TIMEOUT))
 				continue;
 
 			bat_dbg(DBG_TT, bat_priv, "Deleting global "
@@ -970,8 +970,7 @@ static void tt_req_purge(struct bat_priv *bat_priv)
 
 	spin_lock_bh(&bat_priv->tt_req_list_lock);
 	list_for_each_entry_safe(node, safe, &bat_priv->tt_req_list, list) {
-		if (has_timed_out(node->issued_at,
-				  TT_REQUEST_TIMEOUT * 1000)) {
+		if (has_timed_out(node->issued_at, TT_REQUEST_TIMEOUT)) {
 			list_del(&node->list);
 			kfree(node);
 		}
@@ -990,7 +989,7 @@ static struct tt_req_node *new_tt_req_node(struct bat_priv *bat_priv,
 	list_for_each_entry(tt_req_node_tmp, &bat_priv->tt_req_list, list) {
 		if (compare_eth(tt_req_node_tmp, orig_node) &&
 		    !has_timed_out(tt_req_node_tmp->issued_at,
-				   TT_REQUEST_TIMEOUT * 1000))
+				   TT_REQUEST_TIMEOUT))
 			goto unlock;
 	}
 
@@ -1583,8 +1582,7 @@ static void tt_roam_purge(struct bat_priv *bat_priv)
 
 	spin_lock_bh(&bat_priv->tt_roam_list_lock);
 	list_for_each_entry_safe(node, safe, &bat_priv->tt_roam_list, list) {
-		if (!has_timed_out(node->first_time,
-				   ROAMING_MAX_TIME * 1000))
+		if (!has_timed_out(node->first_time, ROAMING_MAX_TIME))
 			continue;
 
 		list_del(&node->list);
@@ -1611,8 +1609,7 @@ static bool tt_check_roam_count(struct bat_priv *bat_priv,
 		if (!compare_eth(tt_roam_node->addr, client))
 			continue;
 
-		if (has_timed_out(tt_roam_node->first_time,
-				  ROAMING_MAX_TIME * 1000))
+		if (has_timed_out(tt_roam_node->first_time, ROAMING_MAX_TIME))
 			continue;
 
 		if (!atomic_dec_not_zero(&tt_roam_node->counter))

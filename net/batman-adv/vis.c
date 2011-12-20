@@ -714,8 +714,7 @@ static void purge_vis_packets(struct bat_priv *bat_priv)
 			if (info == bat_priv->my_vis_info)
 				continue;
 
-			if (time_after(jiffies,
-				       info->first_seen + VIS_TIMEOUT * HZ)) {
+			if (has_timed_out(info->first_seen, VIS_TIMEOUT)) {
 				hlist_del(node);
 				send_list_del(info);
 				kref_put(&info->refcount, free_info);
