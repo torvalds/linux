@@ -639,7 +639,7 @@ EXPORT_SYMBOL_GPL(devm_kzalloc);
  * @dev: Device this memory belongs to
  * @p: Memory to free
  *
- * Free memory allocated with dev_kzalloc().
+ * Free memory allocated with devm_kzalloc().
  */
 void devm_kfree(struct device *dev, void *p)
 {
