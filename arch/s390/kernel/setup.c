@@ -211,6 +211,8 @@ static void __init setup_zfcpdump(unsigned int console_devno)
 
 	if (ipl_info.type != IPL_TYPE_FCP_DUMP)
 		return;
+	if (OLDMEM_BASE)
+		return;
 	if (console_devno != -1)
 		sprintf(str, " cio_ignore=all,!0.0.%04x,!0.0.%04x",
 			ipl_info.data.fcp.dev_id.devno, console_devno);
@@ -482,7 +484,7 @@ static void __init setup_memory_end(void)
 
 
 #ifdef CONFIG_ZFCPDUMP
-	if (ipl_info.type == IPL_TYPE_FCP_DUMP) {
+	if (ipl_info.type == IPL_TYPE_FCP_DUMP && !OLDMEM_BASE) {
 		memory_end = ZFCPDUMP_HSA_SIZE;
 		memory_end_set = 1;
 	}
@@ -577,7 +579,7 @@ static unsigned long __init find_crash_base(unsigned long crash_size,
 		*msg = "first memory chunk must be at least crashkernel size";
 		return 0;
 	}
-	if (is_kdump_kernel() && (crash_size == OLDMEM_SIZE))
+	if (OLDMEM_BASE && crash_size == OLDMEM_SIZE)
 		return OLDMEM_BASE;
 
 	for (i = MEMORY_CHUNKS - 1; i >= 0; i--) {

@@ -272,6 +272,7 @@ struct mlx4_en_rx_ring {
 	u32 prod;
 	u32 cons;
 	u32 buf_size;
+	u8  fcs_del;
 	void *buf;
 	void *rx_info;
 	unsigned long bytes;

@@ -295,6 +295,12 @@ loop_lock:
 			btrfs_requeue_work(&device->work);
 			goto done;
 		}
+		/* unplug every 64 requests just for good measure */
+		if (batch_run % 64 == 0) {
+			blk_finish_plug(&plug);
+			blk_start_plug(&plug);
+			sync_pending = 0;
+		}
 	}
 
 	cond_resched();
@@ -1611,7 +1617,7 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	if ((sb->s_flags & MS_RDONLY) && !root->fs_info->fs_devices->seeding)
 		return -EINVAL;
 
-	bdev = blkdev_get_by_path(device_path, FMODE_EXCL,
+	bdev = blkdev_get_by_path(device_path, FMODE_WRITE | FMODE_EXCL,
 				  root->fs_info->bdev_holder);
 	if (IS_ERR(bdev))
 		return PTR_ERR(bdev);
@@ -3258,7 +3264,7 @@ static void btrfs_end_bio(struct bio *bio, int err)
 		 */
 		if (atomic_read(&bbio->error) > bbio->max_errors) {
 			err = -EIO;
-		} else if (err) {
+		} else {
 			/*
 			 * this bio is actually up to date, we didn't
 			 * go over the max number of errors

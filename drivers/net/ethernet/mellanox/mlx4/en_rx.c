@@ -581,6 +581,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		 * Packet is OK - process it.
 		 */
 		length = be32_to_cpu(cqe->byte_cnt);
+		length -= ring->fcs_del;
 		ring->bytes += length;
 		ring->packets++;
 
@@ -813,8 +814,11 @@ static int mlx4_en_config_rss_qp(struct mlx4_en_priv *priv, int qpn,
 	context->db_rec_addr = cpu_to_be64(ring->wqres.db.dma);
 
 	/* Cancel FCS removal if FW allows */
-	if (mdev->dev->caps.flags & MLX4_DEV_CAP_FLAG_FCS_KEEP)
+	if (mdev->dev->caps.flags & MLX4_DEV_CAP_FLAG_FCS_KEEP) {
 		context->param3 |= cpu_to_be32(1 << 29);
+		ring->fcs_del = ETH_FCS_LEN;
+	} else
+		ring->fcs_del = 0;
 
 	err = mlx4_qp_to_ready(mdev->dev, &ring->wqres.mtt, context, qp, state);
 	if (err) {

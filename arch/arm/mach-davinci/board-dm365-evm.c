@@ -107,7 +107,7 @@ static struct mtd_partition davinci_nand_partitions[] = {
 		/* UBL (a few copies) plus U-Boot */
 		.name		= "bootloader",
 		.offset		= 0,
-		.size		= 28 * NAND_BLOCK_SIZE,
+		.size		= 30 * NAND_BLOCK_SIZE,
 		.mask_flags	= MTD_WRITEABLE, /* force read-only */
 	}, {
 		/* U-Boot environment */

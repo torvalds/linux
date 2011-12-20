@@ -981,14 +981,13 @@ struct iscsi_login *iscsi_target_init_negotiation(
 		return NULL;
 	}
 
-	login->req = kzalloc(ISCSI_HDR_LEN, GFP_KERNEL);
+	login->req = kmemdup(login_pdu, ISCSI_HDR_LEN, GFP_KERNEL);
 	if (!login->req) {
 		pr_err("Unable to allocate memory for Login Request.\n");
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
 				ISCSI_LOGIN_STATUS_NO_RESOURCES);
 		goto out;
 	}
-	memcpy(login->req, login_pdu, ISCSI_HDR_LEN);
 
 	login->req_buf = kzalloc(MAX_KEY_VALUE_PAIRS, GFP_KERNEL);
 	if (!login->req_buf) {

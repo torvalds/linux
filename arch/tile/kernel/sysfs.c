@@ -18,6 +18,7 @@
 #include <linux/cpu.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
+#include <linux/stat.h>
 #include <hv/hypervisor.h>
 
 /* Return a string queried from the hypervisor, truncated to page size. */
