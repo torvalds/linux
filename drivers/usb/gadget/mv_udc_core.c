@@ -2128,11 +2128,9 @@ static int __devexit mv_udc_remove(struct platform_device *dev)
 
 	if (udc->cap_regs)
 		iounmap(udc->cap_regs);
-	udc->cap_regs = NULL;
 
 	if (udc->phy_regs)
-		iounmap((void *)udc->phy_regs);
-	udc->phy_regs = 0;
+		iounmap(udc->phy_regs);
 
 	if (udc->status_req) {
 		kfree(udc->status_req->req.buf);
@@ -2217,8 +2215,8 @@ static int __devinit mv_udc_probe(struct platform_device *dev)
 		goto err_iounmap_capreg;
 	}
 
-	udc->phy_regs = (unsigned int)ioremap(r->start, resource_size(r));
-	if (udc->phy_regs == 0) {
+	udc->phy_regs = ioremap(r->start, resource_size(r));
+	if (udc->phy_regs == NULL) {
 		dev_err(&dev->dev, "failed to map phy I/O memory\n");
 		retval = -EBUSY;
 		goto err_iounmap_capreg;
@@ -2229,7 +2227,8 @@ static int __devinit mv_udc_probe(struct platform_device *dev)
 	if (retval)
 		goto err_iounmap_phyreg;
 
-	udc->op_regs = (struct mv_op_regs __iomem *)((u32)udc->cap_regs
+	udc->op_regs =
+		(struct mv_op_regs __iomem *)((unsigned long)udc->cap_regs
 		+ (readl(&udc->cap_regs->caplength_hciversion)
 			& CAPLENGTH_MASK));
 	udc->max_eps = readl(&udc->cap_regs->dccparams) & DCCPARAMS_DEN_MASK;
@@ -2389,7 +2388,7 @@ err_free_dma:
 err_disable_clock:
 	mv_udc_disable_internal(udc);
 err_iounmap_phyreg:
-	iounmap((void *)udc->phy_regs);
+	iounmap(udc->phy_regs);
 err_iounmap_capreg:
 	iounmap(udc->cap_regs);
 err_put_clk:
@@ -2480,13 +2479,13 @@ static struct platform_driver udc_driver = {
 	.shutdown	= mv_udc_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,
-		.name	= "pxa-u2o",
+		.name	= "mv-udc",
 #ifdef CONFIG_PM
 		.pm	= &mv_udc_pm_ops,
 #endif
 	},
 };
-MODULE_ALIAS("platform:pxa-u2o");
+MODULE_ALIAS("platform:mv-udc");
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Chao Xie <chao.xie@marvell.com>");

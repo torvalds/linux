@@ -42,9 +42,17 @@ struct mv_usb_platform_data {
 	/* only valid for HCD. OTG or Host only*/
 	unsigned int		mode;
 
-	int     (*phy_init)(unsigned int regbase);
-	void    (*phy_deinit)(unsigned int regbase);
+	int	(*phy_init)(void __iomem *regbase);
+	void	(*phy_deinit)(void __iomem *regbase);
 	int	(*set_vbus)(unsigned int vbus);
 };
+
+#ifndef CONFIG_HAVE_CLK
+/* Dummy stub for clk framework */
+#define clk_get(dev, id)       NULL
+#define clk_put(clock)         do {} while (0)
+#define clk_enable(clock)      do {} while (0)
+#define clk_disable(clock)     do {} while (0)
+#endif
 
 #endif

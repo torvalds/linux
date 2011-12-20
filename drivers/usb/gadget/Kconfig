@@ -309,13 +309,13 @@ config USB_S3C_HSUDC
 
 	  This driver has been tested on S3C2416 and S3C2450 processors.
 
-config USB_PXA_U2O
-	tristate "PXA9xx Processor USB2.0 controller"
-	depends on ARCH_MMP
+config USB_MV_UDC
+	tristate "Marvell USB2.0 Device Controller"
 	select USB_GADGET_DUALSPEED
 	help
-	  PXA9xx Processor series include a high speed USB2.0 device
-	  controller, which support high speed and full speed USB peripheral.
+	  Marvell Socs (including PXA and MMP series) include a high speed
+	  USB2.0 OTG controller, which can be configured as high speed or
+	  full speed USB peripheral.
 
 config USB_GADGET_DWC3
 	tristate "DesignWare USB3.0 (DRD) Controller"
