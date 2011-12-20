@@ -1032,7 +1032,7 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 		cancel_delayed_work_sync(&conn->info_work);
 
 	if (test_and_clear_bit(HCI_CONN_LE_SMP_PEND, &hcon->pend)) {
-		del_timer(&conn->security_timer);
+		cancel_delayed_work_sync(&conn->security_timer);
 		smp_chan_destroy(conn);
 	}
 
@@ -1040,9 +1040,10 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 	kfree(conn);
 }
 
-static void security_timeout(unsigned long arg)
+static void security_timeout(struct work_struct *work)
 {
-	struct l2cap_conn *conn = (void *) arg;
+	struct l2cap_conn *conn = container_of(work, struct l2cap_conn,
+						security_timer.work);
 
 	l2cap_conn_del(conn->hcon, ETIMEDOUT);
 }
@@ -1086,8 +1087,7 @@ static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon, u8 status)
 	INIT_LIST_HEAD(&conn->chan_l);
 
 	if (hcon->type == LE_LINK)
-		setup_timer(&conn->security_timer, security_timeout,
-						(unsigned long) conn);
+		INIT_DELAYED_WORK(&conn->security_timer, security_timeout);
 	else
 		INIT_DELAYED_WORK(&conn->info_work, l2cap_info_timeout);
 
@@ -4519,7 +4519,7 @@ static int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 
 	if (hcon->type == LE_LINK) {
 		smp_distribute_keys(conn, 0);
-		del_timer(&conn->security_timer);
+		cancel_delayed_work_sync(&conn->security_timer);
 	}
 
 	rcu_read_lock();

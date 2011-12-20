@@ -184,7 +184,8 @@ static void smp_send_cmd(struct l2cap_conn *conn, u8 code, u16 len, void *data)
 	skb->priority = HCI_PRIO_MAX;
 	hci_send_acl(conn->hchan, skb, 0);
 
-	mod_timer(&conn->security_timer, jiffies +
+	cancel_delayed_work_sync(&conn->security_timer);
+	schedule_delayed_work(&conn->security_timer,
 					msecs_to_jiffies(SMP_TIMEOUT));
 }
 
@@ -240,7 +241,7 @@ static void smp_failure(struct l2cap_conn *conn, u8 reason, u8 send)
 
 	clear_bit(HCI_CONN_ENCRYPT_PEND, &conn->hcon->pend);
 	mgmt_auth_failed(conn->hcon->hdev, conn->dst, reason);
-	del_timer(&conn->security_timer);
+	cancel_delayed_work_sync(&conn->security_timer);
 	smp_chan_destroy(conn);
 }
 
@@ -800,7 +801,7 @@ int smp_distribute_keys(struct l2cap_conn *conn, __u8 force)
 
 	if (conn->hcon->out || force) {
 		clear_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->pend);
-		del_timer(&conn->security_timer);
+		cancel_delayed_work_sync(&conn->security_timer);
 		smp_chan_destroy(conn);
 	}
 
