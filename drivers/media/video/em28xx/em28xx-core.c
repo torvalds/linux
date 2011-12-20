@@ -568,7 +568,7 @@ int em28xx_audio_setup(struct em28xx *dev)
 	em28xx_warn("AC97 features = 0x%04x\n", feat);
 
 	/* Try to identify what audio processor we have */
-	if ((vid == 0xffffffff) && (feat == 0x6a90))
+	if (((vid == 0xffffffff) || (vid == 0x83847650)) && (feat == 0x6a90))
 		dev->audio_mode.ac97 = EM28XX_AC97_EM202;
 	else if ((vid >> 8) == 0x838476)
 		dev->audio_mode.ac97 = EM28XX_AC97_SIGMATEL;
