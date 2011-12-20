@@ -318,28 +318,28 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 		key_provided = 1;
 	} else {
 		key_provided = 0;
-		key = ieee->tx_keyidx;
+		key = ieee->crypt_info.tx_keyidx;
 	}
 
 	RTLLIB_DEBUG_WX("Key: %d [%s]\n", key, key_provided ?
 			   "provided" : "default");
-	crypt = &ieee->crypt[key];
+	crypt = &ieee->crypt_info.crypt[key];
 	if (erq->flags & IW_ENCODE_DISABLED) {
 		if (key_provided && *crypt) {
 			RTLLIB_DEBUG_WX("Disabling encryption on key %d.\n",
 					   key);
-			rtllib_crypt_delayed_deinit(ieee, crypt);
+			rtllib_crypt_delayed_deinit(&ieee->crypt_info, crypt);
 		} else
 			RTLLIB_DEBUG_WX("Disabling encryption.\n");
 
 		/* Check all the keys to see if any are still configured,
 		 * and if no key index was provided, de-init them all */
 		for (i = 0; i < NUM_WEP_KEYS; i++) {
-			if (ieee->crypt[i] != NULL) {
+			if (ieee->crypt_info.crypt[i] != NULL) {
 				if (key_provided)
 					break;
-				rtllib_crypt_delayed_deinit(ieee,
-							    &ieee->crypt[i]);
+				rtllib_crypt_delayed_deinit(&ieee->crypt_info,
+							    &ieee->crypt_info.crypt[i]);
 			}
 		}
 
@@ -361,7 +361,7 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 	    strcmp((*crypt)->ops->name, "WEP") != 0) {
 		/* changing to use WEP; deinit previously used algorithm
 		 * on this key */
-		rtllib_crypt_delayed_deinit(ieee, crypt);
+		rtllib_crypt_delayed_deinit(&ieee->crypt_info, crypt);
 	}
 
 	if (*crypt == NULL) {
@@ -411,7 +411,7 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 		 * explicitely set */
 		if (key == sec.active_key)
 			sec.flags |= SEC_ACTIVE_KEY;
-		ieee->tx_keyidx = key;
+		ieee->crypt_info.tx_keyidx = key;
 
 	} else {
 		len = (*crypt)->ops->get_key(sec.keys[key], WEP_KEY_LEN,
@@ -434,7 +434,7 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 		if (key_provided) {
 			RTLLIB_DEBUG_WX(
 				"Setting key %d to default Tx key.\n", key);
-			ieee->tx_keyidx = key;
+			ieee->crypt_info.tx_keyidx = key;
 			sec.active_key = key;
 			sec.flags |= SEC_ACTIVE_KEY;
 		}
@@ -490,9 +490,9 @@ int rtllib_wx_get_encode(struct rtllib_device *ieee,
 			return -EINVAL;
 		key--;
 	} else {
-		key = ieee->tx_keyidx;
+		key = ieee->crypt_info.tx_keyidx;
 	}
-	crypt = ieee->crypt[key];
+	crypt = ieee->crypt_info.crypt[key];
 
 	erq->flags = key + 1;
 
@@ -538,17 +538,17 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 			return -EINVAL;
 		idx--;
 	} else{
-			idx = ieee->tx_keyidx;
+			idx = ieee->crypt_info.tx_keyidx;
 	}
 	if (ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY) {
-		crypt = &ieee->crypt[idx];
+		crypt = &ieee->crypt_info.crypt[idx];
 		group_key = 1;
 	} else {
 		/* some Cisco APs use idx>0 for unicast in dynamic WEP */
 		if (idx != 0 && ext->alg != IW_ENCODE_ALG_WEP)
 			return -EINVAL;
 		if (ieee->iw_mode == IW_MODE_INFRA)
-			crypt = &ieee->crypt[idx];
+			crypt = &ieee->crypt_info.crypt[idx];
 		else
 			return -EINVAL;
 	}
@@ -557,10 +557,10 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 	if ((encoding->flags & IW_ENCODE_DISABLED) ||
 	    ext->alg == IW_ENCODE_ALG_NONE) {
 		if (*crypt)
-			rtllib_crypt_delayed_deinit(ieee, crypt);
+			rtllib_crypt_delayed_deinit(&ieee->crypt_info, crypt);
 
 		for (i = 0; i < NUM_WEP_KEYS; i++) {
-			if (ieee->crypt[i] != NULL)
+			if (ieee->crypt_info.crypt[i] != NULL)
 				break;
 		}
 		if (i == NUM_WEP_KEYS) {
@@ -613,7 +613,7 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 	if (*crypt == NULL || (*crypt)->ops != ops) {
 		struct lib80211_crypt_data *new_crypt;
 
-		rtllib_crypt_delayed_deinit(ieee, crypt);
+		rtllib_crypt_delayed_deinit(&ieee->crypt_info, crypt);
 
 		new_crypt = kzalloc(sizeof(*new_crypt), GFP_KERNEL);
 		if (new_crypt == NULL) {
@@ -642,7 +642,7 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 		goto done;
 	}
 	if (ext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY) {
-		ieee->tx_keyidx = idx;
+		ieee->crypt_info.tx_keyidx = idx;
 		sec.active_key = idx;
 		sec.flags |= SEC_ACTIVE_KEY;
 	}
@@ -696,14 +696,14 @@ int rtllib_wx_get_encode_ext(struct rtllib_device *ieee,
 			return -EINVAL;
 		idx--;
 	} else {
-		idx = ieee->tx_keyidx;
+		idx = ieee->crypt_info.tx_keyidx;
 	}
 	if (!(ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY) &&
 	    (ext->alg != IW_ENCODE_ALG_WEP))
 		if (idx != 0 || (ieee->iw_mode != IW_MODE_INFRA))
 			return -EINVAL;
 
-	crypt = ieee->crypt[idx];
+	crypt = ieee->crypt_info.crypt[idx];
 
 	encoding->flags = idx + 1;
 	memset(ext, 0, sizeof(*ext));

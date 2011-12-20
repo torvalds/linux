@@ -802,7 +802,7 @@ static int r8192_wx_set_enc(struct net_device *dev,
 
 		switch (wrqu->encoding.flags & IW_ENCODE_INDEX) {
 		case 0:
-			key_idx = ieee->tx_keyidx;
+			key_idx = ieee->crypt_info.tx_keyidx;
 			break;
 		case 1:
 			key_idx = 0;

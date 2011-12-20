@@ -182,7 +182,7 @@ int rtllib_encrypt_fragment(struct rtllib_device *ieee, struct sk_buff *frag,
 	struct lib80211_crypt_data *crypt = NULL;
 	int res;
 
-	crypt = ieee->crypt[ieee->tx_keyidx];
+	crypt = ieee->crypt_info.crypt[ieee->crypt_info.tx_keyidx];
 
 	if (!(crypt && crypt->ops)) {
 		printk(KERN_INFO "=========>%s(), crypt is null\n", __func__);
@@ -645,7 +645,7 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		skb->priority = rtllib_classify(skb, IsAmsdu);
-		crypt = ieee->crypt[ieee->tx_keyidx];
+		crypt = ieee->crypt_info.crypt[ieee->crypt_info.tx_keyidx];
 		encrypt = !(ether_type == ETH_P_PAE && ieee->ieee802_1x) &&
 			ieee->host_encrypt && crypt && crypt->ops;
 		if (!encrypt && ieee->ieee802_1x &&

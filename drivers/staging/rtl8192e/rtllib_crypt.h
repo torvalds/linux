@@ -28,8 +28,8 @@
 int rtllib_register_crypto_ops(struct lib80211_crypto_ops *ops);
 int rtllib_unregister_crypto_ops(struct lib80211_crypto_ops *ops);
 struct lib80211_crypto_ops *rtllib_get_crypto_ops(const char *name);
-void rtllib_crypt_deinit_entries(struct rtllib_device *, int);
-void rtllib_crypt_deinit_handler(unsigned long);
-void rtllib_crypt_delayed_deinit(struct rtllib_device *ieee,
+void rtllib_crypt_deinit_entries(struct lib80211_crypt_info *info, int force);
+void rtllib_crypt_deinit_handler(unsigned long data);
+void rtllib_crypt_delayed_deinit(struct lib80211_crypt_info *info,
 				 struct lib80211_crypt_data **crypt);
 #endif

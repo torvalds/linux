@@ -2188,14 +2188,10 @@ struct rtllib_device {
 	u8 ap_mac_addr[6];
 	u16 pairwise_key_type;
 	u16 group_key_type;
-	struct list_head crypt_deinit_list;
-	struct rtllib_crypt_data *crypt[NUM_WEP_KEYS];
 
-	int tx_keyidx; /* default TX key index (crypt[tx_keyidx]) */
+	struct lib80211_crypt_info crypt_info;
+
 	struct sw_cam_table swcamtable[TOTAL_CAM_ENTRY];
-	struct timer_list crypt_deinit_timer;
-	int crypt_quiesced;
-
 	int bcrx_sta_key; /* use individual keys to override default keys even
 			   * with RX of broad/multicast frames */
 

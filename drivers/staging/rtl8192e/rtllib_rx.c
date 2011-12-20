@@ -1019,7 +1019,7 @@ static int rtllib_rx_get_crypt(struct rtllib_device *ieee, struct sk_buff *skb,
 		if (skb->len >= hdrlen + 3)
 			idx = skb->data[hdrlen + 3] >> 6;
 
-		*crypt = ieee->crypt[idx];
+		*crypt = ieee->crypt_info.crypt[idx];
 		/* allow NULL decrypt to indicate an station specific override
 		 * for default encryption */
 		if (*crypt && ((*crypt)->ops == NULL ||

@@ -137,10 +137,10 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 	ieee->ieee802_1x = 1; /* Default to supporting 802.1x */
 
 	/* SAM Init here */
-	INIT_LIST_HEAD(&ieee->crypt_deinit_list);
-	_setup_timer(&ieee->crypt_deinit_timer,
+	INIT_LIST_HEAD(&ieee->crypt_info.crypt_deinit_list);
+	_setup_timer(&ieee->crypt_info.crypt_deinit_timer,
 		    rtllib_crypt_deinit_handler,
-		    (unsigned long) ieee);
+		    (unsigned long)&ieee->crypt_info);
 	ieee->rtllib_ap_sec_type = rtllib_ap_sec_type;
 
 	spin_lock_init(&ieee->lock);
@@ -197,16 +197,18 @@ void free_rtllib(struct net_device *dev)
 	kfree(ieee->pHTInfo);
 	ieee->pHTInfo = NULL;
 	rtllib_softmac_free(ieee);
-	del_timer_sync(&ieee->crypt_deinit_timer);
-	rtllib_crypt_deinit_entries(ieee, 1);
+
+	/* SAM cleanup */
+	del_timer_sync(&ieee->crypt_info.crypt_deinit_timer);
+	rtllib_crypt_deinit_entries(&ieee->crypt_info, 1);
 
 	for (i = 0; i < NUM_WEP_KEYS; i++) {
-		struct lib80211_crypt_data *crypt = ieee->crypt[i];
+		struct lib80211_crypt_data *crypt = ieee->crypt_info.crypt[i];
 		if (crypt) {
 			if (crypt->ops)
 				crypt->ops->deinit(crypt->priv);
 			kfree(crypt);
-			ieee->crypt[i] = NULL;
+			ieee->crypt_info.crypt[i] = NULL;
 		}
 	}
 
