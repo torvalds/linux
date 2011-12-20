@@ -30,14 +30,6 @@
 
 #ifndef __ASSEMBLY__
 
-#ifndef CONFIG_ARCH_AT91X40
-#define __arch_ioremap	at91_ioremap
-#define __arch_iounmap	at91_iounmap
-#endif
-
-void __iomem *at91_ioremap(unsigned long phys, size_t size, unsigned int type);
-void at91_iounmap(volatile void __iomem *addr);
-
 static inline unsigned int at91_sys_read(unsigned int reg_offset)
 {
 	void __iomem *addr = (void __iomem *)AT91_VA_BASE_SYS;

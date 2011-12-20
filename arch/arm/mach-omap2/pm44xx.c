@@ -16,8 +16,8 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 
+#include "common.h"
 #include "powerdomain.h"
-#include <mach/omap4-common.h>
 
 struct power_state {
 	struct powerdomain *pwrdm;
