@@ -13,6 +13,9 @@
 #include <linux/sysctl.h>
 #include <linux/init.h>
 #include <linux/fs.h>
+
+#include <asm/setup.h>
+
 #include "trace.h"
 
 #define STACK_TRACE_ENTRIES 500
@@ -352,8 +355,13 @@ stack_trace_sysctl(struct ctl_table *table, int write,
 	return ret;
 }
 
+static char stack_trace_filter_buf[COMMAND_LINE_SIZE+1] __initdata;
+
 static __init int enable_stacktrace(char *str)
 {
+	if (strncmp(str, "_filter=", 8) == 0)
+		strncpy(stack_trace_filter_buf, str+8, COMMAND_LINE_SIZE);
+
 	stack_tracer_enabled = 1;
 	last_stack_tracer_enabled = 1;
 	return 1;
@@ -374,6 +382,9 @@ static __init int stack_trace_init(void)
 
 	trace_create_file("stack_trace_filter", 0444, d_tracer,
 			NULL, &stack_trace_filter_fops);
+
+	if (stack_trace_filter_buf[0])
+		ftrace_set_early_filter(&trace_ops, stack_trace_filter_buf, 1);
 
 	if (stack_tracer_enabled)
 		register_ftrace_function(&trace_ops);
