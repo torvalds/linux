@@ -210,7 +210,7 @@ int mxs_saif_put_mclk(unsigned int saif_id)
 		return -EBUSY;
 	}
 
-	clk_disable(saif->clk);
+	clk_disable_unprepare(saif->clk);
 
 	/* disable MCLK output */
 	__raw_writel(BM_SAIF_CTRL_CLKGATE,
@@ -264,7 +264,7 @@ int mxs_saif_get_mclk(unsigned int saif_id, unsigned int mclk,
 	if (ret)
 		return ret;
 
-	ret = clk_enable(saif->clk);
+	ret = clk_prepare_enable(saif->clk);
 	if (ret)
 		return ret;
 
