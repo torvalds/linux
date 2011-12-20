@@ -331,7 +331,7 @@ struct laibao_platform_data {
 };
 
 struct akm8975_platform_data {
-	char layouts[3][3];
+	short m_layout[4][3][3];
 	char project_name[64];
 	int gpio_DRDY;
 };

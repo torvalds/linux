@@ -97,6 +97,13 @@
 #define CONFIG_SENSOR_POWERDNACTIVE_LEVEL_0 RK29_CAM_POWERDNACTIVE_H
 #define CONFIG_SENSOR_FLASHACTIVE_LEVEL_0 RK29_CAM_FLASHACTIVE_H
 
+#define CONFIG_SENSOR_QCIF_FPS_FIXED_0      8
+#define CONFIG_SENSOR_QVGA_FPS_FIXED_0      8
+#define CONFIG_SENSOR_CIF_FPS_FIXED_0       8
+#define CONFIG_SENSOR_VGA_FPS_FIXED_0       8
+#define CONFIG_SENSOR_480P_FPS_FIXED_0      8
+#define CONFIG_SENSOR_SVGA_FPS_FIXED_0      8
+#define CONFIG_SENSOR_720P_FPS_FIXED_0      8
 #define CONFIG_SENSOR_1 RK29_CAM_SENSOR_GC0309  /* front camera sensor */
 #define CONFIG_SENSOR_IIC_ADDR_1 	    0x42
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_1    1
@@ -109,6 +116,13 @@
 #define CONFIG_SENSOR_RESETACTIVE_LEVEL_1 RK29_CAM_RESETACTIVE_L
 #define CONFIG_SENSOR_POWERDNACTIVE_LEVEL_1 RK29_CAM_POWERDNACTIVE_H
 #define CONFIG_SENSOR_FLASHACTIVE_LEVEL_1 RK29_CAM_FLASHACTIVE_L
+#define CONFIG_SENSOR_QCIF_FPS_FIXED_1      18
+#define CONFIG_SENSOR_QVGA_FPS_FIXED_1      18
+#define CONFIG_SENSOR_CIF_FPS_FIXED_1       18
+#define CONFIG_SENSOR_VGA_FPS_FIXED_1       18
+#define CONFIG_SENSOR_480P_FPS_FIXED_1      18
+#define CONFIG_SENSOR_SVGA_FPS_FIXED_1      18
+#define CONFIG_SENSOR_720P_FPS_FIXED_1      18
 /*---------------- Camera Sensor Configuration End------------------------*/
 #include "../../../drivers/media/video/rk29_camera.c"
 #endif
@@ -445,6 +459,29 @@ static struct platform_device rk29_v4l2_output_devce = {
 };
 
 /*HANNSTAR_P1003 touch*/
+
+#ifdef CONFIG_ION
+static struct ion_platform_data rk29_ion_pdata = {
+	.nr = 1,
+	.heaps = {
+		{
+			.type = ION_HEAP_TYPE_CARVEOUT,
+			.id = 0,
+			.name = "ui",
+			.base = PMEM_UI_BASE,
+			.size = PMEM_UI_SIZE,
+		}
+	},
+};
+
+static struct platform_device rk29_ion_device = {
+	.name = "ion-rockchip",
+	.id = 0,
+	.dev = {
+		.platform_data = &rk29_ion_pdata,
+	},
+};
+#endif
 #if defined (CONFIG_HANNSTAR_P1003)
 #define TOUCH_RESET_PIN RK29_PIN6_PC3
 #define TOUCH_INT_PIN   RK29_PIN4_PD5
@@ -1759,6 +1796,41 @@ struct platform_device rk_device_headset = {
 };
 #endif
 
+#if defined (CONFIG_COMPASS_AK8975)
+static struct akm8975_platform_data akm8975_info =
+{
+	.m_layout = 
+	{
+		{
+			{1, 0, 0 },
+			{0, -1, 0 },
+			{0,	0, -1 },
+		},
+
+		{
+			{1, 0, 0 },
+			{0, 1, 0 },
+			{0,	0, 1 },
+		},
+
+		{
+			{1, 0, 0 },
+			{0, 1, 0 },
+			{0,	0, 1 },
+		},
+
+		{
+			{1, 0, 0 },
+			{0, 1, 0 },
+			{0,	0, 1 },
+		},
+	}
+
+};
+
+#endif
+
+
 #if defined (CONFIG_SENSORS_MPU3050)
 /*mpu3050*/
 static struct mpu3050_platform_data mpu3050_data = {
@@ -2018,6 +2090,7 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.addr           = 0x0d,
 		.flags			= 0,
 		.irq			= RK29_PIN6_PC5,
+		.platform_data  = &akm8975_info,
 	},
 #endif
 #if defined (CONFIG_COMPASS_MMC328X)
@@ -3174,6 +3247,9 @@ static struct platform_device *devices[] __initdata = {
  	#endif
  	&rk29_soc_camera_pdrv_1,
  	&android_pmem_cam_device,
+#endif
+#ifdef CONFIG_ION
+	&rk29_ion_device,
 #endif
 	&android_pmem_device,
 	&rk29_vpu_mem_device,

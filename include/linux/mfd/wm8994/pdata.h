@@ -24,6 +24,10 @@ struct wm8994_ldo_pdata {
 
 	const char *supply;
 	struct regulator_init_data *init_data;
+
+	//wm8994 LDO1_ENA and LDO2_ENA
+	char	iomux_name[50];
+	int		iomux_mode;	
 };
 
 #define WM8994_CONFIGURE_GPIO 0x10000
@@ -123,9 +127,6 @@ struct wm8994_pdata {
 	int gpio_defaults[WM8994_NUM_GPIO];
 
 	struct wm8994_ldo_pdata ldo[WM8994_NUM_LDO];
-	//wm8994 LDO1_ENA and LDO2_ENA
-	char	PowerEN_iomux_name[50];
-	int		PowerEN_iomux_mode;	
 	
 	int irq_base;  /** Base IRQ number for WM8994, required for IRQs */
 
@@ -173,6 +174,8 @@ struct wm8994_pdata {
 
 	//If an external amplifier speakers wm8994		enable>0 disable=0
 	unsigned int PA_control_pin;
+	char	PA_iomux_name[50];
+	int		PA_iomux_mode;		
 	
 };
 

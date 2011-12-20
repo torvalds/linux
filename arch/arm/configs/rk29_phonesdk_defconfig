@@ -1641,7 +1641,8 @@ CONFIG_RADIO_ADAPTERS=y
 # Graphics support
 #
 # CONFIG_DRM is not set
-# CONFIG_ION is not set
+CONFIG_ION=y
+CONFIG_ION_ROCKCHIP=y
 # CONFIG_VGASTATE is not set
 # CONFIG_VIDEO_OUTPUT_CONTROL is not set
 CONFIG_FB=y

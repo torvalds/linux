@@ -25,6 +25,7 @@
 #include <linux/mmc/host.h>
 #include <linux/android_pmem.h>
 #include <linux/usb/android_composite.h>
+#include <linux/ion.h>
 
 #include <mach/hardware.h>
 #include <asm/setup.h>
@@ -429,6 +430,30 @@ static struct platform_device rk29_v4l2_output_devce = {
 	.name		= "rk29_vout",
 };
 
+#ifdef CONFIG_ION
+static struct ion_platform_data rk29_ion_pdata = {
+	.nr = 1,
+	.heaps = {
+		{
+			.type = ION_HEAP_TYPE_CARVEOUT,
+			.id = 0,
+			.name = "ui",
+			.base = PMEM_UI_BASE,
+			.size = PMEM_UI_SIZE,
+		}
+	},
+};
+
+static struct platform_device rk29_ion_device = {
+	.name = "ion-rockchip",
+	.id = 0,
+	.dev = {
+		.platform_data = &rk29_ion_pdata,
+	},
+};
+#endif
+
+
 /* HANNSTAR_P1003 touch I2C */
 #if defined (CONFIG_HANNSTAR_P1003)
 #define TOUCH_RESET_PIN RK29_PIN6_PC3
@@ -649,13 +674,49 @@ static struct bma023_platform_data bma023_info = {
   .model= 023,
   .swap_xy = 0,
   .swap_xyz = 1,
-  .orientation = {1,0,0,
+  .orientation = {-1,0,0,
 			   0,0,1,
-			   0,1,0},
+			   0,-1,0},
   .init_platform_hw= bma023_init_platform_hw,
 
 };
 #endif
+
+#if defined (CONFIG_COMPASS_AK8975)
+static struct akm8975_platform_data akm8975_info =
+{
+	.m_layout = 
+	{
+		{
+			{-1, 0, 0 },
+			{0, -1, 0 },
+			{0,	0, 1 },
+		},
+
+		{
+			{-1, 0, 0 },
+			{0, -1, 0 },
+			{0,	0, 1 },
+		},
+
+		{
+			{1, 0, 0 },
+			{0, 1, 0 },
+			{0,	0, 1 },
+		},
+
+		{
+			{1, 0, 0 },
+			{0, 1, 0 },
+			{0,	0, 1 },
+		},
+	}
+
+};
+
+#endif
+
+
 /*mpu3050*/
 #if defined (CONFIG_MPU_SENSORS_MPU3050)
 static struct mpu_platform_data mpu3050_data = {
@@ -1935,6 +1996,7 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.addr           = 0x0d,
 		.flags			= 0,
 		.irq			= RK29_PIN6_PC5,
+		.platform_data  = &akm8975_info,
 	},
 #endif
 #if defined (CONFIG_INPUT_LPSENSOR_ISL29028)
@@ -3141,6 +3203,9 @@ static struct platform_device *devices[] __initdata = {
 	#endif
 	&rk29_soc_camera_pdrv_1,
 	&android_pmem_cam_device,
+#endif
+#ifdef CONFIG_ION
+	&rk29_ion_device,
 #endif
 	&android_pmem_device,
 	&rk29_vpu_mem_device,

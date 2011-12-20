@@ -2045,9 +2045,16 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 			error_type = "I/O";
 			break;
 		}
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)  //Modifyed by xbw at 2011-21-14
+        printk(KERN_DEBUG "end_request: %s error, dev %s, sector %llu\n",
+               error_type, req->rq_disk ? req->rq_disk->disk_name : "?",
+               (unsigned long long)blk_rq_pos(req));
+
+#else
 		printk(KERN_ERR "end_request: %s error, dev %s, sector %llu\n",
 		       error_type, req->rq_disk ? req->rq_disk->disk_name : "?",
 		       (unsigned long long)blk_rq_pos(req));
+#endif      
 	}
 
 	blk_account_io_completion(req, nr_bytes);

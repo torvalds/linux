@@ -61,6 +61,7 @@ struct akm8975_data {
 	struct work_struct work;
 	struct early_suspend akm_early_suspend;
 	int eoc_irq; 
+	struct akm8975_platform_data *pdata;
 };
 
 /* Addresses to scan -- protected by sense_data_mutex */
@@ -501,6 +502,26 @@ static int akmd_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+
+static int akm_get_platform_data(struct akm8975_platform_data __user *arg)
+{	
+	struct akm8975_data *data = (struct akm8975_data *)i2c_get_clientdata(this_client);	
+	struct akm8975_platform_data *pdata_slave;
+//	struct akm8975_platform_data local_pdata_slave;
+
+//	if (copy_from_user(&local_pdata_slave, arg, sizeof(local_pdata_slave)))
+//		return -EFAULT;
+	pdata_slave = data->pdata;
+	if (!pdata_slave)
+		return -ENODEV;
+	if (copy_to_user(arg, pdata_slave, sizeof(*pdata_slave)))
+		return -EFAULT;
+	
+	return 0;
+}
+
+
+
 //static int akmd_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 //		   unsigned long arg)
 
@@ -609,6 +630,15 @@ static long akmd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			AKMFUNC("IOCTL_GET_DELAY");
 			delay = akmd_delay;
 			break;
+		case ECS_IOCTL_GET_PLATFORM_DATA:
+			ret = akm_get_platform_data((struct akm8975_platform_data __user *)arg);
+			if(ret < 0)
+			{
+				printk("%s:error,ret=%d\n",__FUNCTION__, ret);
+				return ret;
+			}
+			break;
+			
 		default:
 			return -ENOTTY;
 	}
@@ -766,7 +796,13 @@ int akm8975_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	int err = 0;
 	
 	AKMFUNC("akm8975_probe");
-
+	
+	if (client->dev.platform_data == NULL) {
+		dev_err(&client->dev, "platform data is NULL. exiting.\n");
+		err = -ENODEV;
+		goto exit0;
+	}
+	
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		printk(KERN_ERR "AKM8975 akm8975_probe: check_functionality failed.\n");
 		err = -ENODEV;
@@ -780,6 +816,8 @@ int akm8975_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		err = -ENOMEM;
 		goto exit1;
 	}
+
+	akm->pdata = client->dev.platform_data;
 	
 	INIT_WORK(&akm->work, akm8975_work_func);
 	i2c_set_clientdata(client, akm);

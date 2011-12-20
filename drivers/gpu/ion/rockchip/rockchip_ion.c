@@ -23,6 +23,11 @@
 static int num_heaps;
 static struct ion_heap **heaps;
 
+static long rockchip_custom_ioctl (struct ion_client *client, unsigned int cmd,
+			      unsigned long arg)
+{
+	return 0;
+}
 static int rockchip_ion_probe(struct platform_device *pdev)
 {
     struct ion_device *idev;
@@ -33,12 +38,11 @@ static int rockchip_ion_probe(struct platform_device *pdev)
 	num_heaps = pdata->nr;
 	heaps = kzalloc(sizeof(struct ion_heap *) * pdata->nr, GFP_KERNEL);
 
-	idev = ion_device_create(NULL);
+	idev = ion_device_create(rockchip_custom_ioctl);
 	if (IS_ERR_OR_NULL(idev)) {
 		kfree(heaps);
 		return PTR_ERR(idev);
 	}
-
 	/* create the heaps as specified in the board file */
 	for (i = 0; i < num_heaps; i++) {
 		struct ion_platform_heap *heap_data = &pdata->heaps[i];

@@ -822,7 +822,7 @@ gckVIDMEM_AllocateLinear(
 
     acquired = gcvTRUE;
 
-#if 1
+#if 0
     // dkm: 对于花屏死机的问题，感觉VV这么做只是规避，还是没有找到问题的原因
 	if (Type == gcvSURF_TILE_STATUS
     && (Bytes + (1 << 20) > Memory->freeBytes))
@@ -1519,7 +1519,6 @@ gckVIDMEM_Unlock(
     gckOS os = gcvNULL;
     gctBOOL acquired = gcvFALSE;
     gctBOOL needRelease = gcvFALSE;
-    gctBOOL pendingUnlock = gcvFALSE;
 
     gcmkHEADER_ARG("Node=0x%x Type=%d *Asynchroneous=%d",
                    Node, Type, gcmOPT_VALUE(Asynchroneous));
@@ -1569,6 +1568,18 @@ gckVIDMEM_Unlock(
         command = Node->Virtual.kernel->command;
         gcmkVERIFY_OBJECT(command, gcvOBJ_COMMAND);
 
+
+        /* Get the gckOS object pointer. */
+        os = kernel->os;
+        gcmkVERIFY_OBJECT(os, gcvOBJ_OS);
+
+        /* Grab the mutex. */
+        gcmkONERROR(
+                gckOS_AcquireMutex(os, Node->Virtual.mutex, gcvINFINITE));
+
+        acquired = gcvTRUE;
+
+
         if (Asynchroneous == gcvNULL)
         {
             gcmkTRACE_ZONE(gcvLEVEL_INFO, gcvZONE_VIDMEM,
@@ -1576,14 +1587,60 @@ gckVIDMEM_Unlock(
                            Node,
                            Node->Virtual.locked);
 
-            /* Get the gckOS object pointer. */
-            os = kernel->os;
-            gcmkVERIFY_OBJECT(os, gcvOBJ_OS);
+            if (Node->Virtual.locked == 0)
+            {
+                status = gcvSTATUS_MEMORY_UNLOCKED;
+                goto OnError;
+            }
 
-            /* Grab the mutex. */
-            gcmkONERROR(
-                gckOS_AcquireMutex(os, Node->Virtual.mutex, gcvINFINITE));
+            /* Decrement lock count. */
+            -- Node->Virtual.locked;
 
+            /* See if we can unlock the resources. */
+            if (Node->Virtual.locked == 0)
+            {
+                /* Unlock the pages. */
+#ifdef __QNXNTO__
+                gcmkONERROR(
+                        gckOS_UnlockPages(os,
+                            Node->Virtual.physical,
+                            Node->Virtual.userPID,
+                            Node->Virtual.bytes,
+                            Node->Virtual.logical));
+#else
+                gcmkONERROR(
+                        gckOS_UnlockPages(os,
+                            Node->Virtual.physical,
+                            Node->Virtual.bytes,
+                            Node->Virtual.logical));
+#endif
+ 
+                /* Free the page table. */
+                if (Node->Virtual.pageTable != gcvNULL)
+                {
+                    gcmkONERROR(
+                            gckMMU_FreePages(Node->Virtual.kernel->mmu,
+                                Node->Virtual.pageTable,
+                                Node->Virtual.pageCount));
+
+                    /* Mark page table as freed. */
+                    Node->Virtual.pageTable = gcvNULL;
+                }
+
+                /* Mark node as unlocked. */
+#ifdef __QNXTO
+                Node->Virtual.unlockPending = gcvFALSE;
+#else
+                Node->Virtual.pending = gcvFALSE;
+#endif
+            }
+
+            gcmkTRACE_ZONE(gcvLEVEL_INFO, gcvZONE_VIDMEM,
+                    "Unmapped virtual node 0x%x from 0x%08X",
+                    Node, Node->Virtual.address);
+        }
+        else
+        {
             /* If we need to unlock a node from virtual memory we have to be
             ** very carefull.  If the node is still inside the caches we
             ** might get a bus error later if the cache line needs to be
@@ -1619,11 +1676,17 @@ gckVIDMEM_Unlock(
                     /* Flush depth cache. */
                     flush = gcvFLUSH_DEPTH;
                 }
+                else if (Type == gcvSURF_TEXTURE)   // dkm : add
+                {
+                    flush = gcvFLUSH_TEXTURE;
+                }
                 else
                 {
                     /* No flush required. */
                     flush = (gceKERNEL_FLUSH) 0;
                 }
+
+                flush = flush | gcvFLUSH_2D;    // dkm : add to avoid the gpu hang
 
                 gcmkONERROR(
                     gckHARDWARE_Flush(hardware, flush, gcvNULL, &requested));
@@ -1643,12 +1706,6 @@ gckVIDMEM_Unlock(
                                                   buffer,
                                                   &bufferSize));
 
-                    gcmkONERROR(
-                        gckEVENT_Unlock(Node->Virtual.kernel->event,
-                                        gcvKERNEL_PIXEL,
-                                        Node,
-                                        Type));
-
                     /* Mark node as pending. */
 #ifdef __QNXNTO__
                     Node->Virtual.unlockPending = gcvTRUE;
@@ -1656,75 +1713,12 @@ gckVIDMEM_Unlock(
                     Node->Virtual.pending = gcvTRUE;
 #endif
 
-                    needRelease = gcvFALSE;
-
                     gcmkONERROR(gckCOMMAND_Execute(command, requested));
 
-                    pendingUnlock = gcvTRUE;
+                    needRelease = gcvFALSE;
                 }
             }
 
-            if (!pendingUnlock)
-            {
-				if (Node->Virtual.locked == 0)
-				{
-					status = gcvSTATUS_MEMORY_UNLOCKED;
-					goto OnError;
-				}
-
-                /* Decrement lock count. */
-                -- Node->Virtual.locked;
-
-                /* See if we can unlock the resources. */
-                if (Node->Virtual.locked == 0)
-                {
-                    /* Unlock the pages. */
-#ifdef __QNXNTO__
-                    gcmkONERROR(
-                        gckOS_UnlockPages(os,
-                                          Node->Virtual.physical,
-                                          Node->Virtual.userPID,
-                                          Node->Virtual.bytes,
-                                          Node->Virtual.logical));
-#else
-                    gcmkONERROR(
-                        gckOS_UnlockPages(os,
-                                          Node->Virtual.physical,
-                                          Node->Virtual.bytes,
-                                          Node->Virtual.logical));
-#endif
-
-                    /* Free the page table. */
-                    if (Node->Virtual.pageTable != gcvNULL)
-                    {
-                        gcmkONERROR(
-                            gckMMU_FreePages(Node->Virtual.kernel->mmu,
-                                             Node->Virtual.pageTable,
-                                             Node->Virtual.pageCount));
-
-                        /* Mark page table as freed. */
-                        Node->Virtual.pageTable = gcvNULL;
-                    }
-
-                    /* Mark node as unlocked. */
-#ifdef __QNXTO
-                    Node->Virtual.unlockPending = gcvFALSE;
-#else
-                    Node->Virtual.pending = gcvFALSE;
-#endif
-                }
-
-                gcmkTRACE_ZONE(gcvLEVEL_INFO, gcvZONE_VIDMEM,
-                               "Unmapped virtual node 0x%x from 0x%08X",
-                               Node, Node->Virtual.address);
-            }
-
-            /* Release the mutex. */
-            gcmkVERIFY_OK(gckOS_ReleaseMutex(os, Node->Virtual.mutex));
-        }
-
-        else
-        {
             gcmkTRACE_ZONE(gcvLEVEL_INFO, gcvZONE_VIDMEM,
                            "Scheduled unlock for virtual node 0x%x",
                            Node);
@@ -1732,6 +1726,10 @@ gckVIDMEM_Unlock(
             /* Schedule the surface to be unlocked. */
             *Asynchroneous = gcvTRUE;
         }
+
+        /* Release the mutex. */
+        gcmkVERIFY_OK(gckOS_ReleaseMutex(os, Node->Virtual.mutex));
+        acquired = gcvFALSE;
     }
 
     /* Success. */

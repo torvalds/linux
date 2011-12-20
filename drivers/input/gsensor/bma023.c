@@ -34,6 +34,14 @@
 #include <linux/earlysuspend.h>
 #endif
 
+
+#if 0
+#define DBG(x...) printk(x)
+#else
+#define DBG(x...)
+#endif
+
+
 #define SENSOR_NAME 			"bma150"
 #define GRAVITY_EARTH                   9806550
 #define ABSMIN_2G                       (-GRAVITY_EARTH * 2)
@@ -226,8 +234,11 @@ struct bma150_data {
 #define BMA_IOCTL_START		             _IO(BMAIO, 0x03)
 #define BMA_IOCTL_GETDATA               _IOR(BMAIO, 0x08, char[RBUFF_SIZE+1])
 
-static int bma023_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-	   unsigned long arg);
+/* IOCTLs for APPs */
+#define BMA_IOCTL_APP_SET_RATE		_IOW(BMAIO, 0x10, char)
+
+static long bma023_ioctl( struct file *file, unsigned int cmd, unsigned long arg);
+
 static void bma150_early_suspend(struct early_suspend *h);
 static void bma150_late_resume(struct early_suspend *h);
 
@@ -457,7 +468,7 @@ static void bma150_work_func(struct work_struct *work)
 	mutex_lock(&bma150->value_mutex);
 	bma150->value = acc;
 	mutex_unlock(&bma150->value_mutex);
-	//printk("bma150_work_func   acc.x=%d,acc.y=%d,acc.z=%d\n",acc.x,acc.y,acc.z);
+	DBG("bma150_work_func   acc.x=%d,acc.y=%d,acc.z=%d\n",acc.x,acc.y,acc.z);
 	schedule_delayed_work(&bma150->work, delay);
 
 }
@@ -724,6 +735,7 @@ static void bma150_input_delete(struct bma150_data *bma150)
 
 static int bma023_open(struct inode *inode, struct file *file)
 {
+	printk("%s\n",__FUNCTION__);
 	return 0;//nonseekable_open(inode, file);
 }
 
@@ -742,22 +754,68 @@ static struct miscdevice bma023_device = {
 	.name = "mma8452_daemon",//"mma8452_daemon",
 	.fops = &bma023_fops,
 };
-static int bma023_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-	   unsigned long arg)
+
+
+static bma023_enable(struct i2c_client *client, int enable)
+{
+	
+	struct bma150_data *bma150 = i2c_get_clientdata(client);
+	int pre_enable = atomic_read(&bma150->enable);
+	
+	mutex_lock(&bma150->enable_mutex);
+	
+	if(enable)
+	{
+		if(pre_enable==0)
+		{
+			bma150_set_mode(client,BMA150_MODE_NORMAL);
+			schedule_delayed_work(&bma150->work,
+				msecs_to_jiffies(atomic_read(&bma150->delay)));
+			atomic_set(&bma150->enable, 1);
+		}
+	}
+	else	
+	{
+		bma150_set_mode(client,BMA150_MODE_SLEEP);
+		cancel_delayed_work_sync(&bma150->work);
+		atomic_set(&bma150->enable, 0);
+	}
+	
+	mutex_unlock(&bma150->enable_mutex);
+
+}
+
+
+static long bma023_ioctl( struct file *file, unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 
 	struct i2c_client *client = container_of(bma023_device.parent, struct i2c_client, dev);
 	struct bma150_data *bma150 = i2c_get_clientdata(client);;
 	switch (cmd) {
+	case BMA_IOCTL_START:
+		bma023_enable(client, 1);
+		DBG("%s:%d,cmd=BMA_IOCTL_START\n",__FUNCTION__,__LINE__);
+		break;
+
+	case BMA_IOCTL_CLOSE:
+		bma023_enable(client, 0);		
+		DBG("%s:%d,cmd=BMA_IOCTL_CLOSE\n",__FUNCTION__,__LINE__);
+		break;
+
+	case BMA_IOCTL_APP_SET_RATE:	
+		atomic_set(&bma150->delay, 20);//20ms	
+		DBG("%s:%d,cmd=BMA_IOCTL_APP_SET_RATE\n",__FUNCTION__,__LINE__);
+		break;
+		
 	case BMA_IOCTL_GETDATA:
 		mutex_lock(&bma150->value_mutex);
 		if(abs(sense_data.x-bma150->value.x)>10)//·À¶¶¶¯
-			sense_data.x=bma150->value.x;
+			sense_data.x=(bma150->value.x*1000)>>8;
 		if(abs(sense_data.y+(bma150->value.z))>10)//·À¶¶¶¯
-			sense_data.y=-(bma150->value.z);
+			sense_data.y=(bma150->value.z*1000)>>8;
 		if(abs(sense_data.z+(bma150->value.y))>10)//·À¶¶¶¯
-			sense_data.z=-(bma150->value.y);
+			sense_data.z=(bma150->value.y*1000)>>8;
 	       //bma150->value = acc;
 		mutex_unlock(&bma150->value_mutex);
 
@@ -765,8 +823,11 @@ static int bma023_ioctl(struct inode *inode, struct file *file, unsigned int cmd
             printk("failed to copy sense data to user space.");
 			return -EFAULT;
         }
+
+		DBG("%s:%d,cmd=BMA_IOCTL_GETDATA\n",__FUNCTION__,__LINE__);
 			break;
 	default:
+		printk("%s:%d,error,cmd=%x\n",__FUNCTION__,__LINE__,cmd);
 		break;
 		}
 	return 0;

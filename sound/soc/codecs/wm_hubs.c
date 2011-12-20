@@ -295,7 +295,9 @@ SOC_DOUBLE_R("Output ZC Switch", WM8993_LEFT_OPGA_VOLUME,
 	     WM8993_RIGHT_OPGA_VOLUME, 7, 1, 0),
 
 SOC_SINGLE("Earpiece Switch", WM8993_HPOUT2_VOLUME, 5, 1, 1),
-SOC_SINGLE_TLV("Earpiece Volume", WM8993_HPOUT2_VOLUME, 4, 1, 1, earpiece_tlv),
+SOC_SINGLE_TLV("HPOUT2 Volume", WM8993_HPOUT2_VOLUME, 4, 1, 1, earpiece_tlv),
+SOC_DOUBLE_R_TLV("Earpiece Volume", WM8993_LEFT_OPGA_VOLUME, 
+		WM8993_RIGHT_OPGA_VOLUME, 0, 63, 0, outpga_tlv),
 
 SOC_SINGLE_TLV("SPKL Input Volume", WM8993_SPKMIXL_ATTENUATION,
 	       5, 1, 1, wm_hubs_spkmix_tlv),

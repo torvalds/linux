@@ -94,7 +94,8 @@ module_param(coreClock, ulong, 0644);
 uint gpu_dmask = D_ERROR;
 module_param(gpu_dmask, uint, 0644);
 
-unsigned int regAddress = 0;
+uint gpuState = 0;
+uint regAddress = 0;
 
 // gcdkREPORT_VIDMEM_USAGE add by vv
 #if gcdkREPORT_VIDMEM_USAGE
@@ -464,31 +465,52 @@ long drv_ioctl(struct file *filp,
     }
 	
 #if gcdkUSE_MEMORY_RECORD
-	if (iface.command == gcvHAL_EVENT_COMMIT)
+    if (iface.command == gcvHAL_UNLOCK_VIDEO_MEMORY)
+    {
+	    MEMORY_RECORD_PTR mr;
+	    mr = FindVideoMemoryRecord(device->os,
+				       private,
+				       &private->memoryRecordList,
+				       iface.u.UnlockVideoMemory.node);
+				
+	    if (mr == gcvNULL)
+	    {
+		    gcmkPRINT("*ERROR* Invalid video memory for unlock");
+		    return -ENOTTY;
+	    }
+                
+    }
+	else if (iface.command == gcvHAL_EVENT_COMMIT)
 	{
 		MEMORY_RECORD_PTR mr;
 		gcsQUEUE_PTR queue = iface.u.Event.queue;
 		
 		while (queue != gcvNULL)
 		{
-			gcsQUEUE_PTR record, next;
+			gcsQUEUE_PTR next;
+            gcsQUEUE record;
 
-			/* Map record into kernel memory. */
-			gcmkERR_BREAK(gckOS_MapUserPointer(device->os,
-											  queue,
-											  gcmSIZEOF(gcsQUEUE),
-											  (gctPOINTER *) &record));
+			/* Copy record into kernel memory. */
+            copyLen = copy_from_user(&record,
+                                     (void *) queue,
+                                     gcmSIZEOF(gcsQUEUE));
 
-			switch (record->iface.command)
+            if (copyLen != 0)
+            {
+                /* The input buffer is not big enough. So fail the I/O. */
+               return -ENOTTY;
+            }
+
+			switch (record.iface.command)
 			{
             case gcvHAL_FREE_NON_PAGED_MEMORY:
 		        mr = FindMemoryRecord(device->os,
                                       private,
                                       &private->memoryRecordList,
                                       gcvNON_PAGED_MEMORY,
-                                      record->iface.u.FreeNonPagedMemory.bytes,
-                                      record->iface.u.FreeNonPagedMemory.physical,
-                                      record->iface.u.FreeNonPagedMemory.logical);
+                                      record.iface.u.FreeNonPagedMemory.bytes,
+                                      record.iface.u.FreeNonPagedMemory.physical,
+                                      record.iface.u.FreeNonPagedMemory.logical);
         		
 		        if (mr != gcvNULL)
 		        {
@@ -505,9 +527,9 @@ long drv_ioctl(struct file *filp,
                                       private,
                                       &private->memoryRecordList,
                                       gcvCONTIGUOUS_MEMORY,
-                                      record->iface.u.FreeContiguousMemory.bytes,
-                                      record->iface.u.FreeContiguousMemory.physical,
-                                      record->iface.u.FreeContiguousMemory.logical);
+                                      record.iface.u.FreeContiguousMemory.bytes,
+                                      record.iface.u.FreeContiguousMemory.physical,
+                                      record.iface.u.FreeContiguousMemory.logical);
         		
 		        if (mr != gcvNULL)
 		        {
@@ -523,7 +545,7 @@ long drv_ioctl(struct file *filp,
 				mr = FindVideoMemoryRecord(device->os,
                                            private,
                                            &private->memoryRecordList,
-                                           record->iface.u.FreeVideoMemory.node);
+                                           record.iface.u.FreeVideoMemory.node);
 				
 		        if (mr != gcvNULL)
 		        {
@@ -540,14 +562,39 @@ long drv_ioctl(struct file *filp,
 			}
 
 			/* Next record in the queue. */
-			next = record->next;
+			next = record.next;
 
-			/* Unmap record from kernel memory. */
-			gcmkERR_BREAK(gckOS_UnmapUserPointer(device->os,
-												queue,
-												gcmSIZEOF(gcsQUEUE),
-												(gctPOINTER *) record));
 			queue = next;
+		}
+	}
+	else if (iface.command == gcvHAL_LOCK_VIDEO_MEMORY)
+	{
+		MEMORY_RECORD_PTR mr;
+		
+		mr = FindVideoMemoryRecord(device->os,
+                                   private,
+                                   &private->memoryRecordList,
+                                   iface.u.LockVideoMemory.node);
+		
+		if (mr == gcvNULL)
+		{
+			gcmkPRINT("*ERROR* Invalid video memory for lock");
+            return -ENOTTY;
+		}
+	}
+	else if (iface.command == gcvHAL_UNLOCK_VIDEO_MEMORY)
+	{
+		MEMORY_RECORD_PTR mr;
+		
+		mr = FindVideoMemoryRecord(device->os,
+                                   private,
+                                   &private->memoryRecordList,
+                                   iface.u.UnlockVideoMemory.node);
+		
+		if (mr == gcvNULL)
+		{
+			gcmkPRINT("*ERROR* Invalid video memory for unlock");
+            return -ENOTTY;
 		}
 	}
 #endif
@@ -957,10 +1004,9 @@ static void drv_exit(void)
     unregister_chrdev(major, DRV_NAME);
 #endif
 
-    // 去掉,避免关机的时候动态桌面报错
-    //shutdown = 1;   
+    shutdown = 1;   
 
-    mdelay(50); 
+    mdelay(100); 
     gckGALDEVICE_Stop(galDevice);
     mdelay(50); 
     gckGALDEVICE_Destroy(galDevice);
@@ -1413,6 +1459,15 @@ struct RegDefine reg_def[] =
 static int proc_gpu_show(struct seq_file *s, void *v)
 {
     int i = 0;
+
+    switch(gpuState) {
+        case gcvPOWER_ON:       seq_printf(s, "gpu state: POWER_ON\n");         break;
+        case gcvPOWER_OFF:      seq_printf(s, "gpu state: POWER_OFF\n");        break;
+        case gcvPOWER_IDLE:     seq_printf(s, "gpu state: POWER_IDLE\n");       break;
+        case gcvPOWER_SUSPEND:  seq_printf(s, "gpu state: POWER_SUSPEND\n");    break;
+        default:                seq_printf(s, "gpu state: %d\n", gpuState);     break;
+    }
+    
     seq_printf(s, "gpu regs:\n");
 
     for(i=0; i<sizeof(reg_def)/sizeof(struct RegDefine); i++) {
