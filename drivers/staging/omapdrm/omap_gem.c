@@ -84,6 +84,9 @@ struct omap_gem_object {
 	 */
 	struct page **pages;
 
+	/** addresses corresponding to pages in above array */
+	dma_addr_t *addrs;
+
 	/**
 	 * Virtual address, if mapped.
 	 */
@@ -208,6 +211,19 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
 		return PTR_ERR(pages);
 	}
 
+	/* for non-cached buffers, ensure the new pages are clean because
+	 * DSS, GPU, etc. are not cache coherent:
+	 */
+	if (omap_obj->flags & (OMAP_BO_WC|OMAP_BO_UNCACHED)) {
+		int i, npages = obj->size >> PAGE_SHIFT;
+		dma_addr_t *addrs = kmalloc(npages * sizeof(addrs), GFP_KERNEL);
+		for (i = 0; i < npages; i++) {
+			addrs[i] = dma_map_page(obj->dev->dev, pages[i],
+					0, PAGE_SIZE, DMA_BIDIRECTIONAL);
+		}
+		omap_obj->addrs = addrs;
+	}
+
 	omap_obj->pages = pages;
 	return 0;
 }
@@ -216,6 +232,20 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
 static void omap_gem_detach_pages(struct drm_gem_object *obj)
 {
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
+
+	/* for non-cached buffers, ensure the new pages are clean because
+	 * DSS, GPU, etc. are not cache coherent:
+	 */
+	if (omap_obj->flags & (OMAP_BO_WC|OMAP_BO_UNCACHED)) {
+		int i, npages = obj->size >> PAGE_SHIFT;
+		for (i = 0; i < npages; i++) {
+			dma_unmap_page(obj->dev->dev, omap_obj->addrs[i],
+					PAGE_SIZE, DMA_BIDIRECTIONAL);
+		}
+		kfree(omap_obj->addrs);
+		omap_obj->addrs = NULL;
+	}
+
 	_drm_gem_put_pages(obj, omap_obj->pages, true, false);
 	omap_obj->pages = NULL;
 }
