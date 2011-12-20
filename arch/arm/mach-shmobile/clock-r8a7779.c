@@ -102,9 +102,35 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP014] = SH_CLK_MSTP32(&div4_clks[DIV4_P], MSTPCR0, 14, 0), /* TMU2 */
 };
 
+static unsigned long mul4_recalc(struct clk *clk)
+{
+	return clk->parent->rate * 4;
+}
+
+static struct clk_ops mul4_clk_ops = {
+	.recalc		= mul4_recalc,
+};
+
+struct clk clkz_clk = {
+	.ops		= &mul4_clk_ops,
+	.parent		= &div4_clks[DIV4_S],
+};
+
+struct clk clkzs_clk = {
+	/* clks x 4 / 4 = clks */
+	.parent		= &div4_clks[DIV4_S],
+};
+
+static struct clk *late_main_clks[] = {
+	&clkz_clk,
+	&clkzs_clk,
+};
+
 static struct clk_lookup lookups[] = {
 	/* main clocks */
 	CLKDEV_CON_ID("plla_clk", &plla_clk),
+	CLKDEV_CON_ID("clkz_clk", &clkz_clk),
+	CLKDEV_CON_ID("clkzs_clk", &clkzs_clk),
 
 	/* DIV4 clocks */
 	CLKDEV_CON_ID("shyway_clk",	&div4_clks[DIV4_S]),
@@ -137,6 +163,9 @@ void __init r8a7779_clock_init(void)
 
 	if (!ret)
 		ret = sh_clk_mstp32_register(mstp_clks, MSTP_NR);
+
+	for (k = 0; !ret && (k < ARRAY_SIZE(late_main_clks)); k++)
+		ret = clk_register(late_main_clks[k]);
 
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
