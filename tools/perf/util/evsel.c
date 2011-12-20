@@ -108,6 +108,9 @@ void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts)
 	if (opts->system_wide)
 		attr->sample_type	|= PERF_SAMPLE_CPU;
 
+	if (opts->period)
+		attr->sample_type	|= PERF_SAMPLE_PERIOD;
+
 	if (opts->sample_id_all_avail &&
 	    (opts->sample_time || opts->system_wide ||
 	     !opts->no_inherit || opts->cpu_list))
@@ -457,7 +460,7 @@ int perf_event__parse_sample(const union perf_event *event, u64 type,
 		u32 val32[2];
 	} u;
 
-
+	memset(data, 0, sizeof(*data));
 	data->cpu = data->pid = data->tid = -1;
 	data->stream_id = data->id = data->time = -1ULL;
 
