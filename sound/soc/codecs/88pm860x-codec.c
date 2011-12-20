@@ -861,7 +861,7 @@ static const struct snd_soc_dapm_widget pm860x_dapm_widgets[] = {
 	PM860X_DAPM_OUTPUT("RSYNC", pm860x_rsync_event),
 };
 
-static const struct snd_soc_dapm_route audio_map[] = {
+static const struct snd_soc_dapm_route pm860x_dapm_routes[] = {
 	/* supply */
 	{"Left DAC", NULL, "VCODEC"},
 	{"Right DAC", NULL, "VCODEC"},
@@ -1361,7 +1361,6 @@ EXPORT_SYMBOL_GPL(pm860x_mic_jack_detect);
 static int pm860x_probe(struct snd_soc_codec *codec)
 {
 	struct pm860x_priv *pm860x = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int i, ret;
 
 	pm860x->codec = codec;
@@ -1388,11 +1387,6 @@ static int pm860x_probe(struct snd_soc_codec *codec)
 		goto out;
 	}
 
-	snd_soc_add_controls(codec, pm860x_snd_controls,
-			     ARRAY_SIZE(pm860x_snd_controls));
-	snd_soc_dapm_new_controls(dapm, pm860x_dapm_widgets,
-				  ARRAY_SIZE(pm860x_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 	return 0;
 
 out:
@@ -1420,6 +1414,13 @@ static struct snd_soc_codec_driver soc_codec_dev_pm860x = {
 	.reg_cache_size	= REG_CACHE_SIZE,
 	.reg_word_size	= sizeof(u8),
 	.set_bias_level	= pm860x_set_bias_level,
+
+	.controls = pm860x_snd_controls,
+	.num_controls = ARRAY_SIZE(pm860x_snd_controls),
+	.dapm_widgets = pm860x_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(pm860x_dapm_widgets),
+	.dapm_routes = pm860x_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(pm860x_dapm_routes),
 };
 
 static int __devinit pm860x_codec_probe(struct platform_device *pdev)
