@@ -681,6 +681,42 @@ static struct bma023_platform_data bma023_info = {
 
 };
 #endif
+
+#if defined (CONFIG_COMPASS_AK8975)
+static struct akm8975_platform_data akm8975_info =
+{
+	.m_layout = 
+	{
+		{
+			{-1, 0, 0 },
+			{0, -1, 0 },
+			{0,	0, 1 },
+		},
+
+		{
+			{-1, 0, 0 },
+			{0, -1, 0 },
+			{0,	0, 1 },
+		},
+
+		{
+			{1, 0, 0 },
+			{0, 1, 0 },
+			{0,	0, 1 },
+		},
+
+		{
+			{1, 0, 0 },
+			{0, 1, 0 },
+			{0,	0, 1 },
+		},
+	}
+
+};
+
+#endif
+
+
 /*mpu3050*/
 #if defined (CONFIG_MPU_SENSORS_MPU3050)
 static struct mpu_platform_data mpu3050_data = {
@@ -1960,6 +1996,7 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.addr           = 0x0d,
 		.flags			= 0,
 		.irq			= RK29_PIN6_PC5,
+		.platform_data  = &akm8975_info,
 	},
 #endif
 #if defined (CONFIG_INPUT_LPSENSOR_ISL29028)

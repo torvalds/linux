@@ -1796,6 +1796,41 @@ struct platform_device rk_device_headset = {
 };
 #endif
 
+#if defined (CONFIG_COMPASS_AK8975)
+static struct akm8975_platform_data akm8975_info =
+{
+	.m_layout = 
+	{
+		{
+			{1, 0, 0 },
+			{0, -1, 0 },
+			{0,	0, -1 },
+		},
+
+		{
+			{1, 0, 0 },
+			{0, 1, 0 },
+			{0,	0, 1 },
+		},
+
+		{
+			{1, 0, 0 },
+			{0, 1, 0 },
+			{0,	0, 1 },
+		},
+
+		{
+			{1, 0, 0 },
+			{0, 1, 0 },
+			{0,	0, 1 },
+		},
+	}
+
+};
+
+#endif
+
+
 #if defined (CONFIG_SENSORS_MPU3050)
 /*mpu3050*/
 static struct mpu3050_platform_data mpu3050_data = {
@@ -2055,6 +2090,7 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.addr           = 0x0d,
 		.flags			= 0,
 		.irq			= RK29_PIN6_PC5,
+		.platform_data  = &akm8975_info,
 	},
 #endif
 #if defined (CONFIG_COMPASS_MMC328X)
