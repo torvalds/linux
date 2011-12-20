@@ -416,7 +416,8 @@ static __devinit int ak4535_i2c_probe(struct i2c_client *i2c,
 	struct ak4535_priv *ak4535;
 	int ret;
 
-	ak4535 = kzalloc(sizeof(struct ak4535_priv), GFP_KERNEL);
+	ak4535 = devm_kzalloc(&i2c->dev, sizeof(struct ak4535_priv),
+			      GFP_KERNEL);
 	if (ak4535 == NULL)
 		return -ENOMEM;
 
@@ -425,15 +426,12 @@ static __devinit int ak4535_i2c_probe(struct i2c_client *i2c,
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_ak4535, &ak4535_dai, 1);
-	if (ret < 0)
-		kfree(ak4535);
 	return ret;
 }
 
 static __devexit int ak4535_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
-	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
