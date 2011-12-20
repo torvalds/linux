@@ -22,6 +22,7 @@
 #define XOP_TLBSX   914
 #define XOP_TLBRE   946
 #define XOP_TLBWE   978
+#define XOP_TLBILX  18
 
 int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
                            unsigned int inst, int *advance)
@@ -29,6 +30,7 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	int emulated = EMULATE_DONE;
 	int ra;
 	int rb;
+	int rt;
 
 	switch (get_op(inst)) {
 	case 31:
@@ -45,6 +47,13 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		case XOP_TLBSX:
 			rb = get_rb(inst);
 			emulated = kvmppc_e500_emul_tlbsx(vcpu,rb);
+			break;
+
+		case XOP_TLBILX:
+			ra = get_ra(inst);
+			rb = get_rb(inst);
+			rt = get_rt(inst);
+			emulated = kvmppc_e500_emul_tlbilx(vcpu, rt, ra, rb);
 			break;
 
 		case XOP_TLBIVAX:

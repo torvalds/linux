@@ -631,6 +631,58 @@ int kvmppc_e500_emul_tlbivax(struct kvm_vcpu *vcpu, int ra, int rb)
 	return EMULATE_DONE;
 }
 
+static void tlbilx_all(struct kvmppc_vcpu_e500 *vcpu_e500, int tlbsel,
+		       int pid, int rt)
+{
+	struct kvm_book3e_206_tlb_entry *tlbe;
+	int tid, esel;
+
+	/* invalidate all entries */
+	for (esel = 0; esel < vcpu_e500->gtlb_params[tlbsel].entries; esel++) {
+		tlbe = get_entry(vcpu_e500, tlbsel, esel);
+		tid = get_tlb_tid(tlbe);
+		if (rt == 0 || tid == pid) {
+			inval_gtlbe_on_host(vcpu_e500, tlbsel, esel);
+			kvmppc_e500_gtlbe_invalidate(vcpu_e500, tlbsel, esel);
+		}
+	}
+}
+
+static void tlbilx_one(struct kvmppc_vcpu_e500 *vcpu_e500, int pid,
+		       int ra, int rb)
+{
+	int tlbsel, esel;
+	gva_t ea;
+
+	ea = kvmppc_get_gpr(&vcpu_e500->vcpu, rb);
+	if (ra)
+		ea += kvmppc_get_gpr(&vcpu_e500->vcpu, ra);
+
+	for (tlbsel = 0; tlbsel < 2; tlbsel++) {
+		esel = kvmppc_e500_tlb_index(vcpu_e500, ea, tlbsel, pid, -1);
+		if (esel >= 0) {
+			inval_gtlbe_on_host(vcpu_e500, tlbsel, esel);
+			kvmppc_e500_gtlbe_invalidate(vcpu_e500, tlbsel, esel);
+			break;
+		}
+	}
+}
+
+int kvmppc_e500_emul_tlbilx(struct kvm_vcpu *vcpu, int rt, int ra, int rb)
+{
+	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
+	int pid = get_cur_spid(vcpu);
+
+	if (rt == 0 || rt == 1) {
+		tlbilx_all(vcpu_e500, 0, pid, rt);
+		tlbilx_all(vcpu_e500, 1, pid, rt);
+	} else if (rt == 3) {
+		tlbilx_one(vcpu_e500, pid, ra, rb);
+	}
+
+	return EMULATE_DONE;
+}
+
 int kvmppc_e500_emul_tlbre(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);

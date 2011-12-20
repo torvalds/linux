@@ -124,6 +124,7 @@ int kvmppc_e500_emul_mt_mmucsr0(struct kvmppc_vcpu_e500 *vcpu_e500,
 int kvmppc_e500_emul_tlbwe(struct kvm_vcpu *vcpu);
 int kvmppc_e500_emul_tlbre(struct kvm_vcpu *vcpu);
 int kvmppc_e500_emul_tlbivax(struct kvm_vcpu *vcpu, int ra, int rb);
+int kvmppc_e500_emul_tlbilx(struct kvm_vcpu *vcpu, int rt, int ra, int rb);
 int kvmppc_e500_emul_tlbsx(struct kvm_vcpu *vcpu, int rb);
 int kvmppc_e500_tlb_init(struct kvmppc_vcpu_e500 *vcpu_e500);
 void kvmppc_e500_tlb_uninit(struct kvmppc_vcpu_e500 *vcpu_e500);
