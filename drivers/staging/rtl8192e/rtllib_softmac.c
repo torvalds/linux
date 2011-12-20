@@ -873,7 +873,7 @@ static struct sk_buff *rtllib_probe_resp(struct rtllib_device *ieee, u8 *dest)
 
 	crypt = ieee->crypt_info.crypt[ieee->crypt_info.tx_keyidx];
 	encrypt = ieee->host_encrypt && crypt && crypt->ops &&
-		((0 == strcmp(crypt->ops->name, "WEP") || wpa_ie_len));
+		((0 == strcmp(crypt->ops->name, "R-WEP") || wpa_ie_len));
 	if (ieee->pHTInfo->bCurrentHTSupport) {
 		tmp_ht_cap_buf = (u8 *) &(ieee->pHTInfo->SelfHTCap);
 		tmp_ht_cap_len = sizeof(ieee->pHTInfo->SelfHTCap);
@@ -1194,7 +1194,7 @@ inline struct sk_buff *rtllib_association_req(struct rtllib_network *beacon,
 	crypt = ieee->crypt_info.crypt[ieee->crypt_info.tx_keyidx];
 	if (crypt != NULL)
 		encrypt = ieee->host_encrypt && crypt && crypt->ops &&
-			  ((0 == strcmp(crypt->ops->name, "WEP") ||
+			  ((0 == strcmp(crypt->ops->name, "R-WEP") ||
 			  wpa_ie_len));
 	else
 		encrypt = 0;
@@ -3377,7 +3377,7 @@ static int rtllib_wpa_set_encryption(struct rtllib_device *ieee,
 			sec.enabled = 0;
 			sec.level = SEC_LEVEL_0;
 			sec.flags |= SEC_ENABLED | SEC_LEVEL;
-			rtllib_crypt_delayed_deinit(&ieee->crypt_info, crypt);
+			lib80211_crypt_delayed_deinit(&ieee->crypt_info, crypt);
 		}
 		goto done;
 	}
@@ -3386,19 +3386,19 @@ static int rtllib_wpa_set_encryption(struct rtllib_device *ieee,
 
 	/* IPW HW cannot build TKIP MIC, host decryption still needed. */
 	if (!(ieee->host_encrypt || ieee->host_decrypt) &&
-	    strcmp(param->u.crypt.alg, "TKIP"))
+	    strcmp(param->u.crypt.alg, "R-TKIP"))
 		goto skip_host_crypt;
 
-	ops = rtllib_get_crypto_ops(param->u.crypt.alg);
-	if (ops == NULL && strcmp(param->u.crypt.alg, "WEP") == 0) {
+	ops = lib80211_get_crypto_ops(param->u.crypt.alg);
+	if (ops == NULL && strcmp(param->u.crypt.alg, "R-WEP") == 0) {
 		request_module("rtllib_crypt_wep");
-		ops = rtllib_get_crypto_ops(param->u.crypt.alg);
-	} else if (ops == NULL && strcmp(param->u.crypt.alg, "TKIP") == 0) {
+		ops = lib80211_get_crypto_ops(param->u.crypt.alg);
+	} else if (ops == NULL && strcmp(param->u.crypt.alg, "R-TKIP") == 0) {
 		request_module("rtllib_crypt_tkip");
-		ops = rtllib_get_crypto_ops(param->u.crypt.alg);
-	} else if (ops == NULL && strcmp(param->u.crypt.alg, "CCMP") == 0) {
+		ops = lib80211_get_crypto_ops(param->u.crypt.alg);
+	} else if (ops == NULL && strcmp(param->u.crypt.alg, "R-CCMP") == 0) {
 		request_module("rtllib_crypt_ccmp");
-		ops = rtllib_get_crypto_ops(param->u.crypt.alg);
+		ops = lib80211_get_crypto_ops(param->u.crypt.alg);
 	}
 	if (ops == NULL) {
 		printk(KERN_INFO "unknown crypto alg '%s'\n",
@@ -3410,7 +3410,7 @@ static int rtllib_wpa_set_encryption(struct rtllib_device *ieee,
 	if (*crypt == NULL || (*crypt)->ops != ops) {
 		struct lib80211_crypt_data *new_crypt;
 
-		rtllib_crypt_delayed_deinit(&ieee->crypt_info, crypt);
+		lib80211_crypt_delayed_deinit(&ieee->crypt_info, crypt);
 
 		new_crypt = (struct lib80211_crypt_data *)
 			kmalloc(sizeof(*new_crypt), GFP_KERNEL);
@@ -3459,13 +3459,13 @@ static int rtllib_wpa_set_encryption(struct rtllib_device *ieee,
 		sec.key_sizes[param->u.crypt.idx] = param->u.crypt.key_len;
 		sec.flags |= (1 << param->u.crypt.idx);
 
-		if (strcmp(param->u.crypt.alg, "WEP") == 0) {
+		if (strcmp(param->u.crypt.alg, "R-WEP") == 0) {
 			sec.flags |= SEC_LEVEL;
 			sec.level = SEC_LEVEL_1;
-		} else if (strcmp(param->u.crypt.alg, "TKIP") == 0) {
+		} else if (strcmp(param->u.crypt.alg, "R-TKIP") == 0) {
 			sec.flags |= SEC_LEVEL;
 			sec.level = SEC_LEVEL_2;
-		} else if (strcmp(param->u.crypt.alg, "CCMP") == 0) {
+		} else if (strcmp(param->u.crypt.alg, "R-CCMP") == 0) {
 			sec.flags |= SEC_LEVEL;
 			sec.level = SEC_LEVEL_3;
 		}
@@ -3568,7 +3568,7 @@ u8 rtllib_ap_sec_type(struct rtllib_device *ieee)
 	crypt = ieee->crypt_info.crypt[ieee->crypt_info.tx_keyidx];
 	encrypt = (ieee->current_network.capability & WLAN_CAPABILITY_PRIVACY)
 		  || (ieee->host_encrypt && crypt && crypt->ops &&
-		  (0 == strcmp(crypt->ops->name, "WEP")));
+		  (0 == strcmp(crypt->ops->name, "R-WEP")));
 
 	/* simply judge  */
 	if (encrypt && (wpa_ie_len == 0)) {

@@ -1060,8 +1060,6 @@ struct rtllib_stats {
 
 struct rtllib_device;
 
-#include "rtllib_crypt.h"
-
 #define SEC_KEY_1	 (1<<0)
 #define SEC_KEY_2	 (1<<1)
 #define SEC_KEY_3	 (1<<2)
@@ -2985,21 +2983,6 @@ static inline const char *escape_essid(const char *essid, u8 essid_len)
 	(HTMcsToDataRate(_ieee, (u8)_MGN_RATE)))
 
 /* fun with the built-in rtllib stack... */
-int rtllib_init(void);
-void rtllib_exit(void);
-int rtllib_crypto_init(void);
-void rtllib_crypto_deinit(void);
-int rtllib_crypto_tkip_init(void);
-void rtllib_crypto_tkip_exit(void);
-int rtllib_crypto_ccmp_init(void);
-void rtllib_crypto_ccmp_exit(void);
-int rtllib_crypto_wep_init(void);
-void rtllib_crypto_wep_exit(void);
-
-void rtllib_MgntDisconnectIBSS(struct rtllib_device *rtllib);
-void rtllib_MlmeDisassociateRequest(struct rtllib_device *rtllib, u8 *asSta,
-				    u8 asRsn);
-void rtllib_MgntDisconnectAP(struct rtllib_device *rtllib, u8 asRsn);
 bool rtllib_MgntDisconnect(struct rtllib_device *rtllib, u8 asRsn);
 
 
@@ -3066,12 +3049,5 @@ extern void rtllib_TURBO_Info(struct rtllib_device *ieee, u8 **tag_p);
 #define MUTEX_LOCK_PRIV(pmutex) mutex_lock(pmutex)
 #define MUTEX_UNLOCK_PRIV(pmutex) mutex_unlock(pmutex)
 #endif
-static inline void dump_buf(u8 *buf, u32 len)
-{
-	u32 i;
-	printk(KERN_INFO "-----------------Len %d----------------\n", len);
-	for (i = 0; i < len; i++)
-		printk("%2.2x-", *(buf+i));
-	printk("\n");
-}
+
 #endif /* RTLLIB_H */

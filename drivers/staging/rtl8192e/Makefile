@@ -12,7 +12,6 @@ rtllib-objs :=			\
 
 obj-$(CONFIG_RTLLIB) += rtllib.o
 
-obj-$(CONFIG_RTLLIB_CRYPTO) += rtllib_crypt.o
 obj-$(CONFIG_RTLLIB_CRYPTO_CCMP) += rtllib_crypt_ccmp.o
 obj-$(CONFIG_RTLLIB_CRYPTO_TKIP) += rtllib_crypt_tkip.o
 obj-$(CONFIG_RTLLIB_CRYPTO_WEP) += rtllib_crypt_wep.o

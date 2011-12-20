@@ -215,7 +215,7 @@ int __init rtllib_crypto_init(void)
 	INIT_LIST_HEAD(&hcrypt->algs);
 	spin_lock_init(&hcrypt->lock);
 
-	ret = rtllib_register_crypto_ops(&rtllib_crypt_null);
+	ret = lib80211_register_crypto_ops(&rtllib_crypt_null);
 	if (ret < 0) {
 		kfree(hcrypt);
 		hcrypt = NULL;

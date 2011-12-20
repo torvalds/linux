@@ -256,7 +256,7 @@ static char *prism2_wep_print_stats(char *p, void *priv)
 }
 
 static struct lib80211_crypto_ops rtllib_crypt_wep = {
-	.name			= "WEP",
+	.name			= "R-WEP",
 	.init			= prism2_wep_init,
 	.deinit			= prism2_wep_deinit,
 	.encrypt_mpdu		= prism2_wep_encrypt,
@@ -274,13 +274,13 @@ static struct lib80211_crypto_ops rtllib_crypt_wep = {
 
 int __init rtllib_crypto_wep_init(void)
 {
-	return rtllib_register_crypto_ops(&rtllib_crypt_wep);
+	return lib80211_register_crypto_ops(&rtllib_crypt_wep);
 }
 
 
 void __exit rtllib_crypto_wep_exit(void)
 {
-	rtllib_unregister_crypto_ops(&rtllib_crypt_wep);
+	lib80211_unregister_crypto_ops(&rtllib_crypt_wep);
 }
 
 module_init(rtllib_crypto_wep_init);

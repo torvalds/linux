@@ -2,7 +2,7 @@ config RTLLIB
 	tristate "Support for rtllib wireless devices"
 	depends on WLAN && m
 	default n
-	select RTLLIB_CRYPTO
+	select LIB80211
 	---help---
 	  If you have a wireless card that uses rtllib, say
 	  Y. Currently the only card is the rtl8192e.
@@ -11,14 +11,9 @@ config RTLLIB
 
 if RTLLIB
 
-config RTLLIB_CRYPTO
-	tristate "Support for rtllib crypto support"
-	---help---
-	  Base crypto driver for rtllib.
-
 config RTLLIB_CRYPTO_CCMP
 	tristate "Support for rtllib CCMP crypto"
-	depends on RTLLIB_CRYPTO
+	depends on RTLLIB
 	default y
 	---help---
 	  CCMP crypto driver for rtllib.
@@ -27,7 +22,7 @@ config RTLLIB_CRYPTO_CCMP
 
 config RTLLIB_CRYPTO_TKIP
 	tristate "Support for rtllib TKIP crypto"
-	depends on RTLLIB_CRYPTO
+	depends on RTLLIB
 	default y
 	---help---
 	  TKIP crypto driver for rtllib.
@@ -36,7 +31,7 @@ config RTLLIB_CRYPTO_TKIP
 
 config RTLLIB_CRYPTO_WEP
 	tristate "Support for rtllib WEP crypto"
-	depends on RTLLIB_CRYPTO
+	depends on RTLLIB
 	default y
 	---help---
 	  TKIP crypto driver for rtllib.

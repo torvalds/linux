@@ -735,7 +735,7 @@ static char *rtllib_tkip_print_stats(char *p, void *priv)
 }
 
 static struct lib80211_crypto_ops rtllib_crypt_tkip = {
-	.name			= "TKIP",
+	.name			= "R-TKIP",
 	.init			= rtllib_tkip_init,
 	.deinit			= rtllib_tkip_deinit,
 	.encrypt_mpdu		= rtllib_tkip_encrypt,
@@ -754,13 +754,13 @@ static struct lib80211_crypto_ops rtllib_crypt_tkip = {
 
 int __init rtllib_crypto_tkip_init(void)
 {
-	return rtllib_register_crypto_ops(&rtllib_crypt_tkip);
+	return lib80211_register_crypto_ops(&rtllib_crypt_tkip);
 }
 
 
 void __exit rtllib_crypto_tkip_exit(void)
 {
-	rtllib_unregister_crypto_ops(&rtllib_crypt_tkip);
+	lib80211_unregister_crypto_ops(&rtllib_crypt_tkip);
 }
 
 module_init(rtllib_crypto_tkip_init);
