@@ -43,7 +43,7 @@ static int radeon_benchmark_do_move(struct radeon_device *rdev, unsigned size,
 
 	start_jiffies = jiffies;
 	for (i = 0; i < n; i++) {
-		r = radeon_fence_create(rdev, &fence);
+		r = radeon_fence_create(rdev, &fence, RADEON_RING_TYPE_GFX_INDEX);
 		if (r)
 			return r;
 

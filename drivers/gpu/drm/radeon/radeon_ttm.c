@@ -188,7 +188,7 @@ static void radeon_evict_flags(struct ttm_buffer_object *bo,
 	rbo = container_of(bo, struct radeon_bo, tbo);
 	switch (bo->mem.mem_type) {
 	case TTM_PL_VRAM:
-		if (rbo->rdev->cp.ready == false)
+		if (rbo->rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready == false)
 			radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_CPU);
 		else
 			radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_GTT);
@@ -226,7 +226,7 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 	int r;
 
 	rdev = radeon_get_rdev(bo->bdev);
-	r = radeon_fence_create(rdev, &fence);
+	r = radeon_fence_create(rdev, &fence, RADEON_RING_TYPE_GFX_INDEX);
 	if (unlikely(r)) {
 		return r;
 	}
@@ -255,7 +255,7 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 		DRM_ERROR("Unknown placement %d\n", old_mem->mem_type);
 		return -EINVAL;
 	}
-	if (!rdev->cp.ready) {
+	if (!rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready) {
 		DRM_ERROR("Trying to move memory with CP turned off.\n");
 		return -EINVAL;
 	}
@@ -380,7 +380,7 @@ static int radeon_bo_move(struct ttm_buffer_object *bo,
 		radeon_move_null(bo, new_mem);
 		return 0;
 	}
-	if (!rdev->cp.ready || rdev->asic->copy == NULL) {
+	if (!rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready || rdev->asic->copy == NULL) {
 		/* use memcpy */
 		goto memcpy;
 	}

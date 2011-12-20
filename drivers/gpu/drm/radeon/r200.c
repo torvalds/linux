@@ -87,6 +87,7 @@ int r200_copy_dma(struct radeon_device *rdev,
 		  unsigned num_gpu_pages,
 		  struct radeon_fence *fence)
 {
+	struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	uint32_t size;
 	uint32_t cur_size;
 	int i, num_loops;
@@ -95,33 +96,33 @@ int r200_copy_dma(struct radeon_device *rdev,
 	/* radeon pitch is /64 */
 	size = num_gpu_pages << RADEON_GPU_PAGE_SHIFT;
 	num_loops = DIV_ROUND_UP(size, 0x1FFFFF);
-	r = radeon_ring_lock(rdev, num_loops * 4 + 64);
+	r = radeon_ring_lock(rdev, ring, num_loops * 4 + 64);
 	if (r) {
 		DRM_ERROR("radeon: moving bo (%d).\n", r);
 		return r;
 	}
 	/* Must wait for 2D idle & clean before DMA or hangs might happen */
-	radeon_ring_write(rdev, PACKET0(RADEON_WAIT_UNTIL, 0));
-	radeon_ring_write(rdev, (1 << 16));
+	radeon_ring_write(ring, PACKET0(RADEON_WAIT_UNTIL, 0));
+	radeon_ring_write(ring, (1 << 16));
 	for (i = 0; i < num_loops; i++) {
 		cur_size = size;
 		if (cur_size > 0x1FFFFF) {
 			cur_size = 0x1FFFFF;
 		}
 		size -= cur_size;
-		radeon_ring_write(rdev, PACKET0(0x720, 2));
-		radeon_ring_write(rdev, src_offset);
-		radeon_ring_write(rdev, dst_offset);
-		radeon_ring_write(rdev, cur_size | (1 << 31) | (1 << 30));
+		radeon_ring_write(ring, PACKET0(0x720, 2));
+		radeon_ring_write(ring, src_offset);
+		radeon_ring_write(ring, dst_offset);
+		radeon_ring_write(ring, cur_size | (1 << 31) | (1 << 30));
 		src_offset += cur_size;
 		dst_offset += cur_size;
 	}
-	radeon_ring_write(rdev, PACKET0(RADEON_WAIT_UNTIL, 0));
-	radeon_ring_write(rdev, RADEON_WAIT_DMA_GUI_IDLE);
+	radeon_ring_write(ring, PACKET0(RADEON_WAIT_UNTIL, 0));
+	radeon_ring_write(ring, RADEON_WAIT_DMA_GUI_IDLE);
 	if (fence) {
 		r = radeon_fence_emit(rdev, fence);
 	}
-	radeon_ring_unlock_commit(rdev);
+	radeon_ring_unlock_commit(rdev, ring);
 	return r;
 }
 

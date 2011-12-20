@@ -65,7 +65,8 @@ void radeon_driver_irq_preinstall_kms(struct drm_device *dev)
 	unsigned i;
 
 	/* Disable *all* interrupts */
-	rdev->irq.sw_int = false;
+	for (i = 0; i < RADEON_NUM_RINGS; i++)
+		rdev->irq.sw_int[i] = false;
 	rdev->irq.gui_idle = false;
 	for (i = 0; i < RADEON_MAX_HPD_PINS; i++)
 		rdev->irq.hpd[i] = false;
@@ -81,9 +82,11 @@ void radeon_driver_irq_preinstall_kms(struct drm_device *dev)
 int radeon_driver_irq_postinstall_kms(struct drm_device *dev)
 {
 	struct radeon_device *rdev = dev->dev_private;
+	unsigned i;
 
 	dev->max_vblank_count = 0x001fffff;
-	rdev->irq.sw_int = true;
+	for (i = 0; i < RADEON_NUM_RINGS; i++)
+		rdev->irq.sw_int[i] = true;
 	radeon_irq_set(rdev);
 	return 0;
 }
@@ -97,7 +100,8 @@ void radeon_driver_irq_uninstall_kms(struct drm_device *dev)
 		return;
 	}
 	/* Disable *all* interrupts */
-	rdev->irq.sw_int = false;
+	for (i = 0; i < RADEON_NUM_RINGS; i++)
+		rdev->irq.sw_int[i] = false;
 	rdev->irq.gui_idle = false;
 	for (i = 0; i < RADEON_MAX_HPD_PINS; i++)
 		rdev->irq.hpd[i] = false;
@@ -194,26 +198,26 @@ void radeon_irq_kms_fini(struct radeon_device *rdev)
 	flush_work_sync(&rdev->hotplug_work);
 }
 
-void radeon_irq_kms_sw_irq_get(struct radeon_device *rdev)
+void radeon_irq_kms_sw_irq_get(struct radeon_device *rdev, int ring)
 {
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&rdev->irq.sw_lock, irqflags);
-	if (rdev->ddev->irq_enabled && (++rdev->irq.sw_refcount == 1)) {
-		rdev->irq.sw_int = true;
+	if (rdev->ddev->irq_enabled && (++rdev->irq.sw_refcount[ring] == 1)) {
+		rdev->irq.sw_int[ring] = true;
 		radeon_irq_set(rdev);
 	}
 	spin_unlock_irqrestore(&rdev->irq.sw_lock, irqflags);
 }
 
-void radeon_irq_kms_sw_irq_put(struct radeon_device *rdev)
+void radeon_irq_kms_sw_irq_put(struct radeon_device *rdev, int ring)
 {
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&rdev->irq.sw_lock, irqflags);
-	BUG_ON(rdev->ddev->irq_enabled && rdev->irq.sw_refcount <= 0);
-	if (rdev->ddev->irq_enabled && (--rdev->irq.sw_refcount == 0)) {
-		rdev->irq.sw_int = false;
+	BUG_ON(rdev->ddev->irq_enabled && rdev->irq.sw_refcount[ring] <= 0);
+	if (rdev->ddev->irq_enabled && (--rdev->irq.sw_refcount[ring] == 0)) {
+		rdev->irq.sw_int[ring] = false;
 		radeon_irq_set(rdev);
 	}
 	spin_unlock_irqrestore(&rdev->irq.sw_lock, irqflags);
