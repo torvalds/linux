@@ -84,7 +84,7 @@ int efx_mcdi_mac_stats(struct efx_nic *efx, dma_addr_t dma_addr,
 	u32 addr_hi;
 	u32 addr_lo;
 
-	BUILD_BUG_ON(MC_CMD_MAC_STATS_OUT_LEN != 0);
+	BUILD_BUG_ON(MC_CMD_MAC_STATS_OUT_DMA_LEN != 0);
 
 	addr_lo = ((u64)dma_addr) >> 0;
 	addr_hi = ((u64)dma_addr) >> 32;
@@ -93,13 +93,13 @@ int efx_mcdi_mac_stats(struct efx_nic *efx, dma_addr_t dma_addr,
 	MCDI_SET_DWORD(inbuf, MAC_STATS_IN_DMA_ADDR_HI, addr_hi);
 	cmd_ptr = (efx_dword_t *)MCDI_PTR(inbuf, MAC_STATS_IN_CMD);
 	EFX_POPULATE_DWORD_7(*cmd_ptr,
-			     MC_CMD_MAC_STATS_CMD_DMA, !!enable,
-			     MC_CMD_MAC_STATS_CMD_CLEAR, clear,
-			     MC_CMD_MAC_STATS_CMD_PERIODIC_CHANGE, 1,
-			     MC_CMD_MAC_STATS_CMD_PERIODIC_ENABLE, !!enable,
-			     MC_CMD_MAC_STATS_CMD_PERIODIC_CLEAR, 0,
-			     MC_CMD_MAC_STATS_CMD_PERIODIC_NOEVENT, 1,
-			     MC_CMD_MAC_STATS_CMD_PERIOD_MS, period);
+			     MC_CMD_MAC_STATS_IN_DMA, !!enable,
+			     MC_CMD_MAC_STATS_IN_CLEAR, clear,
+			     MC_CMD_MAC_STATS_IN_PERIODIC_CHANGE, 1,
+			     MC_CMD_MAC_STATS_IN_PERIODIC_ENABLE, !!enable,
+			     MC_CMD_MAC_STATS_IN_PERIODIC_CLEAR, 0,
+			     MC_CMD_MAC_STATS_IN_PERIODIC_NOEVENT, 1,
+			     MC_CMD_MAC_STATS_IN_PERIOD_MS, period);
 	MCDI_SET_DWORD(inbuf, MAC_STATS_IN_DMA_LEN, dma_len);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_MAC_STATS, inbuf, sizeof(inbuf),

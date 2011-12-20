@@ -604,7 +604,7 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 
 void efx_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len)
 {
-	u8 outbuf[ALIGN(MC_CMD_GET_VERSION_V1_OUT_LEN, 4)];
+	u8 outbuf[ALIGN(MC_CMD_GET_VERSION_OUT_LEN, 4)];
 	size_t outlength;
 	const __le16 *ver_words;
 	int rc;
@@ -616,7 +616,7 @@ void efx_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len)
 	if (rc)
 		goto fail;
 
-	if (outlength < MC_CMD_GET_VERSION_V1_OUT_LEN) {
+	if (outlength < MC_CMD_GET_VERSION_OUT_LEN) {
 		rc = -EIO;
 		goto fail;
 	}
@@ -665,7 +665,7 @@ fail:
 int efx_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
 			   u16 *fw_subtype_list)
 {
-	uint8_t outbuf[MC_CMD_GET_BOARD_CFG_OUT_LEN];
+	uint8_t outbuf[MC_CMD_GET_BOARD_CFG_OUT_LENMIN];
 	size_t outlen;
 	int port_num = efx_port_num(efx);
 	int offset;
@@ -678,7 +678,7 @@ int efx_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
 	if (rc)
 		goto fail;
 
-	if (outlen < MC_CMD_GET_BOARD_CFG_OUT_LEN) {
+	if (outlen < MC_CMD_GET_BOARD_CFG_OUT_LENMIN) {
 		rc = -EIO;
 		goto fail;
 	}
@@ -691,7 +691,8 @@ int efx_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
 	if (fw_subtype_list)
 		memcpy(fw_subtype_list,
 		       outbuf + MC_CMD_GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST_OFST,
-		       MC_CMD_GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST_LEN);
+		       MC_CMD_GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST_MINNUM *
+		       sizeof(fw_subtype_list[0]));
 
 	return 0;
 
@@ -779,7 +780,7 @@ int efx_mcdi_nvram_info(struct efx_nic *efx, unsigned int type,
 	*size_out = MCDI_DWORD(outbuf, NVRAM_INFO_OUT_SIZE);
 	*erase_size_out = MCDI_DWORD(outbuf, NVRAM_INFO_OUT_ERASESIZE);
 	*protected_out = !!(MCDI_DWORD(outbuf, NVRAM_INFO_OUT_FLAGS) &
-				(1 << MC_CMD_NVRAM_PROTECTED_LBN));
+				(1 << MC_CMD_NVRAM_INFO_OUT_PROTECTED_LBN));
 	return 0;
 
 fail:
@@ -1060,7 +1061,7 @@ void efx_mcdi_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
 
 int efx_mcdi_reset_port(struct efx_nic *efx)
 {
-	int rc = efx_mcdi_rpc(efx, MC_CMD_PORT_RESET, NULL, 0, NULL, 0, NULL);
+	int rc = efx_mcdi_rpc(efx, MC_CMD_ENTITY_RESET, NULL, 0, NULL, 0, NULL);
 	if (rc)
 		netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n",
 			  __func__, rc);
