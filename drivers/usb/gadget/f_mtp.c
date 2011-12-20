@@ -82,8 +82,9 @@ struct mtp_dev {
 
 	/* synchronize access to our device file */
 	atomic_t open_excl;
-	/* to enforce only one ioctl at a time */
-	atomic_t ioctl_excl;
+
+	atomic_t ioctl_opt_excl;   /* lock for operation */
+	atomic_t ioctl_event_excl; /* lock for event */
 
 	struct list_head tx_idle;
 	struct list_head intr_idle;
@@ -845,13 +846,13 @@ static long mtp_ioctl(struct file *fp, unsigned code, unsigned long value)
 	struct file *filp = NULL;
 	int ret = -EINVAL;
 
-	if (mtp_lock(&dev->ioctl_excl))
-		return -EBUSY;
 
 	switch (code) {
 	case MTP_SEND_FILE:
 	case MTP_RECEIVE_FILE:
-	case MTP_SEND_FILE_WITH_HEADER:
+    case MTP_SEND_FILE_WITH_HEADER:
+        if (mtp_lock(&dev->ioctl_opt_excl))
+            return -EBUSY;
 	{
 		struct mtp_file_range	mfr;
 		struct work_struct *work;
@@ -918,6 +919,10 @@ static long mtp_ioctl(struct file *fp, unsigned code, unsigned long value)
 	case MTP_SEND_EVENT:
 	{
 		struct mtp_event	event;
+
+        if (mtp_lock(&dev->ioctl_event_excl))
+            return -EBUSY;
+
 		/* return here so we don't change dev->state below,
 		 * which would interfere with bulk transfer state.
 		 */
@@ -937,7 +942,11 @@ fail:
 		dev->state = STATE_READY;
 	spin_unlock_irq(&dev->lock);
 out:
-	mtp_unlock(&dev->ioctl_excl);
+    if (MTP_SEND_EVENT == code)
+        mtp_unlock(&dev->ioctl_event_excl);
+    else
+        mtp_unlock(&dev->ioctl_opt_excl);
+
 	DBG(dev->cdev, "ioctl returning %d\n", ret);
 	return ret;
 }
@@ -1224,7 +1233,8 @@ static int mtp_setup(void)
 	init_waitqueue_head(&dev->write_wq);
 	init_waitqueue_head(&dev->intr_wq);
 	atomic_set(&dev->open_excl, 0);
-	atomic_set(&dev->ioctl_excl, 0);
+	atomic_set(&dev->ioctl_opt_excl, 0);
+	atomic_set(&dev->ioctl_event_excl, 0);
 	INIT_LIST_HEAD(&dev->tx_idle);
 	INIT_LIST_HEAD(&dev->intr_idle);
 
