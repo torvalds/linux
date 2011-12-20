@@ -37,6 +37,7 @@
 #include "hda_codec.h"
 #include "hda_local.h"
 #include "hda_beep.h"
+#include "hda_jack.h"
 
 enum {
 	STAC_VREF_EVENT	= 1,
@@ -175,13 +176,6 @@ enum {
 	STAC_9872_MODELS
 };
 
-struct sigmatel_event {
-	hda_nid_t nid;
-	unsigned char type;
-	unsigned char tag;
-	int data;
-};
-
 struct sigmatel_mic_route {
 	hda_nid_t pin;
 	signed char mux_idx;
@@ -229,9 +223,6 @@ struct sigmatel_spec {
 	unsigned int num_pwrs;
 	const hda_nid_t *pwr_nids;
 	const hda_nid_t *dac_list;
-
-	/* events */
-	struct snd_array events;
 
 	/* playback */
 	struct hda_input_mux *mono_mux;
@@ -1093,13 +1084,10 @@ static const char * const slave_sws[] = {
 };
 
 static void stac92xx_free_kctls(struct hda_codec *codec);
-static int stac92xx_add_jack(struct hda_codec *codec, hda_nid_t nid, int type);
 
 static int stac92xx_build_controls(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	struct auto_pin_cfg *cfg = &spec->autocfg;
-	hda_nid_t nid;
 	int err;
 	int i;
 
@@ -1185,31 +1173,9 @@ static int stac92xx_build_controls(struct hda_codec *codec)
 
 	stac92xx_free_kctls(codec); /* no longer needed */
 
-	/* create jack input elements */
-	if (spec->hp_detect) {
-		for (i = 0; i < cfg->hp_outs; i++) {
-			int type = SND_JACK_HEADPHONE;
-			nid = cfg->hp_pins[i];
-			/* jack detection */
-			if (cfg->hp_outs == i)
-				type |= SND_JACK_LINEOUT;
-			err = stac92xx_add_jack(codec, nid, type);
-			if (err < 0)
-				return err;
-		}
-	}
-	for (i = 0; i < cfg->line_outs; i++) {
-		err = stac92xx_add_jack(codec, cfg->line_out_pins[i],
-					SND_JACK_LINEOUT);
-		if (err < 0)
-			return err;
-	}
-	for (i = 0; i < cfg->num_inputs; i++) {
-		nid = cfg->inputs[i].pin;
-		err = stac92xx_add_jack(codec, nid, SND_JACK_MICROPHONE);
-		if (err < 0)
-			return err;
-	}
+	err = snd_hda_jack_add_kctls(codec, &spec->autocfg);
+	if (err < 0)
+		return err;
 
 	return 0;	
 }
@@ -2871,7 +2837,8 @@ static inline int stac92xx_add_jack_mode_control(struct hda_codec *codec,
 	}
 
 	if (control) {
-		strcpy(name, hda_get_input_pin_label(codec, nid, 1));
+		snd_hda_get_pin_label(codec, nid, &spec->autocfg,
+				      name, sizeof(name), NULL);
 		return stac92xx_add_control(codec->spec, control,
 					strcat(name, " Jack Mode"), nid);
 	}
@@ -3549,7 +3516,7 @@ static int stac92xx_auto_create_dmic_input_ctls(struct hda_codec *codec,
 	for (i = 0; i < spec->num_dmics; i++) {
 		hda_nid_t nid;
 		int index, type_idx;
-		const char *label;
+		char label[32];
 
 		nid = spec->dmic_nids[i];
 		if (get_wcaps_type(get_wcaps(codec, nid)) != AC_WID_PIN)
@@ -3562,7 +3529,8 @@ static int stac92xx_auto_create_dmic_input_ctls(struct hda_codec *codec,
 		if (index < 0)
 			continue;
 
-		label = hda_get_input_pin_label(codec, nid, 1);
+		snd_hda_get_pin_label(codec, nid, &spec->autocfg,
+				      label, sizeof(label), NULL);
 		snd_hda_add_imux_item(dimux, label, index, &type_idx);
 		if (snd_hda_get_bool_hint(codec, "separate_dmux") != 1)
 			snd_hda_add_imux_item(imux, label, index, &type_idx);
@@ -4160,65 +4128,18 @@ static void stac_gpio_set(struct hda_codec *codec, unsigned int mask,
 			   AC_VERB_SET_GPIO_DATA, gpiostate); /* sync */
 }
 
-static int stac92xx_add_jack(struct hda_codec *codec,
-		hda_nid_t nid, int type)
-{
-#ifdef CONFIG_SND_HDA_INPUT_JACK
-	int def_conf = snd_hda_codec_get_pincfg(codec, nid);
-	int connectivity = get_defcfg_connect(def_conf);
-
-	if (connectivity && connectivity != AC_JACK_PORT_FIXED)
-		return 0;
-
-	return snd_hda_input_jack_add(codec, nid, type, NULL);
-#else
-	return 0;
-#endif /* CONFIG_SND_HDA_INPUT_JACK */
-}
-
-static int stac_add_event(struct sigmatel_spec *spec, hda_nid_t nid,
+static int stac_add_event(struct hda_codec *codec, hda_nid_t nid,
 			  unsigned char type, int data)
 {
-	struct sigmatel_event *event;
+	struct hda_jack_tbl *event;
 
-	snd_array_init(&spec->events, sizeof(*event), 32);
-	event = snd_array_new(&spec->events);
+	event = snd_hda_jack_tbl_new(codec, nid);
 	if (!event)
 		return -ENOMEM;
-	event->nid = nid;
-	event->type = type;
-	event->tag = spec->events.used;
-	event->data = data;
+	event->action = type;
+	event->private_data = data;
 
-	return event->tag;
-}
-
-static struct sigmatel_event *stac_get_event(struct hda_codec *codec,
-					     hda_nid_t nid)
-{
-	struct sigmatel_spec *spec = codec->spec;
-	struct sigmatel_event *event = spec->events.list;
-	int i;
-
-	for (i = 0; i < spec->events.used; i++, event++) {
-		if (event->nid == nid)
-			return event;
-	}
-	return NULL;
-}
-
-static struct sigmatel_event *stac_get_event_from_tag(struct hda_codec *codec,
-						      unsigned char tag)
-{
-	struct sigmatel_spec *spec = codec->spec;
-	struct sigmatel_event *event = spec->events.list;
-	int i;
-
-	for (i = 0; i < spec->events.used; i++, event++) {
-		if (event->tag == tag)
-			return event;
-	}
-	return NULL;
+	return 0;
 }
 
 /* check if given nid is a valid pin and no other events are assigned
@@ -4228,24 +4149,17 @@ static struct sigmatel_event *stac_get_event_from_tag(struct hda_codec *codec,
 static int enable_pin_detect(struct hda_codec *codec, hda_nid_t nid,
 			     unsigned int type)
 {
-	struct sigmatel_event *event;
-	int tag;
+	struct hda_jack_tbl *event;
 
 	if (!is_jack_detectable(codec, nid))
 		return 0;
-	event = stac_get_event(codec, nid);
-	if (event) {
-		if (event->type != type)
-			return 0;
-		tag = event->tag;
-	} else {
-		tag = stac_add_event(codec->spec, nid, type, 0);
-		if (tag < 0)
-			return 0;
-	}
-	snd_hda_codec_write_cache(codec, nid, 0,
-				  AC_VERB_SET_UNSOLICITED_ENABLE,
-				  AC_USRSP_EN | tag);
+	event = snd_hda_jack_tbl_new(codec, nid);
+	if (!event)
+		return -ENOMEM;
+	if (event->action && event->action != type)
+		return 0;
+	event->action = type;
+	snd_hda_jack_detect_enable(codec, nid, 0);
 	return 1;
 }
 
@@ -4473,6 +4387,8 @@ static int stac92xx_init(struct hda_codec *codec)
 		stac_toggle_power_map(codec, nid, 0);
 	}
 
+	snd_hda_jack_report_sync(codec);
+
 	/* sync mute LED */
 	if (spec->gpio_led)
 		hda_call_check_power_status(codec, 0x01);
@@ -4529,8 +4445,6 @@ static void stac92xx_free(struct hda_codec *codec)
 		return;
 
 	stac92xx_shutup(codec);
-	snd_hda_input_jack_free(codec);
-	snd_array_free(&spec->events);
 
 	kfree(spec);
 	snd_hda_detach_beep_device(codec);
@@ -4794,26 +4708,13 @@ static void stac92xx_mic_detect(struct hda_codec *codec)
 					  mic->mux_idx);
 }
 
-static void stac_issue_unsol_event(struct hda_codec *codec, hda_nid_t nid)
-{
-	struct sigmatel_event *event = stac_get_event(codec, nid);
-	if (!event)
-		return;
-	codec->patch_ops.unsol_event(codec, (unsigned)event->tag << 26);
-}
-
-static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
+static void handle_unsol_event(struct hda_codec *codec,
+			       struct hda_jack_tbl *event)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	struct sigmatel_event *event;
-	int tag, data;
+	int data;
 
-	tag = (res >> 26) & 0x7f;
-	event = stac_get_event_from_tag(codec, tag);
-	if (!event)
-		return;
-
-	switch (event->type) {
+	switch (event->action) {
 	case STAC_HP_EVENT:
 	case STAC_LO_EVENT:
 		stac92xx_hp_detect(codec);
@@ -4823,7 +4724,7 @@ static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
 		break;
 	}
 
-	switch (event->type) {
+	switch (event->action) {
 	case STAC_HP_EVENT:
 	case STAC_LO_EVENT:
 	case STAC_MIC_EVENT:
@@ -4831,7 +4732,6 @@ static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
 	case STAC_PWR_EVENT:
 		if (spec->num_pwrs > 0)
 			stac92xx_pin_sense(codec, event->nid);
-		snd_hda_input_jack_report(codec, event->nid);
 
 		switch (codec->subsystem_id) {
 		case 0x103c308f:
@@ -4856,9 +4756,31 @@ static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
 					  AC_VERB_GET_GPIO_DATA, 0);
 		/* toggle VREF state based on GPIOx status */
 		snd_hda_codec_write(codec, codec->afg, 0, 0x7e0,
-				    !!(data & (1 << event->data)));
+				    !!(data & (1 << event->private_data)));
 		break;
 	}
+}
+
+static void stac_issue_unsol_event(struct hda_codec *codec, hda_nid_t nid)
+{
+	struct hda_jack_tbl *event = snd_hda_jack_tbl_get(codec, nid);
+	if (!event)
+		return;
+	handle_unsol_event(codec, event);
+}
+
+static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
+{
+	struct hda_jack_tbl *event;
+	int tag;
+
+	tag = (res >> 26) & 0x7f;
+	event = snd_hda_jack_tbl_get_from_tag(codec, tag);
+	if (!event)
+		return;
+	event->jack_dirty = 1;
+	handle_unsol_event(codec, event);
+	snd_hda_jack_report_sync(codec);
 }
 
 static int hp_blike_system(u32 subsystem_id);
@@ -5837,15 +5759,13 @@ again:
 		switch (spec->board_config) {
 		case STAC_HP_M4:
 			/* Enable VREF power saving on GPIO1 detect */
-			err = stac_add_event(spec, codec->afg,
+			err = stac_add_event(codec, codec->afg,
 					     STAC_VREF_EVENT, 0x02);
 			if (err < 0)
 				return err;
 			snd_hda_codec_write_cache(codec, codec->afg, 0,
 				AC_VERB_SET_GPIO_UNSOLICITED_RSP_MASK, 0x02);
-			snd_hda_codec_write_cache(codec, codec->afg, 0,
-				AC_VERB_SET_UNSOLICITED_ENABLE,
-				AC_USRSP_EN | err);
+			snd_hda_jack_detect_enable(codec, codec->afg, 0);
 			spec->gpio_mask |= 0x02;
 			break;
 		}
@@ -6316,14 +6236,12 @@ static int patch_stac9205(struct hda_codec *codec)
 		snd_hda_codec_set_pincfg(codec, 0x20, 0x1c410030);
 
 		/* Enable unsol response for GPIO4/Dock HP connection */
-		err = stac_add_event(spec, codec->afg, STAC_VREF_EVENT, 0x01);
+		err = stac_add_event(codec, codec->afg, STAC_VREF_EVENT, 0x01);
 		if (err < 0)
 			return err;
 		snd_hda_codec_write_cache(codec, codec->afg, 0,
 			AC_VERB_SET_GPIO_UNSOLICITED_RSP_MASK, 0x10);
-		snd_hda_codec_write_cache(codec, codec->afg, 0,
-					  AC_VERB_SET_UNSOLICITED_ENABLE,
-					  AC_USRSP_EN | err);
+		snd_hda_jack_detect_enable(codec, codec->afg, 0);
 
 		spec->gpio_dir = 0x0b;
 		spec->eapd_mask = 0x01;

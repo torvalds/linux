@@ -54,6 +54,7 @@
 #include <sound/asoundef.h>
 #include "hda_codec.h"
 #include "hda_local.h"
+#include "hda_jack.h"
 
 /* Pin Widget NID */
 #define VT1708_HP_PIN_NID	0x20
@@ -1503,6 +1504,11 @@ static int via_build_controls(struct hda_codec *codec)
 	analog_low_current_mode(codec);
 
 	via_free_kctls(codec); /* no longer needed */
+
+	err = snd_hda_jack_add_kctls(codec, &spec->autocfg);
+	if (err < 0)
+		return err;
+
 	return 0;
 }
 
@@ -1714,6 +1720,7 @@ static void via_unsol_event(struct hda_codec *codec,
 				  unsigned int res)
 {
 	res >>= 26;
+	res = snd_hda_jack_get_action(codec, res);
 
 	if (res & VIA_JACK_EVENT)
 		set_widgets_power_state(codec);
@@ -1724,6 +1731,7 @@ static void via_unsol_event(struct hda_codec *codec,
 		via_hp_automute(codec);
 	else if (res == VIA_GPIO_EVENT)
 		via_gpio_control(codec);
+	snd_hda_jack_report_sync(codec);
 }
 
 #ifdef CONFIG_PM
@@ -2736,9 +2744,8 @@ static void via_auto_init_unsol_event(struct hda_codec *codec)
 	int i;
 
 	if (cfg->hp_pins[0] && is_jack_detectable(codec, cfg->hp_pins[0]))
-		snd_hda_codec_write(codec, cfg->hp_pins[0], 0,
-				AC_VERB_SET_UNSOLICITED_ENABLE,
-				AC_USRSP_EN | VIA_HP_EVENT | VIA_JACK_EVENT);
+		snd_hda_jack_detect_enable(codec, cfg->hp_pins[0],
+					   VIA_HP_EVENT | VIA_JACK_EVENT);
 
 	if (cfg->speaker_pins[0])
 		ev = VIA_LINE_EVENT;
@@ -2747,16 +2754,14 @@ static void via_auto_init_unsol_event(struct hda_codec *codec)
 	for (i = 0; i < cfg->line_outs; i++) {
 		if (cfg->line_out_pins[i] &&
 		    is_jack_detectable(codec, cfg->line_out_pins[i]))
-			snd_hda_codec_write(codec, cfg->line_out_pins[i], 0,
-				AC_VERB_SET_UNSOLICITED_ENABLE,
-				AC_USRSP_EN | ev | VIA_JACK_EVENT);
+			snd_hda_jack_detect_enable(codec, cfg->line_out_pins[i],
+						   ev | VIA_JACK_EVENT);
 	}
 
 	for (i = 0; i < cfg->num_inputs; i++) {
 		if (is_jack_detectable(codec, cfg->inputs[i].pin))
-			snd_hda_codec_write(codec, cfg->inputs[i].pin, 0,
-				AC_VERB_SET_UNSOLICITED_ENABLE,
-				AC_USRSP_EN | VIA_JACK_EVENT);
+			snd_hda_jack_detect_enable(codec, cfg->inputs[i].pin,
+						   VIA_JACK_EVENT);
 	}
 }
 
@@ -2779,6 +2784,7 @@ static int via_init(struct hda_codec *codec)
 
 	via_hp_automute(codec);
 	vt1708_update_hp_work(spec);
+	snd_hda_jack_report_sync(codec);
 
 	return 0;
 }
@@ -2789,6 +2795,7 @@ static void vt1708_update_hp_jack_state(struct work_struct *work)
 					     vt1708_hp_work.work);
 	if (spec->codec_type != VT1708)
 		return;
+	snd_hda_jack_set_dirty_all(spec->codec);
 	/* if jack state toggled */
 	if (spec->vt1708_hp_present
 	    != snd_hda_jack_detect(spec->codec, spec->autocfg.hp_pins[0])) {

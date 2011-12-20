@@ -1,6 +1,6 @@
 snd-hda-intel-objs := hda_intel.o
 
-snd-hda-codec-y := hda_codec.o
+snd-hda-codec-y := hda_codec.o hda_jack.o
 snd-hda-codec-$(CONFIG_SND_HDA_GENERIC) += hda_generic.o
 snd-hda-codec-$(CONFIG_PROC_FS) += hda_proc.o
 snd-hda-codec-$(CONFIG_SND_HDA_HWDEP) += hda_hwdep.o

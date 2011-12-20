@@ -26,6 +26,7 @@
 #include <sound/core.h>
 #include "hda_codec.h"
 #include "hda_local.h"
+#include "hda_jack.h"
 #include <sound/tlv.h>
 
 /*
@@ -721,8 +722,9 @@ static int cs_capture_source_info(struct snd_kcontrol *kcontrol,
 	if (uinfo->value.enumerated.item >= spec->num_inputs)
 		uinfo->value.enumerated.item = spec->num_inputs - 1;
 	idx = spec->input_idx[uinfo->value.enumerated.item];
-	strcpy(uinfo->value.enumerated.name,
-	       hda_get_input_pin_label(codec, cfg->inputs[idx].pin, 1));
+	snd_hda_get_pin_label(codec, cfg->inputs[idx].pin, cfg,
+			      uinfo->value.enumerated.name,
+			      sizeof(uinfo->value.enumerated.name), NULL);
 	return 0;
 }
 
@@ -1027,9 +1029,7 @@ static void init_output(struct hda_codec *codec)
 		if (!cfg->speaker_outs)
 			continue;
 		if (get_wcaps(codec, nid) & AC_WCAP_UNSOL_CAP) {
-			snd_hda_codec_write(codec, nid, 0,
-					    AC_VERB_SET_UNSOLICITED_ENABLE,
-					    AC_USRSP_EN | HP_EVENT);
+			snd_hda_jack_detect_enable(codec, nid, HP_EVENT);
 			spec->hp_detect = 1;
 		}
 	}
@@ -1070,9 +1070,7 @@ static void init_input(struct hda_codec *codec)
 				    AC_VERB_SET_AMP_GAIN_MUTE,
 				    AMP_IN_MUTE(spec->adc_idx[i]));
 		if (spec->mic_detect && spec->automic_idx == i)
-			snd_hda_codec_write(codec, pin, 0,
-					    AC_VERB_SET_UNSOLICITED_ENABLE,
-					    AC_USRSP_EN | MIC_EVENT);
+			snd_hda_jack_detect_enable(codec, pin, MIC_EVENT);
 	}
 	/* specific to CS421x */
 	if (spec->vendor_nid == CS421X_VENDOR_NID) {
@@ -1200,11 +1198,14 @@ static int cs_init(struct hda_codec *codec)
 	init_output(codec);
 	init_input(codec);
 	init_digital(codec);
+	snd_hda_jack_report_sync(codec);
+
 	return 0;
 }
 
 static int cs_build_controls(struct hda_codec *codec)
 {
+	struct cs_spec *spec = codec->spec;
 	int err;
 
 	err = build_output(codec);
@@ -1219,7 +1220,15 @@ static int cs_build_controls(struct hda_codec *codec)
 	err = build_digital_input(codec);
 	if (err < 0)
 		return err;
-	return cs_init(codec);
+	err = cs_init(codec);
+	if (err < 0)
+		return err;
+
+	err = snd_hda_jack_add_kctls(codec, &spec->autocfg);
+	if (err < 0)
+		return err;
+
+	return 0;
 }
 
 static void cs_free(struct hda_codec *codec)
@@ -1232,7 +1241,7 @@ static void cs_free(struct hda_codec *codec)
 
 static void cs_unsol_event(struct hda_codec *codec, unsigned int res)
 {
-	switch ((res >> 26) & 0x7f) {
+	switch (snd_hda_jack_get_action(codec, res >> 26)) {
 	case HP_EVENT:
 		cs_automute(codec);
 		break;
@@ -1240,6 +1249,7 @@ static void cs_unsol_event(struct hda_codec *codec, unsigned int res)
 		cs_automic(codec);
 		break;
 	}
+	snd_hda_jack_report_sync(codec);
 }
 
 static const struct hda_codec_ops cs_patch_ops = {
@@ -1602,10 +1612,7 @@ static void init_cs421x_digital(struct hda_codec *codec)
 		if (!cfg->speaker_outs)
 			continue;
 		if (get_wcaps(codec, nid) & AC_WCAP_UNSOL_CAP) {
-
-			snd_hda_codec_write(codec, nid, 0,
-				    AC_VERB_SET_UNSOLICITED_ENABLE,
-				    AC_USRSP_EN | SPDIF_EVENT);
+			snd_hda_jack_detect_enable(codec, nid, SPDIF_EVENT);
 			spec->spdif_detect = 1;
 		}
 	}
@@ -1632,6 +1639,7 @@ static int cs421x_init(struct hda_codec *codec)
 	init_output(codec);
 	init_input(codec);
 	init_cs421x_digital(codec);
+	snd_hda_jack_report_sync(codec);
 
 	return 0;
 }
@@ -1807,6 +1815,7 @@ static int build_cs421x_output(struct hda_codec *codec)
 
 static int cs421x_build_controls(struct hda_codec *codec)
 {
+	struct cs_spec *spec = codec->spec;
 	int err;
 
 	err = build_cs421x_output(codec);
@@ -1818,12 +1827,20 @@ static int cs421x_build_controls(struct hda_codec *codec)
 	err = build_digital_output(codec);
 	if (err < 0)
 		return err;
-	return cs421x_init(codec);
+	err =  cs421x_init(codec);
+	if (err < 0)
+		return err;
+
+	err = snd_hda_jack_add_kctls(codec, &spec->autocfg);
+	if (err < 0)
+		return err;
+
+	return 0;
 }
 
 static void cs421x_unsol_event(struct hda_codec *codec, unsigned int res)
 {
-	switch ((res >> 26) & 0x3f) {
+	switch (snd_hda_jack_get_action(codec, res >> 26)) {
 	case HP_EVENT:
 	case SPDIF_EVENT:
 		cs_automute(codec);
@@ -1833,6 +1850,7 @@ static void cs421x_unsol_event(struct hda_codec *codec, unsigned int res)
 		cs_automic(codec);
 		break;
 	}
+	snd_hda_jack_report_sync(codec);
 }
 
 static int parse_cs421x_input(struct hda_codec *codec)

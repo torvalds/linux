@@ -41,7 +41,7 @@ struct ca0110_spec {
 	hda_nid_t dig_out;
 	hda_nid_t dig_in;
 	unsigned int num_inputs;
-	const char *input_labels[AUTO_PIN_LAST];
+	char input_labels[AUTO_PIN_LAST][32];
 	struct hda_pcm pcm_rec[2];	/* PCM information */
 };
 
@@ -476,7 +476,9 @@ static void parse_input(struct hda_codec *codec)
 		if (j >= cfg->num_inputs)
 			continue;
 		spec->input_pins[n] = pin;
-		spec->input_labels[n] = hda_get_input_pin_label(codec, pin, 1);
+		snd_hda_get_pin_label(codec, pin, cfg,
+				      spec->input_labels[n],
+				      sizeof(spec->input_labels[n]), NULL);
 		spec->adcs[n] = nid;
 		n++;
 	}

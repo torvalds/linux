@@ -866,6 +866,9 @@ struct hda_codec {
 	void (*proc_widget_hook)(struct snd_info_buffer *buffer,
 				 struct hda_codec *codec, hda_nid_t nid);
 
+	/* jack detection */
+	struct snd_array jacktbl;
+
 #ifdef CONFIG_SND_HDA_INPUT_JACK
 	/* jack detection */
 	struct snd_array jacks;
