@@ -135,7 +135,7 @@ static inline void _nvme_check_size(void)
 	BUILD_BUG_ON(sizeof(struct nvme_lba_range_type) != 64);
 }
 
-typedef void (*nvme_completion_fn)(struct nvme_queue *, void *,
+typedef void (*nvme_completion_fn)(struct nvme_dev *, void *,
 						struct nvme_completion *);
 
 struct nvme_cmd_info {
@@ -199,7 +199,7 @@ static int alloc_cmdid_killable(struct nvme_queue *nvmeq, void *ctx,
 #define CMD_CTX_INVALID		(0x314 + CMD_CTX_BASE)
 #define CMD_CTX_FLUSH		(0x318 + CMD_CTX_BASE)
 
-static void special_completion(struct nvme_queue *nvmeq, void *ctx,
+static void special_completion(struct nvme_dev *dev, void *ctx,
 						struct nvme_completion *cqe)
 {
 	if (ctx == CMD_CTX_CANCELLED)
@@ -207,19 +207,19 @@ static void special_completion(struct nvme_queue *nvmeq, void *ctx,
 	if (ctx == CMD_CTX_FLUSH)
 		return;
 	if (ctx == CMD_CTX_COMPLETED) {
-		dev_warn(nvmeq->q_dmadev,
+		dev_warn(&dev->pci_dev->dev,
 				"completed id %d twice on queue %d\n",
 				cqe->command_id, le16_to_cpup(&cqe->sq_id));
 		return;
 	}
 	if (ctx == CMD_CTX_INVALID) {
-		dev_warn(nvmeq->q_dmadev,
+		dev_warn(&dev->pci_dev->dev,
 				"invalid id %d completed on queue %d\n",
 				cqe->command_id, le16_to_cpup(&cqe->sq_id));
 		return;
 	}
 
-	dev_warn(nvmeq->q_dmadev, "Unknown special completion %p\n", ctx);
+	dev_warn(&dev->pci_dev->dev, "Unknown special completion %p\n", ctx);
 }
 
 /*
@@ -332,29 +332,36 @@ static struct nvme_bio *alloc_nbio(unsigned nseg, gfp_t gfp)
 			sizeof(struct scatterlist) * nseg, gfp);
 }
 
-static void free_nbio(struct nvme_queue *nvmeq, struct nvme_bio *nbio)
+static void free_nbio(struct nvme_dev *dev, struct nvme_bio *nbio)
 {
-	nvme_free_prps(nvmeq->dev, nbio->prps);
+	nvme_free_prps(dev, nbio->prps);
 	kfree(nbio);
 }
 
-static void bio_completion(struct nvme_queue *nvmeq, void *ctx,
+static void requeue_bio(struct nvme_dev *dev, struct bio *bio)
+{
+	struct nvme_queue *nvmeq = get_nvmeq(dev);
+	if (bio_list_empty(&nvmeq->sq_cong))
+		add_wait_queue(&nvmeq->sq_full, &nvmeq->sq_cong_wait);
+	bio_list_add(&nvmeq->sq_cong, bio);
+	put_nvmeq(nvmeq);
+	wake_up_process(nvme_thread);
+}
+
+static void bio_completion(struct nvme_dev *dev, void *ctx,
 						struct nvme_completion *cqe)
 {
 	struct nvme_bio *nbio = ctx;
 	struct bio *bio = nbio->bio;
 	u16 status = le16_to_cpup(&cqe->status) >> 1;
 
-	dma_unmap_sg(nvmeq->q_dmadev, nbio->sg, nbio->nents,
+	dma_unmap_sg(&dev->pci_dev->dev, nbio->sg, nbio->nents,
 			bio_data_dir(bio) ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
-	free_nbio(nvmeq, nbio);
+	free_nbio(dev, nbio);
 	if (status) {
 		bio_endio(bio, -EIO);
 	} else if (bio->bi_vcnt > bio->bi_idx) {
-		if (bio_list_empty(&nvmeq->sq_cong))
-			add_wait_queue(&nvmeq->sq_full, &nvmeq->sq_cong_wait);
-		bio_list_add(&nvmeq->sq_cong, bio);
-		wake_up_process(nvme_thread);
+		requeue_bio(dev, bio);
 	} else {
 		bio_endio(bio, 0);
 	}
@@ -594,7 +601,7 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	return 0;
 
  free_nbio:
-	free_nbio(nvmeq, nbio);
+	free_nbio(nvmeq->dev, nbio);
  nomem:
 	return result;
 }
@@ -644,7 +651,7 @@ static irqreturn_t nvme_process_cq(struct nvme_queue *nvmeq)
 		}
 
 		ctx = free_cmdid(nvmeq, cqe.command_id, &fn);
-		fn(nvmeq, ctx, &cqe);
+		fn(nvmeq->dev, ctx, &cqe);
 	}
 
 	/* If the controller ignores the cq head doorbell and continuously
@@ -695,7 +702,7 @@ struct sync_cmd_info {
 	int status;
 };
 
-static void sync_completion(struct nvme_queue *nvmeq, void *ctx,
+static void sync_completion(struct nvme_dev *dev, void *ctx,
 						struct nvme_completion *cqe)
 {
 	struct sync_cmd_info *cmdinfo = ctx;
@@ -1207,7 +1214,7 @@ static void nvme_timeout_ios(struct nvme_queue *nvmeq)
 			continue;
 		dev_warn(nvmeq->q_dmadev, "Timing out I/O %d\n", cmdid);
 		ctx = cancel_cmdid(nvmeq, cmdid, &fn);
-		fn(nvmeq, ctx, &cqe);
+		fn(nvmeq->dev, ctx, &cqe);
 	}
 }
 
