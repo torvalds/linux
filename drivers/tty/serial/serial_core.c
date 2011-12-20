@@ -421,7 +421,7 @@ uart_get_divisor(struct uart_port *port, unsigned int baud)
 	if (baud == 38400 && (port->flags & UPF_SPD_MASK) == UPF_SPD_CUST)
 		quot = port->custom_divisor;
 	else
-		quot = (port->uartclk + (8 * baud)) / (16 * baud);
+		quot = DIV_ROUND_CLOSEST(port->uartclk, 16 * baud);
 
 	return quot;
 }
