@@ -48,6 +48,7 @@ static int crypto_pcomp_init_tfm(struct crypto_tfm *tfm)
 	return 0;
 }
 
+#ifdef CONFIG_NET
 static int crypto_pcomp_report(struct sk_buff *skb, struct crypto_alg *alg)
 {
 	struct crypto_report_comp rpcomp;
@@ -62,6 +63,12 @@ static int crypto_pcomp_report(struct sk_buff *skb, struct crypto_alg *alg)
 nla_put_failure:
 	return -EMSGSIZE;
 }
+#else
+static int crypto_pcomp_report(struct sk_buff *skb, struct crypto_alg *alg)
+{
+	return -ENOSYS;
+}
+#endif
 
 static void crypto_pcomp_show(struct seq_file *m, struct crypto_alg *alg)
 	__attribute__ ((unused));

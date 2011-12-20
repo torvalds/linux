@@ -785,6 +785,10 @@ static noinline int commit_fs_roots(struct btrfs_trans_handle *trans,
 
 			btrfs_save_ino_cache(root, trans);
 
+			/* see comments in should_cow_block() */
+			root->force_cow = 0;
+			smp_wmb();
+
 			if (root->commit_root != root->node) {
 				mutex_lock(&root->fs_commit_mutex);
 				switch_commit_root(root);
@@ -882,8 +886,8 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	btrfs_reloc_pre_snapshot(trans, pending, &to_reserve);
 
 	if (to_reserve > 0) {
-		ret = btrfs_block_rsv_add(root, &pending->block_rsv,
-					  to_reserve);
+		ret = btrfs_block_rsv_add_noflush(root, &pending->block_rsv,
+						  to_reserve);
 		if (ret) {
 			pending->error = ret;
 			goto fail;
@@ -946,6 +950,10 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	btrfs_copy_root(trans, root, old, &tmp, objectid);
 	btrfs_tree_unlock(old);
 	free_extent_buffer(old);
+
+	/* see comments in should_cow_block() */
+	root->force_cow = 1;
+	smp_wmb();
 
 	btrfs_set_root_node(new_root_item, tmp);
 	/* record when the snapshot was created in key.offset */

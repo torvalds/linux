@@ -644,8 +644,6 @@ static int sdhci_s3c_resume(struct platform_device *dev)
 static struct platform_driver sdhci_s3c_driver = {
 	.probe		= sdhci_s3c_probe,
 	.remove		= __devexit_p(sdhci_s3c_remove),
-	.suspend	= sdhci_s3c_suspend,
-	.resume	        = sdhci_s3c_resume,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "s3c-sdhci",

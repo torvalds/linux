@@ -444,7 +444,7 @@ static struct key *request_master_key(struct encrypted_key_payload *epayload,
 		goto out;
 
 	if (IS_ERR(mkey)) {
-		int ret = PTR_ERR(epayload);
+		int ret = PTR_ERR(mkey);
 
 		if (ret == -ENOTSUPP)
 			pr_info("encrypted_key: key %s not supported",

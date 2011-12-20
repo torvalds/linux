@@ -110,6 +110,7 @@
 /* drm_display_mode->private_flags */
 #define INTEL_MODE_PIXEL_MULTIPLIER_SHIFT (0x0)
 #define INTEL_MODE_PIXEL_MULTIPLIER_MASK (0xf << INTEL_MODE_PIXEL_MULTIPLIER_SHIFT)
+#define INTEL_MODE_DP_FORCE_6BPC (0x10)
 
 static inline void
 intel_mode_set_pixel_multiplier(struct drm_display_mode *mode,

@@ -641,6 +641,8 @@ static int __init zcore_init(void)
 
 	if (ipl_info.type != IPL_TYPE_FCP_DUMP)
 		return -ENODATA;
+	if (OLDMEM_BASE)
+		return -ENODATA;
 
 	zcore_dbf = debug_register("zcore", 4, 1, 4 * sizeof(long));
 	debug_register_view(zcore_dbf, &debug_sprintf_view);

@@ -384,7 +384,7 @@ static struct spi_board_info yl9200_spi_devices[] = {
 #include <video/s1d13xxxfb.h>
 
 
-static void __init yl9200_init_video(void)
+static void yl9200_init_video(void)
 {
 	/* NWAIT Signal */
 	at91_set_A_periph(AT91_PIN_PC6, 0);

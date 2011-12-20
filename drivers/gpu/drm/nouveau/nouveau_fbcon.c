@@ -488,6 +488,7 @@ int nouveau_fbcon_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_fbdev *nfbdev;
+	int preferred_bpp;
 	int ret;
 
 	nfbdev = kzalloc(sizeof(struct nouveau_fbdev), GFP_KERNEL);
@@ -506,7 +507,15 @@ int nouveau_fbcon_init(struct drm_device *dev)
 	}
 
 	drm_fb_helper_single_add_all_connectors(&nfbdev->helper);
-	drm_fb_helper_initial_config(&nfbdev->helper, 32);
+
+	if (dev_priv->vram_size <= 32 * 1024 * 1024)
+		preferred_bpp = 8;
+	else if (dev_priv->vram_size <= 64 * 1024 * 1024)
+		preferred_bpp = 16;
+	else
+		preferred_bpp = 32;
+
+	drm_fb_helper_initial_config(&nfbdev->helper, preferred_bpp);
 	return 0;
 }
 

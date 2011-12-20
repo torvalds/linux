@@ -143,8 +143,8 @@ void usbhs_irq_callback_update(struct usbhs_priv *priv, struct usbhs_mod *mod);
  */
 #if	defined(CONFIG_USB_RENESAS_USBHS_HCD) || \
 	defined(CONFIG_USB_RENESAS_USBHS_HCD_MODULE)
-extern int __devinit usbhs_mod_host_probe(struct usbhs_priv *priv);
-extern int __devexit usbhs_mod_host_remove(struct usbhs_priv *priv);
+extern int usbhs_mod_host_probe(struct usbhs_priv *priv);
+extern int usbhs_mod_host_remove(struct usbhs_priv *priv);
 #else
 static inline int usbhs_mod_host_probe(struct usbhs_priv *priv)
 {
@@ -157,8 +157,8 @@ static inline void usbhs_mod_host_remove(struct usbhs_priv *priv)
 
 #if	defined(CONFIG_USB_RENESAS_USBHS_UDC) || \
 	defined(CONFIG_USB_RENESAS_USBHS_UDC_MODULE)
-extern int __devinit usbhs_mod_gadget_probe(struct usbhs_priv *priv);
-extern void __devexit usbhs_mod_gadget_remove(struct usbhs_priv *priv);
+extern int usbhs_mod_gadget_probe(struct usbhs_priv *priv);
+extern void usbhs_mod_gadget_remove(struct usbhs_priv *priv);
 #else
 static inline int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 {

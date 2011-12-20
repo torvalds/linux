@@ -800,8 +800,6 @@ static void mpic_end_ipi(struct irq_data *d)
 	 * IPIs are marked IRQ_PER_CPU. This has the side effect of
 	 * preventing the IRQ_PENDING/IRQ_INPROGRESS logic from
 	 * applying to them. We EOI them late to avoid re-entering.
-	 * We mark IPI's with IRQF_DISABLED as they must run with
-	 * irqs disabled.
 	 */
 	mpic_eoi(mpic);
 }

@@ -295,6 +295,12 @@ loop_lock:
 			btrfs_requeue_work(&device->work);
 			goto done;
 		}
+		/* unplug every 64 requests just for good measure */
+		if (batch_run % 64 == 0) {
+			blk_finish_plug(&plug);
+			blk_start_plug(&plug);
+			sync_pending = 0;
+		}
 	}
 
 	cond_resched();
@@ -999,7 +1005,7 @@ static int btrfs_free_dev_extent(struct btrfs_trans_handle *trans,
 	key.objectid = device->devid;
 	key.offset = start;
 	key.type = BTRFS_DEV_EXTENT_KEY;
-
+again:
 	ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
 	if (ret > 0) {
 		ret = btrfs_previous_item(root, path, key.objectid,
@@ -1012,6 +1018,9 @@ static int btrfs_free_dev_extent(struct btrfs_trans_handle *trans,
 					struct btrfs_dev_extent);
 		BUG_ON(found_key.offset > start || found_key.offset +
 		       btrfs_dev_extent_length(leaf, extent) < start);
+		key = found_key;
+		btrfs_release_path(path);
+		goto again;
 	} else if (ret == 0) {
 		leaf = path->nodes[0];
 		extent = btrfs_item_ptr(leaf, path->slots[0],
@@ -1608,7 +1617,7 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	if ((sb->s_flags & MS_RDONLY) && !root->fs_info->fs_devices->seeding)
 		return -EINVAL;
 
-	bdev = blkdev_get_by_path(device_path, FMODE_EXCL,
+	bdev = blkdev_get_by_path(device_path, FMODE_WRITE | FMODE_EXCL,
 				  root->fs_info->bdev_holder);
 	if (IS_ERR(bdev))
 		return PTR_ERR(bdev);
@@ -3255,7 +3264,7 @@ static void btrfs_end_bio(struct bio *bio, int err)
 		 */
 		if (atomic_read(&bbio->error) > bbio->max_errors) {
 			err = -EIO;
-		} else if (err) {
+		} else {
 			/*
 			 * this bio is actually up to date, we didn't
 			 * go over the max number of errors

@@ -41,6 +41,7 @@
 #include <linux/slab.h>
 #include <linux/cleancache.h>
 #include <linux/mnt_namespace.h>
+#include <linux/ratelimit.h>
 #include "compat.h"
 #include "delayed-inode.h"
 #include "ctree.h"
@@ -197,7 +198,7 @@ static match_table_t tokens = {
 	{Opt_subvolrootid, "subvolrootid=%d"},
 	{Opt_defrag, "autodefrag"},
 	{Opt_inode_cache, "inode_cache"},
-	{Opt_no_space_cache, "no_space_cache"},
+	{Opt_no_space_cache, "nospace_cache"},
 	{Opt_recovery, "recovery"},
 	{Opt_err, NULL},
 };
@@ -448,6 +449,7 @@ static int btrfs_parse_early_options(const char *options, fmode_t flags,
 		token = match_token(p, tokens, args);
 		switch (token) {
 		case Opt_subvol:
+			kfree(*subvol_name);
 			*subvol_name = match_strdup(&args[0]);
 			break;
 		case Opt_subvolid:
@@ -710,7 +712,7 @@ static int btrfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	if (btrfs_test_opt(root, SPACE_CACHE))
 		seq_puts(seq, ",space_cache");
 	else
-		seq_puts(seq, ",no_space_cache");
+		seq_puts(seq, ",nospace_cache");
 	if (btrfs_test_opt(root, CLEAR_CACHE))
 		seq_puts(seq, ",clear_cache");
 	if (btrfs_test_opt(root, USER_SUBVOL_RM_ALLOWED))
@@ -824,13 +826,9 @@ static char *setup_root_args(char *args)
 static struct dentry *mount_subvol(const char *subvol_name, int flags,
 				   const char *device_name, char *data)
 {
-	struct super_block *s;
 	struct dentry *root;
 	struct vfsmount *mnt;
-	struct mnt_namespace *ns_private;
 	char *newargs;
-	struct path path;
-	int error;
 
 	newargs = setup_root_args(data);
 	if (!newargs)
@@ -841,38 +839,16 @@ static struct dentry *mount_subvol(const char *subvol_name, int flags,
 	if (IS_ERR(mnt))
 		return ERR_CAST(mnt);
 
-	ns_private = create_mnt_ns(mnt);
-	if (IS_ERR(ns_private)) {
-		mntput(mnt);
-		return ERR_CAST(ns_private);
-	}
+	root = mount_subtree(mnt, subvol_name);
 
-	/*
-	 * This will trigger the automount of the subvol so we can just
-	 * drop the mnt we have here and return the dentry that we
-	 * found.
-	 */
-	error = vfs_path_lookup(mnt->mnt_root, mnt, subvol_name,
-				LOOKUP_FOLLOW, &path);
-	put_mnt_ns(ns_private);
-	if (error)
-		return ERR_PTR(error);
-
-	if (!is_subvolume_inode(path.dentry->d_inode)) {
-		path_put(&path);
-		mntput(mnt);
-		error = -EINVAL;
+	if (!IS_ERR(root) && !is_subvolume_inode(root->d_inode)) {
+		struct super_block *s = root->d_sb;
+		dput(root);
+		root = ERR_PTR(-EINVAL);
+		deactivate_locked_super(s);
 		printk(KERN_ERR "btrfs: '%s' is not a valid subvolume\n",
 				subvol_name);
-		return ERR_PTR(-EINVAL);
 	}
-
-	/* Get a ref to the sb and the dentry we found and return it */
-	s = path.mnt->mnt_sb;
-	atomic_inc(&s->s_active);
-	root = dget(path.dentry);
-	path_put(&path);
-	down_write(&s->s_umount);
 
 	return root;
 }
@@ -890,7 +866,6 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	struct super_block *s;
 	struct dentry *root;
 	struct btrfs_fs_devices *fs_devices = NULL;
-	struct btrfs_root *tree_root = NULL;
 	struct btrfs_fs_info *fs_info = NULL;
 	fmode_t mode = FMODE_READ;
 	char *subvol_name = NULL;
@@ -904,8 +879,10 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	error = btrfs_parse_early_options(data, mode, fs_type,
 					  &subvol_name, &subvol_objectid,
 					  &subvol_rootid, &fs_devices);
-	if (error)
+	if (error) {
+		kfree(subvol_name);
 		return ERR_PTR(error);
+	}
 
 	if (subvol_name) {
 		root = mount_subvol(subvol_name, flags, device_name, data);
@@ -917,15 +894,6 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	if (error)
 		return ERR_PTR(error);
 
-	error = btrfs_open_devices(fs_devices, mode, fs_type);
-	if (error)
-		return ERR_PTR(error);
-
-	if (!(flags & MS_RDONLY) && fs_devices->rw_devices == 0) {
-		error = -EACCES;
-		goto error_close_devices;
-	}
-
 	/*
 	 * Setup a dummy root and fs_info for test/set super.  This is because
 	 * we don't actually fill this stuff out until open_ctree, but we need
@@ -933,24 +901,36 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	 * then open_ctree will properly initialize everything later.
 	 */
 	fs_info = kzalloc(sizeof(struct btrfs_fs_info), GFP_NOFS);
-	tree_root = kzalloc(sizeof(struct btrfs_root), GFP_NOFS);
-	if (!fs_info || !tree_root) {
+	if (!fs_info)
+		return ERR_PTR(-ENOMEM);
+
+	fs_info->tree_root = kzalloc(sizeof(struct btrfs_root), GFP_NOFS);
+	if (!fs_info->tree_root) {
 		error = -ENOMEM;
-		goto error_close_devices;
+		goto error_fs_info;
 	}
-	fs_info->tree_root = tree_root;
+	fs_info->tree_root->fs_info = fs_info;
 	fs_info->fs_devices = fs_devices;
-	tree_root->fs_info = fs_info;
 
 	fs_info->super_copy = kzalloc(BTRFS_SUPER_INFO_SIZE, GFP_NOFS);
 	fs_info->super_for_commit = kzalloc(BTRFS_SUPER_INFO_SIZE, GFP_NOFS);
 	if (!fs_info->super_copy || !fs_info->super_for_commit) {
 		error = -ENOMEM;
+		goto error_fs_info;
+	}
+
+	error = btrfs_open_devices(fs_devices, mode, fs_type);
+	if (error)
+		goto error_fs_info;
+
+	if (!(flags & MS_RDONLY) && fs_devices->rw_devices == 0) {
+		error = -EACCES;
 		goto error_close_devices;
 	}
 
 	bdev = fs_devices->latest_bdev;
-	s = sget(fs_type, btrfs_test_super, btrfs_set_super, tree_root);
+	s = sget(fs_type, btrfs_test_super, btrfs_set_super,
+		 fs_info->tree_root);
 	if (IS_ERR(s)) {
 		error = PTR_ERR(s);
 		goto error_close_devices;
@@ -959,12 +939,12 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	if (s->s_root) {
 		if ((flags ^ s->s_flags) & MS_RDONLY) {
 			deactivate_locked_super(s);
-			return ERR_PTR(-EBUSY);
+			error = -EBUSY;
+			goto error_close_devices;
 		}
 
 		btrfs_close_devices(fs_devices);
 		free_fs_info(fs_info);
-		kfree(tree_root);
 	} else {
 		char b[BDEVNAME_SIZE];
 
@@ -991,8 +971,8 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 
 error_close_devices:
 	btrfs_close_devices(fs_devices);
+error_fs_info:
 	free_fs_info(fs_info);
-	kfree(tree_root);
 	return ERR_PTR(error);
 }
 
@@ -1074,11 +1054,11 @@ static int btrfs_calc_avail_data_space(struct btrfs_root *root, u64 *free_bytes)
 	u64 avail_space;
 	u64 used_space;
 	u64 min_stripe_size;
-	int min_stripes = 1;
+	int min_stripes = 1, num_stripes = 1;
 	int i = 0, nr_devices;
 	int ret;
 
-	nr_devices = fs_info->fs_devices->rw_devices;
+	nr_devices = fs_info->fs_devices->open_devices;
 	BUG_ON(!nr_devices);
 
 	devices_info = kmalloc(sizeof(*devices_info) * nr_devices,
@@ -1088,20 +1068,24 @@ static int btrfs_calc_avail_data_space(struct btrfs_root *root, u64 *free_bytes)
 
 	/* calc min stripe number for data space alloction */
 	type = btrfs_get_alloc_profile(root, 1);
-	if (type & BTRFS_BLOCK_GROUP_RAID0)
+	if (type & BTRFS_BLOCK_GROUP_RAID0) {
 		min_stripes = 2;
-	else if (type & BTRFS_BLOCK_GROUP_RAID1)
+		num_stripes = nr_devices;
+	} else if (type & BTRFS_BLOCK_GROUP_RAID1) {
 		min_stripes = 2;
-	else if (type & BTRFS_BLOCK_GROUP_RAID10)
+		num_stripes = 2;
+	} else if (type & BTRFS_BLOCK_GROUP_RAID10) {
 		min_stripes = 4;
+		num_stripes = 4;
+	}
 
 	if (type & BTRFS_BLOCK_GROUP_DUP)
 		min_stripe_size = 2 * BTRFS_STRIPE_LEN;
 	else
 		min_stripe_size = BTRFS_STRIPE_LEN;
 
-	list_for_each_entry(device, &fs_devices->alloc_list, dev_alloc_list) {
-		if (!device->in_fs_metadata)
+	list_for_each_entry(device, &fs_devices->devices, dev_list) {
+		if (!device->in_fs_metadata || !device->bdev)
 			continue;
 
 		avail_space = device->total_bytes - device->bytes_used;
@@ -1162,13 +1146,16 @@ static int btrfs_calc_avail_data_space(struct btrfs_root *root, u64 *free_bytes)
 	i = nr_devices - 1;
 	avail_space = 0;
 	while (nr_devices >= min_stripes) {
+		if (num_stripes > nr_devices)
+			num_stripes = nr_devices;
+
 		if (devices_info[i].max_avail >= min_stripe_size) {
 			int j;
 			u64 alloc_size;
 
-			avail_space += devices_info[i].max_avail * min_stripes;
+			avail_space += devices_info[i].max_avail * num_stripes;
 			alloc_size = devices_info[i].max_avail;
-			for (j = i + 1 - min_stripes; j <= i; j++)
+			for (j = i + 1 - num_stripes; j <= i; j++)
 				devices_info[j].max_avail -= alloc_size;
 		}
 		i--;
@@ -1285,6 +1272,16 @@ static int btrfs_unfreeze(struct super_block *sb)
 	return 0;
 }
 
+static void btrfs_fs_dirty_inode(struct inode *inode, int flags)
+{
+	int ret;
+
+	ret = btrfs_dirty_inode(inode);
+	if (ret)
+		printk_ratelimited(KERN_ERR "btrfs: fail to dirty inode %Lu "
+				   "error %d\n", btrfs_ino(inode), ret);
+}
+
 static const struct super_operations btrfs_super_ops = {
 	.drop_inode	= btrfs_drop_inode,
 	.evict_inode	= btrfs_evict_inode,
@@ -1292,7 +1289,7 @@ static const struct super_operations btrfs_super_ops = {
 	.sync_fs	= btrfs_sync_fs,
 	.show_options	= btrfs_show_options,
 	.write_inode	= btrfs_write_inode,
-	.dirty_inode	= btrfs_dirty_inode,
+	.dirty_inode	= btrfs_fs_dirty_inode,
 	.alloc_inode	= btrfs_alloc_inode,
 	.destroy_inode	= btrfs_destroy_inode,
 	.statfs		= btrfs_statfs,

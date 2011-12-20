@@ -53,6 +53,24 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev);
 
 #define ACPI_AC_CLASS           "ac_adapter"
 
+int radeon_pm_get_type_index(struct radeon_device *rdev,
+			     enum radeon_pm_state_type ps_type,
+			     int instance)
+{
+	int i;
+	int found_instance = -1;
+
+	for (i = 0; i < rdev->pm.num_power_states; i++) {
+		if (rdev->pm.power_state[i].type == ps_type) {
+			found_instance++;
+			if (found_instance == instance)
+				return i;
+		}
+	}
+	/* return default if no match */
+	return rdev->pm.default_power_state_index;
+}
+
 #ifdef CONFIG_ACPI
 static int radeon_acpi_event(struct notifier_block *nb,
 			     unsigned long val,

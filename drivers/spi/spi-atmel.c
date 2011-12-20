@@ -907,7 +907,7 @@ static void atmel_spi_cleanup(struct spi_device *spi)
 
 /*-------------------------------------------------------------------------*/
 
-static int __init atmel_spi_probe(struct platform_device *pdev)
+static int __devinit atmel_spi_probe(struct platform_device *pdev)
 {
 	struct resource		*regs;
 	int			irq;
@@ -1003,7 +1003,7 @@ out_free:
 	return ret;
 }
 
-static int __exit atmel_spi_remove(struct platform_device *pdev)
+static int __devexit atmel_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master	*master = platform_get_drvdata(pdev);
 	struct atmel_spi	*as = spi_master_get_devdata(master);
@@ -1072,6 +1072,7 @@ static struct platform_driver atmel_spi_driver = {
 	},
 	.suspend	= atmel_spi_suspend,
 	.resume		= atmel_spi_resume,
+	.probe		= atmel_spi_probe,
 	.remove		= __exit_p(atmel_spi_remove),
 };
 module_platform_driver(atmel_spi_driver);

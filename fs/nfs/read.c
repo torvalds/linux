@@ -109,7 +109,7 @@ static void nfs_readpage_truncate_uninitialised_page(struct nfs_read_data *data)
 	}
 }
 
-static void nfs_pageio_init_read_mds(struct nfs_pageio_descriptor *pgio,
+void nfs_pageio_init_read_mds(struct nfs_pageio_descriptor *pgio,
 		struct inode *inode)
 {
 	nfs_pageio_init(pgio, inode, &nfs_pageio_read_ops,
@@ -534,23 +534,13 @@ static void nfs_readpage_result_full(struct rpc_task *task, void *calldata)
 static void nfs_readpage_release_full(void *calldata)
 {
 	struct nfs_read_data *data = calldata;
-	struct nfs_pageio_descriptor pgio;
 
-	if (data->pnfs_error) {
-		nfs_pageio_init_read_mds(&pgio, data->inode);
-		pgio.pg_recoalesce = 1;
-	}
 	while (!list_empty(&data->pages)) {
 		struct nfs_page *req = nfs_list_entry(data->pages.next);
 
 		nfs_list_remove_request(req);
-		if (!data->pnfs_error)
-			nfs_readpage_release(req);
-		else
-			nfs_pageio_add_request(&pgio, req);
+		nfs_readpage_release(req);
 	}
-	if (data->pnfs_error)
-		nfs_pageio_complete(&pgio);
 	nfs_readdata_release(calldata);
 }
 

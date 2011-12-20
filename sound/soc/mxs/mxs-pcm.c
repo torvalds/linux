@@ -357,3 +357,6 @@ static void __exit snd_mxs_pcm_exit(void)
 	platform_driver_unregister(&mxs_pcm_driver);
 }
 module_exit(snd_mxs_pcm_exit);
+
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:mxs-pcm-audio");

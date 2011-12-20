@@ -239,7 +239,7 @@ nouveau_perf_init(struct drm_device *dev)
 	if(version == 0x15) {
 		memtimings->timing =
 				kcalloc(entries, sizeof(*memtimings->timing), GFP_KERNEL);
-		if(!memtimings) {
+		if (!memtimings->timing) {
 			NV_WARN(dev,"Could not allocate memtiming table\n");
 			return;
 		}

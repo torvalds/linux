@@ -30,6 +30,7 @@
 #include <plat/usb.h>
 
 #include "twl-common.h"
+#include "pm.h"
 
 static struct i2c_board_info __initdata pmic_i2c_board_info = {
 	.addr		= 0x48,
@@ -46,6 +47,16 @@ void __init omap_pmic_init(int bus, u32 clkrate,
 	pmic_i2c_board_info.platform_data = pmic_data;
 
 	omap_register_i2c_bus(bus, clkrate, &pmic_i2c_board_info, 1);
+}
+
+void __init omap_pmic_late_init(void)
+{
+	/* Init the OMAP TWL parameters (if PMIC has been registerd) */
+	if (!pmic_i2c_board_info.irq)
+		return;
+
+	omap3_twl_init();
+	omap4_twl_init();
 }
 
 #if defined(CONFIG_ARCH_OMAP3)
