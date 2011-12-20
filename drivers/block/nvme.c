@@ -290,52 +290,70 @@ static int nvme_submit_cmd(struct nvme_queue *nvmeq, struct nvme_command *cmd)
 	return 0;
 }
 
-struct nvme_prps {
-	int npages;		/* 0 means small pool in use */
+/*
+ * The nvme_iod describes the data in an I/O, including the list of PRP
+ * entries.  You can't see it in this data structure because C doesn't let
+ * me express that.  Use nvme_alloc_iod to ensure there's enough space
+ * allocated to store the PRP list.
+ */
+struct nvme_iod {
+	void *private;		/* For the use of the submitter of the I/O */
+	int npages;		/* In the PRP list. 0 means small pool in use */
+	int offset;		/* Of PRP list */
+	int nents;		/* Used in scatterlist */
+	int length;		/* Of data, in bytes */
 	dma_addr_t first_dma;
-	__le64 *list[0];
+	struct scatterlist sg[0];
 };
 
-static void nvme_free_prps(struct nvme_dev *dev, struct nvme_prps *prps)
+static __le64 **iod_list(struct nvme_iod *iod)
+{
+	return ((void *)iod) + iod->offset;
+}
+
+/*
+ * Will slightly overestimate the number of pages needed.  This is OK
+ * as it only leads to a small amount of wasted memory for the lifetime of
+ * the I/O.
+ */
+static int nvme_npages(unsigned size)
+{
+	unsigned nprps = DIV_ROUND_UP(size + PAGE_SIZE, PAGE_SIZE);
+	return DIV_ROUND_UP(8 * nprps, PAGE_SIZE - 8);
+}
+
+static struct nvme_iod *
+nvme_alloc_iod(unsigned nseg, unsigned nbytes, gfp_t gfp)
+{
+	struct nvme_iod *iod = kmalloc(sizeof(struct nvme_iod) +
+				sizeof(__le64 *) * nvme_npages(nbytes) +
+				sizeof(struct scatterlist) * nseg, gfp);
+
+	if (iod) {
+		iod->offset = offsetof(struct nvme_iod, sg[nseg]);
+		iod->npages = -1;
+		iod->length = nbytes;
+	}
+
+	return iod;
+}
+
+static void nvme_free_iod(struct nvme_dev *dev, struct nvme_iod *iod)
 {
 	const int last_prp = PAGE_SIZE / 8 - 1;
 	int i;
-	dma_addr_t prp_dma;
+	__le64 **list = iod_list(iod);
+	dma_addr_t prp_dma = iod->first_dma;
 
-	if (!prps)
-		return;
-
-	prp_dma = prps->first_dma;
-
-	if (prps->npages == 0)
-		dma_pool_free(dev->prp_small_pool, prps->list[0], prp_dma);
-	for (i = 0; i < prps->npages; i++) {
-		__le64 *prp_list = prps->list[i];
+	if (iod->npages == 0)
+		dma_pool_free(dev->prp_small_pool, list[0], prp_dma);
+	for (i = 0; i < iod->npages; i++) {
+		__le64 *prp_list = list[i];
 		dma_addr_t next_prp_dma = le64_to_cpu(prp_list[last_prp]);
 		dma_pool_free(dev->prp_page_pool, prp_list, prp_dma);
 		prp_dma = next_prp_dma;
 	}
-	kfree(prps);
-}
-
-struct nvme_bio {
-	struct bio *bio;
-	int nents;
-	struct nvme_prps *prps;
-	struct scatterlist sg[0];
-};
-
-/* XXX: use a mempool */
-static struct nvme_bio *alloc_nbio(unsigned nseg, gfp_t gfp)
-{
-	return kzalloc(sizeof(struct nvme_bio) +
-			sizeof(struct scatterlist) * nseg, gfp);
-}
-
-static void free_nbio(struct nvme_dev *dev, struct nvme_bio *nbio)
-{
-	nvme_free_prps(dev, nbio->prps);
-	kfree(nbio);
+	kfree(iod);
 }
 
 static void requeue_bio(struct nvme_dev *dev, struct bio *bio)
@@ -351,13 +369,13 @@ static void requeue_bio(struct nvme_dev *dev, struct bio *bio)
 static void bio_completion(struct nvme_dev *dev, void *ctx,
 						struct nvme_completion *cqe)
 {
-	struct nvme_bio *nbio = ctx;
-	struct bio *bio = nbio->bio;
+	struct nvme_iod *iod = ctx;
+	struct bio *bio = iod->private;
 	u16 status = le16_to_cpup(&cqe->status) >> 1;
 
-	dma_unmap_sg(&dev->pci_dev->dev, nbio->sg, nbio->nents,
+	dma_unmap_sg(&dev->pci_dev->dev, iod->sg, iod->nents,
 			bio_data_dir(bio) ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
-	free_nbio(dev, nbio);
+	nvme_free_iod(dev, iod);
 	if (status) {
 		bio_endio(bio, -EIO);
 	} else if (bio->bi_vcnt > bio->bi_idx) {
@@ -368,25 +386,25 @@ static void bio_completion(struct nvme_dev *dev, void *ctx,
 }
 
 /* length is in bytes.  gfp flags indicates whether we may sleep. */
-static struct nvme_prps *nvme_setup_prps(struct nvme_dev *dev,
-					struct nvme_common_command *cmd,
-					struct scatterlist *sg, int *len,
-					gfp_t gfp)
+static int nvme_setup_prps(struct nvme_dev *dev,
+			struct nvme_common_command *cmd, struct nvme_iod *iod,
+			int total_len, gfp_t gfp)
 {
 	struct dma_pool *pool;
-	int length = *len;
+	int length = total_len;
+	struct scatterlist *sg = iod->sg;
 	int dma_len = sg_dma_len(sg);
 	u64 dma_addr = sg_dma_address(sg);
 	int offset = offset_in_page(dma_addr);
 	__le64 *prp_list;
+	__le64 **list = iod_list(iod);
 	dma_addr_t prp_dma;
-	int nprps, npages, i;
-	struct nvme_prps *prps = NULL;
+	int nprps, i;
 
 	cmd->prp1 = cpu_to_le64(dma_addr);
 	length -= (PAGE_SIZE - offset);
 	if (length <= 0)
-		return prps;
+		return total_len;
 
 	dma_len -= (PAGE_SIZE - offset);
 	if (dma_len) {
@@ -399,46 +417,35 @@ static struct nvme_prps *nvme_setup_prps(struct nvme_dev *dev,
 
 	if (length <= PAGE_SIZE) {
 		cmd->prp2 = cpu_to_le64(dma_addr);
-		return prps;
+		return total_len;
 	}
 
 	nprps = DIV_ROUND_UP(length, PAGE_SIZE);
-	npages = DIV_ROUND_UP(8 * nprps, PAGE_SIZE - 8);
-	prps = kmalloc(sizeof(*prps) + sizeof(__le64 *) * npages, gfp);
-	if (!prps) {
-		cmd->prp2 = cpu_to_le64(dma_addr);
-		*len = (*len - length) + PAGE_SIZE;
-		return prps;
-	}
-
 	if (nprps <= (256 / 8)) {
 		pool = dev->prp_small_pool;
-		prps->npages = 0;
+		iod->npages = 0;
 	} else {
 		pool = dev->prp_page_pool;
-		prps->npages = 1;
+		iod->npages = 1;
 	}
 
 	prp_list = dma_pool_alloc(pool, gfp, &prp_dma);
 	if (!prp_list) {
 		cmd->prp2 = cpu_to_le64(dma_addr);
-		*len = (*len - length) + PAGE_SIZE;
-		kfree(prps);
-		return NULL;
+		iod->npages = -1;
+		return (total_len - length) + PAGE_SIZE;
 	}
-	prps->list[0] = prp_list;
-	prps->first_dma = prp_dma;
+	list[0] = prp_list;
+	iod->first_dma = prp_dma;
 	cmd->prp2 = cpu_to_le64(prp_dma);
 	i = 0;
 	for (;;) {
 		if (i == PAGE_SIZE / 8) {
 			__le64 *old_prp_list = prp_list;
 			prp_list = dma_pool_alloc(pool, gfp, &prp_dma);
-			if (!prp_list) {
-				*len = (*len - length);
-				return prps;
-			}
-			prps->list[prps->npages++] = prp_list;
+			if (!prp_list)
+				return total_len - length;
+			list[iod->npages++] = prp_list;
 			prp_list[0] = old_prp_list[i - 1];
 			old_prp_list[i - 1] = cpu_to_le64(prp_dma);
 			i = 1;
@@ -457,21 +464,21 @@ static struct nvme_prps *nvme_setup_prps(struct nvme_dev *dev,
 		dma_len = sg_dma_len(sg);
 	}
 
-	return prps;
+	return total_len;
 }
 
 /* NVMe scatterlists require no holes in the virtual address */
 #define BIOVEC_NOT_VIRT_MERGEABLE(vec1, vec2)	((vec2)->bv_offset || \
 			(((vec1)->bv_offset + (vec1)->bv_len) % PAGE_SIZE))
 
-static int nvme_map_bio(struct device *dev, struct nvme_bio *nbio,
+static int nvme_map_bio(struct device *dev, struct nvme_iod *iod,
 		struct bio *bio, enum dma_data_direction dma_dir, int psegs)
 {
 	struct bio_vec *bvec, *bvprv = NULL;
 	struct scatterlist *sg = NULL;
 	int i, old_idx, length = 0, nsegs = 0;
 
-	sg_init_table(nbio->sg, psegs);
+	sg_init_table(iod->sg, psegs);
 	old_idx = bio->bi_idx;
 	bio_for_each_segment(bvec, bio, i) {
 		if (bvprv && BIOVEC_PHYS_MERGEABLE(bvprv, bvec)) {
@@ -479,7 +486,7 @@ static int nvme_map_bio(struct device *dev, struct nvme_bio *nbio,
 		} else {
 			if (bvprv && BIOVEC_NOT_VIRT_MERGEABLE(bvprv, bvec))
 				break;
-			sg = sg ? sg + 1 : nbio->sg;
+			sg = sg ? sg + 1 : iod->sg;
 			sg_set_page(sg, bvec->bv_page, bvec->bv_len,
 							bvec->bv_offset);
 			nsegs++;
@@ -488,9 +495,9 @@ static int nvme_map_bio(struct device *dev, struct nvme_bio *nbio,
 		bvprv = bvec;
 	}
 	bio->bi_idx = i;
-	nbio->nents = nsegs;
+	iod->nents = nsegs;
 	sg_mark_end(sg);
-	if (dma_map_sg(dev, nbio->sg, nbio->nents, dma_dir) == 0) {
+	if (dma_map_sg(dev, iod->sg, iod->nents, dma_dir) == 0) {
 		bio->bi_idx = old_idx;
 		return -ENOMEM;
 	}
@@ -531,7 +538,7 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 								struct bio *bio)
 {
 	struct nvme_command *cmnd;
-	struct nvme_bio *nbio;
+	struct nvme_iod *iod;
 	enum dma_data_direction dma_dir;
 	int cmdid, length, result = -ENOMEM;
 	u16 control;
@@ -544,15 +551,15 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 			return result;
 	}
 
-	nbio = alloc_nbio(psegs, GFP_ATOMIC);
-	if (!nbio)
+	iod = nvme_alloc_iod(psegs, bio->bi_size, GFP_ATOMIC);
+	if (!iod)
 		goto nomem;
-	nbio->bio = bio;
+	iod->private = bio;
 
 	result = -EBUSY;
-	cmdid = alloc_cmdid(nvmeq, nbio, bio_completion, IO_TIMEOUT);
+	cmdid = alloc_cmdid(nvmeq, iod, bio_completion, IO_TIMEOUT);
 	if (unlikely(cmdid < 0))
-		goto free_nbio;
+		goto free_iod;
 
 	if ((bio->bi_rw & REQ_FLUSH) && !psegs)
 		return nvme_submit_flush(nvmeq, ns, cmdid);
@@ -578,15 +585,15 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 		dma_dir = DMA_FROM_DEVICE;
 	}
 
-	result = nvme_map_bio(nvmeq->q_dmadev, nbio, bio, dma_dir, psegs);
+	result = nvme_map_bio(nvmeq->q_dmadev, iod, bio, dma_dir, psegs);
 	if (result < 0)
-		goto free_nbio;
+		goto free_iod;
 	length = result;
 
 	cmnd->rw.command_id = cmdid;
 	cmnd->rw.nsid = cpu_to_le32(ns->ns_id);
-	nbio->prps = nvme_setup_prps(nvmeq->dev, &cmnd->common, nbio->sg,
-							&length, GFP_ATOMIC);
+	length = nvme_setup_prps(nvmeq->dev, &cmnd->common, iod, length,
+								GFP_ATOMIC);
 	cmnd->rw.slba = cpu_to_le64(bio->bi_sector >> (ns->lba_shift - 9));
 	cmnd->rw.length = cpu_to_le16((length >> ns->lba_shift) - 1);
 	cmnd->rw.control = cpu_to_le16(control);
@@ -600,8 +607,8 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 
 	return 0;
 
- free_nbio:
-	free_nbio(nvmeq->dev, nbio);
+ free_iod:
+	nvme_free_iod(nvmeq->dev, iod);
  nomem:
 	return result;
 }
@@ -1005,18 +1012,18 @@ static int __devinit nvme_configure_admin_queue(struct nvme_dev *dev)
 	return result;
 }
 
-static int nvme_map_user_pages(struct nvme_dev *dev, int write,
-				unsigned long addr, unsigned length,
-				struct scatterlist **sgp)
+static struct nvme_iod *nvme_map_user_pages(struct nvme_dev *dev, int write,
+				unsigned long addr, unsigned length)
 {
 	int i, err, count, nents, offset;
 	struct scatterlist *sg;
 	struct page **pages;
+	struct nvme_iod *iod;
 
 	if (addr & 3)
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	if (!length)
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 
 	offset = offset_in_page(addr);
 	count = DIV_ROUND_UP(offset + length, PAGE_SIZE);
@@ -1029,7 +1036,8 @@ static int nvme_map_user_pages(struct nvme_dev *dev, int write,
 		goto put_pages;
 	}
 
-	sg = kcalloc(count, sizeof(*sg), GFP_KERNEL);
+	iod = nvme_alloc_iod(count, length, GFP_KERNEL);
+	sg = iod->sg;
 	sg_init_table(sg, count);
 	for (i = 0; i < count; i++) {
 		sg_set_page(&sg[i], pages[i],
@@ -1042,22 +1050,24 @@ static int nvme_map_user_pages(struct nvme_dev *dev, int write,
 	nents = dma_map_sg(&dev->pci_dev->dev, sg, count,
 				write ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 	if (!nents)
-		goto put_pages;
+		goto free_iod;
 
 	kfree(pages);
-	*sgp = sg;
-	return nents;
+	return iod;
 
+ free_iod:
+	kfree(iod);
  put_pages:
 	for (i = 0; i < count; i++)
 		put_page(pages[i]);
 	kfree(pages);
-	return err;
+	return ERR_PTR(err);
 }
 
 static void nvme_unmap_user_pages(struct nvme_dev *dev, int write,
-			unsigned long addr, int length, struct scatterlist *sg)
+			unsigned long addr, int length, struct nvme_iod *iod)
 {
+	struct scatterlist *sg = iod->sg;
 	int i, count;
 
 	count = DIV_ROUND_UP(offset_in_page(addr) + length, PAGE_SIZE);
@@ -1074,9 +1084,8 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	struct nvme_user_io io;
 	struct nvme_command c;
 	unsigned length;
-	int nents, status;
-	struct scatterlist *sg;
-	struct nvme_prps *prps;
+	int status;
+	struct nvme_iod *iod;
 
 	if (copy_from_user(&io, uio, sizeof(io)))
 		return -EFAULT;
@@ -1086,15 +1095,14 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	case nvme_cmd_write:
 	case nvme_cmd_read:
 	case nvme_cmd_compare:
-		nents = nvme_map_user_pages(dev, io.opcode & 1, io.addr,
-								length, &sg);
+		iod = nvme_map_user_pages(dev, io.opcode & 1, io.addr, length);
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	if (nents < 0)
-		return nents;
+	if (IS_ERR(iod))
+		return PTR_ERR(iod);
 
 	memset(&c, 0, sizeof(c));
 	c.rw.opcode = io.opcode;
@@ -1108,7 +1116,7 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	c.rw.apptag = io.apptag;
 	c.rw.appmask = io.appmask;
 	/* XXX: metadata */
-	prps = nvme_setup_prps(dev, &c.common, sg, &length, GFP_KERNEL);
+	length = nvme_setup_prps(dev, &c.common, iod, length, GFP_KERNEL);
 
 	nvmeq = get_nvmeq(dev);
 	/*
@@ -1123,8 +1131,8 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	else
 		status = nvme_submit_sync_cmd(nvmeq, &c, NULL, IO_TIMEOUT);
 
-	nvme_unmap_user_pages(dev, io.opcode & 1, io.addr, length, sg);
-	nvme_free_prps(dev, prps);
+	nvme_unmap_user_pages(dev, io.opcode & 1, io.addr, length, iod);
+	nvme_free_iod(dev, iod);
 	return status;
 }
 
@@ -1134,9 +1142,8 @@ static int nvme_user_admin_cmd(struct nvme_ns *ns,
 	struct nvme_dev *dev = ns->dev;
 	struct nvme_admin_cmd cmd;
 	struct nvme_command c;
-	int status, length, nents = 0;
-	struct scatterlist *sg;
-	struct nvme_prps *prps = NULL;
+	int status, length;
+	struct nvme_iod *iod;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
@@ -1158,19 +1165,21 @@ static int nvme_user_admin_cmd(struct nvme_ns *ns,
 
 	length = cmd.data_len;
 	if (cmd.data_len) {
-		nents = nvme_map_user_pages(dev, 1, cmd.addr, length, &sg);
-		if (nents < 0)
-			return nents;
-		prps = nvme_setup_prps(dev, &c.common, sg, &length, GFP_KERNEL);
+		iod = nvme_map_user_pages(dev, 1, cmd.addr, length);
+		if (IS_ERR(iod))
+			return PTR_ERR(iod);
+		length = nvme_setup_prps(dev, &c.common, iod, length,
+								GFP_KERNEL);
 	}
 
 	if (length != cmd.data_len)
 		status = -ENOMEM;
 	else
 		status = nvme_submit_admin_cmd(dev, &c, NULL);
+
 	if (cmd.data_len) {
-		nvme_unmap_user_pages(dev, 0, cmd.addr, cmd.data_len, sg);
-		nvme_free_prps(dev, prps);
+		nvme_unmap_user_pages(dev, 0, cmd.addr, cmd.data_len, iod);
+		nvme_free_iod(dev, iod);
 	}
 	return status;
 }
