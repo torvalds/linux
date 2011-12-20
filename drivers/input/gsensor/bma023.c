@@ -461,12 +461,14 @@ static void bma150_work_func(struct work_struct *work)
 		y = acc.y;
 		z = acc.z;
 	}
-	input_report_abs(bma150->input, ABS_X, x);
-	input_report_abs(bma150->input, ABS_Y, y);
-	input_report_abs(bma150->input, ABS_Z, z);
+	input_report_abs(bma150->input, ABS_X, x<<2);
+	input_report_abs(bma150->input, ABS_Y, y<<2);
+	input_report_abs(bma150->input, ABS_Z, z<<2);
 	input_sync(bma150->input);
 	mutex_lock(&bma150->value_mutex);
-	bma150->value = acc;
+	bma150->value.x = x;
+	bma150->value.y = y;
+	bma150->value.z = z;
 	mutex_unlock(&bma150->value_mutex);
 	DBG("bma150_work_func   acc.x=%d,acc.y=%d,acc.z=%d\n",acc.x,acc.y,acc.z);
 	schedule_delayed_work(&bma150->work, delay);
@@ -811,11 +813,11 @@ static long bma023_ioctl( struct file *file, unsigned int cmd, unsigned long arg
 	case BMA_IOCTL_GETDATA:
 		mutex_lock(&bma150->value_mutex);
 		if(abs(sense_data.x-bma150->value.x)>10)//·À¶¶¶¯
-			sense_data.x=(bma150->value.x*1000)>>8;
-		if(abs(sense_data.y+(bma150->value.z))>10)//·À¶¶¶¯
-			sense_data.y=(bma150->value.z*1000)>>8;
-		if(abs(sense_data.z+(bma150->value.y))>10)//·À¶¶¶¯
-			sense_data.z=(bma150->value.y*1000)>>8;
+			sense_data.x=bma150->value.x<<2;
+		if(abs(sense_data.y-(bma150->value.y))>10)//·À¶¶¶¯
+			sense_data.y=bma150->value.y<<2;
+		if(abs(sense_data.z-(bma150->value.z))>10)//·À¶¶¶¯
+			sense_data.z=bma150->value.z<<2;
 	       //bma150->value = acc;
 		mutex_unlock(&bma150->value_mutex);
 
