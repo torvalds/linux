@@ -595,6 +595,21 @@ enum {
 	FLAG_EFS_ENABLE,
 };
 
+static inline void l2cap_set_timer(struct l2cap_chan *chan,
+					struct delayed_work *work, long timeout)
+{
+	BT_DBG("chan %p state %d timeout %ld", chan, chan->state, timeout);
+
+	cancel_delayed_work_sync(work);
+
+	schedule_delayed_work(work, timeout);
+}
+
+static inline void l2cap_clear_timer(struct delayed_work *work)
+{
+	cancel_delayed_work_sync(work);
+}
+
 #define __set_chan_timer(c, t) l2cap_set_timer(c, &c->chan_timer, (t))
 #define __clear_chan_timer(c) l2cap_clear_timer(&c->chan_timer)
 #define __set_retrans_timer(c) l2cap_set_timer(c, &c->retrans_timer, \

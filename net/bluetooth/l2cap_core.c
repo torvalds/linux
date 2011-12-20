@@ -228,20 +228,6 @@ static u16 l2cap_alloc_cid(struct l2cap_conn *conn)
 	return 0;
 }
 
-static void l2cap_set_timer(struct l2cap_chan *chan, struct delayed_work *work, long timeout)
-{
-	BT_DBG("chan %p state %d timeout %ld", chan, chan->state, timeout);
-
-	cancel_delayed_work_sync(work);
-
-	schedule_delayed_work(work, timeout);
-}
-
-static void l2cap_clear_timer(struct delayed_work *work)
-{
-	cancel_delayed_work_sync(work);
-}
-
 static char *state_to_string(int state)
 {
 	switch(state) {
