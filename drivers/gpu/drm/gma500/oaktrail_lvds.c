@@ -375,6 +375,8 @@ void oaktrail_lvds_init(struct drm_device *dev,
 	if (dev_priv->vbt_data.size != 0x00)
 		mode_dev->panel_wants_dither = (dev_priv->gct_data.
 			Panel_Port_Control & MRST_PANEL_8TO6_DITHER_ENABLE);
+        if (dev_priv->lvds_dither)
+                mode_dev->panel_wants_dither = 1;
 
 	/*
 	 * LVDS discovery:
