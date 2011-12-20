@@ -23,6 +23,7 @@
 #include <linux/platform_data/macb.h>
 #include <linux/platform_device.h>
 #include <linux/phy.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_net.h>
 
