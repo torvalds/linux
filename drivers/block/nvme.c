@@ -45,7 +45,7 @@
 #define SQ_SIZE(depth)		(depth * sizeof(struct nvme_command))
 #define CQ_SIZE(depth)		(depth * sizeof(struct nvme_completion))
 #define NVME_MINORS 64
-#define IO_TIMEOUT	(5 * HZ)
+#define NVME_IO_TIMEOUT	(5 * HZ)
 #define ADMIN_TIMEOUT	(60 * HZ)
 
 static int nvme_major;
@@ -524,7 +524,7 @@ static int nvme_submit_flush(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 static int nvme_submit_flush_data(struct nvme_queue *nvmeq, struct nvme_ns *ns)
 {
 	int cmdid = alloc_cmdid(nvmeq, (void *)CMD_CTX_FLUSH,
-						special_completion, IO_TIMEOUT);
+					special_completion, NVME_IO_TIMEOUT);
 	if (unlikely(cmdid < 0))
 		return cmdid;
 
@@ -557,7 +557,7 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	iod->private = bio;
 
 	result = -EBUSY;
-	cmdid = alloc_cmdid(nvmeq, iod, bio_completion, IO_TIMEOUT);
+	cmdid = alloc_cmdid(nvmeq, iod, bio_completion, NVME_IO_TIMEOUT);
 	if (unlikely(cmdid < 0))
 		goto free_iod;
 
@@ -1129,7 +1129,7 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	if (length != (io.nblocks + 1) << ns->lba_shift)
 		status = -ENOMEM;
 	else
-		status = nvme_submit_sync_cmd(nvmeq, &c, NULL, IO_TIMEOUT);
+		status = nvme_submit_sync_cmd(nvmeq, &c, NULL, NVME_IO_TIMEOUT);
 
 	nvme_unmap_user_pages(dev, io.opcode & 1, io.addr, length, iod);
 	nvme_free_iod(dev, iod);
