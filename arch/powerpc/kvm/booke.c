@@ -932,15 +932,6 @@ void kvmppc_core_commit_memory_region(struct kvm *kvm,
 {
 }
 
-int kvmppc_core_init_vm(struct kvm *kvm)
-{
-	return 0;
-}
-
-void kvmppc_core_destroy_vm(struct kvm *kvm)
-{
-}
-
 void kvmppc_set_tcr(struct kvm_vcpu *vcpu, u32 new_tcr)
 {
 	vcpu->arch.tcr = new_tcr;

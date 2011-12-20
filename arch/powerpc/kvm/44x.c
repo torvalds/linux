@@ -163,6 +163,15 @@ void kvmppc_core_vcpu_free(struct kvm_vcpu *vcpu)
 	kmem_cache_free(kvm_vcpu_cache, vcpu_44x);
 }
 
+int kvmppc_core_init_vm(struct kvm *kvm)
+{
+	return 0;
+}
+
+void kvmppc_core_destroy_vm(struct kvm *kvm)
+{
+}
+
 static int __init kvmppc_44x_init(void)
 {
 	int r;
