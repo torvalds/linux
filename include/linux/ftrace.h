@@ -235,6 +235,9 @@ ssize_t ftrace_notrace_write(struct file *file, const char __user *ubuf,
 loff_t ftrace_regex_lseek(struct file *file, loff_t offset, int origin);
 int ftrace_regex_release(struct inode *inode, struct file *file);
 
+void __init
+ftrace_set_early_filter(struct ftrace_ops *ops, char *buf, int enable);
+
 /* defined in arch */
 extern int ftrace_ip_converted(unsigned long ip);
 extern int ftrace_dyn_arch_init(void *data);
