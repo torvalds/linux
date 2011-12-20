@@ -26,7 +26,6 @@
 #include <linux/vmalloc.h>
 #include <linux/hugetlb.h>
 #include <asm/kvm_ppc.h>
-#include <asm/kvm_e500.h>
 
 #include "../mm/mmu_decl.h"
 #include "e500.h"

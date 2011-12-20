@@ -20,7 +20,6 @@
 #include <asm/reg.h>
 #include <asm/cputable.h>
 #include <asm/tlbflush.h>
-#include <asm/kvm_e500.h>
 #include <asm/kvm_ppc.h>
 
 #include "booke.h"

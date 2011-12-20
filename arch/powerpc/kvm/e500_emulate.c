@@ -14,7 +14,6 @@
 
 #include <asm/kvm_ppc.h>
 #include <asm/disassemble.h>
-#include <asm/kvm_e500.h>
 
 #include "booke.h"
 #include "e500.h"
