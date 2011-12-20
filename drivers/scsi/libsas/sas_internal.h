@@ -100,7 +100,7 @@ static inline void sas_queue_event(int event, unsigned long *pending,
 		unsigned long flags;
 
 		spin_lock_irqsave(&sas_ha->state_lock, flags);
-		if (sas_ha->state != SAS_HA_UNREGISTERED)
+		if (test_bit(SAS_HA_REGISTERED, &sas_ha->state))
 			scsi_queue_work(sas_ha->core.shost, work);
 		spin_unlock_irqrestore(&sas_ha->state_lock, flags);
 	}

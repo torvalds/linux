@@ -112,7 +112,7 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 	else if (sas_ha->lldd_queue_size == -1)
 		sas_ha->lldd_queue_size = 128; /* Sanity */
 
-	sas_ha->state = SAS_HA_REGISTERED;
+	set_bit(SAS_HA_REGISTERED, &sas_ha->state);
 	spin_lock_init(&sas_ha->state_lock);
 
 	error = sas_register_phys(sas_ha);
@@ -160,7 +160,7 @@ int sas_unregister_ha(struct sas_ha_struct *sas_ha)
 	/* Set the state to unregistered to avoid further
 	 * events to be queued */
 	spin_lock_irqsave(&sas_ha->state_lock, flags);
-	sas_ha->state = SAS_HA_UNREGISTERED;
+	clear_bit(SAS_HA_REGISTERED, &sas_ha->state);
 	spin_unlock_irqrestore(&sas_ha->state_lock, flags);
 	scsi_flush_work(sas_ha->core.shost);
 

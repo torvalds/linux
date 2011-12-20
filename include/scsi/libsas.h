@@ -330,7 +330,6 @@ struct sas_ha_event {
 
 enum sas_ha_state {
 	SAS_HA_REGISTERED,
-	SAS_HA_UNREGISTERED
 };
 
 struct sas_ha_struct {
@@ -338,7 +337,7 @@ struct sas_ha_struct {
 	struct sas_ha_event ha_events[HA_NUM_EVENTS];
 	unsigned long	 pending;
 
-	enum sas_ha_state state;
+	unsigned long	  state;
 	spinlock_t 	  state_lock;
 
 	struct scsi_core core;
