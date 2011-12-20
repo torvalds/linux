@@ -260,6 +260,12 @@ struct nci_core_conn_credit_ntf {
 	struct conn_credit_entry	conn_entries[NCI_MAX_NUM_CONN];
 } __packed;
 
+#define NCI_OP_CORE_INTF_ERROR_NTF	nci_opcode_pack(NCI_GID_CORE, 0x08)
+struct nci_core_intf_error_ntf {
+	__u8	status;
+	__u8	conn_id;
+} __packed;
+
 #define NCI_OP_RF_INTF_ACTIVATED_NTF	nci_opcode_pack(NCI_GID_RF_MGMT, 0x05)
 struct rf_tech_specific_params_nfca_poll {
 	__u16	sens_res;

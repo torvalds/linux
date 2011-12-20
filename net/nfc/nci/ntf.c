@@ -71,6 +71,20 @@ static void nci_core_conn_credits_ntf_packet(struct nci_dev *ndev,
 		queue_work(ndev->tx_wq, &ndev->tx_work);
 }
 
+static void nci_core_conn_intf_error_ntf_packet(struct nci_dev *ndev,
+						struct sk_buff *skb)
+{
+	struct nci_core_intf_error_ntf *ntf = (void *) skb->data;
+
+	ntf->conn_id = nci_conn_id(&ntf->conn_id);
+
+	pr_debug("status 0x%x, conn_id %d\n", ntf->status, ntf->conn_id);
+
+	/* complete the data exchange transaction, if exists */
+	if (test_bit(NCI_DATA_EXCHANGE, &ndev->flags))
+		nci_data_exchange_complete(ndev, NULL, -EIO);
+}
+
 static __u8 *nci_extract_rf_params_nfca_passive_poll(struct nci_dev *ndev,
 			struct nci_rf_intf_activated_ntf *ntf, __u8 *data)
 {
@@ -278,6 +292,10 @@ void nci_ntf_packet(struct nci_dev *ndev, struct sk_buff *skb)
 	switch (ntf_opcode) {
 	case NCI_OP_CORE_CONN_CREDITS_NTF:
 		nci_core_conn_credits_ntf_packet(ndev, skb);
+		break;
+
+	case NCI_OP_CORE_INTF_ERROR_NTF:
+		nci_core_conn_intf_error_ntf_packet(ndev, skb);
 		break;
 
 	case NCI_OP_RF_INTF_ACTIVATED_NTF:
