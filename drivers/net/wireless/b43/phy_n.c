@@ -956,7 +956,7 @@ static void b43_nphy_run_samples(struct b43_wldev *dev, u16 samps, u16 loops,
 			b43_phy_write(dev, B43_NPHY_SAMP_CMD, 1);
 	}
 	for (i = 0; i < 100; i++) {
-		if (b43_phy_read(dev, B43_NPHY_RFSEQST) & 1) {
+		if (!(b43_phy_read(dev, B43_NPHY_RFSEQST) & 1)) {
 			i = 0;
 			break;
 		}
