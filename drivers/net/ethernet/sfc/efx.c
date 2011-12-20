@@ -162,7 +162,7 @@ static unsigned int interrupt_mode;
  * interrupt handling.
  *
  * Cards without MSI-X will only target one CPU via legacy or MSI interrupt.
- * The default (0) means to assign an interrupt to each package (level II cache)
+ * The default (0) means to assign an interrupt to each core.
  */
 static unsigned int rss_cpus;
 module_param(rss_cpus, uint, 0444);
@@ -1148,14 +1148,14 @@ static void efx_fini_io(struct efx_nic *efx)
 
 static int efx_wanted_parallelism(void)
 {
-	cpumask_var_t core_mask;
+	cpumask_var_t thread_mask;
 	int count;
 	int cpu;
 
 	if (rss_cpus)
 		return rss_cpus;
 
-	if (unlikely(!zalloc_cpumask_var(&core_mask, GFP_KERNEL))) {
+	if (unlikely(!zalloc_cpumask_var(&thread_mask, GFP_KERNEL))) {
 		printk(KERN_WARNING
 		       "sfc: RSS disabled due to allocation failure\n");
 		return 1;
@@ -1163,14 +1163,14 @@ static int efx_wanted_parallelism(void)
 
 	count = 0;
 	for_each_online_cpu(cpu) {
-		if (!cpumask_test_cpu(cpu, core_mask)) {
+		if (!cpumask_test_cpu(cpu, thread_mask)) {
 			++count;
-			cpumask_or(core_mask, core_mask,
-				   topology_core_cpumask(cpu));
+			cpumask_or(thread_mask, thread_mask,
+				   topology_thread_cpumask(cpu));
 		}
 	}
 
-	free_cpumask_var(core_mask);
+	free_cpumask_var(thread_mask);
 	return count;
 }
 
