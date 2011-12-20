@@ -596,8 +596,7 @@ static void rtllib_michael_mic_failure(struct net_device *dev,
 }
 
 static int rtllib_michael_mic_verify(struct sk_buff *skb, int keyidx,
-				     int hdr_len, void *priv,
-				     struct rtllib_device *ieee)
+				     int hdr_len, void *priv)
 {
 	struct rtllib_tkip_data *tkey = priv;
 	u8 mic[8];
@@ -616,23 +615,20 @@ static int rtllib_michael_mic_verify(struct sk_buff *skb, int keyidx,
 			skb->data + hdr_len, skb->len - 8 - hdr_len, mic))
 		return -1;
 
-	if ((memcmp(mic, skb->data + skb->len - 8, 8) != 0) ||
-	   (ieee->force_mic_error)) {
+	if (memcmp(mic, skb->data + skb->len - 8, 8) != 0) {
 		struct rtllib_hdr_4addr *hdr;
 		hdr = (struct rtllib_hdr_4addr *) skb->data;
 		printk(KERN_DEBUG "%s: Michael MIC verification failed for "
 		       "MSDU from %pM keyidx=%d\n",
 		       skb->dev ? skb->dev->name : "N/A", hdr->addr2,
 		       keyidx);
-		printk(KERN_DEBUG "%d, force_mic_error = %d\n",
-		       (memcmp(mic, skb->data + skb->len - 8, 8) != 0),\
-			ieee->force_mic_error);
+		printk(KERN_DEBUG "%d\n",
+		       memcmp(mic, skb->data + skb->len - 8, 8) != 0);
 		if (skb->dev) {
 			printk(KERN_INFO "skb->dev != NULL\n");
 			rtllib_michael_mic_failure(skb->dev, hdr, keyidx);
 		}
 		tkey->dot11RSNAStatsTKIPLocalMICFailures++;
-		ieee->force_mic_error = false;
 		return -1;
 	}
 
@@ -738,7 +734,7 @@ static char *rtllib_tkip_print_stats(char *p, void *priv)
 	return p;
 }
 
-static struct rtllib_crypto_ops rtllib_crypt_tkip = {
+static struct lib80211_crypto_ops rtllib_crypt_tkip = {
 	.name			= "TKIP",
 	.init			= rtllib_tkip_init,
 	.deinit			= rtllib_tkip_deinit,
@@ -749,8 +745,9 @@ static struct rtllib_crypto_ops rtllib_crypt_tkip = {
 	.set_key		= rtllib_tkip_set_key,
 	.get_key		= rtllib_tkip_get_key,
 	.print_stats		= rtllib_tkip_print_stats,
-	.extra_prefix_len	= 4 + 4, /* IV + ExtIV */
-	.extra_postfix_len	= 8 + 4, /* MIC + ICV */
+	.extra_mpdu_prefix_len = 4 + 4,	/* IV + ExtIV */
+	.extra_mpdu_postfix_len = 4,	/* ICV */
+	.extra_msdu_postfix_len = 8,	/* MIC */
 	.owner			= THIS_MODULE,
 };
 

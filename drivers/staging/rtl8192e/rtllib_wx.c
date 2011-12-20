@@ -306,7 +306,7 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 		.flags = 0
 	};
 	int i, key, key_provided, len;
-	struct rtllib_crypt_data **crypt;
+	struct lib80211_crypt_data **crypt;
 
 	RTLLIB_DEBUG_WX("SET_ENCODE\n");
 
@@ -365,10 +365,10 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 	}
 
 	if (*crypt == NULL) {
-		struct rtllib_crypt_data *new_crypt;
+		struct lib80211_crypt_data *new_crypt;
 
 		/* take WEP into use */
-		new_crypt = kzalloc(sizeof(struct rtllib_crypt_data),
+		new_crypt = kzalloc(sizeof(struct lib80211_crypt_data),
 				    GFP_KERNEL);
 		if (new_crypt == NULL)
 			return -ENOMEM;
@@ -477,7 +477,7 @@ int rtllib_wx_get_encode(struct rtllib_device *ieee,
 {
 	struct iw_point *erq = &(wrqu->encoding);
 	int len, key;
-	struct rtllib_crypt_data *crypt;
+	struct lib80211_crypt_data *crypt;
 
 	RTLLIB_DEBUG_WX("GET_ENCODE\n");
 
@@ -526,8 +526,8 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 	int i, idx;
 	int group_key = 0;
 	const char *alg, *module;
-	struct rtllib_crypto_ops *ops;
-	struct rtllib_crypt_data **crypt;
+	struct lib80211_crypto_ops *ops;
+	struct lib80211_crypt_data **crypt;
 
 	struct rtllib_security sec = {
 		.flags = 0,
@@ -593,7 +593,7 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 	}
 	printk(KERN_INFO "alg name:%s\n", alg);
 
-	 ops = rtllib_get_crypto_ops(alg);
+	ops = rtllib_get_crypto_ops(alg);
 	if (ops == NULL) {
 		char tempbuf[100];
 
@@ -611,7 +611,7 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 	}
 
 	if (*crypt == NULL || (*crypt)->ops != ops) {
-		struct rtllib_crypt_data *new_crypt;
+		struct lib80211_crypt_data *new_crypt;
 
 		rtllib_crypt_delayed_deinit(ieee, crypt);
 
@@ -683,7 +683,7 @@ int rtllib_wx_get_encode_ext(struct rtllib_device *ieee,
 {
 	struct iw_point *encoding = &wrqu->encoding;
 	struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
-	struct rtllib_crypt_data *crypt;
+	struct lib80211_crypt_data *crypt;
 	int idx, max_key_len;
 
 	max_key_len = encoding->length - sizeof(*ext);

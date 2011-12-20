@@ -255,7 +255,7 @@ static char *prism2_wep_print_stats(char *p, void *priv)
 	return p;
 }
 
-static struct rtllib_crypto_ops rtllib_crypt_wep = {
+static struct lib80211_crypto_ops rtllib_crypt_wep = {
 	.name			= "WEP",
 	.init			= prism2_wep_init,
 	.deinit			= prism2_wep_deinit,
@@ -266,8 +266,8 @@ static struct rtllib_crypto_ops rtllib_crypt_wep = {
 	.set_key		= prism2_wep_set_key,
 	.get_key		= prism2_wep_get_key,
 	.print_stats		= prism2_wep_print_stats,
-	.extra_prefix_len	= 4, /* IV */
-	.extra_postfix_len	= 4, /* ICV */
+	.extra_mpdu_prefix_len  = 4,	/* IV */
+	.extra_mpdu_postfix_len = 4,	/* ICV */
 	.owner			= THIS_MODULE,
 };
 

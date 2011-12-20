@@ -836,7 +836,7 @@ static struct sk_buff *rtllib_probe_resp(struct rtllib_device *ieee, u8 *dest)
 	struct sk_buff *skb = NULL;
 	int encrypt;
 	int atim_len, erp_len;
-	struct rtllib_crypt_data *crypt;
+	struct lib80211_crypt_data *crypt;
 
 	char *ssid = ieee->current_network.ssid;
 	int ssid_len = ieee->current_network.ssid_len;
@@ -982,7 +982,7 @@ static struct sk_buff *rtllib_assoc_resp(struct rtllib_device *ieee, u8 *dest)
 	struct sk_buff *skb;
 	u8 *tag;
 
-	struct rtllib_crypt_data *crypt;
+	struct lib80211_crypt_data *crypt;
 	struct rtllib_assoc_response_frame *assoc;
 	short encrypt;
 
@@ -1178,7 +1178,7 @@ inline struct sk_buff *rtllib_association_req(struct rtllib_network *beacon,
 	unsigned int ckip_ie_len = 0;
 	unsigned int ccxrm_ie_len = 0;
 	unsigned int cxvernum_ie_len = 0;
-	struct rtllib_crypt_data *crypt;
+	struct lib80211_crypt_data *crypt;
 	int encrypt;
 	int	PMKCacheIdx;
 
@@ -3345,8 +3345,8 @@ static int rtllib_wpa_set_encryption(struct rtllib_device *ieee,
 				  u8 is_mesh)
 {
 	int ret = 0;
-	struct rtllib_crypto_ops *ops;
-	struct rtllib_crypt_data **crypt;
+	struct lib80211_crypto_ops *ops;
+	struct lib80211_crypt_data **crypt;
 
 	struct rtllib_security sec = {
 		.flags = 0,
@@ -3408,17 +3408,17 @@ static int rtllib_wpa_set_encryption(struct rtllib_device *ieee,
 		goto done;
 	}
 	if (*crypt == NULL || (*crypt)->ops != ops) {
-		struct rtllib_crypt_data *new_crypt;
+		struct lib80211_crypt_data *new_crypt;
 
 		rtllib_crypt_delayed_deinit(ieee, crypt);
 
-		new_crypt = (struct rtllib_crypt_data *)
+		new_crypt = (struct lib80211_crypt_data *)
 			kmalloc(sizeof(*new_crypt), GFP_KERNEL);
 		if (new_crypt == NULL) {
 			ret = -ENOMEM;
 			goto done;
 		}
-		memset(new_crypt, 0, sizeof(struct rtllib_crypt_data));
+		memset(new_crypt, 0, sizeof(struct lib80211_crypt_data));
 		new_crypt->ops = ops;
 		if (new_crypt->ops)
 			new_crypt->priv =
@@ -3562,7 +3562,7 @@ u8 rtllib_ap_sec_type(struct rtllib_device *ieee)
 	static u8 ccmp_ie[4] = {0x00, 0x50, 0xf2, 0x04};
 	static u8 ccmp_rsn_ie[4] = {0x00, 0x0f, 0xac, 0x04};
 	int wpa_ie_len = ieee->wpa_ie_len;
-	struct rtllib_crypt_data *crypt;
+	struct lib80211_crypt_data *crypt;
 	int encrypt;
 
 	crypt = ieee->crypt[ieee->tx_keyidx];

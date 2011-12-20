@@ -280,7 +280,7 @@ static int rtllib_is_eapol_frame(struct rtllib_device *ieee,
 /* Called only as a tasklet (software IRQ), by rtllib_rx */
 static inline int
 rtllib_rx_frame_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
-			struct rtllib_crypt_data *crypt)
+			struct lib80211_crypt_data *crypt)
 {
 	struct rtllib_hdr_4addr *hdr;
 	int res, hdrlen;
@@ -321,7 +321,7 @@ rtllib_rx_frame_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 /* Called only as a tasklet (software IRQ), by rtllib_rx */
 static inline int
 rtllib_rx_frame_decrypt_msdu(struct rtllib_device *ieee, struct sk_buff *skb,
-			     int keyidx, struct rtllib_crypt_data *crypt)
+			     int keyidx, struct lib80211_crypt_data *crypt)
 {
 	struct rtllib_hdr_4addr *hdr;
 	int res, hdrlen;
@@ -340,7 +340,7 @@ rtllib_rx_frame_decrypt_msdu(struct rtllib_device *ieee, struct sk_buff *skb,
 	hdrlen = rtllib_get_hdrlen(le16_to_cpu(hdr->frame_ctl));
 
 	atomic_inc(&crypt->refcnt);
-	res = crypt->ops->decrypt_msdu(skb, keyidx, hdrlen, crypt->priv, ieee);
+	res = crypt->ops->decrypt_msdu(skb, keyidx, hdrlen, crypt->priv);
 	atomic_dec(&crypt->refcnt);
 	if (res < 0) {
 		printk(KERN_DEBUG "%s: MSDU decryption/MIC verification failed"
@@ -1009,7 +1009,7 @@ static int rtllib_rx_data_filter(struct rtllib_device *ieee, u16 fc,
 }
 
 static int rtllib_rx_get_crypt(struct rtllib_device *ieee, struct sk_buff *skb,
-			struct rtllib_crypt_data **crypt, size_t hdrlen)
+			struct lib80211_crypt_data **crypt, size_t hdrlen)
 {
 	struct rtllib_hdr_4addr *hdr = (struct rtllib_hdr_4addr *)skb->data;
 	u16 fc = le16_to_cpu(hdr->frame_ctl);
@@ -1044,7 +1044,7 @@ static int rtllib_rx_get_crypt(struct rtllib_device *ieee, struct sk_buff *skb,
 
 static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 		      struct rtllib_rx_stats *rx_stats,
-		      struct rtllib_crypt_data *crypt, size_t hdrlen)
+		      struct lib80211_crypt_data *crypt, size_t hdrlen)
 {
 	struct rtllib_hdr_4addr *hdr;
 	int keyidx = 0;
@@ -1252,7 +1252,7 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 {
 	struct net_device *dev = ieee->dev;
 	struct rtllib_hdr_4addr *hdr = (struct rtllib_hdr_4addr *)skb->data;
-	struct rtllib_crypt_data *crypt = NULL;
+	struct lib80211_crypt_data *crypt = NULL;
 	struct rtllib_rxb *rxb = NULL;
 	struct rx_ts_record *pTS = NULL;
 	u16 fc, sc, SeqNum = 0;

@@ -427,7 +427,7 @@ static char *rtllib_ccmp_print_stats(char *p, void *priv)
 	return p;
 }
 
-static struct rtllib_crypto_ops rtllib_crypt_ccmp = {
+static struct lib80211_crypto_ops rtllib_crypt_ccmp = {
 	.name			= "CCMP",
 	.init			= rtllib_ccmp_init,
 	.deinit			= rtllib_ccmp_deinit,
@@ -438,8 +438,8 @@ static struct rtllib_crypto_ops rtllib_crypt_ccmp = {
 	.set_key		= rtllib_ccmp_set_key,
 	.get_key		= rtllib_ccmp_get_key,
 	.print_stats		= rtllib_ccmp_print_stats,
-	.extra_prefix_len	= CCMP_HDR_LEN,
-	.extra_postfix_len	= CCMP_MIC_LEN,
+	.extra_mpdu_prefix_len = CCMP_HDR_LEN,
+	.extra_mpdu_postfix_len = CCMP_MIC_LEN,
 	.owner			= THIS_MODULE,
 };
 

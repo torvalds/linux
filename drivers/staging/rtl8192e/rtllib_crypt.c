@@ -21,7 +21,7 @@
 
 struct rtllib_crypto_alg {
 	struct list_head list;
-	struct rtllib_crypto_ops *ops;
+	struct lib80211_crypto_ops *ops;
 };
 
 
@@ -36,11 +36,11 @@ void rtllib_crypt_deinit_entries(struct rtllib_device *ieee,
 					   int force)
 {
 	struct list_head *ptr, *n;
-	struct rtllib_crypt_data *entry;
+	struct lib80211_crypt_data *entry;
 
 	for (ptr = ieee->crypt_deinit_list.next, n = ptr->next;
 	     ptr != &ieee->crypt_deinit_list; ptr = n, n = ptr->next) {
-		entry = list_entry(ptr, struct rtllib_crypt_data, list);
+		entry = list_entry(ptr, struct lib80211_crypt_data, list);
 
 		if (atomic_read(&entry->refcnt) != 0 && !force)
 			continue;
@@ -73,9 +73,9 @@ void rtllib_crypt_deinit_handler(unsigned long data)
 EXPORT_SYMBOL(rtllib_crypt_deinit_handler);
 
 void rtllib_crypt_delayed_deinit(struct rtllib_device *ieee,
-				    struct rtllib_crypt_data **crypt)
+				    struct lib80211_crypt_data **crypt)
 {
-	struct rtllib_crypt_data *tmp;
+	struct lib80211_crypt_data *tmp;
 	unsigned long flags;
 
 	if (*crypt == NULL)
@@ -98,7 +98,7 @@ void rtllib_crypt_delayed_deinit(struct rtllib_device *ieee,
 }
 EXPORT_SYMBOL(rtllib_crypt_delayed_deinit);
 
-int rtllib_register_crypto_ops(struct rtllib_crypto_ops *ops)
+int rtllib_register_crypto_ops(struct lib80211_crypto_ops *ops)
 {
 	unsigned long flags;
 	struct rtllib_crypto_alg *alg;
@@ -123,7 +123,7 @@ int rtllib_register_crypto_ops(struct rtllib_crypto_ops *ops)
 }
 EXPORT_SYMBOL(rtllib_register_crypto_ops);
 
-int rtllib_unregister_crypto_ops(struct rtllib_crypto_ops *ops)
+int rtllib_unregister_crypto_ops(struct lib80211_crypto_ops *ops)
 {
 	unsigned long flags;
 	struct list_head *ptr;
@@ -155,7 +155,7 @@ int rtllib_unregister_crypto_ops(struct rtllib_crypto_ops *ops)
 EXPORT_SYMBOL(rtllib_unregister_crypto_ops);
 
 
-struct rtllib_crypto_ops *rtllib_get_crypto_ops(const char *name)
+struct lib80211_crypto_ops *rtllib_get_crypto_ops(const char *name)
 {
 	unsigned long flags;
 	struct list_head *ptr;
@@ -186,7 +186,7 @@ EXPORT_SYMBOL(rtllib_get_crypto_ops);
 static void * rtllib_crypt_null_init(int keyidx) { return (void *) 1; }
 static void rtllib_crypt_null_deinit(void *priv) {}
 
-static struct rtllib_crypto_ops rtllib_crypt_null = {
+static struct lib80211_crypto_ops rtllib_crypt_null = {
 	.name			= "NULL",
 	.init			= rtllib_crypt_null_init,
 	.deinit			= rtllib_crypt_null_deinit,
@@ -196,8 +196,10 @@ static struct rtllib_crypto_ops rtllib_crypt_null = {
 	.decrypt_msdu		= NULL,
 	.set_key		= NULL,
 	.get_key		= NULL,
-	.extra_prefix_len	= 0,
-	.extra_postfix_len	= 0,
+	.extra_mpdu_prefix_len	= 0,
+	.extra_mpdu_postfix_len	= 0,
+	.extra_msdu_prefix_len	= 0,
+	.extra_msdu_postfix_len	= 0,
 	.owner			= THIS_MODULE,
 };
 

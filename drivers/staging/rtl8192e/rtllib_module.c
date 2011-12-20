@@ -136,6 +136,7 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 	ieee->host_decrypt = 1;
 	ieee->ieee802_1x = 1; /* Default to supporting 802.1x */
 
+	/* SAM Init here */
 	INIT_LIST_HEAD(&ieee->crypt_deinit_list);
 	_setup_timer(&ieee->crypt_deinit_timer,
 		    rtllib_crypt_deinit_handler,
@@ -200,7 +201,7 @@ void free_rtllib(struct net_device *dev)
 	rtllib_crypt_deinit_entries(ieee, 1);
 
 	for (i = 0; i < NUM_WEP_KEYS; i++) {
-		struct rtllib_crypt_data *crypt = ieee->crypt[i];
+		struct lib80211_crypt_data *crypt = ieee->crypt[i];
 		if (crypt) {
 			if (crypt->ops)
 				crypt->ops->deinit(crypt->priv);
