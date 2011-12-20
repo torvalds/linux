@@ -26,6 +26,7 @@
 #include <linux/usb/android_composite.h>
 #include <linux/mpu.h>
 #include <linux/mpu3050.h>
+#include <linux/ion.h>
 
 #include <mach/hardware.h>
 #include <asm/setup.h>

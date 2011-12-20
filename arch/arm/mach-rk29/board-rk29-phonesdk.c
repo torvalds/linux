@@ -24,6 +24,7 @@
 #include <linux/mmc/host.h>
 #include <linux/android_pmem.h>
 #include <linux/usb/android_composite.h>
+#include <linux/ion.h>
 
 #include <mach/hardware.h>
 #include <asm/setup.h>
