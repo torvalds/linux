@@ -674,9 +674,9 @@ static struct bma023_platform_data bma023_info = {
   .model= 023,
   .swap_xy = 0,
   .swap_xyz = 1,
-  .orientation = {1,0,0,
+  .orientation = {-1,0,0,
 			   0,0,1,
-			   0,1,0},
+			   0,-1,0},
   .init_platform_hw= bma023_init_platform_hw,
 
 };
