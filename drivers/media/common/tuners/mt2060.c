@@ -155,6 +155,7 @@ static int mt2060_spurcheck(u32 lo1,u32 lo2,u32 if2)
 
 static int mt2060_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct mt2060_priv *priv;
 	int ret=0;
 	int i=0;
@@ -176,8 +177,7 @@ static int mt2060_set_params(struct dvb_frontend *fe, struct dvb_frontend_parame
 
 	mt2060_writeregs(priv,b,2);
 
-	freq = params->frequency / 1000; // Hz -> kHz
-	priv->bandwidth = (fe->ops.info.type == FE_OFDM) ? params->u.ofdm.bandwidth : 0;
+	freq = c->frequency / 1000; /* Hz -> kHz */
 
 	f_lo1 = freq + if1 * 1000;
 	f_lo1 = (f_lo1 / 250) * 250;
@@ -293,13 +293,6 @@ static int mt2060_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 	return 0;
 }
 
-static int mt2060_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
-{
-	struct mt2060_priv *priv = fe->tuner_priv;
-	*bandwidth = priv->bandwidth;
-	return 0;
-}
-
 static int mt2060_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 {
 	*frequency = IF2 * 1000;
@@ -362,7 +355,6 @@ static const struct dvb_tuner_ops mt2060_tuner_ops = {
 
 	.set_params    = mt2060_set_params,
 	.get_frequency = mt2060_get_frequency,
-	.get_bandwidth = mt2060_get_bandwidth,
 	.get_if_frequency = mt2060_get_if_frequency,
 };
 
