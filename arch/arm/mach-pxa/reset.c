@@ -88,7 +88,7 @@ void arch_reset(char mode, const char *cmd)
 	switch (mode) {
 	case 's':
 		/* Jump into ROM at address 0 */
-		cpu_reset(0);
+		soft_restart(0);
 		break;
 	case 'g':
 		do_gpio_reset();

@@ -32,7 +32,7 @@
 #include <plat/fpga.h>
 #include <plat/flash.h>
 #include <plat/keypad.h>
-#include <plat/common.h>
+#include "common.h"
 #include <plat/board.h>
 
 static const unsigned int p2_keymap[] = {

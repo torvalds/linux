@@ -19,6 +19,7 @@
 #include <linux/io.h>
 #include <mach/hardware.h>
 #include <mach/platform.h>
+#include <asm/hardware/vic.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/memory.h>
@@ -49,6 +50,7 @@ MACHINE_START(U300, MACH_U300_STRING)
 	.atag_offset	= BOOT_PARAMS_OFFSET,
 	.map_io		= u300_map_io,
 	.init_irq	= u300_init_irq,
+	.handle_irq	= vic_handle_irq,
 	.timer		= &u300_timer,
 	.init_machine	= u300_init_machine,
 MACHINE_END
