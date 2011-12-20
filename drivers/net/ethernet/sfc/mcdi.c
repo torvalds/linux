@@ -22,18 +22,12 @@
  **************************************************************************
  */
 
-/* Software-defined structure to the shared-memory */
-#define CMD_NOTIFY_PORT0 0
-#define CMD_NOTIFY_PORT1 4
-#define CMD_PDU_PORT0    0x008
-#define CMD_PDU_PORT1    0x108
-
 #define MCDI_RPC_TIMEOUT       10 /*seconds */
 
 #define MCDI_PDU(efx)							\
-	(efx_port_num(efx) ? CMD_PDU_PORT1 : CMD_PDU_PORT0)
+	(efx_port_num(efx) ? MC_SMEM_P1_PDU_OFST : MC_SMEM_P0_PDU_OFST)
 #define MCDI_DOORBELL(efx)						\
-	(efx_port_num(efx) ? CMD_NOTIFY_PORT1 : CMD_NOTIFY_PORT0)
+	(efx_port_num(efx) ? MC_SMEM_P1_DOORBELL_OFST : MC_SMEM_P0_DOORBELL_OFST)
 #define MCDI_STATUS(efx)						\
 	(efx_port_num(efx) ? MC_SMEM_P1_STATUS_OFST : MC_SMEM_P0_STATUS_OFST)
 
@@ -83,7 +77,7 @@ static void efx_mcdi_copyin(struct efx_nic *efx, unsigned cmd,
 	u32 xflags, seqno;
 
 	BUG_ON(atomic_read(&mcdi->state) == MCDI_STATE_QUIESCENT);
-	BUG_ON(inlen & 3 || inlen >= 0x100);
+	BUG_ON(inlen & 3 || inlen >= MC_SMEM_PDU_LEN);
 
 	seqno = mcdi->seqno & SEQ_MASK;
 	xflags = 0;
@@ -117,7 +111,7 @@ static void efx_mcdi_copyout(struct efx_nic *efx, u8 *outbuf, size_t outlen)
 	int i;
 
 	BUG_ON(atomic_read(&mcdi->state) == MCDI_STATE_QUIESCENT);
-	BUG_ON(outlen & 3 || outlen >= 0x100);
+	BUG_ON(outlen & 3 || outlen >= MC_SMEM_PDU_LEN);
 
 	for (i = 0; i < outlen; i += 4)
 		*((__le32 *)(outbuf + i)) = _efx_readd(efx, pdu + 4 + i);
