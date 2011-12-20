@@ -166,7 +166,7 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 		return ret;
 
 	if (clk->usecount)
-		clk_enable(parent);
+		clk_prepare_enable(parent);
 
 	mutex_lock(&clocks_mutex);
 	ret = clk->set_parent(clk, parent);
