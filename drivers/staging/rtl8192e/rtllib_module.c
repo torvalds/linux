@@ -199,7 +199,7 @@ void free_rtllib(struct net_device *dev)
 	del_timer_sync(&ieee->crypt_deinit_timer);
 	rtllib_crypt_deinit_entries(ieee, 1);
 
-	for (i = 0; i < WEP_KEYS; i++) {
+	for (i = 0; i < NUM_WEP_KEYS; i++) {
 		struct rtllib_crypt_data *crypt = ieee->crypt[i];
 		if (crypt) {
 			if (crypt->ops)

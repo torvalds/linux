@@ -312,7 +312,7 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 
 	key = erq->flags & IW_ENCODE_INDEX;
 	if (key) {
-		if (key > WEP_KEYS)
+		if (key > NUM_WEP_KEYS)
 			return -EINVAL;
 		key--;
 		key_provided = 1;
@@ -334,7 +334,7 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 
 		/* Check all the keys to see if any are still configured,
 		 * and if no key index was provided, de-init them all */
-		for (i = 0; i < WEP_KEYS; i++) {
+		for (i = 0; i < NUM_WEP_KEYS; i++) {
 			if (ieee->crypt[i] != NULL) {
 				if (key_provided)
 					break;
@@ -343,7 +343,7 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 			}
 		}
 
-		if (i == WEP_KEYS) {
+		if (i == NUM_WEP_KEYS) {
 			sec.enabled = 0;
 			sec.level = SEC_LEVEL_0;
 			sec.flags |= SEC_ENABLED | SEC_LEVEL;
@@ -486,7 +486,7 @@ int rtllib_wx_get_encode(struct rtllib_device *ieee,
 
 	key = erq->flags & IW_ENCODE_INDEX;
 	if (key) {
-		if (key > WEP_KEYS)
+		if (key > NUM_WEP_KEYS)
 			return -EINVAL;
 		key--;
 	} else {
@@ -534,7 +534,7 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 	};
 	idx = encoding->flags & IW_ENCODE_INDEX;
 	if (idx) {
-		if (idx < 1 || idx > WEP_KEYS)
+		if (idx < 1 || idx > NUM_WEP_KEYS)
 			return -EINVAL;
 		idx--;
 	} else{
@@ -559,11 +559,11 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 		if (*crypt)
 			rtllib_crypt_delayed_deinit(ieee, crypt);
 
-		for (i = 0; i < WEP_KEYS; i++) {
+		for (i = 0; i < NUM_WEP_KEYS; i++) {
 			if (ieee->crypt[i] != NULL)
 				break;
 		}
-		if (i == WEP_KEYS) {
+		if (i == NUM_WEP_KEYS) {
 			sec.enabled = 0;
 			sec.level = SEC_LEVEL_0;
 			sec.flags |= SEC_LEVEL;
@@ -692,7 +692,7 @@ int rtllib_wx_get_encode_ext(struct rtllib_device *ieee,
 
 	idx = encoding->flags & IW_ENCODE_INDEX;
 	if (idx) {
-		if (idx < 1 || idx > WEP_KEYS)
+		if (idx < 1 || idx > NUM_WEP_KEYS)
 			return -EINVAL;
 		idx--;
 	} else {
