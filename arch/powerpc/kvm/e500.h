@@ -42,6 +42,8 @@ struct kvmppc_e500_tlb_params {
 };
 
 struct kvmppc_vcpu_e500 {
+	struct kvm_vcpu vcpu;
+
 	/* Unmodified copy of the guest's TLB -- shared with host userspace. */
 	struct kvm_book3e_206_tlb_entry *gtlb_arch;
 
@@ -85,8 +87,6 @@ struct kvmppc_vcpu_e500 {
 
 	struct page **shared_tlb_pages;
 	int num_shared_tlb_pages;
-
-	struct kvm_vcpu vcpu;
 };
 
 static inline struct kvmppc_vcpu_e500 *to_e500(struct kvm_vcpu *vcpu)
@@ -113,19 +113,22 @@ static inline struct kvmppc_vcpu_e500 *to_e500(struct kvm_vcpu *vcpu)
 	  (MAS3_U0 | MAS3_U1 | MAS3_U2 | MAS3_U3 \
 	   | E500_TLB_USER_PERM_MASK | E500_TLB_SUPER_PERM_MASK)
 
-extern void kvmppc_dump_tlbs(struct kvm_vcpu *);
-extern int kvmppc_e500_emul_mt_mmucsr0(struct kvmppc_vcpu_e500 *, ulong);
-extern int kvmppc_e500_emul_tlbwe(struct kvm_vcpu *);
-extern int kvmppc_e500_emul_tlbre(struct kvm_vcpu *);
-extern int kvmppc_e500_emul_tlbivax(struct kvm_vcpu *, int, int);
-extern int kvmppc_e500_emul_tlbsx(struct kvm_vcpu *, int);
-extern int kvmppc_e500_tlb_search(struct kvm_vcpu *, gva_t, unsigned int, int);
 extern void kvmppc_e500_tlb_put(struct kvm_vcpu *);
 extern void kvmppc_e500_tlb_load(struct kvm_vcpu *, int);
-extern int kvmppc_e500_tlb_init(struct kvmppc_vcpu_e500 *);
-extern void kvmppc_e500_tlb_uninit(struct kvmppc_vcpu_e500 *);
 extern void kvmppc_e500_tlb_setup(struct kvmppc_vcpu_e500 *);
 extern void kvmppc_e500_recalc_shadow_pid(struct kvmppc_vcpu_e500 *);
+int kvmppc_e500_emul_mt_mmucsr0(struct kvmppc_vcpu_e500 *vcpu_e500,
+				ulong value);
+int kvmppc_e500_emul_tlbwe(struct kvm_vcpu *vcpu);
+int kvmppc_e500_emul_tlbre(struct kvm_vcpu *vcpu);
+int kvmppc_e500_emul_tlbivax(struct kvm_vcpu *vcpu, int ra, int rb);
+int kvmppc_e500_emul_tlbsx(struct kvm_vcpu *vcpu, int rb);
+int kvmppc_e500_tlb_search(struct kvm_vcpu *, gva_t, unsigned int, int);
+int kvmppc_e500_tlb_init(struct kvmppc_vcpu_e500 *vcpu_e500);
+void kvmppc_e500_tlb_uninit(struct kvmppc_vcpu_e500 *vcpu_e500);
+
+void kvmppc_get_sregs_e500_tlb(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs);
+int kvmppc_set_sregs_e500_tlb(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs);
 
 /* TLB helper functions */
 static inline unsigned int
