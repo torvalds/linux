@@ -329,8 +329,7 @@ void oaktrail_lvds_init(struct drm_device *dev,
 	struct psb_intel_connector *psb_intel_connector;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
-	struct drm_psb_private *dev_priv =
-				(struct drm_psb_private *) dev->dev_private;
+	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct edid *edid;
 	int ret = 0;
 	struct i2c_adapter *i2c_adap;
@@ -340,7 +339,7 @@ void oaktrail_lvds_init(struct drm_device *dev,
 	if (!psb_intel_encoder)
 		return;
 
-	psb_intel_connector = kzalloc(sizeof(struct psb_intel_encoder), GFP_KERNEL);
+	psb_intel_connector = kzalloc(sizeof(struct psb_intel_connector), GFP_KERNEL);
 	if (!psb_intel_connector)
 		goto failed_connector;
 
