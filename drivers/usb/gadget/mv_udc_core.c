@@ -778,6 +778,27 @@ mv_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	return 0;
 }
 
+static void mv_prime_ep(struct mv_ep *ep, struct mv_req *req)
+{
+	struct mv_dqh *dqh = ep->dqh;
+	u32 bit_pos;
+
+	/* Write dQH next pointer and terminate bit to 0 */
+	dqh->next_dtd_ptr = req->head->td_dma
+		& EP_QUEUE_HEAD_NEXT_POINTER_MASK;
+
+	/* clear active and halt bit, in case set from a previous error */
+	dqh->size_ioc_int_sts &= ~(DTD_STATUS_ACTIVE | DTD_STATUS_HALTED);
+
+	/* Ensure that updates to the QH will occure before priming. */
+	wmb();
+
+	bit_pos = 1 << (((ep_dir(ep) == EP_DIR_OUT) ? 0 : 16) + ep->ep_num);
+
+	/* Prime the Endpoint */
+	writel(bit_pos, &ep->udc->op_regs->epprime);
+}
+
 /* dequeues (cancels, unlinks) an I/O request from an endpoint */
 static int mv_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 {
@@ -820,15 +841,13 @@ static int mv_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 
 		/* The request isn't the last request in this ep queue */
 		if (req->queue.next != &ep->queue) {
-			struct mv_dqh *qh;
 			struct mv_req *next_req;
 
-			qh = ep->dqh;
-			next_req = list_entry(req->queue.next, struct mv_req,
-					queue);
+			next_req = list_entry(req->queue.next,
+				struct mv_req, queue);
 
 			/* Point the QH to the first TD of next request */
-			writel((u32) next_req->head, &qh->curr_dtd_ptr);
+			mv_prime_ep(ep, next_req);
 		} else {
 			struct mv_dqh *qh;
 
