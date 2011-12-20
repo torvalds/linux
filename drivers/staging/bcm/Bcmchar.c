@@ -1302,8 +1302,10 @@ cntrlEnd:
 		/*
 		 * Deny the access if the offset crosses the cal area limit.
 		 */
+		if (stNVMReadWrite.uiNumBytes > Adapter->uiNVMDSDSize)
+			return STATUS_FAILURE;
 
-		if ((stNVMReadWrite.uiOffset + stNVMReadWrite.uiNumBytes) > Adapter->uiNVMDSDSize) {
+		if (stNVMReadWrite.uiOffset > Adapter->uiNVMDSDSize - stNVMReadWrite.uiNumBytes) {
 			/* BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Can't allow access beyond NVM Size: 0x%x 0x%x\n", stNVMReadWrite.uiOffset, stNVMReadWrite.uiNumBytes); */
 			return STATUS_FAILURE;
 		}
