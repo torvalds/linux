@@ -107,7 +107,7 @@ int of_fdt_is_compatible(struct boot_param_header *blob,
  * of_fdt_match - Return true if node matches a list of compatible values
  */
 int of_fdt_match(struct boot_param_header *blob, unsigned long node,
-                 const char **compat)
+                 const char *const *compat)
 {
 	unsigned int tmp, score = 0;
 
@@ -541,7 +541,7 @@ int __init of_flat_dt_is_compatible(unsigned long node, const char *compat)
 /**
  * of_flat_dt_match - Return true if node matches a list of compatible values
  */
-int __init of_flat_dt_match(unsigned long node, const char **compat)
+int __init of_flat_dt_match(unsigned long node, const char *const *compat)
 {
 	return of_fdt_match(initial_boot_params, node, compat);
 }

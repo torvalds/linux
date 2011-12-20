@@ -19,7 +19,7 @@ struct machine_desc {
 	unsigned int		nr;		/* architecture number	*/
 	const char		*name;		/* architecture name	*/
 	unsigned long		atag_offset;	/* tagged list (relative) */
-	const char		**dt_compat;	/* array of device tree
+	const char *const 	*dt_compat;	/* array of device tree
 						 * 'compatible' strings	*/
 
 	unsigned int		nr_irqs;	/* number of IRQs */
