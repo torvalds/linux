@@ -650,15 +650,13 @@ static void isci_host_start_complete(struct isci_host *ihost, enum sci_status co
 
 int isci_host_scan_finished(struct Scsi_Host *shost, unsigned long time)
 {
-	struct isci_host *ihost = SHOST_TO_SAS_HA(shost)->lldd_ha;
+	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
+	struct isci_host *ihost = ha->lldd_ha;
 
 	if (test_bit(IHOST_START_PENDING, &ihost->flags))
 		return 0;
 
-	/* todo: use sas_flush_discovery once it is upstream */
-	scsi_flush_work(shost);
-
-	scsi_flush_work(shost);
+	sas_drain_work(ha);
 
 	dev_dbg(&ihost->pdev->dev,
 		"%s: ihost->status = %d, time = %ld\n",

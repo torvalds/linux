@@ -367,6 +367,25 @@ static void sas_revalidate_domain(struct work_struct *work)
 
 /* ---------- Events ---------- */
 
+static void sas_chain_work(struct sas_ha_struct *ha, struct work_struct *work)
+{
+	/* chained work is not subject to SA_HA_DRAINING or SAS_HA_REGISTERED */
+	scsi_queue_work(ha->core.shost, work);
+}
+
+static void sas_chain_event(int event, unsigned long *pending,
+			    struct work_struct *work,
+			    struct sas_ha_struct *ha)
+{
+	if (!test_and_set_bit(event, pending)) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&ha->state_lock, flags);
+		sas_chain_work(ha, work);
+		spin_unlock_irqrestore(&ha->state_lock, flags);
+	}
+}
+
 int sas_discover_event(struct asd_sas_port *port, enum discover_event ev)
 {
 	struct sas_discovery *disc;
@@ -377,7 +396,7 @@ int sas_discover_event(struct asd_sas_port *port, enum discover_event ev)
 
 	BUG_ON(ev >= DISC_NUM_EVENTS);
 
-	sas_queue_event(ev, &disc->pending, &disc->disc_work[ev].work, port->ha);
+	sas_chain_event(ev, &disc->pending, &disc->disc_work[ev].work, port->ha);
 
 	return 0;
 }

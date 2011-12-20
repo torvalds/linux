@@ -330,6 +330,7 @@ struct sas_ha_event {
 
 enum sas_ha_state {
 	SAS_HA_REGISTERED,
+	SAS_HA_DRAINING,
 };
 
 struct sas_ha_struct {
@@ -337,6 +338,8 @@ struct sas_ha_struct {
 	struct sas_ha_event ha_events[HA_NUM_EVENTS];
 	unsigned long	 pending;
 
+	struct list_head  defer_q; /* work queued while draining */
+	struct mutex	  drain_mutex;
 	unsigned long	  state;
 	spinlock_t 	  state_lock;
 
@@ -657,6 +660,7 @@ int sas_eh_bus_reset_handler(struct scsi_cmnd *cmd);
 extern void sas_target_destroy(struct scsi_target *);
 extern int sas_slave_alloc(struct scsi_device *);
 extern int sas_ioctl(struct scsi_device *sdev, int cmd, void __user *arg);
+extern int sas_drain_work(struct sas_ha_struct *ha);
 
 extern int sas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 			   struct request *req);

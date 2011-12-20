@@ -256,12 +256,14 @@ void pm8001_scan_start(struct Scsi_Host *shost)
 
 int pm8001_scan_finished(struct Scsi_Host *shost, unsigned long time)
 {
+	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
+
 	/* give the phy enabling interrupt event time to come in (1s
 	* is empirically about all it takes) */
 	if (time < HZ)
 		return 0;
 	/* Wait for discovery to finish */
-	scsi_flush_work(shost);
+	sas_drain_work(ha);
 	return 1;
 }
 

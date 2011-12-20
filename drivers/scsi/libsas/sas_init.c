@@ -114,6 +114,8 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 
 	set_bit(SAS_HA_REGISTERED, &sas_ha->state);
 	spin_lock_init(&sas_ha->state_lock);
+	mutex_init(&sas_ha->drain_mutex);
+	INIT_LIST_HEAD(&sas_ha->defer_q);
 
 	error = sas_register_phys(sas_ha);
 	if (error) {
@@ -157,12 +159,13 @@ int sas_unregister_ha(struct sas_ha_struct *sas_ha)
 {
 	unsigned long flags;
 
-	/* Set the state to unregistered to avoid further
-	 * events to be queued */
+	/* Set the state to unregistered to avoid further unchained
+	 * events to be queued
+	 */
 	spin_lock_irqsave(&sas_ha->state_lock, flags);
 	clear_bit(SAS_HA_REGISTERED, &sas_ha->state);
 	spin_unlock_irqrestore(&sas_ha->state_lock, flags);
-	scsi_flush_work(sas_ha->core.shost);
+	sas_drain_work(sas_ha);
 
 	sas_unregister_ports(sas_ha);
 

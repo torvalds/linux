@@ -308,7 +308,7 @@ int mvs_scan_finished(struct Scsi_Host *shost, unsigned long time)
 	if (mvs_prv->scan_finished == 0)
 		return 0;
 
-	scsi_flush_work(shost);
+	sas_drain_work(sha);
 	return 1;
 }
 

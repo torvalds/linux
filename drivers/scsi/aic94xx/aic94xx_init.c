@@ -971,7 +971,7 @@ static int asd_scan_finished(struct Scsi_Host *shost, unsigned long time)
 	if (time < HZ)
 		return 0;
 	/* Wait for discovery to finish */
-	scsi_flush_work(shost);
+	sas_drain_work(SHOST_TO_SAS_HA(shost));
 	return 1;
 }
 

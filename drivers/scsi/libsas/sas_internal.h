@@ -92,20 +92,6 @@ static inline int sas_smp_host_handler(struct Scsi_Host *shost,
 }
 #endif
 
-static inline void sas_queue_event(int event, unsigned long *pending,
-				   struct work_struct *work,
-				   struct sas_ha_struct *sas_ha)
-{
-	if (!test_and_set_bit(event, pending)) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&sas_ha->state_lock, flags);
-		if (test_bit(SAS_HA_REGISTERED, &sas_ha->state))
-			scsi_queue_work(sas_ha->core.shost, work);
-		spin_unlock_irqrestore(&sas_ha->state_lock, flags);
-	}
-}
-
 static inline void sas_fill_in_rphy(struct domain_device *dev,
 				    struct sas_rphy *rphy)
 {
