@@ -116,6 +116,9 @@ int main(void)
 #ifdef CONFIG_KVM_BOOK3S_32_HANDLER
 	DEFINE(THREAD_KVM_SVCPU, offsetof(struct thread_struct, kvm_shadow_vcpu));
 #endif
+#ifdef CONFIG_KVM_BOOKE_HV
+	DEFINE(THREAD_KVM_VCPU, offsetof(struct thread_struct, kvm_vcpu));
+#endif
 
 	DEFINE(TI_FLAGS, offsetof(struct thread_info, flags));
 	DEFINE(TI_LOCAL_FLAGS, offsetof(struct thread_info, local_flags));
@@ -387,6 +390,7 @@ int main(void)
 #ifdef CONFIG_KVM
 	DEFINE(VCPU_HOST_STACK, offsetof(struct kvm_vcpu, arch.host_stack));
 	DEFINE(VCPU_HOST_PID, offsetof(struct kvm_vcpu, arch.host_pid));
+	DEFINE(VCPU_GUEST_PID, offsetof(struct kvm_vcpu, arch.pid));
 	DEFINE(VCPU_GPRS, offsetof(struct kvm_vcpu, arch.gpr));
 	DEFINE(VCPU_VRSAVE, offsetof(struct kvm_vcpu, arch.vrsave));
 	DEFINE(VCPU_FPRS, offsetof(struct kvm_vcpu, arch.fpr));
@@ -429,9 +433,11 @@ int main(void)
 	DEFINE(VCPU_SHARED_MAS4, offsetof(struct kvm_vcpu_arch_shared, mas4));
 	DEFINE(VCPU_SHARED_MAS6, offsetof(struct kvm_vcpu_arch_shared, mas6));
 
+	DEFINE(VCPU_KVM, offsetof(struct kvm_vcpu, kvm));
+	DEFINE(KVM_LPID, offsetof(struct kvm, arch.lpid));
+
 	/* book3s */
 #ifdef CONFIG_KVM_BOOK3S_64_HV
-	DEFINE(KVM_LPID, offsetof(struct kvm, arch.lpid));
 	DEFINE(KVM_SDR1, offsetof(struct kvm, arch.sdr1));
 	DEFINE(KVM_HOST_LPID, offsetof(struct kvm, arch.host_lpid));
 	DEFINE(KVM_HOST_LPCR, offsetof(struct kvm, arch.host_lpcr));
@@ -446,7 +452,6 @@ int main(void)
 	DEFINE(VCPU_DAR, offsetof(struct kvm_vcpu, arch.shregs.dar));
 #endif
 #ifdef CONFIG_PPC_BOOK3S
-	DEFINE(VCPU_KVM, offsetof(struct kvm_vcpu, kvm));
 	DEFINE(VCPU_VCPUID, offsetof(struct kvm_vcpu, vcpu_id));
 	DEFINE(VCPU_PURR, offsetof(struct kvm_vcpu, arch.purr));
 	DEFINE(VCPU_SPURR, offsetof(struct kvm_vcpu, arch.spurr));
@@ -595,6 +600,12 @@ int main(void)
 	DEFINE(VCPU_ACC, offsetof(struct kvm_vcpu, arch.acc));
 	DEFINE(VCPU_SPEFSCR, offsetof(struct kvm_vcpu, arch.spefscr));
 	DEFINE(VCPU_HOST_SPEFSCR, offsetof(struct kvm_vcpu, arch.host_spefscr));
+#endif
+
+#ifdef CONFIG_KVM_BOOKE_HV
+	DEFINE(VCPU_HOST_MAS4, offsetof(struct kvm_vcpu, arch.host_mas4));
+	DEFINE(VCPU_HOST_MAS6, offsetof(struct kvm_vcpu, arch.host_mas6));
+	DEFINE(VCPU_EPLC, offsetof(struct kvm_vcpu, arch.eplc));
 #endif
 
 #ifdef CONFIG_KVM_EXIT_TIMING

@@ -114,6 +114,11 @@ int kvmppc_sanity_check(struct kvm_vcpu *vcpu)
 		goto out;
 #endif
 
+#ifdef CONFIG_KVM_BOOKE_HV
+	if (!cpu_has_feature(CPU_FTR_EMB_HV))
+		goto out;
+#endif
+
 	r = true;
 
 out:

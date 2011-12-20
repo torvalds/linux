@@ -99,6 +99,12 @@ int kvmppc_booke_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	return emulated;
 }
 
+/*
+ * NOTE: some of these registers are not emulated on BOOKE_HV (GS-mode).
+ * Their backing store is in real registers, and these functions
+ * will return the wrong result if called for them in another context
+ * (such as debugging).
+ */
 int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 {
 	int emulated = EMULATE_DONE;
@@ -122,9 +128,11 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 		kvmppc_set_tcr(vcpu, spr_val);
 		break;
 
-	/* Note: SPRG4-7 are user-readable. These values are
-	 * loaded into the real SPRGs when resuming the
-	 * guest. */
+	/*
+	 * Note: SPRG4-7 are user-readable.
+	 * These values are loaded into the real SPRGs when resuming the
+	 * guest (PR-mode only).
+	 */
 	case SPRN_SPRG4:
 		vcpu->arch.shared->sprg4 = spr_val; break;
 	case SPRN_SPRG5:
@@ -136,6 +144,9 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 
 	case SPRN_IVPR:
 		vcpu->arch.ivpr = spr_val;
+#ifdef CONFIG_KVM_BOOKE_HV
+		mtspr(SPRN_GIVPR, spr_val);
+#endif
 		break;
 	case SPRN_IVOR0:
 		vcpu->arch.ivor[BOOKE_IRQPRIO_CRITICAL] = spr_val;
@@ -145,6 +156,9 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 		break;
 	case SPRN_IVOR2:
 		vcpu->arch.ivor[BOOKE_IRQPRIO_DATA_STORAGE] = spr_val;
+#ifdef CONFIG_KVM_BOOKE_HV
+		mtspr(SPRN_GIVOR2, spr_val);
+#endif
 		break;
 	case SPRN_IVOR3:
 		vcpu->arch.ivor[BOOKE_IRQPRIO_INST_STORAGE] = spr_val;
@@ -163,6 +177,9 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 		break;
 	case SPRN_IVOR8:
 		vcpu->arch.ivor[BOOKE_IRQPRIO_SYSCALL] = spr_val;
+#ifdef CONFIG_KVM_BOOKE_HV
+		mtspr(SPRN_GIVOR8, spr_val);
+#endif
 		break;
 	case SPRN_IVOR9:
 		vcpu->arch.ivor[BOOKE_IRQPRIO_AP_UNAVAIL] = spr_val;

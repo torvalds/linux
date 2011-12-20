@@ -48,7 +48,20 @@
 #define BOOKE_IRQPRIO_PERFORMANCE_MONITOR 19
 /* Internal pseudo-irqprio for level triggered externals */
 #define BOOKE_IRQPRIO_EXTERNAL_LEVEL 20
-#define BOOKE_IRQPRIO_MAX 20
+#define BOOKE_IRQPRIO_DBELL 21
+#define BOOKE_IRQPRIO_DBELL_CRIT 22
+#define BOOKE_IRQPRIO_MAX 23
+
+#define BOOKE_IRQMASK_EE ((1 << BOOKE_IRQPRIO_EXTERNAL_LEVEL) | \
+			  (1 << BOOKE_IRQPRIO_PERFORMANCE_MONITOR) | \
+			  (1 << BOOKE_IRQPRIO_DBELL) | \
+			  (1 << BOOKE_IRQPRIO_DECREMENTER) | \
+			  (1 << BOOKE_IRQPRIO_FIT) | \
+			  (1 << BOOKE_IRQPRIO_EXTERNAL))
+
+#define BOOKE_IRQMASK_CE ((1 << BOOKE_IRQPRIO_DBELL_CRIT) | \
+			  (1 << BOOKE_IRQPRIO_WATCHDOG) | \
+			  (1 << BOOKE_IRQPRIO_CRITICAL))
 
 extern unsigned long kvmppc_booke_handlers;
 
@@ -73,5 +86,14 @@ void kvmppc_vcpu_disable_spe(struct kvm_vcpu *vcpu);
 
 void kvmppc_booke_vcpu_load(struct kvm_vcpu *vcpu, int cpu);
 void kvmppc_booke_vcpu_put(struct kvm_vcpu *vcpu);
+
+enum int_class {
+	INT_CLASS_NONCRIT,
+	INT_CLASS_CRIT,
+	INT_CLASS_MC,
+	INT_CLASS_DBG,
+};
+
+void kvmppc_set_pending_interrupt(struct kvm_vcpu *vcpu, enum int_class type);
 
 #endif /* __KVM_BOOKE_H__ */

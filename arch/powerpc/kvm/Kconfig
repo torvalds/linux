@@ -90,6 +90,9 @@ config KVM_BOOK3S_64_PR
 	depends on KVM_BOOK3S_64 && !KVM_BOOK3S_64_HV
 	select KVM_BOOK3S_PR
 
+config KVM_BOOKE_HV
+	bool
+
 config KVM_440
 	bool "KVM support for PowerPC 440 processors"
 	depends on EXPERIMENTAL && 44x

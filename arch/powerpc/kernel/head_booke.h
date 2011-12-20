@@ -3,6 +3,7 @@
 
 #include <asm/ptrace.h>	/* for STACK_FRAME_REGS_MARKER */
 #include <asm/kvm_asm.h>
+#include <asm/kvm_booke_hv_asm.h>
 
 /*
  * Macros used for common Book-e exception handling
@@ -36,8 +37,9 @@
 	stw	r11, THREAD_NORMSAVE(0)(r10);				     \
 	stw	r13, THREAD_NORMSAVE(2)(r10);				     \
 	mfcr	r13;			/* save CR in r13 for now	   */\
-	mfspr	r11,SPRN_SRR1;		/* check whether user or kernel    */\
-	andi.	r11,r11,MSR_PR;						     \
+	mfspr	r11, SPRN_SRR1;		                                     \
+	DO_KVM	BOOKE_INTERRUPT_##intno SPRN_SRR1;			     \
+	andi.	r11, r11, MSR_PR;	/* check whether user or kernel    */\
 	mr	r11, r1;						     \
 	beq	1f;							     \
 	/* if from user, start at top of this thread's kernel stack */       \
@@ -123,8 +125,9 @@
 	stw	r10,GPR10(r8);						     \
 	stw	r11,GPR11(r8);						     \
 	stw	r9,_CCR(r8);		/* save CR on stack		   */\
-	mfspr	r10,exc_level_srr1;	/* check whether user or kernel    */\
-	andi.	r10,r10,MSR_PR;						     \
+	mfspr	r11,exc_level_srr1;	/* check whether user or kernel    */\
+	DO_KVM	BOOKE_INTERRUPT_##intno exc_level_srr1;		             \
+	andi.	r11,r11,MSR_PR;						     \
 	mfspr	r11,SPRN_SPRG_THREAD;	/* if from user, start at top of   */\
 	lwz	r11,THREAD_INFO-THREAD(r11); /* this thread's kernel stack */\
 	addi	r11,r11,EXC_LVL_FRAME_OVERHEAD;	/* allocate stack frame    */\
@@ -171,6 +174,23 @@
 #define MCHECK_EXCEPTION_PROLOG \
 		EXC_LEVEL_EXCEPTION_PROLOG(MC, MACHINE_CHECK, \
 			SPRN_MCSRR0, SPRN_MCSRR1)
+
+/*
+ * Guest Doorbell -- this is a bit odd in that uses GSRR0/1 despite
+ * being delivered to the host.  This exception can only happen
+ * inside a KVM guest -- so we just handle up to the DO_KVM rather
+ * than try to fit this into one of the existing prolog macros.
+ */
+#define GUEST_DOORBELL_EXCEPTION \
+	START_EXCEPTION(GuestDoorbell);					     \
+	mtspr	SPRN_SPRG_WSCRATCH0, r10;	/* save one register */	     \
+	mfspr	r10, SPRN_SPRG_THREAD;					     \
+	stw	r11, THREAD_NORMSAVE(0)(r10);				     \
+	mfspr	r11, SPRN_SRR1;		                                     \
+	stw	r13, THREAD_NORMSAVE(2)(r10);				     \
+	mfcr	r13;			/* save CR in r13 for now	   */\
+	DO_KVM	BOOKE_INTERRUPT_GUEST_DBELL SPRN_GSRR1;			     \
+	trap
 
 /*
  * Exception vectors.

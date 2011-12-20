@@ -106,6 +106,8 @@ struct kvm_vcpu_stat {
 	u32 dec_exits;
 	u32 ext_intr_exits;
 	u32 halt_wakeup;
+	u32 dbell_exits;
+	u32 gdbell_exits;
 #ifdef CONFIG_PPC_BOOK3S
 	u32 pf_storage;
 	u32 pf_instruc;
@@ -140,6 +142,7 @@ enum kvm_exit_types {
 	EMULATED_TLBSX_EXITS,
 	EMULATED_TLBWE_EXITS,
 	EMULATED_RFI_EXITS,
+	EMULATED_RFCI_EXITS,
 	DEC_EXITS,
 	EXT_INTR_EXITS,
 	HALT_WAKEUP,
@@ -147,6 +150,8 @@ enum kvm_exit_types {
 	FP_UNAVAIL,
 	DEBUG_EXITS,
 	TIMEINGUEST,
+	DBELL_EXITS,
+	GDBELL_EXITS,
 	__NUMBER_OF_KVM_EXIT_TYPES
 };
 
@@ -217,10 +222,10 @@ struct kvm_arch_memory_slot {
 };
 
 struct kvm_arch {
+	unsigned int lpid;
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 	unsigned long hpt_virt;
 	struct revmap_entry *revmap;
-	unsigned int lpid;
 	unsigned int host_lpid;
 	unsigned long host_lpcr;
 	unsigned long sdr1;
@@ -345,6 +350,17 @@ struct kvm_vcpu_arch {
 	u64 vsr[64];
 #endif
 
+#ifdef CONFIG_KVM_BOOKE_HV
+	u32 host_mas4;
+	u32 host_mas6;
+	u32 shadow_epcr;
+	u32 epcr;
+	u32 shadow_msrp;
+	u32 eplc;
+	u32 epsc;
+	u32 oldpir;
+#endif
+
 #ifdef CONFIG_PPC_BOOK3S
 	/* For Gekko paired singles */
 	u32 qpr[32];
@@ -428,6 +444,7 @@ struct kvm_vcpu_arch {
 	ulong queued_esr;
 	u32 tlbcfg[4];
 	u32 mmucfg;
+	u32 epr;
 #endif
 	gpa_t paddr_accessed;
 
