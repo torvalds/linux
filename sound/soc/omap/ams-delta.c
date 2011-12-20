@@ -636,7 +636,7 @@ err:
 	platform_device_put(ams_delta_audio_platform_device);
 	return ret;
 }
-module_init(ams_delta_module_init);
+late_initcall(ams_delta_module_init);
 
 static void __exit ams_delta_module_exit(void)
 {

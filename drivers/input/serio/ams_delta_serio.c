@@ -165,7 +165,7 @@ serio:
 	kfree(ams_delta_serio);
 	return err;
 }
-module_init(ams_delta_serio_init);
+late_initcall(ams_delta_serio_init);
 
 static void __exit ams_delta_serio_exit(void)
 {

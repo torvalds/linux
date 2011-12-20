@@ -275,11 +275,14 @@ static struct omap1_cam_platform_data ams_delta_camera_platform_data = {
 };
 
 static struct platform_device *ams_delta_devices[] __initdata = {
-	&ams_delta_nand_device,
 	&ams_delta_kp_device,
+	&ams_delta_camera_device,
+};
+
+static struct platform_device *late_devices[] __initdata = {
+	&ams_delta_nand_device,
 	&ams_delta_lcd_device,
 	&ams_delta_led_device,
-	&ams_delta_camera_device,
 };
 
 static void __init ams_delta_init(void)
@@ -306,9 +309,6 @@ static void __init ams_delta_init(void)
 	omap_board_config_size = ARRAY_SIZE(ams_delta_config);
 	omap_serial_init();
 	omap_register_i2c_bus(1, 100, NULL, 0);
-
-	/* Clear latch2 (NAND, LCD, modem enable) */
-	ams_delta_latch2_write(~0, 0);
 
 	omap1_usb_init(&ams_delta_usb_config);
 	omap1_set_camera_info(&ams_delta_camera_platform_data);
@@ -345,12 +345,17 @@ static struct platform_device ams_delta_modem_device = {
 	},
 };
 
-static int __init ams_delta_modem_init(void)
+static int __init late_init(void)
 {
 	int err;
 
 	if (!machine_is_ams_delta())
 		return -ENODEV;
+
+	/* Clear latch2 (NAND, LCD, modem enable) */
+	ams_delta_latch2_write(~0, 0);
+
+	platform_add_devices(late_devices, ARRAY_SIZE(late_devices));
 
 	omap_cfg_reg(M14_1510_GPIO2);
 	ams_delta_modem_ports[0].irq =
@@ -367,9 +372,16 @@ static int __init ams_delta_modem_init(void)
 		AMS_DELTA_LATCH2_MODEM_NRESET | AMS_DELTA_LATCH2_MODEM_CODEC,
 		AMS_DELTA_LATCH2_MODEM_NRESET | AMS_DELTA_LATCH2_MODEM_CODEC);
 
-	return platform_device_register(&ams_delta_modem_device);
+	err = platform_device_register(&ams_delta_modem_device);
+	if (err)
+		goto gpio_free;
+	return 0;
+
+gpio_free:
+	gpio_free(AMS_DELTA_GPIO_PIN_MODEM_IRQ);
+	return err;
 }
-arch_initcall(ams_delta_modem_init);
+late_initcall(late_init);
 
 static void __init ams_delta_map_io(void)
 {
