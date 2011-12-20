@@ -29,15 +29,18 @@
 #include <asm/kvm_ppc.h>
 
 #include "44x_tlb.h"
+#include "booke.h"
 
 void kvmppc_core_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
+	kvmppc_booke_vcpu_load(vcpu, cpu);
 	kvmppc_44x_tlb_load(vcpu);
 }
 
 void kvmppc_core_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	kvmppc_44x_tlb_put(vcpu);
+	kvmppc_booke_vcpu_put(vcpu);
 }
 
 int kvmppc_core_check_processor_compat(void)

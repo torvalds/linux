@@ -36,6 +36,7 @@ void kvmppc_core_load_guest_debugstate(struct kvm_vcpu *vcpu)
 
 void kvmppc_core_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
+	kvmppc_booke_vcpu_load(vcpu, cpu);
 	kvmppc_e500_tlb_load(vcpu, cpu);
 }
 
@@ -47,6 +48,8 @@ void kvmppc_core_vcpu_put(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.shadow_msr & MSR_SPE)
 		kvmppc_vcpu_disable_spe(vcpu);
 #endif
+
+	kvmppc_booke_vcpu_put(vcpu);
 }
 
 int kvmppc_core_check_processor_compat(void)

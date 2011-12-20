@@ -968,6 +968,14 @@ void kvmppc_decrementer_func(unsigned long data)
 	kvmppc_set_tsr_bits(vcpu, TSR_DIS);
 }
 
+void kvmppc_booke_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
+{
+}
+
+void kvmppc_booke_vcpu_put(struct kvm_vcpu *vcpu)
+{
+}
+
 int __init kvmppc_booke_init(void)
 {
 	unsigned long ivor[16];

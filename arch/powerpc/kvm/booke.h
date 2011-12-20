@@ -71,4 +71,7 @@ void kvmppc_save_guest_spe(struct kvm_vcpu *vcpu);
 /* high-level function, manages flags, host state */
 void kvmppc_vcpu_disable_spe(struct kvm_vcpu *vcpu);
 
+void kvmppc_booke_vcpu_load(struct kvm_vcpu *vcpu, int cpu);
+void kvmppc_booke_vcpu_put(struct kvm_vcpu *vcpu);
+
 #endif /* __KVM_BOOKE_H__ */
