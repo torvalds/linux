@@ -30,20 +30,6 @@ static int imote2_asoc_hw_params(struct snd_pcm_substream *substream,
 		break;
 	}
 
-	/* set codec DAI configuration */
-	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S
-				  | SND_SOC_DAIFMT_NB_NF
-				  | SND_SOC_DAIFMT_CBS_CFS);
-	if (ret < 0)
-		return ret;
-
-	/* CPU should be clock master */
-	ret = snd_soc_dai_set_fmt(cpu_dai,  SND_SOC_DAIFMT_I2S
-				  | SND_SOC_DAIFMT_NB_NF
-				  | SND_SOC_DAIFMT_CBS_CFS);
-	if (ret < 0)
-		return ret;
-
 	ret = snd_soc_dai_set_sysclk(codec_dai, 0, clk,
 				     SND_SOC_CLOCK_IN);
 	if (ret < 0)
@@ -67,6 +53,8 @@ static struct snd_soc_dai_link imote2_dai = {
 	.codec_dai_name = "wm8940-hifi",
 	.platform_name = "pxa-pcm-audio",
 	.codec_name = "wm8940-codec.0-0034",
+	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+		   SND_SOC_DAIFMT_CBS_CFS,
 	.ops = &imote2_asoc_ops,
 };
 
