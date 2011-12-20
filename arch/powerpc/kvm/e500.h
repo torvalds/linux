@@ -2,6 +2,7 @@
  * Copyright (C) 2008-2011 Freescale Semiconductor, Inc. All rights reserved.
  *
  * Author: Yu Liu <yu.liu@freescale.com>
+ *         Ashish Kalra <ashish.kalra@freescale.com>
  *
  * Description:
  * This file is based on arch/powerpc/kvm/44x_tlb.h and
@@ -25,6 +26,7 @@
 
 #define E500_TLB_VALID 1
 #define E500_TLB_DIRTY 2
+#define E500_TLB_BITMAP 4
 
 struct tlbe_ref {
 	pfn_t pfn;
@@ -81,6 +83,9 @@ struct kvmppc_vcpu_e500 {
 
 	struct page **shared_tlb_pages;
 	int num_shared_tlb_pages;
+
+	u64 *g2h_tlb1_map;
+	unsigned int *h2g_tlb1_rmap;
 
 #ifdef CONFIG_KVM_E500
 	u32 pid[E500_PID_NUM];
